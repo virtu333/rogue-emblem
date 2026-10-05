@@ -300,8 +300,11 @@ export class MobileBattleHUD {
 
   available({ allowTurnStart = false } = {}) {
     const s = this.scene;
+    // An EXP gauge holds the pad over the scene but blocks nothing: the rail stays live
+    // (and lit) under it, and a press on it skips the gauge first (XpGaugeController).
+    const sceneInput = hasInputFocus(s) || s._xpGauge?.holdsFocusOf?.(s) === true;
     return (
-      (hasInputFocus(s) || (this.modal && hasInputFocus(this))) &&
+      (sceneInput || (this.modal && hasInputFocus(this))) &&
       (!s.isStoryInputLocked() || (allowTurnStart && s.battleState === 'TURN_START_RESOLVING')) &&
       !s.pauseOverlay?.visible &&
       !s.unitDetailOverlay?.visible &&

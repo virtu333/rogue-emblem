@@ -26,6 +26,8 @@ import { ColosseumOverlay } from '../src/ui/ColosseumOverlay.js';
 import { ArenaMenu } from '../src/ui/ArenaMenu.js';
 import { createLordUnit, createRecruitUnit } from '../src/engine/UnitManager.js';
 import { _resetInputFocus } from '../src/utils/inputFocus.js';
+import { DOM_UI_DEPTHS } from '../src/utils/uiDepths.js';
+import { buildXpGauge } from '../src/ui/XpGaugeController.js';
 
 const gameData = loadGameData();
 const cls = (name) => gameData.classes.find((c) => c.name === name);
@@ -331,12 +333,12 @@ describe('boss recruit choice is durable', () => {
 });
 
 describe('colosseum', () => {
-  it('arena levels play the level-up card once, after the fight is settled and saved', async () => {
+  it('arena levels play the level-up card once, after the fight is settled and saved, over the result', async () => {
     const order = [];
     const levelSpy = vi
       .spyOn(GrowthCeremonyController.prototype, 'showLevelUp')
-      .mockImplementation(async ({ result, frame }) => {
-        order.push({ card: result.newLevel, frame });
+      .mockImplementation(async ({ result, frame, depth }) => {
+        order.push({ card: result.newLevel, frame, depth });
         return true;
       });
     const resultSpy = vi.spyOn(ArenaMenu, 'result').mockImplementation(() => {
@@ -361,10 +363,73 @@ describe('colosseum', () => {
     });
     overlay._showResult('win', {});
     await vi.advanceTimersByTimeAsync(0);
-    expect(order).toEqual(['settled+saved', { card: 5, frame: 'screen' }, 'result']);
+    // The result card opens first (its EXP bar hands off to the card, which plays over
+    // it: docs/specs/exp-bars.md §2.6).
+    expect(order).toEqual([
+      'settled+saved',
+      'result',
+      { card: 5, frame: 'screen', depth: DOM_UI_DEPTHS.RITE },
+    ]);
     // Re-showing the same settled result never replays the card.
     overlay._showResult('win', {});
     await vi.advanceTimersByTimeAsync(0);
+    expect(levelSpy).toHaveBeenCalledTimes(1);
+    levelSpy.mockRestore();
+    resultSpy.mockRestore();
+  });
+
+  it("the result card's EXP bar fills once, then hands off to the level card", async () => {
+    const order = [];
+    const levelSpy = vi
+      .spyOn(GrowthCeremonyController.prototype, 'showLevelUp')
+      .mockImplementation(async ({ result }) => {
+        order.push({ card: result.newLevel, value: meter().getAttribute('aria-valuenow') });
+        return true;
+      });
+    let view = null;
+    const meter = () => view.track;
+    const resultSpy = vi.spyOn(ArenaMenu, 'result').mockImplementation((...args) => {
+      view = buildXpGauge(args[5]);
+      order.push('result');
+      return { destroy() {}, focus() {}, xpView: view };
+    });
+    const unit = { name: 'Edric', className: 'Lord', stats: { HP: 20, STR: 7 } };
+    // Lv 4, 80 XP, +40: 20 to the wrap (180 ms), the beat (300 ms), 20 more (180 ms).
+    const xpRecord = {
+      unitName: 'Edric',
+      before: { level: 4, extendedLevels: 0, xp: 80, capped: false },
+      after: { level: 5, extendedLevels: 0, xp: 20, capped: false },
+      gained: 40,
+      segments: [
+        { from: 80, to: 100, level: 4, extendedLevels: 0, label: '4', wraps: true },
+        { from: 0, to: 20, level: 5, extendedLevels: 0, label: '5' },
+      ],
+    };
+    const settled = {
+      reward: { goldDelta: 100, xpGained: 40 },
+      levelUpInfo: { from: '4', to: '5', ups: [{ newLevel: 5, gains: { STR: 1 } }], learnedSkills: [] }, // prettier-ignore
+      xpRecord,
+    };
+    const overlay = Object.assign(Object.create(ColosseumOverlay.prototype), {
+      scene: { events: eventsFor(), registry: { get: () => null }, gameData },
+      gameData,
+      visible: true,
+      _selectedUnit: unit,
+      _settleFight: () => settled,
+      nativeMenu: null,
+    });
+    overlay._showResult('win', {});
+    expect(order).toEqual(['result']);
+    expect(meter().getAttribute('aria-valuenow')).toBe('80');
+    await vi.advanceTimersByTimeAsync(300);
+    expect(order).toEqual(['result']); // still filling
+    await vi.advanceTimersByTimeAsync(500);
+    // Filled to the new value, then the card.
+    expect(order).toEqual(['result', { card: 5, value: '20' }]);
+    // Shown again (Back, a resize): the end state at once, the card never again.
+    overlay._showResult('win', {});
+    expect(meter().getAttribute('aria-valuenow')).toBe('20');
+    await vi.advanceTimersByTimeAsync(1000);
     expect(levelSpy).toHaveBeenCalledTimes(1);
     levelSpy.mockRestore();
     resultSpy.mockRestore();

@@ -64,16 +64,19 @@ export class PendingRewardController {
   }
   activateReward(index) {
     let notice = [];
+    let bars = null;
     const result = this.applyNativeReward(index, () => {
       const run = this.host.runManager,
         choice = this.choices[index];
       if (!choice) run.awardGold(this.record.skipGold);
       else if (choice.type === 'gold') {
         run.awardGold(choice.goldAmount || 0);
+        const extendedLevelingEnabled = run.getDifficultyModifier('extendedLevelingEnabled', false);
         const report = awardTeamXp(run.roster, choice.xpAmount, this.host.gameData.classes, {
-          extendedLevelingEnabled: run.getDifficultyModifier('extendedLevelingEnabled', false),
+          extendedLevelingEnabled,
         });
         notice = teamXpLines(report, this.host.gameData.skills);
+        bars = report.map((entry) => ({ unit: entry.unit, extendedLevelingEnabled }));
       } else if (choice.type === 'accessory')
         (run.accessories ||= []).push(structuredClone(choice.item));
       else if (choice.item?.type === 'Scroll')
@@ -87,7 +90,8 @@ export class PendingRewardController {
       return;
     }
     // Team XP names who levelled and which class skill came (or found no free slot).
-    if (notice.length) this.mobileRewards.showNotice('Team XP', notice, () => this.finish());
+    if (notice.length)
+      this.mobileRewards.showNotice('Team XP', notice, () => this.finish(), { bars });
     else this.finish();
   }
   finish() {

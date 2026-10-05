@@ -335,14 +335,16 @@ export class LootScreenController {
           awardGoldNow(scaledGoldAmount);
           // Team XP to the whole roster; the level-ups and class skills are named
           // before the loot screen moves on.
+          const extendedLevelingEnabled =
+            runManager?.getDifficultyModifier?.('extendedLevelingEnabled', false) || false;
           const report = awardTeamXp(runManager.roster, choice.xpAmount, gameData.classes, {
-            extendedLevelingEnabled:
-              runManager?.getDifficultyModifier?.('extendedLevelingEnabled', false) || false,
+            extendedLevelingEnabled,
           });
           const lines = teamXpLines(report, gameData.skills);
+          const bars = report.map((entry) => ({ unit: entry.unit, extendedLevelingEnabled }));
           const done = () => scene.finalizeLootPick(lootGroup, cardIdx);
           if (lines.length && this.mobileRewards)
-            this.mobileRewards.showNotice('Team XP', lines, done);
+            this.mobileRewards.showNotice('Team XP', lines, done, { bars });
           else done();
         };
       } else if (choice.type === 'forge') {

@@ -1,0 +1,156 @@
+/* The battle's EXP gauge (XpGaugeController, docs/specs/exp-bars.md §2): one wide gilt
+   bar across the map frame, "EXP" in the left medallion, the count in the right one and
+   "+N" under its end. Original art in the game's own gilt, drawn from palette tokens
+   (accent / accentText gilt, void medallions, a sunken bed, the info fill), borrowing
+   nothing from any other game. Built on ceremony.css (.ce-layer, --ce-pf-*, .is-static);
+   the layer is non-blocking, so nothing here takes a pointer. */
+
+.xg-gauge {
+  /* What the fill shows: the XP held before the gain, and the value now (0..1). */
+  --xg-held: 0;
+  --xg-value: 0;
+  --xg-bar-h: 12px;
+  --xg-medal: 34px;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  /* About 70% of the frame, at least 320 px, never past the gutters. */
+  width: min(calc(100% - 16px), max(320px, 70%));
+  transform: translateX(-50%);
+  pointer-events: none;
+  filter: drop-shadow(0 2px 3px var(--re-shade-edge));
+}
+
+/* The medallions: void discs ringed in gilt. */
+.xg-medal {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: var(--xg-medal);
+  height: var(--xg-medal);
+  border: 2px solid var(--re-accent);
+  border-radius: 50%;
+  background: var(--re-void);
+  box-shadow:
+    inset 0 0 0 1px var(--re-gilt-lo),
+    0 0 0 1px var(--re-void);
+  color: var(--re-accent-text);
+  font-family: var(--re-pixel);
+  font-size: var(--ce-pf-7, 7px);
+  line-height: 1;
+  white-space: nowrap;
+}
+.xg-medal--value {
+  font-size: var(--ce-pf-8, 8px);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The bar: a sunken bed between two gilt rules. */
+.xg-track {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--xg-bar-h);
+  overflow: hidden;
+  border-top: 2px solid var(--re-accent);
+  border-bottom: 2px solid var(--re-accent);
+  background: var(--re-sunken);
+  box-shadow: inset 0 1px 0 var(--re-void);
+}
+.xg-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+}
+/* The gained span, bright, under the held span; both are transforms. */
+.xg-fill--gain {
+  background: var(--re-accent-text);
+  transform: scaleX(var(--xg-value));
+}
+.xg-fill--held {
+  background: var(--re-info);
+  transform: scaleX(var(--xg-held));
+}
+.xg-gauge.is-settled .xg-fill--gain {
+  background: var(--re-info);
+}
+
+/* "+N" under the right end. */
+.xg-plus {
+  position: absolute;
+  right: 4px;
+  top: 100%;
+  margin-top: 3px;
+  color: var(--re-accent-text);
+  font-family: var(--re-pixel);
+  font-size: var(--ce-pf-7, 7px);
+  line-height: 1;
+  text-shadow: 0 1px 0 var(--re-void);
+  white-space: nowrap;
+}
+
+/* LV↑: the whole medallion during a wrap's beat; a small kicker over the count on a
+   gauge that showed its end state at once (Instant, Reduce motion). */
+.xg-lvup {
+  display: none;
+  font-size: var(--ce-pf-6, 6px);
+  line-height: 1.2;
+}
+.xg-gauge.is-beat .xg-lvup,
+.xg-gauge.is-wrapped .xg-lvup {
+  display: block;
+}
+.xg-gauge.is-beat .xg-lvup {
+  font-size: var(--ce-pf-7, 7px);
+}
+
+/* A wrap: the bar flashes with the accent glow. */
+.xg-gauge.is-flash .xg-track {
+  box-shadow:
+    inset 0 1px 0 var(--re-void),
+    0 0 8px 2px var(--ce-glow-gold);
+}
+.xg-gauge.is-flash .xg-medal--value {
+  border-color: var(--re-accent-text);
+  box-shadow:
+    inset 0 0 0 1px var(--re-accent),
+    0 0 8px 2px var(--ce-glow-gold);
+}
+.xg-layer.is-low-fx .xg-gauge.is-flash .xg-track,
+.xg-layer.is-low-fx .xg-gauge.is-flash .xg-medal--value {
+  box-shadow: inset 0 1px 0 var(--re-void);
+}
+
+/* At the level cap: a full bar in the muted colour, MAX in the medallion. */
+.xg-gauge.is-max .xg-fill--gain,
+.xg-gauge.is-max .xg-fill--held {
+  background: var(--re-muted);
+}
+
+/* Inline in a menu card (the arena's result): the same bar in the card's flow. */
+.xg-inline-row {
+  padding: 6px 4px 16px;
+}
+.xg-gauge.is-inline {
+  position: relative;
+  left: auto;
+  top: auto;
+  width: 100%;
+  max-width: 420px;
+  transform: none;
+  pointer-events: auto;
+  filter: none;
+}
+
+@media (orientation: portrait) {
+  /* Upright the frame is a phone's width: the gauge spans it less the gutters. */
+  html:is(.portrait-ui, .portrait-battle-capable) .xg-layer .xg-gauge {
+    width: calc(100% - 16px);
+  }
+}

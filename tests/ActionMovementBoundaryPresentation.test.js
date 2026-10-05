@@ -231,6 +231,7 @@ async function run(kind, failure = 0, world = 'shown') {
       state: scene.battleState,
       pending: scene._pendingActionCompletion,
       queue: scene._pendingLevelUpPopups,
+      gauges: scene._pendingXpGauges,
       recruits: scene._battleRecruits,
       visible: scene.grid.visibleSet,
       narrative: scene.runManager.narrativeSeen,
@@ -276,6 +277,8 @@ describe('movement and utility actions settle through their shipping entry point
         expect(actor.xp).toBe(kind === 'dance growth' ? 15 : 20);
         expect(target.hasActed).toBe(false);
         expect(target.hasMoved).toBe(false);
+        // The dance's gain plays its EXP gauge (queued in the settlement, present: false).
+        expect(calls.labels).toContain('gauge.play');
         expect(target._movementCommitted).toBe(false);
       }
       if (kind === 'blink') {

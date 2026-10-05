@@ -487,6 +487,11 @@ html.mobile-preview .mu-screen {
 .mu-screen .reward-notice li + li {
   margin-top: 6px;
 }
+/* Team XP: each levelled unit's EXP bar under its line, at the value it now holds. */
+.mu-screen .reward-notice .reward-notice-xp {
+  display: flex;
+  margin-top: 2px;
+}
 
 .reward-tools {
   display: flex;

@@ -9,8 +9,8 @@ vi.mock('../src/ui/MobileRewards.js', () => ({
     constructor() {
       this.steps = [];
     }
-    showNotice(title, lines, onContinue) {
-      notices.push({ title, lines, onContinue });
+    showNotice(title, lines, onContinue, options) {
+      notices.push({ title, lines, onContinue, options });
     }
     destroy() {}
     open() {}
@@ -116,9 +116,55 @@ describe('claiming a team XP reward from the route map', () => {
     expect(notices).toHaveLength(1);
     expect(notices[0].title).toBe('Team XP');
     expect(notices[0].lines.some((l) => l.startsWith('Kira: Lv 9 → 10'))).toBe(true);
+    // One EXP bar per line, for the unit the line names (drawn at its final value).
+    const bars = notices[0].options.bars;
+    expect(bars).toHaveLength(notices[0].lines.length);
+    notices[0].lines.forEach((line, i) =>
+      expect(line.startsWith(`${bars[i].unit.name}:`)).toBe(true),
+    );
+    expect(bars.find((b) => b.unit === kira)).toEqual({
+      unit: kira,
+      extendedLevelingEnabled: false,
+    });
     expect(onComplete).not.toHaveBeenCalled();
     notices[0].onContinue();
     expect(onComplete).toHaveBeenCalledOnce();
     vi.unstubAllGlobals();
+  });
+});
+
+describe('the Team XP notice', () => {
+  it('draws each levelled unit’s EXP bar under its line, at the value it now holds', async () => {
+    const { installFakeDom } = await import('./helpers/fakeDom.js');
+    const { MobileRewards } = await vi.importActual('../src/ui/MobileRewards.js');
+    const dom = installFakeDom(vi);
+    try {
+      const kira = myrmidon('Kira', 9, 90);
+      const report = awardTeamXp([kira], 25, data.classes);
+      // Lv 9, 90 XP, +25: Lv 10 with 15.
+      expect([kira.level, kira.xp]).toEqual([10, 15]);
+      const host = {
+        root: dom.doc.createElement('div'),
+        button: () => dom.doc.createElement('button'),
+        notice: {
+          title: 'Team XP',
+          lines: teamXpLines(report, data.skills),
+          bars: report.map((e) => ({ unit: e.unit })),
+        },
+      };
+      MobileRewards.prototype.renderNotice.call(host);
+      const items = host.root.querySelectorAll('li');
+      expect(items).toHaveLength(1);
+      const meter = items[0].querySelector('.re-xp');
+      expect(meter.getAttribute('role')).toBe('meter');
+      expect(meter.getAttribute('aria-valuenow')).toBe('15');
+      expect(items[0].querySelector('.re-xp-value').textContent).toBe('15/100');
+      // Lines with no bars stay text only.
+      host.notice.bars = null;
+      MobileRewards.prototype.renderNotice.call(host);
+      expect(host.root.querySelectorAll('.re-xp')).toHaveLength(0);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

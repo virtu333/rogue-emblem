@@ -178,6 +178,8 @@ export class PrologueController {
     // lesson is practised by that choice, never by the battle merely starting; an
     // auto-deploy or a resumed battle confirms nothing).
     const deployed = scene._deployConfirmation;
+    // Read once: a controller made again on this scene confirms nothing new.
+    scene._deployConfirmation = null;
     if (deployed && typeof deployed === 'object')
       void this.emit({ type: 'deployed', count: Number(deployed.count) || 0 });
     return this;
@@ -1394,6 +1396,10 @@ export class PrologueController {
     const scene = this.scene;
     const gameData = scene.gameData;
     const session = battleSession(scene);
+    // A level-up card or EXP gauge recorded before the fall never plays over the
+    // restarted chapter (the re-opened scene starts with empty queues too).
+    scene._pendingLevelUpPopups = [];
+    scene._pendingXpGauges = [];
     if (this.run) {
       const rm = this.run;
       const nodeId = rm.battleInProgress?.nodeId || scene.nodeId;

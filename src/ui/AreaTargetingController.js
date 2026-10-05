@@ -52,7 +52,7 @@ import { AreaPreviewController } from './AreaPreviewController.js';
 import { BattleBeatsController } from './BattleBeatsController.js';
 import { completeBattleAction } from './BattleActionCompletion.js';
 import { historyUnitVisible, observeHistoryAction } from './BattleHistoryRecorder.js';
-import { completeResolvedAction, presentQueuedLevelUps } from './BattlePresentationCheckpoint.js';
+import { completeResolvedAction, presentQueuedProgress } from './BattlePresentationCheckpoint.js';
 import { battleSession, isCurrentBattleSession } from './BattleSession.js';
 import { playerKnowledgeOf } from './battleKnowledge.js';
 import { menuRow, railOwnsMenus } from './battleMenuModel.js';
@@ -591,7 +591,7 @@ export class AreaTargetingController {
         unitName: unit.name,
         ...(unit.battleEntityId ? { unitId: unit.battleEntityId } : {}),
       };
-      await presentQueuedLevelUps(scene, continuation, { session });
+      await presentQueuedProgress(scene, continuation, { session });
       if (!isCurrentBattleSession(scene, session)) return false;
       completeResolvedAction(scene, continuation, { session });
       return true;

@@ -109,7 +109,9 @@ export class MovementActionController {
         target.ally.hasActed = false;
         return { xp: scene.awardScaledXP(unit, XP_BASE_DANCE, { present: false }) };
       },
-      present: ({ xp }) => {
+      // The gain's EXP gauge plays after this, with any level-up card (awardScaledXP
+      // queued its record in the settlement).
+      present: () => {
         safeBattlePresentation('dance menu', () => scene.hideActionMenu(), { scene });
         safeBattlePresentation('dance refresh graphic', () => scene.undimUnit(target.ally), {
           scene,
@@ -136,7 +138,6 @@ export class MovementActionController {
           },
           { scene },
         );
-        scene._presentScaledXP(unit, xp);
       },
     });
   }

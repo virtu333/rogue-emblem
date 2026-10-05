@@ -16,7 +16,7 @@ import { MobileRosterSheet, canShowMobileRoster } from './MobileRosterSheet.js';
 // Tabbed display: Stats tab (stats, proficiencies, growths, terrain) | Gear tab (inventory, consumables, accessory, skills)
 // Optional roster cycling via UP/DOWN arrows when opened with roster context
 
-import { XP_STAT_NAMES, XP_PER_LEVEL, MAX_SKILLS } from '../utils/constants.js';
+import { XP_STAT_NAMES, MAX_SKILLS } from '../utils/constants.js';
 import {
   getStaticCombatStats,
   calculateAvoid,
@@ -50,6 +50,7 @@ import { STAT_DESCRIPTIONS } from '../data/helpContent.js';
 import { portraitCanvasFrame } from './portraitArt.js';
 import { epithetText } from '../engine/DeedTitles.js';
 import { fitCanvasText } from './deedDisplay.js';
+import { drawCanvasXpRow } from './xpBar.js';
 
 const OVERLAY_W = 400;
 const OVERLAY_H = 370;
@@ -310,11 +311,6 @@ export class UnitDetailOverlay {
       '10px',
     );
 
-    if (unit.faction === 'player' && unit.xp !== undefined) {
-      y += 14;
-      this._unitText(lx, y, `XP: ${unit.xp}/${XP_PER_LEVEL}`, UI_PALETTE.info, '10px');
-    }
-
     y += 14;
     if (unit.moveType) {
       this._unitText(lx, y, `Move: ${unit.moveType}`, UI_COLORS.gray, '10px');
@@ -336,6 +332,19 @@ export class UnitDetailOverlay {
     this._unitObjects.push(barBg, barFill);
     this._unitText(lx + barW + 6, y, `${unit.currentHP}/${unit.stats.HP}`, STAT_COLORS.HP, '10px');
     y += 18;
+    // EXP under the HP bar, as the DOM profile draws it (player units only).
+    if (unit.faction === 'player' && unit.xp !== undefined) {
+      this._unitObjects.push(
+        ...drawCanvasXpRow(this.scene, lx, y, unit, {
+          text: (x, ty, str, color, size) => this._unitText(x, ty, str, color, size),
+          depth: DEPTH_TEXT,
+          extendedLevelingEnabled:
+            this.scene?.runManager?.getDifficultyModifier?.('extendedLevelingEnabled', false) ===
+            true,
+        }),
+      );
+      y += 18;
+    }
 
     for (const id of unit.affixes || []) {
       const affix = this.gameData?.affixes?.affixes?.find((a) => a.id === id);

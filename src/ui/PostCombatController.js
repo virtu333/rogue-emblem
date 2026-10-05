@@ -40,7 +40,7 @@ import { pushRunSave } from '../cloud/CloudSync.js';
 import { LordArrivalOverlay } from './LordArrivalOverlay.js';
 import { LootScreenController } from './LootScreenController.js';
 import { projectedMeterShadow, projectedRelief, projectedShadow } from './EclipseHudController.js';
-import { presentQueuedLevelUps } from './BattlePresentationCheckpoint.js';
+import { presentQueuedProgress } from './BattlePresentationCheckpoint.js';
 import { UI_PALETTE } from '../utils/uiStyles.js';
 import { recordRunLordsMet } from '../engine/LordsMet.js';
 
@@ -274,8 +274,8 @@ export class PostCombatController {
         try {
           // Enemy-phase counterattack levels are already in the completed-run
           // save. Present them here when victory skipped the next player turn.
-          if (scene._pendingLevelUpPopups?.length) {
-            await presentQueuedLevelUps(scene, null, { session: session });
+          if (scene._pendingLevelUpPopups?.length || scene._pendingXpGauges?.length) {
+            await presentQueuedProgress(scene, null, { session: session });
             if (!isCurrentBattleSession(scene, session)) return;
             if (!isCurrentBattleSession(scene, session) || !scene.scene?.isActive?.()) return;
           }

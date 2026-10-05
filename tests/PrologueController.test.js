@@ -645,6 +645,9 @@ describe('PrologueController in the prologue run', () => {
     scene._fatalCapturePending = true;
     scene._defeatDecision = { durable: true };
     scene._pendingCommittedAction = { stale: true };
+    // A level-up card and an EXP gauge recorded before the fall.
+    scene._pendingLevelUpPopups = [{ unitName: 'Edric', levelUp: {} }];
+    scene._pendingXpGauges = [{ unitName: 'Edric', gained: 5, segments: [{ from: 0, to: 5 }] }];
     edric.currentHP = 0;
     scene.playerUnits.splice(0, 1);
     expect(prologue.onDefeatIntercept({ fallen: edric })).toBe(true);
@@ -660,6 +663,9 @@ describe('PrologueController in the prologue run', () => {
     expect(scene._fatalCapturePending).toBe(false);
     expect(scene._defeatDecision).toBeNull();
     expect(scene._pendingCommittedAction).toBeNull();
+    // Neither plays over the restarted chapter.
+    expect(scene._pendingLevelUpPopups).toEqual([]);
+    expect(scene._pendingXpGauges).toEqual([]);
     expect(scene._persistBattleRunState).toHaveBeenCalledTimes(1);
     expect(restartScene).toHaveBeenCalledTimes(1);
     const [target, payload, options] = restartScene.mock.calls[0];

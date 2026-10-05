@@ -1,8 +1,10 @@
 # EXP bars
 
-Status: revision 3 (2026-10-05). Takes in the owner's decisions of 2026-10-05 (§6) and
-their reference image (a console FE EXP gauge). PR 1 (§5) is implemented; revision 3
-corrects §1 against the code and records PR 1's deviations and the notes for PR 2 (§7).
+Status: revision 4 (2026-10-05). Takes in the owner's decisions of 2026-10-05 (§6) and
+their reference image (a console FE EXP gauge). PR 1, PR 2 and PR 3 (§5) are
+implemented; revision 3 corrected §1 against the code and recorded PR 1's deviations and
+the notes for PR 2 (§7); revision 4 records what PR 2 and PR 3 built and where they
+differ from §2 and §3.2 (§8).
 
 Players can't follow XP. In battle, each gain shows as a faint "+N XP" for 0.8 s. In the
 roster it is a number inside a long text line: "Lv 7 Fighter · Base · XP 45/100 · HP
@@ -162,7 +164,7 @@ death fade) is earlier than the cards and would split the moment in two.
 | Instant | No fill. The gauge shows the final state for a 400 ms hold, so the number still registers |
 | Reduce motion | No fill or flash. Final state with the gained span marked, a 600 ms hold. A wrap shows "LV↑" in the medallion |
 | Low effects | No glow on the flash |
-| Tap, click, Confirm or Cancel | Skips to the end state, then closes |
+| Tap, click, Enter / Space / Esc, or the pad's Confirm / Cancel / Pause | Skips to the end state, then closes (below: what else a press does) |
 
 - **Timing.** The fill and hold go through the scaled waits: new `COMBAT_WAITS` labels
   `xp_gauge_fill` and `xp_gauge_hold` in `combatTiming.js`, with entries in
@@ -172,6 +174,18 @@ death fade) is earlier than the cards and would split the moment in two.
   plays after every enemy attack that lands on a living player unit. That matches FE,
   where the bar appears after every exchange. A +1 gain at normal speed adds about
   0.4 s per enemy combat; Fast and hold-to-fast-forward halve it.
+- **A press during a gauge** (revision 4, review 2026-10-05). On the map it only skips
+  (the board never reads it as a tap). On a DOM control (the rail, a note's button, the
+  rotate button) it skips and still works the control; the rail stays live under the
+  gauge. **A key press during a gauge** that is a skip key (Enter / Space / Esc, the
+  pad's Confirm / Cancel / Pause) skips it and does nothing else, as the blocking
+  ceremonies' skip keys do; every other key passes by untouched, and a scope opened over
+  the gauge keeps its own keys. Decided rather than passing Esc / Pause on: a gauge
+  plays only while an action resolves (combat, staff or dance settling, an enemy's
+  action, the turn start, victory), where neither opens anything (pause needs a planning
+  state, Back a selection) and the one thing they would still reach is the prologue's
+  gate nudge (`requestCancel` → `rejectStep`). The press costs nothing: the next Esc is
+  the battle's.
 
 ### 2.4 How it is built
 
@@ -379,3 +393,111 @@ PR 1 alone answers the roster half of the request and ships with no battle-flow 
   `idle()` before it reads the battle state (BattleScene ~9425); gauges queued at turn
   start drain in that pipeline after it, with the cards (~9438), never over a prologue
   note.
+
+## 8. Revision 4: implementation notes (PR 2 and PR 3)
+
+### What PR 2 built
+
+- **`src/ui/xpGaugeModel.js`** (pure): `xpGaugeRecord` (the gain record; null when
+  nothing counted, so a capped unit queues nothing), `xpGaugeTiming` (the §2.3 table),
+  `xpGaugePlan` / `xpGaugeFrame` / `xpGaugeFinal` (the fill as a timeline: one fill
+  phase per segment, a beat after each wrap, the end state), `xpGaugePlacement`, and
+  `progressSteps` (gauges and cards in presentation order: each gauge claims the first
+  cards queued for its unit, one per wrap; a card no gauge claims keeps its turn after
+  them).
+- **`src/ui/XpGaugeController.js`** (`create` / `destroy`, `xpGaugeFor(scene)` makes it
+  on demand, gone with the scene) with `src/ui/xpGauge.css` (imported from
+  `styles.css`) and a new depth, `DOM_UI_DEPTHS.XP_GAUGE` (960, over `BOSSBAR`, under
+  `CEREMONY`). `fillXpGauge` drives the fill on the animation clock; the battle gauge
+  and the arena's result card share it.
+- **The queue.** `awardScaledXP` pushes the record onto `scene._pendingXpGauges` for
+  every gain, whatever `present` says (`present` now only refreshes the HP bar). The
+  "+N XP" float (`_presentScaledXP`) is gone, with its calls in the staff and dance
+  presentations.
+- **`presentQueuedProgress`** (`BattlePresentationCheckpoint.js`; `presentQueuedLevelUps`
+  is the same function) plays each unit's gauge, then its cards, then the prologue's
+  level-up beat after each card. While the chapter has a note or a line on screen
+  (`isPresenting()`), a gauge first awaits `scene._prologue.idle()`, so it never opens
+  over one; the beat of the card ahead settles before the next unit's gauge. With no DOM
+  host there is no gauge and nothing to await: the queue stays synchronous up to its
+  first card, as before (the journey harness reads the popup at once). Every presenter (the end of
+  `executeCombat`, the area strike, `settleAndPresent`, after each enemy action, the
+  player turn start, `finishUnitAction`, victory in `PostCombatController`) runs when
+  only gauges are queued.
+- **Cleared** with the cards: Vision rewind, both fatal paths, scene init and shutdown,
+  and `PrologueController.restartChapter` (both the run and a standalone replay).
+- **Timing.** `COMBAT_WAITS` gains `xp_gauge_fill` and `xp_gauge_hold`;
+  `speedDuration(speed, label, ms)` is `waitDuration` at a known speed.
+
+### Deviations and decisions in PR 2
+
+- **Gauges alone capture nothing.** When cards are queued the continuation is captured
+  before the first gauge, as before; a queue of gauges only is presentation and takes no
+  checkpoint of its own (the player turn start captures its pre-presentation checkpoint
+  only for cards, and `preserveRng` still follows the cards). A refresh mid-gauge
+  replays nothing but the animation: the action's last checkpoint already holds the
+  gain. Checkpoint counts and the RNG stream are therefore unchanged from before the
+  gauge.
+- **Hold-to-fast-forward.** `battleSpeed` honours the hold only inside a combat's speed
+  snapshot; the gauge plays between exchanges, so `gaugeSpeed` counts the hold as Fast
+  in the enemy phase itself.
+- **Numbers the spec left open.** The wrap's beat is 300 ms (an `xp_gauge_hold` wait);
+  the eased tail of the last fill is at most 150 ms and at most a third of that fill;
+  Reduce motion's 600 ms hold is halved at Fast; Instant holds 400 ms with or without
+  Reduce motion.
+- **A static gauge that wrapped** (Instant, Reduce motion) keeps the count in the right
+  medallion with a small "LV↑" over it, so the number still registers; the animated beat
+  shows "LV↑" alone.
+- **Skipping on a non-blocking layer.** The layer lets touches through, so the gauge
+  listens for a press anywhere (document capture). A press on the map also sets the
+  scene's `_uiClickBlocked`, so its release is never read as a tap on the board the skip
+  hands back, and its click is swallowed. A press on a DOM control (the rail, a note's
+  "Got it", the rotate button) skips the gauge and still works the control: its own
+  click (on the pressed element or an ancestor) goes through, once; a click that lands
+  on anything else (what the skip opened or rebuilt under the finger, such as the
+  player-turn rail after a combat) is swallowed (review, 2026-10-05). Enter / Space / Esc
+  skip while the gauge holds input focus (it pushes an input scope, which also routes the
+  pad's Confirm / Cancel to it). That scope blocks nothing: the rail stays live and lit
+  under a gauge (`XpGaugeController.holdsFocusOf`, read by `MobileBattleHUD.available`);
+  before, it went inert and dimmed for every gauge. Keys: a skip key only skips, decided
+  in §2.3 ("A key press during a gauge"). The watchdog closes a gauge 2 s after its fill
+  and hold should have ended.
+- **Placement.** The map frame never includes the rail (beside it in landscape, under
+  it upright), so "would cover the rail" is "would leave the frame": below the tile when
+  it fits, else above, clamped inside the frame. Upright the gauge spans the frame less
+  8 px gutters.
+- **Accessibility.** The bar is a `meter` named "EXP" (`aria-valuenow` the count, MAX at
+  the cap as on the profile); the layer is a `status` with `aria-live="off"` (a count that
+  changes every frame is not news).
+- The layer carries `data-fill-ms` / `data-hold-ms` (the planned durations), which the
+  speed checks in `xp-gauge.spec.js` read.
+
+### What PR 3 built
+
+- **Arena result** (`ColosseumOverlay._showResult`, `ArenaMenu.result`): the result card
+  carries the gauge's bar (inline, `.xg-gauge.is-inline`), filled once from the fight's
+  gain record (`_settleFight` snapshots the unit around `gainExperience`; the gain and
+  its RNG are unchanged). **Order changed:** the result card opens first and the bar
+  hands off to the level card, which opens over it (`showLevelUp({ depth: RITE })`);
+  before, the cards played first and the result after. A press on the bar skips to its
+  end; leaving the result mid-fill finishes it (the card still plays, once). Shown again,
+  the bar is drawn at its end state and no card replays. The speed and motion settings
+  are the battle's.
+- **Team XP notice**: `MobileRewards.showNotice(title, lines, onContinue, { bars })`; both
+  claim paths pass one bar per line (the levelled unit, at the XP it now holds), drawn
+  with the profile's `createXpRow`. No animation.
+- **Canvas fallbacks** (`RosterOverlay`, `UnitDetailOverlay`): the "XP n/100" text line is
+  replaced by an EXP row under the HP bar (`drawCanvasXpRow` in `xpBar.js`, the 180×8
+  HP-bar code, MAX at the cap). The roster fallback's epithet, which shared the XP line,
+  has a line of its own.
+
+### Tests (§4)
+
+`XpGaugeModel.test.js`, `XpGaugeController.test.js` (fake DOM), `XpGaugeProgress.test.js`
+(Mentor's Band order, staff/dance records, the cap, no float, the prologue's order and
+waits, gauge-only presenters); the boundary presentation tests play a gauge
+(`gauge.play` in `PresentationFailureProxy`) and snapshot the queue; rewind, fatal and
+prologue-restart clearing in their own suites; `CombatTiming.test.js`;
+`GrowthCheckpointOrder.test.js` (the arena's hand-off); `TeamXp.test.js`; `XpBar.test.js`
+(the canvas row). Browser: `xp-gauge.spec.js` (presentation lane) and the upright gauge
+in `portrait-ceremonies.spec.js`.

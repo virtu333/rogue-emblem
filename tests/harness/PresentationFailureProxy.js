@@ -103,6 +103,8 @@ export function presentationFailureProxy(
     },
     'beats',
   );
+  // The EXP gauge (XpGaugeController): played, skipped or failing, it never changes state.
+  scene._xpGauge = surface({ play: async () => !skipped }, 'gauge');
   scene._inputController = surface({ refreshHoverInfo() {} }, 'input');
   scene._pinnedThreats = surface({ invalidate() {} }, 'pinned');
   scene.hideActionMenu = call(scene.hideActionMenu.bind(scene), 'hideActionMenu');

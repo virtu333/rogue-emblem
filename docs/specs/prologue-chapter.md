@@ -1169,7 +1169,12 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   as a new save (newer than both, so the next fetch keeps it): never by taking a larger
   balance, which would restore spent currency. A kept payload with no record or `none`
   cannot vouch for a receipt (a client from before the prologue drops the record and keeps a
-  fetched grant), so the other copy's receipt is kept and nothing is added. The local
+  fetched grant), so the other copy's receipt is kept and nothing is added. That is
+  conservative on purpose: when the kept copy is an untouched new-client slot (`none`, saved
+  after the other copy completed and paid), the slot ends `complete` with `grantPaid` set
+  but without the grant in its currencies. The grant is lost there rather than ever paid
+  twice, since a `none` record cannot be told apart from an old client's copy that already
+  holds it (`MetaProgressionManager.reconcilePickedPrologue`). The local
   adopt-merge (`_adoptForeignDiskStateIfNewer`) keeps both economies at their max, so its
   receipt is the union (`mergePrologueState`): taking it from the newer copy there would pay
   twice. No transaction id: at most one payload's economy survives a pick, and the boolean on
@@ -1277,7 +1282,7 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   | `onHoldersWoke` | the AI's callback | blocks simulation (the enemy phase waits) |
   | `onTalk`, `onHealed` | the Talk and Heal presentations, before the action completes | blocks simulation |
   | `onSeize` | the Seize command, before `onVictory` | blocks simulation |
-  | `deployed` (raised by the controller's `create` from the deploy screen's confirmation, `scene._deployConfirmation`) | `beginBattle`, before the first phase | its lesson mark is sync; a note here would wait for a playable turn. Never raised by an auto-deploy or a resume: P4's `deploy` is practised by the choice, not by `battleStart` |
+  | `deployed` (raised by the controller's `create` from the deploy screen's confirmation, `scene._deployConfirmation`: reset in `BattleScene.init`, since Phaser reuses the scene object, and cleared once read) | `beginBattle`, before the first phase | its lesson mark is sync; a note here would wait for a playable turn. Never raised by an auto-deploy or a resume: P4's `deploy` is practised by the choice, not by `battleStart` |
   | `onRewound` | `VisionRewindController`, after the board is restored | blocks input only |
   | `onVictory` | `PostCombatController`, after the band | blocks simulation (the victory flow waits) |
   | gate nudges (`rejectSelect`, `rejectMove`, `rejectStep`) | input | decorative |

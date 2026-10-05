@@ -63,6 +63,14 @@ test('Church heal, roster, map, promotion cancellation and arena forecast/reward
   await church.getByRole('button', { name: 'Leave', exact: true }).tap();
   await page.evaluate(async () => {
     const s = window.__emblemRogueGame.scene.getScene('NodeMap');
+    // The bout is real dice (Math.random) against a rolled challenger: a lost bout earns
+    // no XP and its result has no EXP bar (docs/specs/exp-bars.md §2.6). Edric outclasses
+    // any Bronze challenger (every strike of his hits and kills before a foe can land one),
+    // one XP short of a level, so the result always fills a bar and hands off to a card.
+    const edric = s.runManager.roster[0];
+    Object.assign(edric.stats, { HP: 60, STR: 60, SKL: 60, SPD: 80, DEF: 60, RES: 60, LCK: 80 });
+    edric.currentHP = 60;
+    edric.xp = 99;
     const { ColosseumOverlay } = await import('/src/ui/ColosseumOverlay.js');
     window.arena = new ColosseumOverlay(s, s.runManager, s.gameData);
     window.arena.show(s.runManager.getAvailableNodes()[0], () => {});
@@ -76,21 +84,34 @@ test('Church heal, roster, map, promotion cancellation and arena forecast/reward
   await page.screenshot({ path: 'test-results/audit-arena-forecast.png' });
   await forecast.getByRole('button', { name: 'Back', exact: true }).tap();
   await page.getByRole('button', { name: /^Bronze/ }).tap();
-  await expect(forecast.locator('.arena-odds')).toContainText('If fought to the end: Win');
+  await expect(forecast.locator('.arena-odds')).toHaveText(
+    'If fought to the end: Win over 95% · Lose under 5%',
+  );
   await forecast.getByRole('button', { name: 'Fight', exact: true }).tap();
   const log = await fightArenaBout(page);
+  await expect(log).toContainText('Victory!');
   await log.getByRole('button', { name: 'Continue', exact: true }).last().tap();
-  // An arena level plays the level-up card(s) before the rewards (saved first).
+  // The rewards (saved first) open with the EXP bar filling; the arena level hands off
+  // to the level-up card over them once it has filled (docs/specs/exp-bars.md §2.6).
   const result = page.getByRole('dialog', { name: 'Arena · Rewards', exact: true });
   const levelCard = page.getByRole('dialog', { name: 'Level up', exact: true });
-  await expect(result.or(levelCard)).toBeVisible();
-  while (await levelCard.isVisible().catch(() => false)) {
-    await page.waitForTimeout(250);
-    await levelCard.getByRole('button', { name: /^(Reveal gains|Continue)$/ }).tap();
-    if (await levelCard.isVisible().catch(() => false))
-      await levelCard.getByRole('button', { name: 'Continue', exact: true }).tap();
-  }
-  await expect(result).toContainText('XP');
+  await expect(result).toBeVisible();
+  await expect(result).toContainText('Level 1 → 2');
+  const bar = result.getByRole('meter', { name: 'EXP', exact: true });
+  await expect(bar).toBeVisible();
+  await page.waitForFunction(() => !window.arena._arenaFill);
+  // Filled to what Edric now holds, then the card.
+  const xp = await page.evaluate(() => window.arena._selectedUnit.xp);
+  await expect(bar).toHaveAttribute('aria-valuenow', String(xp));
+  await expect(levelCard).toBeVisible();
+  await levelCard
+    .getByRole('button', { name: /^(Reveal gains|Continue)$/ })
+    .first()
+    .tap();
+  if (await levelCard.count())
+    await levelCard.getByRole('button', { name: 'Continue', exact: true }).tap();
+  await expect(levelCard).toHaveCount(0);
+  await expect(result).toContainText('XP +');
   const gold = await page.evaluate(() => window.arena.runManager.gold);
   await result.getByRole('button', { name: 'Back to colosseum', exact: true }).tap();
   await page.getByRole('button', { name: 'Mercenary board', exact: true }).tap();

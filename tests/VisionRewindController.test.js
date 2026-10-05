@@ -873,6 +873,14 @@ describe('VisionRewindController', () => {
       expect(scene.pendingVisionSnapshot).toBeNull();
     });
 
+    it('drops queued level-up cards and EXP gauges: a rewound gain never plays', () => {
+      scene._pendingLevelUpPopups = [{ unitName: 'A', levelUp: {} }];
+      scene._pendingXpGauges = [{ unitName: 'A', gained: 5, segments: [{ from: 0, to: 5 }] }];
+      expect(controller.executeRewind()).toBe(true);
+      expect(scene._pendingLevelUpPopups).toEqual([]);
+      expect(scene._pendingXpGauges).toEqual([]);
+    });
+
     it('returns true on success', () => {
       expect(controller.executeRewind()).toBe(true);
     });

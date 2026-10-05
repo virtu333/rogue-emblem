@@ -1,7 +1,13 @@
 import { presentationText } from '../src/utils/presentationText.js';
 import { describe, it, expect, vi } from 'vitest';
 vi.mock('phaser', () => ({ default: { Scene: class {}, BlendModes: { ADD: 1 } } }));
-import { battleSpeed, combatDuration, waitDuration, waitTween } from '../src/utils/combatTiming.js';
+import {
+  battleSpeed,
+  combatDuration,
+  speedDuration,
+  waitDuration,
+  waitTween,
+} from '../src/utils/combatTiming.js';
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { CombatFxController } from '../src/ui/CombatFxController.js';
 const scene = (speed) => ({ registry: { get: () => ({ getBattleSpeed: () => speed }) } });
@@ -26,8 +32,13 @@ describe('combat presentation pacing', () => {
       'show_poison_damage',
       'show_skill_learned_banner',
       'animate_enemy_move_step',
-    ])
+      'xp_gauge_fill',
+      'xp_gauge_hold',
+    ]) {
       expect(waitDuration(s, label, 200)).toBe(ms);
+      expect(speedDuration(speed, label, 200)).toBe(ms);
+    }
+    expect(speedDuration(speed, 'level_up', 200)).toBe(200);
     for (const label of [
       'scene_delay',
       'level_up',
