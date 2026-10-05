@@ -9,7 +9,6 @@ import { bootDesktop, driver, activeScene, slotMeta, slotRun } from './prologueD
 import {
   startPrologue,
   playP1,
-  playP2,
   toRoute,
   forkStop,
   enterP3,

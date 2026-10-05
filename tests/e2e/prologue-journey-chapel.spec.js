@@ -64,8 +64,7 @@ test('the Chapel road the wrong way round: nudges, cancelled forecasts, Gaspar t
   // Tamsin's Attack is greyed with its reason; she Waits.
   await d.select('Tamsin');
   const tamsin = await d.unit('Tamsin');
-  await d.tile(tamsin.col, tamsin.row);
-  await d.actionMenu();
+  await d.moveSelected(tamsin.col, tamsin.row);
   expect((await d.publishedMenu()).find((m) => m.label === 'Attack')).toEqual({
     label: 'Attack',
     disabled: true,
@@ -108,8 +107,7 @@ test('the Chapel road the wrong way round: nudges, cancelled forecasts, Gaspar t
     const spot = await talkToSera(d, { side: [1, 0] });
     await d.select('Edric');
     const plan = await d.plan('Edric', { attack: false, toward: spot });
-    await d.tile(plan.to.col, plan.to.row);
-    await d.actionMenu();
+    await d.moveSelected(plan.to.col, plan.to.row);
     if ((await d.menuItems()).includes('Talk')) {
       await d.menu('Talk');
       break;

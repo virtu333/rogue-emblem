@@ -55,8 +55,7 @@ test('P1: Skip on the forecast note backs out with nothing committed; Skip on th
   const d = driver(page);
   await startPrologue(d);
   await d.select('Edric');
-  await d.tile(3, 2);
-  await d.actionMenu();
+  await d.moveSelected(3, 2);
   await d.menu('Attack');
   await d.drain(() => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'SELECTING_TARGET'); // prettier-ignore
   const a = await d.enemy('a');
@@ -156,8 +155,7 @@ test('a replay: Leave on the first forecast note opens the confirmation, no atta
   await activeScene(page, 'Battle');
   await d.idle();
   await d.select('Edric');
-  await d.tile(3, 2);
-  await d.actionMenu();
+  await d.moveSelected(3, 2);
   await d.menu('Attack');
   await d.drain(() => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'SELECTING_TARGET'); // prettier-ignore
   const a = await d.enemy('a');

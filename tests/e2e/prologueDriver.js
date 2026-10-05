@@ -330,6 +330,32 @@ export function driver(page, { touch = false } = {}) {
       });
     },
 
+    /**
+     * The selected unit goes to (col, row): a click on that tile (its own tile opens
+     * the menu in place), then its action menu once it stands there. On a phone the
+     * menu is already open from the selection, so the wait is on the unit's tile too.
+     */
+    async moveSelected(col, row) {
+      const name = await page.evaluate(
+        () => window.__emblemRogueGame.scene.getScene('Battle').selectedUnit?.name ?? null,
+      );
+      await d.tile(col, row);
+      await d.drain(
+        ([n, col, row]) => {
+          const b = window.__emblemRogueGame.scene.getScene('Battle');
+          const u = b.playerUnits.find((x) => x.name === n);
+          return (
+            b.battleState === 'UNIT_ACTION_MENU' &&
+            b.selectedUnit === u &&
+            u.col === col &&
+            u.row === row &&
+            !b._prologue?.isPresenting?.()
+          );
+        },
+        [name, col, row],
+      );
+    },
+
     /** The labels the open action menu offers. */
     menuItems() {
       return page.evaluate(() => {
@@ -360,7 +386,12 @@ export function driver(page, { touch = false } = {}) {
         label instanceof RegExp ? label.test(text || '') : (text || '') === label;
       if (touch) {
         const rail = page.getByRole('complementary', { name: 'Battle commands' });
-        const button = rail.getByRole('button', { name: label, exact: typeof label === 'string' }); // prettier-ignore
+        // A greyed row carries its reason in its name: match the command's start.
+        const name =
+          typeof label === 'string'
+            ? new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`)
+            : label;
+        const button = rail.getByRole('button', { name });
         await expect(button.first()).toBeVisible();
         await button.first().tap();
         return;
@@ -387,8 +418,7 @@ export function driver(page, { touch = false } = {}) {
     /** Move a unit to a tile (select, click the tile) and wait for its action menu. */
     async moveTo(name, col, row) {
       await d.select(name);
-      await d.tile(col, row);
-      await d.actionMenu();
+      await d.moveSelected(col, row);
     },
 
     /** Move (or stay) and Wait. */
@@ -554,7 +584,17 @@ export function driver(page, { touch = false } = {}) {
             let total = 0;
             for (const e of threats.damage) {
               if (e === spared || !e.weapon) continue;
-              const f = forecast(e, e.weapon, at(tile), u.weapon, tile, tile);
+              // The foe strikes from its weapon's nearest reach (a bow from 2 tiles).
+              const reach = C.parseRange(e.weapon.range).min;
+              const f = C.getCombatForecast(
+                e,
+                e.weapon,
+                at(tile),
+                u.weapon,
+                reach,
+                terrain(tile.col, tile.row),
+                terrain(tile.col, tile.row),
+              );
               total += (f.attacker.damage || 0) * (f.attacker.attackCount || 0);
             }
             return total;
@@ -668,16 +708,14 @@ export function driver(page, { touch = false } = {}) {
       );
       if (drink && !(p.kind === 'attack' && p.sure && !p.lethal)) {
         p = await d.plan(name, { ...opts, attack: false, caution: 3 });
-        await d.tile(p.to.col, p.to.row);
-        await d.actionMenu();
+        await d.moveSelected(p.to.col, p.to.row);
         await d.menu('Item');
         await d.menu(/^Vulnerary/);
         await d.acted(name);
         return { ...p, kind: 'drink' };
       }
       if (p.kind === 'attack') {
-        await d.tile(p.from.col, p.from.row);
-        await d.actionMenu();
+        await d.moveSelected(p.from.col, p.from.row);
         const e = await d.enemy(p.target);
         await d.menu('Attack');
         await d.drain(() => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'SELECTING_TARGET'); // prettier-ignore
@@ -687,8 +725,7 @@ export function driver(page, { touch = false } = {}) {
         if (opts.onForecast) await opts.onForecast();
         await d.confirmForecast();
       } else {
-        await d.tile(p.to.col, p.to.row);
-        await d.actionMenu();
+        await d.moveSelected(p.to.col, p.to.row);
         await d.menu('Wait');
       }
       await d.acted(name);

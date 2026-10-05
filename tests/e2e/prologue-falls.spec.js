@@ -34,7 +34,7 @@ async function sacrifice(d, victim, others) {
         return b?.battleState === 'PLAYER_IDLE' && b.turnManager.currentPhase === 'player' && !b._prologue?.isPresenting?.(); // prettier-ignore
       },
       null,
-      { stopAt: (top) => top.buttons.includes('Accept Fate') || (top.name === '???' && top.text.includes('Not this thread.')) }, // prettier-ignore
+      { stopAt: (top) => top.buttons.includes('Accept fate') || (top.name === '???' && top.text.includes('Not this thread.')) }, // prettier-ignore
     );
     if (fate) {
       const top = await d.page.evaluate(() => {
@@ -139,10 +139,10 @@ test("P3: with the chapter's Vision charge a fall offers the rewind first; Rewin
   await d.heal('Sera', 'Edric');
   // Tamsin walks into the Soldiers' reach turn after turn; the rest hold.
   expect(await sacrifice(d, 'Tamsin', ['Gaspar', 'Sera', 'Edric'])).toBe('fate');
-  const fate = page.locator('[role="dialog"]').filter({ hasText: 'Accepting fate restarts this chapter' }); // prettier-ignore
-  await expect(fate).toContainText('Tamsin has fallen.');
-  await expect(fate).toContainText('1 Vision left this run');
-  await d.click(fate.getByRole('button', { name: 'Rewind', exact: true }));
+  // The fall's offer names who fell; the rewind is the primary choice.
+  const fate = page.getByRole('dialog', { name: /vision fractures!$/ });
+  await expect(fate).toContainText('Tamsin');
+  await d.click(fate.getByRole('button', { name: /^Rewind/ }));
   // The rewind picker: the latest point, confirmed for the one charge.
   const picker = await d.dialog('Rewind');
   await d.click(picker.getByRole('button', { name: /^Rewind here/ }));

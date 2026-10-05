@@ -105,8 +105,7 @@ export async function playP1(d, { wrongWay = false, cancels = 0 } = {}) {
     }
     expect(await d.unit('Edric')).toMatchObject({ col: 0, row: 2 });
   }
-  await d.tile(3, 2);
-  await d.actionMenu();
+  await d.moveSelected(3, 2);
   await d.menu('Attack');
   await d.drain(() => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'SELECTING_TARGET'); // prettier-ignore
   const a = await d.enemy('a');
@@ -277,7 +276,7 @@ export async function watchtower(d, { choice = 'rest' } = {}) {
       });
       if (!top || top.name === 'Ruins sanctuary') break;
       const dialog = page.getByRole('dialog', { name: top.name, exact: true });
-      const yes = top.buttons.find((b) => /^(Scavenge|Take|Continue|OK)/.test(b));
+      const yes = top.buttons.find((b) => /^(Scavenge|Take|Continue|OK|Return to ruins)/.test(b));
       if (!yes) throw new Error(`Scavenge: no way past ${top.name} (${top.buttons})`);
       await d.click(dialog.getByRole('button', { name: yes, exact: true }));
     }
@@ -340,8 +339,7 @@ export async function seizeWithEdric(d) {
     if (edric && !edric.acted) {
       await d.select('Edric');
       const plan = await d.plan('Edric', { attack: false, toward: throne });
-      await d.tile(plan.to.col, plan.to.row);
-      await d.actionMenu();
+      await d.moveSelected(plan.to.col, plan.to.row);
       if ((await d.menuItems()).includes('Seize')) {
         await d.menu('Seize');
         await d.drain(() => {
