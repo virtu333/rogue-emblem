@@ -27,7 +27,6 @@
 /* The medallions: void discs ringed in gilt. */
 .xg-medal {
   position: relative;
-  z-index: 1;
   display: flex;
   flex: none;
   flex-direction: column;
@@ -47,11 +46,7 @@
   line-height: 1;
   white-space: nowrap;
 }
-.xg-medal--label {
-  margin-right: -4px;
-}
 .xg-medal--value {
-  margin-left: -4px;
   font-size: var(--ce-pf-8, 8px);
   font-variant-numeric: tabular-nums;
 }
