@@ -1463,6 +1463,35 @@ export class PrologueController {
     recordTaughtLessons(this.taught);
   }
 
+  // --- The board under the coach -----------------------------------------------------
+
+  /**
+   * The strip of the battle camera's view the coach covers, in camera viewport px
+   * ({ top } or { bottom }), or null when it covers none. The camera lets the map pan
+   * out from under it (BattleCameraController `getInsets`): on an upright phone the
+   * coach docks over the map, and without this the row under it could not be tapped.
+   */
+  coveredInsets() {
+    const root = this.coach?.root;
+    const scene = this.scene;
+    if (this.destroyed || !root?.isConnected || root.hidden) return null;
+    const canvas = scene.game?.canvas?.getBoundingClientRect?.();
+    const cam = scene.cameras?.main;
+    const box = root.getBoundingClientRect?.();
+    if (!canvas?.height || !canvas?.width || !cam || !box?.height) return null;
+    const pxY = (Number(scene.scale?.height) || canvas.height) / canvas.height;
+    const pxX = (Number(scene.scale?.width) || canvas.width) / canvas.width;
+    const top = canvas.top + (Number(cam.y) || 0) / pxY;
+    const bottom = top + (Number(cam.height) || 0) / pxY;
+    const left = canvas.left + (Number(cam.x) || 0) / pxX;
+    const right = left + (Number(cam.width) || 0) / pxX;
+    if (box.right <= left || box.left >= right || box.bottom <= top || box.top >= bottom)
+      return null;
+    if (root.classList?.contains?.('is-bottom'))
+      return { bottom: Math.max(0, bottom - box.top) * pxY };
+    return { top: Math.max(0, box.bottom - top) * pxY };
+  }
+
   // --- Exits -----------------------------------------------------------------------
 
   canPause() {

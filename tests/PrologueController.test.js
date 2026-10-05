@@ -827,6 +827,37 @@ describe('PrologueController in the prologue run', () => {
     expect(scene.showPauseMenu).toHaveBeenCalledTimes(1);
   });
 
+  it("the coach's covered strip of the board: top when docked high, bottom when low, none when hidden or clear", () => {
+    const { scene } = makeScene();
+    const prologue = new PrologueController(scene).create();
+    // An upright phone: a 390x565 CSS canvas drawn at 780x1130 game px, the battle
+    // camera over all of it; the coach 8..98 CSS px from the top.
+    scene.scale = { width: 780, height: 1130 };
+    scene.game = { canvas: { getBoundingClientRect: () => ({ top: 0, left: 0, width: 390, height: 565 }) } }; // prettier-ignore
+    scene.cameras = { main: { x: 0, y: 0, width: 780, height: 1130 } };
+    let box = { top: 8, bottom: 98, left: 8, right: 382, height: 90 };
+    const classes = new Set();
+    prologue.coach = {
+      root: {
+        isConnected: true,
+        hidden: false,
+        getBoundingClientRect: () => box,
+        classList: { contains: (c) => classes.has(c) },
+      },
+    };
+    expect(prologue.coveredInsets()).toEqual({ top: 196 }); // 98 CSS px * 2
+    classes.add('is-bottom');
+    box = { top: 467, bottom: 557, left: 8, right: 382, height: 90 };
+    expect(prologue.coveredInsets()).toEqual({ bottom: 196 }); // (565 - 467) * 2
+    // Beside the camera's view (the rail's band), or hidden: nothing covered.
+    box = { top: 600, bottom: 690, left: 8, right: 382, height: 90 };
+    expect(prologue.coveredInsets()).toBeNull();
+    prologue.coach.root.hidden = true;
+    expect(prologue.coveredInsets()).toBeNull();
+    prologue.coach = null;
+    expect(prologue.coveredInsets()).toBeNull();
+  });
+
   it('a leave from a note opens the pause confirmation, or nudges when the turn is not back', async () => {
     const { scene } = makeScene();
     const prologue = new PrologueController(scene).create();
