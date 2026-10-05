@@ -1,0 +1,266 @@
+// The battle's EXP gauge on a fake DOM (src/ui/XpGaugeController.js). Failure modes:
+//   - the count ends somewhere other than the XP the unit now holds;
+//   - a speed or motion setting ignored (Fast fill, Instant / Reduce motion static);
+//   - a tap, key or pad press that does not skip, or a skip that leaves the gauge up;
+//   - a press on the map that the board then reads as a tap on a tile;
+//   - a gauge whose timers never fire hangs the action (the watchdog);
+//   - a gauge opened headless, at the cap, or after the controller is gone.
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { installFakeDom } from './helpers/fakeDom.js';
+import { XpGaugeController, gaugeSpeed, xpGaugeFor } from '../src/ui/XpGaugeController.js';
+import { xpGaugeRecord } from '../src/ui/xpGaugeModel.js';
+import { applyXpGain } from '../src/engine/BattleXp.js';
+import { createRecruitUnit } from '../src/engine/UnitManager.js';
+import { _resetInputFocus, dispatchInputAction } from '../src/utils/inputFocus.js';
+import { InputAction } from '../src/utils/InputActions.js';
+import { DOM_UI_DEPTHS } from '../src/utils/uiDepths.js';
+import { loadGameData } from './testData.js';
+
+const data = loadGameData();
+const fighter = data.classes.find((c) => c.name === 'Fighter');
+
+function record(level, xp, amount) {
+  const unit = createRecruitUnit({ name: 'Ilse', level }, fighter, data.weapons);
+  unit.level = level;
+  unit.xp = xp;
+  unit.battleEntityId = 'u2';
+  const { before, after, result } = applyXpGain(unit, amount, { classes: data.classes });
+  return { unit, record: xpGaugeRecord(unit, { before, after, levelUps: result.levelUps }) };
+}
+
+function makeScene({ speed = 'normal', reduceMotion = false, effects = 'high', phase } = {}) {
+  const handlers = new Map();
+  return {
+    registry: {
+      get: (key) =>
+        key === 'settings'
+          ? {
+              getBattleSpeed: () => speed,
+              getReduceMotion: () => reduceMotion,
+              getEffectsQuality: () => effects,
+            }
+          : null,
+    },
+    turnManager: { currentPhase: phase || 'player' },
+    events: {
+      once: (name, fn) => handlers.set(name, fn),
+      off: (name) => handlers.delete(name),
+      emit: (name) => handlers.get(name)?.(),
+    },
+    playerUnits: [],
+  };
+}
+
+let dom;
+beforeEach(() => {
+  vi.useFakeTimers();
+  dom = installFakeDom(vi);
+  _resetInputFocus();
+});
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+  _resetInputFocus();
+});
+
+const layer = () => dom.doc.querySelector('.xg-layer');
+const meter = () => layer()?.querySelector('.xg-track');
+const settle = async (promise) => {
+  let done = false;
+  void promise.then(() => (done = true));
+  await vi.advanceTimersByTimeAsync(0);
+  return () => done;
+};
+
+describe('a gauge plays one gain', () => {
+  it('fills from the held XP to the new XP, holds, closes; the count ends at the saved XP', async () => {
+    // Lv 7, 72 XP, +12: 108 ms of fill, a 350 ms hold.
+    const { unit, record: gain } = record(7, 72, 12);
+    const scene = makeScene();
+    const gauge = new XpGaugeController(scene);
+    const played = gauge.play(gain);
+    const root = layer();
+    expect(root.style.zIndex).toBe(String(DOM_UI_DEPTHS.XP_GAUGE));
+    expect(root.classList.contains('is-blocking')).toBe(false);
+    expect(root.dataset).toMatchObject({ fillMs: '108', holdMs: '350' });
+    const track = meter();
+    expect(track.getAttribute('role')).toBe('meter');
+    expect(track.getAttribute('aria-valuenow')).toBe('72');
+    expect(root.querySelector('.xg-plus').textContent).toBe('+12');
+    await vi.advanceTimersByTimeAsync(60);
+    const mid = Number(track.getAttribute('aria-valuenow'));
+    expect(mid).toBeGreaterThan(72);
+    expect(mid).toBeLessThan(84);
+    await vi.advanceTimersByTimeAsync(80);
+    expect(track.getAttribute('aria-valuenow')).toBe(String(unit.xp));
+    expect(track.getAttribute('aria-valuetext')).toBe('84 of 100 EXP');
+    expect(layer()).toBeTruthy(); // holding
+    await vi.advanceTimersByTimeAsync(360);
+    expect(await played).toBe(true);
+    expect(layer()).toBeNull();
+    expect(gauge.isShowing()).toBe(false);
+  });
+
+  it('a wrap reads LV↑ in the medallion for its beat, then counts on at the new level', async () => {
+    // Lv 7, 72 XP, +43: 252 ms to the wrap, a 300 ms beat, 135 ms to 15.
+    const { record: gain } = record(7, 72, 43);
+    const gauge = new XpGaugeController(makeScene());
+    const played = gauge.play(gain);
+    await vi.advanceTimersByTimeAsync(300);
+    const node = layer().querySelector('.xg-gauge');
+    expect(node.classList.contains('is-beat')).toBe(true);
+    expect(node.classList.contains('is-flash')).toBe(true);
+    expect(layer().querySelector('.xg-value').textContent).toBe('');
+    await vi.advanceTimersByTimeAsync(400);
+    expect(node.classList.contains('is-beat')).toBe(false);
+    expect(meter().getAttribute('aria-valuenow')).toBe('15');
+    await vi.advanceTimersByTimeAsync(400);
+    expect(await played).toBe(true);
+  });
+
+  it('at Fast every wait is halved; holding fast-forward in the enemy phase counts as Fast', () => {
+    const { record: gain } = record(7, 72, 12);
+    void new XpGaugeController(makeScene({ speed: 'fast' })).play(gain);
+    // 12 × 4.5 = 54 ms of fill, 175 ms of hold.
+    expect(layer().dataset).toMatchObject({ fillMs: '54', holdMs: '175' });
+    const held = makeScene({ phase: 'enemy' });
+    held._holdBattleFast = true;
+    expect(gaugeSpeed(held)).toBe('fast');
+    held.turnManager.currentPhase = 'player';
+    expect(gaugeSpeed(held)).toBe('normal');
+  });
+
+  it('Instant: the final state at once, held 400 ms', async () => {
+    const { record: gain } = record(7, 72, 43);
+    const played = new XpGaugeController(makeScene({ speed: 'instant' })).play(gain);
+    expect(layer().classList.contains('is-static')).toBe(true);
+    expect(layer().dataset).toMatchObject({ fillMs: '0', holdMs: '400' });
+    expect(meter().getAttribute('aria-valuenow')).toBe('15');
+    // The wrap still shows: LV↑ over the count.
+    expect(layer().querySelector('.xg-gauge').classList.contains('is-wrapped')).toBe(true);
+    expect(layer().querySelector('.xg-value').textContent).toBe('15');
+    const done = await settle(played);
+    await vi.advanceTimersByTimeAsync(390);
+    expect(done()).toBe(false);
+    await vi.advanceTimersByTimeAsync(20);
+    expect(done()).toBe(true);
+    expect(layer()).toBeNull();
+  });
+
+  it('Reduce motion: no fill or flash, the final state held 600 ms; Low effects marks the layer', async () => {
+    const { record: gain } = record(7, 72, 12);
+    const played = new XpGaugeController(makeScene({ reduceMotion: true, effects: 'low' })).play(
+      gain,
+    );
+    expect(layer().classList.contains('is-static')).toBe(true);
+    expect(layer().classList.contains('is-low-fx')).toBe(true);
+    expect(meter().getAttribute('aria-valuenow')).toBe('84');
+    const done = await settle(played);
+    await vi.advanceTimersByTimeAsync(590);
+    expect(done()).toBe(false);
+    await vi.advanceTimersByTimeAsync(20);
+    expect(done()).toBe(true);
+  });
+
+  it('reaching the cap ends on MAX', async () => {
+    const { record: gain } = record(19, 90, 30);
+    const played = new XpGaugeController(makeScene({ speed: 'instant' })).play(gain);
+    expect(meter().getAttribute('aria-valuenow')).toBe('100');
+    expect(meter().getAttribute('aria-valuetext')).toBe('EXP MAX, at the level cap');
+    expect(layer().querySelector('.xg-value').textContent).toBe('MAX');
+    await vi.advanceTimersByTimeAsync(500);
+    expect(await played).toBe(true);
+  });
+});
+
+describe('skipping', () => {
+  it('a press anywhere skips to the end state and closes; on the map it is not a tile tap', async () => {
+    const { record: gain } = record(7, 10, 60);
+    const scene = makeScene();
+    scene.game = { canvas: dom.canvas };
+    const played = new XpGaugeController(scene).play(gain);
+    await vi.advanceTimersByTimeAsync(50);
+    const track = meter();
+    expect(Number(track.getAttribute('aria-valuenow'))).toBeLessThan(70);
+    dom.canvas.dispatchEvent(new dom.FakeEvent('pointerdown', { button: 0, pointerId: 1 }));
+    expect(track.getAttribute('aria-valuenow')).toBe('70');
+    expect(layer()).toBeNull();
+    expect(scene._uiClickBlocked).toBe(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(await played).toBe(true);
+  });
+
+  it('Enter, and the pad’s Confirm or Cancel, skip too', async () => {
+    for (const press of [
+      () => dom.key('Enter'),
+      () => dispatchInputAction(InputAction.CONFIRM),
+      () => dispatchInputAction(InputAction.CANCEL),
+    ]) {
+      const { record: gain } = record(7, 10, 60);
+      const played = new XpGaugeController(makeScene()).play(gain);
+      await vi.advanceTimersByTimeAsync(30);
+      press();
+      expect(layer()).toBeNull();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(await played).toBe(true);
+    }
+  });
+
+  it('a press on the rail skips without blocking the next map click', async () => {
+    const { record: gain } = record(7, 10, 60);
+    const scene = makeScene();
+    scene.game = { canvas: dom.canvas };
+    void new XpGaugeController(scene).play(gain);
+    dom.host.dispatchEvent(new dom.FakeEvent('pointerdown', { button: 0, pointerId: 1 }));
+    expect(layer()).toBeNull();
+    expect(scene._uiClickBlocked).toBeUndefined();
+  });
+});
+
+describe('lifecycle', () => {
+  it('a gauge whose clock never fires is closed by the watchdog', async () => {
+    const { record: gain } = record(7, 72, 12);
+    const scene = makeScene({ speed: 'instant' });
+    // A scene clock that never calls back.
+    scene.sys = { isActive: () => true };
+    scene.time = { delayedCall: () => ({ remove() {} }) };
+    const played = new XpGaugeController(scene).play(gain);
+    const done = await settle(played);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(done()).toBe(false);
+    await vi.advanceTimersByTimeAsync(500); // 0 fill + 400 hold + 2000 slack
+    expect(done()).toBe(true);
+    expect(layer()).toBeNull();
+  });
+
+  it('scene shutdown closes the gauge and settles its promise', async () => {
+    const { record: gain } = record(7, 72, 12);
+    const scene = makeScene();
+    const gauge = xpGaugeFor(scene);
+    expect(scene._xpGauge).toBe(gauge);
+    const played = gauge.play(gain);
+    scene.events.emit('shutdown');
+    expect(layer()).toBeNull();
+    expect(await played).toBe(true);
+    expect(gauge.destroyed).toBe(true);
+    expect(scene._xpGauge).toBeNull();
+    expect(await gauge.play(gain)).toBe(false);
+  });
+
+  it('one at a time: a new gauge closes the one on screen', async () => {
+    const gauge = new XpGaugeController(makeScene());
+    const first = gauge.play(record(7, 72, 12).record);
+    void gauge.play(record(3, 0, 20).record);
+    expect(await first).toBe(true);
+    expect(dom.doc.querySelectorAll('.xg-layer')).toHaveLength(1);
+  });
+
+  it('shows nothing headless or without a gain', async () => {
+    const gauge = new XpGaugeController(makeScene());
+    expect(await gauge.play(null)).toBe(false);
+    expect(await gauge.play({ gained: 0, segments: [] })).toBe(false);
+    vi.unstubAllGlobals();
+    expect(xpGaugeFor(makeScene())).toBeNull();
+    expect(await new XpGaugeController(makeScene()).play(record(7, 72, 12).record)).toBe(false);
+  });
+});
