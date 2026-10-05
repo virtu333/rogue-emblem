@@ -297,3 +297,83 @@ describe('one-finger pan versus tap', () => {
     expect(controller.handlePointerUp(p).consumed).toBe(false);
   });
 });
+
+// A DOM panel docked over the map (the prologue coach on an upright phone) hides the
+// strip of the view under it. The camera treats that strip as covered: the map can be
+// panned out from under it, and a point brought into view lands outside it, so every
+// tile stays reachable by tap (found by tests/e2e/portrait-prologue.spec.js: P1's
+// whole east column, turned to the top, sat under the coach and could not be tapped).
+describe('BattleCameraController covered insets', () => {
+  const bounds = { left: 0, top: 0, width: 640, height: 450 }; // fits a 480-tall view
+  const coachTop = { top: 90, bottom: 0 };
+
+  it('without insets, a map that fits the view is centred and cannot be panned', () => {
+    const camera = createCamera();
+    const controller = new BattleCameraController(camera, { getBounds: () => bounds });
+    controller.resetView();
+    expect(camera.scrollY).toBe(-15); // (450 - 480) / 2
+    camera.setScroll(0, -200);
+    controller.clampToBounds();
+    expect(camera.scrollY).toBe(-15);
+  });
+
+  it('a top inset lets the map be panned down until its top row clears the panel', () => {
+    const camera = createCamera();
+    const controller = new BattleCameraController(camera, {
+      getBounds: () => bounds,
+      getInsets: () => coachTop,
+    });
+    controller.resetView();
+    // The open view is 390 tall (480 - 90): the 450 map no longer fits it, so the
+    // camera may hold the map's top edge right at the panel's bottom edge...
+    camera.setScroll(0, -500);
+    controller.clampToBounds();
+    expect(camera.scrollY).toBe(-90);
+    // ...and its bottom edge at the view's bottom.
+    camera.setScroll(0, 500);
+    controller.clampToBounds();
+    expect(camera.scrollY).toBe(-30); // 450 - 480
+  });
+
+  it('a map that fits the open view centres in it, below the panel', () => {
+    const camera = createCamera();
+    const small = { left: 0, top: 0, width: 640, height: 300 };
+    const controller = new BattleCameraController(camera, {
+      getBounds: () => small,
+      getInsets: () => coachTop,
+    });
+    controller.resetView();
+    // Open view: screen 90..480 (390 tall); the 300 map centres in it: top at 135.
+    expect(camera.scrollY).toBe(-135);
+  });
+
+  it('ensureWorldVisible brings a point under the panel out from under it', () => {
+    const camera = createCamera();
+    const controller = new BattleCameraController(camera, {
+      getBounds: () => bounds,
+      getInsets: () => coachTop,
+    });
+    controller.resetView();
+    camera.setScroll(0, -15);
+    // World y 40 shows at screen 55: under the 90 px panel.
+    expect(controller.ensureWorldVisible(320, 40, 24)).toBe(true);
+    const screenY = controller.worldToScreen(320, 40).y;
+    expect(screenY).toBeGreaterThanOrEqual(90 + 24);
+  });
+
+  it('a bottom inset works the same from below', () => {
+    const camera = createCamera();
+    const controller = new BattleCameraController(camera, {
+      getBounds: () => bounds,
+      getInsets: () => ({ top: 0, bottom: 90 }),
+    });
+    controller.resetView();
+    camera.setScroll(0, 500);
+    controller.clampToBounds();
+    expect(camera.scrollY).toBe(60); // map bottom (450) at screen 390
+    expect(controller.ensureWorldVisible(320, 440, 10)).toBe(false); // already open
+    camera.setScroll(0, -15);
+    expect(controller.ensureWorldVisible(320, 440, 10)).toBe(true);
+    expect(controller.worldToScreen(320, 440).y).toBeLessThanOrEqual(390 - 10);
+  });
+});

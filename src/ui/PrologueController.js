@@ -141,6 +141,8 @@ export class PrologueController {
     this.offeredRewind = false;
     this.rewound = false; // a Vision rewind was spent this battle (afterRewind beats)
     this.leaving = null;
+    // An exit asked for where the confirmation can't open yet (flushLeave opens it).
+    this.leaveQueued = false;
     this.coach = null;
     this.created = false;
     this.destroyed = false;
@@ -167,6 +169,8 @@ export class PrologueController {
     }
     this._tick = () => {
       this.syncTip();
+      // A queued exit first: the player asked to leave; a deferred note can wait.
+      this.flushLeave();
       this.flushDeferred();
     };
     scene.events?.on?.('update', this._tick);
@@ -1459,6 +1463,35 @@ export class PrologueController {
     recordTaughtLessons(this.taught);
   }
 
+  // --- The board under the coach -----------------------------------------------------
+
+  /**
+   * The strip of the battle camera's view the coach covers, in camera viewport px
+   * ({ top } or { bottom }), or null when it covers none. The camera lets the map pan
+   * out from under it (BattleCameraController `getInsets`): on an upright phone the
+   * coach docks over the map, and without this the row under it could not be tapped.
+   */
+  coveredInsets() {
+    const root = this.coach?.root;
+    const scene = this.scene;
+    if (this.destroyed || !root?.isConnected || root.hidden) return null;
+    const canvas = scene.game?.canvas?.getBoundingClientRect?.();
+    const cam = scene.cameras?.main;
+    const box = root.getBoundingClientRect?.();
+    if (!canvas?.height || !canvas?.width || !cam || !box?.height) return null;
+    const pxY = (Number(scene.scale?.height) || canvas.height) / canvas.height;
+    const pxX = (Number(scene.scale?.width) || canvas.width) / canvas.width;
+    const top = canvas.top + (Number(cam.y) || 0) / pxY;
+    const bottom = top + (Number(cam.height) || 0) / pxY;
+    const left = canvas.left + (Number(cam.x) || 0) / pxX;
+    const right = left + (Number(cam.width) || 0) / pxX;
+    if (box.right <= left || box.left >= right || box.bottom <= top || box.top >= bottom)
+      return null;
+    if (root.classList?.contains?.('is-bottom'))
+      return { bottom: Math.max(0, bottom - box.top) * pxY };
+    return { top: Math.max(0, box.bottom - top) * pxY };
+  }
+
   // --- Exits -----------------------------------------------------------------------
 
   canPause() {
@@ -1512,17 +1545,61 @@ export class PrologueController {
     return this.leaving;
   }
 
-  /** Open the pause menu straight onto the exit confirmation (leave, or skip the rest). */
+  /**
+   * Open the pause menu straight onto the exit confirmation (leave, or skip the rest).
+   * An explicit exit is a request to honour, never a best effort: an uncommitted
+   * forecast or target choice (a note read over the forecast) steps back to the action
+   * menu, nothing committed, and the confirmation opens; mid-action (the note before
+   * the turn passes to the enemy, the enemy phase) the request waits and opens the
+   * confirmation at the next point the player can act. Nothing is committed or advanced
+   * to make room for it.
+   */
   requestLeave() {
     const scene = this.scene;
+    if (this.destroyed || this.leaving) return false;
     if (!scene.pauseOverlay?.visible) {
+      this.backOutOfPlanning();
       if (!this.canPause()) {
-        this.coach?.nudge(prologueNudgeText('gate_pause', this.ctx()));
+        if (!this.leaveQueued) this.coach?.nudge(prologueNudgeText('gate_pause', this.ctx()));
+        this.leaveQueued = true;
         return false;
       }
+      this.leaveQueued = false;
       scene.showPauseMenu();
     }
+    this.leaveQueued = false;
     return Boolean(scene.pauseOverlay?.requestLeavePrologue?.());
+  }
+
+  /**
+   * The player's own plan, still uncommitted (an open forecast, a target choice), backs
+   * out to the action menu the way Cancel would: the forecast closes unread, no attack
+   * is made, the unit keeps its turn.
+   */
+  backOutOfPlanning() {
+    const scene = this.scene;
+    if (scene.turnManager?.currentPhase === 'enemy') return;
+    try {
+      if (scene.battleState === 'SHOWING_FORECAST') {
+        scene.hideForecast?.({ acknowledge: false });
+        scene._clearCombatRollSession?.();
+        scene.battleState = 'SELECTING_TARGET';
+      }
+      if (scene.battleState === 'SELECTING_TARGET') {
+        scene._attackFlow?.().cancelTargetSelection();
+        scene._mobileBattleHud?.sync?.();
+      }
+    } catch {
+      /* the exit still opens if it can; a failed back-out leaves the request queued */
+    }
+  }
+
+  /** Each frame: a queued exit opens once the player can act and nothing is on screen. */
+  flushLeave() {
+    if (!this.leaveQueued || this.destroyed || this.leaving) return;
+    if (this.lessonOpen || this.presenting > 0 || this.scene.pauseOverlay?.visible) return;
+    if (this.scene.battleState !== 'PLAYER_IDLE' || !this.canPause()) return;
+    this.requestLeave();
   }
 
   /** Leave a standalone chapter for the title. Nothing is saved. */

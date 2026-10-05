@@ -206,11 +206,16 @@ describe('the prologue run save stays on the device', () => {
     expect(runs.row.data).toEqual({ 1: standardRun({ savedAt: 900 }) });
   });
 
-  it("logout's backup leaves the prologue run out, backs up the slot's meta, and confirms", async () => {
+  it("logout's backup leaves the prologue run out, backs up the slot's meta, and names it as local-only", async () => {
     cloud();
     store.set(getRunKey(1), JSON.stringify(prologueRun()));
     store.set(getMetaKey(1), JSON.stringify(inProgressMeta));
-    expect(await backupAllLocalSlots('u')).toBe(true);
+    // The batch it could carry is confirmed; the prologue it could not is named, so
+    // sign-out asks before discarding it (TitleScene._handleLogout).
+    expect(await backupAllLocalSlots('u')).toEqual({
+      ok: true,
+      localOnly: [{ slot: 1, kind: 'prologue' }],
+    });
     expect(runs.row).toBeNull();
     expect(metas.row.data).toEqual({ 1: inProgressMeta });
     // (pushAllLocalSlots, the same walk without the confirmation.)

@@ -31,6 +31,10 @@ export class BattleCameraController {
       ? options.resetPinchScaleThreshold
       : DEFAULT_RESET_EPSILON;
     this.onViewChanged = typeof options.onViewChanged === 'function' ? options.onViewChanged : null;
+    // Strips of the view a panel docked over the map covers ({ top, bottom, left,
+    // right } in camera viewport px; the prologue coach on an upright phone). The map
+    // may be panned out from under them, and a point brought into view lands clear.
+    this.getInsets = typeof options.getInsets === 'function' ? options.getInsets : () => null;
 
     this._touches = new Map();
     this._pan = null;
@@ -127,6 +131,29 @@ export class BattleCameraController {
     this._emitViewChanged();
   }
 
+  /**
+   * The covered strips in world units at `zoom`: never negative, and together never
+   * more than half the view on an axis (a view must stay open to pan within).
+   */
+  _coveredWorld(zoom) {
+    const cam = this.camera;
+    let raw = null;
+    try {
+      raw = this.getInsets();
+    } catch {
+      raw = null;
+    }
+    const side = (v) => (Number.isFinite(Number(v)) ? Math.max(0, Number(v)) : 0);
+    const fit = (a, b, size) => {
+      const room = Math.max(0, size / 2);
+      const total = a + b;
+      return total > room && total > 0 ? [(a * room) / total, (b * room) / total] : [a, b];
+    };
+    const [top, bottom] = fit(side(raw?.top), side(raw?.bottom), Number(cam?.height) || 0);
+    const [left, right] = fit(side(raw?.left), side(raw?.right), Number(cam?.width) || 0);
+    return { top: top / zoom, bottom: bottom / zoom, left: left / zoom, right: right / zoom };
+  }
+
   clampToBounds() {
     const cam = this.camera;
     const bounds = this.getBounds();
@@ -136,11 +163,17 @@ export class BattleCameraController {
     const viewWidth = cam.width / zoom;
     const viewHeight = cam.height / zoom;
     const off = this._zoomOffsets(zoom);
+    const cover = this._coveredWorld(zoom);
 
-    const visibleLeft = (Number(cam.scrollX) || 0) + off.x;
-    const visibleTop = (Number(cam.scrollY) || 0) + off.y;
-    const nextX = this._clampAxis(visibleLeft, bounds.left, bounds.width, viewWidth) - off.x;
-    const nextY = this._clampAxis(visibleTop, bounds.top, bounds.height, viewHeight) - off.y;
+    // Clamp the open part of the view (the view less what a docked panel covers).
+    const openLeft = (Number(cam.scrollX) || 0) + off.x + cover.left;
+    const openTop = (Number(cam.scrollY) || 0) + off.y + cover.top;
+    const openWidth = viewWidth - cover.left - cover.right;
+    const openHeight = viewHeight - cover.top - cover.bottom;
+    const nextX =
+      this._clampAxis(openLeft, bounds.left, bounds.width, openWidth) - cover.left - off.x;
+    const nextY =
+      this._clampAxis(openTop, bounds.top, bounds.height, openHeight) - cover.top - off.y;
     cam.setScroll(nextX, nextY);
   }
 
@@ -154,8 +187,9 @@ export class BattleCameraController {
     if (!cam || !Number.isFinite(worldX) || !Number.isFinite(worldY)) return false;
     const zoom = Number(cam.zoom) || 1;
     const off = this._zoomOffsets(zoom);
-    const viewWidth = (Number(cam.width) || 0) / zoom;
-    const viewHeight = (Number(cam.height) || 0) / zoom;
+    const cover = this._coveredWorld(zoom);
+    const viewWidth = (Number(cam.width) || 0) / zoom - cover.left - cover.right;
+    const viewHeight = (Number(cam.height) || 0) / zoom - cover.top - cover.bottom;
     // Don't let the margin exceed half the view, or the left/right (and top/bottom)
     // conditions would contradict each other.
     const mx = Math.max(0, Math.min(margin, viewWidth / 2 - 1));
@@ -165,8 +199,9 @@ export class BattleCameraController {
     const startY = Number(cam.scrollY) || 0;
     let scrollX = startX;
     let scrollY = startY;
-    const visibleLeft = startX + off.x;
-    const visibleTop = startY + off.y;
+    // The open part of the view: a point lands clear of any docked panel.
+    const visibleLeft = startX + off.x + cover.left;
+    const visibleTop = startY + off.y + cover.top;
     const visibleRight = visibleLeft + viewWidth;
     const visibleBottom = visibleTop + viewHeight;
 
@@ -287,12 +322,13 @@ export class BattleCameraController {
     const bounds = this.getBounds();
     const cam = this.camera;
     if (!bounds || !cam) return { x: 0, y: 0 };
-    const viewWidth = cam.width / zoom;
-    const viewHeight = cam.height / zoom;
     const off = this._zoomOffsets(zoom);
+    const cover = this._coveredWorld(zoom);
+    const viewWidth = cam.width / zoom - cover.left - cover.right;
+    const viewHeight = cam.height / zoom - cover.top - cover.bottom;
     return {
-      x: this._clampAxis(bounds.left, bounds.left, bounds.width, viewWidth) - off.x,
-      y: this._clampAxis(bounds.top, bounds.top, bounds.height, viewHeight) - off.y,
+      x: this._clampAxis(bounds.left, bounds.left, bounds.width, viewWidth) - cover.left - off.x,
+      y: this._clampAxis(bounds.top, bounds.top, bounds.height, viewHeight) - cover.top - off.y,
     };
   }
 

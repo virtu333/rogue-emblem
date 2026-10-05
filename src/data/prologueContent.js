@@ -365,8 +365,8 @@ export function prologueHandoffContent({ lead = '', won = false, commander = 'Ed
     lead: typeof lead === 'string' ? lead.trim() : '',
     rows: [
       {
-        term: 'A run ends',
-        text: `only when your commander falls. ${lord} leads your first run.`,
+        term: 'Losing your commander',
+        text: `ends the run. ${lord} leads your first run.`,
       },
       {
         term: 'Fallen allies',

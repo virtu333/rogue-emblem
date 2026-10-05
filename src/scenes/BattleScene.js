@@ -3534,6 +3534,8 @@ export class BattleScene extends Phaser.Scene {
       minZoom: 1,
       maxZoom: 3,
       getBounds: () => this._getBattleMapBounds(),
+      // A prologue coach docked over the map: the map pans out from under it.
+      getInsets: () => this._prologue?.coveredInsets?.() || null,
       onViewChanged: () => {
         this._syncMobileResetViewButton();
       },

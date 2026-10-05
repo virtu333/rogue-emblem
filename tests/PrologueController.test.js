@@ -711,6 +711,153 @@ describe('PrologueController in the prologue run', () => {
     expect(await prologue.onAfterMove(edric)).toBe(false);
   });
 
+  /** The scene's forecast and target-choice surface, as AttackFlowController drives it. */
+  function withForecast(scene, prologue, attacker, target) {
+    Object.assign(scene, {
+      battleState: 'SHOWING_FORECAST',
+      selectedUnit: attacker,
+      forecastTarget: target,
+      attackTargets: [target],
+      hideForecast: vi.fn(({ acknowledge = false } = {}) => {
+        prologue.onForecastClosed({ acknowledge });
+        scene.forecastTarget = null;
+      }),
+      _clearCombatRollSession: vi.fn(),
+      confirmForecastCombat: vi.fn(),
+      executeCombat: vi.fn(),
+    });
+    const flow = {
+      cancelTargetSelection: vi.fn(() => {
+        scene.attackTargets = [];
+        scene.battleState = 'UNIT_ACTION_MENU';
+      }),
+    };
+    scene._attackFlow = () => flow;
+    scene.showPauseMenu = vi.fn(() => {
+      scene.pauseOverlay = { visible: true, requestLeavePrologue: vi.fn(() => true) };
+    });
+    return flow;
+  }
+  const nextTask = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  for (const run of [false, true])
+    it(`${run ? 'the run' : 'a replay'}: Skip on the first forecast's note backs out of the uncommitted forecast and opens the exit confirmation`, async () => {
+      const { scene, edric } = makeScene({ run });
+      const prologue = new PrologueController(scene).create();
+      const a = unitOf(scene, 'a');
+      const hpBefore = [edric.currentHP, a.currentHP];
+      const flow = withForecast(scene, prologue, edric, a);
+      showImportantHint.mockImplementationOnce(async () => 'leave');
+      const forecast = { display: { triangle: { damage: 0, hit: 0 } }, attacker: {}, defender: {} };
+      await prologue.onForecastOpened(edric, a, forecast, edric.weapon);
+      expect(notes().at(-1)).toContain('Reading a forecast');
+      // The note handed the forecast back; the exit runs once the note is gone.
+      expect(scene.battleState).toBe('SHOWING_FORECAST');
+      await nextTask();
+      expect(scene.showPauseMenu).toHaveBeenCalledTimes(1);
+      expect(scene.pauseOverlay.requestLeavePrologue).toHaveBeenCalledTimes(1);
+      // Nothing was committed: the forecast closed unread, the target choice backed out
+      // to the action menu, no attack, no HP changed, Edric has not acted.
+      expect(scene.hideForecast).toHaveBeenCalledWith({ acknowledge: false });
+      expect(flow.cancelTargetSelection).toHaveBeenCalledTimes(1);
+      expect(scene.battleState).toBe('UNIT_ACTION_MENU');
+      expect(scene.confirmForecastCombat).not.toHaveBeenCalled();
+      expect(scene.executeCombat).not.toHaveBeenCalled();
+      expect([edric.currentHP, a.currentHP]).toEqual(hpBefore);
+      expect(edric.hasActed).toBeFalsy();
+      // Never the "once your turn is back" correction: it is the player's turn.
+      expect(notes()).not.toContain('You can leave once your turn is back.');
+      expect(prologue.gate).toBeNull(); // the confirm gate went with the forecast
+    });
+
+  it('Skip on the note before the automatic enemy-phase handoff is queued, then honoured once the turn is back; nothing is advanced for it', async () => {
+    const { scene, edric, events } = makeScene();
+    const prologue = new PrologueController(scene).create();
+    scene.showPauseMenu = vi.fn(() => {
+      scene.pauseOverlay = { visible: true, requestLeavePrologue: vi.fn(() => true) };
+    });
+    scene.forceEndTurn = vi.fn();
+    showImportantHint.mockImplementationOnce(async () => 'leave');
+    const hold = prologue.beforeUnitActionCompletes(edric);
+    expect(hold).toBeInstanceOf(Promise);
+    // The scene completes the action when the note is read: Edric was the last unit,
+    // so the turn passes to the enemy at once (TurnManager.endPlayerPhase).
+    const completed = hold.then(() => {
+      edric.hasActed = true;
+      scene.battleState = 'ENEMY_PHASE';
+      scene.turnManager.currentPhase = 'enemy';
+    });
+    await completed;
+    await nextTask();
+    expect(notes()[0]).toContain('Wait ends Edric');
+    // Not now: the enemy phase is under way. Nothing is forced to make room for it.
+    expect(scene.showPauseMenu).not.toHaveBeenCalled();
+    expect(scene.forceEndTurn).not.toHaveBeenCalled();
+    const tick = events.handlers.get('update');
+    tick();
+    expect(scene.showPauseMenu).not.toHaveBeenCalled();
+    // The player's turn is back: the exit confirmation opens, once.
+    scene.turnManager.currentPhase = 'player';
+    scene.turnManager.turnNumber = 2;
+    scene.battleState = 'PLAYER_IDLE';
+    tick();
+    expect(scene.showPauseMenu).toHaveBeenCalledTimes(1);
+    expect(scene.pauseOverlay.requestLeavePrologue).toHaveBeenCalledTimes(1);
+    scene.pauseOverlay.visible = false;
+    tick();
+    expect(scene.showPauseMenu).toHaveBeenCalledTimes(1);
+  });
+
+  it('a queued exit waits under a note shown at the turn start, and opens once it is read', async () => {
+    const { scene, events } = makeScene();
+    const prologue = new PrologueController(scene).create();
+    scene.showPauseMenu = vi.fn(() => {
+      scene.pauseOverlay = { visible: true, requestLeavePrologue: vi.fn(() => true) };
+    });
+    scene.turnManager.currentPhase = 'enemy';
+    scene.battleState = 'ENEMY_PHASE';
+    expect(prologue.requestLeave()).toBe(false);
+    scene.turnManager.currentPhase = 'player';
+    scene.battleState = 'PLAYER_IDLE';
+    prologue.beginPresentation(); // a note is on screen
+    events.handlers.get('update')();
+    expect(scene.showPauseMenu).not.toHaveBeenCalled();
+    prologue.endPresentation();
+    events.handlers.get('update')();
+    expect(scene.showPauseMenu).toHaveBeenCalledTimes(1);
+  });
+
+  it("the coach's covered strip of the board: top when docked high, bottom when low, none when hidden or clear", () => {
+    const { scene } = makeScene();
+    const prologue = new PrologueController(scene).create();
+    // An upright phone: a 390x565 CSS canvas drawn at 780x1130 game px, the battle
+    // camera over all of it; the coach 8..98 CSS px from the top.
+    scene.scale = { width: 780, height: 1130 };
+    scene.game = { canvas: { getBoundingClientRect: () => ({ top: 0, left: 0, width: 390, height: 565 }) } }; // prettier-ignore
+    scene.cameras = { main: { x: 0, y: 0, width: 780, height: 1130 } };
+    let box = { top: 8, bottom: 98, left: 8, right: 382, height: 90 };
+    const classes = new Set();
+    prologue.coach = {
+      root: {
+        isConnected: true,
+        hidden: false,
+        getBoundingClientRect: () => box,
+        classList: { contains: (c) => classes.has(c) },
+      },
+    };
+    expect(prologue.coveredInsets()).toEqual({ top: 196 }); // 98 CSS px * 2
+    classes.add('is-bottom');
+    box = { top: 467, bottom: 557, left: 8, right: 382, height: 90 };
+    expect(prologue.coveredInsets()).toEqual({ bottom: 196 }); // (565 - 467) * 2
+    // Beside the camera's view (the rail's band), or hidden: nothing covered.
+    box = { top: 600, bottom: 690, left: 8, right: 382, height: 90 };
+    expect(prologue.coveredInsets()).toBeNull();
+    prologue.coach.root.hidden = true;
+    expect(prologue.coveredInsets()).toBeNull();
+    prologue.coach = null;
+    expect(prologue.coveredInsets()).toBeNull();
+  });
+
   it('a leave from a note opens the pause confirmation, or nudges when the turn is not back', async () => {
     const { scene } = makeScene();
     const prologue = new PrologueController(scene).create();

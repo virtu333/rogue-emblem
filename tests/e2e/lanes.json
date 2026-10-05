@@ -81,7 +81,8 @@
         "portrait-screens.spec.js",
         "portrait-journey.spec.js",
         "portrait-rotation.spec.js",
-        "portrait-remains.spec.js"
+        "portrait-remains.spec.js",
+        "portrait-prologue.spec.js"
       ],
       "shards": 6
     },
@@ -172,8 +173,18 @@
     },
     {
       "name": "prologue",
-      "description": "The prologue: the first thread as a run (offer, P1, P2, the fork, P3, the watchtower, P4's deploy and gate, the ending, Home Base), its exits and restarts, the P1 lessons, the title's chapter select",
-      "specs": ["prologue-run.spec.js", "prologue-exit.spec.js", "prologue-lessons.spec.js"]
+      "description": "The prologue: the first thread as a run (offer, P1, P2, the fork, P3, the watchtower, P4's deploy and gate, the ending, Home Base), its exits and restarts, the P1 lessons, the title's chapter select; the whole thread played through ordinary input on both fork roads, the falls, the refreshes mid-teaching and the skips part-way",
+      "specs": [
+        "prologue-run.spec.js",
+        "prologue-exit.spec.js",
+        "prologue-lessons.spec.js",
+        "prologue-journey-market.spec.js",
+        "prologue-journey-chapel.spec.js",
+        "prologue-falls.spec.js",
+        "prologue-resume.spec.js",
+        "prologue-skip.spec.js"
+      ],
+      "shards": 4
     },
     {
       "name": "menus",

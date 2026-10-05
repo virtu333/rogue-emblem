@@ -1119,6 +1119,25 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   old client sees a fresh slot. A prologue row an earlier build pushed is removed on the
   first prologue save of a session (only while the row is itself a prologue run). The cost:
   signing out mid-prologue, or moving device, restarts the prologue from the offer.
+- **Signing out with an unfinished prologue** (review, 2026-10-05). Sign-out clears the
+  slot cache (`SlotManager.clearAllSlotData`) so another account never inherits a save, and
+  the prologue's run save cannot reach the cloud, so a confirmed backup is never consent to
+  discard it. `CloudSync.backupAllLocalSlots` returns `{ ok, localOnly }`: `ok` vouches only
+  for the batch it could carry (every meta, every standard run), and `localOnly`
+  (`listLocalOnlySaves`) names each slot sign-out would clear whose run save is local-only
+  (`[{ slot, kind: 'prologue' }]`; a slot logout keeps, `SlotManager.isSlotKeptAtLogout`, is
+  never named). `TitleScene._handleLogout` then asks, after the rest is uploaded: "Sign
+  out?" with "Your unfinished prologue on Slot N stays on this device and can't be backed
+  up. Signing out discards it; it starts again from the beginning." and Keep playing
+  (default) / Sign out anyway. A failed backup's "Discard local saves?" names the prologue
+  too. `_finishLogout` reads the list again and asks about any save nobody agreed to (another
+  tab), so none is cleared unseen; without a DOM nothing is discarded. On the same account's
+  next sign-in the slot's meta comes back `in_progress` with no run, and `routeForSlot`
+  offers the prologue again. The run is not kept in account-bound storage for a later
+  sign-in: a whole slot (run, suspend checkpoint, clock floors, the device mirror) would have
+  to be parked beside another account's cache and restored only into an empty slot whose
+  meta still matches, for a chapter or two of replay; the warning is the contract
+  (`tests/LogoutLocalOnlySaves.test.js`).
 - `startPrologue(gameData, prologueData)`:
   - sets the prologue seed
   - starts the roster as authored Edric alone
@@ -1139,9 +1158,22 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
     failed write rolls back so a retry pays; a paid copy on disk is adopted first)
   - then the run save is cleared
   `meta.prologue` (`{ state, grantPaid, chaptersCompleted, practised }`) rides the meta
-  payload to `meta_progression` like the rest of meta, under the `savedAt` freshness guard;
-  a merge takes the further state, keeps a paid grant paid and unions the lists
-  (`mergePrologueState`).
+  payload to `meta_progression` like the rest of meta, under the `savedAt` freshness guard.
+  **The grant's receipt travels with the economy that holds its effect** (review,
+  2026-10-05). The cloud fetch (`CloudSync.applyMetaSlots`) keeps one payload whole by
+  `savedAt` (its currencies and upgrades), so `grantPaid` comes from that payload alone,
+  while the state (the further one), the chapters and the lessons union freely
+  (`reconcilePickedPrologue`). When the union is `complete` and the kept payload never paid
+  (the other copy finished; its grant went with its economy), the grant (`prologue.json`
+  `grant`) is added to the kept currencies once and the receipt set, and the copy is written
+  as a new save (newer than both, so the next fetch keeps it): never by taking a larger
+  balance, which would restore spent currency. A kept payload with no record or `none`
+  cannot vouch for a receipt (a client from before the prologue drops the record and keeps a
+  fetched grant), so the other copy's receipt is kept and nothing is added. The local
+  adopt-merge (`_adoptForeignDiskStateIfNewer`) keeps both economies at their max, so its
+  receipt is the union (`mergePrologueState`): taking it from the newer copy there would pay
+  twice. No transaction id: at most one payload's economy survives a pick, and the boolean on
+  it is its receipt (`tests/PrologueGrantMerge.test.js`).
 - **Built (Phase 2A):** `startPrologue` (the roster from the first-row chapter, Edric stamped
   commander, the route from `buildPrologueNodeMap`, every chapter pre-locked, `runStart`
   marked shown so the route map plays no cold open), `getPrologueChapter` /
@@ -1362,7 +1394,7 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
 
   | Term | Rule |
   |---|---|
-  | A run ends | only when your commander falls. Edric leads your first run. |
+  | Losing your commander | ends the run. Edric leads your first run. |
   | Fallen allies | stay down until a Church revives them for gold. |
   | Starts over | each run: a fresh army, with levels, items and gold reset. |
   | Stays | Valor and Supply you earn, and the Home Base upgrades they buy. |
@@ -1379,6 +1411,13 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   and a field note's "Skip prologue" open the same confirmation) jumps to the ending
   (`src/ui/PrologueEnding.js`: the `prologue.ending` scenes, the title card, one meta write,
   the run save cleared), then Home Base with the grant. The prologue run has no Abandon Run.
+  An exit asked for is honoured, never dropped (`PrologueController.requestLeave`): over an
+  uncommitted forecast or target choice (the first forecast's note) the plan backs out to the
+  action menu, the forecast closed unread and no attack made, and the confirmation opens;
+  where it cannot open yet (the note before the turn passes to the enemy, the enemy phase)
+  the coach says so and the request waits, opening the confirmation at the next point the
+  player can act (`flushLeave`, before any deferred note). Nothing is committed or advanced
+  to make room for it.
 - **The ending** is reached from the last chapter's victory (after its authored loot) in
   `PostCombatController.transitionAfterBattle`, or from the route map after a reload
   (`NodeMapScene.checkActComplete`), and never RunComplete or a settlement.
@@ -1431,14 +1470,17 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   - Refresh on the route map resumes the map.
   - Every named unit's death restarts its chapter and never reaches RunComplete or settlement.
   - `runsStarted` and `runsCompleted` don't move.
-  - The grant pays once, even across a refresh and a cloud sync.
+  - The grant pays once, even across a refresh and a cloud sync, and a cloud merge never
+    keeps the receipt without the currency (`PrologueGrantMerge`).
+  - Sign-out never discards an unfinished prologue without asking (`LogoutLocalOnlySaves`).
   - A replay never touches the slot.
 - **Flow:**
   - Skip equals today's fast path exactly.
   - A completed prologue routes to Home Base, then the fast path.
   - A completed prologue's lesson ids are read in the first run.
   - The suppress list holds (no `battle_par`, no Guidance note and no cold open in prologue mode).
-- **e2e:** the `prologue` lane (`tests/e2e/lanes.json`): `prologue-run.spec.js` (the offer,
+- **e2e:** the `prologue` lane (`tests/e2e/lanes.json`; the ordinary-play specs are listed
+  under "Ordinary play" below): `prologue-run.spec.js` (the offer,
   P1 as a run, the route, P2, the ending, Home Base, Begin Run's fast path; Skip; a refresh
   mid-P1 with Resume Battle and Continue from Map), `prologue-exit.spec.js` (Skip from the
   coach, the pause and a note; the restart in the run; the chapter select and a replay that
@@ -1526,7 +1568,50 @@ with `PrologueRosterLesson` performing the real Withdraw and Equip, `PrologueEnd
 grant under faults: a refused lesson record, a throwing meta write, a throwing transition
 after the payment, a crash before the save cleared, two attempts at once). Browser: the
 `prologue` lane routs P3's Soldiers before the Talk and lets the join win, and lets Varro
-fall to Gaspar's counter on the enemy phase through ordinary combat.
+fall to Gaspar's counter on the enemy phase (in `prologue-run.spec.js` by setting the
+board up; through ordinary play since the review below).
+
+**Ordinary play (review, 2026-10-05).** `prologue-run.spec.js` stays the fast flow test
+(it calls `onVictory()` and sets Varro's HP to reach each screen). Beside it, the lane
+plays the thread the way a player does: nothing calls `onVictory`, `removeUnit`,
+`completeBattle` or a setter. `tests/e2e/prologueDriver.js` clicks or taps board tiles
+(after the camera brings them into view; a docked tip over a tile is read first, anything
+else covering the board fails), works the desktop's canvas action menu by keyboard and the
+phone's rail by taps, confirms or cancels the forecast (the tile, Esc, or the phone's
+buttons; ◀ ▶ choose its weapon), and reads past notes, lines, cards and level-ups while it
+waits on state, logging each so a spec can count what was taught; a small planner reads the
+live board (blue range, forecasts, Danger) to choose each unit's move.
+`tests/e2e/prologueJourney.js` plays each chapter on top of it. Specs:
+`prologue-journey-market.spec.js` (New Game's offer to Home Base: P1, P2 the lesson's way,
+the reward card, the Market's roster lesson Withdraw and Equip, P3 Talk first, the
+watchtower's Rest, P4's deploy and formation, Varro felled by the player's own strike, the
+Seize from Edric's action menu, the ending once, the grant, a refresh paying nothing twice);
+`prologue-journey-chapel.spec.js` (the wrong way round: P1's wrong tiles and a forecast
+cancelled three times, P2 with Gaspar taking every kill (completes, `veteran_kills` never
+practised), the Chapel, Withdraw skipped and the lesson dropped, the departure's Continue
+anyway, Tamsin's greyed "Unarmed" Attack, the rout before the Talk (the battle playable,
+the objective and the coach on Sera), the Talk from her far side winning it, Scavenge, P4
+without Tamsin and Varro to Gaspar's counter on the enemy phase, the next turn playable,
+the Seize, Home Base); `prologue-falls.spec.js` (Gaspar falls on P2's enemy phase: "Not this
+thread", P2 from its entry; in P3 the chapter's Vision charge offers the rewind first,
+Rewind spends it, the next fall restarts P3 with the grant reverted);
+`prologue-resume.spec.js` (refreshes at P2's reward screen (Return to rewards, paid once),
+on P3's opening note, after Sera's join, on the turn the Vision charge is granted, and on
+P4's seize/par note: each unread note back once, nothing taught or paid twice);
+`prologue-skip.spec.js` (Skip on P1's first forecast note backs out with no attack made and
+opens the confirmation; Skip on the note before the enemy-phase handoff opens it at the next
+player turn; P2's pause and the fork's route-map pause skip to the ending and Home Base with
+the grant once; a replay's Leave on the same note). `portrait-prologue.spec.js` (the
+`portrait` lane, with every upright spec): P1 by taps on the turned board, P2, the fork and
+its roster lesson on a phone. Found and fixed on the way: Skip on a note over a forecast or
+before the handoff was dropped with "You can leave once your turn is back"
+(`PrologueController.requestLeave` now backs out of the uncommitted forecast, or queues the
+exit until the player can act); a fall's offer read "A vision fractures!" with Sera on the
+field before the roster took her in (`VisionRewindController`); on an upright phone the coach
+docked over the board hid a whole row that no pan could bring out (the battle camera now
+takes the coach's strip as covered: `BattleCameraController` `getInsets`,
+`PrologueController.coveredInsets`; `portrait-prologue.spec.js` checks every tile can be
+brought clear and tapped).
 
 ### Novice playtest (the measure that matters)
 

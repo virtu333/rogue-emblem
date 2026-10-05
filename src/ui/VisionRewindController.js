@@ -758,9 +758,12 @@ export class VisionRewindController {
       // a rewind button with neither a surviving destination nor a fallback.
       if (!usableAnchor && !hasUsableTimeline()) return false;
     }
-    // Flavor follows Sera: generic copy when she isn't part of this run.
+    // Flavor follows Sera: generic copy when she isn't part of this run. She counts
+    // once she is in the run's roster or on this field as one of the army (a Talk
+    // recruits her mid-battle; the roster takes her in only when the battle is won).
     const visionPool = this.runManager?.roster || this.scene.playerUnits || [];
-    const seraPresent = visionPool.some((u) => u?.name === 'Sera');
+    const isSera = (u) => u?.name === 'Sera';
+    const seraPresent = visionPool.some(isSera) || (this.scene.playerUnits || []).some(isSera);
     this._rewindFatalOrigin = true;
     const intent = usableAnchor ? this.createRewindIntent(anchor) : null;
     const fallen =
