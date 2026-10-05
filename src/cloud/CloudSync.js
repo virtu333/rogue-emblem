@@ -24,6 +24,7 @@ import {
   getSlotRecoveryOwnerKey,
   isReadableRunShape,
   isReadableMetaShape,
+  isSlotKeptAtLogout,
   MAX_SLOTS,
 } from '../engine/SlotManager.js';
 import { markStartup } from '../utils/startupTelemetry.js';
@@ -549,7 +550,8 @@ async function updateSlotInTable(userId, table, slot, slotData, options = {}) {
  * would open that save as a standard run on the prologue's seven-node authored map,
  * so it never reaches the cloud: the prologue is short, the slot's meta (pushed as
  * usual) records it 'in_progress', and a device without the run save offers it again
- * (PrologueRouting.routeForSlot). Logout's backup leaves it out the same way.
+ * (PrologueRouting.routeForSlot). Logout's backup leaves it out the same way and
+ * reports it (`localOnly`), so sign-out asks before it discards one.
  */
 export function isLocalOnlyRunSave(run) {
   return isCloudSlotPayload(run) && isPrologueRun(run);
@@ -801,12 +803,45 @@ export function pushAllLocalSlots(userId) {
   }
 }
 
+/**
+ * The saves logout would discard that no backup can carry: each slot logout clears
+ * (SlotManager.isSlotKeptAtLogout is false) whose run save stays on the device
+ * (isLocalOnlyRunSave: the prologue's). A slot logout keeps is not listed.
+ * @returns {Array<{ slot: number, kind: 'prologue' }>}
+ */
+export function listLocalOnlySaves() {
+  const saves = [];
+  for (let slot = 1; slot <= MAX_SLOTS; slot++) {
+    try {
+      if (isSlotKeptAtLogout(slot)) continue;
+      const run = readLocalJSON(getRunKey(slot));
+      if (isLocalOnlyRunSave(run)) saves.push({ slot, kind: 'prologue' });
+    } catch {
+      /* an unreadable slot is kept at logout, not discarded */
+    }
+  }
+  return saves;
+}
+
+/**
+ * Back up every local slot before logout and say what the backup could not carry.
+ * `ok`: the exact captured batch (every slot's meta, every run save but a local-only
+ * one) was durably written. `localOnly`: the saves logout would still discard
+ * (listLocalOnlySaves), read after the batch; `ok` never vouches for them, so the
+ * caller asks before discarding any (TitleScene._handleLogout).
+ * @returns {Promise<{ ok: boolean, localOnly: Array<{ slot: number, kind: 'prologue' }> }>}
+ */
+export async function backupAllLocalSlots(userId, options = {}) {
+  const ok = await backupLocalSlotBatch(userId, options).catch(() => false);
+  return { ok: ok === true, localOnly: listLocalOnlySaves() };
+}
+
 /** Confirm the exact captured local batch was durably written before logout.
  * Queue settlement and auth status alone do not imply successful network writes.
  * Capture all payloads before scheduling any writes so failure/timeout leaves the
  * caller's local recovery copy intact, and later unrelated writes cannot mask it.
  */
-export async function backupAllLocalSlots(
+async function backupLocalSlotBatch(
   userId,
   { timeoutMs = FLUSH_QUEUE_TIMEOUT_MS, skipRecovery = false } = {},
 ) {
@@ -827,7 +862,8 @@ export async function backupAllLocalSlots(
         if (raw == null) continue;
         const value = JSON.parse(raw);
         if (!isCloudSlotPayload(value)) return false;
-        // The prologue's run save is never backed up (isLocalOnlyRunSave).
+        // The prologue's run save is never backed up (isLocalOnlyRunSave); the caller
+        // learns of it from `localOnly`, never from a confirmed batch.
         if (table === TABLES.run && isLocalOnlyRunSave(value)) continue;
         batch.push({ slot, table, value, key, raw });
       }

@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
 vi.mock('../src/cloud/CloudSync.js', () => ({
   backupAllLocalSlots: mocks.flush,
+  listLocalOnlySaves: () => [],
   getCloudSyncStatus: vi.fn(),
   pushMeta: vi.fn(),
 }));
@@ -63,7 +64,7 @@ describe('logout preserves local progress unless backup and signout succeed', ()
     'signs out while retaining recovery data (%j)',
     async (summary) => {
       mocks.summary.mockReturnValue(summary);
-      mocks.flush.mockResolvedValue(true);
+      mocks.flush.mockResolvedValue({ ok: true, localOnly: [] });
       mocks.clear.mockReturnValue(false);
       await scene._handleLogout({ userId: 'tester' });
       expect(mocks.flush).toHaveBeenCalledWith('tester', { skipRecovery: true });
@@ -77,7 +78,7 @@ describe('logout preserves local progress unless backup and signout succeed', ()
       'emblem_rogue_slot_1_cloud_conflict',
       JSON.stringify({ localRun: { gold: 213 }, cloudRun: { gold: 987 } }),
     );
-    mocks.flush.mockResolvedValue(true);
+    mocks.flush.mockResolvedValue({ ok: true, localOnly: [] });
     mocks.clear.mockReturnValue(false);
     await scene._handleLogout({ userId: 'tester' });
     expect(mocks.signOut).toHaveBeenCalledOnce();
@@ -85,7 +86,7 @@ describe('logout preserves local progress unless backup and signout succeed', ()
     expect(reload).toHaveBeenCalledOnce();
   });
   it('retries the backup after each failure, never treating an earlier failure as consent', async () => {
-    mocks.flush.mockResolvedValue(false);
+    mocks.flush.mockResolvedValue({ ok: false, localOnly: [] });
     await scene._handleLogout({ userId: 'tester' });
     await scene._handleLogout({ userId: 'tester' });
     expect(mocks.flush).toHaveBeenCalledTimes(2);
@@ -94,7 +95,7 @@ describe('logout preserves local progress unless backup and signout succeed', ()
     expect(reload).not.toHaveBeenCalled();
   });
   it('keeps local data and releases the blocking menu if signout fails after backup', async () => {
-    mocks.flush.mockResolvedValue(true);
+    mocks.flush.mockResolvedValue({ ok: true, localOnly: [] });
     mocks.signOut.mockRejectedValue(new Error('offline'));
     await scene._handleLogout({ userId: 'tester' });
     expect(values.get('save')).toBe('precious progress');
@@ -114,7 +115,7 @@ describe('logout preserves local progress unless backup and signout succeed', ()
     await scene._handleLogout({ userId: 'tester' });
     expect(values.has('save')).toBe(true);
     expect(mocks.flush).toHaveBeenCalledTimes(1);
-    finish(true);
+    finish({ ok: true, localOnly: [] });
     await first;
     expect(values.size).toBe(0);
     expect(mocks.signOut).toHaveBeenCalledTimes(1);

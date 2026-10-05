@@ -18,7 +18,7 @@ import { readSlotMilestones, selectTitleVariant } from '../art/keyart/titleVaria
 import { MUSIC } from '../utils/musicConfig.js';
 import { ensureAudioUnlocked } from '../utils/audioUnlock.js';
 import { signOut } from '../cloud/supabaseClient.js';
-import { backupAllLocalSlots, pushMeta } from '../cloud/CloudSync.js';
+import { backupAllLocalSlots, listLocalOnlySaves, pushMeta } from '../cloud/CloudSync.js';
 import {
   MAX_SLOTS,
   getSlotCount,
@@ -51,6 +51,30 @@ import { nativeCapacitor, getNativeSaveMirror } from '../utils/nativeSaveMirror.
 
 const VERSION = 'v0.1.0';
 const CLOUD_EXPIRED_NOTICE = 'Cloud unavailable - local saves only (re-auth required)';
+
+/** "Slot 2", "Slots 1 and 3", "Slots 1, 2 and 3". */
+function slotList(slots) {
+  const names = slots.map(String);
+  if (names.length === 1) return `Slot ${names[0]}`;
+  return `Slots ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
+/**
+ * What sign-out says about the saves it discards that no backup carries
+ * (CloudSync.listLocalOnlySaves: an unfinished prologue's run save stays on the
+ * device). Empty for none.
+ * @param {Array<{ slot: number }>} localOnly
+ */
+export function localOnlyDiscardText(localOnly) {
+  const slots = [...new Set((localOnly || []).map((save) => save?.slot))]
+    .filter((slot) => Number.isInteger(slot))
+    .sort((a, b) => a - b);
+  if (!slots.length) return '';
+  const one = slots.length === 1;
+  return one
+    ? `Your unfinished prologue on ${slotList(slots)} stays on this device and can't be backed up. Signing out discards it; it starts again from the beginning.`
+    : `Your unfinished prologues on ${slotList(slots)} stay on this device and can't be backed up. Signing out discards them; they start again from the beginning.`;
+}
 
 function readFlag(key) {
   try {
@@ -319,7 +343,9 @@ export class TitleScene extends Phaser.Scene {
    * Logout wipes all local slots (they belong to this account), so local data
    * must reach the cloud first. Push every local slot, wait for the queue, and
    * if the backup cannot be confirmed preserve local saves until an explicit
-   * destructive confirmation, or retry the entire backup.
+   * destructive confirmation, or retry the entire backup. A save no backup can
+   * carry (an unfinished prologue: CloudSync.isLocalOnlyRunSave) is discarded only
+   * after its own confirmation, even when the rest of the backup succeeded.
    */
   async _handleLogout(cloud) {
     if (this._logoutInProgress || this.nativeMenu) return;
@@ -327,11 +353,20 @@ export class TitleScene extends Phaser.Scene {
     this._logoutInProgress = true;
     this._setLogoutNotice('Backing up to cloud...', 'info');
     this._showLogoutProgress('Backing up saves', 'Checking that local progress reached the cloud…');
-    let backupConfirmed = false;
+    let backup = null;
     try {
-      backupConfirmed = await backupAllLocalSlots(cloud.userId, { skipRecovery: true });
+      backup = await backupAllLocalSlots(cloud.userId, { skipRecovery: true });
     } catch {
       /* Keep local data and offer a fresh, explicit decision. */
+    }
+    const backupConfirmed = backup?.ok === true;
+    let localOnly = Array.isArray(backup?.localOnly) ? backup.localOnly : null;
+    if (!localOnly) {
+      try {
+        localOnly = listLocalOnlySaves();
+      } catch {
+        localOnly = [];
+      }
     }
     this._logoutInProgress = false;
     this._closeTitleMenu();
@@ -368,13 +403,15 @@ export class TitleScene extends Phaser.Scene {
                 'The backup did not finish. Playable local save slots will be deleted from this device. Damaged saves and recovery copies are kept. Progress not already in the cloud will be lost.',
               ),
             );
+            const localOnlyText = localOnlyDiscardText(localOnly);
+            if (localOnlyText) confirm.body.append(element('p', localOnlyText));
             confirm.body.append(
               button('Keep local saves', () => this._closeTitleMenu(), 're-btn re-btn--primary'),
             );
             confirm.body.append(
               button('Delete local saves and log out', () => {
                 this._closeTitleMenu();
-                void this._finishLogout();
+                void this._finishLogout({ discardLocalOnly: localOnly });
               }),
             );
             confirm.focusContent();
@@ -384,11 +421,62 @@ export class TitleScene extends Phaser.Scene {
       }
       return;
     }
+    if (localOnly.length) {
+      this._confirmLocalOnlyDiscard(localOnly);
+      return;
+    }
     await this._finishLogout();
   }
 
-  async _finishLogout({ keepUndurableRecovery = false } = {}) {
+  /**
+   * The backup succeeded but cannot carry these saves (the prologue's run save stays
+   * on the device), and sign-out clears the slot cache. Ask, plainly, before
+   * discarding them; without a DOM there is no one to ask, so nothing is discarded.
+   */
+  _confirmLocalOnlyDiscard(localOnly) {
+    this._setLogoutNotice('Signing out would discard a save kept only on this device.', 'bad');
+    if (!hasDOMHost()) return;
+    const menu = this._openTitleMenu('Sign out?');
+    menu.body.append(element('p', localOnlyDiscardText(localOnly)));
+    menu.body.append(
+      button(
+        'Keep playing',
+        () => {
+          this._closeTitleMenu();
+          this._setLogoutNotice('');
+        },
+        're-btn re-btn--primary',
+      ),
+    );
+    menu.body.append(
+      button('Sign out anyway', () => {
+        if (this.nativeMenu !== menu) return;
+        this._closeTitleMenu();
+        void this._finishLogout({ discardLocalOnly: localOnly });
+      }),
+    );
+    menu.focusContent();
+  }
+
+  /**
+   * `discardLocalOnly`: the local-only saves the player agreed to discard. Any other
+   * one found now (another tab, a retry's newer state) is asked about first, never
+   * cleared unseen.
+   */
+  async _finishLogout({ keepUndurableRecovery = false, discardLocalOnly = [] } = {}) {
     if (this._logoutInProgress) return;
+    let unconfirmed;
+    try {
+      const agreed = new Set((discardLocalOnly || []).map((save) => save?.slot));
+      unconfirmed = listLocalOnlySaves().filter((save) => !agreed.has(save.slot));
+    } catch {
+      this._setLogoutNotice('Could not check this device’s saves. Nothing was deleted.', 'bad');
+      return;
+    }
+    if (unconfirmed.length) {
+      this._confirmLocalOnlyDiscard([...(discardLocalOnly || []), ...unconfirmed]);
+      return;
+    }
     this._logoutInProgress = true;
     const prepared = prepareRecoveryLogout(
       this._logoutUserId || this.registry?.get?.('cloud')?.userId,
@@ -428,7 +516,7 @@ export class TitleScene extends Phaser.Scene {
             button('Keep recovery data on this device and sign out', () => {
               if (this.nativeMenu !== menu) return;
               this._closeTitleMenu();
-              void this._finishLogout({ keepUndurableRecovery: true });
+              void this._finishLogout({ keepUndurableRecovery: true, discardLocalOnly });
             }),
           );
           menu.focusContent();

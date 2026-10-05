@@ -162,7 +162,10 @@ describe('logout recovery ownership and subsequent cloud hydration', () => {
       pushRunSave('account-b', 1, { gold: 71, savedAt: 2000 });
       pushMeta('account-b', 1, { totalValor: 83, savedAt: 2000 });
       pushAllLocalSlots('account-b');
-      expect(await backupAllLocalSlots('account-b', { skipRecovery: true })).toBe(true);
+      expect(await backupAllLocalSlots('account-b', { skipRecovery: true })).toEqual({
+        ok: true,
+        localOnly: [],
+      });
       await flushCloudSyncQueues();
       expect(
         mocks.writes.every(
