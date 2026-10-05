@@ -374,7 +374,8 @@ export class GrowthCeremonyController {
    * One level-up (gains already applied). Resolves when dismissed. `handle`
    * (optional object) receives `cancel()` to close it from outside. `cue`
    * plays the level-up music for the card's kind (battle level-ups get
-   * theirs from the scene, so they leave it off).
+   * theirs from the scene, so they leave it off). `depth` raises the card over a menu
+   * that stays open under it (the arena's result card hands off to it).
    */
   async showLevelUp({
     unit,
@@ -383,6 +384,7 @@ export class GrowthCeremonyController {
     frame = 'map',
     handle = null,
     cue = false,
+    depth = null,
   }) {
     if (!unit || !result || this.destroyed || !canRenderCeremony()) return false;
     const content = levelUpContent(unit, result, learnedNames, this.voice());
@@ -393,6 +395,7 @@ export class GrowthCeremonyController {
       className: `gr-level-layer gr-level-layer--${content.kind}`,
       label: 'Level up',
       animate: timing.animate,
+      ...(depth != null ? { depth } : {}),
     });
     if (!layer) return false;
     const root = layer.root;

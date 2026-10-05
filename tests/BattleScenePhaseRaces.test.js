@@ -281,6 +281,28 @@ describe('player turn-start input ownership', () => {
     expect(scene.battleState).toBe('PLAYER_IDLE');
   });
 
+  it('presents queued EXP gauges alone with no checkpoint of their own', async () => {
+    const { scene, delayedCallbacks } = readyScene();
+    scene.playerUnits = [{ name: 'Veteran', currentHP: 20, skills: [], stats: {} }];
+    scene._pendingLevelUpPopups = [];
+    scene._pendingXpGauges = [
+      { unitName: 'Veteran', gained: 3, segments: [{ from: 10, to: 13, label: '4' }] },
+    ];
+    const played = [];
+    scene._xpGauge = { play: vi.fn(async (record) => played.push(record.unitName)) };
+    scene.onPhaseChange('player', 3);
+    await delayedCallbacks.find((entry) => entry.ms === 1200).cb();
+    expect(played).toEqual(['Veteran']);
+    expect(scene._pendingXpGauges).toEqual([]);
+    // Only the turn's own destination checkpoint (gauges never make a recovery one).
+    expect(scene._captureSuspendCheckpoint).toHaveBeenCalledTimes(1);
+    expect(scene._captureSuspendCheckpoint).toHaveBeenLastCalledWith({
+      preserveRng: false,
+      session: scene._battleSession,
+    });
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+  });
+
   it('blocks End Turn and selection through banner, healing and ballista, then unlocks once', async () => {
     const { scene, delayedCallbacks } = readyScene();
     const healing = pending();

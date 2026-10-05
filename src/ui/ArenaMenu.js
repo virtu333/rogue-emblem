@@ -16,6 +16,8 @@ import {
 } from './choiceCards.js';
 import { unitTemperament } from './unitVoiceDisplay.js';
 import { recruitLine } from './growthContent.js';
+import { buildXpGauge } from './XpGaugeController.js';
+import { canRenderCeremony } from './ceremonyDom.js';
 
 // Mercenary cards compare the whole board (best-of-board marks, roster cue).
 function mercContent(c) {
@@ -206,7 +208,7 @@ export class ArenaMenu {
     m.action('Continue', next);
     return m.focus();
   }
-  static result(c, outcome, tier, reward, levelUpInfo) {
+  static result(c, outcome, tier, reward, levelUpInfo, xpRecord = null) {
     const m = new ArenaMenu(c, 'Arena · Rewards', () => c._showMenu());
     m.text(
       {
@@ -220,6 +222,14 @@ export class ArenaMenu {
     m.text(`${u.name} · HP ${u.currentHP}/${u.stats.HP}`);
     m.text(c._saveWarning || 'Fight results and hires save immediately.');
     m.text(`Gold ${reward.goldDelta >= 0 ? '+' : ''}${reward.goldDelta} · XP +${reward.xpGained}`);
+    // The EXP bar: the battle gauge's gilt bar, filled by the overlay (fillXpGauge) once.
+    if (xpRecord && canRenderCeremony()) {
+      m.xpView = buildXpGauge(xpRecord);
+      m.xpView.gauge.classList.add('is-inline');
+      const row = el('div', '', 'xg-inline-row');
+      row.append(m.xpView.gauge);
+      m.surface.body.append(row);
+    }
     if (levelUpInfo) {
       m.text(`Level ${levelUpInfo.from} → ${levelUpInfo.to}`);
       const learned = (levelUpInfo.learnedSkills || []).map(

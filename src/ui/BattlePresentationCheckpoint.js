@@ -8,6 +8,8 @@ import { LevelUpPopup } from './LevelUpPopup.js';
 import { gridDistance } from '../engine/Combat.js';
 import { levelUpKind } from './growthContent.js';
 import { safeBattlePresentation } from './safeBattlePresentation.js';
+import { xpGaugeFor } from './XpGaugeController.js';
+import { progressSteps } from './xpGaugeModel.js';
 
 // Save fields are untrusted; the one definition of the shape lives in the engine.
 export { readActionContinuation };
@@ -71,41 +73,84 @@ export function captureResolvedAction(scene, continuation, { session, preserveRn
   return scene._captureSuspendCheckpoint?.({ session, preserveRng }) === true;
 }
 
-export async function presentQueuedLevelUps(scene, continuation = null, { session } = {}) {
+/**
+ * Show what the last action's XP did (docs/specs/exp-bars.md §2.2): for each unit in
+ * award order, its EXP gauge (`scene._pendingXpGauges`), then its level-up cards
+ * (`scene._pendingLevelUpPopups`), then the prologue's level-up beat after each card.
+ * Every gain is applied before this runs; it only draws. A gauge never opens over a
+ * blocking prologue note: it waits for the chapter's presentation to settle (idle()).
+ *
+ * Pending cards make the boundary a recovery (classifyBattleBoundary), so a
+ * `continuation` is captured before they show; gauges alone are presentation only and
+ * capture nothing (a refresh mid-gauge loses only the animation).
+ */
+export async function presentQueuedProgress(scene, continuation = null, { session } = {}) {
   if (!isCurrentBattleSession(scene, session)) return;
   if (scene._fatalDecision || scene._fatalCapturePending || scene._defeatDecision) return;
-  const queue = scene._pendingLevelUpPopups || [];
-  if (!queue.length) return;
+  const cards = scene._pendingLevelUpPopups || [];
+  const gauges = scene._pendingXpGauges || [];
+  if (!cards.length && !gauges.length) return;
   scene._pendingLevelUpPopups = [];
-  if (continuation) captureResolvedAction(scene, continuation, { session });
-  for (const { unitName, unitId, levelUp, learnedNames } of queue) {
+  scene._pendingXpGauges = [];
+  if (continuation && cards.length) captureResolvedAction(scene, continuation, { session });
+  for (const step of progressSteps(gauges, cards)) {
     if (!isCurrentBattleSession(scene, session)) return;
-    const unit = findBattleEntity(scene, { unitId, unitName }, ['playerUnits']);
-    if (!unit) continue;
-    safeBattlePresentation('level-up sound', () => scene._playLevelUpSfx(levelUpKind(levelUp)), {
+    const gauge = step.gauge ? presentXpGauge(scene, step.gauge, { session }) : null;
+    if (gauge) {
+      await gauge;
+      if (!isCurrentBattleSession(scene, session)) return;
+    }
+    for (const card of step.cards) {
+      if (!isCurrentBattleSession(scene, session)) return;
+      await presentLevelUpCard(scene, card, { session });
+    }
+  }
+}
+
+/** The old name: level-up cards are now part of the XP progress queue. */
+export const presentQueuedLevelUps = presentQueuedProgress;
+
+/**
+ * One gauge, or null when none can show (headless: no DOM host). Returning null keeps a
+ * queue with nothing to draw synchronous up to its first card, as it was before gauges.
+ */
+function presentXpGauge(scene, record, { session }) {
+  let gauge = null;
+  safeBattlePresentation('xp gauge', () => (gauge = xpGaugeFor(scene)), { scene });
+  if (!gauge) return null;
+  return (async () => {
+    // Never over a prologue note or line still on screen: its beat settles first.
+    if (scene._prologue?.isPresenting?.())
+      await safeBattlePresentation('xp gauge prologue wait', () => scene._prologue.idle(), {
+        scene,
+      });
+    if (!isCurrentBattleSession(scene, session)) return;
+    await safeBattlePresentation('xp gauge', () => gauge.play(record), { scene });
+  })();
+}
+
+async function presentLevelUpCard(scene, { unitName, unitId, levelUp, learnedNames }, { session }) {
+  const unit = findBattleEntity(scene, { unitId, unitName }, ['playerUnits']);
+  if (!unit) return;
+  safeBattlePresentation('level-up sound', () => scene._playLevelUpSfx(levelUpKind(levelUp)), {
+    scene,
+  });
+  safeBattlePresentation('level-up HP', () => scene.updateHPBar(unit), { scene });
+  try {
+    await safeBattlePresentation(
+      'level-up popup',
+      () => new LevelUpPopup(scene, unit, levelUp, false, learnedNames).show(),
+      { scene },
+    );
+  } finally {
+    if (isCurrentBattleSession(scene, session))
+      safeBattlePresentation('level-up sound cleanup', () => scene._stopLevelUpSfx(), { scene });
+  }
+  // A prologue chapter's level-up note reads right after the card.
+  if (scene._prologue && isCurrentBattleSession(scene, session))
+    await safeBattlePresentation('prologue level-up note', () => scene._prologue.onLevelUp(unit), {
       scene,
     });
-    safeBattlePresentation('level-up HP', () => scene.updateHPBar(unit), { scene });
-    try {
-      await safeBattlePresentation(
-        'level-up popup',
-        () => new LevelUpPopup(scene, unit, levelUp, false, learnedNames).show(),
-        { scene },
-      );
-    } finally {
-      if (isCurrentBattleSession(scene, session))
-        safeBattlePresentation('level-up sound cleanup', () => scene._stopLevelUpSfx(), { scene });
-    }
-    // A prologue chapter's level-up note reads right after the card.
-    if (scene._prologue && isCurrentBattleSession(scene, session))
-      await safeBattlePresentation(
-        'prologue level-up note',
-        () => scene._prologue.onLevelUp(unit),
-        {
-          scene,
-        },
-      );
-  }
 }
 
 /**

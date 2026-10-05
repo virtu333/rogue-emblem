@@ -61,6 +61,7 @@ export const DOM_UI_DEPTHS = {
   ROUTE: 400,
   LAUNCH: 920,
   UPGRADE: 950,
+  XP_GAUGE: 960, // Battle EXP gauge over the map; under the level-up card it hands off to.
   CEREMONY: 980, // Bands, cards and cut-ins; dialogue, forecasts and menus sit above.
   FORECAST: 1000,
   PAUSE: 1100,

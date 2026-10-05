@@ -959,6 +959,114 @@ test.describe('upright 375x667, a real kill', () => {
     expect(after.stats).toEqual(shown);
     expect(errors).toEqual([]);
   });
+
+  // The EXP gauge after a kill on the turned board: the gilt bar spans the map frame less
+  // its gutters, stands beside the unit that gained (below its tile, or above it when
+  // below would leave the frame) and never covers the upright rail. A MutationObserver
+  // records its box the moment it opens, so the check never races its timers.
+  test('the EXP gauge stands beside the unit, inside the map frame, clear of the rail', async ({
+    page,
+  }) => {
+    test.slow();
+    const errors = pageErrors(page);
+    await quietSettings(page);
+    await bootBattle(page);
+    const setup = await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const u = s.playerUnits.find((p) => p.name === 'Edric');
+      u.xp = 0;
+      u.stats.STR = 999;
+      u.weapon.hit = 999;
+      const enemy = s.enemyUnits[0];
+      const tile = [
+        [u.col + 1, u.row],
+        [u.col - 1, u.row],
+        [u.col, u.row + 1],
+        [u.col, u.row - 1],
+      ].find(
+        ([col, row]) =>
+          col >= 0 && row >= 0 && col < s.grid.cols && row < s.grid.rows && !s.getUnitAt(col, row),
+      );
+      [enemy.col, enemy.row] = tile;
+      enemy.name = 'Gauge Target';
+      enemy.currentHP = 1;
+      enemy.skills = [];
+      s.grid.setTerrainAt(enemy.col, enemy.row, 0);
+      s.updateUnitPosition(enemy);
+      s.updateHPBar(enemy);
+      window.__gauge = null;
+      const box = (n) => {
+        const r = n.getBoundingClientRect();
+        return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width };
+      };
+      new MutationObserver((records) => {
+        for (const record of records)
+          for (const node of record.addedNodes) {
+            if (window.__gauge || !node.classList?.contains('xg-layer')) continue;
+            const b = window.__emblemRogueGame.scene.getScene('Battle');
+            const edric = b.playerUnits.find((p) => p.name === 'Edric');
+            const c = b.grid.gridToPixel(edric.col, edric.row);
+            const r = b.game.canvas.getBoundingClientRect();
+            const y = (p) => r.top + (p.y * r.height) / b.scale.height;
+            const a = b._worldToScreen(c.x, c.y - 16);
+            const z = b._worldToScreen(c.x, c.y + 16);
+            window.__gauge = {
+              gauge: box(node.querySelector('.xg-gauge')),
+              frame: box(node),
+              map: box(document.getElementById('game-container')),
+              rail: box(document.querySelector('.mobile-battle-hud')),
+              side: node.querySelector('.xg-gauge').dataset.side,
+              tile: { top: Math.min(y(a), y(z)), bottom: Math.max(y(a), y(z)) },
+            };
+          }
+      }).observe(document.body, { childList: true, subtree: true });
+      return { rotation: s.grid.board.rotation };
+    });
+    expect(setup.rotation).toBe('ccw'); // the board is turned: this is the upright battle
+    const tap = async (name, group) => {
+      const p = await page.evaluate(
+        ({ name, group }) => {
+          const s = window.__emblemRogueGame.scene.getScene('Battle');
+          const u = s[group].find((x) => x.name === name);
+          const w = s.grid.gridToPixel(u.col, u.row);
+          const q = s._worldToScreen(w.x, w.y);
+          const r = s.game.canvas.getBoundingClientRect();
+          return {
+            x: r.x + (q.x * r.width) / s.scale.width,
+            y: r.y + (q.y * r.height) / s.scale.height,
+          };
+        },
+        { name, group },
+      );
+      await page.touchscreen.tap(p.x, p.y);
+    };
+    await tap('Edric', 'playerUnits');
+    const hud = page.getByRole('complementary', { name: 'Battle commands' });
+    await hud.getByRole('button', { name: 'Attack', exact: true }).tap();
+    await tap('Gauge Target', 'enemyUnits');
+    await page.getByRole('button', { name: 'Confirm attack', exact: true }).tap();
+    await page.waitForFunction(() => window.__gauge, null, { timeout: 25_000 });
+    const g = await page.evaluate(() => window.__gauge);
+    // Inside the map frame (the map above the rail), the full width less 8 px gutters.
+    expect(g.gauge.left).toBeGreaterThanOrEqual(g.frame.left + 7);
+    expect(g.gauge.right).toBeLessThanOrEqual(g.frame.right - 7);
+    expect(Math.abs(g.gauge.width - (g.frame.width - 16))).toBeLessThanOrEqual(1);
+    expect(g.gauge.top).toBeGreaterThanOrEqual(g.frame.top - 1);
+    expect(g.gauge.bottom).toBeLessThanOrEqual(g.frame.bottom + 1);
+    expect(g.frame.bottom).toBeLessThanOrEqual(g.map.bottom + 1);
+    // Clear of the upright rail.
+    expect(g.gauge.bottom).toBeLessThanOrEqual(g.rail.top + 1);
+    // Beside Edric's tile on the turned board.
+    if (g.side === 'below') expect(g.gauge.top).toBeGreaterThanOrEqual(g.tile.bottom - 1);
+    else expect(g.gauge.bottom).toBeLessThanOrEqual(g.tile.top + 1);
+    await page.screenshot({ path: test.info().outputPath('xp-gauge-375x667.png') });
+    await page.waitForFunction(
+      () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
+      null,
+      { timeout: 30_000 },
+    );
+    expect(errors).toEqual([]);
+  });
 });
 
 // ── Landscape phones and desktop: unchanged ─────────────────────────────

@@ -1,6 +1,10 @@
 import { ArenaMenu } from './ArenaMenu.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
 import { growthCeremonies } from './GrowthCeremonyController.js';
+import { fillXpGauge } from './XpGaugeController.js';
+import { xpGaugeRecord, xpGaugeTiming } from './xpGaugeModel.js';
+import { xpSnapshot } from '../engine/XpProgress.js';
+import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import { levelUpDisplayResults } from './progressionDisplay.js';
 import { saveServiceRun } from './serviceSave.js';
 import { relinkWeapon } from '../engine/RunManager.js';
@@ -109,6 +113,10 @@ export class ColosseumOverlay {
   // ────────────────────────────────────────
 
   _clearScreen() {
+    // A result whose EXP bar is still filling ends it (its level cards still play).
+    const fill = this._arenaFill;
+    this._arenaFill = null;
+    fill?.finish();
     this.nativeMenu?.destroy();
     this.nativeMenu = null;
   }
@@ -416,11 +424,19 @@ export class ColosseumOverlay {
 
     // Apply XP and track level-ups
     let levelUpInfo = null;
+    let xpRecord = null;
     if (reward.xpGained > 0) {
       const prevLevel = unit.level;
       const extendedLevelingEnabled =
         this.runManager?.getDifficultyModifier?.('extendedLevelingEnabled', false) || false;
+      const before = xpSnapshot(unit, { extendedLevelingEnabled });
       const xpResult = gainExperience(unit, reward.xpGained, { extendedLevelingEnabled });
+      // The result card's EXP bar (plain values; null when nothing counted: the cap).
+      xpRecord = xpGaugeRecord(unit, {
+        before,
+        after: xpSnapshot(unit, { extendedLevelingEnabled }),
+        levelUps: xpResult.levelUps,
+      });
       const extendedGain = xpResult.levelUps?.some((lu) => lu.isExtended);
       if (unit.level > prevLevel || extendedGain) {
         const actualLevelUps = xpResult.levelUps?.length || 0;
@@ -442,45 +458,70 @@ export class ColosseumOverlay {
       }
     }
 
-    this._settledResult = { reward, levelUpInfo };
+    this._settledResult = { reward, levelUpInfo, xpRecord };
     this._persistVisit();
     return this._settledResult;
   }
 
   _showResult(outcome, tier) {
     const settled = this._settleFight(outcome, tier);
-    const { reward, levelUpInfo } = settled;
+    const { reward, levelUpInfo, xpRecord } = settled;
     this._clearScreen();
-    const show = () => {
-      if (!this.visible || !this.scene) return;
-      this.nativeMenu = ArenaMenu.result(this, outcome, tier, reward, levelUpInfo);
-    };
-    // Arena levels are growth too: the level-up card plays once per fight,
-    // after the fight is settled and saved (_settleFight), then the result.
+    // Arena levels are growth too: the level-up card plays once per fight, after the
+    // fight is settled and saved (_settleFight). The result card's EXP bar fills once
+    // (docs/specs/exp-bars.md §2.6) and hands off to the card, which opens over it.
     const growth = levelUpInfo?.ups?.length && !settled.presented ? growthCeremonies(this.scene) : null; // prettier-ignore
-    if (!growth) {
-      show();
+    if (growth) settled.presented = true;
+    const fills = !settled.filled;
+    settled.filled = true;
+    this.nativeMenu = ArenaMenu.result(this, outcome, tier, reward, levelUpInfo, xpRecord);
+    const view = this.nativeMenu?.xpView || null;
+    const cards = growth ? () => this._playArenaLevelUps(growth, levelUpInfo) : null;
+    if (!view || !xpRecord) {
+      cards?.();
       return;
     }
-    settled.presented = true;
+    const settings = this.scene?.registry?.get?.('settings');
+    const timing = fills
+      ? xpGaugeTiming({
+          speed: settings?.getBattleSpeed?.() || 'normal',
+          reducedMotion: Boolean(settings?.getReduceMotion?.()),
+        })
+      : { animate: false };
+    let fill = null;
+    fill = fillXpGauge(view, xpRecord, timing, {
+      // Runs at once for a static bar (fill not yet assigned), else when the fill ends.
+      onFilled: () => {
+        if (fill && this._arenaFill === fill) this._arenaFill = null;
+        cards?.();
+      },
+    });
+    if (!fill.isDone()) {
+      this._arenaFill = fill;
+      // A press on the bar skips to its end (and on to the card).
+      view.gauge.addEventListener('pointerdown', () => fill.finish());
+    }
+  }
+
+  /** The fight's level-up cards, over the result card that stays open under them. */
+  async _playArenaLevelUps(growth, levelUpInfo) {
     const unit = this._selectedUnit;
     const learned = (levelUpInfo.learnedSkills || []).map(
       (id) => this.gameData.skills?.find((sk) => sk.id === id)?.name || id,
     );
     const results = levelUpDisplayResults(unit.stats, levelUpInfo.ups);
-    void (async () => {
-      for (let i = 0; i < results.length; i++) {
-        if (!this.visible || growth.destroyed) break;
-        await growth.showLevelUp({
-          unit,
-          result: results[i],
-          learnedNames: i === results.length - 1 ? learned : [],
-          frame: 'screen',
-          cue: true,
-        });
-      }
-      show();
-    })();
+    for (let i = 0; i < results.length; i++) {
+      if (!this.visible || growth.destroyed) break;
+      await growth.showLevelUp({
+        unit,
+        result: results[i],
+        learnedNames: i === results.length - 1 ? learned : [],
+        frame: 'screen',
+        cue: true,
+        depth: DOM_UI_DEPTHS.RITE,
+      });
+    }
+    this.nativeMenu?.focus?.();
   }
 
   _showMercBrowse() {

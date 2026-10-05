@@ -19,6 +19,8 @@
 @import './ceremony.css';
 /* Growth ceremonies: promotion rite, level-up card, recruits, class crests. */
 @import './growth.css';
+/* The battle's EXP gauge: the gilt bar that fills after an action gives XP. */
+@import './xpGauge.css';
 /* Deeds & Epithets: the deed title card, epithets, Oaths, Deeds of the March. */
 @import './deeds.css';
 /* The draft: every "choose one" screen as cards side by side. */

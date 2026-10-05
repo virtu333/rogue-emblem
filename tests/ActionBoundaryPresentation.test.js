@@ -202,6 +202,7 @@ async function run(kind, failure = 0, world = 'shown') {
       state: scene.battleState,
       pending: scene._pendingActionCompletion,
       queue: scene._pendingLevelUpPopups,
+      gauges: scene._pendingXpGauges,
       checkpoint: scene.runManager.battleInProgress.checkpoint,
       durable: JSON.parse(storage.getItem('emblem_rogue_slot_1_run')),
     }),
@@ -250,6 +251,8 @@ describe('remaining action settlement through real scene entries', () => {
       } else {
         expect(staff._usesSpent).toBe(1);
         expect(actor.xp).toBe(kind === 'growth' ? 15 : 20);
+        // The staff's gain plays its EXP gauge (queued in the settlement, present: false).
+        expect(calls.labels).toContain('gauge.play');
         if (kind === 'growth') expect(actor.level).toBe(6);
         else if (kind === 'mend') expect(target.currentHP).toBe(20);
         else if (kind === 'cure') {

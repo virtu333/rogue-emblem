@@ -12,7 +12,7 @@ vi.mock('../src/ui/serviceSave.js', () => ({ saveServiceRun: vi.fn(() => '') }))
 import { installFakeDom } from './helpers/fakeDom.js';
 import { loadGameData } from './testData.js';
 import { RunManager } from '../src/engine/RunManager.js';
-import { createXpBar, createXpRow } from '../src/ui/xpBar.js';
+import { XP_CANVAS_COLORS, createXpBar, createXpRow, drawCanvasXpRow } from '../src/ui/xpBar.js';
 import { MobileRosterSheet } from '../src/ui/MobileRosterSheet.js';
 
 const data = loadGameData();
@@ -192,5 +192,47 @@ describe('the roster sheet’s EXP', () => {
     sheet = openSheet([veteran], { run: null, sceneRun: run });
     expect(summaryOf(sheet).querySelector('.re-xp-value').textContent).toBe('40/100');
     sheet.destroy();
+  });
+});
+
+// The headless fallbacks (RosterOverlay / UnitDetailOverlay) draw the same row on the
+// canvas with the 180×8 HP-bar code: the fill must match the DOM meter's ratio and MAX.
+describe('drawCanvasXpRow', () => {
+  function canvas() {
+    const rects = [];
+    const texts = [];
+    const scene = {
+      add: {
+        rectangle: (x, y, w, h, color) => {
+          const r = { x, y, w, h, color, setOrigin: () => r, setDepth: (d) => ((r.depth = d), r) };
+          rects.push(r);
+          return r;
+        },
+      },
+    };
+    const text = (x, y, str, color) => texts.push({ x, str, color });
+    return { scene, rects, texts, text };
+  }
+  it('a 180×8 bar filled to the XP held, "EXP" before it and the value after', () => {
+    const c = canvas();
+    const drawn = drawCanvasXpRow(c.scene, 10, 50, unit(), { text: c.text, depth: 7 });
+    expect(drawn).toEqual(c.rects);
+    // 45 of 100: 81 of 180 px, in the info colour, over a sunken bed.
+    expect(c.rects.map((r) => [r.w, r.h, r.color, r.depth])).toEqual([
+      [180, 8, XP_CANVAS_COLORS.bed, 7],
+      [81, 8, XP_CANVAS_COLORS.fill, 7],
+    ]);
+    expect(c.texts.map((t) => t.str)).toEqual(['EXP', '45/100']);
+  });
+  it('MAX at the cap (a full bar in the muted colour); nothing for an enemy', () => {
+    const c = canvas();
+    drawCanvasXpRow(c.scene, 0, 0, unit({ level: 20, xp: 30 }), { text: c.text });
+    expect(c.rects[1]).toMatchObject({ w: 180, color: XP_CANVAS_COLORS.maxFill });
+    expect(c.texts.at(-1)).toMatchObject({ str: 'MAX', color: XP_CANVAS_COLORS.maxText });
+    const e = canvas();
+    expect(drawCanvasXpRow(e.scene, 0, 0, unit({ faction: 'enemy' }), { text: e.text })).toEqual(
+      [],
+    );
+    expect(e.texts).toEqual([]);
   });
 });

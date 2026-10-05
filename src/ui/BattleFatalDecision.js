@@ -15,6 +15,7 @@ export function persistFatalDecision(scene) {
     scene._enemyPhaseEpoch = (scene._enemyPhaseEpoch || 0) + 1;
     scene._pendingActionCompletion = null;
     scene._pendingLevelUpPopups = [];
+    scene._pendingXpGauges = [];
     scene._fatalCapturePending = true;
     try {
       const state = captureBattleState(scene, {
@@ -90,6 +91,7 @@ export function resumeFatalDecision(scene, checkpoint) {
   scene._fatalDecision = { durable: true, candidate: null };
   scene._pendingActionCompletion = null;
   scene._pendingLevelUpPopups = [];
+  scene._pendingXpGauges = [];
   scene._enemyPhaseEpoch = (scene._enemyPhaseEpoch || 0) + 1;
   scene.battleState = 'PAUSED';
   if (!scene.showLordDeathVisionPrompt()) scene.onDefeat();

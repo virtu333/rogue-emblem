@@ -179,9 +179,10 @@ import {
   resetWeaponArtTurnUsage,
 } from '../engine/WeaponArtSystem.js';
 import {
-  presentQueuedLevelUps,
+  presentQueuedProgress,
   completeResolvedAction,
 } from '../ui/BattlePresentationCheckpoint.js';
+import { xpGaugeRecord } from '../ui/xpGaugeModel.js';
 import { UnitInspectionPanel } from '../ui/UnitInspectionPanel.js';
 import { UnitDetailOverlay } from '../ui/UnitDetailOverlay.js';
 import { DialogueOverlay } from '../ui/DialogueOverlay.js';
@@ -535,6 +536,7 @@ export class BattleScene extends Phaser.Scene {
     this._transitionAfterBattlePromise = null;
     this._levelUpSfxKey = null;
     this._pendingLevelUpPopups = [];
+    this._pendingXpGauges = [];
     this._pendingCureTarget = null;
     this._pendingCureItem = null;
     this._pendingCureUser = null;
@@ -717,6 +719,9 @@ export class BattleScene extends Phaser.Scene {
     this._ceremonies = null;
     this._growthCeremonies?.destroy();
     this._growthCeremonies = null;
+    this._xpGauge?.destroy?.();
+    this._xpGauge = null;
+    this._pendingXpGauges = [];
     this._reinforcements?.destroy();
     this._reinforcements = null;
     this._bossPresence?.destroy();
@@ -4985,7 +4990,12 @@ export class BattleScene extends Phaser.Scene {
 
   finishUnitAction(unit, { skipCanto = false, session } = {}) {
     if (!isCurrentBattleSession(this, session)) return false;
-    if (this._pendingLevelUpPopups?.length && this.turnManager?.currentPhase !== 'enemy') {
+    // Level-up cards and EXP gauges still to show (gauges alone present too; only the
+    // cards make the boundary a recovery).
+    if (
+      (this._pendingLevelUpPopups?.length || this._pendingXpGauges?.length) &&
+      this.turnManager?.currentPhase !== 'enemy'
+    ) {
       this.battleState = 'COMBAT_RESOLVING';
       const continuation = {
         kind: 'finish',
@@ -4993,7 +5003,7 @@ export class BattleScene extends Phaser.Scene {
         ...(unit.battleEntityId ? { unitId: unit.battleEntityId } : {}),
         skipCanto,
       };
-      return presentQueuedLevelUps(this, continuation, { session })
+      return presentQueuedProgress(this, continuation, { session })
         .then(() => {
           if (!isCurrentBattleSession(this, session)) return;
           completeResolvedAction(this, continuation, { session });
@@ -8369,7 +8379,7 @@ export class BattleScene extends Phaser.Scene {
           ? { refreshActor: true }
           : {}),
       };
-      await presentQueuedLevelUps(this, continuation, { session });
+      await presentQueuedProgress(this, continuation, { session });
       if (!isCurrentBattleSession(this, session)) return;
       completeResolvedAction(this, continuation, { session });
     } catch (err) {
@@ -8766,7 +8776,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /**
-   * Award XP to a player unit after combat. Shows floating text + level-up popups.
+   * Award XP to a player unit after combat. Each gain queues its EXP gauge and level-up
+   * cards; presentQueuedProgress shows them once the action is settled.
    * `survivedAttack`: the unit was attacked and lived. It then earns at least
    * XP_DEFEND_SURVIVE, even unarmed, out of counter reach or with every counter
    * missed; only XP earned by damage dealt is shared by a Mentor's Band.
@@ -8850,10 +8861,17 @@ export class BattleScene extends Phaser.Scene {
     // all five slots full is named on the card (once: later level-ups retry it silently).
     const extendedLevelingEnabled =
       this.runManager?.getDifficultyModifier('extendedLevelingEnabled', false) || false;
-    const { statsAfterGain, levelUps } = applyXpGain(playerUnit, xp, {
+    const { statsAfterGain, levelUps, before, after, result } = applyXpGain(playerUnit, xp, {
       classes: this.gameData.classes,
       extendedLevelingEnabled,
     });
+    // The EXP gauge's record (plain values), queued with the cards whatever `present`
+    // says: staff and dance apply their gain in the settlement and present it later.
+    // Nothing gained (the level cap) queues nothing: no gauge, no float.
+    const gauge = isCurrentBattleSession(this, session)
+      ? xpGaugeRecord(playerUnit, { before, after, levelUps: result?.levelUps })
+      : null;
+    if (gauge) (this._pendingXpGauges ||= []).push(gauge);
     const cards = levelUpDisplayResults(
       statsAfterGain,
       levelUps.map((entry) => entry.levelUp),
@@ -8876,35 +8894,7 @@ export class BattleScene extends Phaser.Scene {
         learnedNames: levelUps[i].learnedIds.map(skillName),
       });
     }
-    if (present) BattleScene.prototype._presentScaledXP.call(this, playerUnit, xp);
     return xp;
-  }
-
-  _presentScaledXP(playerUnit, xp) {
-    safeBattlePresentation(
-      'XP',
-      () => {
-        // Show floating XP text
-        const pos = this.grid.gridToPixel(playerUnit.col, playerUnit.row);
-        const xpText = presentationText(this, pos.x, pos.y - 20, `+${xp} XP`, {
-          fontFamily: 'monospace',
-          fontSize: '12px',
-          color: UI_PALETTE.info,
-          fontStyle: 'bold',
-        })
-          .setOrigin(0.5)
-          .setDepth(300);
-
-        this.tweens.add({
-          targets: xpText,
-          y: pos.y - 44,
-          alpha: 0,
-          duration: 800,
-          onComplete: () => xpText.destroy(),
-        });
-      },
-      { scene: this },
-    );
   }
 
   /**
@@ -9436,9 +9426,10 @@ export class BattleScene extends Phaser.Scene {
             this.captureVisionSnapshot();
             this.updateVisionHud();
             const presentedLevelUps = Boolean(this._pendingLevelUpPopups?.length);
-            if (presentedLevelUps) {
-              this._captureSuspendCheckpoint?.({ session: session });
-              await presentQueuedLevelUps(this, null, { session: session });
+            if (presentedLevelUps) this._captureSuspendCheckpoint?.({ session: session });
+            // EXP gauges with them (or alone: presentation only, no checkpoint of their own).
+            if (presentedLevelUps || this._pendingXpGauges?.length) {
+              await presentQueuedProgress(this, null, { session: session });
               if (!isCurrentTurnStart()) return;
             }
             this.battleState = 'PLAYER_IDLE';
@@ -10304,7 +10295,7 @@ export class BattleScene extends Phaser.Scene {
                   )
                     return;
                 }
-                await presentQueuedLevelUps(this, null, { session });
+                await presentQueuedProgress(this, null, { session });
               }
             },
           },

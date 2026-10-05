@@ -43,6 +43,7 @@ vi.mock('../src/ui/ForecastOverlay.js', () => ({
 vi.mock('../src/ui/BattlePresentationCheckpoint.js', async (importOriginal) => ({
   ...(await importOriginal()),
   presentQueuedLevelUps: vi.fn(async () => {}),
+  presentQueuedProgress: vi.fn(async () => {}),
   completeResolvedAction: vi.fn(),
 }));
 // Every resolved attack: the attacker weapon passed in and the result.

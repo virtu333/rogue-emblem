@@ -765,6 +765,7 @@ async function run(kind, failure = 0, world = 'shown') {
     pendingAction: scene._pendingActionCompletion,
     committed: scene._pendingCommittedAction,
     popups: scene._pendingLevelUpPopups,
+    gauges: scene._pendingXpGauges,
     visible: scene.grid.visibleSet,
     warpFogBoundary: scene._warpFogBoundary,
     rng: scene._battleRng.getState(),
@@ -876,7 +877,15 @@ function assertOutcome(kind, result) {
     expect(attacker._phoenixBroochUsed).toBe(true);
     expect(attacker._battleWeaponArtUsage.map.sword_precise_cut).toBe(1);
   }
+  if (kind === 'level-up' || kind === 'plain kill') {
+    // The gain's EXP gauge plays (with the level-up card, or alone) before the action ends.
+    expect(result.calls.labels).toContain('gauge.play');
+    expect(result.snapshot.gauges).toEqual([]);
+  }
   if (kind === 'level-up') {
+    expect(result.calls.labels.indexOf('gauge.play')).toBeLessThan(
+      result.calls.labels.indexOf('_playLevelUpSfx'),
+    );
     expect(attacker.level).toBe(15);
     expect(attacker.skills).toContain('wrath');
     expect(attacker.xp).toBe(12); // floor(25 * 12/22)=13 XP; 99+13 crosses once.

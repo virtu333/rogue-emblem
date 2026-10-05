@@ -165,7 +165,10 @@ describe('production timeline boundaries and recovery', () => {
     const commander = scene.playerUnits.shift();
     scene._battleCommanderName = commander.name;
     scene.turnManager.currentPhase = 'enemy';
+    scene._pendingXpGauges = [{ unitName: 'A', gained: 5, segments: [{ from: 0, to: 5 }] }];
     expect(persistFatalDecision(scene).ok).toBe(true);
+    // A gain recorded before the fall never plays over the fate prompt.
+    expect(scene._pendingXpGauges).toEqual([]);
     const restoredRun = loadRun(driver.data, 1);
     const cp = restoredRun.battleInProgress.checkpoint;
     expect(cp.recoveryKind).toBe('fatal_pending');
@@ -177,7 +180,9 @@ describe('production timeline boundaries and recovery', () => {
     resumed.startEnemyPhase = vi.fn();
     const controller = new BattleSuspendController(resumed);
     controller.applyUnits(cp);
+    resumed._pendingXpGauges = [{ unitName: 'A', gained: 5, segments: [{ from: 0, to: 5 }] }];
     controller.finalizeResume(cp);
+    expect(resumed._pendingXpGauges).toEqual([]);
     expect(resumed.showLordDeathVisionPrompt).toHaveBeenCalledOnce();
     expect(resumed.startEnemyPhase).not.toHaveBeenCalled();
     expect(resumed.turnManager.endPlayerPhaseCalls).toBe(0);
