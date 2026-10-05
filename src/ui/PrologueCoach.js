@@ -7,6 +7,9 @@
 // back into PrologueController for actions and for the guided step's goal.
 
 import { getAttackRange } from '../engine/AttackOptions.js';
+import { isHolding } from '../engine/HoldActivation.js';
+import { isRooted } from '../engine/StatusConditionSystem.js';
+import { unitReach } from '../engine/ThreatForecast.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import {
   COACH_CHAPTERS,
@@ -125,6 +128,8 @@ export class PrologueCoach {
     const s = this.scene;
     const units = (s.playerUnits || []).map((u) => ({
       name: u.name,
+      col: u.col,
+      row: u.row,
       acted: Boolean(u.hasActed),
       hp: Number(u.currentHP) || 0,
       maxHp: Number(u.stats?.HP) || 1,
@@ -145,12 +150,64 @@ export class PrologueCoach {
       commanderName: commander?.name || 'Edric',
       units,
       enemies: (s.enemyUnits || []).filter((u) => u.currentHP > 0).length,
+      turn: s.turnManager?.turnNumber || 1,
+      ...this.reachSnapshot(),
       menu,
       selected: s.selectedUnit?.name || null,
       selectionMenu: Boolean(s._inputController?.isSelectionMenu?.()),
       // A rout that waits on a green unit (RoutObjective): the goal once the field is clear.
       recruitsPending: typeof s.pendingRequiredRecruits === 'function' ? s.pendingRequiredRecruits() : [], // prettier-ignore
     };
+  }
+
+  /**
+   * The foes the player can see (`waits`: a guard or a holder, which won't come to
+   * the player) and the ready units that could strike one this turn: a move, then the
+   * weapon's reach, over what the player knows (buildUnitPositionMap). Cached on the
+   * board's state, since the coach syncs every frame.
+   */
+  reachSnapshot() {
+    const s = this.scene;
+    const grid = s.grid;
+    if (!grid?.getMovementRange) return {};
+    const alive = (u) => u && u.currentHP > 0;
+    const seen = (u) => !grid.fogEnabled || grid.isVisible?.(u.col, u.row);
+    const foes = (s.enemyUnits || []).filter((u) => alive(u) && seen(u));
+    const ready = (s.playerUnits || []).filter((u) => alive(u) && !u.hasActed);
+    const key = JSON.stringify([
+      s.turnManager?.turnNumber,
+      ready.map((u) => [u.name, u.col, u.row, u.weapon?.name]),
+      foes.map((u) => [u.col, u.row]),
+    ]);
+    if (key === this.reachKey) return this.reach;
+    let strikers;
+    try {
+      const positions = s.buildUnitPositionMap?.() || null;
+      const foeTiles = new Set(foes.map((f) => `${f.col},${f.row}`));
+      strikers = ready
+        .filter((u) => {
+          const { attackTiles } = unitReach(grid, u, {
+            mov: isRooted(u) ? 0 : u.mov,
+            positions,
+            costModifier: s._getCostModifier?.(u) || 0,
+          });
+          return attackTiles.some((t) => foeTiles.has(`${t.col},${t.row}`));
+        })
+        .map((u) => u.name);
+    } catch {
+      strikers = undefined; // the model falls back to its general advice
+    }
+    this.reachKey = key;
+    this.reach = {
+      strikers,
+      foes: foes.map((f) => ({
+        name: f.className || f.name || 'enemy',
+        col: f.col,
+        row: f.row,
+        waits: f.aiMode === 'guard' || isHolding(f),
+      })),
+    };
+    return this.reach;
   }
 
   covered() {

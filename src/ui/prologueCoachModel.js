@@ -29,6 +29,10 @@ const CHAPTER_INDEX = Object.fromEntries(COACH_CHAPTERS.map((c, i) => [c.id, i])
  * @param {string[]} [s.menu]       choosable labels in the open action menu
  * @param {string} [s.selected]     selected unit's name
  * @param {boolean} [s.selectionMenu] the tap-selected menu (unit can still move)
+ * @param {number} [s.turn]       the turn (the fall warning is turn 1's advice)
+ * @param {string[]} [s.strikers] ready units that can strike a seen foe this turn
+ * @param {Array<{name:string, col:number, row:number, waits:boolean}>} [s.foes] seen foes
+ *   (`waits`: guards or holds its post rather than coming to the player)
  * @param {string[]} [s.recruitsPending] green units the rout requires in the army
  *   (RoutObjective.pendingRequiredRecruits): the goal once the field is clear
  * @returns {null | {id:string, chapter:string, goal:string, detail:string,
@@ -141,8 +145,34 @@ export function prologueCoachState(s) {
       anchor: { kind: 'unit', name: healer.name },
       canSkip: false,
     };
-  const fighter =
-    ready.find((u) => u.name === s.selected) || ready.find((u) => !u.healer) || ready[0];
+  // The fall warning is the chapter's opening advice; later turns leave it out.
+  const safety =
+    (Number(s.turn) || 1) <= 1
+      ? ` Keep ${lord} safe: if he falls, this chapter starts over. In a real run, the whole run would end.`
+      : '';
+  const chapter = s.enemies === 1 ? 'win' : 'fight';
+  // Who could strike a foe this turn (move, then weapon reach), when the scene says.
+  const strikers = Array.isArray(s.strikers)
+    ? ready.filter((u) => s.strikers.includes(u.name))
+    : null;
+  const foes = Array.isArray(s.foes) ? s.foes : [];
+  if (strikers && !strikers.length && ready.length && foes.length) {
+    // Nobody reaches a foe this turn: the goal is to close in, pointing at the nearest.
+    const nearest = nearestFoe(foes, ready);
+    const waiting = foes.every((f) => f.waits);
+    return {
+      id: 'advance',
+      chapter,
+      goal: s.enemies === 1 ? 'Advance on the last enemy' : 'Advance on the enemy',
+      detail: waiting
+        ? `${foes.length === 1 ? `The ${nearest.name} holds its ground` : 'They hold their ground'} and won't come to you. No one can reach ${foes.length === 1 ? 'it' : 'them'} this turn: move closer, then End turn.${safety}`
+        : `No one can reach an enemy this turn. Move closer, or take cover and let them come: Danger shows their reach.${safety}`,
+      anchor: nearest ? { kind: 'tile', col: nearest.col, row: nearest.row } : null,
+      canSkip: false,
+    };
+  }
+  const pool = strikers?.length ? strikers : ready;
+  const fighter = pool.find((u) => u.name === s.selected) || pool.find((u) => !u.healer) || pool[0];
   const range = fighter?.attackRange;
   const approach =
     range?.max > 1
@@ -150,12 +180,27 @@ export function prologueCoachState(s) {
       : 'move next to a red enemy';
   return {
     id: 'fight',
-    chapter: s.enemies === 1 ? 'win' : 'fight',
+    chapter,
     goal: s.enemies === 1 ? 'Defeat the last enemy' : `Defeat ${remaining}`,
-    detail: `Select ${fighter?.name || 'a unit'}, ${approach}, then Attack. Keep ${lord} safe: if he falls, this chapter starts over. In a real run, the whole run would end.`,
+    detail: strikers?.length
+      ? `${fighter.name} can reach an enemy this turn: ${approach}, then Attack.${safety}`
+      : `Select ${fighter?.name || 'a unit'}, ${approach}, then Attack.${safety}`,
     anchor: null,
     canSkip: false,
   };
+}
+
+/** The visible foe closest to any ready unit (grid steps). */
+function nearestFoe(foes, units) {
+  let best = null;
+  let bestDistance = Infinity;
+  for (const foe of foes)
+    for (const unit of units) {
+      if (!Number.isInteger(unit.col)) continue;
+      const d = Math.abs(foe.col - unit.col) + Math.abs(foe.row - unit.row);
+      if (d < bestDistance) [best, bestDistance] = [foe, d];
+    }
+  return best || foes[0] || null;
 }
 
 /**

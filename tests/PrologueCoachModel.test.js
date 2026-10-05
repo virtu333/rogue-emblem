@@ -72,6 +72,67 @@ describe('Prologue coach: the guided step', () => {
   });
 });
 
+describe('Prologue coach: the free goal follows the board', () => {
+  const idle = (overrides) =>
+    free({
+      state: 'PLAYER_IDLE',
+      selected: null,
+      units: [
+        { name: 'Edric', col: 2, row: 6, acted: false, hp: 20, maxHp: 20 },
+        { name: 'Gaspar', col: 4, row: 6, acted: false, hp: 30, maxHp: 30 },
+      ],
+      ...overrides,
+    });
+
+  it('nobody reaches the last foe, a guard: advance on it, pointing at its tile', () => {
+    const state = idle({
+      turn: 3,
+      strikers: [],
+      foes: [{ name: 'Soldier', col: 9, row: 0, waits: true }],
+    });
+    expect(state).toMatchObject({
+      id: 'advance',
+      chapter: 'win',
+      goal: 'Advance on the last enemy',
+      anchor: { kind: 'tile', col: 9, row: 0 },
+    });
+    expect(state.detail).toContain("The Soldier holds its ground and won't come to you");
+    expect(state.detail).not.toContain('Attack');
+    expect(state.detail).not.toContain('starts over');
+  });
+
+  it('foes that will come: close in or take cover; the nearest is pointed at', () => {
+    const state = idle({
+      enemies: 2,
+      strikers: [],
+      foes: [
+        { name: 'Fighter', col: 9, row: 9, waits: false },
+        { name: 'Archer', col: 3, row: 1, waits: false },
+      ],
+    });
+    expect(state).toMatchObject({ id: 'advance', goal: 'Advance on the enemy' });
+    expect(state.anchor).toEqual({ kind: 'tile', col: 3, row: 1 });
+    expect(state.detail).toContain('take cover and let them come');
+  });
+
+  it('names a unit that can strike this turn, not just the first in the roster', () => {
+    const state = idle({
+      turn: 2,
+      strikers: ['Gaspar'],
+      foes: [{ name: 'Fighter', col: 5, row: 5, waits: false }],
+    });
+    expect(state).toMatchObject({ id: 'fight', goal: 'Defeat the last enemy' });
+    expect(state.detail).toMatch(/^Gaspar can reach an enemy this turn/);
+    expect(state.detail).not.toContain('starts over');
+  });
+
+  it('the fall warning is turn 1 advice only', () => {
+    const foes = [{ name: 'Fighter', col: 5, row: 5, waits: false }];
+    expect(idle({ turn: 1, strikers: ['Edric'], foes }).detail).toContain('starts over');
+    expect(idle({ turn: 2, strikers: ['Edric'], foes }).detail).not.toContain('starts over');
+  });
+});
+
 describe('Prologue coach: which actions the open menu offers', () => {
   it('reads desktop canvas rows by their text', () => {
     const scene = { actionMenu: [panel, row('Attack'), row('Item'), row('Wait')] };
