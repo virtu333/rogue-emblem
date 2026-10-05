@@ -449,13 +449,72 @@ describe('TitleScene NEW GAME: the prologue offer (docs/specs/prologue-chapter.m
     expect(scene._openTitleMenu).not.toHaveBeenCalled();
   });
 
-  it('with saves, the Prologue item is a chapter select (every chapter, route order)', async () => {
+  it('with saves, the Prologue item offers the prologue as a new save; replaying a chapter comes last', async () => {
     const { scene, menu } = freshDevice();
     getSlotCountMock.mockReturnValue(1);
+    getNextAvailableSlotMock.mockReturnValue(2);
     scene.runMenuTransition = vi.fn((action) => action());
     await TitleScene.prototype._runAction.call(scene, 'prologue');
     expect(scene._openTitleMenu).toHaveBeenCalledWith('Prologue');
     expect(buttons(menu)).toEqual([
+      ['Play the Prologue · new save in Slot 2', 're-btn re-btn--primary'],
+      ['Replay a chapter', 're-btn'],
+    ]);
+    expect(startPrologueRunMock).not.toHaveBeenCalled();
+    // Play: New Game's prologue start in the free slot, without the offer.
+    menu.body.children.find((n) => n.label?.startsWith('Play the Prologue')).onClick();
+    await vi.waitFor(() => expect(startPrologueRunMock).toHaveBeenCalledTimes(1));
+    expect(startPrologueRunMock).toHaveBeenCalledWith(scene, { gameData, slot: 2 });
+    expect(skipPrologueToFirstRunMock).not.toHaveBeenCalled();
+  });
+
+  it('an unfinished prologue run is continued first, through its slot', async () => {
+    const { scene, menu } = freshDevice();
+    getSlotCountMock.mockReturnValue(2);
+    getNextAvailableSlotMock.mockReturnValue(1);
+    getSlotSummaryMock.mockImplementation((slot) =>
+      slot === 2
+        ? { slot: 2, hasActiveRun: true, prologueRun: true, runCorrupt: false }
+        : slot === 3
+          ? { slot: 3, hasActiveRun: true, prologueRun: false, runCorrupt: false }
+          : null,
+    );
+    scene.runMenuTransition = vi.fn((action) => action());
+    await TitleScene.prototype._runAction.call(scene, 'prologue');
+    expect(buttons(menu)).toEqual([
+      ['Continue the prologue · Slot 2', 're-btn re-btn--primary'],
+      ['Play the Prologue · new save in Slot 1', 're-btn'],
+      ['Replay a chapter', 're-btn'],
+    ]);
+    menu.body.children.find((n) => n.label?.startsWith('Continue')).onClick();
+    await vi.waitFor(() => expect(transitionToSceneMock).toHaveBeenCalled());
+    expect(transitionToSceneMock.mock.calls.at(-1).slice(1, 3)).toEqual([
+      'SlotPicker',
+      { gameData, resumeSlot: 2 },
+    ]);
+    expect(startPrologueRunMock).not.toHaveBeenCalled();
+    getSlotSummaryMock.mockReset();
+    getSlotSummaryMock.mockReturnValue(null);
+  });
+
+  it('with every slot full and no prologue in progress, it says so; replay stays', async () => {
+    const { scene, menu } = freshDevice();
+    getSlotCountMock.mockReturnValue(3);
+    getNextAvailableSlotMock.mockReturnValue(null);
+    await TitleScene.prototype._runAction.call(scene, 'prologue');
+    expect(buttons(menu)).toEqual([['Replay a chapter', 're-btn']]);
+    expect(menu.body.children.filter((n) => n.tag === 'p').at(-1).text).toContain(
+      'All 3 save slots are full',
+    );
+  });
+
+  it('Replay a chapter lists every chapter in route order', async () => {
+    const { scene, menu } = freshDevice();
+    getSlotCountMock.mockReturnValue(1);
+    await TitleScene.prototype._runAction.call(scene, 'prologue');
+    menu.body.children.find((n) => n.label === 'Replay a chapter').onClick();
+    expect(scene._openTitleMenu).toHaveBeenLastCalledWith('Prologue');
+    expect(buttons(menu).slice(-4)).toEqual([
       ['Banner at Dawn', 're-btn re-btn--primary'],
       ['Old Hands', 're-btn'],
       ['The Seer on the Road', 're-btn'],

@@ -686,7 +686,7 @@ async function expectKeepsBoard(page, { prologue = false } = {}) {
 
 /**
  * A standalone prologue chapter (no run save): with a save on the device the title's
- * Prologue item is a chapter select whose replays run without a RunManager
+ * Prologue item offers Replay a chapter, whose replays run without a RunManager
  * (docs/specs/prologue-chapter.md §4). A fresh device's item would start the prologue
  * run, which saves like any run.
  */
@@ -702,6 +702,7 @@ async function openPrologue(page, errors) {
   await waitForGame(page);
   await activeScene(page, 'Title');
   await page.getByRole('button', { name: /^Prologue/ }).tap();
+  await page.getByRole('button', { name: 'Replay a chapter', exact: true }).tap();
   await page.getByRole('button', { name: 'Banner at Dawn', exact: true }).tap();
   await activeScene(page, 'Battle');
   expect(

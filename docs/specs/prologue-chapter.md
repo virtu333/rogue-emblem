@@ -1380,8 +1380,11 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   `skipPrologueToFirstRun` is today's fast path plus the `skipped` record. Nothing counts:
   `runsStarted` moves only with the first real run.
 - **A fresh device's title item** "Prologue · Start here" starts the prologue run in a new slot.
-  With saves, "Prologue" opens the chapter select (every chapter on the route, in order):
-  a replay runs standalone with the authored roster at the chapter's expected levels
+  With saves, "Prologue" opens a menu (`TitleScene._showPrologueMenu`, copy
+  `PROLOGUE_TITLE_MENU`): Continue the prologue (a slot whose run is the prologue's), Play the
+  Prologue as a new save in the next free slot (New Game's prologue start, no offer; with
+  every slot full it says so), then Replay a chapter, the chapter select (every chapter on
+  the route, in order): a replay runs standalone with the authored roster at the chapter's expected levels
   (`buildPrologueRoster`; P2 brings Gaspar), with the title's `activeSlot`, `meta` and
   `hints` set aside in the registry (`prologueReplayStash`) and restored by the title on
   return; no grant, no meta write.

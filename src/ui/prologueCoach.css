@@ -134,6 +134,21 @@
     color: var(--re-accent-text);
   }
 }
+/* Folded (Hide): the goal on one line beside Show; detail, pips and Skip wait. */
+.re-coach.is-folded .re-coach-pips,
+.re-coach.is-folded .re-coach-detail {
+  display: none;
+}
+.re-coach.is-folded .re-coach-goal {
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow-wrap: normal;
+}
+.re-coach.is-folded {
+  padding-bottom: 4px;
+}
 .re-coach.is-nudged {
   animation: re-coach-nudge 360ms ease-in-out;
   border-left-color: var(--re-warn);

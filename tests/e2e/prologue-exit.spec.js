@@ -2,7 +2,7 @@
 // item): the coach's Skip and the pause menu's Skip Prologue (phone and desktop) end
 // the prologue early, with its ending and the Home Base grant; the pause never offers
 // Abandon Run. A fallen commander never ends anything: the chapter restarts from its
-// entry. A standalone replay (the title's chapter select once saves exist) leaves for
+// entry. A standalone replay (the title's Replay a chapter once saves exist) leaves for
 // the title and never touches the slot.
 import { test, expect } from '@playwright/test';
 import { waitForScene as waitForSceneQuick } from './helpers.js';
@@ -39,7 +39,7 @@ async function openTitle(browser, { phone, seedSlot = false }) {
       'emblem_rogue_settings',
       JSON.stringify({ musicVolume: 0, sfxVolume: 0, reduceMotion: true }),
     );
-    // A slot that already started a run: the Prologue item is a chapter select.
+    // A slot that already started a run: the Prologue item offers a new save or a replay.
     if (seed)
       localStorage.setItem(
         'emblem_rogue_slot_1_meta',
@@ -143,6 +143,75 @@ test('phone: the coach Skip confirms, then the ending plays and Home Base holds 
   expect(meta.runsStarted).toBe(0);
   expect(await page.evaluate(() => localStorage.getItem('emblem_rogue_slot_1_run'))).toBeNull();
   await expect(page.locator('.mh-onboarding')).toContainText('This is what stays between runs.');
+  expect(errors).toEqual([]);
+  await context.close();
+});
+
+test('phone: Hide folds the coach to its goal line, Show opens it; the fold is kept on reload', async ({
+  browser,
+}) => {
+  const { context, page, errors, coach } = await openPrologueRun(browser, { phone: true });
+  const goal = coach.locator('.re-coach-goal');
+  const detail = coach.locator('.re-coach-detail');
+  await expect(goal).toHaveText('Select Edric');
+  const open = await coach.boundingBox();
+  const hide = coach.getByRole('button', { name: 'Hide the goal details', exact: true });
+  await expect(hide).toHaveText('Hide');
+  await expect(hide).toHaveAttribute('aria-expanded', 'true');
+  await hide.tap();
+  // Folded: the goal line and Show only, a smaller plate over the map.
+  await expect(detail).toBeHidden();
+  await expect(goal).toHaveText('Select Edric');
+  await expect(coach.getByRole('button', { name: 'Skip step', exact: true })).toBeHidden();
+  await expect(
+    coach.getByRole('button', { name: 'Skip the rest of the prologue', exact: true }),
+  ).toBeHidden();
+  const show = coach.getByRole('button', { name: 'Show the goal details', exact: true });
+  await expect(show).toHaveAttribute('aria-expanded', 'false');
+  const folded = await coach.boundingBox();
+  expect(folded.height).toBeLessThan(open.height);
+  expect(folded.width * folded.height).toBeLessThan(open.width * open.height * 0.75);
+  const tap = await show.boundingBox();
+  expect(tap.height).toBeGreaterThanOrEqual(44);
+  // The goal still follows play while folded.
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    s.selectUnit(s.playerUnits[0]);
+  });
+  await expect(goal).toHaveText('Move onto the Fort');
+  await expect(detail).toBeHidden();
+  // Kept on this device: the next coach (a reload's resumed battle, the next chapter)
+  // opens folded.
+  expect(
+    await page.evaluate(() => localStorage.getItem('emblem_rogue_prologue_coach_folded')),
+  ).toBe('1');
+  await page.reload();
+  await waitForScene(page, 'Title');
+  await page.getByRole('button', { name: /^Resume/ }).tap();
+  await waitForScene(page, 'SlotPicker').catch(() => {});
+  const resume = page.getByRole('button', { name: /Resume Battle/ });
+  if (await resume.count()) await resume.first().tap();
+  await waitForScene(page, 'Battle');
+  const again = page.getByRole('region', { name: 'Prologue guide', exact: true });
+  await expect(again).toBeVisible({ timeout: 20000 });
+  await expect(again.locator('.re-coach-detail')).toBeHidden();
+  await expect(
+    again.getByRole('button', { name: 'Show the goal details', exact: true }),
+  ).toBeVisible();
+  expect(errors).toEqual([]);
+  await context.close();
+});
+
+test('phone: a tap on the folded goal opens the coach', async ({ browser }) => {
+  const { context, page, errors, coach } = await openPrologueRun(browser, { phone: true });
+  await coach.getByRole('button', { name: 'Hide the goal details', exact: true }).tap();
+  await expect(coach.locator('.re-coach-detail')).toBeHidden();
+  await coach.locator('.re-coach-goal').tap();
+  await expect(coach.locator('.re-coach-detail')).toBeVisible();
+  await expect(coach.getByRole('button', { name: 'Skip step', exact: true })).toBeVisible();
+  expect(
+    await page.evaluate(() => localStorage.getItem('emblem_rogue_prologue_coach_folded')),
+  ).toBeNull();
   expect(errors).toEqual([]);
   await context.close();
 });
@@ -263,12 +332,16 @@ test('desktop: Skip prologue from a field note opens the pause confirmation', as
   await context.close();
 });
 
-test('desktop: with saves, Prologue is a chapter select; a replay never touches the slot and leaves for the title', async ({
+test('desktop: with saves, Prologue offers a new save first and a chapter replay; a replay never touches the slot and leaves for the title', async ({
   browser,
 }) => {
   const { context, page, errors } = await openTitle(browser, { phone: false, seedSlot: true });
   const metaBefore = await page.evaluate(() => localStorage.getItem('emblem_rogue_slot_1_meta'));
   await page.getByRole('button', { name: /^Prologue/ }).click();
+  await expect(
+    page.getByRole('button', { name: 'Play the Prologue · new save in Slot 2', exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Replay a chapter', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Banner at Dawn', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Old Hands', exact: true }).click();
   await waitForScene(page, 'Battle');
@@ -324,6 +397,7 @@ test('desktop: the Quarry Gate replays from the chapter select: its deploy scree
   const { context, page, errors } = await openTitle(browser, { phone: false, seedSlot: true });
   const metaBefore = await page.evaluate(() => localStorage.getItem('emblem_rogue_slot_1_meta'));
   await page.getByRole('button', { name: /^Prologue/ }).click();
+  await page.getByRole('button', { name: 'Replay a chapter', exact: true }).click();
   await page.getByRole('button', { name: 'The Quarry Gate', exact: true }).click();
   await waitForScene(page, 'Battle');
   // The deploy note, without the Roster advice (a replay has no roster to open).

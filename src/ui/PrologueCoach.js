@@ -7,6 +7,9 @@
 // back into PrologueController for actions and for the guided step's goal.
 
 import { getAttackRange } from '../engine/AttackOptions.js';
+import { isHolding } from '../engine/HoldActivation.js';
+import { isRooted } from '../engine/StatusConditionSystem.js';
+import { unitReach } from '../engine/ThreatForecast.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import {
   COACH_CHAPTERS,
@@ -23,6 +26,26 @@ const COVERING_STATES = new Set([
   'SHOWING_FORECAST',
   'CONFIRMING_ATTACK',
 ]);
+
+/** Device-wide: the player folded the coach to its goal line (kept across chapters). */
+export const COACH_FOLDED_KEY = 'emblem_rogue_prologue_coach_folded';
+
+function readFolded() {
+  try {
+    return globalThis.localStorage?.getItem(COACH_FOLDED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeFolded(folded) {
+  try {
+    if (folded) globalThis.localStorage?.setItem(COACH_FOLDED_KEY, '1');
+    else globalThis.localStorage?.removeItem(COACH_FOLDED_KEY);
+  } catch {
+    /* the fold still applies for this visit */
+  }
+}
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -89,7 +112,12 @@ export class PrologueCoach {
     this.leave.type = 'button';
     this.leave.setAttribute('aria-label', leaveAria);
     this.leave.addEventListener('click', () => this.onLeave?.());
-    actions.append(this.skip, this.leave);
+    // Hide folds the plate to its goal line so it covers less of the map; Show (or a
+    // tap on the folded goal) opens it again. Corrections still show while folded.
+    this.fold = el('button', 're-coach-btn re-coach-fold');
+    this.fold.type = 'button';
+    this.fold.addEventListener('click', () => this.setFolded(!this.folded));
+    actions.append(this.fold, this.skip, this.leave);
     this.goal = el('p', 're-coach-goal');
     this.goal.setAttribute('aria-live', 'polite');
     const lead = el('div', 're-coach-lead');
@@ -103,6 +131,10 @@ export class PrologueCoach {
     this.nudgeLine.setAttribute('role', 'alert');
     this.nudgeLine.hidden = true;
     this.root.append(top, this.detail, this.nudgeLine);
+    this.goal.addEventListener('click', () => {
+      if (this.folded) this.setFolded(false);
+    });
+    this.applyFolded(readFolded());
     this.wrapper?.append(this.root);
 
     this.tick = () => this.sync();
@@ -115,6 +147,27 @@ export class PrologueCoach {
     this.sync();
   }
 
+  /** Fold the coach to its goal line (or open it), remembered on this device. */
+  setFolded(folded) {
+    if (this.destroyed) return;
+    this.applyFolded(Boolean(folded));
+    writeFolded(this.folded);
+    this.lastKey = '';
+    this.sync();
+  }
+
+  applyFolded(folded) {
+    this.folded = folded;
+    this.root.classList.toggle('is-folded', folded);
+    this.fold.textContent = folded ? 'Show' : 'Hide';
+    this.fold.setAttribute('aria-expanded', String(!folded));
+    this.fold.setAttribute(
+      'aria-label',
+      folded ? 'Show the goal details' : 'Hide the goal details',
+    );
+    this.detail.hidden = folded;
+  }
+
   reveal() {
     this.revealed = true;
     this.lastKey = '';
@@ -125,6 +178,8 @@ export class PrologueCoach {
     const s = this.scene;
     const units = (s.playerUnits || []).map((u) => ({
       name: u.name,
+      col: u.col,
+      row: u.row,
       acted: Boolean(u.hasActed),
       hp: Number(u.currentHP) || 0,
       maxHp: Number(u.stats?.HP) || 1,
@@ -145,12 +200,64 @@ export class PrologueCoach {
       commanderName: commander?.name || 'Edric',
       units,
       enemies: (s.enemyUnits || []).filter((u) => u.currentHP > 0).length,
+      turn: s.turnManager?.turnNumber || 1,
+      ...this.reachSnapshot(),
       menu,
       selected: s.selectedUnit?.name || null,
       selectionMenu: Boolean(s._inputController?.isSelectionMenu?.()),
       // A rout that waits on a green unit (RoutObjective): the goal once the field is clear.
       recruitsPending: typeof s.pendingRequiredRecruits === 'function' ? s.pendingRequiredRecruits() : [], // prettier-ignore
     };
+  }
+
+  /**
+   * The foes the player can see (`waits`: a guard or a holder, which won't come to
+   * the player) and the ready units that could strike one this turn: a move, then the
+   * weapon's reach, over what the player knows (buildUnitPositionMap). Cached on the
+   * board's state, since the coach syncs every frame.
+   */
+  reachSnapshot() {
+    const s = this.scene;
+    const grid = s.grid;
+    if (!grid?.getMovementRange) return {};
+    const alive = (u) => u && u.currentHP > 0;
+    const seen = (u) => !grid.fogEnabled || grid.isVisible?.(u.col, u.row);
+    const foes = (s.enemyUnits || []).filter((u) => alive(u) && seen(u));
+    const ready = (s.playerUnits || []).filter((u) => alive(u) && !u.hasActed);
+    const key = JSON.stringify([
+      s.turnManager?.turnNumber,
+      ready.map((u) => [u.name, u.col, u.row, u.weapon?.name]),
+      foes.map((u) => [u.col, u.row]),
+    ]);
+    if (key === this.reachKey) return this.reach;
+    let strikers;
+    try {
+      const positions = s.buildUnitPositionMap?.() || null;
+      const foeTiles = new Set(foes.map((f) => `${f.col},${f.row}`));
+      strikers = ready
+        .filter((u) => {
+          const { attackTiles } = unitReach(grid, u, {
+            mov: isRooted(u) ? 0 : u.mov,
+            positions,
+            costModifier: s._getCostModifier?.(u) || 0,
+          });
+          return attackTiles.some((t) => foeTiles.has(`${t.col},${t.row}`));
+        })
+        .map((u) => u.name);
+    } catch {
+      strikers = undefined; // the model falls back to its general advice
+    }
+    this.reachKey = key;
+    this.reach = {
+      strikers,
+      foes: foes.map((f) => ({
+        name: f.className || f.name || 'enemy',
+        col: f.col,
+        row: f.row,
+        waits: f.aiMode === 'guard' || isHolding(f),
+      })),
+    };
+    return this.reach;
   }
 
   covered() {
@@ -247,13 +354,16 @@ export class PrologueCoach {
         Math.round(map.height),
       ],
       this.message?.text,
+      this.folded,
     ]);
     this.root.hidden = false;
     if (key === this.lastKey) return;
     this.lastKey = key;
     this.goal.textContent = state.goal;
     this.detail.textContent = state.detail;
-    this.skip.hidden = !state.canSkip;
+    // Folded, the plate is only its goal line and Show: Skip step waits until it opens.
+    this.skip.hidden = !state.canSkip || this.folded;
+    this.leave.hidden = this.folded;
     const current = coachChapterIndex(state.chapter);
     [...this.pips.children].forEach((pip, index) => {
       pip.classList.toggle('is-done', index < current);
@@ -270,7 +380,9 @@ export class PrologueCoach {
       const width = Math.min(pane ? 500 : 480, Math.max(220, map.width - 16));
       const left = pane ? map.left + 8 : map.left + (map.width - width) / 2;
       this.root.style.left = `${Math.round(left)}px`;
-      this.root.style.width = `${Math.round(width)}px`;
+      // Folded, it takes only the width its goal needs (up to the same plate).
+      this.root.style.width = this.folded ? '' : `${Math.round(width)}px`;
+      this.root.style.maxWidth = `${Math.round(width)}px`;
       if (bottom) {
         this.root.style.top = '';
         this.root.style.bottom = `${Math.round(globalThis.innerHeight - map.bottom + inset)}px`;

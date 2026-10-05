@@ -348,7 +348,12 @@ export class PrologueController {
   // --- Gates and the coach ---------------------------------------------------------
 
   setGate(gate) {
-    if (this.gatesSkipped) return;
+    // Skipped steps stay skipped: a later step's goal (set by its beat just before its
+    // gate) goes with the gate, so no goal is left that nothing can complete or clear.
+    if (this.gatesSkipped) {
+      this.coachGoal = null;
+      return;
+    }
     this.gate = gate;
     this.scene.refreshEndTurnControl?.();
   }
@@ -385,10 +390,14 @@ export class PrologueController {
     this.scene.refreshEndTurnControl?.();
   }
 
-  /** Release the guided steps (Skip step) and play freely. */
+  /**
+   * Release the guided steps (Skip step) and play freely. It always dismisses the goal
+   * on screen, also one set after an earlier skip (a gateless goal such as P3's).
+   */
   skipStep() {
-    if (this.destroyed || this.gatesSkipped) return false;
+    if (this.destroyed) return false;
     if (this.scene.battleState === PROLOGUE_NOTE_STATE) return false;
+    if (this.gatesSkipped && !this.gate && !this.coachGoal) return false;
     this.gatesSkipped = true;
     this.releaseGate();
     this.scene._mobileBattleHud?.sync?.();
