@@ -47,7 +47,9 @@ describe('the handoff copy', () => {
 
   it('says the five rules a first run lives by, in plain words', () => {
     // Which loss ends a run: the commander's fall, and who that is.
-    expect(text).toMatch(/A run ends only when your commander falls\. Edric leads your first run\./); // prettier-ignore
+    expect(text).toMatch(/Losing your commander ends the run\. Edric leads your first run\./);
+    // The rule is the commander's loss, never a broader "only when" claim.
+    expect(text).not.toMatch(/only when/);
     // A fallen ally: down until a Church revives them, for gold.
     expect(text).toMatch(/Fallen allies stay down until a Church revives them for gold\./);
     // What starts over: the army, levels, items, gold.
@@ -101,7 +103,13 @@ describe('the handoff screen', () => {
     expect(dialog.textContent).toContain('Prologue complete');
     expect(dialog.textContent).toContain('Every run is a thread.');
     const terms = dialog.querySelectorAll('dt').map((dt) => dt.textContent);
-    expect(terms).toEqual(['A run ends', 'Fallen allies', 'Starts over', 'Stays', 'Vision']);
+    expect(terms).toEqual([
+      'Losing your commander',
+      'Fallen allies',
+      'Starts over',
+      'Stays',
+      'Vision',
+    ]);
     const go = dialog.querySelectorAll('button').find((b) => b.textContent === 'To Home Base');
     go.click();
     expect(await shown).toBe(true);

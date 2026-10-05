@@ -107,7 +107,7 @@ async function readEnding(page, click) {
   const handoff = page.getByRole('dialog', { name: 'From here, it counts', exact: true });
   await expect(handoff).toContainText('Every run is a thread');
   await expect(handoff).toContainText('The prologue ends');
-  await expect(handoff).toContainText('only when your commander falls');
+  await expect(handoff).toContainText('Losing your commander');
   await click(handoff.getByRole('button', { name: 'To Home Base', exact: true }));
   await waitForScene(page, 'HomeBase');
 }

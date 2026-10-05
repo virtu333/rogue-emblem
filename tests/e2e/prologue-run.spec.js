@@ -516,7 +516,7 @@ test('New Game offers the prologue; Play opens P1 as a run, P1 joins Gaspar, the
   await expect(handoff).toContainText('Prologue complete');
   await expect(handoff).toContainText('Every run is a thread');
   for (const rule of [
-    'only when your commander falls',
+    'Losing your commander',
     'stay down until a Church revives them for gold',
     'levels, items and gold reset',
     'Home Base upgrades they buy',

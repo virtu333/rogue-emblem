@@ -1362,7 +1362,7 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
 
   | Term | Rule |
   |---|---|
-  | A run ends | only when your commander falls. Edric leads your first run. |
+  | Losing your commander | ends the run. Edric leads your first run. |
   | Fallen allies | stay down until a Church revives them for gold. |
   | Starts over | each run: a fresh army, with levels, items and gold reset. |
   | Stays | Valor and Supply you earn, and the Home Base upgrades they buy. |
