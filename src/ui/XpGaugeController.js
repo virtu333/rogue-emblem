@@ -5,8 +5,8 @@
 // Presentation only. It plays a gain record (xpGaugeModel.xpGaugeRecord: plain values
 // built when the gain was applied) and never reads or writes the unit's XP, a save, a
 // checkpoint or the RNG. DOM over the map frame (a non-blocking CeremonyLayer: touches
-// go through to the map, the rail stays live); one gauge at a time. Headless (no DOM
-// host) it shows nothing and resolves at once.
+// go through to the map, the rail stays live: holdsFocusOf); one gauge at a time.
+// Headless (no DOM host) it shows nothing and resolves at once.
 //
 // Speed and motion (§2.3): the fill and hold go through the scaled combat waits
 // (xp_gauge_fill / xp_gauge_hold), Fast or hold-to-fast-forward in the enemy phase halves
@@ -19,7 +19,12 @@ import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import { battleSpeed } from '../utils/combatTiming.js';
 import { TILE_SIZE, XP_PER_LEVEL } from '../utils/constants.js';
 import { InputAction } from '../utils/InputActions.js';
-import { pushInputScope, popInputScope, hasInputFocus } from '../utils/inputFocus.js';
+import {
+  pushInputScope,
+  popInputScope,
+  hasInputFocus,
+  activeInputOwner,
+} from '../utils/inputFocus.js';
 import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { findBattleEntity } from '../engine/BattleEntityIdentity.js';
 import {
@@ -261,6 +266,19 @@ export class XpGaugeController {
     });
   }
 
+  /**
+   * True while the gauge on screen holds the pad focus it took from `owner` (the scope
+   * on top when it opened). The layer is non-blocking: `owner`'s own DOM controls (the
+   * battle rail, MobileBattleHUD.available) stay live under it, and a press on one skips
+   * the gauge before the control reads it.
+   */
+  holdsFocusOf(owner) {
+    const gauge = this._active;
+    return Boolean(
+      owner && gauge && !gauge.closed && gauge.focusFrom === owner && hasInputFocus(gauge.owner),
+    );
+  }
+
   /** Skip the gauge on screen to its end state and close it. */
   skip() {
     this._active?.finish?.();
@@ -316,6 +334,8 @@ export class XpGaugeController {
   _bindSkip(gauge, finish) {
     const scene = this.scene;
     const owner = { xpGauge: gauge };
+    gauge.owner = owner;
+    gauge.focusFrom = activeInputOwner();
     const doc = globalThis.document;
     const press = (event) => {
       if (event.button !== undefined && event.button !== 0) return;

@@ -5,7 +5,9 @@
 //      battle saved (the gauge drawing its own idea of the gain);
 //   2. the fill skipped at Normal speed, or played at Instant (a stale timing table);
 //   3. a wrap that opens the level card over the gauge, or before it closes;
-//   4. a tap that does not skip, or that takes the level card down with the gauge;
+//   4. a tap that does not skip, or that takes the level card down with the gauge; a tap
+//      on a rail control that skips but never reaches the control (its click swallowed,
+//      or the rail inert under the gauge);
 //   5. Fast ignored (the planned fill and hold not halved, or the gauge outliving them);
 //   6. the gauge outside the map frame, over the rail or away from the unit.
 // A MutationObserver records the gauge as it opens, counts and closes, so every check
@@ -326,6 +328,76 @@ test('a tap skips the gauge to its end and hands off to the level card', async (
   expect(
     await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').selectedUnit),
   ).toBeFalsy();
+  expect(errors).toEqual([]);
+});
+
+test('a tap on a rail control skips the gauge and the control still takes the tap', async ({
+  page,
+}) => {
+  const errors = collect(page);
+  await battle(page);
+  // 0 + 70: no wrap, so nothing opens over the rail after the skip.
+  await stageKill(page, { xp: 0 });
+  await watchGauge(page);
+  // A control built by the rail's own factory (bindCancelablePress, the rail's enabled
+  // rule: activated by its click), pinned inside the rail where no rebuild replaces it.
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const hud = s._mobileBattleHud;
+    window.__probe = 0;
+    const probe = hud.button('Probe', () => window.__probe++);
+    probe.classList.add('xg-probe');
+    const rail = hud.root.getBoundingClientRect();
+    Object.assign(probe.style, {
+      position: 'fixed',
+      left: `${Math.round(rail.left + 8)}px`,
+      top: `${Math.round(rail.top + rail.height / 2)}px`,
+      width: '96px',
+      height: '40px',
+      zIndex: '2147483000',
+    });
+    hud.root.append(probe);
+    // The fill and hold: the hold (scene clock) waits for the tap.
+    s.time.timeScale = 0.01;
+  });
+  const probe = page.locator('.xg-probe');
+  const box = await probe.boundingBox();
+  const at = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  // The probe is what a tap there hits (not the map, not the gauge).
+  expect(
+    await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.classList.contains('xg-probe'), at), // prettier-ignore
+  ).toBe(true);
+  await attack(page);
+  await page.locator('.xg-layer').waitFor({ state: 'attached', timeout: 25_000 });
+  // The gauge blocks nothing: the rail stays live (not inert, not dimmed) under it.
+  const rail = await page.evaluate(() => {
+    const hud = window.__emblemRogueGame.scene.getScene('Battle')._mobileBattleHud;
+    hud.sync();
+    return {
+      gauge: Boolean(document.querySelector('.xg-layer')),
+      inert: hud.root.inert,
+      dimmed: hud.root.classList.contains('bl-inactive'),
+    };
+  });
+  expect(rail).toEqual({ gauge: true, inert: false, dimmed: false });
+  const tappedAt = await page.evaluate(() => performance.now());
+  await page.touchscreen.tap(at.x, at.y);
+  await closed(page);
+  await page.evaluate(() => {
+    window.__emblemRogueGame.scene.getScene('Battle').time.timeScale = 1;
+  });
+  const log = await events(page);
+  const close = log.find((e) => e.type === 'close');
+  expect(close.t).toBeGreaterThanOrEqual(tappedAt);
+  // The tap reached the control, once, and was never read as a map tap.
+  await expect.poll(() => page.evaluate(() => window.__probe)).toBe(1);
+  await idle(page);
+  const state = await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    return { blocked: Boolean(s._uiClickBlocked), selected: Boolean(s.selectedUnit) };
+  });
+  expect(state).toEqual({ blocked: false, selected: false });
+  expect(await page.evaluate(() => window.__probe)).toBe(1);
   expect(errors).toEqual([]);
 });
 

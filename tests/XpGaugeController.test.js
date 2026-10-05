@@ -4,16 +4,25 @@
 //   - a tap, key or pad press that does not skip, or a skip that leaves the gauge up;
 //   - a press on the map that the board then reads as a tap on a tile;
 //   - a press on a DOM control (the rail) that skips but loses the control's click, or
-//     whose click then lands on something the skip opened under the finger;
+//     whose click then lands on something the skip opened under the finger; the rail
+//     going dead (inert, dimmed) under a gauge that blocks nothing;
 //   - a gauge whose timers never fire hangs the action (the watchdog);
 //   - a gauge opened headless, at the cap, or after the controller is gone.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+vi.mock('phaser', () => ({ default: { Scene: class {} } }));
 import { installFakeDom } from './helpers/fakeDom.js';
 import { XpGaugeController, gaugeSpeed, xpGaugeFor } from '../src/ui/XpGaugeController.js';
 import { xpGaugeRecord } from '../src/ui/xpGaugeModel.js';
 import { applyXpGain } from '../src/engine/BattleXp.js';
 import { createRecruitUnit } from '../src/engine/UnitManager.js';
-import { _resetInputFocus, dispatchInputAction } from '../src/utils/inputFocus.js';
+import {
+  _resetInputFocus,
+  dispatchInputAction,
+  hasInputFocus,
+  popInputScope,
+  pushInputScope,
+} from '../src/utils/inputFocus.js';
+import { MobileBattleHUD } from '../src/ui/MobileBattleHUD.js';
 import { InputAction } from '../src/utils/InputActions.js';
 import { DOM_UI_DEPTHS } from '../src/utils/uiDepths.js';
 import { bindCancelablePress } from '../src/utils/cancelablePress.js';
@@ -335,6 +344,53 @@ describe('skipping', () => {
     tap(label);
     expect(layer()).toBeNull();
     expect(activated).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('the rail under a gauge', () => {
+  // MobileBattleHUD.available on a scene whose rail nothing else holds: the rail is live
+  // (and not inert) exactly when this is true.
+  const railAvailable = (scene) =>
+    Boolean(MobileBattleHUD.prototype.available.call({ scene, modal: null }));
+  const battleScene = () => {
+    const scene = makeScene();
+    scene.game = { canvas: dom.canvas };
+    scene.isStoryInputLocked = () => false;
+    pushInputScope(scene, () => {});
+    return scene;
+  };
+
+  it('stays live while a gauge holds the pad it took from the battle', async () => {
+    const scene = battleScene();
+    expect(railAvailable(scene)).toBe(true);
+    const played = xpGaugeFor(scene).play(record(7, 10, 60).record);
+    // The gauge has the pad (Confirm / Cancel skip it)...
+    expect(hasInputFocus(scene)).toBe(false);
+    expect(scene._xpGauge.holdsFocusOf(scene)).toBe(true);
+    // ...but blocks nothing: the rail is as live as it was.
+    expect(railAvailable(scene)).toBe(true);
+    scene._xpGauge.skip();
+    expect(await played).toBe(true);
+    expect(scene._xpGauge.holdsFocusOf(scene)).toBe(false);
+    expect(railAvailable(scene)).toBe(true);
+  });
+
+  it('a gauge over something that already held the rail back never frees it', async () => {
+    const scene = battleScene();
+    // A modal over the battle (the roster, a picker) took the focus first.
+    const modal = { modal: true };
+    pushInputScope(modal, () => {});
+    expect(railAvailable(scene)).toBe(false);
+    void xpGaugeFor(scene).play(record(7, 10, 60).record);
+    expect(scene._xpGauge.holdsFocusOf(scene)).toBe(false);
+    expect(railAvailable(scene)).toBe(false);
+    // Something opened over the gauge holds the rail back too.
+    popInputScope(modal);
+    const scene2 = battleScene();
+    void xpGaugeFor(scene2).play(record(7, 10, 60).record);
+    expect(railAvailable(scene2)).toBe(true);
+    pushInputScope(modal, () => {});
+    expect(railAvailable(scene2)).toBe(false);
   });
 });
 

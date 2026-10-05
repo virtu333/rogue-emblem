@@ -439,9 +439,16 @@ PR 1 alone answers the roster half of the request and ships with no battle-flow 
 - **Skipping on a non-blocking layer.** The layer lets touches through, so the gauge
   listens for a press anywhere (document capture). A press on the map also sets the
   scene's `_uiClickBlocked`, so its release is never read as a tap on the board the skip
-  hands back. Enter / Space / Esc skip while the gauge holds input focus (it pushes an
-  input scope, which also routes the pad's Confirm / Cancel to it). The watchdog closes
-  a gauge 2 s after its fill and hold should have ended.
+  hands back, and its click is swallowed. A press on a DOM control (the rail, a note's
+  "Got it", the rotate button) skips the gauge and still works the control: its own
+  click (on the pressed element or an ancestor) goes through, once; a click that lands
+  on anything else (what the skip opened or rebuilt under the finger, such as the
+  player-turn rail after a combat) is swallowed (review, 2026-10-05). Enter / Space / Esc
+  skip while the gauge holds input focus (it pushes an input scope, which also routes the
+  pad's Confirm / Cancel to it). That scope blocks nothing: the rail stays live and lit
+  under a gauge (`XpGaugeController.holdsFocusOf`, read by `MobileBattleHUD.available`);
+  before, it went inert and dimmed for every gauge. The watchdog closes a gauge 2 s after
+  its fill and hold should have ended.
 - **Placement.** The map frame never includes the rail (beside it in landscape, under
   it upright), so "would cover the rail" is "would leave the frame": below the tile when
   it fits, else above, clamped inside the frame. Upright the gauge spans the frame less
