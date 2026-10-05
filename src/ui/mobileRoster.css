@@ -602,10 +602,19 @@
   align-items: center;
   gap: 6px;
 }
-.mr-unit-hp .re-health {
+.mr-unit-hp .mr-unit-bars {
+  display: block;
   flex: 1;
   min-width: 0;
+}
+.mr-unit-hp .re-health {
   margin: 3px 0;
+}
+/* The card's EXP line: 2px under the HP bar, its width (decision 3 of exp-bars.md). */
+.mr-unit-bars .re-xp.is-line {
+  height: 2px;
+  border: 0;
+  margin: -2px 0 3px;
 }
 .mr-unit-hp small {
   flex: none;
