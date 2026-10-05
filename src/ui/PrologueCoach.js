@@ -188,6 +188,10 @@ export class PrologueCoach {
           ? getAttackRange(u, u.weapon, { skillsData: s.gameData?.skills })
           : null,
       healer: (u.inventory || []).some((item) => item?.type === 'Staff' && !item.relocate),
+      // The first item that restores HP it carries (Item → it), or null.
+      healItem:
+        (u.consumables || []).find((c) => c && (c.effect === 'heal' || c.effect === 'healFull'))
+          ?.name || null,
     }));
     const commander = (s.playerUnits || []).find((u) => u.isCommander) || null;
     const menu = availableMenuLabels(s);

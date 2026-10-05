@@ -133,6 +133,33 @@ describe('Prologue coach: the free goal follows the board', () => {
   });
 });
 
+describe('Prologue coach: protecting a hurt unit names what it can heal with', () => {
+  const hurt = (units) =>
+    free({ state: 'PLAYER_IDLE', selected: null, enemies: 1, turn: 2, units });
+  const gaspar = (healItem) => ({ name: 'Gaspar', acted: false, hp: 9, maxHp: 30, healItem });
+  const edric = (healItem) => ({ name: 'Edric', acted: false, hp: 20, maxHp: 20, healItem });
+
+  it('its own Vulnerary: Item', () => {
+    const state = hurt([edric(null), gaspar('Vulnerary')]);
+    expect(state).toMatchObject({ id: 'protect', goal: 'Protect Gaspar' });
+    expect(state.detail).toContain('Select Gaspar, then Item → Vulnerary');
+  });
+
+  it("none of its own but an ally's: Trade for it, then Item (never 'Item' it lacks)", () => {
+    const state = hurt([edric('Vulnerary'), gaspar(null)]);
+    expect(state.detail).toBe(
+      'Gaspar is badly hurt and carries no Vulnerary, but Edric does. Move Gaspar next to Edric, choose Trade and take it, then Item → Vulnerary. Or pull back out of reach.',
+    );
+  });
+
+  it('nothing anywhere: pull back', () => {
+    const state = hurt([edric(null), gaspar(null)]);
+    expect(state.detail).toBe(
+      'Gaspar is badly hurt and has nothing to heal with. Pull back out of the red reach.',
+    );
+  });
+});
+
 describe('Prologue coach: which actions the open menu offers', () => {
   it('reads desktop canvas rows by their text', () => {
     const scene = { actionMenu: [panel, row('Attack'), row('Item'), row('Wait')] };

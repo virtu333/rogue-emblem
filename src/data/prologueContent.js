@@ -115,6 +115,15 @@ export const PROLOGUE_NOTES = Object.freeze({
         : 'heals';
     return `Item → ${name} ${effect}.\nYou carry few, and they never come back: a consumable's uses are spent for good.`;
   },
+  // P2: Gaspar's kit has no Vulnerary; the army's is Edric's. Said only when the hurt
+  // unit carries nothing to heal with and an ally does (a tip: nothing when it can't help).
+  p2_trade_vulnerary: (ctx) => {
+    const who = ctx?.unit || 'Gaspar';
+    const donor = ctx?.donor;
+    if (ctx?.healing || !donor?.name) return null;
+    const item = donor.item || 'Vulnerary';
+    return `${who} carries no ${item}, but ${donor.name} does. Move ${who} next to ${donor.name} and choose Trade to take it, then Item → ${item}: it heals him this same turn.`;
+  },
   // P2, Old Hands (docs/specs/prologue-chapter.md §6 P2).
   p2_veteran_kills: (ctx) => {
     const name = ctx?.veteran || 'Gaspar';

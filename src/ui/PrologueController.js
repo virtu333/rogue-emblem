@@ -84,6 +84,14 @@ const SCOPED_TIP_EVENTS = new Set(['afterMove', 'unitSelected']);
 // only while its unit is selected in one of these, on the player phase.
 const TIP_SCOPE_STATES = new Set(['UNIT_SELECTED', 'UNIT_MOVING', 'UNIT_ACTION_MENU']);
 
+/** The unit's first consumable that restores HP (a Vulnerary, an Elixir), or null. */
+function healingItem(unit) {
+  return (
+    (unit?.consumables || []).find((c) => c && (c.effect === 'heal' || c.effect === 'healFull')) ||
+    null
+  );
+}
+
 export class PrologueController {
   constructor(scene) {
     this.scene = scene;
@@ -1254,10 +1262,28 @@ export class PrologueController {
     const last = this.hpSeen.get(unit.name);
     this.hpSeen.set(unit.name, pct);
     if (last === pct) return Promise.resolve(false);
+    const donor = this.healDonor(unit);
     return this.emit(
       { type: 'hpBelow', unit: unit.name, hpPct: pct },
-      { ctx: { consumable: (unit.consumables || [])[0] || null } },
+      {
+        ctx: {
+          unit: unit.name,
+          consumable: (unit.consumables || [])[0] || null,
+          healing: healingItem(unit),
+          donor: donor ? { name: donor.unit.name, item: donor.item.name } : null,
+        },
+      },
     );
+  }
+
+  /** Another fielded player unit carrying a healing item the hurt unit could Trade for. */
+  healDonor(unit) {
+    for (const ally of this.scene.playerUnits || []) {
+      if (!ally || ally === unit || !(ally.currentHP > 0)) continue;
+      const item = healingItem(ally);
+      if (item) return { unit: ally, item };
+    }
+    return null;
   }
 
   /**

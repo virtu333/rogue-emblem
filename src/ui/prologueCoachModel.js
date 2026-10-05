@@ -24,7 +24,8 @@ const CHAPTER_INDEX = Object.fromEntries(COACH_CHAPTERS.map((c, i) => [c.id, i])
  * @param {string} s.state          scene.battleState
  * @param {boolean} s.touch         phrase for taps instead of clicks
  * @param {string} s.commanderName  the lord whose fall restarts the chapter
- * @param {Array<{name:string, acted:boolean, hp:number, maxHp:number, healer:boolean}>} s.units
+ * @param {Array<{name:string, acted:boolean, hp:number, maxHp:number, healer:boolean,
+ *   healItem?:string|null}>} s.units  (`healItem`: the first item it carries that heals)
  * @param {number} s.enemies        enemies still standing
  * @param {string[]} [s.menu]       choosable labels in the open action menu
  * @param {string} [s.selected]     selected unit's name
@@ -127,15 +128,28 @@ export function prologueCoachState(s) {
     };
   const wounded = units.find((u) => u.hp > 0 && u.hp <= u.maxHp * 0.5);
   const healer = ready.find((u) => u.healer && u !== wounded);
-  if (wounded && !wounded.acted && !healer)
+  if (wounded && !wounded.acted && !healer) {
+    // What it can heal with: its own item, an ally's by Trade (Trade keeps its turn,
+    // so Item follows in the same action), or nothing but distance. A snapshot without
+    // `healItem` (older callers) keeps the general advice.
+    const known = units.some((u) => 'healItem' in u);
+    const donor = units.find((u) => u !== wounded && u.hp > 0 && u.healItem);
+    const own = wounded.healItem;
+    const detail =
+      !known || own
+        ? `${wounded.name} is badly hurt. Select ${wounded.name}, then Item → ${own || 'Vulnerary'} — or pull back out of reach.`
+        : donor
+          ? `${wounded.name} is badly hurt and carries no ${donor.healItem}, but ${donor.name} does. Move ${wounded.name} next to ${donor.name}, choose Trade and take it, then Item → ${donor.healItem}. Or pull back out of reach.`
+          : `${wounded.name} is badly hurt and has nothing to heal with. Pull back out of the red reach.`;
     return {
       id: 'protect',
       chapter: 'fight',
       goal: `Protect ${wounded.name}`,
-      detail: `${wounded.name} is badly hurt. Select ${wounded.name}, then Item → Vulnerary — or pull back out of reach.`,
+      detail,
       anchor: { kind: 'unit', name: wounded.name },
       canSkip: false,
     };
+  }
   if (wounded && healer)
     return {
       id: 'heal',

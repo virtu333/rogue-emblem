@@ -576,6 +576,18 @@
           ]
         },
         {
+          "id": "p2_trade_vulnerary",
+          "on": "hpBelow",
+          "unit": "Gaspar",
+          "pct": 60,
+          "once": true,
+          "do": [
+            {
+              "tip": "p2_trade_vulnerary"
+            }
+          ]
+        },
+        {
           "id": "p2_victory",
           "on": "victory",
           "once": true,

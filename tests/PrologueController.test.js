@@ -493,6 +493,39 @@ describe('PrologueController: forecasts, actions and the enemy phase', () => {
     expect([...prologue.lessons.shown]).toContain('hold_reach');
   });
 
+  it("P2: Gaspar hurt with no Vulnerary is told to Trade for Edric's, and only then", async () => {
+    const { scene } = makeScene({ chapterId: 'p2_old_hands' });
+    const prologue = new PrologueController(scene).create();
+    const gaspar = scene.playerUnits.find((u) => u.name === 'Gaspar');
+    const edric = scene.playerUnits.find((u) => u.name === 'Edric');
+    // The kits as authored: Edric's Vulnerary, nothing on Gaspar.
+    expect((gaspar.consumables || []).some((c) => c.effect === 'heal')).toBe(false);
+    expect(edric.consumables.map((c) => c.name)).toContain('Vulnerary');
+    gaspar.currentHP = Math.floor(gaspar.stats.HP * 0.5);
+    await prologue.onCombatResolved(scene.enemyUnits[0], gaspar, { initiator: 'enemy' });
+    expect(tips().at(-1)).toBe(
+      'Gaspar carries no Vulnerary, but Edric does. Move Gaspar next to Edric and choose Trade to take it, then Item → Vulnerary: it heals him this same turn.',
+    );
+  });
+
+  it('P2: no trade tip when Gaspar holds his own Vulnerary, or nobody has one', async () => {
+    for (const setup of [
+      (gaspar, edric) => gaspar.consumables.push(edric.consumables.shift()),
+      (_gaspar, edric) => (edric.consumables = []),
+    ]) {
+      vi.clearAllMocks();
+      const { scene } = makeScene({ chapterId: 'p2_old_hands' });
+      const prologue = new PrologueController(scene).create();
+      const gaspar = scene.playerUnits.find((u) => u.name === 'Gaspar');
+      const edric = scene.playerUnits.find((u) => u.name === 'Edric');
+      gaspar.consumables ||= [];
+      setup(gaspar, edric);
+      gaspar.currentHP = Math.floor(gaspar.stats.HP * 0.5);
+      await prologue.onCombatResolved(scene.enemyUnits[0], gaspar, { initiator: 'enemy' });
+      expect(showPrologueTip).not.toHaveBeenCalled();
+    }
+  });
+
   it("turn 2's tip waits for an unread tip on screen, never replacing it", async () => {
     const { scene, edric } = makeScene();
     const prologue = new PrologueController(scene).create();
