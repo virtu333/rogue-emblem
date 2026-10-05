@@ -124,7 +124,14 @@ export function normalizePrologueState(raw) {
   };
 }
 
-/** The union of two prologue records: the further state, a paid grant stays paid. */
+/**
+ * The union of two prologue records: the further state, a paid grant stays paid, the
+ * lists unioned. Right only where both records' economies are kept too (the local
+ * adopt-merge, `_adoptForeignDiskStateIfNewer`, takes each currency and upgrade at
+ * its max, so a paid copy's grant is still in the result and paying again would pay
+ * twice). A merge that keeps one payload's economy whole reads
+ * `reconcilePickedPrologue` instead.
+ */
 export function mergePrologueState(a, b) {
   const x = normalizePrologueState(a);
   const y = normalizePrologueState(b);
@@ -133,6 +140,59 @@ export function mergePrologueState(a, b) {
     grantPaid: x.grantPaid || y.grantPaid,
     chaptersCompleted: idList([...x.chaptersCompleted, ...y.chaptersCompleted]),
     practised: idList([...x.practised, ...y.practised]),
+  };
+}
+
+/** The prologue's Home Base grant (prologue.json `grant`) as whole, non-negative amounts. */
+export function prologueGrantAmounts(grant) {
+  return {
+    valor: Math.max(0, Math.floor(Number(grant?.valor) || 0)),
+    supply: Math.max(0, Math.floor(Number(grant?.supply) || 0)),
+  };
+}
+
+const currencyOf = (payload, key) =>
+  Math.max(0, Math.floor(Number(payload?.[key] ?? payload?.totalRenown) || 0));
+
+/**
+ * The prologue record of a meta payload picked whole by `savedAt` (the cloud fetch's
+ * merge, CloudSync.applyMetaSlots), where the picked payload (`winner`) keeps its
+ * currencies and upgrades and the other copy's are dropped.
+ *
+ * The grant's receipt (`grantPaid`) travels with the economy that holds its effect, so
+ * it comes from the winner alone; the state, the chapters and the lessons union freely.
+ * A union that reaches 'complete' while the winner never paid (the other copy finished
+ * the prologue; its grant was dropped with its economy) is repaired once: the grant is
+ * added to the winner's currencies and the receipt set, because that grant was never in
+ * the winner's snapshot. Never by taking the larger balance (that restores spent
+ * currency). The result is idempotent: merged again with either copy, the winner is
+ * paid and nothing is added.
+ *
+ * Only a winner that has taken part in the prologue (state past 'none') vouches for its
+ * receipt. A payload with no record, or 'none', may have been saved by a client from
+ * before the prologue, which drops the record and keeps the currencies (a grant it
+ * fetched included), so its receipt is unknown: the other copy's is kept, as a union,
+ * and nothing is added.
+ * @param {object|null} winner - the meta payload whose economy is kept
+ * @param {object|null} loser - the other copy
+ * @param {{ valor?: number, supply?: number }} grant - prologue.json `grant`
+ * @returns {{ prologue: object, economy: { totalValor: number, totalSupply: number } | null }}
+ *   `economy`: the winner's repaired currencies, or null when nothing was added
+ */
+export function reconcilePickedPrologue(winner, loser, grant) {
+  const merged = mergePrologueState(winner?.prologue, loser?.prologue);
+  const own = normalizePrologueState(winner?.prologue);
+  if (own.state === 'none') return { prologue: merged, economy: null };
+  const paid = own.grantPaid;
+  if (merged.state !== 'complete' || paid)
+    return { prologue: { ...merged, grantPaid: paid }, economy: null };
+  const amounts = prologueGrantAmounts(grant);
+  return {
+    prologue: { ...merged, grantPaid: true },
+    economy: {
+      totalValor: currencyOf(winner, 'totalValor') + amounts.valor,
+      totalSupply: currencyOf(winner, 'totalSupply') + amounts.supply,
+    },
   };
 }
 
@@ -598,8 +658,7 @@ export class MetaProgressionManager {
       practised,
     });
     if (paid) {
-      const valor = Math.max(0, Math.floor(Number(grant?.valor) || 0));
-      const supply = Math.max(0, Math.floor(Number(grant?.supply) || 0));
+      const { valor, supply } = prologueGrantAmounts(grant);
       this.totalValor = Math.max(0, Math.floor((this.totalValor || 0) + valor));
       this.totalSupply = Math.max(0, Math.floor((this.totalSupply || 0) + supply));
     }
@@ -1477,7 +1536,10 @@ export class MetaProgressionManager {
     }
     if (isDifficultyId(disk.lastDifficulty)) this.lastDifficulty = disk.lastDifficulty;
     // The prologue: the further state wins and a paid grant stays paid, so the grant
-    // can never be paid twice across devices or a cloud heal.
+    // can never be paid twice across devices or a cloud heal. A receipt is OR-ed here,
+    // unlike the cloud fetch's whole-payload pick (reconcilePickedPrologue), because
+    // this merge keeps both copies' economies (each currency and upgrade at its max):
+    // a paid copy's grant is in the result, and an unpaid newer copy must not pay again.
     this.prologue = mergePrologueState(this.prologue, disk.prologue);
     this.savedAt = diskSavedAt;
   }
