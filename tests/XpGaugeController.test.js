@@ -3,6 +3,8 @@
 //   - a speed or motion setting ignored (Fast fill, Instant / Reduce motion static);
 //   - a tap, key or pad press that does not skip, or a skip that leaves the gauge up;
 //   - a press on the map that the board then reads as a tap on a tile;
+//   - a press on a DOM control (the rail) that skips but loses the control's click, or
+//     whose click then lands on something the skip opened under the finger;
 //   - a gauge whose timers never fire hangs the action (the watchdog);
 //   - a gauge opened headless, at the cap, or after the controller is gone.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -14,6 +16,7 @@ import { createRecruitUnit } from '../src/engine/UnitManager.js';
 import { _resetInputFocus, dispatchInputAction } from '../src/utils/inputFocus.js';
 import { InputAction } from '../src/utils/InputActions.js';
 import { DOM_UI_DEPTHS } from '../src/utils/uiDepths.js';
+import { bindCancelablePress } from '../src/utils/cancelablePress.js';
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
@@ -182,10 +185,18 @@ describe('skipping', () => {
     await vi.advanceTimersByTimeAsync(50);
     const track = meter();
     expect(Number(track.getAttribute('aria-valuenow'))).toBeLessThan(70);
+    const mapClick = vi.fn();
+    dom.canvas.addEventListener('click', mapClick);
     dom.canvas.dispatchEvent(new dom.FakeEvent('pointerdown', { button: 0, pointerId: 1 }));
     expect(track.getAttribute('aria-valuenow')).toBe('70');
     expect(layer()).toBeNull();
+    // The board reads the block on the release (InputController) and never selects.
     expect(scene._uiClickBlocked).toBe(true);
+    dom.canvas.dispatchEvent(new dom.FakeEvent('pointerup', { button: 0, pointerId: 1 }));
+    expect(scene._uiClickBlocked).toBe(true);
+    // And the press's click is swallowed, wherever it lands.
+    dom.canvas.dispatchEvent(new dom.FakeEvent('click', { button: 0, detail: 1 }));
+    expect(mapClick).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(0);
     expect(await played).toBe(true);
   });
@@ -224,14 +235,106 @@ describe('skipping', () => {
     expect(scene._uiClickBlocked).toBe(true);
   });
 
-  it('a press on the rail skips without blocking the next map click', async () => {
+  // A rail control as MobileBattleHUD.button builds it: activated by its click
+  // (bindCancelablePress), with a label inside it.
+  function railButton() {
+    const rail = dom.doc.createElement('aside');
+    const button = dom.doc.createElement('button');
+    const label = dom.doc.createElement('span');
+    button.append(label);
+    rail.append(button);
+    dom.host.append(rail);
+    const activated = vi.fn();
+    bindCancelablePress(button, activated);
+    return { rail, button, label, activated };
+  }
+  const at = { button: 0, pointerId: 7, isPrimary: true, clientX: 20, clientY: 20 };
+  const tap = (node, { clickOn = node } = {}) => {
+    node.dispatchEvent(new dom.FakeEvent('pointerdown', at));
+    node.dispatchEvent(new dom.FakeEvent('pointerup', at));
+    clickOn.dispatchEvent(new dom.FakeEvent('click', { button: 0, detail: 1 }));
+  };
+
+  it('a press on a rail control skips the gauge and the control still takes it, once', async () => {
     const { record: gain } = record(7, 10, 60);
     const scene = makeScene();
     scene.game = { canvas: dom.canvas };
-    void new XpGaugeController(scene).play(gain);
-    dom.host.dispatchEvent(new dom.FakeEvent('pointerdown', { button: 0, pointerId: 1 }));
+    const { label, activated } = railButton();
+    const played = new XpGaugeController(scene).play(gain);
+    await vi.advanceTimersByTimeAsync(30);
+    label.dispatchEvent(new dom.FakeEvent('pointerdown', at));
+    expect(layer()).toBeNull();
+    label.dispatchEvent(new dom.FakeEvent('pointerup', at));
+    label.dispatchEvent(new dom.FakeEvent('click', { button: 0, detail: 1 }));
+    expect(activated).toHaveBeenCalledTimes(1);
+    // Not a map press: the board's next tap is its own.
+    expect(scene._uiClickBlocked).toBeUndefined();
+    expect(await played).toBe(true);
+    // Nothing left listening: the next tap is an ordinary one.
+    tap(label);
+    expect(activated).toHaveBeenCalledTimes(2);
+  });
+
+  it('a press released off the control (the click goes to an ancestor) activates nothing', async () => {
+    const scene = makeScene();
+    scene.game = { canvas: dom.canvas };
+    const { rail, label, activated } = railButton();
+    const railClick = vi.fn();
+    rail.addEventListener('click', railClick);
+    void new XpGaugeController(scene).play(record(7, 10, 60).record);
+    tap(label, { clickOn: rail });
+    expect(layer()).toBeNull();
+    expect(activated).not.toHaveBeenCalled();
+    // The ancestor sees the click it would have seen without a gauge.
+    expect(railClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('a click that lands on something the skip opened under the finger is swallowed', async () => {
+    const scene = makeScene();
+    scene.game = { canvas: dom.canvas };
+    const { label, activated } = railButton();
+    void new XpGaugeController(scene).play(record(7, 10, 60).record);
+    label.dispatchEvent(new dom.FakeEvent('pointerdown', at));
+    // A card opened by the skip, before the lift, takes the click instead.
+    const card = dom.doc.createElement('button');
+    dom.host.append(card);
+    const cardClick = vi.fn();
+    card.addEventListener('click', cardClick);
+    label.dispatchEvent(new dom.FakeEvent('pointerup', at));
+    card.dispatchEvent(new dom.FakeEvent('click', { button: 0, detail: 1 }));
+    expect(cardClick).not.toHaveBeenCalled();
+    expect(activated).not.toHaveBeenCalled();
+    // The card's own next tap counts.
+    card.dispatchEvent(new dom.FakeEvent('pointerdown', at));
+    card.dispatchEvent(new dom.FakeEvent('click', { button: 0, detail: 1 }));
+    expect(cardClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('a press on the gauge itself only skips', async () => {
+    const scene = makeScene();
+    scene.game = { canvas: dom.canvas };
+    const hostClick = vi.fn();
+    dom.host.addEventListener('click', hostClick);
+    void new XpGaugeController(scene).play(record(7, 10, 60).record);
+    const gauge = layer().querySelector('.xg-gauge');
+    gauge.dispatchEvent(new dom.FakeEvent('pointerdown', at));
     expect(layer()).toBeNull();
     expect(scene._uiClickBlocked).toBeUndefined();
+    dom.host.dispatchEvent(new dom.FakeEvent('pointerup', at));
+    dom.host.dispatchEvent(new dom.FakeEvent('click', { button: 0, detail: 1 }));
+    expect(hostClick).not.toHaveBeenCalled();
+  });
+
+  it('a secondary button press neither skips nor touches the click', async () => {
+    const scene = makeScene();
+    scene.game = { canvas: dom.canvas };
+    const { label, activated } = railButton();
+    void new XpGaugeController(scene).play(record(7, 10, 60).record);
+    label.dispatchEvent(new dom.FakeEvent('pointerdown', { ...at, button: 2 }));
+    expect(layer()).not.toBeNull();
+    tap(label);
+    expect(layer()).toBeNull();
+    expect(activated).toHaveBeenCalledTimes(1);
   });
 });
 

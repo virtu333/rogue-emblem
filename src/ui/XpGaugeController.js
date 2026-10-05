@@ -12,8 +12,9 @@
 // (xp_gauge_fill / xp_gauge_hold), Fast or hold-to-fast-forward in the enemy phase halves
 // them; Instant and Reduce motion show the final state for a hold; Low effects drops the
 // glow. A tap, click, Enter / Space / Esc or the pad's Confirm / Cancel skips to the end
-// state and closes. A watchdog closes a gauge whose timers never fire. Silent (decision
-// 4): the level-up cue on the card marks the wrap.
+// state and closes; a tap on a DOM control (the rail) skips and still works that control,
+// a tap on the map only skips. A watchdog closes a gauge whose timers never fire. Silent
+// (decision 4): the level-up cue on the card marks the wrap.
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import { battleSpeed } from '../utils/combatTiming.js';
 import { TILE_SIZE, XP_PER_LEVEL } from '../utils/constants.js';
@@ -302,9 +303,15 @@ export class XpGaugeController {
   }
 
   /**
-   * Skips while a gauge shows: a press anywhere (the layer lets it through to the map,
-   * which must not read it as a tap once the battle is playable again), Enter / Space /
-   * Esc, or the pad's Confirm / Cancel. Returns the unbind function.
+   * Skips while a gauge shows: a press anywhere, Enter / Space / Esc, or the pad's
+   * Confirm / Cancel. The layer takes no pointer, so a press lands on what is under it:
+   * - on the map (the canvas), it only skips: the board must not read its release as a
+   *   tap once the battle is playable again, and its click is swallowed;
+   * - on a DOM control (the rail, a note's "Got it", the rotate button), it skips and
+   *   the control still takes the press: its own click goes through, once. A click
+   *   that lands anywhere else (something the skip opened under the finger) is
+   *   swallowed.
+   * Returns the unbind function.
    */
   _bindSkip(gauge, finish) {
     const scene = this.scene;
@@ -312,10 +319,11 @@ export class XpGaugeController {
     const doc = globalThis.document;
     const press = (event) => {
       if (event.button !== undefined && event.button !== 0) return;
-      // The press reaches the map under the gauge; its release must not select a tile
-      // on the board the skip hands back.
       const canvas = scene?.game?.canvas;
-      if (event.target && event.target === canvas) {
+      const target = event.target || null;
+      if (canvas && target === canvas) {
+        // The press reaches the map under the gauge; its release must not select a
+        // tile on the board the skip hands back.
         scene._uiClickBlocked = true;
         // Lifted off the map (the board never sees that release): nothing to block.
         const lift = (up) => {
@@ -326,8 +334,17 @@ export class XpGaugeController {
         };
         doc?.addEventListener?.('pointerup', lift, true);
         doc?.addEventListener?.('pointercancel', lift, true);
+        swallowTrailingClick(event);
+      } else {
+        // The press's own click lands on the pressed element or an ancestor (where a
+        // browser sends the click of a press released on the same control, or off it).
+        swallowTrailingClick(event, {
+          allow: (click) =>
+            Boolean(target) &&
+            typeof click?.target?.contains === 'function' &&
+            click.target.contains(target),
+        });
       }
-      swallowTrailingClick(event);
       finish();
     };
     const key = (event) => {

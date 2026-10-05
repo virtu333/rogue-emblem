@@ -407,9 +407,14 @@ export function fitSteps(root, steps, overflow) {
  * that one click wherever it lands: at document capture, because the layer
  * that took the press may already be gone. A new press cancels it (a genuine
  * next tap always counts); it expires `afterLiftMs` after the lift, or `maxMs`
- * after the press if no lift is seen. Returns a cancel function.
+ * after the press if no lift is seen. `allow(click)` lets one through instead
+ * (the press's own click on a control the skip leaves in place; it still ends
+ * the watch). Returns a cancel function.
  */
-export function swallowTrailingClick(press, { afterLiftMs = 600, maxMs = 5000 } = {}) {
+export function swallowTrailingClick(
+  press,
+  { afterLiftMs = 600, maxMs = 5000, allow = null } = {},
+) {
   const doc = globalThis.document;
   if (!doc?.addEventListener) return () => {};
   let timer = null;
@@ -418,6 +423,10 @@ export function swallowTrailingClick(press, { afterLiftMs = 600, maxMs = 5000 } 
     timer = setTimeout(() => done(), ms);
   };
   const swallow = (event) => {
+    if (typeof allow === 'function' && allow(event)) {
+      done();
+      return;
+    }
     event.preventDefault?.();
     event.stopPropagation?.();
     done();
