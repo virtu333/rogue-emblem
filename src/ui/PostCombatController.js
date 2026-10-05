@@ -8,7 +8,8 @@ import { readOnlyBattleReport } from '../engine/BattleTimelineFacts.js';
 import { prepareBattleRewards } from '../engine/PendingBattleRewards.js';
 import { PendingRewardController } from './PendingRewardController.js';
 import { hasDOMHost } from '../utils/domUI.js';
-import { TutorialController } from './TutorialController.js';
+import { isPrologueRun, isStandaloneScriptedBattle } from '../engine/ScriptedBattle.js';
+import { finishPrologue } from './PrologueEnding.js';
 import {
   serializeUnit,
   getActTransitionKey,
@@ -31,7 +32,6 @@ import {
 } from '../utils/SceneRouter.js';
 import { retryBooleanAction } from '../utils/retry.js';
 import { resetTransitionLocks } from '../utils/sceneLoader.js';
-import { showImportantHint } from './HintDisplay.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import { BossRecruitOverlay } from './BossRecruitOverlay.js';
 import { prepareBossRecruit, resolveBossRecruit } from '../engine/PendingBossRecruit.js';
@@ -114,31 +114,13 @@ export class PostCombatController {
       timer = scene.time.delayedCall(1500, run);
     };
 
-    if (scene.battleParams.tutorialMode) {
+    const prologueRun = isPrologueRun(scene.runManager);
+    if (isStandaloneScriptedBattle(scene.battleParams, scene.runManager)) {
+      // A standalone prologue chapter: its last lines, the lesson record and the
+      // handoff (PrologueController.onVictory). Nothing is settled or saved.
       afterVictoryBand(async () => {
         if (!isCurrentBattleSession(scene, session) || !scene.scene?.isActive?.()) return;
-        const tutorial = (scene._tutorialController ||= new TutorialController(scene));
-        // A fresh player goes straight into their first run; anyone else returns to title.
-        const startRun = Boolean(tutorial.pauseOptions?.()?.onStartRun);
-        const choice = await showImportantHint(
-          scene,
-          startRun
-            ? "Victory! You've completed the tutorial.\nYour first run starts on the route map — pick a path, fight, and keep your commander alive."
-            : "Victory! You've completed the tutorial.\nYour saves are waiting on the title screen.",
-          {
-            actions: startRun
-              ? [
-                  { label: 'Start first run', value: 'run', primary: true },
-                  { label: 'Back to title', value: 'title' },
-                ]
-              : [{ label: 'Back to title', value: 'title', primary: true }],
-          },
-        );
-        if (!isCurrentBattleSession(scene, session)) return;
-        if (!isCurrentBattleSession(scene, session) || !scene.scene?.isActive?.()) return;
-        tutorial.recordCompletion();
-        if (choice === 'run') scene._transitionTutorialToTitle({ autoAction: 'newGame' });
-        else scene._transitionTutorialToTitle();
+        await scene._prologue.onVictory();
       });
     } else if (scene.runManager) {
       scene.clearBattleScopedDeltas(scene.playerUnits);
@@ -219,12 +201,17 @@ export class PostCombatController {
       scene._battleCompletionAwardedGold = completionApplied
         ? Math.max(0, vaultGoldAfterCompletion - vaultGoldBeforeCompletion)
         : 0;
-      // Preserve both the win and its unclaimed choices before presentation.
-      if (completionApplied && !scene.runManager.isRunComplete() && hasDOMHost()) {
+      // Preserve both the win and its unclaimed choices before presentation. The
+      // prologue run's rewards are authored: a chapter with loot offers it (its last
+      // chapter too, before the ending); one without goes straight on (§6, §9).
+      const offersRewards = () =>
+        prologueRun ? Boolean(scene.battleConfig?.loot) : !scene.runManager.isRunComplete();
+      if (completionApplied && offersRewards() && hasDOMHost()) {
         prepareBattleRewards(scene.runManager, scene.gameData, this.rewardContext());
         // The boss recruit draft is rolled and saved with the reward, so a
-        // reload before the choice offers the same candidates.
-        if (scene.isBoss) prepareBossRecruit(scene.runManager, scene.gameData);
+        // reload before the choice offers the same candidates. The prologue's
+        // chapters are never bosses to recruit from (§8).
+        if (scene.isBoss && !prologueRun) prepareBossRecruit(scene.runManager, scene.gameData);
         // So is the third lord's arrival when this victory brings it due. After a
         // boss recruit it is rolled once that choice is made (the pick changes who
         // is left to arrive); a boss with no recruit to offer has no choice to wait for.
@@ -304,7 +291,8 @@ export class PostCombatController {
               scene.gameData?.dialogue?.bossEncounters?.[bossName]?.defeat,
               buildNarrativeContext({ meta, runManager: scene.runManager, bossName }),
             );
-            meta?.recordBossSlain?.(bossName);
+            // The prologue counts nothing on the slot (§8): its boss is never recorded.
+            if (!prologueRun) meta?.recordBossSlain?.(bossName);
             await scene._showStoryDialogueOnce(dialogueKey, entries);
             if (!isCurrentBattleSession(scene, session)) return;
           }
@@ -317,7 +305,15 @@ export class PostCombatController {
         if (scene._newDeeds?.length) await deedsFor(scene).presentVictory();
         if (!isCurrentBattleSession(scene, session)) return;
         if (!isCurrentBattleSession(scene, session) || !scene.scene?.isActive?.()) return;
-        if (scene.runManager.isRunComplete()) {
+        if (prologueRun) {
+          // The prologue run: the chapter's last lines, notes and records
+          // (PrologueController.onVictory), then its authored loot or the way on
+          // (the route map, or the ending after the last chapter).
+          if (scene._prologue) await scene._prologue.onVictory();
+          if (!isCurrentBattleSession(scene, session) || !scene.scene?.isActive?.()) return;
+          if (scene.runManager.pendingBattleReward) scene.showLootScreen();
+          else scene.transitionAfterBattle();
+        } else if (scene.runManager.isRunComplete()) {
           // Final boss: award turn-bonus gold silently, skip loot screen
           scene._awardTurnBonusGold();
           scene.transitionAfterBattle();
@@ -383,6 +379,14 @@ export class PostCombatController {
     if (scene.isTransitioningOut) return false;
     scene.isTransitioningOut = true;
     try {
+      if (isPrologueRun(scene.runManager) && scene.runManager.isActComplete()) {
+        // The prologue's last chapter is won: the ending, then Home Base (never
+        // RunComplete, never a settlement). Pending rewards were claimed or left.
+        const ended = await finishPrologue(scene, this._prologueLedgers());
+        if (!isCurrentBattleSession(scene, session)) return;
+        if (!ended) throw new Error('Prologue ending blocked');
+        return true;
+      }
       if (scene.runManager.isActComplete() && !scene.runManager.pendingBattleReward) {
         if (scene.runManager.isRunComplete()) {
           scene.runManager.status = 'victory';
@@ -496,6 +500,12 @@ export class PostCombatController {
     resetTransitionLocks(scene);
     try {
       let ok;
+      if (isPrologueRun(scene.runManager) && scene.runManager.isActComplete()) {
+        ok = await finishPrologue(scene, this._prologueLedgers());
+        if (!isCurrentBattleSession(scene, session)) return;
+        if (!ok) scene.showLootStatus('Transition failed. Refresh and continue.', UI_PALETTE.bad);
+        return;
+      }
       const isRunComplete = scene.runManager?.isRunComplete?.();
       if (isRunComplete) {
         settleEndRunForScene(scene, 'victory');
@@ -716,10 +726,18 @@ export class PostCombatController {
     };
   }
 
+  /** The live chapter's lesson ledgers for the prologue's ending (none after a reload). */
+  _prologueLedgers() {
+    const p = this.scene._prologue;
+    return { taught: p?.taught || [], practised: p?.lessons?.practised || [] };
+  }
+
   rewardContext() {
     const s = this.scene;
     return {
       nodeId: s.nodeId,
+      // The prologue's authored rewards (data/prologue.json chapter `loot`).
+      authoredLoot: s.battleConfig?.loot || null,
       isElite: s.isElite,
       isBoss: s.isBoss,
       goldEarned: s.goldEarned,
@@ -855,6 +873,12 @@ export class PostCombatController {
     if (session !== this.session) return false;
     if (!isCurrentBattleSession(scene, session)) return;
     if (scene.battleState === 'BATTLE_END') return;
+    if (scene._prologue) {
+      // A prologue chapter never loses: a declined (or unoffered) rewind restarts
+      // the chapter before any defeat is persisted or the run fails.
+      scene._prologue.onDefeatIntercept({ accepted: true });
+      return;
+    }
     if (scene.runManager?.battleInProgress) {
       try {
         scene._timelineFacts = [...(scene._timelineFacts || []), 'Defeat. The run has ended.'];
@@ -913,19 +937,7 @@ export class PostCombatController {
       scene._pinToScreen(defeatBanner);
     }
 
-    if (scene.battleParams.tutorialMode) {
-      scene.time.delayedCall(1500, async () => {
-        if (!isCurrentBattleSession(scene, session) || !scene.scene?.isActive?.()) return;
-        await showImportantHint(
-          scene,
-          'Your commander fell — the battle is lost. In a real run, this would end the run.\nThe tutorial is always there to try again from the title.',
-          { actions: [{ label: 'Back to title', value: true, primary: true }] },
-        );
-        if (!isCurrentBattleSession(scene, session)) return;
-        if (!isCurrentBattleSession(scene, session) || !scene.scene?.isActive?.()) return;
-        scene._transitionTutorialToTitle();
-      });
-    } else if (scene.runManager) {
+    if (scene.runManager) {
       scene.clearBattleScopedDeltas(scene.playerUnits);
       scene.clearBattleScopedDeltas(scene.nonDeployedUnits || []);
       // Narrative memory: attribute the run's end. A defeat inside a boss

@@ -47,9 +47,11 @@ describe('CaravanSystem', () => {
       expect(rollCaravanSpawn({ ...baseParams, isAmbush: true }, 0, rng)).toBe(false);
     });
 
-    it('excludes tutorial battles', () => {
+    it('excludes prologue (scripted) battles', () => {
       const rng = () => 0;
-      expect(rollCaravanSpawn({ ...baseParams, tutorialMode: true }, 0, rng)).toBe(false);
+      expect(
+        rollCaravanSpawn({ ...baseParams, prologueChapter: 'p1_banner_at_dawn' }, 0, rng),
+      ).toBe(false);
     });
 
     it('excludes colosseum battles', () => {

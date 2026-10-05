@@ -152,6 +152,9 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   // ({ seize: -2, rout: { act4: -2 } }, null: none).
   holdShare: null,
   objectiveParOffset: null,
+  // Act id -> first node row that may hold a village ({ act1: 3 }: none in an act's first
+  // three rows; null / a missing act: any row). Applied when a node map is generated.
+  villageMinRow: null,
 });
 
 const recruitAffixExclusions = (config, id) =>
@@ -405,7 +408,7 @@ function validateCasterGear(mode, path) {
   return errors;
 }
 
-/** The pacing keys (all optional): routLadder, parInflation, templateWavesRaisePar. */
+/** The pacing keys (all optional): routLadder, parInflation, templateWavesRaisePar, villageMinRow. */
 function validateBattlePacing(mode, path) {
   const errors = [];
   if (
@@ -440,6 +443,19 @@ function validateBattlePacing(mode, path) {
         }
       } else if (!Number.isInteger(n)) {
         errors.push(`${at} must be an integer or an object of integers by act`);
+      }
+    }
+  }
+  const minRows = mode.villageMinRow;
+  if (minRows !== undefined && minRows !== null) {
+    if (!isObject(minRows)) {
+      errors.push(`${path}.villageMinRow must be null or an object keyed by act id`);
+    } else {
+      for (const [act, row] of Object.entries(minRows)) {
+        if (!ENEMY_ACT_GATE_ORDER.includes(act))
+          errors.push(`${path}.villageMinRow.${act} is not an act id`);
+        if (!(Number.isInteger(row) && row >= 0))
+          errors.push(`${path}.villageMinRow.${act} must be a non-negative integer`);
       }
     }
   }

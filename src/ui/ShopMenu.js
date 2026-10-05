@@ -258,7 +258,11 @@ export class ShopMenu {
     status.setAttribute('role', 'status');
     status.setAttribute('aria-live', 'polite');
     const actions = el('div', null, 'shop-tools');
-    if (this.scene.activeShopTab === 'buy' && !this.scene._currentShopIsCaravan) {
+    if (
+      this.scene.activeShopTab === 'buy' &&
+      this.controller.canReroll?.() !== false &&
+      !this.scene._currentShopIsCaravan
+    ) {
       const cost = SHOP_REROLL_COST + this.scene.shopRerollCount * SHOP_REROLL_ESCALATION;
       const reroll = button(`Restock · ${cost} G`, () =>
         this.confirm(

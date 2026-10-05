@@ -143,6 +143,7 @@ describe('buildNarrativeContext', () => {
       bossKilledYouCount: 0,
       firstClear: false,
       linesPlayed: [],
+      prologue: 'none',
     });
   });
 
@@ -185,6 +186,7 @@ describe('buildNarrativeContext', () => {
       bossKilledYouCount: 2,
       firstClear: true,
       linesPlayed: [],
+      prologue: 'none',
     });
   });
 
@@ -215,6 +217,7 @@ describe('KNOWN_WHEN_KEYS', () => {
       'maxRunsStarted',
       'minRunsCompleted',
       'partner',
+      'prologue',
     ]);
   });
 });

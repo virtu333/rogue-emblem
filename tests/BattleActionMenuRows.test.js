@@ -94,7 +94,7 @@ function menuScene({ rail, attackable = true }) {
     _hasAbilities: () => false,
     _clampMenuPosition: (x, y) => ({ x, y }),
     _pinToScreen: vi.fn(),
-    _isTutorialStrictGateActive: () => false,
+    _isPrologueGateActive: () => false,
     _makeMenuTextButton: vi.fn((_x, _y, text, _style, color, action, options = {}) =>
       displayObject({
         text,

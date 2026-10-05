@@ -462,7 +462,9 @@ describe('DeedController', () => {
   it('records nothing without a run or in the tutorial', () => {
     const hero = fighter();
     new DeedController(scene({ runManager: null })).onRefresh(hero);
-    new DeedController(scene({ battleParams: { tutorialMode: true } })).onRefresh(hero);
+    new DeedController(scene({ battleParams: { prologueChapter: 'p1_banner_at_dawn' } })).onRefresh(
+      hero,
+    );
     expect(hero._battleDeeds).toBeUndefined();
   });
 
@@ -503,7 +505,10 @@ describe('DeedController', () => {
     const plain = scene({ gameData: {}, _fallenBattleRecords: [] });
     new DeedController(plain).onUnitRemoved(hero, killer);
     expect(plain._fallenBattleRecords[0].bags.inventory).toHaveLength(hero.inventory.length);
-    const tutorial = scene({ battleParams: { tutorialMode: true }, _fallenBattleRecords: [] });
+    const tutorial = scene({
+      battleParams: { prologueChapter: 'p1_banner_at_dawn' },
+      _fallenBattleRecords: [],
+    });
     new DeedController(tutorial).onUnitRemoved(hero, killer);
     expect(tutorial._fallenBattleRecords).toEqual([]);
   });

@@ -88,7 +88,7 @@ function setup({ remaining = 4, map = null } = {}) {
     playerUnits: [edric],
     enemyUnits: [brigand],
     npcUnits: [],
-    battleParams: { tutorialMode: false },
+    battleParams: {},
     battleState: 'UNIT_MOVING',
     selectedUnit: edric,
     runManager: { battleInProgress: true },
@@ -121,7 +121,7 @@ function setup({ remaining = 4, map = null } = {}) {
   ])
     scene[name] = vi.fn();
   scene.isStoryInputLocked = () => false;
-  scene._isTutorialStrictGateActive = () => false;
+  scene._isPrologueGateActive = () => false;
   scene.checkBattleEnd = () => false;
   // The suspend save records whether the brigand's tile was lit when it was taken.
   scene.saved = [];
@@ -559,7 +559,7 @@ describe('Danger during Canto', () => {
     scene.isStoryInputLocked = () => true;
     scene._onDangerClick();
     scene.isStoryInputLocked = () => false;
-    scene._isTutorialStrictGateActive = () => true;
+    scene._isPrologueGateActive = () => true;
     scene.togglePersistentDanger();
     expect(scene.calculateDangerZone).not.toHaveBeenCalled();
     expect(scene.dangerZone.toggle).not.toHaveBeenCalled();

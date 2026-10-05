@@ -128,6 +128,9 @@ import { itemIcon, itemHero } from './itemIcons.js';
 import { LEVEL_UP_CUE_WAIT_MS, playCue } from './ceremonyMusic.js';
 import { portraitListLayout, watchPortraitListLayout } from './portraitListLayout.js';
 import { orderedStatKeys } from './statOrder.js';
+import { PrologueRosterCoach, rosterTradeEvents } from './PrologueRosterCoach.js';
+import { unarmedConvoyLine } from '../data/prologueContent.js';
+import { canEquip } from '../engine/UnitManager.js';
 
 // Movement between pointerdown and click that still counts as a tap, for touch
 // and pen. Mice hold a line far tighter, so they keep the original 10px.
@@ -266,6 +269,8 @@ export class MobileRosterSheet {
     });
     this.shutdown = () => this.destroy();
     scene.events.once('shutdown', this.shutdown);
+    // The prologue's roster lesson (row 2), when it is live: a goal strip, never a gate.
+    this.lesson = PrologueRosterCoach.attach(this);
     this.render();
     this.root.querySelector('.mr-tabs [aria-pressed="true"]')?.focus();
   }
@@ -372,6 +377,9 @@ export class MobileRosterSheet {
       // until the player has seen it on Skills.
       const benchNews = Boolean(this.run && unseenBenchedSkills(unit).length);
       if (benchNews) info.append(el('span', 'New skill benched', 'mr-unit-flag'));
+      const convoyWeapon = this.convoyWeaponFor(unit);
+      if (convoyWeapon)
+        info.append(el('span', unarmedConvoyLine(convoyWeapon.type), 'mr-unit-flag'));
       b.setAttribute(
         'aria-label',
         `${unit.name}, Level ${getDisplayLevel(unit)} ${unit.className}, HP ${unit.currentHP} of ${unit.stats.HP}${benchNews ? ', new skill benched' : ''}`,
@@ -436,6 +444,7 @@ export class MobileRosterSheet {
       if (this.tab === 'gear') this.gear(unit);
     }
     if (this.tab === 'convoy') this.convoy(unit);
+    this.lesson?.render(body);
     const status = (this.status ||= el('p', '', 'mr-status'));
     status.setAttribute('aria-live', 'polite');
     status.setAttribute('aria-atomic', 'true');
@@ -1139,8 +1148,10 @@ export class MobileRosterSheet {
       bag,
       engine: { planTrade, planReorder, bagItems, bagCapacity, unitHolder },
       commit: (from, to) => {
+        const moved = from?.item || null;
         const result = applyTrade(ctx, from, to);
         if (!result.ok) return result;
+        for (const event of rosterTradeEvents(from, to, moved)) this.lesson?.observe(event);
         const warnings = result.warnings
           .map(tradeWarningText)
           .filter(Boolean)
@@ -1370,6 +1381,7 @@ export class MobileRosterSheet {
         const result = rosterItemAction(this.run, unit, item, action);
         if (!result && ['heal', 'healFull', 'cureHeal'].includes(item.effect))
           this.scene.registry.get('audio')?.playSFX('sfx_heal');
+        if (!result) this.lesson?.observe({ action, unit: unit.name, item: item.name });
         this.render(
           result || `${label}: ${item.name}${warning ? `. ${warning}` : ''}${this.persistNow()}`,
         );
@@ -1629,7 +1641,22 @@ export class MobileRosterSheet {
       this.help = null;
     });
   }
+  /**
+   * An unarmed unit's convoy weapon (managing sheet only): the first combat weapon
+   * in the convoy it can equip, or null.
+   */
+  convoyWeaponFor(unit) {
+    if (!this.run?.convoy || !unit || (unit.inventory || []).some((w) => w?.type !== 'Staff'))
+      return null;
+    return (
+      (this.run.convoy.weapons || []).find(
+        (w) => w && w.type !== 'Staff' && w.type !== 'Scroll' && canEquip(unit, w),
+      ) || null
+    );
+  }
   destroy() {
+    this.lesson?.destroy();
+    this.lesson = null;
     this.stopStatOrderWatch?.();
     this.stopStatOrderWatch = null;
     this.help?.destroy();

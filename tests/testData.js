@@ -37,5 +37,6 @@ export function loadGameData() {
     imbues: loadJSON('imbues.json'),
     deeds: loadJSON('deeds.json'),
     eclipse: loadJSON('eclipse.json'),
+    prologue: loadJSON('prologue.json'),
   };
 }

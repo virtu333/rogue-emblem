@@ -83,7 +83,7 @@ function makeScene({ runManager, roster, lockedSpawns, act = 'act3' }) {
   runManager.battleConfigsByNodeId = { act3_2_1: structuredClone(battleConfig) };
   scene.gameData = loadGameData();
   scene.runManager = runManager;
-  scene.battleParams = { act, tutorialMode: false, fogEnabled: false };
+  scene.battleParams = { act, fogEnabled: false };
   scene.nodeId = 'act3_2_1';
   scene.roster = roster;
   scene.registry = {
@@ -117,7 +117,6 @@ function makeScene({ runManager, roster, lockedSpawns, act = 'act3' }) {
     'updateTopLeftHudLayout',
     'updateEnemyVisibility',
     'updateVisionHud',
-    '_clearTutorialGuideHighlights',
     'cancelTouchInspectHold',
     '_hideMenuTooltip',
     '_restoreBattleRng',

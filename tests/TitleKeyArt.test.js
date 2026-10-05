@@ -121,34 +121,47 @@ describe('key art backdrop framing', () => {
 describe('title menu model', () => {
   const ids = (items) => items.map((i) => i.id);
 
-  it('fresh profile: tutorial is promoted with "Start here" and How to Play is new', () => {
-    const items = buildTitleMenu({ hasSlots: false, tutorialDone: false });
+  it('fresh profile: the prologue is promoted with "Start here" and How to Play is new', () => {
+    const items = buildTitleMenu({ hasSlots: false, prologueDone: false });
     expect(ids(items)).toEqual([
-      'tutorial',
+      'prologue',
       'newGame',
       'howToPlay',
       'compendium',
       'moreInfo',
       'records',
     ]);
-    expect(items[0]).toMatchObject({ label: 'Tutorial', sub: 'Start here', primary: true });
+    expect(items[0]).toMatchObject({ label: 'Prologue', sub: 'Start here', primary: true });
     expect(items[0].badge).toBeUndefined();
     expect(items.find((i) => i.id === 'newGame').label).toBe('New Game');
     expect(items.find((i) => i.id === 'howToPlay').badge).toBe('New');
   });
 
-  it('tutorial done but no slots: the first run starts from "Start First Run"', () => {
-    const items = buildTitleMenu({ hasSlots: false, tutorialDone: true, seenHowToPlay: true });
+  it('prologue done but no slots: New Game leads (it opens the offer, Skip first)', () => {
+    const items = buildTitleMenu({ hasSlots: false, prologueDone: true, seenHowToPlay: true });
     expect(ids(items)).toEqual([
       'newGame',
-      'tutorial',
+      'prologue',
       'howToPlay',
       'compendium',
       'moreInfo',
       'records',
     ]);
-    expect(items[0]).toMatchObject({ label: 'Start First Run', primary: true });
+    expect(items[0]).toMatchObject({ label: 'New Game', primary: true });
     expect(items.some((i) => i.badge)).toBe(false);
+    // Only a build without the prologue starts the first run outright.
+    const bare = buildTitleMenu({ hasSlots: false, hasPrologue: false, seenHowToPlay: true });
+    expect(bare[0]).toMatchObject({ id: 'newGame', label: 'Start First Run', primary: true });
+  });
+
+  it('a prologue run in progress resumes as the Prologue, not an act', () => {
+    const resumeSlot = pickResumeSlot([
+      { slot: 1, hasActiveRun: true, actReached: 1, prologueRun: true },
+      null,
+      null,
+    ]);
+    const items = buildTitleMenu({ hasSlots: true, prologueDone: false, resumeSlot });
+    expect(items[0]).toMatchObject({ id: 'resume', label: 'Resume · Prologue', primary: true });
   });
 
   it('returning player with one active run: Resume leads, Save Slots follows New Game', () => {
@@ -157,12 +170,12 @@ describe('title menu model', () => {
       { slot: 2, hasActiveRun: false },
       null,
     ]);
-    const items = buildTitleMenu({ hasSlots: true, tutorialDone: false, resumeSlot });
+    const items = buildTitleMenu({ hasSlots: true, prologueDone: false, resumeSlot });
     expect(ids(items)).toEqual([
       'resume',
       'newGame',
       'saveSlots',
-      'tutorial',
+      'prologue',
       'howToPlay',
       'compendium',
       'moreInfo',
@@ -170,19 +183,19 @@ describe('title menu model', () => {
     ]);
     expect(items[0]).toMatchObject({ label: 'Resume · Act 3', primary: true });
     expect(items.filter((i) => i.primary)).toHaveLength(1);
-    expect(items.find((i) => i.id === 'tutorial')).toMatchObject({ badge: 'New' });
-    expect(items.find((i) => i.id === 'tutorial').sub).toBeUndefined();
+    expect(items.find((i) => i.id === 'prologue')).toMatchObject({ badge: 'New' });
+    expect(items.find((i) => i.id === 'prologue').sub).toBeUndefined();
     // Gamepad contract: More Info second-to-last, Records last.
     expect(items.at(-2).id).toBe('moreInfo');
     expect(items.at(-1).id).toBe('records');
   });
 
   it('groups run actions and references for the two clusters', () => {
-    const items = buildTitleMenu({ hasSlots: true, tutorialDone: true, seenHowToPlay: true });
+    const items = buildTitleMenu({ hasSlots: true, prologueDone: true, seenHowToPlay: true });
     expect(items.filter((i) => i.group === 'run').map((i) => i.id)).toEqual([
       'newGame',
       'saveSlots',
-      'tutorial',
+      'prologue',
     ]);
     expect(items.filter((i) => i.group === 'reference')).toHaveLength(4);
   });
@@ -194,7 +207,7 @@ describe('title menu model', () => {
       { slot: 3, hasActiveRun: false, savedAt: 9000 },
     ]);
     expect(resumeSlot).toMatchObject({ slot: 2, latestOf: 2 });
-    const items = buildTitleMenu({ hasSlots: true, tutorialDone: true, resumeSlot });
+    const items = buildTitleMenu({ hasSlots: true, prologueDone: true, resumeSlot });
     expect(items[0]).toMatchObject({
       id: 'resume',
       label: 'Resume · Act 4',

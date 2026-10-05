@@ -32,6 +32,7 @@ export class DataLoader {
     this.imbues = null;
     this.deeds = null;
     this.eclipse = null;
+    this.prologue = null;
   }
 
   async loadAll() {
@@ -62,6 +63,7 @@ export class DataLoader {
       imbues,
       deeds,
       eclipse,
+      prologue,
     ] = await Promise.all([
       this.loadJSON('data/terrain.json'),
       this.loadJSON('data/lords.json'),
@@ -89,6 +91,10 @@ export class DataLoader {
       this.loadOptionalJSON('data/imbues.json'),
       this.loadOptionalJSON('data/deeds.json'),
       this.loadJSON('data/eclipse.json'),
+      // The prologue's authored chapters (docs/specs/prologue-chapter.md). Optional: a
+      // build without it offers no prologue. Validated by `npm run validate:data`
+      // (engine/Prologue.validatePrologueConfig), not at boot.
+      this.loadOptionalJSON('data/prologue.json'),
     ]);
     this.terrain = terrain;
     this.lords = lords;
@@ -116,6 +122,7 @@ export class DataLoader {
     this.imbues = imbues;
     this.deeds = deeds;
     this.eclipse = eclipse;
+    this.prologue = prologue;
     if (this.blessings) {
       const validation = validateBlessingsConfig(this.blessings);
       if (!validation.valid) {
@@ -157,6 +164,7 @@ export class DataLoader {
       imbues,
       deeds,
       eclipse,
+      prologue,
     };
   }
 

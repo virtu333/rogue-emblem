@@ -3,18 +3,11 @@
 // Pure, no Phaser.
 
 /**
- * @param {{tutorialMode?: boolean, deployedRoster?: object[]|null, resuming?: boolean,
- *          recorded?: unknown}} options
+ * @param {{deployedRoster?: object[]|null, resuming?: boolean, recorded?: unknown}} options
  *   recorded: battleParams.deployCount as saved with the battle in progress.
  * @returns {number}
  */
-export function battleDeployCount({
-  tutorialMode = false,
-  deployedRoster = null,
-  resuming = false,
-  recorded,
-} = {}) {
-  if (tutorialMode) return 2;
+export function battleDeployCount({ deployedRoster = null, resuming = false, recorded } = {}) {
   if (Array.isArray(deployedRoster)) return deployedRoster.length;
   // A resumed battle's units come from its checkpoint, not a deployment: keep the
   // count recorded when the battle began (it was reset to 2, so no resumed battle

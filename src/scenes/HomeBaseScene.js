@@ -20,6 +20,17 @@ import {
 } from '../utils/constants.js';
 import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
+import {
+  BEGIN_RUN_CANCELLED,
+  routeForBeginRun,
+  PROLOGUE_ROUTES,
+} from '../engine/PrologueRouting.js';
+import {
+  skipPrologueToFirstRun,
+  startFirstRunFastPath,
+  startPrologueRun,
+} from '../utils/firstRunFastPath.js';
+import { PROLOGUE_HOME_BASE_NOTE, PROLOGUE_LOST } from '../data/prologueContent.js';
 import { hasOpenOverlay } from '../utils/overlayStack.js';
 import { ensureAudioUnlocked } from '../utils/audioUnlock.js';
 import { isTouchPointer } from '../utils/runtimeFlags.js';
@@ -315,6 +326,12 @@ export class HomeBaseScene extends Phaser.Scene {
     if (audio) audio.releaseMusic(this, 0);
   }
 
+  /** The first visit after the prologue says what its grant is for (once per slot). */
+  _prologueGrantNote(hints) {
+    if (!hints || this.registry.get('meta')?.getPrologueState?.() !== 'complete') return null;
+    return hints.shouldShow('homebase_prologue_grant') ? PROLOGUE_HOME_BASE_NOTE : null;
+  }
+
   async _runStartupHints(hints, lifecycleGeneration = this._sceneLifecycleGeneration) {
     try {
       if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
@@ -324,6 +341,9 @@ export class HomeBaseScene extends Phaser.Scene {
           'Spend Valor and Supply to upgrade your army.\nUpgrades persist across all runs.',
         );
       }
+      if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
+      const grantNote = this._prologueGrantNote(hints);
+      if (grantNote) await showImportantHint(this, grantNote);
       if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
       if (hints.shouldShow('homebase_begin')) {
         void showMinorHint(
@@ -1989,14 +2009,7 @@ export class HomeBaseScene extends Phaser.Scene {
     beginBtn.on('pointerover', () => beginBtn.setColor(UI_PALETTE.accent));
     beginBtn.on('pointerout', () => beginBtn.setColor(UI_PALETTE.good));
     beginBtn.on('pointerdown', async () => {
-      await this.runTransition(() =>
-        transitionToScene(
-          this,
-          'DifficultySelect',
-          { gameData: this.gameData },
-          { reason: TRANSITION_REASONS.BEGIN_RUN },
-        ),
-      );
+      await this.runTransition(() => this.startRunFromHomeBase());
     });
 
     // Back to Title button
@@ -2028,6 +2041,55 @@ export class HomeBaseScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * Begin Run's road (PrologueRouting.routeForBeginRun): a completed prologue's first
+   * real run takes the first-run fast path (First Light, no blessing); every other
+   * run goes to Difficulty Select. Resolves the transition result; callers wrap it
+   * in runTransition.
+   */
+  startRunFromHomeBase() {
+    const meta = this.registry.get('meta');
+    const route = routeForBeginRun(meta, { hasPrologue: Boolean(this.gameData?.prologue?.route) });
+    if (route === PROLOGUE_ROUTES.OFFER) return this.offerLostPrologue();
+    if (route === PROLOGUE_ROUTES.FAST_PATH) {
+      return startFirstRunFastPath(this, {
+        gameData: this.gameData,
+        slot: this.registry.get('activeSlot'),
+      });
+    }
+    // A tap inside the router's post-start cooldown (Home Base is barely open) retries
+    // instead of failing, as the phone's Begin Run always did.
+    return transitionToScene(
+      this,
+      'DifficultySelect',
+      { gameData: this.gameData },
+      { reason: TRANSITION_REASONS.BEGIN_RUN, retryBlocked: true },
+    );
+  }
+
+  /**
+   * The prologue's run save was lost (its state left 'in_progress'): restart it from
+   * P1 in this slot, or skip to the first run (state 'skipped', the fast path, no
+   * grant). Back resolves BEGIN_RUN_CANCELLED and leaves Home Base as it was. Without a
+   * DOM there is no choice to show: the prologue restarts.
+   */
+  async offerLostPrologue() {
+    const opts = { gameData: this.gameData, slot: this.registry.get('activeSlot') };
+    let choice = 'restart';
+    if (hasDOMHost()) {
+      choice = await showImportantHint(this, PROLOGUE_LOST.body, {
+        actions: [
+          { label: PROLOGUE_LOST.back, value: 'back' },
+          { label: PROLOGUE_LOST.restart, value: 'restart', primary: true },
+          { label: PROLOGUE_LOST.skip, value: 'skip' },
+        ],
+      });
+    }
+    if (choice === 'restart') return startPrologueRun(this, opts);
+    if (choice === 'skip') return skipPrologueToFirstRun(this, opts);
+    return BEGIN_RUN_CANCELLED;
+  }
+
   async runTransition(action) {
     const lifecycleGeneration = this._sceneLifecycleGeneration;
     if (!isSceneLifecycleActive(this, lifecycleGeneration)) return false;
@@ -2039,6 +2101,12 @@ export class HomeBaseScene extends Phaser.Scene {
       if (!isSceneLifecycleActive(this, lifecycleGeneration)) return false;
       const transitioned = await action();
       if (!isSceneLifecycleActive(this, lifecycleGeneration)) return false;
+      if (transitioned === BEGIN_RUN_CANCELLED) {
+        // The player stepped back from a choice: nothing to report.
+        this.isTransitioning = false;
+        if (this.input) this.input.enabled = true;
+        return BEGIN_RUN_CANCELLED;
+      }
       if (transitioned) {
         const audio = this.registry.get('audio');
         if (audio) audio.playSFX('sfx_confirm');

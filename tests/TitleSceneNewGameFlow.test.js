@@ -1,8 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   transitionToSceneMock,
   startFirstRunFastPathMock,
+  startPrologueRunMock,
+  skipPrologueToFirstRunMock,
   getNextAvailableSlotMock,
   setActiveSlotMock,
   getMetaKeyMock,
@@ -14,6 +16,8 @@ const {
 } = vi.hoisted(() => ({
   transitionToSceneMock: vi.fn(),
   startFirstRunFastPathMock: vi.fn(),
+  startPrologueRunMock: vi.fn(),
+  skipPrologueToFirstRunMock: vi.fn(),
   getNextAvailableSlotMock: vi.fn(),
   setActiveSlotMock: vi.fn(),
   getMetaKeyMock: vi.fn((slot) => `slot_${slot}_meta`),
@@ -43,6 +47,8 @@ vi.mock('../src/utils/SceneRouter.js', () => ({
 // here we only assert TitleScene wires into it correctly.
 vi.mock('../src/utils/firstRunFastPath.js', () => ({
   startFirstRunFastPath: startFirstRunFastPathMock,
+  startPrologueRun: startPrologueRunMock,
+  skipPrologueToFirstRun: skipPrologueToFirstRunMock,
 }));
 
 vi.mock('../src/engine/SlotManager.js', () => ({
@@ -99,6 +105,7 @@ vi.mock('../src/engine/MetaProgressionManager.js', () => ({
 }));
 
 import { TitleScene } from '../src/scenes/TitleScene.js';
+import { loadGameData } from './testData.js';
 
 function makeRegistry(seed = {}) {
   const store = new Map(Object.entries(seed));
@@ -346,5 +353,155 @@ describe('TitleScene NEW GAME: the slot that keeps its upgrades', () => {
     expect(scene.showMessage).toHaveBeenCalledWith(
       'All 3 save slots are full.\nDelete a slot from Save Slots to free space.',
     );
+  });
+});
+
+describe('TitleScene NEW GAME: the prologue offer (docs/specs/prologue-chapter.md §4)', () => {
+  const gameData = loadGameData();
+  function freshDevice({ dom = true, tutorialDone = false } = {}) {
+    hasDOMHostMock.mockReturnValue(dom);
+    getNextAvailableSlotMock.mockReturnValue(1);
+    getSlotCountMock.mockReturnValue(0);
+    const { scene, store } = makeScene();
+    scene.gameData = gameData;
+    const menu = {
+      body: { children: [], append: (...nodes) => menu.body.children.push(...nodes) },
+    };
+    menu.focusContent = vi.fn();
+    scene._openTitleMenu = vi.fn(() => menu);
+    scene._closeTitleMenu = vi.fn();
+    vi.stubGlobal('localStorage', {
+      getItem: (k) => (tutorialDone && k === 'emblem_rogue_tutorial_completed' ? '1' : null),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    });
+    return { scene, store, menu };
+  }
+  const buttons = (menu) =>
+    menu.body.children.filter((n) => n.tag === 'button').map((n) => [n.label, n.className]);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    startPrologueRunMock.mockResolvedValue(true);
+    skipPrologueToFirstRunMock.mockResolvedValue(true);
+    startFirstRunFastPathMock.mockResolvedValue(true);
+    metaInstances.length = 0;
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('a fresh slot is asked first: Play the Prologue leads, Skip follows, nothing is staged', async () => {
+    const { scene, menu } = freshDevice();
+    expect(await TitleScene.prototype.handleNewGame.call(scene)).toBe(false);
+    expect(scene._openTitleMenu).toHaveBeenCalledWith('Begin the first thread?');
+    expect(buttons(menu)).toEqual([
+      ['Play the Prologue · about 20 minutes', 're-btn re-btn--primary'],
+      ['Skip to the first run', 're-btn'],
+    ]);
+    expect(menu.body.children.find((n) => n.tag === 'p').text).toContain('Slot 1');
+    expect(metaInstances).toHaveLength(0);
+    expect(startPrologueRunMock).not.toHaveBeenCalled();
+    expect(skipPrologueToFirstRunMock).not.toHaveBeenCalled();
+  });
+
+  it('on a device that finished the prologue, Skip is the highlighted default', async () => {
+    const { scene, menu } = freshDevice({ tutorialDone: true });
+    await TitleScene.prototype.handleNewGame.call(scene);
+    expect(buttons(menu)).toEqual([
+      ['Skip to the first run', 're-btn re-btn--primary'],
+      ['Play the Prologue · about 20 minutes', 're-btn'],
+    ]);
+  });
+
+  it('Play the Prologue stages the slot and starts the prologue run; the slot persists on success', async () => {
+    const { scene, menu, store } = freshDevice();
+    await TitleScene.prototype.handleNewGame.call(scene);
+    menu.body.children.find((n) => n.label?.startsWith('Play the Prologue')).onClick();
+    await vi.waitFor(() => expect(startPrologueRunMock).toHaveBeenCalledTimes(1));
+    expect(startPrologueRunMock).toHaveBeenCalledWith(scene, { gameData, slot: 1 });
+    expect(skipPrologueToFirstRunMock).not.toHaveBeenCalled();
+    expect(startFirstRunFastPathMock).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(setActiveSlotMock).toHaveBeenCalledWith(1));
+    expect(store.get('activeSlot')).toBe(1);
+    expect(store.get('meta')).toBe(metaInstances[0]);
+  });
+
+  it("Skip takes today's fast path through the skip record", async () => {
+    const { scene, menu } = freshDevice();
+    await TitleScene.prototype.handleNewGame.call(scene);
+    menu.body.children.find((n) => n.label === 'Skip to the first run').onClick();
+    await vi.waitFor(() => expect(skipPrologueToFirstRunMock).toHaveBeenCalledTimes(1));
+    expect(skipPrologueToFirstRunMock).toHaveBeenCalledWith(scene, { gameData, slot: 1 });
+    expect(startPrologueRunMock).not.toHaveBeenCalled();
+  });
+
+  it('without a DOM the offer is the skip', async () => {
+    const { scene } = freshDevice({ dom: false });
+    expect(await TitleScene.prototype.handleNewGame.call(scene)).toBe(true);
+    expect(skipPrologueToFirstRunMock).toHaveBeenCalledTimes(1);
+    expect(scene._openTitleMenu).not.toHaveBeenCalled();
+  });
+
+  it('the title Prologue item on a fresh device starts the prologue run in a new slot', async () => {
+    const { scene } = freshDevice();
+    scene.runMenuTransition = vi.fn((action) => action());
+    await TitleScene.prototype._runAction.call(scene, 'prologue');
+    expect(startPrologueRunMock).toHaveBeenCalledWith(scene, { gameData, slot: 1 });
+    expect(scene._openTitleMenu).not.toHaveBeenCalled();
+  });
+
+  it('with saves, the Prologue item is a chapter select (every chapter, route order)', async () => {
+    const { scene, menu } = freshDevice();
+    getSlotCountMock.mockReturnValue(1);
+    scene.runMenuTransition = vi.fn((action) => action());
+    await TitleScene.prototype._runAction.call(scene, 'prologue');
+    expect(scene._openTitleMenu).toHaveBeenCalledWith('Prologue');
+    expect(buttons(menu)).toEqual([
+      ['Banner at Dawn', 're-btn re-btn--primary'],
+      ['Old Hands', 're-btn'],
+      ['The Seer on the Road', 're-btn'],
+      ['The Quarry Gate', 're-btn'],
+    ]);
+    expect(startPrologueRunMock).not.toHaveBeenCalled();
+  });
+
+  it('a standalone replay sets the slot aside, never touches it, and the title gets it back', async () => {
+    const { scene, store } = freshDevice();
+    getSlotCountMock.mockReturnValue(1);
+    const meta = { tag: 'slot-1-meta' };
+    const hints = { tag: 'slot-1-hints' };
+    store.set('activeSlot', 1);
+    store.set('meta', meta);
+    store.set('hints', hints);
+    transitionToSceneMock.mockResolvedValue(true);
+    const chapter = gameData.prologue.chapters.find((c) => c.id === 'p2_old_hands');
+    expect(await TitleScene.prototype.startStandaloneChapter.call(scene, chapter)).toBe(true);
+    const [, key, payload, opts] = transitionToSceneMock.mock.calls[0];
+    expect(key).toBe('Battle');
+    expect(opts).toEqual({ reason: 'new_game', retryBlocked: true });
+    expect(payload.runManager).toBeUndefined();
+    expect(payload.battleParams).toMatchObject({ prologueChapter: 'p2_old_hands' });
+    expect(payload.roster.map((u) => u.name)).toEqual(['Edric', 'Gaspar']);
+    expect(payload.roster[0].level).toBe(2);
+    // The slot is out of the registry while the replay runs...
+    expect(store.get('activeSlot')).toBeUndefined();
+    expect(store.get('meta')).toBeUndefined();
+    expect(store.get('hints')).toBeUndefined();
+    expect(setActiveSlotMock).not.toHaveBeenCalled();
+    expect(startPrologueRunMock).not.toHaveBeenCalled();
+    // ...and back with the title.
+    TitleScene.prototype.init.call(scene, { gameData });
+    expect(store.get('activeSlot')).toBe(1);
+    expect(store.get('meta')).toBe(meta);
+    expect(store.get('hints')).toBe(hints);
+    expect(store.get('prologueReplayStash')).toBeUndefined();
+  });
+
+  it('a refused replay transition restores the slot at once', async () => {
+    const { scene, store } = freshDevice();
+    store.set('activeSlot', 2);
+    transitionToSceneMock.mockResolvedValue(false);
+    const chapter = gameData.prologue.chapters[0];
+    expect(await TitleScene.prototype.startStandaloneChapter.call(scene, chapter)).toBe(false);
+    expect(store.get('activeSlot')).toBe(2);
   });
 });

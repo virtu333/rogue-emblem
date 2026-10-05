@@ -242,6 +242,16 @@ export function slotCardModel(slot, summary, { gameData = {}, now = Date.now(), 
     status = `On the road · ${word}, stage ${summary.stage}`;
   } else status = `Setting out into the ${actRegion(actId) || 'wilds'}`;
   const battles = summary.completedBattles || 0;
+  // The prologue's run: no act, no rung; its card names it (Resume reads the same).
+  const prologue = summary.prologueRun
+    ? {
+        actKicker: 'Prologue',
+        title: 'The first thread',
+        gradeName: undefined,
+        difficulty: null,
+        threadLabel: 'Prologue',
+      }
+    : {};
   return {
     ...common,
     state: summary.battleSuspended ? 'battle' : 'route',
@@ -269,7 +279,10 @@ export function slotCardModel(slot, summary, { gameData = {}, now = Date.now(), 
         ? 'Choose version'
         : summary.battleSuspended
           ? 'Resume battle'
-          : 'Continue run',
+          : summary.prologueRun
+            ? 'Continue prologue'
+            : 'Continue run',
     },
+    ...prologue,
   };
 }

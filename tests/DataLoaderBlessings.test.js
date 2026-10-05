@@ -171,6 +171,21 @@ describe('DataLoader blessings integration', () => {
     expect(loader.deeds).toBe(deeds);
   });
 
+  it('loads prologue.json as an optional file (absent: no prologue)', async () => {
+    const prologue = { version: 1, seed: 1, chapters: [] };
+    const loader = new DataLoader();
+    loader.loadJSON = async (path) => makeMinimalPayload(path);
+    loader.loadOptionalJSON = async (path) => (path === 'data/prologue.json' ? prologue : null);
+    const data = await loader.loadAll();
+    expect(data.prologue).toBe(prologue);
+    expect(loader.prologue).toBe(prologue);
+
+    const without = new DataLoader();
+    without.loadJSON = async (path) => makeMinimalPayload(path);
+    without.loadOptionalJSON = async () => null;
+    expect((await without.loadAll()).prologue).toBeNull();
+  });
+
   it('throws cleanly for invalid blessings payload', async () => {
     const loader = new DataLoader();
     loader.loadJSON = async (path) => makeMinimalPayload(path);

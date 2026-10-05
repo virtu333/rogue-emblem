@@ -19,6 +19,8 @@ export function createLoomHeading({
   rows = 0,
   frontierRow = -1,
   prefix = '',
+  act = null,
+  title: titleOverride = null,
 }) {
   const info = loomHeader({
     actIndex,
@@ -26,6 +28,8 @@ export function createLoomHeading({
     region: regionName(actId),
     rows,
     frontierRow,
+    act,
+    title: titleOverride,
   });
   const wrap = element('div', null, 're-loom-heading');
   const title = element('h2', null, 're-loom-title');
@@ -223,6 +227,8 @@ export function renderLoomCard(card, node, ctx = {}) {
   if (info.templateName) titles.append(element('p', info.templateName, 're-loom-was'));
   head.append(medal, titles);
   card.append(head);
+  // The boss this node holds (the prologue's gate): who, and how far his weapon reaches.
+  if (info.boss) card.append(element('p', `Boss · ${info.boss}`, 're-loom-text re-loom-boss'));
   // A recruit card leads with the Talk instruction: the recruit block is tall and the
   // card scrolls without a cue, so on a phone the instruction would sit below the fold.
   const text = info.text ? element('p', info.text, 're-loom-text') : null;

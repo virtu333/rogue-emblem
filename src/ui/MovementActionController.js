@@ -141,10 +141,14 @@ export class MovementActionController {
     });
   }
 
-  executeTalk(lord, { session = battleSession(this.scene) } = {}) {
+  async executeTalk(lord, { session = battleSession(this.scene) } = {}) {
     const scene = this.scene;
     let npc;
-    return settleAndPresent(scene, {
+    // True when the rout waited on this very recruit (RoutObjective's requiredRecruits:
+    // the prologue's Sera), read before the join. A standard run requires nobody, so
+    // its Talk never reaches checkBattleEnd from here.
+    let routWaited = false;
+    const done = await settleAndPresent(scene, {
       unit: lord,
       session,
       label: 'talk',
@@ -155,6 +159,9 @@ export class MovementActionController {
         !!(npc = scene.findTalkTarget(lord)) &&
         validateRecruitJoin(npc, scene.npcUnits, scene.playerUnits),
       settle: () => {
+        routWaited =
+          scene.battleConfig?.objective === 'rout' &&
+          (scene.pendingRequiredRecruits?.() || []).includes(npc.name);
         const result = settleRecruitJoin({
           npc,
           npcUnits: scene.npcUnits,
@@ -164,15 +171,19 @@ export class MovementActionController {
         });
         scene._battleRecruits = result.battleRecruits;
         observeHistoryAction(scene, 'recruited', lord, npc);
+        // A prologue chapter's authored recruit (Sera) says its own line.
+        const authored = scene._prologue?.talkLine?.(npc) || null;
         const lines = (npc.isLord ? scene.gameData.dialogue?.lordRecruitLines?.[npc.name] : null) ||
           scene.gameData.dialogue?.recruitLines?.[npc.className] || ['Joined the army!'];
         return {
           npc,
           line:
+            authored ||
             scene.runManager?.pickNarrativeLine?.(
               lines,
               `recruit:${npc.className}:${npc.isLord ? npc.name : 'class'}`,
-            ) || lines[0],
+            ) ||
+            lines[0],
         };
       },
       present: async ({ npc, line }) => {
@@ -203,7 +214,17 @@ export class MovementActionController {
           { scene },
         );
         safeBattlePresentation('talk objective', () => scene.updateObjectiveText(), { scene });
+        // The prologue's talk beat (Sera joins: her lesson starts here).
+        if (scene._prologue)
+          await safeBattlePresentation('talk beat', () => scene._prologue.onTalk(lord, npc), {
+            scene,
+          });
       },
     });
+    // A join can complete a rout that waited on this recruit. The action's own
+    // completion only checks the battle's end when it ends the phase, so the join
+    // checks it here, and only then.
+    if (done && routWaited && isCurrentBattleSession(scene, session)) scene.checkBattleEnd?.();
+    return done;
   }
 }

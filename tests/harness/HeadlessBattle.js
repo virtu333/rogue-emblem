@@ -1,3 +1,5 @@
+import { buildPrologueNpcUnit, battleRequiredRecruits } from '../../src/engine/Prologue.js';
+import { isRoutComplete, pendingRequiredRecruits } from '../../src/engine/RoutObjective.js';
 import { settleRecruitJoin } from '../../src/engine/BattleRecruits.js';
 import { settleStaffHeal } from '../../src/engine/StaffSettlement.js';
 // HeadlessBattle — Synchronous battle state machine for headless testing.
@@ -94,7 +96,7 @@ import {
   removeCondition,
   resolveStatusStaff,
 } from '../../src/engine/StatusConditionSystem.js';
-import { applyEnemySpawnGear } from '../../src/engine/EnemySpawnGear.js';
+import { applyEnemySpawnGear, applySpawnLoadout } from '../../src/engine/EnemySpawnGear.js';
 import { applyHoldSpawn } from '../../src/engine/HoldActivation.js';
 import { createPlayerKnowledge } from '../../src/engine/PlayerKnowledge.js';
 import {
@@ -122,7 +124,7 @@ import {
   razeVillage,
   clearSeekTileBandits,
   getVillageGoldReward,
-  rollVillageRewardItem,
+  villageRewardItem,
   VILLAGE_STATUS,
 } from '../../src/engine/VillageSystem.js';
 import {
@@ -143,7 +145,8 @@ import {
   XP_BASE_HEAL,
   ESCAPE_EVAC_GOLD_BY_ACT,
 } from '../../src/utils/constants.js';
-import { applyCombatHP, damageUnit, setUnitHP } from '../../src/engine/UnitHealth.js';
+import { applyCombatHP, damageUnit, healUnit, setUnitHP } from '../../src/engine/UnitHealth.js';
+import { resetFortHealStreak, settleTerrainHeal } from '../../src/engine/TerrainHealing.js';
 import { postCombatEffects, runPostCombatEffectsSync } from '../../src/engine/PostCombatEffects.js';
 import {
   areaStrikeEffects,
@@ -243,9 +246,18 @@ export class HeadlessBattle {
     this.remainsTargets = [];
   }
 
-  // Initialize battle — mirrors BattleScene.beginBattle
-  init() {
-    const bc = generateBattle(this.battleParams, {
+  // Initialize battle — mirrors BattleScene.beginBattle. `options.battleConfig` plays a
+  // locked config (a node's battleConfigsByNodeId entry, a prologue chapter) instead of
+  // generating one, as BattleScene does with RunManager.getLockedBattleConfig.
+  init(options = {}) {
+    const bc = options.battleConfig
+      ? structuredClone(options.battleConfig)
+      : this._generateBattleConfig();
+    this._setupBattle(bc);
+  }
+
+  _generateBattleConfig() {
+    return generateBattle(this.battleParams, {
       terrain: this.gameData.terrain,
       mapSizes: this.gameData.mapSizes,
       mapTemplates: this.gameData.mapTemplates,
@@ -256,6 +268,9 @@ export class HeadlessBattle {
       affixes: this.gameData.affixes,
       difficulty: this.gameData.difficulty,
     });
+  }
+
+  _setupBattle(bc) {
     this.battleConfig = bc;
 
     this.grid = new HeadlessGrid(
@@ -324,7 +339,12 @@ export class HeadlessBattle {
     // Spawn NPC for recruit battles — the same RecruitNodeSystem build as BattleScene
     // (own seeded stream; the battle's Math.random is not consumed). Full-run sims
     // pass the run roster / seed / node id so the NPC matches the Loom preview.
-    if (bc.npcSpawn) {
+    if (bc.npcSpawn?.prologueUnit) {
+      // An authored green unit (P3's Sera): the one builder BattleScene uses too.
+      const npc = buildPrologueNpcUnit(bc.npcSpawn, this.gameData);
+      npc._phoenixBroochUsed = false;
+      this.npcUnits.push(npc);
+    } else if (bc.npcSpawn) {
       const npcSpawn = bc.npcSpawn;
       const built = buildRecruitNodeUnit({
         preview: { className: npcSpawn.className, name: npcSpawn.name },
@@ -371,25 +391,27 @@ export class HeadlessBattle {
     // field is populated, advanced at the start of every enemy phase.
     this.antiTurtleState = createTurnPressureState(this._measureTurnPressure());
 
-    // Turn par — mirrors BattleScene (full-run sims commit the Eclipse against it).
-    this.turnPar = this.gameData.turnBonus
-      ? calculatePar(
-          {
-            cols: bc.cols,
-            rows: bc.rows,
-            enemyCount: this.enemyUnits.length,
-            objective: bc.objective,
-            mapLayout: bc.mapLayout,
-            terrainData: this.gameData.terrain,
-            parBonus: bc.parBonus || 0,
-            parInflation: bc.parInflation,
-            parOffset: bc.parOffset,
-            parFloor: bc.parFloor,
-          },
-          this.gameData.turnBonus,
-          this.battleParams?.difficultyId,
-        )
-      : null;
+    // Turn par — mirrors BattleScene (full-run sims commit the Eclipse against it). A
+    // locked config may hide it (a prologue chapter's showPar: false): then par is off.
+    this.turnPar =
+      this.gameData.turnBonus && !bc.hidePar
+        ? calculatePar(
+            {
+              cols: bc.cols,
+              rows: bc.rows,
+              enemyCount: this.enemyUnits.length,
+              objective: bc.objective,
+              mapLayout: bc.mapLayout,
+              terrainData: this.gameData.terrain,
+              parBonus: bc.parBonus || 0,
+              parInflation: bc.parInflation,
+              parOffset: bc.parOffset,
+              parFloor: bc.parFloor,
+            },
+            this.gameData.turnBonus,
+            this.battleParams?.difficultyId,
+          )
+        : null;
 
     // Initialize turn system
     this.turnManager = new TurnManager({
@@ -593,12 +615,16 @@ export class HeadlessBattle {
     }
   }
 
+  // `targetName` may also be the target unit itself (two enemies can share a name).
   chooseAttackTarget(targetName) {
     if (this.battleState !== HEADLESS_STATES.SELECTING_TARGET) {
       throw new Error(`Cannot choose attack target in state: ${this.battleState}`);
     }
-    const target = this.attackTargets.find((u) => u.name === targetName);
-    if (!target) throw new Error(`Target not in attack range: ${targetName}`);
+    const target =
+      targetName && typeof targetName === 'object'
+        ? this.attackTargets.find((u) => u === targetName)
+        : this.attackTargets.find((u) => u.name === targetName);
+    if (!target) throw new Error(`Target not in attack range: ${targetName?.name ?? targetName}`);
 
     // Ensure equipped weapon can reach target
     this._ensureValidWeaponForTarget(this.selectedUnit, target);
@@ -883,6 +909,11 @@ export class HeadlessBattle {
       weapons: this.gameData.weapons,
       difficultyId: this.battleParams?.difficultyId,
     });
+    // As BattleScene: an authored spawn's own weapon, skills and id win.
+    applySpawnLoadout(enemy, spawn, {
+      weapons: this.gameData.weapons,
+      skills: this.gameData.skills,
+    });
 
     if (spawn.areaArt) bindEnemyAreaArt(enemy, spawn.areaArt, this.gameData.weaponArts?.arts);
     if (spawn.aiMode) enemy.aiMode = spawn.aiMode;
@@ -1156,6 +1187,11 @@ export class HeadlessBattle {
         );
       }
       // Note: spawn_terrain is not fully simulated in HeadlessBattle MVP for now
+    }
+    // 3. Terrain healing (Fort/Throne), as BattleScene.processTerrainHealing.
+    for (const unit of units) {
+      const amount = settleTerrainHeal(unit, this.grid?.mapLayout?.[unit?.row]?.[unit?.col]);
+      if (amount > 0) healUnit(unit, amount);
     }
   }
 
@@ -1696,6 +1732,7 @@ export class HeadlessBattle {
   }
 
   _executeCombat(attacker, defender) {
+    resetFortHealStreak(attacker); // as BattleScene.executeCombat
     // As BattleScene.executeCombat: measured before the art's HP cost or any strike.
     const defenderHpAtStart = Math.max(0, Math.trunc(Number(defender?.currentHP) || 0));
     // As BattleScene._prepareCombatContext: the Entity fights from its footprint.
@@ -1924,6 +1961,12 @@ export class HeadlessBattle {
   }
 
   _executeTalk(lord, npc) {
+    // As MovementActionController.executeTalk: a join can complete a rout that waited
+    // on this very recruit (RoutObjective.requiredRecruits), read before the join.
+    const state = this.routObjectiveState();
+    const routWaited =
+      this.battleConfig.objective === 'rout' &&
+      pendingRequiredRecruits(state.requiredRecruits, state.playerUnits, state.escapedUnits).includes(npc?.name); // prettier-ignore
     const joined = settleRecruitJoin({
       npc,
       npcUnits: this.npcUnits,
@@ -1935,6 +1978,22 @@ export class HeadlessBattle {
     this._battleRecruits = joined.battleRecruits;
     this._refreshFogVisibility();
     this._finishUnitAction(lord);
+    if (routWaited) this._checkBattleEnd();
+  }
+
+  /** What the rout's end reads (RoutObjective), as BattleScene.routObjectiveState. */
+  routObjectiveState() {
+    return {
+      enemyUnits: this.enemyUnits || [],
+      zombieTombstones: this._zombieTombstones || [],
+      requiredRecruits: battleRequiredRecruits({
+        battleConfig: this.battleConfig,
+        battleParams: this.battleParams,
+        gameData: this.gameData,
+      }),
+      playerUnits: this.playerUnits || [],
+      escapedUnits: this.escapedUnits || [],
+    };
   }
 
   _finishUnitAction(unit) {
@@ -1965,7 +2024,11 @@ export class HeadlessBattle {
     this.grid?.setTerrainAt?.(state.col, state.row, TERRAIN.Plain);
     const act = this.battleParams?.act || 'act1';
     this.goldEarned += getVillageGoldReward(act);
-    const item = rollVillageRewardItem(act, this.gameData?.lootTables, this.gameData?.consumables);
+    const item = villageRewardItem(this.battleConfig?.villageTile, act, {
+      lootTables: this.gameData?.lootTables,
+      consumables: this.gameData?.consumables,
+      weapons: this.gameData?.weapons,
+    });
     if (item) {
       this.villageRewardItems.push(item);
       this.runManager?.addToConvoy?.(item);
@@ -2066,7 +2129,9 @@ export class HeadlessBattle {
   }
 
   _checkBattleEnd() {
-    // Mirrors BattleScene.checkBattleEnd: strict isCommander flag, stamped at setup.
+    // Mirrors BattleScene.checkBattleEnd: idempotent once the battle ended, strict
+    // isCommander flag (stamped at setup), and the rout read through RoutObjective.
+    if (this.battleState === HEADLESS_STATES.BATTLE_END) return true;
     const commanderEscaped = (this.escapedUnits || []).some((u) => u.isCommander);
     const commanderAlive =
       this.playerUnits.some((u) => u.isCommander && u.currentHP > 0) || commanderEscaped;
@@ -2075,11 +2140,7 @@ export class HeadlessBattle {
       this._onDefeat();
       return true;
     }
-    if (
-      this.battleConfig.objective === 'rout' &&
-      this.enemyUnits.length === 0 &&
-      !(this._zombieTombstones?.length > 0)
-    ) {
+    if (this.battleConfig.objective === 'rout' && isRoutComplete(this.routObjectiveState())) {
       if (this._reinforcementsPendingThisTurn) return false;
       this._onVictory();
       return true;
@@ -2217,6 +2278,7 @@ export class HeadlessBattle {
   }
 
   _executeEnemyCombat(attacker, defender) {
+    resetFortHealStreak(attacker); // as BattleScene.executeEnemyCombat
     // As BattleScene.executeEnemyCombat: measured before the art's HP cost or any strike.
     const attackerHpAtStart = Math.max(0, Math.trunc(Number(attacker?.currentHP) || 0));
     // As BattleScene._prepareCombatContext: the Entity fights from its footprint.

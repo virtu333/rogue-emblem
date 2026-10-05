@@ -1031,6 +1031,45 @@
   text-align: center;
 }
 
+/* ─────────────────────────────────────────────── Veils (the prologue's ending) */
+/* The sky darkens from the east around a hollow sun: a dark disc ringed in pale
+   fire. Under the dialogue, never takes input (CeremonyController.showVeil). */
+.ce-veil-layer {
+  animation: ce-fade 1400ms ease-out both;
+}
+.ce-veil-sky {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      circle at 78% 22%,
+      transparent 0,
+      rgba(7, 6, 11, 0.4) 30%,
+      rgba(7, 6, 11, 0.72) 70%
+    ),
+    linear-gradient(to left, rgba(44, 22, 69, 0.45), rgba(7, 6, 11, 0.2) 70%);
+}
+.ce-hollow-sun {
+  position: absolute;
+  top: 22%;
+  left: 78%;
+  width: calc(64px * var(--ce-scale));
+  height: calc(64px * var(--ce-scale));
+  margin: calc(-32px * var(--ce-scale)) 0 0 calc(-32px * var(--ce-scale));
+  border-radius: 50%;
+  background: var(--ce-ink-0);
+  box-shadow:
+    0 0 0 calc(2px * var(--ce-scale)) var(--ce-unlight-5),
+    0 0 calc(18px * var(--ce-scale)) calc(6px * var(--ce-scale)) var(--ce-glow-unlight);
+  animation: ce-hollow 2400ms ease-in both;
+}
+@keyframes ce-hollow {
+  from {
+    background: var(--ce-ember-hi);
+    box-shadow: 0 0 calc(24px * var(--ce-scale)) calc(10px * var(--ce-scale)) var(--ce-glow-gold);
+  }
+}
+
 /* ─────────────────────────────────────────────── Motion */
 @keyframes ce-fade {
   from {

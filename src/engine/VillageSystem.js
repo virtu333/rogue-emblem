@@ -16,6 +16,7 @@ import {
   VILLAGE_BANDIT_XP_MULTIPLIER,
   VILLAGE_BANDIT_DISTANCE_MARGIN,
 } from '../utils/constants.js';
+import { isScriptedBattle } from './ScriptedBattle.js';
 
 export const VILLAGE_STATUS = Object.freeze({
   INTACT: 'intact',
@@ -30,7 +31,7 @@ export const VILLAGE_STATUS = Object.freeze({
  * caravan roll beside it.
  *
  * Gating: rout/seize objectives only (never escape), acts 1-4, never on
- * recruit/boss/ambush/tutorial/colosseum battles, and mutually exclusive with
+ * recruit/boss/ambush/scripted/colosseum battles, and mutually exclusive with
  * the Merchant Caravan — max one micro-objective per map (design-log decision).
  * @param {object} params - { act, objective, isRecruitBattle?, isBoss?, isAmbush?, hasCaravan? }
  * @param {function} [rng=Math.random]
@@ -38,8 +39,9 @@ export const VILLAGE_STATUS = Object.freeze({
  */
 export function rollVillageSpawn(params, rng = Math.random) {
   if (!params) return false;
-  const { act, objective, isRecruitBattle, isBoss, isAmbush, tutorialMode, isColosseum } = params;
-  if (isRecruitBattle || isBoss || isAmbush || tutorialMode || isColosseum) return false;
+  const { act, objective, isRecruitBattle, isBoss, isAmbush, isColosseum } = params;
+  if (isRecruitBattle || isBoss || isAmbush || isScriptedBattle(params) || isColosseum)
+    return false;
   if (params.hasCaravan) return false; // max one micro-objective per map
   if (objective !== 'rout' && objective !== 'seize') return false;
   if (!VILLAGE_ELIGIBLE_ACTS.includes(act)) return false;
@@ -386,4 +388,34 @@ export function rollVillageRewardItem(act, lootTables, consumablesCatalog, rng =
   const item =
     catalog.find((c) => c?.name === name) || catalog.find((c) => c?.name === 'Vulnerary');
   return item ? structuredClone(item) : null;
+}
+
+/**
+ * The visit's item: an authored village (`tile.reward`, a prologue chapter) sends that
+ * exact weapon or consumable; any other village rolls the act's consumable
+ * (rollVillageRewardItem, which draws from `rng`). Returns a clone, or null.
+ * @param {{ reward?: string }|null} tile - battleConfig.villageTile
+ */
+export function villageRewardItem(
+  tile,
+  act,
+  { lootTables, consumables, weapons },
+  rng = Math.random,
+) {
+  const name = typeof tile?.reward === 'string' ? tile.reward : null;
+  if (name) {
+    const item =
+      (Array.isArray(consumables) ? consumables : []).find((c) => c?.name === name) ||
+      (Array.isArray(weapons) ? weapons : []).find((w) => w?.name === name) ||
+      null;
+    return item ? structuredClone(item) : null;
+  }
+  return rollVillageRewardItem(act, lootTables, consumables, rng);
+}
+
+/** Objective subtext while the village stands: the race, or (uncontested) the visit. */
+export function villageObjectiveLine(tile) {
+  return tile?.uncontested
+    ? "Village: end a unit's action on it to visit"
+    : "Village: end a unit's action on it before bandits";
 }

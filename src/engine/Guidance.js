@@ -3,8 +3,9 @@
 // Setting "Guidance": Auto | Full | Light | Off.
 //   Full   coaching notes while you play (a fragile unit moved into reach, a healer
 //          with a hurt ally, your first turn) plus the first-use explanations.
-//   Light  first-use explanations only (recruits, the commander's fall, convoy…).
-//   Off    no field notes (the practice tutorial stays available).
+//   Light  first-use explanations only (recruits, the commander's fall, convoy, the
+//          veteran who should not take the kills…).
+//   Off    no field notes (the prologue stays available).
 //   Auto   Full for a save slot that has not finished a run yet, Light after.
 // Every note shows at most once per save slot (HintManager ids) and never blocks
 // input. Legacy "hints: false" maps to Off.
@@ -48,8 +49,18 @@ export const GUIDANCE_NOTES = Object.freeze({
   guide_no_attack: { tier: 'coach', scope: 'tile' },
   guide_commander_low_hp: { tier: 'essential' },
   guide_recruit_on_map: { tier: 'essential' },
+  guide_veteran_kills: { tier: 'essential', scope: 'unit' },
   guide_convoy: { tier: 'essential' },
   guide_zombie_remains: { tier: 'essential' },
+  // Act 1 follow-through (docs/specs/prologue-chapter.md §7): what the prologue can only
+  // introduce, taught again at the point of use in a real run.
+  guide_first_shop: { tier: 'essential' },
+  guide_first_church: { tier: 'essential' },
+  guide_prepare: { tier: 'essential' },
+  guide_objective_changed: { tier: 'essential' },
+  guide_specialist_dance: { tier: 'essential', scope: 'unit' },
+  guide_specialist_flyer: { tier: 'essential', scope: 'unit' },
+  guide_armor: { tier: 'essential' },
 });
 
 export function noteTier(id) {
@@ -92,6 +103,26 @@ function npcHealAdvice(npc) {
   return `staves mend green units too: move within reach of ${npc?.name || 'the green unit'}`;
 }
 
+/**
+ * A foe whose armour turns blades (the armor note): an Armored unit (Knights,
+ * Generals), or any unit whose DEF stands well above its RES. Teaching heuristic.
+ */
+export function isArmoredFoe(unit) {
+  if (!unit || unit.faction !== 'enemy') return false;
+  if (unit.moveType === 'Armored') return true;
+  const def = Number(unit.stats?.DEF) || 0;
+  const res = Number(unit.stats?.RES) || 0;
+  return def >= 9 && def - res >= 6;
+}
+
+/** The special job a newly fielded unit is for (the specialist note), or null. */
+export function specialistJob(unit) {
+  if (!unit || unit.faction !== 'player') return null;
+  if ((unit.skills || []).includes('dance')) return 'dance';
+  if (unit.moveType === 'Flying') return 'flyer';
+  return null;
+}
+
 /** Copy for each note. `touch` picks the tap / key wording. */
 export function guidanceText(id, context = {}) {
   const { unit, commander, count = 0, touch = true, npc } = context;
@@ -119,8 +150,28 @@ export function guidanceText(id, context = {}) {
       return `${lord} is badly hurt. If ${lord} falls, the run ends. Pull back, heal with a staff, or use a Vulnerary from Item.`;
     case 'guide_recruit_on_map':
       return `${recruitWho(npc)} under the gold banner can join you. Move a Lord next to them and choose Talk before enemies reach them.`;
+    case 'guide_veteran_kills':
+      return `${name} is strong now but barely grows and earns little XP. Weaken enemies with ${name}, then leave the final blow to ${lord} and your recruits: they grow from it.`;
     case 'guide_zombie_remains':
       return 'Fallen undead leave bones. The number counts the enemy phases until they rise again at half HP. Bring a unit within weapon reach and choose Smash to end them for good. Light magic leaves no bones.';
+    case 'guide_first_shop':
+      return 'A shop: buy and sell here, and Forge makes a weapon stronger for gold. Every shop stocks its own wares; gold also pays for revivals and promotions.';
+    case 'guide_first_church':
+      return 'A church: Heal all is free, and the fallen revive for gold. Each church takes one vow: a promotion or a blessing, not both.';
+    case 'guide_prepare':
+      return `${context.hurt?.name || 'A unit'} ended that battle badly hurt. HP carries between battles: staves refill, consumables don't. Roster › Item heals now, or a church or ruins Rest heals everyone.`;
+    case 'guide_objective_changed':
+      return context.objective === 'seize'
+        ? `${context.boss || 'The boss'} has fallen. The objective is the throne now: move a Lord onto it (the SEIZE tile) and choose Seize.`
+        : `The objective changed: ${context.goal || 'check the objective line'}.`;
+    case 'guide_specialist_dance':
+      return `${name} dances: move next to an ally who has already acted and choose Dance. That ally can move and act again this turn.`;
+    case 'guide_specialist_flyer':
+      return `${name} flies: water, mountains and forest cost one step, so cross where the others can't. Bows strike flyers hard, and terrain gives them no cover.`;
+    case 'guide_armor':
+      return context.knight
+        ? 'Knights shrug off swords. Magic hits RES.'
+        : `Armour shrugs off blades: ${context.target?.name || 'this foe'} has DEF ${context.target?.stats?.DEF ?? '?'}, RES ${context.target?.stats?.RES ?? '?'}. Magic hits RES.`;
     case 'guide_convoy':
       return `Convoy is your army’s shared storage between battles. Units fight only with what they carry (${INVENTORY_MAX} weapons, ${CONSUMABLE_MAX} items). Store puts a carried item away; Withdraw hands it to the chosen unit.`;
     default:

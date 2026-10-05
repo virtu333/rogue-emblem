@@ -14,6 +14,7 @@
 // turn/par string that battleSidebarDisplay.sidebarCounters parses.
 
 import { UI_FONT_FAMILIES, UI_PALETTE, applyTextResolution } from '../utils/uiStyles.js';
+import { isScriptedBattle } from '../engine/ScriptedBattle.js';
 import { UI_DEPTHS } from '../utils/uiDepths.js';
 import { withPresentationRandom } from '../utils/presentationRandom.js';
 import { showContextualHint } from './HintDisplay.js';
@@ -29,7 +30,7 @@ const TONE_COLORS = {
 /** True when this battle belongs to a run whose clock is the Eclipse. */
 export function isEclipseClock(scene) {
   return (
-    !scene?.battleParams?.tutorialMode &&
+    !isScriptedBattle(scene?.battleParams) &&
     typeof scene?.runManager?.isEclipseActive === 'function' &&
     scene.runManager.isEclipseActive() === true
   );

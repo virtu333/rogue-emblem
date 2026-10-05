@@ -1,4 +1,4 @@
-import { applyCompletedTutorialHints } from '../ui/tutorialLessons.js';
+import { applyCompletedTutorialHints } from '../ui/prologueLessons.js';
 import {
   getCloudSaveConflict,
   resolveCloudSaveConflict,
@@ -25,15 +25,23 @@ import {
 import { MetaProgressionManager } from '../engine/MetaProgressionManager.js';
 import { HintManager } from '../engine/HintManager.js';
 import { loadRun, saveRun, clearBattleInProgressInSave } from '../engine/RunManager.js';
+import { isPrologueRun } from '../engine/ScriptedBattle.js';
 import { MUSIC } from '../utils/musicConfig.js';
-import { pushMeta, pushRunSave, deleteSlotCloud } from '../cloud/CloudSync.js';
+import { pushChosenLocalRun, pushMeta, pushRunSave, deleteSlotCloud } from '../cloud/CloudSync.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { ensureAudioUnlocked } from '../utils/audioUnlock.js';
 import { isTouchPointer } from '../utils/runtimeFlags.js';
 import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { InputAction } from '../utils/InputActions.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
-import { isFirstRunSlot, startFirstRunFastPath } from '../utils/firstRunFastPath.js';
+import {
+  startFirstRunFastPath,
+  startPrologueRun,
+  skipPrologueToFirstRun,
+} from '../utils/firstRunFastPath.js';
+import { routeForSlot, PROLOGUE_ROUTES } from '../engine/PrologueRouting.js';
+import { PROLOGUE_OFFER } from '../data/prologueContent.js';
+import { hasCompletedTutorial } from '../ui/prologueLessons.js';
 import { hasMetaProgression } from '../ui/titleMenuModel.js';
 
 export class SlotPickerScene extends Phaser.Scene {
@@ -496,7 +504,8 @@ export class SlotPickerScene extends Phaser.Scene {
       }
       const cloud = this.registry.get('cloud');
       if (version === 'local' && cloud) {
-        if (result.run) pushRunSave(cloud.userId, slot, result.run);
+        // (A prologue run is never pushed: the cloud run it replaces is deleted.)
+        if (result.run) pushChosenLocalRun(cloud.userId, slot, result.run, conflict.cloudRun);
         if (result.meta) pushMeta(cloud.userId, slot, result.meta);
       }
       this.requestCancel({ allowExit: false });
@@ -533,42 +542,22 @@ export class SlotPickerScene extends Phaser.Scene {
       showSlotRecovery(this, slot);
       return;
     }
+    // A fresh slot is offered the prologue (or the skip) before anything is staged or
+    // the music stops: dismissing the offer leaves the picker exactly as it was, as
+    // Title's New Game offer does. The chosen start stages the slot itself.
+    if (
+      !summary?.hasActiveRun &&
+      hasDOMHost() &&
+      routeForSlot(summary, { hasPrologue: this._hasPrologue() }) === PROLOGUE_ROUTES.OFFER
+    ) {
+      this._showPrologueOffer(slot);
+      return;
+    }
     this.isTransitioning = true;
     if (this.input) this.input.enabled = false;
 
-    const prevMeta = this.registry.get('meta');
-    const prevHints = this.registry.get('hints');
-    const prevActiveSlot = this.registry.get('activeSlot');
-    const hadPrevMeta = prevMeta !== undefined;
-    const hadPrevHints = prevHints !== undefined;
-    const hadPrevActiveSlot = prevActiveSlot !== undefined;
-    const rollbackSelectionState = () => {
-      if (hadPrevMeta) this.registry.set('meta', prevMeta);
-      else if (typeof this.registry.remove === 'function') this.registry.remove('meta');
-      else this.registry.set('meta', undefined);
-
-      if (hadPrevHints) this.registry.set('hints', prevHints);
-      else if (typeof this.registry.remove === 'function') this.registry.remove('hints');
-      else this.registry.set('hints', undefined);
-
-      if (hadPrevActiveSlot) this.registry.set('activeSlot', prevActiveSlot);
-      else if (typeof this.registry.remove === 'function') this.registry.remove('activeSlot');
-      else this.registry.set('activeSlot', undefined);
-    };
-
     // Stage slot state in registry before transition; persist active slot only on success.
-    const meta = new MetaProgressionManager(this.gameData.metaUpgrades, getMetaKey(slot));
-    const cloud = this.registry.get('cloud');
-    if (cloud) {
-      meta.onSave = (payload) => pushMeta(cloud.userId, slot, payload);
-    }
-    this.registry.set('activeSlot', slot);
-    this.registry.set('meta', meta);
-    this.registry.set(
-      'hints',
-      new HintManager(slot, () => this.registry.get('settings')?.getHints?.() !== false, meta),
-    );
-    applyCompletedTutorialHints(this.registry.get('hints'));
+    const rollbackSelectionState = this._stageSlotSelection(slot);
 
     try {
       await ensureAudioUnlocked(this);
@@ -624,18 +613,28 @@ export class SlotPickerScene extends Phaser.Scene {
             { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
           );
         }
-      } else if (isFirstRunSlot(summary)) {
-        // Brand-new save (fresh meta, no run started yet): skip HomeBase /
-        // DifficultySelect / BlessingSelect straight to the act-1 node map.
-        transitioned = await startFirstRunFastPath(this, { gameData: this.gameData, slot });
       } else {
-        // No active run - go to HomeBase
-        transitioned = await transitionToScene(
-          this,
-          'HomeBase',
-          { gameData: this.gameData, corruptRunDetected: summary?.runCorrupt || false },
-          { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
-        );
+        // No active run: a fresh slot is offered the prologue, or takes the first-run
+        // fast path once it was skipped; a slot that played (or started a run) opens
+        // Home Base (PrologueRouting.routeForSlot).
+        // (With a DOM, the offer was shown above.)
+        const route = routeForSlot(summary, { hasPrologue: this._hasPrologue() });
+        if (route === PROLOGUE_ROUTES.OFFER || route === PROLOGUE_ROUTES.FAST_PATH) {
+          // Brand-new save (fresh meta, no run started yet): skip HomeBase /
+          // DifficultySelect / BlessingSelect straight to the act-1 node map. With
+          // no way to ask, the offer is the skip.
+          transitioned =
+            route === PROLOGUE_ROUTES.OFFER
+              ? await skipPrologueToFirstRun(this, { gameData: this.gameData, slot })
+              : await startFirstRunFastPath(this, { gameData: this.gameData, slot });
+        } else {
+          transitioned = await transitionToScene(
+            this,
+            'HomeBase',
+            { gameData: this.gameData, corruptRunDetected: summary?.runCorrupt || false },
+            { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
+          );
+        }
       }
       if (transitioned === false) {
         rollbackSelectionState();
@@ -651,6 +650,98 @@ export class SlotPickerScene extends Phaser.Scene {
     }
   }
 
+  _hasPrologue() {
+    return Boolean(this.gameData?.prologue?.route);
+  }
+
+  /**
+   * Stage a slot's state in the registry (meta, hints, activeSlot) for the start that
+   * follows. Returns the rollback that puts back what the registry held before.
+   */
+  _stageSlotSelection(slot) {
+    const prevMeta = this.registry.get('meta');
+    const prevHints = this.registry.get('hints');
+    const prevActiveSlot = this.registry.get('activeSlot');
+    const hadPrevMeta = prevMeta !== undefined;
+    const hadPrevHints = prevHints !== undefined;
+    const hadPrevActiveSlot = prevActiveSlot !== undefined;
+    const rollback = () => {
+      if (hadPrevMeta) this.registry.set('meta', prevMeta);
+      else if (typeof this.registry.remove === 'function') this.registry.remove('meta');
+      else this.registry.set('meta', undefined);
+
+      if (hadPrevHints) this.registry.set('hints', prevHints);
+      else if (typeof this.registry.remove === 'function') this.registry.remove('hints');
+      else this.registry.set('hints', undefined);
+
+      if (hadPrevActiveSlot) this.registry.set('activeSlot', prevActiveSlot);
+      else if (typeof this.registry.remove === 'function') this.registry.remove('activeSlot');
+      else this.registry.set('activeSlot', undefined);
+    };
+
+    const meta = new MetaProgressionManager(this.gameData.metaUpgrades, getMetaKey(slot));
+    const cloud = this.registry.get('cloud');
+    if (cloud) {
+      meta.onSave = (payload) => pushMeta(cloud.userId, slot, payload);
+    }
+    this.registry.set('activeSlot', slot);
+    this.registry.set('meta', meta);
+    this.registry.set(
+      'hints',
+      new HintManager(slot, () => this.registry.get('settings')?.getHints?.() !== false, meta),
+    );
+    applyCompletedTutorialHints(this.registry.get('hints'));
+    return rollback;
+  }
+
+  /**
+   * A fresh slot's offer (§4): play the prologue or skip to the first run. Nothing is
+   * staged while it is up (Esc leaves the picker as it was, its music playing); the
+   * chosen start stages the slot, and a start that fails rolls it back and brings the
+   * picker's music back. On a device that has not finished the prologue, playing it
+   * is the highlighted default.
+   */
+  _showPrologueOffer(slot) {
+    const start = (begin) => async () => {
+      if (this.isTransitioning) return;
+      this.isTransitioning = true;
+      if (this.input) this.input.enabled = false;
+      const rollback = this._stageSlotSelection(slot);
+      const audio = this.registry.get('audio');
+      const giveBack = () => {
+        rollback();
+        this.isTransitioning = false;
+        if (this.input) this.input.enabled = true;
+        if (audio) void audio.playMusic(MUSIC.title, this, 300);
+      };
+      try {
+        await ensureAudioUnlocked(this);
+        if (audio) audio.stopMusic(this, 0);
+        const transitioned = await begin();
+        if (transitioned) setActiveSlot(slot);
+        else giveBack();
+      } catch (err) {
+        console.error('[SlotPickerScene] prologue offer transition failed:', err);
+        giveBack();
+      }
+    };
+    const play = start(() => startPrologueRun(this, { gameData: this.gameData, slot }));
+    const skip = start(() => skipPrologueToFirstRun(this, { gameData: this.gameData, slot }));
+    const playFirst = !hasCompletedTutorial();
+    const actions = [
+      [`${PROLOGUE_OFFER.play} · ${PROLOGUE_OFFER.playSub}`, play, playFirst],
+      [PROLOGUE_OFFER.skip, skip, !playFirst],
+    ];
+    this.nativeDialog?.destroy();
+    if (this.slotMenu) this.slotMenu.root.inert = true;
+    this.nativeDialog = slotDialog(
+      this,
+      PROLOGUE_OFFER.title,
+      PROLOGUE_OFFER.body,
+      playFirst ? actions : [actions[1], actions[0]],
+    );
+  }
+
   /**
    * Which continue paths a suspended battle allows. Resume needs a readable
    * checkpoint; the map revert is refused for a fatal-pending checkpoint (its
@@ -662,18 +753,29 @@ export class SlotPickerScene extends Phaser.Scene {
     const fatal = rm.battleInProgress?.checkpoint?.recoveryKind === 'fatal_pending';
     const invalid = rm._battleRecoveryInvalid === true;
     const restoreFailed = rm._battleRecoveryRestoreFailed === true;
+    // The prologue never settles a defeat (§8): a fall there restarts the chapter, so
+    // even a fatal checkpoint can be taken back to the map, and there is no defeat.
+    const prologue = isPrologueRun(rm);
     return {
       fatal,
       invalid,
       restoreFailed,
+      prologue,
       legacy: invalid && rm._battleRecoveryLegacy === true,
       canResume: !invalid,
-      canRevert: !fatal,
-      canAcceptDefeat: fatal && (invalid || restoreFailed),
+      canRevert: !fatal || prologue,
+      canAcceptDefeat: !prologue && fatal && (invalid || restoreFailed),
     };
   }
 
   _suspendedBattleCopy(options) {
+    if (options.prologue && options.fatal)
+      return {
+        title: 'Battle in progress',
+        body: options.invalid
+          ? 'A unit fell in this chapter, and its save could not be read. Continue from Map restarts the chapter.'
+          : 'A unit fell in this chapter. Resume to decide, or Continue from Map to restart the chapter.',
+      };
     if (options.invalid && options.fatal)
       return {
         title: 'Battle save needs recovery',
@@ -881,6 +983,26 @@ export class SlotPickerScene extends Phaser.Scene {
           this,
           'RunComplete',
           { gameData: this.gameData, runManager: rm, result: 'defeat' },
+          { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
+        );
+      } else if (
+        isPrologueRun(rm) &&
+        rm.battleInProgress?.checkpoint?.recoveryKind === 'fatal_pending'
+      ) {
+        // A prologue fall restarts its chapter: the same entry revert, past the fatal
+        // checkpoint (RunManager.restartPrologueBattle), saved before the map opens.
+        rm.restartPrologueBattle();
+        const saved = saveRun(rm, cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null, slot);
+        if (!saved?.ok) {
+          this.isTransitioning = false;
+          if (this.input) this.input.enabled = true;
+          this._showSuspendedBattleChoice(slot, loadRun(this.gameData, slot) || rm);
+          return;
+        }
+        transitioned = await transitionToScene(
+          this,
+          'NodeMap',
+          { gameData: this.gameData, runManager: rm },
           { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
         );
       } else {

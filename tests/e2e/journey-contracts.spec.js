@@ -188,7 +188,9 @@ test('controller reaches difficulty secondary actions and detail scrolling on ph
   await waitForScene(page, 'HomeBase');
 });
 
-test('HP persistence hint waits for the first battle and shows only once', async ({ page }) => {
+test('the preparation note waits for a battle that left someone below half HP, and shows once', async ({
+  page,
+}) => {
   await boot(page);
   await page.evaluate(async () => {
     const s = window.__emblemRogueGame.scene.getScene('HomeBase');
@@ -206,30 +208,44 @@ test('HP persistence hint waits for the first battle and shows only once', async
   });
   await waitForScene(page, 'NodeMap');
   await expect(page.locator('.re-node-map')).toBeVisible();
-  expect(
-    await page.evaluate(() =>
-      window.__emblemRogueGame.scene
-        .getScene('NodeMap')
-        .registry.get('hints')
-        .hasSeen('nodemap_hp_persist'),
-    ),
-  ).toBe(false);
-  for (const battles of [1, 2]) {
-    await page.evaluate((battles) => {
+  const seen = () =>
+    page.evaluate(
+      () =>
+      window.__emblemRogueGame.scene.getScene('NodeMap').registry.get('hints').hasSeen('guide_prepare'), // prettier-ignore
+    );
+  const notes = page.getByRole('dialog', { name: 'Field notes', exact: true });
+  // Before any battle, and after one that left everyone above half HP: no note.
+  // The third visit is the first after a battle that left Edric below half HP.
+  for (const [visit, hurt] of [false, false, true, true].entries()) {
+    const restarted = await page.evaluate((hurt) => {
       const s = window.__emblemRogueGame.scene.getScene('NodeMap');
-      s.runManager.completedBattles = battles;
+      s.runManager.completedBattles = 1;
+      const edric = s.runManager.roster.find((u) => u.name === 'Edric');
+      edric.currentHP = hurt ? 1 : edric.stats.HP;
+      const generation = s._sceneLifecycleGeneration;
       s.scene.restart({ gameData: s.gameData, runManager: s.runManager });
-    }, battles);
-    // Over 12 words, so hintReadingPolicy presents it as a modal Field notes dialog.
-    const notes = page.getByRole('dialog', { name: 'Field notes', exact: true });
-    if (battles === 1) {
+      return generation;
+    }, hurt);
+    await page.waitForFunction((generation) => {
+      const s = window.__emblemRogueGame.scene.getScene('NodeMap');
+      return s._sceneLifecycleGeneration !== generation && s.isSceneReady;
+    }, restarted);
+    if (visit === 2) {
+      // Over 12 words, so hintReadingPolicy presents it as a modal Field notes dialog.
       await expect(notes).toContainText(
-        'HP carries between battles. Consumables can heal from Roster',
+        'Edric ended that battle badly hurt. HP carries between battles',
       );
-      await page.waitForTimeout(550);
-      await notes.getByRole('button', { name: 'Continue', exact: true }).tap();
+      await expect(notes).toContainText('Roster › Item heals now');
+      await expect(async () => {
+        if (await notes.count())
+          await notes.getByRole('button', { name: 'Continue', exact: true }).tap({ timeout: 1000 }).catch(() => {}); // prettier-ignore
+        await expect(notes).toHaveCount(0, { timeout: 1000 });
+      }).toPass();
+      expect(await seen()).toBe(true);
+    } else {
+      await expect(notes).toHaveCount(0);
     }
-    await expect(notes).toHaveCount(0);
+    expect(await seen()).toBe(hurt);
     await expect(page.locator('.re-node-map')).toBeVisible();
   }
 });

@@ -76,7 +76,6 @@ function makeBattleSceneWithRecruit({ lethalArmoryTier = 0, recruitStartingVulne
   scene.runManager = runManager;
   scene.battleParams = {
     act: 'act1',
-    tutorialMode: false,
     fogEnabled: false,
     isRecruitBattle: true,
   };
@@ -116,7 +115,6 @@ function makeBattleSceneWithRecruit({ lethalArmoryTier = 0, recruitStartingVulne
   scene.updateTopLeftHudLayout = vi.fn();
   scene.updateEnemyVisibility = vi.fn();
   scene.updateVisionHud = vi.fn();
-  scene._clearTutorialGuideHighlights = vi.fn();
   scene.cancelTouchInspectHold = vi.fn();
   scene._hideMenuTooltip = vi.fn();
   scene._restoreBattleRng = vi.fn();

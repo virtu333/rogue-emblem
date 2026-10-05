@@ -1,4 +1,7 @@
 import { battleSession } from './BattleSession.js';
+import { isScriptedBattle, prologueChapterOf } from '../engine/ScriptedBattle.js';
+import { prologueOpensFormation } from '../engine/Prologue.js';
+import { PROLOGUE_FORMATION_LINE } from '../data/prologueContent.js';
 // Formation: before turn 1 the deployed army waits off the map and the player
 // chooses who stands on which spawn tile (engine rules: engine/FormationPlacement.js).
 //
@@ -66,7 +69,10 @@ export class FormationController {
   static shouldRun(scene) {
     return formationActive({
       deployCount: scene.playerUnits?.length || 0,
-      tutorialMode: Boolean(scene.battleParams?.tutorialMode),
+      // A prologue chapter skips placement unless it teaches it (P4's `formation`).
+      scripted:
+        isScriptedBattle(scene.battleParams) &&
+        !prologueOpensFormation(prologueChapterOf(scene.battleParams, scene.gameData)),
       resuming: Boolean(scene._resumeCheckpoint),
       disabled:
         // Placement is a screen: headless scenes (no document) keep default tiles.
@@ -144,6 +150,10 @@ export class FormationController {
   _lift() {
     const s = this.scene;
     const bc = s.battleConfig;
+    // A prologue chapter that teaches placement adds its line to the panel's lead.
+    this.lesson = prologueOpensFormation(prologueChapterOf(s.battleParams, s.gameData))
+      ? PROLOGUE_FORMATION_LINE
+      : '';
     this.units = [...s.playerUnits];
     this.defaultTiles = this.units.map((u) => ({ col: u.col, row: u.row }));
     const spawns = (bc.playerSpawns || []).map(({ col, row }) => ({ col, row }));
@@ -184,6 +194,15 @@ export class FormationController {
   spareTiles(spawns) {
     const s = this.scene;
     const bc = s.battleConfig;
+    // An authored chapter names its spares (the prologue's P4): those, never a draw.
+    if (Array.isArray(bc.formationSpares)) {
+      const taken = new Set(
+        [...spawns, ...(s.enemyUnits || []), ...(s.npcUnits || [])].map((t) => `${t.col},${t.row}`),
+      );
+      return bc.formationSpares
+        .filter((t) => !taken.has(`${t.col},${t.row}`))
+        .map(({ col, row }) => ({ col, row }));
+    }
     const count = formationCushion(this.units.length);
     const template = findTemplate(s.gameData.mapTemplates, bc.templateId);
     const occupied = [
@@ -571,7 +590,7 @@ export class FormationController {
       flag &&
       !flag.checkpoint &&
       (!flag.nodeId || flag.nodeId === s.nodeId) &&
-      !s.battleParams?.tutorialMode,
+      !isScriptedBattle(s.battleParams),
     );
   }
 

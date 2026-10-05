@@ -28,6 +28,7 @@ import {
   sentenceName,
   unitEpithet,
 } from '../engine/DeedSystem.js';
+import { isScriptedBattle } from '../engine/ScriptedBattle.js';
 import { normalizeBattleRecruits } from '../engine/BattleRecruits.js';
 import { growthCeremonies } from './GrowthCeremonyController.js';
 import { hasDOMHost } from '../utils/domUI.js';
@@ -43,10 +44,10 @@ export class DeedController {
     return this.scene?.gameData?.deeds || null;
   }
 
-  /** Deeds are a run feature: no data, no run or the tutorial → nothing recorded. */
+  /** Deeds are a run feature: no data, no run or a prologue chapter → nothing recorded. */
   active() {
     const s = this.scene;
-    return Boolean(s?.runManager && this.deedsData && !s.battleParams?.tutorialMode);
+    return Boolean(s?.runManager && this.deedsData && !isScriptedBattle(s.battleParams));
   }
 
   _terrainName(unit) {
@@ -89,7 +90,7 @@ export class DeedController {
     const s = this.scene;
     // The death record carries what the unit held as it fell (its fallen record
     // and the convoy depend on it), so it is taken in any run battle, deeds or not.
-    if (s?.runManager && !s.battleParams?.tutorialMode) {
+    if (s?.runManager && !isScriptedBattle(s.battleParams)) {
       try {
         const record = fallenBattleRecord(unit);
         if (record) s._fallenBattleRecords = addFallenBattleRecord(s._fallenBattleRecords, record);

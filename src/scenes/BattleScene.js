@@ -30,6 +30,11 @@ import { presentationText, isolateBattleTextFactory } from '../utils/presentatio
 import { safeBattlePresentation } from '../ui/safeBattlePresentation.js';
 import { presentTeleporterWarp } from '../ui/WarpPresentation.js';
 import { hasBattleDefeat } from '../engine/BattleDefeat.js';
+import {
+  isRoutComplete,
+  pendingRequiredRecruits,
+  routObjectiveLabel,
+} from '../engine/RoutObjective.js';
 import { battleSpeed, waitDuration, waitTween } from '../utils/combatTiming.js';
 import { getWeaponArtIds, killMoveRefreshesActor } from '../engine/WeaponArtSystem.js';
 import {
@@ -64,7 +69,8 @@ import {
   healUnitFully,
   setUnitHP,
 } from '../engine/UnitHealth.js';
-import { applyEnemySpawnGear } from '../engine/EnemySpawnGear.js';
+import { applyEnemySpawnGear, applySpawnLoadout } from '../engine/EnemySpawnGear.js';
+import { resetFortHealStreak, settleTerrainHeal } from '../engine/TerrainHealing.js';
 import { spendCombatShots, swapSpentWeapons } from '../engine/PerBattleWeapons.js';
 import {
   advanceTurnPressure,
@@ -194,8 +200,6 @@ import {
   ELITE_LOOT_CHOICES,
   DEPLOY_LIMITS,
   TERRAIN,
-  TERRAIN_HEAL_PERCENT,
-  FORT_HEAL_DECAY_MULTIPLIERS,
   LAVA_CRACK_DAMAGE,
   GOLD_LOOT_REWARD_MULTIPLIER,
   ENTITY_SPLASH_COUNT,
@@ -307,9 +311,18 @@ import {
   TRANSITION_RESULTS,
 } from '../utils/SceneRouter.js';
 import {
-  buildTutorialBattleConfig as _buildTutorialBattleConfig,
-  buildTutorialRoster as _buildTutorialRoster,
-} from '../engine/TutorialHelpers.js';
+  buildPrologueBattleConfig,
+  buildPrologueNpcUnit,
+  prologueDeployRule,
+  battleRequiredRecruits,
+} from '../engine/Prologue.js';
+import { showPrologueDeployNote } from '../ui/PrologueDeployNote.js';
+import {
+  isScriptedBattle,
+  isStandaloneScriptedBattle,
+  isPrologueRun,
+  prologueChapterOf,
+} from '../engine/ScriptedBattle.js';
 import { resetTransitionLocks, ensureSceneLoaded } from '../utils/sceneLoader.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
 import { markStartup } from '../utils/startupTelemetry.js';
@@ -334,7 +347,7 @@ import { PostCombatController } from '../ui/PostCombatController.js';
 import { PromotionController } from '../ui/PromotionController.js';
 import { ReclassController } from '../ui/ReclassController.js';
 import { TransitionRecoveryController } from '../ui/TransitionRecoveryController.js';
-import { TutorialController } from '../ui/TutorialController.js';
+import { PrologueController } from '../ui/PrologueController.js';
 import { locateUnit, nextReadyUnit } from '../ui/UnitLocator.js';
 import {
   registerBattleEntity,
@@ -504,13 +517,8 @@ export class BattleScene extends Phaser.Scene {
     this.lastReinforcementSchedule = null;
     this.appliedHybridOverrideTurns = new Set();
     this.lastHybridOverrideResult = null;
-    this._tutorialStrictGateReleased = !this.battleParams?.tutorialMode;
-    this._tutorialBlockingPromptActive = false;
-    this._tutorialEdricGuide = null;
-    this._tutorialFortGuide = null;
-    this._tutorialVisionIntroShown = false;
-    this._tutorialPermadeathHintShown = false;
-    this._tutorialLordRewindPromptPending = null;
+    // A prologue chapter's teaching (PrologueController), created with the HUD.
+    this._prologue = null;
     this._storyDialogueActive = false;
     this._ceremonies = null;
     this._bossPresence = null;
@@ -570,14 +578,25 @@ export class BattleScene extends Phaser.Scene {
     // Determine deploy limits for this act (+ meta upgrade bonus)
     const act = this.battleParams.act || 'act1';
     // A re-entered battle keeps its locked map, so it deploys no more units than that
-    // map has spawns (resolveDeployLimits).
-    const limits = resolveDeployLimits({
-      base: DEPLOY_LIMITS[act] || DEPLOY_LIMITS.act1,
-      deployBonus: this.runManager?.getDeployBonus?.() || 0,
-      lockedSpawnCount: this.battleParams?.tutorialMode
-        ? null
-        : this.runManager?.getLockedSpawnCount?.(this.nodeId),
-    });
+    // map has spawns (resolveDeployLimits). A prologue chapter with a deploy rule (P4)
+    // fields one unit per authored spawn and at least its own minimum, in the run and
+    // in a replay alike.
+    const chapter = prologueChapterOf(this.battleParams, this.gameData);
+    const deployRule = prologueDeployRule(chapter);
+    const chapterSpawns = chapter?.playerSpawns?.length || 0;
+    const limits = deployRule
+      ? {
+          min: Math.min(deployRule.min, chapterSpawns),
+          max: chapterSpawns,
+          lockedTo: null,
+        }
+      : resolveDeployLimits({
+          base: DEPLOY_LIMITS[act] || DEPLOY_LIMITS.act1,
+          deployBonus: this.runManager?.getDeployBonus?.() || 0,
+          lockedSpawnCount: isStandaloneScriptedBattle(this.battleParams, this.runManager)
+            ? null
+            : this.runManager?.getLockedSpawnCount?.(this.nodeId),
+        });
 
     if (this._resumeCheckpoint) {
       // Resuming a suspended battle -- units come from the checkpoint
@@ -591,6 +610,8 @@ export class BattleScene extends Phaser.Scene {
     } else {
       // Roster exceeds max -- show deploy selection
       this.showDeployScreen(this.roster, limits, (selectedRoster) => {
+        // The choice was made here (a prologue chapter's deploy lesson reads it).
+        this._deployConfirmation = { count: selectedRoster.length };
         this.beginBattle(selectedRoster);
       });
     }
@@ -629,7 +650,7 @@ export class BattleScene extends Phaser.Scene {
     const menuCleanup = this._actionMenuCleanup;
     this._actionMenuCleanup = null;
     menuCleanup?.();
-    // Guide highlights are cleaned by the TutorialController destroy below.
+    // Guide highlights are cleaned by the PrologueController destroy below.
     this.cancelTouchInspectHold();
     this._hideMenuTooltip();
     this._restoreBattleRng();
@@ -746,9 +767,9 @@ export class BattleScene extends Phaser.Scene {
       this._escapeController.destroy();
       this._escapeController = null;
     }
-    if (this._tutorialController) {
-      this._tutorialController.destroy();
-      this._tutorialController = null;
+    if (this._prologue) {
+      this._prologue.destroy();
+      this._prologue = null;
     }
 
     if (this.dialogueOverlay) {
@@ -1177,10 +1198,6 @@ export class BattleScene extends Phaser.Scene {
     return timer;
   }
 
-  async _withTutorialHintState(fn) {
-    return (this._tutorialController ||= new TutorialController(this)).withHintState(fn);
-  }
-
   _bindGameplayKeyboardHandlers() {
     const session = battleSession(this);
     const keyboard = this.input?.keyboard;
@@ -1242,7 +1259,7 @@ export class BattleScene extends Phaser.Scene {
           hasOpenOverlay(this) ||
           this.isStoryInputLocked() ||
           this.battleState !== 'PLAYER_IDLE' ||
-          this._isTutorialStrictGateActive?.()
+          this._isPrologueGateActive()
         )
           return;
         const unit = nextReadyUnit(this, this._lastLocatedUnit);
@@ -1407,7 +1424,11 @@ export class BattleScene extends Phaser.Scene {
       this._fallenBattleRecords = []; // DeedController.onUnitRemoved
 
       // Track non-deployed units for merging back on victory
-      if (!this.battleParams?.tutorialMode && this.roster && deployedRoster) {
+      if (
+        !isStandaloneScriptedBattle(this.battleParams, this.runManager) &&
+        this.roster &&
+        deployedRoster
+      ) {
         // By unit identity: a benched unit that shares a deployed unit's name must
         // still come back on victory (UnitIdentity.js).
         const deployed = new Set(deployedRoster);
@@ -1420,7 +1441,6 @@ export class BattleScene extends Phaser.Scene {
 
       // deployCount: MapGenerator spawn generation and the Last deed at victory.
       const deployCount = battleDeployCount({
-        tutorialMode: this.battleParams?.tutorialMode,
         deployedRoster,
         resuming: Boolean(this._resumeCheckpoint),
         recorded: this.battleParams?.deployCount,
@@ -1428,27 +1448,30 @@ export class BattleScene extends Phaser.Scene {
       this.battleParams.deployCount = deployCount;
       this.battleParams.isBoss = !!this.isBoss;
 
-      // Generate or reuse locked encounter for this node.
-      if (this.battleParams?.tutorialMode) {
-        this.battleConfig = this.buildTutorialBattleConfig();
+      // Generate or reuse locked encounter for this node. The prologue run's chapters
+      // are pre-locked at startPrologue (the same authored config every entry); a
+      // standalone chapter builds the authored map, never generated or locked.
+      const lockedConfig = this.runManager?.getLockedBattleConfig?.(this.nodeId);
+      const prologueChapter = lockedConfig
+        ? null
+        : prologueChapterOf(this.battleParams, this.gameData);
+      if (lockedConfig) {
+        this.battleConfig = lockedConfig;
+      } else if (prologueChapter) {
+        this.battleConfig = buildPrologueBattleConfig(prologueChapter, this.gameData.terrain);
       } else {
-        const lockedConfig = this.runManager?.getLockedBattleConfig?.(this.nodeId);
-        if (lockedConfig) {
-          this.battleConfig = lockedConfig;
-        } else {
-          const battleSeed = Number.isFinite(this.battleParams?.battleSeed)
-            ? this.battleParams.battleSeed
-            : this.deriveBattleSeed();
-          this.battleConfig = this.withBattleSeed(battleSeed, () =>
-            generateBattle(this.battleParams, this.gameData),
-          );
-          this.runManager?.lockBattleConfig?.(this.nodeId, this.battleConfig);
-        }
+        const battleSeed = Number.isFinite(this.battleParams?.battleSeed)
+          ? this.battleParams.battleSeed
+          : this.deriveBattleSeed();
+        this.battleConfig = this.withBattleSeed(battleSeed, () =>
+          generateBattle(this.battleParams, this.gameData),
+        );
+        this.runManager?.lockBattleConfig?.(this.nodeId, this.battleConfig);
       }
       if (
         import.meta.env.DEV &&
         new URLSearchParams(globalThis.location?.search || '').get('battleLab') === '1' &&
-        !this.battleParams?.tutorialMode &&
+        !isScriptedBattle(this.battleParams) &&
         !this._resumeCheckpoint
       ) {
         const labQuery = new URLSearchParams(globalThis.location?.search || '');
@@ -1530,7 +1553,7 @@ export class BattleScene extends Phaser.Scene {
       // battle offers Resume-or-Revert on continue instead of silently
       // rewinding to the pre-battle NodeMap auto-save. Placed after the RNG
       // install so the recorded reinforcement seed matches live play.
-      if (this.runManager && !this.battleParams?.tutorialMode && !this._resumeCheckpoint) {
+      if (this.runManager && !this._resumeCheckpoint) {
         this.runManager.lastDeployment = (deployedRoster || []).map((unit) => unit.name);
         this.runManager.beginBattleInProgress?.(this.nodeId, {
           battleParams: { ...this.battleParams, battleSeed: this.getReinforcementSeed() },
@@ -1540,24 +1563,14 @@ export class BattleScene extends Phaser.Scene {
         this._persistBattleRunState?.(null, { session: session });
       }
 
-      // Create player units.
-      // tutorialMode is authoritative for tutorial composition/loadout.
+      // Create player units. A prologue chapter's authored roster (built by the title)
+      // takes the deployed-roster path: one unit per authored spawn, in order.
       if (this._resumeCheckpoint) {
         // Resume: all units (player/enemy/npc + benched) come from the
         // suspend checkpoint, exactly as they stood at capture time.
         (this._battleSuspendController ||= new BattleSuspendController(this)).applyUnits(
           this._resumeCheckpoint,
         );
-      } else if (this.battleParams?.tutorialMode) {
-        const tutorialRoster = this.buildTutorialRoster();
-        for (let i = 0; i < tutorialRoster.length && i < bc.playerSpawns.length; i++) {
-          const unit = tutorialRoster[i];
-          unit.col = bc.playerSpawns[i].col;
-          unit.row = bc.playerSpawns[i].row;
-          resetUnitForBattle(unit);
-          this.playerUnits.push(unit);
-          this.addUnitGraphic(unit);
-        }
       } else if (deployedRoster) {
         // Recruit battles: lords (who alone can Talk) take the spawns nearest the recruit.
         const tiles = spawnTilesForDeployment(deployedRoster, bc.playerSpawns, {
@@ -1608,7 +1621,7 @@ export class BattleScene extends Phaser.Scene {
       }
 
       // Commander flag must exist before the first checkBattleEnd — the
-      // defeat/escape checks are strict on it, and tutorial/standalone
+      // defeat/escape checks are strict on it, and prologue/standalone
       // rosters (and legacy resume checkpoints) never pass through RunManager.
       if (this._resumeCheckpoint?.commanderEntityId) {
         this._battleCommanderId = this._resumeCheckpoint.commanderEntityId;
@@ -1650,8 +1663,11 @@ export class BattleScene extends Phaser.Scene {
         const npcSpawn = bc.npcSpawn;
         const preview = { className: npcSpawn.className, name: npcSpawn.name };
         const node = this.runManager?.nodeMap?.nodes?.find((n) => n.id === this.nodeId) || null;
-        const built =
-          this.runManager && node
+        // An authored green unit (P3's Sera) is built from its prologue spec, never as
+        // a rolled recruit (the harness uses the same builder).
+        const built = npcSpawn.prologueUnit
+          ? { unit: buildPrologueNpcUnit(npcSpawn, this.gameData) }
+          : this.runManager && node
             ? this.runManager.getRecruitNodeUnit(node, { preview })
             : buildRecruitNodeUnit({
                 preview,
@@ -1675,13 +1691,15 @@ export class BattleScene extends Phaser.Scene {
         const npc = built?.unit || null;
         if (npc) {
           // The tile must suit the unit that actually spawned (a lord roll can turn a
-          // Myrmidon preview into Cavalry Rowan); RNG-free re-seat if it does not.
-          reconcileRecruitSpawnTile(bc, {
-            moveType: npc.moveType || 'Infantry',
-            terrainData: this.gameData.terrain,
-            classesData: this.gameData.classes,
-            weaponsData: this.gameData.weapons,
-          });
+          // Myrmidon preview into Cavalry Rowan); RNG-free re-seat if it does not. An
+          // authored tile is validated with its data and never moves.
+          if (!npcSpawn.prologueUnit)
+            reconcileRecruitSpawnTile(bc, {
+              moveType: npc.moveType || 'Infantry',
+              terrainData: this.gameData.terrain,
+              classesData: this.gameData.classes,
+              weaponsData: this.gameData.weapons,
+            });
           npc.col = npcSpawn.col;
           npc.row = npcSpawn.row;
           // Run identity from the start, so a fallen-recruit record and a living
@@ -1718,10 +1736,11 @@ export class BattleScene extends Phaser.Scene {
         this._escapeController.create();
       }
 
-      // Calculate turn par (for turn bonus system)
+      // Calculate turn par (for turn bonus system). A chapter whose data hides par
+      // (prologue `showPar: false`) has none: no HUD Par, no turn bonus, no pressure.
       this.turnPar = null;
       this.turnBonusConfig = this.gameData.turnBonus;
-      if (this.turnBonusConfig && this.battleConfig) {
+      if (this.turnBonusConfig && this.battleConfig && !this.battleConfig.hidePar) {
         const mapParams = {
           cols: this.battleConfig.cols,
           rows: this.battleConfig.rows,
@@ -1743,7 +1762,6 @@ export class BattleScene extends Phaser.Scene {
 
       // Battle state machine
       this.battleState = 'PLAYER_IDLE';
-      this.tutorialStep = this.battleParams.tutorialMode ? 0 : -1;
       this.selectedUnit = null;
       this.movementRange = null;
       this.preMoveLoc = null;
@@ -1943,9 +1961,10 @@ export class BattleScene extends Phaser.Scene {
         this.instructionText2,
       ]);
 
-      // Tutorial skip button (bottom-right)
-      if (this.battleParams.tutorialMode) {
-        (this._tutorialController ||= new TutorialController(this)).createSkipButton();
+      // A prologue chapter's coach, gates and notes (PrologueController).
+      if (isScriptedBattle(this.battleParams)) {
+        this._prologue = new PrologueController(this);
+        this._prologue.create();
       }
 
       // Unit inspection tooltip (right-click shows name + "View Unit [V]")
@@ -2088,7 +2107,7 @@ export class BattleScene extends Phaser.Scene {
           runSeed: this.runManager?.runSeed,
           isElite: this.isElite,
         }),
-        releaseFirst: Boolean(this.battleParams?.tutorialMode),
+        releaseFirst: isScriptedBattle(this.battleParams),
         // After a turn of the phone the track plays on: ease its calm/full level.
         intensityFadeMs: this._presentationSwitch ? 600 : 0,
       });
@@ -2322,7 +2341,8 @@ export class BattleScene extends Phaser.Scene {
     try {
       await this._getCeremonies().showBossIntro({
         unit: (this.enemyUnits || []).find((unit) => unit.isBoss),
-        actId: this.battleParams?.act,
+        // A prologue chapter's boss card reads "Prologue", not the act it borrows.
+        actId: isScriptedBattle(this.battleParams) ? 'prologue' : this.battleParams?.act,
       });
     } catch (err) {
       console.warn('[BattleScene] boss encounter card failed:', err);
@@ -2380,61 +2400,9 @@ export class BattleScene extends Phaser.Scene {
     (this._lootFlowController ||= new LootFlowController(this))._startPostLootTransition();
   }
 
-  buildTutorialBattleConfig() {
-    return _buildTutorialBattleConfig();
-  }
-
-  buildTutorialRoster() {
-    return _buildTutorialRoster(this.gameData);
-  }
-
-  _isTutorialStrictGateActive() {
-    return (this._tutorialController ||= new TutorialController(this)).isStrictGateActive();
-  }
-
-  _getTutorialEdricUnit() {
-    return (this._tutorialController ||= new TutorialController(this)).getEdricUnit();
-  }
-
-  _getTutorialFortTile() {
-    return (this._tutorialController ||= new TutorialController(this)).getFortTile();
-  }
-
-  _showTutorialBlockingInstruction(text) {
-    return (this._tutorialController ||= new TutorialController(this)).showBlockingInstruction(
-      text,
-    );
-  }
-
-  _getVisionRewindIntroHint() {
-    return (this._tutorialController ||= new TutorialController(this)).getVisionRewindIntroHint();
-  }
-
-  _maybeShowTutorialPermadeathHint(unit, tookDamage) {
-    return (this._tutorialController ||= new TutorialController(this)).maybeShowPermadeathHint(
-      unit,
-      tookDamage,
-    );
-  }
-
-  _showTutorialLordRewindPrompt(fallenName) {
-    (this._tutorialController ||= new TutorialController(this)).showLordRewindPrompt(fallenName);
-  }
-
-  _setTutorialGuideHighlight(mode) {
-    (this._tutorialController ||= new TutorialController(this)).setGuideHighlight(mode);
-  }
-
-  _clearTutorialGuideHighlights() {
-    (this._tutorialController ||= new TutorialController(this)).clearGuideHighlights();
-  }
-
-  _transitionTutorialToTitle(extra = null) {
-    return (this._tutorialController ||= new TutorialController(this)).transitionToTitle(extra);
-  }
-
-  _handleTutorialSkipRequested() {
-    return (this._tutorialController ||= new TutorialController(this)).handleSkipRequested();
+  /** A prologue chapter's guided step (select / move) still blocks free play. */
+  _isPrologueGateActive() {
+    return Boolean(this._prologue?.isGateActive());
   }
 
   withBattleSeed(seed, fn) {
@@ -2600,6 +2568,11 @@ export class BattleScene extends Phaser.Scene {
     applyEnemySpawnGear(enemy, spawn, {
       weapons: this.gameData.weapons,
       difficultyId: this.battleParams?.difficultyId,
+    });
+    // An authored spawn's own weapon, skills and id win (prologue chapters).
+    applySpawnLoadout(enemy, spawn, {
+      weapons: this.gameData.weapons,
+      skills: this.gameData.skills,
     });
 
     if (spawn.areaArt) bindEnemyAreaArt(enemy, spawn.areaArt, this.gameData.weaponArts?.arts);
@@ -3032,7 +3005,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   resetFortHealStreak(unit) {
-    if (unit) unit._fortHealStreak = 0;
+    resetFortHealStreak(unit);
   }
 
   // --- Deploy selection screen ---
@@ -3042,6 +3015,8 @@ export class BattleScene extends Phaser.Scene {
     const overlay = new DeployScreenOverlay(this, this.runManager, this.gameData);
     this._deployOverlay = overlay;
     overlay.show(roster, limits, onConfirm, initialSelectedNames);
+    // A prologue chapter's first deploy screen opens with its note (P4).
+    showPrologueDeployNote(this, limits);
   }
 
   // --- Unit rendering ---
@@ -3746,7 +3721,7 @@ export class BattleScene extends Phaser.Scene {
   isCameraGestureAllowed() {
     if (!this.mobileCameraEnabled || !this._battleCamera) return false;
     if (this.isStoryInputLocked()) return false;
-    if (this._isTutorialStrictGateActive()) return false;
+    if (this._isPrologueGateActive()) return false;
     if (this.pauseOverlay?.visible || this.unitDetailOverlay?.visible || this.visionDialog)
       return false;
     if (this.rosterOverlay?.visible) return false;
@@ -3879,14 +3854,14 @@ export class BattleScene extends Phaser.Scene {
 
   requestCancel({ allowPause = true } = {}) {
     if (this.isStoryInputLocked()) return true;
-    if (this._isTutorialStrictGateActive()) {
+    if (this._isPrologueGateActive()) {
       if (this.pauseOverlay?.visible) {
         if (!this.pauseOverlay.closeActiveSubOverlay()) this.pauseOverlay.hide();
-      } else if (allowPause && this._tutorialController?.canPause()) {
-        // Pause (and its Leave Tutorial exit) stays reachable during the guided step.
+      } else if (allowPause && this._prologue?.canPause()) {
+        // Pause (and its Leave Prologue exit) stays reachable during the guided step.
         this.showPauseMenu();
       } else if (this.battleState !== 'TUTORIAL_HINT') {
-        void this._showTutorialBlockingInstruction('Finish the tutorial movement step first.');
+        this._prologue?.rejectStep();
       }
       return true;
     }
@@ -4268,10 +4243,8 @@ export class BattleScene extends Phaser.Scene {
   forceEndTurn() {
     const session = battleSession(this);
     if (this.isStoryInputLocked()) return;
-    if (this._isTutorialStrictGateActive()) {
-      if (this.battleState !== 'TUTORIAL_HINT') {
-        void this._showTutorialBlockingInstruction('Finish the tutorial movement step first.');
-      }
+    if (this._isPrologueGateActive()) {
+      if (this.battleState !== 'TUTORIAL_HINT') this._prologue?.rejectStep();
       return;
     }
     if (!this.canForceEndTurn()) return;
@@ -4378,63 +4351,68 @@ export class BattleScene extends Phaser.Scene {
       }
       return result?.status === TRANSITION_RESULTS.STARTED;
     };
-    const abandonCb = this.runManager
-      ? async () => {
-          try {
-            const cloud = this.registry.get('cloud');
-            const slot = this.registry.get('activeSlot');
-            this.clearBattleScopedDeltas(this.playerUnits);
-            this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
-            // Settle (and persist the settled record) before dropping the
-            // save, so the rewards are never lost with it nor paid twice.
-            this.runManager.failRun();
-            settleAndPersistEndRun(this.runManager, this.registry.get('meta'), 'defeat', {
-              onSave: cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
-              slot,
-            });
-            // A payout that did not reach disk keeps the save so it can retry.
-            if (!endRunPayoutPending(this.runManager, this.registry.get('meta')))
-              clearSavedRun(
-                cloud
-                  ? (resolvedSlot, abandonedRun) =>
-                      deleteRunSave(cloud.userId, resolvedSlot, abandonedRun)
-                  : null,
+    // The prologue run is left by skipping the rest of it, never abandoned (§9).
+    const abandonCb =
+      this.runManager && !isPrologueRun(this.runManager)
+        ? async () => {
+            try {
+              const cloud = this.registry.get('cloud');
+              const slot = this.registry.get('activeSlot');
+              this.clearBattleScopedDeltas(this.playerUnits);
+              this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
+              // Settle (and persist the settled record) before dropping the
+              // save, so the rewards are never lost with it nor paid twice.
+              this.runManager.failRun();
+              settleAndPersistEndRun(this.runManager, this.registry.get('meta'), 'defeat', {
+                onSave: cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
                 slot,
-              );
-            const audio = this.registry.get('audio');
-            if (audio) audio.stopMusic(this, 0);
-            const ok = await transitionToTitleWithWatchdog(TRANSITION_REASONS.ABANDON_RUN);
-            if (!isCurrentBattleSession(this, session)) return;
-            if (!ok) {
-              if (this.sys?.isActive?.() === false) {
-                // Scene already shut down -- another transition won the race;
-                // a raw start from a dead scene would stomp the live one.
-                markStartup('pause_transition_superseded', {
+              });
+              // A payout that did not reach disk keeps the save so it can retry.
+              if (!endRunPayoutPending(this.runManager, this.registry.get('meta')))
+                clearSavedRun(
+                  cloud
+                    ? (resolvedSlot, abandonedRun) =>
+                        deleteRunSave(cloud.userId, resolvedSlot, abandonedRun)
+                    : null,
+                  slot,
+                );
+              const audio = this.registry.get('audio');
+              if (audio) audio.stopMusic(this, 0);
+              const ok = await transitionToTitleWithWatchdog(TRANSITION_REASONS.ABANDON_RUN);
+              if (!isCurrentBattleSession(this, session)) return;
+              if (!ok) {
+                if (this.sys?.isActive?.() === false) {
+                  // Scene already shut down -- another transition won the race;
+                  // a raw start from a dead scene would stomp the live one.
+                  markStartup('pause_transition_superseded', {
+                    scene: 'Battle',
+                    reason: 'ABANDON_RUN',
+                  });
+                  return;
+                }
+                markStartup('pause_transition_fallback', {
                   scene: 'Battle',
                   reason: 'ABANDON_RUN',
                 });
-                return;
+                resetTransitionLocks(this);
+                try {
+                  this.scene.start('Title', { gameData: this.gameData }); // scene-router-bypass
+                } catch (err) {
+                  if (!isCurrentBattleSession(this, session)) return;
+                  markStartup('pause_transition_double_failure', {
+                    scene: 'Battle',
+                    reason: 'ABANDON_RUN',
+                  });
+                  this.showPauseTransitionRecovery(TRANSITION_REASONS.ABANDON_RUN);
+                }
               }
-              markStartup('pause_transition_fallback', { scene: 'Battle', reason: 'ABANDON_RUN' });
-              resetTransitionLocks(this);
-              try {
-                this.scene.start('Title', { gameData: this.gameData }); // scene-router-bypass
-              } catch (err) {
-                if (!isCurrentBattleSession(this, session)) return;
-                markStartup('pause_transition_double_failure', {
-                  scene: 'Battle',
-                  reason: 'ABANDON_RUN',
-                });
-                this.showPauseTransitionRecovery(TRANSITION_REASONS.ABANDON_RUN);
-              }
+            } catch (err) {
+              if (!isCurrentBattleSession(this, session)) return;
+              reportAsyncError('Battle-pause-abandon', err);
+              this.showPauseTransitionRecovery(TRANSITION_REASONS.ABANDON_RUN);
             }
-          } catch (err) {
-            if (!isCurrentBattleSession(this, session)) return;
-            reportAsyncError('Battle-pause-abandon', err);
-            this.showPauseTransitionRecovery(TRANSITION_REASONS.ABANDON_RUN);
           }
-        }
-      : null;
+        : null;
     const saveExitCb = this.runManager
       ? async () => {
           try {
@@ -4527,9 +4505,7 @@ export class BattleScene extends Phaser.Scene {
       onAbandon: abandonCb,
       campaignMapData,
       gameData: this.gameData,
-      tutorial: this.battleParams?.tutorialMode
-        ? (this._tutorialController ||= new TutorialController(this)).pauseOptions()
-        : null,
+      prologue: this._prologue?.pauseOptions() || null,
     });
     this.pauseOverlay.show();
     this.refreshEndTurnControl();
@@ -4606,12 +4582,9 @@ export class BattleScene extends Phaser.Scene {
     if (this.battleState === 'TURN_START_RESOLVING') return;
     // A set-aside partial action (e.g. trade) becomes its own rewind point.
     if (this.battleState === 'PLAYER_IDLE') this._visionController?.settleParkedActivation?.();
-    if (this._isTutorialStrictGateActive() && this.tutorialStep === 2) {
-      const edric = this._getTutorialEdricUnit();
-      if (unit !== edric) {
-        void this._showTutorialBlockingInstruction('Select Edric first to continue the tutorial.');
-        return;
-      }
+    if (this._prologue && !this._prologue.allowsSelect(unit)) {
+      this._prologue.rejectSelect();
+      return;
     }
     if (this.unitDetailOverlay?.visible) this.unitDetailOverlay.hide();
     this.inspectionPanel.hide();
@@ -4646,9 +4619,7 @@ export class BattleScene extends Phaser.Scene {
     this.grid.showMovementRange(this.movementRange, unit.col, unit.row);
     this._gridCursor?.snapTo(unit.col, unit.row);
 
-    if (this.battleParams.tutorialMode && this.tutorialStep === 2) {
-      (this._tutorialController ||= new TutorialController(this)).onCommanderSelected();
-    }
+    this._prologue?.onUnitSelected(unit);
   }
 
   deselectUnit() {
@@ -4952,13 +4923,11 @@ export class BattleScene extends Phaser.Scene {
     const session = battleSession(this);
     // No fog update here: the move can still be undone, so its vision waits until
     // the unit's action is committed (revealSettledVision).
-    if (this.battleParams.tutorialMode && this.tutorialStep === 3) {
-      this.tutorialStep = 4;
-      this._clearTutorialGuideHighlights();
-      await (this._tutorialController ||= new TutorialController(this)).showFortLesson(unit);
+    if (this._prologue) {
+      // A chapter's note about the arrived tile reads before the action menu opens.
+      await this._prologue.onAfterMove(unit);
       if (!isCurrentBattleSession(this, session)) return;
       if (!this.scene?.isActive?.()) return;
-      this._tutorialStrictGateReleased = true;
     }
     this.showActionMenu(unit);
     this._inputController?.resumeMoveAttack(unit);
@@ -5067,6 +5036,16 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
+    // A prologue chapter's note on this action reads before the action completes (and
+    // before the turn can pass to the enemy).
+    const hold = this._prologue?.beforeUnitActionCompletes(unit);
+    if (hold) {
+      hold.then(
+        () => completeBattleAction(this, unit, { session }),
+        () => completeBattleAction(this, unit, { session }),
+      );
+      return;
+    }
     completeBattleAction(this, unit, { session });
   }
 
@@ -6268,9 +6247,15 @@ export class BattleScene extends Phaser.Scene {
       const throne = this.battleConfig.thronePos;
       const bossAlive = this.enemyUnits.some((u) => u.isBoss && u.currentHP > 0);
       if (throne && unit.col === throne.col && unit.row === throne.row && !bossAlive) {
-        command('seize', 'Seize', () => {
+        command('seize', 'Seize', async () => {
+          const session = battleSession(this);
           this.hideActionMenu();
           this.commitVisionSnapshotIfPending();
+          // A prologue chapter's seize beats are read before the victory flow.
+          if (this._prologue) {
+            await safeBattlePresentation('prologue seize beats', () => this._prologue.onSeize(unit), { scene: this }); // prettier-ignore
+            if (!isCurrentBattleSession(this, session)) return;
+          }
           this.onVictory();
         });
       }
@@ -7911,6 +7896,7 @@ export class BattleScene extends Phaser.Scene {
   /** `acknowledge`: the player confirmed or cancelled, having read the forecast's rules. */
   hideForecast({ acknowledge = false } = {}) {
     this._attackFlowController?.closeForecast({ acknowledge });
+    this._prologue?.onForecastClosed();
     if (this._forecastOverlay) {
       this._forecastOverlay.destroy();
       this._forecastOverlay = null;
@@ -8158,7 +8144,7 @@ export class BattleScene extends Phaser.Scene {
   _commitCombatIntent(attacker, defender) {
     const session = battleSession(this);
     this._pendingCommittedAction = null;
-    if (!this.runManager?.battleInProgress || this.battleParams?.tutorialMode) return;
+    if (!this.runManager?.battleInProgress) return;
     if (attacker?.faction !== 'player' || this.turnManager?.currentPhase !== 'player') return;
     if (!attacker.battleEntityId || !defender?.battleEntityId) return;
     const art =
@@ -8311,25 +8297,19 @@ export class BattleScene extends Phaser.Scene {
         if (!isCurrentBattleSession(this, session)) return;
       }
 
-      if (this.battleParams?.tutorialMode && this.tutorialStep === 5) {
-        this.tutorialStep = 6;
+      // A prologue chapter's notes on this exchange (combat resolved, HP thresholds).
+      if (this._prologue) {
         await safeBattlePresentation(
-          'tutorial XP',
-          () => (this._tutorialController ||= new TutorialController(this)).showXpLesson(),
+          'prologue combat notes',
+          () =>
+            this._prologue.onCombatResolved(attacker, defender, {
+              initiator: 'player',
+              hpBefore: { attacker: attackerHpAtStart, defender: defenderHpAtStart },
+            }),
           { scene: this },
         );
         if (!isCurrentBattleSession(this, session)) return;
-        this.battleState = 'COMBAT_RESOLVING';
       }
-
-      // Tutorial: a counter-attack on a non-commander lord teaches permadeath
-      await safeBattlePresentation(
-        'tutorial permadeath',
-        () =>
-          this._maybeShowTutorialPermadeathHint(attacker, attacker.currentHP < attackerHpAtStart),
-        { scene: this },
-      );
-      if (!isCurrentBattleSession(this, session)) return;
 
       if (defender.currentHP <= 0) {
         await this.removeUnit(defender, { killer: attacker });
@@ -8942,6 +8922,13 @@ export class BattleScene extends Phaser.Scene {
     const rm = this.runManager;
     if (!rm?.battleInProgress) return 'none';
     let outcome = 'reverted';
+    // The prologue never settles a defeat: even a fatal checkpoint that can't be
+    // reopened reverts the chapter to its entry (it restarts from the map).
+    if (isPrologueRun(rm)) {
+      rm.restartPrologueBattle();
+      this._persistBattleRunState?.(null, { session: session });
+      return outcome;
+    }
     if (!rm.revertBattleInProgressToEntry()) {
       if (rm.battleInProgress?.checkpoint) rm.battleInProgress.checkpoint.restoreFailed = true;
       outcome = 'fatal';
@@ -9084,7 +9071,7 @@ export class BattleScene extends Phaser.Scene {
           };
         // Last words of a fallen recruit (permadeath): class + temperament voice,
         // a pure pick (never the RNG or the narrative log).
-        if (!unit.isLord && !this.battleParams?.tutorialMode) {
+        if (!unit.isLord && !isScriptedBattle(this.battleParams)) {
           const line = fallenLine(
             unit,
             voiceContext({
@@ -9103,8 +9090,9 @@ export class BattleScene extends Phaser.Scene {
         }
         // After the last words: a titled unit is named in full as it falls.
         deedsFor(this).announceFall(unit);
-        // Lord farewell dialogue (non-commander; commander death triggers game over elsewhere)
-        if (unit.isLord && !unit.isCommander) {
+        // Lord farewell dialogue (non-commander; commander death triggers game over elsewhere).
+        // A prologue chapter restarts instead ("Not this thread"): no farewell.
+        if (unit.isLord && !unit.isCommander && !isScriptedBattle(this.battleParams)) {
           const farewellPool = this.gameData?.dialogue?.lordFarewell?.[unit.name];
           if (Array.isArray(farewellPool) && farewellPool.length > 0) {
             const cast = resolveDialogueCast(this.runManager?.getStartingLordNames?.());
@@ -9120,21 +9108,10 @@ export class BattleScene extends Phaser.Scene {
             } catch (_) {}
             if (!isCurrentBattleSession(this, session)) return;
           }
-          // Tutorial: fate grants a Vision charge so the player can be walked
-          // through a rewind at the next player-phase start.
-          if (this.battleParams?.tutorialMode) {
-            const host = (this._standaloneVisionState ||= {
-              visionChargesRemaining: 0,
-              visionCount: 0,
-            });
-            host.visionChargesRemaining += 1;
-            this._tutorialLordRewindPromptPending = unit.name;
-            safeBattlePresentation('Vision HUD', () => this.updateVisionHud(), { scene: this });
-          }
         }
         // The commander's last words: the run ends with this fall (playtest
-        // 2026-09-28: it used to end in silence).
-        if (unit.isLord && unit.isCommander && !this.battleParams?.tutorialMode) {
+        // 2026-09-28: it used to end in silence). A prologue chapter restarts instead.
+        if (unit.isLord && unit.isCommander && !isScriptedBattle(this.battleParams)) {
           const pool = this.gameData?.dialogue?.commanderFall?.[unit.name];
           if (Array.isArray(pool) && pool.length > 0) {
             const line =
@@ -9146,12 +9123,14 @@ export class BattleScene extends Phaser.Scene {
             if (!isCurrentBattleSession(this, session)) return;
           }
         }
-        // Someone on the field answers the loss (a quip over a living lord).
-        safeBattlePresentation(
-          'ally fall',
-          () => (this._battleBeats ||= new BattleBeatsController(this)).onAllyFall(unit),
-          { scene: this },
-        );
+        // Someone on the field answers the loss (a quip over a living lord); a prologue
+        // chapter restarts instead, so nobody mourns a fall that is undone.
+        if (!isScriptedBattle(this.battleParams))
+          safeBattlePresentation(
+            'ally fall',
+            () => (this._battleBeats ||= new BattleBeatsController(this)).onAllyFall(unit),
+            { scene: this },
+          );
       }
     } else if (unit.faction === 'npc') {
       const idx = this.npcUnits.indexOf(unit);
@@ -9194,6 +9173,13 @@ export class BattleScene extends Phaser.Scene {
         });
     }
     safeBattlePresentation('death objective', () => this.updateObjectiveText(), { scene: this });
+    // A prologue chapter's beats on this fall (Varro: his line, then the seize note; a
+    // protected unit: the chapter's restart) own this interval: the death's remaining
+    // side effects, the combat that caused it and the enemy phase all wait for them.
+    if (this._prologue) {
+      await safeBattlePresentation('prologue fall beats', () => this._prologue.onUnitDefeated(unit), { scene: this }); // prettier-ignore
+      if (!isCurrentBattleSession(this, session)) return;
+    }
 
     const deathEffects = getOnDeathAffixes(unit, this.gameData.affixes);
     const hasAoEDeathEffect = deathEffects.some((effect) => effect?.type === 'aoe_damage');
@@ -9431,6 +9417,10 @@ export class BattleScene extends Phaser.Scene {
         'player_phase_turn_start_pipeline',
         async () => {
           try {
+            // A prologue chapter's note or lines still on screen (a sequence that
+            // began on the enemy phase) hold the battle state: wait for them to be
+            // read instead of mistaking the note's state for a superseded turn.
+            await this._prologue?.idle?.();
             if (!isCurrentTurnStart()) return;
             await this.processTurnStartEffects(armyAndNpcAllies(this.playerUnits, this.npcUnits), {
               skipRecovery: true,
@@ -9441,8 +9431,7 @@ export class BattleScene extends Phaser.Scene {
             if (!isCurrentTurnStart()) return;
             // Vision returns to the playable turn boundary: all automatic
             // effects have resolved, and none need replaying (or rerolling).
-            // Keep the tutorial's previous snapshot while teaching a death.
-            if (!this._tutorialLordRewindPromptPending) this.captureVisionSnapshot();
+            this.captureVisionSnapshot();
             this.updateVisionHud();
             const presentedLevelUps = Boolean(this._pendingLevelUpPopups?.length);
             if (presentedLevelUps) {
@@ -9475,7 +9464,7 @@ export class BattleScene extends Phaser.Scene {
             // Do not strand input after a reported animation/effect failure, or
             // overwrite a defeat, rewind prompt, shutdown, or replacement phase.
             if (!isCurrentTurnStart()) return;
-            if (!this._tutorialLordRewindPromptPending) this.captureVisionSnapshot();
+            this.captureVisionSnapshot();
             this.updateVisionHud();
             this.battleState = 'PLAYER_IDLE';
             this.refreshEndTurnControl();
@@ -9493,13 +9482,10 @@ export class BattleScene extends Phaser.Scene {
       this._playerTurnStartPipelineTurn = turn;
 
       if (!shouldAutoAdvance) {
-        // Tutorial hints (after phase banner fades)
-        if (this.battleParams.tutorialMode) {
-          (this._tutorialController ||= new TutorialController(this)).scheduleTurnStartHints({
-            turn,
-            scheduleSafeDelayedAsync: schedulePlayerHint,
-            isSceneActiveForAsync,
-          });
+        // A prologue chapter's beats own the turn start (its coach shows once the
+        // banner clears); a run battle gets its first-turn field notes.
+        if (this._prologue) {
+          this._prologue.onPhaseStart('player', turn, { schedule: schedulePlayerHint });
         } else {
           const hints = this.registry.get('hints');
           if (hints && turn === 1) {
@@ -9555,10 +9541,11 @@ export class BattleScene extends Phaser.Scene {
               }
             });
           }
-        } // end else (non-tutorial hints)
+        } // end else (run battle hints)
       }
     } else if (phase === 'enemy') {
       this.battleState = 'ENEMY_PHASE';
+      this._prologue?.onPhaseStart('enemy', turn);
       // Siege casters take their stance from the board the player left, before any
       // phase-start blow (hazards, ballistas) can empty a ring Danger drew (SiegeArtillery).
       settleArtilleryStances({ enemyUnits: this.enemyUnits, playerUnits: this.playerUnits, turn });
@@ -9936,19 +9923,8 @@ export class BattleScene extends Phaser.Scene {
     const session = battleSession(this);
     for (const unit of units) {
       if (!isCurrent()) return;
-      const terrainIdx = this.grid.mapLayout[unit.row]?.[unit.col];
-      const onFort = terrainIdx === TERRAIN.Fort || terrainIdx === TERRAIN.Throne;
-      if (!onFort) {
-        unit._fortHealStreak = 0;
-        continue;
-      }
-      if (unit.currentHP >= unit.stats.HP) continue;
-      const streak = Math.max(0, unit._fortHealStreak || 0);
-      const decayIdx = Math.min(streak, FORT_HEAL_DECAY_MULTIPLIERS.length - 1);
-      const decayMult = FORT_HEAL_DECAY_MULTIPLIERS[decayIdx];
-      const baseHeal = Math.max(1, Math.floor(unit.stats.HP * TERRAIN_HEAL_PERCENT));
-      const healAmount = Math.floor(baseHeal * decayMult);
-      unit._fortHealStreak = streak + 1;
+      // engine/TerrainHealing.js: the amount and the Fort streak (shared with the harness).
+      const healAmount = settleTerrainHeal(unit, this.grid.mapLayout[unit.row]?.[unit.col]);
       if (healAmount <= 0) continue;
       healUnit(unit, healAmount);
       this.updateHPBar(unit);
@@ -10161,7 +10137,7 @@ export class BattleScene extends Phaser.Scene {
         u.hasActed = false;
       }
     }
-    if (!this._tutorialLordRewindPromptPending) this.captureVisionSnapshot?.();
+    this.captureVisionSnapshot?.();
     this.updateVisionHud?.();
     this.battleState = 'PLAYER_IDLE';
     this.refreshEndTurnControl?.();
@@ -10252,15 +10228,21 @@ export class BattleScene extends Phaser.Scene {
             // The hold wake check runs once per turn, so a resumed phase skips it.
             turnNumber: this.turnManager.turnNumber,
             // A garrison pack the player can see leaves its post (HoldActivation).
-            onHoldersWoke: (woken) => {
-              if (this.visionDialog || phaseSuperseded()) return Promise.resolve();
-              if (!woken.some(({ unit }) => canInspectUnit(this.grid, unit)))
-                return Promise.resolve();
-              return safeBattlePresentation(
+            onHoldersWoke: async (woken) => {
+              if (this.visionDialog || phaseSuperseded()) return;
+              const seen = woken.filter(({ unit }) => canInspectUnit(this.grid, unit));
+              if (!seen.length) return;
+              await safeBattlePresentation(
                 'holders woke',
                 () => this.showBriefBanner('The garrison stirs!', UI_PALETTE.warn),
                 { scene: this },
               );
+              if (this._prologue && !phaseSuperseded())
+                await safeBattlePresentation(
+                  'prologue hold notes',
+                  () => this._prologue.onHoldersWoke(seen),
+                  { scene: this },
+                );
             },
             onMoveUnit: (enemy, path) => {
               if (this.visionDialog || phaseSuperseded()) return Promise.resolve();
@@ -10543,13 +10525,19 @@ export class BattleScene extends Phaser.Scene {
         if (!isCurrentBattleSession(this, session)) return;
       }
 
-      // Tutorial: the first hit on a non-commander lord teaches permadeath
-      await safeBattlePresentation(
-        'tutorial permadeath',
-        () => this._maybeShowTutorialPermadeathHint(target, target.currentHP < targetHpAtStart),
-        { scene: this },
-      );
-      if (!isCurrentBattleSession(this, session)) return;
+      // A prologue chapter's notes on this exchange (HP thresholds on the defender).
+      if (this._prologue) {
+        await safeBattlePresentation(
+          'prologue combat notes',
+          () =>
+            this._prologue.onCombatResolved(enemy, target, {
+              initiator: 'enemy',
+              hpBefore: { attacker: enemyHpAtStart, defender: targetHpAtStart },
+            }),
+          { scene: this },
+        );
+        if (!isCurrentBattleSession(this, session)) return;
+      }
 
       if (target.currentHP <= 0) await this.removeUnit(target, { killer: enemy });
       if (!isCurrentBattleSession(this, session)) return;
@@ -10818,19 +10806,17 @@ export class BattleScene extends Phaser.Scene {
     // the commander has fallen.
     const commanderEscaped = (this.escapedUnits || []).some((u) => u.isCommander);
     if (hasBattleDefeat(this.playerUnits, this.escapedUnits)) {
+      // A prologue chapter never loses: no lord-death prompt, no onDefeat (it restarts).
+      if (this._prologue?.onDefeatIntercept()) return true;
       if (this.showLordDeathVisionPrompt()) {
         return true;
       }
       this.onDefeat();
       return true;
     }
-    // Rout: all enemies dead = victory
+    // Rout: all enemies dead (and every required recruit in the army) = victory
     // Defer during enemy phase until reinforcements have been applied
-    if (
-      this.battleConfig.objective === 'rout' &&
-      this.enemyUnits.length === 0 &&
-      !(this._zombieTombstones?.length > 0)
-    ) {
+    if (this.battleConfig.objective === 'rout' && isRoutComplete(this.routObjectiveState())) {
       if (this._reinforcementsPendingThisTurn) return false;
       this.onVictory();
       return true;
@@ -10846,6 +10832,31 @@ export class BattleScene extends Phaser.Scene {
     }
     // Seize victory triggers via action menu 'Seize' button
     return false;
+  }
+
+  /**
+   * What the rout's end reads (engine/RoutObjective.js): the enemies standing, the
+   * remains rising, and the recruits the battle requires in the army (a prologue
+   * chapter's; a standard run requires none). The harness reads the same predicate.
+   */
+  routObjectiveState() {
+    return {
+      enemyUnits: this.enemyUnits || [],
+      zombieTombstones: this._zombieTombstones || [],
+      requiredRecruits: battleRequiredRecruits({
+        battleConfig: this.battleConfig,
+        battleParams: this.battleParams,
+        gameData: this.gameData,
+      }),
+      playerUnits: this.playerUnits || [],
+      escapedUnits: this.escapedUnits || [],
+    };
+  }
+
+  /** The required recruits still outside the army (RoutObjective), by name. */
+  pendingRequiredRecruits() {
+    const state = this.routObjectiveState();
+    return pendingRequiredRecruits(state.requiredRecruits, state.playerUnits, state.escapedUnits);
   }
 
   /**
@@ -10884,10 +10895,11 @@ export class BattleScene extends Phaser.Scene {
       label = this._escapeController.getObjectiveLabel();
       color = UI_PALETTE.good; // green -- run for the exit
     } else {
-      const tombCount = this._zombieTombstones?.length || 0;
-      const count = this.enemyUnits.length;
-      const foes = `${count} ${count === 1 ? 'enemy' : 'enemies'}`;
-      label = tombCount > 0 ? `Rout: ${foes} + ${tombCount} reviving` : `Rout: ${foes} remaining`;
+      label = routObjectiveLabel({
+        remaining: this.enemyUnits.length,
+        reviving: this._zombieTombstones?.length || 0,
+        pendingRecruits: this.pendingRequiredRecruits(),
+      });
       const ladderLine = this.getLadderObjectiveLine();
       if (ladderLine) label += `\n${ladderLine}`;
     }

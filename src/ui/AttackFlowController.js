@@ -23,9 +23,14 @@
 import { ForecastOverlay } from './ForecastOverlay.js';
 import { AreaPreviewController } from './AreaPreviewController.js';
 import { areaForecastLines, previewAreaArt } from '../engine/AreaPreview.js';
-import { combatStrikeMods, forecastRawDamage, forecastStrikeGroups } from '../engine/Combat.js';
+import {
+  combatStrikeMods,
+  forecastRawDamage,
+  forecastStrikeGroups,
+  usesMagic,
+} from '../engine/Combat.js';
+import { guidanceText, isArmoredFoe } from '../engine/Guidance.js';
 import { playerKnowledgeOf } from './battleKnowledge.js';
-import { TutorialController } from './TutorialController.js';
 import { combatDistance, getFootprint, isEntity } from '../engine/EntitySystem.js';
 import {
   getAttackWeapons,
@@ -290,6 +295,8 @@ export class AttackFlowController {
       return true;
     }
     if (scene.battleState === 'SHOWING_FORECAST') {
+      // A prologue chapter's first forecast is read as it is: Confirm or Cancel only.
+      if (scene._prologue?.allowsForecastCycling() === false) return false;
       const current = scene.forecastTarget;
       const next = stepTarget(targets, current, direction);
       if (!next || next === current) return false;
@@ -436,6 +443,14 @@ export class AttackFlowController {
       });
     }
 
+    // The armor lesson (§7): the first forecast of a blade against armour says so, on the
+    // forecast itself (never over it), and is read when the player confirms or cancels.
+    const armor = this.armorLesson(attacker, defender, chosen);
+    if (armor) {
+      forecast.defender.lessonNote = armor;
+      this._affixLessonsShown.add('guide_armor');
+    }
+
     scene._forecastValidWeapons = validWeapons;
     const targets = scene.attackTargets || [];
     const targetIndex = targets.indexOf(defender);
@@ -465,13 +480,27 @@ export class AttackFlowController {
     scene.forecastObjects = scene._forecastOverlay.displayObjects;
     scene._pinToScreen(scene.forecastObjects);
 
-    if (scene.battleParams?.tutorialMode) {
-      if (scene.tutorialStep === 4) scene.tutorialStep = 5;
-      await (scene._tutorialController ||= new TutorialController(scene)).showForecastLesson(
-        forecast,
-      );
+    // A prologue chapter's forecast notes read over the open forecast (first open only).
+    if (scene._prologue && !rerender) {
+      await scene._prologue.onForecastOpened(attacker, defender, forecast, chosen);
     }
     return forecast;
+  }
+
+  /**
+   * The armor note's text for this forecast, or null: a player unit striking an
+   * armoured foe (Guidance.isArmoredFoe) with a weapon that hits DEF, while the slot has
+   * not read it and the Guidance level allows it (GuidanceController.allows; off in a
+   * prologue chapter).
+   */
+  armorLesson(attacker, defender, weapon) {
+    const guidance = this.scene._guidance;
+    if (attacker?.faction !== 'player' || !weapon || usesMagic(weapon)) return null;
+    if (!isArmoredFoe(defender) || !guidance?.allows?.('guide_armor')) return null;
+    return guidanceText('guide_armor', {
+      knight: defender.moveType === 'Armored',
+      target: defender,
+    });
   }
 
   /**
@@ -492,6 +521,7 @@ export class AttackFlowController {
     const scene = this.scene;
     if (scene.isStoryInputLocked?.()) return false;
     if (scene.battleState !== 'SHOWING_FORECAST' || !scene.selectedUnit) return false;
+    if (scene._prologue?.allowsForecastCycling() === false) return false;
     const validWeapons = scene._forecastValidWeapons;
     if (!validWeapons || validWeapons.length < 2) return false;
     const currentIdx = validWeapons.indexOf(scene._forecastWeapon);

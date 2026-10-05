@@ -1,5 +1,5 @@
 import { showRunRecords } from '../ui/RunRecordsMenu.js';
-import { applyCompletedTutorialHints } from '../ui/tutorialLessons.js';
+import { applyCompletedTutorialHints, TUTORIAL_COMPLETED_KEY } from '../ui/prologueLessons.js';
 import { getCloudSaveConflict } from '../engine/CloudSaveConflict.js';
 import { MenuSurface, element, button } from '../ui/MenuSurface.js';
 import { hasDOMHost } from '../utils/domUI.js';
@@ -29,10 +29,16 @@ import {
   clearAllSlotData,
   prepareRecoveryLogout,
 } from '../engine/SlotManager.js';
-import { buildTutorialRoster as _buildTutorialRoster } from '../engine/TutorialHelpers.js';
+import { buildPrologueRoster } from '../engine/Prologue.js';
+import { prologueBattleParams } from '../engine/ScriptedBattle.js';
 import { MetaProgressionManager } from '../engine/MetaProgressionManager.js';
 import { HintManager } from '../engine/HintManager.js';
-import { startFirstRunFastPath } from '../utils/firstRunFastPath.js';
+import {
+  startFirstRunFastPath,
+  startPrologueRun,
+  skipPrologueToFirstRun,
+} from '../utils/firstRunFastPath.js';
+import { PROLOGUE_OFFER } from '../data/prologueContent.js';
 import { logStartupSummary, markStartup } from '../utils/startupTelemetry.js';
 import { startDeferredAssetWarmup } from '../utils/assetWarmup.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
@@ -54,6 +60,10 @@ function readFlag(key) {
   }
 }
 
+// A standalone prologue replay sets the title's slot aside (registry) and restores it.
+const SLOT_REGISTRY_KEYS = ['activeSlot', 'meta', 'hints'];
+const PROLOGUE_REPLAY_STASH = 'prologueReplayStash';
+
 // =============================================
 // TitleScene
 // =============================================
@@ -66,9 +76,8 @@ export class TitleScene extends Phaser.Scene {
   init(data) {
     this.gameData = data.gameData || data;
     this.isTransitioning = false;
-    // The tutorial's "Start first run" lands here and continues into New Game, so
-    // slot staging and the first-run fast path live in one place (handleNewGame).
-    this._autoAction = data?.autoAction === 'newGame' ? 'newGame' : null;
+    // Back from a standalone prologue chapter: the slot the title had is its again.
+    this._restoreSlotRegistry();
   }
 
   create() {
@@ -124,7 +133,8 @@ export class TitleScene extends Phaser.Scene {
     this._resumeSlot = pickResumeSlot(slotSummaries);
     this._menuItems = buildTitleMenu({
       hasSlots,
-      tutorialDone: readFlag('emblem_rogue_tutorial_completed'),
+      prologueDone: readFlag(TUTORIAL_COMPLETED_KEY),
+      hasPrologue: Boolean(this.prologueChapter()),
       resumeSlot: this._resumeSlot,
       seenHowToPlay: readFlag('emblem_rogue_seen_how_to_play'),
     });
@@ -160,16 +170,6 @@ export class TitleScene extends Phaser.Scene {
 
     this._refreshCloudSyncStatusNotice();
     this._setupMenuGamepadFocus();
-
-    if (this._autoAction) {
-      const action = this._autoAction;
-      this._autoAction = null;
-      // After the router's scene-start cooldown (350 ms) so the hand-off is not blocked.
-      this.time?.delayedCall?.(450, () => {
-        if (this.sys?.isActive?.() === false || this.isTransitioning) return;
-        void this._runAction(action);
-      });
-    }
   }
 
   _reducedMotion() {
@@ -207,25 +207,18 @@ export class TitleScene extends Phaser.Scene {
             { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
           ),
         );
-      case 'tutorial':
-        return this.runMenuTransition(() =>
-          transitionToScene(
-            this,
-            'Battle',
-            {
-              gameData: this.gameData,
-              roster: this.buildTutorialRoster(),
-              battleParams: {
-                tutorialMode: true,
-                act: 'act1',
-                objective: 'rout',
-                battleSeed: 42,
-                deployCount: 2,
-              },
-            },
-            { reason: TRANSITION_REASONS.NEW_GAME, retryBlocked: true },
-          ),
-        );
+      case 'prologue': {
+        // A fresh device (no saves) starts the prologue run in a new slot. With saves,
+        // the item is a chapter select: each chapter replays standalone (the authored
+        // roster, no RunManager, nothing saved; docs/specs/prologue-chapter.md §4).
+        if (!this.prologueChapters().length) return undefined;
+        if (getSlotCount() === 0)
+          return this.runMenuTransition(() =>
+            this.handleNewGame({ confirmed: true, start: 'prologue' }),
+          );
+        if (hasDOMHost()) this._showChapterSelect();
+        return undefined;
+      }
       case 'howToPlay':
         if (this.howToPlayOverlay?.visible) return undefined;
         this.howToPlayOverlay = new HowToPlayOverlay(this, () => {
@@ -521,7 +514,12 @@ export class TitleScene extends Phaser.Scene {
     return pickUpgradeSlot(summaries);
   }
 
-  async handleNewGame({ confirmed = false } = {}) {
+  /**
+   * New Game into a fresh slot. `start`: 'prologue' plays the prologue run, 'skip'
+   * records the skip and takes the first-run fast path; neither, with prologue data
+   * and a DOM, asks first (the offer, §4), and without a DOM the offer is the skip.
+   */
+  async handleNewGame({ confirmed = false, start = null } = {}) {
     const nextSlot = getNextAvailableSlot();
     // A slot with upgrades and no run in progress: a new run there keeps them.
     const keepSlot = confirmed ? null : this._slotToKeepUpgrades();
@@ -534,6 +532,14 @@ export class TitleScene extends Phaser.Scene {
       if (hasDOMHost()) this._showNewRunChoice(nextSlot, keepSlot?.slot ?? null);
       else this.showMessage(`Existing saves are preserved. Choose Save Slots to return to them.`);
       return false;
+    }
+    const hasPrologue = this.prologueChapters().length > 0;
+    if (hasPrologue && !start) {
+      if (hasDOMHost()) {
+        this._showPrologueChoice(nextSlot);
+        return false;
+      }
+      start = 'skip';
     }
 
     const prevMeta = this.registry.get('meta');
@@ -571,10 +577,17 @@ export class TitleScene extends Phaser.Scene {
     applyCompletedTutorialHints(this.registry.get('hints'));
     this.registry.set('activeSlot', nextSlot);
     try {
-      // A brand-new slot is always fresh: skip Home Base / Difficulty / Blessing
-      // straight to the act-1 node map. The helper commits the run and (on
-      // success) increments runsStarted, which persists the slot's meta.
-      const transitioned = await startFirstRunFastPath(this, {
+      // A brand-new slot is always fresh: the prologue run, or (skipped, or no
+      // prologue) straight to the act-1 node map past Home Base / Difficulty /
+      // Blessing. The helpers commit the run; the first-run path increments
+      // runsStarted on success, which persists the slot's meta.
+      const begin =
+        start === 'prologue'
+          ? startPrologueRun
+          : start === 'skip'
+            ? skipPrologueToFirstRun
+            : startFirstRunFastPath;
+      const transitioned = await begin(this, {
         gameData: this.gameData,
         slot: nextSlot,
       });
@@ -642,8 +655,121 @@ export class TitleScene extends Phaser.Scene {
     menu.focusContent();
   }
 
-  buildTutorialRoster() {
-    return _buildTutorialRoster(this.gameData);
+  /**
+   * The prologue's offer on a fresh slot (§4): play it (the highlighted default on a
+   * device that has not finished it) or skip to the first run.
+   */
+  _showPrologueChoice(nextSlot) {
+    const menu = this._openTitleMenu(PROLOGUE_OFFER.title);
+    const pick = (start) => () => {
+      this._closeTitleMenu();
+      void this.runMenuTransition(() => this.handleNewGame({ confirmed: true, start }));
+    };
+    const playFirst = !readFlag(TUTORIAL_COMPLETED_KEY);
+    const play = button(
+      `${PROLOGUE_OFFER.play} · ${PROLOGUE_OFFER.playSub}`,
+      pick('prologue'),
+      playFirst ? 're-btn re-btn--primary' : 're-btn',
+    );
+    const skip = button(
+      PROLOGUE_OFFER.skip,
+      pick('skip'),
+      playFirst ? 're-btn' : 're-btn re-btn--primary',
+    );
+    menu.body.append(
+      element('p', `${PROLOGUE_OFFER.body} A new save will use Slot ${nextSlot}.`),
+      ...(playFirst ? [play, skip] : [skip, play]),
+    );
+    menu.focusContent();
+  }
+
+  /** The prologue's chapters in route order (the title's chapter select). */
+  prologueChapters() {
+    const prologue = this.gameData?.prologue;
+    const chapters = Array.isArray(prologue?.chapters) ? prologue.chapters : [];
+    const nodes = Array.isArray(prologue?.route?.nodes) ? prologue.route.nodes : [];
+    const ordered = [...nodes]
+      .filter((n) => typeof n?.chapter === 'string')
+      .sort((a, b) => (a.row || 0) - (b.row || 0))
+      .map((n) => chapters.find((c) => c?.id === n.chapter))
+      .filter(Boolean);
+    return ordered.length ? ordered : chapters;
+  }
+
+  /** The title's practice chapter: the prologue's first (null without prologue data). */
+  prologueChapter() {
+    return this.prologueChapters()[0] || null;
+  }
+
+  /** Chapter select: each chapter replays standalone; nothing is saved. */
+  _showChapterSelect() {
+    const menu = this._openTitleMenu('Prologue');
+    menu.body.append(
+      element(
+        'p',
+        'Replay a chapter on its own. Nothing from a replay is kept; your saves stay as they are.',
+      ),
+    );
+    this.prologueChapters().forEach((chapter, index) => {
+      menu.body.append(
+        button(
+          chapter.title || chapter.id,
+          () => {
+            this._closeTitleMenu();
+            void this.runMenuTransition(() => this.startStandaloneChapter(chapter));
+          },
+          index === 0 ? 're-btn re-btn--primary' : 're-btn',
+        ),
+      );
+    });
+    menu.focusContent();
+  }
+
+  /**
+   * Play a chapter standalone: the authored roster at the chapter's expected levels
+   * (buildPrologueRoster), no RunManager. The slot the title holds (activeSlot, meta,
+   * hints) is set aside so the replay cannot touch it, and comes back with the title.
+   */
+  async startStandaloneChapter(chapter) {
+    const prologue = this.gameData?.prologue;
+    if (!prologue || !chapter) return false;
+    const roster = buildPrologueRoster(prologue, this.gameData, chapter);
+    this._stashSlotRegistry();
+    const ok = await transitionToScene(
+      this,
+      'Battle',
+      {
+        gameData: this.gameData,
+        roster,
+        battleParams: prologueBattleParams(chapter, { seed: prologue.seed }),
+      },
+      { reason: TRANSITION_REASONS.NEW_GAME, retryBlocked: true },
+    );
+    if (!ok) this._restoreSlotRegistry();
+    return ok;
+  }
+
+  _stashSlotRegistry() {
+    const registry = this.registry;
+    if (!registry?.get) return;
+    if (registry.get(PROLOGUE_REPLAY_STASH)) return;
+    const stash = {};
+    for (const key of SLOT_REGISTRY_KEYS) {
+      if (registry.get(key) === undefined) continue;
+      stash[key] = registry.get(key);
+      if (typeof registry.remove === 'function') registry.remove(key);
+      else registry.set(key, undefined);
+    }
+    registry.set(PROLOGUE_REPLAY_STASH, stash);
+  }
+
+  _restoreSlotRegistry() {
+    const registry = this.registry;
+    const stash = registry?.get?.(PROLOGUE_REPLAY_STASH);
+    if (!stash) return;
+    for (const key of SLOT_REGISTRY_KEYS) if (key in stash) registry.set(key, stash[key]);
+    if (typeof registry.remove === 'function') registry.remove(PROLOGUE_REPLAY_STASH);
+    else registry.set(PROLOGUE_REPLAY_STASH, undefined);
   }
 
   async runMenuTransition(action) {

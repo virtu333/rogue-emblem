@@ -25,6 +25,9 @@ export function persistFatalDecision(scene) {
       state.commanderEntityId = scene._battleCommanderId || null;
       state.commanderKillerName = scene._commanderKillerName || null;
       state.commanderName = scene._battleCommanderName || null;
+      // A prologue chapter's protected non-commander (Gaspar, Sera) who fell.
+      state.fallenName = scene._prologueFallen?.name || null;
+      state.fallenClassName = scene._prologueFallen?.className || null;
       state.pendingActionCompletion = null;
       state.pendingCommittedAction = null;
       scene._pendingCommittedAction = null;
@@ -76,6 +79,14 @@ export function resumeFatalDecision(scene, checkpoint) {
     (typeof checkpoint.commanderName === 'string' && checkpoint.commanderName) ||
     scene.runManager?.getCommanderName?.() ||
     null;
+  scene._prologueFallen =
+    typeof checkpoint.fallenName === 'string' && checkpoint.fallenName
+      ? {
+          name: checkpoint.fallenName,
+          className: checkpoint.fallenClassName || null,
+          epithet: null,
+        }
+      : null;
   scene._fatalDecision = { durable: true, candidate: null };
   scene._pendingActionCompletion = null;
   scene._pendingLevelUpPopups = [];

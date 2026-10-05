@@ -9,8 +9,14 @@
 //   siege caster that has spent its shots still fights (AIController re-equips);
 // * a status-staff spawn: the staff beside its weapon (enemy.statusStaff);
 // * Nightfall and up: secondary weapons for multi-proficiency enemies without special gear.
+//
+// applySpawnLoadout then applies what an authored spawn (data/prologue.json) fixes by
+// hand: its weapon, its skills, its authored id and any stats it fixes (P4's Captain
+// Varro). Generated spawns carry none of these,
+// so for them it does nothing.
 import { isStaff } from './Combat.js';
-import { grantSecondaryWeapons } from './UnitManager.js';
+import { canEquip, grantSecondaryWeapons } from './UnitManager.js';
+import { ensureItemUid } from '../utils/itemUid.js';
 import { isDifficultyAtLeast } from './DifficultyEngine.js';
 import {
   SUNDER_WEAPON_BY_TYPE,
@@ -81,4 +87,63 @@ export function applyEnemySpawnGear(enemy, spawn, { weapons, difficultyId = 'nor
     grantSecondaryWeapons(enemy, weapons, enemy.weapon?.tier || 'Iron');
   }
   return enemy;
+}
+
+/**
+ * Apply an authored spawn's loadout to the enemy built from it (mutated). Run it after
+ * applyEnemySpawnGear: what the author wrote is final.
+ * - `spawn.weapon` (a weapons.json name): the enemy carries exactly that weapon,
+ *   equipped. Specials such as Javelin are allowed (the tier picker never chooses them).
+ *   A weapon the enemy can't wield (proficiency, rank, a scroll) is refused and the
+ *   rolled kit stays. The new weapon takes over the dropped weapon's uid, so an authored
+ *   weapon draws no extra Math.random and the battle's stream is unchanged.
+ * - `spawn.skills` (an array of skill ids): exactly those skills, replacing class-innate
+ *   and rolled ones; `[]` means none. Ids unknown to `skills` (when given) are dropped.
+ * - `spawn.authoredId`: copied to `enemy.authoredId` (prologue beats name enemies by it).
+ * - `spawn.stats` ({ <stat>: integer }): those stats replace what the class, level and
+ *   a boss's bonus gave (any other stat stays). HP refills to the new maximum and MOV
+ *   moves the unit's `mov`. Unknown stats and non-integers are ignored.
+ * A spawn without these fields leaves the enemy untouched. No RNG of its own.
+ * @param {object} enemy
+ * @param {object} spawn
+ * @param {{ weapons?: object[], skills?: object[]|null }} deps
+ * @returns {{ weapon: 'equipped'|'unknown'|'refused'|null, skills: string[]|null }}
+ */
+export function applySpawnLoadout(enemy, spawn, { weapons = [], skills = null } = {}) {
+  const report = { weapon: null, skills: null };
+  if (!enemy || !spawn) return report;
+  if (typeof spawn.authoredId === 'string' && spawn.authoredId) {
+    enemy.authoredId = spawn.authoredId;
+  }
+  if (typeof spawn.weapon === 'string' && spawn.weapon) {
+    const data = (weapons || []).find((w) => w?.name === spawn.weapon);
+    if (!data) {
+      report.weapon = 'unknown';
+    } else if (data.type === 'Consumable' || !canEquip(enemy, data)) {
+      report.weapon = 'refused';
+    } else {
+      const weapon = structuredClone(data);
+      const inherited = enemy.weapon?.uid || (enemy.inventory || []).find((w) => w?.uid)?.uid;
+      if (typeof inherited === 'string') weapon.uid = inherited;
+      ensureItemUid(weapon);
+      enemy.weapon = weapon;
+      enemy.inventory = [weapon];
+      report.weapon = 'equipped';
+    }
+  }
+  if (Array.isArray(spawn.skills)) {
+    const known = Array.isArray(skills) ? new Set(skills.map((s) => s?.id)) : null;
+    enemy.skills = spawn.skills.filter((id) => typeof id === 'string' && (!known || known.has(id)));
+    delete enemy.benchedSkills;
+    report.skills = [...enemy.skills];
+  }
+  if (spawn.stats && typeof spawn.stats === 'object' && enemy.stats) {
+    for (const [stat, value] of Object.entries(spawn.stats)) {
+      if (!Object.hasOwn(enemy.stats, stat) || !Number.isInteger(value) || value < 0) continue;
+      enemy.stats[stat] = stat === 'HP' ? Math.max(1, value) : value;
+    }
+    if (Object.hasOwn(spawn.stats, 'MOV')) enemy.mov = enemy.stats.MOV;
+    enemy.currentHP = enemy.stats.HP;
+  }
+  return report;
 }

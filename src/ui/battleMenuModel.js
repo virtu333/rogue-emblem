@@ -79,6 +79,6 @@ export function canUseDanger(scene) {
     DANGER_STATES.has(scene?.battleState) &&
     scene.turnManager?.currentPhase !== 'enemy' &&
     !scene.isStoryInputLocked?.() &&
-    !scene._isTutorialStrictGateActive?.()
+    !scene._isPrologueGateActive?.()
   );
 }

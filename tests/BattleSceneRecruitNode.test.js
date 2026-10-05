@@ -84,7 +84,6 @@ function makeScene({ runManager, deployed, npcSpawn }) {
   scene.runManager = runManager;
   scene.battleParams = {
     act: 'act1',
-    tutorialMode: false,
     fogEnabled: false,
     isRecruitBattle: true,
   };
@@ -121,7 +120,6 @@ function makeScene({ runManager, deployed, npcSpawn }) {
     'updateTopLeftHudLayout',
     'updateEnemyVisibility',
     'updateVisionHud',
-    '_clearTutorialGuideHighlights',
     'cancelTouchInspectHold',
     '_hideMenuTooltip',
     '_restoreBattleRng',

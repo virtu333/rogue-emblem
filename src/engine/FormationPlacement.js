@@ -32,11 +32,11 @@ export const tileKey = (t) => `${t.col},${t.row}`;
 /** Whether this battle opens the placement step. */
 export function formationActive({
   deployCount = 0,
-  tutorialMode = false,
+  scripted = false,
   resuming = false,
   disabled = false,
 } = {}) {
-  return !tutorialMode && !resuming && !disabled && deployCount >= FORMATION_MIN_UNITS;
+  return !scripted && !resuming && !disabled && deployCount >= FORMATION_MIN_UNITS;
 }
 
 /** Extra tiles beyond one per unit: at least 2, and more as the army grows. */

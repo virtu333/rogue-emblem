@@ -22,6 +22,7 @@ vi.mock('../src/utils/errorReporter.js', () => ({
 }));
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
+import { PrologueController } from '../src/ui/PrologueController.js';
 import { applyCondition } from '../src/engine/StatusConditionSystem.js';
 
 afterEach(() => {
@@ -29,32 +30,36 @@ afterEach(() => {
 });
 
 describe('BattleScene async guards', () => {
-  it('restores tutorial hint state when blocking hint throws', async () => {
+  it('restores the prologue note state when a blocking instruction throws', async () => {
     const scene = new BattleScene();
     scene.scene = { isActive: () => true };
+    scene.battleParams = {};
     scene.battleState = 'UNIT_SELECTED';
     scene.refreshEndTurnControl = vi.fn();
+    const prologue = new PrologueController(scene);
     showImportantHintMock.mockRejectedValueOnce(new Error('hint failed'));
 
-    await expect(scene._showTutorialBlockingInstruction('test hint')).rejects.toThrow(
-      'hint failed',
-    );
+    await expect(prologue.blockingInstruction('test hint')).rejects.toThrow('hint failed');
 
     expect(scene.battleState).toBe('UNIT_SELECTED');
-    expect(scene._tutorialBlockingPromptActive).toBe(false);
+    expect(prologue.blockingPromptActive).toBe(false);
     expect(scene.refreshEndTurnControl).toHaveBeenCalledTimes(1);
   });
 
-  it('restores tutorial hint state when blocking hint completes while scene is inactive', async () => {
+  it('never restores a state after the scene went inactive under a blocking instruction', async () => {
     const scene = new BattleScene();
-    scene.scene = { isActive: () => false };
+    scene.scene = { isActive: () => true };
+    scene.sys = { isActive: () => false };
+    scene.battleParams = {};
     scene.battleState = 'UNIT_SELECTED';
     scene.refreshEndTurnControl = vi.fn();
+    const prologue = new PrologueController(scene);
 
-    await expect(scene._showTutorialBlockingInstruction('test hint')).resolves.toBe(true);
+    await expect(prologue.blockingInstruction('test hint')).resolves.toBe(true);
 
-    expect(scene.battleState).toBe('UNIT_SELECTED');
-    expect(scene._tutorialBlockingPromptActive).toBe(false);
+    // The note's state stays: a dead scene is never written back to.
+    expect(scene.battleState).toBe('TUTORIAL_HINT');
+    expect(prologue.blockingPromptActive).toBe(false);
     expect(scene.refreshEndTurnControl).toHaveBeenCalledTimes(1);
   });
 
@@ -76,7 +81,7 @@ describe('BattleScene async guards', () => {
     applyCondition(sleeper, 'sleep', 3);
 
     scene.scene = { isActive: () => true };
-    scene.battleParams = { tutorialMode: false };
+    scene.battleParams = {};
     scene.battleState = 'PLAYER_IDLE';
     scene.playerUnits = [sleeper];
     scene.enemyUnits = [];

@@ -369,6 +369,10 @@ test('delete asks first; an empty candle begins a new run in that slot', async (
   expect(await page.evaluate(() => localStorage.getItem('emblem_rogue_slot_2_meta'))).toBeNull();
 
   await page.getByRole('button', { name: 'New run in Slot 3', exact: true }).tap();
+  // An empty slot is offered the prologue first (docs/specs/prologue-chapter.md §4).
+  const offer = page.getByRole('dialog', { name: 'Begin the first thread?', exact: true });
+  await expect(offer).toBeVisible();
+  await offer.getByRole('button', { name: 'Skip to the first run', exact: true }).tap();
   await waitForScene(page, 'NodeMap');
   expect(
     await page.evaluate(() => ({

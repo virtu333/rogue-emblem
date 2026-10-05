@@ -15,9 +15,10 @@
 // what it played before. Within an act a pool is walked in a per-run order
 // indexed by the node's row, so the battles along one path never repeat a
 // theme until the pool is spent. The run's first battle always opens on Act
-// I's first theme (Ember Dusk, the main battle theme), as does the tutorial.
+// I's first theme (Ember Dusk, the main battle theme), as does the prologue.
 
 import { voiceHash } from './UnitVoice.js';
+import { isScriptedBattle } from './ScriptedBattle.js';
 
 /**
  * Share of eligible battles a biome or situation theme takes (the rest play
@@ -97,7 +98,7 @@ export function battleMusicContext({ battleParams, battleConfig, runSeed, isElit
     row: Number.isFinite(Number(params.row)) ? Number(params.row) : null,
     nodeKey: `${params.act || 'act1'}|${params.row ?? '-'}|${params.battleSeed ?? '-'}`,
     seed: seedSource,
-    firstBattle: params.firstBattleFightersOnly === true || params.tutorialMode === true,
+    firstBattle: params.firstBattleFightersOnly === true || isScriptedBattle(params),
     isElite: Boolean(isElite || params.isElite),
     isAmbush: params.isAmbush === true,
     hasVillage: params.hasVillage === true,

@@ -240,8 +240,12 @@ describe('Narrative data', () => {
     expect(dialogue.runComplete?.victory_lieutenant?.variants?.[0]?.when?.firstClear).toBe(true);
 
     // Every boss remembers: gloat when it has killed you, unease on a rematch,
-    // and a distinct repeat-defeat line.
+    // and a distinct repeat-defeat line. The prologue's own boss (Varro) is fought in
+    // a run that records no boss memory, so he has none to remember.
+    const prologueBoss = JSON.parse(fs.readFileSync('data/prologue.json', 'utf8')).boss?.name;
+    expect(dialogue.bossEncounters?.[prologueBoss]).toBeTruthy();
     for (const [name, boss] of Object.entries(dialogue.bossEncounters || {})) {
+      if (name === prologueBoss) continue;
       const pre = boss.preBattle?.variants || [];
       expect(
         pre.some((v) => v?.when?.bossKilledYouBefore === true),
@@ -516,6 +520,54 @@ describe('Scene wiring', () => {
     expect(shown.map((e) => e.line)).toEqual(['vision', 'kira voice']);
   });
 
+  it("Gaspar's run-start intro: skipped only in the first real run after a prologue that won P1", async () => {
+    const prologue = { joins: { afterChapter: { p1_banner_at_dawn: ['old_knight'] } } };
+    const introFor = async ({ runsStarted, chaptersCompleted }) => {
+      const shown = [];
+      const meta = {
+        getRunsStarted: () => runsStarted,
+        runsStarted,
+        getPrologue: () => ({ state: 'complete', chaptersCompleted }),
+        getPrologueState: () => 'complete',
+      };
+      const scene = {
+        ensureAudioUnlocked: vi.fn(async () => {}),
+        sys: { isActive: () => true },
+        input: { enabled: false },
+        registry: { get: (k) => (k === 'meta' ? meta : null) },
+        runManager: {
+          hasShownDialogue: vi.fn(() => false),
+          markDialogueShown: vi.fn(),
+          roster: [{ name: 'Gaspar', specialCharId: 'old_knight' }],
+        },
+        gameData: {
+          prologue,
+          dialogue: {
+            actTransitions: { runStart: { base: [{ speaker: 'Sera', line: 'vision' }] } },
+            specialChars: { old_knight: { intro: ['gaspar intro'] } },
+          },
+        },
+        dialogueOverlay: { showSequence: vi.fn(async (entries) => shown.push(...entries)) },
+        persistRunSave: vi.fn(),
+        _showPendingNodeMapHints: vi.fn(async () => {}),
+        _consumePendingNodeSelection: vi.fn(() => false),
+        _storyDialogueActive: false,
+        isSceneReady: false,
+      };
+      await NodeMapScene.prototype.finalizeSceneReady.call(scene);
+      return shown.map((e) => e.line).includes('gaspar intro');
+    };
+    // The first real run after the prologue (counted as it starts): he needs no intro.
+    expect(await introFor({ runsStarted: 1, chaptersCompleted: ['p1_banner_at_dawn'] })).toBe(
+      false,
+    );
+    // Every later run on the slot introduces him as before.
+    expect(await introFor({ runsStarted: 2, chaptersCompleted: ['p1_banner_at_dawn'] })).toBe(true);
+    expect(await introFor({ runsStarted: 5, chaptersCompleted: ['p1_banner_at_dawn'] })).toBe(true);
+    // A prologue that never won P1 never introduced him.
+    expect(await introFor({ runsStarted: 1, chaptersCompleted: [] })).toBe(true);
+  });
+
   it('onVictory records boss slain AFTER selecting dialogue, BEFORE showing it', async () => {
     const order = [];
     const pending = [];
@@ -530,7 +582,7 @@ describe('Scene wiring', () => {
     const scene = {
       _battleSession: 1,
       battleState: 'PLAYER_IDLE',
-      battleParams: { tutorialMode: false, act: 'act1' },
+      battleParams: { act: 'act1' },
       scene: { isActive: () => true },
       cameras: { main: { centerX: 320, centerY: 240 } },
       add: {
@@ -1075,7 +1127,7 @@ describe('Elite victory flavor (Surface 6)', () => {
     const scene = {
       _battleSession: 1,
       battleState: 'PLAYER_IDLE',
-      battleParams: { tutorialMode: false, act: 'act1' },
+      battleParams: { act: 'act1' },
       scene: { isActive: () => sceneState.active },
       cameras: { main: { centerX: 320, centerY: 240 } },
       add: {

@@ -64,9 +64,9 @@ export class VisionRewindController {
 
   /**
    * Where Vision charges live. Runs charge the RunManager; standalone battles
-   * (tutorial) get a scene-scoped store so charges can be granted and spent
-   * without a run — it starts at 0, so nothing changes unless something
-   * (the tutorial lord-death flow) deposits a charge.
+   * (a prologue chapter replayed from the title) get a scene-scoped store so charges
+   * can be granted and spent without a run. It starts at 0; P3's `grantVision` beat
+   * deposits its one charge there (PrologueController.grantVision, same store).
    */
   _chargeHost() {
     if (this.runManager) return this.runManager;
@@ -701,6 +701,8 @@ export class VisionRewindController {
   /** The commander this decision is about (presentation only). */
   _fallenCommander() {
     const scene = this.scene;
+    // A prologue chapter's protected unit (Gaspar, Sera) fell: the prompt names it.
+    if (scene._prologueFallen?.name) return scene._prologueFallen;
     if (scene._fallenCommander?.name) return scene._fallenCommander;
     // After a reload the fatal checkpoint restores the commander's name.
     const commanderName =
@@ -761,7 +763,8 @@ export class VisionRewindController {
     const seraPresent = visionPool.some((u) => u?.name === 'Sera');
     this._rewindFatalOrigin = true;
     const intent = usableAnchor ? this.createRewindIntent(anchor) : null;
-    const fallen = this.scene._battleCommanderName || 'Your commander';
+    const fallen =
+      this.scene._prologueFallen?.name || this.scene._battleCommanderName || 'Your commander';
     const charges = `${remaining} Vision${remaining === 1 ? '' : 's'} left this run`;
     this.showDialog({
       fate: {
@@ -774,7 +777,9 @@ export class VisionRewindController {
         remaining,
       },
       title: seraPresent ? "Sera's vision fractures!" : 'A vision fractures!',
-      body: `${fallen} has fallen. Accepting fate ends this run.\nRewind to reveal another path? (${charges})`,
+      body: this.scene._prologue
+        ? `${fallen} has fallen. Accepting fate restarts this chapter.\nRewind to reveal another path? (${charges})`
+        : `${fallen} has fallen. Accepting fate ends this run.\nRewind to reveal another path? (${charges})`,
       confirmLabel: 'Rewind',
       cancelLabel: 'Accept Fate',
       onConfirm: () => {
@@ -986,13 +991,15 @@ export class VisionRewindController {
       this.endHistorySession();
       return false;
     }
-    // Tutorial has no run record. It retains its existing in-memory teaching
+    // A standalone battle has no run record. It retains its existing in-memory teaching
     // rewind; every persisted game uses the same transaction below.
     if (!this.runManager) {
       host.visionChargesRemaining--;
       host.visionCount = Math.max(0, (host.visionCount || 0) + 1);
       scene.pendingVisionSnapshot = null;
-      return scene.applyVisionSnapshot();
+      const applied = scene.applyVisionSnapshot();
+      if (applied) void scene._prologue?.onRewound?.();
+      return applied;
     }
     this._rewindCommitting = true;
     try {
@@ -1048,6 +1055,8 @@ export class VisionRewindController {
         const applied = this._applySnapshot({ committed: true });
         // The restored board is exactly the target point.
         if (applied) scene._rewindFingerprint = rewindFingerprint(scene);
+        // A prologue chapter watches the replayed move (the rewind exercise).
+        if (applied) void scene._prologue?.onRewound?.();
         return applied;
       } catch (error) {
         scene.battleState = 'PAUSED';

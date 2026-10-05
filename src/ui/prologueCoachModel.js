@@ -1,9 +1,10 @@
-// tutorialCoachModel — what the tutorial coach says right now (pure, no DOM/Phaser).
+// prologueCoachModel — what the prologue coach says right now (pure, no DOM/Phaser).
 //
-// The coach is the tutorial's persistent objective line: one goal at a time,
-// anchored to the thing it is about, derived from battle state rather than
-// pushed as modal text. Blocking "Field notes" remain only for explanations the
-// player must read (forecast, terrain, resources, permadeath, rewind).
+// The coach is the chapter's persistent objective line: one goal at a time, anchored to
+// the thing it is about. While a beat's guided step is live (a coach goal with its gate,
+// prologueContent.PROLOGUE_COACH) that goal shows; afterwards the goal is derived from
+// battle state. Blocking "Field notes" remain only for explanations the player must
+// read (forecast, terrain, resources).
 
 export const COACH_CHAPTERS = Object.freeze([
   { id: 'select', label: 'Select' },
@@ -15,47 +16,45 @@ export const COACH_CHAPTERS = Object.freeze([
 const CHAPTER_INDEX = Object.fromEntries(COACH_CHAPTERS.map((c, i) => [c.id, i]));
 
 /**
- * @param {object} s  plain snapshot built by TutorialCoach.snapshot()
- * @param {number} s.step            scene.tutorialStep
- * @param {boolean} s.gateReleased   movement lesson finished or skipped
- * @param {string} s.phase           'player' | 'enemy'
- * @param {string} s.state           scene.battleState
- * @param {boolean} s.touch          phrase for taps instead of clicks
- * @param {string} s.commanderName   the lord whose fall loses the battle
+ * @param {object} s  plain snapshot built by PrologueCoach.snapshot()
+ * @param {null|{id:string, goal:string, detail:string, chapter:string, anchor:object|null,
+ *   canSkip:boolean}} s.scripted  the live guided step's goal, if any
+ * @param {boolean} s.gated         a guided step still blocks free play
+ * @param {string} s.phase          'player' | 'enemy'
+ * @param {string} s.state          scene.battleState
+ * @param {boolean} s.touch         phrase for taps instead of clicks
+ * @param {string} s.commanderName  the lord whose fall restarts the chapter
  * @param {Array<{name:string, acted:boolean, hp:number, maxHp:number, healer:boolean}>} s.units
- * @param {number} s.enemies         enemies still standing
- * @param {string[]} [s.menu]        choosable labels in the open action menu
- * @param {string} [s.selected]      selected unit's name
+ * @param {number} s.enemies        enemies still standing
+ * @param {string[]} [s.menu]       choosable labels in the open action menu
+ * @param {string} [s.selected]     selected unit's name
  * @param {boolean} [s.selectionMenu] the tap-selected menu (unit can still move)
+ * @param {string[]} [s.recruitsPending] green units the rout requires in the army
+ *   (RoutObjective.pendingRequiredRecruits): the goal once the field is clear
  * @returns {null | {id:string, chapter:string, goal:string, detail:string,
- *   anchor:null|{kind:'unit'|'fort'|'hud', name?:string, hud?:string}, canSkip:boolean}}
+ *   anchor:null|{kind:'unit'|'tile'|'hud', name?:string, col?:number, row?:number, hud?:string}, canSkip:boolean}}
  */
-export function tutorialCoachState(s) {
-  if (!s || !Number.isFinite(s.step) || s.step < 2) return null;
+export function prologueCoachState(s) {
+  if (!s) return null;
+  if (s.scripted) return { canSkip: false, anchor: null, ...s.scripted, scriptedStep: true };
+  if (s.gated) return null; // a note of the guided step is showing
   const tap = s.touch ? 'Tap' : 'Click';
   const lord = s.commanderName || 'Edric';
-  if (!s.gateReleased) {
-    if (s.step <= 2)
-      return {
-        id: 'select',
-        chapter: 'select',
-        goal: `Select ${lord}`,
-        detail: `Blue units are yours; red are the empire's. ${tap} ${lord} to see where he can move.`,
-        anchor: { kind: 'unit', name: lord },
-        canSkip: true,
-      };
-    if (s.step === 3)
-      return {
-        id: 'move',
-        chapter: 'move',
-        goal: 'Move onto the Fort',
-        detail: `Blue tiles show his reach. ${tap} the gold-framed Fort — cover makes him harder to hit and hurt.`,
-        anchor: { kind: 'fort' },
-        canSkip: true,
-      };
-    return null; // arrival lesson (Field notes) is showing
+  const pending = Array.isArray(s.recruitsPending) ? s.recruitsPending.filter(Boolean) : [];
+  if (s.enemies <= 0) {
+    // The field is clear but the chapter waits on a recruit (P3's Sera): the one
+    // objective left, whatever is open. Without one the victory flow owns the screen.
+    if (!pending.length) return null;
+    const who = pending[0];
+    return {
+      id: 'recruit-required',
+      chapter: 'win',
+      goal: `Reach ${who} and Talk`,
+      detail: `The road is clear, but ${who} must join before this chapter ends. Move ${lord} next to ${who} and choose Talk. Only a lord can.`,
+      anchor: { kind: 'unit', name: lord },
+      canSkip: false,
+    };
   }
-  if (s.enemies <= 0) return null; // victory flow owns the screen
   const remaining = s.enemies === 1 ? 'the last enemy' : `all ${s.enemies} enemies`;
   if (s.phase === 'enemy')
     return {
@@ -153,7 +152,7 @@ export function tutorialCoachState(s) {
     id: 'fight',
     chapter: s.enemies === 1 ? 'win' : 'fight',
     goal: s.enemies === 1 ? 'Defeat the last enemy' : `Defeat ${remaining}`,
-    detail: `Select ${fighter?.name || 'a unit'}, ${approach}, then Attack. Keep ${lord} safe — if he falls, the battle is lost.`,
+    detail: `Select ${fighter?.name || 'a unit'}, ${approach}, then Attack. Keep ${lord} safe: if he falls, this chapter starts over. In a real run, the whole run would end.`,
     anchor: null,
     canSkip: false,
   };

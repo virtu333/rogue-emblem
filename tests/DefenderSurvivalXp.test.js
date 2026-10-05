@@ -137,7 +137,6 @@ function scene() {
   s.removeUnit = vi.fn(async () => {});
   s.checkBattleEnd = vi.fn(() => false);
   s._selectEnemyWeaponArt = vi.fn(() => null);
-  s._maybeShowTutorialPermadeathHint = vi.fn(async () => {});
   vi.spyOn(s, 'awardScaledXP');
   return s;
 }

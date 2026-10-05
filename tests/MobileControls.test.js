@@ -877,7 +877,6 @@ describe('BattleScene shutdown mobile context reset (Fix 1)', () => {
       dialogueOverlay: null,
       registry: { get: vi.fn(() => null) },
       _stopLevelUpSfx: vi.fn(),
-      _clearTutorialGuideHighlights: vi.fn(),
       cancelTouchInspectHold: vi.fn(),
       _hideMenuTooltip: vi.fn(),
       _restoreBattleRng: vi.fn(),

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { HeadlessBattle } from './harness/HeadlessBattle.js';
 import { loadGameData } from './testData.js';
+import { TERRAIN } from '../src/utils/constants.js';
 
 describe('Headless Harness Phase Parity', () => {
   const data = loadGameData();
@@ -70,6 +71,9 @@ describe('Headless Harness Phase Parity', () => {
     enemy.affixes = ['regenerator'];
     enemy.stats.HP = 20;
     enemy.currentHP = 10;
+    // The Regenerator alone: a Fort or Throne under the enemy would heal it too, as in the
+    // scene (engine/TerrainHealing.js).
+    battle.grid.mapLayout[enemy.row][enemy.col] = TERRAIN.Plain;
 
     // Enter the enemy phase through the real transition before processing AI.
     await battle.endTurn();

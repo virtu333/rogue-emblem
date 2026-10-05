@@ -319,7 +319,7 @@ describe('victory band', () => {
       gameData,
       events: emitter(),
       battleState: 'PLAYER_IDLE',
-      battleParams: { tutorialMode: false, act: 'act1' },
+      battleParams: { act: 'act1' },
       battleConfig: { objective: 'rout' },
       turnManager: { turnNumber: 7 },
       turnPar: 8,
@@ -343,8 +343,6 @@ describe('victory band', () => {
       playerUnits: [],
       nonDeployedUnits: [],
       runManager: null,
-      _tutorialController: { recordCompletion: vi.fn() },
-      _transitionTutorialToTitle: vi.fn(),
     };
     scene._getCeremonies = () => (scene._ceremonies ||= new CeremonyController(scene));
     return { scene, delayed };
@@ -364,11 +362,10 @@ describe('victory band', () => {
     vi.useFakeTimers();
     const { scene, delayed } = victoryScene();
     scene.runManager = null;
-    // Standalone branch uses its own restart timer; use the tutorial branch to
+    // Standalone branch uses its own restart timer; use the prologue branch to
     // observe the shared continuation.
-    scene.battleParams.tutorialMode = true;
-    const hints = await import('../src/ui/HintDisplay.js');
-    const important = vi.spyOn(hints, 'showImportantHint').mockResolvedValue();
+    scene.battleParams.prologueChapter = 'p1_banner_at_dawn';
+    scene._prologue = { onVictory: vi.fn(async () => {}) };
     new PostCombatController(scene).onVictory();
     const continuation = delayed.find((d) => d.ms === 1500);
     expect(continuation).toBeTruthy();
@@ -378,9 +375,7 @@ describe('victory band', () => {
     expect(continuation.remove).toHaveBeenCalled();
     continuation.cb();
     await vi.advanceTimersByTimeAsync(400);
-    expect(important).toHaveBeenCalledTimes(1);
-    expect(scene._transitionTutorialToTitle).toHaveBeenCalledTimes(1);
+    expect(scene._prologue.onVictory).toHaveBeenCalledTimes(1);
     expect(dom.doc.querySelector('.ce-band-layer--victory')).toBeNull();
-    important.mockRestore();
   });
 });

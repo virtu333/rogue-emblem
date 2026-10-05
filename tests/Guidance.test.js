@@ -299,7 +299,7 @@ describe('Recruit battle intro (playtest 4: a field note, never a dialog)', () =
     scene.turnManager.currentPhase = 'enemy';
     expect(g.pick()).toBeNull();
     scene.turnManager.currentPhase = 'player';
-    scene.battleParams.tutorialMode = true;
+    scene.battleParams.prologueChapter = 'p1_banner_at_dawn';
     expect(g.level()).toBe('off');
   });
 });
@@ -356,9 +356,9 @@ describe('GuidanceController moments', () => {
     settings.getHints = () => false;
     expect(g.level()).toBe('off');
     settings.getHints = () => true;
-    scene.battleParams.tutorialMode = true;
+    scene.battleParams.prologueChapter = 'p1_banner_at_dawn';
     expect(g.level()).toBe('off');
-    scene.battleParams.tutorialMode = false;
+    delete scene.battleParams.prologueChapter;
     hints.markSeen('guide_first_turn');
     expect(g.pick()).toBeNull();
   });
@@ -403,6 +403,25 @@ describe('GuidanceController moments', () => {
     edric.weapon = null;
     settings.getGuidance = () => 'light';
     expect(g.unarmedAttackReason(edric)).toBeNull();
+  });
+
+  it('a prologue chapter shows the greyed Attack reasons whatever the Guidance level', () => {
+    const { scene, settings, sera, edric } = guidanceScene();
+    const g = new GuidanceController(scene);
+    edric.proficiencies = [{ type: 'Sword', rank: 'Prof' }];
+    edric.inventory = [];
+    edric.weapon = null;
+    for (const level of ['light', 'off']) {
+      settings.getGuidance = () => level;
+      scene.battleParams.prologueChapter = 'p3_seer_on_the_road';
+      expect(g.noTargetAttackReason(sera, []), level).toBe('No target in range 1–2');
+      expect(g.unarmedAttackReason(edric), level).toBe('Unarmed: no weapon to attack with');
+      // The notes stay the chapter's: the Guidance level itself is still off there.
+      expect(g.level()).toBe('off');
+      delete scene.battleParams.prologueChapter;
+      expect(g.noTargetAttackReason(sera, []), level).toBeNull();
+      expect(g.unarmedAttackReason(edric), level).toBeNull();
+    }
   });
 
   describe('greyed Attack reach matches what targeting can strike', () => {

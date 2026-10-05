@@ -154,7 +154,7 @@ for (const vp of PORTRAIT_PHONES) {
       await expectInsideSafeArea(page, '.re-title button, .re-keyart-lockup, .re-title-foot');
       const content = vp.width - 32;
       const run = page.getByRole('group', { name: 'Play' }).getByRole('button');
-      await expect(run).toHaveText([/New Game/, /Save Slots/, /Tutorial/]);
+      await expect(run).toHaveText([/New Game/, /Save Slots/, /Prologue/]);
       for (const b of await run.all()) {
         await expectTappable(b);
         expect((await b.boundingBox()).width, 'a full-width run plate').toBeGreaterThan(

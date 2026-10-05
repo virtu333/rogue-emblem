@@ -11,6 +11,7 @@ import {
 import portraitManifest from './RebuiltPortraitManifest.json';
 import { hasPc98, pc98PortraitElement, usePc98 } from './portraitArt.js';
 import { metLords } from '../engine/LordsMet.js';
+import { BEGIN_RUN_CANCELLED } from '../engine/PrologueRouting.js';
 const node = (tag, cls, text) => {
   const el = document.createElement(tag);
   el.className = cls;
@@ -31,6 +32,8 @@ export class MobileHomeBase {
       this.onboarding.push(
         'Spend Valor and Supply in Upgrades to strengthen your army across runs.',
       );
+    const grantNote = scene._prologueGrantNote?.(hints);
+    if (grantNote) this.onboarding.push(grantNote);
     if (hints?.shouldShow('homebase_begin'))
       this.onboarding.push('Choose your starting lords and skills, then Begin Run.');
     scene.mobileUpgrades = new MobileUpgradeMenu(scene, {
@@ -106,6 +109,9 @@ export class MobileHomeBase {
     this.render();
     const ok = await this.scene.runTransition(async () => {
       if (target === 'Title') this.scene.registry.get('audio')?.stopMusic(this.scene, 0);
+      // Begin Run: the scene picks the road (the first run after the prologue takes
+      // the fast path; otherwise Difficulty Select).
+      if (target === 'BeginRun') return this.scene.startRunFromHomeBase();
       return (
         (
           await transitionToSceneWithBlockedRetry(
@@ -119,6 +125,12 @@ export class MobileHomeBase {
         ).status === TRANSITION_RESULTS.STARTED
       );
     });
+    if (ok === BEGIN_RUN_CANCELLED) {
+      // Backed out of a choice (the lost prologue's offer): Home Base as it was.
+      this.pending = false;
+      this.render();
+      return;
+    }
     if (!ok && this.visible) {
       this.pending = false;
       this.scene.input.enabled = false;
@@ -320,7 +332,7 @@ export class MobileHomeBase {
     }
     const actions = node('div', 'mu-actions');
     actions.append(node('span', 'mu-help', `${selection.commander} + ${selection.partner}`));
-    const begin = this.button('Begin Run', () => void this.transition('DifficultySelect'));
+    const begin = this.button('Begin Run', () => void this.transition('BeginRun'));
     begin.className = 'mu-buy';
     begin.dataset.focus = 'begin';
     actions.append(begin);

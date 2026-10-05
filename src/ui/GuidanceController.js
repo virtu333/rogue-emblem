@@ -13,31 +13,42 @@
 //   guide_commander_low_hp  the commander starts a player phase at half HP or less
 //   guide_recruit_on_map    a recruitable (green) unit is on the map: names the recruit
 //                           and how to win them (the recruit battle's only intro note)
+//   guide_veteran_kills     a low-XP veteran (Gaspar: SpecialCharacterPolicy) is selected
+//                           with a living enemy in view and another unit who can grow:
+//                           weaken enemies, leave the final blow to the others
 //   guide_zombie_remains    the first Zombie remains the player sees: the countdown,
 //                           Smash, and Light (points at the bone pile)
+//   guide_objective_changed the objective changed mid-battle: the boss of a seize map
+//                           fell, so the throne is the goal now (points at it)
+//   guide_specialist_dance  the first Dancer (or anyone who can Dance) is selected: Dance
+//   guide_specialist_flyer  the first flyer is selected: water and mountains
+//                           (docs/specs/prologue-chapter.md §7: the Act 1 follow-through)
 //
-// A note about one unit's moment (fragile / no attack / healer: Guidance.noteScope)
+// A note about one unit's moment (fragile / no attack / healer / veteran: Guidance.noteScope)
 // steps aside when that moment ends — Wait, another unit, Back to another tile, the
 // enemy phase — without being marked read, so an unread one can still teach later.
 //
 // Also answers BattleScene's action menu: with Guidance on Full, a unit with no
 // target in reach shows a greyed "Attack" with the reason instead of no Attack.
 //
-// Presentation only: reads battle state, never changes it, no RNG. Tutorial
-// battles use their own coach and get no notes.
+// Presentation only: reads battle state, never changes it, no RNG. Prologue
+// chapters use their own coach and get no notes (engine/ScriptedBattle.js).
 
 import { canInspectUnit } from '../engine/BattleInformation.js';
+import { isScriptedBattle } from '../engine/ScriptedBattle.js';
 import { findCommander } from '../engine/Commander.js';
 import { isNpcAlly, isRecruitNpc } from '../engine/RecruitNpc.js';
 import { isHealStaff } from '../engine/StatusConditionSystem.js';
 import { getAttackRange, getAttackWeapons } from '../engine/AttackOptions.js';
 import { isUnarmed } from '../engine/UnitManager.js';
+import { isLowGrowthVeteran } from '../engine/SpecialCharacterPolicy.js';
 import {
   canUseStaff,
   guidanceAllows,
   guidanceText,
   isFragileUnit,
   isVeteranMeta,
+  specialistJob,
   noTargetReason,
   noteScope,
   unarmedReason,
@@ -81,12 +92,21 @@ export class GuidanceController {
   /** Effective level: 'full' | 'light' | 'off'. */
   level() {
     const s = this.scene;
-    if (s.battleParams?.tutorialMode) return 'off';
+    if (isScriptedBattle(s.battleParams)) return 'off';
     const settings = s.registry?.get?.('settings');
     if (settings?.getHints?.() === false) return 'off';
     return resolveGuidance(settings?.getGuidance?.() || 'auto', {
       veteran: isVeteranMeta(s.registry?.get?.('meta')),
     });
+  }
+
+  /**
+   * The level the greyed Attack reasons read: a prologue chapter shows them (they are
+   * menu text, not notes: Sera's "No target in range 1–2", an unarmed unit's reason),
+   * everywhere else the Guidance level.
+   */
+  reasonLevel() {
+    return isScriptedBattle(this.scene.battleParams) ? 'full' : this.level();
   }
 
   allows(id) {
@@ -99,7 +119,7 @@ export class GuidanceController {
   noTargetAttackReason(unit, targets = []) {
     const s = this.scene;
     if (!unit || unit.faction !== 'player' || targets.length) return null;
-    if (this.level() !== 'full') return null;
+    if (this.reasonLevel() !== 'full') return null;
     // The weapons and ranges targeting uses (BattleScene.findAttackTargets): proficient,
     // not silenced, uses left, skill range bonuses (Foresight) included.
     const weapons = getAttackWeapons(unit);
@@ -119,7 +139,7 @@ export class GuidanceController {
    * only staff ranks keeps Fire Emblem's hidden Attack.
    */
   unarmedAttackReason(unit) {
-    if (!unit || unit.faction !== 'player' || this.level() !== 'full') return null;
+    if (!unit || unit.faction !== 'player' || this.reasonLevel() !== 'full') return null;
     return isUnarmed(unit) ? unarmedReason() : null;
   }
 
@@ -242,7 +262,63 @@ export class GuidanceController {
       if (npc)
         return { id: 'guide_healer_heals', context: { unit, commander, touch, npc }, anchor: unit };
     }
+    // The veteran who should not take the kills: a unit's own moment, but the notes
+    // about survival, recruiting and the first turn win when they are still unread.
+    if (
+      (state === 'UNIT_SELECTED' || state === 'UNIT_ACTION_MENU') &&
+      this.veteranNeedsNote(unit) &&
+      !this.priorityNote(commander, touch) &&
+      !((s.turnManager?.turnNumber ?? 1) <= 1 && coach('guide_first_turn'))
+    )
+      return { id: 'guide_veteran_kills', context: { unit, commander, touch }, anchor: unit };
+    // A newly fielded specialist's one job (Dance; a flyer's ground): when first picked.
+    const job = state === 'UNIT_SELECTED' && unit && !unit.hasActed ? specialistJob(unit) : null;
+    if (job && this.allows(`guide_specialist_${job}`))
+      return { id: `guide_specialist_${job}`, context: { unit, touch }, anchor: unit };
     if (state !== 'PLAYER_IDLE') return null;
+    // The objective changed mid-battle (the boss fell: the throne now): said the moment
+    // the player can act, pointing at the new goal.
+    const changed = this.objectiveChange();
+    if (changed && this.allows('guide_objective_changed'))
+      return {
+        id: 'guide_objective_changed',
+        context: { ...changed.context, touch },
+        anchor: changed.anchor,
+      };
+    const priority = this.priorityNote(commander, touch);
+    if (priority) return priority;
+    // Remains the player has seen (drawn by RemainsMarkerController): point at a pile.
+    const remains = s._remainsCtrl?.knownTiles?.()[0] || null;
+    if (remains && this.allows('guide_zombie_remains'))
+      return { id: 'guide_zombie_remains', context: { touch }, anchor: remains };
+    if ((s.turnManager?.turnNumber ?? 1) <= 1 && coach('guide_first_turn'))
+      return { id: 'guide_first_turn', context: { touch }, anchor: commander };
+    return null;
+  }
+
+  /**
+   * How the objective changed mid-battle, or null: on a seize map whose boss has fallen,
+   * the throne is left to capture (the objective line turns to it). Escape maps open
+   * their exits from the first turn, so they never change mid-battle.
+   */
+  objectiveChange() {
+    const s = this.scene;
+    const bc = s.battleConfig;
+    if (bc?.objective !== 'seize' || !bc.thronePos) return null;
+    if ((s.enemyUnits || []).some((u) => u?.isBoss && u.currentHP > 0)) return null;
+    if (!(s.playerUnits || []).some((u) => u?.isLord && u.currentHP > 0)) return null;
+    return {
+      context: { objective: 'seize', boss: s._bossName || null },
+      anchor: { col: bc.thronePos.col, row: bc.thronePos.row },
+    };
+  }
+
+  /**
+   * The essential notes about survival and recruiting, in order: the commander at half
+   * HP, then a recruit on the map. Null when neither applies (or both were read).
+   */
+  priorityNote(commander, touch) {
+    const s = this.scene;
     if (
       commander &&
       commander.currentHP > 0 &&
@@ -259,13 +335,22 @@ export class GuidanceController {
     );
     if (npc && this.allows('guide_recruit_on_map'))
       return { id: 'guide_recruit_on_map', context: { npc, touch }, anchor: npc };
-    // Remains the player has seen (drawn by RemainsMarkerController): point at a pile.
-    const remains = s._remainsCtrl?.knownTiles?.()[0] || null;
-    if (remains && this.allows('guide_zombie_remains'))
-      return { id: 'guide_zombie_remains', context: { touch }, anchor: remains };
-    if ((s.turnManager?.turnNumber ?? 1) <= 1 && coach('guide_first_turn'))
-      return { id: 'guide_first_turn', context: { touch }, anchor: commander };
     return null;
+  }
+
+  /**
+   * Is this the moment for the veteran note: a low-XP veteran of ours is picked while
+   * an enemy is in view and someone else on the team can still grow from kills?
+   */
+  veteranNeedsNote(unit) {
+    const s = this.scene;
+    if (!unit || unit.faction !== 'player' || unit.hasActed || unit.currentHP <= 0) return false;
+    if (!isLowGrowthVeteran(unit) || !this.allows('guide_veteran_kills')) return false;
+    const foes = (s.enemyUnits || []).some((e) => e.currentHP > 0 && canInspectUnit(s.grid, e));
+    if (!foes) return false;
+    return (s.playerUnits || []).some(
+      (u) => u !== unit && u.currentHP > 0 && !isLowGrowthVeteran(u),
+    );
   }
 
   /**

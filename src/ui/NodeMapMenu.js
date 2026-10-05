@@ -23,6 +23,7 @@ import { fallToastText, kindlePrice } from '../engine/EclipseSystem.js';
 import { showMinorHint } from './HintDisplay.js';
 import { rosterBenchedUnseen } from '../engine/SkillLoadout.js';
 import { playCue } from './ceremonyMusic.js';
+import { isPrologueRun } from '../engine/ScriptedBattle.js';
 
 const ECLIPSE_TOAST_MS = 4200;
 
@@ -194,6 +195,10 @@ export class NodeMapMenu {
         actIndex: rm.actIndex,
         rows: model.rows,
         frontierRow: model.frontierRow,
+        // The prologue's route is its own road, not Act I.
+        ...(isPrologueRun(rm)
+          ? { act: 'Prologue', title: rm.nodeMap?.prologue?.title || 'The first thread' }
+          : {}),
       }),
       meta,
     );

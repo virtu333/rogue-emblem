@@ -40,6 +40,7 @@ export function actLabel(actId) {
   if (match) return `Act ${romanNumeral(Number(match[1]))}`;
   if (actId === 'finalBoss') return 'Final Act';
   if (actId === 'secretAct') return 'Beyond the Acts';
+  if (actId === 'prologue') return 'Prologue';
   return '';
 }
 
@@ -82,19 +83,22 @@ export function actCardContent(actId, { phase = '' } = {}) {
 
 // ── Bosses ───────────────────────────────────────────────────────────────
 
-/** Boss definition by name across every act (bosses are uniquely named). */
-export function findBossDefinition(enemiesData, name) {
+/**
+ * Boss definition by name across every act (bosses are uniquely named), then `extra`:
+ * bosses outside the act pools (the prologue's Varro: Prologue.prologueBossDefinitions).
+ */
+export function findBossDefinition(enemiesData, name, extra = []) {
   if (typeof name !== 'string' || !name) return null;
   for (const list of Object.values(enemiesData?.bosses || {})) {
     if (!Array.isArray(list)) continue;
     const def = list.find((entry) => entry?.name === name);
     if (def) return def;
   }
-  return null;
+  return (Array.isArray(extra) ? extra : []).find((entry) => entry?.name === name) || null;
 }
 
-export function bossEpithet(enemiesData, name) {
-  const epithet = findBossDefinition(enemiesData, name)?.epithet;
+export function bossEpithet(enemiesData, name, extra = []) {
+  const epithet = findBossDefinition(enemiesData, name, extra)?.epithet;
   return typeof epithet === 'string' && epithet.trim() ? epithet.trim() : '';
 }
 
@@ -106,7 +110,7 @@ export function isWordlessBoss(unit, enemiesData = null) {
 
 export const WORDLESS_MARK = '· · ·';
 
-export function bossCardContent({ unit, enemiesData, actId }) {
+export function bossCardContent({ unit, enemiesData, actId, extraBosses = [] }) {
   if (!unit) return null;
   if (isWordlessBoss(unit, enemiesData)) {
     return { kind: 'entity', kicker: '', name: WORDLESS_MARK, epithet: '' };
@@ -117,7 +121,7 @@ export function bossCardContent({ unit, enemiesData, actId }) {
     kind: 'boss',
     kicker: [act, className].filter(Boolean).join(' · '),
     name: String(unit.name || ''),
-    epithet: bossEpithet(enemiesData, unit.name),
+    epithet: bossEpithet(enemiesData, unit.name, extraBosses),
   };
 }
 

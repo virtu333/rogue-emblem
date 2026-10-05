@@ -122,8 +122,10 @@ test('journey: first run from Title, abandon, then a full second run and Save & 
   await waitForGame(page);
   await waitForScene(page, 'Title');
 
-  // First run: a brand-new save goes straight to the route map.
+  // First run: a brand-new save is offered the prologue; skipped, it goes straight to
+  // the route map.
   await page.getByRole('button', { name: 'New Game', exact: true }).click();
+  await page.getByRole('button', { name: 'Skip to the first run', exact: true }).click();
   await waitForScene(page, 'NodeMap');
   const firstRun = await sceneHistory(page);
   const titleAt = firstRun.lastIndexOf('Title');

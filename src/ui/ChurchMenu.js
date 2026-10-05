@@ -52,6 +52,10 @@ import {
 import { applyServiceVignette, prefersStill } from './itemMoments.js';
 import { LEVEL_UP_CUE_WAIT_MS, playCue } from './ceremonyMusic.js';
 import { healUnitFully } from '../engine/UnitHealth.js';
+import { isPrologueRun } from '../engine/ScriptedBattle.js';
+import { PROLOGUE_SERVICE_LINES } from '../data/prologueContent.js';
+import { canShowRunNote, markNoteSeen } from './guidanceGate.js';
+import { guidanceText } from '../engine/Guidance.js';
 // The sanctuary's band kicker: both paths before the choice, the chosen one after.
 const RUINS_KICKER = Object.freeze({
   none: 'Heal or wares',
@@ -73,7 +77,18 @@ export class ChurchMenu {
   constructor(c) {
     this.c = c;
     this.scene = c.scene;
+    // The prologue's chapel and watchtower say what they do (the chapel's line also
+    // reads a real run's first-church note); a real run's first church the prologue
+    // never showed gets that note as its status line (§7), never over the services.
+    const ruins = this.scene._churchRuinsMode === true;
     this.status = '';
+    if (isPrologueRun(this.scene.runManager)) {
+      this.status = ruins ? PROLOGUE_SERVICE_LINES.ruins : PROLOGUE_SERVICE_LINES.church;
+      if (!ruins) markNoteSeen(this.scene, 'guide_first_church');
+    } else if (!ruins && canShowRunNote(this.scene, 'guide_first_church')) {
+      this.status = guidanceText('guide_first_church');
+      markNoteSeen(this.scene, 'guide_first_church');
+    }
     this.open();
   }
   open() {

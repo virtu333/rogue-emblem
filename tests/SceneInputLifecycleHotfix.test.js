@@ -123,7 +123,6 @@ describe('BattleScene shutdown/input lifecycle hotfix', () => {
     scene.beginBattle = vi.fn(() => new Promise(() => {}));
     scene.registry = { get: vi.fn(() => null) };
     scene._stopLevelUpSfx = vi.fn();
-    scene._clearTutorialGuideHighlights = vi.fn();
     scene.cancelTouchInspectHold = vi.fn();
     scene._hideMenuTooltip = vi.fn();
     scene._restoreBattleRng = vi.fn();

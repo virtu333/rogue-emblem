@@ -12,6 +12,11 @@ import {
   CARAVAN_SHOP_ITEM_COUNT_RANGE,
 } from '../utils/constants.js';
 import { generateShopInventory } from '../engine/LootSystem.js';
+import { buildPrologueShopStock } from '../engine/Prologue.js';
+import { isPrologueRun } from '../engine/ScriptedBattle.js';
+import { PROLOGUE_SERVICE_LINES } from '../data/prologueContent.js';
+import { canShowRunNote, markNoteSeen } from './guidanceGate.js';
+import { guidanceText } from '../engine/Guidance.js';
 import { ruinsServiceBlock } from '../engine/RuinsCommands.js';
 import { isImbueStone, getImbueStoneDetailText } from '../engine/ImbueSystem.js';
 import { MUSIC, getMusicKey, pickTrack } from '../utils/musicConfig.js';
@@ -63,6 +68,14 @@ export class ShopController {
     let shopItems;
     if (cachedShop) {
       shopItems = cachedShop.items;
+    } else if (!caravan && Array.isArray(node?.prologueStock)) {
+      // A prologue market's or ruins' authored wares (docs/specs/prologue-chapter.md §6
+      // rows 2 and 4): fixed, priced as any Act 1 shop prices them, never a random draw;
+      // the ruins mark theirs up as every ruins does.
+      shopItems = scene.applyDifficultyShopPricing(
+        buildPrologueShopStock(node.prologueStock, scene.gameData, { actId: shopActId }),
+      );
+      if (ruins) shopItems = scene.applyRuinsMarkup(shopItems);
     } else {
       const shopItemDelta = caravan ? 0 : rm.getShopItemCountDelta();
       shopItems = generateShopInventory(
@@ -182,7 +195,20 @@ export class ShopController {
     this.nativeMenu?.destroy();
     this.nativeMenu = new ShopMenu(this);
     const lines = scene.gameData?.dialogue?.shopFlavor?.[scene.runManager.currentAct];
-    if (Array.isArray(lines) && lines.length) {
+    const market = !scene._currentShopIsRuins && !scene._currentShopIsCaravan;
+    if (isPrologueRun(scene.runManager)) {
+      // The prologue's market teaches the shop: a real run's first-shop note is read.
+      if (market) {
+        this.nativeMenu.render(PROLOGUE_SERVICE_LINES.shop);
+        markNoteSeen(scene, 'guide_first_shop');
+      } else if (scene._currentShopIsRuins)
+        this.nativeMenu.render(PROLOGUE_SERVICE_LINES.ruinsWares);
+    } else if (market && canShowRunNote(scene, 'guide_first_shop')) {
+      // A first shop the prologue never showed (§7): the note is the status line, so it
+      // never covers the wares it talks about.
+      this.nativeMenu.render(guidanceText('guide_first_shop'));
+      markNoteSeen(scene, 'guide_first_shop');
+    } else if (Array.isArray(lines) && lines.length) {
       this.nativeMenu.render(lines[Math.floor(Math.random() * lines.length)]);
     }
   }
@@ -292,8 +318,14 @@ export class ShopController {
     this._saveShopState();
   }
 
+  /** Restock: never in the prologue (its market's stock is authored and fixed). */
+  canReroll() {
+    return !isPrologueRun(this.scene?.runManager) && !this.scene?._currentShopIsCaravan;
+  }
+
   rerollShop() {
     const scene = this.scene;
+    if (!this.canReroll()) return false;
     const cost = SHOP_REROLL_COST + scene.shopRerollCount * SHOP_REROLL_ESCALATION;
     if (!scene.runManager.spendGold(cost)) return false;
     scene.shopRerollCount++;

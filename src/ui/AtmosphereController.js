@@ -19,6 +19,7 @@ import {
   resolveAtmosphereMode,
   lightOptionsForMode,
 } from '../art/atmosphereConfig.js';
+import { isScriptedBattle } from '../engine/ScriptedBattle.js';
 import { applyAtmosphere, clearAtmosphere, atmosphereSupported } from '../art/AtmosphereFX.js';
 import { BattleLightLayer } from '../art/BattleLightLayer.js';
 import { detectMobileRuntime } from '../utils/runtimeFlags.js';
@@ -39,7 +40,7 @@ export function atmosphereContextFromScene(scene) {
   let act = params.act || 'act1';
   // Dev battlefield lab maps generate a different act's template than the preset's
   // battleParams; review them in their own act's mood (mirrors BattleScene's lab path).
-  if (query?.get('battleLab') === '1' && !params.tutorialMode && !scene?._resumeCheckpoint) {
+  if (query?.get('battleLab') === '1' && !isScriptedBattle(params) && !scene?._resumeCheckpoint) {
     const lab = BATTLEFIELD_LAB_MAPS.find((map) => map.id === query.get('labMap'));
     if (lab) act = lab.act;
   }
@@ -50,7 +51,7 @@ export function atmosphereContextFromScene(scene) {
     isBoss: Boolean(scene?.isBoss),
     isSecret: act === 'secretAct',
     isFinalBoss: act === 'finalBoss',
-    isTutorial: Boolean(params.tutorialMode),
+    isScripted: isScriptedBattle(params),
     hasEntity: enemies.some((u) => isEntity(u)),
     override: query?.get('atmosphere') || null,
     // The Eclipse phase this battle was entered at (RunManager.getBattleParams).

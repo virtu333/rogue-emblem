@@ -92,9 +92,9 @@ describe('resolveAtmosphere — act moods', () => {
     expect(castleNight.grade.contrast).toBeGreaterThan(ATMOSPHERE_GRADES.act4.contrast);
   });
 
-  it('tutorial battles use the plain Act I grade, never night', () => {
+  it('prologue (scripted) battles use the plain Act I grade, never night', () => {
     for (const act of ['act1', 'act4', 'finalBoss']) {
-      const r = resolveAtmosphere({ act, isTutorial: true, biome: 'tundra' });
+      const r = resolveAtmosphere({ act, isScripted: true, biome: 'tundra' });
       expect(r.gradeKey).toBe('act1');
       expect(r.night).toBe(false);
       expect(r.grade).toEqual({ ...ATMOSPHERE_GRADES.act1 });

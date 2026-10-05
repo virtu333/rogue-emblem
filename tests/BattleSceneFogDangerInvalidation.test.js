@@ -39,7 +39,7 @@ describe('BattleScene fog danger invalidation', () => {
       ]),
     };
     scene.buildUnitPositionMap = vi.fn(() => new Map());
-    scene.battleParams = { tutorialMode: false };
+    scene.battleParams = {};
     scene.showActionMenu = vi.fn(() => {
       scene.battleState = 'UNIT_ACTION_MENU';
     });

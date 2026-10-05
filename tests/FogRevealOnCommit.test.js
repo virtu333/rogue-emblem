@@ -80,7 +80,7 @@ function setup() {
     playerUnits: [edric],
     enemyUnits: [brigand],
     npcUnits: [],
-    battleParams: { tutorialMode: false },
+    battleParams: {},
     battleState: 'UNIT_MOVING',
     turnManager: {
       currentPhase: 'player',
@@ -106,7 +106,7 @@ function setup() {
   ])
     scene[name] = vi.fn();
   scene.isStoryInputLocked = () => false;
-  scene._isTutorialStrictGateActive = () => false;
+  scene._isPrologueGateActive = () => false;
   scene.canForceEndTurn = () => true;
   scene.checkBattleEnd = () => false;
   // The suspend save records whether the brigand's tile was lit when it was taken.

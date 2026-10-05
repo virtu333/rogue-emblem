@@ -91,6 +91,16 @@ node tests/agents/fuzz-runner.js --seeds 50 --all-scenarios --mode reporting --t
 - Regression coverage is in `tests/harness/HeadlessBattle.test.js`:
   - `selectUnit prefers an unacted unit when duplicate names exist`
 
+## Locked and Authored Battles
+
+`HeadlessBattle.init({ battleConfig })` plays a given battle config instead of generating one,
+as BattleScene does with a node's locked config (`RunManager.getLockedBattleConfig`). The
+prologue's chapters use it (`engine/Prologue.buildPrologueBattleConfig`; P1's proof is
+`tests/harness/PrologueP1.test.js`). Authored spawns keep their `weapon`, `skills` and
+`authoredId` (`EnemySpawnGear.applySpawnLoadout`, shared with the scene), and Fort/Throne healing
+at turn start runs through `engine/TerrainHealing.js` as in the scene.
+`chooseAttackTarget` also takes the target unit itself, for two enemies with one name.
+
 ## Invariants Enforced
 
 Checked after each action step:

@@ -21,7 +21,7 @@ import {
   MAX_SKILLS,
   ENEMY_PROMOTION_BASE_LEVEL,
 } from '../utils/constants.js';
-import { ensureItemUid } from '../utils/itemUid.js';
+import { ensureItemUid, ensureItemUidWith } from '../utils/itemUid.js';
 import { accessoryHpOwed, setAccessoryHpOwed, settleAccessoryHpOwed } from './UnitHealth.js';
 import { unitBaseClassName } from './ClassLineage.js';
 import { applyForge } from './ForgeSystem.js';
@@ -57,7 +57,8 @@ export function isProficiencyRelevantItemType(type) {
 // Map rank abbreviation → full name
 const RANK_ABBREV = { P: 'Prof', M: 'Mast' };
 
-function applyPromotedMastery(proficiencies, tier) {
+/** Promoted classes wield every weapon type at Mastery rank. */
+export function applyPromotedMastery(proficiencies, tier) {
   if (tier !== 'promoted') return proficiencies;
   return proficiencies.map((p) => ({ ...p, rank: 'Mast' }));
 }
@@ -91,9 +92,10 @@ export function parseWeaponProficiencies(profString) {
 
 /**
  * Roll growth rates from ranges: {HP:"60-75",...} → {HP:67,...}
- * Called once at recruitment, stored permanently on unit.
+ * Called once at recruitment, stored permanently on unit. `rng` defaults to
+ * Math.random; authored prologue units pass a seeded stream (engine/Prologue.js).
  */
-export function rollGrowthRates(growthRanges) {
+export function rollGrowthRates(growthRanges, rng = Math.random) {
   const growths = {};
   for (const stat of XP_STAT_NAMES) {
     const range = growthRanges[stat];
@@ -102,7 +104,7 @@ export function rollGrowthRates(growthRanges) {
       continue;
     }
     const [min, max] = range.split('-').map(Number);
-    growths[stat] = min + Math.floor(Math.random() * (max - min + 1));
+    growths[stat] = min + Math.floor(rng() * (max - min + 1));
   }
   return growths;
 }
@@ -268,10 +270,12 @@ export function skillGateLevels(unit, classesData = []) {
 /**
  * Create a lord unit from lords.json + classes.json data.
  * Lords have fixed personalGrowths added on top of class growths.
+ * `options.rng` (default Math.random) draws the growth rolls and the weapon's uid, in
+ * that order; authored prologue units pass a seeded stream so Math.random is untouched.
  */
-export function createLordUnit(lordData, classData, allWeapons) {
+export function createLordUnit(lordData, classData, allWeapons, { rng = Math.random } = {}) {
   const proficiencies = parseWeaponProficiencies(classData?.weaponProficiencies || lordData.weapon);
-  const classGrowths = classData?.growthRanges ? rollGrowthRates(classData.growthRanges) : {};
+  const classGrowths = classData?.growthRanges ? rollGrowthRates(classData.growthRanges, rng) : {};
 
   // Combine class growths + personal growths
   const growths = {};
@@ -289,7 +293,7 @@ export function createLordUnit(lordData, classData, allWeapons) {
   const personalSkillL20 = lordData.personalSkillL20 || null;
 
   // Clone weapon to avoid shared state
-  const weaponClone = ensureItemUid(weapon ? structuredClone(weapon) : null);
+  const weaponClone = ensureItemUidWith(weapon ? structuredClone(weapon) : null, rng);
 
   return {
     name: lordData.name,
@@ -327,15 +331,18 @@ export function createLordUnit(lordData, classData, allWeapons) {
 /**
  * Create a generic recruited unit from class data.
  * Growth rates are rolled randomly from class growthRanges.
+ * `options.rng` (default Math.random) draws the growth rolls, item uids and level-ups;
+ * authored prologue units pass a seeded stream so Math.random is untouched.
  */
 export function createUnit(classData, level, allWeapons, options = {}) {
+  const rng = typeof options.rng === 'function' ? options.rng : Math.random;
   const proficiencies = applyPromotedMastery(
     parseWeaponProficiencies(classData.weaponProficiencies),
     classData.tier || 'base',
   );
-  const growths = rollGrowthRates(classData.growthRanges);
+  const growths = rollGrowthRates(classData.growthRanges, rng);
   const weapon = getDefaultWeapon(proficiencies, allWeapons);
-  const weaponClone = ensureItemUid(weapon ? structuredClone(weapon) : null);
+  const weaponClone = ensureItemUidWith(weapon ? structuredClone(weapon) : null, rng);
 
   const unit = {
     name: options.name || classData.name,
@@ -373,12 +380,15 @@ export function createUnit(classData, level, allWeapons, options = {}) {
   const secondaryName = SECONDARY_THROWABLE[classData.name];
   if (secondaryName) {
     const secondary = allWeapons.find((w) => w.name === secondaryName);
-    if (secondary) addToInventory(unit, secondary);
+    // As addToInventory, with the uid drawn from `rng`.
+    if (secondary && unit.inventory.length < 5) {
+      unit.inventory.push(ensureItemUidWith(structuredClone(secondary), rng));
+    }
   }
 
   // Auto-level to target level
   for (let i = 1; i < level; i++) {
-    const gains = levelUp(unit);
+    const gains = levelUp(unit, rng);
     if (gains) applyLevelUpGains(unit, gains);
   }
 

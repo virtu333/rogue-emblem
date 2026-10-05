@@ -256,6 +256,9 @@ export class BattleSuspendController {
       // Compatibility envelope; historical snapshots use captureBattleState directly.
       visionSnapshot: structuredClone(scene.visionSnapshot || null),
       pendingVisionSnapshot: structuredClone(scene.pendingVisionSnapshot || null),
+      // A prologue chapter's teaching state (spent beats, the guided step): a resume
+      // continues the lesson instead of replaying it (PrologueController.onResume).
+      prologueState: scene._prologue?.snapshot?.() ?? null,
     };
   }
 
@@ -402,6 +405,11 @@ export class BattleSuspendController {
     }
     scene.updateVisionHud();
     scene.refreshEndTurnControl();
+    // A prologue chapter picks its lesson up where the checkpoint left it.
+    scene._prologue?.onResume?.(checkpoint.prologueState || null, {
+      turn: scene.turnManager.turnNumber,
+      phase: enemyResume ? 'enemy' : 'player',
+    });
     // Resuming exactly on a rewind point: free changes from here are detectable.
     const current = scene._battleTimeline?.entries?.find(
       (entry) => entry.id === scene._timelineCurrentEntryId,

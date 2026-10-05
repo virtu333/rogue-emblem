@@ -242,7 +242,25 @@
         {
           "when": {
             "maxRunsStarted": 1,
-            "lastRunResult": "none"
+            "lastRunResult": "none",
+            "prologue": "complete"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I came straight to you this time. I know this road now. It ended once."
+            }
+          ]
+        },
+        {
+          "when": {
+            "maxRunsStarted": 1,
+            "lastRunResult": "none",
+            "prologue": [
+              "none",
+              "skipped"
+            ]
           },
           "entries": [
             {
@@ -328,6 +346,20 @@
         }
       ],
       "variants": [
+        {
+          "when": {
+            "commander": "Edric",
+            "lastRunResult": "none",
+            "prologue": "complete"
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Then we walk it again. Everyone count off."
+            }
+          ]
+        },
         {
           "when": {
             "commander": "Edric",
@@ -4794,6 +4826,45 @@
                 "line": "Meet the shield."
               }
             ]
+          }
+        ]
+      }
+    },
+    "Captain Varro": {
+      "preBattle": {
+        "base": [
+          {
+            "speaker": "Captain Varro",
+            "line": "Lord of a border? There is no border. There is only the road east.",
+            "portrait": "portrait_enemy_fighter"
+          },
+          {
+            "speaker": "Edric",
+            "line": "Then you will have to cross my people to walk it. All of them.",
+            "portrait": "portrait_lord_edric"
+          }
+        ]
+      },
+      "halfHealth": {
+        "base": [
+          {
+            "speaker": "Captain Varro",
+            "line": "Stubborn. The court wants this stone by the new moon, with or without me.",
+            "portrait": "portrait_enemy_fighter"
+          }
+        ]
+      },
+      "defeat": {
+        "base": [
+          {
+            "speaker": "Captain Varro",
+            "line": "Hold the gate, they said. Nobody said what was coming up the road.",
+            "portrait": "portrait_enemy_fighter"
+          },
+          {
+            "speaker": "Edric",
+            "line": "The gate is ours. Now we see what comes up that road.",
+            "portrait": "portrait_lord_edric"
           }
         ]
       }
@@ -9488,6 +9559,163 @@
         "My last charge is yours. Make it count."
       ]
     }
+  },
+  "prologue": {
+    "p1_gaspar_arrives": [
+      {
+        "speaker": "Edric",
+        "line": "Gaspar? You swore you were done with saddles."
+      },
+      {
+        "speaker": "Gaspar",
+        "line": "The saddle was not consulted."
+      }
+    ],
+    "not_this_thread": [
+      {
+        "speaker": "???",
+        "line": "Not this thread."
+      },
+      {
+        "speaker": "???",
+        "line": "Stand again where the morning found you."
+      }
+    ],
+    "p2_gaspar_intro": [
+      {
+        "speaker": "Gaspar",
+        "line": "I will ride ahead. Watch my hands, then choose your own stroke."
+      },
+      {
+        "speaker": "Edric",
+        "line": "Then I watch. And I strike where you leave me room."
+      },
+      {
+        "speaker": "Gaspar",
+        "line": "I leave the opening. You take the blow that teaches."
+      }
+    ],
+    "p2_victory": [
+      {
+        "speaker": "Gaspar",
+        "line": "The ford is ours. The crossing is a morning east, and it is emptying."
+      },
+      {
+        "speaker": "Edric",
+        "line": "Then we ride for it. I count the people as we go."
+      }
+    ],
+    "tamsin_joins": [
+      {
+        "speaker": "Tamsin",
+        "line": "My bow burned with the watch post. Hand me the one in your convoy and I'll earn my keep."
+      }
+    ],
+    "tamsin_joins_bow_rack": [
+      {
+        "speaker": "Tamsin",
+        "line": "My bow burned with the watch post. There's one on the rack here. It'll do."
+      }
+    ],
+    "p3_sera_joins": [
+      {
+        "speaker": "Sera",
+        "line": "I have seen you before, Edric. Many times. You always come for me."
+      }
+    ],
+    "p3_victory": [
+      {
+        "speaker": "Sera",
+        "line": "I don't stand at the front. I stand where they can't reach me."
+      },
+      {
+        "speaker": "Edric",
+        "line": "Then stand behind us. We hold the road, you hold us together."
+      }
+    ],
+    "p3_intro": [
+      {
+        "speaker": "Gaspar",
+        "line": "A robed woman on the road, and soldiers at her heels."
+      },
+      {
+        "speaker": "Edric",
+        "line": "Then we reach her first. Count off and ride."
+      }
+    ],
+    "watchtower_vision": [
+      {
+        "speaker": "Sera",
+        "line": "From up here I can see it. East, past the fens: a ring of robed mages, chanting."
+      },
+      {
+        "speaker": "Sera",
+        "line": "A crowned man watches them work. He is counting something. Coins, or years."
+      },
+      {
+        "speaker": "Sera",
+        "line": "Under the consecrated stones, something sleeps. They are feeding it anyway."
+      },
+      {
+        "speaker": "Edric",
+        "line": "And the stone they feed it with comes from our quarry. Then we hold the gate."
+      },
+      {
+        "speaker": "Sera",
+        "line": "I have seen this road end at that gate. I have never seen past it."
+      }
+    ],
+    "p4_gate_open": [
+      {
+        "speaker": "Edric",
+        "line": "Varro is down. The gate is ours to take, before the column regroups."
+      }
+    ],
+    "ending_east": [
+      {
+        "speaker": "Gaspar",
+        "line": "Edric. Look east, past the fens. There is light where no village stands."
+      },
+      {
+        "speaker": "Sera",
+        "line": "The ring has closed. They are finishing it. Today, not in a year.",
+        "unmet": "???"
+      },
+      {
+        "speaker": "Tamsin",
+        "line": "The ground. Hold on, all of you, the ground is moving!"
+      },
+      {
+        "speaker": "Edric",
+        "line": "The sun. Something is eating the sun."
+      },
+      {
+        "speaker": "Sera",
+        "line": "The Hollow Sun. Under the stones, what they fed is turning over.",
+        "unmet": "???"
+      }
+    ],
+    "ending_ridge": [
+      {
+        "speaker": "Gaspar",
+        "line": "On the far ridge. A pale man, watching us. He does not run."
+      },
+      {
+        "speaker": "Sera",
+        "line": "He never runs. He has watched this road end before, the same as I have."
+      }
+    ],
+    "ending_thread": [
+      {
+        "speaker": "Edric",
+        "line": "The Marches are coming apart. Sera, tell me what to do. Anything."
+      },
+      {
+        "speaker": "Sera",
+        "line": "Not like this. I know this road now. Again, from the morning I reached you.",
+        "unmet": "???"
+      }
+    ]
   },
   "specialChars": {
     "old_knight": {

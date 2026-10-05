@@ -927,7 +927,8 @@ function applyFinalBossWeaponBonus(rollsForCategory, category, actId, randomLege
   return [...basePool, randomLegendary.name];
 }
 
-function shopEntryTypeForItem(item) {
+/** The shop entry type an item is listed under (weapon | consumable | accessory | scroll). */
+export function shopEntryTypeForItem(item) {
   if (!item) return 'weapon';
   if (item.type === 'Consumable') return 'consumable';
   if (item.type === 'Accessory') return 'accessory';

@@ -515,14 +515,14 @@ export class InputController {
       scene.grid.clearAttackHighlights();
       scene.selectUnit(unit);
       // Native battle controls expose actions immediately, without sacrificing
-      // the existing unit → destination movement gesture. Tutorial movement
-      // gates and the canvas-only UI keep their guided selection flow.
+      // the existing unit → destination movement gesture. Prologue guided
+      // steps and the canvas-only UI keep their guided selection flow.
       if (
         scene.isMobileInput &&
         scene._mobileBattleHud?.available() &&
         scene.battleState === 'UNIT_SELECTED' &&
         scene.selectedUnit === unit &&
-        !scene._isTutorialStrictGateActive?.()
+        !scene._isPrologueGateActive?.()
       ) {
         scene.preMoveLoc = { col: unit.col, row: unit.row };
         scene._preFogSnapshot = scene.grid.snapshotFogState();
@@ -568,7 +568,7 @@ export class InputController {
       !u.hasActed &&
       !u._movementCommitted &&
       !s.tradeMutatedThisSession &&
-      !s._isTutorialStrictGateActive?.() &&
+      !s._isPrologueGateActive?.() &&
       (s.battleState === 'UNIT_SELECTED' || this.isSelectionMenu()),
     );
   }
@@ -618,18 +618,10 @@ export class InputController {
       scene.deselectUnit();
       return;
     }
-    if (scene._isTutorialStrictGateActive() && scene.tutorialStep === 3) {
-      const fort = scene._getTutorialFortTile();
-      const isFortTile = Boolean(fort && gp.col === fort.col && gp.row === fort.row);
-      const key = `${gp.col},${gp.row}`;
-      const rangeEntry = scene.movementRange?.get(key);
-      const canMoveToTile = Boolean(rangeEntry && rangeEntry.stoppable !== false);
-      if (!isFortTile || !canMoveToTile) {
-        void scene._showTutorialBlockingInstruction(
-          'Move Edric to the highlighted Fort tile to continue.',
-        );
-        return;
-      }
+    if (scene._isPrologueGateActive() && !scene._prologue.allowsMoveTo(gp.col, gp.row)) {
+      // The guided step names one tile; anything else is a nudge, not a move.
+      scene._prologue.rejectMove();
+      return;
     }
 
     if (this.handlePlanningUnitTap(gp)) return;
@@ -752,7 +744,7 @@ export class InputController {
       unit.hasActed ||
       unit._movementCommitted ||
       s.tradeMutatedThisSession ||
-      s._isTutorialStrictGateActive?.()
+      s._isPrologueGateActive?.()
     )
       return;
     this._selectionMenu = { unit, objects: s.actionMenu };
@@ -790,7 +782,7 @@ export class InputController {
     // A submenu, trade, or post-movement menu must never grant another move.
     if (!this.isSelectionMenu()) return;
     const s = this.scene;
-    if (s._isTutorialStrictGateActive?.()) return;
+    if (s._isPrologueGateActive?.()) return;
     if (this.handlePlanningUnitTap(gp)) return;
     this.clearPlanningInspection();
     if (gp.col === s.selectedUnit.col && gp.row === s.selectedUnit.row) return;
@@ -818,7 +810,7 @@ export class InputController {
   tryDirectAttack(gp) {
     const s = this.scene;
     if (s.battleState !== 'UNIT_ACTION_MENU' || s.inEquipMenu || !s.selectedUnit) return false;
-    if (this.isSelectionMenu() || s._isTutorialStrictGateActive?.()) return false;
+    if (this.isSelectionMenu() || s._isPrologueGateActive?.()) return false;
     const attack = openMenuCommand(s, 'attack');
     if (!attack || attack.disabled) return false;
     const target = s.getUnitAt(gp.col, gp.row);

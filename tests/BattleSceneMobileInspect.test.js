@@ -11,7 +11,7 @@ import { BattleScene } from '../src/scenes/BattleScene.js';
 function createCancelScene(overrides = {}) {
   return {
     isStoryInputLocked: () => false,
-    _isTutorialStrictGateActive: () => false,
+    _isPrologueGateActive: () => false,
     isDevToolsEnabled: () => false,
     isMobileInput: true,
     inspectMode: true,
@@ -63,7 +63,7 @@ function createPhaseScene(overrides = {}) {
     playerUnits: [],
     enemyUnits: [],
     npcUnits: [],
-    battleParams: { tutorialMode: false },
+    battleParams: {},
     turnCounterText: null,
     turnPar: null,
     registry: { get: vi.fn(() => null) },

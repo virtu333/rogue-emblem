@@ -109,7 +109,7 @@ function setupScene() {
   scene.playerUnits = [];
   scene.enemyUnits = [];
   scene.npcUnits = [];
-  scene.battleParams = { tutorialMode: false };
+  scene.battleParams = {};
   scene.battleState = 'PLAYER_IDLE';
   scene.selectedUnit = null;
   scene.attackTargets = [];

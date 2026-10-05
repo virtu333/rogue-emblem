@@ -241,7 +241,9 @@ describe('battle music selection', () => {
     expect(battleMusicContext().isFog).toBe(false);
     // no run seed: the node's own battle seed still makes the pick stable
     expect(battleMusicContext({ battleParams: { battleSeed: 99 } }).seed).toBe(99);
-    expect(battleMusicContext({ battleParams: { tutorialMode: true } }).firstBattle).toBe(true);
+    expect(
+      battleMusicContext({ battleParams: { prologueChapter: 'p1_banner_at_dawn' } }).firstBattle,
+    ).toBe(true);
     expect(battleMusicContext().act).toBe('act1');
   });
 });

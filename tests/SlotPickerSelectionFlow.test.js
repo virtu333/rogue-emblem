@@ -7,6 +7,8 @@ vi.mock('phaser', () => ({
 const mocked = vi.hoisted(() => ({
   transitionToSceneMock: vi.fn(),
   startFirstRunFastPathMock: vi.fn(),
+  startPrologueRunMock: vi.fn(),
+  skipPrologueToFirstRunMock: vi.fn(),
   setActiveSlotMock: vi.fn(),
   getMetaKeyMock: vi.fn((slot) => `slot_${slot}_meta`),
   loadRunMock: vi.fn(() => null),
@@ -27,7 +29,12 @@ vi.mock('../src/utils/SceneRouter.js', () => ({
 // Keep the real isFirstRunSlot detection; stub only the run-committing helper.
 vi.mock('../src/utils/firstRunFastPath.js', async (importActual) => {
   const actual = await importActual();
-  return { ...actual, startFirstRunFastPath: mocked.startFirstRunFastPathMock };
+  return {
+    ...actual,
+    startFirstRunFastPath: mocked.startFirstRunFastPathMock,
+    startPrologueRun: mocked.startPrologueRunMock,
+    skipPrologueToFirstRun: mocked.skipPrologueToFirstRunMock,
+  };
 });
 
 vi.mock('../src/engine/SlotManager.js', async (importActual) => ({
@@ -387,5 +394,212 @@ describe('SlotPickerScene selectSlot transition safety', () => {
     expect(store.get('activeSlot')).toBe(1);
     expect(scene.isTransitioning).toBe(false);
     expect(scene.input.enabled).toBe(true);
+  });
+});
+
+describe('SlotPickerScene selectSlot: the prologue offer (docs/specs/prologue-chapter.md §4)', () => {
+  const withPrologue = (scene) => {
+    scene.gameData = { metaUpgrades: [], prologue: { route: { nodes: [] } } };
+    return scene;
+  };
+  const fresh = (prologue = 'none') => ({
+    slot: 1,
+    hasActiveRun: false,
+    runCorrupt: false,
+    runsStarted: 0,
+    runsCompleted: 0,
+    prologue,
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocked.metaInstances.length = 0;
+    mocked.dialogActions = [];
+    mocked.transitionToSceneMock.mockResolvedValue(true);
+    mocked.startFirstRunFastPathMock.mockResolvedValue(true);
+    mocked.startPrologueRunMock.mockResolvedValue(true);
+    mocked.skipPrologueToFirstRunMock.mockResolvedValue(true);
+    mocked.loadRunMock.mockReturnValue(null);
+    mocked.summary.mockReturnValue(null);
+    mocked.domHost.mockReturnValue(true);
+    vi.stubGlobal('localStorage', { getItem: () => null, setItem: vi.fn(), removeItem: vi.fn() });
+  });
+
+  it('an empty slot is asked: Play the Prologue first, then Skip; nothing starts yet', async () => {
+    const { scene, store } = makeScene();
+    withPrologue(scene);
+    await scene.selectSlot(1, null);
+    expect(mocked.dialogActions.map(([label, , primary]) => [label, primary])).toEqual([
+      ['Play the Prologue · about 20 minutes', true],
+      ['Skip to the first run', false],
+    ]);
+    expect(mocked.startPrologueRunMock).not.toHaveBeenCalled();
+    expect(mocked.skipPrologueToFirstRunMock).not.toHaveBeenCalled();
+    expect(mocked.startFirstRunFastPathMock).not.toHaveBeenCalled();
+    expect(mocked.transitionToSceneMock).not.toHaveBeenCalled();
+    expect(mocked.setActiveSlotMock).not.toHaveBeenCalled();
+    // Nothing is staged until a start is chosen; the picker stays usable.
+    expect(store.has('activeSlot')).toBe(false);
+    expect(store.has('meta')).toBe(false);
+    expect(store.has('hints')).toBe(false);
+    expect(scene.isTransitioning).toBe(false);
+    expect(scene.input.enabled).toBe(true);
+  });
+
+  it('Esc on the offer leaves the picker as it was: registry untouched, music playing', async () => {
+    const audio = { stopMusic: vi.fn(), playMusic: vi.fn() };
+    const prevMeta = { slot: 'previous' };
+    const prevHints = { slot: 'previous' };
+    const { scene, store } = makeScene({ audio, meta: prevMeta, hints: prevHints, activeSlot: 3 });
+    withPrologue(scene);
+    await scene.selectSlot(1, null);
+    expect(scene.requestCancel()).toBe(true);
+    expect(scene.nativeDialog).toBe(null);
+    expect(store.get('meta')).toBe(prevMeta);
+    expect(store.get('hints')).toBe(prevHints);
+    expect(store.get('activeSlot')).toBe(3);
+    expect(mocked.metaInstances).toHaveLength(0);
+    expect(audio.stopMusic).not.toHaveBeenCalled();
+    expect(scene.isTransitioning).toBe(false);
+    expect(scene.input.enabled).toBe(true);
+  });
+
+  it('the chosen start stages the slot, and stops the music, before it begins', async () => {
+    const audio = { stopMusic: vi.fn(), playMusic: vi.fn() };
+    const { scene, store } = makeScene({ audio });
+    withPrologue(scene);
+    let staged = null;
+    mocked.startPrologueRunMock.mockImplementationOnce(async () => {
+      staged = {
+        activeSlot: store.get('activeSlot'),
+        metaKey: store.get('meta')?.storageKey,
+        hintsSlot: store.get('hints')?.slot,
+        musicStopped: audio.stopMusic.mock.calls.length > 0,
+      };
+      return true;
+    });
+    await scene.selectSlot(2, null);
+    await mocked.dialogActions[0][1]();
+    expect(staged).toEqual({
+      activeSlot: 2,
+      metaKey: 'slot_2_meta',
+      hintsSlot: 2,
+      musicStopped: true,
+    });
+    expect(mocked.setActiveSlotMock).toHaveBeenCalledWith(2);
+  });
+
+  it.each([
+    ['refused', () => mocked.startPrologueRunMock.mockResolvedValueOnce(false)],
+    ['thrown', () => mocked.startPrologueRunMock.mockRejectedValueOnce(new Error('boom'))],
+  ])('a %s start rolls the staged slot back and brings the music back', async (_, arrange) => {
+    arrange();
+    const audio = { stopMusic: vi.fn(), playMusic: vi.fn() };
+    const prevMeta = { slot: 'previous' };
+    const { scene, store } = makeScene({ audio, meta: prevMeta });
+    withPrologue(scene);
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await scene.selectSlot(1, null);
+    await mocked.dialogActions[0][1]();
+    error.mockRestore();
+    expect(store.get('meta')).toBe(prevMeta);
+    expect(store.has('hints')).toBe(false);
+    expect(store.has('activeSlot')).toBe(false);
+    expect(audio.stopMusic).toHaveBeenCalled();
+    expect(audio.playMusic).toHaveBeenCalledWith('music_title', scene, 300);
+    expect(mocked.setActiveSlotMock).not.toHaveBeenCalled();
+    expect(scene.isTransitioning).toBe(false);
+    expect(scene.input.enabled).toBe(true);
+  });
+
+  it('Play starts the prologue run and persists the slot on success', async () => {
+    const { scene } = makeScene();
+    withPrologue(scene);
+    await scene.selectSlot(1, null);
+    await mocked.dialogActions[0][1]();
+    expect(mocked.startPrologueRunMock).toHaveBeenCalledWith(scene, {
+      gameData: scene.gameData,
+      slot: 1,
+    });
+    expect(mocked.setActiveSlotMock).toHaveBeenCalledWith(1);
+  });
+
+  it("Skip takes today's fast path through the skip record", async () => {
+    const { scene } = makeScene();
+    withPrologue(scene);
+    await scene.selectSlot(2, null);
+    await mocked.dialogActions[1][1]();
+    expect(mocked.skipPrologueToFirstRunMock).toHaveBeenCalledWith(scene, {
+      gameData: scene.gameData,
+      slot: 2,
+    });
+    expect(mocked.startPrologueRunMock).not.toHaveBeenCalled();
+    expect(mocked.setActiveSlotMock).toHaveBeenCalledWith(2);
+  });
+
+  it('a refused start keeps the picker usable and the slot unpersisted', async () => {
+    mocked.startPrologueRunMock.mockResolvedValue(false);
+    const { scene } = makeScene();
+    withPrologue(scene);
+    await scene.selectSlot(1, null);
+    await mocked.dialogActions[0][1]();
+    expect(mocked.setActiveSlotMock).not.toHaveBeenCalled();
+    expect(scene.isTransitioning).toBe(false);
+    expect(scene.input.enabled).toBe(true);
+  });
+
+  it('on a device that finished the prologue, Skip is the highlighted default', async () => {
+    vi.stubGlobal('localStorage', {
+      getItem: (k) => (k === 'emblem_rogue_tutorial_completed' ? '1' : null),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    });
+    const { scene } = makeScene();
+    withPrologue(scene);
+    await scene.selectSlot(1, null);
+    expect(mocked.dialogActions.map(([label, , primary]) => [label, primary])).toEqual([
+      ['Skip to the first run', true],
+      ['Play the Prologue · about 20 minutes', false],
+    ]);
+  });
+
+  it('without a DOM the offer is the skip', async () => {
+    mocked.domHost.mockReturnValue(false);
+    const { scene } = makeScene();
+    withPrologue(scene);
+    await scene.selectSlot(1, null);
+    expect(mocked.skipPrologueToFirstRunMock).toHaveBeenCalledTimes(1);
+    expect(mocked.startFirstRunFastPathMock).not.toHaveBeenCalled();
+    expect(mocked.setActiveSlotMock).toHaveBeenCalledWith(1);
+  });
+
+  it("a skipped prologue takes today's fast path; a completed one opens Home Base", async () => {
+    mocked.summary.mockReturnValue(fresh('skipped'));
+    const { scene } = makeScene();
+    withPrologue(scene);
+    await scene.selectSlot(1, fresh('skipped'));
+    expect(mocked.startFirstRunFastPathMock).toHaveBeenCalledTimes(1);
+    expect(mocked.dialogActions).toEqual([]);
+
+    vi.clearAllMocks();
+    mocked.transitionToSceneMock.mockResolvedValue(true);
+    mocked.summary.mockReturnValue(fresh('complete'));
+    const second = makeScene();
+    withPrologue(second.scene);
+    await second.scene.selectSlot(1, fresh('complete'));
+    expect(mocked.transitionToSceneMock).toHaveBeenCalledWith(
+      second.scene,
+      'HomeBase',
+      { gameData: second.scene.gameData, corruptRunDetected: false },
+      { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
+    );
+    expect(mocked.startFirstRunFastPathMock).not.toHaveBeenCalled();
+  });
+
+  it('a build without prologue data keeps the first-run fast path', async () => {
+    const { scene } = makeScene();
+    await scene.selectSlot(1, null);
+    expect(mocked.startFirstRunFastPathMock).toHaveBeenCalledTimes(1);
+    expect(mocked.dialogActions).toEqual([]);
   });
 });

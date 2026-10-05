@@ -18,16 +18,18 @@ import {
   razeVillage,
   clearSeekTileBandits,
   getVillageGoldReward,
-  rollVillageRewardItem,
+  villageRewardItem,
+  villageObjectiveLine,
   VILLAGE_STATUS,
 } from '../engine/VillageSystem.js';
+import { isScriptedBattle } from '../engine/ScriptedBattle.js';
 import { TERRAIN, TILE_SIZE } from '../utils/constants.js';
 import { ensureItemUid } from '../utils/itemUid.js';
 import { showMinorHint } from './HintDisplay.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 
 /** The objective line while the village is intact: how to visit, and the race. */
-export const VILLAGE_OBJECTIVE_LINE = "Village: end a unit's action on it before bandits";
+export const VILLAGE_OBJECTIVE_LINE = villageObjectiveLine(null);
 /** Under Wait in the action menu when waiting here would visit the village. */
 export const VILLAGE_WAIT_NOTE = 'Visits village';
 
@@ -62,6 +64,9 @@ export class VillageController {
     scene._villageState = createVillageState(tile);
     this._renderMarker();
 
+    // A prologue chapter teaches its village with its own beat (and a standalone
+    // chapter must never write a slot's hints).
+    if (isScriptedBattle(scene.battleParams)) return;
     const hints = scene.registry?.get?.('hints');
     if (hints?.shouldShow('battle_village')) {
       showMinorHint(
@@ -81,7 +86,7 @@ export class VillageController {
    */
   getObjectiveSuffix() {
     if (this.scene?._villageState?.status === VILLAGE_STATUS.INTACT) {
-      return VILLAGE_OBJECTIVE_LINE;
+      return villageObjectiveLine(this.scene?.battleConfig?.villageTile);
     }
     return null;
   }
@@ -126,11 +131,11 @@ export class VillageController {
     scene.goldEarned = (scene.goldEarned || 0) + gold;
 
     let grantedItemName = null;
-    const item = rollVillageRewardItem(
-      act,
-      scene.gameData?.lootTables,
-      scene.gameData?.consumables,
-    );
+    const item = villageRewardItem(scene.battleConfig?.villageTile, act, {
+      lootTables: scene.gameData?.lootTables,
+      consumables: scene.gameData?.consumables,
+      weapons: scene.gameData?.weapons,
+    });
     // Pre-assign the uid so the convoy clone shares it — a Vision rewind of
     // this visit removes exactly this item again (see restoreFromVisionSnapshot).
     if (item && scene.runManager?.addToConvoy?.(ensureItemUid(item))) {

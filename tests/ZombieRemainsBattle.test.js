@@ -153,7 +153,7 @@ function battle({ rail = true, enemies = [], remains = [remainsAt(2, 1)], visibl
     _hasAbilities: () => false,
     _clampMenuPosition: (x, y) => ({ x, y }),
     _pinToScreen: vi.fn(),
-    _isTutorialStrictGateActive: () => false,
+    _isPrologueGateActive: () => false,
     _makeMenuTextButton: vi.fn((_x, _y, text, _style, color, action, options = {}) =>
       displayObject({ text, _action: action, _menuDisabled: !!options.disabled }),
     ),

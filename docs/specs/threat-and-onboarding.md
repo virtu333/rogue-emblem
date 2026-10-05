@@ -100,8 +100,9 @@ in tutorial battles. "Fewer tips" sets Guidance to Light.
 | `guide_no_attack` | coach | a unit ended its move with no target | No enemy is in reach of Sera here, so Attack is greyed out. Tap Back to try a closer tile, or Wait. |
 | `guide_commander_low_hp` | essential | commander starts a player phase at ≤ 50% HP | Edric is badly hurt. If Edric falls, the run ends. Pull back, heal with a staff, or use a Vulnerary from Item. |
 | `guide_recruit_on_map` | essential | a green (recruitable) unit that is visible or marked by the recruit banner | Garrick (Cavalier) under the gold banner can join you. Move a Lord next to them and choose Talk before enemies reach them. |
+| `guide_veteran_kills` | essential, unit-scoped | a low-XP veteran (a special character with `classProgression: false` and `canPromote: false`, i.e. Gaspar; `SpecialCharacterPolicy.isLowGrowthVeteran`) is selected or planning, a living enemy is in view, and another living unit who can grow is on the team (the commander counts). Waits while an unread commander-low-HP, recruit or (Full) first-turn note is due. Steps aside, unread, when he acts or another unit is picked | Gaspar is strong now but barely grows and earns little XP. Weaken enemies with Gaspar, then leave the final blow to Edric and your recruits: they grow from it. |
 
-Desktop wording swaps "Tap Back" for "Press Esc or right-click".
+Desktop wording swaps "Tap Back" for "Press Esc or right-click" (the veteran note reads the same on both).
 
 `guide_recruit_on_map` is the recruit battle's only introduction (playtest 4). It names the
 recruit and class ("The green unit" when neither is known); it replaced the recruit

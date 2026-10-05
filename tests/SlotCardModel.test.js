@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { installFakeDom } from './helpers/fakeDom.js';
 import { buildSlotCard } from '../src/ui/SlotPickerView.js';
 import { loadGameData } from './testData.js';
+import { RunManager } from '../src/engine/RunManager.js';
+import { getMetaKey, getRunKey, getSlotSummary } from '../src/engine/SlotManager.js';
 import { friendlySavedTime, slotCardModel, templateName } from '../src/ui/slotCardModel.js';
 
 const gameData = loadGameData();
@@ -112,6 +114,48 @@ describe('slotCardModel', () => {
       { gameData, now: NOW },
     );
     expect(start.status).toBe('Setting out into the Border Marches');
+  });
+
+  it("the prologue's run reads as the Prologue: no act, no rung, Continue prologue", () => {
+    const route = slotCardModel(
+      1,
+      activeSummary({ battleSuspended: false, prologueRun: true, actId: 'act1', actReached: 1 }),
+      { gameData, now: NOW },
+    );
+    expect(route).toMatchObject({
+      actKicker: 'Prologue',
+      title: 'The first thread',
+      difficulty: null,
+      threadLabel: 'Prologue',
+    });
+    expect(route.gradeName).toBeUndefined();
+    expect(route.primary.label).toBe('Continue prologue');
+    // A suspended chapter still offers its battle.
+    const battle = slotCardModel(1, activeSummary({ prologueRun: true }), { gameData, now: NOW });
+    expect(battle.primary.label).toBe('Resume battle');
+    expect(battle.actKicker).toBe('Prologue');
+  });
+
+  it("the slot summary marks a saved prologue run (and only the prologue's)", () => {
+    const storageOf = (rm) => {
+      const items = new Map([
+        [getMetaKey(1), JSON.stringify({ savedAt: 1 })],
+        [getRunKey(1), JSON.stringify(rm.toJSON())],
+      ]);
+      return { getItem: (k) => (items.has(k) ? items.get(k) : null), get length() { return items.size; }, key: (i) => [...items.keys()][i] ?? null }; // prettier-ignore
+    };
+    const prologueRun = new RunManager(gameData, null);
+    prologueRun.startPrologue(gameData, gameData.prologue);
+    expect(getSlotSummary(1, storageOf(prologueRun))).toMatchObject({
+      hasActiveRun: true,
+      prologueRun: true,
+    });
+    const real = new RunManager(gameData, null);
+    real.startRun({ difficultyId: 'normal' });
+    expect(getSlotSummary(1, storageOf(real))).toMatchObject({
+      hasActiveRun: true,
+      prologueRun: false,
+    });
   });
 
   it('between runs, fresh saves, corrupt runs and cloud conflicts', () => {

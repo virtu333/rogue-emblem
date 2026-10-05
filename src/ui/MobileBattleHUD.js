@@ -12,8 +12,8 @@ import {
 } from './battleSidebarDisplay.js';
 import { battlePlace } from './placeDisplay.js';
 import { bindHoldBattleSpeed, canHoldBattleSpeed } from './HoldBattleSpeed.js';
-import { syncTutorialForecastLayout } from './tutorialForecastLayout.js';
-import { TutorialController } from './TutorialController.js';
+import { syncPrologueForecastLayout } from './prologueForecastLayout.js';
+import { isScriptedBattle } from '../engine/ScriptedBattle.js';
 import {
   showContextualHint,
   claimContextualHint,
@@ -369,10 +369,6 @@ export class MobileBattleHUD {
   showMenu(items, objects) {
     this.menu = { items, objects, unit: this.scene.selectedUnit };
     this.expandedItem = null; // a new menu opens with every row brief
-    if (this.scene.battleParams?.tutorialMode && this.scene._tutorialStrictGateReleased)
-      void (this.scene._tutorialController ||= new TutorialController(
-        this.scene,
-      )).showResourceLesson(items);
     if (items.some((entry) => entry.item?.type === 'Consumable'))
       showContextualHint(
         this.scene,
@@ -805,7 +801,8 @@ export class MobileBattleHUD {
     if (this.help && !this.help.destroyed) return;
     const s = this.scene;
     const state = s.battleState || '';
-    const tutorialHint = s.battleParams?.tutorialMode && state === 'TUTORIAL_HINT';
+    // A prologue note (PrologueController) holds the rail inert under it.
+    const tutorialHint = isScriptedBattle(s.battleParams) && state === 'TUTORIAL_HINT';
     // Placement before turn 1 (FormationController) runs its controls in the rail.
     const formation = state === 'DEPLOY_POSITIONING' && Boolean(s._formation?.ready);
     const supported = PLAY_STATES.has(state) || state.startsWith('SELECTING_') || formation;
@@ -830,7 +827,7 @@ export class MobileBattleHUD {
     if (this.modal) {
       this.modal.hidden = !show || (state !== 'SHOWING_FORECAST' && !tutorialHint);
       this.modal.inert = Boolean(tutorialHint);
-      syncTutorialForecastLayout(this.modal, s, tutorialHint);
+      syncPrologueForecastLayout(this.modal, s, tutorialHint);
     }
     this.speedHold.hidden = !show || Boolean(this.modal) || !canHoldBattleSpeed(s);
     if (this.speedHold.hidden) {
@@ -1325,12 +1322,12 @@ export class MobileBattleHUD {
 
   /**
    * UNIT_SELECTED: a "Choose a tile · <name>" line, and a Cancel that deselects
-   * (returned for the caller to place; null during a tutorial movement gate).
+   * (returned for the caller to place; null during a prologue guided step).
    */
   appendTileChoice(selected) {
     const s = this.scene;
     this.body.append(el('p', 'mb-hint mb-choose-tile', `Choose a tile · ${selected.name}`));
-    if (s._isTutorialStrictGateActive?.()) return null;
+    if (s._isPrologueGateActive?.()) return null;
     const cancel = this.button(
       'Cancel',
       () => {

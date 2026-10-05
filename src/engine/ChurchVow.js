@@ -10,6 +10,8 @@
 // DOM. The offer is hashed from the run seed and the node, never the battle RNG.
 
 import { CHURCH_VOWS } from '../utils/constants.js';
+import { isPrologueRun } from './ScriptedBattle.js';
+import { PROLOGUE_BLESSING_BLOCK } from '../data/prologueContent.js';
 
 export { CHURCH_VOWS };
 
@@ -65,6 +67,8 @@ export function churchVowBlock(run, nodeId, vow) {
 
 /** Why this blessing cannot be taken here: '' when it can. */
 export function churchBlessingBlock(run, nodeId, blessingId, gameData) {
+  // The prologue's chapel shows the altar, greyed: blessings start with the first run.
+  if (isPrologueRun(run)) return PROLOGUE_BLESSING_BLOCK;
   const made = churchVow(run, nodeId);
   if (made === 'blessing') return 'This altar has already blessed you.';
   const reason = churchVowBlock(run, nodeId, 'blessing');

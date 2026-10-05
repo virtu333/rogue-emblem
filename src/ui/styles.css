@@ -35,8 +35,8 @@
 
 /* Compact explain affordance (ⓘ + press-and-hold) over the kit and reliquary. */
 @import './infoAffordance.css';
-/* Tutorial coach: the persistent objective line over the map. */
-@import './tutorialCoach.css';
+/* Prologue coach: the persistent objective line over the map. */
+@import './prologueCoach.css';
 /* Battle rail: Danger toggle, 44px commands, details row, bottom tool glyphs. */
 @import './battleRail.css';
 

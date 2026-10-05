@@ -512,13 +512,15 @@ export function describeLoomNode(
   const template = params
     ? templateLookup(mapTemplates, node.templateId || params.templateId)
     : null;
+  // An authored node (the prologue's chapters) names itself; others take the template.
+  const authoredTitle = typeof node.title === 'string' && node.title.trim() ? node.title : null;
   const place = eclipsed
     ? node.eclipse.label || 'Eclipsed'
     : node.type === 'recruit'
       ? recruitView
         ? `${recruitView.name}, ${recruitView.isLord ? 'a lord' : 'a potential ally'}`
         : 'A potential ally'
-      : template?.name || null;
+      : authoredTitle || template?.name || null;
 
   const tags = [];
   if (eclipsed) tags.push({ text: 'Eclipsed', tone: 'bad' });
@@ -556,7 +558,11 @@ export function describeLoomNode(
       ? `Hunters are closing on ${recruitView.name}. Reach them with a lord and Talk.`
       : node.type === 'ruins' && ruinsChoice
         ? chosenLine(ruinsChoice)
-        : SERVICE[node.type] || objective?.[1] || '';
+        : // An authored node (the prologue's) says what it holds itself.
+          (typeof node.preview === 'string' && node.preview) ||
+          SERVICE[node.type] ||
+          objective?.[1] ||
+          '';
   const pool = state === 'cut' || eclipsed ? null : flavorPool(node, dialogue, actId);
   const flavor =
     Array.isArray(pool) && pool.length ? pool[stableIndex(node.id, pool.length)] : null;
@@ -597,6 +603,8 @@ export function describeLoomNode(
     warning,
     templateName: eclipsed ? template?.name || null : null,
     objective: objective && node.type !== 'recruit' ? objective[0] : null,
+    // An authored node names the boss it holds (the prologue's Varro: Prologue.prologueBossLine).
+    boss: !eclipsed && typeof node.bossLine === 'string' && node.bossLine ? node.bossLine : null,
     recruit: recruitView,
     place,
     lore: template?.lore || null,
@@ -607,19 +615,26 @@ export function describeLoomNode(
   };
 }
 
-/** Act header: Cinzel title ("Act I · Border Marches") and the pixel subline. */
+/**
+ * Act header: Cinzel title ("Act I · Border Marches") and the pixel subline. `act`
+ * and `title` replace the act's own ("Prologue · The Quarry Road").
+ */
 export function loomHeader({
   actIndex = 0,
   actName = '',
   region = '',
   rows = 0,
   frontierRow = -1,
+  act = null,
+  title = null,
 }) {
   const rowNow = rows ? Math.min(rows, Math.max(1, frontierRow + 2)) : 0;
-  const sub = [actName, rows ? `Row ${rowNow} of ${rows}` : null].filter(Boolean).join(' · ');
+  const sub = [act ? null : actName, rows ? `Row ${rowNow} of ${rows}` : null]
+    .filter(Boolean)
+    .join(' · ');
   return {
-    act: `Act ${toRoman(actIndex + 1)}`,
-    title: region || actName || 'Campaign',
+    act: act || `Act ${toRoman(actIndex + 1)}`,
+    title: title || region || actName || 'Campaign',
     sub: sub.toUpperCase(),
   };
 }

@@ -1,8 +1,9 @@
 import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { MobilePauseMenu } from './MobilePauseMenu.js';
-// PauseOverlay — In-game pause menu (Resume / Settings / Save & Exit / Abandon Run,
-// or Start First Run / Leave Tutorial in the practice battle)
+// PauseOverlay — In-game pause menu (Resume / Settings / Save & Exit / Abandon Run;
+// a standalone prologue chapter has Leave Prologue instead, the prologue run has
+// "Skip the rest of the prologue" and no Abandon Run)
 // Follows StatPanel show()/hide() pattern with this.objects[].
 
 import { SettingsOverlay } from './SettingsOverlay.js';
@@ -29,7 +30,7 @@ export class PauseOverlay {
       onBackToMap,
       campaignMapData,
       gameData,
-      tutorial,
+      prologue,
     },
   ) {
     this.scene = scene;
@@ -42,8 +43,9 @@ export class PauseOverlay {
     this.onAbandonWarning = onAbandonWarning;
     this.campaignMapData = campaignMapData || null;
     this.gameData = gameData || null;
-    // Tutorial exits: { onLeave, onStartRun? } — a practice battle has no run to save.
-    this.tutorial = tutorial?.onLeave ? tutorial : null;
+    // Prologue exits: { onLeave, title? } (standalone: nothing to save) or
+    // { onSkipRest, title? } (the run: the ending, then Home Base with the grant).
+    this.prologue = prologue?.onLeave || prologue?.onSkipRest ? prologue : null;
     this.objects = [];
     this.visible = false;
     this.settingsOverlay = null;
@@ -115,7 +117,7 @@ export class PauseOverlay {
     if (this.onBackToMap) buttonCount++;
     if (this.onSaveAndExit) buttonCount++;
     if (this.onAbandon) buttonCount++;
-    if (this.tutorial) buttonCount += this.tutorial.onStartRun ? 2 : 1;
+    if (this.prologue) buttonCount++;
     const panelHeight = 100 + buttonCount * 40;
 
     // Dark background
@@ -200,13 +202,12 @@ export class PauseOverlay {
       btnY += 40;
     }
 
-    // Tutorial: a clear way out (nothing to save), and a direct route into a first run.
-    if (this.tutorial) {
-      if (this.tutorial.onStartRun) {
-        this._addButton(cx, btnY, 'Start First Run', () => this.requestStartRunFromTutorial());
-        btnY += 40;
-      }
-      this._addButton(cx, btnY, 'Leave Tutorial', () => this.requestLeaveTutorial());
+    // Prologue: a clear way out. Standalone: leave for the title (nothing to save).
+    // The run: skip the rest of the prologue (the ending, then Home Base).
+    if (this.prologue) {
+      this._addButton(cx, btnY, this.prologue.onSkipRest ? 'Skip Prologue' : 'Leave Prologue', () =>
+        this.requestLeavePrologue(),
+      );
       btnY += 40;
     }
 
@@ -300,36 +301,26 @@ export class PauseOverlay {
     return true;
   }
 
-  /** Confirm leaving the practice battle for the title (Cancel stays the default). */
-  requestLeaveTutorial() {
-    if (!this.tutorial || !this.visible) return false;
+  /**
+   * Confirm the prologue exit (Cancel stays the default): leaving a standalone
+   * chapter for the title, or skipping the rest of the prologue run.
+   */
+  requestLeavePrologue() {
+    if (!this.prologue || !this.visible) return false;
+    const skipRest = Boolean(this.prologue.onSkipRest);
     this._showConfirm(
-      'Leave the tutorial?\nNothing from this practice battle is kept.\nReplay it any time from the title.',
+      skipRest
+        ? 'Skip the rest of the prologue?\nThe story moves on to Home Base. What the first\nthread earned is yours to spend there.'
+        : 'Leave the prologue?\nNothing from this chapter is kept.\nReplay it any time from the title.',
       () => {
         this.hideForTransition();
+        const exit = skipRest ? this.prologue.onSkipRest : this.prologue.onLeave;
         Promise.resolve()
-          .then(() => this.tutorial.onLeave())
-          .catch((err) => console.error('[PauseOverlay] tutorial leave rejected:', err));
+          .then(() => exit())
+          .catch((err) => console.error('[PauseOverlay] prologue exit rejected:', err));
       },
       UI_PALETTE.text,
-      'Leave tutorial',
-    );
-    return true;
-  }
-
-  /** Confirm skipping the rest of the tutorial straight into a first run. */
-  requestStartRunFromTutorial() {
-    if (!this.tutorial?.onStartRun || !this.visible) return false;
-    this._showConfirm(
-      'Start your first run now?\nThe practice battle ends. Your run begins on Normal\nin a new save slot.',
-      () => {
-        this.hideForTransition();
-        Promise.resolve()
-          .then(() => this.tutorial.onStartRun())
-          .catch((err) => console.error('[PauseOverlay] tutorial start-run rejected:', err));
-      },
-      UI_PALETTE.accent,
-      'Start run',
+      skipRest ? 'Skip prologue' : 'Leave prologue',
     );
     return true;
   }

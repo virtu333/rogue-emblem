@@ -7,6 +7,7 @@ import {
   CARAVAN_BASE_HP,
   CARAVAN_HP_PER_ACT,
 } from '../utils/constants.js';
+import { isScriptedBattle } from './ScriptedBattle.js';
 
 const ACT_NUMBER = { act1: 1, act2: 2, act3: 3, act4: 4 };
 
@@ -22,14 +23,15 @@ const ACT_NUMBER = { act1: 1, act2: 2, act3: 3, act4: 4 };
  */
 export function rollCaravanSpawn(params, chanceBonus = 0, rng = Math.random) {
   if (!params) return false;
-  const { act, objective, isRecruitBattle, isBoss, isAmbush, tutorialMode, isColosseum } = params;
-  // Defensive checks: isAmbush/tutorialMode/isColosseum are never actually set
+  const { act, objective, isRecruitBattle, isBoss, isAmbush, isColosseum } = params;
+  const scripted = isScriptedBattle(params);
+  // Defensive checks: isAmbush/scripted/isColosseum are never actually set
   // on BATTLE params at roll time today — colosseum conversion retypes the node
   // and nulls battleParams AFTER this roll (discarding the result), and ambush
   // conversion rebuilds battleParams for SHOP nodes only. The load-bearing
   // exclusions are isRecruitBattle/isBoss/escape/act gating below; the rest is
   // defense-in-depth for any future caller that does set those flags.
-  if (isRecruitBattle || isBoss || isAmbush || tutorialMode || isColosseum) return false;
+  if (isRecruitBattle || isBoss || isAmbush || scripted || isColosseum) return false;
   if (objective === 'escape') return false;
   if (!CARAVAN_ELIGIBLE_ACTS.includes(act)) return false;
   const chance = Math.max(0, Math.min(1, CARAVAN_SPAWN_CHANCE + (chanceBonus || 0)));

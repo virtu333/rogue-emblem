@@ -1,9 +1,10 @@
 import { presentationText } from '../utils/presentationText.js';
+import { isScriptedBattle } from '../engine/ScriptedBattle.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 import { inputHint } from '../utils/inputHint.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
-// HintDisplay — Two display functions for tutorial hints
+// HintDisplay — Two display functions for field notes and hints
 // Important/long hints require dismissal. Short hints allow a reading window.
 
 const DEPTH = 965;
@@ -33,7 +34,8 @@ export function showImportantHint(scene, message, { minimumMs = 0, actions = nul
       const menu = new MenuSurface(scene, 'Field notes', () => finish(), { modal: true });
       menu.root.classList.add('re-run-flow');
       menu.header.querySelector('button').remove();
-      if (scene.battleParams?.tutorialMode) menu.root.classList.add('re-tutorial-note');
+      // A prologue note keeps the map in view (the .re-tutorial-note styling hook).
+      if (isScriptedBattle(scene.battleParams)) menu.root.classList.add('re-tutorial-note');
       let actionsEl;
       if (choices) {
         actionsEl = element('div', null, 're-tutorial-actions');
@@ -256,7 +258,7 @@ function renderMinorHint(scene, message) {
 export function claimContextualHint(scene, id) {
   const hints = scene.registry?.get?.('hints');
   if (
-    scene.battleParams?.tutorialMode ||
+    isScriptedBattle(scene.battleParams) ||
     !hints ||
     hints.hasSeen(id) ||
     scene.registry.get('settings')?.getHints?.() === false
@@ -348,7 +350,7 @@ function waitForHintIdle(scene) {
 }
 
 // At most one optional helper per battle. Unshown hints remain unseen so later
-// encounters can teach them. Scripted tutorial notes use their own strict flow.
+// encounters can teach them. A prologue chapter's notes use their own strict flow.
 /**
  * The phone battle's one camera lesson for this battle, if any: pinch and pan first;
  * then, on a later battle played upright, that the phone can be turned sideways for the
@@ -372,7 +374,7 @@ export function mobileBattleHint({ hasSeen = () => false, upright = false } = {}
 }
 
 export function showContextualHint(scene, id, message) {
-  if (scene.battleParams?.tutorialMode) return false;
+  if (isScriptedBattle(scene.battleParams)) return false;
   const hints = scene.registry.get('hints');
   if (!hints || scene.registry.get('settings')?.getHints?.() === false || hints.hasSeen(id))
     return false;

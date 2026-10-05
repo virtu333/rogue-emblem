@@ -109,6 +109,9 @@ export function forecastNotes(forecast, attacking, attackerHP, weapons = null) {
     const hp = attacking ? projection.attackerHP : projection.defenderHP;
     notes.push(`If all hits land: ${hp === 0 ? 'KO' : `${hp} HP`} (no crits/procs)`);
   }
+  // A one-time lesson on this side (the armor note: AttackFlowController.armorLesson).
+  const side = attacking ? forecast.attacker : forecast.defender;
+  if (typeof side?.lessonNote === 'string' && side.lessonNote) notes.push(side.lessonNote);
   const striker = attacking ? forecast.attacker : forecast.defender;
   if (striker?.thornsReflect > 0)
     notes.push(`Thorns: −${striker.thornsReflect} HP per hit landed (leaves at least 1)`);

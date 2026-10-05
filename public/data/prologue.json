@@ -1,0 +1,1345 @@
+{
+  "version": 1,
+  "seed": 1209,
+  "grant": {
+    "valor": 60,
+    "supply": 40
+  },
+  "startingGold": 0,
+  "units": {
+    "Edric": {
+      "lord": "Edric",
+      "level": 1,
+      "stats": {
+        "HP": 20,
+        "STR": 6,
+        "MAG": 2,
+        "SKL": 7,
+        "SPD": 8,
+        "DEF": 5,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 4
+      },
+      "growths": {
+        "HP": 60,
+        "STR": 46,
+        "MAG": 17,
+        "SKL": 49,
+        "SPD": 51,
+        "DEF": 32,
+        "RES": 22,
+        "LCK": 44
+      },
+      "traits": [],
+      "inventory": [
+        "Iron Sword",
+        "Vulnerary"
+      ]
+    },
+    "Sera": {
+      "lord": "Sera",
+      "level": 1,
+      "stats": {
+        "HP": 18,
+        "STR": 2,
+        "MAG": 6,
+        "SKL": 4,
+        "SPD": 5,
+        "DEF": 3,
+        "RES": 7,
+        "LCK": 6,
+        "MOV": 4
+      },
+      "growths": {
+        "HP": 52,
+        "STR": 12,
+        "MAG": 49,
+        "SKL": 34,
+        "SPD": 38,
+        "DEF": 23,
+        "RES": 54,
+        "LCK": 46
+      },
+      "traits": [],
+      "proficiencies": [
+        "Light",
+        "Staff"
+      ],
+      "inventory": [
+        "Glimmer",
+        "Heal",
+        "Vulnerary"
+      ]
+    },
+    "Tamsin": {
+      "className": "Archer",
+      "level": 1,
+      "stats": {
+        "HP": 18,
+        "STR": 5,
+        "MAG": 0,
+        "SKL": 7,
+        "SPD": 5,
+        "DEF": 3,
+        "RES": 2,
+        "LCK": 4,
+        "MOV": 4
+      },
+      "growths": {
+        "HP": 67,
+        "STR": 42,
+        "MAG": 5,
+        "SKL": 57,
+        "SPD": 42,
+        "DEF": 25,
+        "RES": 20,
+        "LCK": 35
+      },
+      "traits": [],
+      "inventory": [],
+      "join": {
+        "line": "tamsin_joins",
+        "needs": "Iron Bow",
+        "lineIfGranted": "tamsin_joins_bow_rack"
+      }
+    }
+  },
+  "chapters": [
+    {
+      "id": "p1_banner_at_dawn",
+      "node": "prologue_0",
+      "title": "Banner at Dawn",
+      "objective": "rout",
+      "roster": [
+        "Edric"
+      ],
+      "showPar": false,
+      "map": {
+        "legend": {
+          ".": "Plain",
+          "F": "Forest",
+          "T": "Fort"
+        },
+        "rows": [
+          ". . F . . . . .",
+          ". . . . F . . .",
+          ". . . T . F . .",
+          ". . . . . . F F",
+          ". . F . . T . .",
+          ". . . . F . F ."
+        ]
+      },
+      "playerSpawns": [
+        {
+          "col": 0,
+          "row": 2
+        }
+      ],
+      "enemies": [
+        {
+          "id": "a",
+          "className": "Fighter",
+          "level": 1,
+          "col": 4,
+          "row": 2,
+          "weapon": "Iron Axe",
+          "skills": []
+        },
+        {
+          "id": "b",
+          "className": "Fighter",
+          "level": 1,
+          "col": 7,
+          "row": 5,
+          "weapon": "Iron Axe",
+          "skills": [],
+          "aiMode": "hold",
+          "holdPack": 0,
+          "holdPackSize": 1
+        }
+      ],
+      "npc": null,
+      "villageTile": null,
+      "loot": null,
+      "beats": [
+        {
+          "id": "p1_select_edric",
+          "on": "battleStart",
+          "once": true,
+          "do": [
+            {
+              "coach": "p1_select_edric"
+            },
+            {
+              "gateSelect": {
+                "unit": "Edric"
+              }
+            },
+            {
+              "highlight": {
+                "unit": "Edric"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p1_move_to_fort",
+          "on": "unitSelected",
+          "unit": "Edric",
+          "once": true,
+          "do": [
+            {
+              "coach": "p1_move_to_fort"
+            },
+            {
+              "gateMove": {
+                "col": 3,
+                "row": 2
+              }
+            },
+            {
+              "highlight": {
+                "tile": {
+                  "col": 3,
+                  "row": 2
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "p1_holding_enemy",
+          "on": "afterMove",
+          "unit": "Edric",
+          "dangerFrom": "b",
+          "once": true,
+          "do": [
+            {
+              "note": "p1_holding_enemy"
+            },
+            {
+              "highlight": {
+                "reachOf": "b"
+              }
+            },
+            {
+              "markLesson": {
+                "id": "hold_reach",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p1_on_the_fort",
+          "on": "afterMove",
+          "unit": "Edric",
+          "terrain": "Fort",
+          "once": true,
+          "do": [
+            {
+              "note": "battle_terrain"
+            },
+            {
+              "markLesson": {
+                "id": "terrain",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p1_first_forecast",
+          "on": "forecastOpened",
+          "unit": "Edric",
+          "nth": 1,
+          "once": true,
+          "do": [
+            {
+              "note": "battle_forecast"
+            },
+            {
+              "gateConfirm": true
+            },
+            {
+              "markLesson": {
+                "id": "forecast",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p1_first_attack",
+          "on": "combatResolved",
+          "unit": "Edric",
+          "once": true,
+          "do": [
+            {
+              "markLesson": {
+                "id": "forecast",
+                "kind": "practised"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p1_wait_or_end_turn",
+          "on": "unitActed",
+          "unit": "Edric",
+          "turn": 1,
+          "once": true,
+          "do": [
+            {
+              "note": "p1_wait_or_end_turn"
+            },
+            {
+              "highlight": {
+                "reachOf": "a"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p1_enemy_phase",
+          "on": "turnStart",
+          "phase": "enemy",
+          "turn": 1,
+          "once": true,
+          "do": [
+            {
+              "note": "p1_enemy_phase"
+            }
+          ]
+        },
+        {
+          "id": "p1_level_up",
+          "on": "levelUp",
+          "unit": "Edric",
+          "once": true,
+          "do": [
+            {
+              "note": "p1_level_up"
+            },
+            {
+              "markLesson": {
+                "id": "growth",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p1_triangle",
+          "on": "forecastOpened",
+          "unit": "Edric",
+          "target": "b",
+          "concept": "triangle",
+          "once": true,
+          "do": [
+            {
+              "note": "battle_triangle"
+            },
+            {
+              "markLesson": {
+                "id": "triangle",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p1_vulnerary",
+          "on": "hpBelow",
+          "unit": "Edric",
+          "pct": 60,
+          "once": true,
+          "do": [
+            {
+              "note": "battle_consumable_supply"
+            },
+            {
+              "markLesson": {
+                "id": "consumables",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p1_victory",
+          "on": "victory",
+          "once": true,
+          "do": [
+            {
+              "dialogue": "p1_gaspar_arrives"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "p2_old_hands",
+      "node": "prologue_1",
+      "title": "Old Hands",
+      "objective": "rout",
+      "roster": [
+        "Edric",
+        "old_knight"
+      ],
+      "rosterLevels": {
+        "Edric": 2
+      },
+      "showPar": false,
+      "map": {
+        "legend": {
+          ".": "Plain",
+          "F": "Forest",
+          "~": "Water",
+          "=": "Bridge",
+          "V": "Village",
+          "T": "Fort"
+        },
+        "rows": [
+          ". . . F . ~ . . . .",
+          ". . . . . ~ . . . .",
+          ". . . . . = . . . .",
+          ". . . . . ~ . F F .",
+          ". . . V . ~ ~ ~ . .",
+          ". . F . . ~ . . . ."
+        ]
+      },
+      "playerSpawns": [
+        {
+          "col": 0,
+          "row": 2
+        },
+        {
+          "col": 0,
+          "row": 3
+        }
+      ],
+      "enemies": [
+        {
+          "id": "a",
+          "className": "Archer",
+          "level": 1,
+          "col": 3,
+          "row": 1,
+          "weapon": "Iron Bow",
+          "skills": []
+        },
+        {
+          "id": "b",
+          "className": "Fighter",
+          "level": 1,
+          "col": 8,
+          "row": 2,
+          "weapon": "Iron Axe",
+          "skills": [],
+          "aiMode": "hold",
+          "holdPack": 0,
+          "holdPackSize": 1
+        },
+        {
+          "id": "d",
+          "className": "Soldier",
+          "level": 1,
+          "col": 9,
+          "row": 0,
+          "weapon": "Iron Lance",
+          "skills": [],
+          "aiMode": "guard"
+        }
+      ],
+      "npc": null,
+      "villageTile": {
+        "col": 3,
+        "row": 4,
+        "reward": "Iron Bow"
+      },
+      "loot": [
+        {
+          "item": "Iron Lance"
+        },
+        {
+          "item": "Vulnerary",
+          "quantity": 3
+        },
+        {
+          "gold": 150
+        }
+      ],
+      "beats": [
+        {
+          "id": "p2_gaspar_intro",
+          "on": "battleStart",
+          "once": true,
+          "do": [
+            {
+              "dialogue": "p2_gaspar_intro"
+            }
+          ]
+        },
+        {
+          "id": "p2_jagen",
+          "on": "unitSelected",
+          "unit": "Gaspar",
+          "once": true,
+          "do": [
+            {
+              "note": "p2_veteran_kills"
+            },
+            {
+              "markLesson": {
+                "id": "veteran_kills",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p2_weapon_choice",
+          "on": "forecastOpened",
+          "unit": "Gaspar",
+          "target": "a",
+          "once": true,
+          "do": [
+            {
+              "note": "battle_doubling"
+            },
+            {
+              "markLesson": {
+                "id": "doubling",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p2_no_counter",
+          "on": "forecastOpened",
+          "concept": "noCounter",
+          "once": true,
+          "do": [
+            {
+              "note": "battle_no_counter"
+            },
+            {
+              "markLesson": {
+                "id": "no_counter",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p2_forecast_chances",
+          "on": "forecastOpened",
+          "concept": "uncertainHit",
+          "once": true,
+          "do": [
+            {
+              "note": "p2_forecast_chances"
+            },
+            {
+              "markLesson": {
+                "id": "forecast_chances",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p2_soldier_triangle",
+          "on": "forecastOpened",
+          "unit": "Edric",
+          "target": "d",
+          "concept": "triangle",
+          "once": true,
+          "do": [
+            {
+              "note": "p2_lances_beat_swords"
+            }
+          ]
+        },
+        {
+          "id": "p2_chip_then_finish",
+          "on": "combatResolved",
+          "unit": "Edric",
+          "damagedBy": "Gaspar",
+          "once": true,
+          "do": [
+            {
+              "markLesson": {
+                "id": "veteran_kills",
+                "kind": "practised"
+              }
+            }
+          ],
+          "kill": true
+        },
+        {
+          "id": "p2_danger",
+          "on": "turnStart",
+          "turn": 2,
+          "once": true,
+          "do": [
+            {
+              "note": "battle_danger_zone"
+            }
+          ]
+        },
+        {
+          "id": "p2_village",
+          "on": "afterMove",
+          "terrain": "Village",
+          "once": true,
+          "do": [
+            {
+              "note": "p2_village_visit"
+            },
+            {
+              "markLesson": {
+                "id": "village",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p2_victory",
+          "on": "victory",
+          "once": true,
+          "do": [
+            {
+              "dialogue": "p2_victory"
+            },
+            {
+              "note": "battle_loot"
+            },
+            {
+              "markLesson": {
+                "id": "loot",
+                "kind": "shown"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "p3_seer_on_the_road",
+      "node": "prologue_3",
+      "title": "The Seer on the Road",
+      "objective": "rout",
+      "requiredRecruits": [
+        "Sera"
+      ],
+      "roster": [
+        "Edric",
+        "old_knight",
+        "Tamsin"
+      ],
+      "rosterLevels": {
+        "Edric": 3
+      },
+      "rosterItems": {
+        "Tamsin": [
+          "Iron Bow"
+        ]
+      },
+      "showPar": false,
+      "map": {
+        "legend": {
+          ".": "Plain",
+          "F": "Forest",
+          "T": "Fort"
+        },
+        "rows": [
+          ". . . . . . . F . . . .",
+          ". . . . . . F . . . . .",
+          ". . F . . . F . . . . .",
+          ". . . . . . . . . F . .",
+          ". . T . . . . . . . . ."
+        ]
+      },
+      "playerSpawns": [
+        {
+          "col": 0,
+          "row": 2
+        },
+        {
+          "col": 0,
+          "row": 1
+        },
+        {
+          "col": 0,
+          "row": 3
+        }
+      ],
+      "enemies": [
+        {
+          "id": "s",
+          "className": "Soldier",
+          "level": 1,
+          "col": 5,
+          "row": 2,
+          "weapon": "Iron Lance",
+          "skills": []
+        },
+        {
+          "id": "a",
+          "className": "Soldier",
+          "level": 1,
+          "col": 10,
+          "row": 1,
+          "weapon": "Iron Lance",
+          "skills": []
+        },
+        {
+          "id": "b",
+          "className": "Soldier",
+          "level": 1,
+          "col": 10,
+          "row": 2,
+          "weapon": "Iron Lance",
+          "skills": [],
+          "aiMode": "hold",
+          "holdPack": 0,
+          "holdPackSize": 1
+        }
+      ],
+      "npc": {
+        "unit": "Sera",
+        "className": "Light Sage",
+        "col": 4,
+        "row": 2,
+        "line": "p3_sera_joins"
+      },
+      "villageTile": null,
+      "loot": null,
+      "beats": [
+        {
+          "id": "p3_intro",
+          "on": "battleStart",
+          "once": true,
+          "do": [
+            {
+              "dialogue": "p3_intro"
+            },
+            {
+              "coach": "p3_reach_sera"
+            },
+            {
+              "highlight": {
+                "unit": "Sera"
+              }
+            },
+            {
+              "note": "p3_recruit"
+            },
+            {
+              "markLesson": {
+                "id": "recruit",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p3_sera_joins",
+          "on": "talk",
+          "once": true,
+          "target": "Sera",
+          "do": [
+            {
+              "clearCoach": true
+            },
+            {
+              "coach": "p3_sera_acts"
+            },
+            {
+              "markLesson": {
+                "id": "recruit",
+                "kind": "practised"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p3_sera_done",
+          "on": "unitActed",
+          "unit": "Sera",
+          "do": [
+            {
+              "clearCoach": true
+            }
+          ]
+        },
+        {
+          "id": "p3_heal",
+          "on": "unitSelected",
+          "once": true,
+          "unit": "Sera",
+          "hurt": true,
+          "do": [
+            {
+              "note": "p3_heal"
+            },
+            {
+              "markLesson": {
+                "id": "heal",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p3_healed",
+          "on": "healed",
+          "once": true,
+          "unit": "Sera",
+          "do": [
+            {
+              "markLesson": {
+                "id": "heal",
+                "kind": "practised"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p3_fragile_sera",
+          "on": "afterMove",
+          "once": true,
+          "unit": "Sera",
+          "dangerFrom": "*",
+          "do": [
+            {
+              "note": "p3_fragile"
+            },
+            {
+              "markLesson": {
+                "id": "threat_count",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p3_fragile_tamsin",
+          "on": "afterMove",
+          "once": true,
+          "unit": "Tamsin",
+          "dangerFrom": "*",
+          "do": [
+            {
+              "note": "p3_fragile"
+            },
+            {
+              "markLesson": {
+                "id": "threat_count",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p3_plan_cancel",
+          "on": "afterMove",
+          "once": true,
+          "unit": "Sera",
+          "inRange": false,
+          "do": [
+            {
+              "note": "p3_plan_cancel"
+            },
+            {
+              "markLesson": {
+                "id": "plan_cancel",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p3_range",
+          "on": "afterMove",
+          "once": true,
+          "unit": "Sera",
+          "foeDistance": 2,
+          "do": [
+            {
+              "note": "p3_range"
+            },
+            {
+              "coach": "p3_look_is_free"
+            },
+            {
+              "markLesson": {
+                "id": "range_two",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p3_aura",
+          "on": "afterMove",
+          "once": true,
+          "unit": "Sera",
+          "besideAlly": true,
+          "do": [
+            {
+              "note": "p3_aura"
+            },
+            {
+              "markLesson": {
+                "id": "aura",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p3_magic",
+          "on": "forecastOpened",
+          "once": true,
+          "unit": "Sera",
+          "concept": "magic",
+          "do": [
+            {
+              "note": "p3_magic"
+            },
+            {
+              "markLesson": {
+                "id": "magic",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p3_glimmer",
+          "on": "combatResolved",
+          "once": true,
+          "unit": "Sera",
+          "distance": 2,
+          "do": [
+            {
+              "markLesson": {
+                "id": "range_two",
+                "kind": "practised"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p3_rewind",
+          "on": "turnStart",
+          "once": true,
+          "turn": 2,
+          "hurt": true,
+          "do": [
+            {
+              "grantVision": true
+            },
+            {
+              "note": "p3_rewind"
+            },
+            {
+              "markLesson": {
+                "id": "rewind",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p3_better_plan",
+          "on": "afterMove",
+          "once": true,
+          "afterRewind": true,
+          "safe": true,
+          "do": [
+            {
+              "note": "p3_better_plan"
+            },
+            {
+              "markLesson": {
+                "id": "rewind",
+                "kind": "practised"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p3_victory",
+          "on": "victory",
+          "once": true,
+          "do": [
+            {
+              "dialogue": "p3_victory"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "p4_quarry_gate",
+      "node": "prologue_5",
+      "title": "The Quarry Gate",
+      "objective": "seize",
+      "roster": [
+        "Edric",
+        "old_knight",
+        "Tamsin",
+        "Sera"
+      ],
+      "rosterLevels": {
+        "Edric": 3,
+        "Sera": 2
+      },
+      "rosterItems": {
+        "Tamsin": [
+          "Iron Bow"
+        ]
+      },
+      "rosterEquip": {
+        "old_knight": "Iron Sword"
+      },
+      "deploy": {
+        "min": 2,
+        "note": "p4_deploy"
+      },
+      "formation": {
+        "tiles": [
+          {
+            "col": 1,
+            "row": 4
+          },
+          {
+            "col": 1,
+            "row": 6
+          }
+        ]
+      },
+      "map": {
+        "legend": {
+          ".": "Plain",
+          "#": "Wall",
+          "G": "Throne",
+          "F": "Forest",
+          "T": "Fort"
+        },
+        "rows": [
+          "# # # # # # # # # G # # #",
+          "# # # # # # # # T T T # #",
+          ". . . . F . . . . . . . .",
+          ". . . . . . . F . . . . .",
+          ". . T . . . . . . . F . .",
+          ". . . . . F . . . . . . .",
+          ". . . . . T . . . . . . ."
+        ]
+      },
+      "playerSpawns": [
+        {
+          "col": 0,
+          "row": 6
+        },
+        {
+          "col": 0,
+          "row": 5
+        },
+        {
+          "col": 0,
+          "row": 4
+        }
+      ],
+      "enemies": [
+        {
+          "id": "v",
+          "className": "Fighter",
+          "level": 1,
+          "col": 9,
+          "row": 0,
+          "weapon": "Iron Axe",
+          "skills": [],
+          "isBoss": true,
+          "name": "Captain Varro",
+          "stats": {
+            "STR": 7,
+            "SKL": 3
+          }
+        },
+        {
+          "id": "k",
+          "className": "Fighter",
+          "level": 1,
+          "col": 9,
+          "row": 3,
+          "weapon": "Iron Axe",
+          "skills": [],
+          "aiMode": "guard"
+        },
+        {
+          "id": "a",
+          "className": "Fighter",
+          "level": 1,
+          "col": 8,
+          "row": 6,
+          "weapon": "Iron Axe",
+          "skills": []
+        }
+      ],
+      "npc": null,
+      "villageTile": null,
+      "loot": null,
+      "beats": [
+        {
+          "id": "p4_start",
+          "on": "battleStart",
+          "once": true,
+          "do": [
+            {
+              "coach": "p4_objective"
+            },
+            {
+              "highlight": {
+                "tile": {
+                  "col": 9,
+                  "row": 0
+                }
+              }
+            },
+            {
+              "note": "p4_seize_par"
+            },
+            {
+              "markLesson": {
+                "id": "seize",
+                "kind": "shown"
+              }
+            },
+            {
+              "markLesson": {
+                "id": "par",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p4_deployed",
+          "on": "deployed",
+          "once": true,
+          "do": [
+            {
+              "markLesson": {
+                "id": "deploy",
+                "kind": "practised"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p4_throne",
+          "on": "forecastOpened",
+          "once": true,
+          "target": "v",
+          "targetTerrain": "Throne",
+          "do": [
+            {
+              "note": "p4_throne"
+            },
+            {
+              "markLesson": {
+                "id": "boss_throne",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p4_varro_falls",
+          "on": "unitDefeated",
+          "once": true,
+          "unit": "v",
+          "do": [
+            {
+              "clearCoach": true
+            },
+            {
+              "coach": "p4_seize"
+            },
+            {
+              "highlight": {
+                "tile": {
+                  "col": 9,
+                  "row": 0
+                }
+              }
+            },
+            {
+              "dialogue": "p4_gate_open"
+            },
+            {
+              "note": "p4_seize_now"
+            }
+          ]
+        },
+        {
+          "id": "p4_seized",
+          "on": "seize",
+          "once": true,
+          "do": [
+            {
+              "markLesson": {
+                "id": "seize",
+                "kind": "practised"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "route": {
+    "title": "The Quarry Road",
+    "nodes": [
+      {
+        "id": "prologue_0",
+        "row": 0,
+        "chapter": "p1_banner_at_dawn"
+      },
+      {
+        "id": "prologue_1",
+        "row": 1,
+        "chapter": "p2_old_hands"
+      },
+      {
+        "id": "prologue_2a",
+        "row": 2,
+        "col": 1,
+        "type": "shop",
+        "title": "Harrow's Market",
+        "preview": "Spend your gold on fixed stock: no restock here. The crossing's watch archer waits at either stop.",
+        "stock": [
+          "Vulnerary",
+          "Vulnerary",
+          "Iron Sword",
+          "Iron Lance",
+          "Javelin"
+        ]
+      },
+      {
+        "id": "prologue_2b",
+        "row": 2,
+        "col": 3,
+        "type": "church",
+        "title": "Harrow's Chapel",
+        "preview": "Heal the whole army for free; revive the fallen for gold. The crossing's watch archer waits at either stop."
+      },
+      {
+        "id": "prologue_3",
+        "row": 3,
+        "chapter": "p3_seer_on_the_road"
+      },
+      {
+        "id": "prologue_4",
+        "row": 4,
+        "type": "ruins",
+        "title": "The Old Watchtower",
+        "preview": "Rest heals the whole army, free. Scavenge opens the tower's old stores instead. The ruins allow one.",
+        "stock": [
+          "Vulnerary",
+          "Vulnerary",
+          "Javelin",
+          "Steel Sword"
+        ],
+        "lines": "watchtower_vision"
+      },
+      {
+        "id": "prologue_5",
+        "row": 5,
+        "type": "boss",
+        "chapter": "p4_quarry_gate"
+      }
+    ],
+    "edges": [
+      [
+        "prologue_0",
+        "prologue_1"
+      ],
+      [
+        "prologue_1",
+        "prologue_2a"
+      ],
+      [
+        "prologue_1",
+        "prologue_2b"
+      ],
+      [
+        "prologue_2a",
+        "prologue_3"
+      ],
+      [
+        "prologue_2b",
+        "prologue_3"
+      ],
+      [
+        "prologue_3",
+        "prologue_4"
+      ],
+      [
+        "prologue_4",
+        "prologue_5"
+      ]
+    ]
+  },
+  "joins": {
+    "afterChapter": {
+      "p1_banner_at_dawn": [
+        "old_knight"
+      ]
+    },
+    "atNode": {
+      "prologue_2a": [
+        "Tamsin"
+      ],
+      "prologue_2b": [
+        "Tamsin"
+      ]
+    }
+  },
+  "ending": {
+    "music": "music_explore_deep",
+    "scenes": [
+      {
+        "dialogue": "ending_east",
+        "cue": "eclipse",
+        "shake": true,
+        "veil": "hollow_sun"
+      },
+      {
+        "dialogue": "ending_ridge"
+      },
+      {
+        "dialogue": "ending_thread",
+        "cue": "rewind",
+        "veil": "thread"
+      }
+    ],
+    "titleCard": "Every run is a thread Sera weaves. When one breaks, she weaves again. Your army starts over. What you build at Home Base stays."
+  },
+  "boss": {
+    "name": "Captain Varro",
+    "className": "Fighter",
+    "level": 1,
+    "weapon": "Iron Axe",
+    "epithet": "Keeper of the Quarry Gate",
+    "lore": "An imperial captain posted to a gate of cut stone. His orders name the quarry, not the reason the court needs its stone."
+  }
+}

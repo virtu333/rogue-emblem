@@ -90,6 +90,52 @@ describe('executeTalk fallen-ally record', () => {
   });
 });
 
+describe("executeTalk and the battle's end", () => {
+  function talkScene({ battleConfig = undefined } = {}) {
+    const scene = makeScene();
+    const lord = makeUnit({ name: 'Edric', isLord: true, isCommander: true });
+    const npc = makeUnit({ name: 'Daska', faction: 'npc', className: 'Archer' });
+    scene.npcUnits = [npc];
+    scene.playerUnits = [lord];
+    scene.enemyUnits = [];
+    scene.battleConfig = battleConfig;
+    scene.findTalkTarget = vi.fn(() => npc);
+    scene._getPortraitKey = vi.fn(() => null);
+    scene.updateObjectiveText = vi.fn();
+    scene.dialogueOverlay = { show: vi.fn(async () => {}) };
+    scene.checkBattleEnd = vi.fn(() => false);
+    return { scene, lord, npc };
+  }
+
+  it("a standard run's Talk never checks the battle's end (its recruit rules are untouched)", async () => {
+    const { scene, lord, npc } = talkScene({ battleConfig: { objective: 'rout' } });
+    await scene.executeTalk(lord);
+    expect(scene.playerUnits).toContain(npc);
+    expect(scene.checkBattleEnd).not.toHaveBeenCalled();
+    expect(scene.finishUnitAction).toHaveBeenCalledTimes(1);
+  });
+
+  it('a rout that waited on this very recruit checks it once the join settled (the prologue)', async () => {
+    const { scene, lord, npc } = talkScene({
+      battleConfig: { objective: 'rout', requiredRecruits: ['Daska'] },
+    });
+    await scene.executeTalk(lord);
+    expect(scene.playerUnits).toContain(npc);
+    expect(scene.checkBattleEnd).toHaveBeenCalledTimes(1);
+    expect(scene.checkBattleEnd.mock.invocationCallOrder[0]).toBeGreaterThan(
+      scene.finishUnitAction.mock.invocationCallOrder[0],
+    );
+  });
+
+  it('a rout that waits on someone else is not checked by this join', async () => {
+    const { scene, lord } = talkScene({
+      battleConfig: { objective: 'rout', requiredRecruits: ['Sera'] },
+    });
+    await scene.executeTalk(lord);
+    expect(scene.checkBattleEnd).not.toHaveBeenCalled();
+  });
+});
+
 describe('executeTalk error recovery', () => {
   it('consumes the action instead of softlocking when the dialogue overlay throws', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});

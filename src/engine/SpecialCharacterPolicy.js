@@ -20,6 +20,17 @@ export function skipsClassProgression(unit) {
   return specialCharacterDefinition(unit)?.classProgression === false;
 }
 
+/**
+ * A veteran who joined already grown (promoted, fixed class, no class progression):
+ * strong now, earns little XP and barely levels (Gaspar). Policy flags in
+ * data/specialChars.json decide, never a name. Used by the Guidance field note that
+ * tells new players to let others take the kills.
+ */
+export function isLowGrowthVeteran(unit, definitions = defaults) {
+  const def = specialCharacterDefinition(unit, definitions);
+  return Boolean(def) && def.classProgression === false && def.canPromote === false;
+}
+
 export function metaGrowthScale(unit, definitions = defaults) {
   return specialCharacterDefinition(unit, definitions)?.metaGrowthScale ?? 1;
 }

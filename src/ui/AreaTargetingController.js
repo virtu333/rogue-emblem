@@ -424,7 +424,7 @@ export class AreaTargetingController {
     const scene = this.scene;
     const session = battleSession(scene);
     scene._pendingCommittedAction = null;
-    if (!scene.runManager?.battleInProgress || scene.battleParams?.tutorialMode) return;
+    if (!scene.runManager?.battleInProgress) return;
     if (unit?.faction !== 'player' || scene.turnManager?.currentPhase !== 'player') return;
     if (!unit.battleEntityId) return;
     const weaponIndex = Array.isArray(unit.inventory) ? unit.inventory.indexOf(weapon) : -1;

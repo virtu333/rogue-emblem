@@ -226,7 +226,9 @@ describe('HUD and records', () => {
     expect(projectedShadow(scene)).toBe(4);
     scene.turnManager.turnNumber = 5;
     expect(projectedShadow(scene)).toBe(0);
-    expect(projectedShadow({ ...scene, battleParams: { tutorialMode: true } })).toBeNull();
+    expect(
+      projectedShadow({ ...scene, battleParams: { prologueChapter: 'p1_banner_at_dawn' } }),
+    ).toBeNull();
     expect(projectedShadow({ battleParams: {} })).toBeNull();
     const hud = new EclipseHudController({ ...scene, events: null, add: null }).create();
     scene.turnManager.turnNumber = 10;
@@ -266,13 +268,13 @@ describe('atmosphere darkens by phase (presentation only)', () => {
     expect(hollow.sat).toBeLessThan(g.sat);
   });
 
-  it('applies through resolveAtmosphere, never in the tutorial', () => {
+  it('applies through resolveAtmosphere, never in a prologue chapter', () => {
     const plain = resolveAtmosphere({ act: 'act4' });
     const umbral = resolveAtmosphere({ act: 'act4', eclipsePhase: 2 });
     expect(umbral.grade.exposure).toBeLessThan(plain.grade.exposure);
     expect(umbral.lightOptions.darkness).toBeGreaterThan(plain.lightOptions.darkness);
-    const tutorial = resolveAtmosphere({ act: 'act1', isTutorial: true, eclipsePhase: 4 });
-    expect(tutorial.grade).toEqual(resolveAtmosphere({ act: 'act1', isTutorial: true }).grade);
+    const prologue = resolveAtmosphere({ act: 'act1', isScripted: true, eclipsePhase: 4 });
+    expect(prologue.grade).toEqual(resolveAtmosphere({ act: 'act1', isScripted: true }).grade);
   });
 });
 

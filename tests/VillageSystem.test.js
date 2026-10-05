@@ -66,7 +66,9 @@ describe('VillageSystem', () => {
       expect(rollVillageSpawn({ ...baseParams, isRecruitBattle: true }, always)).toBe(false);
       expect(rollVillageSpawn({ ...baseParams, isBoss: true }, always)).toBe(false);
       expect(rollVillageSpawn({ ...baseParams, isAmbush: true }, always)).toBe(false);
-      expect(rollVillageSpawn({ ...baseParams, tutorialMode: true }, always)).toBe(false);
+      expect(
+        rollVillageSpawn({ ...baseParams, prologueChapter: 'p1_banner_at_dawn' }, always),
+      ).toBe(false);
       expect(rollVillageSpawn({ ...baseParams, isColosseum: true }, always)).toBe(false);
     });
 

@@ -43,7 +43,16 @@ export const KNOWN_WHEN_KEYS = new Set([
   'firstClear',
   'commanderHasEpithet',
   'partner',
+  // The prologue on this save: 'none' | 'complete' | 'skipped' (a prologue still in
+  // progress reads as 'none'; a real run cannot start while it runs). A value may be
+  // one state or a list of states (any of them).
+  'prologue',
 ]);
+
+/** True when `value` (one value or a list) admits `actual`. */
+function matchesOneOf(value, actual) {
+  return Array.isArray(value) ? value.includes(actual) : value === actual;
+}
 
 /**
  * Snapshot the narrative state needed for variant selection. Every source is
@@ -101,7 +110,18 @@ export function buildNarrativeContext({ meta = null, runManager = null, bossName
     bossKilledYouCount: resolvedBossName ? (meta?.getDefeatedByCount?.(resolvedBossName) ?? 0) : 0,
     firstClear: runManager?.endRunRewards?.firstClear === true,
     linesPlayed: Array.isArray(flags?.linesPlayed) ? [...flags.linesPlayed] : [],
+    prologue: prologueStateOf(meta),
   };
+}
+
+/** The save's prologue as a `when` value: 'complete' | 'skipped' | 'none'. */
+function prologueStateOf(meta) {
+  try {
+    const state = meta?.getPrologueState?.() ?? meta?.prologue?.state;
+    return state === 'complete' || state === 'skipped' ? state : 'none';
+  } catch (_) {
+    return 'none';
+  }
 }
 
 /**
@@ -154,6 +174,9 @@ export function evaluateWhen(when, ctx) {
           break;
         case 'partner':
           if (ctx.partner !== value) return false;
+          break;
+        case 'prologue':
+          if (!matchesOneOf(value, ctx.prologue ?? 'none')) return false;
           break;
         default:
           return false; // unknown condition key: variant never matches

@@ -99,7 +99,7 @@ function setupScene() {
   scene.playerUnits = [unit];
   scene.enemyUnits = [];
   scene.npcUnits = [];
-  scene.battleParams = { tutorialMode: false };
+  scene.battleParams = {};
   scene.battleState = 'PLAYER_IDLE';
   scene.selectedUnit = unit;
   scene.preMoveLoc = null;
@@ -132,7 +132,7 @@ function setupScene() {
   scene.buildUnitPositionMap = vi.fn(() => new Map());
   scene._clearSelectedWeaponArt = vi.fn();
   scene.isStoryInputLocked = () => false;
-  scene._isTutorialStrictGateActive = () => false;
+  scene._isPrologueGateActive = () => false;
   scene.inspectionPanel = null;
   scene.turnManager = {
     currentPhase: 'player',
@@ -315,7 +315,7 @@ describe('BattleScene fog snapshot lifecycle', () => {
     scene.activatePendingVisionSnapshot = vi.fn();
     scene.registry = { get: () => null };
     scene.refreshEndTurnControl = vi.fn();
-    scene._isTutorialStrictGateActive = () => false;
+    scene._isPrologueGateActive = () => false;
 
     // Set a snapshot as if a unit is mid-move
     scene._preFogSnapshot = new Set(['1,1', '2,2']);
@@ -396,7 +396,7 @@ describe('BattleScene deferred vision snapshot commit', () => {
     const { scene } = setupScene();
     const { pending } = primeVisionSnapshots(scene);
     scene.canForceEndTurn = () => true;
-    scene._isTutorialStrictGateActive = () => false;
+    scene._isPrologueGateActive = () => false;
     scene.registry = { get: () => null };
     scene.selectedUnit = makeUnit();
 
@@ -1349,13 +1349,13 @@ describe('onPhaseChange condition recovery ordering', () => {
     expect(scene.turnManager.endPlayerPhase).toHaveBeenCalledTimes(1);
   });
 
-  it('all-sleeping auto-advance suppresses tutorial hint scheduling', () => {
+  it('all-sleeping auto-advance never hands the turn start to a prologue chapter', () => {
     const { scene } = setupScene();
     const unit = makeUnit({ name: 'Sleeper', currentHP: 20 });
     applyCondition(unit, 'sleep', 3);
     scene.playerUnits = [unit];
-    scene.battleParams = { tutorialMode: true };
-    scene.tutorialStep = 0;
+    scene.battleParams = { prologueChapter: 'p1_banner_at_dawn' };
+    scene._prologue = { onPhaseStart: vi.fn() };
     scene._expireTimedWeaponArtBuffs = vi.fn();
     scene._removeConditionIcon = vi.fn();
     scene.turnCounterText = null;
@@ -1372,14 +1372,15 @@ describe('onPhaseChange condition recovery ordering', () => {
     const delays = scene.time.delayedCall.mock.calls.map(([delay]) => delay);
     expect(delays).toContain(1200);
     expect(delays).not.toContain(1500);
+    expect(scene._prologue.onPhaseStart).not.toHaveBeenCalled();
   });
 
-  it('all-sleeping auto-advance suppresses non-tutorial first-turn hints', () => {
+  it("all-sleeping auto-advance suppresses a run battle's first-turn hints", () => {
     const { scene } = setupScene();
     const unit = makeUnit({ name: 'Sleeper', currentHP: 20 });
     applyCondition(unit, 'sleep', 3);
     scene.playerUnits = [unit];
-    scene.battleParams = { tutorialMode: false };
+    scene.battleParams = {};
     scene.registry = {
       get: vi.fn(() => ({ shouldShow: vi.fn(() => true) })),
     };

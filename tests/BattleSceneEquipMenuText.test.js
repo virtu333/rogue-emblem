@@ -198,7 +198,7 @@ describe('BattleScene equip menu text', () => {
     scene.selectedUnit = unit;
     scene.refreshEndTurnControl = vi.fn();
     scene.isMobileInput = true;
-    scene._isTutorialStrictGateActive = () => false;
+    scene._isPrologueGateActive = () => false;
     scene._mobileBattleHud = { available: () => true, showMenu: vi.fn() };
     scene.grid.showMovementRange = vi.fn();
     scene.grid.clearHighlights = vi.fn();

@@ -1,19 +1,19 @@
-import { getAttackRange } from '../engine/AttackOptions.js';
-// TutorialCoach — the tutorial's persistent, non-modal objective line.
+// PrologueCoach — the prologue's persistent, non-modal objective line.
 //
-// One goal at a time (tutorialCoachModel), docked over the map area on the side
+// One goal at a time (prologueCoachModel), docked over the map area on the side
 // away from what it points at, with chapter pips, a "Skip step" for the guided
-// movement lesson and an always-visible "Leave". Gate nudges replace the old
-// blocking "finish this step first" notes. Presentation only: it reads scene
-// state each frame and calls back into TutorialController for actions.
+// steps and an always-visible "Leave". Gate nudges replace blocking "finish this
+// step first" notes. Presentation only: it reads scene state each frame and calls
+// back into PrologueController for actions and for the guided step's goal.
 
+import { getAttackRange } from '../engine/AttackOptions.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import {
   COACH_CHAPTERS,
   availableMenuLabels,
   coachChapterIndex,
-  tutorialCoachState,
-} from './tutorialCoachModel.js';
+  prologueCoachState,
+} from './prologueCoachModel.js';
 
 const COVERING_STATES = new Set([
   'TUTORIAL_HINT',
@@ -31,19 +31,40 @@ function el(tag, className, text) {
   return node;
 }
 
-export class TutorialCoach {
+export class PrologueCoach {
   /**
-   * @param {Phaser.Scene} scene  BattleScene in tutorial mode
-   * @param {{ onLeave: Function, onSkipStep: Function }} actions
+   * @param {Phaser.Scene} scene  BattleScene playing a prologue chapter
+   * @param {{ onLeave: Function, onSkipStep: Function, scripted: () => object|null,
+   *   gated: () => boolean, onAnchor?: (anchor: object|null) => void, kicker?: string,
+   *   leaveLabel?: string, leaveAria?: string }} opts
+   *   scripted: the live guided step's coach goal (prologueContent) or null;
+   *   gated: a guided step still blocks free play; onAnchor: the goal's unit/tile
+   *   anchor each frame, for the ring the controller draws; leaveLabel / leaveAria:
+   *   the exit button ("Leave" for a standalone replay, "Skip" in the prologue run).
    */
-  constructor(scene, { onLeave, onSkipStep }) {
+  constructor(
+    scene,
+    {
+      onLeave,
+      onSkipStep,
+      scripted,
+      gated,
+      onAnchor = null,
+      kicker = null,
+      leaveLabel = 'Leave',
+      leaveAria = 'Leave prologue',
+    },
+  ) {
     this.scene = scene;
     this.onLeave = onLeave;
     this.onSkipStep = onSkipStep;
+    this.scripted = scripted;
+    this.gated = gated;
+    this.onAnchor = onAnchor;
     this.wrapper = document.getElementById('game-wrapper');
     this.root = el('section', 're-coach');
     this.root.setAttribute('role', 'region');
-    this.root.setAttribute('aria-label', 'Tutorial guide');
+    this.root.setAttribute('aria-label', 'Prologue guide');
     this.root.hidden = true;
     for (const type of DOM_INPUT_EVENTS)
       this.root.addEventListener(type, (event) => event.stopPropagation());
@@ -51,9 +72,9 @@ export class TutorialCoach {
     this.root.addEventListener('keyup', (event) => event.stopPropagation());
 
     const top = el('div', 're-coach-top');
-    const kicker = el('span', 're-coach-kicker', 'Tutorial');
+    const kickerEl = el('span', 're-coach-kicker', kicker || 'Prologue');
     this.pips = el('ol', 're-coach-pips');
-    this.pips.setAttribute('aria-label', 'Tutorial progress');
+    this.pips.setAttribute('aria-label', 'Prologue progress');
     for (const chapter of COACH_CHAPTERS) {
       const pip = el('li');
       pip.dataset.chapter = chapter.id;
@@ -64,16 +85,16 @@ export class TutorialCoach {
     this.skip = el('button', 're-coach-btn', 'Skip step');
     this.skip.type = 'button';
     this.skip.addEventListener('click', () => this.onSkipStep?.());
-    this.leave = el('button', 're-coach-btn re-coach-leave', 'Leave');
+    this.leave = el('button', 're-coach-btn re-coach-leave', leaveLabel);
     this.leave.type = 'button';
-    this.leave.setAttribute('aria-label', 'Leave tutorial');
+    this.leave.setAttribute('aria-label', leaveAria);
     this.leave.addEventListener('click', () => this.onLeave?.());
     actions.append(this.skip, this.leave);
     this.goal = el('p', 're-coach-goal');
     this.goal.setAttribute('aria-live', 'polite');
     const lead = el('div', 're-coach-lead');
     const meta = el('div', 're-coach-meta');
-    meta.append(kicker, this.pips);
+    meta.append(kickerEl, this.pips);
     lead.append(meta, this.goal);
     top.append(lead, actions);
 
@@ -116,8 +137,8 @@ export class TutorialCoach {
     const commander = (s.playerUnits || []).find((u) => u.isCommander) || null;
     const menu = availableMenuLabels(s);
     return {
-      step: Number(s.tutorialStep),
-      gateReleased: Boolean(s._tutorialStrictGateReleased),
+      scripted: this.scripted?.() || null,
+      gated: Boolean(this.gated?.()),
       phase: s.turnManager?.currentPhase || 'player',
       state: s.battleState || '',
       touch: Boolean(s.isMobileInput),
@@ -127,6 +148,8 @@ export class TutorialCoach {
       menu,
       selected: s.selectedUnit?.name || null,
       selectionMenu: Boolean(s._inputController?.isSelectionMenu?.()),
+      // A rout that waits on a green unit (RoutObjective): the goal once the field is clear.
+      recruitsPending: typeof s.pendingRequiredRecruits === 'function' ? s.pendingRequiredRecruits() : [], // prettier-ignore
     };
   }
 
@@ -138,6 +161,7 @@ export class TutorialCoach {
       s.unitDetailOverlay?.visible ||
       s.rosterOverlay?.visible ||
       s.visionDialog ||
+      s.dialogueOverlay?.visible ||
       s._ceremonies?.isBlocking?.() ||
       document.querySelector('.mr-sheet, .re-modal-shield, .mp-backdrop:not([hidden])'),
     );
@@ -172,17 +196,15 @@ export class TutorialCoach {
       const unit = (s.playerUnits || []).find((u) => u.name === anchor.name);
       return unit ? this.tileScreen(unit.col, unit.row) : null;
     }
-    if (anchor.kind === 'fort') {
-      const fort = s._getTutorialFortTile?.();
-      return fort ? this.tileScreen(fort.col, fort.row) : null;
-    }
+    if (anchor.kind === 'tile' && Number.isInteger(anchor.col) && Number.isInteger(anchor.row))
+      return this.tileScreen(anchor.col, anchor.row);
     return null;
   }
 
   sync() {
     if (this.destroyed) return;
     const hidden = !this.revealed || this.covered();
-    const state = hidden ? null : tutorialCoachState(this.snapshot());
+    const state = hidden ? null : prologueCoachState(this.snapshot());
     // The rail's matching command glows while the coach points at it.
     const hud = this.scene._mobileBattleHud?.root;
     if (hud) {
@@ -192,12 +214,8 @@ export class TutorialCoach {
         else delete hud.dataset.coachTarget;
       }
     }
-    // Unit anchors outside the guided steps get a ring (the gate draws its own).
-    const ringUnit =
-      state?.anchor?.kind === 'unit' && this.scene._tutorialStrictGateReleased
-        ? (this.scene.playerUnits || []).find((u) => u.name === state.anchor.name)
-        : null;
-    this.scene._tutorialController?.markAnchor?.(ringUnit || null);
+    // Unit anchors outside the guided steps get a ring (the guided step draws its own).
+    this.onAnchor?.(state?.anchor?.kind === 'unit' && !state.scriptedStep ? state.anchor : null);
     if (!state) {
       this.root.hidden = true;
       this.lastKey = '';

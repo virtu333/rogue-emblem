@@ -4,6 +4,7 @@ import { MenuSurface, element, button } from './MenuSurface.js';
 import { unitPortrait, withUnitFace } from './unitPortrait.js';
 import { getDisplayLevel, inventoryDisplayOrder } from '../engine/UnitManager.js';
 import { findCommander } from '../engine/Commander.js';
+import { isStandaloneScriptedBattle } from '../engine/ScriptedBattle.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
 import { getStaticCombatStats } from '../engine/Combat.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
@@ -206,18 +207,25 @@ export function showDeploymentMenu(owner, roster, limits, onConfirm, initialName
   let commander = findCommander(roster);
   const selected = new Set(resolveDeploymentSelection(roster, limits, [...(initialNames || [])]));
   let busy = false;
+  // Back returns to the route map; a standalone prologue replay (no run) to the title.
+  const replay = !runManager && isStandaloneScriptedBattle(scene?.battleParams, runManager);
   const surface = new MenuSurface(scene, 'Deploy units', async () => {
-    if (busy || !runManager) return;
+    if (busy || (!runManager && !replay)) return;
     busy = true;
     try {
-      const ok = await transitionToScene(
-        scene,
-        'NodeMap',
-        { gameData, runManager },
-        { reason: TRANSITION_REASONS.BACK },
-      );
+      const ok = replay
+        ? await transitionToScene(scene, 'Title', { gameData }, { reason: TRANSITION_REASONS.BACK })
+        : await transitionToScene(
+            scene,
+            'NodeMap',
+            { gameData, runManager },
+            { reason: TRANSITION_REASONS.BACK },
+          );
       if (ok) owner._cleanup();
-      else status.textContent = 'Could not return to map. Try again.';
+      else
+        status.textContent = replay
+          ? 'Could not leave. Try again.'
+          : 'Could not return to map. Try again.';
     } finally {
       busy = false;
     }
@@ -248,7 +256,8 @@ export function showDeploymentMenu(owner, roster, limits, onConfirm, initialName
       },
     });
   });
-  surface.header.append(rosterButton);
+  // A standalone prologue replay has no run (no roster sheet to open, nothing to save).
+  if (runManager) surface.header.append(rosterButton);
   const status = element('p');
   status.setAttribute('role', 'status');
   const list = element('div', null, 're-scroll re-party-list');
