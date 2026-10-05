@@ -48,7 +48,8 @@
         "enemy-planning.spec.js",
         "threat-pins.spec.js",
         "ceremonies.spec.js",
-        "zombie-remains.spec.js"
+        "zombie-remains.spec.js",
+        "xp-gauge.spec.js"
       ]
     },
     {
