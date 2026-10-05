@@ -1,6 +1,7 @@
 # Enemy AI profiles: weighted scoring in data
 
-Status: proposal, revision 1 (2026-10-05). No game code or data changes yet.
+Status: proposal, revision 2 (2026-10-05). Takes in the owner's decisions of 2026-10-05
+(§6). No game code or data changes yet.
 
 The enemy AI picks an attack by adding up weighted parts of a score. Today the weights
 are numbers written into `AIController.js`. This spec moves them into a data file of
@@ -107,7 +108,7 @@ Everything else is in code:
     "standard": {
       "label": "Standard",
       "targeting": "scored",            // "scored" | "lowestHp"
-      "chase": "nearest",               // "nearest" (today); see §2.4 for later options
+      "chase": "nearest",               // "nearest" (today); see §2.8 for later options
       "weights": {
         "dealt": 1,
         "kill": 12,
@@ -217,9 +218,17 @@ match wins:
 2. The spawn's own `aiProfile`: a template spawn in `mapTemplates.json`, a boss def in
    `enemies.json`, a reinforcement wave.
 3. `difficulty.json` `aiProfiles.byClassRole`: the rung may give a class role a profile,
-   for example "thieves are hunters on Nightfall".
-4. `difficulty.json` `aiProfiles.default`.
+   for example "thieves are hunters on Nightfall". Each entry is a profile id or a table
+   by act, as `objectiveParOffset` already does (`{ "act1": "standard", "act3":
+   "hunter" }`). A missing act takes the nearest earlier act, and acts before the first
+   key take `standard`.
+4. `difficulty.json` `aiProfiles.default`, which may also be a table by act.
 5. `aiProfiles.json` `defaultProfile` (`standard`).
+
+- **The act comes from the battle**, the same act the enemy pool uses. It is resolved
+  once at spawn: reinforcements read the battle's act, not the wave's.
+- **Like every table keyed by difficulty**, `aiProfiles` needs a `dusk` entry
+  (CLAUDE.md). The validator checks that each rung has one, even if it is empty.
 
 - The id is stored on the unit at spawn (`unit.aiProfile`). It saves with the battle, as
   every unit field does through `serializeBattleUnit`.
@@ -243,11 +252,24 @@ match wins:
 The numbers are starting points only. PR 2 tunes each one with the sims in §4 before any
 rung uses it.
 
-**First Light stays `standard` everywhere except Berserker.** That matches the Dusk
-pressure rule that First Light doesn't change. The other rungs get profiles only through
-`byClassRole` and boss defs, after the sims.
+### 2.6 The profile ramp (proposed; PR 3 sets it from the sims)
 
-### 2.6 Enemy weapon arts move to data
+Profiles arrive by act as well as by rung. Act I of every rung stays close to today, so a
+new player meets the same AI the tutorial taught.
+
+| Rung | Act I | Act II | Act III | Act IV / final |
+|---|---|---|---|---|
+| First Light | `standard` | `standard` | `hunter` for thieves | same as Act III |
+| Dusk | `standard` | `hunter` for thieves and the Myrmidon line | adds `reckless` for Fighters / Berserkers, `warden` for bosses | adds `cautious` for armored units |
+| Nightfall | `hunter` for thieves | Dusk's Act III | Dusk's Act IV | adds `hunter` for fliers |
+| Black Sun | Dusk's Act III | Dusk's Act IV | Nightfall's Act IV | same as Act III |
+
+- Berserker (`berserker`) keeps applying wherever the affix appears, as it does today.
+- First Light changes only from Act III, and only one class role. Its turn pacing
+  (`docs/specs/dusk-pressure.md`) is not touched.
+- Every cell is a starting point. A cell ships only after its sims pass the §4 bar.
+
+### 2.7 Enemy weapon arts move to data
 
 `enemyWeaponArtTuning` (`EnemyArtScoring.js:99-106`) becomes
 `difficulty.json` `enemyArtTuning: { minScore, useChance }` on all four rungs:
@@ -263,7 +285,7 @@ The function keeps its signature and reads the config. With no difficulty id it 
 today's fallback (0.75 / 1.0). The roll order is unchanged:
 `EnemyArtScoring.test.js` and the harness tuning ladder must pass untouched.
 
-### 2.7 Later, not committed: a scored chase
+### 2.8 Later, not committed: a scored chase
 
 A unit that cannot attack this turn still runs to the nearest player. A later revision
 could score the approach tile instead:
@@ -327,18 +349,15 @@ A profile is ready for a rung when it:
 |---|---|---|
 | 1 | `engine/AiScoring.js` (pure scoring + profile resolution), `data/aiProfiles.json` with `standard` and `berserker`, schema, loader, cross-reference checks, `enemyArtTuning` in `difficulty.json`, golden-decision fixture and tests | **None.** Golden decisions and Determinism hashes match exactly |
 | 2 | `PlayerThreatMap`, the new terms, the starting profiles (unused by any rung), sims and timing recorded in this spec | None in play. Profiles exist only in tests and sims |
-| 3 | Assigning profiles per rung (`byClassRole`, boss defs) from the sim results; changelog | Yes, Dusk and above only |
-| 4 (optional) | Show the profile on enemy inspect (a one-word tag + one line, e.g. "Cautious — avoids your attack range") | UI only |
+| 3 | Assigning profiles by rung and act (`byClassRole`, boss defs, the §2.6 ramp) from the sim results; changelog | Yes. Act I stays near today; First Light changes only from Act III |
+| 4 | Show the profile on enemy inspect (a one-word tag + one line, e.g. "Cautious — avoids your attack range") | UI only |
 
-## 6. Decisions for the owner
+## 6. Owner decisions (2026-10-05)
 
-1. **Tell the player?** Show a unit's profile on inspect (PR 4)? Recommended: yes. It
-   turns profiles into something to read and plan around, which fits "positioning
-   matters". FE8 hides it.
-2. **Which rungs get which profiles first?** Proposed: Dusk gives `hunter` to thieves
-   and Myrmidon-line units; Nightfall and Black Sun add `cautious` to armored units and
-   `warden` to bosses. Final calls after the PR 2 sims.
-3. **Scored chase (§2.7)**: keep it out for now?
-4. **Crit in expected damage**: turn `critInDealt` on in `standard`? It makes enemies
-   favour high-crit attacks (killers, Myrmidons). Small behaviour change on every rung,
-   including First Light. Recommended: no, keep it per profile.
+1. **Tell the player: yes.** PR 4 shows a unit's profile on enemy inspect: a one-word
+   tag and one line.
+2. **Which profiles where: delegated.** Profiles are assigned by rung **and act** (§2.4).
+   The proposed ramp is §2.6, with Act I near today's AI. PR 3 sets the final cells from
+   the sims.
+3. **Scored chase (§2.8): held.** Not in this work.
+4. **Crit in expected damage: per profile only.** `critInDealt` stays 0 in `standard`.

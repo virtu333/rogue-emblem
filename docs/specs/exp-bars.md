@@ -1,6 +1,7 @@
 # EXP bars
 
-Status: proposal, revision 1 (2026-10-05). No game code changes yet.
+Status: proposal, revision 2 (2026-10-05). Takes in the owner's decisions of 2026-10-05
+(§6) and their reference image (a console FE EXP gauge). No game code changes yet.
 
 Players can't follow XP. In battle, each gain shows as a faint "+N XP" for 0.8 s. In the
 roster it is a number inside a long text line: "Lv 7 Fighter · Base · XP 45/100 · HP
@@ -62,29 +63,54 @@ roster it is a number inside a long text line: "Lv 7 Fighter · Base · XP 45/10
 
 ### 2.1 What it shows
 
-A gauge is a small panel near the bottom of the map frame. Bottom centre in landscape;
-upright, above the rail.
+The gauge is the bar and nothing else, as the owner asked: it appears after every combat
+(every attack, both phases) and shows the XP gained. The look follows the classic
+console FE gauge: one wide ornamental bar across the map with the word on the left and
+the number on the right.
 
 ```
- ┌──────────────────────────────────────┐
- │ Mira  Lv 7        EXP ▓▓▓▓▓▓▓░░░  72 │
- └──────────────────────────────────────┘
+        ╭───╮━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╭───╮
+        │EXP│ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▒▒▒▒▒▒░░░░░░░░░░░░░ │ 72│
+        ╰───╯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╰───╯
+                                                  +12
+         ▓ XP held before   ▒ XP just gained   ░ to go
 ```
 
-- **Content.** The unit's name and level, the word EXP, a bar, and the number that
-  counts up with the fill.
-- **Fill.** Runs from the old value to the new one, at a constant rate of about
-  **100 XP per 900 ms** (normal speed), with a short ease at the end. A +3 gain is brief
-  and a +60 gain takes longer, as in FE.
-- **Wrapping at 100.** The bar flashes (accent colour). "LEVEL UP" replaces the number
-  for a beat. The level reads one higher. The bar empties and fills the remainder.
-  - Several levels from one gain wrap several times.
+- **Where.** Centred across the map frame, about 70% of its width (a minimum of 320 CSS
+  px, the full width less the gutters on a phone).
+  - **Vertically, beside the unit that gained:** just below its tile, or just above when
+    that would cover the rail or leave the frame.
+  - Its position says whose XP it is, so it carries no name. Under Mentor's Band each
+    recipient's gauge appears by that recipient.
+  - In portrait it uses the same rule on the turned board (`grid.gridToPixel` already
+    returns turned coordinates).
+- **The frame.** Original art in the game's own gilt style, drawn in CSS/SVG from
+  palette tokens:
+  - `accent` / `accentText` for the gilt;
+  - `void` for the two medallions;
+  - `sunken` for the bar bed.
+
+  Like the boss reliquary bar (`BossPresenceController`), it borrows nothing from any
+  FE game's assets. A painted frame from the art pipeline can replace it later without
+  changing the controller.
+- **The bar.**
+  - The XP held before the gain shows in the fill colour (`info`). The gained span
+    fills in a brighter tone (`accentText`) and settles to the fill colour once the
+    gauge closes.
+  - The right medallion counts up to the new value in step with the fill.
+  - A small "+N" under the right end names the gain. N is the XP actually **gained**
+    (§2.5), not the award before the cap.
+- **Fill rate.** Constant, about **100 XP per 900 ms** at normal speed, with a short ease
+  at the end. A +3 gain is brief; a +60 gain takes longer.
+- **Wrapping at 100.**
+  - The bar flashes (accent glow), and the right medallion reads "LV↑" for a beat.
+  - The bar empties and fills the rest. Several levels from one gain wrap several times.
   - After the last segment the gauge closes and **that unit's level-up cards follow at
     once**, so the fill flows into the card.
-- **At the level cap**, no gain is shown: no gauge, no float. Extended leveling counts
-  as not capped.
-- **Order with several recipients.** The actor goes first, then each Mentor's Band
-  recipient in award order. One gauge at a time, each followed by its own cards.
+- **At the level cap.** No gain, so no gauge and no float. Extended leveling counts as
+  not capped.
+- **Order with several recipients.** The actor first, then each Mentor's Band recipient
+  in award order. One gauge at a time, each followed by its own cards.
 - **The "+N XP" float is removed.** The gauge replaces it.
 
 ### 2.2 When it plays
@@ -118,7 +144,7 @@ death fade) is earlier than the cards and would split the moment in two.
 | Battle speed Normal | Full fill, a 350 ms hold at the end |
 | Fast (or hold-to-fast-forward in the enemy phase) | All timings ×0.5 |
 | Instant | No fill. The gauge shows the final state for a 400 ms hold, so the number still registers |
-| Reduce motion | No fill or flash. Final state with the level shown, a 600 ms hold. A wrap shows as "LEVEL UP" text |
+| Reduce motion | No fill or flash. Final state with the gained span marked, a 600 ms hold. A wrap shows "LV↑" in the medallion |
 | Low effects | No glow on the flash |
 | Tap, click, Confirm or Cancel | Skips to the end state, then closes |
 
@@ -128,8 +154,8 @@ death fade) is earlier than the cards and would split the moment in two.
   like every other battle wait.
 - **Enemy phase.** A unit that survives an attack gains at least 1 XP, so a gauge
   plays after every enemy attack that lands on a living player unit. That matches FE,
-  where the bar appears after every exchange. At normal speed it adds about 0.4 s per
-  enemy combat. See decision 2 in §6.
+  where the bar appears after every exchange. A +1 gain at normal speed adds about
+  0.4 s per enemy combat; Fast and hold-to-fast-forward halve it.
 
 ### 2.4 How it is built
 
@@ -260,14 +286,12 @@ wait on state, never on time.
 
 PR 1 alone answers the roster half of the request and ships with no battle-flow risk.
 
-## 6. Decisions for the owner
+## 6. Owner decisions (2026-10-05)
 
-1. **Placement in battle:** a fixed panel at the bottom of the map (recommended: never
-   clipped at map edges, the same spot every time, the FE look), or riding over the
-   unit's tile?
-2. **Enemy-phase gauges:** show after every enemy attack (recommended; FE does, and Fast
-   or hold-to-fast-forward shortens it), or only when the unit levels up?
-3. **List-card EXP lines:** add them (recommended), or keep the bar to the profile
-   summary?
-4. **Sound:** a soft rising tick during the fill? It needs a new sfx, and there is none
-   today. Recommended: silent fill. The level-up cue already marks the wrap.
+1. **The gauge is the bar alone.** It appears after every combat, every attack and both
+   phases, showing the XP gained, styled after the console FE gauge (§2.1). Placement
+   (delegated): centred across the map, beside the unit that gained.
+2. **Enemy phase: every attack.**
+3. **List-card EXP lines: yes** (§3.1).
+4. **Sound (delegated): a silent fill.** The level-up cue already marks the wrap. A
+   fill tick can come later as an sfx without changing the controller.
