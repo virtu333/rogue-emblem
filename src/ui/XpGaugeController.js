@@ -314,7 +314,19 @@ export class XpGaugeController {
       if (event.button !== undefined && event.button !== 0) return;
       // The press reaches the map under the gauge; its release must not select a tile
       // on the board the skip hands back.
-      if (event.target && event.target === scene?.game?.canvas) scene._uiClickBlocked = true;
+      const canvas = scene?.game?.canvas;
+      if (event.target && event.target === canvas) {
+        scene._uiClickBlocked = true;
+        // Lifted off the map (the board never sees that release): nothing to block.
+        const lift = (up) => {
+          if (event.pointerId !== undefined && up.pointerId !== event.pointerId) return;
+          doc?.removeEventListener?.('pointerup', lift, true);
+          doc?.removeEventListener?.('pointercancel', lift, true);
+          if (up.target !== canvas && scene) scene._uiClickBlocked = false;
+        };
+        doc?.addEventListener?.('pointerup', lift, true);
+        doc?.addEventListener?.('pointercancel', lift, true);
+      }
       swallowTrailingClick(event);
       finish();
     };

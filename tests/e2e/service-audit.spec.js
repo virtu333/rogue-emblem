@@ -80,10 +80,13 @@ test('Church heal, roster, map, promotion cancellation and arena forecast/reward
   await forecast.getByRole('button', { name: 'Fight', exact: true }).tap();
   const log = await fightArenaBout(page);
   await log.getByRole('button', { name: 'Continue', exact: true }).last().tap();
-  // An arena level plays the level-up card(s) before the rewards (saved first).
+  // The rewards (saved first) open with the EXP bar filling; an arena level hands off
+  // to the level-up card(s) over them once it has filled (docs/specs/exp-bars.md §2.6).
   const result = page.getByRole('dialog', { name: 'Arena · Rewards', exact: true });
   const levelCard = page.getByRole('dialog', { name: 'Level up', exact: true });
-  await expect(result.or(levelCard)).toBeVisible();
+  await expect(result).toBeVisible();
+  await expect(result.getByRole('meter', { name: 'EXP', exact: true })).toBeVisible();
+  await page.waitForFunction(() => !window.arena._arenaFill);
   while (await levelCard.isVisible().catch(() => false)) {
     await page.waitForTimeout(250);
     await levelCard.getByRole('button', { name: /^(Reveal gains|Continue)$/ }).tap();

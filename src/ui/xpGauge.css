@@ -5,15 +5,12 @@
    nothing from any other game. Built on ceremony.css (.ce-layer, --ce-pf-*, .is-static);
    the layer is non-blocking, so nothing here takes a pointer. */
 
-.xg-layer {
+.xg-gauge {
   /* What the fill shows: the XP held before the gain, and the value now (0..1). */
   --xg-held: 0;
   --xg-value: 0;
   --xg-bar-h: 12px;
   --xg-medal: 34px;
-}
-
-.xg-gauge {
   position: absolute;
   left: 50%;
   top: 50%;

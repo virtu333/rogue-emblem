@@ -206,6 +206,24 @@ describe('skipping', () => {
     }
   });
 
+  it('a press on the map lifted off it leaves the next map click alone', () => {
+    const scene = makeScene();
+    scene.game = { canvas: dom.canvas };
+    void new XpGaugeController(scene).play(record(7, 10, 60).record);
+    dom.canvas.dispatchEvent(new dom.FakeEvent('pointerdown', { button: 0, pointerId: 3 }));
+    expect(scene._uiClickBlocked).toBe(true);
+    // Another finger's release changes nothing; this one's, off the map, clears the block.
+    dom.host.dispatchEvent(new dom.FakeEvent('pointerup', { pointerId: 4 }));
+    expect(scene._uiClickBlocked).toBe(true);
+    dom.host.dispatchEvent(new dom.FakeEvent('pointerup', { pointerId: 3 }));
+    expect(scene._uiClickBlocked).toBe(false);
+    // Released on the map, the board consumes the block itself (InputController).
+    void new XpGaugeController(scene).play(record(7, 10, 60).record);
+    dom.canvas.dispatchEvent(new dom.FakeEvent('pointerdown', { button: 0, pointerId: 5 }));
+    dom.canvas.dispatchEvent(new dom.FakeEvent('pointerup', { pointerId: 5 }));
+    expect(scene._uiClickBlocked).toBe(true);
+  });
+
   it('a press on the rail skips without blocking the next map click', async () => {
     const { record: gain } = record(7, 10, 60);
     const scene = makeScene();
