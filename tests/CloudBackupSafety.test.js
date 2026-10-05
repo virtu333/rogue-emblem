@@ -44,14 +44,14 @@ function api(table, { fail = false, remote = null, wait = null } = {}) {
 describe('durable local-save backup batch', () => {
   it('requires success for every captured run and metadata payload', async () => {
     mocks.from.mockImplementation((t) => api(t));
-    expect(await backupAllLocalSlots('u')).toBe(true);
+    expect((await backupAllLocalSlots('u')).ok).toBe(true);
     expect(writes).toHaveLength(2);
     expect(writes.find((w) => w.table === 'run_saves').payload.data['1'].gold).toBe(91);
     expect(store.has(getRunKey(1))).toBe(true);
   });
   it('does not mistake an ordinary write failure for success when auth status stays ok', async () => {
     mocks.from.mockImplementation((t) => api(t, { fail: t === 'run_saves' }));
-    expect(await backupAllLocalSlots('u')).toBe(false);
+    expect((await backupAllLocalSlots('u')).ok).toBe(false);
     expect(getCloudSyncStatus().mode).toBe('ok');
     expect(JSON.parse(store.get(getRunKey(1))).gold).toBe(91);
   });
@@ -59,18 +59,18 @@ describe('durable local-save backup batch', () => {
     mocks.from.mockImplementation((t) =>
       api(t, { remote: t === 'run_saves' ? { gold: 3, savedAt: 99 } : null }),
     );
-    expect(await backupAllLocalSlots('u')).toBe(false);
+    expect((await backupAllLocalSlots('u')).ok).toBe(false);
     expect(writes.some((w) => w.table === 'run_saves')).toBe(false);
   });
   it('times out without deleting local data and a subsequent successful retry can confirm', async () => {
     let release;
     const wait = new Promise((r) => (release = r));
     mocks.from.mockImplementation((t) => api(t, { wait }));
-    expect(await backupAllLocalSlots('u', { timeoutMs: 5 })).toBe(false);
+    expect((await backupAllLocalSlots('u', { timeoutMs: 5 })).ok).toBe(false);
     expect(store.has(getRunKey(1))).toBe(true);
     release();
     mocks.from.mockImplementation((t) => api(t));
-    expect(await backupAllLocalSlots('u')).toBe(true);
+    expect((await backupAllLocalSlots('u')).ok).toBe(true);
   });
   it('refuses to clear a local version changed while its older snapshot was uploading', async () => {
     let release;
@@ -81,12 +81,12 @@ describe('durable local-save backup batch', () => {
     const backup = backupAllLocalSlots('u');
     store.set(getRunKey(1), JSON.stringify({ gold: 111, savedAt: 21 }));
     release();
-    expect(await backup).toBe(false);
+    expect((await backup).ok).toBe(false);
     expect(JSON.parse(store.get(getRunKey(1))).gold).toBe(111);
   });
   it('does not schedule a partial batch when any local JSON is unreadable', async () => {
     store.set(getRunKey(2), '{broken');
-    expect(await backupAllLocalSlots('u')).toBe(false);
+    expect((await backupAllLocalSlots('u')).ok).toBe(false);
     expect(mocks.from).not.toHaveBeenCalled();
   });
 });

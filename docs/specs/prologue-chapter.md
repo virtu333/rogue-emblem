@@ -1119,6 +1119,25 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   old client sees a fresh slot. A prologue row an earlier build pushed is removed on the
   first prologue save of a session (only while the row is itself a prologue run). The cost:
   signing out mid-prologue, or moving device, restarts the prologue from the offer.
+- **Signing out with an unfinished prologue** (review, 2026-10-05). Sign-out clears the
+  slot cache (`SlotManager.clearAllSlotData`) so another account never inherits a save, and
+  the prologue's run save cannot reach the cloud, so a confirmed backup is never consent to
+  discard it. `CloudSync.backupAllLocalSlots` returns `{ ok, localOnly }`: `ok` vouches only
+  for the batch it could carry (every meta, every standard run), and `localOnly`
+  (`listLocalOnlySaves`) names each slot sign-out would clear whose run save is local-only
+  (`[{ slot, kind: 'prologue' }]`; a slot logout keeps, `SlotManager.isSlotKeptAtLogout`, is
+  never named). `TitleScene._handleLogout` then asks, after the rest is uploaded: "Sign
+  out?" with "Your unfinished prologue on Slot N stays on this device and can't be backed
+  up. Signing out discards it; it starts again from the beginning." and Keep playing
+  (default) / Sign out anyway. A failed backup's "Discard local saves?" names the prologue
+  too. `_finishLogout` reads the list again and asks about any save nobody agreed to (another
+  tab), so none is cleared unseen; without a DOM nothing is discarded. On the same account's
+  next sign-in the slot's meta comes back `in_progress` with no run, and `routeForSlot`
+  offers the prologue again. The run is not kept in account-bound storage for a later
+  sign-in: a whole slot (run, suspend checkpoint, clock floors, the device mirror) would have
+  to be parked beside another account's cache and restored only into an empty slot whose
+  meta still matches, for a chapter or two of replay; the warning is the contract
+  (`tests/LogoutLocalOnlySaves.test.js`).
 - `startPrologue(gameData, prologueData)`:
   - sets the prologue seed
   - starts the roster as authored Edric alone
@@ -1139,9 +1158,22 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
     failed write rolls back so a retry pays; a paid copy on disk is adopted first)
   - then the run save is cleared
   `meta.prologue` (`{ state, grantPaid, chaptersCompleted, practised }`) rides the meta
-  payload to `meta_progression` like the rest of meta, under the `savedAt` freshness guard;
-  a merge takes the further state, keeps a paid grant paid and unions the lists
-  (`mergePrologueState`).
+  payload to `meta_progression` like the rest of meta, under the `savedAt` freshness guard.
+  **The grant's receipt travels with the economy that holds its effect** (review,
+  2026-10-05). The cloud fetch (`CloudSync.applyMetaSlots`) keeps one payload whole by
+  `savedAt` (its currencies and upgrades), so `grantPaid` comes from that payload alone,
+  while the state (the further one), the chapters and the lessons union freely
+  (`reconcilePickedPrologue`). When the union is `complete` and the kept payload never paid
+  (the other copy finished; its grant went with its economy), the grant (`prologue.json`
+  `grant`) is added to the kept currencies once and the receipt set, and the copy is written
+  as a new save (newer than both, so the next fetch keeps it): never by taking a larger
+  balance, which would restore spent currency. A kept payload with no record or `none`
+  cannot vouch for a receipt (a client from before the prologue drops the record and keeps a
+  fetched grant), so the other copy's receipt is kept and nothing is added. The local
+  adopt-merge (`_adoptForeignDiskStateIfNewer`) keeps both economies at their max, so its
+  receipt is the union (`mergePrologueState`): taking it from the newer copy there would pay
+  twice. No transaction id: at most one payload's economy survives a pick, and the boolean on
+  it is its receipt (`tests/PrologueGrantMerge.test.js`).
 - **Built (Phase 2A):** `startPrologue` (the roster from the first-row chapter, Edric stamped
   commander, the route from `buildPrologueNodeMap`, every chapter pre-locked, `runStart`
   marked shown so the route map plays no cold open), `getPrologueChapter` /
@@ -1431,7 +1463,9 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   - Refresh on the route map resumes the map.
   - Every named unit's death restarts its chapter and never reaches RunComplete or settlement.
   - `runsStarted` and `runsCompleted` don't move.
-  - The grant pays once, even across a refresh and a cloud sync.
+  - The grant pays once, even across a refresh and a cloud sync, and a cloud merge never
+    keeps the receipt without the currency (`PrologueGrantMerge`).
+  - Sign-out never discards an unfinished prologue without asking (`LogoutLocalOnlySaves`).
   - A replay never touches the slot.
 - **Flow:**
   - Skip equals today's fast path exactly.

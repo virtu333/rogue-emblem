@@ -420,31 +420,38 @@ describe('CloudSync run merge guard', () => {
     expect(adopted.lordsMet).toEqual(['Edric', 'Rowan', 'Sera', 'Voss']);
   });
 
-  it('merges the prologue record on either copy (further state, a paid grant stays paid)', async () => {
+  it('merges the prologue record on either copy (further state; the grant with the kept economy)', async () => {
     const key = getMetaKey(1);
     const done = { state: 'complete', grantPaid: true, chaptersCompleted: ['p1_banner_at_dawn', 'p4_quarry_gate'], practised: ['seize'] }; // prettier-ignore
     // Local is newer and kept, but only began the prologue; the cloud copy finished it.
+    // Local's economy never held the grant, so it is paid into it once.
     store[key] = JSON.stringify({
       savedAt: 200,
       prologue: { state: 'in_progress', grantPaid: false, chaptersCompleted: ['p1_banner_at_dawn'], practised: ['forecast'] }, // prettier-ignore
     });
-    mockCloudBootstrap({ metaData: { 1: { savedAt: 100, prologue: done } } });
+    mockCloudBootstrap({
+      metaData: { 1: { savedAt: 100, totalValor: 60, totalSupply: 40, prologue: done } },
+    });
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
     const kept = JSON.parse(store[key]);
     expect(kept.prologue).toEqual({ ...done, practised: ['forecast', 'seize'] });
+    expect([kept.totalValor, kept.totalSupply]).toEqual([60, 40]);
     // A merged-in paid grant is never paid again by the live manager.
     const meta = new MetaProgressionManager([], key);
     expect(meta.completePrologue({ grant: { valor: 60, supply: 40 } })).toMatchObject({
       paid: false,
     });
+    expect([meta.totalValor, meta.totalSupply]).toEqual([60, 40]);
 
-    // The cloud copy is newer and wins, but never knew the prologue: local's record stays.
+    // The cloud copy is newer and wins, but never knew the prologue (a client from before
+    // it drops the record and keeps the currencies): local's record stays, nothing added.
     store[key] = JSON.stringify({ savedAt: 100, prologue: done });
     mockCloudBootstrap({ metaData: { 1: { savedAt: 300 } } });
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
     const adopted = JSON.parse(store[key]);
     expect(adopted.savedAt).toBe(300);
     expect(adopted.prologue).toEqual(done);
+    expect(adopted.totalValor).toBeUndefined();
 
     // Neither copy has one: nothing is added to the save.
     store[key] = JSON.stringify({ savedAt: 100 });

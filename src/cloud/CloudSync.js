@@ -1,6 +1,10 @@
 import { mergeRunRecords } from '../engine/RunRecords.js';
 import { lordsMetOfMetaSave, mergeLordNames } from '../engine/LordsMet.js';
-import { mergePrologueState, normalizePrologueState } from '../engine/MetaProgressionManager.js';
+import {
+  normalizePrologueState,
+  reconcilePickedPrologue,
+} from '../engine/MetaProgressionManager.js';
+import { grant as PROLOGUE_GRANT } from '../../data/prologue.json';
 import { normalizeSettings } from '../utils/SettingsManager.js';
 import { stampPendingCloudPair } from '../engine/CloudPendingRecovery.js';
 import { nativeCapacitor, getNativeSaveMirror } from '../utils/nativeSaveMirror.js';
@@ -24,6 +28,7 @@ import {
   getSlotRecoveryOwnerKey,
   isReadableRunShape,
   isReadableMetaShape,
+  isSlotKeptAtLogout,
   MAX_SLOTS,
 } from '../engine/SlotManager.js';
 import { markStartup } from '../utils/startupTelemetry.js';
@@ -339,29 +344,39 @@ function applyMetaSlots(metaData, skipped = new Set()) {
     // Lords met on either copy stay met (a union, like the run records).
     const localLords = lordsMetOfMetaSave(localSlot);
     const lordsMet = mergeLordNames(localLords, lordsMetOfMetaSave(cloudSlot));
-    // The prologue on either copy: the further state, a paid grant stays paid (the
-    // ledger that pays it once), the chapters and lessons unioned.
+    // The prologue on either copy: the further state, the chapters and lessons unioned;
+    // the grant's receipt only from the payload whose economy is kept (a completion the
+    // other copy brought is paid into it once: reconcilePickedPrologue).
+    const winner = shouldKeepLocal ? localSlot : cloudSlot;
     const hasPrologue = localSlot?.prologue != null || cloudSlot?.prologue != null;
-    const prologue = hasPrologue
-      ? mergePrologueState(localSlot?.prologue, cloudSlot?.prologue)
+    const reconciled = hasPrologue
+      ? reconcilePickedPrologue(winner, shouldKeepLocal ? cloudSlot : localSlot, PROLOGUE_GRANT)
       : null;
-    const prologueGrew =
+    const prologue = reconciled?.prologue ?? null;
+    const prologueChanged =
       hasPrologue &&
       JSON.stringify(prologue) !== JSON.stringify(normalizePrologueState(localSlot?.prologue));
     if (
       !shouldKeepLocal ||
       JSON.stringify(records) !== JSON.stringify(localSlot?.runRecords || []) ||
       lordsMet.length > localLords.length ||
-      prologueGrew
+      prologueChanged
     ) {
       try {
-        const selected = shouldKeepLocal
-          ? { ...localSlot, savedAt: Math.max(Date.now(), Number(localSlot.savedAt || 0) + 1) }
-          : cloudSlot;
+        // A repaired copy is a new write: newer than both, so the next fetch keeps it.
+        const selected =
+          shouldKeepLocal || reconciled?.economy
+            ? { ...winner, savedAt: Math.max(Date.now(), Number(winner.savedAt || 0) + 1) }
+            : cloudSlot;
         const merged = records.length ? { ...selected, runRecords: records } : selected;
         localStorage.setItem(
           key,
-          JSON.stringify({ ...merged, lordsMet, ...(prologue ? { prologue } : {}) }),
+          JSON.stringify({
+            ...merged,
+            lordsMet,
+            ...(prologue ? { prologue } : {}),
+            ...(reconciled?.economy ?? {}),
+          }),
         );
       } catch (e) {
         console.warn('[CloudSync] localStorage write failed:', key, e);
@@ -549,7 +564,8 @@ async function updateSlotInTable(userId, table, slot, slotData, options = {}) {
  * would open that save as a standard run on the prologue's seven-node authored map,
  * so it never reaches the cloud: the prologue is short, the slot's meta (pushed as
  * usual) records it 'in_progress', and a device without the run save offers it again
- * (PrologueRouting.routeForSlot). Logout's backup leaves it out the same way.
+ * (PrologueRouting.routeForSlot). Logout's backup leaves it out the same way and
+ * reports it (`localOnly`), so sign-out asks before it discards one.
  */
 export function isLocalOnlyRunSave(run) {
   return isCloudSlotPayload(run) && isPrologueRun(run);
@@ -801,12 +817,45 @@ export function pushAllLocalSlots(userId) {
   }
 }
 
+/**
+ * The saves logout would discard that no backup can carry: each slot logout clears
+ * (SlotManager.isSlotKeptAtLogout is false) whose run save stays on the device
+ * (isLocalOnlyRunSave: the prologue's). A slot logout keeps is not listed.
+ * @returns {Array<{ slot: number, kind: 'prologue' }>}
+ */
+export function listLocalOnlySaves() {
+  const saves = [];
+  for (let slot = 1; slot <= MAX_SLOTS; slot++) {
+    try {
+      if (isSlotKeptAtLogout(slot)) continue;
+      const run = readLocalJSON(getRunKey(slot));
+      if (isLocalOnlyRunSave(run)) saves.push({ slot, kind: 'prologue' });
+    } catch {
+      /* an unreadable slot is kept at logout, not discarded */
+    }
+  }
+  return saves;
+}
+
+/**
+ * Back up every local slot before logout and say what the backup could not carry.
+ * `ok`: the exact captured batch (every slot's meta, every run save but a local-only
+ * one) was durably written. `localOnly`: the saves logout would still discard
+ * (listLocalOnlySaves), read after the batch; `ok` never vouches for them, so the
+ * caller asks before discarding any (TitleScene._handleLogout).
+ * @returns {Promise<{ ok: boolean, localOnly: Array<{ slot: number, kind: 'prologue' }> }>}
+ */
+export async function backupAllLocalSlots(userId, options = {}) {
+  const ok = await backupLocalSlotBatch(userId, options).catch(() => false);
+  return { ok: ok === true, localOnly: listLocalOnlySaves() };
+}
+
 /** Confirm the exact captured local batch was durably written before logout.
  * Queue settlement and auth status alone do not imply successful network writes.
  * Capture all payloads before scheduling any writes so failure/timeout leaves the
  * caller's local recovery copy intact, and later unrelated writes cannot mask it.
  */
-export async function backupAllLocalSlots(
+async function backupLocalSlotBatch(
   userId,
   { timeoutMs = FLUSH_QUEUE_TIMEOUT_MS, skipRecovery = false } = {},
 ) {
@@ -827,7 +876,8 @@ export async function backupAllLocalSlots(
         if (raw == null) continue;
         const value = JSON.parse(raw);
         if (!isCloudSlotPayload(value)) return false;
-        // The prologue's run save is never backed up (isLocalOnlyRunSave).
+        // The prologue's run save is never backed up (isLocalOnlyRunSave); the caller
+        // learns of it from `localOnly`, never from a confirmed batch.
         if (table === TABLES.run && isLocalOnlyRunSave(value)) continue;
         batch.push({ slot, table, value, key, raw });
       }

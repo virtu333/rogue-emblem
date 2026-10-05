@@ -508,17 +508,28 @@ export function prepareRecoveryLogout(userId, storage = globalThis.localStorage)
   }
 }
 
+/**
+ * Whether logout keeps this slot on the device: damaged saves, recovery records and
+ * unchosen device/cloud conflicts stay (blocked from play and upload); every other
+ * slot is cleared by clearAllSlotData. The one predicate both read, so logout's
+ * warning about what it discards (CloudSync.listLocalOnlySaves) names exactly the
+ * slots it clears.
+ */
+export function isSlotKeptAtLogout(slot) {
+  const inspection = inspectSlot(slot);
+  const summary = getSlotSummary(slot);
+  return Boolean(
+    summary?.recoveryRequired ||
+    summary?.runCorrupt ||
+    inspection.raw[`${META_KEY_PREFIX}${slot}_cloud_conflict`] !== null,
+  );
+}
+
 /** Clear all slot data + active slot key. Used by logout. */
 export function clearAllSlotData() {
   let preserved = false;
   for (let i = 1; i <= MAX_SLOTS; i++) {
-    const inspection = inspectSlot(i);
-    const summary = getSlotSummary(i);
-    if (
-      summary?.recoveryRequired ||
-      summary?.runCorrupt ||
-      inspection.raw[`${META_KEY_PREFIX}${i}_cloud_conflict`] !== null
-    ) {
+    if (isSlotKeptAtLogout(i)) {
       preserved = true;
       continue;
     }
