@@ -992,9 +992,17 @@ test.describe('prologue note upright', () => {
 test.describe('prologue forecast lessons upright', () => {
   test.use(phone(PORTRAIT_PHONES[0]));
 
-  // A lesson over the forecast shows only the numbers it teaches, between the top and
-  // the note. Stacked sides pushed the enemy's numbers under the note at 375x667.
-  test('both sides of each lesson stay above the note', async ({ page }) => {
+  // P1's lessons, upright (see prologue-lessons.spec.js for the design): "Reading a
+  // forecast" is the one blocking note, and it shows only the numbers it teaches between
+  // the top and the note (stacked sides pushed the enemy's numbers under the note at
+  // 375x667). The Fort and the triangle are tips and never take the screen: the Fort a
+  // GuidanceNote beside the map, the triangle one more line in the forecast's own notes.
+  // A line in the notes is not a note over the forecast, so the "numbers above the note"
+  // geometry does not apply to it; what must hold upright is that the line is whole, the
+  // sheet still shows both sides' numbers and Cancel / Confirm stay reachable.
+  test('the Fort and triangle tips never cover the map or forecast; the forecast note keeps both sides above it', async ({
+    page,
+  }) => {
     test.setTimeout(120_000);
     await quietSettings(page, { hints: true });
     await page.goto('/');
@@ -1020,52 +1028,123 @@ test.describe('prologue forecast lessons upright', () => {
       await page.touchscreen.tap(p.x, p.y);
     };
     const note = page.getByRole('dialog', { name: 'Field notes', exact: true });
+    const hintSeen = (id) =>
+      page.evaluate((hint) => window.__emblemRogueGame.registry.get('hints').hasSeen(hint), id);
+    // The coach is revealed once the opening banner clears: until then it is hidden.
+    await expect(coach).toBeVisible({ timeout: 20_000 });
     await tapTile(0, 2);
     await expect(coach.locator('.re-coach-goal')).toHaveText('Move onto the Fort');
     await tapTile(3, 2);
-    await expect(note).toContainText('Fort tile reached');
-    await note.getByRole('button', { name: 'Continue', exact: true }).tap();
+
+    // The Fort: a tip beside the map (no note, no shield), whole and clear of the rail.
+    const fortTip = page.locator('.re-guide[data-guide="prologue:battle_terrain"]');
+    await expect(fortTip).toContainText('Fort tile reached');
+    await expect(fortTip.locator('.re-guide-kicker')).toHaveText('Tip');
+    await expect(note).toHaveCount(0);
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const t = document
+            .querySelector('.re-guide[data-guide="prologue:battle_terrain"]')
+            .getBoundingClientRect();
+          const rail = document.querySelector('.mobile-battle-hud').getBoundingClientRect();
+          return (
+            t.width > 0 &&
+            t.left >= 0 &&
+            t.right <= window.innerWidth &&
+            t.top >= 0 &&
+            t.bottom <= rail.top + 0.5
+          );
+        }),
+      )
+      .toBe(true);
+    expect(await clippedText(page, '.re-guide')).toEqual([]);
+    expect(await page.locator('.mobile-battle-hud').evaluate((e) => e.inert)).toBe(false);
     await page.waitForFunction(
       () => !window.__emblemRogueGame.scene.getScene('Battle')._prologue.isGateActive(),
     );
-    for (const [expected, target] of [
-      ['Reading a forecast', 'a'],
-      ['weapon triangle', 'b'],
-    ]) {
-      // The landscape lesson spec's matchup (prologue-lessons.spec.js): one concept each.
-      await battle(
+    // Shown is not read: the slot's terrain hint waits for "Got it".
+    expect(await hintSeen('battle_terrain')).toBe(false);
+    await expectTappable(fortTip.getByRole('button', { name: 'Got it', exact: true }), { min: 32 });
+    await fortTip.getByRole('button', { name: 'Got it', exact: true }).tap();
+    await expect(fortTip).toHaveCount(0);
+    expect(await hintSeen('battle_terrain')).toBe(true);
+
+    // The matchup of the landscape lesson spec: one concept each.
+    const openForecast = (target) =>
+      battle(
         page,
         `const u = s.playerUnits[0], d = s.enemyUnits.find((e) => e.authoredId === '${target}');
          s.hideForecast(); s.hideActionMenu();
          d.col = u.col + 1; d.row = u.row;
          void s.showForecast(u, d);`,
       );
-      await expect(note).toContainText(expected);
-      await expect(page.locator('.mb-tutorial-forecast')).toBeVisible();
-      await expect
-        .poll(
-          () =>
-            page.evaluate(() => {
-              const top = document.querySelector('.re-tutorial-note').getBoundingClientRect().top;
-              const subjects = [...document.querySelectorAll('.mb-tutorial-subject')];
-              return (
-                subjects.length > 0 &&
-                subjects.every((el) => {
-                  const r = el.getBoundingClientRect();
-                  return r.height > 0 && r.top >= 0 && r.bottom <= top - 1;
-                })
-              );
-            }),
-          { timeout: 15_000 },
-        )
-        .toBe(true);
-      await note.getByRole('button', { name: 'Continue', exact: true }).tap();
-      await expect(note).toHaveCount(0);
-      await page
-        .getByRole('dialog', { name: 'Combat forecast', exact: true })
-        .getByRole('button', { name: 'Cancel', exact: true })
-        .tap();
-    }
+    const forecast = page.getByRole('dialog', { name: 'Combat forecast', exact: true });
+
+    // "Reading a forecast", the core note: both sides' numbers sit above it.
+    await openForecast('a');
+    await expect(note).toContainText('Reading a forecast');
+    await expect(page.locator('.mb-tutorial-forecast')).toBeVisible();
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const top = document.querySelector('.re-tutorial-note').getBoundingClientRect().top;
+            const subjects = [...document.querySelectorAll('.mb-tutorial-subject')];
+            return (
+              subjects.length > 0 &&
+              subjects.every((el) => {
+                const r = el.getBoundingClientRect();
+                return r.height > 0 && r.top >= 0 && r.bottom <= top - 1;
+              })
+            );
+          }),
+        { timeout: 15_000 },
+      )
+      .toBe(true);
+    await note.getByRole('button', { name: 'Continue', exact: true }).tap();
+    await expect(note).toHaveCount(0);
+    await forecast.getByRole('button', { name: 'Cancel', exact: true }).tap();
+    await expect(forecast).toHaveCount(0);
+
+    // The triangle against the holding Fighter `b`: a line in the attacker's notes, no
+    // note and nothing inert. Both sides' numbers stay whole in the sheet, the line is
+    // not clipped, and the buttons stay reachable.
+    await openForecast('b');
+    await expect(forecast).toBeVisible();
+    const line = forecast
+      .locator('.mb-forecast-side .mb-notice')
+      .filter({ hasText: 'Swords beat axes, axes beat lances, lances beat swords.' });
+    await expect(line).toHaveCount(1);
+    await expect(line).toBeVisible();
+    await expect(note).toHaveCount(0);
+    expect(await forecast.locator('..').evaluate((e) => e.inert)).toBe(false);
+    const sides = await page.evaluate(() => {
+      const sheet = document.querySelector('.mb-forecast');
+      const box = sheet.querySelector('.mb-forecast-sides').getBoundingClientRect();
+      return [...sheet.querySelectorAll('.mb-forecast-side')].map((side) => {
+        const cells = [...side.querySelectorAll('.mb-stats > div')].map((d) =>
+          d.getBoundingClientRect(),
+        );
+        return {
+          cells: cells.length,
+          inView: cells.every(
+            (c) => c.height > 0 && c.top >= box.top - 0.5 && c.bottom <= box.bottom + 0.5,
+          ),
+        };
+      });
+    });
+    expect(sides).toEqual([
+      { cells: 4, inView: true },
+      { cells: 4, inView: true },
+    ]);
+    expect(await clippedText(page, '.mb-forecast')).toEqual([]);
+    for (const name of ['Cancel', 'Confirm attack'])
+      await expectTappable(forecast.getByRole('button', { name, exact: true }));
+    await expectNoSidewaysScroll(page);
+    expect(await hintSeen('battle_triangle')).toBe(false);
+    await forecast.getByRole('button', { name: 'Cancel', exact: true }).tap();
+    await expect.poll(() => hintSeen('battle_triangle')).toBe(true);
   });
 });
 
