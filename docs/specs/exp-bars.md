@@ -404,9 +404,11 @@ PR 1 alone answers the roster half of the request and ships with no battle-flow 
   presentations.
 - **`presentQueuedProgress`** (`BattlePresentationCheckpoint.js`; `presentQueuedLevelUps`
   is the same function) plays each unit's gauge, then its cards, then the prologue's
-  level-up beat after each card. Before each gauge it awaits `scene._prologue.idle()`,
-  so a gauge never opens over a note or a line on screen, and the beat of the card
-  ahead settles before the next unit's gauge. Every presenter (the end of
+  level-up beat after each card. While the chapter has a note or a line on screen
+  (`isPresenting()`), a gauge first awaits `scene._prologue.idle()`, so it never opens
+  over one; the beat of the card ahead settles before the next unit's gauge. With no DOM
+  host there is no gauge and nothing to await: the queue stays synchronous up to its
+  first card, as before (the journey harness reads the popup at once). Every presenter (the end of
   `executeCombat`, the area strike, `settleAndPresent`, after each enemy action, the
   player turn start, `finishUnitAction`, victory in `PostCombatController`) runs when
   only gauges are queued.
