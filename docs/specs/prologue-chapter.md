@@ -1607,7 +1607,11 @@ its roster lesson on a phone. Found and fixed on the way: Skip on a note over a 
 before the handoff was dropped with "You can leave once your turn is back"
 (`PrologueController.requestLeave` now backs out of the uncommitted forecast, or queues the
 exit until the player can act); a fall's offer read "A vision fractures!" with Sera on the
-field before the roster took her in (`VisionRewindController`).
+field before the roster took her in (`VisionRewindController`); on an upright phone the coach
+docked over the board hid a whole row that no pan could bring out (the battle camera now
+takes the coach's strip as covered: `BattleCameraController` `getInsets`,
+`PrologueController.coveredInsets`; `portrait-prologue.spec.js` checks every tile can be
+brought clear and tapped).
 
 ### Novice playtest (the measure that matters)
 
