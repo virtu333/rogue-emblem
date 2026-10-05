@@ -244,6 +244,47 @@ async function expectStatGridReadable(page) {
   }
 }
 
+/**
+ * EXP (docs/specs/exp-bars.md §3.1), upright: the summary's EXP row sits under its HP
+ * bar, inside the pane and the screen, its bar no wider than 160px; every unit card's
+ * 2px EXP line runs under its HP bar at the same width, inside the card.
+ */
+async function expectExpRows(page) {
+  const facts = await measure(page, () => {
+    const box = (el) => el?.getBoundingClientRect();
+    const summary = document.querySelector('.mr-summary');
+    const pane = box(document.querySelector('.mr-content'));
+    return {
+      width: innerWidth,
+      pane: { left: pane.left, right: pane.right },
+      hp: box(summary.querySelector(':scope > .re-health')),
+      row: box(summary.querySelector('.re-xp-row')),
+      meter: box(summary.querySelector('.re-xp-row .re-xp')),
+      value: summary.querySelector('.re-xp-value')?.textContent,
+      cards: [...document.querySelectorAll('.mr-unit-card')].map((card) => ({
+        card: box(card),
+        hp: box(card.querySelector('.re-health')),
+        line: box(card.querySelector('.re-xp.is-line')),
+      })),
+    };
+  });
+  expect(facts.value).toMatch(/^(\d+\/100|MAX)$/);
+  expect(facts.row.top, 'EXP row under the HP bar').toBeGreaterThanOrEqual(facts.hp.bottom - 0.5);
+  expect(facts.row.left).toBeGreaterThanOrEqual(facts.pane.left - 0.5);
+  expect(facts.row.right).toBeLessThanOrEqual(Math.min(facts.pane.right, facts.width) + 0.5);
+  expect(facts.meter.width).toBeGreaterThan(40);
+  expect(facts.meter.width).toBeLessThanOrEqual(160.5);
+  expect(facts.cards.length).toBeGreaterThan(0);
+  for (const { card, hp, line } of facts.cards) {
+    expect(line, 'every player card has an EXP line').toBeTruthy();
+    expect(Math.round(line.height)).toBe(2);
+    expect(line.top).toBeGreaterThanOrEqual(hp.bottom - 0.5);
+    expect(Math.abs(line.left - hp.left)).toBeLessThanOrEqual(0.5);
+    expect(Math.abs(line.width - hp.width)).toBeLessThanOrEqual(0.5);
+    expect(line.bottom).toBeLessThanOrEqual(card.bottom + 0.5);
+  }
+}
+
 async function openHome(page) {
   await page.goto('/?devScene=homebase&preset=weapon_arts');
   await waitForGame(page);
@@ -355,6 +396,7 @@ for (const viewport of PORTRAIT_VIEWPORTS) {
       await expectReachable(sheet.getByRole('button', { name: 'Close', exact: true }));
       await expectStacked(page, '.mr-units', '.mr-content');
       await expectStatGridReadable(page);
+      await expectExpRows(page);
 
       // A real tap opens the other unit's details.
       const cards = sheet.getByRole('navigation', { name: 'Units' }).getByRole('button');
@@ -641,6 +683,8 @@ const KEY_BOXES = {
     '.mr-pane',
     '.mr-stats dt',
     '.mr-stats dd',
+    '.mr-summary .re-xp-row',
+    '.mr-unit-card .re-xp',
   ],
   compendium: [
     '.re-header',

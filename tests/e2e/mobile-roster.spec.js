@@ -26,6 +26,52 @@ test('equipment and convoy use real rules and keep the selected recipient', asyn
     await page.evaluate(() => window.__emblemRogueGame.scene.getScene('NodeMap').rosterOverlay),
   ).toBeNull();
 });
+test('the profile’s EXP meter reads the unit’s XP, under the HP bar', async ({ page }) => {
+  const sheet = await roster(page);
+  const xp = await page.evaluate(() => {
+    const overlay = window.__emblemRogueGame.scene.getScene('NodeMap').rosterOverlay;
+    const unit = overlay.runManager.roster[0];
+    unit.xp = 37;
+    overlay._mobileSheet.index = 0;
+    overlay._mobileSheet.render();
+    return unit.xp;
+  });
+  const summary = sheet.locator('.mr-summary');
+  // The text line no longer carries XP; the meter does.
+  await expect(summary.locator('p').filter({ hasText: /HP \d+\/\d+/ })).not.toContainText('XP');
+  const meter = summary.getByRole('meter', { name: /EXP$/ });
+  await expect(meter).toHaveAttribute('aria-valuenow', String(xp));
+  await expect(meter).toHaveAttribute('aria-valuetext', `${xp} of 100 EXP`);
+  await expect(summary.locator('.re-xp-value')).toHaveText(`${xp}/100`);
+  const [hp, row] = await Promise.all([
+    summary.locator('.re-health').boundingBox(),
+    summary.locator('.re-xp-row').boundingBox(),
+  ]);
+  expect(row.y).toBeGreaterThanOrEqual(hp.y + hp.height);
+  expect((await meter.boundingBox()).width).toBeLessThanOrEqual(160);
+  // The selected card's 2px line says the same.
+  const line = sheet.locator('.mr-unit-card[aria-pressed="true"] .re-xp.is-line');
+  await expect(line).toHaveAttribute('aria-valuenow', String(xp));
+  expect(Math.round((await line.boundingBox()).height)).toBe(2);
+});
+test('an inspected enemy has no EXP meter', async ({ page }) => {
+  await page.goto('/?devScene=battle&preset=battle_smoke&seed=42');
+  await waitForGame(page);
+  await waitForScene(page, 'Battle');
+  await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PLAYER_IDLE');
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const e = s.enemyUnits[0];
+    s.unitDetailOverlay.show(e, s.gameData.terrain[s.grid.mapLayout[e.row][e.col]], s.gameData);
+  });
+  const inspect = page.getByRole('dialog', { name: 'Inspect roster' });
+  await expect(inspect.locator('.mr-summary h3')).toBeVisible();
+  await expect(inspect.locator('.mr-summary .re-health')).toHaveCount(1);
+  await expect(inspect.locator('.re-xp')).toHaveCount(0);
+  await expect(inspect.locator('.mr-summary')).not.toContainText(/\bXP\b|EXP/);
+  await inspect.getByRole('button', { name: 'Close', exact: true }).tap();
+  await expect(inspect).toHaveCount(0);
+});
 test('long roster and gear stay scrollable without covering Close', async ({ page }) => {
   const sheet = await roster(page);
   await page.evaluate(() => {
