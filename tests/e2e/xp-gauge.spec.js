@@ -121,6 +121,9 @@ async function watchGauge(page) {
     window.addEventListener('click', () => events.push({ type: 'click', t: performance.now() }), true); // prettier-ignore
     new MutationObserver((records) => {
       const t = performance.now();
+      // The scene clock the gauge's hold runs on (CeremonyClock): wall time seen here
+      // can trail a mount by the rest of its task under load.
+      const st = window.__emblemRogueGame.scene.getScene('Battle')?.time?.now ?? null;
       for (const record of records) {
         if (record.type === 'attributes') {
           if (record.target.classList?.contains('xg-track'))
@@ -134,6 +137,7 @@ async function watchGauge(page) {
             events.push({
               type: 'open',
               t,
+              st,
               v: Number(track.getAttribute('aria-valuenow')),
               plus: node.querySelector('.xg-plus').textContent,
               fillMs: Number(node.dataset.fillMs),
@@ -154,7 +158,7 @@ async function watchGauge(page) {
           const track = node.querySelector('.xg-track');
           const v = Number(track.getAttribute('aria-valuenow'));
           // Why it closed (XpGaugeController): done, skip, watchdog or closed.
-          events.push({ type: 'close', t, v, by: node.dataset.closedBy });
+          events.push({ type: 'close', t, st, v, by: node.dataset.closedBy });
         }
       }
     }).observe(document.body, {
@@ -426,7 +430,10 @@ test('Instant shows the end state at once and holds it', async ({ page }) => {
   expect(open.plus).toBe(`+${xp - before.xp}`);
   // No count between open and close: nothing filled.
   expect(log.filter((e) => e.type === 'value' && e.t > open.t && e.t < close.t)).toEqual([]);
-  expect(close.t - open.t).toBeGreaterThanOrEqual(350);
+  // Held, then closed by its own hold (not a skip or the watchdog), on the clock the hold
+  // runs on: wall time seen by this observer can trail the mount under load (CI: 286 ms).
+  expect(close.by).toBe('done');
+  expect(close.st - open.st).toBeGreaterThanOrEqual(350);
   expect(errors).toEqual([]);
 });
 
