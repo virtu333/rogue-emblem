@@ -47,8 +47,8 @@ describe('BattleScene.getSpriteKey lord lookup', () => {
 });
 
 describe('Vision lord-death prompt copy', () => {
-  function promptTitle(roster) {
-    const scene = { visionSnapshot: {}, playerUnits: [] };
+  function promptTitle(roster, playerUnits = []) {
+    const scene = { visionSnapshot: {}, playerUnits };
     const ctrl = new VisionRewindController(scene, { roster, visionChargesRemaining: 1 });
     ctrl.getChargesRemaining = () => 1;
     let captured = null;
@@ -61,6 +61,16 @@ describe('Vision lord-death prompt copy', () => {
 
   it("names Sera while she is in the run's roster", () => {
     expect(promptTitle([{ name: 'Edric' }, { name: 'Sera' }])).toBe("Sera's vision fractures!");
+  });
+
+  it('names Sera when she joined on this field (a Talk) before the roster knows her', () => {
+    // Prologue P3: Sera Talks her way into the army mid-battle; the run's roster takes
+    // her in only when the chapter is won. Her vision is the one being offered.
+    const edric = { name: 'Edric' };
+    const sera = { name: 'Sera' };
+    expect(promptTitle([edric, { name: 'Gaspar' }], [edric, sera])).toBe(
+      "Sera's vision fractures!",
+    );
   });
 
   it('uses generic copy without Sera', () => {
