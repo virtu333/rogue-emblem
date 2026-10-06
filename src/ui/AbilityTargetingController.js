@@ -8,7 +8,8 @@
 //
 // The rules live in engine/ActionAbilitySystem.js (findSmiteTargets,
 // findTransfuseTargets, settleSmite, settleTransfuse). This file only reads what the
-// player knows to build the preview (seen foes, fogged tiles taken), settles through
+// player knows to build the preview (seen foes, fogged tiles taken, a slide over the
+// units known: ui/forcedMoveProbes.js), settles over the real board through
 // settleAndPresent (the checkpoint is durable before anything is drawn) and draws.
 import { settleAndPresent } from './BattleActionSettlement.js';
 import { safeBattlePresentation } from './safeBattlePresentation.js';
@@ -17,7 +18,7 @@ import { battleSession, isCurrentBattleSession } from './BattleSession.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { CombatFxController } from './CombatFxController.js';
 import { UI_HEX, UI_PALETTE } from '../utils/uiStyles.js';
-import { seenTileOccupant } from '../engine/BattleInformation.js';
+import { forcedMoveProbes } from './forcedMoveProbes.js';
 import {
   findSmiteTargets,
   findTransfuseTargets,
@@ -42,9 +43,11 @@ export class AbilityTargetingController {
   /** What the player knows, in the shape the engine finders read. */
   _context(unit, skill) {
     const scene = this.scene;
+    const { grid, getUnitAt, slideUnitAt } = forcedMoveProbes(scene).preview;
     return {
-      grid: scene.grid,
-      getUnitAt: seenTileOccupant(scene.grid, (col, row) => scene.getUnitAt(col, row)),
+      grid,
+      getUnitAt,
+      slideUnitAt,
       enemies: this.abilities._seenHostiles(unit),
       allies: this.abilities._allyPool(unit, skill.actionAbility?.kind),
       affixes: scene.gameData?.affixes,
@@ -118,7 +121,7 @@ export class AbilityTargetingController {
         if (Number(ability.perMapLimit) > 0) markUsed(unit, skill.id);
         if (smite) {
           observeHistoryAction(scene, 'smote', unit, current.unit);
-          return { kind, ...settleSmite(current) };
+          return { kind, ...settleSmite(current, forcedMoveProbes(scene).world) };
         }
         const facts = settleTransfuse(unit, current, ability);
         observeHistoryAction(scene, 'transfused', unit, facts.ally, `${facts.given} HP`, {

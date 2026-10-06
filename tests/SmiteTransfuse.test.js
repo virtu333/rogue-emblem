@@ -336,14 +336,15 @@ describe('Smite: which foes and where they land', () => {
   });
 });
 
-describe('Smite: terrain does nothing special (same as Shove)', () => {
-  // Shove (findShoveTargets + settleMoves) puts an ally on any tile it can stand on: no
-  // ice slide, no hazard damage on landing. Smite lands a foe the same way: the tile is
-  // legal when the foe's move cost there is finite, and the landing is exactly that
-  // tile, however slippery or hot.
-  it('a foe is pushed onto ice or lava and stays where the push put it', () => {
-    const ice = new Set(['7,5', '8,5']);
-    const grid = makeGrid({ cost: (c, r) => (ice.has(`${c},${r}`) ? 2 : 1) });
+describe('Smite: ground other than ice does nothing special (same as Shove)', () => {
+  // Only Ice moves a pushed unit further (the forced slide: tests/ForcedSlide.test.js).
+  // Slow or hot ground is a legal landing when the foe's move cost there is finite, and
+  // the landing is exactly that tile: no damage on the way, the ground works on it at
+  // the end of its own phase as after any move. This grid has no terrain table, so
+  // nothing in it is ice.
+  it('a foe is pushed onto costly ground and stays where the push put it, unhurt', () => {
+    const slow = new Set(['7,5', '8,5']);
+    const grid = makeGrid({ cost: (c, r) => (slow.has(`${c},${r}`) ? 2 : 1) });
     const target = foe('Brigand', 6, 5, { currentHP: 12 });
     const [entry] = smite({ foes: [target], grid });
     expect(landing(entry)).toEqual([8, 5]);

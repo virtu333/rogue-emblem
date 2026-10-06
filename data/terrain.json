@@ -129,7 +129,7 @@
     },
     "avoidBonus": "-10",
     "defBonus": "0",
-    "special": "Slide: non-fliers slide until off the Ice; the first tile is free, then each costs MOV until it runs out"
+    "special": "Slide: non-fliers slide until off the Ice; the first tile is free, then each costs MOV until it runs out. Units pushed onto Ice (Shove, Smite, arts) slide free"
   },
   {
     "name": "Lava Crack",
