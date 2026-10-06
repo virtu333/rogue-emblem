@@ -5,6 +5,9 @@
     "valor": 60,
     "supply": 40
   },
+  "consumableEffects": {
+    "vulneraryUses": 3
+  },
   "startingGold": 0,
   "units": {
     "Edric": {

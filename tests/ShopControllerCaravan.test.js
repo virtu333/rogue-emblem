@@ -36,6 +36,7 @@ function makeScene(overrides = {}) {
       getShopState: vi.fn(() => null),
       getShopItemCountDelta: vi.fn(() => 0),
       getWeaponArtSpawnConfig: vi.fn(() => null),
+      getConsumableCatalog: () => gameData.consumables,
       difficultyModifiers: {},
       clearPendingCaravanShop: vi.fn(),
       markNodeComplete: vi.fn(),

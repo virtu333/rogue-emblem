@@ -156,6 +156,7 @@ function shopScene({ mode = 'standard', guidance = 'full' } = {}) {
       saveShopState: vi.fn(),
       getShopItemCountDelta: () => 0,
       getWeaponArtSpawnConfig: () => null,
+      getConsumableCatalog: () => gameData.consumables,
       difficultyModifiers: {},
       markNodeComplete: vi.fn(),
     },

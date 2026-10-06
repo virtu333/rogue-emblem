@@ -133,7 +133,7 @@ export class VillageController {
     let grantedItemName = null;
     const item = villageRewardItem(scene.battleConfig?.villageTile, act, {
       lootTables: scene.gameData?.lootTables,
-      consumables: scene.gameData?.consumables,
+      consumables: scene.runManager?.getConsumableCatalog?.() ?? scene.gameData?.consumables,
       weapons: scene.gameData?.weapons,
     });
     // Pre-assign the uid so the convoy clone shares it — a Vision rewind of

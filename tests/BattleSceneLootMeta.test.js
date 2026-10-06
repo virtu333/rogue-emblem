@@ -102,6 +102,7 @@ function makeScene(metaEffects) {
     gold: 0,
     addGold: vi.fn(),
     getWeaponArtSpawnConfig: () => null,
+    getConsumableCatalog: () => [],
     ...(metaEffects ? { metaEffects } : {}),
   };
   scene.gameData = {
