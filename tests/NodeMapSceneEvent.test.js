@@ -319,16 +319,18 @@ describe('what the route map says about an event', () => {
     return texts[0];
   };
 
-  it('the tooltip says Event, and Encounter Locked only once its fight is locked', () => {
+  it('the tooltip says Event, and Map set only once its fight is locked', () => {
     const run = newRun();
     const node = makeEvent(run.nodeMap.nodes.find((n) => n.row >= 2));
     expect(tip(node)).toBe('Event — Something waits on the road');
     node.eventBattle = true;
     node.encounterLocked = true;
-    expect(tip(node)).toBe('Event — Something waits on the road\nEncounter Locked');
-    // A plain event is never "locked" (it has no encounter).
+    expect(tip(node)).toBe(
+      'Event — Something waits on the road\nMap set: same map and foes on return',
+    );
+    // A plain event is never "set" (it has no encounter).
     node.eventBattle = false;
-    expect(tip(node)).not.toContain('Locked');
+    expect(tip(node)).not.toContain('Map set');
   });
 
   it('flavour: an event speaks from its own lines on the road, like a battle once it fights', () => {
