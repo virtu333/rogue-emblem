@@ -20,9 +20,10 @@ const event = () => ({
 });
 
 describe('event node labels', () => {
-  it('the route graph names it "Event" and gives it a frame (the ruins art until it has its own)', () => {
+  it('the route graph names it "Event" and gives it its own medal frame, not the Ruins\'', () => {
     expect(nodeLabel(event())).toBe('Event');
-    expect(nodeFrame(event(), 'act2')).toBe(4);
+    expect(nodeFrame(event(), 'act2')).toBe(9);
+    expect(nodeFrame(event(), 'act2')).not.toBe(nodeFrame({ type: NODE_TYPES.RUINS }, 'act2'));
   });
 
   it('the loom card is an EVENT with its own line, not a battle', () => {
@@ -33,7 +34,7 @@ describe('event node labels', () => {
     expect(card.objective).toBeNull();
   });
 
-  it('a fallen event keeps its silhouette and says the dark took the road', () => {
+  it('a fallen event wears the Dark Omen medal and says the dark took the road', () => {
     const node = event();
     eclipseNode(node, {
       runSeed: 7,
@@ -43,7 +44,7 @@ describe('event node labels', () => {
       shadow: 30,
     });
     expect(nodeLabel(node)).toBe('Swallowed road');
-    expect(nodeFrame(node, 'act2')).toBe(4);
+    expect(nodeFrame(node, 'act2')).toBe(10);
     const card = describeLoomNode(node, { state: 'live', actId: 'act2' });
     expect(card.kind).toBe('ECLIPSED');
     expect(card.text).toMatch(/^The dark took this road\./);

@@ -21,6 +21,7 @@ import { ChoicePicker } from './ChoicePicker.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
 import { unitPortrait } from './unitPortrait.js';
 import { itemIcon } from './itemIcons.js';
+import { createEventBand } from './eventBand.js';
 import { saveServiceRun } from './serviceSave.js';
 import { canShowRunNote, markNoteSeen } from './guidanceGate.js';
 import { guidanceText } from '../engine/Guidance.js';
@@ -96,7 +97,11 @@ export class EventMenu {
       this.renderUnknown(body);
       return;
     }
-    body.append(this.hero(view));
+    // The head: the painted band (art never gates the page: a plain strip until or unless it
+    // loads) with the kicker and title, stacked on a narrow screen and overlaid on a wide one.
+    const head = el('div', null, 'ev-head');
+    head.append(createEventBand(view.eventId, this.scene), this.hero(view));
+    body.append(head);
     const status = el('p', this.status, 'ev-status');
     status.setAttribute('role', 'status');
     status.setAttribute('aria-live', 'polite');

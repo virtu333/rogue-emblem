@@ -40,6 +40,8 @@ export const ATLAS_PRECACHE_GLOBS = Object.freeze([
   'assets/sprites/fx/fx_atlas.{png,json}',
   // Node-map medals: frames are NODE_ART_RECTS in the JS bundle (also a CSS sprite).
   'assets/sprites/nodes/weathered-nodes.png',
+  // The Event medal + its Dark Omen (CSS sprite only: NodeArt.js, frames 9-10).
+  'assets/sprites/nodes/event-nodes.png',
   // Traced unit sprites: pages; frames in the bundled TracedSpriteManifest.json.
   'assets/sprites/traced/*.png',
   // PC-98 portrait atlases (one per size); frames from the bundled Pc98PortraitManifest.

@@ -1,5 +1,5 @@
 import { button } from './MenuSurface.js';
-import { createNodeArt } from './NodeArt.js';
+import { createNodeArt, EVENT_ART_FRAME, EVENT_DARK_ART_FRAME } from './NodeArt.js';
 import {
   buildLoomModel,
   layoutLoom,
@@ -24,7 +24,8 @@ import { drawLoomFx, drawLoomWeave, loomFxAnimates } from '../art/loom/loomThrea
 // ('emblem-rogue:portrait-ui') or the device rotates, and keeps the browsing place
 // (the row at the centre of the view) and the selection across the switch.
 
-// event reuses the ruins frame until it has art of its own.
+// event (frame 9) and its Dark Omen (10, a fallen event) come from their own baked sheet
+// (NodeArt.js); the rest are the weathered concept sheet's cells.
 const FRAMES = {
   battle: 0,
   church: 1,
@@ -33,7 +34,7 @@ const FRAMES = {
   ruins: 4,
   recruit: 5,
   colosseum: 6,
-  event: 4,
+  event: EVENT_ART_FRAME,
 };
 const LABELS = {
   battle: 'Battle',
@@ -51,6 +52,8 @@ const isEclipsed = (node) => !!node?.eclipse;
 export function nodeFrame(node, act) {
   // A place the dark took keeps its silhouette (a burned village is still a village).
   const was = node?.eclipse?.fromType;
+  // A fallen event wears the Dark Omen: the same lantern post once the Eclipse has it.
+  if (was === 'event') return EVENT_DARK_ART_FRAME;
   if (was && was !== 'battle' && FRAMES[was] != null) return FRAMES[was];
   return node.type === 'boss' && act === 'finalBoss'
     ? 8
@@ -131,13 +134,6 @@ function crackSvg() {
   return svg;
 }
 
-/** The "?" a route-map event wears on its medal (decorative: the node's label names it). */
-export function eventMark() {
-  const mark = span('re-loom-mark', '?');
-  mark.setAttribute('aria-hidden', 'true');
-  return mark;
-}
-
 function span(className, text) {
   const el = document.createElement('span');
   el.className = className;
@@ -212,6 +208,7 @@ export function createRouteGraph({
     const eclipseInfo = eclipse?.nodes?.get?.(n.id) || null;
     b.classList.toggle('is-eclipsed', fallen);
     b.classList.toggle('is-eclipse-pending', fallen && pending.has(n.id));
+    b.classList.toggle('is-dark-omen', fallen && n.eclipse?.fromType === 'event');
     const waning = !fallen && !!eclipseInfo?.near && state !== 'done' && state !== 'current';
     b.classList.toggle('is-waning', waning);
     const stateText = state === 'current' ? currentLabel : STATE_TEXT[state];
@@ -225,9 +222,6 @@ export function createRouteGraph({
     const frame = pending.has(n.id) ? (FRAMES[n.eclipse.fromType] ?? 0) : nodeFrame(n, actId);
     medal.append(createNodeArt(frame, n.type === 'boss' ? 34 : 29));
     if (fallen) medal.append(span('re-eclipse-ink'), emberSvg());
-    // An event borrows the Ruins' medal until it has art of its own: its "?" mark tells
-    // them apart at a glance (the label under a reachable one says EVENT).
-    else if (n.type === 'event') medal.append(eventMark());
     b.append(medal);
     if (waning) {
       // A crescent bite on the frame, clipped to the medal and its rim: deeper the

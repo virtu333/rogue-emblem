@@ -44,6 +44,12 @@ export function hasBlessingPainting(blessingId) {
   return Boolean(manifest.cards[blessingId]);
 }
 
+/** An Event's header painting (data/events.json id), or null for an event without one. */
+export function eventVignetteUrl(eventId) {
+  const entry = manifest.events?.[eventId];
+  return entry ? absolute(`${base()}assets/ui/moments/events/${eventId}.png?v=${entry.v}`) : null;
+}
+
 /** Reduce motion: the game setting or the OS preference. */
 export function prefersStill(scene) {
   try {

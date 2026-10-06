@@ -91,9 +91,66 @@ export const VIGNETTES = {
     'a covered merchant caravan wagon stopped on a dusk road, lanterns hanging from the canopy, open crates of goods, a tethered horse in silhouette',
 };
 
+// ── Event vignettes (docs/specs/event-art.md item 2): one wide header illustration per
+// story Event in data/events.json, prompted from the event's intro. The Event page
+// (src/ui/EventMenu.js) shows it as a band, so the scene is composed for a very wide crop:
+// the subject sits right of centre, and the left third is quieter ink for the page's edge.
+export const EVENT =
+  `${WORLD} Ultra-wide cinematic header illustration of a roadside scene, one story moment, ` +
+  'composed for a very wide short crop: the subject sits right of centre at a readable size, the ' +
+  'left third is quieter and darker, a low horizon, strong depth, one warm focal light. Any ' +
+  'people are small, anonymous figures seen from behind, from the side or in silhouette, never ' +
+  'facing the viewer, never recognisable real people; signs, books and banners carry no writing ' +
+  'at all. Full-bleed to every edge.';
+
+/** Event vignette subjects, by event id (all ten in data/events.json). */
+export const EVENTS = {
+  old_swordmaster:
+    'a woodyard at dusk: a very old woman with a white braid, seen from the side in a plain brown ' +
+    'cloak, splitting a log on a chopping block with a wooden practice sword; neat stacks of split ' +
+    'firewood, a small cottage with one lit window behind her, chips of wood in the air',
+  abandoned_armory:
+    'a garrison armoury left in a hurry, seen from the yard at dusk: the heavy door ajar, a pair of ' +
+    'boots by the step, a cold iron pot on dead embers, racks of spears and swords visible inside, ' +
+    'and deep in the dark a barred inner door with a thin line of violet light under it',
+  twin_altar:
+    'a standing stone with two faces carved back to back, one face turned to a gold sunrise glow, ' +
+    'the other turned to deep violet shadow beneath a black eclipse sun with a thin gold corona; ' +
+    'small offerings of candles, bread, ribbons and coins at the foot of both faces, many more ' +
+    'before the dark face',
+  wounded_courier:
+    'an imperial courier in crimson lacquered armour slumped against a mossy stone milestone beside ' +
+    'a road at dusk, an arrow through his thigh, one gloved fist tightly clutching a sealed letter ' +
+    'with a red wax seal, his horse standing in silhouette behind; no gore',
+  deserters_fire:
+    'six imperial deserters sitting close around a campfire too small for them in a dusk clearing, ' +
+    'crimson lacquered armour pieces dropped in the grass, hands open and empty, wary faces turned ' +
+    'toward the dark road, long firelit shadows, nobody holding a weapon',
+  the_echo:
+    'a crossroads at dusk with a cairn of stacked stones, a battered soldier helmet resting on top, ' +
+    'and beside it a faint translucent pale-violet ghostly figure of a young soldier seen from ' +
+    'behind, half dissolved into mist, ghost light fading into the road',
+  toll_bridge:
+    'a rope bridge across a deep river gorge at dusk, a small timber toll hut at the near end with ' +
+    'a hanging lantern, and a lone man in silhouette beside it holding a crossbow across his arm ' +
+    'and an open ledger book, mist over the water',
+  moneylender:
+    'a gilded merchant cart on a dusk road with four armoured guards standing at its sides, an ' +
+    'ornate chest open on the cart showing gold, a thin man in a long dark coat and very fine pale ' +
+    'gloves seen in profile holding a ledger, lanterns on poles, a small cold smile in the lamplight',
+  drill_yard:
+    'an abandoned military drill yard at dusk: straw training dummies slumped on posts, a raked ' +
+    'sand pit, a rack of blunted practice blades, a blank wooden signboard on two posts with no ' +
+    'writing, a low barracks building with shuttered windows behind',
+  quiet_road:
+    'an empty country road winding between low hills at dusk, an old stone well with a wooden ' +
+    'bucket beside the road, a few small birds perched on the rim of the well and on a hawthorn ' +
+    'tree, peaceful and still, soft gold light low on the horizon',
+};
+
 /** Prompt text for one moment; `take` > 1 asks for another composition of the same subject. */
 export function momentPrompt(kind, subject, take = 1) {
-  const head = kind === 'card' ? CARD : SCENE;
+  const head = kind === 'card' ? CARD : kind === 'event' ? EVENT : SCENE;
   const variant = take > 1 ? ` Alternative composition ${take}.` : '';
   return `${head}\nSubject: ${subject}.${variant}`;
 }

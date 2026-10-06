@@ -1,0 +1,5 @@
+{
+  "note": "Curated picks for the Event medal and its Dark Omen variant: the raw generation (References/event-art/medal/<source>.jpg) behind each frame. Prompts live in prompts.mjs; the README in docs/art-direction/events/ says what was rejected and why.",
+  "event": { "source": "lantern-t1" },
+  "dark": { "source": "dark-t1" }
+}

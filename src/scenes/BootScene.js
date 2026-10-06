@@ -402,7 +402,8 @@ export class BootScene extends Phaser.Scene {
       }
     }
 
-    // Node map icons (8) - keyed as node_{type}
+    // Node map icons - keyed as node_{type} (the canvas fallback map; the DOM loom's medals
+    // come from NodeArt.js). node_event is the Event medal baked at 48 px.
     const nodeIcons = [
       'battle',
       'rest',
@@ -413,6 +414,7 @@ export class BootScene extends Phaser.Scene {
       'elite',
       'colosseum',
       'ruins',
+      'event',
     ];
     for (const name of nodeIcons) {
       this.load.image(`node_${name}`, `assets/sprites/nodes/node_${name}.png`);
