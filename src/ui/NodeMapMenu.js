@@ -384,9 +384,7 @@ export class NodeMapMenu {
     }
     const pulse = !this._reducedMotion();
     for (const id of change.ids) {
-      const node = [...this.root.querySelectorAll('[data-node]')].find(
-        (b) => b.dataset.node === id,
-      );
+      const node = [...this.root.querySelectorAll('.re-node')].find((b) => b.dataset.node === id);
       if (!node || node.querySelector('.re-loom-changed')) continue;
       node.classList.add('is-changed');
       const ring = element('span', null, pulse ? 're-loom-changed is-pulsing' : 're-loom-changed');
@@ -402,7 +400,7 @@ export class NodeMapMenu {
       () => {
         this._routeChange = null;
         for (const ring of [...this.root.querySelectorAll('.re-loom-changed')]) {
-          ring.parentElement?.classList.remove('is-changed');
+          ring.parentNode?.classList.remove('is-changed');
           ring.remove();
         }
       },

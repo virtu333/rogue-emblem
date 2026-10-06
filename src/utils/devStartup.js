@@ -10,6 +10,9 @@ import { findCommander } from '../engine/Commander.js';
 import { MetaProgressionManager } from '../engine/MetaProgressionManager.js';
 import { RunManager } from '../engine/RunManager.js';
 import { NODE_TYPES } from './constants.js';
+import { addBurden } from '../engine/Burdens.js';
+import { normalizeContract } from '../engine/Contracts.js';
+import { DEV_EVENT_FIXTURES } from './devEventFixtures.js';
 
 const DEV_META_STORAGE_KEY = 'emblem_rogue_dev_meta';
 const DEV_SCENE_ALIASES = {
@@ -338,10 +341,18 @@ function applyEventPreset(runManager, config) {
     .sort((a, b) => a.row - b.row || a.col - b.col)
     .find((node) => node.row >= 2 && convertible.has(node.type));
   if (!target) return;
-  target.type = NODE_TYPES.EVENT;
+  // The node the party walks to: an event (the default), or a church or the colosseum, to review
+  // the Cleanse vow and the arena's bouts (`&as=church`, `&as=colosseum`).
+  const kind = EVENT_REVIEW_NODES[config.eventNodeAs] || NODE_TYPES.EVENT;
+  target.type = kind;
   target.battleParams = null;
   delete target.fogEnabled;
   delete target.templateId;
+  // A Dark Omen (`&omen=1`): the event node the Eclipse took and left its story.
+  if (kind === NODE_TYPES.EVENT && config.omen) {
+    target.darkOmen = true;
+    target.eclipse = { fellAtShadow: 30, fromType: 'event', label: 'Dark Omen', seen: true };
+  }
   // The shortest road from the start to it (breadth first over the forward edges).
   const parent = new Map([[runManager.nodeMap.startNodeId, null]]);
   const queue = [runManager.nodeMap.startNodeId];
@@ -358,15 +369,79 @@ function applyEventPreset(runManager, config) {
   for (const id of road) runManager.markNodeComplete(id);
   runManager.addGold(1000);
   const events = runManager.gameData?.events;
+  const fixture = DEV_EVENT_FIXTURES[config.event] || null;
   if (config.event && Array.isArray(events?.events)) {
-    runManager.gameData = {
-      ...runManager.gameData,
-      events: {
-        ...events,
-        events: events.events.filter((event) => event.id === config.event || event.fallback),
-      },
-    };
+    // A review fixture (utils/devEventFixtures.js) is the only event on the road, with the fallback.
+    const pool = fixture
+      ? [fixture.event, ...events.events.filter((event) => event.fallback)]
+      : events.events.filter((event) => event.id === config.event || event.fallback);
+    runManager.gameData = { ...runManager.gameData, events: { ...events, events: pool } };
   }
+  addReviewUnits(runManager, [
+    ...(fixture?.units || []),
+    ...String(config.units || '')
+      .split(',')
+      .map((className) => ({ className: className.trim() }))
+      .filter((unit) => unit.className),
+  ]);
+  addReviewBurdens(runManager, config.burdens);
+  addReviewContract(runManager, config.contract);
+}
+
+// `&as=` values for the event review route's target node.
+const EVENT_REVIEW_NODES = {
+  event: NODE_TYPES.EVENT,
+  church: NODE_TYPES.CHURCH,
+  colosseum: NODE_TYPES.COLOSSEUM,
+};
+
+/** Roster additions for the review: [{ className, name? }] (an unknown class is skipped). */
+function addReviewUnits(runManager, specs) {
+  const gameData = runManager.gameData;
+  for (const spec of specs) {
+    const classData = gameData.classes.find((c) => c.name === spec.className);
+    if (!classData) continue;
+    const unit = createUnit(classData, 3, gameData.weapons, { name: spec.name || spec.className });
+    runManager.assignUnitUid(unit);
+    runManager.roster.push(unit);
+  }
+  if (specs.length) runManager.ensurePortraitVariants();
+}
+
+/**
+ * `&burdens=ill_omen,debt:450,hunted,sworn_enemy,wounded`: the run carries them ("id" or
+ * "id:number", the number being Debt's owed gold or the battles left). A wound falls on the
+ * first lord's STR.
+ */
+function addReviewBurdens(runManager, list) {
+  for (const entry of String(list || '')
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)) {
+    const [id, figure] = entry.split(':');
+    const n = Number(figure);
+    const params = {};
+    if (id === 'debt' && Number.isFinite(n)) params.owed = n;
+    else if (Number.isFinite(n)) params.battles = n;
+    if (id === 'wounded') {
+      const unit = runManager.roster.find((u) => u.isLord) || runManager.roster[0];
+      Object.assign(params, { unitUid: unit?.unitUid, unitName: unit?.name, stat: 'STR' });
+    }
+    addBurden(runManager, id, params);
+  }
+}
+
+/** `&contract=underPar|noLosses`: an open contract, 600 G kept, 300 G of Debt broken. */
+function addReviewContract(runManager, goal) {
+  if (!goal) return;
+  runManager.contract = normalizeContract({
+    goal,
+    reward: [{ type: 'gold', value: 600 }],
+    penalty: [{ type: 'burden', id: 'debt', params: { owed: 300 } }],
+    eventId: 'dev_contract',
+    nodeId: 'dev',
+    act: runManager.currentAct,
+  });
 }
 
 /**
@@ -517,6 +592,13 @@ export function parseDevStartupConfig(search, options = {}) {
     devTools: parseBool(params.get('devTools')),
     ...(params.get('route') ? { route: params.get('route') } : {}),
     ...(params.get('event') ? { event: params.get('event') } : {}),
+    // Event review extras (applyEventPreset): the node's kind, the burdens and contract the run
+    // carries, a Dark Omen, and roster additions.
+    ...(params.get('as') ? { eventNodeAs: params.get('as') } : {}),
+    ...(params.get('burdens') ? { burdens: params.get('burdens') } : {}),
+    ...(params.get('contract') ? { contract: params.get('contract') } : {}),
+    ...(parseBool(params.get('omen')) ? { omen: true } : {}),
+    ...(params.get('units') ? { units: params.get('units') } : {}),
     qaStep: qaConfig?.step || null,
     qaDescription: qaConfig?.description || null,
     nodeType:

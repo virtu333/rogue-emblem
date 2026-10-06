@@ -50,10 +50,10 @@ export class EventMenu {
     this.scene = controller.scene;
     this.nodeId = this.scene._eventNode?.id;
     this.status = '';
-    // The steps behind the page: the toggle's state (collapsed each time a step is added) and
+    // The steps behind the page: the toggle's state (collapsed on each new page) and
     // the step count the player just took in this sitting (shown in full, not behind the toggle).
     this.trailOpen = false;
-    this.trailSteps = 0;
+    this.trailPage = null;
     this.justNow = null;
     // The page the player is looking at: a commit carries it, so a stale tap is refused.
     this.shown = null;
@@ -165,12 +165,14 @@ export class EventMenu {
   renderTrail(body, view) {
     const trail = view.trail || [];
     if (!trail.length) {
-      this.trailSteps = 0;
+      this.trailPage = null;
       return;
     }
-    // A step added collapses the toggle again: "collapsed by default" holds on every page.
-    if (trail.length !== this.trailSteps) {
-      this.trailSteps = trail.length;
+    // Each new page (a step taken, or the last one's outcome) shows the toggle collapsed again:
+    // "collapsed by default" holds on every page; a redraw of the same page keeps it as it is.
+    const here = `${trail.length}:${view.phase}`;
+    if (here !== this.trailPage) {
+      this.trailPage = here;
       this.trailOpen = false;
     }
     const model = eventTrailModel(trail, {
@@ -343,8 +345,10 @@ export class EventMenu {
     });
     if (!result.ok) {
       const now = eventView(this.run, this.nodeId);
-      const moved =
-        !!now && !!this.shown && (now.page !== this.shown.page || now.phase !== this.shown.phase);
+      // Moved on: the event is no longer on the page the choice was made on (a step was taken since),
+      // or no longer choosing at all. Any other refusal (gold, a target, a block) stays a refusal.
+      const from = page ?? this.shown?.page ?? null;
+      const moved = !!now && ((from !== null && now.page !== from) || now.phase !== 'choosing');
       if (!moved) return result;
       this.status = PAGE_MOVED_ON_LINE;
       return { ok: true, movedOn: true };

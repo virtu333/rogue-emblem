@@ -155,6 +155,7 @@
         "deeds.spec.js",
         "eclipse.spec.js",
         "event-nodes.spec.js",
+        "event-pages.spec.js",
         "fallen-recruit.spec.js",
         "growth-ceremonies.spec.js",
         "guidance-notes.spec.js",
