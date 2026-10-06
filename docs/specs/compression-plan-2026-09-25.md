@@ -247,6 +247,24 @@ So a blanket "delete low-signal tests" pass is not safe.
 4. **Engine:** Stryker (`@stryker-mutator/core` + vitest runner, `coverageAnalysis: "perTest"`, incremental). Rough cost: `Combat.js` 30–60 min; all of `src/engine` overnight; a changed-files PR gate takes minutes.
 5. **UI controllers:** a hand-mutation script, about 10 s per mutant against focused tests.
 
+## Mutation results (2026-10-03, main at c54b58d)
+
+Stryker on `src/engine/Combat.js` (3,100 mutants), bail on first kill, three test sets (`vitest.mutation.config.js`). Scores below are on the 2,135 mutants all three runs share (the integration run covered alternating 150-line blocks plus an earlier partial pass):
+
+| Tests | Mutants killed |
+|---|---|
+| Unit suite minus the 30 slow files (`MUTATE_TESTS=fast`) | 1,384 (64.8%) |
+| Harness, sim and the 30 integration-style files (`integration`) | 1,128 (52.8%) |
+| Everything CI runs in vitest (`full`) | 1,711 (80.1%) |
+
+Over the whole file the full suite kills 2,583 of 3,100 (83.3%).
+
+- **Unit and integration tests catch different bugs.** 488 mutants die only to the fast unit tests, 232 only to the integration-style tests. Dropping the unit tests would let about a quarter of these planted bugs through, so "keep only E2E/integration" does not hold for the engine.
+- **The slow files matter.** 476 mutants the fast set misses die to the 30 slow files plus harness and sim (e.g. `ForecastResolutionParity` is the only catch for the art follow-up's triangle and hit modifiers). Never judge a deletion on the fast set alone.
+- **No Combat test file is safe to delete on this evidence.** Of the 13 files that test Combat.js directly, 11 are the first to kill some mutant (`Combat.test.js` 782). The other two, `MiracleLiveHP` and `DoublingRuleCopy`, are about SkillSystem and help copy, which this run did not mutate. Single tests with no recorded kill only mean another test got there first under bail; deleting them would save microseconds.
+- **Survivors worth a test** (full suite): the Entity's crit-rate cut (`Combat.js` ~971, ~1348; also in the pilot), Silence on staves (~1888), the defender follow-up after a warp (~2297, ~2316), half-physical-damage and Vengeance on an art follow-up (~949–950), drain merging (`mergeCombatDrain`), range and effectiveness normalisers (`normalizeCombatRangeOverride`, `normalizeCombatEffectiveness`). `npm run mutate:report -- reports/mutation/combat.json --survivors` lists all 517.
+- **Cost.** Combat.js took 1.7 h (fast) + 1.9 h (full survivors) on 4 cores. All of `src/engine` (~46k lines) is days on this hardware, so run it per module, on change, not as a sweep.
+
 ## Rules for new tests (summary; also in CLAUDE.md)
 
 - Before writing a test, list the realistic ways the change could fail. Each test should name the regression it would catch.

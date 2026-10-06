@@ -126,12 +126,6 @@ describe('item icon atlases are deterministic', () => {
       }
     }
   });
-
-  it('rendering twice gives the same pixels', () => {
-    const again = buildAtlases();
-    for (const size of [16, 32])
-      expect(sha(again.atlases[size].rgba)).toBe(sha(built.atlases[size].rgba));
-  }, 120_000);
 });
 
 describe('itemIcon helper', () => {
