@@ -341,6 +341,17 @@ describe('NodeMapGenerator', () => {
       }
     });
 
+    it("boss nodes take the act's late-row levelRange, not the raw pool range", () => {
+      const expected = { act1: [2, 3], act2: [5, 8], act3: [11, 15], act4: [14, 17] };
+      for (const [act, range] of Object.entries(expected)) {
+        for (let i = 0; i < 5; i++) {
+          const map = generateNodeMap(act, ACT_CONFIG[act]);
+          const boss = map.nodes.find((n) => n.type === NODE_TYPES.BOSS);
+          expect(boss.battleParams.levelRange).toEqual(range);
+        }
+      }
+    });
+
     it('act2 battle nodes ramp within the act pool range', () => {
       for (let i = 0; i < 10; i++) {
         const map = generateNodeMap('act2', ACT_CONFIG.act2);

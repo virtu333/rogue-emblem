@@ -119,6 +119,33 @@ describe('getReclassTargets', () => {
       expect(names).not.toContain('Light Sage');
       expect(names).not.toContain('Sentinel');
     });
+
+    it('excludes the Zombie line', () => {
+      const base = getReclassTargets(makeRecruit('Myrmidon'), data.classes, 'infantry');
+      expect(base.map((t) => t.name)).not.toContain('Zombie');
+      const promoted = data.classes.filter(
+        (c) => c.tier === 'promoted' && c.moveType === 'Infantry',
+      );
+      expect(promoted.map((c) => c.name)).toContain('Revenant');
+      const unit = { ...makeRecruit('Myrmidon'), tier: 'promoted', className: 'Swordmaster' };
+      const names = getReclassTargets(unit, data.classes, 'infantry').map((t) => t.name);
+      expect(names.length).toBeGreaterThan(0);
+      expect(names).not.toContain('Revenant');
+    });
+  });
+
+  describe('enemy-only dragons', () => {
+    it('excludes the Dragon line from the mounted seal', () => {
+      const flyers = data.classes.filter((c) => c.moveType === 'Flying').map((c) => c.name);
+      expect(flyers).toEqual(expect.arrayContaining(['Dragon', 'Dragon Lord']));
+      const base = getReclassTargets(makeRecruit('Cavalier'), data.classes, 'mounted');
+      expect(base.length).toBeGreaterThan(0);
+      expect(base.map((t) => t.name)).not.toContain('Dragon');
+      const unit = { ...makeRecruit('Cavalier'), tier: 'promoted', className: 'Paladin' };
+      const names = getReclassTargets(unit, data.classes, 'mounted').map((t) => t.name);
+      expect(names.length).toBeGreaterThan(0);
+      expect(names).not.toContain('Dragon Lord');
+    });
   });
 
   describe('mounted seal (base tier)', () => {
