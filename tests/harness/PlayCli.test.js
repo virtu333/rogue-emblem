@@ -221,6 +221,44 @@ describe('play CLI', () => {
     expect(look.out).not.toMatch(/999/);
   });
 
+  it('--json gives each step and the state as data; --same-turn stops at the turn', async () => {
+    expect((await playHere('j', ['new', '--seed', '3'])).code).toBe(0);
+    const call = await playHere('j', [
+      'bless skip; go act1_0_2; start; move P1 99,99 wait; look',
+      '--json',
+    ]);
+    expect(call.code).toBe(EXIT.refused);
+    const out = JSON.parse(call.out);
+    expect(out.results.map((r) => [r.cmd, r.kind])).toEqual([
+      ['bless skip', 'played'],
+      ['go act1_0_2', 'played'],
+      ['start', 'played'],
+      ['move P1 99,99 wait', 'refused'],
+      ['look', 'not run'],
+    ]);
+    expect(out.rev).toBe(3);
+    expect(out.observation.phase).toBe('battle');
+    expect(out.observation.battle.turn).toBe(1);
+    const army = out.observation.battle.army;
+    expect(army.map((u) => u.id)).toEqual(['P1', 'P2', 'P3']);
+    expect(army[0].reachable).toContain(`${army[0].col},${army[0].row}`);
+
+    // Three waits end turn 1 by themselves; --same-turn keeps the fourth order for turn 1 only.
+    const chain = await playHere('j', [
+      'move P1 stay wait; move P2 stay wait; move P3 stay wait; move P1 stay wait',
+      '--same-turn',
+    ]);
+    expect(chain.code).toBe(EXIT.ok);
+    expect(chain.out).toMatch(
+      /The turn or phase moved on \(--same-turn\)\. Not run: move P1 stay wait/,
+    );
+    expect(
+      record('j')
+        .log.map((e) => e.cmd)
+        .slice(-3),
+    ).toEqual(['move P1 stay wait', 'move P2 stay wait', 'move P3 stay wait']);
+  });
+
   it('waits for a held lock, takes over a dead one, and serialises two writers', async () => {
     expect(play('l', 'new', '--seed', '3').code).toBe(0);
     expect(play('l', 'bless skip').code).toBe(0);

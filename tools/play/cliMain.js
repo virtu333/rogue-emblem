@@ -30,10 +30,12 @@ import {
   dataFingerprint,
   readManifest,
   readRecord,
+  writeFileAtomic,
   writeManifest,
   writeRecord,
 } from './store.js';
 import { UNSUPPORTED, newNotices, noticeLine } from './capabilities.js';
+import { buildReport, reportText } from './report.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SESSIONS = join(ROOT, 'play-sessions');
@@ -69,7 +71,10 @@ const USAGE = `Headless play — tools/play/README.md
   npm run play -- rebase NEW [--adapt] replay without checking digests into NEW, re-stamped;
                                        --adapt inserts "canto stay" where the session predates Canto
   npm run play -- stop voluntary|timeout|blocked "<why>"   conclude the run here
+  npm run play -- report [--json]      what the run amounts to (battles, spoils, buys), to report.json
   --expect-rev N    refuse unless the session is at revision N (printed after each call)
+  --same-turn       stop a chain once the turn or phase moves on (a plan for this turn only)
+  --json            one JSON object: each command's result, then the state as data
   --id KEY          run this call at most once: a retry with the same KEY changes nothing
 
 Session NAME defaults to $PLAY_SESSION or "default" (play-sessions/NAME/).
@@ -81,7 +86,12 @@ function parseArgs(argv) {
   const words = [];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (['--force', '--brief', '--rebase', '--adapt'].includes(a)) flags[a.slice(2)] = true;
+    if (
+      ['--force', '--brief', '--rebase', '--adapt', '--json', '--same-turn', '--compact'].includes(
+        a,
+      )
+    )
+      flags[a.slice(2)] = true;
     else if (a.startsWith('--')) flags[a.slice(2)] = argv[++i];
     else words.push(a);
   }
@@ -203,6 +213,29 @@ async function main(argv, io, onSession) {
     );
     io.log(
       `${record.log.length} command(s), revision ${record.revision ?? record.log.length}. Options: ${JSON.stringify(record.options)}${record.outcome ? `. Concluded: ${record.outcome.kind}${record.outcome.reason ? ` (${record.outcome.reason})` : ''}` : ''}`,
+    );
+    return EXIT.ok;
+  }
+
+  // The report replays the record and writes report.json beside it (atomically).
+  if (verb === 'report') {
+    const record = load(dir);
+    const journal = existsSync(join(dir, JOURNAL_FILE))
+      ? readFileSync(join(dir, JOURNAL_FILE), 'utf8')
+          .split('\n')
+          .filter(Boolean)
+          .flatMap((line) => {
+            try {
+              return [JSON.parse(line)];
+            } catch {
+              return []; // a line cut short by a killed call
+            }
+          })
+      : [];
+    const report = await buildReport(gameData, record, { journal, manifest: readManifest(dir) });
+    writeFileAtomic(join(dir, 'report.json'), JSON.stringify(report, null, 2) + '\n');
+    io.log(
+      flags.json ? JSON.stringify(report, null, 2) : `${reportText(report)}\n(report.json written)`,
     );
     return EXIT.ok;
   }
@@ -363,6 +396,14 @@ async function locked(dir, verb, words, flags, gameData, io, onSession) {
   const commands = splitCommands(words.join(' '));
   let status = EXIT.ok;
   let changed = false;
+  // --json: one JSON object for the whole call (each step's result, then the
+  // observation as data) in place of the text.
+  const results = [];
+  const say = flags.json ? () => {} : (text) => io.log(text);
+  // --same-turn: a chain planned for this turn stops when the turn or phase moves on.
+  const moment = () =>
+    `${session.game.phase}:${session.game.battle?.battle?.turnManager?.turnNumber ?? ''}:${session.game.rm?.currentNodeId ?? ''}`;
+  const startMoment = moment();
   let note = flags.note || null; // --note belongs to the first command that changes the game
   for (const [n, cmd] of commands.entries()) {
     const head = cmd.split(/\s+/)[0].toLowerCase();
@@ -377,18 +418,21 @@ async function locked(dir, verb, words, flags, gameData, io, onSession) {
         at: session.log.length,
         note: text,
       });
-      io.log('Noted.');
+      say('Noted.');
+      results.push({ cmd, kind: 'note' });
       continue;
     }
-    const notRun = () => {
+    const notRun = (why = null) => {
       const rest = commands.slice(n + 1);
-      if (rest.length) io.log(`(Not run: ${rest.join('; ')})`);
+      if (rest.length) say(`(${why ? `${why} ` : ''}Not run: ${rest.join('; ')})`);
+      for (const r of rest) results.push({ cmd: r, kind: 'not run', why });
     };
     try {
       if (PlaySession.isQuery(cmd)) {
         const text = await session.query(cmd);
         appendJournal(dir, { type: 'query', rev: session.revision, cmd, out: text });
-        io.log(text);
+        say(text);
+        results.push({ cmd, kind: 'query', out: text });
         continue;
       }
       if (record.outcome)
@@ -428,12 +472,20 @@ async function locked(dir, verb, words, flags, gameData, io, onSession) {
       if (session.over)
         appendJournal(dir, { type: 'outcome', rev: session.revision, ...record.outcome });
       note = null;
-      io.log(`> ${cmd}\n${lines.join('\n')}`);
-      for (const notice of fresh) io.log(noticeLine(notice));
+      say(`> ${cmd}\n${lines.join('\n')}`);
+      for (const notice of fresh) say(noticeLine(notice));
+      results.push({
+        cmd,
+        kind: 'played',
+        lines,
+        unsupported: fresh.map((f) => f.line),
+        rev: session.revision,
+      });
     } catch (err) {
       if (err instanceof PlayError) {
         appendJournal(dir, { type: 'refused', rev: session.revision, cmd, error: err.message });
-        io.log(`> ${cmd}\nREFUSED: ${err.message}`);
+        say(`> ${cmd}\nREFUSED: ${err.message}`);
+        results.push({ cmd, kind: 'refused', error: err.message });
         notRun();
         status = EXIT.refused;
         break;
@@ -446,14 +498,37 @@ async function locked(dir, verb, words, flags, gameData, io, onSession) {
         error: String(err?.message || err),
         stack: err?.stack || null,
       });
-      io.log(
+      say(
         `> ${cmd}\nENGINE FAULT: ${err?.stack || err}\nThe command was rolled back; anything before it in this call stays played. This is a bug in the game or the adapter (not a refusal): report it with this session.`,
       );
+      results.push({ cmd, kind: 'fault', error: String(err?.message || err), stack: err?.stack });
       notRun();
       status = EXIT.fault;
       break;
     }
     if (session.over) break;
+    if (flags['same-turn'] && moment() !== startMoment && n < commands.length - 1) {
+      notRun('The turn or phase moved on (--same-turn).');
+      break;
+    }
+  }
+
+  if (flags.json) {
+    let observation;
+    try {
+      observation = session.observe();
+    } catch (err) {
+      observation = { error: String(err?.message || err) };
+      if (status === EXIT.ok && changed) status = EXIT.observation;
+    }
+    io.log(
+      JSON.stringify(
+        { rev: session.revision, status, over: session.over, results, observation },
+        null,
+        flags.compact ? 0 : 1,
+      ),
+    );
+    return status;
   }
 
   if (changed && !flags.brief) {

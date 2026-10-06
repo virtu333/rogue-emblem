@@ -59,6 +59,7 @@ async function answers(session) {
       out.push([q, `REFUSED ${err.message}`]);
     }
   }
+  out.push(['observe', JSON.stringify(session.observe())]);
   for (const cmd of ['move P1 99,99 wait', 'move P1 stay attack E99', 'move Nobody stay wait']) {
     try {
       await session.exec(cmd);

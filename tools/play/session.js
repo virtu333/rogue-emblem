@@ -18,6 +18,7 @@
 import { Game, normalizeOptions } from './game.js';
 import { AmbiguousItem, EndAfterTurnEnded, PlayError, tokenize } from './parse.js';
 import { SNAPSHOT_VERSION, snapshotDigest } from './snapshot.js';
+import { observe } from './observe.js';
 import { HEADLESS_STATES } from '../../tests/harness/HeadlessBattle.js';
 import { DEFAULT_TIMELINE_LIMITS } from '../../src/engine/BattleTimeline.js';
 import { rewindGranularityForRun } from '../../src/engine/RewindDestinations.js';
@@ -146,7 +147,7 @@ export class PlaySession {
       const digest = digestOf(session.game);
       if (verify && entry.digest && entry.digest !== digest)
         throw new ReplayDivergence(i, entry.cmd, entry.digest, digest);
-      onEntry?.(i, entry, digest);
+      onEntry?.(i, entry, digest, session);
       session.log.push({ ...played, digest });
       session.points.push(session._momentNow());
     }
@@ -236,6 +237,11 @@ export class PlaySession {
   /** The current observation. */
   view() {
     return this.game.peek(() => this.game.view());
+  }
+
+  /** The current observation as data (observe.js), read in the sandbox. */
+  observe() {
+    return this.game.peek(() => observe(this));
   }
 
   /** True when `line` only reads the game. */
