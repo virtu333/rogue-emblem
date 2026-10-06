@@ -178,10 +178,13 @@ export const NODE_TYPES = {
 // Mixed rows (2..rows-3) draw ONE Math.random() per node against these cumulative
 // thresholds (NodeMapGenerator.pickNodeType): roll < battle -> battle, < shop -> shop,
 // < church -> church, otherwise an event. `default` serves acts 2-4.
-// Shares: act1 .56/.16/.08/.20, acts 2-4 .50/.21/.125/.165 (docs/specs/event-nodes.md §1).
+// Raw shares: act1 .52/.06/.08/.34, acts 2-4 .44/.13/.16/.27. The service-streak repair
+// then turns conflicting events and churches into shops (and only then battles), so per
+// path these give the same fights, shops and churches as the 8/9-row acts did, plus about
+// one event (measured; docs/specs/event-nodes.md §1).
 export const NODE_TYPE_WEIGHTS = {
-  act1: { battle: 0.56, shop: 0.72, church: 0.8 },
-  default: { battle: 0.5, shop: 0.71, church: 0.835 },
+  act1: { battle: 0.52, shop: 0.58, church: 0.66 },
+  default: { battle: 0.44, shop: 0.57, church: 0.73 },
 };
 
 // Gold multiplier per node type (applied to kill gold subtotal in calculateBattleGold)

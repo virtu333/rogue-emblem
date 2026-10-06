@@ -28,17 +28,31 @@ Act 1 gets 5 mixed rows (was 4), acts 2–4 get 6 (was 5).
 ### Node-type weights
 
 `pickNodeType` keeps its **single** `Math.random()` draw per mixed node (an extra draw
-would shift every later draw of the node-map stream). New thresholds:
+would shift every later draw of the node-map stream). Thresholds as built
+(`NODE_TYPE_WEIGHTS`, tuned 2026-10-06; the first draft's table is below it):
 
 | | battle | shop | church | event |
 |---|---|---|---|---|
-| act1 (was .70/.20/.10) | < .56 | < .72 | < .80 | else (.20) |
-| acts 2–4 (was .60/.25/.15) | < .50 | < .71 | < .835 | else (.165) |
+| act1 (was .70/.20/.10) | < .52 | < .58 | < .66 | else (.34) |
+| acts 2–4 (was .60/.25/.15) | < .44 | < .57 | < .73 | else (.27) |
 
-Expected per path (before the recruit, colosseum and streak passes, which are unchanged in
-kind): Act 1 ≈ 2.8 battles in mixed rows (was 2.8), 0.8 shops (0.8), 0.4 churches (0.4),
-1.0 event. Acts 2–4 ≈ 3.0 battles (3.0), 1.26 shops (1.25), 0.75 churches (0.75), 1.0 event.
-The boss, the Ruins and the two opening battles are as before.
+The raw draw is only the start: the recruit guarantee, the colosseum and the service-streak
+repair move a lot of mass (the first draft, .56/.72/.80 and .50/.71/.835, measured only 0.7
+events per path and **0.3 more fights per path** than the 8/9-row maps, because every
+conflicting event became a battle). So the repair now tries another non-combat type first
+(below), and the table was tuned against what a **path** meets (seeded random walks, 1500
+maps × 4 walks per act), with the 8/9-row generator as the baseline:
+
+| per path | fights (battle + recruit + boss) | shops | churches | events |
+|---|---|---|---|---|
+| act1 before (8 rows) | 5.84 | 0.57 | 0.43 | – |
+| act1 now (9 rows) | 5.83 | 0.62 | 0.41 | 0.99 |
+| acts 2–4 before (9 rows) | 6.19–6.21 | 0.83–0.86 | 0.74 | – |
+| acts 2–4 now (10 rows) | 6.17–6.20 | 0.85 | 0.77–0.78 | 0.99–1.02 |
+
+`tests/EventNodeGeneration.test.js` holds these per-path numbers (the baseline written in by
+hand). The colosseum, which converts a battle in rows 2–4, now appears on about 0.15–0.19 of
+paths (was 0.16–0.22); `colosseum.json` `spawnChanceByAct` is unchanged.
 
 Put the thresholds in one exported table (e.g. `NODE_TYPE_WEIGHTS` keyed by act, with a
 default) rather than literals, so tests and sims read the same numbers.
@@ -50,8 +64,11 @@ default) rather than literals, so tests and sims read the same numbers.
 - Recruit guarantee: EVENT is **not** convertible (convertible stays battle/shop).
 - Colosseum: unchanged (converts a battle).
 - Service-streak repair: EVENT joins `serviceTypes` (no more than two non-combat nodes in a
-  row on a path, and no event beside or above another event). A conflicting EVENT becomes
-  a BATTLE (rebuild params, template and fog exactly as the pass already does for a battle).
+  row on a path, and no event beside or above another event). A conflicting node tries
+  another non-combat type before a battle (`NON_COMBAT_ALTERNATIVES`: shop → church, event;
+  church → shop, event; event → shop, church; colosseum → shop, church), as long as the
+  streak allows; only then does it become a BATTLE (params, template and fog rebuilt exactly
+  as the pass already does for a battle).
 - Village ambush: unchanged (shops only).
 - `canSeizeAtRow` keeps `ceil(rows/2)`: Act 1 seize maps now on rows 5–6.
 - `ACT_LEVEL_SCALING` unchanged: the extra row takes the act's `default` range.

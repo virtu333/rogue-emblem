@@ -36,6 +36,15 @@ const ACT_LEVEL_SCALING = {
  *   difficulty.json `villageMinRow` (act id -> first row that may hold a village)
  * @returns {{ actId, nodes: Array, startNodeId, bossNodeId }}
  */
+// What a conflicting non-combat node becomes before it falls back to a battle (the
+// service-streak repair): a shop tries a church then an event, and so on.
+const NON_COMBAT_ALTERNATIVES = Object.freeze({
+  [NODE_TYPES.SHOP]: [NODE_TYPES.CHURCH, NODE_TYPES.EVENT],
+  [NODE_TYPES.CHURCH]: [NODE_TYPES.SHOP, NODE_TYPES.EVENT],
+  [NODE_TYPES.EVENT]: [NODE_TYPES.SHOP, NODE_TYPES.CHURCH],
+  [NODE_TYPES.COLOSSEUM]: [NODE_TYPES.SHOP, NODE_TYPES.CHURCH],
+});
+
 export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
   const fogChanceBonus = Number.isFinite(options.fogChanceBonus) ? options.fogChanceBonus : 0;
   const halfFogChance = options.halfFogChance === true;
@@ -237,12 +246,13 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
             ),
         );
       if (priorStreak >= 2 || conflicts(node.type)) {
-        // An event has no service to swap to: it goes straight to a battle.
-        const alternative = node.type === NODE_TYPES.SHOP ? NODE_TYPES.CHURCH : NODE_TYPES.SHOP;
-        node.type =
-          node.type !== NODE_TYPES.EVENT && priorStreak < 2 && !conflicts(alternative)
-            ? alternative
-            : NODE_TYPES.BATTLE;
+        // Another non-combat node first (a shop, church or event that does not conflict
+        // here), a battle only when none fits or the streak is full.
+        const alternative =
+          priorStreak < 2
+            ? (NON_COMBAT_ALTERNATIVES[node.type] || []).find((type) => !conflicts(type))
+            : null;
+        node.type = alternative || NODE_TYPES.BATTLE;
         node.battleParams = buildBattleParams(
           actId,
           node.type,

@@ -8,8 +8,12 @@
 //   - the streak repair ignores events (event above event, event beside event, three
 //     non-combat nodes in a row) or converts one into something other than a battle;
 //   - the recruit guarantee converts an event;
-//   - the shares drift (the old shop/church bands were replaced by bands for every type).
-// Expected shares are written out by hand from the spec's table, not read from the code.
+//   - a conflicting event or service falls straight to a battle instead of trying another
+//     non-combat type (the extra row then adds fights);
+//   - the per-path counts drift: the extra row must keep the fights, shops and churches a
+//     path met on the 8/9-row maps and add about one event.
+// Expected cut points are written out by hand from the table; the per-path baselines were
+// measured on the 8/9-row generator (main, 2026-10-06), not read from this code.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { generateNodeMap, pickNodeType } from '../src/engine/NodeMapGenerator.js';
 import { ACT_CONFIG, NODE_TYPES, NODE_TYPE_WEIGHTS } from '../src/utils/constants.js';
@@ -94,32 +98,32 @@ describe('pickNodeType: thresholds and the single draw', () => {
   // Cumulative cut points straight from the spec table: [roll, expected type].
   const ACT1 = [
     [0, 'battle'],
-    [0.5599, 'battle'],
-    [0.56, 'shop'],
-    [0.7199, 'shop'],
-    [0.72, 'church'],
-    [0.7999, 'church'],
-    [0.8, 'event'],
+    [0.5199, 'battle'],
+    [0.52, 'shop'],
+    [0.5799, 'shop'],
+    [0.58, 'church'],
+    [0.6599, 'church'],
+    [0.66, 'event'],
     [0.9999, 'event'],
   ];
   const LATER = [
     [0, 'battle'],
-    [0.4999, 'battle'],
-    [0.5, 'shop'],
-    [0.7099, 'shop'],
-    [0.71, 'church'],
-    [0.8349, 'church'],
-    [0.835, 'event'],
+    [0.4399, 'battle'],
+    [0.44, 'shop'],
+    [0.5699, 'shop'],
+    [0.57, 'church'],
+    [0.7299, 'church'],
+    [0.73, 'event'],
     [0.9999, 'event'],
   ];
 
-  it('act 1 cuts at .56 / .72 / .80, with exactly one draw per mixed node', () => {
+  it('act 1 cuts at .52 / .58 / .66, with exactly one draw per mixed node', () => {
     for (const [roll, type] of ACT1) {
       expect(pickAt(roll, 'act1'), `roll ${roll}`).toEqual({ type, draws: 1 });
     }
   });
 
-  it('acts 2-4 cut at .50 / .71 / .835, with exactly one draw per mixed node', () => {
+  it('acts 2-4 cut at .44 / .57 / .73, with exactly one draw per mixed node', () => {
     for (const act of ['act2', 'act3', 'act4']) {
       for (const [roll, type] of LATER) {
         expect(pickAt(roll, act), `${act} roll ${roll}`).toEqual({ type, draws: 1 });
@@ -143,8 +147,8 @@ describe('pickNodeType: thresholds and the single draw', () => {
   it('the raw draw follows the table over many seeded rolls', () => {
     // Hand-derived raw shares (battle, shop, church, event) in percent; sigma is about 0.2.
     const expected = {
-      act1: { battle: 56, shop: 16, church: 8, event: 20 },
-      act2: { battle: 50, shop: 21, church: 12.5, event: 16.5 },
+      act1: { battle: 52, shop: 6, church: 8, event: 34 },
+      act2: { battle: 44, shop: 13, church: 16, event: 27 },
     };
     for (const [act, shares] of Object.entries(expected)) {
       const rng = createSeededRng(4242);
@@ -277,67 +281,71 @@ describe('service-streak repair with events', () => {
   });
 });
 
-describe('node-type shares', () => {
-  // Hand-derived raw shares of a mixed node (percent) from the spec table, before the
-  // recruit, colosseum and streak passes:
-  //   act 1:    battle 56, shop 16, church 8,    event 20
-  //   acts 2-4: battle 50, shop 21, church 12.5, event 16.5
-  // The passes move mass: the guarantee turns 2-3 battles per act into recruits (about 14-17%
-  // of a mixed row), the colosseum takes about 3% of battles, and the streak repair turns
-  // adjacent services and events into battles (shops and events lose the most).
-  // Bands are measured over 1500 seeded maps per act with the production colosseum rule,
-  // then widened a little; a raw slice off by 4 points moves a band's centre out of it.
-  const BANDS = {
-    act1: {
-      battle: [41, 51],
-      recruit: [14, 19.5],
-      shop: [9, 14.5],
-      church: [6, 10.5],
-      event: [12, 17.5],
-      colosseum: [1.5, 5],
-    },
-    later: {
-      battle: [40, 49],
-      recruit: [11.5, 16.5],
-      shop: [12.5, 17.5],
-      church: [10, 14.5],
-      event: [9.5, 14],
-      colosseum: [1.5, 5.5],
-    },
+describe('what a path meets', () => {
+  // Per path (one node per row, a seeded random walk from the start), measured on the
+  // 8/9-row generator before events (main, 2026-10-06, 1500 maps x 4 walks per act):
+  //   act 1:    fights (battle + recruit + boss) 5.84, shops 0.57, churches 0.43
+  //   acts 2-4: fights 6.19-6.21,                  shops 0.83-0.86, churches 0.74
+  // The extra row must keep those and add about one event.
+  const BASELINE = {
+    act1: { fights: 5.84, shop: 0.57, church: 0.43 },
+    later: { fights: 6.2, shop: 0.85, church: 0.74 },
   };
+  const TOLERANCE = { fights: 0.15, shop: 0.1, church: 0.08 };
+
+  function perPath(act, maps = 1500, walks = 4) {
+    const rng = createSeededRng(9001);
+    const totals = {};
+    let paths = 0;
+    for (let seed = 1; seed <= maps; seed++) {
+      const map = mapFor(act, seed);
+      const byId = new Map(map.nodes.map((n) => [n.id, n]));
+      for (let w = 0; w < walks; w++) {
+        let node = map.nodes.find((n) => n.row === 0);
+        while (node) {
+          totals[node.type] = (totals[node.type] || 0) + 1;
+          const next = node.edges.map((id) => byId.get(id));
+          node = next.length ? next[Math.floor(rng() * next.length)] : null;
+        }
+        paths++;
+      }
+    }
+    const per = (type) => (totals[type] || 0) / paths;
+    return {
+      fights: per('battle') + per('recruit') + per('boss'),
+      shop: per('shop'),
+      church: per('church'),
+      event: per('event'),
+    };
+  }
 
   for (const act of ACTS) {
-    it(`${act}: every type's share of the mixed rows sits in its band`, () => {
-      const counts = {};
-      let total = 0;
-      for (let seed = 1; seed <= 1500; seed++) {
-        const map = mapFor(act, seed);
-        for (const n of map.nodes.filter((x) => isMixedRow(x, act))) {
-          counts[n.type] = (counts[n.type] || 0) + 1;
-          total++;
-        }
+    it(`${act}: the same fights, shops and churches as before, plus about one event`, () => {
+      const got = perPath(act);
+      const base = BASELINE[act === 'act1' ? 'act1' : 'later'];
+      for (const key of Object.keys(base)) {
+        expect(
+          Math.abs(got[key] - base[key]),
+          `${act} ${key} ${got[key].toFixed(2)} vs ${base[key]}`,
+        ).toBeLessThan(TOLERANCE[key]);
       }
-      const bands = BANDS[act === 'act1' ? 'act1' : 'later'];
-      for (const [type, [lo, hi]] of Object.entries(bands)) {
-        const pct = ((counts[type] || 0) / total) * 100;
-        expect(pct, `${act} ${type} ${pct.toFixed(1)}%`).toBeGreaterThan(lo);
-        expect(pct, `${act} ${type} ${pct.toFixed(1)}%`).toBeLessThan(hi);
-      }
-      // Mixed rows hold nothing else.
-      expect(Object.keys(counts).sort()).toEqual(Object.keys(bands).sort());
+      expect(got.event, `${act} events ${got.event.toFixed(2)}`).toBeGreaterThan(0.85);
+      expect(got.event, `${act} events ${got.event.toFixed(2)}`).toBeLessThan(1.15);
     });
   }
 
-  it('the passes leave about 2.2 events per act 1 map, not the 3.0 a raw 20% draw implies', () => {
-    // Events per map: 5 mixed rows of ~3 nodes at a raw 20% would be ~3.0; the repair and
-    // the colosseum/recruit passes leave about 2.2. Guards both a missing repair (>2.8) and
-    // an over-eager one (<1.6).
-    let events = 0;
-    const N = 800;
-    for (let seed = 1; seed <= N; seed++) {
-      events += mapFor('act1', seed).nodes.filter((n) => n.type === NODE_TYPES.EVENT).length;
-    }
-    expect(events / N).toBeGreaterThan(1.6);
-    expect(events / N).toBeLessThan(2.8);
+  it('a conflicting event becomes a shop or church before it becomes a battle', () => {
+    // Nothing but events: every repair has a non-combat alternative to try first, so
+    // repaired mixed nodes include shops and churches, not only battles.
+    withWeights('act1', { battle: 0, shop: 0, church: 0 }, () => {
+      const counts = {};
+      for (let seed = 1; seed <= 200; seed++) {
+        for (const n of mapFor('act1', seed).nodes.filter((x) => isMixedRow(x, 'act1')))
+          counts[n.type] = (counts[n.type] || 0) + 1;
+      }
+      expect(counts.shop || 0).toBeGreaterThan(50);
+      expect(counts.church || 0).toBeGreaterThan(50);
+      expect(counts.event || 0).toBeGreaterThan(200);
+    });
   });
 });
