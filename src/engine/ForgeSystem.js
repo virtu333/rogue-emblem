@@ -8,6 +8,7 @@ import {
   FORGE_STAT_CAP,
   FORGE_TIER_COST_MULTIPLIER,
 } from '../utils/constants.js';
+import { isWorn } from './WeaponWear.js';
 
 // Item types that cannot be forged
 const EXCLUDED_TYPES = new Set(['Staff', 'Scroll', 'Consumable', 'Accessory', 'Whetstone']);
@@ -50,12 +51,15 @@ function getLegacyDeforgeStat(weapon) {
 }
 
 /**
- * Check whether a weapon can be forged (has room for at least one more forge).
+ * Check whether a weapon can be forged (has room for at least one more forge, and
+ * carries no wear: a worn weapon is repaired first).
  * @param {object} weapon
  * @returns {boolean}
  */
 export function canForge(weapon) {
   if (!weapon || EXCLUDED_TYPES.has(weapon.type)) return false;
+  // A worn weapon is repaired before it is forged (docs/specs/worn-weapons.md).
+  if (isWorn(weapon)) return false;
   return (weapon._forgeLevel || 0) < FORGE_MAX_LEVEL;
 }
 
@@ -91,6 +95,7 @@ export function getStatForgeCount(weapon, stat) {
  */
 export function forgeStatBlock(weapon, stat) {
   if (!Object.hasOwn(FORGE_BONUSES, stat)) return 'Invalid forge choice.';
+  if (isWorn(weapon)) return 'Repair this weapon before forging it.';
   if (!canForge(weapon)) return 'This weapon cannot be forged further.';
   if (stat === 'weight' && !(weapon.weight > 0)) return 'Already at minimum weight.';
   if (getStatForgeCount(weapon, stat) >= FORGE_STAT_CAP) return 'This stat is at its forge limit.';

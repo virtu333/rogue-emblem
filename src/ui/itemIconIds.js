@@ -5,6 +5,8 @@
 //   blessings   -> blessing-<id>       upgrades -> upgrade-<id>
 //   fallbacks   -> generic-<kind>
 
+import { stripItemNameSuffix } from '../utils/itemNames.js';
+
 export function itemSlug(name) {
   return String(name ?? '')
     .toLowerCase()
@@ -27,12 +29,10 @@ const GENERIC_BY_TYPE = {
   Whetstone: 'generic-whetstone',
 };
 
-/** Display names carry run state: "Vampiric Iron Sword +2" is still an Iron Sword. */
+/** Display names carry run state: "Vampiric Iron Sword +2" and "Iron Sword -1" are still Iron Swords. */
 export function baseItemName(item) {
   const raw = typeof item === 'string' ? item : item?._baseName || item?.name || '';
-  return String(raw)
-    .replace(/\s*\+\d+$/, '')
-    .trim();
+  return stripItemNameSuffix(String(raw)).trim();
 }
 
 /**

@@ -188,6 +188,10 @@
 .mr-card .mr-usage {
   color: var(--re-muted);
 }
+/* "Worn 2/3: Dulled (−1 Might), Bent (−5 Hit)" (WeaponWear.wearLine). */
+.mr-card .mr-wear {
+  color: var(--re-bad);
+}
 /* "Compared with <equipped>": a label column and old → new with the change. */
 .mr-card .mr-compare {
   margin: 10px 0 6px;

@@ -19,6 +19,8 @@ import {
 } from './rosterOverlayShared.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 import { equippedMarker } from './equippedBadge.js';
+import { wearCount } from '../engine/WeaponWear.js';
+import { composeWeaponName } from '../utils/itemNames.js';
 
 export class RosterTradeController {
   constructor(overlay) {
@@ -102,7 +104,7 @@ export class RosterTradeController {
     // Line 1: Type + full name
     const baseName = overlay._getWeaponBaseName(item);
     const forgeLevel = overlay._getWeaponForgeLevel(item);
-    const fullName = forgeLevel > 0 ? `${baseName} +${forgeLevel}` : baseName;
+    const fullName = composeWeaponName(baseName, { forgeLevel, wearSteps: wearCount(item) });
     const typeLabel = item.type || '';
     addText(paneX, line1Y, `${typeLabel}:`, UI_PALETTE.muted);
     addText(

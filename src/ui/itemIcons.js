@@ -11,6 +11,7 @@
 // Integer scales only: a 64 px icon is the 32 atlas at 2x, 96 px the 48 atlas at 2x.
 import manifest from './itemIconManifest.json';
 import { resolveItemIconId, baseItemName } from './itemIconIds.js';
+import { wearCount } from '../engine/WeaponWear.js';
 
 export const ITEM_ICON_MANIFEST = manifest;
 export const ITEM_ICON_SIZES = Object.freeze([16, 32, 48, 64, 96]);
@@ -153,6 +154,14 @@ export function itemIcon(subject, options = {}) {
       f.className = 'ia-forge';
       f.textContent = `+${forge}`;
       el.append(f);
+    }
+    // Wear marks the same corner: a weapon is never forged and worn at once.
+    const wear = wearCount(item);
+    if (wear > 0 && !forge && size >= 32) {
+      const w = document.createElement('span');
+      w.className = 'ia-wear';
+      w.textContent = `-${wear}`;
+      el.append(w);
     }
     if (typeof item._imbueId === 'string' && item._imbueId) {
       const pip = document.createElement('span');

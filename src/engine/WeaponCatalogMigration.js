@@ -16,6 +16,8 @@
 // like AccessoryCatalogMigration: a migrated weapon already matches the catalog, and a
 // save written back by an older build is fixed on its next load.
 
+import { stripItemNameSuffix } from '../utils/itemNames.js';
+
 const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 
 /** Catalog combat weapons with per-battle uses, by name (staves keep their own rule). */
@@ -29,7 +31,7 @@ function perBattleCatalog(gameData) {
 
 /** The catalog entry a saved item is a copy of: forge suffix and imbue word removed. */
 function catalogEntryFor(node, catalog) {
-  const base = String(node._baseName || node.name).replace(/\s\+\d+$/, '');
+  const base = stripItemNameSuffix(String(node._baseName || node.name));
   if (catalog.has(base)) return catalog.get(base);
   if (typeof node._imbueId === 'string') {
     const rest = base.slice(base.indexOf(' ') + 1);

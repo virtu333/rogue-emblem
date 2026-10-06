@@ -3,6 +3,7 @@
 // never by scattered conditionals: add a weapon to data/weapons.json and it picks its
 // family from its type, then its name, then its lore.
 import { MOTE_COLORS } from './fxPalette.js';
+import { weaponCatalogNames, stripItemNameSuffix } from '../../utils/itemNames.js';
 
 /**
  * Effect families. `impact` plays on the target at contact; `projectile` (optional)
@@ -94,8 +95,8 @@ export const FX_FAMILIES = Object.freeze({
 
 /**
  * Weapon -> family rules, in priority order:
- *   byName     exact weapon names (legendaries and oddities); an object picks by
- *              melee/ranged distance
+ *   byName     exact weapon names, forge/wear suffix and imbue word aside (legendaries
+ *              and oddities); an object picks by melee/ranged distance
  *   elements   name (then lore) patterns for elemental weapon types
  *   byType     the weapon type's default; `ranged` applies at distance >= 2
  */
@@ -148,10 +149,14 @@ function pickRange(rule, distance) {
 export function fxFamilyIdForWeapon(weapon, { distance = 1, entity = false } = {}) {
   if (entity) return 'dark';
   if (!weapon) return 'sword';
-  const byName = WEAPON_FX_RULES.byName[weapon.name];
-  if (byName) return pickRange(byName, distance);
+  // A forged "Firstwind +1", a worn "Firstwind -1" or an imbued "Cruel Firstwind" is still
+  // Firstwind: the name rules read the catalog name, not the display name.
+  const byNameKey = weaponCatalogNames(weapon).find((n) =>
+    Object.hasOwn(WEAPON_FX_RULES.byName, n),
+  );
+  if (byNameKey) return pickRange(WEAPON_FX_RULES.byName[byNameKey], distance);
   if (WEAPON_FX_RULES.elementTypes.includes(weapon.type)) {
-    for (const source of [weapon.name, weapon.lore]) {
+    for (const source of [stripItemNameSuffix(weapon.name), weapon.lore]) {
       if (!source) continue;
       for (const [family, pattern] of WEAPON_FX_RULES.elements) {
         if (pattern.test(source)) return family;
