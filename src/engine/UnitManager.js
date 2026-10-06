@@ -1412,6 +1412,9 @@ const RECLASS_EXCLUDED_CLASSES = new Set([
   'Bard',
 ]);
 
+// Enemy-only undead line: never a seal target (a unit already in it may still reclass out).
+const RECLASS_TARGET_EXCLUDED_CLASSES = new Set(['Zombie', 'Revenant']);
+
 // Seal subEffect → allowed moveTypes.
 const RECLASS_SEAL_MOVE_TYPES = {
   infantry: new Set(['Infantry', 'Armored']),
@@ -1441,7 +1444,8 @@ export function getReclassTargets(unit, classesData, sealSubEffect) {
       c.tier === unit.tier &&
       allowedMoves.has(c.moveType) &&
       c.name !== unit.className &&
-      !RECLASS_EXCLUDED_CLASSES.has(c.name),
+      !RECLASS_EXCLUDED_CLASSES.has(c.name) &&
+      !RECLASS_TARGET_EXCLUDED_CLASSES.has(c.name),
   );
 }
 

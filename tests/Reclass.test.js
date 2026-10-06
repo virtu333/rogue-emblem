@@ -119,6 +119,19 @@ describe('getReclassTargets', () => {
       expect(names).not.toContain('Light Sage');
       expect(names).not.toContain('Sentinel');
     });
+
+    it('excludes the Zombie line', () => {
+      const base = getReclassTargets(makeRecruit('Myrmidon'), data.classes, 'infantry');
+      expect(base.map((t) => t.name)).not.toContain('Zombie');
+      const promoted = data.classes.filter(
+        (c) => c.tier === 'promoted' && c.moveType === 'Infantry',
+      );
+      expect(promoted.map((c) => c.name)).toContain('Revenant');
+      const unit = { ...makeRecruit('Myrmidon'), tier: 'promoted', className: 'Swordmaster' };
+      const names = getReclassTargets(unit, data.classes, 'infantry').map((t) => t.name);
+      expect(names.length).toBeGreaterThan(0);
+      expect(names).not.toContain('Revenant');
+    });
   });
 
   describe('mounted seal (base tier)', () => {
