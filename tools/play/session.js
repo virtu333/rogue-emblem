@@ -272,6 +272,8 @@ export class PlaySession {
     if (!cmd) throw new PlayError('Empty command.');
     if (PlaySession.isQuery(cmd)) throw new PlayError(`"${cmd}" is a query: ask it with query().`);
     if (this.over) throw new PlayError('The run is over.');
+    if (this.broken)
+      throw new Error('A fault left this session unrestored in memory; load it again from disk.');
     const before = digestOf(this.game);
     let lines;
     let digest;
@@ -281,7 +283,20 @@ export class PlaySession {
         : await this.game.run(() => this.game.exec(cmd));
       digest = digestOf(this.game);
     } catch (err) {
-      if (!(err instanceof PlayError) || digestOf(this.game) !== before) await this._rebuild();
+      // What a failure leaves: the game as it was (checked against the digest taken
+      // before), or, when even the rebuild fails, a session that must not be used.
+      let rollback = 'unchanged';
+      if (!(err instanceof PlayError) || digestOf(this.game) !== before) {
+        try {
+          await this._rebuild();
+          rollback = digestOf(this.game) === before ? 'verified' : 'failed';
+        } catch (rebuildErr) {
+          rollback = 'failed';
+          err.rebuildError = rebuildErr;
+        }
+      }
+      if (rollback === 'failed') this.broken = true;
+      if (err && typeof err === 'object') err.rollback = rollback;
       throw err;
     }
     const entry = { cmd, digest };

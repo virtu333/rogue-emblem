@@ -116,6 +116,63 @@ describe('observations read what the player knows', () => {
   });
 });
 
+describe('committed actions read what the player knows', () => {
+  /**
+   * A fogged battle with a cleared plain block around Edric, who has Ensnare and Canto,
+   * one visible foe in reach of it and, in world B only, a second foe on a tile the
+   * fog keeps hidden, also in reach. Both worlds play the same orders.
+   */
+  async function world(withHidden) {
+    const session = await foggedBattle();
+    const b = session.game.battle.battle;
+    const edric = b.playerUnits.find((u) => u.isCommander);
+    const plain = b.gameData.terrain.findIndex((t) => t.name === 'Plain');
+    const box = { c0: 1, r0: 1, c1: 7, r1: 5 };
+    for (let y = box.r0; y <= box.r1; y++)
+      for (let x = box.c0; x <= box.c1; x++) b.grid.mapLayout[y][x] = plain;
+    const others = [...b.playerUnits, ...b.enemyUnits, ...b.npcUnits].filter((u) => u !== edric);
+    others.forEach((u, i) => Object.assign(u, { col: 11 + (i % 3), row: 6 + Math.floor(i / 3) }));
+    Object.assign(edric, { col: 2, row: 3 });
+    edric.skills.push('ensnare', 'canto');
+    const [seen, hidden] = b.enemyUnits.filter((e) => !e.isBoss);
+    Object.assign(seen, { col: 3, row: 5 }); // two tiles from 3,3
+    const spot = { col: 5, row: 3 }; // two tiles from 3,3, kept in fog
+    const isVisible = b.grid.isVisible.bind(b.grid);
+    b.grid.isVisible = (c, r) => !(c === spot.col && r === spot.row) && isVisible(c, r);
+    if (withHidden) Object.assign(hidden, spot);
+    else b.enemyUnits.splice(b.enemyUnits.indexOf(hidden), 1);
+    b._refreshFogVisibility();
+    session.game.battle._afterStep();
+    expect(knowledgeOf(b).isKnown(seen)).toBe(true);
+    if (withHidden) expect(knowledgeOf(b).isKnown(hidden)).toBe(false);
+    return { session, b, seen, hidden };
+  }
+
+  it('Ensnare with Canto pending names only the foes in sight, in its feed and after', async () => {
+    const a = await world(false);
+    const bw = await world(true);
+    const steps = ['move P1 3,3 ability Ensnare', 'look', 'canto stay', 'look', 'end'];
+    let diagnostics = null;
+    for (const step of steps) {
+      const run = async (w) => {
+        if (PlaySession.isQuery(step)) return w.session.query(step);
+        const done = await w.session.exec(step);
+        if (w === bw && step.startsWith('move')) diagnostics = done.diagnostics.join('\n');
+        return done.lines.join('\n');
+      };
+      const [inA, inB] = [await run(a), await run(bw)];
+      expect(inB, step).toBe(inA);
+      if (step.startsWith('move')) {
+        expect(inA).toMatch(new RegExp(`uses Ensnare: roots E\\d+ ${a.seen.name}\\.`));
+        expect(inA).toMatch(/may move on/);
+      }
+    }
+    // The hidden foe was rooted all the same, and the diagnostics feed says so.
+    const rooted = /uses Ensnare: roots (.*)\./.exec(diagnostics)[1].split(', ');
+    expect(rooted).toHaveLength(2);
+  });
+});
+
 describe('the event feed reports what happened in sight', () => {
   it('an enemy the player strikes down in view is reported falling', async () => {
     const session = await foggedBattle();

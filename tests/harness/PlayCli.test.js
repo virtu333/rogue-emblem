@@ -36,11 +36,12 @@ function playAsync(session, ...args) {
   });
 }
 
-async function playHere(session, args, onSession = null) {
+async function playHere(session, args, onSession = null, inject = null) {
   const printed = [];
   const code = await runCli([...args, '--session', join(root, session)], {
     print: (text) => printed.push(String(text)),
     onSession,
+    inject,
   });
   return { code, out: printed.join('\n') };
 }
@@ -311,6 +312,220 @@ describe('play CLI', () => {
     expect(log.slice(1).sort()).toEqual(['store Edric Steel Sword', 'store Gaspar Iron Sword']);
     expect(record('l').revision).toBe(3);
   });
+
+  // --- what a failure after the game ran says happened ---
+
+  /** A session in battle on turn 1 (orders there carry diagnostics). */
+  async function inBattle(name) {
+    expect((await playHere(name, ['new', '--seed', '3'])).code).toBe(0);
+    expect((await playHere(name, ['bless skip; go act1_0_2; start'])).code).toBe(0);
+    return record(name).log.length;
+  }
+  const failAt =
+    (point, when = () => true) =>
+    (p, detail) => {
+      if (p === point && when(detail)) throw new Error(`injected ${point} failure`);
+    };
+
+  it('a diagnostics write that fails after the save: the command stands and says so', async () => {
+    const before = await inBattle('d');
+    const call = await playHere('d', ['move P1 stay wait'], null, failAt('diagnostics'));
+    expect(call.code).toBe(EXIT.afterSave);
+    expect(call.out).toMatch(new RegExp(`Saved at rev ${before + 1} and its report journaled`));
+    expect(call.out).not.toMatch(/rolled back/);
+    // A new call finds it played, journaled with what was shown.
+    expect(
+      record('d')
+        .log.map((e) => e.cmd)
+        .at(-1),
+    ).toBe('move P1 stay wait');
+    expect(
+      journal('d')
+        .filter((e) => e.type === 'cmd')
+        .at(-1),
+    ).toMatchObject({
+      cmd: 'move P1 stay wait',
+      rev: before + 1,
+    });
+    expect((await playHere('d', ['look'])).out).toMatch(/P1 .*\[done\]/);
+  });
+
+  it('a journal write that fails after the save: saved, and its report withheld', async () => {
+    const before = await inBattle('w');
+    const call = await playHere(
+      'w',
+      ['move P1 stay wait; move P2 stay wait'],
+      null,
+      failAt('journal', (e) => e.type === 'cmd'),
+    );
+    expect(call.code).toBe(EXIT.afterSave);
+    expect(call.out).toMatch(
+      new RegExp(`SAVED at rev ${before + 1}, but its report could not be journaled`),
+    );
+    expect(call.out).toMatch(/Not run: move P2 stay wait/);
+    expect(
+      record('w')
+        .log.map((e) => e.cmd)
+        .slice(before),
+    ).toEqual(['move P1 stay wait']);
+  });
+
+  it('a save that fails: the command does not count and nothing it did is shown', async () => {
+    const before = await inBattle('n');
+    const view = await playHere('n', ['look']);
+    const call = await playHere(
+      'n',
+      ['move P1 stay wait; move P2 stay wait'],
+      null,
+      failAt('save'),
+    );
+    expect(call.code).toBe(EXIT.notSaved);
+    expect(call.out).toMatch(
+      new RegExp(`NOT SAVED: injected save failure.*still at rev ${before}`, 's'),
+    );
+    expect(call.out).not.toMatch(/== BATTLE/); // no view of a game the disk does not hold
+    expect(call.out).not.toMatch(/Edric/); // not even the command's own report
+    expect(record('n').log).toHaveLength(before);
+    expect(journal('n').at(-1)).toMatchObject({
+      type: 'notSaved',
+      rev: before,
+      cmd: 'move P1 stay wait',
+    });
+    // The next call plays from the disk, as if the failed command had never run.
+    expect((await playHere('n', ['look'])).out).toBe(view.out);
+  });
+
+  it('a fault whose rollback fails: nothing is saved and nothing more runs or shows', async () => {
+    const before = await inBattle('rb');
+    const call = await playHere('rb', ['move P1 stay wait; look'], (session) => {
+      session.game.exec = async () => {
+        session.game.rm.gold += 5;
+        throw new TypeError('engine exploded');
+      };
+      session._rebuild = async () => {
+        throw new Error('rebuild failed too');
+      };
+    });
+    expect(call.code).toBe(EXIT.fault);
+    expect(call.out).toMatch(/could not be restored in memory \(rebuild failed too\)/);
+    expect(call.out).not.toMatch(/rolled back \(/);
+    expect(call.out).toMatch(/Not run: look/);
+    expect(record('rb').log).toHaveLength(before);
+    expect(journal('rb').find((e) => e.type === 'fault')).toMatchObject({ rollback: 'failed' });
+  });
+
+  it('a fork whose target appears before it is locked never overwrites it', async () => {
+    expect((await playHere('src', ['new', '--seed', '3'])).code).toBe(0);
+    expect((await playHere('other', ['new', '--seed', '5'])).code).toBe(0);
+    const theirs = record('other');
+    // Another call creates the target between this one's decision and its lock.
+    const call = await playHere('src', ['fork', join(root, 'tgt')], null, (point, target) => {
+      if (point === 'claim') fs.cpSync(join(root, 'other'), target, { recursive: true });
+    });
+    expect(call.code).toBe(EXIT.refused);
+    expect(call.out).toMatch(/exists\. Use --force/);
+    expect(JSON.parse(readFileSync(join(root, 'tgt', 'session.json'), 'utf8'))).toEqual(theirs);
+  });
+
+  // --- the report ---
+
+  it('the report verifies the replay: a changed digest is refused, as look refuses it', async () => {
+    expect((await playHere('rp', ['new', '--seed', '3'])).code).toBe(0);
+    expect((await playHere('rp', ['bless skip; go act1_0_2'])).code).toBe(0);
+    expect((await playHere('rp', ['report'])).code).toBe(EXIT.ok);
+    const verified = readFileSync(file('rp', 'report.json'), 'utf8');
+    expect(JSON.parse(verified).verification).toMatchObject({ verified: true, divergedAt: [] });
+    const rec = record('rp');
+    rec.log[1].digest = '0000000000000000';
+    writeFileSync(file('rp', 'session.json'), JSON.stringify(rec));
+    expect((await playHere('rp', ['look'])).code).toBe(EXIT.replay);
+    const report = await playHere('rp', ['report']);
+    expect(report.code).toBe(EXIT.replay);
+    expect(report.out).toMatch(/command 2/);
+    expect(readFileSync(file('rp', 'report.json'), 'utf8')).toBe(verified);
+    // Asked for, an unverified reconstruction is labelled and kept apart.
+    const loose = await playHere('rp', ['report', '--unverified']);
+    expect(loose.code).toBe(EXIT.ok);
+    expect(loose.out).toMatch(/UNVERIFIED reconstruction.*1 diverged, first at command 2/);
+    const written = JSON.parse(readFileSync(file('rp', 'report.unverified.json'), 'utf8'));
+    expect(written.verification).toMatchObject({ verified: false, divergedAt: [2] });
+    expect(written.verification.reconstruction).toMatchObject({ reportVersion: 2 });
+    expect(readFileSync(file('rp', 'report.json'), 'utf8')).toBe(verified);
+  });
+
+  // --- --json: one response object for every outcome ---
+
+  it('--json answers every outcome with one versioned object, journaled as printed', async () => {
+    const json = async (session, args, ...rest) => {
+      const r = await playHere(session, [...args, '--json'], ...rest);
+      const parsed = JSON.parse(r.out); // the whole output is one object
+      expect(parsed.response).toBe(1);
+      expect(parsed.exit).toBe(r.code);
+      return parsed;
+    };
+    const lastResponse = (session) =>
+      journal(session)
+        .filter((e) => e.type === 'response')
+        .at(-1);
+
+    expect((await json('k', ['new', '--seed', '3'])).observation.phase).toBe('blessing');
+    // A query-only call and a call that changes the game: each journaled exactly.
+    const query = await json('k', ['look']);
+    expect(query.status).toBe('ok');
+    expect(lastResponse('k').response).toEqual(query);
+    const played = await json('k', ['bless skip; go act1_0_2'], null, null);
+    expect(played.results.map((r) => r.kind)).toEqual(['played', 'played']);
+    expect(lastResponse('k').response).toEqual(played);
+    expect(lastResponse('k').rev).toBe(played.rev);
+
+    expect((await json('k', ['move P1 99,99 wait'])).status).toBe('refused');
+    expect((await json('k', ['start', '--id', 'x1'])).status).toBe('ok');
+    const dup = await json('k', ['start', '--id', 'x1']);
+    expect(dup).toMatchObject({ status: 'duplicate', call: 'x1' });
+    expect(dup.observation.phase).toBe('battle');
+    expect((await json('k', ['look', '--expect-rev', '0'])).status).toBe('revisionMismatch');
+    const release = acquireLock(join(root, 'k'));
+    const wait = process.env.PLAY_LOCK_WAIT_MS;
+    process.env.PLAY_LOCK_WAIT_MS = '100';
+    try {
+      expect((await json('k', ['look'], null, null)).status).toBe('busy');
+    } finally {
+      process.env.PLAY_LOCK_WAIT_MS = wait;
+      if (wait === undefined) delete process.env.PLAY_LOCK_WAIT_MS;
+      release();
+    }
+    const fault = await json('k', ['move P1 stay wait'], (session) => {
+      session.game.exec = async () => {
+        throw new TypeError('engine exploded');
+      };
+    });
+    expect(fault).toMatchObject({
+      status: 'fault',
+      results: [{ kind: 'fault', rollback: 'verified' }],
+    });
+    const unsaved = await json('k', ['move P1 stay wait'], null, failAt('save'));
+    expect(unsaved).toMatchObject({ status: 'notSaved', observation: null });
+    const after = await json('k', ['move P1 stay wait'], null, failAt('diagnostics'));
+    expect(after.status).toBe('savedButUnreported');
+    expect(after.results[0].recordError).toMatch(/injected diagnostics failure/);
+    expect((await json('k', ['fork', join(root, 'k2')])).status).toBe('ok');
+    expect((await json('k', ['log'])).log.length).toBe(record('k').log.length);
+    expect((await json('k', ['report'])).report.reportVersion).toBe(2);
+    expect((await json('nobody', ['look'])).status).toBe('refused');
+    // A response that cannot be journaled is withheld, saying what was saved.
+    const blind = await json(
+      'k',
+      ['move P2 stay wait'],
+      null,
+      failAt('journal', (e) => e.type === 'response'),
+    );
+    expect(blind).toMatchObject({ status: 'savedButUnreported', observation: null });
+    expect(blind.error.message).toMatch(/1 command\(s\) were saved/);
+    const rec = record('k');
+    rec.log[0].digest = '0000000000000000';
+    writeFileSync(file('k', 'session.json'), JSON.stringify(rec));
+    expect((await json('k', ['look'])).status).toBe('replayFailed');
+  }, 60000);
 });
 
 describe('writeFileAtomic', () => {

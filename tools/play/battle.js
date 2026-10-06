@@ -165,9 +165,9 @@ export class PlayBattle {
     if (game.options.invincible) this._makeInvincible();
     this.battle.init({ battleConfig: config });
     this._afterStep();
-    this.events.push({ type: 'start' });
+    this._emit({ type: 'start' });
     this.formation = this._openFormation();
-    if (this.formation) this.events.push({ type: 'formation' });
+    if (this.formation) this._emit({ type: 'formation' });
   }
 
   /**
@@ -277,7 +277,7 @@ export class PlayBattle {
     if (verb === 'start') {
       this.formation = null;
       b._refreshFogVisibility();
-      this.events.push({ type: 'formationDone' });
+      this._emit({ type: 'formationDone' });
       return;
     }
     if (verb !== 'place')
@@ -306,7 +306,7 @@ export class PlayBattle {
       f.units[i].row = f.tiles[unitAt].row;
     }
     b._refreshFogVisibility();
-    this.events.push({ type: 'placed', unit, tile });
+    this._emit({ type: 'placed', unit, tile });
   }
 
   get b() {
@@ -526,13 +526,15 @@ export class PlayBattle {
     if (ambush) {
       // BattleScene: the move stops short and the unit is still to act. The order's
       // action was planned for another tile, so it is not carried out.
-      this.events.push({ type: 'order', unit, from, tile: ambush.stop, action: null, args, equip });
-      this.events.push({ type: 'ambush', unit, ambusher: ambush.ambusher, planned: tile });
+      this._emit({ type: 'order', unit, from, tile: ambush.stop, action: null, args, equip });
+      const sprung = { type: 'ambush', unit, ambusher: ambush.ambusher, planned: tile };
+      this._emit(sprung);
+      sprung.visible.add(ambush.ambusher); // an ambush shows who sprang it
       b.cancel(); // Back from a locked-in move only deselects.
       return;
     }
     if (equip) b.equipFromMenu(equip);
-    this.events.push({ type: 'order', unit, from, tile, action, args, equip });
+    this._emit({ type: 'order', unit, from, tile, action, args, equip });
     plan();
     if (action === 'trade') {
       // A trade is free: the unit, its move now locked in, still has its action.
@@ -541,7 +543,7 @@ export class PlayBattle {
     }
     if (b.battleState === HEADLESS_STATES.CANTO_MOVING) {
       if (then) await this._canto([then]);
-      else this.events.push({ type: 'cantoOpen', unit, remaining: b.cantoRemaining });
+      else this._emit({ type: 'cantoOpen', unit, remaining: b.cantoRemaining });
       return;
     }
     await this._afterAction();
@@ -550,7 +552,7 @@ export class PlayBattle {
   async _afterAction() {
     const b = this.battle;
     if (!this.over && b.battleState === HEADLESS_STATES.ENEMY_PHASE) {
-      this.events.push({ type: 'allActed' });
+      this._emit({ type: 'allActed' });
       this._autoEnded = true;
     }
     await this._settlePhases();
@@ -569,9 +571,9 @@ export class PlayBattle {
     const from = { col: unit.col, row: unit.row };
     b.cantoMoveTo(tile.col, tile.row);
     const ambush = b.lastAmbush;
-    this.events.push({ type: 'canto', unit, from, to: { col: unit.col, row: unit.row } });
+    this._emit({ type: 'canto', unit, from, to: { col: unit.col, row: unit.row } });
     if (ambush)
-      this.events.push({
+      this._emit({
         type: 'ambush',
         unit,
         ambusher: ambush.ambusher,
@@ -759,7 +761,7 @@ export class PlayBattle {
         return () => {
           const result = b.trade(ally, mine, theirs);
           if (!result.ok) throw new PlayError(result.reason);
-          this.events.push({
+          this._emit({
             type: 'traded',
             unit,
             ally,
@@ -787,7 +789,7 @@ export class PlayBattle {
           );
         return () => {
           const moved = b.reposition(action, ally);
-          this.events.push({ type: 'repositioned', unit, kind: action, moved });
+          this._emit({ type: 'repositioned', unit, kind: action, moved });
         };
       }
       case 'ability': {
@@ -824,7 +826,7 @@ export class PlayBattle {
           throw new PlayError(`${entry.skill.name} centres on ${unit.name}: no "at".`);
         return () => {
           const facts = b.useAbility(entry.skill.id, target);
-          this.events.push({ type: 'ability', unit, skill: entry.skill, facts });
+          this._emit({ type: 'ability', unit, skill: entry.skill, facts });
         };
       }
       case 'dance': {
@@ -836,7 +838,7 @@ export class PlayBattle {
           );
         return () => {
           b.dance(ally);
-          this.events.push({ type: 'danced', unit, ally });
+          this._emit({ type: 'danced', unit, ally });
         };
       }
       default:
@@ -876,7 +878,7 @@ export class PlayBattle {
       const turn = this.battle.turnManager.turnNumber;
       if (scope === 'turn' && turn !== startTurn) break;
       if (turn - startTurn >= AUTO_TURN_CAP) {
-        this.events.push({ type: 'autoCap', turns: AUTO_TURN_CAP });
+        this._emit({ type: 'autoCap', turns: AUTO_TURN_CAP });
         break;
       }
       const legal = this.driver.listLegalActions();
@@ -884,7 +886,7 @@ export class PlayBattle {
       if (!action) break;
       const b = this.battle;
       if (action.type === 'choose_action' && b.selectedUnit && b.preMoveLoc)
-        this.events.push({
+        this._emit({
           type: 'order',
           unit: b.selectedUnit,
           from: { ...b.preMoveLoc },
@@ -911,7 +913,7 @@ export class PlayBattle {
   }
 
   _afterStep() {
-    for (const r of this.ids.sync(this.battle)) this.events.push({ type: 'renamed', ...r });
+    for (const r of this.ids.sync(this.battle)) this._emit({ type: 'renamed', ...r });
   }
 
   // --- events ---
@@ -921,18 +923,25 @@ export class PlayBattle {
     return new Map([...b.playerUnits, ...b.enemyUnits, ...b.npcUnits].map((u) => [u, u.currentHP]));
   }
 
+  /**
+   * Every event, the battle's own and the adapter's, goes through here: it records
+   * whom the player could see as it happened, and the feed names no one else.
+   */
+  _emit(e) {
+    const b = this.battle;
+    e.visible ??= new Set(
+      [...b.playerUnits, ...b.enemyUnits, ...b.npcUnits].filter((u) => canInspectUnit(b.grid, u)),
+    );
+    this.events.push(e);
+  }
+
   _instrument() {
     const b = this.battle;
     // Each event records whom the player could see as it happened: the feed shows a
     // hidden unit's doings only where the game would (its fight with a unit in view).
     // (canInspectUnit, not PlayerKnowledge: a unit falling is already at 0 HP, and
     // PlayerKnowledge counts only the living.)
-    const log = (e) => {
-      e.visible = new Set(
-        [...b.playerUnits, ...b.enemyUnits, ...b.npcUnits].filter((u) => canInspectUnit(b.grid, u)),
-      );
-      this.events.push(e);
-    };
+    const log = (e) => this._emit(e);
     const wrap = (name, around) => {
       const orig = b[name].bind(b);
       b[name] = (...args) => around(orig, ...args);
@@ -1102,8 +1111,13 @@ export class PlayBattle {
   _eventLines({ omniscient = false } = {}) {
     const b = this.battle;
     const known = knowledgeOf(b);
+    // Seen as the event happened (its stamp; an event without one shows no one), or,
+    // for what stands now (the enemy phase's movement, HP left), seen now.
     const visibleTo = (u, e) =>
-      omniscient || !u || u.faction === 'player' || Boolean(e?.visible?.has(u)) || !e?.visible;
+      omniscient ||
+      !u ||
+      u.faction === 'player' ||
+      (e ? Boolean(e.visible?.has(u)) : known.isKnown(u));
     const name = (u, e = null) => {
       if (!u) return 'someone';
       const id = this.ids.byUnit.get(u);
@@ -1132,7 +1146,7 @@ export class PlayBattle {
           lines.push('Formation set. Turn 1, player phase.');
           break;
         case 'placed':
-          lines.push(`${name(e.unit)} takes position at ${e.tile.col},${e.tile.row}.`);
+          lines.push(`${name(e.unit, e)} takes position at ${e.tile.col},${e.tile.row}.`);
           break;
         case 'order': {
           const moved = e.from.col !== e.tile.col || e.from.row !== e.tile.row;
@@ -1141,8 +1155,8 @@ export class PlayBattle {
             : `holds ${e.tile.col},${e.tile.row}`;
           lines.push(
             e.action
-              ? `${name(e.unit)} ${where}${e.equip ? `, equips ${e.equip.name}` : ''}, ${e.action}${e.args.length ? ` ${e.args.join(' ')}` : ''}.`
-              : `${name(e.unit)} ${where}.`,
+              ? `${name(e.unit, e)} ${where}${e.equip ? `, equips ${e.equip.name}` : ''}, ${e.action}${e.args.length ? ` ${e.args.join(' ')}` : ''}.`
+              : `${name(e.unit, e)} ${where}.`,
           );
           break;
         }
@@ -1150,12 +1164,12 @@ export class PlayBattle {
           const hostile = e.ambusher.faction === 'enemy';
           if (e.canto) {
             lines.push(
-              `${hostile ? 'AMBUSH! ' : ''}${name(e.ambusher)} was hidden on the way to ${e.planned.col},${e.planned.row}: ${e.unit.name} stops at ${e.unit.col},${e.unit.row}, its action done.`,
+              `${hostile ? 'AMBUSH! ' : ''}${name(e.ambusher, e)} was hidden on the way to ${e.planned.col},${e.planned.row}: ${e.unit.name} stops at ${e.unit.col},${e.unit.row}, its action done.`,
             );
             break;
           }
           lines.push(
-            `${hostile ? 'AMBUSH! ' : ''}${name(e.ambusher)} was hidden on the way to ${e.planned.col},${e.planned.row}: ${e.unit.name} stops at ${e.unit.col},${e.unit.row}. The move is locked in; ${e.unit.name} has not acted yet: give it an action there ("move ${this.ids.id(e.unit)} stay <action>").`,
+            `${hostile ? 'AMBUSH! ' : ''}${name(e.ambusher, e)} was hidden on the way to ${e.planned.col},${e.planned.row}: ${e.unit.name} stops at ${e.unit.col},${e.unit.row}. The move is locked in; ${e.unit.name} has not acted yet: give it an action there ("move ${this.ids.id(e.unit)} stay <action>").`,
           );
           break;
         }
@@ -1212,24 +1226,24 @@ export class PlayBattle {
           break;
         case 'cantoOpen':
           lines.push(
-            `${name(e.unit)} may move on up to ${e.remaining} tile(s) (${cantoRuleFor(e.unit, this.game.gameData.skills) === 'any' ? 'Canto' : 'Measured Step'}): "canto <x,y>" or "canto stay" before anything else ("options ${this.ids.id(e.unit)}" shows where).`,
+            `${name(e.unit, e)} may move on up to ${e.remaining} tile(s) (${cantoRuleFor(e.unit, this.game.gameData.skills) === 'any' ? 'Canto' : 'Measured Step'}): "canto <x,y>" or "canto stay" before anything else ("options ${this.ids.id(e.unit)}" shows where).`,
           );
           break;
         case 'canto':
           lines.push(
             e.from.col === e.to.col && e.from.row === e.to.row
-              ? `${name(e.unit)} stays at ${e.to.col},${e.to.row}.`
-              : `${name(e.unit)} moves on ${e.from.col},${e.from.row}->${e.to.col},${e.to.row}.`,
+              ? `${name(e.unit, e)} stays at ${e.to.col},${e.to.row}.`
+              : `${name(e.unit, e)} moves on ${e.from.col},${e.from.row}->${e.to.col},${e.to.row}.`,
           );
           break;
         case 'traded':
           lines.push(
-            `${name(e.unit)} trades with ${name(e.ally)}: ${e.detail}.${(e.warnings || []).map((w) => ` (${w.unit.name} ${w.code === 'leaves_unarmed' ? 'is left unarmed' : 'cannot equip it'})`).join('')} The move is locked in; ${e.unit.name} still has its action ("move ${this.ids.id(e.unit)} stay <action>").`,
+            `${name(e.unit, e)} trades with ${name(e.ally, e)}: ${e.detail}.${(e.warnings || []).map((w) => ` (${w.unit.name} ${w.code === 'leaves_unarmed' ? 'is left unarmed' : 'cannot equip it'})`).join('')} The move is locked in; ${e.unit.name} still has its action ("move ${this.ids.id(e.unit)} stay <action>").`,
           );
           break;
         case 'repositioned':
           lines.push(
-            `${name(e.unit)} ${e.kind === 'swap' ? 'swaps places with' : e.kind === 'shove' ? 'shoves' : 'pulls'} ${e.moved.map((m) => `${name(m.unit)} ${m.from.col},${m.from.row}->${m.to.col},${m.to.row}`).join(', ')}.`,
+            `${name(e.unit, e)} ${e.kind === 'swap' ? 'swaps places with' : e.kind === 'shove' ? 'shoves' : 'pulls'} ${e.moved.map((m) => `${name(m.unit, e)} ${m.from.col},${m.from.row}->${m.to.col},${m.to.row}`).join(', ')}.`,
           );
           break;
         case 'ability': {
@@ -1238,24 +1252,25 @@ export class PlayBattle {
             f.kind === 'teleport_self'
               ? `blinks to ${e.unit.col},${e.unit.row}`
               : f.kind === 'ally_buff'
-                ? `rallies ${f.affected.map((u) => name(u)).join(', ') || 'no one'} (${Object.entries(
+                ? `rallies ${f.affected.map((u) => name(u, e)).join(', ') || 'no one'} (${Object.entries(
                     e.skill.actionAbility.stats || {},
                   )
                     .map(([k, v]) => `${k}+${v}`)
                     .join(' ')} for ${e.skill.actionAbility.durationPhases} phases)`
                 : f.kind === 'aoe_heal'
-                  ? `heals ${f.targets.map((t) => `${name(t.unit)} ${t.hpBefore}->${t.hpAfter}`).join(', ') || 'no one'}`
-                  : `roots ${
+                  ? `heals ${f.targets.map((t) => `${name(t.unit, e)} ${t.hpBefore}->${t.hpAfter}`).join(', ') || 'no one'}`
+                  : // Only the foes in sight: a hidden one rooted is not shown at all.
+                    `roots ${
                       f.targets
-                        .filter((t) => t.rooted)
-                        .map((t) => name(t.unit))
-                        .join(', ') || 'no one'
+                        .filter((t) => t.rooted && visibleTo(t.unit, e))
+                        .map((t) => name(t.unit, e))
+                        .join(', ') || 'no one in sight'
                     }`;
-          lines.push(`${name(e.unit)} uses ${e.skill.name}: ${what}.`);
+          lines.push(`${name(e.unit, e)} uses ${e.skill.name}: ${what}.`);
           break;
         }
         case 'danced':
-          lines.push(`${name(e.unit)} dances: ${name(e.ally)} may act again this turn.`);
+          lines.push(`${name(e.unit, e)} dances: ${name(e.ally, e)} may act again this turn.`);
           break;
         case 'par':
           lines.push(`Par is now ${e.to} (was ${e.from}): reinforcements raise it.`);
@@ -1264,24 +1279,26 @@ export class PlayBattle {
           lines.push(`${e.from} ${e.unit.name} now fights as ${e.to}.`);
           break;
         case 'heal':
-          lines.push(`${name(e.healer)} heals ${name(e.target)}: HP ${e.from}->${e.to}.`);
+          lines.push(`${name(e.healer, e)} heals ${name(e.target, e)}: HP ${e.from}->${e.to}.`);
           hpSeen.set(e.target, e.to);
           break;
         case 'item':
           lines.push(
-            `${name(e.user)} uses ${e.item}${e.target !== e.user ? ` on ${name(e.target)}` : ''}: HP ${e.from}->${e.to}.`,
+            `${name(e.user, e)} uses ${e.item}${e.target !== e.user ? ` on ${name(e.target, e)}` : ''}: HP ${e.from}->${e.to}.`,
           );
           hpSeen.set(e.target, e.to);
           break;
         case 'talk':
-          lines.push(`${name(e.lord)} talks to ${name(e.npc)}: ${e.npc.name} joins the army!`);
+          lines.push(
+            `${name(e.lord, e)} talks to ${name(e.npc, e)}: ${e.npc.name} joins the army!`,
+          );
           break;
         case 'escape':
-          lines.push(`${name(e.unit)} escapes the map.`);
+          lines.push(`${name(e.unit, e)} escapes the map.`);
           break;
         case 'village':
           lines.push(
-            `${name(e.unit)} visits the village: +${e.gold} gold${e.items.length ? `, ${e.items.join(', ')} sent to the convoy` : ''}.`,
+            `${name(e.unit, e)} visits the village: +${e.gold} gold${e.items.length ? `, ${e.items.join(', ')} sent to the convoy` : ''}.`,
           );
           break;
         case 'razed':

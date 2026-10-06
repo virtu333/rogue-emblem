@@ -2,12 +2,18 @@
 // replaying its log and watching the game between commands, plus the journal's
 // counts. Facts only (what went in, what came out, what was offered and taken), no
 // judgement: a playtest's conclusions are drawn from these, not written into them.
+//
+// The replay is verified like any other: a record whose commands no longer reach the
+// states their digests name is refused (ReplayDivergence), never reported as if the
+// current code had played it. `unverified` rebuilds it anyway for a look at what the
+// current code makes of those commands; that report says so in `verification` and
+// the CLI writes it beside the verified one, never over it.
 
 import { PlaySession } from './session.js';
 import { isMagical, isPhysical, isStaff } from '../../src/engine/Combat.js';
 import { canEquip } from '../../src/engine/UnitManager.js';
 
-export const REPORT_VERSION = 1;
+export const REPORT_VERSION = 2;
 
 /** The kinds of harm a unit can deal with what it carries and can wield. */
 function damageKinds(unit) {
@@ -47,7 +53,11 @@ function rewardOffers(record) {
  * The report for a session record, with its journal entries (parsed lines) when
  * there are any. Returns a plain object (JSON).
  */
-export async function buildReport(gameData, record, { journal = [], manifest = null } = {}) {
+export async function buildReport(
+  gameData,
+  record,
+  { journal = [], manifest = null, unverified = false, reconstruction = null } = {},
+) {
   const battles = [];
   const rewards = [];
   const purchases = [];
@@ -57,9 +67,11 @@ export async function buildReport(gameData, record, { journal = [], manifest = n
   let visit = null;
   let prev = { phase: null, gold: 0, battlesWon: 0, fallen: 0 };
 
+  const diverged = [];
   const session = await PlaySession.fromRecord(gameData, record, {
-    verify: false,
-    onEntry: (i, entry, _digest, s) => {
+    verify: !unverified,
+    onEntry: (i, entry, digest, s) => {
+      if (entry.digest && entry.digest !== digest) diverged.push(i + 1);
       const g = s.game;
       const rm = g.rm;
       const at = i + 1;
@@ -170,6 +182,15 @@ export async function buildReport(gameData, record, { journal = [], manifest = n
     revision: record.revision ?? record.log.length,
     outcome: record.outcome ?? (session.over ? { kind: rm.status } : { kind: 'unfinished' }),
     provenance: record.provenance ?? null,
+    // How this report was made, and whether the replay matched the record.
+    verification: {
+      verified: !unverified,
+      // Unverified only: commands whose state no longer matches the record's digest
+      // (all of them across snapshot versions).
+      divergedAt: unverified ? diverged : [],
+      sourceDigestVersion: record.digestVersion ?? 1,
+      reconstruction,
+    },
     manifest: manifest
       ? {
           code: manifest.code,
@@ -207,6 +228,11 @@ export async function buildReport(gameData, record, { journal = [], manifest = n
 /** A few lines a person can read; the JSON holds the rest. */
 export function reportText(report) {
   const lines = [
+    ...(report.verification?.verified === false
+      ? [
+          `UNVERIFIED reconstruction: the current code replayed these commands without checking them against the record${report.verification.divergedAt.length ? ` (${report.verification.divergedAt.length} diverged, first at command ${report.verification.divergedAt[0]})` : ' (every digest matched)'}. It is not the game that was played.`,
+        ]
+      : []),
     `Seed ${report.options.seed}, ${report.options.difficulty}: ${report.outcome.kind}${report.outcome.reason ? ` (${report.outcome.reason})` : ''}. ${report.commands} commands; ${report.journal.queries} queries, ${report.journal.refusals} refusals, ${report.journal.faults} faults.`,
     `Run: ${report.run.act}, ${report.run.battlesWon} battles won, ${report.run.gold} gold, Vision ${report.run.visionUsed} used / ${report.run.visionCharges} left; fallen: ${report.run.fallen.join(', ') || 'none'}.`,
     'Battles:',

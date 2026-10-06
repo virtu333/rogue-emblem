@@ -19,8 +19,16 @@ Each call prints what happened (combat, level-ups, enemy moves), then the new st
 then the session's revision (`(rev 12)`).
 
 - `--brief` prints only what happened.
-- `--json` prints one JSON object instead: each command's result, then the state as
-  data.
+- `--json` prints one JSON object instead, whatever happened: refusals, faults,
+  duplicates, a busy session and replay failures included. Its fields:
+  - `response`: the format version.
+  - `status` and `exit`.
+  - `rev`: the revision on disk.
+  - `results`: each command and what became of it.
+  - `observation`: the state as data, or null when it is withheld.
+  - `error`: what went wrong, if anything.
+
+  A call that reached the session journals the object exactly as it was printed.
 - Several commands can go in one call, separated by `;` (a `;` inside double quotes
   stays part of a note). The call stops at the first refusal and says which commands
   did not run. Everything before the refusal stays played.
@@ -62,7 +70,10 @@ The adapter keeps the game's own split of randomness:
   convenience, not a judgement of survival.
 - The event feed shows what the player could see as each thing happened. A hidden
   unit shows only in a fight with a unit in view, as "an unseen Fighter". Events
-  among hidden units are left out.
+  among hidden units are left out, and so are the hidden targets of an ability
+  (an Ensnare that roots a foe in the fog names only the foes in sight). Every event,
+  the adapter's own included, records whom the player could see as it happened; an
+  event without that record names no one.
 - Moves are planned on what you can see. If a unit hidden in the fog stands on the
   path, the move stops on the last tile before it (an **ambush**, as in the game). The
   move is locked in, and the unit still has its action: give it one where it stands
@@ -91,11 +102,24 @@ and checks every digest on the way.
   playing a different game.
 - A refused command changes nothing. A refusal or fault that comes after a command
   began to change things rebuilds the game from the log.
-- The record is saved after each command, before its report is printed, so a command
-  that printed is a command kept. A call killed mid-save leaves the previous record
-  whole, because the file is replaced atomically.
+- A command that changes the game passes three points in order:
+  - **It runs.** A refusal or a fault here leaves the game as it was, checked against
+    the digest taken before it.
+  - **It is saved.** The record goes to disk, and from then on the command counts. A
+    call killed mid-save leaves the previous record whole, because the file is
+    replaced atomically.
+  - **It is reported.** Its report goes into the journal, then to the screen; then the
+    diagnostics and the view follow.
+
+  A failure says which point the command reached. A command that was not saved shows
+  nothing of what it did. A command that was saved stands even if what follows fails.
+  Nothing is shown that the journal does not hold.
 - Calls on one session run one at a time. A second call waits for the first (the
-  `session.lock`).
+  `session.lock`). The lock is taken by hard-linking a fully written owner record into
+  place, so it never exists half-written. A lock left by a dead process is reclaimed
+  under a claim that names that exact lock file, so two callers cannot both remove
+  it, and a stale look cannot remove a live lock. `fork` and `rebase` check their
+  target under the target's lock.
 
 | Command | What it does |
 |---|---|
@@ -107,7 +131,8 @@ and checks every digest on the way.
 | `fork NEW [--at N]` | Copy the session (or its first N commands) to NEW, to try another line. |
 | `rebase NEW [--adapt]` | Replay into NEW without checking digests and stamp fresh ones. The original is never changed. The copy records which commands now reach a different state. `--adapt` carries an older session across rule changes and records each change. |
 | `stop voluntary\|timeout\|blocked "<why>"` | Conclude the run here. Later commands are refused; fork to play on. |
-| `report [--json]` | Replay the session and summarise it. |
+| `report [--json]` | Replay the session, checking every digest as any call does, and summarise it in `report.json`. A session the current code no longer reproduces is refused (exit 3): rebase it first. |
+| `report --unverified` | Rebuild such a session anyway, to see what the current code makes of its commands. The report is labelled unverified, lists where it diverged, and goes to `report.unverified.json`, never over a verified report. |
 | `--expect-rev N` | Refuse to run unless the session is at revision N. Use it when a plan rests on a view that another call may have changed. |
 | `--id KEY` | Run this call at most once. A retry with the same key changes nothing and says what the first one did. |
 
@@ -124,9 +149,14 @@ Exit codes:
 - 2: refused.
 - 3: the replay diverged or failed.
 - 4: engine fault. That command was rolled back; anything before it in the call stays
-  played. A fault is a bug in the game or the adapter, never a move to retry.
-- 5: the command was saved, but the view after it failed to render.
+  played. A fault is a bug in the game or the adapter, never a move to retry. If even
+  the rollback fails, nothing was saved, and the call stops and shows nothing more.
+- 5: the command was saved, but something after the save failed: the journal, the
+  diagnostics or the view. The output says which. A report that could not be
+  journaled is withheld.
 - 6: the session is busy, or not at the expected revision.
+- 7: not saved. The command ran, but its record could not be written, so it does not
+  count. Nothing it did is shown, and the next call plays from the disk.
 
 There is no undo in a battle except the game's own (Vision, below). To explore an
 alternative, fork at an earlier command.
