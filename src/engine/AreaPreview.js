@@ -103,6 +103,7 @@ export function previewAreaArt({
       rows: world.rows,
       getMoveCost: world.getMoveCost,
       getUnitAt: knownAt,
+      getTerrainAt: world.getTerrainAt,
       isImmovable: (unit) => isDisplacementImmune(unit, world.affixes),
     });
     if (move.ok) {

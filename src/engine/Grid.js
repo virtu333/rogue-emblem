@@ -10,7 +10,12 @@ import {
 } from '../utils/constants.js';
 import { parseRange } from './Combat.js';
 import { createBoardTransform } from '../utils/boardOrientation.js';
-import { ICE_FREE_SLIDE_TILES, iceSlideStop } from './IceMovement.js';
+import {
+  ICE_FREE_SLIDE_TILES,
+  getTerrainAtLayout,
+  iceSlideStop,
+  resolveIceSlide,
+} from './IceMovement.js';
 
 const DIRECTIONS = [
   { dc: 0, dr: -1 },
@@ -19,21 +24,6 @@ const DIRECTIONS = [
   { dc: 1, dr: 0 },
 ];
 
-function getTerrainAtLayout(mapLayout, terrainData, col, row, cols, rows) {
-  if (col < 0 || col >= cols || row < 0 || row >= rows) return null;
-  const terrainIdx = mapLayout[row]?.[col];
-  if (terrainIdx == null) return null;
-  return terrainData[terrainIdx] || null;
-}
-
-function isPassableForMoveType(mapLayout, terrainData, col, row, cols, rows, moveType) {
-  const terrain = getTerrainAtLayout(mapLayout, terrainData, col, row, cols, rows);
-  if (!terrain) return false;
-  const moveCost = terrain.moveCost?.[moveType];
-  if (moveCost === '--') return false;
-  return Number.isFinite(parseInt(moveCost, 10));
-}
-
 export function getEntryDirection(path) {
   if (!Array.isArray(path) || path.length < 2) return null;
   const prev = path[path.length - 2];
@@ -41,52 +31,7 @@ export function getEntryDirection(path) {
   return { dc: curr.col - prev.col, dr: curr.row - prev.row };
 }
 
-export function resolveIceSlide(
-  col,
-  row,
-  entryDir,
-  mapLayout,
-  terrainData,
-  cols,
-  rows,
-  moveType,
-  occupiedTiles = new Set(),
-) {
-  if (!entryDir || (!entryDir.dc && !entryDir.dr)) {
-    return { col, row, slidePath: [{ col, row }] };
-  }
-
-  let currentCol = col;
-  let currentRow = row;
-  const slidePath = [{ col, row }];
-
-  while (true) {
-    const nextCol = currentCol + entryDir.dc;
-    const nextRow = currentRow + entryDir.dr;
-    const nextKey = `${nextCol},${nextRow}`;
-
-    if (nextCol < 0 || nextCol >= cols || nextRow < 0 || nextRow >= rows) {
-      return { col: currentCol, row: currentRow, slidePath };
-    }
-    if (occupiedTiles.has(nextKey)) {
-      return { col: currentCol, row: currentRow, slidePath };
-    }
-    if (!isPassableForMoveType(mapLayout, terrainData, nextCol, nextRow, cols, rows, moveType)) {
-      return { col: currentCol, row: currentRow, slidePath };
-    }
-
-    const nextTerrain = getTerrainAtLayout(mapLayout, terrainData, nextCol, nextRow, cols, rows);
-    slidePath.push({ col: nextCol, row: nextRow });
-
-    if (nextTerrain?.name === 'Ice') {
-      currentCol = nextCol;
-      currentRow = nextRow;
-      continue;
-    }
-
-    return { col: nextCol, row: nextRow, slidePath };
-  }
-}
+export { resolveIceSlide };
 
 export function computeEffectivePath(
   path,

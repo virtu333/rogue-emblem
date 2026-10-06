@@ -45,6 +45,9 @@ import {
 } from '../engine/BattleInformation.js';
 import { ambushStop, pathCostTo } from '../engine/FogAmbush.js';
 import { playerKnowledgeOf } from '../ui/battleKnowledge.js';
+import { forcedMoveProbes } from '../ui/forcedMoveProbes.js';
+import { presentSettledMoves } from '../ui/ActionMovementPresentation.js';
+import { findShoveTargets as shoveTargetsOf } from '../engine/ForcedMovement.js';
 import {
   CANTO_CONFIRM_STATE,
   canUseDanger,
@@ -5113,30 +5116,15 @@ export class BattleScene extends Phaser.Scene {
 
   // --- Shove / Pull / Canto ---
 
+  /**
+   * Allies the unit can Shove, each with where it would end as the player knows the
+   * board: one tile on, then on across any Ice it lands on (engine/ForcedMovement.js).
+   */
   findShoveTargets(unit) {
-    const targets = [];
-    const dirs = [
-      { dc: 0, dr: -1 },
-      { dc: 0, dr: 1 },
-      { dc: -1, dr: 0 },
-      { dc: 1, dr: 0 },
-    ];
-    for (const { dc, dr } of dirs) {
-      const ac = unit.col + dc;
-      const ar = unit.row + dr;
-      // Must be an ally at that position
-      const ally = this.playerUnits.find((u) => u !== unit && u.col === ac && u.row === ar);
-      if (!ally) continue;
-      const destC = ac + dc;
-      const destR = ar + dr;
-      if (destC < 0 || destC >= this.grid.cols || destR < 0 || destR >= this.grid.rows) continue;
-      const moveCost = this.grid.getMoveCost(destC, destR, ally.moveType);
-      if (moveCost === Infinity) continue;
-      // A fogged tile counts as taken: a hidden foe must not show by the option's absence.
-      if (this._seenTileOccupant(destC, destR)) continue;
-      targets.push({ ally, destCol: destC, destRow: destR, dc, dr });
-    }
-    return targets;
+    return shoveTargetsOf(unit, {
+      ...forcedMoveProbes(this).preview,
+      allies: this.playerUnits,
+    });
   }
 
   findPullTargets(unit) {
@@ -8500,6 +8488,13 @@ export class BattleScene extends Phaser.Scene {
         await this.removeUnit(unit, { killer: beat.killer });
         break;
       case 'moved':
+        // A push that slid on Ice is drawn crossing its tiles (the coordinates are settled).
+        if (beat.slides?.length)
+          await presentSettledMoves(this, beat.slides, {
+            session: battleSession(this),
+            label: 'push',
+            duration: 80,
+          });
         for (const moved of beat.units)
           safeBattlePresentation('post-combat position', () => this.updateUnitPosition(moved), {
             scene: this,

@@ -463,6 +463,20 @@ describe('previews after an uncommitted move name only what the player sees', ()
     expect(ensnare().hasTargets).toBe(true);
   });
 
+  it('Smite is not offered for a foe hidden in the fog, nor its tile named; once seen, it is', async () => {
+    const { scene, edric } = setup();
+    edric.skills = ['smite'];
+    await moveNextToBrigand(scene, edric);
+    const abilities = new AbilityController(scene);
+    const smite = () => abilities._getAbilityEntries(edric).find((e) => e.skill.id === 'smite');
+    expect(smite().hasTargets).toBe(false);
+    completeBattleAction(scene, edric, { session: scene._battleSession });
+    // Seen now: the brigand at (5,1) goes two tiles east to (7,1).
+    expect(smite().hasTargets).toBe(true);
+    const found = abilities._targeting().find(edric, smite().skill);
+    expect(found.map((t) => [t.unit.name, t.destCol, t.destRow])).toEqual([['Brigand', 7, 1]]);
+  });
+
   it('Blink never offers a fogged tile, so a hidden foe cannot show by its absence', async () => {
     const { scene, grid, edric } = setup();
     edric.skills = ['blink'];

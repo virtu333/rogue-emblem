@@ -1410,6 +1410,36 @@
     "price": 2500
   },
   {
+    "name": "Smite Scroll",
+    "lore": "Drill manual, margin: one pace is a shove. Two paces is a statement.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Smite",
+    "skillId": "smite",
+    "price": 2500
+  },
+  {
+    "name": "Transfuse Scroll",
+    "lore": "Field surgeon's note: what you pour in comes out of you. Keep one drop back.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Transfuse",
+    "skillId": "transfuse",
+    "price": 2500
+  },
+  {
     "name": "Windsweep Scroll",
     "lore": "Drill note: finish the cut before his arm hears about the first one.",
     "type": "Scroll",
