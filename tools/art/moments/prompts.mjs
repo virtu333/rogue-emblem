@@ -103,7 +103,7 @@ export const EVENT =
   'facing the viewer, never recognisable real people; signs, books and banners carry no writing ' +
   'at all. Full-bleed to every edge.';
 
-/** Event vignette subjects, by event id (all ten in data/events.json). */
+/** Event vignette subjects, by event id (the first ten, then the twelve Phase 2D events). */
 export const EVENTS = {
   old_swordmaster:
     'a woodyard at dusk: a very old woman with a white braid, seen from the side in a plain brown ' +
@@ -147,6 +147,67 @@ export const EVENTS = {
     'an empty country road winding between low hills at dusk, an old stone well with a wooden ' +
     'bucket beside the road, a few small birds perched on the rim of the well and on a hawthorn ' +
     'tree, peaceful and still, soft gold light low on the horizon',
+  // Phase 2D events (docs/specs/event-nodes-phase2.md): the twelve added after the first ten.
+  sunken_mine:
+    'the mouth of a flooded mine shaft in a rocky hillside at dusk: a timber frame over black ' +
+    'still water, a rope ladder dropping into it, three tallow torches nailed to the frame, one ' +
+    'guttering, cold pale mist breathing out of the dark; nobody in sight, a lone pickaxe leaning ' +
+    'on the frame',
+  plague_village:
+    'a small village gate at dusk seen from the road, no smoke rising from any chimney, a grey ' +
+    'rag tied to the gatepost, shuttered cottages behind it with every window dark, one faint ' +
+    'yellow candle in a single upstairs window, a thin low mist across the lane, quiet and ' +
+    'still; no bodies, no gore',
+  merc_contract:
+    'a mercenary captain in battered mismatched armour with a sellsword cloak, seen from the side, ' +
+    'leaning on a roadside stone milestone and picking his teeth with a nail, a blank paper pinned ' +
+    'to the milestone beside him with no writing on it, a few free-company soldiers resting by a ' +
+    'cold campfire in the distance, a dusk road',
+  cartographer:
+    'a woman cartographer seen from the side sitting on the tailboard of a small covered cart at ' +
+    'dusk, inking a large map spread across her knees with one pen, another pen behind her ear, ' +
+    'rolled maps and ink bottles on the cart, a lantern hanging from a hoop; the map shows only ' +
+    'drawn lines of roads and rivers and no writing, a quiet road behind',
+  chained_shelf:
+    "a shuttered scholar's shop front at dusk on a quiet village lane: a dusty window where a " +
+    'single book sits on a short iron chain on a shelf, its pages lifting and turning on their own ' +
+    'with a faint violet glow rising from between them, books behind it on dark shelves, a closed ' +
+    'door, nobody in sight; no writing anywhere',
+  hollow_herald:
+    'a lone man in a long grey hooded robe seen from behind standing in the middle of an empty ' +
+    'road at dusk, both palms raised to a sky whose edges are darkening and in which a black ' +
+    'eclipse sun with a thin gold corona hangs, a few dying embers of gold on the horizon, long ' +
+    'shadow stretching toward the viewer, calm and quiet',
+  wandering_smith:
+    'a travelling smith at a handcart forge set up in the lee of a broken stone wall at dusk, ' +
+    'seen from the side in a leather apron, working the bellows with one foot while hammering a ' +
+    'glowing blade on a small anvil on the cart, sparks in the air, tools hanging from the cart, ' +
+    'the warm forge glow lighting the ruined wall',
+  turncoat:
+    'a man in plain imperial grey tunic sitting calmly on a grassy road verge at dusk, seen in ' +
+    'profile, his boots set neatly beside him, both open empty hands resting on his knees in ' +
+    'plain sight, no weapon anywhere, his helmet on the grass, a long empty road behind him ' +
+    'under a gold-and-violet sky',
+  old_faces:
+    'a long grassy ridge at dusk: a small ragged figure in an ill-fitting coat running down the ' +
+    'slope toward the viewer with one arm raised, and behind him at the crest several imperial ' +
+    'riders on horseback in crimson lacquered armour in dark silhouette, fanning out, spears ' +
+    'against the sunset sky, tall grass, dust',
+  deserters_revenge:
+    'a narrow sunken road between two steep banks at dusk, an ambush place: coils and lengths of ' +
+    'rope strung across the road and looped over stakes and a leaning tree, many dark silhouettes ' +
+    'of waiting men crouched along the bank tops with lanterns hooded, one gold lantern glow, ' +
+    'tension and stillness; no one hanging, no gore',
+  collectors:
+    "a river ford at dusk with a cart stopped at the water's edge, four tall men in long dark " +
+    'coats and fine pale gloves standing in a row seen from the side and behind, and a small ' +
+    'clerk at a folding table with a wooden abacus and a closed ledger, lanterns on poles, mist ' +
+    'on the water, polite and menacing, no writing',
+  bad_map:
+    'a crossroads at dusk with a weathered signpost, a large map pinned to the post showing only ' +
+    'drawn lines of crossing roads, tidy and with crossings marked by small ink crosses and ' +
+    'arrows pointing the wrong ways, no words or letters at all, a long empty road in each ' +
+    'direction, one road ending at a dark cliff edge, a faint warm lantern glow',
 };
 
 /** Prompt text for one moment; `take` > 1 asks for another composition of the same subject. */
