@@ -56,12 +56,13 @@ test.describe('boss encounter, bar and resume', () => {
     const card = page.locator('.ce-boss-layer');
     await expect(card).toBeVisible({ timeout: 30000 });
     // The card dismisses itself after its hold (scene time). Slow the scene
-    // clock while it is inspected so a loaded machine measures it first.
+    // clock while it is inspected so a loaded machine measures it first (and so
+    // the display face, which the fit below waits for, can land while it is up).
     const setTimeScale = (scale) =>
       page.evaluate((k) => {
         window.__emblemRogueGame.scene.getScene('Battle').time.timeScale = k;
       }, scale);
-    await setTimeScale(0.1);
+    await setTimeScale(0.02);
     const bossName = await page.evaluate(
       () => window.__emblemRogueGame.scene.getScene('Battle').enemyUnits.find((u) => u.isBoss).name,
     );
@@ -74,14 +75,26 @@ test.describe('boss encounter, bar and resume', () => {
     expect(cardBox.x + cardBox.width).toBeLessThanOrEqual(railBox.x + 1);
     expect(await rail.evaluate((el) => el.inert)).toBe(true);
     expect((await battle(page)).locked).toBe(true);
-    // Everything fits at 667×375.
-    const overflowing = await card.evaluate((root) =>
-      ['.ce-boss-name', '.ce-boss-epithet', '.ce-kicker'].filter((selector) => {
-        const node = root.querySelector(selector);
-        return !node || node.scrollWidth > node.clientWidth + 1;
-      }),
-    );
-    expect(overflowing).toEqual([]);
+    // Everything fits at 667×375. The card fits each line to the face it has when it
+    // opens and fits it again when Cinzel arrives (wider: the longest epithet, "First
+    // Lance of the Second Push", only fits once it has shrunk a step), so poll for the
+    // fit rather than reading it in the instant before that refit. The card is looked up
+    // inside the page: a card that is gone reads as a miss, not a wait.
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const root = document.querySelector('.ce-boss-layer');
+            if (!root) return ['card gone'];
+            return ['.ce-boss-name', '.ce-boss-epithet', '.ce-kicker'].filter((selector) => {
+              const node = root.querySelector(selector);
+              return !node || node.scrollWidth > node.clientWidth + 1;
+            });
+          }),
+        { timeout: 30_000 },
+      )
+      .toEqual([]);
+    await setTimeScale(0.1); // the card's exit (below) plays in scene time too
     // The bust breaks out above its band instead of being sliced, and stays in frame;
     // the band spans the battlefield (not the letterbox beside it).
     const framing = await card.evaluate((root) => {
@@ -306,23 +319,27 @@ test.describe('deed card on a small phone', () => {
     await expect(card).toBeVisible();
     await expect(page.locator('.gr-deed-oath')).toHaveText('Oath at promotion · Fury');
     await page.getByRole('button', { name: 'Skip', exact: true }).tap(); // reveal fully
-    const fit = await page.evaluate(() => {
-      const text = document.querySelector('.gr-deed-text');
-      const kids = [...text.children];
-      return {
-        band: text.clientHeight,
-        top: kids[0].offsetTop,
-        bottom: Math.max(...kids.map((k) => k.offsetTop + k.offsetHeight)),
-        clipped: [text, ...text.querySelectorAll('*')]
-          .filter((n) => n.scrollHeight > n.clientHeight + 1 || n.scrollWidth > n.clientWidth + 1)
-          .map(
-            (n) =>
-              `${n.className} ${n.scrollHeight}/${n.clientHeight} ${n.scrollWidth}/${n.clientWidth}`,
-          ),
-        controlsTop: document.querySelector('.gr-deed-controls').getBoundingClientRect().top,
-        bandBottom: document.querySelector('.gr-deed-slash').getBoundingClientRect().bottom,
-      };
-    });
+    const measureFit = () =>
+      page.evaluate(() => {
+        const text = document.querySelector('.gr-deed-text');
+        const kids = [...text.children];
+        return {
+          band: text.clientHeight,
+          top: kids[0].offsetTop,
+          bottom: Math.max(...kids.map((k) => k.offsetTop + k.offsetHeight)),
+          clipped: [text, ...text.querySelectorAll('*')]
+            .filter((n) => n.scrollHeight > n.clientHeight + 1 || n.scrollWidth > n.clientWidth + 1)
+            .map(
+              (n) =>
+                `${n.className} ${n.scrollHeight}/${n.clientHeight} ${n.scrollWidth}/${n.clientWidth}`,
+            ),
+          controlsTop: document.querySelector('.gr-deed-controls').getBoundingClientRect().top,
+          bandBottom: document.querySelector('.gr-deed-slash').getBoundingClientRect().bottom,
+        };
+      });
+    // The deed's lines are fitted to the fallback face and refitted when Cinzel lands.
+    await expect.poll(async () => (await measureFit()).clipped).toEqual([]);
+    const fit = await measureFit();
     expect(fit.clipped).toEqual([]);
     expect(fit.top).toBeGreaterThanOrEqual(0);
     expect(fit.bottom).toBeLessThanOrEqual(fit.band);

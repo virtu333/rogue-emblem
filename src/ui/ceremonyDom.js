@@ -235,6 +235,11 @@ export class CeremonyLayer {
     globalThis.addEventListener?.('orientationchange', this._onResize);
     // The upright classes can change after the window's resize listeners ran.
     globalThis.addEventListener?.(PORTRAIT_UI_CHANGE_EVENT, this._onResize);
+    // Text is fitted to the face on hand and measured again whenever a face lands:
+    // `addFitter` waits on the display face's 700 weight, but a line set in another
+    // weight (a boss's epithet is a 500) can arrive after it and be wider.
+    this._onFontsDone = () => this.refit();
+    globalThis.document?.fonts?.addEventListener?.('loadingdone', this._onFontsDone);
     const Observer = globalThis.ResizeObserver;
     if (Observer) {
       this._observer = new Observer(() => this.applyFrame());
@@ -247,6 +252,13 @@ export class CeremonyLayer {
     this.applyFrame();
     // Cards append their content right after the layer opens.
     this._kickerFrame = globalThis.requestAnimationFrame?.(() => this.fitKickers());
+  }
+
+  /** Fit every registered line again (a face landed); the frame itself is unchanged. */
+  refit() {
+    if (this.destroyed) return;
+    for (const fn of this._fitters || []) fn();
+    this.fitKickers();
   }
 
   /** Kickers read in full: shrink (to 6px) and then wrap, never ellipsize. */
@@ -291,8 +303,7 @@ export class CeremonyLayer {
     style.setProperty('--ce-band-l', `${span.left}px`);
     style.setProperty('--ce-band-r', `${span.right}px`);
     style.setProperty('--ce-band-w', `${span.width}px`);
-    for (const fn of this._fitters || []) fn();
-    this.fitKickers();
+    this.refit();
   }
 
   /** Re-run a text fit whenever the frame changes (rotation, resize). */
@@ -318,6 +329,7 @@ export class CeremonyLayer {
     globalThis.removeEventListener?.('resize', this._onResize);
     globalThis.removeEventListener?.('orientationchange', this._onResize);
     globalThis.removeEventListener?.(PORTRAIT_UI_CHANGE_EVENT, this._onResize);
+    globalThis.document?.fonts?.removeEventListener?.('loadingdone', this._onFontsDone);
     this._observer?.disconnect();
     this._observer = null;
     this._fitters = null;
