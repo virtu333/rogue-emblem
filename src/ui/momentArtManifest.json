@@ -40,8 +40,8 @@
   "events": {
     "old_swordmaster": { "v": "ada79a50", "model": "gemini-3-pro-image" },
     "abandoned_armory": { "v": "65db74c7", "model": "gemini-3-pro-image" },
-    "twin_altar": { "v": "6fd7e244", "model": "gemini-3-pro-image" },
-    "wounded_courier": { "v": "61abeda8", "model": "gemini-3-pro-image" },
+    "twin_altar": { "v": "6fd7e244", "model": "gemini-3-pro-image", "focus": "0%" },
+    "wounded_courier": { "v": "c9a46a0b", "model": "gemini-3-pro-image" },
     "deserters_fire": { "v": "12aa0094", "model": "gemini-3-pro-image" },
     "the_echo": { "v": "44e5ce10", "model": "gemini-3-pro-image" },
     "toll_bridge": { "v": "767aca44", "model": "gemini-3-pro-image" },

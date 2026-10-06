@@ -50,6 +50,12 @@ export function eventVignetteUrl(eventId) {
   return entry ? absolute(`${base()}assets/ui/moments/events/${eventId}.png?v=${entry.v}`) : null;
 }
 
+/** An event painting's vertical focal point (a CSS percentage, e.g. '20%'), or null for centre. */
+export function eventVignetteFocus(eventId) {
+  const focus = manifest.events?.[eventId]?.focus;
+  return typeof focus === 'string' && /^\d{1,3}%$/.test(focus) ? focus : null;
+}
+
 /** Reduce motion: the game setting or the OS preference. */
 export function prefersStill(scene) {
   try {

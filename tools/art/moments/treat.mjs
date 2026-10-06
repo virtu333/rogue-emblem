@@ -91,7 +91,13 @@ for (const [kind, table, size, colours, sub] of [
     const record = JSON.parse(
       fs.readFileSync(path.join(RAW, kind, `${pick.source}.gen.json`), 'utf8'),
     );
-    manifest[sub][id] = { v: sha(png), model: record.model };
+    // `focus` (events only): the picture's vertical focal point as a CSS percentage, for the
+    // band's crop on a wide page (the page shows the strip shorter than its 3.2:1 shape).
+    manifest[sub][id] = {
+      v: sha(png),
+      model: record.model,
+      ...(kind === 'event' && pick.focus ? { focus: pick.focus } : {}),
+    };
     sheet.push({ id, png, size });
     console.log(`${sub}/${id}.png ${png.length} B (${record.model})`);
   }

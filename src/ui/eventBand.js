@@ -8,7 +8,7 @@
 //   - Reduce motion (the game setting or the OS preference) shows the end state: no fade.
 // Decoration only: aria-hidden, never focusable, never changes game state.
 import { element } from './MenuSurface.js';
-import { eventVignetteUrl, prefersStill } from './itemMoments.js';
+import { eventVignetteFocus, eventVignetteUrl, prefersStill } from './itemMoments.js';
 
 // Per-session memory of what the browser has already answered, so a page that re-renders
 // (a choice, a roster close) paints the band straight away instead of flashing the strip.
@@ -21,8 +21,9 @@ export function resetEventBandCache() {
   missing.clear();
 }
 
-function paint(band, url) {
+function paint(band, url, focus) {
   band.style.setProperty('--ev-art', `url("${url}")`);
+  if (focus) band.style.setProperty('--ev-focus', focus);
   band.classList.add('has-art');
 }
 
@@ -36,10 +37,11 @@ export function createEventBand(eventId, scene = null) {
   band.setAttribute('aria-hidden', 'true');
   if (eventId) band.dataset.event = eventId;
   const url = eventId ? eventVignetteUrl(eventId) : null;
+  const focus = eventId ? eventVignetteFocus(eventId) : null;
   if (!url || missing.has(eventId)) return band;
   if (loaded.has(eventId)) {
     band.classList.add('is-ready');
-    paint(band, url);
+    paint(band, url, focus);
     return band;
   }
   if (prefersStill(scene)) band.classList.add('is-still');
@@ -47,7 +49,7 @@ export function createEventBand(eventId, scene = null) {
   const probe = new Image();
   probe.onload = () => {
     loaded.add(eventId);
-    paint(band, url);
+    paint(band, url, focus);
   };
   probe.onerror = () => {
     missing.add(eventId);

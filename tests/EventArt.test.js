@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import manifest from '../src/ui/momentArtManifest.json';
-import { eventVignetteUrl } from '../src/ui/itemMoments.js';
+import { eventVignetteFocus, eventVignetteUrl } from '../src/ui/itemMoments.js';
 import { createEventBand, resetEventBandCache } from '../src/ui/eventBand.js';
 import sharp from 'sharp';
 import { decodePng } from '../tools/art/icons/lib/png.mjs';
@@ -152,6 +152,18 @@ describe('the Event page band', () => {
     expect(again.classList.contains('has-art')).toBe(true);
     expect(again.classList.contains('is-ready')).toBe(true); // no fade-in flash
     expect(probes).toHaveLength(1); // not probed twice
+  });
+
+  it('a painting with a focal point carries it into the band, others keep the centre', () => {
+    expect(eventVignetteFocus('twin_altar')).toMatch(/^\d{1,3}%$/);
+    expect(eventVignetteFocus('quiet_road')).toBeNull();
+    expect(eventVignetteFocus('no_such_event')).toBeNull();
+    const band = createEventBand('twin_altar');
+    probes[0].onload();
+    expect(band.style.getPropertyValue('--ev-focus')).toBe(eventVignetteFocus('twin_altar'));
+    const plain = createEventBand('quiet_road');
+    probes[1].onload();
+    expect(plain.style.getPropertyValue('--ev-focus')).toBe('');
   });
 
   it('a missing or failed painting leaves the strip and is never retried', () => {
