@@ -2,7 +2,11 @@
 // deployment (its units come from the checkpoint) and must keep the recorded count, or
 // the Last (four or more deployed) can never be earned in a resumed battle.
 import { describe, expect, it } from 'vitest';
-import { battleDeployCount, resolveDeployLimits } from '../src/engine/BattleDeployCount.js';
+import {
+  battleDeployCount,
+  resolveDeployLimits,
+  rosterDeploySlots,
+} from '../src/engine/BattleDeployCount.js';
 import { DEPLOY_LIMITS } from '../src/utils/constants.js';
 
 const roster = (n) => Array.from({ length: n }, (_, i) => ({ name: `U${i}` }));
@@ -81,5 +85,43 @@ describe('resolveDeployLimits', () => {
         max: 6,
         lockedTo: null,
       });
+  });
+});
+
+// The roster header shows how many units the act's battles field: the deploy screen's
+// max (the act's max plus the deploy bonus), for the run's current act.
+describe('rosterDeploySlots', () => {
+  const run = ({ act = 'act1', bonus = 0, units = 6, mode = 'standard' } = {}) => ({
+    mode,
+    currentAct: act,
+    getDeployBonus: () => bonus,
+    roster: roster(units),
+  });
+
+  it("is the current act's max (Act I 4, Act II 5, Act III 7, Act IV 8)", () => {
+    expect(rosterDeploySlots(run({ act: 'act1' }))).toEqual({ slots: 4, bonus: 0, units: 6 });
+    expect(rosterDeploySlots(run({ act: 'act2' })).slots).toBe(5);
+    expect(rosterDeploySlots(run({ act: 'act3' })).slots).toBe(7);
+    expect(rosterDeploySlots(run({ act: 'act4' })).slots).toBe(8);
+    expect(rosterDeploySlots(run({ act: 'finalBoss' })).slots).toBe(8);
+  });
+
+  it('adds the deploy bonus (Tactical Advantage, Scout Blessing)', () => {
+    expect(rosterDeploySlots(run({ act: 'act2', bonus: 2 }))).toMatchObject({
+      slots: 7,
+      bonus: 2,
+    });
+  });
+
+  it('is the same max the deploy screen opens on an unlocked battle', () => {
+    for (const act of Object.keys(DEPLOY_LIMITS))
+      expect(rosterDeploySlots(run({ act, bonus: 1 })).slots).toBe(
+        resolveDeployLimits({ base: DEPLOY_LIMITS[act], deployBonus: 1 }).max,
+      );
+  });
+
+  it('is null with no run and in the prologue, whose chapters author their deploys', () => {
+    expect(rosterDeploySlots(null)).toBeNull();
+    expect(rosterDeploySlots(run({ mode: 'prologue' }))).toBeNull();
   });
 });

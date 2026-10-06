@@ -472,6 +472,19 @@
   gap: 8px;
   padding-bottom: 4px;
 }
+/* The title and, in a run, the act's deploy slots beneath it. */
+.mr-head-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.mr-deploy-cap {
+  font-size: 13px;
+  line-height: 1.2;
+  color: var(--re-muted);
+  white-space: nowrap;
+}
 /* The menu title size (.re-live-menu .re-header h2): at 10px the desktop pixel
    grid landed it on 8px, the size of the tab labels beside it. */
 .mr-sheet header h2 {
@@ -685,8 +698,15 @@
     flex-wrap: wrap;
     row-gap: 6px;
   }
-  html.portrait-ui .mr-sheet > header h2 {
+  html.portrait-ui .mr-sheet > header .mr-head-title {
     flex: 1 1 auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 12px;
+  }
+  html.portrait-ui .mr-sheet > header h2 {
+    flex: 0 1 auto;
     min-width: 0;
     font-size: var(--re-pf-10, 10px);
   }
