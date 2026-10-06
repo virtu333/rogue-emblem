@@ -77,7 +77,7 @@ export const FULLRUN_SLICES = {
       '--min-avg-gold',
       '4000',
       '--max-avg-gold',
-      '13000',
+      '17500',
       '--min-avg-shop-spent',
       '1000',
       '--max-avg-shop-spent',
@@ -126,7 +126,7 @@ export const FULLRUN_SLICES = {
       '--max-avg-invalid-shop-entries',
       '0.00',
       '--min-avg-ambush-battles',
-      '0.20',
+      '0.08',
     ],
   },
 };
