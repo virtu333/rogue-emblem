@@ -75,7 +75,15 @@ test('Church heal, roster, map, promotion cancellation and arena forecast/reward
     window.arena = new ColosseumOverlay(s, s.runManager, s.gameData);
     window.arena.show(s.runManager.getAvailableNodes()[0], () => {});
   });
+  // The visit's cap (arena.maxFightsPerVisit, per rung) shows before the first bout.
+  const visitCap = await page.evaluate(() => window.arena._maxVisitBouts);
+  expect(visitCap).toBeGreaterThan(1);
+  const colosseumMenu = page.getByRole('dialog', { name: 'Colosseum', exact: true });
+  await expect(colosseumMenu).toContainText(`Bouts left here: ${visitCap}`);
   await page.getByRole('button', { name: 'Arena', exact: true }).tap();
+  await expect(
+    page.getByRole('dialog', { name: 'Arena · Choose fighter', exact: true }),
+  ).toContainText(`Bouts left here: ${visitCap}`);
   await page.getByRole('button', { name: /Edric.*Fights/ }).tap();
   await page.screenshot({ path: 'test-results/audit-arena-tiers.png' });
   await page.getByRole('button', { name: /^Bronze/ }).tap();
@@ -113,7 +121,11 @@ test('Church heal, roster, map, promotion cancellation and arena forecast/reward
   await expect(levelCard).toHaveCount(0);
   await expect(result).toContainText('XP +');
   const gold = await page.evaluate(() => window.arena.runManager.gold);
+  await expect(result).toContainText(`Bouts left here: ${visitCap - 1}`);
   await result.getByRole('button', { name: 'Back to colosseum', exact: true }).tap();
+  // One bout fought: the count dropped by one and the arena is still open to the rest.
+  await expect(colosseumMenu).toContainText(`Bouts left here: ${visitCap - 1}`);
+  await expect(colosseumMenu.getByRole('button', { name: 'Arena', exact: true })).toBeEnabled();
   await page.getByRole('button', { name: 'Mercenary board', exact: true }).tap();
   const merc = page.getByRole('dialog', { name: 'Mercenary board', exact: true });
   await merc.locator('.re-menu-body button').first().tap();

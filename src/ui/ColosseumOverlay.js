@@ -16,8 +16,11 @@ import {
   generateChallenger,
   calculateArenaReward,
   calculateArenaXP,
-  canFight,
+  arenaEntryBlock,
+  arenaVisitBouts,
+  arenaVisitBoutsLeft,
   getMaxFights,
+  getMaxFightsPerVisit,
   getArenaDistance,
   getArenaWeapon,
   generateMercenaryCandidates,
@@ -86,6 +89,7 @@ export class ColosseumOverlay {
     const colosseumData = this.gameData.colosseum;
     this._colosseumData = colosseumData;
     this._maxFights = getMaxFights(this._getDifficultyId(), colosseumData);
+    this._maxVisitBouts = getMaxFightsPerVisit(this._getDifficultyId(), colosseumData);
 
     this._shutdown = () => this.hide();
     this.scene.events?.once?.('shutdown', this._shutdown);
@@ -274,7 +278,7 @@ export class ColosseumOverlay {
       this._showTierSelect(`Not enough gold to enter (${tier.entryFee}G required).`);
       return;
     }
-    if (!canFight(unit, this._fightsPerUnit[unit.name] || 0, this._maxFights)) return;
+    if (this._entryBlock(unit)) return;
     // The entry fee is paid as the bout starts: a win returns it with the prize, a
     // draw returns it, a loss or a yield keeps it. Leaving mid-bout is a yield.
     const fee = Math.max(0, tier.entryFee || 0);
@@ -646,6 +650,27 @@ export class ColosseumOverlay {
 
   _canAffordTier(tier) {
     return Boolean(tier) && this.runManager.gold >= (tier.entryFee || 0);
+  }
+
+  /** Bouts fought at this visit by everyone (the sum of the saved per-unit counts). */
+  _visitBouts() {
+    return arenaVisitBouts(this._fightsPerUnit);
+  }
+
+  /** Bouts left at this visit (Infinity when no cap is set). */
+  _visitBoutsLeft() {
+    return arenaVisitBoutsLeft(this._visitBouts(), this._maxVisitBouts);
+  }
+
+  /** Why `unit` can't enter the arena now ('' when it can): the visit's cap, then its own. */
+  _entryBlock(unit) {
+    return arenaEntryBlock(
+      unit,
+      this._fightsPerUnit[unit?.name] || 0,
+      this._maxFights,
+      this._visitBouts(),
+      this._maxVisitBouts,
+    );
   }
 
   _getDifficultyId() {

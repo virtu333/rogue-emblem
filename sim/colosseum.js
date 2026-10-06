@@ -11,7 +11,12 @@ import {
   printRecommendations,
 } from './lib/TableFormatter.js';
 import { generateNodeMap } from '../src/engine/NodeMapGenerator.js';
-import { getMercenaryPrice } from '../src/engine/ColosseumEngine.js';
+import {
+  getMaxFights,
+  getMaxFightsPerVisit,
+  getMercenaryPrice,
+} from '../src/engine/ColosseumEngine.js';
+import { DIFFICULTY_IDS } from '../src/engine/DifficultyEngine.js';
 import { ACT_CONFIG } from '../src/utils/constants.js';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
@@ -73,12 +78,20 @@ console.log(`\nAverage Colosseum visits per run: ${avgPerRun.toFixed(2)}\n`);
 // ────────────────────────────────────────
 // 2. Arena gold flow by tier and win rate
 // ────────────────────────────────────────
-printHeader('Arena Net Gold per Visit (2 units × 3 fights each)');
-
+// A colosseum visit is capped in total (arena.maxFightsPerVisit, per rung), on top of
+// each unit's own cap: the table below is First Light, whose visit cap is the tighter
+// of the two for 2 units.
+const FIRST_LIGHT = DIFFICULTY_IDS[0];
 const WIN_RATES = [0.5, 0.7, 0.9];
-const FIGHTS_PER_UNIT = 3;
+const FIGHTS_PER_UNIT = getMaxFights(FIRST_LIGHT, colosseumData);
 const UNITS_PER_VISIT = 2;
-const totalFights = FIGHTS_PER_UNIT * UNITS_PER_VISIT;
+const totalFights = Math.min(
+  FIGHTS_PER_UNIT * UNITS_PER_VISIT,
+  getMaxFightsPerVisit(FIRST_LIGHT, colosseumData),
+);
+printHeader(
+  `Arena Net Gold per Visit (2 units × ${FIGHTS_PER_UNIT} fights each, capped at ${totalFights} bouts per visit)`,
+);
 
 const tierEntries = Object.entries(colosseumData.arena.tiers);
 const goldCols = ['Tier', 'WinRate', 'Wins', 'Losses', 'GrossWin', 'LossFee', 'NetGold'];
@@ -131,6 +144,68 @@ for (const [tierName, tier] of tierEntries) {
   });
 }
 printTable(xpCols, xpRows);
+
+// ────────────────────────────────────────
+// 3b. Visit yield: big army, before and after the visit cap
+// ────────────────────────────────────────
+printHeader('Arena Yield per Visit: big army (Vulneraries for everyone), before and after the cap');
+
+// "Before" is every unit fighting its full per-unit cap (units × maxFightsPerUnit bouts);
+// "after" is the visit cap on top. Bouts go round-robin across the army, which is the
+// best case for XP (a unit's 3rd bout of a visit pays half, after 2 levels' worth).
+// Gold and XP are expected values at the given win rate; a loss pays no XP.
+function visitYield(tier, winRate, units, perUnit, visitCap) {
+  const bouts = Math.min(units * perUnit, visitCap);
+  let xp = 0;
+  for (let b = 0; b < bouts; b++) {
+    const fightNo = Math.floor(b / units); // this unit's 0-based bout of the visit
+    const full = BASE_XP_VISIT * tier.xpMultiplier;
+    xp += winRate * Math.round(fightNo >= 2 ? full * 0.5 : full);
+  }
+  const gold = bouts * (winRate * tier.goldReward - (1 - winRate) * tier.entryFee);
+  return { bouts, gold: Math.round(gold), xp: Math.round(xp) };
+}
+const BASE_XP_VISIT = 50;
+const VISIT_WIN_RATE = 0.7;
+const ARMY_SIZES = [2, 4, 8];
+const visitCols = [
+  'Rung',
+  'Tier',
+  'Army',
+  'Bouts before',
+  'Gold before',
+  'XP before',
+  'Bouts after',
+  'Gold after',
+  'XP after',
+];
+const visitRows = [];
+for (const rung of DIFFICULTY_IDS) {
+  const perUnit = getMaxFights(rung, colosseumData);
+  const visitCap = getMaxFightsPerVisit(rung, colosseumData);
+  for (const tierName of ['silver', 'gold']) {
+    const tier = colosseumData.arena.tiers[tierName];
+    for (const units of ARMY_SIZES) {
+      const before = visitYield(tier, VISIT_WIN_RATE, units, perUnit, Infinity);
+      const after = visitYield(tier, VISIT_WIN_RATE, units, perUnit, visitCap);
+      visitRows.push({
+        Rung: rung,
+        Tier: tierName,
+        Army: `${units} units`,
+        'Bouts before': before.bouts,
+        'Gold before': `${before.gold}G`,
+        'XP before': before.xp,
+        'Bouts after': after.bouts,
+        'Gold after': `${after.gold}G`,
+        'XP after': after.xp,
+      });
+    }
+  }
+}
+printTable(visitCols, visitRows);
+console.log(
+  `\n(win rate ${VISIT_WIN_RATE * 100}%, base XP ${BASE_XP_VISIT}; per-unit cap from getMaxFights)\n`,
+);
 
 // ────────────────────────────────────────
 // 4. Mercenary pricing analysis
