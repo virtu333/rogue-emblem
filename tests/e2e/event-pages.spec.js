@@ -97,6 +97,17 @@ for (const size of SIZES) {
       await expectFits(page, '.ev-menu');
       await page.screenshot({ path: info.outputPath('mine-page-2.png') });
 
+      // ESC on a later page is as on the first: back to the route, the event still current; the
+      // way back reopens the same page, its one step now behind the toggle.
+      await page.keyboard.press('Escape');
+      await expect(dialog).toHaveCount(0);
+      await enterNode(page, 'Event', { label: 'Return to the event', tap });
+      await expect(dialog.locator('.ev-intro')).toContainText('The tunnel narrows');
+      await expect(dialog.locator('.ev-recent')).toHaveCount(0);
+      await expect(dialog.locator('.ev-trail-toggle')).toContainText(
+        'Earlier on this road · 1 step',
+      );
+
       // Step two: the older step goes behind the toggle, closed; open, it shows what it said.
       await chooseThrough(page, dialog, /^Deeper still/, { tap });
       await expect(dialog.locator('.ev-intro')).toContainText('Something sleeps here');
@@ -115,6 +126,15 @@ for (const size of SIZES) {
       await expect(torches).toHaveAttribute('aria-label', 'Torches: 1 of 3');
       await expectFits(page, '.ev-menu');
       await page.screenshot({ path: info.outputPath('mine-page-3-trail-open.png') });
+      // From the keyboard: Enter closes and opens it again, and focus stays on the toggle.
+      await toggle.focus();
+      await page.keyboard.press('Enter');
+      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      await expect(toggle).toBeFocused();
+      await page.keyboard.press('Enter');
+      await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+      await expect(toggle).toBeFocused();
+      await expect(dialog.locator('.ev-step')).toHaveCount(1);
 
       // A refresh here: the same page, both steps behind a closed toggle, nothing re-rolled.
       const before = await savedEvent(page);
@@ -355,20 +375,36 @@ for (const size of SIZES) {
       const medal = page.getByRole('button', { name: /^Dark Omen · Available/ });
       await expect(medal).toHaveClass(/is-dark-omen/);
       await expect(medal.locator('.re-node-art')).toHaveAttribute('data-frame', '10');
-      // The same map, an event that fell to a fight: no Omen medal on it.
-      const frames = await page.evaluate(async () => {
-        const { nodeFrame } = await import('/src/ui/RouteGraph.js');
+      // The same map, another event the dark took and could not keep (the engine's own fall, with no
+      // dark face to wear): an eclipsed battle like any other, never the Omen's medal.
+      const swallowedId = await page.evaluate(async () => {
+        const { eclipseNode } = await import('/src/engine/EclipseSystem.js');
+        const { runSeedOf } = await import('/src/engine/EventSystem.js');
         const s = window.__emblemRogueGame.scene.getScene('NodeMap');
-        const node = s.runManager.nodeMap.nodes.find((n) => n.darkOmen);
-        const swallowed = {
-          ...node,
-          darkOmen: undefined,
-          type: 'battle',
-          battleParams: { isElite: true, isEclipsed: true },
-        };
-        return { omen: nodeFrame(node, 'act1'), swallowed: nodeFrame(swallowed, 'act1') };
+        const rm = s.runManager;
+        const node = rm.nodeMap.nodes.find(
+          (n) => n.type === 'battle' && !n.completed && n.row >= 3 && !n.eclipse,
+        );
+        node.type = 'event';
+        node.battleParams = null;
+        eclipseNode(node, {
+          runSeed: runSeedOf(rm),
+          config: rm.gameData.eclipse,
+          actId: rm.nodeMap.actId,
+          mapTemplates: rm.gameData.mapTemplates,
+          shadow: 30,
+          darkOmen: () => false,
+        });
+        node.eclipse.seen = true;
+        s.drawMap();
+        return node.id;
       });
-      expect(frames).toEqual({ omen: 10, swallowed: 7 });
+      const swallowed = page.locator(`.re-node[data-node="${swallowedId}"]`);
+      await expect(swallowed).toHaveClass(/is-eclipsed/);
+      await expect(swallowed).not.toHaveClass(/is-dark-omen/);
+      await expect(swallowed).toHaveAttribute('aria-label', /^Swallowed road · /);
+      await expect(swallowed.locator('.re-node-art')).toHaveAttribute('data-frame', '7');
+      await expect(medal).toHaveClass(/is-dark-omen/); // the Omen keeps its own
       await page.screenshot({ path: info.outputPath('omen-route.png') });
       await enterNode(page, 'Dark Omen', { tap });
       const dialog = page.getByRole('dialog', { name: 'The Drill Yard', exact: true });

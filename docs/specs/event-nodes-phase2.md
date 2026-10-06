@@ -386,6 +386,117 @@ that an unvisited event falls to a Swallowed road now strips the dark faces firs
 Tests: `EventBurdensPhase2`, `EventCleanse`, `EventDarkOmen`, `EventPhase2BData`, `EventBurdenUiPhase2`,
 `EventDarkPage`, `BattleSceneWounded`.
 
+## 2E as built (2026-10-06)
+
+The UI half of Phase 2: every surface the engine of 2A–2C gave a record to, built against the engine
+API and tested with fixture events (the shipped 2D content uses the same shapes). No engine rule
+changed; `eventMenuModel.js` stays the one place engine records become words. What was built, and
+what the build settled or changed against the text of §2E:
+
+**Pages (EventMenu).** The choosing page reads, top to bottom: the head, the status line, the
+**counters**, the **steps behind this page**, the intro and the choices. A step that moves the event to
+another page (`result.next`) comes up **in full** above the new page under "Just now" (its choice, its
+words and its result lines; the page scrolls to it), and every older step sits behind one toggle,
+"Earlier on this road · N steps", **collapsed**; opening it lists the steps (`eventTrailModel`: `recent`
+and `steps`). The spec's "collapsed by default" is kept for the trail; the one step just taken is the
+exception, because a step's news (a spent torch, a find) is exactly what the player must not have to
+open a toggle to read. After a refresh nothing is "just now" (it is not saved): every step is behind
+the toggle. A new page (a step taken, or the last step's outcome) always shows the toggle collapsed
+again; a redraw of the same page keeps it as the player left it. The final outcome page keeps the trail
+above it. Every choice carries `page: view.page` (the page it was **shown** on), so the engine's "That
+page has moved on." refusal can reach the UI: the commit then closes the picker (it answers `ok: true,
+movedOn: true`, nothing was committed), re-reads the page and says "The page has moved on. Choose
+again." (`PAGE_MOVED_ON_LINE`); any other refusal (gold, a block, a target) stays a refusal in the
+picker. The commit also hands a route edit to the route map (below).
+
+**Counters.** `eventCounterModel`: "Torches 2/3" in the pixel face with a pip per point of the counter's
+starting value, lit while it lasts (up to eight pips; more reads as a number alone; a counter that grew
+past its start lights everything it has), a warm border at 0, and a spoken label ("Torches: 2 of 3")
+with the pips `aria-hidden`. Shown on every phase of an event that has counters.
+
+**Tells.** Under their choice, in the same row (`.ev-choice-row`, the button stays the one control): a
+small face (`unitPortrait`, the speaker found by uid) and the line, in the voice's italic. The engine
+already writes the speaker's name into the line (`{name}`); a line that does not name them gets the name
+under it (`eventTellModel`, `caption`). Shown only on the choosing page (the view carries them only
+then), never the outcome a tell reveals, never a number.
+
+**Results** (`eventResultLines`): a line for every kind the engine records. New chips and words:
+`counter` (COUNT: "Torches −1", "2 left"; "Torches: none to spend" for a delta of 0), `join` (JOIN: "Hale
+joins the army", "Archer · Lv 4", **the new unit's face** leads the row), `contract` (CONTRACT: "Contract:
+Under par", the goal's line, "Kept: +600 G. Broken: Debt 300 G."), `route` (ROAD: "A new road opens to a
+village", "A place ahead is now a village · It was a battle", with the row; a redraw to a battle reads as bad
+news, to a shop or church as good), `note` (the engine's words). The 2B burden line now reads as
+sentences ("Each victory gathers more shadow until the omen passes. 2 battles left, +1 shadow each.";
+`sentence` raises the first letter and ends every clause with one stop). The existing "every shipped
+outcome" page test counts a line per record and so covers the new kinds; `tests/EventPagesUi.test.js`
+also draws **every page of every shipped event** (the first, the later ones, the dark face's) and takes
+every open choice through the page, so 2D's content is held to the same bar the day it lands.
+
+**A route edit on the route map.** The engine has already changed the map when the page is shown; the
+route map says so when the page closes. `EventController.noteRouteChange` (on each commit)
+-> `NodeMapMenu.noteRouteChange({ nodeIds, text })` -> on the next draw (never while the event page is
+open) the changed place (an `addRoad`'s far end, a redraw's node) is **selected**, **ringed** for seven
+seconds (`.re-loom-changed`, a pulse unless Reduce motion, a still ring then) and the line ("A new road
+opens ahead." / "A place ahead has changed.") is the Eclipse's own toast. Decoration only: a refresh
+loses the ring, never the road.
+
+**The contract.** A chip in the burden row under the Loom's header (`NodeMapMenu._burdenRow`, class
+`re-burden re-contract`, the gilt of a seal against the burdens' red): "CONTRACT · UNDER PAR", the full
+terms on its title and on a tap or Enter ("Win the next battle by turn par or sooner. Kept: +600 G.
+Broken: Debt 300 G."), after the burdens in the same row; the pause lists (route map and battle) carry it as
+an entry of `pauseBurdenEntries` with the same terms (`.mp-burdens li.is-contract`). The row's label
+says "Burdens and contract" when one is held. The victory band takes `run.lastContractSettlement.lines`
+as parts ("Contract kept: +600 G", "Contract broken: Debt (300 G owed)") beside the burden's, only for this
+battle's node (`PostCombatController`). A contract is not shown on the battle HUD itself (the pause menu
+and the band are its in-battle surfaces); see the open question below.
+
+**Cleanse.** The vow picker's section is now a row per burden a church can lift: the button
+("Ill Omen · 2 left"), the burden's words under it (its line and its count) and, behind a confirmation
+("Lift the burden", the vow said in the confirmation), the lift. A **Debt** the run holds is listed as a
+greyed row with the altar's refusal ("The lender has lawyers: no altar lifts a Debt."), never pressable. When
+a vow already made here shuts the section the reason is said **once** under the heading (not under every
+row); the words sit on ink, since the church's painting runs behind the page. A run with only a Debt (or no
+burden) still shows no Cleanse (`churchOffersCleanse`, unchanged).
+
+**The colosseum.** #214 already showed "Bouts left here: N" on the menu, the fighter list and the result;
+2E adds the two screens that cost a fee and had none: the **tier** choice and the **forecast** (`ArenaMenu`),
+and a style for the line.
+
+**The Dark Omen.** `RouteGraph` keys the medal (frame 10) and `is-dark-omen` on `node.darkOmen === true`
+(not on `eclipse.fromType === 'event'`): an event that **fell to a fight** is an ordinary eclipsed battle
+(the elite frame 7, "Swallowed road", the burnt look), and only a node that kept its story wears the
+Omen's own picture, no longer burnt (`--icon-filter: none`) so the violet flame reads. The canvas
+fallback's tooltip says "Dark Omen — The dark has twisted what waits here". The card's and the page's
+words are as 2B built them; reviewed: the card promises "a harsher price, a richer prize", which is the
+honest general truth of a dark face (it names no choice and no number). The Phase 1 test that expected a
+Swallowed road to wear frame 10 now expects 7.
+
+**Review route** (`utils/devStartup.js`, dev and previews only). Beside `?devScene=nodemap&preset=event&seed=N&event=<id>`:
+`&as=church|colosseum` (the party's next node is that service), `&burdens=ill_omen:2,debt:450,hunted,sworn_enemy,wounded`,
+`&contract=underPar|noLosses`, `&omen=1` (the event node is a Dark Omen), `&units=Thief,Mage` and the **review
+fixtures** `event=dev_mine|dev_contract|dev_roads|dev_join|dev_stress` (`utils/devEventFixtures.js`: a three-page
+mine with torches and a Thief's tell, two contracts, the two route edits with their fallbacks, a join, and the
+longest strings the page must hold). Nothing here is game data.
+
+**Tests.** `tests/EventUiPhase2E.test.js` (the model for every new line, the trail, counters, tells,
+route change and contract chip; the chip row and the pause list; the ring; the Omen's medal against a
+Swallowed road), `tests/EventPagesUi.test.js` (the page through the real controller and menu: counters,
+the trail and its toggle, a refresh, a stale tap, tells with the right face under the right choice, every new
+result kind, and every page of every shipped event), `tests/PostCombatController.test.js` (the band's
+contract and burden parts, for this node only), and browser specs: `tests/e2e/event-pages.spec.js` (lane
+`run-flow`: 640x480, 844x390, 667x375) and `tests/e2e/portrait-event-pages.spec.js` (lane `portrait`:
+375x667, 390x844), sharing `tests/e2e/eventHelpers.js`. They play a three-page event through its trail
+with a refresh in the middle, a contract from the choice to the chip, the pause list and the victory band's
+line on a won battle, a new road and a redrawn place with their ring, a join, Cleanse lifting a burden and
+committing the vow, a Dark Omen's medal and page next to a genuine Swallowed road, and the arena's bouts on
+every fee screen. Screenshots at all five viewports were reviewed during the build and are not kept.
+
+**Open questions.** (1) The contract is on the route map, the pause list and the band but not on the
+battle HUD: a small "Contract: under par" line by the turn counter would help a player racing par; it is a
+battle-HUD change (and BattleScene is a god object), so it was left for a decision. (2) The route ring is
+not saved: a refresh on the outcome page, then Continue, shows the new road without the ring. (3) The
+trail's "just now" step is not saved either; the older steps are always one tap away.
+
 ## Not in Phase 2
 
 Marks, the Necromancer, multi-bar bosses, new skills and arts: `event-nodes.md` §14–§15

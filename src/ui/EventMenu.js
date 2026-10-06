@@ -131,6 +131,12 @@ export class EventMenu {
     if (view.phase === 'choosing') this.renderChoices(body, view);
     else this.renderOutcome(body, view);
     body.scrollTop = scroll;
+    // A step was just taken: the page comes up at what just happened, then the new page under it
+    // (not wherever the last page's choices had been scrolled to).
+    if (this.scrollToRecent) {
+      this.scrollToRecent = false;
+      body.querySelector?.('.ev-recent')?.scrollIntoView?.({ block: 'start' });
+    }
   }
 
   // ── The event's counters and the steps behind this page ───────────────
@@ -353,8 +359,8 @@ export class EventMenu {
       this.status = PAGE_MOVED_ON_LINE;
       return { ok: true, movedOn: true };
     }
-    if (result.next) this.justNow = (eventView(this.run, this.nodeId)?.trail || []).length;
-    else this.justNow = null;
+    this.justNow = result.next ? (eventView(this.run, this.nodeId)?.trail || []).length : null;
+    this.scrollToRecent = Boolean(result.next);
     // A road drawn or a place changed: the route map shows what moved when it comes back.
     this.c.noteRouteChange?.(result.results);
     const warning = saveServiceRun(this.scene);

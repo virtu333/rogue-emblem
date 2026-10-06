@@ -226,6 +226,11 @@
   border-left: 0;
   font-size: 14px;
 }
+/* The steps are history, not the page: their result rows sit tighter than the outcome's own. */
+.ev-recent .ev-result,
+.ev-step .ev-result {
+  padding: 5px 8px;
+}
 .ev-trail-toggle {
   display: flex;
   align-items: center;
