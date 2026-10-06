@@ -6,7 +6,7 @@
     "effect": "heal",
     "value": 10,
     "uses": 2,
-    "price": 200
+    "price": 300
   },
   {
     "name": "Elixir",
