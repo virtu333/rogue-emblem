@@ -483,6 +483,10 @@ describe('play CLI', () => {
     const dup = await json('k', ['start', '--id', 'x1']);
     expect(dup).toMatchObject({ status: 'duplicate', call: 'x1' });
     expect(dup.observation.phase).toBe('battle');
+    // The objective's rule and what Danger means travel with the data, as in the text.
+    const look = (await playHere('k', ['look'])).out;
+    expect(look).toContain(dup.observation.battle.objectiveRule);
+    expect(look).toContain(dup.observation.battle.dangerMeaning);
     expect((await json('k', ['look', '--expect-rev', '0'])).status).toBe('revisionMismatch');
     const release = acquireLock(join(root, 'k'));
     const wait = process.env.PLAY_LOCK_WAIT_MS;

@@ -1,0 +1,1791 @@
+{
+  "format": 2,
+  "digestVersion": 2,
+  "revision": 155,
+  "options": {
+    "seed": 7,
+    "difficulty": "normal",
+    "meta": "none",
+    "commander": null,
+    "partner": null,
+    "invincible": false
+  },
+  "log": [
+    {
+      "cmd": "bless 2",
+      "digest": "362aecd2c21c4f50",
+      "note": "750 gold early buys gear/vulneraries; Act 1 survival matters most"
+    },
+    {
+      "cmd": "go act1_0_2",
+      "digest": "b14413190c0bf3c2"
+    },
+    {
+      "cmd": "start",
+      "digest": "069b2cb9a0097a23"
+    },
+    {
+      "cmd": "move P3 4,4 attack E1 with Iron Sword",
+      "digest": "43cd79f584e88179",
+      "note": "sword vs axe, doubles for exact KO"
+    },
+    {
+      "cmd": "move P1 3,4 wait",
+      "digest": "c782ce3f0cf26373"
+    },
+    {
+      "cmd": "move P2 2,4 wait",
+      "digest": "84ed603c18cca2f5"
+    },
+    {
+      "cmd": "end again",
+      "digest": "77a5d34fd3e35e2b",
+      "rewrittenFrom": "end"
+    },
+    {
+      "cmd": "take 3",
+      "digest": "cc7de1cc9b506db6",
+      "note": "gold+XP for all beats a weak gust blade"
+    },
+    {
+      "cmd": "go act1_1_2",
+      "digest": "076c1424447a8d8d",
+      "note": "path toward village + 2 recruit nodes + church"
+    },
+    {
+      "cmd": "start",
+      "digest": "039317969c79e490"
+    },
+    {
+      "cmd": "move P2 3,4 attack E1",
+      "digest": "0c6b4d2b2abc8f08",
+      "note": "Glimmer at range 2, no counter; soldier RES 1"
+    },
+    {
+      "cmd": "move P3 3,3 wait",
+      "digest": "4c67ad26822a0587"
+    },
+    {
+      "cmd": "move P1 2,4 wait",
+      "digest": "5530de3b22b41e0c"
+    },
+    {
+      "cmd": "move P3 5,3 attack E2 with Iron Sword",
+      "digest": "642efd8782be577d",
+      "note": "archer can't counter at 1; fort tile"
+    },
+    {
+      "cmd": "move P2 4,4 wait",
+      "digest": "f05c34b3f1baf443"
+    },
+    {
+      "cmd": "move P1 4,3 wait",
+      "digest": "d31591d2a4f3e1a5"
+    },
+    {
+      "cmd": "move P2 5,4 attack E3",
+      "digest": "6fa0b072bbdba005"
+    },
+    {
+      "cmd": "move P3 stay attack E3 with Iron Sword",
+      "digest": "5a2f2b2dcb694a33"
+    },
+    {
+      "cmd": "take 1",
+      "digest": "9773533668fcdb8f",
+      "note": "Edric needs XP; gold for shops"
+    },
+    {
+      "cmd": "go act1_2_2",
+      "digest": "a281932581693886"
+    },
+    {
+      "cmd": "buy 8 for Sera",
+      "digest": "b235f18ecd943099",
+      "note": "Brilliance +3 Mt for Sera; Javelin gives Gaspar 1-2 range"
+    },
+    {
+      "cmd": "buy 9 for Gaspar",
+      "digest": "1c4d3aa10aa3bda1"
+    },
+    {
+      "cmd": "forge Edric Iron Sword might",
+      "digest": "8c965dbcf59dd824"
+    },
+    {
+      "cmd": "forge Edric Iron Sword might",
+      "digest": "3d2573f3205d3633"
+    },
+    {
+      "cmd": "leave",
+      "digest": "be34001d7a88a361"
+    },
+    {
+      "cmd": "equip Sera Brilliance",
+      "digest": "589be1a9c22ed5d2",
+      "note": "battle over church: Edric needs XP, Gaspar only -4 HP"
+    },
+    {
+      "cmd": "go act1_3_2",
+      "digest": "260c17d60374c0b7",
+      "note": "battle over church: Edric needs XP, Gaspar only -4 HP"
+    },
+    {
+      "cmd": "start",
+      "digest": "0225bce781925af1"
+    },
+    {
+      "cmd": "move P3 1,3 equip Steel Lance wait",
+      "digest": "2cc9275c978eec9b"
+    },
+    {
+      "cmd": "move P2 1,2 heal P3",
+      "digest": "38476914f3d5b798"
+    },
+    {
+      "cmd": "move P1 1,4 wait",
+      "digest": "f196e51cc748a626"
+    },
+    {
+      "cmd": "move P2 3,4 attack E2 with Brilliance",
+      "digest": "94215ea38c4bd25a"
+    },
+    {
+      "cmd": "move P3 4,4 wait",
+      "digest": "347505d64d0e4516",
+      "note": "wall off the bridges so Sera (18hp) can't be double-teamed"
+    },
+    {
+      "cmd": "move P1 3,5 wait",
+      "digest": "5153cdd06813c675",
+      "note": "wall off the bridges so Sera (18hp) can't be double-teamed"
+    },
+    {
+      "cmd": "move P3 stay attack E3 with Steel Lance",
+      "digest": "04b28186bdd4f8be"
+    },
+    {
+      "cmd": "move P2 stay attack E1",
+      "digest": "e77549f92e3d3490"
+    },
+    {
+      "cmd": "move P1 stay attack E1",
+      "digest": "cc226f553a6cdd84"
+    },
+    {
+      "cmd": "take 2 to Edric",
+      "digest": "707decc9182b5066",
+      "note": "+2 DEF on the commander is permanent safety"
+    },
+    {
+      "cmd": "go act1_4_3",
+      "digest": "92f486447fbd550c"
+    },
+    {
+      "cmd": "start",
+      "digest": "d1278a8a9dcf3376"
+    },
+    {
+      "cmd": "move P2 0,7 talk",
+      "digest": "e169cf49b35ebb41",
+      "note": "recruit the archer first, safe tile"
+    },
+    {
+      "cmd": "move P1 1,2 wait",
+      "digest": "12ea307bfb3a6d38",
+      "note": "turtle west of the 3,4 choke, let them come"
+    },
+    {
+      "cmd": "move P3 stay wait",
+      "digest": "6be5f1685e27985c",
+      "note": "turtle west of the 3,4 choke, let them come"
+    },
+    {
+      "cmd": "move N1 stay wait",
+      "digest": "3ef2fc44abedb78c",
+      "note": "turtle west of the 3,4 choke, let them come"
+    },
+    {
+      "cmd": "move P3 stay attack E1 with Javelin",
+      "digest": "5d0b24f4bfe87ec1"
+    },
+    {
+      "cmd": "move P1 2,2 attack E1",
+      "digest": "a01f1d48d0c0e57e"
+    },
+    {
+      "cmd": "move N1 0,5 wait",
+      "digest": "60fdc32b9f2ff6b9"
+    },
+    {
+      "cmd": "move P2 stay wait",
+      "digest": "b8fe1a9a9cfa8b23"
+    },
+    {
+      "cmd": "move P1 stay attack E2",
+      "digest": "35438ea9db45e2d1"
+    },
+    {
+      "cmd": "move P2 2,6 attack E4",
+      "digest": "e6a1a12815f2b5fc"
+    },
+    {
+      "cmd": "move P3 2,3 attack E4 with Steel Lance",
+      "digest": "262bfa21aae8e65c"
+    },
+    {
+      "cmd": "move N1 1,3 attack E5 with Longbow",
+      "digest": "f58fb2c42d2c4669"
+    },
+    {
+      "cmd": "move P2 stay attack E3",
+      "digest": "351c8421c8efd4f9"
+    },
+    {
+      "cmd": "move N1 1,2 attack E5 with Iron Bow",
+      "digest": "24761f58fe5f9a3c"
+    },
+    {
+      "cmd": "move P3 2,4 attack E5 with Steel Lance",
+      "digest": "b32ddb745f31fe9c"
+    },
+    {
+      "cmd": "take 2 to Perrin",
+      "digest": "d06e856af0b4199a",
+      "note": "+3 Mt for the new archer"
+    },
+    {
+      "cmd": "equip Perrin Steel Bow",
+      "digest": "45666b49f0493b7c"
+    },
+    {
+      "cmd": "use Edric Vulnerary",
+      "digest": "ff350c21e06de471"
+    },
+    {
+      "cmd": "give Sera Vulnerary to Gaspar",
+      "digest": "bb6022557d8cac39"
+    },
+    {
+      "cmd": "use Gaspar Vulnerary",
+      "digest": "9cf1c3682e886380"
+    },
+    {
+      "cmd": "go act1_5_4",
+      "digest": "95e666662e57bcda",
+      "note": "a lord recruit (Sky Lancer flyer) is worth more than a fog village"
+    },
+    {
+      "cmd": "place Sera 2,7",
+      "digest": "8dfaa2387f4ab336",
+      "note": "Sera drops in next to Astrid from the south formation tile"
+    },
+    {
+      "cmd": "start",
+      "digest": "e91eb0c2004bf39a",
+      "note": "Sera drops in next to Astrid from the south formation tile"
+    },
+    {
+      "cmd": "move P2 1,7 talk",
+      "digest": "a16848dc5d101545",
+      "note": "Sera drops in next to Astrid from the south formation tile"
+    },
+    {
+      "cmd": "move P3 stay wait",
+      "digest": "2e022908efaf9acb"
+    },
+    {
+      "cmd": "move P4 stay wait",
+      "digest": "28b23eba1a2a9356"
+    },
+    {
+      "cmd": "move P1 stay wait",
+      "digest": "6fb223b95f325469"
+    },
+    {
+      "cmd": "move N1 stay wait",
+      "digest": "796da9022d62f6fb"
+    },
+    {
+      "cmd": "move P4 1,2 attack E1 with Longbow",
+      "digest": "ddce86bb46cec36e"
+    },
+    {
+      "cmd": "move P3 stay wait",
+      "digest": "549a146c1ada70a0"
+    },
+    {
+      "cmd": "move P1 stay wait",
+      "digest": "0b5ef2bcf08c2c69"
+    },
+    {
+      "cmd": "move P2 stay wait",
+      "digest": "3154a515e299de20"
+    },
+    {
+      "cmd": "move N1 stay wait",
+      "digest": "0a6489eeca976d20"
+    },
+    {
+      "cmd": "move P3 stay attack E2 with Steel Lance",
+      "digest": "07d805b7d3014cb4"
+    },
+    {
+      "cmd": "move P4 1,1 attack E1 with Longbow",
+      "digest": "0eac7243fdc5353c"
+    },
+    {
+      "cmd": "move P1 1,2 attack E2",
+      "digest": "3e170c09a91c8099",
+      "note": "can't fully protect Perrin (7hp); chip E2 to 4 so any counter kills it"
+    },
+    {
+      "cmd": "move P2 stay wait",
+      "digest": "b95a84b21fd28eea",
+      "note": "can't fully protect Perrin (7hp); chip E2 to 4 so any counter kills it"
+    },
+    {
+      "cmd": "move N1 stay wait",
+      "digest": "415004070ff68292",
+      "note": "can't fully protect Perrin (7hp); chip E2 to 4 so any counter kills it"
+    },
+    {
+      "cmd": "move P1 0,2 attack E2",
+      "digest": "e05f8e1719b225f7"
+    },
+    {
+      "cmd": "move N1 2,7 attack E6",
+      "digest": "07efaa0a3fa68848"
+    },
+    {
+      "cmd": "move P3 stay item Vulnerary",
+      "digest": "60ab4e70d198b570"
+    },
+    {
+      "cmd": "canto stay",
+      "digest": "6725a4004ad184e3",
+      "inserted": true
+    },
+    {
+      "cmd": "move P4 stay wait",
+      "digest": "1360603b0d85bd6f"
+    },
+    {
+      "cmd": "move P2 0,5 wait",
+      "digest": "f89c1d84aeaee5af"
+    },
+    {
+      "cmd": "move P4 2,2 attack E5 with Steel Bow",
+      "digest": "df9de831e9b6f0ce"
+    },
+    {
+      "cmd": "move P3 4,3 attack E5 with Iron Sword",
+      "digest": "d01420156e81c3fc"
+    },
+    {
+      "cmd": "move P1 2,1 wait",
+      "digest": "7c1bf5367f636530"
+    },
+    {
+      "cmd": "move P2 1,2 heal P4",
+      "digest": "1cd45a18e1ce1c7d"
+    },
+    {
+      "cmd": "move N1 1,4 wait",
+      "digest": "e09c2a14a0c21c0a"
+    },
+    {
+      "cmd": "move P4 stay attack E3",
+      "digest": "e9fbe66bf50c7cfb"
+    },
+    {
+      "cmd": "take 1",
+      "digest": "8adc7cedbcaeeeaa"
+    },
+    {
+      "cmd": "use Gaspar Vulnerary",
+      "digest": "2ddbe5dd407abaef"
+    },
+    {
+      "cmd": "give Astrid Vulnerary to Gaspar",
+      "digest": "f240609413316124"
+    },
+    {
+      "cmd": "use Gaspar Vulnerary",
+      "digest": "d76cae6b87159705"
+    },
+    {
+      "cmd": "give Edric Vulnerary to Sera",
+      "digest": "df4b235a08cf83f9"
+    },
+    {
+      "cmd": "use Sera Vulnerary",
+      "digest": "3daf8dc0225d1a37"
+    },
+    {
+      "cmd": "go act1_6_2",
+      "digest": "d3a654df4ce03ecd",
+      "note": "healed with vulneraries, so scavenge instead of rest"
+    },
+    {
+      "cmd": "path scavenge",
+      "digest": "227dd3132fef5fe7",
+      "note": "healed with vulneraries, so scavenge instead of rest"
+    },
+    {
+      "cmd": "buy 2 for Edric",
+      "digest": "9c7ea5ca85a8d467"
+    },
+    {
+      "cmd": "buy 2 for Astrid",
+      "digest": "8345e8ec6844d84e"
+    },
+    {
+      "cmd": "restock",
+      "digest": "5c77cf5168dc7bb8"
+    },
+    {
+      "cmd": "buy 6 for Astrid",
+      "digest": "316637845e27af13"
+    },
+    {
+      "cmd": "leave",
+      "digest": "f86bdddb7656268d"
+    },
+    {
+      "cmd": "leave",
+      "digest": "de9e6ce4e2aee486"
+    },
+    {
+      "cmd": "give Astrid Shortbow to Perrin",
+      "digest": "1245db89204f3b49"
+    },
+    {
+      "cmd": "go act1_7_2",
+      "digest": "e3c048144e2a2472"
+    },
+    {
+      "cmd": "deploy last",
+      "digest": "8c142c9edb17770d"
+    },
+    {
+      "cmd": "start",
+      "digest": "413b7913a62e4c2b",
+      "note": "boss map: fall back into the no-danger pocket, heal Edric on the fort, let them come"
+    },
+    {
+      "cmd": "move P1 2,6 wait",
+      "digest": "4a7ad427906e2fce",
+      "note": "boss map: fall back into the no-danger pocket, heal Edric on the fort, let them come"
+    },
+    {
+      "cmd": "move P2 1,6 heal P1",
+      "digest": "0903c8e547bfc83e",
+      "note": "boss map: fall back into the no-danger pocket, heal Edric on the fort, let them come"
+    },
+    {
+      "cmd": "move P4 1,4 wait",
+      "digest": "7e1a40a90311e28c",
+      "note": "boss map: fall back into the no-danger pocket, heal Edric on the fort, let them come"
+    },
+    {
+      "cmd": "move P3 0,3 wait",
+      "digest": "8e17b4c7824929f5",
+      "note": "boss map: fall back into the no-danger pocket, heal Edric on the fort, let them come"
+    },
+    {
+      "cmd": "move P2 1,5 attack E4",
+      "digest": "a6878000d63e9bfc"
+    },
+    {
+      "cmd": "move P1 2,5 attack E4",
+      "digest": "e08a6ffe57ff0e5a"
+    },
+    {
+      "cmd": "move P4 stay equip Shortbow wait",
+      "digest": "12327179f113e529"
+    },
+    {
+      "cmd": "move P3 stay equip Steel Lance wait",
+      "digest": "8c42ac825850e71e"
+    },
+    {
+      "cmd": "move P4 stay attack E3 with Steel Bow",
+      "digest": "620e1e44b10aff21"
+    },
+    {
+      "cmd": "move P3 1,3 attack E3 with Steel Lance",
+      "digest": "71af34a74eb9c330"
+    },
+    {
+      "cmd": "move P2 stay attack E5",
+      "digest": "06832292b39bdb5c"
+    },
+    {
+      "cmd": "move P1 stay attack E5",
+      "digest": "acbffe2c622e9ef8"
+    },
+    {
+      "cmd": "move P3 3,5 wait",
+      "digest": "ef24b52cb300bf8a",
+      "note": "bait the boss off its throne onto Gaspar (lance)"
+    },
+    {
+      "cmd": "move P1 2,6 wait",
+      "digest": "649e6db8efe3d328",
+      "note": "bait the boss off its throne onto Gaspar (lance)"
+    },
+    {
+      "cmd": "move P4 stay wait",
+      "digest": "e2a494c635fc2b5b",
+      "note": "bait the boss off its throne onto Gaspar (lance)"
+    },
+    {
+      "cmd": "move P2 stay wait",
+      "digest": "0432ca57b5b2bbab",
+      "note": "bait the boss off its throne onto Gaspar (lance)"
+    },
+    {
+      "cmd": "move P3 5,1 attack E2 with Steel Lance",
+      "digest": "a535525d5bf20821"
+    },
+    {
+      "cmd": "move P2 4,6 wait",
+      "digest": "a8781959b729f4ee"
+    },
+    {
+      "cmd": "move P4 3,5 wait",
+      "digest": "fb005bccef869501"
+    },
+    {
+      "cmd": "move P1 3,6 wait",
+      "digest": "58c1ab50bbb615d7"
+    },
+    {
+      "cmd": "move P3 6,1 attack E2 with Steel Lance",
+      "digest": "5b163f095d72514e"
+    },
+    {
+      "cmd": "move P2 6,5 attack E1",
+      "digest": "88030aded829eacb"
+    },
+    {
+      "cmd": "move P4 5,4 attack E1 with Steel Bow",
+      "digest": "b38cd2525b9cc761"
+    },
+    {
+      "cmd": "move P1 5,6 wait",
+      "digest": "6466ea5dbd3fa20e"
+    },
+    {
+      "cmd": "move P4 4,4 attack E1 with Steel Bow",
+      "digest": "f8a9594757405f6b"
+    },
+    {
+      "cmd": "move P2 6,6 attack E1",
+      "digest": "3a35ce66781e7193"
+    },
+    {
+      "cmd": "move P1 7,4 seize",
+      "digest": "5d3a2f2e1979c957",
+      "note": "commander takes the throne"
+    },
+    {
+      "cmd": "recruit 3",
+      "digest": "782a2c27b774086b",
+      "note": "Voss: STR 11 lord, best frontline stats"
+    },
+    {
+      "cmd": "take 2 to convoy",
+      "digest": "91448d87ad55db90",
+      "note": "Master Seal worth 3k; promote Sera/Perrin at Lv10"
+    },
+    {
+      "cmd": "go act2_0_2",
+      "digest": "36a8fc896c190af7"
+    },
+    {
+      "cmd": "deploy Edric, Sera, Gaspar, Perrin, Voss",
+      "digest": "63ee38b1e9802208"
+    },
+    {
+      "cmd": "place Gaspar 3,3",
+      "digest": "d90bb2e7d0b509bd"
+    },
+    {
+      "cmd": "start",
+      "digest": "d5f8164506665361"
+    },
+    {
+      "cmd": "move P3 5,5 wait",
+      "digest": "ee244a35d43cd5de"
+    },
+    {
+      "cmd": "move P1 3,5 wait",
+      "digest": "d55db3264f6b3e77"
+    },
+    {
+      "cmd": "move P2 3,6 wait",
+      "digest": "96e5699747a68001"
+    },
+    {
+      "cmd": "move P5 1,4 wait",
+      "digest": "6bcf9844979c7948"
+    },
+    {
+      "cmd": "move P4 3,3 wait",
+      "digest": "4deb3d3b00f33809"
+    },
+    {
+      "cmd": "move P3 5,2 wait",
+      "digest": "683e1552f805ef63"
+    },
+    {
+      "cmd": "move P1 4,6 wait",
+      "digest": "3ea7babafd96ba13"
+    },
+    {
+      "cmd": "move P4 3,5 wait",
+      "digest": "a1a281b76c521b08"
+    },
+    {
+      "cmd": "move P5 3,4 wait",
+      "digest": "996ff3b05839a0ce"
+    },
+    {
+      "cmd": "move P2 stay wait",
+      "digest": "89999ac8e877fbe3"
+    },
+    {
+      "cmd": "move P3 stay wait",
+      "digest": "4a95432a2226dc60"
+    },
+    {
+      "cmd": "move P5 5,5 wait",
+      "digest": "2a594524acaf2b34"
+    },
+    {
+      "cmd": "move P1 6,6 wait",
+      "digest": "ab2780b37fb12d64"
+    },
+    {
+      "cmd": "move P2 5,6 wait",
+      "digest": "baf43b7b3190e15b"
+    },
+    {
+      "cmd": "move P4 4,6 wait",
+      "digest": "955ab871a3761423"
+    },
+    {
+      "cmd": "move P1 stay attack E3",
+      "digest": "5371c9dbefd519b8"
+    },
+    {
+      "cmd": "move P5 6,3 attack E2",
+      "digest": "b87cc4e7b9f37540"
+    },
+    {
+      "cmd": "move P3 stay item Vulnerary",
+      "digest": "151cfe399b71d26a"
+    },
+    {
+      "cmd": "canto stay",
+      "digest": "e7ce4443325be929",
+      "inserted": true
+    },
+    {
+      "cmd": "move P4 7,6 attack E4 with Steel Bow",
+      "digest": "d90264724f75c0d8"
+    },
+    {
+      "cmd": "move P2 stay wait",
+      "digest": "256b6ae202b1756b"
+    },
+    {
+      "cmd": "move P3 stay attack E7 with Iron Sword",
+      "digest": "808e082f1bc09143"
+    },
+    {
+      "cmd": "move P5 stay attack E5",
+      "digest": "d4c9008c74a641de"
+    },
+    {
+      "cmd": "move P4 6,4 attack E1 with Steel Bow",
+      "digest": "4511e9dec5d6249c"
+    },
+    {
+      "cmd": "move P1 4,6 item Vulnerary",
+      "digest": "532486e0c0aa46c4"
+    },
+    {
+      "cmd": "move P2 6,6 attack E4",
+      "digest": "40d694ba10904dc7"
+    },
+    {
+      "cmd": "move P1 5,7 attack E6",
+      "digest": "f65b9f3fa5b8cdc0"
+    },
+    {
+      "cmd": "move P2 7,4 attack E8",
+      "digest": "685169d0913d65ed"
+    },
+    {
+      "cmd": "take 3 to pool",
+      "digest": "d55a493ddd731358"
+    },
+    {
+      "cmd": "accessory Voss Mentor's Band",
+      "digest": "2bfda28c66968a73"
+    },
+    {
+      "cmd": "use Gaspar Vulnerary",
+      "digest": "c8f30a431293fe41"
+    },
+    {
+      "cmd": "give Voss Vulnerary to Perrin",
+      "digest": "6b55d657c1e0a351"
+    },
+    {
+      "cmd": "use Perrin Vulnerary",
+      "digest": "2c2ecf7aceb6791a"
+    },
+    {
+      "cmd": "withdraw Edric Swiftsoles",
+      "digest": "00d4639944267430"
+    },
+    {
+      "cmd": "use Edric Swiftsoles",
+      "digest": "262826e6d6ece9bd"
+    },
+    {
+      "cmd": "go act2_1_1",
+      "digest": "7e4a3acaf78d5fdb"
+    },
+    {
+      "cmd": "deploy last",
+      "digest": "6164ad519a95e8ea"
+    },
+    {
+      "cmd": "place Perrin 3,3",
+      "digest": "12df86e7176c7429"
+    },
+    {
+      "cmd": "place Voss 3,4",
+      "digest": "e5f969aa8415fb03"
+    },
+    {
+      "cmd": "place Gaspar 0,6",
+      "digest": "3166d80eea2f4f7d"
+    },
+    {
+      "cmd": "start",
+      "digest": "aa6da231af4f8ad3"
+    },
+    {
+      "cmd": "move P5 2,4 wait",
+      "digest": "c17ba7bbf7944e49"
+    },
+    {
+      "cmd": "move P4 stay wait",
+      "digest": "c0f2c2a397450dd0"
+    },
+    {
+      "cmd": "move P2 stay wait",
+      "digest": "2418c7b8c6944d18"
+    },
+    {
+      "cmd": "move P1 stay wait",
+      "digest": "0a75182ee8425c63"
+    },
+    {
+      "cmd": "move P3 stay wait",
+      "digest": "b3f42a11b7de1794"
+    },
+    {
+      "cmd": "move P4 2,6 attack E1 with Longbow",
+      "digest": "f531830944d9aaab"
+    },
+    {
+      "cmd": "move P2 3,6 attack E1",
+      "digest": "18de7c75254d07f8"
+    },
+    {
+      "cmd": "move P3 4,6 attack E3 with Javelin",
+      "digest": "0f54929bb1e4af89"
+    },
+    {
+      "cmd": "move P5 3,4 attack E3",
+      "digest": "637a01bf8d3fa06b"
+    },
+    {
+      "cmd": "move P1 3,7 wait",
+      "digest": "878c11891e07e5c9"
+    },
+    {
+      "cmd": "move P5 2,3 attack E7",
+      "digest": "acfca64185838619"
+    },
+    {
+      "cmd": "move P4 2,4 attack E7 with Steel Bow",
+      "digest": "75c321e6c388f7a6"
+    },
+    {
+      "cmd": "move P3 3,2 attack E7 with Iron Sword",
+      "digest": "c9184d6e38a3dbcb"
+    },
+    {
+      "cmd": "move P2 2,5 heal P4",
+      "digest": "70afda04e46932f5"
+    },
+    {
+      "cmd": "move P1 3,6 wait",
+      "digest": "f3b265515f7e3c27"
+    },
+    {
+      "cmd": "move P1 stay attack E2",
+      "digest": "4372e7438651326e"
+    },
+    {
+      "cmd": "move P2 4,5 attack E4",
+      "digest": "4416e26fcfd3e3c3"
+    },
+    {
+      "cmd": "move P3 4,6 attack E4 with Steel Lance",
+      "digest": "04a7cdbd17e86e89"
+    },
+    {
+      "cmd": "move P4 3,7 attack E6 with Steel Bow",
+      "digest": "723b556a4a480dba"
+    },
+    {
+      "cmd": "move P5 4,4 wait",
+      "digest": "75fbbc590ea77f1c"
+    },
+    {
+      "cmd": "move P2 4,7 attack E6",
+      "digest": "3c8a9bfe38450e97"
+    },
+    {
+      "cmd": "move P4 2,7 attack E6 with Steel Bow",
+      "digest": "25ccc54ba432de2f"
+    },
+    {
+      "cmd": "move P3 5,7 attack E5 with Iron Sword",
+      "digest": "690dbd5df54e8ff3"
+    },
+    {
+      "cmd": "take 3 to Sera",
+      "digest": "3d7a97f87cc6a22d",
+      "note": "Sera is the main damage dealer; +SPD helps her double"
+    },
+    {
+      "cmd": "buy 3 for Sera",
+      "digest": "2fa9b5fddfc7d9a6"
+    },
+    {
+      "cmd": "buy 3 for Gaspar",
+      "digest": "ac9fbfc4197b0b6f"
+    },
+    {
+      "cmd": "leave",
+      "digest": "f6d3d31ed1138130"
+    },
+    {
+      "cmd": "equip Sera Crownlight",
+      "digest": "541abb2050053b7d"
+    },
+    {
+      "cmd": "go act2_2_1",
+      "digest": "b2f67d9b09d3a7a9"
+    },
+    {
+      "cmd": "deploy last",
+      "digest": "a6ab8adce6b7e2c1"
+    },
+    {
+      "cmd": "start",
+      "digest": "bfc394e444387e16"
+    },
+    {
+      "cmd": "move P1 1,9 talk",
+      "digest": "5e9f9711fb3c427a"
+    },
+    {
+      "cmd": "move P2 2,4 heal P4",
+      "digest": "c4cb16722a5da8ec"
+    },
+    {
+      "cmd": "move P4 stay wait",
+      "digest": "b34776ae37e98686"
+    },
+    {
+      "cmd": "move P3 stay wait",
+      "digest": "b96277a6003deb37"
+    },
+    {
+      "cmd": "move P5 stay wait",
+      "digest": "e95daba9d24670eb"
+    },
+    {
+      "cmd": "move N1 stay wait",
+      "digest": "12b5849a29f6c3f0"
+    },
+    {
+      "cmd": "move P2 1,6 wait",
+      "digest": "2acfb4aa581d0c59",
+      "note": "9 enemies incl. a fast thief that doubles Sera: pull back so Edric and Cael (DEF 10/12) can join the line"
+    },
+    {
+      "cmd": "move P4 2,6 wait",
+      "digest": "c0b77438ea184d19",
+      "note": "9 enemies incl. a fast thief that doubles Sera: pull back so Edric and Cael (DEF 10/12) can join the line"
+    },
+    {
+      "cmd": "move P3 1,5 equip Steel Lance wait",
+      "digest": "81b859b9e89d6335",
+      "note": "9 enemies incl. a fast thief that doubles Sera: pull back so Edric and Cael (DEF 10/12) can join the line"
+    },
+    {
+      "cmd": "move P5 1,4 wait",
+      "digest": "1495be217213d1bb",
+      "note": "9 enemies incl. a fast thief that doubles Sera: pull back so Edric and Cael (DEF 10/12) can join the line"
+    },
+    {
+      "cmd": "move P1 2,8 wait",
+      "digest": "7377bb93b389a730",
+      "note": "9 enemies incl. a fast thief that doubles Sera: pull back so Edric and Cael (DEF 10/12) can join the line"
+    },
+    {
+      "cmd": "move N1 1,8 wait",
+      "digest": "47c5b4487ce3cddc",
+      "note": "9 enemies incl. a fast thief that doubles Sera: pull back so Edric and Cael (DEF 10/12) can join the line"
+    },
+    {
+      "cmd": "move P1 0,8 wait",
+      "digest": "41e091d3dae1266c",
+      "note": "turtle in the SW corner box: Sera/Perrin enclosed, tanks on the rim"
+    },
+    {
+      "cmd": "move N1 2,8 wait",
+      "digest": "ae12df577ff24d9f",
+      "note": "turtle in the SW corner box: Sera/Perrin enclosed, tanks on the rim"
+    },
+    {
+      "cmd": "move P3 2,9 equip Steel Lance wait",
+      "digest": "7b46f9e082fa5cd3",
+      "note": "turtle in the SW corner box: Sera/Perrin enclosed, tanks on the rim"
+    },
+    {
+      "cmd": "move P4 1,9 equip Shortbow wait",
+      "digest": "08704926303c9843",
+      "note": "turtle in the SW corner box: Sera/Perrin enclosed, tanks on the rim"
+    },
+    {
+      "cmd": "move P2 0,9 wait",
+      "digest": "5eac50dfc1dad864",
+      "note": "turtle in the SW corner box: Sera/Perrin enclosed, tanks on the rim"
+    },
+    {
+      "cmd": "move P5 1,7 wait",
+      "digest": "51722a5fae224e6b",
+      "note": "turtle in the SW corner box: Sera/Perrin enclosed, tanks on the rim"
+    },
+    {
+      "cmd": "move P5 stay attack E3",
+      "digest": "90f3df14f27fbc11"
+    },
+    {
+      "cmd": "move N1 2,7 attack E7",
+      "digest": "a929cea1bfb56f22"
+    },
+    {
+      "cmd": "move P4 1,8 attack E7 with Longbow",
+      "digest": "2467931a0a365c9b"
+    },
+    {
+      "cmd": "move P2 2,8 attack E7",
+      "digest": "670516087f12e369"
+    },
+    {
+      "cmd": "move P3 stay wait",
+      "digest": "d643cc5a00a7def4"
+    },
+    {
+      "cmd": "move P1 stay wait",
+      "digest": "dc9494abec483ed8"
+    },
+    {
+      "cmd": "move P4 stay attack E5 with Steel Bow",
+      "digest": "730138492f090ac5"
+    },
+    {
+      "cmd": "move P2 1,9 item Vulnerary",
+      "digest": "3ce9a84a6c5367b7"
+    },
+    {
+      "cmd": "move P5 stay attack E1",
+      "digest": "1f91dae227938868"
+    },
+    {
+      "cmd": "move P1 1,6 attack E2",
+      "digest": "895cc82b2657c3ad"
+    },
+    {
+      "cmd": "move N1 stay attack E2",
+      "digest": "6831d8b44e8df6a2"
+    },
+    {
+      "cmd": "move P3 2,6 wait",
+      "digest": "cd928f9a092c5c24"
+    },
+    {
+      "cmd": "move P4 0,8 attack E6 with Steel Bow",
+      "digest": "eb6313e0ccbaa652"
+    },
+    {
+      "cmd": "move P5 1,9 attack E4",
+      "digest": "86c4bf31fcb057af"
+    },
+    {
+      "cmd": "move P3 3,8 attack E9 with Iron Sword",
+      "digest": "0b0666cd1895d6af"
+    },
+    {
+      "cmd": "move N1 3,7 attack E8",
+      "digest": "d99d9d644ae33301"
+    },
+    {
+      "cmd": "move P1 stay item Vulnerary",
+      "digest": "0330796f67861e09"
+    },
+    {
+      "cmd": "move N1 2,7 attack E8",
+      "digest": "3f32fee7c60e23e2"
+    },
+    {
+      "cmd": "move P3 3,6 attack E9 with Iron Sword",
+      "digest": "7df86f37f531ec49"
+    },
+    {
+      "cmd": "take 1",
+      "digest": "7a9509bb1c5dba36"
+    },
+    {
+      "cmd": "use Edric Vulnerary",
+      "digest": "f98edcebd6e4d2ba",
+      "note": "top up HP before the elite: HP persists, vulneraries are cheap; Edric 16->24, Cael 11->30, Perrin 14->24"
+    },
+    {
+      "cmd": "use Cael #3",
+      "digest": "21754e1101e59f0c"
+    },
+    {
+      "cmd": "use Cael Vulnerary",
+      "digest": "09f3390f10e36161"
+    },
+    {
+      "cmd": "use Perrin Vulnerary",
+      "digest": "e008f4027079cf06"
+    },
+    {
+      "cmd": "give Gaspar Vulnerary to Edric",
+      "digest": "72b4d1697ed89ce9"
+    },
+    {
+      "cmd": "go act2_3_2",
+      "digest": "70f206965ca34026",
+      "note": "only node in reach; army topped up"
+    },
+    {
+      "cmd": "deploy Edric, Gaspar, Perrin, Voss, Cael",
+      "digest": "1f0051e5680c90b6",
+      "note": "Astrid is the weakest (STR5); Cael has the most damage vs armour (axe 22 attack) and DEF13"
+    },
+    {
+      "cmd": "place Cael 4,5",
+      "digest": "b4297ffeb716084a",
+      "note": "west room connects east only via 5,4/5,5 choke; bring frontliners (Cael DEF13, Voss HP28) near it. Boss is a DEF4 mage: the Knight need not die"
+    },
+    {
+      "cmd": "place Voss 4,6",
+      "digest": "ac0be825e22a0d11"
+    },
+    {
+      "cmd": "start",
+      "digest": "a8eaf6515200f430"
+    },
+    {
+      "cmd": "move P3 3,5 wait",
+      "digest": "0b9534b0bb228522",
+      "note": "turn 1: nothing can reach columns 0-4; close up behind the choke and let them come"
+    },
+    {
+      "cmd": "move P2 3,6 wait",
+      "digest": "8af8106c860c702a"
+    },
+    {
+      "cmd": "move P1 2,5 wait",
+      "digest": "ed87c897568bae16"
+    },
+    {
+      "cmd": "end",
+      "digest": "e9274a56f91e2b76"
+    },
+    {
+      "cmd": "move P5 3,8 wait",
+      "digest": "f4105c8fc437ed4e",
+      "note": "pull back to SW: only the weak Thorns cavalier (MOV5) can reach; Cael(3,8)/Voss(2,7) are bait it can only scratch; mage E6/knight/peg can't reach"
+    },
+    {
+      "cmd": "move P4 2,7 wait",
+      "digest": "8fd4a125449593c7"
+    },
+    {
+      "cmd": "move P3 1,7 wait",
+      "digest": "d6c79097286bdf8f"
+    },
+    {
+      "cmd": "move P1 2,8 wait",
+      "digest": "06650c433152913c"
+    },
+    {
+      "cmd": "move P2 1,8 wait",
+      "digest": "28aa6c05d34f1a16"
+    },
+    {
+      "cmd": "move P4 2,9 wait",
+      "digest": "aa471f6ea69e5607",
+      "note": "only Perrin can hit anything (peg) and every tile he could shoot from is adjacent to the knight with mage E6 in reach: Perrin would die. Retreat to the SW pocket that knight/peg/mage/archer cannot reach; strike first on turn 4"
+    },
+    {
+      "cmd": "move P5 3,9 wait",
+      "digest": "e5574bc407bd3ce8"
+    },
+    {
+      "cmd": "end",
+      "digest": "d0af9a3bd6c8acc6"
+    },
+    {
+      "cmd": "move P3 3,8 attack E4 with Iron Bow",
+      "digest": "cca483c3145fd672",
+      "note": "bows are effective vs the pegasus: Iron Bow 23 dmg 97%, no counter from 3,8"
+    },
+    {
+      "cmd": "move P4 4,7 attack E6",
+      "digest": "06e0468c822b47b7",
+      "note": "Voss doubles mage 17x2 95%; 4,7 can be shielded from the knight by blocking 2,7 and 3,6"
+    },
+    {
+      "cmd": "move P2 3,5 attack E8 with Steel Lance",
+      "digest": "96a67ab6dd243293",
+      "note": "no double on archer; lance 15 from the fort, Cael finishes"
+    },
+    {
+      "cmd": "move P5 4,6 attack E8",
+      "digest": "c2ac6439975ebcde"
+    },
+    {
+      "cmd": "move P1 3,7 wait",
+      "digest": "9fde93ac9216ed26",
+      "note": "vulnerary only heals the user; Edric still blocks the pillar so the knight can't reach Voss"
+    },
+    {
+      "cmd": "move P2 3,4 equip Iron Sword attack E8",
+      "digest": "7f7100656f96156d",
+      "note": "finish the 5-HP archer (no counter at range 1); 3,4 is outside the knight's next reach"
+    },
+    {
+      "cmd": "move P1 5,4 wait",
+      "digest": "f55de02381951e6f",
+      "note": "shake off the knight (MOV3): everyone to tiles it can't reach; Voss takes Edric's vulnerary, Perrin heals. Boss seems leashed (threat 4,5=0 but 5,5=boss): bait him off the throne with Cael next"
+    },
+    {
+      "cmd": "move P4 4,4 trade P1 take Vulnerary",
+      "digest": "f1d567bcf4f64c08"
+    },
+    {
+      "cmd": "move P4 stay item Vulnerary",
+      "digest": "7664fed391083bd1"
+    },
+    {
+      "cmd": "move P3 4,5 item Vulnerary",
+      "digest": "d3a2d34819f604a9"
+    },
+    {
+      "cmd": "move P5 5,5 wait",
+      "digest": "18779938acf1a74a",
+      "note": "bait: only the boss reaches 5,5 (from 7,5, off the throne); Cael 30 HP takes ~19"
+    },
+    {
+      "cmd": "move P1 6,2 wait",
+      "digest": "4e9913a1f5180c8e",
+      "note": "boss stayed on the throne despite threat listing him at 5,5: treat him as stationary. Leave the knight behind (all tiles out of its MOV3 reach); E7/E5 seem to hold until a target is in reach"
+    },
+    {
+      "cmd": "move P3 6,3 wait",
+      "digest": "fdf8fcb31b70a935"
+    },
+    {
+      "cmd": "move P4 6,4 wait",
+      "digest": "bdeaeb40100c8c0a"
+    },
+    {
+      "cmd": "move P2 7,2 wait",
+      "digest": "b117d19634fc8470"
+    },
+    {
+      "cmd": "move P5 7,5 wait",
+      "digest": "2ddb739d99259a82",
+      "note": "bait E7 mage out (Fire 12 vs Cael RES2); out of the knight's reach; 31 dmg only if the boss also moves (he didn't last turn)"
+    },
+    {
+      "cmd": "move P5 9,6 wait",
+      "digest": "20e6f7ae6340aeb1",
+      "note": "E7/E5/boss have not moved in 6 turns even with bait in their MOV+range: treat as static guards (range only). Stage every unit at distance 3 from the boss and E7, out of the knight's reach, for a full strike on turn 8"
+    },
+    {
+      "cmd": "move P4 8,5 wait",
+      "digest": "0ec18d3ffd609846"
+    },
+    {
+      "cmd": "move P3 8,4 wait",
+      "digest": "bbddc4c089df3aaa"
+    },
+    {
+      "cmd": "move P2 10,3 wait",
+      "digest": "6e43fc69e463c36e"
+    },
+    {
+      "cmd": "move P1 8,3 wait",
+      "digest": "1e8030de4dec47b5"
+    },
+    {
+      "cmd": "rewind 289",
+      "digest": "85864c3adbd81dc1",
+      "note": "Vision 1: wrong read of the boss AI. He does step off the throne (1 tile) to strike a unit 3 tiles away, and he doubles Cael (AS 0). Replan: bait him off the throne with a full-HP Voss, whom he can't double"
+    },
+    {
+      "cmd": "move P3 8,4 wait",
+      "digest": "39aa6ba1eb14805b",
+      "note": "Voss (heals to 29, AS8 so no double) is the only unit within 3 of the throne: the boss can reach him only from 10,5, off the throne. Everyone else 4+ from the throne and E7, out of the knight's reach; Edric 5 from the throne to seize after the kill"
+    },
+    {
+      "cmd": "move P4 8,5 item Vulnerary",
+      "digest": "189399b133a05566"
+    },
+    {
+      "cmd": "move P1 9,2 wait",
+      "digest": "3600dae38ed3128f"
+    },
+    {
+      "cmd": "move P2 8,3 wait",
+      "digest": "0abe312f1df55316"
+    },
+    {
+      "cmd": "move P5 7,6 wait",
+      "digest": "dfcc5ea4f4316f94"
+    },
+    {
+      "cmd": "move P3 9,4 attack E1 with Steel Bow",
+      "digest": "75831da8ec635445",
+      "note": "boss off the throne: Perrin 16 @97% (eats one 16 counter at 17 HP), Gaspar finishes, Edric seizes"
+    },
+    {
+      "cmd": "move P2 9,5 attack E1",
+      "digest": "f58fbd0f49cd067a"
+    },
+    {
+      "cmd": "move P1 11,5 seize",
+      "digest": "7ba12e870e820966",
+      "note": "seize on turn 8 (par 11)"
+    },
+    {
+      "cmd": "take 2",
+      "digest": "ec2a84e8c6a5ddd4"
+    },
+    {
+      "cmd": "take 3 forge Voss Steel Sword armorbane",
+      "digest": "1ae92c0007f7eab0",
+      "note": "the Prismatic Stone offers armorbane: the army's answer to DEF-18 knights; Voss doubles knights (AS 8 vs -3)"
+    },
+    {
+      "cmd": "go act2_4_2",
+      "digest": "7547a7f83463e7e2"
+    },
+    {
+      "cmd": "buy Helm Splitter Scroll for Cael",
+      "digest": "6fce91fce87dd52e",
+      "note": "Helm Splitter = x3 axe might vs armour: Cael 42 attack vs DEF 18. Vulneraries for Perrin(2HP)/Gaspar; Barrier Ring for Edric (RES 3 vs mages). Keep 2600+ for Sera"
+    },
+    {
+      "cmd": "buy Vulnerary for Perrin",
+      "digest": "070c59171bba1873"
+    },
+    {
+      "cmd": "restock",
+      "digest": "5b65d810e3cac5b3"
+    },
+    {
+      "cmd": "buy Vulnerary for Gaspar",
+      "digest": "1e396f030df85efa"
+    },
+    {
+      "cmd": "buy Barrier Ring for Edric",
+      "digest": "280a363331e3061e"
+    },
+    {
+      "cmd": "leave",
+      "digest": "7b6e59c52d2eeb71"
+    },
+    {
+      "cmd": "teach Cael Helm Splitter Scroll on Steel Axe",
+      "digest": "88c28330dfd26c2b"
+    },
+    {
+      "cmd": "use Perrin Vulnerary",
+      "digest": "d9a75aa0a0b4d343"
+    },
+    {
+      "cmd": "use Perrin Vulnerary",
+      "digest": "9d40b93b3791eb9f"
+    },
+    {
+      "cmd": "use Gaspar Vulnerary",
+      "digest": "5ce9ec6795d7aaca"
+    },
+    {
+      "cmd": "use Voss Vulnerary",
+      "digest": "7f0f212e95cf0b08"
+    },
+    {
+      "cmd": "accessory Gaspar Shield Ring",
+      "digest": "131f6b5f243f8ab2"
+    },
+    {
+      "cmd": "accessory Perrin Veteran's Crest",
+      "digest": "14c07057bbd6cee9"
+    },
+    {
+      "cmd": "go act2_5_3",
+      "digest": "8ea082baaef1d72e",
+      "note": "recruit a mage (Tobiah): magic back in the army; leads to the church for Sera"
+    },
+    {
+      "cmd": "deploy last",
+      "digest": "585f93ad4b665afd"
+    },
+    {
+      "cmd": "place Cael 3,7",
+      "digest": "adfe2f0a0818dffe"
+    },
+    {
+      "cmd": "place Perrin 3,0",
+      "digest": "f25a6b07b851d44c"
+    },
+    {
+      "cmd": "place Gaspar 2,8",
+      "digest": "287b13e2428ba298"
+    },
+    {
+      "cmd": "start",
+      "digest": "5e914c84d03a57df"
+    },
+    {
+      "cmd": "move P1 4,5 talk",
+      "digest": "241193a1c7005191",
+      "note": "recruit Tobiah (mage, MAG14) on turn 1"
+    },
+    {
+      "cmd": "end",
+      "digest": "e25fad6ca0cc9101",
+      "note": "hold the west bank out of reach; let them cross the bridges into us"
+    },
+    {
+      "cmd": "move P6 5,6 attack E4",
+      "digest": "332a72eee0ce065e"
+    },
+    {
+      "cmd": "move P5 6,6 attack E4",
+      "digest": "c95db664c3e13ef6",
+      "note": "Cael blocks the south bridge (DEF 13: wyvern/soldier/thief do 1-5); 42% to finish the 2-HP myrmidon, but Gaspar finishing would leave him on the bridge for wyvern+soldier (23 vs 18 HP)"
+    },
+    {
+      "cmd": "move P4 3,4 wait",
+      "digest": "113b07251661ce2c",
+      "note": "north group (E1,E5,E8,E3) gets no target this phase: regroup on 0-threat tiles in a block that can hit whatever crosses next turn"
+    },
+    {
+      "cmd": "move P3 2,3 wait",
+      "digest": "36d56b9b81e50a2d"
+    },
+    {
+      "cmd": "move P2 4,6 wait",
+      "digest": "69c4affc539a30ac"
+    },
+    {
+      "cmd": "move P1 stay wait",
+      "digest": "fdf5baac53166f73"
+    },
+    {
+      "cmd": "move P3 5,4 attack E7 with Steel Bow",
+      "digest": "65bc8607a935cdb7",
+      "note": "bow effective vs wyvern 27 dmg; Tobiah's Wildfire one-shots the thief"
+    },
+    {
+      "cmd": "move P6 stay attack E2",
+      "digest": "f39e7d9ef0a7b63a"
+    },
+    {
+      "cmd": "move P5 7,6 attack E6",
+      "digest": "4fbac4c15988614b",
+      "note": "Cael keeps the bridge (only one ground foe can reach him); others on 0-threat tiles"
+    },
+    {
+      "cmd": "move P1 3,5 wait",
+      "digest": "9c28a6506694cf37"
+    },
+    {
+      "cmd": "move P4 4,4 wait",
+      "digest": "9d82305321510d6a"
+    },
+    {
+      "cmd": "move P2 3,6 wait",
+      "digest": "c3e27672ec68c078"
+    },
+    {
+      "cmd": "move P3 4,6 attack E3",
+      "digest": "edd1e60ce089eaec",
+      "note": "Perrin one-shots the wyvern; Tobiah+Voss kill soldier with Voss ending on the north bridge exit 5,1 so only one fighter can reach him (he doubles them 16x2); Cael finishes E6"
+    },
+    {
+      "cmd": "move P6 4,3 attack E1",
+      "digest": "f7ccc4c87b8aa27c"
+    },
+    {
+      "cmd": "move P4 5,1 attack E1",
+      "digest": "ab7c517588784451"
+    },
+    {
+      "cmd": "move P5 stay attack E6",
+      "digest": "30646f8c5050136b"
+    },
+    {
+      "cmd": "move P2 4,2 attack E1",
+      "digest": "9358ab540defe0c7",
+      "note": "Voss missed twice at 85%; Gaspar finishes from the fort (100%), so only E5 on the bridge can reach Voss"
+    },
+    {
+      "cmd": "move P1 stay wait",
+      "digest": "007f2b24ae211002"
+    },
+    {
+      "cmd": "move P6 4,1 attack E5",
+      "digest": "6264ab3720990d51",
+      "note": "Tobiah kills E5 at range; Gaspar hands Voss a vulnerary so he holds the bridge exit vs the last fighter at 23 HP and kills it on the counter (16x2 vs 28)"
+    },
+    {
+      "cmd": "move P2 5,2 trade P4 give Vulnerary",
+      "digest": "413f987750c44571"
+    },
+    {
+      "cmd": "move P4 stay item Vulnerary",
+      "digest": "09212c71568f496e"
+    },
+    {
+      "cmd": "move P2 stay wait",
+      "digest": "fc3f105ad8cdf88d"
+    },
+    {
+      "cmd": "end",
+      "digest": "f5ddcfa081b384ec"
+    },
+    {
+      "cmd": "move P6 stay attack E8",
+      "digest": "a801bf6c9a5daa15"
+    },
+    {
+      "cmd": "take 3 Tobiah",
+      "digest": "d972c427483a1863",
+      "note": "Witchfire: 30 crit tome for the new mage (boss killer)"
+    },
+    {
+      "cmd": "go act2_6_3",
+      "digest": "1489df6b0efd28ab"
+    },
+    {
+      "cmd": "heal",
+      "digest": "e8065555364f7289",
+      "note": "revive Sera (healer/light mage), free heal, Field Medic for vulneraries all round (no one at Lv10 to promote)"
+    },
+    {
+      "cmd": "revive Sera",
+      "digest": "e8e6e126af91479f"
+    },
+    {
+      "cmd": "bless 1",
+      "digest": "858f3ebd29830eaa"
+    },
+    {
+      "cmd": "leave",
+      "digest": "6e0b5ab93cbb37a4"
+    },
+    {
+      "cmd": "go act2_6_3",
+      "digest": "d895f0c2954d9355"
+    },
+    {
+      "cmd": "heal",
+      "digest": "bcd046df3d610c7f"
+    },
+    {
+      "cmd": "leave",
+      "digest": "d0af1a31bc2207ca"
+    },
+    {
+      "cmd": "withdraw Sera Crownlight",
+      "digest": "e10bceca970e5025"
+    },
+    {
+      "cmd": "withdraw Sera Heal",
+      "digest": "daa6a7ee13a02037"
+    },
+    {
+      "cmd": "equip Sera Crownlight",
+      "digest": "b4ad0e5f5ce76598"
+    },
+    {
+      "cmd": "go act2_7_2",
+      "digest": "e8a5825756319b41"
+    },
+    {
+      "cmd": "path scavenge",
+      "digest": "2e9aefa5608d0cf2"
+    },
+    {
+      "cmd": "buy Mailbane for Gaspar",
+      "digest": "c34c20fcd29c0234",
+      "note": "Mailbane (3x vs armoured) for Gaspar (Sword Mast): a second armour answer before the act boss"
+    },
+    {
+      "cmd": "leave",
+      "digest": "ef6cd3b0d96a48fc"
+    },
+    {
+      "cmd": "leave",
+      "digest": "e2069f65521b13b6"
+    },
+    {
+      "cmd": "go act2_8_2",
+      "digest": "a1789fb8413b067f"
+    },
+    {
+      "cmd": "deploy Edric, Tobiah, Voss, Cael, Sera",
+      "digest": "2c723069d581aa05",
+      "note": "two magic users + Voss (armorbane) + Cael (Helm Splitter) covers armour; Sera heals"
+    },
+    {
+      "cmd": "start",
+      "digest": "001508759ac4a44c"
+    },
+    {
+      "cmd": "end",
+      "digest": "d761fd39a3300a25",
+      "note": "turn 1: nothing in reach; let them come to the west side"
+    },
+    {
+      "cmd": "move P3 3,3 wait",
+      "digest": "a491ad6e0ec98cbc",
+      "note": "hold the west; Voss (30 HP, doubles) baits from the 4,5 forest"
+    },
+    {
+      "cmd": "move P4 3,5 wait",
+      "digest": "ad13c2554213f2fd"
+    },
+    {
+      "cmd": "move P5 3,6 wait",
+      "digest": "9a6807ede1cb6487"
+    },
+    {
+      "cmd": "move P1 2,3 wait",
+      "digest": "f6b465ef3081b676"
+    },
+    {
+      "cmd": "move P2 4,5 wait",
+      "digest": "e0cbad8e55a13662"
+    },
+    {
+      "cmd": "move P3 4,3 attack E4",
+      "digest": "45b46f317e3030f7",
+      "note": "Cael (DEF14, axe beats lance) opens on the Grievous cavalier"
+    },
+    {
+      "cmd": "move P2 5,4 attack E4",
+      "digest": "7e44b6688d94b710",
+      "note": "Voss finishes the cavalier from the mountain (DEF12, +30 avoid): fighter/mage/peg/myrmidon barely touch him there"
+    },
+    {
+      "cmd": "move P4 stay attack E3",
+      "digest": "5e400080e08b770b"
+    },
+    {
+      "cmd": "move P5 4,5 attack E8",
+      "digest": "ea4a1584c9cbde27"
+    },
+    {
+      "cmd": "move P1 stay wait",
+      "digest": "bebfa849efe61a04"
+    },
+    {
+      "cmd": "move P3 stay attack E5",
+      "digest": "c9102a88c4a9fe3e"
+    },
+    {
+      "cmd": "move P2 stay attack E5",
+      "digest": "669001eb76eb8abe"
+    },
+    {
+      "cmd": "move P4 stay attack E8",
+      "digest": "91270e69188e549a"
+    },
+    {
+      "cmd": "move P5 2,4 item Vulnerary",
+      "digest": "98b03092f1827c09",
+      "note": "Sera (7 HP) would die to a missed Glimmer + myrmidon double; retreat and heal instead"
+    },
+    {
+      "cmd": "move P1 stay wait",
+      "digest": "6fe5823e696520ee"
+    },
+    {
+      "cmd": "move P1 4,2 attack E7",
+      "digest": "61d1284090ba6770",
+      "note": "Edric takes the mage kill (XP, 4 dmg counter); Voss on the cleric; Sera staffs Cael"
+    },
+    {
+      "cmd": "move P2 6,4 attack E2",
+      "digest": "2cc7f96dddcd2d8a"
+    },
+    {
+      "cmd": "move P5 3,3 heal P3",
+      "digest": "e006c80f83eeecbb"
+    },
+    {
+      "cmd": "move P4 4,4 wait",
+      "digest": "2187575254eacf56",
+      "note": "Voss (29 HP, forest) is the only unit in the boss's listed reach: bait him off the throne"
+    },
+    {
+      "cmd": "move P3 stay wait",
+      "digest": "7d9580669c95f7de"
+    },
+    {
+      "cmd": "move P2 9,3 wait",
+      "digest": "ba31954274f6167d",
+      "note": "boss and thief held last turn (leash): bait with Voss (29 HP, no double) 2 tiles from the throne so the boss steps off to 10,3; Tobiah healed to full for Unscarred (+2); Sera/Tobiah/Cael staged 4+ from the throne to strike him off it next turn"
+    },
+    {
+      "cmd": "move P4 6,3 item Vulnerary",
+      "digest": "499d6ae33bb7ddf5"
+    },
+    {
+      "cmd": "move P3 6,4 wait",
+      "digest": "4a67e4307a09f489"
+    },
+    {
+      "cmd": "move P5 5,3 wait",
+      "digest": "8e6646c2244f32e8"
+    },
+    {
+      "cmd": "move P1 stay wait",
+      "digest": "2bd14e8e11b5cc65"
+    },
+    {
+      "cmd": "move P4 8,3 attack E1 with Witchfire",
+      "digest": "2a5eaa73a2b598bb",
+      "note": "boss is off the throne at 10,3 (24 HP): Tobiah 18 at range 2 (no counter), then Cael/Voss finish, a lord seizes"
+    },
+    {
+      "cmd": "move P2 7,4 wait",
+      "digest": "d5bcb97ac8abefb1",
+      "note": "Tobiah missed (74%). No rewind: the same rolls would hit whoever goes first. Instead Voss (9 HP) withdraws and is healed, Cael (32 HP, survives a double at 28) takes 9,3 so the boss can't reach Tobiah; strike next turn with Tobiah+Sera+Cael"
+    },
+    {
+      "cmd": "move P3 9,3 wait",
+      "digest": "9f231f99d0516822"
+    },
+    {
+      "cmd": "move P5 6,4 heal P2",
+      "digest": "98a49784b728dba6"
+    },
+    {
+      "cmd": "move P1 6,3 wait",
+      "digest": "19e07181b7f7bbf7"
+    },
+    {
+      "cmd": "move P4 stay attack E1 with Witchfire",
+      "digest": "d0b65b0891328e13"
+    },
+    {
+      "cmd": "move P3 11,3 seize",
+      "digest": "958609df33c37009",
+      "note": "Cael (lord) seizes"
+    },
+    {
+      "cmd": "recruit 1",
+      "digest": "cfa3449b2e45dcb7",
+      "note": "Radek: 31 HP AS 10 frontliner"
+    },
+    {
+      "cmd": "take 2",
+      "digest": "46b656637c9e074a"
+    }
+  ],
+  "provenance": {
+    "rebasedFrom": "docs/playtests/2026-10-05-seed7/played",
+    "sourceRevision": 304,
+    "sourceProvenance": null,
+    "commands": 304,
+    "digestVersionFrom": 1,
+    "digestVersionTo": 2,
+    "changed": [],
+    "inserted": [
+      {
+        "before": 82,
+        "sourceCommand": "move P4 stay wait",
+        "cmd": "canto stay"
+      },
+      {
+        "before": 160,
+        "sourceCommand": "move P4 7,6 attack E4 with Steel Bow",
+        "cmd": "canto stay"
+      }
+    ],
+    "rewritten": [
+      {
+        "at": 7,
+        "from": "end",
+        "to": "end again"
+      },
+      {
+        "at": 253,
+        "from": "use Perrin Vulnerary",
+        "to": "use Perrin #1"
+      },
+      {
+        "at": 254,
+        "from": "use Cael Vulnerary",
+        "to": "use Cael #1"
+      },
+      {
+        "at": 255,
+        "from": "use Cael Vulnerary",
+        "to": "use Cael #1"
+      }
+    ]
+  },
+  "outcome": {
+    "kind": "voluntary",
+    "reason": "Act 2 complete (elite seize won T8/par 11, act boss won T8/par 10, no deaths); task scope was Act 2",
+    "at": 406
+  }
+}

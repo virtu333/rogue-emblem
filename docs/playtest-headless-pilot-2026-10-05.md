@@ -41,10 +41,22 @@ hypotheses. The raw record and a replayable copy are in `docs/playtests/2026-10-
     Sera fell.
   - Thunderbrand: a magic sword, Act 3 and later.
 
-  The route's three Act 1 shop inventories, the Act 2 caravan and the nine spoils
-  offered no armour answer. A Monte Carlo of shop generation for this army puts
-  Mailbane in about 45% of Act 1 shops and 24% of Act 2 shops. That makes "none in
-  three Act 1 inventories" roughly a 16% event.
+  None of the route's shops offered an armour answer: two Act 1 shops (the second one
+  restocked once) and an Act 2 caravan. Nor did any of its nine spoils.
+  `docs/playtests/2026-10-05-seed7/shop-odds.mjs` measures how unusual that was. It
+  replays the pilot and, at each shop, redraws the stock from exactly what it was
+  drawn from: the army as it stood, the shop's count bonus, and the names stocked by
+  earlier shops, which a shop avoids repeating.
+  - Each Act 1 shop stocked an anti-armour weapon about 40% of the time (41.5% and
+    39.9%). The caravan did 7.5% of the time.
+  - Drawn in order, each shop's history taken from the shops drawn before it, **36.5%**
+    of draws of these three shops stock none. This holds the army and the path fixed,
+    and it does not draw the restock.
+
+  An earlier figure here, "roughly a 16% event", multiplied three Act 1 shops as if
+  they were independent. The shops are not independent (they avoid repeating each
+  other's stock), and the third inventory was a caravan's. Missing an armour answer on
+  this route is common, about one run in three.
 
   The "forced" elite was chosen two rows earlier. `act2_1_1` led only to the recruit
   node and then the elite. `act2_1_3` led to ordinary battles (`act2_2_4`, `act2_3_3`).
@@ -62,6 +74,81 @@ hypotheses. The raw record and a replayable copy are in `docs/playtests/2026-10-
 - **The Danger overlay shows possible reach, not intent.** A boss holding its throne is
   still a boss that could move. Any fix is to explain what Danger means, not to shrink
   it to predicted behaviour.
+
+## What the forks showed (2026-10-06)
+
+Two agents forked this run with the current adapter (Vision, Canto, Measured Step,
+art binding and trade all modelled), each from a decision the pilot got wrong. Their
+whole records are in `docs/playtests/2026-10-05-seed7/forks/`.
+
+| Fork | From | Outcome |
+|---|---|---|
+| `elite` | Command 251: the elite seize `act2_3_2`, entered with Sera already fallen. | Won the elite in 8 turns (par 11) **with no permanent losses, using one Vision to undo a lethal outcome** (Cael's death). Then won the rest of Act 2, including the act boss in 8 turns (par 10), and revived Sera. Stopped voluntarily at the start of Act 3. |
+| `sera` | Command 243: the last order before Sera fell in `act2_2_1`. | Kept Sera alive with one Vision. Won the elite in 7 turns (par 11), using a second Vision after a missed 82% shot. Cleared Act 2 and three Act 3 battles with nobody lost. Stopped at 520 commands on its call budget (`stop timeout`), with 1 charge left. |
+
+A fork made by an informed agent proves a line exists. It does not measure how hard
+the battle is to win at the first attempt. These results bound the pilot's claims; they
+do not replace them with a difficulty estimate.
+
+- **The elite was not an armour wall. The pilot misread its objective.**
+  - The `elite` fork's army had no magic and no anti-armour weapon: Edric, Gaspar,
+    Perrin, Voss and Cael, all physical.
+  - It won by never fighting the DEF 18 Knight. A seize needs only the boss dead (a
+    mage with DEF 4) and a lord on the throne. The Knight's MOV is 3, so the fork kept
+    every unit out of its reach and baited the boss.
+  - The pilot had spent its turns trying to kill the Knight.
+  - The working hypothesis is now **objective comprehension and recovery literacy**
+    (using Vision), ahead of armour stats.
+  - The adapter now states each objective's whole rule in its text and its JSON
+    (`objectiveRule`): "No other enemy need fall." The game's own words are "Defeat the
+    boss, then capture the throne with a Lord" on the deploy screen. Whether the game
+    should also say that the rest may live is a design decision.
+- **With a mage, armour is easy.** Knights and Great Knights have RES 2–3.
+  - Sera's Crownlight did 19×2 to the elite Knight, and Lucan did 24×2 to a Great
+    Knight.
+  - Physical attacks did 0–5.
+  - Armorbane on a bow did 10×2 to the Knight but 1 to a Great Knight.
+
+  So surviving armour leans on keeping a mage alive, which is exactly what the pilot
+  lost.
+- **Cael's death came from overriding Danger, not from trusting it.** The `elite`
+  fork's command trace:
+  1. Turn 5: Cael waited at 5,5 as bait. `threat 5,5` listed the boss, but reaching
+     5,5 meant coming 4 tiles off the throne, and the boss stayed.
+  2. Turn 6: from that one refusal, the agent noted "treat him as stationary".
+  3. Turn 7: the agent wrote "treat as static guards (range only)". It moved Cael to
+     9,6, 3 tiles from the throne, without asking `threat` about that tile.
+  4. The boss stepped 1 tile off the throne and doubled Cael (19 + 19 against 30 HP).
+     The agent spent a Vision charge, and baited the boss instead with Voss, whom the
+     boss could not double.
+
+  The AI's rule is in `AIController`: a boss on a seize map moves only to tiles within
+  1 of its throne, until turn pressure enrages it. Danger drew the boss's whole reach,
+  and 9,6 was in it. The agent generalised from a 4-tile non-move to "never moves".
+  The game does not tell the player this rule; its help says "the boss guarding it".
+  Saying so in-game is a design decision. The adapter keeps Danger as reach, and says
+  what that means wherever it shows it, the JSON included (`dangerMeaning`).
+- **Seize bosses can be baited.** A sturdy unit standing just inside a boss's reach
+  (its range, plus the one tile it may step off the throne) draws it out. Both forks
+  won all four of their Act 2 seize-boss fights this way: the elite and the act boss
+  in each. The `sera` agent found it "flat, or
+  exploitable".
+- **Promoted units' kill XP falls off a cliff. This is the formula, not a bug.**
+  - `getXpEffectiveLevel` counts a promoted unit as 12 levels higher.
+  - `calculateCombatXP` pays 40 for a kill at equal effective level, 25 at 3 levels of
+    advantage, 9 at 4, and 1 from 5 on. Those figures include the kill bonus, halved
+    at 4 to 6 and gone from 7.
+  - A newly promoted Lv1 unit therefore counts as Lv13. The `sera` fork saw it earn 1
+    XP for a Lv8 Soldier, about 11 for a Lv9 Thief, and about 38 for a promoted Lv1
+    Duelist.
+  - Gaspar's "1 XP per kill" in the pilot is the same rule.
+
+  Whether a fall from 25 to 1 across two levels is intended is a balance question.
+- **Act 2 is hard through numbers and positioning more than stats.** The `sera`
+  agent waited out the first turn in 3 of 4 Act 2 battles before striking first.
+  Damage came only from a misread reach.
+- **Gold piles up.** The `sera` fork held 12,775 G by the middle of Act 3, with thin
+  shops to spend it in. That is a hypothesis from one run.
 
 ## The game, as the player saw it
 
@@ -87,7 +174,8 @@ hypotheses. The raw record and a replayable copy are in `docs/playtests/2026-10-
 - **The Danger overlay overstates a boss that never leaves its throne.** It draws the
   boss's full movement reach (MOV 7), but the AI only engaged units within about two
   tiles. The adapter shows what the game shows; the player can't tell a guard from a
-  chaser.
+  chaser. (The forks found the rule: one tile off the throne, then its range. See
+  "What the forks showed".)
 - **A completed first battle shows "Fog" on the Loom.** `describeLoomNode` hides fog on
   the first battle only while `completedBattles` is 0. After that battle, its node keeps
   the generator's fog flag, which the battle never used (`RunManager.getBattleParams`

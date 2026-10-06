@@ -1,0 +1,43 @@
+{
+  "created": "2026-10-06T00:10:31.100Z",
+  "adapter": {
+    "version": 2,
+    "sessionFormat": 2,
+    "snapshotVersion": 2
+  },
+  "code": {
+    "commit": "80a0156cc57d9679191f4719abcb97c25b6b57b2",
+    "dirty": false
+  },
+  "data": "560882fb5f59bc40",
+  "options": {
+    "seed": 7,
+    "difficulty": "normal",
+    "meta": "none",
+    "commander": null,
+    "partner": null,
+    "invincible": false
+  },
+  "unsupported": [
+    {
+      "id": "relocation-staves",
+      "what": "Rescue and warp staves."
+    },
+    {
+      "id": "battle-seals",
+      "what": "Promotion and reclass seals used in battle (they work on the route map)."
+    },
+    {
+      "id": "ballista",
+      "what": "Manning a ballista."
+    }
+  ],
+  "agent": {
+    "description": "fork of the seed-7 pilot right after Sera's fall"
+  },
+  "forkedFrom": {
+    "session": "play-sessions/seed7",
+    "at": 243,
+    "revision": 0
+  }
+}

@@ -3,13 +3,20 @@
 // (fog hides what it hides), and none of their advice: no ranking of tiles, no
 // "best" anything. Read-only.
 
-import { knowledgeOf, dangerMap, movementTiles, tileKey } from './battleView.js';
+import {
+  DANGER_MEANING,
+  OBJECTIVE_TEXT,
+  knowledgeOf,
+  dangerMap,
+  movementTiles,
+  tileKey,
+} from './battleView.js';
 import { statusDescriptions } from '../../src/engine/BattleInformation.js';
 import { calculateEffectiveSpeed } from '../../src/engine/Combat.js';
 import { getWeaponArtBindings } from '../../src/engine/WeaponArtSystem.js';
 import { UNSUPPORTED } from './capabilities.js';
 
-export const OBSERVATION_VERSION = 1;
+export const OBSERVATION_VERSION = 2;
 
 function item(i) {
   if (!i) return null;
@@ -78,6 +85,7 @@ function battleObservation(game) {
     phase: b.turnManager.currentPhase,
     par: Number.isFinite(b.turnPar) ? b.turnPar : null,
     objective: bc.objective,
+    objectiveRule: OBJECTIVE_TEXT[bc.objective] ?? null,
     throne: bc.thronePos || null,
     escapeTiles: bc.escapeTiles || [],
     fogOfWar: Boolean(b.grid.fogEnabled),
@@ -95,6 +103,7 @@ function battleObservation(game) {
     enemies: b.enemyUnits.filter((u) => known.isKnown(u)).map((u) => unit(u, pb.ids, b)),
     // Visible enemies able to strike each tile next enemy phase (the Danger overlay).
     danger: Object.fromEntries(damage),
+    dangerMeaning: DANGER_MEANING,
     statusThreat: [...status],
   };
 }

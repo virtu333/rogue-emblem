@@ -54,12 +54,18 @@ export const TERRAIN_GLYPHS = Object.freeze({
   'Acidic Bog': 'x',
 });
 
-const OBJECTIVE_TEXT = {
-  rout: 'Rout: defeat every enemy.',
-  seize: 'Seize: defeat the boss, then move a lord onto the throne and Seize.',
+/** Each objective's rule as the battle decides it (HeadlessBattle._checkBattleEnd). */
+export const OBJECTIVE_TEXT = {
+  rout: 'Rout: defeat every enemy, reinforcements included.',
+  seize:
+    'Seize: defeat the boss, then move a lord onto the throne and Seize. No other enemy need fall.',
   escape:
-    'Escape: move your commander onto an escape tile (X) and Escape. Others may escape first (gold for each).',
+    'Escape: lords leave from an escape tile (X) with Escape. The battle is won once your commander has escaped and no other lord is left on the field. Others may escape too (gold for each).',
 };
+
+/** What Danger and threat counts mean, wherever they are shown. */
+export const DANGER_MEANING =
+  'Reach, not intent: the visible enemies that could strike a tile next enemy phase, read from the board as it stands (your units included). An enemy holding its post may stay put; one that moves can open a path for another.';
 
 export const tileKey = (col, row) => `${col},${row}`;
 
@@ -518,7 +524,7 @@ export function battleView(battle, ids, { title = '' } = {}) {
   const enemies = battle.enemyUnits.filter((u) => known.isKnown(u));
   if (enemies.length) {
     out.push(
-      'Danger (visible enemies able to strike each tile next enemy phase; s = status staff only; # impassable; ? fog, unknown). It is reach, not intent (an enemy holding its post may stay put), and it is read from the board as it stands: moving your units opens or closes enemy paths.',
+      `Danger (count of visible enemies able to strike each tile next enemy phase; s = status staff only; # impassable; ? fog, unknown). ${DANGER_MEANING}`,
     );
     out.push(renderDanger(battle, ids));
   }
@@ -921,7 +927,7 @@ export function threatView(battle, ids, col, row, mover = null) {
     `Tile ${col},${row} (${terrainName(battle, col, row)}): ${t.count} damage source(s)${t.fogged ? ' visible (fog may hide more)' : ''}.`,
     `  Can strike it: ${names(t.damage)}${t.ballistas.length ? ` + ${t.ballistas.length} ballista(s)` : ''}`,
     t.status.length ? `  Status staff only: ${names(t.status)}` : null,
-    '  (Reach from the board as it stands, your units included: one that moves away can open a path.)',
+    `  (${DANGER_MEANING})`,
   ]
     .filter(Boolean)
     .join('\n');

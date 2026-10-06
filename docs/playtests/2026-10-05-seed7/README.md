@@ -27,6 +27,24 @@ and replayed rather than taken from the narrative alone. The narrative is
     every move he made was planned without it. Staying where he acted is what the old
     adapter did.
 
+- **`forks/elite/`** and **`forks/sera/`** hold two alternative lines played on
+  2026-10-06 with the current adapter. `elite` starts at command 251, entering the
+  elite seize; `sera` starts at command 243, before Sera fell. Each folder is a whole
+  session:
+  - `session.json` holds every command from the start of the run. The fork point is
+    in `manifest.json` under `forkedFrom.at`.
+  - `manifest.json` also names the code commit and data fingerprint it was played on,
+    and the agent's brief.
+  - `journal.jsonl` holds everything the agent was shown: every view, query answer,
+    refusal and note, plus each Vision rewind.
+  - `diagnostics.jsonl` holds the omniscient feed, for analysis only.
+  - `report.json` is the verified report: the replay matched every digest.
+
+  The findings are in the pilot report under "What the forks showed".
+- **`shop-odds.mjs`** measures how often this route's shops would have offered an
+  anti-armour weapon. It replays `replay/` and redraws each shop's stock from what that
+  stock was drawn from (`node docs/playtests/2026-10-05-seed7/shop-odds.mjs [samples]`).
+
 `replay/` was checked against `played/`. Across all 304 commands, every HP change,
 fall, level-up, gold award and victory the journal reported is reproduced.
 
@@ -34,6 +52,8 @@ fall, level-up, gold award and victory the journal reported is reproduced.
 
 ```bash
 cp -r docs/playtests/2026-10-05-seed7/replay play-sessions/seed7
+cp -r docs/playtests/2026-10-05-seed7/forks/elite play-sessions/seed7-elite
+npm run -s play -- report --session seed7-elite        # replays, checking every digest
 npm run -s play -- log --session seed7               # the commands, with the agent's notes
 npm run -s play -- fork seed7-at-200 --at 200 --session seed7
 npm run -s play -- look --session seed7-at-200        # the game as it stood after command 200
@@ -60,5 +80,8 @@ Rules the adapter lacked then shaped the game:
   Sera's fall.
 - Weapon-art scrolls could not be bound at all (`teach` refused them).
 
-So the game's verdicts on scrolls and on recovering from Sera's fall need a replay
-with those rules before they count as findings.
+So the game's verdicts on scrolls and on recovering from Sera's fall needed a replay
+with those rules before they could count as findings. The forks are that replay:
+- Sera's fall could be undone (`sera`).
+- The elite could be won without her (`elite`): with no permanent losses, using one
+  Vision to undo a lethal outcome.
