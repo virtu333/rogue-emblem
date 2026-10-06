@@ -51,6 +51,8 @@ import { portraitCanvasFrame } from './portraitArt.js';
 import { epithetText } from '../engine/DeedTitles.js';
 import { fitCanvasText } from './deedDisplay.js';
 import { drawCanvasXpRow } from './xpBar.js';
+import { isWorn, wearCount, wearLine, wearStatDelta } from '../engine/WeaponWear.js';
+import { stripItemNameSuffix, weaponCatalogNames } from '../utils/itemNames.js';
 
 const OVERLAY_W = 400;
 const OVERLAY_H = 370;
@@ -973,7 +975,7 @@ export class UnitDetailOverlay {
     const explicit = typeof weapon._baseName === 'string' ? weapon._baseName.trim() : '';
     if (explicit) return explicit;
     const name = typeof weapon.name === 'string' ? weapon.name : '';
-    return name.replace(/\s\+\d+$/, '');
+    return stripItemNameSuffix(name);
   }
 
   _getWeaponForgeLevel(weapon) {
@@ -988,14 +990,17 @@ export class UnitDetailOverlay {
 
   _getWeaponForgeSuffixSegments(weapon) {
     const level = this._getWeaponForgeLevel(weapon);
-    if (level <= 0) return [];
-    return [{ text: ` +${level}`, color: UI_PALETTE.good }];
+    if (level > 0) return [{ text: ` +${level}`, color: UI_PALETTE.good }];
+    // A worn weapon reads "-N" in the warning colour (it is never forged too).
+    const wear = wearCount(weapon);
+    return wear > 0 ? [{ text: ` -${wear}`, color: UI_PALETTE.bad }] : [];
   }
 
   _getForgeStatColor(weapon, statKey, fallbackColor) {
     const bonuses = weapon?._forgeBonuses || {};
     const delta = Number(bonuses?.[statKey]) || 0;
-    return delta !== 0 ? UI_PALETTE.good : fallbackColor;
+    if (delta !== 0) return UI_PALETTE.good;
+    return wearStatDelta(weapon, statKey) !== 0 ? UI_PALETTE.bad : fallbackColor;
   }
 
   _getWeaponNameColor(weapon, fallbackColor) {
@@ -1013,13 +1018,14 @@ export class UnitDetailOverlay {
       const boundArt = allArts.find((art) => art?.id === boundId);
       if (boundArt?.id) byId.set(boundArt.id, boundArt);
     }
-    const weaponToken = weapon?.id || weapon?.name || null;
-    if (weaponToken) {
+    // A forged, worn or imbued legendary still answers to its catalog name.
+    const weaponTokens = weaponCatalogNames(weapon);
+    if (weaponTokens.length > 0) {
       for (const art of allArts) {
         if (!art?.id) continue;
         if (
           Array.isArray(art?.legendaryWeaponIds) &&
-          art.legendaryWeaponIds.includes(weaponToken)
+          art.legendaryWeaponIds.some((legendaryId) => weaponTokens.includes(legendaryId))
         ) {
           byId.set(art.id, art);
         }
@@ -1178,6 +1184,7 @@ export class UnitDetailOverlay {
     if (!weapon || !anchor) return;
     const lines = [];
     if (weapon.special) lines.push(`Special: ${weapon.special}`);
+    if (isWorn(weapon)) lines.push(wearLine(weapon));
     const usesLine = perBattleUsesText(weapon, this._unit);
     if (usesLine) lines.push(`${usesLine} (refills after battle)`);
     const imbueInfo = getImbueDisplayInfo(weapon, this.gameData?.imbues);

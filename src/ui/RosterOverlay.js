@@ -79,6 +79,8 @@ import { fitCanvasText } from './deedDisplay.js';
 import { LEVEL_UP_CUE_WAIT_MS, playCue } from './ceremonyMusic.js';
 import { healUnit } from '../engine/UnitHealth.js';
 import { drawCanvasXpRow } from './xpBar.js';
+import { isWorn, wearCount, wearLine, wearStatDelta } from '../engine/WeaponWear.js';
+import { stripItemNameSuffix } from '../utils/itemNames.js';
 
 const WEAPON_ART_RANK_ORDER = { Prof: 0, Mast: 1 };
 const WEAPON_ART_MAX_SLOTS = 3;
@@ -1744,7 +1746,9 @@ export class RosterOverlay {
           type === 'weapon'
             ? isForged(item)
               ? UI_PALETTE.good
-              : UI_PALETTE.info
+              : isWorn(item)
+                ? UI_PALETTE.bad
+                : UI_PALETTE.info
             : UI_PALETTE.good;
         this._text(x + 8, rowY, item.name, color, '10px');
 
@@ -2871,7 +2875,7 @@ export class RosterOverlay {
     const explicit = typeof weapon._baseName === 'string' ? weapon._baseName.trim() : '';
     if (explicit) return explicit;
     const name = typeof weapon.name === 'string' ? weapon.name : '';
-    return name.replace(/\s\+\d+$/, '');
+    return stripItemNameSuffix(name);
   }
 
   _getWeaponForgeLevel(weapon) {
@@ -2886,14 +2890,17 @@ export class RosterOverlay {
 
   _getWeaponForgeSuffixSegments(weapon) {
     const level = this._getWeaponForgeLevel(weapon);
-    if (level <= 0) return [];
-    return [{ text: ` +${level}`, color: UI_PALETTE.good }];
+    if (level > 0) return [{ text: ` +${level}`, color: UI_PALETTE.good }];
+    // A worn weapon reads "-N" in the warning colour (it is never forged too).
+    const wear = wearCount(weapon);
+    return wear > 0 ? [{ text: ` -${wear}`, color: UI_PALETTE.bad }] : [];
   }
 
   _getForgeStatColor(weapon, statKey, fallbackColor) {
     const bonuses = weapon?._forgeBonuses || {};
     const delta = Number(bonuses?.[statKey]) || 0;
-    return delta !== 0 ? UI_PALETTE.good : fallbackColor;
+    if (delta !== 0) return UI_PALETTE.good;
+    return wearStatDelta(weapon, statKey) !== 0 ? UI_PALETTE.bad : fallbackColor;
   }
 
   _getWeaponNameColor(weapon, fallbackColor) {
@@ -3080,6 +3087,7 @@ export class RosterOverlay {
     const lines = [];
     if (weapon.type) lines.push(weapon.type);
     if (weapon.special) lines.push(`Special: ${weapon.special}`);
+    if (isWorn(weapon)) lines.push(wearLine(weapon));
     lines.push(...getWeaponArtTooltipLines(weapon, this.gameData?.weaponArts?.arts || []));
     if (lines.length <= 0) return;
     const body = lines.join('\n');

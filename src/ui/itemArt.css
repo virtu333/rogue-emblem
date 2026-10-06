@@ -135,8 +135,9 @@
   filter: drop-shadow(0 0 2px var(--ia-glow-unlight));
 }
 
-/* Run state on the icon: forge level and the imbue's stone. */
-.ia-forge {
+/* Run state on the icon: forge level (or wear steps) and the imbue's stone. */
+.ia-forge,
+.ia-wear {
   position: absolute;
   right: 0;
   bottom: 0;
@@ -145,6 +146,9 @@
   color: var(--re-accent-text);
   background: var(--ia-ink-0);
   box-shadow: inset 0 0 0 1px var(--ia-ink-5);
+}
+.ia-wear {
+  color: var(--re-bad);
 }
 .ia-imbue {
   position: absolute;

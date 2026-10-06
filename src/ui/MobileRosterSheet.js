@@ -26,6 +26,8 @@ import {
 } from './helpTopics.js';
 import { attachInfo, holdTip } from './infoAffordance.js';
 import { getForgeDisplayInfo } from '../engine/ForgeSystem.js';
+import { isWorn, wearCount, wearLine } from '../engine/WeaponWear.js';
+import { composeWeaponName, stripItemNameSuffix } from '../utils/itemNames.js';
 import { getImbueDisplayInfo } from '../engine/ImbueSystem.js';
 import { getEffectiveStaffRange } from '../engine/Combat.js';
 import {
@@ -1346,9 +1348,10 @@ export class MobileRosterSheet {
   itemCard(item, unit) {
     const forge = getForgeDisplayInfo(item);
     const forgeLevel = forge.level;
-    const displayName = forgeLevel
-      ? `${forge.baseName.replace(/\s\+\d+$/, '')} +${forgeLevel}`
-      : item.name;
+    const displayName = composeWeaponName(stripItemNameSuffix(forge.baseName), {
+      forgeLevel,
+      wearSteps: wearCount(item),
+    });
     const c = this.card(displayName, this.itemDescription(item, unit), item, {
       keys: itemKeywordRow(item, { displayName }),
     });
@@ -1364,6 +1367,8 @@ export class MobileRosterSheet {
             .join(' · ')}`,
         ),
       );
+    // Wear, by name: a worn weapon says what it lost and that a village forge mends it.
+    if (isWorn(item)) c.append(el('p', wearLine(item), 'mr-wear'));
     const imbue = getImbueDisplayInfo(item, this.gameData.imbues);
     if (imbue) c.append(el('p', `${imbue.name}: ${imbue.description}`));
     // How much this very item has been used ("Used in 14 strikes · 3 kills").

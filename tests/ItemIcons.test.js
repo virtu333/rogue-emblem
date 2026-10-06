@@ -201,6 +201,25 @@ describe('itemIcon helper', () => {
     expect(bare.classList.set.has('is-bare')).toBe(true);
   });
 
+  it('a worn weapon wears a "-N" mark where a forged one wears "+N", never both', () => {
+    const wornSword = {
+      name: 'Vampiric Iron Sword -2',
+      _baseName: 'Vampiric Iron Sword',
+      _imbueId: 'vampiric',
+      _wear: [{ stat: 'might' }, { stat: 'hit' }],
+      type: 'Sword',
+    };
+    const el = itemIcon(wornSword, { size: 32 });
+    expect(el.dataset.iconId).toBe('iron-sword');
+    const [, , mark, imbue] = el.children;
+    expect(mark.className).toBe('ia-wear');
+    expect(mark.textContent).toBe('-2');
+    expect(imbue.dataset.imbue).toBe('vampiric');
+    // Small icons carry no mark, and an unworn weapon none either.
+    expect(itemIcon(wornSword, { size: 16 }).children.some((c) => c.className === 'ia-wear')).toBe(false); // prettier-ignore
+    expect(itemIcon({ name: 'Iron Sword', type: 'Sword' }, { size: 32 }).children).toHaveLength(2);
+  });
+
   it("an instance's own tier sets the rim (renamed or rolled items)", () => {
     const el = itemIcon({ name: 'Legend test sword', type: 'Sword', tier: 'Legend' });
     expect(el.dataset.socket).toBe('weapon');

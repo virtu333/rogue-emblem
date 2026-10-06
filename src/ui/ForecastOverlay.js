@@ -15,6 +15,7 @@ import { UI_PALETTE, UI_HEX, applyTextResolution, getHPBarColor } from '../utils
  */
 import { getEffectivenessMultiplier, calculateEffectiveSpeed } from '../engine/Combat.js';
 import { isForged } from '../engine/ForgeSystem.js';
+import { isWorn } from '../engine/WeaponWear.js';
 import { portraitCanvasFrame } from './portraitArt.js';
 
 /**
@@ -477,7 +478,12 @@ export class ForecastOverlay {
     // [E] marks the weapon that is equipped now; confirming with another weapon
     // equips it and moves it to the top of the inventory.
     const wpnName = weapon?.name || 'Unarmed';
-    const wpnColor = weapon && isForged(weapon) ? UI_PALETTE.good : UI_PALETTE.info;
+    const wpnColor =
+      weapon && isForged(weapon)
+        ? UI_PALETTE.good
+        : weapon && isWorn(weapon)
+          ? UI_PALETTE.bad
+          : UI_PALETTE.info;
     const validWpns = opts.validWeapons;
     const canCycle = isAttacker && validWpns?.length >= 2;
     const showBadge = isAttacker && weapon && weapon === opts.equippedWeapon;

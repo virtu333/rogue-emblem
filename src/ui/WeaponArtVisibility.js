@@ -1,6 +1,7 @@
 import { rankRequirementText } from './rosterDisplay.js';
 import { weaponArtSecondaryDetails } from './weaponArtDisplay.js';
 import { getWeaponArtIds } from '../engine/WeaponArtSystem.js';
+import { weaponCatalogNames } from '../utils/itemNames.js';
 
 const WEAPON_ART_ACT_ID_RE = /^act(\d+)$/i;
 
@@ -15,18 +16,11 @@ function toNonEmptyString(value) {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+// The names a weapon answers to in the catalog: forge "+N", wear "-N" and an imbue's
+// adjective are run state, not identity (utils/itemNames.js).
 function getWeaponMatchTokens(weapon) {
   if (!weapon || typeof weapon !== 'object') return [];
-  const tokens = [];
-  const pushToken = (value) => {
-    const token = toNonEmptyString(value);
-    if (!token || tokens.includes(token)) return;
-    tokens.push(token);
-  };
-  pushToken(weapon.id);
-  pushToken(weapon.name);
-  pushToken(weapon._baseName);
-  return tokens;
+  return weaponCatalogNames(weapon);
 }
 
 function getCatalogById(artsCatalog) {

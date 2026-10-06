@@ -7,9 +7,11 @@
 // finds anywhere in the save: the roster and convoy, shops, rewards, colosseum
 // mercenaries, and the battle checkpoint, its entry state and its rewind timeline
 // (keyframes and patches). Names are composed ("Keen Iron Sword +2": imbue
-// adjective, base, forge level), and each part is renamed on its own.
+// adjective, base, forge level or wear), and each part is renamed on its own.
 //
 // A save written after the renames carries itemNamesRevision, and the walk skips it.
+
+import { ITEM_NAME_SUFFIX_RE, itemNameSuffix } from '../utils/itemNames.js';
 
 /** Bump when a new rename table is added below. */
 export const ITEM_NAMES_REVISION = 1;
@@ -93,7 +95,7 @@ const ITEM_TYPES = new Set([
 /**
  * The new name for a (possibly composed) item name, or the name unchanged.
  *
- * - "+N" forge suffixes are kept.
+ * - "+N" forge and "-N" wear suffixes are kept.
  * - `imbueId` (the item's `_imbueId`) marks the first word as its imbue adjective,
  *   renamed when that imbue's word changed; the rest is renamed as a base.
  * - Without it (a rewind patch leaf, a history string), a first word is taken as
@@ -103,8 +105,7 @@ const ITEM_TYPES = new Set([
  */
 export function renameItemName(name, { imbueId = null, knownBases = null } = {}) {
   if (typeof name !== 'string' || !name) return name;
-  const forge = name.match(/\s\+\d+$/);
-  const suffix = forge ? forge[0] : '';
+  const suffix = itemNameSuffix(name);
   const base = suffix ? name.slice(0, -suffix.length) : name;
   if (Object.hasOwn(ITEM_RENAMES, base)) return ITEM_RENAMES[base] + suffix;
   const space = base.indexOf(' ');
@@ -134,7 +135,7 @@ function isItemLike(value) {
  */
 function refreshFromCatalog(item, catalog) {
   if (!catalog || item._isRandomLegendary) return;
-  const base = String(item._baseName || item.name).replace(/\s\+\d+$/, '');
+  const base = String(item._baseName || item.name).replace(ITEM_NAME_SUFFIX_RE, '');
   const entry =
     catalog.get(base) || (item._imbueId ? catalog.get(base.slice(base.indexOf(' ') + 1)) : null);
   if (!entry || entry.type !== item.type) return;
@@ -192,7 +193,7 @@ export function renameItemsDeep(root, gameData = null) {
       } else if (value && typeof value === 'object') visit(value, depth + 1);
     }
     if (renamedHere && isItemLike(node)) {
-      const base = String(node._baseName || node.name).replace(/\s\+\d+$/, '');
+      const base = String(node._baseName || node.name).replace(ITEM_NAME_SUFFIX_RE, '');
       const tail = node._imbueId ? base.slice(base.indexOf(' ') + 1) : base;
       if (renamedTargets.has(tail) || renamedTargets.has(base)) refreshFromCatalog(node, catalog);
     }
