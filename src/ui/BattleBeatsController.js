@@ -32,7 +32,7 @@ import {
   victoryEndingKey,
 } from '../engine/NarrativeDirector.js';
 import { adaptDialogueEntries } from '../engine/DialogueCast.js';
-import { composeFinaleRally } from '../engine/FinaleRally.js';
+import { composeFinaleRally, heraldHeard } from '../engine/FinaleRally.js';
 import { isEntity } from '../engine/EntitySystem.js';
 
 const QUIP_DEPTH = 501; // Screen-pinned above battlefield effects.
@@ -165,6 +165,7 @@ export class BattleBeatsController {
         commander: ctx.commander,
         seed: Number(rm?.runSeed) >>> 0,
         memory: ctx.bossSlainCount + ctx.bossKilledYouCount > 0,
+        herald: heraldHeard(rm?.storyFlags, rm?.difficultyId),
         fallen,
         hurt: !entity || maxHP <= 0 || entity.currentHP < maxHP,
       });

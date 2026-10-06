@@ -7,11 +7,14 @@
 //   lords.<Lord>.lines    general rally lines
 //   lords.<Lord>.reply    { <Other lord>: line } — answering whoever just spoke
 //   lords.<Lord>.memory   this save has met the Entity before (the loop)
+//   lords.<Lord>.herald   the run listened to the Herald of the Hollow Sun (events.json
+//                         `hollow_herald`, flag `heard_herald`); the caller plays it on Black Sun
 //   lords.<Lord>.wounded  the speaker is below half HP
 //   lords.<Lord>.fallen   someone fell earlier this run ({fallen})
 //
 // When the run has lost someone, one answering lord always speaks for them;
-// when the save remembers the Entity, another carries the memory.
+// when the save remembers the Entity, another carries the memory; when the run heard the
+// Herald, a third (when one is left) carries that.
 //   lords.Sera.close      Sera, whose sight the Thread is, speaks last
 //   recruits.<temperament> up to two recruits (the strongest) join in ({leader})
 //
@@ -20,6 +23,8 @@
 // the finale's first strain.
 
 import { temperamentFor, voiceHash } from './UnitVoice.js';
+import { flagValue } from './EventSystem.js';
+import { isDifficultyAtLeast } from './DifficultyEngine.js';
 
 export const RALLY_MAX_LINES = 7;
 export const RALLY_MAX_RECRUITS = 2;
@@ -45,6 +50,16 @@ function fill(line, tokens) {
     .replaceAll('{fallen}', tokens.fallen ?? '')
     .replaceAll('{leader}', tokens.leader ?? '')
     .replaceAll('{name}', tokens.name ?? '');
+}
+
+/**
+ * Whether the rally carries the Herald's memory: the run listened to him (`heard_herald`) and
+ * plays on Black Sun, the one rung where he is more than a story.
+ */
+export function heraldHeard(storyFlags, difficultyId) {
+  return (
+    Boolean(flagValue(storyFlags, 'heard_herald')) && isDifficultyAtLeast(difficultyId, 'lunatic')
+  );
 }
 
 const alive = (u) => u?.faction === 'player' && Number(u.currentHP) > 0;
@@ -90,6 +105,7 @@ export function finaleRallySpeakers(units, { pool = null, commander = null } = {
  * @param {string} [opts.commander]  the run's commander (opens the rally)
  * @param {number} [opts.seed]       the run seed
  * @param {boolean} [opts.memory]    this save has met the Entity before
+ * @param {boolean} [opts.herald]    the run listened to the Herald (the caller decides the rung)
  * @param {string[]} [opts.fallen]   names of units lost earlier this run (lords first)
  * @param {boolean} [opts.hurt]      the Entity has been wounded
  */
@@ -100,6 +116,7 @@ export function composeFinaleRally({
   commander = null,
   seed = 0,
   memory = false,
+  herald = false,
   fallen = [],
   hurt = true,
 } = {}) {
@@ -120,6 +137,12 @@ export function composeFinaleRally({
     ? pickOne(
         answering.filter((u) => u !== forFallen),
         'memory',
+      )
+    : null;
+  const forHerald = herald
+    ? pickOne(
+        answering.filter((u) => u !== forFallen && u !== forMemory),
+        'herald',
       )
     : null;
   const out = [];
@@ -150,6 +173,7 @@ export function composeFinaleRally({
       if (role === 'close') choose('close', opt(lp.close));
       if (unit === forFallen) choose('fallen', opt(lp.fallen));
       if (unit === forMemory) choose('memory', opt(lp.memory));
+      if (unit === forHerald) choose('herald', opt(lp.herald));
       // answer whoever just spoke, most of the time
       const reply = prev?.isLord ? lp.reply?.[prev.name] : null;
       if (role === 'lord' && reply && chance(key('reply'), 67)) choose('reply', opt([reply]));

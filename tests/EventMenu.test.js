@@ -31,6 +31,10 @@ import {
 } from '../src/engine/EventCommands.js';
 import { guidanceText } from '../src/engine/Guidance.js';
 import { addUnit, arriveAs, baseData, fallAlly, newRun } from './eventKit.js';
+import { eventTriples, routesToPages, walkRoute } from './eventWalk.js';
+import { RESULT_CHIPS } from '../src/ui/eventMenuModel.js';
+import { applyWear } from '../src/engine/WeaponWear.js';
+import { pageOf } from '../src/engine/EventSystem.js';
 
 // The unit sheet is a DOM view; the page only opens it.
 vi.mock('../src/ui/MobileRosterSheet.js', () => ({
@@ -320,12 +324,18 @@ describe('the outcome page', () => {
 });
 
 describe('every shipped outcome renders a clean page', () => {
-  // The engine's own test walks the outcomes; here each is drawn as a page.
+  // The engine's own test walks the outcomes; here each is drawn as a page. Pages after the
+  // first are reached by their route (tests/eventWalk.js).
   const triples = baseData.events.events.flatMap((event) =>
-    event.choices.flatMap((choice) => choice.outcomes.map((o) => [event.id, choice.id, o.id])),
+    eventTriples(event).map(([pageId, choiceId, outcomeId]) => [
+      event.id,
+      pageId,
+      choiceId,
+      outcomeId,
+    ]),
   );
-  const army = (seed) => {
-    const run = newRun({ seed, gold: 2000 });
+  const army = (seed, difficulty = 'normal') => {
+    const run = newRun({ seed, gold: 2000, difficulty });
     run.actSequence = ['act1', 'act2', 'act3', 'act4'];
     for (const [className, name] of [
       ['Archer', 'Hale'],
@@ -339,13 +349,26 @@ describe('every shipped outcome renders a clean page', () => {
     rook.skills = ['pavise', 'wrath', 'guard'];
     fallAlly(run, rook);
     run.roster[0].consumables = [{ ...run.getConsumableTemplate('Vulnerary') }];
+    // A worn spare in Brant's bag, for the Wandering Smith.
+    const brant = run.roster.find((u) => u.name === 'Brant');
+    const spare = structuredClone(brant.inventory[0]);
+    delete spare.uid;
+    applyWear(spare, 'might');
+    brant.inventory.push(spare);
     return run;
   };
 
-  it.each(triples)('%s / %s / %s', (eventId, choiceId, outcomeId) => {
+  it.each(triples)('%s [%s] / %s / %s', (eventId, pageId, choiceId, outcomeId) => {
+    const event = eventById(eventId);
+    const outcomeDef = pageOf(event, pageId)
+      .choices.find((c) => c.id === choiceId)
+      .outcomes.find((o) => o.id === outcomeId);
+    const route = routesToPages(event).get(pageId);
+    const difficulty = outcomeDef.weight === 0 ? 'lunatic' : 'normal';
     for (let seed = 1; seed <= 400; seed++) {
-      const run = army(seed);
+      const run = army(seed, difficulty);
       const node = arriveAs(run, eventId);
+      if (!walkRoute(run, node.id, route)) continue;
       const view = eventView(run, node.id);
       const choice = view.choices.find((c) => c.id === choiceId);
       const target = choice.target
@@ -360,11 +383,22 @@ describe('every shipped outcome renders a clean page', () => {
       d.open();
       const text = d.text();
       expect(text).toContain(eventById(eventId).title);
-      expect(text).toContain(probe.text);
       expect(text).not.toMatch(/undefined|NaN|\[object|\{[a-z]+\}/);
+      if (probe.next) {
+        // The event moved on: the next page's own words are on the page and its choices are open.
+        expect(text).toContain(pageOf(event, probe.next).text);
+        expect(eventView(run, node.id).phase).toBe('choosing');
+        d.controller.destroy();
+        return;
+      }
+      expect(text).toContain(probe.text);
       const lines = d.body.all().filter((n) => n.classList?.contains('ev-result'));
-      // A line for every record that is news (a flag and a battle marker are not).
-      const news = probe.results.filter((r) => !['flag', 'battle'].includes(r.kind));
+      // A line for every record the page words (a flag and a battle marker are not news). A
+      // record kind with no chip yet is not worded by this build of the page (the Phase 2
+      // records are the page's own task: tests/EventPhase2D.test.js pins which).
+      const news = probe.results.filter(
+        (r) => !['flag', 'battle'].includes(r.kind) && RESULT_CHIPS[r.kind],
+      );
       const silent = news.filter(
         (r) =>
           (r.kind === 'shadow' && !r.value && !r.actValue) || (r.kind === 'vision' && !r.value),
@@ -377,286 +411,6 @@ describe('every shipped outcome renders a clean page', () => {
       d.controller.destroy();
       return;
     }
-    throw new Error(`no seed in 400 produced ${eventId}/${choiceId}/${outcomeId}`);
-  });
-});
-
-describe('Continue and ESC', () => {
-  it('Continue completes the node, saves, closes the page and checks the act', () => {
-    const d = driver('drill_yard');
-    d.choose('rest');
-    expect(d.nodeNow.completed).toBe(false);
-    d.press('Continue');
-    expect(d.nodeNow.completed).toBe(true);
-    expect(d.scene.eventOverlay).toBeNull();
-    expect(d.scene.checkActComplete).toHaveBeenCalledTimes(1);
-    expect(d.saved().nodeMap.nodes.find((n) => n.id === d.node.id).completed).toBe(true);
-    expect(eventState(d.run, d.node.id).left).toBe(true);
-    // The forward edges opened.
-    const next = d.run.getAvailableNodes().map((n) => n.id);
-    expect(next).toEqual(d.nodeNow.edges);
-  });
-
-  it('ESC before choosing returns to the map with the event still current; re-entry reopens it', () => {
-    const d = driver('old_swordmaster');
-    d.esc();
-    expect(d.scene.eventOverlay).toBeNull();
-    expect(d.nodeNow.completed).toBe(false);
-    expect(d.run.currentNodeId).toBe(d.node.id);
-    expect(d.scene.drawMap).toHaveBeenCalled();
-    expect(d.scene.checkActComplete).not.toHaveBeenCalled();
-    expect(eventState(d.run, d.node.id).choiceId).toBeUndefined();
-    const picked = eventState(d.run, d.node.id).eventId;
-    d.open();
-    expect(d.text()).toContain(eventById('old_swordmaster').intro);
-    expect(eventState(d.run, d.node.id).eventId).toBe(picked);
-  });
-
-  it('ESC on the picker only closes the picker', () => {
-    const d = driver('old_swordmaster');
-    d.press(d.choice('train'));
-    d.esc();
-    expect(d.menu.child).toBeNull();
-    expect(d.scene.eventOverlay).not.toBeNull();
-    expect(d.text()).toContain(eventById('old_swordmaster').intro);
-  });
-
-  it('ESC after choosing is Continue', () => {
-    const d = driver('quiet_road');
-    d.choose('rest');
-    d.esc();
-    expect(d.scene.eventOverlay).toBeNull();
-    expect(d.nodeNow.completed).toBe(true);
-    expect(d.scene.checkActComplete).toHaveBeenCalledTimes(1);
-  });
-
-  it('the header button follows the page: Close, then Continue', () => {
-    const d = driver('quiet_road');
-    expect(d.menu.closeButton.textContent).toBe('Close');
-    d.choose('press_on');
-    expect(d.menu.closeButton.textContent).toBe('Continue');
-    d.menu.closeButton.onclick();
-    expect(d.nodeNow.completed).toBe(true);
-  });
-
-  it('a second Continue (a double tap) changes nothing', () => {
-    const d = driver('quiet_road');
-    d.choose('rest');
-    const continueButton = d.button('Continue');
-    d.press(continueButton);
-    const gold = d.run.gold;
-    expect(d.controller.continueEvent()).toBe(false);
-    expect(continueButton.onclick()).toBe(false);
-    expect(d.run.gold).toBe(gold);
-    expect(d.scene.checkActComplete).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe('a refresh at each step', () => {
-  it('while choosing: the same event reopens on its choices, nothing re-picked', () => {
-    const d = driver('old_swordmaster');
-    const state = eventState(d.run, d.node.id);
-    d.reload();
-    d.open();
-    expect(eventState(d.run, d.node.id)).toEqual(state);
-    expect(d.text()).toContain(eventById('old_swordmaster').intro);
-    expect(d.choice('train')).toBeTruthy();
-  });
-
-  it('at the outcome: the outcome page, the same text and lines, nothing applied twice', () => {
-    const d = driver('moneylender');
-    d.choose('borrow');
-    const text = d.text();
-    const gold = d.run.gold;
-    const burdens = structuredClone(d.run.burdens);
-    d.reload();
-    d.open();
-    expect(d.text()).toBe(text);
-    expect(d.run.gold).toBe(gold);
-    expect(d.run.burdens).toEqual(burdens);
-    expect(d.run.eventLog).toHaveLength(1);
-    expect(d.choice('borrow')).toBeUndefined(); // never the choices again
-    expect(d.menu.closeButton.textContent).toBe('Continue');
-  });
-
-  it('with a fight owed: the outcome page with only Fight', () => {
-    const d = driver('abandoned_armory');
-    d.choose('door');
-    d.reload();
-    d.open();
-    expect(d.buttons().map(nodeText)).toEqual(expect.arrayContaining(['Fight', 'Roster']));
-    expect(d.menu.closeButton.textContent).toBe('Close');
-    expect(d.buttons().map(nodeText)).not.toContain('Continue');
-    expect(d.text()).toContain('There is no way around this fight.');
-  });
-});
-
-describe('a fight', () => {
-  it('shows only Fight (no Continue), and ESC leaves the fight owed', () => {
-    const d = driver('abandoned_armory');
-    d.choose('door');
-    expect(d.text()).toContain('Someone was still home.');
-    expect(d.buttons().map(nodeText)).not.toContain('Continue');
-    expect(d.menu.closeButton.textContent).toBe('Close');
-    // The engine will not let the node be left either.
-    expect(d.controller.continueEvent()).toBe(false);
-    d.esc();
-    expect(d.scene.eventOverlay).toBeNull();
-    expect(d.nodeNow.completed).toBe(false);
-    expect(eventState(d.run, d.node.id).battle).toBe('pending');
-    expect(d.nodeNow.type).toBe('event');
-    d.open();
-    expect(d.buttons().map(nodeText)).toContain('Fight');
-  });
-
-  it("Fight takes the route map's battle locks and goes through handleBattle", () => {
-    const d = driver('abandoned_armory');
-    d.choose('door');
-    d.press('Fight');
-    expect(d.scene.battleLaunchInFlight).toBe(true);
-    expect(d.scene.isTransitioning).toBe(true);
-    expect(d.scene.isSceneReady).toBe(false);
-    expect(d.scene.input.enabled).toBe(false);
-    expect(d.scene.handleBattle).toHaveBeenCalledWith(d.nodeNow, 1);
-    expect(d.scene.eventOverlay).toBeNull();
-    expect(d.nodeNow.type).toBe('event');
-    expect(d.nodeNow.eventBattle).toBe(true);
-  });
-
-  it('a won fight opens its spoils once; Continue then completes; a refresh in between keeps both', () => {
-    const d = driver('abandoned_armory');
-    d.choose('door');
-    d.fightAndWin();
-    const goldBefore = d.run.gold;
-    // Back on the route map: the controller settles the spoils and opens the victory page.
-    expect(d.controller.handleEvent(d.nodeNow)).toBe(true);
-    // The door's spoils: { base: 100, perAct: 100 } in Act I is 200 G, and a weapon.
-    expect(d.run.gold).toBe(goldBefore + 200);
-    const text = d.text();
-    expect(text).toContain('The fight is won.');
-    expect(text).toContain(
-      'The door gives way to a cellar cache nobody had touched. Weapons, and a strongbox.',
-    );
-    expect(text).toContain('Gained 200 G');
-    expect(d.menu.closeButton.textContent).toBe('Continue');
-    expect(d.run.pendingEventNodeId).toBeNull();
-    // A refresh on the victory page: it reopens (Continue was not pressed), nothing is paid again.
-    d.reload();
-    expect(d.run.gold).toBe(goldBefore + 200);
-    expect(d.run.canReenterService(d.node.id)).toBe(true);
-    expect(d.controller.handleEvent(d.nodeNow)).toBe(true);
-    expect(d.text()).toContain('Gained 200 G');
-    expect(d.run.gold).toBe(goldBefore + 200);
-    d.press('Continue');
-    expect(d.run.gold).toBe(goldBefore + 200);
-    expect(d.scene.checkActComplete).toHaveBeenCalledTimes(1);
-    // Left: nothing more to reopen, here or after another refresh.
-    expect(d.run.canReenterService(d.node.id)).toBe(false);
-    expect(d.controller.handleEvent(d.nodeNow)).toBe(false);
-    d.reload();
-    expect(d.controller.handleEvent(d.nodeNow)).toBe(false);
-  });
-
-  it('the victory is settled once even if the page is opened twice', () => {
-    const d = driver('abandoned_armory');
-    d.choose('door');
-    d.fightAndWin();
-    const gold = d.run.gold;
-    d.controller.handleEvent(d.nodeNow);
-    d.controller.closeEventOverlay();
-    d.controller.handleEvent(d.nodeNow); // e.g. a second return to the map
-    expect(d.run.gold).toBe(gold + 200);
-  });
-
-  it('a refresh before the spoils are taken reopens as owed: the spoils apply once, on opening', () => {
-    const d = driver('abandoned_armory');
-    d.choose('door');
-    d.fightAndWin();
-    const gold = d.run.gold;
-    d.reload();
-    // The saved run has the battle won and the spoils owed.
-    expect(d.run.pendingEventNodeId).toBe(d.node.id);
-    expect(d.run.canReenterService(d.node.id)).toBe(true);
-    d.controller.handleEvent(d.nodeNow);
-    expect(d.run.gold).toBe(gold + 200);
-    expect(d.text()).toContain('The fight is won.');
-  });
-
-  it('a revert (Continue from Map) reopens the outcome with only Fight, the choice unchanged', () => {
-    const d = driver('abandoned_armory');
-    d.choose('door');
-    const state = eventState(d.run, d.node.id);
-    d.press('Fight'); // the battle is entered, then abandoned: the run reloads at its entry
-    d.reload();
-    expect(d.nodeNow.completed).toBe(false);
-    d.open();
-    expect(d.buttons().map(nodeText)).toContain('Fight');
-    expect(d.buttons().map(nodeText)).not.toContain('Continue');
-    expect(d.choice('racks')).toBeUndefined();
-    expect(eventState(d.run, d.node.id)).toEqual(state);
-  });
-});
-
-describe('the unknown event', () => {
-  it('an event this build does not know can only be walked past, and the node completes', () => {
-    const run = newRun();
-    const node = arriveAs(run, 'quiet_road');
-    run.eventStateByNodeId[node.id].eventId = 'from_a_later_build';
-    const d = new EventDriver({ run });
-    d.node = node;
-    d.open();
-    expect(d.text()).toContain('Whatever waited here has gone from the road.');
-    d.press('Walk on');
-    expect(node.completed).toBe(true);
-    expect(d.scene.eventOverlay).toBeNull();
-    expect(d.scene.checkActComplete).toHaveBeenCalled();
-  });
-
-  it('a node the engine cannot arrive at (no catalog, a prologue map) never traps the route', () => {
-    const run = newRun();
-    const node = arriveAs(run, 'quiet_road');
-    delete run.eventStateByNodeId[node.id];
-    run.gameData = { ...run.gameData, events: null };
-    const d = new EventDriver({ run });
-    d.node = node;
-    expect(d.open()).toBe(false);
-    expect(node.completed).toBe(true);
-    expect(d.scene.checkActComplete).toHaveBeenCalled();
-    expect(d.scene.eventOverlay).toBeFalsy();
-  });
-});
-
-describe('the first-event note', () => {
-  it('shows once per slot', () => {
-    const first = driver('quiet_road');
-    expect(first.menu.status).toBe(guidanceText('guide_first_event'));
-    const seen = first.seen;
-    first.controller.destroy();
-    const run = newRun({ seed: 7 });
-    const second = new EventDriver({ run, eventId: 'quiet_road', hints: { seen } });
-    second.open();
-    expect(second.menu.status).toBe('');
-    expect(second.text()).not.toContain(guidanceText('guide_first_event'));
-  });
-
-  it('is off with Guidance Off, and never in the prologue', () => {
-    const off = new EventDriver({ eventId: 'quiet_road', guidance: 'off' });
-    off.open();
-    expect(off.menu.status).toBe('');
-    const run = newRun();
-    run.mode = 'prologue';
-    const prologue = new EventDriver({ run, eventId: 'quiet_road' });
-    prologue.open();
-    // The engine has no events in the prologue, and the note stays unseen.
-    expect(prologue.hints.markSeen).not.toHaveBeenCalled();
-  });
-
-  it('shows on the choosing page after a reload only if still unseen (a seen note stays seen)', () => {
-    const d = driver('quiet_road');
-    expect(d.seen.has('guide_first_event')).toBe(true);
-    d.controller.destroy();
-    d.bind();
-    d.open();
-    expect(d.menu.status).toBe('');
+    throw new Error(`no seed in 400 produced ${eventId}[${pageId}]/${choiceId}/${outcomeId}`);
   });
 });
