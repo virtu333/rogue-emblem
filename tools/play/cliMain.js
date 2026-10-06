@@ -10,7 +10,7 @@
 // after it failed to render · 6 busy, or not at the expected revision.
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadGameData } from '../../tests/testData.js';
 import { DigestVersionMismatch, PlaySession, ReplayDivergence, SESSION_FORMAT } from './session.js';
@@ -66,7 +66,8 @@ const USAGE = `Headless play — tools/play/README.md
   npm run play -- note "<thought>"     write a note to the journal (no game change)
   npm run play -- log                  the commands played so far
   npm run play -- fork NEW [--at N]    copy this session (its first N commands) to NEW
-  npm run play -- rebase NEW           replay without checking digests into NEW, re-stamped
+  npm run play -- rebase NEW [--adapt] replay without checking digests into NEW, re-stamped;
+                                       --adapt inserts "canto stay" where the session predates Canto
   npm run play -- stop voluntary|timeout|blocked "<why>"   conclude the run here
   --expect-rev N    refuse unless the session is at revision N (printed after each call)
   --id KEY          run this call at most once: a retry with the same KEY changes nothing
@@ -80,7 +81,7 @@ function parseArgs(argv) {
   const words = [];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === '--force' || a === '--brief' || a === '--rebase') flags[a.slice(2)] = true;
+    if (['--force', '--brief', '--rebase', '--adapt'].includes(a)) flags[a.slice(2)] = true;
     else if (a.startsWith('--')) flags[a.slice(2)] = argv[++i];
     else words.push(a);
   }
@@ -101,6 +102,12 @@ function splitCommands(line) {
   }
   out.push(current);
   return out.map((c) => c.trim()).filter(Boolean);
+}
+
+/** A session's path as records name it: relative to the repository when inside it. */
+function shown(dir) {
+  const rel = relative(ROOT, dir);
+  return rel && !rel.startsWith('..') && !isAbsolute(rel) ? rel : dir;
 }
 
 function sessionDir(name) {
@@ -255,12 +262,18 @@ async function locked(dir, verb, words, flags, gameData, io, onSession) {
     try {
       const manifest = manifestFor(session, gameData, {
         agent: agentConfig(flags) ?? readManifest(dir)?.agent ?? null,
-        forkedFrom: { session: dir, at: session.log.length, revision: rev },
+        forkedFrom: { session: shown(dir), at: session.log.length, revision: rev },
       });
       writeRecord(target, session.toRecord());
       writeManifest(target, manifest);
       resetLogs(target);
-      appendJournal(target, { type: 'fork', rev: 0, from: dir, at: session.log.length, manifest });
+      appendJournal(target, {
+        type: 'fork',
+        rev: 0,
+        from: shown(dir),
+        at: session.log.length,
+        manifest,
+      });
     } finally {
       releaseTarget();
     }
@@ -272,12 +285,15 @@ async function locked(dir, verb, words, flags, gameData, io, onSession) {
     const target = sessionDir(words[1]);
     if (existsSync(join(target, RECORD_FILE)) && !flags.force)
       throw new PlayError(`${target} exists. Use --force to replace it.`);
-    const session = await PlaySession.rebase(gameData, record, { from: dir });
+    const session = await PlaySession.rebase(gameData, record, {
+      from: shown(dir),
+      adapt: flags.adapt === true,
+    });
     const releaseTarget = acquireLock(target, { waitMs: lockWaitMs() });
     try {
       const manifest = manifestFor(session, gameData, {
         agent: readManifest(dir)?.agent ?? null,
-        rebasedFrom: { session: dir, revision: rev, manifest: readManifest(dir) },
+        rebasedFrom: { session: shown(dir), revision: rev, manifest: readManifest(dir) },
       });
       writeRecord(target, session.toRecord());
       writeManifest(target, manifest);
@@ -294,6 +310,20 @@ async function locked(dir, verb, words, flags, gameData, io, onSession) {
           : p.changed.length
             ? `${p.changed.length} digest(s) changed, first at command ${p.changed[0]}: the game played differently from there.`
             : 'Every digest matched.'
+      }${
+        p.inserted.length
+          ? ` ${p.inserted.length} command(s) inserted for rules the session predates (${p.inserted
+              .map((x) => `"${x.cmd}" at ${x.before}`)
+              .slice(0, 5)
+              .join(', ')}${p.inserted.length > 5 ? ', ...' : ''}).`
+          : ''
+      }${
+        p.rewritten.length
+          ? ` ${p.rewritten.length} command(s) restated as the old rules read them (${p.rewritten
+              .map((x) => `"${x.from}" -> "${x.to}"`)
+              .slice(0, 3)
+              .join(', ')}${p.rewritten.length > 3 ? ', ...' : ''}).`
+          : ''
       } The original is unchanged.`,
     );
     return EXIT.ok;

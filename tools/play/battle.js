@@ -33,6 +33,8 @@ import {
   unitOnTile,
 } from '../../src/engine/FormationPlacement.js';
 import { isEntity } from '../../src/engine/EntitySystem.js';
+import { cantoRuleFor } from '../../src/engine/CantoRule.js';
+import { canInspectUnit } from '../../src/engine/BattleInformation.js';
 import {
   UnitIds,
   affixLines,
@@ -51,7 +53,7 @@ import {
   weaponsReaching,
   defaultWeapon,
 } from './battleView.js';
-import { PlayError, findItem, parseTile, splitClauses } from './parse.js';
+import { EndAfterTurnEnded, PlayError, findItem, parseTile, splitClauses } from './parse.js';
 
 const ACTION_VERBS = new Set([
   'wait',
@@ -63,6 +65,12 @@ const ACTION_VERBS = new Set([
   'escape',
   'smash',
   'strike',
+  'trade',
+  'swap',
+  'shove',
+  'pull',
+  'dance',
+  'ability',
 ]);
 
 const AUTO_TURN_CAP = 40;
@@ -147,6 +155,8 @@ export class PlayBattle {
     this.driver = new GameDriver(gameData, bp, deployed);
     this.battle = this.driver.battle;
     this.battle.runManager = rm;
+    // Canto and Measured Step, as the scene runs them (off in the harness by default).
+    this.battle.cantoEnabled = true;
     this._instrument();
     // Outside the instrumentation, so a unit that does not fall is never reported falling.
     if (game.options.invincible) this._makeInvincible();
@@ -401,7 +411,15 @@ export class PlayBattle {
     this.events = [];
     this._hpBefore = this._hpSnapshot();
     const b = this.battle;
-    if (b.battleState !== HEADLESS_STATES.PLAYER_IDLE)
+    if (b.battleState === HEADLESS_STATES.CANTO_MOVING) {
+      // A unit is moving on after its action: that comes first (or "end" settles it).
+      if (verb !== 'canto' && verb !== 'end')
+        throw new PlayError(
+          `${b.selectedUnit.name} may still move on ${b.cantoRemaining} tile(s) after acting: "canto <x,y>" or "canto stay" first.`,
+        );
+    } else if (verb === 'canto')
+      throw new PlayError('No unit is moving on after an action (Canto) now.');
+    else if (b.battleState !== HEADLESS_STATES.PLAYER_IDLE)
       throw new Error(`Battle is not waiting for orders (${b.battleState}).`);
     if (this.formation) {
       if (verb === 'auto') this._execFormation('start', []);
@@ -417,13 +435,14 @@ export class PlayBattle {
     try {
       this._autoEnded = false;
       if (verb === 'move') await this._move(words);
+      else if (verb === 'canto') await this._canto(words);
       else if (verb === 'end') {
         if (
           autoEnded &&
           !['again', 'anyway'].includes(String(words[0]).toLowerCase()) &&
           b.playerUnits.every((u) => !u.hasActed)
         )
-          throw new PlayError(
+          throw new EndAfterTurnEnded(
             `Turn ${b.turnManager.turnNumber - 1} already ended when every unit had acted. "end" now would skip turn ${b.turnManager.turnNumber} without a move; say "end again" if you mean it.`,
           );
         await b.endTurn();
@@ -465,10 +484,25 @@ export class PlayBattle {
       if (!canEquip(unit, equip)) throw new PlayError(`${unit.name} cannot equip ${equip.name}.`);
       rest = rest.slice(at);
     }
+    // "... then x,y": where a Canto unit moves on once the action is done.
+    const thenAt = rest.findIndex((w) => w.toLowerCase() === 'then');
+    let then = null;
+    if (thenAt >= 0) {
+      if (rest.length !== thenAt + 2)
+        throw new PlayError('"then" takes one tile: then <x,y|stay>.');
+      then = rest[thenAt + 1];
+      rest = rest.slice(0, thenAt);
+    }
     const action = (rest[0] || '').toLowerCase();
     if (!ACTION_VERBS.has(action))
       throw new PlayError(
         `Unknown action "${rest[0] || ''}". Actions: ${[...ACTION_VERBS].join(', ')}.`,
+      );
+    if (then && (action === 'trade' || !cantoRuleFor(unit, this.game.gameData.skills)))
+      throw new PlayError(
+        action === 'trade'
+          ? 'A trade leaves the unit to act: "then" belongs on its action.'
+          : `${unit.name} has no Canto or Measured Step to move on with.`,
       );
     const args = rest.slice(1);
 
@@ -497,11 +531,61 @@ export class PlayBattle {
     if (equip) b.equipFromMenu(equip);
     this.events.push({ type: 'order', unit, from, tile, action, args, equip });
     plan();
+    if (action === 'trade') {
+      // A trade is free: the unit, its move now locked in, still has its action.
+      b.cancel();
+      return;
+    }
+    if (b.battleState === HEADLESS_STATES.CANTO_MOVING) {
+      if (then) await this._canto([then]);
+      else this.events.push({ type: 'cantoOpen', unit, remaining: b.cantoRemaining });
+      return;
+    }
+    await this._afterAction();
+  }
+
+  async _afterAction() {
+    const b = this.battle;
     if (!this.over && b.battleState === HEADLESS_STATES.ENEMY_PHASE) {
       this.events.push({ type: 'allActed' });
       this._autoEnded = true;
     }
     await this._settlePhases();
+  }
+
+  /** canto <x,y|stay>: where a Canto unit moves on to after its action. */
+  async _canto(words) {
+    const b = this.battle;
+    const unit = b.selectedUnit;
+    const tile = parseTile(words[0], unit);
+    const reach = this._cantoTiles();
+    if (!reach.has(tileKey(tile.col, tile.row)))
+      throw new PlayError(
+        `${unit.name} cannot move on to ${tile.col},${tile.row} (${b.cantoRemaining} tile(s) left). "options ${this.ids.id(unit)}" shows where it can.`,
+      );
+    const from = { col: unit.col, row: unit.row };
+    b.cantoMoveTo(tile.col, tile.row);
+    const ambush = b.lastAmbush;
+    this.events.push({ type: 'canto', unit, from, to: { col: unit.col, row: unit.row } });
+    if (ambush)
+      this.events.push({
+        type: 'ambush',
+        unit,
+        ambusher: ambush.ambusher,
+        planned: tile,
+        canto: true,
+      });
+    await this._afterAction();
+  }
+
+  /** Tiles a unit moving on (Canto) may stop on, its own included. */
+  _cantoTiles() {
+    const b = this.battle;
+    const unit = b.selectedUnit;
+    const tiles = new Map([[tileKey(unit.col, unit.row), { cost: 0 }]]);
+    for (const [key, entry] of b.cantoRange || [])
+      if (entry?.stoppable !== false) tiles.set(key, entry);
+    return tiles;
   }
 
   /** Checks an order against the board with the unit on its destination; returns its commit. */
@@ -651,6 +735,107 @@ export class PlayBattle {
             throw new PlayError(`${entry.art.name} cannot be used now.`);
         };
       }
+      case 'trade': {
+        // trade <ally> give <item> [for <their item>] | trade <ally> take <their item>
+        const { head, clauses } = splitClauses(args, ['give', 'take', 'for']);
+        const ally = this.ids.resolve(head.join(' '), b.playerUnits, 'unit of yours');
+        if (!at(() => b._findTradeTargets(unit)).some((t) => t.ally === ally))
+          throw new PlayError(`${ally.name} is not beside ${tile.col},${tile.row} to trade with.`);
+        const bagOf = (u) => [...(u.inventory || []), ...(u.consumables || [])];
+        let mine = null;
+        let theirs = null;
+        if (clauses.give) {
+          mine = findItem(bagOf(unit), clauses.give, 'item to give');
+          if (clauses.for) theirs = findItem(bagOf(ally), clauses.for, `item of ${ally.name}'s`);
+        } else if (clauses.take)
+          theirs = findItem(bagOf(ally), clauses.take, `item of ${ally.name}'s`);
+        else
+          throw new PlayError(
+            'trade <ally> give <item> [for <their item>] | trade <ally> take <their item>',
+          );
+        return () => {
+          const result = b.trade(ally, mine, theirs);
+          if (!result.ok) throw new PlayError(result.reason);
+          this.events.push({
+            type: 'traded',
+            unit,
+            ally,
+            detail: result.detail,
+            warnings: result.warnings,
+          });
+        };
+      }
+      case 'swap':
+      case 'shove':
+      case 'pull': {
+        const ally = this.ids.resolve(args.join(' '), b.playerUnits, 'unit of yours');
+        if (action !== 'swap' && !unit.skills?.includes(action))
+          throw new PlayError(
+            `${unit.name} does not know ${action[0].toUpperCase()}${action.slice(1)}.`,
+          );
+        const finder = {
+          swap: '_findSwapTargets',
+          shove: '_findShoveTargets',
+          pull: '_findPullTargets',
+        }[action];
+        if (!at(() => b[finder](unit)).some((t) => t.ally === ally))
+          throw new PlayError(
+            `${unit.name} cannot ${action} ${ally.name} from ${tile.col},${tile.row}${action === 'swap' ? " (both must stand beside each other, each able to stand on the other's tile)" : ' (beside it, with an open tile in view where the move ends)'}.`,
+          );
+        return () => {
+          const moved = b.reposition(action, ally);
+          this.events.push({ type: 'repositioned', unit, kind: action, moved });
+        };
+      }
+      case 'ability': {
+        // ability <name> [at <x,y>]: Blink takes a tile; the others centre on the unit.
+        const { head, clauses } = splitClauses(args, ['at']);
+        const want = head.join(' ').toLowerCase();
+        const entries = at(() => b.abilityEntries(unit));
+        const entry = entries.find(
+          (e) => e.skill.id.toLowerCase() === want || e.skill.name.toLowerCase() === want,
+        );
+        if (!entry)
+          throw new PlayError(
+            `${unit.name} has no ability "${head.join(' ')}". Abilities: ${entries.map((e) => e.skill.name).join(', ') || 'none'}.`,
+          );
+        if (!entry.canUse)
+          throw new PlayError(
+            `${entry.skill.name} cannot be used from ${tile.col},${tile.row}: ${{ silenced: 'silenced', per_map_limit: 'already used this battle', no_targets: 'nothing in reach' }[entry.reason] || entry.reason}.`,
+          );
+        const blink = entry.skill.actionAbility.kind === 'teleport_self';
+        let target = null;
+        if (blink) {
+          if (!clauses.at)
+            throw new PlayError(`${entry.skill.name}: ability ${entry.skill.id} at <x,y>.`);
+          target = parseTile(clauses.at);
+          if (
+            !at(() => b._blinkTiles(unit, entry.skill)).some(
+              (t) => t.col === target.col && t.row === target.row,
+            )
+          )
+            throw new PlayError(
+              `${entry.skill.name} cannot reach ${target.col},${target.row} from ${tile.col},${tile.row} (an open tile in view within ${entry.skill.actionAbility.range}).`,
+            );
+        } else if (clauses.at)
+          throw new PlayError(`${entry.skill.name} centres on ${unit.name}: no "at".`);
+        return () => {
+          const facts = b.useAbility(entry.skill.id, target);
+          this.events.push({ type: 'ability', unit, skill: entry.skill, facts });
+        };
+      }
+      case 'dance': {
+        const ally = this.ids.resolve(args.join(' '), b.playerUnits, 'unit of yours');
+        if (!unit.skills?.includes('dance')) throw new PlayError(`${unit.name} cannot dance.`);
+        if (!at(() => b._findDanceTargets(unit)).some((t) => t.ally === ally))
+          throw new PlayError(
+            `Dance needs an ally beside ${tile.col},${tile.row} that has acted this turn (not another dancer).`,
+          );
+        return () => {
+          b.dance(ally);
+          this.events.push({ type: 'danced', unit, ally });
+        };
+      }
       default:
         throw new PlayError(`Unknown action "${action}".`);
     }
@@ -678,6 +863,13 @@ export class PlayBattle {
     // tactician cannot finish every map) never spins on.
     const startTurn = this.battle.turnManager.turnNumber;
     for (let i = 0; i < 5000 && !this.over; i++) {
+      // The tactician does not move on after acting: a Canto unit stays where it acted.
+      if (this.battle.battleState === HEADLESS_STATES.CANTO_MOVING) {
+        const u = this.battle.selectedUnit;
+        this.battle.cantoMoveTo(u.col, u.row);
+        await this._settlePhases();
+        continue;
+      }
       const turn = this.battle.turnManager.turnNumber;
       if (scope === 'turn' && turn !== startTurn) break;
       if (turn - startTurn >= AUTO_TURN_CAP) {
@@ -730,8 +922,12 @@ export class PlayBattle {
     const b = this.battle;
     // Each event records whom the player could see as it happened: the feed shows a
     // hidden unit's doings only where the game would (its fight with a unit in view).
+    // (canInspectUnit, not PlayerKnowledge: a unit falling is already at 0 HP, and
+    // PlayerKnowledge counts only the living.)
     const log = (e) => {
-      e.visible = new Set(knowledgeOf(b).units);
+      e.visible = new Set(
+        [...b.playerUnits, ...b.enemyUnits, ...b.npcUnits].filter((u) => canInspectUnit(b.grid, u)),
+      );
       this.events.push(e);
     };
     const wrap = (name, around) => {
@@ -947,6 +1143,12 @@ export class PlayBattle {
         }
         case 'ambush': {
           const hostile = e.ambusher.faction === 'enemy';
+          if (e.canto) {
+            lines.push(
+              `${hostile ? 'AMBUSH! ' : ''}${name(e.ambusher)} was hidden on the way to ${e.planned.col},${e.planned.row}: ${e.unit.name} stops at ${e.unit.col},${e.unit.row}, its action done.`,
+            );
+            break;
+          }
           lines.push(
             `${hostile ? 'AMBUSH! ' : ''}${name(e.ambusher)} was hidden on the way to ${e.planned.col},${e.planned.row}: ${e.unit.name} stops at ${e.unit.col},${e.unit.row}. The move is locked in; ${e.unit.name} has not acted yet: give it an action there ("move ${this.ids.id(e.unit)} stay <action>").`,
           );
@@ -1002,6 +1204,53 @@ export class PlayBattle {
           break;
         case 'allActed':
           lines.push('Every unit has acted: the player phase ends.');
+          break;
+        case 'cantoOpen':
+          lines.push(
+            `${name(e.unit)} may move on up to ${e.remaining} tile(s) (${cantoRuleFor(e.unit, this.game.gameData.skills) === 'any' ? 'Canto' : 'Measured Step'}): "canto <x,y>" or "canto stay" before anything else ("options ${this.ids.id(e.unit)}" shows where).`,
+          );
+          break;
+        case 'canto':
+          lines.push(
+            e.from.col === e.to.col && e.from.row === e.to.row
+              ? `${name(e.unit)} stays at ${e.to.col},${e.to.row}.`
+              : `${name(e.unit)} moves on ${e.from.col},${e.from.row}->${e.to.col},${e.to.row}.`,
+          );
+          break;
+        case 'traded':
+          lines.push(
+            `${name(e.unit)} trades with ${name(e.ally)}: ${e.detail}.${(e.warnings || []).map((w) => ` (${w.unit.name} ${w.code === 'leaves_unarmed' ? 'is left unarmed' : 'cannot equip it'})`).join('')} The move is locked in; ${e.unit.name} still has its action ("move ${this.ids.id(e.unit)} stay <action>").`,
+          );
+          break;
+        case 'repositioned':
+          lines.push(
+            `${name(e.unit)} ${e.kind === 'swap' ? 'swaps places with' : e.kind === 'shove' ? 'shoves' : 'pulls'} ${e.moved.map((m) => `${name(m.unit)} ${m.from.col},${m.from.row}->${m.to.col},${m.to.row}`).join(', ')}.`,
+          );
+          break;
+        case 'ability': {
+          const f = e.facts;
+          const what =
+            f.kind === 'teleport_self'
+              ? `blinks to ${e.unit.col},${e.unit.row}`
+              : f.kind === 'ally_buff'
+                ? `rallies ${f.affected.map((u) => name(u)).join(', ') || 'no one'} (${Object.entries(
+                    e.skill.actionAbility.stats || {},
+                  )
+                    .map(([k, v]) => `${k}+${v}`)
+                    .join(' ')} for ${e.skill.actionAbility.durationPhases} phases)`
+                : f.kind === 'aoe_heal'
+                  ? `heals ${f.targets.map((t) => `${name(t.unit)} ${t.hpBefore}->${t.hpAfter}`).join(', ') || 'no one'}`
+                  : `roots ${
+                      f.targets
+                        .filter((t) => t.rooted)
+                        .map((t) => name(t.unit))
+                        .join(', ') || 'no one'
+                    }`;
+          lines.push(`${name(e.unit)} uses ${e.skill.name}: ${what}.`);
+          break;
+        }
+        case 'danced':
+          lines.push(`${name(e.unit)} dances: ${name(e.ally)} may act again this turn.`);
           break;
         case 'par':
           lines.push(`Par is now ${e.to} (was ${e.from}): reinforcements raise it.`);

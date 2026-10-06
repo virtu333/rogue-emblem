@@ -8,6 +8,24 @@ export class PlayError extends Error {
   }
 }
 
+/** A name that fits several different items: `choice` is the first one's #number. */
+export class AmbiguousItem extends PlayError {
+  constructor(message, token, choice) {
+    super(message);
+    this.name = 'AmbiguousItem';
+    this.token = token;
+    this.choice = choice;
+  }
+}
+
+/** "end" straight after a turn ended on its own: refused, since it would skip a turn. */
+export class EndAfterTurnEnded extends PlayError {
+  constructor(message) {
+    super(message);
+    this.name = 'EndAfterTurnEnded';
+  }
+}
+
 /** Splits a command into words; "double quotes" keep a multi-word name together. */
 export function tokenize(text) {
   const words = [];
@@ -55,13 +73,16 @@ export function splitClauses(words, keywords) {
   return { head, clauses };
 }
 
-/** An item's state apart from its identity: equal for copies that would play alike. */
+/** Fields that name or describe an item without changing how it plays. */
+const PRESENTATION_FIELDS = new Set(['uid', 'lore', 'description', 'flavor', 'flavorText', 'icon']);
+
+/** An item's state apart from its identity and text: equal for copies that play alike. */
 function itemSignature(item) {
-  const { uid: _uid, ...rest } = item || {};
   return JSON.stringify(
-    Object.keys(rest)
+    Object.keys(item || {})
+      .filter((k) => !PRESENTATION_FIELDS.has(k))
       .sort()
-      .map((k) => [k, rest[k]]),
+      .map((k) => [k, item[k]]),
   );
 }
 
@@ -101,13 +122,15 @@ export function findItem(list, token, what = 'item') {
   }
   const oneOf = (matches) => {
     if (matches.every((i) => itemSignature(i) === itemSignature(matches[0]))) return matches[0];
-    throw new PlayError(
+    throw new AmbiguousItem(
       `"${token}" names ${matches.length} different ${what}s: ${matches
         .map(
           (i) =>
             `#${items.indexOf(i) + 1} ${i.name}${itemDistinction(i) ? ` (${itemDistinction(i)})` : ''}`,
         )
         .join('; ')}. Name one by its #number.`,
+      String(token),
+      items.indexOf(matches[0]) + 1,
     );
   };
   const exact = items.filter((i) => String(i.name).toLowerCase() === t);

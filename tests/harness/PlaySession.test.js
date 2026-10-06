@@ -301,6 +301,30 @@ describe('PlaySession commands', () => {
     expect(session.game.battle.battle.turnManager.turnNumber).toBe(turn2 + 1);
   });
 
+  it('an adapting rebase restates an old "end" that the current rules would refuse', async () => {
+    const session = await firstBattle(3);
+    await session.exec('start');
+    for (const u of session.game.battle.battle.playerUnits)
+      await session.exec(`move ${session.game.battle.ids.id(u)} stay wait`);
+    // As a session from before the guard logged it: "end" straight after the turn ended.
+    const old = {
+      ...session.toRecord(),
+      format: 1,
+      log: [...session.toRecord().log, { cmd: 'end' }],
+    };
+    delete old.digestVersion;
+    await expect(PlaySession.fromRecord(gameData, old, { verify: false })).rejects.toThrow(
+      /Replay failed .*end again/,
+    );
+    const rebased = await PlaySession.rebase(gameData, old, { adapt: true });
+    expect(rebased.log.at(-1)).toMatchObject({ cmd: 'end again', rewrittenFrom: 'end' });
+    expect(rebased.provenance.rewritten).toEqual([
+      { at: old.log.length, from: 'end', to: 'end again' },
+    ]);
+    // Without --adapt the rebase stops where the rules part.
+    await expect(PlaySession.rebase(gameData, old)).rejects.toThrow(/Replay failed/);
+  });
+
   it("reports an enemy healer's heal, which the AI applies itself", async () => {
     const session = await firstBattle(3);
     await session.exec('start');

@@ -16,9 +16,11 @@ describe('findItem', () => {
     _forgeBonuses: { might: 2 },
   };
 
-  it('takes the first of copies alike in all but their uid', () => {
+  it('takes the first of copies alike in all but their uid and flavour text', () => {
     expect(findItem([fresh, twin], 'iron sword')).toBe(fresh);
     expect(findItem([fresh, twin], 'iron')).toBe(fresh);
+    const told = { ...twin, uid: 9, lore: 'It has seen things.' };
+    expect(findItem([fresh, told], 'iron sword')).toBe(fresh);
   });
 
   it('refuses a name shared by items that differ, naming each by number and difference', () => {

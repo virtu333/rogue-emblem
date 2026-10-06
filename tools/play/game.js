@@ -34,6 +34,10 @@ import {
   rosterItemWarnings,
 } from '../../src/engine/RosterInventory.js';
 import { giveRosterItem, teachRosterScroll } from '../../src/engine/RosterTransfers.js';
+import { bindRosterArt } from '../../src/engine/RosterArtCommands.js';
+import { benchSkill, equipSkill } from '../../src/engine/SkillLoadout.js';
+import { getWeaponArtBindings } from '../../src/engine/WeaponArtSystem.js';
+import { benchedSkillsOf } from '../../src/engine/UnitManager.js';
 import { applyRosterClassChange } from '../../src/engine/RosterCommands.js';
 import { getReclassTargets, resolvePromotionTargets } from '../../src/engine/UnitManager.js';
 import { DEPLOY_LIMITS, NODE_TYPES } from '../../src/utils/constants.js';
@@ -59,6 +63,8 @@ export const PHASES = Object.freeze([
   'church',
   'ruins',
   'colosseum',
+  // The commander fell with a Vision charge left: rewind, or accept the defeat.
+  'fatal',
   'ended',
 ]);
 
@@ -238,6 +244,8 @@ export class Game {
         return this._deployView();
       case 'battle':
         return this.battle.view();
+      case 'fatal':
+        return `${this.battle.view()}\n\nYOUR COMMANDER HAS FALLEN. "rewinds" lists the moments a Vision can return to (${this.rm.visionChargesRemaining} left); "rewind <n>" | "accept".`;
       case 'reward':
         return this._rewardView();
       case 'shop':
@@ -351,18 +359,23 @@ export class Game {
       map: [
         'go <node id>                       travel (or re-enter the service you stand on)',
         'equip <unit> <weapon> · store <unit> <item> · withdraw <unit> <item>',
-        'use <unit> <item> [<class>] · give <unit> <item> to <unit> · accessory <unit> <name|none> · teach <unit> <scroll>',
+        'use <unit> <item> [<class>] · give <unit> <item> to <unit> · accessory <unit> <name|none>',
+        'teach <unit> <scroll> [on <weapon>] [replace <slot>] · bench <unit> <skill> · unbench <unit> <skill> [for <skill>]',
       ].join('\n'),
       deploy: 'deploy <unit>, <unit>, ... | deploy last',
       battle: [
         ...(this.battle?.formation
           ? ['FORMATION: place <unit> <x,y> | start   (auto keeps the default tiles)']
           : []),
-        'move <unit> <x,y|stay> [equip <weapon>] <action>',
+        'move <unit> <x,y|stay> [equip <weapon>] <action> [then <x,y|stay>]',
         '  actions: wait | attack <enemy> [with <weapon>] [art <art>] | heal <ally> [with <staff>]',
         '           item <item> [on <ally>] | talk | seize | escape | smash <x,y> | strike <art> at <x,y>',
+        '           swap|shove|pull <ally> | dance <ally> | trade <ally> give <item> [for <item>] | trade <ally> take <item>',
+        '           ability <name> [at <x,y>]   (Blink, Rally Cry, Healing Circle, Ensnare)',
+        'canto <x,y|stay>                   move on after acting (Canto, Measured Step); "then" does it in the order',
         'end                                end the player phase',
         'auto turn | auto battle            let the harness tactician play',
+        'rewinds | rewind <n>               a Vision: return to an earlier moment of this battle (one charge)',
         'Queries: options <unit> | forecast <unit> <x,y> <enemy> [with <weapon>] [art <art>] | threat <x,y> [<unit>] | unit <id>',
       ].join('\n'),
       reward:
@@ -371,6 +384,7 @@ export class Game {
       church: this.visit?.help?.(),
       ruins: this.visit?.help?.(),
       colosseum: this.visit?.help?.(),
+      fatal: 'rewinds (list) | rewind <n> | accept',
       ended: 'The run is over.',
     };
     return `${phaseHelp[this.phase] || ''}\n${common}`;
@@ -389,8 +403,31 @@ export class Game {
         available: this.availableNodes(),
         reenter: this.reenterableNode(),
       });
-    if (this.phase === 'battle') return this.battle.query(verb, words);
+    if (this.phase === 'battle' || this.phase === 'fatal') return this.battle.query(verb, words);
     return null;
+  }
+
+  _skillName(id) {
+    return this.gameData.skills.find((x) => x.id === id)?.name || id;
+  }
+
+  /** A skill id among `ids`, named by its id or its name (or a unique prefix of either). */
+  _resolveSkill(ids, token, what) {
+    const t = String(token || '')
+      .trim()
+      .toLowerCase();
+    const choices = ids.map((id) => ({ id, name: this._skillName(id) }));
+    const list = () => choices.map((c) => c.name).join(', ') || 'none';
+    if (!t) throw new PlayError(`Name an ${what}: ${list()}.`);
+    const exact = choices.filter((c) => c.id.toLowerCase() === t || c.name.toLowerCase() === t);
+    if (exact.length === 1) return exact[0].id;
+    const prefix = choices.filter(
+      (c) => c.id.toLowerCase().startsWith(t) || c.name.toLowerCase().startsWith(t),
+    );
+    if (prefix.length === 1) return prefix[0].id;
+    throw new PlayError(
+      `${prefix.length > 1 ? `"${token}" is ambiguous` : `No ${what} "${token}"`}. Choose from: ${list()}.`,
+    );
   }
 
   // --- commands ---
@@ -419,6 +456,9 @@ export class Game {
         const out = this.visit.exec(verb, words);
         return out.leave ? this._checkActComplete(out.lines) : out.lines;
       }
+      case 'fatal':
+        if (verb === 'accept') return this._acceptDefeat();
+        throw new PlayError('Your commander has fallen: "rewind <n>" (see "rewinds") or "accept".');
       case 'ended':
         throw new PlayError('The run is over.');
       default:
@@ -571,8 +611,15 @@ export class Game {
     if (battle.battle.result === 'victory') {
       lines = battle.settleVictory();
     } else {
-      rm.failRun({ wasBoss: battle.isBoss });
-      lines = ['Your commander has fallen. The run ends.'];
+      // VisionRewindController.showLordDeathPrompt: with a charge left the fall is a
+      // choice, rewind or accept fate, before the run ends.
+      if ((rm.visionChargesRemaining || 0) > 0) {
+        this.phase = 'fatal';
+        return [
+          `Your commander has fallen. A Vision can undo it (${rm.visionChargesRemaining} left this run): "rewinds" lists the moments to return to, "rewind <n>" spends one; "accept" ends the run.`,
+        ];
+      }
+      return this._acceptDefeat();
     }
     this.setRandom(this.outside);
     this.lastBattle = {
@@ -590,6 +637,21 @@ export class Game {
       return lines;
     }
     return this._checkActComplete(lines);
+  }
+
+  /** The run ends with this battle lost (BattleScene.onDefeat). */
+  _acceptDefeat() {
+    const battle = this.battle;
+    this.rm.failRun({ wasBoss: battle.isBoss });
+    this.setRandom(this.outside);
+    this.lastBattle = {
+      node: battle.node.id,
+      result: battle.battle.result,
+      turns: battle.battle.turnManager?.turnNumber,
+    };
+    this.battle = null;
+    this.phase = 'ended';
+    return ['Your commander has fallen. The run ends.'];
   }
 
   _execReward(verb, words) {
@@ -899,12 +961,66 @@ export class Game {
         ];
       }
       case 'teach': {
+        // teach <unit> <scroll> [on <weapon>] [replace <slot>]: a skill scroll, or a
+        // weapon-art scroll bound to one of the unit's weapons (the Roster's Arts tab).
         const unit = unitFirst();
-        const scroll = findItem(rm.scrolls || [], words.slice(1).join(' '), 'scroll');
-        const result = teachRosterScroll(rm, unit, scroll, gd.skills);
-        if (!result.ok) throw new PlayError(result.reason);
+        const { head, clauses } = splitClauses(words.slice(1), ['on', 'replace']);
+        const scroll = findItem(rm.scrolls || [], head.join(' '), 'scroll');
+        if (!scroll.teachesWeaponArtId) {
+          const result = teachRosterScroll(rm, unit, scroll, gd.skills);
+          if (!result.ok) throw new PlayError(result.reason);
+          return [
+            `${unit.name} learns from ${scroll.name}${result.benched ? ' (benched: every slot is full; "unbench" swaps it in)' : ''}.`,
+          ];
+        }
+        if (!clauses.on)
+          throw new PlayError(
+            `${scroll.name} binds an art to a weapon: teach ${unit.name} ${scroll.name} on <weapon> [replace <slot>].`,
+          );
+        const weapon = findItem(unit.inventory || [], clauses.on, 'weapon');
+        const bindings = getWeaponArtBindings(weapon);
+        let replacement = null;
+        if (clauses.replace) {
+          const slot = parseIndex(clauses.replace, bindings.length, 'art slot');
+          replacement = { index: slot, id: bindings[slot].id, source: bindings[slot].source };
+        }
+        const arts = gd.weaponArts?.arts || [];
+        const result = bindRosterArt(rm, unit, weapon, scroll, arts, replacement);
+        if (!result.ok)
+          throw new PlayError(
+            bindings.length >= 3 && !replacement
+              ? `${weapon.name} holds 3 arts (${bindings.map((b, i) => `${i + 1} ${b.id}`).join(', ')}): add "replace <slot>".`
+              : result.reason,
+          );
+        const art = arts.find((a) => a.id === scroll.teachesWeaponArtId?.trim());
         return [
-          `${unit.name} learns from ${scroll.name}${result.benched ? ' (benched: every slot is full)' : ''}.`,
+          `${unit.name}'s ${weapon.name} learns ${art?.name || scroll.teachesWeaponArtId}${replacement ? ` in place of ${replacement.id}` : ''}.`,
+        ];
+      }
+      case 'bench': {
+        // bench <unit> <skill>: set an equipped skill aside (SkillLoadout).
+        const unit = unitFirst();
+        const skill = this._resolveSkill(
+          unit.skills || [],
+          words.slice(1).join(' '),
+          'equipped skill',
+        );
+        const reason = benchSkill(unit, skill, gd);
+        if (reason) throw new PlayError(reason);
+        return [`${unit.name} benches ${this._skillName(skill)}.`];
+      }
+      case 'unbench': {
+        // unbench <unit> <skill> [for <equipped skill>]: take a benched skill into battle.
+        const unit = unitFirst();
+        const { head, clauses } = splitClauses(words.slice(1), ['for']);
+        const skill = this._resolveSkill(benchedSkillsOf(unit), head.join(' '), 'benched skill');
+        const replace = clauses.for
+          ? this._resolveSkill(unit.skills || [], clauses.for, 'equipped skill')
+          : null;
+        const reason = equipSkill(unit, skill, replace, gd);
+        if (reason) throw new PlayError(reason);
+        return [
+          `${unit.name} equips ${this._skillName(skill)}${replace ? ` and benches ${this._skillName(replace)}` : ''}.`,
         ];
       }
       default:

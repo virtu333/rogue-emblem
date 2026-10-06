@@ -112,6 +112,24 @@ describe('observations read what the player knows', () => {
   });
 });
 
+describe('the event feed reports what happened in sight', () => {
+  it('an enemy the player strikes down in view is reported falling', async () => {
+    const session = await foggedBattle();
+    const b = session.game.battle.battle;
+    const edric = b.playerUnits.find((u) => u.isCommander);
+    const foe = b.enemyUnits.find((e) => !e.isBoss);
+    const plain = b.gameData.terrain.findIndex((t) => t.name === 'Plain');
+    b.grid.mapLayout[edric.row][edric.col + 1] = plain;
+    Object.assign(foe, { col: edric.col + 1, row: edric.row, currentHP: 1 });
+    b._refreshFogVisibility();
+    session.game.battle._afterStep();
+    const { lines } = await session.exec(
+      `move Edric stay attack ${session.game.battle.ids.id(foe)}`,
+    );
+    expect(lines.join('\n')).toMatch(new RegExp(`${foe.name} falls`));
+  });
+});
+
 describe('the event feed leaves out what happened out of sight', () => {
   async function feed(session, events) {
     const battle = session.game.battle;

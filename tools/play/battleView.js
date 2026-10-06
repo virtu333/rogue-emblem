@@ -27,6 +27,8 @@ import { getTerrainCostReduction, getWeaponRangeBonus } from '../../src/engine/S
 import { getLatePressureState, getBossEnrageTurn } from '../../src/engine/TurnBonusCalculator.js';
 import { isAreaStrikeCenter } from '../../src/engine/AreaStrike.js';
 import { isRooted } from '../../src/engine/StatusConditionSystem.js';
+import { getWeaponArtBindings } from '../../src/engine/WeaponArtSystem.js';
+import { cantoRuleFor } from '../../src/engine/CantoRule.js';
 import { PlayError } from './parse.js';
 import { hitChancePercent } from '../../src/ui/forecastDisplay.js';
 
@@ -309,6 +311,8 @@ export function weaponText(weapon, unit) {
   }
   if (weapon._forgeLevel) parts.push(`forged +${weapon._forgeLevel}`);
   if (weapon._imbueId) parts.push(`imbued ${weapon._imbueId}`);
+  const arts = getWeaponArtBindings(weapon);
+  if (arts.length) parts.push(`arts: ${arts.map((a) => a.id).join(', ')}`);
   if (weapon.special) parts.push(weapon.special);
   return `${weapon.name} (${parts.join(' · ')})`;
 }
@@ -463,6 +467,10 @@ export function battleView(battle, ids, { title = '' } = {}) {
   const out = [];
   out.push(`== BATTLE${title ? ` · ${title}` : ''} · ${turnLine(battle)} ==`);
   out.push(...objectiveLines(battle, ids));
+  if (battle.battleState === 'CANTO_MOVING' && battle.selectedUnit)
+    out.push(
+      `${ids.id(battle.selectedUnit)} ${battle.selectedUnit.name} has acted and may move on ${battle.cantoRemaining} tile(s): "canto <x,y>" or "canto stay" comes first.`,
+    );
   out.push('');
   out.push(
     `Map ${battle.grid.cols}x${battle.grid.rows}. Coordinates are x,y (x = column, y = row).`,
@@ -650,6 +658,8 @@ function healTargetsFrom(battle, unit, col, row) {
  * can strike from where (best tiles first, with the forecast), heals, Talk, objectives.
  */
 export function optionsView(battle, ids, unit, { limit = 3 } = {}) {
+  if (battle.battleState === 'CANTO_MOVING' && battle.selectedUnit === unit)
+    return cantoOptions(battle, ids, unit);
   const tiles = movementTiles(battle, unit);
   const { damage, status } = dangerMap(battle);
   const known = knowledgeOf(battle);
@@ -784,12 +794,75 @@ export function optionsView(battle, ids, unit, { limit = 3 } = {}) {
         : 'No escape tile in reach.',
     );
   }
+  // Allies it could trade with, swap, shove, pull or dance for, from some tile in reach.
+  const partners = (finder) => {
+    const found = new Set();
+    for (const [c, r] of tileList)
+      for (const t of withPreview(battle, unit, { col: c, row: r }, () => battle[finder](unit))
+        .value)
+        found.add(t.ally);
+    return [...found].map((a) => ids.id(a));
+  };
+  const moves = [
+    ['trade', '_findTradeTargets', true],
+    ['swap', '_findSwapTargets', true],
+    ['shove', '_findShoveTargets', unit.skills?.includes('shove')],
+    ['pull', '_findPullTargets', unit.skills?.includes('pull')],
+    ['dance', '_findDanceTargets', unit.skills?.includes('dance')],
+  ]
+    .filter(([, , has]) => has)
+    .map(([verb, finder]) => [verb, partners(finder)])
+    .filter(([, list]) => list.length);
+  if (moves.length)
+    out.push(
+      `Beside allies: ${moves.map(([verb, list]) => `${verb} ${list.join('/')}`).join('; ')} (trade is free and keeps the action; the others end it).`,
+    );
+  const abilities = battle.abilityEntries(unit);
+  if (abilities.length)
+    out.push(
+      `Abilities (once per battle; "ability <name>"${abilities.some((a) => a.skill.actionAbility.kind === 'teleport_self') ? ', Blink "at <x,y>"' : ''}): ${abilities
+        .map(
+          (a) =>
+            `${a.skill.name}: ${a.skill.description}${a.canUse ? '' : ` [not now: ${{ silenced: 'silenced', per_map_limit: 'used', no_targets: 'nothing in reach from here' }[a.reason] || a.reason}]`}`,
+        )
+        .join('; ')}`,
+    );
+  const canto = cantoRuleFor(unit, battle.gameData.skills);
+  if (canto)
+    out.push(
+      canto === 'any'
+        ? 'Canto: after acting (not after Wait) it may move on with the movement left.'
+        : 'Measured Step: after a noncombat action (not Wait) it may move on with the movement left.',
+    );
   const usable = (unit.consumables || []).filter((i) =>
     ['heal', 'healFull', 'cure', 'cureHeal'].includes(i.effect),
   );
   if (usable.length)
     out.push(`Items: ${usable.map(itemText).join(', ')} ("item <name>" ends the action).`);
   return out.join('\n');
+}
+
+/** Where a unit moving on after its action (Canto) may stop, with what can strike there. */
+function cantoOptions(battle, ids, unit) {
+  const { damage, status } = dangerMap(battle);
+  const tiles = new Map([[tileKey(unit.col, unit.row), true]]);
+  for (const [key, entry] of battle.cantoRange || [])
+    if (entry?.stoppable !== false) tiles.set(key, true);
+  return [
+    `${ids.id(unit)} ${unit.name} @${unit.col},${unit.row} has acted and may move on ${battle.cantoRemaining} tile(s): "canto <x,y>" or "canto stay".`,
+    'Tiles (digit = visible enemies able to strike there; s = status staff only; o = no visible enemy; ? = fog; @ = here):',
+    renderBoard(battle, ids, {
+      overlay: (c, r) => {
+        const key = tileKey(c, r);
+        if (!tiles.has(key)) return null;
+        if (c === unit.col && r === unit.row) return '@';
+        const n = damage.get(key) || 0;
+        if (n) return String(Math.min(9, n));
+        if (battle.grid.fogEnabled && !battle.grid.isVisible(c, r)) return '?';
+        return status.has(key) ? 's' : 'o';
+      },
+    }),
+  ].join('\n');
 }
 
 /** Who can strike a tile next enemy phase. */

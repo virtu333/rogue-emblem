@@ -202,6 +202,62 @@ describe('route map roster commands', () => {
   });
 });
 
+describe('route map skills and arts', () => {
+  const scrollNamed = (name) =>
+    structuredClone(gameData.weapons.find((w) => w.name === name && w.type === 'Scroll'));
+
+  it('binds a weapon-art scroll to a weapon, and needs a slot once three are bound', async () => {
+    const session = await PlaySession.create(gameData, { seed: 3 });
+    await session.exec('bless skip');
+    const rm = session.game.rm;
+    const edric = rm.roster.find((u) => u.name === 'Edric');
+    const sword = edric.inventory.find((w) => w.name === 'Steel Sword');
+    rm.scrolls = ['Lunge Scroll', 'Grounder Scroll', 'Windsweep Scroll', 'Hexblade Scroll'].map(
+      scrollNamed,
+    );
+    await expect(session.exec('teach Edric Lunge Scroll')).rejects.toThrow(/on <weapon>/);
+    await session.exec('teach Edric Lunge Scroll on Steel Sword');
+    expect(sword.weaponArtIds).toEqual(['sword_lunge']);
+    expect(rm.scrolls.map((x) => x.name)).not.toContain('Lunge Scroll');
+    // A lance user cannot bind a sword art.
+    await expect(
+      session.exec('teach Gaspar Grounder Scroll on Steel Lance'),
+    ).rejects.toBeInstanceOf(PlayError);
+    await session.exec('teach Edric Grounder Scroll on Steel Sword');
+    await session.exec('teach Edric Windsweep Scroll on Steel Sword');
+    await expect(session.exec('teach Edric Hexblade Scroll on Steel Sword')).rejects.toThrow(
+      /holds 3 arts .*replace <slot>/,
+    );
+    await session.exec('teach Edric Hexblade Scroll on Steel Sword replace 2');
+    expect(sword.weaponArtIds).toEqual(['sword_lunge', 'sword_hexblade', 'sword_windsweep']);
+    expect(rm.scrolls).toEqual([]);
+  });
+
+  it('benches a learned skill and takes it back, but never a lord or class skill', async () => {
+    const session = await PlaySession.create(gameData, { seed: 3 });
+    await session.exec('bless skip');
+    const rm = session.game.rm;
+    const edric = rm.roster.find((u) => u.name === 'Edric');
+    const skillScroll = gameData.weapons.find(
+      (w) =>
+        w.type === 'Scroll' &&
+        w.skillId &&
+        !gameData.skills.find((x) => x.id === w.skillId)?.classInnate,
+    );
+    const skill = gameData.skills.find((x) => x.id === skillScroll.skillId);
+    rm.scrolls = [structuredClone(skillScroll)];
+    await session.exec(`teach Edric ${skillScroll.name}`);
+    expect(edric.skills).toContain(skill.id);
+    await expect(session.exec('bench Edric Charisma')).rejects.toThrow(/can.t be benched/);
+    await session.exec(`bench Edric ${skill.name}`);
+    expect(edric.skills).not.toContain(skill.id);
+    expect(edric.benchedSkills).toEqual([skill.id]);
+    await session.exec(`unbench Edric ${skill.name}`);
+    expect(edric.skills).toContain(skill.id);
+    expect(edric.benchedSkills).toEqual([]);
+  });
+});
+
 describe('battle spoils', () => {
   it('skip pays the skip gold; a gold choice pays its gold', async () => {
     for (const choose of ['skip', 'gold']) {

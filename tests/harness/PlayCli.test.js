@@ -68,7 +68,7 @@ describe('play CLI', () => {
     expect(manifest.options.seed).toBe(3);
     expect(manifest.agent).toEqual({ description: 'pilot agent, notes on' });
     expect(manifest.data).toMatch(/^[0-9a-f]{16}$/);
-    expect(manifest.unsupported.map((u) => u.id)).toContain('vision');
+    expect(manifest.unsupported.map((u) => u.id)).toContain('ballista');
 
     const turn = play('a', 'bless skip; go act1_0_2; start', '--note', 'opening');
     expect(turn.code).toBe(0);
