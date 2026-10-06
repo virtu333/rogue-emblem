@@ -38,5 +38,6 @@ export function loadGameData() {
     deeds: loadJSON('deeds.json'),
     eclipse: loadJSON('eclipse.json'),
     prologue: loadJSON('prologue.json'),
+    events: loadJSON('events.json'),
   };
 }

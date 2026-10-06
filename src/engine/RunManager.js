@@ -146,6 +146,14 @@ import {
   prologueJoinsAtNode,
 } from './Prologue.js';
 import { normalizeRosterLesson } from './PrologueRosterLesson.js';
+import {
+  sanitizeEventLog,
+  sanitizeEventStates,
+  sanitizeLaidToRest,
+  sanitizeStoryFlags,
+} from './EventSystem.js';
+import { burdenEffectsOnVictory, normalizeBurdens } from './Burdens.js';
+import { everFallenUnits } from './LaidToRest.js';
 import { createSpecialCharacter } from './SpecialCharacters.js';
 
 // Phaser-specific fields that must be stripped for serialization
@@ -518,6 +526,17 @@ export class RunManager {
     this.ruinsChoiceByNodeId = {};
     // Each church's one vow ('promote' | 'blessing'); see ChurchVow.js.
     this.churchVowByNodeId = {};
+    // Story Events (engine/EventCommands.js, docs/specs/event-nodes.md §4): the event each
+    // node holds and what was chosen there (reset per act), the run-long log, the story
+    // flags events write, the burdens they leave (engine/Burdens.js), the event node whose
+    // won battle still owes its spoils, and the allies laid to rest (never revivable).
+    this.eventStateByNodeId = {};
+    this.eventLog = [];
+    this.storyFlags = {};
+    this.burdens = [];
+    this.pendingEventNodeId = null;
+    this.laidToRest = [];
+    this.lastBurdenSettlement = null;
     this.difficultyId = 'normal';
     this.difficultyModifiers = {
       ...DIFFICULTY_DEFAULTS,
@@ -558,6 +577,17 @@ export class RunManager {
     // boss relief and church Kindle. See EclipseSystem.js / docs/specs/eclipse.md.
     this.eclipse = createEclipseState();
     this.lastEclipseCommit = null;
+  }
+
+  /** A fresh run's event state: nothing chosen, no flags, no burdens, no one laid to rest. */
+  _resetEventState() {
+    this.eventStateByNodeId = {};
+    this.eventLog = [];
+    this.storyFlags = {};
+    this.burdens = [];
+    this.pendingEventNodeId = null;
+    this.laidToRest = [];
+    this.lastBurdenSettlement = null;
   }
 
   _isValidSerializedUnit(unit) {
@@ -685,6 +715,7 @@ export class RunManager {
     this.shopStateByNodeId = {};
     this.ruinsChoiceByNodeId = {};
     this.churchVowByNodeId = {};
+    this._resetEventState();
     this.metaUnlockedWeaponArts = [];
     this.actUnlockedWeaponArts = [];
     this.unlockedWeaponArts = [];
@@ -763,6 +794,7 @@ export class RunManager {
     this.shopStateByNodeId = {};
     this.ruinsChoiceByNodeId = {};
     this.churchVowByNodeId = {};
+    this._resetEventState(); // the prologue has no events: it starts empty and stays empty
     this.metaUnlockedWeaponArts = [];
     this.actUnlockedWeaponArts = [];
     this.unlockedWeaponArts = [];
@@ -2844,7 +2876,7 @@ export class RunManager {
    */
   getTakenUnitNames(options = {}) {
     const taken = this._getTrackedRecruitNames();
-    for (const unit of Array.isArray(this.fallenUnits) ? this.fallenUnits : []) {
+    for (const unit of everFallenUnits(this)) {
       const name = typeof unit?.name === 'string' ? unit.name.trim() : '';
       if (name) taken.add(name);
     }
@@ -3263,7 +3295,7 @@ export class RunManager {
       recruits: this.gameData?.recruits,
       usedRecruitNames: this.usedRecruitNames,
       roster: this.roster,
-      fallenUnits: this.fallenUnits,
+      fallenUnits: everFallenUnits(this),
     });
   }
 
@@ -3339,7 +3371,7 @@ export class RunManager {
       runSeed: this.runSeed,
       act: node?.battleParams?.act || this.currentAct,
       roster: this.roster,
-      fallenUnits: this.fallenUnits,
+      fallenUnits: everFallenUnits(this),
       metaEffects: this.getEffectiveMetaEffects(),
       startingLordNames: this.getStartingLordNames(),
       recruitLevelBonus: this.getRecruitLevelBonus(),
@@ -3361,6 +3393,9 @@ export class RunManager {
     battleParams.enemyLevelBonus =
       this.getDifficultyModifier('enemyLevelBonus', 0) +
       this.getBlessingEnemyLevelDelta(battleParams.act || this.currentAct);
+    // An event's fight (engine/EventEffects.js `battle`) may be harder by the effect's levels.
+    if (Number.isFinite(battleParams.eventEnemyLevelBonus))
+      battleParams.enemyLevelBonus += Math.trunc(battleParams.eventEnemyLevelBonus);
     battleParams.bossLevelBonus = this.getDifficultyModifier('bossLevelBonus', 0);
     battleParams.enemySkillChance = this.getDifficultyModifier('enemySkillChance', 0);
     battleParams.enemyCountBase = this.getDifficultyModifier('enemyCountBase', 0);
@@ -3462,6 +3497,14 @@ export class RunManager {
       typeof this.pendingAmbushNodeId === 'string' ? this.pendingAmbushNodeId : null;
     if (!pendingNodeId) return null;
     if (!Array.isArray(this.nodeMap?.nodes)) return null;
+    return this.nodeMap.nodes.find((node) => node?.id === pendingNodeId) || null;
+  }
+
+  /** The event node whose won battle still owes its spoils (EventCommands), or null. */
+  getEventPendingNode() {
+    const pendingNodeId =
+      typeof this.pendingEventNodeId === 'string' ? this.pendingEventNodeId : null;
+    if (!pendingNodeId || !Array.isArray(this.nodeMap?.nodes)) return null;
     return this.nodeMap.nodes.find((node) => node?.id === pendingNodeId) || null;
   }
 
@@ -3911,7 +3954,20 @@ export class RunManager {
     if (!node || node.completed) return false;
     if (this.totalTurns !== null)
       this.totalTurns += Math.max(0, Math.trunc(options.turnCount) || 0);
-    const eclipseCommit = this._commitBattleShadow(node, options);
+    // The battle's gold is known before anything is committed, so burdens settle in one
+    // place (Burdens.burdenEffectsOnVictory: pure; assigned below, at the victory commit
+    // and nowhere else, so a reverted or suspended battle never touches them).
+    const completionGold = Number.isFinite(options?.completionGoldOverride)
+      ? Math.max(0, Math.floor(options.completionGoldOverride))
+      : undefined;
+    const effectiveNodeType = node?.isAmbush ? 'battle' : node?.type;
+    const baseGold = calculateBattleGold(goldEarned, effectiveNodeType, completionGold);
+    const eliteMult = node?.battleParams?.isElite ? ELITE_GOLD_MULTIPLIER : 1;
+    const goldMult = this.getBattleGoldMultiplier();
+    const difficultyGoldMult = this.getDifficultyModifier('goldMultiplier', 1);
+    const finalGold = Math.floor(baseGold * eliteMult * goldMult * difficultyGoldMult);
+    const settlement = burdenEffectsOnVictory(this, { gold: finalGold });
+    const eclipseCommit = this._commitBattleShadow(node, options, settlement.extraShadow);
 
     this._sanitizeUnitPools();
     this.ensureUnitUids();
@@ -3992,16 +4048,18 @@ export class RunManager {
     this.completedBattles++;
     this.winStreak++;
     if (this.winStreak > this.maxWinStreak) this.maxWinStreak = this.winStreak;
-    const completionGold = Number.isFinite(options?.completionGoldOverride)
-      ? Math.max(0, Math.floor(options.completionGoldOverride))
-      : undefined;
-    const effectiveNodeType = node?.isAmbush ? 'battle' : node?.type;
-    const baseGold = calculateBattleGold(goldEarned, effectiveNodeType, completionGold);
-    const eliteMult = node?.battleParams?.isElite ? ELITE_GOLD_MULTIPLIER : 1;
-    const goldMult = this.getBattleGoldMultiplier();
-    const difficultyGoldMult = this.getDifficultyModifier('goldMultiplier', 1);
-    const finalGold = Math.floor(baseGold * eliteMult * goldMult * difficultyGoldMult);
-    this.awardGold(finalGold);
+    this.awardGold(settlement.gold);
+    this.burdens = settlement.burdens;
+    this.lastBurdenSettlement = settlement.record
+      ? {
+          nodeId,
+          ...settlement.record,
+          goldBefore: finalGold,
+          goldAfter: settlement.gold,
+          garnished: settlement.garnished,
+          extraShadow: settlement.extraShadow,
+        }
+      : null;
 
     const isRewardBossNode = node.id === this.nodeMap?.bossNodeId && node.type === 'boss';
     const isRewardAct =
@@ -4021,6 +4079,8 @@ export class RunManager {
       node.ambushCleared = true;
       this.pendingAmbushNodeId = nodeId;
     }
+    // A won event battle: its spoils apply when the route map takes over (EventCommands).
+    if (node?.eventBattle === true) this.pendingEventNodeId = nodeId;
     if (options?.caravanSurvived === true) {
       this.pendingCaravanShop = { actId: this.currentAct };
     }
@@ -4060,7 +4120,7 @@ export class RunManager {
    * Victory commit: add the battle's shadow and, for the act boss, the flare.
    * Returns the commit record (null when the Eclipse is off or nothing is known).
    */
-  _commitBattleShadow(node, options = {}) {
+  _commitBattleShadow(node, options = {}, burdenShadow = 0) {
     if (!this.isEclipseActive()) return null;
     const config = this.getEclipseConfig();
     const before = this.eclipse.shadow;
@@ -4074,13 +4134,16 @@ export class RunManager {
     );
     const isBoss = node.id === this.nodeMap?.bossNodeId && node.type === 'boss';
     const relief = isBoss ? Math.max(0, Math.trunc(Number(config.bossRelief) || 0)) : 0;
+    // An Ill Omen (engine/Burdens.js) adds its shadow to the battle's gain, before the cap.
+    const burden = Math.max(0, Math.trunc(Number(burdenShadow) || 0));
     // The global meter stops at the cap; the act's pressure takes the whole gain.
-    const commit = commitShadow(this.eclipse, { gain, relief }, config);
+    const commit = commitShadow(this.eclipse, { gain: gain + burden, relief }, config);
     this.eclipse = commit.state;
     return {
       nodeId: node.id,
       before,
-      gain,
+      gain: gain + burden,
+      burdenShadow: burden,
       relief,
       after: commit.after,
       meterGain: commit.meterGain,
@@ -4298,6 +4361,9 @@ export class RunManager {
     this.shopStateByNodeId = {};
     this.ruinsChoiceByNodeId = {};
     this.churchVowByNodeId = {};
+    // Each act's events are its own (the log, flags and burdens run on).
+    this.eventStateByNodeId = {};
+    this.pendingEventNodeId = null;
     this.ensureRecruitPreviews();
     // Every act opens on a fresh land: act pressure restarts at 0 (the global meter,
     // after any boss relief, carries on).
@@ -4581,7 +4647,7 @@ export class RunManager {
                 totalTurns: this.totalTurns,
                 shadow: this.isEclipseActive() ? this.eclipse.shadow : null,
                 roster: this.roster.map(survivorRecord),
-                fallen: fallenForRecord(this.fallenUnits).map(fallenRecord),
+                fallen: fallenForRecord(everFallenUnits(this)).map(fallenRecord),
               }
             : null,
         act: this.currentAct,
@@ -4695,6 +4761,11 @@ export class RunManager {
       shopStateByNodeId: this.shopStateByNodeId || {},
       ruinsChoiceByNodeId: this.ruinsChoiceByNodeId || {},
       churchVowByNodeId: this.churchVowByNodeId || {},
+      eventStateByNodeId: this.eventStateByNodeId || {},
+      eventLog: this.eventLog || [],
+      storyFlags: this.storyFlags || {},
+      burdens: this.burdens || [],
+      laidToRest: this.laidToRest || [],
       difficultyId: this.difficultyId || 'normal',
       difficultyModifiers: this.difficultyModifiers || {
         ...DIFFICULTY_DEFAULTS,
@@ -4702,6 +4773,7 @@ export class RunManager {
       },
       actSequence: this.actSequence || [...ACT_SEQUENCE],
       pendingAmbushNodeId: this.pendingAmbushNodeId || null,
+      pendingEventNodeId: this.pendingEventNodeId || null,
       pendingCaravanShop: this.pendingCaravanShop || null,
       pendingBattleReward: this.pendingBattleReward || null,
       pendingBossRecruit: this.pendingBossRecruit || null,
@@ -5238,6 +5310,12 @@ export class RunManager {
     // Saves from before the Ruins' choice carry none: no path chosen yet.
     rm.ruinsChoiceByNodeId = sanitizeRuinsChoices(saved.ruinsChoiceByNodeId);
     rm.churchVowByNodeId = sanitizeChurchVows(saved.churchVowByNodeId);
+    // Saves from before Events carry none of these: nothing chosen, no flags, no burdens.
+    rm.eventStateByNodeId = sanitizeEventStates(saved.eventStateByNodeId);
+    rm.eventLog = sanitizeEventLog(saved.eventLog);
+    rm.storyFlags = sanitizeStoryFlags(saved.storyFlags);
+    rm.burdens = normalizeBurdens(saved.burdens);
+    rm.laidToRest = sanitizeLaidToRest(saved.laidToRest);
     rm.applyDifficultySelection(saved.difficultyId || 'normal');
     if (saved.difficultyModifiers && typeof saved.difficultyModifiers === 'object') {
       rm.difficultyModifiers = {
@@ -5288,6 +5366,8 @@ export class RunManager {
     }
     rm.pendingAmbushNodeId =
       typeof saved.pendingAmbushNodeId === 'string' ? saved.pendingAmbushNodeId : null;
+    rm.pendingEventNodeId =
+      typeof saved.pendingEventNodeId === 'string' ? saved.pendingEventNodeId : null;
     rm.reachedFirstActBoss = saved.reachedFirstActBoss === true;
     rm.pendingBattleReward =
       saved.pendingBattleReward?.version === 1 && Array.isArray(saved.pendingBattleReward.choices)
@@ -5359,7 +5439,7 @@ export class RunManager {
       actId: rm.currentAct,
       hasPendingReward: Boolean(rm.pendingBattleReward),
       joined: rm.thirdLordJoined,
-      takenNames: [...(rm.roster || []), ...(rm.fallenUnits || [])].map((u) => u?.name),
+      takenNames: [...(rm.roster || []), ...everFallenUnits(rm)].map((u) => u?.name),
     });
     if (!Array.isArray(saved.shownDialogueKeys)) {
       const isInProgress = Boolean(

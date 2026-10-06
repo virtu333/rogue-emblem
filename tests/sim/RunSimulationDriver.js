@@ -23,7 +23,14 @@ import {
   chooseDeployRoster,
   chooseChurchPlan,
   chooseShopPurchases,
+  chooseEventPlan,
 } from './RunPolicies.js';
+import {
+  arriveAtEvent,
+  chooseEventOption,
+  completeEventBattle,
+  leaveEvent,
+} from '../../src/engine/EventCommands.js';
 
 function keyForUnit(unit) {
   return `${unit.name}::${unit.className}`;
@@ -43,6 +50,9 @@ export class RunSimulationDriver {
       maxBattleActions: 2600,
       // reviveCost removed — now computed per-unit via getReviveCost()
       invincibility: false,
+      // Events (docs/specs/event-nodes.md §11): by default the first available choice that
+      // does not start a battle; `eventPolicy: 'fight'` takes a choice that may.
+      eventPolicy: 'default',
       battleAgentFactory: (driver) => new ScriptedAgent(driver),
       ...options,
     };
@@ -59,6 +69,9 @@ export class RunSimulationDriver {
       shopNodes: 0,
       ambushBattles: 0,
       churchNodes: 0,
+      eventNodes: 0,
+      eventBattles: 0,
+      eventsByChoice: {},
       recruitsGained: 0,
       unitsLost: 0,
       totalTurns: 0,
@@ -121,6 +134,8 @@ export class RunSimulationDriver {
         nodeResult = await this._runShopNode(node);
       } else if (node.type === NODE_TYPES.CHURCH) {
         nodeResult = this._runChurchNode(node);
+      } else if (node.type === NODE_TYPES.EVENT) {
+        nodeResult = await this._runEventNode(node);
       } else {
         this.runManager.markNodeComplete(node.id);
         nodeResult = { result: 'skipped' };
@@ -437,6 +452,46 @@ export class RunSimulationDriver {
     this.runManager.rest(node.id);
 
     return { result: 'church_done', revived, promoted: promoted?.name ?? null };
+  }
+
+  /**
+   * A story event through the same commands the route map uses: arrive, choose by policy,
+   * fight the battle it starts through the normal battle path (the node keeps `type:
+   * 'event'`), settle the spoils, leave.
+   */
+  async _runEventNode(node) {
+    this.metrics.eventNodes++;
+    const rm = this.runManager;
+    if (!arriveAtEvent(rm, node.id)) {
+      rm.markNodeComplete(node.id);
+      return { result: 'event_skipped', reason: 'no_event' };
+    }
+    const plan = chooseEventPlan(rm, node.id, { fight: this.options.eventPolicy === 'fight' });
+    const chosen = plan
+      ? chooseEventOption(rm, node.id, plan.choiceId, { targetUid: plan.targetUid })
+      : { ok: false, reason: 'no choice available' };
+    if (!chosen.ok) {
+      // Cannot happen on a playable event; leave the node rather than stall the run.
+      this.metrics.invalidEventChoices = (this.metrics.invalidEventChoices || 0) + 1;
+      rm.markNodeComplete(node.id);
+      return { result: 'event_skipped', reason: chosen.reason };
+    }
+    const key = `${chosen.state.eventId}.${plan.choiceId}`;
+    this.metrics.eventsByChoice[key] = (this.metrics.eventsByChoice[key] || 0) + 1;
+    if (chosen.battle) {
+      this.metrics.eventBattles++;
+      const battle = await this._runBattleNode(node);
+      if (battle.result === 'defeat' || battle.result === 'timeout') return battle;
+      completeEventBattle(rm, node.id);
+    }
+    leaveEvent(rm, node.id);
+    return {
+      result: 'event_done',
+      eventId: chosen.state.eventId,
+      choiceId: plan.choiceId,
+      outcomeId: chosen.outcomeId,
+      battle: chosen.battle,
+    };
   }
 
   _tryChurchPromotion() {

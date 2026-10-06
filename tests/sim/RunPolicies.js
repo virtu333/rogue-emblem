@@ -3,11 +3,16 @@
 import { NODE_TYPES } from '../../src/utils/constants.js';
 import { getReviveCost } from '../../src/engine/RunManager.js';
 import { getCombatForecast } from '../../src/engine/Combat.js';
+import { eventView } from '../../src/engine/EventCommands.js';
+import { eventCatalogOf, findEvent } from '../../src/engine/EventSystem.js';
 
 const NODE_PRIORITY = {
   [NODE_TYPES.RECRUIT]: 5,
   [NODE_TYPES.BATTLE]: 4,
   [NODE_TYPES.SHOP]: 3,
+  // An event is worth a detour as much as a village (the policy takes its first
+  // non-battle choice: see chooseEventPlan), so the same weight as a shop.
+  [NODE_TYPES.EVENT]: 3,
   [NODE_TYPES.CHURCH]: 2,
   [NODE_TYPES.BOSS]: 1,
 };
@@ -118,4 +123,28 @@ export function chooseShopPurchases(runManager, inventory) {
   }
 
   return picks;
+}
+
+/** True when any outcome of the choice starts a battle (the sims know what a player cannot). */
+export function choiceMayFight(event, choiceId) {
+  const choice = (event?.choices || []).find((c) => c.id === choiceId);
+  return (choice?.outcomes || []).some((o) => (o.effects || []).some((e) => e?.type === 'battle'));
+}
+
+/**
+ * The event policy: the first available choice that does not start a battle, with the
+ * first qualifying unit as its target. `fight: true` prefers a choice that may start one.
+ * @returns {{ choiceId: string, targetUid: string|null, mayFight: boolean }|null}
+ */
+export function chooseEventPlan(run, nodeId, { fight = false } = {}) {
+  const view = eventView(run, nodeId);
+  if (!view || view.phase !== 'choosing') return null;
+  const event = findEvent(eventCatalogOf(run), view.eventId);
+  const open = view.choices
+    .filter((choice) => !choice.block)
+    .map((choice) => ({ choice, mayFight: choiceMayFight(event, choice.id) }));
+  if (open.length === 0) return null;
+  const pick = (fight ? open.find((o) => o.mayFight) : open.find((o) => !o.mayFight)) || open[0];
+  const target = pick.choice.target?.candidates.find((c) => c.ok) || null;
+  return { choiceId: pick.choice.id, targetUid: target?.uid ?? null, mayFight: pick.mayFight };
 }

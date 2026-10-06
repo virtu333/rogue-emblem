@@ -60,7 +60,17 @@ The victory band uses the same wording.
   to remove `eclipse.kindleAmount` (8) shadow, once per church node (not at the pre-boss
   Ruins). A real gold sink.
 - Floor 0, cap 100 (`eclipse.cap`, applied to the gain before relief). Shadow changes
-  nowhere else.
+  nowhere else, with three exceptions that all go through `EclipseSystem.commitShadow`:
+  - a story **Event**'s `shadow` effect (`engine/EventEffects.js`; docs/specs/event-nodes.md
+    §5): a gain raises the meter (to the cap) and the act's pressure like a battle's gain, a
+    relief lowers both like Kindle, then `applyEclipseNow()` lets the dark take whatever the
+    new pressure reaches (the event's own node is the current node, so it never falls). With
+    the Eclipse off it is a no-op. It runs when the choice is made, before any battle the
+    outcome starts, so a battle revert keeps it (it is part of the entry state);
+  - an **Ill Omen** burden (`engine/Burdens.js`): each of its next victories adds its
+    `extraShadow` to that battle's gain, at the victory commit, before the cap
+    (`lastEclipseCommit.burdenShadow` says how much of the gain it was);
+  - a church's Kindle, as above.
 - Both relief sources lower the act's pressure too (§3), floored at 0 independently.
 
 ### 3. The dark takes the map (per act)

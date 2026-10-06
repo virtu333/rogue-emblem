@@ -629,3 +629,43 @@ Folded into §14's list; build in this order when Phase 3 starts:
 
 Accessory skills (§14) take Engage's **Bond Ring** framing: accessories with a rarity
 (C/B/A/S) that sets how strong a bound skill can roll.
+
+## 16. Phase 1 engine, as built (2026-10-06)
+
+The command API, the state and the effects are documented in the headers of
+`src/engine/EventCommands.js` (flow, signatures, returns), `EventEffects.js` (effect records) and
+`EventSystem.js` (seeds, vocabulary). What the build added to or settled in this spec:
+
+- **Data additions.** `choice.effects` (applied before the outcome's, whatever it is: the courier's
+  `consume`), `outcome.fallback` / `fallbackText` (replace `effects` when a teaching effect has
+  nothing left to teach), `battle.victoryText` (the line shown when the spoils are settled),
+  `requires.blessingTier` (a safe blessing of that tier is left) and `requires.reason` (a custom
+  greyed-out line), `target.reason` (the line when nobody qualifies), the filter `learnsFromFallen`,
+  `hp.to` (damage down to N HP) and `hp.percentByRung`, top-level `burdens` (Ill Omen and Debt: their
+  numbers, with `onRung` exact-rung overrides: First Light's gentler values) and `fallback: true` on
+  A Quiet Road. `weightByRung`, `check.byRung` and `percentByRung` hold **from their rung up**
+  (Nightfall's number also applies on Black Sun unless Black Sun lists its own).
+- **The Abandoned Armory has a fourth choice, "Leave it be".** All three listed choices can grant an
+  item, and a choice that may grant an item is blocked while nothing can carry one; with every bag
+  and the convoy full the node would hold no open choice, and the current event node is the only
+  node you can enter. The validator now refuses any event without an always-available choice.
+- **Tripwire.** "gold 80" is read as +80 (loose coins in the wreckage); the text says so.
+- **The Echo.** "Lords first" means: if a lord has fallen the named ally is chosen among the fallen
+  lords, otherwise among all the fallen (seeded). `layToRest` removes the ally from `fallenUnits`
+  into `run.laidToRest` (the whole unit); `engine/LaidToRest.js` `everFallenUnits` keeps their names
+  taken, their lord unavailable as a recruit and them in the run record.
+- **Blessings.** Only blessings whose boons are all in `SAFE_BLESSING_BOON_TYPES` and that carry no
+  pact are handed out (tier 1: Steady Hands, Blessed Vigor, Field Medic; tier 3: Scholar's Vow,
+  Pilgrim's Coin, Merchant Bane, Nomad Pact, Focused Curriculum). A tier 3 blessing taken at the altar
+  gets a display-only rolled cost on the next load (the cost is never applied: costs only apply at run
+  start).
+- **Spoils** after a won battle are applied leniently: an item with nowhere to go is skipped with a
+  note (`{ kind: 'note' }`) rather than failing the plan, because the bags may have filled on the
+  loot screen.
+- **Burdens settle in `completeBattle`**, before gold and shadow are committed (`burdenEffectsOnVictory`
+  is pure). Debt takes its share of the battle's gold (kill gold, bonuses and multipliers), not of loot
+  screen gold. `run.lastBurdenSettlement` and `run.lastEclipseCommit.burdenShadow` carry what happened
+  for the victory band (`Burdens.settlementLines`).
+- **Event battles.** `battleParams.eventEnemyLevelBonus` carries the effect's `enemyLevelBonus`;
+  `getBattleParams` adds it to `enemyLevelBonus`. `run.pendingEventNodeId` is set by
+  `completeBattle` for an `eventBattle` node and cleared by `completeEventBattle`.
