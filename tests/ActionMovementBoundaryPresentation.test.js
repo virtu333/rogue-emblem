@@ -141,14 +141,28 @@ function fixture(kind, failure = 0, world = 'shown') {
     faction: 'enemy',
     accessory: { combatEffects: { statusImmunity: true } },
   };
+  // Smite's foe holds position in a pack of two: a push must wake the pack.
+  const foe = {
+    ...unit('Foe', 3, 2),
+    faction: 'enemy',
+    aiMode: 'hold',
+    holdPack: 1,
+    holdPackSize: 2,
+  };
   scene.enemyUnits =
-    kind === 'ensnare' ? [enemy, immune] : [{ ...unit('Reserve', 7, 7), faction: 'enemy' }];
+    kind === 'ensnare'
+      ? [enemy, immune]
+      : kind === 'smite'
+        ? [foe, { ...unit('Reserve', 7, 7), faction: 'enemy' }]
+        : [{ ...unit('Reserve', 7, 7), faction: 'enemy' }];
   let skill;
   const skillId = {
     blink: 'blink',
     rally: 'rally_cry_skill',
     circle: 'healing_circle',
     ensnare: 'ensnare',
+    smite: 'smite',
+    transfuse: 'transfuse',
   }[kind];
   if (skillId) {
     skill = data.skills.find((entry) => entry.id === skillId);
@@ -200,7 +214,12 @@ function fixture(kind, failure = 0, world = 'shown') {
   });
   scene.turnManager.init(scene.playerUnits, scene.enemyUnits, scene.npcUnits);
   scene._abilityController = new AbilityController(scene);
+  // Smite and Transfuse pick a target first: `picked` is what the player tapped.
+  const aiming = () => scene._abilityController._targeting();
+  const state = { picked: null };
   const execute = async () => {
+    if (kind === 'smite' || kind === 'transfuse')
+      return aiming().execute(actor, skill, state.picked || aiming().find(actor, skill)[0]);
     if (kind === 'shove')
       return scene.executeShove(actor, { ally: target, destCol: 2, destRow: 4 });
     if (kind === 'pull')
@@ -215,7 +234,21 @@ function fixture(kind, failure = 0, world = 'shown') {
     // The shot is a turn-start process; its caller owns the stable turn boundary.
     scene._captureSuspendCheckpoint({ session: scene._battleSession });
   };
-  return { scene, actor, target, other, enemy, immune, storage, calls, skill, execute };
+  return {
+    scene,
+    actor,
+    target,
+    other,
+    enemy,
+    immune,
+    foe,
+    storage,
+    calls,
+    skill,
+    execute,
+    state,
+    pick: () => (state.picked = aiming().find(actor, skill)[0]),
+  };
 }
 async function run(kind, failure = 0, world = 'shown') {
   const result = fixture(kind, failure, world);
@@ -253,6 +286,8 @@ const scenarios = [
   'rally',
   'circle',
   'ensnare',
+  'smite',
+  'transfuse',
   'ballista hit',
   'ballista miss',
 ];
@@ -260,7 +295,7 @@ describe('movement and utility actions settle through their shipping entry point
   for (const kind of scenarios)
     it(kind, { timeout: 20_000 }, async () => {
       const expected = await run(kind);
-      const { scene, actor, target, other, enemy, immune, calls, skill } = expected;
+      const { scene, actor, target, other, enemy, immune, foe, calls, skill } = expected;
       expect(reportAsyncError).not.toHaveBeenCalled();
       expect(calls()).toBeGreaterThan(0);
       if (!kind.startsWith('ballista')) expect(actor.hasActed).toBe(true);
@@ -301,7 +336,18 @@ describe('movement and utility actions settle through their shipping entry point
         expect(enemy._conditions).toMatchObject([{ id: 'root', turnsRemaining: 2 }]);
         expect(immune._conditions || []).toEqual([]);
       }
-      if (skill) expect(actor._battleAbilityUsage.map[skill.id]).toBe(1);
+      // The foe is pushed two tiles east, straight away from the actor, and its pack wakes.
+      if (kind === 'smite') {
+        expect([foe.col, foe.row]).toEqual([5, 2]);
+        expect([actor.col, actor.row]).toEqual([2, 2]);
+        expect(foe.holdDisturbed).toBe('moved');
+      }
+      // 10 HP leave the actor and reach the ally, who was 17 short.
+      if (kind === 'transfuse') expect([actor.currentHP, target.currentHP]).toEqual([10, 13]);
+      // Unlimited-use abilities count nothing; limited ones count their use.
+      if (skill && skill.actionAbility.perMapLimit)
+        expect(actor._battleAbilityUsage.map[skill.id]).toBe(1);
+      else if (skill) expect(actor._battleAbilityUsage).toBeUndefined();
       if (kind === 'talk') {
         expect(scene.npcUnits).toEqual([]);
         expect(scene.playerUnits).toContain(target);
@@ -329,9 +375,9 @@ describe('movement and utility actions settle through their shipping entry point
       }
       const tripwire = kind.startsWith('ballista')
         ? 'fx.ballistaShot'
-        : ['shove', 'pull', 'swap', 'swap acted', 'blink'].includes(kind)
+        : ['shove', 'pull', 'swap', 'swap acted', 'blink', 'smite'].includes(kind)
           ? 'tween'
-          : kind === 'circle'
+          : ['circle', 'transfuse'].includes(kind)
             ? 'fx.playHeal'
             : kind === 'ensnare'
               ? 'fx.playStatus'
@@ -358,9 +404,9 @@ describe('accepted utility actions are durable before their first action effect'
   for (const kind of scenarios.filter((value) => !value.startsWith('ballista'))) {
     it(kind, async () => {
       const f = fixture(kind);
-      const effect = ['shove', 'pull', 'swap', 'swap acted', 'blink'].includes(kind)
+      const effect = ['shove', 'pull', 'swap', 'swap acted', 'blink', 'smite'].includes(kind)
         ? 'tween'
-        : kind === 'circle'
+        : ['circle', 'transfuse'].includes(kind)
           ? 'fx.playHeal'
           : kind === 'ensnare'
             ? 'fx.playStatus'
@@ -393,6 +439,13 @@ describe('accepted utility actions are durable before their first action effect'
         expect([actor.col, actor.row]).toEqual([4, 2]);
         expect(actor._battleAbilityUsage.map.blink).toBe(1);
       }
+      // The saved checkpoint already has the foe two tiles on, awake, and the ally topped up.
+      if (kind === 'smite') {
+        const saved = first.enemyUnits.find((entry) => entry.name === 'Foe');
+        expect([saved.col, saved.row, saved.holdDisturbed]).toEqual([5, 2, 'moved']);
+        expect(actor.currentHP).toBe(20);
+      }
+      if (kind === 'transfuse') expect([actor.currentHP, target.currentHP]).toEqual([10, 13]);
       if (kind === 'rally')
         for (const entry of [target, first.playerUnits.find((entry) => entry.name === 'Other')])
           expect(entry._battleTimedWeaponArtBuffs).toHaveLength(1);
@@ -413,20 +466,33 @@ describe('accepted utility actions are durable before their first action effect'
   }
 });
 
-it.each(['shove', 'pull', 'swap', 'blink', 'rally', 'circle', 'ensnare', 'dance', 'talk'])(
-  're-entry spends %s only once',
-  async (kind) => {
-    const f = fixture(kind);
-    const first = f.execute();
-    expect(await f.execute()).toBe(false);
-    await first;
-    expect(f.actor.hasActed).toBe(true);
-    if (f.skill) expect(f.actor._battleAbilityUsage.map[f.skill.id]).toBe(1);
-    if (kind === 'talk') expect(f.scene._battleRecruits).toHaveLength(1);
-    if (kind === 'dance') expect(f.actor.xp).toBe(20);
-    expect(f.scene.runManager.battleInProgress.checkpoint.checkpointIndex).toBe(2);
-  },
-);
+it.each([
+  'shove',
+  'pull',
+  'swap',
+  'blink',
+  'rally',
+  'circle',
+  'ensnare',
+  'smite',
+  'transfuse',
+  'dance',
+  'talk',
+])('re-entry spends %s only once', async (kind) => {
+  const f = fixture(kind);
+  const first = f.execute();
+  expect(await f.execute()).toBe(false);
+  await first;
+  expect(f.actor.hasActed).toBe(true);
+  if (f.skill?.actionAbility.perMapLimit)
+    expect(f.actor._battleAbilityUsage.map[f.skill.id]).toBe(1);
+  // A second Transfuse would have moved another 10 HP: 20 + 3 only splits once.
+  if (kind === 'transfuse') expect(f.actor.currentHP + f.target.currentHP).toBe(23);
+  if (kind === 'smite') expect([f.foe.col, f.foe.row]).toEqual([5, 2]);
+  if (kind === 'talk') expect(f.scene._battleRecruits).toHaveLength(1);
+  if (kind === 'dance') expect(f.actor.xp).toBe(20);
+  expect(f.scene.runManager.battleInProgress.checkpoint.checkpointIndex).toBe(2);
+});
 
 it.each(['shove', 'pull', 'swap', 'blink', 'dance', 'talk'])(
   'a stale %s choice spends no action or cost',
@@ -449,7 +515,7 @@ it.each(['shove', 'pull', 'swap', 'blink', 'dance', 'talk'])(
   },
 );
 
-it.each(['blink', 'circle', 'talk', 'dance'])(
+it.each(['blink', 'circle', 'talk', 'dance', 'smite', 'transfuse'])(
   'failed-save retry never repeats %s settlement',
   async (kind) => {
     const f = fixture(kind);
@@ -483,7 +549,7 @@ it.each(['blink', 'circle', 'talk', 'dance'])(
   },
 );
 
-it.each(['shove', 'pull', 'swap', 'blink'])(
+it.each(['shove', 'pull', 'swap', 'blink', 'smite'])(
   'a timed-out %s tween retains the accepted move',
   async (kind) => {
     const baseline = await run(kind);
@@ -497,7 +563,7 @@ it.each(['shove', 'pull', 'swap', 'blink'])(
   },
 );
 
-it.each(['shove', 'blink', 'talk'])(
+it.each(['shove', 'blink', 'talk', 'smite'])(
   'restart during %s presentation cannot complete the replacement battle',
   async (kind) => {
     const f = fixture(kind);
@@ -556,47 +622,54 @@ it.each(['fade out', 'fade in'])(
   },
 );
 
-it.each(['shove', 'blink', 'talk', 'dance growth', 'rally', 'circle', 'ensnare'])(
-  'resume of settled %s never reapplies its effect or XP',
-  async (kind) => {
-    const baseline = await run(kind);
-    const f = fixture(kind);
-    let saved;
-    f.scene.grid.clearAttackHighlights = () => {
-      saved ||= JSON.parse(f.storage.getItem('emblem_rogue_slot_1_run'));
-    };
-    await f.execute();
-    const checkpoint = saved.battleInProgress.checkpoint;
-    expect(checkpoint.pendingActionCompletion).toMatchObject({ kind: 'finish', unitName: 'Actor' });
-    const restoredRun = RunManager.fromJSON(saved, data);
-    const restored = journeyBattleScene(restoredRun, data);
-    restored._battleSession = 1;
-    restored.scene = { isActive: () => true };
-    restored._addConditionIcon = () => {};
-    Object.assign(restored.grid, {
-      cols: 8,
-      rows: 8,
-      mapLayout: Array.from({ length: 8 }, () => Array(8).fill(0)),
-      fogEnabled: false,
-      getMoveCost: () => 1,
-      getTerrainAt: () => data.terrain[0],
-    });
-    const suspend = new BattleSuspendController(restored);
-    suspend.applyUnits(checkpoint);
-    restored.turnManager = new TurnManager({
-      onPhaseChange: () => {},
-      checkBattleEnd: () => false,
-    });
-    restored.turnManager.init(restored.playerUnits, restored.enemyUnits, restored.npcUnits);
-    suspend.finalizeResume(checkpoint);
-    for (let step = 0; step < 20; step++) await Promise.resolve();
-    expect(clean(restored.playerUnits)).toEqual(baseline.snapshot.players);
-    expect(clean(restored.npcUnits)).toEqual(baseline.snapshot.npcs);
-    expect(clean(restored._battleRecruits)).toEqual(baseline.snapshot.recruits);
-    expect(restored._battleRng.getState()).toEqual(baseline.snapshot.rng);
-    expect(restored.playerUnits.find((entry) => entry.name === 'Actor').hasActed).toBe(true);
-  },
-);
+it.each([
+  'shove',
+  'blink',
+  'talk',
+  'dance growth',
+  'rally',
+  'circle',
+  'ensnare',
+  'smite',
+  'transfuse',
+])('resume of settled %s never reapplies its effect or XP', async (kind) => {
+  const baseline = await run(kind);
+  const f = fixture(kind);
+  let saved;
+  f.scene.grid.clearAttackHighlights = () => {
+    saved ||= JSON.parse(f.storage.getItem('emblem_rogue_slot_1_run'));
+  };
+  await f.execute();
+  const checkpoint = saved.battleInProgress.checkpoint;
+  expect(checkpoint.pendingActionCompletion).toMatchObject({ kind: 'finish', unitName: 'Actor' });
+  const restoredRun = RunManager.fromJSON(saved, data);
+  const restored = journeyBattleScene(restoredRun, data);
+  restored._battleSession = 1;
+  restored.scene = { isActive: () => true };
+  restored._addConditionIcon = () => {};
+  Object.assign(restored.grid, {
+    cols: 8,
+    rows: 8,
+    mapLayout: Array.from({ length: 8 }, () => Array(8).fill(0)),
+    fogEnabled: false,
+    getMoveCost: () => 1,
+    getTerrainAt: () => data.terrain[0],
+  });
+  const suspend = new BattleSuspendController(restored);
+  suspend.applyUnits(checkpoint);
+  restored.turnManager = new TurnManager({
+    onPhaseChange: () => {},
+    checkBattleEnd: () => false,
+  });
+  restored.turnManager.init(restored.playerUnits, restored.enemyUnits, restored.npcUnits);
+  suspend.finalizeResume(checkpoint);
+  for (let step = 0; step < 20; step++) await Promise.resolve();
+  expect(clean(restored.playerUnits)).toEqual(baseline.snapshot.players);
+  expect(clean(restored.npcUnits)).toEqual(baseline.snapshot.npcs);
+  expect(clean(restored._battleRecruits)).toEqual(baseline.snapshot.recruits);
+  expect(restored._battleRng.getState()).toEqual(baseline.snapshot.rng);
+  expect(restored.playerUnits.find((entry) => entry.name === 'Actor').hasActed).toBe(true);
+});
 
 it('ballista damage is settled before a pending shot animation', async () => {
   const f = fixture('ballista hit');
@@ -680,3 +753,63 @@ it.each(['shove', 'pull', 'dance'])(
     expect(f.scene.showActionMenu).toHaveBeenCalledWith(f.actor);
   },
 );
+
+describe('a Smite or Transfuse chosen from a stale picture changes nothing', () => {
+  const stale = {
+    'the foe is gone': { kind: 'smite', break: (f) => (f.scene.enemyUnits = []) },
+    'the second tile filled, so the landing moved': {
+      kind: 'smite',
+      break: (f) => f.scene.playerUnits.push(unit('Blocker', 5, 2)),
+    },
+    'the foe is now rooted': {
+      kind: 'smite',
+      break: (f) => f.foe._conditions.push({ id: 'root', turnsRemaining: 2 }),
+    },
+    'the foe became a boss': { kind: 'smite', break: (f) => (f.foe.isBoss = true) },
+    'the ally was healed to full': {
+      kind: 'transfuse',
+      break: (f) => (f.target.currentHP = f.target.stats.HP),
+    },
+    'the giver fell to 1 HP': { kind: 'transfuse', break: (f) => (f.actor.currentHP = 1) },
+    'the ally walked away': { kind: 'transfuse', break: (f) => (f.target.col = 6) },
+  };
+  for (const [label, { kind, break: spoil }] of Object.entries(stale))
+    it(label, async () => {
+      const f = fixture(kind);
+      f.pick();
+      expect(f.state.picked).toBeTruthy();
+      spoil(f);
+      const before = clean({
+        players: f.scene.playerUnits,
+        enemies: f.scene.enemyUnits,
+        rng: f.scene._battleRng.getState(),
+      });
+      const writes = f.storage.writes;
+      expect(await f.execute()).toBe(false);
+      expect(
+        clean({
+          players: f.scene.playerUnits,
+          enemies: f.scene.enemyUnits,
+          rng: f.scene._battleRng.getState(),
+        }),
+      ).toEqual(before);
+      expect(f.actor.hasActed).toBe(false);
+      expect(f.storage.writes).toBe(writes);
+      expect(f.scene.runManager.battleInProgress.checkpoint).toBeNull();
+      expect(f.scene.showActionMenu).toHaveBeenCalledWith(f.actor);
+    });
+
+  it.each(['smite', 'transfuse'])(
+    'a removed %s skill invalidates the chosen action',
+    async (kind) => {
+      const f = fixture(kind);
+      f.pick();
+      f.actor.skills = [];
+      const writes = f.storage.writes;
+      expect(await f.execute()).toBe(false);
+      expect(f.storage.writes).toBe(writes);
+      expect(f.actor.hasActed).toBe(false);
+      expect(f.scene.runManager.battleInProgress.checkpoint).toBeNull();
+    },
+  );
+});

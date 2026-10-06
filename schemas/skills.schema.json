@@ -49,7 +49,14 @@
         "properties": {
           "kind": {
             "type": "string",
-            "enum": ["teleport_self", "ally_buff", "aoe_heal", "aoe_root"]
+            "enum": [
+              "teleport_self",
+              "ally_buff",
+              "aoe_heal",
+              "aoe_root",
+              "push_enemy",
+              "transfer_hp"
+            ]
           },
           "range": {
             "type": "integer",
@@ -76,13 +83,58 @@
           "includeSelf": {
             "type": "boolean"
           },
+          "distance": {
+            "type": "integer",
+            "minimum": 1
+          },
           "perMapLimit": {
             "type": "integer",
             "minimum": 1
+          },
+          "usableWhileSilenced": {
+            "type": "boolean"
           }
         },
-        "required": ["kind", "perMapLimit"],
-        "additionalProperties": false
+        "required": ["kind"],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "enum": ["teleport_self", "ally_buff", "aoe_heal", "aoe_root"]
+                }
+              }
+            },
+            "then": {
+              "required": ["perMapLimit"]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "push_enemy"
+                }
+              }
+            },
+            "then": {
+              "required": ["distance"]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "transfer_hp"
+                }
+              }
+            },
+            "then": {
+              "required": ["amount"]
+            }
+          }
+        ]
       },
       "personal": {
         "type": "boolean"

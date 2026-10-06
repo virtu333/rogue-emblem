@@ -5,11 +5,13 @@ import { battleSession, isCurrentBattleSession } from './BattleSession.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 // AbilityController — the "Ability" action-menu surface for utility abilities
 // (action-trigger skills with structured `actionAbility` data: Blink, Rally
-// Cry, Healing Circle, Ensnare). Owns the ability submenu (patterned on
-// WeaponArtController.showWeaponArtPicker), the SELECTING_ABILITY_TILE flow
-// for Blink, the confirm prompt for self-centered AOE abilities, and effect
-// execution. State lives on the scene (abilityTiles/_pendingAbility) so the
-// shared ESC/cancel recovery paths in BattleScene can clean it up.
+// Cry, Healing Circle, Ensnare, Smite, Transfuse). Owns the ability submenu
+// (patterned on WeaponArtController.showWeaponArtPicker), the
+// SELECTING_ABILITY_TILE flow for Blink, the confirm prompt for self-centered
+// AOE abilities, and effect execution; the two adjacent-target abilities (Smite,
+// Transfuse) hand their target step and action to AbilityTargetingController.
+// State lives on the scene (abilityTiles/_pendingAbility) so the shared
+// ESC/cancel recovery paths in BattleScene can clean it up.
 import { TILE_SIZE } from '../utils/constants.js';
 import { hasRoomRightOf } from '../utils/boardOrientation.js';
 import {
@@ -24,7 +26,9 @@ import {
   getBlinkTiles,
   collectAffected,
   abilityHasTargets,
+  TARGETED_ABILITY_KINDS,
 } from '../engine/ActionAbilitySystem.js';
+import { AbilityTargetingController } from './AbilityTargetingController.js';
 import { staffAllyCandidates } from '../engine/RecruitNpc.js';
 import { canInspectUnit, seenTileOccupant } from '../engine/BattleInformation.js';
 import { deedsFor } from './DeedController.js';
@@ -84,6 +88,7 @@ export class AbilityController {
         getUnitAt: seenTileOccupant(scene.grid, (col, row) => scene.getUnitAt(col, row)),
         allies: this._allyPool(unit, skill.actionAbility?.kind),
         enemies: this._seenHostiles(unit),
+        affixes: scene.gameData?.affixes,
       });
       return { skill, canUse: check.ok, reason: check.reason, hasTargets };
     });
@@ -237,7 +242,16 @@ export class AbilityController {
       this.startBlinkTileSelection(unit, skill);
       return;
     }
+    if (TARGETED_ABILITY_KINDS.has(kind)) {
+      this._targeting().begin(unit, skill);
+      return;
+    }
     this._showConfirmPrompt(unit, skill);
+  }
+
+  /** Smite / Transfuse: pick an adjacent unit (AbilityTargetingController). */
+  _targeting() {
+    return (this._targetingController ||= new AbilityTargetingController(this));
   }
 
   // --- Blink: tile targeting (SELECTING_ABILITY_TILE) ---
@@ -267,6 +281,10 @@ export class AbilityController {
     if (!tile) return;
     const skill = this._getAbilityById(unit, pending.skillId);
     if (!skill || !canUseAbility(unit, skill).ok) return;
+    if (TARGETED_ABILITY_KINDS.has(skill.actionAbility?.kind)) {
+      this._targeting().handleClick(unit, skill, gp);
+      return;
+    }
     const audio = scene.registry.get('audio');
     if (audio) audio.playSFX('sfx_confirm');
     scene.grid.clearAttackHighlights();

@@ -53,7 +53,7 @@ emblem-rogue/
 │   ├── prologue.json      # The prologue: authored units (Edric, Sera, Tamsin), chapters (P1–P4), beats, route (row-2 fork, the watchtower), joins, Varro (`boss`), the ending's scenes, grant; engine/Prologue.js documents and validates it (docs/specs/prologue-chapter.md)
 │   ├── recruits.json      # Recruit pools by act (act1-act4) + namePool
 │   ├── referenceViewer.json # Reference viewer config: formulas, weapon ranks, game version
-│   ├── skills.json        # 52 skills across 7 trigger types
+│   ├── skills.json        # 59 skills across 7 trigger types
 │   ├── terrain.json       # 19 terrain types (incl. Ice, Lava Crack, Floor, Pillar, Ballista, Swamp, Bog, Acidic Swamp/Bog)
 │   ├── turnBonus.json     # Turn par calculation config
 │   ├── weaponArts.json    # 75 weapon arts across 5 types, HP-cost combat mods
@@ -114,6 +114,7 @@ Read the JSON files directly for full schemas. Non-obvious behaviors:
 - **dialogue.json fall lines** — `lordQuips.onAllyFall.<lord>` (`{fallen}`): a living lord answers an ally's death (commander first, else the nearest). `commanderFall.<lord>`: a fallen commander's last words before the run ends. `bossEncounters['The Lieutenant'].vision`: plays once in an Act III boss battle on roads that never fight him. `maxRunsStarted` (the run being played counts) gates the first run's cold open.
 - **dialogue.json `finaleRally`** — The Entity finale's rally (`engine/FinaleRally.js`, pure, hashed from the run seed). `lords.<Lord>`: `open` (the commander opens), `lines`, `reply.<Other lord>` (answers whoever just spoke; must name them), `memory` (this save has met the Entity), `wounded` (speaker below half HP), `fallen` (`{fallen}` = a unit lost this run, lords first); `lords.Sera.close` (she speaks last). `recruits.<temperament>` (`{leader}`): the two strongest recruits join. At most 7 lines. Lines mentioning bleeding only play once the Entity is wounded. Same voice rules as `unitVoice`; outside `reply`, a line never names another lord.
 - **skills.json** — 7 trigger types: passive, passive-aura, on-combat-start, on-attack, on-turn-start, on-defend, action. `activation` = proc chance type (SKL/SKL_HALF/LCK_THIRD/SPD/LCK/always).
+- **Action skills with `actionAbility`** (Blink, Rally Cry, Healing Circle, Ensnare, Smite, Transfuse) run from the Ability menu through `engine/ActionAbilitySystem.js` (rules) and `ui/AbilityController.js`; Smite and Transfuse pick an adjacent unit in `SELECTING_ABILITY_TILE` (`ui/AbilityTargetingController.js`). `perMapLimit` is required only for the four older kinds; `usableWhileSilenced` lets bodily acts ignore Silence. Smite is blocked by bosses, the Entity, Anchored and root; Transfuse never takes the giver below 1 HP and skips a Wounded ally. Shove, Pull and Dance stay hardcoded (no `actionAbility`); Swap is an innate command, not a skill. Spec: `docs/specs/utility-abilities.md`.
 - **Skill loadout** — `unit.skills` is the equipped list (≤ `MAX_SKILLS`, all battle reads); `unit.benchedSkills` holds known skills set aside. A player unit that learns at the cap keeps the skill benched (`learnSkill` returns `benched: true`, reason still `at_cap`), never loses it; enemies never bench. Swaps, lock rules (lord and class skills can't be benched) and the bench notice (`benchedUnseen`) live in `engine/SkillLoadout.js`. Check "knows a skill" with `knowsSkill`, not `skills.includes`.
 
 ## Core Formulas (from GDD Section 3.3)
@@ -133,7 +134,7 @@ Doubling reads attack speed, never raw SPD: `calculateEffectiveSpeed` / `canDoub
 Swords → Axes → Lances → Swords: +10 Hit, +1 Damage (advantage) / -10 Hit, -1 Damage (disadvantage). Mastery rank: +15/+2 advantage, -5/-1 disadvantage. Magic and Bows are outside the triangle.
 
 ## Build Order
-Phases 1-9 complete ✅, Phase 10 (Deploy) live. (Grid → Combat → Units → Equipment → MapGen → NodeMap → RunLoop → MetaProg → Polish → Deploy). See GDD Section 14.2 for original spec. Phase 9 (Polish) includes: music/SFX, accessories, fog of war, 113 weapons, 52 skills, save slots, affixes, weapon arts, blessings, difficulty modes, terrain hazards, convoy, wyverns, reinforcements, boss recruit, tutorial hints, colosseum, entity boss, ballista, castle biome, recruit promotion, BattleScene decomposition (10 controllers extracted), narrative flavor. Phase 10: Supabase auth + cloud saves + Netlify auto-deploy.
+Phases 1-9 complete ✅, Phase 10 (Deploy) live. (Grid → Combat → Units → Equipment → MapGen → NodeMap → RunLoop → MetaProg → Polish → Deploy). See GDD Section 14.2 for original spec. Phase 9 (Polish) includes: music/SFX, accessories, fog of war, 113 weapons, 59 skills, save slots, affixes, weapon arts, blessings, difficulty modes, terrain hazards, convoy, wyverns, reinforcements, boss recruit, tutorial hints, colosseum, entity boss, ballista, castle biome, recruit promotion, BattleScene decomposition (10 controllers extracted), narrative flavor. Phase 10: Supabase auth + cloud saves + Netlify auto-deploy.
 
 ## Art Style Guidelines
 - SNES-era pixel art, 32x32 base tile / character sprite size

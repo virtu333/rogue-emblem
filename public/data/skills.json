@@ -315,6 +315,28 @@
     }
   },
   {
+    "id": "smite",
+    "name": "Smite",
+    "description": "Push an adjacent enemy 2 tiles away",
+    "trigger": "action",
+    "actionAbility": {
+      "kind": "push_enemy",
+      "distance": 2,
+      "usableWhileSilenced": true
+    }
+  },
+  {
+    "id": "transfuse",
+    "name": "Transfuse",
+    "description": "Give up to 10 HP to an adjacent ally",
+    "trigger": "action",
+    "actionAbility": {
+      "kind": "transfer_hp",
+      "amount": 10,
+      "usableWhileSilenced": true
+    }
+  },
+  {
     "id": "canto",
     "name": "Canto",
     "description": "Use remaining movement after acting",

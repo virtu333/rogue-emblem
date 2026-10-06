@@ -499,6 +499,8 @@ export const SKILL_GLYPH = Object.freeze({
   rally_cry_skill: ['horn', 'ember'],
   healing_circle: ['healCircle', 'verdigris'],
   ensnare: ['knot', 'verdigris'],
+  smite: ['push', 'blood'],
+  transfuse: ['halo', 'rose'],
   renewal: ['sprout', 'verdigris'],
 });
 
