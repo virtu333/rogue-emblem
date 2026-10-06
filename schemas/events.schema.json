@@ -37,9 +37,18 @@
         },
         "debt": {
           "$ref": "#/$defs/burden"
+        },
+        "hunted": {
+          "$ref": "#/$defs/burden"
+        },
+        "sworn_enemy": {
+          "$ref": "#/$defs/burden"
+        },
+        "wounded": {
+          "$ref": "#/$defs/burden"
         }
       },
-      "required": ["ill_omen", "debt"],
+      "required": ["ill_omen", "debt", "hunted", "sworn_enemy", "wounded"],
       "additionalProperties": false
     },
     "events": {
@@ -101,6 +110,36 @@
           "type": "number",
           "exclusiveMinimum": 0,
           "maximum": 1
+        },
+        "value": {
+          "type": "integer",
+          "maximum": -1
+        },
+        "wave": {
+          "type": "object",
+          "properties": {
+            "turn": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 12
+            },
+            "count": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 6
+              }
+            },
+            "xpMultiplier": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "additionalProperties": false
         },
         "onRung": {
           "type": "object",

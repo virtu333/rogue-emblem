@@ -120,6 +120,7 @@ import {
   computeShadowGain,
   createEclipseState,
   eclipseBattleMods,
+  eclipseHash,
   isEclipseActive,
   kindleResult,
   normalizeEclipseState,
@@ -152,7 +153,15 @@ import {
   sanitizeLaidToRest,
   sanitizeStoryFlags,
 } from './EventSystem.js';
-import { burdenEffectsOnVictory, normalizeBurdens } from './Burdens.js';
+import {
+  battleDebuffsFor,
+  burdenEffectsOnVictory,
+  huntedWaveFor,
+  isSwornEnemy,
+  normalizeBurdens,
+  pruneGoneWounds,
+} from './Burdens.js';
+import { isHuntedBattle } from './HuntedWave.js';
 import { normalizeContract } from './Contracts.js';
 import { settleContract } from './ContractSettlement.js';
 import { everFallenUnits } from './LaidToRest.js';
@@ -3482,6 +3491,19 @@ export class RunManager {
     this.ensureUnitUids();
     this.ensurePortraitVariants();
     battleParams.usedRecruitNames = this.usedRecruitNames || {};
+    // The run's burdens (engine/Burdens.js) ride the params, so the map generator, the scene's
+    // previews and the headless harness all read one list. Keys are added only when a burden
+    // changes the battle, so an unburdened run's params are exactly as they were.
+    const bossBattle = node.type === 'boss' || battleParams.isBoss === true;
+    const hunted = huntedWaveFor(this, { isBoss: bossBattle });
+    if (hunted) battleParams.huntedWave = hunted;
+    else delete battleParams.huntedWave;
+    if (bossBattle && isSwornEnemy(this))
+      battleParams.swornEnemy = { seed: eclipseHash(`sworn:${this.runSeed}:${node.id}`) };
+    else delete battleParams.swornEnemy;
+    const debuffs = battleDebuffsFor(this);
+    if (debuffs.length) battleParams.battleDebuffs = debuffs;
+    else delete battleParams.battleDebuffs;
     return battleParams;
   }
 
@@ -3987,7 +4009,18 @@ export class RunManager {
     const goldMult = this.getBattleGoldMultiplier();
     const difficultyGoldMult = this.getDifficultyModifier('goldMultiplier', 1);
     const finalGold = Math.floor(baseGold * eliteMult * goldMult * difficultyGoldMult);
-    const settlement = burdenEffectsOnVictory(this, { gold: finalGold });
+    // Which burdens this battle touches: a boss node ends a Sworn Enemy and was never hunted;
+    // a battle whose locked map carries the Hunted wave counts one down (no locked map: the
+    // headless sims and tests, where every non-boss battle was generated with it).
+    const bossNode = node.type === 'boss' || node.battleParams?.isBoss === true;
+    const lockedConfig = this.battleConfigsByNodeId?.[nodeId];
+    const settlement = burdenEffectsOnVictory(this, {
+      gold: finalGold,
+      battle: {
+        boss: bossNode,
+        hunted: !bossNode && (lockedConfig ? isHuntedBattle(lockedConfig) : true),
+      },
+    });
     const eclipseCommit = this._commitBattleShadow(node, options, settlement.extraShadow);
 
     this._sanitizeUnitPools();
@@ -4070,7 +4103,8 @@ export class RunManager {
     this.winStreak++;
     if (this.winStreak > this.maxWinStreak) this.maxWinStreak = this.winStreak;
     this.awardGold(settlement.gold);
-    this.burdens = settlement.burdens;
+    // A wound whose unit fell (or left) in this battle ends with it: nobody carries it on.
+    this.burdens = pruneGoneWounds(settlement.burdens, this.roster);
     this.lastBurdenSettlement = settlement.record
       ? {
           nodeId,

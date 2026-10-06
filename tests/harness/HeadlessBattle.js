@@ -163,7 +163,11 @@ import {
   resolveTimedBuffExpiry,
   timedBuffCombatMods,
 } from '../../src/engine/TimedWeaponArtBuffs.js';
-import { applyBattleDebuff, clearBattleScopedDeltas } from '../../src/engine/BattleStatDeltas.js';
+import {
+  applyBattleDebuff,
+  applyBattleStartDebuffs,
+  clearBattleScopedDeltas,
+} from '../../src/engine/BattleStatDeltas.js';
 import { AREA_XP_LIVE, actionXpAwards, applyXpGain, scaledXp } from '../../src/engine/BattleXp.js';
 import { selectEnemyWeaponArt } from '../../src/engine/EnemyArtScoring.js';
 import { bindEnemyAreaArt } from '../../src/engine/EnemyAreaArts.js';
@@ -390,6 +394,8 @@ export class HeadlessBattle {
     for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
       unit._phoenixBroochUsed = false;
     }
+    // The Wounded burden's stat delta, as BattleScene applies it at a fresh start.
+    applyBattleStartDebuffs(this.playerUnits, this.battleParams?.battleDebuffs);
 
     // Anti-turtle clock (engine/TurnPressure.js), as BattleScene: measured once the
     // field is populated, advanced at the start of every enemy phase.

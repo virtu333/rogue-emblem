@@ -2,15 +2,25 @@
 //
 // Healing and reviving stay open at every church. Beyond them the player makes one
 // vow per church: Promotion (as before: the church's promotions, within the
-// difficulty's limit) or a Blessing (one minor, tier-1 blessing added to the run,
-// chosen from a few the altar offers). The first promotion or the chosen blessing
-// commits the vow; the other side then stays closed for this church. The vow is kept
+// difficulty's limit), a Blessing (one minor, tier-1 blessing added to the run,
+// chosen from a few the altar offers) or, when the run holds a burden, a Cleansing (lift one
+// burden of the player's choice, never Debt: docs/specs/event-nodes-phase2.md §2B). The first
+// promotion, the chosen blessing or the cleansed burden commits the vow; the other sides then
+// stay closed for this church. A church only: never the Ruins' sanctuary, never the
+// prologue. The vow is kept
 // on the run (RunManager.churchVowByNodeId, saved), like the Ruins' one path, so
 // leaving, re-entering or reloading never opens the other side. Pure: no Phaser, no
 // DOM. The offer is hashed from the run seed and the node, never the battle RNG.
 
-import { CHURCH_VOWS } from '../utils/constants.js';
+import { CHURCH_VOWS, NODE_TYPES } from '../utils/constants.js';
 import { isPrologueRun } from './ScriptedBattle.js';
+import {
+  burdenDefFor,
+  burdenOf,
+  cleansableBurdens,
+  isCleansable,
+  removeBurden,
+} from './Burdens.js';
 import { PROLOGUE_BLESSING_BLOCK } from '../data/prologueContent.js';
 
 export { CHURCH_VOWS };
@@ -27,7 +37,7 @@ function hash(text) {
   return h >>> 0;
 }
 
-/** The vow made at this church: 'promote', 'blessing', or null (none yet). */
+/** The vow made at this church: 'promote', 'blessing', 'cleanse', or null (none yet). */
 export function churchVow(run, nodeId) {
   const vow = run?.churchVowByNodeId?.[nodeId];
   return CHURCH_VOWS.includes(vow) ? vow : null;
@@ -35,8 +45,12 @@ export function churchVow(run, nodeId) {
 
 /** The line a church shows once its vow is made. */
 export function churchVowLine(vow) {
-  if (vow === 'promote') return 'Your vow here was Promotion: this altar gives no blessing.';
-  if (vow === 'blessing') return 'Your vow here was a Blessing: this altar promotes no one.';
+  if (vow === 'promote')
+    return 'Your vow here was Promotion: this altar gives no blessing and lifts no burden.';
+  if (vow === 'blessing')
+    return 'Your vow here was a Blessing: this altar promotes no one and lifts no burden.';
+  if (vow === 'cleanse')
+    return 'Your vow here was Cleansing: this altar promotes no one and gives no blessing.';
   return '';
 }
 
@@ -59,7 +73,7 @@ export function churchBlessingOffers(run, nodeId, gameData) {
 
 /** Why a vow cannot be made (or used) here now: '' when it can. */
 export function churchVowBlock(run, nodeId, vow) {
-  if (!CHURCH_VOWS.includes(vow)) return 'Choose Promotion or a Blessing.';
+  if (!CHURCH_VOWS.includes(vow)) return 'Choose Promotion, a Blessing or Cleansing.';
   const made = churchVow(run, nodeId);
   if (made && made !== vow) return churchVowLine(made);
   return '';
@@ -86,6 +100,40 @@ export function takeChurchBlessing(run, nodeId, blessingId, gameData) {
   commitChurchVow(run, nodeId, 'blessing');
   const blessing = gameData.blessings.blessings.find((b) => b.id === blessingId);
   return { ok: true, message: `${blessing.name}: ${blessing.description}` };
+}
+
+// ── Cleanse ────────────────────────────────────────────────────────────────
+
+/** True when this church could cleanse something now: a church node, a burden a church can lift. */
+export function churchOffersCleanse(run, nodeId) {
+  if (isPrologueRun(run)) return false;
+  const node = run?.nodeMap?.nodes?.find((n) => n?.id === nodeId);
+  return node?.type === NODE_TYPES.CHURCH && cleansableBurdens(run).length > 0;
+}
+
+/** Why this burden cannot be cleansed here ('' when it can). */
+export function churchCleanseBlock(run, nodeId, burdenId) {
+  if (isPrologueRun(run)) return 'Nothing weighs on you yet.';
+  const node = run?.nodeMap?.nodes?.find((n) => n?.id === nodeId);
+  if (node?.type !== NODE_TYPES.CHURCH) return 'Only a church can cleanse.';
+  if (churchVow(run, nodeId) === 'cleanse') return 'This altar has already cleansed you.';
+  const vowed = churchVowBlock(run, nodeId, 'cleanse');
+  if (vowed) return vowed;
+  const burden = burdenOf(run, burdenId);
+  if (!burden) return 'That burden is not on you.';
+  if (!isCleansable(burden)) return 'The lender has lawyers. No altar lifts this.';
+  return '';
+}
+
+/** Vow a Cleansing: one burden is lifted from the run and the church's vow is made. */
+export function cleanseAtChurch(run, nodeId, burdenId) {
+  const reason = churchCleanseBlock(run, nodeId, burdenId);
+  if (reason) return { ok: false, reason };
+  const removed = removeBurden(run, burdenId);
+  if (!removed) return { ok: false, reason: 'That burden is not on you.' };
+  commitChurchVow(run, nodeId, 'cleanse');
+  const label = burdenDefFor(run.gameData?.events, burdenId, run.difficultyId)?.label || burdenId;
+  return { ok: true, burden: removed, message: `${label} lifted.` };
 }
 
 /** Record the vow (a promotion commits 'promote' through this). */

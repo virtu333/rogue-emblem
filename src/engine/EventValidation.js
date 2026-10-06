@@ -67,7 +67,13 @@ import { CONTRACT_EFFECT_TYPES, CONTRACT_GOALS } from './Contracts.js';
 import { joinClassBlock } from './EventJoin.js';
 import { REDRAW_TYPES } from './RouteEdit.js';
 import { TELL_WHEN_KEYS } from './EventTells.js';
-import { BURDEN_IDS } from './Burdens.js';
+import {
+  BURDEN_IDS,
+  HUNTED_COUNT_MAX,
+  HUNTED_TURN_RANGE,
+  WOUND_MAX_PENALTY,
+  WOUND_STATS,
+} from './Burdens.js';
 import { DIFFICULTY_IDS } from './DifficultyEngine.js';
 import { ENEMY_ONLY_CLASS_NAMES, parseWeaponProficiencies } from './UnitManager.js';
 import {
@@ -88,6 +94,8 @@ export const EVENT_TEXT_LIMITS = Object.freeze({
 
 const HP_SCOPES = ['target', 'all', 'commander', 'randomUnit'];
 const ITEM_DESTINATIONS = ['target', 'auto', 'convoy'];
+/** What a wound may name: a stat, `random` (seeded) or `attack` (the unit's STR or MAG). */
+const WOUND_STAT_CHOICES = [...WOUND_STATS, 'random', 'attack'];
 const ALL_WEAPON_TYPES = [...EVENT_WEAPON_TYPES, 'Staff', 'Breath'];
 const ID_PATTERN = /^[a-z][a-z0-9_]*$/;
 
@@ -256,6 +264,54 @@ export function validateEventsConfig(config, data = {}) {
   }
 
   // ── Tables ────────────────────────────────────────────────────────────
+  /**
+   * The numbers of a burden definition (or of an `onRung` override, merged over `base`):
+   * battles are whole numbers from 1, a Hunted wave is in range, a wound is a small negative.
+   */
+  function checkBurdenNumbers(where, entry, base = null) {
+    const id = where.split('.')[0];
+    const w = `burdens.${where}`;
+    const merged = { ...(base || {}), ...entry };
+    if (entry.battles !== undefined && !(isInt(entry.battles) && entry.battles >= 1))
+      err(w, 'battles must be a whole number >= 1');
+    if (base === null && ['ill_omen', 'hunted', 'wounded'].includes(id) && !isInt(merged.battles))
+      err(w, 'needs `battles`');
+    if (entry.wave !== undefined || (base === null && id === 'hunted')) {
+      const wave = merged.wave;
+      if (!isObject(wave)) err(w, 'needs a `wave` { turn, count, xpMultiplier }');
+      else {
+        if (
+          !(
+            isInt(wave.turn) &&
+            wave.turn >= HUNTED_TURN_RANGE[0] &&
+            wave.turn <= HUNTED_TURN_RANGE[1]
+          )
+        )
+          err(w, `wave.turn must be ${HUNTED_TURN_RANGE[0]}-${HUNTED_TURN_RANGE[1]}`);
+        if (
+          !(
+            Array.isArray(wave.count) &&
+            wave.count.length === 2 &&
+            wave.count.every((n) => isInt(n) && n >= 1 && n <= HUNTED_COUNT_MAX) &&
+            wave.count[0] <= wave.count[1]
+          )
+        )
+          err(w, `wave.count must be [min, max] within 1-${HUNTED_COUNT_MAX}`);
+        if (
+          !(
+            typeof wave.xpMultiplier === 'number' &&
+            wave.xpMultiplier >= 0 &&
+            wave.xpMultiplier <= 1
+          )
+        )
+          err(w, 'wave.xpMultiplier must be 0-1');
+      }
+    }
+    if (entry.value !== undefined || (base === null && id === 'wounded')) {
+      if (!(isInt(merged.value) && merged.value < 0 && merged.value >= -WOUND_MAX_PENALTY))
+        err(w, `value must be a whole number from -${WOUND_MAX_PENALTY} to -1`);
+    }
+  }
   for (const rung of DIFFICULTY_IDS) {
     const scale = config.costScale?.[rung];
     if (!(typeof scale === 'number' && scale > 0))
@@ -272,6 +328,9 @@ export function validateEventsConfig(config, data = {}) {
     if (typeof def.label !== 'string' || !def.label) err(`burdens.${id}`, 'needs a label');
     for (const rung of Object.keys(def.onRung || {}))
       if (!DIFFICULTY_IDS.includes(rung)) err(`burdens.${id}`, `unknown rung "${rung}" in onRung`);
+    checkBurdenNumbers(id, def);
+    for (const [rung, override] of Object.entries(def.onRung || {}))
+      if (isObject(override)) checkBurdenNumbers(`${id}.onRung.${rung}`, override, def);
   }
   if (isObject(config.burdens))
     for (const id of Object.keys(config.burdens))
@@ -540,6 +599,27 @@ export function validateEventsConfig(config, data = {}) {
               !(isInt(effect.params[key]) && effect.params[key] > 0)
             )
               err(where, `ill_omen.${key} must be a positive whole number`);
+        } else if (effect.id === 'hunted') {
+          if (
+            effect.params?.battles !== undefined &&
+            !(isInt(effect.params.battles) && effect.params.battles > 0)
+          )
+            err(where, 'hunted.battles must be a positive whole number');
+        } else if (effect.id === 'wounded') {
+          // Who is wounded and where: `scope` (a chosen unit or a seeded living one) and `stat`.
+          const params = effect.params || {};
+          if (!['target', 'randomUnit'].includes(params.scope))
+            err(where, 'wounded needs params.scope: target or randomUnit');
+          else if (params.scope === 'target') needsTarget();
+          if (!WOUND_STAT_CHOICES.includes(params.stat))
+            err(where, `wounded needs params.stat: one of ${WOUND_STAT_CHOICES.join(', ')}`);
+          if (
+            params.value !== undefined &&
+            !(isInt(params.value) && params.value < 0 && params.value >= -WOUND_MAX_PENALTY)
+          )
+            err(where, `wounded.value must be a whole number from -${WOUND_MAX_PENALTY} to -1`);
+          if (params.battles !== undefined && !(isInt(params.battles) && params.battles > 0))
+            err(where, 'wounded.battles must be a positive whole number');
         }
         break;
       case 'flag':

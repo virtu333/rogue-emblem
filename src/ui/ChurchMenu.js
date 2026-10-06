@@ -23,6 +23,7 @@ import {
   churchReviveBlock,
   reviveAtChurch,
   churchKindleBlock,
+  healRosterAtChurch,
   kindleAtChurch,
 } from '../engine/ChurchCommands.js';
 import {
@@ -38,10 +39,14 @@ import { eclipsePhase, kindlePrice } from '../engine/EclipseSystem.js';
 import {
   churchBlessingBlock,
   churchBlessingOffers,
+  churchCleanseBlock,
+  churchOffersCleanse,
   churchVow,
   churchVowLine,
+  cleanseAtChurch,
   takeChurchBlessing,
 } from '../engine/ChurchVow.js';
+import { burdenOf, describeBurdens } from '../engine/Burdens.js';
 import { createEclipseSunCanvas } from '../art/eclipse/eclipseSun.js';
 import {
   CHURCH_PROMOTE_COST_LORD,
@@ -51,7 +56,6 @@ import {
 } from '../utils/constants.js';
 import { applyServiceVignette, prefersStill } from './itemMoments.js';
 import { LEVEL_UP_CUE_WAIT_MS, playCue } from './ceremonyMusic.js';
-import { healUnitFully } from '../engine/UnitHealth.js';
 import { isPrologueRun } from '../engine/ScriptedBattle.js';
 import { PROLOGUE_SERVICE_LINES } from '../data/prologueContent.js';
 import { canShowRunNote, markNoteSeen } from './guidanceGate.js';
@@ -150,8 +154,7 @@ export class ChurchMenu {
           this.finish(healAtRuins(run, nodeId));
           return;
         }
-        for (const u of run.roster) healUnitFully(u);
-        this.finish({ ok: true, message: 'All units healed.' });
+        this.finish(healRosterAtChurch(run));
       }),
     );
     if (!ruins) this.renderKindle(body, run);
@@ -198,7 +201,9 @@ export class ChurchMenu {
           'p',
           vow
             ? churchVowLine(vow)
-            : 'Promote your units, or take a blessing: one vow per church. The first promotion or the blessing makes it.',
+            : churchOffersCleanse(run, nodeId)
+              ? 'Promote your units, take a blessing or lift a burden: one vow per church. The first promotion, the blessing or the cleansing makes it.'
+              : 'Promote your units, or take a blessing: one vow per church. The first promotion or the blessing makes it.',
           'church-vow-line',
         ),
       );
@@ -221,9 +226,47 @@ export class ChurchMenu {
         if (reason) body.append(el('p', reason));
       }
       this.renderBlessings(body, run, nodeId);
+      this.renderCleanse(body, run, nodeId);
     }
     this.renderTools(body);
     body.scrollTop = scroll;
+  }
+  /**
+   * Cleanse: when the run holds a burden a church can lift (Burdens.cleansableBurdens: all but
+   * Debt), the altar offers to lift one of the player's choosing. Taking it is this church's vow.
+   */
+  renderCleanse(body, run, nodeId) {
+    if (!churchOffersCleanse(run, nodeId)) return;
+    if (churchVow(run, nodeId) === 'cleanse') return;
+    body.append(el('h3', 'Cleanse · Free'));
+    const catalog = this.scene.gameData?.events;
+    const burdens = describeBurdens(run, catalog);
+    if (burdenOf(run, 'debt'))
+      body.append(el('p', 'The lender has lawyers: no altar lifts a Debt.', 'church-cleanse-debt'));
+    for (const burden of burdens) {
+      if (burden.id === 'debt') continue;
+      const reason = churchCleanseBlock(run, nodeId, burden.id);
+      const b = button(
+        `${burden.label} · ${burden.short}`,
+        () =>
+          this.choose({
+            title: `Lift ${burden.label}?`,
+            choices: [burden],
+            confirmation: true,
+            confirmLabel: 'Lift the burden',
+            label: (x) => x.label,
+            describe: (x) =>
+              `${x.line} Now: ${x.detail}. This is your vow here: this church will promote no one and give no blessing.`,
+            blocked: (x) => churchCleanseBlock(run, nodeId, x.id),
+            apply: (x) => this.finish(cleanseAtChurch(run, nodeId, x.id)),
+          }),
+        're-btn church-cleanse',
+      );
+      b.dataset.burden = burden.id;
+      b.disabled = !!reason;
+      body.append(b);
+      if (reason) body.append(el('p', reason));
+    }
   }
   /** The altar's minor blessings: taking one is this church's vow. */
   renderBlessings(body, run, nodeId) {

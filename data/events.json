@@ -14,6 +14,27 @@
       "line": "The lender takes a share of each victory's gold until the debt is paid.",
       "garnish": 0.5,
       "onRung": { "normal": { "garnish": 0.25 } }
+    },
+    "hunted": {
+      "label": "Hunted",
+      "line": "Something follows your trail: the next battles each bring a wave of fresh foes. Boss maps are spared.",
+      "battles": 2,
+      "wave": { "turn": 3, "count": [2, 2], "xpMultiplier": 0.5 },
+      "onRung": {
+        "normal": { "wave": { "turn": 3, "count": [1, 2], "xpMultiplier": 0.5 } },
+        "lunatic": { "wave": { "turn": 3, "count": [2, 3], "xpMultiplier": 0.5 } }
+      }
+    },
+    "sworn_enemy": {
+      "label": "Sworn Enemy",
+      "line": "The act's boss has sworn to end you, and fights with a gift from the dark until it falls."
+    },
+    "wounded": {
+      "label": "Wounded",
+      "line": "A wound that has not closed. They fight at a penalty until it mends.",
+      "battles": 3,
+      "value": -2,
+      "onRung": { "normal": { "battles": 2 } }
     }
   },
   "events": [

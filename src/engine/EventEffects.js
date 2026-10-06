@@ -62,7 +62,7 @@ import { healUnit, damageUnit } from './UnitHealth.js';
 import { applyWear, wearableStats } from './WeaponWear.js';
 import { commitShadow, actShadowOf, withEclipseSeed } from './EclipseSystem.js';
 import { convertNodeToRoutBattle } from './NodeMapGenerator.js';
-import { addBurden, burdenDefFor } from './Burdens.js';
+import { WOUND_STATS, addBurden, burdenDefFor, describeBurden } from './Burdens.js';
 import { describeContract, normalizeContract, contractOf } from './Contracts.js';
 import { planJoin, applyJoin } from './EventJoin.js';
 import { planRouteEdit, applyRouteEdit } from './RouteEdit.js';
@@ -437,11 +437,31 @@ function planBlessing(ctx, effect, index, ledger, lenient) {
   return { step: { type: 'blessing', blessing } };
 }
 
-function planBurden(ctx, effect) {
+function planBurden(ctx, effect, index) {
   const def = burdenDefFor(ctx.catalog, effect.id, ctx.run.difficultyId);
   if (!def) return { error: `Unknown burden "${effect.id}".` };
   const params = { ...(effect.params || {}) };
   if (params.owed !== undefined) params.owed = resolveAmount(params.owed, ctx.run.currentAct);
+  if (effect.id === 'wounded') {
+    // Who and where are fixed now, from the seeded stream: the record carries the unit's uid.
+    const unit =
+      params.scope === 'target'
+        ? ctx.target
+        : (() => {
+            const living = livingUnits(ctx.run);
+            return living.length ? pickFrom(living, rngFor(ctx, index, 'wounded')) : null;
+          })();
+    if (!unit) return { error: 'No one to wound.' };
+    const uid = unitUidOf(unit);
+    if (!uid) return { error: 'No one to wound.' };
+    let stat = params.stat;
+    if (stat === 'attack')
+      stat = (Number(unit.stats?.MAG) || 0) > (Number(unit.stats?.STR) || 0) ? 'MAG' : 'STR';
+    else if (stat === 'random') stat = pickFrom(WOUND_STATS, rngFor(ctx, index, 'wound-stat'));
+    if (!WOUND_STATS.includes(stat)) return { error: `A wound cannot fall on "${params.stat}".` };
+    delete params.scope;
+    Object.assign(params, { unitUid: uid, unitName: unit.name, stat });
+  }
   return { step: { type: 'burden', id: effect.id, params } };
 }
 
@@ -603,7 +623,7 @@ export function planEffects(
         planned = planBlessing(ctx, effect, index, ledger, lenient);
         break;
       case 'burden':
-        planned = planBurden(ctx, effect);
+        planned = planBurden(ctx, effect, index);
         break;
       case 'flag':
         planned = { step: { type: 'flag', key: effect.key, value: effect.value ?? true } };
@@ -802,6 +822,8 @@ export function applyStep(ctx, step) {
       if (!added.ok) throw new Error(added.reason);
       const def = burdenDefFor(ctx.catalog, step.id, run.difficultyId) || {};
       const b = added.burden;
+      // A record's `detail` is the burden as it now stands (the run may already have held one).
+      const words = describeBurden(b, { def, roster: run.roster });
       return [
         {
           kind: 'burden',
@@ -811,7 +833,9 @@ export function applyStep(ctx, step) {
           detail:
             step.id === 'ill_omen'
               ? `${b.battles} battles, +${b.extraShadow} shadow each`
-              : `${b.owed} G owed`,
+              : step.id === 'debt'
+                ? `${b.owed} G owed`
+                : words.detail,
         },
       ];
     }

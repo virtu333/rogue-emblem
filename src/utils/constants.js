@@ -246,8 +246,9 @@ export const RUINS_SHOP_ITEM_COUNT_FINAL = { min: 8, max: 10 };
 export const RUINS_SHOP_MARKUP = 1.25;
 // The Ruins offer one of two paths per visit: rest (heal, revive) or scavenge (wares).
 export const RUINS_PATHS = Object.freeze(['rest', 'scavenge']);
-// A church's one vow per visit: a promotion, or a minor blessing (ChurchVow.js).
-export const CHURCH_VOWS = Object.freeze(['promote', 'blessing']);
+// A church's one vow per visit: a promotion, a minor blessing, or the cleansing of one burden
+// (ChurchVow.js).
+export const CHURCH_VOWS = Object.freeze(['promote', 'blessing', 'cleanse']);
 export const INVENTORY_MAX = 5; // Combat weapons + staves only
 export const CONSUMABLE_MAX = 3; // Separate consumables array
 export const CONVOY_WEAPON_CAPACITY = 20;

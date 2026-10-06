@@ -10,6 +10,7 @@ import {
   addToConsumables,
 } from '../../src/engine/UnitManager.js';
 import { churchPromoteCost } from '../../src/engine/ChurchCommands.js';
+import { clearBattleScopedDeltas } from '../../src/engine/BattleStatDeltas.js';
 import {
   CHURCH_PROMOTE_COST_RECRUIT,
   DEPLOY_LIMITS,
@@ -304,6 +305,9 @@ export class RunSimulationDriver {
   // Victory commit with the battle's turn count and par, as PostCombatController does,
   // so full-run sims exercise the Eclipse (shadow gain, boss relief, node falls).
   _completeBattle(driver, merged, node) {
+    // Battle stat deltas (a Wounded burden's, Intimidate) end with the battle, as
+    // PostCombatController takes them back before the units are serialized.
+    clearBattleScopedDeltas(merged);
     const applied = this.runManager.completeBattle(merged, node.id, driver.battle.goldEarned || 0, {
       turnCount: driver.battle.turnManager?.turnNumber || 0,
       turnPar: Number.isFinite(driver.battle.turnPar) ? driver.battle.turnPar : null,
