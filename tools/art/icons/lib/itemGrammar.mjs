@@ -669,6 +669,7 @@ export function upgradeSpec(u, ctx = grammarContext()) {
       starting_gold: () => D.chest(),
       battle_gold: () => D.goldPile(),
       starting_vulnerary: () => D.vial({ liquid: 'verdigris' }),
+      apothecary_recipe: () => D.vial({ shape: 'flask', liquid: 'verdigris', cork: 'gilt' }),
       loot_quality: () => D.crystal({ mat: 'gilt' }),
       studied_training: () =>
         X.sealedScroll({ cord: 'ember', wax: 'unlight', glyphKind: 'tome', glyphMat: 'gilt' }),

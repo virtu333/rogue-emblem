@@ -135,6 +135,7 @@ import { unitBaseClassName } from './ClassLineage.js';
 import { applyRecruitJoinBonus } from './RecruitScaling.js';
 import { healUnitFully, setUnitHP } from './UnitHealth.js';
 import { PROLOGUE_RUN_MODE, STANDARD_RUN_MODE, isPrologueRun } from './ScriptedBattle.js';
+import { VULNERARY_NAME, consumableCatalogFor, consumableTemplateFor } from './VulneraryRecipe.js';
 import {
   PROLOGUE_ACT_ID,
   buildPrologueBattleConfig,
@@ -860,7 +861,7 @@ export class RunManager {
       if (join?.needs && !this._armyHolds(join.needs)) {
         const item =
           (this.gameData?.weapons || []).find((w) => w.name === join.needs) ||
-          (this.gameData?.consumables || []).find((c) => c.name === join.needs);
+          this.getConsumableTemplate(join.needs);
         if (item && this.addToConvoy(structuredClone(item))) {
           out.granted.push(item.name);
           lineKey = join.lineIfGranted || lineKey;
@@ -1750,10 +1751,7 @@ export class RunManager {
 
     if (effect.type === 'starting_consumable_all') {
       const itemName = String(effect.params.name || '').trim();
-      const consumables = Array.isArray(this.gameData?.consumables)
-        ? this.gameData.consumables
-        : [];
-      const template = consumables.find((c) => c.name === itemName);
+      const template = this.getConsumableTemplate(itemName);
       if (!template) {
         this._recordBlessingEvent('run_start', blessingId, effect, {
           skipped: true,
@@ -1786,12 +1784,8 @@ export class RunManager {
         });
         return;
       }
-      const consumables = Array.isArray(this.gameData?.consumables)
-        ? this.gameData.consumables
-        : [];
-      const template = consumables.find(
-        (item) => item?.name === itemName && item.type === 'Consumable',
-      );
+      const found = this.getConsumableTemplate(itemName);
+      const template = found?.type === 'Consumable' ? found : null;
       if (!template) {
         this._recordBlessingEvent('run_start', blessingId, effect, {
           skipped: true,
@@ -2454,7 +2448,7 @@ export class RunManager {
         const name = effect.params?.name;
         const key = `${id}:${name}`;
         if (unit.recruitBlessingGrants?.includes(key)) continue;
-        const template = this.gameData?.consumables?.find((item) => item.name === name);
+        const template = this.getConsumableTemplate(name);
         if (!template) continue;
         const granted = addToConsumables(unit, template) || this.addToConvoy(template);
         if (granted) unit.recruitBlessingGrants = [...(unit.recruitBlessingGrants || []), key];
@@ -2987,23 +2981,11 @@ export class RunManager {
       this._applyDeadlyArsenalLoadout(unit, primaryType);
     }
 
-    addToConsumables(unit, {
-      name: 'Vulnerary',
-      type: 'Consumable',
-      effect: 'heal',
-      value: 10,
-      uses: 3,
-      price: 300,
-    });
-    if (isCommander && me?.extraVulnerary) {
-      addToConsumables(unit, {
-        name: 'Vulnerary',
-        type: 'Consumable',
-        effect: 'heal',
-        value: 10,
-        uses: 3,
-        price: 300,
-      });
+    // The Vulnerary comes from the catalog, with the uses this run's Vulneraries have.
+    const vulnerary = this.getConsumableTemplate(VULNERARY_NAME);
+    if (vulnerary) {
+      addToConsumables(unit, vulnerary);
+      if (isCommander && me?.extraVulnerary) addToConsumables(unit, vulnerary);
     }
 
     // Starting accessory (Battle Trinket) for the commander
@@ -3120,7 +3102,7 @@ export class RunManager {
       );
     }
     if (this.metaEffects?.recruitStartingVulnerary) {
-      const vulnerary = this.gameData?.consumables?.find((c) => c.name === 'Vulnerary');
+      const vulnerary = this.getConsumableTemplate(VULNERARY_NAME);
       if (vulnerary) addToConsumables(unit, vulnerary);
     }
     if (unit.weapon && !canEquip(unit, unit.weapon)) {
@@ -3640,6 +3622,30 @@ export class RunManager {
     const caps = this.getConvoyCapacities();
     if (bucket === 'consumables') return this.convoy.consumables.length < caps.consumables;
     return this.convoy.weapons.length < caps.weapons;
+  }
+
+  /**
+   * The effects a Vulnerary is made under: the run's meta effects (snapshotted when the
+   * run started, saved with it), or a prologue run's authored `consumableEffects`
+   * (the prologue applies no meta effects). One rule for every item the army acquires.
+   */
+  _consumableEffects() {
+    return isPrologueRun(this)
+      ? this.gameData?.prologue?.consumableEffects || null
+      : this.metaEffects;
+  }
+
+  /**
+   * gameData.consumables as this run acquires them: shops, loot and villages draw from
+   * this, never from the raw catalog. Items already owned are not touched.
+   */
+  getConsumableCatalog() {
+    return consumableCatalogFor(this.gameData?.consumables, this._consumableEffects());
+  }
+
+  /** One catalog consumable by name as this run acquires it (a clone source), or null. */
+  getConsumableTemplate(name) {
+    return consumableTemplateFor(this.gameData?.consumables, name, this._consumableEffects());
   }
 
   addToConvoy(item) {

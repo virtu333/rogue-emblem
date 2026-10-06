@@ -16,6 +16,7 @@ import {
   getImbueList,
   IMBUE_CHOICE_ID,
 } from '../engine/ImbueSystem.js';
+import { isWorn, wearDisplay } from '../engine/WeaponWear.js';
 import { getDisplayLevel, inventoryDisplayOrder } from '../engine/UnitManager.js';
 import { EQUIPPED_MARKER } from './equippedBadge.js';
 import { FORGE_MAX_LEVEL, FORGE_STAT_CAP, LORE_TEXT_COLOR } from '../utils/constants.js';
@@ -250,7 +251,8 @@ export class LootFlowController {
       const wpn = forgeableWeapons[i];
       const level = wpn._forgeLevel || 0;
       const by = topY + i * rowGap;
-      const wpnColor = isForged(wpn) ? UI_PALETTE.good : UI_PALETTE.text;
+      const worn = isWorn(wpn);
+      const wpnColor = isForged(wpn) ? UI_PALETTE.good : worn ? UI_PALETTE.bad : UI_PALETTE.text;
 
       const btn = scene.add
         .rectangle(cam.centerX, by, 280, btnH, UI_HEX.selected, 1)
@@ -280,7 +282,7 @@ export class LootFlowController {
         scene.add.text(
           cam.centerX,
           by + Math.floor(btnH * 0.28),
-          `Mt:${wpn.might} Ht:${wpn.hit} Cr:${wpn.crit} Wt:${wpn.weight}  [${level}/${FORGE_MAX_LEVEL}]`,
+          `Mt:${wpn.might} Ht:${wpn.hit} Cr:${wpn.crit} Wt:${wpn.weight}  [${worn ? wearDisplay(wpn).text : `${level}/${FORGE_MAX_LEVEL}`}]`,
           {
             fontFamily: 'Arial',
             fontSize: '9px',

@@ -1,4 +1,4 @@
-import { shopRequirementLabel, forgeImpactSuffix } from './itemDecisionText.js';
+import { shopRequirementLabel, forgeImpactSuffix, repairImpactSuffix } from './itemDecisionText.js';
 import { equipmentComparison } from './equipmentComparison.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
 import { ContextHelp } from './ContextHelp.js';
@@ -24,7 +24,10 @@ import {
   sellShopItem,
   shopForgeBlock,
   forgeShopWeapon,
+  shopRepairBlock,
+  repairShopWeapon,
 } from '../engine/ShopCommands.js';
+import { isWorn, wearCount, wearDisplay, repairPrice } from '../engine/WeaponWear.js';
 import {
   canForge,
   forgePrice,
@@ -53,6 +56,13 @@ import {
   prefersStill,
   vignetteMotes,
 } from './itemMoments.js';
+
+/** "Worn 2/3 · Dulled −1 Might · Bent −5 Hit": the wear, by name, on a shop card. */
+function wearDisplayText(weapon) {
+  const { count, max, steps } = wearDisplay(weapon);
+  const named = steps.map((step) => `${step.label} ${step.effect}`);
+  return [`Worn ${count}/${max}`, ...named].join(' \u00b7 ');
+}
 
 export class ShopMenu {
   constructor(controller) {
@@ -126,7 +136,8 @@ export class ShopMenu {
     const rows = shopOwnedItems(this.run);
     return tab === 'sell'
       ? rows.filter((row) => getSellPrice(row.item) > 0)
-      : rows.filter((row) => canForge(row.item));
+      : // A worn weapon is repaired here instead of forged (the forge tab lists both).
+        rows.filter((row) => canForge(row.item) || isWorn(row.item));
   }
   render(message) {
     if (!this.surface || this.surface.destroyed) return;
@@ -222,7 +233,9 @@ export class ShopMenu {
               [row.owner, `+${getSellPrice(row.item)} G`, itemUsageShort(row.item)]
                 .filter(Boolean)
                 .join(' · ')
-            : `${row.owner} · Forge ${row.item._forgeLevel || 0}`;
+            : isWorn(row.item)
+              ? `${row.owner} · Worn ${wearCount(row.item)}/${wearDisplay(row.item).max}`
+              : `${row.owner} · Forge ${row.item._forgeLevel || 0}`;
       const name = el('strong', row.item.name);
       if (row.kind === 'inventory' && row.unit?.weapon === row.item)
         name.append(equippedBadgeElement((tag) => el(tag)));
@@ -355,6 +368,7 @@ export class ShopMenu {
             .join(' · ')}`,
         ),
       );
+    if (isWorn(item)) copy.append(el('p', wearDisplayText(item), 'shop-wear'));
     const imbue = getImbueDisplayInfo(item, this.scene.gameData.imbues);
     if (imbue) copy.append(el('p', `${imbue.name}: ${imbue.description}`));
     const action = el('div', null, 'shop-commit');
@@ -414,10 +428,24 @@ export class ShopMenu {
           `${Math.max(0, options.forgeLimit - options.forgesUsed)} of ${options.forgeLimit} shop forges remaining.`,
         ),
       );
-      const b = button('Choose forge', () => this.forge(item), 're-btn re-btn--primary');
-      b.disabled = options.forgesUsed >= options.forgeLimit;
-      if (b.disabled) reason = 'No forges remain at this shop.';
-      action.append(b);
+      if (isWorn(item)) {
+        // A worn weapon shows Repair in place of the forge stats; it spends a forge use.
+        const price = repairPrice(item, options.discount);
+        const b = button(`Repair · ${price} G`, () => this.repair(item), 're-btn re-btn--primary');
+        reason = shopRepairBlock(this.run, item, options);
+        b.disabled = !!reason;
+        goldShort = reason === 'Not enough gold.';
+        if (goldShort) {
+          reason = `Not enough gold: ${price - this.run.gold} G short.`;
+          b.classList.add('shop-buy--short');
+        }
+        action.append(b);
+      } else {
+        const b = button('Choose forge', () => this.forge(item), 're-btn re-btn--primary');
+        b.disabled = options.forgesUsed >= options.forgeLimit;
+        if (b.disabled) reason = 'No forges remain at this shop.';
+        action.append(b);
+      }
     }
     if (reason)
       action.prepend(el('p', reason, goldShort ? 'shop-reason shop-reason--gold' : 'shop-reason'));
@@ -556,6 +584,23 @@ export class ShopMenu {
           : blessing,
       ),
     };
+  }
+  /** Mend the most recent wear step: one confirm naming the stat, the cost and the forge use. */
+  repair(weapon) {
+    const expectedWear = wearCount(weapon);
+    const owner = this.run.roster.find((u) => u.inventory?.includes(weapon));
+    const step = wearDisplay(weapon).steps.at(-1);
+    const price = repairPrice(weapon, this.forgeOptions().discount);
+    this.confirm(
+      `Repair ${weapon.name}?`,
+      `${step.label}: restores ${step.restore}${repairImpactSuffix(owner, weapon)}. ${price} gold and one shop forge.`,
+      () => {
+        const options = { ...this.forgeOptions(), expectedWear };
+        const result = repairShopWeapon(this.run, weapon, options);
+        if (result.ok) this.scene.shopForgesUsed++;
+        return this.complete(result);
+      },
+    );
   }
   forge(weapon) {
     const expectedLevel = weapon._forgeLevel || 0;

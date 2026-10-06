@@ -1,4 +1,5 @@
 import { contributesToTeamLevel } from './SpecialCharacterPolicy.js';
+import { VULNERARY_NAME, consumableTemplateFor } from './VulneraryRecipe.js';
 // RecruitNodeSystem.js — who waits at a recruit node, known before you choose the road.
 //
 // docs/specs/strategy-layer.md. Pure (no Phaser). Two halves:
@@ -418,6 +419,7 @@ export function buildRecruitNodeUnit(opts = {}) {
             promoteLord: plan.promoteLord,
             classes,
             skills: gameData.skills || [],
+            consumables: gameData.consumables,
             dynamicPromotionLevel,
             promotedLevelTarget,
             baseLevelOverride: null,
@@ -504,7 +506,7 @@ export function buildRecruitNodeUnit(opts = {}) {
           metaEffects.recruitStartingAccessory,
         );
       if (metaEffects?.recruitStartingVulnerary) {
-        const vulnerary = (gameData.consumables || []).find((c) => c.name === 'Vulnerary');
+        const vulnerary = consumableTemplateFor(gameData.consumables, VULNERARY_NAME, metaEffects);
         if (vulnerary) addToConsumables(unit, vulnerary);
       }
       unit.faction = 'npc';

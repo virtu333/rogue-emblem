@@ -3,6 +3,7 @@
 import { hasPerBattleUsesLeft } from './Combat.js';
 import { isRooted, isSilenced } from './StatusConditionSystem.js';
 import { setUnitHP } from './UnitHealth.js';
+import { weaponCatalogNames } from '../utils/itemNames.js';
 
 const RANK_ORDER = { Prof: 0, Mast: 1 };
 const VALID_FACTIONS = new Set(['player', 'enemy', 'npc']);
@@ -584,23 +585,11 @@ export function getWeaponArtCombatMods(art) {
 }
 
 /**
- * The names a weapon instance may go by in the catalog. Forging adds " +N" and an
- * imbue prefixes one adjective ("Cruel Twinsworn +1"), so a legendary gate
- * compares the undecorated name as well as the display name.
+ * The names a weapon instance may go by in the catalog. Forging adds " +N", wear adds
+ * " -N" and an imbue prefixes one adjective ("Cruel Twinsworn +1"), so a legendary gate
+ * compares the undecorated name as well as the display name (utils/itemNames.js).
  */
-function catalogNameTokens(weapon) {
-  const raw = [weapon?._baseName, weapon?.id, weapon?.name]
-    .map((t) => toNonEmptyString(t))
-    .filter(Boolean);
-  const tokens = new Set(raw);
-  for (const token of raw) {
-    const unforged = token.replace(/\s\+\d+$/, '');
-    tokens.add(unforged);
-    // One imbue per weapon, and every imbue adjective is a single word.
-    if (weapon?._imbueId) tokens.add(unforged.replace(/^\S+\s+/, ''));
-  }
-  return [...tokens];
-}
+const catalogNameTokens = weaponCatalogNames;
 
 export function canUseWeaponArt(unit, weapon, art, context = {}) {
   if (!unit || !weapon || !art) return { ok: false, reason: 'invalid_input' };

@@ -1,4 +1,5 @@
 import { applyForge } from '../engine/ForgeSystem.js';
+import { nextRepairStat, repairWeapon } from '../engine/WeaponWear.js';
 import { getStaticCombatStats } from '../engine/Combat.js';
 import { rankRequirementText } from './rosterDisplay.js';
 
@@ -16,6 +17,19 @@ export function forgeImpactLine(owner, weapon, key) {
   if (!owner || !weapon) return '';
   const next = structuredClone(weapon);
   if (!applyForge(next, key).success) return '';
+  return impactLine(owner, weapon, next, key);
+}
+
+/** The same line for a repair: the baseline after the weapon's last wear step is mended. */
+export function repairImpactLine(owner, weapon) {
+  if (!owner || !weapon) return '';
+  const key = nextRepairStat(weapon);
+  const next = structuredClone(weapon);
+  if (!key || !repairWeapon(next).success) return '';
+  return impactLine(owner, weapon, next, key);
+}
+
+function impactLine(owner, weapon, next, key) {
   const before = getStaticCombatStats(owner, weapon);
   const after = getStaticCombatStats(owner, next);
   const fields = {
@@ -35,5 +49,11 @@ export function forgeImpactLine(owner, weapon, key) {
 /** " · Attack 9 → 10" for a forge row, or "" when there is no owner or no change to show. */
 export function forgeImpactSuffix(owner, weapon, key) {
   const line = forgeImpactLine(owner, weapon, key);
+  return line ? ` · ${line}` : '';
+}
+
+/** " · Attack 8 → 9" for a repair, or "" when there is no owner or no change to show. */
+export function repairImpactSuffix(owner, weapon) {
+  const line = repairImpactLine(owner, weapon);
   return line ? ` · ${line}` : '';
 }

@@ -21,6 +21,9 @@
 // player's-choice "Prismatic Stone") resolved from imbues.json through the
 // existing `forge` loot category. Stones never enter inventory.
 
+import { composeWeaponName } from '../utils/itemNames.js';
+import { wearCount } from './WeaponWear.js';
+
 // Item types that cannot be imbued (matches forge exclusions).
 const EXCLUDED_TYPES = new Set(['Staff', 'Scroll', 'Consumable', 'Accessory', 'Whetstone']);
 
@@ -68,6 +71,8 @@ export function canImbue(weapon) {
  * - forged weapon: `_baseName` "Iron Sword", name "Iron Sword +2" →
  *   `_baseName` "Vampiric Iron Sword", name "Vampiric Iron Sword +2"
  *   (deforging to +0 restores "Vampiric Iron Sword")
+ * - worn weapon: the same with "-N" ("Vampiric Iron Sword -2"; repairing to 0
+ *   restores "Vampiric Iron Sword")
  * @param {object} weapon
  * @param {object} imbueDef - entry from imbues.json
  * @returns {{ success: boolean }}
@@ -83,8 +88,11 @@ export function applyImbue(weapon, imbueDef) {
     // Forged weapon: rename the base and recompose the "+N" display name so
     // future forges/deforges keep the imbued base.
     weapon._baseName = `${adjective} ${weapon._baseName}`;
-    const forgeLevel = Number(weapon._forgeLevel) || 0;
-    weapon.name = forgeLevel > 0 ? `${weapon._baseName} +${forgeLevel}` : weapon._baseName;
+    // A worn weapon keeps its "-N" the same way (docs/specs/worn-weapons.md).
+    weapon.name = composeWeaponName(weapon._baseName, {
+      forgeLevel: Number(weapon._forgeLevel) || 0,
+      wearSteps: wearCount(weapon),
+    });
   } else {
     weapon.name = `${adjective} ${weapon.name}`;
   }

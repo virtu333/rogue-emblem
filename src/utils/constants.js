@@ -186,6 +186,9 @@ export const NODE_GOLD_MULTIPLIER = {
 };
 
 // Gold economy
+// A rolled Vulnerary loot reward comes as this many items (PendingBattleRewards).
+export const LOOT_VULNERARY_BUNDLE = 2;
+
 export const STARTING_GOLD = 200;
 export const GOLD_PER_KILL_BASE = 28;
 export const GOLD_PER_LEVEL_BONUS = 8;
@@ -265,6 +268,15 @@ export const FORGE_COSTS = {
 // pay the base price. getForgeCost rounds to the nearest 10 gold.
 export const FORGE_TIER_COST_MULTIPLIER = { Iron: 0.6, Steel: 1, Silver: 1.5, Legend: 2 };
 export const SHOP_FORGE_LIMITS = { act1: 2, act2: 3, act3: 4, act4: 5, finalBoss: 0 };
+
+// Worn weapons (a forge below zero, docs/specs/worn-weapons.md). A wear step is the
+// negation of one forge step of its stat (FORGE_BONUSES), so the sizes live there.
+// A worn weapon sells for 15% less of its pre-wear price per step; a Village forge
+// repairs one step for REPAIR_COST_RATIO of the stat's first forge price (tiered like
+// forging), and the repair spends one of the shop's forge uses.
+export const WEAR_PRICE_PENALTY_PER_STEP = 0.15;
+export const WEAR_MAX_STEPS = 3;
+export const REPAIR_COST_RATIO = 0.5;
 
 // Dual currency economy (Valor = lord-focused, Supply = army-focused)
 export const VALOR_PER_ACT = 50;

@@ -50,6 +50,11 @@ catalog changed with it; stats, forge levels, imbues and uses stay. Saves writte
 carry `itemNamesRevision`, and the walk skips them. Cloud saves load through the same
 path.
 
+**Run state on a name.** Forging appends " +N", wear appends " -N" ([worn-weapons.md](worn-weapons.md)),
+and an imbue prefixes one word. Every lookup reads the undecorated name through
+`src/utils/itemNames.js` (`stripItemNameSuffix`, `weaponCatalogNames`); a catalog name must never end
+in ` +N` or ` -N`.
+
 **Adding a rename:** add the pairs to `ITEM_RENAMES` (or a new table), bump
 `ITEM_NAMES_REVISION`, and rename the icon/hero ids (`itemSlug`) and their files.
 `tests/ItemNameMigration.test.js` fails if an old name is still in the catalog, a new

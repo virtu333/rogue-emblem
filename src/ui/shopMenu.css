@@ -167,6 +167,11 @@
 .shop-copy .shop-usage {
   color: var(--re-muted);
 }
+/* "Worn 2/3 · Dulled −1 Might · Bent −5 Hit" (WeaponWear): a long line wraps, never clips. */
+.shop-copy .shop-wear {
+  color: var(--re-bad);
+  overflow-wrap: anywhere;
+}
 .shop-mechanics {
   white-space: pre-line;
 }

@@ -1113,7 +1113,7 @@ export class MetaProgressionManager {
   /**
    * Compute flat object of all active effects from purchased upgrades.
    * Returns: { statBonuses, growthBonuses, lordStatBonuses, lordGrowthBonuses,
-   *            goldBonus, battleGoldMultiplier, extraVulnerary, lootWeaponQualityBonus, lootCategoryWeightBonuses,
+   *            goldBonus, battleGoldMultiplier, extraVulnerary, vulneraryUses, lootWeaponQualityBonus, lootCategoryWeightBonuses,
    *            lordRecruitChanceBonus, recruitPromotionChanceBonus,
    *            deployBonus, visionChargesBonus, caravanChanceBonus, recruitRandomSkill, recruitStartingVulnerary, extraStartingUnitTier,
    *            lethalArmoryTier, recruitWeaponForge, recruitStartingAccessory, recruitXpBonus,
@@ -1133,6 +1133,7 @@ export class MetaProgressionManager {
       goldBonus: 0,
       battleGoldMultiplier: 0,
       extraVulnerary: 0,
+      vulneraryUses: 0,
       lootCategoryWeightBonuses: {},
       lootWeaponQualityBonus: 0,
       lordRecruitChanceBonus: 0,
@@ -1197,6 +1198,8 @@ export class MetaProgressionManager {
       if (effect.battleGoldMultiplier !== undefined)
         effects.battleGoldMultiplier = effect.battleGoldMultiplier;
       if (effect.extraVulnerary !== undefined) effects.extraVulnerary = effect.extraVulnerary;
+      if (effect.vulneraryUses !== undefined)
+        effects.vulneraryUses = Math.max(effects.vulneraryUses, Number(effect.vulneraryUses) || 0);
       if (effect.lootCategoryWeightBonuses) {
         const mapped = normalizeLootCategoryWeightBonuses(effect.lootCategoryWeightBonuses);
         if (mapped) {

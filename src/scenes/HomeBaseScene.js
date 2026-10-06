@@ -980,6 +980,7 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.battleGoldMultiplier !== undefined)
       return `+${Math.round(effect.battleGoldMultiplier * 100)}%`;
     if (effect.extraVulnerary !== undefined) return `+${effect.extraVulnerary}`;
+    if (effect.vulneraryUses !== undefined) return `${effect.vulneraryUses} uses`;
     if (effect.lootWeaponQualityBonus !== undefined) return `+${effect.lootWeaponQualityBonus}%`;
     if (effect.lootWeaponWeightBonus !== undefined) return `+${effect.lootWeaponWeightBonus}%`;
     if (effect.lootCategoryWeightBonuses !== undefined) {
@@ -1108,6 +1109,7 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.goldBonus !== undefined) return 'Starting gold bonus';
     if (effect.battleGoldMultiplier !== undefined) return 'Battle gold bonus';
     if (effect.extraVulnerary !== undefined) return 'Starting Vulnerary';
+    if (effect.vulneraryUses !== undefined) return 'Uses per Vulnerary';
     if (effect.lootCategoryWeightBonuses !== undefined) {
       const desc = this._getLootCategoryBonusesDesc(effect.lootCategoryWeightBonuses);
       if (desc) return desc;

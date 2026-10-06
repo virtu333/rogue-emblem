@@ -1192,6 +1192,29 @@
     ]
   },
   {
+    "id": "apothecary_recipe",
+    "name": "Apothecary's Recipe",
+    "description": "Every Vulnerary you get in a run has 3 uses",
+    "category": "economy",
+    "maxLevel": 1,
+    "costs": [
+      200
+    ],
+    "effects": [
+      {
+        "vulneraryUses": 3
+      }
+    ],
+    "requires": {
+      "upgrades": [
+        {
+          "id": "starting_vulnerary",
+          "level": 1
+        }
+      ]
+    }
+  },
+  {
     "id": "loot_quality",
     "name": "Lucky Finds",
     "description": "Higher chance for upgraded weapon drops",
