@@ -196,7 +196,7 @@ export class LootScreenController {
       runManager.currentAct,
       gameData.lootTables,
       gameData.weapons,
-      gameData.consumables,
+      runManager.getConsumableCatalog(),
       lootCount,
       lootWeaponQualityBonus,
       gameData.accessories,

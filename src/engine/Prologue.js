@@ -5,6 +5,9 @@
 //   seed            integer; seeds the authored units' streams (and, through RunManager,
 //                   the prologue run).
 //   grant           { valor, supply }: the Home Base grant paid once at the end.
+//   consumableEffects  { vulneraryUses }: the prologue applies no meta effects, so the
+//                   uses its Vulneraries have are named here and every Vulnerary it
+//                   builds (kits, loot, stock, grants) reads them (VulneraryRecipe.js).
 //   units           { <key>: unit spec } (buildPrologueUnit). The key is how chapters,
 //                   beats and joins name the unit; it is also the unit's name.
 //                     lord        a lords.json name (built by createLordUnit), or
@@ -221,6 +224,7 @@ import { validateBattleConfig } from './MapGenerator.js';
 import { shopEntryTypeForItem } from './LootSystem.js';
 import { actShopPrice } from './ShopEconomy.js';
 import { prologueChapterOf } from './ScriptedBattle.js';
+import { applyVulneraryRecipe } from './VulneraryRecipe.js';
 
 export const PROLOGUE_TEMPLATE_PREFIX = 'prologue:';
 export const PROLOGUE_ACT_ID = 'act1';
@@ -942,11 +946,16 @@ function parseProficiencyList(list) {
   return list.map((type) => ({ type, rank: 'Prof' }));
 }
 
-function findItem(gameData, name) {
+/**
+ * A weapon or consumable by name. A consumable comes as the prologue builds it: its
+ * Vulnerary has the uses `consumableEffects` names (the catalog's base is not the
+ * prologue's), through the one rule a run's Vulneraries follow.
+ */
+function findItem(gameData, name, effects = gameData?.prologue?.consumableEffects) {
   const weapon = (gameData.weapons || []).find((w) => w?.name === name);
   if (weapon) return { kind: 'weapon', data: weapon };
   const consumable = (gameData.consumables || []).find((c) => c?.name === name);
-  if (consumable) return { kind: 'consumable', data: consumable };
+  if (consumable) return { kind: 'consumable', data: applyVulneraryRecipe(consumable, effects) };
   return null;
 }
 
@@ -970,7 +979,7 @@ function equipAuthored(unit) {
  * @param {object} spec - a data/prologue.json `units` entry
  * @param {object} gameData - { lords, classes, weapons, consumables }
  * @param {() => number} rng - e.g. prologueUnitRng(prologue.seed, key)
- * @param {{ name?: string, level?: number, items?: string[] }} [options] - the unit's
+ * @param {{ name?: string, level?: number, items?: string[], effects?: object }} [options] - the unit's
  *   name when the spec has no lord; `level` raises an authored-stats unit above its
  *   spec's level with seeded level-ups (a replay entering a later chapter at its
  *   expected level); `items` are added to the authored kit (a replay's rosterItems)
@@ -979,7 +988,7 @@ export function buildPrologueUnit(
   spec,
   gameData,
   rng,
-  { name = null, level: toLevel = null, items = null } = {},
+  { name = null, level: toLevel = null, items = null, effects = undefined } = {},
 ) {
   if (typeof rng !== 'function') throw new Error('buildPrologueUnit needs a seeded rng');
   if (!spec || typeof spec !== 'object') throw new Error('buildPrologueUnit needs a spec');
@@ -1027,12 +1036,13 @@ export function buildPrologueUnit(
 
   unit.inventory = [];
   unit.consumables = [];
+  const consumableEffects = effects === undefined ? gameData?.prologue?.consumableEffects : effects;
   const kit = [
     ...(Array.isArray(spec.inventory) ? spec.inventory : []),
     ...(Array.isArray(items) ? items : []),
   ];
   for (const itemName of kit) {
-    const item = findItem(gameData, itemName);
+    const item = findItem(gameData, itemName, consumableEffects);
     if (!item) throw new Error(`Unknown prologue item "${itemName}"`);
     const clone = ensureItemUidWith(structuredClone(item.data), rng);
     if (item.kind === 'consumable') unit.consumables.push(clone);
@@ -1063,6 +1073,7 @@ export function buildPrologueUnits(
       name: key,
       level: isInt(levels?.[key]) ? levels[key] : null,
       items: Array.isArray(items?.[key]) ? items[key] : null,
+      effects: prologue?.consumableEffects,
     });
   });
 }
@@ -2180,6 +2191,9 @@ export function validatePrologueConfig(prologue, gameData = {}) {
     const v = prologue.grant?.[currency];
     if (!isInt(v) || v < 0) errors.push(`grant.${currency} must be an integer >= 0`);
   }
+  const uses = prologue.consumableEffects?.vulneraryUses;
+  if (!isInt(uses) || uses < 1)
+    errors.push('consumableEffects.vulneraryUses must be an integer >= 1');
   validateUnits(prologue.units, gameData, errors);
   if (!Array.isArray(prologue.chapters) || prologue.chapters.length === 0) {
     errors.push('chapters must be a non-empty array');

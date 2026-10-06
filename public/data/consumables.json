@@ -5,7 +5,7 @@
     "type": "Consumable",
     "effect": "heal",
     "value": 10,
-    "uses": 3,
+    "uses": 2,
     "price": 300
   },
   {

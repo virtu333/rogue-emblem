@@ -36,6 +36,7 @@ import {
   normalizeEquippedFirst,
 } from './UnitManager.js';
 import { serializeUnit } from './RunManager.js';
+import { VULNERARY_NAME, consumableTemplateFor } from './VulneraryRecipe.js';
 
 const XP_STAT_NAMES = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK'];
 const LEGACY_ACT_ORDER = ['act1', 'act2', 'act3', 'finalBoss'];
@@ -180,6 +181,7 @@ export function getAvailableLords(
 /**
  * Create a lord unit for boss recruit, leveled to targetLevel.
  * Gets lord meta bonuses but NOT starting equipment meta upgrades.
+ * `recruitContext.consumables` is the catalog the lord's Vulnerary comes from.
  */
 export function createBossLordUnit(
   lordDef,
@@ -284,19 +286,9 @@ export function createBossLordUnit(
     normalizeEquippedFirst(unit);
   }
 
-  // Give a Vulnerary
-  unit.consumables.push(
-    ensureItemUid(
-      structuredClone({
-        name: 'Vulnerary',
-        type: 'Consumable',
-        effect: 'heal',
-        value: 10,
-        uses: 3,
-        price: 300,
-      }),
-    ),
-  );
+  // Give a Vulnerary: the catalog's, with the uses this run's Vulneraries have.
+  const vulnerary = consumableTemplateFor(recruitContext?.consumables, VULNERARY_NAME, metaEffects);
+  if (vulnerary) unit.consumables.push(ensureItemUid(structuredClone(vulnerary)));
 
   return unit;
 }
@@ -501,6 +493,7 @@ export function generateBossRecruitCandidates(
           promoteLord: canPromoteLord && lordRoll.promote,
           classes,
           skills,
+          consumables,
           dynamicPromotionLevel,
           promotedLevelTarget,
           baseLevelOverride: null,
@@ -549,7 +542,7 @@ function createRecruitFromPool(
   const skillPool = metaEffects?.recruitRandomSkill ? RECRUIT_SKILL_POOL : null;
   const maybeAddStartingVulnerary = (unit) => {
     if (!metaEffects?.recruitStartingVulnerary) return;
-    const vulnerary = (consumables || []).find((c) => c.name === 'Vulnerary');
+    const vulnerary = consumableTemplateFor(consumables, VULNERARY_NAME, metaEffects);
     if (vulnerary) unit.consumables.push(ensureItemUid(structuredClone(vulnerary)));
   };
   const applyRecruitJoinBonuses = (unit) => {
@@ -693,6 +686,7 @@ export function generateThirdLordCandidates(
         promoteLord: shouldPromote,
         classes: gameData.classes,
         skills: gameData.skills,
+        consumables: gameData.consumables,
         dynamicPromotionLevel,
         promotedLevelTarget,
       },
