@@ -368,6 +368,7 @@ const KIND = {
   ruins: 'RUINS',
   recruit: 'RECRUIT',
   colosseum: 'COLOSSEUM',
+  event: 'EVENT',
 };
 const OBJECTIVE = {
   rout: ['ROUT', 'Defeat all enemies on the map.'],
@@ -382,6 +383,7 @@ const ECLIPSED_TEXT = {
   church: 'The chapel was desecrated. Its defilers wait; spoils are elite.',
   recruit: 'The ally you might have met was lost to the dark. Only foes remain.',
   colosseum: 'The arena fell silent. Something else fights there now; spoils are elite.',
+  event: 'The dark took this road. Something else waits where the story was; spoils are elite.',
 };
 const SERVICE = {
   shop: 'Buy, sell and forge equipment.',
@@ -389,6 +391,7 @@ const SERVICE = {
   ruins: 'Rest (heal, revive) or scavenge the wares. Only one.',
   colosseum: 'Arena and mercenary board.',
   recruit: 'Battle with a potential ally.',
+  event: 'Something waits on the road.',
 };
 
 /** Short pixel label shown under a reachable medal. */
@@ -415,7 +418,7 @@ function flavorPool(node, dialogue, actId) {
   if (node.type === 'boss') return pick(nf.boss);
   if (node.type === 'recruit') return pick(nf.recruit);
   if (node.type === 'battle') return pick(node.battleParams?.isElite ? nf.elite : nf.battle);
-  // Church, ruins and colosseum have no flavour pool yet.
+  // Church, ruins, colosseum and events have no flavour pool yet.
   return null;
 }
 

@@ -38,6 +38,7 @@ it('offers services on Act1 forks while preserving forced battle and boss rows',
   installSeed(17);
   let shops = 0,
     churches = 0,
+    events = 0,
     total = 0;
   try {
     for (let i = 0; i < 300; i++) {
@@ -47,11 +48,14 @@ it('offers services on Act1 forks while preserving forced battle and boss rows',
           total++;
           shops += n.type === 'shop';
           churches += n.type === 'church';
+          events += n.type === 'event';
         }
       }
     }
-    expect(shops / total).toBeGreaterThan(0.14);
+    // Raw draw: 16% shops, 8% churches, 20% events; the recruit and streak passes thin them.
+    expect(shops / total).toBeGreaterThan(0.09);
     expect(churches / total).toBeGreaterThan(0.06);
+    expect(events / total).toBeGreaterThan(0.1);
   } finally {
     restoreMathRandom();
   }

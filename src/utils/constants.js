@@ -157,10 +157,10 @@ export const RECRUIT_PROMOTION_CHANCE_CAP = 0.95;
 export const ACT_SEQUENCE = ['act1', 'act2', 'act3', 'act4', 'finalBoss'];
 
 export const ACT_CONFIG = {
-  act1: { name: 'Border Skirmishes', rows: 8 },
-  act2: { name: 'Occupied Territory', rows: 9 },
-  act3: { name: 'Enemy Stronghold', rows: 9 },
-  act4: { name: 'Ashen Summit', rows: 9 },
+  act1: { name: 'Border Skirmishes', rows: 9 },
+  act2: { name: 'Occupied Territory', rows: 10 },
+  act3: { name: 'Enemy Stronghold', rows: 10 },
+  act4: { name: 'Ashen Summit', rows: 10 },
   finalBoss: { name: 'Final Battle', rows: 2 },
 };
 
@@ -172,6 +172,16 @@ export const NODE_TYPES = {
   RECRUIT: 'recruit',
   CHURCH: 'church',
   COLOSSEUM: 'colosseum',
+  EVENT: 'event',
+};
+
+// Mixed rows (2..rows-3) draw ONE Math.random() per node against these cumulative
+// thresholds (NodeMapGenerator.pickNodeType): roll < battle -> battle, < shop -> shop,
+// < church -> church, otherwise an event. `default` serves acts 2-4.
+// Shares: act1 .56/.16/.08/.20, acts 2-4 .50/.21/.125/.165 (docs/specs/event-nodes.md §1).
+export const NODE_TYPE_WEIGHTS = {
+  act1: { battle: 0.56, shop: 0.72, church: 0.8 },
+  default: { battle: 0.5, shop: 0.71, church: 0.835 },
 };
 
 // Gold multiplier per node type (applied to kill gold subtotal in calculateBattleGold)
@@ -183,6 +193,7 @@ export const NODE_GOLD_MULTIPLIER = {
   shop: 0, // No combat
   ruins: 0, // No combat
   colosseum: 0, // No standard combat
+  event: 1.0, // An event battle pays like a battle (0 would read as 1.0 anyway)
 };
 
 // Gold economy

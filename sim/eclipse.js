@@ -31,7 +31,7 @@ const PROFILES = [
   ['B', 2],
   ['C', 5],
 ];
-const SERVICES = new Set(['shop', 'church', 'recruit', 'colosseum']);
+const SERVICES = new Set(['shop', 'church', 'recruit', 'colosseum', 'event']);
 
 function gameData() {
   const data = loadGameData();

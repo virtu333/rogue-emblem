@@ -102,11 +102,13 @@ function asLegacySave(rm) {
   return json;
 }
 
-// The reviewer's probe, reproduced: run seed 51 promises "Tamsin" (an Archer) at a
-// recruit node; the act-1 colosseum on stream 51 offered two Archers, one of them
-// named Tamsin, when it only avoided roster names.
-const PROBE_SEED = 51;
-const PROMISED = 'Tamsin';
+// The reviewer's probe, reproduced: run seed 44 promises "Lira" (a Mage) at a recruit
+// node; the act-1 colosseum on stream 44 offered a Mage of the same name when it only
+// avoided roster names. (The original probe was run seed 51 / the Archer Tamsin; the
+// longer Act 1 and the event slice moved its recruit nodes, so the case was re-found by
+// search on 2026-10-06 — any seed whose colosseum stream offers a promised name serves.)
+const PROBE_SEED = 44;
+const PROMISED = 'Lira';
 
 function probeRun() {
   const rm = freshRun(PROBE_SEED);
@@ -338,9 +340,9 @@ describe('names a recruit node promised are reserved', () => {
 
 describe('hire → fixed recruit → one namesake dies (reviewer scenario, legacy collision)', () => {
   /**
-   * A save from before the fix: an Archer named Tamsin was hired at the colosseum
-   * while the recruit node still promised Tamsin. The preview is kept (the Loom showed
-   * it), so the battle spawns a second Tamsin.
+   * A save from before the fix: a Mage named Lira was hired at the colosseum
+   * while the recruit node still promised Lira. The preview is kept (the Loom showed
+   * it), so the battle spawns a second Lira.
    */
   function legacyCollision() {
     const { rm, node } = probeRun();
@@ -377,7 +379,7 @@ describe('hire → fixed recruit → one namesake dies (reviewer scenario, legac
     const { army, npc, records } = enterAndRecruit(rm, node);
     expect(npc.unitUid).not.toBe(merc.unitUid);
 
-    // The recruit falls; everyone else (the merc Tamsin too) wins the battle.
+    // The recruit falls; everyone else (the merc Lira too) wins the battle.
     const survivors = army;
     const fallenRecruits = fallenBattleRecruits(records, survivors, rm.roster);
     expect(fallenRecruits.map((u) => u.unitUid)).toEqual([npc.unitUid]);

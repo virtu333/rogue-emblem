@@ -369,16 +369,17 @@ describe('church Kindle', () => {
 // Review R2: act pressure is its own field, uncapped by the global meter, so an act
 // that opens near the cap still loses land to slow play.
 describe('act pressure vs the global cap (review R2)', () => {
-  /** Seed 42 on Normal, walked (fast clears) to Act III, whose map has an outer-lane
-   *  shop (act3_6_0) with fall threshold 8. */
-  function act3Seed42() {
-    const rm = freshRun(42);
+  /** Seed 5 on Normal, walked (fast clears) to Act III, whose map has an outer-lane
+   *  shop (act3_5_0) with fall threshold 8. (Seed 42 / act3_6_0 until Act III grew a row
+   *  and gained event nodes on 2026-10-06; found again by search.) */
+  function act3Shop() {
+    const rm = freshRun(5);
     for (let act = 0; act < 2; act++) {
       bossPathTo(rm);
       rm.advanceAct();
     }
     expect(rm.currentAct).toBe('act3');
-    const shop = rm.nodeMap.nodes.find((n) => n.id === 'act3_6_0');
+    const shop = rm.nodeMap.nodes.find((n) => n.id === 'act3_5_0');
     expect(shop).toMatchObject({ type: 'shop', col: 0 });
     return { rm, shop };
   }
@@ -386,7 +387,7 @@ describe('act pressure vs the global cap (review R2)', () => {
   const pickBattle = (nodes) => nodes.find((n) => n.type === 'battle') || nodes[0];
 
   it('the review reproduction: shadow 100 / act start 97 — the shop now falls to slow victories', () => {
-    const { rm, shop } = act3Seed42();
+    const { rm, shop } = act3Shop();
     // The reviewed save: a version-1 state (act pressure derived: 100 - 97 = 3).
     const saved = JSON.parse(JSON.stringify(rm.toJSON()));
     saved.eclipse = {
@@ -469,7 +470,7 @@ describe('act pressure vs the global cap (review R2)', () => {
 
   it('falls stay deterministic (runSeed + node id), never drawing from Math.random', () => {
     const play = () => {
-      const { rm } = act3Seed42();
+      const { rm } = act3Shop();
       rm.eclipse = { ...rm.eclipse, shadow: 97, actStartShadow: 97, actShadow: 0 };
       const prev = Math.random;
       let draws = 0;

@@ -145,6 +145,11 @@ function realRun() {
   rm.startRun({ runSeed: 4242, autoSelectBlessing: false });
   // Put a recruit node on the map at a known id with a known preview.
   const node = rm.nodeMap.nodes.find((n) => n.type === 'recruit');
+  // The generated map may already hold a node at that id: move it aside so lookups by id
+  // find the recruit node, whatever the node-type mix puts at act1_3_3.
+  for (const other of rm.nodeMap.nodes) {
+    if (other !== node && other.id === 'act1_3_3') other.id = 'act1_3_3_displaced';
+  }
   node.id = 'act1_3_3';
   node.recruitPreview = { v: 1, className: 'Archer', name: 'Wren' };
   return rm;
