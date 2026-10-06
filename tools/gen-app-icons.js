@@ -8,6 +8,11 @@
 //   ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png — the single-size
 //                    1024 universal iOS icon (Xcode derives every size from it; App Store
 //                    Connect takes the 1024 from the uploaded build).
+//   android/app/src/main/res/mipmap-<density>/ — the Android launcher icons: the legacy
+//                    square and round icons (before Android 8) and the adaptive icon's
+//                    foreground layer (108dp, the same full-bleed art; launchers mask it
+//                    to the center 72dp), and drawable-{port,land}-<density>/splash.png,
+//                    the launch screen, cropped from the iOS launch image.
 //
 // Swap to another candidate in one command (copies it over the source first):
 //   npm run gen:icons -- --from docs/art-direction/app-icon/<id>.png
@@ -89,10 +94,81 @@ async function renderIos() {
   );
 }
 
+// Android densities: the icon's dp size times the density's scale.
+const ANDROID_RES = join(root, 'android', 'app', 'src', 'main', 'res');
+const ANDROID_DENSITIES = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 };
+// Capacitor's launch-screen sizes (portrait width x height at each density).
+const ANDROID_SPLASH = {
+  mdpi: [320, 480],
+  hdpi: [480, 800],
+  xhdpi: [720, 1280],
+  xxhdpi: [960, 1600],
+  xxxhdpi: [1280, 1920],
+};
+const IOS_SPLASH = join(
+  root,
+  'ios',
+  'App',
+  'App',
+  'Assets.xcassets',
+  'Splash.imageset',
+  'splash-2732x2732.png',
+);
+
+async function renderAndroid() {
+  for (const [density, scale] of Object.entries(ANDROID_DENSITIES)) {
+    const dir = join(ANDROID_RES, `mipmap-${density}`);
+    await mkdir(dir, { recursive: true });
+    const legacy = Math.round(48 * scale);
+    await sharp(src)
+      .resize(legacy, legacy, { kernel: 'lanczos3' })
+      .removeAlpha()
+      .png(PNG_OPTS)
+      .toFile(join(dir, 'ic_launcher.png'));
+    const circle = Buffer.from(
+      `<svg width="${legacy}" height="${legacy}"><circle cx="${legacy / 2}" cy="${legacy / 2}" r="${legacy / 2}"/></svg>`,
+    );
+    await sharp(src)
+      .resize(legacy, legacy, { kernel: 'lanczos3' })
+      .ensureAlpha()
+      .composite([{ input: circle, blend: 'dest-in' }])
+      .png({ compressionLevel: 9 })
+      .toFile(join(dir, 'ic_launcher_round.png'));
+    const layer = Math.round(108 * scale);
+    await sharp(src)
+      .resize(layer, layer, { kernel: 'lanczos3' })
+      .removeAlpha()
+      .png(PNG_OPTS)
+      .toFile(join(dir, 'ic_launcher_foreground.png'));
+  }
+  console.log('wrote android/app/src/main/res/mipmap-*/ic_launcher{,_round,_foreground}.png');
+}
+
+async function renderAndroidSplash() {
+  const writes = [[join(ANDROID_RES, 'drawable', 'splash.png'), 480, 320]];
+  for (const [density, [w, h]] of Object.entries(ANDROID_SPLASH)) {
+    writes.push([join(ANDROID_RES, `drawable-port-${density}`, 'splash.png'), w, h]);
+    writes.push([join(ANDROID_RES, `drawable-land-${density}`, 'splash.png'), h, w]);
+  }
+  for (const [out, w, h] of writes) {
+    await mkdir(dirname(out), { recursive: true });
+    // The launch image is a small eclipse on a flat field: a centered cover crop keeps it
+    // in the middle at any aspect.
+    await sharp(IOS_SPLASH)
+      .resize(w, h, { fit: 'cover', position: 'centre', kernel: 'lanczos3' })
+      .removeAlpha()
+      .png(PNG_OPTS)
+      .toFile(out);
+  }
+  console.log('wrote android/app/src/main/res/drawable*/splash.png');
+}
+
 await render(180, 'apple-touch-icon-180.png');
 await render(192, 'icon-192.png');
 await render(512, 'icon-512.png');
 await renderMaskable(512, 'icon-512-maskable.png');
 await renderIos();
+await renderAndroid();
+await renderAndroidSplash();
 
 console.log('App icons generated.');

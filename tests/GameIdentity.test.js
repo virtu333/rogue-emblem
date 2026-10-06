@@ -1,6 +1,7 @@
 // The game is called Rogue Dawn. Every player- and distribution-facing name must agree
 // with GAME_TITLE, and the retired display name must not come back. Internal identifiers
-// (storage keys, window globals, the iOS bundle id, the npm package name) keep the old
+// (storage keys, window globals, the iOS bundle id and Android application id, the npm
+// package name) keep the old
 // "emblem rogue" spelling on purpose, so saves and the App Store record survive.
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -48,6 +49,10 @@ describe('game identity', () => {
     expect(plist).toMatch(
       new RegExp(`<key>CFBundleDisplayName</key>\\s*<string>${GAME_TITLE}</string>`),
     );
+
+    const strings = read('android/app/src/main/res/values/strings.xml');
+    expect(strings).toContain(`<string name="app_name">${GAME_TITLE}</string>`);
+    expect(strings).toContain(`<string name="title_activity_main">${GAME_TITLE}</string>`);
   });
 
   // Portrait mode (docs/portrait-battles.md): the iPhone app and the installed web app
@@ -83,6 +88,23 @@ describe('game identity', () => {
     expect(plist).toMatch(/<key>UIViewControllerBasedStatusBarAppearance<\/key>\s*<false\/>/);
   });
 
+  // The Android app follows the same rule: no fixed orientation in the manifest (phones
+  // turn), tablets (the same 600dp short side as PHONE_MAX_SHORT_SIDE) locked to landscape
+  // in MainActivity, and the game category, without which Android 16 ignores that lock on
+  // large screens. The bars stay hidden, as the iOS status bar does.
+  it('agrees on orientations in the Android app', async () => {
+    const { PHONE_MAX_SHORT_SIDE } = await import('../src/utils/portraitBattle.js');
+    const manifest = read('android/app/src/main/AndroidManifest.xml');
+    expect(manifest).not.toMatch(/android:screenOrientation/);
+    expect(manifest).toMatch(/android:appCategory="game"/);
+    const activity = read('android/app/src/main/java/com/davechen/emblemrogue/MainActivity.java');
+    expect(activity).toContain(`TABLET_MIN_SHORT_SIDE_DP = ${PHONE_MAX_SHORT_SIDE};`);
+    expect(activity).toMatch(
+      /smallestScreenWidthDp >= TABLET_MIN_SHORT_SIDE_DP\)\s*\{\s*setRequestedOrientation\(ActivityInfo\.SCREEN_ORIENTATION_SENSOR_LANDSCAPE\)/,
+    );
+    expect(activity).toContain('controller.hide(WindowInsetsCompat.Type.systemBars())');
+  });
+
   it('introduces the game by name in How to Play', () => {
     expect(HOW_TO_PLAY_PAGES[0].lines[0].text).toBe(`${GAME_TITLE} is a tactical RPG with`);
   });
@@ -93,6 +115,8 @@ describe('game identity', () => {
       'public/manifest.webmanifest',
       'capacitor.config.json',
       'ios/App/App/Info.plist',
+      'android/app/src/main/res/values/strings.xml',
+      'android/app/src/main/AndroidManifest.xml',
       ...filesUnder('src', ['.js', '.css', '.json', '.html']),
       ...filesUnder('data', ['.json']),
     ];
@@ -110,6 +134,9 @@ describe('game identity', () => {
     expect(read('ios/App/App.xcodeproj/project.pbxproj')).toContain(
       'PRODUCT_BUNDLE_IDENTIFIER = com.davechen.emblemrogue;',
     );
+    const gradle = read('android/app/build.gradle');
+    expect(gradle).toContain('applicationId "com.davechen.emblemrogue"');
+    expect(gradle).toContain('namespace = "com.davechen.emblemrogue"');
     expect(read('src/engine/SlotManager.js')).toContain("'emblem_rogue_slot_'");
     expect(read('src/main.js')).toContain("'__emblemRogueGame'");
   });

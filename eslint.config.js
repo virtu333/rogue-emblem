@@ -34,6 +34,8 @@ export default [
     ignores: [
       'dist/**',
       'ios/App/App/public/**', // Generated Capacitor copy of dist, including vendor bundles.
+      'android/app/src/main/assets/public/**', // The same copy in the Android project.
+      'android/**/build/**',
       'node_modules/**',
       'References/**',
       'public/data/**',

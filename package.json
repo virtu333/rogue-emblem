@@ -66,6 +66,8 @@
     "prepare": "husky",
     "ios:sync": "npm run build && cap sync ios",
     "ios:open": "cap open ios",
+    "android:sync": "npm run build && cap sync android",
+    "android:open": "cap open android",
     "predev": "node tools/buildUITheme.js && node tools/buildAudioAssets.mjs",
     "build:audio": "node tools/buildAudioAssets.mjs",
     "check:audio": "node tools/buildAudioAssets.mjs --check",
@@ -89,6 +91,7 @@
     ]
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.2",
     "@capacitor/app": "^8.1.1",
     "@capacitor/core": "^8.5.2",
     "@capacitor/filesystem": "^8.1.3",

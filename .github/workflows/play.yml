@@ -1,0 +1,335 @@
+name: Google Play
+
+# Builds and signs the Android app from the selected ref. Run it from the Actions tab:
+# Google Play -> Run workflow (pick the branch, usually main) and a mode:
+#   upload (default)  build the signed bundle (.aab) and send it to a Play track (default
+#                     internal testing: installable by the testers on that track's list
+#                     within minutes, no review)
+#   build             the same signed bundle, kept as the run's `android-bundle` artifact
+#                     and not uploaded (the very first bundle must be uploaded by hand in
+#                     Play Console: the API can only add releases to an app that has one)
+# Both first require the CI workflow to have passed on the exact commit (it waits while
+# that run is still going). A pull request that changes the Android project or this
+# pipeline runs it in build mode.
+#
+# Signing: the bundle is signed with the upload key; Play App Signing re-signs it with
+# the app signing key Google holds, so players get Google's signature.
+#
+# Secrets (Settings -> Secrets and variables -> Actions):
+#   ANDROID_UPLOAD_KEYSTORE_BASE64    the upload keystore (.jks), base64-encoded
+#   ANDROID_UPLOAD_KEYSTORE_PASSWORD  its store password
+#   ANDROID_UPLOAD_KEY_ALIAS          the key's alias (e.g. upload)
+#   ANDROID_UPLOAD_KEY_PASSWORD       the key's password
+#   PLAY_SERVICE_ACCOUNT_JSON         upload mode only: a Google Cloud service account's
+#                                     JSON key, invited in Play Console -> Users and
+#                                     permissions with permission to release to testing
+# Without the keystore secrets (a fork, or before they are set) a pull request still
+# builds the bundle, unsigned, to check the project; upload and build modes refuse.
+# Optional, only for a cloud-enabled build (the app is offline by default):
+#   variables VITE_CLOUD_ENABLED=true and VITE_SUPABASE_URL, secret VITE_SUPABASE_ANON_KEY
+#
+# Version code: Play needs a higher one on every upload. It is 100 + this workflow's run
+# number (every bundle comes from here, so it only grows); the run's input can override it.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'upload: send it to a Play track; build: signed bundle as an artifact only'
+        type: choice
+        options: [upload, build]
+        default: upload
+      track:
+        description: 'Play track to upload to (internal, alpha = closed testing, beta = open testing)'
+        required: false
+        default: internal
+      release_status:
+        description: 'completed: testers get it now; draft: roll it out yourself in Play Console'
+        type: choice
+        options: [completed, draft]
+        default: completed
+      version_code:
+        description: 'Version code (leave blank: 100 + run number)'
+        required: false
+        default: ''
+      whats_new:
+        description: 'Release notes for testers (leave blank: the commit title)'
+        required: false
+        default: ''
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/play.yml
+      - android/**
+      - capacitor.config.*
+
+concurrency:
+  # Uploads queue one at a time; a pull request's newer push replaces its older check.
+  group: play-${{ github.event_name == 'pull_request' && github.ref || 'upload' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  ci-passed:
+    name: CI passed on this commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    permissions:
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      # A pull request run checks out the merge commit; CI ran on the branch head.
+      COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Wait for CI on ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          # The newest CI run for this exact commit (a re-run updates the same run) must
+          # finish successfully. A commit just merged to main has its push run still going,
+          # so wait for it; give GitHub a few minutes to create one before giving up.
+          started=$SECONDS
+          while :; do
+            run="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$COMMIT&per_page=50" \
+              --jq '.workflow_runs | sort_by(.created_at) | last // empty | [.status, (.conclusion // ""), .html_url] | @tsv')"
+            elapsed=$((SECONDS - started))
+            if [ -z "$run" ]; then
+              if [ "$elapsed" -ge 300 ]; then
+                echo "::error::No CI run exists for $COMMIT. Build a commit CI has run on (main, or a branch with an open pull request)."
+                exit 1
+              fi
+              echo "No CI run for $COMMIT yet; waiting."
+            else
+              IFS=$'\t' read -r status conclusion url <<< "$run"
+              if [ "$status" = completed ]; then
+                if [ "$conclusion" = success ]; then
+                  echo "CI passed on $COMMIT: $url"
+                  exit 0
+                fi
+                echo "::error::CI on $COMMIT finished '$conclusion': $url"
+                exit 1
+              fi
+              echo "CI on $COMMIT is $status: $url"
+            fi
+            if [ "$elapsed" -ge 2700 ]; then
+              echo "::error::CI on $COMMIT did not finish within 45 minutes."
+              exit 1
+            fi
+            sleep 30
+          done
+
+  # The app bundles every track; the iOS app's lighter encode keeps the download well
+  # under Play's 200 MB limit (tools/ios/compactMusic.mjs). The web game keeps the build's.
+  app-music:
+    name: Music for the app
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: ffmpeg
+        run: command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+
+      - name: Re-encode the music
+        run: node tools/ios/compactMusic.mjs --in assets/audio/music --out "$RUNNER_TEMP/app-music"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-music
+          path: ${{ runner.temp }}/app-music
+          if-no-files-found: error
+          retention-days: 3
+
+  build:
+    name: Build (${{ inputs.mode || 'check' }})
+    needs: [ci-passed, app-music]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      PACKAGE_NAME: com.davechen.emblemrogue
+      MODE: ${{ inputs.mode || 'check' }}
+      TRACK: ${{ inputs.track || 'internal' }}
+      KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Gradle wrapper is genuine
+        uses: gradle/actions/wrapper-validation@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Android SDK
+        run: |
+          set -euo pipefail
+          # The project's compileSdk (android/variables.gradle); the runner's SDK may not
+          # carry it yet.
+          COMPILE_SDK="$(grep -o 'compileSdkVersion = [0-9]*' android/variables.gradle | grep -o '[0-9]*$')"
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" --install "platforms;android-$COMPILE_SDK" > /dev/null
+          echo "compileSdk $COMPILE_SDK installed"
+
+      - name: Version code
+        env:
+          REQUESTED: ${{ inputs.version_code }}
+        run: |
+          set -euo pipefail
+          VERSION_CODE="${REQUESTED:-$((100 + GITHUB_RUN_NUMBER))}"
+          case "$VERSION_CODE" in ''|*[!0-9]*) echo "::error::Bad version code '$VERSION_CODE'"; exit 1;; esac
+          VERSION_NAME="$(grep -o 'versionName "[^"]*"' android/app/build.gradle | cut -d'"' -f2)"
+          echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
+          echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
+          echo "Building $VERSION_NAME ($VERSION_CODE)"
+
+      - run: npm ci
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: app-music
+          path: ${{ runner.temp }}/app-music
+
+      - name: Build the web game and sync Android
+        env:
+          VITE_CLOUD_ENABLED: ${{ vars.VITE_CLOUD_ENABLED }}
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          # Hash the final compact bytes before Vite bundles the audio manifest; drop the
+          # legacy unversioned copies (the app only reads the versioned ones).
+          ER_MUSIC_ASSET_DIR="$RUNNER_TEMP/app-music" ER_PRUNE_LEGACY_AUDIO=1 npm run build
+          echo "Web game: $(du -sh dist | cut -f1)"
+          npx cap sync android
+          test -f android/app/src/main/assets/public/index.html
+
+      - name: Upload keystore
+        run: |
+          set -euo pipefail
+          if [ -z "$KEYSTORE_B64" ]; then
+            if [ "$MODE" != check ]; then
+              echo "::error::Missing repository secret ANDROID_UPLOAD_KEYSTORE_BASE64 (and its passwords); see the top of this workflow."
+              exit 1
+            fi
+            echo "::notice::No upload keystore: building an unsigned bundle to check the project."
+            exit 0
+          fi
+          KEYSTORE="$RUNNER_TEMP/upload.jks"
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$KEYSTORE"
+          echo "ANDROID_KEYSTORE_PATH=$KEYSTORE" >> "$GITHUB_ENV"
+
+      - name: Bundle
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon bundleRelease -PversionCode="$VERSION_CODE" 2>&1 | tee "$RUNNER_TEMP/gradle.log"
+
+      - name: Check the bundle
+        run: |
+          set -euo pipefail
+          AAB=android/app/build/outputs/bundle/release/app-release.aab
+          test -f "$AAB"
+          echo "AAB=$AAB" >> "$GITHUB_ENV"
+          # Play refuses a download over 200 MB without asset packs; the .aab's size is a
+          # close upper bound on it (the game's media are already compressed).
+          AAB_MB=$(( $(stat -c %s "$AAB") / 1048576 ))
+          echo "app-release.aab: ${AAB_MB} MB"
+          if [ "$AAB_MB" -ge 200 ]; then
+            echo "::error::The bundle is ${AAB_MB} MB, over Play's 200 MB download limit"
+            exit 1
+          elif [ "$AAB_MB" -gt 180 ]; then
+            echo "::warning::The bundle is ${AAB_MB} MB, close to Play's 200 MB download limit"
+          fi
+          unzip -l "$AAB" | grep -q 'base/assets/public/index.html' \
+            || { echo "::error::the web game is missing from the bundle"; exit 1; }
+          if [ -n "${ANDROID_KEYSTORE_PATH:-}" ]; then
+            jarsigner -verify "$AAB" | tee "$RUNNER_TEMP/verify.log"
+            grep -q 'jar verified' "$RUNNER_TEMP/verify.log" \
+              || { echo "::error::the bundle is not signed with the upload key"; exit 1; }
+          fi
+
+      - name: Keep the bundle
+        if: env.MODE != 'check' || env.ANDROID_KEYSTORE_PATH != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-bundle
+          path: ${{ env.AAB }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Release notes
+        if: env.MODE == 'upload'
+        env:
+          WHATS_NEW: ${{ inputs.whats_new }}
+        run: |
+          set -euo pipefail
+          NOTES="${WHATS_NEW:-$(git log -1 --format=%s HEAD | sed -E 's/ \(#[0-9]+\)$//')}"
+          mkdir -p "$RUNNER_TEMP/whatsnew"
+          # Play caps release notes at 500 characters.
+          printf '%s' "${NOTES:0:500}" > "$RUNNER_TEMP/whatsnew/whatsnew-en-US"
+
+      - name: Upload to Play (${{ inputs.track || 'internal' }})
+        if: env.MODE == 'upload'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: ${{ env.PACKAGE_NAME }}
+          releaseFiles: ${{ env.AAB }}
+          track: ${{ env.TRACK }}
+          status: ${{ inputs.release_status || 'completed' }}
+          releaseName: ${{ env.VERSION_NAME }} (${{ env.VERSION_CODE }})
+          whatsNewDirectory: ${{ runner.temp }}/whatsnew
+
+      - name: Summary
+        if: always()
+        env:
+          COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+          STATUS: ${{ inputs.release_status || 'completed' }}
+        run: |
+          {
+            case "$MODE" in
+              upload) echo "### Uploaded Rogue Dawn $VERSION_NAME ($VERSION_CODE) to $TRACK" ;;
+              build) echo "### Built Rogue Dawn $VERSION_NAME ($VERSION_CODE), not uploaded" ;;
+              *) echo "### Checked the Android build $VERSION_NAME ($VERSION_CODE)" ;;
+            esac
+            echo ""
+            echo "- Commit: \`${COMMIT::7}\` on \`${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}\`"
+            echo "- Cloud: ${{ vars.VITE_CLOUD_ENABLED == 'true' && 'enabled' || 'off (offline build)' }}"
+            if [ "$MODE" = upload ] && [ "$STATUS" = draft ]; then
+              echo "- A draft release: roll it out in Play Console -> Test and release -> the track."
+            elif [ "$MODE" = upload ]; then
+              echo "- Testers on the track's list get it from the Play Store within minutes."
+            elif [ -n "${ANDROID_KEYSTORE_PATH:-}" ]; then
+              echo "- The signed bundle is the run's \`android-bundle\` artifact."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: play-logs
+          path: ${{ runner.temp }}/gradle.log
+          if-no-files-found: ignore
+
+      - name: Clean up
+        if: always()
+        run: |
+          if [ -n "${ANDROID_KEYSTORE_PATH:-}" ]; then rm -f "$ANDROID_KEYSTORE_PATH"; fi

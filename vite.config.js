@@ -32,7 +32,14 @@ export const pwaWorkboxOptions = {
   importScripts: ['audio-cache-migration.js'],
   // SPA: navigations fall back to the cached shell, except real asset/data/SW paths.
   navigateFallback: 'index.html',
-  navigateFallbackDenylist: [/^\/assets\//, /^\/data\//, /\/sw\.js$/, /\/registerSW\.js$/],
+  navigateFallbackDenylist: [
+    /^\/assets\//,
+    /^\/data\//,
+    /\/sw\.js$/,
+    /\/registerSW\.js$/,
+    // The privacy policy is its own page (Google Play links to it), never the game.
+    /^\/privacy\.html$/,
+  ],
   runtimeCaching: workboxRuntimeCaching(),
 };
 
