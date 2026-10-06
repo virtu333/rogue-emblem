@@ -207,6 +207,7 @@ export function eventResultLines(results, { gameData = null } = {}) {
 /** The header button's word for a page (Close keeps the event open; Continue leaves it). */
 export function eventCloseLabel(view) {
   if (!view) return 'Close';
+  if (view.spoilsOwed) return 'Back to map';
   return view.phase === 'choosing' || view.canFight ? 'Close' : 'Continue';
 }
 

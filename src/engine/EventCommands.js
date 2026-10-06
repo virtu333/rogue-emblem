@@ -24,6 +24,12 @@
 //       (once, even across a reload), returns the victory text and results to show, and
 //       clears the marker. Then leaveEvent (Continue; the node is already complete).
 //       A revert / Continue from Map reopens the outcome page with only Fight.
+//       The spoils are owed for as long as the node is complete and its state says
+//       battle: 'pending' (eventSpoilsOwed), whatever pendingEventNodeId says. A failed
+//       completeEventBattle changes nothing (the run is rolled back, the spoils stay owed,
+//       leaveEvent refuses, the party cannot travel on): the page offers Try again, Back
+//       to map and, behind a confirmation, forfeitEventSpoils, which records the terminal
+//       state battle: 'won' + spoilsForfeited: true (nothing is applied, nothing reopens).
 //
 // ── Commands (signatures and returns) ────────────────────────────────────
 //   eventState(run, nodeId)                    → State | null (a deep copy of the saved record)
@@ -40,16 +46,21 @@
 //   completeEventBattle(run, nodeId)           → { ok:true, text, results }
 //                                                | { ok:false, reason, already? }
 //   leaveEvent(run, nodeId)                    → { ok:true, nodeId } | { ok:false, reason }
-//   getPendingEventSettlement(run)             → nodeId | null  (a won event battle whose
-//                                                spoils are not yet applied)
+//   eventSpoilsOwed(run, nodeId)               → boolean  (a won event battle whose spoils are
+//                                                neither taken nor given up: durable state alone)
+//   getPendingEventSettlement(run)             → nodeId | null  (the node that owes its spoils)
+//   forfeitEventSpoils(run, nodeId)            → { ok:true } | { ok:false, reason }  (the player
+//                                                gives the owed spoils up; terminal, saved)
 //
 // State (run.eventStateByNodeId[nodeId]): { eventId, arrivedAct, fallen?: { unitUid, name },
 //   choiceId?, outcomeId?, targetUid?, targetName?, text?, results: [], battle: null |
-//   'pending' | 'won', afterVictory: [effects], victoryText?, victoryResults: [], left? }.
+//   'pending' | 'won', afterVictory: [effects], victoryText?, victoryResults: [], left?,
+//   spoilsForfeited? }.
 // View: { nodeId, eventId, title, intro, act, phase: 'choosing' | 'outcome' | 'victory',
 //   choices: [{ id, label, hint, cost, block, target: null | { prompt, candidates } }],
 //   outcome: null | { choiceId, choiceLabel, outcomeId, text, results, targetName },
-//   battle: null | 'pending' | 'won', canFight, victory: null | { text, results }, canLeave }.
+//   battle: null | 'pending' | 'won', canFight, spoilsOwed, victory: null | { text, results,
+//   forfeited }, canLeave }.
 // Result records ({ kind, ... }) are listed in EventEffects.js.
 //
 // ── Rules ────────────────────────────────────────────────────────────────
@@ -72,6 +83,7 @@ import {
   choiceCost,
   choiceMayGrantItem,
   eventCatalogOf,
+  eventSpoilsOwedAt,
   evaluateRequires,
   fallenOfState,
   fillText,
@@ -255,8 +267,14 @@ export function eventView(run, nodeId) {
       : null,
     battle: state.battle || null,
     canFight: pending,
+    spoilsOwed: eventSpoilsOwedAt(run, node),
     victory: settled
-      ? { text: state.victoryText || '', results: clone(state.victoryResults || []) }
+      ? {
+          // A forfeited fight's own words describe spoils nobody took: only the note shows.
+          text: state.spoilsForfeited ? '' : state.victoryText || '',
+          results: clone(state.victoryResults || []),
+          forfeited: state.spoilsForfeited === true,
+        }
       : null,
     canLeave: Boolean(state.choiceId) && state.battle !== 'pending' && !state.left,
   };
@@ -422,12 +440,45 @@ export function pendingEventBattle(run, nodeId) {
   };
 }
 
-/** The node id of a won event battle whose spoils are not yet applied (or null). */
+/**
+ * Whether this node's won battle still owes its spoils. Read from the durable event state
+ * (the node is complete and the state says `battle: 'pending'`), so a lost or cleared
+ * `pendingEventNodeId` can never forfeit them.
+ */
+export function eventSpoilsOwed(run, nodeId) {
+  return eventSpoilsOwedAt(run, findNode(run, nodeId));
+}
+
+/**
+ * The node id of a won event battle whose spoils are still owed (or null): the marked node
+ * first, then the current node, then any other node that owes (an old save, a lost marker).
+ */
 export function getPendingEventSettlement(run) {
-  const nodeId = typeof run?.pendingEventNodeId === 'string' ? run.pendingEventNodeId : null;
-  if (!nodeId) return null;
+  const marked = typeof run?.pendingEventNodeId === 'string' ? run.pendingEventNodeId : null;
+  if (marked && eventSpoilsOwed(run, marked)) return marked;
+  const current = typeof run?.currentNodeId === 'string' ? run.currentNodeId : null;
+  if (current && eventSpoilsOwed(run, current)) return current;
+  const owing = (run?.nodeMap?.nodes || []).find((node) => eventSpoilsOwedAt(run, node));
+  return owing ? owing.id : null;
+}
+
+/**
+ * Give up the spoils a won event battle owes: the escape hatch of a settlement that cannot
+ * be taken. Terminal and durable: the state becomes `battle: 'won'` with `spoilsForfeited`,
+ * so completeEventBattle takes nothing, nothing reopens and leaveEvent can complete the
+ * node. Applies nothing, touches nothing else, and needs no catalog (an event this build no
+ * longer knows can still be walked past). Refused when no spoils are owed.
+ * @returns {{ ok: true } | { ok: false, reason: string }}
+ */
+export function forfeitEventSpoils(run, nodeId) {
+  if (!eventSpoilsOwed(run, nodeId)) return { ok: false, reason: 'No spoils are owed here.' };
   const state = stateOf(run, nodeId);
-  return state?.battle === 'pending' && findNode(run, nodeId)?.completed ? nodeId : null;
+  state.battle = 'won';
+  state.spoilsForfeited = true;
+  state.afterVictory = [];
+  state.victoryResults = [{ kind: 'note', of: 'spoils', text: 'You gave up the spoils.' }];
+  if (run.pendingEventNodeId === nodeId) run.pendingEventNodeId = null;
+  return { ok: true };
 }
 
 /**

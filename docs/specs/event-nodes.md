@@ -675,6 +675,19 @@ The command API, the state and the effects are documented in the headers of
 - **Event battles.** `battleParams.eventEnemyLevelBonus` carries the effect's `enemyLevelBonus`;
   `getBattleParams` adds it to `enemyLevelBonus`. `run.pendingEventNodeId` is set by
   `completeBattle` for an `eventBattle` node and cleared by `completeEventBattle`.
+- **Spoils owed, durably.** The spoils of a won event fight are owed for as long as the node is complete
+  and its saved state says `battle: 'pending'` (`EventCommands.eventSpoilsOwed`, `EventSystem.eventSpoilsOwedAt`),
+  never only while `pendingEventNodeId` is set: the marker is a hint (`getPendingEventSettlement` reads
+  it first, then the current node, then any owing node). A failed `completeEventBattle` is atomic (planned
+  first, applied under `snapshotRun`/`restoreRun`) and changes nothing, so the spoils simply stay owed:
+  `leaveEvent` refuses ("Settle the battle first."), `RunManager.getAvailableNodes` holds the party at the
+  node (moving on would leave them behind for good), `canReenterService` keeps the page reachable, and a
+  save/load round trip keeps all of it. Only the player gives them up: `forfeitEventSpoils(run, nodeId)`
+  records the terminal state `battle: 'won'` + `spoilsForfeited: true` (saved; `sanitizeEventStates` keeps
+  the flag; an older save has none), applies nothing, clears the marker, and refuses when nothing is owed.
+  The page then reads as the victory page with the note "You gave up the spoils." (no victory text, which
+  promises what nobody took) and Continue completes the node. An event this build cannot read, with spoils
+  owed, forfeits them on "Walk on" so the node never holds the party for good.
 
 ## 17. Phase 1 UI, as built (2026-10-06)
 
@@ -695,10 +708,20 @@ during the build and not kept in the repo (8.6 MB); regenerate them with the rev
   `handleBattle`). Back from a won fight, `NodeMapScene._maybeOpenPendingEventSettlement` (after the
   loot screen's choices, never over a story beat or overlay) opens `completeEventBattle` and the victory page;
   a refresh on that page reopens it until Continue (`eventPageOwed`).
+- **When the spoils cannot be taken** (`EventMenu.renderSpoilsOwed`, `EventController.openSettlement`): the
+  page opens in a failed state instead of the victory page: "The spoils could not be taken." with the engine's
+  reason, "Nothing was lost: they stay owed until you try again or give them up.", and four buttons in focus
+  order **Try again** (primary, focused; runs `completeEventBattle` again and shows the victory page on
+  success, or "Still could not be taken: <reason>"), **Back to map** (also ESC and the header button: closes
+  the page, keeps everything owed, and the route map does not reopen it by itself again in that scene: a
+  click on the node, or a reload, tries again; so the page can never trap the player), **Give up the spoils**
+  (a confirmation, "This cannot be undone.", then `forfeitEventSpoils`; reachable only from this page) and
+  **Roster**. The loom's card still reads "The fight is won · the spoils await" and Travel still reads
+  "Return to the event" while they are owed.
 - **ESC / the header button.** Before choosing, or while a fight is owed: back to the map with the event
   still current ("Return to the event" on the route). After choosing (and on the victory page): Continue.
 - **Route map.** An event wears the Ruins' medal with a "?" mark (`RouteGraph.eventMark`), the label EVENT,
-  its own tooltip ("Event — Something waits on the road", plus "Encounter Locked" once its fight is locked),
+  its own tooltip ("Event — Something waits on the road", plus "Map set: same map and foes on return" once its fight is locked),
   a `nodeFlavor.event` pool in `data/dialogue.json` (an event that fights speaks from `nodeFlavor.battle`),
   and "You chose: <label>" on a visited event's card. `RunManager.canReenterService` is true for a completed
   event node whose spoils or victory page are owed.

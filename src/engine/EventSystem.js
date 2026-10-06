@@ -608,6 +608,18 @@ export function isEventNode(node) {
   return node?.type === NODE_TYPES.EVENT;
 }
 
+/**
+ * Whether a won event battle's spoils are still owed at this node: the node is complete
+ * (the fight was won) and its event state still says `battle: 'pending'`. Read from the
+ * durable event state alone, never from `pendingEventNodeId`, which is only a hint: owed
+ * spoils survive a failed attempt, a reload and a lost marker. Taking them (or giving them
+ * up) moves the state on to 'won', so nothing is owed twice.
+ */
+export function eventSpoilsOwedAt(run, node) {
+  if (!isEventNode(node) || node.completed !== true) return false;
+  return run?.eventStateByNodeId?.[node.id]?.battle === 'pending';
+}
+
 // ── Saved state: sanitizers ─────────────────────────────────────────────
 
 const isPlain = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -653,6 +665,7 @@ export function sanitizeEventStates(raw) {
       .map(plainJson)
       .filter(Boolean);
     if (entry.left === true) state.left = true;
+    if (entry.spoilsForfeited === true) state.spoilsForfeited = true;
     out[nodeId] = state;
   }
   return out;
