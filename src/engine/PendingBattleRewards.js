@@ -6,6 +6,7 @@ import {
   ELITE_LOOT_CHOICES,
   ELITE_MAX_PICKS,
   GOLD_LOOT_REWARD_MULTIPLIER,
+  LOOT_VULNERARY_BUNDLE,
 } from '../utils/constants.js';
 
 // Prepared once with the victorious roster, before the completed-battle save.
@@ -48,7 +49,11 @@ export function prepareBattleRewards(run, data, ctx) {
           imbues: data.imbues || null,
         },
       );
-  for (const choice of choices) if (choice.item?.name === 'Vulnerary') choice.quantity = 3;
+  // A rolled Vulnerary reward is a small bundle (LOOT_VULNERARY_BUNDLE items); authored
+  // loot (the prologue's) keeps the quantity its data names.
+  if (!Array.isArray(ctx.authoredLoot))
+    for (const choice of choices)
+      if (choice.item?.name === 'Vulnerary') choice.quantity = LOOT_VULNERARY_BUNDLE;
   for (const choice of choices)
     if (choice.type === 'gold')
       choice.goldAmount = Math.max(0, Math.floor((choice.goldAmount || 0) * pressure));
