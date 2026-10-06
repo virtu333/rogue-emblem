@@ -259,6 +259,29 @@ describe('play CLI', () => {
     ).toEqual(['move P1 stay wait', 'move P2 stay wait', 'move P3 stay wait']);
   });
 
+  it('notices an unmodelled mechanic in reach once, journals it and prints it', async () => {
+    expect((await playHere('u', ['new', '--seed', '3'])).code).toBe(0);
+    const staff = (session) => {
+      const sera = session.game.rm.roster.find((u) => u.name === 'Sera');
+      sera.inventory.push(
+        structuredClone(session.gameData.weapons.find((w) => w.name === 'Rescue Staff')),
+      );
+    };
+    const first = await playHere('u', ['bless skip'], staff);
+    expect(first.out).toMatch(
+      /\(Not modelled: Sera carries Rescue Staff: relocation staves are not modelled headless\.\)/,
+    );
+    const notices = journal('u').filter((e) => e.type === 'unsupported');
+    expect(notices).toEqual([
+      expect.objectContaining({ id: 'relocation-staves', key: 'relocate:Sera:Rescue Staff' }),
+    ]);
+    expect(record('u').noticed).toEqual(['relocate:Sera:Rescue Staff']);
+    // Noticed once: the next command with the staff still carried says nothing more.
+    const second = await playHere('u', ['store Edric Steel Sword'], staff);
+    expect(second.out).not.toMatch(/Not modelled/);
+    expect(journal('u').filter((e) => e.type === 'unsupported')).toHaveLength(1);
+  });
+
   it('waits for a held lock, takes over a dead one, and serialises two writers', async () => {
     expect(play('l', 'new', '--seed', '3').code).toBe(0);
     expect(play('l', 'bless skip').code).toBe(0);

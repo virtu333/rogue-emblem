@@ -19,6 +19,50 @@ decision, and never used `auto`.
 thinking was the limit, not the game. The whole 304-command game replays in about
 0.5 s.
 
+## Reading this report (review, 2026-10-06)
+
+This was a test of the adapter as much as of the game. Its game observations are
+hypotheses. The raw record and a replayable copy are in `docs/playtests/2026-10-05-seed7/`.
+
+- **The run was stopped, not lost.** The agent stopped mid-battle with Edric alive.
+  The adapter of the day also lacked rules that shaped the game:
+  - Gaspar's Measured Step.
+  - Vision rewinds. The run ended holding **two unused charges**, either of which could
+    have undone Sera's fall.
+  - Binding weapon-art scrolls (`teach` refused them).
+  - In-battle trade, Canto and fog ambushes.
+
+  All of these are modelled now.
+- **Armour answers exist; this route offered none.** The data has these answers:
+  - Mailbane: a sword, ×3 against armour, in the Act 1 and Act 2 pools. Edric, Gaspar
+    and Voss could all wield it.
+  - Hammer: an axe in the Act 2 pool. Shops only stock weapon types the army can use,
+    so it appears only once someone wields axes; here that was Cael, recruited where
+    Sera fell.
+  - Thunderbrand: a magic sword, Act 3 and later.
+
+  The route's three Act 1 shop inventories, the Act 2 caravan and the nine spoils
+  offered no armour answer. A Monte Carlo of shop generation for this army puts
+  Mailbane in about 45% of Act 1 shops and 24% of Act 2 shops. That makes "none in
+  three Act 1 inventories" roughly a 16% event.
+
+  The "forced" elite was chosen two rows earlier. `act2_1_1` led only to the recruit
+  node and then the elite. `act2_1_3` led to ordinary battles (`act2_2_4`, `act2_3_3`).
+
+  So the question is not whether the game has counters. It is whether a counter shows
+  up often enough, is recognisable early enough, and can be wielded by the army at
+  hand. That calls for a look at offer variance and composition, not a new weapon.
+- **Gaspar's low growth is by design.** He is a fixed special character: low growths,
+  no further promotion or reclass, Measured Step. "Gains little XP" is a finding only
+  if he stops pulling his weight earlier than intended. The pilot played him without
+  his Measured Step.
+- **Scroll spoils were judged without the means to use them.** Weapon-art scrolls could
+  not be bound. "Gold + XP is almost always best" should be re-tested now that every
+  offer can be used.
+- **The Danger overlay shows possible reach, not intent.** A boss holding its throne is
+  still a boss that could move. Any fix is to explain what Danger means, not to shrink
+  it to predicted behaviour.
+
 ## The game, as the player saw it
 
 - **Act 1 felt well tuned.** Chokepoints, the weapon triangle and "lure them in, then
