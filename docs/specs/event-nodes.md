@@ -500,6 +500,9 @@ Failure modes first; each test catches one.
 
 ## 13. Phase 2 (direction)
 
+The build plan is `docs/specs/event-nodes-phase2.md`; art for the wave is
+`docs/specs/event-art.md`. The direction as first agreed:
+
 - More events: the Sunken Mine (multi-page delve with a torch counter), the Plague Village,
   the Mercenary Contract (a goal for the next battle), the Cartographer (route edits: add an
   edge, redraw one upcoming node), the Chained Shelf (mage-only dark skill), the Herald of
