@@ -255,7 +255,7 @@ async function winBattle(page) {
   throw new Error('the battle was not won');
 }
 
-/** Claim the first item reward through the upright rewards screen; returns its name. */
+/** Claim the first held-item reward through the upright rewards screen; returns its name. */
 async function claimReward(page, errors) {
   const rewards = page.getByRole('dialog', { name: 'Battle rewards', exact: true });
   await expect(rewards).toBeVisible({ timeout: 30_000 });
@@ -263,7 +263,11 @@ async function claimReward(page, errors) {
   await uprightStep(page, errors, claim);
   const choice = await page.evaluate(() => {
     const c = window.__emblemRogueGame.scene.getScene('Battle')._lootController;
-    const i = c.mobileRewards.choices.findIndex((x) => x.item && x.type !== 'skip');
+    // An item that goes into the army's hands. A 'forge' choice (a whetstone or stone) is
+    // applied to a weapon on pickup and is never held, so there is nothing to find saved.
+    const i = c.mobileRewards.choices.findIndex(
+      (x) => x.item && x.type !== 'skip' && x.type !== 'forge',
+    );
     return { index: i, name: c.mobileRewards.choices[i]?.item?.name ?? null };
   });
   expect(choice.name, 'an item among the rewards').toBeTruthy();
