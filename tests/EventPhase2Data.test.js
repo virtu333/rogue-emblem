@@ -13,8 +13,9 @@
 //   contract   a bad goal, a term that needs a chosen unit, a battle or a second contract
 //              beside it, a contract in a battle's spoils
 //   routeEdit  a bad op or type, one outside an outcome, with no fallback, or twice
-//   tells      a `when` that names nothing real, a long line or a stray token, `reveals` a lie,
-//              `tilts` on a plain choice, both or neither
+//   tells      a `when` that names nothing real, a long line or a stray token, `reveals` a lie (an
+//              outcome the choice lacks or that cannot happen) or on a check choice, `tilts` on a
+//              plain choice, both or neither
 //   flags      `flagAct` without `flag` or with a word that is not an act
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -574,15 +575,20 @@ describe('tells', () => {
         ]),
       'does not have ("tripwire")',
     );
-    const ok = validate(
-      withFixture(
-        (e) =>
-          (choiceOf(e, 'bluff').tells = [
-            { when: { class: 'Thief' }, line: '{name}: Hm.', reveals: 'fail' },
-          ]),
-      ),
+    // an outcome that cannot happen is a lie too (its weight must be positive)
+    plant(
+      (e) => (outcomeOf(e, 'search', 'tripwire').weight = 0),
+      'reveals names an outcome that cannot happen ("tripwire")',
     );
-    expect(ok.errors).toEqual([]);
+  });
+  it('`reveals` is not for a check choice: its outcome depends on who is chosen', () => {
+    plant(
+      (e) =>
+        (choiceOf(e, 'bluff').tells = [
+          { when: { class: 'Thief' }, line: '{name}: Hm.', reveals: 'fail' },
+        ]),
+      'reveals is not for a check choice',
+    );
   });
   it('`tilts` is only for a check, only "pass", and once per choice', () => {
     plant(

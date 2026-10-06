@@ -11,16 +11,21 @@
 // number.
 //
 // What a tell does:
-//   reveals: '<outcomeId>'   the line tells the truth about that outcome of the choice (the
-//                            data validator checks it names a real one: a tell may not lie
-//                            about an outcome the choice cannot have)
+//   reveals: '<outcomeId>'   the line tells the truth about that outcome of the choice, and it
+//                            is shown ONLY when that outcome is the one this run will roll:
+//                            the outcome is fixed by the run seed before the choice is made
+//                            (EventSystem.selectOutcome), so "that is a tripwire" is said only
+//                            where there is a tripwire, and a quiet roster unit means the
+//                            named outcome is not coming. Never on a check choice (its outcome
+//                            depends on who is chosen: use `tilts`). The data validator checks
+//                            the name is a real outcome that can happen.
 //   tilts: 'pass'            on a CHECK choice: the line is the only thing the player sees,
 //                            and the check's chance of passing rises by TELL_TILT (once, not
 //                            per tell). EventCommands passes it to selectOutcome.
 //
 // Pure: no Phaser, no DOM, no Math.random.
 
-import { eventRng, livingUnits, runSeedOf, unitWields } from './EventSystem.js';
+import { eventRng, livingUnits, runSeedOf, selectOutcome, unitWields } from './EventSystem.js';
 import { knowsSkill } from './UnitManager.js';
 import { unitUidOf } from './UnitIdentity.js';
 
@@ -50,14 +55,20 @@ const byUid = (a, b) =>
 
 /**
  * The tells a choice shows now: [{ speaker: { uid, name }, line, reveals, tilts }] (a tell
- * with no living match is left out). `reveals`/`tilts` are for the engine; the view hands the
- * UI only the speaker and the line.
+ * with no living match is left out, and so is a `reveals` tell whose outcome is not the one
+ * the run will roll: a tell only ever says what is true). `reveals`/`tilts` are for the
+ * engine; the view hands the UI only the speaker and the line.
  */
 export function choiceTells(run, nodeId, pageId, choice) {
   const out = [];
   const tells = Array.isArray(choice?.tells) ? choice.tells : [];
   const living = livingUnits(run);
+  // The outcome this run will roll for the choice (null for a check: it depends on the target).
+  const fated = choice?.check
+    ? null
+    : (selectOutcome(run, nodeId, choice, { pageId }).outcome?.id ?? null);
   tells.forEach((tell, index) => {
+    if (typeof tell.reveals === 'string' && tell.reveals !== fated) return;
     const matches = living.filter((unit) => tellMatches(unit, tell.when)).sort(byUid);
     if (matches.length === 0) return;
     const others = matches.filter((unit) => unit.isLord !== true);

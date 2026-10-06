@@ -694,8 +694,10 @@ function applyShadow(ctx, step) {
     run.getEclipseConfig(),
   );
   run.eclipse = commit.state;
-  // The dark takes what it now can (the event node itself is current, so never fallen).
-  const fell = run.applyEclipseNow().map((node) => node.id);
+  // The dark takes what it now can (the event node itself is current, so never fallen). A
+  // contract's terms settle inside the victory commit (phase 'k'), which applies the falls
+  // itself right after the node is complete, so its victory band lists them: not here.
+  const fell = ctx.phase === 'k' ? [] : run.applyEclipseNow().map((node) => node.id);
   return [
     {
       kind: 'shadow',

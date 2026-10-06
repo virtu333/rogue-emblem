@@ -407,6 +407,19 @@ describe('rewards and penalties go through the effect planner', () => {
   });
 });
 
+describe('a penalty that darkens the sun', () => {
+  it('the nodes the dark takes are listed once, on the victory commit, not on the term (the band reads one list)', () => {
+    const { run } = signed({ penalty: [{ type: 'shadow', value: 90 }] });
+    const before = new Set(run.nodeMap.nodes.filter((n) => n.eclipse).map((n) => n.id));
+    win(run, { turns: 9, par: 5 }); // broken: +90 shadow on top of the battle's own
+    const taken = run.nodeMap.nodes.filter((n) => n.eclipse && !before.has(n.id)).map((n) => n.id);
+    expect(taken.length).toBeGreaterThan(0); // 90 shadow is far past most knots
+    expect(run.lastEclipseCommit.fell.slice().sort()).toEqual(taken.sort());
+    const record = run.lastContractSettlement.results.find((r) => r.kind === 'shadow');
+    expect(record).toMatchObject({ value: expect.any(Number), requested: 90, fell: [] });
+  });
+});
+
 describe('the contract record from a save', () => {
   it('keeps a valid contract and drops what cannot be one', () => {
     const good = {

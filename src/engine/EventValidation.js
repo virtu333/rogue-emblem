@@ -44,7 +44,8 @@
 //               than one in an outcome
 //   tells       a `when` without exactly one known key or naming something that does not exist,
 //               a line over its limit or with a token other than {name}, both or neither of
-//               `reveals` / `tilts`, `reveals` naming an outcome the choice cannot have,
+//               `reveals` / `tilts`, `reveals` naming an outcome the choice cannot have or
+//               sitting on a check choice (a check's outcome depends on who is chosen),
 //               `tilts` on a choice that is not a check or more than one `tilts` tell
 //   flags       `flagAct` without `flag`, or with a value that is not earlier / current / an act
 
@@ -237,7 +238,12 @@ export function validateEventsConfig(config, data = {}) {
         const target = outcomeById.get(tell.reveals);
         if (!target)
           err(tw, `reveals names an outcome the choice does not have ("${tell.reveals}")`);
-        else if (choice.check === undefined && !(Number(target.weight) > 0))
+        else if (choice.check !== undefined)
+          err(
+            tw,
+            'reveals is not for a check choice (its outcome depends on who is chosen): use tilts',
+          );
+        else if (!(Number(target.weight) > 0))
           err(tw, `reveals names an outcome that cannot happen ("${tell.reveals}")`);
       }
       if (tell.tilts !== undefined) {

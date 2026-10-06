@@ -4,6 +4,9 @@
 // Ways this goes wrong:
 //   - a tell shows with nobody matching, for a unit that is fallen or at 0 HP, or the wrong
 //     unit speaks (a lord when anyone else matches);
+//   - a revealing tell says something false: it shows for an outcome the run will not roll (the
+//     outcome is fixed by the seed before the choice, so a tell is shown only when it is true),
+//     or it shows on a check choice (whose outcome depends on who is chosen);
 //   - the speaker changes on refresh (the voice is seeded from the run, the node and the page);
 //   - the view leaks what a tell reveals or tilts (the UI would then draw an odds line), or a
 //     number;
@@ -70,18 +73,29 @@ const trapEvent = () => ({
 });
 
 function standAt(options = {}) {
-  const run = runWithEvents([trapEvent()], options);
-  const node = eventNode(run);
-  expect(arriveAtEvent(run, node.id).eventId).toBe('trap');
-  return { run, node };
+  const { outcome = null, ...runOptions } = options;
+  // `outcome`: the first run seed (from 1) on which the search choice will roll that outcome,
+  // worked out by hand from the documented key and weights (cache 55, tripwire 45).
+  for (let seed = runOptions.seed ?? 1; ; seed++) {
+    const run = runWithEvents([trapEvent()], { ...runOptions, seed });
+    const node = eventNode(run);
+    expect(arriveAtEvent(run, node.id).eventId).toBe('trap');
+    if (outcome === null || searchRoll(run, node) === outcome) return { run, node };
+    if (outcome !== 'cache' && outcome !== 'tripwire')
+      throw new Error(`no such outcome ${outcome}`);
+  }
 }
+
+/** The outcome the search choice will roll on this run, by hand: one draw, cache below 0.55. */
+const searchRoll = (run, node) =>
+  eventRng(`event:${run.runSeed}:${node.id}:search`)() * 100 < 55 ? 'cache' : 'tripwire';
 
 const tellsOf = (run, nodeId, choiceId = 'search') =>
   eventView(run, nodeId).choices.find((c) => c.id === choiceId).tells;
 
 describe('who speaks', () => {
   it('nobody matching: no tell; a Thief on the roster: one tell, in their name', () => {
-    const { run, node } = standAt();
+    const { run, node } = standAt({ outcome: 'tripwire' });
     expect(tellsOf(run, node.id)).toEqual([]);
     const thief = addUnit(run, 'Thief', { name: 'Wick' });
     const tells = tellsOf(run, node.id);
@@ -91,9 +105,10 @@ describe('who speaks', () => {
   });
 
   it('the view gives the UI only the speaker and the line (no outcome, no odds)', () => {
-    const { run, node } = standAt();
+    const { run, node } = standAt({ outcome: 'cache' });
     addUnit(run, 'Thief', { name: 'Wick' });
     addUnit(run, 'Archer', { name: 'Hale' });
+    expect(tellsOf(run, node.id)).toHaveLength(1); // Hale's: the cache is coming, Wick's tripwire is not
     for (const tell of tellsOf(run, node.id)) {
       expect(Object.keys(tell).sort()).toEqual(['line', 'speaker']);
       expect(Object.keys(tell.speaker).sort()).toEqual(['name', 'uid']);
@@ -107,7 +122,7 @@ describe('who speaks', () => {
   });
 
   it('each `when` key matches: class, classes, weaponType, trait and skill (equipped or benched)', () => {
-    const { run, node } = standAt();
+    const { run, node } = standAt({ outcome: 'cache' });
     const lines = () => tellsOf(run, node.id).map((t) => t.line);
     expect(lines()).toEqual([]);
     addUnit(run, 'Archer', { name: 'Hale' });
@@ -130,7 +145,7 @@ describe('who speaks', () => {
   });
 
   it('only the living speak: a fallen ally and a unit at 0 HP stay silent', () => {
-    const { run, node } = standAt();
+    const { run, node } = standAt({ outcome: 'tripwire' });
     const hale = addUnit(run, 'Archer', { name: 'Hale' });
     const thief = addUnit(run, 'Thief', { name: 'Wick' });
     fallAlly(run, hale);
@@ -146,7 +161,7 @@ describe('who speaks', () => {
       line: '{name}: Steel rings.',
       reveals: 'cache',
     };
-    const choice = { id: 'search', tells: [swordTell] };
+    const choice = { id: 'search', tells: [swordTell], outcomes: [{ id: 'cache', weight: 100 }] };
     const lords = new Set(run.roster.filter((u) => u.isLord).map((u) => u.name));
     expect(lords.has('Edric')).toBe(true);
     // Edric (a lord) and Gaspar both wield a sword: Gaspar always speaks, Edric never
@@ -161,20 +176,22 @@ describe('who speaks', () => {
     const lordTell = {
       id: 'search',
       tells: [{ when: { class: 'Lord' }, line: '{name}: Mine.', reveals: 'cache' }],
+      outcomes: [{ id: 'cache', weight: 100 }],
     };
     expect(choiceTells(run, node.id, 'start', lordTell)[0].speaker.name).toBe('Edric');
   });
 
   it('is seeded: the same voice on every view, after a reload, and a spread across seeds', () => {
-    const { run, node } = standAt({ seed: 17 });
+    const { run, node } = standAt({ seed: 17, outcome: 'cache' });
     addUnit(run, 'Archer', { name: 'Hale' });
     addUnit(run, 'Archer', { name: 'Finn' });
     const first = tellsOf(run, node.id);
     expect(tellsOf(run, node.id)).toEqual(first);
     expect(tellsOf(roundTrip(run), node.id)).toEqual(first);
     const voices = new Set();
-    for (let seed = 1; seed <= 40; seed++) {
+    for (let seed = 1; seed <= 80; seed++) {
       const r = standAt({ seed });
+      if (searchRoll(r.run, r.node) !== 'cache') continue; // the tell is only said when true
       addUnit(r.run, 'Archer', { name: 'Hale' });
       addUnit(r.run, 'Archer', { name: 'Finn' });
       voices.add(tellsOf(r.run, r.node.id)[0].speaker.name);
@@ -183,8 +200,9 @@ describe('who speaks', () => {
   });
 
   it('tells stop once the choice is made (the outcome page has none)', () => {
-    const { run, node } = standAt();
+    const { run, node } = standAt({ outcome: 'tripwire' });
     addUnit(run, 'Thief', { name: 'Wick' });
+    expect(tellsOf(run, node.id)).toHaveLength(1);
     expect(chooseEventOption(run, node.id, 'leave').ok).toBe(true);
     for (const choice of eventView(run, node.id).choices) expect(choice.tells).toEqual([]);
   });
@@ -205,6 +223,45 @@ describe('who speaks', () => {
     expect(tellMatches(unit, { skill: 'vantage' })).toBe(true);
     expect(tellMatches(unit, {})).toBe(false);
     expect(tellMatches(null, { class: 'Thief' })).toBe(false);
+  });
+});
+
+describe('a revealing tell only says what is true', () => {
+  it('shown exactly when the run will roll the outcome it names, and the choice then rolls it', () => {
+    const seen = { cache: 0, tripwire: 0 };
+    for (let seed = 1; seed <= 80; seed++) {
+      const { run, node } = standAt({ seed });
+      addUnit(run, 'Thief', { name: 'Wick' }); // "tripwire"
+      addUnit(run, 'Archer', { name: 'Hale' }); // "cache"
+      const fated = searchRoll(run, node);
+      const lines = tellsOf(run, node.id).map((t) => t.line);
+      // (a starting unit may also match a cache tell by trait: only Wick and Hale are checked)
+      const wick = lines.includes('Wick: That is a tripwire.');
+      const hale = lines.includes('Hale: Someone watches the door.');
+      expect([wick, hale]).toEqual(fated === 'tripwire' ? [true, false] : [false, true]);
+      expect(chooseEventOption(run, node.id, 'search').outcomeId).toBe(fated);
+      seen[fated]++;
+    }
+    expect(seen.cache).toBeGreaterThan(10);
+    expect(seen.tripwire).toBeGreaterThan(10);
+  });
+
+  it('a unit whose outcome is not coming stays silent, even with a matching unit aboard', () => {
+    const { run, node } = standAt({ outcome: 'cache' });
+    addUnit(run, 'Thief', { name: 'Wick' });
+    expect(tellsOf(run, node.id)).toEqual([]);
+  });
+
+  it('never on a check choice: its outcome depends on who is chosen', () => {
+    const { run, node } = standAt();
+    addUnit(run, 'Thief', { name: 'Wick' });
+    const check = {
+      id: 'bluff',
+      check: { stats: ['LCK'], of: 'bestInArmy', base: 0.5, perPoint: 0, against: 0 },
+      tells: [{ when: { class: 'Thief' }, line: '{name}: They will let us by.', reveals: 'pass' }],
+      outcomes: [{ id: 'pass' }, { id: 'fail' }],
+    };
+    expect(choiceTells(run, node.id, 'start', check)).toEqual([]);
   });
 });
 
