@@ -309,7 +309,7 @@ for (const width of [844, 667])
     await expect(card).toContainText('Ice');
     await card.getByRole('button', { name: 'Terrain details ⓘ', exact: true }).tap();
     const help = page.getByRole('dialog', { name: 'Ice', exact: true });
-    await expect(help).toContainText('Slide: non-flying units slide in entry direction');
+    await expect(help).toContainText('Slide: non-fliers slide until off the Ice');
     await help.getByRole('button', { name: 'Close', exact: true }).tap();
     await expect(help).toHaveCount(0);
     const more = await page.locator('.mb-battle-info summary').boundingBox();

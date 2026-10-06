@@ -157,7 +157,8 @@ describe('Threat displays ignore hidden units (Danger, pinned, Threat Sight, ins
   it('a hidden enemy on an ice lane does not cut a visible enemy’s slide short', () => {
     const hidden = new Set(['4,0']);
     const danger = (withHidden) => {
-      const visible = foe(9, 0, { mov: 1, stats: { MOV: 1, HP: 20 } });
+      // MOV 8 pays the whole lane: entry (8,0) 1, (7,0) free, (6,0)…(1,0) 6, (0,0) 1.
+      const visible = foe(9, 0, { mov: 8, stats: { MOV: 8, HP: 20 } });
       const enemies = withHidden ? [visible, foe(4, 0)] : [visible];
       const grid = makeGrid(['.iiiiiiii.', '..........'], hidden);
       return counts(battle(grid, { enemies, players: [hero(0, 1)] }).calculateDangerZone());

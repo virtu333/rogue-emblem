@@ -371,6 +371,8 @@ describe('headless harness mirror', () => {
     healer.isCommander = true;
     b.turnManager.turnNumber = 2;
     const caravan = caravanAt(healer.col + 1, healer.row, 10);
+    // The map is random: a Fort under the caravan would add its own turn-start heal.
+    b.grid.mapLayout[caravan.row][caravan.col] = TERRAIN.Plain;
     b.npcUnits.push(caravan);
     b._onPhaseChange('player', 2);
     expect(caravan.currentHP).toBe(13);

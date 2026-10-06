@@ -443,14 +443,46 @@ describe('Terrain hazards', () => {
     ];
 
     it('basic slide extends reach via ice corridor', () => {
-      // Unit at (0,0) with MOV 2: walk 1 tile to ice at (1,0), slide to (4,0)
+      // Unit at (0,0) with MOV 3: step onto ice at (1,0) (1), slide past (2,0) (free),
+      // (3,0) (1) and land on (4,0) (1).
+      const grid = new HeadlessGrid(5, 2, TEST_TERRAIN, ICE_CORRIDOR_MAP);
+      const range = grid.getMovementRange(0, 0, 3, 'Infantry');
+
+      // Should reach (4,0) via slide: 4 tiles for 3 movement (the first slid tile is free)
+      expect(range.has('4,0')).toBe(true);
+      expect(range.get('4,0').cost).toBe(3);
+      expect(range.get('4,0').slideStop).toBeUndefined();
+    });
+
+    it('a slide pays for every tile past the first free one, and stops where MOV runs out', () => {
+      // MOV 2: entry (1,0) 1, (2,0) free, (3,0) 1 = 2; the landing (4,0) would be 3.
       const grid = new HeadlessGrid(5, 2, TEST_TERRAIN, ICE_CORRIDOR_MAP);
       const range = grid.getMovementRange(0, 0, 2, 'Infantry');
 
-      // Should reach (4,0) via slide even though manhattan distance is 4
-      expect(range.has('4,0')).toBe(true);
-      // Cost to reach (4,0): 1 (walk to ice at 1,0) → slide is free
-      expect(range.get('4,0').cost).toBe(1);
+      expect(range.has('4,0')).toBe(false);
+      expect(range.get('3,0')).toMatchObject({ cost: 2, slideStop: true });
+      expect(range.get('3,0').slidePath).toEqual([
+        { col: 1, row: 0 },
+        { col: 2, row: 0 },
+        { col: 3, row: 0 },
+      ]);
+    });
+
+    it('a slide cut short ends the move, even with movement left over', () => {
+      // Row 0: Plain, Ice, Ice, Forest (2). MOV 2: entry (1,0) 1, (2,0) free; the Forest
+      // landing would make 3, so the unit stops on (2,0) with 1 MOV unspent. That MOV
+      // buys nothing: (2,1) below it would cost 2 from there, 3 on foot along row 1.
+      const map = [
+        [0, 1, 1, 5],
+        [0, 0, 0, 0],
+      ];
+      const grid = new HeadlessGrid(4, 2, TEST_TERRAIN, map);
+      const range = grid.getMovementRange(0, 0, 2, 'Infantry');
+      expect(range.get('2,0')).toMatchObject({ cost: 1, slideStop: true });
+      expect(range.has('3,0')).toBe(false);
+      expect(range.has('2,1')).toBe(false);
+      // With MOV 3 the Forest landing is paid and the slide runs out.
+      expect(grid.getMovementRange(0, 0, 3, 'Infantry').get('3,0')).toMatchObject({ cost: 3 });
     });
 
     it('slide blocked by occupied tile — stuck tile is stoppable', () => {
@@ -488,14 +520,16 @@ describe('Terrain hazards', () => {
       expect(range.has('4,0')).toBe(false);
     });
 
-    it('slide fully resolves even at MOV boundary', () => {
-      // Unit at (0,0) with MOV 1: step onto ice at (1,0), slide to (4,0)
+    it('at the MOV boundary a slide still carries one free tile, then stops on the ice', () => {
+      // Unit at (0,0) with MOV 1: step onto ice at (1,0) (1), slide one free tile to (2,0).
       const grid = new HeadlessGrid(5, 2, TEST_TERRAIN, ICE_CORRIDOR_MAP);
       const range = grid.getMovementRange(0, 0, 1, 'Infantry');
 
-      // MOV 1 pays cost 1 to enter ice at (1,0), then slide carries to (4,0)
-      expect(range.has('4,0')).toBe(true);
-      expect(range.get('4,0').cost).toBe(1);
+      expect(range.get('2,0')).toMatchObject({ cost: 1, slideStop: true });
+      expect(range.has('3,0')).toBe(false);
+      expect(range.has('4,0')).toBe(false);
+      // The entry tile is slid past, never stood on.
+      expect(range.has('1,0')).toBe(false);
     });
 
     it('multiple ice patches reachable in single move', () => {
@@ -541,7 +575,8 @@ describe('Terrain hazards', () => {
     it('reconstructs path including slide tiles', () => {
       const map = [[0, 1, 1, 0]];
       const grid = new HeadlessGrid(4, 1, TEST_TERRAIN, map);
-      const range = grid.getMovementRange(0, 0, 1, 'Infantry');
+      // Entry (1,0) 1, (2,0) free, landing (3,0) 1.
+      const range = grid.getMovementRange(0, 0, 2, 'Infantry');
 
       // Should reach (3,0) via ice slide
       expect(range.has('3,0')).toBe(true);
@@ -554,6 +589,27 @@ describe('Terrain hazards', () => {
         { col: 2, row: 0 },
         { col: 3, row: 0 },
       ]);
+      expect(path[path.length - 1].slideStop).toBeUndefined();
+    });
+
+    it('marks a goal where the slide was cut short, and the committed move stops there', () => {
+      const map = [[0, 1, 1, 0]];
+      const grid = new HeadlessGrid(4, 1, TEST_TERRAIN, map);
+      const range = grid.getMovementRange(0, 0, 1, 'Infantry');
+      const path = grid.reconstructIcePath(range, 0, 0, 2, 0);
+      expect(path).toEqual([
+        { col: 0, row: 0 },
+        { col: 1, row: 0 },
+        { col: 2, row: 0, slideStop: true },
+      ]);
+      const moved = computeEffectivePath(path, map, TEST_TERRAIN, 4, 1, 'Infantry', new Set());
+      expect(moved.effectivePath.at(-1)).toEqual({ col: 2, row: 0 });
+      expect(moved.movementCost).toBe(1);
+      // The same tiles without the mark (an A* route) slide on to the landing.
+      const unmarked = path.map(({ col, row }) => ({ col, row }));
+      const slid = computeEffectivePath(unmarked, map, TEST_TERRAIN, 4, 1, 'Infantry', new Set());
+      expect(slid.effectivePath.at(-1)).toEqual({ col: 3, row: 0 });
+      expect(slid.movementCost).toBe(2);
     });
 
     it('returns null for tiles not in reachable map', () => {
@@ -586,7 +642,7 @@ describe('Terrain hazards', () => {
       expect(result.effectivePath[result.effectivePath.length - 1]).toEqual({ col: 4, row: 0 });
     });
 
-    it('movementCost correctly counts walk-onto-ice but not slide tiles', () => {
+    it('movementCost pays the ice entry and each tile slid past the first', () => {
       // Plain, Ice, Ice, Plain
       const map = [[0, 1, 1, 0]];
       const path = [
@@ -597,9 +653,8 @@ describe('Terrain hazards', () => {
       ];
       const result = computeEffectivePath(path, map, TEST_TERRAIN, 4, 1, 'Infantry', new Set());
 
-      // Walk to (1,0) ice = cost 1. Slide carries to (3,0).
-      // Total movementCost should be 1 (just the walk onto ice)
-      expect(result.movementCost).toBe(1);
+      // Walk to (1,0) ice = cost 1. Slide past (2,0) (free) and onto (3,0) (1).
+      expect(result.movementCost).toBe(2);
     });
 
     it('slideSegments have correct startIndex and slidePath', () => {
@@ -641,7 +696,8 @@ describe('Terrain hazards', () => {
       // Map: Plain(start), Ice, Ice, Ice, Plain(goal)
       const map = [[0, 1, 1, 1, 0]];
       const grid = new HeadlessGrid(5, 1, TEST_TERRAIN, map);
-      const range = grid.getMovementRange(0, 0, 1, 'Infantry');
+      // Entry 1, (2,0) free, (3,0) 1, landing (4,0) 1.
+      const range = grid.getMovementRange(0, 0, 3, 'Infantry');
 
       // Landing at (4,0) via slide
       expect(range.has('4,0')).toBe(true);
@@ -754,12 +810,13 @@ describe('Terrain hazards', () => {
     });
 
     it('unoccupied ice tile allows normal slide', () => {
-      // Same map but no ally on ice — slide should land on (4,0)
+      // Same map but no ally on ice: MOV 1 slides one free tile to (2,0), MOV 3 to (4,0)
       const map = [[0, 1, 1, 1, 0]];
       const grid = new HeadlessGrid(5, 1, TEST_TERRAIN, map);
-      const range = grid.getMovementRange(0, 0, 1, 'Infantry');
-
-      expect(range.has('4,0')).toBe(true);
+      expect(grid.getMovementRange(0, 0, 1, 'Infantry').get('2,0')).toMatchObject({
+        slideStop: true,
+      });
+      expect(grid.getMovementRange(0, 0, 3, 'Infantry').has('4,0')).toBe(true);
     });
 
     it('ally on ice tile with sufficient MOV still allows walk-around', () => {

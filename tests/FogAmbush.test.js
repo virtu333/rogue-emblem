@@ -49,10 +49,11 @@ describe('pathCostTo', () => {
     expect(pathCostTo(line(4), [], 2, (col) => costs[col])).toBe(3);
   });
 
-  it('within an ice slide only the entry tile is paid', () => {
-    // 0 → 1 (walk) → 2 ice entry, sliding through 3, 4.
+  it('within an ice slide the entry is paid, the first tile slid past is free, the rest paid', () => {
+    // 0 → 1 (walk) → 2 ice entry, sliding through 3 (free) and onto 4 (paid).
     const slide = [{ startIndex: 2, slidePath: line(5).slice(2) }];
-    expect(pathCostTo(line(5), slide, 4, () => 1)).toBe(2);
+    expect(pathCostTo(line(5), slide, 4, () => 1)).toBe(3);
     expect(pathCostTo(line(5), slide, 3, () => 1)).toBe(2);
+    expect(pathCostTo(line(5), slide, 2, () => 1)).toBe(2);
   });
 });
