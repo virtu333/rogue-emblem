@@ -692,3 +692,77 @@ describe('the burden effect of an event', () => {
     ]);
   });
 });
+
+describe('saves', () => {
+  /** The run as a pre-2B build wrote it: literal burden, vow and event records. */
+  function preTwoB() {
+    const saved = JSON.parse(JSON.stringify(newRun({ seed: 7 }).toJSON()));
+    saved.burdens = [
+      { id: 'ill_omen', battles: 2, extraShadow: 1 },
+      { id: 'debt', owed: 120, garnish: 0.25 },
+    ];
+    saved.churchVowByNodeId = { act1_3_1: 'promote', act1_4_0: 'blessing' };
+    saved.eventStateByNodeId = {
+      act1_2_1: {
+        eventId: 'twin_altar',
+        arrivedAct: 'act1',
+        choiceId: 'dawn',
+        outcomeId: 'answered',
+        text: 'Warmth on the back of the neck, like a hand.',
+        results: [{ kind: 'blessing', id: 'steady_hands' }],
+        victoryResults: [],
+        battle: null,
+        afterVictory: [],
+        left: true,
+      },
+    };
+    return saved;
+  }
+
+  it('a record written before 2B loads exactly as it was written', () => {
+    const loaded = RunManager.fromJSON(preTwoB(), baseData);
+    expect(loaded.burdens).toEqual([
+      { id: 'ill_omen', battles: 2, extraShadow: 1 },
+      { id: 'debt', owed: 120, garnish: 0.25 },
+    ]);
+    expect(loaded.churchVowByNodeId).toEqual({ act1_3_1: 'promote', act1_4_0: 'blessing' });
+    const state = loaded.eventStateByNodeId.act1_2_1;
+    expect(state).toMatchObject({ eventId: 'twin_altar', choiceId: 'dawn', left: true });
+    expect(state.dark).toBeUndefined();
+    // And saving it again writes the same fields back.
+    const again = JSON.parse(JSON.stringify(loaded.toJSON()));
+    expect(again.burdens).toEqual(preTwoB().burdens);
+    expect(again.churchVowByNodeId).toEqual(preTwoB().churchVowByNodeId);
+    expect(again.eventStateByNodeId).toEqual(preTwoB().eventStateByNodeId);
+  });
+
+  it('the new burdens, the cleanse vow and a dark state round trip', () => {
+    const saved = preTwoB();
+    saved.burdens = [
+      { id: 'hunted', battles: 1, wave: { turn: 3, count: [1, 2], xpMultiplier: 0.5 } },
+      { id: 'sworn_enemy' },
+      { id: 'wounded', unitUid: 'ru2', unitName: 'Hale', stat: 'SKL', value: -2, battles: 3 },
+    ];
+    saved.churchVowByNodeId = { act1_3_1: 'cleanse' };
+    saved.eventStateByNodeId.act1_2_1.dark = true;
+    const loaded = RunManager.fromJSON(saved, baseData);
+    expect(loaded.burdens).toEqual(saved.burdens);
+    expect(loaded.churchVowByNodeId).toEqual({ act1_3_1: 'cleanse' });
+    expect(loaded.eventStateByNodeId.act1_2_1.dark).toBe(true);
+    expect(JSON.parse(JSON.stringify(loaded.toJSON())).burdens).toEqual(saved.burdens);
+  });
+
+  it('malformed 2B records are dropped, not trusted', () => {
+    const saved = preTwoB();
+    saved.burdens = [
+      { id: 'hunted', battles: 'many', wave: 'big' },
+      { id: 'wounded', battles: 2 },
+      { id: 'sworn_enemy' },
+      { id: 'vanished' },
+    ];
+    saved.eventStateByNodeId.act1_2_1.dark = 'yes';
+    const loaded = RunManager.fromJSON(saved, baseData);
+    expect(loaded.burdens).toEqual([{ id: 'sworn_enemy' }]);
+    expect(loaded.eventStateByNodeId.act1_2_1.dark).toBeUndefined();
+  });
+});
