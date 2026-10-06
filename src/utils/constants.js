@@ -200,6 +200,9 @@ export const NODE_GOLD_MULTIPLIER = {
 };
 
 // Gold economy
+// A rolled Vulnerary loot reward comes as this many items (PendingBattleRewards).
+export const LOOT_VULNERARY_BUNDLE = 2;
+
 export const STARTING_GOLD = 200;
 export const GOLD_PER_KILL_BASE = 28;
 export const GOLD_PER_LEVEL_BONUS = 8;

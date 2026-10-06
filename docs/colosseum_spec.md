@@ -52,6 +52,7 @@ Before each fight, the player picks a tier that determines the challenger's stre
 
 ### Fight Limits
 - Each unit can fight **up to 3 times** per Colosseum visit (prevents infinite grinding)
+- The whole visit is capped too (**`arena.maxFightsPerVisit`**, 2026-10-06): First Light 5, Dusk 4, Nightfall 4, Black Sun 3 bouts at one colosseum node, all fighters together. Without it a big army with Vulneraries fought 3 bouts per unit for tons of gold and XP. A bout counts when its entry fee is paid (as the per-unit count does); the count is the sum of the node's saved per-unit counts (`colosseumState.fightsPerUnit`), so leaving, re-entering and reloading never reset it, and a new act's map starts every node at 0. A spent visit closes the Arena ("The crowd goes home: no more bouts here."), shows "Bouts left here: N", and leaves the mercenary board open
 - HP/status carries between arena fights (no free healing between bouts)
 - This makes the decision to "go again" genuinely risky — your unit is weakened
 
@@ -157,6 +158,7 @@ A unit winning 3 Silver-tier fights gains roughly the equivalent of 1.5-2 standa
 {
   "arena": {
     "maxFightsPerUnit": 3,
+    "maxFightsPerVisit": 5,
     "diminishingReturnsAfterLevels": 2,
     "diminishingReturnsFactor": 0.5,
     "tiers": {
@@ -206,16 +208,20 @@ A unit winning 3 Silver-tier fights gains roughly the equivalent of 1.5-2 standa
     "crossActPoolAccess": true
   },
   "difficulty": {
+    "normal": { "maxFightsPerVisit": 5 },
+    "dusk": { "maxFightsPerVisit": 4 },
     "hard": {
       "challengerLevelBonus": 1,
-      "mercenaryPriceMultiplier": 1.2
+      "mercenaryPriceMultiplier": 1.2,
+      "maxFightsPerVisit": 4
     },
     "lunatic": {
       "challengerLevelBonus": 2,
       "challengerMinSkills": 1,
       "platinumMaxSkills": 2,
       "mercenaryPriceMultiplier": 1.4,
-      "maxFightsPerUnit": 2
+      "maxFightsPerUnit": 2,
+      "maxFightsPerVisit": 3
     }
   },
   "nodeGeneration": {

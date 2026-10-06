@@ -65,10 +65,10 @@ function startedRun(effects, options = {}) {
 }
 
 describe('the data', () => {
-  it('a Vulnerary has 2 uses and costs 200 (the same price per use as before)', () => {
+  it('a Vulnerary has 2 uses and costs 300 (the price does not move with the Recipe)', () => {
     const vulnerary = data.consumables.find((c) => c.name === 'Vulnerary');
     expect(vulnerary.uses).toBe(2);
-    expect(vulnerary.price).toBe(200);
+    expect(vulnerary.price).toBe(300);
   });
 
   it("Apothecary's Recipe is a 200-valor Economy upgrade behind Field Supplies", () => {
@@ -145,7 +145,7 @@ describe('starting kits', () => {
 
   it('starting kits keep the catalog price', () => {
     const run = startedRun({ vulneraryUses: 3 });
-    expect(vulneraries(run.roster[0])[0].price).toBe(200);
+    expect(vulneraries(run.roster[0])[0].price).toBe(300);
   });
 
   it('an extra starter (Field Supplies II) gets a Vulnerary with the run uses', () => {
@@ -266,7 +266,7 @@ describe('shops', () => {
       const entry = stock.find((e) => e.item.name === 'Vulnerary');
       expect(entry, 'a shop always stocks a Vulnerary').toBeTruthy();
       expect(entry.item.uses).toBe(expected);
-      expect(entry.price).toBe(200);
+      expect(entry.price).toBe(300); // 3 uses or 2, the same price
       run.gold = 1000;
       const buyer = run.roster[0];
       buyer.consumables = [];
@@ -314,16 +314,19 @@ describe('loot and villages', () => {
     return found;
   }
 
-  it('a Vulnerary reward carries the run uses (and still comes three at a time)', () => {
+  it('a rolled Vulnerary reward carries the run uses and comes two at a time', () => {
     const plain = lootedVulneraries(null);
     expect(plain.length).toBeGreaterThan(0);
     for (const choice of plain) {
       expect(choice.item.uses).toBe(2);
-      expect(choice.quantity).toBe(3);
+      expect(choice.quantity).toBe(2);
     }
     const upgraded = lootedVulneraries(WITH_RECIPE);
     expect(upgraded.length).toBeGreaterThan(0);
-    for (const choice of upgraded) expect(choice.item.uses).toBe(3);
+    for (const choice of upgraded) {
+      expect(choice.item.uses).toBe(3);
+      expect(choice.quantity).toBe(2);
+    }
   });
 
   it('a village reward Vulnerary carries the run uses', () => {
@@ -410,6 +413,23 @@ describe('the prologue', () => {
     const entries = stock.filter((e) => e.item.name === 'Vulnerary');
     expect(entries.length).toBeGreaterThan(0);
     expect(usesOf(entries.map((e) => e.item)).every((u) => u === 3)).toBe(true);
+  });
+
+  it("a chapter's authored Vulnerary reward keeps its authored bundle of 3 (not the rolled 2)", () => {
+    const lootChapter = prologue.chapters.find((c) =>
+      (c.loot || []).some((l) => l.item === 'Vulnerary' && l.quantity === 3),
+    );
+    expect(lootChapter, 'a chapter authors a bundle of 3').toBeTruthy();
+    const run = new RunManager(data, null);
+    run.startPrologue(data);
+    const record = prepareBattleRewards(run, data, {
+      authoredLoot: lootChapter.loot,
+      goldEarned: 0,
+      completionGoldAward: 0,
+    });
+    const choice = record.choices.find((c) => c.item?.name === 'Vulnerary');
+    expect(choice.quantity).toBe(3);
+    expect(choice.item.uses).toBe(3);
   });
 
   it('the prologue run acquires 3-use Vulneraries whatever the meta says', () => {
