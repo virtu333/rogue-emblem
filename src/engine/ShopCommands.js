@@ -13,6 +13,7 @@ import {
 import { weaponTypeNoun } from './ItemKeywords.js';
 import { getSellPrice } from './LootSystem.js';
 import { forgeStatBlock, applyForge, forgePrice } from './ForgeSystem.js';
+import { isWorn, wearCount, repairPrice, repairWeapon } from './WeaponWear.js';
 import { INVENTORY_MAX, CONSUMABLE_MAX } from '../utils/constants.js';
 
 export function shopOwnedItems(run) {
@@ -236,4 +237,37 @@ export function forgeShopWeapon(run, weapon, stat, options) {
   if (!result.success) return { ok: false, reason: 'This forge is unavailable.' };
   run.spendGold(result.cost);
   return { ok: true, message: `Forged ${weapon.name} for ${result.cost}G.` };
+}
+
+/**
+ * Why a worn weapon cannot be repaired at this shop right now, or '' when it can.
+ * A repair is a forge service: it spends one of the shop's forge uses (`forgesUsed` of
+ * `forgeLimit`, the counter forging uses) and the shop's forge discount applies.
+ * `expectedWear` (the wear the player reviewed) refuses a weapon that changed since.
+ */
+export function shopRepairBlock(
+  run,
+  weapon,
+  { forgesUsed = 0, forgeLimit = 0, discount = 0, expectedWear } = {},
+) {
+  if (!Number.isFinite(discount) || discount < 0 || discount >= 1) return 'Invalid repair.';
+  if (!shopOwnedItems(run).some((row) => row.item === weapon))
+    return 'This weapon is no longer available.';
+  if (expectedWear != null && wearCount(weapon) !== expectedWear)
+    return 'Weapon changed. Review it again.';
+  if (!isWorn(weapon)) return 'This weapon is not worn.';
+  if (forgesUsed >= forgeLimit) return 'No forges remain at this shop.';
+  return run.gold < repairPrice(weapon, discount) ? 'Not enough gold.' : '';
+}
+/**
+ * Repair the weapon's most recent wear step: gold is spent and the weapon mended, or
+ * nothing changes. The caller counts the forge use (the scene's `shopForgesUsed`) on `ok`.
+ */
+export function repairShopWeapon(run, weapon, options) {
+  const reason = shopRepairBlock(run, weapon, options);
+  if (reason) return { ok: false, reason };
+  const result = repairWeapon(weapon, options.discount);
+  if (!result.success) return { ok: false, reason: 'This repair is unavailable.' };
+  run.spendGold(result.cost);
+  return { ok: true, message: `Repaired ${weapon.name} for ${result.cost}G.`, stat: result.stat };
 }
