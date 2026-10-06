@@ -596,7 +596,7 @@ Folded into §14's list; build in this order when Phase 3 starts:
 
 | Skill / art | Kind | Note |
 |---|---|---|
-| Lifetaker (kill → heal 50% of max HP... tune) | on-kill (new trigger) | the on-kill trigger itself is the work |
+| Lifetaker (kill → heal 25% of max HP) | on-kill (new trigger) | the on-kill trigger itself is the work |
 | Speedtaker (kill → +1 SPD for the battle, max +5) | on-kill | battle-long stacking |
 | Uncanny Blow (+30 Hit initiating) | on-combat-start | next to Death/Darting/Armored Blow |
 | Warding Blow (+6 RES initiating) | on-combat-start | same |
