@@ -15,7 +15,7 @@ Owner decisions (2026-10-06):
   about the same.
 - Companion work already in flight on its own branches: Vulneraries at 2 uses with the
   Apothecary's Recipe upgrade restoring 3; worn weapons (`docs/specs/worn-weapons.md`); the
-  first batch of active skills (Swap, Smite, Transfuse).
+  first batch of active skills (Smite, Transfuse; Swap already exists as a command every unit has).
 
 ## 1. The map
 
@@ -504,7 +504,7 @@ skill lives on the item, does not count toward the cap, leaves with it; prerequi
 by combat mods, strike skills and defense skills, not turn-start, auras, terrain, range or
 the action menu), skill ranks from use, bonds (later).
 
-Active skills after Swap/Smite/Transfuse: Hook (pull an enemy 1–2; boss rule TBD), Leap,
+Active skills after Smite/Transfuse: Hook (pull an enemy 1–2; boss rule TBD), Leap,
 Reposition (half a Dance), Mark Target, Flare (fog), Charge!, Barricade (temporary Pillar),
 Taunt (needs AI), Second Wind, Thaw/Quench, **Steal** — paired with enemies carrying spare
 items on higher rungs and in later acts (today they rarely carry any, owner 2026-10-06).
