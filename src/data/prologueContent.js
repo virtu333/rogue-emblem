@@ -36,7 +36,8 @@ export const PROLOGUE_COACH = Object.freeze({
   p3_reach_sera: (ctx) => ({
     chapter: 'move',
     goal: `Reach ${ctx?.npc || 'Sera'} and Talk`,
-    detail: `Move ${lordOf(ctx)} next to the green unit, then choose Talk. Only a lord can.`,
+    // By name and the banner: her robe reads blue, so "the green unit" misled (QA, Oct 2026).
+    detail: `Move ${lordOf(ctx)} next to ${ctx?.npc || 'Sera'} under the gold RECRUIT banner, then choose Talk. Only a lord can.`,
     anchor: { kind: 'unit', name: lordOf(ctx) },
     canSkip: true,
   }),
