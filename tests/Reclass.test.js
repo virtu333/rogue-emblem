@@ -134,6 +134,20 @@ describe('getReclassTargets', () => {
     });
   });
 
+  describe('enemy-only dragons', () => {
+    it('excludes the Dragon line from the mounted seal', () => {
+      const flyers = data.classes.filter((c) => c.moveType === 'Flying').map((c) => c.name);
+      expect(flyers).toEqual(expect.arrayContaining(['Dragon', 'Dragon Lord']));
+      const base = getReclassTargets(makeRecruit('Cavalier'), data.classes, 'mounted');
+      expect(base.length).toBeGreaterThan(0);
+      expect(base.map((t) => t.name)).not.toContain('Dragon');
+      const unit = { ...makeRecruit('Cavalier'), tier: 'promoted', className: 'Paladin' };
+      const names = getReclassTargets(unit, data.classes, 'mounted').map((t) => t.name);
+      expect(names.length).toBeGreaterThan(0);
+      expect(names).not.toContain('Dragon Lord');
+    });
+  });
+
   describe('mounted seal (base tier)', () => {
     it('returns cavalry/flying classes for a base Cavalier', () => {
       const unit = makeRecruit('Cavalier');

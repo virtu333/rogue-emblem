@@ -1412,8 +1412,8 @@ const RECLASS_EXCLUDED_CLASSES = new Set([
   'Bard',
 ]);
 
-// Enemy-only undead line: never a seal target (a unit already in it may still reclass out).
-const RECLASS_TARGET_EXCLUDED_CLASSES = new Set(['Zombie', 'Revenant']);
+// Enemy-only lines (undead, dragons): never a seal target (a unit already in one may still reclass out).
+const RECLASS_TARGET_EXCLUDED_CLASSES = new Set(['Zombie', 'Revenant', 'Dragon', 'Dragon Lord']);
 
 // Seal subEffect → allowed moveTypes.
 const RECLASS_SEAL_MOVE_TYPES = {
