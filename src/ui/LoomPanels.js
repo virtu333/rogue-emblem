@@ -1,6 +1,6 @@
 import { element } from './MenuSurface.js';
 import { createNodeArt } from './NodeArt.js';
-import { eventMark, nodeFrame } from './RouteGraph.js';
+import { nodeFrame } from './RouteGraph.js';
 import { describeLoomNode, describeRecruitPreview, loomHeader } from './loomModel.js';
 import { traitLines } from './traitContent.js';
 import { ruinsChoice } from '../engine/RuinsCommands.js';
@@ -218,7 +218,6 @@ export function renderLoomCard(card, node, ctx = {}) {
   const medal = element('span', null, 're-loom-card-medal');
   medal.append(createNodeArt(nodeFrame(node, actId), 22));
   if (info.eclipsed) medal.classList.add('is-eclipsed');
-  else if (node.type === 'event') medal.append(eventMark());
   const titles = element('div', null, 're-loom-card-titles');
   const kind = element('h3', null, 're-loom-kind');
   kind.append(

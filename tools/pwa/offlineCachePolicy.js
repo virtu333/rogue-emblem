@@ -40,6 +40,8 @@ export const ATLAS_PRECACHE_GLOBS = Object.freeze([
   'assets/sprites/fx/fx_atlas.{png,json}',
   // Node-map medals: frames are NODE_ART_RECTS in the JS bundle (also a CSS sprite).
   'assets/sprites/nodes/weathered-nodes.png',
+  // The Event medal + its Dark Omen (CSS sprite only: NodeArt.js, frames 9-10).
+  'assets/sprites/nodes/event-nodes.png',
   // Traced unit sprites: pages; frames in the bundled TracedSpriteManifest.json.
   'assets/sprites/traced/*.png',
   // PC-98 portrait atlases (one per size); frames from the bundled Pc98PortraitManifest.
@@ -70,7 +72,7 @@ export const RUNTIME_CACHE_ROUTES = Object.freeze([
     cacheName: 'er-image-assets',
     // ~2450 image files ship under assets/{sprites,portraits,terrain} (2126 of them
     // PC-98 portrait renders: 6 sizes per face incl. the variant faces, plates, baked),
-    // plus ~170 item-art files under assets/ui (3 atlases, 139 heroes, 29 paintings).
+    // plus ~180 item-art files under assets/ui (3 atlases, 139 heroes, 39 paintings).
     // maxEntries must stay above the whole shipped set so LRU eviction never silently
     // drops a file from the offline cache (tests/OfflineCachePolicy.test.js enforces
     // it); purgeOnQuotaError is the real safety valve if disk quota is hit.

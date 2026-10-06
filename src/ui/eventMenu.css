@@ -9,6 +9,102 @@
   padding-bottom: 0;
 }
 
+/* ───────── Head: the event's painting with the title (eventBand.js) ─────────
+   The painting is a 640x200 (3.2:1) strip: a plain ink strip first, the painting fades in over
+   it once loaded, and a missing file leaves the strip. Its scene keeps a quiet, dark left.
+   Narrow screens stack the band over the title; from 560px wide the title (kicker and name)
+   sits on the band's quiet left, as on the service bands, and the painting dissolves into the
+   page's ink on that side. */
+.ev-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--re-s3);
+}
+.ev-band {
+  --ev-band-h: min(150px, calc((100vw - 32px) / 3.2));
+  position: relative;
+  flex: none;
+  width: 100%;
+  height: var(--ev-band-h);
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--re-panel) 0%, var(--re-bg) 100%);
+  box-shadow:
+    inset 0 0 0 1px var(--re-line-soft),
+    inset 0 -1px 0 var(--re-ember-deep);
+}
+.ev-band::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 100%;
+  background: var(--ev-art, none) 75% var(--ev-focus, 50%) / cover no-repeat;
+  opacity: 0;
+  transition: opacity 0.45s ease-out;
+}
+.ev-band.has-art::before {
+  opacity: 1;
+}
+.ev-band.is-ready::before,
+.ev-band.is-still::before {
+  transition: none;
+}
+/* The page's ink rises over the painting's lower edge. */
+.ev-band::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, var(--re-bg) 0%, transparent 38%);
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ev-band::before {
+    transition: none;
+  }
+}
+@media (min-width: 560px) {
+  .ev-head {
+    display: grid;
+    gap: 0;
+  }
+  .ev-head > .ev-band,
+  .ev-head > .ev-hero {
+    grid-area: 1 / 1;
+  }
+  .ev-band {
+    --ev-band-h: clamp(112px, 30vh, 150px);
+  }
+  .ev-band::before {
+    width: min(100%, calc(var(--ev-band-h) * 4.6));
+    background-position: 62% var(--ev-focus, 50%);
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 42%);
+    mask-image: linear-gradient(90deg, transparent 0%, #000 42%);
+  }
+  /* Ink under the title, for any painting. */
+  .ev-band::after {
+    background:
+      linear-gradient(90deg, var(--re-bg) 0%, transparent 55%),
+      linear-gradient(0deg, var(--re-bg) 0%, transparent 38%);
+  }
+  .ev-head > .ev-hero {
+    align-self: end;
+    position: relative; /* painted after the band, so above it */
+    padding: 0 16px 12px;
+    border-bottom: 0;
+    pointer-events: none;
+  }
+  .ev-head .ev-title {
+    text-shadow:
+      0 1px 0 var(--re-void),
+      0 0 8px var(--re-void);
+  }
+}
+/* Short landscape phones keep their height for the choices. */
+@media (max-height: 420px) {
+  .ev-band {
+    --ev-band-h: 100px;
+  }
+}
+
 /* ───────── Hero: kicker over the title ───────── */
 .ev-hero {
   display: flex;
