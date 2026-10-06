@@ -75,9 +75,10 @@
         "shop": { "$ref": "#/$defs/fall" },
         "church": { "$ref": "#/$defs/fall" },
         "recruit": { "$ref": "#/$defs/fall" },
-        "colosseum": { "$ref": "#/$defs/fall" }
+        "colosseum": { "$ref": "#/$defs/fall" },
+        "event": { "$ref": "#/$defs/fall" }
       },
-      "required": ["battle", "shop", "church", "recruit", "colosseum"],
+      "required": ["battle", "shop", "church", "recruit", "colosseum", "event"],
       "additionalProperties": false
     }
   },

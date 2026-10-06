@@ -96,6 +96,7 @@ const COLOR_RUINS = UI_HEX.lineStrong;
 const COLOR_RECRUIT = UI_HEX.hpHigh;
 const COLOR_CHURCH = UI_HEX.lineStrong; // Light gray
 const COLOR_COLOSSEUM = 0x9966cc; // Purple
+const COLOR_EVENT = 0x66aacc; // Cool blue: a "?" room
 const COLOR_ELITE = 0xcc5500; // Dark orange for elite seize battles
 const COLOR_COMPLETED = UI_HEX.line;
 const COLOR_AVAILABLE = UI_HEX.accent;
@@ -151,6 +152,7 @@ const NODE_ICONS = {
   [NODE_TYPES.RECRUIT]: '!',
   [NODE_TYPES.CHURCH]: '\u271D', // ✝
   [NODE_TYPES.COLOSSEUM]: '\u039B', // Λ
+  [NODE_TYPES.EVENT]: '?',
 };
 
 const NODE_COLORS = {
@@ -161,6 +163,7 @@ const NODE_COLORS = {
   [NODE_TYPES.RECRUIT]: COLOR_RECRUIT,
   [NODE_TYPES.CHURCH]: COLOR_CHURCH,
   [NODE_TYPES.COLOSSEUM]: COLOR_COLOSSEUM,
+  [NODE_TYPES.EVENT]: COLOR_EVENT,
 };
 
 export class NodeMapScene extends Phaser.Scene {
@@ -1699,6 +1702,8 @@ export class NodeMapScene extends Phaser.Scene {
       label = 'Recruit — Battle with potential ally';
     } else if (node.type === NODE_TYPES.COLOSSEUM) {
       label = 'Colosseum - Arena and Mercenary Board';
+    } else if (node.type === NODE_TYPES.EVENT) {
+      label = 'Event \u2014 Something waits on the road';
     } else if (node.battleParams?.isElite) {
       const eliteObj = node.battleParams?.objective === 'escape' ? 'Escape' : 'Seize';
       label = `Elite Battle (${eliteObj}) — Harder fight, better loot`;

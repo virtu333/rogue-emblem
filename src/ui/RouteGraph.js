@@ -24,7 +24,17 @@ import { drawLoomFx, drawLoomWeave, loomFxAnimates } from '../art/loom/loomThrea
 // ('emblem-rogue:portrait-ui') or the device rotates, and keeps the browsing place
 // (the row at the centre of the view) and the selection across the switch.
 
-const FRAMES = { battle: 0, church: 1, boss: 2, shop: 3, ruins: 4, recruit: 5, colosseum: 6 };
+// event reuses the ruins frame until it has art of its own.
+const FRAMES = {
+  battle: 0,
+  church: 1,
+  boss: 2,
+  shop: 3,
+  ruins: 4,
+  recruit: 5,
+  colosseum: 6,
+  event: 4,
+};
 const LABELS = {
   battle: 'Battle',
   church: 'Church',
@@ -33,6 +43,7 @@ const LABELS = {
   ruins: 'Ruins',
   recruit: 'Recruit',
   colosseum: 'Colosseum',
+  event: 'Event',
 };
 const isEliteBattle = (node) => node?.type === 'battle' && !!node?.battleParams?.isElite;
 const isEclipsed = (node) => !!node?.eclipse;
