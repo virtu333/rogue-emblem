@@ -386,6 +386,210 @@ that an unvisited event falls to a Swallowed road now strips the dark faces firs
 Tests: `EventBurdensPhase2`, `EventCleanse`, `EventDarkOmen`, `EventPhase2BData`, `EventBurdenUiPhase2`,
 `EventDarkPage`, `BattleSceneWounded`.
 
+## 2D as built (2026-10-06)
+
+The content half: the eight events and four payoffs of §2D are in `data/events.json` (22 events
+with Phase 1's ten and the fallback), with the small engine effects they needed, their tests and
+the sims. No UI was written (2E owns `EventMenu`, `eventMenu.css`, `ChurchMenu` and the words of
+the new result records, below) and no painting (the page wears its plain band: art is
+`docs/specs/event-art.md`; `tests/EventArt.test.js` `PAINTING_PENDING` lists the twelve and fails
+the day one gets art without leaving the list).
+
+### New engine vocabulary
+
+Everything is planned against the ledger and applied all or nothing like the effects before it,
+seeded from the choice's key (`event:${runSeed}:${nodeId}:[${page}:]${choiceId}:${phase}${i}:${label}`),
+validated by `EventValidation` and listed in the schema.
+
+- **`item` with `pool: { kind: 'accessory', tierOffset }`.** One accessory from the loot table of the
+  act `tierOffset` tiers up (`act1` + 1 = `lootTables.act2.accessories`; the top table, Act IV's, caps
+  it), sorted by name and picked from the seeded stream. It goes to `run.accessories` (the army's
+  accessory pool, with a uid) and **needs no room**, so `choiceMayGrantItem` ignores it: a choice that
+  grants only an accessory is still "always available". Record `{ kind:'item', name, tier:null,
+  itemType:'Accessory', unit:null, toConvoy:false, pooled:true, worn:[] }`. Validator: `tierOffset` 0-3,
+  no `weaponTypes`, `wear` or `to`, and every act the choice can play in must have a table with
+  accessories (`tools/validateSchemas.js` now hands the validator `accessories`). Accessories had no
+  tier field; "one tier up" is the next act's loot table, which is how the game already stages them.
+- **`stat` gains `stat: 'best'` and losses.** `'best'` (alone) is the unit's highest of STR MAG SKL SPD DEF
+  RES LCK (never HP or MOV; a tie is settled by the seeded stream). A negative value never takes a stat
+  below 0, nor max HP below 1, and HP then keeps current HP inside `[1, max]` (a unit at 2 HP losing 3 max
+  HP is left at 1). The record carries the delta actually applied (`value: -2` when 3 was asked of a unit
+  with 3 max HP).
+- **`forge { stat?: might|crit|hit|weight|random }`**: one forge step, free (a whetstone without the gold),
+  on the target's equipped weapon (`ForgeSystem.applyForge`); the stat is a seeded pick among those that
+  can still take it. Record `{ kind:'forge', unit, weapon, name, stat }` (`weapon` is the name before,
+  `name` after: "Iron Axe" -> "Iron Axe +1").
+  **`wear {}`**: one wear step on the equipped weapon (`WeaponWear.applyWear`; the stat is a seeded pick of
+  `wearableStats`). A forged weapon cannot wear, a weapon at `WEAR_MAX_STEPS` cannot: the plan comes up
+  empty, so a `wear` outcome **must have a `fallback`** (like a teaching outcome), and the fallback plays
+  with `fallbackText`. Record `{ kind:'wear', unit, weapon, name, stat }`.
+  **`mend {}`**: every wear step on every weapon the target carries is repaired (`repairWeapon`, stat, price
+  and name restored exactly); the gold is the choice's own `cost`. Record `{ kind:'mend', unit, steps,
+  weapons:[{ from, to, steps }] }`.
+  All three need a `target`; at most one of them per outcome (they work one weapon: a second on the same
+  weapon plans as empty); none may sit in a fallback, a contract or beside a missing filter: a `forge` needs
+  the choice's target filter `forgeableWeapon: true` and a `mend` needs `wornWeapon: true`, so the picker
+  can only offer a unit the effect can serve ("Their weapon cannot take more." / "Nothing they carry is
+  worn."). An empty plan now reports its own reason (`planned.reason`), not "Nothing to learn.".
+- **Target filters `forgeableWeapon` and `wornWeapon`** (`EventSystem.equippedForgeable`): the equipped
+  weapon is unworn and has a stat that can still be forged (a staff, a worn weapon or one at every cap
+  fails); some carried weapon is worn (`isWorn`).
+- **`gold: { refund: true }`**: the gold the choice charged, handed back (`choiceCost`, so scaled by the
+  rung), for a fallback's "keep your coin". It stands alone (no `value`), needs a choice with a `cost` and
+  belongs in an outcome or its fallback.
+- **`battle.elite: true`**: the event's battle is an elite battle (`isElite` in the node's params, as the
+  Eclipse's eclipsed battles carry): elite loot and gold (`ELITE_GOLD_MULTIPLIER` 1.25) and the elite rules.
+  **`battle.recruit: { class | classPool, name? }`**: a green recruit in the fight, the recruit node's own
+  unit with its own Talk. Planned by `EventJoin.pickJoinSelf` (the same seeded class and name picks as a
+  `join`: a class a recruit can be in every act the choice plays in, a name nobody in the run has used),
+  written as `node.recruitPreview` and `isRecruitBattle` in the node's params when the choice is made.
+  `RecruitNodeSystem.isRecruitBattleNode(node)` (a recruit node, or an event node with `eventBattle`,
+  `isRecruitBattle` and a valid preview) is what every reader of "a recruit battle" now asks:
+  `RunManager.getPromisedRecruitNames` (the name is promised until the node is done), the spawn class, the
+  unit the scene builds (`getRecruitNodeUnit`), and the params' `recruitPreview` for `MapGenerator`. An
+  event's recruit is built **without the lord roll** (`RunManager._recruitGameData`: lords taken out, as an
+  event `join` is), so the deserter is never Rowan; `HeadlessBattle` and the sim driver say the same
+  through `battleParams.recruitNoLords`. Everything after that (Talk, `recordBattleRecruit`, the roster at
+  victory, fallen recruits, the rescue music) is the recruit node's code unchanged. Record `{ kind:'battle',
+  enemyLevelBonus, elite?, recruit?: { className, name } }`.
+- **Requirements `notContract: true`** (no contract open: the Mercenary Contract is not even picked while
+  one is) and **`roadAhead: true`** (`RouteEdit.roadCandidates` finds a road to add from the event's own
+  node). A `reason` replaces the default line, as on every requirement.
+- **Rung-only outcomes.** An outcome may carry `weight: 0` when its `weightByRung` lists a positive weight:
+  it exists only from that rung up (a `lunatic` entry is Black Sun alone, since the table holds from its
+  rung up). The validator checks that **every rung** keeps a positive total across a choice's outcomes, and a
+  `reveals` tell may name such an outcome. `weightByRung` values stay positive.
+- **The Herald's finale line.** `FinaleRally.composeFinaleRally({ herald })` and `heraldHeard(storyFlags,
+  difficultyId)` (the `heard_herald` flag and Black Sun): one answering lord who is not already speaking for
+  the fallen or the loop says a line from `dialogue.json` `finaleRally.lords.<Lord>.herald` (two lines for
+  each of the seven lords; same voice rules as the other categories). `BattleBeatsController.entityRally`
+  passes it.
+
+### The events as built
+
+`{ base, perAct }` amounts are act 1 = base + perAct x 1 (act 2: x 2 ...); costs also take `costScale`
+(Nightfall x 1.25, Black Sun x 1.5, rounded to 10). Payoffs weigh 3 (the rest 1): a payoff is eligible only
+when its flag was set in an **earlier** act (`flagAct: 'earlier'`; an old save's plain flag counts as
+earlier), and about as likely as 3 ordinary events once it is.
+
+1. **The Sunken Mine** (`sunken_mine`, Acts 2-4; pages `start` / `level_two` / `level_three`; `torches` 3, 2 on
+   Black Sun). Each of the first two pages: *Take the ore / chest and climb out* (needs a torch; ends the
+   event), *Go deeper* (needs a torch, spends one; outcomes `steady` 75 and `draft` 25, Black Sun 60 / 40: a draft
+   also takes a second torch; both lead to the next page), *Feel your way out* (always open, ends the event:
+   `found` 50, nothing; `ambush` 50, a fight whose spoils are 100 + 50 per act). Ore: a target with a forgeable
+   weapon, `forge` one random step. Chest: 150 + 100 per act. Level three: *Face the guardian* (a battle, +1 enemy
+   level; after it one accessory a tier up, from the next act's table), *Leave it standing* (needs a torch;
+   nothing), *Feel your way out*. Out of torches only the dark way out is open. **Tells** on every *Feel your
+   way out*: a Thief or Assassin ("{name}: This tunnel breathes. There's a way out.") or anyone with Pathfinder
+   ("{name}: The air moves left. Left is up.") speaks exactly when this run's roll is `found`; their silence
+   is the ambush.
+2. **The Plague Village** (`plague_village`, Acts 1-3; pages `start` / `ward` / `fever_breaks`). *Give your
+   medicine* (a Vulnerary use is spent): `eased` 75 heals everyone 10% and goes on to *Give a second dose*
+   (heals 15%, goes on) and then *Give the last dose* (`join` a Cleric: "I owe you a life"); `well` 25: the dose
+   is wasted ("It was never the fever"), the event ends. Each later page has a plain *That is all you can spare*.
+   **Tell**: a staff user ("{name}: It isn't catching. It's the well.") speaks exactly when this run's first dose
+   would be `well`. *Loot the empty houses*: 200 + 100 per act and an Ill Omen. *Walk around it*: nothing. (The
+   spec's "per-use scaling" needs no engine effect: a page per dose.)
+3. **The Mercenary Contract** (`merc_contract`, every act; `requires.notContract`). *Win the next fight under
+   par*: `contract underPar`, reward 300 + 200 per act, penalty a Debt of 200 + 150 per act. *Win the next fight,
+   lose no one*: `contract noLosses`, reward a weapon a tier up (`$army`), penalty Hunted. *Decline*. Choosing
+   either contract is greyed while one is open (`eventChoiceBlock`).
+4. **The Cartographer** (`cartographer`, Acts 1-3). *Hire her as a guide* (100 + 50 per act; **greyed unless a
+   road can be added here**, `requires.roadAhead`): `routeEdit addRoad`, and if the map changed meanwhile the
+   fallback hands the price back. *Ask about the road ahead* (free): `true_map` `redraw` a node ahead into a
+   shop; on Black Sun 30% is `lied`: a node ahead becomes a battle (the hint on the choice says free answers are
+   worth what you pay). Both have an empty `fallback` with its own text. *Rob her*: 150 + 100 per act, +2
+   shadow, flag `robbed_cartographer`. Measured over 150 seeded maps per act, a road can be added from an
+   event-row node 20-23% of the time (a redraw to a shop 43-49%), which is why the hire is greyed rather than
+   offered and refunded.
+5. **The Chained Shelf** (`chained_shelf`, Acts 2-4; needs someone who can cast). *Read it* (a caster; `learnSkill`
+   from `fiendish_blow`, `drain`, `luna`, `wrath`, benched at the cap; **-3 max HP**; a reader who knows all four
+   learns nothing and loses nothing: the outcome's `fallback` is empty). *Burn it*: -4 shadow. *Sell it to a
+   scholar*: 250 + 150 per act.
+6. **The Herald of the Hollow Sun** (`hollow_herald`, Acts 2-4; `phaseAtLeast: umbral`). *Feed the dark* (a unit
+   kneels): +2 to its best stat, +8 shadow. *Break the rite*: a battle (+1 enemy level) whose victory lifts 8
+   shadow. *Listen*: flag `heard_herald`, -2 shadow; on Black Sun the finale rally carries a Herald line.
+7. **The Wandering Smith** (`wandering_smith`, every act). *Mend a worn weapon* (100 + 50 per act; a unit who
+   carries a worn weapon): every wear step it carries repaired. *Temper a weapon* (a unit whose equipped weapon is
+   forgeable): `tempered` 70 (Nightfall and Black Sun 60) is one free forge step; `too_hot` 30 (40) is one wear
+   step, or, on a weapon that is already forged and so cannot wear, 15% of the unit's max HP in sparks (the
+   fallback). *Leave him to his anvil*.
+8. **The Turncoat** (`turncoat`, Acts 2-3). *Take him in*: `join` a Mercenary, Fighter or Archer (the recruit
+   builder, level-scaled); **Black Sun: 35% `spy`**: no one joins and a Hunted burden starts (the choice's hint
+   says a man who changed sides once can change them again). *Send him off*.
+
+**Payoffs** (weight 3, flag set in an earlier act):
+
+- **Old Faces** (`old_faces`, Acts 2-3; `spared_deserters`). *Ride to his side*: a battle with a green deserter in it
+  (`battle.recruit`: Mercenary, Soldier, Fighter or Archer; Talk him into the army, spoils 80 + 40 per act).
+  *Toss him coin and move on* (100 + 50 per act): -3 shadow. *Wave and keep walking*.
+- **The Deserters' Revenge** (`deserters_revenge`, Acts 2-3; `reported_deserters`). *Stand and fight*: a battle (+1
+  level), spoils 250 + 150 per act. *Repay the bounty* (200 + 100 per act): -2 shadow. *Slip away through the
+  hills*: 15% of everyone's health. (The spec's "ambush" is a plain event battle: `isAmbush` is the village
+  ambush's map.)
+- **The Collectors** (`collectors`, Acts 2-4; `robbed_lender`). *Pay what is owed* (400 + 200 per act). *Fight the
+  collectors*: an **elite** battle (+1 level), spoils 300 + 150 per act. *Slip away*: a Debt of 500 + 250 per act.
+- **A Bad Map** (`bad_map`, Acts 2-4; `robbed_cartographer`). *Trust the map*: a node ahead becomes a battle
+  (`redraw`; with none to change, the road is wrongly drawn but harmless). *Pay her for a true one* (200 + 100 per
+  act; greyed where no road can be added): `addRoad`, price refunded if the map changed. *Tear it down and walk*:
+  10% of everyone's health.
+
+**Black Sun's lying strangers** are three, each an outcome with `weight: 0` and a `lunatic` weight, each with an
+honest hint on its choice: the Turncoat's spy (35%), the Cartographer's lie (30%) and the Twin Altar's Dawn,
+which answers with an Ill Omen (25%; the Dawn's other weights on Black Sun are 60 and 15; the hint now reads "It
+asks for a coin. It does not promise to answer, or to mean it."). Nothing below Black Sun changes.
+
+**Phase 1 flags the payoffs read.** `deserters_fire` already sets `spared_deserters` (let them go) and
+`reported_deserters` (turn them in), the Moneylender `robbed_lender` (rob the cart, at the choice, before the
+fight); the Cartographer sets `robbed_cartographer`. `tests/EventPhase2DContent.test.js` plays each chain across an
+act change.
+
+### Deviations from §2D, and why
+
+1. "Troubadour" is not a class: the Plague Village's reward is a **Cleric**.
+2. The Plague Village's per-use scaling is **pages**, not an effect: one Vulnerary use per page, a reward that
+   grows (10%, 15%, a Cleric), and a plain way out on each.
+3. The Sunken Mine's torches also fall to **drafts** (the spec only spent them going deeper, which with 3 torches
+   and 3 levels would never run out); "Feel your way out" is open on every page and is the only way when none is
+   left. The ore is a free forge step on a chosen unit (a whetstone cannot be handed over without the loot
+   screen's picker).
+4. **`roadAhead`** and greying the Cartographer's paid road: a road can be added at only about one node in five, so
+   an always-open hire would be refunded most of the time. The refund (`gold.refund`) stays for the case the map
+   changes between the page and the choice.
+5. The Cartographer's "redraw" is a **seeded pick that can find nothing**: both answers have an empty fallback.
+6. The Hollow Herald's *Listen* sets the flag on every rung and lifts 2 shadow so it is a real choice below Black
+   Sun; the finale line is Black Sun's alone, as the spec says.
+7. The Turncoat's spy does **not** join (a trap, not a double effect). The Collectors' and the Revenge's prices are
+   milder than "2x": 400 + 200 per act (the cart paid 300 + 150) so that Act IV (1200 G, 1800 on Black Sun) stays
+   payable.
+8. Weights: payoffs 3 (the spec gave none), so a flag that took a decision a road ago is not buried among 17 events.
+9. Old Faces is the event's own battle (the spec said "the next battle"): the node is the current node, so the
+   fight, its Talk and its spoils are one visit and one save.
+10. A `weight: 0` outcome (rung-only) relaxes Phase 1's "weights positive" validator rule; a `{ lunatic }` table
+    holds from Black Sun up, which is Black Sun.
+
+### For 2E (the UI)
+
+- **Records the page cannot word yet** (`eventMenuModel.eventResultLines` returns no line for them; the engine
+  tests prove their shapes): `forge`, `wear`, `mend`, `join`, `contract`, `route`, `counter`; an `item` record
+  with `pooled: true` (say "to the accessory pool"); a `battle` record's `elite` and `recruit` (the Fight page
+  could say "A green ally is in the fight" / "An elite battle"). `tests/EventMenu.test.js` counts lines only for
+  kinds in `RESULT_CHIPS`, so adding a chip for one starts counting it.
+- **A greyed choice with a custom `reason`** is the road requirement's: "She walks the road a while and finds no
+  road to add." (the guide is greyed on most maps).
+- **Tells** appear on *Feel your way out* (every page of the Mine) and on the Plague Village's first dose.
+- The Mine's counters (`Torches`) and page trail are the 2A view; the Plague Village uses the trail too.
+- The outcome of `forge` / `wear` / `mend` names the weapon before and after (`weapon`, `name`).
+- Intros for art prompts are in the report of this step (`data/events.json` holds them verbatim).
+
+### Tests
+
+`EventPhase2DEffects` (every new effect, with a bug planted once per group), `EventPhase2DData` (each new validator
+rule planted; the schema), `EventPhase2DContent` (eligibility, flags and chains, every event's outcomes by hand,
+rungs, tells, payoffs), `FinaleRally` (the Herald line), `tests/sim/EventPhase2DDriver` (the harness and the
+default and fight policies on every new event, a whole run), and the shared walkers `tests/eventWalk.js` now used
+by `EventEveryChoice` and `EventMenu` (every page, choice and outcome, rung-only outcomes on Black Sun).
+
 ## Not in Phase 2
 
 Marks, the Necromancer, multi-bar bosses, new skills and arts: `event-nodes.md` §14–§15

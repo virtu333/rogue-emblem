@@ -26,7 +26,7 @@ The pipeline is the one already in the repo; nothing new is invented here:
 | # | Asset | Where it shows | Process | When |
 |---|---|---|---|---|
 | 1 | **Event medal** (route map) + its eclipsed **Dark Omen** variant | `NodeArt` / `RouteGraph` `FRAMES`, the canvas fallback `node_event`, the weathered atlas | generate in the concept sheet's style, crop like `NODE_ART_RECTS`; replaces the "?" over the Ruins medal | now (Phase 1 PR follow-up) |
-| 2 | **Event vignettes**: one illustration per event (10 now, 12 more with Phase 2), shown as the event page's header band; a dark variant for Dark Omens | `EventMenu` header (`eventView().eventId` → art key), with a plain band fallback | "moments" pipeline: prompt from the event's intro, house style, ≤ display ×2, lazy-loaded | now for the 10; Phase 2 events as they land |
+| 2 | **Event vignettes**: one illustration per event (10 now, 12 more with Phase 2), shown as the event page's header band; a dark variant for Dark Omens | `EventMenu` header (`eventView().eventId` → art key), with a plain band fallback | "moments" pipeline: prompt from the event's intro, house style, ≤ display ×2, lazy-loaded | now for the 10; Phase 2 events as they land (the twelve Phase 2D events have none yet: `tests/EventArt.test.js` `PAINTING_PENDING` lists them, and the page wears the plain band) |
 | 3 | **Burden and contract glyphs** (Ill Omen, Debt, Hunted, Sworn Enemy, Wounded, Contract) | burden chips, outcome lines, pause list | icon grammar (code) | with Phase 2 |
 | 4 | **Worn-weapon badge** polish | item icons | icon grammar (exists; review only) | now |
 | 5 | **New scrolls** (Smite, Transfuse, later shortlist skills) | item icons | icon grammar (Smite/Transfuse exist) | as skills land |
