@@ -346,6 +346,36 @@ describe('PrologueController: the guided steps', () => {
   });
 });
 
+describe('PrologueController: P3 "open the forecast, then Cancel"', () => {
+  const setup = () => {
+    const { scene } = makeScene({ chapterId: 'p3_seer_on_the_road' });
+    const prologue = new PrologueController(scene).create();
+    prologue.coachGoal = 'p3_look_is_free';
+    const sera = { name: 'Sera', faction: 'player', col: 0, row: 0 };
+    const foe = scene.enemyUnits.find(Boolean);
+    const forecast = { display: {}, attacker: {}, defender: {} };
+    return { prologue, sera, foe, forecast };
+  };
+
+  it('cancelling the forecast (Cancel, Esc, right-click, Back: one path) ends the step', async () => {
+    const { prologue, sera, foe, forecast } = setup();
+    await prologue.onForecastOpened(sera, foe, forecast, null);
+    expect(prologue.scripted()).toMatchObject({ id: 'p3_look_is_free' });
+    prologue.onForecastClosed({ acknowledge: true, cancelled: true });
+    expect(prologue.scripted()).toBeNull();
+  });
+
+  it('a forecast closed unread (End turn, a rewind) or never opened leaves the step up', async () => {
+    const { prologue, sera, foe, forecast } = setup();
+    await prologue.onForecastOpened(sera, foe, forecast, null);
+    prologue.onForecastClosed();
+    expect(prologue.coachGoal).toBe('p3_look_is_free');
+    // A cancel with no forecast open (a stray Esc) is not the lesson.
+    prologue.onForecastClosed({ acknowledge: true, cancelled: true });
+    expect(prologue.coachGoal).toBe('p3_look_is_free');
+  });
+});
+
 describe('PrologueController: forecasts, actions and the enemy phase', () => {
   it('the first forecast teaches reading it and allows only Confirm or Cancel; the triangle waits for b', async () => {
     const { scene, edric } = makeScene();

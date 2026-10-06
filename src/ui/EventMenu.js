@@ -15,10 +15,13 @@
 //   outcome   what happened: the outcome text, one line per result (chip, text, detail);
 //             Continue, or only Fight while a battle is owed.
 //   victory   the fight was won: the spoils' text and result lines; Continue.
+//   spoils    the fight was won but the spoils could not be taken (view.spoilsOwed): what
+//             went wrong, Try again, Back to map and, behind a confirmation, Give up the
+//             spoils. Nothing is lost until the player says so.
 //
-// ESC / the header button: before choosing, or while a fight is owed, it returns to the
-// route map with the event still current (re-entry reopens this page); after choosing it
-// is Continue.
+// ESC / the header button: before choosing, or while a fight or its spoils are owed, it
+// returns to the route map with the event still current (re-entry reopens this page);
+// after choosing it is Continue.
 
 import { MenuSurface, element as el, button } from './MenuSurface.js';
 import { ChoicePicker } from './ChoicePicker.js';
@@ -93,7 +96,7 @@ export class EventMenu {
   requestClose() {
     if (this.child || this.destroyed) return;
     const view = eventView(this.run, this.nodeId);
-    if (!view || view.phase === 'choosing' || view.canFight) this.c.closeToMap();
+    if (!view || view.phase === 'choosing' || view.canFight || view.spoilsOwed) this.c.closeToMap();
     else this.c.continueEvent();
   }
 
@@ -130,6 +133,7 @@ export class EventMenu {
     this.renderCounters(body, view);
     this.renderTrail(body, view);
     if (view.phase === 'choosing') this.renderChoices(body, view);
+    else if (view.spoilsOwed) this.renderSpoilsOwed(body, view);
     else this.renderOutcome(body, view);
     body.scrollTop = scroll;
     // A step was just taken: the page comes up at what just happened, then the new page under it
@@ -414,6 +418,68 @@ export class EventMenu {
     }
     if (this.primary) actions.append(this.primary);
     body.append(actions);
+  }
+
+  /**
+   * The fight is won and the spoils could not be taken (the engine rolled the attempt back:
+   * nothing applied, nothing lost). The reason, then the ways on: Try again, Back to map
+   * (the spoils stay owed), Give up the spoils (confirmed first).
+   */
+  renderSpoilsOwed(body, view) {
+    // What went wrong comes first (on a short screen it must not hide under the action row);
+    // the choice and its outcome, for context, follow.
+    body.append(el('p', 'The fight is won.', 'ev-chosen ev-won'));
+    const failed = el('div', null, 'ev-failed');
+    failed.setAttribute('role', 'alert');
+    failed.append(
+      el('strong', 'The spoils could not be taken.', 'ev-failed-title'),
+      el('span', this.c.failureReason(this.nodeId) || 'They are not settled yet.', 'ev-failed-why'),
+      el('small', 'Nothing was lost: they stay owed until you try again or give them up.'),
+    );
+    body.append(failed);
+    const outcome = view.outcome;
+    if (outcome) {
+      const who = outcome.targetName ? ` · ${outcome.targetName}` : '';
+      body.append(el('p', `You chose: ${outcome.choiceLabel}${who}`, 'ev-chosen'));
+    }
+    if (outcome?.text) body.append(el('p', outcome.text, 'ev-outcome'));
+    this.renderResults(body, outcome?.results || []);
+    const actions = el('div', null, 'ev-actions ev-actions--owed');
+    this.primary = button(
+      'Try again',
+      () => this.retry(),
+      're-btn re-btn--primary ev-primary ev-retry',
+    );
+    actions.append(
+      this.primary,
+      button('Back to map', () => this.c.closeToMap(), 're-btn ev-back'),
+      button('Give up the spoils', () => this.confirmForfeit(), 're-btn ev-forfeit'),
+      button('Roster', () => this.roster(), 're-btn ev-roster'),
+    );
+    body.append(actions);
+  }
+
+  retry() {
+    if (this.child || !this.surface) return;
+    const result = this.c.retrySettlement();
+    this.render(result.ok ? '' : `Still could not be taken: ${result.reason}`);
+    this.focusPrimary();
+  }
+
+  /** Giving the spoils up is final: a confirmation first, like a choice's. */
+  confirmForfeit() {
+    this.picker({
+      title: 'Give up the spoils?',
+      choices: [{ id: 'forfeit' }],
+      confirmation: true,
+      confirmLabel: 'Give up the spoils',
+      closeLabel: 'Keep them owed',
+      label: () => 'Give up the spoils',
+      describe: () =>
+        'Whatever this fight would have given is lost for good. The fight stays won and the road goes on. This cannot be undone.',
+      blocked: () => '',
+      apply: () => this.c.forfeitSpoils(),
+    });
   }
 
   renderResults(body, results) {

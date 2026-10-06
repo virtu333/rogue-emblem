@@ -10,7 +10,9 @@
 //   3. the choice list hides a price or the reason a choice is greyed;
 //   4. the sticky action row hides a result line or leaves it under the home bar;
 //   5. the burden chips break the route's header or its Travel label wraps mid-word;
-//   6. any of it leaks into landscape (the portrait rules are keyed to html.portrait-ui).
+//   6. any of it leaks into landscape (the portrait rules are keyed to html.portrait-ui);
+//   7. the page of spoils that could not be taken hides its reason, or one of its four ways on
+//      (Try again, Back to map, Give up the spoils, Roster) is under 44px, covered or off screen.
 import { test, expect } from '@playwright/test';
 import {
   PORTRAIT_PHONES,
@@ -184,6 +186,59 @@ for (const viewport of PORTRAIT_PHONES.slice(0, 2)) {
       await expect(page.locator('.re-burden-note')).toBeVisible();
       await expectNoSidewaysScroll(page, '.re-node-map');
       expect(errors).toEqual([]);
+    });
+
+    test('spoils that could not be taken: the reason shows and every way on is tappable', async ({
+      page,
+    }) => {
+      const errors = pageErrors(page);
+      await boot(page, 'abandoned_armory');
+      await enter(page);
+      const dialog = page.getByRole('dialog', { name: 'The Abandoned Armory', exact: true });
+      await dialog.getByRole('button', { name: /^Force the barred door/ }).tap();
+      await page
+        .getByRole('dialog', { name: 'Force the barred door', exact: true })
+        .getByRole('button', { name: 'Choose', exact: true })
+        .tap();
+      await expect(dialog.locator('.ev-outcome')).toHaveText('Someone was still home.');
+      await page.keyboard.press('Escape');
+      await expect(dialog).toHaveCount(0);
+      // The fight won and saved, the scene rebuilt from the slot (a refresh), the run's next
+      // gold payment planted to fail once: the map opens the spoils and they cannot be taken.
+      await page.evaluate(async () => {
+        const s = window.__emblemRogueGame.scene.getScene('NodeMap');
+        const { loadRun } = await import('/src/engine/RunManager.js');
+        const run = s.runManager;
+        const node = run.nodeMap.nodes.find(
+          (n) => n.type === 'event' && run.eventStateByNodeId[n.id],
+        );
+        run.completeBattle(run.getRoster(), node.id, 100, { turnCount: 5, turnPar: 5 });
+        s.persistRunSave();
+        const loaded = loadRun(s.gameData, 1);
+        loaded.addGold = function () {
+          delete this.addGold;
+          throw new Error('planted fault');
+        };
+        s.scene.start('NodeMap', { gameData: s.gameData, runManager: loaded });
+      });
+      await expect(dialog.locator('.ev-failed')).toContainText('The spoils could not be taken.');
+      await expect(dialog.locator('.ev-failed')).toContainText('planted fault');
+      await expectNoSidewaysScroll(page, '.ev-menu');
+      expect(await clippedText(page, '.ev-menu')).toEqual([]);
+      const actions = dialog.locator('.ev-actions');
+      for (const name of ['Try again', 'Back to map', 'Give up the spoils', 'Roster'])
+        await expectTappable(actions.getByRole('button', { name, exact: true }));
+      // The reason is on screen above the action row, not hidden under it.
+      const clear = await page.evaluate(() => {
+        const why = document.querySelector('.ev-failed').getBoundingClientRect();
+        const footer = document.querySelector('.ev-actions').getBoundingClientRect();
+        return footer.top - why.bottom;
+      });
+      expect(clear).toBeGreaterThanOrEqual(-0.5);
+      await actions.getByRole('button', { name: 'Try again', exact: true }).tap();
+      await expect(dialog.locator('.ev-result[data-kind="gold"]')).toContainText('Gained 200 G');
+      await expect(dialog.locator('.ev-failed')).toHaveCount(0);
+      expect(errors.filter((e) => !/planted fault/.test(e))).toEqual([]);
     });
 
     test('the route names the way back, on one line, and the fight page offers only Fight', async ({

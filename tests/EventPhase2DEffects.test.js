@@ -189,7 +189,7 @@ describe('an accessory from the pool one tier up', () => {
     ]);
     fill(weapon);
     node = arriveAs(weapon, 'solo');
-    expect(eventChoiceBlock(weapon, node.id, 'go')).toMatch(/Nowhere to carry/);
+    expect(eventChoiceBlock(weapon, node.id, 'go')).toMatch(/No room for another weapon/);
   });
 
   it('is all or nothing: a later effect that cannot be planned leaves the pool untouched', () => {

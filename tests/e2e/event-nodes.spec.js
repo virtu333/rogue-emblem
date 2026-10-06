@@ -12,7 +12,9 @@
 //   5. Continue does not complete the node, does not save, or ESC before choosing completes it;
 //   6. a choice that starts a fight offers Continue, or Fight does not enter a battle;
 //   7. a burden on the run has no chip on the route and no line in the pause menu;
-//   8. any of it overflows the page, or is clipped, at 640x480 and a landscape phone.
+//   8. any of it overflows the page, or is clipped, at 640x480 and a landscape phone;
+//   9. a won fight whose spoils cannot be taken forfeits them, traps the player in the page, or
+//      cannot be retried or given up (behind a confirmation).
 import { test, expect } from '@playwright/test';
 import { waitForGame, waitForScene, collectErrors } from './helpers.js';
 
@@ -79,6 +81,63 @@ const record = (page) =>
     };
     return { live: pick(s.runManager), saved: pick(loadRun(s.gameData, 1)) };
   });
+
+/**
+ * The armory's door chosen and its fight won (the battle's own commit, saved), then the scene
+ * rebuilt from the slot, as a refresh does, with the run's next gold payment planted to fail
+ * once: the route map opens the spoils and they cannot be taken.
+ */
+async function returnWithSpoilsFailing(page) {
+  await page.evaluate(async () => {
+    const s = window.__emblemRogueGame.scene.getScene('NodeMap');
+    const { loadRun } = await import('/src/engine/RunManager.js');
+    const run = s.runManager;
+    const node = run.nodeMap.nodes.find((n) => n.type === 'event' && run.eventStateByNodeId[n.id]);
+    run.completeBattle(run.getRoster(), node.id, 100, { turnCount: 5, turnPar: 5 });
+    s.persistRunSave();
+    const loaded = loadRun(s.gameData, 1);
+    loaded.addGold = function () {
+      delete this.addGold; // one failure, then the run behaves
+      throw new Error('planted fault');
+    };
+    s.scene.start('NodeMap', { gameData: s.gameData, runManager: loaded });
+  });
+}
+
+/** Whether the spoils are owed, live and as saved, and the gold the run holds. */
+const spoils = (page) =>
+  page.evaluate(async () => {
+    const s = window.__emblemRogueGame.scene.getScene('NodeMap');
+    const { loadRun } = await import('/src/engine/RunManager.js');
+    const { eventSpoilsOwed } = await import('/src/engine/EventCommands.js');
+    const read = (run) => {
+      const node = run.nodeMap.nodes.find(
+        (n) => n.type === 'event' && run.eventStateByNodeId[n.id],
+      );
+      const state = run.eventStateByNodeId[node.id];
+      return {
+        owed: eventSpoilsOwed(run, node.id),
+        forfeited: state.spoilsForfeited === true,
+        left: state.left === true,
+        gold: run.gold,
+      };
+    };
+    return { live: read(s.runManager), saved: read(loadRun(s.gameData, 1)) };
+  });
+
+async function chooseDoorAndLeave(page) {
+  await enterFromRoute(page);
+  const dialog = page.getByRole('dialog', { name: 'The Abandoned Armory', exact: true });
+  await dialog.getByRole('button', { name: /^Force the barred door/ }).click();
+  await page
+    .getByRole('dialog', { name: 'Force the barred door', exact: true })
+    .getByRole('button', { name: 'Choose', exact: true })
+    .click();
+  await expect(dialog.locator('.ev-outcome')).toHaveText('Someone was still home.');
+  await page.keyboard.press('Escape'); // the fight is owed; it is fought and won below
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  return dialog;
+}
 
 /** Nothing scrolls sideways and no text is cut off inside the page. */
 async function expectFits(page, selector) {
@@ -240,6 +299,93 @@ for (const size of SIZES) {
         return s.runManager.nodeMap.nodes.find((n) => n.id === s.nodeId).type;
       });
       expect(type).toBe('event');
+    });
+
+    test('spoils that cannot be taken stay owed: Back to map, Try again, nothing lost', async ({
+      page,
+    }, info) => {
+      test.setTimeout(120_000);
+      const errors = collectErrors(page);
+      await boot(page, 'abandoned_armory', size.mobile);
+      const dialog = await chooseDoorAndLeave(page);
+      await returnWithSpoilsFailing(page);
+      // The map opens the spoils by itself; they fail, and the page says so, with its ways on.
+      await expect(dialog).toBeVisible();
+      const gold = (await spoils(page)).live.gold; // after the battle's own gold
+      await expect(dialog.locator('.ev-failed')).toContainText('The spoils could not be taken.');
+      await expect(dialog.locator('.ev-failed')).toContainText('planted fault');
+      const actions = dialog.locator('.ev-actions');
+      for (const name of ['Try again', 'Back to map', 'Give up the spoils', 'Roster'])
+        await expect(actions.getByRole('button', { name, exact: true })).toBeVisible();
+      await expect(dialog.getByRole('button', { name: 'Continue', exact: true })).toHaveCount(0);
+      await expectFits(page, '.ev-menu');
+      await page.screenshot({ path: info.outputPath('event-spoils-failed.png') });
+      expect(await spoils(page)).toMatchObject({
+        live: { owed: true },
+        saved: { owed: true },
+      });
+
+      // Back to map closes it (no trap); everything is still owed, and the route holds the party.
+      await actions.getByRole('button', { name: 'Back to map', exact: true }).click();
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+      await expect(page.locator('.re-node-map')).toBeVisible();
+      expect(await spoils(page)).toMatchObject({ live: { owed: true }, saved: { owed: true } });
+      await page
+        .getByRole('button', { name: /^Event · / })
+        .first()
+        .click();
+      await expect(page.locator('.re-loom-card')).toContainText('the spoils await');
+      await page.getByRole('button', { name: 'Return to the event', exact: true }).click();
+
+      // Back in: it tries again, and now they come, once.
+      await expect(dialog.locator('.ev-result[data-kind="gold"]')).toContainText('Gained 200 G');
+      await expect(dialog.locator('.ev-failed')).toHaveCount(0);
+      expect(await spoils(page)).toMatchObject({
+        live: { owed: false, gold: gold + 200 },
+        saved: { owed: false, gold: gold + 200 },
+      });
+      await dialog.locator('.ev-primary').click();
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+      expect(await spoils(page)).toMatchObject({
+        live: { owed: false, left: true },
+        saved: { owed: false, left: true },
+      });
+      expect(errors.filter((e) => !/planted fault/.test(e))).toEqual([]);
+    });
+
+    test('Give up the spoils asks first, then is final and lets the road go on', async ({
+      page,
+    }) => {
+      test.setTimeout(120_000);
+      await boot(page, 'abandoned_armory', size.mobile);
+      const dialog = await chooseDoorAndLeave(page);
+      await returnWithSpoilsFailing(page);
+      await expect(dialog.locator('.ev-failed')).toBeVisible();
+      const gold = (await spoils(page)).live.gold;
+      const actions = dialog.locator('.ev-actions');
+      await actions.getByRole('button', { name: 'Give up the spoils', exact: true }).click();
+      const confirm = page.getByRole('dialog', { name: 'Give up the spoils?', exact: true });
+      await expect(confirm).toContainText('This cannot be undone.');
+      // Declining keeps them owed.
+      await confirm.getByRole('button', { name: 'Keep them owed', exact: true }).click();
+      await expect(confirm).toHaveCount(0);
+      await expect(dialog.locator('.ev-failed')).toBeVisible();
+      expect(await spoils(page)).toMatchObject({ live: { owed: true }, saved: { owed: true } });
+      // Confirming is final, saved at once, and takes nothing.
+      await actions.getByRole('button', { name: 'Give up the spoils', exact: true }).click();
+      await confirm.getByRole('button', { name: 'Give up the spoils', exact: true }).click();
+      await expect(dialog.locator('.ev-result')).toContainText('You gave up the spoils.');
+      await expect(dialog).not.toContainText('cellar cache');
+      await expect(dialog.locator('.ev-failed')).toHaveCount(0);
+      expect(await spoils(page)).toMatchObject({
+        live: { owed: false, forfeited: true, gold },
+        saved: { owed: false, forfeited: true, gold },
+      });
+      await dialog.locator('.ev-primary').click();
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+      expect(await spoils(page)).toMatchObject({
+        saved: { owed: false, forfeited: true, left: true, gold },
+      });
     });
 
     test('a burden has a chip on the route and a line in the pause menu', async ({ page }) => {

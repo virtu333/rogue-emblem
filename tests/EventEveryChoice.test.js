@@ -25,6 +25,7 @@ import {
   eventView,
   leaveEvent,
 } from '../src/engine/EventCommands.js';
+import { choiceMayGrantItem } from '../src/engine/EventSystem.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { CONSUMABLE_MAX, INVENTORY_MAX, MAX_SKILLS } from '../src/utils/constants.js';
 import { applyWear } from '../src/engine/WeaponWear.js';
@@ -300,6 +301,70 @@ describe('the same on every rung and in every act', () => {
       expect(result.ok, `${event.id}.${open.id}: ${result.reason}`).toBe(true);
       if (result.battle) continue;
       expect(leaveEvent(run, node.id).ok).toBe(true);
+    }
+  });
+});
+
+describe('the room check says what a commit would do (every shipped choice, short on room)', () => {
+  const heldItem = (run) => structuredClone(run.roster[0].inventory[0]);
+  const armies = {
+    'weapon bags and weapon convoy full': (run) => {
+      for (const unit of run.roster)
+        while (unit.inventory.length < INVENTORY_MAX) unit.inventory.push(heldItem(run));
+      const caps = run.getConvoyCapacities();
+      run.convoy.weapons = Array.from({ length: caps.weapons }, () => heldItem(run));
+    },
+    'consumable bags and consumable convoy full': (run) => {
+      for (const unit of run.roster)
+        while (unit.consumables.length < CONSUMABLE_MAX)
+          unit.consumables.push({ ...run.getConsumableTemplate('Herb') });
+      const caps = run.getConvoyCapacities();
+      run.convoy.consumables = Array.from({ length: caps.consumables }, () => ({
+        ...run.getConsumableTemplate('Herb'),
+      }));
+    },
+    'one weapon place left in the convoy': (run) => {
+      armies['weapon bags and weapon convoy full'](run);
+      run.convoy.weapons.pop();
+    },
+  };
+
+  it('an open choice never fails for room, whichever outcome rolls; a granting choice that is shut says why', () => {
+    for (const [label, shorten] of Object.entries(armies)) {
+      for (const event of baseData.events.events) {
+        for (const choice of event.choices) {
+          for (let seed = 1; seed <= 6; seed++) {
+            const run = buildRun(seed);
+            shorten(run);
+            const node = arriveAs(run, event.id);
+            const block = eventChoiceBlock(run, node.id, choice.id);
+            const where = `${label}: ${event.id}.${choice.id} seed ${seed}`;
+            if (block) {
+              if (/room/i.test(block)) expect(choiceMayGrantItem(choice), where).toBe(true);
+              continue;
+            }
+            const result = chooseEventOption(run, node.id, choice.id, {
+              targetUid: pickTarget(run, node.id, choice.id),
+            });
+            expect(result.ok, `${where}: ${result.reason}`).toBe(true);
+          }
+        }
+      }
+    }
+  });
+
+  it('a weapon shortage never leaves an event without an open choice', () => {
+    for (const [label, shorten] of Object.entries(armies)) {
+      for (const event of baseData.events.events) {
+        const run = buildRun(7);
+        run.gold = 0;
+        shorten(run);
+        const node = arriveAs(run, event.id);
+        expect(
+          eventView(run, node.id).choices.some((c) => !c.block),
+          `${label}: ${event.id}`,
+        ).toBe(true);
+      }
     }
   });
 });

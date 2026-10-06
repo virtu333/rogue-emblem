@@ -565,10 +565,17 @@ export function describeLoomNode(
         detail: `${captains === 1 ? 'One hunter carries' : `${captains} hunters carry`} an affix — inspect ${captains === 1 ? 'it' : 'them'} in battle.`,
       });
   }
-  if (params && node.encounterLocked) tags.push({ text: 'Encounter locked', tone: 'plain' });
-  // An event shows as an event even once its choice started a fight; the lock is the same.
-  if (node.type === 'event' && node.eventBattle === true && node.encounterLocked && !eclipsed)
-    tags.push({ text: 'Encounter locked', tone: 'plain' });
+  // A locked encounter keeps its map: say that, not "locked" beside a usable Travel
+  // (QA, Oct 2026). The prologue's authored chapters are all fixed, so they say nothing.
+  // An event shows as an event even once its choice started a fight; its map is set the same way.
+  const mapSet = {
+    text: 'Map set',
+    tone: 'plain',
+    detail: 'Leaving and coming back brings the same map and foes.',
+  };
+  if (params && node.encounterLocked && !authoredTitle) tags.push(mapSet);
+  else if (node.type === 'event' && node.eventBattle === true && node.encounterLocked && !eclipsed)
+    tags.push(mapSet);
 
   // A walked Dark Omen keeps the line of what was chosen there, like any visited event.
   const text =
