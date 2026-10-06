@@ -66,7 +66,10 @@ export class RunSimulationDriver {
       churchNodes: 0,
       eventNodes: 0,
       eventBattles: 0,
+      eventSteps: 0, // choices taken: more than eventNodes when an event has pages
       eventsByChoice: {},
+      contractsKept: 0,
+      contractsBroken: 0,
       recruitsGained: 0,
       unitsLost: 0,
       totalTurns: 0,
@@ -309,8 +312,7 @@ export class RunSimulationDriver {
     // A contract settles with the victory (engine/ContractSettlement.js): count how it went.
     const contract = applied ? this.runManager.lastContractSettlement : null;
     if (contract) {
-      const key = contract.kept ? 'contractsKept' : 'contractsBroken';
-      this.metrics[key] = (this.metrics[key] || 0) + 1;
+      this.metrics[contract.kept ? 'contractsKept' : 'contractsBroken']++;
     }
     return applied;
   }
@@ -480,7 +482,7 @@ export class RunSimulationDriver {
       const key = `${chosen.state.eventId}.${plan.choiceId}`;
       this.metrics.eventsByChoice[key] = (this.metrics.eventsByChoice[key] || 0) + 1;
     }
-    this.metrics.eventSteps = (this.metrics.eventSteps || 0) + steps.length;
+    this.metrics.eventSteps += steps.length;
     if (last.chosen.next) {
       // The policy found no way out of the last page it reached: not a state a player can reach.
       this.metrics.invalidEventChoices = (this.metrics.invalidEventChoices || 0) + 1;

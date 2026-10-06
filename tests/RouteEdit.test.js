@@ -200,6 +200,28 @@ describe('checkNodeMapValidity', () => {
     expect(checkNodeMapValidity(map).join('\n')).toMatch(/crosses|lane away/);
   });
 
+  it('refuses a pure crossing: two roads one lane long that swap sides', () => {
+    // start -> a(lane 1), b(lane 2) -> x(lane 1), y(lane 2) -> boss; a -> y and b -> x cross, and
+    // both are within one lane, so only the crossing rule can object
+    const node = (id, row, col, edges) => ({ id, row, col, type: 'battle', edges });
+    const map = {
+      startNodeId: 's',
+      bossNodeId: 'z',
+      nodes: [
+        node('s', 0, 1, ['a', 'b']),
+        node('a', 1, 1, ['y']),
+        node('b', 1, 2, ['x']),
+        node('x', 2, 1, ['z']),
+        node('y', 2, 2, ['z']),
+        node('z', 3, 1, []),
+      ],
+    };
+    expect(checkNodeMapValidity(map)).toEqual(['a->y crosses b->x']);
+    map.nodes[1].edges = ['x'];
+    map.nodes[2].edges = ['y'];
+    expect(checkNodeMapValidity(map)).toEqual([]);
+  });
+
   it('refuses a node the start cannot reach and one that cannot reach the boss', () => {
     const cut = valid();
     const a = cut.nodes.find((n) => n.row === 3);

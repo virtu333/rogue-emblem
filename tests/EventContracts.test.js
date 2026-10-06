@@ -29,6 +29,7 @@ import {
   normalizeContract,
   settlementLines,
 } from '../src/engine/Contracts.js';
+import { planEffects } from '../src/engine/EventEffects.js';
 import { createUnit } from '../src/engine/UnitManager.js';
 import { createSeededRng } from '../src/engine/BlessingEngine.js';
 import { serializeUnit } from '../src/engine/RunManager.js';
@@ -114,6 +115,24 @@ describe('opening a contract', () => {
     });
     expect(eventChoiceBlock(run, second.id, 'decline')).toBe('');
     expect(run.contract.nodeId).not.toBe(second.id); // the first contract is still the one in force
+  });
+
+  it('the planner refuses a second contract on its own: two in one outcome, or one more while one is open', () => {
+    const terms = { type: 'contract', goal: 'noLosses', reward: [], penalty: [] };
+    const run = runWithEvents([contractEvent()], { seed: 5 });
+    const node = eventNode(run);
+    arriveAtEvent(run, node.id);
+    const ctx = { run, node, nodeId: node.id, phase: 'o', choice: { id: 'sign' }, page: 'start' };
+    expect(planEffects(ctx, [terms, terms])).toEqual({
+      ok: false,
+      reason: 'You are already bound by a contract.',
+    });
+    expect(planEffects(ctx, [terms]).ok).toBe(true);
+    run.contract = normalizeContract({ ...terms, eventId: 'x', nodeId: 'n' });
+    expect(planEffects(ctx, [terms])).toEqual({
+      ok: false,
+      reason: 'You are already bound by a contract.',
+    });
   });
 
   it('the goal is plain data: a contract survives a save and a load', () => {
