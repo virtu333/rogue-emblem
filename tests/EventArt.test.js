@@ -18,23 +18,11 @@ import { loadGameData } from './testData.js';
 
 const data = loadGameData();
 const allEventIds = data.events.events.map((e) => e.id);
-// The Phase 2D events (docs/specs/event-nodes-phase2.md "2D as built") wait for their paintings
-// (docs/specs/event-art.md: "Phase 2 events as they land"). Art never gates play: an event with no
-// painting wears the plain band. Remove an id from this list in the commit that ships its painting.
-const PAINTING_PENDING = [
-  'bad_map',
-  'cartographer',
-  'chained_shelf',
-  'collectors',
-  'deserters_revenge',
-  'hollow_herald',
-  'merc_contract',
-  'old_faces',
-  'plague_village',
-  'sunken_mine',
-  'turncoat',
-  'wandering_smith',
-];
+// Events that wait for a painting (docs/specs/event-art.md: "Phase 2 events as they land"). Art
+// never gates play: an event with no painting wears the plain band. The twelve Phase 2D events
+// all have theirs now; a future event goes on this list until its painting ships, and comes off it
+// in the commit that ships the painting.
+const PAINTING_PENDING = [];
 const eventIds = allEventIds.filter((id) => !PAINTING_PENDING.includes(id));
 const sha = (buf) => createHash('sha256').update(buf).digest('hex').slice(0, 8);
 const read = (dir, f) => fs.readFileSync(path.join(dir, f));

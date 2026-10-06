@@ -43,6 +43,18 @@
     "toll_bridge": { "source": "toll_bridge-t1" },
     "moneylender": { "source": "moneylender-t1" },
     "drill_yard": { "source": "drill_yard-t6", "crop": [0, 0.16, 0, 0.126] },
-    "quiet_road": { "source": "quiet_road-t2" }
+    "quiet_road": { "source": "quiet_road-t2" },
+    "sunken_mine": { "source": "sunken_mine-t5", "crop": [0, 0.15, 0, 0.113] },
+    "plague_village": { "source": "plague_village-t2", "crop": [0, 0.04, 0, 0.223] },
+    "merc_contract": { "source": "merc_contract-t3", "crop": [0, 0.04, 0, 0.223] },
+    "cartographer": { "source": "cartographer-t2", "crop": [0, 0.03, 0, 0.233] },
+    "chained_shelf": { "source": "chained_shelf-t4", "crop": [0, 0.1, 0, 0.163] },
+    "hollow_herald": { "source": "hollow_herald-t10", "crop": [0, 0.03, 0, 0.233] },
+    "wandering_smith": { "source": "wandering_smith-t1", "crop": [0, 0.1, 0, 0.163] },
+    "turncoat": { "source": "turncoat-t8", "crop": [0, 0.08, 0, 0.183] },
+    "old_faces": { "source": "old_faces-t4", "crop": [0, 0.04, 0, 0.223] },
+    "deserters_revenge": { "source": "deserters_revenge-t2", "crop": [0, 0.05, 0, 0.213] },
+    "collectors": { "source": "collectors-t3", "crop": [0, 0.1, 0, 0.163] },
+    "bad_map": { "source": "bad_map-t2", "crop": [0, 0.07, 0, 0.193] }
   }
 }

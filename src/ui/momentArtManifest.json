@@ -47,6 +47,18 @@
     "toll_bridge": { "v": "767aca44", "model": "gemini-3-pro-image" },
     "moneylender": { "v": "fce34609", "model": "gemini-3-pro-image" },
     "drill_yard": { "v": "59a65e9a", "model": "gemini-3-pro-image" },
-    "quiet_road": { "v": "452c3040", "model": "gemini-3-pro-image" }
+    "quiet_road": { "v": "452c3040", "model": "gemini-3-pro-image" },
+    "sunken_mine": { "v": "ff7be9d0", "model": "gemini-3-pro-image" },
+    "plague_village": { "v": "27a7eab6", "model": "gemini-3-pro-image" },
+    "merc_contract": { "v": "b76b6c65", "model": "gemini-3-pro-image" },
+    "cartographer": { "v": "f94fa515", "model": "gemini-3-pro-image" },
+    "chained_shelf": { "v": "3fe354bd", "model": "gemini-3-pro-image" },
+    "hollow_herald": { "v": "06f7ad50", "model": "gemini-3-pro-image" },
+    "wandering_smith": { "v": "a0a78476", "model": "gemini-3-pro-image" },
+    "turncoat": { "v": "45d876c9", "model": "gemini-3-pro-image" },
+    "old_faces": { "v": "6924efab", "model": "gemini-3-pro-image" },
+    "deserters_revenge": { "v": "2a89fc90", "model": "gemini-3-pro-image" },
+    "collectors": { "v": "35708ba0", "model": "gemini-3-pro-image" },
+    "bad_map": { "v": "50bfe325", "model": "gemini-3-pro-image" }
   }
 }
