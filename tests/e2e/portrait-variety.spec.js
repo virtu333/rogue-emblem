@@ -27,7 +27,9 @@ test('every unit on a battle map has its face; canvas faces load lazily', async 
     const b = window.__emblemRogueGame.scene.getScene('Battle');
     const { portraitIdForUnit, isVariantPortrait } = await import('/src/ui/portraitArt.js');
     const units = [...b.playerUnits, ...b.enemyUnits, ...(b.npcUnits || [])];
-    const generic = units.filter((u) => !u.isLord && !u.isBoss && !u.specialCharId);
+    // A caravan's Merchant is built outside the unit factories (CaravanSystem) and has no
+    // portrait variety: it is not one of the generic units this checks.
+    const generic = units.filter((u) => !u.isLord && !u.isBoss && !u.specialCharId && !u.isCaravan);
     const ids = units.map((u) => portraitIdForUnit(u, b.gameData));
     const variants = ids.filter((id) => isVariantPortrait(id));
     // Warmed forecast faces (40 px) for every variant on the field.
