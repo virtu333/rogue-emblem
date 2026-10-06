@@ -101,6 +101,7 @@ import { restorePendingThirdLord } from './PendingThirdLord.js';
 import { UNIT_PRESENTATION_FIELDS } from './BattleUnitState.js';
 import {
   RECRUIT_PREVIEW_VERSION,
+  isRecruitBattleNode,
   buildRecruitNodeUnit,
   ensureRecruitPreviews,
   resolveRecruitNodeSpawnClass,
@@ -2875,7 +2876,7 @@ export class RunManager {
   getPromisedRecruitNames({ excludeNodeId = null } = {}) {
     const promised = new Set();
     for (const node of Array.isArray(this.nodeMap?.nodes) ? this.nodeMap.nodes : []) {
-      if (node?.type !== 'recruit' || node.completed || node.id === excludeNodeId) continue;
+      if (!isRecruitBattleNode(node) || node.completed || node.id === excludeNodeId) continue;
       const names = [
         node.recruitPreview?.name,
         this.battleConfigsByNodeId?.[node.id]?.npcSpawn?.name,
@@ -3349,7 +3350,7 @@ export class RunManager {
    */
   getRecruitNodeSpawnClass(node, options = {}) {
     const preview = options.preview || node?.recruitPreview;
-    if (node?.type !== 'recruit' || !preview) return null;
+    if (!isRecruitBattleNode(node) || !preview) return null;
     return (
       resolveRecruitNodeSpawnClass({
         preview,
@@ -3369,7 +3370,7 @@ export class RunManager {
    */
   getRecruitNodeUnit(node, options = {}) {
     const preview = options.preview || node?.recruitPreview;
-    if (node?.type !== 'recruit' || !preview) return null;
+    if (!isRecruitBattleNode(node) || !preview) return null;
     return buildRecruitNodeUnit({
       preview,
       gameData: this.gameData,
@@ -3442,7 +3443,7 @@ export class RunManager {
     if (eclipseMods.phaseIndex > 0) battleParams.eclipsePhaseIndex = eclipseMods.phaseIndex;
     if (eclipseMods.affix) battleParams.eclipseAffix = eclipseMods.affix;
     // Recruit nodes are elite-like fights for a known recruit (strategy-layer spec).
-    if (node.type === 'recruit' && battleParams.isRecruitBattle) {
+    if (isRecruitBattleNode(node) && battleParams.isRecruitBattle) {
       const recruitMods = this.getRecruitNodeBattleMods(node);
       if (recruitMods.affixCount > 0) {
         const affix = battleParams.eclipseAffix || {
@@ -3565,7 +3566,7 @@ export class RunManager {
   _reconcileLockedRecruitTile(nodeId, cfg) {
     if (!cfg?.npcSpawn) return false;
     const node = this.nodeMap?.nodes?.find((n) => n.id === nodeId);
-    if (node?.type !== 'recruit') return false;
+    if (!isRecruitBattleNode(node)) return false;
     const preview = { className: cfg.npcSpawn.className, name: cfg.npcSpawn.name };
     const spawnClassName = this.getRecruitNodeSpawnClass(node, { preview });
     if (!spawnClassName) return false;

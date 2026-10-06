@@ -342,6 +342,9 @@
         "notBurden": {
           "type": "string"
         },
+        "notContract": {
+          "type": "boolean"
+        },
         "blessingTier": {
           "type": "integer",
           "minimum": 1,
@@ -551,7 +554,10 @@
             "counter",
             "join",
             "contract",
-            "routeEdit"
+            "routeEdit",
+            "forge",
+            "wear",
+            "mend"
           ]
         }
       },

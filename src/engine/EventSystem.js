@@ -31,6 +31,8 @@ import { eclipseHash, eclipsePhase, isEclipseActive } from './EclipseSystem.js';
 import { DIFFICULTY_IDS, isDifficultyAtLeast, difficultyRank } from './DifficultyEngine.js';
 import { isPrologueRun } from './ScriptedBattle.js';
 import { knowsSkill, benchedSkillsOf, ENEMY_ONLY_CLASS_NAMES } from './UnitManager.js';
+import { isWorn } from './WeaponWear.js';
+import { canForge, canForgeStat } from './ForgeSystem.js';
 import { unitUidOf } from './UnitIdentity.js';
 import { CONSUMABLE_MAX, INVENTORY_MAX, NODE_TYPES } from '../utils/constants.js';
 
@@ -56,6 +58,7 @@ export const REQUIRES_KEYS = Object.freeze([
   'blessingTier',
   'counterAtLeast',
   'flagAct',
+  'notContract',
 ]);
 
 /** The first page of every event (its top-level `intro` and `choices`). */
@@ -74,6 +77,8 @@ export const FILTER_KEYS = Object.freeze([
   'notFullHp',
   'living',
   'learnsFromFallen',
+  'wornWeapon',
+  'forgeableWeapon',
 ]);
 
 /** Keys of a `requires.roster` block. */
@@ -558,6 +563,9 @@ export function evaluateRequires(run, requires, ctx = {}) {
     } else if (key === 'notBurden') {
       if ((run?.burdens || []).some((b) => b?.id === need))
         return fail('Something already weighs on you.');
+    } else if (key === 'notContract') {
+      // A contract is open (Contracts.js): one at a time, so an event that offers one waits.
+      if (need === true && run?.contract) return fail('You are already bound by a contract.');
     } else if (key === 'blessingTier') {
       if (availableEventBlessings(run, need).length === 0)
         return fail('There is nothing left to give you.');
@@ -569,6 +577,15 @@ export function evaluateRequires(run, requires, ctx = {}) {
 }
 
 // ── The target filter ───────────────────────────────────────────────────
+
+/** The unit's equipped weapon when one more forge step can still be put on it, else null. */
+export function equippedForgeable(unit) {
+  const weapon = unit?.weapon;
+  if (!weapon || !canForge(weapon)) return null;
+  return ['might', 'crit', 'hit', 'weight'].some((stat) => canForgeStat(weapon, stat))
+    ? weapon
+    : null;
+}
 
 /** Default one-line reason a unit fails a filter. */
 function unitFilterReason(unit, filter, ctx) {
@@ -584,6 +601,9 @@ function unitFilterReason(unit, filter, ctx) {
     return 'Already at full health.';
   if (filter.learnsFromFallen && learnableFromFallen(ctx.run, ctx.fallen, unit).length === 0)
     return 'Nothing to learn from them.';
+  if (filter.wornWeapon && !(unit?.inventory || []).some(isWorn))
+    return 'Nothing they carry is worn.';
+  if (filter.forgeableWeapon && !equippedForgeable(unit)) return 'Their weapon cannot take more.';
   return '';
 }
 
@@ -617,10 +637,12 @@ export function armyHasRoomForItem(run) {
 
 /** True when any outcome (or fallback, or afterVictory) of the choice can grant an item. */
 export function choiceMayGrantItem(choice) {
+  // An accessory goes to the army's accessory pool, which has no room limit: it needs no room.
   const grants = (effects) =>
     (effects || []).some(
       (effect) =>
-        effect?.type === 'item' || (effect?.type === 'battle' && grants(effect.afterVictory)),
+        (effect?.type === 'item' && effect.pool?.kind !== 'accessory') ||
+        (effect?.type === 'battle' && grants(effect.afterVictory)),
     );
   if (grants(choice?.effects)) return true;
   return (choice?.outcomes || []).some(
