@@ -186,13 +186,17 @@ export class ShopMenu {
     this.selected = chosen?.item;
     const split = el('div', null, 'shop-split');
     const stock = el('div', null, 'shop-stock re-scroll');
+    // The prologue's Market and a caravan have no Restock: their lines never offer it.
+    const canRestock = this.controller.canReroll?.() !== false && !this.scene._currentShopIsCaravan;
     stock.setAttribute('aria-label', 'Shop items');
     if (!rows.length)
       stock.append(
         el(
           'p',
           this.scene.activeShopTab === 'buy'
-            ? 'Sold out. You can restock or leave.'
+            ? canRestock
+              ? 'Sold out. You can restock or leave.'
+              : 'Sold out.'
             : 'No eligible items.',
         ),
       );
@@ -205,7 +209,7 @@ export class ShopMenu {
       stock.append(
         el(
           'p',
-          `Nothing here is within ${this.run.gold} G. Sell, restock or leave.`,
+          `Nothing here is within ${this.run.gold} G. ${canRestock ? 'Sell, restock or leave.' : 'Sell or leave.'}`,
           'shop-reason shop-reason--gold',
         ),
       );
@@ -271,11 +275,7 @@ export class ShopMenu {
     status.setAttribute('role', 'status');
     status.setAttribute('aria-live', 'polite');
     const actions = el('div', null, 'shop-tools');
-    if (
-      this.scene.activeShopTab === 'buy' &&
-      this.controller.canReroll?.() !== false &&
-      !this.scene._currentShopIsCaravan
-    ) {
+    if (this.scene.activeShopTab === 'buy' && canRestock) {
       const cost = SHOP_REROLL_COST + this.scene.shopRerollCount * SHOP_REROLL_ESCALATION;
       const reroll = button(`Restock · ${cost} G`, () =>
         this.confirm(

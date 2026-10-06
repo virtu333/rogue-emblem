@@ -517,6 +517,27 @@ describe('Loom inspect card', () => {
     expect(card.text).toBeTruthy();
   });
 
+  it('a locked encounter says its map is set (never "locked" beside Travel); authored chapters say nothing', () => {
+    const node = {
+      id: 'n',
+      type: 'battle',
+      encounterLocked: true,
+      battleParams: { objective: 'rout', levelRange: [1, 1] },
+    };
+    const tag = describeLoomNode(node, { state: 'live' }).tags.find((t) => t.text === 'Map set');
+    expect(tag).toMatchObject({ tone: 'plain' });
+    expect(tag.detail).toBe('Leaving and coming back brings the same map and foes.');
+    const route = buildPrologueNodeMap(loadGameData().prologue);
+    for (const chapter of route.nodes.filter((n) => n.battleParams && n.encounterLocked)) {
+      const card = describeLoomNode(chapter, { state: 'live', dialogue });
+      expect(
+        card.tags.map((t) => t.text),
+        chapter.id,
+      ).not.toContain('Map set');
+    }
+    expect(route.nodes.some((n) => n.battleParams && n.encounterLocked)).toBe(true);
+  });
+
   it('never reveals the hidden battle of a village ambush', () => {
     const ambush = {
       id: 'act1_2_1',

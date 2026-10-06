@@ -2926,8 +2926,9 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** Turn / par / rating text read by both HUDs (the phone rail parses it). */
-  renderTurnCounter(turn = this.getCurrentTurnNumber?.() ?? 1) {
+  renderTurnCounter(turnArg) {
     if (!this.turnCounterText) return;
+    const turn = turnArg ?? this.getCurrentTurnNumber?.() ?? 1;
     const pressureSuffix = this.getTurnPressureSummary(turn);
     if (this.turnPar !== null && this.turnPar !== undefined) {
       const rating = getRating(turn, this.turnPar, this.turnBonusConfig);
@@ -7907,10 +7908,13 @@ export class BattleScene extends Phaser.Scene {
     return this._attackFlow().showForecast(attacker, defender, options);
   }
 
-  /** `acknowledge`: the player confirmed or cancelled, having read the forecast's rules. */
-  hideForecast({ acknowledge = false } = {}) {
+  /**
+   * `acknowledge`: the player confirmed or cancelled, having read the forecast's rules.
+   * `cancelled`: the player backed out of it (the forecast's Cancel, Esc, right-click).
+   */
+  hideForecast({ acknowledge = false, cancelled = false } = {}) {
     this._attackFlowController?.closeForecast({ acknowledge });
-    this._prologue?.onForecastClosed({ acknowledge });
+    this._prologue?.onForecastClosed({ acknowledge, cancelled });
     if (this._forecastOverlay) {
       this._forecastOverlay.destroy();
       this._forecastOverlay = null;

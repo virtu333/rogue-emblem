@@ -70,6 +70,12 @@ export function prologueCoachState(s) {
       anchor: null,
       canSkip: false,
     };
+  // A badly hurt ally a selected healer could mend: the heal goal holds through the
+  // move and the menu, never displaced by the generic Move / Attack advice.
+  const hurt = (s.units || []).find(
+    (u) => u.hp > 0 && u.hp <= u.maxHp * 0.5 && u.name !== s.selected,
+  );
+  const healerSelected = (s.units || []).some((u) => u.name === s.selected && u.healer);
   if (s.state === 'UNIT_ACTION_MENU' && s.selectionMenu)
     return {
       id: 'move-free',
@@ -83,6 +89,17 @@ export function prologueCoachState(s) {
     const menu = s.menu || [];
     const canAttack = menu.includes('Attack');
     const canHeal = menu.some((label) => /^Heal\b|^Staff\b/.test(label));
+    // The menu offers Item only to a unit that carries one: never point at a row it lacks.
+    const canItem = menu.includes('Item');
+    if (canHeal && hurt)
+      return {
+        id: 'act-heal',
+        chapter: 'fight',
+        goal: `Heal ${hurt.name}`,
+        detail: `Choose Heal, then ${hurt.name}. The staff works from here; attacking can wait.`,
+        anchor: { kind: 'hud', hud: 'actions' },
+        canSkip: false,
+      };
     return {
       id: canAttack ? 'act-attack' : canHeal ? 'act-heal' : 'act-wait',
       chapter: 'fight',
@@ -91,11 +108,22 @@ export function prologueCoachState(s) {
         ? 'Attack opens a forecast first — nothing happens until you confirm.'
         : canHeal
           ? `${s.selected || 'This unit'} can use a staff on a highlighted ally.`
-          : 'No enemy in reach. Wait ends this move; Item uses a Vulnerary.',
+          : canItem
+            ? 'No enemy in reach. Wait ends this move; Item uses what it carries.'
+            : 'No enemy in reach. Wait ends this move.',
       anchor: { kind: 'hud', hud: canAttack ? 'attack' : 'actions' },
       canSkip: false,
     };
   }
+  if (s.state === 'UNIT_SELECTED' && healerSelected && hurt)
+    return {
+      id: 'heal',
+      chapter: 'fight',
+      goal: `Heal ${hurt.name}`,
+      detail: `${tap} a blue tile next to ${hurt.name}, then choose Heal.`,
+      anchor: { kind: 'unit', name: hurt.name },
+      canSkip: false,
+    };
   if (s.state === 'UNIT_SELECTED')
     return {
       id: 'move-free',
@@ -179,7 +207,7 @@ export function prologueCoachState(s) {
       chapter,
       goal: s.enemies === 1 ? 'Advance on the last enemy' : 'Advance on the enemy',
       detail: waiting
-        ? `${foes.length === 1 ? `The ${nearest.name} holds its ground` : 'They hold their ground'} and won't come to you. No one can reach ${foes.length === 1 ? 'it' : 'them'} this turn: move closer, then End turn.${safety}`
+        ? `${foes.length === 1 ? `The ${nearest.name} holds its post` : 'They hold their posts'} until someone steps into ${foes.length === 1 ? 'its' : 'their'} red reach or strikes ${foes.length === 1 ? 'it' : 'them'}; then ${foes.length === 1 ? 'it comes' : 'they come'} for you. No one can reach ${foes.length === 1 ? 'it' : 'them'} this turn: close in together, then End turn.${safety}`
         : `No one can reach an enemy this turn. Move closer, or take cover and let them come: Danger shows their reach.${safety}`,
       anchor: nearest ? { kind: 'tile', col: nearest.col, row: nearest.row } : null,
       canSkip: false,

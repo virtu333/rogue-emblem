@@ -297,7 +297,13 @@ describe('the route map card', () => {
     const card = describeLoomNode(node, { state: 'current', actId: 'act1' });
     expect(card.kind).toBe('EVENT');
     expect(card.objective).toBeNull();
-    expect(card.tags).toEqual([{ text: 'Encounter locked', tone: 'plain' }]);
+    expect(card.tags).toEqual([
+      {
+        text: 'Map set',
+        tone: 'plain',
+        detail: 'Leaving and coming back brings the same map and foes.',
+      },
+    ]);
     // The owed spoils say so on the card of the won node.
     const owed = describeLoomNode(node, { state: 'done', actId: 'act1', shopOpen: true });
     expect(owed.stateLine.text).toBe('The fight is won · the spoils await');

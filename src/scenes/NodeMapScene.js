@@ -1780,9 +1780,10 @@ export class NodeMapScene extends Phaser.Scene {
         node.type === NODE_TYPES.BOSS ||
         node.type === NODE_TYPES.RECRUIT ||
         (node.type === NODE_TYPES.EVENT && node.eventBattle === true)) &&
-      node.encounterLocked
+      node.encounterLocked &&
+      !isPrologueRun(this.runManager)
     ) {
-      label += '\nEncounter Locked';
+      label += '\nMap set: same map and foes on return';
     }
     this.nodeTooltip = applyTextResolution(
       this.add.text(pos.x, pos.y - NODE_SIZE - 8, label, {
