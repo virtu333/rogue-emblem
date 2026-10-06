@@ -439,7 +439,12 @@ function canSeizeAtRow(actId, row, totalRows) {
  */
 function buildBattleParams(actId, type, row, totalRows, caravanChanceBonus = 0, villageMinRow = 0) {
   if (type === NODE_TYPES.BOSS) {
-    return { act: actId, objective: 'seize', row, battleSeed: rollBattleSeed() };
+    const params = { act: actId, objective: 'seize', row, battleSeed: rollBattleSeed() };
+    // The boss's escorts take the act's late-row range, not the raw pool range
+    // (the boss's own level comes from its definition).
+    const bossRange = ACT_LEVEL_SCALING[actId]?.default;
+    if (bossRange) params.levelRange = bossRange;
+    return params;
   }
   if (type === NODE_TYPES.SHOP || type === NODE_TYPES.CHURCH || type === NODE_TYPES.RUINS) {
     return null; // Non-combat nodes

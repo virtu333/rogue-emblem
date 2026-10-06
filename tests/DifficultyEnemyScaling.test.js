@@ -70,14 +70,14 @@ describe('boss level bonus', () => {
     }
   });
 
-  it('is +2 on Dusk only, and reaches the battle params', () => {
+  it('climbs with the rung (Dusk +2, Nightfall +3, Black Sun +4), and reaches the battle params', () => {
     const bonus = Object.fromEntries(
       ['normal', 'dusk', 'hard', 'lunatic'].map((id) => [
         id,
         resolveDifficultyMode(data.difficulty, id).modifiers.bossLevelBonus,
       ]),
     );
-    expect(bonus).toEqual({ normal: 0, dusk: 2, hard: 0, lunatic: 0 });
+    expect(bonus).toEqual({ normal: 0, dusk: 2, hard: 3, lunatic: 4 });
 
     const node = { id: 'n1', type: 'boss', battleParams: { act: 'act4', objective: 'seize' } };
     const dusk = new RunManager(data);
