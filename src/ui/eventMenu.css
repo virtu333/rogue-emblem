@@ -87,7 +87,7 @@
   }
   .ev-head > .ev-hero {
     align-self: end;
-    z-index: 1;
+    position: relative; /* painted after the band, so above it */
     padding: 0 16px 12px;
     border-bottom: 0;
     pointer-events: none;

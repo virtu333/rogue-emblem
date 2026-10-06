@@ -35,7 +35,10 @@ async function open(size, eventId) {
       (({ defaultBrowserType, ...d }) => ({
         ...d,
         viewport: size.viewport,
-        screen: { width: Math.min(size.viewport.width, size.viewport.height), height: Math.max(size.viewport.width, size.viewport.height) },
+        screen: {
+          width: Math.min(size.viewport.width, size.viewport.height),
+          height: Math.max(size.viewport.width, size.viewport.height),
+        },
       }))(devices['iPhone 13'])
     : { viewport: size.viewport };
   const context = await browser.newContext({ ...phone, deviceScaleFactor: 2 });
@@ -103,11 +106,13 @@ for (const size of SIZES) {
       .click();
     await page.getByRole('button', { name: 'Travel', exact: true }).click();
     await page.locator('.ev-menu .ev-title').waitFor({ state: 'visible' });
-    await page.waitForFunction(
-      () => document.querySelector('.ev-band')?.classList.contains('has-art') ?? false,
-      null,
-      { timeout: 8000 },
-    ).catch(() => {});
+    await page
+      .waitForFunction(
+        () => document.querySelector('.ev-band')?.classList.contains('has-art') ?? false,
+        null,
+        { timeout: 8000 },
+      )
+      .catch(() => {});
     await page.waitForTimeout(700);
     await page.screenshot({ path: path.join(out, `event-${id}-${size.name}.png`) });
     await context.close();

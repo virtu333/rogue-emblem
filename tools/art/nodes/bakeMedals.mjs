@@ -118,7 +118,12 @@ for (const m of medals) {
   tiles.push({ input: tile, left: left + (m.key === 'dark' ? FRAME : 0), top });
 }
 const sheet = await sharp({
-  create: { width: FRAME * 2, height: FRAME, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+  create: {
+    width: FRAME * 2,
+    height: FRAME,
+    channels: 4,
+    background: { r: 0, g: 0, b: 0, alpha: 0 },
+  },
 })
   .composite(tiles)
   .png({ palette: true, colours: 96, effort: 10, dither: 0 })
@@ -150,14 +155,29 @@ if (process.argv.includes('--preview')) {
     create: { width: 3 * FRAME * 2, height: FRAME * 2, channels: 4, background: '#16131e' },
   })
     .composite([
-      { input: await sharp(ruins).resize(FRAME * 2).png().toBuffer(), left: 0, top: 0 },
       {
-        input: await sharp(sheet).extract({ left: 0, top: 0, width: FRAME, height: FRAME }).resize(FRAME * 2, FRAME * 2, { kernel: 'nearest' }).png().toBuffer(),
+        input: await sharp(ruins)
+          .resize(FRAME * 2)
+          .png()
+          .toBuffer(),
+        left: 0,
+        top: 0,
+      },
+      {
+        input: await sharp(sheet)
+          .extract({ left: 0, top: 0, width: FRAME, height: FRAME })
+          .resize(FRAME * 2, FRAME * 2, { kernel: 'nearest' })
+          .png()
+          .toBuffer(),
         left: FRAME * 2,
         top: 0,
       },
       {
-        input: await sharp(sheet).extract({ left: FRAME, top: 0, width: FRAME, height: FRAME }).resize(FRAME * 2, FRAME * 2, { kernel: 'nearest' }).png().toBuffer(),
+        input: await sharp(sheet)
+          .extract({ left: FRAME, top: 0, width: FRAME, height: FRAME })
+          .resize(FRAME * 2, FRAME * 2, { kernel: 'nearest' })
+          .png()
+          .toBuffer(),
         left: FRAME * 4,
         top: 0,
       },
