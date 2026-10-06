@@ -416,6 +416,80 @@ for (const size of SIZES) {
       await page.screenshot({ path: info.outputPath('omen-page.png') });
     });
 
+    // The shipped events (data/events.json, 2D) on the same page: their pages, tells and records.
+    test('the Sunken Mine: torches, a Thief\'s tell on "Feel your way out", a step and its trail', async ({
+      page,
+    }, info) => {
+      const errors = collectErrors(page);
+      await bootEvent(page, query('seed=4&act=2&units=Thief&event=sunken_mine'), { tap });
+      await enterNode(page, 'Event', { tap });
+      const dialog = page.getByRole('dialog', { name: 'The Sunken Mine', exact: true });
+      await expect(dialog).toBeVisible();
+      await expect(dialog.locator('.ev-counter')).toContainText('Torches 3/3');
+      // The tell stands under the one choice it speaks to, in the Thief's voice.
+      const blind = dialog
+        .locator('.ev-choice-row')
+        .filter({ has: page.locator('[data-choice="blind"]') });
+      await expect(blind.locator('.ev-tell')).toContainText(
+        "This tunnel breathes. There's a way out.",
+      );
+      await expect(dialog.locator('.ev-tell')).toHaveCount(1);
+      await expectFits(page, '.ev-menu');
+      await page.screenshot({ path: info.outputPath('real-mine-1.png') });
+      await chooseThrough(page, dialog, /^Go deeper/, { tap });
+      await expect(dialog.locator('.ev-recent')).toContainText('You chose: Go deeper');
+      await expect(
+        dialog.locator('.ev-recent .ev-result[data-kind="counter"]').first(),
+      ).toContainText('Torches −1');
+      await expectFits(page, '.ev-menu');
+      await page.screenshot({ path: info.outputPath('real-mine-2.png') });
+      await chooseThrough(page, dialog, /^Take the chest and climb out/, { tap });
+      await expect(dialog.locator('.ev-trail-toggle')).toContainText('1 step');
+      await expect(dialog.locator('.ev-result[data-kind="gold"]')).toBeVisible();
+      await expectFits(page, '.ev-menu');
+      await page.screenshot({ path: info.outputPath('real-mine-outcome.png') });
+      expect(errors).toEqual([]);
+    });
+
+    test('the Plague Village: three doses, a trail, and someone who joins', async ({
+      page,
+    }, info) => {
+      await bootEvent(page, query('seed=1&event=plague_village'), { tap });
+      const before = (await savedEvent(page)).roster;
+      await enterNode(page, 'Event', { tap });
+      const dialog = page.getByRole('dialog', { name: 'The Plague Village', exact: true });
+      await expect(dialog).toBeVisible();
+      await chooseThrough(page, dialog, /^Give your medicine/, { tap });
+      await expect(dialog.locator('.ev-recent .ev-result[data-kind="consume"]')).toContainText(
+        'Vulnerary',
+      );
+      await chooseThrough(page, dialog, /^Give a second dose/, { tap });
+      await expect(dialog.locator('.ev-trail-toggle')).toContainText('1 step');
+      await expectFits(page, '.ev-menu');
+      await page.screenshot({ path: info.outputPath('real-plague-3.png') });
+      await chooseThrough(page, dialog, /^Give the last dose/, { tap });
+      const line = dialog.locator('.ev-result[data-kind="join"]');
+      await expect(line).toContainText('joins the army');
+      await expect(dialog.locator('.ev-trail-toggle')).toContainText('2 steps');
+      expect((await savedEvent(page)).roster).toHaveLength(before.length + 1);
+      await expectFits(page, '.ev-menu');
+      await page.screenshot({ path: info.outputPath('real-plague-outcome.png') });
+    });
+
+    test('the Cartographer: a greyed guide says why, and the other choices stay open', async ({
+      page,
+    }, info) => {
+      await bootEvent(page, query('seed=1&event=cartographer'), { tap });
+      await enterNode(page, 'Event', { tap });
+      const dialog = page.getByRole('dialog', { name: 'The Cartographer', exact: true });
+      const guide = dialog.getByRole('button', { name: /^Hire her as a guide/ });
+      await expect(guide).toBeDisabled();
+      await expect(guide).toContainText('She walks the road a while and finds no road to add.');
+      await expect(dialog.getByRole('button', { name: /^Ask about the road ahead/ })).toBeEnabled();
+      await expectFits(page, '.ev-menu');
+      await page.screenshot({ path: info.outputPath('real-cartographer.png') });
+    });
+
     test('the colosseum says how many bouts are left on every screen that costs a fee', async ({
       page,
     }, info) => {

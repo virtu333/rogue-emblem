@@ -9,6 +9,7 @@
 // says a fight is owed, and a story flag is the story's own memory.
 
 import { wearDisplay } from '../engine/WeaponWear.js';
+import { FORGE_BONUSES } from '../utils/constants.js';
 import { describeBurdens } from '../engine/Burdens.js';
 import { describeContract } from '../engine/Contracts.js';
 
@@ -30,6 +31,9 @@ export const RESULT_CHIPS = Object.freeze({
   join: 'JOIN',
   contract: 'CONTRACT',
   route: 'ROAD',
+  forge: 'FORGE',
+  wear: 'WEAR',
+  mend: 'MEND',
 });
 
 const MINUS = '−';
@@ -127,7 +131,14 @@ function shadowLine(record) {
 }
 
 function itemLine(record) {
-  const where = record.toConvoy ? ' sent to the convoy' : record.unit ? ` to ${record.unit}` : '';
+  // An accessory goes to the army's pool (no one carries it until it is equipped from the Roster).
+  const where = record.pooled
+    ? ' to the accessory pool'
+    : record.toConvoy
+      ? ' sent to the convoy'
+      : record.unit
+        ? ` to ${record.unit}`
+        : '';
   const worn = wornText(record.worn);
   return {
     tone: 'good',
@@ -150,6 +161,73 @@ function skillLine(record, gameData) {
     text: `${record.unit} learned ${name}`,
     ...(detail ? { detail } : {}),
   };
+}
+
+const FORGE_WORDS = Object.freeze({ might: 'Might', crit: 'Crit', hit: 'Hit', weight: 'Wt' });
+
+/** One forge step in words: "+1 Might", "+5 Crit", "−1 Wt" (the sizes are FORGE_BONUSES). */
+function forgeEffect(stat) {
+  const bonus = Number(FORGE_BONUSES[stat]);
+  const word = FORGE_WORDS[stat] || String(stat || '');
+  return Number.isFinite(bonus) ? `${signed(bonus)} ${word}` : word;
+}
+
+function forgeLine(record) {
+  return {
+    tone: 'good',
+    text: `${record.unit}'s ${record.weapon} is forged`,
+    detail: [
+      forgeEffect(record.stat),
+      record.name && record.name !== record.weapon ? `now ${record.name}` : '',
+    ]
+      .filter(Boolean)
+      .join(' · '),
+  };
+}
+
+function wearLine(record) {
+  const worn = wornText([record.stat]);
+  return {
+    tone: 'bad',
+    text: `${record.unit}'s ${record.weapon} is worn`,
+    detail: [worn, record.name && record.name !== record.weapon ? `now ${record.name}` : '']
+      .filter(Boolean)
+      .join(' · '),
+  };
+}
+
+function mendLine(record) {
+  const steps = Math.max(0, num(record.steps));
+  const weapons = Array.isArray(record.weapons) ? record.weapons : [];
+  return {
+    tone: 'good',
+    text: `${record.unit}'s ${weapons.length === 1 ? 'weapon is' : 'weapons are'} mended`,
+    detail: [
+      `${steps} ${plural(steps, 'wear step')} repaired`,
+      ...weapons.map((w) => (w.to && w.to !== w.from ? `${w.from} → ${w.to}` : w.from)),
+    ]
+      .filter(Boolean)
+      .join(' · '),
+  };
+}
+
+/**
+ * What a battle record says on the Fight page, as plain sentences (the record itself is
+ * bookkeeping and draws no result line): an elite fight, a recruit to be talked into joining.
+ * @param {object[]} results
+ * @returns {string[]}
+ */
+export function eventBattleNotes(results) {
+  const notes = [];
+  for (const record of Array.isArray(results) ? results : []) {
+    if (record?.kind !== 'battle') continue;
+    if (record.elite === true) notes.push('An elite fight: harder foes, better spoils.');
+    if (record.recruit && typeof record.recruit === 'object') {
+      const who = record.recruit.name || `A ${record.recruit.className || 'stranger'}`;
+      notes.push(`${who} fights among them. Reach them with a lord and Talk to bring them in.`);
+    }
+  }
+  return notes;
 }
 
 function counterLine(record) {
@@ -263,6 +341,15 @@ export function eventResultLines(results, { gameData = null } = {}) {
         break;
       case 'burden':
         line = burdenLine(record);
+        break;
+      case 'forge':
+        line = forgeLine(record);
+        break;
+      case 'wear':
+        line = wearLine(record);
+        break;
+      case 'mend':
+        line = mendLine(record);
         break;
       case 'counter':
         line = counterLine(record);

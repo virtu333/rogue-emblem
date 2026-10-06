@@ -334,6 +334,10 @@ function createRunPreset(gameData, meta, config) {
  * 1000 gold, so costed choices are open. Review/QA only: a real run never reads this.
  */
 function applyEventPreset(runManager, config) {
+  // `&act=2`: the review starts in a later act (the new act's map), for the events that wait there.
+  for (let act = 1; act < (config.eventAct || 1); act++) {
+    if (runManager.actIndex < runManager.actSequence.length - 1) runManager.advanceAct();
+  }
   const nodes = runManager.nodeMap?.nodes || [];
   const byId = new Map(nodes.map((node) => [node.id, node]));
   const convertible = new Set([NODE_TYPES.BATTLE, NODE_TYPES.SHOP, NODE_TYPES.CHURCH]);
@@ -594,6 +598,9 @@ export function parseDevStartupConfig(search, options = {}) {
     ...(params.get('event') ? { event: params.get('event') } : {}),
     // Event review extras (applyEventPreset): the node's kind, the burdens and contract the run
     // carries, a Dark Omen, and roster additions.
+    ...(parsePositiveInt(params.get('act'))
+      ? { eventAct: parsePositiveInt(params.get('act')) }
+      : {}),
     ...(params.get('as') ? { eventNodeAs: params.get('as') } : {}),
     ...(params.get('burdens') ? { burdens: params.get('burdens') } : {}),
     ...(params.get('contract') ? { contract: params.get('contract') } : {}),

@@ -636,6 +636,15 @@ outcome" page test counts a line per record and so covers the new kinds; `tests/
 also draws **every page of every shipped event** (the first, the later ones, the dark face's) and takes
 every open choice through the page, so 2D's content is held to the same bar the day it lands.
 
+**2D's records, once merged.** `forge` (FORGE: "Hale's Iron Sword is forged", "+1 Might · now Iron Sword +1";
+the sizes are `FORGE_BONUSES`), `wear` (WEAR, in the wear words of `WeaponWear`: "Dulled −1 Might"), `mend` (MEND:
+"Hale's weapons are mended", the steps repaired and each `from → to`), and an `item` with `pooled: true` ("Seraph
+Robe to the accessory pool"). A `battle` record is still no result line; its `elite` and `recruit` are said on the
+Fight page as notes under "There is no way around this fight." (`eventBattleNotes`: "An elite fight: harder foes,
+better spoils."; "Ada fights among them. Reach them with a lord and Talk to bring them in."). A greyed choice with
+a custom reason (the Cartographer's guide) reads under its hint in the warm colour at every viewport (e2e,
+all five).
+
 **A route edit on the route map.** The engine has already changed the map when the page is shown; the
 route map says so when the page closes. `EventController.noteRouteChange` (on each commit)
 -> `NodeMapMenu.noteRouteChange({ nodeIds, text })` -> on the next draw (never while the event page is
@@ -677,7 +686,7 @@ Swallowed road to wear frame 10 now expects 7.
 
 **Review route** (`utils/devStartup.js`, dev and previews only). Beside `?devScene=nodemap&preset=event&seed=N&event=<id>`:
 `&as=church|colosseum` (the party's next node is that service), `&burdens=ill_omen:2,debt:450,hunted,sworn_enemy,wounded`,
-`&contract=underPar|noLosses`, `&omen=1` (the event node is a Dark Omen), `&units=Thief,Mage` and the **review
+`&contract=underPar|noLosses`, `&omen=1` (the event node is a Dark Omen), `&act=2` (the review starts in that act, for the events that wait there), `&units=Thief,Mage` and the **review
 fixtures** `event=dev_mine|dev_contract|dev_roads|dev_join|dev_stress` (`utils/devEventFixtures.js`: a three-page
 mine with torches and a Thief's tell, two contracts, the two route edits with their fallbacks, a join, and the
 longest strings the page must hold). Nothing here is game data.
@@ -693,7 +702,9 @@ contract and burden parts, for this node only), and browser specs: `tests/e2e/ev
 with a refresh in the middle, a contract from the choice to the chip, the pause list and the victory band's
 line on a won battle, a new road and a redrawn place with their ring, a join, Cleanse lifting a burden and
 committing the vow, a Dark Omen's medal and page next to a genuine Swallowed road, and the arena's bouts on
-every fee screen. Screenshots at all five viewports were reviewed during the build and are not kept.
+every fee screen. The shipped events are played too (`&act=2&units=Thief&event=sunken_mine` for the torches, the Thief's tell and a
+step with its trail; `plague_village` through three doses to a join; `cartographer` with its guide greyed). Screenshots
+at all five viewports were reviewed during the build and are not kept.
 
 **Open questions.** (1) The contract is on the route map, the pause list and the band but not on the
 battle HUD: a small "Contract: under par" line by the turn counter would help a player racing par; it is a

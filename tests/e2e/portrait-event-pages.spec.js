@@ -167,6 +167,36 @@ for (const viewport of PORTRAIT_PHONES.slice(0, 2)) {
       await page.screenshot({ path: info.outputPath('omen-page.png') });
     });
 
+    test('the shipped Plague Village and Cartographer: trail, a join, a greyed choice with its reason', async ({
+      page,
+    }, info) => {
+      await boot(page, 'seed=1&event=plague_village');
+      await expectPortraitUi(page);
+      await enter(page);
+      const dialog = page.getByRole('dialog', { name: 'The Plague Village', exact: true });
+      await chooseThrough(page, dialog, /^Give your medicine/, { tap: true });
+      await chooseThrough(page, dialog, /^Give a second dose/, { tap: true });
+      await chooseThrough(page, dialog, /^Give the last dose/, { tap: true });
+      await expect(dialog.locator('.ev-result[data-kind="join"]')).toContainText('joins the army');
+      await expectNoSidewaysScroll(page, '.ev-menu');
+      expect(await clippedText(page, '.ev-menu')).toEqual([]);
+      await expectTappable(dialog.locator('.ev-primary'));
+      await page.screenshot({ path: info.outputPath('real-plague.png') });
+    });
+
+    test('a greyed Cartographer choice reads whole at this width', async ({ page }, info) => {
+      await boot(page, 'seed=1&event=cartographer');
+      await expectPortraitUi(page);
+      await enter(page);
+      const dialog = page.getByRole('dialog', { name: 'The Cartographer', exact: true });
+      const guide = dialog.getByRole('button', { name: /^Hire her as a guide/ });
+      await expect(guide).toBeDisabled();
+      await expect(guide).toContainText('finds no road to add.');
+      await expectNoSidewaysScroll(page, '.ev-menu');
+      expect(await clippedText(page, '.ev-menu')).toEqual([]);
+      await page.screenshot({ path: info.outputPath('real-cartographer.png') });
+    });
+
     test('the arena says the bouts left, on one line, on the menu', async ({ page }, info) => {
       await boot(page, 'seed=7&as=colosseum');
       await expectPortraitUi(page);

@@ -25,6 +25,7 @@ import { describeContract } from '../src/engine/Contracts.js';
 import { addBurden } from '../src/engine/Burdens.js';
 import {
   contractChipModel,
+  eventBattleNotes,
   eventChosenLine,
   eventCounterModel,
   eventResultLines,
@@ -171,6 +172,93 @@ describe('result lines of the new kinds', () => {
     expect(sworn.detail).toBe(
       'The boss has sworn to end you. The act boss carries an extra affix until it falls.',
     );
+  });
+
+  it('a forge, a wear and a mend say whose weapon, what changed and by how much', () => {
+    const forged = only({
+      kind: 'forge',
+      unit: 'Hale',
+      weapon: 'Iron Sword',
+      name: 'Iron Sword +1',
+      stat: 'might',
+    });
+    expect(forged).toMatchObject({
+      chip: 'FORGE',
+      tone: 'good',
+      text: "Hale's Iron Sword is forged",
+      detail: '+1 Might · now Iron Sword +1',
+    });
+    expect(
+      only({
+        kind: 'forge',
+        unit: 'Hale',
+        weapon: 'Iron Lance',
+        name: 'Iron Lance +1',
+        stat: 'weight',
+      }).detail,
+    ).toBe('−1 Wt · now Iron Lance +1');
+    expect(
+      only({ kind: 'forge', unit: 'Hale', weapon: 'Bow', name: 'Bow', stat: 'crit' }).detail,
+    ).toBe('+5 Crit');
+    const worn = only({
+      kind: 'wear',
+      unit: 'Hale',
+      weapon: 'Iron Sword',
+      name: 'Iron Sword -1',
+      stat: 'might',
+    });
+    expect(worn).toMatchObject({ chip: 'WEAR', tone: 'bad', text: "Hale's Iron Sword is worn" });
+    expect(worn.detail).toMatch(/Dulled/);
+    expect(worn.detail).toContain('now Iron Sword -1');
+    const mended = only({
+      kind: 'mend',
+      unit: 'Hale',
+      steps: 3,
+      weapons: [
+        { from: 'Iron Sword -2', to: 'Iron Sword', steps: 2 },
+        { from: 'Bow -1', to: 'Bow', steps: 1 },
+      ],
+    });
+    expect(mended).toMatchObject({ chip: 'MEND', tone: 'good', text: "Hale's weapons are mended" });
+    expect(mended.detail).toBe('3 wear steps repaired · Iron Sword -2 → Iron Sword · Bow -1 → Bow');
+    expect(
+      only({
+        kind: 'mend',
+        unit: 'Hale',
+        steps: 1,
+        weapons: [{ from: 'Bow -1', to: 'Bow', steps: 1 }],
+      }).text,
+    ).toBe("Hale's weapon is mended");
+  });
+
+  it('an accessory goes to the pool, not to a unit or the convoy', () => {
+    const line = only({
+      kind: 'item',
+      name: 'Seraph Robe',
+      pooled: true,
+      unit: null,
+      toConvoy: false,
+      worn: [],
+    });
+    expect(line.text).toBe('Seraph Robe to the accessory pool');
+    expect(only({ kind: 'item', name: 'Iron Sword', unit: 'Hale', worn: [] }).text).toBe(
+      'Iron Sword to Hale',
+    );
+  });
+
+  it('a fight that is elite or has a recruit says so on the Fight page, never as a result line', () => {
+    expect(eventBattleNotes([{ kind: 'battle', enemyLevelBonus: 1 }])).toEqual([]);
+    expect(eventBattleNotes([{ kind: 'battle', elite: true }])).toEqual([
+      'An elite fight: harder foes, better spoils.',
+    ]);
+    expect(
+      eventBattleNotes([{ kind: 'battle', recruit: { className: 'Fighter', name: 'Ada' } }]),
+    ).toEqual(['Ada fights among them. Reach them with a lord and Talk to bring them in.']);
+    expect(eventBattleNotes([{ kind: 'battle', recruit: { className: 'Fighter' } }])[0]).toMatch(
+      /^A Fighter fights/,
+    );
+    expect(eventBattleNotes(undefined)).toEqual([]);
+    expect(eventResultLines([{ kind: 'battle', elite: true }])).toEqual([]);
   });
 
   it('bookkeeping still draws no line, and an unknown kind never draws a blank chip', () => {

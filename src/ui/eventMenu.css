@@ -385,6 +385,14 @@
   color: var(--re-parchment);
   overflow-wrap: anywhere;
 }
+.ev-menu .ev-fightnote {
+  margin: 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--re-warn);
+  font: var(--re-t-small);
+  color: var(--re-parchment-dim);
+  overflow-wrap: anywhere;
+}
 .ev-menu .ev-owed {
   margin: 0;
   color: var(--re-warn);

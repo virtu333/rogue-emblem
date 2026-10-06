@@ -33,6 +33,7 @@ import { chooseEventOption, eventTargets, eventView } from '../engine/EventComma
 import { findRosterUnit } from '../engine/EventSystem.js';
 import {
   PAGE_MOVED_ON_LINE,
+  eventBattleNotes,
   eventChosenLine,
   eventCloseLabel,
   eventConfirmLabel,
@@ -401,6 +402,8 @@ export class EventMenu {
     actions.append(button('Roster', () => this.roster(), 're-btn ev-roster'));
     if (view.canFight) {
       body.append(el('p', 'There is no way around this fight.', 'ev-owed'));
+      for (const note of eventBattleNotes(outcome?.results))
+        body.append(el('p', note, 'ev-fightnote'));
       this.primary = button('Fight', () => this.c.fight(), 're-btn re-btn--primary ev-primary');
     } else if (view.canLeave) {
       this.primary = button(
