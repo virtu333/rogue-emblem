@@ -2,7 +2,7 @@
 // No Phaser deps. Follows MapGenerator.js pattern.
 // Uses a fixed column-lane system (like Slay the Spire) to prevent edge crossings.
 
-import { NODE_TYPES, FOG_CHANCE_BY_ACT } from '../utils/constants.js';
+import { NODE_TYPES, FOG_CHANCE_BY_ACT, NODE_TYPE_WEIGHTS } from '../utils/constants.js';
 import { rollBiome, getTemplateBiome } from './MapGenerator.js';
 import { rollCaravanSpawn, templateAllowsCaravan } from './CaravanSystem.js';
 import { rollVillageSpawn } from './VillageSystem.js';
@@ -36,6 +36,15 @@ const ACT_LEVEL_SCALING = {
  *   difficulty.json `villageMinRow` (act id -> first row that may hold a village)
  * @returns {{ actId, nodes: Array, startNodeId, bossNodeId }}
  */
+// What a conflicting non-combat node becomes before it falls back to a battle (the
+// service-streak repair): a shop tries a church then an event, and so on.
+const NON_COMBAT_ALTERNATIVES = Object.freeze({
+  [NODE_TYPES.SHOP]: [NODE_TYPES.CHURCH, NODE_TYPES.EVENT],
+  [NODE_TYPES.CHURCH]: [NODE_TYPES.SHOP, NODE_TYPES.EVENT],
+  [NODE_TYPES.EVENT]: [NODE_TYPES.SHOP, NODE_TYPES.CHURCH],
+  [NODE_TYPES.COLOSSEUM]: [NODE_TYPES.SHOP, NODE_TYPES.CHURCH],
+});
+
 export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
   const fogChanceBonus = Number.isFinite(options.fogChanceBonus) ? options.fogChanceBonus : 0;
   const halfFogChance = options.halfFogChance === true;
@@ -214,7 +223,14 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
 
   // Repair service pacing after recruit/arena placement, before ambush rolls.
   // Never alter edges, recruit guarantees, the opening, or the pre-boss rest.
-  const serviceTypes = new Set([NODE_TYPES.SHOP, NODE_TYPES.CHURCH, NODE_TYPES.COLOSSEUM]);
+  // An event counts as a non-combat node here: no more than two in a row on a path, and
+  // no event beside or above another event (a conflicting event becomes a battle).
+  const serviceTypes = new Set([
+    NODE_TYPES.SHOP,
+    NODE_TYPES.CHURCH,
+    NODE_TYPES.COLOSSEUM,
+    NODE_TYPES.EVENT,
+  ]);
   const serviceStreak = new Map();
   const processed = new Set();
   for (const node of nodes) {
@@ -230,8 +246,13 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
             ),
         );
       if (priorStreak >= 2 || conflicts(node.type)) {
-        const alternative = node.type === NODE_TYPES.SHOP ? NODE_TYPES.CHURCH : NODE_TYPES.SHOP;
-        node.type = priorStreak < 2 && !conflicts(alternative) ? alternative : NODE_TYPES.BATTLE;
+        // Another non-combat node first (a shop, church or event that does not conflict
+        // here), a battle only when none fits or the streak is full.
+        const alternative =
+          priorStreak < 2
+            ? (NON_COMBAT_ALTERNATIVES[node.type] || []).find((type) => !conflicts(type))
+            : null;
+        node.type = alternative || NODE_TYPES.BATTLE;
         node.battleParams = buildBattleParams(
           actId,
           node.type,
@@ -389,23 +410,21 @@ function pickColumnsWithCoverage(desiredCount, prevCols) {
 /**
  * Pick node type based on row position and act.
  * Row 0 = battle (opening), last row = boss, row 1 = battle (no church/shop yet).
- * Act 1: 70% battle, 20% shop, 10% church (fewer distractions early).
- * Acts 2+: 60% battle, 25% shop, 15% church.
+ * Mixed rows (2..rows-3) take ONE Math.random() draw against the cumulative
+ * thresholds in NODE_TYPE_WEIGHTS (act 1: 56% battle, 16% shop, 8% church, 20% event;
+ * acts 2+: 50/21/12.5/16.5). An extra draw would shift every later draw of the stream.
  */
-function pickNodeType(row, totalRows, actId) {
+export function pickNodeType(row, totalRows, actId) {
   if (row === totalRows - 1) return NODE_TYPES.BOSS;
   if (row === totalRows - 2) return NODE_TYPES.RUINS;
   if (row === 0) return NODE_TYPES.BATTLE;
   if (row === 1) return NODE_TYPES.BATTLE; // no non-combat nodes row 1
   const roll = Math.random();
-  if (actId === 'act1') {
-    if (roll < 0.7) return NODE_TYPES.BATTLE;
-    if (roll < 0.9) return NODE_TYPES.SHOP;
-    return NODE_TYPES.CHURCH;
-  }
-  if (roll < 0.6) return NODE_TYPES.BATTLE;
-  if (roll < 0.85) return NODE_TYPES.SHOP;
-  return NODE_TYPES.CHURCH;
+  const w = NODE_TYPE_WEIGHTS[actId] || NODE_TYPE_WEIGHTS.default;
+  if (roll < w.battle) return NODE_TYPES.BATTLE;
+  if (roll < w.shop) return NODE_TYPES.SHOP;
+  if (roll < w.church) return NODE_TYPES.CHURCH;
+  return NODE_TYPES.EVENT;
 }
 
 /**
@@ -446,8 +465,14 @@ function buildBattleParams(actId, type, row, totalRows, caravanChanceBonus = 0, 
     if (bossRange) params.levelRange = bossRange;
     return params;
   }
-  if (type === NODE_TYPES.SHOP || type === NODE_TYPES.CHURCH || type === NODE_TYPES.RUINS) {
-    return null; // Non-combat nodes
+  if (
+    type === NODE_TYPES.SHOP ||
+    type === NODE_TYPES.CHURCH ||
+    type === NODE_TYPES.RUINS ||
+    type === NODE_TYPES.EVENT
+  ) {
+    // Non-combat nodes. An event has no battle params until a choice starts a battle.
+    return null;
   }
 
   let params;

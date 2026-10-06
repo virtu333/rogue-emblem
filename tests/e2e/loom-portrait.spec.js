@@ -112,10 +112,12 @@ function expectVertical(g) {
 }
 
 // Whether a whole act fits above the sheet depends on the header's height (the act
-// title may take a line of its own): a tall phone fits it, a short one scrolls, and in
-// between either is right as long as the loom says which it is doing.
+// title may take a line of its own) and the act's rows: a short phone scrolls, and in
+// between either is right as long as the loom says which it is doing. Since acts 2-4
+// grew to 10 rows (docs/specs/event-nodes.md §1) a whole act no longer fits even at
+// 430x932 (rows keep a medal and a label's height), so the tallest phone scrolls a little.
 for (const { fit, ...viewport } of [
-  { width: 430, height: 932, fit: 'fits' },
+  { width: 430, height: 932, fit: 'either' },
   { width: 390, height: 844, fit: 'either' },
   { width: 375, height: 667, fit: 'scrolls' },
 ]) {
@@ -344,7 +346,7 @@ test('the read-only Campaign Map turns upright too', async ({ page }) => {
 //   6. a lord row does not open the roster on that lord;
 //   7. the Eclipse's fall line covers the header or the sheet;
 //   8. the Campaign Map's Close leaves the title's row, or its subline overlaps itself
-//      or cuts "ROW 2 OF 9";
+//      or cuts "ROW 2 OF 10";
 //   9. the ruins' chosen line or "Return to ruins" does not fit;
 //  10. any of it moves a box on a landscape phone or a desktop.
 
@@ -771,7 +773,7 @@ test.describe('upright 375x667: the Eclipse, the Campaign Map and the ruins', ()
     expect(closeBox.y, 'Close sits on the title row').toBeLessThan(title.bottom);
     expect(closeBox.x).toBeGreaterThanOrEqual(title.right);
     await expect(map.locator('.re-loom-sub')).toHaveText(
-      'CAMPAIGN MAP · OCCUPIED TERRITORY · ROW 2 OF 9',
+      'CAMPAIGN MAP · OCCUPIED TERRITORY · ROW 2 OF 10',
     );
     await expectSingleLine(map.locator('.re-loom-sub-part'));
     const parts = await map

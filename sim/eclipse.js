@@ -15,6 +15,8 @@ import { generateBattle } from '../src/engine/MapGenerator.js';
 import { calculatePar } from '../src/engine/TurnBonusCalculator.js';
 import { createSeededRng } from '../src/engine/BlessingEngine.js';
 import { eclipsePhase } from '../src/engine/EclipseSystem.js';
+import { arriveAtEvent, chooseEventOption, leaveEvent } from '../src/engine/EventCommands.js';
+import { chooseEventPlan } from '../tests/sim/RunPolicies.js';
 import { loadGameData } from '../tests/testData.js';
 
 const args = process.argv.slice(2);
@@ -31,7 +33,7 @@ const PROFILES = [
   ['B', 2],
   ['C', 5],
 ];
-const SERVICES = new Set(['shop', 'church', 'recruit', 'colosseum']);
+const SERVICES = new Set(['shop', 'church', 'recruit', 'colosseum', 'event']);
 
 function gameData() {
   const data = loadGameData();
@@ -81,6 +83,22 @@ function reachableAhead(rm) {
   return seen;
 }
 
+// Count the knots the dark took (overall, and "ahead": still reachable by the party).
+function countFalls(rm, out, fell) {
+  const ahead = reachableAhead(rm);
+  out.falls += fell.length;
+  out.fallsByAct[rm.currentAct] = (out.fallsByAct[rm.currentAct] || 0) + fell.length;
+  for (const id of fell) {
+    const from = rm.nodeMap.nodes.find((n) => n.id === id)?.eclipse?.fromType;
+    const service = SERVICES.has(from);
+    if (service) out.lostServices++;
+    if (ahead.has(id)) {
+      out.aheadFalls++;
+      if (service) out.aheadServices++;
+    }
+  }
+}
+
 function runOnce(data, seed, offset) {
   const rm = new RunManager(data);
   rm.startRun({ runSeed: seed, difficultyId: DIFFICULTY, applyBlessingsAtStart: false });
@@ -94,6 +112,7 @@ function runOnce(data, seed, offset) {
     aheadFalls: 0,
     aheadServices: 0,
     battles: 0,
+    events: 0,
     eclipsedFought: 0,
   };
   for (let guard = 0; guard < 400 && !rm.isRunComplete(); guard++) {
@@ -124,19 +143,23 @@ function runOnce(data, seed, offset) {
       if (node.eclipse) out.eclipsedFought++;
       const turns = Number.isFinite(par) ? Math.max(1, par + offset) : 8;
       rm.completeBattle(rm.roster, node.id, 0, { turnCount: turns, turnPar: par });
-      const fell = rm.lastEclipseCommit?.fell || [];
-      const ahead = reachableAhead(rm);
-      out.falls += fell.length;
-      out.fallsByAct[rm.currentAct] = (out.fallsByAct[rm.currentAct] || 0) + fell.length;
-      for (const id of fell) {
-        const from = rm.nodeMap.nodes.find((n) => n.id === id)?.eclipse?.fromType;
-        const service = SERVICES.has(from);
-        if (service) out.lostServices++;
-        if (ahead.has(id)) {
-          out.aheadFalls++;
-          if (service) out.aheadServices++;
-        }
+      countFalls(rm, out, rm.lastEclipseCommit?.fell || []);
+    } else if (node.type === 'event') {
+      // Through the same commands as the route map: the first choice that starts no fight
+      // (battles here are not played, so a fight-free event keeps the clock honest). An
+      // event's own shadow (an altar's offerings, a dispatch read) is part of the clock,
+      // and so are the knots it lets fall.
+      if (arriveAtEvent(rm, node.id)) {
+        const plan = chooseEventPlan(rm, node.id);
+        const chosen = plan
+          ? chooseEventOption(rm, node.id, plan.choiceId, { targetUid: plan.targetUid })
+          : null;
+        out.events++;
+        if (chosen?.ok)
+          for (const result of chosen.results)
+            if (result.kind === 'shadow') countFalls(rm, out, result.fell || []);
       }
+      if (!leaveEvent(rm, node.id).ok) rm.markNodeComplete(node.id);
     } else rm.markNodeComplete(node.id);
     if (rm.isActComplete()) {
       out.byAct[rm.currentAct] = rm.eclipse.shadow;
@@ -189,6 +212,6 @@ for (const [label, offset] of PROFILES) {
   }
   const avg = (key) => runs.reduce((a, r) => a + r[key], 0) / runs.length;
   console.log(
-    `  per run: battles ${avg('battles').toFixed(1)} · knots taken ${avg('falls').toFixed(1)} (ahead ${avg('aheadFalls').toFixed(1)}) · services lost ${avg('lostServices').toFixed(1)} (ahead ${avg('aheadServices').toFixed(1)}) · eclipsed battles fought ${avg('eclipsedFought').toFixed(1)}`,
+    `  per run: battles ${avg('battles').toFixed(1)} · events ${avg('events').toFixed(1)} · knots taken ${avg('falls').toFixed(1)} (ahead ${avg('aheadFalls').toFixed(1)}) · services lost ${avg('lostServices').toFixed(1)} (ahead ${avg('aheadServices').toFixed(1)}) · eclipsed battles fought ${avg('eclipsedFought').toFixed(1)}`,
   );
 }

@@ -110,7 +110,7 @@
   },
   "nodeGeneration": {
     "maxPerAct": 1,
-    "spawnChance": 0.55,
+    "spawnChance": 0.7,
     "preferredRows": [
       2,
       3,
@@ -120,9 +120,9 @@
       0
     ],
     "spawnChanceByAct": {
-      "act2": 0.7,
-      "act3": 0.7,
-      "act4": 0.7
+      "act2": 0.85,
+      "act3": 0.85,
+      "act4": 0.85
     }
   }
 }

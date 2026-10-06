@@ -31,9 +31,12 @@ export class PauseOverlay {
       campaignMapData,
       gameData,
       prologue,
+      burdens,
     },
   ) {
     this.scene = scene;
+    // The run's burdens (Burdens.describeBurdens): listed under the pause note.
+    this.burdens = Array.isArray(burdens) ? burdens : [];
     this.onResume = onResume;
     this.onSaveAndExit = onSaveAndExit || null;
     this.onSaveAndExitWarning = onSaveAndExitWarning || null;

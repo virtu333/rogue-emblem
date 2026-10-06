@@ -22,7 +22,7 @@ import { convertNodeToRoutBattle } from './NodeMapGenerator.js';
 export const ECLIPSE_STATE_VERSION = 2;
 
 // Node types (NODE_TYPES values) that can fall, and what they become.
-const FALLABLE_TYPES = new Set(['battle', 'shop', 'church', 'recruit', 'colosseum']);
+const FALLABLE_TYPES = new Set(['battle', 'shop', 'church', 'recruit', 'colosseum', 'event']);
 const DEFAULT_CAP = 100;
 // Act pressure is uncapped by the global meter; this only bounds corrupt saves.
 const ACT_SHADOW_LIMIT = 9999;
@@ -291,7 +291,7 @@ export function fallCopy(fromType, config) {
 }
 
 // The loss a toast names first: a lost service stings more than a battlefield.
-const FALL_WEIGHT = { shop: 5, church: 4, recruit: 3, colosseum: 2, battle: 1 };
+const FALL_WEIGHT = { shop: 5, church: 4, recruit: 3, event: 2.5, colosseum: 2, battle: 1 };
 
 /** The player-facing line for a set of falls: "The dark takes the village." */
 export function fallToastText(nodes, config) {

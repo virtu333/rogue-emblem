@@ -3,6 +3,27 @@ import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { hasInputFocus } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
 
+/**
+ * The run's burdens under the pause note (Burdens.describeBurdens): one entry each, the
+ * name and what is left over its line. Null when the run carries none.
+ */
+export function pauseBurdenList(burdens) {
+  if (!Array.isArray(burdens) || !burdens.length) return null;
+  const list = document.createElement('ul');
+  list.className = 'mp-burdens';
+  list.setAttribute('aria-label', 'Burdens');
+  for (const burden of burdens) {
+    const item = document.createElement('li');
+    const name = document.createElement('strong');
+    name.textContent = `${burden.label} \u00b7 ${burden.short}`;
+    const line = document.createElement('span');
+    line.textContent = `${burden.line} ${burden.detail}.`;
+    item.append(name, line);
+    list.append(item);
+  }
+  return list;
+}
+
 // Presents the existing PauseOverlay actions; ownership and transitions stay there.
 export class MobilePauseMenu {
   constructor(overlay) {
@@ -92,6 +113,8 @@ export class MobilePauseMenu {
           ? `Prologue${chapter} — progress saves automatically after every action.`
           : 'Progress saves automatically after every action.';
       panel.append(note);
+      const burdens = pauseBurdenList(o.burdens);
+      if (burdens) panel.append(burdens);
     }
     if (confirming) {
       const message = document.createElement('p');

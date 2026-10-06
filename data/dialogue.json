@@ -6857,6 +6857,33 @@
         "'I dreamt you'd come this way. Thought I ought to be here when you did.'",
         "Someone has been camped on the landing a long while. Their fire is still lit."
       ]
+    },
+    "event": {
+      "act1": [
+        "A signpost, turned around by someone with a sense of humor.",
+        "Smoke from a cookfire, a little off the road.",
+        "The ruts here are fresh. Somebody stopped, and did not stay.",
+        "'Is that on the map?' 'It is now.'",
+        "Chalked on a gatepost: ASK FIRST."
+      ],
+      "act2": [
+        "A toll post with no toll-keeper. The ledger is still open.",
+        "The imperial road forks here. A boot print points down the lesser branch.",
+        "A cart left at the verge, its wheel mended by someone who was not the owner.",
+        "'Don't take the offer.' 'What offer?' 'Exactly.'"
+      ],
+      "act3": [
+        "The fens give back odd things. Today, a lantern, still lit.",
+        "A shrine without a name, tidied by hands nobody has seen.",
+        "Somebody has laid a place at a table that is no longer there.",
+        "The reeds lean away from the road, all in the same direction."
+      ],
+      "act4": [
+        "The capital's outer road, swept clean for a visitor nobody announced.",
+        "A bell rings from a tower that fell last winter.",
+        "Torches burn at a crossing. Nobody tends them.",
+        "A sealed carriage, the horses long gone, the door ajar."
+      ]
     }
   },
   "lordFarewell": {

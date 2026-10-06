@@ -129,13 +129,14 @@ describe('the class a recruit node spawns is known before the map is made', () =
 });
 
 describe('regression: an Infantry preview that spawns Rowan (Cavalry) on a Swamp', () => {
-  // Found by search over generated runs: run seed 22, act 2, node act2_6_3 previews
-  // an Infantry recruit (the Dancer Esme until the Soldier joined the act 2 pool on
-  // 2026-09-26; now the Soldier Harl); the lord roll makes it Rowan, a Chevalier. On the
+  // Found by search over generated runs: run seed 66, act 2, node act2_3_0 previews
+  // an Infantry recruit (the Thief Nyx); the lord roll makes it Rowan, a Chevalier. On the
   // mire_crossing map rolled with battle seed 31 the old code seated the recruit on a
   // Swamp tile (Infantry 3, Cavalry "--"): checked for the preview's Infantry, not Rowan.
-  const SEED = 22;
-  const NODE_ID = 'act2_6_3';
+  // (Re-found on 2026-10-06 when Act 2 grew a row and the node-type mix moved the map:
+  // run seed 22 / node act2_6_3 / the Soldier Harl was the earlier case.)
+  const SEED = 66;
+  const NODE_ID = 'act2_3_0';
   const BATTLE_SEED = 31;
 
   function setup() {
@@ -146,14 +147,14 @@ describe('regression: an Infantry preview that spawns Rowan (Cavalry) on a Swamp
 
   it('battle params carry the class that will spawn', () => {
     const { rm, node, params } = setup();
-    expect(node.recruitPreview).toMatchObject({ className: 'Soldier', name: 'Harl' });
+    expect(node.recruitPreview).toMatchObject({ className: 'Thief', name: 'Nyx' });
     const built = rm.getRecruitNodeUnit(node);
     expect(built.isLord).toBe(true);
     expect(built.unit.name).toBe('Rowan');
     expect(built.unit.moveType).toBe('Cavalry');
     expect(params.recruitPreview).toEqual({
-      className: 'Soldier',
-      name: 'Harl',
+      className: 'Thief',
+      name: 'Nyx',
       spawnClassName: built.unit.className,
     });
   });
@@ -171,7 +172,7 @@ describe('regression: an Infantry preview that spawns Rowan (Cavalry) on a Swamp
   it('now the recruit stands where Rowan can, under the same safety rules', () => {
     const { params } = setup();
     const bc = generateAt(BATTLE_SEED, params);
-    expect(bc.npcSpawn).toMatchObject({ className: 'Soldier', name: 'Harl' });
+    expect(bc.npcSpawn).toMatchObject({ className: 'Thief', name: 'Nyx' });
     expect(bc.npcSpawn.spawnClassName).toBe(params.recruitPreview.spawnClassName);
     expect(canStand(bc, bc.npcSpawn, 'Cavalry')).toBe(true);
     const reach = reachCost(bc, bc.npcSpawn);
@@ -195,7 +196,7 @@ describe('regression: an Infantry preview that spawns Rowan (Cavalry) on a Swamp
     const saved = RunManager.fromJSON(JSON.parse(JSON.stringify(rm.toJSON())), data);
     const locked = saved.getLockedBattleConfig(node.id);
     expect(canStand(locked, locked.npcSpawn, 'Cavalry')).toBe(true);
-    expect(locked.npcSpawn).toMatchObject({ className: 'Soldier', name: 'Harl' });
+    expect(locked.npcSpawn).toMatchObject({ className: 'Thief', name: 'Nyx' });
     // Lords still start nearest the recruit, and the fix is stable.
     const nearest = reachCost(
       { ...locked, playerSpawns: [locked.playerSpawns[0]] },

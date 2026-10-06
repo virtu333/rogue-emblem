@@ -61,6 +61,9 @@ export const GUIDANCE_NOTES = Object.freeze({
   guide_specialist_dance: { tier: 'essential', scope: 'unit' },
   guide_specialist_flyer: { tier: 'essential', scope: 'unit' },
   guide_armor: { tier: 'essential' },
+  // Events (docs/specs/event-nodes.md §10): the first one on a real run's route map, in the
+  // event menu's status line. Never the prologue (its map has no events; canShowRunNote).
+  guide_first_event: { tier: 'essential' },
 });
 
 export function noteTier(id) {
@@ -156,6 +159,8 @@ export function guidanceText(id, context = {}) {
       return 'Fallen undead leave bones. The number counts the enemy phases until they rise again at half HP. Bring a unit within weapon reach and choose Smash to end them for good. Light magic leaves no bones.';
     case 'guide_first_shop':
       return 'A shop: buy and sell here, and Forge makes a weapon stronger for gold. Every shop stocks its own wares; gold also pays for revivals and promotions.';
+    case 'guide_first_event':
+      return "An event: choose how to meet it. You won't see what a choice brings until you make it, but the words are honest.";
     case 'guide_first_church':
       return 'A church: Heal all is free, and the fallen revive for gold. Each church takes one vow: a promotion or a blessing, not both.';
     case 'guide_prepare':

@@ -2,6 +2,7 @@
 // by the Guidance setting (Full / Light / Off).
 import { test, expect, devices } from '@playwright/test';
 import { waitForScene } from './helpers.js';
+import { placeEnemiesAround } from './boardSetup.js';
 
 const { defaultBrowserType: _browser, ...iphone } = devices['iPhone 13'];
 test.use({ ...iphone, viewport: { width: 844, height: 390 } });
@@ -99,17 +100,10 @@ test('Sera moved into reach gets the fragile warning; Attack explains itself', a
     s.registry.get('hints').markSeen('guide_first_turn');
     s.registry.get('hints').markSeen('guide_healer_heals'); // Patient is hurt in this preset
     s._guidance.note?.close(false);
-    const spots = [
-      [6, 4],
-      [7, 2],
-      [6, 6],
-      [8, 5],
-    ];
-    s.enemyUnits.slice(0, spots.length).forEach((e, i) => {
-      [e.col, e.row] = spots[i];
-      s.updateUnitPosition(e);
-    });
   });
+  // Enemies onto open ground round Sera, beyond her 1-2 reach: placed from the map this
+  // seed generated, not from where an old layout happened to leave them.
+  await placeEnemiesAround(page, 'Sera', { count: 4, minDistance: 3 });
   const sera = await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     const u = s.playerUnits.find((p) => p.name === 'Sera');

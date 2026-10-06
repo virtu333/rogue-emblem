@@ -32,5 +32,17 @@
     "arena": { "source": "arena-t2" },
     "ruins": { "source": "ruins-t2" },
     "caravan": { "source": "caravan-t2" }
+  },
+  "events": {
+    "old_swordmaster": { "source": "old_swordmaster-t3" },
+    "abandoned_armory": { "source": "abandoned_armory-t2" },
+    "twin_altar": { "source": "twin_altar-t3", "crop": [0, 0.02, 0, 0.243], "focus": "0%" },
+    "wounded_courier": { "source": "wounded_courier-t4", "crop": [0, 0.1, 0, 0.171] },
+    "deserters_fire": { "source": "deserters_fire-t2", "crop": [0, 0.2, 0, 0.063] },
+    "the_echo": { "source": "the_echo-t1" },
+    "toll_bridge": { "source": "toll_bridge-t1" },
+    "moneylender": { "source": "moneylender-t1" },
+    "drill_yard": { "source": "drill_yard-t6", "crop": [0, 0.16, 0, 0.126] },
+    "quiet_road": { "source": "quiet_road-t2" }
   }
 }

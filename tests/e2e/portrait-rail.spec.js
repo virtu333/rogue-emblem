@@ -616,6 +616,11 @@ for (const viewport of PORTRAIT_PHONES) {
         pat.currentHP = pat.stats.HP; // only the caravan is hurt: the NPC wording
         s.updateObjectiveText();
         const u = s.playerUnits[0];
+        // The card under test is a Plain tile's: Move and Def/Avoid on two rows. Terrain
+        // with rule lines (Forest, Fort, Floor...) adds a "Terrain details" row that takes
+        // 26px more of this 236px rail, so a generated map that stands the unit on one
+        // would push Battle details into the scroll region: stand it on Plain (index 0).
+        s.grid.setTerrainAt(u.col, u.row, 0);
         s._inputController.refreshTileInfo(u.col, u.row);
       });
       const hud = rail(page);

@@ -1,5 +1,6 @@
 import { test, expect, devices } from '@playwright/test';
 import { waitForGame, waitForScene } from './helpers.js';
+import { placeInLine } from './boardSetup.js';
 
 test.use({ ...devices['iPhone 13'], viewport: { width: 844, height: 390 } });
 
@@ -391,6 +392,10 @@ for (const viewport of [
     await expect(hud.locator('.mb-dock .mb-pinned-command')).toHaveCount(0);
 
     // Support has six commands on Full: greyed Attack, Shove, Pull, Trade, Swap, Wait.
+    // That needs an ally beside her with room to shove it and to step back from it, and
+    // no foe in reach: stage it on open ground (the generated map decides where the
+    // army spawns, so the spawn cannot be relied on to give her a neighbour).
+    await placeInLine(page, ['Support', 'Edric'], { before: 1, after: 1, clearOfEnemies: 3 });
     const menu = await page.evaluate(() => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');
       const u = s.playerUnits.find((p) => p.name === 'Support');

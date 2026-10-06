@@ -157,10 +157,10 @@ export const RECRUIT_PROMOTION_CHANCE_CAP = 0.95;
 export const ACT_SEQUENCE = ['act1', 'act2', 'act3', 'act4', 'finalBoss'];
 
 export const ACT_CONFIG = {
-  act1: { name: 'Border Skirmishes', rows: 8 },
-  act2: { name: 'Occupied Territory', rows: 9 },
-  act3: { name: 'Enemy Stronghold', rows: 9 },
-  act4: { name: 'Ashen Summit', rows: 9 },
+  act1: { name: 'Border Skirmishes', rows: 9 },
+  act2: { name: 'Occupied Territory', rows: 10 },
+  act3: { name: 'Enemy Stronghold', rows: 10 },
+  act4: { name: 'Ashen Summit', rows: 10 },
   finalBoss: { name: 'Final Battle', rows: 2 },
 };
 
@@ -172,6 +172,19 @@ export const NODE_TYPES = {
   RECRUIT: 'recruit',
   CHURCH: 'church',
   COLOSSEUM: 'colosseum',
+  EVENT: 'event',
+};
+
+// Mixed rows (2..rows-3) draw ONE Math.random() per node against these cumulative
+// thresholds (NodeMapGenerator.pickNodeType): roll < battle -> battle, < shop -> shop,
+// < church -> church, otherwise an event. `default` serves acts 2-4.
+// Raw shares: act1 .52/.06/.08/.34, acts 2-4 .44/.13/.16/.27. The service-streak repair
+// then turns conflicting events and churches into shops (and only then battles), so per
+// path these give the same fights, shops and churches as the 8/9-row acts did, plus about
+// one event (measured; docs/specs/event-nodes.md §1).
+export const NODE_TYPE_WEIGHTS = {
+  act1: { battle: 0.52, shop: 0.58, church: 0.66 },
+  default: { battle: 0.44, shop: 0.57, church: 0.73 },
 };
 
 // Gold multiplier per node type (applied to kill gold subtotal in calculateBattleGold)
@@ -183,6 +196,7 @@ export const NODE_GOLD_MULTIPLIER = {
   shop: 0, // No combat
   ruins: 0, // No combat
   colosseum: 0, // No standard combat
+  event: 1.0, // An event battle pays like a battle (0 would read as 1.0 anyway)
 };
 
 // Gold economy

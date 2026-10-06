@@ -40,6 +40,7 @@ function makeMinimalPayload(path) {
     'data/whetstones.json': [],
     'data/turnBonus.json': {},
     'data/eclipse.json': {},
+    'data/events.json': { version: 1, events: [] },
     'data/difficulty.json': {
       version: 1,
       modes: {

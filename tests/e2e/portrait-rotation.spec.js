@@ -75,21 +75,34 @@ async function stageAndSave(page) {
       r < s.grid.rows &&
       !s.getUnitAt(c, r) &&
       !(s.npcUnits || []).some((n) => n.col === c && n.row === r);
+    // The foe on a free side of Edric (a map edge or a neighbour can take any one).
     const tile = [
       [edric.col + 1, edric.row],
       [edric.col, edric.row - 1],
       [edric.col - 1, edric.row],
       [edric.col, edric.row + 1],
     ].find(([c, r]) => free(c, r));
+    if (!tile) throw new Error('no free tile beside Edric for the enemy');
     [enemy.col, enemy.row] = tile;
     s.grid.setTerrainAt(enemy.col, enemy.row, 0);
     s.updateUnitPosition(enemy);
-    const ice = [
+    // The Ice goes on a free diagonal of Edric's (never on a side he may need to move
+    // through); a map edge or a crowd can take all of them, so any free tile near him will do.
+    const diagonals = [
       [edric.col - 1, edric.row - 1],
       [edric.col + 1, edric.row + 1],
       [edric.col - 1, edric.row + 1],
-    ].find(([c, r]) => free(c, r));
-    s.grid.setTemporaryTerrain(ice[0], ice[1], 'Ice', 3, edric);
+      [edric.col + 1, edric.row - 1],
+    ];
+    const nearby = [];
+    for (let radius = 1; radius <= 3; radius++)
+      for (let dr = -radius; dr <= radius; dr++)
+        for (let dc = -radius; dc <= radius; dc++)
+          if (Math.max(Math.abs(dc), Math.abs(dr)) === radius)
+            nearby.push([edric.col + dc, edric.row + dr]);
+    const icy = [...diagonals, ...nearby].find(([c, r]) => free(c, r));
+    if (!icy) throw new Error('no free tile near Edric for the Ice');
+    s.grid.setTemporaryTerrain(icy[0], icy[1], 'Ice', 3, edric);
     s.registry.get('settings').setHints(false);
     if (!s._captureSuspendCheckpoint({ session: s._battleSession }))
       throw new Error('setup save failed');

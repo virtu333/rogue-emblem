@@ -1414,6 +1414,9 @@ const RECLASS_EXCLUDED_CLASSES = new Set([
 
 // Enemy-only lines (undead, dragons): never a seal target (a unit already in one may still reclass out).
 const RECLASS_TARGET_EXCLUDED_CLASSES = new Set(['Zombie', 'Revenant', 'Dragon', 'Dragon Lord']);
+// The same lines, named for callers that need to know a class (or a skill innate to it) is
+// enemy-only (events never teach those skills).
+export const ENEMY_ONLY_CLASS_NAMES = RECLASS_TARGET_EXCLUDED_CLASSES;
 
 // Seal subEffect → allowed moveTypes.
 const RECLASS_SEAL_MOVE_TYPES = {

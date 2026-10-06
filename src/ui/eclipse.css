@@ -142,6 +142,14 @@
   opacity: 0;
   transform: scale(0.1);
 }
+/* A fallen event is drawn as its own Dark Omen medal (violet flame, eclipse disc, ember
+   cracks in the art itself): the ink only shades its rim, so the picture still reads. */
+.re-node.is-dark-omen:not(.is-eclipse-pending):not(.is-falling) .re-eclipse-ink {
+  opacity: 0.22;
+}
+.re-node.is-dark-omen:not(.is-eclipse-pending):not(.is-falling) .re-eclipse-cracks {
+  display: none;
+}
 .re-eclipse-cracks {
   position: absolute;
   left: 50%;
@@ -294,6 +302,9 @@
 }
 .re-loom-card-medal.is-eclipsed .re-node-art {
   filter: grayscale(1) sepia(1) saturate(1.6) hue-rotate(-14deg) brightness(0.5) contrast(1.15);
+}
+.re-loom-card-medal.is-eclipsed .re-node-art[data-frame='10'] {
+  filter: none;
 }
 .re-loom-screen .re-loom-was {
   margin: 2px 0 0;

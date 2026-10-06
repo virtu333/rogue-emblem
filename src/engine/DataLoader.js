@@ -33,6 +33,7 @@ export class DataLoader {
     this.deeds = null;
     this.eclipse = null;
     this.prologue = null;
+    this.events = null;
   }
 
   async loadAll() {
@@ -64,6 +65,7 @@ export class DataLoader {
       deeds,
       eclipse,
       prologue,
+      events,
     ] = await Promise.all([
       this.loadJSON('data/terrain.json'),
       this.loadJSON('data/lords.json'),
@@ -95,6 +97,9 @@ export class DataLoader {
       // build without it offers no prologue. Validated by `npm run validate:data`
       // (engine/Prologue.validatePrologueConfig), not at boot.
       this.loadOptionalJSON('data/prologue.json'),
+      // The story Events on the route map (docs/specs/event-nodes.md). Optional: a build
+      // without it offers none (arriveAtEvent returns null). Validated by `npm run validate:data`.
+      this.loadOptionalJSON('data/events.json'),
     ]);
     this.terrain = terrain;
     this.lords = lords;
@@ -123,6 +128,7 @@ export class DataLoader {
     this.deeds = deeds;
     this.eclipse = eclipse;
     this.prologue = prologue;
+    this.events = events;
     if (this.blessings) {
       const validation = validateBlessingsConfig(this.blessings);
       if (!validation.valid) {
@@ -165,6 +171,7 @@ export class DataLoader {
       deeds,
       eclipse,
       prologue,
+      events,
     };
   }
 

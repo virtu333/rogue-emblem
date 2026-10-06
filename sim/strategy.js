@@ -336,13 +336,15 @@ import { findCommander } from '../src/engine/Commander.js';
 
 import { buildRecruitNodeUnit } from '../src/engine/RecruitNodeSystem.js';
 
+// Events (docs/specs/event-nodes.md) rank beside the services: a story event is a stop on
+// the road, taken through the same commands as the route map (the driver's _runEventNode).
 const POLICY_PRIORITY = {
-  recruit: ['recruit', 'battle', 'colosseum', 'shop', 'church', 'ruins', 'boss'],
-  battle: ['battle', 'shop', 'colosseum', 'church', 'recruit', 'ruins', 'boss'],
-  shop: ['shop', 'colosseum', 'battle', 'church', 'recruit', 'ruins', 'boss'],
-  church: ['church', 'shop', 'colosseum', 'battle', 'recruit', 'ruins', 'boss'],
+  recruit: ['recruit', 'battle', 'colosseum', 'shop', 'event', 'church', 'ruins', 'boss'],
+  battle: ['battle', 'shop', 'event', 'colosseum', 'church', 'recruit', 'ruins', 'boss'],
+  shop: ['shop', 'colosseum', 'battle', 'event', 'church', 'recruit', 'ruins', 'boss'],
+  church: ['church', 'shop', 'colosseum', 'battle', 'event', 'recruit', 'ruins', 'boss'],
   // Services are never entered; take fights only (recruit last).
-  fights: ['battle', 'recruit', 'shop', 'colosseum', 'church', 'ruins', 'boss'],
+  fights: ['battle', 'recruit', 'shop', 'colosseum', 'church', 'event', 'ruins', 'boss'],
 };
 
 function policyChooser(policy) {
@@ -443,6 +445,7 @@ class ProtectedDriver extends RunSimulationDriver {
       else if (node.type === 'shop') res = await this._runShopNode(node);
       else if (node.type === 'church') res = this._runChurchNode(node);
       else if (node.type === 'colosseum') res = this._runColosseumNode(node);
+      else if (node.type === 'event') res = await this._runEventNode(node);
       else {
         this.runManager.markNodeComplete(node.id);
         res = { result: 'skipped' };

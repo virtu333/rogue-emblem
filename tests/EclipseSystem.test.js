@@ -472,6 +472,80 @@ describe('applyEclipse', () => {
   });
 });
 
+describe('event nodes (docs/specs/event-nodes.md §1 "Eclipse")', () => {
+  const ctx = {
+    runSeed: 42,
+    config,
+    actId: 'act2',
+    mapTemplates: data.mapTemplates,
+    halfFogChance: true,
+    shadow: 30,
+  };
+  /** A seeded Act II map that holds at least one event. */
+  function mapWithEvents() {
+    for (let seed = 1; seed < 200; seed++) {
+      const map = seededMap('act2', seed);
+      if (map.nodes.some((n) => n.type === 'event')) return map;
+    }
+    throw new Error('no seeded map with an event');
+  }
+
+  it('ships the copy: "Swallowed road", the dark takes the omen', () => {
+    expect(config.falls.event).toEqual({ label: 'Swallowed road', noun: 'omen' });
+    const node = { id: 'act2_4_1', row: 4, col: 1, type: 'event', edges: [], battleParams: null };
+    eclipseNode(node, ctx);
+    expect(node.eclipse.label).toBe('Swallowed road');
+    expect(fallToastText([node], config)).toBe('The dark takes the omen.');
+  });
+
+  it('a fallen event becomes an eclipsed rout battle that remembers it was an event', () => {
+    const node = { id: 'act2_4_1', row: 4, col: 1, type: 'event', edges: [], battleParams: null };
+    eclipseNode(node, ctx);
+    expect(node.type).toBe('battle');
+    expect(node.eclipse).toMatchObject({ fromType: 'event', label: 'Swallowed road', seen: false });
+    expect(node.battleParams).toMatchObject({
+      act: 'act2',
+      objective: 'rout',
+      row: 4,
+      isEclipsed: true,
+      isElite: true,
+    });
+    expect(Number.isFinite(node.battleParams.battleSeed)).toBe(true);
+    expect(node.battleParams.levelRange).toEqual([5, 8]);
+  });
+
+  it('an event is fallable; the current, active, completed and locked ones are not', () => {
+    const map = mapWithEvents();
+    const event = map.nodes.find((n) => n.type === 'event');
+    const base = { nodeMap: map, currentNodeId: null };
+    expect(nodeFallExemption(event, base)).toBeNull();
+    expect(nodeFallExemption(event, { ...base, currentNodeId: event.id })).toBe('current');
+    expect(nodeFallExemption(event, { ...base, activeNodeId: event.id })).toBe('current');
+    expect(nodeFallExemption({ ...event, completed: true }, base)).toBe('completed');
+    expect(nodeFallExemption({ ...event, encounterLocked: true }, base)).toBe('locked');
+  });
+
+  it('at full shadow every event falls, except the current one, which stays an event', () => {
+    const map = mapWithEvents();
+    const events = map.nodes.filter((n) => n.type === 'event').map((n) => n.id);
+    const keep = events[0];
+    const fell = applyAt(map, 100, { currentNodeId: keep });
+    const fellIds = new Set(fell.map((n) => n.id));
+    for (const id of events) {
+      const node = map.nodes.find((n) => n.id === id);
+      if (id === keep) {
+        expect(node.type).toBe('event');
+        expect(node.eclipse).toBeUndefined();
+        expect(node.battleParams).toBeNull();
+      } else {
+        expect(fellIds.has(id)).toBe(true);
+        expect(node).toMatchObject({ type: 'battle', eclipse: { fromType: 'event' } });
+        expect(node.eclipse.label).toBe('Swallowed road');
+      }
+    }
+  });
+});
+
 describe('battle modifiers', () => {
   it('adds nothing in Pale for a whole node', () => {
     expect(eclipseBattleMods({ state: state(10), config })).toEqual({

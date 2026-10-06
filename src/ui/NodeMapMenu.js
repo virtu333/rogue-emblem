@@ -24,6 +24,8 @@ import { showMinorHint } from './HintDisplay.js';
 import { rosterBenchedUnseen } from '../engine/SkillLoadout.js';
 import { playCue } from './ceremonyMusic.js';
 import { isPrologueRun } from '../engine/ScriptedBattle.js';
+import { eventState } from '../engine/EventCommands.js';
+import { describeBurdens } from '../engine/Burdens.js';
 
 const ECLIPSE_TOAST_MS = 4200;
 
@@ -67,6 +69,7 @@ export class NodeMapMenu {
         !s.isSceneReady ||
         s.shopOverlay ||
         s.churchOverlay ||
+        s.eventOverlay ||
         s.colosseumOverlay?.visible ||
         s._colosseumLoading ||
         s.rosterOverlay?.visible ||
@@ -271,7 +274,10 @@ export class NodeMapMenu {
     Object.assign(this, { side, actions, party, wrap });
     this._orderSheet();
     layout.append(wrap, side);
-    this.root.append(header, layout);
+    // The run's burdens (an event's lasting price), when it carries any: a chip each.
+    const burdens = this._burdenRow();
+    if (burdens) this.root.append(header, burdens, layout);
+    else this.root.append(header, layout);
     if (this._toast?.isConnected === false && this._toastUntil > Date.now()) this._placeToast();
 
     this._renderSelection();
@@ -283,6 +289,53 @@ export class NodeMapMenu {
         .find((b) => b.dataset.node === focus)
         ?.focus({ preventScroll: true });
     this.sync();
+  }
+
+  /**
+   * The burden chips (Burdens.describeBurdens): "Ill Omen · 2 left", "Debt · 450 G". A tap
+   * or Enter shows the chip's line and what is left under the row (hover and long-press
+   * read its title). Null when the run carries none.
+   */
+  _burdenRow() {
+    const rm = this.scene.runManager;
+    const burdens = describeBurdens(rm, this.scene.gameData?.events);
+    if (!burdens.length) {
+      this._burdenOpen = null;
+      return null;
+    }
+    const row = element('div', null, 're-loom-burdens');
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', 'Burdens');
+    const note = element('p', null, 're-burden-note');
+    note.setAttribute('role', 'status');
+    note.hidden = true;
+    const chips = [];
+    const show = (burden) => {
+      const open = this._burdenOpen === burden.id ? null : burden.id;
+      this._burdenOpen = open;
+      for (const [chip, b] of chips) chip.setAttribute('aria-expanded', String(b.id === open));
+      note.hidden = !open;
+      note.textContent = open ? `${burden.line} ${burden.detail}.` : '';
+    };
+    for (const burden of burdens) {
+      const chip = button(null, () => show(burden), 're-burden');
+      chip.dataset.burden = burden.id;
+      chip.title = `${burden.label}: ${burden.line} ${burden.detail}.`;
+      chip.setAttribute('aria-expanded', 'false');
+      chip.append(
+        element('span', burden.label, 're-burden-name'),
+        element('span', burden.short, 're-burden-short'),
+      );
+      chips.push([chip, burden]);
+      row.append(chip);
+    }
+    row.append(note);
+    // The line a chip showed stays open through a redraw of the same map.
+    const open = this._burdenOpen;
+    this._burdenOpen = null;
+    const still = burdens.find((b) => b.id === open);
+    if (still) show(still);
+    return row;
   }
 
   /**
@@ -335,14 +388,25 @@ export class NodeMapMenu {
         this.detail,
         'Choose your remaining battle rewards before advancing. You can still review your roster and menu.',
       );
+    // An event the party already walked into and has not left (its page is reopened,
+    // nothing re-rolls), or whose won fight still owes a page.
+    const eventReturn =
+      selected?.type === 'event' &&
+      rm.currentNodeId === selected.id &&
+      (!selected.completed || shopOpen) &&
+      !!eventState(rm, selected.id);
     const label = rm.pendingBattleReward
       ? 'Return to rewards'
-      : shopOpen
-        ? selected?.type === 'ruins'
-          ? 'Return to ruins'
-          : `Re-enter ${selected?.type === 'church' ? 'church' : 'shop'}`
-        : 'Travel';
+      : eventReturn
+        ? 'Return to the event'
+        : shopOpen
+          ? selected?.type === 'ruins'
+            ? 'Return to ruins'
+            : `Re-enter ${selected?.type === 'church' ? 'church' : 'shop'}`
+          : 'Travel';
     this.travel.replaceChildren(element('span', label));
+    // A long label ("Return to the event") steps down a size rather than wrapping.
+    this.travel.classList.toggle('is-long', label.length > 16);
     const enabled = !!rm.pendingBattleReward || available.has(this.selected);
     if (enabled && label === 'Travel') {
       const arrow = element('span', null, 're-loom-arrow');

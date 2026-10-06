@@ -47,6 +47,8 @@ const DEV_PRESETS = new Set([
   // Playtest 2026-09-29 #11: Zombie remains, the countdown and Smash (devScenarios.js).
   'zombie_remains',
   'ladder',
+  // The event review route (docs/specs/event-nodes.md §17): see applyEventPreset.
+  'event',
 ]);
 // Presets built on the combat_actions loadout (Edric, Sera and three utility units).
 const COMBAT_LOADOUT_PRESETS = new Set(['combat_actions', 'fog_ambush', 'zombie_remains']);
@@ -166,7 +168,7 @@ function addTeamWeaponArtScrolls(runManager, gameData, maxCount = 4) {
 
 function applyMetaPreset(meta, preset) {
   if (!meta) return;
-  if (preset === 'fresh') return;
+  if (preset === 'fresh' || preset === 'event') return;
 
   meta.totalValor = 20000;
   meta.totalSupply = 20000;
@@ -314,7 +316,57 @@ function createRunPreset(gameData, meta, config) {
 
   if (config.preset === 'roster_checks') addRosterChecks(runManager, gameData);
 
+  if (config.preset === 'event') applyEventPreset(runManager, config);
+
   return runManager;
+}
+
+/**
+ * The event review route (`?devScene=nodemap&preset=event&seed=42[&event=<id>]`): a fresh
+ * Act I run whose next step is an Event. A battle/shop/church node of row 2 or later is
+ * made an event node (no battle params, as the generator leaves one), every node on the
+ * way to it is walked, and the party stands on the node before it, so one click enters the
+ * event. `&event=<id>` narrows the catalog to that event (plus the fallback), so the pick
+ * the arrival makes (EventCommands.arriveAtEvent, seeded as ever) can only be that one.
+ * 1000 gold, so costed choices are open. Review/QA only: a real run never reads this.
+ */
+function applyEventPreset(runManager, config) {
+  const nodes = runManager.nodeMap?.nodes || [];
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  const convertible = new Set([NODE_TYPES.BATTLE, NODE_TYPES.SHOP, NODE_TYPES.CHURCH]);
+  const target = [...nodes]
+    .sort((a, b) => a.row - b.row || a.col - b.col)
+    .find((node) => node.row >= 2 && convertible.has(node.type));
+  if (!target) return;
+  target.type = NODE_TYPES.EVENT;
+  target.battleParams = null;
+  delete target.fogEnabled;
+  delete target.templateId;
+  // The shortest road from the start to it (breadth first over the forward edges).
+  const parent = new Map([[runManager.nodeMap.startNodeId, null]]);
+  const queue = [runManager.nodeMap.startNodeId];
+  while (queue.length && !parent.has(target.id)) {
+    const id = queue.shift();
+    for (const edge of byId.get(id)?.edges || []) {
+      if (parent.has(edge)) continue;
+      parent.set(edge, id);
+      queue.push(edge);
+    }
+  }
+  const road = [];
+  for (let id = parent.get(target.id); id; id = parent.get(id)) road.unshift(id);
+  for (const id of road) runManager.markNodeComplete(id);
+  runManager.addGold(1000);
+  const events = runManager.gameData?.events;
+  if (config.event && Array.isArray(events?.events)) {
+    runManager.gameData = {
+      ...runManager.gameData,
+      events: {
+        ...events,
+        events: events.events.filter((event) => event.id === config.event || event.fallback),
+      },
+    };
+  }
 }
 
 /**
@@ -464,6 +516,7 @@ export function parseDevStartupConfig(search, options = {}) {
     difficultyId: params.get('difficulty') || 'normal',
     devTools: parseBool(params.get('devTools')),
     ...(params.get('route') ? { route: params.get('route') } : {}),
+    ...(params.get('event') ? { event: params.get('event') } : {}),
     qaStep: qaConfig?.step || null,
     qaDescription: qaConfig?.description || null,
     nodeType:
@@ -501,6 +554,9 @@ export function buildDevStartupRoute(gameData, registry, config) {
   // remembered for this page only, never in a slot.
   if (config.preset === 'roster_checks' && !registry.get('hints'))
     registry.set('hints', sessionHints(registry, ['roster_skill_benched']));
+  // Event review: the first event's note teaches as in a fresh save (this page only).
+  if (config.preset === 'event' && !registry.get('hints'))
+    registry.set('hints', sessionHints(registry, ['guide_first_event']));
 
   const meta = ensureMetaRegistry(registry, gameData, config.preset);
 

@@ -368,6 +368,7 @@ const KIND = {
   ruins: 'RUINS',
   recruit: 'RECRUIT',
   colosseum: 'COLOSSEUM',
+  event: 'EVENT',
 };
 const OBJECTIVE = {
   rout: ['ROUT', 'Defeat all enemies on the map.'],
@@ -382,6 +383,7 @@ const ECLIPSED_TEXT = {
   church: 'The chapel was desecrated. Its defilers wait; spoils are elite.',
   recruit: 'The ally you might have met was lost to the dark. Only foes remain.',
   colosseum: 'The arena fell silent. Something else fights there now; spoils are elite.',
+  event: 'The dark took this road. Something else waits where the story was; spoils are elite.',
 };
 const SERVICE = {
   shop: 'Buy, sell and forge equipment.',
@@ -389,6 +391,7 @@ const SERVICE = {
   ruins: 'Rest (heal, revive) or scavenge the wares. Only one.',
   colosseum: 'Arena and mercenary board.',
   recruit: 'Battle with a potential ally.',
+  event: 'Something waits on the road.',
 };
 
 /** Short pixel label shown under a reachable medal. */
@@ -415,6 +418,8 @@ function flavorPool(node, dialogue, actId) {
   if (node.type === 'boss') return pick(nf.boss);
   if (node.type === 'recruit') return pick(nf.recruit);
   if (node.type === 'battle') return pick(node.battleParams?.isElite ? nf.elite : nf.battle);
+  // An event that turned into a fight speaks like a battle; before that, the road's own lines.
+  if (node.type === 'event') return pick(node.eventBattle === true ? nf.battle : nf.event);
   // Church, ruins and colosseum have no flavour pool yet.
   return null;
 }
@@ -497,6 +502,7 @@ export function describeLoomNode(
     recruit = null,
     recruitMods = null,
     ruinsChoice = null,
+    eventChoice = null,
   } = {},
 ) {
   if (!node) return null;
@@ -552,12 +558,15 @@ export function describeLoomNode(
   }
   // A locked encounter keeps its map: say that, not "locked" beside a usable Travel
   // (QA, Oct 2026). The prologue's authored chapters are all fixed, so they say nothing.
-  if (params && node.encounterLocked && !authoredTitle)
-    tags.push({
-      text: 'Map set',
-      tone: 'plain',
-      detail: 'Leaving and coming back brings the same map and foes.',
-    });
+  // An event shows as an event even once its choice started a fight; its map is set the same way.
+  const mapSet = {
+    text: 'Map set',
+    tone: 'plain',
+    detail: 'Leaving and coming back brings the same map and foes.',
+  };
+  if (params && node.encounterLocked && !authoredTitle) tags.push(mapSet);
+  else if (node.type === 'event' && node.eventBattle === true && node.encounterLocked && !eclipsed)
+    tags.push(mapSet);
 
   const text = eclipsed
     ? ECLIPSED_TEXT[node.eclipse.fromType] || ECLIPSED_TEXT.battle
@@ -565,12 +574,16 @@ export function describeLoomNode(
       ? `Hunters are closing on ${recruitView.name}. Reach them with a lord and Talk.`
       : node.type === 'ruins' && ruinsChoice
         ? chosenLine(ruinsChoice)
-        : // An authored node (the prologue's) says what it holds itself.
-          (typeof node.preview === 'string' && node.preview) ||
-          SERVICE[node.type] ||
-          objective?.[1] ||
-          '';
-  const pool = state === 'cut' || eclipsed ? null : flavorPool(node, dialogue, actId);
+        : node.type === 'event' && eventChoice
+          ? `You chose: ${eventChoice}`
+          : // An authored node (the prologue's) says what it holds itself.
+            (typeof node.preview === 'string' && node.preview) ||
+            SERVICE[node.type] ||
+            objective?.[1] ||
+            '';
+  // A visited event keeps its chosen line, not the road's flavour (the card stays short).
+  const pool =
+    state === 'cut' || eclipsed || eventChoice ? null : flavorPool(node, dialogue, actId);
   const flavor =
     Array.isArray(pool) && pool.length ? pool[stableIndex(node.id, pool.length)] : null;
 
@@ -581,7 +594,9 @@ export function describeLoomNode(
       text:
         node.type === 'shop'
           ? 'Shop still open · Stock and prices retained'
-          : 'Still open · Purchases and services retained',
+          : node.type === 'event'
+            ? 'The fight is won · the spoils await'
+            : 'Still open · Purchases and services retained',
     };
   else if (state === 'current')
     stateLine = { tone: 'done', text: activeLabel || 'The party rests here' };

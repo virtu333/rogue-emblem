@@ -45,6 +45,9 @@ import { hasOpenOverlay } from '../utils/overlayStack.js';
 import { ensureAudioUnlocked } from '../utils/audioUnlock.js';
 import { isTouchPointer } from '../utils/runtimeFlags.js';
 import { ChurchController } from '../ui/ChurchController.js';
+import { EventController, eventPageOwed } from '../ui/EventController.js';
+import { getPendingEventSettlement } from '../engine/EventCommands.js';
+import { describeBurdens } from '../engine/Burdens.js';
 import { ShopController } from '../ui/ShopController.js';
 import { adaptDialogueEntries } from '../engine/DialogueCast.js';
 import { recordRunLordsMet } from '../engine/LordsMet.js';
@@ -96,6 +99,7 @@ const COLOR_RUINS = UI_HEX.lineStrong;
 const COLOR_RECRUIT = UI_HEX.hpHigh;
 const COLOR_CHURCH = UI_HEX.lineStrong; // Light gray
 const COLOR_COLOSSEUM = 0x9966cc; // Purple
+const COLOR_EVENT = 0x66aacc; // Cool blue: a "?" room
 const COLOR_ELITE = 0xcc5500; // Dark orange for elite seize battles
 const COLOR_COMPLETED = UI_HEX.line;
 const COLOR_AVAILABLE = UI_HEX.accent;
@@ -151,6 +155,7 @@ const NODE_ICONS = {
   [NODE_TYPES.RECRUIT]: '!',
   [NODE_TYPES.CHURCH]: '\u271D', // ✝
   [NODE_TYPES.COLOSSEUM]: '\u039B', // Λ
+  [NODE_TYPES.EVENT]: '?',
 };
 
 const NODE_COLORS = {
@@ -161,6 +166,7 @@ const NODE_COLORS = {
   [NODE_TYPES.RECRUIT]: COLOR_RECRUIT,
   [NODE_TYPES.CHURCH]: COLOR_CHURCH,
   [NODE_TYPES.COLOSSEUM]: COLOR_COLOSSEUM,
+  [NODE_TYPES.EVENT]: COLOR_EVENT,
 };
 
 export class NodeMapScene extends Phaser.Scene {
@@ -417,6 +423,9 @@ export class NodeMapScene extends Phaser.Scene {
     if (this.churchOverlay && typeof this.closeChurchOverlay === 'function') {
       this.closeChurchOverlay();
     }
+    if (this.eventOverlay && typeof this.closeEventOverlay === 'function') {
+      this.closeEventOverlay();
+    }
     if (this.colosseumOverlay) {
       this.colosseumOverlay.hide?.();
       this.colosseumOverlay = null;
@@ -446,6 +455,10 @@ export class NodeMapScene extends Phaser.Scene {
     if (this._shopController) {
       this._shopController.destroy();
       this._shopController = null;
+    }
+    if (this._eventController) {
+      this._eventController.destroy();
+      this._eventController = null;
     }
     this._unbindInputHandlers();
     popInputScope(this);
@@ -597,7 +610,11 @@ export class NodeMapScene extends Phaser.Scene {
         const consumedPendingSelection = this._consumePendingNodeSelection?.() === true;
         if (!consumedPendingSelection) {
           const openedAmbushShop = this._maybeOpenPendingAmbushShop?.(lifecycleGeneration) === true;
-          if (!openedAmbushShop) {
+          // A won event battle's spoils (after the loot screen's choices, which come first).
+          const openedEvent =
+            !openedAmbushShop &&
+            this._maybeOpenPendingEventSettlement?.(lifecycleGeneration) === true;
+          if (!openedAmbushShop && !openedEvent) {
             this._maybeOpenPendingCaravanShop?.(lifecycleGeneration);
           }
         }
@@ -656,6 +673,7 @@ export class NodeMapScene extends Phaser.Scene {
     if (
       this.shopOverlay ||
       this.churchOverlay ||
+      this.eventOverlay ||
       this.rosterOverlay?.visible ||
       this.pauseOverlay?.visible ||
       this.settingsOverlay?.visible
@@ -678,6 +696,44 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   /**
+   * A won event battle owes its spoils (EventCommands.completeEventBattle): back on the
+   * route map they are applied once and the victory page opens, like the ambush shop's
+   * round trip. Waits for the loot screen's choices (the bags may fill there), and for
+   * any story beat or overlay still open.
+   */
+  _maybeOpenPendingEventSettlement(lifecycleGeneration = this._sceneLifecycleGeneration) {
+    if (!isSceneLifecycleActive(this, lifecycleGeneration)) return false;
+    if (this.sys?.isActive?.() === false) return false;
+    if (!this.isSceneReady) return false;
+    if (this._storyDialogueActive || this.dialogueOverlay?.visible) return false;
+    if (this.isTransitioning || this.battleLaunchInFlight) return false;
+    if (
+      this.shopOverlay ||
+      this.churchOverlay ||
+      this.eventOverlay ||
+      this.rosterOverlay?.visible ||
+      this.pauseOverlay?.visible ||
+      this.settingsOverlay?.visible
+    ) {
+      return false;
+    }
+    const rm = this.runManager;
+    if (!rm || rm.pendingBattleReward || rm.pendingBossRecruit || rm.pendingThirdLord) return false;
+    // The spoils still owed, or a victory page left open by a refresh (Continue closes it).
+    const current = rm.nodeMap?.nodes?.find((entry) => entry?.id === rm.currentNodeId);
+    const nodeId =
+      getPendingEventSettlement(rm) ||
+      (current?.type === NODE_TYPES.EVENT && current.completed && eventPageOwed(rm, current.id)
+        ? current.id
+        : null);
+    if (!nodeId) return false;
+    const node = rm.nodeMap?.nodes?.find((entry) => entry?.id === nodeId);
+    if (!node || node.type !== NODE_TYPES.EVENT) return false;
+    // The route map opening it by itself: a settlement the player just closed is not forced back.
+    return this.handleEvent(node, { auto: true }) === true;
+  }
+
+  /**
    * Merchant Caravan reward: unlike the ambush shop, this isn't tied to a
    * specific node -- it opens as soon as the map is safe to interact with,
    * mirroring pendingAmbushNodeId's round trip but with node=null.
@@ -691,6 +747,7 @@ export class NodeMapScene extends Phaser.Scene {
     if (
       this.shopOverlay ||
       this.churchOverlay ||
+      this.eventOverlay ||
       this.rosterOverlay?.visible ||
       this.pauseOverlay?.visible ||
       this.settingsOverlay?.visible
@@ -854,6 +911,7 @@ export class NodeMapScene extends Phaser.Scene {
     if (this.pauseOverlay?.visible) return true;
     if (this.shopOverlay) return true;
     if (this.churchOverlay) return true;
+    if (this.eventOverlay) return true;
     if (this.colosseumOverlay?.visible) return true;
     if (allowPause) return true;
     return false;
@@ -993,6 +1051,11 @@ export class NodeMapScene extends Phaser.Scene {
       this.drawMap();
       return true;
     }
+    if (this.eventOverlay) {
+      // The page's own ESC: the map before choosing, Continue after.
+      this._eventController?.nativeMenu?.requestClose();
+      return true;
+    }
     if (this.colosseumOverlay?.visible) {
       this.colosseumOverlay.hide();
       const audio = this.registry.get('audio');
@@ -1067,6 +1130,7 @@ export class NodeMapScene extends Phaser.Scene {
     const prologueRun = isPrologueRun(this.runManager);
     const payout = prologueRun ? null : this.runManager.previewEndRunRewards?.();
     this.pauseOverlay = new PauseOverlay(this, {
+      burdens: describeBurdens(this.runManager, this.gameData?.events),
       // The prologue run is skipped (its ending, then Home Base), never abandoned.
       prologue: prologueRun
         ? {
@@ -1559,6 +1623,7 @@ export class NodeMapScene extends Phaser.Scene {
     return Boolean(
       this.shopOverlay ||
       this.churchOverlay ||
+      this.eventOverlay ||
       this.colosseumOverlay?.visible ||
       this._colosseumLoading ||
       this.rosterOverlay?.visible ||
@@ -1577,6 +1642,7 @@ export class NodeMapScene extends Phaser.Scene {
     if (this.rosterOverlay?.visible) return;
     if (this.shopOverlay && !this._shopViewingRoster) return;
     if (this.churchOverlay && !this._churchViewingMap && !this._churchViewingRoster) return;
+    if (this.eventOverlay) return;
     if (this.pauseOverlay?.visible || this.settingsOverlay?.visible) return;
     this.rosterOverlay = new RosterOverlay(this, this.runManager, this.gameData, {
       initialUnit,
@@ -1586,7 +1652,7 @@ export class NodeMapScene extends Phaser.Scene {
         // cleared; writing it back would resurrect the slot.
         if (this.runManager?.status && this.runManager.status !== 'active') {
           if (this._sceneShuttingDown || this.sys?.isActive?.() === false) return;
-          if (!this.shopOverlay && !this.churchOverlay) this.drawMap();
+          if (!this.shopOverlay && !this.churchOverlay && !this.eventOverlay) this.drawMap();
           return;
         }
         this.persistRunSave();
@@ -1594,7 +1660,7 @@ export class NodeMapScene extends Phaser.Scene {
         // being torn down, so redrawing would throw inside the shutdown event
         // and stall the next scene's start.
         if (this._sceneShuttingDown || this.sys?.isActive?.() === false) return;
-        if (!this.shopOverlay && !this.churchOverlay) {
+        if (!this.shopOverlay && !this.churchOverlay && !this.eventOverlay) {
           this.drawMap();
         }
       },
@@ -1699,6 +1765,8 @@ export class NodeMapScene extends Phaser.Scene {
       label = 'Recruit — Battle with potential ally';
     } else if (node.type === NODE_TYPES.COLOSSEUM) {
       label = 'Colosseum - Arena and Mercenary Board';
+    } else if (node.type === NODE_TYPES.EVENT) {
+      label = 'Event \u2014 Something waits on the road';
     } else if (node.battleParams?.isElite) {
       const eliteObj = node.battleParams?.objective === 'escape' ? 'Escape' : 'Seize';
       label = `Elite Battle (${eliteObj}) — Harder fight, better loot`;
@@ -1706,10 +1774,13 @@ export class NodeMapScene extends Phaser.Scene {
       const obj = node.battleParams?.objective || 'rout';
       label = `Battle (${obj})`;
     }
+    // An event whose choice started a fight shows as an event; it is locked when its
+    // battle is (a refresh or a revert reopens the same fight).
     if (
       (node.type === NODE_TYPES.BATTLE ||
         node.type === NODE_TYPES.BOSS ||
-        node.type === NODE_TYPES.RECRUIT) &&
+        node.type === NODE_TYPES.RECRUIT ||
+        (node.type === NODE_TYPES.EVENT && node.eventBattle === true)) &&
       node.encounterLocked &&
       !isPrologueRun(this.runManager)
     ) {
@@ -1816,6 +1887,8 @@ export class NodeMapScene extends Phaser.Scene {
       onComplete: () => {
         this._pendingRewards = null;
         this.checkActComplete();
+        // An event battle's spoils come after its loot choices.
+        this._maybeOpenPendingEventSettlement?.();
       },
     });
   }
@@ -1844,6 +1917,7 @@ export class NodeMapScene extends Phaser.Scene {
     if (
       this.shopOverlay ||
       this.churchOverlay ||
+      this.eventOverlay ||
       this.colosseumOverlay?.visible ||
       this._colosseumLoading ||
       this.rosterOverlay?.visible ||
@@ -1900,6 +1974,10 @@ export class NodeMapScene extends Phaser.Scene {
     } else if (node.type === NODE_TYPES.COLOSSEUM) {
       this.runManager.currentNodeId = node.id;
       this.handleColosseum(node);
+    } else if (node.type === NODE_TYPES.EVENT) {
+      // An event is its own page (EventController): choices, then an outcome, then
+      // Continue, or a Fight that comes back here (the spoils open on return).
+      this.handleEvent(node);
     } else if (node.type === NODE_TYPES.SHOP) {
       if (node?.isAmbush === true && node?.ambushCleared !== true) {
         this.battleLaunchInFlight = true;
@@ -2134,6 +2212,18 @@ export class NodeMapScene extends Phaser.Scene {
     (this._churchController ||= new ChurchController(this)).closeChurchOverlay();
   }
 
+  handleEvent(node, options) {
+    return (this._eventController ||= new EventController(this)).handleEvent(node, options);
+  }
+
+  showEventOverlay(node) {
+    return (this._eventController ||= new EventController(this)).showEventOverlay(node);
+  }
+
+  closeEventOverlay() {
+    return (this._eventController ||= new EventController(this)).closeEventOverlay();
+  }
+
   handleShop(node, options = {}) {
     return (this._shopController ||= new ShopController(this)).handleShop(node, options);
   }
@@ -2189,13 +2279,17 @@ export class NodeMapScene extends Phaser.Scene {
   _showNodeFlavor(node) {
     try {
       if (!node?.type) return;
+      // An event shows its own lines on the road; once it turns into a fight it speaks
+      // like any battle.
       const typeKey = node.isElite
         ? 'elite'
         : node.type === 'boss'
           ? 'boss'
           : node.type === 'recruit'
             ? 'recruit'
-            : 'battle';
+            : node.type === NODE_TYPES.EVENT && node.eventBattle !== true
+              ? 'event'
+              : 'battle';
       const pool = this.gameData?.dialogue?.nodeFlavor?.[typeKey];
       if (!pool) return;
       const act = this.runManager?.currentAct || 'act1';

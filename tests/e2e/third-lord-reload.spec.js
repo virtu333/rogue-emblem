@@ -50,6 +50,10 @@ async function winThirdBattleToArrival(page, mode) {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     s.runManager.metaEffects = { ...s.runManager.metaEffects, thirdLordMode: mode };
     s.runManager.completedBattles = 2; // the win below is the third
+    // This spec is about the lord's arrival. A generated map may hand the node a Merchant
+    // Caravan, whose shop a won caravan battle owes on the way back to the route map
+    // (ahead of the owed rewards): leave the caravan out so the route map is what opens.
+    s.battleConfig = { ...s.battleConfig, caravanSpawn: null };
     for (const e of s.enemyUnits) e.currentHP = 0;
     s.onVictory();
     return s.runManager.roster.length;

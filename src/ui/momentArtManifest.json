@@ -3,6 +3,7 @@
   "generator": "tools/art/moments/treat.mjs",
   "card": [192, 256],
   "vignette": [640, 360],
+  "event": [640, 200],
   "cards": {
     "steady_hands": { "v": "edaaa696", "model": "gemini-3.1-flash-image" },
     "coin_of_fate": { "v": "ad50526c", "model": "gemini-3.1-flash-image" },
@@ -35,5 +36,17 @@
     "arena": { "v": "b53511e0", "model": "gemini-3.1-flash-image" },
     "ruins": { "v": "1f1ba58c", "model": "gemini-3.1-flash-image" },
     "caravan": { "v": "eafdbd77", "model": "gemini-3.1-flash-image" }
+  },
+  "events": {
+    "old_swordmaster": { "v": "ada79a50", "model": "gemini-3-pro-image" },
+    "abandoned_armory": { "v": "65db74c7", "model": "gemini-3-pro-image" },
+    "twin_altar": { "v": "6fd7e244", "model": "gemini-3-pro-image", "focus": "0%" },
+    "wounded_courier": { "v": "c9a46a0b", "model": "gemini-3-pro-image" },
+    "deserters_fire": { "v": "12aa0094", "model": "gemini-3-pro-image" },
+    "the_echo": { "v": "44e5ce10", "model": "gemini-3-pro-image" },
+    "toll_bridge": { "v": "767aca44", "model": "gemini-3-pro-image" },
+    "moneylender": { "v": "fce34609", "model": "gemini-3-pro-image" },
+    "drill_yard": { "v": "59a65e9a", "model": "gemini-3-pro-image" },
+    "quiet_road": { "v": "452c3040", "model": "gemini-3-pro-image" }
   }
 }

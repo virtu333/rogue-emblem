@@ -33,6 +33,7 @@
     "shop": { "label": "Burned village", "noun": "village" },
     "church": { "label": "Desecrated chapel", "noun": "chapel" },
     "recruit": { "label": "Lost to the dark", "noun": "would-be ally" },
-    "colosseum": { "label": "Silent arena", "noun": "arena" }
+    "colosseum": { "label": "Silent arena", "noun": "arena" },
+    "event": { "label": "Swallowed road", "noun": "omen" }
   }
 }
