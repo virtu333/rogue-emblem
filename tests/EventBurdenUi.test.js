@@ -256,14 +256,14 @@ describe('the route map card', () => {
     return { run, node: makeEvent(run.nodeMap.nodes.find((n) => n.row >= 2)) };
   };
 
-  it('an event is an Event, distinct from the Ruins whose medal it borrows', () => {
+  it('an event is an Event, distinct from the Ruins and wearing a medal of its own', () => {
     const { node } = eventNode();
     expect(nodeLabel(node)).toBe('Event');
     expect(loomShortLabel(node)).toBe('EVENT');
     const ruins = { type: 'ruins' };
     expect(nodeLabel(ruins)).toBe('Ruins');
     expect(loomShortLabel(ruins)).toBe('RUINS');
-    expect(nodeFrame(node, 'act1')).toBe(nodeFrame(ruins, 'act1')); // the borrowed medal
+    expect(nodeFrame(node, 'act1')).not.toBe(nodeFrame(ruins, 'act1'));
   });
 
   it('an unvisited event promises nothing; a visited one remembers the choice', () => {
