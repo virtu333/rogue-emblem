@@ -255,7 +255,9 @@ goal could not be seen; a penalty must not land for something unmeasurable; the 
 the recruits who joined mid-battle (`newlyFallen`). Reward and penalty may hold `gold, item, hp
 (not target), shadow, vision, blessing, burden, flag, stat (lowestLevel)`; they run through the
 effect planner leniently (an item with no room is a note) in a seeded swap; a plan failure or an
-apply throw leaves the run as before the terms and the contract is still cleared. A contract
+apply throw leaves the run as before the terms and the contract is still cleared. A `shadow` term does
+not apply the Eclipse's falls itself (its record carries `fell: []`): `completeBattle` applies them right
+after the node completes, so `lastEclipseCommit.fell` lists every knot the victory and the contract took. A contract
 persists across acts, is saved/sanitized (`normalizeContract`), `run.lastContractSettlement` is not
 saved (like the burden record). Validator: a contract may not share a choice with a battle and may
 not ride in a battle's spoils.
@@ -271,11 +273,19 @@ planning and applying (a shadow effect earlier in the same outcome) the edit bec
 `checkNodeMapValidity(nodeMap)` is the invariant checker (also run on 5 x 150 generated maps).
 
 **Roster tells.** `tells: [{ when: { class | classes | weaponType | trait | skill }, line, reveals |
-tilts }]`, exactly one `when` key, exactly one of `reveals` / `tilts` (`tilts: 'pass'`, check
-choices only, +0.1 once per choice before the min/max clamp). `weaponType` means a proficiency, `skill`
-includes the bench. The speaker is a seeded pick among living matches, lords only when no one else
-matches. The view gives `{ speaker: { uid, name }, line }` only while choosing. Validator: `reveals`
-names a real outcome of the choice, lines <= 90 and only `{name}`.
+tilts }]`, exactly one `when` key, exactly one of `reveals` / `tilts`. `weaponType` means a proficiency,
+`skill` includes the bench. The speaker is a seeded pick among living matches, lords only when no one
+else matches. The view gives `{ speaker: { uid, name }, line }` only while choosing (never the outcome,
+never a number). **A `reveals` tell is shown only when it is true**: the outcome of a weighted choice is
+fixed by the run seed before the choice is made, so the tell appears only when the outcome it names is
+the one this run will roll (`EventSystem.selectOutcome`, the same call the commit makes), and the choice
+then rolls exactly that. The absence of a tell therefore says "not that one" (a Thief aboard and no
+tripwire line: no tripwire). Rejected reading: showing every matching tell whatever the roll, which says
+"that is a tripwire" on a road with none. `reveals` is for weighted choices only (the validator refuses it
+on a check: a check's outcome depends on who is chosen) and must name an outcome with a positive weight.
+`tilts: 'pass'` (check choices only, +0.1 once per choice before the min/max clamp) is the check's tell;
+it shows whenever its speaker is aboard and only the line is seen. Validator: lines <= 90 and only
+`{name}`, one `tilts` per choice.
 
 **Flags.** New writes are `{ value, act }`; setting the same value again keeps the first act; plain
 values from old saves still read. `requires.flagAct` (beside `flag`): `'earlier'` (set in an act
