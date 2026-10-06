@@ -297,6 +297,95 @@ choice; when any counter is at 1 or less it prefers a choice that ends the event
 `playEventChoices` walks a whole event; the run driver and `sim/eclipse.js` use it; the driver counts
 `contractsKept` / `contractsBroken`.
 
+## 2B as built (2026-10-06)
+
+Burdens, Cleanse and the Dark Omen are in, with data (`data/events.json`, `data/eclipse.json`),
+schemas, validator, engine, the church menu and the route-map and event-page wording. What the
+build settled or changed against the text of §2B:
+
+**Where a burden is read.** `RunManager.getBattleParams(node)` is the one place a battle learns
+about the run's burdens, so the scene, the previews and the headless harness read one list; a key is
+added only when a burden applies (an unburdened run's params are unchanged):
+`huntedWave` ({ turn, count: [min, max], xpMultiplier }, non-boss only), `swornEnemy` ({ seed:
+`eclipseHash("sworn:<runSeed>:<nodeId>")` }, boss nodes only) and `battleDebuffs` ([{ unitUid,
+stat, value, source: 'wounded' }]). Settlement is `burdenEffectsOnVictory(run, { gold, shadowGain,
+battle: { boss, hunted } })` in `completeBattle`; the record gains `hunted`, `sworn` and `wounded`
+parts (`settlementLines`: "Hunted (passed)", "Sworn Enemy falls", "Hale's wound mends").
+
+**Hunted** `{ id, battles, wave }`. `data` burdens `hunted`: 2 battles, wave `{ turn: 3, count: [2, 2],
+xpMultiplier: 0.5 }`; First Light `[1, 2]`, Black Sun `[2, 3]` (`onRung`; resolved once, stored on the
+record). `generateBattle` writes the wave as `reinforcements.hunted` (`engine/HuntedWave.js`
+`withHuntedWave`, no random draw: the map and the next draw of `Math.random` are exactly those of an
+unhunted battle) at the template's `spawnEdges`, else the rout ladder's `front`, else the edge on the
+enemy's side (`enemySideEdge`: nearest the enemy spawns' centre, farthest from the army's; ties left,
+right, top, bottom). `ReinforcementScheduler` rolls it on its absolute turn (no difficulty offset, no
+jitter, after every other wave of the turn so those draw as before): a new wave type `hunted`, **par-neutral**
+(a price must not buy a turn; the spawn also carries `parNeutral`), copying the map's own foes like any
+procedural arrival, at half XP and gold. A victory counts one down only when the battle carried the wave:
+the locked map says so (`isHuntedBattle`); with no locked map (the sims, unit tests) every non-boss victory
+counts. A boss victory never does. A battle that ends before turn 3 still counts; the wave simply never came.
+
+**Sworn Enemy** `{ id }`. `AffixEngine.assignSwornAffix(enemySpawns, { affixConfig, difficultyId, random })`:
+the first boss spawn that is not the Entity gains one tier-1 affix chosen by `affixes.json` weight from
+`createSeededRng(seed)`; the rung's `excludedAffixes`, the class exclusions and the mutual exclusions with
+what the boss carries hold; the act's own gating (`excludedActs`, chance) does not (an oath is not a roll).
+Ends at the first boss-node victory of any act. The Entity keeps its curated affixes and takes none.
+
+**Wounded** `{ id, unitUid, unitName, stat, value, battles }`. Data: -2, 3 battles (First Light 2). Event
+effect `{ type: 'burden', id: 'wounded', params: { scope: 'target' | 'randomUnit', stat: <STR MAG SKL SPD DEF
+RES LCK> | 'random' | 'attack', value?, battles? } }`: unit and stat are fixed at planning (a seeded pick for
+`randomUnit` / `random`; `attack` is MAG for a caster, else STR). **One wound at a time**: a new one replaces
+the old (a "never stacks" rule that fits a per-unit record; the alternative was a list and a picker). The
+debuff is a battle stat delta (`applyBattleStartDebuffs`, by unit uid, never by name; the floor is 0 and the
+delta taken back exactly at battle end) applied once at a fresh start in `BattleScene.beginBattle` and
+`HeadlessBattle`, so the first forecast shows it; a resumed battle's units carry it already. It **counts down
+at every victory, deployed or not** (benching a wounded unit avoids the penalty but not the clock). It ends
+early when a church's Heal all (and the sanctuary's Rest) reaches the unit (`healRosterAtChurch`, also the
+message "All units healed. Hale's wound mends."), and when its unit is no longer in the roster after a victory
+(`pruneGoneWounds`). The act-change heal does not mend it. `tests/sim/RunSimulationDriver` now takes battle
+deltas back before the commit, as `PostCombatController` does (Intimidate's used to persist in the sims).
+
+**Cleanse.** `CHURCH_VOWS = ['promote', 'blessing', 'cleanse']`. `ChurchVow.churchOffersCleanse` (a church
+node, not the Ruins, not the prologue, at least one burden a church can lift), `churchCleanseBlock`,
+`cleanseAtChurch(run, nodeId, burdenId)`: removes that burden (`Burdens.removeBurden`), commits the vow, free.
+Debt (`UNCLEANSABLE_BURDENS`) is refused by the engine as well as hidden by the menu ("The lender has
+lawyers."). The vow lines now read "...gives no blessing and lifts no burden." (Promotion), "...promotes no one
+and lifts no burden." (Blessing) and "Your vow here was Cleansing: this altar promotes no one and gives no
+blessing." `ChurchMenu.renderCleanse`: a "Cleanse · Free" section under the blessings, one button per burden
+("Ill Omen · 2 left") behind a confirmation, Debt's refusal line when the run holds Debt, greyed with the vow's
+reason once another vow is made here, absent after a Cleansing. Saves: `churchVowByNodeId` may now hold
+`cleanse`; a save with only the two older vows loads as written (`tests/EventBurdensPhase2.test.js`, "saves").
+
+**Dark Omen.** `EclipseSystem.eclipseNode` takes a `darkOmen(node)` question (RunManager passes
+`hasDarkOmen(run, node)`, asked once as the node falls, true only when an event with a `dark` face is eligible
+there now): a yes keeps `type: 'event'`, stamps `node.eclipse` (`fromType: 'event'`, label `falls.event.darkLabel`
+"Dark Omen") and sets `node.darkOmen = true`; otherwise the Phase 1 fall to an eclipsed battle ("Swallowed
+road"). Thresholds, determinism and the current-node exemption are unchanged (the fall is the same knot, the
+node simply stays an event); no draw is made for the decision. A `dark` block is `{ intro, choices, pages? }`;
+`EventSystem.eventFace(event, state)` lays it over the event (title, requires, counters stay the event's), and
+the validator checks it exactly like the plain face (an always-available choice, a way out, reachable pages).
+`arriveAtEvent` on a `darkOmen` node draws among eligible events that have a dark face (`pickEvent(..., { dark:
+true })`, same seeded keys) and records `state.dark = true`; if none is eligible any more the fallback's dark
+face stands in, so a Dark Omen can always be played. `eventView` carries `dark`. Five events ship a dark face:
+the Twin Altar (the dawn face has fallen; Kneel gives a tier 3 blessing, a Vision, an Ill Omen at +2 shadow and
++4 shadow, Take the offerings 300 + 150 per act and +6 shadow), the Toll Bridge (a strongbox or a fight, or the
+ledger for a Vision and the Hunted burden), the Wounded Courier (read the dispatch for a Vision and a Sworn
+Enemy, or burn it for -5 shadow), the Drill Yard (+2 SKL or SPD for the lowest-level unit, 25% damage and a
+Wounded) and A Quiet Road (the fallback). **UI:** `fallToastText` says "The dark twists the omen." for a lone
+Omen; the route map labels it "Dark Omen" (the existing Dark Omen medal, frame 10; the short label under the
+medal is OMEN), the info card reads DARK OMEN with its own line (and "You chose: ..." once walked), and the event
+page shows the kicker DARK OMEN over the event's own painting, dimmed (`.ev-menu.is-dark-omen`; no new art). A
+Phase 1 style fall to a battle still wears the Dark Omen medal (`is-dark-omen` keys on `fromType`); only the label
+and card differ.
+
+**Deviations and notes.** (1) Hunted is par-neutral and half-reward (the spec was silent). (2) The sanctuary's
+Rest also mends a wound (it heals everyone, and `healRosterAtChurch` is shared). (3) A wound ticks whether or not
+its unit fought (see above). (4) Wounded is one record; a fresh wound replaces the old. (5) The Entity takes no
+Sworn affix. (6) The `dark` face has no `requires` of its own: eligibility is the event's. (7) The Phase 1 test
+that an unvisited event falls to a Swallowed road now strips the dark faces first (with them it stays an Omen).
+Tests: `EventBurdensPhase2`, `EventCleanse`, `EventDarkOmen`, `EventPhase2BData`, `EventBurdenUiPhase2`,
+`EventDarkPage`, `BattleSceneWounded`.
+
 ## Not in Phase 2
 
 Marks, the Necromancer, multi-bar bosses, new skills and arts: `event-nodes.md` §14–§15
