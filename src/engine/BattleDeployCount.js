@@ -2,6 +2,9 @@
 // spawns and enemy counts by it, and the Last deed needs it at victory (DeedController).
 // Pure, no Phaser.
 
+import { DEPLOY_LIMITS } from '../utils/constants.js';
+import { isPrologueRun } from './ScriptedBattle.js';
+
 /**
  * @param {{deployedRoster?: object[]|null, resuming?: boolean, recorded?: unknown}} options
  *   recorded: battleParams.deployCount as saved with the battle in progress.
@@ -49,4 +52,20 @@ export function resolveDeployLimits({
     lockedTo = locked;
   }
   return { min, max, lockedTo };
+}
+
+/**
+ * The deploy slots a run's battles open in its current act (the deploy screen's max:
+ * the act's max plus the deploy bonus), for the roster's header. A re-entered battle
+ * may open fewer (its locked map: resolveDeployLimits), which only the deploy screen
+ * knows. Null for no run and for the prologue, whose chapters author their own deploys.
+ * @param {object|null} run a RunManager
+ * @returns {{slots: number, bonus: number, units: number}|null}
+ */
+export function rosterDeploySlots(run) {
+  if (!run || isPrologueRun(run)) return null;
+  const base = DEPLOY_LIMITS[run.currentAct] || DEPLOY_LIMITS.act1;
+  const bonus = Math.trunc(Number(run.getDeployBonus?.()) || 0);
+  const { max } = resolveDeployLimits({ base, deployBonus: bonus });
+  return { slots: max, bonus, units: Array.isArray(run.roster) ? run.roster.length : 0 };
 }

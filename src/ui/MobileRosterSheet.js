@@ -1,4 +1,5 @@
 import { skipsClassProgression } from '../engine/SpecialCharacterPolicy.js';
+import { rosterDeploySlots } from '../engine/BattleDeployCount.js';
 import { saveServiceRun } from './serviceSave.js';
 import { skillScrollText, weaponArtScrollText } from './weaponArtDisplay.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
@@ -340,7 +341,17 @@ export class MobileRosterSheet {
     const focusKey = document.activeElement?.dataset?.focusKey;
     this.root.replaceChildren();
     const head = el('header');
-    head.append(el('h2', this.run ? 'Roster' : 'Unit details'));
+    const title = el('div', null, 'mr-head-title');
+    title.append(el('h2', this.run ? 'Roster' : 'Unit details'));
+    // How many units the act's battles field (the deploy screen's max).
+    const deploy = rosterDeploySlots(this.run);
+    if (deploy) {
+      const cap = el('span', `Deploy up to ${deploy.slots}`, 'mr-deploy-cap');
+      const bonus = deploy.bonus > 0 ? `, ${deploy.bonus} of them from upgrades and blessings` : '';
+      cap.title = `Battles this act field up to ${deploy.slots} units${bonus}.`;
+      title.append(cap);
+    }
+    head.append(title);
     head.append(this.button('Close', this.onClose));
     this.root.append(head);
     const layout = el('div', null, 'mr-layout');

@@ -218,3 +218,34 @@ describe('roster sheet saves each change as it applies', () => {
     sheet.destroy();
   });
 });
+
+describe('the roster header names the deploy slots', () => {
+  beforeEach(() => {
+    installFakeDom(vi);
+    _resetInputFocus();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("shows the run's deploy slots beside the title, and none when only inspecting", () => {
+    const { run, sheet } = setup();
+    sheet.render();
+    expect(sheet.root.querySelector('.mr-deploy-cap')?.textContent).toBe('Deploy up to 4');
+    run.metaEffects = { ...(run.metaEffects || {}), deployBonus: 1 };
+    sheet.render();
+    const cap = sheet.root.querySelector('.mr-deploy-cap');
+    expect(cap.textContent).toBe('Deploy up to 5');
+    expect(cap.title).toContain('1 of them from upgrades and blessings');
+
+    const inspect = new MobileRosterSheet({
+      scene: sheet.scene,
+      units: run.roster,
+      gameData,
+      onClose: vi.fn(),
+    });
+    inspect.render();
+    expect(inspect.root.querySelector('.mr-deploy-cap')).toBeNull();
+  });
+});
