@@ -286,7 +286,8 @@ function planItem(ctx, effect, index, ledger, lenient) {
   let template;
   if (effect.pool) {
     template = pickPoolWeapon(ctx, effect, index, ledger);
-    if (!template) return lenient ? skipNote('item', NO_ROOM) : { error: NO_ROOM };
+    if (!template)
+      return lenient ? skipNote('item', NO_ROOM) : { error: NO_ROOM, itemKind: 'weapon' };
   } else {
     template =
       run.getConsumableTemplate?.(effect.name) ||
@@ -307,7 +308,10 @@ function planItem(ctx, effect, index, ledger, lenient) {
     }
   }
   const dest = chooseDestination(ctx, item, effect.to || 'auto', ledger);
-  if (!dest) return lenient ? skipNote('item', NO_ROOM) : { error: NO_ROOM };
+  if (!dest)
+    return lenient
+      ? skipNote('item', NO_ROOM)
+      : { error: NO_ROOM, itemKind: item.type === 'Consumable' ? 'consumable' : 'weapon' };
   reserve(ledger, item, dest);
   return { step: { type: 'item', item, dest, worn } };
 }
@@ -565,11 +569,69 @@ export function planEffects(
         steps.push(skipNote(effect.type, planned.error).step);
         continue;
       }
-      return { ok: false, reason: planned.error };
+      return {
+        ok: false,
+        reason: planned.error,
+        ...(planned.itemKind ? { itemKind: planned.itemKind } : {}),
+      };
     }
     steps.push(planned.step);
   }
   return { ok: true, steps, ledger };
+}
+
+// ── Room for the items a choice could grant ────────────────────────────
+
+// An effect list reduced to its items: every other effect becomes a no-op placeholder, so
+// each item keeps the index (and so the seeded pick) it has in the real plan.
+const NOTHING = Object.freeze({ type: 'flag', key: '_room', value: true });
+const itemsOnly = (effects) =>
+  (Array.isArray(effects) ? effects : []).map((effect) =>
+    effect?.type === 'item' ? effect : NOTHING,
+  );
+const spoilsOf = (effects) =>
+  (Array.isArray(effects) ? effects : [])
+    .filter((effect) => effect?.type === 'battle')
+    .map((effect) => effect.afterVictory);
+
+/**
+ * Whether every item `choice` could grant can be delivered right now, for the chosen
+ * target (`ctx.target`, null when the choice has none). It PLANS the choice's items with
+ * the planner itself (`planItem`: its weapon pool, its destinations, a unit's bag and what
+ * the unit can wield, the convoy's two compartments, the ledger of what earlier items of
+ * the same path will already have used), so what it accepts is exactly what a commit would
+ * deliver. Nothing is rolled and nothing depends on which outcome the hidden roll would
+ * pick: EVERY path a choice can take must deliver, a path being the choice's own effects,
+ * then one outcome's effects (or its fallback), then that outcome's afterVictory.
+ *
+ * afterVictory is planned strictly here although the spoils themselves are planned
+ * leniently after the fight (an item with no room is skipped with a note, because the bags
+ * may fill on the loot screen): the player is stopped before committing to a fight whose
+ * item would have nowhere to go, as the spec says (§5, "Room for items").
+ * @param {object} ctx - { run, catalog, nodeId, node, event, choice, state, target, fallenUnit }
+ * @returns {{ ok: true } | { ok: false, reason: string, itemKind?: 'weapon'|'consumable' }}
+ */
+export function planChoiceItems(ctx, choice) {
+  const outcomes = Array.isArray(choice?.outcomes) ? choice.outcomes : [];
+  const paths = outcomes.length
+    ? outcomes.flatMap((outcome) => [
+        outcome.effects,
+        ...(Array.isArray(outcome.fallback) ? [outcome.fallback] : []),
+      ])
+    : [[]];
+  for (const effects of paths) {
+    const ledger = createLedger(ctx.run);
+    const stages = [
+      ['c', choice.effects],
+      ['o', effects],
+      ...spoilsOf(effects).map((spoils) => ['a', spoils]),
+    ];
+    for (const [phase, list] of stages) {
+      const plan = planEffects({ ...ctx, choice, phase }, itemsOnly(list), { ledger });
+      if (!plan.ok) return plan;
+    }
+  }
+  return { ok: true };
 }
 
 // ── Apply ───────────────────────────────────────────────────────────────

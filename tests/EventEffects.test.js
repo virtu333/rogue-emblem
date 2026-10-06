@@ -311,27 +311,33 @@ describe('item', () => {
   });
 
   it('a choice that may grant an item is blocked when nowhere can carry one', () => {
+    const WEAPON_LINE = 'No room for another weapon. Make room in a bag or the convoy.';
     const run = runWithEvents([soloEvent([armyPool()], { id: 'solo' })]);
     const node = arriveAs(run, 'solo');
     expect(eventChoiceBlock(run, node.id, 'go')).toBe('');
+    // Weapon bags and the weapon convoy full, consumable space everywhere: still no place for
+    // a weapon (free consumable slots are not weapon slots), and the commit would fail alike.
     for (const unit of run.roster) {
       while (unit.inventory.length < 5)
         unit.inventory.push(structuredClone(unit.inventory[0] || run.gameData.weapons[0]));
-      while (unit.consumables.length < 3)
-        unit.consumables.push(run.getConsumableTemplate('Vulnerary'));
     }
     const caps = run.getConvoyCapacities();
     run.convoy.weapons = Array.from({ length: caps.weapons }, () =>
       structuredClone(run.gameData.weapons[0]),
     );
+    expect(run.roster.some((u) => u.consumables.length < 3)).toBe(true);
+    expect(run.getConvoyCounts().consumables).toBeLessThan(caps.consumables);
+    expect(eventChoiceBlock(run, node.id, 'go')).toBe(WEAPON_LINE);
+    expect(chooseEventOption(run, node.id, 'go')).toEqual({ ok: false, reason: WEAPON_LINE });
+    // Both bag kinds and both convoy compartments full: the same answer.
+    for (const unit of run.roster)
+      while (unit.consumables.length < 3)
+        unit.consumables.push(run.getConsumableTemplate('Vulnerary'));
     run.convoy.consumables = Array.from({ length: caps.consumables }, () =>
       run.getConsumableTemplate('Vulnerary'),
     );
-    expect(eventChoiceBlock(run, node.id, 'go')).toBe(
-      'Nowhere to carry anything more. Make room in the convoy.',
-    );
-    expect(chooseEventOption(run, node.id, 'go').ok).toBe(false);
-    // One free slot in the convoy and the choice is open again.
+    expect(eventChoiceBlock(run, node.id, 'go')).toBe(WEAPON_LINE);
+    // One free place in the weapon convoy and the choice is open again.
     run.convoy.weapons.pop();
     expect(eventChoiceBlock(run, node.id, 'go')).toBe('');
     // A choice that cannot grant an item is never blocked for room.

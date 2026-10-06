@@ -73,13 +73,21 @@
 //    the run back.
 //  * A choice is refused (never silently) when: the event is not at this node, a choice was
 //    already made, a requirement, the target, the gold cost or room for an item is missing.
+//    Room is exact and outcome-independent: every item the choice could grant, on any path,
+//    must be deliverable by the planner (EventEffects.planChoiceItems: weapons need weapon
+//    space and a unit that can wield them, items need consumable space).
 //  * The event node keeps `type: 'event'` with an event battle (node.eventBattle = true), so
 //    the route map, the Eclipse (the current node never falls) and encounter locking see
 //    one node throughout.
 
-import { applyPlan, cloneLedger, createLedger, planEffects } from './EventEffects.js';
 import {
-  armyHasRoomForItem,
+  applyPlan,
+  cloneLedger,
+  createLedger,
+  planChoiceItems,
+  planEffects,
+} from './EventEffects.js';
+import {
   choiceCost,
   choiceMayGrantItem,
   eventCatalogOf,
@@ -103,6 +111,12 @@ import { isPrologueRun } from './ScriptedBattle.js';
 import { unitUidOf } from './UnitIdentity.js';
 
 const NO_ROOM = 'Nowhere to carry anything more. Make room in the convoy.';
+// What a choice that cannot deliver its item says: weapons and consumables have their own
+// bags and convoy compartments, so the line names the kind that has nowhere to go.
+const NO_ROOM_FOR = Object.freeze({
+  weapon: 'No room for another weapon. Make room in a bag or the convoy.',
+  consumable: 'No room for another item. Make room in a bag or the convoy.',
+});
 
 const clone = (value) => (value === undefined ? value : structuredClone(value));
 
@@ -207,8 +221,59 @@ export function eventChoiceBlock(run, nodeId, choiceId, targetUid = null) {
   }
   const cost = choiceCost(run, choice, catalog);
   if (cost > 0 && !(Number(run.gold) >= cost)) return 'Not enough gold.';
-  if (choiceMayGrantItem(choice) && !armyHasRoomForItem(run)) return NO_ROOM;
+  if (choiceMayGrantItem(choice)) {
+    const line = itemRoomBlock(run, itemRoomContext(run, nodeId, ctx), choice, targetUid);
+    if (line) return line;
+  }
   return '';
+}
+
+// ── Room for the items a choice could grant ─────────────────────────────
+
+/** What the planner needs to plan a choice's items (the same shape `commit` plans with). */
+function itemRoomContext(run, nodeId, { node, state, event, catalog }) {
+  return { run, catalog, nodeId, node, event, state, fallenUnit: fallenOfState(run, state) };
+}
+
+/** '' when every item the choice could grant can be delivered for `target`, else the line. */
+function itemRoomLine(run, base, choice, target) {
+  const plan = planChoiceItems({ ...base, target }, choice);
+  return plan.ok ? '' : NO_ROOM_FOR[plan.itemKind] || plan.reason || NO_ROOM;
+}
+
+/**
+ * Why a choice that may grant an item cannot be made ('' when it can). Independent of the
+ * hidden outcome: the planner is asked about every path (EventEffects.planChoiceItems).
+ * With a chosen unit that unit's delivery is checked; with none, the choice is open when
+ * it works for at least one unit the filter accepts (the picker greys the rest).
+ */
+function itemRoomBlock(run, base, choice, targetUid) {
+  if (!choice.target) return itemRoomLine(run, base, choice, null);
+  const units = targetUid
+    ? [findRosterUnit(run, targetUid)]
+    : targetCandidates(run, choice.target.filter || {}, { fallen: base.fallenUnit })
+        .filter((candidate) => candidate.ok)
+        .map((candidate) => candidate.unit);
+  let first = '';
+  for (const unit of units) {
+    const line = itemRoomLine(run, base, choice, unit);
+    if (!line) return '';
+    first ||= line;
+  }
+  return first;
+}
+
+/** A choice's target rows: the filter's, with a unit greyed when no item could reach anyone through it. */
+function targetRows(run, nodeId, ctx, choice) {
+  const fallen = fallenOfState(run, ctx.state);
+  const rows = targetCandidates(run, choice.target.filter || {}, { fallen });
+  if (!choiceMayGrantItem(choice)) return rows;
+  const base = itemRoomContext(run, nodeId, ctx);
+  return rows.map((row) => {
+    if (!row.ok) return row;
+    const line = itemRoomLine(run, base, choice, row.unit);
+    return line ? { ...row, ok: false, reason: line } : row;
+  });
 }
 
 /** The target picker rows of a choice: [{ uid, name, unit, ok, reason }] (empty without a target). */
@@ -217,9 +282,7 @@ export function eventTargets(run, nodeId, choiceId) {
   if (ctx.error) return [];
   const choice = findChoice(ctx.event, choiceId);
   if (!choice?.target) return [];
-  return targetCandidates(run, choice.target.filter || {}, {
-    fallen: fallenOfState(run, ctx.state),
-  });
+  return targetRows(run, nodeId, ctx, choice);
 }
 
 // ── The display model ───────────────────────────────────────────────────
@@ -249,9 +312,12 @@ export function eventView(run, nodeId) {
       target: choice.target
         ? {
             prompt: choice.target.prompt || 'Who?',
-            candidates: targetCandidates(run, choice.target.filter || {}, {
-              fallen: fallenOfState(run, state),
-            }).map(({ uid, name, ok, reason }) => ({ uid, name, ok, reason })),
+            candidates: targetRows(run, nodeId, ctx, choice).map(({ uid, name, ok, reason }) => ({
+              uid,
+              name,
+              ok,
+              reason,
+            })),
           }
         : null,
     })),

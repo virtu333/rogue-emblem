@@ -161,7 +161,7 @@ describe('the choosing page', () => {
     const d = new EventDriver({ run, eventId: 'abandoned_armory' });
     d.open();
     expect(nodeText(d.choice('racks'))).toContain(
-      'Nowhere to carry anything more. Make room in the convoy.',
+      'No room for another weapon. Make room in a bag or the convoy.',
     );
     expect(d.choice('racks').disabled).toBe(true);
     // The always-open choice is still there, so the node can be left.

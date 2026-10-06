@@ -25,7 +25,7 @@ import { DIFFICULTY_IDS, isDifficultyAtLeast, difficultyRank } from './Difficult
 import { isPrologueRun } from './ScriptedBattle.js';
 import { knowsSkill, benchedSkillsOf, ENEMY_ONLY_CLASS_NAMES } from './UnitManager.js';
 import { unitUidOf } from './UnitIdentity.js';
-import { CONSUMABLE_MAX, INVENTORY_MAX, NODE_TYPES } from '../utils/constants.js';
+import { NODE_TYPES } from '../utils/constants.js';
 
 export const EVENT_ACTS = Object.freeze(['act1', 'act2', 'act3', 'act4']);
 export const FALLBACK_EVENT_ID = 'quiet_road';
@@ -441,18 +441,6 @@ export function targetCandidates(run, filter, ctx = {}) {
 }
 
 // ── Item room ───────────────────────────────────────────────────────────
-
-/** True when anything can still be carried: a unit's bags or the convoy. */
-export function armyHasRoomForItem(run) {
-  if ((run?.roster || []).some((unit) => (unit?.inventory?.length || 0) < INVENTORY_MAX))
-    return true;
-  if ((run?.roster || []).some((unit) => (unit?.consumables?.length || 0) < CONSUMABLE_MAX))
-    return true;
-  const caps = run?.getConvoyCapacities?.();
-  const counts = run?.getConvoyCounts?.();
-  if (!caps || !counts) return false;
-  return counts.weapons < caps.weapons || counts.consumables < caps.consumables;
-}
 
 /** True when any outcome (or fallback, or afterVictory) of the choice can grant an item. */
 export function choiceMayGrantItem(choice) {
