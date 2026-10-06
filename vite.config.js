@@ -36,8 +36,17 @@ export const pwaWorkboxOptions = {
   runtimeCaching: workboxRuntimeCaching(),
 };
 
+// Vite 5's default ('modules'), made explicit so the unit tests lower src the same way.
+export const BUILD_TARGET = ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari14'];
+
 export default defineConfig((env) => ({
   base: './',
+  // Unit tests run src through the build's own syntax lowering, so a transpile bug
+  // (esbuild once leaked a temporary out of a lowered optional call in a default
+  // parameter: `o is not defined` at the prologue's end) fails a test, not a player.
+  esbuild: process.env.VITEST
+    ? { include: /\/src\/.*\.js$/, exclude: [], target: BUILD_TARGET }
+    : undefined,
   publicDir: 'public',
   plugins: [
     {
@@ -86,6 +95,7 @@ export default defineConfig((env) => ({
     },
   },
   build: {
+    target: BUILD_TARGET,
     outDir: 'dist',
     assetsDir: 'assets',
     rollupOptions: {

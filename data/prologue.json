@@ -859,6 +859,17 @@
           ]
         },
         {
+          "id": "p3_looked",
+          "on": "forecastCancelled",
+          "once": true,
+          "unit": "Sera",
+          "do": [
+            {
+              "clearCoach": true
+            }
+          ]
+        },
+        {
           "id": "p3_aura",
           "on": "afterMove",
           "once": true,

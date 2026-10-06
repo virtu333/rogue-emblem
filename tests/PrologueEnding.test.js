@@ -457,6 +457,25 @@ describe('the grant under faults (one grant, a recoverable continuation, Home Ba
     expect(transitionToScene).toHaveBeenCalledTimes(1);
   });
 
+  it('a commit that throws after the payment resolves false (the retry, never a crash); the retry pays nothing and leaves', async () => {
+    const { scene, meta } = makeScene();
+    const get = scene.registry.get.bind(scene.registry);
+    let broken = true;
+    scene.registry.get = (key) => {
+      if (broken && key === 'cloud') throw new Error('registry torn down');
+      return get(key);
+    };
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(await finishPrologue(scene)).toBe(false);
+    err.mockRestore();
+    expect(meta.getPrologueState()).toBe('complete');
+    expect(transitionToScene).not.toHaveBeenCalled();
+    broken = false;
+    expect(await finishPrologue(scene)).toBe(true);
+    expect(meta.totalValor).toBe(grant());
+    expect(loadRun(data, 1)).toBeNull();
+  });
+
   it('two completion attempts in flight at once pay once', async () => {
     const { scene, meta } = makeScene();
     const [a, b] = await Promise.all([finishPrologue(scene), finishPrologue(scene)]);

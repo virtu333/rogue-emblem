@@ -66,13 +66,11 @@ export function prologueWasWon(runManager, prologue) {
  */
 export function commitPrologueEnd(
   scene,
-  {
-    taught = [],
-    practised = [],
-    chaptersWon = null,
-    slot = scene.registry?.get?.('activeSlot'),
-  } = {},
+  { taught = [], practised = [], chaptersWon = null, slot: slotArg } = {},
 ) {
+  // Never an optional call in a default parameter: the build's lowering of one (for
+  // Chrome 87) leaked a temporary and threw `o is not defined` here (eslint.config.js).
+  const slot = slotArg === undefined ? scene.registry?.get?.('activeSlot') : slotArg;
   const rm = scene.runManager;
   const meta = scene.registry?.get?.('meta');
   const prologue = scene.gameData?.prologue;
@@ -328,7 +326,15 @@ export async function commitAndLeavePrologue(
   { taught = [], practised = [], onCommitFailed = null } = {},
 ) {
   if (!isPrologueRun(scene.runManager) || scene.sys?.isActive?.() === false) return false;
-  const committed = commitPrologueEnd(scene, { taught: [...taught], practised: [...practised] });
+  // A commit that throws is a failed commit: the caller offers its retry, never a crash
+  // (the meta write pays once, so the retry pays nothing twice).
+  let committed;
+  try {
+    committed = commitPrologueEnd(scene, { taught: [...taught], practised: [...practised] });
+  } catch (err) {
+    console.error('[PrologueEnding] commit failed', err);
+    committed = { ok: false, reason: 'commit_threw' };
+  }
   if (!committed.ok) {
     if (typeof onCommitFailed === 'function') onCommitFailed(committed);
     else
