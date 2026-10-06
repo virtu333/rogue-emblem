@@ -11,7 +11,13 @@ import {
   printRecommendations,
 } from './lib/TableFormatter.js';
 import { generateNodeMap } from '../src/engine/NodeMapGenerator.js';
-import { getMercenaryPrice } from '../src/engine/ColosseumEngine.js';
+import {
+  getMaxFights,
+  getMaxFightsPerVisit,
+  calculateArenaReward,
+  getMercenaryPrice,
+} from '../src/engine/ColosseumEngine.js';
+import { DIFFICULTY_IDS } from '../src/engine/DifficultyEngine.js';
 import { ACT_CONFIG } from '../src/utils/constants.js';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
@@ -73,12 +79,20 @@ console.log(`\nAverage Colosseum visits per run: ${avgPerRun.toFixed(2)}\n`);
 // ────────────────────────────────────────
 // 2. Arena gold flow by tier and win rate
 // ────────────────────────────────────────
-printHeader('Arena Net Gold per Visit (2 units × 3 fights each)');
-
+// A colosseum visit is capped in total (arena.maxFightsPerVisit, per rung), on top of
+// each unit's own cap: the table below is First Light, whose visit cap is the tighter
+// of the two for 2 units.
+const FIRST_LIGHT = DIFFICULTY_IDS[0];
 const WIN_RATES = [0.5, 0.7, 0.9];
-const FIGHTS_PER_UNIT = 3;
+const FIGHTS_PER_UNIT = getMaxFights(FIRST_LIGHT, colosseumData);
 const UNITS_PER_VISIT = 2;
-const totalFights = FIGHTS_PER_UNIT * UNITS_PER_VISIT;
+const totalFights = Math.min(
+  FIGHTS_PER_UNIT * UNITS_PER_VISIT,
+  getMaxFightsPerVisit(FIRST_LIGHT, colosseumData),
+);
+printHeader(
+  `Arena Net Gold per Visit (2 units × ${FIGHTS_PER_UNIT} fights each, capped at ${totalFights} bouts per visit)`,
+);
 
 const tierEntries = Object.entries(colosseumData.arena.tiers);
 const goldCols = ['Tier', 'WinRate', 'Wins', 'Losses', 'GrossWin', 'LossFee', 'NetGold'];
@@ -105,32 +119,132 @@ printTable(goldCols, goldRows);
 // ────────────────────────────────────────
 // 3. Arena XP estimate
 // ────────────────────────────────────────
-printHeader('Arena XP per Unit (3 fights at tier)');
+printHeader('Arena XP per Unit (3 wins at tier)');
 
+// XP goes through the game's own reward rule (calculateArenaReward): it halves a win's XP
+// only once the fighter has gained `diminishingReturnsAfterLevels` levels this visit,
+// not after a number of bouts. Levels are tracked from 0 XP into the current level, at
+// XP_PER_LEVEL per level, so at this base XP three wins never reach the threshold.
 const BASE_XP = 50;
-const xpCols = [
-  'Tier',
-  'XP Mult',
-  'Fights 1-2 XP',
-  'Fight 3 XP (DR)',
-  'Total XP (3 wins)',
-  'Approx Levels',
-];
+const XP_PER_LEVEL = 100;
+
+/** XP a fighter earns from a sequence of bout outcomes ('win' | 'lose'), in order. */
+function boutSequenceXP(tier, outcomes) {
+  let levels = 0;
+  let progress = 0;
+  let total = 0;
+  for (const outcome of outcomes) {
+    const { xpGained } = calculateArenaReward(tier, outcome, BASE_XP, levels, colosseumData);
+    total += xpGained;
+    progress += xpGained;
+    while (progress >= XP_PER_LEVEL) {
+      progress -= XP_PER_LEVEL;
+      levels++;
+    }
+  }
+  return { total, levels };
+}
+
+/** Expected XP over every win/loss sequence of `bouts` bouts at `winRate`. */
+function expectedFighterXP(tier, winRate, bouts) {
+  let expected = 0;
+  for (let mask = 0; mask < 1 << bouts; mask++) {
+    const outcomes = [];
+    let p = 1;
+    for (let i = 0; i < bouts; i++) {
+      const win = (mask >> i) & 1;
+      outcomes.push(win ? 'win' : 'lose');
+      p *= win ? winRate : 1 - winRate;
+    }
+    expected += p * boutSequenceXP(tier, outcomes).total;
+  }
+  return expected;
+}
+
+const xpCols = ['Tier', 'XP Mult', 'Win 1', 'Win 2', 'Win 3', 'Total XP (3 wins)', 'Levels gained'];
 const xpRows = [];
 for (const [tierName, tier] of tierEntries) {
-  const normalXP = Math.round(BASE_XP * tier.xpMultiplier) * 2;
-  const drXP = Math.round(BASE_XP * tier.xpMultiplier * 0.5);
-  const totalXP = normalXP + drXP;
+  const per = [1, 2, 3].map(
+    (n) =>
+      boutSequenceXP(tier, Array(n).fill('win')).total -
+      boutSequenceXP(tier, Array(n - 1).fill('win')).total,
+  );
+  const three = boutSequenceXP(tier, ['win', 'win', 'win']);
   xpRows.push({
     Tier: tierName,
     'XP Mult': `${tier.xpMultiplier}×`,
-    'Fights 1-2 XP': normalXP,
-    'Fight 3 XP (DR)': drXP,
-    'Total XP (3 wins)': totalXP,
-    'Approx Levels': `~${(totalXP / 100).toFixed(1)}`,
+    'Win 1': per[0],
+    'Win 2': per[1],
+    'Win 3': per[2],
+    'Total XP (3 wins)': three.total,
+    'Levels gained': three.levels,
   });
 }
 printTable(xpCols, xpRows);
+console.log(
+  `\n(base XP ${BASE_XP}, ${XP_PER_LEVEL} XP per level from 0; XP halves only after ` +
+    `${colosseumData.arena.diminishingReturnsAfterLevels ?? 2} levels gained this visit)\n`,
+);
+
+// ────────────────────────────────────────
+// 3b. Visit yield: big army, before and after the visit cap
+// ────────────────────────────────────────
+printHeader('Arena Yield per Visit: big army (Vulneraries for everyone), before and after the cap');
+
+// "Before" is every unit fighting its full per-unit cap (units × maxFightsPerUnit bouts);
+// "after" is the visit cap on top. Bouts go round-robin across the army. Gold and XP are
+// expected values at the given win rate (a loss pays no XP); each fighter's XP follows
+// the game's rule above, from that fighter's own levels gained this visit.
+function visitYield(tier, winRate, units, perUnit, visitCap) {
+  const bouts = Math.min(units * perUnit, visitCap);
+  let xp = 0;
+  for (let u = 0; u < units; u++) {
+    const own = Math.floor(bouts / units) + (u < bouts % units ? 1 : 0);
+    xp += expectedFighterXP(tier, winRate, own);
+  }
+  const gold = bouts * (winRate * tier.goldReward - (1 - winRate) * tier.entryFee);
+  return { bouts, gold: Math.round(gold), xp: Math.round(xp) };
+}
+const VISIT_WIN_RATE = 0.7;
+const ARMY_SIZES = [2, 4, 8];
+const visitCols = [
+  'Rung',
+  'Tier',
+  'Army',
+  'Bouts before',
+  'Gold before',
+  'XP before',
+  'Bouts after',
+  'Gold after',
+  'XP after',
+];
+const visitRows = [];
+for (const rung of DIFFICULTY_IDS) {
+  const perUnit = getMaxFights(rung, colosseumData);
+  const visitCap = getMaxFightsPerVisit(rung, colosseumData);
+  for (const tierName of ['silver', 'gold']) {
+    const tier = colosseumData.arena.tiers[tierName];
+    for (const units of ARMY_SIZES) {
+      const before = visitYield(tier, VISIT_WIN_RATE, units, perUnit, Infinity);
+      const after = visitYield(tier, VISIT_WIN_RATE, units, perUnit, visitCap);
+      visitRows.push({
+        Rung: rung,
+        Tier: tierName,
+        Army: `${units} units`,
+        'Bouts before': before.bouts,
+        'Gold before': `${before.gold}G`,
+        'XP before': before.xp,
+        'Bouts after': after.bouts,
+        'Gold after': `${after.gold}G`,
+        'XP after': after.xp,
+      });
+    }
+  }
+}
+printTable(visitCols, visitRows);
+console.log(
+  `\n(win rate ${VISIT_WIN_RATE * 100}%, base XP ${BASE_XP}; per-unit cap from getMaxFights)\n`,
+);
 
 // ────────────────────────────────────────
 // 4. Mercenary pricing analysis

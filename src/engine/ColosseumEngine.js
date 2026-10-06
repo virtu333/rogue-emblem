@@ -206,18 +206,59 @@ export function getArenaWeapon(unit) {
   return usable.includes(unit.weapon) ? unit.weapon : usable[0] || null;
 }
 
+/** The crowd's reason once a visit's bouts are spent (shown in place of any unit's). */
+export const ARENA_VISIT_SPENT_REASON = 'The crowd goes home: no more bouts here.';
+
 /**
- * Why a unit can't enter the arena now, or '' when it can. A fighter needs more
- * than 1 HP, a fight left this visit, and a combat weapon it can wield: without
- * one the exchange is empty (an unarmed or staff-only unit can't strike, and the
- * challenger never gets to), which used to count as a draw and pay draw XP.
+ * Bouts fought at one colosseum visit: the sum of every fighter's count. The per-unit
+ * counts (`colosseumState.fightsPerUnit`) are the one saved record; the visit total is
+ * read from them, so the two can never disagree and a save from before the visit cap
+ * already carries its true total.
+ * @param {Object<string, number>|null|undefined} fightsPerUnit - unit name -> bouts
+ * @returns {number}
+ */
+export function arenaVisitBouts(fightsPerUnit) {
+  let total = 0;
+  for (const count of Object.values(fightsPerUnit || {})) {
+    if (Number.isFinite(count) && count > 0) total += Math.trunc(count);
+  }
+  return total;
+}
+
+/**
+ * Bouts left at this visit (Infinity when no cap is configured).
+ * @param {number} visitBouts - bouts fought so far (arenaVisitBouts)
+ * @param {number} maxVisitBouts - getMaxFightsPerVisit
+ * @returns {number}
+ */
+export function arenaVisitBoutsLeft(visitBouts, maxVisitBouts) {
+  if (!Number.isFinite(maxVisitBouts)) return Infinity;
+  return Math.max(0, maxVisitBouts - Math.max(0, visitBouts || 0));
+}
+
+/**
+ * Why a unit can't enter the arena now, or '' when it can. The visit's bouts must
+ * not be spent (the crowd's reason comes first: it is true of every fighter), and a
+ * fighter needs more than 1 HP, a fight left this visit, and a combat weapon it can
+ * wield: without one the exchange is empty (an unarmed or staff-only unit can't
+ * strike, and the challenger never gets to), which used to count as a draw and pay
+ * draw XP.
  * @param {Object} unit
  * @param {number} fightsThisVisit - fights this unit has done at this colosseum visit
- * @param {number} maxFights
+ * @param {number} maxFights - bouts allowed per unit
+ * @param {number} [visitBouts] - bouts fought at this visit by everyone
+ * @param {number} [maxVisitBouts] - bouts allowed at this visit (default: no cap)
  * @returns {string}
  */
-export function arenaEntryBlock(unit, fightsThisVisit, maxFights) {
+export function arenaEntryBlock(
+  unit,
+  fightsThisVisit,
+  maxFights,
+  visitBouts = 0,
+  maxVisitBouts = Infinity,
+) {
   const name = unit?.name || 'This unit';
+  if (arenaVisitBoutsLeft(visitBouts, maxVisitBouts) <= 0) return ARENA_VISIT_SPENT_REASON;
   if ((unit?.currentHP || 0) <= 1) return `${name} needs more than 1 HP to fight.`;
   if (fightsThisVisit >= maxFights) return `${name} has no arena fights left this visit.`;
   if (!getArenaWeapon(unit)) return `${name} has no weapon to fight with.`;
@@ -229,10 +270,18 @@ export function arenaEntryBlock(unit, fightsThisVisit, maxFights) {
  * @param {Object} unit
  * @param {number} fightsThisVisit - fights this unit has done at this colosseum visit
  * @param {number} maxFights
+ * @param {number} [visitBouts]
+ * @param {number} [maxVisitBouts]
  * @returns {boolean}
  */
-export function canFight(unit, fightsThisVisit, maxFights) {
-  return arenaEntryBlock(unit, fightsThisVisit, maxFights) === '';
+export function canFight(
+  unit,
+  fightsThisVisit,
+  maxFights,
+  visitBouts = 0,
+  maxVisitBouts = Infinity,
+) {
+  return arenaEntryBlock(unit, fightsThisVisit, maxFights, visitBouts, maxVisitBouts) === '';
 }
 
 /**
@@ -245,6 +294,19 @@ export function getMaxFights(difficultyMode, colosseumData) {
   const diffOverride = colosseumData?.difficulty?.[difficultyMode]?.maxFightsPerUnit;
   if (typeof diffOverride === 'number') return diffOverride;
   return colosseumData?.arena?.maxFightsPerUnit ?? 3;
+}
+
+/**
+ * Get max bouts per colosseum visit (all fighters together) for the current difficulty:
+ * the rung's `difficulty.<id>.maxFightsPerVisit`, else `arena.maxFightsPerVisit`.
+ * @param {string|null} difficultyMode
+ * @param {Object} colosseumData
+ * @returns {number}
+ */
+export function getMaxFightsPerVisit(difficultyMode, colosseumData) {
+  const diffOverride = colosseumData?.difficulty?.[difficultyMode]?.maxFightsPerVisit;
+  if (typeof diffOverride === 'number') return diffOverride;
+  return colosseumData?.arena?.maxFightsPerVisit ?? 5;
 }
 
 /**

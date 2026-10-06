@@ -531,8 +531,13 @@ test.describe('phone Canto and rewind contracts', () => {
         };
         u.skills.push('canto');
         u.currentHP -= 10;
+        // A 3-use Vulnerary pinned by the fixture (the catalog's uses follow the meta
+        // upgrade): the assertions below check one use is spent, 3 -> 2.
         u.consumables = [
-          structuredClone(s.gameData.consumables.find((i) => i.name === 'Vulnerary')),
+          {
+            ...structuredClone(s.gameData.consumables.find((i) => i.name === 'Vulnerary')),
+            uses: 3,
+          },
         ];
         s.updateHPBar(u);
         s.battleConfig.villageTile = pos;

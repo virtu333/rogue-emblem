@@ -1,6 +1,7 @@
 {
   "arena": {
     "maxFightsPerUnit": 3,
+    "maxFightsPerVisit": 5,
     "maxRounds": 10,
     "diminishingReturnsAfterLevels": 2,
     "diminishingReturnsFactor": 0.5,
@@ -87,16 +88,24 @@
     }
   },
   "difficulty": {
+    "normal": {
+      "maxFightsPerVisit": 5
+    },
+    "dusk": {
+      "maxFightsPerVisit": 4
+    },
     "hard": {
       "challengerLevelBonus": 1,
-      "mercenaryPriceMultiplier": 1.2
+      "mercenaryPriceMultiplier": 1.2,
+      "maxFightsPerVisit": 4
     },
     "lunatic": {
       "challengerLevelBonus": 2,
       "challengerMinSkills": 1,
       "platinumMaxSkills": 2,
       "mercenaryPriceMultiplier": 1.4,
-      "maxFightsPerUnit": 2
+      "maxFightsPerUnit": 2,
+      "maxFightsPerVisit": 3
     }
   },
   "nodeGeneration": {
