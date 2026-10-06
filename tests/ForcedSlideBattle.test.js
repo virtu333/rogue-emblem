@@ -10,6 +10,7 @@ vi.mock('phaser', () => ({ default: { Scene: class {} } }));
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { Grid } from '../src/engine/Grid.js';
 import { AbilityController } from '../src/ui/AbilityController.js';
+import { postCombatEffects } from '../src/engine/PostCombatEffects.js';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
@@ -429,5 +430,64 @@ describe('Pull: neither unit slides', () => {
     await scene.executePull(puller, target);
     expect(at(puller)).toEqual([3, 0]);
     expect(at(friend)).toEqual([4, 0]);
+  });
+});
+
+describe('a weapon-art push or ram onto ice, through the scene', () => {
+  // Lancer (4,0) beside Target (5,0), ice on 6 and 7, plain after. The art's own beats are
+  // played by the scene (_playPostCombatBeats), as after a real combat.
+  const art = (mode, distance) => ({
+    id: `fixture_${mode}`,
+    targeting: 'normal_attack',
+    effects: { afterCombat: [{ type: 'move', mode, distance, collisionDamage: 5 }] },
+    combatMods: {},
+  });
+  const hit = { events: [{ type: 'strike', attackerSide: 'attacker', miss: false, damage: 1 }] };
+  const playArt = async (mode, distance, line = '......ii....', change = () => {}) => {
+    const lancer = unit('Lancer', 4, 0);
+    const target = foe('Target', 5, 0);
+    const scene = sceneWith({ grid: board(line), players: [lancer], enemies: [target] });
+    change(scene);
+    const combat = {
+      attacker: lancer,
+      defender: target,
+      result: hit,
+      attackerWeaponArt: art(mode, distance),
+    };
+    await scene._playPostCombatBeats(postCombatEffects(combat, scene._postCombatWorld()));
+    return { scene, lancer, target };
+  };
+
+  it('a push slides the target on, drawn tile by tile at the slide speed', async () => {
+    const { scene, lancer, target } = await playArt('push', 1);
+    expect(at(target)).toEqual([8, 0]);
+    expect(at(lancer)).toEqual([4, 0]);
+    expect(scene._awaitSceneTween.mock.calls.map(([c]) => [c.x, c.duration])).toEqual([
+      [192, 60],
+      [224, 60],
+      [256, 60],
+    ]);
+    expect(scene._refreshPostCombatMovementState).toHaveBeenCalledWith([target]);
+  });
+
+  it('a ram with ice on its first tile slides on and is no crash; on plain ground it is as before', async () => {
+    const onIce = await playArt('ram', 2);
+    expect(at(onIce.target)).toEqual([8, 0]);
+    expect(onIce.target.currentHP).toBe(24);
+    const plain = await playArt('ram', 2, '............');
+    expect(at(plain.target)).toEqual([7, 0]);
+    expect(plain.scene._awaitSceneTween).not.toHaveBeenCalled();
+  });
+
+  it('drawing it changes nothing: the same board with the tween failing', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { target } = await playArt('push', 1, '......ii....', (scene) => {
+      scene._awaitSceneTween = vi.fn(async () => {
+        throw new Error('renderer fault');
+      });
+    });
+    expect(at(target)).toEqual([8, 0]);
+    vi.restoreAllMocks();
   });
 });

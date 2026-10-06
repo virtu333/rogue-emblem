@@ -199,8 +199,14 @@ traced over different boards for the two uses (`ui/forcedMoveProbes.js`):
   hidden foe is an "Ambush!" (history beat `was ambushed by` for the ally, hint on the foe), a hidden
   neutral a "Blocked" hint; Smite shows nothing (nobody on the player's side bumped into it).
 
-`tests/ForcedSlideBattle.test.js` pairs worlds that differ only by a hidden unit and requires the same
-preview and a different outcome.
+The art ram's forecast (`AreaPreview.previewAreaArt`) is the same: it passes the terrain and the
+known units, so its landing shows the slide and a fogged unit never shortens it, while the real ram
+(`PostCombatEffects` over the real board) stops where the real board stops it. The slide's landing is
+data on the target entries (`destCol` / `destRow`, `path`); the board shows no landing marker today
+(Shove and Smite highlight the target tile only), for ice or not.
+
+`tests/ForcedSlideBattle.test.js` and `tests/AreaPreview.test.js` pair worlds that differ only by a
+hidden unit and require the same preview and a different outcome.
 
 **Presentation.** `settleMoves` carries `path` on the move's fact; `presentSettledMoves` tweens a move
 that has one tile by tile (slide tiles at walking's 60 ms), the same lifecycle and cleanup as any move.
