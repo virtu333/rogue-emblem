@@ -37,12 +37,12 @@
     "old_swordmaster": { "source": "old_swordmaster-t3" },
     "abandoned_armory": { "source": "abandoned_armory-t2" },
     "twin_altar": { "source": "twin_altar-t3", "crop": [0, 0.02, 0, 0.243] },
-    "wounded_courier": { "source": "wounded_courier-t2", "crop": [0, 0.06, 0, 0.203] },
+    "wounded_courier": { "source": "wounded_courier-t4", "crop": [0, 0.185, 0, 0.101] },
     "deserters_fire": { "source": "deserters_fire-t2", "crop": [0, 0.2, 0, 0.063] },
     "the_echo": { "source": "the_echo-t1" },
     "toll_bridge": { "source": "toll_bridge-t1" },
     "moneylender": { "source": "moneylender-t1" },
-    "drill_yard": { "source": "drill_yard-t1", "crop": [0, 0.15, 0, 0.113] },
+    "drill_yard": { "source": "drill_yard-t6", "crop": [0, 0.16, 0, 0.126] },
     "quiet_road": { "source": "quiet_road-t2" }
   }
 }

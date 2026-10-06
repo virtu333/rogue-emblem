@@ -139,7 +139,8 @@ export const EVENTS = {
     'ornate chest open on the cart showing gold, a thin man in a long dark coat and very fine pale ' +
     'gloves seen in profile holding a ledger, lanterns on poles, a small cold smile in the lamplight',
   drill_yard:
-    'an abandoned military drill yard at dusk: straw training dummies slumped on posts, a raked ' +
+    'an empty, abandoned military drill yard at dusk with nobody in it, no people at all: straw ' +
+    'training dummies slumped on posts, a raked ' +
     'sand pit, a rack of blunted practice blades, a blank wooden signboard on two posts with no ' +
     'writing, a low barracks building with shuttered windows behind',
   quiet_road:

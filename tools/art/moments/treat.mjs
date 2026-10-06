@@ -6,7 +6,8 @@
 //   assets/ui/moments/vignettes/<service>.png      640 x 360 (1x phone, 2x desktop band)
 //   assets/ui/moments/events/<event id>.png        640 x 200 (the Event page's header band)
 // plus src/ui/momentArtManifest.json (ids and content hashes for cache busting).
-//   node tools/art/moments/treat.mjs [--sheet]   (--sheet: contact sheet for curation)
+//   node tools/art/moments/treat.mjs [--sheet] [--only kind,..] [--ids id,..]
+//   (--sheet: contact sheet for curation)
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
@@ -58,7 +59,10 @@ const sha = (buf) => createHash('sha256').update(buf).digest('hex').slice(0, 8);
 // entry and shipped PNG as it is).
 const onlyArg = process.argv.indexOf('--only');
 const ONLY = onlyArg > 0 ? process.argv[onlyArg + 1].split(',') : null;
-const previous = ONLY ? JSON.parse(fs.readFileSync(MANIFEST, 'utf8')) : {};
+// --ids a,b re-treats just those pictures (any kind) and keeps every other entry as it is.
+const idsArg = process.argv.indexOf('--ids');
+const IDS = idsArg > 0 ? process.argv[idsArg + 1].split(',') : null;
+const previous = ONLY || IDS ? JSON.parse(fs.readFileSync(MANIFEST, 'utf8')) : {};
 const manifest = {
   version: 1,
   generator: 'tools/art/moments/treat.mjs',
@@ -76,8 +80,9 @@ for (const [kind, table, size, colours, sub] of [
   ['event', SEL.events, EVENT_BAND, 24, 'events'],
 ]) {
   if (ONLY && !ONLY.includes(kind)) continue;
-  manifest[sub] = {};
+  manifest[sub] = IDS ? { ...manifest[sub] } : {};
   for (const [id, pick] of Object.entries(table || {})) {
+    if (IDS && !IDS.includes(id)) continue;
     const png = await treat(kind, pick, size, colours);
     for (const dir of DIRS) {
       fs.mkdirSync(path.join(dir, sub), { recursive: true });
