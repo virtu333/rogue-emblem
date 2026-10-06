@@ -392,7 +392,7 @@ import {
 import { consumeEscEvent, isEscConsumed } from '../utils/escPriority.js';
 import { hasOpenOverlay, routeCancel } from '../utils/overlayStack.js';
 import { InputAction } from '../utils/InputActions.js';
-import { describeBurdens } from '../engine/Burdens.js';
+import { pauseBurdenEntries } from '../ui/eventMenuModel.js';
 import { pushInputScope, popInputScope, hasInputFocus } from '../utils/inputFocus.js';
 import {
   summarizeWeaponArtEffect,
@@ -4514,7 +4514,7 @@ export class BattleScene extends Phaser.Scene {
     const backToMap =
       placing && this._formation?.canReturnToMap() ? () => this._formation.returnToMap() : null;
     this.pauseOverlay = new PauseOverlay(this, {
-      burdens: describeBurdens(this.runManager, this.gameData?.events),
+      burdens: pauseBurdenEntries(this.runManager, this.gameData?.events),
       onAbandonWarning: abandonPayout
         ? `Abandon this run?\nKeep ${abandonPayout.valor} Valor and ${abandonPayout.supply} Supply. This run and its gold, items and route progress will end.`
         : null,

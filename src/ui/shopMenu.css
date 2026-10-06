@@ -313,6 +313,29 @@
   color: var(--re-gold-hi);
   font-weight: 600;
 }
+/* The church's Cleanse vow (ChurchMenu.renderCleanse): each burden's words under its row, the
+   altar's refusal of a Debt, and a vow already made here said once. */
+.service-menu .church-cleanse-text {
+  margin: 0 0 8px;
+  padding-left: 10px;
+  border-left: 2px solid var(--re-gilt-lo);
+  color: var(--re-muted);
+  font: var(--re-t-small);
+  overflow-wrap: anywhere;
+}
+.service-menu .church-cleanse-debt,
+.service-menu .church-cleanse-reason {
+  margin: 0 0 8px;
+  color: var(--re-warn);
+  font: var(--re-t-small);
+  font-weight: 600;
+}
+/* "Bouts left here: N": the colosseum visit's cap (ColosseumEngine.arenaVisitBoutsLeft). */
+.service-menu .arena-bouts-left {
+  margin: 6px 0;
+  color: var(--re-accent-text);
+  font-weight: 600;
+}
 @media (orientation: portrait) {
   .service-columns {
     grid-template-columns: 1fr;

@@ -193,7 +193,7 @@ describe('eventResultLines', () => {
       chip: 'BURDEN',
       tone: 'bad',
       text: 'Burden: Debt',
-      detail: 'The lender takes a share. 450 G owed',
+      detail: 'The lender takes a share. 450 G owed.',
     });
     expect(only({ kind: 'layToRest', name: 'Rook' })).toMatchObject({
       chip: 'CAIRN',

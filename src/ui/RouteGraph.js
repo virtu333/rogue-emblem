@@ -52,9 +52,11 @@ const isEclipsed = (node) => !!node?.eclipse;
 export function nodeFrame(node, act) {
   // A place the dark took keeps its silhouette (a burned village is still a village).
   const was = node?.eclipse?.fromType;
-  // A fallen event wears the Dark Omen: the same lantern post once the Eclipse has it.
-  if (was === 'event') return EVENT_DARK_ART_FRAME;
-  if (was && was !== 'battle' && FRAMES[was] != null) return FRAMES[was];
+  // Only an event that kept its story wears the Dark Omen: the same lantern post once the Eclipse
+  // has it (node.darkOmen, EclipseSystem.eclipseNode). An event that fell to a fight is an eclipsed
+  // battle like any other: it reads elite, below.
+  if (was === 'event' && node.darkOmen === true) return EVENT_DARK_ART_FRAME;
+  if (was && was !== 'battle' && was !== 'event' && FRAMES[was] != null) return FRAMES[was];
   return node.type === 'boss' && act === 'finalBoss'
     ? 8
     : isEliteBattle(node)
@@ -208,7 +210,7 @@ export function createRouteGraph({
     const eclipseInfo = eclipse?.nodes?.get?.(n.id) || null;
     b.classList.toggle('is-eclipsed', fallen);
     b.classList.toggle('is-eclipse-pending', fallen && pending.has(n.id));
-    b.classList.toggle('is-dark-omen', fallen && n.eclipse?.fromType === 'event');
+    b.classList.toggle('is-dark-omen', fallen && n.darkOmen === true);
     const waning = !fallen && !!eclipseInfo?.near && state !== 'done' && state !== 'current';
     b.classList.toggle('is-waning', waning);
     const stateText = state === 'current' ? currentLabel : STATE_TEXT[state];

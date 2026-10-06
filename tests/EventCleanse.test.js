@@ -183,7 +183,14 @@ describe('the church menu', () => {
     expect(body()).toContain('The lender has lawyers: no altar lifts a Debt.');
     expect(body()).toContain('lift a burden: one vow per church');
     expect(labels()).toEqual(expect.arrayContaining(['Ill Omen · 2 left', 'Hunted · 2 left']));
-    expect(labels().some((l) => l.startsWith('Debt'))).toBe(false);
+    // Debt is listed, greyed, and never pressable: the altar will not lift it.
+    const debt = d.buttons().find((b) => b.textContent.startsWith('Debt'));
+    expect(debt.disabled).toBe(true);
+    expect(debt.dataset.burden).toBe('debt');
+    // Each burden a church can lift has its words under its row.
+    expect(body()).toContain(
+      'Each victory gathers more shadow until the omen passes. 2 battles left, +1 shadow each.',
+    );
 
     d.press('Hunted · 2 left');
     expect(d.church.nativeMenu.child.options.confirmation).toBe(true);

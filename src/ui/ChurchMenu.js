@@ -46,7 +46,7 @@ import {
   cleanseAtChurch,
   takeChurchBlessing,
 } from '../engine/ChurchVow.js';
-import { burdenOf, describeBurdens } from '../engine/Burdens.js';
+import { describeBurdens } from '../engine/Burdens.js';
 import { createEclipseSunCanvas } from '../art/eclipse/eclipseSun.js';
 import {
   CHURCH_PROMOTE_COST_LORD,
@@ -233,7 +233,9 @@ export class ChurchMenu {
   }
   /**
    * Cleanse: when the run holds a burden a church can lift (Burdens.cleansableBurdens: all but
-   * Debt), the altar offers to lift one of the player's choosing. Taking it is this church's vow.
+   * Debt), the altar offers to lift one of the player's choosing: a row per burden, its words
+   * under it, behind a confirmation. Taking it is this church's vow. A Debt the run carries is
+   * shown as a row the altar will not lift, so the player sees why it stays.
    */
   renderCleanse(body, run, nodeId) {
     if (!churchOffersCleanse(run, nodeId)) return;
@@ -241,11 +243,14 @@ export class ChurchMenu {
     body.append(el('h3', 'Cleanse · Free'));
     const catalog = this.scene.gameData?.events;
     const burdens = describeBurdens(run, catalog);
-    if (burdenOf(run, 'debt'))
-      body.append(el('p', 'The lender has lawyers: no altar lifts a Debt.', 'church-cleanse-debt'));
-    for (const burden of burdens) {
-      if (burden.id === 'debt') continue;
-      const reason = churchCleanseBlock(run, nodeId, burden.id);
+    const lifts = burdens.filter((burden) => burden.id !== 'debt');
+    // One reason for the whole section when a vow already made here shuts them all
+    // (not the same line under every row).
+    const reasons = lifts.map((burden) => churchCleanseBlock(run, nodeId, burden.id));
+    const shared = reasons.every((reason) => reason && reason === reasons[0]) ? reasons[0] : '';
+    if (shared) body.append(el('p', shared, 'church-cleanse-reason'));
+    lifts.forEach((burden, index) => {
+      const reason = reasons[index];
       const b = button(
         `${burden.label} · ${burden.short}`,
         () =>
@@ -265,7 +270,17 @@ export class ChurchMenu {
       b.dataset.burden = burden.id;
       b.disabled = !!reason;
       body.append(b);
-      if (reason) body.append(el('p', reason));
+      body.append(el('p', `${burden.line} ${burden.detail}.`, 'church-cleanse-text'));
+      if (reason && !shared) body.append(el('p', reason));
+    });
+    // A Debt on the run: listed, greyed, with the altar's refusal (never offered, never lifted).
+    const debt = burdens.find((burden) => burden.id === 'debt');
+    if (debt) {
+      const b = button(`${debt.label} · ${debt.short}`, () => {}, 're-btn church-cleanse');
+      b.dataset.burden = 'debt';
+      b.disabled = true;
+      body.append(b);
+      body.append(el('p', 'The lender has lawyers: no altar lifts a Debt.', 'church-cleanse-debt'));
     }
   }
   /** The altar's minor blessings: taking one is this church's vow. */
