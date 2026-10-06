@@ -258,13 +258,8 @@ export class EventMenu {
    * (the spoils stay owed), Give up the spoils (confirmed first).
    */
   renderSpoilsOwed(body, view) {
-    const outcome = view.outcome;
-    if (outcome) {
-      const who = outcome.targetName ? ` · ${outcome.targetName}` : '';
-      body.append(el('p', `You chose: ${outcome.choiceLabel}${who}`, 'ev-chosen'));
-    }
-    if (outcome?.text) body.append(el('p', outcome.text, 'ev-outcome'));
-    this.renderResults(body, outcome?.results || []);
+    // What went wrong comes first (on a short screen it must not hide under the action row);
+    // the choice and its outcome, for context, follow.
     body.append(el('p', 'The fight is won.', 'ev-chosen ev-won'));
     const failed = el('div', null, 'ev-failed');
     failed.setAttribute('role', 'alert');
@@ -274,6 +269,13 @@ export class EventMenu {
       el('small', 'Nothing was lost: they stay owed until you try again or give them up.'),
     );
     body.append(failed);
+    const outcome = view.outcome;
+    if (outcome) {
+      const who = outcome.targetName ? ` · ${outcome.targetName}` : '';
+      body.append(el('p', `You chose: ${outcome.choiceLabel}${who}`, 'ev-chosen'));
+    }
+    if (outcome?.text) body.append(el('p', outcome.text, 'ev-outcome'));
+    this.renderResults(body, outcome?.results || []);
     const actions = el('div', null, 'ev-actions ev-actions--owed');
     this.primary = button(
       'Try again',
