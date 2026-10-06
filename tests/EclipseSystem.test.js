@@ -491,7 +491,11 @@ describe('event nodes (docs/specs/event-nodes.md §1 "Eclipse")', () => {
   }
 
   it('ships the copy: "Swallowed road", the dark takes the omen', () => {
-    expect(config.falls.event).toEqual({ label: 'Swallowed road', noun: 'omen' });
+    expect(config.falls.event).toEqual({
+      label: 'Swallowed road',
+      noun: 'omen',
+      darkLabel: 'Dark Omen',
+    });
     const node = { id: 'act2_4_1', row: 4, col: 1, type: 'event', edges: [], battleParams: null };
     eclipseNode(node, ctx);
     expect(node.eclipse.label).toBe('Swallowed road');

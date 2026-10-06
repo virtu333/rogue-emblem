@@ -133,6 +133,36 @@ export function choiceSeedKey(run, nodeId, pageId, choiceId) {
     : `event:${seed}:${nodeId}:${pageId}:${choiceId}`;
 }
 
+// ── The Dark Omen face ──────────────────────────────────────────────────
+
+/** True when an event has a Dark Omen face (`dark: { intro, choices, pages? }`). */
+export function isDarkEvent(event) {
+  return (
+    Boolean(event) &&
+    typeof event.dark === 'object' &&
+    event.dark !== null &&
+    Array.isArray(event.dark.choices) &&
+    event.dark.choices.length > 0
+  );
+}
+
+/**
+ * The face of an event a state plays: the event itself, or for a Dark Omen (`state.dark`) the
+ * same event with the dark face's `intro`, `choices` and `pages` laid over it (everything
+ * else - title, requires, counters - stays the event's). Without a dark face it is the event.
+ */
+export function eventFace(event, state) {
+  if (state?.dark !== true || !isDarkEvent(event)) return event;
+  const { dark } = event;
+  const { pages, ...rest } = event;
+  return {
+    ...rest,
+    intro: typeof dark.intro === 'string' && dark.intro ? dark.intro : event.intro,
+    choices: dark.choices,
+    ...(dark.pages ? { pages: dark.pages } : {}),
+  };
+}
+
 /** The fallback event (never picked by weight): the entry marked `fallback`, else quiet_road. */
 export function fallbackEvent(catalog) {
   return (
@@ -623,21 +653,37 @@ export function eventBlock(run, event, node, catalog, seen = seenEventIds(run)) 
   return evaluateRequires(run, event.requires, { catalog, node }) ? 'requires' : '';
 }
 
-/** Every event the run could meet at this node right now (catalog order). */
-export function eligibleEvents(run, node, catalog) {
+/**
+ * Every event the run could meet at this node right now (catalog order). `dark: true` keeps
+ * only the events that have a Dark Omen face.
+ */
+export function eligibleEvents(run, node, catalog, { dark = false } = {}) {
   if (!catalog || isPrologueRun(run)) return [];
   const seen = seenEventIds(run);
-  return catalog.events.filter((event) => eventBlock(run, event, node, catalog, seen) === '');
+  return catalog.events.filter(
+    (event) => (!dark || isDarkEvent(event)) && eventBlock(run, event, node, catalog, seen) === '',
+  );
+}
+
+/**
+ * Whether the Eclipse may turn this event node into a Dark Omen instead of a battle: some event
+ * with a dark face is eligible at it now (EclipseSystem.eclipseNode asks, once, as the node falls).
+ */
+export function hasDarkOmen(run, node, catalog = null) {
+  const data = eventCatalogOf(run, catalog);
+  return Boolean(data) && eligibleEvents(run, node, data, { dark: true }).length > 0;
 }
 
 /**
  * The seeded pick: each eligible event draws u from its own `event-pick:` stream and is
  * keyed -ln(u) / weight (a weighted random order, independent of catalog order); the
- * smallest key wins. Falls back to the fallback event when nothing is eligible.
+ * smallest key wins. Falls back to the fallback event when nothing is eligible. A Dark Omen
+ * (`dark: true`) draws among the eligible events that have a dark face, with the same keys, so
+ * the pick is as seeded as any other; the fallback event stands in when none is eligible any more.
  * @returns {object|null} the event definition
  */
-export function pickEvent(run, node, catalog) {
-  const eligible = eligibleEvents(run, node, catalog);
+export function pickEvent(run, node, catalog, { dark = false } = {}) {
+  const eligible = eligibleEvents(run, node, catalog, { dark });
   if (eligible.length === 0) return fallbackEvent(catalog);
   const seed = runSeedOf(run);
   let best = null;
@@ -837,6 +883,8 @@ export function sanitizeEventStates(raw) {
       .map(plainJson)
       .filter(Boolean);
     if (entry.left === true) state.left = true;
+    // Phase 2B: the event is a Dark Omen (its dark face is the one in play).
+    if (entry.dark === true) state.dark = true;
     // Phase 2: the page the event is on and the steps behind it (absent = the first page, no
     // steps: every Phase 1 record), and the counters it carries. Defaults are omitted, so a
     // record written before pages existed reads back exactly as it was written.

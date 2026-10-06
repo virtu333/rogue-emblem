@@ -256,6 +256,86 @@
       "title": "The Twin Altar",
       "weight": 1,
       "intro": "Two faces cut from one stone, one toward the sunrise and one toward the dark. There are offerings before both. More before the dark one.",
+      "dark": {
+        "intro": "The dawn face has split down the middle and fallen. Only the dark one stands, and every offering in the temple is heaped at its feet.",
+        "choices": [
+          {
+            "id": "kneel",
+            "label": "Kneel to the dark face",
+            "hint": "It still asks for nothing. It has never needed to.",
+            "requires": {
+              "blessingTier": 3,
+              "reason": "The dark face has nothing left to give you."
+            },
+            "outcomes": [
+              {
+                "id": "answered",
+                "weight": 100,
+                "text": "It answers before you finish. Something comes loose in you, and something else is set in its place.",
+                "effects": [
+                  {
+                    "type": "blessing",
+                    "tier": 3
+                  },
+                  {
+                    "type": "vision",
+                    "value": 1
+                  },
+                  {
+                    "type": "burden",
+                    "id": "ill_omen",
+                    "params": {
+                      "extraShadow": 2
+                    }
+                  },
+                  {
+                    "type": "shadow",
+                    "value": 4
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "offerings",
+            "label": "Take the offerings",
+            "hint": "More than there ever was. Every one of them watching you take it.",
+            "outcomes": [
+              {
+                "id": "taken",
+                "weight": 100,
+                "text": "The coins are cold and the dark face is not smiling now. That is worse.",
+                "effects": [
+                  {
+                    "type": "gold",
+                    "value": {
+                      "base": 300,
+                      "perAct": 150
+                    }
+                  },
+                  {
+                    "type": "shadow",
+                    "value": 6
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "leave",
+            "label": "Leave the temple",
+            "hint": "Some doors you only need to hear close.",
+            "outcomes": [
+              {
+                "id": "left",
+                "weight": 100,
+                "text": "Behind you, something puts its offerings back in order.",
+                "effects": []
+              }
+            ]
+          }
+        ]
+      },
       "choices": [
         {
           "id": "dawn",
@@ -318,6 +398,70 @@
       "title": "The Wounded Courier",
       "weight": 1,
       "intro": "An imperial courier sits against a milestone with an arrow through his thigh and a sealed dispatch in his fist. He watches your banner and decides not to run.",
+      "dark": {
+        "intro": "The courier is already dead, propped against the milestone with his hand closed on the dispatch. The seal is warm. It should not be warm.",
+        "choices": [
+          {
+            "id": "read",
+            "label": "Read the dispatch",
+            "hint": "Imperial routes, and a column of names in a different hand.",
+            "outcomes": [
+              {
+                "id": "named",
+                "weight": 100,
+                "text": "Routes, and beneath them a list. Yours is the last line, and the ink is still wet.",
+                "effects": [
+                  {
+                    "type": "vision",
+                    "value": 1
+                  },
+                  {
+                    "type": "burden",
+                    "id": "sworn_enemy"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "burn",
+            "label": "Burn it unread",
+            "hint": "The seal won't like it.",
+            "outcomes": [
+              {
+                "id": "burned",
+                "weight": 100,
+                "text": "The seal screams, briefly. Then it is only ash, and your hand is not quite steady.",
+                "effects": [
+                  {
+                    "type": "shadow",
+                    "value": -5
+                  },
+                  {
+                    "type": "hp",
+                    "mode": "damage",
+                    "percent": 15,
+                    "scope": "commander"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "leave",
+            "label": "Leave him where he sits",
+            "hint": "He has waited this long.",
+            "outcomes": [
+              {
+                "id": "left",
+                "weight": 100,
+                "text": "You do not look back. Something behind you turns a page.",
+                "effects": []
+              }
+            ]
+          }
+        ]
+      },
       "choices": [
         {
           "id": "tend",
@@ -500,6 +644,119 @@
       "acts": ["act1", "act2", "act3"],
       "weight": 1,
       "intro": "A rope bridge, a hut, and a man with a crossbow and a ledger. \"Toll,\" he says, and names a sum. It's a lot.",
+      "dark": {
+        "intro": "The hut is dark and the ledger lies open. The toll-keeper sits in his chair very still, crossbow on his knee, aimed at the door. It was not the road that took him.",
+        "choices": [
+          {
+            "id": "search",
+            "label": "Search the hut",
+            "hint": "Whatever he guarded is still here. So is whatever got him.",
+            "outcomes": [
+              {
+                "id": "strongbox",
+                "weight": 50,
+                "weightByRung": {
+                  "hard": 40
+                },
+                "text": "Under his chair, a strongbox, and a weapon wrapped in oilcloth. He doesn't object.",
+                "effects": [
+                  {
+                    "type": "gold",
+                    "value": {
+                      "base": 200,
+                      "perAct": 150
+                    }
+                  },
+                  {
+                    "type": "item",
+                    "pool": {
+                      "kind": "weapon",
+                      "weaponTypes": "$army",
+                      "tierOffset": 1
+                    },
+                    "to": "auto"
+                  }
+                ]
+              },
+              {
+                "id": "occupied",
+                "weight": 50,
+                "weightByRung": {
+                  "hard": 60
+                },
+                "text": "The floorboards were not the only thing waiting. It stands up from the dark behind the door.",
+                "effects": [
+                  {
+                    "type": "battle",
+                    "enemyLevelBonus": 1,
+                    "victoryText": "The strongbox was the bait, and the bait was real. Coin, and steel worth a second look.",
+                    "afterVictory": [
+                      {
+                        "type": "gold",
+                        "value": {
+                          "base": 200,
+                          "perAct": 150
+                        }
+                      },
+                      {
+                        "type": "item",
+                        "pool": {
+                          "kind": "weapon",
+                          "weaponTypes": "$army",
+                          "tierOffset": 1
+                        },
+                        "to": "auto"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "ledger",
+            "label": "Take the ledger",
+            "hint": "Names, debts, and every road he ever watched. Others will want it back.",
+            "outcomes": [
+              {
+                "id": "taken",
+                "weight": 100,
+                "text": "Every road for a hundred miles, in a dead man's hand. Something reads over your shoulder.",
+                "effects": [
+                  {
+                    "type": "vision",
+                    "value": 1
+                  },
+                  {
+                    "type": "burden",
+                    "id": "hunted"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "cross",
+            "label": "Cross in silence",
+            "hint": "The bridge is old. It has been counting.",
+            "outcomes": [
+              {
+                "id": "crossed",
+                "weight": 100,
+                "text": "It holds. You stop counting how many times it creaked behind you.",
+                "effects": [
+                  {
+                    "type": "hp",
+                    "mode": "damage",
+                    "percent": 15,
+                    "scope": "all"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
       "choices": [
         {
           "id": "pay",
@@ -656,6 +913,84 @@
       "acts": ["act1", "act2"],
       "weight": 1,
       "intro": "An abandoned drill yard: straw men, a sand pit, a rack of blunted blades. A sign reads TWO HOURS. NO EXCUSES.",
+      "dark": {
+        "intro": "The yard is dark and the straw men stand in ranks. Some of them have faces. The sign now reads FOUR HOURS. NO EXCUSES. NO MERCY.",
+        "choices": [
+          {
+            "id": "drill",
+            "label": "Drill until dark",
+            "hint": "Better by morning, and not everyone walking right.",
+            "outcomes": [
+              {
+                "id": "drilled",
+                "weight": 100,
+                "text": "The sand runs black before they stop. Something in the straw learned with them. Someone is limping.",
+                "effects": [
+                  {
+                    "type": "stat",
+                    "stat": [
+                      "SKL",
+                      "SPD"
+                    ],
+                    "value": 2,
+                    "scope": "lowestLevel"
+                  },
+                  {
+                    "type": "hp",
+                    "mode": "damage",
+                    "percent": 25,
+                    "scope": "all"
+                  },
+                  {
+                    "type": "burden",
+                    "id": "wounded",
+                    "params": {
+                      "scope": "randomUnit",
+                      "stat": "random"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "rest",
+            "label": "Sleep in the barracks",
+            "hint": "The beds are made. Nobody remembers making them.",
+            "outcomes": [
+              {
+                "id": "rested",
+                "weight": 100,
+                "text": "Deep, dreamless and a little too long. You wake with the sun already gone.",
+                "effects": [
+                  {
+                    "type": "hp",
+                    "mode": "heal",
+                    "percent": 40,
+                    "scope": "all"
+                  },
+                  {
+                    "type": "shadow",
+                    "value": 3
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "leave",
+            "label": "March past",
+            "outcomes": [
+              {
+                "id": "left",
+                "weight": 100,
+                "text": "The straw men turn their heads as you pass. None of them says a word.",
+                "effects": []
+              }
+            ]
+          }
+        ]
+      },
       "choices": [
         {
           "id": "drill",
@@ -694,6 +1029,46 @@
       "oncePerRun": false,
       "fallback": true,
       "intro": "Nothing on this road but birdsong and an old well. Nobody complains.",
+      "dark": {
+        "intro": "The road is quiet, and the quiet is wrong. The old well has no bottom that you can see.",
+        "choices": [
+          {
+            "id": "drink",
+            "label": "Drink from the well",
+            "outcomes": [
+              {
+                "id": "drank",
+                "weight": 100,
+                "text": "Cold as a verdict and sweeter than it should be. Everyone feels better. Nobody looks at the water again.",
+                "effects": [
+                  {
+                    "type": "hp",
+                    "mode": "heal",
+                    "percent": 40,
+                    "scope": "all"
+                  },
+                  {
+                    "type": "shadow",
+                    "value": 3
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "press_on",
+            "label": "Press on",
+            "outcomes": [
+              {
+                "id": "pressed",
+                "weight": 100,
+                "text": "The quiet follows you a mile and then thinks better of it.",
+                "effects": []
+              }
+            ]
+          }
+        ]
+      },
       "choices": [
         {
           "id": "rest",

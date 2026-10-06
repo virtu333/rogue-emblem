@@ -148,6 +148,7 @@ import {
 } from './Prologue.js';
 import { normalizeRosterLesson } from './PrologueRosterLesson.js';
 import {
+  hasDarkOmen,
   sanitizeEventLog,
   sanitizeEventStates,
   sanitizeLaidToRest,
@@ -4231,6 +4232,8 @@ export class RunManager {
       mapTemplates: this.gameData?.mapTemplates || null,
       fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
       halfFogChance: this.difficultyId === 'normal',
+      // A fallen event that has a dark face to offer stays an event (a Dark Omen).
+      darkOmen: (node) => hasDarkOmen(this, node),
     });
   }
 

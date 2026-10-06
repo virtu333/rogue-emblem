@@ -22,7 +22,7 @@
 //   playability an event with no choice that is always available (no requirement, cost,
 //               target, item room or consumable needed) would soft-lock the route map, as
 //               would a missing or demanding fallback event
-//   tables      costScale and burdens (every rung priced; the two burdens defined)
+//   tables      costScale and burdens (every rung priced; every burden defined)
 // Phase 2 (docs/specs/event-nodes-phase2.md §2A):
 //   pages       a `pages` entry named `start` or without text and choices; an outcome's `next`
 //               naming no page, or sitting beside a battle; a page nothing leads to; a page
@@ -48,6 +48,11 @@
 //               sitting on a check choice (a check's outcome depends on who is chosen),
 //               `tilts` on a choice that is not a check or more than one `tilts` tell
 //   flags       `flagAct` without `flag`, or with a value that is not earlier / current / an act
+// Phase 2B (docs/specs/event-nodes-phase2.md §2B):
+//   burdens     the five burdens defined, battles whole numbers from 1, a Hunted wave in range,
+//               a wound a small negative; a `wounded` effect with no scope or stat
+//   dark        a `dark` block (the Dark Omen face: { intro, choices, pages? }) that is not an object,
+//               has an unknown key, or fails the plain face's rules (soft-locks included)
 
 import { EVENT_EFFECT_TYPES, EVENT_WEAPON_TYPES, eventWeaponCatalog } from './EventEffects.js';
 import {
@@ -787,242 +792,260 @@ export function validateEventsConfig(config, data = {}) {
     }
 
     checkCounters(ew, event);
-    const pages = [{ id: START_PAGE, where: ew, choices: event.choices }];
-    if (event.pages !== undefined) {
-      if (!isObject(event.pages)) err(ew, '`pages` must be an object');
-      else
-        for (const [pageId, page] of Object.entries(event.pages)) {
-          const pw = `${ew}[${pageId}]`;
-          if (!ID_PATTERN.test(pageId) || pageId === START_PAGE)
-            err(pw, `page id must be lower_snake_case and not "${START_PAGE}"`);
-          if (!isObject(page)) {
-            err(pw, 'a page must be an object');
-            continue;
+    // One face of the event: its first page's choices and its pages. The Dark Omen face
+    // (`dark`) is validated by the same rules as the plain one: a soft-lock there is as bad.
+    const checkFace = (ew, faceChoices, facePages) => {
+      const pages = [{ id: START_PAGE, where: ew, choices: faceChoices }];
+      if (facePages !== undefined) {
+        if (!isObject(facePages)) err(ew, '`pages` must be an object');
+        else
+          for (const [pageId, page] of Object.entries(facePages)) {
+            const pw = `${ew}[${pageId}]`;
+            if (!ID_PATTERN.test(pageId) || pageId === START_PAGE)
+              err(pw, `page id must be lower_snake_case and not "${START_PAGE}"`);
+            if (!isObject(page)) {
+              err(pw, 'a page must be an object');
+              continue;
+            }
+            textCheck(pw, page.text, EVENT_TEXT_LIMITS.intro, 'text');
+            pages.push({ id: pageId, where: pw, choices: page.choices });
           }
-          textCheck(pw, page.text, EVENT_TEXT_LIMITS.intro, 'text');
-          pages.push({ id: pageId, where: pw, choices: page.choices });
-        }
-    }
-    const pageIds = new Set(pages.map((p) => p.id));
-    // What the page graph needs: every outcome's `next`, and per page the always-available
-    // choices with where each of their outcomes leads (null = the event ends).
-    const edges = new Map(pages.map((p) => [p.id, new Set()]));
-    const guaranteed = new Map(pages.map((p) => [p.id, []]));
-
-    for (const page of pages) {
-      const pw = page.where;
-      if (!Array.isArray(page.choices) || page.choices.length === 0) {
-        err(pw, 'needs at least one choice');
-        continue;
       }
-      const choiceIds = new Set();
-      let hasFreeChoice = false;
-      for (const choice of page.choices) {
-        const cw = `${pw}.${isObject(choice) ? choice.id : '(no id)'}`;
-        if (!isObject(choice)) {
-          err(cw, 'a choice must be an object');
+      const pageIds = new Set(pages.map((p) => p.id));
+      // What the page graph needs: every outcome's `next`, and per page the always-available
+      // choices with where each of their outcomes leads (null = the event ends).
+      const edges = new Map(pages.map((p) => [p.id, new Set()]));
+      const guaranteed = new Map(pages.map((p) => [p.id, []]));
+
+      for (const page of pages) {
+        const pw = page.where;
+        if (!Array.isArray(page.choices) || page.choices.length === 0) {
+          err(pw, 'needs at least one choice');
           continue;
         }
-        if (!ID_PATTERN.test(choice.id || '')) err(cw, 'id must be lower_snake_case');
-        if (choiceIds.has(choice.id)) err(cw, 'duplicate choice id');
-        choiceIds.add(choice.id);
-        textCheck(cw, choice.label, EVENT_TEXT_LIMITS.label, 'label');
-        if (choice.hint !== undefined) textCheck(cw, choice.hint, EVENT_TEXT_LIMITS.hint, 'hint');
-        checkRequires(cw, choice.requires, event);
-        if (choice.target !== undefined) {
-          if (!isObject(choice.target)) err(cw, '`target` must be an object');
-          else {
-            textCheck(cw, choice.target.prompt, 60, 'target.prompt');
-            checkFilter(cw, choice.target.filter ?? {}, event);
-          }
-        }
-        if (choice.cost !== undefined) {
-          if (!isObject(choice.cost) || !isAmount(choice.cost.gold))
-            err(cw, '`cost` must be { gold }');
-          else if (resolveFirst(choice.cost.gold) <= 0) err(cw, 'cost.gold must be positive');
-        }
-        for (const [i, effect] of (choice.effects || []).entries())
-          checkEffect(`${cw}.effects[${i}]`, effect, { event, choice, phase: 'c' });
-
-        // Outcomes
-        const outcomes = Array.isArray(choice.outcomes) ? choice.outcomes : [];
-        if (outcomes.length === 0) err(cw, 'needs at least one outcome');
-        const outcomeIds = new Set();
-        if (choice.check !== undefined) {
-          const check = choice.check;
-          if (!isObject(check)) err(cw, '`check` must be an object');
-          else {
-            if (
-              !Array.isArray(check.stats) ||
-              check.stats.length === 0 ||
-              check.stats.some((s) => !XP_STAT_NAMES.includes(s))
-            )
-              err(cw, `check.stats must list stats (${XP_STAT_NAMES.join(', ')})`);
-            if (!['target', 'bestInArmy'].includes(check.of))
-              err(cw, 'check.of must be target or bestInArmy');
-            if (check.of === 'target' && !choice.target)
-              err(cw, 'a check of the target needs a choice target');
-            for (const key of ['base', 'perPoint', 'against'])
-              if (!Number.isFinite(check[key])) err(cw, `check.${key} must be a number`);
-            for (const key of ['min', 'max'])
-              if (
-                check[key] !== undefined &&
-                !(Number.isFinite(check[key]) && check[key] >= 0 && check[key] <= 1)
-              )
-                err(cw, `check.${key} must be 0-1`);
-            for (const rung of Object.keys(check.byRung || {}))
-              if (!DIFFICULTY_IDS.includes(rung)) err(cw, `unknown rung "${rung}" in check.byRung`);
-          }
-          const ids = outcomes.map((o) => o?.id).sort();
-          if (ids.length !== 2 || ids[0] !== 'fail' || ids[1] !== 'pass')
-            err(cw, 'a check needs exactly a "pass" and a "fail" outcome');
-          for (const o of outcomes)
-            if (o?.weight !== undefined || o?.weightByRung !== undefined)
-              err(cw, "a check choice's outcomes carry no weights");
-        }
-        checkTells(cw, choice, outcomes);
-        const nexts = [];
-        for (const outcome of outcomes) {
-          const ow = `${cw}.${isObject(outcome) ? outcome.id : '(no id)'}`;
-          if (!isObject(outcome)) {
-            err(ow, 'an outcome must be an object');
+        const choiceIds = new Set();
+        let hasFreeChoice = false;
+        for (const choice of page.choices) {
+          const cw = `${pw}.${isObject(choice) ? choice.id : '(no id)'}`;
+          if (!isObject(choice)) {
+            err(cw, 'a choice must be an object');
             continue;
           }
-          if (!ID_PATTERN.test(outcome.id || '')) err(ow, 'id must be lower_snake_case');
-          if (outcomeIds.has(outcome.id)) err(ow, 'duplicate outcome id');
-          outcomeIds.add(outcome.id);
-          textCheck(ow, outcome.text, EVENT_TEXT_LIMITS.outcome, 'text');
-          if (outcome.fallbackText !== undefined)
-            textCheck(ow, outcome.fallbackText, EVENT_TEXT_LIMITS.outcome, 'fallbackText');
-          if (choice.check === undefined) {
-            if (!(Number.isFinite(outcome.weight) && outcome.weight > 0))
-              err(ow, 'weight must be a positive number');
-            for (const [rung, w] of Object.entries(outcome.weightByRung || {})) {
-              if (!DIFFICULTY_IDS.includes(rung)) err(ow, `unknown rung "${rung}" in weightByRung`);
-              if (!(Number.isFinite(w) && w > 0)) err(ow, 'weightByRung values must be positive');
+          if (!ID_PATTERN.test(choice.id || '')) err(cw, 'id must be lower_snake_case');
+          if (choiceIds.has(choice.id)) err(cw, 'duplicate choice id');
+          choiceIds.add(choice.id);
+          textCheck(cw, choice.label, EVENT_TEXT_LIMITS.label, 'label');
+          if (choice.hint !== undefined) textCheck(cw, choice.hint, EVENT_TEXT_LIMITS.hint, 'hint');
+          checkRequires(cw, choice.requires, event);
+          if (choice.target !== undefined) {
+            if (!isObject(choice.target)) err(cw, '`target` must be an object');
+            else {
+              textCheck(cw, choice.target.prompt, 60, 'target.prompt');
+              checkFilter(cw, choice.target.filter ?? {}, event);
             }
           }
-          if (!Array.isArray(outcome.effects)) err(ow, '`effects` must be a list (empty for none)');
-          for (const { where, phase, effects } of effectLists(outcome))
-            for (const [i, effect] of effects.entries())
-              checkEffect(`${ow}.${where}[${i}]`, effect, { event, choice, phase });
-          const teaching = (outcome.effects || []).some((e) => e?.type === 'learnSkill');
-          const routing = (outcome.effects || []).filter((e) => e?.type === 'routeEdit').length;
-          if (teaching && !Array.isArray(outcome.fallback))
-            err(ow, 'an outcome that teaches a skill needs a `fallback` (the pool can be empty)');
-          if (routing > 0 && !Array.isArray(outcome.fallback))
-            err(
-              ow,
-              'an outcome that edits the route needs a `fallback` (the road may have nothing to change)',
-            );
-          if (routing > 1) err(ow, 'at most one routeEdit per outcome');
-          if (
-            outcome.fallback !== undefined &&
-            !teaching &&
-            routing === 0 &&
-            !(outcome.effects || []).some((e) => e?.type === 'fallenSkill')
-          )
-            err(ow, '`fallback` is only for outcomes that teach a skill or edit the route');
-          for (const effect of outcome.fallback || [])
-            if (['learnSkill', 'fallenSkill', 'routeEdit'].includes(effect?.type))
+          if (choice.cost !== undefined) {
+            if (!isObject(choice.cost) || !isAmount(choice.cost.gold))
+              err(cw, '`cost` must be { gold }');
+            else if (resolveFirst(choice.cost.gold) <= 0) err(cw, 'cost.gold must be positive');
+          }
+          for (const [i, effect] of (choice.effects || []).entries())
+            checkEffect(`${cw}.effects[${i}]`, effect, { event, choice, phase: 'c' });
+
+          // Outcomes
+          const outcomes = Array.isArray(choice.outcomes) ? choice.outcomes : [];
+          if (outcomes.length === 0) err(cw, 'needs at least one outcome');
+          const outcomeIds = new Set();
+          if (choice.check !== undefined) {
+            const check = choice.check;
+            if (!isObject(check)) err(cw, '`check` must be an object');
+            else {
+              if (
+                !Array.isArray(check.stats) ||
+                check.stats.length === 0 ||
+                check.stats.some((s) => !XP_STAT_NAMES.includes(s))
+              )
+                err(cw, `check.stats must list stats (${XP_STAT_NAMES.join(', ')})`);
+              if (!['target', 'bestInArmy'].includes(check.of))
+                err(cw, 'check.of must be target or bestInArmy');
+              if (check.of === 'target' && !choice.target)
+                err(cw, 'a check of the target needs a choice target');
+              for (const key of ['base', 'perPoint', 'against'])
+                if (!Number.isFinite(check[key])) err(cw, `check.${key} must be a number`);
+              for (const key of ['min', 'max'])
+                if (
+                  check[key] !== undefined &&
+                  !(Number.isFinite(check[key]) && check[key] >= 0 && check[key] <= 1)
+                )
+                  err(cw, `check.${key} must be 0-1`);
+              for (const rung of Object.keys(check.byRung || {}))
+                if (!DIFFICULTY_IDS.includes(rung))
+                  err(cw, `unknown rung "${rung}" in check.byRung`);
+            }
+            const ids = outcomes.map((o) => o?.id).sort();
+            if (ids.length !== 2 || ids[0] !== 'fail' || ids[1] !== 'pass')
+              err(cw, 'a check needs exactly a "pass" and a "fail" outcome');
+            for (const o of outcomes)
+              if (o?.weight !== undefined || o?.weightByRung !== undefined)
+                err(cw, "a check choice's outcomes carry no weights");
+          }
+          checkTells(cw, choice, outcomes);
+          const nexts = [];
+          for (const outcome of outcomes) {
+            const ow = `${cw}.${isObject(outcome) ? outcome.id : '(no id)'}`;
+            if (!isObject(outcome)) {
+              err(ow, 'an outcome must be an object');
+              continue;
+            }
+            if (!ID_PATTERN.test(outcome.id || '')) err(ow, 'id must be lower_snake_case');
+            if (outcomeIds.has(outcome.id)) err(ow, 'duplicate outcome id');
+            outcomeIds.add(outcome.id);
+            textCheck(ow, outcome.text, EVENT_TEXT_LIMITS.outcome, 'text');
+            if (outcome.fallbackText !== undefined)
+              textCheck(ow, outcome.fallbackText, EVENT_TEXT_LIMITS.outcome, 'fallbackText');
+            if (choice.check === undefined) {
+              if (!(Number.isFinite(outcome.weight) && outcome.weight > 0))
+                err(ow, 'weight must be a positive number');
+              for (const [rung, w] of Object.entries(outcome.weightByRung || {})) {
+                if (!DIFFICULTY_IDS.includes(rung))
+                  err(ow, `unknown rung "${rung}" in weightByRung`);
+                if (!(Number.isFinite(w) && w > 0)) err(ow, 'weightByRung values must be positive');
+              }
+            }
+            if (!Array.isArray(outcome.effects))
+              err(ow, '`effects` must be a list (empty for none)');
+            for (const { where, phase, effects } of effectLists(outcome))
+              for (const [i, effect] of effects.entries())
+                checkEffect(`${ow}.${where}[${i}]`, effect, { event, choice, phase });
+            const teaching = (outcome.effects || []).some((e) => e?.type === 'learnSkill');
+            const routing = (outcome.effects || []).filter((e) => e?.type === 'routeEdit').length;
+            if (teaching && !Array.isArray(outcome.fallback))
+              err(ow, 'an outcome that teaches a skill needs a `fallback` (the pool can be empty)');
+            if (routing > 0 && !Array.isArray(outcome.fallback))
               err(
                 ow,
-                `a fallback cannot hold a ${effect.type} (it has nothing further to fall back to)`,
+                'an outcome that edits the route needs a `fallback` (the road may have nothing to change)',
               );
-          const battles = (outcome.effects || []).filter((e) => e?.type === 'battle').length;
-          if (battles > 1) err(ow, 'at most one battle per outcome');
-          // Pages: where this outcome leads.
-          let next = null;
-          if (outcome.next !== undefined) {
+            if (routing > 1) err(ow, 'at most one routeEdit per outcome');
             if (
-              typeof outcome.next !== 'string' ||
-              !pageIds.has(outcome.next) ||
-              outcome.next === START_PAGE
+              outcome.fallback !== undefined &&
+              !teaching &&
+              routing === 0 &&
+              !(outcome.effects || []).some((e) => e?.type === 'fallenSkill')
             )
-              err(ow, `next must name a page of this event (not "${START_PAGE}")`);
-            else if (
-              [...(outcome.effects || []), ...(outcome.fallback || [])].some(
-                (e) => e?.type === 'battle',
+              err(ow, '`fallback` is only for outcomes that teach a skill or edit the route');
+            for (const effect of outcome.fallback || [])
+              if (['learnSkill', 'fallenSkill', 'routeEdit'].includes(effect?.type))
+                err(
+                  ow,
+                  `a fallback cannot hold a ${effect.type} (it has nothing further to fall back to)`,
+                );
+            const battles = (outcome.effects || []).filter((e) => e?.type === 'battle').length;
+            if (battles > 1) err(ow, 'at most one battle per outcome');
+            // Pages: where this outcome leads.
+            let next = null;
+            if (outcome.next !== undefined) {
+              if (
+                typeof outcome.next !== 'string' ||
+                !pageIds.has(outcome.next) ||
+                outcome.next === START_PAGE
               )
-            )
-              err(ow, 'an outcome that starts a battle cannot also lead on to another page');
-            else {
-              next = outcome.next;
-              edges.get(page.id).add(next);
+                err(ow, `next must name a page of this event (not "${START_PAGE}")`);
+              else if (
+                [...(outcome.effects || []), ...(outcome.fallback || [])].some(
+                  (e) => e?.type === 'battle',
+                )
+              )
+                err(ow, 'an outcome that starts a battle cannot also lead on to another page');
+              else {
+                next = outcome.next;
+                edges.get(page.id).add(next);
+              }
             }
+            nexts.push(next);
           }
-          nexts.push(next);
-        }
-        // Weights of a normal choice must leave something to roll.
-        if (
-          choice.check === undefined &&
-          outcomes.length > 0 &&
-          !outcomes.some((o) => o?.weight > 0)
-        )
-          err(cw, 'no outcome has a positive weight');
-
-        // A contract is "the next battle": this event's own fight is not what it means.
-        if (
-          choiceMayOpenContract(choice) &&
-          outcomes.some((o) =>
-            [...(o?.effects || []), ...(o?.fallback || [])].some((e) => e?.type === 'battle'),
+          // Weights of a normal choice must leave something to roll.
+          if (
+            choice.check === undefined &&
+            outcomes.length > 0 &&
+            !outcomes.some((o) => o?.weight > 0)
           )
-        )
-          err(cw, 'a choice that opens a contract cannot also start a battle');
+            err(cw, 'no outcome has a positive weight');
 
-        // Always-available: nothing required, nothing to pay or pick, nothing to carry, and
-        // no contract to open (one may already be open).
-        const unconditional =
-          !choice.requires &&
-          !choice.cost &&
-          !choice.target &&
-          !choiceMayGrantItem(choice) &&
-          !choiceMayOpenContract(choice) &&
-          !(choice.effects || []).some((e) => e?.type === 'consume') &&
-          !outcomes.some((o) =>
-            (o?.effects || []).some((e) => ['blessing', 'consume'].includes(e?.type)),
+          // A contract is "the next battle": this event's own fight is not what it means.
+          if (
+            choiceMayOpenContract(choice) &&
+            outcomes.some((o) =>
+              [...(o?.effects || []), ...(o?.fallback || [])].some((e) => e?.type === 'battle'),
+            )
+          )
+            err(cw, 'a choice that opens a contract cannot also start a battle');
+
+          // Always-available: nothing required, nothing to pay or pick, nothing to carry, and
+          // no contract to open (one may already be open).
+          const unconditional =
+            !choice.requires &&
+            !choice.cost &&
+            !choice.target &&
+            !choiceMayGrantItem(choice) &&
+            !choiceMayOpenContract(choice) &&
+            !(choice.effects || []).some((e) => e?.type === 'consume') &&
+            !outcomes.some((o) =>
+              (o?.effects || []).some((e) => ['blessing', 'consume'].includes(e?.type)),
+            );
+          if (unconditional) {
+            hasFreeChoice = true;
+            guaranteed.get(page.id).push(nexts);
+          }
+        }
+        if (!hasFreeChoice)
+          err(
+            pw,
+            'no choice is always available (no requirement, cost, target, item, blessing or contract): the road would soft-lock',
           );
-        if (unconditional) {
-          hasFreeChoice = true;
-          guaranteed.get(page.id).push(nexts);
-        }
       }
-      if (!hasFreeChoice)
-        err(
-          pw,
-          'no choice is always available (no requirement, cost, target, item, blessing or contract): the road would soft-lock',
-        );
-    }
 
-    // Every page is reachable, and every page has a guaranteed way out: an always-available
-    // choice whose every outcome ends the event or leads on to a page that has one.
-    const reached = new Set([START_PAGE]);
-    for (const queue = [START_PAGE]; queue.length; )
-      for (const next of edges.get(queue.shift()) || [])
-        if (!reached.has(next)) {
-          reached.add(next);
-          queue.push(next);
-        }
-    for (const page of pages)
-      if (!reached.has(page.id)) err(page.where, 'no outcome leads to this page');
-    const exits = new Set();
-    for (let changed = true; changed; ) {
-      changed = false;
+      // Every page is reachable, and every page has a guaranteed way out: an always-available
+      // choice whose every outcome ends the event or leads on to a page that has one.
+      const reached = new Set([START_PAGE]);
+      for (const queue = [START_PAGE]; queue.length; )
+        for (const next of edges.get(queue.shift()) || [])
+          if (!reached.has(next)) {
+            reached.add(next);
+            queue.push(next);
+          }
       for (const page of pages)
-        if (
-          !exits.has(page.id) &&
-          guaranteed.get(page.id).some((nexts) => nexts.every((n) => n === null || exits.has(n)))
-        ) {
-          exits.add(page.id);
-          changed = true;
-        }
+        if (!reached.has(page.id)) err(page.where, 'no outcome leads to this page');
+      const exits = new Set();
+      for (let changed = true; changed; ) {
+        changed = false;
+        for (const page of pages)
+          if (
+            !exits.has(page.id) &&
+            guaranteed.get(page.id).some((nexts) => nexts.every((n) => n === null || exits.has(n)))
+          ) {
+            exits.add(page.id);
+            changed = true;
+          }
+      }
+      for (const page of pages)
+        if (guaranteed.get(page.id).length > 0 && !exits.has(page.id))
+          err(
+            page.where,
+            'no guaranteed way out: needs an always-available choice whose every outcome ends the event or leads to a page that has one',
+          );
+    };
+    checkFace(ew, event.choices, event.pages);
+    if (event.dark !== undefined) {
+      const dw = `${ew}.dark`;
+      if (!isObject(event.dark)) err(dw, '`dark` must be an object { intro, choices }');
+      else {
+        for (const key of Object.keys(event.dark))
+          if (!['intro', 'choices', 'pages'].includes(key)) err(dw, `unknown key "${key}"`);
+        textCheck(dw, event.dark.intro, EVENT_TEXT_LIMITS.intro, 'intro');
+        checkFace(dw, event.dark.choices, event.dark.pages);
+      }
     }
-    for (const page of pages)
-      if (guaranteed.get(page.id).length > 0 && !exits.has(page.id))
-        err(
-          page.where,
-          'no guaranteed way out: needs an always-available choice whose every outcome ends the event or leads to a page that has one',
-        );
   }
   if (fallbackCount !== 1)
     err('events', `expected exactly one fallback event, found ${fallbackCount}`);

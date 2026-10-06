@@ -208,7 +208,7 @@ export function renderLoomCard(card, node, ctx = {}) {
     ruinsChoice: node.type === 'ruins' && rm ? ruinsChoice(rm, node.id) : null,
     // A visited event keeps the line of what was chosen there.
     eventChoice:
-      node.type === 'event' && rm && !node.eclipse
+      node.type === 'event' && rm && (!node.eclipse || node.darkOmen === true)
         ? eventView(rm, node.id)?.outcome?.choiceLabel || null
         : null,
   });

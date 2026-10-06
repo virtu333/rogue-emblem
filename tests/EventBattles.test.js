@@ -165,6 +165,13 @@ describe('choosing a fight', () => {
 describe('the Eclipse and the fight', () => {
   it('the current event node never falls, an unvisited one becomes a Swallowed road', () => {
     const { run, node } = doorRun();
+    // The Phase 1 fall: with no dark face to offer, the dark takes the road for a battle.
+    // (With one it stays an Omen: tests/EventDarkOmen.test.js.)
+    const catalog = run.gameData.events;
+    run.gameData = {
+      ...run.gameData,
+      events: { ...catalog, events: catalog.events.map(({ dark: _dark, ...event }) => event) },
+    };
     const other = makeEvent(
       run.nodeMap.nodes.find(
         (n) => n.type === 'battle' && !n.completed && n.id !== node.id && n.row >= 3,

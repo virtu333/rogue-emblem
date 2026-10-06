@@ -385,6 +385,9 @@ const ECLIPSED_TEXT = {
   colosseum: 'The arena fell silent. Something else fights there now; spoils are elite.',
   event: 'The dark took this road. Something else waits where the story was; spoils are elite.',
 };
+// A fallen event that kept its story: the same road, a darker face (price and prize both higher).
+const DARK_OMEN_TEXT =
+  'The dark took this road, but the story stayed. It wears a darker face now: a harsher price, a richer prize.';
 const SERVICE = {
   shop: 'Buy, sell and forge equipment.',
   church: 'Heal, revive allies and promote units.',
@@ -396,6 +399,8 @@ const SERVICE = {
 
 /** Short pixel label shown under a reachable medal. */
 export function loomShortLabel(node) {
+  // A Dark Omen is a fallen event that kept its story (EclipseSystem.eclipseNode).
+  if (node?.darkOmen === true) return 'OMEN';
   if (node?.eclipse) return 'ECLIPSED';
   const elite = BATTLE_TYPES.has(node?.type) && node?.battleParams?.isElite;
   return elite ? 'ELITE' : KIND[node?.type] || String(node?.type || '').toUpperCase();
@@ -507,6 +512,8 @@ export function describeLoomNode(
 ) {
   if (!node) return null;
   const eclipsed = !!node.eclipse;
+  // A Dark Omen is eclipsed yet still an event: it reads as one ("Dark Omen") and opens as one.
+  const darkOmen = eclipsed && node.darkOmen === true;
   // Who waits at a recruit node (describeRecruitPreview), shown until it is walked.
   const recruitView = node.type === 'recruit' && !eclipsed && state !== 'done' ? recruit : null;
   // Only real encounters reveal battle details. A service node may carry hidden
@@ -520,13 +527,15 @@ export function describeLoomNode(
     : null;
   // An authored node (the prologue's chapters) names itself; others take the template.
   const authoredTitle = typeof node.title === 'string' && node.title.trim() ? node.title : null;
-  const place = eclipsed
-    ? node.eclipse.label || 'Eclipsed'
-    : node.type === 'recruit'
-      ? recruitView
-        ? `${recruitView.name}, ${recruitView.isLord ? 'a lord' : 'a potential ally'}`
-        : 'A potential ally'
-      : authoredTitle || template?.name || null;
+  const place = darkOmen
+    ? null
+    : eclipsed
+      ? node.eclipse.label || 'Eclipsed'
+      : node.type === 'recruit'
+        ? recruitView
+          ? `${recruitView.name}, ${recruitView.isLord ? 'a lord' : 'a potential ally'}`
+          : 'A potential ally'
+        : authoredTitle || template?.name || null;
 
   const tags = [];
   if (eclipsed) tags.push({ text: 'Eclipsed', tone: 'bad' });
@@ -561,19 +570,25 @@ export function describeLoomNode(
   if (node.type === 'event' && node.eventBattle === true && node.encounterLocked && !eclipsed)
     tags.push({ text: 'Encounter locked', tone: 'plain' });
 
-  const text = eclipsed
-    ? ECLIPSED_TEXT[node.eclipse.fromType] || ECLIPSED_TEXT.battle
-    : recruitView
-      ? `Hunters are closing on ${recruitView.name}. Reach them with a lord and Talk.`
-      : node.type === 'ruins' && ruinsChoice
-        ? chosenLine(ruinsChoice)
-        : node.type === 'event' && eventChoice
-          ? `You chose: ${eventChoice}`
-          : // An authored node (the prologue's) says what it holds itself.
-            (typeof node.preview === 'string' && node.preview) ||
-            SERVICE[node.type] ||
-            objective?.[1] ||
-            '';
+  // A walked Dark Omen keeps the line of what was chosen there, like any visited event.
+  const text =
+    darkOmen && eventChoice
+      ? `You chose: ${eventChoice}`
+      : darkOmen
+        ? DARK_OMEN_TEXT
+        : eclipsed
+          ? ECLIPSED_TEXT[node.eclipse.fromType] || ECLIPSED_TEXT.battle
+          : recruitView
+            ? `Hunters are closing on ${recruitView.name}. Reach them with a lord and Talk.`
+            : node.type === 'ruins' && ruinsChoice
+              ? chosenLine(ruinsChoice)
+              : node.type === 'event' && eventChoice
+                ? `You chose: ${eventChoice}`
+                : // An authored node (the prologue's) says what it holds itself.
+                  (typeof node.preview === 'string' && node.preview) ||
+                  SERVICE[node.type] ||
+                  objective?.[1] ||
+                  '';
   // A visited event keeps its chosen line, not the road's flavour (the card stays short).
   const pool =
     state === 'cut' || eclipsed || eventChoice ? null : flavorPool(node, dialogue, actId);
@@ -608,11 +623,13 @@ export function describeLoomNode(
       : null;
 
   return {
-    kind: eclipsed
-      ? 'ECLIPSED'
-      : elite
-        ? 'ELITE'
-        : KIND[node.type] || String(node.type || '').toUpperCase(),
+    kind: darkOmen
+      ? 'DARK OMEN'
+      : eclipsed
+        ? 'ECLIPSED'
+        : elite
+          ? 'ELITE'
+          : KIND[node.type] || String(node.type || '').toUpperCase(),
     elite,
     eclipsed,
     warning,

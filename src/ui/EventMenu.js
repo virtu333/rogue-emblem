@@ -60,6 +60,8 @@ export class EventMenu {
     const view = eventView(this.run, this.nodeId);
     this.surface = new MenuSurface(this.scene, view?.title || 'Event', () => this.requestClose());
     this.surface.root.classList.add('service-menu', 'ev-menu');
+    // A Dark Omen is the same event with its darker face: the band keeps the painting, dimmed.
+    this.surface.root.classList.toggle('is-dark-omen', view?.dark === true);
     const heading = this.surface.header.querySelector?.('h2');
     if (heading) heading.textContent = 'Event';
     this.closeButton = this.surface.header.querySelector('button');
@@ -113,7 +115,10 @@ export class EventMenu {
 
   hero(view) {
     const hero = el('header', null, 'ev-hero');
-    hero.append(el('p', 'EVENT', 'ev-kicker'), el('h3', view.title, 'ev-title'));
+    hero.append(
+      el('p', view.dark ? 'DARK OMEN' : 'EVENT', 'ev-kicker'),
+      el('h3', view.title, 'ev-title'),
+    );
     return hero;
   }
 

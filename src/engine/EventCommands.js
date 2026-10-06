@@ -54,7 +54,7 @@
 //   event's counters now ({ torches: 2 }, absent = the event has none). A record written
 //   before pages existed has none of the three and reads as a one-page event.
 //
-// View: { nodeId, eventId, title, intro, act, phase: 'choosing' | 'outcome' | 'victory',
+// View: { nodeId, eventId, title, intro, act, dark, phase: 'choosing' | 'outcome' | 'victory',
 //   page: '<pageId>', trail: [{ page, choiceId, choiceLabel, outcomeId, text, results,
 //   targetName }], counters: [{ key, label, value, max }],
 //   choices: [{ id, label, hint, cost, block, target: null | { prompt, candidates },
@@ -111,12 +111,14 @@ import {
   counterLabel,
   eventCatalogOf,
   evaluateRequires,
+  eventFace,
   fallenOfState,
   fillText,
   findChoice,
   findEvent,
   findRosterUnit,
   initialCounters,
+  isDarkEvent,
   isEventNode,
   pageIdOf,
   pageOf,
@@ -158,7 +160,8 @@ function open(run, nodeId, catalogArg = null) {
   if (!catalog) return { error: 'No events are known.' };
   const state = stateOf(run, nodeId);
   if (!state) return { error: 'Arrive at the event first.', node, catalog };
-  const event = findEvent(catalog, state.eventId);
+  // A Dark Omen plays the event's dark face (EventSystem.eventFace): its intro, choices, pages.
+  const event = eventFace(findEvent(catalog, state.eventId), state);
   if (!event) return { error: 'This event is no longer known.', node, catalog, state };
   const pageId = pageIdOf(state);
   const page = pageOf(event, pageId);
@@ -193,7 +196,9 @@ export function arriveAtEvent(run, nodeId, catalogArg = null) {
   if (!run.eventStateByNodeId || typeof run.eventStateByNodeId !== 'object')
     run.eventStateByNodeId = {};
   if (!stateOf(run, nodeId)) {
-    const event = pickEvent(run, node, catalog);
+    // A Dark Omen node (the Eclipse took it and left its story) draws among the dark faces.
+    const darkNode = node.darkOmen === true;
+    const event = pickEvent(run, node, catalog, { dark: darkNode });
     if (!event) return null;
     const state = {
       eventId: event.id,
@@ -203,6 +208,8 @@ export function arriveAtEvent(run, nodeId, catalogArg = null) {
       battle: null,
       afterVictory: [],
     };
+    // Only when the event has the face to wear (the fallback may not): else it is played plain.
+    if (darkNode && isDarkEvent(event)) state.dark = true;
     if (event.requires?.fallen === true) {
       const fallen = pickFallenAlly(run, nodeId);
       if (fallen) state.fallen = fallen;
@@ -280,6 +287,8 @@ export function eventView(run, nodeId) {
     title: event.title,
     intro: fillText(page.text, state),
     act: state.arrivedAct || run.currentAct,
+    // A Dark Omen: the event's dark face is in play (EventSystem.eventFace).
+    dark: state.dark === true,
     phase,
     page: pageId,
     trail: pathOf(state).map((step) => ({

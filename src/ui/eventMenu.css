@@ -48,6 +48,13 @@
 .ev-band.is-still::before {
   transition: none;
 }
+/* A Dark Omen is the event's own painting under the dark: dimmed, the ember rim deeper. */
+.ev-menu.is-dark-omen .ev-band::before {
+  filter: saturate(0.6) brightness(0.72);
+}
+.ev-menu.is-dark-omen .ev-kicker {
+  color: var(--re-ember-pale);
+}
 /* The page's ink rises over the painting's lower edge. */
 .ev-band::after {
   content: '';
