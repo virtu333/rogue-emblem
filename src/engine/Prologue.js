@@ -148,6 +148,10 @@
 //                                       battle's forecasts from 1, event.concepts is
 //                                       forecastConcepts() of that forecast;
 //                                       event.targetTerrain the target's tile (Throne)
+//   forecastCancelled unit, target, turn
+//                                       the player cancelled an open forecast (Cancel,
+//                                       Esc, right-click, Back): nothing was spent; P3's
+//                                       "open it, then Cancel" step ends here
 //   combatResolved  unit, target, turn, kill, distance, damagedBy
 //                                       a combat the player started has resolved;
 //                                       event.kill is true when the target fell to it;
@@ -253,6 +257,7 @@ export const PROLOGUE_TRIGGERS = Object.freeze({
     'afterRewind',
   ],
   forecastOpened: ['unit', 'target', 'nth', 'concept', 'turn', 'targetTerrain'],
+  forecastCancelled: ['unit', 'target', 'turn'],
   combatResolved: ['unit', 'target', 'turn', 'kill', 'distance', 'damagedBy'],
   unitActed: ['unit', 'turn'],
   unitDefeated: ['unit'],
@@ -289,6 +294,7 @@ const BEAT_UNIT_SIDES = Object.freeze({
   unitSelected: { unit: 'player' },
   afterMove: { unit: 'player' },
   forecastOpened: { unit: 'player', target: 'enemy' },
+  forecastCancelled: { unit: 'player', target: 'enemy' },
   combatResolved: { unit: 'player', target: 'enemy', damagedBy: 'player' },
   unitActed: { unit: 'player' },
   levelUp: { unit: 'player' },

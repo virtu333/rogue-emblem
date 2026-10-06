@@ -340,7 +340,7 @@ export class AttackFlowController {
   cancelForecast() {
     const scene = this.scene;
     const target = scene.forecastTarget;
-    scene.hideForecast({ acknowledge: true });
+    scene.hideForecast({ acknowledge: true, cancelled: true });
     scene._clearCombatRollSession();
     scene.battleState = 'SELECTING_TARGET';
     if (scene.attackTargets?.length) this.showTargetHighlights();

@@ -259,6 +259,35 @@ it('a stock out of reach says so: short rows, a greyed Buy and how much gold is 
   expect(cheapBuy.classList.contains('shop-buy--short')).toBe(false);
 });
 
+// QA (Oct 2026): the prologue's Market said "Sell, restock or leave" with no Restock button.
+it('a shop without Restock (the prologue market, a caravan) never offers one in its lines', () => {
+  const item = structuredClone(d.data.weapons.find((i) => i.name === 'Steel Sword'));
+  d.run.gold = 100;
+  d.scene.shopBuyItems = [{ type: 'weapon', item, price: 1690 }];
+  const menu = d.shop.nativeMenu;
+  const text = () =>
+    menu.surface.body
+      .all()
+      .map((n) => n.textContent)
+      .join(' | ');
+  const restockButton = () =>
+    menu.surface.body.all().some((n) => n.tag === 'button' && /^Restock/.test(n.textContent));
+  menu.selected = item;
+  menu.render();
+  expect(text()).toContain('Sell, restock or leave.');
+  expect(restockButton()).toBe(true);
+
+  vi.spyOn(d.shop, 'canReroll').mockReturnValue(false);
+  menu.render();
+  expect(text()).toContain('Nothing here is within 100 G. Sell or leave.');
+  expect(text()).not.toMatch(/restock/i);
+  expect(restockButton()).toBe(false);
+  d.scene.shopBuyItems = [];
+  menu.render();
+  expect(text()).toContain('Sold out.');
+  expect(text()).not.toMatch(/restock/i);
+});
+
 // Player feedback (Oct 2026): selling trash was overwhelming without knowing whether
 // a row was someone's only weapon, or how much it had been used.
 it("sell rows tag someone's only weapon or staff and say how much each item was used", () => {

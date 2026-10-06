@@ -1063,7 +1063,9 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   mutated). The vocabulary (documented in the module header):
   - triggers: `battleStart`, `turnStart {turn, phase}` (phase defaults to the player's),
     `unitSelected {unit, turn}`, `afterMove {unit, tile, terrain, dangerFrom, turn}`,
-    `forecastOpened {unit, target, nth, concept, turn}`, `combatResolved {unit, target, turn}`,
+    `forecastOpened {unit, target, nth, concept, turn}`, `forecastCancelled {unit, target, turn}`
+    (the player backed out of an open forecast; P3's `p3_looked` ends "open it, then Cancel"
+    there, from every cancel input), `combatResolved {unit, target, turn}`,
     `unitActed {unit, turn}`, `unitDefeated {unit}`, `levelUp {unit}`, `hpBelow {unit, pct}`,
     `holdWoken {unit}`, `talk {unit, target}`, `healed {unit, target}`, `rewound`,
     `seize {unit}`, `victory`; Phase 2B added `hurt` (someone below full HP) to `turnStart` and
