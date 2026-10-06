@@ -1,5 +1,5 @@
 import { MenuSurface, element as el, button } from './MenuSurface.js';
-import { arenaEntryBlock, canFight, getAvailableTiers } from '../engine/ColosseumEngine.js';
+import { ARENA_VISIT_SPENT_REASON, getAvailableTiers } from '../engine/ColosseumEngine.js';
 import { arenaMaxRounds } from '../engine/ArenaBout.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
 import { describeUnit } from './PartyMenus.js';
@@ -75,6 +75,12 @@ export class ArenaMenu {
   text(text) {
     this.surface.body.append(el('p', text));
   }
+  /** "Bouts left here: N": the visit's remaining bouts (nothing when no cap is set). */
+  boutsLeft() {
+    const left = this.c._visitBoutsLeft();
+    if (Number.isFinite(left))
+      this.surface.body.append(el('p', `Bouts left here: ${left}`, 'arena-bouts-left'));
+  }
   action(label, action, reason = '', unit = null) {
     const b = button(label, () => {
       if (!this.surface.destroyed) action();
@@ -119,13 +125,20 @@ export class ArenaMenu {
     m.text(
       'Train your fighters or hire a mercenary. Arena defeats leave your fighter with at least 1 HP.',
     );
-    m.action('Arena', () => c._showUnitSelect());
+    m.boutsLeft();
+    // A spent visit closes the arena (the crowd's reason shows); the board stays open.
+    m.action(
+      'Arena',
+      () => c._showUnitSelect(),
+      c._visitBoutsLeft() > 0 ? '' : ARENA_VISIT_SPENT_REASON,
+    );
     m.action('Mercenary board', () => c._showMercBrowse());
     m.tools(() => c._showMenu());
     return m.focus();
   }
   static units(c) {
     const m = new ArenaMenu(c, 'Arena · Choose fighter', () => c._showMenu());
+    m.boutsLeft();
     for (const u of c.runManager.roster) {
       const used = c._fightsPerUnit[u.name] || 0;
       m.action(
@@ -134,7 +147,7 @@ export class ArenaMenu {
           c._selectedUnit = u;
           c._showTierSelect();
         },
-        arenaEntryBlock(u, used, c._maxFights),
+        c._entryBlock(u),
         u,
       );
     }
@@ -249,7 +262,9 @@ export class ArenaMenu {
       (c._colosseumData?.arena?.diminishingReturnsAfterLevels ?? 2)
     )
       m.text('XP diminishing returns active.');
-    if (canFight(u, c._fightsPerUnit[u.name] || 0, c._maxFights) && c._canAffordTier(tier))
+    m.boutsLeft();
+    if (c._visitBoutsLeft() <= 0) m.text(ARENA_VISIT_SPENT_REASON);
+    if (!c._entryBlock(u) && c._canAffordTier(tier))
       m.action('Fight again', () => c._generateAndShowForecast());
     m.action('Back to colosseum', () => c._showMenu());
     return m.focus();
