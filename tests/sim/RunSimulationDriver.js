@@ -23,14 +23,9 @@ import {
   chooseDeployRoster,
   chooseChurchPlan,
   chooseShopPurchases,
-  chooseEventPlan,
+  playEventChoices,
 } from './RunPolicies.js';
-import {
-  arriveAtEvent,
-  chooseEventOption,
-  completeEventBattle,
-  leaveEvent,
-} from '../../src/engine/EventCommands.js';
+import { arriveAtEvent, completeEventBattle, leaveEvent } from '../../src/engine/EventCommands.js';
 
 function keyForUnit(unit) {
   return `${unit.name}::${unit.className}`;
@@ -311,6 +306,12 @@ export class RunSimulationDriver {
       turnPar: Number.isFinite(driver.battle.turnPar) ? driver.battle.turnPar : null,
     });
     this.metrics.eclipseFalls += this.runManager.lastEclipseCommit?.fell?.length || 0;
+    // A contract settles with the victory (engine/ContractSettlement.js): count how it went.
+    const contract = applied ? this.runManager.lastContractSettlement : null;
+    if (contract) {
+      const key = contract.kept ? 'contractsKept' : 'contractsBroken';
+      this.metrics[key] = (this.metrics[key] || 0) + 1;
+    }
     return applied;
   }
 
@@ -466,19 +467,27 @@ export class RunSimulationDriver {
       rm.markNodeComplete(node.id);
       return { result: 'event_skipped', reason: 'no_event' };
     }
-    const plan = chooseEventPlan(rm, node.id, { fight: this.options.eventPolicy === 'fight' });
-    const chosen = plan
-      ? chooseEventOption(rm, node.id, plan.choiceId, { targetUid: plan.targetUid })
-      : { ok: false, reason: 'no choice available' };
-    if (!chosen.ok) {
+    // One choice per page (a multi-page event walks its pages), until it ends or a fight starts.
+    const steps = playEventChoices(rm, node.id, { fight: this.options.eventPolicy === 'fight' });
+    const last = steps.at(-1);
+    if (!last?.chosen?.ok) {
       // Cannot happen on a playable event; leave the node rather than stall the run.
       this.metrics.invalidEventChoices = (this.metrics.invalidEventChoices || 0) + 1;
       rm.markNodeComplete(node.id);
-      return { result: 'event_skipped', reason: chosen.reason };
+      return { result: 'event_skipped', reason: last?.chosen?.reason || 'no choice available' };
     }
-    const key = `${chosen.state.eventId}.${plan.choiceId}`;
-    this.metrics.eventsByChoice[key] = (this.metrics.eventsByChoice[key] || 0) + 1;
-    if (chosen.battle) {
+    for (const { plan, chosen } of steps) {
+      const key = `${chosen.state.eventId}.${plan.choiceId}`;
+      this.metrics.eventsByChoice[key] = (this.metrics.eventsByChoice[key] || 0) + 1;
+    }
+    this.metrics.eventSteps = (this.metrics.eventSteps || 0) + steps.length;
+    if (last.chosen.next) {
+      // The policy found no way out of the last page it reached: not a state a player can reach.
+      this.metrics.invalidEventChoices = (this.metrics.invalidEventChoices || 0) + 1;
+      rm.markNodeComplete(node.id);
+      return { result: 'event_skipped', reason: 'a page with no way out' };
+    }
+    if (last.chosen.battle) {
       this.metrics.eventBattles++;
       const battle = await this._runBattleNode(node);
       if (battle.result === 'defeat' || battle.result === 'timeout') return battle;
@@ -487,10 +496,11 @@ export class RunSimulationDriver {
     leaveEvent(rm, node.id);
     return {
       result: 'event_done',
-      eventId: chosen.state.eventId,
-      choiceId: plan.choiceId,
-      outcomeId: chosen.outcomeId,
-      battle: chosen.battle,
+      eventId: last.chosen.state.eventId,
+      choiceId: last.plan.choiceId,
+      outcomeId: last.chosen.outcomeId,
+      battle: last.chosen.battle,
+      steps: steps.length,
     };
   }
 

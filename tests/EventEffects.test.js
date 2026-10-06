@@ -31,6 +31,7 @@ import { EVENT_WEAPON_TYPES, isEventWeapon, lootWeaponNames } from '../src/engin
 import { reviveAtChurch, churchReviveBlock } from '../src/engine/ChurchCommands.js';
 import { nodeFallThreshold } from '../src/engine/EclipseSystem.js';
 import { knowsSkill } from '../src/engine/UnitManager.js';
+import { flagValue } from '../src/engine/EventSystem.js';
 import { wearCount } from '../src/engine/WeaponWear.js';
 import {
   addUnit,
@@ -417,7 +418,7 @@ describe('learnSkill and fallenSkill', () => {
     const result = chooseEventOption(run, node.id, 'go', { targetUid: edric.unitUid });
     expect(result.ok).toBe(true);
     expect(result.text).toBe('Nothing left to show you.');
-    expect(run.storyFlags.fell_through).toBe(true);
+    expect(flagValue(run.storyFlags, 'fell_through')).toBe(true);
     expect(run.gold).toBe(200); // the outcome's own effects did not run
   });
 
@@ -655,7 +656,13 @@ describe('vision, flag, stat', () => {
       { type: 'flag', key: 'b', value: 3 },
       { type: 'flag', key: 'c', value: 'x' },
     ]);
-    expect(run.storyFlags).toEqual({ a: true, b: 3, c: 'x' });
+    // New writes carry the act they were set in ({ value, act }); readers see the value.
+    expect(run.storyFlags).toEqual({
+      a: { value: true, act: 'act1' },
+      b: { value: 3, act: 'act1' },
+      c: { value: 'x', act: 'act1' },
+    });
+    expect(['a', 'b', 'c'].map((key) => flagValue(run.storyFlags, key))).toEqual([true, 3, 'x']);
   });
 
   it('stat lowestLevel boosts the lowest-level unit (ties: lowest XP) by exactly the stat asked', () => {

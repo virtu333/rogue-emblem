@@ -3,14 +3,28 @@
   "title": "Story Events on the route map (docs/specs/event-nodes.md)",
   "type": "object",
   "properties": {
-    "version": { "const": 1 },
+    "version": {
+      "const": 1
+    },
     "costScale": {
       "type": "object",
       "properties": {
-        "normal": { "type": "number", "exclusiveMinimum": 0 },
-        "dusk": { "type": "number", "exclusiveMinimum": 0 },
-        "hard": { "type": "number", "exclusiveMinimum": 0 },
-        "lunatic": { "type": "number", "exclusiveMinimum": 0 }
+        "normal": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "dusk": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "hard": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "lunatic": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
       },
       "required": ["normal", "dusk", "hard", "lunatic"],
       "additionalProperties": false
@@ -18,8 +32,12 @@
     "burdens": {
       "type": "object",
       "properties": {
-        "ill_omen": { "$ref": "#/$defs/burden" },
-        "debt": { "$ref": "#/$defs/burden" }
+        "ill_omen": {
+          "$ref": "#/$defs/burden"
+        },
+        "debt": {
+          "$ref": "#/$defs/burden"
+        }
       },
       "required": ["ill_omen", "debt"],
       "additionalProperties": false
@@ -27,22 +45,35 @@
     "events": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "#/$defs/event" }
+      "items": {
+        "$ref": "#/$defs/event"
+      }
     }
   },
   "required": ["version", "costScale", "burdens", "events"],
   "additionalProperties": false,
   "$defs": {
-    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
-    "rungs": { "enum": ["normal", "dusk", "hard", "lunatic"] },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "rungs": {
+      "enum": ["normal", "dusk", "hard", "lunatic"]
+    },
     "amount": {
       "oneOf": [
-        { "type": "number" },
+        {
+          "type": "number"
+        },
         {
           "type": "object",
           "properties": {
-            "base": { "type": "number" },
-            "perAct": { "type": "number" }
+            "base": {
+              "type": "number"
+            },
+            "perAct": {
+              "type": "number"
+            }
           },
           "additionalProperties": false
         }
@@ -51,15 +82,34 @@
     "burden": {
       "type": "object",
       "properties": {
-        "label": { "type": "string", "minLength": 1 },
-        "line": { "type": "string" },
-        "battles": { "type": "integer", "minimum": 1 },
-        "extraShadow": { "type": "integer", "minimum": 0 },
-        "garnish": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "line": {
+          "type": "string"
+        },
+        "battles": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "extraShadow": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "garnish": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
         "onRung": {
           "type": "object",
-          "propertyNames": { "$ref": "#/$defs/rungs" },
-          "additionalProperties": { "type": "object" }
+          "propertyNames": {
+            "$ref": "#/$defs/rungs"
+          },
+          "additionalProperties": {
+            "type": "object"
+          }
         }
       },
       "required": ["label"],
@@ -68,20 +118,90 @@
     "event": {
       "type": "object",
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "title": { "type": "string", "minLength": 1 },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
         "acts": {
           "type": "array",
           "minItems": 1,
-          "items": { "enum": ["act1", "act2", "act3", "act4"] },
+          "items": {
+            "enum": ["act1", "act2", "act3", "act4"]
+          },
           "uniqueItems": true
         },
-        "weight": { "type": "number", "minimum": 0 },
-        "oncePerRun": { "type": "boolean" },
-        "fallback": { "type": "boolean" },
-        "requires": { "$ref": "#/$defs/requires" },
-        "intro": { "type": "string", "minLength": 1 },
-        "choices": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/choice" } }
+        "weight": {
+          "type": "number",
+          "minimum": 0
+        },
+        "oncePerRun": {
+          "type": "boolean"
+        },
+        "fallback": {
+          "type": "boolean"
+        },
+        "requires": {
+          "$ref": "#/$defs/requires"
+        },
+        "intro": {
+          "type": "string",
+          "minLength": 1
+        },
+        "choices": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/choice"
+          }
+        },
+        "pages": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/id"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/page"
+          }
+        },
+        "counters": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/id"
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "countersByRung": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/id"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "propertyNames": {
+              "$ref": "#/$defs/rungs"
+            },
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "counterLabels": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/id"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
       },
       "required": ["id", "title", "weight", "intro", "choices"],
       "additionalProperties": false
@@ -89,78 +209,212 @@
     "requires": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "acts": { "type": "array", "items": { "enum": ["act1", "act2", "act3", "act4"] } },
-        "minRow": { "type": "integer" },
-        "maxRow": { "type": "integer" },
-        "difficultyAtLeast": { "$ref": "#/$defs/rungs" },
-        "difficultyAtMost": { "$ref": "#/$defs/rungs" },
-        "phaseAtLeast": { "type": "string" },
-        "phaseAtMost": { "type": "string" },
-        "goldAtLeast": { "$ref": "#/$defs/amount" },
+        "reason": {
+          "type": "string"
+        },
+        "acts": {
+          "type": "array",
+          "items": {
+            "enum": ["act1", "act2", "act3", "act4"]
+          }
+        },
+        "minRow": {
+          "type": "integer"
+        },
+        "maxRow": {
+          "type": "integer"
+        },
+        "difficultyAtLeast": {
+          "$ref": "#/$defs/rungs"
+        },
+        "difficultyAtMost": {
+          "$ref": "#/$defs/rungs"
+        },
+        "phaseAtLeast": {
+          "type": "string"
+        },
+        "phaseAtMost": {
+          "type": "string"
+        },
+        "goldAtLeast": {
+          "$ref": "#/$defs/amount"
+        },
         "roster": {
           "type": "object",
           "properties": {
-            "weaponTypes": { "type": "array", "items": { "type": "string" } },
-            "magic": { "type": "boolean" },
-            "staff": { "type": "boolean" },
-            "minUnits": { "type": "integer", "minimum": 1 }
+            "weaponTypes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "magic": {
+              "type": "boolean"
+            },
+            "staff": {
+              "type": "boolean"
+            },
+            "minUnits": {
+              "type": "integer",
+              "minimum": 1
+            }
           },
           "additionalProperties": false
         },
-        "fallen": { "type": "boolean" },
-        "consumable": { "type": "string" },
-        "flag": { "type": "string" },
-        "notFlag": { "type": "string" },
-        "notBurden": { "type": "string" },
-        "blessingTier": { "type": "integer", "minimum": 1, "maximum": 4 }
+        "fallen": {
+          "type": "boolean"
+        },
+        "consumable": {
+          "type": "string"
+        },
+        "flag": {
+          "type": "string"
+        },
+        "notFlag": {
+          "type": "string"
+        },
+        "notBurden": {
+          "type": "string"
+        },
+        "blessingTier": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        "counterAtLeast": {
+          "type": "object",
+          "properties": {
+            "key": {
+              "$ref": "#/$defs/id"
+            },
+            "n": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": ["key", "n"],
+          "additionalProperties": false
+        },
+        "flagAct": {
+          "anyOf": [
+            {
+              "enum": ["earlier", "current"]
+            },
+            {
+              "enum": ["act1", "act2", "act3", "act4"]
+            }
+          ]
+        }
       },
       "additionalProperties": false
     },
     "choice": {
       "type": "object",
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "label": { "type": "string", "minLength": 1 },
-        "hint": { "type": "string" },
-        "requires": { "$ref": "#/$defs/requires" },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "hint": {
+          "type": "string"
+        },
+        "requires": {
+          "$ref": "#/$defs/requires"
+        },
         "target": {
           "type": "object",
           "properties": {
-            "prompt": { "type": "string", "minLength": 1 },
-            "filter": { "type": "object" },
-            "reason": { "type": "string" }
+            "prompt": {
+              "type": "string",
+              "minLength": 1
+            },
+            "filter": {
+              "type": "object"
+            },
+            "reason": {
+              "type": "string"
+            }
           },
           "required": ["prompt"],
           "additionalProperties": false
         },
         "cost": {
           "type": "object",
-          "properties": { "gold": { "$ref": "#/$defs/amount" } },
+          "properties": {
+            "gold": {
+              "$ref": "#/$defs/amount"
+            }
+          },
           "required": ["gold"],
           "additionalProperties": false
         },
         "check": {
           "type": "object",
           "properties": {
-            "stats": { "type": "array", "minItems": 1, "items": { "type": "string" } },
-            "of": { "enum": ["target", "bestInArmy"] },
-            "base": { "type": "number" },
-            "perPoint": { "type": "number" },
-            "against": { "type": "number" },
-            "min": { "type": "number", "minimum": 0, "maximum": 1 },
-            "max": { "type": "number", "minimum": 0, "maximum": 1 },
+            "stats": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              }
+            },
+            "of": {
+              "enum": ["target", "bestInArmy"]
+            },
+            "base": {
+              "type": "number"
+            },
+            "perPoint": {
+              "type": "number"
+            },
+            "against": {
+              "type": "number"
+            },
+            "min": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "max": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
             "byRung": {
               "type": "object",
-              "propertyNames": { "$ref": "#/$defs/rungs" },
-              "additionalProperties": { "type": "number" }
+              "propertyNames": {
+                "$ref": "#/$defs/rungs"
+              },
+              "additionalProperties": {
+                "type": "number"
+              }
             }
           },
           "required": ["stats", "of", "base", "perPoint", "against"],
           "additionalProperties": false
         },
-        "effects": { "type": "array", "items": { "$ref": "#/$defs/effect" } },
-        "outcomes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/outcome" } }
+        "effects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/effect"
+          }
+        },
+        "outcomes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/outcome"
+          }
+        },
+        "tells": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/tell"
+          }
+        }
       },
       "required": ["id", "label", "outcomes"],
       "additionalProperties": false
@@ -168,17 +422,43 @@
     "outcome": {
       "type": "object",
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "weight": { "type": "number" },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "weight": {
+          "type": "number"
+        },
         "weightByRung": {
           "type": "object",
-          "propertyNames": { "$ref": "#/$defs/rungs" },
-          "additionalProperties": { "type": "number" }
+          "propertyNames": {
+            "$ref": "#/$defs/rungs"
+          },
+          "additionalProperties": {
+            "type": "number"
+          }
         },
-        "text": { "type": "string", "minLength": 1 },
-        "effects": { "type": "array", "items": { "$ref": "#/$defs/effect" } },
-        "fallbackText": { "type": "string" },
-        "fallback": { "type": "array", "items": { "$ref": "#/$defs/effect" } }
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "effects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/effect"
+          }
+        },
+        "fallbackText": {
+          "type": "string"
+        },
+        "fallback": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/effect"
+          }
+        },
+        "next": {
+          "$ref": "#/$defs/id"
+        }
       },
       "required": ["id", "text", "effects"],
       "additionalProperties": false
@@ -201,11 +481,77 @@
             "layToRest",
             "consume",
             "stat",
-            "battle"
+            "battle",
+            "counter",
+            "join",
+            "contract",
+            "routeEdit"
           ]
         }
       },
       "required": ["type"]
+    },
+    "page": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "choices": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/choice"
+          }
+        }
+      },
+      "required": ["text", "choices"],
+      "additionalProperties": false
+    },
+    "tell": {
+      "type": "object",
+      "properties": {
+        "when": {
+          "type": "object",
+          "properties": {
+            "class": {
+              "type": "string"
+            },
+            "classes": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              }
+            },
+            "weaponType": {
+              "type": "string"
+            },
+            "trait": {
+              "type": "string"
+            },
+            "skill": {
+              "type": "string"
+            }
+          },
+          "minProperties": 1,
+          "maxProperties": 1,
+          "additionalProperties": false
+        },
+        "line": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reveals": {
+          "$ref": "#/$defs/id"
+        },
+        "tilts": {
+          "const": "pass"
+        }
+      },
+      "required": ["when", "line"],
+      "additionalProperties": false
     }
   }
 }

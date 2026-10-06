@@ -153,6 +153,8 @@ import {
   sanitizeStoryFlags,
 } from './EventSystem.js';
 import { burdenEffectsOnVictory, normalizeBurdens } from './Burdens.js';
+import { normalizeContract } from './Contracts.js';
+import { settleContract } from './ContractSettlement.js';
 import { everFallenUnits } from './LaidToRest.js';
 import { createSpecialCharacter } from './SpecialCharacters.js';
 
@@ -537,6 +539,10 @@ export class RunManager {
     this.pendingEventNodeId = null;
     this.laidToRest = [];
     this.lastBurdenSettlement = null;
+    // The open contract (engine/Contracts.js: a goal for the next battle) and what the last
+    // victory settled of it, for the victory band (not saved, like lastBurdenSettlement).
+    this.contract = null;
+    this.lastContractSettlement = null;
     this.difficultyId = 'normal';
     this.difficultyModifiers = {
       ...DIFFICULTY_DEFAULTS,
@@ -588,6 +594,8 @@ export class RunManager {
     this.pendingEventNodeId = null;
     this.laidToRest = [];
     this.lastBurdenSettlement = null;
+    this.contract = null;
+    this.lastContractSettlement = null;
   }
 
   _isValidSerializedUnit(unit) {
@@ -4073,6 +4081,16 @@ export class RunManager {
           extraShadow: settlement.extraShadow,
         }
       : null;
+    // An open contract settles here too (engine/ContractSettlement.js), once, for this victory
+    // and no other: after the roster, gold and burdens are committed, so a reward lands on
+    // the army as it now is and a penalty Debt starts with the NEXT victory. Never mid-battle,
+    // so a revert or a resume never touches it. `newlyFallen` is who fell in THIS battle.
+    this.lastContractSettlement = settleContract(this, {
+      nodeId,
+      turnCount: options.turnCount,
+      turnPar: options.turnPar,
+      losses: newlyFallen.length,
+    });
 
     const isRewardBossNode = node.id === this.nodeMap?.bossNodeId && node.type === 'boss';
     const isRewardAct =
@@ -4778,6 +4796,7 @@ export class RunManager {
       eventLog: this.eventLog || [],
       storyFlags: this.storyFlags || {},
       burdens: this.burdens || [],
+      contract: this.contract || null,
       laidToRest: this.laidToRest || [],
       difficultyId: this.difficultyId || 'normal',
       difficultyModifiers: this.difficultyModifiers || {
@@ -5328,6 +5347,7 @@ export class RunManager {
     rm.eventLog = sanitizeEventLog(saved.eventLog);
     rm.storyFlags = sanitizeStoryFlags(saved.storyFlags);
     rm.burdens = normalizeBurdens(saved.burdens);
+    rm.contract = normalizeContract(saved.contract);
     rm.laidToRest = sanitizeLaidToRest(saved.laidToRest);
     rm.applyDifficultySelection(saved.difficultyId || 'normal');
     if (saved.difficultyModifiers && typeof saved.difficultyModifiers === 'object') {

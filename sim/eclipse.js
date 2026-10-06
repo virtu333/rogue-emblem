@@ -15,8 +15,8 @@ import { generateBattle } from '../src/engine/MapGenerator.js';
 import { calculatePar } from '../src/engine/TurnBonusCalculator.js';
 import { createSeededRng } from '../src/engine/BlessingEngine.js';
 import { eclipsePhase } from '../src/engine/EclipseSystem.js';
-import { arriveAtEvent, chooseEventOption, leaveEvent } from '../src/engine/EventCommands.js';
-import { chooseEventPlan } from '../tests/sim/RunPolicies.js';
+import { arriveAtEvent, leaveEvent } from '../src/engine/EventCommands.js';
+import { playEventChoices } from '../tests/sim/RunPolicies.js';
 import { loadGameData } from '../tests/testData.js';
 
 const args = process.argv.slice(2);
@@ -150,14 +150,14 @@ function runOnce(data, seed, offset) {
       // event's own shadow (an altar's offerings, a dispatch read) is part of the clock,
       // and so are the knots it lets fall.
       if (arriveAtEvent(rm, node.id)) {
-        const plan = chooseEventPlan(rm, node.id);
-        const chosen = plan
-          ? chooseEventOption(rm, node.id, plan.choiceId, { targetUid: plan.targetUid })
-          : null;
+        // A multi-page event is walked page by page (the policy stops going deeper when a
+        // counter runs low).
+        const steps = playEventChoices(rm, node.id);
         out.events++;
-        if (chosen?.ok)
-          for (const result of chosen.results)
-            if (result.kind === 'shadow') countFalls(rm, out, result.fell || []);
+        for (const { chosen } of steps)
+          if (chosen?.ok)
+            for (const result of chosen.results)
+              if (result.kind === 'shadow') countFalls(rm, out, result.fell || []);
       }
       if (!leaveEvent(rm, node.id).ok) rm.markNodeComplete(node.id);
     } else rm.markNodeComplete(node.id);

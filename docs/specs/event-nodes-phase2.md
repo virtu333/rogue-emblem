@@ -196,6 +196,97 @@ Wounded shows in previews and the harness; Cleanse commits the vow; a Dark Omen 
 `type: 'event'`; the colosseum cap survives leave/re-enter/reload; every new event resolves
 through every choice (the Phase 1 every-choice table extends).
 
+## 2A as built (2026-10-06)
+
+The engine half of §2A is in: pure engine, schema, validator and tests; no UI, no new event
+content (test fixtures only), no burdens/Cleanse/Dark Omen (2B), no colosseum (2C). The command
+API and view are documented in the header of `src/engine/EventCommands.js` (the UI agent reads
+that and the shapes below). What the build settled or changed against the text above:
+
+**New modules.** `RouteEdit.js` (routeEdit, the node-map validity checker), `EventJoin.js`,
+`EventTells.js`, `Contracts.js` (the record, the verdict, the words), `ContractSettlement.js`
+(`settleContract`; kept apart because settling needs the effect planner, which itself reads the
+contract record: no import cycle). Shared builders exported from `NodeMapGenerator.js`:
+`rebuildNodeAs`, `edgeCrosses`, `rowsAreUnconstrained`; `generateNodeMap` now calls them, and a
+fingerprint over 2000 generated maps (5 acts x 400 seeds, every option on) is byte-identical
+before and after. `RUN_FIELDS` / `snapshotRunState` / `restoreRunState` moved into
+`EventEffects.js` (the contract settlement shares them) and gained `contract`,
+`usedRecruitNames` and `nextUnitUid`.
+
+**Pages.** An outcome with `next` moves the event to that page *at once* (there is no separate
+advance command): the step goes to `state.path`, `state.page` is the new page and the top-level
+`choiceId`... are cleared, so a refresh reopens the new page's choices and the earlier steps stay
+above it as the view's `trail`. `chooseEventOption` returns `next`. "An explicit leave choice" is
+simply a choice whose outcomes carry no `next`; `leaveEvent` itself needs a resolved choice on the
+current page. The first page (`start`) keeps its Phase 1 seed key, later pages put the page in the
+key (`EventSystem.choiceSeedKey`), so no Phase 1 event rolls differently. A page, path or counter
+is omitted from the saved state when it is the default, so a record written before pages loads
+and displays as it was written (tested with a literal Phase 1 record). New: an optional `page`
+option on `chooseEventOption` (the view's `page`): a second tap on a choice that exists on the next
+page too is refused ("That page has moved on.") instead of being taken as a step of the new page;
+the UI should pass it. An outcome that starts a battle may not also have `next` (validator
+refuses; the engine ignores it). Validator: every page is reachable and has a guaranteed way out
+(an always-available choice whose every outcome ends the event or leads to a page that has one),
+so a loop can never trap the player. `eventLog` entries of later pages carry `page`.
+
+**Counters.** `counters: { torches: 3 }`, `countersByRung: { torches: { lunatic: 2 } }` (a byRung
+table *per counter*, "from its rung up"), optional `counterLabels` (default: the key in words).
+The effect is `{ type: 'counter', key, delta }` (floors at 0; the record carries the delta actually
+applied), the requirement `counterAtLeast: { key, n }` (event-level use is refused: no counters
+before the pick). Counters start when the event is picked, so the rung is fixed at arrival.
+
+**join.** Built by `RecruitNodeSystem.buildRecruitNodeUnit` (the recruit-node builder: Edric-anchored
+level, seasoned growths, a trait, join bonus, meta gear, the promotion roll for a promoted class)
+on a stream of its own, with the lords list emptied so the lord roll can never fire. A class is
+valid when it exists, is not enemy-only or a boss, is in *some* act's recruit pool (which leaves out
+lord classes, undead and dragons) and, if promoted, is in the pool of *every* act the choice can
+play in (a Hero in an Act II event is refused by the validator and filtered at runtime). A failed
+promotion roll joins the base class, exactly as a recruit node does. `trait` restricts the trait
+roll to that trait. Names avoid `getTakenUnitNames` plus earlier joins of the same outcome. **No
+roster cap exists** (Expanded Ranks retired it), so a join is never blocked.
+
+**contract.** One at a time: `eventChoiceBlock` refuses a choice that can open one while one is open
+(not a `requires` key, so no data can forget it); such a choice counts as conditional for the
+always-available rule. Settled in `completeBattle` right after the burdens are committed (so a
+reward lands on the units and gold the commit built, and a penalty Debt starts with the next
+victory). `underPar` is `turnCount <= turnPar`; **a battle with no par keeps the contract** (the
+goal could not be seen; a penalty must not land for something unmeasurable; the settlement says
+`noPar`). `noLosses` counts everyone `completeBattle` finds unmatched among the entering roster and
+the recruits who joined mid-battle (`newlyFallen`). Reward and penalty may hold `gold, item, hp
+(not target), shadow, vision, blessing, burden, flag, stat (lowestLevel)`; they run through the
+effect planner leniently (an item with no room is a note) in a seeded swap; a plan failure or an
+apply throw leaves the run as before the terms and the contract is still cleared. A contract
+persists across acts, is saved/sanitized (`normalizeContract`), `run.lastContractSettlement` is not
+saved (like the burden record). Validator: a contract may not share a choice with a battle and may
+not ride in a battle's spoils.
+
+**routeEdit.** Outcome-level only, and the outcome must carry a `fallback` (the road may have
+nothing to change; the fallback may not itself edit or teach); one per outcome. `addRoad` and
+`redraw` choose among candidates that keep the generator's rules: lanes within ±1 and no crossing
+(relaxed next to a single-node row, as the generator does), plus its service pacing (no more than
+two non-combat nodes in a row, none beside its own type). A redraw never touches the start, boss,
+Ruins, completed, current, encounter-locked, eclipsed, recruit, arena, event, ambush or
+battle-config nodes, nor anything not reachable within two rows from here. If a node fell between
+planning and applying (a shadow effect earlier in the same outcome) the edit becomes a note.
+`checkNodeMapValidity(nodeMap)` is the invariant checker (also run on 5 x 150 generated maps).
+
+**Roster tells.** `tells: [{ when: { class | classes | weaponType | trait | skill }, line, reveals |
+tilts }]`, exactly one `when` key, exactly one of `reveals` / `tilts` (`tilts: 'pass'`, check
+choices only, +0.1 once per choice before the min/max clamp). `weaponType` means a proficiency, `skill`
+includes the bench. The speaker is a seeded pick among living matches, lords only when no one else
+matches. The view gives `{ speaker: { uid, name }, line }` only while choosing. Validator: `reveals`
+names a real outcome of the choice, lines <= 90 and only `{name}`.
+
+**Flags.** New writes are `{ value, act }`; setting the same value again keeps the first act; plain
+values from old saves still read. `requires.flagAct` (beside `flag`): `'earlier'` (set in an act
+before this one; a flag from a save that recorded no act counts as earlier), `'current'`, or an act
+id. Phase 1 tests that compared `storyFlags` to plain values now read through `flagValue`.
+
+**Sims.** `tests/sim/RunPolicies.js`: `chooseEventPlan` works per page (first open non-battle
+choice; when any counter is at 1 or less it prefers a choice that ends the event) and
+`playEventChoices` walks a whole event; the run driver and `sim/eclipse.js` use it; the driver counts
+`contractsKept` / `contractsBroken`.
+
 ## Not in Phase 2
 
 Marks, the Necromancer, multi-bar bosses, new skills and arts: `event-nodes.md` §14–§15

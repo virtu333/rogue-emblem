@@ -39,9 +39,19 @@
 //                                                 -> { kind:'stat', unit, stat, value }
 //   battle      { enemyLevelBonus, afterVictory, victoryText }  EventCommands builds the fight
 //                                                 -> { kind:'battle', enemyLevelBonus }
+//   counter     { key, delta }                  an event counter (the Sunken Mine's torches), floor 0
+//                                                 -> { kind:'counter', key, label, delta, value }
+//   join        { class | classPool, name?, levelOffset?, trait? }  a unit joins the army
+//                                                 (EventJoin.js: the recruit-node builder)
+//                                                 -> { kind:'join', name, className, level, unitUid }
+//   contract    { goal, reward, penalty }       a goal for the next battle (Contracts.js)
+//                                                 -> { kind:'contract', goal, label, short, line, reward, penalty }
+//   routeEdit   { op: 'addRoad' } | { op: 'redraw', toType }  the route map (RouteEdit.js)
+//                                                 -> { kind:'route', op:'addRoad', from, to, row, col, type }
+//                                                  | { kind:'route', op:'redraw', node, row, col, fromType, type }
 //
 // An outcome's `fallback` effects replace its `effects` when a learnSkill/fallenSkill has
-// nothing left to teach. In `lenient` mode (the spoils after a won battle) an effect that
+// nothing left to teach, or a routeEdit has nothing it may change. In `lenient` mode (the spoils after a won battle) an effect that
 // cannot be delivered (no room, no blessing left) is skipped with a note rather than
 // failing: a won battle never loses its reward to a failed plan.
 
@@ -53,13 +63,19 @@ import { applyWear, wearableStats } from './WeaponWear.js';
 import { commitShadow, actShadowOf, withEclipseSeed } from './EclipseSystem.js';
 import { convertNodeToRoutBattle } from './NodeMapGenerator.js';
 import { addBurden, burdenDefFor } from './Burdens.js';
+import { describeContract, normalizeContract, contractOf } from './Contracts.js';
+import { planJoin, applyJoin } from './EventJoin.js';
+import { planRouteEdit, applyRouteEdit } from './RouteEdit.js';
 import { CONSUMABLE_MAX, INVENTORY_MAX, NODE_TYPES } from '../utils/constants.js';
 import { unitUidOf } from './UnitIdentity.js';
 import {
+  START_PAGE,
   availableEventBlessings,
   bestWeaponType,
   byRungValue,
   consumableHolders,
+  counterLabel,
+  counterValue,
   eventRng,
   isTeachableSkill,
   learnableFromFallen,
@@ -68,6 +84,7 @@ import {
   runSeedOf,
   unitWields,
   usesLeft,
+  withFlag,
 } from './EventSystem.js';
 
 export const EVENT_EFFECT_TYPES = Object.freeze([
@@ -85,6 +102,10 @@ export const EVENT_EFFECT_TYPES = Object.freeze([
   'consume',
   'stat',
   'battle',
+  'counter',
+  'join',
+  'contract',
+  'routeEdit',
 ]);
 
 /** Effect types that must name a chosen unit (`to: 'target'` / `scope: 'target'`). */
@@ -95,10 +116,13 @@ export const EVENT_WEAPON_TYPES = Object.freeze(['Sword', 'Lance', 'Axe', 'Bow',
 export const EVENT_WEAPON_TIERS = Object.freeze(['Iron', 'Steel', 'Silver']);
 const ACT_BASELINE_TIER = Object.freeze({ act1: 0, act2: 1, act3: 2, act4: 2 });
 
+// Every effect's sub-picks hang off its choice's seed key; a page after the first names itself
+// (EventSystem.choiceSeedKey), so the first page keeps its Phase 1 streams.
 const rngFor = (ctx, index, label) =>
   eventRng(
-    `event:${runSeedOf(ctx.run)}:${ctx.nodeId}:${ctx.choice?.id || 'choice'}:${ctx.phase}${index}:${label}`,
+    `event:${runSeedOf(ctx.run)}:${ctx.nodeId}:${pagePart(ctx)}${ctx.choice?.id || 'choice'}:${ctx.phase}${index}:${label}`,
   );
+const pagePart = (ctx) => (ctx.page && ctx.page !== START_PAGE ? `${ctx.page}:` : '');
 
 const pickFrom = (list, rng) => list[Math.floor(rng() * list.length)];
 
@@ -167,6 +191,10 @@ export function createLedger(run) {
     learned: new Map(),
     rested: new Set(),
     battle: false,
+    joined: new Set(),
+    counters: new Map(),
+    contract: false,
+    routeEdit: false,
   };
 }
 
@@ -181,6 +209,10 @@ export function cloneLedger(ledger) {
     learned: new Map([...ledger.learned].map(([unit, set]) => [unit, new Set(set)])),
     rested: new Set(ledger.rested),
     battle: ledger.battle,
+    joined: new Set(ledger.joined),
+    counters: new Map(ledger.counters),
+    contract: ledger.contract,
+    routeEdit: ledger.routeEdit,
   };
 }
 
@@ -489,6 +521,44 @@ function planBattle(ctx, effect, index, ledger) {
   };
 }
 
+function planCounter(ctx, effect, index, ledger) {
+  const key = effect.key;
+  if (!ctx.event || !Object.hasOwn(ctx.event.counters || {}, key))
+    return { error: `Unknown counter "${key}".` };
+  const current = ledger.counters.has(key)
+    ? ledger.counters.get(key)
+    : counterValue(ctx.state, key);
+  const requested = Math.trunc(Number(effect.delta) || 0);
+  const value = Math.max(0, current + requested);
+  ledger.counters.set(key, value);
+  return { step: { type: 'counter', key, delta: value - current, value, requested } };
+}
+
+function planContract(ctx, effect, index, ledger) {
+  if (ctx.phase === 'k') return { error: 'A contract cannot open another contract.' };
+  if (ledger.contract || contractOf(ctx.run))
+    return { error: 'You are already bound by a contract.' };
+  const contract = normalizeContract({
+    goal: effect.goal,
+    reward: effect.reward,
+    penalty: effect.penalty,
+    eventId: ctx.event?.id,
+    nodeId: ctx.nodeId,
+    act: ctx.run.currentAct,
+  });
+  if (!contract) return { error: `Unknown contract goal "${effect.goal}".` };
+  ledger.contract = true;
+  return { step: { type: 'contract', contract } };
+}
+
+function planRoute(ctx, effect, index, ledger) {
+  if (ledger.routeEdit) return { error: 'One change to the road at a time.' };
+  if (ctx.node?.type !== NODE_TYPES.EVENT) return { error: 'There is no event node here.' };
+  const planned = planRouteEdit(ctx.run, effect, ctx.nodeId, rngFor(ctx, index, 'route'));
+  if (planned.step) ledger.routeEdit = true;
+  return planned;
+}
+
 /**
  * Plan a list of effects without touching the run.
  * @param {object} ctx - { run, catalog, nodeId, node, choice, target, fallenUnit, phase }
@@ -549,6 +619,18 @@ export function planEffects(
         break;
       case 'battle':
         planned = planBattle(ctx, effect, index, ledger);
+        break;
+      case 'counter':
+        planned = planCounter(ctx, effect, index, ledger);
+        break;
+      case 'join':
+        planned = planJoin(ctx, effect, index, ledger);
+        break;
+      case 'contract':
+        planned = planContract(ctx, effect, index, ledger);
+        break;
+      case 'routeEdit':
+        planned = planRoute(ctx, effect, index, ledger);
         break;
       default:
         planned = { error: `Unknown effect "${effect?.type}".` };
@@ -732,7 +814,8 @@ export function applyStep(ctx, step) {
       ];
     }
     case 'flag':
-      run.storyFlags = { ...(run.storyFlags || {}), [step.key]: step.value };
+      // { value, act }: the act the flag was set in, for payoffs that need "an earlier act".
+      run.storyFlags = withFlag(run.storyFlags, step.key, step.value, run.currentAct);
       return [{ kind: 'flag', key: step.key, value: step.value }];
     case 'layToRest': {
       // Anything the convoy could not take stays with them; send what fits to the convoy first.
@@ -757,6 +840,31 @@ export function applyStep(ctx, step) {
       return [{ kind: 'stat', unit: step.unit.name, stat: step.stat, value: step.value }];
     case 'battle':
       return applyBattle(ctx, step);
+    case 'counter':
+      ctx.state.counters = { ...(ctx.state.counters || {}), [step.key]: step.value };
+      return [
+        {
+          kind: 'counter',
+          key: step.key,
+          label: counterLabel(ctx.event, step.key),
+          delta: step.delta,
+          value: step.value,
+        },
+      ];
+    case 'join':
+      return applyJoin(ctx, step);
+    case 'contract': {
+      run.contract = step.contract;
+      return [{ kind: 'contract', ...describeContract(run) }];
+    }
+    case 'routeEdit':
+      return [
+        applyRouteEdit(
+          run,
+          step,
+          `event-route:${runSeedOf(run)}:${ctx.nodeId}:${pagePart(ctx)}${ctx.choice?.id}`,
+        ),
+      ];
     case 'note':
       return [step.note];
     default:
@@ -769,4 +877,41 @@ export function applyPlan(ctx, steps) {
   const results = [];
   for (const step of steps) results.push(...applyStep(ctx, step));
   return results;
+}
+
+// ── Rolling back ────────────────────────────────────────────────────────
+
+/**
+ * The run fields an event's effects can change. A command snapshots them before it applies a
+ * plan and puts them back if applying throws (the plan is built to make that unreachable).
+ */
+export const RUN_FIELDS = Object.freeze([
+  'roster',
+  'fallenUnits',
+  'laidToRest',
+  'convoy',
+  'gold',
+  'eclipse',
+  'visionChargesRemaining',
+  'activeBlessings',
+  'blessingHistory',
+  'blessingRuntimeModifiers',
+  'storyFlags',
+  'burdens',
+  'accessories',
+  'nodeMap',
+  'currentNodeId',
+  'contract',
+  'usedRecruitNames',
+  'nextUnitUid',
+]);
+
+/** A deep copy of the fields in RUN_FIELDS. */
+export function snapshotRunState(run) {
+  return structuredClone(Object.fromEntries(RUN_FIELDS.map((key) => [key, run[key]])));
+}
+
+/** Put a snapshotRunState copy back. */
+export function restoreRunState(run, snapshot) {
+  for (const key of RUN_FIELDS) run[key] = snapshot[key];
 }

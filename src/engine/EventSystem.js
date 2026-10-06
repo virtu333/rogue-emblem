@@ -10,6 +10,13 @@
 //   event-fallen:${runSeed}:${nodeId}               which fallen ally the Echo names
 //   event:${runSeed}:${nodeId}:${choiceId}          the outcome (weights or a check)
 //   event:${runSeed}:${nodeId}:${choiceId}:${n}:..  each effect's own sub-picks (EventEffects)
+//   On a page after the first (docs/specs/event-nodes-phase2.md §2A) the page id joins the key
+//   right after the node (`event:${runSeed}:${nodeId}:${pageId}:${choiceId}...`; see
+//   choiceSeedKey). The first page, `start`, keeps the Phase 1 key, so a Phase 1 event picks
+//   the same outcome it always did.
+//   event-tell:${runSeed}:${nodeId}:${pageId}:${choiceId}:${n}  which unit speaks a roster tell
+//   event-join:${runSeed}:${nodeId}:..              a joining unit's class, name and build
+//   event-route:${runSeed}:${nodeId}:..             a route edit's pick and its battle build
 //
 // Vocabulary shared with EventEffects, EventCommands and EventValidation:
 //   amount      a number, or { base, perAct } (act1 = base + perAct x 1 ... act4 = x 4)
@@ -47,7 +54,15 @@ export const REQUIRES_KEYS = Object.freeze([
   'notFlag',
   'notBurden',
   'blessingTier',
+  'counterAtLeast',
+  'flagAct',
 ]);
+
+/** The first page of every event (its top-level `intro` and `choices`). */
+export const START_PAGE = 'start';
+
+/** What `requires.flagAct` accepts besides an act id: set in an act before the current one / in this one. */
+export const FLAG_ACT_KEYWORDS = Object.freeze(['earlier', 'current']);
 
 /** The per-unit target filter keys. */
 export const FILTER_KEYS = Object.freeze([
@@ -80,9 +95,42 @@ export function findEvent(catalog, eventId) {
   return (catalog?.events || []).find((event) => event?.id === eventId) || null;
 }
 
-/** One choice of an event by id, or null. */
-export function findChoice(event, choiceId) {
-  return (event?.choices || []).find((choice) => choice?.id === choiceId) || null;
+/**
+ * An event's page: { id, text, choices }. `start` is the top-level `intro` and `choices`;
+ * the others are `event.pages[id]` ({ text, choices }). Null when there is no such page.
+ */
+export function pageOf(event, pageId = START_PAGE) {
+  if (!event) return null;
+  if (pageId === START_PAGE)
+    return { id: START_PAGE, text: event.intro, choices: event.choices || [] };
+  const page = event.pages && Object.hasOwn(event.pages, pageId) ? event.pages[pageId] : null;
+  return page ? { id: pageId, text: page.text, choices: page.choices || [] } : null;
+}
+
+/** One choice of an event's page (the first page by default) by id, or null. */
+export function findChoice(event, choiceId, pageId = START_PAGE) {
+  return (pageOf(event, pageId)?.choices || []).find((choice) => choice?.id === choiceId) || null;
+}
+
+/** The page an event state is on (the first page when none is recorded). */
+export function pageIdOf(state) {
+  return typeof state?.page === 'string' && state.page ? state.page : START_PAGE;
+}
+
+/** The earlier steps of a multi-page event: [{ page, choiceId, outcomeId, text, results, ... }]. */
+export function pathOf(state) {
+  return Array.isArray(state?.path) ? state.path : [];
+}
+
+/**
+ * The seed key of a choice's outcome roll. The first page keeps the Phase 1 key (so Phase 1
+ * events roll exactly as before); every later page names itself in the key.
+ */
+export function choiceSeedKey(run, nodeId, pageId, choiceId) {
+  const seed = runSeedOf(run);
+  return !pageId || pageId === START_PAGE
+    ? `event:${seed}:${nodeId}:${choiceId}`
+    : `event:${seed}:${nodeId}:${pageId}:${choiceId}`;
 }
 
 /** The fallback event (never picked by weight): the entry marked `fallback`, else quiet_road. */
@@ -156,6 +204,35 @@ export function scaledCost(value, run, catalog) {
 /** The gold a choice charges (0 when it is free). */
 export function choiceCost(run, choice, catalog) {
   return choice?.cost?.gold ? scaledCost(choice.cost.gold, run, catalog) : 0;
+}
+
+// ── Counters ────────────────────────────────────────────────────────────
+
+/**
+ * The starting counters of an event on a rung: `event.counters` ({ torches: 3 }) with
+ * `event.countersByRung` ({ torches: { lunatic: 2 } }, a byRung table per key: from its rung
+ * up) laid over it. Whole numbers, never below 0. Empty for an event with none.
+ */
+export function initialCounters(event, difficultyId) {
+  const out = {};
+  for (const [key, value] of Object.entries(event?.counters || {})) {
+    const n = Number(byRungValue(event.countersByRung?.[key], difficultyId, value));
+    out[key] = Math.max(0, Number.isFinite(n) ? Math.trunc(n) : 0);
+  }
+  return out;
+}
+
+/** A counter's current value on an event state (0 when it has none). */
+export function counterValue(state, key) {
+  const n = Number(state?.counters?.[key]);
+  return Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : 0;
+}
+
+/** A counter's label: the event's `counterLabels` entry, else its key in words ("torches" -> "Torches"). */
+export function counterLabel(event, key) {
+  return (
+    event?.counterLabels?.[key] || key.charAt(0).toUpperCase() + key.slice(1).replaceAll('_', ' ')
+  );
 }
 
 /** Fill {fallen} in event text from the recorded fallen ally. */
@@ -250,6 +327,50 @@ export function fallenOfState(run, state) {
   if (uid) return list.find((unit) => unitUidOf(unit) === uid) || null;
   const name = state?.fallen?.name;
   return name ? list.find((unit) => unit?.name === name) || null : null;
+}
+
+// ── Story flags ─────────────────────────────────────────────────────────
+
+/**
+ * A story flag as { value, act }, or null when it is not set. New writes store
+ * `{ value, act }` (the act the flag was set in); a save from before acts kept the plain
+ * value, which reads as `{ value, act: null }`.
+ */
+export function flagEntry(flags, key) {
+  if (!flags || !Object.hasOwn(flags, key)) return null;
+  const raw = flags[key];
+  if (raw !== null && typeof raw === 'object')
+    return { value: raw.value, act: typeof raw.act === 'string' ? raw.act : null };
+  return { value: raw, act: null };
+}
+
+/** A flag's value (undefined when unset), whichever shape it was saved in. */
+export function flagValue(flags, key) {
+  return flagEntry(flags, key)?.value;
+}
+
+/**
+ * The flags with `key` set to `value` in `act`. Setting the same value again keeps the act
+ * it was first set in (a flag set in Act I and re-set in Act II is still "from an earlier
+ * act"); a different value replaces the entry.
+ */
+export function withFlag(flags, key, value, act) {
+  const existing = flagEntry(flags, key);
+  const keep = existing && existing.value === value && existing.act;
+  return { ...(flags || {}), [key]: { value, act: keep || act || null } };
+}
+
+/**
+ * Whether a flag satisfies `flagAct`: 'earlier' (set in an act before the current one; a
+ * flag from a save that did not record acts counts as earlier), 'current' (set in this act),
+ * or an act id.
+ */
+export function flagActMatches(entry, flagAct, currentAct) {
+  if (!entry) return false;
+  if (flagAct === 'earlier')
+    return entry.act === null || actNumber(entry.act) < actNumber(currentAct);
+  if (flagAct === 'current') return entry.act === currentAct;
+  return entry.act === flagAct;
 }
 
 // ── Requirements ────────────────────────────────────────────────────────
@@ -349,7 +470,8 @@ const rosterBlock = (run, need) => {
 };
 
 /**
- * Why a `requires` block is not met ('' when it is). `ctx`: { catalog, node? }.
+ * Why a `requires` block is not met ('' when it is). `ctx`: { catalog, node?, state? } (the
+ * event's recorded state, which `counterAtLeast` reads).
  * `requires.reason` replaces the default line. Unknown keys fail closed (the validator
  * makes them unreachable).
  */
@@ -391,9 +513,18 @@ export function evaluateRequires(run, requires, ctx = {}) {
     } else if (key === 'consumable') {
       if (consumableHolders(run, need).length === 0) return fail(`You have no ${need} to spare.`);
     } else if (key === 'flag') {
-      if (!run?.storyFlags?.[need]) return fail('Not something you have done.');
+      const entry = flagEntry(run?.storyFlags, need);
+      if (!entry || !entry.value) return fail('Not something you have done.');
+      if (requires.flagAct !== undefined && !flagActMatches(entry, requires.flagAct, act))
+        return fail('That was not on a road behind you.');
+    } else if (key === 'flagAct') {
+      // Read with `flag` above; alone it asks about nothing.
+      if (requires.flag === undefined) return fail('Unavailable.');
     } else if (key === 'notFlag') {
-      if (run?.storyFlags?.[need]) return fail('You have already done this.');
+      if (flagValue(run?.storyFlags, need)) return fail('You have already done this.');
+    } else if (key === 'counterAtLeast') {
+      // The event's own counters (a page's choice only; an event-level gate has no state).
+      if (!(counterValue(ctx.state, need?.key) >= Number(need?.n))) return fail('Not enough left.');
     } else if (key === 'notBurden') {
       if ((run?.burdens || []).some((b) => b?.id === need))
         return fail('Something already weighs on you.');
@@ -551,9 +682,10 @@ export function statSum(unit, stats) {
 
 /**
  * The chance a check passes: clamp(base + (sum - against) x perPoint + rung delta, min, max).
- * `of: 'target'` reads the chosen unit; `of: 'bestInArmy'` the army's best sum.
+ * `of: 'target'` reads the chosen unit; `of: 'bestInArmy'` the army's best sum. `tilt` (a
+ * roster tell that tilts the odds: EventTells.TELL_TILT) is added before the clamp.
  */
-export function checkChance(run, check, target) {
+export function checkChance(run, check, target, tilt = 0) {
   if (!check) return 0;
   const sum =
     check.of === 'bestInArmy'
@@ -563,7 +695,8 @@ export function checkChance(run, check, target) {
   const raw =
     (Number(check.base) || 0) +
     (sum - (Number(check.against) || 0)) * (Number(check.perPoint) || 0) +
-    delta;
+    delta +
+    (Number(tilt) || 0);
   const min = Number.isFinite(check.min) ? check.min : 0.05;
   const max = Number.isFinite(check.max) ? check.max : 0.95;
   return Math.max(min, Math.min(max, raw));
@@ -577,15 +710,21 @@ export function outcomeWeight(run, outcome) {
 }
 
 /**
- * Select the outcome of a choice with the seeded stream `event:${seed}:${nodeId}:${choiceId}`
- * (one draw whatever the kind). A check reads the target's (or the army's) stats now.
+ * Select the outcome of a choice with the seeded stream of choiceSeedKey (one draw whatever
+ * the kind). A check reads the target's (or the army's) stats now; `tilt` is a roster tell's
+ * nudge to the odds of passing.
  * @returns {{ outcome: object, chance: number|null }}
  */
-export function selectOutcome(run, nodeId, choice, { target = null } = {}) {
-  const roll = eventRng(`event:${runSeedOf(run)}:${nodeId}:${choice.id}`)();
+export function selectOutcome(
+  run,
+  nodeId,
+  choice,
+  { target = null, pageId = START_PAGE, tilt = 0 } = {},
+) {
+  const roll = eventRng(choiceSeedKey(run, nodeId, pageId, choice.id))();
   const outcomes = choice.outcomes || [];
   if (choice.check) {
-    const chance = checkChance(run, choice.check, target);
+    const chance = checkChance(run, choice.check, target, tilt);
     const wanted = roll < chance ? 'pass' : 'fail';
     return {
       outcome: outcomes.find((o) => o.id === wanted) || outcomes[0],
@@ -601,6 +740,15 @@ export function selectOutcome(run, nodeId, choice, { target = null } = {}) {
     if (cursor < 0) return { outcome: outcomes[i], chance: null };
   }
   return { outcome: outcomes.at(-1), chance: null };
+}
+
+/** True when any outcome (or fallback, or the choice's own effects) opens a contract. */
+export function choiceMayOpenContract(choice) {
+  const opens = (effects) => (effects || []).some((effect) => effect?.type === 'contract');
+  if (opens(choice?.effects)) return true;
+  return (choice?.outcomes || []).some(
+    (outcome) => opens(outcome.effects) || opens(outcome.fallback),
+  );
 }
 
 /** True for a node that holds an event the run has not left yet. */
@@ -625,6 +773,42 @@ const cleanResults = (raw) =>
     .filter((entry) => isPlain(entry) && typeof entry.kind === 'string' && entry.kind)
     .map(plainJson)
     .filter(Boolean);
+
+/** The steps of a multi-page event from a save: plain records with string ids. */
+function cleanPath(raw) {
+  return (Array.isArray(raw) ? raw : [])
+    .filter(
+      (step) =>
+        isPlain(step) &&
+        typeof step.page === 'string' &&
+        step.page &&
+        typeof step.choiceId === 'string' &&
+        step.choiceId &&
+        typeof step.outcomeId === 'string',
+    )
+    .map((step) => {
+      const clean = {
+        page: step.page,
+        choiceId: step.choiceId,
+        outcomeId: step.outcomeId,
+        text: typeof step.text === 'string' ? step.text : '',
+        results: cleanResults(step.results),
+      };
+      if (typeof step.targetUid === 'string') clean.targetUid = step.targetUid;
+      if (typeof step.targetName === 'string') clean.targetName = step.targetName;
+      return clean;
+    });
+}
+
+/** An event's counters from a save: string keys, whole numbers from 0. */
+function cleanCounters(raw) {
+  const out = {};
+  if (!isPlain(raw)) return out;
+  for (const [key, value] of Object.entries(raw))
+    if (key && Number.isFinite(Number(value)) && typeof value !== 'boolean')
+      out[key] = Math.max(0, Math.trunc(Number(value)));
+  return out;
+}
 
 /**
  * Per-node event states from a save: string node ids, an event id string, plain
@@ -653,6 +837,15 @@ export function sanitizeEventStates(raw) {
       .map(plainJson)
       .filter(Boolean);
     if (entry.left === true) state.left = true;
+    // Phase 2: the page the event is on and the steps behind it (absent = the first page, no
+    // steps: every Phase 1 record), and the counters it carries. Defaults are omitted, so a
+    // record written before pages existed reads back exactly as it was written.
+    if (typeof entry.page === 'string' && entry.page && entry.page !== START_PAGE)
+      state.page = entry.page;
+    const path = cleanPath(entry.path);
+    if (path.length) state.path = path;
+    const counters = cleanCounters(entry.counters);
+    if (Object.keys(counters).length) state.counters = counters;
     out[nodeId] = state;
   }
   return out;
@@ -669,20 +862,35 @@ export function sanitizeEventLog(raw) {
         typeof entry.choiceId === 'string' &&
         typeof entry.outcomeId === 'string',
     )
-    .map((entry) => ({
-      eventId: entry.eventId,
-      choiceId: entry.choiceId,
-      outcomeId: entry.outcomeId,
-      act: typeof entry.act === 'string' ? entry.act : null,
-    }));
+    .map((entry) => {
+      const clean = {
+        eventId: entry.eventId,
+        choiceId: entry.choiceId,
+        outcomeId: entry.outcomeId,
+        act: typeof entry.act === 'string' ? entry.act : null,
+      };
+      // The page a step of a multi-page event was taken on (absent: the first page).
+      if (typeof entry.page === 'string' && entry.page && entry.page !== START_PAGE)
+        clean.page = entry.page;
+      return clean;
+    });
 }
 
-/** Story flags: string keys with string, number or boolean values. */
+const isFlagScalar = (value) => ['string', 'number', 'boolean'].includes(typeof value);
+
+/**
+ * Story flags: string keys. A value is a plain string, number or boolean (a save from before
+ * acts were recorded: kept as it is and read as "act unknown") or `{ value, act }`.
+ */
 export function sanitizeStoryFlags(raw) {
   const out = {};
   if (!isPlain(raw)) return out;
-  for (const [key, value] of Object.entries(raw))
-    if (key && ['string', 'number', 'boolean'].includes(typeof value)) out[key] = value;
+  for (const [key, value] of Object.entries(raw)) {
+    if (!key) continue;
+    if (isFlagScalar(value)) out[key] = value;
+    else if (isPlain(value) && isFlagScalar(value.value))
+      out[key] = { value: value.value, act: typeof value.act === 'string' ? value.act : null };
+  }
   return out;
 }
 

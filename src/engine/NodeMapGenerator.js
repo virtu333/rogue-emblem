@@ -252,35 +252,12 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
           priorStreak < 2
             ? (NON_COMBAT_ALTERNATIVES[node.type] || []).find((type) => !conflicts(type))
             : null;
-        node.type = alternative || NODE_TYPES.BATTLE;
-        node.battleParams = buildBattleParams(
-          actId,
-          node.type,
-          node.row,
-          rows,
+        rebuildNodeAs(node, alternative || NODE_TYPES.BATTLE, actId, rows, mapTemplates, {
           caravanChanceBonus,
           villageMinRow,
-        );
-        if (node.type === NODE_TYPES.BATTLE) {
-          const template = pickTemplateForNode(
-            node.battleParams.objective,
-            mapTemplates,
-            actId,
-            false,
-            rollBiome(actId),
-            { caravan: node.battleParams.hasCaravan === true },
-          );
-          if (template) {
-            node.templateId = template.id;
-            node.battleParams.templateId = template.id;
-          }
-          let chance = Math.max(
-            0,
-            Math.min(0.9, (template?.fogChance ?? FOG_CHANCE_BY_ACT[actId] ?? 0) + fogChanceBonus),
-          );
-          if (halfFogChance) chance = Math.floor((chance * 100) / 2) / 100;
-          if (Math.random() < chance) node.fogEnabled = true;
-        }
+          fogChanceBonus,
+          halfFogChance,
+        });
       }
     }
     serviceStreak.set(node.id, serviceTypes.has(node.type) ? priorStreak + 1 : 0);
@@ -361,6 +338,86 @@ export function convertNodeToRoutBattle(node, actId, mapTemplates, options = {})
     node.fogEnabled = true;
   }
   return node;
+}
+
+/**
+ * Give a node a new type in place, with the params that type carries at generation: the
+ * generator's own builders, in the generator's draw order (the service-streak repair
+ * above, and the Cartographer's `redraw` in RouteEdit.js, which calls this under its own
+ * seeded Math.random stream). A battle gets its objective roll, battle seed, caravan and
+ * village rolls (buildBattleParams), a biome-matched template and a fog roll; every other
+ * type here carries no params. Stale template and fog fields are dropped first.
+ * @param {object} node - mutated: type, battleParams, templateId, fogEnabled
+ * @param {string} type - a NODE_TYPES value
+ * @param {string} actId
+ * @param {number} totalRows - rows in the act (the seize-row gating reads it)
+ * @param {Object} [mapTemplates]
+ * @param {{ caravanChanceBonus?: number, villageMinRow?: number, fogChanceBonus?: number,
+ *   halfFogChance?: boolean }} [options] - villageMinRow is already resolved
+ *   (villageMinRowFor), not the difficulty table
+ * @returns {object} the node
+ */
+export function rebuildNodeAs(node, type, actId, totalRows, mapTemplates, options = {}) {
+  const caravanChanceBonus = Number.isFinite(options.caravanChanceBonus)
+    ? options.caravanChanceBonus
+    : 0;
+  const villageMinRow = Number.isInteger(options.villageMinRow) ? options.villageMinRow : 0;
+  const fogChanceBonus = Number.isFinite(options.fogChanceBonus) ? options.fogChanceBonus : 0;
+  node.type = type;
+  delete node.templateId;
+  delete node.fogEnabled;
+  node.battleParams = buildBattleParams(
+    actId,
+    node.type,
+    node.row,
+    totalRows,
+    caravanChanceBonus,
+    villageMinRow,
+  );
+  if (node.type === NODE_TYPES.BATTLE) {
+    const template = pickTemplateForNode(
+      node.battleParams.objective,
+      mapTemplates,
+      actId,
+      false,
+      rollBiome(actId),
+      { caravan: node.battleParams.hasCaravan === true },
+    );
+    if (template) {
+      node.templateId = template.id;
+      node.battleParams.templateId = template.id;
+    }
+    let chance = Math.max(
+      0,
+      Math.min(0.9, (template?.fogChance ?? FOG_CHANCE_BY_ACT[actId] ?? 0) + fogChanceBonus),
+    );
+    if (options.halfFogChance === true) chance = Math.floor((chance * 100) / 2) / 100;
+    if (Math.random() < chance) node.fogEnabled = true;
+  }
+  return node;
+}
+
+/**
+ * True when an edge (sourceCol -> targetCol) would cross one of `edgePairs` ([sourceCol,
+ * targetCol] pairs between the same two rows): the lane map's no-crossing rule. Edges that
+ * share an end never cross.
+ */
+export function edgeCrosses(edgePairs, sourceCol, targetCol) {
+  for (const [sCol, tCol] of edgePairs) {
+    if ((sCol < sourceCol && tCol > targetCol) || (sCol > sourceCol && tCol < targetCol)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * True when two adjacent rows are joined by the lane rules without ±1 lanes or a crossing
+ * check: an edge to or from a single node converges or diverges from one point, so the
+ * generator relaxes the column rule there (connectRows).
+ */
+export function rowsAreUnconstrained(currentRow, nextRow) {
+  return currentRow.length === 1 || nextRow.length === 1;
 }
 
 /**
@@ -602,19 +659,14 @@ export function pickTemplateForNode(
  */
 function connectRows(currentRow, nextRow) {
   // Edges to/from a single node converge/diverge — can never cross
-  const skipConstraints = currentRow.length === 1 || nextRow.length === 1;
+  const skipConstraints = rowsAreUnconstrained(currentRow, nextRow);
 
   // Track all edges as [sourceCol, targetCol] pairs for crossing detection
   const edgePairs = [];
 
   function wouldCross(sourceCol, targetCol) {
     if (skipConstraints) return false;
-    for (const [sCol, tCol] of edgePairs) {
-      if ((sCol < sourceCol && tCol > targetCol) || (sCol > sourceCol && tCol < targetCol)) {
-        return true;
-      }
-    }
-    return false;
+    return edgeCrosses(edgePairs, sourceCol, targetCol);
   }
 
   function isValidTarget(sourceCol, targetCol) {
