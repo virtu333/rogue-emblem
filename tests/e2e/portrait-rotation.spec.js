@@ -75,21 +75,26 @@ async function stageAndSave(page) {
       r < s.grid.rows &&
       !s.getUnitAt(c, r) &&
       !(s.npcUnits || []).some((n) => n.col === c && n.row === r);
+    // Whatever the generated map is: beside Edric if a side is free, and the Ice on
+    // the nearest other free tile (a map edge or a neighbour can take any one tile).
     const tile = [
       [edric.col + 1, edric.row],
       [edric.col, edric.row - 1],
       [edric.col - 1, edric.row],
       [edric.col, edric.row + 1],
     ].find(([c, r]) => free(c, r));
+    if (!tile) throw new Error('no free tile beside Edric for the enemy');
     [enemy.col, enemy.row] = tile;
     s.grid.setTerrainAt(enemy.col, enemy.row, 0);
     s.updateUnitPosition(enemy);
-    const ice = [
-      [edric.col - 1, edric.row - 1],
-      [edric.col + 1, edric.row + 1],
-      [edric.col - 1, edric.row + 1],
-    ].find(([c, r]) => free(c, r));
-    s.grid.setTemporaryTerrain(ice[0], ice[1], 'Ice', 3, edric);
+    const near = [];
+    for (let dr = -2; dr <= 2; dr++)
+      for (let dc = -2; dc <= 2; dc++)
+        if ((dc || dr) && free(edric.col + dc, edric.row + dr))
+          near.push([edric.col + dc, edric.row + dr, Math.max(Math.abs(dc), Math.abs(dr))]);
+    near.sort((a, b) => a[2] - b[2]);
+    if (!near.length) throw new Error('no free tile near Edric for the Ice');
+    s.grid.setTemporaryTerrain(near[0][0], near[0][1], 'Ice', 3, edric);
     s.registry.get('settings').setHints(false);
     if (!s._captureSuspendCheckpoint({ session: s._battleSession }))
       throw new Error('setup save failed');
