@@ -522,30 +522,23 @@ The owner kept a short list and asked not to add too many. **Skipped as too comp
 the roguelike now:** Break (triangle stagger), Adjutants, Chain Attack / Chain Guard,
 gambits and battalions, Echoes fatigue and dungeons, Engage's emblem transformations.
 
-### 15.1 Arts awakened by use (Echoes)
+### 15.1 Arts awakened by use (Echoes): on hold
 
-Weapons already count their own strikes and kills on the instance (`_strikes`, `_kills`,
-`DeedSystem.js` `bumpItemUsage`), and arts are bound to the weapon (up to 3 slots,
-`RosterArtCommands`). So the **weapon** earns the art, not the unit: keeping a weapon you
-have fought with becomes a real choice against new loot.
-
-- At `awakenStrikes` strikes with one weapon instance (proposal: 20 for the first art, 50
-  for the second; at most two awakened arts per weapon), the weapon **awakens**: after the
-  battle the player picks one of two arts (seeded by run seed + item uid + count) that are
-  compatible with the weapon (`isWeaponArtCompatibleWithWeapon`), within the wielder's rank
-  and the act's `unlockAct`, not already bound. It binds with `source: 'awakened'` (a new
-  `VALID_WEAPON_ART_SOURCES` entry), into a free slot or replacing one (the existing replace
-  flow). Declining is allowed; the next threshold still comes.
-- Shown on the weapon's details as progress ("Awakens at 20 strikes: 13/20").
-- Never for staves, scrolls, per-battle weapons, enemy weapons or the prologue.
-- Thresholds in data (`weaponArts.json` top-level `awakening`), tuned by sim: strikes per
-  battle per unit decide how many weapons awaken per run.
+Owner, 2026-10-06: 20/50 strikes is too high, and the payoff is doubtful: many arts are
+niche because they cost HP, and late legendary arts would rarely reach a threshold. Not
+built. The facts for a later look: weapons already count their own strikes and kills on the
+instance (`_strikes`, `_kills`, `DeedSystem.js` `bumpItemUsage`), and arts are bound to the
+weapon (up to 3 slots, `RosterArtCommands`), so any version would have the weapon earn the
+art, not the unit. A cheaper variant if it comes back: use makes an art you already have
+cheaper (its HP cost falls by 1 after N uses) rather than granting a new one.
 
 ### 15.2 Marks (crest-style procs, Three Houses)
 
-A rare second roll at recruitment, next to traits (rolled once, like `growthRanges`; lords
-have none, or a fixed one: owner to decide): about 1 recruit in 6 bears a **Mark**, a small
-proc. Name to fit the world (a Hollow Sun "mark", not "crest"). Starting set (5–6):
+A rare second roll at recruitment, next to traits (rolled once, like `growthRanges`).
+**Recruits only** (owner): lords never bear a Mark. A **low base rate** (proposal: 1 recruit
+in 10) that a Home Base upgrade raises (proposal: "Marked Blood", 2 tiers: 1 in 6, then
+1 in 4; numbers in data, tuned by sim). Name to fit the world (a Hollow Sun "mark", not
+"crest"). Starting set (5–6):
 
 - Mark of the Forge: 20% chance a weapon art costs no HP.
 - Mark of the Hunt: 15% chance a strike gains +5 Mt.
@@ -554,24 +547,33 @@ proc. Name to fit the world (a Hollow Sun "mark", not "crest"). Starting set (5�
 - Mark of the Road: 25% chance, at turn start, of +1 MOV this turn.
 
 Procs roll on the battle RNG like skills, appear in the proc banner, and are shown on the
-unit card beside traits. Trait rules hold (no Mark replaces a mastery perk). Scope note:
-this is a new per-unit roll and save field (`unit.mark`), with old saves having none.
+unit card beside traits. Trait rules hold (no Mark replaces a mastery perk). Every recruit
+source rolls it the same way (recruit nodes, boss recruits, colosseum mercenaries, event
+joins), seeded like the recruit's other rolls. Scope note: a new per-unit save field
+(`unit.mark`), old saves have none.
 
-### 15.3 Summoners (Echoes' Cantors)
+### 15.3 The Necromancer (Echoes' Cantors, late game)
 
-An enemy that keeps calling help until it falls: the answer is to dive for it, a different
-pressure from reinforcement ladders.
+Owner, 2026-10-06: an enemy **Necromancer raising Skeletons**, late game only. It keeps
+raising help until it falls; the answer is to dive for it, a different pressure from
+reinforcement ladders, and it fits the Eclipse's dark.
 
-- An enemy **affix** `summoner` (gated by `affixes.json` difficulty rules; casters only)
-  and, later, a boss variant.
-- At the start of each enemy phase, if fewer than 2 of its summons live, it summons one
-  low-level enemy from the act's pool onto a free tile next to it (none if no tile).
-  Summons are marked `summoned`: no gold, no loot, a quarter XP (no farming), and they
-  vanish when the summoner falls.
-- AI: the summoner holds back (a defensive profile), summons first, then acts.
-- Spawns go through the reinforcement spawn code and the battle RNG; previews read player
-  knowledge (a summoner hidden in fog does not reveal its summons' tiles).
-- Player side (later): an Invoke-style action that calls one throwaway phantom.
+- **Necromancer**: a new enemy-only promoted caster class (dark tome, `classes.json`,
+  excluded from reclass seals like the other enemy-only classes), in the Act IV pool on
+  every rung; from Act III on Black Sun (`enemyClassEarliestAct`-style gating by rung).
+  At most one per battle at first; a boss variant later.
+- **Skeleton**: a new enemy-only class, low level, a plain Iron weapon (sword, lance or bow,
+  seeded), weak defences. Skeletons give no gold and no loot, a quarter XP (no farming), are
+  never recruitable and carry nothing to steal, and **crumble when their Necromancer
+  falls**.
+- At the start of each enemy phase, if fewer than 2 of its Skeletons stand, the Necromancer
+  raises one onto a free tile next to it (none if no tile): it uses its turn's first beat,
+  then acts. Its AI holds back (a defensive profile).
+- Spawns go through the reinforcement spawn code and the battle RNG (rewind and suspend
+  restore them); previews read player knowledge (a Necromancer hidden in fog does not
+  reveal its Skeletons' tiles).
+- Art: two new enemy map sprites and portraits through the Imagen pipeline (red palette).
+- Player side (later, maybe): an Invoke-style action that calls one throwaway phantom.
 
 ### 15.4 Bosses with more than one bar (Engage Revival Stones)
 
@@ -606,6 +608,7 @@ Folded into §14's list; build in this order when Phase 3 starts:
 | Override (art: strike every foe in a line, push each) | weapon art | reuses Skewer's line and push code |
 | Great Sacrifice (spend HP, heal allies in range) | action, once per battle | the HP-cost theme |
 | Goddess Dance (refresh allies within 1) | action, once per battle | a Dance upgrade |
+| Blink Strike (warp next to an enemy within 4 and attack) | action, once per battle | Blink's attacking sibling: Blink itself spends the action and Override is a line charge, so nothing does this today |
 
 Accessory skills (§14) take Engage's **Bond Ring** framing: accessories with a rarity
 (C/B/A/S) that sets how strong a bound skill can roll.
