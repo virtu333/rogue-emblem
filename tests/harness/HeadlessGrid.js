@@ -2,7 +2,7 @@
 // Extracted from src/engine/Grid.js for headless battle testing.
 
 import { parseRange } from '../../src/engine/Combat.js';
-import { resolveIceSlide } from '../../src/engine/Grid.js';
+import { computeMovementRange, reconstructRangePath } from '../../src/engine/Grid.js';
 import { VISION_RANGES } from '../../src/utils/constants.js';
 
 const DIRECTIONS = [
@@ -37,8 +37,8 @@ export class HeadlessGrid {
     return costModifier ? Math.max(1, baseCost - costModifier) : baseCost;
   }
 
-  // Dijkstra flood-fill: all tiles reachable within `mov` movement points.
-  // Ice-aware: when stepping onto Ice, resolves the slide and enqueues the landing tile.
+  // Movement range and the path to one of its tiles: the scene's own code
+  // (Grid.computeMovementRange / reconstructRangePath, ice slides priced), never a copy.
   getMovementRange(
     startCol,
     startRow,
@@ -48,133 +48,20 @@ export class HeadlessGrid {
     moverFaction = null,
     costModifier = 0,
   ) {
-    const reachable = new Map();
-    const queue = [{ col: startCol, row: startRow, cost: 0 }];
-    reachable.set(`${startCol},${startRow}`, { cost: 0, parent: null });
-
-    // Build occupied set for ice slide blocking (all units except mover)
-    const occupiedTilesSet = new Set();
-    if (unitPositions) {
-      for (const key of unitPositions.keys()) {
-        occupiedTilesSet.add(key);
-      }
-    }
-    occupiedTilesSet.delete(`${startCol},${startRow}`);
-
-    while (queue.length > 0) {
-      queue.sort((a, b) => a.cost - b.cost);
-      const current = queue.shift();
-
-      for (const { dc, dr } of DIRECTIONS) {
-        const nc = current.col + dc;
-        const nr = current.row + dr;
-        if (nc < 0 || nc >= this.cols || nr < 0 || nr >= this.rows) continue;
-
-        const moveCost = this.getMoveCost(nc, nr, moveType, costModifier);
-        if (moveCost === Infinity) continue;
-
-        const key = `${nc},${nr}`;
-        if (unitPositions) {
-          const occupant = unitPositions.get(key);
-          if (occupant) {
-            if (occupant.faction !== moverFaction) continue;
-          }
-        }
-
-        const newCost = current.cost + moveCost;
-        if (newCost > mov) continue;
-
-        // Ice slide handling
-        const neighborTerrain = this.getTerrainAt(nc, nr);
-        if (neighborTerrain?.name === 'Ice' && moveType !== 'Flying') {
-          // If an ally (or other unit) occupies the ice entry tile, treat as normal
-          // passable tile — can't initiate a slide from an occupied tile.
-          if (!occupiedTilesSet.has(key)) {
-            const slide = resolveIceSlide(
-              nc,
-              nr,
-              { dc, dr },
-              this.mapLayout,
-              this.terrainData,
-              this.cols,
-              this.rows,
-              moveType,
-              occupiedTilesSet,
-            );
-            const landKey = `${slide.col},${slide.row}`;
-            const existing = reachable.get(landKey);
-            if (!existing || newCost < existing.cost) {
-              reachable.set(landKey, {
-                cost: newCost,
-                parent: `${current.col},${current.row}`,
-                slidePath: slide.slidePath,
-              });
-              queue.push({ col: slide.col, row: slide.row, cost: newCost });
-            }
-            continue;
-          }
-          // Fall through to normal tile handling below
-        }
-
-        const existing = reachable.get(key);
-        if (!existing || newCost < existing.cost) {
-          reachable.set(key, { cost: newCost, parent: `${current.col},${current.row}` });
-          queue.push({ col: nc, row: nr, cost: newCost });
-        }
-      }
-    }
-
-    // Mark ally-occupied tiles as non-stoppable
-    if (unitPositions && moverFaction) {
-      for (const [key, entry] of reachable) {
-        if (key === `${startCol},${startRow}`) continue;
-        const occupant = unitPositions.get(key);
-        if (occupant && occupant.faction === moverFaction) {
-          entry.stoppable = false;
-        }
-      }
-    }
-
-    return reachable;
+    return computeMovementRange(
+      this,
+      startCol,
+      startRow,
+      mov,
+      moveType,
+      unitPositions,
+      moverFaction,
+      costModifier,
+    );
   }
 
-  /**
-   * Reconstruct a path from Dijkstra reachable data, inserting slide segments.
-   */
   reconstructIcePath(reachable, startCol, startRow, goalCol, goalRow) {
-    const goalKey = `${goalCol},${goalRow}`;
-    if (!reachable.has(goalKey)) return null;
-
-    const chain = [];
-    let key = goalKey;
-    while (key) {
-      const entry = reachable.get(key);
-      if (!entry) break;
-      chain.unshift({ key, entry });
-      key = entry.parent;
-    }
-
-    const path = [];
-    for (const { key: nodeKey, entry } of chain) {
-      const [c, r] = nodeKey.split(',').map(Number);
-      if (entry.slidePath && entry.slidePath.length > 1) {
-        for (const step of entry.slidePath) {
-          if (path.length > 0) {
-            const last = path[path.length - 1];
-            if (last.col === step.col && last.row === step.row) continue;
-          }
-          path.push({ col: step.col, row: step.row });
-        }
-      } else {
-        if (path.length > 0) {
-          const last = path[path.length - 1];
-          if (last.col === c && last.row === r) continue;
-        }
-        path.push({ col: c, row: r });
-      }
-    }
-
-    return path.length >= 2 ? path : null;
+    return reconstructRangePath(reachable, startCol, startRow, goalCol, goalRow);
   }
 
   // A* pathfinding — returns array of {col, row} or null.

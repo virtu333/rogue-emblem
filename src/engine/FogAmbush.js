@@ -3,6 +3,8 @@
 // preview; a move whose path runs into one stops on the last tile before it where
 // the unit may stand, and the unit is revealed (an enemy there is an ambush).
 
+import { isFreeSlideIndex } from './IceMovement.js';
+
 /**
  * Where a planned path really ends.
  * @param {{col:number,row:number}[]} path - start tile first
@@ -27,7 +29,8 @@ export function ambushStop(path, { hiddenAt, blockedAt }) {
 
 /**
  * Movement spent reaching `stopIndex` of an effective path: each walked step pays its
- * tile's cost; within an ice slide only the entry tile is paid (computeEffectivePath).
+ * tile's cost; within an ice slide the entry tile is paid, the first tiles slid past it
+ * are free and the rest are paid (IceMovement.js, as computeEffectivePath).
  */
 export function pathCostTo(path, slideSegments, stopIndex, costAt) {
   let total = 0;
@@ -35,7 +38,7 @@ export function pathCostTo(path, slideSegments, stopIndex, costAt) {
     const seg = (slideSegments || []).find(
       (s) => i >= s.startIndex && i < s.startIndex + (s.slidePath?.length || 0),
     );
-    if (seg && i !== seg.startIndex) continue;
+    if (seg && isFreeSlideIndex(i - seg.startIndex)) continue;
     const cost = costAt(path[i].col, path[i].row);
     total += Number.isFinite(cost) ? cost : 1;
   }

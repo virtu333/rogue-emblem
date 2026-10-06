@@ -104,6 +104,7 @@
         "forecast-triangle.spec.js",
         "gamepad-battle.spec.js",
         "gamepad-menus.spec.js",
+        "ice-slide.spec.js",
         "input-boundary-audit.spec.js",
         "unit-first-tap.spec.js",
         "weapon-selection.spec.js"

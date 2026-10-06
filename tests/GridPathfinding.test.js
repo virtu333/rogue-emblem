@@ -353,6 +353,25 @@ describe('reconstructIcePath ≡ A*+computeEffectivePath cost (property)', () =>
     }
   });
 
+  // Priced slides (IceMovement.js): with little MOV many slides are cut short on the ice.
+  // Those goals are marked on the rebuilt path, and the committed move stops on them at
+  // the range's cost, so the blue range, the preview and the move agree.
+  it('holds where slides are cut short by the allowance', () => {
+    const rng = mulberry32(4242);
+    let stops = 0;
+    for (let i = 0; i < 60; i++) {
+      const grid = randomGrid(rng, NAMES_WITH_ICE);
+      for (const moveType of MOVE_TYPES) {
+        for (const mov of [2, 3, 4]) {
+          checkEquivalence(grid, moveType, mov, 0, { expectAStarCost: false });
+          for (const entry of grid.getMovementRange(0, 0, mov, moveType).values())
+            if (entry.slideStop) stops++;
+        }
+      }
+    }
+    expect(stops).toBeGreaterThan(20);
+  });
+
   it('holds with a terrain cost-reduction modifier', () => {
     const rng = mulberry32(555);
     for (let i = 0; i < 20; i++) {
