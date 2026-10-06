@@ -25,6 +25,7 @@ import { applyCondition, isRooted, isSilenced, isWounded } from './StatusConditi
 import { gridDistance } from './Combat.js';
 import { getFootprintKeys, isEntity } from './EntitySystem.js';
 import { isDisplacementImmune } from './AffixSystem.js';
+import { traceForcedMove } from './ForcedMovement.js';
 
 /** Ability kinds the engine + BattleScene glue know how to execute. */
 export const ACTION_ABILITY_KINDS = new Set([
@@ -242,43 +243,40 @@ export function smiteBlockReason(foe, affixData) {
 
 /**
  * Where a push of `target` lands: up to `distance` tiles along (dc, dr), stopping
- * before the edge, impassable ground (for the target's own move type) or a unit.
- * @returns {{ col: number, row: number, steps: number }|null} null when the first tile is blocked
+ * before the edge, impassable ground (for the target's own move type) or a unit, and
+ * then the slide of any Ice the push put it on (ForcedMovement.traceForcedMove: the
+ * forced-slide rule shared with Shove and the weapon-art pushes).
+ * `getUnitAt` picks the push's tiles (a fogged tile counts as taken); `slideUnitAt`
+ * the units that stop a slide (default: the same probe).
+ * @returns {{ col: number, row: number, steps: number, path: object[], slid: boolean,
+ *   blocker: any }|null} null when the first tile is blocked
  */
-export function traceSmite(target, dc, dr, distance, grid, getUnitAt) {
-  let col = target.col;
-  let row = target.row;
-  let steps = 0;
-  for (let i = 0; i < distance; i++) {
-    const nextCol = col + dc;
-    const nextRow = row + dr;
-    if (nextCol < 0 || nextCol >= grid.cols || nextRow < 0 || nextRow >= grid.rows) break;
-    if (grid.getMoveCost(nextCol, nextRow, target.moveType) === Infinity) break;
-    if (typeof getUnitAt === 'function' && getUnitAt(nextCol, nextRow)) break;
-    col = nextCol;
-    row = nextRow;
-    steps++;
-  }
-  return steps > 0 ? { col, row, steps } : null;
+export function traceSmite(target, dc, dr, distance, grid, getUnitAt, slideUnitAt = getUnitAt) {
+  const trace = traceForcedMove(target, dc, dr, distance, grid, getUnitAt, slideUnitAt);
+  return trace.steps > 0 ? trace : null;
 }
 
 /**
  * Foes `unit` can smite: one per side, adjacent, not pinned, with a free first tile.
  * A free first tile and nothing beyond it moves the foe one tile, not two.
- * Terrain is not special: Shove puts an ally on whatever ground it can stand on
- * (ice, lava, acid) with no slide and no damage, and Smite does the same to a foe;
- * the ground works on it at the end of its own phase, as it would after any move.
- * @returns {Array<{ unit: object, destCol: number, destRow: number, dc: number, dr: number, steps: number }>}
+ * Ice: a foe the push puts on Ice slides on (the forced-slide rule,
+ * IceMovement.traceForcedSlide), so `destCol`/`destRow` is where it ends as the player
+ * knows the board: `ctx.slideUnitAt` reads known units only, so a unit the fog hides
+ * never shortens the slide shown (execution traces the real board, settleSmite).
+ * Lava and acid are not special: the ground works on the foe at the end of its phase,
+ * as after any move.
+ * @returns {Array<{ unit: object, destCol: number, destRow: number, dc: number, dr: number,
+ *   steps: number, distance: number, slid: boolean, path: object[] }>}
  */
 export function findSmiteTargets(unit, ability, ctx = {}) {
-  const { grid, getUnitAt, enemies, affixes } = ctx;
+  const { grid, getUnitAt, slideUnitAt, enemies, affixes } = ctx;
   if (!unit || !grid || !Array.isArray(enemies)) return [];
   const distance = Math.max(1, Math.trunc(Number(ability?.distance) || 1));
   const targets = [];
   for (const { dc, dr } of CARDINALS) {
     const foe = unitCovering(enemies, unit.col + dc, unit.row + dr);
     if (!foe || foe === unit || smiteBlockReason(foe, affixes)) continue;
-    const landing = traceSmite(foe, dc, dr, distance, grid, getUnitAt);
+    const landing = traceSmite(foe, dc, dr, distance, grid, getUnitAt, slideUnitAt);
     if (!landing) continue;
     targets.push({
       unit: foe,
@@ -287,6 +285,9 @@ export function findSmiteTargets(unit, ability, ctx = {}) {
       dc,
       dr,
       steps: landing.steps,
+      distance,
+      slid: landing.slid,
+      path: landing.path,
     });
   }
   return targets;
@@ -295,12 +296,30 @@ export function findSmiteTargets(unit, ability, ctx = {}) {
 /**
  * The push, settled: the foe's coordinates change and, if it was holding position,
  * the move wakes its pack (ActionMovement.settleMoves marks it disturbed). No HP, no RNG.
+ * With `world` ({ grid, getUnitAt, slideUnitAt }: the probes over the real board) the
+ * slide is traced where it really goes; without, the offered landing stands.
  */
-export function settleSmite(target) {
-  return {
-    moves: settleMoves([{ unit: target.unit, to: { col: target.destCol, row: target.destRow } }]),
-    steps: target.steps,
-  };
+export function settleSmite(target, world = null) {
+  const end = world
+    ? traceForcedMove(
+        target.unit,
+        target.dc,
+        target.dr,
+        target.distance,
+        world.grid,
+        world.getUnitAt,
+        world.slideUnitAt,
+      )
+    : {
+        col: target.destCol,
+        row: target.destRow,
+        steps: target.steps,
+        slid: target.slid,
+        path: target.path,
+      };
+  const move = { unit: target.unit, to: { col: end.col, row: end.row } };
+  if (end.slid) move.path = end.path;
+  return { moves: settleMoves([move]), steps: end.steps, slid: Boolean(end.slid) };
 }
 
 // --- Transfuse (transfer_hp): give HP to an adjacent ally ---
