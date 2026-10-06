@@ -89,7 +89,7 @@ function itemSignature(item) {
 /** What tells same-named items apart: uses left or spent, forging, imbue, arts. */
 export function itemDistinction(item) {
   const parts = [];
-  if (item.uses !== undefined) parts.push(`${item.uses} uses`);
+  if (item.uses !== undefined) parts.push(`${item.uses} use${item.uses === 1 ? '' : 's'} left`);
   if (item._usesSpent) parts.push(`${item._usesSpent} uses spent`);
   if (item._forgeLevel) parts.push(`forged +${item._forgeLevel}`);
   for (const stat of ['might', 'hit', 'crit', 'weight'])
@@ -105,14 +105,16 @@ export function itemDistinction(item) {
  * unique name prefix (case-insensitive). Several items with that name are one choice
  * only when they are alike in every way but their uid; otherwise the token is refused
  * with each one's position and what sets it apart. Throws a PlayError listing the
- * choices.
+ * choices. `where(item)` names where an item is kept ("convoy") when the list mixes
+ * places, so a choice says whose item it is.
  */
-export function findItem(list, token, what = 'item') {
+export function findItem(list, token, what = 'item', { where = null } = {}) {
   const items = (list || []).filter(Boolean);
   const t = String(token ?? '')
     .trim()
     .toLowerCase();
-  const show = () => items.map((i, n) => `#${n + 1} ${i.name}`).join(', ') || 'none';
+  const place = (i) => (where && where(i) ? ` [${where(i)}]` : '');
+  const show = () => items.map((i, n) => `#${n + 1} ${i.name}${place(i)}`).join(', ') || 'none';
   if (!t) throw new PlayError(`Name a ${what}. Choose from: ${show()}.`);
   const index = /^#(\d+)$/.exec(t);
   if (index) {
@@ -126,7 +128,7 @@ export function findItem(list, token, what = 'item') {
       `"${token}" names ${matches.length} different ${what}s: ${matches
         .map(
           (i) =>
-            `#${items.indexOf(i) + 1} ${i.name}${itemDistinction(i) ? ` (${itemDistinction(i)})` : ''}`,
+            `#${items.indexOf(i) + 1} ${i.name}${place(i)}${itemDistinction(i) ? ` (${itemDistinction(i)})` : ''}`,
         )
         .join('; ')}. Name one by its #number.`,
       String(token),

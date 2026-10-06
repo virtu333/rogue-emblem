@@ -170,15 +170,18 @@ These read the game and work at any time:
   the old tile.
 - `start` begins the battle.
 
-**Battle:** units are named by id (`P1`, `E3`, `N1`) or by name. Coordinates are
-`x,y`: column, then row.
+**Battle:** units are named by id (`P1`, `E3`, `N1`) or by name. Ids are new each
+battle (the opening line lists the army's), so names are safer in orders written
+ahead. Coordinates are `x,y`: column, then row.
 
 - `move <unit> <x,y|stay> [equip <weapon>] <action> [then <x,y|stay>]`, where
   `<action>` is one of:
   - `wait`
   - `attack <enemy> [with <weapon>] [art <art id>]`
   - `heal <ally> [with <staff>]`
-  - `item <item> [on <adjacent ally>]`
+  - `item <item> [on <adjacent ally>]`: a Vulnerary or Elixir heals only the unit
+    carrying it (and never a Wounded one); `on` is for cures (Herb, Remedy), which
+    reach an adjacent ally. A refusal says which rule stopped it.
   - `talk` (a lord beside a recruit)
   - `seize`
   - `escape`
@@ -220,8 +223,14 @@ These read the game and work at any time:
     - the throne or escape tiles;
     - its items.
   - `forecast <unit> <x,y> <enemy> [with <weapon>] [art <art>]` gives one full
-    forecast.
-  - `threat <x,y> [<unit>]` lists who can strike that tile next enemy phase.
+    forecast. The tile need not be reachable this turn, so next turn's strikes can be
+    planned; it must be within a weapon's reach of the enemy.
+  - `threat <x,y> [<unit>]` lists who can strike that tile next enemy phase. With a
+    unit, it is read as if that unit stood there and its own tile were empty: the
+    preview of a move.
+  - Danger and `threat` are reach, not intent: a boss on its throne or a guard that
+    holds may never come. They are also read from the board as it stands, your units
+    included, so a unit that moves away can open a path to another.
   - `unit <id>` gives a unit's details, skills and growths.
 
 A move is validated in full before anything moves, so a refused order changes nothing.
@@ -237,17 +246,21 @@ A move is validated in full before anything moves, so a refused order changes no
 **Shop** (also the ruins' wares and the caravan):
 
 - `buy <n|name> for <unit>|convoy`. The numbers shift after each purchase, so a name
-  is safer. Scrolls and accessories go to the team pools. Buying a weapon its holder
+  is safer. Scrolls and accessories go to the team pools (`for convoy` and `for pool`
+  both mean the pool; `for <unit>` equips an accessory at once). Buying a weapon its holder
   cannot use is allowed, as in the shop, and is noted.
 - `sell s<n>`.
 - `forge <unit> <weapon> might|hit|crit|weight`.
-- `restock`.
+- `restock` (not at a caravan): new wares for a fee that rises each time. Untouched
+  stock is replaced whole; once anything was bought, what is left stays and new items
+  fill the empty places.
 - `leave`.
 
 **Church:**
 
 - `heal`
-- `revive <name>`
+- `revive <name>`: the revived come back at 1 HP; `heal` again afterwards (it is
+  free and can be repeated).
 - `promote <unit> [<class>]`
 - `bless <n>`: taking a blessing is the church's one vow, like a promotion.
 - `kindle`: lift Eclipse shadow.

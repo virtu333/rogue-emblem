@@ -35,7 +35,7 @@ function hiddenTile(b) {
   return best;
 }
 
-async function answers(session) {
+async function answers(session, probe = null) {
   const b = session.game.battle.battle;
   const known = knowledgeOf(b);
   const queries = ['look', 'help', 'roster', 'map'];
@@ -60,7 +60,10 @@ async function answers(session) {
     }
   }
   out.push(['observe', JSON.stringify(session.observe())]);
-  for (const cmd of ['move P1 99,99 wait', 'move P1 stay attack E99', 'move Nobody stay wait']) {
+  // A refused move onto the hidden unit's tile: its reason must not name that unit.
+  const moves = ['move P1 99,99 wait', 'move P1 stay attack E99', 'move Nobody stay wait'];
+  if (probe) moves.push(`move P1 ${probe.c},${probe.r} wait`);
+  for (const cmd of moves) {
     try {
       await session.exec(cmd);
       out.push([cmd, 'played']);
@@ -88,8 +91,8 @@ describe('observations read what the player knows', () => {
     hidden.row = spot.r;
     expect(knowledgeOf(bB).isKnown(hidden)).toBe(false);
 
-    const a = await answers(without);
-    const b = await answers(withHidden);
+    const a = await answers(without, spot);
+    const b = await answers(withHidden, spot);
     expect(b.map(([q]) => q)).toEqual(a.map(([q]) => q));
     for (let i = 0; i < a.length; i++) expect(b[i][1], a[i][0]).toBe(a[i][1]);
   });

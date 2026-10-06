@@ -900,7 +900,9 @@ export class Game {
         let rest = [];
         for (let n = words.length - 1; n >= 1 && !item; n--) {
           try {
-            item = findItem(pool, words.slice(1, n + 1).join(' '), 'consumable');
+            item = findItem(pool, words.slice(1, n + 1).join(' '), 'consumable', {
+              where: (i) => ((unit.consumables || []).includes(i) ? `${unit.name}'s` : 'convoy'),
+            });
             rest = words.slice(n + 1);
           } catch (err) {
             // Only "no such item" moves on to a shorter name; anything else is a fault.

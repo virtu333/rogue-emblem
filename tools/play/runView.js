@@ -6,6 +6,11 @@ import { formatAccessoryDetail } from '../../src/utils/accessoryText.js';
 import { skillScrollText, weaponArtScrollText } from '../../src/ui/weaponArtDisplay.js';
 import { canEquip, canPromote } from '../../src/engine/UnitManager.js';
 import { getReviveCost } from '../../src/engine/RunManager.js';
+import {
+  IMBUE_CHOICE_ID,
+  getImbueList,
+  getImbueStoneDetailText,
+} from '../../src/engine/ImbueSystem.js';
 import { ELITE_LOOT_CHOICES, ELITE_MAX_PICKS, NODE_TYPES } from '../../src/utils/constants.js';
 import {
   buildLoomModel,
@@ -43,6 +48,18 @@ function oneLine(text) {
     .join('; ');
 }
 
+/** What a forge stone does, with every choice it offers (named in `take <n> forge ...`). */
+function stoneText(stone, gameData) {
+  if (stone.imbueId === IMBUE_CHOICE_ID)
+    return `imbue one weapon, your choice of: ${getImbueList(gameData.imbues)
+      .map((i) => `${i.id} (${i.name}: ${i.description})`)
+      .join('; ')}`;
+  if (stone.imbueId) return `${getImbueStoneDetailText(stone, gameData.imbues)}; one weapon`;
+  if (stone.forgeStat === 'choice')
+    return 'forge one weapon: your choice of might, hit, crit or weight';
+  return `forge one weapon: ${stone.forgeStat || '?'}`;
+}
+
 /** One line describing an item (weapon stats, consumable effect, scroll, accessory). */
 export function itemDetail(item, gameData) {
   if (!item) return '?';
@@ -54,8 +71,7 @@ export function itemDetail(item, gameData) {
     return `${item.name} (${oneLine(weaponArtScrollText(item, gameData.weaponArts?.arts || []))})`;
   if (item.type === 'Scroll')
     return `${item.name} (${oneLine(skillScrollText(item, gameData.skills || []))})`;
-  if (item.type === 'Whetstone')
-    return `${item.name} (forge stone: ${item.forgeStat || item.imbueId || '?'})`;
+  if (item.type === 'Whetstone') return `${item.name} (${stoneText(item, gameData)})`;
   return weaponText(item);
 }
 
@@ -158,7 +174,7 @@ export function mapView(rm, { available = [], reenter = null, gameData = rm.game
   }
   const eclipse = rm.isEclipseActive?.() ? ctx.eclipse : null;
   out.push(
-    `== ROUTE MAP · ${rm.currentAct} (act ${rm.actIndex + 1} of ${rm.actSequence?.length ?? '?'}) · ${rm.difficultyId || 'normal'} · ${rm.gold} gold${eclipse ? ` · Eclipse shadow ${eclipse.shadow}/${eclipse.cap} (${eclipse.phase?.name}; next node falls in ${eclipse.nextFall})` : ''} ==`,
+    `== ROUTE MAP · ${rm.currentAct} (act ${rm.actIndex + 1} of ${rm.actSequence?.length ?? '?'}) · ${rm.difficultyId || 'normal'} · ${rm.gold} gold${eclipse ? ` · Eclipse shadow ${eclipse.shadow}/${eclipse.cap} (${eclipse.phase?.name}; ${eclipse.nextFall == null ? 'no node within reach can fall this act' : `next node falls in ${eclipse.nextFall} shadow`})` : ''} ==`,
   );
   const here = rm.currentNodeId;
   for (const row of [...byRow.keys()].sort((a, b) => a - b)) {
@@ -237,7 +253,7 @@ export function rosterView(rm, gameData, { detail = false } = {}) {
   if (blessings.length) out.push(`Blessings: ${blessings.join(', ')}`);
   if (Number.isFinite(rm.visionChargesRemaining))
     out.push(
-      `Vision charges: ${rm.visionChargesRemaining} (battle rewinds are not modelled headless)`,
+      `Vision charges: ${rm.visionChargesRemaining} (in battle: \`rewinds\` lists the moments, \`rewind <n>\` returns to one)`,
     );
   return out.join('\n');
 }

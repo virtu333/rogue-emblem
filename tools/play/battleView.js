@@ -165,6 +165,37 @@ export function movementTiles(battle, unit) {
   return tiles;
 }
 
+/** Why `unit` cannot stop on (col,row) this turn, from what the player knows. */
+export function unreachableReason(battle, unit, col, row) {
+  if (unit._movementCommitted)
+    return `${unit.name} has already moved; it may act only where it stands ("stay")`;
+  if (isRooted(unit)) return `${unit.name} is rooted and cannot move`;
+  const terrain = battle.grid.getTerrainAt(col, row);
+  if (!terrain) return `${col},${row} is off the map`;
+  const reduction = getTerrainCostReduction(unit, battle.gameData?.skills);
+  if (battle.grid.getMoveCost(col, row, unit.moveType, reduction) === Infinity)
+    return `${terrain.name} is impassable for ${unit.moveType} units`;
+  const knowledge = knowledgeOf(battle);
+  const positions = knowledge.positions();
+  const occupant = [...battle.playerUnits, ...battle.npcUnits, ...battle.enemyUnits].find(
+    (u) => u !== unit && u.col === col && u.row === row && u.currentHP > 0 && knowledge.isKnown(u),
+  );
+  if (occupant) return `${occupant.name} stands on ${col},${row}`;
+  const mov = unit.mov ?? unit.stats.MOV;
+  const open = battle.grid.getMovementRange(
+    unit.col,
+    unit.row,
+    1000,
+    unit.moveType,
+    positions,
+    unit.faction,
+    reduction,
+  );
+  const entry = open.get(tileKey(col, row));
+  if (!entry) return `no open path leads there (terrain or enemies block every route)`;
+  return `the shortest open path costs ${entry.cost} movement; ${unit.name} has MOV ${mov}`;
+}
+
 /** Map "col,row" -> number of visible damage sources (the Danger overlay). */
 export function dangerMap(battle) {
   const map = new Map();
@@ -355,6 +386,12 @@ function flags(unit) {
   return f;
 }
 
+/** Conditions by name on the unit's first line, so the line alone does not mislead. */
+function conditionTag(unit) {
+  const names = statusDescriptions(unit).map((d) => d.split(/ · |\. /)[0].replace(/\.$/, ''));
+  return names.length ? ` (${names.join(', ')})` : '';
+}
+
 export function unitLines(battle, ids, unit, { detail = false, danger = null } = {}) {
   const gd = battle.gameData;
   const terrain = terrainName(battle, unit.col, unit.row);
@@ -367,7 +404,7 @@ export function unitLines(battle, ids, unit, { detail = false, danger = null } =
           : ' [ready]'
       : '';
   const tags = flags(unit);
-  const head = `${ids.id(unit)} ${unit.name} (${unit.className}${tags.length ? `, ${tags.join(', ')}` : ''}) Lv${unit.level}${unit.faction === 'player' ? ` ${unit.xp || 0}xp` : ''} HP ${unit.currentHP}/${unit.stats.HP} @${unit.col},${unit.row} ${terrain}${state}`;
+  const head = `${ids.id(unit)} ${unit.name} (${unit.className}${tags.length ? `, ${tags.join(', ')}` : ''}) Lv${unit.level}${unit.faction === 'player' ? ` ${unit.xp || 0}xp` : ''} HP ${unit.currentHP}/${unit.stats.HP}${conditionTag(unit)} @${unit.col},${unit.row} ${terrain}${state}`;
   const lines = [head];
   const pad = '    ';
   lines.push(`${pad}${statsText(unit)}`);
@@ -481,7 +518,7 @@ export function battleView(battle, ids, { title = '' } = {}) {
   const enemies = battle.enemyUnits.filter((u) => known.isKnown(u));
   if (enemies.length) {
     out.push(
-      'Danger (visible enemies able to strike each tile next enemy phase; s = status staff only; # impassable; ? fog, unknown):',
+      'Danger (visible enemies able to strike each tile next enemy phase; s = status staff only; # impassable; ? fog, unknown). It is reach, not intent (an enemy holding its post may stay put), and it is read from the board as it stands: moving your units opens or closes enemy paths.',
     );
     out.push(renderDanger(battle, ids));
   }
@@ -554,6 +591,17 @@ export function weaponsReaching(battle, unit, target, col, row) {
       return dist >= min && dist <= max + bonus;
     });
   }).value;
+}
+
+/** Why no weapon of `unit` reaches `target` from (col,row): the distance and its weapons' reach. */
+export function outOfReachText(battle, unit, target, col, row) {
+  const dist = withPreview(battle, unit, { col, row }, () => combatDistance(unit, target)).value;
+  const reach = getAttackWeapons(unit).map((w) => {
+    const bonus = getWeaponRangeBonus(unit, w, battle.gameData.skills);
+    const { min, max } = parseRange(w.range);
+    return `${w.name} ${min}-${max + bonus}`;
+  });
+  return `${target.name} is ${dist} tile(s) from ${col},${row}; ${reach.length ? `reach: ${reach.join(', ')}` : `${unit.name} has no weapon to strike with`}`;
 }
 
 /** The weapon the harness would strike with (the equipped one if it reaches, else the first). */
@@ -873,6 +921,7 @@ export function threatView(battle, ids, col, row, mover = null) {
     `Tile ${col},${row} (${terrainName(battle, col, row)}): ${t.count} damage source(s)${t.fogged ? ' visible (fog may hide more)' : ''}.`,
     `  Can strike it: ${names(t.damage)}${t.ballistas.length ? ` + ${t.ballistas.length} ballista(s)` : ''}`,
     t.status.length ? `  Status staff only: ${names(t.status)}` : null,
+    '  (Reach from the board as it stands, your units included: one that moves away can open a path.)',
   ]
     .filter(Boolean)
     .join('\n');

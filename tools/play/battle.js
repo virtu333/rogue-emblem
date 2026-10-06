@@ -21,6 +21,7 @@ import { prepareThirdLord } from '../../src/engine/PendingThirdLord.js';
 import { gridDistance } from '../../src/engine/Combat.js';
 import { canEquip, equipWeapon } from '../../src/engine/UnitManager.js';
 import { validateConsumable } from '../../src/engine/ConsumableSettlement.js';
+import { getConditions, isWounded } from '../../src/engine/StatusConditionSystem.js';
 import { GOLD_BATTLE_BONUS, NODE_TYPES } from '../../src/utils/constants.js';
 import {
   createStandingRules,
@@ -50,6 +51,8 @@ import {
   threatView,
   tileKey,
   unitLines,
+  unreachableReason,
+  outOfReachText,
   weaponsReaching,
   defaultWeapon,
 } from './battleView.js';
@@ -366,7 +369,7 @@ export class PlayBattle {
         const reaching = weaponsReaching(b, unit, target, tile.col, tile.row);
         if (!reaching.length)
           throw new PlayError(
-            `${unit.name} cannot reach ${target.name} from ${tile.col},${tile.row}.`,
+            `${unit.name} cannot strike ${target.name} from ${tile.col},${tile.row}: ${outOfReachText(b, unit, target, tile.col, tile.row)}. The tile need not be reachable this turn.`,
           );
         const weapon = clauses.with
           ? findItem(reaching, clauses.with, 'weapon in reach')
@@ -443,7 +446,7 @@ export class PlayBattle {
           b.playerUnits.every((u) => !u.hasActed)
         )
           throw new EndAfterTurnEnded(
-            `Turn ${b.turnManager.turnNumber - 1} already ended when every unit had acted. "end" now would skip turn ${b.turnManager.turnNumber} without a move; say "end again" if you mean it.`,
+            `Turn ${b.turnManager.turnNumber - 1} already ended by itself when your last unit acted, and the enemy phase has run. "end" now would pass turn ${b.turnManager.turnNumber} too, with nobody moving: to hold this turn on purpose, say "end again".`,
           );
         await b.endTurn();
         await this._settlePhases();
@@ -509,7 +512,7 @@ export class PlayBattle {
     const tiles = movementTiles(b, unit);
     if (!tiles.has(tileKey(tile.col, tile.row)))
       throw new PlayError(
-        `${unit.name} cannot stop on ${tile.col},${tile.row}. Use "options ${this.ids.id(unit)}".`,
+        `${unit.name} cannot stop on ${tile.col},${tile.row}: ${unreachableReason(b, unit, tile.col, tile.row)}. "options ${this.ids.id(unit)}" shows where it can.`,
       );
 
     // Validate the whole order before anything moves, so a refusal changes nothing.
@@ -678,7 +681,7 @@ export class PlayBattle {
         );
         if (!usable)
           throw new PlayError(
-            `${unit.name} cannot use ${item.name}${target !== unit ? ` on ${target.name}` : ''} (heals need missing HP on the user; cures need a condition on the user or an adjacent ally).`,
+            `${unit.name} cannot use ${item.name}${target !== unit ? ` on ${target.name}` : ''}: ${itemRefusal(unit, item, target, tile)}.`,
           );
         return () => b.useItem(item, target);
       }
@@ -1113,7 +1116,9 @@ export class PlayBattle {
     for (const e of this.events) {
       switch (e.type) {
         case 'start':
-          lines.push('Battle begins.');
+          lines.push(
+            `Battle begins. Ids are new each battle: ${this.battle.playerUnits.map((u) => name(u)).join(', ')}.`,
+          );
           break;
         case 'autoCap':
           lines.push(`(auto battle stopped after ${e.turns} turns without a result: your orders.)`);
@@ -1407,6 +1412,24 @@ function deriveSeed(runSeed, nodeId) {
 }
 
 /** Runs `fn` with the unit on `tile` (and holding `equip`), then puts it back. */
+/**
+ * Why a consumable cannot be used here, in the rule's own terms (validateConsumable
+ * answers only yes or no). Checked in the order a player would look.
+ */
+function itemRefusal(unit, item, target, tile) {
+  const heal = item.effect === 'heal' || item.effect === 'healFull';
+  const cure = item.effect === 'cure' || item.effect === 'cureHeal';
+  if (!heal && !cure) return `${item.name} is not used from the battle menu`;
+  if (heal && target !== unit) return `${item.name} heals only the unit that carries it`;
+  if (target !== unit && gridDistance(tile.col, tile.row, target.col, target.row) > 1)
+    return `${target.name} is not adjacent to ${tile.col},${tile.row}`;
+  if (heal && isWounded(target))
+    return `${target.name} is Wounded and recovers no HP except from a staff`;
+  if (heal && target.currentHP >= target.stats.HP) return `${target.name} is at full HP`;
+  if (cure && !getConditions(target).length) return `${target.name} has no condition to cure`;
+  return 'the battle refuses it';
+}
+
 function withUnitAt(unit, tile, equip, fn) {
   const saved = { col: unit.col, row: unit.row, weapon: unit.weapon };
   unit.col = tile.col;

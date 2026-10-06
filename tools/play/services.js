@@ -264,12 +264,21 @@ export class ShopVisit {
         if (!who) {
           if (pool) recipient = entry.type === 'accessory' ? 'pool' : null;
           else throw new PlayError('Buy for whom? "buy <n> for <unit>" or "for convoy".');
-        } else if (who.toLowerCase() === 'convoy') recipient = 'convoy';
-        else if (who.toLowerCase() === 'pool') recipient = 'pool';
+        } else if (!pool && who.toLowerCase() === 'pool')
+          throw new PlayError(
+            `Only accessories and scrolls are pooled: buy ${entry.item.name} for a unit or for convoy.`,
+          );
+        else if (['convoy', 'pool'].includes(who.toLowerCase()))
+          // Accessories and scrolls are kept in their own pools, never the convoy.
+          recipient = pool ? (entry.type === 'accessory' ? 'pool' : null) : 'convoy';
         else recipient = this.game.resolveRosterUnit(who);
         const result = purchaseShopItem(rm, this.stock, entry, recipient);
         if (result.ok) this._save();
         const out = resultLines(result);
+        if (result.ok && pool && who && who.toLowerCase() === 'convoy')
+          out.lines.push(
+            `Note: ${entry.type === 'accessory' ? 'accessories' : 'scrolls'} are kept in the ${entry.type} pool, not the convoy.`,
+          );
         // The menu says "Cannot equip; can carry": buying it is allowed, so say so.
         if (
           recipient &&
@@ -450,7 +459,7 @@ export class ChurchVisit {
         );
       }
     }
-    out.push('Revive the fallen:');
+    out.push('Revive the fallen (they return at 1 HP: heal again afterwards; healing is free):');
     if (!rm.fallenUnits.length) out.push('  (no fallen allies)');
     for (const u of rm.fallenUnits) {
       const reason = this.ruins ? ruinsReviveBlock(rm, id, u) : churchReviveBlock(rm, u);
