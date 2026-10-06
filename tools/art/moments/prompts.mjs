@@ -210,6 +210,87 @@ export const EVENTS = {
     'direction, one road ending at a dark cliff edge, a faint warm lantern glow',
 };
 
+/**
+ * Re-prompts for the Phase 2D events after the first four takes were reviewed (the first four
+ * keep the subject above, so their raws stay reproducible; takes from `from` on use `subject`;
+ * a list holds several, the latest one whose `from` has been reached wins).
+ * Why each was redone is in docs/art-direction/events/README.md.
+ */
+export const EVENT_RETAKES = {
+  turncoat: {
+    from: 5,
+    subject:
+      'a man in a plain imperial grey tunic sitting calmly on the grassy verge of a muddy country ' +
+      'road at dusk, seen in profile, his boots set neatly beside him and his helmet on the grass, ' +
+      'both open empty hands resting on his knees in plain sight, no weapon anywhere, a long rutted ' +
+      'dirt track behind him under a gold-and-violet sky; the road is plain earth with wheel ruts, ' +
+      'no painted lines or markings of any kind, no fire, no candle',
+  },
+  sunken_mine: {
+    from: 5,
+    subject:
+      'the mouth of a flooded mine shaft in a rocky hillside at dusk, the whole timber frame ' +
+      'visible with open dusk sky above it: a rope ladder dropping down into black still water that ' +
+      'has risen to fill the shaft, three tallow torches nailed to the frame, one guttering, cold ' +
+      'pale mist breathing out of the dark and drifting low over the water; nobody in sight',
+  },
+  merc_contract: {
+    from: 5,
+    subject:
+      'a mercenary captain in battered mismatched armour with a sellsword cloak, seen from the ' +
+      'side, the whole figure fully inside the frame with clear dusk sky above his head, leaning ' +
+      'on a roadside stone milestone and picking his teeth with a nail, a blank paper pinned to the ' +
+      'milestone beside him with no writing on it, a few free-company soldiers resting by a cold ' +
+      'campfire in the distance, a dusk road',
+  },
+  hollow_herald: [
+    {
+      from: 5,
+      subject:
+        'a lone man in a long grey hooded robe seen from behind standing in the middle of an empty ' +
+        'road at dusk, both palms raised to a sky whose edges are darkening; a black eclipse sun with ' +
+        'a thin gold corona hangs fully inside the frame with dark sky above it, deep ink-violet ' +
+        'dusk, a few dying embers of gold on the low horizon, a long shadow; nothing else on the ' +
+        'road: no fire, no camp, no pot, no lantern',
+    },
+    {
+      from: 9,
+      subject:
+        'a lone man in a long grey hooded robe seen from behind standing on an empty dirt road at ' +
+        'dusk, right of centre, both palms raised to the sky; a black eclipse sun with a thin gold ' +
+        'corona hangs fully inside the frame above him; very dark overall, deep ink-violet sky and ' +
+        'black silhouettes of bare trees and distant ruins, a band of ember gold low on the horizon ' +
+        'behind him, a long shadow on the road, the left third of the picture dark and empty; no ' +
+        'mist, no haze, no grey sky, no fire, no lantern, nothing else on the road',
+    },
+  ],
+  old_faces: {
+    from: 5,
+    subject:
+      'a long grassy ridge at dusk: a small ragged figure in an ill-fitting coat running down the ' +
+      'slope away from the viewer with one arm raised, and behind him on the ridge several imperial ' +
+      'riders on horseback in crimson lacquered armour in dark silhouette, fanning out, their ' +
+      'spears and helmets fully inside the frame with clear sky above them, tall grass, dust',
+  },
+  chained_shelf: {
+    from: 5,
+    subject:
+      "a shuttered scholar's shop front at dusk on a quiet village lane: a dusty window with a " +
+      'single book sitting in the vertical middle of the frame on a shelf, held by a short iron ' +
+      'chain that is clearly visible, its pages lifting and turning on their own with a faint ' +
+      'violet glow rising from between them, books on dark shelves behind it, a closed door, ' +
+      'nobody in sight; no writing anywhere',
+  },
+};
+
+/** The subject of an event vignette's take (a retake may swap it; see EVENT_RETAKES). */
+export function eventSubject(id, take = 1) {
+  const entry = EVENT_RETAKES[id];
+  const retakes = entry ? [].concat(entry) : [];
+  const latest = retakes.filter((r) => take >= r.from).pop();
+  return latest ? latest.subject : EVENTS[id];
+}
+
 /** Prompt text for one moment; `take` > 1 asks for another composition of the same subject. */
 export function momentPrompt(kind, subject, take = 1) {
   const head = kind === 'card' ? CARD : kind === 'event' ? EVENT : SCENE;
