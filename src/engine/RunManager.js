@@ -3579,6 +3579,19 @@ export class RunManager {
 
   canReenterService(nodeId) {
     const node = this.nodeMap?.nodes?.find((n) => n.id === nodeId);
+    // A won event battle whose spoils are not yet settled, or whose victory page was not
+    // closed with Continue, reopens its page (the route map normally opens it on arrival;
+    // this is the way back when something stood in front).
+    if (
+      node?.type === 'event' &&
+      node.id === this.currentNodeId &&
+      node.completed &&
+      !this.battleInProgress &&
+      (this.eventStateByNodeId?.[nodeId]?.battle === 'pending' ||
+        (this.eventStateByNodeId?.[nodeId]?.battle === 'won' &&
+          !this.eventStateByNodeId[nodeId].left))
+    )
+      return true;
     return Boolean(
       node &&
       node.id === this.currentNodeId &&

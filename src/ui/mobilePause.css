@@ -117,3 +117,30 @@
 .mp-actions .mp-exit {
   border-color: var(--re-gilt);
 }
+
+/* The run's burdens, under the pause note (PauseOverlay `burdens`). */
+.mp-burdens {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  max-height: 30%;
+}
+.mp-burdens li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  border-left: 3px solid var(--re-bad);
+  background: var(--re-sunken);
+  font: var(--re-t-small);
+  color: var(--re-muted);
+}
+.mp-burdens strong {
+  font: var(--re-pf-8, 8px) / 1.5 var(--re-pixel);
+  text-transform: uppercase;
+  color: var(--re-bad);
+}

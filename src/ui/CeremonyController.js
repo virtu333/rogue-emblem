@@ -275,7 +275,23 @@ export class CeremonyController {
       unbind?.();
       return this._close(layer, timing.exitMs);
     };
-    return { release, destroy: () => void release() };
+    // What the victory commit settled after the band opened (a burden's share: "Debt
+    // −120 G"): more parts on the same line, refitted. Nothing is added when empty.
+    const addParts = (parts) => {
+      const list = (Array.isArray(parts) ? parts : []).filter(Boolean);
+      if (!list.length || layer.destroyed) return;
+      let sub = layer.root.querySelector('.ce-band-sub');
+      if (sub) {
+        for (const part of list) sub.append(' · ', el('span', 'ce-part', part));
+      } else {
+        const bandEl = layer.root.querySelector('.ce-band');
+        sub = partedLine('ce-band-sub', list.join(' · '));
+        bandEl?.insertBefore(sub, bandEl.querySelector('.ce-hairline'));
+        layer.addFitter(() => fitText(sub, { min: 11 }));
+      }
+      layer.applyFrame();
+    };
+    return { release, addParts, destroy: () => void release() };
   }
 
   /** In-battle defeat: the flow to the run's end is unchanged. */

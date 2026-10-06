@@ -131,6 +131,13 @@ function crackSvg() {
   return svg;
 }
 
+/** The "?" a route-map event wears on its medal (decorative: the node's label names it). */
+export function eventMark() {
+  const mark = span('re-loom-mark', '?');
+  mark.setAttribute('aria-hidden', 'true');
+  return mark;
+}
+
 function span(className, text) {
   const el = document.createElement('span');
   el.className = className;
@@ -200,6 +207,7 @@ export function createRouteGraph({
     b.classList.toggle('is-available', isAvailable);
     b.classList.toggle('is-elite', isEliteBattle(n));
     b.classList.toggle('is-boss', n.type === 'boss');
+    b.classList.toggle('is-event', n.type === 'event');
     const fallen = isEclipsed(n);
     const eclipseInfo = eclipse?.nodes?.get?.(n.id) || null;
     b.classList.toggle('is-eclipsed', fallen);
@@ -217,6 +225,9 @@ export function createRouteGraph({
     const frame = pending.has(n.id) ? (FRAMES[n.eclipse.fromType] ?? 0) : nodeFrame(n, actId);
     medal.append(createNodeArt(frame, n.type === 'boss' ? 34 : 29));
     if (fallen) medal.append(span('re-eclipse-ink'), emberSvg());
+    // An event borrows the Ruins' medal until it has art of its own: its "?" mark tells
+    // them apart at a glance (the label under a reachable one says EVENT).
+    else if (n.type === 'event') medal.append(eventMark());
     b.append(medal);
     if (waning) {
       // A crescent bite on the frame, clipped to the medal and its rim: deeper the

@@ -10,6 +10,8 @@
 @import './cohesion.css';
 
 @import './shopMenu.css';
+/* The Event page: choices, outcome lines (docs/specs/event-nodes.md §10). */
+@import './eventMenu.css';
 
 @import './runFlow.css';
 /* Victory Records: the list of won runs and one run's chronicle. */

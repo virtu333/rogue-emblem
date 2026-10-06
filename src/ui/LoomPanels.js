@@ -1,9 +1,10 @@
 import { element } from './MenuSurface.js';
 import { createNodeArt } from './NodeArt.js';
-import { nodeFrame } from './RouteGraph.js';
+import { eventMark, nodeFrame } from './RouteGraph.js';
 import { describeLoomNode, describeRecruitPreview, loomHeader } from './loomModel.js';
 import { traitLines } from './traitContent.js';
 import { ruinsChoice } from '../engine/RuinsCommands.js';
+import { eventView } from '../engine/EventCommands.js';
 import { crestElement } from './crestArt.js';
 import { regionName } from './placeDisplay.js';
 import { ACT_CONFIG, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS } from '../utils/constants.js';
@@ -205,6 +206,11 @@ export function renderLoomCard(card, node, ctx = {}) {
     recruit,
     recruitMods: rm?.getRecruitNodeBattleMods?.(node) || null,
     ruinsChoice: node.type === 'ruins' && rm ? ruinsChoice(rm, node.id) : null,
+    // A visited event keeps the line of what was chosen there.
+    eventChoice:
+      node.type === 'event' && rm && !node.eclipse
+        ? eventView(rm, node.id)?.outcome?.choiceLabel || null
+        : null,
   });
   card.dataset.tone = info.eclipsed ? 'eclipsed' : info.elite && state === 'live' ? 'elite' : state;
 
@@ -212,6 +218,7 @@ export function renderLoomCard(card, node, ctx = {}) {
   const medal = element('span', null, 're-loom-card-medal');
   medal.append(createNodeArt(nodeFrame(node, actId), 22));
   if (info.eclipsed) medal.classList.add('is-eclipsed');
+  else if (node.type === 'event') medal.append(eventMark());
   const titles = element('div', null, 're-loom-card-titles');
   const kind = element('h3', null, 're-loom-kind');
   kind.append(

@@ -157,7 +157,8 @@ export function burdenEffectsOnVictory(run, { gold = 0, shadowGain = 0 } = {}) {
 
 /**
  * Display model of the run's burdens for the route map's chips and the pause menu:
- * [{ id, label, line, detail }] ("3 battles left", "450 G owed").
+ * [{ id, label, short, line, detail }]. `short` is the chip's number ("3 left", "450 G"),
+ * `detail` the full count ("3 battles left, +1 shadow each", "450 G owed, 50% of ...").
  */
 export function describeBurdens(run, catalog = null) {
   const defs = burdenDefs(catalog || run?.gameData?.events);
@@ -170,6 +171,7 @@ export function describeBurdens(run, catalog = null) {
     return {
       id: burden.id,
       label: def.label || burden.id,
+      short: burden.id === 'ill_omen' ? `${burden.battles} left` : `${burden.owed} G`,
       line: def.line || '',
       detail,
     };

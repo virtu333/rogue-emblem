@@ -1,0 +1,274 @@
+/* The Event page (EventMenu.js, docs/specs/event-nodes.md §10): kicker, Cinzel title, the
+   intro, large choice buttons, then the outcome as one line per result. It rides the
+   service menu (shopMenu.css .service-menu) and draws nothing of what a choice brings.
+   Tokens only: --re-* from uiPalette.json / mobileTheme.css. */
+
+.ev-menu .re-menu-body {
+  gap: var(--re-s3);
+  /* The sticky action row below rests on the body's own bottom edge. */
+  padding-bottom: 0;
+}
+
+/* ───────── Hero: kicker over the title ───────── */
+.ev-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 2px 0 8px;
+  border-bottom: var(--re-rule);
+}
+.ev-menu .ev-kicker {
+  margin: 0;
+  font: var(--re-pf-8, 8px) / 1.4 var(--re-pixel);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--re-accent-text);
+}
+.ev-title {
+  margin: 0;
+  font: 700 22px / 1.15 var(--re-display);
+  letter-spacing: 0.03em;
+  color: var(--re-parchment);
+  text-shadow: 0 1px 0 var(--re-void);
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+.ev-menu .ev-intro {
+  margin: 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--re-ember-deep);
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--re-parchment-dim);
+  overflow-wrap: anywhere;
+}
+.ev-menu .ev-status {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--re-accent);
+  background: var(--re-sunken);
+  color: var(--re-accent-text);
+  font: var(--re-t-small);
+  font-weight: 600;
+}
+
+/* ───────── Choices ───────── */
+.ev-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.service-menu .re-menu-body > .ev-choices > .ev-choice,
+.ev-choice {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--re-tap-row);
+  padding: 10px 12px;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.ev-choice-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.ev-choice-label {
+  font: 700 15px / 1.25 var(--re-body);
+  color: var(--re-text);
+}
+.ev-choice-hint {
+  font: var(--re-t-small);
+  font-style: italic;
+  font-weight: 400;
+  color: var(--re-muted);
+}
+.ev-choice-block {
+  font: var(--re-t-small);
+  font-weight: 600;
+  color: var(--re-warn);
+}
+/* The price: a seal on the right edge, never in the label (the label stays the choice). */
+.ev-seal {
+  flex-shrink: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--re-gilt);
+  border-radius: var(--re-radius);
+  background: var(--re-sunken);
+  color: var(--re-accent-text);
+  font: var(--re-pf-8, 8px) / 1 var(--re-pixel);
+  white-space: nowrap;
+}
+.ev-choice:disabled .ev-choice-label {
+  color: var(--re-muted);
+}
+.ev-choice:disabled {
+  opacity: 0.6;
+}
+
+/* ───────── Outcome ───────── */
+.ev-menu .ev-chosen {
+  margin: 0;
+  font: var(--re-t-small);
+  font-weight: 600;
+  color: var(--re-muted);
+  overflow-wrap: anywhere;
+}
+.ev-menu .ev-won {
+  color: var(--re-good);
+}
+.ev-menu .ev-outcome {
+  margin: 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--re-gilt);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--re-parchment);
+  overflow-wrap: anywhere;
+}
+.ev-menu .ev-owed {
+  margin: 0;
+  color: var(--re-warn);
+  font-weight: 600;
+}
+.ev-results {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ev-result {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--re-line-soft);
+  border-left: 3px solid var(--re-line);
+  background: var(--re-panel);
+}
+.ev-result.is-good {
+  border-left-color: var(--re-good);
+}
+.ev-result.is-bad {
+  border-left-color: var(--re-bad);
+}
+.ev-lead {
+  display: flex;
+  align-items: center;
+  /* One text line tall: the chip centres on the result's first line. */
+  min-height: 19px;
+  gap: 8px;
+  flex: 0 0 76px;
+  min-width: 0;
+}
+.ev-lead .ia-icon {
+  flex-shrink: 0;
+}
+.ev-chip {
+  font: var(--re-pf-8, 8px) / 1.3 var(--re-pixel);
+  letter-spacing: 0.04em;
+  color: var(--re-muted);
+  white-space: nowrap;
+}
+.ev-result.is-good .ev-chip {
+  color: var(--re-good);
+}
+.ev-result.is-bad .ev-chip {
+  color: var(--re-bad);
+}
+.ev-result-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.ev-result-line {
+  font: 600 14px / 1.35 var(--re-body);
+  color: var(--re-text);
+  overflow-wrap: anywhere;
+}
+.ev-result-detail {
+  font: var(--re-t-small);
+  color: var(--re-muted);
+  overflow-wrap: anywhere;
+}
+
+/* ───────── Actions: Roster beside the page's one way on ───────── */
+.ev-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+  padding: 8px 0 var(--re-s2);
+  background: var(--re-bg);
+  border-top: var(--re-rule);
+}
+.ev-actions .ev-primary {
+  flex: 1 1 140px;
+}
+.ev-tools {
+  /* The choosing page ends in the Roster button, clear of the screen's edge (the sticky
+     action row of the outcome page has its own padding). */
+  margin: 2px 0 8px;
+}
+
+/* Short landscape phones: a slimmer hero and rows (the choice buttons stay 44px+ tall). */
+@media (max-height: 420px) {
+  .ev-title {
+    font-size: 18px;
+  }
+  /* The kicker rides the title's line: a short screen keeps its height for the choices. */
+  .ev-hero {
+    flex-direction: row;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    padding-bottom: 6px;
+  }
+  .ev-actions {
+    padding-top: 6px;
+  }
+  .ev-choice {
+    min-height: var(--re-tap);
+    padding: 8px 12px;
+  }
+}
+
+/* Upright phones (portrait mode): the choices and the results take the full width, and
+   the seal drops under a long label rather than squeezing it. */
+@media (orientation: portrait) {
+  /* The action row rests on the body's own bottom edge (shopMenu.css pads it by 8px). */
+  html.portrait-ui .ev-menu .re-menu-body {
+    scroll-padding-block: 8px;
+    padding-bottom: 0;
+  }
+  html.portrait-ui .ev-title {
+    font-size: 24px;
+  }
+  html.portrait-ui .ev-choice {
+    flex-wrap: wrap;
+    padding: 12px 14px;
+  }
+  html.portrait-ui .ev-choice-main {
+    flex-basis: 12em;
+  }
+  html.portrait-ui .ev-lead {
+    flex-basis: 64px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  html.portrait-ui .ev-actions .ev-roster {
+    flex: 0 0 auto;
+  }
+}

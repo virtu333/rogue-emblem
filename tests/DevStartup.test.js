@@ -76,6 +76,45 @@ describe('dev startup helpers', () => {
     expect(route.data.battleParams.recruitPreview?.className).toBeTruthy();
   });
 
+  it('preset=event stands the party one click from an event (the event review route)', () => {
+    const config = parseDevStartupConfig(
+      '?devScene=nodemap&preset=event&seed=42&event=abandoned_armory',
+      { devMode: true },
+    );
+    expect(config).toMatchObject({
+      preset: 'event',
+      event: 'abandoned_armory',
+      sceneKey: 'NodeMap',
+    });
+    const registry = createRegistry();
+    const route = buildDevStartupRoute(loadGameData(), registry, config);
+    expect(route.key).toBe('NodeMap');
+    const run = route.data.runManager;
+    const event = run.nodeMap.nodes.find((n) => n.type === 'event');
+    expect(event.row).toBeGreaterThanOrEqual(2);
+    expect(event.battleParams).toBeNull();
+    // The party stands on a completed node that leads to it: the event is one step on.
+    expect(run.getAvailableNodes().map((n) => n.id)).toContain(event.id);
+    expect(run.nodeMap.nodes.find((n) => n.id === run.currentNodeId).edges).toContain(event.id);
+    expect(run.gold).toBeGreaterThanOrEqual(1000);
+    // Only the named event (and the fallback) can be picked; its first-time note teaches.
+    expect(run.gameData.events.events.map((e) => e.id).sort()).toEqual([
+      'abandoned_armory',
+      'quiet_road',
+    ]);
+    expect(registry.get('hints').hasSeen('guide_first_event')).toBe(false);
+    // The same seed builds the same road.
+    const again = buildDevStartupRoute(loadGameData(), createRegistry(), config).data.runManager;
+    expect(again.nodeMap.nodes.find((n) => n.type === 'event').id).toBe(event.id);
+    // Without &event=, the whole catalog stays.
+    const open = buildDevStartupRoute(
+      loadGameData(),
+      createRegistry(),
+      parseDevStartupConfig('?devScene=nodemap&preset=event&seed=42', { devMode: true }),
+    ).data.runManager;
+    expect(open.gameData.events.events.length).toBeGreaterThan(5);
+  });
+
   it('ignores unknown scene aliases', () => {
     const config = parseDevStartupConfig('?devScene=unknown', { devMode: true });
     expect(config).toBeNull();

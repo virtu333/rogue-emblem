@@ -669,3 +669,41 @@ The command API, the state and the effects are documented in the headers of
 - **Event battles.** `battleParams.eventEnemyLevelBonus` carries the effect's `enemyLevelBonus`;
   `getBattleParams` adds it to `enemyLevelBonus`. `run.pendingEventNodeId` is set by
   `completeBattle` for an `eventBattle` node and cleared by `completeEventBattle`.
+
+## 17. Phase 1 UI, as built (2026-10-06)
+
+The page and the route map's side of it. The UI holds no event logic: it draws `eventView()` and
+calls `EventCommands`. Screenshots (640x480, phone landscape 844x390, phone portrait 390x844; the
+longest shipped copy, a stress event with a 32-character label, a long hint, a price and a greyed
+choice, an outcome with every result kind, the burden chips and the pause list) are in
+`docs/specs/event-screens/`.
+
+- **Files.** `src/ui/EventController.js` (lifecycle), `src/ui/EventMenu.js` (renderer on
+  `MenuSurface`), `src/ui/eventMenuModel.js` (the words: one line per result record), `src/ui/eventMenu.css`.
+- **Flow.** `NodeMapScene.onNodeClick` -> `handleEvent` -> `EventController.handleEvent`
+  (`arriveAtEvent`, save, page) -> a choice opens its **confirmation** (a unit picker with faces for
+  a choice that needs a target, else a plain "this cannot be undone" confirm; nothing is chosen until
+  Choose) -> `chooseEventOption`, save, the outcome page -> Continue (`leaveEvent`, save,
+  `checkActComplete`) or, for a fight, **Fight** (the locks `onNodeClick` takes before any battle, then
+  `handleBattle`). Back from a won fight, `NodeMapScene._maybeOpenPendingEventSettlement` (after the
+  loot screen's choices, never over a story beat or overlay) opens `completeEventBattle` and the victory page;
+  a refresh on that page reopens it until Continue (`eventPageOwed`).
+- **ESC / the header button.** Before choosing, or while a fight is owed: back to the map with the event
+  still current ("Return to the event" on the route). After choosing (and on the victory page): Continue.
+- **Route map.** An event wears the Ruins' medal with a "?" mark (`RouteGraph.eventMark`), the label EVENT,
+  its own tooltip ("Event — Something waits on the road", plus "Encounter Locked" once its fight is locked),
+  a `nodeFlavor.event` pool in `data/dialogue.json` (an event that fights speaks from `nodeFlavor.battle`),
+  and "You chose: <label>" on a visited event's card. `RunManager.canReenterService` is true for a completed
+  event node whose spoils or victory page are owed.
+- **Burdens.** `NodeMapMenu._burdenRow`: a chip per burden under the Loom's header (tap or Enter shows its
+  line), `PauseOverlay`/`MobilePauseMenu` list them, and the victory band adds what the commit settled
+  (`CeremonyController.showVictory().addParts(settlementLines(...))`). The battle's shadow projection
+  (`EclipseHudController.projectedShadow`) now includes an Ill Omen's extra shadow, so the band's number
+  matches the commit. `Burdens.describeBurdens` gained `short` ("3 left", "450 G").
+- **Guidance.** `guide_first_event` is the choosing page's status line, once per slot (`guidanceGate`).
+- **Review route.** `?devScene=nodemap&preset=event&seed=42[&event=<id>]` (`devStartup.applyEventPreset`):
+  the party stands one click from an event node (row 2 or later), 1000 gold, the catalog narrowed to
+  the named event plus the fallback, session hints teaching only `guide_first_event`.
+- **Tests.** `tests/EventMenu.test.js` (the page, through `tests/harness/EventDriver.js`),
+  `EventMenuModel`, `NodeMapSceneEvent`, `EventBurdenUi`, `DevStartup`; browser: `tests/e2e/event-nodes.spec.js`
+  (lane `run-flow`) and `tests/e2e/portrait-event.spec.js` (lane `portrait`).

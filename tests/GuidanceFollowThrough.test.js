@@ -3,6 +3,7 @@
 // filtered by the Guidance setting's tiers, never in the prologue (its own lessons stand
 // in, and mark the same ids read), and never over its subject.
 //   guide_first_shop / guide_first_church  the first market / church: its status line
+//   guide_first_event  the first event: its status line (EventMenu)
 //   guide_prepare            the first route map after a battle that left someone below
 //                            half HP: HP carries, staves refill, consumables don't
 //   guide_objective_changed  a seize map's boss fell: the throne is the goal (points at it)
@@ -69,6 +70,7 @@ const gameData = loadGameData();
 const FOLLOW_THROUGH = [
   'guide_first_shop',
   'guide_first_church',
+  'guide_first_event',
   'guide_prepare',
   'guide_objective_changed',
   'guide_specialist_dance',
@@ -100,7 +102,12 @@ describe('the notes', () => {
     for (const id of FOLLOW_THROUGH) expect(GUIDANCE_NOTES[id]?.tier, id).toBe('essential');
     // The prologue marks only what it teaches as read: its seize gate and none of the rest.
     expect(TUTORIAL_HINT_IDS.has('guide_objective_changed')).toBe(true);
-    for (const id of ['guide_prepare', 'guide_specialist_dance', 'guide_armor'])
+    for (const id of [
+      'guide_prepare',
+      'guide_first_event',
+      'guide_specialist_dance',
+      'guide_armor',
+    ])
       expect(TUTORIAL_HINT_IDS.has(id), id).toBe(false);
   });
 

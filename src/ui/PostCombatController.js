@@ -43,6 +43,7 @@ import { projectedMeterShadow, projectedRelief, projectedShadow } from './Eclips
 import { presentQueuedProgress } from './BattlePresentationCheckpoint.js';
 import { UI_PALETTE } from '../utils/uiStyles.js';
 import { recordRunLordsMet } from '../engine/LordsMet.js';
+import { settlementLines } from '../engine/Burdens.js';
 
 // Watchdog: a single RunComplete transition attempt that hangs past this is
 // treated as failed so the retry loop (and ultimately the recovery UI) still runs.
@@ -197,6 +198,11 @@ export class PostCombatController {
       );
       // A lord recruited in this battle (a recruit node's Talk) has now joined.
       if (completionApplied) recordRunLordsMet(scene.registry?.get?.('meta'), scene.runManager);
+      // What a burden took at this commit ("Debt −120 G", "Ill Omen +1") joins the band.
+      if (completionApplied) {
+        const settled = scene.runManager.lastBurdenSettlement;
+        if (settled && settled.nodeId === scene.nodeId) band?.addParts?.(settlementLines(settled));
+      }
       const vaultGoldAfterCompletion = Math.max(0, Math.trunc(scene.runManager.gold || 0));
       scene._battleCompletionAwardedGold = completionApplied
         ? Math.max(0, vaultGoldAfterCompletion - vaultGoldBeforeCompletion)
