@@ -207,6 +207,7 @@ function makeScene() {
       canAddToConvoy: vi.fn(() => true),
       addToConvoy: vi.fn(() => true),
       getWeaponArtSpawnConfig: vi.fn(() => null),
+      getConsumableCatalog: vi.fn(() => []),
       getDifficultyModifier: vi.fn(() => false),
     },
     gameData: {

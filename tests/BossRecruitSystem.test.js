@@ -719,7 +719,9 @@ describe('BossRecruitSystem', () => {
     it('gives a Vulnerary', () => {
       const lordDef = gameData.lords.find((l) => l.name === 'Kira');
       const classData = gameData.classes.find((c) => c.name === lordDef.class);
-      const unit = createBossLordUnit(lordDef, classData, gameData.weapons, 5, null);
+      const unit = createBossLordUnit(lordDef, classData, gameData.weapons, 5, null, {
+        consumables: gameData.consumables,
+      });
       const vulnerary = unit.consumables.find((c) => c.name === 'Vulnerary');
       expect(vulnerary).toBeTruthy();
       expect(typeof vulnerary?.uid).toBe('string');

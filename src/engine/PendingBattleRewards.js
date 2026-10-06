@@ -33,7 +33,7 @@ export function prepareBattleRewards(run, data, ctx) {
         run.currentAct,
         data.lootTables,
         data.weapons,
-        data.consumables,
+        run.getConsumableCatalog(),
         ctx.isElite ? ELITE_LOOT_CHOICES : LOOT_CHOICES,
         ctx.metaEffects?.lootWeaponQualityBonus ?? ctx.metaEffects?.lootWeaponWeightBonus ?? 0,
         data.accessories,

@@ -5,8 +5,8 @@
     "type": "Consumable",
     "effect": "heal",
     "value": 10,
-    "uses": 3,
-    "price": 300
+    "uses": 2,
+    "price": 200
   },
   {
     "name": "Elixir",

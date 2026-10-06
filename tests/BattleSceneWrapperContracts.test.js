@@ -173,6 +173,7 @@ function makeScene() {
     canAddToConvoy: vi.fn(() => true),
     addToConvoy: vi.fn(() => true),
     getWeaponArtSpawnConfig: vi.fn(() => null),
+    getConsumableCatalog: vi.fn(() => []),
     shouldTriggerThirdLord: vi.fn(() => false),
   };
   scene.gameData = { weapons: [], accessories: [], consumables: [], skills: [], classes: [] };
