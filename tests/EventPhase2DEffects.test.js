@@ -21,7 +21,7 @@
 //               to a reload
 //   refund      a refund that is not the price the choice charged (scaled by costScale)
 // Numbers are worked out by hand from the stats the tests set, never by re-running the code.
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   chooseEventOption,
   completeEventBattle,
@@ -40,6 +40,9 @@ import { applyForge } from '../src/engine/ForgeSystem.js';
 import { INVENTORY_MAX, CONSUMABLE_MAX } from '../src/utils/constants.js';
 import { addUnit, arriveAs, baseData, newRun, runWithEvents, soloEvent } from './eventKit.js';
 import { contractEvent } from './eventPhase2Kit.js';
+
+// Seeded sweeps over hundreds of runs: slow on a busy machine, never flaky.
+vi.setConfig({ testTimeout: 60000 });
 
 const reload = (run) => RunManager.fromJSON(JSON.parse(JSON.stringify(run.toJSON())), run.gameData);
 

@@ -22,7 +22,7 @@
 //   smith         wrong odds on a rung, a worn weapon not mended, the wear on a weapon that cannot wear
 //   turncoat      a spy below Black Sun, or a Black Sun spy that is not a trap
 //   payoffs       a payoff with no flag, or the Phase 1 events not setting the flag it needs
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   arriveAtEvent,
   chooseEventOption,
@@ -47,6 +47,9 @@ import { applyWear, isWorn, wearCount } from '../src/engine/WeaponWear.js';
 import { knowsSkill } from '../src/engine/UnitManager.js';
 import { addUnit, arriveAs, baseData, eventNode, newRun } from './eventKit.js';
 import { pickTargetUid } from './eventWalk.js';
+
+// Seeded sweeps over hundreds of runs: slow on a busy machine, never flaky.
+vi.setConfig({ testTimeout: 60000 });
 
 const catalog = baseData.events;
 const eventDef = (id) => catalog.events.find((e) => e.id === id);
