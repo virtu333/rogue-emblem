@@ -236,6 +236,17 @@ with empty fields.
 | `stat` | `stat` (one or a list, seeded pick), `value`, `scope: target \| lowestLevel` | permanent, applied like a stat booster (class caps hold) |
 | `battle` | `enemyLevelBonus`, `afterVictory: [effects]` | §4 |
 
+**Room for items.** A choice any of whose outcomes (or `afterVictory`) can grant an item is
+blocked while the army has nowhere to put one (every bag that could take it full and the
+convoy full): "Nowhere to carry anything more. Make room in the convoy." The check is
+per choice, not per outcome, so it reveals nothing beyond "this might give you something".
+Delivery order for `to: auto`: the target (if any) → the commander → any unit with room
+that can use it → the convoy.
+
+`convertNodeToRoutBattle` draws `Math.random` (battle seed, biome, fog): an event battle
+calls it inside the seeded swap so a refresh rebuilds the same battle; it does not touch
+`node.type`.
+
 Gold amounts may be written as `{ "base": 100, "perAct": 100 }` (act 1 = base + perAct ×
 1); costs are multiplied by `costScale[difficulty]` and rounded to 10.
 
