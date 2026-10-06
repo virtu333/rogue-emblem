@@ -515,3 +515,97 @@ Skater, Marsh Walker, Firewalker), **Eclipse skills** (Duskborn, Sunkeeper, Last
 objective (Rearguard, Siegebreaker, Ballista Adept), out of battle (Haggler, Scavenger,
 Teacher), and cursed skills that hold a slot and cannot be benched (Bloodprice: arts have
 no per-battle limit but cost double HP; Glass Cannon).
+
+## 15. Picks from the Echoes / Three Houses / Engage review (owner, 2026-10-06)
+
+The owner kept a short list and asked not to add too many. **Skipped as too complicated for
+the roguelike now:** Break (triangle stagger), Adjutants, Chain Attack / Chain Guard,
+gambits and battalions, Echoes fatigue and dungeons, Engage's emblem transformations.
+
+### 15.1 Arts awakened by use (Echoes)
+
+Weapons already count their own strikes and kills on the instance (`_strikes`, `_kills`,
+`DeedSystem.js` `bumpItemUsage`), and arts are bound to the weapon (up to 3 slots,
+`RosterArtCommands`). So the **weapon** earns the art, not the unit: keeping a weapon you
+have fought with becomes a real choice against new loot.
+
+- At `awakenStrikes` strikes with one weapon instance (proposal: 20 for the first art, 50
+  for the second; at most two awakened arts per weapon), the weapon **awakens**: after the
+  battle the player picks one of two arts (seeded by run seed + item uid + count) that are
+  compatible with the weapon (`isWeaponArtCompatibleWithWeapon`), within the wielder's rank
+  and the act's `unlockAct`, not already bound. It binds with `source: 'awakened'` (a new
+  `VALID_WEAPON_ART_SOURCES` entry), into a free slot or replacing one (the existing replace
+  flow). Declining is allowed; the next threshold still comes.
+- Shown on the weapon's details as progress ("Awakens at 20 strikes: 13/20").
+- Never for staves, scrolls, per-battle weapons, enemy weapons or the prologue.
+- Thresholds in data (`weaponArts.json` top-level `awakening`), tuned by sim: strikes per
+  battle per unit decide how many weapons awaken per run.
+
+### 15.2 Marks (crest-style procs, Three Houses)
+
+A rare second roll at recruitment, next to traits (rolled once, like `growthRanges`; lords
+have none, or a fixed one: owner to decide): about 1 recruit in 6 bears a **Mark**, a small
+proc. Name to fit the world (a Hollow Sun "mark", not "crest"). Starting set (5–6):
+
+- Mark of the Forge: 20% chance a weapon art costs no HP.
+- Mark of the Hunt: 15% chance a strike gains +5 Mt.
+- Mark of the Ember: 20% chance a kill restores 5 HP.
+- Mark of the Veil: 15% chance to halve magic damage taken.
+- Mark of the Road: 25% chance, at turn start, of +1 MOV this turn.
+
+Procs roll on the battle RNG like skills, appear in the proc banner, and are shown on the
+unit card beside traits. Trait rules hold (no Mark replaces a mastery perk). Scope note:
+this is a new per-unit roll and save field (`unit.mark`), with old saves having none.
+
+### 15.3 Summoners (Echoes' Cantors)
+
+An enemy that keeps calling help until it falls: the answer is to dive for it, a different
+pressure from reinforcement ladders.
+
+- An enemy **affix** `summoner` (gated by `affixes.json` difficulty rules; casters only)
+  and, later, a boss variant.
+- At the start of each enemy phase, if fewer than 2 of its summons live, it summons one
+  low-level enemy from the act's pool onto a free tile next to it (none if no tile).
+  Summons are marked `summoned`: no gold, no loot, a quarter XP (no farming), and they
+  vanish when the summoner falls.
+- AI: the summoner holds back (a defensive profile), summons first, then acts.
+- Spawns go through the reinforcement spawn code and the battle RNG; previews read player
+  knowledge (a summoner hidden in fog does not reveal its summons' tiles).
+- Player side (later): an Invoke-style action that calls one throwaway phantom.
+
+### 15.4 Bosses with more than one bar (Engage Revival Stones)
+
+A boss with **stones** refills to full HP when it would fall, once per stone. The HP bar
+shows stone pips, the forecast shows "2 bars". Proposal: First Light none; Dusk the final
+boss 1; Nightfall act bosses 1; Black Sun act bosses 1 and the final boss 2; plus an elite
+affix `twice_born` (1 stone) on Black Sun.
+
+- An HP rule, so it lives in `engine/UnitHealth.js` (`applyCombatHP` / `damageUnit`): a
+  strike that would take a stoned unit to 0 leaves it at full and spends a stone; the
+  rest of the combat continues against the refilled bar. Kill credit, XP for the kill,
+  deeds, loot and "boss fell" logic (seize objective change, boss relief, Vision grant) run
+  only at the last bar. `tests/HealthPresentationInvariance.test.js` must cover it.
+- Interactions to settle in the spec: Miracle (checked before a stone), enrage (a refill
+  does not reset turn pressure), the Entity finale (its first wound still starts the
+  finale; a stone refill is not a new first wound), boss recruit, rewind and suspend (stones
+  are part of unit state).
+
+### 15.5 Skills and arts shortlist
+
+Folded into §14's list; build in this order when Phase 3 starts:
+
+| Skill / art | Kind | Note |
+|---|---|---|
+| Lifetaker (kill → heal 50% of max HP... tune) | on-kill (new trigger) | the on-kill trigger itself is the work |
+| Speedtaker (kill → +1 SPD for the battle, max +5) | on-kill | battle-long stacking |
+| Uncanny Blow (+30 Hit initiating) | on-combat-start | next to Death/Darting/Armored Blow |
+| Warding Blow (+6 RES initiating) | on-combat-start | same |
+| Defiant (+4 DEF/RES at 25% HP or less) | passive | next to the below-50% skills |
+| Pass (move through enemy units) | passive (movement) | pathing + player-knowledge previews |
+| Lunar Brace (art: + a share of the foe's DEF as damage) | weapon art | rewards hitting armour |
+| Override (art: strike every foe in a line, push each) | weapon art | reuses Skewer's line and push code |
+| Great Sacrifice (spend HP, heal allies in range) | action, once per battle | the HP-cost theme |
+| Goddess Dance (refresh allies within 1) | action, once per battle | a Dance upgrade |
+
+Accessory skills (§14) take Engage's **Bond Ring** framing: accessories with a rarity
+(C/B/A/S) that sets how strong a bound skill can roll.
