@@ -102,13 +102,29 @@ function asLegacySave(rm) {
   return json;
 }
 
-// The reviewer's probe, reproduced: run seed 44 promises "Lira" (a Mage) at a recruit
-// node; the act-1 colosseum on stream 44 offered a Mage of the same name when it only
-// avoided roster names. (The original probe was run seed 51 / the Archer Tamsin; the
-// longer Act 1 and the event slice moved its recruit nodes, so the case was re-found by
-// search on 2026-10-06 — any seed whose colosseum stream offers a promised name serves.)
-const PROBE_SEED = 44;
-const PROMISED = 'Lira';
+// The reviewer's probe, reproduced: a run whose recruit node promises a name that the
+// act-1 colosseum on the same stream offered while it only avoided roster names. (The
+// original probe was run seed 51 / the Archer Tamsin.) Map generation moves the recruit
+// nodes whenever the node map changes, so the case is found by search, not pinned: the
+// first seed whose colosseum stream offers one of its promised names.
+function findProbe() {
+  for (let seed = 1; seed <= 400; seed++) {
+    const rm = freshRun(seed);
+    const promised = new Set(
+      rm.nodeMap.nodes
+        .filter((n) => n.type === 'recruit' && n.recruitPreview?.name)
+        .map((n) => n.recruitPreview.name),
+    );
+    const offered = mercs(
+      seed,
+      rm.roster.map((u) => u.name),
+    ).map((c) => c.unit.name);
+    const name = offered.find((n) => promised.has(n));
+    if (name) return { seed, name };
+  }
+  throw new Error('no probe seed in 1..400: widen the search');
+}
+const { seed: PROBE_SEED, name: PROMISED } = findProbe();
 
 function probeRun() {
   const rm = freshRun(PROBE_SEED);
