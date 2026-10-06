@@ -52,7 +52,10 @@ maps × 4 walks per act), with the 8/9-row generator as the baseline:
 
 `tests/EventNodeGeneration.test.js` holds these per-path numbers (the baseline written in by
 hand). The colosseum, which converts a battle in rows 2–4, now appears on about 0.15–0.19 of
-paths (was 0.16–0.22); `colosseum.json` `spawnChanceByAct` is unchanged.
+paths (was 0.16–0.22). The owner asked for a slight increase (2026-10-06): `colosseum.json`
+`spawnChance` 0.55 → 0.70 (Act 1) and `spawnChanceByAct` 0.70 → 0.85 (Acts 2–4). A map now holds
+a colosseum about 58% of the time in Act 1 and 66–68% in Acts 2–4 (the 8/9-row maps: 53% and
+63–65%), measured over 4000 seeded maps per act.
 
 Put the thresholds in one exported table (e.g. `NODE_TYPE_WEIGHTS` keyed by act, with a
 default) rather than literals, so tests and sims read the same numbers.
@@ -675,8 +678,9 @@ The command API, the state and the effects are documented in the headers of
 The page and the route map's side of it. The UI holds no event logic: it draws `eventView()` and
 calls `EventCommands`. Screenshots (640x480, phone landscape 844x390, phone portrait 390x844; the
 longest shipped copy, a stress event with a 32-character label, a long hint, a price and a greyed
-choice, an outcome with every result kind, the burden chips and the pause list) are in
-`docs/specs/event-screens/`.
+choice, an outcome with every result kind, the burden chips and the pause list) were reviewed
+during the build and not kept in the repo (8.6 MB); regenerate them with the review route below
+(`?devScene=nodemap&preset=event`).
 
 - **Files.** `src/ui/EventController.js` (lifecycle), `src/ui/EventMenu.js` (renderer on
   `MenuSurface`), `src/ui/eventMenuModel.js` (the words: one line per result record), `src/ui/eventMenu.css`.
