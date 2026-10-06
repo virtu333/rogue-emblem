@@ -50,21 +50,35 @@ describe('the shipped events.json', () => {
     expect(result.valid).toBe(true);
   });
 
-  it('holds the ten Phase 1 events, the fallback among them', () => {
-    expect(data.events.events.map((e) => e.id).sort()).toEqual(
-      [
-        'abandoned_armory',
-        'deserters_fire',
-        'drill_yard',
-        'moneylender',
-        'old_swordmaster',
-        'quiet_road',
-        'the_echo',
-        'toll_bridge',
-        'twin_altar',
-        'wounded_courier',
-      ].sort(),
-    );
+  it('holds the ten Phase 1 events, the twelve Phase 2D events and the fallback', () => {
+    const phase1 = [
+      'abandoned_armory',
+      'deserters_fire',
+      'drill_yard',
+      'moneylender',
+      'old_swordmaster',
+      'quiet_road',
+      'the_echo',
+      'toll_bridge',
+      'twin_altar',
+      'wounded_courier',
+    ];
+    // Eight events and four payoffs (docs/specs/event-nodes-phase2.md §2D).
+    const phase2d = [
+      'bad_map',
+      'cartographer',
+      'chained_shelf',
+      'collectors',
+      'deserters_revenge',
+      'hollow_herald',
+      'merc_contract',
+      'old_faces',
+      'plague_village',
+      'sunken_mine',
+      'turncoat',
+      'wandering_smith',
+    ];
+    expect(data.events.events.map((e) => e.id).sort()).toEqual([...phase1, ...phase2d].sort());
   });
 
   it('passes the AJV schema', () => {

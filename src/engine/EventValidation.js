@@ -54,7 +54,13 @@
 //   dark        a `dark` block (the Dark Omen face: { intro, choices, pages? }) that is not an object,
 //               has an unknown key, or fails the plain face's rules (soft-locks included)
 
-import { EVENT_EFFECT_TYPES, EVENT_WEAPON_TYPES, eventWeaponCatalog } from './EventEffects.js';
+import {
+  BEST_STAT_CHOICES,
+  EVENT_EFFECT_TYPES,
+  EVENT_WEAPON_TYPES,
+  accessoryPoolFor,
+  eventWeaponCatalog,
+} from './EventEffects.js';
 import {
   EVENT_ACTS,
   FILTER_KEYS,
@@ -63,6 +69,7 @@ import {
   ROSTER_REQUIRES_KEYS,
   SAFE_BLESSING_BOON_TYPES,
   START_PAGE,
+  byRungValue,
   choiceMayGrantItem,
   choiceMayOpenContract,
   isSafeEventBlessing,
@@ -256,7 +263,12 @@ export function validateEventsConfig(config, data = {}) {
             tw,
             'reveals is not for a check choice (its outcome depends on who is chosen): use tilts',
           );
-        else if (!(Number(target.weight) > 0))
+        else if (
+          !(
+            Number(target.weight) > 0 ||
+            Object.values(target.weightByRung || {}).some((w) => Number(w) > 0)
+          )
+        )
           err(tw, `reveals names an outcome that cannot happen ("${tell.reveals}")`);
       }
       if (tell.tilts !== undefined) {
@@ -378,6 +390,10 @@ export function validateEventsConfig(config, data = {}) {
         if (!consumableNames.has(value)) err(where, `unknown consumable "${value}"`);
       } else if (key === 'notBurden') {
         if (!BURDEN_IDS.includes(value)) err(where, `unknown burden "${value}" in notBurden`);
+      } else if (key === 'notContract') {
+        if (value !== true) err(where, '`requires.notContract` must be true');
+      } else if (key === 'roadAhead') {
+        if (value !== true) err(where, '`requires.roadAhead` must be true');
       } else if (key === 'blessingTier') {
         needsTier(where, value);
       } else if (key === 'roster') {
@@ -451,6 +467,9 @@ export function validateEventsConfig(config, data = {}) {
     }
     if (filter.learnsFromFallen && event.requires?.fallen !== true)
       err(where, 'filter.learnsFromFallen needs an event that requires a fallen ally');
+    for (const key of ['wornWeapon', 'forgeableWeapon'])
+      if (filter[key] !== undefined && typeof filter[key] !== 'boolean')
+        err(where, `filter.${key} must be true or false`);
   };
 
   // ── Effects ───────────────────────────────────────────────────────────
@@ -483,7 +502,13 @@ export function validateEventsConfig(config, data = {}) {
     };
     switch (effect.type) {
       case 'gold':
-        checkAmount(where, 'gold value', effect.value);
+        if (effect.refund !== undefined) {
+          // The price of the choice, handed back: only where there is a price to give back.
+          if (effect.refund !== true || effect.value !== undefined)
+            err(where, 'gold.refund must be true and then stands alone (no value)');
+          else if (!choice.cost) err(where, 'gold.refund needs a choice with a cost');
+          else if (phase !== 'o') err(where, 'gold.refund belongs in an outcome or its fallback');
+        } else checkAmount(where, 'gold value', effect.value);
         break;
       case 'item': {
         if (effect.to !== undefined && !ITEM_DESTINATIONS.includes(effect.to))
@@ -497,9 +522,34 @@ export function validateEventsConfig(config, data = {}) {
         if (effect.name !== undefined) {
           if (!weaponNames.has(effect.name) && !consumableNames.has(effect.name))
             err(where, `unknown item "${effect.name}"`);
+        } else if (isObject(effect.pool) && effect.pool.kind === 'accessory') {
+          // An accessory from the loot table `tierOffset` tiers up, into the accessory pool.
+          const pool = effect.pool;
+          if (
+            !(
+              isInt(pool.tierOffset ?? 0) &&
+              (pool.tierOffset ?? 0) >= 0 &&
+              (pool.tierOffset ?? 0) <= 3
+            )
+          )
+            err(where, 'item.pool.tierOffset must be 0-3');
+          if (pool.weaponTypes !== undefined) err(where, 'an accessory pool has no weaponTypes');
+          if (effect.wear !== undefined) err(where, 'an accessory does not wear');
+          if (effect.to !== undefined)
+            err(where, 'an accessory goes to the accessory pool (no `to`)');
+          for (const act of joinActs(event, choice)) {
+            const have = accessoryPoolFor(
+              {
+                currentAct: act,
+                gameData: { lootTables: data.lootTables, accessories: data.accessories },
+              },
+              pool.tierOffset ?? 0,
+            );
+            if (have.length === 0) err(where, `no accessory exists in ${act}'s pool at that tier`);
+          }
         } else if (isObject(effect.pool)) {
           const pool = effect.pool;
-          if (pool.kind !== 'weapon') err(where, 'item.pool.kind must be "weapon"');
+          if (pool.kind !== 'weapon') err(where, 'item.pool.kind must be "weapon" or "accessory"');
           if (pool.weaponTypes === '$target') needsTarget();
           else if (pool.weaponTypes !== '$army') {
             if (
@@ -644,8 +694,12 @@ export function validateEventsConfig(config, data = {}) {
         break;
       case 'stat': {
         const stats = Array.isArray(effect.stat) ? effect.stat : [effect.stat];
-        if (stats.length === 0 || stats.some((s) => !XP_STAT_NAMES.includes(s)))
-          err(where, `stat must be one or more of ${XP_STAT_NAMES.join(', ')}`);
+        const best = stats.length === 1 && stats[0] === 'best';
+        if (stats.length === 0 || (!best && stats.some((s) => !XP_STAT_NAMES.includes(s))))
+          err(
+            where,
+            `stat must be one or more of ${XP_STAT_NAMES.join(', ')}, or "best" (the unit's highest of ${BEST_STAT_CHOICES.join(' ')}) on its own`,
+          );
         if (!isInt(effect.value) || effect.value === 0)
           err(where, 'stat.value must be a non-zero whole number');
         if (!['target', 'lowestLevel'].includes(effect.scope))
@@ -664,6 +718,37 @@ export function validateEventsConfig(config, data = {}) {
           err(where, 'battle.enemyLevelBonus must be 0-5');
         if (!Array.isArray(effect.afterVictory ?? []))
           err(where, 'battle.afterVictory must be a list');
+        if (effect.elite !== undefined && typeof effect.elite !== 'boolean')
+          err(where, 'battle.elite must be true or false');
+        if (effect.recruit !== undefined) {
+          const recruit = effect.recruit;
+          if (!isObject(recruit))
+            err(where, 'battle.recruit must be an object { class | classPool }');
+          else {
+            for (const key of Object.keys(recruit))
+              if (!['class', 'classPool', 'name'].includes(key))
+                err(where, `unknown battle.recruit key "${key}"`);
+            const forms = ['class', 'classPool'].filter((k) => recruit[k] !== undefined);
+            const names = recruit.class !== undefined ? [recruit.class] : recruit.classPool;
+            if (
+              forms.length !== 1 ||
+              !Array.isArray(names) ||
+              names.length === 0 ||
+              names.some((n) => typeof n !== 'string')
+            )
+              err(where, 'battle.recruit needs exactly one of class, classPool (names)');
+            else
+              for (const name of names) {
+                const reason = joinClassBlock(data, name, joinActs(event, choice));
+                if (reason) err(where, `battle.recruit: ${reason}`);
+              }
+            if (
+              recruit.name !== undefined &&
+              (typeof recruit.name !== 'string' || !recruit.name.trim() || recruit.name.length > 20)
+            )
+              err(where, 'battle.recruit.name must be 1-20 characters');
+          }
+        }
         if (typeof effect.victoryText !== 'string' || !effect.victoryText)
           err(where, 'battle needs a victoryText');
         else if (effect.victoryText.length > EVENT_TEXT_LIMITS.outcome)
@@ -729,6 +814,24 @@ export function validateEventsConfig(config, data = {}) {
             else checkEffect(at, inner, { event, choice: {}, phase: 'k' });
           }
         }
+        break;
+      }
+      case 'forge':
+      case 'wear':
+      case 'mend': {
+        needsTarget();
+        if (phase === 'k') err(where, `a contract cannot ${effect.type}: it needs a chosen unit`);
+        if (effect.type === 'forge') {
+          if (
+            effect.stat !== undefined &&
+            !['might', 'crit', 'hit', 'weight', 'random'].includes(effect.stat)
+          )
+            err(where, 'forge.stat must be might, crit, hit, weight or random');
+          if (choice.target && choice.target.filter?.forgeableWeapon !== true)
+            err(where, 'a forge needs the choice target filter `forgeableWeapon`');
+        }
+        if (effect.type === 'mend' && choice.target && choice.target.filter?.wornWeapon !== true)
+          err(where, 'a mend needs the choice target filter `wornWeapon`');
         break;
       }
       case 'routeEdit':
@@ -904,7 +1007,12 @@ export function validateEventsConfig(config, data = {}) {
             if (outcome.fallbackText !== undefined)
               textCheck(ow, outcome.fallbackText, EVENT_TEXT_LIMITS.outcome, 'fallbackText');
             if (choice.check === undefined) {
-              if (!(Number.isFinite(outcome.weight) && outcome.weight > 0))
+              // A weight is positive, or 0 for an outcome only a rung brings (`weightByRung` then
+              // lists it: Black Sun's lying stranger is 0 on every rung below it).
+              const rungOnly =
+                outcome.weight === 0 &&
+                Object.values(outcome.weightByRung || {}).some((w) => Number(w) > 0);
+              if (!(Number.isFinite(outcome.weight) && (outcome.weight > 0 || rungOnly)))
                 err(ow, 'weight must be a positive number');
               for (const [rung, w] of Object.entries(outcome.weightByRung || {})) {
                 if (!DIFFICULTY_IDS.includes(rung))
@@ -918,9 +1026,20 @@ export function validateEventsConfig(config, data = {}) {
               for (const [i, effect] of effects.entries())
                 checkEffect(`${ow}.${where}[${i}]`, effect, { event, choice, phase });
             const teaching = (outcome.effects || []).some((e) => e?.type === 'learnSkill');
+            // A wear step can find nothing to wear (a forged blade does not wear): it needs a fallback too.
+            const wearing = (outcome.effects || []).some((e) => e?.type === 'wear');
             const routing = (outcome.effects || []).filter((e) => e?.type === 'routeEdit').length;
+            const work = (list) =>
+              (list || []).filter((e) => ['forge', 'wear', 'mend'].includes(e?.type)).length;
+            if (work(outcome.effects) > 1)
+              err(ow, 'at most one forge, wear or mend per outcome (they work on one weapon)');
             if (teaching && !Array.isArray(outcome.fallback))
               err(ow, 'an outcome that teaches a skill needs a `fallback` (the pool can be empty)');
+            if (wearing && !Array.isArray(outcome.fallback))
+              err(
+                ow,
+                'an outcome that wears a weapon needs a `fallback` (a forged blade does not wear)',
+              );
             if (routing > 0 && !Array.isArray(outcome.fallback))
               err(
                 ow,
@@ -930,12 +1049,20 @@ export function validateEventsConfig(config, data = {}) {
             if (
               outcome.fallback !== undefined &&
               !teaching &&
+              !wearing &&
               routing === 0 &&
               !(outcome.effects || []).some((e) => e?.type === 'fallenSkill')
             )
-              err(ow, '`fallback` is only for outcomes that teach a skill or edit the route');
+              err(
+                ow,
+                '`fallback` is only for outcomes that teach a skill, wear a weapon or edit the route',
+              );
             for (const effect of outcome.fallback || [])
-              if (['learnSkill', 'fallenSkill', 'routeEdit'].includes(effect?.type))
+              if (
+                ['learnSkill', 'fallenSkill', 'routeEdit', 'forge', 'wear', 'mend'].includes(
+                  effect?.type,
+                )
+              )
                 err(
                   ow,
                   `a fallback cannot hold a ${effect.type} (it has nothing further to fall back to)`,
@@ -964,13 +1091,18 @@ export function validateEventsConfig(config, data = {}) {
             }
             nexts.push(next);
           }
-          // Weights of a normal choice must leave something to roll.
-          if (
-            choice.check === undefined &&
-            outcomes.length > 0 &&
-            !outcomes.some((o) => o?.weight > 0)
-          )
-            err(cw, 'no outcome has a positive weight');
+          // Weights of a normal choice must leave something to roll, on every rung.
+          if (choice.check === undefined && outcomes.length > 0)
+            for (const rung of DIFFICULTY_IDS) {
+              const total = outcomes.reduce((sum, o) => {
+                const w = Number(byRungValue(o?.weightByRung, rung, o?.weight));
+                return sum + (Number.isFinite(w) && w > 0 ? w : 0);
+              }, 0);
+              if (!(total > 0)) {
+                err(cw, `no outcome has a positive weight on ${rung}`);
+                break;
+              }
+            }
 
           // A contract is "the next battle": this event's own fight is not what it means.
           if (

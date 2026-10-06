@@ -94,11 +94,13 @@ function pickName(ctx, className, taken, rng) {
 }
 
 /**
- * Plan a join: pick the class and the name, and build the unit (pure; nothing on the run
- * changes). `ledger.joined` (a Set of names) keeps two joins of one plan apart.
- * @returns {{ step: object } | { error: string }}
+ * The class and the name a join (or a recruit battle's green unit) will have: a seeded pick
+ * among the classes the act may hand out, and a name nobody in the run has used. Pure; the
+ * stream is keyed by the effect's place, so a replan is the same. `ledger.joined` keeps two
+ * of one plan apart.
+ * @returns {{ className: string, name: string, key: string, rng: Function } | { error: string }}
  */
-export function planJoin(ctx, effect, index, ledger) {
+export function pickJoinSelf(ctx, effect, index, ledger) {
   const { run } = ctx;
   const classes = joinClassCandidates(run, effect);
   if (classes.length === 0) return { error: 'No one of that kind can join the army here.' };
@@ -113,6 +115,19 @@ export function planJoin(ctx, effect, index, ledger) {
       ? run._makeUniqueRecruitName(name, taken)
       : name
     : pickName(ctx, className, taken, rng);
+  return { className, name, key, rng };
+}
+
+/**
+ * Plan a join: pick the class and the name, and build the unit (pure; nothing on the run
+ * changes). `ledger.joined` (a Set of names) keeps two joins of one plan apart.
+ * @returns {{ step: object } | { error: string }}
+ */
+export function planJoin(ctx, effect, index, ledger) {
+  const { run } = ctx;
+  const self = pickJoinSelf(ctx, effect, index, ledger);
+  if (self.error) return { error: self.error };
+  const { className, name, key } = self;
 
   const context = run.getRecruitBattleContext({ id: key });
   const gameData = { ...run.gameData, lords: [] };

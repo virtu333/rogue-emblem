@@ -1,28 +1,66 @@
 {
   "version": 1,
-  "costScale": { "normal": 1, "dusk": 1, "hard": 1.25, "lunatic": 1.5 },
+  "costScale": {
+    "normal": 1,
+    "dusk": 1,
+    "hard": 1.25,
+    "lunatic": 1.5
+  },
   "burdens": {
     "ill_omen": {
       "label": "Ill Omen",
       "line": "Each victory gathers more shadow until the omen passes.",
       "battles": 3,
       "extraShadow": 1,
-      "onRung": { "normal": { "battles": 2 } }
+      "onRung": {
+        "normal": {
+          "battles": 2
+        }
+      }
     },
     "debt": {
       "label": "Debt",
       "line": "The lender takes a share of each victory's gold until the debt is paid.",
       "garnish": 0.5,
-      "onRung": { "normal": { "garnish": 0.25 } }
+      "onRung": {
+        "normal": {
+          "garnish": 0.25
+        }
+      }
     },
     "hunted": {
       "label": "Hunted",
       "line": "Something follows your trail: the next battles each bring a wave of fresh foes. Boss maps are spared.",
       "battles": 2,
-      "wave": { "turn": 3, "count": [2, 2], "xpMultiplier": 0.5 },
+      "wave": {
+        "turn": 3,
+        "count": [
+          2,
+          2
+        ],
+        "xpMultiplier": 0.5
+      },
       "onRung": {
-        "normal": { "wave": { "turn": 3, "count": [1, 2], "xpMultiplier": 0.5 } },
-        "lunatic": { "wave": { "turn": 3, "count": [2, 3], "xpMultiplier": 0.5 } }
+        "normal": {
+          "wave": {
+            "turn": 3,
+            "count": [
+              1,
+              2
+            ],
+            "xpMultiplier": 0.5
+          }
+        },
+        "lunatic": {
+          "wave": {
+            "turn": 3,
+            "count": [
+              2,
+              3
+            ],
+            "xpMultiplier": 0.5
+          }
+        }
       }
     },
     "sworn_enemy": {
@@ -34,14 +72,21 @@
       "line": "A wound that has not closed. They fight at a penalty until it mends.",
       "battles": 3,
       "value": -2,
-      "onRung": { "normal": { "battles": 2 } }
+      "onRung": {
+        "normal": {
+          "battles": 2
+        }
+      }
     }
   },
   "events": [
     {
       "id": "old_swordmaster",
       "title": "The Old Swordmaster",
-      "acts": ["act1", "act2"],
+      "acts": [
+        "act1",
+        "act2"
+      ],
       "weight": 1,
       "intro": "An old woman is splitting firewood with a practice sword. She hasn't missed a log. \"You're staring,\" she says, without looking up.",
       "choices": [
@@ -51,35 +96,75 @@
           "hint": "She looks at your sword arm, not your face.",
           "target": {
             "prompt": "Who trains with her?",
-            "filter": { "weaponTypes": ["Sword", "Lance", "Axe"] },
+            "filter": {
+              "weaponTypes": [
+                "Sword",
+                "Lance",
+                "Axe"
+              ]
+            },
             "reason": "No one here fights with a sword, lance or axe."
           },
           "outcomes": [
             {
               "id": "taught",
               "weight": 70,
-              "weightByRung": { "hard": 60, "lunatic": 55 },
+              "weightByRung": {
+                "hard": 60,
+                "lunatic": 55
+              },
               "text": "She drills them until dark. \"Again.\" Again. Then, at last: \"Fine.\"",
               "effects": [
                 {
                   "type": "learnSkill",
                   "to": "target",
                   "poolByType": {
-                    "Sword": ["darting_blow", "duelist_stance", "vantage"],
-                    "Lance": ["guard", "pavise", "armored_blow"],
-                    "Axe": ["death_blow", "wrath", "fury"]
+                    "Sword": [
+                      "darting_blow",
+                      "duelist_stance",
+                      "vantage"
+                    ],
+                    "Lance": [
+                      "guard",
+                      "pavise",
+                      "armored_blow"
+                    ],
+                    "Axe": [
+                      "death_blow",
+                      "wrath",
+                      "fury"
+                    ]
                   }
                 },
-                { "type": "hp", "mode": "damage", "percent": 30, "scope": "target" }
+                {
+                  "type": "hp",
+                  "mode": "damage",
+                  "percent": 30,
+                  "scope": "target"
+                }
               ],
               "fallbackText": "She drills them until dark, then shakes her head. \"Nothing left to show you.\" She feeds you instead.",
-              "fallback": [{ "type": "hp", "mode": "heal", "percent": 20, "scope": "all" }]
+              "fallback": [
+                {
+                  "type": "hp",
+                  "mode": "heal",
+                  "percent": 20,
+                  "scope": "all"
+                }
+              ]
             },
             {
               "id": "refused",
               "weight": 30,
               "text": "\"No.\" She doesn't explain. She does, however, feed you.",
-              "effects": [{ "type": "hp", "mode": "heal", "percent": 20, "scope": "all" }]
+              "effects": [
+                {
+                  "type": "hp",
+                  "mode": "heal",
+                  "percent": 20,
+                  "scope": "all"
+                }
+              ]
             }
           ]
         },
@@ -89,18 +174,29 @@
           "hint": "Quick hands and a sharp eye will matter more than talk.",
           "target": {
             "prompt": "Who spars with her?",
-            "filter": { "weaponTypes": ["Sword", "Lance", "Axe"] },
+            "filter": {
+              "weaponTypes": [
+                "Sword",
+                "Lance",
+                "Axe"
+              ]
+            },
             "reason": "No one here fights with a sword, lance or axe."
           },
           "check": {
-            "stats": ["SKL", "SPD"],
+            "stats": [
+              "SKL",
+              "SPD"
+            ],
             "of": "target",
             "base": 0.3,
             "perPoint": 0.025,
             "against": 24,
             "min": 0.15,
             "max": 0.85,
-            "byRung": { "lunatic": -0.1 }
+            "byRung": {
+              "lunatic": -0.1
+            }
           },
           "outcomes": [
             {
@@ -111,14 +207,30 @@
                   "type": "learnSkill",
                   "to": "target",
                   "poolByType": {
-                    "Sword": ["darting_blow", "duelist_stance", "vantage"],
-                    "Lance": ["guard", "pavise", "armored_blow"],
-                    "Axe": ["death_blow", "wrath", "fury"]
+                    "Sword": [
+                      "darting_blow",
+                      "duelist_stance",
+                      "vantage"
+                    ],
+                    "Lance": [
+                      "guard",
+                      "pavise",
+                      "armored_blow"
+                    ],
+                    "Axe": [
+                      "death_blow",
+                      "wrath",
+                      "fury"
+                    ]
                   }
                 },
                 {
                   "type": "item",
-                  "pool": { "kind": "weapon", "weaponTypes": "$target", "tierOffset": 1 },
+                  "pool": {
+                    "kind": "weapon",
+                    "weaponTypes": "$target",
+                    "tierOffset": 1
+                  },
                   "to": "target"
                 }
               ],
@@ -126,7 +238,11 @@
               "fallback": [
                 {
                   "type": "item",
-                  "pool": { "kind": "weapon", "weaponTypes": "$target", "tierOffset": 1 },
+                  "pool": {
+                    "kind": "weapon",
+                    "weaponTypes": "$target",
+                    "tierOffset": 1
+                  },
                   "to": "target"
                 }
               ]
@@ -134,7 +250,14 @@
             {
               "id": "fail",
               "text": "She taps their wrist. The sword drops. \"Dead,\" she says. \"Twice.\"",
-              "effects": [{ "type": "hp", "mode": "damage", "to": 1, "scope": "target" }]
+              "effects": [
+                {
+                  "type": "hp",
+                  "mode": "damage",
+                  "to": 1,
+                  "scope": "target"
+                }
+              ]
             }
           ]
         },
@@ -155,7 +278,11 @@
     {
       "id": "abandoned_armory",
       "title": "The Abandoned Armory",
-      "acts": ["act1", "act2", "act3"],
+      "acts": [
+        "act1",
+        "act2",
+        "act3"
+      ],
       "weight": 1,
       "intro": "The garrison left in a hurry: boots by the door, a cold pot, racks of weapons nobody came back for. Somewhere inside, a door is barred from the wrong side.",
       "choices": [
@@ -171,7 +298,11 @@
               "effects": [
                 {
                   "type": "item",
-                  "pool": { "kind": "weapon", "weaponTypes": "$army", "tierOffset": 0 },
+                  "pool": {
+                    "kind": "weapon",
+                    "weaponTypes": "$army",
+                    "tierOffset": 0
+                  },
                   "to": "auto"
                 }
               ]
@@ -186,12 +317,18 @@
             {
               "id": "cache",
               "weight": 55,
-              "weightByRung": { "hard": 45 },
+              "weightByRung": {
+                "hard": 45
+              },
               "text": "Under a loose board: a fine weapon, badly kept.",
               "effects": [
                 {
                   "type": "item",
-                  "pool": { "kind": "weapon", "weaponTypes": "$army", "tierOffset": 1 },
+                  "pool": {
+                    "kind": "weapon",
+                    "weaponTypes": "$army",
+                    "tierOffset": 1
+                  },
                   "to": "auto",
                   "wear": 2
                 }
@@ -200,11 +337,21 @@
             {
               "id": "tripwire",
               "weight": 45,
-              "weightByRung": { "hard": 55 },
+              "weightByRung": {
+                "hard": 55
+              },
               "text": "A wire, a click, and the shelf comes down on whoever was first through the door. A few coins roll out of the wreckage.",
               "effects": [
-                { "type": "hp", "mode": "damage", "percent": 40, "scope": "commander" },
-                { "type": "gold", "value": 80 }
+                {
+                  "type": "hp",
+                  "mode": "damage",
+                  "percent": 40,
+                  "scope": "commander"
+                },
+                {
+                  "type": "gold",
+                  "value": 80
+                }
               ]
             }
           ]
@@ -226,10 +373,20 @@
                   "afterVictory": [
                     {
                       "type": "item",
-                      "pool": { "kind": "weapon", "weaponTypes": "$army", "tierOffset": 1 },
+                      "pool": {
+                        "kind": "weapon",
+                        "weaponTypes": "$army",
+                        "tierOffset": 1
+                      },
                       "to": "auto"
                     },
-                    { "type": "gold", "value": { "base": 100, "perAct": 100 } }
+                    {
+                      "type": "gold",
+                      "value": {
+                        "base": 100,
+                        "perAct": 100
+                      }
+                    }
                   ]
                 }
               ]
@@ -340,21 +497,54 @@
         {
           "id": "dawn",
           "label": "Pray to the Dawn",
-          "hint": "It asks for a coin. It doesn't promise to answer.",
-          "requires": { "blessingTier": 1, "reason": "The Dawn has nothing left to give you." },
-          "cost": { "gold": { "base": 100, "perAct": 100 } },
+          "hint": "It asks for a coin. It does not promise to answer, or to mean it.",
+          "requires": {
+            "blessingTier": 1,
+            "reason": "The Dawn has nothing left to give you."
+          },
+          "cost": {
+            "gold": {
+              "base": 100,
+              "perAct": 100
+            }
+          },
           "outcomes": [
             {
               "id": "answered",
               "weight": 80,
               "text": "Warmth on the back of the neck, like a hand.",
-              "effects": [{ "type": "blessing", "tier": 1 }]
+              "effects": [
+                {
+                  "type": "blessing",
+                  "tier": 1
+                }
+              ],
+              "weightByRung": {
+                "lunatic": 60
+              }
             },
             {
               "id": "silence",
               "weight": 20,
               "text": "Nothing answers. The coin is gone anyway.",
-              "effects": []
+              "effects": [],
+              "weightByRung": {
+                "lunatic": 15
+              }
+            },
+            {
+              "id": "omen",
+              "weight": 0,
+              "text": "Warmth on the back of the neck, like a hand. The hand does not let go.",
+              "effects": [
+                {
+                  "type": "burden",
+                  "id": "ill_omen"
+                }
+              ],
+              "weightByRung": {
+                "lunatic": 25
+              }
             }
           ]
         },
@@ -362,15 +552,24 @@
           "id": "shadow",
           "label": "Pray to the face in shadow",
           "hint": "It asks for nothing. That is not the same as being free.",
-          "requires": { "blessingTier": 3, "reason": "The dark face has nothing left to give you." },
+          "requires": {
+            "blessingTier": 3,
+            "reason": "The dark face has nothing left to give you."
+          },
           "outcomes": [
             {
               "id": "answered",
               "weight": 100,
               "text": "It answers at once. That should have worried you more.",
               "effects": [
-                { "type": "blessing", "tier": 3 },
-                { "type": "burden", "id": "ill_omen" }
+                {
+                  "type": "blessing",
+                  "tier": 3
+                },
+                {
+                  "type": "burden",
+                  "id": "ill_omen"
+                }
               ]
             }
           ]
@@ -385,8 +584,17 @@
               "weight": 100,
               "text": "The dark face is smiling. You're almost sure it wasn't before.",
               "effects": [
-                { "type": "gold", "value": { "base": 150, "perAct": 100 } },
-                { "type": "shadow", "value": 3 }
+                {
+                  "type": "gold",
+                  "value": {
+                    "base": 150,
+                    "perAct": 100
+                  }
+                },
+                {
+                  "type": "shadow",
+                  "value": 3
+                }
               ]
             }
           ]
@@ -467,20 +675,42 @@
           "id": "tend",
           "label": "Tend his wound",
           "hint": "It costs a Vulnerary use. Gratitude is another matter.",
-          "requires": { "consumable": "Vulnerary", "reason": "You have nothing to dress his wound with." },
-          "effects": [{ "type": "consume", "name": "Vulnerary", "uses": 1 }],
+          "requires": {
+            "consumable": "Vulnerary",
+            "reason": "You have nothing to dress his wound with."
+          },
+          "effects": [
+            {
+              "type": "consume",
+              "name": "Vulnerary",
+              "uses": 1
+            }
+          ],
           "outcomes": [
             {
               "id": "grateful",
               "weight": 70,
               "text": "He presses a worn seer's token into your hand. \"For the road. Mine's done.\"",
-              "effects": [{ "type": "vision", "value": 1 }]
+              "effects": [
+                {
+                  "type": "vision",
+                  "value": 1
+                }
+              ]
             },
             {
               "id": "bolts",
               "weight": 30,
               "text": "He is gone by morning. So is a purse.",
-              "effects": [{ "type": "gold", "value": { "base": -50, "perAct": -50 } }]
+              "effects": [
+                {
+                  "type": "gold",
+                  "value": {
+                    "base": -50,
+                    "perAct": -50
+                  }
+                }
+              ]
             }
           ]
         },
@@ -493,7 +723,12 @@
               "id": "read",
               "weight": 100,
               "text": "Patrol routes, three days old. You know where they won't be.",
-              "effects": [{ "type": "shadow", "value": -4 }]
+              "effects": [
+                {
+                  "type": "shadow",
+                  "value": -4
+                }
+              ]
             }
           ]
         },
@@ -507,8 +742,18 @@
               "weight": 100,
               "text": "A clerk pays well for imperial seals and asks no questions.",
               "effects": [
-                { "type": "gold", "value": { "base": 150, "perAct": 100 } },
-                { "type": "flag", "key": "sold_dispatch", "value": true }
+                {
+                  "type": "gold",
+                  "value": {
+                    "base": 150,
+                    "perAct": 100
+                  }
+                },
+                {
+                  "type": "flag",
+                  "key": "sold_dispatch",
+                  "value": true
+                }
               ]
             }
           ]
@@ -518,7 +763,11 @@
     {
       "id": "deserters_fire",
       "title": "Deserters' Fire",
-      "acts": ["act1", "act2", "act3"],
+      "acts": [
+        "act1",
+        "act2",
+        "act3"
+      ],
       "weight": 1,
       "intro": "Six imperial deserters around a fire too small for them. They've seen your banner. Nobody reaches for a weapon. Yet.",
       "choices": [
@@ -532,8 +781,17 @@
               "weight": 100,
               "text": "\"We won't forget.\" Deserters always say that. They leave you their rations.",
               "effects": [
-                { "type": "hp", "mode": "heal", "percent": 15, "scope": "all" },
-                { "type": "flag", "key": "spared_deserters", "value": true }
+                {
+                  "type": "hp",
+                  "mode": "heal",
+                  "percent": 15,
+                  "scope": "all"
+                },
+                {
+                  "type": "flag",
+                  "key": "spared_deserters",
+                  "value": true
+                }
               ]
             }
           ]
@@ -548,7 +806,11 @@
               "weight": 100,
               "text": "They reach for their weapons after all.",
               "effects": [
-                { "type": "flag", "key": "robbed_deserters", "value": true },
+                {
+                  "type": "flag",
+                  "key": "robbed_deserters",
+                  "value": true
+                },
                 {
                   "type": "battle",
                   "enemyLevelBonus": 0,
@@ -556,10 +818,20 @@
                   "afterVictory": [
                     {
                       "type": "item",
-                      "pool": { "kind": "weapon", "weaponTypes": "$army", "tierOffset": 0 },
+                      "pool": {
+                        "kind": "weapon",
+                        "weaponTypes": "$army",
+                        "tierOffset": 0
+                      },
                       "to": "auto"
                     },
-                    { "type": "gold", "value": { "base": 100, "perAct": 50 } }
+                    {
+                      "type": "gold",
+                      "value": {
+                        "base": 100,
+                        "perAct": 50
+                      }
+                    }
                   ]
                 }
               ]
@@ -576,9 +848,22 @@
               "weight": 100,
               "text": "The bounty is paid in clean coin. It doesn't feel clean.",
               "effects": [
-                { "type": "gold", "value": { "base": 200, "perAct": 100 } },
-                { "type": "shadow", "value": 2 },
-                { "type": "flag", "key": "reported_deserters", "value": true }
+                {
+                  "type": "gold",
+                  "value": {
+                    "base": 200,
+                    "perAct": 100
+                  }
+                },
+                {
+                  "type": "shadow",
+                  "value": 2
+                },
+                {
+                  "type": "flag",
+                  "key": "reported_deserters",
+                  "value": true
+                }
               ]
             }
           ]
@@ -589,7 +874,9 @@
       "id": "the_echo",
       "title": "The Echo",
       "weight": 1,
-      "requires": { "fallen": true },
+      "requires": {
+        "fallen": true
+      },
       "intro": "At a crossroads cairn a voice you know asks you to stop. {fallen} is here. Mostly.",
       "choices": [
         {
@@ -601,7 +888,15 @@
               "id": "rested",
               "weight": 100,
               "text": "You build the cairn higher. The voice thanks you, and goes.",
-              "effects": [{ "type": "layToRest" }, { "type": "shadow", "value": -6 }]
+              "effects": [
+                {
+                  "type": "layToRest"
+                },
+                {
+                  "type": "shadow",
+                  "value": -6
+                }
+              ]
             }
           ]
         },
@@ -611,7 +906,10 @@
           "hint": "A last gift, and then a last goodbye.",
           "target": {
             "prompt": "Who listens?",
-            "filter": { "living": true, "learnsFromFallen": true },
+            "filter": {
+              "living": true,
+              "learnsFromFallen": true
+            },
             "reason": "No one here has anything to learn from them."
           },
           "outcomes": [
@@ -619,7 +917,15 @@
               "id": "taught",
               "weight": 100,
               "text": "\"Watch my feet, not my hands.\" Then the voice is only wind.",
-              "effects": [{ "type": "fallenSkill", "to": "target" }, { "type": "layToRest" }]
+              "effects": [
+                {
+                  "type": "fallenSkill",
+                  "to": "target"
+                },
+                {
+                  "type": "layToRest"
+                }
+              ]
             }
           ]
         },
@@ -641,7 +947,11 @@
     {
       "id": "toll_bridge",
       "title": "The Toll Bridge",
-      "acts": ["act1", "act2", "act3"],
+      "acts": [
+        "act1",
+        "act2",
+        "act3"
+      ],
       "weight": 1,
       "intro": "A rope bridge, a hut, and a man with a crossbow and a ledger. \"Toll,\" he says, and names a sum. It's a lot.",
       "dark": {
@@ -762,7 +1072,12 @@
           "id": "pay",
           "label": "Pay the toll",
           "hint": "Pay it, cross it, forget it.",
-          "cost": { "gold": { "base": 100, "perAct": 100 } },
+          "cost": {
+            "gold": {
+              "base": 100,
+              "perAct": 100
+            }
+          },
           "outcomes": [
             {
               "id": "paid",
@@ -777,14 +1092,18 @@
           "label": "Bluff",
           "hint": "A banner and a straight face. Luck does the rest.",
           "check": {
-            "stats": ["LCK"],
+            "stats": [
+              "LCK"
+            ],
             "of": "bestInArmy",
             "base": 0.35,
             "perPoint": 0.03,
             "against": 8,
             "min": 0.15,
             "max": 0.85,
-            "byRung": { "lunatic": -0.1 }
+            "byRung": {
+              "lunatic": -0.1
+            }
           },
           "outcomes": [
             {
@@ -800,7 +1119,15 @@
                   "type": "battle",
                   "enemyLevelBonus": 0,
                   "victoryText": "The ledger is yours now, and so is the strongbox behind it.",
-                  "afterVictory": [{ "type": "gold", "value": { "base": 150, "perAct": 100 } }]
+                  "afterVictory": [
+                    {
+                      "type": "gold",
+                      "value": {
+                        "base": 150,
+                        "perAct": 100
+                      }
+                    }
+                  ]
                 }
               ]
             }
@@ -820,7 +1147,9 @@
                   "type": "hp",
                   "mode": "damage",
                   "percent": 20,
-                  "percentByRung": { "hard": 30 },
+                  "percentByRung": {
+                    "hard": 30
+                  },
                   "scope": "all"
                 }
               ]
@@ -832,9 +1161,15 @@
     {
       "id": "moneylender",
       "title": "The Moneylender",
-      "acts": ["act1", "act2", "act3"],
+      "acts": [
+        "act1",
+        "act2",
+        "act3"
+      ],
       "weight": 1,
-      "requires": { "notBurden": "debt" },
+      "requires": {
+        "notBurden": "debt"
+      },
       "intro": "A gilded cart with four guards and a man in very good gloves. \"Short of coin, captain? My terms are very reasonable.\"",
       "choices": [
         {
@@ -845,28 +1180,54 @@
             {
               "id": "fair",
               "weight": 75,
-              "weightByRung": { "hard": 60 },
+              "weightByRung": {
+                "hard": 60
+              },
               "text": "He counts it out twice and smiles once.",
               "effects": [
-                { "type": "gold", "value": { "base": 300, "perAct": 200 } },
+                {
+                  "type": "gold",
+                  "value": {
+                    "base": 300,
+                    "perAct": 200
+                  }
+                },
                 {
                   "type": "burden",
                   "id": "debt",
-                  "params": { "owed": { "base": 450, "perAct": 300 } }
+                  "params": {
+                    "owed": {
+                      "base": 450,
+                      "perAct": 300
+                    }
+                  }
                 }
               ]
             },
             {
               "id": "gouged",
               "weight": 25,
-              "weightByRung": { "hard": 40 },
+              "weightByRung": {
+                "hard": 40
+              },
               "text": "You read the terms on the road. Then you read them again.",
               "effects": [
-                { "type": "gold", "value": { "base": 300, "perAct": 200 } },
+                {
+                  "type": "gold",
+                  "value": {
+                    "base": 300,
+                    "perAct": 200
+                  }
+                },
                 {
                   "type": "burden",
                   "id": "debt",
-                  "params": { "owed": { "base": 600, "perAct": 400 } }
+                  "params": {
+                    "owed": {
+                      "base": 600,
+                      "perAct": 400
+                    }
+                  }
                 }
               ]
             }
@@ -894,12 +1255,24 @@
               "weight": 100,
               "text": "The guards were not there for show.",
               "effects": [
-                { "type": "flag", "key": "robbed_lender", "value": true },
+                {
+                  "type": "flag",
+                  "key": "robbed_lender",
+                  "value": true
+                },
                 {
                   "type": "battle",
                   "enemyLevelBonus": 1,
                   "victoryText": "The man in good gloves has left his strongbox behind, and a great deal of paper.",
-                  "afterVictory": [{ "type": "gold", "value": { "base": 300, "perAct": 150 } }]
+                  "afterVictory": [
+                    {
+                      "type": "gold",
+                      "value": {
+                        "base": 300,
+                        "perAct": 150
+                      }
+                    }
+                  ]
                 }
               ]
             }
@@ -910,7 +1283,10 @@
     {
       "id": "drill_yard",
       "title": "The Drill Yard",
-      "acts": ["act1", "act2"],
+      "acts": [
+        "act1",
+        "act2"
+      ],
       "weight": 1,
       "intro": "An abandoned drill yard: straw men, a sand pit, a rack of blunted blades. A sign reads TWO HOURS. NO EXCUSES.",
       "dark": {
@@ -1002,8 +1378,21 @@
               "weight": 100,
               "text": "By sundown everyone is sore and nobody is slower.",
               "effects": [
-                { "type": "hp", "mode": "damage", "percent": 15, "scope": "all" },
-                { "type": "stat", "stat": ["SKL", "SPD"], "value": 1, "scope": "lowestLevel" }
+                {
+                  "type": "hp",
+                  "mode": "damage",
+                  "percent": 15,
+                  "scope": "all"
+                },
+                {
+                  "type": "stat",
+                  "stat": [
+                    "SKL",
+                    "SPD"
+                  ],
+                  "value": 1,
+                  "scope": "lowestLevel"
+                }
               ]
             }
           ]
@@ -1016,7 +1405,1540 @@
               "id": "rested",
               "weight": 100,
               "text": "Real beds. Lumpy, but real.",
-              "effects": [{ "type": "hp", "mode": "heal", "percent": 30, "scope": "all" }]
+              "effects": [
+                {
+                  "type": "hp",
+                  "mode": "heal",
+                  "percent": 30,
+                  "scope": "all"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sunken_mine",
+      "title": "The Sunken Mine",
+      "acts": [
+        "act2",
+        "act3",
+        "act4"
+      ],
+      "weight": 1,
+      "intro": "A flooded shaft, a rope ladder and three tallow torches nailed to the frame, as if someone meant to come back for them. Cold air breathes out of the dark. It smells of iron, and of something that has been sitting a long time.",
+      "counters": {
+        "torches": 3
+      },
+      "countersByRung": {
+        "torches": {
+          "lunatic": 2
+        }
+      },
+      "counterLabels": {
+        "torches": "Torches"
+      },
+      "choices": [
+        {
+          "id": "take_ore",
+          "label": "Take the ore and climb out",
+          "hint": "A seam of bright metal, and the rope is right there.",
+          "requires": {
+            "counterAtLeast": {
+              "key": "torches",
+              "n": 1
+            },
+            "reason": "No light left to climb by."
+          },
+          "target": {
+            "prompt": "Who works the ore?",
+            "filter": {
+              "forgeableWeapon": true,
+              "living": true
+            },
+            "reason": "No weapon here can take the ore."
+          },
+          "outcomes": [
+            {
+              "id": "ore",
+              "weight": 100,
+              "text": "The seam is clean. They work it into the edge by torchlight and climb out with a sharper blade.",
+              "effects": [
+                {
+                  "type": "forge",
+                  "stat": "random"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "deeper",
+          "label": "Go deeper",
+          "hint": "Every descent burns a torch. Drafts burn more.",
+          "requires": {
+            "counterAtLeast": {
+              "key": "torches",
+              "n": 1
+            },
+            "reason": "The last torch is gone."
+          },
+          "effects": [
+            {
+              "type": "counter",
+              "key": "torches",
+              "delta": -1
+            }
+          ],
+          "outcomes": [
+            {
+              "id": "steady",
+              "weight": 75,
+              "text": "The ladder ends in a gallery of old timbers. The torchlight steadies.",
+              "effects": [],
+              "weightByRung": {
+                "lunatic": 60
+              },
+              "next": "level_two"
+            },
+            {
+              "id": "draft",
+              "weight": 25,
+              "text": "A draft slides down the shaft and takes a second torch with it.",
+              "effects": [
+                {
+                  "type": "counter",
+                  "key": "torches",
+                  "delta": -1
+                }
+              ],
+              "weightByRung": {
+                "lunatic": 40
+              },
+              "next": "level_two"
+            }
+          ]
+        },
+        {
+          "id": "blind",
+          "label": "Feel your way out",
+          "hint": "No light, no map, and something down here that knows the dark better than you.",
+          "tells": [
+            {
+              "when": {
+                "classes": [
+                  "Thief",
+                  "Assassin"
+                ]
+              },
+              "line": "{name}: This tunnel breathes. There's a way out.",
+              "reveals": "found"
+            },
+            {
+              "when": {
+                "skill": "pathfinder"
+              },
+              "line": "{name}: The air moves left. Left is up.",
+              "reveals": "found"
+            }
+          ],
+          "outcomes": [
+            {
+              "id": "found",
+              "weight": 50,
+              "text": "Your hand finds the rope on the third try. Nobody speaks until daylight.",
+              "effects": []
+            },
+            {
+              "id": "ambush",
+              "weight": 50,
+              "text": "The rope is not where you left it. Something that lives down here has found you first.",
+              "effects": [
+                {
+                  "type": "battle",
+                  "enemyLevelBonus": 0,
+                  "victoryText": "It was guarding a purse, and the way up. You take both.",
+                  "afterVictory": [
+                    {
+                      "type": "gold",
+                      "value": {
+                        "base": 100,
+                        "perAct": 50
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "pages": {
+        "level_two": {
+          "text": "The gallery runs on under a low roof. A pay chest sits where its carriers dropped it, strapped shut, the lid furred with rust. The next ladder goes down.",
+          "choices": [
+            {
+              "id": "take_chest",
+              "label": "Take the chest and climb out",
+              "hint": "Heavy enough that nobody will fight you for the climb. Probably.",
+              "requires": {
+                "counterAtLeast": {
+                  "key": "torches",
+                  "n": 1
+                },
+                "reason": "No light left to climb by."
+              },
+              "outcomes": [
+                {
+                  "id": "chest",
+                  "weight": 100,
+                  "text": "The straps give on the second try. Old imperial coin, more of it than anyone should have left down here.",
+                  "effects": [
+                    {
+                      "type": "gold",
+                      "value": {
+                        "base": 150,
+                        "perAct": 100
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "deeper",
+              "label": "Go deeper",
+              "hint": "Every descent burns a torch. Drafts burn more.",
+              "requires": {
+                "counterAtLeast": {
+                  "key": "torches",
+                  "n": 1
+                },
+                "reason": "The last torch is gone."
+              },
+              "effects": [
+                {
+                  "type": "counter",
+                  "key": "torches",
+                  "delta": -1
+                }
+              ],
+              "outcomes": [
+                {
+                  "id": "steady",
+                  "weight": 75,
+                  "text": "The ladder ends in a gallery of old timbers. The torchlight steadies.",
+                  "effects": [],
+                  "weightByRung": {
+                    "lunatic": 60
+                  },
+                  "next": "level_three"
+                },
+                {
+                  "id": "draft",
+                  "weight": 25,
+                  "text": "A draft slides down the shaft and takes a second torch with it.",
+                  "effects": [
+                    {
+                      "type": "counter",
+                      "key": "torches",
+                      "delta": -1
+                    }
+                  ],
+                  "weightByRung": {
+                    "lunatic": 40
+                  },
+                  "next": "level_three"
+                }
+              ]
+            },
+            {
+              "id": "blind",
+              "label": "Feel your way out",
+              "hint": "No light, no map, and something down here that knows the dark better than you.",
+              "tells": [
+                {
+                  "when": {
+                    "classes": [
+                      "Thief",
+                      "Assassin"
+                    ]
+                  },
+                  "line": "{name}: This tunnel breathes. There's a way out.",
+                  "reveals": "found"
+                },
+                {
+                  "when": {
+                    "skill": "pathfinder"
+                  },
+                  "line": "{name}: The air moves left. Left is up.",
+                  "reveals": "found"
+                }
+              ],
+              "outcomes": [
+                {
+                  "id": "found",
+                  "weight": 50,
+                  "text": "Your hand finds the rope on the third try. Nobody speaks until daylight.",
+                  "effects": []
+                },
+                {
+                  "id": "ambush",
+                  "weight": 50,
+                  "text": "The rope is not where you left it. Something that lives down here has found you first.",
+                  "effects": [
+                    {
+                      "type": "battle",
+                      "enemyLevelBonus": 0,
+                      "victoryText": "It was guarding a purse, and the way up. You take both.",
+                      "afterVictory": [
+                        {
+                          "type": "gold",
+                          "value": {
+                            "base": 100,
+                            "perAct": 50
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "level_three": {
+          "text": "The roof opens into a hall nobody dug. A figure of black iron stands in the middle of it, one hand on a pillar, perfectly still. The air is very cold. It has been waiting for the torches.",
+          "choices": [
+            {
+              "id": "guardian",
+              "label": "Face the guardian",
+              "hint": "It guards something. It does not look interested in conversation.",
+              "outcomes": [
+                {
+                  "id": "woken",
+                  "weight": 100,
+                  "text": "It turns its head slowly, like a door.",
+                  "effects": [
+                    {
+                      "type": "battle",
+                      "enemyLevelBonus": 1,
+                      "victoryText": "It comes apart in plates. Behind it, on a bier of old bones, lies something that was a relic and is again.",
+                      "afterVictory": [
+                        {
+                          "type": "item",
+                          "pool": {
+                            "kind": "accessory",
+                            "tierOffset": 1
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "climb",
+              "label": "Leave it standing",
+              "hint": "Whatever it protects has kept for this long.",
+              "requires": {
+                "counterAtLeast": {
+                  "key": "torches",
+                  "n": 1
+                },
+                "reason": "No light left to climb by."
+              },
+              "outcomes": [
+                {
+                  "id": "left",
+                  "weight": 100,
+                  "text": "The guardian does not move. The gallery behind you is much longer going up.",
+                  "effects": []
+                }
+              ]
+            },
+            {
+              "id": "blind",
+              "label": "Feel your way out",
+              "hint": "No light, no map, and something down here that knows the dark better than you.",
+              "tells": [
+                {
+                  "when": {
+                    "classes": [
+                      "Thief",
+                      "Assassin"
+                    ]
+                  },
+                  "line": "{name}: This tunnel breathes. There's a way out.",
+                  "reveals": "found"
+                },
+                {
+                  "when": {
+                    "skill": "pathfinder"
+                  },
+                  "line": "{name}: The air moves left. Left is up.",
+                  "reveals": "found"
+                }
+              ],
+              "outcomes": [
+                {
+                  "id": "found",
+                  "weight": 50,
+                  "text": "Your hand finds the rope on the third try. Nobody speaks until daylight.",
+                  "effects": []
+                },
+                {
+                  "id": "ambush",
+                  "weight": 50,
+                  "text": "The rope is not where you left it. Something that lives down here has found you first.",
+                  "effects": [
+                    {
+                      "type": "battle",
+                      "enemyLevelBonus": 0,
+                      "victoryText": "It was guarding a purse, and the way up. You take both.",
+                      "afterVictory": [
+                        {
+                          "type": "gold",
+                          "value": {
+                            "base": 100,
+                            "perAct": 50
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "plague_village",
+      "title": "The Plague Village",
+      "acts": [
+        "act1",
+        "act2",
+        "act3"
+      ],
+      "weight": 1,
+      "intro": "Smoke from no chimney. A rag nailed to the gatepost, and behind it a village that has stopped answering. Somewhere inside, someone is coughing, and has been for a long time.",
+      "choices": [
+        {
+          "id": "medicine",
+          "label": "Give your medicine",
+          "hint": "A Vulnerary use for strangers. The gratitude is cheaper than the dose, and slower.",
+          "requires": {
+            "consumable": "Vulnerary",
+            "reason": "You have no medicine left to give."
+          },
+          "effects": [
+            {
+              "type": "consume",
+              "name": "Vulnerary",
+              "uses": 1
+            }
+          ],
+          "tells": [
+            {
+              "when": {
+                "weaponType": "Staff"
+              },
+              "line": "{name}: It isn't catching. It's the well.",
+              "reveals": "well"
+            }
+          ],
+          "outcomes": [
+            {
+              "id": "eased",
+              "weight": 75,
+              "text": "The first dose goes down a boy's throat and stays down. A woman is crying at the door. 'More,' she says. 'Please.'",
+              "effects": [
+                {
+                  "type": "hp",
+                  "mode": "heal",
+                  "percent": 10,
+                  "scope": "all"
+                }
+              ],
+              "next": "ward"
+            },
+            {
+              "id": "well",
+              "weight": 25,
+              "text": "They thank you and keep coughing. A girl points, too late, at the well: green at the rim, and very still. It was never the fever.",
+              "effects": []
+            }
+          ]
+        },
+        {
+          "id": "loot",
+          "label": "Loot the empty houses",
+          "hint": "Empty is a word you are choosing to believe.",
+          "outcomes": [
+            {
+              "id": "looted",
+              "weight": 100,
+              "text": "The doors are open. The rooms are not empty. You take what is on the tables and leave the people it belonged to.",
+              "effects": [
+                {
+                  "type": "gold",
+                  "value": {
+                    "base": 200,
+                    "perAct": 100
+                  }
+                },
+                {
+                  "type": "burden",
+                  "id": "ill_omen"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "walk",
+          "label": "Walk around it",
+          "hint": "Plenty of roads go round.",
+          "outcomes": [
+            {
+              "id": "around",
+              "weight": 100,
+              "text": "Four miles of nettles, and nobody to blame. The coughing follows you most of the way.",
+              "effects": []
+            }
+          ]
+        }
+      ],
+      "pages": {
+        "ward": {
+          "text": "The fever has faces now: a ring of grey children around the door, watching your pack. The first dose bought an hour. A second might buy the night.",
+          "choices": [
+            {
+              "id": "second",
+              "label": "Give a second dose",
+              "hint": "It is your medicine. They are watching it leave.",
+              "requires": {
+                "consumable": "Vulnerary",
+                "reason": "You have no medicine left to give."
+              },
+              "effects": [
+                {
+                  "type": "consume",
+                  "name": "Vulnerary",
+                  "uses": 1
+                }
+              ],
+              "outcomes": [
+                {
+                  "id": "second_dose",
+                  "weight": 100,
+                  "text": "The coughing eases down the street, door by door. The woman takes your hand in both of hers and does not let go for some time.",
+                  "effects": [
+                    {
+                      "type": "hp",
+                      "mode": "heal",
+                      "percent": 15,
+                      "scope": "all"
+                    }
+                  ],
+                  "next": "fever_breaks"
+                }
+              ]
+            },
+            {
+              "id": "enough",
+              "label": "That is all you can spare",
+              "outcomes": [
+                {
+                  "id": "enough",
+                  "weight": 100,
+                  "text": "'It's more than anyone's done.' They don't say it kindly. They don't say it unkindly either.",
+                  "effects": []
+                }
+              ]
+            }
+          ]
+        },
+        "fever_breaks": {
+          "text": "By the second dose the street is quiet. Someone has put a kettle on. A woman in a healer's grey sits on the well wall, hands shaking, looking at your pack the way you look at a bill.",
+          "choices": [
+            {
+              "id": "last",
+              "label": "Give the last dose",
+              "hint": "She will not forget which pack it came from.",
+              "requires": {
+                "consumable": "Vulnerary",
+                "reason": "You have no medicine left to give."
+              },
+              "effects": [
+                {
+                  "type": "consume",
+                  "name": "Vulnerary",
+                  "uses": 1
+                }
+              ],
+              "outcomes": [
+                {
+                  "id": "owes",
+                  "weight": 100,
+                  "text": "She was the village's only healer, and she has been on her feet for nine days. 'I owe you a life,' she says, and packs her bag.",
+                  "effects": [
+                    {
+                      "type": "join",
+                      "class": "Cleric"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "enough",
+              "label": "Leave it there",
+              "outcomes": [
+                {
+                  "id": "enough",
+                  "weight": 100,
+                  "text": "The kettle is still on when you reach the end of the street. Nobody calls after you.",
+                  "effects": []
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "merc_contract",
+      "title": "The Mercenary Contract",
+      "weight": 1,
+      "requires": {
+        "notContract": true
+      },
+      "intro": "A free-company captain has nailed a paper to a milestone and is waiting under it, picking his teeth with a nail. 'Terms,' he says. 'Pay on delivery, penalties on failure. I'm not a sentimental man.'",
+      "choices": [
+        {
+          "id": "par",
+          "label": "Win the next fight under par",
+          "hint": "Quick, or it did not happen. He keeps his own clock.",
+          "outcomes": [
+            {
+              "id": "signed",
+              "weight": 100,
+              "text": "He tears the paper in two and gives you your half. His half is much longer.",
+              "effects": [
+                {
+                  "type": "contract",
+                  "goal": "underPar",
+                  "reward": [
+                    {
+                      "type": "gold",
+                      "value": {
+                        "base": 300,
+                        "perAct": 200
+                      }
+                    }
+                  ],
+                  "penalty": [
+                    {
+                      "type": "burden",
+                      "id": "debt",
+                      "params": {
+                        "owed": {
+                          "base": 200,
+                          "perAct": 150
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "clean",
+          "label": "Win the next fight, lose no one",
+          "hint": "Every name you came with, or the company starts to take an interest.",
+          "outcomes": [
+            {
+              "id": "signed",
+              "weight": 100,
+              "text": "He reads the names on your roll aloud, slowly, so that you will remember he did.",
+              "effects": [
+                {
+                  "type": "contract",
+                  "goal": "noLosses",
+                  "reward": [
+                    {
+                      "type": "item",
+                      "pool": {
+                        "kind": "weapon",
+                        "weaponTypes": "$army",
+                        "tierOffset": 1
+                      }
+                    }
+                  ],
+                  "penalty": [
+                    {
+                      "type": "burden",
+                      "id": "hunted"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "decline",
+          "label": "Decline",
+          "hint": "Some terms are only worth reading.",
+          "outcomes": [
+            {
+              "id": "declined",
+              "weight": 100,
+              "text": "'Your funeral.' He does not sound as if he minds either way.",
+              "effects": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cartographer",
+      "title": "The Cartographer",
+      "acts": [
+        "act1",
+        "act2",
+        "act3"
+      ],
+      "weight": 1,
+      "intro": "A woman is inking a map on the tailboard of her cart, a pen in each hand and a third behind one ear. She doesn't look up. 'Roads change,' she says. 'Mine are the ones that don't.'",
+      "choices": [
+        {
+          "id": "guide",
+          "label": "Hire her as a guide",
+          "hint": "She charges by the mile and knows several shortcuts. Some of them are real.",
+          "requires": {
+            "roadAhead": true,
+            "reason": "She walks the road a while and finds no road to add."
+          },
+          "cost": {
+            "gold": {
+              "base": 100,
+              "perAct": 50
+            }
+          },
+          "outcomes": [
+            {
+              "id": "drawn",
+              "weight": 100,
+              "text": "She walks the road with you, pen scratching, and finds a path where there was not one.",
+              "effects": [
+                {
+                  "type": "routeEdit",
+                  "op": "addRoad"
+                }
+              ],
+              "fallbackText": "She walks the road with you for a mile, frowns, and shrugs. There is nothing to add. She won't take coin for nothing.",
+              "fallback": [
+                {
+                  "type": "gold",
+                  "refund": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "ask",
+          "label": "Ask about the road ahead",
+          "hint": "She answers anything for free. Free answers are worth what you pay.",
+          "outcomes": [
+            {
+              "id": "true_map",
+              "weight": 100,
+              "text": "She sketches the road ahead on your wrist in ink. Somewhere up it, a market that was not there before.",
+              "effects": [
+                {
+                  "type": "routeEdit",
+                  "op": "redraw",
+                  "toType": "shop"
+                }
+              ],
+              "weightByRung": {
+                "lunatic": 70
+              },
+              "fallbackText": "She squints at the road ahead, then at you. 'It's as good as it's going to get.'",
+              "fallback": []
+            },
+            {
+              "id": "lied",
+              "weight": 0,
+              "text": "She sketches a village, with a candle in its window. You will not find a village there. You will find who she told.",
+              "effects": [
+                {
+                  "type": "routeEdit",
+                  "op": "redraw",
+                  "toType": "battle"
+                }
+              ],
+              "weightByRung": {
+                "lunatic": 30
+              },
+              "fallbackText": "The ink runs on your wrist. She smiles, and does not explain.",
+              "fallback": []
+            }
+          ]
+        },
+        {
+          "id": "rob",
+          "label": "Rob her",
+          "hint": "She has coin, a cart and no escort. People will remember it.",
+          "outcomes": [
+            {
+              "id": "robbed",
+              "weight": 100,
+              "text": "She does not fight. She just watches your face the whole time, the way a mapmaker watches a coastline.",
+              "effects": [
+                {
+                  "type": "gold",
+                  "value": {
+                    "base": 150,
+                    "perAct": 100
+                  }
+                },
+                {
+                  "type": "shadow",
+                  "value": 2
+                },
+                {
+                  "type": "flag",
+                  "key": "robbed_cartographer",
+                  "value": true
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "chained_shelf",
+      "title": "The Chained Shelf",
+      "acts": [
+        "act2",
+        "act3",
+        "act4"
+      ],
+      "weight": 1,
+      "requires": {
+        "roster": {
+          "magic": true
+        }
+      },
+      "intro": "A scholar's shop, shuttered. In the window one book sits on a short chain, as though it might wander off. Something inside it is turning its own pages.",
+      "choices": [
+        {
+          "id": "read",
+          "label": "Read it",
+          "hint": "Spellcasters only. The dark in it wants a mind that can hold a spell, and it takes rent.",
+          "target": {
+            "prompt": "Who reads?",
+            "filter": {
+              "magic": true,
+              "living": true
+            },
+            "reason": "No one here can read a spell-book."
+          },
+          "outcomes": [
+            {
+              "id": "learned",
+              "text": "The letters rearrange themselves to be read. The reader comes up for air an hour later, smiling, and a little thinner.",
+              "effects": [
+                {
+                  "type": "learnSkill",
+                  "to": "target",
+                  "pool": [
+                    "fiendish_blow",
+                    "drain",
+                    "luna",
+                    "wrath"
+                  ]
+                },
+                {
+                  "type": "stat",
+                  "stat": "HP",
+                  "value": -3,
+                  "scope": "target"
+                }
+              ],
+              "fallbackText": "Every page is something they already know. The book lets them go, almost politely.",
+              "fallback": [],
+              "weight": 100
+            }
+          ]
+        },
+        {
+          "id": "burn",
+          "label": "Burn it",
+          "hint": "Fire, and a few words said quickly.",
+          "outcomes": [
+            {
+              "id": "burned",
+              "weight": 100,
+              "text": "It screams, a little, in a voice like paper. When the smoke clears the air is clean for the first time in a mile.",
+              "effects": [
+                {
+                  "type": "shadow",
+                  "value": -4
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "sell",
+          "label": "Sell it to a scholar",
+          "hint": "Someone always pays for forbidden knowledge. Usually the next buyer.",
+          "outcomes": [
+            {
+              "id": "sold",
+              "weight": 100,
+              "text": "A scholar in a moth-eaten gown pays, counts twice, and carries it away at arm length.",
+              "effects": [
+                {
+                  "type": "gold",
+                  "value": {
+                    "base": 250,
+                    "perAct": 150
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hollow_herald",
+      "title": "The Herald of the Hollow Sun",
+      "acts": [
+        "act2",
+        "act3",
+        "act4"
+      ],
+      "weight": 1,
+      "requires": {
+        "phaseAtLeast": "umbral"
+      },
+      "intro": "A man in a grey hood stands in the road with his palms raised to a sky that has begun to dim at the edges. 'It is nearly time,' he tells you kindly. 'I only wanted to say it to someone.'",
+      "choices": [
+        {
+          "id": "feed",
+          "label": "Feed the dark",
+          "hint": "Power now, from something that is hungry. It remembers who fed it.",
+          "target": {
+            "prompt": "Who kneels?",
+            "filter": {
+              "living": true
+            },
+            "reason": "No one can kneel."
+          },
+          "outcomes": [
+            {
+              "id": "fed",
+              "weight": 100,
+              "text": "The hood nods. The kneeling one stays down a long while, and rises with something new in their hands and something less in their eyes.",
+              "effects": [
+                {
+                  "type": "stat",
+                  "stat": "best",
+                  "value": 2,
+                  "scope": "target"
+                },
+                {
+                  "type": "shadow",
+                  "value": 8
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "break",
+          "label": "Break the rite",
+          "hint": "He is not alone. He never is. The dark brings its own audience.",
+          "outcomes": [
+            {
+              "id": "broken",
+              "weight": 100,
+              "text": "The palms come down. Others step out of the ruins behind him, quietly, as if they had been waiting to be asked.",
+              "effects": [
+                {
+                  "type": "battle",
+                  "enemyLevelBonus": 1,
+                  "victoryText": "The hood falls. Beneath it, a face you almost know. The sky brightens a shade, as if someone had wiped a window.",
+                  "afterVictory": [
+                    {
+                      "type": "shadow",
+                      "value": -8
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "listen",
+          "label": "Listen",
+          "hint": "He wants to be heard, not obeyed. That may be the safest kind of man.",
+          "outcomes": [
+            {
+              "id": "heard",
+              "weight": 100,
+              "text": "He talks until the light is nearly gone. You understand little of it and remember all of it. Walking away, you feel strangely lighter.",
+              "effects": [
+                {
+                  "type": "flag",
+                  "key": "heard_herald",
+                  "value": true
+                },
+                {
+                  "type": "shadow",
+                  "value": -2
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wandering_smith",
+      "title": "The Wandering Smith",
+      "weight": 1,
+      "intro": "A smith with a handcart forge has set up in the lee of a broken wall, working the bellows with one foot. 'Mend or temper,' he says, without stopping. 'Not both. I'm not made of hands.'",
+      "choices": [
+        {
+          "id": "mend",
+          "label": "Mend a worn weapon",
+          "hint": "Every dent, nick and rust-spot on what they carry. He charges by the visit.",
+          "cost": {
+            "gold": {
+              "base": 100,
+              "perAct": 50
+            }
+          },
+          "target": {
+            "prompt": "Whose weapons does he mend?",
+            "filter": {
+              "wornWeapon": true,
+              "living": true
+            },
+            "reason": "Nothing anyone carries is worn."
+          },
+          "outcomes": [
+            {
+              "id": "mended",
+              "weight": 100,
+              "text": "He sets the weapons on the anvil one by one and tuts at each. When he is done they look the way they did the day they were made.",
+              "effects": [
+                {
+                  "type": "mend"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "temper",
+          "label": "Temper a weapon",
+          "hint": "Hot work and fast hands. He says it never goes wrong. He says it fast.",
+          "target": {
+            "prompt": "Whose weapon goes in the fire?",
+            "filter": {
+              "forgeableWeapon": true,
+              "living": true
+            },
+            "reason": "No weapon here can take the heat."
+          },
+          "outcomes": [
+            {
+              "id": "tempered",
+              "weight": 70,
+              "text": "The edge comes out of the quench the colour of a clean day. 'There,' he says. 'Don't thank me. Thank the fire.'",
+              "effects": [
+                {
+                  "type": "forge",
+                  "stat": "random"
+                }
+              ],
+              "weightByRung": {
+                "hard": 60
+              }
+            },
+            {
+              "id": "too_hot",
+              "weight": 30,
+              "text": "Too hot. The smith swears, quietly and at length. The weapon comes out marked, and not the way anyone wanted.",
+              "effects": [
+                {
+                  "type": "wear"
+                }
+              ],
+              "weightByRung": {
+                "hard": 40
+              },
+              "fallbackText": "Too hot. The weapon holds, but the sparks find the hand that held it.",
+              "fallback": [
+                {
+                  "type": "hp",
+                  "mode": "damage",
+                  "percent": 15,
+                  "scope": "target"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "leave",
+          "label": "Leave him to his anvil",
+          "outcomes": [
+            {
+              "id": "left",
+              "weight": 100,
+              "text": "He nods at the road without breaking rhythm. The bellows sigh behind you for a long time.",
+              "effects": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "turncoat",
+      "title": "The Turncoat",
+      "acts": [
+        "act2",
+        "act3"
+      ],
+      "weight": 1,
+      "intro": "A man in imperial grey sits on the verge with his boots off and his hands in plain sight. 'I'm done,' he says. 'Take me, or finish it. I'll not walk back.' He is very calm for a man who has just chosen a side.",
+      "choices": [
+        {
+          "id": "take",
+          "label": "Take him in",
+          "hint": "A man who changed sides once can change them again. Or he can stay changed.",
+          "outcomes": [
+            {
+              "id": "joined",
+              "weight": 100,
+              "text": "He nods once, pulls his boots on, and falls in at the back. By the next fire he is sharpening someone else's knife for them.",
+              "effects": [
+                {
+                  "type": "join",
+                  "classPool": [
+                    "Mercenary",
+                    "Fighter",
+                    "Archer"
+                  ]
+                }
+              ],
+              "weightByRung": {
+                "lunatic": 65
+              }
+            },
+            {
+              "id": "spy",
+              "weight": 0,
+              "text": "He is gone by morning, and so is any hope of a quiet road. Torches on the ridge say your camp was counted very carefully.",
+              "effects": [
+                {
+                  "type": "burden",
+                  "id": "hunted"
+                }
+              ],
+              "weightByRung": {
+                "lunatic": 35
+              }
+            }
+          ]
+        },
+        {
+          "id": "send",
+          "label": "Send him off",
+          "hint": "Mercy is cheap on a road with this many enemies.",
+          "outcomes": [
+            {
+              "id": "sent",
+              "weight": 100,
+              "text": "He looks relieved, then ashamed of being relieved. He goes, and does not look back, which you decide to believe.",
+              "effects": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "old_faces",
+      "title": "Old Faces",
+      "acts": [
+        "act2",
+        "act3"
+      ],
+      "weight": 3,
+      "requires": {
+        "flag": "spared_deserters",
+        "flagAct": "earlier"
+      },
+      "intro": "A figure waves from a ridge, then thinks better of it and runs: the first deserter you ever let go, in a coat that no longer fits. Behind him imperial riders fan out. 'We said we wouldn't forget!' he shouts.",
+      "choices": [
+        {
+          "id": "ride",
+          "label": "Ride to his side",
+          "hint": "He will fight for you, if there is anyone left to ask. The riders are real.",
+          "outcomes": [
+            {
+              "id": "rescue",
+              "weight": 100,
+              "text": "You break from the road at a run. He sees your banner and lets out a laugh that is mostly a sob.",
+              "effects": [
+                {
+                  "type": "battle",
+                  "enemyLevelBonus": 0,
+                  "recruit": {
+                    "classPool": [
+                      "Mercenary",
+                      "Soldier",
+                      "Fighter",
+                      "Archer"
+                    ]
+                  },
+                  "victoryText": "The ridge goes quiet. Whoever is still standing is standing where they stood. 'We said we wouldn't forget,' someone says, and for once it was true.",
+                  "afterVictory": [
+                    {
+                      "type": "gold",
+                      "value": {
+                        "base": 80,
+                        "perAct": 40
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "coin",
+          "label": "Toss him coin and move on",
+          "hint": "Not what he asked for. It might be what he needs.",
+          "cost": {
+            "gold": {
+              "base": 100,
+              "perAct": 50
+            }
+          },
+          "outcomes": [
+            {
+              "id": "tossed",
+              "weight": 100,
+              "text": "The purse lands in the grass. He doesn't pick it up until you are out of sight, which is the polite thing to do.",
+              "effects": [
+                {
+                  "type": "shadow",
+                  "value": -3
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wave",
+          "label": "Wave and keep walking",
+          "hint": "It is not your fight. It was never your fight.",
+          "outcomes": [
+            {
+              "id": "waved",
+              "weight": 100,
+              "text": "You walk on. Behind you he stops running, and then, a long time afterwards, so do the riders.",
+              "effects": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "deserters_revenge",
+      "title": "The Deserters' Revenge",
+      "acts": [
+        "act2",
+        "act3"
+      ],
+      "weight": 3,
+      "requires": {
+        "flag": "reported_deserters",
+        "flagAct": "earlier"
+      },
+      "intro": "The deserters you sold had friends. The friends learned who sold them, and waited at a narrow place in the road with a great deal of patience and rather more rope than the occasion needs.",
+      "choices": [
+        {
+          "id": "fight",
+          "label": "Stand and fight",
+          "hint": "They want you to run. They have arranged the road so that you cannot.",
+          "outcomes": [
+            {
+              "id": "ambush",
+              "weight": 100,
+              "text": "They were counting on your turning your back. You did not.",
+              "effects": [
+                {
+                  "type": "battle",
+                  "enemyLevelBonus": 1,
+                  "victoryText": "They carried everything they owned, for some reason: a deserter's savings in one place. Every coin of it was owed. You take it, since it is yours.",
+                  "afterVictory": [
+                    {
+                      "type": "gold",
+                      "value": {
+                        "base": 250,
+                        "perAct": 150
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "repay",
+          "label": "Repay the bounty",
+          "hint": "Give back what you were paid. It will not make you friends. It might stop them being enemies.",
+          "cost": {
+            "gold": {
+              "base": 200,
+              "perAct": 100
+            }
+          },
+          "outcomes": [
+            {
+              "id": "repaid",
+              "weight": 100,
+              "text": "You lay the coin on a milestone. Nobody takes it until you have gone. The next time you look back the stone is bare.",
+              "effects": [
+                {
+                  "type": "shadow",
+                  "value": -2
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "slip",
+          "label": "Slip away through the hills",
+          "hint": "A long way round, and everyone is tired by the end of it.",
+          "outcomes": [
+            {
+              "id": "slipped",
+              "weight": 100,
+              "text": "The hills add a day and a half. Nobody follows. That is almost worse.",
+              "effects": [
+                {
+                  "type": "hp",
+                  "mode": "damage",
+                  "percent": 15,
+                  "scope": "all"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "collectors",
+      "title": "The Collectors",
+      "acts": [
+        "act2",
+        "act3",
+        "act4"
+      ],
+      "weight": 3,
+      "requires": {
+        "flag": "robbed_lender",
+        "flagAct": "earlier"
+      },
+      "intro": "Four men in good gloves and a clerk with an abacus wait at the ford. 'Account of the cart,' the clerk says pleasantly. 'With interest. We do try to be reasonable.'",
+      "choices": [
+        {
+          "id": "pay",
+          "label": "Pay what is owed",
+          "hint": "More than the cart held. They did say interest.",
+          "cost": {
+            "gold": {
+              "base": 400,
+              "perAct": 200
+            }
+          },
+          "outcomes": [
+            {
+              "id": "paid",
+              "weight": 100,
+              "text": "The clerk counts it twice, ticks something, and closes the book with a sound like a coffin lid. 'A pleasure.'",
+              "effects": []
+            }
+          ]
+        },
+        {
+          "id": "fight",
+          "label": "Fight the collectors",
+          "hint": "They have collected from better armies than yours. You will want everyone.",
+          "outcomes": [
+            {
+              "id": "elite",
+              "weight": 100,
+              "text": "The gloves come off. Under them are hands that have done this before.",
+              "effects": [
+                {
+                  "type": "battle",
+                  "enemyLevelBonus": 1,
+                  "elite": true,
+                  "victoryText": "The abacus is in pieces. The clerk, to his credit, kept counting to the end. His strongbox is yours.",
+                  "afterVictory": [
+                    {
+                      "type": "gold",
+                      "value": {
+                        "base": 300,
+                        "perAct": 150
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "slip",
+          "label": "Slip away",
+          "hint": "They write it all down. They always write it all down.",
+          "outcomes": [
+            {
+              "id": "slipped",
+              "weight": 100,
+              "text": "They let you go, with a bow. The clerk makes a note. The number on it is bigger than the last one.",
+              "effects": [
+                {
+                  "type": "burden",
+                  "id": "debt",
+                  "params": {
+                    "owed": {
+                      "base": 500,
+                      "perAct": 250
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bad_map",
+      "title": "A Bad Map",
+      "acts": [
+        "act2",
+        "act3",
+        "act4"
+      ],
+      "weight": 3,
+      "requires": {
+        "flag": "robbed_cartographer",
+        "flagAct": "earlier"
+      },
+      "intro": "A copy of your road is nailed to a post at the crossroads, drawn in a hand you have seen before, and a very neat one. Several of the crossings on it are wrong. In small letters at the bottom: A GIFT FROM A FRIEND.",
+      "choices": [
+        {
+          "id": "trust",
+          "label": "Trust the map",
+          "hint": "A gift from a friend. It would be rude to disbelieve it.",
+          "outcomes": [
+            {
+              "id": "misled",
+              "weight": 100,
+              "text": "The road bends where the map says it doesn't. By the time you are sure, you are in someone else's fight.",
+              "effects": [
+                {
+                  "type": "routeEdit",
+                  "op": "redraw",
+                  "toType": "battle"
+                }
+              ],
+              "fallbackText": "You follow it a mile, wrong in all the places that do not matter. For once she was careless.",
+              "fallback": []
+            }
+          ]
+        },
+        {
+          "id": "pay",
+          "label": "Pay her for a true one",
+          "hint": "She is somewhere in the crowd. She will have set the price already.",
+          "requires": {
+            "roadAhead": true,
+            "reason": "The crossroads has no road a true map could add."
+          },
+          "cost": {
+            "gold": {
+              "base": 200,
+              "perAct": 100
+            }
+          },
+          "outcomes": [
+            {
+              "id": "true_map",
+              "weight": 100,
+              "text": "A hand comes out of nowhere, takes the coin, and leaves a second map in your palm. It is good. It is almost kind.",
+              "effects": [
+                {
+                  "type": "routeEdit",
+                  "op": "addRoad"
+                }
+              ],
+              "fallbackText": "The hand returns your coin with a note: nothing to add. 'I am not an unfair woman.' You are not sure you believe it.",
+              "fallback": [
+                {
+                  "type": "gold",
+                  "refund": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "tear",
+          "label": "Tear it down and walk",
+          "hint": "A long morning, and a short temper.",
+          "outcomes": [
+            {
+              "id": "torn",
+              "weight": 100,
+              "text": "You tear it down and take the road you know. It rains all afternoon, as if someone had arranged it.",
+              "effects": [
+                {
+                  "type": "hp",
+                  "mode": "damage",
+                  "percent": 10,
+                  "scope": "all"
+                }
+              ]
             }
           ]
         }
@@ -1078,7 +3000,14 @@
               "id": "rested",
               "weight": 100,
               "text": "A long drink and a short sleep.",
-              "effects": [{ "type": "hp", "mode": "heal", "percent": 25, "scope": "all" }]
+              "effects": [
+                {
+                  "type": "hp",
+                  "mode": "heal",
+                  "percent": 25,
+                  "scope": "all"
+                }
+              ]
             }
           ]
         },
@@ -1090,7 +3019,12 @@
               "id": "pressed",
               "weight": 100,
               "text": "You make good time.",
-              "effects": [{ "type": "shadow", "value": -1 }]
+              "effects": [
+                {
+                  "type": "shadow",
+                  "value": -1
+                }
+              ]
             }
           ]
         }

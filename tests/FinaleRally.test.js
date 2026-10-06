@@ -4,6 +4,7 @@ import {
   RALLY_MAX_LINES,
   composeFinaleRally,
   finaleRallySpeakers,
+  heraldHeard,
 } from '../src/engine/FinaleRally.js';
 import { TEMPERAMENT_IDS } from '../src/engine/UnitVoice.js';
 
@@ -55,7 +56,7 @@ describe('finale rally lines (dialogue.json finaleRally)', () => {
       for (const [to, line] of Object.entries(p.reply)) {
         expect(line.includes(to), `${name} replies to ${to} by name`).toBe(true);
       }
-      for (const cat of ['memory', 'wounded', 'fallen']) {
+      for (const cat of ['memory', 'wounded', 'fallen', 'herald']) {
         expect(p[cat].length, `${name}.${cat}`).toBeGreaterThanOrEqual(2);
       }
     }
@@ -235,5 +236,72 @@ describe('composeFinaleRally', () => {
     expect(s.map((x) => x.category)).toEqual(['open']);
     expect(composeFinaleRally({ units: [lord('Edric')], pool: null })).toEqual([]);
     expect(composeFinaleRally({ units: null, pool: POOL })).toEqual([]);
+  });
+});
+
+describe('the Herald of the Hollow Sun in the rally (events.json hollow_herald)', () => {
+  const army = () => [
+    lord('Edric'),
+    lord('Voss'),
+    lord('Rowan'),
+    lord('Cael'),
+    lord('Astrid'),
+    lord('Sera'),
+  ];
+
+  it('one answering lord speaks the Herald line, from their own herald pool', () => {
+    for (let seed = 0; seed < 60; seed++) {
+      const rally = composeFinaleRally({
+        units: army(),
+        pool: POOL,
+        voice: VOICE,
+        commander: 'Edric',
+        seed,
+        herald: true,
+      });
+      const heard = rally.filter((r) => r.category === 'herald');
+      expect(heard, `seed ${seed}`).toHaveLength(1);
+      expect(POOL.lords[heard[0].speaker].herald).toContain(heard[0].line);
+      expect(heard[0].speaker).not.toBe('Edric'); // the commander opens
+      expect(heard[0].speaker).not.toBe('Sera'); // Sera closes
+    }
+  });
+
+  it('is silent without the flag, and never displaces the fallen or the loop', () => {
+    const quiet = composeFinaleRally({
+      units: army(),
+      pool: POOL,
+      voice: VOICE,
+      commander: 'Edric',
+      seed: 3,
+    });
+    expect(quiet.some((r) => r.category === 'herald')).toBe(false);
+    for (let seed = 0; seed < 60; seed++) {
+      const rally = composeFinaleRally({
+        units: army(),
+        pool: POOL,
+        voice: VOICE,
+        commander: 'Edric',
+        seed,
+        herald: true,
+        memory: true,
+        fallen: ['Kira'],
+      });
+      const counts = {};
+      for (const r of rally) counts[r.category] = (counts[r.category] || 0) + 1;
+      expect(counts.fallen).toBe(1);
+      expect(counts.memory).toBe(1);
+      expect(counts.herald).toBe(1);
+    }
+  });
+
+  it('plays only for a run that listened, on Black Sun', () => {
+    const heard = { heard_herald: { value: true, act: 'act2' } };
+    expect(heraldHeard(heard, 'lunatic')).toBe(true);
+    expect(heraldHeard(heard, 'hard')).toBe(false);
+    expect(heraldHeard(heard, 'normal')).toBe(false);
+    expect(heraldHeard({}, 'lunatic')).toBe(false);
+    expect(heraldHeard({ heard_herald: true }, 'lunatic')).toBe(true); // a plain value from an old save
+    expect(heraldHeard(undefined, 'lunatic')).toBe(false);
   });
 });

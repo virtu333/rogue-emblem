@@ -27,6 +27,7 @@ import {
   playEventChoices,
 } from './RunPolicies.js';
 import { arriveAtEvent, completeEventBattle, leaveEvent } from '../../src/engine/EventCommands.js';
+import { isRecruitBattleNode } from '../../src/engine/RecruitNodeSystem.js';
 
 function keyForUnit(unit) {
   return `${unit.name}::${unit.className}`;
@@ -194,8 +195,9 @@ export class RunSimulationDriver {
     battleParams.fallenUnits = Array.isArray(this.runManager.fallenUnits)
       ? structuredClone(this.runManager.fallenUnits)
       : [];
-    if (node.type === NODE_TYPES.RECRUIT) {
-      // The recruit the Loom previews (RecruitNodeSystem needs the run's state).
+    if (isRecruitBattleNode(node)) {
+      // The recruit the Loom previews (RecruitNodeSystem needs the run's state). An event's
+      // green recruit (Old Faces) is the same unit, built without a lord roll.
       const ctx = this.runManager.getRecruitBattleContext(node);
       battleParams.recruitNodeId = ctx.nodeId;
       battleParams.recruitRunSeed = ctx.runSeed;
@@ -203,6 +205,7 @@ export class RunSimulationDriver {
       battleParams.startingLordNames = ctx.startingLordNames;
       battleParams.recruitLevelBonus = ctx.recruitLevelBonus;
       battleParams.deployBonus = ctx.deployBonus;
+      if (node.type !== NODE_TYPES.RECRUIT) battleParams.recruitNoLords = true;
     }
     const deployLimits = DEPLOY_LIMITS[this.runManager.currentAct] || { min: 1, max: 4 };
     const deployBonus = this.runManager.getDeployBonus();

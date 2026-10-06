@@ -101,6 +101,7 @@ import { restorePendingThirdLord } from './PendingThirdLord.js';
 import { UNIT_PRESENTATION_FIELDS } from './BattleUnitState.js';
 import {
   RECRUIT_PREVIEW_VERSION,
+  isRecruitBattleNode,
   buildRecruitNodeUnit,
   ensureRecruitPreviews,
   resolveRecruitNodeSpawnClass,
@@ -2875,7 +2876,7 @@ export class RunManager {
   getPromisedRecruitNames({ excludeNodeId = null } = {}) {
     const promised = new Set();
     for (const node of Array.isArray(this.nodeMap?.nodes) ? this.nodeMap.nodes : []) {
-      if (node?.type !== 'recruit' || node.completed || node.id === excludeNodeId) continue;
+      if (!isRecruitBattleNode(node) || node.completed || node.id === excludeNodeId) continue;
       const names = [
         node.recruitPreview?.name,
         this.battleConfigsByNodeId?.[node.id]?.npcSpawn?.name,
@@ -3342,6 +3343,15 @@ export class RunManager {
   }
 
   /**
+   * The game data a recruit battle's unit is built from. A recruit node may roll a lord (the
+   * 15% roll in RecruitNodeSystem); an event's green recruit (Old Faces' deserter) never does,
+   * so it is built with the lords taken out, exactly as an event `join` is.
+   */
+  _recruitGameData(node) {
+    return node?.type === 'recruit' ? this.gameData : { ...this.gameData, lords: [] };
+  }
+
+  /**
    * The class of the unit a recruit node would spawn right now (the lord roll can
    * replace the preview's class), without building it. Same stream and run state as
    * getRecruitNodeUnit, so the two always agree.
@@ -3349,11 +3359,11 @@ export class RunManager {
    */
   getRecruitNodeSpawnClass(node, options = {}) {
     const preview = options.preview || node?.recruitPreview;
-    if (node?.type !== 'recruit' || !preview) return null;
+    if (!isRecruitBattleNode(node) || !preview) return null;
     return (
       resolveRecruitNodeSpawnClass({
         preview,
-        gameData: this.gameData,
+        gameData: this._recruitGameData(node),
         ...this.getRecruitBattleContext(node),
         roster: Array.isArray(options.roster) ? options.roster : this.roster,
       })?.className || null
@@ -3369,10 +3379,10 @@ export class RunManager {
    */
   getRecruitNodeUnit(node, options = {}) {
     const preview = options.preview || node?.recruitPreview;
-    if (node?.type !== 'recruit' || !preview) return null;
+    if (!isRecruitBattleNode(node) || !preview) return null;
     return buildRecruitNodeUnit({
       preview,
-      gameData: this.gameData,
+      gameData: this._recruitGameData(node),
       ...this.getRecruitBattleContext(node),
       roster: Array.isArray(options.roster) ? options.roster : this.roster,
     });
@@ -3442,7 +3452,7 @@ export class RunManager {
     if (eclipseMods.phaseIndex > 0) battleParams.eclipsePhaseIndex = eclipseMods.phaseIndex;
     if (eclipseMods.affix) battleParams.eclipseAffix = eclipseMods.affix;
     // Recruit nodes are elite-like fights for a known recruit (strategy-layer spec).
-    if (node.type === 'recruit' && battleParams.isRecruitBattle) {
+    if (isRecruitBattleNode(node) && battleParams.isRecruitBattle) {
       const recruitMods = this.getRecruitNodeBattleMods(node);
       if (recruitMods.affixCount > 0) {
         const affix = battleParams.eclipseAffix || {
@@ -3565,7 +3575,7 @@ export class RunManager {
   _reconcileLockedRecruitTile(nodeId, cfg) {
     if (!cfg?.npcSpawn) return false;
     const node = this.nodeMap?.nodes?.find((n) => n.id === nodeId);
-    if (node?.type !== 'recruit') return false;
+    if (!isRecruitBattleNode(node)) return false;
     const preview = { className: cfg.npcSpawn.className, name: cfg.npcSpawn.name };
     const spawnClassName = this.getRecruitNodeSpawnClass(node, { preview });
     if (!spawnClassName) return false;

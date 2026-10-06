@@ -513,10 +513,10 @@ describe('routeEdit', () => {
       ];
     }, 'routeEdit belongs in an outcome');
   });
-  it('a fallback is only for outcomes that teach or edit the route', () => {
+  it('a fallback is only for outcomes that teach, wear a weapon or edit the route', () => {
     plant(
       (e) => (outcomeOf(e, 'leave', 'gone').fallback = [{ type: 'gold', value: 1 }]),
-      'only for outcomes that teach a skill or edit the route',
+      'only for outcomes that teach a skill, wear a weapon or edit the route',
     );
   });
 });
