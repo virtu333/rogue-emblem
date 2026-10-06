@@ -729,7 +729,8 @@ export class NodeMapScene extends Phaser.Scene {
     if (!nodeId) return false;
     const node = rm.nodeMap?.nodes?.find((entry) => entry?.id === nodeId);
     if (!node || node.type !== NODE_TYPES.EVENT) return false;
-    return this.handleEvent(node) === true;
+    // The route map opening it by itself: a settlement the player just closed is not forced back.
+    return this.handleEvent(node, { auto: true }) === true;
   }
 
   /**
@@ -2211,8 +2212,8 @@ export class NodeMapScene extends Phaser.Scene {
     (this._churchController ||= new ChurchController(this)).closeChurchOverlay();
   }
 
-  handleEvent(node) {
-    return (this._eventController ||= new EventController(this)).handleEvent(node);
+  handleEvent(node, options) {
+    return (this._eventController ||= new EventController(this)).handleEvent(node, options);
   }
 
   showEventOverlay(node) {

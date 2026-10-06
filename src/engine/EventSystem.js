@@ -25,7 +25,7 @@ import { DIFFICULTY_IDS, isDifficultyAtLeast, difficultyRank } from './Difficult
 import { isPrologueRun } from './ScriptedBattle.js';
 import { knowsSkill, benchedSkillsOf, ENEMY_ONLY_CLASS_NAMES } from './UnitManager.js';
 import { unitUidOf } from './UnitIdentity.js';
-import { CONSUMABLE_MAX, INVENTORY_MAX, NODE_TYPES } from '../utils/constants.js';
+import { NODE_TYPES } from '../utils/constants.js';
 
 export const EVENT_ACTS = Object.freeze(['act1', 'act2', 'act3', 'act4']);
 export const FALLBACK_EVENT_ID = 'quiet_road';
@@ -442,18 +442,6 @@ export function targetCandidates(run, filter, ctx = {}) {
 
 // ── Item room ───────────────────────────────────────────────────────────
 
-/** True when anything can still be carried: a unit's bags or the convoy. */
-export function armyHasRoomForItem(run) {
-  if ((run?.roster || []).some((unit) => (unit?.inventory?.length || 0) < INVENTORY_MAX))
-    return true;
-  if ((run?.roster || []).some((unit) => (unit?.consumables?.length || 0) < CONSUMABLE_MAX))
-    return true;
-  const caps = run?.getConvoyCapacities?.();
-  const counts = run?.getConvoyCounts?.();
-  if (!caps || !counts) return false;
-  return counts.weapons < caps.weapons || counts.consumables < caps.consumables;
-}
-
 /** True when any outcome (or fallback, or afterVictory) of the choice can grant an item. */
 export function choiceMayGrantItem(choice) {
   const grants = (effects) =>
@@ -608,6 +596,18 @@ export function isEventNode(node) {
   return node?.type === NODE_TYPES.EVENT;
 }
 
+/**
+ * Whether a won event battle's spoils are still owed at this node: the node is complete
+ * (the fight was won) and its event state still says `battle: 'pending'`. Read from the
+ * durable event state alone, never from `pendingEventNodeId`, which is only a hint: owed
+ * spoils survive a failed attempt, a reload and a lost marker. Taking them (or giving them
+ * up) moves the state on to 'won', so nothing is owed twice.
+ */
+export function eventSpoilsOwedAt(run, node) {
+  if (!isEventNode(node) || node.completed !== true) return false;
+  return run?.eventStateByNodeId?.[node.id]?.battle === 'pending';
+}
+
 // ── Saved state: sanitizers ─────────────────────────────────────────────
 
 const isPlain = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -653,6 +653,7 @@ export function sanitizeEventStates(raw) {
       .map(plainJson)
       .filter(Boolean);
     if (entry.left === true) state.left = true;
+    if (entry.spoilsForfeited === true) state.spoilsForfeited = true;
     out[nodeId] = state;
   }
   return out;

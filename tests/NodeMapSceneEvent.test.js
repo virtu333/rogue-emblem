@@ -271,7 +271,8 @@ describe('back from a won event battle', () => {
   it('the route offers "Return to the event" while the spoils or the victory page are owed', () => {
     const { run, node } = wonFight();
     expect(run.canReenterService(node.id)).toBe(true);
-    expect(run.getAvailableNodes().map((n) => n.id)).not.toContain(node.id); // completed: forward only
+    // The spoils are owed: the party is held at the node (forward nodes wait for them).
+    expect(run.getAvailableNodes().map((n) => n.id)).toEqual([node.id]);
   });
 
   it('a refresh on the victory page reopens it until Continue', () => {
@@ -284,6 +285,68 @@ describe('back from a won event battle', () => {
     expect(ctx.run.gold).toBe(ctx.goldBefore + 200);
     again._eventController.continueEvent();
     expect(proto._maybeOpenPendingEventSettlement.call(mapScene(ctx.run))).toBe(false);
+  });
+});
+
+describe('back from a won event battle whose spoils cannot be taken', () => {
+  const fault = (run) =>
+    vi.spyOn(run, 'addGold').mockImplementationOnce(() => {
+      throw new Error('planted fault');
+    });
+
+  function failedFight() {
+    const ctx = setup('abandoned_armory');
+    proto.onNodeClick.call(ctx.scene, ctx.node);
+    const menu = ctx.scene._eventController.nativeMenu;
+    menu.surface.body
+      .all()
+      .find((n) => n.dataset?.choice === 'door')
+      .onclick();
+    menu.child.options.apply(menu.child.options.choices[0]);
+    menu.child.close();
+    ctx.scene._eventController.closeEventOverlay();
+    ctx.run.completeBattle(ctx.run.getRoster(), ctx.node.id, 100, { turnCount: 5, turnPar: 5 });
+    saveRun(ctx.run, null, 1);
+    ctx.scene = mapScene(ctx.run);
+    ctx.goldBefore = ctx.run.gold;
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    fault(ctx.run);
+    return ctx;
+  }
+  const bodyText = (scene) =>
+    scene._eventController.nativeMenu.surface.body.all().map(nodeText).join(' | ');
+
+  it('opens the failed page (not nothing), keeps the spoils owed and is closable at once', () => {
+    const { run, node, scene, goldBefore } = failedFight();
+    expect(proto._maybeOpenPendingEventSettlement.call(scene)).toBe(true);
+    expect(scene.eventOverlay).toBeTruthy();
+    expect(bodyText(scene)).toContain('The spoils could not be taken.');
+    expect(run.gold).toBe(goldBefore);
+    expect(run.pendingEventNodeId).toBe(node.id);
+    expect(eventView(run, node.id).spoilsOwed).toBe(true);
+    // Back to map: the page closes and the map does not throw it back up (no trap)...
+    scene._eventController.nativeMenu.requestClose();
+    expect(scene.eventOverlay).toBeNull();
+    expect(proto._maybeOpenPendingEventSettlement.call(scene)).toBe(false);
+    expect(scene.eventOverlay).toBeFalsy();
+    // ... the node is still where the spoils are: the route offers it, and only it.
+    expect(run.canReenterService(node.id)).toBe(true);
+    expect(run.getAvailableNodes().map((n) => n.id)).toEqual([node.id]);
+    // Clicking it (a plain Travel) tries again, and the fault is gone.
+    proto.onNodeClick.call(scene, node);
+    expect(bodyText(scene)).toContain('Gained 200 G');
+    expect(run.gold).toBe(goldBefore + 200);
+  });
+
+  it('a new scene (a reload) tries again on its own', () => {
+    const { run, scene, goldBefore } = failedFight();
+    proto._maybeOpenPendingEventSettlement.call(scene);
+    scene._eventController.closeEventOverlay();
+    saveRun(run, null, 1);
+    const again = mapScene(run);
+    expect(proto._maybeOpenPendingEventSettlement.call(again)).toBe(true);
+    expect(bodyText(again)).toContain('Gained 200 G');
+    expect(run.gold).toBe(goldBefore + 200);
   });
 });
 

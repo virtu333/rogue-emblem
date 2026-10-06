@@ -9,9 +9,15 @@
 //   outcome, no fight ─ continueEvent ─ leaveEvent ─ save ─ checkActComplete
 //   outcome, a fight  ─ fight ─ handleBattle(node)  … battle … victory …
 //   back on the map   ─ openSettlement ─ completeEventBattle ─ save ─ victory page ─ Continue
+//   spoils fail       ─ openSettlement ─ the "could not be taken" page: Try again (retry),
+//                       Back to map (everything stays owed), Give up the spoils (confirmed)
 //
 // A refresh at any point reopens the right page: the run is saved after arriving, after
-// choosing and after the spoils; eventView() reads the saved state.
+// choosing and after the spoils; eventView() reads the saved state. The spoils are owed for
+// as long as the saved state says so (EventCommands.eventSpoilsOwed), never only while a
+// marker is set: a failed settlement keeps them owed, and only Try again or the confirmed
+// Give up changes that. Back to map after a failure defers the AUTOMATIC reopen for this
+// scene (the route map is usable at once); clicking the node, or a reload, tries again.
 
 import { EventMenu } from './EventMenu.js';
 import { showMinorHint } from './HintDisplay.js';
@@ -19,8 +25,9 @@ import { saveServiceRun } from './serviceSave.js';
 import {
   arriveAtEvent,
   completeEventBattle,
+  eventSpoilsOwed,
   eventView,
-  getPendingEventSettlement,
+  forfeitEventSpoils,
   leaveEvent,
 } from '../engine/EventCommands.js';
 
@@ -36,17 +43,29 @@ export function eventPageOwed(run, nodeId) {
 export class EventController {
   constructor(scene) {
     this.scene = scene;
+    /** The last failed settlement: { nodeId, reason } (not saved: a reload simply retries). */
+    this.failure = null;
+    /** Nodes whose failed spoils the player closed: the route map does not reopen them itself. */
+    this.deferred = new Set();
   }
 
-  /** The node was clicked (or re-entered): arrive, save, open the page its state calls for. */
-  handleEvent(node) {
+  /**
+   * The node was clicked (or re-entered): arrive, save, open the page its state calls for.
+   * `auto`: the route map opening an owed page by itself (scene start, after the loot
+   * screen); a settlement the player has just walked away from is not reopened that way.
+   */
+  handleEvent(node, { auto = false } = {}) {
     const scene = this.scene;
     const rm = scene.runManager;
     if (!node || scene.eventOverlay) return false;
-    // A won fight: its spoils owed (the player left before they were settled), or its
-    // victory page not yet closed with Continue (a refresh on it).
+    // A won fight: its spoils owed (the player left before they were settled, or the last
+    // attempt failed), or its victory page not yet closed with Continue (a refresh on it).
     if (node.completed) {
-      if (getPendingEventSettlement(rm) === node.id) return this.openSettlement(node);
+      if (eventSpoilsOwed(rm, node.id)) {
+        if (auto && this.deferred.has(node.id)) return false;
+        this.deferred.delete(node.id);
+        return this.openSettlement(node);
+      }
       if (eventPageOwed(rm, node.id)) {
         this.showEventOverlay(node);
         return true;
@@ -69,24 +88,55 @@ export class EventController {
 
   /**
    * Back on the route map after a won event battle: apply the spoils once, save, and open
-   * the victory page. Idempotent across a refresh (the engine guards the spoils).
+   * the victory page. Idempotent across a refresh (the engine guards the spoils). When the
+   * spoils cannot be taken the engine has changed nothing: they stay owed, and the page
+   * opens in its failure state (Try again / Back to map / Give up) instead of the victory.
    */
   openSettlement(node) {
     const scene = this.scene;
     const rm = scene.runManager;
     if (!node || scene.eventOverlay) return false;
     const result = completeEventBattle(rm, node.id);
-    if (!result.ok && !result.already) {
-      // The spoils could not be taken: give them up rather than reopen on every load.
-      console.warn('[EventController] spoils not settled:', result.reason);
-      if (rm.pendingEventNodeId === node.id) rm.pendingEventNodeId = null;
+    if (result.ok || result.already) {
+      this.failure = null;
       this.save();
-      scene.drawMap();
-      return false;
+    } else {
+      console.warn('[EventController] spoils not settled:', result.reason);
+      this.failure = { nodeId: node.id, reason: result.reason || '' };
     }
-    this.save();
     this.showEventOverlay(node);
     return true;
+  }
+
+  /** Why the owed spoils could not be taken, for the page ('' when they have not failed). */
+  failureReason(nodeId) {
+    return this.failure?.nodeId === nodeId ? this.failure.reason || 'Something went wrong.' : '';
+  }
+
+  /** Try again: the same settlement. { ok:true } once taken (saved), else { ok:false, reason }. */
+  retrySettlement() {
+    const node = this.scene._eventNode;
+    if (!node || !this.scene.eventOverlay) return { ok: false, reason: 'Nothing to settle.' };
+    const result = completeEventBattle(this.scene.runManager, node.id);
+    if (result.ok || result.already) {
+      this.failure = null;
+      this.save();
+      return { ok: true };
+    }
+    this.failure = { nodeId: node.id, reason: result.reason || '' };
+    return { ok: false, reason: result.reason || 'Something went wrong.' };
+  }
+
+  /** Give up the owed spoils (the page confirmed it first): terminal, saved at once. */
+  forfeitSpoils() {
+    const node = this.scene._eventNode;
+    if (!node || !this.scene.eventOverlay) return { ok: false, reason: 'Nothing to give up.' };
+    const result = forfeitEventSpoils(this.scene.runManager, node.id);
+    if (!result.ok) return result;
+    this.failure = null;
+    this.deferred.delete(node.id);
+    this.save();
+    return result;
   }
 
   showEventOverlay(node) {
@@ -99,7 +149,10 @@ export class EventController {
 
   /** The page's own exits. */
   closeToMap() {
-    // ESC before choosing, or while a fight is owed: the event stays current.
+    // ESC before choosing, or while a fight or its spoils are owed: the event stays current.
+    // Owed spoils stay owed; the route map just does not reopen them on its own again.
+    const node = this.scene._eventNode;
+    if (node && eventSpoilsOwed(this.scene.runManager, node.id)) this.deferred.add(node.id);
     this.closeEventOverlay();
     this.scene.drawMap();
   }
@@ -126,6 +179,9 @@ export class EventController {
     const scene = this.scene;
     const node = scene._eventNode;
     if (!node || !scene.eventOverlay) return false;
+    // The spoils of an event nobody can read cannot be settled: walking on gives them up
+    // (the node would otherwise hold the party for good).
+    if (eventSpoilsOwed(scene.runManager, node.id)) forfeitEventSpoils(scene.runManager, node.id);
     scene.runManager.markNodeComplete(node.id);
     this.closeEventOverlay();
     const warning = saveServiceRun(scene);

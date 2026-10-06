@@ -147,6 +147,7 @@ import {
 } from './Prologue.js';
 import { normalizeRosterLesson } from './PrologueRosterLesson.js';
 import {
+  eventSpoilsOwedAt,
   sanitizeEventLog,
   sanitizeEventStates,
   sanitizeLaidToRest,
@@ -3256,6 +3257,9 @@ export class RunManager {
     if (!current) return [];
     // If current node isn't completed yet, only it is available (re-entry)
     if (!current.completed) return [current];
+    // A won event fight whose spoils are still owed holds the party there too: moving on
+    // would leave them behind for good, and its page offers Try again and Give up.
+    if (eventSpoilsOwedAt(this, current)) return [current];
     // Otherwise, forward edges from the completed node
     return current.edges.map((id) => this.nodeMap.nodes.find((n) => n.id === id)).filter(Boolean);
   }
@@ -3587,7 +3591,7 @@ export class RunManager {
       node.id === this.currentNodeId &&
       node.completed &&
       !this.battleInProgress &&
-      (this.eventStateByNodeId?.[nodeId]?.battle === 'pending' ||
+      (eventSpoilsOwedAt(this, node) ||
         (this.eventStateByNodeId?.[nodeId]?.battle === 'won' &&
           !this.eventStateByNodeId[nodeId].left))
     )

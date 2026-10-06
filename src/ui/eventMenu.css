@@ -232,6 +232,29 @@
   color: var(--re-warn);
   font-weight: 600;
 }
+/* The spoils could not be taken: the reason, in the bad tone, with the way on below it. */
+.ev-menu .ev-failed {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--re-line-soft);
+  border-left: 3px solid var(--re-bad);
+  background: var(--re-panel);
+  overflow-wrap: anywhere;
+}
+.ev-menu .ev-failed-title {
+  font: 600 14px / 1.35 var(--re-body);
+  color: var(--re-bad);
+}
+.ev-menu .ev-failed-why {
+  font: 14px / 1.4 var(--re-body);
+  color: var(--re-text);
+}
+.ev-menu .ev-failed small {
+  font: var(--re-t-small);
+  color: var(--re-muted);
+}
 .ev-results {
   display: flex;
   flex-direction: column;
@@ -311,6 +334,29 @@
 }
 .ev-actions .ev-primary {
   flex: 1 1 140px;
+}
+/* Four ways on: on a wide screen one row, the retry first and widest; on a narrow one the
+   retry takes a row of its own and the rest share the next. */
+.ev-actions--owed .ev-primary {
+  flex: 1 1 150px;
+}
+@media (max-width: 559px) {
+  .ev-actions--owed {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .ev-actions--owed .ev-primary {
+    grid-column: 1 / -1;
+  }
+}
+.ev-actions--owed .ev-back,
+.ev-actions--owed .ev-forfeit,
+.ev-actions--owed .ev-roster {
+  flex: 1 1 auto;
+}
+.ev-actions--owed .ev-forfeit {
+  border-color: var(--re-bad);
+  color: var(--re-bad);
 }
 .ev-tools {
   /* The choosing page ends in the Roster button, clear of the screen's edge (the sticky
