@@ -75,8 +75,7 @@ async function stageAndSave(page) {
       r < s.grid.rows &&
       !s.getUnitAt(c, r) &&
       !(s.npcUnits || []).some((n) => n.col === c && n.row === r);
-    // Whatever the generated map is: beside Edric if a side is free, and the Ice on
-    // the nearest other free tile (a map edge or a neighbour can take any one tile).
+    // The foe on a free side of Edric (a map edge or a neighbour can take any one).
     const tile = [
       [edric.col + 1, edric.row],
       [edric.col, edric.row - 1],
@@ -87,14 +86,23 @@ async function stageAndSave(page) {
     [enemy.col, enemy.row] = tile;
     s.grid.setTerrainAt(enemy.col, enemy.row, 0);
     s.updateUnitPosition(enemy);
-    const near = [];
-    for (let dr = -2; dr <= 2; dr++)
-      for (let dc = -2; dc <= 2; dc++)
-        if ((dc || dr) && free(edric.col + dc, edric.row + dr))
-          near.push([edric.col + dc, edric.row + dr, Math.max(Math.abs(dc), Math.abs(dr))]);
-    near.sort((a, b) => a[2] - b[2]);
-    if (!near.length) throw new Error('no free tile near Edric for the Ice');
-    s.grid.setTemporaryTerrain(near[0][0], near[0][1], 'Ice', 3, edric);
+    // The Ice goes on a free diagonal of Edric's (never on a side he may need to move
+    // through); a map edge or a crowd can take all of them, so any free tile near him will do.
+    const diagonals = [
+      [edric.col - 1, edric.row - 1],
+      [edric.col + 1, edric.row + 1],
+      [edric.col - 1, edric.row + 1],
+      [edric.col + 1, edric.row - 1],
+    ];
+    const nearby = [];
+    for (let radius = 1; radius <= 3; radius++)
+      for (let dr = -radius; dr <= radius; dr++)
+        for (let dc = -radius; dc <= radius; dc++)
+          if (Math.max(Math.abs(dc), Math.abs(dr)) === radius)
+            nearby.push([edric.col + dc, edric.row + dr]);
+    const icy = [...diagonals, ...nearby].find(([c, r]) => free(c, r));
+    if (!icy) throw new Error('no free tile near Edric for the Ice');
+    s.grid.setTemporaryTerrain(icy[0], icy[1], 'Ice', 3, edric);
     s.registry.get('settings').setHints(false);
     if (!s._captureSuspendCheckpoint({ session: s._battleSession }))
       throw new Error('setup save failed');
