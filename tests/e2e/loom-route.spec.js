@@ -42,7 +42,7 @@ test('the loom reflects run state, header and inspect card', async ({ page }) =>
   await expect(route.getByRole('heading', { level: 2 })).toHaveAccessibleName(
     'Act II · Old Kingdom Roads',
   );
-  await expect(route.locator('.re-loom-sub')).toHaveText(/OCCUPIED TERRITORY · ROW 2 OF 9/);
+  await expect(route.locator('.re-loom-sub')).toHaveText(/OCCUPIED TERRITORY · ROW 2 OF 10/);
   // Pane order: Menu/Roster, inspect card, Travel, lord chips.
   const order = await route
     .locator('.re-node-side > *')
