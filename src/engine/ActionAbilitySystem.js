@@ -1,23 +1,51 @@
 // ActionAbilitySystem — pure helpers for utility abilities: "action"-trigger
 // skills carrying structured `actionAbility` data (Blink, Rally Cry, Healing
-// Circle, Ensnare). Limited-use battle actions that appear in the Ability
+// Circle, Ensnare, Smite, Transfuse). Battle actions that appear in the Ability
 // submenu of the unit action menu. No Phaser dependencies.
 //
 // Gating rules:
 // - Silence blocks abilities (they are shouts/spells — same rule as staves
-//   and weapon arts).
+//   and weapon arts), unless the ability says `usableWhileSilenced` (Smite and
+//   Transfuse are bodily acts, like Shove and Pull, which silence never blocked).
 // - Root does NOT block abilities: root prevents movement, not acting.
 // - `perMapLimit` uses are tracked on `unit._battleAbilityUsage`, mirroring
 //   the weapon-art `_battleWeaponArtUsage` counter (survives suspend/resume
 //   and Vision rewinds; scrubbed between battles by RunManager.serializeUnit).
+//   An ability without a `perMapLimit` is usable every turn and counts nothing.
+//
+// Targeted abilities (`push_enemy`, `transfer_hp`) pick an adjacent unit. Their
+// finders take a `ctx` of what the player may know ({ grid, getUnitAt, enemies,
+// allies, affixes }): the caller passes seen foes and a `getUnitAt` that counts a
+// fogged tile as taken (BattleInformation.seenTileOccupant), so a hidden unit can
+// never change what a preview offers. Execution re-runs the same finder.
 import { settleMoves } from './ActionMovement.js';
-import { healUnit } from './UnitHealth.js';
+import { damageUnit, healUnit } from './UnitHealth.js';
 import { allyBuff } from './PostCombatEffects.js';
-import { applyCondition, isSilenced } from './StatusConditionSystem.js';
+import { applyCondition, isRooted, isSilenced, isWounded } from './StatusConditionSystem.js';
 import { gridDistance } from './Combat.js';
+import { getFootprintKeys, isEntity } from './EntitySystem.js';
+import { isDisplacementImmune } from './AffixSystem.js';
+import { traceForcedMove } from './ForcedMovement.js';
 
 /** Ability kinds the engine + BattleScene glue know how to execute. */
-export const ACTION_ABILITY_KINDS = new Set(['teleport_self', 'ally_buff', 'aoe_heal', 'aoe_root']);
+export const ACTION_ABILITY_KINDS = new Set([
+  'teleport_self',
+  'ally_buff',
+  'aoe_heal',
+  'aoe_root',
+  'push_enemy',
+  'transfer_hp',
+]);
+
+/** Kinds that pick one adjacent unit (SELECTING_ABILITY_TILE, on the unit's tile). */
+export const TARGETED_ABILITY_KINDS = new Set(['push_enemy', 'transfer_hp']);
+
+const CARDINALS = Object.freeze([
+  { dc: 0, dr: -1 },
+  { dc: 0, dr: 1 },
+  { dc: -1, dr: 0 },
+  { dc: 1, dr: 0 },
+]);
 
 /**
  * A unit's action-trigger skills that carry structured actionAbility data.
@@ -58,7 +86,8 @@ export function canUseAbility(unit, skill) {
   if (!unit || !skill?.id || !skill.actionAbility || typeof skill.actionAbility !== 'object') {
     return { ok: false, reason: 'invalid_input' };
   }
-  if (isSilenced(unit)) return { ok: false, reason: 'silenced' };
+  if (isSilenced(unit) && skill.actionAbility.usableWhileSilenced !== true)
+    return { ok: false, reason: 'silenced' };
   const limit = Math.max(0, Math.trunc(Number(skill.actionAbility.perMapLimit) || 0));
   if (limit > 0 && getAbilityUsageCount(unit, skill.id) >= limit) {
     return { ok: false, reason: 'per_map_limit' };
@@ -126,7 +155,8 @@ export function collectAffected(unit, ability, units) {
  * - teleport_self: at least one legal destination tile
  * - ally_buff / aoe_root: at least one affected unit
  * - aoe_heal: at least one affected unit missing HP
- * @param {object} ctx { grid, getUnitAt, allies, enemies }
+ * - push_enemy / transfer_hp: at least one legal adjacent target
+ * @param {object} ctx { grid, getUnitAt, allies, enemies, affixes }
  */
 export function abilityHasTargets(unit, skill, ctx = {}) {
   const ability = skill?.actionAbility;
@@ -144,6 +174,10 @@ export function abilityHasTargets(unit, skill, ctx = {}) {
       );
     case 'aoe_root':
       return collectAffected(unit, ability, enemies).length > 0;
+    case 'push_enemy':
+      return findSmiteTargets(unit, ability, ctx).length > 0;
+    case 'transfer_hp':
+      return findTransfuseTargets(unit, ability, ctx).length > 0;
     default:
       return false;
   }
@@ -174,4 +208,168 @@ export function settleEnsnare(unit, ability, pool) {
 
 export function settleRally(step, unit, world) {
   return [...allyBuff(step, unit, world)];
+}
+
+// --- Smite (push_enemy): shove an adjacent foe `distance` tiles straight away ---
+
+const liveUnit = (unit) => Boolean(unit) && unit.currentHP > 0 && !unit._removing;
+
+/** The live unit of `units` whose footprint covers the tile (an Entity covers nine). */
+function unitCovering(units, col, row) {
+  const key = `${col},${row}`;
+  return (
+    (units || []).find((unit) => {
+      if (!liveUnit(unit)) return false;
+      return isEntity(unit)
+        ? getFootprintKeys(unit).includes(key)
+        : unit.col === col && unit.row === row;
+    }) || null
+  );
+}
+
+/**
+ * Why a foe cannot be smitten, or null when it can. Bosses and the Entity never
+ * move; Anchored (the affix that keeps its holder put) and root pin a unit against
+ * every push, exactly as WeaponArtPostCombat.resolvePostCombatMove pins them.
+ * @returns {'boss'|'entity'|'anchored'|'rooted'|null}
+ */
+export function smiteBlockReason(foe, affixData) {
+  if (isEntity(foe)) return 'entity';
+  if (foe.isBoss) return 'boss';
+  if (isDisplacementImmune(foe, affixData)) return 'anchored';
+  if (isRooted(foe)) return 'rooted';
+  return null;
+}
+
+/**
+ * Where a push of `target` lands: up to `distance` tiles along (dc, dr), stopping
+ * before the edge, impassable ground (for the target's own move type) or a unit, and
+ * then the slide of any Ice the push put it on (ForcedMovement.traceForcedMove: the
+ * forced-slide rule shared with Shove and the weapon-art pushes).
+ * `getUnitAt` picks the push's tiles (a fogged tile counts as taken); `slideUnitAt`
+ * the units that stop a slide (default: the same probe).
+ * @returns {{ col: number, row: number, steps: number, path: object[], slid: boolean,
+ *   blocker: any }|null} null when the first tile is blocked
+ */
+export function traceSmite(target, dc, dr, distance, grid, getUnitAt, slideUnitAt = getUnitAt) {
+  const trace = traceForcedMove(target, dc, dr, distance, grid, getUnitAt, slideUnitAt);
+  return trace.steps > 0 ? trace : null;
+}
+
+/**
+ * Foes `unit` can smite: one per side, adjacent, not pinned, with a free first tile.
+ * A free first tile and nothing beyond it moves the foe one tile, not two.
+ * Ice: a foe the push puts on Ice slides on (the forced-slide rule,
+ * IceMovement.traceForcedSlide), so `destCol`/`destRow` is where it ends as the player
+ * knows the board: `ctx.slideUnitAt` reads known units only, so a unit the fog hides
+ * never shortens the slide shown (execution traces the real board, settleSmite).
+ * Lava and acid are not special: the ground works on the foe at the end of its phase,
+ * as after any move.
+ * @returns {Array<{ unit: object, destCol: number, destRow: number, dc: number, dr: number,
+ *   steps: number, distance: number, slid: boolean, path: object[] }>}
+ */
+export function findSmiteTargets(unit, ability, ctx = {}) {
+  const { grid, getUnitAt, slideUnitAt, enemies, affixes } = ctx;
+  if (!unit || !grid || !Array.isArray(enemies)) return [];
+  const distance = Math.max(1, Math.trunc(Number(ability?.distance) || 1));
+  const targets = [];
+  for (const { dc, dr } of CARDINALS) {
+    const foe = unitCovering(enemies, unit.col + dc, unit.row + dr);
+    if (!foe || foe === unit || smiteBlockReason(foe, affixes)) continue;
+    const landing = traceSmite(foe, dc, dr, distance, grid, getUnitAt, slideUnitAt);
+    if (!landing) continue;
+    targets.push({
+      unit: foe,
+      destCol: landing.col,
+      destRow: landing.row,
+      dc,
+      dr,
+      steps: landing.steps,
+      distance,
+      slid: landing.slid,
+      path: landing.path,
+    });
+  }
+  return targets;
+}
+
+/**
+ * The push, settled: the foe's coordinates change and, if it was holding position,
+ * the move wakes its pack (ActionMovement.settleMoves marks it disturbed). No HP, no RNG.
+ * With `world` ({ grid, getUnitAt, slideUnitAt }: the probes over the real board) the
+ * slide is traced where it really goes; without, the offered landing stands.
+ */
+export function settleSmite(target, world = null) {
+  const end = world
+    ? traceForcedMove(
+        target.unit,
+        target.dc,
+        target.dr,
+        target.distance,
+        world.grid,
+        world.getUnitAt,
+        world.slideUnitAt,
+      )
+    : {
+        col: target.destCol,
+        row: target.destRow,
+        steps: target.steps,
+        slid: target.slid,
+        path: target.path,
+      };
+  const move = { unit: target.unit, to: { col: end.col, row: end.row } };
+  if (end.slid) move.path = end.path;
+  return { moves: settleMoves([move]), steps: end.steps, slid: Boolean(end.slid) };
+}
+
+// --- Transfuse (transfer_hp): give HP to an adjacent ally ---
+
+/**
+ * HP the giver can hand over: the ability's cap, what the giver can spare (never
+ * its last HP) and what the ally is missing. 0 means nothing to give.
+ */
+export function transfuseAmount(giver, ally, ability) {
+  const cap = Math.max(1, Math.trunc(Number(ability?.amount) || 1));
+  const spare = (Number(giver?.currentHP) || 0) - 1;
+  const missing = (Number(ally?.stats?.HP) || 0) - (Number(ally?.currentHP) || 0);
+  return Math.max(0, Math.min(cap, spare, missing));
+}
+
+/**
+ * Allies `unit` can transfuse: adjacent, alive, missing HP and able to recover it
+ * (a Wounded ally recovers nothing except from a staff, so giving would only burn HP).
+ * @returns {Array<{ unit: object, amount: number, dc: number, dr: number }>}
+ */
+export function findTransfuseTargets(unit, ability, ctx = {}) {
+  const { allies } = ctx;
+  if (!liveUnit(unit) || !Array.isArray(allies)) return [];
+  const targets = [];
+  for (const { dc, dr } of CARDINALS) {
+    const ally = unitCovering(allies, unit.col + dc, unit.row + dr);
+    if (!ally || ally === unit || isWounded(ally)) continue;
+    const amount = transfuseAmount(unit, ally, ability);
+    if (amount > 0) targets.push({ unit: ally, amount, dc, dr });
+  }
+  return targets;
+}
+
+/**
+ * The transfer, settled through UnitHealth so HP accessory debt holds: the ally is
+ * healed first and the giver pays exactly what the ally received, never below 1 HP.
+ */
+export function settleTransfuse(giver, target, ability) {
+  const giverBefore = giver.currentHP;
+  const allyBefore = target.unit.currentHP;
+  const given = healUnit(target.unit, transfuseAmount(giver, target.unit, ability));
+  const paid = given > 0 ? damageUnit(giver, given, { floor: 1, disturbs: false }) : 0;
+  return {
+    giver,
+    ally: target.unit,
+    given,
+    paid,
+    giverBefore,
+    giverAfter: giver.currentHP,
+    allyBefore,
+    allyAfter: target.unit.currentHP,
+  };
 }

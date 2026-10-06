@@ -5,8 +5,10 @@
 // It is a generator. Every state change happens here, in order; between changes it
 // yields "beats" for the caller to act on:
 //   { kind: 'remove', unit, killer }  REQUIRED — the unit fell; remove it now
-//   { kind: 'moved', units }          REQUIRED — units changed tile; refresh what
-//                                     depends on positions (fog, danger)
+//   { kind: 'moved', units, slides? } REQUIRED — units changed tile; refresh what
+//                                     depends on positions (fog, danger). `slides`
+//                                     ({ unit, from, to, path }) lists a push that slid on
+//                                     Ice, for the scene to draw; the tiles are settled
 //   { kind: 'hp', unit }              presentation — HP changed
 //   { kind: 'poison', unit, amount }  presentation — a damage-over-time number
 //   { kind: 'status', unit, status }  presentation — a status condition landed
@@ -250,6 +252,7 @@ function* postCombatMove(sourceUnit, targetUnit, step, world, result) {
     rows: world.rows,
     getMoveCost: world.getMoveCost,
     getUnitAt: world.getUnitAt,
+    getTerrainAt: world.getTerrainAt,
     isImmovable: (unit) => isDisplacementImmune(unit, world.affixes),
   });
   if (!moveResult.ok) {
@@ -259,14 +262,23 @@ function* postCombatMove(sourceUnit, targetUnit, step, world, result) {
     return;
   }
   const units = [];
+  const slides = [];
   for (const assignment of moveResult.assignments) {
     const moved = assignment.unit.col !== assignment.col || assignment.unit.row !== assignment.row;
+    // A pushed unit that slid on Ice: the tiles it crossed, for the scene to draw.
+    if (moved && assignment.slid)
+      slides.push({
+        unit: assignment.unit,
+        from: { col: assignment.unit.col, row: assignment.unit.row },
+        to: { col: assignment.col, row: assignment.row },
+        path: assignment.path,
+      });
     assignment.unit.col = assignment.col;
     assignment.unit.row = assignment.row;
     if (moved) markHoldDisturbed(assignment.unit, 'moved');
     units.push(assignment.unit);
   }
-  if (units.length > 0) yield { kind: 'moved', units };
+  if (units.length > 0) yield { kind: 'moved', units, ...(slides.length > 0 ? { slides } : {}) };
   if (moveResult.collision) yield* collide(step, sourceUnit, targetUnit, moveResult, world, result);
 }
 

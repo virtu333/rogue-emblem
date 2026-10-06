@@ -137,6 +137,27 @@ for (const action of ['Shove', 'Pull']) {
     expect(errors).toEqual([]);
   });
 }
+test('Shove onto ice slides the ally on, through real targeting', async ({ page }) => {
+  const { hud, errors } = await boot(page);
+  // Patient is shoved west from (2,4) onto (1,4): make that tile ice. A unit put on ice
+  // slides on in the push direction, so Patient ends on (0,4), the first tile off it.
+  const lane = await page.evaluate(() => {
+    const b = window.__emblemRogueGame.scene.getScene('Battle');
+    b.grid.setTemporaryTerrain(1, 4, 'Ice', 3);
+    return {
+      entry: b.grid.getTerrainAt(1, 4).name,
+      landing: b.grid.getTerrainAt(0, 4)?.name,
+      held: Boolean(b.getUnitAt(0, 4)),
+    };
+  });
+  expect(lane).toEqual({ entry: 'Ice', landing: 'Plain', held: false });
+  await select(page, 'Support');
+  await hud.getByRole('button', { name: 'Shove', exact: true }).tap();
+  await tapTile(page, 2, 4);
+  await expect.poll(async () => (await unit(page, 'Support')).acted).toBe(true);
+  expect(await unit(page, 'Patient')).toMatchObject({ col: 0, row: 4 });
+  expect(errors).toEqual([]);
+});
 test('Heal restores HP and re-equips combat weapon', async ({ page }) => {
   const { hud, errors } = await boot(page);
   await select(page, 'Sera');

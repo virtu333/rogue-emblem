@@ -101,6 +101,12 @@ describe('summarizing a player activation', () => {
     [[beat('rallied', 'u2', 'u4'), beat('rallied', 'u2', 'u1')], 'Before Sera’s rally', []],
     [[beat('rooted', 'u2', 'u5')], 'Before Sera’s ensnare on Bandit', []],
     [[beat('shoved', 'u2', 'u4')], 'Before Sera’s shove on Patient', []],
+    [[beat('smote', 'u2', 'u5')], 'Before Sera’s smite on Bandit', []],
+    [
+      [beat('transfused', 'u2', 'u4', { detail: '7 HP', outcome: { amount: 7 } })],
+      'Before Sera’s transfuse on Patient',
+      ['+7 HP'],
+    ],
     [[beat('pulled', 'u2', 'u4')], 'Before Sera’s pull on Patient', []],
     [[beat('swapped with', 'u2', 'u4')], 'Before Sera’s swap with Patient', []],
     [[beat('escaped', 'u2')], 'Before Sera’s escape', []],

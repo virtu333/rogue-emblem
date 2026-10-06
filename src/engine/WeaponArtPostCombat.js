@@ -10,6 +10,7 @@ import {
 import { mergeCombatMods } from './Combat.js';
 import { isRooted } from './StatusConditionSystem.js';
 import { isEntity } from './EntitySystem.js';
+import { traceForcedMove } from './ForcedMovement.js';
 
 const SIDE_ORDER = ['attacker', 'defender'];
 const TIER2_EFFECT_ORDER = [
@@ -407,6 +408,7 @@ export function resolvePostCombatMove({
   rows = 0,
   getMoveCost = null,
   getUnitAt = null,
+  getTerrainAt = null,
   isImmovable = null,
 } = {}) {
   if (!sourceUnit || typeof getMoveCost !== 'function' || typeof getUnitAt !== 'function') {
@@ -528,55 +530,49 @@ export function resolvePostCombatMove({
     };
   }
 
+  // The target of a push or a ram is displaced by the art's user, so it slides if it
+  // lands on Ice (ForcedMovement.traceForcedMove: the one forced-slide rule). The user's
+  // own moves (advance, retreat, through, swap) are not forced and never slide.
+  const forcedMove = () => {
+    const grid = { cols, rows, getMoveCost, getTerrainAt: getTerrainAt || undefined };
+    // A defeated unit still on the grid does not block (post-combat moves resolve first).
+    const occupantAt = (col, row) => {
+      const occupant = getUnitAt(col, row);
+      if (!occupant || occupant === targetUnit) return null;
+      return occupant.currentHP <= 0 ? null : occupant;
+    };
+    return traceForcedMove(targetUnit, direction.dc, direction.dr, stepDistance, grid, occupantAt);
+  };
+  const forcedAssignment = (move) => ({
+    unit: targetUnit,
+    col: move.col,
+    row: move.row,
+    ...(move.slid ? { slid: true, path: move.path } : {}),
+  });
+
   if (normalizedMode === 'ram') {
-    // The Entity's footprint never moves. Otherwise the target slides up to `distance`
-    // tiles and stops before the edge, impassable ground or a living unit; stopping
-    // short is a collision (with that unit, or with nothing for a wall).
+    // The Entity's footprint never moves. Otherwise the target is driven up to
+    // `distance` tiles, then slides on if that put it on Ice; the push stops before the
+    // edge, impassable ground or a living unit, and stopping short of the distance is a
+    // collision (with that unit, or with nothing for a wall). A slide held after the
+    // push's distance was spent is no collision: only the push was stopped.
     if (isEntity(targetUnit)) return { ok: false, reason: 'immovable' };
-    let col = targetUnit.col;
-    let row = targetUnit.row;
-    let collision = null;
-    for (let i = 0; i < stepDistance; i++) {
-      const nextCol = col + direction.dc;
-      const nextRow = row + direction.dr;
-      if (
-        !isInBounds(nextCol, nextRow, cols, rows) ||
-        !Number.isFinite(getMoveCost(nextCol, nextRow, targetUnit.moveType))
-      ) {
-        collision = { obstacle: null };
-        break;
-      }
-      const occupant = getUnitAt(nextCol, nextRow);
-      if (occupant && occupant !== targetUnit && !(occupant.currentHP <= 0)) {
-        collision = { obstacle: occupant };
-        break;
-      }
-      col = nextCol;
-      row = nextRow;
-    }
-    const moved = col !== targetUnit.col || row !== targetUnit.row;
+    const move = forcedMove();
+    const collision = move.stoppedShort
+      ? { obstacle: move.stop === 'unit' && typeof move.blocker === 'object' ? move.blocker : null }
+      : null;
     return {
       ok: true,
-      assignments: moved ? [{ unit: targetUnit, col, row }] : [],
+      assignments: move.steps > 0 ? [forcedAssignment(move)] : [],
       collision,
     };
   }
 
   if (normalizedMode === 'push') {
-    const dest = traceLinearDestination({
-      unit: targetUnit,
-      startCol: targetUnit.col,
-      startRow: targetUnit.row,
-      dc: direction.dc,
-      dr: direction.dr,
-      distance: stepDistance,
-      cols,
-      rows,
-      getMoveCost,
-      getUnitAt,
-    });
-    if (!dest) return { ok: false, reason: 'blocked' };
-    return { ok: true, assignments: [{ unit: targetUnit, col: dest.col, row: dest.row }] };
+    // All or nothing: every tile of the push must be enterable, or the target stays.
+    const move = forcedMove();
+    if (move.steps <= 0 || move.stoppedShort) return { ok: false, reason: 'blocked' };
+    return { ok: true, assignments: [forcedAssignment(move)] };
   }
 
   const dest = traceLinearDestination({
