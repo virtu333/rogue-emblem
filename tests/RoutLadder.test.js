@@ -563,10 +563,10 @@ describe('ladder arrivals in a battle (headless harness, as the scene)', () => {
     expect(battle.enemyUnits).toEqual([]);
   });
 
-  // The victory rule is unchanged: a field cleared during an enemy phase waits for that
-  // phase's reinforcements, so a wave due the same turn still arrives and the battle goes
-  // on. A clear in a phase with no wave due wins at the end of that phase.
-  it('a field cleared in the enemy phase still meets a wave due that turn', async () => {
+  // A field cleared during an enemy phase (the last enemy falls on a counter) cancels the
+  // wave due at that phase's end: the battle is won at the end of the phase, wave due or
+  // not, and no reinforcement ever stands on the cleared field.
+  it('a field cleared in the enemy phase wins at its end, even with a wave due that turn', async () => {
     const clearInEnemyPhase = async (turn) => {
       const battle = harness({ act: 'act2', ...pacing('dusk') }, 6);
       const killer = battle.playerUnits[0];
@@ -581,14 +581,43 @@ describe('ladder arrivals in a battle (headless harness, as the scene)', () => {
       await battle._processEnemyPhase();
       return battle;
     };
-    const due = await clearInEnemyPhase(4); // Dusk Act II: a wave at the end of T4
-    expect(due.result).toBeNull();
-    expect(due.enemyUnits.length).toBeGreaterThan(0);
-    expect(due.enemyUnits.every((u) => u._isReinforcement)).toBe(true);
-    expect(due.turnManager.turnNumber).toBe(5);
+    // Dusk Act II has a wave at the end of T4 (the same battle left standing gets it).
+    const standing = harness({ act: 'act2', ...pacing('dusk') }, 6);
+    expect(standing._applyReinforcementsForTurn(4).spawned).toBeGreaterThan(0);
+    const due = await clearInEnemyPhase(4);
+    expect(due.result).toBe('victory');
+    expect(due.enemyUnits).toEqual([]);
+    expect(due.lastReinforcementSchedule).toMatchObject({ cancelledByClear: true, spawned: 0 });
     const quiet = await clearInEnemyPhase(5); // no wave due at the end of T5
     expect(quiet.result).toBe('victory');
     expect(quiet.enemyUnits).toEqual([]);
+  });
+
+  it('the scene cancels a wave on a cleared rout field, and only on a cleared rout', () => {
+    const scene = new BattleScene();
+    const resolve = vi.fn(() => ({ turn: 4, spawns: [] }));
+    Object.assign(scene, {
+      battleConfig: { objective: 'rout', reinforcements: { ladder: { waves: [] } } },
+      enemyUnits: [],
+      _zombieTombstones: [],
+      resolveReinforcementsForTurn: resolve,
+    });
+    expect(scene.applyReinforcementsForTurn(4)).toMatchObject({
+      cancelledByClear: true,
+      spawned: 0,
+    });
+    expect(resolve).not.toHaveBeenCalled();
+    // Remains still rising: the field is not clear, the wave is resolved.
+    scene._zombieTombstones = [{ col: 1, row: 1 }];
+    scene.applyReinforcementsForTurn(4);
+    expect(resolve).toHaveBeenCalledTimes(1);
+    // An empty field on a seize or escape map keeps its waves (escape pursuit is the clock).
+    scene._zombieTombstones = [];
+    for (const objective of ['seize', 'escape']) {
+      scene.battleConfig = { objective, reinforcements: { ladder: { waves: [] } } };
+      scene.applyReinforcementsForTurn(4);
+    }
+    expect(resolve).toHaveBeenCalledTimes(3);
   });
 
   it('the scene holds a rout victory the same way while the phase still owes its wave', () => {

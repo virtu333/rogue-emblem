@@ -1,5 +1,9 @@
 import { buildPrologueNpcUnit, battleRequiredRecruits } from '../../src/engine/Prologue.js';
-import { isRoutComplete, pendingRequiredRecruits } from '../../src/engine/RoutObjective.js';
+import {
+  isRoutComplete,
+  isRoutFieldClear,
+  pendingRequiredRecruits,
+} from '../../src/engine/RoutObjective.js';
 import { settleRecruitJoin } from '../../src/engine/BattleRecruits.js';
 import { settleStaffHeal } from '../../src/engine/StaffSettlement.js';
 // HeadlessBattle — Synchronous battle state machine for headless testing.
@@ -962,6 +966,18 @@ export class HeadlessBattle {
   }
 
   _applyReinforcementsForTurn(turn) {
+    // As BattleScene: a rout whose field is already clear takes no more waves.
+    if (
+      isRoutFieldClear({
+        objective: this.battleConfig?.objective,
+        enemyUnits: this.enemyUnits || [],
+        zombieTombstones: this._zombieTombstones || [],
+      })
+    ) {
+      const cleared = { turn, spawns: [], spawned: 0, cancelledByClear: true };
+      this.lastReinforcementSchedule = cleared;
+      return cleared;
+    }
     const schedule = this._resolveReinforcementsForTurn(turn);
     this.lastReinforcementSchedule = schedule;
     if (!Array.isArray(schedule.spawns) || schedule.spawns.length === 0)

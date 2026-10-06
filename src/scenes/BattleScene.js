@@ -32,6 +32,7 @@ import { presentTeleporterWarp } from '../ui/WarpPresentation.js';
 import { hasBattleDefeat } from '../engine/BattleDefeat.js';
 import {
   isRoutComplete,
+  isRoutFieldClear,
   pendingRequiredRecruits,
   routObjectiveLabel,
 } from '../engine/RoutObjective.js';
@@ -2626,6 +2627,13 @@ export class BattleScene extends Phaser.Scene {
   }
 
   applyReinforcementsForTurn(turn) {
+    // A rout whose field is already clear (the last enemy fell in this enemy phase)
+    // takes no more waves: the battle ends at this phase's end (RoutObjective).
+    if (this.isRoutFieldClear()) {
+      const cleared = { turn, spawns: [], spawned: 0, cancelledByClear: true };
+      this.lastReinforcementSchedule = cleared;
+      return cleared;
+    }
     const schedule = this.resolveReinforcementsForTurn(turn);
     this.lastReinforcementSchedule = schedule;
     // The ladder's objective line counts this turn's wave as resolved for the rest of
@@ -10811,8 +10819,9 @@ export class BattleScene extends Phaser.Scene {
       this.onDefeat();
       return true;
     }
-    // Rout: all enemies dead (and every required recruit in the army) = victory
-    // Defer during enemy phase until reinforcements have been applied
+    // Rout: all enemies dead (and every required recruit in the army) = victory.
+    // In the enemy phase it waits for the phase's end, where a clear field cancels the
+    // turn's wave (applyReinforcementsForTurn), so victory then follows.
     if (this.battleConfig.objective === 'rout' && isRoutComplete(this.routObjectiveState())) {
       if (this._reinforcementsPendingThisTurn) return false;
       this.onVictory();
@@ -10848,6 +10857,15 @@ export class BattleScene extends Phaser.Scene {
       playerUnits: this.playerUnits || [],
       escapedUnits: this.escapedUnits || [],
     };
+  }
+
+  /** A rout with no enemy standing or rising: no more waves come (RoutObjective). */
+  isRoutFieldClear() {
+    return isRoutFieldClear({
+      objective: this.battleConfig?.objective,
+      enemyUnits: this.enemyUnits || [],
+      zombieTombstones: this._zombieTombstones || [],
+    });
   }
 
   /** The required recruits still outside the army (RoutObjective), by name. */

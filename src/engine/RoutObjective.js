@@ -5,7 +5,8 @@
 //
 // A rout is complete when no enemy stands and none is rising from remains
 // (ZombieRemains); the caller still defers victory while the turn's reinforcements
-// are pending. A battle may also require recruits (`requiredRecruits`: the names of
+// are pending (to the end of the enemy phase), and a clear field cancels the waves
+// still to come (isRoutFieldClear). A battle may also require recruits (`requiredRecruits`: the names of
 // green units that must have joined the army by Talk before the rout counts). The
 // prologue's P3 requires Sera (docs/specs/prologue-chapter.md §6 P3): if the last
 // Soldier falls before Edric reaches her, the battle stays playable and the objective
@@ -41,6 +42,20 @@ export function isRoutComplete({
   if ((enemyUnits || []).length > 0) return false;
   if ((zombieTombstones || []).length > 0) return false;
   return pendingRequiredRecruits(requiredRecruits, playerUnits, escapedUnits).length === 0;
+}
+
+/**
+ * True when a rout's field is clear: no enemy standing and none rising from remains.
+ * A clear field cancels every wave still to come (BattleScene.applyReinforcementsForTurn
+ * and the harness read this), so a field cleared in the enemy phase ends the battle at
+ * that phase's end instead of meeting a wave due the same turn. Required recruits play no
+ * part: a clear field with a recruit still to join (the prologue's P3) stays clear.
+ * @param {{ objective?: string, enemyUnits?: object[], zombieTombstones?: object[] }} state
+ */
+export function isRoutFieldClear({ objective, enemyUnits = [], zombieTombstones = [] } = {}) {
+  return (
+    objective === 'rout' && (enemyUnits || []).length === 0 && (zombieTombstones || []).length === 0
+  );
 }
 
 function joinNames(names) {

@@ -167,12 +167,14 @@ multiplier (0 past the list), and gold uses the same value. A template opts out 
   board is drawn: an upright portrait board is turned a quarter. A front wave names one
   edge. The compact mobile header shows "Waves 1/4 · next T6". Fogged arrivals stay
   unmarked; the band still counts them.
-- **Field clear.** The rule is unchanged, and a clear wins at once in the player phase;
-  the waves still pending never come. A field cleared during the enemy phase (an enemy
-  falls to a counter) waits for that phase's reinforcements: a wave due at the end of
-  that turn still arrives and the battle goes on, while a phase with no wave due ends in
-  victory (`checkBattleEnd`'s `_reinforcementsPendingThisTurn` deferral, pinned in
-  `tests/RoutLadder.test.js` for the scene and the harness).
+- **Field clear.** A clear wins at once in the player phase; the waves still pending
+  never come. A field cleared during the enemy phase (an enemy falls to a counter) wins
+  at that phase's end, and a wave due at the end of that turn is cancelled: a rout field
+  with no enemy standing or rising takes no more waves (`RoutObjective.isRoutFieldClear`,
+  read by `BattleScene.applyReinforcementsForTurn` and the harness). Victory still waits
+  for the phase's end (`checkBattleEnd`'s `_reinforcementsPendingThisTurn` deferral).
+  Pinned in `tests/RoutLadder.test.js` for the scene and the harness. (Until 2026-10-06
+  a wave due that turn still arrived on the cleared field and the battle went on.)
 - **Finite.** A rout map must stay winnable by a weak army, and an open stream capped by
   live units creates a stall equilibrium. The Eclipse and late pressure already price the
   time.
@@ -453,7 +455,7 @@ Given an eligible caster, the share matches the rung's chance (Nightfall Act IV 
   - One edge per wave.
   - Village maps stack.
   - First Light configs are unchanged.
-  - A field clear at T5 cancels the T6 wave.
+  - A field clear at T5 cancels the T6 wave; a clear in T5's enemy phase cancels a T5 wave.
   - A resume replays the same ladder.
 - `HoldActivation`:
   - Asleep outside the Danger tiles; one tile inside wakes the whole pack.
