@@ -332,6 +332,7 @@ const STATIC_HELP_TABS = [
         lines: [
           { text: 'Shove:', color: GOLD },
           { text: '  Push an adjacent ally 1 tile away.' },
+          { text: '  Onto Ice, the ally slides on.' },
           { text: '  Learned from Scroll or recruit pool.' },
           { text: '' },
           { text: 'Pull:', color: GOLD },
@@ -357,6 +358,7 @@ const STATIC_HELP_TABS = [
           { text: 'Smite:', color: GOLD },
           { text: '  Push an adjacent enemy 2 tiles away.' },
           { text: '  One blocked tile: it moves just 1.' },
+          { text: '  Onto Ice, the foe slides on.' },
           { text: '  Bosses, the Entity, Anchored and' },
           { text: '  rooted foes cannot be pushed.' },
           { text: '' },

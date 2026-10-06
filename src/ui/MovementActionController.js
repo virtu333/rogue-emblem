@@ -1,6 +1,8 @@
 import { battleSession, isCurrentBattleSession } from './BattleSession.js';
 import { settleAndPresent } from './BattleActionSettlement.js';
 import { settleMoves } from '../engine/ActionMovement.js';
+import { settleShove } from '../engine/ForcedMovement.js';
+import { forcedMoveProbes } from './forcedMoveProbes.js';
 import { settleRecruitJoin, validateRecruitJoin } from '../engine/BattleRecruits.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { deedsFor } from './DeedController.js';
@@ -8,7 +10,7 @@ import { presentSettledMoves } from './ActionMovementPresentation.js';
 import { safeBattlePresentation } from './safeBattlePresentation.js';
 import { CombatFxController } from './CombatFxController.js';
 import { XP_BASE_DANCE } from '../utils/constants.js';
-import { UI_HEX } from '../utils/uiStyles.js';
+import { UI_HEX, UI_PALETTE } from '../utils/uiStyles.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { growthCeremonies } from './GrowthCeremonyController.js';
 
@@ -50,22 +52,34 @@ export class MovementActionController {
           unit,
           target.ally,
         );
-        const moves =
-          kind === 'shove'
-            ? [{ unit: target.ally, to: { col: target.destCol, row: target.destRow } }]
-            : [
-                {
-                  unit,
-                  to:
-                    kind === 'pull'
-                      ? { col: target.retreatCol, row: target.retreatRow }
-                      : { col: target.ally.col, row: target.ally.row },
-                },
-                { unit: target.ally, to: { col: unit.col, row: unit.row } },
-              ];
-        return { moves: settleMoves(moves), allyWasActed };
+        // Shove is a forced move: the ally slides on if it lands on Ice, over the real
+        // board (ForcedMovement.js); a unit the fog hid can stop the slide, as it stops a walk.
+        let moves;
+        let ambusher = null;
+        if (kind === 'shove') {
+          const shove = settleShove(target, forcedMoveProbes(scene).world);
+          moves = shove.moves;
+          const blocker = shove.blocker;
+          if (blocker && typeof blocker === 'object' && scene._isHiddenUnit(blocker)) {
+            ambusher = blocker;
+            if (blocker.faction === 'enemy')
+              observeHistoryAction(scene, 'was ambushed by', target.ally, blocker);
+          }
+        } else {
+          moves = settleMoves([
+            {
+              unit,
+              to:
+                kind === 'pull'
+                  ? { col: target.retreatCol, row: target.retreatRow }
+                  : { col: target.ally.col, row: target.ally.row },
+            },
+            { unit: target.ally, to: { col: unit.col, row: unit.row } },
+          ]);
+        }
+        return { moves, allyWasActed, ambusher };
       },
-      present: async ({ moves, allyWasActed }) => {
+      present: async ({ moves, allyWasActed, ambusher }) => {
         safeBattlePresentation(`${kind} menu`, () => scene.hideActionMenu(), { scene });
         await presentSettledMoves(scene, moves, {
           session,
@@ -73,6 +87,21 @@ export class MovementActionController {
           duration: kind === 'swap' ? 120 : 80,
         });
         if (!isCurrentBattleSession(scene, session)) return;
+        if (ambusher)
+          safeBattlePresentation(
+            'shove ambush',
+            () => {
+              const hostile = ambusher.faction === 'enemy';
+              const pos = scene.grid.gridToPixel(ambusher.col, ambusher.row);
+              scene.showMinorHintAt?.(
+                pos.x,
+                pos.y,
+                hostile ? 'Ambush!' : 'Blocked',
+                hostile ? UI_PALETTE.bad : UI_PALETTE.text,
+              );
+            },
+            { scene },
+          );
         safeBattlePresentation(
           `${kind} movement state`,
           () =>
