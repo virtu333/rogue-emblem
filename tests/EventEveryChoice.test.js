@@ -241,6 +241,17 @@ describe('the same on every rung and in every act', () => {
             event.id,
             run.nodeMap.nodes.find((n) => n.row === 4 && !n.completed),
           );
+          // A guide is offered only where a road can be drawn (requires.roadAhead): on this map there
+          // may be none, and then the choice is greyed with exactly her reason, nothing else.
+          if (choice.requires?.roadAhead) {
+            const block = eventChoiceBlock(run, node.id, choice.id);
+            if (block) {
+              expect(block, `${event.id}.${choice.id} in act${act + 1}`).toBe(
+                choice.requires.reason,
+              );
+              continue;
+            }
+          }
           const result = chooseEventOption(run, node.id, choice.id, {
             targetUid: pickTarget(run, node.id, choice.id),
           });

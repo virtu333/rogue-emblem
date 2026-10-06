@@ -363,7 +363,10 @@ export class HeadlessBattle {
           ? this.battleParams.recruitRoster
           : this.playerUnits,
         fallenUnits: this.battleParams?.fallenUnits || [],
-        gameData: this.gameData,
+        // An event's green recruit is never a lord (RunManager._recruitGameData).
+        gameData: this.battleParams?.recruitNoLords
+          ? { ...this.gameData, lords: [] }
+          : this.gameData,
         metaEffects: this.battleParams?.metaEffects || null,
         startingLordNames: this.battleParams?.startingLordNames,
         recruitLevelBonus: Math.trunc(Number(this.battleParams?.recruitLevelBonus) || 0),

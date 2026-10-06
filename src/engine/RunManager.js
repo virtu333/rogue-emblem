@@ -3343,6 +3343,15 @@ export class RunManager {
   }
 
   /**
+   * The game data a recruit battle's unit is built from. A recruit node may roll a lord (the
+   * 15% roll in RecruitNodeSystem); an event's green recruit (Old Faces' deserter) never does,
+   * so it is built with the lords taken out, exactly as an event `join` is.
+   */
+  _recruitGameData(node) {
+    return node?.type === 'recruit' ? this.gameData : { ...this.gameData, lords: [] };
+  }
+
+  /**
    * The class of the unit a recruit node would spawn right now (the lord roll can
    * replace the preview's class), without building it. Same stream and run state as
    * getRecruitNodeUnit, so the two always agree.
@@ -3354,7 +3363,7 @@ export class RunManager {
     return (
       resolveRecruitNodeSpawnClass({
         preview,
-        gameData: this.gameData,
+        gameData: this._recruitGameData(node),
         ...this.getRecruitBattleContext(node),
         roster: Array.isArray(options.roster) ? options.roster : this.roster,
       })?.className || null
@@ -3373,7 +3382,7 @@ export class RunManager {
     if (!isRecruitBattleNode(node) || !preview) return null;
     return buildRecruitNodeUnit({
       preview,
-      gameData: this.gameData,
+      gameData: this._recruitGameData(node),
       ...this.getRecruitBattleContext(node),
       roster: Array.isArray(options.roster) ? options.roster : this.roster,
     });

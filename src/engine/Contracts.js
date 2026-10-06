@@ -118,9 +118,12 @@ function effectPhrase(effect, run) {
       const value = resolveAmount(effect.value, run?.currentAct);
       return value < 0 ? `−${-value} G` : `+${value} G`;
     }
-    case 'item':
+    case 'item': {
       if (effect.name) return effect.name;
-      return Number(effect.pool?.tierOffset) >= 1 ? 'A finer weapon' : 'A weapon';
+      const finer = Number(effect.pool?.tierOffset) >= 1;
+      if (effect.pool?.kind === 'accessory') return finer ? 'A finer accessory' : 'An accessory';
+      return finer ? 'A finer weapon' : 'A weapon';
+    }
     case 'hp': {
       const amount = effect.percent !== undefined ? `${effect.percent}%` : `${effect.value ?? ''}`;
       return `${effect.mode === 'heal' ? 'Heal' : 'Wound'} ${amount}`.trim();

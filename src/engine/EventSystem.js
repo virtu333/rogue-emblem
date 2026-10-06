@@ -33,6 +33,7 @@ import { isPrologueRun } from './ScriptedBattle.js';
 import { knowsSkill, benchedSkillsOf, ENEMY_ONLY_CLASS_NAMES } from './UnitManager.js';
 import { isWorn } from './WeaponWear.js';
 import { canForge, canForgeStat } from './ForgeSystem.js';
+import { roadCandidates } from './RouteEdit.js';
 import { unitUidOf } from './UnitIdentity.js';
 import { CONSUMABLE_MAX, INVENTORY_MAX, NODE_TYPES } from '../utils/constants.js';
 
@@ -59,6 +60,7 @@ export const REQUIRES_KEYS = Object.freeze([
   'counterAtLeast',
   'flagAct',
   'notContract',
+  'roadAhead',
 ]);
 
 /** The first page of every event (its top-level `intro` and `choices`). */
@@ -563,6 +565,11 @@ export function evaluateRequires(run, requires, ctx = {}) {
     } else if (key === 'notBurden') {
       if ((run?.burdens || []).some((b) => b?.id === need))
         return fail('Something already weighs on you.');
+    } else if (key === 'roadAhead') {
+      // A new road can be drawn from the event's own node (RouteEdit.roadCandidates): a guide
+      // is only worth hiring where there is a road to find.
+      if (need === true && !(ctx.node && roadCandidates(run?.nodeMap, ctx.node.id).length > 0))
+        return fail('There is no road to add here.');
     } else if (key === 'notContract') {
       // A contract is open (Contracts.js): one at a time, so an event that offers one waits.
       if (need === true && run?.contract) return fail('You are already bound by a contract.');

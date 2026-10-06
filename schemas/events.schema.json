@@ -345,6 +345,9 @@
         "notContract": {
           "type": "boolean"
         },
+        "roadAhead": {
+          "type": "boolean"
+        },
         "blessingTier": {
           "type": "integer",
           "minimum": 1,

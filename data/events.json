@@ -2123,6 +2123,10 @@
           "id": "guide",
           "label": "Hire her as a guide",
           "hint": "She charges by the mile and knows several shortcuts. Some of them are real.",
+          "requires": {
+            "roadAhead": true,
+            "reason": "She walks the road a while and finds no road to add."
+          },
           "cost": {
             "gold": {
               "base": 100,
@@ -2887,6 +2891,10 @@
           "id": "pay",
           "label": "Pay her for a true one",
           "hint": "She is somewhere in the crowd. She will have set the price already.",
+          "requires": {
+            "roadAhead": true,
+            "reason": "The crossroads has no road a true map could add."
+          },
           "cost": {
             "gold": {
               "base": 200,

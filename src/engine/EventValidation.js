@@ -392,6 +392,8 @@ export function validateEventsConfig(config, data = {}) {
         if (!BURDEN_IDS.includes(value)) err(where, `unknown burden "${value}" in notBurden`);
       } else if (key === 'notContract') {
         if (value !== true) err(where, '`requires.notContract` must be true');
+      } else if (key === 'roadAhead') {
+        if (value !== true) err(where, '`requires.roadAhead` must be true');
       } else if (key === 'blessingTier') {
         needsTier(where, value);
       } else if (key === 'roster') {
