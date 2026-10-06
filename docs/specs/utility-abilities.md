@@ -115,3 +115,31 @@ Design constraints that keep UI cost low:
 
 - Enemy/AI use of abilities; pick-a-center AOE targeting; multi-use or cooldown models; ability
   XP; accessory-granted abilities (skills+scrolls only in v1); new meta upgrades.
+
+## Addendum: Smite and Transfuse (adjacent-target abilities)
+
+Two more registry skills with no `perMapLimit` (usable every turn, `usableWhileSilenced`):
+
+| skill id | actionAbility |
+|---|---|
+| `smite` | `{ kind: "push_enemy", distance: 2, usableWhileSilenced: true }` |
+| `transfuse` | `{ kind: "transfer_hp", amount: 10, usableWhileSilenced: true }` |
+
+- Rules are pure, in `ActionAbilitySystem.js`: `findSmiteTargets` / `settleSmite`,
+  `findTransfuseTargets` / `transfuseAmount` / `settleTransfuse`. The finders take what the player
+  may know (`ctx`: seen foes, a `getUnitAt` that counts a fogged tile as taken, the affix data).
+- **Smite** pushes an adjacent foe `distance` tiles straight away. The first tile must be in
+  bounds, passable for the foe's own move type and unoccupied, otherwise the foe is not a target;
+  a blocked second tile moves it one tile. Terrain has no extra rule (as Shove: no ice slide, no
+  landing damage). Never targets bosses, the Entity, Anchored foes (`isDisplacementImmune`) or
+  rooted foes (the weapon-art push rule). `settleMoves` marks a holder disturbed, so the pack wakes.
+- **Transfuse** gives `min(amount, giver HP - 1, ally missing HP)`: the ally is healed through
+  `UnitHealth.healUnit`, then the giver pays exactly that through `damageUnit(..., { floor: 1 })`.
+  A Wounded ally is not a target (no HP could land). No XP, no deeds.
+- Targets are picked in `SELECTING_ABILITY_TILE` (Blink's state, so no new state in any list) on
+  the target unit's tile; `ui/AbilityTargetingController.js` owns the step and the action.
+- History beats `smote` / `transfused` give the rewind rows "Before X's smite on Y" /
+  "Before X's transfuse on Y" (`RewindDestinations.js`).
+- Scrolls: `Smite Scroll`, `Transfuse Scroll` sit in the act 3 and act 4 `skillScroll` pools,
+  where Shove and Pull do. Enemies never get either (no `classInnate`, not in the enemy skill pool).
+- Swap stays an innate command for every unit (`findSwapTargets`), not a skill.

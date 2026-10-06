@@ -350,6 +350,24 @@ const STATIC_HELP_TABS = [
         ],
       },
       {
+        title: 'Ability Skills',
+        lines: [
+          { text: 'In the Ability menu of a unit:', color: GRAY },
+          { text: '' },
+          { text: 'Smite:', color: GOLD },
+          { text: '  Push an adjacent enemy 2 tiles away.' },
+          { text: '  One blocked tile: it moves just 1.' },
+          { text: '  Bosses, the Entity, Anchored and' },
+          { text: '  rooted foes cannot be pushed.' },
+          { text: '' },
+          { text: 'Transfuse:', color: GOLD },
+          { text: '  Give up to 10 HP to an adjacent ally.' },
+          { text: '  You keep at least 1 HP. No EXP.' },
+          { text: '' },
+          { text: 'Each ends the action. No use limit.' },
+        ],
+      },
+      {
         title: 'Learning Skills',
         lines: [
           { text: 'Three ways to learn skills:', color: GOLD },
