@@ -23,6 +23,7 @@
 //   hostilesOf(unit), alliesOf(unit)   (area victims; Divine Charge / buff allies)
 //   getTerrainAt?(col, row)            (an area victim's terrain DEF; none when absent)
 //   turnNumber
+//   skillsData?                        gameData.skills (the on-kill skills' catalog)
 //
 // Area arts also leave a credit for every victim they hit on `result.areaCredits`
 // ({ source, victim, damage, hpBefore, killed }): plain state for the owner's XP award,
@@ -55,6 +56,7 @@ export function* postCombatEffects(
     result,
     attackerWeaponArt,
     defenderWeaponArt,
+    skillsData: world?.skillsData ?? null,
   });
   for (const step of steps) {
     const sourceUnit = step.sourceSide === 'defender' ? defender : attacker;
@@ -149,6 +151,9 @@ function* postCombatStep(step, { attacker, defender, result, sourceUnit, targetU
         yield { kind: 'hint', unit: sourceUnit, text: 'Bloodlust!', tone: 'bloodlust' };
       }
       break;
+    case 'skill_on_kill':
+      yield* skillOnKill(step, sourceUnit, targetUnit, result, world);
+      break;
     case 'tier2_move':
       yield* postCombatMove(sourceUnit, targetUnit, step, world, result);
       break;
@@ -167,6 +172,65 @@ function* postCombatStep(step, { attacker, defender, result, sourceUnit, targetU
     default:
       break;
   }
+}
+
+/** The most Speedtaker stacks a unit may hold when its skill names none. */
+const DEFAULT_SPEEDTAKER_MAX = 5;
+
+/**
+ * Did this side's combat kill? The primary target is down, or one of the side's own
+ * area or line strikes (or a ram's collision) in this combat felled a victim: those left
+ * `result.areaCredits` when their blows were dealt, earlier in the pipeline. A kill that
+ * is not part of a combat (Deathburst, terrain, poison ticks) never leaves a credit.
+ */
+function killedInCombat(sourceUnit, targetUnit, result) {
+  if (targetUnit && targetUnit.currentHP <= 0) return true;
+  return (result?.areaCredits || []).some(
+    (credit) => credit?.source === sourceUnit && credit.killed === true,
+  );
+}
+
+/**
+ * On-kill skills (docs/specs/phase3.md 3B): a side that killed in this combat and still
+ * stands applies each of its on-kill skills once, however many foes fell. Death is read
+ * here, at application, after the art kill buff and every blast has resolved.
+ */
+function* skillOnKill(step, sourceUnit, targetUnit, result, world) {
+  if (!sourceUnit || sourceUnit.currentHP <= 0) return;
+  if (!killedInCombat(sourceUnit, targetUnit, result)) return;
+  const catalog = Array.isArray(world?.skillsData) ? world.skillsData : [];
+  const applied = new Set();
+  for (const skillId of step.skillIds || []) {
+    if (applied.has(skillId)) continue;
+    applied.add(skillId);
+    const skill = catalog.find((entry) => entry?.id === skillId);
+    if (!skill || skill.trigger !== 'on-kill' || !skill.effects) continue;
+    yield* onKillHeal(skill, sourceUnit);
+    yield* onKillSpeed(skill, sourceUnit);
+  }
+}
+
+/** Lifetaker: heal a share of max HP (floored, at least 1) through UnitHealth, so Wounded blocks it. */
+function* onKillHeal(skill, unit) {
+  const percent = Number(skill.effects.healPercentMaxHp) || 0;
+  if (percent <= 0) return;
+  const amount = Math.max(1, Math.floor(((Number(unit.stats?.HP) || 0) * percent) / 100));
+  const healed = healUnit(unit, amount);
+  if (healed <= 0) return;
+  yield { kind: 'hp', unit };
+  yield { kind: 'hint', unit, text: `${skill.name} +${healed}`, tone: 'heal' };
+}
+
+/** Speedtaker: +SPD for the battle per kill up to a cap; the stacks ride `_speedtakerStacks`. */
+function* onKillSpeed(skill, unit) {
+  const gain = Math.trunc(Number(skill.effects.spdPerKill) || 0);
+  if (gain <= 0) return;
+  const max = Math.max(0, Math.trunc(Number(skill.effects.spdMax) || DEFAULT_SPEEDTAKER_MAX));
+  const stacks = Math.max(0, Math.trunc(Number(unit._speedtakerStacks) || 0));
+  if (stacks >= max) return;
+  applyBattleDebuff(unit, 'SPD', gain);
+  unit._speedtakerStacks = stacks + 1;
+  yield { kind: 'hint', unit, text: `${skill.name} +${gain} SPD`, tone: 'buff' };
 }
 
 function* damageOverTime(unit, amount, floor) {

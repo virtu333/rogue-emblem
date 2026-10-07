@@ -595,5 +595,55 @@
     "description": "Use remaining movement after a noncombat action. Not after fighting.",
     "trigger": "passive",
     "cantoRule": "noncombat"
+  },
+  {
+    "id": "lifetaker",
+    "name": "Lifetaker",
+    "description": "Defeating a foe in combat heals 25% of max HP",
+    "trigger": "on-kill",
+    "effects": {
+      "healPercentMaxHp": 25
+    }
+  },
+  {
+    "id": "speedtaker",
+    "name": "Speedtaker",
+    "description": "Defeating a foe in combat gives +1 SPD for the battle, up to +5",
+    "trigger": "on-kill",
+    "effects": {
+      "spdPerKill": 1,
+      "spdMax": 5
+    }
+  },
+  {
+    "id": "uncanny_blow",
+    "name": "Uncanny Blow",
+    "description": "+30 Hit when initiating combat",
+    "trigger": "on-combat-start",
+    "condition": "initiating",
+    "effects": {
+      "hitBonus": 30
+    }
+  },
+  {
+    "id": "warding_blow",
+    "name": "Warding Blow",
+    "description": "+6 RES when initiating combat",
+    "trigger": "on-combat-start",
+    "condition": "initiating",
+    "effects": {
+      "resBonus": 6
+    }
+  },
+  {
+    "id": "defiant",
+    "name": "Defiant",
+    "description": "+4 DEF/RES when at 25% HP or less",
+    "trigger": "on-combat-start",
+    "condition": "below25",
+    "effects": {
+      "defBonus": 4,
+      "resBonus": 4
+    }
   }
 ]

@@ -33,6 +33,11 @@ function isBelow50(unit) {
   return unit.currentHP <= Math.floor(unit.stats.HP / 2);
 }
 
+/** Defiant's threshold: a quarter of max HP or less (HP 10: 2 holds, 3 does not). */
+function isBelow25(unit) {
+  return unit.currentHP <= Math.floor(unit.stats.HP / 4);
+}
+
 export function getActivationChance(unit, activation) {
   switch (activation) {
     case 'SKL':
@@ -321,6 +326,7 @@ export function getSkillCombatMods(
     if (skill.trigger === 'on-combat-start') {
       let condMet = !skill.condition;
       if (skill.condition === 'below50') condMet = isBelow50(unit);
+      if (skill.condition === 'below25') condMet = isBelow25(unit);
       if (skill.condition === 'adjacent_ally') {
         condMet = allies.some(
           (a) => a !== unit && gridDistance(unit.col, unit.row, a.col, a.row) === 1,

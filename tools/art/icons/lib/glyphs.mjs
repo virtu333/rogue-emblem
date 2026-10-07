@@ -502,11 +502,17 @@ export const SKILL_GLYPH = Object.freeze({
   smite: ['push', 'blood'],
   transfuse: ['halo', 'rose'],
   renewal: ['sprout', 'verdigris'],
+  lifetaker: ['halo', 'verdigris'],
+  speedtaker: ['bolt', 'ember'],
+  uncanny_blow: ['eye', 'ember'],
+  warding_blow: ['aegis', 'sky'],
+  defiant: ['heartCrack', 'ember'],
 });
 
 const TRIGGER_GLYPH = {
   'on-attack': ['fang', 'ember'],
   'on-defend': ['shield', 'steel'],
+  'on-kill': ['fang', 'blood'],
   'on-combat-start': ['chevron', 'sky'],
   'on-turn-start': ['sun', 'ember'],
   action: ['push', 'verdigris'],

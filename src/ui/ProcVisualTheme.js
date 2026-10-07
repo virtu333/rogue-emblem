@@ -8,7 +8,7 @@ import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
  *
  * Categories:
  *   art     -- weapon arts (deliberate technique)        -> amber
- *   offense -- on-attack procs (Luna, Sol, Astra...)     -> red
+ *   offense -- on-attack and on-kill procs (Luna, Sol, Lifetaker...) -> red
  *   defense -- on-defend procs + defensive enemy affixes -> blue
  *   neutral -- everything else (combat-start stances...) -> cyan
  */
@@ -46,7 +46,8 @@ export function classifyActivation(activation, skillsData) {
   if (DEFENSIVE_AFFIX_IDS.has(activation.id)) return PROC_CATEGORY.DEFENSE;
   const skill = (skillsData || []).find((s) => s.id === activation.id);
   if (skill?.trigger === 'on-defend') return PROC_CATEGORY.DEFENSE;
-  if (skill?.trigger === 'on-attack') return PROC_CATEGORY.OFFENSE;
+  // An on-kill skill is a reward for striking: offense, not an unknown neutral stance.
+  if (skill?.trigger === 'on-attack' || skill?.trigger === 'on-kill') return PROC_CATEGORY.OFFENSE;
   return PROC_CATEGORY.NEUTRAL;
 }
 
@@ -84,7 +85,7 @@ export function themeFor(category) {
 export function classifySkillEventName(name, skillsData) {
   const skill = (skillsData || []).find((s) => s.name === name);
   if (!skill) return PROC_CATEGORY.NEUTRAL;
-  if (skill.trigger === 'on-attack') return PROC_CATEGORY.OFFENSE;
+  if (skill.trigger === 'on-attack' || skill.trigger === 'on-kill') return PROC_CATEGORY.OFFENSE;
   if (skill.trigger === 'on-defend') return PROC_CATEGORY.DEFENSE;
   return PROC_CATEGORY.NEUTRAL;
 }
@@ -127,6 +128,8 @@ const ACTIVATION_FX = {
   seraph_strike: { key: 'fx_light', at: 'target' },
   divine_charge: { key: 'fx_light', at: 'target' },
   commanders_gambit: { key: 'fx_buff', at: 'striker' },
+  lifetaker: { key: 'fx_drain', at: 'striker' },
+  speedtaker: { key: 'fx_buff', at: 'striker' },
   // defense (played on the defending unit == strike target)
   pavise: { key: 'fx_shield', at: 'target' },
   aegis: { key: 'fx_shield', at: 'target' },

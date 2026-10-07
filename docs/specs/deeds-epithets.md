@@ -82,11 +82,11 @@ also leave a mark on promotion (an **Oath**) — the seed of hidden promotions.
 | deathblow | 12 crits in the run | Deathblow | 3 | Sure Shot |
 | mender | 150 HP healed (others) in the run | the Mender | 2 | Renewal |
 | lantern | 400 HP healed in the run | Lantern of the March | 4 | Renewal |
-| tempo | 12 dances in the run | Who Danced at the End | 3 | — |
+| tempo | 12 dances in the run | Who Danced at the End | 3 | Speedtaker |
 | greenwood / heights / mire | 6 run kills standing on Forest / Mountain / Swamp, Bog, Acidic Swamp, Acidic Bog | of the Greenwood / of the Heights / of the Mire | 2 | Pathfinder / Skirmisher / Drain |
 | weapon_family | 25 run kills with one weapon type | the Blade, the Spear, the Woodsplitter, Far-Sight, the Burning, the Dawn (the Unlit reserved) | 3 | Duelist Stance |
 | veteran | 15 battles survived in the run | Veteran of the March | 2 | Discipline |
-| last_of_them | the only non-lord alive at victory with ≥4 deployed and ≥2 allies fallen (lords and recruits count) | the Last | 4 | — |
+| last_of_them | the only non-lord alive at victory with ≥4 deployed and ≥2 allies fallen (lords and recruits count) | the Last | 4 | Defiant |
 
 Places: Bridge → the Bridge, Fort → the Fort, Throne/Wall → the Gate, Village → the
 Village, Forest → the Wood, Mountain → the Pass, Floor/Pillar → the Hall, else the Line.
@@ -186,8 +186,8 @@ class-innate skills cannot be given up, `oathTradeableSkills`) or let it go
 (`releaseWaitingOath`, asked twice). It is never lost silently. Silent engine promotions (recruit spawns,
 colosseum mercs, boss recruits, promoted enemies) call only `promoteUnit` and never swear.
 
-Oath skills are the ones no scroll or level-up curriculum teaches (each is otherwise only
-a promoted class's innate); `validateCrossReferences` checks they exist and the unit test
+Oath skills are the ones no level-up curriculum teaches, and no scroll but two (each is otherwise only
+a promoted class's innate; Phase 3B gives Speedtaker and Defiant a scroll as well as an Oath); `validateCrossReferences` checks they exist and the unit test
 checks the "never a scroll / learnable" rule. Lord signature skills (Skyward, Intimidate)
 were left out on purpose: they identify Astrid and Cael, and a blessing strips lord
 personal skills. True hidden classes remain a follow-up.

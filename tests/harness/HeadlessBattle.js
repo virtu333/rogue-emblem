@@ -1740,6 +1740,7 @@ export class HeadlessBattle {
         unit?.faction === 'enemy' ? this.playerUnits || [] : unit ? this.enemyUnits || [] : [],
       alliesOf: (unit) => this._getDivineChargeAllies(unit),
       turnNumber: this.turnManager?.turnNumber,
+      skillsData: this.gameData?.skills,
     };
   }
 

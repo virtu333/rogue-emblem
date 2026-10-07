@@ -179,6 +179,8 @@
       "condition": { "type": "runStat", "stat": "refreshes", "min": 12 },
       "epithet": { "form": "who", "text": "Who Danced at the End" },
       "prestige": 3,
+      "oathSkill": "speedtaker",
+      "oathName": "Oath of the Last Dance",
       "lore": "'How are you still dancing?' 'How are you still standing? Go.'"
     },
     {
@@ -249,6 +251,8 @@
       "condition": { "type": "all", "of": [{ "type": "battleStat", "stat": "lastStanding", "min": 4 }, { "type": "battleStat", "stat": "fallenAllies", "min": 2 }] },
       "epithet": { "form": "the", "text": "the Last" },
       "prestige": 4,
+      "oathSkill": "defiant",
+      "oathName": "Oath of the Last",
       "lore": "Came back alone, carrying the names of the rest."
     }
   ]

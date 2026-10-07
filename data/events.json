@@ -122,12 +122,14 @@
                     "Sword": [
                       "darting_blow",
                       "duelist_stance",
-                      "vantage"
+                      "vantage",
+                      "uncanny_blow"
                     ],
                     "Lance": [
                       "guard",
                       "pavise",
-                      "armored_blow"
+                      "armored_blow",
+                      "warding_blow"
                     ],
                     "Axe": [
                       "death_blow",
@@ -210,12 +212,14 @@
                     "Sword": [
                       "darting_blow",
                       "duelist_stance",
-                      "vantage"
+                      "vantage",
+                      "uncanny_blow"
                     ],
                     "Lance": [
                       "guard",
                       "pavise",
-                      "armored_blow"
+                      "armored_blow",
+                      "warding_blow"
                     ],
                     "Axe": [
                       "death_blow",
@@ -2267,7 +2271,8 @@
                     "fiendish_blow",
                     "drain",
                     "luna",
-                    "wrath"
+                    "wrath",
+                    "lifetaker"
                   ]
                 },
                 {

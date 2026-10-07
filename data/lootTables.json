@@ -166,7 +166,12 @@
       "Desperation Scroll",
       "Rally Cry Scroll",
       "Healing Circle Scroll",
-      "Ensnare Scroll"
+      "Ensnare Scroll",
+      "Uncanny Blow Scroll",
+      "Warding Blow Scroll",
+      "Lifetaker Scroll",
+      "Speedtaker Scroll",
+      "Defiant Scroll"
     ],
     "weaponArtScroll": ["Grounder Scroll", "Helm Splitter Scroll"],
     "artTiers": {
@@ -282,7 +287,12 @@
       "Blink Scroll",
       "Rally Cry Scroll",
       "Healing Circle Scroll",
-      "Ensnare Scroll"
+      "Ensnare Scroll",
+      "Uncanny Blow Scroll",
+      "Warding Blow Scroll",
+      "Lifetaker Scroll",
+      "Speedtaker Scroll",
+      "Defiant Scroll"
     ],
     "weaponArtScroll": [
       "Grounder Scroll",
@@ -427,7 +437,12 @@
       "Blink Scroll",
       "Rally Cry Scroll",
       "Healing Circle Scroll",
-      "Ensnare Scroll"
+      "Ensnare Scroll",
+      "Uncanny Blow Scroll",
+      "Warding Blow Scroll",
+      "Lifetaker Scroll",
+      "Speedtaker Scroll",
+      "Defiant Scroll"
     ],
     "weaponArtScroll": [
       "Grounder Scroll",
