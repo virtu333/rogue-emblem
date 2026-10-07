@@ -323,17 +323,24 @@ describe('one Necromancer per battle', () => {
     for (const key of ['dusk act3', 'hard act3']) expect(seen[key], key).toBe(0);
   });
 
-  it('a Necromancer starts on guard (the existing mode that returns it to its post)', () => {
+  it('a Necromancer starts on guard (the existing mode that returns it to its post), holders or not', () => {
     const forced = forcedData(['Necromancer', 'Warlock']);
     let checked = 0;
-    for (let seed = 1; seed <= 40; seed++) {
-      const battle = generate(seed, 'rout', forced);
-      for (const spawn of battle.enemySpawns.filter((s) => s.className === 'Necromancer')) {
-        expect(spawn.aiMode).toBe('guard');
-        checked++;
+    let withHolders = 0;
+    for (const objective of ['rout', 'seize', 'escape'])
+      for (let seed = 1; seed <= 40; seed++) {
+        const battle = generate(seed, objective, forced);
+        const holders = battle.enemySpawns.filter((s) => s.aiMode === 'hold');
+        if (holders.length > 0) withHolders++;
+        // A holding pack never takes the Necromancer: its Skeletons hunt, it holds its own post.
+        expect(holders.map((h) => h.className)).not.toContain('Necromancer');
+        for (const spawn of battle.enemySpawns.filter((s) => s.className === 'Necromancer')) {
+          expect(spawn.aiMode, `${objective} seed ${seed}`).toBe('guard');
+          checked++;
+        }
       }
-    }
-    expect(checked).toBeGreaterThan(10);
+    expect(checked).toBeGreaterThan(30);
+    expect(withHolders).toBeGreaterThan(5); // the maps where a pack could have taken it exist
   });
 
   it('mapping is not a re-roll: the stream ends where it does with an ordinary class in the slot', () => {

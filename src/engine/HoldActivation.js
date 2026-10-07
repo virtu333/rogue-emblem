@@ -156,9 +156,11 @@ export function assignHolders({
     next++;
   }
   // Holds replace guards, but only on a map that has holders: a map with no pack keeps
-  // the guards it rolled (otherwise it would be softer than First Light's).
+  // the guards it rolled (otherwise it would be softer than First Light's). A Necromancer's
+  // guard post is not a roll but its identity (Necromancy.js): it keeps it.
   if (chosen.length > 0) {
-    for (const s of spawns || []) if (s?.aiMode === 'guard') delete s.aiMode;
+    for (const s of spawns || [])
+      if (s?.aiMode === 'guard' && s.className !== NECROMANCER_CLASS) delete s.aiMode;
   }
   const packSize = new Map();
   for (const s of chosen) packSize.set(pack.get(s), (packSize.get(pack.get(s)) || 0) + 1);
