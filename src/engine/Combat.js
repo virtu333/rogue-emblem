@@ -18,6 +18,7 @@ import { rollDefenseAffixes } from './AffixSystem.js';
 import { isSleeping, isSilenced, isWounded, removeCondition } from './StatusConditionSystem.js';
 import { isEntity } from './EntitySystem.js';
 import { effectiveSkills } from './EffectiveSkills.js';
+import { absorbLethal } from './UnitHealth.js';
 import { getUnitMark, getUnitMarkFor, markActivation, markProcs } from './MarkSystem.js';
 import {
   getImbueCombatMods,
@@ -1641,6 +1642,7 @@ function rollStrike(
   critMultiplier = CRIT_MULTIPLIER,
   drainMaxPerHit = null,
   drainPerHit = 0,
+  targetUnit = null,
 ) {
   const attackerSide = strikeSides?.attackerSide || null;
   const targetSide = strikeSides?.targetSide || null;
@@ -1788,7 +1790,14 @@ function rollStrike(
   }
 
   if (!Number.isFinite(finalDmg)) finalDmg = 0;
-  const hpAfter = Math.max(0, targetHP - finalDmg);
+  let hpAfter = Math.max(0, targetHP - finalDmg);
+  // Revival Stones (UnitHealth.absorbLethal): after the on-defend skills, Miracle and affixes
+  // had their say, a blow that still takes the bar to 0 breaks a stone instead and refills
+  // it. The refill is the strike's own `targetHPAfter`, so every reader (applyStrikeHP, the
+  // deed kill count, the loop's gating, the animation) sees a unit that stood. A unit with
+  // no stones is untouched, and its event keeps the keys it always had.
+  const absorbed = targetUnit ? absorbLethal(targetUnit, hpAfter) : null;
+  if (absorbed?.stoneBroken) hpAfter = absorbed.hp;
   return {
     type: 'strike',
     attacker: strikerName,
@@ -1806,6 +1815,7 @@ function rollStrike(
     commandersGambit,
     reflectDamage,
     warpRange,
+    ...(absorbed?.stoneBroken ? { stoneBroken: true, hpBeforeBreak: targetHP } : {}),
   };
 }
 
@@ -1868,6 +1878,10 @@ export function resolveCombat(
 ) {
   const combatSkillState = { adeptUsed: new Set() };
   const events = [];
+  // Revival Stones: a strike that breaks a stone ends the exchange. Every loop and phase
+  // below reads this, so no further strike of either side is rolled (and no further RNG).
+  let exchangeEnded = false;
+  const brokeBar = { attacker: false, defender: false };
   let atkHP = attacker.currentHP ?? attacker.stats.HP;
   let defHP = defender.currentHP ?? defender.stats.HP;
   const atkStartHP = atkHP;
@@ -2158,7 +2172,7 @@ export function resolveCombat(
     const drainFlat = strikerMods?.drainPerHit || 0;
     const strikePerHitHeal = isAttackingDefender ? atkPerHitHeal : defPerHitHeal;
     const strikeCritMult = isAttackingDefender ? atkCritMult : defCritMult;
-    for (let i = 0; i < count && atkHP > 0 && defHP > 0; i++) {
+    for (let i = 0; i < count && atkHP > 0 && defHP > 0 && !exchangeEnded; i++) {
       const targetHP = isAttackingDefender ? defHP : atkHP;
       const evt = rollStrike(
         aName,
@@ -2175,7 +2189,12 @@ export function resolveCombat(
         strikeCritMult,
         drainCap,
         drainFlat,
+        isAttackingDefender ? defender : attacker,
       );
+      if (evt.stoneBroken) {
+        exchangeEnded = true;
+        brokeBar[targetSide] = true;
+      }
       if (isAttackingDefender) {
         defHP = evt.targetHPAfter;
         // Sol/Drain heal: striker heals HP
@@ -2218,7 +2237,7 @@ export function resolveCombat(
       // Adept/Aether: extra strike at full damage (one bonus strike per hit).
       // Defense skills/affixes (Pavise, Aegis, Miracle, Shielded, Thorns, …) still
       // apply; only on-attack procs are disabled so bonus strikes can't chain.
-      if (evt.extraStrike && atkHP > 0 && defHP > 0) {
+      if (evt.extraStrike && atkHP > 0 && defHP > 0 && !exchangeEnded) {
         // Aether Luna: bonus strike at 1.5x damage
         const bonusDmg = evt.aetherLuna ? Math.floor(dmg * 1.5) : dmg;
         const bonusTargetHP = isAttackingDefender ? defHP : atkHP;
@@ -2238,8 +2257,13 @@ export function resolveCombat(
           strikeCritMult,
           drainCap,
           drainFlat,
+          isAttackingDefender ? defender : attacker,
         );
         bonusEvt.adeptStrike = true;
+        if (bonusEvt.stoneBroken) {
+          exchangeEnded = true;
+          brokeBar[targetSide] = true;
+        }
         if (isAttackingDefender) {
           defHP = bonusEvt.targetHPAfter;
           atkHP = applyStrikeHeal(bonusEvt, attacker, atkHP);
@@ -2290,6 +2314,7 @@ export function resolveCombat(
     strikerMods,
     lunaDamage,
   ) {
+    if (exchangeEnded) return;
     let count = braveCount;
     let phaseDmg = dmg;
     let phaseMultiplier = null;
@@ -2401,7 +2426,7 @@ export function resolveCombat(
   } else if (defenderDesperation && defDoubles) {
     // Defender-side Desperation: defender follow-up occurs before attacker follow-up
     atkPhase();
-    if (atkHP > 0 && defHP > 0 && !warpedSide()) {
+    if (atkHP > 0 && defHP > 0 && !exchangeEnded && !warpedSide()) {
       events.push({ type: 'skill', name: 'Desperation', unit: defender.name });
       if (defCanCounter) {
         defPhase();
@@ -2433,7 +2458,8 @@ export function resolveCombat(
     if (escapedSide !== 'attacker' && landedHit('attacker')) {
       const atkPoison =
         parsePoisonDamage(atkWeapon) + getImbuePostCombatPoison(atkWeapon, skillCtx?.imbuesData);
-      if (atkPoison > 0) {
+      // A bar that just broke is a fresh one: the poison waits for a blow that leaves a wound.
+      if (atkPoison > 0 && !brokeBar.defender) {
         defHP = Math.max(1, defHP - atkPoison); // Poison can't kill (leave at 1 HP)
         poisonEffects.push({ target: 'defender', damage: atkPoison });
       }
@@ -2443,7 +2469,7 @@ export function resolveCombat(
         defCanCounter && defWeapon
           ? parsePoisonDamage(defWeapon) + getImbuePostCombatPoison(defWeapon, skillCtx?.imbuesData)
           : 0;
-      if (defPoison > 0) {
+      if (defPoison > 0 && !brokeBar.attacker) {
         atkHP = Math.max(1, atkHP - defPoison);
         poisonEffects.push({ target: 'attacker', damage: defPoison });
       }
@@ -2545,5 +2571,7 @@ export function resolveCombat(
     strikeMods: { attacker: atkMods, defender: defMods },
     // HP each side entered the combat with (a heal on damage dealt ignores overkill).
     startHP: { attacker: atkStartHP, defender: defStartHP },
+    // Revival Stones: which side's bar broke (the exchange ended there). Absent otherwise.
+    ...(exchangeEnded ? { stoneBroken: { ...brokeBar } } : {}),
   };
 }
