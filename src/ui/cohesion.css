@@ -43,6 +43,24 @@
     color: var(--re-action-ink);
   }
 }
+/* Seize and Escape win the battle: the green the exits are drawn in, apart from the
+   gold of Attack and the plain commands (battleMenuModel.isObjectiveCommand). */
+.mobile-battle-hud .mb-button.mb-win-command {
+  background: var(--re-verdigris-deep);
+  color: var(--re-parchment);
+  border: 1px solid var(--re-good);
+  font-weight: 700;
+}
+.mobile-battle-hud .mb-button.mb-win-command:not(:disabled):active {
+  background: var(--re-good);
+  color: var(--re-void);
+}
+@media (hover: hover) {
+  .mobile-battle-hud .mb-button.mb-win-command:not(:disabled):hover {
+    background: var(--re-good);
+    color: var(--re-void);
+  }
+}
 .mobile-battle-hud {
   border-left: 1px solid var(--re-line-soft);
 }

@@ -16,6 +16,7 @@ import { InputController } from '../src/ui/InputController.js';
 import { openMenuCommand } from '../src/ui/battleMenuModel.js';
 import { applyCondition } from '../src/engine/StatusConditionSystem.js';
 import { loadGameData } from './testData.js';
+import { UI_PALETTE } from '../src/utils/uiStyles.js';
 
 const data = loadGameData();
 const weapon = (name) => structuredClone(data.weapons.find((w) => w.name === name));
@@ -146,6 +147,18 @@ describe('a unit’s action menu as rows', () => {
     ]);
     // Each published command is backed by its own canvas row.
     for (const item of published(scene)) expect(item.button._rowId).toBe(item.id);
+  });
+
+  it("on desktop: Seize on the throne is drawn in the exits' green, the plain commands are not", () => {
+    const { scene, unit } = menuScene({ rail: false, attackable: false });
+    Object.assign(unit, { isLord: true });
+    scene.battleConfig = { objective: 'seize', thronePos: { col: 1, row: 1 } };
+    scene.showActionMenu(unit);
+    const rows = canvasRows(scene);
+    const seize = rows.find((row) => row._rowId === 'seize');
+    expect(seize?.text).toBe('Seize');
+    expect(seize._menuColor).toBe(UI_PALETTE.good);
+    expect(rows.find((row) => row._rowId === 'wait')._menuColor).toBe(UI_PALETTE.text);
   });
 
   it('activating a rail command runs it: Equip opens the equip menu, Wait ends the action', () => {

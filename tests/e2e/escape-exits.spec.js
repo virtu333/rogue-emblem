@@ -140,7 +140,16 @@ for (const width of [667, 844]) {
         }),
       ).toEqual(before);
       expect(await markersInView()).toBe(true);
-      await hud.getByRole('button', { name: 'Escape', exact: true }).tap();
+      // Escape wins the battle, so it wears the exits' green (--re-verdigris-deep), apart
+      // from the plain commands.
+      const escape = hud.getByRole('button', { name: 'Escape', exact: true });
+      await expect(escape).toHaveClass(/\bmb-win-command\b/);
+      await expect(escape).toHaveCSS('background-color', 'rgb(45, 100, 80)');
+      await expect(hud.locator('.mb-win-command')).toHaveCount(1);
+      await expect(hud.getByRole('button', { name: 'Wait', exact: true })).not.toHaveClass(
+        /\bmb-win-command\b/,
+      );
+      await escape.tap();
       await expect
         .poll(() =>
           page.evaluate(
