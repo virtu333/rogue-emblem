@@ -279,6 +279,10 @@ export function getPostCombatPipelineSteps({
             mode: effect.mode,
             distance: effect.distance,
             ...(effect.mode === 'ram' ? { collisionDamage: effect.collisionDamage } : {}),
+            // Override pushes the foes its line hit as well, so it needs the line.
+            ...(effect.mode === 'pushAreaVictims'
+              ? { area: getWeaponArtArea(artsBySide[side]) }
+              : {}),
           });
           continue;
         }

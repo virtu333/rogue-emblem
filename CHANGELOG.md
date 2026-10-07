@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Two New Lance Arts: Lunar Brace and Override (Oct 7, 2026)
+
+- **Lunar Brace** (Lance, Steel, Prof, Act II; 3 HP, 2 per map): the strike adds 30% of the
+  foe's Defense (rounded down) as damage, so it bites hardest on armour. It reads the same
+  Defense the blow is measured against: terrain, Defense buffs and the foe's own weapon
+  included, halved by Luna or Sunder when they halve it. A strike against Resistance
+  (magic) gains nothing. Its follow-up, when it has one, is a plain strike. Taught by the
+  Lunar Brace Scroll, and may roll on Steel lances.
+- **Override** (Lance, Silver, Master rank, Act III, player only; 5 HP, once per map): strikes
+  the target and every foe in the two tiles behind it (60% per landed strike, like Skewer),
+  then drives each foe it hit back one tile, the farthest first so the line moves as one.
+  Ice slides apply; a foe that cannot move stays. Bosses, the Entity, Anchored and rooted
+  foes hold their ground and block the foes in front of them. Foes the line killed are not
+  pushed. Like every art push it needs you next to the target; from range the line still
+  strikes. The preview shows each foe's landing, and names the ones that brace. It may roll
+  on Silver lances; only a Master-rank lancer can use it.
+
 ### Tighter Pars Where Clears Are Fast (Oct 4, 2026)
 
 - **First Light:** par is two turns tighter on every map. A quick clear still earns an S

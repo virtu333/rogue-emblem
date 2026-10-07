@@ -166,12 +166,23 @@ function normalizeDrainPercent(value) {
   return n > 0 ? n : null;
 }
 
+function normalizeFoeDefShare(value) {
+  const n = toFiniteNumber(value, 0);
+  return n > 0 ? Math.min(1, n) : 0;
+}
+
 function normalizeDamageMultiplier(value) {
   const n = toFiniteNumber(value, 0);
   return n > 1 ? n : null;
 }
 
-const VALID_TIER2_MOVE_MODES = new Set(['advance', 'retreat', 'swap', 'push', 'through', 'ram']);
+// Lower-cased token -> the mode as the pipeline spells it (every mode but one is all lower case).
+const VALID_TIER2_MOVE_MODES = new Map(
+  ['advance', 'retreat', 'swap', 'push', 'through', 'ram', 'pushAreaVictims'].map((mode) => [
+    mode.toLowerCase(),
+    mode,
+  ]),
+);
 const VALID_TIER2_DEBUFF_STATS = new Set(['STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK', 'MOV']);
 const VALID_AREA_SHAPES = new Set(['radius', 'line', 'around_attacker']);
 const VALID_TARGETING = new Set(['normal_attack', 'chosen_center']);
@@ -215,8 +226,8 @@ function normalizeTier2DebuffEffect(effect) {
 
 function normalizeTier2MoveEffect(effect) {
   if (!effect || typeof effect !== 'object') return null;
-  const mode = toNonEmptyString(effect.mode)?.toLowerCase();
-  if (!mode || !VALID_TIER2_MOVE_MODES.has(mode)) return null;
+  const mode = VALID_TIER2_MOVE_MODES.get(toNonEmptyString(effect.mode)?.toLowerCase());
+  if (!mode) return null;
   const distance = Math.max(1, Math.trunc(toFiniteNumber(effect.distance, 1)));
   if (mode !== 'ram') return { mode, distance };
   // A ram pushes up to `distance` tiles; stopped short, the target (and a foe it hits)
@@ -581,6 +592,8 @@ export function getWeaponArtCombatMods(art) {
     damageMultiplier: normalizeDamageMultiplier(mods.damageMultiplier),
     ignoreWeaponTriangle: Boolean(mods.ignoreWeaponTriangle),
     ignoreRES: Boolean(mods.ignoreRES),
+    // Lunar Brace: a share of the foe's DEF added to a physical strike (Combat.strikeDamage).
+    foeDefShare: normalizeFoeDefShare(mods.foeDefShare),
     activated: Array.isArray(mods.activated) ? [...mods.activated] : [],
   };
 }

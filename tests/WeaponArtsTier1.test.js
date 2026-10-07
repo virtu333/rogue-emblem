@@ -24,9 +24,9 @@ const artById = new Map(allArts.map((a) => [a.id, a]));
 
 describe('Tier 1 Weapon Arts Expansion', () => {
   // 83, plus the four area arts of docs/specs/aoe-weapon-arts.md (Sweeping Cleave, Skewer,
-  // Benediction, Battering Ram).
-  it('has exactly 88 arts', () => {
-    expect(allArts.length).toBe(88);
+  // Benediction, Battering Ram), plus Lunar Brace and Override (docs/specs/phase3.md 3F).
+  it('has exactly 90 arts', () => {
+    expect(allArts.length).toBe(90);
   });
 
   it('all art IDs are unique', () => {
@@ -60,11 +60,11 @@ describe('Tier 1 Weapon Arts Expansion', () => {
     });
 
     it('steel tier has correct count', () => {
-      expect(steelArts.length).toBe(26); // + Sweeping Cleave, Skewer
+      expect(steelArts.length).toBe(27); // + Sweeping Cleave, Skewer, Lunar Brace
     });
 
     it('silver tier has correct count', () => {
-      expect(silverArts.length).toBe(28); // + Benediction, Battering Ram
+      expect(silverArts.length).toBe(29); // + Benediction, Battering Ram, Override
     });
 
     it('legendary tier has correct count', () => {
@@ -191,9 +191,10 @@ describe('Tier 1 Weapon Arts Expansion', () => {
       (w) => w.type === 'Scroll' && w.teachesWeaponArtId,
     );
 
-    it('has 59 weapon art scrolls', () => {
-      // 34 + one for each Iron/Steel art that had none (21) and the 4 revived legacy arts.
-      expect(weaponArtScrolls.length).toBe(59);
+    it('has 60 weapon art scrolls', () => {
+      // 34 + one for each Iron/Steel art that had none (21) and the 4 revived legacy arts,
+      // plus Lunar Brace's.
+      expect(weaponArtScrolls.length).toBe(60);
     });
 
     it('every scroll references a valid art ID', () => {
@@ -343,8 +344,8 @@ describe('Tier 1 Weapon Arts Expansion', () => {
       expect(allArts.filter((a) => a.tierAffinity === 'Iron' && !a.legacy).length).toBe(17);
     });
 
-    it('active Steel pool has 23 arts (26 minus 3 legacy)', () => {
-      expect(allArts.filter((a) => a.tierAffinity === 'Steel' && !a.legacy).length).toBe(23);
+    it('active Steel pool has 24 arts (27 minus 3 legacy)', () => {
+      expect(allArts.filter((a) => a.tierAffinity === 'Steel' && !a.legacy).length).toBe(24);
     });
   });
 
@@ -377,7 +378,7 @@ describe('Tier 1 Weapon Arts Expansion', () => {
       expect(act2Pool).toContain('Seraphim Scroll');
       expect(act2Pool).toContain('Precise Cut Scroll');
       expect(act2Pool).not.toContain('Comet Edge Scroll');
-      expect(act2Pool.length).toBe(2 + 15 + 23); // listed + Iron + Steel
+      expect(act2Pool.length).toBe(2 + 15 + 24); // listed + Iron + Steel
     });
 
     it('loot tables have updated act3 weapon art scroll pool', () => {

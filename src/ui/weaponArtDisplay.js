@@ -110,6 +110,7 @@ export function weaponArtEffectRows(art) {
         swap: 'swap places with the target',
         push: `push the target back ${tiles(e.distance)} (only when next to it)`,
         through: `pass ${tiles(e.distance)} through the target`,
+        pushAreaVictims: `push the target and each foe the line hit back ${tiles(e.distance)} (only when next to the target)`,
         ram: `ram the target back up to ${tiles(e.distance)} (only when next to it); if blocked, it and any foe it hits take ${e.collisionDamage}`,
       }[e.mode] || `move (${e.mode})`,
     );
@@ -174,6 +175,8 @@ export function weaponArtModsText(art) {
   if (mods.rangeOverride) parts.push(`Range ${mods.rangeOverride.min}–${mods.rangeOverride.max}`);
   if (mods.statScaling)
     parts.push(`Adds ${mods.statScaling.stat} ÷ ${mods.statScaling.divisor} to Attack`);
+  if (mods.foeDefShare > 0)
+    parts.push(`Adds ${Math.round(mods.foeDefShare * 100)}% of the foe's Defense to damage`);
   if (mods.drainPercent)
     parts.push(
       `Heals ${Math.round(mods.drainPercent * 100)}% of damage dealt${mods.drainMaxPerHit ? ` (at most ${mods.drainMaxPerHit} HP a hit)` : ''}`,

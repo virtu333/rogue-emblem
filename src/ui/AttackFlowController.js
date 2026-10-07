@@ -181,7 +181,11 @@ export class AttackFlowController {
       dealt,
     });
     const empty =
-      !preview || (preview.tiles.length === 0 && preview.heals.length === 0 && !preview.push);
+      !preview ||
+      (preview.tiles.length === 0 &&
+        preview.heals.length === 0 &&
+        !preview.push &&
+        !preview.pushes?.length);
     return empty ? null : preview;
   }
 
