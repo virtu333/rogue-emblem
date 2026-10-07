@@ -1738,7 +1738,7 @@ export class BattleScene extends Phaser.Scene {
         for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
           unit._phoenixBroochUsed = false;
         }
-        // The Wounded burden (engine/Burdens.js): a wound is a battle stat delta applied once,
+        // The Lingering Injury burden (id `wounded`, engine/Burdens.js): it is a battle stat delta applied once,
         // here, so the first forecast already shows it. A resume's units carry it already.
         applyBattleStartDebuffs(this.playerUnits, this.battleParams?.battleDebuffs);
       }
