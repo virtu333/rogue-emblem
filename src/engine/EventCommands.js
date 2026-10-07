@@ -137,6 +137,7 @@ import {
   pageIdOf,
   pageOf,
   pathOf,
+  pageSeedId,
   pickEvent,
   pickFallenAlly,
   runSeedOf,
@@ -396,7 +397,12 @@ export function eventView(run, nodeId) {
         : null,
       tells:
         phase === 'choosing'
-          ? choiceTells(run, nodeId, pageId, choice).map(({ speaker, line }) => ({ speaker, line }))
+          ? choiceTells(run, nodeId, pageSeedId(state, pageId), choice).map(
+              ({ speaker, line }) => ({
+                speaker,
+                line,
+              }),
+            )
           : [],
     })),
     outcome: state.choiceId
@@ -449,8 +455,9 @@ export function chooseEventOption(run, nodeId, choiceId, { targetUid = null, pag
   const { node, state, event, catalog, pageId } = ctx;
   const choice = findChoice(event, choiceId, pageId);
   if (choice.target && !targetUid) return { ok: false, reason: 'Choose who.' };
-  // The first page keeps its Phase 1 seeded-swap label; later pages name themselves.
-  const label = pageId === START_PAGE ? `choose:${choiceId}` : `choose:${pageId}:${choiceId}`;
+  // The first page keeps its Phase 1 seeded-swap label; later pages (and revisits) name themselves.
+  const seedPage = pageSeedId(state, pageId);
+  const label = seedPage === START_PAGE ? `choose:${choiceId}` : `choose:${seedPage}:${choiceId}`;
   return seeded(run, nodeId, label, () =>
     commit(run, { node, nodeId, state, event, choice, catalog, targetUid, pageId }),
   );
@@ -467,12 +474,17 @@ function commit(run, { node, nodeId, state, event, choice, catalog, targetUid, p
     choice,
     state,
     page: pageId,
+    pageTag: pageSeedId(state, pageId),
     target,
     fallenUnit: fallenOfState(run, state),
   };
   // A roster tell that tilts a check nudges it (once); the same tells the view showed.
-  const tilt = choice.check ? tellTilt(choiceTells(run, nodeId, pageId, choice)) : 0;
-  const { outcome } = selectOutcome(run, nodeId, choice, { target, pageId, tilt });
+  const tilt = choice.check ? tellTilt(choiceTells(run, nodeId, base.pageTag, choice)) : 0;
+  const { outcome } = selectOutcome(run, nodeId, choice, {
+    target,
+    pageId: base.pageTag,
+    tilt,
+  });
 
   // PLAN: the gold cost, the choice's own effects, then the outcome's (or its fallback).
   const ledger = createLedger(run);
@@ -663,6 +675,7 @@ export function completeEventBattle(run, nodeId) {
       choice,
       state,
       page: pageIdOf(state),
+      pageTag: pageSeedId(state),
       target: state.targetUid ? findRosterUnit(run, state.targetUid) : null,
       fallenUnit: fallenOfState(run, state),
       phase: 'a',

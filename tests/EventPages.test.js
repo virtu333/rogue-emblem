@@ -34,7 +34,7 @@ import {
 } from '../src/engine/EventSystem.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { baseData, eventNode, newRun, runWithEvents, soloEvent } from './eventKit.js';
-import { coinEvent, loopEvent, mineEvent, roundTrip } from './eventPhase2Kit.js';
+import { coinEvent, loopEvent, mineEvent, ringEvent, roundTrip } from './eventPhase2Kit.js';
 
 /** A run whose only event is `event`, standing on its node. */
 function standAt(event, options = {}) {
@@ -69,6 +69,77 @@ describe('seeds: each page rolls on its own', () => {
     // two fair coins agree about half the time; one shared seed would agree always
     expect(same).toBeGreaterThan(25);
     expect(same).toBeLessThan(75);
+  });
+});
+
+describe('seeds: a page the event loops back to rolls afresh', () => {
+  /** Step into the ring, then toss three times; each toss's outcome and stat pick. */
+  const tosses = (seed) => {
+    const { run, node } = standAt(ringEvent(), { seed });
+    chooseEventOption(run, node.id, 'go');
+    const rounds = [];
+    for (let i = 0; i < 3; i++) {
+      const step = chooseEventOption(run, node.id, 'toss');
+      expect(step.ok, step.reason).toBe(true);
+      rounds.push({
+        outcome: step.outcomeId,
+        stat: step.results.find((r) => r.kind === 'stat').stat,
+      });
+    }
+    return { run, node, rounds };
+  };
+  const coin = (key) => (eventRng(key)() * 100 < 50 ? 'heads' : 'tails');
+  const STATS = ['STR', 'SKL', 'SPD', 'DEF'];
+
+  it('the first visit keeps the page-id key; the n-th revisit names itself `ring#n`', () => {
+    // The start page was visited once ('go'); 'ring' is entered by it, so its first toss is
+    // visit 0 of ring (key `ring`), the second toss visit 1 (`ring#1`), the third visit 2.
+    for (let seed = 1; seed <= 40; seed++) {
+      const { run, node, rounds } = tosses(seed);
+      const keys = ['ring', 'ring#1', 'ring#2'];
+      keys.forEach((page, i) => {
+        const base = `event:${run.runSeed}:${node.id}:${page}:toss`;
+        expect(rounds[i].outcome, `seed ${seed} visit ${i}`).toBe(coin(base));
+        // the stat pick is the effect's own sub-stream (phase o, index 0, label stat)
+        expect(rounds[i].stat, `seed ${seed} visit ${i} stat`).toBe(
+          STATS[Math.floor(eventRng(`${base}:o0:stat`)() * STATS.length)],
+        );
+      });
+    }
+  });
+
+  it('a revisit can roll differently from the first visit (one shared key would always agree)', () => {
+    let differ = 0;
+    for (let seed = 1; seed <= 60; seed++) {
+      const { rounds } = tosses(seed);
+      if (rounds[0].outcome !== rounds[1].outcome || rounds[0].stat !== rounds[1].stat) differ++;
+    }
+    expect(differ).toBeGreaterThan(20);
+  });
+
+  it('a reload keeps the revisit roll: the next toss is visit 3 either way', () => {
+    const { run, node } = tosses(11);
+    const loaded = roundTrip(run);
+    // the next toss is visit 3 either way: the same outcome from the same key
+    const a = chooseEventOption(run, node.id, 'toss');
+    const b = chooseEventOption(loaded, node.id, 'toss');
+    expect(a.outcomeId).toBe(b.outcomeId);
+    expect(a.outcomeId).toBe(coin(`event:${run.runSeed}:${node.id}:ring#3:toss`));
+  });
+
+  it('a roster tell on a revisit only says what is true: shown exactly when the toss will be heads', () => {
+    for (let seed = 1; seed <= 12; seed++) {
+      const probe = newRun({ seed });
+      const className = probe.roster[0].className;
+      const { run, node } = standAt(ringEvent({ tellFor: className }), { seed });
+      chooseEventOption(run, node.id, 'go');
+      for (let visit = 0; visit < 4; visit++) {
+        const view = eventView(run, node.id);
+        const shown = view.choices.find((c) => c.id === 'toss').tells.length > 0;
+        const outcome = chooseEventOption(run, node.id, 'toss').outcomeId;
+        expect(shown, `seed ${seed} visit ${visit}`).toBe(outcome === 'heads');
+      }
+    }
   });
 });
 

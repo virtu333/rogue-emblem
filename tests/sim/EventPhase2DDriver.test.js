@@ -30,7 +30,12 @@ const eventSpot = (rm) =>
 describe('Old Faces in the harness', () => {
   it("a fight policy rides to his side: the green deserter on the field is the node's preview, never a lord", async () => {
     for (const seed of [5, 6, 7, 8, 9, 10]) {
-      const driver = driverFor(seed, { eventPolicy: 'fight' });
+      // The lord roll is made certain (chance 1), so only the rule "an event's recruit never
+      // rolls a lord" can keep a lord off the field: no flag on the battle says so.
+      const driver = driverFor(seed, {
+        eventPolicy: 'fight',
+        metaEffects: { lordRecruitChanceBonus: 1 },
+      });
       const rm = driver.runManager;
       const node = arriveAs(rm, 'old_faces', eventSpot(rm));
       let spawned = null;
@@ -56,6 +61,11 @@ describe('Old Faces in the harness', () => {
       ]);
       expect(driver.metrics).toMatchObject({ eventBattles: 1, battles: 1 });
       expect(node.completed).toBe(true);
+      // Control: the same preview at a recruit NODE does roll a lord under this chance.
+      const asRecruitNode = { ...node, type: 'recruit' };
+      expect(rm.getRecruitNodeUnit(asRecruitNode, { preview: node.recruitPreview }).isLord).toBe(
+        true,
+      );
     }
   });
 });

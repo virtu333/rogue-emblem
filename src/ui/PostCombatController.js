@@ -202,7 +202,7 @@ export class PostCombatController {
       if (completionApplied) {
         const settled = scene.runManager.lastBurdenSettlement;
         if (settled && settled.nodeId === scene.nodeId) band?.addParts?.(settlementLines(settled));
-        // So does a contract this victory kept or broke ("Contract kept: +600 G").
+        // So does a contract this victory kept or broke ("Contract kept: Gained 600 G").
         const contract = scene.runManager.lastContractSettlement;
         if (contract && contract.nodeId === scene.nodeId) band?.addParts?.(contract.lines);
       }

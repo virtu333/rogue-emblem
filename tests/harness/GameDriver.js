@@ -6,8 +6,8 @@ import { gridDistance } from '../../src/engine/Combat.js';
 import { getCombatWeapons } from '../../src/engine/UnitManager.js';
 
 export class GameDriver {
-  constructor(gameData, battleParams, roster = null) {
-    this.battle = new HeadlessBattle(gameData, battleParams, roster);
+  constructor(gameData, battleParams, roster = null, options = {}) {
+    this.battle = new HeadlessBattle(gameData, battleParams, roster, options);
     this.replayLog = [];
     this.stepCount = 0;
   }

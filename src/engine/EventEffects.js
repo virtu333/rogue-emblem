@@ -78,7 +78,8 @@
 import { applyRewardTarget } from './LootRewardCommands.js';
 import { spendConsumableUse } from './RosterInventory.js';
 import { canEquip, learnSkill, applyStatBoost, knowsSkill } from './UnitManager.js';
-import { healUnit, damageUnit } from './UnitHealth.js';
+import { healUnit, damageUnit, setUnitHP } from './UnitHealth.js';
+import { resolveAttackStat } from './TraitSystem.js';
 import { applyWear, wearableStats, isWorn, repairWeapon, wearCount } from './WeaponWear.js';
 import { applyForge, canForgeStat } from './ForgeSystem.js';
 import { RECRUIT_PREVIEW_VERSION } from './RecruitNodeSystem.js';
@@ -151,10 +152,25 @@ export const BEST_STAT_CHOICES = Object.freeze(['STR', 'MAG', 'SKL', 'SPD', 'DEF
 /** The accessories' tiers: the loot table of an act, one tier up = the next act's (Act IV's is the top). */
 export const ACCESSORY_TIER_TABLES = Object.freeze(['act1', 'act2', 'act3', 'act4']);
 
+/** The tier table an act reads: acts after IV (postAct, the finale) read Act IV's, an unknown act Act I's. */
+function accessoryTableIndex(actId) {
+  const own = ACCESSORY_TIER_TABLES.indexOf(actId);
+  if (own >= 0) return own;
+  return actId === 'postAct' || actId === 'finalBoss' ? ACCESSORY_TIER_TABLES.length - 1 : 0;
+}
+
 /** Weapon types and tiers an event's weapon pools draw from. */
 export const EVENT_WEAPON_TYPES = Object.freeze(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light']);
 export const EVENT_WEAPON_TIERS = Object.freeze(['Iron', 'Steel', 'Silver']);
-const ACT_BASELINE_TIER = Object.freeze({ act1: 0, act2: 1, act3: 2, act4: 2 });
+// Acts after IV (postAct, the finale) draw like Act IV, never like Act I (an unlisted act used to read as 0).
+const ACT_BASELINE_TIER = Object.freeze({
+  act1: 0,
+  act2: 1,
+  act3: 2,
+  act4: 2,
+  postAct: 2,
+  finalBoss: 2,
+});
 
 // Every effect's sub-picks hang off its choice's seed key; a page after the first names itself
 // (EventSystem.choiceSeedKey), so the first page keeps its Phase 1 streams.
@@ -162,7 +178,10 @@ const rngFor = (ctx, index, label) =>
   eventRng(
     `event:${runSeedOf(ctx.run)}:${ctx.nodeId}:${pagePart(ctx)}${ctx.choice?.id || 'choice'}:${ctx.phase}${index}:${label}`,
   );
-const pagePart = (ctx) => (ctx.page && ctx.page !== START_PAGE ? `${ctx.page}:` : '');
+const pagePart = (ctx) => {
+  const page = ctx.pageTag || ctx.page;
+  return page && page !== START_PAGE ? `${page}:` : '';
+};
 
 const pickFrom = (list, rng) => list[Math.floor(rng() * list.length)];
 
@@ -361,7 +380,7 @@ function planGold(ctx, effect, index, ledger) {
 
 /** The accessories a pool of `kind: 'accessory'` can hand out here: the loot table `tierOffset` tiers up. */
 export function accessoryPoolFor(run, tierOffset = 0) {
-  const here = Math.max(0, ACCESSORY_TIER_TABLES.indexOf(run.currentAct));
+  const here = accessoryTableIndex(run.currentAct);
   const index = Math.max(
     0,
     Math.min(ACCESSORY_TIER_TABLES.length - 1, here + Math.trunc(Number(tierOffset) || 0)),
@@ -391,7 +410,9 @@ function planItem(ctx, effect, index, ledger, lenient) {
   if (effect.pool) {
     template = pickPoolWeapon(ctx, effect, index, ledger);
     if (!template)
-      return lenient ? skipNote('item', NO_ROOM) : { error: NO_ROOM, itemKind: 'weapon' };
+      return lenient
+        ? skipNote('item', NO_ROOM, { noRoom: true })
+        : { error: NO_ROOM, itemKind: 'weapon' };
   } else {
     template =
       run.getConsumableTemplate?.(effect.name) ||
@@ -414,14 +435,20 @@ function planItem(ctx, effect, index, ledger, lenient) {
   const dest = chooseDestination(ctx, item, effect.to || 'auto', ledger);
   if (!dest)
     return lenient
-      ? skipNote('item', NO_ROOM)
+      ? skipNote('item', NO_ROOM, { noRoom: true, name: item.name })
       : { error: NO_ROOM, itemKind: item.type === 'Consumable' ? 'consumable' : 'weapon' };
   reserve(ledger, item, dest);
   return { step: { type: 'item', item, dest, worn } };
 }
 
-function skipNote(kind, text) {
-  return { step: { type: 'note', note: { kind: 'note', of: kind, text } } };
+/**
+ * A step that skips an effect (lenient mode) and says so. `extra` marks why: `noRoom` for an
+ * item with nowhere to go, and `name` for that item when it is known (a pool pick that found
+ * no room has no item yet). The words that report the note say what was missed
+ * (EventResultWords.describeResult).
+ */
+function skipNote(kind, text, extra = {}) {
+  return { step: { type: 'note', note: { kind: 'note', of: kind, text, ...extra } } };
 }
 
 function skillCandidates(ctx, effect, unit, ledger) {
@@ -531,8 +558,8 @@ function planBurden(ctx, effect, index) {
     const uid = unitUidOf(unit);
     if (!uid) return { error: 'No one to wound.' };
     let stat = params.stat;
-    if (stat === 'attack')
-      stat = (Number(unit.stats?.MAG) || 0) > (Number(unit.stats?.STR) || 0) ? 'MAG' : 'STR';
+    // `attack` is the stat the unit's class fights with, never whichever number is higher.
+    if (stat === 'attack') stat = resolveAttackStat(unit);
     else if (stat === 'random') stat = pickFrom(WOUND_STATS, rngFor(ctx, index, 'wound-stat'));
     if (!WOUND_STATS.includes(stat)) return { error: `A wound cannot fall on "${params.stat}".` };
     delete params.scope;
@@ -1142,10 +1169,13 @@ export function applyStep(ctx, step) {
     case 'stat':
       applyStatBoost(step.unit, { stat: step.stat, value: step.value });
       if (step.stat === 'HP')
-        // A lost point of max HP never leaves the unit above its new max or at 0.
-        step.unit.currentHP = Math.max(
-          1,
-          Math.min(Number(step.unit.stats.HP) || 1, Number(step.unit.currentHP) || 1),
+        // A lost point of max HP never leaves the unit above its new max or at 0. HP is set
+        // through UnitHealth, so an HP accessory's debt settles when the unit now stands at
+        // full HP (it is not an attack: no hold wakes).
+        setUnitHP(
+          step.unit,
+          Math.max(1, Math.min(Number(step.unit.stats.HP) || 1, Number(step.unit.currentHP) || 1)),
+          { disturbs: false },
         );
       return [{ kind: 'stat', unit: step.unit.name, stat: step.stat, value: step.value }];
     case 'forge':

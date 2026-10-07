@@ -195,18 +195,6 @@ export class RunSimulationDriver {
     battleParams.fallenUnits = Array.isArray(this.runManager.fallenUnits)
       ? structuredClone(this.runManager.fallenUnits)
       : [];
-    if (isRecruitBattleNode(node)) {
-      // The recruit the Loom previews (RecruitNodeSystem needs the run's state). An event's
-      // green recruit (Old Faces) is the same unit, built without a lord roll.
-      const ctx = this.runManager.getRecruitBattleContext(node);
-      battleParams.recruitNodeId = ctx.nodeId;
-      battleParams.recruitRunSeed = ctx.runSeed;
-      battleParams.recruitRoster = structuredClone(ctx.roster);
-      battleParams.startingLordNames = ctx.startingLordNames;
-      battleParams.recruitLevelBonus = ctx.recruitLevelBonus;
-      battleParams.deployBonus = ctx.deployBonus;
-      if (node.type !== NODE_TYPES.RECRUIT) battleParams.recruitNoLords = true;
-    }
     const deployLimits = DEPLOY_LIMITS[this.runManager.currentAct] || { min: 1, max: 4 };
     const deployBonus = this.runManager.getDeployBonus();
     const deployMax = Math.max(
@@ -222,7 +210,13 @@ export class RunSimulationDriver {
     const deployed = chooseDeployRoster(fullRoster, battleParams.deployCount);
     const deployedKeys = new Set(deployed.map(keyForUnit));
 
-    const driver = new GameDriver(this.gameData, battleParams, deployed.map(cloneUnit));
+    // A recruit battle's green unit (a recruit node's, or an event's) is built by the run
+    // itself, exactly as BattleScene asks it: the harness keeps no copy of that rule.
+    const driver = new GameDriver(this.gameData, battleParams, deployed.map(cloneUnit), {
+      buildRecruit: isRecruitBattleNode(node)
+        ? (preview) => this.runManager.getRecruitNodeUnit(node, { preview })
+        : undefined,
+    });
     driver.init();
     this._enableInvincibilityIfConfigured(driver);
 

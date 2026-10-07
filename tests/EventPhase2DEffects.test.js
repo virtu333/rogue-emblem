@@ -33,7 +33,7 @@ import { RunManager } from '../src/engine/RunManager.js';
 import { roadCandidates } from '../src/engine/RouteEdit.js';
 import { generateBattle } from '../src/engine/MapGenerator.js';
 import { isRecruitBattleNode } from '../src/engine/RecruitNodeSystem.js';
-import { accessoryPoolFor } from '../src/engine/EventEffects.js';
+import { accessoryPoolFor, eventWeaponTier } from '../src/engine/EventEffects.js';
 import { evaluateRequires } from '../src/engine/EventSystem.js';
 import { applyWear, isWorn, wearCount } from '../src/engine/WeaponWear.js';
 import { applyForge } from '../src/engine/ForgeSystem.js';
@@ -151,6 +151,33 @@ describe('an accessory from the pool one tier up', () => {
     expect(accessoryPoolFor(run, 2).map((a) => a.name)).toEqual([...new Set(ACT4)].sort());
   });
 
+  it("acts after IV (postAct, finalBoss) read Act IV's table, not Act I's", () => {
+    // actSequence index 4 and 5 are postAct and finalBoss; tierOffset 0 and 2 both end at act4.
+    const run = newRun();
+    run.actSequence = ['act1', 'act2', 'act3', 'act4', 'postAct', 'finalBoss'];
+    const act4 = [...new Set(ACT4)].sort();
+    for (const [index, act] of [
+      [4, 'postAct'],
+      [5, 'finalBoss'],
+    ]) {
+      run.actIndex = index;
+      expect(run.currentAct).toBe(act);
+      for (const offset of [0, 1, 2])
+        expect(
+          accessoryPoolFor(run, offset).map((a) => a.name),
+          `${act}+${offset}`,
+        ).toEqual(act4);
+    }
+    // An Act I table (the old fallback) holds Iron-age pieces Act IV's does not: they differ.
+    run.actIndex = 0;
+    expect(accessoryPoolFor(run, 0).map((a) => a.name)).not.toEqual(act4);
+  });
+
+  it("a weapon pool in postAct / finalBoss is Act IV's tier (Silver), not Iron", () => {
+    for (const act of ['act4', 'postAct', 'finalBoss'])
+      expect(eventWeaponTier(act, 0), act).toBe('Silver');
+  });
+
   it('is seeded: one seed, one accessory; and a different run seed can differ', () => {
     const first = play(grant(1), { options: { seed: 77 } }).result.results[0].name;
     const again = play(grant(1), { options: { seed: 77 } }).result.results[0].name;
@@ -212,6 +239,34 @@ describe('an accessory from the pool one tier up', () => {
 });
 
 // ── stat: 'best', and a stat that goes down ─────────────────────────────
+
+describe('a wound on the attack stat', () => {
+  // `stat: 'attack'` is the stat the unit's class fights with: STR for a physical class, MAG for
+  // a caster, whichever of the two is larger on the sheet notwithstanding.
+  const woundOf = (className, stats) => {
+    const run = newRun({ seed: 6 });
+    const unit = addUnit(run, className, { name: 'Hale' });
+    Object.assign(unit.stats, stats);
+    play([{ type: 'burden', id: 'wounded', params: { scope: 'target', stat: 'attack' } }], {
+      run,
+      target: 'Hale',
+    });
+    return run.burdens.find((b) => b.id === 'wounded');
+  };
+
+  it('a physical class with MAG above STR is wounded in STR', () => {
+    // Fighter fights with axes (STR); MAG 12 > STR 5 would have pointed the old rule at MAG.
+    expect(woundOf('Fighter', { STR: 5, MAG: 12 })).toMatchObject({
+      unitName: 'Hale',
+      stat: 'STR',
+    });
+  });
+
+  it('a caster with STR above MAG is wounded in MAG', () => {
+    // Mage fights with tomes (MAG); STR 12 > MAG 5 would have pointed the old rule at STR.
+    expect(woundOf('Mage', { STR: 12, MAG: 5 })).toMatchObject({ unitName: 'Hale', stat: 'MAG' });
+  });
+});
 
 describe("stat 'best' and losses", () => {
   /** A unit with exactly these stats (HP 20, nothing else unless said). */
@@ -295,6 +350,25 @@ describe("stat 'best' and losses", () => {
     const unit = withStats(run, 'Tess', {}, 2);
     play([{ type: 'stat', stat: 'HP', value: -3, scope: 'target' }], { run, target: 'Tess' });
     expect([unit.stats.HP, unit.currentHP]).toEqual([17, 1]);
+  });
+
+  it('a lost point of max HP settles HP accessory debt as setUnitHP does (full HP forgives it)', () => {
+    // 20/20 with a stale 4 HP debt: -3 max HP leaves 17/17, full, so the debt is forgiven.
+    // (Before the fix the clamp wrote currentHP directly and the debt stayed on the unit.)
+    const run = newRun({ seed: 6 });
+    const full = withStats(run, 'Tess', {}, 20);
+    full._accessoryHpOwed = 4;
+    play([{ type: 'stat', stat: 'HP', value: -3, scope: 'target' }], { run, target: 'Tess' });
+    expect([full.stats.HP, full.currentHP]).toEqual([17, 17]);
+    expect(full._accessoryHpOwed).toBeUndefined();
+
+    // 15/20 with a 4 HP debt: 12/17 is still hurt, so the debt is kept.
+    const run2 = newRun({ seed: 6 });
+    const hurt = withStats(run2, 'Tess', {}, 15);
+    hurt._accessoryHpOwed = 4;
+    play([{ type: 'stat', stat: 'HP', value: -3, scope: 'target' }], { run: run2, target: 'Tess' });
+    expect([hurt.stats.HP, hurt.currentHP]).toEqual([17, 12]);
+    expect(hurt._accessoryHpOwed).toBe(4);
   });
 
   it('never takes a stat below 0 or max HP below 1, and reports what it took', () => {

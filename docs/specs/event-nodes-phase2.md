@@ -22,8 +22,9 @@ An outcome may continue the event instead of ending it: `"next": "<pageId>"`. An
 `pages: { <pageId>: { text, choices: [...] } }`; its top-level `intro`/`choices` are page
 `start`. The state records `page` and a `path` of `{ page, choiceId, outcomeId, results }`;
 `eventView` shows the current page, with the earlier steps' results above it. Each step commits
-and saves exactly like a Phase 1 choice (seed key `event:${runSeed}:${nodeId}:${page}:${choiceId}`);
-a refresh reopens the current page. `leaveEvent` is allowed only on a page whose resolved
+and saves exactly like a Phase 1 choice (seed key `event:${runSeed}:${nodeId}:${page}:${choiceId}`; a page
+an outcome loops back to names its visit from the second time on, `${page}#${n}`, so a revisit rolls
+afresh and the first visit's key never changes: `EventSystem.pageSeedId`); a refresh reopens the current page. `leaveEvent` is allowed only on a page whose resolved
 outcome has no `next` (or after an explicit `leave` choice). A page may carry its own
 `requires` per choice.
 
@@ -49,7 +50,7 @@ victory** (any battle node, boss included): `underPar` = `turnCount <= turnPar`;
 no player unit fell in that battle. Reward or penalty effects apply through the event effect
 planner (plan then apply; an item with no room becomes a note). A defeat ends the run as
 always. Shown as a chip like a burden ("Contract: win under par"), and on the victory band
-("Contract kept: +600 G" / "Contract broken: Debt 300 G"). A revert never touches it (settled
+("Contract kept: Gained 600 G" / "Contract broken: Burden: Debt"; what was not delivered is said too: "No room for Steel Lance", or "The reward could not be paid" when the settlement failed). A revert never touches it (settled
 only at the victory commit).
 
 ### `routeEdit` effect (the Cartographer)
@@ -103,7 +104,11 @@ Each burden decrements only at the victory commit; a revert never touches it.
 `CHURCH_VOWS` gains `cleanse`: when the run holds a burden, a church offers **Cleanse** (lift
 one burden of the player's choice) beside Promotion and Blessing. It commits the church's vow
 like the other two (`ChurchVow.commitChurchVow`). Debt is not cleansable ("the lender has
-lawyers"): a church never offers to lift it. Never in the prologue, never at the Ruins.
+lawyers"): a church never offers to lift it. **Wounded is not cleansable either**: the same church's Heal all
+is free, always open and ends a wound (`endWoundByHealing`), so a vow is never spent on it (`HEALED_BURDENS`;
+`isCleansable` is false, the engine refuses it with "Heal all mends a wound. It needs no vow.", and a church
+whose only burden is a wound shows no Cleanse section); beside Heal all the church says "Heal all also mends
+Hale's wound." (`Burdens.woundHealLine`). Never in the prologue, never at the Ruins.
 
 ### Dark Omen (a fallen event)
 
@@ -323,7 +328,7 @@ jitter, after every other wave of the turn so those draw as before): a new wave 
 (a price must not buy a turn; the spawn also carries `parNeutral`), copying the map's own foes like any
 procedural arrival, at half XP and gold. A victory counts one down only when the battle carried the wave:
 the locked map says so (`isHuntedBattle`); with no locked map (the sims, unit tests) every non-boss victory
-counts. A boss victory never does. A battle that ends before turn 3 still counts; the wave simply never came.
+counts. A boss victory never does. A battle that ends before turn 3 still counts; the wave simply never came. This is intended: clearing the map before the wave arrives is the counterplay to Hunted, not a loophole to close.
 
 **Sworn Enemy** `{ id }`. `AffixEngine.assignSwornAffix(enemySpawns, { affixConfig, difficultyId, random })`:
 the first boss spawn that is not the Entity gains one tier-1 affix chosen by `affixes.json` weight from
@@ -448,8 +453,9 @@ validated by `EventValidation` and listed in the schema.
   `RunManager.getPromisedRecruitNames` (the name is promised until the node is done), the spawn class, the
   unit the scene builds (`getRecruitNodeUnit`), and the params' `recruitPreview` for `MapGenerator`. An
   event's recruit is built **without the lord roll** (`RunManager._recruitGameData`: lords taken out, as an
-  event `join` is), so the deserter is never Rowan; `HeadlessBattle` and the sim driver say the same
-  through `battleParams.recruitNoLords`. Everything after that (Talk, `recordBattleRecruit`, the roster at
+  event `join` is), so the deserter is never Rowan; the sim driver gives `HeadlessBattle` that same builder
+  (`GameDriver` option `buildRecruit` = `getRecruitNodeUnit`, as BattleScene calls it), so the harness has no
+  copy of the rule and no flag. Everything after that (Talk, `recordBattleRecruit`, the roster at
   victory, fallen recruits, the rescue music) is the recruit node's code unchanged. Record `{ kind:'battle',
   enemyLevelBonus, elite?, recruit?: { className, name } }`.
 - **Requirements `notContract: true`** (no contract open: the Mercenary Contract is not even picked while
@@ -594,7 +600,7 @@ by `EventEveryChoice` and `EventMenu` (every page, choice and outcome, rung-only
 
 The UI half of Phase 2: every surface the engine of 2A–2C gave a record to, built against the engine
 API and tested with fixture events (the shipped 2D content uses the same shapes). No engine rule
-changed; `eventMenuModel.js` stays the one place engine records become words. What was built, and
+changed; the words of a result record are `engine/EventResultWords.js` (`describeResult`; `eventMenuModel.js` adds the chip and the kind, the contract band takes the same text). What was built, and
 what the build settled or changed against the text of §2E:
 
 **Pages (EventMenu).** The choosing page reads, top to bottom: the head, the status line, the
@@ -659,7 +665,7 @@ terms on its title and on a tap or Enter ("Win the next battle by turn par or so
 Broken: Debt 300 G."), after the burdens in the same row; the pause lists (route map and battle) carry it as
 an entry of `pauseBurdenEntries` with the same terms (`.mp-burdens li.is-contract`). The row's label
 says "Burdens and contract" when one is held. The victory band takes `run.lastContractSettlement.lines`
-as parts ("Contract kept: +600 G", "Contract broken: Debt (300 G owed)") beside the burden's, only for this
+as parts ("Contract kept: Gained 600 G", "Contract broken: Burden: Debt": each record in the Event page's own words, joined with " · ") beside the burden's, only for this
 battle's node (`PostCombatController`). A contract is not shown on the battle HUD itself (the pause menu
 and the band are its in-battle surfaces); see the open question below.
 
@@ -668,8 +674,9 @@ and the band are its in-battle surfaces); see the open question below.
 ("Lift the burden", the vow said in the confirmation), the lift. A **Debt** the run holds is listed as a
 greyed row with the altar's refusal ("The lender has lawyers: no altar lifts a Debt."), never pressable. When
 a vow already made here shuts the section the reason is said **once** under the heading (not under every
-row); the words sit on ink, since the church's painting runs behind the page. A run with only a Debt (or no
-burden) still shows no Cleanse (`churchOffersCleanse`, unchanged).
+row); the words sit on ink, since the church's painting runs behind the page. A run with only a Debt, only a wound (or no
+burden) shows no Cleanse (`churchOffersCleanse`); a wound is never a row, the line by Heal all tells the player
+Heal all mends it.
 
 **The colosseum.** #214 already showed "Bouts left here: N" on the menu, the fighter list and the result;
 2E adds the two screens that cost a fee and had none: the **tier** choice and the **forecast** (`ArenaMenu`),

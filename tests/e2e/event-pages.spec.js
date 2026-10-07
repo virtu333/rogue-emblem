@@ -248,7 +248,7 @@ for (const size of SIZES) {
         s.checkBattleEnd();
       });
       const band = page.locator('.ce-band-layer--victory');
-      await expect(band.locator('.ce-band-sub')).toContainText('Contract kept: +600 G');
+      await expect(band.locator('.ce-band-sub')).toContainText('Contract kept: Gained 600 G');
       await page.screenshot({ path: info.outputPath('contract-victory-band.png') });
       expect(errors).toEqual([]);
     });

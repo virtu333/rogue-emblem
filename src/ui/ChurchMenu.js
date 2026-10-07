@@ -46,7 +46,7 @@ import {
   cleanseAtChurch,
   takeChurchBlessing,
 } from '../engine/ChurchVow.js';
-import { describeBurdens } from '../engine/Burdens.js';
+import { describeBurdens, isCleansable, woundHealLine } from '../engine/Burdens.js';
 import { createEclipseSunCanvas } from '../art/eclipse/eclipseSun.js';
 import {
   CHURCH_PROMOTE_COST_LORD,
@@ -157,6 +157,9 @@ export class ChurchMenu {
         this.finish(healRosterAtChurch(run));
       }),
     );
+    // A wound is mended by this heal, with no vow: say so where the player looks for a cure.
+    const woundLine = woundHealLine(run);
+    if (woundLine) body.append(el('p', woundLine, 'church-wound-line'));
     if (!ruins) this.renderKindle(body, run);
     const reviveBlock = (u) =>
       ruins ? ruinsReviveBlock(run, nodeId, u) : churchReviveBlock(run, u);
@@ -233,7 +236,7 @@ export class ChurchMenu {
   }
   /**
    * Cleanse: when the run holds a burden a church can lift (Burdens.cleansableBurdens: all but
-   * Debt), the altar offers to lift one of the player's choosing: a row per burden, its words
+   * Debt and a wound, which Heal all mends), the altar offers to lift one of the player's choosing: a row per burden, its words
    * under it, behind a confirmation. Taking it is this church's vow. A Debt the run carries is
    * shown as a row the altar will not lift, so the player sees why it stays.
    */
@@ -243,7 +246,7 @@ export class ChurchMenu {
     body.append(el('h3', 'Cleanse · Free'));
     const catalog = this.scene.gameData?.events;
     const burdens = describeBurdens(run, catalog);
-    const lifts = burdens.filter((burden) => burden.id !== 'debt');
+    const lifts = burdens.filter(isCleansable);
     // One reason for the whole section when a vow already made here shuts them all
     // (not the same line under every row).
     const reasons = lifts.map((burden) => churchCleanseBlock(run, nodeId, burden.id));
