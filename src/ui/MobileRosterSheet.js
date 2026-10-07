@@ -146,6 +146,7 @@ import { orderedStatKeys } from './statOrder.js';
 import { PrologueRosterCoach, rosterTradeEvents } from './PrologueRosterCoach.js';
 import { unarmedConvoyLine } from '../data/prologueContent.js';
 import { canEquip } from '../engine/UnitManager.js';
+import { isPrologueRun } from '../engine/ScriptedBattle.js';
 
 // Movement between pointerdown and click that still counts as a tap, for touch
 // and pen. Mice hold a line far tighter, so they keep the original 10px.
@@ -1464,6 +1465,54 @@ export class MobileRosterSheet {
       card.append(el('small', warning, 'mr-warn'));
     }
   }
+  /**
+   * Discard on a bag or convoy item card: throws the item away for good, after asking.
+   * Not offered in the prologue (its kits are authored); a lord's personal weapon shows it
+   * greyed with the reason.
+   */
+  discardButton(card, unit, item) {
+    if (!this.run || isPrologueRun(this.run)) return;
+    const reason = rosterItemBlock(this.run, unit, item, 'discard');
+    const b = this.button('Discard', () => this.confirmDiscard(unit, item), reason);
+    b.classList.add('mr-discard');
+    card.append(b);
+    if (reason) card.append(el('small', reason));
+  }
+  /** The warning words an allowed Discard carries ("Leaves Edric unarmed."), '' for none. */
+  discardWarning(unit, item) {
+    return rosterItemWarnings(this.run, unit, item, 'discard')
+      .map(tradeWarningText)
+      .filter(Boolean)
+      .map((text) => `${text}.`)
+      .join(' ');
+  }
+  confirmDiscard(unit, item) {
+    if (this.picker || this.destroyed) return;
+    this.picker = new ChoicePicker({
+      scene: this.scene,
+      title: `Discard ${item.name}?`,
+      choices: [item],
+      confirmation: true,
+      closeLabel: 'Cancel',
+      confirmLabel: 'Discard',
+      label: () => item.name,
+      describe: () =>
+        `It is gone for good: not stored in the convoy, and it pays no gold. ${this.discardWarning(unit, item)}`.trim(),
+      blocked: () => rosterItemBlock(this.run, unit, item, 'discard'),
+      apply: () => {
+        const warning = this.discardWarning(unit, item);
+        const reason = rosterItemAction(this.run, unit, item, 'discard');
+        if (reason) return { ok: false, reason };
+        const saved = this.persistNow();
+        this.render(`Discarded ${item.name}.${warning ? ` ${warning}` : ''}${saved}`);
+        return { ok: true };
+      },
+      onClose: () => {
+        this.picker = null;
+        if (!this.destroyed) this.root.querySelector('button')?.focus();
+      },
+    });
+  }
   useBooster(unit, item) {
     if (this.picker || this.destroyed) return;
     this.picker = new ChoicePicker({
@@ -1524,6 +1573,7 @@ export class MobileRosterSheet {
         if (unit.weapon !== item) this.action(c, 'Equip', unit, item, 'equip');
         c.append(this.button('Trade…', () => this.tradeItem(unit, item)));
         this.action(c, 'Store', unit, item, 'store');
+        this.discardButton(c, unit, item);
       }
     }
     if (!unit.inventory?.length)
@@ -1552,6 +1602,7 @@ export class MobileRosterSheet {
         }
         c.append(this.button('Trade…', () => this.tradeItem(unit, item)));
         this.action(c, 'Store', unit, item, 'store');
+        this.discardButton(c, unit, item);
       }
     }
     if (!unit.consumables?.length)
@@ -1663,21 +1714,23 @@ export class MobileRosterSheet {
         bagItems(this.tradeCtx(), holder, bag).length < bagCapacity(this.tradeCtx(), holder, bag)
       ) {
         this.action(c, 'Withdraw', unit, item, 'withdraw');
-        return;
+      } else {
+        // A full bag: Withdraw becomes Trade…, a swap with one of the unit's items.
+        c.append(
+          this.button('Trade…', () =>
+            this.openTrade(unit, CONVOY_HOLDER, {
+              cursor: { holder: CONVOY_HOLDER, bag, item: live[index] },
+              bag,
+            }),
+          ),
+          el(
+            'small',
+            `${bag === 'consumables' ? 'Consumables' : 'Equipment'} full: trade to swap it for a carried item.`,
+          ),
+        );
       }
-      // A full bag: Withdraw becomes Trade…, a swap with one of the unit's items.
-      c.append(
-        this.button('Trade…', () =>
-          this.openTrade(unit, CONVOY_HOLDER, {
-            cursor: { holder: CONVOY_HOLDER, bag, item: live[index] },
-            bag,
-          }),
-        ),
-        el(
-          'small',
-          `${bag === 'consumables' ? 'Consumables' : 'Equipment'} full: trade to swap it for a carried item.`,
-        ),
-      );
+      // The live convoy item, not the snapshot: a duplicate is told apart by identity.
+      this.discardButton(c, unit, live[index]);
     });
     if (!items.weapons.length && !items.consumables.length)
       this.card('Convoy is empty', 'Store carried items here to share them with your roster.');

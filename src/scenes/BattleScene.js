@@ -52,6 +52,7 @@ import { findShoveTargets as shoveTargetsOf } from '../engine/ForcedMovement.js'
 import {
   CANTO_CONFIRM_STATE,
   canUseDanger,
+  isObjectiveCommand,
   isUnitMenuState,
   menuRow,
   railOwnsMenus,
@@ -6384,7 +6385,11 @@ export class BattleScene extends Phaser.Scene {
         // No Visit command exists: Wait says when ending here visits the village.
         note: id === 'wait' ? this._villageController?.getWaitNote(unit) || null : null,
         disabled: blocked,
-        color: blocked ? UI_PALETTE.muted : UI_PALETTE.text,
+        color: blocked
+          ? UI_PALETTE.muted
+          : isObjectiveCommand({ id })
+            ? UI_PALETTE.good
+            : UI_PALETTE.text,
         invoke: () => {
           if (blocked || isSleeping(unit)) return;
           const audio = this.registry.get('audio');

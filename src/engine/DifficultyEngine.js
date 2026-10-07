@@ -221,8 +221,12 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
   if (mode.villageAmbushChance > (defaults.villageAmbushChance || 0)) {
     lines.push(`${Math.round(mode.villageAmbushChance * 100)}% shop ambush chance`);
   }
+  // Above the default it pays back ("+25% meta currency"); below it is a term of the
+  // run, worded like gold and XP ("80% meta currency").
   if (mode.currencyMultiplier > (defaults.currencyMultiplier ?? 1)) {
     lines.push(`+${Math.round((mode.currencyMultiplier - 1) * 100)}% meta currency`);
+  } else if (mode.currencyMultiplier < (defaults.currencyMultiplier ?? 1)) {
+    lines.push(`${Math.round(mode.currencyMultiplier * 100)}% meta currency`);
   }
   if (mode.extendedLevelingEnabled && !defaults.extendedLevelingEnabled) {
     lines.push('Extended leveling past Lv 20');

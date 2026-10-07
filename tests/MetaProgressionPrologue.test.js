@@ -11,6 +11,7 @@ import {
   mergePrologueState,
 } from '../src/engine/MetaProgressionManager.js';
 import upgradesData from '../data/metaUpgrades.json';
+import prologueData from '../data/prologue.json';
 
 const store = {};
 const localStorageMock = {
@@ -78,6 +79,23 @@ describe('the record', () => {
     expect(meta.setPrologueState('skipped')).toEqual({ ok: true });
     expect(meta.getPrologueState()).toBe('complete');
     expect(meta.setPrologueState('later')).toEqual({ ok: false });
+  });
+});
+
+describe('the shipped grant (prologue spec §12: one cheap upgrade of each)', () => {
+  // The cheapest first tier in each currency's categories (utils/constants CATEGORY_CURRENCY).
+  const cheapest = (categories) =>
+    Math.min(
+      ...upgradesData
+        .filter((u) => categories.includes(u.category))
+        .map((u) => (u.costs || [u.cost])[0]),
+    );
+
+  it('is exactly the cheapest Valor upgrade and the cheapest Supply upgrade: 50 and 35', () => {
+    const valor = cheapest(['lord_bonuses', 'starting_equipment', 'starting_skills']);
+    const supply = cheapest(['recruit_stats', 'economy', 'capacity']);
+    expect([valor, supply]).toEqual([50, 35]);
+    expect(prologueData.grant).toEqual({ valor, supply });
   });
 });
 

@@ -32,18 +32,18 @@ async function endingToHomeBase(d) {
   await activeScene(page, 'HomeBase');
   const meta = await slotMeta(page);
   expect(meta.prologue).toMatchObject({ state: 'complete', grantPaid: true });
-  expect([meta.totalValor, meta.totalSupply, meta.runsStarted]).toEqual([60, 40, 0]);
+  expect([meta.totalValor, meta.totalSupply, meta.runsStarted]).toEqual([50, 35, 0]);
   expect(await slotRun(page)).toBeNull();
   await page.reload();
   await activeScene(page, 'Title');
   const again = await slotMeta(page);
-  expect([again.totalValor, again.totalSupply, again.prologue.grantPaid]).toEqual([60, 40, true]);
+  expect([again.totalValor, again.totalSupply, again.prologue.grantPaid]).toEqual([50, 35, true]);
   // Home Base again from the title: still the one grant.
   await d.click(page.getByRole('button', { name: /^Save Slots/ }));
   await activeScene(page, 'SlotPicker');
   await d.click(page.getByRole('button', { name: 'Select Slot 1', exact: true }));
   await activeScene(page, 'HomeBase');
-  expect([(await slotMeta(page)).totalValor, (await slotMeta(page)).totalSupply]).toEqual([60, 40]); // prettier-ignore
+  expect([(await slotMeta(page)).totalValor, (await slotMeta(page)).totalSupply]).toEqual([50, 35]); // prettier-ignore
 }
 
 const paused = (page) => page.getByRole('dialog', { name: 'Paused', exact: true });

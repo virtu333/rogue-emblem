@@ -41,7 +41,7 @@ import {
   terrainRuleLines,
 } from '../engine/BattleInformation.js';
 import { bindCancelablePress } from '../utils/cancelablePress.js';
-import { isUnitMenuState, canUseDanger } from './battleMenuModel.js';
+import { isUnitMenuState, canUseDanger, isObjectiveCommand } from './battleMenuModel.js';
 import { formatWeaponArtEffects, weaponArtUsesText } from './weaponArtDisplay.js';
 import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
@@ -1569,6 +1569,8 @@ export class MobileBattleHUD {
       },
       [
         item.id === 'attack' && !item.disabled ? 'mb-primary' : '',
+        // Seize and Escape win the battle: they wear the exits' green (cohesion.css).
+        isObjectiveCommand(item) ? 'mb-win-command' : '',
         expanded ? 'is-expanded' : '',
         className,
       ]

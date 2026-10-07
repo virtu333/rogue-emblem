@@ -177,14 +177,15 @@ it('boss-reaching payout is once per run, durable, and shared by settlement/prev
   const s = setup(),
     run = s.runManager;
   run.completedBattles = 4;
-  expect(run.previewEndRunRewards()).toMatchObject({ valor: 60, supply: 60 });
+  // First Light earns x0.8: floor(4 battles x 15 x 0.8) = 48; the milestone adds floor(15 x 0.8) = 12.
+  expect(run.previewEndRunRewards()).toMatchObject({ valor: 48, supply: 48 });
   run.beginBattleInProgress('boss', { isBoss: true });
   run.beginBattleInProgress('boss', { isBoss: true });
   saveServiceRun(s);
   const restored = loadRun(s.gameData, 1);
-  expect(restored.previewEndRunRewards()).toMatchObject({ valor: 75, supply: 75 });
-  expect(restored.settleEndRunRewards(null, 'defeat')).toMatchObject({ valor: 75, supply: 75 });
-  expect(restored.settleEndRunRewards(null, 'defeat')).toMatchObject({ valor: 75, supply: 75 });
+  expect(restored.previewEndRunRewards()).toMatchObject({ valor: 60, supply: 60 });
+  expect(restored.settleEndRunRewards(null, 'defeat')).toMatchObject({ valor: 60, supply: 60 });
+  expect(restored.settleEndRunRewards(null, 'defeat')).toMatchObject({ valor: 60, supply: 60 });
 });
 
 it('Vulnerary bundle spills to convoy with distinct IDs and cannot partially grant when full', () => {

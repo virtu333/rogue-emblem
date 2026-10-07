@@ -538,15 +538,15 @@ test('New Game offers the prologue; Play opens P1 as a run, P1 joins Gaspar, the
       'p4_quarry_gate',
     ],
   });
-  expect(meta.totalValor).toBe(60);
-  expect(meta.totalSupply).toBe(40);
+  expect(meta.totalValor).toBe(50);
+  expect(meta.totalSupply).toBe(35);
   expect(meta.runsStarted).toBe(0);
   expect(await slotRun(page)).toBeNull();
   await expect(page.locator('.mh-onboarding')).toContainText('This is what stays between runs.');
   // The grant is spendable currency: Upgrades shows both balances.
   await page.getByRole('button', { name: 'Upgrades', exact: true }).click();
-  await expect(page.locator('.mu-currency', { hasText: 'Valor 60' })).toBeVisible();
-  await expect(page.locator('.mu-currency', { hasText: 'Supply 40' })).toBeVisible();
+  await expect(page.locator('.mu-currency', { hasText: 'Valor 50' })).toBeVisible();
+  await expect(page.locator('.mu-currency', { hasText: 'Supply 35' })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('button', { name: 'Begin Run', exact: true })).toBeVisible();
   // Begin Run: the first real run takes the fast path, with the prologue's route note.

@@ -402,7 +402,8 @@ export const DIFFICULTY_TAGLINES = Object.freeze({
 });
 
 // Summary lines that pay the player back (the rest make the run harder).
-const REWARD_LINE = /meta currency|Extended leveling/i;
+// A rung that earns less meta currency ("80% meta currency") lists it with the terms.
+const REWARD_LINE = /^\+\d+% meta currency|Extended leveling/i;
 
 /** A difficulty mode's banner: what grows harder, what pays back. */
 export function difficultyBannerContent(mode, index = 0) {
