@@ -51,10 +51,13 @@ follow their steps.
 Each step is one PR, merged when CI is green. A large step gets a review pass first.
 
 **Progress (2026-10-07).**
-- Merged: the art batch (#222), 3A (#221), 3B (#223), 3F (#224), 3C (#225).
-- In progress: 3D (building on Q1 and Q2's recommendations), 3H, 3I, the contract fix, and
-  the Lingering Injury rename.
-- Not started: 3E, 3G.
+- Merged:
+  - the art batch (#222);
+  - 3A (#221), 3B (#223), 3F (#224), 3C (#225), 3H (#226), 3I (#228), 3D (#229), 3G (#231);
+  - the Lingering Injury rename (#227);
+  - the contract fix (#230).
+- In review: 3E (#232).
+- What each step changed from the plan is in "As built" at the end.
 
 ## Shared boundaries (acceptance criteria)
 
@@ -923,6 +926,9 @@ fought to the last turn must not pay more XP than the same battle without one.
 
 ## Decisions for the owner
 
+Every step was built on the recommendation below; the owner may still revisit any of them.
+Two questions came up while building and are open: see "Open after the build".
+
 | | Question | Recommendation |
 |---|---|---|
 | **Q1** | When a Revival Stone breaks, does the exchange end, or do the remaining strikes hit the new bar? | **End the exchange.** One bar per exchange, a readable forecast, no brave or Astra shred. |
@@ -949,5 +955,86 @@ Owner review of #218 and #219 (2026-10-07). #219's HUD stays.
 
 | Finding | Fix | PR |
 |---|---|---|
-| P2: a contract reward could be lost without the player choosing to. It happened two ways: a "No room" note closed the contract, and a failed delivery could not restore the obligation, because `run.contract` was cleared before the snapshot. | Judge once and persist the verdict and its terms (`run.contractOwed`). Deliver with a strict plan under the same seed key, so the payout is deterministic. An owed reward holds the party, with a page offering Claim, Roster and a confirmed Give up. A penalty is retried and never holds the party. | in progress |
-| P3: "Wounded" named two mechanics. | The burden is shown as **Lingering Injury**. Its id stays `wounded`, and the status condition keeps its name. | in progress |
+| P2: a contract reward could be lost without the player choosing to. It happened two ways: a "No room" note closed the contract, and a failed delivery could not restore the obligation, because `run.contract` was cleared before the snapshot. | Judge once and persist the verdict and its terms (`run.contractOwed`). Deliver with a strict plan under the same seed key, so the payout is deterministic. An owed reward holds the party, with a page offering Claim, Roster and a confirmed Give up. A penalty is retried and never holds the party. | #230 |
+| P3: "Wounded" named two mechanics. | The burden is shown as **Lingering Injury**. Its id stays `wounded`, and the status condition keeps its name. | #227 |
+
+## As built (2026-10-07)
+
+Each step's PR body has the full account. This section records where a step departed from
+the plan above, and why.
+
+- **3A** (#221). One deliberate difference: `getWeaponRangeBonus(unit, weapon)` counts the
+  grant of the weapon whose range is asked, not the equipped weapon's. Range asks about a
+  weapon the unit may not be holding yet.
+- **3B** (#223).
+  - The on-kill step runs last in the post-combat pipeline, after every area step, not just
+    after `art_kill_buff`. That way a blast's victims have left their `areaCredits` before
+    the step reads them.
+  - No deed gained an Oath. An Oath skill is one nothing else teaches.
+- **3C** (#225).
+  - **The roll:** a bearer gets one of the five Marks, uniformly. The roll uses its own
+    stream, keyed by run seed and name.
+  - **Hunt** adds +5 only to a strike that already deals damage.
+  - **Silence** does not stop Marks, because they are not skills.
+  - **Road** rolls on turn 1 too.
+  - **Where Marks act:** they do not act in arena bouts or in the legacy standalone sims.
+- **3D** (#229). Built on Q1 and Q2.
+  - A broken bar pays damage XP for the HP it held (`BattleXp.combatHpLost`).
+  - A multi-blow area art stops striking a unit once one of its stones breaks.
+  - After-combat poison skips a bar that just broke.
+  - The gems share the affix pip row.
+  - Terrain floors at 1 HP, so it never reaches a stone.
+  - Sim: Nightfall `ambush_hard_invincible` average turns rose from 804 to 979, still a
+    100% win rate.
+- **3E** (#232). Pass is innate to the Trickster (Q3).
+  - **Blink Strike:**
+    - It offers destinations within the equipped weapon's reach of a seen foe, so a bow
+      user is offered tiles two away.
+    - It is a plain attack only: no art.
+    - Its warp is settled inside the attack's intent checkpoint.
+    - A hidden unit on the destination spends the use and ends the action.
+  - **Great Sacrifice** pays `min(10, HP − 1, the most any hurt ally in range is missing)`.
+  - **Enemy Tricksters** are stripped of Pass, because the AI never reads it.
+- **3F** (#224).
+  - Override pushes only when its user stands next to the target. It is a player-only
+    Silver art that needs Master rank.
+  - Lunar Brace has a scroll, because every Steel art needs one.
+  - Lunar Brace's share does not apply on a counterattack.
+- **3G** (#231). Built on Q4.
+  - The final boss uses Act IV's carry rate.
+  - The Gold Pouch is worth 300, 300, 500 and 800 G in Acts I to IV, and 800 G at the
+    final boss.
+  - The carry-pool weights are new.
+  - A carried item's uid is a hash of the battle seed, tile and name.
+  - **Upper bound on Gold Pouch income** per run, if every carrier is robbed
+    (`npm run sim:carry`):
+
+    | Rung | Gold Pouch income |
+    |---|---|
+    | First Light | 478 G |
+    | Dusk | 1,008 G |
+    | Nightfall | 2,410 G |
+    | Black Sun | 3,753 G |
+- **3H** (#226). Owner redesign: no Bond Ring family; existing accessories can roll a skill,
+  rarely.
+  - Legendary accessories are now marked in the data.
+  - Ten class or personal skills in the pools are lent on purpose (`lentInnates`).
+  - The roll uses a keyed stream, so loot, shop and event results are unchanged apart from
+    the skill and its price.
+- **3I** (#228).
+  - Raises are capped at 6 per Necromancer per battle.
+  - A Skeleton's level is the Necromancer's XP-effective level − 4.
+  - The Necromancer `promotesFrom` Mage, but no player can promote into it.
+  - A class field `enemyWeapon` gives it Gravesong.
+  - A Skeleton pays no survival XP.
+  - The Necromancer keeps its guard post on maps with hold packs.
+
+### Open after the build
+
+- **No way to discard an item.** An owed contract reward that is a weapon can't be claimed
+  when every bag and the convoy are full of weapons: a held party can't reach a shop to sell
+  one, so only Give up is left. Recommendation: a confirmed **Discard** in the roster.
+- **The Gold Pouch economy on Nightfall and Black Sun.** The upper bounds above are high;
+  real income is far lower, because a Thief must reach the carrier and outpace it. If it
+  plays generous, lower those rungs' `carryConfig` rates or the pouch's weight in
+  `carryPool`.
