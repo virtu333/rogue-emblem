@@ -78,11 +78,11 @@ describe('what a church can lift', () => {
     // Wounded is the only burden: there is nothing to cleanse
     expect(churchOffersCleanse(run, church)).toBe(false);
     expect(churchCleanseBlock(run, church, 'wounded')).toBe(
-      'Heal all mends a wound. It needs no vow.',
+      'Heal all mends a lingering injury. It needs no vow.',
     );
     expect(cleanseAtChurch(run, church, 'wounded')).toEqual({
       ok: false,
-      reason: 'Heal all mends a wound. It needs no vow.',
+      reason: 'Heal all mends a lingering injury. It needs no vow.',
     });
     expect(run.burdens).toEqual([WOUNDED]);
     expect(churchVow(run, church)).toBeNull();
@@ -247,14 +247,14 @@ describe('the church menu', () => {
     d.run.burdens = [wound()];
     d.enter('church');
     expect(body()).not.toContain('Cleanse');
-    expect(body()).toContain(`Heal all also mends ${d.run.roster[0].name}'s wound.`);
-    expect(labels().some((l) => l.startsWith('Wounded'))).toBe(false);
+    expect(body()).toContain(`Heal all also mends ${d.run.roster[0].name}'s lingering injury.`);
+    expect(labels().some((l) => l.startsWith('Lingering Injury'))).toBe(false);
     const gold = d.run.gold;
     d.press('Heal all · Free');
     expect(d.run.burdens).toEqual([]);
     expect(d.run.gold).toBe(gold);
     expect(churchVow(d.run, d.node('church').id)).toBeNull(); // no vow spent on the wound
-    expect(body()).toContain('wound mends');
+    expect(body()).toContain('lingering injury mends');
   });
 
   it('with a wound and another burden the list holds the other only, and Heal all keeps the vow free for it', () => {
@@ -262,7 +262,7 @@ describe('the church menu', () => {
     d.enter('church');
     expect(body()).toContain('Cleanse · Free');
     expect(labels()).toContain('Ill Omen · 2 left');
-    expect(labels().some((l) => l.startsWith('Wounded'))).toBe(false);
+    expect(labels().some((l) => l.startsWith('Lingering Injury'))).toBe(false);
     d.press('Heal all · Free');
     expect(d.run.burdens.map((b) => b.id)).toEqual(['ill_omen']);
     d.press('Ill Omen · 2 left');

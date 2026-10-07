@@ -7,6 +7,7 @@ import { findCommander } from '../engine/Commander.js';
 import { isStandaloneScriptedBattle } from '../engine/ScriptedBattle.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
 import { getStaticCombatStats } from '../engine/Combat.js';
+import { lentSkillLine } from '../engine/AccessorySkillNames.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { candidateCards } from './choiceContent.js';
 import {
@@ -64,6 +65,17 @@ export function describeUnit(gameData, unit, scene = null) {
     const skill = gameData.skills?.find((s) => s.id === id);
     box.append(element('p', `${skill?.name || id}: ${skill?.description || ''}`));
   }
+  // An accessory's skill is lent, not learned: its own line, never counted with the list above.
+  const lent = lentSkillLine(unit, gameData.skills);
+  if (lent)
+    box.append(
+      element(
+        'p',
+        lent.known
+          ? `${lent.name}: ${lent.label}`
+          : `${lent.label}: ${lent.name}${lent.text ? `: ${lent.text}` : ''}`,
+      ),
+    );
   if (unit.inventory?.length)
     box.append(
       element(

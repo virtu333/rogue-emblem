@@ -4,6 +4,8 @@ import { InputAction } from '../utils/InputActions.js';
 import { bindCancelablePress } from '../utils/cancelablePress.js';
 import { formatUses, getConsumableDescription } from '../utils/consumableText.js';
 import { formatAccessoryEffects, formatAccessoryCombatEffect } from '../utils/accessoryText.js';
+import { itemDisplayName } from '../utils/itemNames.js';
+import { accessorySkillText } from '../engine/AccessorySkillNames.js';
 import { itemIcon } from './itemIcons.js';
 import { equippedBadgeElement } from './equippedBadge.js';
 import { battleItemBrief } from './battleItemSummary.js';
@@ -39,7 +41,11 @@ function toHolder(subject, engine) {
 export function tradeItemBrief(item, unit) {
   if (!item) return '';
   if (item.type === 'Accessory')
-    return [formatAccessoryEffects(item), formatAccessoryCombatEffect(item)]
+    return [
+      formatAccessoryEffects(item),
+      formatAccessoryCombatEffect(item),
+      accessorySkillText(item),
+    ]
       .filter(Boolean)
       .join(' · ');
   if (item.type === 'Consumable')
@@ -301,7 +307,7 @@ export class TradeMenu {
       el.classList.add('is-empty');
       el.append(element('strong', 'Empty'));
     } else {
-      const name = element('strong', row.item.name);
+      const name = element('strong', itemDisplayName(row.item));
       if (row.equipped) name.append(equippedBadgeElement((tag) => element(tag)));
       el.append(itemIcon(row.item, { size: 32 }), name);
       const brief = tradeItemBrief(row.item, holderUnit(row.slot.holder));

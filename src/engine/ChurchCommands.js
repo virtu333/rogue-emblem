@@ -13,7 +13,7 @@ import { applyPromotionOath, oathBenchedNote } from './DeedSystem.js';
 import { CHURCH_PROMOTE_COST_LORD, CHURCH_PROMOTE_COST_RECRUIT } from '../utils/constants.js';
 import { kindleBlock } from './EclipseSystem.js';
 import { churchVowBlock, commitChurchVow } from './ChurchVow.js';
-import { endWoundByHealing } from './Burdens.js';
+import { endWoundByHealing, injuryPhrase } from './Burdens.js';
 import { healUnitFully } from './UnitHealth.js';
 /** What a church charges to promote this unit: lords pay more than everyone else. */
 export function churchPromoteCost(unit) {
@@ -60,9 +60,9 @@ export function promoteAtChurch(run, unit, nodeId, target, gameData) {
   };
 }
 /**
- * Heal everyone, free: every unit to full HP. A Wounded burden (engine/Burdens.js) whose unit
+ * Heal everyone, free: every unit to full HP. A Lingering Injury burden (engine/Burdens.js, id `wounded`) whose unit
  * the heal reaches mends with it: "Heal all" counts. Shared by the church and the sanctuary's
- * Rest, so a wound ends the same way at either.
+ * Rest, so an injury ends the same way at either.
  * @returns {{ ok: true, mended: object|null, message: string }}
  */
 export function healRosterAtChurch(run) {
@@ -74,9 +74,7 @@ export function healRosterAtChurch(run) {
   return {
     ok: true,
     mended,
-    message: mended
-      ? `All units healed. ${mended.unitName ? `${mended.unitName}'s wound` : 'The wound'} mends.`
-      : 'All units healed.',
+    message: mended ? `All units healed. ${injuryPhrase(mended)} mends.` : 'All units healed.',
   };
 }
 export function churchReviveBlock(run, unit) {

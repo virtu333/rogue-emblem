@@ -12,6 +12,7 @@
 import manifest from './itemIconManifest.json';
 import { resolveItemIconId, baseItemName } from './itemIconIds.js';
 import { wearCount } from '../engine/WeaponWear.js';
+import { accessorySkillOf } from '../engine/AccessorySkillNames.js';
 
 export const ITEM_ICON_MANIFEST = manifest;
 export const ITEM_ICON_SIZES = Object.freeze([16, 32, 48, 64, 96]);
@@ -162,6 +163,12 @@ export function itemIcon(subject, options = {}) {
       w.className = 'ia-wear';
       w.textContent = `-${wear}`;
       el.append(w);
+    }
+    // An accessory that carries a bound skill: a small pip in the top-left corner.
+    if (accessorySkillOf(item) && size >= 32) {
+      const pip = document.createElement('span');
+      pip.className = 'ia-skill';
+      el.append(pip);
     }
     if (typeof item._imbueId === 'string' && item._imbueId) {
       const pip = document.createElement('span');

@@ -1,4 +1,5 @@
 import { resolveGamblerConfig } from '../engine/SkillSystem.js';
+import { accessorySkillText } from '../engine/AccessorySkillNames.js';
 
 const ACCESSORY_STAT_ORDER = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'LCK', 'DEF', 'RES', 'MOV'];
 
@@ -255,6 +256,13 @@ export function formatAccessoryDetail(accessory, options = {}) {
   if (includeCombat) {
     const combat = formatAccessoryCombatEffect(accessory);
     if (combat) parts.push(combat);
+  }
+
+  // A skill the accessory lends comes last. `options.skills` is the skills.json catalog (names
+  // it and says what it does).
+  if (options.includeSkill !== false) {
+    const lent = accessorySkillText(accessory, options.skills);
+    if (lent) parts.push(lent);
   }
 
   if (parts.length <= 0) return fallback;

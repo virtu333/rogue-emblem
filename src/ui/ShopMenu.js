@@ -35,6 +35,7 @@ import {
   getStatForgeCount,
 } from '../engine/ForgeSystem.js';
 import { getSellPrice } from '../engine/LootSystem.js';
+import { itemDisplayName } from '../utils/itemNames.js';
 import { canEquip } from '../engine/UnitManager.js';
 import { getImbueDisplayInfo } from '../engine/ImbueSystem.js';
 import { itemUsageShort, itemUsageText } from '../engine/ItemUsage.js';
@@ -240,7 +241,7 @@ export class ShopMenu {
             : isWorn(row.item)
               ? `${row.owner} · Worn ${wearCount(row.item)}/${wearDisplay(row.item).max}`
               : `${row.owner} · Forge ${row.item._forgeLevel || 0}`;
-      const name = el('strong', row.item.name);
+      const name = el('strong', this.shown(row.item));
       if (row.kind === 'inventory' && row.unit?.weapon === row.item)
         name.append(equippedBadgeElement((tag) => el(tag)));
       const text = el('span', null, 'shop-row-text');
@@ -307,6 +308,10 @@ export class ShopMenu {
         .find((b) => b.dataset.shopFocus === focus)
         ?.focus();
   }
+  /** An item's display name: an accessory with a bound skill shows it. */
+  shown(item) {
+    return itemDisplayName(item, this.scene.gameData?.skills);
+  }
   details(container, row) {
     const { item } = row;
     const copy = el('div', null, 'shop-copy re-scroll');
@@ -316,7 +321,7 @@ export class ShopMenu {
     // What it is ("Silver Lance", "Legend Sword"), then its rules as tags.
     const kicker = itemBaseLine(item) || [item.tier, item.type].filter(Boolean).join(' · ');
     if (kicker) title.append(el('p', kicker, 'shop-kicker'));
-    title.append(el('h3', item.name));
+    title.append(el('h3', this.shown(item)));
     const keys = itemKeywordRow(item, { baseLine: false, make: (tag) => el(tag) });
     if (keys) title.append(keys);
     const requirement = shopRequirementLabel(item);
@@ -402,7 +407,7 @@ export class ShopMenu {
         `Sell · ${getSellPrice(item)} G`,
         () =>
           this.confirm(
-            `Sell ${item.name}?`,
+            `Sell ${this.shown(item)}?`,
             `${row.owner} loses this item.${warning ? ` ${warning}` : ''} Receive ${getSellPrice(item)} gold.`,
             () => this.complete(sellShopItem(this.run, row)),
           ),
@@ -515,7 +520,7 @@ export class ShopMenu {
   buy(entry) {
     if (entry.type === 'accessory') {
       this.picker({
-        title: `Buy and equip ${entry.item.name}`,
+        title: `Buy and equip ${this.shown(entry.item)}`,
         choices: [...this.run.roster, 'pool'],
         label: (unit) => (unit === 'pool' ? 'Keep in shared pool' : unit.name),
         face: (unit) => this.face(unit),
@@ -523,7 +528,7 @@ export class ShopMenu {
           `${entry.price} gold · ` +
           (unit === 'pool'
             ? 'Equip later.'
-            : `Equip now${unit.accessory ? `; ${unit.accessory.name} returns to the shared pool` : ''}.`),
+            : `Equip now${unit.accessory ? `; ${this.shown(unit.accessory)} returns to the shared pool` : ''}.`),
         blocked: () => shopBuyBlock(this.run, this.scene.shopBuyItems, entry),
         apply: (unit) =>
           this.complete(purchaseShopItem(this.run, this.scene.shopBuyItems, entry, unit)),
@@ -532,7 +537,7 @@ export class ShopMenu {
     }
     if (entry.type === 'scroll') {
       this.confirm(
-        `Buy ${entry.item.name}?`,
+        `Buy ${this.shown(entry.item)}?`,
         `${entry.price} gold · Added to the team ${entry.type} pool.`,
         () => this.complete(purchaseShopItem(this.run, this.scene.shopBuyItems, entry)),
       );
@@ -540,7 +545,7 @@ export class ShopMenu {
     }
     const supply = entry.item.type === 'Consumable';
     this.picker({
-      title: `Give ${entry.item.name} to`,
+      title: `Give ${this.shown(entry.item)} to`,
       choices: [...this.run.roster]
         .sort(
           (a, b) =>

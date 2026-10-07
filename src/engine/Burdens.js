@@ -29,11 +29,11 @@
 //
 // A burden never stacks with itself: taking Debt twice adds to `owed`; taking Ill Omen
 // again refreshes `battles` (and keeps the larger `extraShadow`); Hunted refreshes `battles` and
-// keeps the larger wave; Sworn Enemy is one record; a fresh Wounded replaces the old one (a wound
+// keeps the larger wave; Sworn Enemy is one record; a fresh Lingering Injury (id `wounded`) replaces the old one (an injury
 // is on one unit at a time).
 //
 // Cleansing (ChurchVow.cleanseAtChurch) lifts any burden except Debt (UNCLEANSABLE_BURDENS)
-// and Wounded (HEALED_BURDENS: Heal all, which is free and always open at a church, mends it).
+// and Lingering Injury (HEALED_BURDENS: Heal all, which is free and always open at a church, mends it).
 //
 // Settlement happens at exactly one place, the battle's victory commit
 // (RunManager.completeBattle -> burdenEffectsOnVictory), and nowhere mid-battle, so
@@ -51,7 +51,7 @@ export const BURDEN_IDS = Object.freeze(['ill_omen', 'debt', 'hunted', 'sworn_en
 /** Burdens a church can never lift ("the lender has lawyers"). */
 export const UNCLEANSABLE_BURDENS = Object.freeze(['debt']);
 
-/** Burdens a church's free Heal all ends, so Cleanse never offers them (a wound ends with its heal). */
+/** Burdens a church's free Heal all ends, so Cleanse never offers them (an injury ends with its heal). */
 export const HEALED_BURDENS = Object.freeze(['wounded']);
 
 /** The stats a wound may name (never HP: the wound is a battle stat delta, MOV stays whole). */
@@ -209,9 +209,9 @@ export function addBurden(run, id, params = {}, catalog = null) {
     next = { id };
   } else {
     if (typeof params.unitUid !== 'string' || !params.unitUid)
-      return { ok: false, reason: 'A wound needs someone to wound.' };
+      return { ok: false, reason: 'An injury needs someone to bear it.' };
     if (!WOUND_STATS.includes(params.stat))
-      return { ok: false, reason: `A wound cannot fall on "${params.stat}".` };
+      return { ok: false, reason: `An injury cannot fall on "${params.stat}".` };
     next = {
       id,
       unitUid: params.unitUid,
@@ -229,7 +229,7 @@ export function addBurden(run, id, params = {}, catalog = null) {
 
 /**
  * True when a church could lift this burden with a Cleanse vow: every one but Debt (the lender
- * has lawyers) and Wounded (Heal all mends a wound for free at any church or sanctuary, so a
+ * has lawyers) and Lingering Injury (Heal all mends it for free at any church or sanctuary, so a
  * church's one vow is never spent on it: `endWoundByHealing`).
  */
 export function isCleansable(burden) {
@@ -240,11 +240,22 @@ export function isCleansable(burden) {
   );
 }
 
-/** What the church says beside Heal all while a wound is carried ('' when none). */
+/**
+ * How the player names a Lingering Injury (the `wounded` burden) in a sentence:
+ * "Edric's lingering injury", or "The lingering injury" when the unit is unnamed.
+ * The burden is never called Wounded to the player: that is the status condition's name.
+ */
+export function injuryPhrase(burden, { capital = true } = {}) {
+  const name = burden?.unitName || burden?.name || '';
+  if (name) return `${name}'s lingering injury`;
+  return capital ? 'The lingering injury' : 'the lingering injury';
+}
+
+/** What the church says beside Heal all while an injury is carried ('' when none). */
 export function woundHealLine(run) {
   const wound = burdenOf(run, 'wounded');
   if (!wound) return '';
-  return `Heal all also mends ${wound.unitName ? `${wound.unitName}'s wound` : 'the wound'}.`;
+  return `Heal all also mends ${injuryPhrase(wound, { capital: false })}.`;
 }
 
 /** The run's burdens a church can lift, in the order they were taken. */
@@ -462,9 +473,6 @@ export function settlementLines(settlement) {
     );
   if (settlement?.hunted?.ended) lines.push('Hunted (passed)');
   if (settlement?.sworn?.ended) lines.push('Sworn Enemy falls');
-  if (settlement?.wounded?.ended)
-    lines.push(
-      `${settlement.wounded.name ? `${settlement.wounded.name}'s wound` : 'The wound'} mends`,
-    );
+  if (settlement?.wounded?.ended) lines.push(`${injuryPhrase(settlement.wounded)} mends`);
   return lines;
 }

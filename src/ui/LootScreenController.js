@@ -35,6 +35,7 @@ import {
   GOLD_LOOT_REWARD_MULTIPLIER,
 } from '../utils/constants.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
+import { itemDisplayName } from '../utils/itemNames.js';
 import { formatBundleUses, getConsumableDescription } from '../utils/consumableText.js';
 import { showMinorHint } from '../ui/HintDisplay.js';
 import { BoundingFocusController } from './BoundingFocusController.js';
@@ -409,7 +410,7 @@ export class LootScreenController {
       } else {
         // Item choice (weapon, consumable, rare, accessory)
         const item = choice.item;
-        const nameLines = _wrapText(item.name, 12);
+        const nameLines = _wrapText(itemDisplayName(item, scene.gameData?.skills), 12);
         const nameLabel = applyTextResolution(
           scene.add.text(cx, cardY + 5, nameLines, {
             fontFamily: 'Arial',
@@ -463,7 +464,10 @@ export class LootScreenController {
           } else if (choice.type === 'accessory') {
             if (!runManager.accessories) runManager.accessories = [];
             runManager.accessories.push({ ...item });
-            scene.showLootStatus(`Added ${item.name} to Accessory Pool.`, UI_PALETTE.good);
+            scene.showLootStatus(
+              `Added ${itemDisplayName(item, scene.gameData?.skills)} to Accessory Pool.`,
+              UI_PALETTE.good,
+            );
             scene.finalizeLootPick(lootGroup, cardIdx);
           } else if (item.type === 'Consumable' && item.effect === 'statBoost') {
             scene.showStatBoostUnitPicker(item, lootGroup, cardIdx);
@@ -686,7 +690,7 @@ export class LootScreenController {
     pickerGroup.push(bg);
 
     const title = applyTextResolution(
-      scene.add.text(cam.centerX, 80, `Give ${item.name} to:`, {
+      scene.add.text(cam.centerX, 80, `Give ${itemDisplayName(item, scene.gameData?.skills)} to:`, {
         fontFamily: 'Arial',
         fontSize: '16px',
         color: UI_PALETTE.text,
@@ -876,7 +880,7 @@ export class LootScreenController {
     pickerGroup.push(bg);
 
     const title = applyTextResolution(
-      scene.add.text(cam.centerX, 80, `Give ${item.name} to:`, {
+      scene.add.text(cam.centerX, 80, `Give ${itemDisplayName(item, scene.gameData?.skills)} to:`, {
         fontFamily: 'Arial',
         fontSize: '16px',
         color: UI_PALETTE.text,
@@ -1569,6 +1573,7 @@ export class LootScreenController {
         separator: '\n',
         statSeparator: ', ',
         fallback: 'Equip for passive bonus',
+        skills: scene.gameData?.skills,
       });
     }
 

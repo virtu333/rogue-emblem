@@ -252,7 +252,10 @@ export class ShopController {
     const entryType = entry?.type || item.type;
 
     if (entryType === 'accessory' || item.type === 'Accessory') {
-      return formatAccessoryDetail(item, { fallback: 'Accessory' }) || 'Accessory';
+      return (
+        formatAccessoryDetail(item, { fallback: 'Accessory', skills: scene.gameData?.skills }) ||
+        'Accessory'
+      );
     }
 
     if (entryType === 'consumable' || item.type === 'Consumable') {
