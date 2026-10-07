@@ -8,7 +8,8 @@
 //              offered as a place to stop; an NPC ally is walked through; a wall is; the
 //              cost of the detour is wrong; a unit without Pass changes at all
 //   path       findPath and the range disagree (the preview draws a route the move cannot walk)
-//   ice        an occupied tile fails to end a slide; a foe on the entry tile starts one
+//   ice        an occupied tile fails to end a slide; a foe on the entry tile starts one; a hidden
+//              foe inside a slide is slid through at execution (Pass x fog x ice)
 //   preview    a hidden unit shapes the range the player sees (fog leak), or the preview and
 //              the move disagree on a seen board
 //   execution  a hidden foe on the way stops a Pass unit (it should not); one on the last tile
@@ -404,6 +405,119 @@ describe('execution meets hidden foes only where the unit would stand', () => {
     const cut = scene._ambushCut(plain, { effectivePath: walk([0, 1, 2, 3, 4]), movementCost: 4, slideSegments: [] }); // prettier-ignore
     expect(cut.ambusher?.col).toBe(2);
     expect(keysOf(cut.path)).toEqual(['0,0', '1,0']);
+  });
+});
+
+describe('Pass × fog × ice: a hidden unit holds a slide at execution, as a seen one does', () => {
+  // The scene's real path: the range plans with what the player sees, computeEffectivePath
+  // turns the route into a path with its slide segments, `_ambushCut` meets the real board.
+  const cols = (path) => path.map((t) => t.col);
+  const board = (row, hiddenCols, { pass = true, goal = row.length - 1, mov = 5 } = {}) => {
+    const me = hero(0, 0, { mov, stats: { MOV: mov, HP: 20 }, skills: pass ? ['pass'] : [] });
+    const foes = hiddenCols.map((col) => foe(col, 0));
+    const grid = makeGrid([row], new Set(hiddenCols.map((col) => `${col},0`)));
+    const scene = new BattleScene();
+    Object.assign(scene, {
+      _battleSession: 1,
+      grid,
+      playerUnits: [me],
+      enemyUnits: foes,
+      npcUnits: [],
+      ballistas: [],
+      gameData: { skills: data.skills },
+    });
+    const route = Array.from({ length: goal + 1 }, (_, col) => ({ col, row: 0 }));
+    const planned = computeEffectivePath(route, grid.mapLayout, grid.terrainData, row.length, 1, 'Infantry', scene.buildOccupiedSet(me, { seenOnly: true }), 0); // prettier-ignore
+    const cut = (allowance) => scene._ambushCut(me, planned, { allowance });
+    return { scene, me, foes, grid, planned, cut };
+  };
+
+  it('the reproduction: P I I I I P, a hidden foe on column 3, the slide stops on column 2', () => {
+    const w = board('.iiii.', [3]);
+    // Seen-only plan: the slide runs 1 -> 5 for 1 + 0 + 1 + 1 + 1 = 4.
+    expect(cols(w.planned.effectivePath)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(w.planned.movementCost).toBe(4);
+    expect(w.planned.slideSegments).toHaveLength(1);
+    const cut = w.cut(5);
+    expect(cut.ambusher).toBe(w.foes[0]);
+    expect(cols(cut.path)).toEqual([0, 1, 2]);
+    expect(cut.cost).toBe(1); // entry 1 + the first slid tile free
+    // The unit without Pass meets it the same way.
+    const plain = board('.iiii.', [3], { pass: false }).cut(5);
+    expect(cols(plain.path)).toEqual([0, 1, 2]);
+    expect(plain.cost).toBe(1);
+  });
+
+  it('the same stop, and cost, as the SEEN foe gives on the movement range', () => {
+    const w = board('.iiii.', [3]);
+    const seen = w.grid.getMovementRange(0, 0, 5, 'Infantry', positionsOf(w.me, foe(3, 0)), 'player', 0, PASS); // prettier-ignore
+    const landing = seen.get('2,0');
+    expect(landing.slidePath.map((t) => t.col)).toEqual([1, 2]);
+    expect(landing.cost).toBe(w.cut(5).cost);
+  });
+
+  it('a hidden foe on the slide’s landing (last) tile: rests on column 4, cost 1 + 0 + 1 + 1', () => {
+    const cut = board('.iiii.', [5]).cut(5);
+    expect(cut.ambusher?.col).toBe(5);
+    expect(cols(cut.path)).toEqual([0, 1, 2, 3, 4]);
+    expect(cut.cost).toBe(3);
+  });
+
+  it('a hidden foe on the ice ENTRY tile: Pass steps through and the slide starts one tile on', () => {
+    const w = board('.iiii.', [1]);
+    const cut = w.cut(5);
+    expect(cut.ambusher).toBeNull();
+    expect(cols(cut.path)).toEqual([0, 1, 2, 3, 4, 5]);
+    // column 1 normal 1, column 2 entry 1, column 3 free, columns 4 and 5 one each.
+    expect(cut.cost).toBe(4);
+    // What the seen foe does on the range: the same price for the same tile.
+    const seen = w.grid.getMovementRange(0, 0, 5, 'Infantry', positionsOf(w.me, foe(1, 0)), 'player', 0, PASS); // prettier-ignore
+    expect(seen.get('5,0').cost).toBe(4);
+    // Without Pass the unit never gets past it.
+    const plain = board('.iiii.', [1], { pass: false }).cut(5);
+    expect(plain.ambusher?.col).toBe(1);
+    expect(cols(plain.path)).toEqual([0]);
+  });
+
+  it('a Pass unit that cannot afford the step through an ice entry is stopped before it', () => {
+    // P I P with MOV 1: the plan slides 1 -> 2 for 1. The real route walks column 2 as an
+    // ordinary step (1 + 1 = 2), which MOV 1 cannot pay.
+    const w = board('.i.', [1], { goal: 2, mov: 1 });
+    expect(w.planned.movementCost).toBe(1);
+    const poor = w.cut(1);
+    expect(poor.ambusher).toBe(w.foes[0]);
+    expect(cols(poor.path)).toEqual([0]);
+    expect(poor.cost).toBe(0);
+    const rich = w.cut(2);
+    expect(rich.ambusher).toBeNull();
+    expect(cols(rich.path)).toEqual([0, 1, 2]);
+    expect(rich.cost).toBe(2);
+  });
+
+  it('a hidden foe on a plain tile mid-path is walked through; one beyond the slide is too', () => {
+    // P P I I I P: a foe on the plain column 1, before the ice.
+    const before = board('..iii.', [1]).cut(5);
+    expect(before.ambusher).toBeNull();
+    expect(cols(before.path)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(before.cost).toBe(4); // 1 + entry 1 + free + 1 + 1
+    // P I I P P P: the slide lands on column 3; a foe on the plain column 4 is walked through.
+    const beyond = board('.ii...', [4]).cut(5);
+    expect(beyond.ambusher).toBeNull();
+    expect(cols(beyond.path)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(beyond.cost).toBe(4); // entry 1 + free + landing 1 + 1 + 1
+    // …but one ON the last tile still stops the walk (column 5), resting on 4.
+    const last = board('.ii...', [5]).cut(5);
+    expect(last.ambusher?.col).toBe(5);
+    expect(cols(last.path)).toEqual([0, 1, 2, 3, 4]);
+    expect(last.cost).toBe(3);
+  });
+
+  it('previews stay seen-only: the range, the planned path and its slides ignore the hidden foe', () => {
+    const [clear, hidden] = [[], [3]].map((cols_) => board('.iiii.', cols_));
+    const rangeOf = (w) =>
+      w.grid.getMovementRange(0, 0, 5, 'Infantry', w.scene.buildUnitPositionMap(), 'player', 0, movementOptionsFor(w.me)); // prettier-ignore
+    expect(rangeOf(hidden)).toEqual(rangeOf(clear));
+    expect(hidden.planned).toEqual(clear.planned);
   });
 });
 

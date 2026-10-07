@@ -44,7 +44,7 @@ import {
   seenTileOccupant,
   statusStaffThreat,
 } from '../engine/BattleInformation.js';
-import { ambushStop, pathCostTo } from '../engine/FogAmbush.js';
+import { fogMoveCut } from '../engine/FogAmbush.js';
 import { playerKnowledgeOf } from '../ui/battleKnowledge.js';
 import { forcedMoveProbes } from '../ui/forcedMoveProbes.js';
 import { presentSettledMoves } from '../ui/ActionMovementPresentation.js';
@@ -3460,9 +3460,11 @@ export class BattleScene extends Phaser.Scene {
   /**
    * Cut a player's planned path where it runs into a unit hidden in the fog
    * (FogAmbush.js): an enemy, or an NPC the fog hides. Returns the path to walk,
-   * its movement cost and the unit that stopped it.
+   * its movement cost and the unit that stopped it. The plan's slides ride along so a
+   * hidden unit inside a slide holds it, exactly as a seen one would (IceMovement.js).
+   * `allowance` is the movement the unit has to spend (the move's MOV, or Canto's rest).
    */
-  _ambushCut(unit, effective) {
+  _ambushCut(unit, effective, { allowance = null } = {}) {
     const path = effective.effectivePath;
     if (unit?.faction !== 'player' || !this.grid?.fogEnabled)
       return { path, cost: effective.movementCost, ambusher: null };
@@ -3478,22 +3480,21 @@ export class BattleScene extends Phaser.Scene {
             : u.col === col && u.row === row),
       ) || null;
     const knowledge = playerKnowledgeOf(this);
-    const cut = ambushStop(path, {
+    const costMod = this._getCostModifier(unit);
+    const cut = fogMoveCut(path, effective.slideSegments, effective.movementCost, {
       hiddenAt: (col, row) => {
         const found = occupant(col, row);
         return found && !knowledge.isKnown(found) ? found : null;
       },
       blockedAt: (col, row) => Boolean(occupant(col, row)),
       // Pass: a hidden foe on the way is walked through, as a seen one; only one on the
-      // last tile (where the unit would stand) stops the walk.
+      // last tile (where the unit would stand) or inside an ice slide (which it holds) stops
+      // the walk.
       passes: (hidden) => passesHiddenUnit(unit, hidden),
+      costAt: (col, row) => this.grid.getMoveCost(col, row, unit.moveType, costMod),
+      allowance,
     });
-    if (!cut.ambusher) return { path, cost: effective.movementCost, ambusher: null };
-    const costMod = this._getCostModifier(unit);
-    const cost = pathCostTo(path, effective.slideSegments, cut.stopIndex, (col, row) =>
-      this.grid.getMoveCost(col, row, unit.moveType, costMod),
-    );
-    return { path: cut.path, cost, ambusher: cut.ambusher };
+    return { path: cut.path, cost: cut.cost, ambusher: cut.ambusher };
   }
 
   /**
@@ -4937,7 +4938,9 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     // A hidden enemy on the way stops the move short (it may not move at all).
-    const ambush = this._ambushCut(unit, effective);
+    const ambush = this._ambushCut(unit, effective, {
+      allowance: isRooted(unit) ? 0 : unit.mov,
+    });
     const finalPath = ambush.path;
     const finalDest = finalPath[finalPath.length - 1];
     const rollbackLoc = { col: unit.col, row: unit.row };
@@ -5800,7 +5803,9 @@ export class BattleScene extends Phaser.Scene {
       console.warn('[handleCantoClick] effectivePath returned null/short path', { from, to });
       return;
     }
-    const cantoAmbush = this._ambushCut(unit, cantoEffective);
+    const cantoAmbush = this._ambushCut(unit, cantoEffective, {
+      allowance: this._cantoRemaining,
+    });
     const cantoFinalPath = cantoAmbush.path;
     this.battleState = 'UNIT_MOVING';
     const targets = unit.label ? [unit.graphic, unit.label] : [unit.graphic];
