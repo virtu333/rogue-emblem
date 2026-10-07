@@ -17,6 +17,7 @@ import {
 import {
   absorbLethal,
   applyCombatHP,
+  applyStrikeHP,
   damageUnit,
   damageUnitDetailed,
   setUnitHP,
@@ -194,6 +195,38 @@ describe('damageUnit: every non-combat lethal source goes through the same rule'
     const u = boss({ hp: 0, stones: 1 });
     expect(damageUnit(u, 5)).toBe(0);
     expect([u.currentHP, u.revivalStones]).toEqual([0, 1]);
+  });
+
+  it('a blow that breaks a stone still wakes a holder, though its HP did not drop', () => {
+    // A garrison holder at full HP struck for a lethal blow: the bar refills to where it
+    // was, but the pack is disturbed all the same (HoldDisturbance reads the mark).
+    const holder = boss({ hp: 20, stones: 1, extra: { aiMode: 'hold' } });
+    damageUnit(holder, 99);
+    expect([holder.currentHP, holder.holdDisturbed]).toEqual([20, 'hurt']);
+    const ground = boss({ hp: 20, stones: 1, extra: { aiMode: 'hold' } });
+    damageUnit(ground, 99, { disturbs: false }); // the ground's own damage never disturbs
+    expect(ground.holdDisturbed).toBeUndefined();
+  });
+
+  it('a combat strike that breaks a stone wakes a holder the same way', () => {
+    const struck = (apply) => {
+      const holder = boss({ hp: 20, stones: 1, extra: { aiMode: 'hold' } });
+      const event = {
+        type: 'strike',
+        miss: false,
+        attackerSide: 'attacker',
+        targetHPAfter: 20,
+        stoneBroken: true,
+      };
+      apply(holder, event);
+      return holder.holdDisturbed;
+    };
+    expect(struck((h, e) => applyStrikeHP(striker(), h, e))).toBe('hurt');
+    expect(
+      struck((h, e) =>
+        applyCombatHP(striker(), h, { events: [e], attackerHP: 30, defenderHP: 20 }),
+      ),
+    ).toBe('hurt');
   });
 
   it('setUnitHP is a plain write: a debug set or a revive is never absorbed', () => {
