@@ -3124,6 +3124,10 @@ export class RunManager {
         traitsData: this.gameData?.traits || null,
         skillsData: this.gameData?.skills,
         rng: Math.random,
+        // The Mark roll: own stream keyed by run seed and the name picked above.
+        runSeed: this.runSeed,
+        metaEffects: this.metaEffects,
+        marksData: this.gameData?.marks || null,
         traitClassData: hasRecruitTemplate ? null : classData,
         // The Cadre is a recruit like any other: seasoned growths and the join bonus.
         seasoned: true,
