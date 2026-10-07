@@ -90,7 +90,7 @@ import { WOUND_STATS, addBurden, burdenDefFor, describeBurden } from './Burdens.
 import { describeContract, normalizeContract, contractOf } from './Contracts.js';
 import { planJoin, applyJoin, pickJoinSelf } from './EventJoin.js';
 import { planRouteEdit, applyRouteEdit } from './RouteEdit.js';
-import { isBondRing, rollBondRing } from './BondRings.js';
+import { bondRingDisplayName, isBondRing, rollBondRing } from './BondRings.js';
 import { CONSUMABLE_MAX, INVENTORY_MAX, NODE_TYPES } from '../utils/constants.js';
 import { unitUidOf } from './UnitIdentity.js';
 import {
@@ -1054,6 +1054,10 @@ function applyItem(ctx, step) {
         toConvoy: false,
         pooled: true,
         worn: [],
+        // A Bond Ring's name stays "Bond Ring"; the result line shows its rarity and skill.
+        ...(isBondRing(step.item)
+          ? { display: bondRingDisplayName(step.item, ctx.run.gameData?.skills) }
+          : {}),
       },
     ];
   }

@@ -342,6 +342,8 @@ export function accessorySpec(a) {
   if (/ Ring$/.test(n)) {
     if (keys.length === 1 && RING_STAT[keys[0]])
       return D.ringItem({ band: 'gilt', gem: RING_STAT[keys[0]] });
+    // The family of lent skills: one gilt band, a lilac stone (the rarity is not drawn).
+    if (/^Bond/.test(n)) return D.ringItem({ band: 'gilt', gem: 'lilac', cut: 'round', wide: true });
     if (/Pursuit/.test(n)) return D.ringItem({ band: 'silver', gem: 'sky', cut: 'marquise' });
     if (/Nullify/.test(n)) return D.ringItem({ band: 'silver', gem: 'slate', cut: 'square' });
     if (/Life/.test(n)) return D.ringItem({ band: 'gilt', gem: 'verdigris', cut: 'marquise' });

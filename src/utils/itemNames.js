@@ -5,6 +5,10 @@
 // " -N" (docs/specs/worn-weapons.md), an imbue prefixes one adjective. Every lookup that
 // maps a weapon to something reads the undecorated name through here, so a new kind of
 // suffix is one change, not a hunt.
+//
+// A Bond Ring is the other kind of decoration: its identity name stays "Bond Ring" and only
+// the display name carries the rarity and skill (`itemDisplayName`).
+import { bondRingDisplayName, isBondRing } from '../engine/BondRingNames.js';
 
 /** The suffix forging (" +2") or wear (" -2") leaves on a display name. ASCII hyphen. */
 export const ITEM_NAME_SUFFIX_RE = /\s[+-]\d+$/;
@@ -49,4 +53,15 @@ export function weaponCatalogNames(weapon) {
     if (weapon?._imbueId) names.add(plain.replace(/^\S+\s+/, ''));
   }
   return [...names];
+}
+
+/**
+ * The name an item shows. Most items show their `name` (a forged or worn weapon's already
+ * carries its " +N" / " -N"). A Bond Ring's identity stays "Bond Ring"; it shows
+ * "Bond Ring (B) · Vantage" (docs/specs/item-names.md). Display only: every lookup keeps
+ * reading the identity name. `skills` is the skills.json catalog, which names the lent skill.
+ */
+export function itemDisplayName(item, skills = null) {
+  if (isBondRing(item)) return bondRingDisplayName(item, skills);
+  return typeof item?.name === 'string' ? item.name : '';
 }

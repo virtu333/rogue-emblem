@@ -25,6 +25,7 @@ import { unitPortrait } from './unitPortrait.js';
 import { createXpRow } from './xpBar.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
+import { itemDisplayName } from '../utils/itemNames.js';
 import {
   bundleTargetBlock,
   applyRewardBundle,
@@ -231,8 +232,9 @@ export class MobileRewards {
     const label = (c) =>
       c.type === 'skip'
         ? `Take ${this.skipGold} gold instead`
-        : (c.item ? `${c.item.name}${c.quantity > 1 ? ` ×${c.quantity}` : ''}` : '') ||
-          `${c.goldAmount || 0} gold${c.xpAmount ? ` + ${c.xpAmount} team XP` : ''}`;
+        : (c.item
+            ? `${itemDisplayName(c.item, scene.gameData?.skills)}${c.quantity > 1 ? ` ×${c.quantity}` : ''}`
+            : '') || `${c.goldAmount || 0} gold${c.xpAmount ? ` + ${c.xpAmount} team XP` : ''}`;
     const describe = (c) =>
       c.type === 'skip'
         ? skipDominated
@@ -595,14 +597,14 @@ export class MobileRewards {
     const run = this.scene.runManager;
     if (choice.type === 'accessory') {
       this.pushStep({
-        title: `Equip ${item.name}`,
+        title: `Equip ${itemDisplayName(item, this.scene.gameData?.skills)}`,
         subject: item,
         choices: [...run.roster, 'pool'],
         label: (unit) => (unit === 'pool' ? 'Keep in shared pool' : unit.name),
         describe: (unit) =>
           unit === 'pool'
             ? 'Choose who equips it later.'
-            : `Equip now${unit.accessory ? `; ${unit.accessory.name} returns to the shared pool` : ''}.`,
+            : `Equip now${unit.accessory ? `; ${itemDisplayName(unit.accessory, this.scene.gameData?.skills)} returns to the shared pool` : ''}.`,
         final: true,
         apply: (unit) => applyAccessoryReward(run, item, unit),
       });

@@ -16,21 +16,25 @@
 // lists one; Steal and Goddess Dance are listed before they exist) and `lentInnates` (the
 // personal or class-innate skills the pools lend on purpose). `validateBondRingData` is what
 // `npm run validate:data` runs over them.
-import { boundSkillOf } from './EffectiveSkills.js';
 import { ENEMY_ONLY_CLASS_NAMES } from './UnitManager.js';
+import { BOND_RARITIES, BOND_RING_NAME } from './BondRingNames.js';
 
-/** The accessory family's catalog name; every ring's identity. */
-export const BOND_RING_NAME = 'Bond Ring';
-
-/** Rarities, lowest first. */
-export const BOND_RARITIES = Object.freeze(['C', 'B', 'A', 'S']);
+// The name, rarity and text helpers live in BondRingNames.js (no engine imports); they are
+// re-exported so the engine has one door.
+export {
+  BOND_RARITIES,
+  BOND_RING_NAME,
+  bondRingDisplayName,
+  bondRingRarity,
+  bondRingSkill,
+  bondRingText,
+  boundSkillName,
+  isBondRing,
+  lentSkillLine,
+  ringSkillAlreadyKnown,
+} from './BondRingNames.js';
 
 const ACT_KEYS = Object.freeze(['act1', 'act2', 'act3', 'act4']);
-
-/** Is this item a Bond Ring (family catalog entry or rolled instance)? */
-export function isBondRing(item) {
-  return Boolean(item) && item.type === 'Accessory' && item.name === BOND_RING_NAME;
-}
 
 /** The `bondRings` block of a loot-tables object (or of a gameData that holds one), or null. */
 export function bondRingConfig(data) {
@@ -46,57 +50,6 @@ export function bondRingConfig(data) {
 export function bondRingActKey(act) {
   if (ACT_KEYS.includes(act)) return act;
   return act === 'postAct' || act === 'finalBoss' ? 'act4' : 'act1';
-}
-
-/** The ring's rarity ('C'..'S') or null (a catalog ring, or anything that is not a ring). */
-export function bondRingRarity(item) {
-  const rarity = item?._rarity;
-  return isBondRing(item) && BOND_RARITIES.includes(rarity) ? rarity : null;
-}
-
-/** The skill a ring lends (its id) or null. */
-export function bondRingSkill(item) {
-  return isBondRing(item) ? boundSkillOf(item) : null;
-}
-
-/** The skill's catalog name, or the id set in words ("uncanny_blow" -> "Uncanny Blow"). */
-export function boundSkillName(id, skills = null) {
-  if (typeof id !== 'string' || !id) return '';
-  const entry = Array.isArray(skills) ? skills.find((skill) => skill?.id === id) : null;
-  if (entry?.name) return entry.name;
-  return id
-    .split('_')
-    .filter(Boolean)
-    .map((word) => word[0].toUpperCase() + word.slice(1))
-    .join(' ');
-}
-
-/**
- * The text a ring's card carries: what it lends. A catalog ring (no skill yet) says it
- * rolls one; a ring with a skill names it and says what it does.
- */
-export function bondRingText(item, skills = null) {
-  if (!isBondRing(item)) return '';
-  const id = boundSkillOf(item);
-  if (!id) return 'Lends a skill, rolled when the ring is found';
-  const name = boundSkillName(id, skills);
-  const entry = Array.isArray(skills) ? skills.find((skill) => skill?.id === id) : null;
-  const rarity = bondRingRarity(item);
-  const head = rarity ? `Rank ${rarity} · lends ${name}` : `Lends ${name}`;
-  return entry?.description ? `${head}: ${entry.description}` : head;
-}
-
-/**
- * The unit already has the skill its ring lends in its equipped list, so the ring adds
- * nothing (a lent copy of a known skill counts once). A benched skill is not equipped, so the
- * ring still lends it.
- */
-export function ringSkillAlreadyKnown(unit) {
-  const id = boundSkillOf(unit?.accessory);
-  if (!id || !isBondRing(unit.accessory)) return false;
-  return (Array.isArray(unit.skills) ? unit.skills : []).some(
-    (entry) => (typeof entry === 'string' ? entry : entry?.id) === id,
-  );
 }
 
 // ── The roll ────────────────────────────────────────────────────────────

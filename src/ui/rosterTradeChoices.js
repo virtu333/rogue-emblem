@@ -13,6 +13,7 @@ import { canEquip } from '../engine/UnitManager.js';
 import { getStaticCombatStats } from '../engine/Combat.js';
 import { CONVOY_WEAPON_TYPES } from '../utils/constants.js';
 import { rankRequirementText } from './rosterDisplay.js';
+import { itemDisplayName } from '../utils/itemNames.js';
 
 /** The trade bag an item lives in: accessory, supplies or weapons. */
 export function tradeBagFor(item) {
@@ -73,7 +74,7 @@ export function tradePartnerItemText(ctx, partner, item) {
     return bagFillText(ctx, CONVOY_HOLDER, bag);
   }
   if (bag === 'accessory')
-    return partner.accessory ? `Wears ${partner.accessory.name}` : 'No accessory';
+    return partner.accessory ? `Wears ${itemDisplayName(partner.accessory)}` : 'No accessory';
   const fill = bagFillText(ctx, unitHolder(partner), bag);
   return bag === 'inventory' ? `${fill} · ${equipText(partner, item)}` : fill;
 }
@@ -85,5 +86,5 @@ export function tradePartnerText(ctx, partner) {
     .map((bag) => bagFillText(ctx, holder, bag, { fullHint: false }))
     .join(' · ');
   if (isConvoyChoice(partner)) return counts;
-  return partner.accessory ? `${counts} · ${partner.accessory.name}` : counts;
+  return partner.accessory ? `${counts} · ${itemDisplayName(partner.accessory)}` : counts;
 }

@@ -1,4 +1,5 @@
 import { resolveGamblerConfig } from '../engine/SkillSystem.js';
+import { bondRingText, isBondRing } from '../engine/BondRingNames.js';
 
 const ACCESSORY_STAT_ORDER = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'LCK', 'DEF', 'RES', 'MOV'];
 
@@ -256,6 +257,11 @@ export function formatAccessoryDetail(accessory, options = {}) {
     const combat = formatAccessoryCombatEffect(accessory);
     if (combat) parts.push(combat);
   }
+
+  // A Bond Ring has no stat or combat effect: its text is the skill it lends. `options.skills`
+  // is the skills.json catalog (names it and says what it does).
+  if (isBondRing(accessory) && options.includeSkill !== false)
+    parts.push(bondRingText(accessory, options.skills));
 
   if (parts.length <= 0) return fallback;
   return parts.join(separator);
