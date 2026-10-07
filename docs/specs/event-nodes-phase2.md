@@ -713,11 +713,58 @@ every fee screen. The shipped events are played too (`&act=2&units=Thief&event=s
 step with its trail; `plague_village` through three doses to a join; `cartographer` with its guide greyed). Screenshots
 at all five viewports were reviewed during the build and are not kept.
 
-**Open questions.** (1) The contract is on the route map, the pause list and the band but not on the
-battle HUD: a small "Contract: under par" line by the turn counter would help a player racing par; it is a
-battle-HUD change (and BattleScene is a god object), so it was left for a decision. (2) The route ring is
+**Open questions.** (1) Answered: see "Contract on the battle HUD" below. (2) The route ring is
 not saved: a refresh on the outcome page, then Continue, shows the new road without the ring. (3) The
 trail's "just now" step is not saved either; the older steps are always one tap away.
+
+### Contract on the battle HUD
+
+While a contract is open and the battle is one that settles it, the battle shows **"Contract · Under par"**
+(or "· No losses") beside the turn and par counter, and **"— missed"** once a victory right now would break it.
+The terms (the chip's own words: the goal, "Kept: …", "Broken: …", and why when missed) ride the line.
+
+**One rule, asked early.** `engine/ContractStanding.js` (pure) answers "what would the victory commit say
+about this battle as it stands?" through the pieces the commit uses, so the HUD cannot disagree with the band:
+
+- *Which battle settles.* `RunManager.openBattleNode(nodeId)`: `completeBattle` applies a victory (and so
+  settles a contract, a boss's included) only for a node that is on the map and not yet complete. A
+  standalone prologue replay has no run; a prologue run holds no contract; an arena bout is not a battle.
+  No contract, or a battle that settles none: no line and no object.
+- *The verdict.* `Contracts.contractVerdict` on the turn and par the commit reads (`turnManager.turnNumber`
+  and `scene.turnPar`, reinforcement bumps included). Par itself is kept; par + 1 is missed. A battle with no
+  par is never "missed" (the settlement keeps it).
+- *The losses.* `UnitIdentity.resolveBattleCasualties`, extracted from `completeBattle` and called by it and
+  by the HUD: the roster as it entered plus Talk recruits who fell, against the survivors (deployed, escaped
+  and benched). The one difference from the commit's input: a unit already dead and fading out of
+  `playerUnits` counts as lost (its removal is certain), so the line turns the moment it falls.
+
+Nothing is stored: the line is derived from the run and the live battle on every read, so a suspend/resume
+(`turnPar`, units and `_battleRecruits` are in the checkpoint), a Vision rewind and a par bump re-derive it.
+`standing.cause` ('par' | 'losses') words the missed note; `ui/contractHudModel.js` holds the strings.
+
+**Where.** `ui/ContractHudController.js` (create/destroy, built beside the Eclipse's): on desktop one Press
+Start 2P line in the reliquary status plate under the Eclipse line (`DesktopBattleHud` lays it out), its terms
+in a tooltip on hover (wrapped to the room the objective plate leaves); on a phone `MobileBattleHUD` reads
+`model()` into `.mb-contract-slot`, a row of its own right under the counters: a compact button whose tap
+opens a `ContextHelp` sheet, `title` and `aria-label` carry the whole line, and Battle details repeats it. The
+slot is a row of the upright rail's grid across its whole width, so "Contract · No losses — missed" keeps one
+line there; a battle that holds a contract gives the upright rail 18px more height for its whole length
+(`:has(.mb-contract)`, inside the portrait media block), so the map never resizes when the standing flips.
+Formation and a unit's own menu hide the row as they hide the counters. In the short landscape rail
+(667x375) with the Eclipse line, a tile card and the contract at once, Battle details sits one scroll down
+(the rail's "more" cue), as any fourth line would leave it.
+
+**Review route.** `&contract=underPar|noLosses` works on every dev route now (a battle too), and `&par=N`
+(`devScenarios.js` `short_par`) gives the battle a turn par of N so "Under par" breaks in a few real turns;
+the par rides the checkpoint like any par.
+
+**Tests.** `tests/ContractStanding.test.js` (every row asked of the standing and then won for real through
+`completeBattle`, the hand-worked answers pinned, the non-settling battles), `tests/ContractHud.test.js`
+(strings, terms against the chip, survivors, the controller), `tests/DevStartup.test.js`, and the browser
+spec `tests/e2e/contract-hud.spec.js` (lane `mobile-ui`): desktop 640x480 (line, hover, end turns past par,
+a fall), phones at 844x390, 667x375, 390x844 and 375x667 (the line, tap, missed after par by real end
+turns, a fall and a rewind, no overflow, End turn and Battle details whole) and a resume. Screenshots at all
+five viewports were reviewed and are not kept.
 
 ## Not in Phase 2
 
