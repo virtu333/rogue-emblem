@@ -2,7 +2,7 @@ import { element } from './MenuSurface.js';
 import { createNodeArt } from './NodeArt.js';
 import { nodeFrame } from './RouteGraph.js';
 import { describeLoomNode, describeRecruitPreview, loomHeader } from './loomModel.js';
-import { traitLines } from './traitContent.js';
+import { traitLines, markLine } from './traitContent.js';
 import { ruinsChoice } from '../engine/RuinsCommands.js';
 import { eventView } from '../engine/EventCommands.js';
 import { crestElement } from './crestArt.js';
@@ -153,6 +153,14 @@ function recruitBlock(view) {
     }
     block.append(list);
   }
+  if (view.mark) {
+    const mark = element('p', null, 're-loom-recruit-mark');
+    mark.append(
+      element('strong', `Mark · ${view.mark.name}`),
+      document.createTextNode(` ${view.mark.text}`),
+    );
+    block.append(mark);
+  }
   return block;
 }
 
@@ -180,6 +188,7 @@ export function renderLoomCard(card, node, ctx = {}) {
     try {
       recruit = describeRecruitPreview(rm?.getRecruitNodeUnit?.(node) || null, {
         traitLines: (unit) => traitLines(unit, gameData),
+        markLine: (unit) => markLine(unit, gameData),
       });
     } catch (err) {
       console.warn('[Loom] recruit preview failed:', err);

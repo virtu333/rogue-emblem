@@ -21,6 +21,7 @@ export function prepareBossRecruit(run, data) {
     run.getEffectiveMetaEffects(),
     everFallenUnits(run),
     [...(run.getTakenUnitNames?.() || [])],
+    run.runSeed,
   );
   if (!candidates?.length) return null;
   // Each candidate shows (and keeps, once chosen) a face the army lacks.

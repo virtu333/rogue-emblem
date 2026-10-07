@@ -37,7 +37,7 @@ import {
   isMastered,
   getMasteryPerk,
 } from '../engine/MasterySystem.js';
-import { traitLines } from './traitContent.js';
+import { traitLines, markLine } from './traitContent.js';
 import { calculateAvoid } from '../engine/Combat.js';
 import { rosterArtBlock, bindRosterArt } from '../engine/RosterArtCommands.js';
 import { CONSUMABLE_MAX, INVENTORY_MAX, MAX_SKILLS } from '../utils/constants.js';
@@ -633,6 +633,9 @@ export class MobileRosterSheet {
           `${trait.legendary ? 'Legendary · ' : trait.special ? 'Special · ' : ''}${trait.name}`,
           trait.text,
         );
+      // One Mark line under the traits (docs/specs/phase3.md 3C).
+      const mark = markLine(unit, this.gameData);
+      if (mark) this.card(`Mark · ${mark.name}`, mark.text);
       // Flavor only: how this recruit talks (level-ups, promotion, last words).
       const temperament = unit.isLord ? null : unitTemperament(this.scene, unit);
       if (temperament)

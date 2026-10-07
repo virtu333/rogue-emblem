@@ -653,6 +653,8 @@ export function upgradeSpec(u, ctx = grammarContext()) {
   const growth = /growth/.test(u.id);
   const statMat = stat ? STAT_MATERIAL[stat] : null;
   const badge = (s) => (growth ? withBadge(s, 'growth') : stat ? withBadge(s, 'plus') : s);
+  // Marked Blood (Phase 3C): a dark helm with a rose crest, the Mark's own colour.
+  if (u.id === 'marked_blood') return X.crestHelm({ metal: 'unlight', crest: 'rose' });
   if (u.category === 'recruit_stats')
     return badge(X.crestHelm({ metal: 'iron', crest: statMat || 'blood' }));
   if (u.category === 'lord_bonuses') {

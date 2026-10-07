@@ -1003,6 +1003,15 @@
 .re-loom-recruit-traits li.is-legendary strong {
   color: var(--re-accent-text);
 }
+.re-loom-screen .re-loom-recruit-mark {
+  margin: 3px 0 0;
+  font: 10.5px/1.3 var(--re-body);
+  color: var(--re-text);
+}
+.re-loom-recruit-mark strong {
+  font-weight: 700;
+  color: var(--re-mark);
+}
 
 /* ───────── Campaign Map (in-battle, read-only) ───────── */
 .re-campaign-map .re-header .re-loom-heading {

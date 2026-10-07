@@ -1012,6 +1012,7 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.recruitWeaponForge !== undefined) return `+${effect.recruitWeaponForge}`;
     if (effect.recruitStartingAccessory !== undefined) return 'Enabled';
     if (effect.recruitXpBonus !== undefined) return `+${Math.round(effect.recruitXpBonus * 100)}%`;
+    if (effect.markChance !== undefined) return `1 in ${Math.round(1 / effect.markChance)}`;
     if (effect.startingWeaponForge !== undefined) return `+${effect.startingWeaponForge}`;
     if (effect.deadlyArsenalTier !== undefined) return `Tier ${effect.deadlyArsenalTier}`;
     if (effect.deadlyArsenal !== undefined) return 'Tier 2';
@@ -1125,6 +1126,7 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.recruitWeaponForge !== undefined) return 'Recruits join with forged weapons';
     if (effect.recruitStartingAccessory !== undefined) return 'Recruits join with a stat accessory';
     if (effect.recruitXpBonus !== undefined) return 'Combat XP bonus for non-lord units';
+    if (effect.markChance !== undefined) return 'Recruits that bear a Mark (base 1 in 10)';
     if (effect.startingWeaponForge !== undefined) return 'Forge starting weapons';
     if (effect.deadlyArsenalTier !== undefined || effect.deadlyArsenal !== undefined)
       return "Commander's starting weapon upgrades";

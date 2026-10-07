@@ -1,5 +1,5 @@
 import { resolveDeploymentSelection } from '../engine/DeploymentSelection.js';
-import { traitLines } from './traitContent.js';
+import { traitLines, markLine } from './traitContent.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 import { unitPortrait, withUnitFace } from './unitPortrait.js';
 import { getDisplayLevel, inventoryDisplayOrder } from '../engine/UnitManager.js';
@@ -59,6 +59,8 @@ export function describeUnit(gameData, unit, scene = null) {
     box.append(element('p', unit.proficiencies.map((p) => `${p.type} ${p.rank}`).join(' · ')));
   for (const trait of traitLines(unit, gameData))
     box.append(element('p', `${trait.special ? 'Special · ' : ''}${trait.name}: ${trait.text}`));
+  const mark = markLine(unit, gameData);
+  if (mark) box.append(element('p', `Mark · ${mark.name}: ${mark.text}`));
   for (const id of unit.skills || []) {
     const skill = gameData.skills?.find((s) => s.id === id);
     box.append(element('p', `${skill?.name || id}: ${skill?.description || ''}`));

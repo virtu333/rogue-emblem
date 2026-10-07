@@ -554,6 +554,8 @@ export class ColosseumOverlay {
           ],
           // Mercenaries get the recruit meta upgrades (stat/growth, Skilled Recruits).
           this.runManager.getEffectiveMetaEffects?.() ?? this.runManager.metaEffects ?? null,
+          // Their Mark roll: own stream keyed by run seed and name (UnitManager.createRecruitUnit).
+          { runSeed: this.runManager.runSeed, marksData: this.gameData.marks || null },
         );
       } catch (err) {
         console.error('[ColosseumOverlay] Failed to generate mercenary candidates:', err);

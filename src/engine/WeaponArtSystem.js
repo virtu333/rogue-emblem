@@ -4,6 +4,7 @@ import { hasPerBattleUsesLeft } from './Combat.js';
 import { isRooted, isSilenced } from './StatusConditionSystem.js';
 import { setUnitHP } from './UnitHealth.js';
 import { weaponCatalogNames } from '../utils/itemNames.js';
+import { getUnitMarkFor, markProcs } from './MarkSystem.js';
 
 const RANK_ORDER = { Prof: 0, Mast: 1 };
 const VALID_FACTIONS = new Set(['player', 'enemy', 'npc']);
@@ -730,11 +731,21 @@ export function getEffectiveWeaponArtHpCost(unit, art, opts = {}) {
   return Math.max(1, baseCost - reduction + toFiniteNumber(opts.weaponArtHpCostDelta, 0));
 }
 
+/**
+ * Pay an art's HP cost. Mark of the Forge (3C, `opts.marksData`) has a chance, on the
+ * battle's Math.random, to waive a cost that is due: the roll is taken only when there is a
+ * cost, and affordability (`canUseWeaponArt`) never counts it, so an art the unit could not
+ * afford stays unusable. Returns `{ cost, waived }`: what was taken, and whether the Mark
+ * spared it (the caller shows the proc).
+ */
 export function applyWeaponArtCost(unit, art, opts = {}) {
   const hpCost = getEffectiveWeaponArtHpCost(unit, art, opts);
-  if (!unit || hpCost <= 0) return;
+  if (!unit || hpCost <= 0) return { cost: 0, waived: false };
+  const forge = getUnitMarkFor(unit, 'weapon-art-cost', opts.marksData);
+  if (forge && markProcs(forge)) return { cost: 0, waived: true, mark: forge };
   const hp = toFiniteNumber(unit.currentHP, toFiniteNumber(unit?.stats?.HP, 0));
   setUnitHP(unit, Math.max(1, hp - hpCost));
+  return { cost: hpCost, waived: false };
 }
 
 export function resetWeaponArtTurnUsage(unit, context = {}) {

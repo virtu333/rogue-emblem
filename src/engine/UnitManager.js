@@ -32,6 +32,7 @@ import {
   getTraitReclassStatShift,
   reapplyTraitGrowthMods,
 } from './TraitSystem.js';
+import { rollMark } from './MarkSystem.js';
 
 // --- Weapon proficiency parsing ---
 
@@ -807,6 +808,16 @@ export function createRecruitUnit(
   // class it will actually play, so its traits fit that class.
   rollAndApplyTraits(unit, options.traitsData || null, options.rng || Math.random, {
     profile: traitProfileForClass(unit, options.traitClassData),
+  });
+
+  // Roll a Mark (docs/specs/phase3.md 3C): recruits only, on its own stream keyed by run
+  // seed and name (never `options.rng`, so the caller's seeded stream is untouched). The
+  // name is final here: every source names the recruit before building it. No-op without
+  // options.runSeed and options.marksData (sims and tests that omit them stay unchanged).
+  rollMark(unit, {
+    runSeed: options.runSeed,
+    metaEffects: options.metaEffects,
+    marksData: options.marksData,
   });
 
   return unit;

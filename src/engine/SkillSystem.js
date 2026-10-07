@@ -11,6 +11,7 @@ import { getMasteryCombatMods } from './MasterySystem.js';
 import { getTraitCombatMods } from './TraitSystem.js';
 import { setUnitHP } from './UnitHealth.js';
 import { effectiveSkills, hasEffectiveSkill } from './EffectiveSkills.js';
+import { getUnitMarkFor, markActivation, markProcs, roadBuffEntry } from './MarkSystem.js';
 
 // The seven flat combat-mod keys shared by mastery perks and trait combatMods.
 const MOD_KEYS = [
@@ -563,15 +564,33 @@ export function rollStrikeSkills(attacker, normalDamage, target, skillsData, com
  * `liveHP` is the defender's HP at this point in combat resolution — during
  * multi-strike rounds defender.currentHP is stale (resolveCombat tracks HP in
  * locals), so Miracle's lethality check must use the live value when provided.
+ * Mark of the Veil (3C, `marksData`) halves a magic strike on its bearer before the skills
+ * below; Aegis then cannot halve it again (one halving), though its own roll is still taken.
  * Returns { modifiedDamage, miracleTriggered, activated: [{id, name}] }
  */
-export function rollDefenseSkills(defender, damage, isPhysicalAttack, skillsData, liveHP = null) {
+export function rollDefenseSkills(
+  defender,
+  damage,
+  isPhysicalAttack,
+  skillsData,
+  liveHP = null,
+  marksData = null,
+) {
   const result = {
     modifiedDamage: damage,
     miracleTriggered: false,
     cancelFollowUp: false,
     activated: [],
   };
+
+  // Not a skill: Silence does not stop a Mark.
+  let veilHalved = false;
+  const veil = isPhysicalAttack ? null : getUnitMarkFor(defender, 'on-defend', marksData);
+  if (veil && damage > 0 && markProcs(veil)) {
+    result.modifiedDamage = Math.floor(result.modifiedDamage / 2);
+    result.activated.push(markActivation(veil, 'target'));
+    veilHalved = true;
+  }
 
   if (!skillsData || isSilenced(defender)) return result;
 
@@ -598,7 +617,7 @@ export function rollDefenseSkills(defender, damage, isPhysicalAttack, skillsData
       result.activated.push({ id: 'pavise', name: 'Pavise' });
     }
 
-    if (skill.id === 'aegis' && !isPhysicalAttack) {
+    if (skill.id === 'aegis' && !isPhysicalAttack && !veilHalved) {
       result.modifiedDamage = Math.floor(result.modifiedDamage / 2);
       result.activated.push({ id: 'aegis', name: 'Aegis' });
     }
@@ -653,8 +672,11 @@ export function checkAstra(attacker, skillsData) {
 /**
  * Gather all turn-start effects for a set of units.
  * Returns array of effects: [{ type: 'heal', target: unit, amount, source: skillName }]
+ * With `marksData` and a `turn`, a player unit's Mark of the Road rolls here, on the battle's
+ * Math.random, and a hit is `{ type: 'buff', target, entry, source, sourceUnit }`: `entry`
+ * goes to TimedWeaponArtBuffs.applyTimedBuffEntry (+1 MOV until its phase ends).
  */
-export function getTurnStartEffects(units, skillsData) {
+export function getTurnStartEffects(units, skillsData, marksData = null, turn = 1) {
   const effects = [];
 
   const resolvedSkillsData = Array.isArray(skillsData) ? skillsData : [];
@@ -703,6 +725,21 @@ export function getTurnStartEffects(units, skillsData) {
           }
         }
       }
+    }
+
+    // Mark of the Road: the army's own player-phase start (recruits only bear Marks; an NPC
+    // ally has not joined). Not a skill, so Silence does not stop it.
+    const road =
+      unit.faction === 'player' ? getUnitMarkFor(unit, 'on-turn-start', marksData) : null;
+    if (road && markProcs(road)) {
+      effects.push({
+        type: 'buff',
+        target: unit,
+        entry: roadBuffEntry(unit, road, turn),
+        source: road.name,
+        sourceUnit: unit,
+        markId: road.id,
+      });
     }
 
     const accessory = unit.accessory;

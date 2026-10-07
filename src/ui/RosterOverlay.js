@@ -74,7 +74,7 @@ import { BoundingFocusController } from './BoundingFocusController.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
 import { portraitCanvasFrame } from './portraitArt.js';
-import { traitLines } from './traitContent.js';
+import { traitLines, markLine } from './traitContent.js';
 import { epithetText } from '../engine/DeedTitles.js';
 import { fitCanvasText } from './deedDisplay.js';
 import { LEVEL_UP_CUE_WAIT_MS, playCue } from './ceremonyMusic.js';
@@ -1300,6 +1300,17 @@ export class RosterOverlay {
       this._wireTooltipTarget(row, () =>
         this._showSkillTooltip(row, traits.map((t) => `${t.name}: ${t.text}`).join('\n')),
       );
+      y += 16;
+    }
+    // One Mark line under the traits (docs/specs/phase3.md 3C).
+    const mark = markLine(unit, this.gameData);
+    if (mark) {
+      if (!traits.length) y += 6;
+      const row = fitCanvasText(
+        this._text(x, y, `Mark: ${mark.name}`, UI_PALETTE.mark, '9px'),
+        DETAIL_WIDTH - 24,
+      );
+      this._wireTooltipTarget(row, () => this._showSkillTooltip(row, mark.text));
       y += 16;
     }
     const bio = this.gameData?.specialChars?.find((entry) => entry.id === unit.specialCharId)?.bio;

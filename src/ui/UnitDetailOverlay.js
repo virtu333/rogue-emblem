@@ -38,7 +38,7 @@ import {
   isMastered,
   getMasteryPerk,
 } from '../engine/MasterySystem.js';
-import { traitLines } from './traitContent.js';
+import { traitLines, markLine } from './traitContent.js';
 import { isStatusStaff, parseStaffRange } from '../engine/StatusConditionSystem.js';
 import { getImbueDisplayInfo, isImbued } from '../engine/ImbueSystem.js';
 import {
@@ -685,6 +685,15 @@ export class UnitDetailOverlay {
         traitText.setInteractive({ useHandCursor: true });
         traitText.on('pointerover', () => this._showSkillTooltip(traitText, descriptions));
         traitText.on('pointerout', () => this._hideSkillTooltip());
+        y += 13;
+      }
+      // One Mark line under the traits (recruits only; docs/specs/phase3.md 3C)
+      const mark = markLine(unit, this.gameData);
+      if (mark) {
+        const markText = this._tabText(lx, y, `Mark: ${mark.name}`, UI_PALETTE.mark, '9px');
+        markText.setInteractive({ useHandCursor: true });
+        markText.on('pointerover', () => this._showSkillTooltip(markText, mark.text));
+        markText.on('pointerout', () => this._hideSkillTooltip());
         y += 13;
       }
     }
