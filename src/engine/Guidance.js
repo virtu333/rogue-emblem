@@ -11,6 +11,7 @@
 // input. Legacy "hints: false" maps to Off.
 
 import { CONSUMABLE_MAX, INVENTORY_MAX } from '../utils/constants.js';
+import { hasEffectiveSkill } from './EffectiveSkills.js';
 
 export const GUIDANCE_LEVELS = Object.freeze(['full', 'light', 'off']);
 export const GUIDANCE_PREFERENCES = Object.freeze(['auto', ...GUIDANCE_LEVELS]);
@@ -121,7 +122,7 @@ export function isArmoredFoe(unit) {
 /** The special job a newly fielded unit is for (the specialist note), or null. */
 export function specialistJob(unit) {
   if (!unit || unit.faction !== 'player') return null;
-  if ((unit.skills || []).includes('dance')) return 'dance';
+  if (hasEffectiveSkill(unit, 'dance')) return 'dance';
   if (unit.moveType === 'Flying') return 'flyer';
   return null;
 }

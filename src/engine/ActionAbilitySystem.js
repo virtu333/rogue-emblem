@@ -26,6 +26,7 @@ import { gridDistance } from './Combat.js';
 import { getFootprintKeys, isEntity } from './EntitySystem.js';
 import { isDisplacementImmune } from './AffixSystem.js';
 import { traceForcedMove } from './ForcedMovement.js';
+import { effectiveSkills } from './EffectiveSkills.js';
 
 /** Ability kinds the engine + BattleScene glue know how to execute. */
 export const ACTION_ABILITY_KINDS = new Set([
@@ -54,12 +55,12 @@ const CARDINALS = Object.freeze([
  * @returns {Array<object>} skill entries (each with `.actionAbility`)
  */
 export function getActionAbilities(unit, skillsData) {
-  if (!unit || !Array.isArray(unit.skills) || !Array.isArray(skillsData)) return [];
+  if (!unit || !Array.isArray(skillsData)) return [];
   const byId = new Map(
     skillsData.filter((skill) => typeof skill?.id === 'string' && skill.id).map((s) => [s.id, s]),
   );
   const abilities = [];
-  for (const skillId of unit.skills) {
+  for (const skillId of effectiveSkills(unit)) {
     const skill = byId.get(skillId);
     if (!skill || skill.trigger !== 'action') continue;
     const ability = skill.actionAbility;

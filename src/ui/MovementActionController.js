@@ -9,6 +9,7 @@ import { deedsFor } from './DeedController.js';
 import { presentSettledMoves } from './ActionMovementPresentation.js';
 import { safeBattlePresentation } from './safeBattlePresentation.js';
 import { CombatFxController } from './CombatFxController.js';
+import { hasEffectiveSkill } from '../engine/EffectiveSkills.js';
 import { XP_BASE_DANCE } from '../utils/constants.js';
 import { UI_HEX, UI_PALETTE } from '../utils/uiStyles.js';
 import { hasDOMHost } from '../utils/domUI.js';
@@ -41,7 +42,7 @@ export class MovementActionController {
       label: kind,
       validate: () =>
         isActor(scene, unit) &&
-        (kind === 'swap' || unit.skills?.includes(kind)) &&
+        (kind === 'swap' || hasEffectiveSkill(unit, kind)) &&
         target?.ally?.currentHP > 0 &&
         scene[`find${title}Targets`](unit).some((entry) => matches(entry, target, keys)),
       settle: () => {
@@ -127,7 +128,7 @@ export class MovementActionController {
       label: 'dance',
       validate: () =>
         isActor(scene, unit) &&
-        unit.skills?.includes('dance') &&
+        hasEffectiveSkill(unit, 'dance') &&
         target?.ally?.currentHP > 0 &&
         scene.findDanceTargets(unit).some((entry) => entry.ally === target?.ally),
       settle: () => {

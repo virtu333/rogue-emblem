@@ -15,6 +15,7 @@ import { battlePlace } from './placeDisplay.js';
 import { bindHoldBattleSpeed, canHoldBattleSpeed } from './HoldBattleSpeed.js';
 import { syncPrologueForecastLayout } from './prologueForecastLayout.js';
 import { isScriptedBattle } from '../engine/ScriptedBattle.js';
+import { hasEffectiveSkill } from '../engine/EffectiveSkills.js';
 import {
   showContextualHint,
   claimContextualHint,
@@ -688,7 +689,7 @@ export class MobileBattleHUD {
         side.append(disclosure);
       } else side.append(el('p', 'mb-detail', skill.name));
     }
-    if (unit.skills?.some((skill) => (typeof skill === 'string' ? skill : skill?.id) === 'miracle'))
+    if (hasEffectiveSkill(unit, 'miracle', { weapon }))
       side.append(el('p', 'mb-detail', `Miracle: ${unit._miracleUsed ? 'used' : 'ready'}`));
     if (attacking && config.weaponArt) {
       const cost = this.scene._formatWeaponArtCostLabel(unit, config.weaponArt);
