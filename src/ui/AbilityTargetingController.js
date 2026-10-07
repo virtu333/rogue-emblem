@@ -1,5 +1,6 @@
-// AbilityTargetingController — the two abilities that pick one adjacent unit
-// (action skills with `actionAbility.kind` push_enemy / transfer_hp: Smite, Transfuse).
+// AbilityTargetingController — the abilities that pick one adjacent unit
+// (action skills with `actionAbility.kind` push_enemy / transfer_hp / steal_item: Smite,
+// Transfuse, Steal).
 // AbilityController owns the menu and routes here; this owns the target step and the
 // action itself. Targets are chosen in SELECTING_ABILITY_TILE (the state Blink uses,
 // already in every cancel / input / Vision-rewind list), on the target unit's own tile,
@@ -7,7 +8,8 @@
 // rewind clean it up the same way.
 //
 // The rules live in engine/ActionAbilitySystem.js (findSmiteTargets,
-// findTransfuseTargets, settleSmite, settleTransfuse). This file only reads what the
+// findTransfuseTargets, findStealTargets, settleSmite, settleTransfuse) and engine/Steal.js
+// (settleSteal: one atomic transfer of the carried item). This file only reads what the
 // player knows to build the preview (seen foes, fogged tiles taken, a slide over the
 // units known: ui/forcedMoveProbes.js), settles over the real board through
 // settleAndPresent (the checkpoint is durable before anything is drawn) and draws.
@@ -21,11 +23,14 @@ import { UI_HEX, UI_PALETTE } from '../utils/uiStyles.js';
 import { forcedMoveProbes } from './forcedMoveProbes.js';
 import {
   findSmiteTargets,
+  findStealTargets,
   findTransfuseTargets,
+  stealStatus,
   markUsed,
   settleSmite,
   settleTransfuse,
 } from '../engine/ActionAbilitySystem.js';
+import { STEAL_ABILITY_KIND, settleSteal, stealReasonLabel } from '../engine/Steal.js';
 
 const FOE_TILE_COLOR = UI_HEX.warn;
 const ALLY_TILE_COLOR = UI_HEX.hpHigh;
@@ -51,6 +56,8 @@ export class AbilityTargetingController {
       enemies: this.abilities._seenHostiles(unit),
       allies: this.abilities._allyPool(unit, skill.actionAbility?.kind),
       affixes: scene.gameData?.affixes,
+      // Steal's room check: the convoy takes the item when the thief's own bag cannot.
+      canAddToConvoy: (item) => Boolean(scene.runManager?.canAddToConvoy?.(item)),
     };
   }
 
@@ -61,6 +68,8 @@ export class AbilityTargetingController {
       return findSmiteTargets(unit, ability, this._context(unit, skill));
     if (ability?.kind === 'transfer_hp')
       return findTransfuseTargets(unit, ability, this._context(unit, skill));
+    if (ability?.kind === STEAL_ABILITY_KIND)
+      return findStealTargets(unit, ability, this._context(unit, skill));
     return [];
   }
 
@@ -74,7 +83,7 @@ export class AbilityTargetingController {
     const tiles = targets.map((target) => ({ col: target.unit.col, row: target.unit.row }));
     scene.abilityTiles = tiles;
     scene._pendingAbility = { unitName: unit.name, skillId: skill.id };
-    const hostile = skill.actionAbility.kind === 'push_enemy';
+    const hostile = ['push_enemy', STEAL_ABILITY_KIND].includes(skill.actionAbility.kind);
     scene.grid.showAttackRange(tiles, hostile ? FOE_TILE_COLOR : ALLY_TILE_COLOR, 0.4);
   }
 
@@ -84,12 +93,32 @@ export class AbilityTargetingController {
     const target = this.find(unit, skill).find(
       (entry) => entry.unit.col === gp.col && entry.unit.row === gp.row,
     );
-    if (!target) return;
+    if (!target) {
+      if (skill.actionAbility?.kind === STEAL_ABILITY_KIND)
+        this._explainRefusedSteal(unit, skill, gp);
+      return;
+    }
     scene.registry.get('audio')?.playSFX('sfx_confirm');
     scene.grid.clearAttackHighlights();
     scene.abilityTiles = [];
     scene._pendingAbility = null;
     void this.execute(unit, skill, target);
+  }
+
+  /** A tap on a carrier Steal cannot rob (the room went, or it is quicker): say why. */
+  _explainRefusedSteal(unit, skill, gp) {
+    const scene = this.scene;
+    const { reason } = stealStatus(unit, skill.actionAbility, this._context(unit, skill));
+    const label = stealReasonLabel(reason);
+    if (!label) return;
+    safeBattlePresentation(
+      'steal refusal',
+      () => {
+        const pos = scene.grid.gridToPixel(gp.col, gp.row);
+        scene.showMinorHintAt(pos.x, pos.y, label, UI_PALETTE.bad);
+      },
+      { scene },
+    );
   }
 
   execute(unit, skill, target) {
@@ -98,7 +127,8 @@ export class AbilityTargetingController {
     if (session !== this.abilities.session) return false;
     const kind = skill.actionAbility.kind;
     const smite = kind === 'push_enemy';
-    const label = smite ? 'ability_smite' : 'ability_transfuse';
+    const steal = kind === STEAL_ABILITY_KIND;
+    const label = smite ? 'ability_smite' : steal ? 'ability_steal' : 'ability_transfuse';
     // The finder is the validator: the target the player chose must still be a legal
     // one, with the landing tile (Smite) it was offered.
     let current = null;
@@ -123,6 +153,14 @@ export class AbilityTargetingController {
           observeHistoryAction(scene, 'smote', unit, current.unit);
           return { kind, ...settleSmite(current, forcedMoveProbes(scene).world) };
         }
+        if (steal) {
+          // One atomic transfer (engine/Steal.js): room is checked first, the same item
+          // instance moves into the bag or the convoy, and only then does the carrier let go.
+          const facts = settleSteal(unit, current.unit, { run: scene.runManager });
+          if (!facts) throw new Error('Steal refused after its target was validated');
+          observeHistoryAction(scene, 'stole from', unit, facts.carrier, facts.item.name);
+          return { kind, ...facts };
+        }
         const facts = settleTransfuse(unit, current, ability);
         observeHistoryAction(scene, 'transfused', unit, facts.ally, `${facts.given} HP`, {
           amount: facts.given,
@@ -132,6 +170,7 @@ export class AbilityTargetingController {
       present: async (facts) => {
         safeBattlePresentation('ability menu', () => scene.hideActionMenu(), { scene });
         if (smite) return this._presentSmite(facts, { session, label });
+        if (steal) return this._presentSteal(facts);
         return this._presentTransfuse(facts);
       },
     });
@@ -152,6 +191,32 @@ export class AbilityTargetingController {
         scene._refreshPostCombatMovementState(
           moves.map((move) => move.unit),
           { revealFog: false },
+        );
+      },
+      { scene },
+    );
+  }
+
+  _presentSteal({ thief, carrier, item, destination }) {
+    const scene = this.scene;
+    safeBattlePresentation(
+      'steal sound',
+      () => scene.registry.get('audio')?.playSFX('sfx_confirm'),
+      {
+        scene,
+      },
+    );
+    // The carrier's sack pip goes with the item.
+    safeBattlePresentation('steal carrier pip', () => scene.updateAffixPips?.(carrier), { scene });
+    safeBattlePresentation(
+      'steal banner',
+      () => {
+        const pos = scene.grid.gridToPixel(thief.col, thief.row);
+        scene.showMinorHintAt(
+          pos.x,
+          pos.y,
+          `Stole ${item.name}${destination === 'convoy' ? ' (convoy)' : ''}`,
+          UI_PALETTE.good,
         );
       },
       { scene },

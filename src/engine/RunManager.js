@@ -165,7 +165,7 @@ import {
   pruneGoneWounds,
 } from './Burdens.js';
 import { isHuntedBattle } from './HuntedWave.js';
-import { normalizeContract } from './Contracts.js';
+import { contractRewardOwedAt, normalizeContract, normalizeContractOwed } from './Contracts.js';
 import { settleContract } from './ContractSettlement.js';
 import { everFallenUnits } from './LaidToRest.js';
 import { createSpecialCharacter } from './SpecialCharacters.js';
@@ -552,9 +552,12 @@ export class RunManager {
     this.pendingEventNodeId = null;
     this.laidToRest = [];
     this.lastBurdenSettlement = null;
-    // The open contract (engine/Contracts.js: a goal for the next battle) and what the last
-    // victory settled of it, for the victory band (not saved, like lastBurdenSettlement).
+    // The open contract (engine/Contracts.js: a goal for the next battle), the settlement it
+    // earned and has not yet delivered (`contractOwed`, saved: judged once, owed until paid or
+    // a reward is given up) and what the last settlement said, for the victory band (not saved,
+    // like lastBurdenSettlement).
     this.contract = null;
+    this.contractOwed = null;
     this.lastContractSettlement = null;
     this.difficultyId = 'normal';
     this.difficultyModifiers = {
@@ -608,6 +611,7 @@ export class RunManager {
     this.laidToRest = [];
     this.lastBurdenSettlement = null;
     this.contract = null;
+    this.contractOwed = null;
     this.lastContractSettlement = null;
   }
 
@@ -3284,6 +3288,9 @@ export class RunManager {
     // A won event fight whose spoils are still owed holds the party there too: moving on
     // would leave them behind for good, and its page offers Try again and Give up.
     if (eventSpoilsOwedAt(this, current)) return [current];
+    // Likewise a kept contract's reward earned here and not yet delivered or given up: the
+    // settlement page offers Claim, Roster and a confirmed Give up (engine/ContractSettlement.js).
+    if (contractRewardOwedAt(this, current)) return [current];
     // Otherwise, forward edges from the completed node
     return current.edges.map((id) => this.nodeMap.nodes.find((n) => n.id === id)).filter(Boolean);
   }
@@ -3496,6 +3503,8 @@ export class RunManager {
     // statusStaffConfig is an object — read directly (getDifficultyModifier coerces objects)
     battleParams.statusStaffConfig = this.difficultyModifiers?.statusStaffConfig ?? null;
     battleParams.siegeWeaponConfig = this.difficultyModifiers?.siegeWeaponConfig ?? null;
+    // Carried items (EnemyCarry.js): a run saved before the table existed has none.
+    battleParams.carryConfig = this.difficultyModifiers?.carryConfig ?? null;
     // Battle pacing (docs/specs/dusk-pressure.md), written into the map when it is
     // generated: the rout ladder, the rung's par inflation, and whether template waves
     // raise par. A run saved before these existed keeps none of them (DIFFICULTY_DEFAULTS).
@@ -3648,6 +3657,8 @@ export class RunManager {
           !this.eventStateByNodeId[nodeId].left))
     )
       return true;
+    // A battle node that holds the party for an owed contract reward reopens its settlement page.
+    if (node && !this.battleInProgress && contractRewardOwedAt(this, node)) return true;
     return Boolean(
       node &&
       node.id === this.currentNodeId &&
@@ -4867,6 +4878,7 @@ export class RunManager {
       storyFlags: this.storyFlags || {},
       burdens: this.burdens || [],
       contract: this.contract || null,
+      contractOwed: this.contractOwed || null,
       laidToRest: this.laidToRest || [],
       difficultyId: this.difficultyId || 'normal',
       difficultyModifiers: this.difficultyModifiers || {
@@ -5418,6 +5430,8 @@ export class RunManager {
     rm.storyFlags = sanitizeStoryFlags(saved.storyFlags);
     rm.burdens = normalizeBurdens(saved.burdens);
     rm.contract = normalizeContract(saved.contract);
+    // Saves from before contract recovery carry none (their contracts closed at the victory).
+    rm.contractOwed = normalizeContractOwed(saved.contractOwed);
     rm.laidToRest = sanitizeLaidToRest(saved.laidToRest);
     rm.applyDifficultySelection(saved.difficultyId || 'normal');
     if (saved.difficultyModifiers && typeof saved.difficultyModifiers === 'object') {

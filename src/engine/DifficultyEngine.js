@@ -88,6 +88,7 @@ export const DIFFICULTY_REQUIRED_KEYS = [
   'enemyPoisonChance',
   'enemyStatusStaffChance',
   'statusStaffConfig',
+  'carryConfig',
   'shopCureGating',
   'goldMultiplier',
   'shopPriceMultiplier',
@@ -125,6 +126,9 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   enemyPoisonChance: 0,
   enemyStatusStaffChance: 0,
   statusStaffConfig: null,
+  // Enemies that carry an item a Thief can steal (docs/specs/phase3.md 3G, EnemyCarry.js):
+  // { perBattle, act1..act4, finalBoss, maxPerBattle }. null: none (a run saved before it).
+  carryConfig: null,
   shopCureGating: null,
   goldMultiplier: 1,
   shopPriceMultiplier: 1,
@@ -264,6 +268,16 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
       'Map reinforcement waves no longer extend par; village bandits and keep garrisons still do',
     );
   }
+  if (mode.carryConfig) {
+    const cfg = mode.carryConfig;
+    const firstAct = ['act1', 'act2', 'act3', 'act4'].find((a) => cfg[a] > 0);
+    if (firstAct && cfg.maxPerBattle > 0) {
+      const actNum = firstAct.replace('act', '');
+      lines.push(
+        `Foes carry items a Thief can steal from Act ${actNum}+ (max ${cfg.maxPerBattle}/battle)`,
+      );
+    }
+  }
   if (hasRevivalStones(mode.revivalStones)) {
     const stones = mode.revivalStones;
     const label = {
@@ -377,7 +391,7 @@ export function validateDifficultyConfig(config) {
           errors.push(`modes.${difficultyId}.extendedLevelingEnabled must be boolean`);
         continue;
       }
-      if (key === 'statusStaffConfig' || key === 'shopCureGating') {
+      if (key === 'statusStaffConfig' || key === 'carryConfig' || key === 'shopCureGating') {
         if (value !== null && !isObject(value)) {
           errors.push(`modes.${difficultyId}.${key} must be null or an object`);
         }
@@ -427,6 +441,26 @@ function validateCasterGear(mode, path) {
 }
 
 /**
+ * Carried items (EnemyCarry.js): every rung has a per-battle config, with a chance between 0
+ * and 1 for each of the four acts and the final boss, and a non-negative integer
+ * maxPerBattle. A rung that does not carry anything says so with chances of 0, never with
+ * a missing config.
+ */
+function validateCarryConfig(mode, path) {
+  const cfg = mode.carryConfig;
+  if (!isObject(cfg)) return [`${path}.carryConfig must be an object`];
+  const errors = [];
+  if (cfg.perBattle !== true) errors.push(`${path}.carryConfig.perBattle must be true`);
+  for (const act of ['act1', 'act2', 'act3', 'act4', 'finalBoss']) {
+    if (!isFiniteNumber(cfg[act]) || cfg[act] < 0 || cfg[act] > 1)
+      errors.push(`${path}.carryConfig.${act} must be a chance between 0 and 1`);
+  }
+  if (!(Number.isInteger(cfg.maxPerBattle) && cfg.maxPerBattle >= 0))
+    errors.push(`${path}.carryConfig.maxPerBattle must be a non-negative integer`);
+  return errors;
+}
+
+/**
  * Revival Stones (docs/specs/phase3.md 3D): every rung names all four kinds, each a
  * non-negative integer. A rung with none writes zeros; the key is not optional, so a new
  * rung cannot forget that its bosses carry nothing.
@@ -457,6 +491,7 @@ function validateBattlePacing(mode, path) {
   if (mode.templateWavesRaisePar !== undefined && typeof mode.templateWavesRaisePar !== 'boolean')
     errors.push(`${path}.templateWavesRaisePar must be boolean`);
   errors.push(...validateCasterGear(mode, path));
+  errors.push(...validateCarryConfig(mode, path));
   for (const key of ['holdShare', 'objectiveParOffset']) {
     const value = mode[key];
     if (value === undefined || value === null) continue;

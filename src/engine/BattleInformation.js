@@ -3,6 +3,7 @@ import { getConditions, parseStaffRange } from './StatusConditionSystem.js';
 import { ACID_DAMAGE_PERCENT, STATUS_CONDITIONS } from '../utils/constants.js';
 import { ACID_DAMAGE_TURNS } from './TerrainHazards.js';
 import { isRecruitNpc } from './RecruitNpc.js';
+import { goldPouchValue } from './GoldPouch.js';
 
 // All inspection entry points use the same information boundary as map graphics.
 // A recruit waiting on the map is always in view: the army knows who it came for
@@ -84,4 +85,21 @@ export function statusStaffThreat(unit) {
       (c.recoveryChance ?? STATUS_CONDITIONS[c.id]?.recoveryChance ?? 0) === 0,
   );
   return blocked ? null : info;
+}
+
+/**
+ * What a foe carries for a Thief to steal (docs/specs/phase3.md 3G): the item and its
+ * line ("Carrying: Vulnerary", "Carrying: Gold Pouch (500 G)"), or null. Callers show it
+ * only for a unit the player may inspect (`carrierPipShown` is the one rule for the map).
+ */
+export function carriedItemInfo(unit) {
+  const item = unit?.carriedItem;
+  if (!item || typeof item.name !== 'string' || unit.faction === 'player') return null;
+  const gold = goldPouchValue(item);
+  return { item, text: `Carrying: ${item.name}${gold > 0 ? ` (${gold} G)` : ''}` };
+}
+
+/** Does the map draw the sack pip over this unit? Only while the unit itself is in view. */
+export function carrierPipShown(grid, unit) {
+  return Boolean(carriedItemInfo(unit)) && unit.currentHP > 0 && canInspectUnit(grid, unit);
 }

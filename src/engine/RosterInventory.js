@@ -15,6 +15,7 @@ import { clearAllConditions, getConditions } from './StatusConditionSystem.js';
 import { TRADE_WARNINGS } from './ItemTrade.js';
 import { INVENTORY_MAX, CONSUMABLE_MAX } from '../utils/constants.js';
 import { healUnit, healUnitFully } from './UnitHealth.js';
+import { goldPouchValue, isGoldPouch } from './GoldPouch.js';
 
 function convoyIndex(list, item) {
   return list.findIndex((candidate) =>
@@ -77,6 +78,9 @@ export function rosterItemBlock(run, unit, item, action) {
         ? ''
         : 'Invalid stat booster.';
     }
+    // A Gold Pouch pays the army, not the unit holding it (it also works from the convoy).
+    if (isGoldPouch(item) && action === 'use')
+      return goldPouchValue(item) > 0 ? '' : 'Invalid Gold Pouch.';
     const hurt = unit.currentHP < unit.stats.HP;
     const afflicted = getConditions(unit).length > 0;
     if (['heal', 'healFull'].includes(item.effect)) return hurt ? '' : 'HP is already full.';
@@ -124,6 +128,7 @@ export function rosterItemAction(run, unit, item, action) {
   }
   if (action === 'heal' || action === 'use') {
     if (item.effect === 'statBoost') applyStatBoost(unit, item);
+    if (isGoldPouch(item)) run.awardGold(goldPouchValue(item));
     // UnitHealth settles HP accessory debt on a heal to full; a partial heal keeps it.
     if (item.effect === 'healFull') healUnitFully(unit);
     else if (['heal', 'cureHeal'].includes(item.effect)) healUnit(unit, item.value);

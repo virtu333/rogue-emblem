@@ -31,7 +31,7 @@ export function gearChanceFor(cfg, act) {
   return Number.isFinite(chance) && chance > 0 ? Math.min(1, chance) : 0;
 }
 
-function fnv1a(input) {
+export function fnv1a(input) {
   let h = 2166136261 >>> 0;
   for (let i = 0; i < input.length; i++) {
     h ^= input.charCodeAt(i);
@@ -40,7 +40,7 @@ function fnv1a(input) {
   return h >>> 0;
 }
 
-function mulberry32(seed) {
+export function mulberry32(seed) {
   let a = seed >>> 0;
   return () => {
     a = (a + 0x6d2b79f5) >>> 0;

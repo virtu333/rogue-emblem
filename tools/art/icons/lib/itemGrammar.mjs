@@ -323,6 +323,8 @@ export function consumableSpec(c) {
       return D.herb();
     case 'cureHeal':
       return D.vial({ shape: 'tin', glass: 'silver', cork: 'silverFit', liquid: 'blood' });
+    case 'gold': // Gold Pouch
+      return D.pouch({ cloth: 'wood', tie: 'gilt', sparkle: 'gilt' });
     default:
       return D.vial();
   }

@@ -28,6 +28,13 @@ import { combatDistance, getFootprintKeys, isEntity } from './EntitySystem.js';
 import { displacementBlockReason, traceForcedMove } from './ForcedMovement.js';
 import { effectiveSkills, hasEffectiveSkill } from './EffectiveSkills.js';
 import { canAttackWithWeapon, getAttackRange } from './AttackOptions.js';
+import {
+  STEAL_ABILITY_KIND,
+  STEAL_REASONS,
+  carriedItemOf,
+  stealBlockReason,
+  stealDestination,
+} from './Steal.js';
 
 /** Ability kinds the engine + BattleScene glue know how to execute. */
 export const ACTION_ABILITY_KINDS = new Set([
@@ -44,6 +51,10 @@ export const ACTION_ABILITY_KINDS = new Set([
 
 /** Kinds that pick one adjacent unit (SELECTING_ABILITY_TILE, on the unit's tile). */
 export const TARGETED_ABILITY_KINDS = new Set(['push_enemy', 'transfer_hp']);
+
+// Steal (3G) joins both sets without touching their literals above.
+ACTION_ABILITY_KINDS.add(STEAL_ABILITY_KIND);
+TARGETED_ABILITY_KINDS.add(STEAL_ABILITY_KIND);
 
 const CARDINALS = Object.freeze([
   { dc: 0, dr: -1 },
@@ -160,11 +171,11 @@ export function collectAffected(unit, ability, units) {
  * - teleport_self: at least one legal destination tile
  * - ally_buff / aoe_root: at least one affected unit
  * - aoe_heal: at least one affected unit missing HP
- * - push_enemy / transfer_hp: at least one legal adjacent target
+ * - push_enemy / transfer_hp / steal_item: at least one legal adjacent target
  * - sacrifice_heal: the user has HP to spare and a hurt, healable ally is in range
  * - refresh_adjacent: an adjacent ally who has acted and is not a dancer
  * - warp_strike: a free tile the equipped weapon strikes a seen foe from
- * @param {object} ctx { grid, getUnitAt, allies, enemies, affixes, skillsData }
+ * @param {object} ctx { grid, getUnitAt, allies, enemies, affixes, skillsData, canAddToConvoy }
  */
 export function abilityHasTargets(unit, skill, ctx = {}) {
   const ability = skill?.actionAbility;
@@ -192,6 +203,8 @@ export function abilityHasTargets(unit, skill, ctx = {}) {
       return findDanceRefreshTargets(unit, allies).length > 0;
     case 'warp_strike':
       return findWarpStrikeOptions(unit, ability, ctx).length > 0;
+    case STEAL_ABILITY_KIND:
+      return findStealTargets(unit, ability, ctx).length > 0;
     default:
       return false;
   }
@@ -558,4 +571,51 @@ export function settleWarpStrike(unit, skill, plan, { occupantAt = null } = {}) 
   const blocker = typeof occupantAt === 'function' ? occupantAt(col, row) : null;
   if (blocker && blocker !== unit) return { warped: false, moves: [], blocker, usage };
   return { warped: true, moves: settleMoves([{ unit, to: { col, row } }]), blocker: null, usage };
+}
+
+// --- Steal (steal_item): take the item an adjacent foe carries (engine/Steal.js) ---
+
+/**
+ * The adjacent foes `unit` can rob right now: each carries an item, the thief is at least as
+ * fast, and there is room (the thief's bag, then the convoy through `ctx.canAddToConvoy`).
+ * `ctx.enemies` is what the player may know (seen foes), so a hidden carrier never shows.
+ * @returns {Array<{ unit: object, item: object, destination: 'bag'|'convoy', dc: number,
+ *   dr: number }>}
+ */
+export function findStealTargets(unit, ability, ctx = {}) {
+  return stealStatus(unit, ability, ctx).targets;
+}
+
+/**
+ * `findStealTargets` and, when none is legal but a carrier stands adjacent, why: 'too_slow'
+ * when every such carrier is faster, 'full' when one the thief could outpace has nowhere to
+ * go. `reason` is null when a target is legal or no carrier stands adjacent.
+ * @returns {{ targets: object[], reason: 'too_slow'|'full'|null }}
+ */
+export function stealStatus(unit, ability, ctx = {}) {
+  const { enemies, canAddToConvoy } = ctx;
+  const out = { targets: [], reason: null };
+  if (!liveUnit(unit) || !Array.isArray(enemies)) return out;
+  const blocked = [];
+  for (const { dc, dr } of CARDINALS) {
+    const foe = unitCovering(enemies, unit.col + dc, unit.row + dr);
+    if (!foe || foe === unit) continue;
+    const item = carriedItemOf(foe);
+    if (!item) continue;
+    const why = stealBlockReason(unit, foe, { canAddToConvoy });
+    if (why) {
+      blocked.push(why);
+      continue;
+    }
+    out.targets.push({
+      unit: foe,
+      item,
+      destination: stealDestination(unit, item, { canAddToConvoy }),
+      dc,
+      dr,
+    });
+  }
+  if (out.targets.length === 0 && blocked.length > 0)
+    out.reason = blocked.includes(STEAL_REASONS.full) ? STEAL_REASONS.full : STEAL_REASONS.tooSlow;
+  return out;
 }

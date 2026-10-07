@@ -5,13 +5,13 @@ import { battleSession, isCurrentBattleSession } from './BattleSession.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 // AbilityController — the "Ability" action-menu surface for utility abilities
 // (action-trigger skills with structured `actionAbility` data: Blink, Rally
-// Cry, Healing Circle, Ensnare, Smite, Transfuse, Great Sacrifice, Goddess Dance,
+// Cry, Healing Circle, Ensnare, Smite, Transfuse, Steal, Great Sacrifice, Goddess Dance,
 // Blink Strike). Owns the ability submenu (patterned on
 // WeaponArtController.showWeaponArtPicker), the SELECTING_ABILITY_TILE flow for Blink,
 // the confirm prompt for self-centered abilities (the AOEs, Great Sacrifice, Goddess
-// Dance), and effect execution; the two adjacent-target abilities (Smite, Transfuse)
-// hand their target step and action to AbilityTargetingController, and Blink Strike, the
-// one ability that leads into an attack, to WarpStrikeController.
+// Dance), and effect execution; the adjacent-target abilities (Smite, Transfuse,
+// Steal) hand their target step and action to AbilityTargetingController, and Blink
+// Strike, the one ability that leads into an attack, to WarpStrikeController.
 // State lives on the scene (abilityTiles/_pendingAbility) so the shared
 // ESC/cancel recovery paths in BattleScene can clean it up.
 import { TILE_SIZE, XP_BASE_DANCE } from '../utils/constants.js';
@@ -34,7 +34,9 @@ import {
   collectAffected,
   abilityHasTargets,
   TARGETED_ABILITY_KINDS,
+  stealStatus,
 } from '../engine/ActionAbilitySystem.js';
+import { STEAL_ABILITY_KIND, stealReasonLabel } from '../engine/Steal.js';
 import { AbilityTargetingController } from './AbilityTargetingController.js';
 import { WarpStrikeController, knownTileOccupant } from './WarpStrikeController.js';
 import { presentRefreshSparkle } from './MovementActionController.js';
@@ -102,7 +104,7 @@ export class AbilityController {
     const skillsData = scene.gameData?.skills || [];
     return getActionAbilities(unit, skillsData).map((skill) => {
       const check = canUseAbility(unit, skill);
-      const hasTargets = abilityHasTargets(unit, skill, {
+      const ctx = {
         grid: scene.grid,
         // Blink Strike's choices read the player's knowledge, never the real board.
         getUnitAt:
@@ -113,8 +115,15 @@ export class AbilityController {
         enemies: this._seenHostiles(unit),
         affixes: scene.gameData?.affixes,
         skillsData,
-      });
-      return { skill, canUse: check.ok, reason: check.reason, hasTargets };
+        canAddToConvoy: (item) => Boolean(scene.runManager?.canAddToConvoy?.(item)),
+      };
+      const hasTargets = abilityHasTargets(unit, skill, ctx);
+      // Steal says why it is greyed beside a carrier: "Too slow", "Bag and convoy full".
+      const stealReason =
+        skill.actionAbility?.kind === STEAL_ABILITY_KIND && !hasTargets
+          ? stealStatus(unit, skill.actionAbility, ctx).reason
+          : null;
+      return { skill, canUse: check.ok, reason: check.reason, hasTargets, stealReason };
     });
   }
 
@@ -131,6 +140,7 @@ export class AbilityController {
   _reasonLabel(entry, unit = null) {
     if (entry.reason === 'per_map_limit') return 'Used this battle';
     if (entry.reason === 'silenced') return 'Silenced';
+    if (!entry.hasTargets && entry.stealReason) return stealReasonLabel(entry.stealReason);
     if (!entry.hasTargets) {
       // Great Sacrifice never takes the last HP: say so rather than "no targets".
       if (entry.skill.actionAbility?.kind === 'sacrifice_heal' && (unit?.currentHP ?? 2) <= 1)

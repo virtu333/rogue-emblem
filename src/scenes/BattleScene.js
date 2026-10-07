@@ -40,6 +40,7 @@ import { battleSpeed, waitDuration, waitTween } from '../utils/combatTiming.js';
 import { getWeaponArtIds, killMoveRefreshesActor } from '../engine/WeaponArtSystem.js';
 import {
   canInspectUnit,
+  carriedItemInfo,
   seenTileOccupant,
   statusStaffThreat,
 } from '../engine/BattleInformation.js';
@@ -2621,6 +2622,10 @@ export class BattleScene extends Phaser.Scene {
     applyEnemySpawnGear(enemy, spawn, {
       weapons: this.gameData.weapons,
       difficultyId: this.battleParams?.difficultyId,
+      // A carrier's item, as this run acquires it (the Vulnerary recipe), with a uid that
+      // never draws Math.random (engine/EnemyCarry.js).
+      consumables: this.runManager?.getConsumableCatalog?.() ?? this.gameData.consumables,
+      battleKey: String(this.deriveBattleSeed()),
     });
     // An authored spawn's own weapon, skills and id win (prologue chapters).
     applySpawnLoadout(enemy, spawn, {
@@ -3251,9 +3256,14 @@ export class BattleScene extends Phaser.Scene {
       unit.affixPips.forEach((p) => p.destroy());
     }
     unit.affixPips = [];
-    const affixIds = unit.affixes || [];
+    // Pip row, left to right: Revival Stone gems (a boss), affix pips, then the sack of a
+    // carrier (EnemyCarry.js: the item a Thief's Steal would take). A boss never carries, so
+    // the gems and the sack never share a unit; the count below still sums all three so the
+    // row stays centred whichever mix a unit wears. Each hides with its unit in fog.
+    const affixIds = Array.isArray(unit.affixes) ? unit.affixes : [];
     const stones = revivalStoneCount(unit).remaining;
-    const count = affixIds.length + stones;
+    const carries = Boolean(carriedItemInfo(unit));
+    const count = affixIds.length + stones + (carries ? 1 : 0);
     if (count === 0) return;
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
@@ -3262,13 +3272,15 @@ export class BattleScene extends Phaser.Scene {
     const gap = 2;
     const totalW = pipSize * count + gap * (count - 1);
     let startX = pos.x - totalW / 2 + pipSize / 2;
+    const inView = canInspectUnit(this.grid, unit);
 
     for (let i = 0; i < stones; i++) {
       const gem = this.add
         .rectangle(startX, pipY, pipSize, pipSize, UI_HEX.info)
         .setStrokeStyle(1, UI_HEX.void)
         .setAngle(45)
-        .setDepth(14);
+        .setDepth(14)
+        .setVisible(inView);
       unit.affixPips.push(gem);
       startX += pipSize + gap;
     }
@@ -3283,6 +3295,14 @@ export class BattleScene extends Phaser.Scene {
         .setDepth(14);
       unit.affixPips.push(pip);
       startX += pipSize + gap;
+    }
+    if (carries) {
+      const sack = this.add
+        .rectangle(startX, pipY, pipSize, pipSize + 1, UI_HEX.emberPale)
+        .setStrokeStyle(1, 0x000000)
+        .setDepth(14)
+        .setVisible(canInspectUnit(this.grid, unit));
+      unit.affixPips.push(sack);
     }
   }
 
@@ -7043,7 +7063,9 @@ export class BattleScene extends Phaser.Scene {
                     ? refusal || 'Promotion unavailable'
                     : isReclass && !canUseReclass
                       ? refusal || 'No available reclass'
-                      : '';
+                      : item.effect === 'gold'
+                        ? 'Use it from the roster'
+                        : '';
         const usable = !reason;
         let label = item.name;
         if (item.uses !== undefined) label += ` (${item.uses})`;

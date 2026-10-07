@@ -23,22 +23,38 @@
 //              recruit who joined mid-battle (Talk), is missing from the survivors.
 //
 // The reward (kept) or the penalty (broken) is a list of event effects, applied through the
-// event effect planner: planned first, then applied; an item with no room becomes a note
-// ({ kind: 'note' }) instead of failing, like the spoils of an event battle. A penalty may
-// carry `burden` effects (Debt, Hunted): the burden effect is the same one an event uses. If
-// settling throws, the run's fields are put back as they were before it and the contract is
-// still cleared: a contract never sticks.
+// event effect planner: planned first, then applied. A penalty may carry `burden` effects
+// (Debt, Hunted): the burden effect is the same one an event uses. If applying throws, the
+// run's fields are put back as they were before it and the settlement stays owed (below).
 //
 // The result is `run.lastContractSettlement` (not saved, like lastBurdenSettlement), for the
 // victory band:
 //   { nodeId, contractNodeId, eventId, goal, kept, noPar, losses, results: [records],
-//     failed: string|null, lines: ['Contract kept: Gained 600 G'] }
-// (`lines` says every result in the Event page's own words, what was not delivered (a reward
-// item with no room is a note that names it) and a failed settlement; see `settlementLines`.)
+//     owed: boolean, blocked: string|null, failed: string|null, forfeited?: true,
+//     lines: ['Contract kept: Gained 600 G'] }
+// (`lines` says every result in the Event page's own words and what is still owed; see
+// `settlementLines`.)
 // `describeContract(run)` is the display model of the open contract (the route map's chip).
 //
 // Settlement runs in a seeded swap (`event-contract:${runSeed}:${nodeId}`), so an item's pick
 // and uid are the same on a replay.
+//
+// ── An earned settlement is OWED until it is delivered (recovery) ─────────────────────────
+// A contract is judged ONCE, at the victory commit, and that verdict is final. In one step
+// `settleContract` clears `run.contract` and writes a durable, saved record `run.contractOwed`:
+//   { battleNodeId, contractNodeId, eventId, act, goal, kept, noPar, losses,
+//     effects: [the reward (kept) or the penalty (broken)], seedKey, blocked, failed }
+// then asks `deliverContractSettlement` to pay it at once, so the common case is paid at the
+// victory. The delivery plans the effects and refuses (`blocked`: "No room for Steel Lance")
+// when an item has nowhere to go, applies nothing then, and when applying throws it puts the
+// run back (`failed`); either way the record stays owed, is never re-judged against a later
+// battle, and pays the very same thing on every retry (the seed key never changes). Only an
+// owed REWARD holds the party at its battle node (`contractRewardOwedAt`; RunManager.
+// getAvailableNodes) and may be given up, behind the player's explicit confirmation
+// (`forfeitContractReward`); an owed PENALTY never holds anyone and is retried on the next
+// attempt (a Claim, the next battle victory). While anything is owed no new contract may be
+// signed (`contractBound`). The record is not an open contract: `describeContract`, the HUD
+// and ContractStanding never read it; the route map's chip reads `describeOwedContract`.
 //
 // Pure of Phaser and the DOM.
 
@@ -94,6 +110,65 @@ export function normalizeContract(raw) {
 /** The open contract of a run (a normalized copy), or null. */
 export function contractOf(run) {
   return normalizeContract(run?.contract);
+}
+
+// ── The owed record ─────────────────────────────────────────────────────
+
+const str = (value) => (typeof value === 'string' ? value : '');
+
+/** An owed record from a save or the settlement: a valid, plain record, or null. */
+export function normalizeContractOwed(raw) {
+  if (!isPlain(raw) || !CONTRACT_GOALS.includes(raw.goal) || typeof raw.kept !== 'boolean')
+    return null;
+  const battleNodeId = str(raw.battleNodeId);
+  const contractNodeId = str(raw.contractNodeId) || 'contract';
+  if (!battleNodeId) return null;
+  return {
+    battleNodeId,
+    contractNodeId,
+    eventId: str(raw.eventId),
+    act: typeof raw.act === 'string' ? raw.act : null,
+    goal: raw.goal,
+    kept: raw.kept,
+    noPar: raw.noPar === true,
+    losses: Math.max(0, Math.trunc(Number(raw.losses) || 0)),
+    effects: cleanEffects(raw.effects),
+    seedKey: str(raw.seedKey),
+    blocked: str(raw.blocked) || null,
+    failed: str(raw.failed) || null,
+  };
+}
+
+/** The owed settlement of a run (a normalized copy), or null. */
+export function contractOwedOf(run) {
+  return normalizeContractOwed(run?.contractOwed);
+}
+
+/** Whether a kept contract's reward is earned but not yet delivered. */
+export function contractRewardOwed(run) {
+  return contractOwedOf(run)?.kept === true;
+}
+
+/** Whether a broken contract's penalty is earned but not yet applied. */
+export function contractPenaltyOwed(run) {
+  return contractOwedOf(run)?.kept === false;
+}
+
+/**
+ * Whether `node` is where an owed reward holds the party: the battle node whose victory
+ * earned it, in the act it was earned in, once complete. Like EventSystem.eventSpoilsOwedAt,
+ * read from the saved record alone. A penalty never holds anyone.
+ */
+export function contractRewardOwedAt(run, node) {
+  const owed = contractOwedOf(run);
+  if (!owed?.kept || !node || node.completed !== true || node.id !== owed.battleNodeId)
+    return false;
+  return owed.act === null || owed.act === run?.currentAct;
+}
+
+/** One contract at a time: bound by an open contract or by a settlement not yet delivered. */
+export function contractBound(run) {
+  return Boolean(contractOf(run) || contractOwedOf(run));
 }
 
 /**
@@ -175,22 +250,57 @@ export function describeContract(run) {
 }
 
 /**
+ * The owed settlement for the route map's chip, the pause list and the settlement page, or null:
+ * { label: 'Contract', short: 'Reward waiting' | 'Penalty waiting', kept, goal, goalShort, owed: [phrase],
+ *   reason, blocked: bool, failed: bool, eventId, battleNodeId, contractNodeId }.
+ * `reason` is why it waits ('' when it simply has not been tried): the planner's "No room for
+ * Steel Lance", or "The terms could not be met (…)" when applying failed.
+ */
+export function describeOwedContract(run) {
+  const owed = contractOwedOf(run);
+  if (!owed) return null;
+  return {
+    label: 'Contract',
+    short: owed.kept ? 'Reward waiting' : 'Penalty waiting',
+    kept: owed.kept,
+    goal: owed.goal,
+    goalShort: GOAL_LINES[owed.goal].short,
+    owed: phrases(owed.effects, run),
+    reason: owed.blocked || owed.failed || '',
+    blocked: Boolean(owed.blocked),
+    failed: Boolean(owed.failed),
+    eventId: owed.eventId,
+    battleNodeId: owed.battleNodeId,
+    contractNodeId: owed.contractNodeId,
+  };
+}
+
+/**
  * The victory band's words for a settlement: ["Contract kept: Gained 600 G · Silver Sword to
  * Edric"] (just the head when nothing was paid). Each result record is said by
  * `EventResultWords.describeResult`, the one phrasing the Event page uses too. What did not
- * arrive is said as well: a reward item with nowhere to go is a `note` record that names it
- * ("No room for Steel Lance"), and a settlement that `failed` (nothing was applied) says its
- * terms were not met, so a band never reads "Contract kept" over a reward the army did not get.
+ * arrive is said as well, so a band never reads "Contract kept" over a reward the army did not
+ * get: a settlement still `owed` says its reward waits and why ("Contract kept: the reward
+ * waits — No room for Steel Lance", or "could not be paid yet" when applying failed), and a
+ * reward the player gave up says so.
  */
 export function settlementLines(settlement) {
   if (!settlement) return [];
+  const head = settlement.kept ? 'Contract kept' : 'Contract broken';
+  if (settlement.forfeited) return [`${head}: you gave up the reward`];
   const parts = (settlement.results || [])
     .map((record) => describeResult(record)?.text)
     .filter(Boolean);
-  if (settlement.failed)
-    parts.push(
-      settlement.kept ? 'The reward could not be paid' : 'The penalty could not be applied',
-    );
-  const head = settlement.kept ? 'Contract kept' : 'Contract broken';
+  if (settlement.owed) {
+    // Earned and not delivered: the band says it waits, and why (never "kept" over nothing).
+    const thing = settlement.kept ? 'reward' : 'penalty';
+    if (settlement.blocked) parts.push(`the ${thing} waits — ${settlement.blocked}`);
+    else
+      parts.push(
+        settlement.kept
+          ? 'the reward could not be paid yet'
+          : 'the penalty could not be applied yet',
+      );
+  }
   return [parts.length ? `${head}: ${parts.join(' · ')}` : head];
 }

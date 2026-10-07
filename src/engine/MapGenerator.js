@@ -37,6 +37,7 @@ import { revivalStoneKind, revivalStonesFor } from './RevivalStones.js';
 import { mapExtraNecromancer } from './Necromancy.js';
 import { seizeParFloor } from './SeizeParFloor.js';
 import { assignCasterGear, isPerBattleGearConfig } from './CasterGear.js';
+import { assignEnemyCarry } from './EnemyCarry.js';
 import { buildReinforcementTemplatePool } from './ReinforcementSpawns.js';
 import { reinforcementMoveTypes } from './ReinforcementScheduler.js';
 
@@ -85,6 +86,7 @@ export function generateBattleLayout(params, deps) {
     enemyPoisonChance = 0,
     statusStaffConfig = null,
     siegeWeaponConfig = null,
+    carryConfig = null,
     isAmbush = false,
     enemyLevelBonus = 0,
     enemyCountBase = 0,
@@ -266,6 +268,14 @@ export function generateBattleLayout(params, deps) {
     templateId: template?.id,
     statusStaffConfig,
     siegeWeaponConfig,
+  });
+  // Carried items (EnemyCarry.js, its own stream: no Math.random). A Thief's Steal takes one.
+  assignEnemyCarry(enemySpawns, {
+    act,
+    difficultyId: params.difficultyId,
+    templateId: template?.id,
+    carryConfig,
+    lootTables: deps.lootTables,
   });
   enemySpawns = assignAffixesToEnemySpawns(enemySpawns, {
     allowAffixes:

@@ -680,6 +680,7 @@ describe('the pips over a unit’s tile', () => {
           r.setStrokeStyle = () => r;
           r.setAngle = (a) => ((r.angle = a), r);
           r.setDepth = () => r;
+          r.setVisible = () => r;
           r.destroy = vi.fn();
           made.push(r);
           return r;

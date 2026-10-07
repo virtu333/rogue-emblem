@@ -3,6 +3,7 @@ import path from 'node:path';
 import { DIFFICULTY_IDS } from '../src/engine/DifficultyEngine.js';
 import { getWeaponArtTier2Effects } from '../src/engine/WeaponArtSystem.js';
 import { validateAccessorySkillData } from '../src/engine/AccessorySkills.js';
+import { validateCarryPools } from '../src/engine/EnemyCarry.js';
 
 const DATA_DIR = path.resolve('data');
 
@@ -377,6 +378,9 @@ export function validateCrossReferences(datasets = null) {
 
   // Accessory skills (docs/specs/phase3.md 3H): every pool skill exists and can be lent.
   errors.push(...validateAccessorySkillData({ lootTables, skills, accessories }));
+
+  // Carried items (docs/specs/phase3.md 3G): every act's carry pool names real items.
+  errors.push(...validateCarryPools({ lootTables, consumables, weapons }));
 
   return { valid: errors.length === 0, errors };
 }

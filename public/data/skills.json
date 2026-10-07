@@ -686,5 +686,16 @@
       "defBonus": 4,
       "resBonus": 4
     }
+  },
+  {
+    "id": "steal",
+    "name": "Steal",
+    "description": "Take the item an adjacent enemy carries, if you are at least as fast",
+    "trigger": "action",
+    "classInnate": "Thief",
+    "actionAbility": {
+      "kind": "steal_item",
+      "usableWhileSilenced": true
+    }
   }
 ]

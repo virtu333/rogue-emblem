@@ -23,7 +23,8 @@
         "formation.spec.js",
         "journey-contracts.spec.js",
         "battle-timeline.spec.js",
-        "save-retry.spec.js"
+        "save-retry.spec.js",
+        "contract-settlement.spec.js"
       ]
     },
     {

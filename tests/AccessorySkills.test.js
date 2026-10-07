@@ -269,10 +269,13 @@ describe('the data', () => {
     });
 
     it('Steal and Goddess Dance are barred before they exist, and once they do', () => {
-      const steal = { id: 'steal', name: 'Steal', trigger: 'action' };
       const dance = { id: 'goddess_dance', name: 'Goddess Dance', trigger: 'action' };
-      expect(broken((c) => c.poolByAct.act4.push('steal'))).toMatch(/unknown skill "steal"/);
-      expect(broken((c) => c.poolByAct.act4.push('steal'), [steal])).toMatch(/never be lent/);
+      // Steal exists since Phase 3G (a Thief's innate): its id is barred in the shipped data.
+      expect(broken((c) => c.poolByAct.act4.push('steal'))).toMatch(/never be lent/);
+      if (!data.skills.some((skill) => skill.id === 'goddess_dance'))
+        expect(broken((c) => c.poolByAct.act4.push('goddess_dance'))).toMatch(
+          /unknown skill "goddess_dance"/,
+        );
       expect(broken((c) => c.poolByAct.act4.push('goddess_dance'), [dance])).toMatch(
         /never be lent/,
       );

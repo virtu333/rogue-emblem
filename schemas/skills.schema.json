@@ -69,7 +69,8 @@
               "transfer_hp",
               "sacrifice_heal",
               "refresh_adjacent",
-              "warp_strike"
+              "warp_strike",
+              "steal_item"
             ]
           },
           "range": {

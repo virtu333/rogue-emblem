@@ -37,6 +37,7 @@ import {
   canInspectUnit,
   statusDescriptions,
   statusStaffInfo,
+  carriedItemInfo,
   terrainRuleLines,
 } from '../engine/BattleInformation.js';
 import { bindCancelablePress } from '../utils/cancelablePress.js';
@@ -920,6 +921,7 @@ export class MobileBattleHUD {
       unit?.weapon?.name,
       unit?._conditions,
       statusStaffInfo(unit)?.text,
+      carriedItemInfo(unit)?.text,
       [s.getBossPressureWarning?.(), s._bossPresence?.summaryLine?.()].join('|'),
       s.inspectMode,
       Boolean(s.inspectionPanel?.visible),
@@ -1177,6 +1179,8 @@ export class MobileBattleHUD {
       );
     const staffInfo = statusStaffInfo(unit);
     if (staffInfo) detailContent.append(el('p', '', staffInfo.text));
+    const carrying = carriedItemInfo(unit);
+    if (carrying) detailContent.append(el('p', '', carrying.text));
     detailContent.append(el('pre', '', info || 'Tap a tile to inspect terrain.'));
     if (canUseDanger(s)) {
       detailContent.append(

@@ -584,7 +584,8 @@ export function evaluateRequires(run, requires, ctx = {}) {
         return fail('There is no road to add here.');
     } else if (key === 'notContract') {
       // A contract is open (Contracts.js): one at a time, so an event that offers one waits.
-      if (need === true && run?.contract) return fail('You are already bound by a contract.');
+      if (need === true && (run?.contract || run?.contractOwed))
+        return fail('You are already bound by a contract.');
     } else if (key === 'blessingTier') {
       if (availableEventBlessings(run, need).length === 0)
         return fail('There is nothing left to give you.');
