@@ -253,7 +253,8 @@ html.mobile-preview .re-title--phone {
   min-height: 50px;
 }
 .re-title-subtext {
-  /* One line: "Latest save · Slot 1" wrapped its number under the rest. */
+  /* One line: "Latest save · Slot 1" wrapped its number under the rest, then was cut off
+     where the stage snapped it to the label's size; the line is now "Latest · Slot 1". */
   max-width: 100%;
   overflow: hidden;
   white-space: nowrap;

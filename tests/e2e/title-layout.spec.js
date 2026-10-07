@@ -1,5 +1,6 @@
 import { test, expect, devices } from '@playwright/test';
 import { waitForScene } from './helpers.js';
+import { buildTitleMenu } from '../../src/ui/titleMenuModel.js';
 
 // The title is a DOM screen over The Hollow Sun key art (TitleScreen.js). These checks
 // keep its targets real (44px, non-overlapping, inside the safe viewport) at phone sizes.
@@ -229,23 +230,55 @@ test.describe('desktop', () => {
     expect(rest.bg).toBe(rest.accent);
     expect(rest.image).toContain('gradient');
     // The subline Resume carries with several runs going: one line, nothing cut off.
-    const sub = await page.evaluate(() => {
-      const b = document.querySelector('.re-title-btn.is-primary');
-      let s = b.querySelector('.re-title-subtext');
-      if (!s) {
-        s = document.createElement('span');
-        s.className = 're-title-subtext';
-        b.classList.add('has-sub');
-        b.append(s);
-      }
-      s.textContent = 'Latest save · Slot 1';
-      // Rendered line boxes (the stage is scaled, so heights are not in font units).
-      const range = document.createRange();
-      range.selectNodeContents(s);
-      const lines = new Set([...range.getClientRects()].map((r) => Math.round(r.top)));
-      return { lines: lines.size, clipped: s.scrollWidth > s.clientWidth + 0.5 };
-    });
-    expect(sub.lines).toBe(1);
-    expect(sub.clipped).toBe(false);
+    await expectSublineFits(page);
+  });
+});
+
+// Playtest (Oct 2026): on a desktop the stage snaps each pixel-font size to whole device
+// pixels, which can lift the 7px subline to the label's own size; "Latest save · Slot 1"
+// then ran past the button and was cut ("LATEST SAVE · SL…"). The sizes below are the
+// worst snaps measured: 1554x1040 at 1x (7 -> 7.4px, as big as the label) and 1000x700 at
+// 2x (7 -> 8.2px, the old line 21px too wide).
+async function expectSublineFits(page) {
+  // The model's own words with several runs going, for the widest slot number.
+  const text = buildTitleMenu({
+    hasSlots: true,
+    prologueDone: true,
+    resumeSlot: { slot: 3, latestOf: 3, actReached: 4 },
+  }).find((item) => item.id === 'resume').sub;
+  expect(text).toBeTruthy();
+  const sub = await page.evaluate((text) => {
+    const b = document.querySelector('.re-title-btn.is-primary');
+    let s = b.querySelector('.re-title-subtext');
+    if (!s) {
+      s = document.createElement('span');
+      s.className = 're-title-subtext';
+      b.classList.add('has-sub');
+      b.append(s);
+    }
+    s.textContent = text;
+    // Rendered line boxes (the stage is scaled, so heights are not in font units).
+    const range = document.createRange();
+    range.selectNodeContents(s);
+    const lines = new Set([...range.getClientRects()].map((r) => Math.round(r.top)));
+    return { lines: lines.size, clipped: s.scrollWidth > s.clientWidth + 0.5 };
+  }, text);
+  expect(sub.lines).toBe(1);
+  expect(sub.clipped).toBe(false);
+}
+
+test.describe('desktop, a Retina screen where the subline snaps up', () => {
+  test.use({
+    viewport: { width: 1000, height: 700 },
+    isMobile: false,
+    hasTouch: false,
+    deviceScaleFactor: 2,
+    userAgent: devices['Desktop Chrome'].userAgent,
+  });
+
+  test('the Resume subline stays on one line, nothing cut off', async ({ page }) => {
+    await page.goto('/?devScene=title');
+    await waitForScene(page, 'Title');
+    await expectSublineFits(page);
   });
 });
