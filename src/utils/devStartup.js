@@ -320,6 +320,9 @@ function createRunPreset(gameData, meta, config) {
   if (config.preset === 'roster_checks') addRosterChecks(runManager, gameData);
 
   if (config.preset === 'event') applyEventPreset(runManager, config);
+  // Any other review route (a battle, the route map) may carry the contract too: `&contract=` on
+  // `?devScene=battle&preset=battle_smoke` is a battle the contract will settle on.
+  else addReviewContract(runManager, config.contract);
 
   return runManager;
 }
@@ -435,7 +438,7 @@ function addReviewBurdens(runManager, list) {
   }
 }
 
-/** `&contract=underPar|noLosses`: an open contract, 600 G kept, 300 G of Debt broken. */
+/** `&contract=underPar|noLosses`: an open contract, 600 G kept, 300 G of Debt broken (any dev route). */
 function addReviewContract(runManager, goal) {
   if (!goal) return;
   runManager.contract = normalizeContract({
@@ -604,6 +607,9 @@ export function parseDevStartupConfig(search, options = {}) {
     ...(params.get('as') ? { eventNodeAs: params.get('as') } : {}),
     ...(params.get('burdens') ? { burdens: params.get('burdens') } : {}),
     ...(params.get('contract') ? { contract: params.get('contract') } : {}),
+    // A battle whose turn par is this many turns (devScenarios.js `short_par`): the contract's
+    // "Under par" can be broken in a few real turns.
+    ...(parsePositiveInt(params.get('par')) ? { devPar: parsePositiveInt(params.get('par')) } : {}),
     ...(parseBool(params.get('omen')) ? { omen: true } : {}),
     ...(params.get('units') ? { units: params.get('units') } : {}),
     qaStep: qaConfig?.step || null,
@@ -691,6 +697,11 @@ export function buildDevStartupRoute(gameData, registry, config) {
   if (config.preset === 'fog_ambush') {
     battleParams.fogEnabled = true;
     battleParams.devScenario = 'fog_ambush';
+  }
+  // `&par=N`: the battle's par is N turns (devScenarios.js), for the contract's HUD line.
+  if (config.devPar && !battleParams.devScenario) {
+    battleParams.devScenario = 'short_par';
+    battleParams.devPar = config.devPar;
   }
   // The remains review: a Rout down to one weak Zombie beside Edric (devScenarios.js).
   if (config.preset === 'zombie_remains') {

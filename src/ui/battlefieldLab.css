@@ -287,6 +287,35 @@ html.touch-ui .battlefield-lab .mobile-battle-hud {
   margin-top: 3px;
   letter-spacing: 0;
 }
+/* The open contract (ContractHudController), a line of the counters row; a tap opens its
+   terms. Compact like the objective: the row keeps its height, the tap band is 44px. */
+.battlefield-lab .mb-counters .mb-contract.mb-button {
+  position: relative;
+  display: block;
+  width: auto;
+  max-width: 100%;
+  min-height: 0;
+  margin: 3px 0 0;
+  padding: 0 0 0 5px;
+  border: 0;
+  border-left: 2px solid var(--re-gilt);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--re-accent-text);
+  font: 700 11px/1.3 var(--re-body);
+  text-align: left;
+  overflow-wrap: break-word;
+}
+.battlefield-lab .mb-counters .mb-contract.mb-button.is-missed {
+  border-left-color: var(--re-bad);
+  color: var(--re-bad);
+}
+.battlefield-lab .mb-counters .mb-contract.mb-button::after {
+  content: '';
+  position: absolute;
+  inset: -12px -4px;
+}
 .battlefield-lab .mb-objective.mb-button {
   min-height: 24px;
   display: flex;

@@ -1,6 +1,7 @@
 import { sceneHealPreview } from './healTargetPreview.js';
 import { visionLabel } from './visionLabel.js';
 import { ContextHelp } from './ContextHelp.js';
+import { contractHelpBlocks } from './contractHudModel.js';
 import { renderFormationPanel, startButton } from './FormationPanel.js';
 import { objectiveHelp, terrainHelp } from './helpTopics.js';
 import { locateUnit, nextReadyUnit, readyUnits } from './UnitLocator.js';
@@ -312,6 +313,30 @@ export class MobileBattleHUD {
       !s.rosterOverlay?.visible &&
       !s.lootSettingsOverlay
     );
+  }
+
+  /**
+   * The open contract's line in the counters row ("Contract · Under par", "— missed"): a compact
+   * button whose tap opens the terms (the objective's pattern). Hover and long-press read its title.
+   */
+  contractLine(model) {
+    const s = this.scene;
+    const line = this.button(
+      model.text,
+      () => {
+        this.help = new ContextHelp(s, this.root, 'Contract', contractHelpBlocks(model), () => {
+          this.help = null;
+          this.lastSnapshot = '';
+          this.sync();
+          this.phase.querySelector('.mb-contract')?.focus({ preventScroll: true });
+        });
+      },
+      `mb-contract is-${model.status}`,
+    );
+    line.title = model.title;
+    line.dataset.contract = model.goal;
+    line.setAttribute('aria-label', model.title);
+    return line;
   }
 
   button(label, action, className = '', onLongPress = null) {
@@ -859,6 +884,8 @@ export class MobileBattleHUD {
     const remaining = (s.playerUnits || []).filter((u) => u.currentHP > 0 && !u.hasActed).length;
     const threat = s._threatSight?.current || null;
     const upright = uprightBattleRail();
+    // The open contract and where it stands (ContractHudController): derived on every read.
+    const contract = s._contractHud?.model?.() || null;
     // Village and caravan: the compact objective keeps only the main line (upright shows these).
     const sideStatus = secondaryObjectiveStatus(sideObjectiveInputs(s, (this._sideMemory ||= {})));
     const key = JSON.stringify([
@@ -895,6 +922,7 @@ export class MobileBattleHUD {
       s.turnCounterText?.text,
       s.visionHudText?.text,
       s._eclipseHud?.label?.(),
+      contract?.title,
       state === 'SELECTING_TARGET' ? this.targetListKey() : null,
       state === 'SELECTING_HEAL_TARGET'
         ? (s.healTargets || []).map((t) => [
@@ -928,6 +956,7 @@ export class MobileBattleHUD {
     // from the turn label and must keep its format).
     const shadow = s._eclipseHud?.label?.();
     if (shadow) counters.append(el('span', `mb-shadow is-${s._eclipseHud.tone()}`, shadow));
+    if (contract) counters.append(this.contractLine(contract));
     this.phase.append(counters);
     this.objective.replaceChildren();
     const objectiveText = s.objectiveText?.text || s.battleConfig?.objective || 'Battle';
@@ -1119,6 +1148,9 @@ export class MobileBattleHUD {
     // The boss's full reading lives here; the map carries only its compact bar.
     const bossLine = s._bossPresence?.summaryLine?.();
     if (bossLine) detailContent.append(el('p', 'mb-boss-line', bossLine));
+    // The open contract, with its terms and where it stands.
+    const contractLine = s._contractHud?.model?.();
+    if (contractLine) detailContent.append(el('p', 'mb-contract-detail', contractLine.title));
     if (s.dangerZone?.visible)
       detailContent.append(el('p', '', 'Darker: more enemies · Purple outline: status staff'));
     if (s.pinnedThreatEnemies?.size >= 5)

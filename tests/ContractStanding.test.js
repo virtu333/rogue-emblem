@@ -13,25 +13,16 @@
 //     and never touch the run.
 // Every row of the table asks the standing, then wins the same battle for real and compares.
 import { describe, expect, it } from 'vitest';
-import { arriveAtEvent, chooseEventOption, leaveEvent } from '../src/engine/EventCommands.js';
 import { battleLosses, contractStanding } from '../src/engine/ContractStanding.js';
 import { recordBattleRecruit } from '../src/engine/BattleRecruits.js';
 import { createUnit } from '../src/engine/UnitManager.js';
 import { createSeededRng } from '../src/engine/BlessingEngine.js';
 import { serializeUnit } from '../src/engine/RunManager.js';
-import { addUnit, eventNode, runWithEvents } from './eventKit.js';
+import { addUnit, runWithEvents } from './eventKit.js';
+import { signedContract } from './contractKit.js';
 import { contractEvent } from './eventPhase2Kit.js';
 
-function signed(goal) {
-  const run = runWithEvents([contractEvent({ goal })], { seed: 61 });
-  const node = eventNode(run);
-  arriveAtEvent(run, node.id);
-  expect(chooseEventOption(run, node.id, 'sign').ok).toBe(true);
-  expect(leaveEvent(run, node.id).ok).toBe(true);
-  const battle = run.nodeMap.nodes.find((n) => n.type === 'battle' && !n.completed);
-  run.currentNodeId = battle.id;
-  return { run, nodeId: battle.id };
-}
+const signed = signedContract;
 
 /** A recruit who joined mid-battle (Talk): in the army, on no roster yet. */
 function talkRecruit(run) {

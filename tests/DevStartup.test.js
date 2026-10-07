@@ -282,6 +282,26 @@ describe('phone review routes (deploy previews)', () => {
     expect(registry.get('activeSlot')).toBeNull();
   });
 
+  it('contract HUD review: &contract= opens a contract on a battle route, &par=N shortens its par', () => {
+    const r = route('?devScene=battle&preset=battle_smoke&seed=42&contract=noLosses&par=2');
+    expect(r.key).toBe('Battle');
+    // The contract settles on the very node the battle is fought at.
+    expect(r.data.runManager.contract).toMatchObject({ goal: 'noLosses' });
+    expect(r.data.runManager.openBattleNode(r.data.nodeId)).not.toBeNull();
+    expect(r.data.battleParams).toMatchObject({ devScenario: 'short_par', devPar: 2 });
+    // Neither is on by default, and a goal that is no goal opens nothing.
+    const plain = route('?devScene=battle&preset=battle_smoke&seed=42');
+    expect(plain.data.runManager.contract).toBeNull();
+    expect(plain.data.battleParams.devScenario).toBeUndefined();
+    expect(
+      route('?devScene=battle&preset=battle_smoke&seed=42&contract=bogus').data.runManager.contract,
+    ).toBeNull();
+    // Another review scenario keeps its own setup (par is not stacked on it).
+    expect(
+      route('?devScene=battle&preset=fog_ambush&seed=42&par=3').data.battleParams.devScenario,
+    ).toBe('fog_ambush');
+  });
+
   it('roster_checks: an Oath on the bench, one to meet the cap, Edric in a robe at 1 HP', () => {
     const registry = createRegistry();
     const r = route('?devScene=nodemap&preset=roster_checks&seed=1', registry);

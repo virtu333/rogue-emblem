@@ -104,6 +104,7 @@ import { paintBattlefieldTerrain, battlefieldSpriteArtEnabled } from '../ui/Batt
 import { AtmosphereController } from '../ui/AtmosphereController.js';
 import { DesktopBattleHud } from '../ui/DesktopBattleHud.js';
 import { EclipseHudController } from '../ui/EclipseHudController.js';
+import { ContractHudController } from '../ui/ContractHudController.js';
 import { createFactionRing, setFactionRingActed, RING_OFFSET_Y } from '../ui/FactionRings.js';
 import { createBattlefieldLabFixture } from '../utils/battlefieldLabFixture.js';
 import { inputHint } from '../utils/inputHint.js';
@@ -837,6 +838,8 @@ export class BattleScene extends Phaser.Scene {
     this._desktopHud = null;
     this._eclipseHud?.destroy();
     this._eclipseHud = null;
+    this._contractHud?.destroy();
+    this._contractHud = null;
     this._battlefieldTerrain?.destroy();
     this._battlefieldTerrain = null;
     this._teardownBattleCameraSystem();
@@ -2185,6 +2188,8 @@ export class BattleScene extends Phaser.Scene {
       // act mood (grade + night).
       this._eclipseHud?.destroy();
       this._eclipseHud = new EclipseHudController(this).create();
+      this._contractHud?.destroy();
+      this._contractHud = new ContractHudController(this).create();
       this._desktopHud?.destroy();
       this._desktopHud = new DesktopBattleHud(this).create();
       this._atmosphere?.destroy();
