@@ -453,8 +453,9 @@ validated by `EventValidation` and listed in the schema.
   `RunManager.getPromisedRecruitNames` (the name is promised until the node is done), the spawn class, the
   unit the scene builds (`getRecruitNodeUnit`), and the params' `recruitPreview` for `MapGenerator`. An
   event's recruit is built **without the lord roll** (`RunManager._recruitGameData`: lords taken out, as an
-  event `join` is), so the deserter is never Rowan; `HeadlessBattle` and the sim driver say the same
-  through `battleParams.recruitNoLords`. Everything after that (Talk, `recordBattleRecruit`, the roster at
+  event `join` is), so the deserter is never Rowan; the sim driver gives `HeadlessBattle` that same builder
+  (`GameDriver` option `buildRecruit` = `getRecruitNodeUnit`, as BattleScene calls it), so the harness has no
+  copy of the rule and no flag. Everything after that (Talk, `recordBattleRecruit`, the roster at
   victory, fallen recruits, the rescue music) is the recruit node's code unchanged. Record `{ kind:'battle',
   enemyLevelBonus, elite?, recruit?: { className, name } }`.
 - **Requirements `notContract: true`** (no contract open: the Mercenary Contract is not even picked while
