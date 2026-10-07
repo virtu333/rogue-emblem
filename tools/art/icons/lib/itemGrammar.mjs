@@ -118,6 +118,8 @@ const TOME_ELEMENT = {
   Endgame: 'wind',
   Breachbolt: 'thunder',
   'Twisting Vortex': 'dark',
+  // The Necromancer's tome (enemy only): a dark cover, as the dark element reads.
+  Gravesong: 'dark',
 };
 const ELEMENT_COVER = {
   fire: 'blood',

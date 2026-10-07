@@ -217,6 +217,41 @@ export function validateCrossReferences(datasets = null) {
     }
   }
 
+  // Enemy-only gear (classes.json `enemyWeapon`: the Necromancer's Gravesong): a real
+  // weapon the class can wield, priced 0 (shops skip it) and in no loot table.
+  const enemyWeaponNames = new Set();
+  for (const cls of Array.isArray(classes) ? classes : []) {
+    if (cls?.enemyWeapon === undefined) continue;
+    const weapon = (Array.isArray(weapons) ? weapons : []).find((w) => w?.name === cls.enemyWeapon);
+    if (!weapon) {
+      errors.push(
+        `classes.json:${cls.name}.enemyWeapon references unknown weapon "${cls.enemyWeapon}"`,
+      );
+      continue;
+    }
+    enemyWeaponNames.add(weapon.name);
+    if (weapon.price !== 0)
+      errors.push(
+        `weapons.json:${weapon.name} is ${cls.name}'s enemy-only weapon: its price must be 0`,
+      );
+    const word = PROFICIENCY_WORD[weapon.type];
+    if (!word || !String(cls.weaponProficiencies || '').includes(word))
+      errors.push(
+        `classes.json:${cls.name}.enemyWeapon "${weapon.name}" is a ${weapon.type}, which ${cls.name} cannot wield`,
+      );
+  }
+  for (const [actId, table] of Object.entries(lootTables || {})) {
+    for (const [poolKey, pool] of Object.entries(table || {})) {
+      for (const entry of Array.isArray(pool) ? pool : []) {
+        const itemName = typeof entry === 'string' ? entry : entry?.name;
+        if (enemyWeaponNames.has(itemName))
+          errors.push(
+            `lootTables.json:${actId}.${poolKey} lists enemy-only weapon "${itemName}" (it never drops or sells)`,
+          );
+      }
+    }
+  }
+
   for (const actId of ['act1', 'act2', 'act3', 'act4']) {
     for (const className of Array.isArray(recruits?.[actId]?.classPool)
       ? recruits[actId].classPool

@@ -83,7 +83,18 @@ describe('variant table', () => {
           'Sentinel',
         ].includes(c.promotesFrom),
     )
-    .filter((c) => !['Zombie', 'Revenant', 'Dragon', 'Dragon Lord', 'Entity'].includes(c.name))
+    .filter(
+      (c) =>
+        ![
+          'Zombie',
+          'Revenant',
+          'Dragon',
+          'Dragon Lord',
+          'Necromancer',
+          'Skeleton',
+          'Entity',
+        ].includes(c.name),
+    )
     .map((c) => c.name);
 
   it('gives every recruitable class four to six people (ten where two lines promote into it)', () => {

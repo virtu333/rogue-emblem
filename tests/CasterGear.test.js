@@ -42,10 +42,13 @@ function gen(params, seed, gameData = data) {
   }
 }
 
-// The data as main had it when MAIN below was captured: Act IV drew 30% promoted.
+// The data as main had it when MAIN below was captured: Act IV drew 30% promoted, and
+// no Necromancer stood in the Act III and IV promoted pools (Phase 3I).
 const dataAtCapture = (() => {
   const pools = structuredClone(data.enemies.pools);
   pools.act4.promotedShare = 0.3;
+  for (const act of ['act3', 'act4'])
+    pools[act].promoted = pools[act].promoted.filter((name) => name !== 'Necromancer');
   return { ...data, enemies: { ...data.enemies, pools } };
 })();
 
