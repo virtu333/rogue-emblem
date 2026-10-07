@@ -135,6 +135,30 @@ describe('the fall', () => {
     });
   });
 
+  it('a fall that comes due at load is decided as in play: a Dark Omen, or a battle with no dark face', () => {
+    // The save holds a shadow that has passed an event node's threshold but not the fall itself
+    // (a save from before the node was taken); loading takes the node.
+    for (const darkFaces of [true, false]) {
+      const make = () => {
+        const run = newRun({ seed: 31 });
+        if (!darkFaces) withoutDark(run);
+        const node = unvisitedEvent(run);
+        withShadow(run, thresholdOf(run, node));
+        expect(node.eclipse).toBeUndefined(); // due, not yet fallen
+        return { run, node };
+      };
+      const live = make();
+      live.run.applyEclipseNow();
+      const saved = make();
+      const loaded = roundTrip(saved.run);
+      const loadedNode = loaded.nodeMap.nodes.find((n) => n.id === saved.node.id);
+      expect(loadedNode, `dark faces ${darkFaces}`).toEqual(live.node);
+      if (darkFaces) expect(loadedNode).toMatchObject({ type: 'event', darkOmen: true });
+      else
+        expect(loadedNode).toMatchObject({ type: 'battle', eclipse: { label: 'Swallowed road' } });
+    }
+  });
+
   it('never takes the current or the walked node', () => {
     const run = newRun({ seed: 31 });
     const node = unvisitedEvent(run);

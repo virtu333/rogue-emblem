@@ -4233,8 +4233,13 @@ export class RunManager {
     };
   }
 
-  /** Let the dark take this act's map at the current act shadow (idempotent). */
-  applyEclipseNow() {
+  /**
+   * Let the dark take this act's map at the current act shadow (idempotent). The one place a fall
+   * is decided, in play and on load (`fromJSON` calls it too), so both choose a Dark Omen or a
+   * battle for an event node the same way. `activeNodeId` is the battle being fought, exempt like
+   * the current node; a load passes the saved one, as `battleInProgress` is not restored yet.
+   */
+  applyEclipseNow({ activeNodeId = this.battleInProgress?.nodeId || null } = {}) {
     if (!this.isEclipseActive() || !this.nodeMap) return [];
     return applyEclipse({
       state: this.eclipse,
@@ -4242,7 +4247,7 @@ export class RunManager {
       nodeMap: this.nodeMap,
       runSeed: this.runSeed,
       currentNodeId: this.currentNodeId,
-      activeNodeId: this.battleInProgress?.nodeId || null,
+      activeNodeId,
       mapTemplates: this.gameData?.mapTemplates || null,
       fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
       halfFogChance: this.difficultyId === 'normal',
@@ -5592,20 +5597,11 @@ export class RunManager {
     // re-applied idempotently; a consistent save changes nothing. The battle being
     // fought (if any) is exempt like the current node.
     rm.eclipse = normalizeEclipseState(saved.eclipse, rm.getEclipseConfig());
-    if (rm.nodeMap && rm.isEclipseActive()) {
-      applyEclipse({
-        state: rm.eclipse,
-        config: rm.getEclipseConfig(),
-        nodeMap: rm.nodeMap,
-        runSeed: rm.runSeed,
-        currentNodeId: rm.currentNodeId,
-        activeNodeId:
-          typeof saved.battleInProgress?.nodeId === 'string' ? saved.battleInProgress.nodeId : null,
-        mapTemplates: gameData?.mapTemplates || null,
-        fogChanceBonus: rm.getDifficultyModifier('fogChanceBonus', 0),
-        halfFogChance: rm.difficultyId === 'normal',
-      });
-    }
+    // The same fall as in play (applyEclipseNow), Dark Omen included.
+    rm.applyEclipseNow({
+      activeNodeId:
+        typeof saved.battleInProgress?.nodeId === 'string' ? saved.battleInProgress.nodeId : null,
+    });
 
     // Suspended battle (anti-refresh): only a flag carrying a usable resume
     // checkpoint survives the load — a battle interrupted before its first
