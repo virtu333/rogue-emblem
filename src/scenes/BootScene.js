@@ -358,10 +358,13 @@ export class BootScene extends Phaser.Scene {
       'enemy_mage',
       'enemy_mercenary',
       'enemy_myrmidon',
+      // enemy-only classes of Phase 3 (3I): single portraits, unlight plate
+      'enemy_necromancer',
       'enemy_paladin',
       'enemy_pegasus_knight',
       'enemy_revenant',
       'enemy_sage',
+      'enemy_skeleton',
       'enemy_sniper',
       'enemy_soldier',
       'enemy_swordmaster',

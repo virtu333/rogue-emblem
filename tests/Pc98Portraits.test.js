@@ -411,6 +411,20 @@ describe('PC-98 portrait runtime', () => {
     expect(portraitIdForUnit(reloaded, gameData)).toBe('generic_merchant');
   });
 
+  it('the enemy-only Necromancer and Skeleton (classes ship in 3I) have unlight portraits', () => {
+    for (const className of ['Necromancer', 'Skeleton']) {
+      const id = `enemy_${className.toLowerCase()}`;
+      const unit = { name: className, className, faction: 'enemy', tier: 'promoted' };
+      // single portraits (like the Zombie): no variant faces, so the enemy-face table has no entry
+      expect(portraitIdForUnit(unit, gameData)).toBe(id);
+      expect(PC98_MANIFEST.portraits[id].faction).toBe('unlight');
+      expect(PC98_MANIFEST.portraits[id].variant).toBeUndefined();
+      expect(defaultFaction(id)).toBe('unlight');
+      expect(portraitFaction(unit, id)).toBe('unlight');
+      expect(existsSync(`assets/portraits/pc98/baked/${id}.png`)).toBe(true);
+    }
+  });
+
   it('canvas draws the atlas frame when loaded, else the texture', () => {
     const textures = new Set(['portrait_enemy_mage', 'pc98-portraits-40']);
     const scene = {
