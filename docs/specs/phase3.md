@@ -53,10 +53,10 @@ Each step is one PR, merged when CI is green. A large step gets a review pass fi
 **Progress (2026-10-07).**
 - Merged:
   - the art batch (#222);
-  - 3A (#221), 3B (#223), 3F (#224), 3C (#225), 3H (#226), 3I (#228), 3D (#229), 3G (#231);
+  - 3A (#221), 3B (#223), 3F (#224), 3C (#225), 3H (#226), 3I (#228), 3D (#229), 3G (#231),
+    3E (#232): every Phase 3 step;
   - the Lingering Injury rename (#227);
   - the contract fix (#230).
-- In review: 3E (#232).
 - What each step changed from the plan is in "As built" at the end.
 
 ## Shared boundaries (acceptance criteria)
