@@ -125,7 +125,7 @@ export function damageUnit(unit, amount, opts = {}) {
 export function damageUnitDetailed(unit, amount, { floor = 0, disturbs = true } = {}) {
   const prev = Number(unit.currentHP) || 0;
   const next = Math.min(prev, Math.max(floor, prev - Math.max(0, Number(amount) || 0)));
-  if (prev > 0 && next <= 0 && floor <= 0) {
+  if (prev > 0 && next <= 0) {
     const absorbed = absorbLethal(unit, next);
     if (absorbed.stoneBroken) {
       setUnitHP(unit, absorbed.hp, { disturbs: false });
