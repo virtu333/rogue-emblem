@@ -79,6 +79,7 @@ import { applyRewardTarget } from './LootRewardCommands.js';
 import { spendConsumableUse } from './RosterInventory.js';
 import { canEquip, learnSkill, applyStatBoost, knowsSkill } from './UnitManager.js';
 import { healUnit, damageUnit, setUnitHP } from './UnitHealth.js';
+import { resolveAttackStat } from './TraitSystem.js';
 import { applyWear, wearableStats, isWorn, repairWeapon, wearCount } from './WeaponWear.js';
 import { applyForge, canForgeStat } from './ForgeSystem.js';
 import { RECRUIT_PREVIEW_VERSION } from './RecruitNodeSystem.js';
@@ -546,8 +547,8 @@ function planBurden(ctx, effect, index) {
     const uid = unitUidOf(unit);
     if (!uid) return { error: 'No one to wound.' };
     let stat = params.stat;
-    if (stat === 'attack')
-      stat = (Number(unit.stats?.MAG) || 0) > (Number(unit.stats?.STR) || 0) ? 'MAG' : 'STR';
+    // `attack` is the stat the unit's class fights with, never whichever number is higher.
+    if (stat === 'attack') stat = resolveAttackStat(unit);
     else if (stat === 'random') stat = pickFrom(WOUND_STATS, rngFor(ctx, index, 'wound-stat'));
     if (!WOUND_STATS.includes(stat)) return { error: `A wound cannot fall on "${params.stat}".` };
     delete params.scope;

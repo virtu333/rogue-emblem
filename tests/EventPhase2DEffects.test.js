@@ -240,6 +240,34 @@ describe('an accessory from the pool one tier up', () => {
 
 // ── stat: 'best', and a stat that goes down ─────────────────────────────
 
+describe('a wound on the attack stat', () => {
+  // `stat: 'attack'` is the stat the unit's class fights with: STR for a physical class, MAG for
+  // a caster, whichever of the two is larger on the sheet notwithstanding.
+  const woundOf = (className, stats) => {
+    const run = newRun({ seed: 6 });
+    const unit = addUnit(run, className, { name: 'Hale' });
+    Object.assign(unit.stats, stats);
+    play([{ type: 'burden', id: 'wounded', params: { scope: 'target', stat: 'attack' } }], {
+      run,
+      target: 'Hale',
+    });
+    return run.burdens.find((b) => b.id === 'wounded');
+  };
+
+  it('a physical class with MAG above STR is wounded in STR', () => {
+    // Fighter fights with axes (STR); MAG 12 > STR 5 would have pointed the old rule at MAG.
+    expect(woundOf('Fighter', { STR: 5, MAG: 12 })).toMatchObject({
+      unitName: 'Hale',
+      stat: 'STR',
+    });
+  });
+
+  it('a caster with STR above MAG is wounded in MAG', () => {
+    // Mage fights with tomes (MAG); STR 12 > MAG 5 would have pointed the old rule at STR.
+    expect(woundOf('Mage', { STR: 12, MAG: 5 })).toMatchObject({ unitName: 'Hale', stat: 'MAG' });
+  });
+});
+
 describe("stat 'best' and losses", () => {
   /** A unit with exactly these stats (HP 20, nothing else unless said). */
   const withStats = (run, name, stats, currentHP) => {
