@@ -1324,10 +1324,15 @@
       "faction": "steel",
       "variant": true
     },
+    "generic_merchant": {
+      "source": "legacy",
+      "faction": "verdigris",
+      "frame": 69
+    },
     "generic_myrmidon": {
       "source": "generated",
       "faction": "steel",
-      "frame": 69
+      "frame": 70
     },
     "generic_myrmidon__myrmidon_b": {
       "source": "generated",
@@ -1352,7 +1357,7 @@
     "generic_paladin": {
       "source": "generated",
       "faction": "steel",
-      "frame": 70
+      "frame": 71
     },
     "generic_paladin__cavalier_a": {
       "source": "generated",
@@ -1402,7 +1407,7 @@
     "generic_pegasus_knight": {
       "source": "generated",
       "faction": "steel",
-      "frame": 71
+      "frame": 72
     },
     "generic_pegasus_knight__pegasus_b": {
       "source": "generated",
@@ -1427,7 +1432,7 @@
     "generic_sage": {
       "source": "generated",
       "faction": "steel",
-      "frame": 72
+      "frame": 73
     },
     "generic_sage__mage_a": {
       "source": "generated",
@@ -1452,7 +1457,7 @@
     "generic_sniper": {
       "source": "rebuilt",
       "faction": "steel",
-      "frame": 73
+      "frame": 74
     },
     "generic_sniper__archer_a": {
       "source": "generated",
@@ -1477,7 +1482,7 @@
     "generic_soldier": {
       "source": "generated",
       "faction": "steel",
-      "frame": 74
+      "frame": 75
     },
     "generic_soldier__soldier_b": {
       "source": "generated",
@@ -1502,7 +1507,7 @@
     "generic_swordmaster": {
       "source": "generated",
       "faction": "steel",
-      "frame": 75
+      "frame": 76
     },
     "generic_swordmaster__myrmidon_a": {
       "source": "generated",
@@ -1527,7 +1532,7 @@
     "generic_thief": {
       "source": "generated",
       "faction": "steel",
-      "frame": 76
+      "frame": 77
     },
     "generic_thief__thief_b": {
       "source": "generated",
@@ -1552,7 +1557,7 @@
     "generic_trickster": {
       "source": "generated",
       "faction": "steel",
-      "frame": 77
+      "frame": 78
     },
     "generic_trickster__thief_b": {
       "source": "generated",
@@ -1577,7 +1582,7 @@
     "generic_warlock": {
       "source": "rebuilt",
       "faction": "steel",
-      "frame": 78
+      "frame": 79
     },
     "generic_warlock__mage_a": {
       "source": "generated",
@@ -1602,7 +1607,7 @@
     "generic_warrior": {
       "source": "generated",
       "faction": "steel",
-      "frame": 79
+      "frame": 80
     },
     "generic_warrior__fighter_a": {
       "source": "generated",
@@ -1627,7 +1632,7 @@
     "generic_wyvern_lord": {
       "source": "generated",
       "faction": "steel",
-      "frame": 80
+      "frame": 81
     },
     "generic_wyvern_lord__pegasus_a": {
       "source": "generated",
@@ -1677,7 +1682,7 @@
     "generic_wyvern_rider": {
       "source": "generated",
       "faction": "steel",
-      "frame": 81
+      "frame": 82
     },
     "generic_wyvern_rider__wyvern_a": {
       "source": "generated",
@@ -1702,72 +1707,72 @@
     "lord_astrid": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 82
+      "frame": 83
     },
     "lord_astrid_promoted": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 83
+      "frame": 84
     },
     "lord_cael": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 84
+      "frame": 85
     },
     "lord_cael_promoted": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 85
+      "frame": 86
     },
     "lord_edric": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 86
+      "frame": 87
     },
     "lord_edric_promoted": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 87
+      "frame": 88
     },
     "lord_kira": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 88
+      "frame": 89
     },
     "lord_kira_promoted": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 89
+      "frame": 90
     },
     "lord_rowan": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 90
+      "frame": 91
     },
     "lord_rowan_promoted": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 91
+      "frame": 92
     },
     "lord_sera": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 92
+      "frame": 93
     },
     "lord_sera_promoted": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 93
+      "frame": 94
     },
     "lord_voss": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 94
+      "frame": 95
     },
     "lord_voss_promoted": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 95
+      "frame": 96
     },
     "special_old_knight": {
       "source": "rebuilt",

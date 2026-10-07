@@ -262,6 +262,7 @@
   "generic_mercenary__mercenary_c": { "eye": 0.36, "cx": 0.52 },
   "generic_mercenary__mercenary_d": { "eye": 0.36, "cx": 0.52 },
   "generic_mercenary__mercenary_e": { "eye": 0.36, "cx": 0.52 },
+  "generic_merchant": { "eye": 0.29, "cx": 0.56 },
   "generic_myrmidon": { "eye": 0.36, "cx": 0.52 },
   "generic_myrmidon__myrmidon_b": { "eye": 0.405, "cx": 0.52 },
   "generic_myrmidon__myrmidon_c": { "eye": 0.36, "cx": 0.52 },

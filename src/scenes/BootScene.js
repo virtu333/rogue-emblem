@@ -331,6 +331,8 @@ export class BootScene extends Phaser.Scene {
       'generic_battle_monk',
       'generic_trickster',
       'generic_hunter',
+      // The caravan Merchant (CaravanSystem builds it outside the class factories)
+      'generic_merchant',
       // Enemy-faction portraits (38)
       'enemy_archer',
       'enemy_assassin',

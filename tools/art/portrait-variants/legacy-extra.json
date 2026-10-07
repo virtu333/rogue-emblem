@@ -1,0 +1,9 @@
+{
+  "generic_merchant": {
+    "prompt": "A 128 by 128 pixel art character portrait for a dark-fantasy tactics RPG, drawn exactly in the style of the first two reference images (the same game): crisp square pixels, a dark outline, three-tone cel shading lit from the upper left, a head-and-shoulders bust in three-quarter view facing right, the shoulders filling the bottom edge, on a flat dark navy (#1b1d33) background. One character, no text, no frame, no glow. The character: a travelling Merchant who owns a caravan, a friendly, shrewd man in his forties, weathered tan skin, a short dark beard with a little grey, warm crinkled eyes and a small knowing smile, a brown felt travelling cap. Outfit: a deep green wool cloak with a broad hood folded back on the shoulders, a leather bandolier with a coin pouch and a brass scale hanging from it, a cream linen shirt, a heavy pack strap across the chest. An unarmed civilian: no weapon, no armour. Green is his colour (an ally NPC).",
+    "refs": ["assets/portraits/generic_mercenary.png", "assets/portraits/generic_cavalier.png"],
+    "take": 2,
+    "model": "pro",
+    "generator": "gen-legacy-extra.mjs"
+  }
+}
