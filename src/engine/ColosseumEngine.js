@@ -356,6 +356,8 @@ function parseMinRange(weapon) {
  * @param {Array<string>} [existingNames]
  * @param {Object|null} [metaEffects] effective meta effects (RunManager.getEffectiveMetaEffects):
  *   mercenaries get the recruit stat/growth upgrades and Skilled Recruits like every recruit
+ * @param {{ runSeed?: number, marksData?: Array }|null} [markContext] the Mark roll
+ *   (UnitManager.createRecruitUnit): run seed and data/marks.json; none = no Marks
  * @returns {Array<{ unit: Object, hireCost: number }>}
  */
 export function generateMercenaryCandidates(
@@ -371,6 +373,7 @@ export function generateMercenaryCandidates(
   traitsData = null,
   existingNames = [],
   metaEffects = null,
+  markContext = null,
 ) {
   const mercConfig = colosseumData?.mercenaries;
   // What every recruit source gets (RecruitNodeSystem.buildRecruitNodeUnit): seasoned
@@ -380,6 +383,13 @@ export function generateMercenaryCandidates(
   if (!mercConfig) {
     throw new Error('[ColosseumEngine] Missing mercenary config');
   }
+  // The Mark roll keys on run seed and name, never the board's rng (a seeded board stays
+  // reproducible). The name is final before createRecruitUnit below.
+  const markOptions = {
+    runSeed: markContext?.runSeed,
+    marksData: markContext?.marksData || null,
+    metaEffects,
+  };
 
   const [minCount, maxCount] = mercConfig.candidateCount;
   const count = minCount + Math.floor(rng() * (maxCount - minCount + 1));
@@ -459,7 +469,14 @@ export function generateMercenaryCandidates(
           growthBonuses,
           null,
           classesData,
-          { traitsData, skillsData, rng, traitClassData: classData, seasoned: true },
+          {
+            traitsData,
+            skillsData,
+            rng,
+            traitClassData: classData,
+            seasoned: true,
+            ...markOptions,
+          },
         );
         promoteUnit(unit, classData, classData.promotionBonuses || {}, skillsData);
 
@@ -479,7 +496,7 @@ export function generateMercenaryCandidates(
           growthBonuses,
           null,
           classesData,
-          { traitsData, skillsData, rng, seasoned: true },
+          { traitsData, skillsData, rng, seasoned: true, ...markOptions },
         );
       }
       unit.faction = 'player'; // Mercenaries join the player's team

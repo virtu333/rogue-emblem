@@ -198,7 +198,7 @@ describe('HeadlessBattle: raising', () => {
     const { b, edric } = emptyRout();
     const spot = openSpot(b, edric);
     const necro = necromancerAt(b, spot.col, spot.row, 16);
-    necro.level = 9; // a promoted unit's own level counts from 1: a 9 is a veteran
+    necro.level = 9; // promoted level 9 is effective level 21
     b._processNecromancy();
     const [sk] = skeletonsOf(necro, b.enemyUnits);
     expect(sk).toMatchObject({
@@ -211,7 +211,7 @@ describe('HeadlessBattle: raising', () => {
       isBoss: false,
       consumables: [],
       accessory: null,
-      level: 5,
+      level: 17, // 9 + 12 - 4
     });
     expect(sk.inventory).toEqual([sk.weapon]); // one Iron weapon and nothing else
     expect(sk.weapon.tier).toBe('Iron');
@@ -219,13 +219,6 @@ describe('HeadlessBattle: raising', () => {
     expect(sk.battleEntityId).toMatch(/^u\d+$/);
     expect(isRaisedUnit(sk)).toBe(true);
     expect(isRaisedUnit(necro)).toBe(false);
-    // The floor: a Necromancer under level 5 raises a level 1 Skeleton.
-    const { b: b2, edric: e2 } = emptyRout(8);
-    const spot2 = openSpot(b2, e2);
-    const young = necromancerAt(b2, spot2.col, spot2.row);
-    young.level = 3;
-    b2._processNecromancy();
-    expect(skeletonsOf(young, b2.enemyUnits)[0].level).toBe(1);
   });
 
   it("the Skeleton raised at the phase start is in the AI's list and has not acted", async () => {
@@ -309,12 +302,13 @@ describe('HeadlessBattle: the lifetime cap', () => {
     const { b, edric } = emptyRout();
     const spot = openSpot(b, edric);
     const necro = necromancerAt(b, spot.col, spot.row);
-    necro.level = 5; // Skeletons of level 1
-    // A level 1 recruit takes every kill: raw 40 XP, a quarter is 10, the most one can pay.
+    necro.level = 1;
+    // Promoted level 1 is effective 13: Skeletons of level 9. A level 9 recruit takes every
+    // kill: raw 25 + 15 = 40 XP, a quarter is 10, the most one can pay.
     b.battleParams.xpMultiplier = 1;
     b.turnPar = null;
-    Object.assign(edric, { level: 1, tier: 'base', xp: 0 });
-    const perKill = Math.floor(calculateCombatXP(edric, { ...skeletonProbe(), level: 1 }, true) * 0.25); // prettier-ignore
+    Object.assign(edric, { level: 9, tier: 'base', xp: 0 });
+    const perKill = Math.floor(calculateCombatXP(edric, { ...skeletonProbe(), level: 9 }, true) * 0.25); // prettier-ignore
     expect(perKill).toBe(10);
     let total = 0;
     for (let turn = 1; turn <= 40; turn++) {
@@ -453,7 +447,7 @@ describe('HeadlessBattle: what a Skeleton pays', () => {
     // This rung's own XP scale and the par bonus would blur the quarter.
     b.battleParams.xpMultiplier = 1;
     b.turnPar = null;
-    Object.assign(edric, { level: 1, tier: 'base', xp: 0 }); // a level 1 recruit: raw XP 40
+    Object.assign(edric, { level: 1, tier: 'base', xp: 0 }); // a level 1 recruit meets a level 12 Skeleton: the level gap is capped at +6
     const level0 = edric.level;
     const earned = (victim) => {
       edric.level = level0;

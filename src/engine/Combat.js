@@ -18,6 +18,7 @@ import { rollDefenseAffixes } from './AffixSystem.js';
 import { isSleeping, isSilenced, isWounded, removeCondition } from './StatusConditionSystem.js';
 import { isEntity } from './EntitySystem.js';
 import { effectiveSkills } from './EffectiveSkills.js';
+import { getUnitMark, getUnitMarkFor, markActivation, markProcs } from './MarkSystem.js';
 import {
   getImbueCombatMods,
   getImbuePostCombatPoison,
@@ -1201,6 +1202,17 @@ const EXCHANGE_NEUTRAL_ACCESSORY_EFFECTS = new Set([
   'buffRES',
 ]);
 
+/**
+ * True when a unit's Mark can change the exchange's HP outcome: Hunt adds damage on a
+ * strike, Veil halves a magic strike (docs/specs/phase3.md 3C). They are listed with Luna
+ * and Aegis below, so the forecast hides its projection instead of promising an outcome
+ * they could change. Forge, Ember and Road never act inside the exchange.
+ */
+export function markChangesExchangeHp(unit, marksData) {
+  const mark = getUnitMark(unit, marksData);
+  return mark?.trigger === 'on-attack' || mark?.trigger === 'on-defend';
+}
+
 /** True when a unit's accessory can change HP inside the exchange (see above). */
 export function accessoryChangesExchangeHp(unit) {
   const effects = unit?.accessory?.combatEffects;
@@ -1477,9 +1489,10 @@ export function getCombatForecast(
     display: {
       triangle: atkTriangle,
       distance,
-      counterHasDamageProc: effectiveSkills(defender, { weapon: defWeapon }).some((id) =>
-        COUNTER_DAMAGE_PROCS.has(id),
-      ),
+      counterHasDamageProc:
+        effectiveSkills(defender, { weapon: defWeapon }).some((id) =>
+          COUNTER_DAMAGE_PROCS.has(id),
+        ) || Boolean(getUnitMarkFor(defender, 'on-attack', skillCtx?.marksData)),
       counterReason: defCanCounter
         ? null
         : isSleeping(defender)
@@ -1515,6 +1528,7 @@ export function getCombatForecast(
         ].some(
           ([u, weapon]) =>
             accessoryChangesExchangeHp(u) ||
+            markChangesExchangeHp(u, skillCtx?.marksData) ||
             (u.affixes || []).some((id) => {
               const affix = skillCtx?.affixData?.affixes?.find((entry) => entry.id === id);
               return !affix || (affix.forecast === 'exchange' && !affix.forecastProjectionSafe);
@@ -1655,6 +1669,7 @@ function rollStrike(
   let reflectDamage = 0;
   let warpRange = 0;
   const skillActivations = [];
+  let huntSkipped = false;
   // Append activations by id, deduplicating
   function mergeActivations(activated) {
     if (!activated?.length) return;
@@ -1696,6 +1711,18 @@ function rollStrike(
     }
     // Always surface all on-attack skill activations
     mergeActivations(skillResult.activated);
+    huntSkipped = Boolean(skillResult.lethal);
+  }
+
+  // Mark of the Hunt (3C): a strike-level chance of +damage on a strike that deals any, on the
+  // battle's Math.random, after the on-attack procs. Not a skill: Silence does not stop it,
+  // and a Lethality kill does not need it.
+  const hunt = huntSkipped
+    ? null
+    : getUnitMarkFor(strikeSkills?.striker, 'on-attack', strikeSkills?.marksData);
+  if (hunt && finalDmg > 0 && markProcs(hunt)) {
+    finalDmg += Math.max(0, Math.trunc(Number(hunt.effect?.damageBonus) || 0));
+    mergeActivations([markActivation(hunt)]);
   }
 
   // On-defend skills (Pavise, Aegis, Miracle, Intimidate)
@@ -1707,6 +1734,7 @@ function rollStrike(
       isPhysicalAtk,
       strikeSkills.skillsData,
       targetHP,
+      strikeSkills.marksData,
     );
     if (defResult.modifiedDamage !== finalDmg) {
       finalDmg = defResult.modifiedDamage;
@@ -1825,6 +1853,7 @@ function applyStrikeHeal(evt, striker, strikerHP) {
  *   rollStrikeSkills — function(striker, dmg, target, skillsData, combatState)
  *   checkAstra — function(striker, skillsData)
  *   skillsData — full skills array
+ *   marksData — data/marks.json (Mark of the Hunt / Veil; none = no Mark acts)
  * }
  */
 export function resolveCombat(
@@ -2076,6 +2105,7 @@ export function resolveCombat(
         isFirstHit: !defender._hitByPlayerThisPhase,
         isMelee,
         skillsData: skillCtx.skillsData,
+        marksData: skillCtx.marksData || null,
         combatState: combatSkillState,
       }
     : null;
@@ -2093,6 +2123,7 @@ export function resolveCombat(
           isFirstHit: false, // Player doesn't have Shielded usually, but keeping consistent
           isMelee,
           skillsData: skillCtx.skillsData,
+          marksData: skillCtx.marksData || null,
           combatState: combatSkillState,
         }
       : null;

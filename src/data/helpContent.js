@@ -440,6 +440,26 @@ const STATIC_HELP_TABS = [
         ],
       },
       {
+        title: 'Marks',
+        lines: [
+          { text: 'A rare gift of the Hollow Sun', color: GOLD },
+          { text: '   About 1 recruit in 10 bears one' },
+          { text: '   (Home Base: Marked Blood). Lords,' },
+          { text: '   the veteran and foes never do.' },
+          { text: '   It shows under the traits, and' },
+          { text: '   procs in battle, never on demand.' },
+          { text: '' },
+          { text: 'The five Marks', color: CYAN },
+          { text: '  Forge 20%: an art costs no HP.' },
+          { text: '  Hunt 15%: a strike hits for +5.' },
+          { text: '  Ember 20%: a kill heals 5 HP.' },
+          { text: '  Veil 15%: a magic hit is halved' },
+          { text: '    (never twice with Aegis).' },
+          { text: '  Road 25%: +1 MOV for the turn.' },
+          { text: 'Silence does not stop a Mark.', color: GRAY },
+        ],
+      },
+      {
         title: 'Deeds & Epithets',
         lines: [
           { text: 'Titles come from what units do', color: GOLD },

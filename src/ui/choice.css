@@ -515,6 +515,9 @@
 .ch-line.is-legend > b {
   color: var(--re-rarity-legend);
 }
+.ch-line.is-mark > b {
+  color: var(--re-mark);
+}
 .ch-line.is-skill > b {
   color: var(--re-accent-text);
 }
@@ -742,6 +745,9 @@
 }
 .ch-terms-line.is-trait > b {
   color: var(--ce-unlight-5);
+}
+.ch-terms-line.is-mark > b {
+  color: var(--re-mark);
 }
 .ch-terms-line.is-skill > b {
   color: var(--re-accent-text);

@@ -492,14 +492,15 @@ describe('the engine rules without a board', () => {
     ...over,
   });
 
-  it('a Skeleton is four levels under its Necromancer, never under level 1', () => {
-    // The level the unit shows: a promoted Necromancer counts from 1 again.
-    expect(skeletonLevelFor(necro({ level: 6 }))).toBe(2);
-    expect(skeletonLevelFor(necro({ level: 5 }))).toBe(1);
-    expect(skeletonLevelFor(necro({ level: 4 }))).toBe(1);
-    expect(skeletonLevelFor(necro({ level: 1 }))).toBe(1);
+  it("a Skeleton is four levels under its Necromancer's XP-effective level, never under 1", () => {
+    // A promoted unit counts 12 more levels than it shows (hand-derived: 6 + 12 - 4 = 14).
+    expect(skeletonLevelFor(necro({ level: 6 }))).toBe(14);
+    expect(skeletonLevelFor(necro({ level: 1 }))).toBe(9);
+    expect(skeletonLevelFor(necro({ level: 20 }))).toBe(28);
+    // A base unit counts what it shows; the floor is level 1.
     expect(skeletonLevelFor({ ...necro(), tier: 'base', level: 9 })).toBe(5);
-    expect(skeletonLevelFor(necro({ level: 20 }))).toBe(16);
+    expect(skeletonLevelFor({ ...necro(), tier: 'base', level: 5 })).toBe(1);
+    expect(skeletonLevelFor({ ...necro(), tier: 'base', level: 2 })).toBe(1);
   });
 
   it('the lifetime cap is six, from constants.js', () => {

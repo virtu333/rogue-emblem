@@ -12,7 +12,7 @@
 //     A Necromancer raises at most MAX_RAISES_PER_NECROMANCER (6) in a battle in all, however
 //     many stand: `_raisedCount` on the Necromancer counts them.
 //   - THE SKELETON. A base-class Skeleton at the Necromancer's level less 4 (never below 1;
-//     the level the unit shows, so a promoted Necromancer's Skeleton is level 1 to 3). Its
+//     its XP-effective level, so an Act IV Necromancer's Skeleton is level 8 to 14). Its
 //     weapon (an Iron sword, lance or bow), growths and level-ups come from its own keyed
 //     stream,
 //     `keyedBattleRandom(battleSeed, 'raise:<necromancer id>:<turn>:<n>')`, never the
@@ -35,6 +35,7 @@ import { riseTile } from './ZombieRemains.js';
 import {
   applyEnemyDifficultyModifiers,
   createUnit,
+  getXpEffectiveLevel,
   parseWeaponProficiencies,
 } from './UnitManager.js';
 
@@ -129,13 +130,13 @@ export function mapExtraNecromancer(className, spawns, pool) {
 }
 
 /**
- * The Skeleton's level for this Necromancer: its `level` less SKELETON_LEVEL_OFFSET, never
- * below 1. `level` is the number the unit shows (a promoted class counts from 1 again), so a
- * Necromancer's Skeleton is chaff of level 1 to 3: it blocks and chips, and the XP it pays
- * stays near the floor (docs/specs/phase3.md 3I; tests/sim/NecromancerXp.test.js).
+ * The Skeleton's level for this Necromancer: its XP-effective level (a promoted unit counts
+ * 12 more, as every level comparison in the game does) less SKELETON_LEVEL_OFFSET, never
+ * below 1. A promoted Act IV Necromancer's Skeleton sits a little below the act's base foes
+ * (docs/specs/phase3.md 3I; tests/sim/NecromancerXp.test.js).
  */
 export function skeletonLevelFor(necromancer) {
-  return Math.max(1, Math.trunc(Number(necromancer?.level) || 1) - SKELETON_LEVEL_OFFSET);
+  return Math.max(1, getXpEffectiveLevel(necromancer) - SKELETON_LEVEL_OFFSET);
 }
 
 /** The keyed-stream key of the raise `ordinal` (how many it already fields) on `turn`. */

@@ -100,6 +100,23 @@ describe('Schema validation — positive (real data)', () => {
     expect(validate(data), JSON.stringify(validate.errors)).toBe(true);
   });
 
+  it('marks.json passes schema, and the schema rejects malformed Marks', () => {
+    const validate = compileSchema('marks.schema.json');
+    const data = loadData('marks.json');
+    expect(validate(data), JSON.stringify(validate.errors)).toBe(true);
+    const bad = (patch) => validate([{ ...data[0], ...patch }]);
+    expect(bad({})).toBe(true);
+    expect(bad({ trigger: 'on-sneeze' })).toBe(false);
+    expect(bad({ chance: 0 })).toBe(false);
+    expect(bad({ chance: 101 })).toBe(false);
+    expect(bad({ chance: 12.5 })).toBe(false);
+    expect(bad({ effect: {} })).toBe(false);
+    expect(bad({ effect: { teleport: true } })).toBe(false);
+    expect(bad({ effect: { damageBonus: 0 } })).toBe(false);
+    expect(bad({ id: 'Bad Id' })).toBe(false);
+    expect(validate([{ id: 'x', name: 'X' }])).toBe(false);
+  });
+
   it('traits.json passes schema, and the schema rejects retired v1 shapes', () => {
     const validate = compileSchema('traits.schema.json');
     const data = loadData('traits.json');

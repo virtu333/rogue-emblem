@@ -1,4 +1,5 @@
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
+import { isMarkActivation } from '../engine/MarkSystem.js';
 /**
  * ProcVisualTheme -- pure classification + theming for combat proc visuals.
  *
@@ -10,6 +11,7 @@ import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
  *   art     -- weapon arts (deliberate technique)        -> amber
  *   offense -- on-attack and on-kill procs (Luna, Sol, Lifetaker...) -> red
  *   defense -- on-defend procs + defensive enemy affixes -> blue
+ *   mark    -- a recruit's Mark (Hunt, Veil; docs/specs/phase3.md 3C)  -> violet
  *   neutral -- everything else (combat-start stances...) -> cyan
  */
 
@@ -17,6 +19,7 @@ export const PROC_CATEGORY = {
   ART: 'art',
   OFFENSE: 'offense',
   DEFENSE: 'defense',
+  MARK: 'mark',
   NEUTRAL: 'neutral',
 };
 
@@ -24,6 +27,7 @@ export const PROC_THEME = {
   art: { color: UI_PALETTE.warn, accent: UI_HEX.warn },
   offense: { color: '#ff6b6b', accent: 0xff6b6b },
   defense: { color: '#77bbff', accent: 0x77bbff },
+  mark: { color: UI_PALETTE.mark, accent: UI_HEX.mark },
   neutral: { color: '#88ffee', accent: 0x88ffee },
 };
 
@@ -36,6 +40,7 @@ const CATEGORY_PRIORITY = [
   PROC_CATEGORY.ART,
   PROC_CATEGORY.OFFENSE,
   PROC_CATEGORY.DEFENSE,
+  PROC_CATEGORY.MARK,
   PROC_CATEGORY.NEUTRAL,
 ];
 
@@ -43,6 +48,8 @@ const CATEGORY_PRIORITY = [
 export function classifyActivation(activation, skillsData) {
   if (!activation?.id) return PROC_CATEGORY.NEUTRAL;
   if (activation.id === 'weapon_art') return PROC_CATEGORY.ART;
+  // A Mark is neither skill nor art: without this its id would read as an unknown neutral.
+  if (isMarkActivation(activation)) return PROC_CATEGORY.MARK;
   if (DEFENSIVE_AFFIX_IDS.has(activation.id)) return PROC_CATEGORY.DEFENSE;
   const skill = (skillsData || []).find((s) => s.id === activation.id);
   if (skill?.trigger === 'on-defend') return PROC_CATEGORY.DEFENSE;
@@ -54,7 +61,8 @@ export function classifyActivation(activation, skillsData) {
 /**
  * Split a strike's activations into striker-side and target-side lists,
  * each entry annotated with its category. Defense procs belong to the
- * target (the unit that defended), everything else to the striker.
+ * target (the unit that defended), everything else to the striker. A Mark that belongs to
+ * the defender (Veil) says so with `side: 'target'`.
  */
 export function splitStrikeActivations(activations, skillsData) {
   const striker = [];
@@ -62,13 +70,17 @@ export function splitStrikeActivations(activations, skillsData) {
   for (const act of activations || []) {
     const category = classifyActivation(act, skillsData);
     const entry = { ...act, category };
-    if (category === PROC_CATEGORY.DEFENSE) target.push(entry);
+    if (
+      category === PROC_CATEGORY.DEFENSE ||
+      (category === PROC_CATEGORY.MARK && act.side === 'target')
+    )
+      target.push(entry);
     else striker.push(entry);
   }
   return { striker, target };
 }
 
-/** Dominant category of an annotated entry list (art > offense > defense > neutral). */
+/** Dominant category of an annotated entry list (art > offense > defense > mark > neutral). */
 export function dominantCategory(entries) {
   for (const cat of CATEGORY_PRIORITY) {
     if (entries?.some((e) => e.category === cat)) return cat;
@@ -140,6 +152,9 @@ const ACTIVATION_FX = {
   teleporter: { key: 'fx_shield', at: 'target' },
   intimidate: { key: 'fx_status', at: 'striker' },
   thorns: { key: 'fx_pierce', at: 'striker' },
+  // marks
+  mark_hunt: { key: 'fx_pierce', at: 'target' },
+  mark_veil: { key: 'fx_shield', at: 'target' },
 };
 
 export function fxForActivation(entry) {
@@ -148,6 +163,7 @@ export function fxForActivation(entry) {
   if (mapped) return mapped;
   if (entry.category === PROC_CATEGORY.DEFENSE) return { key: 'fx_shield', at: 'target' };
   if (entry.category === PROC_CATEGORY.OFFENSE) return { key: 'fx_pierce', at: 'target' };
+  if (entry.category === PROC_CATEGORY.MARK) return { key: 'fx_buff', at: 'striker' };
   return null; // arts get the ring burst; neutral stances get no overlay
 }
 

@@ -66,6 +66,7 @@ export class DataLoader {
       eclipse,
       prologue,
       events,
+      marks,
     ] = await Promise.all([
       this.loadJSON('data/terrain.json'),
       this.loadJSON('data/lords.json'),
@@ -100,6 +101,8 @@ export class DataLoader {
       // The story Events on the route map (docs/specs/event-nodes.md). Optional: a build
       // without it offers none (arriveAtEvent returns null). Validated by `npm run validate:data`.
       this.loadOptionalJSON('data/events.json'),
+      // Recruit Marks (docs/specs/phase3.md 3C). Optional: a build without it rolls none.
+      this.loadOptionalJSON('data/marks.json'),
     ]);
     this.terrain = terrain;
     this.lords = lords;
@@ -129,6 +132,7 @@ export class DataLoader {
     this.eclipse = eclipse;
     this.prologue = prologue;
     this.events = events;
+    this.marks = marks;
     if (this.blessings) {
       const validation = validateBlessingsConfig(this.blessings);
       if (!validation.valid) {
@@ -172,6 +176,7 @@ export class DataLoader {
       eclipse,
       prologue,
       events,
+      marks,
     };
   }
 

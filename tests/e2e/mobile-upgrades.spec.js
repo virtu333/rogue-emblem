@@ -41,11 +41,12 @@ test('real purchase, refund fee, selection, scroll and saved reload', async ({ p
   await expect(page.locator('.mu-currency.active')).toContainText('980');
   await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('HomeBase');
-    // Unlock the list's last row (recruit_lck_flat) so its buy button is live.
+    // Unlock recruit_lck_flat, near the foot of the list, so its buy button is live.
     for (let i = 0; i < 3; i++) s.meta.purchaseUpgrade('recruit_lck_growth');
     s.mobileUpgrades.render();
   });
-  const last = page.locator('.mu-row').last();
+  // By id, not as the last row: the rows below it (Marked Blood) need a milestone.
+  const last = page.locator('[data-upgrade="recruit_lck_flat"]');
   await last.click();
   const offset = await page.locator('.mu-list').evaluate((e) => e.scrollTop);
   await page.locator('.mu-buy').tap();

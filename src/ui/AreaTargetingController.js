@@ -105,6 +105,7 @@ export class AreaTargetingController {
     return {
       weaponArtHpCostDelta:
         this.scene.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+      marksData: this.scene.gameData?.marks,
     };
   }
 
@@ -517,7 +518,8 @@ export class AreaTargetingController {
     try {
       // The art's weapon is equipped on confirm, as for any art.
       if (unit.weapon !== weapon) equipWeapon(unit, weapon);
-      applyWeaponArtCost(unit, art, this._costOptions());
+      const artCost = applyWeaponArtCost(unit, art, this._costOptions());
+      if (artCost.waived) scene.showMarkProc?.(unit, `${artCost.mark.name}: no cost`);
       // The cast is the weapon's strike: one Breachbolt shot, whatever the blast hits.
       spendAreaStrikeShot(weapon);
       recordWeaponArtUse(unit, art, { turnNumber: scene.turnManager?.turnNumber });

@@ -9,7 +9,7 @@
 // cost. Presentation only: it never mutates a unit, a reward or the run, never
 // reads Math.random, and every engine helper it calls is a read.
 import { rankRequirementText } from './rosterDisplay.js';
-import { traitLines } from './traitContent.js';
+import { traitLines, markLine } from './traitContent.js';
 import { epithetText } from '../engine/DeedTitles.js';
 import { getDisplayLevel, canEquip } from '../engine/UnitManager.js';
 import { getStaticCombatStats, getStaffMaxUses } from '../engine/Combat.js';
@@ -102,8 +102,9 @@ export function weaponMarks(unit) {
 }
 
 /**
- * Trait and skill lines: [{ kind, id, name, text }]. Traits come through
- * TraitSystem's own lookup so trait text changes flow in untouched.
+ * Trait, Mark and skill lines: [{ kind, id, name, text }]. Traits come through
+ * TraitSystem's own lookup so trait text changes flow in untouched; the Mark (at most
+ * one) follows them.
  */
 export function unitLines(unit, gameData = {}) {
   const lines = [];
@@ -116,6 +117,8 @@ export function unitLines(unit, gameData = {}) {
       text: trait.text || '',
     });
   }
+  const mark = markLine(unit, gameData);
+  if (mark) lines.push({ kind: 'mark', id: mark.id, name: mark.name, text: mark.text });
   const seen = new Set();
   for (const id of Array.isArray(unit?.skills) ? unit.skills : []) {
     if (typeof id !== 'string' || !id.trim() || seen.has(id)) continue;

@@ -560,6 +560,30 @@
     }
   },
   {
+    "id": "marked_blood",
+    "name": "Marked Blood",
+    "description": "Recruits are more likely to bear a Mark (a rare proc, shown beside their traits): 1 in 6, then 1 in 4",
+    "category": "recruit_stats",
+    "maxLevel": 2,
+    "costs": [
+      250,
+      400
+    ],
+    "effects": [
+      {
+        "markChance": 0.1667
+      },
+      {
+        "markChance": 0.25
+      }
+    ],
+    "requires": {
+      "milestones": [
+        "beatAct1"
+      ]
+    }
+  },
+  {
     "id": "lord_hp_growth",
     "name": "Lord Vitality",
     "description": "+5% HP growth per tier",

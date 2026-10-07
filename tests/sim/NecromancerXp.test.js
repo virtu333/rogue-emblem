@@ -7,11 +7,11 @@
 // battle (HeadlessBattle: its XP path, its par clock and its late-pressure decay are the
 // scene's, engine/BattleXp.js) on a real generated Act IV Black Sun rout:
 //
-//   - every turn from 1 to 40, a unit of every level (base 1-20, promoted 1-10) kills a
-//     Skeleton of every level a Necromancer raises in Act IV (1-5), or is attacked by one and
+//   - every turn from 1 to 40, a unit of every level (base 1-20, promoted 1-12) kills a
+//     Skeleton of every level a Necromancer raises in Act IV (9-18), or is attacked by one and
 //     lives, and the XP it earns is read off the unit;
-//   - the control is the same battle without a Necromancer: the party clears the map's
-//     ordinary foes once, on turn 1, and that is all the battle pays.
+//   - the control is an ordinary foe of the same level: the same battle without a Necromancer
+//     pays what its foes pay, and no Skeleton ever pays more than a quarter of one.
 //
 // What must hold:
 //   1. a Skeleton never pays more than a quarter of what an ordinary foe of its level pays
@@ -21,27 +21,28 @@
 //   3. from the last step of the late-pressure table on (XP x0.1) a Skeleton pays at most
 //      1 XP a kill, and a unit that out-levels the Skeletons by the over-level tier (7
 //      effective levels) earns nothing from them on any turn;
-//   4. the whole 40-turn window of one Skeleton kill a turn, the very worst case, pays a
-//      unit less than half of what clearing the battle without the Necromancer pays it:
-//      fought to the last turn, a Necromancer battle never out-pays the one without.
-// (A Necromancer raises at most six Skeletons in a battle in all, so the window is far shorter
-// than this worst case: HeadlessBattleNecromancy.test.js bounds the whole battle at six
-// quarter-kills.)
+//   4. a Necromancer raises at most six Skeletons in a battle, so the very worst case is six
+//      kills on the six best turns (1 to 6): they pay at most six quarter-kills of an
+//      ordinary foe of the Skeleton's level, (rounding up included).
+// (HeadlessBattleNecromancy.test.js bounds a whole harness battle at six quarter-kills.)
 // Ways this breaks: the quarter is dropped, the survival minimum applies to a raised unit, a
 // raise pays gold or a whole share, the late-pressure table stops reaching the Skeleton.
 import { afterEach, describe, expect, it } from 'vitest';
 import { GameDriver } from '../harness/GameDriver.js';
 import { getXpEffectiveLevel, calculateCombatXP } from '../../src/engine/UnitManager.js';
 import { getLatePressureState } from '../../src/engine/TurnBonusCalculator.js';
+import { NECROMANCER_RAISE_CAP } from '../../src/utils/constants.js';
 import { loadGameData } from '../testData.js';
 import { installSeed, restoreMathRandom } from '../../sim/lib/SeededRNG.js';
 
 const data = loadGameData();
 const TURNS = 40;
-const SKELETON_LEVELS = [1, 2, 3, 4, 5]; // Act IV Necromancers show levels 5 to 9 on Black Sun
+// Act IV Necromancers show promoted levels 1 to 10 (effective 13 to 22, Black Sun's bonus
+// included): their Skeletons are that less 4.
+const SKELETON_LEVELS = Array.from({ length: 10 }, (_, i) => i + 9);
 const PARTY = [
   ...Array.from({ length: 20 }, (_, i) => ({ tier: 'base', level: i + 1 })),
-  ...Array.from({ length: 10 }, (_, i) => ({ tier: 'promoted', level: i + 1 })),
+  ...Array.from({ length: 12 }, (_, i) => ({ tier: 'promoted', level: i + 1 })),
 ];
 
 afterEach(() => restoreMathRandom());
@@ -148,24 +149,30 @@ describe('Skeleton XP never outlasts the late-pressure table', () => {
       }
   });
 
-  it('4. farming one Skeleton a turn for the whole window pays under half of clearing the battle without one', () => {
-    // The battle without a Necromancer: this map's own foes (its generated enemies, as built
-    // by the harness), each killed once on turn 1 by the party member in question.
-    const foes = b.enemyUnits.filter((u) => u.className !== 'Necromancer');
-    expect(foes.length).toBeGreaterThanOrEqual(4);
-    let worstShare = 0;
-    for (const who of PARTY) {
-      const cleared = foes.reduce((sum, foe) => sum + earned(b, unit, who, foe, 1, 'kill'), 0);
+  it('4. six Skeleton kills on the six best turns pay at most six quarter-kills of an ordinary foe', () => {
+    // The whole battle's worth: a Necromancer raises six in all (NECROMANCER_RAISE_CAP), the
+    // best a party can do is kill them on turns 1 to 6. That is six quarters of what the same
+    // six kills of an ordinary foe of the Skeleton's level would pay, rounding up included.
+    let mostFarmed = 0;
+    let mostShare = 0;
+    for (const who of PARTY)
       for (const s of SKELETON_LEVELS) {
         let farmed = 0;
-        for (let t = 1; t <= TURNS; t++) farmed += earned(b, unit, who, skeleton(s), t, 'kill');
-        if (farmed === 0) continue;
-        expect(cleared, `${who.tier} ${who.level}`).toBeGreaterThan(0);
-        worstShare = Math.max(worstShare, farmed / cleared);
-        expect(farmed, `${who.tier} ${who.level} vs L${s}`).toBeLessThan(cleared / 2);
+        let ceiling = 0;
+        let ordinary = 0;
+        for (let t = 1; t <= NECROMANCER_RAISE_CAP; t++) {
+          farmed += earned(b, unit, who, skeleton(s), t, 'kill');
+          const plain = earned(b, unit, who, skeleton(s, false), t, 'kill');
+          ordinary += plain;
+          ceiling += Math.floor(plain / 4) + 1;
+        }
+        expect(farmed, `${who.tier} ${who.level} vs L${s}`).toBeLessThanOrEqual(ceiling);
+        if (ordinary > 0) mostShare = Math.max(mostShare, farmed / ordinary);
+        mostFarmed = Math.max(mostFarmed, farmed);
       }
-    }
-    expect(worstShare).toBeGreaterThan(0); // the slice does see XP where it is paid
+    // Never more than 0.3 of six ordinary same-level kills (a quarter, and rounding up).
+    expect(mostShare).toBeLessThanOrEqual(0.3);
+    expect(mostFarmed).toBeGreaterThan(0); // the slice does see XP where it is paid
   });
 
   it("XP formula check: the control numbers are the engine's own (calculateCombatXP)", () => {
