@@ -108,8 +108,7 @@ import {
 } from './RecruitNodeSystem.js';
 import {
   formatUnitUid,
-  isSameUnit,
-  matchUnitsToSurvivors,
+  resolveBattleCasualties,
   unitUidNumber,
   unitUidOf,
 } from './UnitIdentity.js';
@@ -3993,6 +3992,16 @@ export class RunManager {
   }
 
   /**
+   * The route-map node a victory would still complete, or null: it exists and is not done.
+   * `completeBattle` applies a victory only for such a node, so this is also the rule for
+   * "will this battle settle anything" (engine/ContractStanding.js).
+   */
+  openBattleNode(nodeId) {
+    const node = this.nodeMap?.nodes?.find((n) => n.id === nodeId);
+    return node && !node.completed ? node : null;
+  }
+
+  /**
    * Called after a battle victory. Serializes surviving units back to roster.
    * @param {Array} survivingUnits - units from BattleScene (with Phaser fields)
    * @param {string} nodeId - the node that was just completed
@@ -4008,8 +4017,8 @@ export class RunManager {
     // Battle is over either way — never leave a stale suspend flag that
     // would offer to resume a finished fight on the next load.
     this.battleInProgress = null;
-    const node = this.nodeMap?.nodes?.find((n) => n.id === nodeId);
-    if (!node || node.completed) return false;
+    const node = this.openBattleNode(nodeId);
+    if (!node) return false;
     if (this.totalTurns !== null)
       this.totalTurns += Math.max(0, Math.trunc(options.turnCount) || 0);
     // The battle's gold is known before anything is committed, so burdens settle in one
@@ -4045,19 +4054,12 @@ export class RunManager {
     // reached the roster) — that no survivor accounts for. Matched by unit identity,
     // one survivor per unit, so a living namesake (a mercenary hired under the name a
     // recruit node promised, a legacy save) can never hide a casualty.
-    const recruits = [];
-    for (const recruit of Array.isArray(options?.fallenRecruits) ? options.fallenRecruits : []) {
-      if (!this._isValidSerializedUnit(recruit)) continue;
-      const uid = unitUidOf(recruit);
-      // A mid-battle recruit is never a unit that entered on the roster.
-      if (uid && this.roster.some((u) => unitUidOf(u) === uid)) continue;
-      if (recruits.some((r) => isSameUnit(r, recruit))) continue;
-      recruits.push(recruit);
-    }
-    const { unmatched: newlyFallen, survivorOf } = matchUnitsToSurvivors(
-      [...this.roster, ...recruits],
-      survivingUnits,
-    );
+    const { newlyFallen, survivorOf } = resolveBattleCasualties({
+      roster: this.roster,
+      survivors: survivingUnits,
+      fallenRecruits: options?.fallenRecruits,
+      isValidUnit: (unit) => this._isValidSerializedUnit(unit),
+    });
     const entrantOf = new Map([...survivorOf].map(([entrant, survivor]) => [survivor, entrant]));
     this.lastBattleCasualtyNotices = [];
     for (const fallen of newlyFallen) {

@@ -92,3 +92,37 @@ export function matchUnitsToSurvivors(candidates = [], survivors = []) {
   }
   return { unmatched: list.filter((c) => !survivorOf.has(c)), survivorOf };
 }
+
+/**
+ * Who a battle lost: the one rule `RunManager.completeBattle` settles the fallen by, and
+ * the battle HUD's contract line reads (engine/ContractStanding.js), so the two cannot
+ * disagree. The units that entered are the roster as the battle began plus the recruits who
+ * joined mid-battle (Talk) and fell before it ended (they never reached the roster), matched to
+ * the survivors by unit identity (`matchUnitsToSurvivors`).
+ *
+ * `fallenRecruits`: as-joined records of the mid-battle recruits that no survivor accounts for
+ * (`BattleRecruits.fallenBattleRecruits`). A record that is not a valid unit, that already stands
+ * on the roster (a mid-battle recruit is never a roster entrant), or that repeats an earlier one
+ * is ignored. `isValidUnit` is the caller's unit check.
+ *
+ * @returns {{ newlyFallen: object[], survivorOf: Map<object, object> }}
+ *   newlyFallen: the entrants no survivor accounts for, roster first; survivorOf: entrant -> survivor
+ */
+export function resolveBattleCasualties({
+  roster = [],
+  survivors = [],
+  fallenRecruits = [],
+  isValidUnit = (unit) => Boolean(unit),
+} = {}) {
+  const entrants = Array.isArray(roster) ? roster : [];
+  const recruits = [];
+  for (const recruit of Array.isArray(fallenRecruits) ? fallenRecruits : []) {
+    if (!isValidUnit(recruit)) continue;
+    const uid = unitUidOf(recruit);
+    if (uid && entrants.some((u) => unitUidOf(u) === uid)) continue;
+    if (recruits.some((r) => isSameUnit(r, recruit))) continue;
+    recruits.push(recruit);
+  }
+  const { unmatched, survivorOf } = matchUnitsToSurvivors([...entrants, ...recruits], survivors);
+  return { newlyFallen: unmatched, survivorOf };
+}
