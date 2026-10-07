@@ -433,6 +433,8 @@ describe('BossRecruitOverlay', () => {
     // Names promised by pending recruit nodes (and every other taken name) are
     // reserved: a boss recruit never takes them.
     runManager.getTakenUnitNames = () => new Set(['Edric', 'FallenHero', 'Linnet']);
+    // The run's seed keys the candidates' Mark roll (UnitManager.createRecruitUnit).
+    runManager.runSeed = 4242;
 
     generateBossRecruitCandidatesMock.mockReturnValue(null);
 
@@ -446,6 +448,7 @@ describe('BossRecruitOverlay', () => {
       meta,
       fallen,
       ['Edric', 'FallenHero', 'Linnet'],
+      4242,
     );
   });
 

@@ -1098,9 +1098,15 @@ export class HeadlessBattle {
         u._gambitUsedThisTurn = false;
         u._movementSpent = 0;
       }
-      // Apply turn-start effects (Renewal, Mark of the Road, etc.), turn 1 included, as
-      // BattleScene's player-phase pipeline does.
-      this._processTurnStartEffects(armyAndNpcAllies(this.playerUnits, this.npcUnits));
+      // Apply turn-start effects (Renewal, etc.) — skip turn 1 to match BattleScene
+      const army = armyAndNpcAllies(this.playerUnits, this.npcUnits);
+      if (turn > 1) {
+        this._processTurnStartEffects(army);
+      } else {
+        // Mark of the Road rolls on every player phase, turn 1 included, as BattleScene's
+        // pipeline does; the effects above have always skipped it here.
+        this._applyTurnStartMarkBuffs(getTurnStartEffects(army, [], this.gameData.marks, turn));
+      }
       this._refreshFogVisibility();
       this.battleState = HEADLESS_STATES.PLAYER_IDLE;
     } else if (phase === 'enemy') {
@@ -1195,6 +1201,13 @@ export class HeadlessBattle {
     this.battleState = HEADLESS_STATES.BATTLE_END;
   }
 
+  /** Mark of the Road: +1 MOV until the player phase ends (TimedWeaponArtBuffs). */
+  _applyTurnStartMarkBuffs(effects) {
+    for (const effect of effects) {
+      if (effect.type === 'buff' && effect.entry) applyTimedBuffEntry(effect.target, effect.entry);
+    }
+  }
+
   _processTurnStartEffects(units) {
     if (!Array.isArray(units)) return;
     // 0b. Acid ticks, as BattleScene._processAcidTicks: non-lethal, and the ground's own
@@ -1216,11 +1229,9 @@ export class HeadlessBattle {
           effect.target.stats.HP,
           effect.target.currentHP + effect.amount,
         );
-      } else if (effect.type === 'buff' && effect.entry) {
-        // Mark of the Road: +1 MOV until the player phase ends (TimedWeaponArtBuffs).
-        applyTimedBuffEntry(effect.target, effect.entry);
       }
     }
+    this._applyTurnStartMarkBuffs(skillEffects);
     // 2. Affixes
     const affixEffects = getTurnStartAffixes(units, this.gameData.affixes);
     for (const effect of affixEffects) {

@@ -259,6 +259,8 @@ function harnessWorld(players, enemies, roll) {
   };
   return {
     kind: 'harness',
+    battle,
+    withRoll,
     buildSkillCtx: (a, d) => battle._buildSkillCtx(a, d),
     attack: async (attacker, defender, useArt = null) => {
       battle.selectedUnit = attacker;
@@ -650,6 +652,28 @@ describe.each(WORLDS)('Mark of the Road through %s', (_label, makeWorld) => {
     const checkpoint = serializeBattleUnit(edric);
     expect(checkpoint.stats.MOV).toBe(6);
     expect(checkpoint._battleTimedWeaponArtBuffs).toHaveLength(1);
+  });
+});
+
+describe('the harness’s own phase changes roll Mark of the Road, turn 1 included', () => {
+  it('+1 MOV when the player phase starts, gone when the enemy phase starts, rolled again next turn', () => {
+    const edric = makeEdric({ markId: 'road', hp: 40 });
+    const { battle, withRoll } = harnessWorld([edric], [bystander()], 0.01);
+    withRoll(() => battle._onPhaseChange('player', 1));
+    expect(edric.stats.MOV).toBe(6);
+    battle.turnManager.turnNumber = 1;
+    battle._onPhaseChange('enemy', 1);
+    expect(edric.stats.MOV).toBe(5);
+    battle.turnManager.turnNumber = 2;
+    withRoll(() => battle._onPhaseChange('player', 2));
+    expect(edric.stats.MOV).toBe(6);
+    battle._onPhaseChange('enemy', 2);
+    expect(edric.stats.MOV).toBe(5);
+    // a roll that misses gives nothing, on turn 1 or after
+    const unlucky = makeEdric({ markId: 'road', hp: 40 });
+    const world = harnessWorld([unlucky], [bystander()], 0.9);
+    world.withRoll(() => world.battle._onPhaseChange('player', 1));
+    expect(unlucky.stats.MOV).toBe(5);
   });
 });
 
