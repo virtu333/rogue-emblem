@@ -19,6 +19,7 @@ import { isSleeping, isSilenced, isWounded, removeCondition } from './StatusCond
 import { isEntity } from './EntitySystem.js';
 import { effectiveSkills } from './EffectiveSkills.js';
 import { absorbLethal } from './UnitHealth.js';
+import { revivalStoneCount } from './RevivalStones.js';
 import { getUnitMark, getUnitMarkFor, markActivation, markProcs } from './MarkSystem.js';
 import {
   getImbueCombatMods,
@@ -1558,6 +1559,7 @@ export function getCombatForecast(
     attacker: {
       name: attacker.name,
       hp: attacker.currentHP ?? attacker.stats.HP,
+      stones: revivalStoneCount(attacker).remaining,
       damage: atkDmg,
       hit: atkHit,
       crit: atkCrit,
@@ -1583,6 +1585,9 @@ export function getCombatForecast(
     defender: {
       name: defender.name,
       hp: defender.currentHP ?? defender.stats.HP,
+      // Revival Stones left: a blow that would fell this side breaks one instead and ends
+      // the exchange (the projection says "Breaks a bar").
+      stones: revivalStoneCount(defender).remaining,
       canCounter: defCanCounter,
       damage: defDmg,
       hit: defHit,

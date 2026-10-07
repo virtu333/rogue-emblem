@@ -56,6 +56,8 @@ import {
   railOwnsMenus,
   rowText,
 } from '../ui/battleMenuModel.js';
+import { revivalStoneCount } from '../engine/RevivalStones.js';
+import RevivalStoneController from '../ui/RevivalStoneController.js';
 import {
   AREA_XP_LIVE,
   actionXpAwards,
@@ -79,6 +81,7 @@ import {
   applyCombatHP,
   applyStrikeHP,
   damageUnit,
+  damageUnitDetailed,
   healUnit,
   healUnitFully,
   setUnitHP,
@@ -733,6 +736,8 @@ export class BattleScene extends Phaser.Scene {
     this._areaTargetingController = null;
     this._combatFx?.destroy?.();
     this._combatFx = null;
+    this._stoneFx?.destroy?.();
+    this._stoneFx = null;
     this._combatSpeedSnapshot = undefined;
     if (this._procBanner) {
       this._procBanner.destroy();
@@ -3223,21 +3228,39 @@ export class BattleScene extends Phaser.Scene {
     this.updateAffixPips(unit);
   }
 
+  /**
+   * The pips over a unit's tile: a square per affix, then a gem per Revival Stone it still
+   * holds (engine/RevivalStones.js). One row, so fog, dimming, moves and removal treat them
+   * as the one set of pips they already handle.
+   */
   updateAffixPips(unit) {
     if (unit.affixPips) {
       unit.affixPips.forEach((p) => p.destroy());
     }
     unit.affixPips = [];
-    if (!unit.affixes || unit.affixes.length === 0) return;
+    const affixIds = unit.affixes || [];
+    const stones = revivalStoneCount(unit).remaining;
+    const count = affixIds.length + stones;
+    if (count === 0) return;
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
     const pipY = pos.y - TILE_SIZE / 2 + 4;
     const pipSize = 4;
     const gap = 2;
-    const totalW = pipSize * unit.affixes.length + gap * (unit.affixes.length - 1);
+    const totalW = pipSize * count + gap * (count - 1);
     let startX = pos.x - totalW / 2 + pipSize / 2;
 
-    for (const affixId of unit.affixes) {
+    for (let i = 0; i < stones; i++) {
+      const gem = this.add
+        .rectangle(startX, pipY, pipSize, pipSize, UI_HEX.info)
+        .setStrokeStyle(1, UI_HEX.void)
+        .setAngle(45)
+        .setDepth(14);
+      unit.affixPips.push(gem);
+      startX += pipSize + gap;
+    }
+
+    for (const affixId of affixIds) {
       const affix = this.gameData.affixes?.affixes?.find((a) => a.id === affixId);
       const tier = affix?.tier || 1;
       const color = tier === 2 ? UI_HEX.dangerLine : UI_HEX.accent;
@@ -3271,8 +3294,12 @@ export class BattleScene extends Phaser.Scene {
     this.refreshVisibleDangerZone?.();
   }
 
-  /** Draw a unit's HP bar. Presentation only: HP rules live in UnitHealth.js. */
-  updateHPBar(unit) {
+  /**
+   * Draw a unit's HP bar. Presentation only: HP rules live in UnitHealth.js.
+   * `ratio` shows a fill other than the unit's HP for a moment (a broken Revival Stone's
+   * refill, RevivalStoneController); the bar is redrawn from HP as soon as it is dropped.
+   */
+  updateHPBar(unit, { ratio: shownRatio = null } = {}) {
     let pos, barWidth, barHeight;
     if (isEntity(unit)) {
       const center = getEntityCenter(unit);
@@ -3286,13 +3313,14 @@ export class BattleScene extends Phaser.Scene {
     }
     const entityH = isEntity(unit) ? TILE_SIZE * ENTITY_FOOTPRINT.height : TILE_SIZE;
     const barY = pos.y + entityH / 2 - 4;
-    const ratio = Math.max(0, unit.currentHP / unit.stats.HP);
+    const ratio = shownRatio ?? Math.max(0, unit.currentHP / unit.stats.HP);
     const fillWidth = barWidth * ratio;
 
     unit.hpBar?.bg?.setPosition(pos.x, barY);
     unit.hpBar?.fill?.setPosition(pos.x - barWidth / 2 + fillWidth / 2, barY);
     unit.hpBar?.fill?.setSize(fillWidth, barHeight);
     unit.hpBar?.fill?.setFillStyle(getHPBarColor(ratio));
+    if (shownRatio !== null) return;
     if (unit.isBoss) this._bossPresence?.onUnitHp(unit);
     this._inputController?.refreshHoverInfo();
   }
@@ -8529,6 +8557,10 @@ export class BattleScene extends Phaser.Scene {
       case 'hp':
         this.updateHPBar(unit);
         break;
+      case 'stone':
+        this.updateHPBar(unit);
+        this._stoneBreakFx().playBreak(unit);
+        break;
       case 'poison':
         await this.showPoisonDamage(unit, beat.amount);
         break;
@@ -8663,6 +8695,11 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
+  /** A broken Revival Stone's presentation (RevivalStoneController), made on first use. */
+  _stoneBreakFx() {
+    return (this._stoneFx ||= new RevivalStoneController(this).create());
+  }
+
   /** Floating MISS over a dodging target (strike presentation, see CombatChoreography). */
   _showStrikeMiss(target, reduced) {
     const pos = this.grid.gridToPixel(target.col, target.row);
@@ -8712,6 +8749,9 @@ export class BattleScene extends Phaser.Scene {
     });
 
     this.updateHPBar(target);
+    // A Revival Stone broke on this blow: the state is settled (the bar is full again),
+    // so this only draws the refill (RevivalStoneController).
+    if (event.stoneBroken) this._stoneBreakFx().playBreak(target);
 
     // Sleep: wake on damage -- remove Zzz icon and un-dim immediately
     if (event.wokeFromSleep) {
@@ -9222,11 +9262,12 @@ export class BattleScene extends Phaser.Scene {
         );
         for (const victim of victims) {
           if (victim.currentHP <= 0) continue;
-          damageUnit(victim, effect.amount);
+          const { stoneBroken } = damageUnitDetailed(victim, effect.amount);
           safeBattlePresentation(
             'Deathburst',
             () => {
               this.updateHPBar(victim);
+              if (stoneBroken) this._stoneBreakFx().playBreak(victim);
               const pos = this.grid.gridToPixel(victim.col, victim.row);
               const txt = this.add
                 .text(pos.x, pos.y - 16, `${effect.amount}`, {
@@ -9742,7 +9783,7 @@ export class BattleScene extends Phaser.Scene {
       const target = selectBallistaTarget(ballista, targetUnits);
       if (!target) continue;
       const result = resolveBallistaStrike(ballista, target);
-      if (result.didHit) damageUnit(target, result.damage);
+      const stoneBroken = result.didHit && damageUnitDetailed(target, result.damage).stoneBroken;
       // Presentation of the resolved shot: the bolt flies before the number shows.
       await safeBattlePresentation(
         'ballista shot',
@@ -9759,6 +9800,7 @@ export class BattleScene extends Phaser.Scene {
           'ballista hit',
           async () => {
             this.updateHPBar(target);
+            if (stoneBroken) this._stoneBreakFx().playBreak(target);
             if (target.graphic) {
               const pos = this.grid.gridToPixel(target.col, target.row);
               const txt = this.add

@@ -68,6 +68,16 @@ export function applyRevivalStones(unit, spawn) {
   return unit;
 }
 
+/** What a stone does, for the unit detail's tooltip and card. */
+export const REVIVAL_STONE_DESCRIPTION =
+  'A blow that would fell this unit breaks a stone instead and refills its HP. The blow ends the exchange.';
+
+/** "Revival Stones: 2" for the unit detail, or '' for a unit with none left. */
+export function revivalStonesLine(unit) {
+  const { remaining } = revivalStoneCount(unit);
+  return remaining > 0 ? `Revival Stones: ${remaining}` : '';
+}
+
 /** Remaining and total stones for a unit (the pips and the forecast read this). */
 export function revivalStoneCount(unit) {
   const remaining = wholeNumber(unit?.revivalStones);
