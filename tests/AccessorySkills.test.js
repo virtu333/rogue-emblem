@@ -86,7 +86,7 @@ const C = [
 ];
 const B = ['vantage', 'wrath', 'defiant', 'guard', 'skirmisher', 'foresight', 'canto'];
 const A = ['luna', 'sol', 'lifetaker', 'speedtaker', 'pavise', 'aegis', 'renewal'];
-const S = ['astra', 'aether', 'miracle', 'blink'];
+const S = ['astra', 'aether', 'miracle', 'blink', 'pass']; // Pass: Phase 3E, Act IV only (a Trickster innate, lent)
 const POOLS = { act1: [...C, ...B], act2: [...C, ...B], act3: [...B, ...A], act4: [...A, ...S] };
 const CHANCES = { act1: 0.03, act2: 0.05, act3: 0.06, act4: 0.08 };
 const LEGENDARY = ["Mentor's Band", 'Mercury Sandals', 'Phalanx Band', 'Pursuit Ring'];

@@ -1441,7 +1441,7 @@
   },
   {
     "name": "Great Sacrifice Scroll",
-    "lore": "Last page of a field chaplain's ledger: one column of names, one of what each cost him. The second column is all the same hand, and shorter every line.",
+    "lore": "Chaplain's ledger: names in one column, what each cost him in the other.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1456,7 +1456,7 @@
   },
   {
     "name": "Blink Strike Scroll",
-    "lore": "Margin note beside a blank page: you are not there, you are not there, you are standing on his foot.",
+    "lore": "Margin note on a blank page: not there, not there, standing on his foot.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1471,7 +1471,7 @@
   },
   {
     "name": "Pass Scroll",
-    "lore": "Tailor's receipt for one coat, taken in at the shoulder. Under it, in another hand: nobody stopped him at the gate. Nobody was in the way.",
+    "lore": "Tailor's receipt: one coat, taken in at the shoulder. Nobody stopped him at the gate.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
