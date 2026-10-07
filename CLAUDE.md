@@ -210,7 +210,7 @@ See `ROADMAP.md` for all planned features. Key architectural constraints:
 - **Pattern:** Tests import pure engine modules directly + load JSON from `data/` via `tests/testData.js`. No Phaser needed.
 
 ## Balance Simulations
-- **Run:** `npm run sim:progression`, `sim:matchups`, `sim:economy`, `sim:fullrun`
+- **Run:** `npm run sim:progression`, `sim:matchups`, `sim:economy`, `sim:fullrun`, `sim:carry` (carried items on real node maps: carriers and Gold Pouch gold per run, an upper bound that assumes every carrier is robbed)
 - **All scripts** accept `--seed S` (Mulberry32 PRNG), `--trials N`, `--csv` for data export
 - **Pattern:** Import pure engine modules + JSON via `sim/lib/SimUnitFactory.js`. Seeded RNG. No Phaser.
 
