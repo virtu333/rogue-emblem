@@ -41,31 +41,35 @@ describe('weapon arts data guards', () => {
       }
     }
 
-    // Non-legendary arts should now be Prof-gated.
+    // Non-legendary arts are Prof-gated, except Override (docs/specs/phase3.md 3F): a
+    // Silver art that asks for Master rank and carries the same HP risk as a legendary.
     const nonLegendaryArts = arts.filter(
       (art) => !Array.isArray(art?.legendaryWeaponIds) || art.legendaryWeaponIds.length === 0,
     );
     expect(nonLegendaryArts.length).toBeGreaterThan(0);
     for (const art of nonLegendaryArts) {
-      expect(art.requiredRank).toBe('Prof');
+      expect(art.requiredRank).toBe(art.id === 'lance_override' ? 'Mast' : 'Prof');
     }
 
-    // All Mast arts are legendary-only and distribution remains stable.
+    // Every other Mast art is legendary-only and distribution remains stable.
     const mastArts = arts.filter((art) => art?.requiredRank === 'Mast');
-    expect(mastArts.length).toBe(16);
-    for (const art of mastArts) {
+    expect(mastArts.length).toBe(17);
+    for (const art of mastArts.filter((a) => a.id !== 'lance_override')) {
       expect(Array.isArray(art?.legendaryWeaponIds)).toBe(true);
       expect(art.legendaryWeaponIds.length).toBeGreaterThan(0);
     }
+    const override = byId.get('lance_override');
+    expect(override.hpCost).toBeGreaterThanOrEqual(5);
+    expect(override.perMapLimit).toBeLessThanOrEqual(2);
 
     const profArts = arts.filter((art) => art?.requiredRank === 'Prof');
-    expect(profArts.length).toBe(72);
+    expect(profArts.length).toBe(73);
 
     const nonLegendaryMastArts = arts.filter(
       (art) =>
         art?.requiredRank === 'Mast' &&
         (!Array.isArray(art?.legendaryWeaponIds) || art.legendaryWeaponIds.length === 0),
     );
-    expect(nonLegendaryMastArts.length).toBe(0);
+    expect(nonLegendaryMastArts.map((art) => art.id)).toEqual(['lance_override']);
   });
 });

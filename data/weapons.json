@@ -2308,6 +2308,24 @@
     "price": 2500
   },
   {
+    "name": "Lunar Brace Scroll",
+    "lore": "Lancer's primer on plate: lean on the heaviest piece and let it carry the blow.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Lunar Brace (Weapon Art)",
+    "teachesWeaponArtId": "lance_lunar_brace",
+    "allowedWeaponTypes": [
+      "Lance"
+    ],
+    "price": 2000
+  },
+  {
     "name": "Precise Cut Scroll",
     "lore": "Forester's fencing notes: aim for where the leaves are not shaking.",
     "type": "Scroll",

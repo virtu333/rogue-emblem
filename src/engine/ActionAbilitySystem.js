@@ -21,11 +21,10 @@
 import { settleMoves } from './ActionMovement.js';
 import { damageUnit, healUnit } from './UnitHealth.js';
 import { allyBuff } from './PostCombatEffects.js';
-import { applyCondition, isRooted, isSilenced, isWounded } from './StatusConditionSystem.js';
+import { applyCondition, isSilenced, isWounded } from './StatusConditionSystem.js';
 import { gridDistance } from './Combat.js';
 import { getFootprintKeys, isEntity } from './EntitySystem.js';
-import { isDisplacementImmune } from './AffixSystem.js';
-import { traceForcedMove } from './ForcedMovement.js';
+import { displacementBlockReason, traceForcedMove } from './ForcedMovement.js';
 import { effectiveSkills } from './EffectiveSkills.js';
 
 /** Ability kinds the engine + BattleScene glue know how to execute. */
@@ -235,11 +234,7 @@ function unitCovering(units, col, row) {
  * @returns {'boss'|'entity'|'anchored'|'rooted'|null}
  */
 export function smiteBlockReason(foe, affixData) {
-  if (isEntity(foe)) return 'entity';
-  if (foe.isBoss) return 'boss';
-  if (isDisplacementImmune(foe, affixData)) return 'anchored';
-  if (isRooted(foe)) return 'rooted';
-  return null;
+  return displacementBlockReason(foe, affixData);
 }
 
 /**

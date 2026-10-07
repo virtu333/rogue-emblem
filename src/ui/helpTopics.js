@@ -121,6 +121,8 @@ export const WEAPON_ARTS_HELP = [
       'It always lands and never crits; strike skills do not trigger on it.',
       'Weapon effectiveness reaches 3× at most in an area.',
       'Each foe it hits gives XP too: a share for a hit, more for a kill.',
+      'Override drives each foe its line hit back a tile, farthest first, from next to the target.',
+      'Bosses, the Entity, Anchored and rooted foes hold, and block the foes before them.',
     ],
   },
   { tip: 'Outside battle this sheet shows eligibility and cost only.' },
