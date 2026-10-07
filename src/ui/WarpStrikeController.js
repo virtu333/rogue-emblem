@@ -45,6 +45,7 @@ import {
 import { orderAttackTargets } from '../engine/AttackOptions.js';
 import { combatDistance, getFootprint } from '../engine/EntitySystem.js';
 import { seenTileOccupant } from '../engine/BattleInformation.js';
+import { playerKnowledgeOf } from './battleKnowledge.js';
 import { UI_HEX, UI_PALETTE } from '../utils/uiStyles.js';
 
 const DESTINATION_COLOR = UI_HEX.lineStrong;
@@ -52,6 +53,16 @@ const MARK_FILL = UI_HEX.warn;
 const MARK_EDGE = UI_HEX.accentText;
 
 const sameTile = (a, b) => Boolean(a && b && a.col === b.col && a.row === b.row);
+
+/**
+ * `getUnitAt` for choosing Blink Strike's destination, from what the player knows: a fogged
+ * tile counts as taken (BattleInformation.seenTileOccupant) and so does one a known unit other
+ * than `unit` stands on. A unit the fog hides is never consulted.
+ */
+export function knownTileOccupant(scene, unit) {
+  const known = playerKnowledgeOf(scene).occupied(unit);
+  return seenTileOccupant(scene.grid, (col, row) => known.has(`${col},${row}`));
+}
 
 export class WarpStrikeController {
   /** @param {import('./AbilityController.js').AbilityController} abilities */
@@ -65,12 +76,16 @@ export class WarpStrikeController {
 
   // --- What the player knows ---
 
-  /** The board as the player knows it, in the shape the engine finder reads. */
+  /**
+   * The board as the player knows it, in the shape the engine finder reads: a tile is taken
+   * when a unit the player knows stands on it (PlayerKnowledge) or the fog hides it, and the
+   * foes are the seen ones. Never the real board: that decides only at execution.
+   */
   context(unit) {
     const scene = this.scene;
     return {
       grid: scene.grid,
-      getUnitAt: seenTileOccupant(scene.grid, (col, row) => scene.getUnitAt(col, row)),
+      getUnitAt: knownTileOccupant(scene, unit),
       enemies: this.abilities._seenHostiles(unit),
       skillsData: scene.gameData?.skills,
     };

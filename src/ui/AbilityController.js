@@ -36,7 +36,7 @@ import {
   TARGETED_ABILITY_KINDS,
 } from '../engine/ActionAbilitySystem.js';
 import { AbilityTargetingController } from './AbilityTargetingController.js';
-import { WarpStrikeController } from './WarpStrikeController.js';
+import { WarpStrikeController, knownTileOccupant } from './WarpStrikeController.js';
 import { presentRefreshSparkle } from './MovementActionController.js';
 import { staffAllyCandidates } from '../engine/RecruitNpc.js';
 import { canInspectUnit, seenTileOccupant } from '../engine/BattleInformation.js';
@@ -104,7 +104,11 @@ export class AbilityController {
       const check = canUseAbility(unit, skill);
       const hasTargets = abilityHasTargets(unit, skill, {
         grid: scene.grid,
-        getUnitAt: seenTileOccupant(scene.grid, (col, row) => scene.getUnitAt(col, row)),
+        // Blink Strike's choices read the player's knowledge, never the real board.
+        getUnitAt:
+          skill.actionAbility?.kind === 'warp_strike'
+            ? knownTileOccupant(scene, unit)
+            : seenTileOccupant(scene.grid, (col, row) => scene.getUnitAt(col, row)),
         allies: this._allyPool(unit, skill.actionAbility?.kind),
         enemies: this._seenHostiles(unit),
         affixes: scene.gameData?.affixes,
