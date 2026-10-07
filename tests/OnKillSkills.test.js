@@ -444,6 +444,76 @@ describe.each(WORLDS)('on-kill skills through %s', (_label, makeWorld) => {
     expect(edric.currentHP).toBe(30);
   });
 
+  // Silence (docs/specs/phase3.md 3B): a Silenced unit's skills give nothing on a kill, as
+  // in every other trigger, whether learned or lent by the weapon or the ring. Read at
+  // application: the plain attack still lands and kills.
+  it('Silence blocks learned Lifetaker and Speedtaker, but the attack still kills', async () => {
+    const edric = makeEdric({ skills: ['lifetaker', 'speedtaker'] });
+    applyCondition(edric, 'silence', 3, { recoveryChance: 0 });
+    const primary = makeFoe('Primary', 1, 10);
+    const world = makeWorld([edric], [primary, bystander()]);
+    await world.attack(edric, primary);
+    expect(primary.currentHP).toBe(0);
+    expect(edric.currentHP).toBe(20);
+    expect(edric.stats.SPD).toBe(9);
+    expect(edric._speedtakerStacks ?? 0).toBe(0);
+  });
+
+  it('Silence blocks on-kill skills lent by the weapon and the ring', async () => {
+    const edric = makeEdric({ skills: [] });
+    edric.weapon._grantedSkill = 'lifetaker';
+    edric.accessory = { name: 'Test Ring', type: 'Accessory', _boundSkill: 'speedtaker' };
+    applyCondition(edric, 'silence', 3, { recoveryChance: 0 });
+    const primary = makeFoe('Primary', 1, 10);
+    const world = makeWorld([edric], [primary, bystander()]);
+    await world.attack(edric, primary);
+    expect(primary.currentHP).toBe(0);
+    expect(edric.currentHP).toBe(20);
+    expect(edric.stats.SPD).toBe(9);
+  });
+
+  it('the same lent skills fire when the unit is not Silenced (the contrast)', async () => {
+    const edric = makeEdric({ skills: [] });
+    edric.weapon._grantedSkill = 'lifetaker';
+    edric.accessory = { name: 'Test Ring', type: 'Accessory', _boundSkill: 'speedtaker' };
+    const primary = makeFoe('Primary', 1, 10);
+    const world = makeWorld([edric], [primary, bystander()]);
+    await world.attack(edric, primary);
+    expect(edric.currentHP).toBe(30);
+    expect(edric.stats.SPD).toBe(10);
+  });
+
+  // Revival Stones (3D): breaking a bar is not a kill. Only the last bar's fall fires.
+  it('a blow that breaks a Revival Stone fires nothing; the stone is spent', async () => {
+    const edric = makeEdric({ skills: ['lifetaker', 'speedtaker'] });
+    const primary = makeFoe('Primary', 1, 10, { extra: { revivalStones: 1 } });
+    const world = makeWorld([edric], [primary, bystander()]);
+    await world.attack(edric, primary);
+    expect(primary.currentHP).toBeGreaterThan(0);
+    expect(primary.revivalStones).toBe(0);
+    expect(edric.currentHP).toBe(20);
+    expect(edric.stats.SPD).toBe(9);
+  });
+
+  it('a blast that breaks a neighbour’s stone is not a kill; one that fells it is', async () => {
+    const stoned = async (stones) => {
+      const edric = makeEdric();
+      const primary = makeFoe('Primary', 1, 40);
+      const neighbour = makeFoe('Neighbour', 2, 5, { extra: { revivalStones: stones } });
+      const world = makeWorld([edric], [primary, neighbour, bystander()]);
+      await world.attack(edric, primary, blast);
+      return { edric, primary, neighbour };
+    };
+    const broken = await stoned(1);
+    expect(broken.primary.currentHP).toBe(40 - 16);
+    expect(broken.neighbour.currentHP).toBeGreaterThan(0);
+    expect(broken.neighbour.revivalStones).toBe(0);
+    expect(broken.edric.currentHP).toBe(19); // the blast's 1 HP, no heal
+    const felled = await stoned(0);
+    expect(felled.neighbour.currentHP).toBe(0);
+    expect(felled.edric.currentHP).toBe(19 + 10);
+  });
+
   it('a benched on-kill skill does nothing', async () => {
     const edric = makeEdric({ skills: [], extra: { benchedSkills: ['lifetaker'] } });
     const primary = makeFoe('Primary', 1, 10);
@@ -463,6 +533,16 @@ describe.each(WORLDS)('Speedtaker across a battle through %s', (_label, makeWorl
       expect(foe.currentHP).toBe(0);
     }
   };
+
+  it('Silence keeps the stacks already earned and grants no new one', async () => {
+    const edric = makeEdric({ skills: ['speedtaker'] });
+    const world = makeWorld([edric], [bystander()]);
+    await killMany(edric, world, 2);
+    expect([edric.stats.SPD, edric._speedtakerStacks]).toEqual([11, 2]);
+    applyCondition(edric, 'silence', 3, { recoveryChance: 0 });
+    await killMany(edric, world, 1);
+    expect([edric.stats.SPD, edric._speedtakerStacks]).toEqual([11, 2]);
+  });
 
   it('stacks to +5 and no further', async () => {
     const edric = makeEdric({ skills: ['speedtaker'] });

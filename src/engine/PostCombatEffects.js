@@ -36,7 +36,7 @@ import { applyGrievousStatus, getAttackAffixes, isDisplacementImmune } from './A
 import { planAreaBlows } from './AreaDamage.js';
 import { planAreaPush } from './AreaPush.js';
 import { gridDistance } from './Combat.js';
-import { applyCondition } from './StatusConditionSystem.js';
+import { applyCondition, isSilenced } from './StatusConditionSystem.js';
 import { damageUnit, damageUnitDetailed, healUnit, setUnitHP } from './UnitHealth.js';
 import { markHoldDisturbed } from './HoldDisturbance.js';
 import { applyBattleDebuff } from './BattleStatDeltas.js';
@@ -199,14 +199,17 @@ function killedInCombat(sourceUnit, targetUnit, result) {
 /**
  * On-kill skills (docs/specs/phase3.md 3B): a side that killed in this combat and still
  * stands applies each of its on-kill skills once, however many foes fell. Death is read
- * here, at application, after the art kill buff and every blast has resolved.
+ * here, at application, after the art kill buff and every blast has resolved. So is
+ * Silence: a Silenced unit's skills (learned, the weapon's or the ring's) give nothing, as
+ * in every other skill trigger, but its Mark is not a skill and still fires.
  */
 function* skillOnKill(step, sourceUnit, targetUnit, result, world) {
   if (!sourceUnit || sourceUnit.currentHP <= 0) return;
   if (!killedInCombat(sourceUnit, targetUnit, result)) return;
   const catalog = Array.isArray(world?.skillsData) ? world.skillsData : [];
   const applied = new Set();
-  for (const skillId of step.skillIds || []) {
+  const skillIds = isSilenced(sourceUnit) ? [] : step.skillIds || [];
+  for (const skillId of skillIds) {
     if (applied.has(skillId)) continue;
     applied.add(skillId);
     const skill = catalog.find((entry) => entry?.id === skillId);

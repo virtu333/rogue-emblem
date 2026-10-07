@@ -481,6 +481,16 @@ describe.each(WORLDS)('Mark of the Ember through %s', (_label, makeWorld) => {
     expect(edric.currentHP).toBe(20);
   });
 
+  it('Silence does not block it (a Mark is not a skill), though it blocks Lifetaker', async () => {
+    const edric = makeEdric({ markId: 'ember', skills: ['lifetaker'] });
+    applyCondition(edric, 'silence', 3, { recoveryChance: 0 });
+    const primary = makeFoe('Primary', 1, 10);
+    const world = makeWorld([edric], [primary, bystander()], 0.01);
+    await world.attack(edric, primary);
+    expect(primary.currentHP).toBe(0);
+    expect(edric.currentHP).toBe(20 + 5);
+  });
+
   it('stacks with an on-kill skill: Lifetaker (+10) and Ember (+5) both fire once', async () => {
     const { edric } = await fight({ roll: 0.01, skills: ['lifetaker'] });
     expect(edric.currentHP).toBe(20 + 10 + 5);
