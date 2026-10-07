@@ -47,6 +47,7 @@ export function settleAccessoryHpOwed(unit) {
 
 import { isWounded } from './StatusConditionSystem.js';
 import { markHoldDisturbed } from './HoldDisturbance.js';
+import { revivalStoneCount } from './RevivalStones.js';
 
 const maxHpOf = (unit) => Number(unit?.stats?.HP);
 
@@ -86,12 +87,6 @@ export function healUnitFully(unit) {
   return unit.currentHP - prev;
 }
 
-/** Revival Stones the unit still holds (0 for any unit that never had any). */
-export function revivalStonesOf(unit) {
-  const n = Math.trunc(Number(unit?.revivalStones) || 0);
-  return n > 0 ? n : 0;
-}
-
 /**
  * Revival Stones: a blow that would leave `unit` at `hp` <= 0 breaks one stone instead and
  * refills the bar to the unit's max HP. Pure apart from spending that stone.
@@ -99,8 +94,9 @@ export function revivalStonesOf(unit) {
  *   the blow; with no stones (or a blow that does not take the bar) it is `hp` unchanged.
  */
 export function absorbLethal(unit, hp) {
-  if (!(hp <= 0) || revivalStonesOf(unit) <= 0) return { hp, stoneBroken: false };
-  unit.revivalStones = revivalStonesOf(unit) - 1;
+  const { remaining } = revivalStoneCount(unit);
+  if (!(hp <= 0) || remaining <= 0) return { hp, stoneBroken: false };
+  unit.revivalStones = remaining - 1;
   const max = maxHpOf(unit);
   return { hp: Number.isFinite(max) && max > 0 ? max : 1, stoneBroken: true };
 }
