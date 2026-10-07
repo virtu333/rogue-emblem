@@ -54,6 +54,7 @@ function makeMinimalPayload(path) {
           enemyPoisonChance: 0,
           enemyStatusStaffChance: 0,
           statusStaffConfig: null,
+          carryConfig: { perBattle: true, act1: 0, act2: 0, act3: 0, act4: 0, finalBoss: 0, maxPerBattle: 0 }, // prettier-ignore
           shopCureGating: null,
           goldMultiplier: 1,
           shopPriceMultiplier: 1,
@@ -79,6 +80,7 @@ function makeMinimalPayload(path) {
           enemyPoisonChance: 0,
           enemyStatusStaffChance: 0,
           statusStaffConfig: null,
+          carryConfig: { perBattle: true, act1: 0, act2: 0, act3: 0, act4: 0, finalBoss: 0, maxPerBattle: 0 }, // prettier-ignore
           shopCureGating: null,
           goldMultiplier: 1,
           shopPriceMultiplier: 1,
@@ -104,6 +106,7 @@ function makeMinimalPayload(path) {
           enemyPoisonChance: 0,
           enemyStatusStaffChance: 0,
           statusStaffConfig: null,
+          carryConfig: { perBattle: true, act1: 0, act2: 0, act3: 0, act4: 0, finalBoss: 0, maxPerBattle: 0 }, // prettier-ignore
           shopCureGating: null,
           goldMultiplier: 1,
           shopPriceMultiplier: 1,
@@ -129,6 +132,7 @@ function makeMinimalPayload(path) {
           enemyPoisonChance: 0,
           enemyStatusStaffChance: 0,
           statusStaffConfig: null,
+          carryConfig: { perBattle: true, act1: 0, act2: 0, act3: 0, act4: 0, finalBoss: 0, maxPerBattle: 0 }, // prettier-ignore
           shopCureGating: null,
           goldMultiplier: 1,
           shopPriceMultiplier: 1,

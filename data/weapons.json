@@ -1455,7 +1455,7 @@
   },
   {
     "name": "Steal Scroll",
-    "lore": "Thieves' primer, one rule: the pocket you reach for is the pocket he trusts. Be quicker than the trust.",
+    "lore": "Thieves' primer: reach for the pocket he trusts, and be quicker than the trust.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
