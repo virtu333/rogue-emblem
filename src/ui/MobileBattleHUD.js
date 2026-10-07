@@ -234,6 +234,9 @@ export class MobileBattleHUD {
     this.root.hidden = true;
     this.root.tabIndex = -1;
     this.phase = el('div', 'mb-phase');
+    // The open contract (ContractHudController) has its own row under the turn counters: the
+    // upright rail gives it the rail's whole width, so the longest wording keeps one line.
+    this.contractSlot = el('div', 'mb-contract-slot');
     this.summary = el('div', 'mb-summary');
     this.objective = el('div', 'mb-objective-slot');
     this.terrain = el('div', 'mb-terrain-slot');
@@ -258,6 +261,7 @@ export class MobileBattleHUD {
     }
     this.root.append(
       this.phase,
+      this.contractSlot,
       this.objective,
       this.terrain,
       this.summary,
@@ -328,7 +332,7 @@ export class MobileBattleHUD {
           this.help = null;
           this.lastSnapshot = '';
           this.sync();
-          this.phase.querySelector('.mb-contract')?.focus({ preventScroll: true });
+          this.contractSlot.querySelector('.mb-contract')?.focus({ preventScroll: true });
         });
       },
       `mb-contract is-${model.status}`,
@@ -956,7 +960,7 @@ export class MobileBattleHUD {
     // from the turn label and must keep its format).
     const shadow = s._eclipseHud?.label?.();
     if (shadow) counters.append(el('span', `mb-shadow is-${s._eclipseHud.tone()}`, shadow));
-    if (contract) counters.append(this.contractLine(contract));
+    this.contractSlot.replaceChildren(...(contract ? [this.contractLine(contract)] : []));
     this.phase.append(counters);
     this.objective.replaceChildren();
     const objectiveText = s.objectiveText?.text || s.battleConfig?.objective || 'Battle';

@@ -5,6 +5,7 @@ import {
   endPlayerTurn,
   expectNoSidewaysScroll,
   expectWholeInViewport,
+  moveAndWait,
   openDevBattle,
   openSavedRun,
   pageErrors,
@@ -53,12 +54,13 @@ const battle = (page, source, arg) =>
 const turnOf = (page) => battle(page, 'return s.turnManager.turnNumber');
 
 /** An ally dies the way combat kills one: through the scene's own removal. */
-async function fell(page) {
+async function fell(page, except = null) {
   const name = await battle(
     page,
-    `const victim = s.playerUnits.find((u) => !u.isCommander && u.currentHP > 0);
+    `const victim = s.playerUnits.find((u) => !u.isCommander && u.currentHP > 0 && u.name !== a);
      await s.removeUnit(victim, { killer: s.enemyUnits[0] });
      return victim.name;`,
+    except,
   );
   await expect
     .poll(() => battle(page, 'return s.playerUnits.some((u) => u.name === a)', name))
@@ -198,11 +200,13 @@ for (const vp of PHONES) {
     test.setTimeout(120_000);
 
     const contractLine = (page) => battleRail(page).locator('.mb-contract');
+    let shots = 0;
 
     /** The line and the controls the short rail must keep, all whole on screen. */
-    async function expectRailFits(page) {
+    async function expectRailFits(page, { details = true } = {}) {
       const rail = battleRail(page);
       await expect(contractLine(page)).toBeVisible();
+      await shot(page, `fit-${vp.width}x${vp.height}-${shots++}`);
       const fit = await page.evaluate(() => {
         const rail = document.querySelector('.mobile-battle-hud');
         const r = rail.getBoundingClientRect();
@@ -229,7 +233,9 @@ for (const vp of PHONES) {
       await expectNoSidewaysScroll(page);
       // What the short rail must still show whole: End turn, and the Battle details row.
       await expectWholeInViewport(rail.getByRole('button', { name: /^End turn/ }));
-      await expectWholeInViewport(rail.locator('.mb-battle-info summary'));
+      // After an action the tile's card shares the short rail; its scrolling body then keeps
+      // Battle details a scroll away (its "more" cue), as without a contract.
+      if (details) await expectWholeInViewport(rail.locator('.mb-battle-info summary'));
       return fit;
     }
 
@@ -244,12 +250,14 @@ for (const vp of PHONES) {
       await expect(contractLine(page)).toHaveClass(/is-open/);
       await expect(contractLine(page)).toHaveAttribute('title', TERMS);
       await expectRailFits(page);
-      // Next to the turn and par counter: the same row of the header.
-      const near = await page.evaluate(() => {
-        const counters = document.querySelector('.mb-counters');
-        return counters.contains(document.querySelector('.mb-contract'));
+      // Right under the turn and par counter, before the objective: the header's next row.
+      const gap = await page.evaluate(() => {
+        const counters = document.querySelector('.mb-counters').getBoundingClientRect();
+        const line = document.querySelector('.mb-contract').getBoundingClientRect();
+        return { below: line.top - counters.bottom, tall: line.height };
       });
-      expect(near).toBe(true);
+      expect(gap.below).toBeGreaterThanOrEqual(-1);
+      expect(gap.below).toBeLessThanOrEqual(30);
       await expect(rail.locator('.mb-counters')).toContainText(/Par \d+ · [SABC] \| Visions/);
       await shot(page, `phone-${vp.width}x${vp.height}-open`);
 
@@ -297,10 +305,13 @@ for (const vp of PHONES) {
       await expect(contractLine(page)).toHaveAttribute('title', NO_LOSSES_TERMS);
       await expectRailFits(page);
 
-      await fell(page);
+      // One real action first: Vision rewinds to the moment before a completed action.
+      const mover = await battle(page, 'return s.playerUnits.find((u) => u.isCommander).name');
+      await moveAndWait(page, mover, { toward: false });
+      await fell(page, mover);
       await expect(contractLine(page)).toHaveText('Contract · No losses — missed');
       await expect(contractLine(page)).toHaveAttribute('title', /An ally has fallen/);
-      await expectRailFits(page); // the longest line
+      await expectRailFits(page, { details: false }); // the longest line
       await shot(page, `phone-${vp.width}x${vp.height}-no-losses-missed`);
 
       // Vision rewinds the fall: the contract is open again, nothing was stored.
@@ -309,7 +320,7 @@ for (const vp of PHONES) {
       await picker.getByRole('button', { name: /^Rewind here/ }).tap();
       await battleIdle(page);
       await expect(contractLine(page)).toHaveText('Contract · No losses');
-      await expectRailFits(page);
+      await expectRailFits(page, { details: false });
       expect(errors).toEqual([]);
     });
 
@@ -319,6 +330,7 @@ for (const vp of PHONES) {
       await expect(battleRail(page)).toBeVisible();
       await expect(contractLine(page)).toHaveCount(0);
       await expect(battleRail(page).locator('.mb-contract-detail')).toHaveCount(0);
+      await expectWholeInViewport(battleRail(page).locator('.mb-battle-info summary'));
     });
   });
 }
