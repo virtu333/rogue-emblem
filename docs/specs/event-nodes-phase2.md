@@ -48,9 +48,12 @@ Stored as `run.contract` (one at a time; a second contract choice is blocked whi
 open). Settled in `RunManager.completeBattle` next to the burdens, for the **next battle
 victory** (any battle node, boss included): `underPar` = `turnCount <= turnPar`; `noLosses` =
 no player unit fell in that battle. Reward or penalty effects apply through the event effect
-planner (plan then apply; an item with no room becomes a note). A defeat ends the run as
-always. Shown as a chip like a burden ("Contract: win under par"), and on the victory band
-("Contract kept: Gained 600 G" / "Contract broken: Burden: Debt"; what was not delivered is said too: "No room for Steel Lance", or "The reward could not be paid" when the settlement failed). A revert never touches it (settled
+planner (plan then apply). The verdict is judged once and what it earned is OWED until it is
+delivered (an item with no room waits; it is never closed as a note: see "Contract settlement
+recovery"). A defeat ends the run as always. Shown as a chip like a burden ("Contract: win under
+par"), and on the victory band ("Contract kept: Gained 600 G" / "Contract broken: Burden: Debt";
+what is not yet delivered is said too: "Contract kept: the reward waits — No room for Steel Lance",
+or "the reward could not be paid yet" when applying failed). A revert never touches it (settled
 only at the victory commit).
 
 ### `routeEdit` effect (the Cartographer)
@@ -259,8 +262,9 @@ goal could not be seen; a penalty must not land for something unmeasurable; the 
 `noPar`). `noLosses` counts everyone `completeBattle` finds unmatched among the entering roster and
 the recruits who joined mid-battle (`newlyFallen`). Reward and penalty may hold `gold, item, hp
 (not target), shadow, vision, blessing, burden, flag, stat (lowestLevel)`; they run through the
-effect planner leniently (an item with no room is a note) in a seeded swap; a plan failure or an
-apply throw leaves the run as before the terms and the contract is still cleared. A `shadow` term does
+effect planner in a seeded swap; a plan failure or an apply throw leaves the run as before the
+terms and the settlement stays owed (see "Contract settlement recovery": this section's first
+version cleared the contract and forfeited the terms). A `shadow` term does
 not apply the Eclipse's falls itself (its record carries `fell: []`): `completeBattle` applies them right
 after the node completes, so `lastEclipseCommit.fell` lists every knot the victory and the contract took. A contract
 persists across acts, is saved/sanitized (`normalizeContract`), `run.lastContractSettlement` is not
@@ -765,6 +769,77 @@ spec `tests/e2e/contract-hud.spec.js` (lane `mobile-ui`): desktop 640x480 (line,
 a fall), phones at 844x390, 667x375, 390x844 and 375x667 (the line, tap, missed after par by real end
 turns, a fall and a rewind, no overflow, End turn and Battle details whole) and a resume. Screenshots at all
 five viewports were reviewed and are not kept.
+
+## Contract settlement recovery
+
+**The bug.** A contract's reward could be lost without the player choosing it: (1) a kept item reward
+with no room anywhere was planned `lenient`, became a "No room" note and the contract closed with nothing
+owed; (2) `settleContract` set `run.contract = null` before taking the rollback snapshot, so a settlement
+that threw partway restored everything except the obligation, and `lastContractSettlement` (presentation
+only, not saved) left no trace after a reload.
+
+**The lifecycle: judge once, deliver until delivered or explicitly given up.** It is the event-spoils
+lifecycle (`eventSpoilsOwed` / `forfeitEventSpoils`, EventCommands) applied to a contract, not a second
+meaning of "earned but not delivered".
+
+- `settleContract` (ContractSettlement.js, called from `completeBattle` as before) judges the verdict once and,
+  in one step, clears `run.contract` and writes `run.contractOwed`: `{ battleNodeId, contractNodeId, eventId,
+  act, goal, kept, noPar, losses, effects: the reward (kept) or the penalty (broken), seedKey:
+  'event-contract:<runSeed>:<contractNodeId>', blocked, failed }`. Saved and loaded (`normalizeContractOwed`;
+  an old save has none). The record carries the verdict, never the battle: a later battle's turns or losses
+  cannot re-judge it. It survives act transitions.
+- `deliverContractSettlement(run)` pays it, at the victory straight away (the common case, unchanged) and on
+  every retry. Under `withEclipseSeed(seedKey)` it plans the terms; an item that has no room (the planner's own
+  weapon/consumable/convoy rules) stops the whole delivery: **nothing is applied** and the record keeps
+  `blocked` = "No room for Steel Lance" ("No room for the item" when a pool pick found no room before choosing).
+  Otherwise it snapshots (while the record is still owed, so a rollback puts the claim back too) and applies;
+  a throw (or a plan the planner refuses) restores the run and keeps the record with `failed`. What can never be
+  delivered (no blessing left to give, an unknown item) is still a note, not a claim that holds the party for
+  good. The same seed key on every attempt, so a retry, a reload and a Claim pay the very same item and rolls,
+  never a partial list and never twice. `run.lastContractSettlement` is set on every attempt (presentation).
+- `forfeitContractReward(run)` is the only way a reward is lost: terminal, saved, applies nothing, records a
+  forfeited settlement for presentation. Rewards only (a penalty is retried, never given up) and called only
+  from the page behind a confirmation.
+- **Only an owed reward holds the party**: `Contracts.contractRewardOwedAt(run, node)` (the battle node that
+  earned it, in the act it was earned in, complete) makes `RunManager.getAvailableNodes` return that node alone
+  and `canReenterService` true for it, exactly as `eventSpoilsOwedAt` does for an event's spoils. An owed
+  penalty never holds anyone: it is retried by the next Claim and at the next battle victory
+  (`settleContract` delivers an owed record before it judges anything new). In a later act nothing is held; the
+  chip still opens the page.
+- **One contract at a time** now means an open contract or an owed settlement (`Contracts.contractBound`):
+  the `notContract` requirement, `eventChoiceBlock` and the planner's contract step all read it.
+- An owed record is never an open contract: `describeContract`, `ContractStanding`, the battle HUD and
+  `contractSettlesBattle` read `run.contract` only; the route map's chip reads `describeOwedContract`.
+
+**Words.** `Contracts.settlementLines` / `EventResultWords`: "Contract kept: the reward waits — No room for
+Steel Lance", "Contract kept: the reward could not be paid yet", "Contract broken: the penalty could not be
+applied yet", "Contract kept: you gave up the reward". The chip reads "Reward waiting" (or "Penalty waiting")
+and so does the pause list.
+
+**UI** (rendering only; every rule is the engine's). `ui/ContractSettlementController.js` +
+`ContractSettlementMenu.js` + `contractSettlementModel.js` follow the event spoils page: what is owed and why
+it waits, then **Claim** (the delivery again: on success what arrived, in the Event page's words, then
+Continue; still short, "Still waiting: No room for Steel Lance"), **Roster** (a `MobileRosterSheet` to make
+room; closing it saves and asks the engine again), **Back to map** (closes; everything stays owed and the party
+stays held; the map does not reopen it by itself again in this scene) and **Give up the reward** behind a
+confirmation ("Keep it owed" / "Give up the reward"). A penalty's page offers Try again, Roster and Back to
+map only. The route map opens the page for the held node on arrival (after the loot screen's choices, behind an
+event node's own spoils page, and before the act closes over a boss's reward: `checkActComplete`), a tap on the
+held node (its card says "The fight is won · the contract reward waits", its button "Settle contract") or on
+the contract chip reopens it, and a reload reopens it by itself. The page holds the route map's
+`scene.eventOverlay` slot while open, so every guard that already reads it (Travel, the loom, the other
+overlays) covers it.
+
+**Roster note.** There is no discard command: a full weapon army (every bag and the convoy) can free room only by
+shop sales on a map the held party cannot leave, so an owed WEAPON reward in a full army is realistically
+resolved by Give up; a consumable reward is freed by Use. A discard action is a separate product decision.
+
+**Tests.** `tests/ContractSettlementRecovery.test.js` (the lifecycle: full storage, save/reload, one-time
+delivery, injected failure with the same payout, never re-judged, forfeit rules, penalty retry, a blocked new
+contract, act transition, the record, the words), `tests/ContractSettlementPage.test.js` (the page through
+`tests/harness/ContractDriver.js`), the updated expectations in `tests/EventContracts.test.js` (a "No room" note
+that forfeited the reward and a cleared-on-failure contract are now an owed settlement), and the browser spec
+`tests/e2e/contract-settlement.spec.js` (lane `contracts`): desktop 640x480 and a landscape phone.
 
 ## Not in Phase 2
 
