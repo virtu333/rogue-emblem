@@ -8284,11 +8284,9 @@ export class BattleScene extends Phaser.Scene {
       this._restoreCommittedGamblerDeltas(intent, attacker, defender);
       // A resumed Blink Strike is already warped (the checkpoint holds the unit on its
       // destination): the replay is the attack alone, still a Blink Strike.
-      return this.executeCombat(
-        attacker,
-        defender,
-        intent.warpStrike ? { warpStrike: {} } : undefined,
-      );
+      return intent.warpStrike
+        ? this.executeCombat(attacker, defender, { warpStrike: {} })
+        : this.executeCombat(attacker, defender);
     };
     if (typeof this._scheduleSafeDelayedAsync === 'function')
       this._scheduleSafeDelayedAsync(400, 'resume_committed_attack', run, {
