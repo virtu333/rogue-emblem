@@ -428,6 +428,7 @@ const POST_COMBAT_HINT_COLORS = {
   splash: '#ff9966',
   buff: '#66ff99',
   heal: '#00ff00',
+  mark: UI_PALETTE.mark,
 };
 const PAUSE_TRANSITION_TIMEOUT_MS = 6000;
 
@@ -7658,6 +7659,7 @@ export class BattleScene extends Phaser.Scene {
       checkAstra,
       affixData: affixes,
       skillsData: skills,
+      marksData: this.gameData.marks || null,
       imbuesData: this.gameData.imbues || null,
     };
   }
@@ -8018,8 +8020,10 @@ export class BattleScene extends Phaser.Scene {
     if (selectedArt) {
       const artCostOpts = {
         weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+        marksData: this.gameData?.marks,
       };
-      applyWeaponArtCost(attacker, selectedArt, artCostOpts);
+      const artCost = applyWeaponArtCost(attacker, selectedArt, artCostOpts);
+      if (artCost.waived) this.showMarkProc(attacker, `${artCost.mark.name}: no cost`);
       recordWeaponArtUse(attacker, selectedArt, { turnNumber: this.turnManager?.turnNumber });
       this._applyRecoilGuardAfterArtUse(attacker, selectedArt);
       safeBattlePresentation('art cost HP', () => this.updateHPBar(attacker), { scene: this });
@@ -8477,6 +8481,7 @@ export class BattleScene extends Phaser.Scene {
       alliesOf: (unit) => this.getDivineChargeAllies(unit),
       turnNumber: this.turnManager?.turnNumber,
       skillsData: this.gameData?.skills,
+      marksData: this.gameData?.marks,
     };
   }
 
@@ -9650,7 +9655,12 @@ export class BattleScene extends Phaser.Scene {
     if (!isCurrent()) return;
 
     // 1. Skill effects (e.g. Renewal)
-    const skillEffects = getTurnStartEffects(units, this.gameData.skills);
+    const skillEffects = getTurnStartEffects(
+      units,
+      this.gameData.skills,
+      this.gameData.marks,
+      this.turnManager?.turnNumber,
+    );
     for (const effect of skillEffects) {
       if (!isCurrent()) return;
       if (effect.type === 'heal' && effect.amount > 0) {
@@ -9659,6 +9669,10 @@ export class BattleScene extends Phaser.Scene {
         if (this._showsTurnEffectOn(effect.target))
           await this.animateHeal(effect.target, effect.amount);
         if (!isCurrentBattleSession(this, session)) return;
+      } else if (effect.type === 'buff' && effect.entry) {
+        // Mark of the Road: +1 MOV until the player phase ends (TimedWeaponArtBuffs).
+        applyTimedBuffEntry(effect.target, effect.entry);
+        this.showMarkProc(effect.target, `${effect.source}: +${effect.entry.stats.MOV} MOV`);
       }
     }
 
@@ -9905,6 +9919,17 @@ export class BattleScene extends Phaser.Scene {
       const pos = this.grid.gridToPixel(pick.col, pick.row);
       this.showMinorHintAt(pos.x, pos.y, 'Wall!', UI_PALETTE.text);
     }
+  }
+
+  /** A Mark's proc, floated over its bearer (Mark of the Forge, Mark of the Road). */
+  showMarkProc(unit, text) {
+    if (!unit || !this._showsTurnEffectOn(unit)) return;
+    const pos = this.grid.gridToPixel(unit.col, unit.row);
+    safeBattlePresentation(
+      'mark proc hint',
+      () => this.showMinorHintAt(pos.x, pos.y, text, UI_PALETTE.mark),
+      { scene: this },
+    );
   }
 
   showMinorHintAt(x, y, message, color = UI_PALETTE.accentText) {

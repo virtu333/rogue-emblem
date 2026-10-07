@@ -24,6 +24,7 @@
 //   getTerrainAt?(col, row)            (an area victim's terrain DEF; none when absent)
 //   turnNumber
 //   skillsData?                        gameData.skills (the on-kill skills' catalog)
+//   marksData?                         gameData.marks (Mark of the Ember's catalog)
 //
 // Area arts also leave a credit for every victim they hit on `result.areaCredits`
 // ({ source, victim, damage, hpBefore, killed }): plain state for the owner's XP award,
@@ -37,6 +38,7 @@ import { damageUnit, healUnit, setUnitHP } from './UnitHealth.js';
 import { markHoldDisturbed } from './HoldDisturbance.js';
 import { applyBattleDebuff } from './BattleStatDeltas.js';
 import { applyTimedBuffEntry, resolveTimedBuffExpiry } from './TimedWeaponArtBuffs.js';
+import { getMarkDef, markProcs } from './MarkSystem.js';
 import {
   didCombatSideLandHit,
   getPostCombatPipelineSteps,
@@ -57,6 +59,7 @@ export function* postCombatEffects(
     attackerWeaponArt,
     defenderWeaponArt,
     skillsData: world?.skillsData ?? null,
+    marksData: world?.marksData ?? null,
   });
   for (const step of steps) {
     const sourceUnit = step.sourceSide === 'defender' ? defender : attacker;
@@ -208,6 +211,23 @@ function* skillOnKill(step, sourceUnit, targetUnit, result, world) {
     yield* onKillHeal(skill, sourceUnit);
     yield* onKillSpeed(skill, sourceUnit);
   }
+  if (step.markId) yield* onKillMark(step.markId, sourceUnit, world);
+}
+
+/**
+ * Mark of the Ember (3C): a chance on the battle's Math.random to restore flat HP on a kill,
+ * through UnitHealth (Wounded blocks it). The roll is taken whether or not it heals.
+ */
+function* onKillMark(markId, unit, world) {
+  const mark = getMarkDef(markId, world?.marksData);
+  if (!mark || mark.trigger !== 'on-kill' || unit.markId !== markId) return;
+  if (!markProcs(mark)) return;
+  const amount = Math.max(0, Math.trunc(Number(mark.effect?.healFlat) || 0));
+  if (amount <= 0) return;
+  const healed = healUnit(unit, amount);
+  if (healed <= 0) return;
+  yield { kind: 'hp', unit };
+  yield { kind: 'hint', unit, text: `${mark.name} +${healed}`, tone: 'mark' };
 }
 
 /** Lifetaker: heal a share of max HP (floored, at least 1) through UnitHealth, so Wounded blocks it. */

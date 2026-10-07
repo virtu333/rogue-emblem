@@ -12,6 +12,7 @@ import { isRooted } from './StatusConditionSystem.js';
 import { isEntity } from './EntitySystem.js';
 import { traceForcedMove } from './ForcedMovement.js';
 import { effectiveSkills } from './EffectiveSkills.js';
+import { getUnitMarkFor } from './MarkSystem.js';
 
 const SIDE_ORDER = ['attacker', 'defender'];
 const TIER2_EFFECT_ORDER = [
@@ -145,6 +146,14 @@ export function onKillSkillIds(unit, skillsData) {
   );
 }
 
+/**
+ * The Mark a unit bears when it fires on a kill (Mark of the Ember, 3C): its id, or null.
+ * It rides the same step as the on-kill skills, so it too fires once per combat.
+ */
+export function onKillMarkId(unit, marksData) {
+  return getUnitMarkFor(unit, 'on-kill', marksData)?.id ?? null;
+}
+
 export function getPostCombatPipelineSteps({
   attacker = null,
   defender = null,
@@ -152,6 +161,7 @@ export function getPostCombatPipelineSteps({
   attackerWeaponArt = null,
   defenderWeaponArt = null,
   skillsData = null,
+  marksData = null,
 } = {}) {
   const steps = [
     { type: 'affix', sourceSide: 'attacker' },
@@ -357,13 +367,16 @@ export function getPostCombatPipelineSteps({
   // fallen (and left their `areaCredits`) by the time the kill is read, and after
   // `art_kill_buff`. One step per side, whatever it killed; death is read at application.
   for (const side of SIDE_ORDER) {
-    const skillIds = onKillSkillIds(side === 'attacker' ? attacker : defender, skillsData);
-    if (skillIds.length <= 0) continue;
+    const unit = side === 'attacker' ? attacker : defender;
+    const skillIds = onKillSkillIds(unit, skillsData);
+    const markId = onKillMarkId(unit, marksData);
+    if (skillIds.length <= 0 && !markId) continue;
     steps.push({
       type: 'skill_on_kill',
       sourceSide: side,
       targetSide: getOpposingSide(side),
       skillIds,
+      ...(markId ? { markId } : {}),
     });
   }
 

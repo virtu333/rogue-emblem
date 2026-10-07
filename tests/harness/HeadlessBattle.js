@@ -1098,10 +1098,9 @@ export class HeadlessBattle {
         u._gambitUsedThisTurn = false;
         u._movementSpent = 0;
       }
-      // Apply turn-start effects (Renewal, etc.) — skip turn 1 to match BattleScene
-      if (turn > 1) {
-        this._processTurnStartEffects(armyAndNpcAllies(this.playerUnits, this.npcUnits));
-      }
+      // Apply turn-start effects (Renewal, Mark of the Road, etc.), turn 1 included, as
+      // BattleScene's player-phase pipeline does.
+      this._processTurnStartEffects(armyAndNpcAllies(this.playerUnits, this.npcUnits));
       this._refreshFogVisibility();
       this.battleState = HEADLESS_STATES.PLAYER_IDLE;
     } else if (phase === 'enemy') {
@@ -1205,13 +1204,21 @@ export class HeadlessBattle {
       damageUnit(unit, computeAcidDamage(unit.stats?.HP), { floor: 1, disturbs: false });
     }
     // 1. Skills
-    const skillEffects = getTurnStartEffects(units, this.gameData.skills);
+    const skillEffects = getTurnStartEffects(
+      units,
+      this.gameData.skills,
+      this.gameData.marks,
+      this.turnManager?.turnNumber,
+    );
     for (const effect of skillEffects) {
       if (effect.type === 'heal' && effect.target.currentHP < effect.target.stats.HP) {
         effect.target.currentHP = Math.min(
           effect.target.stats.HP,
           effect.target.currentHP + effect.amount,
         );
+      } else if (effect.type === 'buff' && effect.entry) {
+        // Mark of the Road: +1 MOV until the player phase ends (TimedWeaponArtBuffs).
+        applyTimedBuffEntry(effect.target, effect.entry);
       }
     }
     // 2. Affixes
@@ -1715,6 +1722,7 @@ export class HeadlessBattle {
       checkAstra,
       affixData: affixes,
       skillsData: skills,
+      marksData: this.gameData.marks || null,
       imbuesData: this.gameData.imbues || null,
     };
   }
@@ -1741,6 +1749,7 @@ export class HeadlessBattle {
       alliesOf: (unit) => this._getDivineChargeAllies(unit),
       turnNumber: this.turnManager?.turnNumber,
       skillsData: this.gameData?.skills,
+      marksData: this.gameData?.marks,
     };
   }
 
@@ -1791,6 +1800,7 @@ export class HeadlessBattle {
     if (selectedArt) {
       const artCostOpts = {
         weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+        marksData: this.gameData?.marks,
       };
       applyWeaponArtCost(attacker, selectedArt, artCostOpts);
       recordWeaponArtUse(attacker, selectedArt, { turnNumber: this.turnManager?.turnNumber });
@@ -1906,6 +1916,7 @@ export class HeadlessBattle {
     const { weapon, art } = entry;
     const artCostOpts = {
       weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+      marksData: this.gameData?.marks,
     };
     const check = canUseWeaponArt(unit, weapon, art, {
       turnNumber: this.turnManager?.turnNumber,
@@ -2331,6 +2342,7 @@ export class HeadlessBattle {
     if (selectedArt) {
       const artCostOpts = {
         weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+        marksData: this.gameData?.marks,
       };
       applyWeaponArtCost(attacker, selectedArt, artCostOpts);
       recordWeaponArtUse(attacker, selectedArt, { turnNumber: this.turnManager?.turnNumber });
