@@ -1064,16 +1064,19 @@ lands with a small interaction matrix rather than more isolated tests.
 
 | Finding | Fix | PR |
 |---|---|---|
-| P2: Lifetaker and Speedtaker fired while their unit was Silenced (learned or lent). Every other skill trigger respects Silence. | `PostCombatEffects.skillOnKill` reads Silence at application and fires no skill; Mark of the Ember still fires (a Mark is not a skill), and stacks already earned stay. Tests: learned and lent skills under Silence, Ember under Silence, stacks kept; plus bar breaks against kills (a refilled bar fires nothing, the last bar does, directly and by a blast). | (pending) |
-| P2: a Pass unit slid through a hidden unit on Ice. The fog cut let Pass ignore a hidden unit on every intermediate tile, slid ones included, so the slide the seen-only plan drew was kept on the real board. | Execution enforces both Ice rules against the real board for a Pass unit: a hidden occupant inside a slide interrupts it, and one on the Ice entry tile is met as a seen one would be; previews stay seen-only. Tests: Pass × fog × Ice, with the hidden unit inside the slide and on its entry tile, and the non-Pass equivalents pinned. | (pending) |
+| P2: Lifetaker and Speedtaker fired while their unit was Silenced (learned or lent). Every other skill trigger respects Silence. | `PostCombatEffects.skillOnKill` reads Silence at application and fires no skill; Mark of the Ember still fires (a Mark is not a skill), and stacks already earned stay. Tests: learned and lent skills under Silence, Ember under Silence, stacks kept; plus bar breaks against kills (a refilled bar fires nothing, the last bar does, directly and by a blast). | #233 |
+| P2: a Pass unit slid through a hidden unit on Ice. The fog cut let Pass ignore a hidden unit on every intermediate tile, slid ones included, so the slide the seen-only plan drew was kept on the real board. | Execution enforces both Ice rules against the real board for a Pass unit: a hidden occupant inside a slide interrupts it, and one on the Ice entry tile is met as a seen one would be; previews stay seen-only. Tests: Pass × fog × Ice, with the hidden unit inside the slide and on its entry tile, and the non-Pass equivalents pinned. | #234 |
 
 ### Open after the build
 
 - **No way to discard an item.** An owed contract reward that is a weapon can't be claimed
   when every bag and the convoy are full of weapons: a held party can't reach a shop to sell
-  one, so only Give up is left. **Approved by the owner:** a confirmed **Discard** in the
-  roster (bag and convoy items, between battles; a lord's personal weapon and the prologue
-  run are blocked). In progress on `claude/roster-discard`.
+  one, so only Give up is left. **Approved by the owner and built (#235):** a confirmed
+  **Discard** in the roster (bag and convoy items, between battles; a lord's personal weapon
+  and the prologue run are blocked). Its acceptance test is the whole recovery journey: full
+  storage, an owed weapon reward, Discard from the contract page's Roster, a reload with the
+  reward still owed, Claim, and a second reload with nothing paid twice
+  (`RosterDiscardContract.test.js`, `e2e/roster-discard-contract.spec.js`).
 - **The Gold Pouch economy on Nightfall and Black Sun.** The upper bounds above are high;
   real income is far lower, because a Thief must reach the carrier and outpace it.
   **Accepted by the owner as is:** no change to `carryConfig` or `carryPool`.
