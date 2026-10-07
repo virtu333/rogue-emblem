@@ -209,6 +209,24 @@ describe('room: the bag, then the convoy, then a refusal', () => {
     expect(foe.carriedItem.uid).toBe('itm_Foe');
   });
 
+  it('if the convoy refuses the add after saying yes, the carrier keeps its item', () => {
+    const t = thiefAt(5, 5, { consumables: [catalog('Herb'), catalog('Herb'), catalog('Herb')] });
+    const liar = { canAddToConvoy: () => true, addToConvoy: () => false };
+    const foe = carrier('Foe', 6, 5);
+    const before = structuredClone({ t, foe });
+    expect(settleSteal(t, foe, { run: liar })).toBeNull();
+    expect(structuredClone({ t, foe })).toEqual(before);
+    // And if the add throws, the carrier still holds it: it lets go only after the item landed.
+    const thrower = {
+      canAddToConvoy: () => true,
+      addToConvoy: () => {
+        throw new Error('storage refused');
+      },
+    };
+    expect(() => settleSteal(t, foe, { run: thrower })).toThrow('storage refused');
+    expect(structuredClone({ t, foe })).toEqual(before);
+  });
+
   it('with no run at all, a full bag is a refusal', () => {
     const t = thiefAt(5, 5, { consumables: [catalog('Herb'), catalog('Herb'), catalog('Herb')] });
     const foe = carrier('Foe', 6, 5);
