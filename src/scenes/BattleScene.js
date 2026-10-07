@@ -171,6 +171,7 @@ import {
   resolveGamblerDelta,
   applyAccessoryPhaseCombatMods,
 } from '../engine/SkillSystem.js';
+import { hasEffectiveSkill } from '../engine/EffectiveSkills.js';
 import {
   getTurnStartAffixes,
   getOnDeathAffixes,
@@ -5234,7 +5235,7 @@ export class BattleScene extends Phaser.Scene {
       if (!ally) continue;
 
       // Must have acted AND not be another dancer
-      if (ally.hasActed && !ally.skills?.includes('dance')) {
+      if (ally.hasActed && !hasEffectiveSkill(ally, 'dance')) {
         targets.push({ ally });
       }
     }
@@ -6236,9 +6237,9 @@ export class BattleScene extends Phaser.Scene {
     const consumables = unit.consumables || [];
     if (consumables.length > 0) command('item', 'Item', () => this.showItemMenu(unit));
     // Shove/Pull: show if unit has skill and valid targets exist
-    if (unit.skills?.includes('shove') && this.findShoveTargets(unit).length > 0)
+    if (hasEffectiveSkill(unit, 'shove') && this.findShoveTargets(unit).length > 0)
       command('shove', 'Shove', () => this.startShoveTargetSelection(unit));
-    if (unit.skills?.includes('pull') && this.findPullTargets(unit).length > 0)
+    if (hasEffectiveSkill(unit, 'pull') && this.findPullTargets(unit).length > 0)
       command('pull', 'Pull', () => this.startPullTargetSelection(unit));
     // Trade: show if adjacent ally with items/space exists
     if (this.findTradeTargets(unit).length > 0)
@@ -6247,7 +6248,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.findSwapTargets(unit).length > 0)
       command('swap', 'Swap', () => this.startSwapTargetSelection(unit));
     // Dance: show if unit has skill and valid targets exist
-    if (unit.skills?.includes('dance') && this.findDanceTargets(unit).length > 0)
+    if (hasEffectiveSkill(unit, 'dance') && this.findDanceTargets(unit).length > 0)
       command('dance', 'Dance', () => this.startDanceTargetSelection(unit));
     // Ability: action-trigger skills with structured actionAbility data
     // (Blink/Rally Cry/Healing Circle/Ensnare). Keep the picker discoverable;

@@ -16,6 +16,7 @@ import { UI_PALETTE, UI_HEX, applyTextResolution, getHPBarColor } from '../utils
 import { getEffectivenessMultiplier, calculateEffectiveSpeed } from '../engine/Combat.js';
 import { isForged } from '../engine/ForgeSystem.js';
 import { isWorn } from '../engine/WeaponWear.js';
+import { hasEffectiveSkill } from '../engine/EffectiveSkills.js';
 import { portraitCanvasFrame } from './portraitArt.js';
 
 /**
@@ -148,15 +149,15 @@ export class ForecastOverlay {
     // Pre-calculate content height for dynamic panel sizing
     let _atkExtraH = 0;
     const _atkSkills = forecast.attacker.skills || [];
-    const _hasMiracle = (u) =>
-      u.skills?.some((s) => (typeof s === 'string' ? s : s?.id) === 'miracle');
-    if (_atkSkills.length > 0 || _hasMiracle(attacker)) _atkExtraH += 24;
+    // The attacker fights with the planned weapon, which is not equipped until confirm.
+    if (_atkSkills.length > 0 || hasEffectiveSkill(attacker, 'miracle', { weapon }))
+      _atkExtraH += 24;
     if (weaponArt) _atkExtraH += 24;
     if (gamblerLine) _atkExtraH += 24;
     _atkExtraH += affixHeight(0);
     let _defExtraH = 0;
     const _defSkills = forecast.defender.skills || [];
-    if (_defSkills.length > 0 || _hasMiracle(defender)) _defExtraH += 24;
+    if (_defSkills.length > 0 || hasEffectiveSkill(defender, 'miracle')) _defExtraH += 24;
     _defExtraH += affixHeight(1);
     const panelH = 166 + Math.max(_atkExtraH + noteHeight(0), _defExtraH + noteHeight(1));
     const panelX = (scene.cameras.main.width - panelW) / 2;
@@ -599,7 +600,7 @@ export class ForecastOverlay {
     if (info.skills?.length) {
       parts.push(info.skills.map((s) => s.name).join(', '));
     }
-    if (unit.skills?.includes('miracle')) {
+    if (hasEffectiveSkill(unit, 'miracle', { weapon })) {
       const used = unit._miracleUsed;
       parts.push(`Miracle: ${used ? 'Used' : 'Ready'}`);
     }

@@ -21,6 +21,7 @@ import {
 import { canEquip } from './UnitManager.js';
 import { computeEffectivePath } from './Grid.js';
 import { getTerrainCostReduction } from './SkillSystem.js';
+import { effectiveSkills } from './EffectiveSkills.js';
 import {
   hasCondition,
   isRooted,
@@ -540,7 +541,7 @@ export class AIController {
                 p.type === 'Breath',
             );
             score += hasMagicProf ? 100 : 0;
-            score += (target.skills?.length || 0) * 5;
+            score += effectiveSkills(target).length * 5;
           }
           if (score > bestStaffScore) {
             bestStaffScore = score;

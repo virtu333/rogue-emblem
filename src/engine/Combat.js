@@ -17,6 +17,7 @@ import { rollHit } from './HitRoll.js';
 import { rollDefenseAffixes } from './AffixSystem.js';
 import { isSleeping, isSilenced, isWounded, removeCondition } from './StatusConditionSystem.js';
 import { isEntity } from './EntitySystem.js';
+import { effectiveSkills } from './EffectiveSkills.js';
 import {
   getImbueCombatMods,
   getImbuePostCombatPoison,
@@ -1418,8 +1419,8 @@ export function getCombatForecast(
     display: {
       triangle: atkTriangle,
       distance,
-      counterHasDamageProc: [...(defender.skills || []), defWeapon?._grantedSkill].some((skill) =>
-        COUNTER_DAMAGE_PROCS.has(typeof skill === 'string' ? skill : skill?.id),
+      counterHasDamageProc: effectiveSkills(defender, { weapon: defWeapon }).some((id) =>
+        COUNTER_DAMAGE_PROCS.has(id),
       ),
       counterReason: defCanCounter
         ? null
@@ -1460,7 +1461,7 @@ export function getCombatForecast(
               const affix = skillCtx?.affixData?.affixes?.find((entry) => entry.id === id);
               return !affix || (affix.forecast === 'exchange' && !affix.forecastProjectionSafe);
             }) ||
-            [...(u.skills || []), weapon?._grantedSkill].some((s) =>
+            effectiveSkills(u, { weapon }).some((id) =>
               [
                 'miracle',
                 'sol',
@@ -1477,7 +1478,7 @@ export function getCombatForecast(
                 'dragon_scale',
                 'drain',
                 'zombie_drain',
-              ].includes(typeof s === 'string' ? s : s?.id),
+              ].includes(id),
             ),
         ),
     },
