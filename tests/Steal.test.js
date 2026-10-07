@@ -32,6 +32,8 @@ import {
   stealSpeed,
 } from '../src/engine/Steal.js';
 import { isBindableSkill } from '../src/engine/AccessorySkills.js';
+import { generateShopInventory } from '../src/engine/LootSystem.js';
+import { installSeed, restoreMathRandom } from '../sim/lib/SeededRNG.js';
 import { applyCondition } from '../src/engine/StatusConditionSystem.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import {
@@ -412,6 +414,23 @@ describe('who can use it', () => {
     expect(config.neverBound).toContain('steal');
     expect(isBindableSkill('steal', skill, config)).toBe(false);
     for (const pool of Object.values(config.poolByAct)) expect(pool).not.toContain('steal');
+  });
+
+  it('shops stock the Steal Scroll from Act II on, and never in Act I', () => {
+    const seen = { act1: 0, act2: 0, act3: 0, act4: 0 };
+    try {
+      for (const act of Object.keys(seen)) {
+        for (let seed = 1; seed <= 400; seed++) {
+          installSeed(seed);
+          const stock = generateShopInventory(act, data.lootTables, data.weapons, data.consumables, data.accessories); // prettier-ignore
+          if (stock.some((entry) => entry.item?.name === 'Steal Scroll')) seen[act]++;
+        }
+      }
+    } finally {
+      restoreMathRandom();
+    }
+    expect(seen.act1).toBe(0);
+    for (const act of ['act2', 'act3', 'act4']) expect(seen[act], act).toBeGreaterThan(0);
   });
 
   it('an enemy Thief never steals: nothing in the AI reads it', () => {

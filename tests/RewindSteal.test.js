@@ -23,6 +23,7 @@ import { VisionRewindController } from '../src/ui/VisionRewindController.js';
 import { AbilityController } from '../src/ui/AbilityController.js';
 import { BattleSuspendController } from '../src/ui/BattleSuspendController.js';
 import { TurnManager } from '../src/engine/TurnManager.js';
+import { settleSteal } from '../src/engine/Steal.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { installSeed, restoreMathRandom } from '../sim/lib/SeededRNG.js';
 
@@ -232,6 +233,39 @@ describe('a stolen item can never exist twice or vanish', () => {
     ).toBe(false);
     expect(structuredClone({ convoy: run.convoy, thief, brigand })).toEqual(before);
     expect(placesOf(UID, scene, run)).toEqual(['Brigand.carried']);
+  });
+
+  it('victory carries a stolen item in the bag into the roster like any item', async () => {
+    const driver = new RunDriver(storage, { seed: 42 });
+    const run = driver.run;
+    const nodeId = run.nodeMap.nodes[0].id;
+    run.beginBattleInProgress(nodeId, { battleParams: {} });
+    const vulnerary = {
+      ...structuredClone(driver.data.consumables.find((c) => c.name === 'Vulnerary')),
+      uid: UID,
+      uses: 1,
+    };
+    const rosterUnit = run.roster[0];
+    const foe = {
+      faction: 'enemy',
+      carriedItem: vulnerary,
+      stats: { ...rosterUnit.stats, SPD: 1 },
+    };
+    const thief = structuredClone(rosterUnit);
+    thief.stats.SPD = 40;
+    thief.skills = ['steal'];
+    thief.consumables = [];
+    expect(settleSteal(thief, foe, { run })).toMatchObject({ destination: 'bag', uid: UID });
+    // The battle ends in victory with the thief alive (everyone else as they entered).
+    const survivors = run.roster.map((u) => (u === rosterUnit ? thief : structuredClone(u)));
+    expect(run.completeBattle(survivors, nodeId, 0, { turnCount: 5, turnPar: 5 })).toBeTruthy();
+    const after = run.roster.find((u) => u.name === rosterUnit.name);
+    expect(after.consumables.filter((i) => i.uid === UID)).toHaveLength(1);
+    expect(after.consumables.find((i) => i.uid === UID)).toMatchObject({ name: 'Vulnerary', uses: 1 }); // prettier-ignore
+    expect(run.convoy.consumables.filter((i) => i.uid === UID)).toEqual([]);
+    // And it survives a save and a load.
+    const loaded = RunManager.fromJSON(JSON.parse(JSON.stringify(run.toJSON())), driver.data);
+    expect(loaded.roster.find((u) => u.name === rosterUnit.name).consumables.map((i) => i.uid)).toContain(UID); // prettier-ignore
   });
 
   it('the rewind row names the steal, and the timeline never lists it as two things', async () => {
