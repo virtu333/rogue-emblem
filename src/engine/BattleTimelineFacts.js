@@ -163,6 +163,8 @@ export function combatTimelineFacts(scene, attacker, defender, result) {
         ? `${name(actor)} missed ${name(target)}.`
         : `${name(actor)} ${event.isCrit ? 'critically hit' : 'hit'} ${name(target)} for ${event.damage} damage.`,
     );
+    // Revival Stones: the blow that broke one (a hidden unit's stone stays unspoken).
+    if (event.stoneBroken && visible(target)) facts.push(`${name(target)}'s Revival Stone broke.`);
   }
 
   return facts.slice(0, 100);

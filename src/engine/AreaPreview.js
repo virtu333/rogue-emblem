@@ -21,6 +21,7 @@ import { resolvePostCombatMove } from './WeaponArtPostCombat.js';
 import { isDisplacementImmune } from './AffixSystem.js';
 import { planAreaPush } from './AreaPush.js';
 import { getFootprint } from './EntitySystem.js';
+import { revivalStoneCount } from './RevivalStones.js';
 
 const isHostile = (a, b) => {
   if (!a || !b || a === b) return false;
@@ -79,7 +80,15 @@ export function previewAreaArt({
     });
     out.victims = plan.map(({ unit, damage }) => {
       const hpAfter = Math.max(Math.min(floor, unit.currentHP), unit.currentHP - damage * count);
-      return { unit, damage: unit.currentHP - hpAfter, hpAfter, kills: hpAfter <= 0 };
+      // A blow that would fell a unit holding Revival Stones breaks one instead (it stands).
+      const breaks = hpAfter <= 0 && revivalStoneCount(unit).remaining > 0;
+      return {
+        unit,
+        damage: unit.currentHP - hpAfter,
+        hpAfter,
+        kills: hpAfter <= 0 && !breaks,
+        ...(breaks ? { breaks: true } : {}),
+      };
     });
   }
 
@@ -102,7 +111,7 @@ export function previewAreaArt({
   );
   if (driveBack && area && target && targeting === 'normal_attack') {
     const felled = out.victims.filter((v) => v.kills).map((v) => v.unit);
-    if (dealt >= target.currentHP) felled.push(target);
+    if (dealt >= target.currentHP && revivalStoneCount(target).remaining <= 0) felled.push(target);
     const plan = planAreaPush({
       source: attacker,
       primary: target,
@@ -168,7 +177,7 @@ export function areaForecastLines(preview, { max = 3, onHit = true } = {}) {
     const count = `${victims.length} ${victims.length === 1 ? 'foe' : 'foes'}${kos ? `, ${kos} KO` : ''}`;
     lines.push(onHit ? `Area if it hits: ${count}` : `Area: ${count}`);
     for (const v of victims.slice(0, max))
-      lines.push(`${v.unit.name} −${v.damage}${v.kills ? ' KO' : ''}`);
+      lines.push(`${v.unit.name} −${v.damage}${v.kills ? ' KO' : v.breaks ? ' breaks a bar' : ''}`);
     if (victims.length > max) lines.push(`+${victims.length - max} more`);
   }
   const healing = heals.filter((h) => h.amount > 0);

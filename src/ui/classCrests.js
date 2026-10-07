@@ -98,6 +98,10 @@ export const CLASS_CREST_SPECS = Object.freeze({
   // Enemy-only lines (the roster never shows them, the compendium may)
   Zombie: c('zombie', 'base', 'axe', { mark: 'crack' }),
   Revenant: c('zombie', 'promoted', 'axe', { secondary: ['sword'], mark: 'crack' }),
+  // The Necromancer's line is the mage's (its tome, the school's sign) cracked like the
+  // undead's; the Skeleton carries every sword-arm of the levy and no school at all.
+  Skeleton: c('skeleton', 'base', 'sword', { secondary: ['lance', 'bow'], mark: 'crack' }),
+  Necromancer: c('mage', 'promoted', 'tome', { mark: 'crack' }),
   Dragon: c('dragon', 'base', 'breath', { mount: 'wyvern' }),
   'Dragon Lord': c('dragon', 'promoted', 'breath', { twin: true, mount: 'wyvern' }),
   Entity: c('entity', 'boss', 'eclipse', { mark: 'ring' }),

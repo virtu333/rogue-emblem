@@ -371,6 +371,8 @@ export function ceremonyTiming(kind, { reducedMotion = false, speed = 'normal' }
 // lostFrom: where the gold "just lost" chunk starts (>= hp). A 'drain'
 //           collapses it onto hp; silent syncs (resume, rewind) never leave
 //           a chunk behind.
+// stones:   Revival Stones the boss still holds; stonesMax the count it began with
+//           (0 for a boss that never had any). The pips beside the bar read both.
 
 export function createBossBarState() {
   return {
@@ -382,6 +384,8 @@ export function createBossBarState() {
     hp: 0,
     max: 1,
     lostFrom: 0,
+    stones: 0,
+    stonesMax: 0,
     enraged: false,
     status: '',
   };
@@ -395,7 +399,7 @@ function clampHp(value, max) {
 
 /**
  * @param {object} state
- * @param {{type:'sync', boss?: {key, name, hp, max, wordless}|null, enraged?, status?,
+ * @param {{type:'sync', boss?: {key, name, hp, max, wordless, stones?, stonesMax?}|null, enraged?, status?,
  *          silent?, concealed?} | {type:'drain'} | {type:'defeated'} | {type:'hide'}} event
  */
 export function reduceBossBar(state, event) {
@@ -417,6 +421,8 @@ export function reduceBossBar(state, event) {
       } else if (same && !event.silent && hp < state.hp) {
         lostFrom = Math.max(state.lostFrom, state.hp);
       }
+      const stonesMax = Math.max(0, Math.trunc(Number(boss.stonesMax) || 0));
+      const stones = Math.min(stonesMax, Math.max(0, Math.trunc(Number(boss.stones) || 0)));
       const next = {
         visible: true,
         felled: false,
@@ -426,6 +432,8 @@ export function reduceBossBar(state, event) {
         hp,
         max,
         lostFrom,
+        stones,
+        stonesMax,
         enraged: event.enraged === true,
         status: typeof event.status === 'string' ? event.status : '',
       };
@@ -466,5 +474,9 @@ export function bossBarView(state) {
     tone: state.wordless ? 'unlight' : state.enraged ? 'ember' : 'crimson',
     status: state.status,
     felled: state.felled,
+    stones: state.stones ?? 0,
+    stonesMax: state.stonesMax ?? 0,
+    // "Stones 2/2" for the off-map readers (the rail and the objective plate).
+    stonesText: (state.stonesMax ?? 0) > 0 ? `Stones ${state.stones}/${state.stonesMax}` : '',
   };
 }

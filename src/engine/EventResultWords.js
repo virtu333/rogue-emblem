@@ -112,7 +112,7 @@ function itemLine(record) {
   const worn = wornText(record.worn);
   return {
     tone: 'good',
-    text: `${record.name}${where}`,
+    text: `${record.display || record.name}${where}`,
     ...(worn ? { detail: `Worn: ${worn}` } : {}),
     item: { name: record.name, tier: record.tier || undefined, type: record.itemType || undefined },
   };

@@ -145,7 +145,7 @@ describe('the burden records', () => {
     expect(chips.map((c) => [c.label, c.short])).toEqual([
       ['Hunted', '2 left'],
       ['Sworn Enemy', 'Boss'],
-      ['Wounded', 'Hale −2 SKL'],
+      ['Lingering Injury', 'Hale −2 SKL'],
     ]);
     expect(chips[0].detail).toBe(
       '2 battles left: an extra wave of 2 foes on turn 3, boss maps spared',
@@ -158,7 +158,7 @@ describe('the burden records', () => {
         sworn: { ended: true },
         wounded: { name: 'Hale', ended: true },
       }),
-    ).toEqual(['Hunted (passed)', 'Sworn Enemy falls', "Hale's wound mends"]);
+    ).toEqual(['Hunted (passed)', 'Sworn Enemy falls', "Hale's lingering injury mends"]);
     expect(settlementLines({ hunted: { remaining: 1, ended: false } })).toEqual([]);
   });
 });
@@ -582,7 +582,7 @@ describe('Wounded', () => {
     win(run, b);
     expect(run.burdens).toEqual([]);
     expect(run.lastBurdenSettlement.wounded.ended).toBe(true);
-    expect(settlementLines(run.lastBurdenSettlement)).toContain("Hale's wound mends");
+    expect(settlementLines(run.lastBurdenSettlement)).toContain("Hale's lingering injury mends");
   });
 
   it('a revert and a reload leave the count where it was', () => {
@@ -612,7 +612,7 @@ describe('Wounded', () => {
     const { run } = woundedRun();
     run.roster[0].currentHP = 1;
     const result = healRosterAtChurch(run);
-    expect(result.message).toBe("All units healed. Hale's wound mends.");
+    expect(result.message).toBe("All units healed. Hale's lingering injury mends.");
     expect(run.burdens).toEqual([]);
     expect(run.roster.every((u) => u.currentHP === u.stats.HP)).toBe(true);
     // Nothing wounded: the plain message.
@@ -642,7 +642,11 @@ describe('the burden effect of an event', () => {
         battles: 2,
       },
     ]);
-    expect(result.results[0]).toMatchObject({ kind: 'burden', id: 'wounded', label: 'Wounded' });
+    expect(result.results[0]).toMatchObject({
+      kind: 'burden',
+      id: 'wounded',
+      label: 'Lingering Injury',
+    });
     expect(result.results[0].detail).toBe(
       'Bram fights at −2 DEF, 2 battles left; a church heal ends it',
     );

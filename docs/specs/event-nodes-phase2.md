@@ -95,7 +95,7 @@ payoffs can require "set in an earlier act".
   generated, so a resumed battle keeps it). Not on boss maps.
 - **Sworn Enemy** `{}`: the act boss gains one tier-1 affix (the affix engine's own rules,
   seeded) until it falls; ends at the act's boss victory.
-- **Wounded** `{ unitUid, stat, value: -2, battles: 3 }`: one unit fights at −2 to a stat for 3
+- **Wounded** (shown to the player as **Lingering Injury**, id `wounded`: "Wounded" is the status condition's name, which heals differently) `{ unitUid, stat, value: -2, battles: 3 }`: one unit fights at −2 to a stat for 3
   battles (a battle stat delta applied at battle start through `engine/BattleStatDeltas.js`, so
   previews, forecasts and the harness see it); ends early if the unit is healed at a church
   (Heal All counts).
@@ -107,11 +107,11 @@ Each burden decrements only at the victory commit; a revert never touches it.
 `CHURCH_VOWS` gains `cleanse`: when the run holds a burden, a church offers **Cleanse** (lift
 one burden of the player's choice) beside Promotion and Blessing. It commits the church's vow
 like the other two (`ChurchVow.commitChurchVow`). Debt is not cleansable ("the lender has
-lawyers"): a church never offers to lift it. **Wounded is not cleansable either**: the same church's Heal all
-is free, always open and ends a wound (`endWoundByHealing`), so a vow is never spent on it (`HEALED_BURDENS`;
-`isCleansable` is false, the engine refuses it with "Heal all mends a wound. It needs no vow.", and a church
-whose only burden is a wound shows no Cleanse section); beside Heal all the church says "Heal all also mends
-Hale's wound." (`Burdens.woundHealLine`). Never in the prologue, never at the Ruins.
+lawyers"): a church never offers to lift it. **Lingering Injury (id `wounded`) is not cleansable either**: the same church's Heal all
+is free, always open and ends it (`endWoundByHealing`), so a vow is never spent on it (`HEALED_BURDENS`;
+`isCleansable` is false, the engine refuses it with "Heal all mends a lingering injury. It needs no vow.", and a church
+whose only burden is a lingering injury shows no Cleanse section); beside Heal all the church says "Heal all also mends
+Hale's lingering injury." (`Burdens.woundHealLine`). Never in the prologue, never at the Ruins.
 
 ### Dark Omen (a fallen event)
 
@@ -319,7 +319,7 @@ added only when a burden applies (an unburdened run's params are unchanged):
 `eclipseHash("sworn:<runSeed>:<nodeId>")` }, boss nodes only) and `battleDebuffs` ([{ unitUid,
 stat, value, source: 'wounded' }]). Settlement is `burdenEffectsOnVictory(run, { gold, shadowGain,
 battle: { boss, hunted } })` in `completeBattle`; the record gains `hunted`, `sworn` and `wounded`
-parts (`settlementLines`: "Hunted (passed)", "Sworn Enemy falls", "Hale's wound mends").
+parts (`settlementLines`: "Hunted (passed)", "Sworn Enemy falls", "Hale's lingering injury mends").
 
 **Hunted** `{ id, battles, wave }`. `data` burdens `hunted`: 2 battles, wave `{ turn: 3, count: [2, 2],
 xpMultiplier: 0.5 }`; First Light `[1, 2]`, Black Sun `[2, 3]` (`onRung`; resolved once, stored on the
@@ -340,7 +340,7 @@ the first boss spawn that is not the Entity gains one tier-1 affix chosen by `af
 what the boss carries hold; the act's own gating (`excludedActs`, chance) does not (an oath is not a roll).
 Ends at the first boss-node victory of any act. The Entity keeps its curated affixes and takes none.
 
-**Wounded** `{ id, unitUid, unitName, stat, value, battles }`. Data: -2, 3 battles (First Light 2). Event
+**Wounded** (player-facing name **Lingering Injury**; the id, the save field and the `wounded` burden source never change) `{ id, unitUid, unitName, stat, value, battles }`. Data: -2, 3 battles (First Light 2). Event
 effect `{ type: 'burden', id: 'wounded', params: { scope: 'target' | 'randomUnit', stat: <STR MAG SKL SPD DEF
 RES LCK> | 'random' | 'attack', value?, battles? } }`: unit and stat are fixed at planning (a seeded pick for
 `randomUnit` / `random`; `attack` is MAG for a caster, else STR). **One wound at a time**: a new one replaces
@@ -350,7 +350,7 @@ delta taken back exactly at battle end) applied once at a fresh start in `Battle
 `HeadlessBattle`, so the first forecast shows it; a resumed battle's units carry it already. It **counts down
 at every victory, deployed or not** (benching a wounded unit avoids the penalty but not the clock). It ends
 early when a church's Heal all (and the sanctuary's Rest) reaches the unit (`healRosterAtChurch`, also the
-message "All units healed. Hale's wound mends."), and when its unit is no longer in the roster after a victory
+message "All units healed. Hale's lingering injury mends."), and when its unit is no longer in the roster after a victory
 (`pruneGoneWounds`). The act-change heal does not mend it. `tests/sim/RunSimulationDriver` now takes battle
 deltas back before the commit, as `PostCombatController` does (Intimidate's used to persist in the sims).
 

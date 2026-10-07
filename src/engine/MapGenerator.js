@@ -33,6 +33,8 @@ import {
 import { createScopedLogger } from '../utils/logger.js';
 import { buildRoutLadder } from './RoutLadder.js';
 import { assignHolders, holdShareFor } from './HoldActivation.js';
+import { revivalStoneKind, revivalStonesFor } from './RevivalStones.js';
+import { mapExtraNecromancer } from './Necromancy.js';
 import { seizeParFloor } from './SeizeParFloor.js';
 import { assignCasterGear, isPerBattleGearConfig } from './CasterGear.js';
 import { buildReinforcementTemplatePool } from './ReinforcementSpawns.js';
@@ -251,6 +253,10 @@ export function generateBattleLayout(params, deps) {
       difficultyId: params.difficultyId,
       // Elite captains already scale with the act's (rung-adjusted) level range.
       bossLevelBonus: params.isElite === true && !isBoss ? 0 : params.bossLevelBonus,
+      // Revival Stones (difficulty.json `revivalStones`, RevivalStones.js): the boss spawn
+      // carries its count, so a locked map keeps it. Elite captains are their own kind.
+      revivalStones: params.revivalStones,
+      isEliteCaptain: params.isElite === true && !isBoss && objective === 'seize',
     },
   );
   // Per-battle staves and siege tomes (CasterGear.js, its own stream: no Math.random).
@@ -1987,6 +1993,10 @@ function generateEnemies(
     // The rung's boss level bonus (difficulty.json `bossLevelBonus`): boss levels are
     // otherwise fixed by their definitions and ignore `enemyLevelBonus`.
     const bossLevelBonus = Math.max(0, Math.trunc(Number(extraOptions.bossLevelBonus) || 0));
+    const stones = revivalStonesFor(
+      extraOptions.revivalStones,
+      revivalStoneKind({ bossDef, act, isEliteCaptain: extraOptions.isEliteCaptain === true }),
+    );
 
     // Entity boss: place at entitySpawn coords if template provides them
     const entityFootprintInBounds =
@@ -2051,6 +2061,7 @@ function generateEnemies(
           row: bossPos.row,
           isBoss: true,
           name: bossDef.name,
+          ...(stones > 0 ? { revivalStones: stones } : {}),
         });
       }
     }
@@ -2173,6 +2184,10 @@ function generateEnemies(
       className = weightedClassPick(allClasses, enemyWeights, classes);
     }
 
+    // One Necromancer per battle: a further pick is mapped to the pool's next class (no
+    // re-roll, no extra draw: the streams stay where they were).
+    className = mapExtraNecromancer(className, spawns, pool);
+
     const unit = { className };
 
     // Score all remaining candidate tiles for this unit
@@ -2274,7 +2289,8 @@ function generateEnemies(
       sunderWeapon: sunderWeapon || undefined,
       poisonWeapon: poisonWeapon || undefined,
       statusStaff: statusStaff || undefined,
-      aiMode: className === 'Cleric' ? 'heal' : undefined,
+      // A Cleric heals; a Necromancer holds its post and raises (the existing guard mode).
+      aiMode: className === 'Cleric' ? 'heal' : className === 'Necromancer' ? 'guard' : undefined,
       siegeWeapon: siegeWeapon || undefined,
     });
   }

@@ -40,7 +40,7 @@ export function clearBattleScopedDeltas(units) {
 }
 
 /**
- * The stat deltas a battle starts with (`battleParams.battleDebuffs`: the Wounded burden,
+ * The stat deltas a battle starts with (`battleParams.battleDebuffs`: the Lingering Injury burden (id `wounded`),
  * engine/Burdens.js): [{ unitUid, stat, value, source }]. Each lands on the unit that carries
  * the uid, as a battle delta, so it is taken back with every other one when the battle ends
  * and previews, forecasts and the headless harness all read the same stats. A unit that is not

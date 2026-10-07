@@ -157,7 +157,7 @@ export class ChurchMenu {
         this.finish(healRosterAtChurch(run));
       }),
     );
-    // A wound is mended by this heal, with no vow: say so where the player looks for a cure.
+    // A lingering injury is mended by this heal, with no vow: say so where the player looks for a cure.
     const woundLine = woundHealLine(run);
     if (woundLine) body.append(el('p', woundLine, 'church-wound-line'));
     if (!ruins) this.renderKindle(body, run);
@@ -236,7 +236,7 @@ export class ChurchMenu {
   }
   /**
    * Cleanse: when the run holds a burden a church can lift (Burdens.cleansableBurdens: all but
-   * Debt and a wound, which Heal all mends), the altar offers to lift one of the player's choosing: a row per burden, its words
+   * Debt and a Lingering Injury, which Heal all mends), the altar offers to lift one of the player's choosing: a row per burden, its words
    * under it, behind a confirmation. Taking it is this church's vow. A Debt the run carries is
    * shown as a row the altar will not lift, so the player sees why it stays.
    */

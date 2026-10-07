@@ -363,6 +363,39 @@ describe.each(WORLDS)('Mark of the Hunt through %s', (_label, makeWorld) => {
   });
 });
 
+// A Necromancer's Skeleton is an ordinary foe to the on-kill step (docs/specs/phase3.md 3I):
+// the Mark fires at most once for a combat's kill, and the Necromancer's cap of six raises
+// bounds how many such kills a battle holds.
+describe.each(WORLDS)(
+  'Mark of the Ember against a raised Skeleton, through %s',
+  (_l, makeWorld) => {
+    const skeleton = () =>
+      makeFoe('Skeleton', 1, 10, { extra: { className: 'Skeleton', _raisedBy: 'u9' } });
+
+    it('fires once for the kill (+5), not twice', async () => {
+      const edric = makeEdric({ markId: 'ember' });
+      const foe = skeleton();
+      const world = makeWorld([edric], [foe, bystander()], 0.01);
+      await world.attack(edric, foe);
+      expect(foe.currentHP).toBe(0);
+      expect(edric.currentHP).toBe(20 + 5);
+    });
+
+    it('six Skeletons felled one a combat heal at most six times in all: the cap bounds it', async () => {
+      const edric = makeEdric({ markId: 'ember' });
+      let heals = 0;
+      for (let n = 0; n < 6; n++) {
+        edric.currentHP = 20;
+        const foe = skeleton();
+        const world = makeWorld([edric], [foe, bystander()], 0.01);
+        await world.attack(edric, foe);
+        if (edric.currentHP === 25) heals++;
+      }
+      expect(heals).toBe(6);
+    });
+  },
+);
+
 describe.each(WORLDS)('Mark of the Ember through %s', (_label, makeWorld) => {
   const fight = async ({
     markId = 'ember',

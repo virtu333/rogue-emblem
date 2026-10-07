@@ -539,5 +539,40 @@
       1450,
       2200
     ]
+  },
+  "accessorySkills": {
+    "chanceByAct": { "act1": 0.03, "act2": 0.05, "act3": 0.06, "act4": 0.08 },
+    "poolByAct": {
+      "act1": [
+        "uncanny_blow", "warding_blow", "armored_blow", "darting_blow", "death_blow", "pathfinder",
+        "vantage", "wrath", "defiant", "guard", "skirmisher", "foresight", "canto"
+      ],
+      "act2": [
+        "uncanny_blow", "warding_blow", "armored_blow", "darting_blow", "death_blow", "pathfinder",
+        "vantage", "wrath", "defiant", "guard", "skirmisher", "foresight", "canto"
+      ],
+      "act3": [
+        "vantage", "wrath", "defiant", "guard", "skirmisher", "foresight", "canto",
+        "luna", "sol", "lifetaker", "speedtaker", "pavise", "aegis", "renewal"
+      ],
+      "act4": [
+        "luna", "sol", "lifetaker", "speedtaker", "pavise", "aegis", "renewal",
+        "astra", "aether", "miracle", "blink"
+      ]
+    },
+    "priceMultiplier": 1.5,
+    "neverBound": ["dance", "shove", "pull", "lethality", "steal", "goddess_dance"],
+    "lentInnates": [
+      "armored_blow",
+      "darting_blow",
+      "pathfinder",
+      "skirmisher",
+      "foresight",
+      "canto",
+      "pavise",
+      "aegis",
+      "renewal",
+      "aether"
+    ]
   }
 }

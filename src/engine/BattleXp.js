@@ -19,7 +19,28 @@ import {
   skillGateLevels,
 } from './UnitManager.js';
 import { calculateSharedXp, getXpShareRatio, getXpShareRecipients } from './XpShare.js';
+import { isRaisedUnit } from './Necromancy.js';
 import { xpGainSegments, xpGained, xpSnapshot } from './XpProgress.js';
+
+/**
+ * The HP one side of a resolved combat lost, for the XP and the damage-ratio math that
+ * read it. A Revival Stone that broke refilled the bar (`result.defenderHP` is the new
+ * bar's), so a broken bar counts as the whole bar it held at the start: the striker is
+ * paid ordinary damage XP for it (never the kill bonus: the unit did not die).
+ *
+ * @param {object} result  Combat.resolveCombat's result
+ * @param {'attacker'|'defender'} side  the side that took the damage
+ * @param {number} hpAtStart  that side's HP before the combat
+ */
+export function combatHpLost(result, side, hpAtStart) {
+  const start = Math.max(0, Math.trunc(Number(hpAtStart) || 0));
+  const after = Math.max(
+    0,
+    Math.trunc(Number(side === 'defender' ? result?.defenderHP : result?.attackerHP) || 0),
+  );
+  const lost = Math.max(0, start - after);
+  return result?.stoneBroken?.[side] ? Math.max(lost, start) : lost;
+}
 
 /**
  * Base XP awards for one combat, in the order they are granted: the unit first,
@@ -53,9 +74,13 @@ export function combatXpAwards({
 }) {
   if (!unit || opponent?._noXP) return [];
   // Surviving an attacker whose wave pays nothing earns nothing either (no farming a
-  // spent reinforcement ladder, docs/specs/dusk-pressure.md).
+  // spent reinforcement ladder, docs/specs/dusk-pressure.md). Nor does surviving a Skeleton:
+  // it pays a quarter of a kill's XP, and a Necromancer raises them without end, so the
+  // survival minimum would be a trickle that never stops (docs/specs/phase3.md 3I).
   const survivalXp =
-    survivedAttack && unit.currentHP > 0 && rewardMultiplier > 0 ? XP_DEFEND_SURVIVE : 0;
+    survivedAttack && unit.currentHP > 0 && rewardMultiplier > 0 && !isRaisedUnit(opponent)
+      ? XP_DEFEND_SURVIVE
+      : 0;
   let baseXp = calculateCombatXP(unit, opponent, opponentDied);
   let damageRatio = 1;
   if (!opponentDied && Number.isFinite(damageDealt) && Number.isFinite(opponentHpAtStart)) {

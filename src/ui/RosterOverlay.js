@@ -60,6 +60,7 @@ import {
   TOOLTIP_LONG_PRESS_MOVE_THRESHOLD,
 } from '../utils/tooltipTiming.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
+import { lentSkillLine } from '../engine/AccessorySkillNames.js';
 import { STAT_DESCRIPTIONS } from '../data/helpContent.js';
 import {
   hasWeaponArt,
@@ -80,7 +81,7 @@ import { LEVEL_UP_CUE_WAIT_MS, playCue } from './ceremonyMusic.js';
 import { healUnit } from '../engine/UnitHealth.js';
 import { drawCanvasXpRow } from './xpBar.js';
 import { isWorn, wearCount, wearLine, wearStatDelta } from '../engine/WeaponWear.js';
-import { stripItemNameSuffix } from '../utils/itemNames.js';
+import { itemDisplayName, stripItemNameSuffix } from '../utils/itemNames.js';
 
 const WEAPON_ART_RANK_ORDER = { Prof: 0, Mast: 1 };
 const WEAPON_ART_MAX_SLOTS = 3;
@@ -1513,7 +1514,13 @@ export class RosterOverlay {
     y += 14;
     if (unit.accessory) {
       const acc = unit.accessory;
-      this._text(x + 8, y, acc.name, UI_PALETTE.rarityEpic, '9px');
+      this._text(
+        x + 8,
+        y,
+        itemDisplayName(acc, this.gameData?.skills),
+        UI_PALETTE.rarityEpic,
+        '9px',
+      );
       this._actionBtn(x + 280, y, '[Unequip]', () => {
         const old = unequipAccessory(unit);
         if (old) {
@@ -1532,6 +1539,19 @@ export class RosterOverlay {
         this._actionBtn(x + 280, y, '[Equip]', () => this._showAccessoryPicker(unit));
       }
       y += 14;
+    }
+
+    // An accessory's skill is lent, not learned: its own line, outside the equipped count below.
+    const lent = lentSkillLine(unit, this.gameData?.skills);
+    if (lent) {
+      this._text(
+        x + 8,
+        y,
+        lent.known ? `${lent.name}: ${lent.label}` : `${lent.label}: ${lent.name}`,
+        UI_PALETTE.rarityEpic,
+        '9px',
+      );
+      y += 13;
     }
 
     // Skills
@@ -2365,8 +2385,9 @@ export class RosterOverlay {
 
       pageItems.forEach((acc, i) => {
         const y = topY + titleH + i * itemH + pad;
-        const detail = formatAccessoryDetail(acc);
-        const label = detail ? `${acc.name} - ${detail}` : acc.name;
+        const detail = formatAccessoryDetail(acc, { skills: this.gameData?.skills });
+        const shownName = itemDisplayName(acc, this.gameData?.skills);
+        const label = detail ? `${shownName} - ${detail}` : shownName;
         const btn = applyTextResolution(
           this.scene.add.text(cx, y, label, {
             fontFamily: 'Arial',
@@ -2405,7 +2426,10 @@ export class RosterOverlay {
           const audio = this.scene.registry.get('audio');
           if (audio) audio.playSFX('sfx_confirm');
           this._destroyTrade();
-          this._showBanner(`${unit.name} equipped ${selected.name}!`, UI_PALETTE.rarityEpic);
+          this._showBanner(
+            `${unit.name} equipped ${itemDisplayName(selected, this.gameData?.skills)}!`,
+            UI_PALETTE.rarityEpic,
+          );
           this.refresh();
         });
         this.tradeObjects.push(btn);

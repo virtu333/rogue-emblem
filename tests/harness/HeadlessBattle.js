@@ -102,6 +102,8 @@ import {
 } from '../../src/engine/StatusConditionSystem.js';
 import { applyEnemySpawnGear, applySpawnLoadout } from '../../src/engine/EnemySpawnGear.js';
 import { applyHoldSpawn } from '../../src/engine/HoldActivation.js';
+import { registerBattleEntity } from '../../src/engine/BattleEntityIdentity.js';
+import { crumbleFor, isNecromancer, raiseFor, raisers } from '../../src/engine/Necromancy.js';
 import { createPlayerKnowledge } from '../../src/engine/PlayerKnowledge.js';
 import {
   spendAreaStrikeShot,
@@ -168,7 +170,13 @@ import {
   applyBattleStartDebuffs,
   clearBattleScopedDeltas,
 } from '../../src/engine/BattleStatDeltas.js';
-import { AREA_XP_LIVE, actionXpAwards, applyXpGain, scaledXp } from '../../src/engine/BattleXp.js';
+import {
+  AREA_XP_LIVE,
+  actionXpAwards,
+  applyXpGain,
+  combatHpLost,
+  scaledXp,
+} from '../../src/engine/BattleXp.js';
 import { selectEnemyWeaponArt } from '../../src/engine/EnemyArtScoring.js';
 import { bindEnemyAreaArt } from '../../src/engine/EnemyAreaArts.js';
 import { settleArtilleryStances } from '../../src/engine/SiegeArtillery.js';
@@ -1602,6 +1610,8 @@ export class HeadlessBattle {
 
   _applyKillRewards(defeatedUnit, killer = null) {
     if (defeatedUnit?.faction !== 'enemy') return;
+    // As BattleScene._applyKillRewards: a unit that pays nothing (a risen Zombie) pays no gold.
+    if (defeatedUnit._noXP) return;
     this.goldEarned += calculateKillReward(defeatedUnit, killer, {
       rewardMultiplier: this._getEnemyRewardMultiplier(defeatedUnit),
       pressureGoldMultiplier: this.getTurnPressureState?.()?.goldMultiplier,
@@ -1847,10 +1857,7 @@ export class HeadlessBattle {
     this._checkAreaVictimBrooches(result);
 
     if (attacker.faction === 'player' && attacker.currentHP > 0) {
-      const damageDealt = Math.max(
-        0,
-        defenderHpAtStart - Math.max(0, Math.trunc(Number(result.defenderHP) || 0)),
-      );
+      const damageDealt = combatHpLost(result, 'defender', defenderHpAtStart);
       this._awardCombatXP(
         attacker,
         defender,
@@ -2150,6 +2157,9 @@ export class HeadlessBattle {
         const seen = this.grid?.isVisible ? this.grid.isVisible(tile.col, tile.row) : true;
         this._zombieTombstones = [...this._zombieTombstones, createRemains(unit, tile, { seen })];
       }
+      // As BattleScene.removeUnit: a Necromancer's Skeletons crumble with it (no killer:
+      // no gold, no XP), before any battle-end check reads the roster.
+      if (isNecromancer(unit)) crumbleFor(unit, this.enemyUnits);
     }
   }
 
@@ -2179,6 +2189,34 @@ export class HeadlessBattle {
       this.enemyUnits.push(buildRisenUnit(record, tile));
     }
     if (rising.length > 0) this._checkBattleEnd();
+  }
+
+  /**
+   * Mirrors NecromancyController.processRaises (no banner, no graphics): each living
+   * Necromancer with fewer than two living Skeletons raises one onto its first free
+   * passable neighbour, from the keyed stream (never Math.random).
+   */
+  _processNecromancy() {
+    const turn = this.turnManager?.turnNumber ?? 1;
+    // The harness never hands out battle entity ids; a Necromancer needs one to own its raises.
+    for (const unit of this.enemyUnits) if (isNecromancer(unit)) registerBattleEntity(this, unit);
+    for (const necromancer of raisers(this.enemyUnits)) {
+      const raised = raiseFor(necromancer, {
+        enemyUnits: this.enemyUnits,
+        cols: this.battleConfig.cols,
+        rows: this.battleConfig.rows,
+        isOccupied: (c, r) => Boolean(this.getUnitAt(c, r)),
+        moveCostAt: (c, r, moveType) => this.grid.getTerrainAt(c, r)?.moveCost?.[moveType],
+        classes: this.gameData.classes,
+        weapons: this.gameData.weapons,
+        seed: this._getReinforcementSeed(),
+        turn,
+        difficultyConfig: this._getEnemyDifficultyConfig(),
+      });
+      if (!raised) continue;
+      registerBattleEntity(this, raised.unit);
+      this.enemyUnits.push(raised.unit);
+    }
   }
 
   /** Faction-aware ally pool for Divine Charge heals (enemy→enemy, player→player, npc→player+npc) */
@@ -2231,6 +2269,7 @@ export class HeadlessBattle {
       this._stepCaravan();
       this._processTurnStartEffects(this.enemyUnits);
       this._processZombieRevival();
+      this._processNecromancy();
       if (this.battleState === HEADLESS_STATES.BATTLE_END) return;
       this._applyDueHybridOverridesForTurn(this.turnManager?.turnNumber || 0);
       this.currentEnemyPhaseAiStats = this._createEnemyPhaseAiStats();
@@ -2391,10 +2430,7 @@ export class HeadlessBattle {
     // Award XP to a player defender that lived: at least the survival minimum, even
     // with no counter or no damage dealt (BattleScene.executeEnemyCombat).
     if (defender.faction === 'player' && defender.currentHP > 0) {
-      const counterDamage = Math.max(
-        0,
-        attackerHpAtStart - Math.max(0, Math.trunc(Number(result.attackerHP) || 0)),
-      );
+      const counterDamage = combatHpLost(result, 'attacker', attackerHpAtStart);
       this._awardCombatXP(
         defender,
         attacker,

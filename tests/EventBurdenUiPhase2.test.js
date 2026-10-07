@@ -46,7 +46,7 @@ describe('the chips and the pause list', () => {
     expect(chips.map((c) => c.textContent)).toEqual([
       'Hunted2 left',
       'Sworn EnemyBoss',
-      'WoundedHale −2 SKL',
+      'Lingering InjuryHale −2 SKL',
     ]);
     expect(dom).toBeTruthy();
   });
@@ -57,7 +57,7 @@ describe('the chips and the pause list', () => {
     expect(items.map((i) => i.querySelector('strong').textContent)).toEqual([
       'Hunted · 2 left',
       'Sworn Enemy · Boss',
-      'Wounded · Hale −2 SKL',
+      'Lingering Injury · Hale −2 SKL',
     ]);
     expect(items[0].querySelector('span').textContent).toContain(
       '2 battles left: an extra wave of 1–2 foes on turn 3, boss maps spared.',

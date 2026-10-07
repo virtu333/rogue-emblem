@@ -1,4 +1,5 @@
 import { affixSummaryText } from '../engine/AffixForecast.js';
+import { REVIVAL_STONE_DESCRIPTION, revivalStonesLine } from '../engine/RevivalStones.js';
 import { skipsClassProgression } from '../engine/SpecialCharacterPolicy.js';
 import { canInspectUnit } from '../engine/BattleInformation.js';
 import { formatPerkMods } from './rosterDisplay.js';
@@ -52,7 +53,8 @@ import { epithetText } from '../engine/DeedTitles.js';
 import { fitCanvasText } from './deedDisplay.js';
 import { drawCanvasXpRow } from './xpBar.js';
 import { isWorn, wearCount, wearLine, wearStatDelta } from '../engine/WeaponWear.js';
-import { stripItemNameSuffix, weaponCatalogNames } from '../utils/itemNames.js';
+import { itemDisplayName, stripItemNameSuffix, weaponCatalogNames } from '../utils/itemNames.js';
+import { lentSkillLine } from '../engine/AccessorySkillNames.js';
 
 const OVERLAY_W = 400;
 const OVERLAY_H = 370;
@@ -362,6 +364,15 @@ export class UnitDetailOverlay {
         this._wireTooltipTarget(text, () =>
           this._showSkillTooltip(text, `${affix.name}: ${affix.description}`),
         );
+      y += 14;
+    }
+    const stonesLine = revivalStonesLine(unit);
+    if (stonesLine) {
+      const text = this._unitText(lx, y, stonesLine, UI_PALETTE.info, '9px');
+      fitCanvasText(text, OVERLAY_W - 24);
+      this._wireTooltipTarget(text, () =>
+        this._showSkillTooltip(text, `Revival Stones: ${REVIVAL_STONE_DESCRIPTION}`),
+      );
       y += 14;
     }
 
@@ -847,7 +858,13 @@ export class UnitDetailOverlay {
         .filter(([, v]) => v)
         .map(([k, v]) => `${k}+${v}`)
         .join(' ');
-      this._tabText(lx, y, `Acc: ${unit.accessory.name}`, UI_PALETTE.rarityEpic, '9px');
+      this._tabText(
+        lx,
+        y,
+        `Acc: ${itemDisplayName(unit.accessory, this.gameData?.skills)}`,
+        UI_PALETTE.rarityEpic,
+        '9px',
+      );
       if (fx) {
         this._tabText(lx + 180, y, fx, UI_PALETTE.rarityEpic, '9px');
       }
@@ -891,6 +908,28 @@ export class UnitDetailOverlay {
         }
         y += 12;
       }
+    }
+
+    // A skill lent by the accessory: its own line, never counted in the equipped list above.
+    const lent = lentSkillLine(unit, this.gameData?.skills);
+    if (lent) {
+      if (!(unit.skills && unit.skills.length > 0)) {
+        this._tabSep(lx, y);
+        y += 12;
+      }
+      const lentText = this._tabText(
+        lx,
+        y,
+        lent.known ? `${lent.name}: ${lent.label}` : `${lent.label}: ${lent.name}`,
+        UI_PALETTE.rarityEpic,
+        '9px',
+      );
+      if (lent.text) {
+        lentText.setInteractive({ useHandCursor: true });
+        lentText.on('pointerover', () => this._showSkillTooltip(lentText, lent.text));
+        lentText.on('pointerout', () => this._hideSkillTooltip());
+      }
+      y += 12;
     }
 
     this._tabSep(lx, y);

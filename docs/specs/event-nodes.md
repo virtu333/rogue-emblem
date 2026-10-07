@@ -521,7 +521,7 @@ The build plan is `docs/specs/event-nodes-phase2.md`; art for the wave is
 - **Roster tells**: a unit with the right class, trait or skill speaks up and reveals one
   hidden outcome ("Tamsin: That's a tripwire.").
 - Burdens: Hunted (an extra wave in the next 2 battles), Sworn Enemy (the act boss gains an
-  affix), Wounded (a unit's stat malus for N battles); **Cleanse** at a church as a third
+  affix), Wounded (a unit's stat malus for N battles; shown to the player as Lingering Injury, id `wounded`); **Cleanse** at a church as a third
   vow (competes with Promotion and Blessing).
 - Dark Omen variants for fallen events; Black Sun lying strangers.
 
