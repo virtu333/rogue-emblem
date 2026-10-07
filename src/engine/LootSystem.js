@@ -25,6 +25,7 @@ import { ensureItemUid } from '../utils/itemUid.js';
 import { getWeaponArtAllowedTypes } from './WeaponArtSystem.js';
 import { getImbueStoneItems } from './ImbueSystem.js';
 import { isSignatureWeapon } from './SignatureWeapons.js';
+import { BOND_RING_NAME, bondRingActKey, isBondRing, rollBondRing } from './BondRings.js';
 
 const META_INNATE_TIERS = new Set(['Iron', 'Steel', 'Silver']);
 // Tiers an act tunes in lootTables.json `artTiers` (base art chance, scroll slots).
@@ -927,6 +928,19 @@ function applyFinalBossWeaponBonus(rollsForCategory, category, actId, randomLege
   return [...basePool, randomLegendary.name];
 }
 
+/**
+ * A fresh Bond Ring for an act, rolled on Math.random (the stream that is creating it, as
+ * generateRandomLegendary rolls a legendary's skill), with its uid. Null when the loot data
+ * carries no ring tables.
+ */
+function rollRingInstance(actId, lootTables, allAccessories) {
+  const ring = rollBondRing(actId, () => Math.random(), {
+    lootTables,
+    accessories: allAccessories,
+  });
+  return ring ? ensureItemUid(ring) : null;
+}
+
 /** The shop entry type an item is listed under (weapon | consumable | accessory | scroll). */
 export function shopEntryTypeForItem(item) {
   if (!item) return 'weapon';
@@ -1071,6 +1085,8 @@ export function generateLootChoices(
       item = ensureItemUid(structuredClone(randomLegendary));
     } else {
       item = findItem(name, allWeapons, consumables, allAccessories, whetstoneLookup);
+      // A Bond Ring is a family: this one rolls its rarity and bound skill now, on this stream.
+      if (isBondRing(item)) item = rollRingInstance(actId, lootTables, allAccessories);
     }
     if (!item) continue;
     applyMetaInnateArtToItem(item, metaInnateArtConfig);
@@ -1160,7 +1176,11 @@ export function generateShopInventory(
     }),
   ];
   const filteredLegendaryWeapons = filteredForRoster('legendaryWeapon', pools.legendaryWeapon);
-  const filteredAccessories = normalizeLootArray(pools.accessory);
+  // A shop stocks a Bond Ring (at most one: names are used once) from Act II on.
+  const ringsInStock = bondRingActKey(actId) !== 'act1';
+  const filteredAccessories = normalizeLootArray(pools.accessory).filter(
+    (name) => ringsInStock || name !== BOND_RING_NAME,
+  );
   const filteredForge = normalizeLootArray(pools.forge);
 
   const addByName = (name, forcedType = null) => {
@@ -1273,7 +1293,8 @@ export function generateShopInventory(
     const name = freshPool[Math.floor(Math.random() * freshPool.length)];
     if (usedNames.has(name)) continue;
 
-    const item = findItem(name, allWeapons, consumables, allAccessories);
+    let item = findItem(name, allWeapons, consumables, allAccessories);
+    if (isBondRing(item)) item = rollRingInstance(actId, lootTables, allAccessories);
     if (!item || item.price <= 0) continue;
 
     usedNames.add(name);
