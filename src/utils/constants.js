@@ -370,6 +370,9 @@ export const DIFFICULTY_GATED_CLASSES = new Set([
   'Skeleton',
 ]);
 export const ZOMBIE_CLASSES = new Set(['Zombie', 'Revenant']);
+// A Necromancer raises at most this many Skeletons in a battle, in all (engine/Necromancy.js):
+// a repeatable summon must not be an unlimited reward source (Phase 3I owner review).
+export const NECROMANCER_RAISE_CAP = 6;
 // Classes that count as "dark" for Endword / Divine Flare effectiveness
 export const DARK_CLASSES = new Set([
   'Dark Knight',

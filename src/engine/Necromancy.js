@@ -9,6 +9,8 @@
 //     of its own raises one: onto the first free passable neighbour in `riseTile`'s order
 //     (left, right, up, down), or not at all when none is free. The Necromancer's own turn
 //     is not spent. The Skeleton has not acted, so it acts in that same phase.
+//     A Necromancer raises at most MAX_RAISES_PER_NECROMANCER (6) in a battle in all, however
+//     many stand: `_raisedCount` on the Necromancer counts them.
 //   - THE SKELETON. A base-class Skeleton at the Necromancer's level less 4 (never below 1;
 //     the level the unit shows, so a promoted Necromancer's Skeleton is level 1 to 3). Its
 //     weapon (an Iron sword, lance or bow), growths and level-ups come from its own keyed
@@ -27,6 +29,7 @@
 // untouched). Reinforcement templates never copy a Necromancer or a Skeleton
 // (`isNecromancyClass`).
 
+import { NECROMANCER_RAISE_CAP } from '../utils/constants.js';
 import { keyedBattleRandom } from './BattleRng.js';
 import { riseTile } from './ZombieRemains.js';
 import {
@@ -40,6 +43,8 @@ export const SKELETON_CLASS = 'Skeleton';
 
 /** A Necromancer keeps this many living Skeletons; below it, the next phase raises one. */
 export const MAX_SKELETONS_PER_NECROMANCER = 2;
+/** In all, a Necromancer raises this many in a battle (constants.js; then it raises no more). */
+export const MAX_RAISES_PER_NECROMANCER = NECROMANCER_RAISE_CAP;
 /** A Skeleton's level is its Necromancer's less this (never below 1). */
 export const SKELETON_LEVEL_OFFSET = 4;
 /** A raised unit pays this share of the XP its level would (gold: none). */
@@ -69,6 +74,11 @@ export function isRaisedUnit(unit) {
   return typeof unit?._raisedBy === 'string' && unit._raisedBy.length > 0;
 }
 
+/** How many Skeletons `necromancer` has raised so far this battle (saved on the unit). */
+export function raisedCountOf(necromancer) {
+  return Math.max(0, Math.trunc(Number(necromancer?._raisedCount) || 0));
+}
+
 const alive = (unit) => Boolean(unit) && unit.currentHP > 0 && !unit._removing;
 
 /** The living Skeletons `necromancer` raised (in `enemyUnits` order). */
@@ -81,8 +91,9 @@ export function skeletonsOf(necromancer, enemyUnits) {
 }
 
 /**
- * The Necromancers that raise this phase, in `enemyUnits` order: living, and fielding
- * fewer than MAX_SKELETONS_PER_NECROMANCER living Skeletons of their own. Decided from the
+ * The Necromancers that raise this phase, in `enemyUnits` order: living, under their
+ * lifetime cap, and fielding fewer than MAX_SKELETONS_PER_NECROMANCER living Skeletons of
+ * their own. Decided from the
  * board as it stands, so each Necromancer's count ignores the others' raises.
  */
 export function raisers(enemyUnits) {
@@ -91,6 +102,7 @@ export function raisers(enemyUnits) {
       isNecromancer(unit) &&
       alive(unit) &&
       typeof unit.battleEntityId === 'string' &&
+      raisedCountOf(unit) < MAX_RAISES_PER_NECROMANCER &&
       skeletonsOf(unit, enemyUnits).length < MAX_SKELETONS_PER_NECROMANCER,
   );
 }
@@ -200,7 +212,8 @@ export function buildRaisedSkeleton(necromancer, tile, world) {
 
 /**
  * Raise `necromancer`'s next Skeleton: its tile and the unit, or null (no free passable
- * neighbour, or the data lacks the class). The caller places the unit on its roster.
+ * neighbour, or the data lacks the class). The caller places the unit on its roster; a
+ * successful raise counts toward the Necromancer's lifetime cap (`_raisedCount`).
  * @param {object} necromancer
  * @param {{ enemyUnits: object[], cols: number, rows: number,
  *   isOccupied: (col: number, row: number) => boolean,
@@ -214,7 +227,11 @@ export function raiseFor(necromancer, world) {
   if (!tile) return null;
   const ordinal = skeletonsOf(necromancer, world.enemyUnits).length;
   const unit = buildRaisedSkeleton(necromancer, tile, { ...world, ordinal });
-  return unit ? { unit, tile } : null;
+  if (!unit) return null;
+  // The lifetime count rides the Necromancer (serializeBattleUnit keeps it, so a suspend
+  // restores it and a rewind takes it back with the Skeleton).
+  necromancer._raisedCount = raisedCountOf(necromancer) + 1;
+  return { unit, tile };
 }
 
 /**

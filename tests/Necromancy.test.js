@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { loadGameData } from './testData.js';
 import { installSeed, restoreMathRandom } from '../sim/lib/SeededRNG.js';
 import {
+  NECROMANCER_RAISE_CAP,
   DARK_CLASSES,
   DIFFICULTY_GATED_CLASSES,
   filterClassPoolByDifficulty,
@@ -43,6 +44,7 @@ import {
   isNecromancyClass,
   isRaisedUnit,
   mapExtraNecromancer,
+  raisedCountOf,
   raisers,
   skeletonLevelFor,
 } from '../src/engine/Necromancy.js';
@@ -500,6 +502,10 @@ describe('the engine rules without a board', () => {
     expect(skeletonLevelFor(necro({ level: 20 }))).toBe(16);
   });
 
+  it('the lifetime cap is six, from constants.js', () => {
+    expect(NECROMANCER_RAISE_CAP).toBe(6);
+  });
+
   it('raisers: living Necromancers below two living Skeletons, in roster order', () => {
     const a = necro({ battleEntityId: 'u1' });
     const b = necro({ battleEntityId: 'u2', col: 8 });
@@ -517,6 +523,12 @@ describe('the engine rules without a board', () => {
     expect(raisers([a, sk('u1'), sk('u1', { currentHP: 0 })])).toEqual([a]);
     expect(raisers([a, sk('u2'), sk('u2')])).toEqual([a]);
     expect(raisers([necro({ currentHP: 0 }), necro({ _removing: true })])).toEqual([]);
+    // The lifetime cap: six raised in all and it raises no more, however few stand.
+    expect(raisedCountOf(necro())).toBe(0);
+    expect(raisers([necro({ _raisedCount: 5 })])).toHaveLength(1);
+    expect(raisers([necro({ _raisedCount: 6 })])).toEqual([]);
+    expect(raisers([necro({ _raisedCount: 9 })])).toEqual([]);
+    expect(raisers([necro({ _raisedCount: 6 }), b])).toEqual([b]);
     // No id, no raise: nothing could link its Skeleton to it.
     expect(raisers([necro({ battleEntityId: undefined })])).toEqual([]);
   });

@@ -24,6 +24,9 @@
 //   4. the whole 40-turn window of one Skeleton kill a turn, the very worst case, pays a
 //      unit less than half of what clearing the battle without the Necromancer pays it:
 //      fought to the last turn, a Necromancer battle never out-pays the one without.
+// (A Necromancer raises at most six Skeletons in a battle in all, so the window is far shorter
+// than this worst case: HeadlessBattleNecromancy.test.js bounds the whole battle at six
+// quarter-kills.)
 // Ways this breaks: the quarter is dropped, the survival minimum applies to a raised unit, a
 // raise pays gold or a whole share, the late-pressure table stops reaching the Skeleton.
 import { afterEach, describe, expect, it } from 'vitest';

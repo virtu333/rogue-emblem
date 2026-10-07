@@ -247,6 +247,100 @@ describe('HeadlessBattle: raising', () => {
   });
 });
 
+describe('HeadlessBattle: the lifetime cap', () => {
+  it('raises six in all and never a seventh, however many it fields', () => {
+    const { b, edric } = emptyRout();
+    const spot = openSpot(b, edric);
+    const necro = necromancerAt(b, spot.col, spot.row);
+    let raised = 0;
+    for (let phase = 1; phase <= 20; phase++) {
+      b.turnManager.turnNumber = phase;
+      const before = b.enemyUnits.length;
+      b._processNecromancy();
+      raised += b.enemyUnits.length - before;
+      // Every Skeleton falls at once: a Necromancer with none standing always wants one.
+      for (const sk of skeletonsOf(necro, b.enemyUnits)) b._removeUnit(sk, { killer: edric });
+    }
+    expect(raised).toBe(6);
+    expect(necro._raisedCount).toBe(6);
+    expect(skeletonsOf(necro, b.enemyUnits)).toEqual([]);
+    b._processNecromancy();
+    expect(skeletonsOf(necro, b.enemyUnits)).toEqual([]);
+  });
+
+  it('the cap counts raises, not Skeletons standing: it stops at six with two on the field', () => {
+    const { b, edric } = emptyRout();
+    const spot = openSpot(b, edric);
+    const necro = necromancerAt(b, spot.col, spot.row);
+    necro._raisedCount = 5;
+    b._processNecromancy();
+    expect(skeletonsOf(necro, b.enemyUnits)).toHaveLength(1);
+    b._processNecromancy(); // would be the seventh in a battle's life: it is the sixth, stops
+    expect(skeletonsOf(necro, b.enemyUnits)).toHaveLength(1);
+    expect(necro._raisedCount).toBe(6);
+  });
+
+  it('each Necromancer has its own count', () => {
+    const { b, edric } = emptyRout();
+    const spot = openSpot(b, edric);
+    const a = necromancerAt(b, spot.col, spot.row);
+    a._raisedCount = 6;
+    const other = { col: spot.col, row: spot.row };
+    let second = null;
+    for (let row = 1; row < b.battleConfig.rows - 1 && !second; row++)
+      for (let col = 1; col < b.battleConfig.cols - 1 && !second; col++) {
+        const around = LEFT_RIGHT_UP_DOWN.map(([dc, dr]) => [col + dc, row + dr]);
+        if (
+          Math.abs(col - other.col) + Math.abs(row - other.row) >= 6 &&
+          Math.abs(col - edric.col) + Math.abs(row - edric.row) >= 3 &&
+          passable(b, col, row) &&
+          !b.getUnitAt(col, row) &&
+          around.every(([c, r]) => passable(b, c, r) && !b.getUnitAt(c, r))
+        )
+          second = { col, row };
+      }
+    const c = necromancerAt(b, second.col, second.row);
+    b._processNecromancy();
+    expect(skeletonsOf(a, b.enemyUnits)).toEqual([]);
+    expect(skeletonsOf(c, b.enemyUnits)).toHaveLength(1);
+  });
+
+  it('total Skeleton XP over a battle fought to the last turn is at most six quarter-kills', () => {
+    const { b, edric } = emptyRout();
+    const spot = openSpot(b, edric);
+    const necro = necromancerAt(b, spot.col, spot.row);
+    necro.level = 5; // Skeletons of level 1
+    // A level 1 recruit takes every kill: raw 40 XP, a quarter is 10, the most one can pay.
+    b.battleParams.xpMultiplier = 1;
+    b.turnPar = null;
+    Object.assign(edric, { level: 1, tier: 'base', xp: 0 });
+    const perKill = Math.floor(calculateCombatXP(edric, { ...skeletonProbe(), level: 1 }, true) * 0.25); // prettier-ignore
+    expect(perKill).toBe(10);
+    let total = 0;
+    for (let turn = 1; turn <= 40; turn++) {
+      b.turnManager.turnNumber = turn;
+      b._processNecromancy();
+      for (const sk of skeletonsOf(necro, b.enemyUnits)) {
+        const xp0 = edric.xp + (edric.level - 1) * 100;
+        b._awardCombatXP(edric, sk, true, null, null);
+        total += edric.xp + (edric.level - 1) * 100 - xp0;
+        b._removeUnit(sk, { killer: edric });
+      }
+    }
+    expect(necro._raisedCount).toBe(6);
+    expect(total).toBeGreaterThan(0);
+    expect(total).toBeLessThanOrEqual(6 * perKill);
+  });
+});
+
+/** A raised Skeleton's shape, for XP arithmetic. */
+const skeletonProbe = () => ({
+  className: 'Skeleton',
+  faction: 'enemy',
+  tier: 'base',
+  _raisedBy: 'u1',
+});
+
 describe('HeadlessBattle: crumbling', () => {
   function twoNecromancers() {
     const { b, edric } = emptyRout();

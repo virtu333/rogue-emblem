@@ -437,6 +437,9 @@ describe('saves and rewind', () => {
     expect(rn.battleEntityId).toBe(necro.battleEntityId);
     expect(rs).toMatchObject({ className: 'Skeleton', _raisedBy: rn.battleEntityId });
     expect(skeletonsOf(rn, restored.enemyUnits)).toEqual([rs]);
+    // The lifetime count rides the Necromancer through the save.
+    expect(necro._raisedCount).toBe(1);
+    expect(rn._raisedCount).toBe(1);
     // The restored Skeleton's weapon is the one in its inventory (identity survives JSON).
     expect(rs.weapon).toBe(rs.inventory[0]);
     expect(serializeBattleUnit(rs)).toEqual(serializeBattleUnit(sk));
@@ -444,6 +447,30 @@ describe('saves and rewind', () => {
     await raiseOn(restored);
     await raiseOn(restored);
     expect(skeletonsOf(rn, restored.enemyUnits)).toHaveLength(2);
+  });
+
+  it('a suspend keeps a spent cap: a Necromancer that raised six raises no more after the resume', async () => {
+    const spent = necromancer(4, 4, { id: 'u2' });
+    spent._raisedCount = 6;
+    const scene = saveScene([spent]);
+    const state = roundTrip(scene);
+    const restored = saveScene();
+    restored.playerUnits = [];
+    new BattleSuspendController(restored).applyUnits(state);
+    expect(restored.enemyUnits[0]._raisedCount).toBe(6);
+    await raiseOn(restored);
+    expect(restored.enemyUnits).toHaveLength(1);
+    // One short of it: exactly one more raise, then none.
+    const nearly = necromancer(4, 4, { id: 'u2' });
+    nearly._raisedCount = 5;
+    const again = saveScene();
+    again.playerUnits = [];
+    new BattleSuspendController(again).applyUnits(roundTrip(saveScene([nearly])));
+    await raiseOn(again);
+    expect(again.enemyUnits).toHaveLength(2);
+    expect(again.enemyUnits[0]._raisedCount).toBe(6);
+    await raiseOn(again);
+    expect(again.enemyUnits).toHaveLength(2);
   });
 
   it('a resume before the raise replays it identically', async () => {
@@ -483,10 +510,12 @@ describe('saves and rewind', () => {
       ballistas: [],
       commitVisionSnapshotIfPending: BattleScene.prototype.commitVisionSnapshotIfPending,
     });
+    necro._raisedCount = 3; // three raised earlier in the battle, before the snapshot
     const vision = new VisionRewindController(scene, null);
     scene._visionController = vision;
     vision.captureSnapshot();
     await scene.processNecromancy();
+    expect(necro._raisedCount).toBe(4);
     const [first] = skeletonsOf(necro, scene.enemyUnits);
     expect(first).toBeTruthy();
     const firstData = serializeBattleUnit(first);
@@ -496,7 +525,10 @@ describe('saves and rewind', () => {
     const [restoredNecro] = scene.enemyUnits;
     expect(restoredNecro.battleEntityId).toBe(necro.battleEntityId);
     expect(skeletonsOf(restoredNecro, scene.enemyUnits)).toEqual([]);
+    // The count went back with the Skeleton: the rewound raise is not spent.
+    expect(restoredNecro._raisedCount).toBe(3);
     await scene.processNecromancy();
+    expect(restoredNecro._raisedCount).toBe(4);
     const [again] = skeletonsOf(restoredNecro, scene.enemyUnits);
     expect(serializeBattleUnit(again)).toEqual(firstData);
   });
