@@ -345,7 +345,10 @@ describe('what a raised unit pays through the scene', () => {
   it('a killing blow on a Skeleton awards a quarter of the XP; none of it is a deed record', async () => {
     const { scene, player, sk } = await raised();
     scene.awardScaledXP = vi.fn(async () => {});
+    // A level 1 recruit meets a level 1 Skeleton: 25 + 15 raw, a number the quarter shows in.
+    Object.assign(player, { level: 1, tier: 'base' });
     const base = calculateCombatXP(player, sk, true);
+    expect(base).toBe(40);
     await BattleScene.prototype.awardXP.call(scene, player, sk, true);
     expect(scene.awardScaledXP).toHaveBeenCalledWith(player, Math.floor(base * 0.25));
   });

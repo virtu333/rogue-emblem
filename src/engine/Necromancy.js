@@ -10,9 +10,9 @@
 //     (left, right, up, down), or not at all when none is free. The Necromancer's own turn
 //     is not spent. The Skeleton has not acted, so it acts in that same phase.
 //   - THE SKELETON. A base-class Skeleton at the Necromancer's level less 4 (never below 1;
-//     "level" is the XP-effective level every other level comparison in the game reads, so
-//     a promoted Necromancer's Skeleton keeps pace with its act). Its weapon (an Iron
-//     sword, lance or bow), growths and level-ups come from its own keyed stream,
+//     the level the unit shows, so a promoted Necromancer's Skeleton is level 1 to 3). Its
+//     weapon (an Iron sword, lance or bow), growths and level-ups come from its own keyed
+//     stream,
 //     `keyedBattleRandom(battleSeed, 'raise:<necromancer id>:<turn>:<n>')`, never the
 //     battle's `Math.random`: a raise leaves the battle stream where it was, and a resume
 //     or rewind that replays the phase raises the same Skeleton. `_raisedBy` links it to
@@ -32,7 +32,6 @@ import { riseTile } from './ZombieRemains.js';
 import {
   applyEnemyDifficultyModifiers,
   createUnit,
-  getXpEffectiveLevel,
   parseWeaponProficiencies,
 } from './UnitManager.js';
 
@@ -117,9 +116,14 @@ export function mapExtraNecromancer(className, spawns, pool) {
   return (pool?.base || []).find((name) => name !== NECROMANCER_CLASS) ?? className;
 }
 
-/** The Skeleton's level for this Necromancer. */
+/**
+ * The Skeleton's level for this Necromancer: its `level` less SKELETON_LEVEL_OFFSET, never
+ * below 1. `level` is the number the unit shows (a promoted class counts from 1 again), so a
+ * Necromancer's Skeleton is chaff of level 1 to 3: it blocks and chips, and the XP it pays
+ * stays near the floor (docs/specs/phase3.md 3I; tests/sim/NecromancerXp.test.js).
+ */
 export function skeletonLevelFor(necromancer) {
-  return Math.max(1, getXpEffectiveLevel(necromancer) - SKELETON_LEVEL_OFFSET);
+  return Math.max(1, Math.trunc(Number(necromancer?.level) || 1) - SKELETON_LEVEL_OFFSET);
 }
 
 /** The keyed-stream key of the raise `ordinal` (how many it already fields) on `turn`. */

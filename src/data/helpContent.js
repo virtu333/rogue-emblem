@@ -538,6 +538,22 @@ const STATIC_HELP_TABS = [
         ],
       },
       {
+        title: 'Necromancers',
+        tags: ['necromancer', 'skeleton', 'raise', 'undead', 'bones', 'crumble'],
+        lines: [
+          { text: 'A Necromancer raises Skeletons:', color: GOLD },
+          { text: '  each enemy phase it has fewer than' },
+          { text: '  two, one rises beside it and acts.' },
+          { text: '' },
+          { text: 'A Skeleton pays no gold, a quarter of', color: CYAN },
+          { text: 'the EXP and counts for no kill deed.', color: CYAN },
+          { text: '' },
+          { text: 'Fell the Necromancer and its own', color: GOLD },
+          { text: 'Skeletons crumble (no gold, no EXP).', color: GOLD },
+          { text: 'It holds near its post: dive for it.', color: GRAY },
+        ],
+      },
+      {
         title: 'The Eclipse',
         lines: [
           { text: 'Battle time darkens the Hollow Sun.', color: GOLD },

@@ -13,7 +13,6 @@ import {
   createPromotedEnemyUnit,
   createUnit,
   calculateCombatXP,
-  getXpEffectiveLevel,
 } from '../../src/engine/UnitManager.js';
 import { calculateKillReward } from '../../src/engine/LootSystem.js';
 import { recordKill, beginBattleDeeds } from '../../src/engine/DeedSystem.js';
@@ -199,6 +198,7 @@ describe('HeadlessBattle: raising', () => {
     const { b, edric } = emptyRout();
     const spot = openSpot(b, edric);
     const necro = necromancerAt(b, spot.col, spot.row, 16);
+    necro.level = 9; // a promoted unit's own level counts from 1: a 9 is a veteran
     b._processNecromancy();
     const [sk] = skeletonsOf(necro, b.enemyUnits);
     expect(sk).toMatchObject({
@@ -211,16 +211,21 @@ describe('HeadlessBattle: raising', () => {
       isBoss: false,
       consumables: [],
       accessory: null,
+      level: 5,
     });
-    expect(sk.level).toBe(getXpEffectiveLevel(necro) - 4);
     expect(sk.inventory).toEqual([sk.weapon]); // one Iron weapon and nothing else
     expect(sk.weapon.tier).toBe('Iron');
     expect(sk.currentHP).toBe(sk.stats.HP);
     expect(sk.battleEntityId).toMatch(/^u\d+$/);
-    // Level 1 floor: a freshly promoted Necromancer (promoted level 1 = effective 13) -4 = 9;
-    // the floor itself is exercised on the engine function in Necromancy.test.js.
     expect(isRaisedUnit(sk)).toBe(true);
     expect(isRaisedUnit(necro)).toBe(false);
+    // The floor: a Necromancer under level 5 raises a level 1 Skeleton.
+    const { b: b2, edric: e2 } = emptyRout(8);
+    const spot2 = openSpot(b2, e2);
+    const young = necromancerAt(b2, spot2.col, spot2.row);
+    young.level = 3;
+    b2._processNecromancy();
+    expect(skeletonsOf(young, b2.enemyUnits)[0].level).toBe(1);
   });
 
   it("the Skeleton raised at the phase start is in the AI's list and has not acted", async () => {
@@ -354,6 +359,7 @@ describe('HeadlessBattle: what a Skeleton pays', () => {
     // This rung's own XP scale and the par bonus would blur the quarter.
     b.battleParams.xpMultiplier = 1;
     b.turnPar = null;
+    Object.assign(edric, { level: 1, tier: 'base', xp: 0 }); // a level 1 recruit: raw XP 40
     const level0 = edric.level;
     const earned = (victim) => {
       edric.level = level0;

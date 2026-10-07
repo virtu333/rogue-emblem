@@ -484,11 +484,13 @@ describe('the engine rules without a board', () => {
   });
 
   it('a Skeleton is four levels under its Necromancer, never under level 1', () => {
-    // Promoted units count 12 more levels for every comparison (getXpEffectiveLevel).
-    expect(skeletonLevelFor(necro({ level: 6 }))).toBe(14);
-    expect(skeletonLevelFor(necro({ level: 1 }))).toBe(9);
-    expect(skeletonLevelFor({ ...necro(), tier: 'base', level: 3 })).toBe(1);
+    // The level the unit shows: a promoted Necromancer counts from 1 again.
+    expect(skeletonLevelFor(necro({ level: 6 }))).toBe(2);
+    expect(skeletonLevelFor(necro({ level: 5 }))).toBe(1);
+    expect(skeletonLevelFor(necro({ level: 4 }))).toBe(1);
+    expect(skeletonLevelFor(necro({ level: 1 }))).toBe(1);
     expect(skeletonLevelFor({ ...necro(), tier: 'base', level: 9 })).toBe(5);
+    expect(skeletonLevelFor(necro({ level: 20 }))).toBe(16);
   });
 
   it('raisers: living Necromancers below two living Skeletons, in roster order', () => {
