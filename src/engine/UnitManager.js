@@ -575,6 +575,25 @@ export function createEnemyUnit(
 }
 
 /**
+ * A class's own enemy-only weapon (classes.json `enemyWeapon`: the Necromancer's
+ * Gravesong) replaces the tier pick. It takes over the dropped weapon's uid, so it draws
+ * no extra Math.random and the battle's stream is unchanged. A weapon the unit cannot
+ * wield, or one missing from the catalog, leaves the tier pick in place.
+ */
+function equipClassEnemyWeapon(enemy, classData, allWeapons) {
+  const name = classData?.enemyWeapon;
+  if (typeof name !== 'string' || !name) return;
+  const data = (allWeapons || []).find((w) => w?.name === name);
+  if (!data || !canEquip(enemy, data)) return;
+  const weapon = structuredClone(data);
+  const inherited = enemy.weapon?.uid;
+  if (typeof inherited === 'string') weapon.uid = inherited;
+  ensureItemUid(weapon);
+  enemy.weapon = weapon;
+  enemy.inventory = [weapon];
+}
+
+/**
  * Create a promoted enemy from base class with capped pre-promotion growth.
  * Difficulty modifiers are applied once to the final promoted statline.
  */
@@ -622,6 +641,7 @@ export function createPromotedEnemyUnit(
     enemy.weapon = weaponClone;
     enemy.inventory = [weaponClone];
   }
+  equipClassEnemyWeapon(enemy, promotedClassData, allWeapons);
 
   applyEnemyDifficultyModifiers(enemy, difficultyConfig);
   assignEnemySkills(enemy, promotedClassData, spawnLevel, skillsData, act, difficultyConfig);
@@ -1427,8 +1447,16 @@ const RECLASS_EXCLUDED_CLASSES = new Set([
   'Bard',
 ]);
 
-// Enemy-only lines (undead, dragons): never a seal target (a unit already in one may still reclass out).
-const RECLASS_TARGET_EXCLUDED_CLASSES = new Set(['Zombie', 'Revenant', 'Dragon', 'Dragon Lord']);
+// Enemy-only lines (undead, dragons, the Necromancer and its Skeletons): never a seal target
+// (a unit already in one may still reclass out).
+const RECLASS_TARGET_EXCLUDED_CLASSES = new Set([
+  'Zombie',
+  'Revenant',
+  'Dragon',
+  'Dragon Lord',
+  'Necromancer',
+  'Skeleton',
+]);
 // The same lines, named for callers that need to know a class (or a skill innate to it) is
 // enemy-only (events never teach those skills).
 export const ENEMY_ONLY_CLASS_NAMES = RECLASS_TARGET_EXCLUDED_CLASSES;

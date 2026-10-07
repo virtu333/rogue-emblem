@@ -12,6 +12,7 @@ import { filterClassPoolByDifficulty, XP_SPECIAL_ENEMY_MULTIPLIER } from '../uti
 import { affixesAllowedForClass } from './AffixEngine.js';
 import { earlyEnemyAllowed } from './EarlyEnemyRules.js';
 import { getFootprint, isEntity } from './EntitySystem.js';
+import { RAISED_XP_MULTIPLIER, isRaisedUnit, isNecromancyClass } from './Necromancy.js';
 import { reinforcementMoveTypes, scheduleReinforcementsForTurn } from './ReinforcementScheduler.js';
 
 /** Level an arrival takes when the map has no non-boss spawn to copy. */
@@ -45,6 +46,9 @@ function allowedActClasses(names, { battleParams, gameData }) {
   }).filter(
     (className) =>
       typeof className === 'string' &&
+      // An arrival is never a Necromancer or a Skeleton: they come from the Necromancer's
+      // own raise, one Necromancer per battle (Necromancy.js).
+      !isNecromancyClass(className) &&
       earlyEnemyAllowed(className, battleParams) &&
       (gameData?.classes || []).some((c) => c.name === className),
   );
@@ -64,6 +68,7 @@ export function buildReinforcementTemplatePool({ battleConfig, battleParams, gam
       !spawn ||
       spawn.isBoss ||
       typeof spawn.className !== 'string' ||
+      isNecromancyClass(spawn.className) ||
       !earlyEnemyAllowed(spawn.className, battleParams)
     )
       continue;
@@ -148,6 +153,7 @@ export function buildReinforcementSpawnSpec({
   const fallbackLevel = enemySpawnFallbackLevel(battleConfig, battleParams?.act);
   const classOverride =
     typeof scheduledSpawn.className === 'string' &&
+    !isNecromancyClass(scheduledSpawn.className) &&
     earlyEnemyAllowed(scheduledSpawn.className, battleParams)
       ? scheduledSpawn.className
       : null;
@@ -277,8 +283,12 @@ export function normalizeEnemyRewardMultiplier(value) {
   return Math.max(0, Math.min(1, value));
 }
 
-/** XP and gold multiplier an enemy carries: its wave's, or 1 for a map spawn. */
+/**
+ * Gold multiplier an enemy carries: 0 for a unit a Necromancer raised, else its wave's, or
+ * 1 for a map spawn. (The XP it pays is enemyXpMultiplier.)
+ */
 export function enemyRewardMultiplier(unit) {
+  if (isRaisedUnit(unit)) return 0;
   if (!unit?._isReinforcement) return 1;
   const rewardMultiplier = Number.isFinite(unit._reinforcementRewardMultiplier)
     ? unit._reinforcementRewardMultiplier
@@ -286,18 +296,25 @@ export function enemyRewardMultiplier(unit) {
   return normalizeEnemyRewardMultiplier(rewardMultiplier);
 }
 
-/** The XP multiplier for fighting an enemy: its reward, × the boss/elite bonus. */
+/**
+ * The XP multiplier for fighting an enemy: its reward, × the boss/elite bonus. A raised
+ * unit pays a quarter (it pays no gold, so its reward multiplier cannot stand in).
+ */
 export function enemyXpMultiplier(unit) {
+  if (isRaisedUnit(unit)) return RAISED_XP_MULTIPLIER;
   const rewardMultiplier = enemyRewardMultiplier(unit);
   if (!(unit?.isBoss || unit?.isElite)) return rewardMultiplier;
   return rewardMultiplier * XP_SPECIAL_ENEMY_MULTIPLIER;
 }
 
 /**
- * An arrival whose wave pays nothing (a late ladder wave, a pursuit wave at 0). Killing
- * it still counts as a kill, but it feeds no deed record and no survival XP.
+ * An arrival whose wave pays nothing (a late ladder wave, a pursuit wave at 0), or a unit
+ * a Necromancer raised. Killing it still counts as a kill, but it feeds no deed record.
+ * (A raised unit still pays its quarter XP, and an arrival whose wave pays nothing pays no
+ * survival XP.)
  */
 export function isZeroRewardUnit(unit) {
+  if (isRaisedUnit(unit)) return true;
   return Boolean(unit?._isReinforcement) && enemyRewardMultiplier(unit) <= 0;
 }
 

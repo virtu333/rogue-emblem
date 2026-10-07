@@ -221,8 +221,8 @@ export function dustKeyFor(terrainName, biome) {
 
 /**
  * Death styles: player units' light goes out as gilt embers; enemies (who carry no
- * light) crumble into crimson cinders and ash; allies into verdigris; bosses burn
- * bigger; the Entity collapses into unlight.
+ * light) crumble into crimson cinders and ash (a Skeleton into bone dust); allies into
+ * verdigris; bosses burn bigger; the Entity collapses into unlight.
  */
 export const DEATH_STYLES = Object.freeze({
   player: {
@@ -272,6 +272,16 @@ export const DEATH_STYLES = Object.freeze({
     blend: 'add',
     ring: true,
   },
+  // A Skeleton's fall: pale bone dust that sinks (a negative rise) instead of embers.
+  bone: {
+    heat: [MOTE_COLORS.pale, MOTE_COLORS.ash, MOTE_COLORS.ashDim, MOTE_COLORS.ink],
+    edge: MOTE_COLORS.pale,
+    motes: 36,
+    rise: [-12, -3],
+    lifeMs: [420, 720],
+    dissolveMs: 340,
+    blend: 'normal',
+  },
   entity: {
     heat: [MOTE_COLORS.violetPale, MOTE_COLORS.violet, MOTE_COLORS.violetDim, MOTE_COLORS.unlight],
     edge: MOTE_COLORS.violet,
@@ -287,6 +297,7 @@ export const DEATH_STYLES = Object.freeze({
 export function deathStyleFor(unit) {
   if (unit?.isEntity === true) return 'entity';
   if (unit?.isBoss) return 'boss';
+  if (unit?.faction === 'enemy' && unit?.className === 'Skeleton') return 'bone';
   if (unit?.faction === 'enemy') return 'enemy';
   if (unit?.faction === 'npc') return 'npc';
   return 'player';

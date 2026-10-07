@@ -359,13 +359,25 @@ export const POISON_WEAPON_BY_TYPE = {
 // Proficiency prefixes that have poison variants (used to gate poison rolls)
 export const POISON_ELIGIBLE_PROFS = new Set(['Swords', 'Bows']);
 
-// Difficulty-gated enemy classes (Hard/Lunatic only)
-export const DIFFICULTY_GATED_CLASSES = new Set(['Zombie', 'Revenant', 'Dragon', 'Dragon Lord']);
+// Difficulty-gated enemy classes: First Light never meets them (Dusk and up do, and
+// difficulty.json `enemyClassEarliestAct` holds some back until an act).
+export const DIFFICULTY_GATED_CLASSES = new Set([
+  'Zombie',
+  'Revenant',
+  'Dragon',
+  'Dragon Lord',
+  'Necromancer',
+  'Skeleton',
+]);
 export const ZOMBIE_CLASSES = new Set(['Zombie', 'Revenant']);
+// A Necromancer raises at most this many Skeletons in a battle, in all (engine/Necromancy.js):
+// a repeatable summon must not be an unlimited reward source (Phase 3I owner review).
+export const NECROMANCER_RAISE_CAP = 6;
 // Classes that count as "dark" for Endword / Divine Flare effectiveness
 export const DARK_CLASSES = new Set([
   'Dark Knight',
   'Warlock',
+  'Necromancer',
   'Zombie',
   'Revenant',
   'Dragon',

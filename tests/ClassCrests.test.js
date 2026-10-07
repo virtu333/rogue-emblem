@@ -28,7 +28,7 @@ describe('class crests — mapping', () => {
   it('every class in classes.json has exactly one crest, and nothing else does', () => {
     const names = gameData.classes.map((c) => c.name).sort();
     expect(Object.keys(CLASS_CREST_SPECS).sort()).toEqual(names);
-    expect(names).toHaveLength(53);
+    expect(names).toHaveLength(55);
   });
 
   it('the frame shows the tier from classes.json', () => {

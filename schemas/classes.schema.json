@@ -135,6 +135,10 @@
         "promotionBonuses": { "$ref": "#/$defs/statBlock" },
         "moveType": { "$ref": "#/$defs/moveType" },
         "weaponProficiencies": { "type": "string" },
+        "enemyWeapon": {
+          "type": "string",
+          "description": "An enemy-only weapon (weapons.json, price 0, in no loot table) this class carries in place of the tier pick."
+        },
         "roleChange": {
           "type": "string",
           "description": "The promotion path's note after its weapons. Never name a weapon: the chooser builds 'Gains Axes' (or 'Staves: Master' for a weapon the unit already uses) from weaponProficiencies."

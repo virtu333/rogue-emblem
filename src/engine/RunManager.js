@@ -89,6 +89,7 @@ import {
   difficultyVictoryMilestone,
   recruitAffixesAllowed,
 } from './DifficultyEngine.js';
+import { hasRevivalStones } from './RevivalStones.js';
 import { assignPortraitVariants, backfillPortraitVariants } from './PortraitVariants.js';
 import {
   normalizeWeaponArtBinding,
@@ -3504,6 +3505,12 @@ export class RunManager {
     else delete battleParams.parInflation;
     battleParams.templateWavesRaisePar = this.getDifficultyModifier('templateWavesRaisePar', true);
     battleParams.holdShare = this.difficultyModifiers?.holdShare ?? null;
+    // Revival Stones (engine/RevivalStones.js): the rung's table, written into the boss spawn
+    // when the map is generated. Added only when a kind carries one, so a rung (or a run saved
+    // before stones) without them leaves the params exactly as they were.
+    if (hasRevivalStones(this.difficultyModifiers?.revivalStones))
+      battleParams.revivalStones = { ...this.difficultyModifiers.revivalStones };
+    else delete battleParams.revivalStones;
     battleParams.objectiveParOffset = this.difficultyModifiers?.objectiveParOffset ?? null;
     this._repairDuplicateRosterNames();
     // Units enter the battle (RunManager.getRoster clones) with their run identity.

@@ -1660,6 +1660,63 @@
     "description": "Eldest of the woken, its ancient scale blunts every blow that lands."
   },
   {
+    "name": "Skeleton",
+    "lore": "Requisition 4-D: one soldier, standing. No pay, no rations, no objections on file.",
+    "tier": "base",
+    "baseStats": {
+      "HP": 17,
+      "STR": 5,
+      "MAG": 0,
+      "SKL": 3,
+      "SPD": 4,
+      "DEF": 2,
+      "RES": 0,
+      "LCK": 0,
+      "MOV": 4
+    },
+    "growthRanges": {
+      "HP": "35-45",
+      "STR": "30-40",
+      "MAG": "0-5",
+      "SKL": "15-25",
+      "SPD": "15-25",
+      "DEF": "15-25",
+      "RES": "0-10",
+      "LCK": "0-5"
+    },
+    "moveType": "Infantry",
+    "weaponProficiencies": "Swords (P), Lances (P), Bows (P)",
+    "promotesTo": [],
+    "role": "raised fodder",
+    "description": "Brittle bone and a borrowed weapon. A Necromancer keeps two on its feet; fell the Necromancer and they crumble."
+  },
+  {
+    "name": "Necromancer",
+    "lore": "Struck from the college rolls for 'unlawful continuity of enrolment'. The enrolment declined to be struck.",
+    "tier": "promoted",
+    "promotesFrom": "Mage",
+    "promotionBonuses": {
+      "HP": 5,
+      "STR": 0,
+      "MAG": 3,
+      "SKL": 1,
+      "SPD": 0,
+      "DEF": 3,
+      "RES": 3,
+      "LCK": 0,
+      "MOV": 0
+    },
+    "growthBonuses": {
+      "HP": 5,
+      "DEF": 5
+    },
+    "moveType": "Infantry",
+    "weaponProficiencies": "Tomes (M)",
+    "roleChange": "Raises Skeletons, holds its post",
+    "enemyWeapon": "Gravesong",
+    "description": "Holds its post and raises Skeletons from the dead, two at a time. Fell it and they crumble."
+  },
+  {
     "name": "Entity",
     "lore": "The thing beneath the stillness. The liturgy has no name for it, only for the shape the world takes when it turns over in its sleep.",
     "tier": "boss",

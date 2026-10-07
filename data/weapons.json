@@ -635,6 +635,20 @@
     "price": 2300
   },
   {
+    "name": "Gravesong",
+    "lore": "Issued to the Third Mortuary Company: 400. Returned: none. They are still marching.",
+    "type": "Tome",
+    "tier": "Steel",
+    "rankRequired": "Prof",
+    "might": 7,
+    "hit": 80,
+    "crit": 0,
+    "weight": 4,
+    "range": "1-2",
+    "special": "+3 RES when equipped",
+    "price": 0
+  },
+  {
     "name": "Firstwind",
     "lore": "Wind, written down. Fliers who hear the page turn have already begun to fall.",
     "type": "Tome",
