@@ -46,7 +46,9 @@ import { ensureAudioUnlocked } from '../utils/audioUnlock.js';
 import { isTouchPointer } from '../utils/runtimeFlags.js';
 import { ChurchController } from '../ui/ChurchController.js';
 import { EventController, eventPageOwed } from '../ui/EventController.js';
-import { getPendingEventSettlement } from '../engine/EventCommands.js';
+import { ContractSettlementController } from '../ui/ContractSettlementController.js';
+import { contractRewardOwedAt } from '../engine/Contracts.js';
+import { eventSpoilsOwed, getPendingEventSettlement } from '../engine/EventCommands.js';
 import { pauseBurdenEntries } from '../ui/eventMenuModel.js';
 import { ShopController } from '../ui/ShopController.js';
 import { adaptDialogueEntries } from '../engine/DialogueCast.js';
@@ -460,6 +462,10 @@ export class NodeMapScene extends Phaser.Scene {
       this._eventController.destroy();
       this._eventController = null;
     }
+    if (this._contractController) {
+      this._contractController.destroy();
+      this._contractController = null;
+    }
     this._unbindInputHandlers();
     popInputScope(this);
     this._onInputActionBound = null;
@@ -614,7 +620,12 @@ export class NodeMapScene extends Phaser.Scene {
           const openedEvent =
             !openedAmbushShop &&
             this._maybeOpenPendingEventSettlement?.(lifecycleGeneration) === true;
-          if (!openedAmbushShop && !openedEvent) {
+          // A contract reward earned and not delivered holds the party at its battle node.
+          const openedContract =
+            !openedAmbushShop &&
+            !openedEvent &&
+            this._maybeOpenPendingContractSettlement?.(lifecycleGeneration) === true;
+          if (!openedAmbushShop && !openedEvent && !openedContract) {
             this._maybeOpenPendingCaravanShop?.(lifecycleGeneration);
           }
         }
@@ -731,6 +742,48 @@ export class NodeMapScene extends Phaser.Scene {
     if (!node || node.type !== NODE_TYPES.EVENT) return false;
     // The route map opening it by itself: a settlement the player just closed is not forced back.
     return this.handleEvent(node, { auto: true }) === true;
+  }
+
+  /**
+   * A kept contract's reward is earned and not yet delivered (engine/ContractSettlement.js): the
+   * party is held at the battle node that earned it, and back on the route map its page opens
+   * (Claim / Roster / Back to map / Give up). Like the event spoils it waits for the loot
+   * screen's choices (the bags may fill there) and for any story beat or overlay still open, and
+   * an event node's own spoils page comes first. Only the held node opens by itself: a settlement
+   * left over in a later act (or a penalty) is opened from the contract chip.
+   */
+  _maybeOpenPendingContractSettlement(lifecycleGeneration = this._sceneLifecycleGeneration) {
+    if (!isSceneLifecycleActive(this, lifecycleGeneration)) return false;
+    if (this.sys?.isActive?.() === false) return false;
+    if (!this.isSceneReady) return false;
+    if (this._storyDialogueActive || this.dialogueOverlay?.visible) return false;
+    if (this.isTransitioning || this.battleLaunchInFlight) return false;
+    if (
+      this.shopOverlay ||
+      this.churchOverlay ||
+      this.eventOverlay ||
+      this.rosterOverlay?.visible ||
+      this.pauseOverlay?.visible ||
+      this.settingsOverlay?.visible
+    ) {
+      return false;
+    }
+    const rm = this.runManager;
+    if (!rm || rm.pendingBattleReward || rm.pendingBossRecruit || rm.pendingThirdLord) return false;
+    const current = rm.nodeMap?.nodes?.find((entry) => entry?.id === rm.currentNodeId);
+    if (!current || !contractRewardOwedAt(rm, current)) return false;
+    if (this._contractOwnerBusy(current)) return false;
+    return this.handleContractSettlement({ auto: true }) === true;
+  }
+
+  /** An event node whose own page (its spoils, or its victory page) must be read before the contract's. */
+  _contractOwnerBusy(node) {
+    const rm = this.runManager;
+    return Boolean(
+      node?.type === NODE_TYPES.EVENT &&
+      node.completed &&
+      (eventSpoilsOwed(rm, node.id) || eventPageOwed(rm, node.id)),
+    );
   }
 
   /**
@@ -1052,8 +1105,9 @@ export class NodeMapScene extends Phaser.Scene {
       return true;
     }
     if (this.eventOverlay) {
-      // The page's own ESC: the map before choosing, Continue after.
-      this._eventController?.nativeMenu?.requestClose();
+      // The page's own ESC: the map before choosing, Continue after (the contract settlement
+      // page, which shares the slot, goes back to the map while it is owed).
+      (this._contractController?.menu || this._eventController?.nativeMenu)?.requestClose();
       return true;
     }
     if (this.colosseumOverlay?.visible) {
@@ -1889,8 +1943,9 @@ export class NodeMapScene extends Phaser.Scene {
       onComplete: () => {
         this._pendingRewards = null;
         this.checkActComplete();
-        // An event battle's spoils come after its loot choices.
-        this._maybeOpenPendingEventSettlement?.();
+        // An event battle's spoils come after its loot choices, then a contract reward owed.
+        if (!this._maybeOpenPendingEventSettlement?.())
+          this._maybeOpenPendingContractSettlement?.();
       },
     });
   }
@@ -1927,6 +1982,16 @@ export class NodeMapScene extends Phaser.Scene {
     )
       return;
     if (node.completed && !this.runManager.canReenterService?.(node.id)) return;
+    // The node a kept contract's reward holds the party at: its settlement page (an event node's
+    // own page, when it has one to read, comes first).
+    if (
+      node.completed &&
+      contractRewardOwedAt(this.runManager, node) &&
+      !this._contractOwnerBusy(node)
+    ) {
+      this.handleContractSettlement({ manual: true });
+      return;
+    }
     if (this._prologueArrivalBusy || this._prologueDepartureBusy) return;
     // Leaving the fork with Tamsin unarmed: a choice, once per Travel attempt, never a
     // gate (Continue anyway travels; Open Roster opens the roster on her).
@@ -2218,11 +2283,17 @@ export class NodeMapScene extends Phaser.Scene {
     return (this._eventController ||= new EventController(this)).handleEvent(node, options);
   }
 
+  /** The page of a contract settlement that is earned and not yet delivered (Claim / Roster / Give up). */
+  handleContractSettlement(options) {
+    return (this._contractController ||= new ContractSettlementController(this)).handle(options);
+  }
+
   showEventOverlay(node) {
     return (this._eventController ||= new EventController(this)).showEventOverlay(node);
   }
 
   closeEventOverlay() {
+    this._contractController?.closeOverlay();
     return (this._eventController ||= new EventController(this)).closeEventOverlay();
   }
 
@@ -2332,6 +2403,15 @@ export class NodeMapScene extends Phaser.Scene {
     const rm = this.runManager;
     if (rm.pendingBattleReward) {
       this.drawMap();
+      return;
+    }
+    // The boss's own contract reward is earned and not yet delivered: the party is held here, so
+    // the act does not close over it. Its page opens; Continue (once claimed or given up) comes
+    // back through here.
+    const heldAt = rm.nodeMap?.nodes?.find((entry) => entry?.id === rm.currentNodeId);
+    if (rm.isActComplete() && heldAt && contractRewardOwedAt(rm, heldAt)) {
+      this.drawMap();
+      this._maybeOpenPendingContractSettlement?.();
       return;
     }
     if (rm.isActComplete()) {

@@ -26,8 +26,8 @@ import { playCue } from './ceremonyMusic.js';
 import { isPrologueRun } from '../engine/ScriptedBattle.js';
 import { eventState } from '../engine/EventCommands.js';
 import { describeBurdens } from '../engine/Burdens.js';
-import { describeContract } from '../engine/Contracts.js';
-import { contractChipModel } from './eventMenuModel.js';
+import { describeContract, describeOwedContract } from '../engine/Contracts.js';
+import { contractChipModel, owedContractChipModel } from './eventMenuModel.js';
 
 const ECLIPSE_TOAST_MS = 4200;
 // How long an event's change to the route (a new road, a redrawn place) stays ringed.
@@ -309,7 +309,9 @@ export class NodeMapMenu {
       name: burden.label,
       note: `${burden.line} ${burden.detail}.`,
     }));
-    const contract = contractChipModel(describeContract(rm));
+    // An open contract, or one earned and not yet delivered (its chip reads "Reward waiting").
+    const contract =
+      contractChipModel(describeContract(rm)) || owedContractChipModel(describeOwedContract(rm));
     const chipsData = contract
       ? [...burdens, { ...contract, name: contract.label, note: contract.terms }]
       : burdens;
@@ -336,10 +338,17 @@ export class NodeMapMenu {
       const isContract = chipData.id === 'contract';
       const chip = button(
         null,
-        () => show(chipData),
+        // A settlement that waits opens its page (Claim / Roster / Give up); a contract in force
+        // and a burden only say their line.
+        () =>
+          chipData.owed ? this.scene.handleContractSettlement?.({ manual: true }) : show(chipData),
         isContract ? 're-burden re-contract' : 're-burden',
       );
       chip.dataset.burden = chipData.id;
+      if (chipData.owed) {
+        chip.dataset.owed = 'true';
+        chip.classList.add('is-owed');
+      }
       chip.title = `${chipData.name}: ${chipData.note}`;
       chip.setAttribute('aria-expanded', 'false');
       chip.append(
