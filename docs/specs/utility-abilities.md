@@ -214,3 +214,54 @@ The final tile is the only state: rewind, suspend and resume read `unit.col/row`
 (`tests/RewindForcedSlide.test.js`), the hold-pack mark is unchanged (`settleMoves` marks `moved`).
 Whether or not the slide is drawn, the board is identical (`tests/ForcedSlideBattle.test.js`).
 
+
+## Addendum: Great Sacrifice, Goddess Dance, Blink Strike and Pass (Phase 3E, as built)
+
+Spec: `docs/specs/phase3.md` "3E. Action skills and Pass". Three more registry abilities (each
+`perMapLimit: 1`, so tracked on `unit._battleAbilityUsage` by skill id: the limit belongs to the
+user, never to an accessory that lends the skill) and one passive.
+
+| skill id | actionAbility | learned |
+|---|---|---|
+| `great_sacrifice` | `{ kind: "sacrifice_heal", radius: 2, amount: 10, perMapLimit: 1 }` | scroll (Act III–IV loot) |
+| `goddess_dance` | `{ kind: "refresh_adjacent", perMapLimit: 1, usableWhileSilenced: true }` | the Bard, level 5 (`learnableSkills`; `migrateClassLearnableSkills` gives it to a promoted Dancer from an old save). No scroll; `neverBound`. |
+| `blink_strike` | `{ kind: "warp_strike", range: 4, perMapLimit: 1 }` | scroll (Act III–IV loot) |
+| `pass` | passive, `classInnate: "Trickster"` | innate (`migrateClassInnateSkills`: an old Trickster gains it, benched when the list is full), scroll (Act II–IV), lent in Act IV |
+
+- **Great Sacrifice.** The user pays `min(10, HP − 1, what the most hurt healable ally in range
+  is missing)` through `damageUnit` (floor 1); every ally within 2 tiles (the army and the NPC
+  allies the caster sees, as Healing Circle) is healed by exactly that through `healUnit`. A
+  Wounded ally heals nothing and is never counted, so the ability is offered only when it would
+  do something (the user above 1 HP, someone hurt and healable in range): it never wastes the turn.
+  Silence stops it. Rules: `sacrificeTargets` / `sacrificeAmount` / `settleGreatSacrifice`.
+- **Goddess Dance.** Refreshes every cardinal neighbour that has acted and is not a dancer. The
+  target rule is `findDanceRefreshTargets`, the one Dance's own targets read (`BattleScene.findDanceTargets`),
+  and the refresh is `refreshActedAlly`, the one `executeDance` calls: `hasMoved`,
+  `_movementCommitted` and `hasActed` reset, `_movementSpent` left alone. A deed (`onRefresh`) and
+  Dance XP (`XP_BASE_DANCE`) per refreshed ally; the confirm prompt names how many.
+- **Blink Strike** (`ui/WarpStrikeController.js`). Ability → Blink Strike →
+  1. **destination**: a free tile of Blink's diamond (`getBlinkTiles`, over what the player knows: a
+     fogged tile or a known unit counts as taken) from which the equipped weapon reaches a seen
+     foe (`findWarpStrikeOptions`). "Beside" means in the weapon's reach: a sword user is offered
+     the tiles next to a foe, a bow user the tiles two away, a tome user both rings;
+  2. **foe**: among those the destination reaches;
+  3. **forecast**: the ordinary forecast, computed from the destination
+     (`AttackFlowController.atWarpDestination` lends the unit its landing coordinates for the
+     synchronous read and puts them back); the equipped weapon only, no cycling, **no weapon art**;
+  4. **Confirm** settles the warp and the attack as one action. **Cancel** steps back one stage
+     (forecast → foe → destination → the action menu); nothing has moved before Confirm.
+
+  The seam: Confirm re-plans the pair (`planWarpStrike`), settles the warp in the domain
+  (`settleWarpStrike`: the use is spent, the unit is on the destination) and, in the same
+  synchronous turn, calls `executeCombat(unit, foe, { warpStrike: { present } })`. Its first act is
+  the intent checkpoint (`pendingCommittedAction.warpStrike`), which therefore already holds the
+  warped unit: a Blink Strike makes the two durable writes any attack makes (the intent, the
+  resolved action) and none for the warp alone. The warp is drawn (Blink's fade) only after the
+  intent is saved. A refresh replays the attack as a Blink Strike, a rewind returns to before
+  the warp ("Before X's Blink Strike on Y"), and Canto is never offered. If the real board has a
+  unit on the destination the player's view lacked (a hidden occupant), the warp fails as a
+  settled action: the use is spent, the unit stays, the action ends (no Canto).
+- **Pass.** `Grid.computeMovementRange` / `computePath` take `{ pass: true }` (see CLAUDE.md for the
+  full rule). Enemy units are entered and marked `stoppable: false`; NPC allies still block; an
+  occupied tile still ends an ice slide; at execution a hidden foe on the way does not stop the
+  walk, one on the last tile backs it off (`FogAmbush.ambushStop`'s `passes`).

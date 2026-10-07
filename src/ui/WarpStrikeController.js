@@ -125,6 +125,7 @@ export class WarpStrikeController {
     scene.abilityTiles = tiles;
     scene._pendingAbility = { unitName: unit.name, skillId: skill.id, step: 'destination' };
     scene.grid.showAttackRange(tiles, DESTINATION_COLOR, 0.4);
+    scene._mobileBattleHud?.sync?.();
   }
 
   // --- Step 2: the foe ---
@@ -150,6 +151,7 @@ export class WarpStrikeController {
       fill: MARK_FILL,
       edge: MARK_EDGE,
     });
+    scene._mobileBattleHud?.sync?.();
   }
 
   /** A tap while choosing: a destination, then a foe. */
