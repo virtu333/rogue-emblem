@@ -23,6 +23,7 @@
           "on-attack",
           "on-turn-start",
           "on-defend",
+          "on-kill",
           "action"
         ]
       },
@@ -30,7 +31,17 @@
         "type": "string"
       },
       "condition": {
-        "type": "string"
+        "type": "string",
+        "enum": [
+          "initiating",
+          "defending",
+          "adjacent_ally",
+          "no_adjacent_ally",
+          "above50_defending",
+          "moved_3_plus_initiating",
+          "below50",
+          "below25"
+        ]
       },
       "range": {
         "type": "integer"

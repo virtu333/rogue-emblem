@@ -328,6 +328,26 @@ const STATIC_HELP_TABS = [
         ],
       },
       {
+        title: 'Kill & Opening Skills',
+        lines: [
+          { text: 'On-Kill: Proc when you fell a foe', color: GOLD },
+          { text: '  Lifetaker: heal 25% of max HP.' },
+          { text: '  Speedtaker: +1 SPD for the battle,' },
+          { text: '  up to +5 (gone when the battle ends).' },
+          { text: '  A counter-kill counts. Once per fight,' },
+          { text: '  however many foes fall.', color: GRAY },
+          { text: '  Deathburst, terrain and poison do not.', color: GRAY },
+          { text: '' },
+          { text: 'Combat Start (you attack):', color: RED },
+          { text: '  Uncanny Blow: +30 Hit.' },
+          { text: '  Warding Blow: +6 RES.' },
+          { text: '' },
+          { text: 'Combat Start (low HP):', color: RED },
+          { text: '  Defiant: +4 DEF and RES at 25% HP' },
+          { text: '  or less.' },
+        ],
+      },
+      {
         title: 'Action & Movement Skills',
         lines: [
           { text: 'Shove:', color: GOLD },

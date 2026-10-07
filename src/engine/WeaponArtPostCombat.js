@@ -11,6 +11,7 @@ import { mergeCombatMods } from './Combat.js';
 import { isRooted } from './StatusConditionSystem.js';
 import { isEntity } from './EntitySystem.js';
 import { traceForcedMove } from './ForcedMovement.js';
+import { effectiveSkills } from './EffectiveSkills.js';
 
 const SIDE_ORDER = ['attacker', 'defender'];
 const TIER2_EFFECT_ORDER = [
@@ -132,12 +133,25 @@ function areaDamageStep(side, art, result, attacker, defender) {
   };
 }
 
+/**
+ * The on-kill skills a unit has in this combat (docs/specs/phase3.md 3B): its effective
+ * skills (equipped list, the weapon's bound skill, the accessory's) whose trigger is
+ * `on-kill`, each once, in effective order.
+ */
+export function onKillSkillIds(unit, skillsData) {
+  if (!unit || !Array.isArray(skillsData)) return [];
+  return effectiveSkills(unit).filter(
+    (id) => skillsData.find((skill) => skill?.id === id)?.trigger === 'on-kill',
+  );
+}
+
 export function getPostCombatPipelineSteps({
   attacker = null,
   defender = null,
   result = null,
   attackerWeaponArt = null,
   defenderWeaponArt = null,
+  skillsData = null,
 } = {}) {
   const steps = [
     { type: 'affix', sourceSide: 'attacker' },
@@ -337,6 +351,20 @@ export function getPostCombatPipelineSteps({
         includeSelf: buff.includeSelf === true,
       });
     }
+  }
+
+  // On-kill skills (Lifetaker, Speedtaker): last, so a blast's or a ram's victims have
+  // fallen (and left their `areaCredits`) by the time the kill is read, and after
+  // `art_kill_buff`. One step per side, whatever it killed; death is read at application.
+  for (const side of SIDE_ORDER) {
+    const skillIds = onKillSkillIds(side === 'attacker' ? attacker : defender, skillsData);
+    if (skillIds.length <= 0) continue;
+    steps.push({
+      type: 'skill_on_kill',
+      sourceSide: side,
+      targetSide: getOpposingSide(side),
+      skillIds,
+    });
   }
 
   return steps;

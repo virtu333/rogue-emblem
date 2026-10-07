@@ -446,6 +446,7 @@ export function resetUnitForBattle(unit) {
   unit._miracleUsed = false;
   unit._gambitUsedThisTurn = false;
   unit._conditions = [];
+  delete unit._speedtakerStacks;
   for (const w of unit.inventory || []) {
     if (w.perBattleUses) w._usesSpent = 0;
   }
@@ -8475,6 +8476,7 @@ export class BattleScene extends Phaser.Scene {
       hostilesOf: (unit) => this._getTier5HostileUnitsFor(unit),
       alliesOf: (unit) => this.getDivineChargeAllies(unit),
       turnNumber: this.turnManager?.turnNumber,
+      skillsData: this.gameData?.skills,
     };
   }
 

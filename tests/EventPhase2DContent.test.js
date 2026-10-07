@@ -985,7 +985,7 @@ describe('A Bad Map', () => {
 // ── The Chained Shelf ───────────────────────────────────────────────────
 
 describe('The Chained Shelf', () => {
-  const POOL = ['fiendish_blow', 'drain', 'luna', 'wrath'];
+  const POOL = ['fiendish_blow', 'drain', 'luna', 'wrath', 'lifetaker'];
   const stand = (opts = {}) => {
     const run = army({ act: 1, ...opts });
     return { run, node: at(run, 'chained_shelf') };
@@ -1024,7 +1024,7 @@ describe('The Chained Shelf', () => {
     });
   });
 
-  it('never teaches a skill the reader knows; the four skills are all reachable', () => {
+  it('never teaches a skill the reader knows; the five skills are all reachable', () => {
     const seen = new Set();
     for (let seed = 1; seed <= 80; seed++) {
       const { run, node } = stand({ seed });
@@ -1035,10 +1035,10 @@ describe('The Chained Shelf', () => {
       expect(learned).not.toBe('drain');
       seen.add(learned);
     }
-    expect([...seen].sort()).toEqual(['fiendish_blow', 'luna', 'wrath']);
+    expect([...seen].sort()).toEqual(['fiendish_blow', 'lifetaker', 'luna', 'wrath']);
   });
 
-  it('a reader who knows all four learns nothing and loses nothing: the book lets them go', () => {
+  it('a reader who knows all five learns nothing and loses nothing: the book lets them go', () => {
     const { run, node } = stand();
     const iona = reader(run);
     iona.skills = [...POOL];

@@ -44,6 +44,7 @@ function copyWithoutBattleDeltas(unit) {
     if (Number.isFinite(data.stats.MOV)) data.mov = data.stats.MOV;
   }
   delete data._battleDeltas;
+  delete data._speedtakerStacks;
   // Status conditions are battle-scoped; structuredClone keeps weapon ===
   // inventory[i], which serializeUnit relies on to relink the equipped item.
   data._conditions = [];
