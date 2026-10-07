@@ -10,6 +10,7 @@ import { settleStaffHeal } from '../../src/engine/StaffSettlement.js';
 // Mirrors BattleScene's MVP subset (7 states) using real engine functions.
 
 import { HeadlessGrid } from './HeadlessGrid.js';
+import { movementOptionsFor } from '../../src/engine/PassMovement.js';
 import { TurnManager } from '../../src/engine/TurnManager.js';
 import {
   commitBattleDeeds,
@@ -498,6 +499,8 @@ export class HeadlessBattle {
       unit.moveType,
       this._buildUnitPositionMap(unit.faction),
       unit.faction,
+      0,
+      movementOptionsFor(unit),
     );
     this.battleState = HEADLESS_STATES.UNIT_SELECTED;
   }

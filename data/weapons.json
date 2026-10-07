@@ -1454,8 +1454,8 @@
     "price": 2500
   },
   {
-    "name": "Steal Scroll",
-    "lore": "Thieves' primer: reach for the pocket he trusts, and be quicker than the trust.",
+    "name": "Great Sacrifice Scroll",
+    "lore": "Chaplain's ledger: names in one column, what each cost him in the other.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1464,8 +1464,38 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Steal",
-    "skillId": "steal",
+    "special": "Teaches Great Sacrifice",
+    "skillId": "great_sacrifice",
+    "price": 2500
+  },
+  {
+    "name": "Blink Strike Scroll",
+    "lore": "Margin note on a blank page: not there, not there, standing on his foot.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Blink Strike",
+    "skillId": "blink_strike",
+    "price": 2500
+  },
+  {
+    "name": "Pass Scroll",
+    "lore": "Tailor's receipt: one coat, taken in at the shoulder. Nobody stopped him at the gate.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Pass",
+    "skillId": "pass",
     "price": 2500
   },
   {
@@ -2895,5 +2925,20 @@
     "special": "Close-range bow. +2 RES when equipped",
     "price": 1800,
     "signatureOf": "Voss"
+  },
+  {
+    "name": "Steal Scroll",
+    "lore": "Thieves' primer: reach for the pocket he trusts, and be quicker than the trust.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Steal",
+    "skillId": "steal",
+    "price": 2500
   }
 ]

@@ -9,17 +9,22 @@ import { isFreeSlideIndex } from './IceMovement.js';
  * Where a planned path really ends.
  * @param {{col:number,row:number}[]} path - start tile first
  * @param {{ hiddenAt: (col:number,row:number) => object|null,
- *           blockedAt: (col:number,row:number) => boolean }} probes
+ *           blockedAt: (col:number,row:number) => boolean,
+ *           passes?: (hidden: object) => boolean }} probes
  *   hiddenAt: the hidden unit standing on a tile, if any.
  *   blockedAt: a tile the unit may pass but not stop on (another unit stands there).
+ *   passes: the mover has Pass and walks through this hidden unit as through a seen one
+ *     (PassMovement.passesHiddenUnit), so it stops the walk only on the path's LAST tile,
+ *     where the unit would have to stand.
  * @returns {{ path: {col:number,row:number}[], ambusher: object|null, stopIndex: number }}
  *   the path cut to its real end (unchanged, with ambusher null, when nothing hides on it)
  */
-export function ambushStop(path, { hiddenAt, blockedAt }) {
+export function ambushStop(path, { hiddenAt, blockedAt, passes = () => false }) {
   const steps = Array.isArray(path) ? path : [];
   for (let i = 1; i < steps.length; i++) {
     const ambusher = hiddenAt(steps[i].col, steps[i].row);
     if (!ambusher) continue;
+    if (i < steps.length - 1 && passes(ambusher)) continue;
     let stop = i - 1;
     while (stop > 0 && blockedAt(steps[stop].col, steps[stop].row)) stop--;
     return { path: steps.slice(0, stop + 1), ambusher, stopIndex: stop };

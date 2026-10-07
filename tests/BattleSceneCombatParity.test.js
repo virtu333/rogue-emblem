@@ -630,6 +630,7 @@ describe('Measured Step scene completion', () => {
       expect.any(Map),
       'player',
       null,
+      { pass: false },
     );
   });
 
@@ -653,6 +654,7 @@ describe('Measured Step scene completion', () => {
       expect.any(Map),
       'player',
       null,
+      { pass: false },
     );
   });
 

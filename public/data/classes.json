@@ -796,7 +796,14 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Staves (P)",
-    "description": "Refreshes allies for another action and mends them with staves between songs."
+    "roleChange": "Goddess Dance at level 5",
+    "description": "Refreshes allies for another action and mends them with staves between songs.",
+    "learnableSkills": [
+      {
+        "skillId": "goddess_dance",
+        "level": 5
+      }
+    ]
   },
   {
     "name": "Falcon Knight",
@@ -1488,8 +1495,8 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Staves (P)",
-    "roleChange": "Darting Blow innate, fast utility",
-    "description": "Staves for support, Darting Blow for speed \u2014 a rogue who blurs on the attack."
+    "roleChange": "Darting Blow and Pass innate, fast utility",
+    "description": "Staves for support, Darting Blow for speed, Pass to slip between foes \u2014 a rogue who blurs on the attack."
   },
   {
     "name": "Hunter",

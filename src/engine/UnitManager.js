@@ -20,6 +20,7 @@ import {
   PROMOTION_MIN_LEVEL,
   MAX_SKILLS,
   ENEMY_PROMOTION_BASE_LEVEL,
+  ENEMY_NEVER_SKILLS,
 } from '../utils/constants.js';
 import { ensureItemUid, ensureItemUidWith } from '../utils/itemUid.js';
 import { accessoryHpOwed, setAccessoryHpOwed, settleAccessoryHpOwed } from './UnitHealth.js';
@@ -472,6 +473,7 @@ function assignEnemySkills(unit, classData, level, skillsData, act, difficultyCo
   if (classData.tier === 'promoted') {
     const innateSkills = getClassInnateSkills(classData.name, skillsData);
     for (const sid of innateSkills) {
+      if (ENEMY_NEVER_SKILLS.includes(sid)) continue;
       learnSkill(unit, sid);
     }
   }
@@ -643,6 +645,8 @@ export function createPromotedEnemyUnit(
 
   applyEnemyDifficultyModifiers(enemy, difficultyConfig);
   assignEnemySkills(enemy, promotedClassData, spawnLevel, skillsData, act, difficultyConfig);
+  // The promotion above gave the class's innates: the ones that are the player's alone go.
+  enemy.skills = (enemy.skills || []).filter((id) => !ENEMY_NEVER_SKILLS.includes(id));
   return enemy;
 }
 

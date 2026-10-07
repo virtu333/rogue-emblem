@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+### Three New Ability Skills and Pass (Oct 7, 2026)
+
+- **Great Sacrifice** (Scroll, Act III–IV loot; once per battle): pay up to 10 HP (never your
+  last) and every ally within 2 tiles heals that much. You pay only what the most hurt ally in
+  range can use, and a Wounded ally heals nothing and is never counted, so it is offered only
+  when it would do something.
+- **Goddess Dance** (the Bard learns it at level 5; no scroll; once per battle): refreshes
+  every ally standing next to you who has acted, except other dancers. Each refreshed ally
+  earns Dance experience and counts as a refresh for deeds. A Bard from an older save gets it
+  on load.
+- **Blink Strike** (Scroll, Act III–IV loot; once per battle): warp to a free tile within 4
+  where your equipped weapon reaches a foe you can see, then attack it, as one action. Pick
+  the tile, then the foe, then read the ordinary forecast as it will be from there; back out
+  at any step and nothing has moved. A bow user is offered only the tiles at its range. No
+  weapon art, no weapon swap and no Canto after it; a rewind returns to before the warp.
+- **Pass** (the Trickster's second innate, beside Darting Blow; Scroll, Act II–IV loot; may
+  roll on an Act IV accessory): move through enemy units, but never stop on one. Allies' tiles
+  and NPCs behave as before, ice still stops a slide at any unit, and in fog a hidden foe on
+  your way does not stop you while one on the tile you chose does. Enemies never carry it.
+  Tricksters from older saves gain it on load.
+
 ### Two New Lance Arts: Lunar Brace and Override (Oct 7, 2026)
 
 - **Lunar Brace** (Lance, Steel, Prof, Act II; 3 HP, 2 per map): the strike adds 30% of the

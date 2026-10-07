@@ -10,6 +10,7 @@ import { presentSettledMoves } from './ActionMovementPresentation.js';
 import { safeBattlePresentation } from './safeBattlePresentation.js';
 import { CombatFxController } from './CombatFxController.js';
 import { hasEffectiveSkill } from '../engine/EffectiveSkills.js';
+import { refreshActedAlly } from '../engine/ActionAbilitySystem.js';
 import { XP_BASE_DANCE } from '../utils/constants.js';
 import { UI_HEX, UI_PALETTE } from '../utils/uiStyles.js';
 import { hasDOMHost } from '../utils/domUI.js';
@@ -17,6 +18,35 @@ import { growthCeremonies } from './GrowthCeremonyController.js';
 
 function isActor(scene, unit) {
   return !!unit && scene.playerUnits.includes(unit) && unit.currentHP > 0 && !unit.hasActed;
+}
+/**
+ * A dancer's refresh, drawn on the ally (presentation only): the dimming of a unit that has
+ * acted lifts, with a heal chime, a buff glint and a sparkle. Dance and Goddess Dance share it.
+ */
+export function presentRefreshSparkle(scene, ally) {
+  safeBattlePresentation('dance refresh graphic', () => scene.undimUnit(ally), { scene });
+  safeBattlePresentation(
+    'dance sparkle',
+    () => {
+      scene.registry.get('audio')?.playSFX('sfx_heal');
+      const pos = scene.grid.gridToPixel(ally.col, ally.row);
+      (scene._combatFx ||= new CombatFxController(scene)).playBuff(pos.x, pos.y);
+      const sparkle = scene.add
+        .circle(pos.x, pos.y, 20, UI_HEX.hpHigh, scene._reduceMotion() ? 0.4 : 0.6)
+        .setDepth(200);
+      if (scene._reduceMotion()) scene.time.delayedCall(120, () => sparkle.destroy());
+      else
+        scene.tweens.add({
+          targets: sparkle,
+          alpha: 0,
+          scale: 1.5,
+          duration: 400,
+          ease: 'Quad.easeOut',
+          onComplete: () => sparkle.destroy(),
+        });
+    },
+    { scene },
+  );
 }
 function matches(a, b, keys) {
   return a?.ally === b?.ally && keys.every((key) => a[key] === b[key]);
@@ -134,40 +164,14 @@ export class MovementActionController {
       settle: () => {
         observeHistoryAction(scene, 'danced for', unit, target.ally);
         deedsFor(scene).onRefresh(unit);
-        target.ally.hasMoved = false;
-        target.ally._movementCommitted = false;
-        target.ally.hasActed = false;
+        refreshActedAlly(target.ally);
         return { xp: scene.awardScaledXP(unit, XP_BASE_DANCE, { present: false }) };
       },
       // The gain's EXP gauge plays after this, with any level-up card (awardScaledXP
       // queued its record in the settlement).
       present: () => {
         safeBattlePresentation('dance menu', () => scene.hideActionMenu(), { scene });
-        safeBattlePresentation('dance refresh graphic', () => scene.undimUnit(target.ally), {
-          scene,
-        });
-        safeBattlePresentation(
-          'dance sparkle',
-          () => {
-            scene.registry.get('audio')?.playSFX('sfx_heal');
-            const pos = scene.grid.gridToPixel(target.ally.col, target.ally.row);
-            (scene._combatFx ||= new CombatFxController(scene)).playBuff(pos.x, pos.y);
-            const sparkle = scene.add
-              .circle(pos.x, pos.y, 20, UI_HEX.hpHigh, scene._reduceMotion() ? 0.4 : 0.6)
-              .setDepth(200);
-            if (scene._reduceMotion()) scene.time.delayedCall(120, () => sparkle.destroy());
-            else
-              scene.tweens.add({
-                targets: sparkle,
-                alpha: 0,
-                scale: 1.5,
-                duration: 400,
-                ease: 'Quad.easeOut',
-                onComplete: () => sparkle.destroy(),
-              });
-          },
-          { scene },
-        );
+        presentRefreshSparkle(scene, target.ally);
       },
     });
   }

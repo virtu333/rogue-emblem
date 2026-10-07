@@ -425,6 +425,11 @@ export const DEADLY_ARSENAL_SIGNATURE_WEAPONS = {
   Tome: 'Witchfire',
   Light: 'Sunflare',
 };
+// Pass (docs/specs/phase3.md 3E) is a player skill: the AI's movement never reads it. A skill id
+// listed in ENEMY_NEVER_SKILLS is stripped from every generated enemy, so an enemy Trickster
+// (whose class innate it is) never shows a card that says it can walk through the player's units.
+export const PASS_SKILL_ID = 'pass';
+export const ENEMY_NEVER_SKILLS = Object.freeze([PASS_SKILL_ID]);
 export const RECRUIT_SKILL_POOL = [
   'sol',
   'luna',

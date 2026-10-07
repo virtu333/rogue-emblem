@@ -182,6 +182,8 @@ import {
   applyAccessoryPhaseCombatMods,
 } from '../engine/SkillSystem.js';
 import { hasEffectiveSkill } from '../engine/EffectiveSkills.js';
+import { movementOptionsFor, passesHiddenUnit } from '../engine/PassMovement.js';
+import { findDanceRefreshTargets } from '../engine/ActionAbilitySystem.js';
 import {
   getTurnStartAffixes,
   getOnDeathAffixes,
@@ -3482,6 +3484,9 @@ export class BattleScene extends Phaser.Scene {
         return found && !knowledge.isKnown(found) ? found : null;
       },
       blockedAt: (col, row) => Boolean(occupant(col, row)),
+      // Pass: a hidden foe on the way is walked through, as a seen one; only one on the
+      // last tile (where the unit would stand) stops the walk.
+      passes: (hidden) => passesHiddenUnit(unit, hidden),
     });
     if (!cut.ambusher) return { path, cost: effective.movementCost, ambusher: null };
     const costMod = this._getCostModifier(unit);
@@ -4111,8 +4116,8 @@ export class BattleScene extends Phaser.Scene {
       remainsOf(this).cancel();
       this.showActionMenu(this.selectedUnit);
     } else if (this.battleState === 'SELECTING_ABILITY_TILE') {
-      this._cancelAbilityTileSelection();
-      this.showActionMenu(this.selectedUnit);
+      // Blink Strike's foe step goes back to its destination step and stays here.
+      if (!this._cancelAbilityTileSelection()) this.showActionMenu(this.selectedUnit);
     } else if (this.battleState === AREA_CENTER_STATE) {
       // Prompt → aiming → the art picker (AreaTargetingController.back).
       if (!this._areaTargeting().back()) this.showActionMenu(this.selectedUnit);
@@ -4639,6 +4644,11 @@ export class BattleScene extends Phaser.Scene {
   confirmForecastCombat() {
     if (!this.forecastTarget || !this.selectedUnit || this.battleState !== 'SHOWING_FORECAST')
       return;
+    // Blink Strike's forecast: Confirm settles the warp and the attack as one action.
+    if (this._warpStrike) {
+      this._warpStrikeFlow().confirm();
+      return;
+    }
     const unit = this.selectedUnit;
     // The forecast only planned this weapon; confirming is the one place it is equipped.
     const planned = this._forecastWeapon || unit.weapon;
@@ -4720,6 +4730,7 @@ export class BattleScene extends Phaser.Scene {
       this.unitPositions,
       unit.faction,
       this._getCostModifier(unit),
+      movementOptionsFor(unit),
     );
     this.grid.showMovementRange(this.movementRange, unit.col, unit.row);
     this._gridCursor?.snapTo(unit.col, unit.row);
@@ -4870,6 +4881,7 @@ export class BattleScene extends Phaser.Scene {
           this.unitPositions,
           unit.faction,
           this._getCostModifier(unit),
+          movementOptionsFor(unit),
         );
       }
     } catch (err) {
@@ -5287,26 +5299,9 @@ export class BattleScene extends Phaser.Scene {
     return targets;
   }
 
+  /** Allies Dance can refresh: the rule is engine-side (Goddess Dance reads it too). */
   findDanceTargets(unit) {
-    const targets = [];
-    const dirs = [
-      { dc: 0, dr: -1 },
-      { dc: 0, dr: 1 },
-      { dc: -1, dr: 0 },
-      { dc: 1, dr: 0 },
-    ];
-    for (const { dc, dr } of dirs) {
-      const ac = unit.col + dc;
-      const ar = unit.row + dr;
-      const ally = this.playerUnits.find((u) => u !== unit && u.col === ac && u.row === ar);
-      if (!ally) continue;
-
-      // Must have acted AND not be another dancer
-      if (ally.hasActed && !hasEffectiveSkill(ally, 'dance')) {
-        targets.push({ ally });
-      }
-    }
-    return targets;
+    return findDanceRefreshTargets(unit, this.playerUnits).map((ally) => ({ ally }));
   }
 
   findBreakTargets(unit) {
@@ -5658,6 +5653,7 @@ export class BattleScene extends Phaser.Scene {
       positions,
       unit.faction,
       this._getCostModifier(unit),
+      movementOptionsFor(unit),
     );
     this.cantoRange = moveRange;
     safeBattlePresentation(
@@ -5746,6 +5742,7 @@ export class BattleScene extends Phaser.Scene {
           positions,
           unit.faction,
           this._getCostModifier(unit),
+          movementOptionsFor(unit),
         );
       }
     } catch (err) {
@@ -6768,8 +6765,14 @@ export class BattleScene extends Phaser.Scene {
     return (this._abilityController ||= new AbilityController(this)).hasAbilities(unit);
   }
 
+  /** @returns {boolean} true when it stepped back inside Blink Strike and the state stays */
   _cancelAbilityTileSelection() {
-    (this._abilityController ||= new AbilityController(this)).cancelTileSelection();
+    return (this._abilityController ||= new AbilityController(this)).cancelTileSelection();
+  }
+
+  /** Blink Strike's flow (destination, foe, forecast, confirm): WarpStrikeController. */
+  _warpStrikeFlow() {
+    return (this._abilityController ||= new AbilityController(this))._warpStrike();
   }
 
   /** Chosen-center weapon arts (Stormcall): aiming, the prompt and the strike. */
@@ -8008,6 +8011,9 @@ export class BattleScene extends Phaser.Scene {
     this._forecastValidWeapons = null;
     this._forecastWeaponArt = null;
     this._forecastGamblerLine = null;
+    // A Blink Strike forecast is only the forecast: once it closes (confirmed, cancelled,
+    // End Turn, a rewind) no later forecast may read the destination it planned from.
+    this._warpStrike = null;
   }
 
   /**
@@ -8081,7 +8087,7 @@ export class BattleScene extends Phaser.Scene {
 
   async _runCombatResolutionAtSpeed(attacker, defender, ctx) {
     const session = battleSession(this);
-    const { dist, atkTerrain, defTerrain, selectedArt } = ctx;
+    const { dist, atkTerrain, defTerrain, selectedArt, actionLabel } = ctx;
 
     // Apply weapon art cost if selected
     if (selectedArt) {
@@ -8117,7 +8123,13 @@ export class BattleScene extends Phaser.Scene {
         ...combatTimelineFacts(this, attacker, defender, result),
       ];
 
-    observeHistoryAction(this, 'attacked', attacker, defender, selectedArt?.name || '');
+    observeHistoryAction(
+      this,
+      'attacked',
+      attacker,
+      defender,
+      selectedArt?.name || actionLabel || '',
+    );
     for (const event of result.events || []) {
       if (event.type !== 'strike') continue;
       const striker = event.attackerSide === 'defender' ? defender : attacker;
@@ -8244,7 +8256,7 @@ export class BattleScene extends Phaser.Scene {
    * readCommittedAction). Every later checkpoint in this action is taken after
    * the result is applied, so the intent is cleared as soon as that happens.
    */
-  _commitCombatIntent(attacker, defender) {
+  _commitCombatIntent(attacker, defender, { warpStrike = false } = {}) {
     const session = battleSession(this);
     this._pendingCommittedAction = null;
     if (!this.runManager?.battleInProgress) return;
@@ -8264,6 +8276,10 @@ export class BattleScene extends Phaser.Scene {
             ...(art.weaponUid ? { weaponUid: art.weaponUid } : {}),
           }
         : null,
+      // Blink Strike: the warp is already settled in this checkpoint (the unit stands on its
+      // destination, the use spent); the flag only keeps a resumed replay a Blink Strike
+      // (no Canto, its name in the history).
+      ...(warpStrike ? { warpStrike: true } : {}),
     };
     // Gambler's Coin: the forecast already rolled the attack modifier. Legacy
     // battles roll it from the live battle stream, so a resume must reuse the
@@ -8333,7 +8349,11 @@ export class BattleScene extends Phaser.Scene {
     const run = () => {
       // Seed the roll session right before the attack reads it.
       this._restoreCommittedGamblerDeltas(intent, attacker, defender);
-      return this.executeCombat(attacker, defender);
+      // A resumed Blink Strike is already warped (the checkpoint holds the unit on its
+      // destination): the replay is the attack alone, still a Blink Strike.
+      return intent.warpStrike
+        ? this.executeCombat(attacker, defender, { warpStrike: {} })
+        : this.executeCombat(attacker, defender);
     };
     if (typeof this._scheduleSafeDelayedAsync === 'function')
       this._scheduleSafeDelayedAsync(400, 'resume_committed_attack', run, {
@@ -8344,13 +8364,21 @@ export class BattleScene extends Phaser.Scene {
     return true;
   }
 
-  async executeCombat(attacker, defender) {
+  /**
+   * A player attack, from the confirmed forecast to the resolved action's checkpoint.
+   * `warpStrike` marks a Blink Strike (WarpStrikeController): its warp is ALREADY settled
+   * (the unit stands on its destination, the use spent, in the same synchronous turn as this
+   * call), so the intent checkpoint taken here is the one durable write for the warp and
+   * the attack together. `warpStrike.present` draws the warp once that checkpoint is saved
+   * (absent on a resume: the unit is simply there). A Blink Strike never offers Canto.
+   */
+  async executeCombat(attacker, defender, { warpStrike = null } = {}) {
     const session = battleSession(this);
     this.battleState = 'COMBAT_RESOLVING';
     safeBattlePresentation('combat highlights', () => this.grid.clearAttackHighlights(), {
       scene: this,
     });
-    this._commitCombatIntent(attacker, defender);
+    this._commitCombatIntent(attacker, defender, { warpStrike: Boolean(warpStrike) });
     const saveGate = this._saveRetryGate(session);
     if (saveGate) {
       await saveGate;
@@ -8363,6 +8391,12 @@ export class BattleScene extends Phaser.Scene {
       )
         return;
     }
+    if (warpStrike?.present) {
+      await safeBattlePresentation('blink strike warp', () => warpStrike.present(), {
+        scene: this,
+      });
+      if (!isCurrentBattleSession(this, session)) return;
+    }
     this.resetFortHealStreak(attacker);
     const defenderHpAtStart = Math.max(0, Math.trunc(Number(defender?.currentHP) || 0));
     const attackerHpAtStart = Math.max(0, Math.trunc(Number(attacker?.currentHP) || 0));
@@ -8372,6 +8406,8 @@ export class BattleScene extends Phaser.Scene {
         isPlayerInitiator: true,
         equipArtWeapon: true,
       });
+      // The rewind row and the history name a Blink Strike's attack by the skill.
+      if (warpStrike) ctx.actionLabel = 'Blink Strike';
       const { result, selectedArt } = await this._runCombatResolution(attacker, defender, ctx);
       if (!isCurrentBattleSession(this, session)) return;
       // The outcome is applied to live state now; every checkpoint from here
@@ -8462,6 +8498,8 @@ export class BattleScene extends Phaser.Scene {
         gambitTriggered: result.events.some((event) =>
           event.skillActivations?.some((skill) => skill.id === 'commanders_gambit'),
         ),
+        // Blink Strike is an attack: no Canto after it.
+        ...(warpStrike ? { skipCanto: true } : {}),
         // Galeforce: decided now, after the casualties fell; saved with the action.
         ...(killMoveRefreshesActor({ art: selectedArt, attacker, primary: defender })
           ? { refreshActor: true }

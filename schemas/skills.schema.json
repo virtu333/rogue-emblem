@@ -67,6 +67,9 @@
               "aoe_root",
               "push_enemy",
               "transfer_hp",
+              "sacrifice_heal",
+              "refresh_adjacent",
+              "warp_strike",
               "steal_item"
             ]
           },
@@ -114,7 +117,15 @@
             "if": {
               "properties": {
                 "kind": {
-                  "enum": ["teleport_self", "ally_buff", "aoe_heal", "aoe_root"]
+                  "enum": [
+                    "teleport_self",
+                    "ally_buff",
+                    "aoe_heal",
+                    "aoe_root",
+                    "sacrifice_heal",
+                    "refresh_adjacent",
+                    "warp_strike"
+                  ]
                 }
               }
             },
@@ -144,6 +155,30 @@
             },
             "then": {
               "required": ["amount"]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "sacrifice_heal"
+                }
+              }
+            },
+            "then": {
+              "required": ["amount", "radius"]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "warp_strike"
+                }
+              }
+            },
+            "then": {
+              "required": ["range"]
             }
           }
         ]

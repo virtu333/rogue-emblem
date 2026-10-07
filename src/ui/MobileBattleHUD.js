@@ -100,6 +100,16 @@ function staffRelocateHint(s, state) {
   return relocatePrompt(caster?.weapon, caster, ally);
 }
 
+// Blink Strike: step 1 names the tile to warp to, step 2 the foe to strike from it.
+function warpStrikeHint(s, state) {
+  if (state !== 'SELECTING_ABILITY_TILE') return null;
+  const step = s._pendingAbility?.step;
+  if (step === 'destination')
+    return 'Tap a lit tile to warp to: you strike a foe from there. Back to go back.';
+  if (step === 'target') return 'Tap a foe to strike from the outlined tile. Back to choose another tile.'; // prettier-ignore
+  return null;
+}
+
 // Item rows teach their long press once: the hint line shows until the player
 // has opened a row's details (per device; storage blocked = never nag).
 const ITEM_HOLD_KEY = 'emblem_rogue_tip_hold_item';
@@ -1262,6 +1272,7 @@ export class MobileBattleHUD {
           s.inspectMode
             ? 'Tap an ally or enemy to view their details.'
             : staffRelocateHint(s, state) ||
+                warpStrikeHint(s, state) ||
                 HINTS[state] ||
                 (state.startsWith('SELECTING_')
                   ? 'Tap a highlighted target. Back to go back.'
