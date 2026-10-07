@@ -1,6 +1,6 @@
 import { affixSummaryText } from '../engine/AffixForecast.js';
 import { skipsClassProgression } from '../engine/SpecialCharacterPolicy.js';
-import { canInspectUnit } from '../engine/BattleInformation.js';
+import { canInspectUnit, carriedItemInfo } from '../engine/BattleInformation.js';
 import { formatPerkMods } from './rosterDisplay.js';
 import {
   UI_PALETTE,
@@ -837,6 +837,13 @@ export class UnitDetailOverlay {
         UI_PALETTE.bad,
         '9px',
       );
+      y += 12;
+    }
+
+    // Carried item (enemy-only): what a Thief's Steal would take.
+    const carrying = carriedItemInfo(unit);
+    if (carrying) {
+      this._tabText(lx, y, ` ${carrying.text}`, UI_PALETTE.good, '9px');
       y += 12;
     }
 

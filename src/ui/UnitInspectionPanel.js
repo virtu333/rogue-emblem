@@ -5,6 +5,7 @@ import {
   canInspectUnit,
   statusDescriptions,
   statusStaffInfo,
+  carriedItemInfo,
 } from '../engine/BattleInformation.js';
 import { UI_COLORS, UI_HEX } from '../utils/uiStyles.js';
 import { TILE_SIZE } from '../utils/constants.js';
@@ -47,7 +48,11 @@ export class UnitInspectionPanel {
     const viewH = cam?.height || 480;
     const pixelX = screenPos?.x ?? worldPos.x;
     const pixelY = screenPos?.y ?? worldPos.y;
-    const details = [...statusDescriptions(unit), statusStaffInfo(unit)?.text].filter(Boolean);
+    const details = [
+      ...statusDescriptions(unit),
+      statusStaffInfo(unit)?.text,
+      carriedItemInfo(unit)?.text,
+    ].filter(Boolean);
     const canPin =
       unit.faction === 'enemy' &&
       unit.currentHP > 0 &&

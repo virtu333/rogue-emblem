@@ -4,7 +4,12 @@ import { saveServiceRun } from './serviceSave.js';
 import { skillScrollText, weaponArtScrollText } from './weaponArtDisplay.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
 import { itemUsageText } from '../engine/ItemUsage.js';
-import { statusDescriptions, statusStaffInfo } from '../engine/BattleInformation.js';
+import { goldPouchValue } from '../engine/GoldPouch.js';
+import {
+  statusDescriptions,
+  statusStaffInfo,
+  carriedItemInfo,
+} from '../engine/BattleInformation.js';
 import { classChangePreview } from './classChangeDisplay.js';
 import {
   formatWeaponArtEffects,
@@ -535,6 +540,8 @@ export class MobileRosterSheet {
       );
     const statusStaff = statusStaffInfo(unit);
     if (statusStaff) this.card('Status staff', statusStaff.text);
+    const carrying = carriedItemInfo(unit);
+    if (carrying) this.card('Carrying', carrying.text);
     const terrain = this.terrainForUnit?.(unit);
     const grid = el('dl', null, 'mr-stats');
     // Two pairs per row upright (the portrait .mr-stats rule), three in landscape.
@@ -1432,12 +1439,16 @@ export class MobileRosterSheet {
           this.useBooster(unit, item);
           return;
         }
+        const gold = action === 'use' ? goldPouchValue(item) : 0;
         const result = rosterItemAction(this.run, unit, item, action);
         if (!result && ['heal', 'healFull', 'cureHeal'].includes(item.effect))
           this.scene.registry.get('audio')?.playSFX('sfx_heal');
         if (!result) this.lesson?.observe({ action, unit: unit.name, item: item.name });
         this.render(
-          result || `${label}: ${item.name}${warning ? `. ${warning}` : ''}${this.persistNow()}`,
+          result ||
+            (gold > 0
+              ? `${item.name}: +${gold} G.${this.persistNow()}`
+              : `${label}: ${item.name}${warning ? `. ${warning}` : ''}${this.persistNow()}`),
         );
       },
       reason,
@@ -1523,7 +1534,7 @@ export class MobileRosterSheet {
     for (const item of unit.consumables || []) {
       const c = this.itemCard(item, unit);
       if (this.run) {
-        if (['heal', 'healFull', 'cure', 'cureHeal', 'statBoost'].includes(item.effect))
+        if (['heal', 'healFull', 'cure', 'cureHeal', 'statBoost', 'gold'].includes(item.effect))
           this.action(c, 'Use', unit, item, 'use');
         if (['promote', 'reclass'].includes(item.effect)) {
           const reason = rosterClassChangeBlock(this.run, unit, item, this.gameData);
@@ -1581,7 +1592,9 @@ export class MobileRosterSheet {
   }
   /** A convoy consumable's Use (or Promote / Reclass) on `unit`, without withdrawing it. */
   convoyUse(card, unit, item) {
-    if (['heal', 'healFull', 'cure', 'cureHeal', 'statBoost'].includes(item.effect))
+    if (item.effect === 'gold')
+      this.action(card, `Use (+${goldPouchValue(item)} G)`, unit, item, 'use');
+    else if (['heal', 'healFull', 'cure', 'cureHeal', 'statBoost'].includes(item.effect))
       this.action(card, `Use on ${unit.name}`, unit, item, 'use');
     if (['promote', 'reclass'].includes(item.effect)) {
       const reason = rosterClassChangeBlock(this.run, unit, item, this.gameData);

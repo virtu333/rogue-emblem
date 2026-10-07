@@ -40,6 +40,7 @@ import { battleSpeed, waitDuration, waitTween } from '../utils/combatTiming.js';
 import { getWeaponArtIds, killMoveRefreshesActor } from '../engine/WeaponArtSystem.js';
 import {
   canInspectUnit,
+  carriedItemInfo,
   seenTileOccupant,
   statusStaffThreat,
 } from '../engine/BattleInformation.js';
@@ -3237,16 +3238,21 @@ export class BattleScene extends Phaser.Scene {
       unit.affixPips.forEach((p) => p.destroy());
     }
     unit.affixPips = [];
-    if (!unit.affixes || unit.affixes.length === 0) return;
+    // A carrier (EnemyCarry.js) wears one more pip after its affixes: the sack a Thief's
+    // Steal would take. It shows only while the unit itself is in view.
+    const affixIds = Array.isArray(unit.affixes) ? unit.affixes : [];
+    const carries = Boolean(carriedItemInfo(unit));
+    const pipCount = affixIds.length + (carries ? 1 : 0);
+    if (pipCount === 0) return;
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
     const pipY = pos.y - TILE_SIZE / 2 + 4;
     const pipSize = 4;
     const gap = 2;
-    const totalW = pipSize * unit.affixes.length + gap * (unit.affixes.length - 1);
+    const totalW = pipSize * pipCount + gap * (pipCount - 1);
     let startX = pos.x - totalW / 2 + pipSize / 2;
 
-    for (const affixId of unit.affixes) {
+    for (const affixId of affixIds) {
       const affix = this.gameData.affixes?.affixes?.find((a) => a.id === affixId);
       const tier = affix?.tier || 1;
       const color = tier === 2 ? UI_HEX.dangerLine : UI_HEX.accent;
@@ -3256,6 +3262,14 @@ export class BattleScene extends Phaser.Scene {
         .setDepth(14);
       unit.affixPips.push(pip);
       startX += pipSize + gap;
+    }
+    if (carries) {
+      const sack = this.add
+        .rectangle(startX, pipY, pipSize, pipSize + 1, UI_HEX.emberPale)
+        .setStrokeStyle(1, 0x000000)
+        .setDepth(14)
+        .setVisible(canInspectUnit(this.grid, unit));
+      unit.affixPips.push(sack);
     }
   }
 
@@ -7010,7 +7024,9 @@ export class BattleScene extends Phaser.Scene {
                     ? refusal || 'Promotion unavailable'
                     : isReclass && !canUseReclass
                       ? refusal || 'No available reclass'
-                      : '';
+                      : item.effect === 'gold'
+                        ? 'Use it from the roster'
+                        : '';
         const usable = !reason;
         let label = item.name;
         if (item.uses !== undefined) label += ` (${item.uses})`;
