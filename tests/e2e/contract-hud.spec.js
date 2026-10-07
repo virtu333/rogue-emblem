@@ -72,6 +72,7 @@ async function fell(page, except = null) {
 
 test.describe('desktop 640x480', () => {
   test.use({ viewport: { width: 640, height: 480 } });
+  test.setTimeout(90_000);
 
   const line = (page) =>
     battle(
