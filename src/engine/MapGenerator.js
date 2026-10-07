@@ -33,6 +33,7 @@ import {
 import { createScopedLogger } from '../utils/logger.js';
 import { buildRoutLadder } from './RoutLadder.js';
 import { assignHolders, holdShareFor } from './HoldActivation.js';
+import { mapExtraNecromancer } from './Necromancy.js';
 import { seizeParFloor } from './SeizeParFloor.js';
 import { assignCasterGear, isPerBattleGearConfig } from './CasterGear.js';
 import { buildReinforcementTemplatePool } from './ReinforcementSpawns.js';
@@ -2173,6 +2174,10 @@ function generateEnemies(
       className = weightedClassPick(allClasses, enemyWeights, classes);
     }
 
+    // One Necromancer per battle: a further pick is mapped to the pool's next class (no
+    // re-roll, no extra draw: the streams stay where they were).
+    className = mapExtraNecromancer(className, spawns, pool);
+
     const unit = { className };
 
     // Score all remaining candidate tiles for this unit
@@ -2274,7 +2279,8 @@ function generateEnemies(
       sunderWeapon: sunderWeapon || undefined,
       poisonWeapon: poisonWeapon || undefined,
       statusStaff: statusStaff || undefined,
-      aiMode: className === 'Cleric' ? 'heal' : undefined,
+      // A Cleric heals; a Necromancer holds its post and raises (the existing guard mode).
+      aiMode: className === 'Cleric' ? 'heal' : className === 'Necromancer' ? 'guard' : undefined,
       siegeWeapon: siegeWeapon || undefined,
     });
   }

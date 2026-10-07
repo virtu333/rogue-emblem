@@ -20,6 +20,7 @@ import { gridDistance } from './Combat.js';
 import { enemyThreatTiles, isThreatSourceVisible } from './ThreatForecast.js';
 import { HOLD_AI_MODE } from './HoldDisturbance.js';
 import { isHazardTerrainIndex } from './TerrainHazards.js';
+import { NECROMANCER_CLASS } from './Necromancy.js';
 
 export { HOLD_AI_MODE };
 export const HOLD_PACK_RADIUS = 3;
@@ -62,6 +63,9 @@ function holdCandidates({ spawns, objective, thronePos, escapeTiles, playerSpawn
       !s.isBoss &&
       !s.isEntity &&
       !s.siegeWeapon &&
+      // A Necromancer keeps its own guard post (Necromancy.js): it raises from there and
+      // its Skeletons hunt, so a sleeping pack must not hold it.
+      s.className !== NECROMANCER_CLASS &&
       !onHazard(s) &&
       (!s.aiMode || s.aiMode === 'guard'),
   );
@@ -152,9 +156,11 @@ export function assignHolders({
     next++;
   }
   // Holds replace guards, but only on a map that has holders: a map with no pack keeps
-  // the guards it rolled (otherwise it would be softer than First Light's).
+  // the guards it rolled (otherwise it would be softer than First Light's). A Necromancer's
+  // guard post is not a roll but its identity (Necromancy.js): it keeps it.
   if (chosen.length > 0) {
-    for (const s of spawns || []) if (s?.aiMode === 'guard') delete s.aiMode;
+    for (const s of spawns || [])
+      if (s?.aiMode === 'guard' && s.className !== NECROMANCER_CLASS) delete s.aiMode;
   }
   const packSize = new Map();
   for (const s of chosen) packSize.set(pack.get(s), (packSize.get(pack.get(s)) || 0) + 1);

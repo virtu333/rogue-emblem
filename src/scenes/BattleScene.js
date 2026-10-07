@@ -349,6 +349,8 @@ import { CaravanController } from '../ui/CaravanController.js';
 import { VillageController } from '../ui/VillageController.js';
 import { RecruitBeaconController } from '../ui/RecruitBeaconController.js';
 import { SMASH_TARGET_STATE, ZombieRemainsController } from '../ui/ZombieRemainsController.js';
+import { NecromancyController } from '../ui/NecromancyController.js';
+import { isNecromancer } from '../engine/Necromancy.js';
 import { HealController } from '../ui/HealController.js';
 import { InputController } from '../ui/InputController.js';
 import { LootFlowController } from '../ui/LootFlowController.js';
@@ -435,6 +437,11 @@ const PAUSE_TRANSITION_TIMEOUT_MS = 6000;
 /** The battle's Zombie remains (ZombieRemainsController), made on first use. */
 function remainsOf(scene) {
   return (scene._remainsCtrl ||= new ZombieRemainsController(scene));
+}
+
+/** The battle's Necromancer raises and crumbles (NecromancyController), made on first use. */
+function necromancyOf(scene) {
+  return (scene._necromancyCtrl ||= new NecromancyController(scene));
 }
 
 /** Reset per-battle state on a unit at deploy time. */
@@ -766,6 +773,10 @@ export class BattleScene extends Phaser.Scene {
     if (this._remainsCtrl) {
       this._remainsCtrl.destroy();
       this._remainsCtrl = null;
+    }
+    if (this._necromancyCtrl) {
+      this._necromancyCtrl.destroy();
+      this._necromancyCtrl = null;
     }
     if (this._promotionController) {
       this._promotionController.destroy();
@@ -9172,6 +9183,12 @@ export class BattleScene extends Phaser.Scene {
       // Zombie / Revenant remains: a tile record that rises in 3 enemy phases unless
       // smashed (engine/ZombieRemains.js, ZombieRemainsController).
       remainsOf(this).onEnemyFell(unit, killer, { col: deathCol, row: deathRow });
+      // A Necromancer's Skeletons crumble with it (no killer: no gold, no XP), before any
+      // battle-end check reads the roster (engine/Necromancy.js).
+      if (isNecromancer(unit)) {
+        await necromancyOf(this).crumble(unit);
+        if (!isCurrentBattleSession(this, session)) return;
+      }
     }
     safeBattlePresentation('death hover', () => this._inputController?.refreshHoverInfo(), {
       scene: this,
@@ -9613,6 +9630,7 @@ export class BattleScene extends Phaser.Scene {
           await this.processTerrainDamage(armyAndNpcAllies(this.playerUnits, this.npcUnits));
           await this.processTurnStartEffects(this.enemyUnits);
           await this.processZombieRevival();
+          await this.processNecromancy();
           await this.processBallistaFire(this.playerUnits, 'enemy');
           this.applyDueHybridOverridesForTurn(turn);
           await this.startEnemyPhase();
@@ -9836,6 +9854,17 @@ export class BattleScene extends Phaser.Scene {
   async processZombieRevival() {
     const session = battleSession(this);
     await remainsOf(this).processRevival();
+    if (!isCurrentBattleSession(this, session)) return;
+  }
+
+  /**
+   * Enemy-phase start, after the remains tick: each Necromancer with fewer than two living
+   * Skeletons raises one (engine/Necromancy.js, NecromancyController).
+   */
+  async processNecromancy() {
+    const session = battleSession(this);
+    if (!this.enemyUnits.some(isNecromancer)) return;
+    await necromancyOf(this).processRaises();
     if (!isCurrentBattleSession(this, session)) return;
   }
 

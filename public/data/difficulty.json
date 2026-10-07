@@ -141,7 +141,8 @@
       "holdShare": { "seize": 0.35, "escape": 0.3 },
       "objectiveParOffset": { "seize": -3, "escape": -2, "rout": { "act4": -2 } },
       "enemyClassEarliestAct": {
-        "Dragon": "act4"
+        "Dragon": "act4",
+        "Necromancer": "act4"
       },
       "recruitAffixExcludedActs": []
     },
@@ -251,7 +252,7 @@
       },
       "holdShare": { "seize": 0.45, "escape": 0.4 },
       "objectiveParOffset": { "seize": -4, "escape": -2, "rout": { "act4": -2 } },
-      "enemyClassEarliestAct": {},
+      "enemyClassEarliestAct": { "Necromancer": "act4" },
       "recruitAffixExcludedActs": []
     },
     "lunatic": {
@@ -326,7 +327,7 @@
       "routLadder": null,
       "holdShare": { "seize": 0.55, "escape": 0.5 },
       "objectiveParOffset": { "seize": -4, "escape": -1, "rout": { "act4": -1 } },
-      "enemyClassEarliestAct": {},
+      "enemyClassEarliestAct": { "Necromancer": "act3" },
       "recruitAffixExcludedActs": []
     }
   }

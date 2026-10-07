@@ -243,6 +243,42 @@ async function inBothWorlds(setup, act) {
   return out;
 }
 
+// A Necromancer's Skeleton is an ordinary foe to the on-kill step (docs/specs/phase3.md 3I):
+// killing one fires Lifetaker once for the combat, as any kill does, and the Necromancer's
+// cap of six raises bounds how often that can happen in a battle. (Mark of the Ember is the
+// same step; it is not in the game at this point.)
+describe.each(WORLDS)(
+  'on-kill skills against a raised Skeleton, through %s',
+  (_label, makeWorld) => {
+    it('Lifetaker heals once for the kill, and the Skeleton pays no gold', async () => {
+      const edric = makeEdric();
+      const skeleton = makeFoe('Skeleton', 1, 10, {
+        extra: { className: 'Skeleton', _raisedBy: 'u9' },
+      });
+      const world = makeWorld([edric], [skeleton, bystander()]);
+      await world.attack(edric, skeleton);
+      expect(skeleton.currentHP).toBe(0);
+      expect(edric.currentHP).toBe(20 + 10); // one heal of floor(25% of 40), not two
+    });
+
+    it('six raised Skeletons felled one a combat heal six times in all: bounded by the cap', async () => {
+      const edric = makeEdric({ hp: 1 });
+      let heals = 0;
+      for (let n = 0; n < 6; n++) {
+        const before = edric.currentHP;
+        const skeleton = makeFoe('Skeleton', 1, 10, {
+          extra: { className: 'Skeleton', _raisedBy: 'u9' },
+        });
+        const world = makeWorld([edric], [skeleton, bystander()]);
+        await world.attack(edric, skeleton);
+        if (edric.currentHP > before) heals++;
+        edric.currentHP = 1;
+      }
+      expect(heals).toBe(6);
+    });
+  },
+);
+
 describe.each(WORLDS)('on-kill skills through %s', (_label, makeWorld) => {
   const fight = async ({ edricOpts, primaryHP, art = null, neighbourHP = null, armed = false }) => {
     const edric = makeEdric(edricOpts);
