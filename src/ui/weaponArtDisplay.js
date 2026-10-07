@@ -174,6 +174,8 @@ export function weaponArtModsText(art) {
   if (mods.rangeOverride) parts.push(`Range ${mods.rangeOverride.min}–${mods.rangeOverride.max}`);
   if (mods.statScaling)
     parts.push(`Adds ${mods.statScaling.stat} ÷ ${mods.statScaling.divisor} to Attack`);
+  if (mods.foeDefShare > 0)
+    parts.push(`Adds ${Math.round(mods.foeDefShare * 100)}% of the foe's Defense to damage`);
   if (mods.drainPercent)
     parts.push(
       `Heals ${Math.round(mods.drainPercent * 100)}% of damage dealt${mods.drainMaxPerHit ? ` (at most ${mods.drainMaxPerHit} HP a hit)` : ''}`,

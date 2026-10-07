@@ -165,6 +165,11 @@ function normalizeDrainPercent(value) {
   return n > 0 ? n : null;
 }
 
+function normalizeFoeDefShare(value) {
+  const n = toFiniteNumber(value, 0);
+  return n > 0 ? Math.min(1, n) : 0;
+}
+
 function normalizeDamageMultiplier(value) {
   const n = toFiniteNumber(value, 0);
   return n > 1 ? n : null;
@@ -580,6 +585,8 @@ export function getWeaponArtCombatMods(art) {
     damageMultiplier: normalizeDamageMultiplier(mods.damageMultiplier),
     ignoreWeaponTriangle: Boolean(mods.ignoreWeaponTriangle),
     ignoreRES: Boolean(mods.ignoreRES),
+    // Lunar Brace: a share of the foe's DEF added to a physical strike (Combat.strikeDamage).
+    foeDefShare: normalizeFoeDefShare(mods.foeDefShare),
     activated: Array.isArray(mods.activated) ? [...mods.activated] : [],
   };
 }

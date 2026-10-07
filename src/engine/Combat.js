@@ -194,6 +194,12 @@ function hasWeaponArtActivation(mods) {
   return mods.activated.some((entry) => entry?.id === 'weapon_art');
 }
 
+/** A share of the foe's DEF a physical strike adds as damage (Lunar Brace); 0 when absent. */
+function normalizeCombatFoeDefShare(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
 function normalizeCombatMods(mods) {
   if (!mods || typeof mods !== 'object') return null;
   return {
@@ -229,6 +235,7 @@ function normalizeCombatMods(mods) {
     damageMultiplier: normalizeCombatDamageMultiplier(mods.damageMultiplier),
     ignoreWeaponTriangle: Boolean(mods.ignoreWeaponTriangle),
     ignoreRES: Boolean(mods.ignoreRES),
+    foeDefShare: normalizeCombatFoeDefShare(mods.foeDefShare),
     activated: Array.isArray(mods.activated) ? [...mods.activated] : [],
   };
 }
@@ -275,6 +282,7 @@ export function mergeCombatMods(baseMods, extraMods) {
         : null,
     ignoreWeaponTriangle: base.ignoreWeaponTriangle || extra.ignoreWeaponTriangle,
     ignoreRES: base.ignoreRES || extra.ignoreRES,
+    foeDefShare: base.foeDefShare + extra.foeDefShare,
     activated: [...base.activated, ...extra.activated],
   };
 }
@@ -791,6 +799,25 @@ export function calculateCritRate(attacker, weapon, defender) {
   return Math.max(0, Math.min(100, rawCrit - defender.stats.LCK));
 }
 
+/**
+ * The stat defence a strike's damage formula subtracts, and the terrain's DEF bonus beside
+ * it: the one place that decides it (DEF or RES; halved by Sunder or `halveDefense`;
+ * nothing against an RES strike that ignores RES). calculateDamage and the DEF-share bonus
+ * both read it, so the two can never disagree.
+ */
+function strikeDefense(defender, atkWeapon, defenderTerrain, options = null) {
+  const targetsRES = Boolean(options?.targetsRES);
+  let def = targetsRES ? Number(defender?.stats?.RES) || 0 : calculateDefense(defender, atkWeapon);
+  if (options?.halveDefense || (!targetsRES && hasSunderEffect(atkWeapon))) {
+    def = Math.floor(def / 2);
+  }
+  // Divine Flare: RES-targeting strikes pierce resistance entirely
+  if (options?.ignoreRES && (targetsRES || usesMagic(atkWeapon))) {
+    def = 0;
+  }
+  return { def, terrainDef: getTerrainBonus(defender, defenderTerrain, 'defBonus') };
+}
+
 /** Raw damage (before crit), minimum 0. Includes terrain DEF bonus + weapon effectiveness. */
 export function calculateDamage(
   attacker,
@@ -805,7 +832,6 @@ export function calculateDamage(
     defWeapon && !options?.ignoreTriangle
       ? getWeaponTriangleBonus(atkWeapon, defWeapon, attacker.weaponRank)
       : { hit: 0, damage: 0 };
-  const targetsRES = Boolean(options?.targetsRES);
   const effectivenessMultiplier = Number(options?.effectivenessMultiplier);
   const atk = calculateAttack(
     attacker,
@@ -815,20 +841,40 @@ export function calculateDamage(
     isInitiating,
     Number.isFinite(effectivenessMultiplier) ? effectivenessMultiplier : null,
   );
-  let def = targetsRES ? Number(defender?.stats?.RES) || 0 : calculateDefense(defender, atkWeapon);
-  if (options?.halveDefense || (!targetsRES && hasSunderEffect(atkWeapon))) {
-    def = Math.floor(def / 2);
-  }
-  // Divine Flare: RES-targeting strikes pierce resistance entirely
-  if (options?.ignoreRES && (targetsRES || usesMagic(atkWeapon))) {
-    def = 0;
-  }
-  const terrainDef = getTerrainBonus(defender, defenderTerrain, 'defBonus');
+  const { def, terrainDef } = strikeDefense(defender, atkWeapon, defenderTerrain, options);
   const result = Math.max(0, atk - def - terrainDef);
   if (IS_DEV && Number.isNaN(result)) {
     console.warn('[Combat] NaN damage:', { attacker: attacker?.name, weapon: atkWeapon?.name });
   }
   return result;
+}
+
+/**
+ * Lunar Brace's bonus (`foeDefShare`): floor(share × the foe's DEF) added to a physical
+ * strike. "The foe's DEF" is exactly what that strike's damage formula subtracts: the
+ * stat after Sunder or Luna's halving (`strikeDefense`), plus the terrain's DEF bonus, the
+ * defender's DEF mods and its weapon's DEF bonus, never below 0. A strike against RES
+ * (magic, a magic sword, an art that targets RES) gets nothing.
+ */
+function foeDefShareBonus(
+  defender,
+  atkWeapon,
+  defWeapon,
+  defTerrain,
+  atkMods,
+  defMods,
+  { halveDefense = false } = {},
+) {
+  const share = Number(atkMods?.foeDefShare) || 0;
+  if (!(share > 0) || !atkWeapon || strikeHitsRes(atkWeapon, atkMods)) return 0;
+  const { def, terrainDef } = strikeDefense(defender, atkWeapon, defTerrain, {
+    halveDefense,
+    ignoreRES: atkMods?.ignoreRES,
+  });
+  const weaponDef = defWeapon ? sumWeaponBonus(getWeaponStatBonuses(defWeapon), 'DEF') : 0;
+  const foeDef = Math.max(0, def + terrainDef + combatModDefense(defMods, false) + weaponDef);
+  // The epsilon keeps a share like 0.3 of 30 from landing a hair under 9.
+  return Math.floor(foeDef * share + 1e-9);
 }
 
 /**
@@ -869,6 +915,7 @@ export function strikeDamage(
       defWeaponDef,
   );
   damage += getCombatStatScalingBonus(attacker, atkMods);
+  damage += foeDefShareBonus(defender, atkWeapon, defWeapon, defTerrain, atkMods, defMods);
   if (atkMods?.vengeance) damage += getMissingHp(attacker);
   if (defMods?.halfPhysicalDamage && isPhysical(atkWeapon)) damage = Math.floor(damage / 2);
   if (atkMods?.damageMultiplier > 1) damage = Math.floor(damage * atkMods.damageMultiplier);
@@ -947,6 +994,17 @@ export function artFollowUpStrike(
         targetWeaponDef,
     );
     dmg += getCombatStatScalingBonus(striker, strikerMods);
+    dmg += foeDefShareBonus(
+      target,
+      strikerWeapon,
+      targetWeapon,
+      targetTerrain,
+      strikerMods,
+      targetMods,
+      {
+        halveDefense,
+      },
+    );
     if (strikerMods?.vengeance) dmg += getMissingHp(striker);
     if (targetMods?.halfPhysicalDamage && isPhysical(strikerWeapon)) dmg = Math.floor(dmg / 2);
     if (strikerMods?.damageMultiplier > 1) dmg = Math.floor(dmg * strikerMods.damageMultiplier);
@@ -1857,6 +1915,9 @@ export function resolveCombat(
       defWeaponDefBonus,
   );
   atkLunaDmg += getCombatStatScalingBonus(attacker, atkMods);
+  atkLunaDmg += foeDefShareBonus(defender, atkWeapon, defWeapon, defTerrain, atkMods, defMods, {
+    halveDefense: true,
+  });
   if (atkMods?.vengeance) atkLunaDmg += getMissingHp(attacker);
   if (defMods?.halfPhysicalDamage && isPhysical(atkWeapon)) atkLunaDmg = Math.floor(atkLunaDmg / 2);
   if (atkMods?.damageMultiplier > 1) atkLunaDmg = Math.floor(atkLunaDmg * atkMods.damageMultiplier);

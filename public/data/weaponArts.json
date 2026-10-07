@@ -2688,6 +2688,27 @@
           }
         ]
       }
+    },
+    {
+      "id": "lance_lunar_brace",
+      "name": "Lunar Brace",
+      "weaponType": "Lance",
+      "tierAffinity": "Steel",
+      "unlockAct": "act2",
+      "requiredRank": "Prof",
+      "hpCost": 3,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "Leans the spear on the foe's own plate: heavier armour, deeper bite.",
+      "combatMods": {
+        "foeDefShare": 0.3,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Lunar Brace"
+          }
+        ]
+      }
     }
   ]
 }
