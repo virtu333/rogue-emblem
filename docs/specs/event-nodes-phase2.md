@@ -769,4 +769,4 @@ five viewports were reviewed and are not kept.
 ## Not in Phase 2
 
 Marks, the Necromancer, multi-bar bosses, new skills and arts: `event-nodes.md` §14–§15
-(Phase 3). Art: `docs/specs/event-art.md`.
+(Phase 3; the build plan is `docs/specs/phase3.md`). Art: `docs/specs/event-art.md`.

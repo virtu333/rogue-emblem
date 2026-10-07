@@ -550,6 +550,8 @@ no per-battle limit but cost double HP; Glass Cannon).
 
 ## 15. Picks from the Echoes / Three Houses / Engage review (owner, 2026-10-06)
 
+The build plan for §14–§15 is `docs/specs/phase3.md`.
+
 The owner kept a short list and asked not to add too many. **Skipped as too complicated for
 the roguelike now:** Break (triangle stagger), Adjutants, Chain Attack / Chain Guard,
 gambits and battalions, Echoes fatigue and dungeons, Engage's emblem transformations.
