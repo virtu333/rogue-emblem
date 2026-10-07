@@ -78,7 +78,13 @@ function foe(extra = {}) {
 }
 
 const chain = () => {
-  const o = { setOrigin: () => o, setDepth: () => o, destroy() {} };
+  const o = {
+    setOrigin: () => o,
+    setDepth: () => o,
+    setStrokeStyle: () => o,
+    setAngle: () => o,
+    destroy() {},
+  };
   return o;
 };
 
@@ -111,7 +117,7 @@ function battle({ show, bars }) {
       blessingRuntimeModifiers: {},
     },
     registry: { get: () => null },
-    add: { text: () => chain() },
+    add: { text: () => chain(), rectangle: () => chain() },
     tweens: { add() {} },
     isDevToolsEnabled: () => false,
     animateSkillActivation: async () => {},
@@ -126,6 +132,9 @@ function battle({ show, bars }) {
     // Rendering runs independently of strike settlement in UnitHealth.
     scene.updateHPBar(attacker);
     scene.updateHPBar(defender);
+    // A broken Revival Stone's refill and pips are drawn at the blow, never settled by it.
+    if (event.stoneBroken)
+      scene._stoneBreakFx().playBreak(event.attackerSide === 'defender' ? attacker : defender);
   };
   return scene;
 }
@@ -312,4 +321,44 @@ describe('a forecast preview changes nothing it does not restore', () => {
       undefined,
     ]);
   });
+});
+
+describe('a stoned boss breaks a bar the same way in every world', () => {
+  // Hand-worked (sword beats axe): the attacker hits for (10 + 5) - 4 + 1 = 12, which would
+  // fell the 10-HP boss. Its one Revival Stone breaks instead: back to 22/22 and the
+  // exchange ends, so there is no counter (the attacker stays 20/20). The stone is spent
+  // by the exchange itself, not by drawing it or the bar.
+  const sword = {
+    name: 'Iron Sword',
+    type: 'Sword',
+    might: 5,
+    hit: 100,
+    crit: 0,
+    weight: 0,
+    range: '1',
+  };
+  const stoned = (stones) =>
+    foe({
+      isBoss: true,
+      currentHP: 10,
+      ...(stones > 0 ? { revivalStones: stones, revivalStonesMax: stones } : {}),
+    });
+  const hero = () => {
+    const attacker = { ...debtor(20), weapon: sword, inventory: [sword] };
+    delete attacker._accessoryHpOwed;
+    return attacker;
+  };
+  for (const world of WORLDS) {
+    it(world.name, async () => {
+      const attacker = hero();
+      const { defender } = await fight(world, attacker, stoned(1));
+      expect([defender.currentHP, defender.revivalStones, attacker.currentHP]).toEqual([22, 0, 20]);
+    });
+
+    it(`${world.name}: with no stone the same blow falls it`, async () => {
+      const attacker = hero();
+      const { defender } = await fight(world, attacker, stoned(0));
+      expect([defender.currentHP, attacker.currentHP]).toEqual([0, 20]);
+    });
+  }
 });

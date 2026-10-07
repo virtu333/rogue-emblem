@@ -347,7 +347,7 @@ describe('rewards and penalties go through the effect planner', () => {
     expect(healed.currentHP).toBe(5 + Math.round(edric.stats.HP / 2));
   });
 
-  it('an item reward is delivered, and with nowhere to put it becomes a note, never a failed victory', () => {
+  it('an item reward is delivered; with nowhere to put it the reward waits, owed, never a failed victory', () => {
     const reward = [
       { type: 'item', pool: { kind: 'weapon', weaponTypes: '$army', tierOffset: 1 } },
     ];
@@ -364,19 +364,21 @@ describe('rewards and penalties go through the effect planner', () => {
     fillArmy(full.run);
     win(full.run, { turns: 1, par: 5 });
     // The pick found no room before it chose an item, so the band cannot name one: it says the
-    // reward was not delivered rather than "Contract kept" alone.
+    // reward waits (it used to close as a "No room" note, forfeiting it unasked: see
+    // ContractSettlementRecovery.test.js for the lifecycle).
     expect(full.run.lastContractSettlement).toMatchObject({
       kept: true,
+      owed: true,
+      blocked: 'No room for the item',
       failed: null,
-      lines: ['Contract kept: No room for the item'],
+      results: [],
+      lines: ['Contract kept: the reward waits — No room for the item'],
     });
-    expect(full.run.lastContractSettlement.results).toEqual([
-      { kind: 'note', of: 'item', text: NO_ROOM, noRoom: true },
-    ]);
     expect(full.run.contract).toBeNull();
+    expect(full.run.contractOwed).toMatchObject({ kept: true, blocked: 'No room for the item' });
   });
 
-  it('a named reward item with nowhere to go is named in the band, beside what still paid', () => {
+  it('a named reward item with nowhere to go is named in the band, and nothing of the terms is paid before it can be', () => {
     // Steel Lance is a catalog weapon: the note knows its name (a pool pick would not).
     const { run } = signed({
       reward: [
@@ -387,13 +389,16 @@ describe('rewards and penalties go through the effect planner', () => {
     fillArmy(run);
     const gold = run.gold;
     win(run, { turns: 1, par: 5 });
-    expect(run.gold).toBe(gold + BATTLE_GOLD + 600);
-    expect(run.lastContractSettlement.results).toEqual([
-      { kind: 'note', of: 'item', text: NO_ROOM, noRoom: true, name: 'Steel Lance' },
-      { kind: 'gold', value: 600, requested: 600 },
-    ]);
+    // The 600 G is owed with the lance: a reward is delivered whole or not at all (it used to pay
+    // the gold and drop the lance as a note).
+    expect(run.gold).toBe(gold + BATTLE_GOLD);
+    expect(run.lastContractSettlement.results).toEqual([]);
     expect(run.lastContractSettlement.lines).toEqual([
-      'Contract kept: No room for Steel Lance · Gained 600 G',
+      'Contract kept: the reward waits — No room for Steel Lance',
+    ]);
+    expect(run.contractOwed.effects).toEqual([
+      { type: 'item', name: 'Steel Lance' },
+      { type: 'gold', value: 600 },
     ]);
   });
 
@@ -409,7 +414,7 @@ describe('rewards and penalties go through the effect planner', () => {
     expect(pay()).toBe(pay());
   });
 
-  it('terms that cannot be planned do not block the victory: the contract closes and the run is untouched', () => {
+  it('terms that cannot be planned do not block the victory: the run is untouched and the reward stays owed', () => {
     const { run } = signed({
       reward: [
         { type: 'gold', value: 600 },
@@ -419,16 +424,17 @@ describe('rewards and penalties go through the effect planner', () => {
     const gold = run.gold;
     win(run, { turns: 1, par: 5 });
     expect(run.gold).toBe(gold + BATTLE_GOLD); // plan, then apply: not even the gold that came first
-    expect(run.contract).toBeNull();
+    expect(run.contract).toBeNull(); // judged once: the claim is the owed record, not the contract
+    expect(run.contractOwed).toMatchObject({ kept: true, failed: 'Unknown burden "ghost".' });
     expect(run.lastContractSettlement.failed).toBe('Unknown burden "ghost".');
     expect(run.lastContractSettlement.results).toEqual([]);
     // "Contract kept" alone would claim a reward that was never paid
     expect(run.lastContractSettlement.lines).toEqual([
-      'Contract kept: The reward could not be paid',
+      'Contract kept: the reward could not be paid yet',
     ]);
   });
 
-  it('a penalty that cannot be applied says so too (the contract was broken, nothing was taken)', () => {
+  it('a penalty that cannot be applied says so too (the contract was broken, nothing was taken, it stays owed)', () => {
     const { run } = signed({ penalty: [{ type: 'burden', id: 'ghost' }] });
     const gold = run.gold;
     win(run, { turns: 9, par: 5 });
@@ -437,8 +443,9 @@ describe('rewards and penalties go through the effect planner', () => {
     expect(run.lastContractSettlement).toMatchObject({
       kept: false,
       failed: 'Unknown burden "ghost".',
-      lines: ['Contract broken: The penalty could not be applied'],
+      lines: ['Contract broken: the penalty could not be applied yet'],
     });
+    expect(run.contractOwed).toMatchObject({ kept: false, failed: 'Unknown burden "ghost".' });
   });
 
   it('an item the army cannot be given is a note and the rest of the terms still pay', () => {
@@ -468,6 +475,8 @@ describe('rewards and penalties go through the effect planner', () => {
     expect(run.gold).toBe(gold + BATTLE_GOLD); // the 600 G that came first was rolled back with it
     expect(run.contract).toBeNull();
     expect(run.lastContractSettlement.failed).toContain('could not be met');
+    expect(run.contractOwed).toMatchObject({ kept: true }); // the verdict survives the rollback
+    expect(run.contractOwed.failed).toContain('could not be met');
   });
 });
 
@@ -555,6 +564,7 @@ describe('the band says what happened', () => {
 
   it('says what was not delivered, and a settlement that failed', () => {
     const note = { kind: 'note', of: 'item', text: NO_ROOM, noRoom: true, name: 'Steel Lance' };
+    // a no-room note that rides a record (an event's spoils say it so) reads the same
     expect(settlementLines({ kept: true, results: [note] })).toEqual([
       'Contract kept: No room for Steel Lance',
     ]);
@@ -569,11 +579,12 @@ describe('the band says what happened', () => {
         results: [{ kind: 'note', of: 'blessing', text: 'The altar has nothing left to give.' }],
       }),
     ).toEqual(['Contract kept: The altar has nothing left to give.']);
-    expect(settlementLines({ kept: true, results: [], failed: 'Unknown burden "x".' })).toEqual([
-      'Contract kept: The reward could not be paid',
-    ]);
-    expect(settlementLines({ kept: false, results: [], failed: 'boom' })).toEqual([
-      'Contract broken: The penalty could not be applied',
+    // a settlement that failed is still owed: the band says "yet"
+    expect(
+      settlementLines({ kept: true, owed: true, results: [], failed: 'Unknown burden "x".' }),
+    ).toEqual(['Contract kept: the reward could not be paid yet']);
+    expect(settlementLines({ kept: false, owed: true, results: [], failed: 'boom' })).toEqual([
+      'Contract broken: the penalty could not be applied yet',
     ]);
   });
 

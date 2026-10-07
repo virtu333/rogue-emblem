@@ -11,7 +11,8 @@
 // * a carrier (`spawn.carries`, EnemyCarry.js): a whole item held apart from the bag
 //   (enemy.carriedItem). The AI never uses it and combat never reads it; only a Thief's
 //   Steal takes it, and a carrier that falls first loses it (docs/specs/phase3.md 3G, Q4);
-// * Nightfall and up: secondary weapons for multi-proficiency enemies without special gear.
+// * Nightfall and up: secondary weapons for multi-proficiency enemies without special gear;
+// * a boss spawn that names Revival Stones (`spawn.revivalStones`, RevivalStones.js).
 //
 // applySpawnLoadout then applies what an authored spawn (data/prologue.json) fixes by
 // hand: its weapon, its skills, its authored id and any stats it fixes (P4's Captain
@@ -22,6 +23,7 @@ import { canEquip, grantSecondaryWeapons } from './UnitManager.js';
 import { ensureItemUid } from '../utils/itemUid.js';
 import { isDifficultyAtLeast } from './DifficultyEngine.js';
 import { buildCarriedItem, isCarrierEligible } from './EnemyCarry.js';
+import { applyRevivalStones } from './RevivalStones.js';
 import {
   SUNDER_WEAPON_BY_TYPE,
   POISON_WEAPON_BY_TYPE,
@@ -47,6 +49,7 @@ export function applyEnemySpawnGear(
   { weapons, difficultyId = 'normal', consumables = [], battleKey = '' } = {},
 ) {
   if (!enemy || !spawn) return enemy;
+  applyRevivalStones(enemy, spawn);
   if (spawn.isEntity) {
     const entityWeapons = (weapons || [])
       .filter((w) => ENTITY_WEAPON_NAMES.includes(w.name))

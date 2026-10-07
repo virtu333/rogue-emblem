@@ -11,7 +11,7 @@
 // says a fight is owed, and a story flag is the story's own memory.
 
 import { describeBurdens } from '../engine/Burdens.js';
-import { describeContract } from '../engine/Contracts.js';
+import { describeContract, describeOwedContract } from '../engine/Contracts.js';
 import { describeResult, num, plural, sentence, wornText } from '../engine/EventResultWords.js';
 
 // The words of a result record live in the engine (EventResultWords), shared with the
@@ -249,6 +249,34 @@ export function contractChipModel(contract) {
 }
 
 /**
+ * The words of a contract settlement that is earned and not yet delivered
+ * (Contracts.describeOwedContract), for the route map's chip and the pause list: it reads
+ * "Reward waiting" (or "Penalty waiting") and the terms say what is owed and why it waits.
+ * @param {object|null} owed - describeOwedContract(run)
+ * @returns {{ id: 'contract', owed: true, label: string, short: string, line: string,
+ *   detail: string, terms: string }|null}
+ */
+export function owedContractChipModel(owed) {
+  if (!owed) return null;
+  const what = owed.owed.length
+    ? `${owed.kept ? 'Owed' : 'To be applied'}: ${owed.owed.join(', ')}.`
+    : '';
+  const line = owed.kept
+    ? 'The contract was kept and its reward is not delivered yet.'
+    : 'The contract was broken and its penalty is not applied yet.';
+  const detail = [what, sentence(owed.reason)].filter(Boolean).join(' ');
+  return {
+    id: 'contract',
+    owed: true,
+    label: owed.label || 'Contract',
+    short: owed.short || '',
+    line,
+    detail,
+    terms: [line, detail].filter(Boolean).join(' '),
+  };
+}
+
+/**
  * The pause menu's list of what weighs on the run: every burden (Burdens.describeBurdens) and the
  * open contract, each { id, label, short, line?, detail?, text? } (`text` replaces `line detail.`).
  * @param {object} run - RunManager
@@ -256,7 +284,8 @@ export function contractChipModel(contract) {
  */
 export function pauseBurdenEntries(run, catalog = null) {
   const burdens = describeBurdens(run, catalog);
-  const contract = contractChipModel(describeContract(run));
+  const contract =
+    contractChipModel(describeContract(run)) || owedContractChipModel(describeOwedContract(run));
   return contract
     ? [
         ...burdens,

@@ -52,6 +52,7 @@
       "templateWavesRaisePar": true,
       "routLadder": null,
       "holdShare": null,
+      "revivalStones": { "actBoss": 0, "emperor": 0, "lieutenant": 0, "eliteCaptain": 0 },
       "objectiveParOffset": { "escape": -2 },
       "villageMinRow": { "act1": 3 },
       "enemyClassEarliestAct": {},
@@ -157,6 +158,7 @@
         }
       },
       "holdShare": { "seize": 0.35, "escape": 0.3 },
+      "revivalStones": { "actBoss": 0, "emperor": 1, "lieutenant": 0, "eliteCaptain": 0 },
       "objectiveParOffset": { "seize": -3, "escape": -2, "rout": { "act4": -2 } },
       "enemyClassEarliestAct": {
         "Dragon": "act4",
@@ -278,6 +280,7 @@
         }
       },
       "holdShare": { "seize": 0.45, "escape": 0.4 },
+      "revivalStones": { "actBoss": 1, "emperor": 1, "lieutenant": 0, "eliteCaptain": 0 },
       "objectiveParOffset": { "seize": -4, "escape": -2, "rout": { "act4": -2 } },
       "enemyClassEarliestAct": { "Necromancer": "act4" },
       "recruitAffixExcludedActs": []
@@ -362,6 +365,7 @@
       "templateWavesRaisePar": false,
       "routLadder": null,
       "holdShare": { "seize": 0.55, "escape": 0.5 },
+      "revivalStones": { "actBoss": 1, "emperor": 2, "lieutenant": 0, "eliteCaptain": 1 },
       "objectiveParOffset": { "seize": -4, "escape": -1, "rout": { "act4": -1 } },
       "enemyClassEarliestAct": { "Necromancer": "act3" },
       "recruitAffixExcludedActs": []

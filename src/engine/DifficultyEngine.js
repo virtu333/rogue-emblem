@@ -1,5 +1,7 @@
 // DifficultyEngine.js - Wave 8 difficulty validation and lookup helpers.
 
+import { REVIVAL_STONE_KINDS, hasRevivalStones } from './RevivalStones.js';
+
 export const DIFFICULTY_CONTRACT_VERSION = 1;
 
 /**
@@ -156,6 +158,9 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   // ({ seize: -2, rout: { act4: -2 } }, null: none).
   holdShare: null,
   objectiveParOffset: null,
+  // Revival Stones a boss carries ({ actBoss, emperor, lieutenant, eliteCaptain }, RevivalStones.js;
+  // null: none). Every rung in difficulty.json names all four; a run saved before them has none.
+  revivalStones: null,
   // Act id -> first node row that may hold a village ({ act1: 3 }: none in an act's first
   // three rows; null / a missing act: any row). Applied when a node map is generated.
   villageMinRow: null,
@@ -272,6 +277,19 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
         `Foes carry items a Thief can steal from Act ${actNum}+ (max ${cfg.maxPerBattle}/battle)`,
       );
     }
+  }
+  if (hasRevivalStones(mode.revivalStones)) {
+    const stones = mode.revivalStones;
+    const label = {
+      actBoss: 'act bosses',
+      emperor: 'the Emperor',
+      lieutenant: 'the Lieutenant',
+      eliteCaptain: 'elite captains',
+    };
+    const parts = REVIVAL_STONE_KINDS.filter((kind) => stones[kind] > 0).map(
+      (kind) => `${label[kind]} ${stones[kind]}`,
+    );
+    lines.push(`Revival Stones (a boss refills when felled): ${parts.join(', ')}`);
   }
   if (mode.siegeWeaponConfig) {
     const cfg = mode.siegeWeaponConfig;
@@ -442,6 +460,25 @@ function validateCarryConfig(mode, path) {
   return errors;
 }
 
+/**
+ * Revival Stones (docs/specs/phase3.md 3D): every rung names all four kinds, each a
+ * non-negative integer. A rung with none writes zeros; the key is not optional, so a new
+ * rung cannot forget that its bosses carry nothing.
+ */
+function validateRevivalStones(mode, path) {
+  const table = mode.revivalStones;
+  if (!isObject(table)) return [`${path}.revivalStones must be an object of stone counts`];
+  const errors = [];
+  for (const kind of REVIVAL_STONE_KINDS) {
+    if (!(Number.isInteger(table[kind]) && table[kind] >= 0))
+      errors.push(`${path}.revivalStones.${kind} must be a non-negative integer`);
+  }
+  for (const key of Object.keys(table))
+    if (!REVIVAL_STONE_KINDS.includes(key))
+      errors.push(`${path}.revivalStones.${key} is not a stone kind`);
+  return errors;
+}
+
 /** The pacing keys (all optional): routLadder, parInflation, templateWavesRaisePar, villageMinRow. */
 function validateBattlePacing(mode, path) {
   const errors = [];
@@ -481,6 +518,7 @@ function validateBattlePacing(mode, path) {
       }
     }
   }
+  errors.push(...validateRevivalStones(mode, path));
   const minRows = mode.villageMinRow;
   if (minRows !== undefined && minRows !== null) {
     if (!isObject(minRows)) {

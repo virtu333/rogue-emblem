@@ -24,6 +24,7 @@ import {
 } from './HintDisplay.js';
 import {
   forecastProjection,
+  projectedFallText,
   forecastModifierText,
   forecastNotes,
   forecastReadingPoints,
@@ -631,7 +632,9 @@ export class MobileBattleHUD {
         el(
           'span',
           `mb-hp-after${hpAfter === 0 ? ' mb-hp-ko' : ''}`,
-          hpAfter === 0 ? ' → KO' : ` → ${hpAfter}`,
+          hpAfter === 0
+            ? ` → ${projectedFallText(projection, attacking ? 'attacker' : 'defender')}`
+            : ` → ${hpAfter}`,
         ),
       );
     who.append(hp);

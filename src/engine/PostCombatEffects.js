@@ -13,6 +13,8 @@
 //   { kind: 'poison', unit, amount }  presentation — a damage-over-time number
 //   { kind: 'status', unit, status }  presentation — a status condition landed
 //   { kind: 'hint', unit, text, tone} presentation — a short floating label
+//   { kind: 'stone', unit }           presentation — a Revival Stone broke and refilled the bar
+//                                     (UnitHealth.damageUnitDetailed; the refill is settled)
 // The scene awaits each beat (a death animation plays before the next effect); the
 // harness acts on the required beats and skips the rest. Either way the effects
 // resolve in the same order against the same state.
@@ -35,7 +37,7 @@ import { planAreaBlows } from './AreaDamage.js';
 import { planAreaPush } from './AreaPush.js';
 import { gridDistance } from './Combat.js';
 import { applyCondition } from './StatusConditionSystem.js';
-import { damageUnit, healUnit, setUnitHP } from './UnitHealth.js';
+import { damageUnit, damageUnitDetailed, healUnit, setUnitHP } from './UnitHealth.js';
 import { markHoldDisturbed } from './HoldDisturbance.js';
 import { applyBattleDebuff } from './BattleStatDeltas.js';
 import { applyTimedBuffEntry, resolveTimedBuffExpiry } from './TimedWeaponArtBuffs.js';
@@ -255,10 +257,11 @@ function* onKillSpeed(skill, unit) {
 }
 
 function* damageOverTime(unit, amount, floor) {
-  const actual = damageUnit(unit, amount, { floor });
+  const { lost: actual, stoneBroken } = damageUnitDetailed(unit, amount, { floor });
   if (actual > 0) {
     yield { kind: 'hp', unit };
     yield { kind: 'poison', unit, amount: actual };
+    if (stoneBroken) yield { kind: 'stone', unit };
   }
 }
 
@@ -423,11 +426,12 @@ function* collide(step, sourceUnit, targetUnit, moveResult, world, result) {
   const dealt = new Map();
   for (const unit of struck) {
     const hpBefore = unit.currentHP;
-    const actual = damageUnit(unit, amount);
+    const { lost: actual, stoneBroken } = damageUnitDetailed(unit, amount);
     dealt.set(unit, { hpBefore, actual });
     if (actual <= 0) continue;
     yield { kind: 'hp', unit };
     yield { kind: 'hint', unit, text: `Crash -${actual}`, tone: 'splash' };
+    if (stoneBroken) yield { kind: 'stone', unit };
   }
   if (hostile && dealt.get(obstacle)?.actual > 0) {
     if (result)
@@ -508,14 +512,21 @@ export function* areaDamage(step, sourceUnit, primary, world, result = null) {
   const tone = step.area.shape === 'line' ? 'pierce' : 'splash';
   const dealt = new Map(plan.map(({ unit }) => [unit, { hpBefore: unit.currentHP, damage: 0 }]));
 
+  // A victim whose Revival Stone broke is struck no more by this art: one bar per blow
+  // sequence, as a broken stone ends a combat's exchange.
+  const brokeBar = new Set();
   for (let blow = 0; blow < blows; blow++) {
     for (const { unit, damage } of plan) {
-      if (unit.currentHP <= 0 || damage <= 0) continue;
-      const actual = damageUnit(unit, damage, { floor });
+      if (unit.currentHP <= 0 || damage <= 0 || brokeBar.has(unit)) continue;
+      const { lost: actual, stoneBroken } = damageUnitDetailed(unit, damage, { floor });
       if (actual <= 0) continue;
       dealt.get(unit).damage += actual;
       yield { kind: 'hp', unit };
       yield { kind: 'hint', unit, text: `${label} -${actual}`, tone };
+      if (stoneBroken) {
+        brokeBar.add(unit);
+        yield { kind: 'stone', unit };
+      }
     }
   }
 

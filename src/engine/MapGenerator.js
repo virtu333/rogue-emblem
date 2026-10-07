@@ -33,6 +33,7 @@ import {
 import { createScopedLogger } from '../utils/logger.js';
 import { buildRoutLadder } from './RoutLadder.js';
 import { assignHolders, holdShareFor } from './HoldActivation.js';
+import { revivalStoneKind, revivalStonesFor } from './RevivalStones.js';
 import { mapExtraNecromancer } from './Necromancy.js';
 import { seizeParFloor } from './SeizeParFloor.js';
 import { assignCasterGear, isPerBattleGearConfig } from './CasterGear.js';
@@ -254,6 +255,10 @@ export function generateBattleLayout(params, deps) {
       difficultyId: params.difficultyId,
       // Elite captains already scale with the act's (rung-adjusted) level range.
       bossLevelBonus: params.isElite === true && !isBoss ? 0 : params.bossLevelBonus,
+      // Revival Stones (difficulty.json `revivalStones`, RevivalStones.js): the boss spawn
+      // carries its count, so a locked map keeps it. Elite captains are their own kind.
+      revivalStones: params.revivalStones,
+      isEliteCaptain: params.isElite === true && !isBoss && objective === 'seize',
     },
   );
   // Per-battle staves and siege tomes (CasterGear.js, its own stream: no Math.random).
@@ -1998,6 +2003,10 @@ function generateEnemies(
     // The rung's boss level bonus (difficulty.json `bossLevelBonus`): boss levels are
     // otherwise fixed by their definitions and ignore `enemyLevelBonus`.
     const bossLevelBonus = Math.max(0, Math.trunc(Number(extraOptions.bossLevelBonus) || 0));
+    const stones = revivalStonesFor(
+      extraOptions.revivalStones,
+      revivalStoneKind({ bossDef, act, isEliteCaptain: extraOptions.isEliteCaptain === true }),
+    );
 
     // Entity boss: place at entitySpawn coords if template provides them
     const entityFootprintInBounds =
@@ -2062,6 +2071,7 @@ function generateEnemies(
           row: bossPos.row,
           isBoss: true,
           name: bossDef.name,
+          ...(stones > 0 ? { revivalStones: stones } : {}),
         });
       }
     }

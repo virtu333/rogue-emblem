@@ -146,7 +146,7 @@ import {
   targetCandidates,
   targetFilterBlock,
 } from './EventSystem.js';
-import { contractOf } from './Contracts.js';
+import { contractBound } from './Contracts.js';
 import { choiceTells, tellTilt } from './EventTells.js';
 import { withEclipseSeed } from './EclipseSystem.js';
 import { isPrologueRun } from './ScriptedBattle.js';
@@ -259,7 +259,7 @@ export function eventChoiceBlock(run, nodeId, choiceId, targetUid = null) {
   if (!choice) return 'That is not a choice here.';
   const requireLine = evaluateRequires(run, choice.requires, { catalog, node, state });
   if (requireLine) return requireLine;
-  if (choiceMayOpenContract(choice) && contractOf(run))
+  if (choiceMayOpenContract(choice) && contractBound(run))
     return 'You are already bound by a contract.';
   const fallen = fallenOfState(run, state);
   if (choice.target) {

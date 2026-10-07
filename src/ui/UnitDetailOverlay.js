@@ -1,4 +1,5 @@
 import { affixSummaryText } from '../engine/AffixForecast.js';
+import { REVIVAL_STONE_DESCRIPTION, revivalStonesLine } from '../engine/RevivalStones.js';
 import { skipsClassProgression } from '../engine/SpecialCharacterPolicy.js';
 import { canInspectUnit, carriedItemInfo } from '../engine/BattleInformation.js';
 import { formatPerkMods } from './rosterDisplay.js';
@@ -363,6 +364,15 @@ export class UnitDetailOverlay {
         this._wireTooltipTarget(text, () =>
           this._showSkillTooltip(text, `${affix.name}: ${affix.description}`),
         );
+      y += 14;
+    }
+    const stonesLine = revivalStonesLine(unit);
+    if (stonesLine) {
+      const text = this._unitText(lx, y, stonesLine, UI_PALETTE.info, '9px');
+      fitCanvasText(text, OVERLAY_W - 24);
+      this._wireTooltipTarget(text, () =>
+        this._showSkillTooltip(text, `Revival Stones: ${REVIVAL_STONE_DESCRIPTION}`),
+      );
       y += 14;
     }
 

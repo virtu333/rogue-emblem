@@ -1,3 +1,4 @@
+import { REVIVAL_STONE_DESCRIPTION, revivalStonesLine } from '../engine/RevivalStones.js';
 import { skipsClassProgression } from '../engine/SpecialCharacterPolicy.js';
 import { rosterDeploySlots } from '../engine/BattleDeployCount.js';
 import { saveServiceRun } from './serviceSave.js';
@@ -475,6 +476,8 @@ export class MobileRosterSheet {
         const affix = this.gameData.affixes?.affixes?.find((a) => a.id === id);
         this.card(affix?.name || id, affix?.description || '');
       }
+      const stonesLine = revivalStonesLine(unit);
+      if (stonesLine) this.card(stonesLine, REVIVAL_STONE_DESCRIPTION);
 
       this.benchCallout(unit);
       if (this.tab === 'stats') this.stats(unit);
