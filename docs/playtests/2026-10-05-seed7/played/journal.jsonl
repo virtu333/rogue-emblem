@@ -1,0 +1,480 @@
+{"t":"2026-10-05T22:24:18.013Z","type":"new","options":{"seed":7,"difficulty":"normal","meta":"none","commander":null,"partner":null,"invincible":false}}
+{"t":"2026-10-05T22:24:23.757Z","type":"cmd","at":1,"cmd":"bless 2","note":"750 gold early buys gear/vulneraries; Act 1 survival matters most","out":["Blessing taken: Coin of Fate."]}
+{"t":"2026-10-05T22:24:27.367Z","type":"cmd","at":2,"cmd":"go act1_0_2","note":null,"out":["You travel to act1_0_2 BATTLE ROUT [Foes Lv 1].","Deployed: Edric, Sera, Gaspar.","Battle begins.","Formation: arrange your units on the marked tiles (\"place <unit> <x,y>\"), then \"start\"."]}
+{"t":"2026-10-05T22:24:32.197Z","type":"cmd","at":3,"cmd":"start","note":null,"out":["Formation set. Turn 1, player phase."]}
+{"t":"2026-10-05T22:24:32.210Z","type":"query","at":3,"cmd":"options P3"}
+{"t":"2026-10-05T22:24:39.835Z","type":"cmd","at":4,"cmd":"move P3 4,4 attack E1 with Iron Sword","note":"sword vs axe, doubles for exact KO","out":["P3 Gaspar moves 0,4->4,4, attack E1 with Iron Sword.","P3 Gaspar [Iron Sword] attacks E1 Fighter [Iron Axe]: P3 hits 13; E1 misses; P3 hits 13. HP Gaspar 18->18, Fighter 22->0.","P3 Gaspar xp 0->1.","E1 Fighter falls."]}
+{"t":"2026-10-05T22:24:48.575Z","type":"cmd","at":5,"cmd":"move P1 3,4 wait","note":null,"out":["P1 Edric moves 2,5->3,4, wait."]}
+{"t":"2026-10-05T22:24:48.590Z","type":"cmd","at":6,"cmd":"move P2 2,4 wait","note":null,"out":["P2 Sera moves 1,5->2,4, wait.","-- Enemy phase (turn 1) --","Enemy movement: E2 Fighter 7,7->7,5; E3 Fighter 9,5->7,4.","-- Turn 2, player phase --"]}
+{"t":"2026-10-05T22:24:48.604Z","type":"cmd","at":7,"cmd":"end","note":null,"out":["-- Enemy phase (turn 2) --","E2 Fighter [Iron Axe] attacks P3 Gaspar [Iron Sword]: E2 misses; P3 hits 13; P3 hits 13. HP Fighter 22->0, Gaspar 18->18.","P3 Gaspar xp 1->3.","E2 Fighter falls.","E3 Fighter [Iron Axe] attacks P3 Gaspar [Iron Sword]: E3 misses; P3 hits 11; P3 hits 11. HP Fighter 22->0, Gaspar 18->18.","P3 Gaspar xp 2->3.","E3 Fighter falls.","VICTORY!","Battle won in 2 turn(s) (par 5). Gold +244 (now 1569).","Eclipse shadow now 0."]}
+{"t":"2026-10-05T22:24:55.532Z","type":"cmd","at":8,"cmd":"take 3","note":"gold+XP for all beats a weak gust blade","out":["+698 gold."]}
+{"t":"2026-10-05T22:25:03.822Z","type":"query","at":8,"cmd":"roster"}
+{"t":"2026-10-05T22:25:06.426Z","type":"cmd","at":9,"cmd":"go act1_1_2","note":"path toward village + 2 recruit nodes + church","out":["You travel to act1_1_2 BATTLE ROUT [Foes Lv 1–2].","Deployed: Edric, Sera, Gaspar.","Battle begins.","Formation: arrange your units on the marked tiles (\"place <unit> <x,y>\"), then \"start\"."]}
+{"t":"2026-10-05T22:25:19.169Z","type":"cmd","at":10,"cmd":"start","note":null,"out":["Formation set. Turn 1, player phase."]}
+{"t":"2026-10-05T22:25:19.176Z","type":"query","at":10,"cmd":"forecast P2 3,4 E1"}
+{"t":"2026-10-05T22:25:19.177Z","type":"query","at":10,"cmd":"forecast P3 4,4 E1 with Iron Sword"}
+{"t":"2026-10-05T22:25:23.756Z","type":"cmd","at":11,"cmd":"move P2 3,4 attack E1","note":null,"out":["P2 Sera moves 2,6->3,4, attack E1.","P2 Sera [Glimmer] attacks E1 Soldier [Iron Lance]: P2 CRITS 27. HP Sera 18->18, Soldier 21->0.","P2 Sera xp 25->81.","E1 Soldier falls."]}
+{"t":"2026-10-05T22:25:32.441Z","type":"query","at":10,"cmd":"look"}
+{"t":"2026-10-05T22:25:40.693Z","type":"cmd","at":11,"cmd":"move P2 3,4 attack E1","note":"Glimmer at range 2, no counter; soldier RES 1","out":["P2 Sera moves 2,6->3,4, attack E1.","P2 Sera [Glimmer] attacks E1 Soldier [Iron Lance]: P2 CRITS 27. HP Sera 18->18, Soldier 21->0.","P2 Sera xp 25->81.","E1 Soldier falls."]}
+{"t":"2026-10-05T22:25:40.873Z","type":"note","at":11,"note":"ADAPTER: a refused later command in a ;-chain silently discarded an earlier, already-printed move (Sera crit kill on E1 printed, then log showed it never happened)"}
+{"t":"2026-10-05T22:25:45.551Z","type":"refused","at":11,"cmd":"move P3 4,4 wait","error":"Gaspar cannot stop on 4,4. Use \"options P3\"."}
+{"t":"2026-10-05T22:25:47.435Z","type":"query","at":11,"cmd":"options P3"}
+{"t":"2026-10-05T22:25:52.680Z","type":"cmd","at":12,"cmd":"move P3 3,3 wait","note":null,"out":["P3 Gaspar moves 1,1->3,3, wait."]}
+{"t":"2026-10-05T22:25:52.687Z","type":"cmd","at":13,"cmd":"move P1 2,4 wait","note":null,"out":["P1 Edric moves 0,4->2,4, wait.","-- Enemy phase (turn 1) --","Enemy movement: E2 Archer 7,2->6,3; E3 Soldier 8,0->7,3.","-- Turn 2, player phase --"]}
+{"t":"2026-10-05T22:25:55.900Z","type":"query","at":13,"cmd":"options P3"}
+{"t":"2026-10-05T22:25:55.914Z","type":"query","at":13,"cmd":"options P2"}
+{"t":"2026-10-05T22:26:02.210Z","type":"cmd","at":14,"cmd":"move P3 5,3 attack E2 with Iron Sword","note":"archer can't counter at 1; fort tile","out":["P3 Gaspar moves 3,3->5,3, attack E2 with Iron Sword.","P3 Gaspar [Iron Sword] attacks E2 Archer [Iron Bow]: P3 hits 10; P3 hits 10. HP Gaspar 18->18, Archer 18->0.","P3 Gaspar xp 28->29.","E2 Archer falls."]}
+{"t":"2026-10-05T22:26:05.825Z","type":"query","at":14,"cmd":"options P2"}
+{"t":"2026-10-05T22:26:10.027Z","type":"cmd","at":15,"cmd":"move P2 4,4 wait","note":null,"out":["P2 Sera moves 3,4->4,4, wait."]}
+{"t":"2026-10-05T22:26:10.033Z","type":"cmd","at":16,"cmd":"move P1 4,3 wait","note":null,"out":["P1 Edric moves 2,4->4,3, wait.","-- Enemy phase (turn 2) --","E3 Soldier [Iron Lance] attacks P3 Gaspar [Iron Sword]: E3 hits 5; P3 hits 6; P3 hits 6. HP Soldier 21->9, Gaspar 18->13.","P3 Gaspar xp 29->30.","Enemy movement: E3 Soldier 7,3->6,3.","-- Turn 3, player phase --","P3 Gaspar HP 13->14 (terrain, status or skill)."]}
+{"t":"2026-10-05T22:26:13.593Z","type":"query","at":16,"cmd":"options P1"}
+{"t":"2026-10-05T22:26:13.595Z","type":"query","at":16,"cmd":"forecast P3 stay E3 with Steel Lance"}
+{"t":"2026-10-05T22:26:20.023Z","type":"cmd","at":17,"cmd":"move P2 5,4 attack E3","note":null,"out":["P2 Sera moves 4,4->5,4, attack E3.","P2 Sera [Glimmer] attacks E3 Soldier [Iron Lance]: P2 hits 7. HP Sera 18->18, Soldier 9->2.","P2 Sera LEVEL UP 1->2: MAG+1."]}
+{"t":"2026-10-05T22:26:22.195Z","type":"cmd","at":18,"cmd":"move P3 stay attack E3 with Iron Sword","note":null,"out":["P3 Gaspar holds 5,3, attack E3 with Iron Sword.","P3 Gaspar [Iron Sword] attacks E3 Soldier [Iron Lance]: P3 hits 6. HP Gaspar 14->14, Soldier 2->0.","P3 Gaspar xp 30->31.","E3 Soldier falls.","VICTORY!","Battle won in 3 turn(s) (par 5). Gold +254 (now 2746).","Eclipse shadow now 1."]}
+{"t":"2026-10-05T22:26:24.271Z","type":"query","at":18,"cmd":"look"}
+{"t":"2026-10-05T22:26:28.256Z","type":"cmd","at":19,"cmd":"take 1","note":"Edric needs XP; gold for shops","out":["+673 gold."]}
+{"t":"2026-10-05T22:26:28.520Z","type":"query","at":19,"cmd":"map"}
+{"t":"2026-10-05T22:26:31.646Z","type":"cmd","at":20,"cmd":"go act1_2_2","note":null,"out":["You travel to act1_2_2 VILLAGE.","You enter the shop."]}
+{"t":"2026-10-05T22:26:36.964Z","type":"cmd","at":21,"cmd":"buy 8 for Sera","note":"Brilliance +3 Mt for Sera; Javelin gives Gaspar 1-2 range","out":["Brilliance → Sera."]}
+{"t":"2026-10-05T22:26:36.965Z","type":"refused","at":21,"cmd":"buy 10 for Gaspar","error":"Choose a stock item from 1 to 9, not \"10\"."}
+{"t":"2026-10-05T22:26:40.223Z","type":"query","at":21,"cmd":"look"}
+{"t":"2026-10-05T22:26:44.943Z","type":"cmd","at":22,"cmd":"buy 9 for Gaspar","note":null,"out":["Javelin → Gaspar."]}
+{"t":"2026-10-05T22:26:45.111Z","type":"note","at":22,"note":"ADAPTER: shop stock renumbers after each buy, so 'buy 8; buy 10' in one chain fails. Also: chain refusal here KEPT the first buy, but earlier a refused forecast after a move DROPPED the move - inconsistent"}
+{"t":"2026-10-05T22:26:48.604Z","type":"cmd","at":23,"cmd":"forge Edric Iron Sword might","note":null,"out":["Forged Iron Sword +1 for 240G.","(240 G)"]}
+{"t":"2026-10-05T22:26:51.463Z","type":"cmd","at":24,"cmd":"forge Edric Iron Sword might","note":null,"out":["Forged Iron Sword +2 for 480G.","(480 G)"]}
+{"t":"2026-10-05T22:26:56.089Z","type":"cmd","at":25,"cmd":"leave","note":null,"out":["You leave the shop."]}
+{"t":"2026-10-05T22:26:56.314Z","type":"query","at":25,"cmd":"roster"}
+{"t":"2026-10-05T22:27:00.593Z","type":"cmd","at":26,"cmd":"equip Sera Brilliance","note":"battle over church: Edric needs XP, Gaspar only -4 HP","out":["Sera equips Brilliance."]}
+{"t":"2026-10-05T22:27:00.602Z","type":"cmd","at":27,"cmd":"go act1_3_2","note":"battle over church: Edric needs XP, Gaspar only -4 HP","out":["You travel to act1_3_2 BATTLE ROUT [Foes Lv 2–3].","Deployed: Edric, Sera, Gaspar.","Battle begins.","Formation: arrange your units on the marked tiles (\"place <unit> <x,y>\"), then \"start\"."]}
+{"t":"2026-10-05T22:27:19.855Z","type":"cmd","at":28,"cmd":"start","note":null,"out":["Formation set. Turn 1, player phase."]}
+{"t":"2026-10-05T22:27:19.859Z","type":"cmd","at":29,"cmd":"move P3 1,3 equip Steel Lance wait","note":null,"out":["P3 Gaspar moves 1,0->1,3, equips Steel Lance, wait."]}
+{"t":"2026-10-05T22:27:19.861Z","type":"cmd","at":30,"cmd":"move P2 1,2 heal P3","note":null,"out":["P2 Sera moves 0,1->1,2, heal P3.","P2 Sera heals P3 Gaspar: HP 14->18.","P2 Sera xp 26->51."]}
+{"t":"2026-10-05T22:27:19.867Z","type":"cmd","at":31,"cmd":"move P1 1,4 wait","note":null,"out":["P1 Edric moves 2,6->1,4, wait.","-- Enemy phase (turn 1) --","Enemy movement: E1 Soldier 6,0->6,3; E2 Soldier 6,2->5,4; E3 Cavalier 9,7->7,4.","-- Turn 2, player phase --"]}
+{"t":"2026-10-05T22:27:22.328Z","type":"query","at":31,"cmd":"options P2"}
+{"t":"2026-10-05T22:27:22.334Z","type":"query","at":31,"cmd":"options P3"}
+{"t":"2026-10-05T22:27:45.013Z","type":"cmd","at":32,"cmd":"move P2 3,4 attack E2 with Brilliance","note":null,"out":["P2 Sera moves 1,2->3,4, attack E2 with Brilliance.","P2 Sera [Brilliance] attacks E2 Soldier [Iron Lance]: P2 CRITS 39. HP Sera 18->18, Soldier 23->0.","P2 Sera LEVEL UP 2->3: RES+1.","E2 Soldier falls."]}
+{"t":"2026-10-05T22:27:48.526Z","type":"query","at":32,"cmd":"options P3"}
+{"t":"2026-10-05T22:28:03.012Z","type":"cmd","at":33,"cmd":"move P3 4,4 wait","note":"wall off the bridges so Sera (18hp) can't be double-teamed","out":["P3 Gaspar moves 1,3->4,4, wait."]}
+{"t":"2026-10-05T22:28:03.019Z","type":"cmd","at":34,"cmd":"move P1 3,5 wait","note":"wall off the bridges so Sera (18hp) can't be double-teamed","out":["P1 Edric moves 1,4->3,5, wait.","-- Enemy phase (turn 2) --","E1 Soldier [Iron Lance] attacks P1 Edric [Iron Sword +2]: E1 hits 8; P1 hits 4; P1 hits 4. HP Soldier 22->14, Edric 20->12.","P1 Edric xp 50->65.","E3 Cavalier [Iron Lance] attacks P3 Gaspar [Steel Lance]: E3 misses; P3 hits 13. HP Cavalier 22->9, Gaspar 18->18.","P3 Gaspar xp 56->57.","Enemy movement: E1 Soldier 6,3->4,5; E3 Cavalier 7,4->5,4.","-- Turn 3, player phase --","P1 Edric HP 12->15 (terrain, status or skill)."]}
+{"t":"2026-10-05T22:28:08.507Z","type":"cmd","at":35,"cmd":"move P3 stay attack E3 with Steel Lance","note":null,"out":["P3 Gaspar holds 4,4, attack E3 with Steel Lance.","P3 Gaspar [Steel Lance] attacks E3 Cavalier [Iron Lance]: P3 hits 13. HP Gaspar 18->18, Cavalier 9->0.","P3 Gaspar xp 57->58.","E3 Cavalier falls."]}
+{"t":"2026-10-05T22:28:08.510Z","type":"cmd","at":36,"cmd":"move P2 stay attack E1","note":null,"out":["P2 Sera holds 3,4, attack E1.","P2 Sera [Brilliance] attacks E1 Soldier [Iron Lance]: P2 hits 12. HP Sera 18->18, Soldier 14->2.","P2 Sera xp 7->30."]}
+{"t":"2026-10-05T22:28:08.514Z","type":"cmd","at":37,"cmd":"move P1 stay attack E1","note":null,"out":["P1 Edric holds 3,5, attack E1.","P1 Edric [Iron Sword +2] attacks E1 Soldier [Iron Lance]: P1 hits 4. HP Edric 15->15, Soldier 2->0.","P1 Edric LEVEL UP 1->2: SKL+1 SPD+1 DEF+1.","E1 Soldier falls.","VICTORY!","Battle won in 3 turn(s) (par 5). Gold +306 (now 1330).","Eclipse shadow now 2."]}
+{"t":"2026-10-05T22:28:10.518Z","type":"query","at":37,"cmd":"look"}
+{"t":"2026-10-05T22:28:14.386Z","type":"cmd","at":38,"cmd":"take 2 to Edric","note":"+2 DEF on the commander is permanent safety","out":["Edric equips Shield Ring."]}
+{"t":"2026-10-05T22:28:14.653Z","type":"query","at":38,"cmd":"roster"}
+{"t":"2026-10-05T22:28:17.042Z","type":"cmd","at":39,"cmd":"go act1_4_3","note":null,"out":["You travel to act1_4_3 RECRUIT [Foes Lv 2–3, Hunters +1].","Deployed: Edric, Sera, Gaspar.","Battle begins.","Formation: arrange your units on the marked tiles (\"place <unit> <x,y>\"), then \"start\"."]}
+{"t":"2026-10-05T22:28:34.725Z","type":"cmd","at":40,"cmd":"start","note":null,"out":["Formation set. Turn 1, player phase."]}
+{"t":"2026-10-05T22:28:34.731Z","type":"query","at":40,"cmd":"options P2"}
+{"t":"2026-10-05T22:28:38.120Z","type":"cmd","at":41,"cmd":"move P2 0,7 talk","note":"recruit the archer first, safe tile","out":["P2 Sera moves 0,4->0,7, talk.","P2 Sera talks to N1 Perrin: Perrin joins the army!"]}
+{"t":"2026-10-05T22:28:40.512Z","type":"query","at":41,"cmd":"look"}
+{"t":"2026-10-05T22:28:49.865Z","type":"cmd","at":42,"cmd":"move P1 1,2 wait","note":"turtle west of the 3,4 choke, let them come","out":["P1 Edric moves 2,3->1,2, wait."]}
+{"t":"2026-10-05T22:28:49.868Z","type":"cmd","at":43,"cmd":"move P3 stay wait","note":"turtle west of the 3,4 choke, let them come","out":["P3 Gaspar holds 2,1, wait."]}
+{"t":"2026-10-05T22:28:49.875Z","type":"cmd","at":44,"cmd":"move N1 stay wait","note":"turtle west of the 3,4 choke, let them come","out":["N1 Perrin holds 1,7, wait.","-- Enemy phase (turn 1) --","Enemy movement: E1 Myrmidon 5,4->2,3; E2 Fighter 8,3->5,4; E3 Soldier 9,7->8,6; E4 Cavalier 8,0->7,4; E5 Cavalier 7,6->4,4.","-- Turn 2, player phase --"]}
+{"t":"2026-10-05T22:28:54.578Z","type":"query","at":44,"cmd":"options P3"}
+{"t":"2026-10-05T22:28:54.586Z","type":"query","at":44,"cmd":"options N1"}
+{"t":"2026-10-05T22:29:07.717Z","type":"cmd","at":45,"cmd":"move P3 stay attack E1 with Javelin","note":null,"out":["P3 Gaspar holds 2,1, attack E1 with Javelin.","P3 Gaspar [Javelin] attacks E1 Myrmidon [Iron Sword]: P3 hits 13. HP Gaspar 18->18, Myrmidon 19->6."]}
+{"t":"2026-10-05T22:29:07.719Z","type":"query","at":45,"cmd":"forecast P1 2,2 E1"}
+{"t":"2026-10-05T22:29:10.288Z","type":"cmd","at":46,"cmd":"move P1 2,2 attack E1","note":null,"out":["P1 Edric moves 1,2->2,2, attack E1.","P1 Edric [Iron Sword +2] attacks E1 Myrmidon [Iron Sword]: P1 hits 10. HP Edric 15->15, Myrmidon 6->0.","P1 Edric xp 20->76.","E1 Myrmidon falls."]}
+{"t":"2026-10-05T22:29:10.551Z","type":"query","at":46,"cmd":"look"}
+{"t":"2026-10-05T22:29:16.196Z","type":"cmd","at":47,"cmd":"move N1 0,5 wait","note":null,"out":["N1 Perrin moves 1,7->0,5, wait."]}
+{"t":"2026-10-05T22:29:16.206Z","type":"cmd","at":48,"cmd":"move P2 stay wait","note":null,"out":["P2 Sera holds 0,7, wait.","-- Enemy phase (turn 2) --","E2 Fighter [Iron Axe] attacks P1 Edric [Iron Sword +2]: E2 hits 4; P1 hits 10; P1 hits 10. HP Fighter 23->3, Edric 15->12.","P1 Edric LEVEL UP 2->3: HP+1.","Enemy movement: E2 Fighter 5,4->2,3; E3 Soldier 8,6->6,4; E4 Cavalier 7,4->2,4; E5 Cavalier 4,4->3,4.","-- Turn 3, player phase --"]}
+{"t":"2026-10-05T22:29:20.942Z","type":"query","at":48,"cmd":"options N1"}
+{"t":"2026-10-05T22:29:20.947Z","type":"query","at":48,"cmd":"options P3"}
+{"t":"2026-10-05T22:29:25.692Z","type":"query","at":48,"cmd":"threat 2,5 N1"}
+{"t":"2026-10-05T22:29:25.694Z","type":"query","at":48,"cmd":"threat 1,3"}
+{"t":"2026-10-05T22:29:49.823Z","type":"cmd","at":49,"cmd":"move P1 stay attack E2","note":null,"out":["P1 Edric holds 2,2, attack E2.","P1 Edric [Iron Sword +2] attacks E2 Fighter [Iron Axe]: P1 hits 10. HP Edric 12->12, Fighter 3->0.","P1 Edric xp 2->45.","E2 Fighter falls."]}
+{"t":"2026-10-05T22:29:49.825Z","type":"query","at":49,"cmd":"forecast P2 2,6 E4"}
+{"t":"2026-10-05T22:29:52.725Z","type":"cmd","at":50,"cmd":"move P2 2,6 attack E4","note":null,"out":["P2 Sera moves 0,7->2,6, attack E4.","P2 Sera [Brilliance] attacks E4 Cavalier [Iron Lance]: P2 hits 12. HP Sera 18->18, Cavalier 21->9.","P2 Sera xp 30->43."]}
+{"t":"2026-10-05T22:29:52.727Z","type":"query","at":50,"cmd":"forecast P3 2,3 E4 with Steel Lance"}
+{"t":"2026-10-05T22:29:54.938Z","type":"cmd","at":51,"cmd":"move P3 2,3 attack E4 with Steel Lance","note":null,"out":["P3 Gaspar moves 2,1->2,3, attack E4 with Steel Lance.","P3 Gaspar [Steel Lance] attacks E4 Cavalier [Iron Lance]: P3 hits 13. HP Gaspar 18->18, Cavalier 9->0.","P3 Gaspar xp 58->59.","E4 Cavalier falls."]}
+{"t":"2026-10-05T22:29:54.943Z","type":"query","at":51,"cmd":"options N1"}
+{"t":"2026-10-05T22:29:59.318Z","type":"cmd","at":52,"cmd":"move N1 1,3 attack E5 with Longbow","note":null,"out":["N1 Perrin moves 0,5->1,3, attack E5 with Longbow.","N1 Perrin [Longbow] attacks E5 Cavalier [Iron Lance]: N1 hits 7. HP Perrin 21->21, Cavalier 21->14.","N1 Perrin xp 0->13.","-- Enemy phase (turn 3) --","E3 Soldier [Iron Lance] attacks P3 Gaspar [Steel Lance]: E3 hits 7; P3 hits 12. HP Soldier 22->10, Gaspar 18->11.","P3 Gaspar xp 59->60.","E5 Cavalier [Iron Lance] attacks N1 Perrin [Longbow]: E5 hits 7. HP Cavalier 14->14, Perrin 21->14.","N1 Perrin xp 12->13.","Enemy movement: E3 Soldier 6,4->2,4; E5 Cavalier 3,4->1,4.","-- Turn 4, player phase --"]}
+{"t":"2026-10-05T22:30:11.375Z","type":"cmd","at":53,"cmd":"move P2 stay attack E3","note":null,"out":["P2 Sera holds 2,6, attack E3.","P2 Sera [Brilliance] attacks E3 Soldier [Iron Lance]: P2 hits 13. HP Sera 18->18, Soldier 10->0.","P2 Sera xp 43->81.","E3 Soldier falls."]}
+{"t":"2026-10-05T22:30:11.377Z","type":"query","at":53,"cmd":"forecast N1 1,2 E5 with Iron Bow"}
+{"t":"2026-10-05T22:30:11.377Z","type":"query","at":53,"cmd":"forecast P3 2,4 E5 with Steel Lance"}
+{"t":"2026-10-05T22:30:13.798Z","type":"cmd","at":54,"cmd":"move N1 1,2 attack E5 with Iron Bow","note":null,"out":["N1 Perrin moves 1,3->1,2, attack E5 with Iron Bow.","N1 Perrin [Iron Bow] attacks E5 Cavalier [Iron Lance]: N1 hits 5. HP Perrin 14->14, Cavalier 14->9.","N1 Perrin xp 13->24."]}
+{"t":"2026-10-05T22:30:13.802Z","type":"cmd","at":55,"cmd":"move P3 2,4 attack E5 with Steel Lance","note":null,"out":["P3 Gaspar moves 2,3->2,4, attack E5 with Steel Lance.","P3 Gaspar [Steel Lance] attacks E5 Cavalier [Iron Lance]: P3 hits 11. HP Gaspar 11->11, Cavalier 9->0.","P3 Gaspar xp 60->61.","E5 Cavalier falls.","VICTORY!","Battle won in 4 turn(s) (par 6). Gold +471 (now 2026).","Eclipse shadow now 3."]}
+{"t":"2026-10-05T22:30:15.696Z","type":"query","at":55,"cmd":"look"}
+{"t":"2026-10-05T22:30:19.978Z","type":"cmd","at":56,"cmd":"take 2 to Perrin","note":"+3 Mt for the new archer","out":["Steel Bow -> Perrin."]}
+{"t":"2026-10-05T22:30:20.253Z","type":"query","at":56,"cmd":"map"}
+{"t":"2026-10-05T22:30:25.182Z","type":"cmd","at":57,"cmd":"equip Perrin Steel Bow","note":null,"out":["Perrin equips Steel Bow."]}
+{"t":"2026-10-05T22:30:25.186Z","type":"cmd","at":58,"cmd":"use Edric Vulnerary","note":null,"out":["Edric uses Vulnerary. HP 12->21."]}
+{"t":"2026-10-05T22:30:25.189Z","type":"cmd","at":59,"cmd":"give Sera Vulnerary to Gaspar","note":null,"out":["Sera gives Vulnerary to Gaspar."]}
+{"t":"2026-10-05T22:30:25.191Z","type":"cmd","at":60,"cmd":"use Gaspar Vulnerary","note":null,"out":["Gaspar uses Vulnerary. HP 11->18."]}
+{"t":"2026-10-05T22:30:28.052Z","type":"cmd","at":61,"cmd":"go act1_5_4","note":"a lord recruit (Sky Lancer flyer) is worth more than a fog village","out":["You travel to act1_5_4 RECRUIT [Foes Lv 2–3, Hunters +1].","Deployed: Edric, Sera, Gaspar, Perrin.","Battle begins.","Formation: arrange your units on the marked tiles (\"place <unit> <x,y>\"), then \"start\"."]}
+{"t":"2026-10-05T22:30:35.766Z","type":"cmd","at":62,"cmd":"place Sera 2,7","note":"Sera drops in next to Astrid from the south formation tile","out":["P2 Sera takes position at 2,7."]}
+{"t":"2026-10-05T22:30:35.770Z","type":"cmd","at":63,"cmd":"start","note":"Sera drops in next to Astrid from the south formation tile","out":["Formation set. Turn 1, player phase."]}
+{"t":"2026-10-05T22:30:35.772Z","type":"cmd","at":64,"cmd":"move P2 1,7 talk","note":"Sera drops in next to Astrid from the south formation tile","out":["P2 Sera moves 2,7->1,7, talk.","P2 Sera talks to N1 Astrid: Astrid joins the army!"]}
+{"t":"2026-10-05T22:30:45.334Z","type":"refused","at":64,"cmd":"move P3 stay item Vulnerary on P4","error":"Gaspar cannot use Vulnerary on Perrin (heals need missing HP on the user; cures need a condition on the user or an adjacent ally)."}
+{"t":"2026-10-05T22:30:48.278Z","type":"cmd","at":65,"cmd":"move P3 stay wait","note":null,"out":["P3 Gaspar holds 2,1, wait."]}
+{"t":"2026-10-05T22:30:48.282Z","type":"cmd","at":66,"cmd":"move P4 stay wait","note":null,"out":["P4 Perrin holds 1,1, wait."]}
+{"t":"2026-10-05T22:30:48.283Z","type":"cmd","at":67,"cmd":"move P1 stay wait","note":null,"out":["P1 Edric holds 0,1, wait."]}
+{"t":"2026-10-05T22:30:48.290Z","type":"cmd","at":68,"cmd":"move N1 stay wait","note":null,"out":["N1 Astrid holds 0,7, wait.","-- Enemy phase (turn 1) --","Enemy movement: E1 Myrmidon 5,4->4,2; E2 Cavalier 8,5->4,4; E3 Soldier 7,6->5,4; E4 Fighter 7,1->7,3; E5 Myrmidon 7,5->6,4; E6 Archer 8,4->5,3.","-- Turn 2, player phase --"]}
+{"t":"2026-10-05T22:30:50.727Z","type":"query","at":68,"cmd":"look"}
+{"t":"2026-10-05T22:31:03.814Z","type":"query","at":68,"cmd":"threat 1,7"}
+{"t":"2026-10-05T22:31:03.815Z","type":"query","at":68,"cmd":"threat 0,6"}
+{"t":"2026-10-05T22:31:03.816Z","type":"query","at":68,"cmd":"threat 1,1"}
+{"t":"2026-10-05T22:31:03.816Z","type":"query","at":68,"cmd":"threat 2,1"}
+{"t":"2026-10-05T22:31:03.817Z","type":"query","at":68,"cmd":"threat 1,2"}
+{"t":"2026-10-05T22:31:03.817Z","type":"query","at":68,"cmd":"threat 0,2"}
+{"t":"2026-10-05T22:31:09.478Z","type":"query","at":68,"cmd":"threat 2,2"}
+{"t":"2026-10-05T22:31:09.480Z","type":"query","at":68,"cmd":"threat 2,3"}
+{"t":"2026-10-05T22:31:09.490Z","type":"query","at":68,"cmd":"options P4"}
+{"t":"2026-10-05T22:31:20.129Z","type":"cmd","at":69,"cmd":"move P4 1,2 attack E1 with Longbow","note":null,"out":["P4 Perrin moves 1,1->1,2, attack E1 with Longbow.","P4 Perrin [Longbow] attacks E1 Myrmidon [Iron Sword]: P4 hits 11. HP Perrin 14->14, Myrmidon 19->8.","P4 Perrin xp 24->45."]}
+{"t":"2026-10-05T22:31:20.134Z","type":"cmd","at":70,"cmd":"move P3 stay wait","note":null,"out":["P3 Gaspar holds 2,1, wait."]}
+{"t":"2026-10-05T22:31:20.137Z","type":"cmd","at":71,"cmd":"move P1 stay wait","note":null,"out":["P1 Edric holds 0,1, wait."]}
+{"t":"2026-10-05T22:31:20.139Z","type":"cmd","at":72,"cmd":"move P2 stay wait","note":null,"out":["P2 Sera holds 1,7, wait."]}
+{"t":"2026-10-05T22:31:20.147Z","type":"cmd","at":73,"cmd":"move N1 stay wait","note":null,"out":["N1 Astrid holds 0,7, wait.","-- Enemy phase (turn 2) --","E2 Cavalier [Iron Lance] attacks P4 Perrin [Longbow]: E2 hits 7. HP Cavalier 21->21, Perrin 14->7.","P4 Perrin xp 45->46.","Enemy movement: E1 Myrmidon 4,2->4,1; E2 Cavalier 4,4->2,2; E3 Soldier 5,4->4,2; E4 Fighter 7,3->6,3; E5 Myrmidon 6,4->5,2; E6 Archer 5,3->3,3.","-- Turn 3, player phase --"]}
+{"t":"2026-10-05T22:31:39.670Z","type":"cmd","at":74,"cmd":"move P3 stay attack E2 with Steel Lance","note":null,"out":["P3 Gaspar holds 2,1, attack E2 with Steel Lance.","P3 Gaspar [Steel Lance] attacks E2 Cavalier [Iron Lance]: P3 hits 12; E2 hits 5. HP Gaspar 18->13, Cavalier 21->9."]}
+{"t":"2026-10-05T22:31:39.673Z","type":"query","at":74,"cmd":"forecast P4 2,0 E1 with Longbow"}
+{"t":"2026-10-05T22:31:39.673Z","type":"query","at":74,"cmd":"forecast P4 1,1 E1 with Longbow"}
+{"t":"2026-10-05T22:31:48.594Z","type":"cmd","at":75,"cmd":"move P4 1,1 attack E1 with Longbow","note":null,"out":["P4 Perrin moves 1,2->1,1, attack E1 with Longbow.","P4 Perrin [Longbow] attacks E1 Myrmidon [Iron Sword]: P4 misses. HP Perrin 7->7, Myrmidon 8->8."]}
+{"t":"2026-10-05T22:31:48.596Z","type":"query","at":75,"cmd":"forecast P1 1,2 E2"}
+{"t":"2026-10-05T22:31:54.040Z","type":"query","at":75,"cmd":"options N1"}
+{"t":"2026-10-05T22:32:25.086Z","type":"query","at":75,"cmd":"threat 1,7"}
+{"t":"2026-10-05T22:32:25.088Z","type":"query","at":75,"cmd":"threat 0,7"}
+{"t":"2026-10-05T22:32:25.089Z","type":"query","at":75,"cmd":"threat 0,6"}
+{"t":"2026-10-05T22:32:25.089Z","type":"query","at":75,"cmd":"threat 1,1"}
+{"t":"2026-10-05T22:32:29.455Z","type":"cmd","at":76,"cmd":"move P1 1,2 attack E2","note":"can't fully protect Perrin (7hp); chip E2 to 4 so any counter kills it","out":["P1 Edric moves 0,1->1,2, attack E2.","P1 Edric [Iron Sword +2] attacks E2 Cavalier [Iron Lance]: P1 hits 5; E2 hits 5. HP Edric 21->16, Cavalier 9->4.","P1 Edric xp 45->58."]}
+{"t":"2026-10-05T22:32:29.460Z","type":"cmd","at":77,"cmd":"move P2 stay wait","note":"can't fully protect Perrin (7hp); chip E2 to 4 so any counter kills it","out":["P2 Sera holds 1,7, wait."]}
+{"t":"2026-10-05T22:32:29.467Z","type":"cmd","at":78,"cmd":"move N1 stay wait","note":"can't fully protect Perrin (7hp); chip E2 to 4 so any counter kills it","out":["N1 Astrid holds 0,7, wait.","-- Enemy phase (turn 3) --","E1 Myrmidon [Iron Sword] attacks P3 Gaspar [Steel Lance]: E1 hits 4; P3 hits 16. HP Myrmidon 8->0, Gaspar 13->9.","P3 Gaspar xp 61->62.","E1 Myrmidon falls.","E2 Cavalier [Iron Lance] attacks P4 Perrin [Longbow]: E2 misses. HP Cavalier 4->4, Perrin 7->7.","P4 Perrin xp 46->47.","E6 Archer [Iron Bow] attacks P2 Sera [Brilliance]: E6 hits 7; P2 hits 11. HP Archer 18->7, Sera 18->11.","P2 Sera xp 81->96.","Enemy movement: E2 Cavalier 2,2->0,1; E3 Soldier 4,2->4,3; E4 Fighter 6,3->5,3; E5 Myrmidon 5,2->4,2; E6 Archer 3,3->2,6.","-- Turn 4, player phase --"]}
+{"t":"2026-10-05T22:32:40.392Z","type":"cmd","at":79,"cmd":"move P1 0,2 attack E2","note":null,"out":["P1 Edric moves 1,2->0,2, attack E2.","P1 Edric [Iron Sword +2] attacks E2 Cavalier [Iron Lance]: P1 hits 5. HP Edric 16->16, Cavalier 4->0.","P1 Edric xp 58->96.","E2 Cavalier falls."]}
+{"t":"2026-10-05T22:32:40.395Z","type":"cmd","at":80,"cmd":"move N1 2,7 attack E6","note":null,"out":["N1 Astrid moves 0,7->2,7, attack E6.","N1 Astrid [Iron Lance] attacks E6 Archer [Iron Bow]: N1 hits 8. HP Astrid 19->19, Archer 7->0.","N1 Astrid xp 0->44.","E6 Archer falls."]}
+{"t":"2026-10-05T22:32:42.793Z","type":"query","at":80,"cmd":"look"}
+{"t":"2026-10-05T22:32:49.135Z","type":"cmd","at":81,"cmd":"move P3 stay item Vulnerary","note":null,"out":["P3 Gaspar holds 2,1, item Vulnerary.","P3 Gaspar uses Vulnerary: HP 9->18."]}
+{"t":"2026-10-05T22:32:49.138Z","type":"cmd","at":82,"cmd":"move P4 stay wait","note":null,"out":["P4 Perrin holds 1,1, wait."]}
+{"t":"2026-10-05T22:32:49.142Z","type":"cmd","at":83,"cmd":"move P2 0,5 wait","note":null,"out":["P2 Sera moves 1,7->0,5, wait.","-- Enemy phase (turn 4) --","Enemy movement: E3 Soldier 4,3->4,1; E4 Fighter 5,3->5,2.","-- Turn 5, player phase --"]}
+{"t":"2026-10-05T22:33:14.756Z","type":"query","at":83,"cmd":"forecast P4 2,2 E5 with Steel Bow"}
+{"t":"2026-10-05T22:33:14.758Z","type":"query","at":83,"cmd":"forecast P3 4,3 E5 with Iron Sword"}
+{"t":"2026-10-05T22:33:25.395Z","type":"cmd","at":84,"cmd":"move P4 2,2 attack E5 with Steel Bow","note":null,"out":["P4 Perrin moves 1,1->2,2, attack E5 with Steel Bow.","P4 Perrin [Steel Bow] attacks E5 Myrmidon [Iron Sword]: P4 hits 13. HP Perrin 7->7, Myrmidon 18->5.","P4 Perrin xp 47->70."]}
+{"t":"2026-10-05T22:33:27.704Z","type":"cmd","at":85,"cmd":"move P3 4,3 attack E5 with Iron Sword","note":null,"out":["P3 Gaspar moves 2,1->4,3, attack E5 with Iron Sword.","P3 Gaspar [Iron Sword] attacks E5 Myrmidon [Iron Sword]: P3 hits 12. HP Gaspar 18->18, Myrmidon 5->0.","P3 Gaspar xp 62->63.","E5 Myrmidon falls."]}
+{"t":"2026-10-05T22:33:34.683Z","type":"cmd","at":86,"cmd":"move P1 2,1 wait","note":null,"out":["P1 Edric moves 0,2->2,1, wait."]}
+{"t":"2026-10-05T22:33:34.686Z","type":"cmd","at":87,"cmd":"move P2 1,2 heal P4","note":null,"out":["P2 Sera moves 0,5->1,2, heal P4.","P2 Sera heals P4 Perrin: HP 7->19.","P2 Sera LEVEL UP 3->4: MAG+1 LCK+1."]}
+{"t":"2026-10-05T22:33:34.688Z","type":"cmd","at":88,"cmd":"move N1 1,4 wait","note":null,"out":["N1 Astrid moves 2,7->1,4, wait.","-- Enemy phase (turn 5) --","E3 Soldier [Iron Lance] attacks P3 Gaspar [Iron Sword]: E3 hits 8; P3 hits 7; P3 hits 7. HP Soldier 23->9, Gaspar 18->10.","P3 Gaspar xp 63->65.","E4 Fighter [Iron Axe] attacks P3 Gaspar [Iron Sword]: E4 hits 9; P3 hits 13; P3 hits 13. HP Fighter 24->0, Gaspar 10->1.","P3 Gaspar xp 64->65.","E4 Fighter falls.","Enemy movement: E3 Soldier 4,1->4,2.","-- Turn 6, player phase --","P4 Perrin HP 19->21 (terrain, status or skill)."]}
+{"t":"2026-10-05T22:33:38.511Z","type":"query","at":88,"cmd":"forecast P4 stay E3"}
+{"t":"2026-10-05T22:33:40.822Z","type":"cmd","at":89,"cmd":"move P4 stay attack E3","note":null,"out":["P4 Perrin holds 2,2, attack E3.","P4 Perrin [Steel Bow] attacks E3 Soldier [Iron Lance]: P4 hits 9. HP Perrin 21->22, Soldier 9->0.","P4 Perrin LEVEL UP 2->3: HP+1.","E3 Soldier falls.","VICTORY!","Battle won in 6 turn(s) (par 6). Gold +565 (now 2816).","Eclipse shadow now 6."]}
+{"t":"2026-10-05T22:33:41.141Z","type":"query","at":89,"cmd":"look"}
+{"t":"2026-10-05T22:33:44.625Z","type":"cmd","at":90,"cmd":"take 1","note":null,"out":["+565 gold.","Edric: Lv 3 → 4 (+1 HP, +1 STR, +1 MAG, +1 DEF, +1 LCK)."]}
+{"t":"2026-10-05T22:33:44.942Z","type":"query","at":90,"cmd":"map"}
+{"t":"2026-10-05T22:33:48.158Z","type":"query","at":90,"cmd":"roster"}
+{"t":"2026-10-05T22:33:57.539Z","type":"cmd","at":91,"cmd":"use Gaspar Vulnerary","note":null,"out":["Gaspar uses Vulnerary. HP 1->11."]}
+{"t":"2026-10-05T22:33:57.542Z","type":"cmd","at":92,"cmd":"give Astrid Vulnerary to Gaspar","note":null,"out":["Astrid gives Vulnerary to Gaspar."]}
+{"t":"2026-10-05T22:33:57.543Z","type":"cmd","at":93,"cmd":"use Gaspar Vulnerary","note":null,"out":["Gaspar uses Vulnerary. HP 11->18."]}
+{"t":"2026-10-05T22:33:57.544Z","type":"cmd","at":94,"cmd":"give Edric Vulnerary to Sera","note":null,"out":["Edric gives Vulnerary to Sera."]}
+{"t":"2026-10-05T22:33:57.546Z","type":"cmd","at":95,"cmd":"use Sera Vulnerary","note":null,"out":["Sera uses Vulnerary. HP 11->18."]}
+{"t":"2026-10-05T22:33:59.928Z","type":"cmd","at":96,"cmd":"go act1_6_2","note":"healed with vulneraries, so scavenge instead of rest","out":["You travel to act1_6_2 RUINS."]}
+{"t":"2026-10-05T22:33:59.930Z","type":"cmd","at":97,"cmd":"path scavenge","note":"healed with vulneraries, so scavenge instead of rest","out":["You scavenge the ruins.","You enter the ruins wares."]}
+{"t":"2026-10-05T22:33:59.931Z","type":"refused","at":97,"cmd":"wares","error":"Unknown shop command \"wares\".\nbuy <n> [for <unit>|convoy]   (weapons and supplies go to a unit, else the convoy; scrolls and accessories to the team pools, an accessory \"for <unit>\" is equipped)\nsell s<n>                      (see the sell list)\nrestock\nleave"}
+{"t":"2026-10-05T22:34:06.223Z","type":"cmd","at":98,"cmd":"buy 2 for Edric","note":null,"out":["Vulnerary → Edric."]}
+{"t":"2026-10-05T22:34:06.565Z","type":"cmd","at":99,"cmd":"buy 2 for Astrid","note":null,"out":["Shortbow → Astrid."]}
+{"t":"2026-10-05T22:34:06.900Z","type":"refused","at":99,"cmd":"buy 3 for Perrin","error":"Not enough gold."}
+{"t":"2026-10-05T22:34:07.078Z","type":"note","at":99,"note":"README says 'path scavenge, then wares' but 'wares' is refused as an unknown shop command (path scavenge already opens the wares)"}
+{"t":"2026-10-05T22:34:10.926Z","type":"query","at":99,"cmd":"look"}
+{"t":"2026-10-05T22:34:15.981Z","type":"note","at":99,"note":"ADAPTER/UX: 'buy 2 for Astrid' bought a Shortbow for a lance-only flyer with no warning; stock had renumbered after the previous buy (single-stock Vulnerary vanished)"}
+{"t":"2026-10-05T22:34:16.287Z","type":"cmd","at":100,"cmd":"restock","note":null,"out":["Shop restocked for 150 G."]}
+{"t":"2026-10-05T22:34:20.418Z","type":"cmd","at":101,"cmd":"buy 6 for Astrid","note":null,"out":["Vulnerary → Astrid."]}
+{"t":"2026-10-05T22:34:20.740Z","type":"cmd","at":102,"cmd":"leave","note":null,"out":["You return to the ruins sanctuary."]}
+{"t":"2026-10-05T22:34:21.068Z","type":"refused","at":102,"cmd":"give Astrid Shortbow to Perrin","error":"Unknown command \"give\" here.\nwares | leave"}
+{"t":"2026-10-05T22:34:23.084Z","type":"query","at":102,"cmd":"look"}
+{"t":"2026-10-05T22:34:26.869Z","type":"cmd","at":103,"cmd":"leave","note":null,"out":["You leave the ruins."]}
+{"t":"2026-10-05T22:34:27.202Z","type":"cmd","at":104,"cmd":"give Astrid Shortbow to Perrin","note":null,"out":["Astrid gives Shortbow to Perrin."]}
+{"t":"2026-10-05T22:34:31.938Z","type":"query","at":104,"cmd":"map"}
+{"t":"2026-10-05T22:34:34.619Z","type":"cmd","at":105,"cmd":"go act1_7_2","note":null,"out":["You travel to act1_7_2 BOSS SEIZE.","Choose who deploys (3-4)."]}
+{"t":"2026-10-05T22:34:37.869Z","type":"cmd","at":106,"cmd":"deploy last","note":null,"out":["Deployed: Edric, Sera, Gaspar, Perrin.","Battle begins.","Formation: arrange your units on the marked tiles (\"place <unit> <x,y>\"), then \"start\"."]}
+{"t":"2026-10-05T22:34:50.290Z","type":"cmd","at":107,"cmd":"start","note":"boss map: fall back into the no-danger pocket, heal Edric on the fort, let them come","out":["Formation set. Turn 1, player phase."]}
+{"t":"2026-10-05T22:34:50.296Z","type":"cmd","at":108,"cmd":"move P1 2,6 wait","note":"boss map: fall back into the no-danger pocket, heal Edric on the fort, let them come","out":["P1 Edric moves 2,5->2,6, wait."]}
+{"t":"2026-10-05T22:34:50.300Z","type":"cmd","at":109,"cmd":"move P2 1,6 heal P1","note":"boss map: fall back into the no-danger pocket, heal Edric on the fort, let them come","out":["P2 Sera moves 0,5->1,6, heal P1.","P2 Sera heals P1 Edric: HP 17->22.","P2 Sera xp 43->68."]}
+{"t":"2026-10-05T22:34:50.303Z","type":"cmd","at":110,"cmd":"move P4 1,4 wait","note":"boss map: fall back into the no-danger pocket, heal Edric on the fort, let them come","out":["P4 Perrin moves 2,3->1,4, wait."]}
+{"t":"2026-10-05T22:34:50.309Z","type":"cmd","at":111,"cmd":"move P3 0,3 wait","note":"boss map: fall back into the no-danger pocket, heal Edric on the fort, let them come","out":["P3 Gaspar moves 1,0->0,3, wait.","-- Enemy phase (turn 1) --","Enemy movement: E3 Cavalier 9,2->5,1; E4 Fighter 6,5->3,5; E5 Cavalier 7,2->3,1.","-- Turn 2, player phase --"]}
+{"t":"2026-10-05T22:34:52.828Z","type":"query","at":111,"cmd":"look"}
+{"t":"2026-10-05T22:35:11.109Z","type":"query","at":111,"cmd":"forecast P2 1,5 E4"}
+{"t":"2026-10-05T22:35:11.111Z","type":"query","at":111,"cmd":"forecast P4 stay E4 with Longbow"}
+{"t":"2026-10-05T22:35:19.451Z","type":"cmd","at":112,"cmd":"move P2 1,5 attack E4","note":null,"out":["P2 Sera moves 1,6->1,5, attack E4.","P2 Sera [Brilliance] attacks E4 Fighter [Iron Axe]: P2 hits 14. HP Sera 18->18, Fighter 22->8.","P2 Sera xp 68->75."]}
+{"t":"2026-10-05T22:35:19.817Z","type":"cmd","at":113,"cmd":"move P1 2,5 attack E4","note":null,"out":["P1 Edric moves 2,6->2,5, attack E4.","P1 Edric [Iron Sword +2] attacks E4 Fighter [Iron Axe]: P1 hits 11. HP Edric 22->22, Fighter 8->0.","P1 Edric xp 21->52.","E4 Fighter falls."]}
+{"t":"2026-10-05T22:35:22.287Z","type":"query","at":113,"cmd":"threat 1,5"}
+{"t":"2026-10-05T22:35:22.288Z","type":"query","at":113,"cmd":"threat 2,5"}
+{"t":"2026-10-05T22:35:22.289Z","type":"query","at":113,"cmd":"threat 1,4"}
+{"t":"2026-10-05T22:35:22.290Z","type":"query","at":113,"cmd":"threat 0,3"}
+{"t":"2026-10-05T22:35:22.290Z","type":"query","at":113,"cmd":"threat 0,4"}
+{"t":"2026-10-05T22:35:22.290Z","type":"query","at":113,"cmd":"threat 1,6"}
+{"t":"2026-10-05T22:35:27.949Z","type":"cmd","at":114,"cmd":"move P4 stay equip Shortbow wait","note":null,"out":["P4 Perrin holds 1,4, equips Shortbow, wait."]}
+{"t":"2026-10-05T22:35:27.955Z","type":"cmd","at":115,"cmd":"move P3 stay equip Steel Lance wait","note":null,"out":["P3 Gaspar holds 0,3, equips Steel Lance, wait.","-- Enemy phase (turn 2) --","E5 Cavalier [Iron Lance] attacks P4 Perrin [Shortbow]: E5 hits 7; P4 hits 6. HP Cavalier 20->14, Perrin 22->15.","P4 Perrin xp 44->51.","Enemy movement: E3 Cavalier 5,1->2,3; E5 Cavalier 3,1->2,4.","-- Turn 3, player phase --","P4 Perrin HP 15->18 (terrain, status or skill)."]}
+{"t":"2026-10-05T22:35:36.098Z","type":"cmd","at":116,"cmd":"move P4 stay attack E3 with Steel Bow","note":null,"out":["P4 Perrin holds 1,4, attack E3 with Steel Bow.","P4 Perrin [Steel Bow] attacks E3 Cavalier [Iron Lance]: P4 hits 10. HP Perrin 18->18, Cavalier 21->11.","P4 Perrin xp 51->62."]}
+{"t":"2026-10-05T22:35:36.468Z","type":"cmd","at":117,"cmd":"move P3 1,3 attack E3 with Steel Lance","note":null,"out":["P3 Gaspar moves 0,3->1,3, attack E3 with Steel Lance.","P3 Gaspar [Steel Lance] attacks E3 Cavalier [Iron Lance]: P3 hits 13. HP Gaspar 18->18, Cavalier 11->0.","P3 Gaspar xp 90->91.","E3 Cavalier falls."]}
+{"t":"2026-10-05T22:35:36.853Z","type":"cmd","at":118,"cmd":"move P2 stay attack E5","note":null,"out":["P2 Sera holds 1,5, attack E5.","P2 Sera [Brilliance] attacks E5 Cavalier [Iron Lance]: P2 hits 13. HP Sera 18->18, Cavalier 14->1.","P2 Sera xp 75->91."]}
+{"t":"2026-10-05T22:35:37.218Z","type":"cmd","at":119,"cmd":"move P1 stay attack E5","note":null,"out":["P1 Edric holds 2,5, attack E5.","P1 Edric [Iron Sword +2] attacks E5 Cavalier [Iron Lance]: P1 hits 6. HP Edric 22->22, Cavalier 1->0.","P1 Edric xp 52->89.","E5 Cavalier falls.","-- Enemy phase (turn 3) --","-- Turn 4, player phase --","P4 Perrin HP 18->21 (terrain, status or skill)."]}
+{"t":"2026-10-05T22:35:40.006Z","type":"query","at":119,"cmd":"look"}
+{"t":"2026-10-05T22:35:46.490Z","type":"query","at":119,"cmd":"look"}
+{"t":"2026-10-05T22:35:56.522Z","type":"query","at":119,"cmd":"threat 3,6"}
+{"t":"2026-10-05T22:35:56.524Z","type":"refused","at":119,"cmd":"move P3 3,6 wait","error":"Gaspar cannot stop on 3,6. Use \"options P3\"."}
+{"t":"2026-10-05T22:36:00.802Z","type":"query","at":119,"cmd":"threat 3,5"}
+{"t":"2026-10-05T22:36:00.804Z","type":"query","at":119,"cmd":"threat 2,6"}
+{"t":"2026-10-05T22:36:00.804Z","type":"query","at":119,"cmd":"threat 1,5"}
+{"t":"2026-10-05T22:36:03.413Z","type":"cmd","at":120,"cmd":"move P3 3,5 wait","note":"bait the boss off its throne onto Gaspar (lance)","out":["P3 Gaspar moves 1,3->3,5, wait."]}
+{"t":"2026-10-05T22:36:03.417Z","type":"cmd","at":121,"cmd":"move P1 2,6 wait","note":"bait the boss off its throne onto Gaspar (lance)","out":["P1 Edric moves 2,5->2,6, wait."]}
+{"t":"2026-10-05T22:36:03.419Z","type":"cmd","at":122,"cmd":"move P4 stay wait","note":"bait the boss off its throne onto Gaspar (lance)","out":["P4 Perrin holds 1,4, wait."]}
+{"t":"2026-10-05T22:36:03.420Z","type":"cmd","at":123,"cmd":"move P2 stay wait","note":"bait the boss off its throne onto Gaspar (lance)","out":["P2 Sera holds 1,5, wait.","-- Enemy phase (turn 4) --","-- Turn 5, player phase --","P4 Perrin HP 21->22 (terrain, status or skill)."]}
+{"t":"2026-10-05T22:36:11.214Z","type":"query","at":123,"cmd":"options P2"}
+{"t":"2026-10-05T22:36:11.224Z","type":"query","at":123,"cmd":"options P3"}
+{"t":"2026-10-05T22:36:23.299Z","type":"cmd","at":124,"cmd":"move P3 5,1 attack E2 with Steel Lance","note":null,"out":["P3 Gaspar moves 3,5->5,1, attack E2 with Steel Lance.","P3 Gaspar [Steel Lance] attacks E2 Archer [Iron Bow]: P3 hits 16. HP Gaspar 18->18, Archer 20->4."]}
+{"t":"2026-10-05T22:36:28.979Z","type":"cmd","at":125,"cmd":"move P2 4,6 wait","note":null,"out":["P2 Sera moves 1,5->4,6, wait."]}
+{"t":"2026-10-05T22:36:28.983Z","type":"cmd","at":126,"cmd":"move P4 3,5 wait","note":null,"out":["P4 Perrin moves 1,4->3,5, wait."]}
+{"t":"2026-10-05T22:36:28.985Z","type":"cmd","at":127,"cmd":"move P1 3,6 wait","note":null,"out":["P1 Edric moves 2,6->3,6, wait.","-- Enemy phase (turn 5) --","E2 Archer [Iron Bow] attacks P3 Gaspar [Steel Lance]: E2 hits 4. HP Archer 4->4, Gaspar 18->14.","P3 Gaspar xp 91->92.","Enemy movement: E2 Archer 6,1->7,1.","-- Turn 6, player phase --"]}
+{"t":"2026-10-05T22:36:33.837Z","type":"cmd","at":128,"cmd":"move P3 6,1 attack E2 with Steel Lance","note":null,"out":["P3 Gaspar moves 5,1->6,1, attack E2 with Steel Lance.","P3 Gaspar [Steel Lance] attacks E2 Archer [Iron Bow]: P3 hits 14. HP Gaspar 14->14, Archer 4->0.","P3 Gaspar xp 92->93.","E2 Archer falls."]}
+{"t":"2026-10-05T22:36:34.241Z","type":"query","at":128,"cmd":"forecast P2 6,5 E1"}
+{"t":"2026-10-05T22:36:34.243Z","type":"query","at":128,"cmd":"forecast P4 5,4 E1 with Steel Bow"}
+{"t":"2026-10-05T22:36:41.187Z","type":"cmd","at":129,"cmd":"move P2 6,5 attack E1","note":null,"out":["P2 Sera moves 4,6->6,5, attack E1.","P2 Sera [Brilliance] attacks E1 Iron Captain [Iron Lance]: P2 hits 7. HP Sera 18->18, Iron Captain 23->16.","P2 Sera xp 91->99."]}
+{"t":"2026-10-05T22:36:41.191Z","type":"cmd","at":130,"cmd":"move P4 5,4 attack E1 with Steel Bow","note":null,"out":["P4 Perrin moves 3,5->5,4, attack E1 with Steel Bow.","P4 Perrin [Steel Bow] attacks E1 Iron Captain [Iron Lance]: P4 hits 3. HP Perrin 22->22, Iron Captain 16->13.","P4 Perrin xp 62->68."]}
+{"t":"2026-10-05T22:36:45.730Z","type":"cmd","at":131,"cmd":"move P1 5,6 wait","note":null,"out":["P1 Edric moves 3,6->5,6, wait.","-- Enemy phase (turn 6) --","E1 Iron Captain [Iron Lance] attacks P4 Perrin [Steel Bow]: E1 hits 11. HP Iron Captain 15->15, Perrin 22->11.","P4 Perrin xp 68->69.","Enemy movement: E1 Iron Captain 7,4->6,4.","-- Turn 7, player phase --"]}
+{"t":"2026-10-05T22:36:52.408Z","type":"query","at":131,"cmd":"forecast P4 4,4 E1 with Steel Bow"}
+{"t":"2026-10-05T22:36:52.410Z","type":"query","at":131,"cmd":"forecast P2 6,6 E1"}
+{"t":"2026-10-05T22:36:52.410Z","type":"query","at":131,"cmd":"forecast P3 6,3 E1 with Steel Lance"}
+{"t":"2026-10-05T22:36:57.361Z","type":"cmd","at":132,"cmd":"move P4 4,4 attack E1 with Steel Bow","note":null,"out":["P4 Perrin moves 5,4->4,4, attack E1 with Steel Bow.","P4 Perrin [Steel Bow] attacks E1 Iron Captain [Iron Lance]: P4 hits 6. HP Perrin 11->11, Iron Captain 15->9.","P4 Perrin xp 69->83."]}
+{"t":"2026-10-05T22:36:57.725Z","type":"cmd","at":133,"cmd":"move P2 6,6 attack E1","note":null,"out":["P2 Sera moves 6,5->6,6, attack E1.","P2 Sera [Brilliance] attacks E1 Iron Captain [Iron Lance]: P2 hits 10. HP Sera 18->18, Iron Captain 9->0.","P2 Sera LEVEL UP 4->5: STR+1 MAG+1 RES+1 LCK+1.","E1 Iron Captain falls."]}
+{"t":"2026-10-05T22:37:01.155Z","type":"query","at":133,"cmd":"options P1"}
+{"t":"2026-10-05T22:37:03.473Z","type":"cmd","at":134,"cmd":"move P1 7,4 seize","note":"commander takes the throne","out":["P1 Edric moves 5,6->7,4, seize.","VICTORY!","Battle won in 7 turn(s) (par 9). Gold +1133 (now 2339).","Eclipse shadow now 4."]}
+{"t":"2026-10-05T22:37:08.473Z","type":"cmd","at":135,"cmd":"recruit 3","note":"Voss: STR 11 lord, best frontline stats","out":["Voss joins your army."]}
+{"t":"2026-10-05T22:37:11.911Z","type":"refused","at":135,"cmd":"take 2 convoy","error":"Who gets Master Seal? take <n> to <unit> | to convoy"}
+{"t":"2026-10-05T22:37:14.289Z","type":"cmd","at":136,"cmd":"take 2 to convoy","note":"Master Seal worth 3k; promote Sera/Perrin at Lv10","out":["Master Seal -> convoy.","Act complete! act1 -> act2. The army rests and is fully healed.","Weapon arts unlocked: sword_comet_edge, sword_windsweep, sword_hexblade, sword_lunge, sword_seal_speed, sword_poison_strike, lance_vaulting_thrust, lance_knightkneeler, lance_vengeance, lance_shatter_slash, axe_rending_cleave, axe_diamond_axe, axe_wild_abandon, axe_rushing_blow, axe_war_cry, bow_hunters_focus, bow_encloser, bow_ward_arrow, bow_break_shot, bow_waning_shot, bow_seal_magic, magic_purifying_light, magic_seraphim, magic_healing_light, axe_sweeping_cleave, lance_skewer."]}
+{"t":"2026-10-05T22:37:18.916Z","type":"note","at":136,"note":"Act 1 boss (Iron Captain) beaten turn 7/par 9, no losses. Boss sat on throne despite danger map showing MOV-7 reach everywhere; it left only when a unit was 1 tile from it"}
+{"t":"2026-10-05T22:37:19.261Z","type":"cmd","at":137,"cmd":"go act2_0_2","note":null,"out":["You travel to act2_0_2 BATTLE ROUT [Foes Lv 3–5, Fog, Village].","Choose who deploys (4-5)."]}
+{"t":"2026-10-05T22:37:21.723Z","type":"cmd","at":138,"cmd":"deploy Edric, Sera, Gaspar, Perrin, Voss","note":null,"out":["Deployed: Edric, Sera, Gaspar, Perrin, Voss.","Battle begins.","Formation: arrange your units on the marked tiles (\"place <unit> <x,y>\"), then \"start\"."]}
+{"t":"2026-10-05T22:37:29.425Z","type":"cmd","at":139,"cmd":"place Gaspar 3,3","note":null,"out":["P3 Gaspar takes position at 3,3."]}
+{"t":"2026-10-05T22:37:29.427Z","type":"cmd","at":140,"cmd":"start","note":null,"out":["Formation set. Turn 1, player phase."]}
+{"t":"2026-10-05T22:37:29.428Z","type":"query","at":140,"cmd":"options P3"}
+{"t":"2026-10-05T22:37:38.185Z","type":"cmd","at":141,"cmd":"move P3 5,5 wait","note":null,"out":["P3 Gaspar moves 3,3->5,5, wait."]}
+{"t":"2026-10-05T22:37:38.188Z","type":"cmd","at":142,"cmd":"move P1 3,5 wait","note":null,"out":["P1 Edric moves 2,4->3,5, wait."]}
+{"t":"2026-10-05T22:37:38.189Z","type":"cmd","at":143,"cmd":"move P2 3,6 wait","note":null,"out":["P2 Sera moves 3,4->3,6, wait."]}
+{"t":"2026-10-05T22:37:38.190Z","type":"cmd","at":144,"cmd":"move P5 1,4 wait","note":null,"out":["P5 Voss moves 0,1->1,4, wait."]}
+{"t":"2026-10-05T22:37:38.195Z","type":"cmd","at":145,"cmd":"move P4 3,3 wait","note":null,"out":["P4 Perrin moves 2,1->3,3, wait.","-- Enemy phase (turn 1) --","-- Turn 2, player phase --"]}
+{"t":"2026-10-05T22:37:44.107Z","type":"cmd","at":146,"cmd":"move P3 5,2 wait","note":null,"out":["P3 Gaspar moves 5,5->5,2, wait.","P3 Gaspar visits the village: +300 gold, Swiftsoles sent to the convoy."]}
+{"t":"2026-10-05T22:37:51.421Z","type":"cmd","at":147,"cmd":"move P1 4,6 wait","note":null,"out":["P1 Edric moves 3,5->4,6, wait."]}
+{"t":"2026-10-05T22:37:51.424Z","type":"cmd","at":148,"cmd":"move P4 3,5 wait","note":null,"out":["P4 Perrin moves 3,3->3,5, wait."]}
+{"t":"2026-10-05T22:37:51.424Z","type":"cmd","at":149,"cmd":"move P5 3,4 wait","note":null,"out":["P5 Voss moves 1,4->3,4, wait."]}
+{"t":"2026-10-05T22:37:51.430Z","type":"cmd","at":150,"cmd":"move P2 stay wait","note":null,"out":["P2 Sera holds 3,6, wait.","-- Enemy phase (turn 2) --","Enemy movement: E1 Myrmidon spotted at 9,2.","-- Turn 3, player phase --"]}
+{"t":"2026-10-05T22:38:02.628Z","type":"cmd","at":151,"cmd":"move P3 stay wait","note":null,"out":["P3 Gaspar holds 5,2, wait."]}
+{"t":"2026-10-05T22:38:02.631Z","type":"cmd","at":152,"cmd":"move P5 5,5 wait","note":null,"out":["P5 Voss moves 3,4->5,5, wait."]}
+{"t":"2026-10-05T22:38:02.633Z","type":"cmd","at":153,"cmd":"move P1 6,6 wait","note":null,"out":["P1 Edric moves 4,6->6,6, wait."]}
+{"t":"2026-10-05T22:38:02.634Z","type":"cmd","at":154,"cmd":"move P2 5,6 wait","note":null,"out":["P2 Sera moves 3,6->5,6, wait."]}
+{"t":"2026-10-05T22:38:02.640Z","type":"cmd","at":155,"cmd":"move P4 4,6 wait","note":null,"out":["P4 Perrin moves 3,5->4,6, wait.","-- Enemy phase (turn 3) --","E2 Soldier [Iron Lance] attacks P3 Gaspar [Steel Lance]: E2 hits 7; P3 hits 13. HP Soldier 23->10, Gaspar 18->11.","P3 Gaspar xp 93->94.","E3 Thief [Iron Sword] attacks P1 Edric [Iron Sword +2]: E3 hits 0; P1 hits 12. HP Thief 19->7, Edric 22->23.","P1 Edric LEVEL UP 4->5: HP+1 STR+1 SKL+1 DEF+1.","Enemy movement: E2 Soldier spotted at 6,2; E1 Myrmidon 9,2->7,2; E3 Thief spotted at 7,6; E4 Cavalier spotted at 9,6; E5 Fighter spotted at 8,1.","-- Turn 4, player phase --"]}
+{"t":"2026-10-05T22:38:20.229Z","type":"cmd","at":156,"cmd":"move P1 stay attack E3","note":null,"out":["P1 Edric holds 6,6, attack E3.","P1 Edric [Iron Sword +2] attacks E3 Thief [Iron Sword]: P1 hits 13. HP Edric 23->23, Thief 7->0.","P1 Edric xp 11->61.","E3 Thief falls."]}
+{"t":"2026-10-05T22:38:20.231Z","type":"query","at":156,"cmd":"forecast P5 6,3 E2"}
+{"t":"2026-10-05T22:38:22.504Z","type":"cmd","at":157,"cmd":"move P5 6,3 attack E2","note":null,"out":["P5 Voss moves 5,5->6,3, attack E2.","P5 Voss [Steel Sword] attacks E2 Soldier [Iron Lance]: P5 hits 12. HP Voss 25->25, Soldier 10->0.","P5 Voss xp 0->43.","E2 Soldier falls."]}
+{"t":"2026-10-05T22:38:22.509Z","type":"cmd","at":158,"cmd":"move P3 stay item Vulnerary","note":null,"out":["P3 Gaspar holds 5,2, item Vulnerary.","P3 Gaspar uses Vulnerary: HP 11->18."]}
+{"t":"2026-10-05T22:38:25.510Z","type":"query","at":158,"cmd":"options P4"}
+{"t":"2026-10-05T22:38:29.271Z","type":"cmd","at":159,"cmd":"move P4 7,6 attack E4 with Steel Bow","note":null,"out":["P4 Perrin moves 4,6->7,6, attack E4 with Steel Bow.","P4 Perrin [Steel Bow] attacks E4 Cavalier [Iron Lance]: P4 hits 10. HP Perrin 22->22, Cavalier 22->12.","P4 Perrin xp 83->96."]}
+{"t":"2026-10-05T22:38:29.285Z","type":"cmd","at":160,"cmd":"move P2 stay wait","note":null,"out":["P2 Sera holds 5,6, wait.","-- Enemy phase (turn 4) --","E6 Mage [Fire] attacks P1 Edric [Iron Sword +2]: E6 hits 9. HP Mage 17->17, Edric 23->14.","P1 Edric xp 61->62.","E1 Myrmidon [Iron Sword] attacks P5 Voss [Steel Sword]: E1 hits 3; P5 hits 16. HP Myrmidon 20->4, Voss 25->22.","P5 Voss xp 43->68.","E4 Cavalier [Iron Lance] attacks P4 Perrin [Steel Bow]: E4 hits 8. HP Cavalier 12->12, Perrin 22->14.","P4 Perrin xp 96->97.","E5 Fighter [Iron Axe] attacks P3 Gaspar [Steel Lance]: E5 misses; P3 hits 14. HP Fighter 23->9, Gaspar 18->18.","P3 Gaspar xp 94->96.","E7 Fighter [Iron Axe] attacks P3 Gaspar [Steel Lance]: E7 hits 11; P3 hits 13. HP Fighter 24->11, Gaspar 18->7.","P3 Gaspar xp 95->96.","Enemy movement: E6 Mage spotted at 8,6; E1 Myrmidon 7,2->7,3; E4 Cavalier 9,6->7,7; E5 Fighter 8,1->6,2; E7 Fighter spotted at 5,1.","-- Turn 5, player phase --","P1 Edric HP 14->17 (terrain, status or skill)."]}
+{"t":"2026-10-05T22:38:46.785Z","type":"cmd","at":161,"cmd":"move P3 stay attack E7 with Iron Sword","note":null,"out":["P3 Gaspar holds 5,2, attack E7 with Iron Sword.","P3 Gaspar [Iron Sword] attacks E7 Fighter [Iron Axe]: P3 hits 12. HP Gaspar 7->7, Fighter 11->0.","E7 Fighter falls."]}
+{"t":"2026-10-05T22:38:47.177Z","type":"cmd","at":162,"cmd":"move P5 stay attack E5","note":null,"out":["P5 Voss holds 6,3, attack E5.","P5 Voss [Steel Sword] attacks E5 Fighter [Iron Axe]: P5 hits 16. HP Voss 22->23, Fighter 9->0.","P5 Voss LEVEL UP 4->5: HP+1 STR+1 SPD+1 DEF+1.","E5 Fighter falls."]}
+{"t":"2026-10-05T22:38:47.543Z","type":"cmd","at":163,"cmd":"move P4 6,4 attack E1 with Steel Bow","note":null,"out":["P4 Perrin moves 7,6->6,4, attack E1 with Steel Bow.","P4 Perrin [Steel Bow] attacks E1 Myrmidon [Iron Sword]: P4 hits 13. HP Perrin 14->15, Myrmidon 4->0.","P4 Perrin LEVEL UP 3->4: HP+1 STR+1 SKL+1 RES+1.","E1 Myrmidon falls."]}
+{"t":"2026-10-05T22:38:50.451Z","type":"query","at":163,"cmd":"forecast P1 7,6 E6"}
+{"t":"2026-10-05T22:38:50.453Z","type":"query","at":163,"cmd":"forecast P2 6,6 E4"}
+{"t":"2026-10-05T22:39:00.641Z","type":"cmd","at":164,"cmd":"move P1 4,6 item Vulnerary","note":null,"out":["P1 Edric moves 6,6->4,6, item Vulnerary.","P1 Edric uses Vulnerary: HP 17->23."]}
+{"t":"2026-10-05T22:39:01.025Z","type":"cmd","at":165,"cmd":"move P2 6,6 attack E4","note":null,"out":["P2 Sera moves 5,6->6,6, attack E4.","P2 Sera [Brilliance] attacks E4 Cavalier [Iron Lance]: P2 hits 14. HP Sera 18->18, Cavalier 12->0.","P2 Sera xp 48->96.","E4 Cavalier falls.","-- Enemy phase (turn 5) --","E6 Mage [Fire] attacks P2 Sera [Brilliance]: E6 hits 3; P2 hits 8. HP Mage 17->9, Sera 18->15.","P2 Sera xp 85->96.","Enemy movement: E6 Mage 8,6->6,7; E8 Knight 9,4->8,3.","-- Turn 6, player phase --"]}
+{"t":"2026-10-05T22:39:06.152Z","type":"cmd","at":166,"cmd":"move P1 5,7 attack E6","note":null,"out":["P1 Edric moves 4,6->5,7, attack E6.","P1 Edric [Iron Sword +2] attacks E6 Mage [Fire]: P1 hits 12. HP Edric 23->23, Mage 9->0.","P1 Edric LEVEL UP 5->6: SPD+1 LCK+1.","E6 Mage falls."]}
+{"t":"2026-10-05T22:39:06.535Z","type":"query","at":166,"cmd":"look"}
+{"t":"2026-10-05T22:39:11.044Z","type":"query","at":166,"cmd":"forecast P2 7,4 E8"}
+{"t":"2026-10-05T22:39:13.567Z","type":"cmd","at":167,"cmd":"move P2 7,4 attack E8","note":null,"out":["P2 Sera moves 6,6->7,4, attack E8.","P2 Sera [Brilliance] attacks E8 Knight [Iron Lance]: P2 hits 15; P2 hits 15. HP Sera 15->16, Knight 24->0.","P2 Sera LEVEL UP 5->6: HP+1 SPD+1 RES+1.","E8 Knight falls.","VICTORY!","Battle won in 6 turn(s) (par 10). Gold +1055 (now 4144).","Eclipse shadow now 4."]}
+{"t":"2026-10-05T22:39:16.505Z","type":"query","at":167,"cmd":"look"}
+{"t":"2026-10-05T22:39:22.176Z","type":"cmd","at":168,"cmd":"take 3 to pool","note":null,"out":["Mentor's Band goes to the accessory pool."]}
+{"t":"2026-10-05T22:39:22.319Z","type":"note","at":168,"note":"Spoils text for weapon-art scroll contains UI copy ('Use: Roster -> Skills -> Bind to weapon') for a feature the adapter can't do, plus a stray '; ;'"}
+{"t":"2026-10-05T22:39:26.366Z","type":"cmd","at":169,"cmd":"accessory Voss Mentor's Band","note":null,"out":["Voss equips Mentor's Band."]}
+{"t":"2026-10-05T22:39:26.372Z","type":"query","at":169,"cmd":"roster"}
+{"t":"2026-10-05T22:39:31.389Z","type":"refused","at":169,"cmd":"use Edric Swiftsoles","error":"Item is no longer carried by this unit."}
+{"t":"2026-10-05T22:39:31.789Z","type":"cmd","at":170,"cmd":"use Gaspar Vulnerary","note":null,"out":["Gaspar uses Vulnerary. HP 7->17."]}
+{"t":"2026-10-05T22:39:31.792Z","type":"cmd","at":171,"cmd":"give Voss Vulnerary to Perrin","note":null,"out":["Voss gives Vulnerary to Perrin."]}
+{"t":"2026-10-05T22:39:31.794Z","type":"cmd","at":172,"cmd":"use Perrin Vulnerary","note":null,"out":["Perrin uses Vulnerary. HP 15->23."]}
+{"t":"2026-10-05T22:39:34.577Z","type":"cmd","at":173,"cmd":"withdraw Edric Swiftsoles","note":null,"out":["Edric takes Swiftsoles from the convoy."]}
+{"t":"2026-10-05T22:39:34.992Z","type":"cmd","at":174,"cmd":"use Edric Swiftsoles","note":null,"out":["Edric uses Swiftsoles. MOV 4->5."]}
+{"t":"2026-10-05T22:39:39.331Z","type":"note","at":174,"note":"Convoy listing shows 'Swiftsoles x1' with no description; 'use Edric Swiftsoles' on a convoy item says 'Item is no longer carried by this unit' instead of 'withdraw it first'"}
+{"t":"2026-10-05T22:39:39.746Z","type":"cmd","at":175,"cmd":"go act2_1_1","note":null,"out":["You travel to act2_1_1 BATTLE ROUT [Foes Lv 4–6, Caravan].","Choose who deploys (4-5)."]}
+{"t":"2026-10-05T22:39:42.404Z","type":"cmd","at":176,"cmd":"deploy last","note":null,"out":["Deployed: Edric, Sera, Gaspar, Perrin, Voss.","Battle begins.","Formation: arrange your units on the marked tiles (\"place <unit> <x,y>\"), then \"start\"."]}
+{"t":"2026-10-05T22:39:51.432Z","type":"cmd","at":177,"cmd":"place Perrin 3,3","note":null,"out":["P4 Perrin takes position at 3,3."]}
+{"t":"2026-10-05T22:39:51.436Z","type":"cmd","at":178,"cmd":"place Voss 3,4","note":null,"out":["P5 Voss takes position at 3,4."]}
+{"t":"2026-10-05T22:39:51.438Z","type":"cmd","at":179,"cmd":"place Gaspar 0,6","note":null,"out":["P3 Gaspar takes position at 0,6."]}
+{"t":"2026-10-05T22:39:51.441Z","type":"cmd","at":180,"cmd":"start","note":null,"out":["Formation set. Turn 1, player phase."]}
+{"t":"2026-10-05T22:39:51.825Z","type":"query","at":180,"cmd":"look"}
+{"t":"2026-10-05T22:39:56.844Z","type":"cmd","at":181,"cmd":"move P5 2,4 wait","note":null,"out":["P5 Voss moves 3,4->2,4, wait."]}
+{"t":"2026-10-05T22:39:56.848Z","type":"cmd","at":182,"cmd":"move P4 stay wait","note":null,"out":["P4 Perrin holds 3,3, wait."]}
+{"t":"2026-10-05T22:39:56.850Z","type":"cmd","at":183,"cmd":"move P2 stay wait","note":null,"out":["P2 Sera holds 3,7, wait."]}
+{"t":"2026-10-05T22:39:56.852Z","type":"cmd","at":184,"cmd":"move P1 stay wait","note":null,"out":["P1 Edric holds 3,9, wait."]}
+{"t":"2026-10-05T22:39:56.860Z","type":"cmd","at":185,"cmd":"move P3 stay wait","note":null,"out":["P3 Gaspar holds 0,6, wait.","-- Enemy phase (turn 1) --","Enemy movement: E1 Wyvern Rider 8,5->5,6; E2 Thief 10,5->9,7; E3 Soldier 7,4->4,4; E4 Soldier 9,5->8,6; E5 Cleric 12,6->11,6; E6 Soldier 11,7->10,7; E7 Archer 8,2->5,2.","-- Turn 2, player phase --"]}
+{"t":"2026-10-05T22:40:03.410Z","type":"query","at":185,"cmd":"options P4"}
+{"t":"2026-10-05T22:40:03.412Z","type":"query","at":185,"cmd":"forecast P5 3,4 E3"}
+{"t":"2026-10-05T22:40:03.412Z","type":"query","at":185,"cmd":"forecast P2 3,6 E1"}
+{"t":"2026-10-05T22:40:13.766Z","type":"cmd","at":186,"cmd":"move P4 2,6 attack E1 with Longbow","note":null,"out":["P4 Perrin moves 3,3->2,6, attack E1 with Longbow.","P4 Perrin [Longbow] attacks E1 Wyvern Rider [Steel Lance]: P4 hits 17. HP Perrin 23->23, Wyvern Rider 23->6.","P4 Perrin xp 53->84."]}
+{"t":"2026-10-05T22:40:14.234Z","type":"cmd","at":187,"cmd":"move P2 3,6 attack E1","note":null,"out":["P2 Sera moves 3,7->3,6, attack E1.","P2 Sera [Brilliance] attacks E1 Wyvern Rider [Steel Lance]: P2 hits 13. HP Sera 16->16, Wyvern Rider 6->0.","P2 Sera xp 33->83.","E1 Wyvern Rider falls."]}
+{"t":"2026-10-05T22:40:14.675Z","type":"query","at":187,"cmd":"options P3"}
+{"t":"2026-10-05T22:40:19.059Z","type":"cmd","at":188,"cmd":"move P3 4,6 attack E3 with Javelin","note":null,"out":["P3 Gaspar moves 0,6->4,6, attack E3 with Javelin.","P3 Gaspar [Javelin] attacks E3 Soldier [Steel Lance]: P3 hits 7; P3 hits 7. HP Gaspar 17->17, Soldier 25->11."]}
+{"t":"2026-10-05T22:40:19.501Z","type":"cmd","at":189,"cmd":"move P5 3,4 attack E3","note":null,"out":["P5 Voss moves 2,4->3,4, attack E3.","P5 Voss [Steel Sword] attacks E3 Soldier [Steel Lance]: P5 hits 12. HP Voss 23->23, Soldier 11->0.","P5 Voss xp 4->60.","E3 Soldier falls."]}
+{"t":"2026-10-05T22:40:23.448Z","type":"cmd","at":190,"cmd":"move P1 3,7 wait","note":null,"out":["P1 Edric moves 3,9->3,7, wait.","-- Enemy phase (turn 2) --","E7 Archer [Iron Bow] attacks N1 Merchant [no weapon]: E7 hits 13. HP Archer 20->20, Merchant 26->13.","Enemy movement: E2 Thief 9,7->6,7; E4 Soldier 8,6->6,6; E5 Cleric 11,6->10,6; E6 Soldier 10,7->8,7; E7 Archer 5,2->2,2.","-- Turn 3, player phase --","P3 Gaspar HP 17->18 (terrain, status or skill)."]}
+{"t":"2026-10-05T22:40:43.260Z","type":"cmd","at":191,"cmd":"move P5 2,3 attack E7","note":null,"out":["P5 Voss moves 3,4->2,3, attack E7.","P5 Voss [Steel Sword] attacks E7 Archer [Iron Bow]: P5 misses. HP Voss 23->23, Archer 20->20."]}
+{"t":"2026-10-05T22:40:43.683Z","type":"cmd","at":192,"cmd":"move P4 2,4 attack E7 with Steel Bow","note":null,"out":["P4 Perrin moves 2,6->2,4, attack E7 with Steel Bow.","P4 Perrin [Steel Bow] attacks E7 Archer [Iron Bow]: P4 hits 12; E7 hits 9. HP Perrin 23->15, Archer 20->8.","P4 Perrin LEVEL UP 4->5: HP+1 STR+1 SKL+1."]}
+{"t":"2026-10-05T22:40:50.255Z","type":"cmd","at":193,"cmd":"move P3 3,2 attack E7 with Iron Sword","note":null,"out":["P3 Gaspar moves 4,6->3,2, attack E7 with Iron Sword.","P3 Gaspar [Iron Sword] attacks E7 Archer [Iron Bow]: P3 hits 10. HP Gaspar 18->18, Archer 8->0.","P3 Gaspar xp 96->97.","E7 Archer falls."]}
+{"t":"2026-10-05T22:41:00.257Z","type":"cmd","at":194,"cmd":"move P2 2,5 heal P4","note":null,"out":["P2 Sera moves 3,6->2,5, heal P4.","P2 Sera heals P4 Perrin: HP 15->24.","P2 Sera LEVEL UP 6->7: MAG+1 RES+1."]}
+{"t":"2026-10-05T22:41:00.263Z","type":"cmd","at":195,"cmd":"move P1 3,6 wait","note":null,"out":["P1 Edric moves 3,7->3,6, wait.","-- Enemy phase (turn 3) --","E2 Thief [Iron Sword] attacks P1 Edric [Iron Sword +2]: E2 hits 0; P1 hits 13. HP Thief 20->7, Edric 23->23.","P1 Edric xp 5->21.","Enemy movement: E2 Thief 6,7->4,6; E4 Soldier 6,6->5,6; E5 Cleric 10,6->8,6; E6 Soldier 8,7->5,7.","-- Turn 4, player phase --"]}
+{"t":"2026-10-05T22:41:07.499Z","type":"cmd","at":196,"cmd":"move P1 stay attack E2","note":null,"out":["P1 Edric holds 3,6, attack E2.","P1 Edric [Iron Sword +2] attacks E2 Thief [Iron Sword]: P1 hits 13. HP Edric 23->23, Thief 7->0.","P1 Edric xp 21->64.","E2 Thief falls."]}
+{"t":"2026-10-05T22:41:07.947Z","type":"query","at":196,"cmd":"options P5"}
+{"t":"2026-10-05T22:41:18.788Z","type":"cmd","at":197,"cmd":"move P2 4,5 attack E4","note":null,"out":["P2 Sera moves 2,5->4,5, attack E4.","P2 Sera [Brilliance] attacks E4 Soldier [Iron Lance]: P2 hits 15. HP Sera 16->16, Soldier 24->9.","P2 Sera xp 8->19."]}
+{"t":"2026-10-05T22:41:19.181Z","type":"cmd","at":198,"cmd":"move P3 4,6 attack E4 with Steel Lance","note":null,"out":["P3 Gaspar moves 3,2->4,6, attack E4 with Steel Lance.","P3 Gaspar [Steel Lance] attacks E4 Soldier [Iron Lance]: P3 hits 11. HP Gaspar 18->18, Soldier 9->0.","P3 Gaspar xp 97->98.","E4 Soldier falls."]}
+{"t":"2026-10-05T22:41:21.902Z","type":"cmd","at":199,"cmd":"move P4 3,7 attack E6 with Steel Bow","note":null,"out":["P4 Perrin moves 2,4->3,7, attack E6 with Steel Bow.","P4 Perrin [Steel Bow] attacks E6 Soldier [Iron Lance]: P4 hits 10. HP Perrin 24->24, Soldier 22->12.","P4 Perrin xp 6->17."]}
+{"t":"2026-10-05T22:41:22.290Z","type":"cmd","at":200,"cmd":"move P5 4,4 wait","note":null,"out":["P5 Voss moves 2,3->4,4, wait.","-- Enemy phase (turn 4) --","E6 Soldier [Iron Lance] attacks P4 Perrin [Steel Bow]: E6 hits 7. HP Soldier 22->22, Perrin 24->17.","P4 Perrin xp 17->18.","Enemy movement: E5 Cleric 8,6->6,7; E6 Soldier 5,7->3,8.","-- Turn 5, player phase --","P5 Voss HP 23->26 (terrain, status or skill)."]}
+{"t":"2026-10-05T22:41:32.402Z","type":"cmd","at":201,"cmd":"move P2 4,7 attack E6","note":null,"out":["P2 Sera moves 4,5->4,7, attack E6.","P2 Sera [Brilliance] attacks E6 Soldier [Iron Lance]: P2 hits 15. HP Sera 16->16, Soldier 22->7.","P2 Sera xp 19->25."]}
+{"t":"2026-10-05T22:41:32.837Z","type":"query","at":201,"cmd":"forecast P1 2,8 E6"}
+{"t":"2026-10-05T22:41:32.839Z","type":"query","at":201,"cmd":"forecast P3 5,7 E5 with Iron Sword"}
+{"t":"2026-10-05T22:41:39.074Z","type":"query","at":201,"cmd":"forecast P4 2,7 E6 with Steel Bow"}
+{"t":"2026-10-05T22:41:41.924Z","type":"cmd","at":202,"cmd":"move P4 2,7 attack E6 with Steel Bow","note":null,"out":["P4 Perrin moves 3,7->2,7, attack E6 with Steel Bow.","P4 Perrin [Steel Bow] attacks E6 Soldier [Iron Lance]: P4 hits 10. HP Perrin 17->17, Soldier 7->0.","P4 Perrin xp 18->56.","E6 Soldier falls."]}
+{"t":"2026-10-05T22:41:42.372Z","type":"cmd","at":203,"cmd":"move P3 5,7 attack E5 with Iron Sword","note":null,"out":["P3 Gaspar moves 4,6->5,7, attack E5 with Iron Sword.","P3 Gaspar [Iron Sword] attacks E5 Cleric [Heal]: P3 hits 13; P3 hits 13. HP Gaspar 18->18, Cleric 19->0.","P3 Gaspar xp 98->99.","E5 Cleric falls.","VICTORY!","Battle won in 5 turn(s) (par 7). Gold +722 (now 5316).","The caravan survived: its shop opens on the route map.","Eclipse shadow now 5."]}
+{"t":"2026-10-05T22:41:45.440Z","type":"query","at":203,"cmd":"look"}
+{"t":"2026-10-05T22:41:49.626Z","type":"cmd","at":204,"cmd":"take 3 to Sera","note":"Sera is the main damage dealer; +SPD helps her double","out":["Sera equips Veteran's Crest.","The merchant caravan you protected opens its wares.","You enter the caravan."]}
+{"t":"2026-10-05T22:41:50.048Z","type":"query","at":204,"cmd":"map"}
+{"t":"2026-10-05T22:41:52.749Z","type":"query","at":204,"cmd":"look"}
+{"t":"2026-10-05T22:41:58.749Z","type":"cmd","at":205,"cmd":"buy 3 for Sera","note":null,"out":["Crownlight → Sera."]}
+{"t":"2026-10-05T22:41:59.238Z","type":"query","at":205,"cmd":"look"}
+{"t":"2026-10-05T22:42:01.893Z","type":"cmd","at":206,"cmd":"buy 3 for Gaspar","note":null,"out":["Vulnerary → Gaspar."]}
+{"t":"2026-10-05T22:42:02.315Z","type":"cmd","at":207,"cmd":"leave","note":null,"out":["You leave the caravan."]}
+{"t":"2026-10-05T22:42:02.764Z","type":"cmd","at":208,"cmd":"equip Sera Crownlight","note":null,"out":["Sera equips Crownlight."]}
+{"t":"2026-10-05T22:42:02.768Z","type":"cmd","at":209,"cmd":"go act2_2_1","note":null,"out":["You travel to act2_2_1 RECRUIT [Foes Lv 5–7, Hunters +1, Captain].","Choose who deploys (4-5)."]}
+{"t":"2026-10-05T22:42:05.749Z","type":"cmd","at":210,"cmd":"deploy last","note":null,"out":["Deployed: Edric, Sera, Gaspar, Perrin, Voss.","Battle begins.","Formation: arrange your units on the marked tiles (\"place <unit> <x,y>\"), then \"start\"."]}
+{"t":"2026-10-05T22:42:12.562Z","type":"cmd","at":211,"cmd":"start","note":null,"out":["Formation set. Turn 1, player phase."]}
+{"t":"2026-10-05T22:42:12.566Z","type":"cmd","at":212,"cmd":"move P1 1,9 talk","note":null,"out":["P1 Edric moves 3,7->1,9, talk.","P1 Edric talks to N1 Cael: Cael joins the army!"]}
+{"t":"2026-10-05T22:42:15.894Z","type":"cmd","at":213,"cmd":"move P2 2,4 heal P4","note":null,"out":["P2 Sera moves 1,4->2,4, heal P4.","P2 Sera heals P4 Perrin: HP 17->24.","P2 Sera xp 25->50."]}
+{"t":"2026-10-05T22:42:15.899Z","type":"cmd","at":214,"cmd":"move P4 stay wait","note":null,"out":["P4 Perrin holds 3,4, wait."]}
+{"t":"2026-10-05T22:42:15.901Z","type":"cmd","at":215,"cmd":"move P3 stay wait","note":null,"out":["P3 Gaspar holds 1,3, wait."]}
+{"t":"2026-10-05T22:42:15.903Z","type":"cmd","at":216,"cmd":"move P5 stay wait","note":null,"out":["P5 Voss holds 0,2, wait."]}
+{"t":"2026-10-05T22:42:15.911Z","type":"cmd","at":217,"cmd":"move N1 stay wait","note":null,"out":["N1 Cael holds 0,9, wait.","-- Enemy phase (turn 1) --","Enemy movement: E1 Soldier 7,0->4,1; E2 Soldier 9,1->5,1; E3 Fighter 10,5->7,6; E4 Thief 10,0->6,1; E5 Pegasus Knight 10,2->7,3; E6 Wyvern Rider 13,1->11,3; E7 Archer 12,7->9,6; E8 Knight 11,4->9,5; E9 Cleric 10,8->10,6.","-- Turn 2, player phase --"]}
+{"t":"2026-10-05T22:42:18.479Z","type":"query","at":217,"cmd":"look"}
+{"t":"2026-10-05T22:42:31.295Z","type":"query","at":217,"cmd":"forecast P4 4,3 E5 with Longbow"}
+{"t":"2026-10-05T22:42:31.297Z","type":"query","at":217,"cmd":"forecast P2 2,1 E1"}
+{"t":"2026-10-05T22:42:31.298Z","type":"query","at":217,"cmd":"forecast P5 3,1 E1"}
+{"t":"2026-10-05T22:42:31.299Z","type":"query","at":217,"cmd":"threat 4,3"}
+{"t":"2026-10-05T22:42:31.300Z","type":"query","at":217,"cmd":"threat 2,1"}
+{"t":"2026-10-05T22:43:02.151Z","type":"cmd","at":218,"cmd":"move P2 1,6 wait","note":"9 enemies incl. a fast thief that doubles Sera: pull back so Edric and Cael (DEF 10/12) can join the line","out":["P2 Sera moves 2,4->1,6, wait."]}
+{"t":"2026-10-05T22:43:02.156Z","type":"cmd","at":219,"cmd":"move P4 2,6 wait","note":"9 enemies incl. a fast thief that doubles Sera: pull back so Edric and Cael (DEF 10/12) can join the line","out":["P4 Perrin moves 3,4->2,6, wait."]}
+{"t":"2026-10-05T22:43:02.158Z","type":"cmd","at":220,"cmd":"move P3 1,5 equip Steel Lance wait","note":"9 enemies incl. a fast thief that doubles Sera: pull back so Edric and Cael (DEF 10/12) can join the line","out":["P3 Gaspar moves 1,3->1,5, equips Steel Lance, wait."]}
+{"t":"2026-10-05T22:43:02.161Z","type":"cmd","at":221,"cmd":"move P5 1,4 wait","note":"9 enemies incl. a fast thief that doubles Sera: pull back so Edric and Cael (DEF 10/12) can join the line","out":["P5 Voss moves 0,2->1,4, wait."]}
+{"t":"2026-10-05T22:43:02.163Z","type":"cmd","at":222,"cmd":"move P1 2,8 wait","note":"9 enemies incl. a fast thief that doubles Sera: pull back so Edric and Cael (DEF 10/12) can join the line","out":["P1 Edric moves 1,9->2,8, wait."]}
+{"t":"2026-10-05T22:43:02.171Z","type":"cmd","at":223,"cmd":"move N1 1,8 wait","note":"9 enemies incl. a fast thief that doubles Sera: pull back so Edric and Cael (DEF 10/12) can join the line","out":["N1 Cael moves 0,9->1,8, wait.","-- Enemy phase (turn 2) --","Enemy movement: E1 Soldier 4,1->2,3; E2 Soldier 5,1->3,3; E3 Fighter 7,6->4,6; E4 Thief 6,1->4,3; E5 Pegasus Knight 7,3->5,3; E6 Wyvern Rider 11,3->7,3; E7 Archer 9,6->5,6; E8 Knight 9,5->7,6; E9 Cleric 10,6->8,6.","-- Turn 3, player phase --"]}
+{"t":"2026-10-05T22:43:04.647Z","type":"query","at":223,"cmd":"look"}
+{"t":"2026-10-05T22:43:20.160Z","type":"query","at":223,"cmd":"options P2"}
+{"t":"2026-10-05T22:43:20.169Z","type":"query","at":223,"cmd":"options P1"}
+{"t":"2026-10-05T22:43:20.171Z","type":"query","at":223,"cmd":"options N1"}
+{"t":"2026-10-05T22:43:49.039Z","type":"query","at":223,"cmd":"options P5"}
+{"t":"2026-10-05T22:43:49.060Z","type":"query","at":223,"cmd":"options P3"}
+{"t":"2026-10-05T22:43:49.083Z","type":"query","at":223,"cmd":"options P4"}
+{"t":"2026-10-05T22:44:23.429Z","type":"cmd","at":224,"cmd":"move P1 0,8 wait","note":"turtle in the SW corner box: Sera/Perrin enclosed, tanks on the rim","out":["P1 Edric moves 2,8->0,8, wait."]}
+{"t":"2026-10-05T22:44:23.435Z","type":"cmd","at":225,"cmd":"move N1 2,8 wait","note":"turtle in the SW corner box: Sera/Perrin enclosed, tanks on the rim","out":["N1 Cael moves 1,8->2,8, wait."]}
+{"t":"2026-10-05T22:44:23.439Z","type":"cmd","at":226,"cmd":"move P3 2,9 equip Steel Lance wait","note":"turtle in the SW corner box: Sera/Perrin enclosed, tanks on the rim","out":["P3 Gaspar moves 1,5->2,9, equips Steel Lance, wait."]}
+{"t":"2026-10-05T22:44:23.443Z","type":"cmd","at":227,"cmd":"move P4 1,9 equip Shortbow wait","note":"turtle in the SW corner box: Sera/Perrin enclosed, tanks on the rim","out":["P4 Perrin moves 2,6->1,9, equips Shortbow, wait."]}
+{"t":"2026-10-05T22:44:23.446Z","type":"cmd","at":228,"cmd":"move P2 0,9 wait","note":"turtle in the SW corner box: Sera/Perrin enclosed, tanks on the rim","out":["P2 Sera moves 1,6->0,9, wait."]}
+{"t":"2026-10-05T22:44:23.454Z","type":"cmd","at":229,"cmd":"move P5 1,7 wait","note":"turtle in the SW corner box: Sera/Perrin enclosed, tanks on the rim","out":["P5 Voss moves 1,4->1,7, wait.","-- Enemy phase (turn 3) --","E3 Fighter [Iron Axe] attacks N1 Cael [Steel Axe]: E3 hits 5 (Intimidate); N1 misses. HP Fighter 26->26, Cael 29->24.","N1 Cael xp 0->1.","E7 Archer [Steel Bow] attacks P5 Voss [Steel Sword]: E7 misses. HP Archer 23->23, Voss 26->26.","P5 Voss xp 60->61.","Enemy movement: E1 Soldier 2,3->1,5; E2 Soldier 3,3->2,6; E3 Fighter 4,6->2,7; E4 Thief 4,3->2,5; E5 Pegasus Knight 5,3->4,6; E6 Wyvern Rider 7,3->6,6; E7 Archer 5,6->3,7; E8 Knight 7,6->5,6; E9 Cleric 8,6->7,6.","-- Turn 4, player phase --"]}
+{"t":"2026-10-05T22:45:00.521Z","type":"cmd","at":230,"cmd":"move P5 stay attack E3","note":null,"out":["P5 Voss holds 1,7, attack E3.","P5 Voss [Steel Sword] attacks E3 Fighter [Iron Axe]: P5 hits 16; E3 misses; P5 hits 16. HP Voss 26->27, Fighter 26->0.","P5 Voss LEVEL UP 5->6: HP+1 STR+1 DEF+1 RES+1.","E3 Fighter falls."]}
+{"t":"2026-10-05T22:45:00.964Z","type":"query","at":230,"cmd":"forecast N1 2,7 E7"}
+{"t":"2026-10-05T22:45:03.944Z","type":"cmd","at":231,"cmd":"move N1 2,7 attack E7","note":null,"out":["N1 Cael moves 2,8->2,7, attack E7.","N1 Cael [Steel Axe] attacks E7 Archer [Steel Bow]: N1 misses. HP Cael 24->24, Archer 23->23."]}
+{"t":"2026-10-05T22:45:33.271Z","type":"cmd","at":232,"cmd":"move P4 1,8 attack E7 with Longbow","note":null,"out":["P4 Perrin moves 1,9->1,8, attack E7 with Longbow.","P4 Perrin [Longbow] attacks E7 Archer [Steel Bow]: P4 hits 12. HP Perrin 24->24, Archer 23->11.","P4 Perrin xp 56->78."]}
+{"t":"2026-10-05T22:45:35.776Z","type":"cmd","at":233,"cmd":"move P2 2,8 attack E7","note":null,"out":["P2 Sera moves 0,9->2,8, attack E7.","P2 Sera [Crownlight] attacks E7 Archer [Steel Bow]: P2 hits 19. HP Sera 16->16, Archer 11->0.","P2 Sera LEVEL UP 7->8: RES+1.","E7 Archer falls."]}
+{"t":"2026-10-05T22:45:39.843Z","type":"cmd","at":234,"cmd":"move P3 stay wait","note":null,"out":["P3 Gaspar holds 2,9, wait."]}
+{"t":"2026-10-05T22:45:39.852Z","type":"cmd","at":235,"cmd":"move P1 stay wait","note":null,"out":["P1 Edric holds 0,8, wait.","-- Enemy phase (turn 4) --","E1 Soldier [Iron Lance] attacks P1 Edric [Iron Sword +2]: E1 hits 2; P1 hits 6; P1 hits 6. HP Soldier 23->11, Edric 23->21.","P1 Edric xp 64->76.","E2 Soldier [Steel Lance] attacks N1 Cael [Steel Axe]: E2 hits 5 (Intimidate); N1 hits 13. HP Soldier 27->14, Cael 24->14.","N1 Cael xp 1->22.","E4 Thief [Steel Sword] attacks N1 Cael [Steel Axe]: E4 hits 2 (Intimidate); N1 misses; E4 hits 2 (Intimidate). HP Thief 21->21, Cael 14->10.","N1 Cael xp 21->22.","E5 Pegasus Knight [Steel Lance] attacks P2 Sera [Crownlight]: E5 hits 12; P2 hits 12. HP Pegasus Knight 19->7, Sera 16->4.","P2 Sera xp 0->15.","Enemy movement: E1 Soldier 1,5->0,7; E4 Thief 2,5->3,7; E5 Pegasus Knight 4,6->3,8; E6 Wyvern Rider 6,6->3,6; E8 Knight 5,6->4,6; E9 Cleric 7,6->5,6.","-- Turn 5, player phase --","N1 Cael HP 10->13 (terrain, status or skill)."]}
+{"t":"2026-10-05T22:45:55.808Z","type":"cmd","at":236,"cmd":"move P4 stay attack E5 with Steel Bow","note":null,"out":["P4 Perrin holds 1,8, attack E5 with Steel Bow.","P4 Perrin [Steel Bow] attacks E5 Pegasus Knight [Steel Lance]: P4 hits 27. HP Perrin 24->24, Pegasus Knight 7->0.","P4 Perrin LEVEL UP 5->6: STR+1.","E5 Pegasus Knight falls."]}
+{"t":"2026-10-05T22:45:56.260Z","type":"cmd","at":237,"cmd":"move P2 1,9 item Vulnerary","note":null,"out":["P2 Sera moves 2,8->1,9, item Vulnerary.","P2 Sera uses Vulnerary: HP 4->14."]}
+{"t":"2026-10-05T22:45:56.697Z","type":"cmd","at":238,"cmd":"move P5 stay attack E1","note":null,"out":["P5 Voss holds 1,7, attack E1.","P5 Voss [Steel Sword] attacks E1 Soldier [Iron Lance]: P5 hits 11. HP Voss 27->27, Soldier 11->0.","P5 Voss xp 11->54.","N1 Cael xp 22->47.","E1 Soldier falls."]}
+{"t":"2026-10-05T22:46:06.469Z","type":"query","at":238,"cmd":"forecast P1 1,6 E2"}
+{"t":"2026-10-05T22:46:09.625Z","type":"cmd","at":239,"cmd":"move P1 1,6 attack E2","note":null,"out":["P1 Edric moves 0,8->1,6, attack E2.","P1 Edric [Iron Sword +2] attacks E2 Soldier [Steel Lance]: P1 hits 6; E2 hits 7; P1 misses. HP Edric 21->9, Soldier 14->8.","P1 Edric xp 76->91."]}
+{"t":"2026-10-05T22:46:10.146Z","type":"cmd","at":240,"cmd":"move N1 stay attack E2","note":null,"out":["N1 Cael holds 2,7, attack E2.","N1 Cael [Steel Axe] attacks E2 Soldier [Steel Lance]: N1 hits 13. HP Cael 13->14, Soldier 8->0.","N1 Cael LEVEL UP 5->6: HP+1 STR+1 DEF+1 LCK+1.","E2 Soldier falls."]}
+{"t":"2026-10-05T22:46:26.573Z","type":"query","at":240,"cmd":"unit P1"}
+{"t":"2026-10-05T22:46:30.736Z","type":"refused","at":240,"cmd":"note \"ADAPTER: Venomous affix soldier hit for '7' (forecast also said 7) but Edric lost 12 HP (21->9)","error":"Unknown battle command \"note\". Try \"help\"."}
+{"t":"2026-10-05T22:46:31.246Z","type":"cmd","at":241,"cmd":"move P3 2,6 wait","note":null,"out":["P3 Gaspar moves 2,9->2,6, wait.","-- Enemy phase (turn 5) --","E4 Thief [Steel Sword] attacks P2 Sera [Crownlight]: E4 hits 8; P2 hits 19; E4 hits 8. HP Thief 21->2, Sera 14->0.","P2 Sera falls (fallen: lost unless revived).","E6 Wyvern Rider [Iron Lance] attacks P4 Perrin [Steel Bow]: E6 hits 10. HP Wyvern Rider 24->24, Perrin 24->14.","P4 Perrin xp 40->41.","E8 Knight [Iron Lance] attacks P3 Gaspar [Steel Lance]: E8 misses; P3 hits 6. HP Knight 25->19, Gaspar 18->18.","P3 Gaspar LEVEL UP 1->2: SKL+1.","Enemy movement: E4 Thief 3,7->2,9; E6 Wyvern Rider 3,6->2,8; E8 Knight 4,6->3,6; E9 Cleric 5,6->4,8.","-- Turn 6, player phase --"]}
+{"t":"2026-10-05T22:46:31.249Z","type":"query","at":241,"cmd":"threat 1,6"}
+{"t":"2026-10-05T22:46:45.299Z","type":"note","at":241,"note":"My mistake: moved Gaspar off 2,9 (he was Sera's wall) without re-checking her threat; thief walked in and killed Sera. A persistent per-unit 'in danger' recheck after each move would help"}
+{"t":"2026-10-05T22:46:45.798Z","type":"query","at":241,"cmd":"forecast P4 0,8 E6 with Steel Bow"}
+{"t":"2026-10-05T22:46:48.321Z","type":"cmd","at":242,"cmd":"move P4 0,8 attack E6 with Steel Bow","note":null,"out":["P4 Perrin moves 1,8->0,8, attack E6 with Steel Bow.","P4 Perrin [Steel Bow] attacks E6 Wyvern Rider [Iron Lance]: P4 hits 26. HP Perrin 14->14, Wyvern Rider 24->0.","P4 Perrin xp 41->79.","E6 Wyvern Rider falls."]}
+{"t":"2026-10-05T22:46:48.782Z","type":"cmd","at":243,"cmd":"move P5 1,9 attack E4","note":null,"out":["P5 Voss moves 1,7->1,9, attack E4.","P5 Voss [Steel Sword] attacks E4 Thief [Steel Sword]: P5 hits 19. HP Voss 27->28, Thief 2->0.","P5 Voss LEVEL UP 6->7: HP+1 SPD+1 DEF+1.","E4 Thief falls."]}
+{"t":"2026-10-05T22:46:55.462Z","type":"cmd","at":244,"cmd":"move P3 3,8 attack E9 with Iron Sword","note":null,"out":["P3 Gaspar moves 2,6->3,8, attack E9 with Iron Sword.","P3 Gaspar [Iron Sword] attacks E9 Cleric [Heal]: P3 hits 12. HP Gaspar 18->18, Cleric 19->7."]}
+{"t":"2026-10-05T22:46:55.999Z","type":"cmd","at":245,"cmd":"move N1 3,7 attack E8","note":null,"out":["N1 Cael moves 2,7->3,7, attack E8.","N1 Cael [Steel Axe] attacks E8 Knight [Iron Lance]: N1 hits 10; E8 hits 3 (Intimidate). HP Cael 14->11, Knight 19->9.","N1 Cael xp 9->20."]}
+{"t":"2026-10-05T22:46:56.003Z","type":"cmd","at":246,"cmd":"move P1 stay item Vulnerary","note":null,"out":["P1 Edric holds 1,6, item Vulnerary.","P1 Edric uses Vulnerary: HP 9->19.","-- Enemy phase (turn 6) --","E8 Knight [Iron Lance] attacks P1 Edric [Iron Sword +2]: E8 hits 4; P1 hits 1; P1 hits 1. HP Knight 9->7, Edric 19->15.","P1 Edric xp 91->95.","Enemy movement: E8 Knight 3,6->2,6; E9 Cleric 4,8->4,6.","-- Turn 7, player phase --"]}
+{"t":"2026-10-05T22:47:01.500Z","type":"cmd","at":247,"cmd":"move N1 2,7 attack E8","note":null,"out":["N1 Cael moves 3,7->2,7, attack E8.","N1 Cael [Steel Axe] attacks E8 Knight [Iron Lance]: N1 hits 9. HP Cael 11->11, Knight 7->0.","N1 Cael xp 20->58.","E8 Knight falls."]}
+{"t":"2026-10-05T22:47:01.937Z","type":"cmd","at":248,"cmd":"move P3 3,6 attack E9 with Iron Sword","note":null,"out":["P3 Gaspar moves 3,8->3,6, attack E9 with Iron Sword.","P3 Gaspar [Iron Sword] attacks E9 Cleric [Heal]: P3 hits 12. HP Gaspar 18->18, Cleric 7->0.","P3 Gaspar xp 0->1.","E9 Cleric falls.","VICTORY!","Battle won in 7 turn(s) (par 8). Gold +1170 (now 4061).","Eclipse shadow now 7."]}
+{"t":"2026-10-05T22:47:05.765Z","type":"query","at":248,"cmd":"look"}
+{"t":"2026-10-05T22:47:08.619Z","type":"cmd","at":249,"cmd":"take 1","note":null,"out":["+1282 gold.","Edric: Lv 6 → 7 (+1 HP, +1 SKL, +1 SPD).","Perrin: Lv 6 → 7 (+1 STR)."]}
+{"t":"2026-10-05T22:47:09.061Z","type":"query","at":249,"cmd":"roster"}
+{"t":"2026-10-05T22:47:13.134Z","type":"cmd","at":250,"cmd":"use Edric Vulnerary","note":null,"out":["Edric uses Vulnerary. HP 16->24."]}
+{"t":"2026-10-05T22:47:13.137Z","type":"cmd","at":251,"cmd":"use Perrin Vulnerary","note":null,"out":["Perrin uses Vulnerary. HP 14->24."]}
+{"t":"2026-10-05T22:47:13.138Z","type":"cmd","at":252,"cmd":"use Cael Vulnerary","note":null,"out":["Cael uses Vulnerary. HP 11->21."]}
+{"t":"2026-10-05T22:47:13.140Z","type":"cmd","at":253,"cmd":"use Cael Vulnerary","note":null,"out":["Cael uses Vulnerary. HP 21->30."]}
+{"t":"2026-10-05T22:47:13.585Z","type":"query","at":253,"cmd":"map"}
+{"t":"2026-10-05T22:47:17.024Z","type":"cmd","at":254,"cmd":"go act2_3_2","note":null,"out":["You travel to act2_3_2 ELITE SEIZE [Foes Lv 5–8, Loot: pick 2 of 4].","Choose who deploys (4-5)."]}
+{"t":"2026-10-05T22:47:17.491Z","type":"cmd","at":255,"cmd":"deploy Edric, Perrin, Voss, Cael, Gaspar","note":null,"out":["Deployed: Edric, Gaspar, Perrin, Voss, Cael.","Battle begins.","Formation: arrange your units on the marked tiles (\"place <unit> <x,y>\"), then \"start\"."]}
+{"t":"2026-10-05T22:47:30.026Z","type":"cmd","at":256,"cmd":"place Edric 2,2","note":"3 mages + magus boss hit Edric/Cael hard; wait behind the 5,4/5,5 choke","out":["P1 Edric takes position at 2,2."]}
+{"t":"2026-10-05T22:47:30.030Z","type":"cmd","at":257,"cmd":"start","note":"3 mages + magus boss hit Edric/Cael hard; wait behind the 5,4/5,5 choke","out":["Formation set. Turn 1, player phase."]}
+{"t":"2026-10-05T22:47:30.034Z","type":"cmd","at":258,"cmd":"move P1 1,1 wait","note":"3 mages + magus boss hit Edric/Cael hard; wait behind the 5,4/5,5 choke","out":["P1 Edric moves 2,2->1,1, wait."]}
+{"t":"2026-10-05T22:47:30.038Z","type":"cmd","at":259,"cmd":"move P2 stay wait","note":"3 mages + magus boss hit Edric/Cael hard; wait behind the 5,4/5,5 choke","out":["P2 Gaspar holds 3,8, wait."]}
+{"t":"2026-10-05T22:47:30.040Z","type":"cmd","at":260,"cmd":"move P3 stay wait","note":"3 mages + magus boss hit Edric/Cael hard; wait behind the 5,4/5,5 choke","out":["P3 Perrin holds 1,4, wait."]}
+{"t":"2026-10-05T22:47:30.043Z","type":"cmd","at":261,"cmd":"move P4 stay wait","note":"3 mages + magus boss hit Edric/Cael hard; wait behind the 5,4/5,5 choke","out":["P4 Voss holds 0,2, wait."]}
+{"t":"2026-10-05T22:47:30.050Z","type":"cmd","at":262,"cmd":"move P5 stay wait","note":"3 mages + magus boss hit Edric/Cael hard; wait behind the 5,4/5,5 choke","out":["P5 Cael holds 1,8, wait.","-- Enemy phase (turn 1) --","Enemy movement: E2 Knight 7,8->7,5; E3 Cavalier 10,6->6,5; E4 Pegasus Knight 10,3->7,3; E6 Mage 10,7->7,6; E8 Archer 12,4->9,4.","-- Turn 2, player phase --"]}
+{"t":"2026-10-05T22:47:32.455Z","type":"query","at":262,"cmd":"look"}
+{"t":"2026-10-05T22:47:40.849Z","type":"cmd","at":263,"cmd":"move P3 0,4 wait","note":null,"out":["P3 Perrin moves 1,4->0,4, wait."]}
+{"t":"2026-10-05T22:47:40.853Z","type":"cmd","at":264,"cmd":"move P2 2,8 wait","note":null,"out":["P2 Gaspar moves 3,8->2,8, wait."]}
+{"t":"2026-10-05T22:47:40.856Z","type":"cmd","at":265,"cmd":"move P1 stay wait","note":null,"out":["P1 Edric holds 1,1, wait."]}
+{"t":"2026-10-05T22:47:40.858Z","type":"cmd","at":266,"cmd":"move P4 stay wait","note":null,"out":["P4 Voss holds 0,2, wait."]}
+{"t":"2026-10-05T22:47:40.865Z","type":"cmd","at":267,"cmd":"move P5 stay wait","note":null,"out":["P5 Cael holds 1,8, wait.","-- Enemy phase (turn 2) --","Enemy movement: E2 Knight 7,5->4,5; E3 Cavalier 6,5->2,6; E4 Pegasus Knight 7,3->4,4; E6 Mage 7,6->5,5; E8 Archer 9,4->7,4.","-- Turn 3, player phase --"]}
+{"t":"2026-10-05T22:47:50.537Z","type":"query","at":267,"cmd":"forecast P3 2,4 E4 with Steel Bow"}
+{"t":"2026-10-05T22:47:53.516Z","type":"cmd","at":268,"cmd":"move P3 2,4 attack E4 with Steel Bow","note":null,"out":["P3 Perrin moves 0,4->2,4, attack E4 with Steel Bow.","P3 Perrin [Steel Bow] attacks E4 Pegasus Knight [Steel Lance]: P3 misses. HP Perrin 24->24, Pegasus Knight 19->19."]}
+{"t":"2026-10-05T22:47:53.989Z","type":"query","at":268,"cmd":"options P2"}
+{"t":"2026-10-05T22:48:16.282Z","type":"cmd","at":269,"cmd":"move P2 3,4 attack E4 with Iron Sword","note":null,"out":["P2 Gaspar moves 2,8->3,4, attack E4 with Iron Sword.","P2 Gaspar [Iron Sword] attacks E4 Pegasus Knight [Steel Lance]: P2 hits 10; E4 hits 10; P2 hits 10. HP Gaspar 18->8, Pegasus Knight 19->0.","P2 Gaspar xp 26->27.","E4 Pegasus Knight falls."]}
+{"t":"2026-10-05T22:48:16.774Z","type":"query","at":269,"cmd":"forecast P5 2,5 E3"}
+{"t":"2026-10-05T22:48:20.164Z","type":"refused","at":269,"cmd":"move P5 2,5 attack E3","error":"Cael cannot stop on 2,5. Use \"options P5\"."}
+{"t":"2026-10-05T22:48:36.476Z","type":"cmd","at":270,"cmd":"move P5 1,6 attack E3","note":null,"out":["P5 Cael moves 1,8->1,6, attack E3.","P5 Cael [Steel Axe] attacks E3 Cavalier [Steel Lance]: P5 hits 16 (Thorns); E3 hits 2 (Intimidate). HP Cael 30->25, Cavalier 23->7.","P5 Cael LEVEL UP 6->7: HP+1."]}
+{"t":"2026-10-05T22:48:36.481Z","type":"cmd","at":271,"cmd":"move P4 1,4 wait","note":null,"out":["P4 Voss moves 0,2->1,4, wait."]}
+{"t":"2026-10-05T22:48:36.488Z","type":"cmd","at":272,"cmd":"move P1 stay wait","note":null,"out":["P1 Edric holds 1,1, wait.","-- Enemy phase (turn 3) --","E2 Knight [Steel Lance] attacks P2 Gaspar [Iron Sword]: E2 misses; P2 hits 0; P2 hits 0. HP Knight 29->29, Gaspar 8->8.","P2 Gaspar xp 27->28.","E3 Cavalier [Steel Lance] attacks P2 Gaspar [Iron Sword]: E3 hits 10. HP Cavalier 7->7, Gaspar 8->0.","P2 Gaspar falls (fallen: lost unless revived).","E6 Mage [Wildfire] attacks P5 Cael [Steel Axe]: E6 hits 16 (Intimidate). HP Mage 21->21, Cael 25->9.","P5 Cael xp 10->11.","E8 Archer [Iron Bow] attacks P4 Voss [Steel Sword]: E8 hits 3. HP Archer 20->20, Voss 28->25.","P4 Voss xp 28->29.","Enemy movement: E2 Knight 4,5->3,5; E3 Cavalier 2,6->4,4; E6 Mage 5,5->3,6; E8 Archer 7,4->3,4.","-- Turn 4, player phase --"]}
+{"t":"2026-10-05T22:48:53.776Z","type":"cmd","at":273,"cmd":"move P3 stay attack E3 with Steel Bow","note":null,"out":["P3 Perrin holds 2,4, attack E3 with Steel Bow.","P3 Perrin [Steel Bow] attacks E3 Cavalier [Steel Lance]: P3 hits 13. HP Perrin 24->24, Cavalier 7->0.","P3 Perrin xp 4->60.","E3 Cavalier falls."]}
+{"t":"2026-10-05T22:48:54.292Z","type":"query","at":273,"cmd":"forecast P4 2,6 E6"}
+{"t":"2026-10-05T22:48:57.340Z","type":"cmd","at":274,"cmd":"move P4 2,6 attack E6","note":null,"out":["P4 Voss moves 1,4->2,6, attack E6.","P4 Voss [Steel Sword] attacks E6 Mage [Wildfire]: P4 hits 17; E6 hits 11; P4 hits 17. HP Voss 25->14, Mage 21->0.","P4 Voss LEVEL UP 7->8: DEF+1.","E6 Mage falls."]}
+{"t":"2026-10-05T22:48:57.813Z","type":"cmd","at":275,"cmd":"move P5 0,8 item Vulnerary","note":null,"out":["P5 Cael moves 1,6->0,8, item Vulnerary.","P5 Cael uses Vulnerary: HP 9->19."]}
+{"t":"2026-10-05T22:48:58.306Z","type":"query","at":275,"cmd":"forecast P1 3,3 E8"}
+{"t":"2026-10-05T22:49:02.241Z","type":"cmd","at":276,"cmd":"move P1 3,3 attack E8","note":null,"out":["P1 Edric moves 1,1->3,3, attack E8.","P1 Edric [Iron Sword +2] attacks E8 Archer [Iron Bow]: P1 hits 12. HP Edric 24->24, Archer 20->8.","P1 Edric xp 20->34.","-- Enemy phase (turn 4) --","E2 Knight [Steel Lance] attacks P3 Perrin [Steel Bow]: E2 misses. HP Knight 29->29, Perrin 24->24.","P3 Perrin xp 60->61.","E8 Archer [Iron Bow] attacks P1 Edric [Iron Sword +2]: E8 hits 0. HP Archer 8->8, Edric 24->24.","P1 Edric xp 33->34.","Enemy movement: E2 Knight 3,5->2,5; E8 Archer 3,4->3,5.","-- Turn 5, player phase --"]}
+{"t":"2026-10-05T22:49:15.675Z","type":"cmd","at":277,"cmd":"move P1 3,4 attack E8","note":null,"out":["P1 Edric moves 3,3->3,4, attack E8.","P1 Edric [Iron Sword +2] attacks E8 Archer [Iron Bow]: P1 hits 10. HP Edric 24->24, Archer 8->0.","P1 Edric xp 34->82.","E8 Archer falls."]}
+{"t":"2026-10-05T22:49:16.199Z","type":"query","at":277,"cmd":"look"}
+{"t":"2026-10-05T22:49:33.492Z","type":"query","at":277,"cmd":"threat 6,4"}
+{"t":"2026-10-05T22:49:33.493Z","type":"query","at":277,"cmd":"threat 6,3"}
+{"t":"2026-10-05T22:49:33.494Z","type":"query","at":277,"cmd":"threat 4,4"}
+{"t":"2026-10-05T22:49:33.494Z","type":"query","at":277,"cmd":"threat 6,7"}
+{"t":"2026-10-05T22:49:33.494Z","type":"query","at":277,"cmd":"threat 7,3"}
+{"t":"2026-10-05T22:49:57.344Z","type":"cmd","at":278,"cmd":"move P3 4,2 wait","note":null,"out":["P3 Perrin moves 2,4->4,2, wait."]}
+{"t":"2026-10-05T22:49:57.348Z","type":"cmd","at":279,"cmd":"move P4 1,9 wait","note":null,"out":["P4 Voss moves 2,6->1,9, wait."]}
+{"t":"2026-10-05T22:49:57.351Z","type":"cmd","at":280,"cmd":"move P5 stay wait","note":null,"out":["P5 Cael holds 0,8, wait.","-- Enemy phase (turn 5) --","E2 Knight [Steel Lance] attacks P1 Edric [Iron Sword +2]: E2 misses; P1 hits 1; P1 hits 1. HP Knight 29->27, Edric 24->24.","P1 Edric xp 82->84.","Enemy movement: E2 Knight 2,5->3,5.","-- Turn 6, player phase --"]}
+{"t":"2026-10-05T22:50:11.075Z","type":"query","at":280,"cmd":"threat 6,2"}
+{"t":"2026-10-05T22:50:11.077Z","type":"query","at":280,"cmd":"threat 7,2"}
+{"t":"2026-10-05T22:50:11.077Z","type":"query","at":280,"cmd":"threat 7,7"}
+{"t":"2026-10-05T22:50:11.078Z","type":"query","at":280,"cmd":"threat 7,8"}
+{"t":"2026-10-05T22:50:11.078Z","type":"query","at":280,"cmd":"threat 6,8"}
+{"t":"2026-10-05T22:50:11.078Z","type":"query","at":280,"cmd":"threat 6,6"}
+{"t":"2026-10-05T22:50:11.078Z","type":"query","at":280,"cmd":"threat 5,4"}
+{"t":"2026-10-05T22:50:24.479Z","type":"cmd","at":281,"cmd":"move P1 6,3 wait","note":null,"out":["P1 Edric moves 3,4->6,3, wait."]}
+{"t":"2026-10-05T22:50:24.482Z","type":"cmd","at":282,"cmd":"move P3 4,1 wait","note":null,"out":["P3 Perrin moves 4,2->4,1, wait."]}
+{"t":"2026-10-05T22:50:24.484Z","type":"cmd","at":283,"cmd":"move P4 stay wait","note":null,"out":["P4 Voss holds 1,9, wait."]}
+{"t":"2026-10-05T22:50:24.486Z","type":"cmd","at":284,"cmd":"move P5 stay wait","note":null,"out":["P5 Cael holds 0,8, wait.","-- Enemy phase (turn 6) --","Enemy movement: E2 Knight 3,5->5,4.","-- Turn 7, player phase --","E2 Knight HP 27->29 (terrain, status or skill)."]}
+{"t":"2026-10-05T22:51:09.482Z","type":"cmd","at":285,"cmd":"move P1 7,1 wait","note":"knight (DEF 18) is near-immune without Sera; draw it onto Cael (axe adv, DEF 14) and grind it","out":["P1 Edric moves 6,3->7,1, wait."]}
+{"t":"2026-10-05T22:51:09.485Z","type":"cmd","at":286,"cmd":"move P3 3,1 wait","note":"knight (DEF 18) is near-immune without Sera; draw it onto Cael (axe adv, DEF 14) and grind it","out":["P3 Perrin moves 4,1->3,1, wait."]}
+{"t":"2026-10-05T22:51:09.487Z","type":"cmd","at":287,"cmd":"move P5 2,6 wait","note":"knight (DEF 18) is near-immune without Sera; draw it onto Cael (axe adv, DEF 14) and grind it","out":["P5 Cael moves 0,8->2,6, wait."]}
+{"t":"2026-10-05T22:51:09.490Z","type":"cmd","at":288,"cmd":"move P4 stay wait","note":"knight (DEF 18) is near-immune without Sera; draw it onto Cael (axe adv, DEF 14) and grind it","out":["P4 Voss holds 1,9, wait.","-- Enemy phase (turn 7) --","Enemy movement: E2 Knight 5,4->7,3.","-- Turn 8, player phase --"]}
+{"t":"2026-10-05T22:51:31.803Z","type":"cmd","at":289,"cmd":"move P1 stay wait","note":null,"out":["P1 Edric holds 7,1, wait."]}
+{"t":"2026-10-05T22:51:31.807Z","type":"cmd","at":290,"cmd":"move P3 4,2 wait","note":null,"out":["P3 Perrin moves 3,1->4,2, wait."]}
+{"t":"2026-10-05T22:51:31.809Z","type":"cmd","at":291,"cmd":"move P5 4,4 wait","note":null,"out":["P5 Cael moves 2,6->4,4, wait."]}
+{"t":"2026-10-05T22:51:31.812Z","type":"cmd","at":292,"cmd":"move P4 4,8 wait","note":null,"out":["P4 Voss moves 1,9->4,8, wait.","-- Enemy phase (turn 8) --","E2 Knight [Steel Lance] attacks P1 Edric [Iron Sword +2]: E2 misses; P1 hits 1; P1 hits 1. HP Knight 29->27, Edric 24->24.","P1 Edric xp 84->86.","Enemy movement: E2 Knight 7,3->7,2.","-- Turn 9, player phase --"]}
+{"t":"2026-10-05T22:51:47.824Z","type":"query","at":292,"cmd":"options P1"}
+{"t":"2026-10-05T22:51:47.832Z","type":"query","at":292,"cmd":"options P5"}
+{"t":"2026-10-05T22:52:06.615Z","type":"cmd","at":293,"cmd":"move P5 7,3 attack E2","note":"gamble: boss has sat on its throne all battle; Act 1 boss only left it for units within ~2 tiles","out":["P5 Cael moves 4,4->7,3, attack E2.","P5 Cael [Steel Axe] attacks E2 Knight [Steel Lance]: P5 hits 5; E2 hits 8 (Intimidate). HP Cael 19->11, Knight 27->22.","P5 Cael xp 11->17."]}
+{"t":"2026-10-05T22:52:06.619Z","type":"cmd","at":294,"cmd":"move P1 stay wait","note":"gamble: boss has sat on its throne all battle; Act 1 boss only left it for units within ~2 tiles","out":["P1 Edric holds 7,1, wait."]}
+{"t":"2026-10-05T22:52:06.620Z","type":"refused","at":294,"cmd":"move P3 6,4 wait","error":"Perrin cannot stop on 6,4. Use \"options P3\"."}
+{"t":"2026-10-05T22:52:10.680Z","type":"cmd","at":295,"cmd":"move P3 5,4 wait","note":null,"out":["P3 Perrin moves 4,2->5,4, wait."]}
+{"t":"2026-10-05T22:52:10.685Z","type":"cmd","at":296,"cmd":"move P4 5,5 wait","note":null,"out":["P4 Voss moves 4,8->5,5, wait.","-- Enemy phase (turn 9) --","E2 Knight [Steel Lance] attacks P1 Edric [Iron Sword +2]: E2 hits 8; P1 hits 1; P1 hits 1. HP Knight 22->20, Edric 24->16.","P1 Edric xp 86->88.","-- Turn 10, player phase --"]}
+{"t":"2026-10-05T22:52:20.280Z","type":"cmd","at":297,"cmd":"move P3 6,3 attack E2 with Steel Bow","note":null,"out":["P3 Perrin moves 5,4->6,3, attack E2 with Steel Bow.","P3 Perrin [Steel Bow] attacks E2 Knight [Steel Lance]: P3 hits 2; P3 hits 2. HP Perrin 24->24, Knight 20->16.","P3 Perrin xp 61->68."]}
+{"t":"2026-10-05T22:52:20.285Z","type":"cmd","at":298,"cmd":"move P5 stay attack E2","note":null,"out":["P5 Cael holds 7,3, attack E2.","P5 Cael [Steel Axe] attacks E2 Knight [Steel Lance]: P5 hits 5; E2 hits 7 (Intimidate). HP Cael 11->4, Knight 16->11.","P5 Cael xp 17->29."]}
+{"t":"2026-10-05T22:52:20.287Z","type":"cmd","at":299,"cmd":"move P1 stay attack E2","note":null,"out":["P1 Edric holds 7,1, attack E2.","P1 Edric [Iron Sword +2] attacks E2 Knight [Steel Lance]: P1 hits 1; E2 hits 9; P1 hits 1. HP Edric 16->7, Knight 11->9.","P1 Edric xp 88->94."]}
+{"t":"2026-10-05T22:52:20.290Z","type":"cmd","at":300,"cmd":"move P4 6,4 wait","note":null,"out":["P4 Voss moves 5,5->6,4, wait.","-- Enemy phase (turn 10) --","E2 Knight [Steel Lance] attacks P3 Perrin [Steel Bow]: E2 misses. HP Knight 9->9, Perrin 24->24.","P3 Perrin xp 68->69.","Enemy movement: E2 Knight 7,2->6,2.","-- Turn 11, player phase --"]}
+{"t":"2026-10-05T22:52:39.105Z","type":"cmd","at":301,"cmd":"move P5 5,5 wait","note":"Edric 7hp, Cael 4hp: retreat both behind Perrin/Voss who wall the knight in","out":["P5 Cael moves 7,3->5,5, wait."]}
+{"t":"2026-10-05T22:52:39.109Z","type":"cmd","at":302,"cmd":"move P1 5,4 wait","note":"Edric 7hp, Cael 4hp: retreat both behind Perrin/Voss who wall the knight in","out":["P1 Edric moves 7,1->5,4, wait."]}
+{"t":"2026-10-05T22:52:39.111Z","type":"cmd","at":303,"cmd":"move P3 stay wait","note":"Edric 7hp, Cael 4hp: retreat both behind Perrin/Voss who wall the knight in","out":["P3 Perrin holds 6,3, wait."]}
+{"t":"2026-10-05T22:52:39.114Z","type":"cmd","at":304,"cmd":"move P4 stay wait","note":"Edric 7hp, Cael 4hp: retreat both behind Perrin/Voss who wall the knight in","out":["P4 Voss holds 6,4, wait.","-- Enemy phase (turn 11) --","E2 Knight [Steel Lance] attacks P3 Perrin [Steel Bow]: E2 hits 15. HP Knight 9->9, Perrin 24->9.","P3 Perrin xp 69->70.","-- Turn 12, player phase --"]}
+{"t":"2026-10-05T22:52:58.972Z","type":"note","at":304,"note":"Stopping at ~210 CLI calls, turn 12 of act2_3_2 elite seize: Sera+Gaspar fallen, Edric 7hp, Cael 4hp, Perrin 9hp; elite Knight (DEF 18) at 9hp is near-immune to my physical-only army; boss enrages now"}
+{"t":"2026-10-05T22:52:59.481Z","type":"query","at":304,"cmd":"roster"}

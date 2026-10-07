@@ -1,0 +1,1652 @@
+{
+  "reportVersion": 2,
+  "options": {
+    "seed": 7,
+    "difficulty": "normal",
+    "meta": "none",
+    "commander": null,
+    "partner": null,
+    "invincible": false
+  },
+  "commands": 520,
+  "revision": 277,
+  "outcome": {
+    "kind": "timeout",
+    "reason": "Call budget (~250) nearly spent after clearing Act 2 and three Act 3 battles; all units alive",
+    "at": 520
+  },
+  "provenance": {
+    "rebasedFrom": "docs/playtests/2026-10-05-seed7/played",
+    "sourceRevision": 304,
+    "sourceProvenance": null,
+    "commands": 304,
+    "digestVersionFrom": 1,
+    "digestVersionTo": 2,
+    "changed": [],
+    "inserted": [
+      {
+        "before": 82,
+        "sourceCommand": "move P4 stay wait",
+        "cmd": "canto stay"
+      },
+      {
+        "before": 160,
+        "sourceCommand": "move P4 7,6 attack E4 with Steel Bow",
+        "cmd": "canto stay"
+      }
+    ],
+    "rewritten": [
+      {
+        "at": 7,
+        "from": "end",
+        "to": "end again"
+      },
+      {
+        "at": 253,
+        "from": "use Perrin Vulnerary",
+        "to": "use Perrin #1"
+      },
+      {
+        "at": 254,
+        "from": "use Cael Vulnerary",
+        "to": "use Cael #1"
+      },
+      {
+        "at": 255,
+        "from": "use Cael Vulnerary",
+        "to": "use Cael #1"
+      }
+    ]
+  },
+  "verification": {
+    "verified": true,
+    "divergedAt": [],
+    "sourceDigestVersion": 2,
+    "reconstruction": {
+      "code": {
+        "commit": "8d4c170c27a24b2d44d8026803917a64bdba8551",
+        "dirty": true
+      },
+      "data": "560882fb5f59bc40",
+      "adapter": 2,
+      "snapshotVersion": 2,
+      "reportVersion": 2
+    }
+  },
+  "manifest": {
+    "code": {
+      "commit": "80a0156cc57d9679191f4719abcb97c25b6b57b2",
+      "dirty": false
+    },
+    "data": "560882fb5f59bc40",
+    "adapter": {
+      "version": 2,
+      "sessionFormat": 2,
+      "snapshotVersion": 2
+    },
+    "agent": {
+      "description": "fork of the seed-7 pilot right after Sera's fall"
+    }
+  },
+  "run": {
+    "phase": "map",
+    "act": "act3",
+    "battlesWon": 15,
+    "gold": 12775,
+    "visionCharges": 1,
+    "visionUsed": 2,
+    "fallen": [],
+    "army": [
+      {
+        "name": "Edric",
+        "className": "Lord",
+        "level": 9,
+        "hp": 25,
+        "maxHp": 25,
+        "weapon": "Iron Sword +2",
+        "damage": ["physical"]
+      },
+      {
+        "name": "Sera",
+        "className": "Light Priestess",
+        "level": 4,
+        "hp": 30,
+        "maxHp": 30,
+        "weapon": "Crownlight +1",
+        "damage": ["magic", "staff"]
+      },
+      {
+        "name": "Gaspar",
+        "className": "Paladin",
+        "level": 2,
+        "hp": 19,
+        "maxHp": 19,
+        "weapon": "Steel Lance",
+        "damage": ["physical"]
+      },
+      {
+        "name": "Perrin",
+        "className": "Archer",
+        "level": 10,
+        "hp": 27,
+        "maxHp": 27,
+        "weapon": "Armorbane Steel Bow",
+        "damage": ["physical"]
+      },
+      {
+        "name": "Astrid",
+        "className": "Sky Lancer",
+        "level": 3,
+        "hp": 20,
+        "maxHp": 20,
+        "weapon": "Iron Lance",
+        "damage": ["physical"]
+      },
+      {
+        "name": "Voss",
+        "className": "Ranger",
+        "level": 9,
+        "hp": 27,
+        "maxHp": 29,
+        "weapon": "Steel Sword",
+        "damage": ["physical"]
+      },
+      {
+        "name": "Cael",
+        "className": "Sentinel",
+        "level": 10,
+        "hp": 29,
+        "maxHp": 34,
+        "weapon": "Steel Axe",
+        "damage": ["physical"]
+      },
+      {
+        "name": "Tobiah",
+        "className": "Mage",
+        "level": 10,
+        "hp": 28,
+        "maxHp": 28,
+        "weapon": "Wildfire",
+        "damage": ["magic"]
+      },
+      {
+        "name": "Lucan",
+        "className": "Sage",
+        "level": 3,
+        "hp": 27,
+        "maxHp": 27,
+        "weapon": "Conflagration +1",
+        "damage": ["magic"]
+      }
+    ],
+    "blessings": ["coin_of_fate", "steady_hands", "field_medic"]
+  },
+  "battles": [
+    {
+      "node": "act1_0_2",
+      "type": "battle",
+      "elite": false,
+      "boss": false,
+      "act": "act1",
+      "objective": "rout",
+      "par": 5,
+      "enteredAt": 2,
+      "goldBefore": 950,
+      "deployed": [
+        {
+          "name": "Edric",
+          "className": "Lord",
+          "level": 1,
+          "hp": 20,
+          "maxHp": 20,
+          "weapon": "Iron Sword",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Sera",
+          "className": "Light Sage",
+          "level": 1,
+          "hp": 18,
+          "maxHp": 18,
+          "weapon": "Glimmer",
+          "damage": ["magic", "staff"]
+        },
+        {
+          "name": "Gaspar",
+          "className": "Paladin",
+          "level": 1,
+          "hp": 18,
+          "maxHp": 18,
+          "weapon": "Steel Lance",
+          "damage": ["physical"]
+        }
+      ],
+      "enemies": 3,
+      "rewinds": 0,
+      "autos": 0,
+      "result": "victory",
+      "turns": 2,
+      "overPar": -3,
+      "fallen": [],
+      "goldAfter": 1569,
+      "endedAt": 7,
+      "commands": 5
+    },
+    {
+      "node": "act1_1_2",
+      "type": "battle",
+      "elite": false,
+      "boss": false,
+      "act": "act1",
+      "objective": "rout",
+      "par": 5,
+      "enteredAt": 9,
+      "goldBefore": 2267,
+      "deployed": [
+        {
+          "name": "Edric",
+          "className": "Lord",
+          "level": 1,
+          "hp": 20,
+          "maxHp": 20,
+          "weapon": "Iron Sword",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Sera",
+          "className": "Light Sage",
+          "level": 1,
+          "hp": 18,
+          "maxHp": 18,
+          "weapon": "Glimmer",
+          "damage": ["magic", "staff"]
+        },
+        {
+          "name": "Gaspar",
+          "className": "Paladin",
+          "level": 1,
+          "hp": 18,
+          "maxHp": 18,
+          "weapon": "Iron Sword",
+          "damage": ["physical"]
+        }
+      ],
+      "enemies": 3,
+      "rewinds": 0,
+      "autos": 0,
+      "result": "victory",
+      "turns": 3,
+      "overPar": -2,
+      "fallen": [],
+      "goldAfter": 2746,
+      "endedAt": 18,
+      "commands": 9
+    },
+    {
+      "node": "act1_3_2",
+      "type": "battle",
+      "elite": false,
+      "boss": false,
+      "act": "act1",
+      "objective": "rout",
+      "par": 5,
+      "enteredAt": 27,
+      "goldBefore": 799,
+      "deployed": [
+        {
+          "name": "Edric",
+          "className": "Lord",
+          "level": 1,
+          "hp": 20,
+          "maxHp": 20,
+          "weapon": "Iron Sword +2",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Sera",
+          "className": "Light Sage",
+          "level": 2,
+          "hp": 18,
+          "maxHp": 18,
+          "weapon": "Brilliance",
+          "damage": ["magic", "staff"]
+        },
+        {
+          "name": "Gaspar",
+          "className": "Paladin",
+          "level": 1,
+          "hp": 14,
+          "maxHp": 18,
+          "weapon": "Iron Sword",
+          "damage": ["physical"]
+        }
+      ],
+      "enemies": 3,
+      "rewinds": 0,
+      "autos": 0,
+      "result": "victory",
+      "turns": 3,
+      "overPar": -2,
+      "fallen": [],
+      "goldAfter": 1330,
+      "endedAt": 37,
+      "commands": 10
+    },
+    {
+      "node": "act1_4_3",
+      "type": "recruit",
+      "elite": false,
+      "boss": false,
+      "act": "act1",
+      "objective": "rout",
+      "par": 6,
+      "enteredAt": 39,
+      "goldBefore": 1330,
+      "deployed": [
+        {
+          "name": "Edric",
+          "className": "Lord",
+          "level": 2,
+          "hp": 15,
+          "maxHp": 20,
+          "weapon": "Iron Sword +2",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Sera",
+          "className": "Light Sage",
+          "level": 3,
+          "hp": 18,
+          "maxHp": 18,
+          "weapon": "Brilliance",
+          "damage": ["magic", "staff"]
+        },
+        {
+          "name": "Gaspar",
+          "className": "Paladin",
+          "level": 1,
+          "hp": 18,
+          "maxHp": 18,
+          "weapon": "Steel Lance",
+          "damage": ["physical"]
+        }
+      ],
+      "enemies": 5,
+      "rewinds": 0,
+      "autos": 0,
+      "result": "victory",
+      "turns": 4,
+      "overPar": -2,
+      "fallen": [],
+      "goldAfter": 2026,
+      "endedAt": 55,
+      "commands": 16
+    },
+    {
+      "node": "act1_5_4",
+      "type": "recruit",
+      "elite": false,
+      "boss": false,
+      "act": "act1",
+      "objective": "rout",
+      "par": 6,
+      "enteredAt": 61,
+      "goldBefore": 2026,
+      "deployed": [
+        {
+          "name": "Edric",
+          "className": "Lord",
+          "level": 3,
+          "hp": 21,
+          "maxHp": 21,
+          "weapon": "Iron Sword +2",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Sera",
+          "className": "Light Sage",
+          "level": 3,
+          "hp": 18,
+          "maxHp": 18,
+          "weapon": "Brilliance",
+          "damage": ["magic", "staff"]
+        },
+        {
+          "name": "Gaspar",
+          "className": "Paladin",
+          "level": 1,
+          "hp": 18,
+          "maxHp": 18,
+          "weapon": "Steel Lance",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Perrin",
+          "className": "Archer",
+          "level": 2,
+          "hp": 14,
+          "maxHp": 21,
+          "weapon": "Steel Bow",
+          "damage": ["physical"]
+        }
+      ],
+      "enemies": 6,
+      "rewinds": 0,
+      "autos": 0,
+      "result": "victory",
+      "turns": 6,
+      "overPar": 0,
+      "fallen": [],
+      "goldAfter": 2816,
+      "endedAt": 90,
+      "commands": 29
+    },
+    {
+      "node": "act1_7_2",
+      "type": "boss",
+      "elite": false,
+      "boss": true,
+      "act": "act1",
+      "objective": "seize",
+      "par": 9,
+      "enteredAt": 107,
+      "goldBefore": 981,
+      "deployed": [
+        {
+          "name": "Edric",
+          "className": "Lord",
+          "level": 4,
+          "hp": 17,
+          "maxHp": 22,
+          "weapon": "Iron Sword +2",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Sera",
+          "className": "Light Sage",
+          "level": 4,
+          "hp": 18,
+          "maxHp": 18,
+          "weapon": "Brilliance",
+          "damage": ["magic", "staff"]
+        },
+        {
+          "name": "Gaspar",
+          "className": "Paladin",
+          "level": 1,
+          "hp": 18,
+          "maxHp": 18,
+          "weapon": "Iron Sword",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Perrin",
+          "className": "Archer",
+          "level": 3,
+          "hp": 22,
+          "maxHp": 22,
+          "weapon": "Steel Bow",
+          "damage": ["physical"]
+        }
+      ],
+      "enemies": 5,
+      "rewinds": 0,
+      "autos": 0,
+      "result": "victory",
+      "turns": 7,
+      "overPar": -2,
+      "fallen": [],
+      "goldAfter": 2339,
+      "endedAt": 135,
+      "commands": 28
+    },
+    {
+      "node": "act2_0_2",
+      "type": "battle",
+      "elite": false,
+      "boss": false,
+      "act": "act2",
+      "objective": "rout",
+      "par": 9,
+      "enteredAt": 139,
+      "goldBefore": 2339,
+      "deployed": [
+        {
+          "name": "Edric",
+          "className": "Lord",
+          "level": 4,
+          "hp": 22,
+          "maxHp": 22,
+          "weapon": "Iron Sword +2",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Sera",
+          "className": "Light Sage",
+          "level": 5,
+          "hp": 18,
+          "maxHp": 18,
+          "weapon": "Brilliance",
+          "damage": ["magic", "staff"]
+        },
+        {
+          "name": "Gaspar",
+          "className": "Paladin",
+          "level": 1,
+          "hp": 18,
+          "maxHp": 18,
+          "weapon": "Steel Lance",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Perrin",
+          "className": "Archer",
+          "level": 3,
+          "hp": 22,
+          "maxHp": 22,
+          "weapon": "Steel Bow",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Voss",
+          "className": "Ranger",
+          "level": 4,
+          "hp": 25,
+          "maxHp": 25,
+          "weapon": "Steel Sword",
+          "damage": ["physical"]
+        }
+      ],
+      "enemies": 6,
+      "rewinds": 0,
+      "autos": 0,
+      "result": "victory",
+      "turns": 6,
+      "overPar": -3,
+      "fallen": [],
+      "goldAfter": 4144,
+      "endedAt": 169,
+      "commands": 30
+    },
+    {
+      "node": "act2_1_1",
+      "type": "battle",
+      "elite": false,
+      "boss": false,
+      "act": "act2",
+      "objective": "rout",
+      "par": 7,
+      "enteredAt": 178,
+      "goldBefore": 4144,
+      "deployed": [
+        {
+          "name": "Edric",
+          "className": "Lord",
+          "level": 6,
+          "hp": 23,
+          "maxHp": 23,
+          "weapon": "Iron Sword +2",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Sera",
+          "className": "Light Sage",
+          "level": 6,
+          "hp": 16,
+          "maxHp": 19,
+          "weapon": "Brilliance",
+          "damage": ["magic", "staff"]
+        },
+        {
+          "name": "Gaspar",
+          "className": "Paladin",
+          "level": 1,
+          "hp": 17,
+          "maxHp": 18,
+          "weapon": "Iron Sword",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Perrin",
+          "className": "Archer",
+          "level": 4,
+          "hp": 23,
+          "maxHp": 23,
+          "weapon": "Steel Bow",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Voss",
+          "className": "Ranger",
+          "level": 5,
+          "hp": 23,
+          "maxHp": 26,
+          "weapon": "Steel Sword",
+          "damage": ["physical"]
+        }
+      ],
+      "enemies": 7,
+      "rewinds": 0,
+      "autos": 0,
+      "result": "victory",
+      "turns": 5,
+      "overPar": -2,
+      "fallen": [],
+      "goldAfter": 5316,
+      "endedAt": 205,
+      "commands": 27
+    },
+    {
+      "node": "act2_2_1",
+      "type": "recruit",
+      "elite": false,
+      "boss": false,
+      "act": "act2",
+      "objective": "rout",
+      "par": 8,
+      "enteredAt": 212,
+      "goldBefore": 2441,
+      "deployed": [
+        {
+          "name": "Edric",
+          "className": "Lord",
+          "level": 6,
+          "hp": 23,
+          "maxHp": 23,
+          "weapon": "Iron Sword +2",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Sera",
+          "className": "Light Sage",
+          "level": 7,
+          "hp": 16,
+          "maxHp": 19,
+          "weapon": "Crownlight",
+          "damage": ["magic", "staff"]
+        },
+        {
+          "name": "Gaspar",
+          "className": "Paladin",
+          "level": 1,
+          "hp": 18,
+          "maxHp": 18,
+          "weapon": "Iron Sword",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Perrin",
+          "className": "Archer",
+          "level": 5,
+          "hp": 17,
+          "maxHp": 24,
+          "weapon": "Steel Bow",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Voss",
+          "className": "Ranger",
+          "level": 5,
+          "hp": 26,
+          "maxHp": 26,
+          "weapon": "Steel Sword",
+          "damage": ["physical"]
+        }
+      ],
+      "enemies": 9,
+      "rewinds": 1,
+      "autos": 0,
+      "result": "victory",
+      "turns": 7,
+      "overPar": -1,
+      "fallen": [],
+      "goldAfter": 4061,
+      "endedAt": 255,
+      "commands": 43
+    },
+    {
+      "node": "act2_3_2",
+      "type": "battle",
+      "elite": true,
+      "boss": false,
+      "act": "act2",
+      "objective": "seize",
+      "par": 11,
+      "enteredAt": 265,
+      "goldBefore": 4061,
+      "deployed": [
+        {
+          "name": "Edric",
+          "className": "Lord",
+          "level": 6,
+          "hp": 22,
+          "maxHp": 23,
+          "weapon": "Iron Sword +2",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Sera",
+          "className": "Light Sage",
+          "level": 8,
+          "hp": 19,
+          "maxHp": 19,
+          "weapon": "Crownlight",
+          "damage": ["magic", "staff"]
+        },
+        {
+          "name": "Perrin",
+          "className": "Archer",
+          "level": 7,
+          "hp": 24,
+          "maxHp": 24,
+          "weapon": "Armorbane Steel Bow",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Voss",
+          "className": "Ranger",
+          "level": 7,
+          "hp": 28,
+          "maxHp": 28,
+          "weapon": "Steel Sword",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Cael",
+          "className": "Sentinel",
+          "level": 6,
+          "hp": 30,
+          "maxHp": 30,
+          "weapon": "Steel Axe",
+          "damage": ["physical"]
+        }
+      ],
+      "enemies": 8,
+      "rewinds": 1,
+      "autos": 0,
+      "result": "victory",
+      "turns": 7,
+      "overPar": -4,
+      "fallen": [],
+      "goldAfter": 6259,
+      "endedAt": 296,
+      "commands": 31
+    },
+    {
+      "node": "act2_5_3",
+      "type": "recruit",
+      "elite": false,
+      "boss": false,
+      "act": "act2",
+      "objective": "rout",
+      "par": 8,
+      "enteredAt": 310,
+      "goldBefore": 4146,
+      "deployed": [
+        {
+          "name": "Edric",
+          "className": "Lord",
+          "level": 8,
+          "hp": 25,
+          "maxHp": 25,
+          "weapon": "Iron Sword +2",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Sera",
+          "className": "Light Sage",
+          "level": 10,
+          "hp": 26,
+          "maxHp": 26,
+          "weapon": "Crownlight +1",
+          "damage": ["magic", "staff"]
+        },
+        {
+          "name": "Perrin",
+          "className": "Archer",
+          "level": 8,
+          "hp": 25,
+          "maxHp": 25,
+          "weapon": "Armorbane Steel Bow",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Voss",
+          "className": "Ranger",
+          "level": 7,
+          "hp": 28,
+          "maxHp": 28,
+          "weapon": "Steel Sword",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Cael",
+          "className": "Sentinel",
+          "level": 6,
+          "hp": 27,
+          "maxHp": 30,
+          "weapon": "Steel Axe",
+          "damage": ["physical"]
+        }
+      ],
+      "enemies": 8,
+      "rewinds": 0,
+      "autos": 0,
+      "result": "victory",
+      "turns": 5,
+      "overPar": -3,
+      "fallen": [],
+      "goldAfter": 6023,
+      "endedAt": 338,
+      "commands": 28
+    },
+    {
+      "node": "act2_8_2",
+      "type": "boss",
+      "elite": false,
+      "boss": true,
+      "act": "act2",
+      "objective": "seize",
+      "par": 10,
+      "enteredAt": 352,
+      "goldBefore": 4583,
+      "deployed": [
+        {
+          "name": "Edric",
+          "className": "Lord",
+          "level": 9,
+          "hp": 25,
+          "maxHp": 25,
+          "weapon": "Iron Sword +2",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Sera",
+          "className": "Light Priestess",
+          "level": 1,
+          "hp": 29,
+          "maxHp": 29,
+          "weapon": "Glimmer",
+          "damage": ["magic", "staff"]
+        },
+        {
+          "name": "Voss",
+          "className": "Ranger",
+          "level": 8,
+          "hp": 28,
+          "maxHp": 28,
+          "weapon": "Steel Sword",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Cael",
+          "className": "Sentinel",
+          "level": 8,
+          "hp": 32,
+          "maxHp": 32,
+          "weapon": "Steel Axe",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Tobiah",
+          "className": "Mage",
+          "level": 8,
+          "hp": 26,
+          "maxHp": 26,
+          "weapon": "Wildfire",
+          "damage": ["magic"]
+        }
+      ],
+      "enemies": 8,
+      "rewinds": 0,
+      "autos": 0,
+      "result": "victory",
+      "turns": 8,
+      "overPar": -2,
+      "fallen": [],
+      "goldAfter": 6673,
+      "endedAt": 387,
+      "commands": 35
+    },
+    {
+      "node": "act3_0_2",
+      "type": "battle",
+      "elite": false,
+      "boss": false,
+      "act": "act3",
+      "objective": "rout",
+      "par": 9,
+      "enteredAt": 392,
+      "goldBefore": 6673,
+      "deployed": [
+        {
+          "name": "Edric",
+          "className": "Lord",
+          "level": 9,
+          "hp": 25,
+          "maxHp": 25,
+          "weapon": "Iron Sword +2",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Sera",
+          "className": "Light Priestess",
+          "level": 1,
+          "hp": 29,
+          "maxHp": 29,
+          "weapon": "Crownlight +1",
+          "damage": ["magic", "staff"]
+        },
+        {
+          "name": "Cael",
+          "className": "Sentinel",
+          "level": 8,
+          "hp": 32,
+          "maxHp": 32,
+          "weapon": "Steel Axe",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Tobiah",
+          "className": "Mage",
+          "level": 8,
+          "hp": 26,
+          "maxHp": 26,
+          "weapon": "Wildfire",
+          "damage": ["magic"]
+        },
+        {
+          "name": "Lucan",
+          "className": "Sage",
+          "level": 1,
+          "hp": 26,
+          "maxHp": 26,
+          "weapon": "Wildfire",
+          "damage": ["magic"]
+        }
+      ],
+      "enemies": 7,
+      "rewinds": 0,
+      "autos": 0,
+      "result": "victory",
+      "turns": 9,
+      "overPar": 0,
+      "fallen": [],
+      "goldAfter": 8377,
+      "endedAt": 428,
+      "commands": 36
+    },
+    {
+      "node": "act3_1_2",
+      "type": "battle",
+      "elite": false,
+      "boss": false,
+      "act": "act3",
+      "objective": "rout",
+      "par": 10,
+      "enteredAt": 431,
+      "goldBefore": 8377,
+      "deployed": [
+        {
+          "name": "Edric",
+          "className": "Lord",
+          "level": 9,
+          "hp": 25,
+          "maxHp": 25,
+          "weapon": "Iron Sword +2",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Sera",
+          "className": "Light Priestess",
+          "level": 2,
+          "hp": 29,
+          "maxHp": 29,
+          "weapon": "Crownlight +1",
+          "damage": ["magic", "staff"]
+        },
+        {
+          "name": "Cael",
+          "className": "Sentinel",
+          "level": 8,
+          "hp": 32,
+          "maxHp": 32,
+          "weapon": "Steel Axe",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Tobiah",
+          "className": "Mage",
+          "level": 8,
+          "hp": 26,
+          "maxHp": 26,
+          "weapon": "Wildfire",
+          "damage": ["magic"]
+        },
+        {
+          "name": "Lucan",
+          "className": "Sage",
+          "level": 1,
+          "hp": 26,
+          "maxHp": 26,
+          "weapon": "Wildfire",
+          "damage": ["magic"]
+        }
+      ],
+      "enemies": 8,
+      "rewinds": 0,
+      "autos": 0,
+      "result": "victory",
+      "turns": 7,
+      "overPar": -3,
+      "fallen": [],
+      "goldAfter": 10659,
+      "endedAt": 459,
+      "commands": 28
+    },
+    {
+      "node": "act3_3_1",
+      "type": "battle",
+      "elite": false,
+      "boss": false,
+      "act": "act3",
+      "objective": "rout",
+      "par": 8,
+      "enteredAt": 467,
+      "goldBefore": 10659,
+      "deployed": [
+        {
+          "name": "Edric",
+          "className": "Lord",
+          "level": 9,
+          "hp": 25,
+          "maxHp": 25,
+          "weapon": "Iron Sword +2",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Sera",
+          "className": "Light Priestess",
+          "level": 3,
+          "hp": 29,
+          "maxHp": 29,
+          "weapon": "Glimmer",
+          "damage": ["magic", "staff"]
+        },
+        {
+          "name": "Perrin",
+          "className": "Archer",
+          "level": 9,
+          "hp": 26,
+          "maxHp": 26,
+          "weapon": "Longbow",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Voss",
+          "className": "Ranger",
+          "level": 8,
+          "hp": 28,
+          "maxHp": 28,
+          "weapon": "Steel Sword",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Cael",
+          "className": "Sentinel",
+          "level": 9,
+          "hp": 33,
+          "maxHp": 33,
+          "weapon": "Steel Axe",
+          "damage": ["physical"]
+        },
+        {
+          "name": "Tobiah",
+          "className": "Mage",
+          "level": 9,
+          "hp": 27,
+          "maxHp": 27,
+          "weapon": "Wildfire",
+          "damage": ["magic"]
+        },
+        {
+          "name": "Lucan",
+          "className": "Sage",
+          "level": 2,
+          "hp": 26,
+          "maxHp": 26,
+          "weapon": "Conflagration",
+          "damage": ["magic"]
+        }
+      ],
+      "enemies": 10,
+      "rewinds": 0,
+      "autos": 1,
+      "result": "victory",
+      "turns": 9,
+      "overPar": 1,
+      "fallen": [],
+      "goldAfter": 12775,
+      "endedAt": 519,
+      "commands": 52
+    }
+  ],
+  "rewards": [
+    {
+      "afterBattle": 1,
+      "offers": [
+        {
+          "type": "weapon",
+          "item": "Gust Blade",
+          "quantity": 1
+        },
+        {
+          "type": "forge",
+          "item": "Hit Whetstone",
+          "quantity": 1
+        },
+        {
+          "type": "gold",
+          "gold": 698,
+          "xp": 25
+        }
+      ],
+      "skipGold": 337,
+      "picks": ["take 3"]
+    },
+    {
+      "afterBattle": 2,
+      "offers": [
+        {
+          "type": "gold",
+          "gold": 673,
+          "xp": 25
+        },
+        {
+          "type": "forge",
+          "item": "Weight Whetstone",
+          "quantity": 1
+        },
+        {
+          "type": "forge",
+          "item": "Hit Whetstone",
+          "quantity": 1
+        }
+      ],
+      "skipGold": 252,
+      "picks": ["take 1"]
+    },
+    {
+      "afterBattle": 3,
+      "offers": [
+        {
+          "type": "gold",
+          "gold": 607,
+          "xp": 25
+        },
+        {
+          "type": "accessory",
+          "item": "Shield Ring",
+          "quantity": 1
+        },
+        {
+          "type": "weapon",
+          "item": "Horsebane",
+          "quantity": 1
+        }
+      ],
+      "skipGold": 276,
+      "picks": ["take 2 to Edric"]
+    },
+    {
+      "afterBattle": 4,
+      "offers": [
+        {
+          "type": "healing",
+          "item": "Vulnerary",
+          "quantity": 3
+        },
+        {
+          "type": "weapon",
+          "item": "Steel Bow",
+          "quantity": 1
+        },
+        {
+          "type": "gold",
+          "gold": 555,
+          "xp": 25
+        }
+      ],
+      "skipGold": 324,
+      "picks": ["take 2 to Perrin"]
+    },
+    {
+      "afterBattle": 5,
+      "offers": [
+        {
+          "type": "gold",
+          "gold": 565,
+          "xp": 25
+        },
+        {
+          "type": "forge",
+          "item": "Hit Whetstone",
+          "quantity": 1
+        },
+        {
+          "type": "weapon",
+          "item": "Steel Sword",
+          "quantity": 1
+        }
+      ],
+      "skipGold": 360,
+      "picks": ["take 1"]
+    },
+    {
+      "afterBattle": 6,
+      "offers": [
+        {
+          "type": "accessory",
+          "item": "Hunter's Cloak",
+          "quantity": 1
+        },
+        {
+          "type": "promotion",
+          "item": "Master Seal",
+          "quantity": 1
+        },
+        {
+          "type": "statBooster",
+          "item": "Secret Book",
+          "quantity": 1
+        }
+      ],
+      "skipGold": 499,
+      "picks": ["take 2 to convoy"]
+    },
+    {
+      "afterBattle": 7,
+      "offers": [
+        {
+          "type": "weaponArtScroll",
+          "item": "Seal Speed Scroll",
+          "quantity": 1
+        },
+        {
+          "type": "healing",
+          "item": "Herb",
+          "quantity": 1
+        },
+        {
+          "type": "accessory",
+          "item": "Mentor's Band",
+          "quantity": 1
+        }
+      ],
+      "skipGold": 937,
+      "picks": ["take 3 to pool"]
+    },
+    {
+      "afterBattle": 8,
+      "offers": [
+        {
+          "type": "accessory",
+          "item": "Bounty Hunter's Mark",
+          "quantity": 1
+        },
+        {
+          "type": "weapon",
+          "item": "Physic",
+          "quantity": 1
+        },
+        {
+          "type": "accessory",
+          "item": "Veteran's Crest",
+          "quantity": 1
+        }
+      ],
+      "skipGold": 603,
+      "picks": ["take 3 to Sera"]
+    },
+    {
+      "afterBattle": 9,
+      "offers": [
+        {
+          "type": "weapon",
+          "item": "Recurve Bow",
+          "quantity": 1
+        },
+        {
+          "type": "gold",
+          "gold": 1058,
+          "xp": 25
+        },
+        {
+          "type": "forge",
+          "item": "Prismatic Stone",
+          "quantity": 1
+        }
+      ],
+      "skipGold": 728,
+      "picks": ["take 3 forge Perrin Steel Bow armorbane"]
+    },
+    {
+      "afterBattle": 10,
+      "offers": [
+        {
+          "type": "accessory",
+          "item": "Vanguard Crest",
+          "quantity": 1
+        },
+        {
+          "type": "accessory",
+          "item": "Bounty Hunter's Mark",
+          "quantity": 1
+        },
+        {
+          "type": "gold",
+          "gold": 1132,
+          "xp": 25
+        },
+        {
+          "type": "statBooster",
+          "item": "Angelic Robe",
+          "quantity": 1
+        }
+      ],
+      "skipGold": 985,
+      "picks": ["take 4 Sera", "take 3"]
+    },
+    {
+      "afterBattle": 11,
+      "offers": [
+        {
+          "type": "healing",
+          "item": "Vulnerary",
+          "quantity": 3
+        },
+        {
+          "type": "weapon",
+          "item": "Longbow",
+          "quantity": 1
+        },
+        {
+          "type": "gold",
+          "gold": 1147,
+          "xp": 25
+        }
+      ],
+      "skipGold": 891,
+      "picks": ["take 3"]
+    },
+    {
+      "afterBattle": 12,
+      "offers": [
+        {
+          "type": "gold",
+          "gold": 1674,
+          "xp": 25
+        },
+        {
+          "type": "forge",
+          "item": "Weight Whetstone",
+          "quantity": 1
+        },
+        {
+          "type": "skillScroll",
+          "item": "Luna Scroll",
+          "quantity": 1
+        }
+      ],
+      "skipGold": 790,
+      "picks": ["take 3 to pool"]
+    },
+    {
+      "afterBattle": 13,
+      "offers": [
+        {
+          "type": "weaponArtScroll",
+          "item": "Wild Abandon Scroll",
+          "quantity": 1
+        },
+        {
+          "type": "accessory",
+          "item": "Phoenix Brooch",
+          "quantity": 1
+        },
+        {
+          "type": "statBooster",
+          "item": "Energy Drop",
+          "quantity": 1
+        }
+      ],
+      "skipGold": 890,
+      "picks": ["take 2 to pool"]
+    },
+    {
+      "afterBattle": 14,
+      "offers": [
+        {
+          "type": "forge",
+          "item": "Crit Whetstone",
+          "quantity": 1
+        },
+        {
+          "type": "weapon",
+          "item": "Conflagration",
+          "quantity": 1
+        },
+        {
+          "type": "accessory",
+          "item": "Duelist's Glove",
+          "quantity": 1
+        }
+      ],
+      "skipGold": 1226,
+      "picks": ["take 2 Lucan"]
+    },
+    {
+      "afterBattle": 15,
+      "offers": [
+        {
+          "type": "forge",
+          "item": "Silver Whetstone",
+          "quantity": 1
+        },
+        {
+          "type": "forge",
+          "item": "Hit Whetstone",
+          "quantity": 1
+        },
+        {
+          "type": "weapon",
+          "item": "Rescue Staff",
+          "quantity": 1
+        }
+      ],
+      "skipGold": 1080,
+      "picks": ["take 1 forge Lucan Conflagration might"]
+    }
+  ],
+  "purchases": [
+    {
+      "at": 21,
+      "node": "act1_2_2",
+      "cmd": "buy 8 for Sera",
+      "gold": -1200
+    },
+    {
+      "at": 22,
+      "node": "act1_2_2",
+      "cmd": "buy 9 for Gaspar",
+      "gold": -700
+    },
+    {
+      "at": 23,
+      "node": "act1_2_2",
+      "cmd": "forge Edric Iron Sword might",
+      "gold": -240
+    },
+    {
+      "at": 24,
+      "node": "act1_2_2",
+      "cmd": "forge Edric Iron Sword might",
+      "gold": -480
+    },
+    {
+      "at": 99,
+      "node": "act1_6_2",
+      "cmd": "buy 2 for Edric",
+      "gold": -375
+    },
+    {
+      "at": 100,
+      "node": "act1_6_2",
+      "cmd": "buy 2 for Astrid",
+      "gold": -1500
+    },
+    {
+      "at": 101,
+      "node": "act1_6_2",
+      "cmd": "restock",
+      "gold": -150
+    },
+    {
+      "at": 102,
+      "node": "act1_6_2",
+      "cmd": "buy 6 for Astrid",
+      "gold": -375
+    },
+    {
+      "at": 207,
+      "node": null,
+      "cmd": "buy 3 for Sera",
+      "gold": -2530
+    },
+    {
+      "at": 208,
+      "node": null,
+      "cmd": "buy 3 for Gaspar",
+      "gold": -345
+    },
+    {
+      "at": 300,
+      "node": "act2_4_2",
+      "cmd": "buy Purifying Light Scroll for Sera",
+      "gold": -2300
+    },
+    {
+      "at": 301,
+      "node": "act2_4_2",
+      "cmd": "buy Vulnerary for Voss",
+      "gold": -345
+    },
+    {
+      "at": 302,
+      "node": "act2_4_2",
+      "cmd": "forge Sera Crownlight might",
+      "gold": -600
+    },
+    {
+      "at": 341,
+      "node": "act2_6_3",
+      "cmd": "heal",
+      "gold": 0
+    },
+    {
+      "at": 347,
+      "node": "act2_7_2",
+      "cmd": "buy Vulnerary for Tobiah",
+      "gold": -431
+    },
+    {
+      "at": 348,
+      "node": "act2_7_2",
+      "cmd": "buy Elixir for Edric",
+      "gold": -2156
+    },
+    {
+      "at": 462,
+      "node": "act3_2_1",
+      "cmd": "heal",
+      "gold": 0
+    }
+  ],
+  "visits": [
+    {
+      "node": "act1_2_2",
+      "kind": "shop",
+      "enteredAt": 20,
+      "commands": [
+        "buy 8 for Sera",
+        "buy 9 for Gaspar",
+        "forge Edric Iron Sword might",
+        "forge Edric Iron Sword might",
+        "leave"
+      ]
+    },
+    {
+      "node": "act1_6_2",
+      "kind": "ruins",
+      "enteredAt": 97,
+      "commands": [
+        "path scavenge",
+        "buy 2 for Edric",
+        "buy 2 for Astrid",
+        "restock",
+        "buy 6 for Astrid",
+        "leave",
+        "leave"
+      ]
+    },
+    {
+      "node": null,
+      "kind": "shop",
+      "enteredAt": 206,
+      "commands": ["take 3 to Sera", "buy 3 for Sera", "buy 3 for Gaspar", "leave"]
+    },
+    {
+      "node": "act2_4_2",
+      "kind": "shop",
+      "enteredAt": 299,
+      "commands": [
+        "buy Purifying Light Scroll for Sera",
+        "buy Vulnerary for Voss",
+        "forge Sera Crownlight might",
+        "leave"
+      ]
+    },
+    {
+      "node": "act2_6_3",
+      "kind": "church",
+      "enteredAt": 340,
+      "commands": ["heal", "bless 3", "leave"]
+    },
+    {
+      "node": "act2_7_2",
+      "kind": "ruins",
+      "enteredAt": 345,
+      "commands": [
+        "path scavenge",
+        "buy Vulnerary for Tobiah",
+        "buy Elixir for Edric",
+        "leave",
+        "leave"
+      ]
+    },
+    {
+      "node": "act3_2_1",
+      "kind": "church",
+      "enteredAt": 461,
+      "commands": ["heal", "bless 2", "leave"]
+    }
+  ],
+  "journal": {
+    "queries": 116,
+    "refusals": 13,
+    "notes": 0,
+    "faults": 0,
+    "observationFaults": 0,
+    "unsupported": []
+  }
+}

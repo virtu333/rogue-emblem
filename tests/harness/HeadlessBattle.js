@@ -6,11 +6,30 @@ import {
 } from '../../src/engine/RoutObjective.js';
 import { settleRecruitJoin } from '../../src/engine/BattleRecruits.js';
 import { settleStaffHeal } from '../../src/engine/StaffSettlement.js';
+import { settleConsumable, validateConsumable } from '../../src/engine/ConsumableSettlement.js';
 // HeadlessBattle — Synchronous battle state machine for headless testing.
 // Mirrors BattleScene's MVP subset (7 states) using real engine functions.
 
 import { HeadlessGrid } from './HeadlessGrid.js';
 import { TurnManager } from '../../src/engine/TurnManager.js';
+import { computeEffectivePath } from '../../src/engine/Grid.js';
+import { ambushStop, pathCostTo } from '../../src/engine/FogAmbush.js';
+import { cantoRuleFor } from '../../src/engine/CantoRule.js';
+import { applyTrade, canTradeBetween, unitHolder } from '../../src/engine/ItemTrade.js';
+import { settleMoves } from '../../src/engine/ActionMovement.js';
+import { seenTileOccupant } from '../../src/engine/BattleInformation.js';
+import {
+  abilityHasTargets,
+  canUseAbility,
+  collectAffected,
+  getActionAbilities,
+  getBlinkTiles,
+  markUsed,
+  settleBlink,
+  settleEnsnare,
+  settleHealingCircle,
+  settleRally,
+} from '../../src/engine/ActionAbilitySystem.js';
 import {
   commitBattleDeeds,
   recordAreaStrike,
@@ -18,6 +37,7 @@ import {
   recordEnemyPhaseEnd,
   recordHeal,
   recordKill,
+  recordRefresh,
   recordStaffUse,
 } from '../../src/engine/DeedSystem.js';
 import { AIController } from '../../src/engine/AIController.js';
@@ -95,6 +115,7 @@ import {
 import {
   applyCondition,
   isAcidPoisoned,
+  isRooted,
   isSleeping,
   processConditionRecovery,
   removeCondition,
@@ -146,6 +167,7 @@ import {
 import {
   BOSS_STAT_BONUS,
   TERRAIN,
+  XP_BASE_DANCE,
   XP_BASE_HEAL,
   ESCAPE_EVAC_GOLD_BY_ACT,
 } from '../../src/utils/constants.js';
@@ -189,12 +211,22 @@ export const HEADLESS_STATES = {
   SELECTING_TARGET: 'SELECTING_TARGET',
   SELECTING_HEAL_TARGET: 'SELECTING_HEAL_TARGET',
   SELECTING_REMAINS_TARGET: 'SELECTING_REMAINS_TARGET',
+  // Moving on after an action (Canto, Measured Step); only when a battle enables it.
+  CANTO_MOVING: 'CANTO_MOVING',
   ENEMY_PHASE: 'ENEMY_PHASE',
   BATTLE_END: 'BATTLE_END',
 };
 
-// MVP explicitly disables Canto
+// Canto is off by default: GameDriver's agents expect PLAYER_IDLE after every action.
+// A battle that sets `cantoEnabled` (headless play) runs it as BattleScene does.
 export const CANTO_DISABLED = true;
+
+const ORTHOGONAL = Object.freeze([
+  { dc: 0, dr: -1 },
+  { dc: 0, dr: 1 },
+  { dc: -1, dr: 0 },
+  { dc: 1, dr: 0 },
+]);
 
 const HIDDEN_WEAPON_ART_REASONS = new Set([
   'legendary_weapon_required',
@@ -226,6 +258,7 @@ export class HeadlessBattle {
     // Area credits pay XP as the scene pays them (BattleXp.AREA_XP_LIVE, one switch for
     // both); a test may turn it off per battle.
     this.areaXpLive = AREA_XP_LIVE;
+    this.cantoEnabled = !CANTO_DISABLED;
 
     this.battleState = null;
     this.battleConfig = null;
@@ -469,54 +502,157 @@ export class HeadlessBattle {
 
   // --- State transitions ---
 
+  // `unitName` may also be the unit itself (two units can share a name).
   selectUnit(unitName) {
     if (this.battleState !== HEADLESS_STATES.PLAYER_IDLE) {
       throw new Error(`Cannot select unit in state: ${this.battleState}`);
     }
-    const matching = this.playerUnits.filter((u) => u.name === unitName);
-    if (matching.length === 0) throw new Error(`Unit not found: ${unitName}`);
+    const matching =
+      unitName && typeof unitName === 'object'
+        ? this.playerUnits.filter((u) => u === unitName)
+        : this.playerUnits.filter((u) => u.name === unitName);
+    if (matching.length === 0) throw new Error(`Unit not found: ${unitName?.name ?? unitName}`);
 
     // Duplicate unit names can exist in simulations; prefer any unacted match.
     const unit = matching.find((u) => !u.hasActed) || matching[0];
-    if (unit.hasActed) throw new Error(`Unit already acted: ${unitName}`);
+    if (unit.hasActed) throw new Error(`Unit already acted: ${unit.name}`);
 
     this.selectedUnit = unit;
+    this.lastAmbush = null;
+    // As BattleScene.selectUnit: a unit whose move is locked in (an ambush) goes
+    // straight to its action menu.
+    if (unit._movementCommitted) {
+      this.preMoveLoc = null;
+      this.movementRange = null;
+      this.battleState = HEADLESS_STATES.UNIT_ACTION_MENU;
+      return;
+    }
     this.preMoveLoc = { col: unit.col, row: unit.row };
+    // As BattleScene.selectUnit: a rooted unit stays put, pathfinding skills lower
+    // terrain costs, and the range is planned around the units the player knows of
+    // (buildUnitPositionMap): a unit the fog hides never shapes it.
+    this.unitPositions = this._playerKnowledge().positions();
     this.movementRange = this.grid.getMovementRange(
       unit.col,
       unit.row,
-      unit.stats.MOV,
+      isRooted(unit) ? 0 : (unit.mov ?? unit.stats.MOV),
       unit.moveType,
-      this._buildUnitPositionMap(unit.faction),
+      this.unitPositions,
       unit.faction,
+      getTerrainCostReduction(unit, this.gameData?.skills),
     );
     this.battleState = HEADLESS_STATES.UNIT_SELECTED;
   }
 
+  /**
+   * As BattleScene.moveUnit: the path is planned on what the player knows; walking
+   * it, a unit hidden in the fog stops the move on the last tile before it where the
+   * unit may stand (FogAmbush.js). An ambushed move is locked in (no undo) and the
+   * unit may still act. `lastAmbush` says what stopped it.
+   */
   moveTo(col, row) {
     if (this.battleState !== HEADLESS_STATES.UNIT_SELECTED) {
       throw new Error(`Cannot move in state: ${this.battleState}`);
     }
+    const unit = this.selectedUnit;
     const key = `${col},${row}`;
     const rangeEntry = this.movementRange.get(key);
     // Allow staying in place (current tile always in movementRange)
     // Reject tiles marked stoppable: false (ally-occupied)
-    if (
-      !(col === this.selectedUnit.col && row === this.selectedUnit.row) &&
-      (!rangeEntry || rangeEntry.stoppable === false)
-    ) {
+    const staying = col === unit.col && row === unit.row;
+    if (!staying && (!rangeEntry || rangeEntry.stoppable === false)) {
       throw new Error(`Tile (${col},${row}) not reachable`);
     }
-
-    // Track movement spent for Canto (deferred, but track anyway)
-    const costEntry = rangeEntry;
-    this.selectedUnit._movementSpent = costEntry ? costEntry.cost : 0;
-
-    this.selectedUnit.col = col;
-    this.selectedUnit.row = row;
-    this.selectedUnit.hasMoved = true;
+    if (staying) {
+      unit._movementSpent = 0;
+      unit.hasMoved = true;
+      this.battleState = HEADLESS_STATES.UNIT_ACTION_MENU;
+      return;
+    }
+    const costMod = getTerrainCostReduction(unit, this.gameData?.skills);
+    const path =
+      this.grid.reconstructIcePath(this.movementRange, unit.col, unit.row, col, row) ||
+      this.grid.findPath(
+        unit.col,
+        unit.row,
+        col,
+        row,
+        unit.moveType,
+        this.unitPositions,
+        unit.faction,
+        costMod,
+      );
+    if (!path || path.length < 2) throw new Error(`No path to (${col},${row})`);
+    const effective = computeEffectivePath(
+      path,
+      this.grid.mapLayout,
+      this.grid.terrainData,
+      this.grid.cols,
+      this.grid.rows,
+      unit.moveType,
+      unit.faction === 'player'
+        ? this._playerKnowledge().occupied(unit)
+        : this._worldOccupied(unit),
+      costMod,
+    );
+    if (!effective.effectivePath || effective.effectivePath.length < 2)
+      throw new Error(`No effective path to (${col},${row})`);
+    const cut = this._ambushCut(unit, effective, costMod);
+    const dest = cut.path[cut.path.length - 1];
+    unit.col = dest.col;
+    unit.row = dest.row;
+    unit.hasMoved = true;
+    unit._movementSpent = cut.cost;
+    if (cut.ambusher) {
+      // BattleScene._resolveAmbush: locked in, the fog lifts from where it stands.
+      unit._movementCommitted = true;
+      this.preMoveLoc = null;
+      this._refreshFogVisibility();
+      this.lastAmbush = { unit, ambusher: cut.ambusher, tile: { col, row }, stop: { ...dest } };
+    }
     // Fog waits for the action to be committed (BattleActionCompletion.revealSettledVision).
     this.battleState = HEADLESS_STATES.UNIT_ACTION_MENU;
+  }
+
+  /** BattleScene._ambushCut: where a player's path meets a unit the fog hides. */
+  _ambushCut(unit, effective, costMod) {
+    const path = effective.effectivePath;
+    if (unit?.faction !== 'player' || !this.grid?.fogEnabled)
+      return { path, cost: effective.movementCost, ambusher: null };
+    const occupant = (c, r) =>
+      [...this.enemyUnits, ...this.playerUnits, ...this.npcUnits].find(
+        (u) =>
+          u &&
+          u !== unit &&
+          !u._removing &&
+          u.currentHP > 0 &&
+          (isEntity(u)
+            ? getFootprint(u).some((t) => t.col === c && t.row === r)
+            : u.col === c && u.row === r),
+      ) || null;
+    const knowledge = this._playerKnowledge();
+    const cut = ambushStop(path, {
+      hiddenAt: (c, r) => {
+        const found = occupant(c, r);
+        return found && !knowledge.isKnown(found) ? found : null;
+      },
+      blockedAt: (c, r) => Boolean(occupant(c, r)),
+    });
+    if (!cut.ambusher) return { path, cost: effective.movementCost, ambusher: null };
+    const cost = pathCostTo(path, effective.slideSegments, cut.stopIndex, (c, r) =>
+      this.grid.getMoveCost(c, r, unit.moveType, costMod),
+    );
+    return { path: cut.path, cost, ambusher: cut.ambusher };
+  }
+
+  /** BattleScene.buildOccupiedSet without seenOnly: every live unit's tiles. */
+  _worldOccupied(exclude) {
+    const occupied = new Set();
+    for (const u of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
+      if (!u || u === exclude || u._removing || u.currentHP <= 0) continue;
+      for (const t of isEntity(u) ? getFootprint(u) : [u]) occupied.add(`${t.col},${t.row}`);
+    }
+    return occupied;
   }
 
   getAvailableActions() {
@@ -562,6 +698,20 @@ export class HeadlessBattle {
         actions.push({ label: 'Talk', supported: true });
       }
     }
+
+    // Repositioning and trading (BattleScene.showActionMenu). GameDriver's agents never
+    // choose them (supported: false); headless play drives them through trade(),
+    // reposition() and dance().
+    if (this._findTradeTargets(unit).length) actions.push({ label: 'Trade', supported: false });
+    if (this._findSwapTargets(unit).length) actions.push({ label: 'Swap', supported: false });
+    if (unit.skills?.includes('shove') && this._findShoveTargets(unit).length)
+      actions.push({ label: 'Shove', supported: false });
+    if (unit.skills?.includes('pull') && this._findPullTargets(unit).length)
+      actions.push({ label: 'Pull', supported: false });
+    if (unit.skills?.includes('dance') && this._findDanceTargets(unit).length)
+      actions.push({ label: 'Dance', supported: false });
+    if (getActionAbilities(unit, this.gameData.skills).length)
+      actions.push({ label: 'Ability', supported: false });
 
     // Deferred actions (listed but unsupported in MVP)
     const equippable = unit.inventory.filter(
@@ -615,7 +765,8 @@ export class HeadlessBattle {
         break;
       }
       case 'Wait':
-        this._finishUnitAction(this.selectedUnit);
+        // Wait ends the turn's movement too: never Canto (BattleScene's Wait row).
+        this._finishUnitAction(this.selectedUnit, { skipCanto: true });
         break;
       case 'Seize':
         this._onVictory();
@@ -656,12 +807,16 @@ export class HeadlessBattle {
     this._executeCombat(this.selectedUnit, target);
   }
 
+  // `targetName` may also be the target unit itself.
   chooseHealTarget(targetName) {
     if (this.battleState !== HEADLESS_STATES.SELECTING_HEAL_TARGET) {
       throw new Error(`Cannot choose heal target in state: ${this.battleState}`);
     }
-    const target = this.healTargets.find((u) => u.name === targetName);
-    if (!target) throw new Error(`Target not in heal range: ${targetName}`);
+    const target =
+      targetName && typeof targetName === 'object'
+        ? this.healTargets.find((u) => u === targetName)
+        : this.healTargets.find((u) => u.name === targetName);
+    if (!target) throw new Error(`Target not in heal range: ${targetName?.name ?? targetName}`);
 
     this._executeHeal(this.selectedUnit, target);
   }
@@ -678,12 +833,65 @@ export class HeadlessBattle {
     this.remainsTargets = [];
     // The last remains of a Rout win it, as a killing blow does.
     if (this._checkBattleEnd()) return;
+    this._finishUnitAction(unit, { skipCanto: true });
+  }
+
+  /**
+   * Equip from the action menu, as BattleScene.showEquipMenu: free, the menu stays open.
+   * GameDriver's agents never choose it (its menu row stays `supported: false`); the
+   * play adapter (tools/play) calls it.
+   */
+  equipFromMenu(weapon) {
+    if (this.battleState !== HEADLESS_STATES.UNIT_ACTION_MENU) {
+      throw new Error(`Cannot equip in state: ${this.battleState}`);
+    }
+    const unit = this.selectedUnit;
+    if (!unit.inventory.includes(weapon)) throw new Error('Weapon not in inventory');
+    if (weapon.type === 'Consumable' || weapon.type === 'Scroll' || !canEquip(unit, weapon)) {
+      throw new Error(`${unit.name} cannot equip ${weapon.name}`);
+    }
+    equipWeapon(unit, weapon);
+  }
+
+  /**
+   * Use a healing or curing item, as BattleScene.useConsumable (ConsumableSettlement):
+   * a heal targets the user, a cure the user or an adjacent ally; the action ends.
+   * Promotion and reclass seals are not modelled. Like Equip, only the play adapter
+   * calls it.
+   */
+  useItem(item, target = this.selectedUnit) {
+    if (this.battleState !== HEADLESS_STATES.UNIT_ACTION_MENU) {
+      throw new Error(`Cannot use an item in state: ${this.battleState}`);
+    }
+    const unit = this.selectedUnit;
+    if (item?.effect === 'promote' || item?.effect === 'reclass') {
+      throw new Error(`${item.name}: seals are not modelled in the headless battle`);
+    }
+    const adjacentAlly =
+      target !== unit &&
+      this.playerUnits.includes(target) &&
+      gridDistance(unit.col, unit.row, target.col, target.row) <= 1;
+    if (!validateConsumable(unit, item, target) || !(target === unit || adjacentAlly)) {
+      throw new Error(`${unit.name} cannot use ${item?.name ?? 'that item'} on ${target?.name}`);
+    }
+    const facts = settleConsumable(unit, item, target);
     this._finishUnitAction(unit);
+    return facts;
   }
 
   undoMove() {
     if (this.battleState !== HEADLESS_STATES.UNIT_ACTION_MENU) {
       throw new Error(`Cannot undo move in state: ${this.battleState}`);
+    }
+    // A locked-in move (an ambush) cannot be taken back: Back only deselects
+    // (TradeFlow.shouldAllowUndoMove).
+    if (this.selectedUnit?._movementCommitted) {
+      this.selectedUnit = null;
+      this.movementRange = null;
+      this.preMoveLoc = null;
+      this._clearSelectedWeaponArt();
+      this.battleState = HEADLESS_STATES.PLAYER_IDLE;
+      return;
     }
     if (this.preMoveLoc) {
       this.selectedUnit.col = this.preMoveLoc.col;
@@ -707,6 +915,10 @@ export class HeadlessBattle {
       case HEADLESS_STATES.UNIT_ACTION_MENU:
         this.undoMove();
         break;
+      // Back while moving on skips it: the unit stays where it acted.
+      case HEADLESS_STATES.CANTO_MOVING:
+        this._completeAction(this.selectedUnit);
+        break;
       case HEADLESS_STATES.SELECTING_TARGET:
       case HEADLESS_STATES.SELECTING_HEAL_TARGET:
       case HEADLESS_STATES.SELECTING_REMAINS_TARGET:
@@ -721,6 +933,11 @@ export class HeadlessBattle {
   }
 
   async endTurn() {
+    // Ending the turn mid-Canto settles the unit where it stands (BattleScene).
+    if (this.battleState === HEADLESS_STATES.CANTO_MOVING) {
+      this._completeAction(this.selectedUnit);
+      if (this.battleState !== HEADLESS_STATES.PLAYER_IDLE) return;
+    }
     if (this.battleState !== HEADLESS_STATES.PLAYER_IDLE) {
       throw new Error(`Cannot end turn in state: ${this.battleState}`);
     }
@@ -1097,6 +1314,7 @@ export class HeadlessBattle {
         u.hasActed = false;
         u._gambitUsedThisTurn = false;
         u._movementSpent = 0;
+        u._movementCommitted = false;
       }
       // Apply turn-start effects (Renewal, etc.) — skip turn 1 to match BattleScene
       if (turn > 1) {
@@ -1138,13 +1356,17 @@ export class HeadlessBattle {
    * BattleScene.threatContext: the Danger overlay's view, positions from what the player
    * knows (PlayerKnowledge: own units, what the fog shows, the recruit's beacon).
    */
-  _playerThreatContext() {
-    const knowledge = createPlayerKnowledge({
+  _playerKnowledge() {
+    return createPlayerKnowledge({
       grid: this.grid,
       units: [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits],
       // As battleKnowledge.js: only the recruit beacon's NPC shows through the fog.
       revealed: [findRecruitNpc(this.npcUnits)],
     });
+  }
+
+  _playerThreatContext() {
+    const knowledge = this._playerKnowledge();
     return {
       grid: this.grid,
       enemyUnits: this.enemyUnits,
@@ -1259,7 +1481,11 @@ export class HeadlessBattle {
     this.grid.updateFogOfWar(this.playerUnits);
   }
 
-  _buildUnitPositionMap(moverFaction) {
+  /**
+   * Every unit's tiles, the world as it is (the sim agents' omniscient planning view).
+   * The player's own moves plan on _playerKnowledge() instead, as the scene's do.
+   */
+  _buildUnitPositionMap(_moverFaction) {
     const map = new Map();
     for (const u of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
       for (const t of isEntity(u) ? getFootprint(u) : [u])
@@ -1880,6 +2106,7 @@ export class HeadlessBattle {
           u.hasActed = false;
           u.hasMoved = false;
           u._movementSpent = 0;
+          u._movementCommitted = false;
         }
         this.selectedUnit = null;
         this._clearSelectedWeaponArt();
@@ -1891,7 +2118,7 @@ export class HeadlessBattle {
       }
     }
 
-    this._finishUnitAction(attacker);
+    this._finishUnitAction(attacker, { combat: true });
   }
 
   /**
@@ -1943,7 +2170,7 @@ export class HeadlessBattle {
     swapSpentWeapons([unit]); // after the blast's deaths, as BattleScene
 
     if (this._checkBattleEnd()) return true;
-    this._finishUnitAction(unit);
+    this._finishUnitAction(unit, { combat: true });
     return true;
   }
 
@@ -2034,21 +2261,355 @@ export class HeadlessBattle {
     };
   }
 
-  _finishUnitAction(unit) {
+  /**
+   * The end of a unit's action (BattleScene.finishUnitAction). With Canto enabled, a
+   * unit whose skills carry a Canto rule and with movement left moves on first
+   * (CANTO_MOVING): any action but Wait and Smash for Canto, any but combat for
+   * Measured Step. Otherwise the action completes.
+   */
+  _finishUnitAction(unit, { skipCanto = false, combat = false } = {}) {
     this._clearCombatRollSession();
     this.attackTargets = [];
     this.healTargets = [];
     this._clearSelectedWeaponArt();
 
-    // Canto (including Measured Step) is disabled in this harness; scene tests cover it.
+    const rule =
+      this.cantoEnabled && unit.faction === 'player' && this.playerUnits.includes(unit)
+        ? cantoRuleFor(unit, this.gameData.skills)
+        : null;
+    const remaining = (unit.mov ?? unit.stats.MOV) - (unit._movementSpent || 0);
+    if (rule && !skipCanto && !(combat && rule === 'noncombat') && remaining > 0) {
+      unit.hasActed = true;
+      this.selectedUnit = unit;
+      this.preMoveLoc = null;
+      this._startCanto(unit, remaining);
+      return;
+    }
+    this._completeAction(unit);
+  }
+
+  /** BattleActionCompletion.completeBattleAction: village, fog, the turn's count. */
+  _completeAction(unit) {
     unit.hasActed = true;
     this._handleVillageVisit(unit);
     this.selectedUnit = null;
     this.preMoveLoc = null;
+    this.cantoRange = null;
+    this.cantoRemaining = 0;
     this.battleState = HEADLESS_STATES.PLAYER_IDLE;
     this._refreshFogVisibility();
     if (this.playerUnits.includes(unit)) this.turnManager.unitActed(unit);
     else this.turnManager.checkPlayerPhaseComplete();
+  }
+
+  /** BattleScene.startCantoMove: the rest of the unit's movement, planned on what it knows. */
+  _startCanto(unit, remaining) {
+    this.battleState = HEADLESS_STATES.CANTO_MOVING;
+    this.cantoRemaining = remaining;
+    this.cantoRange = this.grid.getMovementRange(
+      unit.col,
+      unit.row,
+      remaining,
+      unit.moveType,
+      this._playerKnowledge().positions(),
+      unit.faction,
+      getTerrainCostReduction(unit, this.gameData?.skills),
+    );
+  }
+
+  /**
+   * BattleScene.handleCantoClick then confirmCantoMove: move on to (col,row), or stay
+   * on the unit's own tile, and complete the action. A unit hidden in the fog on the
+   * way stops it (an ambush), and the action completes there. Its movement spent is
+   * not changed (as the scene).
+   */
+  cantoMoveTo(col, row) {
+    if (this.battleState !== HEADLESS_STATES.CANTO_MOVING)
+      throw new Error(`Cannot move on in state: ${this.battleState}`);
+    const unit = this.selectedUnit;
+    this.lastAmbush = null;
+    if (col === unit.col && row === unit.row) return this._completeAction(unit);
+    const entry = this.cantoRange.get(`${col},${row}`);
+    if (!entry || entry.stoppable === false) throw new Error(`Tile (${col},${row}) not reachable`);
+    const costMod = getTerrainCostReduction(unit, this.gameData?.skills);
+    const path =
+      this.grid.reconstructIcePath(this.cantoRange, unit.col, unit.row, col, row) ||
+      this.grid.findPath(
+        unit.col,
+        unit.row,
+        col,
+        row,
+        unit.moveType,
+        this._playerKnowledge().positions(),
+        unit.faction,
+        costMod,
+      );
+    if (!path || path.length < 2) throw new Error(`No path to (${col},${row})`);
+    const effective = computeEffectivePath(
+      path,
+      this.grid.mapLayout,
+      this.grid.terrainData,
+      this.grid.cols,
+      this.grid.rows,
+      unit.moveType,
+      this._playerKnowledge().occupied(unit),
+      costMod,
+    );
+    const cut = this._ambushCut(unit, effective, costMod);
+    const dest = cut.path[cut.path.length - 1];
+    unit.col = dest.col;
+    unit.row = dest.row;
+    if (cut.ambusher)
+      this.lastAmbush = { unit, ambusher: cut.ambusher, tile: { col, row }, stop: { ...dest } };
+    this._completeAction(unit);
+  }
+
+  // --- Trade, Swap, Shove, Pull, Dance (BattleScene's find*Targets) ---
+
+  _adjacentAllies(unit) {
+    const out = [];
+    for (const { dc, dr } of ORTHOGONAL) {
+      const ally = this.playerUnits.find(
+        (u) => u !== unit && u.col === unit.col + dc && u.row === unit.row + dr,
+      );
+      if (ally) out.push({ ally, dc, dr });
+    }
+    return out;
+  }
+
+  /** Taken as far as the player knows: a unit stands there, or fog hides the tile. */
+  _seenTileOccupant(col, row) {
+    return seenTileOccupant(this.grid, (c, r) => this.getUnitAt(c, r))(col, row);
+  }
+
+  _inBounds(col, row) {
+    return col >= 0 && col < this.grid.cols && row >= 0 && row < this.grid.rows;
+  }
+
+  _findTradeTargets(unit) {
+    return this._adjacentAllies(unit).filter(({ ally }) => canTradeBetween(unit, ally));
+  }
+
+  _findSwapTargets(unit) {
+    return this._adjacentAllies(unit).filter(
+      ({ ally }) =>
+        this.grid.getMoveCost(ally.col, ally.row, unit.moveType) !== Infinity &&
+        this.grid.getMoveCost(unit.col, unit.row, ally.moveType) !== Infinity,
+    );
+  }
+
+  _findShoveTargets(unit) {
+    const out = [];
+    for (const { ally, dc, dr } of this._adjacentAllies(unit)) {
+      const destCol = ally.col + dc;
+      const destRow = ally.row + dr;
+      if (!this._inBounds(destCol, destRow)) continue;
+      if (this.grid.getMoveCost(destCol, destRow, ally.moveType) === Infinity) continue;
+      // A fogged tile counts as taken: a hidden foe must not show by the option's absence.
+      if (this._seenTileOccupant(destCol, destRow)) continue;
+      out.push({ ally, destCol, destRow, dc, dr });
+    }
+    return out;
+  }
+
+  _findPullTargets(unit) {
+    const out = [];
+    for (const { ally, dc, dr } of this._adjacentAllies(unit)) {
+      const retreatCol = unit.col - dc;
+      const retreatRow = unit.row - dr;
+      if (!this._inBounds(retreatCol, retreatRow)) continue;
+      if (this.grid.getMoveCost(retreatCol, retreatRow, unit.moveType) === Infinity) continue;
+      if (this.grid.getMoveCost(unit.col, unit.row, ally.moveType) === Infinity) continue;
+      if (this._seenTileOccupant(retreatCol, retreatRow)) continue;
+      out.push({ ally, retreatCol, retreatRow, dc, dr });
+    }
+    return out;
+  }
+
+  _findDanceTargets(unit) {
+    return this._adjacentAllies(unit).filter(
+      ({ ally }) => ally.hasActed && !ally.skills?.includes('dance'),
+    );
+  }
+
+  _menuActor() {
+    if (this.battleState !== HEADLESS_STATES.UNIT_ACTION_MENU)
+      throw new Error(`Cannot act in state: ${this.battleState}`);
+    const unit = this.selectedUnit;
+    if (!unit || unit.hasActed || unit.currentHP <= 0) throw new Error('No unit ready to act');
+    return unit;
+  }
+
+  /**
+   * In-battle Trade (BattleTradeController.commit): `item` from the selected unit's bag
+   * to `partner`, swapped for `partnerItem` when given; or, with no `item`,
+   * `partnerItem` taken from the partner. A free action: the menu stays open, but the
+   * move can no longer be undone. Returns ItemTrade's result.
+   */
+  trade(partner, item, partnerItem = null) {
+    const unit = this._menuActor();
+    if (!this._findTradeTargets(unit).some((t) => t.ally === partner))
+      throw new Error(`${partner?.name} is not beside ${unit.name} to trade`);
+    const bagOf = (x) => (x?.type === 'Consumable' ? 'consumables' : 'inventory');
+    const bag = bagOf(item || partnerItem);
+    const mine = { holder: unitHolder(unit), bag, item: item || null };
+    const theirs = { holder: unitHolder(partner), bag, item: partnerItem || null };
+    const result = item
+      ? applyTrade({ context: 'battle' }, mine, theirs)
+      : applyTrade({ context: 'battle' }, theirs, mine);
+    if (result.ok) {
+      unit._movementCommitted = true;
+      this.preMoveLoc = null;
+    }
+    return result;
+  }
+
+  /**
+   * Swap, Shove or Pull (MovementActionController.executeMove): the units step as
+   * the rule says, then the action ends (Canto may follow).
+   */
+  reposition(kind, ally) {
+    const unit = this._menuActor();
+    if (kind !== 'swap' && !unit.skills?.includes(kind))
+      throw new Error(`${unit.name} cannot ${kind}`);
+    const finder = {
+      swap: '_findSwapTargets',
+      shove: '_findShoveTargets',
+      pull: '_findPullTargets',
+    }[kind];
+    if (!finder) throw new Error(`Unknown move ${kind}`);
+    const target = this[finder](unit).find((t) => t.ally === ally);
+    if (!target) throw new Error(`${unit.name} cannot ${kind} ${ally?.name}`);
+    const moves =
+      kind === 'shove'
+        ? [{ unit: ally, to: { col: target.destCol, row: target.destRow } }]
+        : [
+            {
+              unit,
+              to:
+                kind === 'pull'
+                  ? { col: target.retreatCol, row: target.retreatRow }
+                  : { col: ally.col, row: ally.row },
+            },
+            { unit: ally, to: { col: unit.col, row: unit.row } },
+          ];
+    const facts = settleMoves(moves);
+    this._finishUnitAction(unit);
+    return facts;
+  }
+
+  // --- Abilities: Blink, Rally Cry, Healing Circle, Ensnare (AbilityController) ---
+
+  /** Allies an ability may affect: a heal reaches NPC allies the player can see. */
+  _abilityAllyPool(unit, kind) {
+    const allies = this._getDivineChargeAllies(unit);
+    if (kind !== 'aoe_heal' || unit?.faction !== 'player') return allies;
+    return staffAllyCandidates(allies, this.npcUnits).filter((a) => canInspectUnit(this.grid, a));
+  }
+
+  /** Foes the menu counts: only those the player sees (AbilityController._seenHostiles). */
+  _abilitySeenHostiles(unit) {
+    const foes = unit.faction === 'enemy' ? this.playerUnits : this.enemyUnits;
+    return foes.filter((f) => canInspectUnit(this.grid, f));
+  }
+
+  _blinkTiles(unit, skill) {
+    return getBlinkTiles(
+      unit,
+      skill.actionAbility.range,
+      this.grid,
+      seenTileOccupant(this.grid, (c, r) => this.getUnitAt(c, r)),
+    );
+  }
+
+  /** Each ability the unit knows: whether it can be used now, and why not. */
+  abilityEntries(unit) {
+    return getActionAbilities(unit, this.gameData.skills).map((skill) => {
+      const check = canUseAbility(unit, skill);
+      const kind = skill.actionAbility.kind;
+      const hasTargets =
+        kind === 'teleport_self'
+          ? this._blinkTiles(unit, skill).length > 0
+          : abilityHasTargets(unit, skill, {
+              allies: this._abilityAllyPool(unit, kind),
+              enemies: this._abilitySeenHostiles(unit),
+            });
+      return {
+        skill,
+        canUse: check.ok && hasTargets,
+        reason: check.reason || (hasTargets ? null : 'no_targets'),
+        hasTargets,
+      };
+    });
+  }
+
+  /**
+   * Use an ability (AbilityController.executeBlink / executeSelfCentered): Blink to
+   * `tile`, or a self-centred Rally Cry, Healing Circle or Ensnare. Then the action
+   * ends (Canto may follow). Returns what it did.
+   */
+  useAbility(skillId, tile = null) {
+    const unit = this._menuActor();
+    const entry = this.abilityEntries(unit).find((e) => e.skill.id === skillId);
+    if (!entry) throw new Error(`${unit.name} has no ability ${skillId}`);
+    if (!entry.canUse) throw new Error(`${entry.skill.name} cannot be used now (${entry.reason})`);
+    const { skill } = entry;
+    const ability = skill.actionAbility;
+    let facts;
+    if (ability.kind === 'teleport_self') {
+      if (
+        !tile ||
+        !this._blinkTiles(unit, skill).some((t) => t.col === tile.col && t.row === tile.row)
+      )
+        throw new Error(`${skill.name} cannot reach (${tile?.col},${tile?.row})`);
+      facts = { kind: ability.kind, ...settleBlink(unit, skill, tile) };
+    } else {
+      markUsed(unit, skill.id);
+      if (ability.kind === 'ally_buff') {
+        const affected = collectAffected(unit, ability, this._getDivineChargeAllies(unit));
+        const beats = settleRally(
+          {
+            artId: `ability::${skill.id}`,
+            range: ability.radius,
+            stats: ability.stats,
+            durationPhases: ability.durationPhases,
+            includeSelf: ability.includeSelf === true,
+          },
+          unit,
+          this._postCombatWorld(),
+        );
+        facts = { kind: ability.kind, affected, beats };
+      } else if (ability.kind === 'aoe_heal') {
+        const targets = settleHealingCircle(
+          unit,
+          ability,
+          this._abilityAllyPool(unit, ability.kind),
+        );
+        if (this.gameData?.deeds)
+          for (const t of targets)
+            if (t.healed > 0 && t.unit !== unit) recordHeal(unit, t.hpAfter - t.hpBefore);
+        facts = { kind: ability.kind, targets };
+      } else {
+        const targets = settleEnsnare(unit, ability, this.enemyUnits);
+        facts = { kind: ability.kind, targets };
+      }
+    }
+    this._finishUnitAction(unit);
+    return facts;
+  }
+
+  /** Dance (MovementActionController.executeDance): an acted ally acts again. */
+  dance(ally) {
+    const unit = this._menuActor();
+    if (!unit.skills?.includes('dance')) throw new Error(`${unit.name} cannot dance`);
+    if (!this._findDanceTargets(unit).some((t) => t.ally === ally))
+      throw new Error(`${unit.name} cannot dance for ${ally?.name}`);
+    if (this.gameData?.deeds) recordRefresh(unit);
+    ally.hasMoved = false;
+    ally._movementCommitted = false;
+    ally.hasActed = false;
+    this._grantScaledXP(unit, XP_BASE_DANCE);
+    this._finishUnitAction(unit);
   }
 
   /** Mirrors VillageController.handleUnitActionEnd (gold + convoy-item reward, never XP). */
@@ -2231,6 +2792,16 @@ export class HeadlessBattle {
               this._executeEnemyCombat(enemy, target);
               return Promise.resolve();
             },
+            // As BattleScene.executeEnemyBreak: a foe breaks the temporary wall beside it.
+            onBreak: (enemy, tile) => {
+              if (tile) this.grid.clearTemporaryTerrainAt?.(tile.col, tile.row);
+              return Promise.resolve();
+            },
+            // The AI has already healed (AIController.applyHealDecision); the scene only shows it.
+            onHeal: (enemy, target, result) => {
+              this._onEnemyHeal(enemy, target, result);
+              return Promise.resolve();
+            },
             // As BattleScene.executeEnemyStatusStaff without the banner and icons.
             onStatusStaff: (enemy, target) => {
               if (!enemy.statusStaff) return Promise.resolve();
@@ -2260,6 +2831,9 @@ export class HeadlessBattle {
       this._reinforcementsPendingThisTurn = false;
     }
   }
+
+  /** An enemy healer's heal, already applied: a hook for observers (tools/play). */
+  _onEnemyHeal(_enemy, _target, _result) {}
 
   /** As CaravanController.stepTurn (engine/CaravanSystem.advanceCaravan), minus drawing. */
   _stepCaravan() {

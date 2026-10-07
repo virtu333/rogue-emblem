@@ -35,3 +35,12 @@ export function ensureItemUidWith(item, rng) {
 export function _resetUidCounter() {
   _counter = 0;
 }
+
+/** The counter itself, for a headless session that owns it while it runs (tools/play). */
+export function _getUidCounter() {
+  return _counter;
+}
+
+export function _setUidCounter(value) {
+  _counter = Math.max(0, Math.trunc(Number(value) || 0));
+}
