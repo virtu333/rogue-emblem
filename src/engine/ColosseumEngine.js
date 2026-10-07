@@ -25,6 +25,7 @@ import {
   getCombatWeapons,
 } from './UnitManager.js';
 import { applyRecruitJoinBonus } from './RecruitScaling.js';
+import { isNecromancyClass } from './Necromancy.js';
 
 /** Apply class abilities to new mercenaries and older persisted boards. */
 export function grantMercenaryClassSkills(unit, classesData, skillsData) {
@@ -90,7 +91,7 @@ export function generateChallenger(
   classPool = filterClassPoolByDifficulty(classPool, difficultyMode, {
     act: actId,
     difficulty: difficultyData,
-  });
+  }).filter((name) => !isNecromancyClass(name)); // a bout has no Skeletons to raise
   if (classPool.length === 0) throw new Error(`Empty class pool for act: ${actId}`);
 
   const className = classPool[Math.floor(rng() * classPool.length)];
