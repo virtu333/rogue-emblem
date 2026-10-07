@@ -60,6 +60,7 @@
         "ui-cohesion-desktop.spec.js",
         "ui-review-regressions.spec.js",
         "mobile-battle-hud.spec.js",
+        "contract-hud.spec.js",
         "mobile-home-base.spec.js",
         "mobile-run-loop.spec.js"
       ]
