@@ -911,6 +911,8 @@ rewind rebuilds them, and `registerBattleEntity` keeps the links.
 
 ## Sims
 
+### The plan
+
 `npm run sim:fullrun` covers every step that changes balance:
 
 - **3B, 3C:** new skills and Marks on player units only.
@@ -923,6 +925,29 @@ rewind rebuilds them, and `registerBattleEntity` keeps the links.
 A threshold change follows the threshold-note rule (`check:threshold-pr-notes`), with
 triage attribution. Skeleton XP is checked by a dedicated sim slice: a Necromancer battle
 fought to the last turn must not pay more XP than the same battle without one.
+
+### What the evidence is, by level
+
+Two different kinds of sim run, and they prove different things:
+
+- **The PR gate slices** (`npm run sim:fullrun:pr`, `tests/sim/RunSimulationDriver.js`)
+  play whole runs through `HeadlessBattle`, so every Phase 3 rule the harness shares with
+  the scene acts there: Marks on rolled recruits, on-kill skills a unit carries, Revival
+  Stones on bosses, carried items, Necromancers and their raises. The gate proves these runs
+  still finish inside their thresholds. It is a **stability** check, not a balance
+  measurement: the driver's party rarely carries the new skills, never steals, and several
+  slices are invincible.
+- **The legacy standalone sims** (`npm run sim:fullrun` = `sim/fullrun.js`, `sim:progression`,
+  `sim:matchups`) resolve combat with their own contexts. Marks do not act there, and they
+  say nothing about Phase 3.
+- **Dedicated slices** answer one question each: `sim:carry` (the Gold Pouch upper bound,
+  if every carrier is robbed) and the Necromancer XP slice (`tests/sim/NecromancerXp.test.js`).
+
+What we do **not** have yet: a measurement of ordinary-party survival against stoned
+bosses. The one stone figure below (`ambush_hard_invincible`: average turns 804 → 979, still
+100% wins) is an invincible run: it shows boss fights got longer, not that a mortal party
+survives them at the old rate. Playtests on Nightfall and Black Sun are the evidence for
+that, and a mortal Nightfall slice is the next sim to add if they disagree.
 
 ## Decisions for the owner
 
@@ -985,7 +1010,8 @@ the plan above, and why.
   - The gems share the affix pip row.
   - Terrain floors at 1 HP, so it never reaches a stone.
   - Sim: Nightfall `ambush_hard_invincible` average turns rose from 804 to 979, still a
-    100% win rate.
+    100% win rate. That is an invincible slice: evidence that fights got longer, not of
+    survival balance (see "What the evidence is, by level").
 - **3E** (#232). Pass is innate to the Trickster (Q3).
   - **Blink Strike:**
     - It offers destinations within the equipped weapon's reach of a seen foe, so a bow
@@ -1028,6 +1054,18 @@ the plan above, and why.
   - A class field `enemyWeapon` gives it Gravesong.
   - A Skeleton pays no survival XP.
   - The Necromancer keeps its guard post on maps with hold packs.
+
+### Review fixes after the build
+
+An outside review of main at 29f27033 (2026-10-07) found no P0/P1 and two P2 interaction
+bugs. Both were missed for the same reason: each mechanic was tested alone (Wounded with
+on-kill, Pass with Ice, Pass with fog) and the failures sit at the intersections. Each fix
+lands with a small interaction matrix rather than more isolated tests.
+
+| Finding | Fix | PR |
+|---|---|---|
+| P2: Lifetaker and Speedtaker fired while their unit was Silenced (learned or lent). Every other skill trigger respects Silence. | `PostCombatEffects.skillOnKill` reads Silence at application and fires no skill; Mark of the Ember still fires (a Mark is not a skill), and stacks already earned stay. Tests: learned and lent skills under Silence, Ember under Silence, stacks kept; plus bar breaks against kills (a refilled bar fires nothing, the last bar does, directly and by a blast). | (pending) |
+| P2: a Pass unit slid through a hidden unit on Ice. The fog cut let Pass ignore a hidden unit on every intermediate tile, slid ones included, so the slide the seen-only plan drew was kept on the real board. | Execution enforces both Ice rules against the real board for a Pass unit: a hidden occupant inside a slide interrupts it, and one on the Ice entry tile is met as a seen one would be; previews stay seen-only. Tests: Pass × fog × Ice, with the hidden unit inside the slide and on its entry tile, and the non-Pass equivalents pinned. | (pending) |
 
 ### Open after the build
 
