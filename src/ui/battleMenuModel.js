@@ -15,6 +15,19 @@
 //   color        the canvas text colour
 //   invoke()     what choosing the row does
 
+/**
+ * The commands that win the battle (Seize on the throne, Escape on an exit). Both menus
+ * mark them apart from the ordinary commands, in the green the exits are drawn in: the
+ * canvas row's text, the rail button's fill (`mb-win-command`; `mb-objective` is a
+ * different element, the rail's objective details row).
+ */
+export const OBJECTIVE_COMMAND_IDS = Object.freeze(['seize', 'escape']);
+
+/** Is this row a command that wins the battle (and is it choosable)? */
+export function isObjectiveCommand(row) {
+  return Boolean(row) && !row.disabled && OBJECTIVE_COMMAND_IDS.includes(row.id);
+}
+
 /** Normalise one row (every field present, so renderers never guess). */
 export function menuRow({
   id,
