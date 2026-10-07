@@ -274,6 +274,14 @@ export function validateCrossReferences(datasets = null) {
       if (!(Number.isInteger(art.perTurnLimit) && art.perTurnLimit >= 1))
         errors.push(`${where} has a killMove: it needs a perTurnLimit, or refreshes chain`);
     }
+    // Override (docs/specs/phase3.md 3F): the push takes the foes a line hit, so it needs one.
+    if (
+      (art?.effects?.afterCombat || []).some(
+        (e) => e?.type === 'move' && e?.mode === 'pushAreaVictims',
+      ) &&
+      (art?.area?.shape !== 'line' || art?.targeting === 'chosen_center')
+    )
+      errors.push(`${where} has a pushAreaVictims move: it needs a normal-attack line area`);
     const area = art?.area;
     const chosenCenter = art?.targeting === 'chosen_center';
     if (chosenCenter && !area) errors.push(`${where} is chosen_center but has no area`);

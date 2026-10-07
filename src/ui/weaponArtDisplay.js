@@ -110,6 +110,7 @@ export function weaponArtEffectRows(art) {
         swap: 'swap places with the target',
         push: `push the target back ${tiles(e.distance)} (only when next to it)`,
         through: `pass ${tiles(e.distance)} through the target`,
+        pushAreaVictims: `push the target and each foe the line hit back ${tiles(e.distance)} (only when next to the target)`,
         ram: `ram the target back up to ${tiles(e.distance)} (only when next to it); if blocked, it and any foe it hits take ${e.collisionDamage}`,
       }[e.mode] || `move (${e.mode})`,
     );

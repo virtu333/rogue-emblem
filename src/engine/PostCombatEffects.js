@@ -31,6 +31,7 @@
 
 import { applyGrievousStatus, getAttackAffixes, isDisplacementImmune } from './AffixSystem.js';
 import { planAreaBlows } from './AreaDamage.js';
+import { planAreaPush } from './AreaPush.js';
 import { gridDistance } from './Combat.js';
 import { applyCondition } from './StatusConditionSystem.js';
 import { damageUnit, healUnit, setUnitHP } from './UnitHealth.js';
@@ -307,6 +308,10 @@ function* divineChargeHeal(step, attacker, defender, world) {
 
 function* postCombatMove(sourceUnit, targetUnit, step, world, result) {
   if (!sourceUnit) return;
+  if (step.mode === 'pushAreaVictims') {
+    yield* pushAreaVictims(sourceUnit, targetUnit, step, world);
+    return;
+  }
   const moveResult = resolvePostCombatMove({
     sourceUnit,
     targetUnit,
@@ -344,6 +349,42 @@ function* postCombatMove(sourceUnit, targetUnit, step, world, result) {
   }
   if (units.length > 0) yield { kind: 'moved', units, ...(slides.length > 0 ? { slides } : {}) };
   if (moveResult.collision) yield* collide(step, sourceUnit, targetUnit, moveResult, world, result);
+}
+
+/**
+ * Override: after the line's blows, the primary and every foe the line hit are driven
+ * away from the user, the farthest first (engine/AreaPush.js plans it over the real
+ * board; the preview plans the same push over the board the player knows). One `moved`
+ * beat settles every tile, then each foe that stood firm says so. A source that fell to
+ * the counter pushes nothing, as for every art move.
+ */
+function* pushAreaVictims(sourceUnit, primary, step, world) {
+  if (sourceUnit.currentHP <= 0 || !step.area) return;
+  const plan = planAreaPush({
+    source: sourceUnit,
+    primary,
+    area: step.area,
+    distance: step.distance,
+    units: world.hostilesOf(sourceUnit),
+    world,
+    getUnitAt: world.getUnitAt,
+  });
+  const units = [];
+  const slides = [];
+  for (const entry of plan.entries) {
+    if (!entry.moved) continue;
+    const { unit } = entry;
+    // A pushed unit that slid on Ice: the tiles it crossed, for the scene to draw.
+    if (entry.slid) slides.push({ unit, from: entry.from, to: entry.to, path: entry.path });
+    unit.col = entry.to.col;
+    unit.row = entry.to.row;
+    markHoldDisturbed(unit, 'moved');
+    units.push(unit);
+  }
+  if (units.length > 0) yield { kind: 'moved', units, ...(slides.length > 0 ? { slides } : {}) };
+  for (const entry of plan.entries)
+    if (entry.reason && entry.reason !== 'blocked' && entry.unit.currentHP > 0)
+      yield { kind: 'hint', unit: entry.unit, text: 'Braced!', tone: 'good' };
 }
 
 /**

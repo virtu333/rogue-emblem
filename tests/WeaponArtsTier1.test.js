@@ -24,9 +24,9 @@ const artById = new Map(allArts.map((a) => [a.id, a]));
 
 describe('Tier 1 Weapon Arts Expansion', () => {
   // 83, plus the four area arts of docs/specs/aoe-weapon-arts.md (Sweeping Cleave, Skewer,
-  // Benediction, Battering Ram), plus Lunar Brace (docs/specs/phase3.md 3F).
-  it('has exactly 89 arts', () => {
-    expect(allArts.length).toBe(89);
+  // Benediction, Battering Ram), plus Lunar Brace and Override (docs/specs/phase3.md 3F).
+  it('has exactly 90 arts', () => {
+    expect(allArts.length).toBe(90);
   });
 
   it('all art IDs are unique', () => {
@@ -64,7 +64,7 @@ describe('Tier 1 Weapon Arts Expansion', () => {
     });
 
     it('silver tier has correct count', () => {
-      expect(silverArts.length).toBe(28); // + Benediction, Battering Ram
+      expect(silverArts.length).toBe(29); // + Benediction, Battering Ram, Override
     });
 
     it('legendary tier has correct count', () => {
