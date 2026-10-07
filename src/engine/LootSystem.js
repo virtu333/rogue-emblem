@@ -25,7 +25,7 @@ import { ensureItemUid } from '../utils/itemUid.js';
 import { getWeaponArtAllowedTypes } from './WeaponArtSystem.js';
 import { getImbueStoneItems } from './ImbueSystem.js';
 import { isSignatureWeapon } from './SignatureWeapons.js';
-import { BOND_RING_NAME, bondRingActKey, isBondRing, rollBondRing } from './BondRings.js';
+import { BOND_RING_NAME, bondRingActKey, rollBondRing } from './BondRings.js';
 
 const META_INNATE_TIERS = new Set(['Iron', 'Steel', 'Silver']);
 // Tiers an act tunes in lootTables.json `artTiers` (base art chance, scroll slots).
@@ -1083,10 +1083,11 @@ export function generateLootChoices(
     let item;
     if (randomLegendary && name === randomLegendary.name) {
       item = ensureItemUid(structuredClone(randomLegendary));
+    } else if (name === BOND_RING_NAME) {
+      // A Bond Ring is a family: this one rolls its rarity and bound skill now, on this stream.
+      item = rollRingInstance(actId, lootTables, allAccessories);
     } else {
       item = findItem(name, allWeapons, consumables, allAccessories, whetstoneLookup);
-      // A Bond Ring is a family: this one rolls its rarity and bound skill now, on this stream.
-      if (isBondRing(item)) item = rollRingInstance(actId, lootTables, allAccessories);
     }
     if (!item) continue;
     applyMetaInnateArtToItem(item, metaInnateArtConfig);
@@ -1293,8 +1294,10 @@ export function generateShopInventory(
     const name = freshPool[Math.floor(Math.random() * freshPool.length)];
     if (usedNames.has(name)) continue;
 
-    let item = findItem(name, allWeapons, consumables, allAccessories);
-    if (isBondRing(item)) item = rollRingInstance(actId, lootTables, allAccessories);
+    const item =
+      name === BOND_RING_NAME
+        ? rollRingInstance(actId, lootTables, allAccessories)
+        : findItem(name, allWeapons, consumables, allAccessories);
     if (!item || item.price <= 0) continue;
 
     usedNames.add(name);
