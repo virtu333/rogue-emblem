@@ -200,6 +200,8 @@ describe('canonical battle state', () => {
     scene.grid.fogEnabled = true;
     scene.grid.visibleSet = new Set(['0,0']);
     scene.grid.everSeenSet = new Set(['0,0', '1,0']);
+    // A tile a move ran into this phase (Grid.revealContact) rides the fog.
+    scene.grid.contactSet = new Set(['1,0']);
     scene.grid.temporaryTerrains = [
       {
         key: '1,1',
@@ -247,8 +249,12 @@ describe('canonical battle state', () => {
     };
     scene._villageState = { col: 4, row: 4, status: 'visited', rewardItemUid: 'reward-1' };
     const state = captureBattleState(scene, { rngSeed: 42 });
+    expect(state.fog.contacts).toEqual(['1,0']);
     expect(validateBattleState(state)).toBe(true);
     expect(validateBattleState(JSON.parse(JSON.stringify(state)))).toBe(true);
+    // A checkpoint saved before contacts existed has none and is still valid.
+    const { contacts: _contacts, ...olderFog } = state.fog;
+    expect(validateBattleState({ ...state, fog: olderFog })).toBe(true);
     state.temporaryTerrains[0].sourceRef = null; // source died or escaped
     expect(validateBattleState(state)).toBe(true);
   });
@@ -257,6 +263,8 @@ describe('canonical battle state', () => {
     ['fog iterator', { fog: { visible: 3, everSeen: [] } }],
     ['fog coordinate', { fog: { visible: ['99,0'], everSeen: [] } }],
     ['fog memory', { fog: { visible: [], everSeen: {} } }],
+    ['fog contacts', { fog: { visible: [], everSeen: [], contacts: 'x' } }],
+    ['fog contact coordinate', { fog: { visible: [], everSeen: [], contacts: ['99,0'] } }],
     ['ballista collection', { ballistas: {} }],
     ['ballista element', { ballistas: [null] }],
     ['ballista position', { ballistas: [{ col: -1, row: 0, owner: 'enemy', captured: false }] }],

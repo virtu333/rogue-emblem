@@ -7,7 +7,12 @@ export function captureBattleState(scene, { checkpointIndex = 0, rngSeed = 0 } =
     if (!Array.isArray(scene[group])) throw new Error(`Invalid battle group: ${group}`);
   }
   const fog = scene.grid?.fogEnabled
-    ? { visible: [...(scene.grid.visibleSet || [])], everSeen: [...(scene.grid.everSeenSet || [])] }
+    ? {
+        visible: [...(scene.grid.visibleSet || [])],
+        everSeen: [...(scene.grid.everSeenSet || [])],
+        // Tiles a move ran into this phase stay shown after a resume (Grid.revealContact).
+        contacts: [...(scene.grid.contactSet || [])],
+      }
     : null;
   return structuredClone({
     version: 2,

@@ -42,6 +42,7 @@ import {
   BATTLE_UNIT_GROUPS,
 } from '../engine/BattleEntityIdentity.js';
 import { captureBattleState } from './BattleCheckpointAdapter.js';
+import { applyGridFogState } from './fogState.js';
 import { RETRYABLE_SAVE_REASONS } from '../engine/SavePersistenceStatus.js';
 import { UI_PALETTE } from '../utils/uiStyles.js';
 
@@ -361,18 +362,7 @@ export class BattleSuspendController {
     scene.aiController?.setBossEnraged?.(Boolean(scene.antiTurtleState.turnEnrageActive));
 
     if (scene.grid.fogEnabled && checkpoint.fog) {
-      scene.grid.visibleSet = new Set(checkpoint.fog.visible || []);
-      scene.grid.everSeenSet = new Set(checkpoint.fog.everSeen || []);
-      for (let row = 0; row < scene.grid.rows; row++) {
-        for (let col = 0; col < scene.grid.cols; col++) {
-          const key = `${col},${row}`;
-          const overlay = scene.grid.fogOverlays[row]?.[col];
-          if (!overlay) continue;
-          if (scene.grid.visibleSet.has(key)) overlay.setAlpha(0);
-          else if (scene.grid.everSeenSet.has(key)) overlay.setAlpha(0.3);
-          else overlay.setAlpha(0.7);
-        }
-      }
+      applyGridFogState(scene.grid, checkpoint.fog);
       scene.updateEnemyVisibility();
     }
 
