@@ -365,6 +365,40 @@ export const ENEMY_ONLY_CLASSES = [
   ['revenant', 'revenant', 'infantry', { main: 'red', hair: null, armor: true, eyes: false }],
   ['dragon', 'dragon', 'mounted', { main: 'red', hair: null, eyes: false, linen: false }],
   ['dragon_lord', 'dragon-lord', 'mounted', { main: 'red', hair: null, eyes: false, linen: false }],
+  // Phase 3 (3I), enemy-only classes that ship later: sheets made by gen-class-sheet.mjs. The
+  // Necromancer is a robed caster (the mage rig: tome raised): only the crimson lining and sash
+  // are the faction area, the violet-black robe stays its own cloth (`sub`, ramp from its
+  // pixels), the bone-white sash is linen. The Skeleton is bare bone: skull, ribs and limbs are
+  // linen (never skin: the person ramps would turn the skull peach), only its rags are faction
+  // crimson.
+  [
+    'necromancer',
+    'necromancer',
+    'mage',
+    {
+      main: 'red',
+      hair: null,
+      eyes: false,
+      rects: [{ slot: 'sub', box: [0, 0, 1, 1], from: ['main'], where: 'violet' }],
+    },
+  ],
+  [
+    'skeleton',
+    'skeleton',
+    'infantry',
+    {
+      main: 'red',
+      hair: null,
+      eyes: false,
+      rects: [
+        { slot: 'linen', box: [0, 0, 1, 1], from: ['skin'] },
+        // the dull red pinpoints in the sockets are socket (ink); left as faction cloth they
+        // tint the bone ramp red and grow into the cheek: the skull is all bone
+        { slot: 'ink', box: [0.1, 0, 0.62, 0.25], from: ['main'], where: 'red' },
+        { slot: 'linen', box: [0.1, 0, 0.62, 0.25], from: ['main', 'skin'] },
+      ],
+    },
+  ],
 ];
 
 // Later player passes for figures the class table would otherwise read from `S`.
@@ -797,7 +831,9 @@ export function bakeEntries() {
     out.push({ key: `npc_${cls}`, source: `${cls}_a`, faction: 'npc' });
   }
   for (const [cls] of ENEMY_ONLY_CLASSES) {
-    // a reclass seal can turn a recruit into one of these (same tier, same move type)
+    // the plain `<cls>` texture is only the traced-sprite key table's complete set (a class
+    // the player can never hold: UnitManager forbids a reclass into an enemy-only class,
+    // and recruits, event joins and boss recruits never draw one)
     out.push({ key: cls, source: `${cls}_e`, faction: 'player' });
     out.push({ key: `enemy_${cls}`, source: `${cls}_e`, faction: 'enemy' });
     out.push({
@@ -867,6 +903,8 @@ const POSE_BY_CLASS = {
   hunter: 'sword',
   zombie: 'axe',
   revenant: 'sword',
+  necromancer: 'tome',
+  skeleton: 'sword',
   dragon: 'breath',
   dragon_lord: 'breath',
 };
