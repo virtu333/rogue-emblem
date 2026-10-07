@@ -41,7 +41,7 @@ recommendation, so building can start with it.
 | **3F** | Weapon arts (Lunar Brace, Override) | Combat mods plus the area-push extension. |
 | **Fix** | Contract reward recovery (owner review P2, below) | An earned reward must stay owed until it is delivered or given up. It goes before any new reward-bearing or inventory mechanic. |
 | **3G** | Steal and enemies that carry items | A new ability kind plus a generation roll. Waits on the contract fix. |
-| **3H** | Bond Rings (accessories that roll a bound skill) | Needs 3A. Wants 3B and 3E so the skill pools are wider. |
+| **3H** | Existing accessories can roll a bound skill, rarely (owner, 2026-10-07; replaces Bond Rings) | Needs 3A. Wants 3B and 3E so the skill pools are wider. |
 | **3I** | The Necromancer and Skeletons | Art first: `tests/TracedSprites.test.js` refuses a class without traced keys. |
 
 Art runs alongside, starting at once. The Necromancer and Skeleton references and the
@@ -68,7 +68,7 @@ combines four kinds of source:
 
 - learned, class and personal skills, from the equipped list `unit.skills`;
 - the weapon in use's `_grantedSkill`;
-- the equipped accessory's `_boundSkill`.
+- the equipped accessory's `_boundSkill` (3H: an existing accessory that rolled one).
 
 How it treats them:
 
@@ -81,10 +81,10 @@ How it treats them:
   the harness. So a lent skill that shows in the UI also works everywhere.
   `tests/EffectiveSkillsBoundary.test.js` holds this line.
 - **Per-battle limits:** usage is recorded on the unit by skill id
-  (`_battleAbilityUsage.map[id]`), never on the item. Unequipping a ring and equipping it
+  (`_battleAbilityUsage.map[id]`), never on the item. Unequipping an accessory and equipping it
   again, or trading it to another unit, does not reset a limit the unit has spent.
-  - 3H tests this for a ring-lent Blink.
-  - A second unit that receives the ring has its own count. That is intended: the limit
+  - 3H tests this for an accessory-lent Blink.
+  - A second unit that receives the accessory has its own count. That is intended: the limit
     belongs to the user.
 
 ### Death versus defeat
@@ -180,7 +180,7 @@ bound skill of any other kind would be.
   weapon in use, as `getSkillCombatMods` already honours `context.weapon`.
 - **`hasEffectiveSkill(unit, id, opts)`** is the boolean form.
 - Benched skills are never effective. A bound skill is not "known": `knowsSkill` stays the
-  test for learning and teaching, so a scroll can still teach a skill a ring lends.
+  test for learning and teaching, so a scroll can still teach a skill an accessory lends.
 
 Every battle read in the list above moves to it. A grep test holds the line, as
 `HpWriteBoundary` does: `unit.skills` may be read in battle code only by `EffectiveSkills`,
@@ -704,72 +704,61 @@ rungs.
 
 ---
 
-## 3H. Bond Rings: accessories with a bound skill
+## 3H. Accessories that roll a bound skill (rare)
 
-The owner's idea, in Engage's Bond Ring framing.
+Owner, 2026-10-07: no new ring family. **The existing accessories can roll a skill, and it is
+quite rare.** This replaces the Bond Ring plan (a new C/B/A/S family), which is dropped.
 
-**What a ring is.** A **Bond Ring** is a new accessory family. Each ring instance rolls a
-bound skill and a rarity when it is created. The skill:
+**What happens.** When a non-legendary accessory instance is created, it rolls once. With a
+small chance by act, it carries a bound skill. That covers:
 
-- is effective while the ring is equipped (3A);
+- loot, including boss rewards from Act II on;
+- shop stock;
+- an event accessory grant.
+
+**The skill:**
+
+- is effective while the accessory is equipped (3A, `_boundSkill`);
 - does not count toward `MAX_SKILLS`;
-- leaves with the ring;
-- is never "known", so it cannot be benched and cannot be taught from the ring.
+- leaves with the accessory;
+- is never "known", so it cannot be benched or taught from the item.
 
-**Instance fields.** A ring's skill and rarity live on the instance:
-`accessory._boundSkill` and `accessory._rarity` (C/B/A/S). Saves store whole accessory
-objects, so the fields persist. The catalog entry is the family: "Bond Ring" plus its lore.
-The display name carries the rarity and skill, "Bond Ring (B) · Vantage"; the identity name
-stays "Bond Ring" (see `docs/specs/item-names.md`). The schema gains no instance fields.
+**What never rolls:** legendary accessories, starting kits, and accessories granted by meta
+upgrades or blessings.
 
-**The roll.**
+**Data:** `accessorySkills` in `lootTables.json`, with `chanceByAct` and `poolByAct`.
 
-- **When:** the moment a ring is created from loot or a shop stock, on the stream that
-  created it, matching the roll for a legendary's `_grantedSkill`. An event grant passes its
-  seeded key.
-- **The rarity:** weighted by act, from `bondRings.rarityByAct` in `lootTables.json`:
-  - Act I: C only.
-  - Act II: C/B.
-  - Act III: B/A, with a little S.
-  - Act IV: A/S.
-- **The skill pool:** set by the rarity. All pools are in data:
+Chance by act (a proposal, tuned by sim):
 
-| Rarity | Pool |
-|---|---|
-| C | Uncanny Blow, Warding Blow, Armored Blow, Darting Blow, Death Blow, Pathfinder |
-| B | Vantage, Wrath, Defiant, Guard, Skirmisher, Foresight, Canto |
-| A | Luna, Sol, Lifetaker, Speedtaker, Pavise, Aegis, Renewal |
-| S | Astra, Aether, Miracle, Pass, Blink |
+| Act I | Act II | Act III | Act IV |
+|---|---|---|---|
+| 3% | 5% | 6% | 8% |
+
+Pools by act:
+
+- **Acts I–II:** Uncanny Blow, Warding Blow, Armored Blow, Darting Blow, Death Blow,
+  Pathfinder, Vantage, Wrath, Defiant, Guard, Skirmisher, Foresight, Canto.
+- **Act III:** the Act II pool's stronger half, plus Luna, Sol, Lifetaker, Speedtaker,
+  Pavise, Aegis and Renewal.
+- **Act IV:** that tier, plus Astra, Aether, Miracle, Pass and Blink.
 
 **Never bound:**
 
 - personal skills;
-- class innates whose lock rules matter (Dance, Shove and Pull, any `classInnate`);
+- class innates whose lock rules matter (Dance, Shove, Pull, any `classInnate`);
 - enemy-only skills;
 - Steal and Goddess Dance;
 - Lethality.
 
-**Duplicates.** A ring whose skill the unit already has does nothing more. The roster says
-"Already known".
+**The roll's stream.** It never shifts another draw. For a fixed seed, every loot, shop and
+event result is the same as before, apart from the bound skill.
 
-**Where rings drop.**
+**Price.** An accessory with a bound skill costs and sells for 50% more.
 
-- They join each act's `accessories` loot pool as one entry, "Bond Ring", so the loot
-  category weights are unchanged.
-- Shops stock one at most, from Act II.
-- Price by rarity: 800 / 1500 / 2500 / 4000.
-- Rings never come in Act I boss rewards.
-
-**Tests:**
-
-- A ring's skill applies on every 3A path while the ring is equipped, and stops when it is
-  unequipped or traded.
-- It never counts toward the cap.
-- The rarity table holds by act.
-- An excluded skill never rolls.
-- A save round-trips the instance fields.
-- Two rings cannot stack the same skill.
-- Display names follow the grammar; identity lookups keep the base name.
+**Display.** The identity name never changes; the display reads "Power Ring · Vantage".
+Loot, shop and roster text name the skill and its description. A unit that already knows
+the skill reads "Already known". The per-battle limit belongs to the user (see Shared
+boundaries).
 
 ---
 
@@ -940,7 +929,7 @@ fought to the last turn must not pay more XP than the same battle without one.
 | **Q2** | Does the Entity take stones on Black Sun? | **No.** Its finale is its second bar. The Emperor takes 2 on Black Sun instead. |
 | **Q3** | Is Pass innate to the Trickster (beside Darting Blow), or scroll only? | **Trickster innate.** It gives the class an identity. A scroll covers everyone else. |
 | **Q4** | Is a carried item lost when its carrier is killed, or dropped into the victory loot? | **Lost.** Steal stays meaningful and the economy stays predictable. |
-| **Q5** | Study the Boss (§14: the unit that lands an act boss's killing blow may learn one of its skills, or take gold): build it in Phase 3, or not? | **Not now.** Phase 3 already adds several ways to learn: new scrolls, wider event teachers, Bond Rings and Marks. Bosses carry few skills worth teaching (the enemy list is six). |
+| **Q5** | Study the Boss (§14: the unit that lands an act boss's killing blow may learn one of its skills, or take gold): build it in Phase 3, or not? | **Not now.** Phase 3 already adds several ways to learn: new scrolls, wider event teachers, accessories that roll a skill, and Marks. Bosses carry few skills worth teaching (the enemy list is six). |
 | **Q6** | Mark of the Hunt reads "+5 damage" (the same as +5 Mt before DEF). Keep the "+5 Mt" wording, or say "+5 damage"? | **"+5 damage"**: it is what happens, and there is no Mt key to hang the other on. |
 
 ## Not in Phase 3
