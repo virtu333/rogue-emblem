@@ -50,7 +50,7 @@ victory** (any battle node, boss included): `underPar` = `turnCount <= turnPar`;
 no player unit fell in that battle. Reward or penalty effects apply through the event effect
 planner (plan then apply; an item with no room becomes a note). A defeat ends the run as
 always. Shown as a chip like a burden ("Contract: win under par"), and on the victory band
-("Contract kept: +600 G" / "Contract broken: Debt 300 G"). A revert never touches it (settled
+("Contract kept: Gained 600 G" / "Contract broken: Burden: Debt"; what was not delivered is said too: "No room for Steel Lance", or "The reward could not be paid" when the settlement failed). A revert never touches it (settled
 only at the victory commit).
 
 ### `routeEdit` effect (the Cartographer)
@@ -595,7 +595,7 @@ by `EventEveryChoice` and `EventMenu` (every page, choice and outcome, rung-only
 
 The UI half of Phase 2: every surface the engine of 2A–2C gave a record to, built against the engine
 API and tested with fixture events (the shipped 2D content uses the same shapes). No engine rule
-changed; `eventMenuModel.js` stays the one place engine records become words. What was built, and
+changed; the words of a result record are `engine/EventResultWords.js` (`describeResult`; `eventMenuModel.js` adds the chip and the kind, the contract band takes the same text). What was built, and
 what the build settled or changed against the text of §2E:
 
 **Pages (EventMenu).** The choosing page reads, top to bottom: the head, the status line, the
@@ -660,7 +660,7 @@ terms on its title and on a tap or Enter ("Win the next battle by turn par or so
 Broken: Debt 300 G."), after the burdens in the same row; the pause lists (route map and battle) carry it as
 an entry of `pauseBurdenEntries` with the same terms (`.mp-burdens li.is-contract`). The row's label
 says "Burdens and contract" when one is held. The victory band takes `run.lastContractSettlement.lines`
-as parts ("Contract kept: +600 G", "Contract broken: Debt (300 G owed)") beside the burden's, only for this
+as parts ("Contract kept: Gained 600 G", "Contract broken: Burden: Debt": each record in the Event page's own words, joined with " · ") beside the burden's, only for this
 battle's node (`PostCombatController`). A contract is not shown on the battle HUD itself (the pause menu
 and the band are its in-battle surfaces); see the open question below.
 

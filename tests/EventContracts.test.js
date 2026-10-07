@@ -30,6 +30,7 @@ import {
   settlementLines,
 } from '../src/engine/Contracts.js';
 import { planEffects } from '../src/engine/EventEffects.js';
+import { eventResultLines } from '../src/ui/eventMenuModel.js';
 import { createUnit } from '../src/engine/UnitManager.js';
 import { createSeededRng } from '../src/engine/BlessingEngine.js';
 import { serializeUnit } from '../src/engine/RunManager.js';
@@ -49,7 +50,23 @@ function signed(terms = {}, { seed = 61, difficulty = 'normal' } = {}) {
   return { run, signedAt: node };
 }
 
-/** The next battle to win: an uncompleted battle node the run stands beside. */
+/** An army with every bag and both convoy compartments full: nothing more can be given. */
+function fillArmy(run) {
+  for (const unit of run.roster) {
+    while (unit.inventory.length < 5) unit.inventory.push(structuredClone(unit.inventory[0]));
+    while (unit.consumables.length < 3)
+      unit.consumables.push(run.getConsumableTemplate('Vulnerary'));
+  }
+  const caps = run.getConvoyCapacities();
+  run.convoy.weapons = Array.from({ length: caps.weapons }, () =>
+    structuredClone(run.gameData.weapons[0]),
+  );
+  run.convoy.consumables = Array.from({ length: caps.consumables }, () =>
+    run.getConsumableTemplate('Vulnerary'),
+  );
+}
+
+/** The next battle to win:an uncompleted battle node the run stands beside. */
 function battleNode(run) {
   const node = run.nodeMap.nodes.find((n) => n.type === 'battle' && !n.completed);
   run.currentNodeId = node.id;
@@ -184,7 +201,7 @@ describe('settling at the victory commit', () => {
       noPar: false,
       losses: 0,
       failed: null,
-      lines: ['Contract kept: +600 G'],
+      lines: ['Contract kept: Gained 600 G'],
     });
     expect(run.lastContractSettlement.results).toEqual([
       { kind: 'gold', value: 600, requested: 600 },
@@ -199,7 +216,7 @@ describe('settling at the victory commit', () => {
     expect(run.burdens).toEqual([{ id: 'debt', owed: 300, garnish: 0.25 }]); // First Light: a quarter
     expect(run.lastContractSettlement).toMatchObject({
       kept: false,
-      lines: ['Contract broken: Debt (300 G owed)'],
+      lines: ['Contract broken: Burden: Debt'],
     });
     // the next victory is garnished: floor(234 x 0.25) = 58
     const after = run.gold;
@@ -344,28 +361,40 @@ describe('rewards and penalties go through the effect planner', () => {
     ).toBe(weapons + 1);
 
     const full = signed({ reward });
-    for (const unit of full.run.roster) {
-      while (unit.inventory.length < 5) unit.inventory.push(structuredClone(unit.inventory[0]));
-      while (unit.consumables.length < 3)
-        unit.consumables.push(full.run.getConsumableTemplate('Vulnerary'));
-    }
-    const caps = full.run.getConvoyCapacities();
-    full.run.convoy.weapons = Array.from({ length: caps.weapons }, () =>
-      structuredClone(full.run.gameData.weapons[0]),
-    );
-    full.run.convoy.consumables = Array.from({ length: caps.consumables }, () =>
-      full.run.getConsumableTemplate('Vulnerary'),
-    );
+    fillArmy(full.run);
     win(full.run, { turns: 1, par: 5 });
+    // The pick found no room before it chose an item, so the band cannot name one: it says the
+    // reward was not delivered rather than "Contract kept" alone.
     expect(full.run.lastContractSettlement).toMatchObject({
       kept: true,
       failed: null,
-      lines: ['Contract kept'],
+      lines: ['Contract kept: No room for the item'],
     });
     expect(full.run.lastContractSettlement.results).toEqual([
-      { kind: 'note', of: 'item', text: NO_ROOM },
+      { kind: 'note', of: 'item', text: NO_ROOM, noRoom: true },
     ]);
     expect(full.run.contract).toBeNull();
+  });
+
+  it('a named reward item with nowhere to go is named in the band, beside what still paid', () => {
+    // Steel Lance is a catalog weapon: the note knows its name (a pool pick would not).
+    const { run } = signed({
+      reward: [
+        { type: 'item', name: 'Steel Lance' },
+        { type: 'gold', value: 600 },
+      ],
+    });
+    fillArmy(run);
+    const gold = run.gold;
+    win(run, { turns: 1, par: 5 });
+    expect(run.gold).toBe(gold + BATTLE_GOLD + 600);
+    expect(run.lastContractSettlement.results).toEqual([
+      { kind: 'note', of: 'item', text: NO_ROOM, noRoom: true, name: 'Steel Lance' },
+      { kind: 'gold', value: 600, requested: 600 },
+    ]);
+    expect(run.lastContractSettlement.lines).toEqual([
+      'Contract kept: No room for Steel Lance · Gained 600 G',
+    ]);
   });
 
   it('the same seed pays the same item (settlement is seeded)', () => {
@@ -393,7 +422,23 @@ describe('rewards and penalties go through the effect planner', () => {
     expect(run.contract).toBeNull();
     expect(run.lastContractSettlement.failed).toBe('Unknown burden "ghost".');
     expect(run.lastContractSettlement.results).toEqual([]);
-    expect(run.lastContractSettlement.lines).toEqual(['Contract kept']);
+    // "Contract kept" alone would claim a reward that was never paid
+    expect(run.lastContractSettlement.lines).toEqual([
+      'Contract kept: The reward could not be paid',
+    ]);
+  });
+
+  it('a penalty that cannot be applied says so too (the contract was broken, nothing was taken)', () => {
+    const { run } = signed({ penalty: [{ type: 'burden', id: 'ghost' }] });
+    const gold = run.gold;
+    win(run, { turns: 9, par: 5 });
+    expect(run.gold).toBe(gold + BATTLE_GOLD);
+    expect(run.burdens).toEqual([]);
+    expect(run.lastContractSettlement).toMatchObject({
+      kept: false,
+      failed: 'Unknown burden "ghost".',
+      lines: ['Contract broken: The penalty could not be applied'],
+    });
   });
 
   it('an item the army cannot be given is a note and the rest of the terms still pay', () => {
@@ -493,7 +538,7 @@ describe('the band says what happened', () => {
   it('words for a kept and a broken contract, with and without terms', () => {
     expect(settlementLines(null)).toEqual([]);
     expect(settlementLines({ kept: true, results: [{ kind: 'gold', value: 600 }] })).toEqual([
-      'Contract kept: +600 G',
+      'Contract kept: Gained 600 G',
     ]);
     expect(settlementLines({ kept: true, results: [] })).toEqual(['Contract kept']);
     expect(
@@ -505,7 +550,66 @@ describe('the band says what happened', () => {
           { kind: 'item', name: 'Silver Sword' },
         ],
       }),
-    ).toEqual(['Contract broken: Debt (300 G owed), −40 G, Silver Sword']);
+    ).toEqual(['Contract broken: Burden: Debt · Lost 40 G · Silver Sword']);
+  });
+
+  it('says what was not delivered, and a settlement that failed', () => {
+    const note = { kind: 'note', of: 'item', text: NO_ROOM, noRoom: true, name: 'Steel Lance' };
+    expect(settlementLines({ kept: true, results: [note] })).toEqual([
+      'Contract kept: No room for Steel Lance',
+    ]);
+    // a pick that found no room has no item to name
+    expect(settlementLines({ kept: true, results: [{ ...note, name: undefined }] })).toEqual([
+      'Contract kept: No room for the item',
+    ]);
+    // any other note is the planner's own sentence
+    expect(
+      settlementLines({
+        kept: true,
+        results: [{ kind: 'note', of: 'blessing', text: 'The altar has nothing left to give.' }],
+      }),
+    ).toEqual(['Contract kept: The altar has nothing left to give.']);
+    expect(settlementLines({ kept: true, results: [], failed: 'Unknown burden "x".' })).toEqual([
+      'Contract kept: The reward could not be paid',
+    ]);
+    expect(settlementLines({ kept: false, results: [], failed: 'boom' })).toEqual([
+      'Contract broken: The penalty could not be applied',
+    ]);
+  });
+
+  it('a loss clamped to nothing is not phrased as "−0"', () => {
+    // planStat clamps a loss at the stat's floor: a unit with 0 STR "loses" 0
+    const words = settlementLines({
+      kept: false,
+      results: [{ kind: 'stat', unit: 'Edric', stat: 'STR', value: 0 }],
+    })[0];
+    expect(words).toBe('Contract broken: Edric: STR unchanged');
+    expect(words).not.toMatch(/[−+]0/);
+    expect(
+      settlementLines({
+        kept: false,
+        results: [{ kind: 'stat', unit: 'Edric', stat: 'STR', value: -2 }],
+      }),
+    ).toEqual(['Contract broken: Edric: −2 STR']);
+  });
+
+  it('the band and the Event page say a record in the same words', () => {
+    const records = [
+      { kind: 'gold', value: 600, requested: 600 },
+      { kind: 'gold', value: -40, requested: -40 },
+      { kind: 'item', name: 'Silver Sword', unit: 'Edric' },
+      { kind: 'hp', mode: 'heal', total: 10, units: [{ name: 'Edric', amount: 10 }] },
+      { kind: 'shadow', value: 2 },
+      { kind: 'vision', value: -1 },
+      { kind: 'blessing', name: 'Dawn Oath' },
+      { kind: 'burden', id: 'debt', label: 'Debt', line: 'You owe.', detail: '300 G owed' },
+      { kind: 'stat', unit: 'Edric', stat: 'STR', value: 1 },
+      { kind: 'note', of: 'item', text: NO_ROOM, noRoom: true, name: 'Steel Lance' },
+    ];
+    const band = settlementLines({ kept: true, results: records })[0];
+    const page = eventResultLines(records).map((line) => line.text);
+    expect(band).toBe(`Contract kept: ${page.join(' · ')}`);
+    expect(page).toHaveLength(records.length); // every record said something
   });
 });
 

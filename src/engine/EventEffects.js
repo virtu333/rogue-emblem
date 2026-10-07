@@ -410,7 +410,9 @@ function planItem(ctx, effect, index, ledger, lenient) {
   if (effect.pool) {
     template = pickPoolWeapon(ctx, effect, index, ledger);
     if (!template)
-      return lenient ? skipNote('item', NO_ROOM) : { error: NO_ROOM, itemKind: 'weapon' };
+      return lenient
+        ? skipNote('item', NO_ROOM, { noRoom: true })
+        : { error: NO_ROOM, itemKind: 'weapon' };
   } else {
     template =
       run.getConsumableTemplate?.(effect.name) ||
@@ -433,14 +435,20 @@ function planItem(ctx, effect, index, ledger, lenient) {
   const dest = chooseDestination(ctx, item, effect.to || 'auto', ledger);
   if (!dest)
     return lenient
-      ? skipNote('item', NO_ROOM)
+      ? skipNote('item', NO_ROOM, { noRoom: true, name: item.name })
       : { error: NO_ROOM, itemKind: item.type === 'Consumable' ? 'consumable' : 'weapon' };
   reserve(ledger, item, dest);
   return { step: { type: 'item', item, dest, worn } };
 }
 
-function skipNote(kind, text) {
-  return { step: { type: 'note', note: { kind: 'note', of: kind, text } } };
+/**
+ * A step that skips an effect (lenient mode) and says so. `extra` marks why: `noRoom` for an
+ * item with nowhere to go, and `name` for that item when it is known (a pool pick that found
+ * no room has no item yet). The words that report the note say what was missed
+ * (EventResultWords.describeResult).
+ */
+function skipNote(kind, text, extra = {}) {
+  return { step: { type: 'note', note: { kind: 'note', of: kind, text, ...extra } } };
 }
 
 function skillCandidates(ctx, effect, unit, ledger) {

@@ -32,7 +32,9 @@
 // The result is `run.lastContractSettlement` (not saved, like lastBurdenSettlement), for the
 // victory band:
 //   { nodeId, contractNodeId, eventId, goal, kept, noPar, losses, results: [records],
-//     failed: string|null, lines: ['Contract kept: +600 G'] }
+//     failed: string|null, lines: ['Contract kept: Gained 600 G'] }
+// (`lines` says every result in the Event page's own words, what was not delivered (a reward
+// item with no room is a note that names it) and a failed settlement; see `settlementLines`.)
 // `describeContract(run)` is the display model of the open contract (the route map's chip).
 //
 // Settlement runs in a seeded swap (`event-contract:${runSeed}:${nodeId}`), so an item's pick
@@ -42,6 +44,7 @@
 
 import { eventCatalogOf, resolveAmount } from './EventSystem.js';
 import { burdenDefFor } from './Burdens.js';
+import { describeResult } from './EventResultWords.js';
 
 export const CONTRACT_GOALS = Object.freeze(['underPar', 'noLosses']);
 
@@ -171,44 +174,23 @@ export function describeContract(run) {
   };
 }
 
-/** A result record as the band says it ("+600 G", "Silver Sword", "Debt (300 G owed)"). */
-function resultPhrase(record) {
-  switch (record?.kind) {
-    case 'gold':
-      return record.value === 0
-        ? ''
-        : record.value < 0
-          ? `−${-record.value} G`
-          : `+${record.value} G`;
-    case 'item':
-      return record.name || '';
-    case 'burden':
-      return record.detail ? `${record.label} (${record.detail})` : record.label || '';
-    case 'shadow':
-      return record.value === 0
-        ? ''
-        : `Shadow ${record.value > 0 ? '+' : '−'}${Math.abs(record.value)}`;
-    case 'vision':
-      return record.value === 0
-        ? ''
-        : `Vision ${record.value > 0 ? '+' : '−'}${Math.abs(record.value)}`;
-    case 'hp':
-      return record.total > 0
-        ? `${record.mode === 'heal' ? 'Healed' : 'Wounded'} ${record.total}`
-        : '';
-    case 'blessing':
-      return record.name || 'A blessing';
-    case 'stat':
-      return `${record.unit} ${record.value > 0 ? '+' : '−'}${Math.abs(record.value)} ${record.stat}`;
-    default:
-      return '';
-  }
-}
-
-/** The victory band's words for a settlement: ["Contract kept: +600 G"] (empty for none). */
+/**
+ * The victory band's words for a settlement: ["Contract kept: Gained 600 G · Silver Sword to
+ * Edric"] (just the head when nothing was paid). Each result record is said by
+ * `EventResultWords.describeResult`, the one phrasing the Event page uses too. What did not
+ * arrive is said as well: a reward item with nowhere to go is a `note` record that names it
+ * ("No room for Steel Lance"), and a settlement that `failed` (nothing was applied) says its
+ * terms were not met, so a band never reads "Contract kept" over a reward the army did not get.
+ */
 export function settlementLines(settlement) {
   if (!settlement) return [];
-  const parts = (settlement.results || []).map(resultPhrase).filter(Boolean);
+  const parts = (settlement.results || [])
+    .map((record) => describeResult(record)?.text)
+    .filter(Boolean);
+  if (settlement.failed)
+    parts.push(
+      settlement.kept ? 'The reward could not be paid' : 'The penalty could not be applied',
+    );
   const head = settlement.kept ? 'Contract kept' : 'Contract broken';
-  return [parts.length ? `${head}: ${parts.join(', ')}` : head];
+  return [parts.length ? `${head}: ${parts.join(' · ')}` : head];
 }
