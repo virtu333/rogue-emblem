@@ -370,7 +370,7 @@ describe('roster sheet: convoy tab', () => {
     sheet.tab = 'convoy';
     sheet.render();
     // Weapons: the archer's bag is 5/5, so Trade…; supplies: 0/3, so Withdraw.
-    expect(buttonTexts(card(sheet, 'C2'))).toEqual(['Trade…']);
+    expect(buttonTexts(card(sheet, 'C2'))).toEqual(['Trade…', 'Discard']);
     expect(card(sheet, 'C2').querySelector('small').textContent).toBe(
       'Equipment full: trade to swap it for a carried item.',
     );

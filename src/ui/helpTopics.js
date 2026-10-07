@@ -187,6 +187,10 @@ export function convoyHelp({ weapons, consumables }) {
           text: 'swaps a convoy item for a carried one when the unit’s bag is full.',
         },
         {
+          term: 'Discard',
+          text: 'throws a carried or stored item away for good, after you confirm. It frees room.',
+        },
+        {
           term: 'Overflow',
           text: 'Rewards, purchases and a fallen ally’s gear land here when no one has room.',
         },
