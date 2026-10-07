@@ -97,6 +97,7 @@
       "specs": [
         "area-strike.spec.js",
         "attack-flow.spec.js",
+        "blink-strike.spec.js",
         "battle-invariants.spec.js",
         "battle-sidebar.spec.js",
         "battle-submenus.spec.js",
@@ -107,6 +108,7 @@
         "forecast-triangle.spec.js",
         "gamepad-battle.spec.js",
         "gamepad-menus.spec.js",
+        "goddess-dance.spec.js",
         "ice-slide.spec.js",
         "input-boundary-audit.spec.js",
         "unit-first-tap.spec.js",
