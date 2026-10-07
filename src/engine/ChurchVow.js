@@ -4,7 +4,8 @@
 // vow per church: Promotion (as before: the church's promotions, within the
 // difficulty's limit), a Blessing (one minor, tier-1 blessing added to the run,
 // chosen from a few the altar offers) or, when the run holds a burden, a Cleansing (lift one
-// burden of the player's choice, never Debt: docs/specs/event-nodes-phase2.md §2B). The first
+// burden of the player's choice, never Debt, and never a wound, which Heal all mends without a
+// vow: docs/specs/event-nodes-phase2.md §2B). The first
 // promotion, the chosen blessing or the cleansed burden commits the vow; the other sides then
 // stay closed for this church. A church only: never the Ruins' sanctuary, never the
 // prologue. The vow is kept
@@ -18,6 +19,7 @@ import {
   burdenDefFor,
   burdenOf,
   cleansableBurdens,
+  HEALED_BURDENS,
   isCleansable,
   removeBurden,
 } from './Burdens.js';
@@ -121,6 +123,7 @@ export function churchCleanseBlock(run, nodeId, burdenId) {
   if (vowed) return vowed;
   const burden = burdenOf(run, burdenId);
   if (!burden) return 'That burden is not on you.';
+  if (HEALED_BURDENS.includes(burden.id)) return 'Heal all mends a wound. It needs no vow.';
   if (!isCleansable(burden)) return 'The lender has lawyers. No altar lifts this.';
   return '';
 }

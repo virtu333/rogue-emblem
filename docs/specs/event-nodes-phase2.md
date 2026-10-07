@@ -104,7 +104,11 @@ Each burden decrements only at the victory commit; a revert never touches it.
 `CHURCH_VOWS` gains `cleanse`: when the run holds a burden, a church offers **Cleanse** (lift
 one burden of the player's choice) beside Promotion and Blessing. It commits the church's vow
 like the other two (`ChurchVow.commitChurchVow`). Debt is not cleansable ("the lender has
-lawyers"): a church never offers to lift it. Never in the prologue, never at the Ruins.
+lawyers"): a church never offers to lift it. **Wounded is not cleansable either**: the same church's Heal all
+is free, always open and ends a wound (`endWoundByHealing`), so a vow is never spent on it (`HEALED_BURDENS`;
+`isCleansable` is false, the engine refuses it with "Heal all mends a wound. It needs no vow.", and a church
+whose only burden is a wound shows no Cleanse section); beside Heal all the church says "Heal all also mends
+Hale's wound." (`Burdens.woundHealLine`). Never in the prologue, never at the Ruins.
 
 ### Dark Omen (a fallen event)
 
@@ -669,8 +673,9 @@ and the band are its in-battle surfaces); see the open question below.
 ("Lift the burden", the vow said in the confirmation), the lift. A **Debt** the run holds is listed as a
 greyed row with the altar's refusal ("The lender has lawyers: no altar lifts a Debt."), never pressable. When
 a vow already made here shuts the section the reason is said **once** under the heading (not under every
-row); the words sit on ink, since the church's painting runs behind the page. A run with only a Debt (or no
-burden) still shows no Cleanse (`churchOffersCleanse`, unchanged).
+row); the words sit on ink, since the church's painting runs behind the page. A run with only a Debt, only a wound (or no
+burden) shows no Cleanse (`churchOffersCleanse`); a wound is never a row, the line by Heal all tells the player
+Heal all mends it.
 
 **The colosseum.** #214 already showed "Bouts left here: N" on the menu, the fighter list and the result;
 2E adds the two screens that cost a fee and had none: the **tier** choice and the **forecast** (`ArenaMenu`),

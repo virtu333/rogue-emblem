@@ -3,6 +3,8 @@
 //
 // Ways this goes wrong:
 //   - Debt is offered, or lifted by a call that skips the menu (the lender has lawyers);
+//   - Wounded is offered, and spends the church's one vow on what the same church's free Heal all
+//     already ends (so a player who takes it can no longer bless, promote or lift anything else);
 //   - it is offered at the Ruins' sanctuary, in the prologue, or with no burden to lift;
 //   - it does not commit the vow (a second cleanse, a promotion or a blessing at the same church
 //     slips through), or commits it when nothing was lifted;
@@ -27,6 +29,14 @@ import { baseData, newRun } from './eventKit.js';
 
 const OMEN = { id: 'ill_omen', battles: 2, extraShadow: 1 };
 const DEBT = { id: 'debt', owed: 300, garnish: 0.5 };
+const WOUNDED = {
+  id: 'wounded',
+  unitUid: 'ru1',
+  unitName: 'Edric',
+  stat: 'STR',
+  value: -2,
+  battles: 3,
+};
 const HUNTED = {
   id: 'hunted',
   battles: 2,
@@ -52,15 +62,33 @@ function churchRun(burdens) {
 }
 
 describe('what a church can lift', () => {
-  it('every burden but Debt', () => {
+  it('every burden but Debt and Wounded (Heal all mends a wound)', () => {
     expect(CHURCH_VOWS).toEqual(['promote', 'blessing', 'cleanse']);
     expect(isCleansable(OMEN)).toBe(true);
     expect(isCleansable(HUNTED)).toBe(true);
     expect(isCleansable({ id: 'sworn_enemy' })).toBe(true);
-    expect(isCleansable({ id: 'wounded' })).toBe(true);
+    expect(isCleansable(WOUNDED)).toBe(false);
     expect(isCleansable(DEBT)).toBe(false);
-    const { run } = churchRun([DEBT, OMEN]);
+    const { run } = churchRun([DEBT, WOUNDED, OMEN]);
     expect(cleansableBurdens(run).map((b) => b.id)).toEqual(['ill_omen']);
+  });
+
+  it('a wound is not cleansable at a church: no offer, a refusal that names Heal all, no vow spent', () => {
+    const { run, church } = churchRun([WOUNDED]);
+    // Wounded is the only burden: there is nothing to cleanse
+    expect(churchOffersCleanse(run, church)).toBe(false);
+    expect(churchCleanseBlock(run, church, 'wounded')).toBe(
+      'Heal all mends a wound. It needs no vow.',
+    );
+    expect(cleanseAtChurch(run, church, 'wounded')).toEqual({
+      ok: false,
+      reason: 'Heal all mends a wound. It needs no vow.',
+    });
+    expect(run.burdens).toEqual([WOUNDED]);
+    expect(churchVow(run, church)).toBeNull();
+    // With another burden the church still offers Cleanse, for that burden only
+    run.burdens = [WOUNDED, OMEN];
+    expect(churchOffersCleanse(run, church)).toBe(true);
   });
 
   it('is offered only at a church, with a burden it can lift, outside the prologue', () => {
@@ -208,6 +236,39 @@ describe('the church menu', () => {
     expect(body()).toContain('Hunted lifted.');
     expect(body()).toContain('Your vow here was Cleansing');
     expect(labels().some((l) => l.startsWith('Ill Omen'))).toBe(false);
+  });
+
+  const wound = () => {
+    const unit = d.run.roster[0];
+    return { ...structuredClone(WOUNDED), unitUid: unit.unitUid, unitName: unit.name };
+  };
+
+  it('a wound alone shows no Cleanse; the church says Heal all mends it, free, and the vow stays open', () => {
+    d.run.burdens = [wound()];
+    d.enter('church');
+    expect(body()).not.toContain('Cleanse');
+    expect(body()).toContain(`Heal all also mends ${d.run.roster[0].name}'s wound.`);
+    expect(labels().some((l) => l.startsWith('Wounded'))).toBe(false);
+    const gold = d.run.gold;
+    d.press('Heal all · Free');
+    expect(d.run.burdens).toEqual([]);
+    expect(d.run.gold).toBe(gold);
+    expect(churchVow(d.run, d.node('church').id)).toBeNull(); // no vow spent on the wound
+    expect(body()).toContain('wound mends');
+  });
+
+  it('with a wound and another burden the list holds the other only, and Heal all keeps the vow free for it', () => {
+    d.run.burdens = [wound(), structuredClone(OMEN)];
+    d.enter('church');
+    expect(body()).toContain('Cleanse · Free');
+    expect(labels()).toContain('Ill Omen · 2 left');
+    expect(labels().some((l) => l.startsWith('Wounded'))).toBe(false);
+    d.press('Heal all · Free');
+    expect(d.run.burdens.map((b) => b.id)).toEqual(['ill_omen']);
+    d.press('Ill Omen · 2 left');
+    expect(d.confirm(0).ok).toBe(true);
+    expect(d.run.burdens).toEqual([]);
+    expect(churchVow(d.run, d.node('church').id)).toBe('cleanse');
   });
 
   it('after a blessing at this church the cleansing stays closed, with the reason', () => {

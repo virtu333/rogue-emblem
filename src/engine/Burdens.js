@@ -32,7 +32,8 @@
 // keeps the larger wave; Sworn Enemy is one record; a fresh Wounded replaces the old one (a wound
 // is on one unit at a time).
 //
-// Cleansing (ChurchVow.cleanseAtChurch) lifts any burden except Debt (UNCLEANSABLE_BURDENS).
+// Cleansing (ChurchVow.cleanseAtChurch) lifts any burden except Debt (UNCLEANSABLE_BURDENS)
+// and Wounded (HEALED_BURDENS: Heal all, which is free and always open at a church, mends it).
 //
 // Settlement happens at exactly one place, the battle's victory commit
 // (RunManager.completeBattle -> burdenEffectsOnVictory), and nowhere mid-battle, so
@@ -49,6 +50,9 @@ export const BURDEN_IDS = Object.freeze(['ill_omen', 'debt', 'hunted', 'sworn_en
 
 /** Burdens a church can never lift ("the lender has lawyers"). */
 export const UNCLEANSABLE_BURDENS = Object.freeze(['debt']);
+
+/** Burdens a church's free Heal all ends, so Cleanse never offers them (a wound ends with its heal). */
+export const HEALED_BURDENS = Object.freeze(['wounded']);
 
 /** The stats a wound may name (never HP: the wound is a battle stat delta, MOV stays whole). */
 export const WOUND_STATS = Object.freeze(['STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK']);
@@ -223,9 +227,24 @@ export function addBurden(run, id, params = {}, catalog = null) {
   return { ok: true, burden: structuredClone(next) };
 }
 
-/** True when a church could lift this burden (every one but Debt). */
+/**
+ * True when a church could lift this burden with a Cleanse vow: every one but Debt (the lender
+ * has lawyers) and Wounded (Heal all mends a wound for free at any church or sanctuary, so a
+ * church's one vow is never spent on it: `endWoundByHealing`).
+ */
 export function isCleansable(burden) {
-  return Boolean(burden) && !UNCLEANSABLE_BURDENS.includes(burden.id);
+  return (
+    Boolean(burden) &&
+    !UNCLEANSABLE_BURDENS.includes(burden.id) &&
+    !HEALED_BURDENS.includes(burden.id)
+  );
+}
+
+/** What the church says beside Heal all while a wound is carried ('' when none). */
+export function woundHealLine(run) {
+  const wound = burdenOf(run, 'wounded');
+  if (!wound) return '';
+  return `Heal all also mends ${wound.unitName ? `${wound.unitName}'s wound` : 'the wound'}.`;
 }
 
 /** The run's burdens a church can lift, in the order they were taken. */
