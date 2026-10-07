@@ -167,10 +167,9 @@ Event teachers widen their pools:
 - **The Old Swordmaster:** Sword gains Uncanny Blow; Lance gains Warding Blow.
 - **The Chained Shelf:** gains Lifetaker.
 
-Two deeds without an oath gain one through the promotion oath (`DeedSystem.applyPromotionOath`):
-
-- **The Last Dance** (`tempo`) → Speedtaker.
-- **The Last** (`last_of_them`) → Defiant.
+No deed gains an Oath for these skills. An Oath skill is one that nothing else teaches
+(`docs/specs/deeds-epithets.md`; `tests/DeedSystem.test.js` holds it), and all five have
+scrolls. The Last Dance and The Last keep swearing nothing (fixed in 3B review).
 
 Enemies keep their own fixed skill list (`UnitManager.assignEnemySkills`). None of the new
 skills is added to it in Phase 3: enemy Lifetakers would change act balance, and enemy
@@ -847,7 +846,7 @@ fought to the last turn must not pay more XP than the same battle without one.
 | **Q2** | Does the Entity take stones on Black Sun? | **No.** Its finale is its second bar. The Emperor takes 2 on Black Sun instead. |
 | **Q3** | Is Pass innate to the Trickster (beside Darting Blow), or scroll only? | **Trickster innate.** It gives the class an identity. A scroll covers everyone else. |
 | **Q4** | Is a carried item lost when its carrier is killed, or dropped into the victory loot? | **Lost.** Steal stays meaningful and the economy stays predictable. |
-| **Q5** | Study the Boss (§14: the unit that lands an act boss's killing blow may learn one of its skills, or take gold): build it in Phase 3, or not? | **Not now.** Phase 3 already adds several ways to learn: new scrolls, wider event teachers, two more deed oaths, Bond Rings and Marks. Bosses carry few skills worth teaching (the enemy list is six). |
+| **Q5** | Study the Boss (§14: the unit that lands an act boss's killing blow may learn one of its skills, or take gold): build it in Phase 3, or not? | **Not now.** Phase 3 already adds several ways to learn: new scrolls, wider event teachers, Bond Rings and Marks. Bosses carry few skills worth teaching (the enemy list is six). |
 | **Q6** | Mark of the Hunt reads "+5 damage" (the same as +5 Mt before DEF). Keep the "+5 Mt" wording, or say "+5 damage"? | **"+5 damage"**: it is what happens, and there is no Mt key to hang the other on. |
 
 ## Not in Phase 3
