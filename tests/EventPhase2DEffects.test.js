@@ -33,7 +33,7 @@ import { RunManager } from '../src/engine/RunManager.js';
 import { roadCandidates } from '../src/engine/RouteEdit.js';
 import { generateBattle } from '../src/engine/MapGenerator.js';
 import { isRecruitBattleNode } from '../src/engine/RecruitNodeSystem.js';
-import { accessoryPoolFor } from '../src/engine/EventEffects.js';
+import { accessoryPoolFor, eventWeaponTier } from '../src/engine/EventEffects.js';
 import { evaluateRequires } from '../src/engine/EventSystem.js';
 import { applyWear, isWorn, wearCount } from '../src/engine/WeaponWear.js';
 import { applyForge } from '../src/engine/ForgeSystem.js';
@@ -149,6 +149,33 @@ describe('an accessory from the pool one tier up', () => {
     expect(names).toEqual([...new Set(ACT3)].sort());
     run.actIndex = 3;
     expect(accessoryPoolFor(run, 2).map((a) => a.name)).toEqual([...new Set(ACT4)].sort());
+  });
+
+  it("acts after IV (postAct, finalBoss) read Act IV's table, not Act I's", () => {
+    // actSequence index 4 and 5 are postAct and finalBoss; tierOffset 0 and 2 both end at act4.
+    const run = newRun();
+    run.actSequence = ['act1', 'act2', 'act3', 'act4', 'postAct', 'finalBoss'];
+    const act4 = [...new Set(ACT4)].sort();
+    for (const [index, act] of [
+      [4, 'postAct'],
+      [5, 'finalBoss'],
+    ]) {
+      run.actIndex = index;
+      expect(run.currentAct).toBe(act);
+      for (const offset of [0, 1, 2])
+        expect(
+          accessoryPoolFor(run, offset).map((a) => a.name),
+          `${act}+${offset}`,
+        ).toEqual(act4);
+    }
+    // An Act I table (the old fallback) holds Iron-age pieces Act IV's does not: they differ.
+    run.actIndex = 0;
+    expect(accessoryPoolFor(run, 0).map((a) => a.name)).not.toEqual(act4);
+  });
+
+  it("a weapon pool in postAct / finalBoss is Act IV's tier (Silver), not Iron", () => {
+    for (const act of ['act4', 'postAct', 'finalBoss'])
+      expect(eventWeaponTier(act, 0), act).toBe('Silver');
   });
 
   it('is seeded: one seed, one accessory; and a different run seed can differ', () => {

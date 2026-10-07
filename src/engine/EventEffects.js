@@ -151,10 +151,25 @@ export const BEST_STAT_CHOICES = Object.freeze(['STR', 'MAG', 'SKL', 'SPD', 'DEF
 /** The accessories' tiers: the loot table of an act, one tier up = the next act's (Act IV's is the top). */
 export const ACCESSORY_TIER_TABLES = Object.freeze(['act1', 'act2', 'act3', 'act4']);
 
+/** The tier table an act reads: acts after IV (postAct, the finale) read Act IV's, an unknown act Act I's. */
+function accessoryTableIndex(actId) {
+  const own = ACCESSORY_TIER_TABLES.indexOf(actId);
+  if (own >= 0) return own;
+  return actId === 'postAct' || actId === 'finalBoss' ? ACCESSORY_TIER_TABLES.length - 1 : 0;
+}
+
 /** Weapon types and tiers an event's weapon pools draw from. */
 export const EVENT_WEAPON_TYPES = Object.freeze(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light']);
 export const EVENT_WEAPON_TIERS = Object.freeze(['Iron', 'Steel', 'Silver']);
-const ACT_BASELINE_TIER = Object.freeze({ act1: 0, act2: 1, act3: 2, act4: 2 });
+// Acts after IV (postAct, the finale) draw like Act IV, never like Act I (an unlisted act used to read as 0).
+const ACT_BASELINE_TIER = Object.freeze({
+  act1: 0,
+  act2: 1,
+  act3: 2,
+  act4: 2,
+  postAct: 2,
+  finalBoss: 2,
+});
 
 // Every effect's sub-picks hang off its choice's seed key; a page after the first names itself
 // (EventSystem.choiceSeedKey), so the first page keeps its Phase 1 streams.
@@ -361,7 +376,7 @@ function planGold(ctx, effect, index, ledger) {
 
 /** The accessories a pool of `kind: 'accessory'` can hand out here: the loot table `tierOffset` tiers up. */
 export function accessoryPoolFor(run, tierOffset = 0) {
-  const here = Math.max(0, ACCESSORY_TIER_TABLES.indexOf(run.currentAct));
+  const here = accessoryTableIndex(run.currentAct);
   const index = Math.max(
     0,
     Math.min(ACCESSORY_TIER_TABLES.length - 1, here + Math.trunc(Number(tierOffset) || 0)),
