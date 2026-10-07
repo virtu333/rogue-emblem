@@ -39,5 +39,6 @@ export function loadGameData() {
     eclipse: loadJSON('eclipse.json'),
     prologue: loadJSON('prologue.json'),
     events: loadJSON('events.json'),
+    marks: loadJSON('marks.json'),
   };
 }

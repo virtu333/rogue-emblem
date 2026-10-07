@@ -1,4 +1,5 @@
 import { isDifficultyId } from './DifficultyEngine.js';
+import { DEFAULT_MARK_CHANCE } from './MarkSystem.js';
 import { mergeSeenDialogueKeys } from '../utils/seenDialogue.js';
 import { mergeRunRecords, runRecordsUnderPressure } from './RunRecords.js';
 import { isQuotaExceededError, setItemFreeingSpace } from './SaveSpace.js';
@@ -1117,6 +1118,7 @@ export class MetaProgressionManager {
    *            lordRecruitChanceBonus, recruitPromotionChanceBonus,
    *            deployBonus, visionChargesBonus, caravanChanceBonus, recruitRandomSkill, recruitStartingVulnerary, extraStartingUnitTier,
    *            lethalArmoryTier, recruitWeaponForge, recruitStartingAccessory, recruitXpBonus,
+   *            markChance (Marked Blood: the share of recruits that bear a Mark),
    *            startingWeaponForge, deadlyArsenalTier,
    *            ironArms, steelArms, artAdept, startingAccessoryTier, startingStaffTier,
    *            startingReclassSeal,
@@ -1148,6 +1150,7 @@ export class MetaProgressionManager {
       recruitWeaponForge: 0,
       recruitStartingAccessory: 0,
       recruitXpBonus: 0,
+      markChance: DEFAULT_MARK_CHANCE,
       startingWeaponForge: 0,
       deadlyArsenalTier: 0,
       ironArms: 0,
@@ -1259,6 +1262,9 @@ export class MetaProgressionManager {
           effects.recruitXpBonus,
           Number(effect.recruitXpBonus) || 0,
         );
+      }
+      if (effect.markChance !== undefined) {
+        effects.markChance = Math.max(effects.markChance, Number(effect.markChance) || 0);
       }
       // Starting equipment effects
       if (effect.startingWeaponForge !== undefined)

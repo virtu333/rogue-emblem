@@ -99,7 +99,8 @@ describe('advanced starting-skill unlocks', () => {
     const total = sumCosts(priced.filter((u) => !isMagLckTrack(u)));
     // 2026-09-29: the Battalion tab went from 11,575 to 5,600 (Expanded Ranks retired,
     // the rest halved, Tactical Advantage 150): 53,385 - 5,975. Apothecary's Recipe: +200.
-    expect(total).toBe(47610);
+    // 2026-10-07: Marked Blood (Phase 3C, 250 + 400): +650.
+    expect(total).toBe(47610 + 650);
     expect(total / 53428).toBeLessThan(1.03);
     expect(sumCosts(priced.filter(isMagLckTrack))).toBe(4080);
   });

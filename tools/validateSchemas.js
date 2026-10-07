@@ -30,6 +30,7 @@ const AJV_SCHEMAS = [
   { schema: 'traits.schema.json', data: 'traits.json' },
   { schema: 'eclipse.schema.json', data: 'eclipse.json' },
   { schema: 'events.schema.json', data: 'events.json' },
+  { schema: 'marks.schema.json', data: 'marks.json' },
 ];
 
 const ajv = new Ajv({ allErrors: true });

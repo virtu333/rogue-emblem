@@ -1099,8 +1099,13 @@ export class HeadlessBattle {
         u._movementSpent = 0;
       }
       // Apply turn-start effects (Renewal, etc.) — skip turn 1 to match BattleScene
+      const army = armyAndNpcAllies(this.playerUnits, this.npcUnits);
       if (turn > 1) {
-        this._processTurnStartEffects(armyAndNpcAllies(this.playerUnits, this.npcUnits));
+        this._processTurnStartEffects(army);
+      } else {
+        // Mark of the Road rolls on every player phase, turn 1 included, as BattleScene's
+        // pipeline does; the effects above have always skipped it here.
+        this._applyTurnStartMarkBuffs(getTurnStartEffects(army, [], this.gameData.marks, turn));
       }
       this._refreshFogVisibility();
       this.battleState = HEADLESS_STATES.PLAYER_IDLE;
@@ -1196,6 +1201,13 @@ export class HeadlessBattle {
     this.battleState = HEADLESS_STATES.BATTLE_END;
   }
 
+  /** Mark of the Road: +1 MOV until the player phase ends (TimedWeaponArtBuffs). */
+  _applyTurnStartMarkBuffs(effects) {
+    for (const effect of effects) {
+      if (effect.type === 'buff' && effect.entry) applyTimedBuffEntry(effect.target, effect.entry);
+    }
+  }
+
   _processTurnStartEffects(units) {
     if (!Array.isArray(units)) return;
     // 0b. Acid ticks, as BattleScene._processAcidTicks: non-lethal, and the ground's own
@@ -1205,7 +1217,12 @@ export class HeadlessBattle {
       damageUnit(unit, computeAcidDamage(unit.stats?.HP), { floor: 1, disturbs: false });
     }
     // 1. Skills
-    const skillEffects = getTurnStartEffects(units, this.gameData.skills);
+    const skillEffects = getTurnStartEffects(
+      units,
+      this.gameData.skills,
+      this.gameData.marks,
+      this.turnManager?.turnNumber,
+    );
     for (const effect of skillEffects) {
       if (effect.type === 'heal' && effect.target.currentHP < effect.target.stats.HP) {
         effect.target.currentHP = Math.min(
@@ -1214,6 +1231,7 @@ export class HeadlessBattle {
         );
       }
     }
+    this._applyTurnStartMarkBuffs(skillEffects);
     // 2. Affixes
     const affixEffects = getTurnStartAffixes(units, this.gameData.affixes);
     for (const effect of affixEffects) {
@@ -1715,6 +1733,7 @@ export class HeadlessBattle {
       checkAstra,
       affixData: affixes,
       skillsData: skills,
+      marksData: this.gameData.marks || null,
       imbuesData: this.gameData.imbues || null,
     };
   }
@@ -1741,6 +1760,7 @@ export class HeadlessBattle {
       alliesOf: (unit) => this._getDivineChargeAllies(unit),
       turnNumber: this.turnManager?.turnNumber,
       skillsData: this.gameData?.skills,
+      marksData: this.gameData?.marks,
     };
   }
 
@@ -1791,6 +1811,7 @@ export class HeadlessBattle {
     if (selectedArt) {
       const artCostOpts = {
         weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+        marksData: this.gameData?.marks,
       };
       applyWeaponArtCost(attacker, selectedArt, artCostOpts);
       recordWeaponArtUse(attacker, selectedArt, { turnNumber: this.turnManager?.turnNumber });
@@ -1906,6 +1927,7 @@ export class HeadlessBattle {
     const { weapon, art } = entry;
     const artCostOpts = {
       weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+      marksData: this.gameData?.marks,
     };
     const check = canUseWeaponArt(unit, weapon, art, {
       turnNumber: this.turnManager?.turnNumber,
@@ -2331,6 +2353,7 @@ export class HeadlessBattle {
     if (selectedArt) {
       const artCostOpts = {
         weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+        marksData: this.gameData?.marks,
       };
       applyWeaponArtCost(attacker, selectedArt, artCostOpts);
       recordWeaponArtUse(attacker, selectedArt, { turnNumber: this.turnManager?.turnNumber });

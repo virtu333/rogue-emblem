@@ -454,6 +454,10 @@ export function buildRecruitNodeUnit(opts = {}) {
         traitsData: gameData.traits || null,
         skillsData: gameData.skills,
         rng,
+        // The Mark roll (UnitManager.createRecruitUnit): its own stream, never `rng`.
+        runSeed: seedBase(runSeed),
+        metaEffects,
+        marksData: gameData.marks || null,
       };
       const def = { name: preview.name, className: preview.className, level };
       let unit;

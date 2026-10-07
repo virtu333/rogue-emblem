@@ -1,0 +1,42 @@
+[
+  {
+    "id": "forge",
+    "name": "Mark of the Forge",
+    "description": "20% when a weapon art's HP cost is paid: the cost is not taken.",
+    "trigger": "weapon-art-cost",
+    "chance": 20,
+    "effect": { "waiveArtHpCost": true }
+  },
+  {
+    "id": "hunt",
+    "name": "Mark of the Hunt",
+    "description": "15% per strike: +5 damage on that strike.",
+    "trigger": "on-attack",
+    "chance": 15,
+    "effect": { "damageBonus": 5 }
+  },
+  {
+    "id": "ember",
+    "name": "Mark of the Ember",
+    "description": "20% on a kill: restores 5 HP.",
+    "trigger": "on-kill",
+    "chance": 20,
+    "effect": { "healFlat": 5 }
+  },
+  {
+    "id": "veil",
+    "name": "Mark of the Veil",
+    "description": "15% when a magic strike lands on the bearer: halves its damage.",
+    "trigger": "on-defend",
+    "chance": 15,
+    "effect": { "halveMagicDamage": true }
+  },
+  {
+    "id": "road",
+    "name": "Mark of the Road",
+    "description": "25% at the start of your phase: +1 MOV this turn.",
+    "trigger": "on-turn-start",
+    "chance": 25,
+    "effect": { "movBonus": 1 }
+  }
+]

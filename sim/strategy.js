@@ -613,6 +613,7 @@ class ProtectedDriver extends RunSimulationDriver {
           rm.getEffectiveMetaEffects(),
           rm.fallenUnits || [],
           [...rm.getTakenUnitNames()],
+          rm.runSeed,
         ) || [];
       const pick = [...candidates]
         .map((c) => c?.unit)
@@ -676,6 +677,7 @@ class ProtectedDriver extends RunSimulationDriver {
       this.gameData.traits || null,
       [...rm.getTakenUnitNames()],
       rm.getEffectiveMetaEffects(),
+      { runSeed: rm.runSeed, marksData: this.gameData.marks || null },
     ).filter((c) => c?.unit && c.hireCost <= rm.gold);
     candidates.sort((a, b) => (b.unit.level || 0) - (a.unit.level || 0));
     const pick = candidates[0];

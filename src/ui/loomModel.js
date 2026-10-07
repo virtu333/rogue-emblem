@@ -444,10 +444,11 @@ const STAT_LABEL = {
 /**
  * The recruit a node would give you, as card data (strategy-layer spec): who, what
  * level, the stats that matter for the class, where they will grow, and their traits.
- * `built` is RunManager.getRecruitNodeUnit(node); `traitLines` is traitContent's.
+ * `built` is RunManager.getRecruitNodeUnit(node); `traitLines` and `markLine` are
+ * traitContent's (the Mark, if any, is one row under the traits).
  * Pure; returns null without a unit.
  */
-export function describeRecruitPreview(built, { traitLines = null } = {}) {
+export function describeRecruitPreview(built, { traitLines = null, markLine = null } = {}) {
   const unit = built?.unit;
   if (!unit) return null;
   const magical = (unit.stats?.MAG || 0) > (unit.stats?.STR || 0);
@@ -458,6 +459,7 @@ export function describeRecruitPreview(built, { traitLines = null } = {}) {
     .slice(0, 2)
     .map(([k, v]) => ({ stat: STAT_LABEL[k] || k, value: Math.round(v) }));
   const traits = typeof traitLines === 'function' ? traitLines(unit) : [];
+  const mark = typeof markLine === 'function' ? markLine(unit) : null;
   return {
     name: unit.name,
     className: unit.className,
@@ -473,6 +475,7 @@ export function describeRecruitPreview(built, { traitLines = null } = {}) {
       legendary: !!t.legendary,
       special: !!t.special,
     })),
+    mark: mark ? { name: mark.name, text: mark.text } : null,
     kicker: [
       built.isLord ? 'LORD' : null,
       unit.className.toUpperCase(),
