@@ -23,6 +23,7 @@ import {
   setUnitHP,
 } from '../src/engine/UnitHealth.js';
 import { recordCombat } from '../src/engine/DeedSystem.js';
+import { combatTimelineFacts } from '../src/engine/BattleTimelineFacts.js';
 import { calculateCombatXP } from '../src/engine/UnitManager.js';
 import { combatHpLost, combatXpAwards } from '../src/engine/BattleXp.js';
 import { getWeaponArtCombatMods } from '../src/engine/WeaponArtSystem.js';
@@ -428,6 +429,21 @@ describe('the exchange ends when a stone breaks (Q1)', () => {
   });
 });
 
+describe('Lethality (an instant kill) is a lethal blow like any other', () => {
+  it('takes a stone from a stoned boss instead of killing it', () => {
+    // Lethality procs on LCK / 3 % (10% here, certain at roll 0); the blow alone (15) would
+    // leave the 20-HP boss at 5, so only the instant kill can fell the bar.
+    const atk = striker({ LCK: 30 }, { skills: ['lethality'] });
+    const b = boss({ hp: 20, stones: 1 });
+    const result = fight(atk, b, ctx());
+    const first = strikes(result)[0];
+    expect(first.skillActivations.map((s) => s.id)).toContain('lethality');
+    expect(first).toMatchObject({ stoneBroken: true, targetHPAfter: 20 });
+    expect(result.defenderDied).toBe(false);
+    expect(b.revivalStones).toBe(0);
+  });
+});
+
 describe('Miracle comes first', () => {
   it('a Miracle that leaves 1 HP spends no stone; the next lethal blow breaks one', () => {
     // 15 damage on 12 HP is lethal: Miracle (LCK 30, procs at roll 0) leaves 1 HP. Only
@@ -499,6 +515,21 @@ describe('nothing that keys on a fall fires for a broken bar', () => {
     expect(combatHpLost({ attackerHP: 30, stoneBroken: { attacker: true } }, 'attacker', 6)).toBe(
       6,
     );
+  });
+});
+
+describe('the battle record names a broken stone', () => {
+  it('says so after the blow that broke it, and keeps a hidden boss’s stone to itself', () => {
+    const atk = striker();
+    const b = boss({ hp: 10, stones: 1 });
+    const result = fight(atk, b, ctx());
+    const seen = { grid: { fogEnabled: false } };
+    expect(combatTimelineFacts(seen, atk, b, result)).toEqual([
+      'Edric hit Warchief for 15 damage.',
+      "Warchief's Revival Stone broke.",
+    ]);
+    const fogged = { grid: { fogEnabled: true, isVisible: () => false } };
+    expect(combatTimelineFacts(fogged, atk, b, result).join(' ')).not.toMatch(/Stone/);
   });
 });
 
