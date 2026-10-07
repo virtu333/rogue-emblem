@@ -46,8 +46,8 @@ export const EXTRA = {
     prompt:
       `${STYLE} The character: an enemy Necromancer of the Empire's unlight, a gaunt dark-robed caster, a pale ` +
       'hollow-cheeked man of indeterminate age with sunken dark eyes and thin colourless lips, his face fully visible ' +
-      'under a deep hood of black-violet cloth with a crimson inner lining. Outfit: layered black and dark violet ' +
-      'robes with a high collar, a tarnished silver clasp at the throat, bony hands holding a closed black tome bound ' +
+      'under a deep hood of plum-violet cloth with a crimson inner lining. Outfit: ragged plum-violet robes with a ' +
+      'narrow crimson tabard panel down the front and a bone-white sash, a tarnished silver clasp at the throat, bony hands holding a closed black tome bound ' +
       'with a chain against the chest. Cold and still, a menacing scholar, not a skeleton: a living human face. ' +
       'No glowing eyes, no magic particles. The third reference image is the class map sprite (the robed caster): ' +
       'follow its costume. Palette: violet-black, crimson, bone white.',

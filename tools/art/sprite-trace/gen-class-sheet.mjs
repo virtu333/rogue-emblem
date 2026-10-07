@@ -40,14 +40,15 @@ export const CLASS_SHEETS = {
     single: true,
     refs: ['zombie', 'mage'],
     design:
-      "ONE enemy only. A gaunt robed DARK CASTER, the Empire's grave-priest: a long layered robe of black and deep " +
-      'violet wool with a ragged hem lined in CRIMSON, a deep pointed hood that leaves the face in deep shadow with ' +
-      'only a pale chin and a thin colourless mouth lit (a living man: NOT a skull, no bare bone anywhere), a ' +
-      'tarnished silver clasp at the throat, a bone-white sash. One hand holds a thick black TOME bound in a chain, ' +
-      'held open at chest height in front of the body (the book is gripped in the hand, not floating); the other ' +
-      'hand is raised with spread fingers. A compact, upright, hooded-column silhouette (robe hem close to the ' +
-      'legs, not a wide spread). Crimson lining and sash are the enemy accent. No staff, no skeleton, no glowing ' +
-      'runes, no particles, no objects on the ground.',
+      "ONE enemy only. A gaunt robed DARK CASTER, the Empire's grave-priest: grim, menacing, funereal (not cheerful). " +
+      'It is seen on dark night ground, so the robe must not sink into the dark: a deep but clearly VIOLET wool ' +
+      '(plum, with visible lighter violet highlights on the shoulders, sleeves and fold edges, never near-black), a ' +
+      'RAGGED, tattered hem, a crimson hood lining, and a narrow crimson tabard panel down the front of the robe, with ' +
+      'a bone-white sash and bone-white cuffs. A deep pointed hood leaves the face in shadow with only a pale chin and ' +
+      'a thin colourless mouth lit (a living man: NOT a skull, no bare bone), a tarnished silver clasp at the throat. ' +
+      'One hand grips a thick black TOME bound in a chain, held open at chest height in front of the body; the other ' +
+      'hand is raised with spread bony fingers. A compact upright hooded-column silhouette. No staff, no skeleton, no ' +
+      'glowing runes, no particles, no objects on the ground.',
   },
   Skeleton: {
     id: 'skeleton',
