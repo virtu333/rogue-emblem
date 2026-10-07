@@ -137,7 +137,9 @@ export function fogMoveCut(path, slideSegments, plannedCost, probes) {
   let { stopIndex, ambusher } = cut;
   const priced = (index) => pathCostTo(path, cut.segments, index, costAt);
   if (Number.isFinite(allowance) && priced(stopIndex) > allowance) {
-    while (stopIndex > 0 && (priced(stopIndex) > allowance || probes.blockedAt(path[stopIndex].col, path[stopIndex].row))) stopIndex--; // prettier-ignore
+    const cannotStopAt = (index) =>
+      priced(index) > allowance || probes.blockedAt(path[index].col, path[index].row);
+    while (stopIndex > 0 && cannotStopAt(stopIndex)) stopIndex--;
     ambusher = ambusher || cut.reshapedBy;
   }
   return {
