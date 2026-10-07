@@ -3495,6 +3495,8 @@ export class RunManager {
     // statusStaffConfig is an object — read directly (getDifficultyModifier coerces objects)
     battleParams.statusStaffConfig = this.difficultyModifiers?.statusStaffConfig ?? null;
     battleParams.siegeWeaponConfig = this.difficultyModifiers?.siegeWeaponConfig ?? null;
+    // Carried items (EnemyCarry.js): a run saved before the table existed has none.
+    battleParams.carryConfig = this.difficultyModifiers?.carryConfig ?? null;
     // Battle pacing (docs/specs/dusk-pressure.md), written into the map when it is
     // generated: the rout ladder, the rung's par inflation, and whether template waves
     // raise par. A run saved before these existed keeps none of them (DIFFICULTY_DEFAULTS).

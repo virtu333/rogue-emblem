@@ -8,6 +8,9 @@
 // * a siege spawn: the siege tome equipped, its own weapons kept behind it, so a
 //   siege caster that has spent its shots still fights (AIController re-equips);
 // * a status-staff spawn: the staff beside its weapon (enemy.statusStaff);
+// * a carrier (`spawn.carries`, EnemyCarry.js): a whole item held apart from the bag
+//   (enemy.carriedItem). The AI never uses it and combat never reads it; only a Thief's
+//   Steal takes it, and a carrier that falls first loses it (docs/specs/phase3.md 3G, Q4);
 // * Nightfall and up: secondary weapons for multi-proficiency enemies without special gear.
 //
 // applySpawnLoadout then applies what an authored spawn (data/prologue.json) fixes by
@@ -18,11 +21,17 @@ import { isStaff } from './Combat.js';
 import { canEquip, grantSecondaryWeapons } from './UnitManager.js';
 import { ensureItemUid } from '../utils/itemUid.js';
 import { isDifficultyAtLeast } from './DifficultyEngine.js';
+import { buildCarriedItem, isCarrierEligible } from './EnemyCarry.js';
 import {
   SUNDER_WEAPON_BY_TYPE,
   POISON_WEAPON_BY_TYPE,
   ENTITY_WEAPON_NAMES,
 } from '../utils/constants.js';
+
+/** What the built enemy adds to the eligibility test: a raised or zero-XP unit never carries. */
+function enemyFlags(enemy) {
+  return { _noXP: enemy?._noXP, _raisedBy: enemy?._raisedBy, className: enemy?.className };
+}
 
 function cloneNamed(weapons, name) {
   const data = name ? (weapons || []).find((w) => w.name === name) : null;
@@ -33,9 +42,15 @@ function cloneNamed(weapons, name) {
  * Equip `enemy` (mutated) for `spawn`.
  * @param {object} enemy
  * @param {object} spawn
- * @param {{ weapons: object[], difficultyId?: string }} deps
+ * @param {{ weapons: object[], difficultyId?: string, consumables?: object[],
+ *   battleKey?: string }} deps `consumables` is the run's catalog (a Vulnerary at the uses the
+ *   run gives it); `battleKey` keeps a carried item's uid apart between battles.
  */
-export function applyEnemySpawnGear(enemy, spawn, { weapons, difficultyId = 'normal' } = {}) {
+export function applyEnemySpawnGear(
+  enemy,
+  spawn,
+  { weapons, difficultyId = 'normal', consumables = [], battleKey = '' } = {},
+) {
   if (!enemy || !spawn) return enemy;
   if (spawn.isEntity) {
     const entityWeapons = (weapons || [])
@@ -76,6 +91,10 @@ export function applyEnemySpawnGear(enemy, spawn, { weapons, difficultyId = 'nor
       spawn.statusStaff === 'sleep' ? 'Sleep Staff' : 'Silence Staff',
     );
     if (staff) enemy.statusStaff = staff;
+  }
+  if (spawn.carries && isCarrierEligible({ ...spawn, ...enemyFlags(enemy) })) {
+    const item = buildCarriedItem(spawn, { consumables, weapons, battleKey });
+    if (item) enemy.carriedItem = item;
   }
   if (
     !spawn.sunderWeapon &&

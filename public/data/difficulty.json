@@ -16,6 +16,15 @@
       "enemyStatusStaffChance": 0,
       "statusStaffConfig": null,
       "shopCureGating": null,
+      "carryConfig": {
+        "perBattle": true,
+        "act1": 0,
+        "act2": 0.15,
+        "act3": 0.2,
+        "act4": 0.25,
+        "finalBoss": 0.25,
+        "maxPerBattle": 1
+      },
       "goldMultiplier": 1,
       "shopPriceMultiplier": 1,
       "lootQualityShift": 0,
@@ -84,6 +93,15 @@
         "act2": false,
         "act3": true,
         "act4": true
+      },
+      "carryConfig": {
+        "perBattle": true,
+        "act1": 0.1,
+        "act2": 0.25,
+        "act3": 0.3,
+        "act4": 0.35,
+        "finalBoss": 0.35,
+        "maxPerBattle": 1
       },
       "goldMultiplier": 0.95,
       "shopPriceMultiplier": 1.08,
@@ -186,6 +204,15 @@
         "act4": true,
         "finalBoss": true
       },
+      "carryConfig": {
+        "perBattle": true,
+        "act1": 0.2,
+        "act2": 0.35,
+        "act3": 0.45,
+        "act4": 0.5,
+        "finalBoss": 0.5,
+        "maxPerBattle": 2
+      },
       "goldMultiplier": 0.9,
       "shopPriceMultiplier": 1.15,
       "lootQualityShift": 0,
@@ -284,6 +311,15 @@
         "act3": true,
         "act4": true,
         "finalBoss": true
+      },
+      "carryConfig": {
+        "perBattle": true,
+        "act1": 0.3,
+        "act2": 0.45,
+        "act3": 0.55,
+        "act4": 0.6,
+        "finalBoss": 0.6,
+        "maxPerBattle": 3
       },
       "goldMultiplier": 0.8,
       "shopPriceMultiplier": 1.25,

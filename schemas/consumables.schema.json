@@ -9,7 +9,7 @@
       "type": { "type": "string", "const": "Consumable" },
       "effect": {
         "type": "string",
-        "enum": ["heal", "healFull", "promote", "statBoost", "reclass", "cure", "cureHeal"]
+        "enum": ["heal", "healFull", "promote", "statBoost", "reclass", "cure", "cureHeal", "gold"]
       },
       "subEffect": { "type": "string" },
       "stat": {

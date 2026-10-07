@@ -2608,6 +2608,10 @@ export class BattleScene extends Phaser.Scene {
     applyEnemySpawnGear(enemy, spawn, {
       weapons: this.gameData.weapons,
       difficultyId: this.battleParams?.difficultyId,
+      // A carrier's item, as this run acquires it (the Vulnerary recipe), with a uid that
+      // never draws Math.random (engine/EnemyCarry.js).
+      consumables: this.runManager?.getConsumableCatalog?.() ?? this.gameData.consumables,
+      battleKey: String(this.deriveBattleSeed()),
     });
     // An authored spawn's own weapon, skills and id win (prologue chapters).
     applySpawnLoadout(enemy, spawn, {
