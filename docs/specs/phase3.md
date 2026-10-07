@@ -1033,8 +1033,9 @@ the plan above, and why.
 
 - **No way to discard an item.** An owed contract reward that is a weapon can't be claimed
   when every bag and the convoy are full of weapons: a held party can't reach a shop to sell
-  one, so only Give up is left. Recommendation: a confirmed **Discard** in the roster.
+  one, so only Give up is left. **Approved by the owner:** a confirmed **Discard** in the
+  roster (bag and convoy items, between battles; a lord's personal weapon and the prologue
+  run are blocked). In progress on `claude/roster-discard`.
 - **The Gold Pouch economy on Nightfall and Black Sun.** The upper bounds above are high;
-  real income is far lower, because a Thief must reach the carrier and outpace it. If it
-  plays generous, lower those rungs' `carryConfig` rates or the pouch's weight in
-  `carryPool`.
+  real income is far lower, because a Thief must reach the carrier and outpace it.
+  **Accepted by the owner as is:** no change to `carryConfig` or `carryPool`.
