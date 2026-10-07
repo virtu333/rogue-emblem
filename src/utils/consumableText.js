@@ -28,6 +28,7 @@ export function getConsumableDescription(item) {
     return `Permanent +${toNumber(item.value)} ${item.stat || 'Stat'}`;
   if (item.effect === 'cure') return 'Cure all status conditions';
   if (item.effect === 'cureHeal') return `Cure conditions & restore ${toNumber(item.value)} HP`;
+  if (item.effect === 'gold') return `Worth ${toNumber(item.value)} G: use it or sell it`;
   return '';
 }
 

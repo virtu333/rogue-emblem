@@ -14,7 +14,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
 
 import { generateBattle } from '../src/engine/MapGenerator.js';
-import { resolveDifficultyMode, validateDifficultyConfig } from '../src/engine/DifficultyEngine.js';
+import {
+  generateModifierSummary,
+  resolveDifficultyMode,
+  validateDifficultyConfig,
+} from '../src/engine/DifficultyEngine.js';
 import {
   assignEnemyCarry,
   buildCarriedItem,
@@ -442,6 +446,16 @@ describe('carried into battle (the harness as the scene)', () => {
     const names = found.battle.enemyUnits.map((e) => e.carriedItem?.uid).filter(Boolean);
     expect(new Set(names).size).toBe(names.length); // no two carriers share a uid
     expect(others.length).toBeGreaterThan(0);
+  });
+});
+
+describe('the difficulty summary', () => {
+  it('names the first act that fields carriers and the rung max', () => {
+    const lines = (id) => generateModifierSummary(data.difficulty.modes[id]);
+    expect(lines('normal')).toContain('Foes carry items a Thief can steal from Act 2+ (max 1/battle)'); // prettier-ignore
+    expect(lines('dusk')).toContain('Foes carry items a Thief can steal from Act 1+ (max 1/battle)'); // prettier-ignore
+    expect(lines('hard')).toContain('Foes carry items a Thief can steal from Act 1+ (max 2/battle)'); // prettier-ignore
+    expect(lines('lunatic')).toContain('Foes carry items a Thief can steal from Act 1+ (max 3/battle)'); // prettier-ignore
   });
 });
 
