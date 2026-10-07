@@ -4,7 +4,7 @@
 // here can show a unit the fog hides.
 //
 //   footprint  a soft tint on every tile the area covers (pure geometry and terrain)
-//   victims    a ring on each known foe it reaches; with numbers, "-8" or "KO"
+//   victims    a ring on each known foe it reaches; with numbers, "-8", "KO" or "BREAKS"
 //   heals      "+8" on each ally a heal reaches
 //   push       a line to where a ram leaves its target, and a crash mark; Override's
 //              line to where it drives each foe back
@@ -93,7 +93,7 @@ export class AreaPreviewController {
       this.objects.push(label);
     };
     for (const v of preview.victims || [])
-      chip(v.unit, v.kills ? 'KO' : `-${v.damage}`, UI_PALETTE.warn);
+      chip(v.unit, v.kills ? 'KO' : v.breaks ? 'BREAKS' : `-${v.damage}`, UI_PALETTE.warn);
     for (const h of preview.heals || [])
       if (h.amount > 0) chip(h.unit, `+${h.amount}`, UI_PALETTE.good);
     if (preview.push?.crash && preview.push.obstacle)
