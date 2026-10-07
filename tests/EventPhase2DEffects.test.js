@@ -297,6 +297,25 @@ describe("stat 'best' and losses", () => {
     expect([unit.stats.HP, unit.currentHP]).toEqual([17, 1]);
   });
 
+  it('a lost point of max HP settles HP accessory debt as setUnitHP does (full HP forgives it)', () => {
+    // 20/20 with a stale 4 HP debt: -3 max HP leaves 17/17, full, so the debt is forgiven.
+    // (Before the fix the clamp wrote currentHP directly and the debt stayed on the unit.)
+    const run = newRun({ seed: 6 });
+    const full = withStats(run, 'Tess', {}, 20);
+    full._accessoryHpOwed = 4;
+    play([{ type: 'stat', stat: 'HP', value: -3, scope: 'target' }], { run, target: 'Tess' });
+    expect([full.stats.HP, full.currentHP]).toEqual([17, 17]);
+    expect(full._accessoryHpOwed).toBeUndefined();
+
+    // 15/20 with a 4 HP debt: 12/17 is still hurt, so the debt is kept.
+    const run2 = newRun({ seed: 6 });
+    const hurt = withStats(run2, 'Tess', {}, 15);
+    hurt._accessoryHpOwed = 4;
+    play([{ type: 'stat', stat: 'HP', value: -3, scope: 'target' }], { run: run2, target: 'Tess' });
+    expect([hurt.stats.HP, hurt.currentHP]).toEqual([17, 12]);
+    expect(hurt._accessoryHpOwed).toBe(4);
+  });
+
   it('never takes a stat below 0 or max HP below 1, and reports what it took', () => {
     const run = newRun({ seed: 6 });
     const frail = withStats(run, 'Tess', { HP: 3, STR: 2 });

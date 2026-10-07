@@ -78,7 +78,7 @@
 import { applyRewardTarget } from './LootRewardCommands.js';
 import { spendConsumableUse } from './RosterInventory.js';
 import { canEquip, learnSkill, applyStatBoost, knowsSkill } from './UnitManager.js';
-import { healUnit, damageUnit } from './UnitHealth.js';
+import { healUnit, damageUnit, setUnitHP } from './UnitHealth.js';
 import { applyWear, wearableStats, isWorn, repairWeapon, wearCount } from './WeaponWear.js';
 import { applyForge, canForgeStat } from './ForgeSystem.js';
 import { RECRUIT_PREVIEW_VERSION } from './RecruitNodeSystem.js';
@@ -1142,10 +1142,13 @@ export function applyStep(ctx, step) {
     case 'stat':
       applyStatBoost(step.unit, { stat: step.stat, value: step.value });
       if (step.stat === 'HP')
-        // A lost point of max HP never leaves the unit above its new max or at 0.
-        step.unit.currentHP = Math.max(
-          1,
-          Math.min(Number(step.unit.stats.HP) || 1, Number(step.unit.currentHP) || 1),
+        // A lost point of max HP never leaves the unit above its new max or at 0. HP is set
+        // through UnitHealth, so an HP accessory's debt settles when the unit now stands at
+        // full HP (it is not an attack: no hold wakes).
+        setUnitHP(
+          step.unit,
+          Math.max(1, Math.min(Number(step.unit.stats.HP) || 1, Number(step.unit.currentHP) || 1)),
+          { disturbs: false },
         );
       return [{ kind: 'stat', unit: step.unit.name, stat: step.stat, value: step.value }];
     case 'forge':
