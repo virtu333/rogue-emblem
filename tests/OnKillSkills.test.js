@@ -169,7 +169,7 @@ function sceneWorld(players, enemies) {
   return {
     kind: 'scene',
     world: () => scene._postCombatWorld(),
-    buildSkillCtx: (a, d) => scene._buildSkillCtx(a, d),
+    buildSkillCtx: (a, d) => scene.buildSkillCtx(a, d),
     foes: (list) => {
       scene.enemyUnits = list;
     },
@@ -651,5 +651,63 @@ describe('Edric and Lifetaker agree in both worlds on the same fight', () => {
       harness.edric.stats.SPD,
       harness.edric._speedtakerStacks,
     ]).toEqual([scene.edric.currentHP, scene.edric.stats.SPD, scene.edric._speedtakerStacks]);
+  });
+});
+
+// --- The passive and opening skills of 3B: Uncanny Blow, Warding Blow, Defiant ---
+// All three ride the generic on-combat-start path (SkillSystem.getSkillCombatMods).
+
+describe.each(WORLDS)('Uncanny Blow, Warding Blow and Defiant through %s', (_label, makeWorld) => {
+  const mods = (attacker, defender) => {
+    const world = makeWorld([attacker], [defender, bystander()]);
+    return world.buildSkillCtx(attacker, defender);
+  };
+
+  it('Uncanny Blow: +30 Hit when initiating, nothing when defending', () => {
+    const edric = makeEdric({ skills: ['uncanny_blow'] });
+    const foe = makeFoe('Foe', 1, 30);
+    expect(mods(edric, foe).atkMods.hitBonus).toBe(30);
+    // The same unit as the defender of an enemy's attack.
+    const raider = makeFoe('Raider', 1, 30);
+    const defended = mods(raider, edric);
+    expect(defended.defMods.hitBonus).toBe(0);
+    expect(defended.atkMods.hitBonus).toBe(0);
+  });
+
+  it('Warding Blow: +6 RES when initiating, nothing when defending', () => {
+    const edric = makeEdric({ skills: ['warding_blow'] });
+    const foe = makeFoe('Foe', 1, 30);
+    expect(mods(edric, foe).atkMods.resBonus).toBe(6);
+    const raider = makeFoe('Raider', 1, 30);
+    expect(mods(raider, edric).defMods.resBonus).toBe(0);
+  });
+
+  it('Defiant holds at a quarter of max HP and below, not above (HP 10: 2 holds, 3 does not)', () => {
+    const foe = makeFoe('Foe', 1, 30);
+    for (const [current, holds] of [
+      [2, true],
+      [3, false],
+    ]) {
+      const edric = makeEdric({ skills: ['defiant'], hp: current, maxHp: 10 });
+      const ctx = mods(edric, foe);
+      expect([current, ctx.atkMods.defBonus, ctx.atkMods.resBonus]).toEqual(
+        holds ? [current, 4, 4] : [current, 0, 0],
+      );
+    }
+  });
+
+  it('Defiant turns a lethal blow into a survivable one when defending', async () => {
+    // Edric at 10/40 HP (a quarter). The raider (STR 12, lance 5, triangle +1) hits him for
+    // 12 + 5 - 7 + 1 = 11, which fells him; with Defiant's +4 DEF it is 7, so he lives on 3.
+    const fightWith = async (skills) => {
+      const edric = makeEdric({ skills, hp: 10 });
+      const raider = makeFoe('Raider', 1, 30, { armed: true });
+      raider.stats.STR = 12;
+      const world = makeWorld([edric], [raider, bystander()]);
+      await world.enemyAttack(raider, edric);
+      return edric.currentHP;
+    };
+    expect(await fightWith([])).toBe(0);
+    expect(await fightWith(['defiant'])).toBe(10 - 7);
   });
 });
