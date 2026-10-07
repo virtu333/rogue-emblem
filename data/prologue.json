@@ -2,8 +2,8 @@
   "version": 1,
   "seed": 1209,
   "grant": {
-    "valor": 60,
-    "supply": 40
+    "valor": 50,
+    "supply": 35
   },
   "consumableEffects": {
     "vulneraryUses": 3

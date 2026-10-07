@@ -180,14 +180,14 @@ test('the Market road: New Game to Home Base through ordinary play, Varro to the
     'p4_quarry_gate',
   ]);
   expect(meta.prologue.practised).toEqual(expect.arrayContaining(['seize', 'deploy']));
-  expect([meta.totalValor, meta.totalSupply, meta.runsStarted]).toEqual([60, 40, 0]);
+  expect([meta.totalValor, meta.totalSupply, meta.runsStarted]).toEqual([50, 35, 0]);
   expect(await slotRun(page)).toBeNull();
 
   // A refresh at Home Base pays nothing twice.
   await page.reload();
   await activeScene(page, 'Title');
   const again = await slotMeta(page);
-  expect([again.totalValor, again.totalSupply, again.prologue.grantPaid]).toEqual([60, 40, true]);
+  expect([again.totalValor, again.totalSupply, again.prologue.grantPaid]).toEqual([50, 35, true]);
   expect(errors).toEqual([]);
   await context.close();
 });

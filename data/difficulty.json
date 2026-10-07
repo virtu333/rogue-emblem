@@ -33,7 +33,7 @@
       "fogChanceBonus": 0,
       "villageAmbushChance": 0.1,
       "reinforcementTurnOffset": 0,
-      "currencyMultiplier": 1,
+      "currencyMultiplier": 0.8,
       "actsIncluded": [
         "act1",
         "act2",
@@ -112,7 +112,7 @@
       "fogChanceBonus": 0.08,
       "villageAmbushChance": 0.15,
       "reinforcementTurnOffset": 0,
-      "currencyMultiplier": 1.1,
+      "currencyMultiplier": 1.25,
       "actsIncluded": [
         "act1",
         "act2",
@@ -223,7 +223,7 @@
       "fogChanceBonus": 0.15,
       "villageAmbushChance": 0.2,
       "reinforcementTurnOffset": 0,
-      "currencyMultiplier": 1.25,
+      "currencyMultiplier": 1.5,
       "actsIncluded": [
         "act1",
         "act2",
@@ -332,7 +332,7 @@
       "fogChanceBonus": 0.25,
       "villageAmbushChance": 0.25,
       "reinforcementTurnOffset": 0,
-      "currencyMultiplier": 1.5,
+      "currencyMultiplier": 2,
       "actsIncluded": [
         "act1",
         "act2",
