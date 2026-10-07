@@ -39,7 +39,8 @@ recommendation, so building can start with it.
 | **3D** | Revival Stones | Engine only, independent. |
 | **3E** | Action skills (Great Sacrifice, Goddess Dance, Blink Strike) and Pass | The action-to-attack chain is the one new flow. |
 | **3F** | Weapon arts (Lunar Brace, Override) | Combat mods plus the area-push extension. |
-| **3G** | Steal and enemies that carry items | A new ability kind plus a generation roll. |
+| **Fix** | Contract reward recovery (owner review P2, below) | An earned reward must stay owed until it is delivered or given up. It goes before any new reward-bearing or inventory mechanic. |
+| **3G** | Steal and enemies that carry items | A new ability kind plus a generation roll. Waits on the contract fix. |
 | **3H** | Bond Rings (accessories that roll a bound skill) | Needs 3A. Wants 3B and 3E so the skill pools are wider. |
 | **3I** | The Necromancer and Skeletons | Art first: `tests/TracedSprites.test.js` refuses a class without traced keys. |
 
@@ -48,6 +49,97 @@ caravan Merchant portrait come first because 3I waits on them. Proc visuals and 
 follow their steps.
 
 Each step is one PR, merged when CI is green. A large step gets a review pass first.
+
+**Progress (2026-10-07).**
+- Merged: the art batch (#222), 3A (#221), 3B (#223), 3F (#224), 3C (#225).
+- In progress: 3D (building on Q1 and Q2's recommendations), 3H, 3I, the contract fix, and
+  the Lingering Injury rename.
+- Not started: 3E, 3G.
+
+## Shared boundaries (acceptance criteria)
+
+Owner review, 2026-10-07: organise acceptance around the boundaries the features share, not
+only around the feature names. Each step's tests must hold the rows that touch it.
+
+### One effective-skill model
+
+`effectiveSkills(unit)` (3A, as built) is the only battle read of a unit's skills. It
+combines four kinds of source:
+
+- learned, class and personal skills, from the equipped list `unit.skills`;
+- the weapon in use's `_grantedSkill`;
+- the equipped accessory's `_boundSkill`.
+
+How it treats them:
+
+- **Duplicates:** counted once, in that order.
+- **Benched skills:** never effective.
+- **Removable vs fixed:** a bound skill is removable with its item. A learned skill is
+  removable only by benching, under `SkillLoadout`'s lock rules.
+- **What reads it:** every surface that names or uses a skill. That is the forecast, the
+  action menu, the Ability picker, Canto, auras, turn-start effects, range, terrain cost and
+  the harness. So a lent skill that shows in the UI also works everywhere.
+  `tests/EffectiveSkillsBoundary.test.js` holds this line.
+- **Per-battle limits:** usage is recorded on the unit by skill id
+  (`_battleAbilityUsage.map[id]`), never on the item. Unequipping a ring and equipping it
+  again, or trading it to another unit, does not reset a limit the unit has spent.
+  - 3H tests this for a ring-lent Blink.
+  - A second unit that receives the ring has its own count. That is intended: the limit
+    belongs to the user.
+
+### Death versus defeat
+
+| Event | Kill credit and weapon kill count | XP | Gold | Victory and objective checks | On-kill (skills, Ember) | Death-triggered effects (Deathburst, crumble) | Deeds |
+|---|---|---|---|---|---|---|---|
+| A boss's bar breaks (a stone spent, 3D) | no | damage XP only, no kill bonus | none | no | no | no | no kill |
+| A boss's last bar falls | yes | kill XP | kill gold and boss bonus | yes | yes | yes | yes |
+| A Skeleton is killed (3I) | yes (weapon count) | a quarter of kill XP | none | yes (it is an ordinary foe until it falls) | yes, once per combat as always | no | no kill (`isZeroRewardUnit`) |
+| Skeletons crumble with their Necromancer | no (no killer) | none | none | yes: removed before `checkBattleEnd` | no | no | no |
+| A risen Zombie is killed | as today (`_noXP`) | none | none (the harness now agrees) | yes | yes | no | no kill |
+
+**The default.** An intermediate bar is never a separate kill.
+
+**Repeatable summons are never an unlimited reward source.**
+- A Necromancer raises at most 2 standing Skeletons.
+- It raises at most **6 Skeletons per battle in all**: a lifetime count on the Necromancer,
+  which suspend and rewind keep.
+- Each Skeleton pays a quarter of the XP and no gold.
+- So the reward is bounded at 6 × a quarter of the XP, and the late-pressure decay past par
+  still applies.
+
+### Identity and ownership
+
+- **Marks: who can roll one** (3C, as built). The roll lives in
+  `UnitManager.createRecruitUnit`, and each entry path is tested:
+  - recruit nodes;
+  - event joins;
+  - boss recruits;
+  - Colosseum mercenaries;
+  - the Vanguard Cadre.
+
+  These never bear one: lords, the third lord, the veteran and prologue units.
+- **A summon's owner** is `_raisedBy`, the Necromancer's `battleEntityId`, which survives
+  saves and rewind. Rewards and crumbling read it, never a position or a name.
+- **Steal** (3G) is one atomic operation:
+  - It checks capacity first (bag, then convoy).
+  - It moves the **same item instance**, keeping its uid, uses and forge or wear fields, out
+    of the carrier and into one destination, under one checkpoint.
+  - A refused Steal changes nothing.
+  - Rewind and resume restore both sides from one snapshot, so the item can never exist
+    twice or vanish. Tests read item uids across a suspend, a resume and a rewind.
+
+### Earned rewards: one lifecycle
+
+There is one meaning of "earned but not yet delivered". It is the event-spoils lifecycle:
+
+- the outcome is judged once and persisted;
+- delivery is retried until it succeeds;
+- only an explicit, confirmed give-up ends it.
+
+Contracts move onto that lifecycle in the fix step. Any later mechanic that pays a reward
+reuses it, never a "No room" note that closes the claim. Steal is a transfer, not a reward,
+and is refused when there is no room. A carried item is lost with its carrier ([Q4]), as
+the carry chip says.
 
 ---
 
@@ -726,7 +818,9 @@ then `enemyUnits.push`, `addUnitGraphic`, `updateEnemyVisibility`,
 
 **What it does:**
 
-- For each living Necromancer with fewer than 2 living Skeletons of its own, raise one.
+- For each living Necromancer with fewer than 2 living Skeletons of its own, raise one,
+  until it has raised **6 in this battle** (a lifetime count on the Necromancer, kept across
+  suspend and rewind; see Shared boundaries).
 - It goes onto the first free passable tile among the Necromancer's four neighbours, in the
   order `riseTile` uses. If there is none, nothing is raised.
 - The Skeleton is created with `hasActed: false`, so it acts in that phase.
@@ -862,5 +956,11 @@ fought to the last turn must not pay more XP than the same battle without one.
 
 ## Phase 2 review edits
 
-The owner is reviewing Phase 2 (#218, #219). Any edits that review asks for are folded into
-this wave as their own small PRs and listed here when they land.
+Owner review of #218 and #219 (2026-10-07). #219's HUD stays. #207 (the headless play
+adapter, another workstream) is not merged until it plays event nodes through
+`EventCommands`.
+
+| Finding | Fix | PR |
+|---|---|---|
+| P2: a contract reward could be lost without the player choosing to. It happened two ways: a "No room" note closed the contract, and a failed delivery could not restore the obligation, because `run.contract` was cleared before the snapshot. | Judge once and persist the verdict and its terms (`run.contractOwed`). Deliver with a strict plan under the same seed key, so the payout is deterministic. An owed reward holds the party, with a page offering Claim, Roster and a confirmed Give up. A penalty is retried and never holds the party. | in progress |
+| P3: "Wounded" named two mechanics. | The burden is shown as **Lingering Injury**. Its id stays `wounded`, and the status condition keeps its name. | in progress |
