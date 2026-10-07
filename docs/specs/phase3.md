@@ -945,9 +945,7 @@ fought to the last turn must not pay more XP than the same battle without one.
 
 ## Phase 2 review edits
 
-Owner review of #218 and #219 (2026-10-07). #219's HUD stays. #207 (the headless play
-adapter, another workstream) is not merged until it plays event nodes through
-`EventCommands`.
+Owner review of #218 and #219 (2026-10-07). #219's HUD stays.
 
 | Finding | Fix | PR |
 |---|---|---|
