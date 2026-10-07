@@ -90,7 +90,15 @@ export function smoothFor(size, native) {
   return ratio > 1 ? Math.round((ratio - 1) * 0.45 * 100) / 100 : 0;
 }
 
-const UNLIGHT = new Set(['boss_the_entity', 'enemy_entity', 'enemy_revenant', 'enemy_zombie']);
+const UNLIGHT = new Set([
+  'boss_the_entity',
+  'enemy_entity',
+  'enemy_revenant',
+  'enemy_zombie',
+  // Phase 3 (3I): the Necromancer and the Skeletons it raises
+  'enemy_necromancer',
+  'enemy_skeleton',
+]);
 
 /** Default backdrop faction for a portrait id (overridable in config). */
 export function defaultFaction(id) {

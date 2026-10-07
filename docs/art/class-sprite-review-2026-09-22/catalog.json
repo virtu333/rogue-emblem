@@ -645,5 +645,37 @@
     ],
     "generator": "tools/art/sprite-trace/gen-class-sheet.mjs",
     "take": 3
+  },
+  {
+    "name": "Necromancer",
+    "tier": "promoted",
+    "weapon": "Tomes (M)",
+    "move": "Infantry",
+    "id": "necromancer",
+    "count": 1,
+    "prompt": "Generate a NECROMANCER tactical MAP SPRITE review sheet. Exactly ONE isolated enemy sprite, centered with generous padding. Image 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Images 2 and 3 are review sheets of neighbouring creatures and classes from the same set: match their pixel scale, figure size, rendering and three-quarter pose exactly, but draw this creature's own anatomy, costume and weapon. Full body with all equipment visible, three-quarter idle view slightly from above facing right. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Enemy uses CRIMSON accents. Intended final size about 34px infantry; a big readable silhouette, no tiny ornamental noise. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the whole canvas: no floor, shadow, gradient, glow, text, label, ring or frame. Do not use magenta or pink anywhere on the figure. Class Necromancer, tier promoted, movement Infantry, engine weapons Tomes (M). Specific design: ONE enemy only. A gaunt robed DARK CASTER, the Empire's grave-priest: grim, menacing, funereal (not cheerful). It is seen on dark night ground, so the robe must not sink into the dark: a deep but clearly VIOLET wool (plum, with visible lighter violet highlights on the shoulders, sleeves and fold edges, never near-black), a RAGGED, tattered hem, a crimson hood lining, and a narrow crimson tabard panel down the front of the robe, with a bone-white sash and bone-white cuffs. A deep pointed hood leaves the face in shadow with only a pale chin and a thin colourless mouth lit (a living man: NOT a skull, no bare bone), a tarnished silver clasp at the throat. One hand grips a thick black TOME bound in a chain, held open at chest height in front of the body; the other hand is raised with spread bony fingers. A compact upright hooded-column silhouette. No staff, no skeleton, no glowing runes, no particles, no objects on the ground.",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "docs/art/class-sprite-review-2026-09-22/sheets/zombie.png",
+      "docs/art/class-sprite-review-2026-09-22/sheets/mage.png"
+    ],
+    "generator": "tools/art/sprite-trace/gen-class-sheet.mjs",
+    "take": 1
+  },
+  {
+    "name": "Skeleton",
+    "tier": "base",
+    "weapon": "Swords (P), Lances (P), Bows (P)",
+    "move": "Infantry",
+    "id": "skeleton",
+    "count": 1,
+    "prompt": "Generate a SKELETON tactical MAP SPRITE review sheet. Exactly ONE isolated enemy sprite, centered with generous padding. Image 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Images 2 and 3 are review sheets of neighbouring creatures and classes from the same set: match their pixel scale, figure size, rendering and three-quarter pose exactly, but draw this creature's own anatomy, costume and weapon. Full body with all equipment visible, three-quarter idle view slightly from above facing right. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Enemy uses CRIMSON accents. Intended final size about 34px infantry; a big readable silhouette, no tiny ornamental noise. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the whole canvas: no floor, shadow, gradient, glow, text, label, ring or frame. Do not use magenta or pink anywhere on the figure. Class Skeleton, tier base, movement Infantry, engine weapons Swords (P), Lances (P), Bows (P). Specific design: ONE enemy only. A walking human SKELETON that reads as clean bleached BONE, never as rotting flesh: an ivory and pale-grey skull with deep black eye sockets (a faint dull red point deep in each) and a cracked cranium, a visible spine, ribcage, pelvis, and bony arms and legs with clear joints. It holds a short rusted IRON SWORD in a bony hand. Only a few CRIMSON cloth rags: a tattered waist sash and one rag at a shoulder. NO skin, NO flesh, NO hair, NO armour plates, NO hooded cloak, NO green-grey colour (that is the Zombie). A loose-jointed forward shamble, lighter and more angular than the Zombie, so it is a different silhouette.",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "docs/art/class-sprite-review-2026-09-22/sheets/zombie.png",
+      "docs/art/class-sprite-review-2026-09-22/sheets/revenant.png"
+    ],
+    "generator": "tools/art/sprite-trace/gen-class-sheet.mjs",
+    "take": 2
   }
 ]

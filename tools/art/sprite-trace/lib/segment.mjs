@@ -24,6 +24,9 @@ export const FAMILIES = {
   teal: ({ C, h }) => C >= 9 && inHue(h, 165, 240),
   purple: ({ L, C, h }) => C >= 7 && inHue(h, 292, 20) && L <= 62,
   green: ({ C, h }) => C >= 10 && inHue(h, 110, 170),
+  // violet-black cloth (the Necromancer's robe): a rect override's `where`, so the crimson
+  // lining stays the faction area while the robe keeps its own colour
+  violet: ({ L, C, h }) => C >= 4 && inHue(h, 270, 340) && L <= 62,
   gold: ({ L, C, h }) =>
     L >= 42 && ((C >= 34 && inHue(h, 72, 102)) || (C >= 48 && inHue(h, 62, 102))),
   brownHair: ({ L, C, h }) => C >= 9 && inHue(h, 30, 80) && L >= 16 && L <= 70,

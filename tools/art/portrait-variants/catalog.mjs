@@ -519,7 +519,11 @@ export const LINES = Object.freeze({
 });
 
 // Enemy classes with portraits. Monsters (Dragon, Dragon Lord, Zombie,
-// Revenant) and the Entity keep their single portrait.
+// Revenant) and the Entity keep their single portrait. So do the enemy-only classes of
+// Phase 3 (3I), which are deliberately NOT listed here (tests/PortraitVariants.test.js asks
+// four faces of every listed class): the Skeleton is a monster, and a battle never holds
+// more than one Necromancer, so one recognisable face serves (tools/art/portrait-variants/
+// gen-legacy-extra.mjs draws both; the Merchant likewise).
 export const ENEMY_CLASSES = Object.freeze([
   'Archer',
   'Assassin',
