@@ -1,5 +1,11 @@
 # Weapon Arts Expansion Status
 
+## Update (2026-10-07)
+
+The catalog now holds **90** arts: the area arts of `docs/specs/aoe-weapon-arts.md`, then
+Lunar Brace (`foeDefShare`) and Override (`pushAreaVictims`, the first non-legendary Master
+rank art) from `docs/specs/phase3.md` 3F. The counts below are the June snapshot.
+
 ## Current Snapshot (2026-06-11)
 
 Status: COMPLETE (all catalog mechanics implemented)

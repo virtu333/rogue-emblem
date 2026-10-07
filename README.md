@@ -9,7 +9,7 @@ A browser-based tactical RPG (formerly "Emblem Rogue" / "Rogue Emblem") combinin
 Feature-complete through 4 acts with full run loop, meta-progression, and 3 difficulty modes. 3,400+ tests across 170+ files. Active development continues on content expansion and balance tuning.
 
 **Highlights:**
-- 52 classes (21 base + 30 promoted + 1 boss-tier), 113 weapons, 52 skills, 75 weapon arts
+- 52 classes (21 base + 30 promoted + 1 boss-tier), 113 weapons, 52 skills, 90 weapon arts
 - 29 accessories, 23 blessings, 12 enemy affixes, 15 terrain types, 16 map templates
 - Normal / Hard / Lunatic difficulty modes
 - Offline play with local saves (3 slots) by default; optional Supabase cloud builds require `VITE_CLOUD_ENABLED=true`
