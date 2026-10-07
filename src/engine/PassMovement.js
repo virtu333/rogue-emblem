@@ -12,8 +12,9 @@
 // movement code (AIController, ThreatForecast.enemyThreatTiles) never asks for it.
 import { hasEffectiveSkill } from './EffectiveSkills.js';
 import { passesThrough } from './Grid.js';
+import { PASS_SKILL_ID } from '../utils/constants.js';
 
-export const PASS_SKILL_ID = 'pass';
+export { PASS_SKILL_ID };
 
 /** Does this unit walk through enemy units (Pass, learned, innate or lent)? */
 export function hasPass(unit) {

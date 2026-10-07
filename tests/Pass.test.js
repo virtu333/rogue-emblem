@@ -38,6 +38,7 @@ import { InputController } from '../src/ui/InputController.js';
 import { HeadlessGrid } from './harness/HeadlessGrid.js';
 import { HeadlessBattle } from './harness/HeadlessBattle.js';
 import { installSeed, restoreMathRandom } from '../sim/lib/SeededRNG.js';
+import { createPromotedEnemyUnit } from '../src/engine/UnitManager.js';
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
@@ -419,6 +420,18 @@ describe('enemies never get Pass, and a player’s Pass leaves their ranges alon
     const normal = computeMovementRange(grid, 0, 0, 4, 'Infantry', positions, 'enemy', 0);
     expect(stoppable(asked)).toEqual(['0,0', '1,0']);
     expect(asked).toEqual(normal);
+  });
+
+  it('a generated enemy Trickster keeps Darting Blow but never carries Pass, at any act or level', () => {
+    const trickster = data.classes.find((c) => c.name === 'Trickster');
+    for (const act of ['act1', 'act2', 'act3', 'act4', 'finalBoss'])
+      for (const level of [1, 6, 10, 15, 20]) {
+        const enemy = createPromotedEnemyUnit(trickster, level, data.weapons, 1.0, data.skills, act, data.classes); // prettier-ignore
+        expect(enemy.faction, `${act} L${level}`).toBe('enemy');
+        expect(enemy.skills, `${act} L${level}`).toContain('darting_blow');
+        expect(enemy.skills, `${act} L${level}`).not.toContain('pass');
+      }
+    // The player's own promotion to Trickster still gives it (tests/Phase3EData.test.js).
   });
 
   it('movementOptionsFor is false for an enemy that somehow carries the skill', () => {
