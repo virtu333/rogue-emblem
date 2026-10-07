@@ -1,7 +1,8 @@
 // ActionAbilitySystem — pure helpers for utility abilities: "action"-trigger
 // skills carrying structured `actionAbility` data (Blink, Rally Cry, Healing
-// Circle, Ensnare, Smite, Transfuse). Battle actions that appear in the Ability
-// submenu of the unit action menu. No Phaser dependencies.
+// Circle, Ensnare, Smite, Transfuse, Great Sacrifice, Goddess Dance, Blink Strike).
+// Battle actions that appear in the Ability submenu of the unit action menu. No Phaser
+// dependencies.
 //
 // Gating rules:
 // - Silence blocks abilities (they are shouts/spells — same rule as staves
@@ -23,9 +24,10 @@ import { damageUnit, healUnit } from './UnitHealth.js';
 import { allyBuff } from './PostCombatEffects.js';
 import { applyCondition, isSilenced, isWounded } from './StatusConditionSystem.js';
 import { gridDistance } from './Combat.js';
-import { getFootprintKeys, isEntity } from './EntitySystem.js';
+import { combatDistance, getFootprintKeys, isEntity } from './EntitySystem.js';
 import { displacementBlockReason, traceForcedMove } from './ForcedMovement.js';
-import { effectiveSkills } from './EffectiveSkills.js';
+import { effectiveSkills, hasEffectiveSkill } from './EffectiveSkills.js';
+import { canAttackWithWeapon, getAttackRange } from './AttackOptions.js';
 
 /** Ability kinds the engine + BattleScene glue know how to execute. */
 export const ACTION_ABILITY_KINDS = new Set([
@@ -35,6 +37,9 @@ export const ACTION_ABILITY_KINDS = new Set([
   'aoe_root',
   'push_enemy',
   'transfer_hp',
+  'sacrifice_heal',
+  'refresh_adjacent',
+  'warp_strike',
 ]);
 
 /** Kinds that pick one adjacent unit (SELECTING_ABILITY_TILE, on the unit's tile). */
@@ -156,7 +161,10 @@ export function collectAffected(unit, ability, units) {
  * - ally_buff / aoe_root: at least one affected unit
  * - aoe_heal: at least one affected unit missing HP
  * - push_enemy / transfer_hp: at least one legal adjacent target
- * @param {object} ctx { grid, getUnitAt, allies, enemies, affixes }
+ * - sacrifice_heal: the user has HP to spare and a hurt, healable ally is in range
+ * - refresh_adjacent: an adjacent ally who has acted and is not a dancer
+ * - warp_strike: a free tile the equipped weapon strikes a seen foe from
+ * @param {object} ctx { grid, getUnitAt, allies, enemies, affixes, skillsData }
  */
 export function abilityHasTargets(unit, skill, ctx = {}) {
   const ability = skill?.actionAbility;
@@ -178,6 +186,12 @@ export function abilityHasTargets(unit, skill, ctx = {}) {
       return findSmiteTargets(unit, ability, ctx).length > 0;
     case 'transfer_hp':
       return findTransfuseTargets(unit, ability, ctx).length > 0;
+    case 'sacrifice_heal':
+      return sacrificeAmount(unit, ability, allies) > 0;
+    case 'refresh_adjacent':
+      return findDanceRefreshTargets(unit, allies).length > 0;
+    case 'warp_strike':
+      return findWarpStrikeOptions(unit, ability, ctx).length > 0;
     default:
       return false;
   }
@@ -368,4 +382,180 @@ export function settleTransfuse(giver, target, ability) {
     allyBefore,
     allyAfter: target.unit.currentHP,
   };
+}
+
+// --- Great Sacrifice (sacrifice_heal): pay HP, every ally in range heals that much ---
+
+/**
+ * Allies Great Sacrifice would mend: within the ability's radius, hurt, and able to recover
+ * it. A Wounded ally recovers nothing (UnitHealth.healUnit), so it is never counted: a
+ * sacrifice for no one would only burn HP. The user itself is never a target.
+ */
+export function sacrificeTargets(user, ability, allies) {
+  if (!liveUnit(user) || !Array.isArray(allies)) return [];
+  return collectAffected(user, { ...ability, includeSelf: false }, allies).filter(
+    (ally) =>
+      ally !== user &&
+      !isWounded(ally) &&
+      (Number(ally.currentHP) || 0) < (Number(ally.stats?.HP) || 0),
+  );
+}
+
+/**
+ * HP the user pays, and every ally in range is healed by: the ability's cap, what the user
+ * can spare (never its last HP) and what the most hurt ally in range is missing. 0 means
+ * the ability has nothing worthwhile to do (the user is down to 1 HP, or no one in range is
+ * hurt and healable), so it is not offered: it never wastes the turn.
+ */
+export function sacrificeAmount(user, ability, allies) {
+  const cap = Math.max(1, Math.trunc(Number(ability?.amount) || 1));
+  const spare = (Number(user?.currentHP) || 0) - 1;
+  const need = sacrificeTargets(user, ability, allies).reduce(
+    (most, ally) => Math.max(most, (Number(ally.stats?.HP) || 0) - (Number(ally.currentHP) || 0)),
+    0,
+  );
+  return Math.max(0, Math.min(cap, spare, need));
+}
+
+/**
+ * The sacrifice, settled through UnitHealth: each ally in range is healed by the amount
+ * (capped at its max HP), then the user pays it, never below 1 HP. `allies` is the pool the
+ * ability reads (the army, plus the NPC allies the caster sees, as Healing Circle).
+ * @returns {{ user: object, amount: number, paid: number, userBefore: number,
+ *   userAfter: number, targets: Array<{ unit: object, hpBefore: number, hpAfter: number,
+ *   healed: number }> }}
+ */
+export function settleGreatSacrifice(user, ability, allies) {
+  const amount = sacrificeAmount(user, ability, allies);
+  const userBefore = user.currentHP;
+  const targets =
+    amount > 0
+      ? sacrificeTargets(user, ability, allies).map((unit) => {
+          const hpBefore = unit.currentHP;
+          const healed = healUnit(unit, amount);
+          return { unit, hpBefore, hpAfter: unit.currentHP, healed };
+        })
+      : [];
+  const paid = amount > 0 ? damageUnit(user, amount, { floor: 1, disturbs: false }) : 0;
+  return { user, amount, paid, userBefore, userAfter: user.currentHP, targets };
+}
+
+// --- Goddess Dance (refresh_adjacent): refresh every adjacent ally who has acted ---
+
+/**
+ * The allies a dancer can refresh: next to it (the four neighbouring tiles), alive, having
+ * acted, and not dancers themselves (a dancer's own turn is its own). This is Dance's rule
+ * (BattleScene.findDanceTargets reads it too), and Goddess Dance refreshes all of them.
+ * "Dancer" is read through effective skills, so a Dance an accessory lends counts.
+ * @param {object} unit the dancer
+ * @param {object[]} units the player's army
+ * @returns {object[]} allies, in the cardinal order up, down, left, right
+ */
+export function findDanceRefreshTargets(unit, units) {
+  if (!unit || !Array.isArray(units)) return [];
+  // Not removed or down (a unit with no HP field, as a bare test unit, still stands).
+  const standing = (other) => Boolean(other) && !other._removing && !(other.currentHP <= 0);
+  const targets = [];
+  for (const { dc, dr } of CARDINALS) {
+    const ally = units.find(
+      (other) =>
+        other !== unit &&
+        standing(other) &&
+        other.col === unit.col + dc &&
+        other.row === unit.row + dr,
+    );
+    if (ally && ally.hasActed && !hasEffectiveSkill(ally, 'dance')) targets.push(ally);
+  }
+  return targets;
+}
+
+/**
+ * Refresh one ally who has acted: it may move and act again. The same refresh Dance gives
+ * (MovementActionController.executeDance): `hasMoved`, `_movementCommitted` and `hasActed`
+ * are reset. `_movementSpent` is not (Dance never reset it; the Gambit and Galeforce do).
+ */
+export function refreshActedAlly(ally) {
+  ally.hasMoved = false;
+  ally._movementCommitted = false;
+  ally.hasActed = false;
+}
+
+/**
+ * Goddess Dance, settled: every target is refreshed (the caller spends the use, as for
+ * Healing Circle, and records the deeds and XP).
+ */
+export function settleGoddessDance(targets) {
+  for (const ally of targets) refreshActedAlly(ally);
+  return targets;
+}
+
+// --- Blink Strike (warp_strike): warp next to a seen foe, then attack it ---
+
+/**
+ * Where Blink Strike may land and whom it may strike from there. A destination is a tile of
+ * Blink's diamond (getBlinkTiles: in bounds, passable for the move type, unoccupied as the
+ * player knows it) from which the EQUIPPED weapon reaches at least one seen foe; `targets`
+ * are the foes it reaches from that tile. So a bow user is offered only the tiles at its
+ * range, a lance user the tiles beside a foe. Only the equipped weapon counts: no weapon
+ * swap, and never a weapon art (the strike is a plain attack).
+ * `ctx`: { grid, getUnitAt, enemies, skillsData }: what the player may know. `getUnitAt`
+ * counts a fogged tile as taken (BattleInformation.seenTileOccupant) and `enemies` are the
+ * seen foes, so a hidden unit can never change what is offered.
+ * @returns {Array<{ col: number, row: number, targets: object[] }>} reading order
+ */
+export function findWarpStrikeOptions(unit, ability, ctx = {}) {
+  const { grid, getUnitAt, enemies, skillsData } = ctx;
+  const weapon = unit?.weapon;
+  if (!liveUnit(unit) || !grid || !weapon || !Array.isArray(enemies)) return [];
+  if (!canAttackWithWeapon(unit, weapon)) return [];
+  const { min, max } = getAttackRange(unit, weapon, { skillsData });
+  const foes = enemies.filter((foe) => liveUnit(foe) && foe !== unit);
+  const options = [];
+  for (const tile of getBlinkTiles(unit, ability?.range, grid, getUnitAt)) {
+    const targets = foes.filter((foe) => {
+      const distance = combatDistance(tile, foe);
+      return distance >= min && distance <= max;
+    });
+    if (targets.length > 0) options.push({ col: tile.col, row: tile.row, targets });
+  }
+  return options;
+}
+
+/**
+ * Validate a whole Blink Strike (destination and target) against what the player knows:
+ * the same finder the menu used, so what was offered is what is accepted, and a board that
+ * changed since (a foe fell, the weapon broke) is refused. Run at the choices and again at
+ * commit.
+ * @returns {{ ok: true, from: {col,row}, destination: {col,row}, target: object,
+ *   distance: number } | { ok: false, reason: 'bad_destination'|'bad_target' }}
+ */
+export function planWarpStrike(unit, ability, destination, target, ctx = {}) {
+  const option = findWarpStrikeOptions(unit, ability, ctx).find(
+    (entry) => entry.col === destination?.col && entry.row === destination?.row,
+  );
+  if (!option) return { ok: false, reason: 'bad_destination' };
+  if (!target || !option.targets.includes(target)) return { ok: false, reason: 'bad_target' };
+  return {
+    ok: true,
+    from: { col: unit.col, row: unit.row },
+    destination: { col: option.col, row: option.row },
+    target,
+    distance: combatDistance({ col: option.col, row: option.row }, target),
+  };
+}
+
+/**
+ * The warp, settled (the domain write, before anything is drawn). The use is spent either
+ * way. `occupantAt(col, row)` reads the REAL board: a unit the fog hid standing on the
+ * destination makes the warp fail (the unit stays where it is), where the choices only knew
+ * the board as the player does. Blink Strike never places a unit on another.
+ * @returns {{ warped: boolean, moves: object[], blocker: object|null, usage: number }}
+ */
+export function settleWarpStrike(unit, skill, plan, { occupantAt = null } = {}) {
+  markUsed(unit, skill.id);
+  const usage = getAbilityUsageCount(unit, skill.id);
+  const { col, row } = plan.destination;
+  const blocker = typeof occupantAt === 'function' ? occupantAt(col, row) : null;
+  if (blocker && blocker !== unit) return { warped: false, moves: [], blocker, usage };
+  return { warped: true, moves: settleMoves([{ unit, to: { col, row } }]), blocker: null, usage };
 }

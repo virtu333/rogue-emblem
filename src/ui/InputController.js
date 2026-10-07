@@ -2,6 +2,7 @@ import { sceneHealPreview } from './healTargetPreview.js';
 import { DangerZoneOverlay } from './DangerZoneOverlay.js';
 import { canInspectUnit, terrainRuleLines } from '../engine/BattleInformation.js';
 import { computeEffectivePath } from '../engine/Grid.js';
+import { movementOptionsFor } from '../engine/PassMovement.js';
 import { unitReach } from '../engine/ThreatForecast.js';
 import { plantsAmongPositions } from '../engine/SiegeArtillery.js';
 import { getBallistaDangerTiles, isBallistaTile } from '../engine/BallistaEngine.js';
@@ -213,6 +214,7 @@ export class InputController {
         positions,
         unit.faction,
         scene._getCostModifier(unit),
+        movementOptionsFor(unit),
       );
     if (!path) return;
     // What the player knows (PlayerKnowledge.js): a hidden unit on the lane must not

@@ -24,6 +24,15 @@ const DIRECTIONS = [
   { dc: 1, dr: 0 },
 ];
 
+/**
+ * Does a mover with Pass walk through this occupant? Enemy units only, and never for an
+ * enemy mover (Pass is a player skill: the AI's movement code never sets the option).
+ * NPC allies keep blocking as they always did.
+ */
+export function passesThrough(occupant, moverFaction) {
+  return occupant?.faction === 'enemy' && moverFaction !== 'enemy';
+}
+
 export function getEntryDirection(path) {
   if (!Array.isArray(path) || path.length < 2) return null;
   const prev = path[path.length - 2];
@@ -205,6 +214,9 @@ export function computeEffectivePath(
  * @param {Map} [unitPositions] - Map of "col,row" -> { faction } for occupied tiles
  * @param {string} [moverFaction] - faction of the moving unit
  * @param {number} [costModifier]
+ * @param {{ pass?: boolean }} [options] - `pass`: the mover has Pass (passesThrough): it
+ *   walks through enemy units and may not stop on one, the rule an ally's tile already
+ *   follows. An occupied tile still ends an ice slide.
  * @returns {Map} "col,row" -> { cost, parent, slidePath?, slideStop?, stoppable? }
  */
 export function computeMovementRange(
@@ -216,7 +228,9 @@ export function computeMovementRange(
   unitPositions = null,
   moverFaction = null,
   costModifier = 0,
+  options = null,
 ) {
+  const pass = options?.pass === true;
   const reachable = new Map();
   const queue = [{ col: startCol, row: startRow, cost: 0 }];
   reachable.set(`${startCol},${startRow}`, { cost: 0, parent: null });
@@ -267,11 +281,15 @@ export function computeMovementRange(
       if (unitPositions) {
         const occupant = unitPositions.get(key);
         if (occupant) {
-          if (occupant.faction !== moverFaction) {
-            // Enemy on tile — can't move through
+          if (
+            occupant.faction !== moverFaction &&
+            !(pass && passesThrough(occupant, moverFaction))
+          ) {
+            // Enemy on tile — can't move through (unless the mover has Pass)
             continue;
           }
-          // Ally on tile — can traverse but mark as occupied (filter below)
+          // Ally on tile (or a foe a Pass unit walks through) — can traverse but mark as
+          // occupied (filter below)
         }
       }
 
@@ -318,13 +336,17 @@ export function computeMovementRange(
     }
   }
 
-  // Mark ally-occupied tiles as non-stoppable (can pass through but not stop on).
-  // We keep them in the map so parent chains stay intact for path reconstruction.
+  // Mark ally-occupied tiles (and, with Pass, foe-occupied ones) as non-stoppable (can
+  // pass through but not stop on). We keep them in the map so parent chains stay intact
+  // for path reconstruction.
   if (unitPositions && moverFaction) {
     for (const [key, entry] of reachable) {
       if (key === `${startCol},${startRow}`) continue; // own tile is fine
       const occupant = unitPositions.get(key);
-      if (occupant && occupant.faction === moverFaction) {
+      if (
+        occupant &&
+        (occupant.faction === moverFaction || (pass && passesThrough(occupant, moverFaction)))
+      ) {
         entry.stoppable = false;
       }
     }
@@ -386,6 +408,83 @@ export function reconstructRangePath(reachable, startCol, startRow, goalCol, goa
   if (path.length < 2) return null;
   if (reachable.get(goalKey)?.slideStop) path[path.length - 1].slideStop = true;
   return path;
+}
+
+/**
+ * A* from (startCol,startRow) to (goalCol,goalRow). Shared by the scene's Grid and the
+ * headless harness's grid (anything with cols, rows and getMoveCost), so the two never
+ * drift. Enemy-occupied tiles block, allies' tiles do not; with `options.pass` (Pass) a
+ * foe's tile is walked through too (computeMovementRange's rule).
+ * @returns {Array<{col, row}>|null} start to goal, or null when unreachable
+ */
+export function computePath(
+  grid,
+  startCol,
+  startRow,
+  goalCol,
+  goalRow,
+  moveType,
+  unitPositions = null,
+  moverFaction = null,
+  costModifier = 0,
+  options = null,
+) {
+  const pass = options?.pass === true;
+  const heuristic = (c, r) => Math.abs(c - goalCol) + Math.abs(r - goalRow);
+
+  const openSet = [{ col: startCol, row: startRow, g: 0, f: heuristic(startCol, startRow) }];
+  const cameFrom = new Map();
+  const gScore = new Map();
+  gScore.set(`${startCol},${startRow}`, 0);
+
+  while (openSet.length > 0) {
+    openSet.sort((a, b) => a.f - b.f);
+    const current = openSet.shift();
+    const currentKey = `${current.col},${current.row}`;
+
+    if (current.col === goalCol && current.row === goalRow) {
+      // Reconstruct path
+      const path = [];
+      let key = currentKey;
+      while (key) {
+        const [c, r] = key.split(',').map(Number);
+        path.unshift({ col: c, row: r });
+        key = cameFrom.get(key);
+      }
+      return path;
+    }
+
+    for (const { dc, dr } of DIRECTIONS) {
+      const nc = current.col + dc;
+      const nr = current.row + dr;
+      if (nc < 0 || nc >= grid.cols || nr < 0 || nr >= grid.rows) continue;
+
+      const moveCost = grid.getMoveCost(nc, nr, moveType, costModifier);
+      if (moveCost === Infinity) continue;
+
+      // Block enemy-occupied tiles (can pass through allies, and through foes with Pass)
+      const nKey = `${nc},${nr}`;
+      if (unitPositions) {
+        const occupant = unitPositions.get(nKey);
+        if (
+          occupant &&
+          occupant.faction !== moverFaction &&
+          !(pass && passesThrough(occupant, moverFaction))
+        )
+          continue;
+      }
+
+      const tentativeG = current.g + moveCost;
+
+      if (!gScore.has(nKey) || tentativeG < gScore.get(nKey)) {
+        cameFrom.set(nKey, currentKey);
+        gScore.set(nKey, tentativeG);
+        openSet.push({ col: nc, row: nr, g: tentativeG, f: tentativeG + heuristic(nc, nr) });
+      }
+    }
+  }
+
+  return null;
 }
 
 export class Grid {
@@ -619,6 +718,7 @@ export class Grid {
     unitPositions = null,
     moverFaction = null,
     costModifier = 0,
+    options = null,
   ) {
     return computeMovementRange(
       this,
@@ -629,6 +729,7 @@ export class Grid {
       unitPositions,
       moverFaction,
       costModifier,
+      options,
     );
   }
 
@@ -637,8 +738,8 @@ export class Grid {
     return reconstructRangePath(reachable, startCol, startRow, goalCol, goalRow);
   }
 
-  // A* pathfinding from (startCol,startRow) to (goalCol,goalRow)
-  // Returns array of {col, row} from start to goal, or null if unreachable
+  // A* pathfinding from (startCol,startRow) to (goalCol,goalRow): computePath, shared with
+  // the headless grid. Returns array of {col, row} from start to goal, or null if unreachable.
   findPath(
     startCol,
     startRow,
@@ -648,57 +749,20 @@ export class Grid {
     unitPositions = null,
     moverFaction = null,
     costModifier = 0,
+    options = null,
   ) {
-    const heuristic = (c, r) => Math.abs(c - goalCol) + Math.abs(r - goalRow);
-
-    const openSet = [{ col: startCol, row: startRow, g: 0, f: heuristic(startCol, startRow) }];
-    const cameFrom = new Map();
-    const gScore = new Map();
-    gScore.set(`${startCol},${startRow}`, 0);
-
-    while (openSet.length > 0) {
-      openSet.sort((a, b) => a.f - b.f);
-      const current = openSet.shift();
-      const currentKey = `${current.col},${current.row}`;
-
-      if (current.col === goalCol && current.row === goalRow) {
-        // Reconstruct path
-        const path = [];
-        let key = currentKey;
-        while (key) {
-          const [c, r] = key.split(',').map(Number);
-          path.unshift({ col: c, row: r });
-          key = cameFrom.get(key);
-        }
-        return path;
-      }
-
-      for (const { dc, dr } of DIRECTIONS) {
-        const nc = current.col + dc;
-        const nr = current.row + dr;
-        if (nc < 0 || nc >= this.cols || nr < 0 || nr >= this.rows) continue;
-
-        const moveCost = this.getMoveCost(nc, nr, moveType, costModifier);
-        if (moveCost === Infinity) continue;
-
-        // Block enemy-occupied tiles (can pass through allies)
-        const nKey = `${nc},${nr}`;
-        if (unitPositions) {
-          const occupant = unitPositions.get(nKey);
-          if (occupant && occupant.faction !== moverFaction) continue;
-        }
-
-        const tentativeG = current.g + moveCost;
-
-        if (!gScore.has(nKey) || tentativeG < gScore.get(nKey)) {
-          cameFrom.set(nKey, currentKey);
-          gScore.set(nKey, tentativeG);
-          openSet.push({ col: nc, row: nr, g: tentativeG, f: tentativeG + heuristic(nc, nr) });
-        }
-      }
-    }
-
-    return null;
+    return computePath(
+      this,
+      startCol,
+      startRow,
+      goalCol,
+      goalRow,
+      moveType,
+      unitPositions,
+      moverFaction,
+      costModifier,
+      options,
+    );
   }
 
   /**

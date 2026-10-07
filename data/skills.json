@@ -337,6 +337,47 @@
     }
   },
   {
+    "id": "great_sacrifice",
+    "name": "Great Sacrifice",
+    "description": "Once per battle: pay up to 10 HP (never your last); allies within 2 tiles heal that much",
+    "trigger": "action",
+    "actionAbility": {
+      "kind": "sacrifice_heal",
+      "radius": 2,
+      "amount": 10,
+      "perMapLimit": 1
+    }
+  },
+  {
+    "id": "goddess_dance",
+    "name": "Goddess Dance",
+    "description": "Once per battle: every adjacent ally who has acted can act again",
+    "trigger": "action",
+    "actionAbility": {
+      "kind": "refresh_adjacent",
+      "perMapLimit": 1,
+      "usableWhileSilenced": true
+    }
+  },
+  {
+    "id": "blink_strike",
+    "name": "Blink Strike",
+    "description": "Once per battle: warp next to a foe within 4 spaces and attack it",
+    "trigger": "action",
+    "actionAbility": {
+      "kind": "warp_strike",
+      "range": 4,
+      "perMapLimit": 1
+    }
+  },
+  {
+    "id": "pass",
+    "name": "Pass",
+    "description": "Move through enemy units (but never stop on one)",
+    "trigger": "passive",
+    "classInnate": "Trickster"
+  },
+  {
     "id": "canto",
     "name": "Canto",
     "description": "Use remaining movement after acting",

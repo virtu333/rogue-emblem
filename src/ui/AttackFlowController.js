@@ -340,9 +340,34 @@ export class AttackFlowController {
     return this.showForecast(unit, target, { rerender: true });
   }
 
+  /**
+   * Blink Strike's forecast (docs/specs/phase3.md 3E): the attacker has not moved, but the
+   * forecast reads where it WILL stand. Run `fn` (a synchronous forecast read: distance,
+   * terrain, weapons in reach, the skill context) with the attacker's coordinates on the
+   * destination, and put them back at once. Outside a Blink Strike forecast it is just `fn()`.
+   */
+  atWarpDestination(attacker, fn) {
+    const warp = this.scene._warpStrike;
+    if (!warp || warp.unit !== attacker) return fn();
+    const { col, row } = attacker;
+    attacker.col = warp.destination.col;
+    attacker.row = warp.destination.row;
+    try {
+      return fn();
+    } finally {
+      attacker.col = col;
+      attacker.row = row;
+    }
+  }
+
   /** Forecast Cancel: back to target selection on the same target. */
   cancelForecast() {
     const scene = this.scene;
+    // A Blink Strike's forecast steps back to its foe step, nothing having moved.
+    if (scene._warpStrike) {
+      scene._warpStrikeFlow().backFromForecast();
+      return;
+    }
     const target = scene.forecastTarget;
     scene.hideForecast({ acknowledge: true, cancelled: true });
     scene._clearCombatRollSession();
@@ -376,20 +401,26 @@ export class AttackFlowController {
     scene._clearSelectedWeaponArtIfInvalid(attacker);
 
     // Shared context: distance, terrain, roll session, weapon art selection
+    // (A Blink Strike's forecast reads the position the attacker will warp to.)
+    const at = (fn) => this.atWarpDestination(attacker, fn);
     const {
       dist,
       atkTerrain,
       defTerrain,
       selectedArt: weaponArt,
       rollSession,
-    } = scene._prepareCombatContext(attacker, defender, { isPlayerInitiator: true });
+    } = at(() => scene._prepareCombatContext(attacker, defender, { isPlayerInitiator: true }));
 
     // Art attacks stay bound to the art's weapon; normal attacks may use any
-    // usable weapon that reaches this target (equipped first).
+    // usable weapon that reaches this target (equipped first). A Blink Strike is a plain
+    // attack with the equipped weapon: no art, no weapon to cycle to.
     const selectedEntry = weaponArt ? scene._resolveSelectedWeaponArtEntry(attacker) : null;
+    const warping = Boolean(scene._warpStrike && scene._warpStrike.unit === attacker);
     const validWeapons = selectedEntry
       ? [selectedEntry.weapon]
-      : this.weaponsForTarget(attacker, defender);
+      : warping
+        ? [attacker.weapon]
+        : this.weaponsForTarget(attacker, defender);
     const chosen =
       selectedEntry?.weapon ||
       (weapon && validWeapons.includes(weapon) ? weapon : validWeapons[0]) ||
@@ -409,12 +440,14 @@ export class AttackFlowController {
     }
     // Computed in the state resolution uses (after a weapon art's HP cost,
     // Recoil Guard buff and Phoenix Brooch heal); see BattleScene._computePlayerForecast.
-    const forecast = scene._computePlayerForecast(attacker, defender, weaponArt, {
-      weapon: chosen,
-      dist,
-      atkTerrain,
-      defTerrain,
-    });
+    const forecast = at(() =>
+      scene._computePlayerForecast(attacker, defender, weaponArt, {
+        weapon: chosen,
+        dist,
+        atkTerrain,
+        defTerrain,
+      }),
+    );
     // An area art: its full preview, with the combat's merged mods, and its forecast lines.
     if (weaponArt) {
       const strikeMods = combatStrikeMods(

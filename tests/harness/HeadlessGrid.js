@@ -2,15 +2,8 @@
 // Extracted from src/engine/Grid.js for headless battle testing.
 
 import { parseRange } from '../../src/engine/Combat.js';
-import { computeMovementRange, reconstructRangePath } from '../../src/engine/Grid.js';
+import { computeMovementRange, computePath, reconstructRangePath } from '../../src/engine/Grid.js';
 import { VISION_RANGES } from '../../src/utils/constants.js';
-
-const DIRECTIONS = [
-  { dc: 0, dr: -1 },
-  { dc: 0, dr: 1 },
-  { dc: -1, dr: 0 },
-  { dc: 1, dr: 0 },
-];
 
 export class HeadlessGrid {
   constructor(cols, rows, terrainData, mapLayout, fogEnabled = false) {
@@ -47,6 +40,7 @@ export class HeadlessGrid {
     unitPositions = null,
     moverFaction = null,
     costModifier = 0,
+    options = null,
   ) {
     return computeMovementRange(
       this,
@@ -57,6 +51,7 @@ export class HeadlessGrid {
       unitPositions,
       moverFaction,
       costModifier,
+      options,
     );
   }
 
@@ -64,7 +59,8 @@ export class HeadlessGrid {
     return reconstructRangePath(reachable, startCol, startRow, goalCol, goalRow);
   }
 
-  // A* pathfinding — returns array of {col, row} or null.
+  // A* pathfinding — returns array of {col, row} or null: the scene's own code
+  // (Grid.computePath), never a copy.
   findPath(
     startCol,
     startRow,
@@ -74,54 +70,20 @@ export class HeadlessGrid {
     unitPositions = null,
     moverFaction = null,
     costModifier = 0,
+    options = null,
   ) {
-    const heuristic = (c, r) => Math.abs(c - goalCol) + Math.abs(r - goalRow);
-
-    const openSet = [{ col: startCol, row: startRow, g: 0, f: heuristic(startCol, startRow) }];
-    const cameFrom = new Map();
-    const gScore = new Map();
-    gScore.set(`${startCol},${startRow}`, 0);
-
-    while (openSet.length > 0) {
-      openSet.sort((a, b) => a.f - b.f);
-      const current = openSet.shift();
-      const currentKey = `${current.col},${current.row}`;
-
-      if (current.col === goalCol && current.row === goalRow) {
-        const path = [];
-        let key = currentKey;
-        while (key) {
-          const [c, r] = key.split(',').map(Number);
-          path.unshift({ col: c, row: r });
-          key = cameFrom.get(key);
-        }
-        return path;
-      }
-
-      for (const { dc, dr } of DIRECTIONS) {
-        const nc = current.col + dc;
-        const nr = current.row + dr;
-        if (nc < 0 || nc >= this.cols || nr < 0 || nr >= this.rows) continue;
-
-        const moveCost = this.getMoveCost(nc, nr, moveType, costModifier);
-        if (moveCost === Infinity) continue;
-
-        const nKey = `${nc},${nr}`;
-        if (unitPositions) {
-          const occupant = unitPositions.get(nKey);
-          if (occupant && occupant.faction !== moverFaction) continue;
-        }
-
-        const tentativeG = current.g + moveCost;
-        if (!gScore.has(nKey) || tentativeG < gScore.get(nKey)) {
-          cameFrom.set(nKey, currentKey);
-          gScore.set(nKey, tentativeG);
-          openSet.push({ col: nc, row: nr, g: tentativeG, f: tentativeG + heuristic(nc, nr) });
-        }
-      }
-    }
-
-    return null;
+    return computePath(
+      this,
+      startCol,
+      startRow,
+      goalCol,
+      goalRow,
+      moveType,
+      unitPositions,
+      moverFaction,
+      costModifier,
+      options,
+    );
   }
 
   // Get all tiles within weapon range (Manhattan distance).

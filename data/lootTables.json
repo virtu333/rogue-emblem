@@ -167,6 +167,7 @@
       "Rally Cry Scroll",
       "Healing Circle Scroll",
       "Ensnare Scroll",
+      "Pass Scroll",
       "Uncanny Blow Scroll",
       "Warding Blow Scroll",
       "Lifetaker Scroll",
@@ -284,6 +285,9 @@
       "Pull Scroll",
       "Smite Scroll",
       "Transfuse Scroll",
+      "Great Sacrifice Scroll",
+      "Blink Strike Scroll",
+      "Pass Scroll",
       "Blink Scroll",
       "Rally Cry Scroll",
       "Healing Circle Scroll",
@@ -434,6 +438,9 @@
       "Pull Scroll",
       "Smite Scroll",
       "Transfuse Scroll",
+      "Great Sacrifice Scroll",
+      "Blink Strike Scroll",
+      "Pass Scroll",
       "Blink Scroll",
       "Rally Cry Scroll",
       "Healing Circle Scroll",
@@ -557,7 +564,7 @@
       ],
       "act4": [
         "luna", "sol", "lifetaker", "speedtaker", "pavise", "aegis", "renewal",
-        "astra", "aether", "miracle", "blink"
+        "astra", "aether", "miracle", "blink", "pass"
       ]
     },
     "priceMultiplier": 1.5,
@@ -572,7 +579,8 @@
       "pavise",
       "aegis",
       "renewal",
-      "aether"
+      "aether",
+      "pass"
     ]
   }
 }

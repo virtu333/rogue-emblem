@@ -53,6 +53,9 @@ export function readCommittedAction(value) {
     if (pick(g.attacker) !== null || pick(g.defender) !== null)
       gamblerAtkDelta = { attacker: pick(g.attacker), defender: pick(g.defender) };
   }
+  // Blink Strike: the attack of a warp already settled in this checkpoint (resume replays it
+  // as a Blink Strike: no Canto, named in the history). Only `true` or absent is valid.
+  if (value.warpStrike !== undefined && value.warpStrike !== true) return null;
   return {
     kind: 'attack',
     unitId: value.unitId,
@@ -60,6 +63,7 @@ export function readCommittedAction(value) {
     targetId: value.targetId,
     weaponArt,
     ...(gamblerAtkDelta ? { gamblerAtkDelta } : {}),
+    ...(value.warpStrike === true ? { warpStrike: true } : {}),
   };
 }
 

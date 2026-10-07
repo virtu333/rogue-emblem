@@ -41,6 +41,7 @@ import { getCombatWeapons } from '../../src/engine/UnitManager.js';
 import { enemyThreatTiles, positionsWithMoverAt } from '../../src/engine/ThreatForecast.js';
 import { artilleryWeapon, plantsAmongPositions } from '../../src/engine/SiegeArtillery.js';
 import { distanceFieldToAdjacent } from './RescueAgent.js';
+import { movementOptionsFor } from '../../src/engine/PassMovement.js';
 
 const key = (c, r) => `${c},${r}`;
 
@@ -242,6 +243,8 @@ export class TacticianAgent {
       unit.moveType,
       b._buildUnitPositionMap('player'),
       'player',
+      0,
+      movementOptionsFor(unit),
     );
     const tiles = [{ col: unit.col, row: unit.row }];
     for (const [k, entry] of range) {
