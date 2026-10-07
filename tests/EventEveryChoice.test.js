@@ -28,7 +28,10 @@ import {
 import { choiceMayGrantItem } from '../src/engine/EventSystem.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { CONSUMABLE_MAX, INVENTORY_MAX, MAX_SKILLS } from '../src/utils/constants.js';
+import { applyWear } from '../src/engine/WeaponWear.js';
 import { addUnit, arriveAs, baseData, eventNode, fallAlly, newRun } from './eventKit.js';
+import { eventTriples, pickTargetUid, routesToPages, takeAnExit, walkRoute } from './eventWalk.js';
+import { START_PAGE, pageOf } from '../src/engine/EventSystem.js';
 
 const MAX_SEEDS = 400;
 
@@ -48,6 +51,13 @@ function buildRun(seed, { difficulty = 'normal', act = 0 } = {}) {
   fallen.skills = ['pavise', 'wrath', 'guard'];
   fallAlly(run, fallen);
   run.roster[0].consumables = [{ ...run.getConsumableTemplate('Vulnerary') }];
+  // A spare blade in Brant's bag, worn: the Wandering Smith has something to mend and the
+  // equipped weapons stay forgeable.
+  const brant = run.roster.find((u) => u.name === 'Brant');
+  const spare = structuredClone(brant.inventory[0]);
+  delete spare.uid;
+  expect(applyWear(spare, 'might').success).toBe(true);
+  brant.inventory.push(spare);
   return run;
 }
 
@@ -81,35 +91,41 @@ function integrityProblems(run, before) {
   return problems;
 }
 
-function pickTarget(run, nodeId, choiceId) {
-  const view = eventView(run, nodeId);
-  const choice = view.choices.find((c) => c.id === choiceId);
-  if (!choice.target) return null;
-  // The last qualifying unit, so the target is not always the commander.
-  const ok = choice.target.candidates.filter((c) => c.ok);
-  return ok.at(-1)?.uid || null;
-}
+const pickTarget = pickTargetUid;
 
-/** Every [eventId, choiceId, outcomeId] the shipped events can produce. */
+/** Every [eventId, pageId, choiceId, outcomeId] the shipped events can produce, pages included. */
 const triples = baseData.events.events.flatMap((event) =>
-  event.choices.flatMap((choice) =>
-    choice.outcomes.map((outcome) => [event.id, choice.id, outcome.id]),
-  ),
+  eventTriples(event).map(([pageId, choiceId, outcomeId]) => [
+    event.id,
+    pageId,
+    choiceId,
+    outcomeId,
+  ]),
 );
 
 describe('every shipped outcome resolves cleanly', () => {
   it('lists the outcomes (a sanity check on the table itself)', () => {
-    expect(triples.length).toBeGreaterThanOrEqual(35);
+    expect(triples.length).toBeGreaterThanOrEqual(85);
+    // The pages of the multi-page events are in it.
+    expect(
+      triples.filter(([id, page]) => id === 'sunken_mine' && page === 'level_three'),
+    ).not.toHaveLength(0);
+    expect(
+      triples.filter(([id, page]) => id === 'plague_village' && page === 'ward'),
+    ).not.toHaveLength(0);
   });
 
-  it.each(triples)('%s / %s / %s', (eventId, choiceId, outcomeId) => {
-    const choiceDef = baseData.events.events
-      .find((e) => e.id === eventId)
-      .choices.find((c) => c.id === choiceId);
-    // The Echo's fallback outcomes and rung variants are reached by their own seeds.
+  it.each(triples)('%s [%s] / %s / %s', (eventId, pageId, choiceId, outcomeId) => {
+    const event = baseData.events.events.find((e) => e.id === eventId);
+    const choiceDef = pageOf(event, pageId).choices.find((c) => c.id === choiceId);
+    const outcomeDef = choiceDef.outcomes.find((o) => o.id === outcomeId);
+    const route = routesToPages(event).get(pageId);
+    // An outcome only a rung brings (weight 0 below it: Black Sun's lying stranger) is reached there.
+    const difficulty = outcomeDef.weight === 0 ? 'lunatic' : 'normal';
     for (let seed = 1; seed <= MAX_SEEDS; seed++) {
-      const run = buildRun(seed);
+      const run = buildRun(seed, { difficulty });
       const node = arriveAs(run, eventId);
+      if (!walkRoute(run, node.id, route)) continue;
       const block = eventChoiceBlock(run, node.id, choiceId);
       expect(block, `${eventId}.${choiceId} blocked on a fully stocked army`).toBe('');
       const before = {
@@ -127,30 +143,53 @@ describe('every shipped outcome resolves cleanly', () => {
       // The record.
       expect(integrityProblems(run, before)).toEqual([]);
       expect(run.eventLog).toHaveLength(before.log + 1);
-      expect(run.eventLog.at(-1)).toEqual({ eventId, choiceId, outcomeId, act: 'act1' });
+      expect(run.eventLog.at(-1)).toEqual({
+        eventId,
+        choiceId,
+        outcomeId,
+        act: 'act1',
+        ...(pageId === START_PAGE ? {} : { page: pageId }),
+      });
       expect(result.text.length).toBeGreaterThan(0);
       expect(result.text).not.toMatch(/\{[a-z]+\}/);
       for (const record of result.results) {
         expect(typeof record.kind).toBe('string');
         expect(JSON.parse(JSON.stringify(record))).toEqual(record);
       }
-      expect(eventState(run, node.id)).toMatchObject({ choiceId, outcomeId, eventId });
+      // A step that leads on moves the event to the next page and keeps the step behind it; a
+      // step that ends the page leaves its choice on the record.
+      if (outcomeDef.next) {
+        expect(result.next).toBe(outcomeDef.next);
+        expect(eventState(run, node.id)).toMatchObject({ eventId, page: outcomeDef.next });
+        expect(eventState(run, node.id).choiceId).toBeUndefined();
+        expect(eventState(run, node.id).path.at(-1)).toMatchObject({
+          page: pageId,
+          choiceId,
+          outcomeId,
+        });
+      } else {
+        expect(eventState(run, node.id)).toMatchObject({ choiceId, outcomeId, eventId });
+      }
       // A cost is always paid, an outcome with a battle starts one, and nothing else does.
       const cost = choiceDef.cost ? result.results.find((r) => r.cost) : null;
       expect(Boolean(cost)).toBe(Boolean(choiceDef.cost));
-      const hasBattleEffect = choiceDef.outcomes
-        .find((o) => o.id === outcomeId)
-        .effects.some((e) => e.type === 'battle');
+      const hasBattleEffect = outcomeDef.effects.some((e) => e.type === 'battle');
       expect(result.battle).toBe(hasBattleEffect);
 
-      // A save/load round trip keeps the record and the outcome page.
+      // A save/load round trip keeps the record and the page.
       const loaded = RunManager.fromJSON(JSON.parse(JSON.stringify(run.toJSON())), run.gameData);
       expect(eventState(loaded, node.id)).toEqual(eventState(run, node.id));
-      expect(eventView(loaded, node.id).outcome.text).toBe(result.text);
+      if (!outcomeDef.next) expect(eventView(loaded, node.id).outcome.text).toBe(result.text);
       expect(integrityProblems(loaded, before)).toEqual([]);
 
-      // Win the fight (if any), settle, leave.
-      if (result.battle) {
+      // Walk on to the end: a step that led deeper takes an exit; win a fight; leave.
+      let last = result;
+      if (outcomeDef.next) {
+        last = takeAnExit(run, node.id, event);
+        expect(last?.ok, `${eventId} has no exit on ${outcomeDef.next}`).toBe(true);
+        expect(integrityProblems(run, before)).toEqual([]);
+      }
+      if (last.battle) {
         expect(node.type).toBe('event');
         expect(run.completeBattle(run.getRoster(), node.id, 80, { turnCount: 6, turnPar: 6 })).toBe(
           true,
@@ -167,7 +206,9 @@ describe('every shipped outcome resolves cleanly', () => {
       expect(integrityProblems(run, before)).toEqual([]);
       return;
     }
-    throw new Error(`${eventId}.${choiceId}.${outcomeId} never came up in ${MAX_SEEDS} seeds`);
+    throw new Error(
+      `${eventId}[${pageId}].${choiceId}.${outcomeId} never came up in ${MAX_SEEDS} seeds`,
+    );
   });
 });
 
@@ -201,7 +242,17 @@ describe('the same on every rung and in every act', () => {
             event.id,
             run.nodeMap.nodes.find((n) => n.row === 4 && !n.completed),
           );
-          const goldBefore = run.gold;
+          // A guide is offered only where a road can be drawn (requires.roadAhead): on this map there
+          // may be none, and then the choice is greyed with exactly her reason, nothing else.
+          if (choice.requires?.roadAhead) {
+            const block = eventChoiceBlock(run, node.id, choice.id);
+            if (block) {
+              expect(block, `${event.id}.${choice.id} in act${act + 1}`).toBe(
+                choice.requires.reason,
+              );
+              continue;
+            }
+          }
           const result = chooseEventOption(run, node.id, choice.id, {
             targetUid: pickTarget(run, node.id, choice.id),
           });
@@ -210,9 +261,12 @@ describe('the same on every rung and in every act', () => {
           );
           expect(run.gold, `${event.id}.${choice.id}`).toBeGreaterThanOrEqual(0);
           if (choice.cost) {
-            // act n: (100 + 100 n) x 1.25 on Nightfall, rounded to 10
-            const base = (100 + 100 * (act + 1)) * 1.25;
-            expect(goldBefore - run.gold).toBe(Math.round(base / 10) * 10);
+            // The act's amount (base + perAct x n, by hand from the data) x 1.25 on Nightfall,
+            // rounded to 10. Gold the outcome itself pays is added back in.
+            const amount = choice.cost.gold;
+            const base = (amount.base + amount.perAct * (act + 1)) * 1.25;
+            const paid = result.results.find((r) => r.cost);
+            expect(-paid.value, `${event.id}.${choice.id}`).toBe(Math.round(base / 10) * 10);
           }
         }
       }

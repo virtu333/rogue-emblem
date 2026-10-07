@@ -14,9 +14,17 @@ export const REINFORCEMENT_EXCLUDED_TERRAIN = Object.freeze(
 // The rout reinforcement ladder (docs/specs/dusk-pressure.md, engine/RoutLadder.js).
 export const LADDER_WAVE_TYPE = 'ladder';
 
+// The Hunted burden's extra wave (engine/Burdens.js, docs/specs/event-nodes-phase2.md §2B):
+// written into the battle config as `reinforcements.hunted` when the battle is generated.
+export const HUNTED_WAVE_TYPE = 'hunted';
+const HUNTED_WAVE_INDEX = 3000;
+
 // Wave types that are the battle's clock rather than an added objective: their
-// arrivals never raise par. Repeating pursuit waves (escape maps) and the rout ladder.
-export const PAR_NEUTRAL_WAVE_TYPES = Object.freeze(new Set(['repeating', LADDER_WAVE_TYPE]));
+// arrivals never raise par. Repeating pursuit waves (escape maps), the rout ladder and the
+// Hunted burden's wave (a price, not a puzzle: it must not buy the player a turn).
+export const PAR_NEUTRAL_WAVE_TYPES = Object.freeze(
+  new Set(['repeating', LADDER_WAVE_TYPE, HUNTED_WAVE_TYPE]),
+);
 
 /**
  * Whether the wave a spawned arrival belongs to raises the battle's par by one.
@@ -444,6 +452,26 @@ function getDueLadderWaves({ turn, reinforcements } = {}) {
   return due;
 }
 
+// The Hunted wave: one absolute turn (no difficulty offset, no jitter, no count bonus: the
+// burden resolved its numbers when it was taken), edges named by the wave itself.
+function getDueHuntedWaves({ turn, reinforcements } = {}) {
+  const currentTurn = normalizeInteger(turn, 0);
+  const wave = reinforcements?.hunted;
+  if (currentTurn <= 0 || !wave || typeof wave !== 'object') return [];
+  const scheduledTurn = normalizeInteger(wave.turn, 0);
+  if (scheduledTurn <= 0 || scheduledTurn !== currentTurn) return [];
+  return [
+    {
+      waveType: HUNTED_WAVE_TYPE,
+      waveIndex: HUNTED_WAVE_INDEX,
+      baseTurn: scheduledTurn,
+      scheduledTurn,
+      wave,
+      xpMultiplier: Number.isFinite(wave.xpMultiplier) ? wave.xpMultiplier : 0.5,
+    },
+  ];
+}
+
 /** Tiles within `distance` (Manhattan) of any of `tiles`, as "col,row" keys. */
 function tilesWithin(tiles, distance) {
   const keys = new Set();
@@ -506,11 +534,13 @@ export function scheduleReinforcementsForTurn({
     activeEnemyCount,
   });
   const dueLadderWaves = getDueLadderWaves({ turn, reinforcements });
+  const dueHuntedWaves = getDueHuntedWaves({ turn, reinforcements });
   if (
     dueWaves.length === 0 &&
     dueScriptedWaves.length === 0 &&
     dueRepeatingWaves.length === 0 &&
-    dueLadderWaves.length === 0
+    dueLadderWaves.length === 0 &&
+    dueHuntedWaves.length === 0
   ) {
     return { spawns: [], dueWaves: [], blockedSpawns: 0 };
   }
@@ -746,6 +776,60 @@ export function scheduleReinforcementsForTurn({
         blockedCount: requestedCount - spawnedCount,
       });
     }
+  }
+
+  // The Hunted wave comes last, so a turn that already had waves draws exactly as before: its
+  // arrivals take whatever the other waves left free on its own edges.
+  for (const due of dueHuntedWaves) {
+    const edges = normalizeEdgeList(due.wave?.edges);
+    const requestedCount = rollWaveCount(due.wave, rng, 0);
+    let spawnedCount = 0;
+    for (let i = 0; i < requestedCount; i++) {
+      const occupiedNow = new Set([...baseOccupied, ...spawnedKeys]);
+      const pools = new Map(
+        edges.map((edge) => [
+          edge,
+          collectEdgeSpawnCandidates({
+            edge,
+            mapLayout,
+            terrain,
+            occupied: occupiedNow,
+            moveType,
+            moveTypes,
+          }),
+        ]),
+      );
+      const open = edges.filter((edge) => (pools.get(edge)?.length || 0) > 0);
+      if (open.length === 0) {
+        blockedSpawns++;
+        continue;
+      }
+      const edge = open[Math.floor(rng() * open.length)];
+      const pool = pools.get(edge);
+      const tile = pool[Math.floor(rng() * pool.length)];
+      spawns.push({
+        col: tile.col,
+        row: tile.row,
+        edge,
+        waveType: HUNTED_WAVE_TYPE,
+        waveIndex: due.waveIndex,
+        scheduledTurn: due.scheduledTurn,
+        xpMultiplier: due.xpMultiplier,
+        parNeutral: true,
+      });
+      spawnedKeys.add(toTileKey(tile.col, tile.row));
+      spawnedCount++;
+    }
+    waveResults.push({
+      waveType: HUNTED_WAVE_TYPE,
+      waveIndex: due.waveIndex,
+      scheduledTurn: due.scheduledTurn,
+      xpMultiplier: due.xpMultiplier,
+      edges,
+      requestedCount,
+      spawnedCount,
+      blockedCount: requestedCount - spawnedCount,
+    });
   }
 
   return {

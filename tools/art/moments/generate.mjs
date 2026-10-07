@@ -7,7 +7,7 @@
 // display-size PNGs listed in selections.json ship.
 import fs from 'node:fs';
 import { runJobs } from '../gen/quotaRunner.mjs';
-import { CARDS, EVENTS, VIGNETTES, momentPrompt } from './prompts.mjs';
+import { CARDS, EVENTS, VIGNETTES, eventSubject, momentPrompt } from './prompts.mjs';
 
 const argv = process.argv.slice(2);
 const arg = (k, d) => (argv.includes(`--${k}`) ? argv[argv.indexOf(`--${k}`) + 1] : d);
@@ -24,7 +24,7 @@ for (let take = firstTake; take <= takes; take += 1) {
       if (only && !only.includes(id)) continue;
       jobs.push({
         name: `${k}/${id}#${take}`,
-        prompt: momentPrompt(k, subject, take),
+        prompt: momentPrompt(k, k === 'event' ? eventSubject(id, take) : subject, take),
         aspectRatio,
         imageSize: '1K',
         out: `${RAW}/${k}/${id}-t${take}`,

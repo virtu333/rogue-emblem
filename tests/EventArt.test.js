@@ -17,11 +17,28 @@ import { installFakeDom } from './helpers/fakeDom.js';
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
-const eventIds = data.events.events.map((e) => e.id);
+const allEventIds = data.events.events.map((e) => e.id);
+// Events that wait for a painting (docs/specs/event-art.md: "Phase 2 events as they land"). Art
+// never gates play: an event with no painting wears the plain band. The twelve Phase 2D events
+// all have theirs now; a future event goes on this list until its painting ships, and comes off it
+// in the commit that ships the painting.
+const PAINTING_PENDING = [];
+const eventIds = allEventIds.filter((id) => !PAINTING_PENDING.includes(id));
 const sha = (buf) => createHash('sha256').update(buf).digest('hex').slice(0, 8);
 const read = (dir, f) => fs.readFileSync(path.join(dir, f));
 
 describe('event vignettes ship for every event', () => {
+  it('the list of events still waiting for a painting only names real events with none yet', () => {
+    for (const id of PAINTING_PENDING) {
+      expect(allEventIds, `${id} is not an event`).toContain(id);
+      expect(
+        manifest.events[id],
+        `${id} has art now: take it off the pending list`,
+      ).toBeUndefined();
+      expect(eventVignetteUrl(id), `${id}: no painting, no URL (the plain band)`).toBeNull();
+    }
+  });
+
   it('each event in events.json has a painting, a manifest entry and a cache-busting URL', () => {
     expect(Object.keys(manifest.events).sort()).toEqual([...eventIds].sort());
     for (const id of eventIds) {

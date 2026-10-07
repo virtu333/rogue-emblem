@@ -11,10 +11,14 @@
 // applies nothing.
 //
 // Effect types (EVENT_EFFECT_TYPES) and their records (the plain `results` of an outcome):
-//   gold        { value }                       gold ± (a loss floors at 0)
+//   gold        { value | refund: true }        gold ± (a loss floors at 0); `refund` gives back the
+//                                                 gold the choice charged (a fallback's "keep your coin")
 //                                                 -> { kind:'gold', value, requested }
-//   item        { name | pool, to, wear }       a weapon (or named consumable) delivered
-//                                                 -> { kind:'item', name, unit|null, toConvoy, worn:[stat] }
+//   item        { name | pool, to, wear }       a weapon (or named consumable) delivered; a pool of
+//                                                 `kind: 'accessory'` ({ tierOffset }) hands out one accessory
+//                                                 from the loot table of the act `tierOffset` tiers up, into
+//                                                 the army's accessory pool (no room needed)
+//                                                 -> { kind:'item', name, unit|null, toConvoy, pooled?, worn:[stat] }
 //   learnSkill  { skillId | pool | poolByType }  `to: target`; benched at the cap
 //                                                 -> { kind:'skill', unit, skillId, benched }
 //   fallenSkill {}                              a skill of the named fallen ally the target can learn
@@ -35,31 +39,69 @@
 //                                                 -> { kind:'layToRest', name }
 //   consume     { name, uses }                  the healthiest holder's use, else the convoy's
 //                                                 -> { kind:'consume', name, uses, holder }
-//   stat        { stat, value, scope }          a permanent boost (the stat booster's path)
+//   stat        { stat, value, scope }          a permanent boost (the stat booster's path); `stat` may be
+//                                                 'best' (the unit's highest of STR MAG SKL SPD DEF RES LCK,
+//                                                 a tie seeded); a negative value never takes a stat below 0
+//                                                 (HP: below 1) and HP never leaves the unit above its new max
 //                                                 -> { kind:'stat', unit, stat, value }
-//   battle      { enemyLevelBonus, afterVictory, victoryText }  EventCommands builds the fight
-//                                                 -> { kind:'battle', enemyLevelBonus }
+//   battle      { enemyLevelBonus, afterVictory, victoryText, elite?, recruit? }  EventCommands builds the
+//                                                 fight; `elite` makes it an elite battle (better loot and
+//                                                 gold, the elite rules); `recruit` ({ class | classPool,
+//                                                 name? }) puts a green recruit in it, a unit the army can
+//                                                 Talk into joining, exactly as a recruit node does
+//                                                 -> { kind:'battle', enemyLevelBonus, recruit? }
+//   counter     { key, delta }                  an event counter (the Sunken Mine's torches), floor 0
+//                                                 -> { kind:'counter', key, label, delta, value }
+//   join        { class | classPool, name?, levelOffset?, trait? }  a unit joins the army
+//                                                 (EventJoin.js: the recruit-node builder)
+//                                                 -> { kind:'join', name, className, level, unitUid }
+//   contract    { goal, reward, penalty }       a goal for the next battle (Contracts.js)
+//                                                 -> { kind:'contract', goal, label, short, line, reward, penalty }
+//   forge       { stat?: 'might'|'crit'|'hit'|'weight'|'random' }  one free forge step on the target's
+//                                                equipped weapon (a whetstone, without the gold)
+//                                                -> { kind:'forge', unit, weapon, name, stat }
+//   wear        {}                              one wear step on the target's equipped weapon (a forge
+//                                                gone wrong: WeaponWear.js; nothing to wear -> fallback)
+//                                                -> { kind:'wear', unit, weapon, name, stat }
+//   mend        {}                              every wear step on every weapon the target carries is
+//                                                repaired (WeaponWear.repairWeapon; the gold is the choice's)
+//                                                -> { kind:'mend', unit, steps, weapons:[{ from, to, steps }] }
+//   routeEdit   { op: 'addRoad' } | { op: 'redraw', toType }  the route map (RouteEdit.js)
+//                                                 -> { kind:'route', op:'addRoad', from, to, row, col, type }
+//                                                  | { kind:'route', op:'redraw', node, row, col, fromType, type }
 //
 // An outcome's `fallback` effects replace its `effects` when a learnSkill/fallenSkill has
-// nothing left to teach. In `lenient` mode (the spoils after a won battle) an effect that
+// nothing left to teach, or a routeEdit has nothing it may change. In `lenient` mode (the spoils after a won battle) an effect that
 // cannot be delivered (no room, no blessing left) is skipped with a note rather than
 // failing: a won battle never loses its reward to a failed plan.
 
 import { applyRewardTarget } from './LootRewardCommands.js';
 import { spendConsumableUse } from './RosterInventory.js';
 import { canEquip, learnSkill, applyStatBoost, knowsSkill } from './UnitManager.js';
-import { healUnit, damageUnit } from './UnitHealth.js';
-import { applyWear, wearableStats } from './WeaponWear.js';
+import { healUnit, damageUnit, setUnitHP } from './UnitHealth.js';
+import { resolveAttackStat } from './TraitSystem.js';
+import { applyWear, wearableStats, isWorn, repairWeapon, wearCount } from './WeaponWear.js';
+import { applyForge, canForgeStat } from './ForgeSystem.js';
+import { RECRUIT_PREVIEW_VERSION } from './RecruitNodeSystem.js';
+import { ensureItemUid } from '../utils/itemUid.js';
 import { commitShadow, actShadowOf, withEclipseSeed } from './EclipseSystem.js';
 import { convertNodeToRoutBattle } from './NodeMapGenerator.js';
-import { addBurden, burdenDefFor } from './Burdens.js';
+import { WOUND_STATS, addBurden, burdenDefFor, describeBurden } from './Burdens.js';
+import { describeContract, normalizeContract, contractOf } from './Contracts.js';
+import { planJoin, applyJoin, pickJoinSelf } from './EventJoin.js';
+import { planRouteEdit, applyRouteEdit } from './RouteEdit.js';
 import { CONSUMABLE_MAX, INVENTORY_MAX, NODE_TYPES } from '../utils/constants.js';
 import { unitUidOf } from './UnitIdentity.js';
 import {
+  START_PAGE,
+  choiceCost,
   availableEventBlessings,
   bestWeaponType,
   byRungValue,
   consumableHolders,
+  counterLabel,
+  counterValue,
+  equippedForgeable,
   eventRng,
   isTeachableSkill,
   learnableFromFallen,
@@ -68,6 +110,7 @@ import {
   runSeedOf,
   unitWields,
   usesLeft,
+  withFlag,
 } from './EventSystem.js';
 
 export const EVENT_EFFECT_TYPES = Object.freeze([
@@ -85,20 +128,60 @@ export const EVENT_EFFECT_TYPES = Object.freeze([
   'consume',
   'stat',
   'battle',
+  'counter',
+  'join',
+  'contract',
+  'routeEdit',
+  'forge',
+  'wear',
+  'mend',
 ]);
 
 /** Effect types that must name a chosen unit (`to: 'target'` / `scope: 'target'`). */
-export const TARGETED_EFFECT_TYPES = Object.freeze(['learnSkill', 'fallenSkill']);
+export const TARGETED_EFFECT_TYPES = Object.freeze([
+  'learnSkill',
+  'fallenSkill',
+  'forge',
+  'wear',
+  'mend',
+]);
+
+/** The stats `stat: 'best'` may pick from (never HP or MOV). */
+export const BEST_STAT_CHOICES = Object.freeze(['STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK']);
+
+/** The accessories' tiers: the loot table of an act, one tier up = the next act's (Act IV's is the top). */
+export const ACCESSORY_TIER_TABLES = Object.freeze(['act1', 'act2', 'act3', 'act4']);
+
+/** The tier table an act reads: acts after IV (postAct, the finale) read Act IV's, an unknown act Act I's. */
+function accessoryTableIndex(actId) {
+  const own = ACCESSORY_TIER_TABLES.indexOf(actId);
+  if (own >= 0) return own;
+  return actId === 'postAct' || actId === 'finalBoss' ? ACCESSORY_TIER_TABLES.length - 1 : 0;
+}
 
 /** Weapon types and tiers an event's weapon pools draw from. */
 export const EVENT_WEAPON_TYPES = Object.freeze(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light']);
 export const EVENT_WEAPON_TIERS = Object.freeze(['Iron', 'Steel', 'Silver']);
-const ACT_BASELINE_TIER = Object.freeze({ act1: 0, act2: 1, act3: 2, act4: 2 });
+// Acts after IV (postAct, the finale) draw like Act IV, never like Act I (an unlisted act used to read as 0).
+const ACT_BASELINE_TIER = Object.freeze({
+  act1: 0,
+  act2: 1,
+  act3: 2,
+  act4: 2,
+  postAct: 2,
+  finalBoss: 2,
+});
 
+// Every effect's sub-picks hang off its choice's seed key; a page after the first names itself
+// (EventSystem.choiceSeedKey), so the first page keeps its Phase 1 streams.
 const rngFor = (ctx, index, label) =>
   eventRng(
-    `event:${runSeedOf(ctx.run)}:${ctx.nodeId}:${ctx.choice?.id || 'choice'}:${ctx.phase}${index}:${label}`,
+    `event:${runSeedOf(ctx.run)}:${ctx.nodeId}:${pagePart(ctx)}${ctx.choice?.id || 'choice'}:${ctx.phase}${index}:${label}`,
   );
+const pagePart = (ctx) => {
+  const page = ctx.pageTag || ctx.page;
+  return page && page !== START_PAGE ? `${page}:` : '';
+};
 
 const pickFrom = (list, rng) => list[Math.floor(rng() * list.length)];
 
@@ -167,6 +250,11 @@ export function createLedger(run) {
     learned: new Map(),
     rested: new Set(),
     battle: false,
+    joined: new Set(),
+    counters: new Map(),
+    contract: false,
+    routeEdit: false,
+    weapons: new Set(),
   };
 }
 
@@ -181,6 +269,11 @@ export function cloneLedger(ledger) {
     learned: new Map([...ledger.learned].map(([unit, set]) => [unit, new Set(set)])),
     rested: new Set(ledger.rested),
     battle: ledger.battle,
+    joined: new Set(ledger.joined),
+    counters: new Map(ledger.counters),
+    contract: ledger.contract,
+    routeEdit: ledger.routeEdit,
+    weapons: new Set(ledger.weapons),
   };
 }
 
@@ -275,19 +368,51 @@ function pickPoolWeapon(ctx, effect, index, ledger) {
 const NO_ROOM = 'Nowhere to carry anything more. Make room in the convoy.';
 
 function planGold(ctx, effect, index, ledger) {
-  const requested = resolveAmount(effect.value, ctx.run.currentAct);
+  // `refund`: the gold the choice charged, handed back (a fallback's "keep your coin").
+  const requested =
+    effect.refund === true
+      ? choiceCost(ctx.run, ctx.choice, ctx.catalog)
+      : resolveAmount(effect.value, ctx.run.currentAct);
   const value = requested < 0 ? -Math.min(-requested, Math.max(0, ledger.gold)) : requested;
   ledger.gold += value;
   return { step: { type: 'gold', value, requested } };
 }
 
+/** The accessories a pool of `kind: 'accessory'` can hand out here: the loot table `tierOffset` tiers up. */
+export function accessoryPoolFor(run, tierOffset = 0) {
+  const here = accessoryTableIndex(run.currentAct);
+  const index = Math.max(
+    0,
+    Math.min(ACCESSORY_TIER_TABLES.length - 1, here + Math.trunc(Number(tierOffset) || 0)),
+  );
+  const names = run.gameData?.lootTables?.[ACCESSORY_TIER_TABLES[index]]?.accessories || [];
+  const byName = new Map((run.gameData?.accessories || []).map((a) => [a.name, a]));
+  return [...new Set(names)]
+    .map((name) => byName.get(name))
+    .filter((a) => a && a.type === 'Accessory')
+    .sort((a, b) => (a.name < b.name ? -1 : 1));
+}
+
+function planAccessory(ctx, effect, index, lenient) {
+  const candidates = accessoryPoolFor(ctx.run, effect.pool?.tierOffset);
+  if (candidates.length === 0)
+    return lenient
+      ? skipNote('item', 'There was nothing here worth keeping.')
+      : { error: 'There is nothing here worth keeping.' };
+  const item = structuredClone(pickFrom(candidates, rngFor(ctx, index, 'accessory')));
+  return { step: { type: 'item', item, dest: 'pool', worn: [] } };
+}
+
 function planItem(ctx, effect, index, ledger, lenient) {
   const { run } = ctx;
+  if (effect.pool?.kind === 'accessory') return planAccessory(ctx, effect, index, lenient);
   let template;
   if (effect.pool) {
     template = pickPoolWeapon(ctx, effect, index, ledger);
     if (!template)
-      return lenient ? skipNote('item', NO_ROOM) : { error: NO_ROOM, itemKind: 'weapon' };
+      return lenient
+        ? skipNote('item', NO_ROOM, { noRoom: true })
+        : { error: NO_ROOM, itemKind: 'weapon' };
   } else {
     template =
       run.getConsumableTemplate?.(effect.name) ||
@@ -310,14 +435,20 @@ function planItem(ctx, effect, index, ledger, lenient) {
   const dest = chooseDestination(ctx, item, effect.to || 'auto', ledger);
   if (!dest)
     return lenient
-      ? skipNote('item', NO_ROOM)
+      ? skipNote('item', NO_ROOM, { noRoom: true, name: item.name })
       : { error: NO_ROOM, itemKind: item.type === 'Consumable' ? 'consumable' : 'weapon' };
   reserve(ledger, item, dest);
   return { step: { type: 'item', item, dest, worn } };
 }
 
-function skipNote(kind, text) {
-  return { step: { type: 'note', note: { kind: 'note', of: kind, text } } };
+/**
+ * A step that skips an effect (lenient mode) and says so. `extra` marks why: `noRoom` for an
+ * item with nowhere to go, and `name` for that item when it is known (a pool pick that found
+ * no room has no item yet). The words that report the note say what was missed
+ * (EventResultWords.describeResult).
+ */
+function skipNote(kind, text, extra = {}) {
+  return { step: { type: 'note', note: { kind: 'note', of: kind, text, ...extra } } };
 }
 
 function skillCandidates(ctx, effect, unit, ledger) {
@@ -409,11 +540,31 @@ function planBlessing(ctx, effect, index, ledger, lenient) {
   return { step: { type: 'blessing', blessing } };
 }
 
-function planBurden(ctx, effect) {
+function planBurden(ctx, effect, index) {
   const def = burdenDefFor(ctx.catalog, effect.id, ctx.run.difficultyId);
   if (!def) return { error: `Unknown burden "${effect.id}".` };
   const params = { ...(effect.params || {}) };
   if (params.owed !== undefined) params.owed = resolveAmount(params.owed, ctx.run.currentAct);
+  if (effect.id === 'wounded') {
+    // Who and where are fixed now, from the seeded stream: the record carries the unit's uid.
+    const unit =
+      params.scope === 'target'
+        ? ctx.target
+        : (() => {
+            const living = livingUnits(ctx.run);
+            return living.length ? pickFrom(living, rngFor(ctx, index, 'wounded')) : null;
+          })();
+    if (!unit) return { error: 'No one to wound.' };
+    const uid = unitUidOf(unit);
+    if (!uid) return { error: 'No one to wound.' };
+    let stat = params.stat;
+    // `attack` is the stat the unit's class fights with, never whichever number is higher.
+    if (stat === 'attack') stat = resolveAttackStat(unit);
+    else if (stat === 'random') stat = pickFrom(WOUND_STATS, rngFor(ctx, index, 'wound-stat'));
+    if (!WOUND_STATS.includes(stat)) return { error: `A wound cannot fall on "${params.stat}".` };
+    delete params.scope;
+    Object.assign(params, { unitUid: uid, unitName: unit.name, stat });
+  }
   return { step: { type: 'burden', id: effect.id, params } };
 }
 
@@ -474,14 +625,34 @@ function planStat(ctx, effect, index) {
   } else unit = ctx.target;
   if (!unit) return { error: 'No one to strengthen.' };
   const stats = Array.isArray(effect.stat) ? effect.stat : [effect.stat];
-  const stat = stats.length > 1 ? pickFrom(stats, rngFor(ctx, index, 'stat')) : stats[0];
-  return { step: { type: 'stat', unit, stat, value: Math.trunc(Number(effect.value) || 0) } };
+  let stat;
+  if (stats.length === 1 && stats[0] === 'best') {
+    // The unit's own best: the highest of the seven, a tie settled by the seeded stream.
+    const top = Math.max(...BEST_STAT_CHOICES.map((key) => Number(unit.stats?.[key]) || 0));
+    const tied = BEST_STAT_CHOICES.filter((key) => (Number(unit.stats?.[key]) || 0) === top);
+    stat = tied.length > 1 ? pickFrom(tied, rngFor(ctx, index, 'stat')) : tied[0];
+  } else stat = stats.length > 1 ? pickFrom(stats, rngFor(ctx, index, 'stat')) : stats[0];
+  // A loss never takes a stat below 0 (max HP: below 1).
+  let value = Math.trunc(Number(effect.value) || 0);
+  if (value < 0) {
+    const floor = stat === 'HP' ? 1 : 0;
+    value = Math.max(value, floor - (Number(unit.stats?.[stat]) || 0));
+  }
+  return { step: { type: 'stat', unit, stat, value } };
 }
 
 function planBattle(ctx, effect, index, ledger) {
   if (ctx.phase !== 'o') return { error: 'A battle cannot start another battle.' };
   if (ledger.battle) return { error: 'One battle per outcome.' };
   if (ctx.node?.type !== NODE_TYPES.EVENT) return { error: 'There is no event node here.' };
+  // A green recruit in the fight (a recruit node's own unit, Talk and all): who, fixed now.
+  let recruit = null;
+  if (effect.recruit) {
+    const self = pickJoinSelf(ctx, effect.recruit, index, ledger);
+    if (self.error) return { error: self.error };
+    ledger.joined.add(self.name);
+    recruit = { className: self.className, name: self.name };
+  }
   ledger.battle = true;
   return {
     step: {
@@ -489,8 +660,126 @@ function planBattle(ctx, effect, index, ledger) {
       enemyLevelBonus: Math.trunc(Number(effect.enemyLevelBonus) || 0),
       victoryText: typeof effect.victoryText === 'string' ? effect.victoryText : '',
       afterVictory: structuredClone(effect.afterVictory || []),
+      elite: effect.elite === true,
+      recruit,
     },
   };
+}
+
+// ── Weapon work: forge, wear, mend ──────────────────────────────────────
+
+/** The unit's equipped weapon when it is really carried (the plan and the apply read this one). */
+function carriedWeapon(unit) {
+  const weapon = unit?.weapon;
+  return weapon && (unit.inventory || []).includes(weapon) ? weapon : null;
+}
+
+function planForge(ctx, effect, index, ledger) {
+  const unit = ctx.target;
+  if (!unit) return { error: 'No one to work for.' };
+  const weapon = carriedWeapon(unit);
+  if (!weapon || !equippedForgeable(unit) || ledger.weapons.has(weapon))
+    return { empty: true, reason: 'Their weapon cannot take more.' };
+  const wanted = effect.stat === undefined || effect.stat === 'random' ? null : effect.stat;
+  const stats = ['might', 'crit', 'hit', 'weight'].filter(
+    (stat) => (wanted === null || stat === wanted) && canForgeStat(weapon, stat),
+  );
+  if (stats.length === 0) return { empty: true, reason: 'Their weapon cannot take more.' };
+  ledger.weapons.add(weapon);
+  return {
+    step: { type: 'forge', unit, weapon, stat: pickFrom(stats, rngFor(ctx, index, 'forge')) },
+  };
+}
+
+function planWear(ctx, effect, index, ledger) {
+  const unit = ctx.target;
+  if (!unit) return { error: 'No one to work for.' };
+  const weapon = carriedWeapon(unit);
+  const stats = weapon && !ledger.weapons.has(weapon) ? wearableStats(weapon) : [];
+  if (stats.length === 0) return { empty: true, reason: 'Their weapon cannot wear.' };
+  ledger.weapons.add(weapon);
+  return {
+    step: { type: 'wear', unit, weapon, stat: pickFrom(stats, rngFor(ctx, index, 'wear')) },
+  };
+}
+
+function planMend(ctx, effect, index, ledger) {
+  const unit = ctx.target;
+  if (!unit) return { error: 'No one to work for.' };
+  const weapons = (unit.inventory || []).filter((w) => isWorn(w) && !ledger.weapons.has(w));
+  if (weapons.length === 0) return { empty: true, reason: 'Nothing they carry is worn.' };
+  for (const weapon of weapons) ledger.weapons.add(weapon);
+  return { step: { type: 'mend', unit, weapons } };
+}
+
+function applyForgeStep(ctx, step) {
+  const from = step.weapon.name;
+  const done = applyForge(step.weapon, step.stat);
+  if (!done.success) throw new Error(`Forge "${step.stat}" did not take on ${from}.`);
+  return [
+    { kind: 'forge', unit: step.unit.name, weapon: from, name: step.weapon.name, stat: step.stat },
+  ];
+}
+
+function applyWearStep(ctx, step) {
+  const from = step.weapon.name;
+  const done = applyWear(step.weapon, step.stat);
+  if (!done.success) throw new Error(`Wear "${step.stat}" did not take on ${from}.`);
+  return [
+    { kind: 'wear', unit: step.unit.name, weapon: from, name: step.weapon.name, stat: step.stat },
+  ];
+}
+
+function applyMendStep(ctx, step) {
+  const weapons = [];
+  let total = 0;
+  for (const weapon of step.weapons) {
+    const from = weapon.name;
+    const steps = wearCount(weapon);
+    while (isWorn(weapon)) if (!repairWeapon(weapon).success) break;
+    if (isWorn(weapon)) throw new Error(`${from} could not be mended.`);
+    total += steps;
+    weapons.push({ from, to: weapon.name, steps });
+  }
+  return [{ kind: 'mend', unit: step.unit.name, steps: total, weapons }];
+}
+
+function planCounter(ctx, effect, index, ledger) {
+  const key = effect.key;
+  if (!ctx.event || !Object.hasOwn(ctx.event.counters || {}, key))
+    return { error: `Unknown counter "${key}".` };
+  const current = ledger.counters.has(key)
+    ? ledger.counters.get(key)
+    : counterValue(ctx.state, key);
+  const requested = Math.trunc(Number(effect.delta) || 0);
+  const value = Math.max(0, current + requested);
+  ledger.counters.set(key, value);
+  return { step: { type: 'counter', key, delta: value - current, value, requested } };
+}
+
+function planContract(ctx, effect, index, ledger) {
+  if (ctx.phase === 'k') return { error: 'A contract cannot open another contract.' };
+  if (ledger.contract || contractOf(ctx.run))
+    return { error: 'You are already bound by a contract.' };
+  const contract = normalizeContract({
+    goal: effect.goal,
+    reward: effect.reward,
+    penalty: effect.penalty,
+    eventId: ctx.event?.id,
+    nodeId: ctx.nodeId,
+    act: ctx.run.currentAct,
+  });
+  if (!contract) return { error: `Unknown contract goal "${effect.goal}".` };
+  ledger.contract = true;
+  return { step: { type: 'contract', contract } };
+}
+
+function planRoute(ctx, effect, index, ledger) {
+  if (ledger.routeEdit) return { error: 'One change to the road at a time.' };
+  if (ctx.node?.type !== NODE_TYPES.EVENT) return { error: 'There is no event node here.' };
+  const planned = planRouteEdit(ctx.run, effect, ctx.nodeId, rngFor(ctx, index, 'route'));
+  if (planned.step) ledger.routeEdit = true;
+  return planned;
 }
 
 /**
@@ -537,7 +826,7 @@ export function planEffects(
         planned = planBlessing(ctx, effect, index, ledger, lenient);
         break;
       case 'burden':
-        planned = planBurden(ctx, effect);
+        planned = planBurden(ctx, effect, index);
         break;
       case 'flag':
         planned = { step: { type: 'flag', key: effect.key, value: effect.value ?? true } };
@@ -554,6 +843,27 @@ export function planEffects(
       case 'battle':
         planned = planBattle(ctx, effect, index, ledger);
         break;
+      case 'counter':
+        planned = planCounter(ctx, effect, index, ledger);
+        break;
+      case 'join':
+        planned = planJoin(ctx, effect, index, ledger);
+        break;
+      case 'contract':
+        planned = planContract(ctx, effect, index, ledger);
+        break;
+      case 'routeEdit':
+        planned = planRoute(ctx, effect, index, ledger);
+        break;
+      case 'forge':
+        planned = planForge(ctx, effect, index, ledger);
+        break;
+      case 'wear':
+        planned = planWear(ctx, effect, index, ledger);
+        break;
+      case 'mend':
+        planned = planMend(ctx, effect, index, ledger);
+        break;
       default:
         planned = { error: `Unknown effect "${effect?.type}".` };
     }
@@ -562,7 +872,7 @@ export function planEffects(
         steps.push(skipNote(effect.type, 'Nothing left to give.').step);
         continue;
       }
-      return { ok: false, empty: true, reason: 'Nothing to learn.' };
+      return { ok: false, empty: true, reason: planned.reason || 'Nothing to learn.' };
     }
     if (planned.error) {
       if (lenient && ['item', 'blessing'].includes(effect.type)) {
@@ -674,8 +984,10 @@ function applyShadow(ctx, step) {
     run.getEclipseConfig(),
   );
   run.eclipse = commit.state;
-  // The dark takes what it now can (the event node itself is current, so never fallen).
-  const fell = run.applyEclipseNow().map((node) => node.id);
+  // The dark takes what it now can (the event node itself is current, so never fallen). A
+  // contract's terms settle inside the victory commit (phase 'k'), which applies the falls
+  // itself right after the node is complete, so its victory band lists them: not here.
+  const fell = ctx.phase === 'k' ? [] : run.applyEclipseNow().map((node) => node.id);
   return [
     {
       kind: 'shadow',
@@ -703,6 +1015,24 @@ function applySkill(ctx, step) {
 
 function applyItem(ctx, step) {
   const dest = step.dest;
+  if (dest === 'pool') {
+    // An accessory goes to the army's accessory pool (the loot screen's "Added to Accessory Pool").
+    const { run } = ctx;
+    if (!Array.isArray(run.accessories)) run.accessories = [];
+    run.accessories.push(ensureItemUid(structuredClone(step.item)));
+    return [
+      {
+        kind: 'item',
+        name: step.item.name,
+        tier: null,
+        itemType: 'Accessory',
+        unit: null,
+        toConvoy: false,
+        pooled: true,
+        worn: [],
+      },
+    ];
+  }
   const result = applyRewardTarget(ctx.run, step.item, dest);
   if (!result.ok) throw new Error(`Event item "${step.item.name}" was not delivered.`);
   return [
@@ -732,6 +1062,8 @@ function applyBattle(ctx, step) {
         extraParams: {
           isEventBattle: true,
           eventEnemyLevelBonus: step.enemyLevelBonus,
+          ...(step.elite ? { isElite: true } : {}),
+          ...(step.recruit ? { isRecruitBattle: true } : {}),
         },
       },
     ),
@@ -739,7 +1071,22 @@ function applyBattle(ctx, step) {
   // The node stays an event node; only its battle params and the marker change.
   node.type = type;
   node.eventBattle = true;
-  return [{ kind: 'battle', enemyLevelBonus: step.enemyLevelBonus }];
+  // A recruit in the fight is a recruit node's own unit: the preview is what the map generator
+  // seats and the scene builds (RecruitNodeSystem.isRecruitBattleNode).
+  if (step.recruit)
+    node.recruitPreview = {
+      v: RECRUIT_PREVIEW_VERSION,
+      className: step.recruit.className,
+      name: step.recruit.name,
+    };
+  return [
+    {
+      kind: 'battle',
+      enemyLevelBonus: step.enemyLevelBonus,
+      ...(step.elite ? { elite: true } : {}),
+      ...(step.recruit ? { recruit: { ...step.recruit } } : {}),
+    },
+  ];
 }
 
 /** Apply one planned step to the run; returns the result records (0 or more). */
@@ -780,6 +1127,8 @@ export function applyStep(ctx, step) {
       if (!added.ok) throw new Error(added.reason);
       const def = burdenDefFor(ctx.catalog, step.id, run.difficultyId) || {};
       const b = added.burden;
+      // A record's `detail` is the burden as it now stands (the run may already have held one).
+      const words = describeBurden(b, { def, roster: run.roster });
       return [
         {
           kind: 'burden',
@@ -789,12 +1138,15 @@ export function applyStep(ctx, step) {
           detail:
             step.id === 'ill_omen'
               ? `${b.battles} battles, +${b.extraShadow} shadow each`
-              : `${b.owed} G owed`,
+              : step.id === 'debt'
+                ? `${b.owed} G owed`
+                : words.detail,
         },
       ];
     }
     case 'flag':
-      run.storyFlags = { ...(run.storyFlags || {}), [step.key]: step.value };
+      // { value, act }: the act the flag was set in, for payoffs that need "an earlier act".
+      run.storyFlags = withFlag(run.storyFlags, step.key, step.value, run.currentAct);
       return [{ kind: 'flag', key: step.key, value: step.value }];
     case 'layToRest': {
       // Anything the convoy could not take stays with them; send what fits to the convoy first.
@@ -816,9 +1168,49 @@ export function applyStep(ctx, step) {
     }
     case 'stat':
       applyStatBoost(step.unit, { stat: step.stat, value: step.value });
+      if (step.stat === 'HP')
+        // A lost point of max HP never leaves the unit above its new max or at 0. HP is set
+        // through UnitHealth, so an HP accessory's debt settles when the unit now stands at
+        // full HP (it is not an attack: no hold wakes).
+        setUnitHP(
+          step.unit,
+          Math.max(1, Math.min(Number(step.unit.stats.HP) || 1, Number(step.unit.currentHP) || 1)),
+          { disturbs: false },
+        );
       return [{ kind: 'stat', unit: step.unit.name, stat: step.stat, value: step.value }];
+    case 'forge':
+      return applyForgeStep(ctx, step);
+    case 'wear':
+      return applyWearStep(ctx, step);
+    case 'mend':
+      return applyMendStep(ctx, step);
     case 'battle':
       return applyBattle(ctx, step);
+    case 'counter':
+      ctx.state.counters = { ...(ctx.state.counters || {}), [step.key]: step.value };
+      return [
+        {
+          kind: 'counter',
+          key: step.key,
+          label: counterLabel(ctx.event, step.key),
+          delta: step.delta,
+          value: step.value,
+        },
+      ];
+    case 'join':
+      return applyJoin(ctx, step);
+    case 'contract': {
+      run.contract = step.contract;
+      return [{ kind: 'contract', ...describeContract(run) }];
+    }
+    case 'routeEdit':
+      return [
+        applyRouteEdit(
+          run,
+          step,
+          `event-route:${runSeedOf(run)}:${ctx.nodeId}:${pagePart(ctx)}${ctx.choice?.id}`,
+        ),
+      ];
     case 'note':
       return [step.note];
     default:
@@ -831,4 +1223,41 @@ export function applyPlan(ctx, steps) {
   const results = [];
   for (const step of steps) results.push(...applyStep(ctx, step));
   return results;
+}
+
+// ── Rolling back ────────────────────────────────────────────────────────
+
+/**
+ * The run fields an event's effects can change. A command snapshots them before it applies a
+ * plan and puts them back if applying throws (the plan is built to make that unreachable).
+ */
+export const RUN_FIELDS = Object.freeze([
+  'roster',
+  'fallenUnits',
+  'laidToRest',
+  'convoy',
+  'gold',
+  'eclipse',
+  'visionChargesRemaining',
+  'activeBlessings',
+  'blessingHistory',
+  'blessingRuntimeModifiers',
+  'storyFlags',
+  'burdens',
+  'accessories',
+  'nodeMap',
+  'currentNodeId',
+  'contract',
+  'usedRecruitNames',
+  'nextUnitUid',
+]);
+
+/** A deep copy of the fields in RUN_FIELDS. */
+export function snapshotRunState(run) {
+  return structuredClone(Object.fromEntries(RUN_FIELDS.map((key) => [key, run[key]])));
+}
+
+/** Put a snapshotRunState copy back. */
+export function restoreRunState(run, snapshot) {
+  for (const key of RUN_FIELDS) run[key] = snapshot[key];
 }

@@ -101,6 +101,7 @@ import { restorePendingThirdLord } from './PendingThirdLord.js';
 import { UNIT_PRESENTATION_FIELDS } from './BattleUnitState.js';
 import {
   RECRUIT_PREVIEW_VERSION,
+  isRecruitBattleNode,
   buildRecruitNodeUnit,
   ensureRecruitPreviews,
   resolveRecruitNodeSpawnClass,
@@ -120,6 +121,7 @@ import {
   computeShadowGain,
   createEclipseState,
   eclipseBattleMods,
+  eclipseHash,
   isEclipseActive,
   kindleResult,
   normalizeEclipseState,
@@ -147,13 +149,24 @@ import {
 } from './Prologue.js';
 import { normalizeRosterLesson } from './PrologueRosterLesson.js';
 import {
+  hasDarkOmen,
   eventSpoilsOwedAt,
   sanitizeEventLog,
   sanitizeEventStates,
   sanitizeLaidToRest,
   sanitizeStoryFlags,
 } from './EventSystem.js';
-import { burdenEffectsOnVictory, normalizeBurdens } from './Burdens.js';
+import {
+  battleDebuffsFor,
+  burdenEffectsOnVictory,
+  huntedWaveFor,
+  isSwornEnemy,
+  normalizeBurdens,
+  pruneGoneWounds,
+} from './Burdens.js';
+import { isHuntedBattle } from './HuntedWave.js';
+import { normalizeContract } from './Contracts.js';
+import { settleContract } from './ContractSettlement.js';
 import { everFallenUnits } from './LaidToRest.js';
 import { createSpecialCharacter } from './SpecialCharacters.js';
 
@@ -538,6 +551,10 @@ export class RunManager {
     this.pendingEventNodeId = null;
     this.laidToRest = [];
     this.lastBurdenSettlement = null;
+    // The open contract (engine/Contracts.js: a goal for the next battle) and what the last
+    // victory settled of it, for the victory band (not saved, like lastBurdenSettlement).
+    this.contract = null;
+    this.lastContractSettlement = null;
     this.difficultyId = 'normal';
     this.difficultyModifiers = {
       ...DIFFICULTY_DEFAULTS,
@@ -589,6 +606,8 @@ export class RunManager {
     this.pendingEventNodeId = null;
     this.laidToRest = [];
     this.lastBurdenSettlement = null;
+    this.contract = null;
+    this.lastContractSettlement = null;
   }
 
   _isValidSerializedUnit(unit) {
@@ -2858,7 +2877,7 @@ export class RunManager {
   getPromisedRecruitNames({ excludeNodeId = null } = {}) {
     const promised = new Set();
     for (const node of Array.isArray(this.nodeMap?.nodes) ? this.nodeMap.nodes : []) {
-      if (node?.type !== 'recruit' || node.completed || node.id === excludeNodeId) continue;
+      if (!isRecruitBattleNode(node) || node.completed || node.id === excludeNodeId) continue;
       const names = [
         node.recruitPreview?.name,
         this.battleConfigsByNodeId?.[node.id]?.npcSpawn?.name,
@@ -3328,6 +3347,15 @@ export class RunManager {
   }
 
   /**
+   * The game data a recruit battle's unit is built from. A recruit node may roll a lord (the
+   * 15% roll in RecruitNodeSystem); an event's green recruit (Old Faces' deserter) never does,
+   * so it is built with the lords taken out, exactly as an event `join` is.
+   */
+  _recruitGameData(node) {
+    return node?.type === 'recruit' ? this.gameData : { ...this.gameData, lords: [] };
+  }
+
+  /**
    * The class of the unit a recruit node would spawn right now (the lord roll can
    * replace the preview's class), without building it. Same stream and run state as
    * getRecruitNodeUnit, so the two always agree.
@@ -3335,11 +3363,11 @@ export class RunManager {
    */
   getRecruitNodeSpawnClass(node, options = {}) {
     const preview = options.preview || node?.recruitPreview;
-    if (node?.type !== 'recruit' || !preview) return null;
+    if (!isRecruitBattleNode(node) || !preview) return null;
     return (
       resolveRecruitNodeSpawnClass({
         preview,
-        gameData: this.gameData,
+        gameData: this._recruitGameData(node),
         ...this.getRecruitBattleContext(node),
         roster: Array.isArray(options.roster) ? options.roster : this.roster,
       })?.className || null
@@ -3355,10 +3383,10 @@ export class RunManager {
    */
   getRecruitNodeUnit(node, options = {}) {
     const preview = options.preview || node?.recruitPreview;
-    if (node?.type !== 'recruit' || !preview) return null;
+    if (!isRecruitBattleNode(node) || !preview) return null;
     return buildRecruitNodeUnit({
       preview,
-      gameData: this.gameData,
+      gameData: this._recruitGameData(node),
       ...this.getRecruitBattleContext(node),
       roster: Array.isArray(options.roster) ? options.roster : this.roster,
     });
@@ -3428,7 +3456,7 @@ export class RunManager {
     if (eclipseMods.phaseIndex > 0) battleParams.eclipsePhaseIndex = eclipseMods.phaseIndex;
     if (eclipseMods.affix) battleParams.eclipseAffix = eclipseMods.affix;
     // Recruit nodes are elite-like fights for a known recruit (strategy-layer spec).
-    if (node.type === 'recruit' && battleParams.isRecruitBattle) {
+    if (isRecruitBattleNode(node) && battleParams.isRecruitBattle) {
       const recruitMods = this.getRecruitNodeBattleMods(node);
       if (recruitMods.affixCount > 0) {
         const affix = battleParams.eclipseAffix || {
@@ -3478,6 +3506,19 @@ export class RunManager {
     this.ensureUnitUids();
     this.ensurePortraitVariants();
     battleParams.usedRecruitNames = this.usedRecruitNames || {};
+    // The run's burdens (engine/Burdens.js) ride the params, so the map generator, the scene's
+    // previews and the headless harness all read one list. Keys are added only when a burden
+    // changes the battle, so an unburdened run's params are exactly as they were.
+    const bossBattle = node.type === 'boss' || battleParams.isBoss === true;
+    const hunted = huntedWaveFor(this, { isBoss: bossBattle });
+    if (hunted) battleParams.huntedWave = hunted;
+    else delete battleParams.huntedWave;
+    if (bossBattle && isSwornEnemy(this))
+      battleParams.swornEnemy = { seed: eclipseHash(`sworn:${this.runSeed}:${node.id}`) };
+    else delete battleParams.swornEnemy;
+    const debuffs = battleDebuffsFor(this);
+    if (debuffs.length) battleParams.battleDebuffs = debuffs;
+    else delete battleParams.battleDebuffs;
     return battleParams;
   }
 
@@ -3538,7 +3579,7 @@ export class RunManager {
   _reconcileLockedRecruitTile(nodeId, cfg) {
     if (!cfg?.npcSpawn) return false;
     const node = this.nodeMap?.nodes?.find((n) => n.id === nodeId);
-    if (node?.type !== 'recruit') return false;
+    if (!isRecruitBattleNode(node)) return false;
     const preview = { className: cfg.npcSpawn.className, name: cfg.npcSpawn.name };
     const spawnClassName = this.getRecruitNodeSpawnClass(node, { preview });
     if (!spawnClassName) return false;
@@ -3983,7 +4024,18 @@ export class RunManager {
     const goldMult = this.getBattleGoldMultiplier();
     const difficultyGoldMult = this.getDifficultyModifier('goldMultiplier', 1);
     const finalGold = Math.floor(baseGold * eliteMult * goldMult * difficultyGoldMult);
-    const settlement = burdenEffectsOnVictory(this, { gold: finalGold });
+    // Which burdens this battle touches: a boss node ends a Sworn Enemy and was never hunted;
+    // a battle whose locked map carries the Hunted wave counts one down (no locked map: the
+    // headless sims and tests, where every non-boss battle was generated with it).
+    const bossNode = node.type === 'boss' || node.battleParams?.isBoss === true;
+    const lockedConfig = this.battleConfigsByNodeId?.[nodeId];
+    const settlement = burdenEffectsOnVictory(this, {
+      gold: finalGold,
+      battle: {
+        boss: bossNode,
+        hunted: !bossNode && (lockedConfig ? isHuntedBattle(lockedConfig) : true),
+      },
+    });
     const eclipseCommit = this._commitBattleShadow(node, options, settlement.extraShadow);
 
     this._sanitizeUnitPools();
@@ -4066,7 +4118,8 @@ export class RunManager {
     this.winStreak++;
     if (this.winStreak > this.maxWinStreak) this.maxWinStreak = this.winStreak;
     this.awardGold(settlement.gold);
-    this.burdens = settlement.burdens;
+    // A wound whose unit fell (or left) in this battle ends with it: nobody carries it on.
+    this.burdens = pruneGoneWounds(settlement.burdens, this.roster);
     this.lastBurdenSettlement = settlement.record
       ? {
           nodeId,
@@ -4077,6 +4130,16 @@ export class RunManager {
           extraShadow: settlement.extraShadow,
         }
       : null;
+    // An open contract settles here too (engine/ContractSettlement.js), once, for this victory
+    // and no other: after the roster, gold and burdens are committed, so a reward lands on
+    // the army as it now is and a penalty Debt starts with the NEXT victory. Never mid-battle,
+    // so a revert or a resume never touches it. `newlyFallen` is who fell in THIS battle.
+    this.lastContractSettlement = settleContract(this, {
+      nodeId,
+      turnCount: options.turnCount,
+      turnPar: options.turnPar,
+      losses: newlyFallen.length,
+    });
 
     const isRewardBossNode = node.id === this.nodeMap?.bossNodeId && node.type === 'boss';
     const isRewardAct =
@@ -4170,8 +4233,13 @@ export class RunManager {
     };
   }
 
-  /** Let the dark take this act's map at the current act shadow (idempotent). */
-  applyEclipseNow() {
+  /**
+   * Let the dark take this act's map at the current act shadow (idempotent). The one place a fall
+   * is decided, in play and on load (`fromJSON` calls it too), so both choose a Dark Omen or a
+   * battle for an event node the same way. `activeNodeId` is the battle being fought, exempt like
+   * the current node; a load passes the saved one, as `battleInProgress` is not restored yet.
+   */
+  applyEclipseNow({ activeNodeId = this.battleInProgress?.nodeId || null } = {}) {
     if (!this.isEclipseActive() || !this.nodeMap) return [];
     return applyEclipse({
       state: this.eclipse,
@@ -4179,10 +4247,12 @@ export class RunManager {
       nodeMap: this.nodeMap,
       runSeed: this.runSeed,
       currentNodeId: this.currentNodeId,
-      activeNodeId: this.battleInProgress?.nodeId || null,
+      activeNodeId,
       mapTemplates: this.gameData?.mapTemplates || null,
       fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
       halfFogChance: this.difficultyId === 'normal',
+      // A fallen event that has a dark face to offer stays an event (a Dark Omen).
+      darkOmen: (node) => hasDarkOmen(this, node),
     });
   }
 
@@ -4782,6 +4852,7 @@ export class RunManager {
       eventLog: this.eventLog || [],
       storyFlags: this.storyFlags || {},
       burdens: this.burdens || [],
+      contract: this.contract || null,
       laidToRest: this.laidToRest || [],
       difficultyId: this.difficultyId || 'normal',
       difficultyModifiers: this.difficultyModifiers || {
@@ -5332,6 +5403,7 @@ export class RunManager {
     rm.eventLog = sanitizeEventLog(saved.eventLog);
     rm.storyFlags = sanitizeStoryFlags(saved.storyFlags);
     rm.burdens = normalizeBurdens(saved.burdens);
+    rm.contract = normalizeContract(saved.contract);
     rm.laidToRest = sanitizeLaidToRest(saved.laidToRest);
     rm.applyDifficultySelection(saved.difficultyId || 'normal');
     if (saved.difficultyModifiers && typeof saved.difficultyModifiers === 'object') {
@@ -5525,20 +5597,11 @@ export class RunManager {
     // re-applied idempotently; a consistent save changes nothing. The battle being
     // fought (if any) is exempt like the current node.
     rm.eclipse = normalizeEclipseState(saved.eclipse, rm.getEclipseConfig());
-    if (rm.nodeMap && rm.isEclipseActive()) {
-      applyEclipse({
-        state: rm.eclipse,
-        config: rm.getEclipseConfig(),
-        nodeMap: rm.nodeMap,
-        runSeed: rm.runSeed,
-        currentNodeId: rm.currentNodeId,
-        activeNodeId:
-          typeof saved.battleInProgress?.nodeId === 'string' ? saved.battleInProgress.nodeId : null,
-        mapTemplates: gameData?.mapTemplates || null,
-        fogChanceBonus: rm.getDifficultyModifier('fogChanceBonus', 0),
-        halfFogChance: rm.difficultyId === 'normal',
-      });
-    }
+    // The same fall as in play (applyEclipseNow), Dark Omen included.
+    rm.applyEclipseNow({
+      activeNodeId:
+        typeof saved.battleInProgress?.nodeId === 'string' ? saved.battleInProgress.nodeId : null,
+    });
 
     // Suspended battle (anti-refresh): only a flag carrying a usable resume
     // checkpoint survives the load — a battle interrupted before its first

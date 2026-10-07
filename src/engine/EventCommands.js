@@ -38,8 +38,9 @@
 //   eventView(run, nodeId)                     → View | null (the display model, below)
 //   eventChoiceBlock(run, nodeId, choiceId, targetUid?)  → '' | reason line
 //   eventTargets(run, nodeId, choiceId)        → [{ uid, name, unit, ok, reason }] for the picker
-//   chooseEventOption(run, nodeId, choiceId, { targetUid }?)
-//                                              → { ok:true, text, results, outcomeId, battle, state }
+//   chooseEventOption(run, nodeId, choiceId, { targetUid, page }?)   (`page`: view.page, optional guard)
+//                                              → { ok:true, text, results, outcomeId, battle,
+//                                                  next: pageId | null, state }
 //                                                | { ok:false, reason }
 //   pendingEventBattle(run, nodeId)            → { nodeId, eventId, choiceId, outcomeId, text,
 //                                                results } | null  (a fight is owed, not yet won)
@@ -55,12 +56,35 @@
 // State (run.eventStateByNodeId[nodeId]): { eventId, arrivedAct, fallen?: { unitUid, name },
 //   choiceId?, outcomeId?, targetUid?, targetName?, text?, results: [], battle: null |
 //   'pending' | 'won', afterVictory: [effects], victoryText?, victoryResults: [], left?,
-//   spoilsForfeited? }.
-// View: { nodeId, eventId, title, intro, act, phase: 'choosing' | 'outcome' | 'victory',
-//   choices: [{ id, label, hint, cost, block, target: null | { prompt, candidates } }],
+//   page?, path?, counters?, spoilsForfeited? }. The top-level choiceId... describe the choice made on the
+//   CURRENT page. Pages (docs/specs/event-nodes-phase2.md §2A): `page` is the current page's id
+//   (absent = the first page, `start`), `path` the steps behind it ([{ page, choiceId,
+//   outcomeId, text, results, targetUid?, targetName? }], absent = none), `counters` the
+//   event's counters now ({ torches: 2 }, absent = the event has none). A record written
+//   before pages existed has none of the three and reads as a one-page event.
+//
+// View: { nodeId, eventId, title, intro, act, dark, phase: 'choosing' | 'outcome' | 'victory',
+//   page: '<pageId>', trail: [{ page, choiceId, choiceLabel, outcomeId, text, results,
+//   targetName }], counters: [{ key, label, value, max }],
+//   choices: [{ id, label, hint, cost, block, target: null | { prompt, candidates },
+//     tells: [{ speaker: { uid, name }, line }] }],
 //   outcome: null | { choiceId, choiceLabel, outcomeId, text, results, targetName },
 //   battle: null | 'pending' | 'won', canFight, spoilsOwed, victory: null | { text, results,
 //   forfeited }, canLeave }.
+//   `intro` is the CURRENT page's text (the event's intro on the first page); `choices` are the
+//   current page's. `trail` lists the earlier steps in order (their outcome text and results
+//   stay on screen above the page: a refresh shows the same trail). `counters` is empty for an
+//   event with none; `max` is the starting value (for pips). `tells` are shown only while
+//   choosing (the line is already spoken by `speaker`; there is never a number).
+//
+// Pages and `leaveEvent`: choosing on a page whose resolved outcome has `next` moves the event
+//   to that page at once (the step goes to `trail`, the page's choices open, `phase` is
+//   'choosing' again; chooseEventOption returns `next: '<pageId>'`). A page whose resolved
+//   outcome has no `next` ends the event: the outcome page shows, then Continue =
+//   leaveEvent. So "leave" is a choice whose outcomes carry no `next`; leaveEvent itself is
+//   refused until the current page has a resolved choice. An outcome that starts a battle may
+//   not carry `next` (the validator refuses it; the engine ignores it).
+//
 // Result records ({ kind, ... }) are listed in EventEffects.js.
 //
 // ── Rules ────────────────────────────────────────────────────────────────
@@ -72,10 +96,14 @@
 //    returns { ok:false } with the run untouched, and an exception while applying rolls
 //    the run back.
 //  * A choice is refused (never silently) when: the event is not at this node, a choice was
-//    already made, a requirement, the target, the gold cost or room for an item is missing.
+//    already made on this page, a requirement, the target, the gold cost or room for an item is
+//    missing, or it can open a contract while one is open.
 //    Room is exact and outcome-independent: every item the choice could grant, on any path,
 //    must be deliverable by the planner (EventEffects.planChoiceItems: weapons need weapon
 //    space and a unit that can wield them, items need consumable space).
+//  * Each step of a multi-page event commits and saves like a Phase 1 choice and has its own
+//    seeds (EventSystem.choiceSeedKey): a refresh reopens the current page and never re-rolls
+//    a step already taken, on any page.
 //  * The event node keeps `type: 'event'` with an event battle (node.eventBattle = true), so
 //    the route map, the Eclipse (the current node never falls) and encounter locking see
 //    one node throughout.
@@ -86,26 +114,40 @@ import {
   createLedger,
   planChoiceItems,
   planEffects,
+  restoreRunState,
+  snapshotRunState,
 } from './EventEffects.js';
 import {
   choiceCost,
   choiceMayGrantItem,
+  choiceMayOpenContract,
+  counterLabel,
   eventCatalogOf,
   eventSpoilsOwedAt,
   evaluateRequires,
+  eventFace,
   fallenOfState,
   fillText,
   findChoice,
   findEvent,
   findRosterUnit,
+  initialCounters,
+  isDarkEvent,
   isEventNode,
+  pageIdOf,
+  pageOf,
+  pathOf,
+  pageSeedId,
   pickEvent,
   pickFallenAlly,
   runSeedOf,
   selectOutcome,
+  START_PAGE,
   targetCandidates,
   targetFilterBlock,
 } from './EventSystem.js';
+import { contractOf } from './Contracts.js';
+import { choiceTells, tellTilt } from './EventTells.js';
 import { withEclipseSeed } from './EclipseSystem.js';
 import { isPrologueRun } from './ScriptedBattle.js';
 import { unitUidOf } from './UnitIdentity.js';
@@ -139,9 +181,13 @@ function open(run, nodeId, catalogArg = null) {
   if (!catalog) return { error: 'No events are known.' };
   const state = stateOf(run, nodeId);
   if (!state) return { error: 'Arrive at the event first.', node, catalog };
-  const event = findEvent(catalog, state.eventId);
+  // A Dark Omen plays the event's dark face (EventSystem.eventFace): its intro, choices, pages.
+  const event = eventFace(findEvent(catalog, state.eventId), state);
   if (!event) return { error: 'This event is no longer known.', node, catalog, state };
-  return { node, catalog, state, event };
+  const pageId = pageIdOf(state);
+  const page = pageOf(event, pageId);
+  if (!page) return { error: 'This part of the event is no longer known.', node, catalog, state };
+  return { node, catalog, state, event, pageId, page };
 }
 
 function seeded(run, nodeId, label, fn) {
@@ -171,7 +217,9 @@ export function arriveAtEvent(run, nodeId, catalogArg = null) {
   if (!run.eventStateByNodeId || typeof run.eventStateByNodeId !== 'object')
     run.eventStateByNodeId = {};
   if (!stateOf(run, nodeId)) {
-    const event = pickEvent(run, node, catalog);
+    // A Dark Omen node (the Eclipse took it and left its story) draws among the dark faces.
+    const darkNode = node.darkOmen === true;
+    const event = pickEvent(run, node, catalog, { dark: darkNode });
     if (!event) return null;
     const state = {
       eventId: event.id,
@@ -181,10 +229,14 @@ export function arriveAtEvent(run, nodeId, catalogArg = null) {
       battle: null,
       afterVictory: [],
     };
+    // Only when the event has the face to wear (the fallback may not): else it is played plain.
+    if (darkNode && isDarkEvent(event)) state.dark = true;
     if (event.requires?.fallen === true) {
       const fallen = pickFallenAlly(run, nodeId);
       if (fallen) state.fallen = fallen;
     }
+    const counters = initialCounters(event, run.difficultyId);
+    if (Object.keys(counters).length) state.counters = counters;
     run.eventStateByNodeId[nodeId] = state;
   }
   if (!node.completed) run.currentNodeId = nodeId;
@@ -201,12 +253,14 @@ export function arriveAtEvent(run, nodeId, catalogArg = null) {
 export function eventChoiceBlock(run, nodeId, choiceId, targetUid = null) {
   const ctx = open(run, nodeId);
   if (ctx.error) return ctx.error;
-  const { state, event, catalog, node } = ctx;
+  const { state, event, catalog, node, pageId } = ctx;
   if (state.choiceId) return 'You have already chosen.';
-  const choice = findChoice(event, choiceId);
+  const choice = findChoice(event, choiceId, pageId);
   if (!choice) return 'That is not a choice here.';
-  const requireLine = evaluateRequires(run, choice.requires, { catalog, node });
+  const requireLine = evaluateRequires(run, choice.requires, { catalog, node, state });
   if (requireLine) return requireLine;
+  if (choiceMayOpenContract(choice) && contractOf(run))
+    return 'You are already bound by a contract.';
   const fallen = fallenOfState(run, state);
   if (choice.target) {
     const filter = choice.target.filter || {};
@@ -280,7 +334,7 @@ function targetRows(run, nodeId, ctx, choice) {
 export function eventTargets(run, nodeId, choiceId) {
   const ctx = open(run, nodeId);
   if (ctx.error) return [];
-  const choice = findChoice(ctx.event, choiceId);
+  const choice = findChoice(ctx.event, choiceId, ctx.pageId);
   if (!choice?.target) return [];
   return targetRows(run, nodeId, ctx, choice);
 }
@@ -291,19 +345,40 @@ export function eventTargets(run, nodeId, choiceId) {
 export function eventView(run, nodeId) {
   const ctx = open(run, nodeId);
   if (ctx.error || !ctx.event) return null;
-  const { state, event, node, catalog } = ctx;
-  const chosen = findChoice(event, state.choiceId);
+  const { state, event, node, catalog, pageId, page } = ctx;
+  const chosen = findChoice(event, state.choiceId, pageId);
   const pending = state.battle === 'pending' && !node.completed;
   const settled = state.battle === 'won';
   const phase = !state.choiceId ? 'choosing' : settled ? 'victory' : 'outcome';
+  const starts = initialCounters(event, run.difficultyId);
   return {
     nodeId,
     eventId: event.id,
     title: event.title,
-    intro: fillText(event.intro, state),
+    intro: fillText(page.text, state),
     act: state.arrivedAct || run.currentAct,
+    // A Dark Omen: the event's dark face is in play (EventSystem.eventFace).
+    dark: state.dark === true,
     phase,
-    choices: (event.choices || []).map((choice) => ({
+    page: pageId,
+    trail: pathOf(state).map((step) => ({
+      page: step.page,
+      choiceId: step.choiceId,
+      choiceLabel: findChoice(event, step.choiceId, step.page)?.label || '',
+      outcomeId: step.outcomeId,
+      text: step.text || '',
+      results: clone(step.results || []),
+      targetName: step.targetName || null,
+    })),
+    counters: Object.keys(starts)
+      .concat(Object.keys(state.counters || {}).filter((key) => !(key in starts)))
+      .map((key) => ({
+        key,
+        label: counterLabel(event, key),
+        value: Math.max(0, Math.trunc(Number(state.counters?.[key]) || 0)),
+        max: starts[key] ?? Math.max(0, Math.trunc(Number(state.counters?.[key]) || 0)),
+      })),
+    choices: page.choices.map((choice) => ({
       id: choice.id,
       label: choice.label,
       hint: choice.hint || '',
@@ -320,6 +395,15 @@ export function eventView(run, nodeId) {
             })),
           }
         : null,
+      tells:
+        phase === 'choosing'
+          ? choiceTells(run, nodeId, pageSeedId(state, pageId), choice).map(
+              ({ speaker, line }) => ({
+                speaker,
+                line,
+              }),
+            )
+          : [],
     })),
     outcome: state.choiceId
       ? {
@@ -348,56 +432,38 @@ export function eventView(run, nodeId) {
 
 // ── Choosing ────────────────────────────────────────────────────────────
 
-const RUN_FIELDS = [
-  'roster',
-  'fallenUnits',
-  'laidToRest',
-  'convoy',
-  'gold',
-  'eclipse',
-  'visionChargesRemaining',
-  'activeBlessings',
-  'blessingHistory',
-  'blessingRuntimeModifiers',
-  'storyFlags',
-  'burdens',
-  'accessories',
-  'nodeMap',
-  'currentNodeId',
-];
-
-function snapshotRun(run) {
-  return structuredClone(Object.fromEntries(RUN_FIELDS.map((key) => [key, run[key]])));
-}
-
-function restoreRun(run, snapshot) {
-  for (const key of RUN_FIELDS) run[key] = snapshot[key];
-}
-
 /**
  * Commit a choice and apply its outcome. Selects the outcome from the seeded stream (a
  * check reads the target's stats now), PLANS every effect, and only then applies them.
  * @param {object} run - RunManager
  * @param {string} nodeId
  * @param {string} choiceId
- * @param {{ targetUid?: string|null }} [options] - the chosen unit's uid (or name)
+ * @param {{ targetUid?: string|null, page?: string|null }} [options] - the chosen unit's uid (or
+ *   name); `page`: the page the choice was shown on (view.page), refused when the event has moved on
  * @returns {{ ok: true, text: string, results: object[], outcomeId: string, battle: boolean,
- *   state: object } | { ok: false, reason: string }}
+ *   next: string|null, state: object } | { ok: false, reason: string }}
+ *   `next` is the page the event moved to (null when the event stays on its outcome page)
  */
-export function chooseEventOption(run, nodeId, choiceId, { targetUid = null } = {}) {
+export function chooseEventOption(run, nodeId, choiceId, { targetUid = null, page = null } = {}) {
   const ctx = open(run, nodeId);
   if (ctx.error) return { ok: false, reason: ctx.error };
+  // The page the player was looking at (view.page): a double tap on a choice that exists on the
+  // next page too must not be taken twice.
+  if (page !== null && page !== ctx.pageId) return { ok: false, reason: 'That page has moved on.' };
   const block = eventChoiceBlock(run, nodeId, choiceId, targetUid);
   if (block) return { ok: false, reason: block };
-  const { node, state, event, catalog } = ctx;
-  const choice = findChoice(event, choiceId);
+  const { node, state, event, catalog, pageId } = ctx;
+  const choice = findChoice(event, choiceId, pageId);
   if (choice.target && !targetUid) return { ok: false, reason: 'Choose who.' };
-  return seeded(run, nodeId, `choose:${choiceId}`, () =>
-    commit(run, { node, nodeId, state, event, choice, catalog, targetUid }),
+  // The first page keeps its Phase 1 seeded-swap label; later pages (and revisits) name themselves.
+  const seedPage = pageSeedId(state, pageId);
+  const label = seedPage === START_PAGE ? `choose:${choiceId}` : `choose:${seedPage}:${choiceId}`;
+  return seeded(run, nodeId, label, () =>
+    commit(run, { node, nodeId, state, event, choice, catalog, targetUid, pageId }),
   );
 }
 
-function commit(run, { node, nodeId, state, event, choice, catalog, targetUid }) {
+function commit(run, { node, nodeId, state, event, choice, catalog, targetUid, pageId }) {
   const target = choice.target ? findRosterUnit(run, targetUid) : null;
   const base = {
     run,
@@ -407,10 +473,18 @@ function commit(run, { node, nodeId, state, event, choice, catalog, targetUid })
     event,
     choice,
     state,
+    page: pageId,
+    pageTag: pageSeedId(state, pageId),
     target,
     fallenUnit: fallenOfState(run, state),
   };
-  const { outcome } = selectOutcome(run, nodeId, choice, { target });
+  // A roster tell that tilts a check nudges it (once); the same tells the view showed.
+  const tilt = choice.check ? tellTilt(choiceTells(run, nodeId, base.pageTag, choice)) : 0;
+  const { outcome } = selectOutcome(run, nodeId, choice, {
+    target,
+    pageId: base.pageTag,
+    tilt,
+  });
 
   // PLAN: the gold cost, the choice's own effects, then the outcome's (or its fallback).
   const ledger = createLedger(run);
@@ -436,7 +510,8 @@ function commit(run, { node, nodeId, state, event, choice, catalog, targetUid })
   }
 
   // APPLY (rolled back whole if anything throws).
-  const snapshot = snapshotRun(run);
+  const snapshot = snapshotRunState(run);
+  const countersBefore = clone(state.counters);
   let results;
   try {
     results = [];
@@ -447,26 +522,52 @@ function commit(run, { node, nodeId, state, event, choice, catalog, targetUid })
     results.push(...applyPlan({ ...base, phase: 'c' }, planChoice.steps));
     results.push(...applyPlan({ ...base, phase: 'o' }, planOutcome.steps));
   } catch (error) {
-    restoreRun(run, snapshot);
+    restoreRunState(run, snapshot);
+    if (countersBefore === undefined) delete state.counters;
+    else state.counters = countersBefore;
     return { ok: false, reason: `That did not work out (${error.message}). Nothing changed.` };
   }
 
   // Record.
   run.currentNodeId = nodeId;
   const filled = fillText(text, state);
-  Object.assign(state, {
-    choiceId: choice.id,
-    outcomeId: outcome.id,
-    text: filled,
-    results,
-    battle: battleStep ? 'pending' : null,
-    afterVictory: battleStep ? clone(battleStep.afterVictory) : [],
-    victoryText: battleStep ? fillText(battleStep.victoryText, state) : '',
-    victoryResults: [],
-  });
+  const step = { page: pageId, choiceId: choice.id, outcomeId: outcome.id, text: filled, results };
   if (target) {
-    state.targetUid = unitUidOf(target) || target.name;
-    state.targetName = target.name;
+    step.targetUid = unitUidOf(target) || target.name;
+    step.targetName = target.name;
+  }
+  // A step whose outcome has `next` opens that page; a battle (or no `next`) ends the page.
+  const next =
+    !battleStep && typeof outcome.next === 'string' && pageOf(event, outcome.next)
+      ? outcome.next
+      : null;
+  if (next) {
+    for (const key of ['choiceId', 'outcomeId', 'targetUid', 'targetName', 'text'])
+      delete state[key];
+    Object.assign(state, {
+      page: next,
+      path: [...pathOf(state), step],
+      results: [],
+      battle: null,
+      afterVictory: [],
+      victoryText: '',
+      victoryResults: [],
+    });
+  } else {
+    Object.assign(state, {
+      choiceId: choice.id,
+      outcomeId: outcome.id,
+      text: filled,
+      results,
+      battle: battleStep ? 'pending' : null,
+      afterVictory: battleStep ? clone(battleStep.afterVictory) : [],
+      victoryText: battleStep ? fillText(battleStep.victoryText, state) : '',
+      victoryResults: [],
+    });
+    if (target) {
+      state.targetUid = step.targetUid;
+      state.targetName = step.targetName;
+    }
   }
   if (!Array.isArray(run.eventLog)) run.eventLog = [];
   run.eventLog.push({
@@ -474,6 +575,7 @@ function commit(run, { node, nodeId, state, event, choice, catalog, targetUid })
     choiceId: choice.id,
     outcomeId: outcome.id,
     act: run.currentAct,
+    ...(pageId === START_PAGE ? {} : { page: pageId }),
   });
   return {
     ok: true,
@@ -481,6 +583,7 @@ function commit(run, { node, nodeId, state, event, choice, catalog, targetUid })
     results: clone(results),
     outcomeId: outcome.id,
     battle: Boolean(battleStep),
+    next,
     state: clone(state),
   };
 }
@@ -562,7 +665,7 @@ export function completeEventBattle(run, nodeId) {
   if (state.battle !== 'pending') return { ok: false, reason: 'No battle was started here.' };
   if (!node.completed) return { ok: false, reason: 'The fight is not won yet.' };
   return seeded(run, nodeId, 'victory', () => {
-    const choice = findChoice(event, state.choiceId);
+    const choice = findChoice(event, state.choiceId, pageIdOf(state));
     const base = {
       run,
       catalog,
@@ -571,18 +674,20 @@ export function completeEventBattle(run, nodeId) {
       event,
       choice,
       state,
+      page: pageIdOf(state),
+      pageTag: pageSeedId(state),
       target: state.targetUid ? findRosterUnit(run, state.targetUid) : null,
       fallenUnit: fallenOfState(run, state),
       phase: 'a',
     };
     const plan = planEffects(base, state.afterVictory, { lenient: true });
     if (!plan.ok) return { ok: false, reason: plan.reason };
-    const snapshot = snapshotRun(run);
+    const snapshot = snapshotRunState(run);
     let results;
     try {
       results = applyPlan(base, plan.steps);
     } catch (error) {
-      restoreRun(run, snapshot);
+      restoreRunState(run, snapshot);
       return { ok: false, reason: `The spoils could not be taken (${error.message}).` };
     }
     state.battle = 'won';

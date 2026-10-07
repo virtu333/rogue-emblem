@@ -163,7 +163,11 @@ import {
   resolveTimedBuffExpiry,
   timedBuffCombatMods,
 } from '../../src/engine/TimedWeaponArtBuffs.js';
-import { applyBattleDebuff, clearBattleScopedDeltas } from '../../src/engine/BattleStatDeltas.js';
+import {
+  applyBattleDebuff,
+  applyBattleStartDebuffs,
+  clearBattleScopedDeltas,
+} from '../../src/engine/BattleStatDeltas.js';
 import { AREA_XP_LIVE, actionXpAwards, applyXpGain, scaledXp } from '../../src/engine/BattleXp.js';
 import { selectEnemyWeaponArt } from '../../src/engine/EnemyArtScoring.js';
 import { bindEnemyAreaArt } from '../../src/engine/EnemyAreaArts.js';
@@ -205,8 +209,17 @@ const HIDDEN_WEAPON_ART_REASONS = new Set([
 ]);
 
 export class HeadlessBattle {
-  constructor(gameData, battleParams, roster = null) {
+  /**
+   * @param {object} gameData
+   * @param {object} [battleParams]
+   * @param {Array|null} [roster]
+   * @param {{ buildRecruit?: (preview: object) => ({ unit: object }|null) }} [options]
+   *   `buildRecruit`: how a full run builds a recruit battle's green unit (the run's own
+   *   `getRecruitNodeUnit`); without it the battle builds one from its own params.
+   */
+  constructor(gameData, battleParams, roster = null, options = {}) {
     this.gameData = gameData;
+    this.buildRecruit = typeof options?.buildRecruit === 'function' ? options.buildRecruit : null;
     if (!this.gameData.skills) this.gameData.skills = [];
     this.battleParams = battleParams || { act: 'act1', objective: 'rout' };
     this.roster = roster;
@@ -340,9 +353,12 @@ export class HeadlessBattle {
       this._addEnemyFromSpawn(spawn);
     }
 
-    // Spawn NPC for recruit battles — the same RecruitNodeSystem build as BattleScene
-    // (own seeded stream; the battle's Math.random is not consumed). Full-run sims
-    // pass the run roster / seed / node id so the NPC matches the Loom preview.
+    // Spawn NPC for recruit battles — the same RecruitNodeSystem build as BattleScene (own
+    // seeded stream; the battle's Math.random is not consumed). A full run hands in the
+    // production builder (`options.buildRecruit`, RunManager.getRecruitNodeUnit: the one place
+    // that knows the run's roster and seed and that an event's recruit never rolls a lord), as
+    // BattleScene calls it; a standalone battle builds from its own params, like the scene's
+    // no-run fallback.
     if (bc.npcSpawn?.prologueUnit) {
       // An authored green unit (P3's Sera): the one builder BattleScene uses too.
       const npc = buildPrologueNpcUnit(bc.npcSpawn, this.gameData);
@@ -350,21 +366,24 @@ export class HeadlessBattle {
       this.npcUnits.push(npc);
     } else if (bc.npcSpawn) {
       const npcSpawn = bc.npcSpawn;
-      const built = buildRecruitNodeUnit({
-        preview: { className: npcSpawn.className, name: npcSpawn.name },
-        nodeId: this.battleParams?.recruitNodeId || 'recruit',
-        runSeed: this.battleParams?.recruitRunSeed ?? this.battleParams?.battleSeed ?? 0,
-        act: this.battleParams?.act || 'act1',
-        roster: Array.isArray(this.battleParams?.recruitRoster)
-          ? this.battleParams.recruitRoster
-          : this.playerUnits,
-        fallenUnits: this.battleParams?.fallenUnits || [],
-        gameData: this.gameData,
-        metaEffects: this.battleParams?.metaEffects || null,
-        startingLordNames: this.battleParams?.startingLordNames,
-        recruitLevelBonus: Math.trunc(Number(this.battleParams?.recruitLevelBonus) || 0),
-        deployBonus: Math.trunc(Number(this.battleParams?.deployBonus) || 0),
-      });
+      const preview = { className: npcSpawn.className, name: npcSpawn.name };
+      const built = this.buildRecruit
+        ? this.buildRecruit(preview)
+        : buildRecruitNodeUnit({
+            preview,
+            nodeId: this.battleParams?.recruitNodeId || 'recruit',
+            runSeed: this.battleParams?.recruitRunSeed ?? this.battleParams?.battleSeed ?? 0,
+            act: this.battleParams?.act || 'act1',
+            roster: Array.isArray(this.battleParams?.recruitRoster)
+              ? this.battleParams.recruitRoster
+              : this.playerUnits,
+            fallenUnits: this.battleParams?.fallenUnits || [],
+            gameData: this.gameData,
+            metaEffects: this.battleParams?.metaEffects || null,
+            startingLordNames: this.battleParams?.startingLordNames,
+            recruitLevelBonus: Math.trunc(Number(this.battleParams?.recruitLevelBonus) || 0),
+            deployBonus: Math.trunc(Number(this.battleParams?.deployBonus) || 0),
+          });
       if (built?.unit) {
         const npc = built.unit;
         // Mirrors BattleScene: the tile must suit the unit that spawned (lord roll).
@@ -390,6 +409,8 @@ export class HeadlessBattle {
     for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
       unit._phoenixBroochUsed = false;
     }
+    // The Wounded burden's stat delta, as BattleScene applies it at a fresh start.
+    applyBattleStartDebuffs(this.playerUnits, this.battleParams?.battleDebuffs);
 
     // Anti-turtle clock (engine/TurnPressure.js), as BattleScene: measured once the
     // field is populated, advanced at the start of every enemy phase.

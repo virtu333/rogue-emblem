@@ -34,7 +34,7 @@ describe('event node labels', () => {
     expect(card.objective).toBeNull();
   });
 
-  it('a fallen event wears the Dark Omen medal and says the dark took the road', () => {
+  it('an event that fell to a fight looks like any eclipsed battle, not the Dark Omen', () => {
     const node = event();
     eclipseNode(node, {
       runSeed: 7,
@@ -44,7 +44,10 @@ describe('event node labels', () => {
       shadow: 30,
     });
     expect(nodeLabel(node)).toBe('Swallowed road');
-    expect(nodeFrame(node, 'act2')).toBe(10);
+    // The Omen's medal is for an event that kept its story (node.darkOmen): this one is a fight now.
+    expect(node.darkOmen).toBeUndefined();
+    expect(node.type).toBe('battle');
+    expect(nodeFrame(node, 'act2')).toBe(7); // an eclipsed battle reads elite
     const card = describeLoomNode(node, { state: 'live', actId: 'act2' });
     expect(card.kind).toBe('ECLIPSED');
     expect(card.text).toMatch(/^The dark took this road\./);

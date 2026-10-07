@@ -4,7 +4,12 @@
 import { RunManager } from '../src/engine/RunManager.js';
 import { createUnit } from '../src/engine/UnitManager.js';
 import { createSeededRng } from '../src/engine/BlessingEngine.js';
-import { pickFallenAlly } from '../src/engine/EventSystem.js';
+import {
+  eventCatalogOf,
+  findEvent,
+  initialCounters,
+  pickFallenAlly,
+} from '../src/engine/EventSystem.js';
 import { arriveAtEvent } from '../src/engine/EventCommands.js';
 import { loadGameData } from './testData.js';
 
@@ -76,6 +81,9 @@ export function arriveAs(run, eventId, node = eventNode(run)) {
     const fallen = pickFallenAlly(run, node.id);
     if (fallen) state.fallen = fallen;
   }
+  // An event with counters starts with them, as arriveAtEvent does.
+  const counters = initialCounters(findEvent(eventCatalogOf(run), eventId), run.difficultyId);
+  if (Object.keys(counters).length) state.counters = counters;
   run.eventStateByNodeId[node.id] = state;
   return node;
 }

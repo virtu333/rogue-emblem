@@ -4,20 +4,26 @@ import { hasInputFocus } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
 
 /**
- * The run's burdens under the pause note (Burdens.describeBurdens): one entry each, the
- * name and what is left over its line. Null when the run carries none.
+ * The run's burdens under the pause note (Burdens.describeBurdens), and its open contract
+ * (eventMenuModel `pauseBurdenEntries`): one entry each, the name and what is left over its
+ * line. Null when the run carries none.
  */
 export function pauseBurdenList(burdens) {
   if (!Array.isArray(burdens) || !burdens.length) return null;
   const list = document.createElement('ul');
   list.className = 'mp-burdens';
-  list.setAttribute('aria-label', 'Burdens');
+  list.setAttribute(
+    'aria-label',
+    burdens.some((b) => b.id === 'contract') ? 'Burdens and contract' : 'Burdens',
+  );
   for (const burden of burdens) {
     const item = document.createElement('li');
+    if (burden.id === 'contract') item.className = 'is-contract';
     const name = document.createElement('strong');
     name.textContent = `${burden.label} \u00b7 ${burden.short}`;
     const line = document.createElement('span');
-    line.textContent = `${burden.line} ${burden.detail}.`;
+    // A contract says its terms whole; a burden says its line and what is left.
+    line.textContent = burden.text || `${burden.line} ${burden.detail}.`;
     item.append(name, line);
     list.append(item);
   }

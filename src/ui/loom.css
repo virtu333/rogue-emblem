@@ -204,6 +204,49 @@
 .re-burden-note[hidden] {
   display: none;
 }
+/* A contract is a promise, not a wound: the same chip in the gilt of a seal. */
+.re-burden.re-contract {
+  border-color: var(--re-gilt);
+  background: var(--re-sunken);
+}
+.re-burden.re-contract[aria-expanded='true'] {
+  border-color: var(--re-accent-text);
+  background: var(--re-selected);
+}
+.re-contract .re-burden-name {
+  color: var(--re-accent-text);
+}
+.re-burden-note.is-contract {
+  border-left-color: var(--re-gilt);
+}
+
+/* A road an event drew, or a place it changed: ringed on the loom for a few seconds. */
+.re-loom-changed {
+  position: absolute;
+  inset: 1px;
+  border: 2px solid var(--re-accent-text);
+  border-radius: 50%;
+  box-shadow: 0 0 10px 2px var(--re-ember-glow);
+  pointer-events: none;
+}
+.re-loom-changed.is-pulsing {
+  animation: re-loom-changed 1.4s ease-out 4;
+}
+@keyframes re-loom-changed {
+  0% {
+    transform: scale(0.85);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .re-loom-changed.is-pulsing {
+    animation: none;
+  }
+}
 
 /* ───────── Body: loom + side pane (the pane stays a column at every width) ───────── */
 .re-loom-screen .re-node-layout {

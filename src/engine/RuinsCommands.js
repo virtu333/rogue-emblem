@@ -6,8 +6,7 @@
 // can never open the other side. Saves from before the choice existed carry none:
 // that ruins simply has no path chosen yet. Pure: no Phaser, no DOM.
 import { RUINS_PATHS } from '../utils/constants.js';
-import { churchReviveBlock, reviveAtChurch } from './ChurchCommands.js';
-import { healUnitFully } from './UnitHealth.js';
+import { churchReviveBlock, healRosterAtChurch, reviveAtChurch } from './ChurchCommands.js';
 
 export { RUINS_PATHS };
 
@@ -44,8 +43,8 @@ export function chooseRuinsPath(run, nodeId, path) {
     run.ruinsChoiceByNodeId = {};
   run.ruinsChoiceByNodeId[nodeId] = path;
   if (path === 'rest') {
-    healRoster(run);
-    return { ok: true, path, message: 'You rest among the stones. All units healed.' };
+    const healed = healRosterAtChurch(run);
+    return { ok: true, path, message: `You rest among the stones. ${healed.message}` };
   }
   return { ok: true, path, message: 'You scavenge the ruins.' };
 }
@@ -63,8 +62,7 @@ export function ruinsServiceBlock(run, nodeId, service) {
 export function healAtRuins(run, nodeId) {
   const reason = ruinsServiceBlock(run, nodeId, 'heal');
   if (reason) return { ok: false, reason };
-  healRoster(run);
-  return { ok: true, message: 'All units healed.' };
+  return healRosterAtChurch(run);
 }
 
 export function ruinsReviveBlock(run, nodeId, unit) {
@@ -82,11 +80,4 @@ export function chosenLine(path) {
   return path === 'rest'
     ? 'You chose to rest here. The wares stay buried.'
     : 'You chose to scavenge here. No rest tonight.';
-}
-
-function healRoster(run) {
-  for (const unit of run.roster || []) {
-    if (!unit?.stats) continue;
-    healUnitFully(unit);
-  }
 }

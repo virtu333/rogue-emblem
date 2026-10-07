@@ -21,6 +21,7 @@
 
 import { EventMenu } from './EventMenu.js';
 import { showMinorHint } from './HintDisplay.js';
+import { routeChangeModel } from './eventMenuModel.js';
 import { saveServiceRun } from './serviceSave.js';
 import {
   arriveAtEvent,
@@ -145,6 +146,15 @@ export class EventController {
     scene.eventOverlay = [];
     scene._eventNode = node;
     this.nativeMenu = new EventMenu(this);
+  }
+
+  /**
+   * A choice edited the route (a road drawn, a place redrawn): hand the route map the places to
+   * ring and the line to say, for when the page closes. The edit itself is already in the map.
+   */
+  noteRouteChange(results) {
+    const change = routeChangeModel(results);
+    if (change.nodeIds.length) this.scene.nodeView?.noteRouteChange?.(change);
   }
 
   /** The page's own exits. */

@@ -63,10 +63,10 @@ export function affixesAllowedForClass(affixIds, className, affixConfig) {
   return toArray(affixIds).filter((id) => !classExclude.get(id)?.has(className));
 }
 
-function weightedPick(entries) {
+function weightedPick(entries, random = Math.random) {
   const total = entries.reduce((sum, e) => sum + e.weight, 0);
   if (total <= 0) return null;
-  let roll = Math.random() * total;
+  let roll = random() * total;
   for (const entry of entries) {
     roll -= entry.weight;
     if (roll <= 0) return entry.item;
@@ -114,6 +114,40 @@ export function assignAffixesToEnemySpawns(enemySpawns, options = {}) {
   const eclipse = options.eclipse;
   if (!eclipse || !(Number(eclipse.guaranteedCount) > 0)) return spawns;
   return ensureGuaranteedAffixes(spawns, options);
+}
+
+/**
+ * The Sworn Enemy burden (engine/Burdens.js): the act boss gains one tier-1 affix. The pick is
+ * seeded by the caller's `random` (never Math.random) and follows the engine's own rules: the
+ * rung's excluded affixes, class exclusions and mutual exclusions with what the boss already
+ * carries all hold; the act's own gating does not (an event sworn the oath, not the dice). The
+ * Entity keeps its curated affixes and takes none. Pure: returns a new list.
+ * @param {Array} enemySpawns
+ * @param {{ affixConfig?: object, difficultyId?: string, random: () => number }} options
+ */
+export function assignSwornAffix(enemySpawns, options = {}) {
+  const { affixConfig: config = null, difficultyId = 'normal', random } = options;
+  if (typeof random !== 'function') throw new Error('assignSwornAffix needs a seeded `random`.');
+  if (!Array.isArray(enemySpawns) || !config || !Array.isArray(config.affixes)) return enemySpawns;
+  const index = enemySpawns.findIndex((spawn) => spawn?.isBoss && !spawn.isEntity);
+  if (index < 0) return enemySpawns;
+  const boss = enemySpawns[index];
+  const excluded = new Set(resolveDifficultyRules(config, difficultyId)?.excludedAffixes || []);
+  const carried = new Set(toArray(boss.affixes));
+  const exclusionMaps = buildExclusionMaps(config);
+  const pool = config.affixes
+    .filter(
+      (affix) =>
+        Math.trunc(asNumber(affix?.tier, 0)) === 1 &&
+        !excluded.has(affix.id) &&
+        isAffixAllowed(affix, carried, boss.className, exclusionMaps),
+    )
+    .map((affix) => ({ item: affix, weight: Math.max(0.01, asNumber(affix.weight, 1)) }));
+  const picked = pool.length ? weightedPick(pool, random) : null;
+  if (!picked) return enemySpawns;
+  const out = [...enemySpawns];
+  out[index] = { ...boss, affixes: [...carried, picked.id] };
+  return out;
 }
 
 function effectiveRules(config, difficultyId, eclipse) {

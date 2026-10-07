@@ -115,6 +115,47 @@ describe('dev startup helpers', () => {
     expect(open.gameData.events.events.length).toBeGreaterThan(5);
   });
 
+  it('the event review extras: act, node kind, burdens, contract, omen, units and the dev fixtures', () => {
+    const build = (query) =>
+      buildDevStartupRoute(
+        loadGameData(),
+        createRegistry(),
+        parseDevStartupConfig(`?devScene=nodemap&preset=event&seed=42&${query}`, { devMode: true }),
+      ).data.runManager;
+    // A later act: that act's map, the event waits there.
+    const act2 = build('act=2&event=sunken_mine');
+    expect(act2.currentAct).toBe('act2');
+    expect(act2.nodeMap.nodes.find((n) => n.type === 'event')).toBeTruthy();
+    // A church to Cleanse at, carrying burdens (Debt with its figure, a wound on the first lord).
+    const church = build('as=church&burdens=ill_omen:2,debt:450,wounded');
+    expect(church.getAvailableNodes().some((n) => n.type === 'church')).toBe(true);
+    expect(church.burdens.map((b) => [b.id, b.battles ?? b.owed ?? null])).toEqual([
+      ['ill_omen', 2],
+      ['debt', 450],
+      ['wounded', 2],
+    ]);
+    expect(church.burdens[2].unitUid).toBe(church.roster.find((u) => u.isLord).unitUid);
+    // The arena, an open contract, and a Dark Omen node that has already fallen.
+    expect(
+      build('as=colosseum')
+        .getAvailableNodes()
+        .some((n) => n.type === 'colosseum'),
+    ).toBe(true);
+    expect(build('contract=noLosses').contract).toMatchObject({ goal: 'noLosses' });
+    const omen = build('omen=1').nodeMap.nodes.find((n) => n.darkOmen);
+    expect(omen).toMatchObject({ type: 'event', eclipse: { fromType: 'event', seen: true } });
+    // Roster additions and a review fixture (the only event on the road, its Thief aboard).
+    const fixture = build('event=dev_mine');
+    expect(fixture.gameData.events.events.map((e) => e.id).sort()).toEqual([
+      'dev_mine',
+      'quiet_road',
+    ]);
+    expect(fixture.roster.some((u) => u.name === 'Mira' && u.className === 'Thief')).toBe(true);
+    expect(build('units=Mage,Nonsense').roster.filter((u) => u.className === 'Mage').length).toBe(
+      1,
+    );
+  });
+
   it('ignores unknown scene aliases', () => {
     const config = parseDevStartupConfig('?devScene=unknown', { devMode: true });
     expect(config).toBeNull();

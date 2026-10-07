@@ -120,7 +120,8 @@ describe('RunManager · the dark takes the map', () => {
     const byId = new Map(rm.nodeMap.nodes.map((n) => [n.id, n]));
     for (const id of fell) {
       expect(byId.get(id).eclipse.seen).toBe(false);
-      expect(byId.get(id).type).toBe('battle');
+      // A fallen event may stay an event (a Dark Omen); everything else becomes a battle.
+      expect(byId.get(id).type).toBe(byId.get(id).darkOmen === true ? 'event' : 'battle');
     }
     expect(byId.get(rm.nodeMap.startNodeId).eclipse).toBeUndefined();
   });

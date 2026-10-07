@@ -13,6 +13,8 @@ import { applyPromotionOath, oathBenchedNote } from './DeedSystem.js';
 import { CHURCH_PROMOTE_COST_LORD, CHURCH_PROMOTE_COST_RECRUIT } from '../utils/constants.js';
 import { kindleBlock } from './EclipseSystem.js';
 import { churchVowBlock, commitChurchVow } from './ChurchVow.js';
+import { endWoundByHealing } from './Burdens.js';
+import { healUnitFully } from './UnitHealth.js';
 /** What a church charges to promote this unit: lords pay more than everyone else. */
 export function churchPromoteCost(unit) {
   return unit?.isLord ? CHURCH_PROMOTE_COST_LORD : CHURCH_PROMOTE_COST_RECRUIT;
@@ -55,6 +57,26 @@ export function promoteAtChurch(run, unit, nodeId, target, gameData) {
     ok: true,
     oath,
     message: `${unit.name} promoted to ${canonical.name}.${oath?.learned ? ` ${oath.name}: learned ${oath.skillName}.` : ''}${dropped.length ? ` ${benchedSkillsNote(dropped)}` : ''}${waits}`,
+  };
+}
+/**
+ * Heal everyone, free: every unit to full HP. A Wounded burden (engine/Burdens.js) whose unit
+ * the heal reaches mends with it: "Heal all" counts. Shared by the church and the sanctuary's
+ * Rest, so a wound ends the same way at either.
+ * @returns {{ ok: true, mended: object|null, message: string }}
+ */
+export function healRosterAtChurch(run) {
+  for (const unit of run.roster || []) {
+    if (!unit?.stats) continue;
+    healUnitFully(unit);
+  }
+  const mended = endWoundByHealing(run, run.roster);
+  return {
+    ok: true,
+    mended,
+    message: mended
+      ? `All units healed. ${mended.unitName ? `${mended.unitName}'s wound` : 'The wound'} mends.`
+      : 'All units healed.',
   };
 }
 export function churchReviveBlock(run, unit) {

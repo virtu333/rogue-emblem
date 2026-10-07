@@ -11,9 +11,10 @@ import { describe, expect, it } from 'vitest';
 import { loadGameData } from '../testData.js';
 import { installSeed, restoreMathRandom } from '../../sim/lib/SeededRNG.js';
 import { RunSimulationDriver } from './RunSimulationDriver.js';
-import { chooseEventPlan, chooseNode } from './RunPolicies.js';
+import { chooseEventPlan, chooseNode, playEventChoices } from './RunPolicies.js';
 import { arriveAtEvent, eventState } from '../../src/engine/EventCommands.js';
 import { arriveAs, makeEvent } from '../eventKit.js';
+import { contractEvent, mineEvent } from '../eventPhase2Kit.js';
 
 function driverFor(seed, options = {}) {
   const driver = new RunSimulationDriver(loadGameData(), {
@@ -130,5 +131,104 @@ describe('event nodes in the driver', () => {
     const result = await driver._runEventNode(node);
     expect(result).toMatchObject({ result: 'event_skipped' });
     expect(node.completed).toBe(true);
+  });
+});
+
+describe('multi-page events and contracts in the driver (docs/specs/event-nodes-phase2.md §2A)', () => {
+  /** A driver whose catalog holds the given events, standing on an event node holding `eventId`. */
+  function standing(eventId, events, options = {}) {
+    const driver = driverFor(options.seed ?? 8, options);
+    const rm = driver.runManager;
+    rm.gameData = {
+      ...rm.gameData,
+      events: {
+        ...rm.gameData.events,
+        events: [...events, ...rm.gameData.events.events.filter((e) => e.fallback)],
+      },
+    };
+    const node = arriveAs(
+      rm,
+      eventId,
+      makeEvent(rm.nodeMap.nodes.find((n) => n.type === 'battle' && n.row >= 2)),
+    );
+    return { driver, rm, node };
+  }
+
+  it('walks a multi-page event one choice per page, down to the page that ends it', async () => {
+    const { driver, rm, node } = standing('mine', [mineEvent()]);
+    const result = await driver._runEventNode(node);
+    // torches 3: deeper (3 -> 2), deeper (2 -> 1), and on the last page the policy takes the
+    // choice that is not the fight: climb out
+    expect(result).toMatchObject({
+      result: 'event_done',
+      eventId: 'mine',
+      steps: 3,
+      battle: false,
+    });
+    expect(rm.eventLog.map((e) => `${e.page ?? 'start'}:${e.choiceId}`)).toEqual([
+      'start:deeper',
+      'level_two:deeper',
+      'level_three:climb',
+    ]);
+    expect(driver.metrics.eventSteps).toBe(3);
+    expect(driver.metrics.eventNodes).toBe(1);
+    expect(driver.metrics.eventsByChoice['mine.climb']).toBe(1);
+    expect(node.completed).toBe(true);
+    expect(driver.metrics.invalidEventChoices ?? 0).toBe(0);
+  });
+
+  it('the fight policy takes the guardian on the last page and settles it through the battle path', async () => {
+    const { driver, rm, node } = standing('mine', [mineEvent()], { eventPolicy: 'fight' });
+    const gold = rm.gold;
+    const result = await driver._runEventNode(node);
+    expect(result).toMatchObject({ result: 'event_done', battle: true, steps: 3 });
+    expect(driver.metrics.eventBattles).toBe(1);
+    expect(node.completed).toBe(true);
+    expect(rm.gold).toBeGreaterThanOrEqual(gold + 200); // the guardian's hoard
+  });
+
+  it('with a torch or fewer left the policy prefers the choice that ends the event', () => {
+    const { rm, node } = standing('mine', [mineEvent()]);
+    rm.eventStateByNodeId[node.id].counters = { torches: 1 };
+    const steps = playEventChoices(rm, node.id);
+    expect(steps).toHaveLength(1);
+    expect(steps[0].plan).toMatchObject({ choiceId: 'climb', leadsOn: false });
+    expect(steps[0].chosen.next).toBeNull();
+  });
+
+  it('stops after maxSteps rather than looping on a page that always leads on', () => {
+    const { rm, node } = standing('mine', [mineEvent()]);
+    // the data validator keeps real events loop-free; this is the driver's own guard
+    const steps = playEventChoices(rm, node.id, { maxSteps: 2 });
+    expect(steps).toHaveLength(2);
+    expect(steps.at(-1).chosen.next).toBe('level_three');
+  });
+
+  it('counts a contract kept when the battle that settles it is won (a forced win comes on turn 1)', async () => {
+    for (const goal of ['underPar', 'noLosses']) {
+      const { driver, rm, node } = standing('contract', [contractEvent({ goal })]);
+      const sign = await driver._runEventNode(node);
+      expect(sign).toMatchObject({ result: 'event_done', choiceId: 'sign' });
+      expect(rm.contract).toMatchObject({ goal });
+      const gold = rm.gold;
+      const next = rm.nodeMap.nodes.find((n) => n.type === 'battle' && !n.completed && n.row > 2);
+      rm.currentNodeId = next.id;
+      const fought = await driver._runBattleNode(next);
+      expect(fought.result).toMatch(/^victory/);
+      expect(rm.contract).toBeNull();
+      expect(rm.gold).toBeGreaterThanOrEqual(gold + 600);
+      expect(driver.metrics).toMatchObject({ contractsKept: 1, contractsBroken: 0 });
+    }
+  });
+
+  it('counts a contract broken when the victory commit says so (turns over par)', async () => {
+    const { driver, rm, node } = standing('contract', [contractEvent({ goal: 'underPar' })]);
+    await driver._runEventNode(node);
+    const next = rm.nodeMap.nodes.find((n) => n.type === 'battle' && !n.completed && n.row > 2);
+    rm.currentNodeId = next.id;
+    const battle = { goldEarned: 0, turnManager: { turnNumber: 9 }, turnPar: 5 };
+    expect(driver._completeBattle({ battle }, rm.getRoster(), next)).toBe(true);
+    expect(rm.burdens.map((b) => b.id)).toEqual(['debt']);
+    expect(driver.metrics).toMatchObject({ contractsKept: 0, contractsBroken: 1 });
   });
 });

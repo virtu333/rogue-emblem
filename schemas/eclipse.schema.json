@@ -108,7 +108,8 @@
       "type": "object",
       "properties": {
         "label": { "type": "string", "minLength": 1 },
-        "noun": { "type": "string", "minLength": 1 }
+        "noun": { "type": "string", "minLength": 1 },
+        "darkLabel": { "type": "string", "minLength": 1 }
       },
       "required": ["label", "noun"],
       "additionalProperties": false

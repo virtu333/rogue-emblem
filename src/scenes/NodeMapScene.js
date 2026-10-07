@@ -47,7 +47,7 @@ import { isTouchPointer } from '../utils/runtimeFlags.js';
 import { ChurchController } from '../ui/ChurchController.js';
 import { EventController, eventPageOwed } from '../ui/EventController.js';
 import { getPendingEventSettlement } from '../engine/EventCommands.js';
-import { describeBurdens } from '../engine/Burdens.js';
+import { pauseBurdenEntries } from '../ui/eventMenuModel.js';
 import { ShopController } from '../ui/ShopController.js';
 import { adaptDialogueEntries } from '../engine/DialogueCast.js';
 import { recordRunLordsMet } from '../engine/LordsMet.js';
@@ -1130,7 +1130,7 @@ export class NodeMapScene extends Phaser.Scene {
     const prologueRun = isPrologueRun(this.runManager);
     const payout = prologueRun ? null : this.runManager.previewEndRunRewards?.();
     this.pauseOverlay = new PauseOverlay(this, {
-      burdens: describeBurdens(this.runManager, this.gameData?.events),
+      burdens: pauseBurdenEntries(this.runManager, this.gameData?.events),
       // The prologue run is skipped (its ending, then Home Base), never abandoned.
       prologue: prologueRun
         ? {
@@ -1766,7 +1766,9 @@ export class NodeMapScene extends Phaser.Scene {
     } else if (node.type === NODE_TYPES.COLOSSEUM) {
       label = 'Colosseum - Arena and Mercenary Board';
     } else if (node.type === NODE_TYPES.EVENT) {
-      label = 'Event \u2014 Something waits on the road';
+      label = node.darkOmen
+        ? 'Dark Omen \u2014 The dark has twisted what waits here'
+        : 'Event \u2014 Something waits on the road';
     } else if (node.battleParams?.isElite) {
       const eliteObj = node.battleParams?.objective === 'escape' ? 'Escape' : 'Seize';
       label = `Elite Battle (${eliteObj}) — Harder fight, better loot`;

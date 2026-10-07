@@ -100,6 +100,9 @@ const eventsResult = validateEventsConfig(readData('events.json'), {
   blessings: readData('blessings.json'),
   eclipse: readData('eclipse.json'),
   lootTables: readData('lootTables.json'),
+  traits: readData('traits.json'),
+  recruits: readData('recruits.json'),
+  accessories: readData('accessories.json'),
 });
 if (eventsResult.valid) {
   console.log('  OK  events.json (engine validator)');

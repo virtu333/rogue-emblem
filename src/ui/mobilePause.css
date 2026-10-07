@@ -144,3 +144,10 @@
   text-transform: uppercase;
   color: var(--re-bad);
 }
+/* An open contract rides the same list, in the gilt of a seal. */
+.mp-burdens li.is-contract {
+  border-left-color: var(--re-gilt);
+}
+.mp-burdens li.is-contract strong {
+  color: var(--re-accent-text);
+}

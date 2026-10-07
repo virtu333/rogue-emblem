@@ -144,6 +144,10 @@
 }
 /* A fallen event is drawn as its own Dark Omen medal (violet flame, eclipse disc, ember
    cracks in the art itself): the ink only shades its rim, so the picture still reads. */
+.re-node.is-dark-omen:not(.is-eclipse-pending):not(.is-falling) {
+  /* Not burnt to a shadow like a lost place: the Omen's own painting is the news. */
+  --icon-filter: none;
+}
 .re-node.is-dark-omen:not(.is-eclipse-pending):not(.is-falling) .re-eclipse-ink {
   opacity: 0.22;
 }

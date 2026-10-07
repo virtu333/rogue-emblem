@@ -18,7 +18,9 @@ import {
   RECRUIT_PROMOTION_BASE_LEVEL,
   DEFAULT_ENEMY_PROMOTED_SHARE,
 } from '../utils/constants.js';
-import { assignAffixesToEnemySpawns } from './AffixEngine.js';
+import { assignAffixesToEnemySpawns, assignSwornAffix } from './AffixEngine.js';
+import { withHuntedWave } from './HuntedWave.js';
+import { createSeededRng } from './ReinforcementScheduler.js';
 import { assignEnemyAreaArts } from './EnemyAreaArts.js';
 import { pickCaravanSpawnTile } from './CaravanSystem.js';
 import { ballistaRangeForAct, createBallistaState } from './BallistaEngine.js';
@@ -267,6 +269,15 @@ export function generateBattleLayout(params, deps) {
     act,
     eclipse: params.eclipseAffix || null,
   });
+  // The Sworn Enemy burden (engine/Burdens.js): the act boss carries one more tier-1 affix.
+  // Its own seeded stream (`params.swornEnemy.seed`), so Math.random is never touched.
+  if (params.swornEnemy) {
+    enemySpawns = assignSwornAffix(enemySpawns, {
+      affixConfig: deps.affixes,
+      difficultyId: params.difficultyId || 'normal',
+      random: createSeededRng(Number(params.swornEnemy.seed) >>> 0),
+    });
+  }
   // Elite battles from Act III at Nightfall+: one or two enemies carry an area art
   // (EnemyAreaArts.js, enemies.json eliteAreaArts). Draws from the battle seed only
   // when the battle qualifies.
@@ -503,6 +514,16 @@ export function generateBattleLayout(params, deps) {
       waves: [],
       ladder,
     };
+  }
+  // The Hunted burden (engine/Burdens.js, HuntedWave.js): one extra wave on its turn at the
+  // map's reinforcement edge, written here so a locked map keeps it. Never a boss map. No
+  // draw: the arrivals are rolled by the scheduler from the battle's own seed.
+  if (params.huntedWave && !isBoss) {
+    reinforcementConfig.reinforcements = withHuntedWave(
+      reinforcementConfig.reinforcements,
+      params.huntedWave,
+      { cols, rows, playerSpawns, enemySpawns },
+    );
   }
   // Black Sun: the template's procedural waves keep coming but no longer raise par.
   if (

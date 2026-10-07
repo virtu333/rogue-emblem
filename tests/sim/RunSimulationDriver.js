@@ -10,6 +10,7 @@ import {
   addToConsumables,
 } from '../../src/engine/UnitManager.js';
 import { churchPromoteCost } from '../../src/engine/ChurchCommands.js';
+import { clearBattleScopedDeltas } from '../../src/engine/BattleStatDeltas.js';
 import {
   CHURCH_PROMOTE_COST_RECRUIT,
   DEPLOY_LIMITS,
@@ -23,14 +24,10 @@ import {
   chooseDeployRoster,
   chooseChurchPlan,
   chooseShopPurchases,
-  chooseEventPlan,
+  playEventChoices,
 } from './RunPolicies.js';
-import {
-  arriveAtEvent,
-  chooseEventOption,
-  completeEventBattle,
-  leaveEvent,
-} from '../../src/engine/EventCommands.js';
+import { arriveAtEvent, completeEventBattle, leaveEvent } from '../../src/engine/EventCommands.js';
+import { isRecruitBattleNode } from '../../src/engine/RecruitNodeSystem.js';
 
 function keyForUnit(unit) {
   return `${unit.name}::${unit.className}`;
@@ -71,7 +68,10 @@ export class RunSimulationDriver {
       churchNodes: 0,
       eventNodes: 0,
       eventBattles: 0,
+      eventSteps: 0, // choices taken: more than eventNodes when an event has pages
       eventsByChoice: {},
+      contractsKept: 0,
+      contractsBroken: 0,
       recruitsGained: 0,
       unitsLost: 0,
       totalTurns: 0,
@@ -195,16 +195,6 @@ export class RunSimulationDriver {
     battleParams.fallenUnits = Array.isArray(this.runManager.fallenUnits)
       ? structuredClone(this.runManager.fallenUnits)
       : [];
-    if (node.type === NODE_TYPES.RECRUIT) {
-      // The recruit the Loom previews (RecruitNodeSystem needs the run's state).
-      const ctx = this.runManager.getRecruitBattleContext(node);
-      battleParams.recruitNodeId = ctx.nodeId;
-      battleParams.recruitRunSeed = ctx.runSeed;
-      battleParams.recruitRoster = structuredClone(ctx.roster);
-      battleParams.startingLordNames = ctx.startingLordNames;
-      battleParams.recruitLevelBonus = ctx.recruitLevelBonus;
-      battleParams.deployBonus = ctx.deployBonus;
-    }
     const deployLimits = DEPLOY_LIMITS[this.runManager.currentAct] || { min: 1, max: 4 };
     const deployBonus = this.runManager.getDeployBonus();
     const deployMax = Math.max(
@@ -220,7 +210,13 @@ export class RunSimulationDriver {
     const deployed = chooseDeployRoster(fullRoster, battleParams.deployCount);
     const deployedKeys = new Set(deployed.map(keyForUnit));
 
-    const driver = new GameDriver(this.gameData, battleParams, deployed.map(cloneUnit));
+    // A recruit battle's green unit (a recruit node's, or an event's) is built by the run
+    // itself, exactly as BattleScene asks it: the harness keeps no copy of that rule.
+    const driver = new GameDriver(this.gameData, battleParams, deployed.map(cloneUnit), {
+      buildRecruit: isRecruitBattleNode(node)
+        ? (preview) => this.runManager.getRecruitNodeUnit(node, { preview })
+        : undefined,
+    });
     driver.init();
     this._enableInvincibilityIfConfigured(driver);
 
@@ -306,11 +302,19 @@ export class RunSimulationDriver {
   // Victory commit with the battle's turn count and par, as PostCombatController does,
   // so full-run sims exercise the Eclipse (shadow gain, boss relief, node falls).
   _completeBattle(driver, merged, node) {
+    // Battle stat deltas (a Wounded burden's, Intimidate) end with the battle, as
+    // PostCombatController takes them back before the units are serialized.
+    clearBattleScopedDeltas(merged);
     const applied = this.runManager.completeBattle(merged, node.id, driver.battle.goldEarned || 0, {
       turnCount: driver.battle.turnManager?.turnNumber || 0,
       turnPar: Number.isFinite(driver.battle.turnPar) ? driver.battle.turnPar : null,
     });
     this.metrics.eclipseFalls += this.runManager.lastEclipseCommit?.fell?.length || 0;
+    // A contract settles with the victory (engine/ContractSettlement.js): count how it went.
+    const contract = applied ? this.runManager.lastContractSettlement : null;
+    if (contract) {
+      this.metrics[contract.kept ? 'contractsKept' : 'contractsBroken']++;
+    }
     return applied;
   }
 
@@ -466,19 +470,27 @@ export class RunSimulationDriver {
       rm.markNodeComplete(node.id);
       return { result: 'event_skipped', reason: 'no_event' };
     }
-    const plan = chooseEventPlan(rm, node.id, { fight: this.options.eventPolicy === 'fight' });
-    const chosen = plan
-      ? chooseEventOption(rm, node.id, plan.choiceId, { targetUid: plan.targetUid })
-      : { ok: false, reason: 'no choice available' };
-    if (!chosen.ok) {
+    // One choice per page (a multi-page event walks its pages), until it ends or a fight starts.
+    const steps = playEventChoices(rm, node.id, { fight: this.options.eventPolicy === 'fight' });
+    const last = steps.at(-1);
+    if (!last?.chosen?.ok) {
       // Cannot happen on a playable event; leave the node rather than stall the run.
       this.metrics.invalidEventChoices = (this.metrics.invalidEventChoices || 0) + 1;
       rm.markNodeComplete(node.id);
-      return { result: 'event_skipped', reason: chosen.reason };
+      return { result: 'event_skipped', reason: last?.chosen?.reason || 'no choice available' };
     }
-    const key = `${chosen.state.eventId}.${plan.choiceId}`;
-    this.metrics.eventsByChoice[key] = (this.metrics.eventsByChoice[key] || 0) + 1;
-    if (chosen.battle) {
+    for (const { plan, chosen } of steps) {
+      const key = `${chosen.state.eventId}.${plan.choiceId}`;
+      this.metrics.eventsByChoice[key] = (this.metrics.eventsByChoice[key] || 0) + 1;
+    }
+    this.metrics.eventSteps += steps.length;
+    if (last.chosen.next) {
+      // The policy found no way out of the last page it reached: not a state a player can reach.
+      this.metrics.invalidEventChoices = (this.metrics.invalidEventChoices || 0) + 1;
+      rm.markNodeComplete(node.id);
+      return { result: 'event_skipped', reason: 'a page with no way out' };
+    }
+    if (last.chosen.battle) {
       this.metrics.eventBattles++;
       const battle = await this._runBattleNode(node);
       if (battle.result === 'defeat' || battle.result === 'timeout') return battle;
@@ -487,10 +499,11 @@ export class RunSimulationDriver {
     leaveEvent(rm, node.id);
     return {
       result: 'event_done',
-      eventId: chosen.state.eventId,
-      choiceId: plan.choiceId,
-      outcomeId: chosen.outcomeId,
-      battle: chosen.battle,
+      eventId: last.chosen.state.eventId,
+      choiceId: last.plan.choiceId,
+      outcomeId: last.chosen.outcomeId,
+      battle: last.chosen.battle,
+      steps: steps.length,
     };
   }
 
