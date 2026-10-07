@@ -205,6 +205,8 @@
         "mobile-roster.spec.js",
         "mobile-upgrades.spec.js",
         "item-trade.spec.js",
+        "roster-discard.spec.js",
+        "roster-discard-contract.spec.js",
         "mobile-viewport.spec.js",
         "party-menus.spec.js",
         "playtest-polish.spec.js",
