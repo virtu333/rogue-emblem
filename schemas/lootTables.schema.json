@@ -17,11 +17,82 @@
     },
     "finalBoss": {
       "$ref": "#/$defs/actLootTable"
+    },
+    "bondRings": {
+      "$ref": "#/$defs/bondRings"
     }
   },
   "required": ["act1", "act2", "act3", "act4", "finalBoss"],
   "additionalProperties": false,
   "$defs": {
+    "bondRarityWeights": {
+      "type": "object",
+      "properties": {
+        "C": { "type": "number", "minimum": 0 },
+        "B": { "type": "number", "minimum": 0 },
+        "A": { "type": "number", "minimum": 0 },
+        "S": { "type": "number", "minimum": 0 }
+      },
+      "minProperties": 1,
+      "additionalProperties": false
+    },
+    "bondSkillPool": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "bondRings": {
+      "description": "Bond Rings (docs/specs/phase3.md 3H): the roll behind the one 'Bond Ring' accessory. rarityByAct weights the rarity of a ring found or bought in an act; pools lists the bound skill ids each rarity may roll; priceByRarity is the ring's price (shop and sell value); neverBound lists skill ids a ring can never lend (ids not yet in skills.json stay barred); lentInnates lists the personal or class-innate skills the pools lend on purpose (a ring lends, it never teaches, so class locks do not apply).",
+      "type": "object",
+      "properties": {
+        "rarityByAct": {
+          "type": "object",
+          "properties": {
+            "act1": { "$ref": "#/$defs/bondRarityWeights" },
+            "act2": { "$ref": "#/$defs/bondRarityWeights" },
+            "act3": { "$ref": "#/$defs/bondRarityWeights" },
+            "act4": { "$ref": "#/$defs/bondRarityWeights" }
+          },
+          "required": ["act1", "act2", "act3", "act4"],
+          "additionalProperties": false
+        },
+        "pools": {
+          "type": "object",
+          "properties": {
+            "C": { "$ref": "#/$defs/bondSkillPool" },
+            "B": { "$ref": "#/$defs/bondSkillPool" },
+            "A": { "$ref": "#/$defs/bondSkillPool" },
+            "S": { "$ref": "#/$defs/bondSkillPool" }
+          },
+          "required": ["C", "B", "A", "S"],
+          "additionalProperties": false
+        },
+        "priceByRarity": {
+          "type": "object",
+          "properties": {
+            "C": { "type": "integer", "minimum": 1 },
+            "B": { "type": "integer", "minimum": 1 },
+            "A": { "type": "integer", "minimum": 1 },
+            "S": { "type": "integer", "minimum": 1 }
+          },
+          "required": ["C", "B", "A", "S"],
+          "additionalProperties": false
+        },
+        "neverBound": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "lentInnates": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "required": ["rarityByAct", "pools", "priceByRarity", "neverBound", "lentInnates"],
+      "additionalProperties": false
+    },
     "nameArray": {
       "type": "array",
       "items": {

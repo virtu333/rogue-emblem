@@ -41,7 +41,8 @@
       "Forest Charm",
       "Soothing Stone",
       "Hunter's Cloak",
-      "Gambler's Coin"
+      "Gambler's Coin",
+      "Bond Ring"
     ],
     "forge": [
       "Might Whetstone",
@@ -193,7 +194,8 @@
       "Vampire's Bloodshard",
       "Boots",
       "Warding Charm",
-      "Mentor's Band"
+      "Mentor's Band",
+      "Bond Ring"
     ],
     "forge": [
       "Silver Whetstone",
@@ -346,7 +348,8 @@
       "Warding Charm",
       "Mentor's Band",
       "Mercury Sandals",
-      "Phalanx Band"
+      "Phalanx Band",
+      "Bond Ring"
     ],
     "forge": [
       "Silver Whetstone",
@@ -490,7 +493,8 @@
       "Warding Charm",
       "Mentor's Band",
       "Mercury Sandals",
-      "Phalanx Band"
+      "Phalanx Band",
+      "Bond Ring"
     ],
     "forge": [
       "Silver Whetstone",
@@ -538,6 +542,34 @@
     "goldRange": [
       1450,
       2200
+    ]
+  },
+  "bondRings": {
+    "rarityByAct": {
+      "act1": { "C": 100 },
+      "act2": { "C": 70, "B": 30 },
+      "act3": { "B": 55, "A": 40, "S": 5 },
+      "act4": { "A": 70, "S": 30 }
+    },
+    "pools": {
+      "C": ["uncanny_blow", "warding_blow", "armored_blow", "darting_blow", "death_blow", "pathfinder"],
+      "B": ["vantage", "wrath", "defiant", "guard", "skirmisher", "foresight", "canto"],
+      "A": ["luna", "sol", "lifetaker", "speedtaker", "pavise", "aegis", "renewal"],
+      "S": ["astra", "aether", "miracle", "blink"]
+    },
+    "priceByRarity": { "C": 800, "B": 1500, "A": 2500, "S": 4000 },
+    "neverBound": ["dance", "shove", "pull", "lethality", "steal", "goddess_dance"],
+    "lentInnates": [
+      "armored_blow",
+      "darting_blow",
+      "pathfinder",
+      "skirmisher",
+      "foresight",
+      "canto",
+      "pavise",
+      "aegis",
+      "renewal",
+      "aether"
     ]
   }
 }

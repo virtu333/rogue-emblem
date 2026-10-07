@@ -56,3 +56,14 @@ export function effectiveSkills(unit, { weapon } = {}) {
 export function hasEffectiveSkill(unit, id, opts = {}) {
   return effectiveSkills(unit, opts).includes(id);
 }
+
+/**
+ * The skill id an accessory lends (a Bond Ring's `_boundSkill`), or null. This and
+ * `effectiveSkills` are the only reads of the field: display code (the ring's name, its
+ * text, the roster's "lent by ring" line) asks here instead of touching it.
+ * @param {object|null} accessory
+ * @returns {string|null}
+ */
+export function boundSkillOf(accessory) {
+  return skillId(accessory?._boundSkill);
+}

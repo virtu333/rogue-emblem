@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { DIFFICULTY_IDS } from '../src/engine/DifficultyEngine.js';
 import { getWeaponArtTier2Effects } from '../src/engine/WeaponArtSystem.js';
+import { validateBondRingData } from '../src/engine/BondRings.js';
 
 const DATA_DIR = path.resolve('data');
 
@@ -338,6 +339,9 @@ export function validateCrossReferences(datasets = null) {
         errors.push(`${at}: "${artId}" moves units (no enemy knockback)`);
     }
   }
+
+  // Bond Rings (docs/specs/phase3.md 3H): every pool skill exists and can be lent.
+  errors.push(...validateBondRingData({ lootTables, skills, accessories }));
 
   return { valid: errors.length === 0, errors };
 }

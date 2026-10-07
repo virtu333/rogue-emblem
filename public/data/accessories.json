@@ -350,5 +350,12 @@
     },
     "price": 3500,
     "lore": "Issued in pairs. If you find one alone, don't ask the quartermaster why."
+  },
+  {
+    "name": "Bond Ring",
+    "type": "Accessory",
+    "effects": {},
+    "price": 800,
+    "lore": "One of a sworn pair. Whoever wears it borrows a habit the first owner died with."
   }
 ]
