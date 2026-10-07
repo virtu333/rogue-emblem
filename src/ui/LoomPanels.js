@@ -5,6 +5,7 @@ import { describeLoomNode, describeRecruitPreview, loomHeader } from './loomMode
 import { traitLines, markLine } from './traitContent.js';
 import { ruinsChoice } from '../engine/RuinsCommands.js';
 import { eventView } from '../engine/EventCommands.js';
+import { contractRewardOwedAt } from '../engine/Contracts.js';
 import { crestElement } from './crestArt.js';
 import { regionName } from './placeDisplay.js';
 import { ACT_CONFIG, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS } from '../utils/constants.js';
@@ -210,6 +211,7 @@ export function renderLoomCard(card, node, ctx = {}) {
     firstBattle: rm?.completedBattles === 0 && !!ctx.isFirstBattle?.(node),
     eliteLoot: { choices: ELITE_LOOT_CHOICES, picks: ELITE_MAX_PICKS },
     shopOpen: !!ctx.shopOpen,
+    contractOwed: !!(rm && contractRewardOwedAt(rm, node)),
     activeLabel: ctx.activeLabel || null,
     eclipse,
     recruit,

@@ -505,6 +505,7 @@ export function describeLoomNode(
     firstBattle = false,
     eliteLoot = null,
     shopOpen = false,
+    contractOwed = false,
     activeLabel = null,
     eclipse = null,
     recruit = null,
@@ -606,7 +607,10 @@ export function describeLoomNode(
     Array.isArray(pool) && pool.length ? pool[stableIndex(node.id, pool.length)] : null;
 
   let stateLine;
-  if (shopOpen)
+  // A kept contract's reward earned here and not delivered holds the party (Contracts.contractRewardOwedAt).
+  if (contractOwed)
+    stateLine = { tone: 'done', text: 'The fight is won · the contract reward waits' };
+  else if (shopOpen)
     stateLine = {
       tone: 'done',
       text:

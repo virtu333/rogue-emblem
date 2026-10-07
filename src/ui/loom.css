@@ -216,6 +216,10 @@
 .re-contract .re-burden-name {
   color: var(--re-accent-text);
 }
+/* A settlement earned and waiting to be claimed: the seal's chip in the warning tone, and it opens its page. */
+.re-burden.re-contract.is-owed {
+  border-color: var(--re-warn);
+}
 .re-burden-note.is-contract {
   border-left-color: var(--re-gilt);
 }

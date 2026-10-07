@@ -181,6 +181,8 @@ export class EventController {
     const warning = saveServiceRun(scene);
     if (warning) showMinorHint(scene, warning.trim());
     scene.checkActComplete();
+    // A contract reward this fight earned and could not deliver waits behind the event's own page.
+    scene._maybeOpenPendingContractSettlement?.();
     return true;
   }
 
