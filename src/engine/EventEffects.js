@@ -90,7 +90,7 @@ import { WOUND_STATS, addBurden, burdenDefFor, describeBurden } from './Burdens.
 import { describeContract, normalizeContract, contractOf } from './Contracts.js';
 import { planJoin, applyJoin, pickJoinSelf } from './EventJoin.js';
 import { planRouteEdit, applyRouteEdit } from './RouteEdit.js';
-import { bondRingDisplayName, isBondRing, rollBondRing } from './BondRings.js';
+import { accessoryDisplayName, bindAccessorySkill, hasAccessorySkill } from './AccessorySkills.js';
 import { CONSUMABLE_MAX, INVENTORY_MAX, NODE_TYPES } from '../utils/constants.js';
 import { unitUidOf } from './UnitIdentity.js';
 import {
@@ -406,24 +406,16 @@ function planAccessory(ctx, effect, index, lenient) {
     return lenient
       ? skipNote('item', 'There was nothing here worth keeping.')
       : { error: 'There is nothing here worth keeping.' };
-  let item = structuredClone(pickFrom(candidates, rngFor(ctx, index, 'accessory')));
-  if (isBondRing(item)) {
-    // A Bond Ring is a family: its rarity and skill roll here, on the event's own seeded
-    // stream for this effect (never Math.random), from the table this pool reads.
-    item = rollBondRing(
-      accessoryTableActFor(ctx.run, effect.pool?.tierOffset),
-      rngFor(ctx, index, 'bondring'),
-      {
-        lootTables: ctx.run.gameData?.lootTables,
-        accessories: ctx.run.gameData?.accessories,
-        skills: ctx.run.gameData?.skills,
-      },
-    );
-    if (!item)
-      return lenient
-        ? skipNote('item', 'There was nothing here worth keeping.')
-        : { error: 'There is nothing here worth keeping.' };
-  }
+  const item = structuredClone(pickFrom(candidates, rngFor(ctx, index, 'accessory')));
+  // An ordinary accessory may roll a bound skill, on the event's own seeded stream for this
+  // effect (never Math.random) and from the table this pool reads. The pick above is the same
+  // draw it always was.
+  bindAccessorySkill(
+    item,
+    accessoryTableActFor(ctx.run, effect.pool?.tierOffset),
+    ctx.run.gameData,
+    rngFor(ctx, index, 'accessory-skill'),
+  );
   return { step: { type: 'item', item, dest: 'pool', worn: [] } };
 }
 
@@ -1054,9 +1046,9 @@ function applyItem(ctx, step) {
         toConvoy: false,
         pooled: true,
         worn: [],
-        // A Bond Ring's name stays "Bond Ring"; the result line shows its rarity and skill.
-        ...(isBondRing(step.item)
-          ? { display: bondRingDisplayName(step.item, ctx.run.gameData?.skills) }
+        // The identity name stays; the result line shows the skill the accessory carries.
+        ...(hasAccessorySkill(step.item)
+          ? { display: accessoryDisplayName(step.item, ctx.run.gameData?.skills) }
           : {}),
       },
     ];

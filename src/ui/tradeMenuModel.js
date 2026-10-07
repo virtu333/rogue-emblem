@@ -9,7 +9,7 @@
 // focus:  { side: 'left' | 'right', index } (a row of the visible tab)
 import { itemDisplayName } from '../utils/itemNames.js';
 
-// An item's display name (a Bond Ring shows its rarity and skill; no catalog needed here).
+// An item's display name (an accessory with a bound skill shows it; no catalog needed here).
 const shown = (item) => itemDisplayName(item);
 
 export const TRADE_BAGS = Object.freeze([

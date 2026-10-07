@@ -11,7 +11,7 @@
 import { rankRequirementText } from './rosterDisplay.js';
 import { traitLines, markLine } from './traitContent.js';
 import { epithetText } from '../engine/DeedTitles.js';
-import { lentSkillLine } from '../engine/BondRingNames.js';
+import { lentSkillLine } from '../engine/AccessorySkillNames.js';
 import { getDisplayLevel, canEquip } from '../engine/UnitManager.js';
 import { getStaticCombatStats, getStaffMaxUses } from '../engine/Combat.js';
 import { rewardWeaponEligible } from '../engine/LootRewardCommands.js';
@@ -132,7 +132,7 @@ export function unitLines(unit, gameData = {}) {
       text: skill?.description || '',
     });
   }
-  // A skill lent by a Bond Ring: its own line, never one of the equipped list.
+  // A skill lent by an accessory: its own line, never one of the equipped list.
   const lent = lentSkillLine(unit, gameData.skills);
   if (lent && !seen.has(lent.id))
     lines.push({

@@ -53,7 +53,7 @@ import { fitCanvasText } from './deedDisplay.js';
 import { drawCanvasXpRow } from './xpBar.js';
 import { isWorn, wearCount, wearLine, wearStatDelta } from '../engine/WeaponWear.js';
 import { itemDisplayName, stripItemNameSuffix, weaponCatalogNames } from '../utils/itemNames.js';
-import { lentSkillLine } from '../engine/BondRingNames.js';
+import { lentSkillLine } from '../engine/AccessorySkillNames.js';
 
 const OVERLAY_W = 400;
 const OVERLAY_H = 370;
@@ -900,7 +900,7 @@ export class UnitDetailOverlay {
       }
     }
 
-    // A skill lent by a Bond Ring: its own line, never counted in the equipped list above.
+    // A skill lent by the accessory: its own line, never counted in the equipped list above.
     const lent = lentSkillLine(unit, this.gameData?.skills);
     if (lent) {
       if (!(unit.skills && unit.skills.length > 0)) {
@@ -910,7 +910,7 @@ export class UnitDetailOverlay {
       const lentText = this._tabText(
         lx,
         y,
-        lent.known ? `${lent.name}: ${lent.label} (ring)` : `${lent.label}: ${lent.name}`,
+        lent.known ? `${lent.name}: ${lent.label}` : `${lent.label}: ${lent.name}`,
         UI_PALETTE.rarityEpic,
         '9px',
       );

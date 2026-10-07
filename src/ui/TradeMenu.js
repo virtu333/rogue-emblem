@@ -5,7 +5,7 @@ import { bindCancelablePress } from '../utils/cancelablePress.js';
 import { formatUses, getConsumableDescription } from '../utils/consumableText.js';
 import { formatAccessoryEffects, formatAccessoryCombatEffect } from '../utils/accessoryText.js';
 import { itemDisplayName } from '../utils/itemNames.js';
-import { bondRingText } from '../engine/BondRingNames.js';
+import { accessorySkillText } from '../engine/AccessorySkillNames.js';
 import { itemIcon } from './itemIcons.js';
 import { equippedBadgeElement } from './equippedBadge.js';
 import { battleItemBrief } from './battleItemSummary.js';
@@ -41,7 +41,11 @@ function toHolder(subject, engine) {
 export function tradeItemBrief(item, unit) {
   if (!item) return '';
   if (item.type === 'Accessory')
-    return [formatAccessoryEffects(item), formatAccessoryCombatEffect(item), bondRingText(item)]
+    return [
+      formatAccessoryEffects(item),
+      formatAccessoryCombatEffect(item),
+      accessorySkillText(item),
+    ]
       .filter(Boolean)
       .join(' · ');
   if (item.type === 'Consumable')

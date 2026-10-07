@@ -308,7 +308,7 @@ export class ShopMenu {
         .find((b) => b.dataset.shopFocus === focus)
         ?.focus();
   }
-  /** An item's display name: a Bond Ring shows its rarity and skill. */
+  /** An item's display name: an accessory with a bound skill shows it. */
   shown(item) {
     return itemDisplayName(item, this.scene.gameData?.skills);
   }

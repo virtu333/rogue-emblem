@@ -95,11 +95,10 @@ const ACT1 = [
   'Soothing Stone',
   "Hunter's Cloak",
   "Gambler's Coin",
-  'Bond Ring',
 ];
-const ACT2 = ['Power Ring', 'Speed Ring', 'Barrier Ring', 'Skill Ring', 'Life Ring', "Veteran's Crest", 'Vanguard Crest', 'Diamond Medallion', 'Moontide Amulet', "Bounty Hunter's Mark", "Vampire's Bloodshard", 'Boots', 'Warding Charm', "Mentor's Band", 'Bond Ring']; // prettier-ignore
-const ACT3 = ['Seraph Robe', 'Magic Ring', 'Boots', 'Delphi Shield', 'Wrath Band', 'Counter Seal', 'Pursuit Ring', 'Blood Gem', 'Recoil Guard', 'Phoenix Brooch', "Duelist's Glove", 'Warding Charm', "Mentor's Band", 'Mercury Sandals', 'Phalanx Band', 'Bond Ring']; // prettier-ignore
-const ACT4 = ['Seraph Robe', 'Magic Ring', 'Boots', 'Delphi Shield', 'Wrath Band', 'Counter Seal', 'Pursuit Ring', 'Nullify Ring', 'Warding Charm', "Mentor's Band", 'Mercury Sandals', 'Phalanx Band', 'Bond Ring']; // prettier-ignore
+const ACT2 = ['Power Ring', 'Speed Ring', 'Barrier Ring', 'Skill Ring', 'Life Ring', "Veteran's Crest", 'Vanguard Crest', 'Diamond Medallion', 'Moontide Amulet', "Bounty Hunter's Mark", "Vampire's Bloodshard", 'Boots', 'Warding Charm', "Mentor's Band"]; // prettier-ignore
+const ACT3 = ['Seraph Robe', 'Magic Ring', 'Boots', 'Delphi Shield', 'Wrath Band', 'Counter Seal', 'Pursuit Ring', 'Blood Gem', 'Recoil Guard', 'Phoenix Brooch', "Duelist's Glove", 'Warding Charm', "Mentor's Band", 'Mercury Sandals', 'Phalanx Band']; // prettier-ignore
+const ACT4 = ['Seraph Robe', 'Magic Ring', 'Boots', 'Delphi Shield', 'Wrath Band', 'Counter Seal', 'Pursuit Ring', 'Nullify Ring', 'Warding Charm', "Mentor's Band", 'Mercury Sandals', 'Phalanx Band']; // prettier-ignore
 
 describe('an accessory from the pool one tier up', () => {
   const grant = (tierOffset) => [{ type: 'item', pool: { kind: 'accessory', tierOffset } }];

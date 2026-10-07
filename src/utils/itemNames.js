@@ -6,9 +6,9 @@
 // maps a weapon to something reads the undecorated name through here, so a new kind of
 // suffix is one change, not a hunt.
 //
-// A Bond Ring is the other kind of decoration: its identity name stays "Bond Ring" and only
-// the display name carries the rarity and skill (`itemDisplayName`).
-import { bondRingDisplayName, isBondRing } from '../engine/BondRingNames.js';
+// An accessory with a bound skill is the other kind of decoration: its identity name stays
+// "Power Ring" and only the display name carries the skill (`itemDisplayName`).
+import { accessoryDisplayName } from '../engine/AccessorySkillNames.js';
 
 /** The suffix forging (" +2") or wear (" -2") leaves on a display name. ASCII hyphen. */
 export const ITEM_NAME_SUFFIX_RE = /\s[+-]\d+$/;
@@ -57,11 +57,10 @@ export function weaponCatalogNames(weapon) {
 
 /**
  * The name an item shows. Most items show their `name` (a forged or worn weapon's already
- * carries its " +N" / " -N"). A Bond Ring's identity stays "Bond Ring"; it shows
- * "Bond Ring (B) · Vantage" (docs/specs/item-names.md). Display only: every lookup keeps
+ * carries its " +N" / " -N"). An accessory with a bound skill keeps its identity
+ * name and shows "Power Ring · Vantage" (docs/specs/item-names.md). Display only: every lookup keeps
  * reading the identity name. `skills` is the skills.json catalog, which names the lent skill.
  */
 export function itemDisplayName(item, skills = null) {
-  if (isBondRing(item)) return bondRingDisplayName(item, skills);
-  return typeof item?.name === 'string' ? item.name : '';
+  return accessoryDisplayName(item, skills);
 }

@@ -17,8 +17,8 @@ function makeUnit() {
 }
 
 describe('Accessories', () => {
-  it('data includes 34 accessories and 15 consumables (PR1 set + Warding Charm + legendaries)', () => {
-    expect(gameData.accessories.length).toBe(34);
+  it('data includes 33 accessories and 15 consumables (PR1 set + Warding Charm + legendaries)', () => {
+    expect(gameData.accessories.length).toBe(33);
     expect(gameData.consumables.length).toBe(15);
   });
 

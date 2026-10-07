@@ -150,6 +150,15 @@
 .ia-wear {
   color: var(--re-bad);
 }
+.ia-skill {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 6px;
+  height: 6px;
+  background: var(--ia-lilac);
+  box-shadow: 0 0 0 1px var(--ia-ink-0);
+}
 .ia-imbue {
   position: absolute;
   top: 1px;

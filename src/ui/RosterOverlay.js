@@ -60,7 +60,7 @@ import {
   TOOLTIP_LONG_PRESS_MOVE_THRESHOLD,
 } from '../utils/tooltipTiming.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
-import { isBondRing, lentSkillLine } from '../engine/BondRingNames.js';
+import { lentSkillLine } from '../engine/AccessorySkillNames.js';
 import { STAT_DESCRIPTIONS } from '../data/helpContent.js';
 import {
   hasWeaponArt,
@@ -1541,13 +1541,13 @@ export class RosterOverlay {
       y += 14;
     }
 
-    // A Bond Ring's skill is lent, not learned: its own line, outside the equipped count below.
+    // An accessory's skill is lent, not learned: its own line, outside the equipped count below.
     const lent = lentSkillLine(unit, this.gameData?.skills);
     if (lent) {
       this._text(
         x + 8,
         y,
-        lent.known ? `${lent.name}: ${lent.label} (ring)` : `${lent.label}: ${lent.name}`,
+        lent.known ? `${lent.name}: ${lent.label}` : `${lent.label}: ${lent.name}`,
         UI_PALETTE.rarityEpic,
         '9px',
       );
@@ -2387,7 +2387,7 @@ export class RosterOverlay {
         const y = topY + titleH + i * itemH + pad;
         const detail = formatAccessoryDetail(acc, { skills: this.gameData?.skills });
         const shownName = itemDisplayName(acc, this.gameData?.skills);
-        const label = detail && !isBondRing(acc) ? `${shownName} - ${detail}` : shownName;
+        const label = detail ? `${shownName} - ${detail}` : shownName;
         const btn = applyTextResolution(
           this.scene.add.text(cx, y, label, {
             fontFamily: 'Arial',
