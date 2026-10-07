@@ -79,6 +79,8 @@ import { epithetText } from '../engine/DeedTitles.js';
 import { fitCanvasText } from './deedDisplay.js';
 import { LEVEL_UP_CUE_WAIT_MS, playCue } from './ceremonyMusic.js';
 import { healUnit } from '../engine/UnitHealth.js';
+import { goldPouchValue } from '../engine/GoldPouch.js';
+import { rosterItemAction } from '../engine/RosterInventory.js';
 import { drawCanvasXpRow } from './xpBar.js';
 import { isWorn, wearCount, wearLine, wearStatDelta } from '../engine/WeaponWear.js';
 import { itemDisplayName, stripItemNameSuffix } from '../utils/itemNames.js';
@@ -1470,6 +1472,8 @@ export class RosterOverlay {
           if (unit.currentHP < unit.stats.HP) {
             this._actionBtn(btnX, y, '[Use]', () => this._useHealItem(unit, item));
           }
+        } else if (item.effect === 'gold') {
+          this._actionBtn(btnX, y, '[Use]', () => this._useGoldPouch(unit, item));
         } else if (item.effect === 'promote') {
           if (
             specialCharacterRefusalText(this.gameData, unit, 'promote') ||
@@ -1832,6 +1836,19 @@ export class RosterOverlay {
     const audio = this.scene.registry.get('audio');
     if (audio) audio.playSFX('sfx_heal');
     this._showBanner(`${unit.name} healed!`, UI_PALETTE.good);
+    this.refresh();
+  }
+
+  /** A Gold Pouch pays the army its gold (engine/RosterInventory.js), from the unit's bag. */
+  _useGoldPouch(unit, item) {
+    const gold = goldPouchValue(item);
+    const reason = rosterItemAction(this.runManager, unit, item, 'use');
+    if (reason) {
+      this._showBanner(reason, UI_PALETTE.bad);
+      return;
+    }
+    this.scene.registry.get('audio')?.playSFX('sfx_confirm');
+    this._showBanner(`+${gold} G`, UI_PALETTE.good);
     this.refresh();
   }
 

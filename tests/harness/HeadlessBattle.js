@@ -292,6 +292,7 @@ export class HeadlessBattle {
       weapons: this.gameData.weapons,
       affixes: this.gameData.affixes,
       difficulty: this.gameData.difficulty,
+      lootTables: this.gameData.lootTables,
     });
   }
 
@@ -941,6 +942,8 @@ export class HeadlessBattle {
     applyEnemySpawnGear(enemy, spawn, {
       weapons: this.gameData.weapons,
       difficultyId: this.battleParams?.difficultyId,
+      consumables: this.runManager?.getConsumableCatalog?.() ?? this.gameData.consumables,
+      battleKey: String(this._deriveBattleSeed()),
     });
     // As BattleScene: an authored spawn's own weapon, skills and id win.
     applySpawnLoadout(enemy, spawn, {

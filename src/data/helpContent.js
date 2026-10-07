@@ -390,6 +390,24 @@ const STATIC_HELP_TABS = [
         ],
       },
       {
+        title: 'Steal & Carriers',
+        lines: [
+          { text: 'Some foes carry an item (a sack pip', color: GRAY },
+          { text: 'marks them; inspect one to see it).', color: GRAY },
+          { text: '' },
+          { text: 'Steal (Thief, or a Steal Scroll):', color: GOLD },
+          { text: '  Take an adjacent carrier’s item.' },
+          { text: '  Your attack speed must be at least' },
+          { text: '  theirs, or the row reads Too slow.' },
+          { text: '  It goes to your bag, then the convoy;' },
+          { text: '  with neither free, Steal is refused.' },
+          { text: '  Ends the action. One item per carrier.' },
+          { text: '' },
+          { text: 'A carrier that falls first loses it.', color: RED },
+          { text: 'Gold Pouch: use it or sell it for gold.' },
+        ],
+      },
+      {
         title: 'Learning Skills',
         lines: [
           { text: 'Three ways to learn skills:', color: GOLD },

@@ -179,6 +179,23 @@
         "forge": {
           "$ref": "#/$defs/nameArray"
         },
+        "carryPool": {
+          "description": "What an enemy may carry for a Thief to steal (docs/specs/phase3.md 3G, engine/EnemyCarry.js): weighted entries, each a named item (a Gold Pouch also names its gold value for the act) or a draw from one of this act's own lists (statBooster).",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "item": { "type": "string", "minLength": 1 },
+              "from": { "type": "string", "enum": ["statBooster"] },
+              "weight": { "type": "number", "exclusiveMinimum": 0 },
+              "value": { "type": "integer", "minimum": 1 }
+            },
+            "required": ["weight"],
+            "oneOf": [{ "required": ["item"] }, { "required": ["from"] }],
+            "additionalProperties": false
+          }
+        },
         "weights": {
           "$ref": "#/$defs/weights"
         },

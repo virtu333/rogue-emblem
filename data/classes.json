@@ -341,7 +341,7 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (P)",
-    "role": "Fast, picks locks, fog vision",
+    "role": "Fast, picks locks, steals, fog vision",
     "description": "Fastest boots on the field, keen eyes in the fog, and no lock slows her. Armor does.",
     "masteryPerk": {
       "name": "Evasion",

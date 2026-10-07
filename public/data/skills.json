@@ -337,6 +337,17 @@
     }
   },
   {
+    "id": "steal",
+    "name": "Steal",
+    "description": "Take the item an adjacent enemy carries, if you are at least as fast",
+    "trigger": "action",
+    "classInnate": "Thief",
+    "actionAbility": {
+      "kind": "steal_item",
+      "usableWhileSilenced": true
+    }
+  },
+  {
     "id": "canto",
     "name": "Canto",
     "description": "Use remaining movement after acting",
