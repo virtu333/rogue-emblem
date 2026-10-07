@@ -26,7 +26,11 @@ import { playCue } from './ceremonyMusic.js';
 import { isPrologueRun } from '../engine/ScriptedBattle.js';
 import { eventState } from '../engine/EventCommands.js';
 import { describeBurdens } from '../engine/Burdens.js';
-import { describeContract, describeOwedContract } from '../engine/Contracts.js';
+import {
+  contractRewardOwedAt,
+  describeContract,
+  describeOwedContract,
+} from '../engine/Contracts.js';
 import { contractChipModel, owedContractChipModel } from './eventMenuModel.js';
 
 const ECLIPSE_TOAST_MS = 4200;
@@ -474,15 +478,18 @@ export class NodeMapMenu {
       rm.currentNodeId === selected.id &&
       (!selected.completed || shopOpen) &&
       !!eventState(rm, selected.id);
+    const contractHold = !!selected && contractRewardOwedAt(rm, selected);
     const label = rm.pendingBattleReward
       ? 'Return to rewards'
       : eventReturn
         ? 'Return to the event'
-        : shopOpen
-          ? selected?.type === 'ruins'
-            ? 'Return to ruins'
-            : `Re-enter ${selected?.type === 'church' ? 'church' : 'shop'}`
-          : 'Travel';
+        : contractHold
+          ? 'Settle contract'
+          : shopOpen
+            ? selected?.type === 'ruins'
+              ? 'Return to ruins'
+              : `Re-enter ${selected?.type === 'church' ? 'church' : 'shop'}`
+            : 'Travel';
     this.travel.replaceChildren(element('span', label));
     // A long label ("Return to the event") steps down a size rather than wrapping.
     this.travel.classList.toggle('is-long', label.length > 16);
