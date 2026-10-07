@@ -66,7 +66,8 @@
               "aoe_heal",
               "aoe_root",
               "push_enemy",
-              "transfer_hp"
+              "transfer_hp",
+              "steal_item"
             ]
           },
           "range": {

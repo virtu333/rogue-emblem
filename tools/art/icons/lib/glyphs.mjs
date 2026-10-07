@@ -286,6 +286,22 @@ export function glyph(kind, cx, cy, s = 1) {
           accent: true,
         },
       ];
+    case 'purse': // Steal: a drawstring pouch, gathered at the neck, a coin showing
+      return [
+        { shape: E(0, 2.4, 5.6, 4.4, 0) },
+        {
+          shape: P([
+            [-2.8, -1.4],
+            [-4.4, -5.4],
+            [-1.6, -3.6],
+            [0, -5.8],
+            [1.6, -3.6],
+            [4.4, -5.4],
+            [2.8, -1.4],
+          ]),
+        },
+        { shape: C(0, 3, 1.6), accent: true },
+      ];
     case 'eye': // Blink
       return [
         {
@@ -499,6 +515,7 @@ export const SKILL_GLYPH = Object.freeze({
   rally_cry_skill: ['horn', 'ember'],
   healing_circle: ['healCircle', 'verdigris'],
   ensnare: ['knot', 'verdigris'],
+  steal: ['purse', 'gilt'],
   smite: ['push', 'blood'],
   transfuse: ['halo', 'rose'],
   renewal: ['sprout', 'verdigris'],

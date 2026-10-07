@@ -1454,6 +1454,21 @@
     "price": 2500
   },
   {
+    "name": "Steal Scroll",
+    "lore": "Thieves' primer, one rule: the pocket you reach for is the pocket he trusts. Be quicker than the trust.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Steal",
+    "skillId": "steal",
+    "price": 2500
+  },
+  {
     "name": "Lifetaker Scroll",
     "lore": "Surgeon-soldier's marginalia: what the blade takes, the hand may keep.",
     "type": "Scroll",
