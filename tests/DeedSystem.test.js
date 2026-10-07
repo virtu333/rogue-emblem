@@ -80,17 +80,14 @@ describe('data', () => {
     }
   });
 
-  it('Oath skills exist and are taught by no level-up curriculum, nor by a scroll but two', () => {
-    // Phase 3B (docs/specs/phase3.md) deliberately teaches Speedtaker and Defiant both ways:
-    // a scroll, and the Oaths of The Last Dance and The Last. No other Oath skill may have a scroll.
-    const alsoScrolls = new Set(['speedtaker', 'defiant']);
+  it('Oath skills exist and are taught by no scroll or level-up curriculum', () => {
     const scrollSkills = new Set(gameData.weapons.map((w) => w.skillId).filter(Boolean));
     const learnable = new Set(
       gameData.classes.flatMap((c) => (c.learnableSkills || []).map((l) => l.skillId)),
     );
     for (const d of deedsData.deeds.filter((x) => x.oathSkill)) {
       expect(gameData.skills.some((s) => s.id === d.oathSkill)).toBe(true);
-      expect(scrollSkills.has(d.oathSkill)).toBe(alsoScrolls.has(d.oathSkill));
+      expect(scrollSkills.has(d.oathSkill)).toBe(false);
       expect(learnable.has(d.oathSkill)).toBe(false);
     }
   });
@@ -720,15 +717,7 @@ describe('Oaths', () => {
 
   it('nothing to swear without deeds, or for deeds without an Oath', () => {
     expect(applyPromotionOath(unit(), gameData)).toBeNull();
-    // Every deed carries an Oath now, so strip the one under test.
-    const stripped = {
-      ...gameData,
-      deeds: {
-        ...deedsData,
-        deeds: deedsData.deeds.map((d) => (d.id === 'tempo' ? { ...d, oathSkill: undefined } : d)),
-      },
-    };
-    expect(applyPromotionOath(sworn('tempo'), stripped)).toBeNull();
+    expect(applyPromotionOath(sworn('tempo'), gameData)).toBeNull();
   });
 
   it('conditions of unknown types never match', () => {

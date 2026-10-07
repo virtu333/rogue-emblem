@@ -202,19 +202,16 @@ describe('the oaths', () => {
     };
   };
 
-  it('The Last Dance swears Speedtaker and The Last swears Defiant', () => {
-    expect(data.deeds.deeds.find((d) => d.id === 'tempo')).toMatchObject({
-      oathSkill: 'speedtaker',
-    });
-    expect(data.deeds.deeds.find((d) => d.id === 'last_of_them')).toMatchObject({
-      oathSkill: 'defiant',
-    });
-    for (const [deed, skillId] of [
-      ['tempo', 'speedtaker'],
-      ['last_of_them', 'defiant'],
-    ]) {
-      const [oath] = promotionOathCandidates(earnedDeed(deed), data.deeds, data.skills);
-      expect(oath, deed).toMatchObject({ skillId, deedId: deed });
+  it('no Phase 3B skill is an Oath: Oath skills are the ones nothing else teaches', () => {
+    // docs/specs/deeds-epithets.md: an Oath skill has no scroll and no curriculum. The five
+    // new skills all have scrolls, so none may be sworn, and The Last Dance and The Last
+    // still swear nothing.
+    const newSkills = ['lifetaker', 'speedtaker', 'uncanny_blow', 'warding_blow', 'defiant'];
+    for (const deed of data.deeds.deeds)
+      expect(newSkills.includes(deed.oathSkill), deed.id).toBe(false);
+    for (const deed of ['tempo', 'last_of_them']) {
+      expect(data.deeds.deeds.find((d) => d.id === deed).oathSkill, deed).toBeUndefined();
+      expect(promotionOathCandidates(earnedDeed(deed), data.deeds, data.skills), deed).toEqual([]);
     }
   });
 
