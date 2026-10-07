@@ -12,6 +12,13 @@
 // the moment the unit stands at full HP or goes down (it rested, was healed past it,
 // or fell), so a later wound cannot make an old debt bite.
 //
+// The second rule: Revival Stones (docs/specs/phase3.md 3D). A boss that carries stones
+// refills to full HP when a blow would drop it to 0, once per stone, so its HP never
+// reaches 0 while any remain and nothing keyed to a fall (removal, kill credit, the
+// objective) runs before the last bar. `absorbLethal` is that one rule: the combat
+// exchange (Combat.rollStrike) and every other lethal source (`damageUnit`) call it.
+// `setUnitHP` never does, so a debug set or a revive is never absorbed.
+//
 // Callers keep what belongs to their action: XP, staff uses, deeds, floors such as
 // "poison never kills", death removal, banners and animation.
 
@@ -40,6 +47,7 @@ export function settleAccessoryHpOwed(unit) {
 
 import { isWounded } from './StatusConditionSystem.js';
 import { markHoldDisturbed } from './HoldDisturbance.js';
+import { revivalStoneCount } from './RevivalStones.js';
 
 const maxHpOf = (unit) => Number(unit?.stats?.HP);
 
@@ -80,14 +88,50 @@ export function healUnitFully(unit) {
 }
 
 /**
- * Take damage, never below `floor` (1 for effects that cannot kill). A unit already
- * at or below the floor loses nothing. @returns the HP actually lost.
+ * Revival Stones: a blow that would leave `unit` at `hp` <= 0 breaks one stone instead and
+ * refills the bar to the unit's max HP. Pure apart from spending that stone.
+ * @returns {{ hp: number, stoneBroken: boolean }} `hp` is what the unit stands at after
+ *   the blow; with no stones (or a blow that does not take the bar) it is `hp` unchanged.
  */
-export function damageUnit(unit, amount, { floor = 0, disturbs = true } = {}) {
+export function absorbLethal(unit, hp) {
+  const { remaining } = revivalStoneCount(unit);
+  if (!(hp <= 0) || remaining <= 0) return { hp, stoneBroken: false };
+  unit.revivalStones = remaining - 1;
+  const max = maxHpOf(unit);
+  return { hp: Number.isFinite(max) && max > 0 ? max : 1, stoneBroken: true };
+}
+
+/**
+ * Take damage, never below `floor` (1 for effects that cannot kill). A unit already
+ * at or below the floor loses nothing. A blow that would fell a unit holding Revival
+ * Stones (floor 0 only) breaks one instead and refills the bar: see `damageUnitDetailed`.
+ * @returns the HP actually lost; a broken stone counts the whole bar that fell.
+ */
+export function damageUnit(unit, amount, opts = {}) {
+  return damageUnitDetailed(unit, amount, opts).lost;
+}
+
+/**
+ * `damageUnit` that also says whether a Revival Stone broke. `lost` is the HP the bar
+ * lost (the whole bar when a stone breaks, so a caller's gold/XP/credit math reads the
+ * damage that was dealt, never the refill). A stone breaks only when the blow takes a
+ * standing unit to 0 (`floor` 0): damage that cannot kill never touches one.
+ * @returns {{ lost: number, stoneBroken: boolean }}
+ */
+export function damageUnitDetailed(unit, amount, { floor = 0, disturbs = true } = {}) {
   const prev = Number(unit.currentHP) || 0;
   const next = Math.min(prev, Math.max(floor, prev - Math.max(0, Number(amount) || 0)));
+  if (prev > 0 && next <= 0) {
+    const absorbed = absorbLethal(unit, next);
+    if (absorbed.stoneBroken) {
+      setUnitHP(unit, absorbed.hp, { disturbs: false });
+      // A refilled bar is not "less HP", but the blow still woke its pack.
+      if (disturbs) markHoldDisturbed(unit, 'hurt');
+      return { lost: prev, stoneBroken: true };
+    }
+  }
   setUnitHP(unit, next, { disturbs });
-  return prev - next;
+  return { lost: prev - next, stoneBroken: false };
 }
 
 /**
@@ -105,6 +149,8 @@ export function applyCombatHP(attacker, defender, result) {
 export function applyStrikeHP(striker, target, event) {
   if (!event || event.type !== 'strike' || event.miss) return;
   setUnitHP(target, event.targetHPAfter);
+  // A broken stone refills the bar, so the HP alone does not say the blow landed.
+  if (event.stoneBroken) markHoldDisturbed(target, 'hurt');
   if (event.heal > 0 && event.strikerHealTo !== undefined) setUnitHP(striker, event.strikerHealTo);
   if (event.reflectDamage > 0 && event.strikerHPAfter !== undefined)
     setUnitHP(striker, event.strikerHPAfter);
@@ -127,7 +173,7 @@ export function applyCombatSideHP(unit, side, result, { floor = 0 } = {}) {
     } else {
       touchHP(unit, event.targetHPAfter);
       // Struck mid-exchange, even if a drain tops it back up before the end.
-      if (event.targetHPAfter < start) markHoldDisturbed(unit, 'hurt');
+      if (event.targetHPAfter < start || event.stoneBroken) markHoldDisturbed(unit, 'hurt');
     }
   }
   const final = side === 'defender' ? result.defenderHP : result.attackerHP;

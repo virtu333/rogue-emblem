@@ -68,6 +68,7 @@ function makeMinimalPayload(path) {
           extendedLevelingEnabled: false,
           churchPromotionLimit: -1,
           growthBonusMultiplier: 1,
+          revivalStones: { actBoss: 0, emperor: 0, lieutenant: 0, eliteCaptain: 0 },
         },
         dusk: {
           enemyStatBonus: 0,
@@ -93,6 +94,7 @@ function makeMinimalPayload(path) {
           extendedLevelingEnabled: false,
           churchPromotionLimit: 4,
           growthBonusMultiplier: 1,
+          revivalStones: { actBoss: 0, emperor: 0, lieutenant: 0, eliteCaptain: 0 },
         },
         hard: {
           enemyStatBonus: 1,
@@ -118,6 +120,7 @@ function makeMinimalPayload(path) {
           extendedLevelingEnabled: false,
           churchPromotionLimit: 3,
           growthBonusMultiplier: 0.8,
+          revivalStones: { actBoss: 0, emperor: 0, lieutenant: 0, eliteCaptain: 0 },
         },
         lunatic: {
           enemyStatBonus: 2,
@@ -143,6 +146,7 @@ function makeMinimalPayload(path) {
           extendedLevelingEnabled: false,
           churchPromotionLimit: 2,
           growthBonusMultiplier: 0.5,
+          revivalStones: { actBoss: 0, emperor: 0, lieutenant: 0, eliteCaptain: 0 },
         },
       },
     },

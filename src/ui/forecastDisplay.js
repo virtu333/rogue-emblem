@@ -48,6 +48,9 @@ export function forecastProjection(forecast) {
     d = forecast.defender;
   let attackerHP = a.hp,
     defenderHP = d.hp;
+  // Revival Stones: a side's blow that would take a stoned bar to 0 breaks it instead and
+  // ends the exchange (Combat.rollStrike), so the projection stops there and says so.
+  let broke = null;
   // Each side's strikes as rounds: the first (a brave weapon or multi-hit art strikes
   // more than once), then the follow-up, which for a weapon art is a plain strike.
   const groups = { a: forecastStrikeGroups(a), d: d.canCounter ? forecastStrikeGroups(d) : [] };
@@ -55,15 +58,17 @@ export function forecastProjection(forecast) {
     const g = groups[side][index];
     if (!g) return;
     for (let i = 0; i < g.count; i++) {
-      if (attackerHP <= 0 || defenderHP <= 0) return;
+      if (attackerHP <= 0 || defenderHP <= 0 || broke) return;
       // Thorns sends part of each landed hit back, but never takes the last HP.
       if (side === 'a' && g.hit > 0) {
         defenderHP = Math.max(0, defenderHP - g.damage);
         if (g.thornsReflect > 0) attackerHP = Math.max(1, attackerHP - g.thornsReflect);
+        if (defenderHP <= 0 && d.stones > 0) broke = 'defender';
       }
       if (side === 'd' && g.hit > 0) {
         attackerHP = Math.max(0, attackerHP - g.damage);
         if (g.thornsReflect > 0) defenderHP = Math.max(1, defenderHP - g.thornsReflect);
+        if (attackerHP <= 0 && a.stones > 0) broke = 'attacker';
       }
     }
   };
@@ -71,8 +76,18 @@ export function forecastProjection(forecast) {
   round('d', 0);
   round('a', 1);
   round('d', 1);
-  return { attackerHP, defenderHP };
+  return {
+    attackerHP,
+    defenderHP,
+    ...(broke ? { breaks: broke } : {}),
+  };
 }
+
+/** What a projected HP of 0 means for a side: "KO", or "Breaks a bar" for a Revival Stone. */
+export function projectedFallText(projection, side) {
+  return projection?.breaks === side ? 'Breaks a bar' : 'KO';
+}
+
 export function triangleText(forecast) {
   const bonus = forecast?.display?.triangle;
   if (!bonus || (!bonus.damage && !bonus.hit)) return '';
@@ -107,7 +122,10 @@ export function forecastNotes(forecast, attacking, attackerHP, weapons = null) {
   if (attacking && planned && planned !== equipped) notes.push(`Confirming equips ${planned.name}`);
   if (projection) {
     const hp = attacking ? projection.attackerHP : projection.defenderHP;
-    notes.push(`If all hits land: ${hp === 0 ? 'KO' : `${hp} HP`} (no crits/procs)`);
+    const side = attacking ? 'attacker' : 'defender';
+    notes.push(
+      `If all hits land: ${hp === 0 ? projectedFallText(projection, side) : `${hp} HP`} (no crits/procs)`,
+    );
   }
   // A one-time lesson on this side (the armor note: AttackFlowController.armorLesson).
   const side = attacking ? forecast.attacker : forecast.defender;
@@ -141,6 +159,10 @@ export function forecastReadingPoints(forecast) {
       'Speed: an Attack Speed lead of 5 grants a second attack. Weapon weight lowers Attack Speed. Planned hits already counts it.',
     );
   points.push('A defeated unit cannot finish its remaining strikes.');
+  if (forecast?.attacker?.stones > 0 || forecast?.defender?.stones > 0)
+    points.push(
+      'A Revival Stone refills its bearer when a blow would fell it. That blow ends the exchange: no more strikes this combat.',
+    );
   return points;
 }
 

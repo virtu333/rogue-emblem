@@ -95,6 +95,38 @@ describe('area preview numbers', () => {
   });
 });
 
+describe('area preview and Revival Stones', () => {
+  it('a blow that would fell a stoned foe previews as breaking a bar, not a KO', () => {
+    // As above: the 10-HP foes take 12 and would fall. One holds a Revival Stone.
+    const mage = unit('Mage', 'player', 1, 1, { MAG: 20 }, { weapon: weapon('Fire') });
+    const target = unit('Target', 'enemy', 2, 1, { RES: 4 });
+    const frail = unit('Frail', 'enemy', 3, 1, { RES: 4, HP: 10 });
+    const warchief = unit(
+      'Warchief',
+      'enemy',
+      2,
+      2,
+      { RES: 4, HP: 10 },
+      { isBoss: true, revivalStones: 1, revivalStonesMax: 1 },
+    );
+    const p = preview({
+      attacker: mage,
+      artId: 'magic_burning_quake',
+      target,
+      units: [mage, target, frail, warchief],
+    });
+    expect(p.victims.map((v) => [v.unit.name, v.damage, v.kills, Boolean(v.breaks)])).toEqual([
+      ['Frail', 10, true, false],
+      ['Warchief', 10, false, true],
+    ]);
+    expect(areaForecastLines(p)).toEqual([
+      'Area if it hits: 2 foes, 1 KO',
+      'Frail −10 KO',
+      'Warchief −10 breaks a bar',
+    ]);
+  });
+});
+
 describe("the preview strikes with the art's weapon", () => {
   it('a Sweeping Cleave on a held Steel Sword previews the sword, not the equipped axe', () => {
     // Confirming equips the art's weapon. Steel Sword 8 + STR 12 − DEF 5 = 15, × 0.5 = 7;

@@ -10,6 +10,10 @@
 // The full reading (name, HP, enrage timing) lives off-map in summaryLine():
 // the phone rail's Battle details and the desktop objective plate show it.
 //
+// A boss that carries Revival Stones shows a gem for each one it still holds at the bar's
+// right end (spent stones are hollow), and a broken stone refills the bar over REFILL_MS
+// (`playRefill`: the strike's own beat; the state is already settled).
+//
 // It only ever *reads* battle state. Damage/heal arrive through
 // BattleScene.updateHPBar → onUnitHp(); resume and rewind call
 // sync({ silent: true }) so a restored battle shows the bar without any
@@ -20,6 +24,7 @@ import { ENTITY_FOOTPRINT, TILE_SIZE } from '../utils/constants.js';
 import { UI_HEX } from '../utils/uiStyles.js';
 import { getBossEnrageTurn } from '../engine/TurnBonusCalculator.js';
 import { isEntity } from '../engine/EntitySystem.js';
+import { revivalStoneCount } from '../engine/RevivalStones.js';
 import {
   bossBarView,
   bossPressureStatus,
@@ -31,6 +36,7 @@ import {
 const DRAIN_DELAY_MS = 450;
 const DRAIN_MS = 650;
 const FELLED_FADE_MS = 900;
+export const BOSS_BAR_REFILL_MS = 400;
 // Above unit HP bars (12/13) and affix pips (14); below labels/HUD.
 export const BOSS_BAR_DEPTH = 14.5;
 const BAR_H = 4; // fill height (ordinary bars are 3)
@@ -43,6 +49,8 @@ export class BossPresenceController {
     this.glow = null;
     this._timers = new Set();
     this._lostShown = 0;
+    this._refillShown = null; // 0..1 while a broken stone's refill plays, else null
+    this._refill = null;
     this.destroyed = false;
   }
 
@@ -72,12 +80,15 @@ export class BossPresenceController {
 
   _snapshot(boss) {
     if (!boss) return null;
+    const stones = revivalStoneCount(boss);
     return {
       key: boss.battleEntityId || boss.name,
       name: boss.name,
       hp: boss.currentHP,
       max: boss.stats?.HP,
       wordless: isWordlessBoss(boss, this.scene.gameData?.enemies),
+      stones: stones.remaining,
+      stonesMax: stones.max,
     };
   }
 
@@ -93,7 +104,7 @@ export class BossPresenceController {
   summaryLine() {
     const v = this.view();
     if (!v.visible || v.felled) return '';
-    return [v.name, v.hpText ? `${v.hpText.replace(' / ', '/')} HP` : '', v.status]
+    return [v.name, v.hpText ? `${v.hpText.replace(' / ', '/')} HP` : '', v.stonesText, v.status]
       .filter(Boolean)
       .join(' · ');
   }
@@ -132,6 +143,39 @@ export class BossPresenceController {
   onUnitHp(unit) {
     if (!unit?.isBoss || unit.faction !== 'enemy') return;
     this.sync();
+  }
+
+  /**
+   * A Revival Stone broke: the bar, already full in state, fills back from empty over
+   * REFILL_MS. Presentation only; motion-reduced play shows the full bar at once.
+   */
+  playRefill() {
+    if (this.destroyed || !this.bar) return;
+    this._refill?.stop?.();
+    this._refill = null;
+    const tweens = this.scene?.tweens;
+    if (this._reducedMotion() || !tweens?.addCounter) {
+      this._refillShown = null;
+      this._draw();
+      return;
+    }
+    this._refillShown = 0;
+    this._draw();
+    this._refill = tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: BOSS_BAR_REFILL_MS,
+      ease: 'Cubic.easeOut',
+      onUpdate: (tween) => {
+        this._refillShown = tween.getValue();
+        this._draw();
+      },
+      onComplete: () => {
+        this._refillShown = null;
+        this._refill = null;
+        this._draw();
+      },
+    });
   }
 
   /** The boss died: drain to empty and fade the bar out. */
@@ -222,17 +266,37 @@ export class BossPresenceController {
     g.lineTo(-half - 1.5, top);
     g.closePath();
     g.strokePath();
+    // A broken stone's refill shows the fill climbing from empty (and no gold chunk behind it).
+    const refilling = this._refillShown !== null;
+    const fillPct = refilling ? v.fillPct * this._refillShown : v.fillPct;
     // Gold "just lost" chunk under the crimson fill.
-    const lost = Math.max(v.fillPct, this._lostShown);
-    if (lost > v.fillPct) {
+    const lost = refilling ? fillPct : Math.max(fillPct, this._lostShown);
+    if (lost > fillPct) {
       g.fillStyle(UI_HEX.accentText, 1);
       g.fillRect(-half, top, (w * lost) / 100, BAR_H);
     }
     g.fillStyle(fill, 1);
-    g.fillRect(-half, top, (w * v.fillPct) / 100, BAR_H);
+    g.fillRect(-half, top, (w * fillPct) / 100, BAR_H);
     // Highlight line for a jewel-like read at small sizes.
     g.fillStyle(UI_HEX.parchment, 0.22);
-    g.fillRect(-half, top, (w * v.fillPct) / 100, 1);
+    g.fillRect(-half, top, (w * fillPct) / 100, 1);
+    // Revival Stones: a gem each at the right end, hollow once spent.
+    for (let i = 0; i < v.stonesMax; i++) {
+      const cx = half - 3 - i * 8;
+      const cy = top - 6;
+      const gem = [
+        { x: cx - 3, y: cy },
+        { x: cx, y: cy - 3 },
+        { x: cx + 3, y: cy },
+        { x: cx, y: cy + 3 },
+      ];
+      if (i < v.stones) {
+        g.fillStyle(UI_HEX.info, 1);
+        g.fillPoints(gem, true);
+      }
+      g.lineStyle(1, i < v.stones ? UI_HEX.parchment : UI_HEX.lineDim, 1);
+      g.strokePoints(gem, true);
+    }
     // Crest diamond at the left end marks the bar as the boss's.
     g.fillStyle(frame, 1);
     g.fillPoints(
@@ -336,6 +400,8 @@ export class BossPresenceController {
     this._clearTimers();
     this._pulse?.stop?.();
     this._pulse = null;
+    this._refill?.stop?.();
+    this._refill = null;
     this.scene?.events?.off?.('postupdate', this._onPostUpdate);
     this.scene?.events?.off?.('shutdown', this._onShutdown);
     const anchor = this.boss?.hpBar;
