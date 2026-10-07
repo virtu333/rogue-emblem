@@ -168,7 +168,13 @@ import {
   applyBattleStartDebuffs,
   clearBattleScopedDeltas,
 } from '../../src/engine/BattleStatDeltas.js';
-import { AREA_XP_LIVE, actionXpAwards, applyXpGain, scaledXp } from '../../src/engine/BattleXp.js';
+import {
+  AREA_XP_LIVE,
+  actionXpAwards,
+  applyXpGain,
+  combatHpLost,
+  scaledXp,
+} from '../../src/engine/BattleXp.js';
 import { selectEnemyWeaponArt } from '../../src/engine/EnemyArtScoring.js';
 import { bindEnemyAreaArt } from '../../src/engine/EnemyAreaArts.js';
 import { settleArtilleryStances } from '../../src/engine/SiegeArtillery.js';
@@ -1847,10 +1853,7 @@ export class HeadlessBattle {
     this._checkAreaVictimBrooches(result);
 
     if (attacker.faction === 'player' && attacker.currentHP > 0) {
-      const damageDealt = Math.max(
-        0,
-        defenderHpAtStart - Math.max(0, Math.trunc(Number(result.defenderHP) || 0)),
-      );
+      const damageDealt = combatHpLost(result, 'defender', defenderHpAtStart);
       this._awardCombatXP(
         attacker,
         defender,
@@ -2391,10 +2394,7 @@ export class HeadlessBattle {
     // Award XP to a player defender that lived: at least the survival minimum, even
     // with no counter or no damage dealt (BattleScene.executeEnemyCombat).
     if (defender.faction === 'player' && defender.currentHP > 0) {
-      const counterDamage = Math.max(
-        0,
-        attackerHpAtStart - Math.max(0, Math.trunc(Number(result.attackerHP) || 0)),
-      );
+      const counterDamage = combatHpLost(result, 'attacker', attackerHpAtStart);
       this._awardCombatXP(
         defender,
         attacker,

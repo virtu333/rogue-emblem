@@ -56,7 +56,13 @@ import {
   railOwnsMenus,
   rowText,
 } from '../ui/battleMenuModel.js';
-import { AREA_XP_LIVE, actionXpAwards, applyXpGain, scaledXp } from '../engine/BattleXp.js';
+import {
+  AREA_XP_LIVE,
+  actionXpAwards,
+  applyXpGain,
+  combatHpLost,
+  scaledXp,
+} from '../engine/BattleXp.js';
 import { postCombatEffects, allyBuff } from '../engine/PostCombatEffects.js';
 import {
   applyTimedBuffEntry,
@@ -8312,10 +8318,7 @@ export class BattleScene extends Phaser.Scene {
       this._pendingCommittedAction = null;
 
       if (attacker.faction === 'player' && attacker.currentHP > 0) {
-        const damageDealt = Math.max(
-          0,
-          defenderHpAtStart - Math.max(0, Math.trunc(Number(result.defenderHP) || 0)),
-        );
+        const damageDealt = combatHpLost(result, 'defender', defenderHpAtStart);
         // The area art's other victims pay too (BattleXp.AREA_XP_LIVE, the switch the
         // harness reads), each credit the attacker's own.
         await this.awardXP(
@@ -10561,10 +10564,7 @@ export class BattleScene extends Phaser.Scene {
       // Award XP to player defender if they survived: at least the survival
       // minimum, even with no counter (unarmed, out of reach) or no damage dealt.
       if (target.faction === 'player' && target.currentHP > 0) {
-        const counterDamage = Math.max(
-          0,
-          enemyHpAtStart - Math.max(0, Math.trunc(Number(result.attackerHP) || 0)),
-        );
+        const counterDamage = combatHpLost(result, 'attacker', enemyHpAtStart);
         await this.awardXP(target, enemy, enemy.currentHP <= 0, counterDamage, enemyHpAtStart, {
           survivedAttack: true,
         });

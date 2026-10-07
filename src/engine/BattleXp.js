@@ -22,6 +22,26 @@ import { calculateSharedXp, getXpShareRatio, getXpShareRecipients } from './XpSh
 import { xpGainSegments, xpGained, xpSnapshot } from './XpProgress.js';
 
 /**
+ * The HP one side of a resolved combat lost, for the XP and the damage-ratio math that
+ * read it. A Revival Stone that broke refilled the bar (`result.defenderHP` is the new
+ * bar's), so a broken bar counts as the whole bar it held at the start: the striker is
+ * paid ordinary damage XP for it (never the kill bonus: the unit did not die).
+ *
+ * @param {object} result  Combat.resolveCombat's result
+ * @param {'attacker'|'defender'} side  the side that took the damage
+ * @param {number} hpAtStart  that side's HP before the combat
+ */
+export function combatHpLost(result, side, hpAtStart) {
+  const start = Math.max(0, Math.trunc(Number(hpAtStart) || 0));
+  const after = Math.max(
+    0,
+    Math.trunc(Number(side === 'defender' ? result?.defenderHP : result?.attackerHP) || 0),
+  );
+  const lost = Math.max(0, start - after);
+  return result?.stoneBroken?.[side] ? Math.max(lost, start) : lost;
+}
+
+/**
  * Base XP awards for one combat, in the order they are granted: the unit first,
  * then each ally sharing through Mentor's Band.
  *
