@@ -28,11 +28,6 @@ import {
   ENTITY_WEAPON_NAMES,
 } from '../utils/constants.js';
 
-/** What the built enemy adds to the eligibility test: a raised or zero-XP unit never carries. */
-function enemyFlags(enemy) {
-  return { _noXP: enemy?._noXP, _raisedBy: enemy?._raisedBy, className: enemy?.className };
-}
-
 function cloneNamed(weapons, name) {
   const data = name ? (weapons || []).find((w) => w.name === name) : null;
   return data ? structuredClone(data) : null;
@@ -92,7 +87,7 @@ export function applyEnemySpawnGear(
     );
     if (staff) enemy.statusStaff = staff;
   }
-  if (spawn.carries && isCarrierEligible({ ...spawn, ...enemyFlags(enemy) })) {
+  if (spawn.carries && isCarrierEligible(spawn) && isCarrierEligible(enemy)) {
     const item = buildCarriedItem(spawn, { consumables, weapons, battleKey });
     if (item) enemy.carriedItem = item;
   }

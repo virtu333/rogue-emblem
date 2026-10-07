@@ -25,11 +25,12 @@ import {
   findSmiteTargets,
   findStealTargets,
   findTransfuseTargets,
+  stealStatus,
   markUsed,
   settleSmite,
   settleTransfuse,
 } from '../engine/ActionAbilitySystem.js';
-import { STEAL_ABILITY_KIND, settleSteal } from '../engine/Steal.js';
+import { STEAL_ABILITY_KIND, settleSteal, stealReasonLabel } from '../engine/Steal.js';
 
 const FOE_TILE_COLOR = UI_HEX.warn;
 const ALLY_TILE_COLOR = UI_HEX.hpHigh;
@@ -92,12 +93,32 @@ export class AbilityTargetingController {
     const target = this.find(unit, skill).find(
       (entry) => entry.unit.col === gp.col && entry.unit.row === gp.row,
     );
-    if (!target) return;
+    if (!target) {
+      if (skill.actionAbility?.kind === STEAL_ABILITY_KIND)
+        this._explainRefusedSteal(unit, skill, gp);
+      return;
+    }
     scene.registry.get('audio')?.playSFX('sfx_confirm');
     scene.grid.clearAttackHighlights();
     scene.abilityTiles = [];
     scene._pendingAbility = null;
     void this.execute(unit, skill, target);
+  }
+
+  /** A tap on a carrier Steal cannot rob (the room went, or it is quicker): say why. */
+  _explainRefusedSteal(unit, skill, gp) {
+    const scene = this.scene;
+    const { reason } = stealStatus(unit, skill.actionAbility, this._context(unit, skill));
+    const label = stealReasonLabel(reason);
+    if (!label) return;
+    safeBattlePresentation(
+      'steal refusal',
+      () => {
+        const pos = scene.grid.gridToPixel(gp.col, gp.row);
+        scene.showMinorHintAt(pos.x, pos.y, label, UI_PALETTE.bad);
+      },
+      { scene },
+    );
   }
 
   execute(unit, skill, target) {

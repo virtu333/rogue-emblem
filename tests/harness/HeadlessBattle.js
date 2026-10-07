@@ -286,6 +286,7 @@ export class HeadlessBattle {
       weapons: this.gameData.weapons,
       affixes: this.gameData.affixes,
       difficulty: this.gameData.difficulty,
+      lootTables: this.gameData.lootTables,
     });
   }
 
