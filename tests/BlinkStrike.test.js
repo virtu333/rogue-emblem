@@ -483,6 +483,33 @@ describe('step 1: the destination', () => {
     expect(scene.battleState).toBe('UNIT_ACTION_MENU');
   });
 
+  it('two worlds that differ only by a hidden unit offer the same destinations, row and status', () => {
+    const run = (withHidden, { fogTheFoe = false } = {}) => {
+      const fog = new Set(fogTheFoe ? ['9,5', '8,5', '9,4', '9,6', '10,5'] : ['8,5', '8,4']);
+      const { scene, hero, foe } = makeScene({ fog });
+      if (fogTheFoe) scene.enemyUnits = withHidden ? [foe] : [];
+      else if (withHidden)
+        scene.enemyUnits.push(unit('Lurker', 'enemy', 8, 5, [weapon('Iron Axe', 'lurk')]));
+      const ctrl = scene._abilityController;
+      const [entry] = ctrl._getAbilityEntries(hero);
+      const opened = flow(scene).begin(hero, SKILL);
+      return {
+        opened,
+        tiles: (scene.abilityTiles || []).map((t) => `${t.col},${t.row}`),
+        row: { canUse: entry.canUse, hasTargets: entry.hasTargets },
+        status: ctrl._statusLine(hero, entry),
+      };
+    };
+    // A hidden unit beside a visible foe: (8,5) and (8,4) are fogged either way.
+    expect(run(true)).toEqual(run(false));
+    expect(run(false).tiles).not.toContain('8,5');
+    // The only foe in reach is the hidden one: the row greys out the same with it or without.
+    const hidden = run(true, { fogTheFoe: true });
+    expect(hidden).toEqual(run(false, { fogTheFoe: true }));
+    expect(hidden.row.hasTargets).toBe(false);
+    expect(hidden.opened).toBe(false);
+  });
+
   it('clears a weapon art picked before: Blink Strike is a plain attack', () => {
     const { scene, hero } = makeScene();
     scene._selectedWeaponArt = { unitName: 'Edric', artId: 'sword_slash', weaponIndex: 0 };
