@@ -87,7 +87,7 @@ import { ensureItemUid } from '../utils/itemUid.js';
 import { commitShadow, actShadowOf, withEclipseSeed } from './EclipseSystem.js';
 import { convertNodeToRoutBattle } from './NodeMapGenerator.js';
 import { WOUND_STATS, addBurden, burdenDefFor, describeBurden } from './Burdens.js';
-import { describeContract, normalizeContract, contractOf } from './Contracts.js';
+import { describeContract, normalizeContract, contractBound } from './Contracts.js';
 import { planJoin, applyJoin, pickJoinSelf } from './EventJoin.js';
 import { planRouteEdit, applyRouteEdit } from './RouteEdit.js';
 import { CONSUMABLE_MAX, INVENTORY_MAX, NODE_TYPES } from '../utils/constants.js';
@@ -759,7 +759,7 @@ function planCounter(ctx, effect, index, ledger) {
 
 function planContract(ctx, effect, index, ledger) {
   if (ctx.phase === 'k') return { error: 'A contract cannot open another contract.' };
-  if (ledger.contract || contractOf(ctx.run))
+  if (ledger.contract || contractBound(ctx.run))
     return { error: 'You are already bound by a contract.' };
   const contract = normalizeContract({
     goal: effect.goal,
@@ -1248,6 +1248,7 @@ export const RUN_FIELDS = Object.freeze([
   'nodeMap',
   'currentNodeId',
   'contract',
+  'contractOwed',
   'usedRecruitNames',
   'nextUnitUid',
 ]);

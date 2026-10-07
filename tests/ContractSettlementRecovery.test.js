@@ -103,13 +103,14 @@ const heldAt = (run) => {
 function ownedLance() {
   const { run, signedAt } = signed({ reward: STEEL_LANCE });
   fillArmy(run);
+  const lances = namedCount(run, 'Steel Lance'); // the starting kit already carries some
   const node = win(run, { turns: 1, par: 5 });
-  return { run, signedAt, node };
+  return { run, signedAt, node, lances };
 }
 
 describe('a kept reward with no room is owed, not forfeited', () => {
   it('judges once, applies nothing, holds the party, and says why it waits', () => {
-    const { run, signedAt, node } = ownedLance();
+    const { run, signedAt, node, lances } = ownedLance();
     const weapons = weaponCount(run);
     expect(run.contract).toBeNull();
     expect(contractRewardOwed(run)).toBe(true);
@@ -128,7 +129,7 @@ describe('a kept reward with no room is owed, not forfeited', () => {
       failed: null,
     });
     expect(weaponCount(run)).toBe(weapons);
-    expect(namedCount(run, 'Steel Lance')).toBe(0);
+    expect(namedCount(run, 'Steel Lance')).toBe(lances);
     expect(run.lastContractSettlement).toMatchObject({
       kept: true,
       owed: true,
@@ -151,7 +152,7 @@ describe('a kept reward with no room is owed, not forfeited', () => {
   });
 
   it('Claim with no room changes nothing; once room is made it arrives exactly once', () => {
-    const { run, node } = ownedLance();
+    const { run, node, lances } = ownedLance();
     const loaded = roundTrip(run);
     const before = JSON.stringify(loaded.toJSON());
 
@@ -168,7 +169,7 @@ describe('a kept reward with no room is owed, not forfeited', () => {
     expect(paid.settlement.results).toHaveLength(1);
     expect(paid.settlement.results[0]).toMatchObject({ kind: 'item', name: 'Steel Lance' });
     expect(paid.settlement.lines).toEqual([expect.stringMatching(/^Contract kept: .*Steel Lance/)]);
-    expect(namedCount(loaded, 'Steel Lance')).toBe(1);
+    expect(namedCount(loaded, 'Steel Lance')).toBe(lances + 1);
     expect(weaponCount(loaded)).toBe(weapons + 1);
     expect(loaded.contractOwed).toBeNull();
     expect(contractRewardOwed(loaded)).toBe(false);
@@ -189,8 +190,8 @@ describe('a kept reward with no room is owed, not forfeited', () => {
     fillArmy(run);
     win(run);
     expect(run.contractOwed).toMatchObject({ kept: true, blocked: 'No room for the item' });
-    const weapons = weaponCount(run);
     run.convoy.weapons.pop();
+    const weapons = weaponCount(run);
     expect(deliverContractSettlement(run).ok).toBe(true);
     expect(weaponCount(run)).toBe(weapons + 1);
   });
@@ -210,12 +211,13 @@ describe('a kept reward with no room is owed, not forfeited', () => {
     const { run } = signed({ reward: [...STEEL_LANCE, { type: 'gold', value: 600 }] });
     fillArmy(run);
     const gold = run.gold;
+    const lances = namedCount(run, 'Steel Lance');
     win(run);
     expect(run.gold).toBe(gold + BATTLE_GOLD); // not even the 600 G that came after the lance
     run.convoy.weapons.pop();
     expect(deliverContractSettlement(run).ok).toBe(true);
     expect(run.gold).toBe(gold + BATTLE_GOLD + 600);
-    expect(namedCount(run, 'Steel Lance')).toBe(1);
+    expect(namedCount(run, 'Steel Lance')).toBe(lances + 1);
   });
 });
 
@@ -313,7 +315,7 @@ describe('the verdict is final', () => {
   });
 
   it('delivers the original reward at a later victory once room exists, even when that victory is over par', () => {
-    const { run } = ownedLance();
+    const { run, lances } = ownedLance();
     run.convoy.weapons.pop();
     const second = run.nodeMap.nodes.find((n) => n.type === 'battle' && !n.completed);
     run.currentNodeId = second.id;
@@ -321,7 +323,7 @@ describe('the verdict is final', () => {
       true,
     );
     expect(run.contractOwed).toBeNull();
-    expect(namedCount(run, 'Steel Lance')).toBe(1);
+    expect(namedCount(run, 'Steel Lance')).toBe(lances + 1);
     expect(run.burdens).toEqual([]);
     expect(run.lastContractSettlement).toMatchObject({ kept: true, owed: false });
   });
@@ -470,7 +472,7 @@ describe('an unpaid settlement blocks a new contract and survives an act', () =>
   });
 
   it('the record survives an act transition and a save, and is not a hold in the new act', () => {
-    const { run } = ownedLance();
+    const { run, lances } = ownedLance();
     const owed = structuredClone(run.contractOwed);
     run.advanceAct();
     expect(run.currentAct).not.toBe('act1');
@@ -481,7 +483,7 @@ describe('an unpaid settlement blocks a new contract and survives an act', () =>
     // still deliverable once room exists, wherever the party stands
     run.convoy.weapons.pop();
     expect(deliverContractSettlement(run).ok).toBe(true);
-    expect(namedCount(run, 'Steel Lance')).toBe(1);
+    expect(namedCount(run, 'Steel Lance')).toBe(lances + 1);
   });
 });
 
