@@ -210,6 +210,36 @@ describe('roster sheet: Discard asks first', () => {
     sheet.destroy();
   });
 
+  it('two stored items sharing a uid: the one tapped goes, the other stays', async () => {
+    const { sheet, run } = setup();
+    const plus = { ...structuredClone(run.convoy.weapons[0]), name: 'Stored Bow +1' };
+    plus.uid = run.convoy.weapons[0].uid;
+    run.convoy.weapons.push(plus);
+    sheet.tab = 'convoy';
+    sheet.render();
+    discardOf(cards(sheet, 'Stored Bow')[1]).click();
+    confirmButton(sheet.picker).click();
+    expect(run.convoy.weapons.map((w) => w.name)).toEqual(['Stored Bow']);
+    expect(await status(sheet)).toBe('Discarded Stored Bow +1.');
+    sheet.destroy();
+  });
+
+  it('a convoy item replaced by an equal copy before Confirm is refused, not saved', () => {
+    const { sheet, run } = setup();
+    sheet.tab = 'convoy';
+    sheet.render();
+    discardOf(cards(sheet, 'Stored Bow')[0]).click();
+    run.convoy.weapons = run.convoy.weapons.map((w) => structuredClone(w));
+    const picker = sheet.picker;
+    picker.render();
+    expect(picker.blocked(picker.selected)).toBe('Item is no longer here.');
+    expect(confirmButton(picker).disabled).toBe(true);
+    expect(run.convoy.weapons).toHaveLength(1);
+    expect(saveServiceRun).not.toHaveBeenCalled();
+    picker.close();
+    sheet.destroy();
+  });
+
   it('an item that vanished before Confirm is refused, not saved', () => {
     const { sheet, archer } = setup();
     discardOf(cards(sheet, 'Tonic')[0]).click();
