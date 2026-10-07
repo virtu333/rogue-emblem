@@ -938,7 +938,7 @@ The schema is documented at the top of `src/engine/Prologue.js`, which is the re
 {
   "version": 1,
   "seed": 1209,
-  "grant": { "valor": 60, "supply": 40 },        // one cheap upgrade of each (§12)
+  "grant": { "valor": 50, "supply": 35 },        // one cheap upgrade of each (§12)
   "units": {                                     // keyed by unit name (the key is the name)
     "Edric":  { "lord": "Edric", "level": 1,
                 "stats": { /* every stat incl. MOV: his lords.json base */ },
@@ -1726,8 +1726,9 @@ marked `unmet: "???"` are a voice not yet met (`endingLinesFor`).
 1. **Loop, not carry-over** (§3).
 2. **The prologue is the default.** Every fresh slot offers it, highlighted. It is never forced,
    and it can be skipped at the start or mid-way.
-3. **The Home Base grant is small:** about one cheap upgrade of each currency. Lord upgrades start
-   at 50 Valor and recruit upgrades at 35 Supply, so the grant is 60 Valor and 40 Supply.
+3. **The Home Base grant is small:** one cheap upgrade of each currency. Lord upgrades start
+   at 50 Valor and recruit upgrades at 35 Supply, so the grant is 50 Valor and 35 Supply (it was
+   60 and 40 until the owner's retune of 2026-10-07, which also lowered First Light's run earnings).
 4. **The row-2 fork stays** (Market or Chapel). It is the prologue's only real route choice, and
    whichever service the player skips gets a first-visit note in Act 1.
 5. **Tamsin keeps her name** as a faint loop echo, unless the user asks otherwise.
