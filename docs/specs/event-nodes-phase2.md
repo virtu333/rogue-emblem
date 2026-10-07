@@ -22,8 +22,9 @@ An outcome may continue the event instead of ending it: `"next": "<pageId>"`. An
 `pages: { <pageId>: { text, choices: [...] } }`; its top-level `intro`/`choices` are page
 `start`. The state records `page` and a `path` of `{ page, choiceId, outcomeId, results }`;
 `eventView` shows the current page, with the earlier steps' results above it. Each step commits
-and saves exactly like a Phase 1 choice (seed key `event:${runSeed}:${nodeId}:${page}:${choiceId}`);
-a refresh reopens the current page. `leaveEvent` is allowed only on a page whose resolved
+and saves exactly like a Phase 1 choice (seed key `event:${runSeed}:${nodeId}:${page}:${choiceId}`; a page
+an outcome loops back to names its visit from the second time on, `${page}#${n}`, so a revisit rolls
+afresh and the first visit's key never changes: `EventSystem.pageSeedId`); a refresh reopens the current page. `leaveEvent` is allowed only on a page whose resolved
 outcome has no `next` (or after an explicit `leave` choice). A page may carry its own
 `requires` per choice.
 
@@ -323,7 +324,7 @@ jitter, after every other wave of the turn so those draw as before): a new wave 
 (a price must not buy a turn; the spawn also carries `parNeutral`), copying the map's own foes like any
 procedural arrival, at half XP and gold. A victory counts one down only when the battle carried the wave:
 the locked map says so (`isHuntedBattle`); with no locked map (the sims, unit tests) every non-boss victory
-counts. A boss victory never does. A battle that ends before turn 3 still counts; the wave simply never came.
+counts. A boss victory never does. A battle that ends before turn 3 still counts; the wave simply never came. This is intended: clearing the map before the wave arrives is the counterplay to Hunted, not a loophole to close.
 
 **Sworn Enemy** `{ id }`. `AffixEngine.assignSwornAffix(enemySpawns, { affixConfig, difficultyId, random })`:
 the first boss spawn that is not the Entity gains one tier-1 affix chosen by `affixes.json` weight from

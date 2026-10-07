@@ -178,7 +178,10 @@ const rngFor = (ctx, index, label) =>
   eventRng(
     `event:${runSeedOf(ctx.run)}:${ctx.nodeId}:${pagePart(ctx)}${ctx.choice?.id || 'choice'}:${ctx.phase}${index}:${label}`,
   );
-const pagePart = (ctx) => (ctx.page && ctx.page !== START_PAGE ? `${ctx.page}:` : '');
+const pagePart = (ctx) => {
+  const page = ctx.pageTag || ctx.page;
+  return page && page !== START_PAGE ? `${page}:` : '';
+};
 
 const pickFrom = (list, rng) => list[Math.floor(rng() * list.length)];
 

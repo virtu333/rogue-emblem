@@ -81,7 +81,7 @@ export function joinClassCandidates(run, effect) {
 
 /** The tuple of key parts a join's streams hang from. */
 const joinKey = (ctx, index) =>
-  `event-join:${runSeedOf(ctx.run)}:${ctx.nodeId}:${ctx.page || 'start'}:${ctx.choice?.id || 'choice'}:${ctx.phase}${index}`;
+  `event-join:${runSeedOf(ctx.run)}:${ctx.nodeId}:${ctx.pageTag || ctx.page || 'start'}:${ctx.choice?.id || 'choice'}:${ctx.phase}${index}`;
 
 function pickName(ctx, className, taken, rng) {
   const { run } = ctx;

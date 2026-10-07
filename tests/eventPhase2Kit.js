@@ -188,6 +188,54 @@ export const coinEvent = () => ({
 });
 
 /**
+ * A page that loops on itself with a fair coin and a one-of-four stat pick each round (the
+ * rolls a revisit must not repeat): "go" opens `ring`, "toss" there rolls heads or tails, each
+ * `next: 'ring'`, and "leave" ends the event.
+ */
+export const ringEvent = ({ tellFor = null } = {}) => {
+  const toss = (id) => ({
+    id,
+    weight: 50,
+    text: id,
+    next: 'ring',
+    effects: [{ type: 'stat', stat: ['STR', 'SKL', 'SPD', 'DEF'], value: 1, scope: 'lowestLevel' }],
+  });
+  return {
+    id: 'ring',
+    title: 'The Ring',
+    weight: 1,
+    intro: 'A ring of stones.',
+    choices: [
+      {
+        id: 'go',
+        label: 'Step in',
+        outcomes: [{ id: 'in', weight: 100, text: 'In.', next: 'ring', effects: [] }],
+      },
+    ],
+    pages: {
+      ring: {
+        text: 'Round and round.',
+        choices: [
+          {
+            id: 'toss',
+            label: 'Toss',
+            ...(tellFor
+              ? { tells: [{ when: { class: tellFor }, line: 'Heads.', reveals: 'heads' }] }
+              : {}),
+            outcomes: [toss('heads'), toss('tails')],
+          },
+          {
+            id: 'leave',
+            label: 'Leave',
+            outcomes: [{ id: 'out', weight: 100, text: 'Out.', effects: [] }],
+          },
+        ],
+      },
+    },
+  };
+};
+
+/**
  * A contract event. `goal` and the two effect lists are the terms; a second always-open
  * choice declines.
  */

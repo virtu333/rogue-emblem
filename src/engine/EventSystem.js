@@ -13,7 +13,8 @@
 //   On a page after the first (docs/specs/event-nodes-phase2.md §2A) the page id joins the key
 //   right after the node (`event:${runSeed}:${nodeId}:${pageId}:${choiceId}...`; see
 //   choiceSeedKey). The first page, `start`, keeps the Phase 1 key, so a Phase 1 event picks
-//   the same outcome it always did.
+//   the same outcome it always did. A page the event loops back to names its visit too
+//   (`${pageId}#${n}` from the second visit on; pageSeedId), so a revisit rolls afresh.
 //   event-tell:${runSeed}:${nodeId}:${pageId}:${choiceId}:${n}  which unit speaks a roster tell
 //   event-join:${runSeed}:${nodeId}:..              a joining unit's class, name and build
 //   event-route:${runSeed}:${nodeId}:..             a route edit's pick and its battle build
@@ -127,6 +128,17 @@ export function pageIdOf(state) {
 /** The earlier steps of a multi-page event: [{ page, choiceId, outcomeId, text, results, ... }]. */
 export function pathOf(state) {
   return Array.isArray(state?.path) ? state.path : [];
+}
+
+/**
+ * The page as a seed key names it: its id on the first visit, `${id}#${n}` on the n-th revisit
+ * (n = how many steps of `state.path` were already taken on that page). A page a `next` loops
+ * back to would otherwise repeat every roll of its first visit; the first visit's key is the
+ * page id alone, so no event that never loops rolls differently.
+ */
+export function pageSeedId(state, pageId = pageIdOf(state)) {
+  const visits = pathOf(state).filter((step) => (step?.page || START_PAGE) === pageId).length;
+  return visits > 0 ? `${pageId}#${visits}` : pageId;
 }
 
 /**
