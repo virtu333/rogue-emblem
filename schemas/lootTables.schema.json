@@ -17,11 +17,61 @@
     },
     "finalBoss": {
       "$ref": "#/$defs/actLootTable"
+    },
+    "accessorySkills": {
+      "$ref": "#/$defs/accessorySkills"
     }
   },
   "required": ["act1", "act2", "act3", "act4", "finalBoss"],
   "additionalProperties": false,
   "$defs": {
+    "accessorySkillPool": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "accessorySkills": {
+      "description": "Accessory skills (docs/specs/phase3.md 3H): any non-legendary accessory created from loot, a shop or an event grant may roll a bound skill. chanceByAct is the chance per accessory; poolByAct the skill ids an act may bind; priceMultiplier scales the price of an accessory that carries one; neverBound lists skill ids that can never be lent (ids not yet in skills.json stay barred); lentInnates lists the personal or class-innate skills the pools lend on purpose (a lent skill is never taught, so class locks do not apply).",
+      "type": "object",
+      "properties": {
+        "chanceByAct": {
+          "type": "object",
+          "properties": {
+            "act1": { "type": "number", "minimum": 0, "maximum": 1 },
+            "act2": { "type": "number", "minimum": 0, "maximum": 1 },
+            "act3": { "type": "number", "minimum": 0, "maximum": 1 },
+            "act4": { "type": "number", "minimum": 0, "maximum": 1 }
+          },
+          "required": ["act1", "act2", "act3", "act4"],
+          "additionalProperties": false
+        },
+        "poolByAct": {
+          "type": "object",
+          "properties": {
+            "act1": { "$ref": "#/$defs/accessorySkillPool" },
+            "act2": { "$ref": "#/$defs/accessorySkillPool" },
+            "act3": { "$ref": "#/$defs/accessorySkillPool" },
+            "act4": { "$ref": "#/$defs/accessorySkillPool" }
+          },
+          "required": ["act1", "act2", "act3", "act4"],
+          "additionalProperties": false
+        },
+        "priceMultiplier": { "type": "number", "minimum": 1 },
+        "neverBound": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "lentInnates": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "required": ["chanceByAct", "poolByAct", "priceMultiplier", "neverBound", "lentInnates"],
+      "additionalProperties": false
+    },
     "nameArray": {
       "type": "array",
       "items": {

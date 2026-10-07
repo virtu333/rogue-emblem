@@ -11117,6 +11117,7 @@ export class BattleScene extends Phaser.Scene {
       separator: '\n',
       statSeparator: '/',
       fallback: 'Equip for passive bonus',
+      skills: this.gameData?.skills,
     });
   }
 

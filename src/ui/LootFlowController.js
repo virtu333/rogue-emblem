@@ -23,6 +23,7 @@ import { FORGE_MAX_LEVEL, FORGE_STAT_CAP, LORE_TEXT_COLOR } from '../utils/const
 import { BoundingFocusController } from './BoundingFocusController.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
+import { itemDisplayName } from '../utils/itemNames.js';
 
 const POST_LOOT_TRANSITION_TIMEOUT_MS = 8000;
 const POST_LOOT_TRANSITION_STORY_GRACE_MS = 30000;
@@ -663,7 +664,7 @@ export class LootFlowController {
       const u = roster[i];
       const y = startY + i * lineH;
       const wpnName = u.weapon?.name || u.inventory?.[0]?.name || '-';
-      const accName = u.accessory?.name || '-';
+      const accName = u.accessory ? itemDisplayName(u.accessory, scene.gameData?.skills) : '-';
       const invCount = (u.inventory || []).length;
       const line = `${u.name.padEnd(10)} ${u.className.padEnd(12)} Lv${String(getDisplayLevel(u)).padStart(2)} HP:${u.stats.HP}/${u.maxHP || u.stats.HP}  Wpn:${wpnName}  Acc:${accName}  Inv:${invCount}`;
       const txt = applyTextResolution(

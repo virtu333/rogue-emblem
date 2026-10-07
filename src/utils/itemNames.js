@@ -5,6 +5,10 @@
 // " -N" (docs/specs/worn-weapons.md), an imbue prefixes one adjective. Every lookup that
 // maps a weapon to something reads the undecorated name through here, so a new kind of
 // suffix is one change, not a hunt.
+//
+// An accessory with a bound skill is the other kind of decoration: its identity name stays
+// "Power Ring" and only the display name carries the skill (`itemDisplayName`).
+import { accessoryDisplayName } from '../engine/AccessorySkillNames.js';
 
 /** The suffix forging (" +2") or wear (" -2") leaves on a display name. ASCII hyphen. */
 export const ITEM_NAME_SUFFIX_RE = /\s[+-]\d+$/;
@@ -49,4 +53,14 @@ export function weaponCatalogNames(weapon) {
     if (weapon?._imbueId) names.add(plain.replace(/^\S+\s+/, ''));
   }
   return [...names];
+}
+
+/**
+ * The name an item shows. Most items show their `name` (a forged or worn weapon's already
+ * carries its " +N" / " -N"). An accessory with a bound skill keeps its identity
+ * name and shows "Power Ring · Vantage" (docs/specs/item-names.md). Display only: every lookup keeps
+ * reading the identity name. `skills` is the skills.json catalog, which names the lent skill.
+ */
+export function itemDisplayName(item, skills = null) {
+  return accessoryDisplayName(item, skills);
 }

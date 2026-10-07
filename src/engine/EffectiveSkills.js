@@ -5,7 +5,7 @@
 //   1. `unit.skills`: the equipped list (never `unit.benchedSkills`: a benched skill is
 //      known but set aside, so it does nothing in battle),
 //   2. the weapon in use's `_grantedSkill` (a legendary weapon's bound skill),
-//   3. the equipped accessory's `_boundSkill` (a Bond Ring's rolled skill, Phase 3H).
+//   3. the equipped accessory's `_boundSkill` (a rolled accessory skill, Phase 3H).
 // The result is de-duplicated and keeps that order, so a bound skill the unit already has is
 // counted once: an aura is one aura, a proc rolls once.
 //
@@ -55,4 +55,15 @@ export function effectiveSkills(unit, { weapon } = {}) {
  */
 export function hasEffectiveSkill(unit, id, opts = {}) {
   return effectiveSkills(unit, opts).includes(id);
+}
+
+/**
+ * The skill id an accessory lends (its `_boundSkill`), or null. This and
+ * `effectiveSkills` are the only reads of the field: display code (the ring's name, its
+ * text, the roster's "lent by ring" line) asks here instead of touching it.
+ * @param {object|null} accessory
+ * @returns {string|null}
+ */
+export function boundSkillOf(accessory) {
+  return skillId(accessory?._boundSkill);
 }

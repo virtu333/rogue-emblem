@@ -60,6 +60,10 @@ const BOUND_SKILL_WRITERS = [
     file: 'src/engine/LootSystem.js',
     why: 'generateRandomLegendary rolls a legendary weapon’s _grantedSkill when it is created',
   },
+  {
+    file: 'src/engine/AccessorySkills.js',
+    why: 'bindAccessorySkill rolls an accessory’s _boundSkill when the instance is created; display code reads it through boundSkillOf',
+  },
 ];
 const BOUND_SKILL = /_grantedSkill|_boundSkill/;
 

@@ -27,7 +27,12 @@ import {
 import { attachInfo, holdTip } from './infoAffordance.js';
 import { getForgeDisplayInfo } from '../engine/ForgeSystem.js';
 import { isWorn, wearCount, wearLine } from '../engine/WeaponWear.js';
-import { composeWeaponName, stripItemNameSuffix } from '../utils/itemNames.js';
+import { composeWeaponName, itemDisplayName, stripItemNameSuffix } from '../utils/itemNames.js';
+import {
+  accessorySkillAlreadyKnown,
+  hasAccessorySkill,
+  lentSkillLine,
+} from '../engine/AccessorySkillNames.js';
 import { getImbueDisplayInfo } from '../engine/ImbueSystem.js';
 import { getEffectiveStaffRange } from '../engine/Combat.js';
 import {
@@ -861,6 +866,13 @@ export class MobileRosterSheet {
         );
     }
     if (!(unit.skills || []).length) this.card('Skills', 'No skills learned yet.');
+    // An accessory's skill is lent, not learned: it is not in the equipped count above, cannot
+    // be benched, and leaves with the ring.
+    const lent = lentSkillLine(unit, this.gameData.skills);
+    if (lent) {
+      this.body.append(el('h3', 'Lent by accessory', 'mr-section'));
+      this.card(lent.name, lent.known ? `${lent.label}: the accessory adds nothing.` : lent.text);
+    }
     const bench = benchedSkillsOf(unit);
     if (bench.length || manage) {
       this.body.append(el('h3', `Bench · ${bench.length}`, 'mr-section'));
@@ -1336,7 +1348,8 @@ export class MobileRosterSheet {
     });
   }
   itemDescription(item, unit) {
-    if (item.type === 'Accessory') return formatAccessoryDetail(item);
+    if (item.type === 'Accessory')
+      return formatAccessoryDetail(item, { skills: this.gameData.skills });
     if (item.type === 'Consumable')
       return `${getConsumableDescription(item)} · ${formatUses(item)}`;
     if (item.type === 'Staff') {
@@ -1355,9 +1368,13 @@ export class MobileRosterSheet {
       forgeLevel,
       wearSteps: wearCount(item),
     });
-    const c = this.card(displayName, this.itemDescription(item, unit), item, {
-      keys: itemKeywordRow(item, { displayName }),
-    });
+    // An accessory's card title carries its bound skill; its identity name never changes.
+    const c = this.card(
+      hasAccessorySkill(item) ? itemDisplayName(item, this.gameData.skills) : displayName,
+      this.itemDescription(item, unit),
+      item,
+      { keys: itemKeywordRow(item, { displayName }) },
+    );
     const equipped = !!unit && (item === unit.weapon || item === unit.accessory);
     if (equipped) c.querySelector('h4')?.append(equippedBadgeElement());
     if (Object.values(forge.bonuses).some(Boolean))
@@ -1378,6 +1395,9 @@ export class MobileRosterSheet {
     const usage = itemUsageText(item);
     if (usage) c.append(el('p', usage, 'mr-usage'));
     if (equipped) c.append(el('p', 'Equipped', 'mr-equipped'));
+    // The ring lends a skill the unit already has equipped: it adds nothing.
+    if (unit && accessorySkillAlreadyKnown(unit, item))
+      c.append(el('p', 'Already known: this unit has the skill, so the accessory adds nothing.'));
     // A special the tags already state isn't repeated; staves and flavour keep theirs.
     if (item.special && !itemKeywords(item).length) c.append(el('p', item.special));
     if (item.description) c.append(el('p', item.description));
@@ -1552,7 +1572,7 @@ export class MobileRosterSheet {
           this.button('Equip accessory', () =>
             this.render(
               rosterAccessoryAction(this.run, unit, item) ||
-                `${item.name} equipped.${this.persistNow()}`,
+                `${itemDisplayName(item, this.gameData.skills)} equipped.${this.persistNow()}`,
             ),
           ),
         );

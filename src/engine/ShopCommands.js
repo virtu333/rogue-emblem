@@ -12,6 +12,7 @@ import {
 } from './UnitManager.js';
 import { weaponTypeNoun } from './ItemKeywords.js';
 import { getSellPrice } from './LootSystem.js';
+import { itemDisplayName } from '../utils/itemNames.js';
 import { forgeStatBlock, applyForge, forgePrice } from './ForgeSystem.js';
 import { isWorn, wearCount, repairPrice, repairWeapon } from './WeaponWear.js';
 import { INVENTORY_MAX, CONSUMABLE_MAX } from '../utils/constants.js';
@@ -109,7 +110,7 @@ export function purchaseShopItem(run, stock, entry, recipient) {
   stock.splice(stock.indexOf(entry), 1);
   return {
     ok: true,
-    message: `${entry.item.name} → ${pool === 'accessories' && recipient != null && recipient !== 'pool' ? `${recipient.name} (equipped)` : pool ? (pool === 'scrolls' ? 'Scroll pool' : 'Accessory pool') : convoy ? 'Convoy' : recipient.name}.`,
+    message: `${itemDisplayName(entry.item, run.gameData?.skills)} → ${pool === 'accessories' && recipient != null && recipient !== 'pool' ? `${recipient.name} (equipped)` : pool ? (pool === 'scrolls' ? 'Scroll pool' : 'Accessory pool') : convoy ? 'Convoy' : recipient.name}.`,
   };
 }
 // Selling a unit's last combat weapon (or staff) is allowed (a unit may carry
@@ -205,7 +206,10 @@ export function sellShopItem(run, row) {
       : risk === SELL_RISKS.onlyStaff
         ? ` ${row.unit.name} has no staff now.`
         : '';
-  return { ok: true, message: `Sold ${row.item.name} for ${price}G.${after}` };
+  return {
+    ok: true,
+    message: `Sold ${itemDisplayName(row.item, run.gameData?.skills)} for ${price}G.${after}`,
+  };
 }
 export function shopForgeBlock(
   run,

@@ -90,6 +90,7 @@ import { WOUND_STATS, addBurden, burdenDefFor, describeBurden } from './Burdens.
 import { describeContract, normalizeContract, contractOf } from './Contracts.js';
 import { planJoin, applyJoin, pickJoinSelf } from './EventJoin.js';
 import { planRouteEdit, applyRouteEdit } from './RouteEdit.js';
+import { accessoryDisplayName, bindAccessorySkill, hasAccessorySkill } from './AccessorySkills.js';
 import { CONSUMABLE_MAX, INVENTORY_MAX, NODE_TYPES } from '../utils/constants.js';
 import { unitUidOf } from './UnitIdentity.js';
 import {
@@ -378,14 +379,20 @@ function planGold(ctx, effect, index, ledger) {
   return { step: { type: 'gold', value, requested } };
 }
 
-/** The accessories a pool of `kind: 'accessory'` can hand out here: the loot table `tierOffset` tiers up. */
-export function accessoryPoolFor(run, tierOffset = 0) {
+/** The loot table an accessory pool reads: the act's own, `tierOffset` tiers up (capped at Act IV). */
+export function accessoryTableActFor(run, tierOffset = 0) {
   const here = accessoryTableIndex(run.currentAct);
   const index = Math.max(
     0,
     Math.min(ACCESSORY_TIER_TABLES.length - 1, here + Math.trunc(Number(tierOffset) || 0)),
   );
-  const names = run.gameData?.lootTables?.[ACCESSORY_TIER_TABLES[index]]?.accessories || [];
+  return ACCESSORY_TIER_TABLES[index];
+}
+
+/** The accessories a pool of `kind: 'accessory'` can hand out here: the loot table `tierOffset` tiers up. */
+export function accessoryPoolFor(run, tierOffset = 0) {
+  const names =
+    run.gameData?.lootTables?.[accessoryTableActFor(run, tierOffset)]?.accessories || [];
   const byName = new Map((run.gameData?.accessories || []).map((a) => [a.name, a]));
   return [...new Set(names)]
     .map((name) => byName.get(name))
@@ -400,6 +407,15 @@ function planAccessory(ctx, effect, index, lenient) {
       ? skipNote('item', 'There was nothing here worth keeping.')
       : { error: 'There is nothing here worth keeping.' };
   const item = structuredClone(pickFrom(candidates, rngFor(ctx, index, 'accessory')));
+  // An ordinary accessory may roll a bound skill, on the event's own seeded stream for this
+  // effect (never Math.random) and from the table this pool reads. The pick above is the same
+  // draw it always was.
+  bindAccessorySkill(
+    item,
+    accessoryTableActFor(ctx.run, effect.pool?.tierOffset),
+    ctx.run.gameData,
+    rngFor(ctx, index, 'accessory-skill'),
+  );
   return { step: { type: 'item', item, dest: 'pool', worn: [] } };
 }
 
@@ -1030,6 +1046,10 @@ function applyItem(ctx, step) {
         toConvoy: false,
         pooled: true,
         worn: [],
+        // The identity name stays; the result line shows the skill the accessory carries.
+        ...(hasAccessorySkill(step.item)
+          ? { display: accessoryDisplayName(step.item, ctx.run.gameData?.skills) }
+          : {}),
       },
     ];
   }
