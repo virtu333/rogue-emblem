@@ -554,14 +554,14 @@ function planBurden(ctx, effect, index) {
             const living = livingUnits(ctx.run);
             return living.length ? pickFrom(living, rngFor(ctx, index, 'wounded')) : null;
           })();
-    if (!unit) return { error: 'No one to wound.' };
+    if (!unit) return { error: 'No one to injure.' };
     const uid = unitUidOf(unit);
-    if (!uid) return { error: 'No one to wound.' };
+    if (!uid) return { error: 'No one to injure.' };
     let stat = params.stat;
     // `attack` is the stat the unit's class fights with, never whichever number is higher.
     if (stat === 'attack') stat = resolveAttackStat(unit);
     else if (stat === 'random') stat = pickFrom(WOUND_STATS, rngFor(ctx, index, 'wound-stat'));
-    if (!WOUND_STATS.includes(stat)) return { error: `A wound cannot fall on "${params.stat}".` };
+    if (!WOUND_STATS.includes(stat)) return { error: `An injury cannot fall on "${params.stat}".` };
     delete params.scope;
     Object.assign(params, { unitUid: uid, unitName: unit.name, stat });
   }
