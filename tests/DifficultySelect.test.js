@@ -70,11 +70,11 @@ describe('generateModifierSummary', () => {
     expect(result.some((l) => /\+\d+% meta currency/.test(l))).toBe(false);
   });
 
-  it('every rung above First Light pays back: Dusk +25%, Nightfall +50%, Black Sun +100%', () => {
+  it('every rung above First Light pays back: Dusk +15%, Nightfall +50%, Black Sun +100%', () => {
     const line = (id) =>
       generateModifierSummary(gameData.difficulty.modes[id]).find((l) => /meta currency/.test(l));
     expect([line('dusk'), line('hard'), line('lunatic')]).toEqual([
-      '+25% meta currency',
+      '+15% meta currency',
       '+50% meta currency',
       '+100% meta currency',
     ]);

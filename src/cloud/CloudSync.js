@@ -501,9 +501,23 @@ export function isCloudHydrationComplete(result) {
 }
 
 /**
+ * The payload a queued write sends, frozen when it is queued. Callers hand over the
+ * object they just wrote to localStorage, and some of it is live state (a run's roster
+ * and convoy, the meta's records); the write itself waits behind earlier writes and a
+ * remote read, so without this it would serialize whatever the game had changed since:
+ * a reward claimed after the save, beside the contract that save still owes. The JSON
+ * round trip is the local write's own serialization, so the cloud gets exactly the
+ * payload, savedAt included, that was saved on the device at that moment.
+ */
+function snapshotSlotPayload(slotData) {
+  return slotData == null ? slotData : JSON.parse(JSON.stringify(slotData));
+}
+
+/**
  * Read-modify-write helper: fetch current cloud slot map, update one slot, upsert back.
  */
-async function updateSlotInTable(userId, table, slot, slotData, options = {}) {
+async function updateSlotInTable(userId, table, slot, liveSlotData, options = {}) {
+  const slotData = snapshotSlotPayload(liveSlotData);
   const configuredAttempts = Number.isFinite(options.maxAttempts)
     ? Math.floor(options.maxAttempts)
     : SLOT_WRITE_MAX_ATTEMPTS;
@@ -636,8 +650,9 @@ export function pushMeta(userId, slot, metaData) {
   updateSlotInTable(userId, TABLES.meta, slot, metaData);
 }
 
-export function pushSettings(userId, settingsData) {
+export function pushSettings(userId, liveSettingsData) {
   if (!supabase) return;
+  const settingsData = snapshotSlotPayload(liveSettingsData);
   const queueKey = `${userId}:${TABLES.settings}`;
   const prev = updateQueues.get(queueKey) || Promise.resolve();
   const next = prev

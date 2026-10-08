@@ -195,16 +195,16 @@ describe('discard warnings', () => {
 });
 
 describe('discarding a convoy item', () => {
-  it('removes the chosen stored weapon, found by uid from a snapshot', () => {
+  it('removes the chosen stored weapon, given the live item', () => {
     const { run, unit } = fixture();
     run.convoy.weapons = [
       withUid(weapon('Iron Axe'), 'axe-a'),
       withUid(weapon('Iron Axe'), 'axe-b'),
       withUid(weapon('Iron Bow'), 'bow-a'),
     ];
-    const snapshot = run.getConvoyItems().weapons[1];
-    expect(rosterItemBlock(run, unit, snapshot, 'discard')).toBe('');
-    expect(rosterItemAction(run, unit, snapshot, 'discard')).toBe('');
+    const live = run.convoy.weapons[1];
+    expect(rosterItemBlock(run, unit, live, 'discard')).toBe('');
+    expect(rosterItemAction(run, unit, live, 'discard')).toBe('');
     expect(uidsOf(run.convoy.weapons)).toEqual(['axe-a', 'bow-a']);
     // The unit that was looking at the convoy is untouched.
     expect(uidsOf(unit.inventory)).toEqual(['sword-a', 'sword-b', 'lance-a']);
@@ -220,32 +220,24 @@ describe('discarding a convoy item', () => {
     expect(run.convoy.weapons[0]).toBe(first);
   });
 
-  it('an item with no uid is found by its content', () => {
-    const { run, unit } = fixture();
-    const plain = weapon('Iron Axe');
-    run.convoy.weapons = [plain, withUid(weapon('Iron Bow'), 'bow-a')];
-    expect(rosterItemAction(run, unit, structuredClone(plain), 'discard')).toBe('');
-    expect(uidsOf(run.convoy.weapons)).toEqual(['bow-a']);
-  });
-
   it('removes a stored consumable, leaving the same-named one', () => {
     const { run, unit } = fixture();
     run.convoy.consumables = [
       { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 2, uid: 'v1' },
       { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 2, uid: 'v2' },
     ];
-    expect(rosterItemAction(run, unit, run.getConvoyItems().consumables[0], 'discard')).toBe('');
+    expect(rosterItemAction(run, unit, run.convoy.consumables[0], 'discard')).toBe('');
     expect(uidsOf(run.convoy.consumables)).toEqual(['v2']);
     expect(unit.consumables).toHaveLength(2);
   });
 
-  it('works with no unit looking at it, and refuses a stale snapshot', () => {
+  it('works with no unit looking at it, and refuses a retry of the discarded item', () => {
     const { run } = fixture();
     run.convoy.weapons = [withUid(weapon('Iron Axe'), 'axe-a')];
-    const snapshot = run.getConvoyItems().weapons[0];
-    expect(rosterItemAction(run, null, snapshot, 'discard')).toBe('');
+    const live = run.convoy.weapons[0];
+    expect(rosterItemAction(run, null, live, 'discard')).toBe('');
     expect(run.convoy.weapons).toEqual([]);
-    expect(rosterItemAction(run, null, snapshot, 'discard')).toBe('Item is no longer here.');
+    expect(rosterItemAction(run, null, live, 'discard')).toBe('Item is no longer here.');
   });
 
   it('a bag item is not confused with a convoy item of the same uid', () => {
@@ -344,5 +336,103 @@ describe('a discard is saved', () => {
     const kept = reload(run).roster[0];
     expect(uidsOf(kept.inventory)).toEqual(['sword-b', 'lance-a']);
     expect(kept.weapon.uid).toBe('sword-b');
+  });
+});
+
+// Discard destroys, so it acts only on the live instance in the place the request names: never
+// the first item with the same uid, never an equal copy, never the other container.
+describe('discard needs the live instance, never a matching uid or content', () => {
+  const STALE = 'Item is no longer here.';
+
+  it('a detached snapshot of the second duplicate-uid axe destroys nothing', () => {
+    const { run, unit } = fixture();
+    const first = withUid(weapon('Iron Axe'), 'dup');
+    const second = { ...withUid(weapon('Iron Axe'), 'dup'), name: 'Iron Axe +1' };
+    run.convoy.weapons = [first, second];
+    // getConvoyItems() hands out clones: the old uid fallback matched the FIRST axe.
+    const snapshot = run.getConvoyItems().weapons[1];
+    expect(snapshot.name).toBe('Iron Axe +1');
+    expect(rosterItemBlock(run, unit, snapshot, 'discard')).toBe(STALE);
+    expect(rosterItemAction(run, unit, snapshot, 'discard')).toBe(STALE);
+    expect(run.convoy.weapons.map((item) => item.name)).toEqual(['Iron Axe', 'Iron Axe +1']);
+  });
+
+  it('the live second duplicate-uid axe goes, and the first stays', () => {
+    const { run, unit } = fixture();
+    const first = withUid(weapon('Iron Axe'), 'dup');
+    const second = { ...withUid(weapon('Iron Axe'), 'dup'), name: 'Iron Axe +1' };
+    run.convoy.weapons = [first, second];
+    expect(rosterItemAction(run, unit, run.convoy.weapons[1], 'discard')).toBe('');
+    expect(run.convoy.weapons.map((item) => item.name)).toEqual(['Iron Axe']);
+    // And the other way round: the live first one goes, the +1 axe stays.
+    run.convoy.weapons = [first, second];
+    expect(rosterItemAction(run, unit, first, 'discard')).toBe('');
+    expect(run.convoy.weapons.map((item) => item.name)).toEqual(['Iron Axe +1']);
+  });
+
+  it('a stale bag request does not fall through to a convoy copy sharing its uid', () => {
+    const { run, unit } = fixture();
+    const carried = unit.inventory[1];
+    run.convoy.weapons = [{ ...structuredClone(carried), name: 'Iron Sword +1' }];
+    expect(carried.uid).toBe(run.convoy.weapons[0].uid);
+    expect(rosterItemAction(run, unit, carried, 'discard', 'bag')).toBe('');
+    expect(uidsOf(unit.inventory)).toEqual(['sword-a', 'lance-a']);
+    // The retry of the same request finds nothing in the bag and must not touch the convoy.
+    expect(rosterItemBlock(run, unit, carried, 'discard', 'bag')).toBe(STALE);
+    expect(rosterItemAction(run, unit, carried, 'discard', 'bag')).toBe(STALE);
+    expect(run.convoy.weapons.map((item) => item.name)).toEqual(['Iron Sword +1']);
+    // Without a named place the discarded reference is equally refused.
+    expect(rosterItemAction(run, unit, carried, 'discard')).toBe(STALE);
+    expect(run.convoy.weapons).toHaveLength(1);
+  });
+
+  it('a request naming the convoy never reads the bag, and one naming the bag never the convoy', () => {
+    const { run, unit } = fixture();
+    const carried = unit.inventory[2];
+    expect(rosterItemAction(run, unit, carried, 'discard', 'convoy')).toBe(STALE);
+    expect(unit.inventory).toContain(carried);
+    const stored = withUid(weapon('Iron Axe'), 'axe-a');
+    run.convoy.weapons = [stored];
+    expect(rosterItemAction(run, unit, stored, 'discard', 'bag')).toBe(STALE);
+    expect(run.convoy.weapons).toEqual([stored]);
+    expect(rosterItemAction(run, unit, stored, 'discard', 'convoy')).toBe('');
+    expect(run.convoy.weapons).toEqual([]);
+  });
+
+  it('uid-less identical consumables: a snapshot is refused, the live ones go one at a time', () => {
+    const { run, unit } = fixture();
+    const plain = () => ({ name: 'Elixir', type: 'Consumable', effect: 'healFull', uses: 1 });
+    run.convoy.consumables = [plain(), plain()];
+    const snapshot = run.getConvoyItems().consumables[0];
+    expect(rosterItemAction(run, unit, snapshot, 'discard')).toBe(STALE);
+    expect(run.convoy.consumables).toHaveLength(2);
+
+    const [first, second] = run.convoy.consumables;
+    expect(rosterItemAction(run, unit, first, 'discard')).toBe('');
+    expect(run.convoy.consumables).toHaveLength(1);
+    expect(run.convoy.consumables[0]).toBe(second);
+    // The stale retry of the discarded one (and of its snapshot) must not take the remaining one.
+    expect(rosterItemAction(run, unit, first, 'discard')).toBe(STALE);
+    expect(rosterItemAction(run, unit, snapshot, 'discard')).toBe(STALE);
+    expect(run.convoy.consumables[0]).toBe(second);
+  });
+
+  it('an equal copy of a carried item is not the carried item', () => {
+    const { run, unit } = fixture();
+    const copy = structuredClone(unit.inventory[0]);
+    expect(rosterItemAction(run, unit, copy, 'discard')).toBe(STALE);
+    expect(uidsOf(unit.inventory)).toEqual(['sword-a', 'sword-b', 'lance-a']);
+  });
+
+  it('the warning agrees with the action: none for a reference the action refuses', () => {
+    const { run, unit } = fixture();
+    const sword = unit.inventory[0];
+    unit.inventory = [sword];
+    expect(rosterItemWarnings(run, unit, sword, 'discard', 'bag')).toEqual([
+      { code: 'leaves_unarmed', unit },
+    ]);
+    expect(rosterItemWarnings(run, unit, structuredClone(sword), 'discard', 'bag')).toEqual([]);
+    expect(rosterItemWarnings(run, unit, sword, 'discard', 'convoy')).toEqual([]);
+    expect(rosterItemBlock(run, unit, sword, 'discard', 'convoy')).toBe(STALE);
   });
 });

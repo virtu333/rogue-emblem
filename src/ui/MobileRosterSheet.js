@@ -1468,25 +1468,26 @@ export class MobileRosterSheet {
   /**
    * Discard on a bag or convoy item card: throws the item away for good, after asking.
    * Not offered in the prologue (its kits are authored); a lord's personal weapon shows it
-   * greyed with the reason.
+   * greyed with the reason. `item` is the LIVE object and `where` ('bag' | 'convoy') its place:
+   * the engine destroys only that instance there, so a clone or a moved item is refused.
    */
-  discardButton(card, unit, item) {
+  discardButton(card, unit, item, where) {
     if (!this.run || isPrologueRun(this.run)) return;
-    const reason = rosterItemBlock(this.run, unit, item, 'discard');
-    const b = this.button('Discard', () => this.confirmDiscard(unit, item), reason);
+    const reason = rosterItemBlock(this.run, unit, item, 'discard', where);
+    const b = this.button('Discard', () => this.confirmDiscard(unit, item, where), reason);
     b.classList.add('mr-discard');
     card.append(b);
     if (reason) card.append(el('small', reason));
   }
   /** The warning words an allowed Discard carries ("Leaves Edric unarmed."), '' for none. */
-  discardWarning(unit, item) {
-    return rosterItemWarnings(this.run, unit, item, 'discard')
+  discardWarning(unit, item, where) {
+    return rosterItemWarnings(this.run, unit, item, 'discard', where)
       .map(tradeWarningText)
       .filter(Boolean)
       .map((text) => `${text}.`)
       .join(' ');
   }
-  confirmDiscard(unit, item) {
+  confirmDiscard(unit, item, where) {
     if (this.picker || this.destroyed) return;
     this.picker = new ChoicePicker({
       scene: this.scene,
@@ -1497,11 +1498,11 @@ export class MobileRosterSheet {
       confirmLabel: 'Discard',
       label: () => item.name,
       describe: () =>
-        `It is gone for good: not stored in the convoy, and it pays no gold. ${this.discardWarning(unit, item)}`.trim(),
-      blocked: () => rosterItemBlock(this.run, unit, item, 'discard'),
+        `It is gone for good: not stored in the convoy, and it pays no gold. ${this.discardWarning(unit, item, where)}`.trim(),
+      blocked: () => rosterItemBlock(this.run, unit, item, 'discard', where),
       apply: () => {
-        const warning = this.discardWarning(unit, item);
-        const reason = rosterItemAction(this.run, unit, item, 'discard');
+        const warning = this.discardWarning(unit, item, where);
+        const reason = rosterItemAction(this.run, unit, item, 'discard', where);
         if (reason) return { ok: false, reason };
         const saved = this.persistNow();
         this.render(`Discarded ${item.name}.${warning ? ` ${warning}` : ''}${saved}`);
@@ -1573,7 +1574,7 @@ export class MobileRosterSheet {
         if (unit.weapon !== item) this.action(c, 'Equip', unit, item, 'equip');
         c.append(this.button('Trade…', () => this.tradeItem(unit, item)));
         this.action(c, 'Store', unit, item, 'store');
-        this.discardButton(c, unit, item);
+        this.discardButton(c, unit, item, 'bag');
       }
     }
     if (!unit.inventory?.length)
@@ -1602,7 +1603,7 @@ export class MobileRosterSheet {
         }
         c.append(this.button('Trade…', () => this.tradeItem(unit, item)));
         this.action(c, 'Store', unit, item, 'store');
-        this.discardButton(c, unit, item);
+        this.discardButton(c, unit, item, 'bag');
       }
     }
     if (!unit.consumables?.length)
@@ -1730,7 +1731,7 @@ export class MobileRosterSheet {
         );
       }
       // The live convoy item, not the snapshot: a duplicate is told apart by identity.
-      this.discardButton(c, unit, live[index]);
+      this.discardButton(c, unit, live[index], 'convoy');
     });
     if (!items.weapons.length && !items.consumables.length)
       this.card('Convoy is empty', 'Store carried items here to share them with your roster.');

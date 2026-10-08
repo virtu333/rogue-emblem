@@ -61,6 +61,20 @@
     color: var(--re-void);
   }
 }
+/* The focus ring is gold (--re-focus), 3.00:1 on the exits' deep green but 1.15:1 on the
+   light green of a pressed or hovered button. A focused win command in that state wears
+   a void ring instead (10.12:1 on --re-good). It covers both focus sources: the keyboard's
+   :focus-visible and the pad's .mb-menu-focused. */
+.mobile-battle-hud
+  .mb-button.mb-win-command:not(:disabled):is(:focus-visible, .mb-menu-focused):active {
+  outline-color: var(--re-void);
+}
+@media (hover: hover) {
+  .mobile-battle-hud
+    .mb-button.mb-win-command:not(:disabled):is(:focus-visible, .mb-menu-focused):hover {
+    outline-color: var(--re-void);
+  }
+}
 .mobile-battle-hud {
   border-left: 1px solid var(--re-line-soft);
 }

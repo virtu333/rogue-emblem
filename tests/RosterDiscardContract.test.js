@@ -72,7 +72,7 @@ describe('Discard clears the way for an owed weapon reward', () => {
     expect(stuck).toMatchObject({ ok: false, blocked: true, reason: 'No room for Steel Lance' });
     expect(weaponTotal(run)).toBe(total);
 
-    const stored = run.getConvoyItems().weapons[3];
+    const stored = run.convoy.weapons[3];
     expect(rosterItemBlock(run, run.roster[0], stored, 'discard')).toBe('');
     expect(rosterItemAction(run, run.roster[0], stored, 'discard')).toBe('');
     expect(weaponTotal(run)).toBe(total - 1);

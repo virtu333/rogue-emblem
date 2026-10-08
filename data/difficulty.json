@@ -112,7 +112,7 @@
       "fogChanceBonus": 0.08,
       "villageAmbushChance": 0.15,
       "reinforcementTurnOffset": 0,
-      "currencyMultiplier": 1.25,
+      "currencyMultiplier": 1.15,
       "actsIncluded": [
         "act1",
         "act2",
