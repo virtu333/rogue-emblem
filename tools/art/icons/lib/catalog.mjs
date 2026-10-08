@@ -190,16 +190,17 @@ export function iconEntries(data) {
     });
   const upgrades = data.metaUpgrades.upgrades || data.metaUpgrades;
   for (const u of upgrades)
-    add({
-      id: `upgrade-${u.id}`,
-      group: 'Upgrades',
-      name: u.name,
-      kind: 'upgrade',
-      socket: 'upgrade',
-      rim: 'plain',
-      spec: G.upgradeSpec(u, ctx),
-      source: u,
-    });
+    if (!G.UPGRADE_ICON_REUSE[u.id])
+      add({
+        id: `upgrade-${u.id}`,
+        group: 'Upgrades',
+        name: u.name,
+        kind: 'upgrade',
+        socket: 'upgrade',
+        rim: 'plain',
+        spec: G.upgradeSpec(u, ctx),
+        source: u,
+      });
   for (const g of G.genericSpecs())
     add({
       id: `generic-${g.key}`,
@@ -211,4 +212,20 @@ export function iconEntries(data) {
       spec: g.spec,
     });
   return out;
+}
+
+/**
+ * Icons that share another icon's atlas cell (itemGrammar UPGRADE_ICON_REUSE): each keeps
+ * its own id, socket and rim in the manifest and points at the cell of `of`.
+ */
+export function iconAliases(data) {
+  const upgrades = data.metaUpgrades.upgrades || data.metaUpgrades;
+  return upgrades
+    .filter((u) => G.UPGRADE_ICON_REUSE[u.id])
+    .map((u) => ({
+      id: `upgrade-${u.id}`,
+      of: G.UPGRADE_ICON_REUSE[u.id],
+      socket: 'upgrade',
+      rim: 'plain',
+    }));
 }

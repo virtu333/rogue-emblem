@@ -928,6 +928,12 @@
   flex: none;
   min-width: 150px;
 }
+/* Branching Threads' Reroll beside the claim: its label never wraps. Kept below the
+   portrait footer's button rule in specificity, so upright it fills its row like the rest. */
+.ch-rewards-footer .ch-reroll {
+  flex: none;
+  white-space: nowrap;
+}
 /* Recipient rows: the unit's face beside its comparison. */
 .mh-skill.ch-recipient {
   display: grid;
