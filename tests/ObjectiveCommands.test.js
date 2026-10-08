@@ -80,4 +80,13 @@ describe('the phone rail', () => {
     expect(rule).toContain('background: var(--re-verdigris-deep)');
     expect(rule).toContain('border: 1px solid var(--re-good)');
   });
+  it('gives a focused, hovered or pressed win command a void ring (gold is 1.15:1 on --re-good)', () => {
+    const css = readFileSync(new URL('../src/ui/cohesion.css', import.meta.url), 'utf8');
+    const ringRules =
+      css.match(/[^{}]*mb-win-command[^{}]*:is\(:focus-visible[^{}]*\{[^}]*\}/g) || [];
+    expect(ringRules.length).toBe(2);
+    expect(ringRules.some((r) => r.includes(':active'))).toBe(true);
+    expect(ringRules.some((r) => r.includes(':hover'))).toBe(true);
+    for (const r of ringRules) expect(r).toContain('outline-color: var(--re-void)');
+  });
 });
