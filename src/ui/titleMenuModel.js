@@ -45,8 +45,9 @@ export function buildTitleMenu({
           ? 'Resume · Prologue'
           : `Resume · Act ${resumeSlot.actReached ?? 1}`,
       group: 'run',
-      // With several runs going, say which one Resume opens.
-      ...(resumeSlot.latestOf > 1 ? { sub: `Latest save · Slot ${resumeSlot.slot}` } : {}),
+      // With several runs going, say which one Resume opens. Short: the desktop stage snaps
+      // the 7px subline up to the label's size on some screens ("Latest save · Slot 1" was cut).
+      ...(resumeSlot.latestOf > 1 ? { sub: `Latest · Slot ${resumeSlot.slot}` } : {}),
     });
   run.push({
     id: 'newGame',

@@ -211,7 +211,7 @@ describe('title menu model', () => {
     expect(items[0]).toMatchObject({
       id: 'resume',
       label: 'Resume · Act 4',
-      sub: 'Latest save · Slot 2',
+      sub: 'Latest · Slot 2',
       primary: true,
     });
     // Unknown or tied times name no run: the player picks in Save Slots.
