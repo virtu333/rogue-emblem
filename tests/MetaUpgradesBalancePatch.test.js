@@ -24,7 +24,7 @@ describe('meta upgrades rebalance patch guards', () => {
     { id: 'starting_accessory', costs: [100, 300, 500] },
     {
       id: 'weapon_tier_silver',
-      costs: [600],
+      costs: [1000],
       requires: {
         upgrades: [{ id: 'weapon_tier', level: 1 }],
       },
@@ -42,7 +42,7 @@ describe('meta upgrades rebalance patch guards', () => {
     // tier of any stat is roughly equally worth it. Weights (DEF = 1): SPD 1.15,
     // STR 0.8, HP 0.55 growth / 0.85 flat, RES 0.45, MAG 0.4, SKL 0.4, LCK 0.35.
     // Measured with sim/metaStatValue.js.
-    { id: 'lord_spd_growth', costs: [105, 150, 260, 365, 570] },
+    { id: 'lord_spd_growth', costs: [120, 175, 300, 420, 655] },
     { id: 'lord_def_growth', costs: [90, 130, 230, 320, 495] },
     { id: 'lord_str_growth', costs: [70, 105, 180, 255, 400] },
     { id: 'lord_hp_growth', costs: [50, 70, 125, 175, 275] },
@@ -50,7 +50,7 @@ describe('meta upgrades rebalance patch guards', () => {
     { id: 'lord_res_growth', costs: [50, 60, 100, 145, 225] },
     { id: 'lord_skl_growth', costs: [50, 55, 90, 125, 200] },
     { id: 'lord_lck_growth', costs: [50, 55, 80, 110, 175] },
-    { id: 'lord_spd_flat', costs: [250, 695, 1460] },
+    { id: 'lord_spd_flat', costs: [290, 800, 1680] },
     { id: 'lord_def_flat', costs: [220, 605, 1270] },
     { id: 'lord_str_flat', costs: [175, 485, 1015] },
     { id: 'lord_hp_flat', costs: [185, 515, 1080] },
@@ -58,7 +58,7 @@ describe('meta upgrades rebalance patch guards', () => {
     { id: 'lord_res_flat', costs: [125, 275, 570] },
     { id: 'lord_skl_flat', costs: [125, 240, 510] },
     { id: 'lord_lck_flat', costs: [125, 210, 445] },
-    { id: 'recruit_spd_growth', costs: [65, 85, 130, 175, 260] },
+    { id: 'recruit_spd_growth', costs: [75, 100, 150, 200, 300] },
     { id: 'recruit_def_growth', costs: [55, 75, 115, 155, 225] },
     { id: 'recruit_str_growth', costs: [45, 60, 90, 120, 180] },
     { id: 'recruit_hp_growth', costs: [35, 40, 60, 85, 125] },
@@ -66,7 +66,7 @@ describe('meta upgrades rebalance patch guards', () => {
     { id: 'recruit_res_growth', costs: [35, 40, 50, 70, 100] },
     { id: 'recruit_skl_growth', costs: [35, 40, 45, 60, 90] },
     { id: 'recruit_lck_growth', costs: [35, 40, 45, 55, 80] },
-    { id: 'recruit_spd_flat', costs: [150, 365, 760] },
+    { id: 'recruit_spd_flat', costs: [175, 420, 875] },
     { id: 'recruit_def_flat', costs: [130, 315, 660] },
     { id: 'recruit_str_flat', costs: [105, 255, 530] },
     { id: 'recruit_hp_flat', costs: [110, 270, 560] },

@@ -76,7 +76,7 @@ describe('Battalion price cut (balance revision 2)', () => {
 
   it('a save already at the current revision is not credited', () => {
     seed({
-      balanceRevision: 2,
+      balanceRevision: CURRENT_BALANCE_REVISION,
       totalSupply: 77,
       savedAt: 5000,
       purchasedUpgrades: { deploy_limit: 1, extra_starting_unit_pool: 4 },
@@ -84,7 +84,7 @@ describe('Battalion price cut (balance revision 2)', () => {
     expect(load().totalSupply).toBe(77);
   });
 
-  it('credits once: loading writes nothing, the next save records revision 2, a reload adds nothing', () => {
+  it('credits once: loading writes nothing, the next save records the current revision, a reload adds nothing', () => {
     seed({
       balanceRevision: 1,
       totalSupply: 0,
@@ -98,14 +98,14 @@ describe('Battalion price cut (balance revision 2)', () => {
     expect(m.savedAt).toBe(5000);
     expect(disk().totalSupply).toBe(0);
     m._save();
-    expect(disk().balanceRevision).toBe(2);
+    expect(disk().balanceRevision).toBe(CURRENT_BALANCE_REVISION);
     expect(disk().totalSupply).toBe(350);
     expect(load().totalSupply).toBe(350);
   });
 
   it('the revision table chains and ends at the prices in metaUpgrades.json', () => {
-    expect(CURRENT_BALANCE_REVISION).toBe(2);
-    expect(BALANCE_REVISIONS.map((r) => r.revision)).toEqual([1, 2]);
+    expect(CURRENT_BALANCE_REVISION).toBe(3);
+    expect(BALANCE_REVISIONS.map((r) => r.revision)).toEqual([1, 2, 3]);
     const byId = new Map(data.metaUpgrades.map((u) => [u.id, u]));
     const latest = BALANCE_REVISIONS[BALANCE_REVISIONS.length - 1];
     for (const [id, costs] of Object.entries(latest.to)) {
@@ -120,6 +120,40 @@ describe('Battalion price cut (balance revision 2)', () => {
     }
     for (const { from, to } of BALANCE_REVISIONS)
       for (const id of Object.keys(from)) expect(to[id]?.length, id).toBe(from[id].length);
+  });
+});
+
+describe('October price changes (balance revision 3)', () => {
+  it("credits cuts in each upgrade's currency and charges nobody for a rise", () => {
+    seed({
+      balanceRevision: 2,
+      totalValor: 0,
+      totalSupply: 0,
+      savedAt: 5000,
+      purchasedUpgrades: {
+        steel_arms: 1, // valor 800 -> 500: 300
+        legendary_lord_chance: 2, // valor 300+600 -> 150+300: 450
+        trade_contacts: 2, // supply 150+250 -> 60+100: 240
+        heros_call: 1, // supply 150 -> 120: 30
+        weapon_tier_silver: 1, // valor 600 -> 1000: a rise, nothing owed
+        lord_spd_growth: 2, // valor, a rise
+        recruit_spd_flat: 1, // supply, a rise
+      },
+    });
+    const m = load();
+    expect(m.totalValor).toBe(750);
+    expect(m.totalSupply).toBe(270);
+    m._save();
+    expect(disk().balanceRevision).toBe(3);
+    expect(load().totalValor).toBe(750);
+  });
+
+  it('every revision-3 cut is a cut, and the rises are not listed', () => {
+    const r3 = BALANCE_REVISIONS.find((r) => r.revision === 3);
+    for (const [id, from] of Object.entries(r3.from))
+      from.forEach((price, i) => expect(r3.to[id][i], id).toBeLessThan(price));
+    for (const id of ['weapon_tier_silver', 'lord_spd_growth', 'recruit_spd_growth'])
+      expect(r3.from[id], id).toBeUndefined();
   });
 });
 

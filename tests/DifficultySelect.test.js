@@ -88,7 +88,7 @@ describe('generateModifierSummary', () => {
     expect(result.some((l) => l.includes('90% gold earned'))).toBe(true);
     expect(result.some((l) => l.includes('+50% meta currency'))).toBe(true);
     expect(result.some((l) => l.includes('Shop prices +15%'))).toBe(true);
-    expect(result.some((l) => l.includes('90% XP earned'))).toBe(true);
+    expect(result.some((l) => l.includes('80% XP earned'))).toBe(true);
     expect(result.some((l) => l.includes('20% shop ambush chance'))).toBe(true);
   });
 
