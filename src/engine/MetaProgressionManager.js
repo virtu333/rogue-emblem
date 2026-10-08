@@ -274,6 +274,29 @@ export const BALANCE_REVISIONS = Object.freeze([
       recruit_weapon_forge: [200, 350],
     },
   },
+  {
+    revision: 3, // 2026-10-08 balance: cheaper loot-chance upgrades, Steel Arms, Legends Awaken
+    // (Quick Feet, Lord Swiftness, their flat tracks and Deadly Arsenal II rose in price
+    // the same day: a rise owes nobody anything, so it is not listed.)
+    from: {
+      steel_arms: [800],
+      legendary_lord_chance: [300, 600],
+      trade_contacts: [150, 250],
+      loot_quality: [150, 300],
+      studied_training: [150, 300],
+      trinket_collector: [150, 300],
+      heros_call: [150, 300, 500],
+    },
+    to: {
+      steel_arms: [500],
+      legendary_lord_chance: [150, 300],
+      trade_contacts: [60, 100],
+      loot_quality: [120, 240],
+      studied_training: [120, 240],
+      trinket_collector: [120, 240],
+      heros_call: [120, 240, 400],
+    },
+  },
 ]);
 
 export const CURRENT_BALANCE_REVISION = BALANCE_REVISIONS[BALANCE_REVISIONS.length - 1].revision;
