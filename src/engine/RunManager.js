@@ -568,6 +568,8 @@ export class RunManager {
     this.pendingAmbushNodeId = null;
     this.pendingCaravanShop = null;
     this.pendingBattleReward = null;
+    // Branching Threads: battle-reward rerolls spent this run (granted: metaEffects.rewardRerolls).
+    this.rewardRerollsSpent = 0;
     this.pendingBossRecruit = null;
     this.pendingThirdLord = null;
     this.reachedFirstActBoss = false;
@@ -728,6 +730,7 @@ export class RunManager {
     this.pendingAmbushNodeId = null;
     this.pendingCaravanShop = null;
     this.pendingBattleReward = null;
+    this.rewardRerollsSpent = 0;
     this.pendingBossRecruit = null;
     this.pendingThirdLord = null;
     this.reachedFirstActBoss = false;
@@ -803,6 +806,7 @@ export class RunManager {
     this.pendingAmbushNodeId = null;
     this.pendingCaravanShop = null;
     this.pendingBattleReward = null;
+    this.rewardRerollsSpent = 0;
     this.pendingBossRecruit = null;
     this.pendingThirdLord = null;
     this.reachedFirstActBoss = false;
@@ -4890,6 +4894,7 @@ export class RunManager {
       pendingEventNodeId: this.pendingEventNodeId || null,
       pendingCaravanShop: this.pendingCaravanShop || null,
       pendingBattleReward: this.pendingBattleReward || null,
+      rewardRerollsSpent: Math.max(0, Math.trunc(Number(this.rewardRerollsSpent) || 0)),
       pendingBossRecruit: this.pendingBossRecruit || null,
       pendingThirdLord: this.pendingThirdLord || null,
       reachedFirstActBoss: this.reachedFirstActBoss === true,
@@ -5500,6 +5505,8 @@ export class RunManager {
             skipGold: Math.max(0, Math.trunc(Number(saved.pendingBattleReward.skipGold) || 0)),
           }
         : null;
+    // Saves from before Branching Threads have spent none.
+    rm.rewardRerollsSpent = Math.max(0, Math.trunc(Number(saved.rewardRerollsSpent) || 0));
     rm.pendingBossRecruit = restorePendingBossRecruit(saved.pendingBossRecruit, {
       actId: rm.currentAct,
       hasPendingReward: Boolean(rm.pendingBattleReward),

@@ -1333,6 +1333,33 @@
     }
   },
   {
+    "id": "branching_threads",
+    "name": "Branching Threads",
+    "description": "Reroll a battle's loot choices before your first pick",
+    "category": "economy",
+    "maxLevel": 4,
+    "costs": [
+      100,
+      200,
+      250,
+      250
+    ],
+    "effects": [
+      {
+        "rewardRerolls": 1
+      },
+      {
+        "rewardRerolls": 2
+      },
+      {
+        "rewardRerolls": 3
+      },
+      {
+        "rewardRerolls": 4
+      }
+    ]
+  },
+  {
     "id": "heros_call",
     "name": "Hero's Call",
     "description": "+8% lord recruit chance per tier",

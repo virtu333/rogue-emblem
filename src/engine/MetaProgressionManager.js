@@ -1159,6 +1159,8 @@ export class MetaProgressionManager {
       battleGoldMultiplier: 0,
       extraVulnerary: 0,
       vulneraryUses: 0,
+      // Branching Threads: battle-reward rerolls a run starts with (tier totals, not increments).
+      rewardRerolls: 0,
       lootCategoryWeightBonuses: {},
       lootWeaponQualityBonus: 0,
       lordRecruitChanceBonus: 0,
@@ -1226,6 +1228,11 @@ export class MetaProgressionManager {
       if (effect.extraVulnerary !== undefined) effects.extraVulnerary = effect.extraVulnerary;
       if (effect.vulneraryUses !== undefined)
         effects.vulneraryUses = Math.max(effects.vulneraryUses, Number(effect.vulneraryUses) || 0);
+      if (effect.rewardRerolls !== undefined)
+        effects.rewardRerolls = Math.max(
+          effects.rewardRerolls,
+          Math.max(0, Math.trunc(Number(effect.rewardRerolls) || 0)),
+        );
       if (effect.lootCategoryWeightBonuses) {
         const mapped = normalizeLootCategoryWeightBonuses(effect.lootCategoryWeightBonuses);
         if (mapped) {

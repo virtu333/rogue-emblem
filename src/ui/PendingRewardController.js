@@ -1,6 +1,10 @@
 import { MobileRewards } from './MobileRewards.js';
 import { LootScreenController } from './LootScreenController.js';
-import { finishRewardClaim } from '../engine/PendingBattleRewards.js';
+import {
+  finishRewardClaim,
+  rerollBattleReward,
+  rewardRerollStatus,
+} from '../engine/PendingBattleRewards.js';
 import { awardTeamXp, teamXpLines } from '../engine/TeamXp.js';
 import { saveServiceRun } from './serviceSave.js';
 
@@ -60,6 +64,24 @@ export class PendingRewardController {
     this.claimed.add(index);
     this.scene._elitePicksRemaining = this.record.picksRemaining;
     if (!this.persist()) return { ok: false, reason: this.saveError };
+    return result;
+  }
+  /** Branching Threads: what the Reroll button shows (engine/PendingBattleRewards.js). */
+  rerollStatus() {
+    return rewardRerollStatus(this.host.runManager, this.record);
+  }
+  /**
+   * Draw the whole set of choices again and spend a charge, saved in one write. A failed
+   * save puts both back (the engine's rollback) and blocks the screen behind Retry save,
+   * which writes the unchanged reward: a reload never gains or loses a reroll.
+   */
+  rerollRewards() {
+    if (this.saveError || this.host.runManager.pendingBattleReward !== this.record)
+      return { ok: false, reason: 'Reward unavailable.' };
+    const result = rerollBattleReward(this.host.runManager, this.host.gameData, {
+      persist: () => this.persist(),
+    });
+    if (result.ok) this.choices = this.record.choices;
     return result;
   }
   activateReward(index) {

@@ -579,12 +579,17 @@ const STATIC_HELP_TABS = [
       },
       {
         title: 'Battle Stakes & Rewards',
+        tags: ['loot', 'rewards', 'reroll', 'branching threads'],
         lines: [
           { text: 'If your commander falls, the run', color: RED },
           { text: 'ends immediately. Other units can fall', color: RED },
           { text: 'but the run continues.', color: RED },
           { text: '' },
           { text: 'Par: target turns for better clear rewards.', color: CYAN },
+          { text: '' },
+          { text: 'Branching Threads (Home Base, Supply):', color: GOLD },
+          { text: '  Reroll a battle’s loot choices before' },
+          { text: '  your first pick, a few times per run.' },
         ],
       },
       {

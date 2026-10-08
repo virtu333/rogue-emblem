@@ -533,6 +533,8 @@
     "generic-whetstone": [356, 4, 5],
     "generic-imbue": [357, 4, 3],
     "generic-blessing": [358, 5, 7],
-    "generic-upgrade": [359, 6, 5]
-  }
+    "generic-upgrade": [359, 6, 5],
+    "upgrade-branching_threads": [262, 6, 5]
+  },
+  "aliases": { "upgrade-branching_threads": "blessing-focused_curriculum" }
 }

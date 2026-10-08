@@ -645,6 +645,16 @@ const STAT_FROM_ID = (id) => {
 };
 
 /**
+ * Upgrades drawn with another icon's cell: upgrade id -> the icon id whose picture it
+ * shares. The upgrade keeps its own id, socket (the pennant) and rim; only the art is
+ * reused, so it costs no atlas cell (the mobile texture budget in tests/ItemIcons.test.js
+ * holds 360 cells). Branching Threads: the hourglass, the run's sand turned again.
+ */
+export const UPGRADE_ICON_REUSE = Object.freeze({
+  branching_threads: 'blessing-focused_curriculum',
+});
+
+/**
  * Upgrades: category silhouette + stat colour + badge (plus = flat, arrow = growth).
  * Recruits wear a crested helm, lords a capped crown: the crest and the cap are big
  * enough to carry the stat colour at 16px. Skills are medallions with the skill's glyph.
