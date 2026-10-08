@@ -112,10 +112,10 @@ describe('legendary lord creation and persistence', () => {
   });
   it('prices both tiers in Valor and exposes the cumulative chance bonus', () => {
     const meta = new MetaProgressionManager(data.metaUpgrades, 'legendary-test');
-    meta.totalValor = 900;
+    meta.totalValor = 450;
     expect(meta.getCurrencyForUpgrade('legendary_lord_chance')).toBe('valor');
     expect(meta.purchaseUpgrade('legendary_lord_chance')).toBe(true);
-    expect(meta.totalValor).toBe(600);
+    expect(meta.totalValor).toBe(300);
     expect(meta.getActiveEffects().legendaryLordChanceBonus).toBe(0.05);
     expect(meta.purchaseUpgrade('legendary_lord_chance')).toBe(true);
     expect(meta.totalValor).toBe(0);
