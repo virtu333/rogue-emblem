@@ -85,9 +85,10 @@ jobs:
     name: e2e (${{ matrix.id }})
     needs: e2e-lanes
     runs-on: ubuntu-latest
-    # The longest lane shard takes about 21 minutes; a hung job must not hold a runner
-    # for the 6-hour default (Oct 2026: installs stalled for hours and starved the queue).
-    timeout-minutes: 45
+    # The longest lane shard takes about 21 minutes and a slow browser install up to ~18;
+    # a hung job must not hold a runner for the 6-hour default (Oct 2026: installs stalled
+    # for hours and starved the queue).
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -99,14 +100,17 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      # Usually 20-35 s; a stalled apt mirror or download is retried rather than waited on.
+      # Usually 20-35 s, but a slow apt mirror can take many minutes and still finish, so an
+      # attempt is never cut short: killing npx leaves its sudo apt-get running and holding
+      # the dpkg lock, and every retry then fails at once. The step's own limit catches a
+      # real hang; a quick failure (a mirror error) is retried once.
       - name: Install Chromium for Playwright
-        timeout-minutes: 15
+        timeout-minutes: 25
         run: |
-          for attempt in 1 2 3; do
-            timeout --kill-after=15 240 npx playwright install --with-deps chromium && exit 0
-            echo "::warning::playwright install attempt $attempt failed or stalled; retrying"
-            sleep 10
+          for attempt in 1 2; do
+            npx playwright install --with-deps chromium && exit 0
+            echo "::warning::playwright install attempt $attempt failed; retrying"
+            sleep 15
           done
           exit 1
       - if: matrix.build
