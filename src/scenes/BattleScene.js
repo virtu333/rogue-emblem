@@ -3500,11 +3500,15 @@ export class BattleScene extends Phaser.Scene {
 
   /**
    * A move stopped by a hidden enemy: the move is locked in (no undo: it has shown
-   * something), the fog lifts from where the unit stands, and the save records it.
-   * The unit may still act.
+   * something), the fog lifts from where the unit stands and from the unit it ran into,
+   * and the save records it. The unit may still act.
    */
   _resolveAmbush(unit, ambusher, { canto = false } = {}) {
     const session = battleSession(this);
+    // The unit that stopped the move is shown for the rest of the phase, even when the cut
+    // left the mover past its vision (a Pass unit backed off over occupied tiles, or one
+    // that could not pay for the repriced route: FogAmbush.fogMoveCut).
+    this.grid.revealContact?.(getFootprint(ambusher));
     // A hidden NPC stops the move the same way, but it is no ambush.
     const hostile = ambusher.faction === 'enemy';
     if (hostile) observeHistoryAction(this, 'was ambushed by', unit, ambusher);
@@ -9702,6 +9706,8 @@ export class BattleScene extends Phaser.Scene {
       }
     } else if (phase === 'enemy') {
       this.battleState = 'ENEMY_PHASE';
+      // A contact (Grid.revealContact) lasts the player phase it was made in: the foes move now.
+      if (this.grid?.clearContacts?.()) revealSettledVision(this);
       this._prologue?.onPhaseStart('enemy', turn);
       // Siege casters take their stance from the board the player left, before any
       // phase-start blow (hazards, ballistas) can empty a ring Danger drew (SiegeArtillery).

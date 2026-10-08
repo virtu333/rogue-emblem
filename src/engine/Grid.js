@@ -1,5 +1,6 @@
 import { createBattleTerrain } from '../ui/BattleMapVisuals.js';
 import { safeBattlePresentation } from '../ui/safeBattlePresentation.js';
+import { paintFogOverlays } from '../ui/fogState.js';
 // Grid — tile rendering, terrain management, movement range (Dijkstra), A* pathfinding, attack range
 
 import {
@@ -523,6 +524,9 @@ export class Grid {
     this.fogOverlays = [];
     this.visibleSet = new Set(); // currently visible "col,row"
     this.everSeenSet = new Set(); // ever revealed "col,row"
+    // Tiles a move ran into this player phase ("col,row"): the hidden unit that stopped it
+    // stays shown even when it stands past every unit's vision (revealContact).
+    this.contactSet = new Set();
 
     // Center the grid on the canvas
     const mapWidth = this.mapPixelWidth;
@@ -946,8 +950,8 @@ export class Grid {
   updateFogOfWar(playerUnits) {
     if (!this.fogEnabled) return;
 
-    // Calculate vision union
-    const newVisible = new Set();
+    // Calculate vision union, plus the tiles a move ran into this phase
+    const newVisible = new Set(this.contactSet || []);
     for (const unit of playerUnits) {
       const range = VISION_RANGES[unit.moveType] || 3;
       const tiles = this.getVisionRange(unit.col, unit.row, range);
@@ -956,28 +960,30 @@ export class Grid {
 
     this.visibleSet = newVisible;
     for (const key of newVisible) this.everSeenSet.add(key);
+    paintFogOverlays(this);
+  }
 
-    // Update fog overlay alpha
-    for (let row = 0; row < this.rows; row++) {
-      for (let col = 0; col < this.cols; col++) {
-        const key = `${col},${row}`;
-        const fog = this.fogOverlays[row]?.[col];
-        if (!fog) continue;
-        safeBattlePresentation(
-          'fog overlay',
-          () => {
-            if (newVisible.has(key)) {
-              fog.setAlpha(0); // fully visible
-            } else if (this.everSeenSet.has(key)) {
-              fog.setAlpha(0.3); // seen before
-            } else {
-              fog.setAlpha(0.7); // never seen
-            }
-          },
-          { scene: this.scene },
-        );
-      }
+  /**
+   * A committed move ran into a unit the fog hid (FogAmbush): its tiles stay shown for the
+   * rest of the player phase, whatever the movers' vision, so the unit that stopped the move
+   * can be inspected and planned around even when the cut left the mover far from it. Takes
+   * effect at the next fog update (the action's settled vision). Cleared when the enemy
+   * phase starts (clearContacts); saved with the fog (gridFogState).
+   */
+  revealContact(tiles) {
+    if (!this.fogEnabled) return;
+    if (!(this.contactSet instanceof Set)) this.contactSet = new Set();
+    for (const t of tiles || []) {
+      if (t.col >= 0 && t.col < this.cols && t.row >= 0 && t.row < this.rows)
+        this.contactSet.add(`${t.col},${t.row}`);
     }
+  }
+
+  /** Forget this phase's contacts. True when there were any (the fog needs an update). */
+  clearContacts() {
+    const had = (this.contactSet?.size ?? 0) > 0;
+    this.contactSet = new Set();
+    return had;
   }
 
   /** Snapshot fog state for undo support. */

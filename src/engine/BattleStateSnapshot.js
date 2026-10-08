@@ -38,7 +38,8 @@ function validRestoreFields(state, width, height) {
     state.fog != null &&
     (!record(state.fog) ||
       !list(state.fog.visible, tileKey, width * height) ||
-      !list(state.fog.everSeen, tileKey, width * height))
+      !list(state.fog.everSeen, tileKey, width * height) ||
+      !optional(state.fog, 'contacts', (value) => list(value, tileKey, width * height)))
   )
     return false;
   if (

@@ -4,6 +4,7 @@ import { BattleHistorySession } from './BattleHistorySession.js';
 import { observeHistoryAction, resetHistoryRecording } from './BattleHistoryRecorder.js';
 import { fingerprintChanges, rewindFingerprint } from './BattleTimelineRecorder.js';
 import { validateBattleState } from '../engine/BattleStateSnapshot.js';
+import { applyGridFogState, gridFogState } from './fogState.js';
 import { isSleeping } from '../engine/StatusConditionSystem.js';
 import { persistFatalDecision } from './BattleFatalDecision.js';
 import { BattleTimelineView } from './BattleTimelineView.js';
@@ -118,12 +119,7 @@ export class VisionRewindController {
       data.hasMoved = false;
       return data;
     };
-    const fog = scene.grid?.fogEnabled
-      ? {
-          visible: [...(scene.grid.visibleSet || new Set())],
-          everSeen: [...(scene.grid.everSeenSet || new Set())],
-        }
-      : null;
+    const fog = scene.grid?.fogEnabled ? gridFogState(scene.grid) : null;
     const snapshot =
       scene._battleRewindPolicy === 'fixed-v1'
         ? captureBattleState(scene, { rngSeed: this.runManager?.rngSeed ?? scene.visionBaseSeed })
@@ -298,19 +294,7 @@ export class VisionRewindController {
     scene.aiController?.setBossEnraged?.(Boolean(scene.antiTurtleState.turnEnrageActive));
 
     if (scene.grid.fogEnabled) {
-      const fog = scene.visionSnapshot.fog || { visible: [], everSeen: [] };
-      scene.grid.visibleSet = new Set(fog.visible || []);
-      scene.grid.everSeenSet = new Set(fog.everSeen || []);
-      for (let row = 0; row < scene.grid.rows; row++) {
-        for (let col = 0; col < scene.grid.cols; col++) {
-          const key = `${col},${row}`;
-          const overlay = scene.grid.fogOverlays[row]?.[col];
-          if (!overlay) continue;
-          if (scene.grid.visibleSet.has(key)) overlay.setAlpha(0);
-          else if (scene.grid.everSeenSet.has(key)) overlay.setAlpha(0.3);
-          else overlay.setAlpha(0.7);
-        }
-      }
+      applyGridFogState(scene.grid, scene.visionSnapshot.fog || { visible: [], everSeen: [] });
       scene.updateEnemyVisibility();
     }
 
