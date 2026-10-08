@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
 
+# A new push to a pull request supersedes its older run (main keeps every run).
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -80,6 +85,9 @@ jobs:
     name: e2e (${{ matrix.id }})
     needs: e2e-lanes
     runs-on: ubuntu-latest
+    # The longest lane shard takes about 21 minutes; a hung job must not hold a runner
+    # for the 6-hour default (Oct 2026: installs stalled for hours and starved the queue).
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -91,7 +99,16 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      # Usually 20-35 s; a stalled apt mirror or download is retried rather than waited on.
+      - name: Install Chromium for Playwright
+        timeout-minutes: 15
+        run: |
+          for attempt in 1 2 3; do
+            timeout --kill-after=15 240 npx playwright install --with-deps chromium && exit 0
+            echo "::warning::playwright install attempt $attempt failed or stalled; retrying"
+            sleep 10
+          done
+          exit 1
       - if: matrix.build
         run: npm run build
       - run: node tools/e2eLanes.js run "${{ matrix.lane }}" ${{ matrix.shard && format('--shard={0}', matrix.shard) || '' }}
