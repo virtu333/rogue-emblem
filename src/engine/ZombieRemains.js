@@ -16,9 +16,9 @@
 //     missed that phase's tick, so it gets one enemy phase more. The marker shows the
 //     number as it is.
 //   - A Rout is not won while any record remains.
-//   - Smash (a unit's action) destroys one record in reach of a usable weapon, or
-//     under the unit itself (it can stand on the bones and stamp them out). It always
-//     succeeds: no roll, no counter, no RNG, no XP.
+//   - Smash (a unit's action) destroys every record on one tile in reach of a usable
+//     weapon, or under the unit itself (it can stand on the bones and stamp them
+//     out). It always succeeds: no roll, no counter, no RNG, no XP.
 //
 // `seen`: whether the player has seen the remains (the kill or the tile, since). Only
 // seen records are drawn and inspected; only seen records on a visible tile can be
@@ -206,18 +206,18 @@ export function remainsInReach(unit, list, world = {}) {
 }
 
 /**
- * Smash the remains on `tile`: removes exactly one record there (the one that would
- * rise first; the earliest in the list on a tie). Returns `{ list, smashed }`;
- * `smashed` is null (and `list` the input) when nothing lies there.
+ * Smash the remains on `tile`: removes every record there (two zombies that fell on
+ * one tile are one pile, and a pile left under the smasher would be hidden by its
+ * sprite and unreachable by anyone else). Returns `{ list, smashed }`; `smashed` is
+ * the removed records in list order, or null (and `list` the input) when nothing
+ * lies there.
  */
 export function smashRemains(list, tile) {
-  let index = -1;
-  (list || []).forEach((record, i) => {
-    if (record.col !== tile?.col || record.row !== tile?.row) return;
-    if (index === -1 || record.turnsRemaining < list[index].turnsRemaining) index = i;
-  });
-  if (index === -1) return { list: list || [], smashed: null };
-  return { list: list.filter((_, i) => i !== index), smashed: list[index] };
+  const all = list || [];
+  const onTile = (record) => record.col === tile?.col && record.row === tile?.row;
+  const smashed = all.filter(onTile);
+  if (smashed.length === 0) return { list: all, smashed: null };
+  return { list: all.filter((record) => !onTile(record)), smashed };
 }
 
 /** Known records grouped by tile: [{ col, row, turnsRemaining (soonest), count }]. */

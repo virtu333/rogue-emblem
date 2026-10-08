@@ -3,7 +3,8 @@
 // can win, the fall that leaves remains, the fog, and saves (suspend checkpoint and
 // Vision rewind). Ways this can break:
 //   - Smash is missing, or offered for remains the fog hides
-//   - smashing leaves the record, removes two, rolls the RNG or lets Canto move on
+//   - smashing leaves a record on the tile (two zombies that fell on one tile), takes
+//     a record from another tile, rolls the RNG or lets Canto move on
 //   - the last remains of a Rout do not win it (they blocked the win before Smash)
 //   - the objective line keeps counting smashed remains
 //   - a zombie that falls unseen is drawn, or a seen one is not
@@ -244,6 +245,27 @@ describe('the Smash command', () => {
     scene.handleRemainsTargetClick({ col: 2, row: 1 });
     expect(scene.onVictory).toHaveBeenCalledTimes(1);
     expect(scene.finishUnitAction).not.toHaveBeenCalled();
+  });
+
+  it('two zombies fell on one tile: stamping on it clears both and wins the Rout', () => {
+    // The pile under the smasher is hidden by its sprite and no one else can reach an
+    // occupied tile, so a record left there would block the win and rise unseen.
+    const { scene, unit } = battle({
+      enemies: [],
+      remains: [remainsAt(1, 1), remainsAt(1, 1, { turnsRemaining: 2 }), remainsAt(5, 5)],
+    });
+    scene.showActionMenu(unit);
+    openMenuCommand(scene, 'smash').onActivate();
+    scene.handleRemainsTargetClick({ col: 1, row: 1 });
+    expect(scene._zombieTombstones.map((r) => [r.col, r.row])).toEqual([[5, 5]]);
+    expect(scene.onVictory).not.toHaveBeenCalled(); // the pile at (5,5) still stands
+    scene._zombieTombstones = [remainsAt(1, 1), remainsAt(1, 1)];
+    scene.battleState = 'UNIT_ACTION_MENU';
+    scene.showActionMenu(unit);
+    openMenuCommand(scene, 'smash').onActivate();
+    scene.handleRemainsTargetClick({ col: 1, row: 1 });
+    expect(scene._zombieTombstones).toEqual([]);
+    expect(scene.onVictory).toHaveBeenCalledTimes(1);
   });
 
   it('a tap on the board reaches the smash through the input controller', () => {
