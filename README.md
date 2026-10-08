@@ -79,6 +79,11 @@ npm run sim:colosseum     # colosseum mercenary balance
 
 All sim scripts accept `--seed S`, `--trials N`, and `--csv` flags.
 
+Permanent-upgrade value and pricing use `npm run sim:meta-balance -- --help`:
+paired upgrade/bundle audits, equal-budget portfolios, and repeated-run purchasing
+under candidate prices. See [the method and limits](docs/specs/meta-upgrade-balance-simulation.md)
+and [the first results](docs/reports/meta-upgrade-balance-2026-09-30.md).
+
 ## Data Workflow
 
 - `data/*.json` is the **source of truth** (23 files covering classes, weapons, skills, enemies, terrain, etc.)

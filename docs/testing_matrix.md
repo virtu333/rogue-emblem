@@ -11,6 +11,7 @@ This project has multiple validation lanes with different scope and runtime cost
 | Harness | Headless tactical battle harness | `npm run test:harness` | Battle loop/invariant regressions |
 | Harness PR Sweep | Scenario fuzz sweep with strict checks | `npm run test:harness:pr` | PR gate for tactical stability |
 | Sim Unit | Simulation driver/policy tests | `npm run test:sim` | Validate full-run simulation logic |
+| Meta Upgrade Balance (Reporting) | Paired upgrade/portfolio value and repeated-run purchasing under candidate prices | `npm run sim:meta-balance -- --help` | [Method and limitations](specs/meta-upgrade-balance-simulation.md); does not change CI thresholds |
 | Full-Run Sim (Reporting) | Multi-seed run telemetry | `npm run sim:fullrun:harness` | Balance trends and timeout/stuck detection |
 | Full-Run Sim (Invincible) | Deterministic progression stress lane | `npm run sim:fullrun:harness:invincible` | Economy/pacing analysis without wipe noise |
 | Full-Run PR Slices | Strict seed slices with threshold gates | `npm run sim:fullrun:pr` | PR guardrail for sim regressions |
