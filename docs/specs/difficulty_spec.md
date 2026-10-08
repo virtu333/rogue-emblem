@@ -36,18 +36,18 @@ Add a **Difficulty Selector** to the Home Base, visible before "Begin Run." Opti
 
 ### 1.3 Currency Multiplier (Valor + Supply)
 The ladder pays for the climb. First Light (`normal`) earns a little less than the base rate, and each
-rung above it earns clearly more (owner retune, 2026-10-07; before it the ladder was 1.0 / 1.1 / 1.25 / 1.5):
+rung above it earns clearly more (owner retune, 2026-10-07; before it the ladder was 1.0 / 1.1 / 1.25 / 1.5; Dusk first went to 1.25×, then to 1.15× so the payout climbs in even steps over First Light: 1.44×, 1.88×, then 2.5×):
 
 | Rung (id) | Currency Multiplier |
 |------------|---------------------|
 | First Light (`normal`) | 0.8× |
-| Dusk (`dusk`) | 1.25× |
+| Dusk (`dusk`) | 1.15× |
 | Nightfall (`hard`) | 1.5× |
 | Black Sun (`lunatic`) | 2.0× |
 
 A run snapshots its rung's modifiers when it starts, so a run already in progress keeps the rate it
 began with. The difficulty select lists First Light's rate with the run's terms ("80% meta
-currency") and a higher rung's bonus as what it pays back ("+25% meta currency").
+currency") and a higher rung's bonus as what it pays back ("+15% meta currency").
 
 This applies to all Valor and Supply sources (boss kills, act completions, enemy kills, bonus objectives). The multiplier is displayed on the difficulty selector tooltip and on the RunCompleteScene summary.
 
