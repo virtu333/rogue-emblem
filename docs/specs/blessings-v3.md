@@ -4,7 +4,7 @@ Status: proposal (2026-10-09), revised after the designer's first review (same d
 is built (the blessing-fixes PR). Everything else is for review: numbers marked
 *provisional* are first estimates to validate (§9).
 
-Settled in review: Debt is the gold price (its amounts come from calibration, §3.1);
+Settled in review: Debt is the gold price (its amounts come from `sim:debt`, §3.1);
 Kingmaker's Oath stands as written; earned blessings are blessings, never start offers.
 
 Sources: a code audit of the blessing system (`BlessingEngine.js`, `RunManager.js`
@@ -143,9 +143,9 @@ come from the conjoint and the economy numbers, on a 0.5-6 scale (*provisional*)
 |---|---|---|
 | Personal skills off until Act 3 | 6 | tier IV only |
 | −10% XP | 5 | |
-| Debt, tier IV amount | 5 | replaces −30% gold; amount from calibration |
-| Debt, tier III amount | 3.5 | replaces −20% gold; amount from calibration |
-| Debt, tier II amount | 2 | replaces −15% gold; amount from calibration |
+| Debt IV (Dusk 4,500) | 5 | about −15% battle gold (§3.1) |
+| Debt III (Dusk 2,700) | 3.5 | about −10% battle gold |
+| Debt II (Dusk 1,300) | 2 | about −5% battle gold |
 | −1 Vision (until the next act) | 3 | base is 1, so this is every rewind for an act |
 | −2 DEF all units, Act 1 | 3 | |
 | −1 deploy, Act 1 | 2.5 | new |
@@ -166,23 +166,53 @@ It's finite, it bites early when gold matters most, and the held-blessings list 
 chips already show what's left. Run-length percentage cuts go away. The two that make sense
 as Act 1-only cuts can stay as garnish.
 
-**How much Debt.** The first draft guessed 600 / 1,200 / 2,000. Review said those are too
-low: Debt 600 should not sit beside staff healing −20%, and a Debt meant to replace −15%
-battle gold has to cost about what −15% gold costs. The amounts are measured instead. The
-Blessing Ledger's **Debt calibration** rounds show one blessing at three prices (two Debt
-amounts from 400 to 2,500 gold, and one price the game already uses). The fit gives one rate
-(value per 1,000 gold of Debt) on the same scale as every existing price, and reads off the
-Debt that costs the same as −15% gold, −10% XP, staff healing −20% and the rest. In a
-simulation with a known answer, 40 rounds put that equivalence within about ±40%. The tier
-amounts are then:
+**How much Debt.** The first draft guessed 600 / 1,200 / 2,000; review said too low (Debt
+600 should not sit beside staff healing −20%). A calibration exercise in the Blessing Ledger
+did not give answers the designer trusted, so the amounts come from the economy instead:
+`npm run sim:debt` (`sim/debt.js`).
 
-- tier II: the Debt equal to the middle of the II band (2 points);
-- tier III: the Debt equal to 3.5 points;
-- tier IV pacts that use Debt: the Debt equal to 5 points.
+Both prices act on the same number, each victory's battle gold (`completeBattle`
+`finalGold`). A cut of X loses X of it every battle. A Debt of D takes the garnish (a half; a
+quarter on First Light) from the first battle until D is paid. Gold is weighted by when it's
+earned, because late gold is worth less (runs end with gold unspent). The sim finds the Debt
+whose weighted cost equals each cut's:
 
-They scale by rung through Debt's own garnish (a quarter on First Light), so one amount per
-tier serves every rung. Re-measure if a rung plays very differently. The first-draft
-amounts in §4, §5 and §7 read "Debt II/III/IV" until then.
+- 40 invincible harness runs per rung;
+- each victory's gold read exactly, the purse unchanged;
+- four weightings (all gold equal; −3% or −7% a battle; by act 1 / 0.7 / 0.45 / 0.3).
+
+Main reading: by act. The range is the −7% to −3% a battle readings.
+
+| Debt equal to | First Light | Dusk | Nightfall | Black Sun |
+|---|---|---|---|---|
+| −5% battle gold | 650 (500-800) | 1,300 (900-1,600) | 1,400 (1,000-1,750) | 1,850 (1,300-2,350) |
+| −10% | 1,450 (1,200-1,700) | 2,700 (2,050-3,450) | 2,900 (2,200-3,700) | 4,050 (2,950-5,000) |
+| −15% | 2,350 (2,150-2,750) | 4,500 (3,400-5,500) | 4,850 (3,600-5,900) | 6,700 (4,950-7,900) |
+| −20% | 3,700 | 6,350 | 6,850 | 9,300 |
+| −30% | none: a quarter garnish can't cost that much | 11,100 | 11,700 | 15,600 |
+
+With all gold weighted equally, Debt runs about twice as high (Dusk −15% = 7,500). That
+reading ignores the gold runs end with unspent, and the invincible agent's late gold reads
+high (it is slow, so the Eclipse turns more of its late nodes into elite fights).
+
+Battles to pay it off (median, by act): −5% about 5-6, −10% about 8-11, −15% about 11-14.
+First Light takes longest, at a quarter garnish. So a tier II Debt is a felt Act 1 cost; a
+tier IV one runs into Act 2.
+
+**Tier amounts.** The conjoint put the old gold cuts at about 5 points, so 1 point is about
+3% of battle gold. The tier bands then ask for:
+
+| Tier | Points | Replaces | First Light | Dusk | Nightfall | Black Sun |
+|---|---|---|---|---|---|---|
+| Debt II | 2 | ≈ −5% | 650 | 1,300 | 1,400 | 1,850 |
+| Debt III | 3.5 | ≈ −10% | 1,450 | 2,700 | 2,900 | 4,050 |
+| Debt IV | 5 | ≈ −15% | 2,350 | 4,500 | 4,850 | 6,700 |
+
+That is the old tier II price (−15% gold) moved to tier IV, which matches the conjoint's
+finding that tier II was overpriced. Store one Dusk amount per tier and a blessing
+`debtScale` by rung of about 0.55 / 1 / 1.07 / 1.48. The events' `costScale`
+(1 / 1 / 1.25 / 1.5) prices event fees, a different thing, so keep it separate. Re-run
+`sim:debt` when the battle-gold economy changes.
 
 Never pair a gold price with a gold boon (the existing "same effect type" exclusion, kept).
 
@@ -457,8 +487,8 @@ growth, XP and gold cards it can see.
 
 ## Open questions
 
-1. Debt amounts: set from the calibration rounds (§3.1). After them, check the tier II
-   amount against a playtest: is it felt in Act 1?
+1. Debt amounts (§3.1): playtest the tier II amount (Dusk 1,300, about 5 battles of half
+   your gold). Is it felt in Act 1?
 2. Gifts with a catch: offered every run from the second, or only sometimes (a ~50% chance
    per run)?
 3. Should earned blessings ever be offered in a shop, as Slay the Spire's shop relics are, or
