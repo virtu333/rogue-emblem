@@ -935,20 +935,20 @@
       "tags": [
         "gold"
       ],
-      "description": "Each victory's battle gold is doubled or halved on an even toss.",
-      "lore": "Heads, the shrine pays double. Tails, it keeps its half. It has never gone short.",
+      "description": "Each victory's battle gold is doubled or cut to a third on an even toss.",
+      "lore": "Heads, the shrine pays double. Tails, it keeps two parts in three. Never short.",
       "boons": [
         {
           "type": "battle_gold_gamble",
           "params": {
             "chance": 0.5,
             "win": 2,
-            "lose": 0.5
+            "lose": 0.333
           }
         }
       ],
       "intrinsicPrice": {
-        "label": "Half your victories pay half",
+        "label": "Half your victories pay a third",
         "points": 3
       },
       "costs": []

@@ -333,7 +333,7 @@ and exists, but the route map needs a new interaction to pick the road.
 
 | Blessing | Effect | Hook | Tier | Prices |
 |---|---|---|---|---|
-| Gambler's Toss (was Gambler's Coin: an accessory has that name) | each victory's battle gold is doubled or halved on an even toss, seeded by run and node | `battle_gold_gamble`, `engine/BattleGoldGamble.js`, in `completeBattle` after the elite, Merchant Bane and rung multipliers and before a Debt garnishes | III (an even double-or-halve is +25% gold, too much for a small bet) | intrinsic (3 pt): the variance is the price; never granted by an event |
+| Gambler's Toss (was Gambler's Coin: an accessory has that name) | each victory's battle gold is doubled or cut to a third on an even toss, seeded by run and node (expected +17%; even double-or-halve, +25%, out-earned Merchant Bane in the strategy sim) | `battle_gold_gamble`, `engine/BattleGoldGamble.js`, in `completeBattle` after the elite, Merchant Bane and rung multipliers and before a Debt garnishes | III | intrinsic (3 pt): the variance is the price; never granted by an event |
 | Lottery Loot | one loot card per battle comes from the next act's table | `LootSystem` tier offset (exists for event accessories) | III | Debt III / Sworn Enemy |
 
 ## 6. Earned blessings

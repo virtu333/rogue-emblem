@@ -1,14 +1,14 @@
 // Gambler's Toss (docs/specs/blessings-v3.md §5.4): each victory's battle gold is doubled or
-// halved on an even toss seeded by the run and the node. Its cost is the variance itself.
+// cut to a third on an even toss seeded by the run and the node. Its cost is the variance itself.
 //
 // Ways this can fail, a test each:
 //   1. the toss draws from Math.random (it would shift every battle stream, and a retried
 //      battle would toss a different face), or two completions of one node toss differently;
-//   2. the odds are off (a coin that is not even, or whose mean is not the +25% the card
-//      is priced on);
+//   2. the odds are off (a coin that is not even, or whose mean is not the about +17% the
+//      card is priced on: 2 or 1/3, evenly);
 //   3. the toss lands before the elite/Merchant Bane/rung multipliers instead of after, or after
 //      a Debt has garnished the gold instead of before;
-//   4. an odd gold halved rounds up, or a negative or fractional amount is paid;
+//   4. a cut gold rounds up, or a negative or fractional amount is paid;
 //   5. a run without the card is touched at all (a record, a line, a changed payout);
 //   6. the victory band or the reward header does not say what the toss did, or says it for
 //      another node's battle, or the toss record is saved;
@@ -27,7 +27,8 @@ import { loadGameData } from './testData.js';
 
 const data = loadGameData();
 const toss = data.blessings.blessings.find((b) => b.id === 'gamblers_toss');
-const GAMBLE = { chance: 0.5, win: 2, lose: 0.5 };
+// The card's own toss, read from the data (a retune moves these tests with it).
+const GAMBLE = toss.boons[0].params;
 
 function startRun({ seed = 31, difficultyId = 'normal' } = {}) {
   const rm = new RunManager(data);
@@ -66,7 +67,7 @@ describe("Gambler's Toss: the card", () => {
   it('is a tier III gold card whose price is the variance, and an event never grants it', () => {
     expect(toss).toMatchObject({ tier: 3, tags: ['gold'] });
     expect(toss.boons).toEqual([
-      { type: 'battle_gold_gamble', params: { chance: 0.5, win: 2, lose: 0.5 } },
+      { type: 'battle_gold_gamble', params: { chance: 0.5, win: 2, lose: 0.333 } },
     ]);
     expect(toss.intrinsicPrice.points).toBe(3);
     expect(toss.prices).toBeUndefined();
@@ -109,7 +110,7 @@ describe("Gambler's Toss: the toss", () => {
     expect(again.paid).toBe(a.paid);
   });
 
-  it('pays exactly double or half what the same victory pays without the card', () => {
+  it('pays exactly double or a third of what the same victory pays without the card', () => {
     const faces = new Set();
     for (let seed = 1; seed <= 40; seed++) {
       const control = controlPay({ seed }, 100);
@@ -118,7 +119,7 @@ describe("Gambler's Toss: the toss", () => {
       const record = held.lastBattleGoldGamble;
       faces.add(record.face);
       expect(paid, `seed ${seed}`).toBe(
-        record.face === 'win' ? control * 2 : Math.floor(control / 2),
+        record.face === 'win' ? control * 2 : Math.floor(control * 0.333),
       );
       expect(record).toMatchObject({
         goldBefore: control,
@@ -130,7 +131,7 @@ describe("Gambler's Toss: the toss", () => {
     expect([...faces].sort()).toEqual(['lose', 'win']);
   });
 
-  it('is an even toss whose mean is the +25% the card is priced on', () => {
+  it('is an even toss whose mean is the about +17% the card is priced on', () => {
     let doubled = 0;
     let total = 0;
     const N = 4000;
@@ -145,12 +146,14 @@ describe("Gambler's Toss: the toss", () => {
     }
     expect(doubled / N).toBeGreaterThan(0.47);
     expect(doubled / N).toBeLessThan(0.53);
-    expect(total / N).toBeGreaterThan(1.2);
-    expect(total / N).toBeLessThan(1.3);
+    // 0.5 × 2 + 0.5 × 0.333 = 1.1665.
+    expect(GAMBLE).toEqual({ chance: 0.5, win: 2, lose: 0.333 });
+    expect(total / N).toBeGreaterThan(1.14);
+    expect(total / N).toBeLessThan(1.19);
   });
 
-  it('floors an odd gold when it is halved, never rounds up or pays a fraction', () => {
-    // Find a node that tosses tails for this seed, then halve an odd amount.
+  it('floors a gold cut to a third, never rounds up or pays a fraction', () => {
+    // Find a node that tosses tails for this seed, then cut an amount that doesn't divide.
     let node = null;
     for (let i = 0; i < 200 && !node; i++) {
       const id = `act1_1_${i}`;
@@ -158,7 +161,7 @@ describe("Gambler's Toss: the toss", () => {
         node = id;
     }
     const settled = settleBattleGoldGamble({ runSeed: 9, nodeId: node, gamble: GAMBLE, gold: 301 });
-    expect(settled.goldAfter).toBe(150);
+    expect(settled.goldAfter).toBe(100); // floor(301 × 0.333) = floor(100.233)
     expect(Number.isInteger(settled.goldAfter)).toBe(true);
     expect(
       settleBattleGoldGamble({ runSeed: 9, nodeId: node, gamble: GAMBLE, gold: 0 }).goldAfter,
@@ -195,7 +198,7 @@ describe("Gambler's Toss: where it sits in the payout", () => {
       const { paid } = win(rm, { kills: 100 });
       const tossed = rm.lastBattleGoldGamble.goldAfter;
       expect(tossed, `seed ${seed}`).toBe(
-        rm.lastBattleGoldGamble.face === 'win' ? control * 2 : Math.floor(control / 2),
+        rm.lastBattleGoldGamble.face === 'win' ? control * 2 : Math.floor(control * 0.333),
       );
       expect(paid, `seed ${seed}`).toBe(tossed - Math.floor(tossed * 0.5));
       expect(rm.lastBurdenSettlement.goldBefore).toBe(tossed);
@@ -214,13 +217,13 @@ describe("Gambler's Toss: a run without the card", () => {
 });
 
 describe("Gambler's Toss: what the player is told", () => {
-  it('the victory band line and the reward header say doubled or halved, for this node only', () => {
+  it('the victory band line and the reward header say doubled or cut to a third, for this node only', () => {
     const rm = tossRun({ seed: 5 });
     const { node, paid } = win(rm);
     const record = rm.lastBattleGoldGamble;
     const delta = record.goldAfter - record.goldBefore;
     expect(gambleLines(record)).toEqual([
-      `Gambler's Toss: ${record.face === 'win' ? 'doubled' : 'halved'} (${delta < 0 ? '−' : '+'}${Math.abs(delta)} G)`,
+      `Gambler's Toss: ${record.face === 'win' ? 'doubled' : 'cut to a third'} (${delta < 0 ? '−' : '+'}${Math.abs(delta)} G)`,
     ]);
     const reward = prepareBattleRewards(rm, data, {
       nodeId: node.id,
@@ -229,7 +232,7 @@ describe("Gambler's Toss: what the player is told", () => {
       battleCompletionAwardedGold: paid,
     });
     expect(reward.summary).toBe(
-      `Battle and completion: ${paid} gold · Gambler's Toss: ${record.face === 'win' ? 'doubled' : 'halved'}`,
+      `Battle and completion: ${paid} gold · Gambler's Toss: ${record.face === 'win' ? 'doubled' : 'cut to a third'}`,
     );
 
     // A record from another node's victory is never printed on this one.
@@ -249,6 +252,7 @@ describe("Gambler's Toss: what the player is told", () => {
   it('words a non-standard multiplier plainly', () => {
     expect(gambleWord({ multiplier: 2 })).toBe('doubled');
     expect(gambleWord({ multiplier: 0.5 })).toBe('halved');
+    expect(gambleWord({ multiplier: 0.333 })).toBe('cut to a third');
     expect(gambleWord({ multiplier: 3 })).toBe('×3');
   });
 });

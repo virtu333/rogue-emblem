@@ -1,5 +1,5 @@
 // BattleGoldGamble.js - the `battle_gold_gamble` blessing boon (Gambler's Toss): each victory's
-// battle gold is doubled or halved on a toss, seeded by the run and the node.
+// battle gold is doubled or cut to a third on a toss, seeded by the run and the node.
 // Docs: docs/blessings_contract.md, docs/specs/blessings-v3.md §5.4.
 //
 // Pure. The toss never touches `Math.random`: it hashes `gamble:<runSeed>:<nodeId>` into a
@@ -48,12 +48,14 @@ export function settleBattleGoldGamble({ runSeed, nodeId, gamble, gold }) {
   return { nodeId, face, multiplier, goldBefore, goldAfter: Math.floor(goldBefore * multiplier) };
 }
 
-/** "doubled" / "halved" (the card's own faces), else the plain multiplier. */
+/** The card's own faces in words ("doubled", "cut to a third", "halved"), else ×N. */
 export function gambleWord(record) {
   if (!record) return '';
-  if (record.multiplier === 2) return 'doubled';
-  if (record.multiplier === 0.5) return 'halved';
-  return `×${record.multiplier}`;
+  const m = record.multiplier;
+  if (m === 2) return 'doubled';
+  if (m === 0.5) return 'halved';
+  if (Math.abs(m - 1 / 3) < 0.005) return 'cut to a third';
+  return `×${m}`;
 }
 
 /** The victory band's line for a toss record: ["Gambler's Toss: doubled (+120 G)"]. */

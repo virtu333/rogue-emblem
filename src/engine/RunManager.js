@@ -4269,7 +4269,7 @@ export class RunManager {
     const goldMult = this.getBattleGoldMultiplier();
     const difficultyGoldMult = this.getDifficultyModifier('goldMultiplier', 1);
     const wholeGold = Math.floor(baseGold * eliteMult * goldMult * difficultyGoldMult);
-    // Gambler's Toss: doubled or halved on the node's own seeded toss, after the elite, Merchant
+    // Gambler's Toss: doubled or cut to a third on the node's own seeded toss, after the elite, Merchant
     // Bane and rung multipliers and before a Debt garnishes what is left.
     const heldGamble = this.getBattleGoldGamble();
     const gambleRecord = heldGamble

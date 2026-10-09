@@ -213,10 +213,10 @@ describe('a held intrinsic price survives the run', () => {
     const restored = RunManager.fromJSON(saved, data);
     const price = restored.activeBlessings.find((b) => b.id === 'gamblers_toss').rolledCost;
     expect(price?.kind).toBe('intrinsic');
-    expect(price?.label).toBe('Half your victories pay half');
+    expect(price?.label).toBe('Half your victories pay a third');
     // No v2 pool label ("Ill Omen", "Hunted", ...) anywhere in the held list.
     expect(heldBlessingEntries(restored).find((e) => e.id === 'gamblers_toss').price).toBe(
-      'Half your victories pay half',
+      'Half your victories pay a third',
     );
   });
 

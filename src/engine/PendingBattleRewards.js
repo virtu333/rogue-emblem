@@ -98,7 +98,7 @@ export function prepareBattleRewards(run, data, ctx) {
       if (choice.type === 'gold')
         choice.goldAmount = Math.max(0, Math.floor((choice.goldAmount || 0) * pressure));
   const total = (ctx.goldEarned || 0) + (ctx.completionGoldAward || 0) + turnGold;
-  // Gambler's Toss: the header says the battle's gold was doubled or halved (this node's toss).
+  // Gambler's Toss: the header says the battle's gold was doubled or cut to a third (this node's toss).
   const toss = run.lastBattleGoldGamble;
   const tossNote =
     toss && toss.nodeId === (ctx.nodeId || run.currentNodeId) ? ` · ${gambleSummary(toss)}` : '';
