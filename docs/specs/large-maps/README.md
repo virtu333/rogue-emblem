@@ -37,7 +37,9 @@ Four read-only investigations, with benchmarks run on the real `HeadlessBattle` 
 **What blocks or plays badly:**
 1. **Desktop has no battle camera.** `BattleCameraController` is built only when
    `mobileCameraEnabled`, which defaults to `isMobile` (`runtimeFlags.js:72`). Desktop
-   centres the grid on the fixed 640x480 canvas (`Grid.js:534`), so 20x15 is a hard limit.
+   centres the grid on the fixed 640x480 canvas (`Grid.js:534`), so 20x15 is the most it
+   can show, at zoom 1 with no margin. Today's 20x13 maps already put the desktop HUD
+   plates over the board's corners.
 2. **Space is not used.**
    - Enemy count does not grow with area: about 11.5 enemies from 20x13 to 40x24.
    - Every rout enemy chases the nearest player from turn 1. There is no aggro radius,
@@ -45,9 +47,15 @@ Four read-only investigations, with benchmarks run on the real `HeadlessBattle` 
    - Hold packs exist only on Dusk+ seize and escape maps.
    - The result on a big map: a walk of 3–5 turns, then a trickle of enemies. On 40x24 the
      first attacks spread over T5–T11, and 10–40% of enemies never reach the player.
+   - At set-piece sizes (16x12–22x14) the walk is not the problem. First contact is still
+     T2–T4, and 73–79% of rout enemies engage by T6. The problem is that the whole army
+     arrives as one undifferentiated wave (`02` §1.5).
 3. **Clocks are absolute.**
-   - Boss enrage is `min(12, par + 2)`, while par grows with area. A large seize map
-     enrages 6–8 turns before par; at 20x13 it is already slightly before.
+   - Boss enrage is `min(12, par + 2)`, while par grows with area.
+   - At 40x24 a seize map enrages 6–8 turns before par.
+   - Within the 24x16 ceiling the cap binds only on First Light. There it applies on every
+     boss map, and from 22x14 up every boss map enrages at or before par (`02` §1.5,
+     §2.1).
    - Template waves (T5/T8), the rout ladder and anti-turtle pressure all assume today's
      walking distances.
 4. **Enemy-phase dead air.**
@@ -58,9 +66,13 @@ Four read-only investigations, with benchmarks run on the real `HeadlessBattle` 
 5. **Big procedural maps are featureless.** Terrain is rolled per tile; `MAX_FORTS = 4`,
    the cavalry carve budget is 16, and bridge count is fixed.
 6. **Absolute coordinates in the two hybrid boss arenas.** On wide maps their scripted waves
-   land inside the player's deploy zone. Reading the code also suggests a live bug: a phase
-   override turns an anchor tile into Wall on the same turn a scripted wave spawns there
-   (`02` §8).
+   land inside the player's deploy zone.
+   - There is also a **live bug, confirmed** on the real `HeadlessBattle` (`02` §2.2). A
+     phase override turns an anchor tile into Wall on the same turn a scripted wave spawns
+     there.
+   - On First Light and Dusk, half of each scripted wave is blocked.
+   - On Nightfall and Black Sun, the wall is raised under a guard that has already
+     arrived.
 7. **Navigation.**
    - No minimap, no off-screen pointers, no jump to boss or objective, no framing of a
      selected unit's range.
@@ -127,8 +139,14 @@ The four specs use these names. A spec may refine a field but not rename it.
 - `battleConfig.objective` (the string `rout | seize | escape`) stays. It remains the
   primary kind for every legacy reader. The new fields are:
   - `battleConfig.objectives` (`03`): `{ primary: [...], bonus: [...], phases: [...] }`.
-  - `battleConfig.encounterGroups` (`02`): a list of
-    `{ id, members, state, wake, onWake, telegraph }`.
+  - `battleConfig.encounterGroups` (`02` §3.2): a list of
+    `{ id, members, state, wake, onWake, route, loop, telegraph }`.
+    - `state` is `picket | dormant | patrol | awake`. It was `asleep` in revision 1,
+      renamed so it can't be confused with the Sleep status. The player never reads the
+      word; they see "Holding" or "Unaware".
+  - `battleConfig.anchors` (`04`): `{ <name>: { tiles } }`, the named points and regions
+    resolved to tiles at generation. Markers (`01`), triggers (`02`) and objectives
+    (`03`) all read this one field.
   - `battleConfig.setPiece` (`04`): `{ id, choices }`, the set piece and the seeded
     choices it took. Read for display and records, never for rules: the rules read the
     fields above.
@@ -152,15 +170,32 @@ snapshot and the snapshot validator together, from the first PR. It covers:
 |---|---|
 | `danger` | a player unit stands in a member's move+attack reach, as the player sees it |
 | `sight` | a member sees a player unit (fog maps) |
-| `hurt` | a member is damaged, moved or killed (today's hold rule) |
+| `hurt` | a member is damaged, moved, killed or given a status (today's hold rule, `HoldDisturbance`) |
 | `groupWoken` | another named group wakes; carries `delay` (whole enemy phases, default 1) |
-| `tile` | a player unit ends a move on a named anchor or region |
-| `objective` | a named primary or bonus objective completes or fails |
-| `turn` | a turn **relative to contact or par**: `{ afterContact: n }` or `{ parOffset: -k }`. An absolute `{ turn: n }` exists only for legacy waves |
+| `tile` | a player unit (or, with `by: { group }`, a named enemy group) ends a move on a named anchor or region |
+| `objective` | a named primary or bonus objective is `done` or `failed` (`03`'s words) |
+| `turn` | a turn **relative to contact, par or phase**: `{ afterContact: n, latest: { parOffset } }` (`latest` is required, so a turtle can't postpone it), `{ parOffset: -k }`, or `{ afterPhase: n }` (`03`). An absolute `{ turn: n }` exists only for legacy waves |
 
+- `02` §3.4 defines contact precisely and deterministically.
 - Each trigger fires once.
+- Triggers are checked once per enemy phase, with `>=` comparisons.
 - Fired triggers are recorded in battle state, so a resume or rewind replays nothing and
   skips nothing.
+- Boss enrage is not a trigger kind. It stays the battle-wide wake it is today.
+- **Two kinds of clock** (`02` §2.1):
+  - Clocks that punish waiting count from par.
+  - Clocks that answer an attack count from contact, and always carry a `latest` bound
+    based on par.
+
+**Shared modules.** Each is pure and called by both `BattleScene` and `HeadlessBattle`:
+
+| Module | Spec | Role |
+|---|---|---|
+| `engine/EncounterGroups.js` | `02` | groups, wake, `onWake` |
+| `engine/EncounterTriggers.js` | `02` | evaluates triggers for groups, waves and phases |
+| `engine/TerrainPhases.js` | `02`, `03` | `applyTerrainSetTiles`: the one terrain override, used by hybrid arenas and phases; never writes a tile its occupant can't stand on |
+| `engine/BattleObjectives.js` | `03` | the one victory, failure and progress predicate |
+| `engine/BonusSettlement.js` | `03` | judges bonuses once, at the victory commit |
 
 **Anchors.**
 - Named points and regions (`throne`, `gate`, `ford`, `village_a`, `exit`, `camp`) are
@@ -202,15 +237,15 @@ Each phase is shippable alone and leaves the game better even if the next never 
 
 | Phase | What | Depends on |
 |---|---|---|
-| 0 | **Fixes worth doing anyway** (`02`): par-relative enrage; the hybrid-arena wall/wave fix; a binary-heap A* and a capped recovery fallback; no 300 ms or tween for idle or hidden enemies, delay scaled by battle speed; prune locked configs at `advanceAct` | — |
+| 0 | **Fixes worth doing anyway** (`02` §2): enrage never before par + 1 (`max(par+1, min(12, par+2))`); the confirmed hybrid-arena wall/wave bug; an exact binary-heap A* and an exact branch-and-bound recovery fallback; no 300 ms pause, tween or checkpoint for enemy actions the player cannot see or that do nothing, pause scaled by battle speed; prune locked configs at `advanceAct`; two bugs found by `01` (desktop [N] scrolls the HUD away, `01` §1.5.1; the enemy heal banner names a hidden target, `01` §1.5.2) | — |
 | 1 | **Camera and navigation** (`01`): desktop camera; enemy-phase follow; objective markers and off-screen pointers; jump controls; Recenter in portrait; danger overlay and fog hardening | — |
 | 2 | **Encounter groups on today's templates** (`02`): pickets and sleeping pods on every objective, wake triggers, contact-relative waves. Measured with `sim/pacing.js` before and after | 0 |
-| 3 | **Objective model v2** (`03`): `objectives` with phases and bonuses; the objective strip; bonus rewards at the victory commit. First on today's maps: the village becomes a bonus objective, multi-seize | 2 |
+| 3 | **Objective model v2** (`03`): `objectives` with phases and bonuses; the objective strip; bonus rewards at the victory commit. First on today's maps: the village becomes a bonus objective (it keeps its in-battle payout for compatibility, `03` §9), multi-seize | 2 |
 | 4 | **Set-piece format and the first two maps** (`04`): skeleton, chunks, seeded choices, validator; The Mill Ford (Act III ordinary) and Two Towers (elite) | 1, 2, 3 |
 | 5 | **Boss set pieces**: Long Road to the Keep (Act III), The Emperor's Parade (Act IV) | 4 |
 | 6 | **More set pieces**: Caravan Under Siege, Hunting Party, Break the Gate (needs a gate tile), The Burning Village, the finale variant | 4 |
 
-Phases 0 and 1 can run in parallel. Phases 2 and 3 are the expensive design work, and every
+Phases 0 and 1 can run in parallel (the enemy-phase camera does not wait for Phase 0; only the time saved adds up). Phases 2 and 3 are the expensive design work, and every
 later phase depends on them.
 
 ## 6. Open questions for the owner
@@ -222,6 +257,10 @@ later phase depends on them.
 4. **Boss maps:** do boss set pieces join the pool beside today's hybrid arenas, or replace
    them?
 5. **Desktop default view:** open on the whole board (fit), or at tactical zoom framed on the
-   army like the phone?
-6. **Minimap:** a corner minimap, or rely on the objective strip, jump controls and Overview?
-   (`01` recommends the latter first.)
+   army like the phone? `01` recommends the whole board: every map up to 20x13 then opens
+   exactly as today.
+6. **Minimap:** a corner minimap, or rely on the objective strip, jump controls, pointers and
+   Overview? `01` recommends no minimap until the first set pieces are playtested.
+
+Each spec ends with its own open questions; these six are the ones that shape more than
+one spec.
