@@ -1,4 +1,4 @@
-// Blessing combat mods (engine/BlessingCombatMods.js): Keen Eye's initiating-side bonus, Holdfast's
+// Blessing combat mods (engine/BlessingCombatMods.js): Keen Eye's initiating-side bonus, Hold the Line's
 // "has not moved this turn" rule, the Act 1 Hit price, and the proof that BattleScene and the headless
 // harness read all of it through the one module (docs/specs/blessings-v3.md §4).
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -50,7 +50,7 @@ const holding = (extra = {}) => {
   return unit;
 };
 
-describe('isHoldingGround (Holdfast)', () => {
+describe('isHoldingGround (Hold the Line)', () => {
   it('holds from the start of the player phase through a unit that waits', () => {
     expect(isHoldingGround(holding(), 5)).toBe(true);
   });
@@ -159,7 +159,7 @@ describe('blessingCombatModsFor', () => {
     ).toBe(0);
   });
 
-  it('gives Holdfast only to a unit that is holding ground', () => {
+  it('gives Hold the Line only to a unit that is holding ground', () => {
     expect(blessingCombatModsFor(PROFILE, side(holding()))).toMatchObject({
       defBonus: 2,
       avoidBonus: 10,
@@ -233,7 +233,7 @@ describe('RunManager.getBlessingCombatProfile', () => {
     expect(rm.getBlessingCombatProfile('act2').actHitBonus).toBe(0);
   });
 
-  it('carries Keen Eye and Holdfast from the data rows', () => {
+  it('carries Keen Eye and Hold the Line from the data rows', () => {
     const profile = runWith(['steady_hands', 'terrain_mastery']).getBlessingCombatProfile();
     expect(profile.firstStrikeHitBonus).toBe(10);
     expect(profile.stationary).toEqual({ defBonus: 2, avoidBonus: 10 });
@@ -334,7 +334,7 @@ describe('the scene and the harness agree', () => {
     ['the scene', sceneCtx],
     ['the harness', harnessCtx],
   ]) {
-    it(`${label} gives an unmoved player attacker Keen Eye, Holdfast and the Act 1 price`, () => {
+    it(`${label} gives an unmoved player attacker Keen Eye, Hold the Line and the Act 1 price`, () => {
       const edric = makeUnit('Edric', 'player', 0);
       const foe = makeUnit('Foe', 'enemy', 1);
       stampTurnAnchors([edric], 1);
@@ -343,7 +343,7 @@ describe('the scene and the harness agree', () => {
       expect(pick(ctx.defMods)).toEqual({ hit: 0, avoid: 0, def: 0, first: 0 });
     });
 
-    it(`${label} gives a defending player Holdfast and the Hit price but no Keen Eye`, () => {
+    it(`${label} gives a defending player Hold the Line and the Hit price but no Keen Eye`, () => {
       const edric = makeUnit('Edric', 'player', 0);
       const foe = makeUnit('Foe', 'enemy', 1);
       stampTurnAnchors([edric], 1);
@@ -352,7 +352,7 @@ describe('the scene and the harness agree', () => {
       expect(pick(ctx.defMods)).toEqual({ hit: -8, avoid: 10, def: 2, first: 0 });
     });
 
-    it(`${label} drops Holdfast for a player who has moved`, () => {
+    it(`${label} drops Hold the Line for a player who has moved`, () => {
       const edric = makeUnit('Edric', 'player', 0);
       const foe = makeUnit('Foe', 'enemy', 1);
       stampTurnAnchors([edric], 1);

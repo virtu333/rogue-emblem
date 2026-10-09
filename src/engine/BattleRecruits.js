@@ -167,7 +167,7 @@ export function settleRecruitJoin({
   npc.hasMoved = false;
   npc.hasActed = false;
   npc._movementSpent = 0;
-  // It stands where it joined and has not moved this turn: Holdfast holds from here, as for
+  // It stands where it joined and has not moved this turn: Hold the Line holds from here, as for
   // any unit anchored when the player phase began (a join is always a player-phase act).
   if (Number.isFinite(turn)) stampTurnAnchors([npc], turn);
   runManager?.assignUnitUid?.(npc);

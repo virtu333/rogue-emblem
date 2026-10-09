@@ -3847,7 +3847,7 @@ describe('blessing run-start effect application', () => {
     expect(restored.getBlessingCombatProfile().firstStrikeHitBonus).toBe(10);
   });
 
-  it('Holdfast (terrain_mastery) gives +2 DEF and +10 Avoid to a unit holding ground', () => {
+  it('Hold the Line (terrain_mastery) gives +2 DEF and +10 Avoid to a unit holding ground', () => {
     const rm = new RunManager(loadGameData());
     rm.startRun();
     rm.activeBlessings = ['terrain_mastery'];
@@ -3860,7 +3860,7 @@ describe('blessing run-start effect application', () => {
     expect(restored.getBlessingCombatProfile().stationary).toEqual({ defBonus: 2, avoidBonus: 10 });
   });
 
-  it('a save from before Keen Eye and Holdfast loads with zeroed runtime fields', () => {
+  it('a save from before Keen Eye and Hold the Line loads with zeroed runtime fields', () => {
     const rm = new RunManager(loadGameData());
     rm.startRun();
     const json = rm.toJSON();

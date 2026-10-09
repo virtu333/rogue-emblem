@@ -55,8 +55,8 @@ describe('Blessing Expansion v2 � data validation', () => {
     expect(index.get('scholar_vow').pact).toEqual(['recruits_level_down', 'debt_large']);
     expect(index.get('armory_stash').weight).toBe(0);
     expect(index.get('blessed_vigor').boons[0].params.value).toBe(4);
-    // Holdfast (was Terrain Mastery): a unit that has not moved gets +2 DEF and +10 Avoid.
-    expect(index.get('terrain_mastery').name).toBe('Holdfast');
+    // Hold the Line (was Terrain Mastery): a unit that has not moved gets +2 DEF and +10 Avoid.
+    expect(index.get('terrain_mastery').name).toBe('Hold the Line');
     expect(index.get('terrain_mastery').boons).toEqual([
       { type: 'stationary_combat_bonus', params: { defBonus: 2, avoidBonus: 10 } },
     ]);

@@ -484,7 +484,7 @@ function resetPlayerUnitsForTurn(scene, turn) {
     u._movementSpent = 0;
     u._gambitUsedThisTurn = false;
   }
-  // Holdfast reads where each unit stood as this player phase began. Stamped before any
+  // Hold the Line reads where each unit stood as this player phase began. Stamped before any
   // presentation call so a throw in the undim below cannot leave a unit without an anchor.
   stampTurnAnchors(scene.playerUnits, turn);
   for (const u of scene.playerUnits) {
@@ -7721,7 +7721,7 @@ export class BattleScene extends Phaser.Scene {
     this._applyAccessoryPhaseCombatMods(attacker, atkMods, rollSession);
     this._applyAccessoryPhaseCombatMods(defender, defMods, rollSession);
 
-    // Blessings (act Hit, Keen Eye, Holdfast): one shared rule for scene and harness.
+    // Blessings (act Hit, Keen Eye, Hold the Line): one shared rule for scene and harness.
     applyBlessingCombatMods(atkMods, defMods, {
       profile: this.runManager?.getBlessingCombatProfile?.() ?? null,
       attacker,

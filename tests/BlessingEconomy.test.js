@@ -327,13 +327,23 @@ describe('Blood Forge', () => {
     expect(JSON.stringify(lord(rm, 'Gaspar').inventory)).toBe(gasparBefore);
   });
 
-  it('a recruit who joins later is not forged (it is a run-start grant)', () => {
+  it('a starting non-lord (Gaspar) is not forged', () => {
     const rm = runHolding('blood_forge');
     const gaspar = lord(rm, 'Gaspar');
     expect(gaspar.inventory.every((w) => !w._forgeLevel)).toBe(true);
   });
 
-  it('keeps the forged weapon equipped as the same object, price raised by the forge cost', () => {
+  it('a recruit who really joins later (a recruit node’s unit) arrives unforged', () => {
+    const rm = runHolding('blood_forge');
+    const node = rm.nodeMap.nodes.find((n) => n.type === 'recruit' && n.recruitPreview);
+    expect(node).toBeTruthy();
+    const built = rm.getRecruitNodeUnit(node);
+    expect(built.unit.inventory.length).toBeGreaterThan(0);
+    expect(built.unit.inventory.every((w) => !w._forgeLevel)).toBe(true);
+    expect(built.unit.weapon?._forgeLevel || 0).toBe(0);
+  });
+
+  it('forges the strongest weapon in the bag as the same object, and its price does not grow', () => {
     const rm = plainRun();
     const edric = lord(rm, 'Edric');
     // Edric starts with the Iron Sword in hand and the Steel Sword in the bag.
@@ -342,8 +352,24 @@ describe('Blood Forge', () => {
     rm.activeBlessings = [{ id: 'blood_forge', rolledCost: null }];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
-    expect(steel.price).toBeGreaterThan(basePrice);
     expect(edric.inventory).toContain(steel);
+    expect(steel._forgeLevel).toBe(2);
+    // The shrine gives the forge for free (applyForge `free`): resale value stays put, as
+    // Smith's Mark's free forge does, so the gift cannot be sold on for gold.
+    expect(steel.price).toBe(basePrice);
+    expect(steel._forgeHistory.every((step) => step.cost === 0)).toBe(true);
+  });
+
+  it('forges the equipped weapon in place when it is the strongest, and it stays equipped', () => {
+    const rm = plainRun();
+    const edric = lord(rm, 'Edric');
+    const steel = edric.inventory.find((w) => w.name === 'Steel Sword');
+    edric.weapon = steel;
+    rm.activeBlessings = [{ id: 'blood_forge', rolledCost: null }];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+    expect(edric.weapon).toBe(steel);
+    expect(edric.weapon.might).toBe(10);
   });
 
   it('a tie in Might goes to the equipped weapon, then to the earlier bag slot', () => {
@@ -480,6 +506,17 @@ describe('Nomad’s Pact beyond recruit nodes', () => {
     raiseJoinLevel(a, 2, { classes: data.classes, rng: joinLevelRng(99, 'Gaspar') });
     raiseJoinLevel(b, 2, { classes: data.classes, rng: joinLevelRng(99, 'Gaspar') });
     expect(a.stats).toEqual(b.stats);
+    // Another name draws from its own stream: over a few seeds the gains differ somewhere
+    // (one seed alone could coincide).
+    let differs = false;
+    for (let seed = 1; seed <= 12 && !differs; seed++) {
+      const one = make();
+      const other = make();
+      raiseJoinLevel(one, 2, { classes: data.classes, rng: joinLevelRng(seed, 'Gaspar') });
+      raiseJoinLevel(other, 2, { classes: data.classes, rng: joinLevelRng(seed, 'Bram') });
+      differs = JSON.stringify(one.stats) !== JSON.stringify(other.stats);
+    }
+    expect(differs).toBe(true);
   });
 
   it('a penalty (Scholar’s Vow −1) leaves boss recruits exactly as they are', () => {
@@ -589,7 +626,7 @@ describe('the data rows', () => {
     expect(index.get('nomad_pact').boons).toEqual([
       { type: 'recruit_level_bonus', params: { value: 2 } },
     ]);
-    expect(index.get('nomad_pact').description).toMatch(/boss recruits and Colosseum mercenaries/);
+    expect(index.get('nomad_pact').description).toMatch(/boss recruits and mercenaries/);
   });
 
   it('Advance Pay is not an event-safe blessing (gold is the events’ own currency)', () => {

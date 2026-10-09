@@ -330,7 +330,7 @@ test('blessings as tarot: the cost is always in view, No blessing sits by Confir
       .flatMap((x) => (x.pact ? [x.pact] : x.prices || []))
       .map(labelOf)
       .reduce((a, c) => (c.length > a.length ? c : a), '');
-    s.options = ['quartermaster_cache', 'focused_curriculum', 'forbidden_tome', 'war_tutelage'].map(
+    s.options = ['terrain_mastery', 'pilgrim_coin', 'focused_curriculum', 'nomad_pact'].map(
       (id) => {
         const b = structuredClone(s.gameData.blessings.blessings.find((x) => x.id === id));
         b.rolledCost = { label: longest, effects: [] };

@@ -6,12 +6,12 @@
 // The `profile` is `RunManager.getBlessingCombatProfile()`:
 //   { actHitBonus,                    // today's act hit (Steady-style bonus, Act 1 price)
 //     firstStrikeHitBonus,            // Keen Eye
-//     stationary: { defBonus, avoidBonus },   // Holdfast
-//     legacyTerrainBonuses }          // saves from before Holdfast (retired by the migration)
+//     stationary: { defBonus, avoidBonus },   // Hold the Line
+//     legacyTerrainBonuses }          // saves from before Hold the Line (retired by the migration)
 // Only player-faction units ever receive anything; enemies and NPC allies get zeros.
 
 /**
- * Remember where each living unit stood as `turn`'s player phase began. Holdfast reads it
+ * Remember where each living unit stood as `turn`'s player phase began. Hold the Line reads it
  * through the player phase and the enemy phase that follows. Called wherever the player
  * units' per-turn flags are reset.
  */
@@ -23,7 +23,7 @@ export function stampTurnAnchors(units, turn) {
 }
 
 /**
- * Holdfast's predicate: the unit has not moved this turn. True while it stands on the tile
+ * Hold the Line's predicate: the unit has not moved this turn. True while it stands on the tile
  * `stampTurnAnchors` recorded for `turn`, has not been marked as moved and has spent no
  * movement; this holds through the enemy phase after it (a push or a Blink off the tile
  * ends it). A unit with no anchor for this turn (a mid-turn arrival, an older checkpoint)
@@ -62,14 +62,14 @@ export function blessingCombatModsFor(profile, side) {
   // Keen Eye: the side that starts the combat only.
   if (side.initiating) out.firstStrikeHitBonus += Math.trunc(profile.firstStrikeHitBonus || 0);
 
-  // Holdfast: a unit that has not moved this turn.
+  // Hold the Line: a unit that has not moved this turn.
   const stationary = profile.stationary;
   if (stationary && isHoldingGround(unit, side.turn)) {
     out.defBonus += Math.trunc(stationary.defBonus || 0);
     out.avoidBonus += Math.trunc(stationary.avoidBonus || 0);
   }
 
-  // Saves from before Holdfast still carry the old terrain boon until they migrate.
+  // Saves from before Hold the Line still carry the old terrain boon until they migrate.
   const terrainName = side.terrain?.name;
   if (terrainName && Array.isArray(profile.legacyTerrainBonuses)) {
     for (const bonus of profile.legacyTerrainBonuses) {

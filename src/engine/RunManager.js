@@ -271,7 +271,7 @@ function createBlessingRuntimeModifiers() {
     shopPriceDiscount: 0,
     recruitLevelBonus: 0,
     terrainCombatBonuses: [],
-    // Keen Eye: Hit on the first strike of every combat a unit starts. Holdfast: DEF and
+    // Keen Eye: Hit on the first strike of every combat a unit starts. Hold the Line: DEF and
     // Avoid for a unit that has not moved this turn (engine/BlessingCombatMods.js).
     firstStrikeHitBonus: 0,
     stationaryCombatBonus: { defBonus: 0, avoidBonus: 0 },
@@ -2317,7 +2317,8 @@ export class RunManager {
         const before = weapon.name;
         let applied = 0;
         for (let i = 0; i < steps; i++) {
-          if (!applyForge(weapon, targetStat).success) break; // the forge limits
+          // A gift of the shrine, not a purchase: free, so resale value does not grow.
+          if (!applyForge(weapon, targetStat, 0, { free: true }).success) break; // the forge limits
           applied++;
         }
         if (applied > 0)
@@ -2353,8 +2354,10 @@ export class RunManager {
         value: amount,
         paidActs: [this.currentAct],
       });
+      // Nothing is paid now (the shrine's `gold_delta` covers this act): the record carries
+      // the recurring amount, not an applied one.
       this._recordBlessingEvent('run_start', blessingId, effect, {
-        appliedValue: amount,
+        recurringValue: amount,
         firstPayment: 'next_act',
       });
       return;
@@ -2378,8 +2381,12 @@ export class RunManager {
       }
       this._actStartGrantList().push({ blessingId, kind: 'item', itemName, count, paidActs: [] });
       this._recordBlessingEvent('run_start', blessingId, effect, { itemName, count });
-      // The current act's delivery is owed now (a church vow in Act 2 pays Act 2 now).
-      this._payActStartGrants('run_start');
+      // The current act's delivery is owed now (a church vow in Act 2 pays Act 2 now); the
+      // record says whether it came with the shrine or from a church or an event.
+      const takenMidRun = (this.activeBlessings || []).some(
+        (entry) => getBlessingEntryId(entry) === blessingId && entry?.midRun === true,
+      );
+      this._payActStartGrants(takenMidRun ? 'mid_run' : 'run_start');
       return;
     }
 
@@ -2739,7 +2746,7 @@ export class RunManager {
    * to the purse (Debt garnishes battle gold only). An item goes to the convoy, then to the
    * commander's bag, the other lords', then anyone's; with no room anywhere it is lost, and
    * the act still counts as paid (the shrine's first Elixir did the same).
-   * @param {'run_start'|'act_transition'} stage
+   * @param {'run_start'|'mid_run'|'act_transition'} stage
    * @returns {Array<object>} what was paid, for the route map's notice
    */
   _payActStartGrants(stage = 'act_transition') {
@@ -2847,7 +2854,7 @@ export class RunManager {
   /**
    * What the run's blessings add to a combat, for `engine/BlessingCombatMods.js`: the one
    * read BattleScene and the harness make. The act's Hit (Act 1 price included), Keen
-   * Eye's first-strike Hit, Holdfast's stationary bonus and, until saves migrate, the
+   * Eye's first-strike Hit, Hold the Line's stationary bonus and, until saves migrate, the
    * retired terrain boon.
    */
   getBlessingCombatProfile(actId = this.currentAct) {

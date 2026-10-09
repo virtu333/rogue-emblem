@@ -1726,7 +1726,7 @@ export class HeadlessBattle {
     this._applyAccessoryPhaseCombatMods(attacker, atkMods, rollSession);
     this._applyAccessoryPhaseCombatMods(defender, defMods, rollSession);
 
-    // Blessings (act Hit, Keen Eye, Holdfast): one shared rule for scene and harness.
+    // Blessings (act Hit, Keen Eye, Hold the Line): one shared rule for scene and harness.
     applyBlessingCombatMods(atkMods, defMods, {
       profile: this.runManager?.getBlessingCombatProfile?.() ?? null,
       attacker,

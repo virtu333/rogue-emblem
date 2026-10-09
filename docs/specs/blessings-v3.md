@@ -260,7 +260,7 @@ a trap.
 | Rally Cry | II, +3 STR/MAG Act 1 | reprice | II with light prices only (staff healing −20% / +8 shadow). |
 | War Veteran | II, +15% XP | retier | III: Debt III / −1 deploy Act 1 / shops +15%. |
 | Frugal Smith | II, forge −30%, +1 forge | rework | **Smith's Mark** (II): each shop's first forge is free, +1 forge per shop. |
-| Terrain Mastery | II, Forest/Fort bonus | rework | **Holdfast** (II): a unit that hasn't moved this turn gets +2 DEF and +10 avoid. A playstyle, not a terrain lottery. |
+| Terrain Mastery | II, Forest/Fort bonus | rework | **Hold the Line** (II): a unit that hasn't moved this turn gets +2 DEF and +10 avoid. A playstyle, not a terrain lottery. |
 | Quartermaster Cache | II, 1 Elixir per lord | rework | II: an Elixir in the convoy at the start of every act, Act 1 included (four over a Dusk run). Prices: staff healing −20% / shops +15%. |
 | Scout Blessing | III, deploy +1 | retier | II: deploy +1; prices Debt II / Hunted 2. |
 | Scholar's Vow | III, all growths +5 | retier | IV, pact: recruits join −1 level and Debt III. The best card in the game. |

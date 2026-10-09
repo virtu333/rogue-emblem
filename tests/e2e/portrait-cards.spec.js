@@ -120,7 +120,7 @@ async function longestBlessings(page) {
       .flatMap((x) => (x.pact ? [x.pact] : x.prices || []))
       .map(labelOf)
       .reduce((a, c) => (c.length > a.length ? c : a), '');
-    const ids = ['quartermaster_cache', 'focused_curriculum', 'forbidden_tome', 'war_tutelage'];
+    const ids = ['terrain_mastery', 'pilgrim_coin', 'focused_curriculum', 'nomad_pact'];
     s.options = ids.map((id) => {
       const b = structuredClone(s.gameData.blessings.blessings.find((x) => x.id === id));
       b.rolledCost = { label: longest, effects: [] };

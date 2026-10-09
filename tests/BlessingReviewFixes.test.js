@@ -1,5 +1,5 @@
-// Review fixes for Keen Eye and Holdfast. Each test names a way the first pass could fail:
-//   - the harness marked a unit as moved for standing still, so Holdfast never held for an
+// Review fixes for Keen Eye and Hold the Line. Each test names a way the first pass could fail:
+//   - the harness marked a unit as moved for standing still, so Hold the Line never held for an
 //     attack made from where the unit stands (the scene only sets hasMoved on a real move)
 //   - a throw while undimming a unit skipped the anchor stamp; the handoff fallback left stale
 //     movement and no anchors
@@ -77,7 +77,7 @@ describe('harness moveTo matches the scene: standing still is not moving', () =>
     expect(isHoldingGround(edric, b.turnManager.turnNumber)).toBe(false);
   });
 
-  it('an attack made from where the unit stands gets Holdfast in its combat mods', () => {
+  it('an attack made from where the unit stands gets Hold the Line in its combat mods', () => {
     const { b, edric } = board();
     const foe = b.enemyUnits[0];
     foe.col = edric.col + 1;
@@ -90,7 +90,7 @@ describe('harness moveTo matches the scene: standing still is not moving', () =>
     expect(atkMods.firstStrikeHitBonus).toBe(10);
   });
 
-  it('the same attack after a real step has no Holdfast', () => {
+  it('the same attack after a real step has no Hold the Line', () => {
     const { b, edric } = board();
     const foe = b.enemyUnits[0];
     b.selectUnit('Edric');

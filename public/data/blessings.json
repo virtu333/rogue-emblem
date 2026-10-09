@@ -673,7 +673,7 @@
       "lore": "Sworn to the open road. Whoever answers your banner has already walked a while.",
       "name": "Nomad's Pact",
       "tier": 3,
-      "description": "Every recruit joins 2 levels higher: recruit nodes, events, boss recruits and Colosseum mercenaries.",
+      "description": "Recruits join 2 levels higher: nodes, events, boss recruits and mercenaries.",
       "weight": 1,
       "boons": [
         {
@@ -699,7 +699,7 @@
     {
       "id": "terrain_mastery",
       "lore": "Plant your feet and let the storm break on you. A wall is only a promise kept.",
-      "name": "Holdfast",
+      "name": "Hold the Line",
       "tier": 2,
       "description": "A unit that hasn't moved this turn gets +2 DEF and +10 Avoid, into the enemy's turn too.",
       "weight": 1,
