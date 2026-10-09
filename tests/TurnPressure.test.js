@@ -78,7 +78,7 @@ describe('TurnPressure', () => {
     expect(kill.state.noProgressTurns).toBe(2); // 4 is not below the best of 2
   });
 
-  it('boss enrage turns the AI aggressive at min(12, par+2) only while a boss lives', () => {
+  it('boss enrage turns the AI aggressive at max(par+1, min(12, par+2)) only while a boss lives', () => {
     // par 7 → enrage turn 9 (turnBonus.json: bossEnrageTurn 12, bossEnrageOverPar 2).
     const fresh = createTurnPressureState(measure({ boss: true }));
     const before = advanceTurnPressure(fresh, measure({ enemies: 2, boss: true }), clock(8, 7));
@@ -91,6 +91,21 @@ describe('TurnPressure', () => {
     expect(again.becameEnraged).toBe(false);
     const noBoss = advanceTurnPressure(fresh, measure({ enemies: 2 }), clock(20, 7));
     expect(noBoss.turnEnrageActive).toBe(false);
+  });
+
+  it('a par-12 boss map enrages on turn 13, not on par (the par + 1 floor)', () => {
+    // large-maps/02 §2.1: max(12 + 1, min(12, 12 + 2)) = 13. Was 12, i.e. on par.
+    const fresh = createTurnPressureState(measure({ boss: true }));
+    const onPar = advanceTurnPressure(fresh, measure({ enemies: 2, boss: true }), clock(12, 12));
+    expect(onPar.turnEnrageActive).toBe(false);
+    expect(onPar.aggressiveMode).toBe(false);
+    const after = advanceTurnPressure(
+      onPar.state,
+      measure({ enemies: 1, boss: true }),
+      clock(13, 12),
+    );
+    expect(after.turnEnrageActive).toBe(true);
+    expect(after.becameEnraged).toBe(true);
   });
 
   it('survives a JSON round trip (Infinity distances become null)', () => {

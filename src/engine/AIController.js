@@ -54,6 +54,16 @@ function getTerrainIndexByName(terrainData, name) {
   return FALLBACK_TERRAIN[name] ?? -1;
 }
 
+/**
+ * The fewest nodes a path from the enemy's tile to `tile` can have: every path the AI's
+ * pathing returns (A*, or a movement range's parent chain with its slides spelled out)
+ * starts on the enemy's tile, ends on the goal and moves one tile per node, so it holds at
+ * least the Manhattan distance plus one nodes.
+ */
+function pathNodeLowerBound(enemy, tile) {
+  return gridDistance(enemy.col, enemy.row, tile.col, tile.row) + 1;
+}
+
 export class AIController {
   constructor(grid, gameData, options = {}) {
     this.grid = grid;
@@ -941,6 +951,9 @@ export class AIController {
 
     let bestPath = null;
     for (const tile of approachTiles) {
+      // Only a strictly shorter path replaces the best, and no path to the tile can be
+      // shorter than this bound (pathNodeLowerBound): skipping it changes nothing.
+      if (bestPath && pathNodeLowerBound(enemy, tile) >= bestPath.length) continue;
       const path = this._findPathWithIceFallback(
         enemy,
         tile.col,
@@ -977,6 +990,19 @@ export class AIController {
     return passable;
   }
 
+  /**
+   * The recovery move: toward whichever target (nearest first, ties in the given order)
+   * has the shortest path, by node count, to a tile within 2 of it (the first such tile
+   * in diamond order), stopping on that path's farthest tile this turn can reach.
+   *
+   * Branch and bound, exactly the exhaustive search's answer: a best path is replaced
+   * only by a strictly shorter one, both within a target and across targets, so a tile
+   * whose lower bound (pathNodeLowerBound) already reaches the shorter of the two can
+   * never be chosen and is not pathed. A target the bound prunes this way loses at most
+   * paths that could not have beaten `best` anyway, so what it reports changes nothing.
+   * Paths are memoised per tile: the diamonds of neighbouring targets overlap, and
+   * nothing a path depends on changes within one decision.
+   */
   _findRecoveryFallbackTile(enemy, targets, candidates, unitPositions, moveRange = null) {
     if (!targets || targets.length === 0) return null;
     const sortedTargets = [...targets].sort(
@@ -985,11 +1011,29 @@ export class AIController {
         gridDistance(enemy.col, enemy.row, b.col, b.row),
     );
     const candidateSet = new Set(candidates.map((t) => `${t.col},${t.row}`));
+    const paths = new Map();
+    const pathTo = (tile) => {
+      const key = `${tile.col},${tile.row}`;
+      if (!paths.has(key)) {
+        paths.set(
+          key,
+          this._findPathWithIceFallback(enemy, tile.col, tile.row, unitPositions, moveRange),
+        );
+      }
+      return paths.get(key);
+    };
 
     let best = null;
     for (const target of sortedTargets) {
-      const recoveryTiles = this._getRecoveryTilesForTarget(enemy, target);
-      const path = this._findShortestPathToTiles(enemy, recoveryTiles, unitPositions, moveRange);
+      let path = null;
+      for (const tile of this._getRecoveryTilesForTarget(enemy, target)) {
+        const lowerBound = pathNodeLowerBound(enemy, tile);
+        if (path && lowerBound >= path.length) continue;
+        if (best && lowerBound >= best.pathLength) continue;
+        const tilePath = pathTo(tile);
+        if (!tilePath || tilePath.length < 2) continue;
+        if (!path || tilePath.length < path.length) path = tilePath;
+      }
       if (!path || path.length < 2) continue;
 
       let chosenTile = null;
@@ -1025,22 +1069,6 @@ export class AIController {
       }
     }
     return tiles;
-  }
-
-  _findShortestPathToTiles(enemy, tiles, unitPositions, moveRange = null) {
-    let bestPath = null;
-    for (const tile of tiles) {
-      const path = this._findPathWithIceFallback(
-        enemy,
-        tile.col,
-        tile.row,
-        unitPositions,
-        moveRange,
-      );
-      if (!path || path.length < 2) continue;
-      if (!bestPath || path.length < bestPath.length) bestPath = path;
-    }
-    return bestPath;
   }
 
   _finalizeDecision(enemy, decision) {
@@ -1114,7 +1142,7 @@ export class AIController {
 
   /**
    * Shared helper: try A* first, then fall back to Dijkstra ice-aware reconstruction.
-   * Used by _buildPath, _findPathAwareChaseTile, and _findShortestPathToTiles.
+   * Used by _buildPath, _findPathAwareChaseTile, and _findRecoveryFallbackTile.
    */
   _findPathWithIceFallback(
     enemy,
