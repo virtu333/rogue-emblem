@@ -88,6 +88,79 @@ test('every pause action fits in landscape, child settings return correctly, and
   await expect(pause).toHaveCount(0);
   await expect(page.getByRole('complementary', { name: 'Battle commands' })).toBeVisible();
 });
+test('held blessings and burdens list under the note and never push an action out of view', async ({
+  page,
+}) => {
+  await battle(page);
+  // A run holding a pact blessing, two mid-run ones and two burdens: both lists at once.
+  await page.evaluate(() => {
+    const rm = window.__emblemRogueGame.scene.getScene('Battle').runManager;
+    const tome = rm.gameData.blessings.blessings.find((b) => b.id === 'forbidden_tome');
+    const catalog = rm.gameData.blessings.priceCatalog;
+    const parts = tome.pact.map((id) => catalog[id]);
+    rm.activeBlessings = [
+      {
+        id: 'forbidden_tome',
+        rolledCost: {
+          label: parts.map((p) => p.label).join(' · '),
+          effects: parts.flatMap((p) => p.effects),
+          kind: 'pact',
+        },
+      },
+    ];
+    rm.addBlessingMidRun('field_medic');
+    rm.addBlessingMidRun('scholar_vow');
+    rm.burdens = [
+      { id: 'ill_omen', battles: 3, extraShadow: 1 },
+      { id: 'debt', owed: 450, garnish: 0.5 },
+    ];
+  });
+  await page
+    .getByRole('complementary', { name: 'Battle commands' })
+    .getByRole('button', { name: 'Menu', exact: true })
+    .tap();
+  const pause = page.getByRole('dialog', { name: 'Paused' });
+  const blessings = pause.getByRole('list', { name: 'Blessings' });
+  await expect(blessings.locator('li')).toHaveCount(3);
+  await expect(blessings.locator('li').first()).toContainText('Forbidden Tome · IV');
+  await expect(blessings.locator('li').first()).toContainText(
+    'Pact: Churches cannot revive the fallen this run',
+  );
+  await expect(blessings.locator('li').nth(2)).not.toContainText('Cost:');
+  await expect(pause.getByRole('list', { name: 'Burdens' }).locator('li')).toHaveCount(2);
+  // The lists give way: every action stays in view, unscrolled; the lists scroll instead.
+  expect(
+    await pause.locator('.mp-actions').evaluate((e) => ({
+      scrolls: e.scrollHeight > e.clientHeight + 1,
+      allInView: [...e.querySelectorAll('button')].every((b) => {
+        const r = b.getBoundingClientRect();
+        return r.top >= 0 && r.bottom <= window.innerHeight;
+      }),
+    })),
+  ).toEqual({ scrolls: false, allInView: true });
+  // A price's words open on a tap (touch has no hover), and the actions still fit.
+  const price = blessings.locator('li').first().locator('summary');
+  const terms = blessings.locator('li').first().locator('.mp-blessing-terms');
+  await expect(terms).toBeHidden();
+  await price.tap();
+  await expect(terms).toBeVisible();
+  await expect(terms).toContainText('A pact is a fixed price');
+  expect(
+    await pause
+      .locator('.mp-actions button')
+      .evaluateAll((all) =>
+        all.every(
+          (b) =>
+            b.getBoundingClientRect().top >= 0 &&
+            b.getBoundingClientRect().bottom <= window.innerHeight,
+        ),
+      ),
+  ).toBe(true);
+  const last = blessings.locator('li').last();
+  await last.scrollIntoViewIfNeeded();
+  await expect(last).toBeInViewport();
+  await page.screenshot({ path: 'test-results/mobile-pause-blessings.png' });
+});
 test('abandon retains confirmation and invokes the existing callback only once', async ({
   page,
 }) => {

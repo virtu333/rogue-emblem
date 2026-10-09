@@ -50,6 +50,7 @@ import { ContractSettlementController } from '../ui/ContractSettlementController
 import { contractRewardOwedAt } from '../engine/Contracts.js';
 import { eventSpoilsOwed, getPendingEventSettlement } from '../engine/EventCommands.js';
 import { pauseBurdenEntries } from '../ui/eventMenuModel.js';
+import { heldBlessingEntries } from '../ui/heldBlessingsModel.js';
 import { ShopController } from '../ui/ShopController.js';
 import { adaptDialogueEntries } from '../engine/DialogueCast.js';
 import { recordRunLordsMet } from '../engine/LordsMet.js';
@@ -1185,6 +1186,7 @@ export class NodeMapScene extends Phaser.Scene {
     const payout = prologueRun ? null : this.runManager.previewEndRunRewards?.();
     this.pauseOverlay = new PauseOverlay(this, {
       burdens: pauseBurdenEntries(this.runManager, this.gameData?.events),
+      blessings: heldBlessingEntries(this.runManager),
       // The prologue run is skipped (its ending, then Home Base), never abandoned.
       prologue: prologueRun
         ? {

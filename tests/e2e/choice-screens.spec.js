@@ -319,13 +319,21 @@ test('blessings as tarot: the cost is always in view, No blessing sits by Confir
   // The widest real hand: four blessings with the longest names and costs.
   await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('BlessingSelect');
-    const pool = s.gameData.blessings.costPools || {};
+    // The longest price any blessing can roll (v3: catalog labels, a combination joined by
+    // " · ", the largest Debt), on every card.
+    const catalog = s.gameData.blessings.priceCatalog || {};
+    const labelOf = (option) =>
+      (Array.isArray(option) ? option : [option])
+        .map((id) => catalog[id].label.replace('{owed}', '7,400'))
+        .join(' · ');
+    const longest = s.gameData.blessings.blessings
+      .flatMap((x) => (x.pact ? [x.pact] : x.prices || []))
+      .map(labelOf)
+      .reduce((a, c) => (c.length > a.length ? c : a), '');
     s.options = ['quartermaster_cache', 'focused_curriculum', 'forbidden_tome', 'war_tutelage'].map(
       (id) => {
         const b = structuredClone(s.gameData.blessings.blessings.find((x) => x.id === id));
-        const costs = pool[String(b.tier)];
-        if (costs?.length)
-          b.rolledCost = costs.reduce((a, c) => (c.label.length > a.label.length ? c : a));
+        b.rolledCost = { label: longest, effects: [] };
         return b;
       },
     );
@@ -354,6 +362,62 @@ test('blessings as tarot: the cost is always in view, No blessing sits by Confir
   );
   await dialog.getByRole('button', { name: 'Confirm', exact: true }).tap();
   await waitForScene(page, 'NodeMap');
+});
+
+test('a blessing price opens whole: the footer ⓘ and a press-and-hold on the card', async ({
+  page,
+}) => {
+  await settings(page);
+  await page.goto('/?devScene=difficulty&mobilePreview=1');
+  await waitForScene(page, 'DifficultySelect');
+  await page.getByRole('button', { name: 'Confirm', exact: true }).tap();
+  await waitForScene(page, 'BlessingSelect');
+  const shrine = page.getByRole('dialog', { name: 'Choose a blessing', exact: true });
+  // Two priced cards: Debt and Hunted (more words than the footer's three lines hold).
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('BlessingSelect');
+    const catalog = s.gameData.blessings.priceCatalog;
+    const price = (ids) => ({
+      label: ids.map((id) => catalog[id].label.replace('{owed}', '3,000')).join(' · '),
+      effects: ids.flatMap((id) => catalog[id].effects),
+    });
+    const card = (id, ids) => {
+      const b = structuredClone(s.gameData.blessings.blessings.find((x) => x.id === id));
+      b.rolledCost = price(ids);
+      return b;
+    };
+    s.options = [
+      card('iron_oath', ['debt_large']),
+      card('nomad_pact', ['hunted', 'act1_def_down_1']),
+    ];
+    s.selectedIndex = 0;
+    s._draw();
+  });
+  // The chosen card's ⓘ sits in the footer, outside the cards.
+  await shrine.getByRole('button', { name: "About Iron Oath's price" }).tap();
+  const help = page.getByRole('dialog', { name: 'Iron Oath: the price', exact: true });
+  await expect(help).toBeVisible();
+  await expect(help).toContainText('Debt: 3,000 gold');
+  await expect(help).toContainText('goes to the lender until it');
+  await help.getByRole('button', { name: 'Close', exact: true }).tap();
+  await expect(help).toBeHidden();
+  await expect(shrine.locator('[data-focus="choice-0"]')).toHaveAttribute('aria-pressed', 'true');
+  // Press and hold the other card: its own price opens, and the hold does not choose it.
+  const other = shrine.locator('[data-focus="choice-1"]');
+  const box = await other.boundingBox();
+  const at = { clientX: box.x + box.width / 2, clientY: box.y + box.height / 2 };
+  const pointer = { pointerType: 'touch', pointerId: 7, isPrimary: true, button: 0, ...at };
+  // The help makes the shrine inert (hidden from role queries): keep the card itself.
+  const card = await other.elementHandle();
+  await card.dispatchEvent('pointerdown', pointer);
+  const held = page.getByRole('dialog', { name: "Nomad's Pact: the price", exact: true });
+  await expect(held).toBeVisible();
+  await card.dispatchEvent('pointerup', pointer);
+  await card.dispatchEvent('click', at);
+  await expect(held).toContainText('Something follows your trail');
+  await held.getByRole('button', { name: 'Close', exact: true }).tap();
+  await expect(held).toBeHidden();
+  await expect(other).toHaveAttribute('aria-pressed', 'false');
 });
 
 test('difficulty banners: locked modes say why, the terms read beneath', async ({ page }, info) => {

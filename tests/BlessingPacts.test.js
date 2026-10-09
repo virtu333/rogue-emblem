@@ -5,6 +5,7 @@ import { RunManager } from '../src/engine/RunManager.js';
 import { applyForge } from '../src/engine/ForgeSystem.js';
 import {
   validateBlessingsConfig,
+  resolvePriceOption,
   rollCostForBlessing,
   selectBlessingOptionsWithTelemetry,
   createSeededRng,
@@ -27,6 +28,14 @@ Object.defineProperty(globalThis, 'localStorage', {
 
 const data = loadGameData();
 const catalogBlessing = (id) => data.blessings.blessings.find((b) => b.id === id);
+// A v3 pact as a run on `rung` pays it (BlessingEngine.resolvePriceOption, Debt scaled).
+const pactOf = (id, rung = 'normal') => {
+  const { label, effects, kind } = resolvePriceOption(data.blessings, catalogBlessing(id).pact, {
+    difficultyId: rung,
+    kind: 'pact',
+  });
+  return { label, effects, kind };
+};
 const DEFORGE_LABEL = "Lords' forged weapons lose one forge (never below +0)";
 const deforgeEntry = () =>
   data.blessings.costPools['4'].find((entry) =>
@@ -66,11 +75,13 @@ describe('pact data', () => {
     expect(result.valid).toBe(true);
   });
 
-  it('Forbidden Tome and Scroll Archive carry a fixed, labelled pact', () => {
-    for (const id of ['forbidden_tome', 'scroll_archive']) {
-      const b = catalogBlessing(id);
-      expect(b.pact?.label?.length).toBeGreaterThan(0);
-      expect(b.pact.effects.length).toBeGreaterThan(0);
+  it('every tier IV blessing carries a fixed, labelled pact (v3: catalog prices)', () => {
+    const tier4 = data.blessings.blessings.filter((b) => b.tier === 4);
+    expect(tier4.length).toBeGreaterThan(0);
+    for (const b of tier4) {
+      const pact = pactOf(b.id);
+      expect(pact.label.length, b.id).toBeGreaterThan(0);
+      expect(pact.effects.length, b.id).toBeGreaterThan(0);
       expect(b.costs).toEqual([]);
     }
   });
@@ -96,7 +107,7 @@ describe('pact data', () => {
 describe('pact offers', () => {
   it('a pact blessing always costs its pact, whatever the seed', () => {
     for (const id of ['forbidden_tome', 'scroll_archive']) {
-      const pact = catalogBlessing(id).pact;
+      const pact = pactOf(id);
       for (let seed = 1; seed <= 25; seed++) {
         const rm = freshRun(seed);
         const resolved = rm._resolveBlessingOfferForSelection(catalogBlessing(id), 0, 'test');
@@ -117,10 +128,10 @@ describe('pact offers', () => {
   it('shrine offers show the pact as the chosen price and store it on the run', () => {
     const rm = freshRun(77);
     const entry = chooseThroughShrine(rm, 'scroll_archive');
-    expect(entry.rolledCost).toEqual(catalogBlessing('scroll_archive').pact);
+    expect(entry.rolledCost).toEqual(pactOf('scroll_archive'));
     const offers = rm.getBlessingOptions();
     expect(offers[0].pact).toBeTruthy();
-    expect(offers[0].rolledCost.label).toBe(catalogBlessing('scroll_archive').pact.label);
+    expect(offers[0].rolledCost.label).toBe(pactOf('scroll_archive').label);
   });
 });
 
@@ -146,11 +157,13 @@ describe('Scroll Archive', () => {
     expect(seen.size).toBeGreaterThan(2);
   });
 
-  it('charges the blood price: every weapon art costs 2 more HP', () => {
+  it("charges its pact: the rung's tier IV Debt (First Light: 5,000 x 0.55)", () => {
     const rm = freshRun(5);
-    expect(rm.blessingRuntimeModifiers.weaponArtHpCostDelta || 0).toBe(0);
+    expect(rm.burdens || []).toEqual([]);
     chooseThroughShrine(rm, 'scroll_archive');
-    expect(rm.blessingRuntimeModifiers.weaponArtHpCostDelta).toBe(2);
+    expect(rm.burdens.find((b) => b.id === 'debt')).toMatchObject({ owed: 2750, garnish: 0.25 });
+    // The old pact (arts +2 HP) is gone: it was nearly free.
+    expect(rm.blessingRuntimeModifiers.weaponArtHpCostDelta || 0).toBe(0);
   });
 
   it('without the unlock cap the grant can reach late-act arts (the old behaviour)', () => {

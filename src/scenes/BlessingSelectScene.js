@@ -12,6 +12,32 @@ import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { InputAction } from '../utils/InputActions.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 
+// The seed of a run offered but not yet begun, kept in the game registry for each slot
+// (`{ [slot]: seed }`): backing out of the shrine and returning shows the same offer (and the
+// same run), even after another slot's shrine was opened, so the offer cannot be re-rolled
+// for free (docs/specs/blessings-v3.md §3.2). A slot's seed is cleared once its run begins.
+export const PENDING_RUN_SEED_KEY = 'pendingBlessingRunSeeds';
+
+const slotKey = (registry) => String(registry?.get?.('activeSlot') ?? 'none');
+
+function pendingRunSeeds(registry) {
+  const seeds = registry?.get?.(PENDING_RUN_SEED_KEY);
+  return seeds && typeof seeds === 'object' ? seeds : {};
+}
+
+function pendingRunSeed(registry) {
+  const seed = pendingRunSeeds(registry)[slotKey(registry)];
+  return Number.isFinite(seed) ? seed : null;
+}
+
+function setPendingRunSeed(registry, seed) {
+  if (!registry?.set) return;
+  const seeds = { ...pendingRunSeeds(registry) };
+  if (Number.isFinite(seed)) seeds[slotKey(registry)] = seed;
+  else delete seeds[slotKey(registry)];
+  registry.set(PENDING_RUN_SEED_KEY, seeds);
+}
+
 const TIER_COLORS = {
   1: { label: '#88ffbb', border: 0x2c7a4a, bg: 0x14281f },
   2: { label: '#9ed5ff', border: 0x2f5c88, bg: 0x132234 },
@@ -30,7 +56,7 @@ export class BlessingSelectScene extends Phaser.Scene {
     this.noMetaUpgrades = data.noMetaUpgrades === true;
     this.isTransitioning = false;
     this._blessingCommitted = false;
-    this._blessingRunSeed = null;
+    this._blessingRunSeed = pendingRunSeed(this.registry);
     this._pendingBlessingSelection = null;
   }
 
@@ -107,6 +133,7 @@ export class BlessingSelectScene extends Phaser.Scene {
       runSeed: this._blessingRunSeed,
     });
     if (!Number.isFinite(this._blessingRunSeed)) this._blessingRunSeed = this.runManager.runSeed;
+    setPendingRunSeed(this.registry, this._blessingRunSeed);
     this.options = this.runManager.getBlessingOptions().slice(0, 4);
   }
 
@@ -171,7 +198,8 @@ export class BlessingSelectScene extends Phaser.Scene {
           return;
         }
         // The run is committed: count the attempt (finished runs are counted
-        // separately when the run settles).
+        // separately when the run settles). The next run gets a fresh seed.
+        setPendingRunSeed(this.registry, null);
         this.registry.get('meta')?.incrementRunsStarted?.();
         // Clear stale run save only after transition success.
         const cloud = this.registry.get('cloud');

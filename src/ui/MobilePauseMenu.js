@@ -30,6 +30,52 @@ export function pauseBurdenList(burdens) {
   return list;
 }
 
+/**
+ * The blessings the run holds (heldBlessingsModel `heldBlessingEntries`): one entry each, the
+ * name and tier over what it does, then what it cost when taken. Null when the run holds none.
+ */
+export function pauseBlessingList(blessings) {
+  if (!Array.isArray(blessings) || !blessings.length) return null;
+  const list = document.createElement('ul');
+  list.className = 'mp-blessings';
+  list.setAttribute('aria-label', 'Blessings');
+  for (const blessing of blessings) {
+    const item = document.createElement('li');
+    const name = document.createElement('strong');
+    name.textContent = blessing.tier ? `${blessing.label} \u00b7 ${blessing.tier}` : blessing.label;
+    const line = document.createElement('span');
+    line.textContent = blessing.line;
+    item.append(name, line);
+    if (blessing.price) {
+      const label = `${blessing.priceKind || 'Cost'}: ${blessing.price}`;
+      if (blessing.terms?.length) {
+        // A price that names a burden, shadow or Vision opens on a tap (or Enter) to say
+        // what those words mean: touch has no hover.
+        const price = document.createElement('details');
+        price.className = 'mp-blessing-price';
+        const summary = document.createElement('summary');
+        summary.textContent = label;
+        const terms = document.createElement('p');
+        terms.className = 'mp-blessing-terms';
+        for (const t of blessing.terms) {
+          const term = document.createElement('b');
+          term.textContent = `${t.term}:`;
+          terms.append(term, ` ${t.text} `);
+        }
+        price.append(summary, terms);
+        item.append(price);
+      } else {
+        const price = document.createElement('span');
+        price.className = 'mp-blessing-price';
+        price.textContent = label;
+        item.append(price);
+      }
+    }
+    list.append(item);
+  }
+  return list;
+}
+
 // Presents the existing PauseOverlay actions; ownership and transitions stay there.
 export class MobilePauseMenu {
   constructor(overlay) {
@@ -75,7 +121,8 @@ export class MobilePauseMenu {
     this.sync();
   }
   move(delta) {
-    const buttons = [...this.root.querySelectorAll('button')];
+    // A blessing's price that opens (a <summary>) is a stop too, after the list above it.
+    const buttons = [...this.root.querySelectorAll('button, summary')];
     if (!buttons.length) return;
     const i = buttons.indexOf(document.activeElement);
     buttons[(i + delta + buttons.length) % buttons.length].focus();
@@ -121,6 +168,8 @@ export class MobilePauseMenu {
       panel.append(note);
       const burdens = pauseBurdenList(o.burdens);
       if (burdens) panel.append(burdens);
+      const blessings = pauseBlessingList(o.blessings);
+      if (blessings) panel.append(blessings);
     }
     if (confirming) {
       const message = document.createElement('p');

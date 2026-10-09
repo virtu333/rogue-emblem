@@ -35,7 +35,7 @@ emblem-rogue/
 ├── data/                  # 24 game data JSON files (source of truth)
 │   ├── accessories.json   # 33 accessories: 10 stat-based + 23 with combatEffects (incl. legendaries: Mentor's Band EXP Share, Mercury Sandals; the four `legendary: true` ones never roll a skill)
 │   ├── affixes.json       # 12 enemy affixes: difficulty-gated modifiers with exclusion rules
-│   ├── blessings.json     # 23 shrine blessings: tiered run-shaping modifiers
+│   ├── blessings.json     # 23 shrine blessings (v3: a `priceCatalog` with points; tier II-III list candidate `prices`, tier IV a fixed `pact`, inside `tierBands`; Debt scaled by `debtScale`; docs/blessings_contract.md, docs/specs/blessings-v3.md)
 │   ├── classes.json       # 55 entries: 23 base + 31 promoted + 1 boss-tier class (enemy-only: Zombie/Revenant, Dragon/Dragon Lord, Skeleton/Necromancer)
 │   ├── colosseum.json     # Mercenary arena config: merc pools, ladder, promotion scaling
 │   ├── consumables.json   # 16 consumable items: 3 core + 8 stat boosters + 2 reclass seals + 2 misc + the Gold Pouch (carried by foes, never sold in a shop)

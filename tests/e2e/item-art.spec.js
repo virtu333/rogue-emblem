@@ -327,7 +327,7 @@ for (const view of VIEWS) {
       await waitForScene(page, 'BlessingSelect');
       await page.evaluate(() => {
         const s = window.__emblemRogueGame.scene.getScene('BlessingSelect');
-        const ids = ['blood_forge', 'quartermaster_cache', 'field_medic'];
+        const ids = ['war_tutelage', 'quartermaster_cache', 'field_medic'];
         s.options = ids.map((id, i) => s.runManager._resolveBlessingOfferForSelection({ id }, i));
         s.selectedIndex = 0;
         s._draw();
@@ -340,7 +340,7 @@ for (const view of VIEWS) {
           .nth(i)
           .locator('.ia-card-art')
           .evaluate((el) => getComputedStyle(el, '::after').backgroundImage);
-      expect(await paint(0)).toMatch(/moments\/cards\/blood_forge\.png/);
+      expect(await paint(0)).toMatch(/moments\/cards\/war_tutelage\.png/);
       expect(await paint(2)).toMatch(/moments\/cards\/field_medic\.png/);
       // Tier IV wears the dotted ember frame; the numeral stays in its corner disc.
       await expect(cards.nth(0)).toHaveAttribute('data-tier', '4');
