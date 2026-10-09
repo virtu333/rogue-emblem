@@ -203,6 +203,11 @@ function normalizeCombatFoeDefShare(value) {
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
+/** A Hit rating as a roll's input: 0 to 100. */
+function clampHit(hit) {
+  return Math.max(0, Math.min(100, hit));
+}
+
 function normalizeCombatMods(mods) {
   if (!mods || typeof mods !== 'object') return null;
   return {
@@ -239,6 +244,7 @@ function normalizeCombatMods(mods) {
     ignoreWeaponTriangle: Boolean(mods.ignoreWeaponTriangle),
     ignoreRES: Boolean(mods.ignoreRES),
     foeDefShare: normalizeCombatFoeDefShare(mods.foeDefShare),
+    firstStrikeHitBonus: Math.trunc(Number(mods.firstStrikeHitBonus) || 0),
     activated: Array.isArray(mods.activated) ? [...mods.activated] : [],
   };
 }
@@ -286,6 +292,7 @@ export function mergeCombatMods(baseMods, extraMods) {
     ignoreWeaponTriangle: base.ignoreWeaponTriangle || extra.ignoreWeaponTriangle,
     ignoreRES: base.ignoreRES || extra.ignoreRES,
     foeDefShare: base.foeDefShare + extra.foeDefShare,
+    firstStrikeHitBonus: base.firstStrikeHitBonus + extra.firstStrikeHitBonus,
     activated: [...base.activated, ...extra.activated],
   };
 }
@@ -1096,10 +1103,12 @@ export function forecastStrikeGroups(side) {
     drainMaxPerHit: side.drainMaxPerHit || null,
     drainPerHit: side.drainPerHit || 0,
   };
+  // Keen Eye: only the very first strike rolls at `firstHit`; group 0 carries it.
+  const withFirstHit = (group) => ({ ...group, firstHit: side.firstHit ?? side.hit });
   if (side.followUp) {
     const firstCount = Math.max(0, side.attackCount - side.followUp.attackCount);
     return [
-      { ...first, count: firstCount },
+      { ...withFirstHit(first), count: firstCount },
       {
         damage: side.followUp.damage,
         hit: side.followUp.hit,
@@ -1115,11 +1124,11 @@ export function forecastStrikeGroups(side) {
   if (side.doubles) {
     const half = Math.max(1, Math.round(side.attackCount / 2));
     return [
-      { ...first, count: half },
+      { ...withFirstHit(first), count: half },
       { ...first, count: side.attackCount - half },
     ].filter((group) => group.count > 0);
   }
-  return [{ ...first, count: side.attackCount }];
+  return [{ ...withFirstHit(first), count: side.attackCount }];
 }
 
 /** Total damage a forecast side deals if every strike lands without a crit. */
@@ -1316,11 +1325,13 @@ export function getCombatForecast(
   const defTerrainForAtkHit = atkMods?.ignoreTerrainAvoid ? null : defTerrain;
   let atkDmg = strikeDamage(attacker, atkWeapon, defender, defWeapon, defTerrain, atkMods, defMods);
   if (atkMultiHit) atkDmg = Math.max(1, Math.floor(atkDmg * atkMultiHit.damageMultiplier));
-  let atkHit =
+  // Keen Eye: the first strike of a combat its holder starts has a Hit of its own.
+  const atkHitRaw =
     calculateHitRate(attacker, atkWeapon, defender, defTerrainForAtkHit, atkTriangle) +
     (atkMods?.hitBonus || 0) -
     (defMods?.avoidBonus || 0);
-  atkHit = Math.max(0, Math.min(100, atkHit));
+  let atkHit = clampHit(atkHitRaw);
+  let atkFirstHit = clampHit(atkHitRaw + (atkMods?.firstStrikeHitBonus || 0));
   let atkCrit = calculateCritRate(attacker, atkWeapon, defender) + (atkMods?.critBonus || 0);
   atkCrit = Math.max(0, Math.min(100, atkCrit));
   if (isEntity(defender)) atkCrit = Math.floor(atkCrit * ENTITY_CRIT_RATE_MULT);
@@ -1331,6 +1342,7 @@ export function getCombatForecast(
   if (fSilencedAttacker) {
     atkDmg = 0;
     atkHit = 0;
+    atkFirstHit = 0;
   }
 
   // Doubling with accessory + skill + weight modifiers
@@ -1562,6 +1574,7 @@ export function getCombatForecast(
       stones: revivalStoneCount(attacker).remaining,
       damage: atkDmg,
       hit: atkHit,
+      firstHit: atkFirstHit,
       crit: atkCrit,
       as: atkEffectiveSpd,
       doubles: atkDoubles,
@@ -1970,15 +1983,13 @@ export function resolveCombat(
   if (defMods?.halfPhysicalDamage && isPhysical(atkWeapon)) atkLunaDmg = Math.floor(atkLunaDmg / 2);
   if (atkMods?.damageMultiplier > 1) atkLunaDmg = Math.floor(atkLunaDmg * atkMods.damageMultiplier);
   atkLunaDmg = Math.max(0, atkLunaDmg);
-  let atkHit = Math.max(
-    0,
-    Math.min(
-      100,
-      calculateHitRate(attacker, atkWeapon, defender, defTerrainForAtkHit, atkTriangle) +
-        (atkMods?.hitBonus || 0) -
-        (defMods?.avoidBonus || 0),
-    ),
-  );
+  // Keen Eye: only the attacker's first rolled strike takes `firstStrikeHitBonus`.
+  const atkHitRaw =
+    calculateHitRate(attacker, atkWeapon, defender, defTerrainForAtkHit, atkTriangle) +
+    (atkMods?.hitBonus || 0) -
+    (defMods?.avoidBonus || 0);
+  let atkHit = clampHit(atkHitRaw);
+  let atkFirstHit = clampHit(atkHitRaw + (atkMods?.firstStrikeHitBonus || 0));
   let atkCrit = Math.max(
     0,
     Math.min(100, calculateCritRate(attacker, atkWeapon, defender) + (atkMods?.critBonus || 0)),
@@ -1991,6 +2002,7 @@ export function resolveCombat(
   if (silencedAttacker) {
     atkDmg = 0;
     atkHit = 0;
+    atkFirstHit = 0;
   }
 
   // Silenced defenders cannot counter with magic weapons (Tome/Light/Staff)
@@ -2157,6 +2169,9 @@ export function resolveCombat(
   const atkCritMult = isEntity(defender) ? ENTITY_CRIT_DMG_MULT : CRIT_MULTIPLIER;
   const defCritMult = isEntity(attacker) ? ENTITY_CRIT_DMG_MULT : CRIT_MULTIPLIER;
 
+  // Keen Eye's first strike is spent by the attacker's first rolled strike.
+  let atkFirstStrikePending = true;
+
   // Execute N strikes from one combatant against the other
   function strike(
     aName,
@@ -2169,6 +2184,7 @@ export function resolveCombat(
     strikeSkills,
     weaponSpecial,
     strikerMods,
+    firstStrikeHit = null,
   ) {
     const attackerSide = isAttackingDefender ? 'attacker' : 'defender';
     const targetSide = isAttackingDefender ? 'defender' : 'attacker';
@@ -2179,10 +2195,19 @@ export function resolveCombat(
     const strikeCritMult = isAttackingDefender ? atkCritMult : defCritMult;
     for (let i = 0; i < count && atkHP > 0 && defHP > 0 && !exchangeEnded; i++) {
       const targetHP = isAttackingDefender ? defHP : atkHP;
+      // Keen Eye: the attacker's first rolled strike of the combat (a Vantage defender's
+      // phase leaves it pending; brave, follow-up and bonus strikes roll at `hit`).
+      let strikeHit = hit;
+      let firstStrikeApplied = false;
+      if (isAttackingDefender && firstStrikeHit !== null && atkFirstStrikePending) {
+        atkFirstStrikePending = false;
+        strikeHit = firstStrikeHit;
+        firstStrikeApplied = firstStrikeHit !== hit;
+      }
       const evt = rollStrike(
         aName,
         tName,
-        hit,
+        strikeHit,
         dmg,
         crit,
         targetHP,
@@ -2196,6 +2221,7 @@ export function resolveCombat(
         drainFlat,
         isAttackingDefender ? defender : attacker,
       );
+      if (firstStrikeApplied) evt.firstStrikeBonus = true;
       if (evt.stoneBroken) {
         exchangeEnded = true;
         brokeBar[targetSide] = true;
@@ -2318,6 +2344,7 @@ export function resolveCombat(
     weapon,
     strikerMods,
     lunaDamage,
+    firstStrikeHit = null,
   ) {
     if (exchangeEnded) return;
     let count = braveCount;
@@ -2356,6 +2383,7 @@ export function resolveCombat(
       strikeSkills,
       weapon?.special || '',
       strikerMods,
+      firstStrikeHit,
     );
     if (strikeSkills) strikeSkills.lunaDamage = originalLunaDamage;
   }
@@ -2378,6 +2406,7 @@ export function resolveCombat(
       atkWeapon,
       f ? f.mods : atkMods,
       f ? f.lunaDamage : undefined,
+      f ? null : atkFirstHit,
     );
     if (f) markArtFollowUpStrikes(events, firstEvent);
   }

@@ -19,6 +19,11 @@ export function hitChancePercent(hit) {
 
 /** Forecast value formats, one shape per kind so the numbers never read alike. */
 export const formatHitChance = (hit) => `${hitChancePercent(hit)}%`;
+/**
+ * A side's Hit cell: its first strike's chance. Keen Eye lifts only that strike
+ * (`firstHit`); every later strike rolls at `hit`, which `forecastNotes` names.
+ */
+export const formatSideHit = (info) => formatHitChance(info?.firstHit ?? info?.hit);
 export const formatCritChance = (crit) => `${Math.max(0, Math.min(100, Number(crit) || 0))}%`;
 export const formatStrikes = (count) => `×${Math.max(1, Number(count) || 1)}`;
 
@@ -60,7 +65,9 @@ export function forecastProjection(forecast) {
     for (let i = 0; i < g.count; i++) {
       if (attackerHP <= 0 || defenderHP <= 0 || broke) return;
       // Thorns sends part of each landed hit back, but never takes the last HP.
-      if (side === 'a' && g.hit > 0) {
+      // The very first strike of the attacker may roll at a Hit of its own (Keen Eye).
+      const landing = index === 0 && i === 0 ? (g.firstHit ?? g.hit) : g.hit;
+      if (side === 'a' && landing > 0) {
         defenderHP = Math.max(0, defenderHP - g.damage);
         if (g.thornsReflect > 0) attackerHP = Math.max(1, attackerHP - g.thornsReflect);
         if (defenderHP <= 0 && d.stones > 0) broke = 'defender';
@@ -108,6 +115,15 @@ export function counterRisk(forecast, attackerHP = forecast?.attacker?.hp) {
     : '';
 }
 
+/** True when the side's first strike rolls differently from the ones after it. */
+function laterStrikesDiffer(side) {
+  return (
+    side?.firstHit !== undefined &&
+    side.firstHit !== side.hit &&
+    forecastStrikeGroups(side).reduce((n, g) => n + g.count, 0) > 1
+  );
+}
+
 // Shared readout for the canvas and DOM forecasts. Keep assumptions beside estimates.
 /**
  * Short notes under a forecast side. `weapons` ({ planned, equipped }) lets the
@@ -131,6 +147,8 @@ export function forecastNotes(forecast, attacking, attackerHP, weapons = null) {
   const side = attacking ? forecast.attacker : forecast.defender;
   if (typeof side?.lessonNote === 'string' && side.lessonNote) notes.push(side.lessonNote);
   const striker = attacking ? forecast.attacker : forecast.defender;
+  if (attacking && laterStrikesDiffer(striker))
+    notes.push(`Later strikes: ${formatHitChance(striker.hit)} (Keen Eye lifts the first)`);
   if (striker?.thornsReflect > 0)
     notes.push(`Thorns: −${striker.thornsReflect} HP per hit landed (leaves at least 1)`);
   if (attacking) {
