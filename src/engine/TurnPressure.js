@@ -4,8 +4,8 @@
 // * No progress: after ANTI_TURTLE_NO_PROGRESS_TURNS enemy phases in a row with no
 //   kill, no lord step toward the throne / an exit and no unit escaping, the AI turns
 //   aggressive (guards leave their posts, the seize boss leaves its throne).
-// * Boss enrage: with a living boss, from turn min(bossEnrageTurn, par +
-//   bossEnrageOverPar) (TurnBonusCalculator.isBossEnrageActive).
+// * Boss enrage: with a living boss, from turn max(par + bossEnrageMinOverPar,
+//   min(bossEnrageTurn, par + bossEnrageOverPar)) (TurnBonusCalculator.isBossEnrageActive).
 // BattleScene and the headless harness both advance the same state once per enemy
 // phase; the state is plain data (checkpoints, Vision snapshots and the suspend file
 // store it as-is, BattleStateSnapshot validates it).

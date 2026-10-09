@@ -171,8 +171,12 @@ export function getLatePressureState(turnsTaken, par, config) {
 }
 
 /**
- * Resolve the turn when boss timed enrage activates.
- * Uses min(bossEnrageTurn, par + bossEnrageOverPar) when par is available.
+ * Resolve the turn when boss timed enrage activates. The one rule: every reader
+ * (TurnPressure, the scene's warning, the boss bar, the harness) calls this.
+ * With par: max(par + bossEnrageMinOverPar, min(bossEnrageTurn, par + bossEnrageOverPar)),
+ * so the absolute cap never pulls enrage to or before par (a player on par never meets
+ * an enraged boss). Without par: bossEnrageTurn.
+ * docs/specs/large-maps/02-encounters-and-pacing.md §2.1.
  * @param {number|null} par
  * @param {object} config - turnBonus.json data
  * @returns {number|null}
@@ -185,11 +189,18 @@ export function getBossEnrageTurn(par, config) {
   const overPar = Number.isFinite(pressure?.bossEnrageOverPar)
     ? Math.max(0, Math.trunc(pressure.bossEnrageOverPar))
     : null;
+  const minOverPar = Number.isFinite(pressure?.bossEnrageMinOverPar)
+    ? Math.max(0, Math.trunc(pressure.bossEnrageMinOverPar))
+    : null;
 
   let threshold = absoluteTurn;
   if (Number.isFinite(par) && Number.isFinite(overPar)) {
     const parThreshold = Math.max(1, Math.trunc(par) + overPar);
     threshold = Number.isFinite(threshold) ? Math.min(threshold, parThreshold) : parThreshold;
+  }
+  // The floor only bounds an enrage the rules above define; it never creates one.
+  if (Number.isFinite(threshold) && Number.isFinite(par) && Number.isFinite(minOverPar)) {
+    threshold = Math.max(threshold, Math.max(1, Math.trunc(par) + minOverPar));
   }
   return Number.isFinite(threshold) ? threshold : null;
 }
