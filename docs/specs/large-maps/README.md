@@ -231,6 +231,11 @@ enemy phases.
   `EnemyCarry` and `AccessorySkills` do.
 - Adding a set piece to the game never changes another map for the same seed.
 
+**Old clients.** A run holding a set piece carries a `requiresClient` marker (`04` §12.1):
+- A client too old to play it refuses to load it, and writes nothing.
+- Its run save stays local-only through the prologue's existing hold-back,
+  `CloudSync.isLocalOnlyRunSave`.
+
 **Prologue.** It is unchanged. Set pieces are standard-run content; `isScriptedBattle`
 keeps meaning the prologue.
 
@@ -291,8 +296,8 @@ About 20 working days.
 2. **`02` encounter groups, trimmed (PRs 2.1, 2.2a):**
    - groups, the `danger` and `hurt` wakes, the hold-pack adapter, `encounterState`, and
      parity with today's holds;
-   - the `groupWoken` and `tile` triggers, `turn` with `parOffset`, warn bands, and
-     always-on dormant outlines.
+   - the `groupWoken` trigger, `turn` with `parOffset`, warn bands, and always-on dormant
+     outlines (`tile` ships in the same PR but the Mill Ford doesn't use it).
    - No `sight`, no patrols. The Mill Ford's raiders are a group that starts awake with
      `seek_tile`, like today's village bandits.
 3. **`02` par (PR 2.5):** `groups-v1`, with `W` from `parRoute`, in its own PR.
@@ -306,15 +311,16 @@ About 20 working days.
    predicate, strip and payout already handle.
 6. **`01` PR 1 only** (and the phone pointers once two fronts go off-screen).
 
-Then **Two Towers** (about 9 more days): `03` PR 1 (the model), `03` PR 1b (`defeat` with
+Then **Two Towers** (about 12 more days, `04` §14.1): `03` PR 1 (the model), `03` PR 1b (`defeat` with
 per-unit `clampTile`) and the map itself. Its bonus can follow with `03` PRs 3 and 5. Before **Long Road**, the first board that doesn't fit:
 `01`'s desktop camera, enemy-phase follow and pointers.
 
 ## 6. Open questions for the owner
 
 1. **How often:** at most one large set piece per act on ordinary nodes, or more?
-2. **First Light:** do set pieces appear there, or from Dusk up only? As written, `04` gives
-   First Light boss set pieces but no ordinary or elite ones. The most-played rung would
+2. **First Light:** do set pieces appear there, or from Dusk up only? First Light has no
+   Act IV (its run ends at the Lieutenant), so only Act III maps are in question there.
+   Revision 1 of `04` gave First Light boss set pieces but no ordinary or elite ones. The most-played rung would
    then meet sleeping groups and phases first at an act boss. Recommendation: keep First
    Light's boss maps on today's arenas until the at-point-of-use Guidance notes ship
    (`02` §3.8, `03` §11.2). Then allow one ordinary set piece on First Light, so the

@@ -62,10 +62,10 @@ A **set piece** is a fixed-size map. It is assembled from:
 
 Seeded **choices** (`oneOf`) pick chunks and toggle groups and bonuses, so each run meets a
 different plan on the same named place. A new generator path makes an ordinary locked
-`battleConfig` plus `setPiece`, `objectives`, `encounterGroups`, `anchors` and `parRoute`; it is a
-standard battle whose enemies come from the act and rung. A validator in `validate:data`
-proves every combination connected and inside 5–12 turns. A keyed post-pass places set
-pieces without touching the node-map stream.
+`battleConfig` plus `setPiece`, `objectives`, `encounterGroups`, `anchors` and
+`parRoute`; it is a standard battle whose enemies come from the act and rung. A validator
+in `validate:data` proves every combination connected and inside 5–12 turns. A keyed
+post-pass places set pieces without touching the node-map stream.
 
 ## 3. The format
 
@@ -325,12 +325,13 @@ All of this runs inside the caller's `withBattleSeed(battleSeed)`.
     plan's legs as `battleConfig.parRoute` (each `to` an anchor name in
     `battleConfig.anchors`, each `group` a group id). Par is then `02` §5.2's `groups-v1`
     and nothing else: W walks `parRoute`, S counts the engagements on it, and `03`'s
-    `parAdjust` (non-walk terms only: boss bars, survive turns, a structure's `parTurns`)
-    is added to `raw` inside `groups-v1`, before its `max(par, W + 3 + bossTurns)` floor
-    and the First Light cap. This spec adds no walk term of its own and `03` adds none
-    either, so the walk is counted once. The rung pipeline (`parInflation`,
-    `parOffsetConfig`, `:3129`) is the one `02` §5.2 lists. The same `parRoute` feeds the
-    §8.3 estimate.
+    `parAdjust` (non-walk terms only: boss bars, survive turns, a structure's `parTurns`,
+    escort pace) is added inside `groups-v1` in the order `02` §5.2 fixes (after the 0.8
+    and the rung multiplier, before the rung's inflation, bonus and offset, `02`'s S
+    floor `1 + W + parAdjust + bossTurns + 3` and the First Light cap). This spec adds no
+    walk term of its own and `03` adds none either, so the walk is counted once. The rung
+    pipeline (`parInflation`, `parOffsetConfig`, `:3129`) is the one `02` §5.2 lists. The
+    same `parRoute` feeds the §8.3 estimate.
 
 ### 4.3 Enemies come from the act and the rung
 
@@ -500,12 +501,17 @@ v1's three absolute pieces become relative:
 | `scriptedWaves.spawns[{ col,row }]` | `02` groups: dormant members already on the map, or `triggeredWaves` with `side: 'anchor:<name>'` |
 
 **Runtime.**
-- A v2 config carries resolved tiles only. Phase terrain changes run in one pure module,
-  `engine/TerrainPhases.js`, extracted from `BattleScene.applyDueHybridOverridesForTurn`
-  (`:2735`) and the harness copy (`HeadlessBattle.js:1039`). The harness copy is then deleted
-  (CLAUDE.md "residual gap").
-- The module keeps v1's ordering (terrain first, then arrivals) and checks occupancy: a
-  `setTiles` target under a unit is skipped and logged.
+- A v2 config carries resolved tiles only. Phase terrain changes **call** `02`'s
+  `engine/TerrainPhases.js`, `applyTerrainSetTiles(grid, setTiles, anchors, { occupants })`,
+  through `03`'s phases (`onEnter.setTiles`). `02` PR 0b creates the module and deletes the
+  harness copy (`HeadlessBattle.js:1039`); this spec extracts nothing and adds no second
+  terrain path.
+- The module keeps v1's ordering (terrain first, then arrivals) and never writes terrain an
+  occupant can't stand on; it returns those entries, which `03`'s phases record and skip
+  (v1 hybrid overrides defer them instead, `02` §2.2).
+- A phase's `until` and its `onEnter` effects (terrain, wakes) are evaluated and applied at
+  `02`'s one enemy-phase check, in the `phase` slot after `objective` and before `turn`
+  (README §3): the board never changes under the player's own turn.
 - Fired phases ride the checkpoint, the rewind snapshot and the validator with `02`/`03`'s
   fired-trigger ledger. v1's `appliedHybridOverrideTurns` stays for v1 configs.
 
@@ -540,7 +546,9 @@ called from `tools/validateSchemas.js` beside the prologue and events validators
 
 **Enumeration.** Combinations are the product over choices (options open on the rung) of
 the product over each cell's remaining chunk list, times the whole-map mirror.
-- More than **256** combinations is an error: bind cells to a choice instead.
+- More than **256** combinations is an error: bind cells to a choice instead. (The cap and
+  its timing budget are deferrable for the first shipment: the Mill Ford has 16
+  combinations. Two Towers' 192 bring them back, §14.)
 - Per combination, the work is:
   - assembly;
   - 4 BFS per layout state (start, then after each phase; ~0.05 ms each at 24x16);
@@ -557,8 +565,9 @@ the product over each cell's remaining chunk list, times the whole-map mirror.
 **Checks:**
 1. Every anchor name resolves exactly once and in bounds. The size is inside the slot's band.
    Seams match their ports.
-2. The deploy region has at least `DEPLOY_LIMITS[act].max + 2` (10) tiles standable by
-   Infantry, Armored and Cavalry.
+2. The deploy region has at least `DEPLOY_LIMITS[act].max + 2` tiles standable by
+   Infantry, Armored and Cavalry: 9 in Act III, 10 in Act IV (`constants.js:71-78`: max 7
+   and 8).
 3. **Paths from the deploy region,** at start and after each phase in trigger order:
    - every primary anchor: `seize`, `defeat` and `capture` for each lord move type
      (Infantry, Cavalry, Flying: `lords.json` has all three); `escape` exits for all four
@@ -572,16 +581,34 @@ the product over each cell's remaining chunk list, times the whole-map mirror.
    - regions do not overlap the deploy region or each other.
 5. **Overlaps:** no phase target in a group region, wave tile, deploy tile or primary anchor
    (§7). No feature anchor (Throne, Ballista, Village) under a group seat.
-6. **Races** declared by a bonus (`race: { group, fastMov, slowMov }`): a unit at `fastMov`
+6. **Races** declared by a tile bonus (`race: { group, fastMov, slowMov }`, `03` §7.1's
+   optional authored field; `03`'s validator checks only its shape): a unit at `fastMov`
    reaches the anchor before the group's arrival phase, and one at `slowMov` does not. The
-   race is part of the design, so the validator holds it.
+   arrival phase is the enemy phase in which the group's `seek` path, at its slowest
+   member's MOV, first ends on the anchor. The check is static (`turnsToReach` on the
+   assembled layout) and needs nothing at runtime: no visit derivation (`03` PR 3) and no
+   race state in battle. The race is part of the design, so the validator holds it.
 7. **The turn band** (§8.3): the estimate is in [5, 12] for every combination and rung, and
-   the spread across combinations is ≤ 2 turns per rung. `02` §5.1's budget holds (awake at
-   start ≤ base, total ≤ 1.6 × base) at the rung's smallest and largest base.
+   the spread across combinations is ≤ 2 turns per rung. `02` §5.1's budget holds at the
+   rung's smallest and largest base: the members awake at start, by `02` §5.1's one rule
+   (cited, not restated here), ≤ base, and the total ≤ 1.6 × base.
 8. **References:** chunk, fill, choice, group and objective ids exist; `03`'s objective
    validator passes on the resolved model (≤ 2 bonuses, legacy kind, refs). Classes are allowed
    for the acts and rungs. `byRung` keys are rungs. Every slot requirement holds
    (`huntedEntry` for ordinary and elite).
+9. **A bonus never fights the primary** (`03` §7.2's two rules, on every combination and
+   rung):
+   - on a map whose primaries are all kill-shaped (`rout`, `defeat`, `assassinate`: the
+     legacy `rout` family), every tile bonus's anchor (`visit`, `rescue`, `claim`, `reach`)
+     has a walk (`turnsToReach` from the deploy region, MOV 4 Infantry) at most the last
+     `parRoute` leg's target's walk. The last kill ends the battle at once, so a bonus past
+     it would ask the player not to win;
+   - a `slay` bonus never names a primary's target or a throne's guard (for `'@boss'`, any
+     `isBoss` spawn).
+   The Mill Ford (the mill 4–5 turns, the reserve 5–6) and Two Towers (the armoury inside
+   the first tower, every combination) hold the first rule; the Parade's `slay` names a
+   General who is no throne guard (§10.4). Revision 1's Two Towers armoury, behind the far
+   tower's back door, is the failure this check catches (test 20).
 
 ### 8.3 The turn estimate (pure)
 
@@ -598,10 +625,19 @@ estimate   = Σ walk + fight, from the deploy region
 - MOV 4 Infantry is the seize floor's slowest lord (`SeizeParFloor.js:17-20`).
 - Three kills a turn is a 6–8 unit army's rate in today's harness battles (18x13 routs end in
   4–7 turns with 10–11 enemies and 2–3 turns of walking).
-- `02` §5.2's W reads the same resolved `parRoute`.
+- The estimate is the turn the battle ends: a leg arrives during turn `turnsToReach`, so
+  its fight starts that turn (a walk of t − 1 plus a fight of f ends on turn t − 1 + f).
+- `02` §5.2's W is the same Σ walk over the same written `parRoute` (its `walk(leg)` is
+  this one), so par and the estimate cannot disagree about the walk.
+- **The parRoute written** (§4.2 step 10) is the cheapest plan's legs, with `plans`
+  resolved away; on rout and `defeat` maps its first leg's target is also `03` §7.5's
+  primary anchor for a bonus's detour.
 - The validator checks the estimate, not par. One extra assertion: on every rung, the locked
-  par (`groups-v1` + `parAdjust`) is at least the estimate + 3, so a direct push can reach an
-  S, as the seize floor and `02`'s `W + 3 + bossTurns` floor intend.
+  par (`02` §5.2's `groups-v1`, `parAdjust` inside it) is at least the estimate + 3, so a
+  direct push can reach an S. `02` §5.2's own floor (`1 + W + parAdjust + bossTurns + 3`,
+  the arrival turn plus the boss plus S's 3) equals the estimate + 3 on a one-leg seize
+  (walk t − 1, the boss, the Seize turn) and is lower wherever fights stand on the route,
+  so this assertion is the stronger one and holds the fights too.
 
 ## 9. The catalogue
 
@@ -628,16 +664,16 @@ The kept ones:
 
 | Set piece | Size | Slot | Primary / bonus (`03`) | Groups and triggers (`02`) | Choices | Reuses | New engine needs |
 |---|---|---|---|---|---|---|---|
-| The Mill Ford | 20x12 | ordinary III | rout / `visit` the mill (race) | ford picket (`picket`), bridge hold (`dormant`: `danger`, `hurt`), mill guard (`dormant`: `groupWoken` bridge), raiders (`awake`, `seek` village), reserve (`dormant`: `tile` village, `objective` mill, `turn parOffset −3`) | crossing N/S; mill N/S; bridge and ford variants | VillageSystem raze, Ballista feature | none beyond `02`/`03` |
-| Two Towers | 20x12 | elite III–IV | `defeat` both captains / `reach` the armoury | road patrol (`patrol`), two garrisons (`dormant`: `danger`, `hurt`, `objective` the other captain) | tower rows (4); fillers; armoury tower; stone bearer (Black Sun) | `eliteCaptains`, stones, `03`'s per-unit `clampTile` | none beyond `02`/`03` |
+| The Mill Ford | 20x12 | ordinary III | rout / `visit` the mill (race) | ford picket (`picket`), bridge hold (`dormant`: `danger`, `hurt`), mill guard (`dormant`: `groupWoken` bridge, `danger`, `hurt`), raiders (`awake`, `seek` village, written on the spawns), reserve (`dormant`: `danger`, `hurt`, `objective` village `on: done`, `turn parOffset −3`) | crossing N/S; mill N/S; bridge and ford variants | VillageSystem raze, Ballista feature | none beyond `02`/`03` |
+| Two Towers | 20x12 | elite III–IV | `defeat` both captains / `reach` the armoury inside the first tower | road patrol (`patrol`), two garrisons (`dormant`: `danger`, `hurt`, `objective` the other captain `on: done`) | tower rows (4); fillers; armoury tower; stone bearer (Black Sun) | `eliteCaptains`, stones, `03`'s per-unit `clampTile` | none beyond `02`/`03` |
 | Long Road to the Keep | 22x14 | boss III | seize / — | road picket, outer camp (`dormant`), gate and throne guards (`dormant`), sally (`dormant`: `groupWoken` camp, `turn parOffset −4`); phase *drawbridge* on the sally's trigger | road ridge/marsh; postern N/S; variants | throne clamp, actBoss stones | `TerrainPhases` (`02` §2.2) |
-| The Emperor's Parade | 24x14 | boss IV | seize / `slay` the Emperor by turn par − 4 | column (`patrol`, `loop: false`, route to the throne), two side pods (`dormant`: `groupWoken` column), palace guard (`dormant`), gate wave (Nightfall+, `triggeredWaves` `afterContact 3`) | avenue or north street; strong flank; palace variant; start delay | emperor stones, `02`'s column, `tile by: group` | the clamp waits for a marching column (§10.4) |
+| The Emperor's Parade | 24x14 | boss IV | seize / `slay` the standard-bearer (a column General, not the guard) before the column would be seated | column (`patrol`, `loop: false`, route to the throne), two side pods (`dormant`: `groupWoken` column), palace guard (`dormant`), gate wave (Nightfall+, `triggeredWaves` `afterContact 3`) | avenue or north street; strong flank; palace variant | emperor stones, `02`'s column, `tile by: group` | the clamp waits for a marching column (§10.4) |
 | Caravan Under Siege | 20x12 | event, ordinary III | `escort` the caravan / `slay` the raid captain | ring (`picket`), two flank waves (`triggeredWaves`, side relative to the caravan) | exit edge; start chunk; chaser weights | CaravanSystem, `03`'s `advanceEscort` | none beyond `03` |
 | Hunting Party | 20x13 | elite III | `assassinate` the target / `unbloodied` | the target's escort (`dormant`, `onWake: seek` exit), lane pickets (`sight`, `danger`) | 2–3 lanes; exit edge; escort class | `03`'s `calibrateFlight` | none beyond `03` |
-| Break the Gate | 22x12 | ordinary/event IV | `destroy` the gate, then seize (phases) / `capture` a ballista | outer pod (`picket`), inner `dormant`, sally `turn parOffset −2` if not breached | gate L/C/R; postern; ballista side; bridge segments | `03`'s Gate and Strike | none beyond `03` |
+| Break the Gate | 22x12 | ordinary/event IV | `destroy` the gate, then seize (phases) / `claim` a ballista | outer pod (`picket`), inner `dormant`, sally `turn parOffset −2` if not breached | gate L/C/R; postern; ballista side; bridge segments | `03`'s Gate and Strike | none beyond `03` |
 | The Burning Village | 18x12 | event II–III | rout / `rescue` 2 of 3 villages | raider bands per village (`awake`, `seek`) | which villages; raider classes | VillageSystem | several villages on one map (`03`'s `rescue`) |
 | Rival Band | 18x10 | elite III–IV | rout / — | one band (`dormant`: `danger`) | fort sides; band composition | elite captain | none |
-| Sanctum of Echoes | 24x16 | finale (Entity) | `defeat` the Entity / `capture` the pillars | pillar wardens (`dormant`), echoes (`triggeredWaves`) | which pillars are lit; approach chunks | Entity footprint and AI | held pillars weaken the Entity |
+| Sanctum of Echoes | 24x16 | finale (Entity) | `defeat` the Entity / `claim` the pillars | pillar wardens (`dormant`), echoes (`triggeredWaves`) | which pillars are lit; approach chunks | Entity footprint and AI | held pillars weaken the Entity |
 
 ## 10. The first four
 
@@ -675,14 +711,35 @@ reach the mill before the raiders do.
 |---|---|---|---|---|
 | ford picket | `ford_far` | 2 | `picket` | — |
 | bridge hold | `bridge_far` | 4 | `dormant` | `danger`, `hurt` |
-| mill guard | `village` | 3 | `dormant` | `groupWoken: bridge_hold` (delay 1), `danger` |
-| raiders | `camp` | 3 | `awake`, `onWake: { mode: 'seek', anchor: 'village' }` | — |
-| reserve | `reserve` | 3 | `dormant` (the `overflow` group) | `tile: village`, `objective: mill`, `turn: parOffset −3` |
+| mill guard | `village` | 3 | `dormant` | `groupWoken: bridge_hold` (delay 1), `danger`, `hurt` |
+| raiders | `camp` | 3 | `awake`, `onWake: { mode: 'seek', anchor: 'village' }`, applied at battle start | — |
+| reserve | `reserve` | 3 | `dormant` (the `overflow` group) | `danger`, `hurt`, `objective: { id: 'village', on: 'done' }` (delay 1), `turn: parOffset −3` |
+
+- **The raiders start awake** with their `onWake` written onto their spawns at generation
+  (`aiMode: 'seek_tile'`, `aiTargetTile` the mill), as the village's bandit wave carries it
+  today (§3.7, `02` §3.3). When the mill is visited or razed they turn to chase
+  (`clearSeekTileBandits`). No patrol code (`02` PR 2.4) is needed.
+- **The reserve taxes the bonus once.** Taking the mill wakes it one enemy phase later; a
+  razed mill does not (`on: 'done'`), so losing the race is not paid for twice. Revision 1
+  also woke it on `tile: village`, which charged the same visit twice; that wake is gone.
+  The `turn parOffset −3` clock wakes it whatever the player does, so a turtle meets it
+  too. `danger` and `hurt`, as on every procedural pod (`02` §3.5), mean the reserve can't
+  be picked off one member at a time.
+- **The ids are the derived ones.** The Mill Ford is a rout plus the village, exactly what
+  `03` §3.2 derives, so it writes no `objectives` (§3.7) and the trigger names `03`'s
+  derived bonus id `village`.
+- **Until `02` PR 2.2b and `03` PR 4,** nothing emits `objective` events. PR C's data
+  therefore ships the reserve without the `objective` wake (it wakes on `danger`, `hurt`
+  and its `turn parOffset −3` clock); the PR that brings both adds it to `setPieces.json`
+  with a skeleton `version` bump. Configs already locked keep their wakes. The slice's
+  playtest therefore prices the mill one wake cheaper than the finished map.
 
 **Bonus.** `visit` the mill (village gold plus the act's convoy item, as `VillageSystem`
 pays). The raiders reach it in their third enemy phase. Of the player's units, a MOV 6 rider
 or flier gets there on turn 3; MOV 5 and infantry arrive on turn 4 and must kill the raiders
-instead. That is `race: { fastMov: 6, slowMov: 5 }`.
+instead. That is `race: { group: 'raiders', fastMov: 6, slowMov: 5 }` (`03` §7.1's
+optional field, held by §8.2 check 6). The mill lies before the last par-route target on
+every combination (mill walk 4–5 turns, the reserve 5–6), so check 9 holds.
 
 **Estimate.** 16 combinations: 9–11 by the bridge (the ford plan is 11–13 and is not the par
 route). All four move types reach every anchor.
@@ -692,6 +749,8 @@ route). All four move types reach every anchor.
 - Dusk: as above with Dusk counts.
 - Nightfall: the Ballista anchor on the mill is live.
 - Black Sun: the reserve also wakes at `turn afterContact 2` (`latest: parOffset −2`).
+  This is a `byRung` patch and an `afterContact` clock (`02` PR 2.2b), so it waits for both;
+  until then Black Sun plays the base wakes with Black Sun's counts.
 
 ### 10.2 Two Towers (elite, Acts III–IV, 20x12)
 
@@ -723,21 +782,41 @@ at their back.
 | Group | Members | Start | Wake |
 |---|---|---|---|
 | road patrol | 2 | `patrol`, route between the gates | — |
-| garrison W | 3 | `dormant` | `danger`, `hurt`, `objective: captain_e` |
-| garrison E | 3 | `dormant` | `danger`, `hurt`, `objective: captain_w` |
-| captains | 2 | `dormant`, each with its own `clampTile` (`03` §5.2) | as their garrison |
+| garrison W | 3 | `dormant` | `danger`, `hurt`, `objective: { id: 'captain_e', on: 'done' }` |
+| garrison E | 3 | `dormant` | `danger`, `hurt`, `objective: { id: 'captain_w', on: 'done' }` |
+| captains | 2 | `dormant`, each with its own `clampTile` (`03` PR 1b) | as their garrison |
+
+- **The road patrol is a real `patrol`** (`02` PR 2.4): it walks the road between the two
+  side gates, so the middle is not a safe staging ground, and its route is the one place
+  the format's patrols are proved before the Parade's column needs them. It is in the
+  estimate as an awake group that meets the army, so a `picket` in its place would play
+  the same estimate; that is the fallback if PR D must ship before 2.4.
+- **Boss enrage is the map's anti-turtle.** The captains are elite captains, `isBoss: true`
+  (§4.3), so `TurnPressure` sees a living boss (`hasLivingBoss`, `TurnPressure.js:54`) and
+  enrage applies from `getBossEnrageTurn(par)` (`TurnBonusCalculator.js:180`). Enrage wakes
+  every dormant and patrol group (`02` §3.4), so both garrisons sally at once on that turn
+  whether or not the player has touched them. Today that is `min(12, par + 2)`; with
+  `02` PR 0a it is never before par + 1, and at Two Towers' par (at least the estimate
+  + 3, so 12–14) it is **par + 1**. Waiting between the towers therefore buys nothing but
+  both fronts at once. The 3-phase anti-turtle never wakes a group (`02` §3.4), so enrage is
+  the only battle-wide clock here.
 
 **Choices:**
 - tower rows: both north, both south, or the two diagonals;
 - the filler shared by the two non-tower side cells (courtyard, rubble or orchard);
 - a tower chunk variant per tower (two interiors with the same gates);
-- which tower holds the armoury (the `reach` bonus, a back-room cache);
+- which tower holds the armoury (the `reach` bonus: a cache in that tower's back room,
+  inside its walls, behind the pillar);
 - the stone bearer, on Black Sun only, where `eliteCaptain` stones are 1; on other rungs
   the stones are 0 and the choice is not offered.
 
 That is 4 × 3 × 4 × 2 = 96 combinations, 192 on Black Sun.
 
-**Estimate.** 9 (same row) to 11 (diagonal), from the best order.
+**Estimate.** 9 (same row) to 11 (diagonal), from the best order (revision 2's scratch
+assembler, with the two final interiors: 96 combinations, all four move types reach both
+thrones and the armoury).
+- On every combination the two orders tie, and the par route takes the armoury tower
+  first (the tie-break), so `parRoute`'s first leg is the armoury tower's captain.
 - A first sketch with a south-gate tower variant measured 9–12. The validator would refuse
   it, since the spread was 3, so the gate variants were dropped.
 - An earlier sketch with the towers in the east and deploy in the west measured 14–15 in
@@ -746,8 +825,25 @@ That is 4 × 3 × 4 × 2 = 96 combinations, 192 on Black Sun.
 **Primary.** Two `defeat` objectives, `captain_w` and `captain_e`, both required (legacy
 `rout`), so each fall emits its own `objective` event for the other garrison's wake. Not
 `03` §5.2's double seize: a lord would have to walk throne to throne (4–6 turns), which puts
-the estimate at 12–14. The `reach` bonus is the detour: the armoury sits behind the far
-tower's back door.
+the estimate at 12–14.
+
+**Bonus.** `reach` the armoury, inside the first tower's walls.
+- **Why it moved.** Revision 1 put the armoury behind the far tower's back door. Victory is
+  taken on the second captain's fall (`03` §4), so the cache sat past the last target: the
+  player had to hold off winning to take it. `03` §7.2's rule and §8.2 check 9 now refuse
+  that. In revision 2 the cache is inside a tower, so it is always reached before that
+  tower's captain falls, whichever order is played: on the way in as the first tower, or
+  on the way to the last captain otherwise. On every combination its walk from the deploy
+  region (2 turns for the slowest lord, scratch) equals the last captain's (2), so check 9
+  holds with no margin to spare: a later chunk that pushes the cache deeper fails it.
+- **Why not `unbloodied`.** It also fits the rule, but it has no place, so it adds nothing
+  to the map's one decision. The armoury does: a seeded choice of tower that pulls the
+  army toward one front first (Pillar 5).
+- **Cost.** A unit spends its action inside the garrison's reach, on a tile off the
+  gate-to-throne path. The strip says about 1 turn (`03` §7.5's minimum for a tile bonus;
+  the detour measures under one turn).
+- Reward: the act's item (`03` §7.4). It needs `03` PR 3 and PR 5; the map can ship first
+  without its bonus (§14).
 
 ### 10.3 Long Road to the Keep (Act III boss, 22x14, hybrid v2)
 
@@ -774,6 +870,8 @@ wide gate once the garrison lowers the drawbridge to sally.
 - **Phase `drawbridge`** (`03` §6, same seize primary): `until` is the sally's trigger
   (`groupWoken: outer_camp`, delay 1, or `turn: parOffset −4`, whichever comes first), and the
   next phase's `onEnter` sets `drawbridge` (4 tiles) from Water to Bridge and wakes `sally`.
+  Both the `until` and the `onEnter` effects resolve at `02`'s enemy-phase check (the
+  `phase` slot, README §3), through `02`'s `applyTerrainSetTiles`.
 - The sally group already stands dormant in the courtyard. It wakes; nothing spawns. So the v1
   wall-on-spawn bug cannot happen, and the validator would refuse a target under a seat.
 - Fliers can cross the moat and the gate pit before the bridge drops.
@@ -847,7 +945,7 @@ column: east gate, cols 20-23, rows 6-7   ....F.#.............#...
 
 | Group | Members | Behaviour |
 |---|---|---|
-| column | Emperor + 3 (Generals and Paladins) | `patrol`, `loop: false`, `route: [gate, avenue_mid \| north_street, steps, throne]`; wakes to `hunt` on `danger`/`hurt` |
+| column | Emperor + 3: the standard-bearer (a General, `objectiveRef: 'standard_bearer'`, never `isBoss`) and two of General / Paladin | `patrol`, `loop: false`, `route: [gate, avenue_mid \| north_street, steps, throne]`; wakes to `hunt` on `danger`/`hurt` |
 | side pod N | 2–4 | `dormant`: `groupWoken: column` (delay 1) |
 | side pod S | 2–4 | `dormant`: `groupWoken: column` (delay 1) |
 | palace guard | 2 | `dormant` |
@@ -856,13 +954,30 @@ column: east gate, cols 20-23, rows 6-7   ....F.#.............#...
 **Choices:**
 - the route (avenue or north street);
 - the strong flank (pod sizes 4/2 or 2/4);
-- the palace variant (parade ground or gardens);
-- the start delay (the column marches from T1, or T2 on First Light).
+- the palace variant (parade ground or gardens).
 
-That is 8 combinations.
+That is 8 combinations. (Revision 1 also listed a start delay, "T2 on First Light"; First
+Light runs have no Act IV, so the column marches from turn 1 on every rung that meets it.)
 
-**Bonus.** `slay` the Emperor by turn par − 4, about when he would be seated (gold + forge
+**Bonus.** `slay` the standard-bearer before the column would be seated (gold + forge
 step, `03` §7.4).
+- **Why not the Emperor** (revision 1). He is the throne's guard (`'@boss'`): killing him is
+  a step of the primary, so a bonus on him paid twice for the push par already rewards,
+  and it pulled only toward storming the palace, deciding the map's one choice. `03` §7.2
+  now refuses a `slay` on a primary's target or a throne's guard (§8.2 check 9).
+- **Why not `protect` the market square's villagers.** It would need `03`'s `npcAllies`
+  and `ObjectiveNpc` (deferred with escort), and a third thing to defend in the market
+  beside the column and the pods breaks Pillar 4's two fronts.
+- **The deadline.** `byTurn` is locked at generation to the turn the column would take the
+  throne unopposed: its Armored members (MOV 4) reach it in their 4th enemy phase by
+  either route (scratch, both palace variants). So `byTurn` is 4, the strip reads "by
+  turn 4", and the bonus fails when the player phase of turn 4 ends with him alive.
+  (`03` §7.1's default is `par − k`; this map writes the integer from its column's route
+  instead, open question 8.)
+- **What it does to the decision.** Storming the palace meets the column at the steps on
+  turn 4 and can still take him with a focused strike on an armoured target; intercepting
+  on the avenue takes him earlier at more risk; letting the Emperor sit never earns it. So
+  each plan keeps a price, and the bonus asks which unit to strike first, not which plan.
 
 **Engine need.** The throne clamp (`AIController.js:341-353`) filters candidates before the
 seek-tile pipeline, so a boss with a `clampTile` would never march. `03`'s per-unit
@@ -870,7 +985,8 @@ seek-tile pipeline, so a boss with a `clampTile` would never march. `03`'s per-u
 until its column reaches its last anchor. The arrival trigger is `02`'s `tile` with
 `by: { group }`.
 
-**Rungs:** emperor stones 0 / 1 / 1 / 2; the gate wave from Nightfall.
+**Rungs:** emperor stones 1 / 1 / 2 on Dusk / Nightfall / Black Sun (`difficulty.json`
+`revivalStones.emperor`; First Light has no Act IV); the gate wave from Nightfall.
 
 ## 11. Authoring workflow and tooling
 
@@ -898,8 +1014,13 @@ nothing, no authored tile was carved, and `HeadlessBattle` with `ScriptedAgent` 
 **Sims.** `sim/pacing.js --setPiece <id>` forces the set piece onto every node it fits
 (`--setPieceShare <p>` for a share). Targets on 48 paired seeds: push median within par − 4 …
 par − 2; turtle at least 1.5 turns slower than push (the Dusk gap); push turns across choices
-spread ≤ 2; no more force-won stalls than the act's procedural maps. `TacticianAgent` needs an
-`objectives` mode for `defeat` and routed groups, as it gained one for seize in Dusk PR 3.
+spread ≤ 2; no more force-won stalls than the act's procedural maps.
+
+**Agents: this spec only runs them.** It adds no agent code. `02` PR 2.0 ships
+`TacticianAgent`'s seek mode for sleeping groups (and with it the awake seekers and
+patrols the first maps field); each `03` kind PR ships the agents' read of its kind
+(`goalTiles`: `defeat` targets with PR 1b, Strike with PR 7, escort pacing with escort).
+A set piece that needs an agent behaviour no PR has shipped waits for that PR.
 
 **Art.** One biome per map, as `Grid` takes today: grassland for the Mill Ford, Two Towers and
 the Parade, castle for Long Road. The painter needs a review at seams (river bends, moat
@@ -908,7 +1029,19 @@ already use. A pennant node pip. The ford is Bog in v1; a "Shallows" terrain is 
 
 **Music.** `music` names a key in a new `MUSIC.battleSetPiece` table, or is `null` and
 `BattleMusicSelection` picks by biome and situation. Boss set pieces keep the boss theme and
-its enrage layer.
+its enrage layer (the caller picks a boss's theme before `selectBattleMusic` runs).
+- **Precedence.** `selectBattleMusic` (`BattleMusicSelection.js`) answers the most specific
+  thing true of a battle: escape, then the Eclipse (`isEclipsed`), then the ambushed
+  village, the recruit rescue and the elite company, then the biome and the shares. The set
+  piece's own theme goes **after escape and the Eclipse, before everything else**: a named
+  place is more specific than "elite" or a biome, but an eclipsed set-piece node plays the
+  eclipsed theme like any eclipsed battle, because the Eclipse taking a node is run state
+  the player must hear. An escape set piece plays the pursuit theme, as every escape does.
+- `battleMusicContext` reads the key from `setPieces.json` by `battleConfig.setPiece.id`
+  (presentation, not rules: an unknown id or a `null` key falls through to the order above),
+  and the pick stays hashed from the run seed, so a resumed battle plays what it played
+  before. `MusicLibrary.test.js` checks every `battleSetPiece` key is a real adaptive
+  score.
 
 ## 12. Persistence and save size
 
@@ -916,7 +1049,9 @@ its enrage layer.
 - every procedural field (with `templateId: 'setpiece:<id>'`);
 - `setPiece: { id, version, choices: { choiceId: optionId }, chunks: { cellId: { chunk, transform } } }`;
 - `anchors` (tiles);
-- `objectives`, `encounterGroups` and `formationSpares`.
+- `parRoute` (§4.2 step 10) and `02`'s locked `parModel` inputs;
+- `objectives` (when they say more than the legacy derivation, §3.7), `encounterGroups`
+  and `formationSpares`.
 
 **It never holds** chunk matrices, option lists, the skeleton or fill tables.
 
@@ -931,7 +1066,66 @@ snapshot validator with `02`/`03`, from the first PR: woken groups, fired trigge
 phase, objective progress and the column's next route index. The checkpoint grows by under
 1 KB.
 
-**Run state:** `run.setPiecesOffered` (a list of ids), serialized. An old save has none.
+**Run state:** `run.setPiecesOffered` (a list of ids), serialized; a node's
+`battleParams.setPieceFallback` (§6.2). An old save has neither.
+
+### 12.1 Older clients never load a run they can't play
+
+**The risk.** A client from before this work reads a run save without knowing set pieces.
+On a node that holds one but is not yet entered it would generate the kept procedural
+template with the rewritten `objective` (an elite seize template played as a rout). On a
+locked set-piece config or a suspend checkpoint inside one it would play the config with
+no group, objective or phase rules: a `defeat` map as a rout of every holder, and, from
+`03` PR 7, a `Gate` tile (terrain index 19) it does not know. Saves cross clients through
+the cloud (`run_saves`): an iOS build that has not updated, or a stale web tab, fetches
+the row another device pushed.
+
+**How the prologue does it.** `CloudSync.isLocalOnlyRunSave(run)` (`CloudSync.js:584`) is
+true for a prologue run (`isPrologueRun`), and every path that would put a run in the
+cloud asks it: `pushRunSave` returns `{ queued: false, reason: 'prologue_local' }` and
+retires a prologue copy an earlier build pushed (`retireCloudPrologueRun`, a delete that
+holds only while the row is itself a prologue run); `pushChosenLocalRun` deletes the cloud
+run it was chosen over instead of pushing; logout's backup leaves it out and reports it
+(`listLocalOnlySaves`, `backupAllLocalSlots` → `localOnly`, `kind: 'prologue'`,
+`CloudSync.js:844-864`), so sign-out asks before discarding it (`TitleScene.js:348-359`).
+An old client therefore never sees the save. It works without the old client's help,
+which is the only way to protect a client that already shipped.
+
+**The equivalent for set pieces: a format marker, and the prologue's hold-back while the
+marker is new.**
+1. **The marker.** `RunManager` gets `RUN_FORMAT` (the newest format this client plays,
+   an integer; 2 with this work) and `toJSON` writes `requiresClient`: 2 when any node of
+   the current node map holds `battleParams.setPiece`, or any config in
+   `battleConfigsByNodeId` or the `battleInProgress` checkpoint holds `setPiece`; absent
+   otherwise, so a run with no set piece stays format 1 and every client keeps reading it.
+   A later rule an old client would misplay raises it again (the `Gate` terrain: 3).
+2. **Clients from the marker on honour it.** `loadRun` reads `saved.requiresClient` from
+   the parsed save **before** `RunManager.fromJSON` (whose migrations mutate the object)
+   and returns null for a save above `RUN_FORMAT`, writing nothing; `fromJSON` itself
+   throws `RunFormatError` for such a save, so a sim, test or later caller can't load it
+   by another door. `SlotManager`'s slot summary reads the same field from the raw save
+   and marks the slot `needsNewerClient`: the slot card says "This run needs a newer
+   version of the game", Continue is not offered, and New Game on that slot asks before
+   it replaces the save. The run key is never written by a client that refused it.
+   `CloudSync.applyRunSlots` stores such a cloud run locally like any other (an updated
+   client then plays it); since the client never loads it, it never pushes over it.
+3. **Clients from before the marker can't honour it**, so while they may still be in use
+   the run stays on its device, by the prologue's own predicate:
+   `isLocalOnlyRunSave(run) = isPrologueRun(run) || requiresClient(run) > CLOUD_SAFE_RUN_FORMAT`,
+   with `CLOUD_SAFE_RUN_FORMAT = 1` in `CloudSync`. Every hold-back path above then covers
+   set-piece runs unchanged: no push, the stale cloud copy of that run retired (the
+   `expected` predicate widens with it), logout's `localOnly` report (`kind` becomes
+   `'prologue'` or `'newFormat'`, and sign-out's question names a run in progress rather
+   than the prologue for the second), and sign-out's Keep playing / Sign out anyway. The
+   slot's meta still syncs.
+4. **Lifting it.** Once the marker client is the oldest in use (the TestFlight build that
+   carries it has replaced the earlier builds, and one web deploy has passed), the owner
+   raises `CLOUD_SAFE_RUN_FORMAT` to 2 in a one-line PR: set-piece runs back up again, and
+   step 2 alone protects the marker clients. Each later format bump repeats steps 3–4.
+5. **Ordering.** Steps 1–3 ship in PR A, before the generator can lock a set-piece config
+   and before placement (PR C) puts one on any player's map, so the marker has a release to
+   reach clients. Placement does not ship while `CLOUD_SAFE_RUN_FORMAT` would leave a
+   set-piece run pushed to a client older than the marker.
 
 ## 13. Tests
 
@@ -957,25 +1151,89 @@ Realistic failures first; each is one test, and each is shown to fail once by pl
 | 16 | a bad event hook | `battle.setPiece` outside the acts or slot fails `EventValidation`; a gated rung fights a procedural rout |
 | 17 | scene and harness differ | every combination plays to the end (§11); scene and harness generate equal configs (`GridParity` style) |
 | 18 | the save grows | every set-piece config is ≤ 8 KB serialized |
+| 19 | an older client plays a run it can't | a save with `requiresClient` above `RUN_FORMAT`: `loadRun` returns null and the stored string is byte-identical after; `fromJSON` throws; the slot summary says `needsNewerClient`; with `CLOUD_SAFE_RUN_FORMAT` 1 a set-piece run is never pushed, its stale row is retired only while it is that run, logout lists it `newFormat`; a run with no set piece writes no `requiresClient` |
+| 20 | a bonus fights the primary | replant revision 1's Two Towers armoury (behind the far tower's back door): check 9 fails and names the combination; a `slay` on the Emperor fails check 9 |
+| 21 | the fallback plays the wrong map | an elite node with an unknown set-piece id plays its seize template as a seize (`setPieceFallback` restored), not as a rout |
+| 22 | par counts the walk twice | a Two Towers config: locked par equals `02` §5.2's `groups-v1` on the written `parRoute` (hand-computed W and S), and `parAdjust` equals the hand-summed non-walk terms only (0 on Dusk; 1 on Black Sun, the stone bearer's bar) |
+
+**Browser specs** (each in a lane of `tests/e2e/lanes.json`, so `npm run check:e2e-lanes`
+holds them):
+- `set-piece-mill-ford.spec.js`, lane `run-flow`: on a seeded run routed to the Mill Ford
+  (the dev route, a fixed `seed` and `choices`), the route card shows the place and the
+  Large map tag; the battle is then played on the real board to the victory band, at
+  desktop (a 1280x800 viewport, the 640x480 canvas) and on an 844x390 landscape phone
+  (`?portrait=0`). It plays only through clicks, taps and keys, as the prologue's
+  ordinary-play specs do (`tests/e2e/prologueDriver.js`'s board planner, generalised to a
+  set-piece driver), waits on state, never on time, and refreshes once mid-battle to check
+  Resume Battle restores the woken groups and the bridge hold's state. It never calls
+  `onVictory`, `removeUnit`, `completeBattle` or a setter.
+- `portrait-set-piece.spec.js`, lane `portrait` (shared helpers
+  `tests/e2e/portraitHelpers.js`): the same battle upright on a 390x844 phone, to the
+  victory band.
 
 ## 14. PR breakdown
 
-| PR | Content | Effort |
-|---|---|---|
-| A | Format and validator: the two data files with test chunks only, `SetPieceFormat.js`, `SetPieceValidation.js` in `validate:data`, sync, parity; tests 4–8 | 4–5 days |
-| B | Generator: `generateBattle` dispatch, `SetPieceGenerator.js` (assembly, fill scope, groups to spawns, gear chain, `formationSpares`, config fields), `HeadlessBattle` deps, the dev route, the preview tool; tests 9–13, 17–18. Needs `02` and `03` PR 1 | 5 days |
-| C | The Mill Ford and placement: `SetPiecePlacement.js`, the `difficulty.json` table, the RunManager hooks, `setPiecesOffered`, the loom tag and place helper, the node pip, `sim/pacing --setPiece`; tests 1–3, 14–15 | 4 days + 1 tuning |
-| D | Two Towers: elite placement, two captains, the `objective` trigger use | 3 days + 1 tuning |
-| E | Hybrid v2: the `TerrainPhases.js` extraction (delete the harness copy), occupancy check, phase validation; Long Road to the Keep | 5 days |
-| F | The Emperor's Parade: the throne clamp gate, routed column, `seated` phase, arrival trigger | 5 days |
-| G… | Phase 6, one PR each: the event `setPiece` hook (test 16) with Caravan Under Siege, Hunting Party, Rival Band, The Burning Village (`villages[]`), Break the Gate (structure HP), Sanctum of Echoes | 3–6 days each |
+PR numbers of the other specs are theirs: `01` §5, `02` §8, `03` §14. **Later** marks a part
+that stays specified here but that nothing in the first shipment waits on.
 
-PRs A and B can land before any content; C is the first a player sees.
+| PR | Content | Needs | Effort |
+|---|---|---|---|
+| A | Format and validator: the two data files with test chunks only, `SetPieceFormat.js`, `SetPieceValidation.js` in `validate:data` (checks 1–9), sync, parity; the old-client guard (§12.1: `requiresClient`, the loader refusal, the slot card, `CLOUD_SAFE_RUN_FORMAT`); tests 4–8, 19, 20. **Later**: `mirrorX` and `rot180` (`mirrorY` and the whole-map mirror stay), `byRung` patches, the 256-combination cap and its timing budget | nothing | 4–5 days (3 trimmed) |
+| B | Generator: `generateBattle` dispatch, `SetPieceGenerator.js` (assembly, fill scope, groups to spawns, awake `onWake` on spawns, gear chain, `formationSpares`, `parRoute`, `setPieceFallback`, config fields), `HeadlessBattle` deps, the dev route, the preview tool; tests 9–13, 17–18, 21 | A; `02` PR 2.1 (the group schema, initially awake `onWake`), `02` PR 2.5 (the par PR: `groups-v1` over `parRoute`; or `02`'s stopgap, `max(calculatePar(rout), estimate + 3)`, calibrated later). Not `03`: the Mill Ford writes no `objectives` (§3.7) | 4–5 days |
+| C | The Mill Ford and placement: `SetPiecePlacement.js`, the `difficulty.json` table, the RunManager hooks, the loom tag and place helper, the node pip, `sim/pacing --setPiece`, the two browser specs (§13); tests 1–3, 14–15, 22. **Later**: `setPiecesOffered` | B; `02` PRs 0a (enrage floor), 0d (dead air: on the critical path, a 15-enemy map of holders is unplayable on a phone without it), 2.1, 2.2a (`groupWoken`, `turn parOffset`, warn bands, always-on dormant outlines; its `tile` is no longer used by the Mill Ford), 2.5; `01` PR 1 (the [N] clamp) and, on phones, PR 8 (pointers). Nothing from `03` (§10.1). Not `02` 2.2b: the reserve's `objective` wake and Black Sun's `afterContact` clock wait for it (§10.1) | 4 days + 1 tuning |
+| D | Two Towers: elite placement, two captains, the road patrol, the `objective` wakes, the armoury | C; `03` PR 1 (the model: `defeat` is not a legacy kind), PR 1b (`defeat`, per-unit `clampTile`); `objective` events: `03` places them in PR 4, which also needs `02` PR 0b. Recommended instead: PR 1b notes `defeat`'s own `objective` events into `02` 2.2b's hook, so Two Towers needs nothing from PR 4 or 0b (a note for `03`); `02` PR 2.2b (the `objective` hook), PR 2.4 (the patrol; a `picket` is the fallback, same estimate). The bonus: `03` PR 3 and PR 5 (`reach`); the map can ship first without it | 3 days + 1 tuning |
+| E | Hybrid v2 and Long Road to the Keep: phase validation (§7: targets off seats, connectivity after each phase), the drawbridge through `02`'s `applyTerrainSetTiles` (no extraction: `02` PR 0b owns the module and deleted the harness copy) | D; `02` PRs 0b, 2.2b (the `phase` slot), 2.4 (the sally's `seek`); `03` PRs 3, 4 (phases); `01` PRs 3–5 (desktop camera), 7 (enemy-phase follow), 8 (pointers): 22x14 doesn't fit the desktop canvas at zoom 1 | 4 days |
+| F | The Emperor's Parade: the throne clamp gate for a marching column, the routed column, the `seated` phase, the arrival trigger, the `slay` bonus | E; `02` PRs 2.2a (`tile` with `by: { group }`), 2.2b (`afterContact`), 2.3 (the gate wave), 2.4 (the column); `03` PRs 1b (`clampTile`), 4, 5 (`slay`); `01` as E (24x14) | 5 days |
+| G… | Phase 6, one PR each. **Later**: the event `setPiece` hook (test 16) with Caravan Under Siege, Hunting Party, Rival Band, The Burning Village (`villages[]`), Break the Gate (structure HP), and the finale (Sanctum of Echoes) | each the `03` kind it uses (escort, assassinate, `claim`, destroy) | 3–6 days each |
+
+PRs A and B can land before any content; C is the first a player sees. A lands first
+because its old-client guard must reach clients a release before placement does (§12.1).
+
+**Deferrable for the first shipment** (none of these blocks the Mill Ford or Two Towers):
+- the `mirrorX` and `rot180` transforms (keep `mirrorY`: both first maps use it);
+- `byRung` patches (Black Sun's extra reserve clock waits for them);
+- the event hook (§6.5), the finale slot and Sanctum of Echoes;
+- `run.setPiecesOffered` (one ordinary and one elite set piece cannot repeat across acts in
+  a way it would stop);
+- the 256-combination cap and its timing budget (the Mill Ford has 16; Two Towers' 192 on
+  Black Sun bring them back with PR D).
+
+### 14.1 Vertical slice: a seeded, resumable, sim-measured Mill Ford on Dusk and up
+
+The shortest path to a playtest, about 20–21 working days, in order:
+
+| Step | PR | Effort |
+|---|---|---|
+| 1 | `02` PR 0a (enrage floor; the Mill Ford has no boss, but it is half a day and every later set piece needs it) and PR 0d (dead air) | 2 days |
+| 2 | `02` PR 2.1 (groups, `danger` / `hurt`, the hold-pack adapter, `encounterState`, golden parity, awake `onWake` on spawns) and PR 2.2a (`groupWoken`, `turn parOffset`, warn bands, always-on dormant outlines) | 4 days |
+| 3 | `02` PR 2.5 (`groups-v1` with W from `parRoute`), or its stopgap | 2 days (1 for the stopgap) |
+| 4 | `04` PR A trimmed: the format, `mirrorY` only, no `byRung`, validator checks 1–5, 7, 8, the old-client guard. Checks 6 (the race) and 9 (bonus before the last target) follow in PR D; both hold on the Mill Ford by the scratch numbers in §10.1 | 3 days |
+| 5 | `04` PR B: the generator, the dev route, the preview | 4 days |
+| 6 | `04` PR C: the Mill Ford, placement, the loom tag, `sim/pacing --setPiece`, the browser specs | 4 days + 1 tuning |
+| 7 | `01` PR 1 (the [N] clamp); `01` PR 8's phone pointers once the playtest shows two fronts off-screen | 1 day |
+
+Nothing from `03`: the Mill Ford is a rout plus the legacy village, which today's predicate,
+strip and in-battle payout handle. In the slice its reserve wakes on `danger`, `hurt` and
+`turn parOffset −3` only (§10.1); the `objective` wake joins with `02` PR 2.2b and `03`
+PR 4. It is placed on Dusk, Nightfall and Black Sun (First Light: open question 1).
+
+Then **Two Towers** (PR D, about 12 more days with `03` PR 1, PR 1b and `02` PRs 2.2b and
+2.4), and, before **Long Road**, the first board that doesn't fit the desktop canvas,
+`01`'s desktop camera, enemy-phase follow and pointers.
 
 ## 15. Open questions for the owner
 
-1. **First Light.** Boss set pieces on every rung but ordinary and elite ones from Dusk up
-   (the table)? Or none at all on First Light? (README Q2.)
+1. **First Light** (README Q2). Revision 1's table gave First Light boss set pieces (Long
+   Road at a 0.5 share; it has no Act IV) but no ordinary or elite ones, so the most-played
+   rung would meet dormant groups, a phase switch and a bonus's cost for the first time at
+   an act boss, where the enrage cap binds hardest (`02` §1.5). Two ways out:
+   - (a) keep First Light's boss maps on today's arenas (boss share 0, the table now) until
+     the at-point-of-use Guidance notes ship (`02` §3.8 `guide_holding`, `03` §11.2's phase
+     and bonus-cost notes);
+   - (b) allow one ordinary set piece per run on First Light (the Mill Ford, at First
+     Light's counts, Act III), so the mechanics are met on an ordinary map before any boss.
+   **Recommendation:** (a) now, then (b) once the notes ship, and only then a First Light
+   boss share.
 2. **The per-act chance.** Does 0.5–0.7 per act on ordinary nodes, plus about 0.3 per elite
    node, give the right frequency? That is about two large maps per run, counting bosses.
    (README Q1.)
@@ -989,25 +1247,78 @@ PRs A and B can land before any content; C is the first a player sees.
    read as a double seize?
 7. **The finale variant.** Should Sanctum of Echoes replace the Entity's sanctum at a share,
    or only on Black Sun?
+8. **A `slay` deadline from a column.** The Parade locks its `slay` bonus's `byTurn` from the
+   column's unopposed arrival (turn 4), not `03` §7.1's default `par − k`. Is a
+   generator-written integer acceptable for `byTurn` (recommended: it is still locked and
+   still a real number on the strip), or should the map pick a `k`?
 
 ## Notes for the README
 
-Revision 2 of the README already takes in this spec's `battleConfig.anchors`, `tile` with
-`by: { group }` and `engine/TerrainPhases.js`. What remains:
+Revisions 2 and 3 of the README took in this spec's `battleConfig.anchors`, `tile` with
+`by: { group }`, `engine/TerrainPhases.js`, `battleConfig.parRoute` and the vertical slice.
 
-1. **`setPiece` is refined** to `{ id, version, choices, chunks }`. `chunks` records the
-   chunk picks, for the dev route and bug reports. It is still read for display and records
-   only.
-2. **"Per-node chance" (§4)** is implemented as a per-act chance for ordinary nodes, then
-   one node, and a per-node chance for elite nodes (§6.1). With 3–5 eligible ordinary nodes
-   an act, a per-node chance mostly means "one per act, always"; the per-act chance is the
-   knob that means something. The effect the README describes is unchanged.
-3. **The rung chances live in `difficulty.json`** (`modes.<rung>.setPieces`), not
-   `setPieces.json`, per CLAUDE.md "Difficulty is data-driven", so every rung needs an entry.
-4. **Two Towers is `defeat`, not a double seize.** `03` §5.2 names Two Towers as its
-   multi-seize example. With the army between the towers, a lord walking throne to throne
-   puts the estimate at 12–14 turns, at or over the band, so the first map uses `defeat`
-   both captains (legacy `rout`) and keeps multi-seize for a later, tighter map (open
-   question 6).
-5. **Elite slots may be smaller than the large band.** Rival Band is 18x10. The README's
-   bands describe large set pieces; the format also serves small authored maps.
+1. **Resolved (README rev 2):** `setPiece` is `{ id, version, choices, chunks }`. `chunks`
+   records the chunk picks, for the dev route and bug reports; it is read for display and
+   records only.
+2. **Resolved (README rev 2):** "per-node chance" is a per-act chance for ordinary nodes,
+   then one node, and a per-node chance for elite nodes (§6.1, README §4).
+3. **Resolved (README rev 2):** the rung chances live in `difficulty.json`
+   (`modes.<rung>.setPieces`), so every rung needs an entry.
+4. **Two Towers is `defeat`, not a double seize.** Taken in by `03` §5.2 and README rev 3's
+   roadmap (Phase 4: "Two Towers adds `03`'s model and `defeat`"); the owner's choice stays
+   open question 6.
+5. **Resolved (README rev 2):** elite slots may be smaller than the large band (Rival Band is
+   18x10); the size table says so.
+6. **Open: the slice's trimmed `02` 2.2.** README §5's vertical slice lists `tile` among the
+   Mill Ford's triggers. Since the reserve dropped `tile: village` (§10.1) the Mill Ford
+   uses no `tile` trigger; its `objective` wake needs `02` 2.2b and `03` PR 4's events and
+   is left out of the slice's data. `02` §8 already says so; the README's step 2 could drop
+   `tile` and say the reserve wakes on its clock until then.
+7. **Open: old clients** (§12.1). README §3 "Battle config" could carry one line: a run
+   holding a set piece writes `requiresClient`, and `isLocalOnlyRunSave` holds it on its
+   device until `CLOUD_SAFE_RUN_FORMAT` is raised.
+8. **Open: First Light has no Act IV.** README Q2's recommendation (today's arenas on First
+   Light's boss maps until the Guidance notes ship) concerns only Act III's boss there.
+
+## Revision 2 changelog (2026-10-09)
+
+Takes in the cross-review of the spec set.
+- **Par (B1).** Every set piece writes `battleConfig.parRoute`, the cheapest plan's legs
+  (§4.2 step 10, §8.3). Par is `02` §5.2's `groups-v1` with W from `parRoute` and `03`'s
+  `parAdjust` (non-walk terms only) inside it, in `02`'s order, with `02`'s corrected floor
+  `1 + W + parAdjust + bossTurns + 3`; the walk is counted once. The estimate's `+ 3`
+  assertion is kept and explained against that floor.
+- **TerrainPhases (B2).** `02` PR 0b owns `engine/TerrainPhases.js` and deletes the harness
+  copy; PR E calls `applyTerrainSetTiles(grid, setTiles, anchors, { occupants })` and
+  extracts nothing. Phase effects resolve at `02`'s enemy-phase check.
+- **Bonuses that fought the primary (B5).** Two Towers' armoury moved inside the first
+  tower (recomputed: 96 combinations, 9–11, the armoury tower first on every par route,
+  its walk equal to the last captain's). The Parade's bonus is `slay` the standard-bearer, a
+  column General, by turn 4 (the column's unopposed arrival, recomputed), never the
+  Emperor. New validator check 9 holds both of `03` §7.2's rules; test 20.
+- **The Mill Ford (S4, S5).** The raiders start awake with `onWake` written onto their
+  spawns, as the village's bandits are, so no patrol PR; the reserve no longer wakes on
+  `tile: village`, gains `danger` and `hurt`, keeps `objective` (the derived id `village`,
+  `on: 'done'`) and the `parOffset −3` clock; until `02` 2.2b and `03` PR 4 it ships
+  without the `objective` wake. It writes no `objectives` (the legacy derivation is the
+  same). Its estimates are unchanged (9–11); the mill's walk (4–5) is within the reserve's
+  (5–6), so check 9 holds.
+- **Triggers (S3).** Every `objective` trigger states `on`.
+- **Dependencies (S9, S10).** §14 names each map's PRs in `01`, `02` and `03`; the vertical
+  slice (§14.1) is about 20–21 working days. 20x12 maps need only `01` PR 1 and phone
+  pointers; Long Road and the Parade need `01`'s desktop camera, enemy-phase follow and
+  pointers. Deferrable items are marked.
+- **`race` (S11)** is `03` §7.1's optional authored field; check 6 is static.
+- **Old clients (S12).** §12.1: `requiresClient`, the loader refusal and slot card, and the
+  prologue's hold-back (`isLocalOnlyRunSave`) until `CLOUD_SAFE_RUN_FORMAT` is raised;
+  test 19. The unknown-id fallback now restores what placement overwrote
+  (`setPieceFallback`, test 21).
+- **Agents (S13).** This spec only runs them: `02` PR 2.0 ships seek, `03`'s kind PRs ship
+  the kind reads.
+- **First Light (S15)** is open question 1 with a recommendation; First Light has no Act IV,
+  so the table and the Parade's First Light notes were corrected (the start-delay option
+  is gone).
+- **Smaller fixes.** Check 2's tile count is 9 in Act III, 10 in Act IV; the awake-at-start
+  rule cites `02` §5.1; elite captains are `isBoss`, so boss enrage (par + 1 at Two Towers'
+  par) is that map's anti-turtle; the bonus `capture` is now `claim`; music precedence
+  for an eclipsed set piece; browser specs in lanes `run-flow` and `portrait`.

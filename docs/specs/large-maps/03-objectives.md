@@ -642,7 +642,9 @@ the group's arrival phase, one at `slowMov` does not). The runtime, the strip an
 settlement never read it; the objective validator checks only its shape (a known group,
 positive integers with `slowMov < fastMov`).
 
-`byTurn` is locked at generation as `par − k` (k from data). It is a real number on the
+`byTurn` is locked at generation, either as `par − k` (k from data) or as an authored
+absolute turn when the map's own clock sets it (`04`'s Parade: the turn the column would
+take the throne unopposed, `04` open question 8). It is a real number on the
 strip ("before turn 6"), never "par minus 2". "No unit below X%" is checked at action and
 enemy-unit boundaries, not on every HP write, so a heal later in the same action counts.
 
@@ -1011,7 +1013,7 @@ outside an allowlist (generation, words fallbacks, prologue), no `src/` file may
 | PR | What | Behaviour change | First shipment | Effort |
 |---|---|---|---|---|
 | 1 | `BattleObjectives.js` with the legacy derivation only (and the derived `parRoute`, never written); every rule reader and the harness moved; boundary and golden tests | none (pinned) | yes | 3–4 days |
-| 1b | `defeat` (win rule, `turnBonus.json` `defeat 4/1`, its `parContribution` boss bars and `defaultParRoute` legs, the SLAIN word); per-unit `clampTile` (the clamp reads it on any objective, `thronePos` on seize as today, released by `aggressiveMode` (anti-turtle or enrage, `TurnPressure.js:104`) as today); the agents' read for defeat | written configs only | yes (Two Towers) | 1–1.5 days |
+| 1b | `defeat` (win rule, its own `done`/`failed` events for `02`'s `objective` trigger, `turnBonus.json` `defeat 4/1`, its `parContribution` boss bars and `defaultParRoute` legs, the SLAIN word); per-unit `clampTile` (the clamp reads it on any objective, `thronePos` on seize as today, released by `aggressiveMode` (anti-turtle or enrage, `TurnPressure.js:104`) as today); the agents' read for defeat | written configs only | yes (Two Towers) | 1–1.5 days |
 | 2 | `objectiveContent.js`, `objectiveStripModel.js`; regex parsing removed; every word site by kind | none in words for today's kinds (escape gains its help goal line) | yes | 2 days |
 | 3 | `objectiveState` (with `phaseStartedTurn`) and its four persistence sites; derived village and caravan bonuses; `BonusSettlement` at the commit; bonus rows on the strip and band | the strip and the band show the bonus | yes | 2–3 days |
 | 4 | Phases (index, `until`, `onEnter`, `checkPhase` in `02`'s check, calling `02`'s `applyTerrainSetTiles`), `objective` events into 02's ledger, `guide_phase_change`, multi-seize; **later**: the `twin_thrones` elite seize template (Act III+, two Throne features; `MapTemplateEngine:1124` allows two when `thrones: 'all'`) | new elite maps (with `twin_thrones`) | phases and events yes; multi-seize when a map needs it; `twin_thrones` later | 3 days, after `02` PR 0b (`TerrainPhases`) and 2.1–2.2 (the ledger, the `objective` hook) |
@@ -1035,9 +1037,11 @@ catalogue (Hunting Party, Caravan Under Siege, Break the Gate, The Bridge Must F
   in-battle payout all work. One caveat: its reserve's `objective: mill` wake needs
   `objective` events, which arrive with PR 4; until then the reserve wakes on its `turn`
   clock alone.
-- **Two Towers** (`04` §10.2) needs PR 1 and PR 1b (`defeat` and `clampTile`). Its bonus
-  (`reach` in the first tower's courtyard, or `unbloodied`, per §7.2's rule) needs PR 3
-  and PR 5 (`unbloodied` is a later kind); the map can ship first without it.
+- **Two Towers** (`04` §10.2) needs PR 1 and PR 1b (`defeat` and `clampTile`). Its
+  garrisons wake on a captain's fall (an `objective` trigger), so **PR 1b also emits
+  `defeat`'s own `done` / `failed` events** into `02`'s check, ahead of PR 4's general
+  objective events. Its bonus (`reach` in a tower's back room, per §7.2's rule) needs
+  PR 3 and PR 5; the map can ship first without it.
 
 ## 15. Open questions for the owner
 
