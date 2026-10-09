@@ -4039,9 +4039,10 @@ describe('blessing run-start effect application', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
 
-    rm.activeBlessings = ['pilgrim_coin'];
-    rm._runStartBlessingsApplied = false;
-    rm.applyRunStartBlessingEffects();
+    rm._applySingleRunStartBlessingEffect('synthetic', {
+      type: 'shop_item_count_delta',
+      params: { value: 1 },
+    });
 
     expect(rm.getShopItemCountDelta()).toBe(1);
   });
@@ -4051,12 +4052,13 @@ describe('blessing run-start effect application', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
 
-    rm.activeBlessings = ['pilgrim_coin'];
-    rm._runStartBlessingsApplied = false;
-    rm.applyRunStartBlessingEffects();
+    rm._applySingleRunStartBlessingEffect('synthetic', {
+      type: 'shop_price_discount',
+      params: { value: 0.15 },
+    });
 
     expect(rm.getShopPriceDiscount()).toBeCloseTo(0.15);
-    expect(rm.getShopItemCountDelta()).toBe(1);
+    expect(rm.getShopItemCountDelta()).toBe(0);
   });
 
   it('healing_effectiveness_delta blessing sets healingEffectivenessMultiplier (T1)', () => {

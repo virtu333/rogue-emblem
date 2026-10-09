@@ -5,7 +5,7 @@
 // Ways this can fail, a test each:
 //   1. a "+20% forge costs" price charges the base price (the shop clamped it away), or a
 //      shop refuses to forge at all under it;
-//   2. Frugal Smith's discount or a liberated village's discount stops composing;
+//   2. a forge discount or a liberated village's discount stops composing;
 //   3. a repair under the price is refused, or charges the base price;
 //   4. an out-of-range discount is accepted;
 //   5. a mid-run tier III blessing (the Twin Altar's) shows a price after a save and load;
@@ -79,14 +79,17 @@ describe('forge prices from blessings', () => {
     expect(rm.gold).toBe(gold - 288);
   });
 
-  it('a +35% price and a Frugal Smith discount each charge what they say', () => {
+  it('a +35% price and a forge discount each charge what they say', () => {
     const dear = runWithPrice('iron_oath', FORGE_PRICE(0.35));
     expect(shopForgeDiscount(dear)).toBeCloseTo(-0.35, 10);
+    // No card gives a forge discount now; the effect type stays (events, old saves), so the
+    // charge is checked with a synthetic 30% off.
     const frugal = new RunManager(data);
     frugal.startRun({ runSeed: 11 });
-    frugal.activeBlessings = [{ id: 'frugal_smith', rolledCost: null }];
-    frugal._runStartBlessingsApplied = false;
-    frugal.applyRunStartBlessingEffects();
+    frugal._applySingleRunStartBlessingEffect('synthetic', {
+      type: 'forge_cost_multiplier',
+      params: { value: -0.3 },
+    });
     expect(shopForgeDiscount(frugal)).toBeCloseTo(0.3, 10);
     const sword = withSword(frugal);
     const gold = frugal.gold;

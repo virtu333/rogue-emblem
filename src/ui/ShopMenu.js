@@ -23,25 +23,21 @@ import {
   shopSellWarnings,
   sellShopItem,
   shopForgeBlock,
-  shopForgeDiscount,
+  shopForgeTerms,
+  shopForgePrice,
+  shopRepairPrice,
   forgeShopWeapon,
   shopRepairBlock,
   repairShopWeapon,
 } from '../engine/ShopCommands.js';
-import { isWorn, wearCount, wearDisplay, repairPrice } from '../engine/WeaponWear.js';
-import {
-  canForge,
-  forgePrice,
-  getForgeDisplayInfo,
-  getStatForgeCount,
-} from '../engine/ForgeSystem.js';
+import { isWorn, wearCount, wearDisplay } from '../engine/WeaponWear.js';
+import { canForge, getForgeDisplayInfo, getStatForgeCount } from '../engine/ForgeSystem.js';
 import { getSellPrice } from '../engine/LootSystem.js';
 import { itemDisplayName } from '../utils/itemNames.js';
 import { canEquip } from '../engine/UnitManager.js';
 import { getImbueDisplayInfo } from '../engine/ImbueSystem.js';
 import { itemUsageShort, itemUsageText } from '../engine/ItemUsage.js';
 import {
-  SHOP_FORGE_LIMITS,
   SHOP_REROLL_COST,
   SHOP_REROLL_ESCALATION,
   AMBUSH_SHOP_DISCOUNT,
@@ -432,16 +428,22 @@ export class ShopMenu {
       action.append(b);
     } else {
       const options = this.forgeOptions();
+      // Smith's Mark: the shop's first forge or repair costs nothing while it is unspent.
+      const remaining = Math.max(0, options.forgeLimit - options.forgesUsed);
       copy.append(
         el(
           'p',
-          `${Math.max(0, options.forgeLimit - options.forgesUsed)} of ${options.forgeLimit} shop forges remaining.`,
+          `${remaining} of ${options.forgeLimit} shop forges remaining.${options.free && remaining > 0 ? (options.forgesUsed > 0 ? ' The next is free.' : ' The first is free.') : ''}`,
         ),
       );
       if (isWorn(item)) {
         // A worn weapon shows Repair in place of the forge stats; it spends a forge use.
-        const price = repairPrice(item, options.discount);
-        const b = button(`Repair · ${price} G`, () => this.repair(item), 're-btn re-btn--primary');
+        const price = shopRepairPrice(item, options);
+        const b = button(
+          options.free ? 'Repair · Free' : `Repair · ${price} G`,
+          () => this.repair(item),
+          're-btn re-btn--primary',
+        );
         reason = shopRepairBlock(this.run, item, options);
         b.disabled = !!reason;
         goldShort = reason === 'Not enough gold.';
@@ -581,25 +583,22 @@ export class ShopMenu {
     });
   }
   forgeOptions() {
-    return {
+    return shopForgeTerms(this.run, {
+      act: this.run.currentAct,
       forgesUsed: this.scene.shopForgesUsed,
-      forgeLimit:
-        (SHOP_FORGE_LIMITS[this.run.currentAct] || 2) +
-        (this.run.blessingRuntimeModifiers?.forgeLimitDelta || 0),
-      discount: shopForgeDiscount(this.run, {
-        ambushDiscount: !!this.scene._currentShopHasAmbushDiscount,
-      }),
-    };
+      ambushDiscount: !!this.scene._currentShopHasAmbushDiscount,
+    });
   }
   /** Mend the most recent wear step: one confirm naming the stat, the cost and the forge use. */
   repair(weapon) {
     const expectedWear = wearCount(weapon);
     const owner = this.run.roster.find((u) => u.inventory?.includes(weapon));
     const step = wearDisplay(weapon).steps.at(-1);
-    const price = repairPrice(weapon, this.forgeOptions().discount);
+    const terms = this.forgeOptions();
+    const cost = terms.free ? "Free (Smith's Mark)" : `${shopRepairPrice(weapon, terms)} gold`;
     this.confirm(
       `Repair ${weapon.name}?`,
-      `${step.label}: restores ${step.restore}${repairImpactSuffix(owner, weapon)}. ${price} gold and one shop forge.`,
+      `${step.label}: restores ${step.restore}${repairImpactSuffix(owner, weapon)}. ${cost} and one shop forge.`,
       () => {
         const options = { ...this.forgeOptions(), expectedWear };
         const result = repairShopWeapon(this.run, weapon, options);
@@ -621,8 +620,11 @@ export class ShopMenu {
       title: `Forge ${weapon.name}`,
       choices: stats,
       label: (stat) => stat.label,
-      describe: (stat) =>
-        `${forgePrice(weapon, stat.key, this.forgeOptions().discount)} gold · ${getStatForgeCount(weapon, stat.key)}/${FORGE_STAT_CAP} upgrades${forgeImpactSuffix(owner, weapon, stat.key)}`,
+      describe: (stat) => {
+        const terms = this.forgeOptions();
+        const cost = terms.free ? 'Free' : `${shopForgePrice(weapon, stat.key, terms)} gold`;
+        return `${cost} · ${getStatForgeCount(weapon, stat.key)}/${FORGE_STAT_CAP} upgrades${forgeImpactSuffix(owner, weapon, stat.key)}`;
+      },
       blocked: (stat) =>
         shopForgeBlock(this.run, weapon, stat.key, { ...this.forgeOptions(), expectedLevel }),
       apply: (stat) => {

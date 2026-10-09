@@ -116,7 +116,26 @@ describe('Blessing Expansion v2 � selection and exclusions', () => {
 });
 
 describe('Blessing Expansion v2 � effect handlers', () => {
-  it('frugal_smith applies forge_cost_multiplier as a discount', () => {
+  it('forge_cost_multiplier is still a discount (an effect of its own, no card carries it now)', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+
+    rm._applySingleRunStartBlessingEffect('synthetic', {
+      type: 'forge_cost_multiplier',
+      params: { value: -0.3 },
+    });
+
+    expect(rm.getForgeCostDiscount()).toBeCloseTo(0.3, 5);
+    const weapon = rm.roster[0].weapon;
+    if (weapon) {
+      const baseCost = getForgeCost(weapon, 'might');
+      const discountedCost = Math.max(1, Math.floor(baseCost * (1 - rm.getForgeCostDiscount())));
+      expect(discountedCost).toBeLessThan(baseCost);
+    }
+  });
+
+  it("frugal_smith (Smith's Mark) frees each shop's first forge and adds a forge, with no discount", () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
     rm.startRun();
@@ -125,14 +144,9 @@ describe('Blessing Expansion v2 � effect handlers', () => {
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
 
-    expect(rm.getForgeCostDiscount()).toBeCloseTo(0.3, 5);
+    expect(rm.getFreeForgesPerShop()).toBe(1);
     expect(rm.blessingRuntimeModifiers.forgeLimitDelta).toBe(1);
-    const weapon = rm.roster[0].weapon;
-    if (weapon) {
-      const baseCost = getForgeCost(weapon, 'might');
-      const discountedCost = Math.max(1, Math.floor(baseCost * (1 - rm.getForgeCostDiscount())));
-      expect(discountedCost).toBeLessThan(baseCost);
-    }
+    expect(rm.getForgeCostDiscount()).toBe(0);
   });
 
   it('quartermaster_cache puts an Elixir in the convoy at once, not in the lords bags', () => {

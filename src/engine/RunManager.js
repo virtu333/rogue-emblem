@@ -172,6 +172,7 @@ import { isHuntedBattle } from './HuntedWave.js';
 import { contractRewardOwedAt, normalizeContract, normalizeContractOwed } from './Contracts.js';
 import { settleContract } from './ContractSettlement.js';
 import { everFallenUnits } from './LaidToRest.js';
+import { stampExtraShops } from './ExtraShopPass.js';
 import { createSpecialCharacter } from './SpecialCharacters.js';
 
 // Phaser-specific fields that must be stripped for serialization
@@ -285,6 +286,10 @@ function createBlessingRuntimeModifiers() {
     // Elixir): `{ blessingId, kind: 'gold'|'item', value?, itemName?, count?, paidActs }`.
     // `paidActs` is what makes a grant pay once per act, however often a save is loaded.
     actStartGrants: [],
+    // Smith's Mark: how many forge uses (a forge or a repair) a shop gives free, counted from
+    // each shop's first. Pilgrim's Road: shops each act's route gains (engine/ExtraShopPass.js).
+    freeForgesPerShop: 0,
+    extraShopsPerAct: 0,
   };
 }
 
@@ -2433,6 +2438,38 @@ export class RunManager {
       return;
     }
 
+    if (effect.type === 'shop_first_forge_free') {
+      // Smith's Mark: the shop's first forge use is free; the engine decides it per shop from
+      // the shop's saved count of uses (ShopCommands.freeForgeAvailable).
+      const delta = Math.max(0, Math.trunc(value));
+      this.blessingRuntimeModifiers.freeForgesPerShop =
+        (this.blessingRuntimeModifiers.freeForgesPerShop || 0) + delta;
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        appliedValue: delta,
+        total: this.blessingRuntimeModifiers.freeForgesPerShop,
+      });
+      return;
+    }
+
+    if (effect.type === 'extra_shop_per_act') {
+      // Pilgrim's Road: this act's map gains its shop now (a church vow takes only nodes still
+      // ahead of the party), and every later act's map in advanceAct.
+      const delta = Math.max(0, Math.trunc(value));
+      this.blessingRuntimeModifiers.extraShopsPerAct =
+        (this.blessingRuntimeModifiers.extraShopsPerAct || 0) + delta;
+      const here = this.nodeMap?.nodes?.find((node) => node.id === this.currentNodeId);
+      const converted = this._stampExtraShops({
+        fromRow: here ? here.row + 1 : 0,
+        currentNodeId: this.currentNodeId,
+      });
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        appliedValue: delta,
+        total: this.blessingRuntimeModifiers.extraShopsPerAct,
+        converted,
+      });
+      return;
+    }
+
     if (effect.type === 'shop_price_discount') {
       const delta = Number(value) || 0;
       this.blessingRuntimeModifiers.shopPriceDiscount += delta;
@@ -2637,6 +2674,32 @@ export class RunManager {
 
   getShopPriceDiscount() {
     return this.blessingRuntimeModifiers?.shopPriceDiscount || 0;
+  }
+
+  /** Smith's Mark: how many of a shop's first forge uses cost nothing (0 without it). */
+  getFreeForgesPerShop() {
+    return Math.max(0, Math.trunc(this.blessingRuntimeModifiers?.freeForgesPerShop || 0));
+  }
+
+  /** Pilgrim's Road: the shops each act's route gains (0 without it). */
+  getExtraShopsPerAct() {
+    return Math.max(0, Math.trunc(this.blessingRuntimeModifiers?.extraShopsPerAct || 0));
+  }
+
+  /**
+   * Pilgrim's Road: make the current map hold its extra shops (an event or church becomes a
+   * shop; engine/ExtraShopPass.js, its own seeded stream). Idempotent, so a reload or a second
+   * call never adds one; the prologue never has any. Returns the ids converted by this call.
+   */
+  _stampExtraShops({ fromRow = 0, currentNodeId = null } = {}) {
+    const count = this.getExtraShopsPerAct();
+    if (count <= 0 || isPrologueRun(this) || !this.nodeMap) return [];
+    return stampExtraShops(this.nodeMap, {
+      runSeed: this.runSeed,
+      count,
+      fromRow,
+      currentNodeId,
+    });
   }
 
   /** The grants list on the runtime modifiers (made when an older object lacks it). */
@@ -4932,6 +4995,8 @@ export class RunManager {
         caravanChanceBonus: this.metaEffects?.caravanChanceBonus || 0,
       }),
     );
+    // Pilgrim's Road: the new map gains its extra shop before anything else reads it.
+    this._stampExtraShops();
     this.shopStateByNodeId = {};
     this.ruinsChoiceByNodeId = {};
     this.churchVowByNodeId = {};
@@ -5843,6 +5908,14 @@ export class RunManager {
         avoidBonus: Math.trunc(Number(held?.avoidBonus) || 0),
       };
     }
+    rm.blessingRuntimeModifiers.freeForgesPerShop = Math.max(
+      0,
+      Math.trunc(Number(rm.blessingRuntimeModifiers.freeForgesPerShop) || 0),
+    );
+    rm.blessingRuntimeModifiers.extraShopsPerAct = Math.max(
+      0,
+      Math.trunc(Number(rm.blessingRuntimeModifiers.extraShopsPerAct) || 0),
+    );
     rm.blessingRuntimeModifiers.actStartGrants = sanitizeActStartGrants(
       rm.blessingRuntimeModifiers.actStartGrants,
     );

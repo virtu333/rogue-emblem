@@ -477,6 +477,8 @@ export const SAFE_BLESSING_BOON_TYPES = Object.freeze([
   'forge_limit_delta',
   'shop_item_count_delta',
   'shop_price_discount',
+  'shop_first_forge_free',
+  'extra_shop_per_act',
   'battle_gold_multiplier_delta',
   'recruit_level_bonus',
   'terrain_combat_bonus',

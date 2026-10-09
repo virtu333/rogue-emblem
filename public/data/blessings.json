@@ -562,15 +562,15 @@
     {
       "id": "frugal_smith",
       "lore": "Honored at any forge that still stamps Varen's mark. Ask for the pilgrim rate.",
-      "name": "Frugal Smith",
+      "name": "Smith's Mark",
       "tier": 2,
-      "description": "Forge costs reduced by 30%, +1 forge per shop.",
+      "description": "Each shop's first forge or repair is free, and every shop forges once more.",
       "weight": 1,
       "boons": [
         {
-          "type": "forge_cost_multiplier",
+          "type": "shop_first_forge_free",
           "params": {
-            "value": -0.3
+            "value": 1
           }
         },
         {
@@ -612,25 +612,19 @@
     },
     {
       "id": "pilgrim_coin",
-      "lore": "Show the shell token at any roadside stall. Merchants grumble, then discount.",
-      "name": "Pilgrim Coin",
+      "lore": "The shell on the cord opens a door the road did not have yesterday.",
+      "name": "Pilgrim's Road",
       "tier": 2,
-      "description": "Shops stock +1 item, and everything they sell is 15% off.",
+      "description": "Every act's route gains one more shop: an event or church on the map becomes a shop.",
       "weight": 1,
       "tags": [
         "shop"
       ],
       "boons": [
         {
-          "type": "shop_item_count_delta",
+          "type": "extra_shop_per_act",
           "params": {
             "value": 1
-          }
-        },
-        {
-          "type": "shop_price_discount",
-          "params": {
-            "value": 0.15
           }
         }
       ],
@@ -694,8 +688,7 @@
         [
           "sworn_enemy",
           "act1_def_down_1"
-        ]
-     ,
+        ],
         "commander_injury"
       ],
       "costs": [],
@@ -890,8 +883,7 @@
       ],
       "prices": [
         "debt_large",
-        "growths_down"
-     ,
+        "growths_down",
         "commander_injury"
       ],
       "costs": []
