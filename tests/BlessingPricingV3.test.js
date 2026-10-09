@@ -159,7 +159,9 @@ describe('offers', () => {
       (w[3] / total) * (w[4] / (w[2] + w[4]));
     expect(tier4 / N).toBeGreaterThan(expected - 0.04);
     expect(tier4 / N).toBeLessThan(expected + 0.04);
-  });
+    // Explicit timeout: a full sweep that takes seconds alone brushes the 5 s default under
+    // full-suite parallel load.
+  }, 30_000);
 
   it('every rolled price is one of the blessing’s candidates; a pact blessing always pays its pact', () => {
     for (let seed = 1; seed <= 400; seed++) {

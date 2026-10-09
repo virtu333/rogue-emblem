@@ -351,7 +351,9 @@ describe('the room check says what a commit would do (every shipped choice, shor
         }
       }
     }
-  });
+    // Explicit timeout: a full sweep that takes seconds alone brushes the 5 s default under
+    // full-suite parallel load.
+  }, 30_000);
 
   it('a weapon shortage never leaves an event without an open choice', () => {
     for (const [label, shorten] of Object.entries(armies)) {
