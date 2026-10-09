@@ -229,24 +229,28 @@ export class ShopMenu {
       if (short(row)) b.classList.add('is-short');
       b.setAttribute('aria-pressed', String(row.item === this.selected));
       const selling = this.scene.activeShopTab === 'sell';
-      const sub =
-        this.scene.activeShopTab === 'buy'
-          ? [`${row.entry.price} G`, row.item.type, itemKeywordText(row.item)]
+      const buying = this.scene.activeShopTab === 'buy';
+      const sub = buying
+        ? [row.item.type, itemKeywordText(row.item)].filter(Boolean).join(' · ')
+        : selling
+          ? // How much it has been used: "Edric · +875 G · 14 strikes".
+            [row.owner, `+${getSellPrice(row.item)} G`, itemUsageShort(row.item)]
               .filter(Boolean)
               .join(' · ')
-          : selling
-            ? // How much it has been used: "Edric · +875 G · 14 strikes".
-              [row.owner, `+${getSellPrice(row.item)} G`, itemUsageShort(row.item)]
-                .filter(Boolean)
-                .join(' · ')
-            : isWorn(row.item)
-              ? `${row.owner} · Worn ${wearCount(row.item)}/${wearDisplay(row.item).max}`
-              : `${row.owner} · Forge ${row.item._forgeLevel || 0}`;
+          : isWorn(row.item)
+            ? `${row.owner} · Worn ${wearCount(row.item)}/${wearDisplay(row.item).max}`
+            : `${row.owner} · Forge ${row.item._forgeLevel || 0}`;
       const name = el('strong', this.shown(row.item));
       if (row.kind === 'inventory' && row.unit?.weapon === row.item)
         name.append(equippedBadgeElement((tag) => el(tag)));
       const text = el('span', null, 'shop-row-text');
-      text.append(name, el('span', sub));
+      // A buy row's price is its own span: gold while the purse reaches it, grey when it
+      // doesn't (.shop-price; the row is .is-short).
+      const line = el('span', null);
+      if (buying)
+        line.append(el('span', `${row.entry.price} G`, 'shop-price'), sub ? ` · ${sub}` : '');
+      else line.textContent = sub;
+      text.append(name, line);
       // Selling someone's only weapon (or staff, or bow) reads on the row itself,
       // before it is chosen; spares, supplies and the convoy carry no tag.
       const risks = selling ? this.riskTags(row) : null;
