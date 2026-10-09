@@ -3099,7 +3099,7 @@
             "xpMultiplier": 0.85,
             "spawns": [
               {
-                "col": 8,
+                "col": 9,
                 "row": 1,
                 "className": "Fighter",
                 "level": 11,
@@ -3119,7 +3119,7 @@
             "spawns": [
               {
                 "col": 10,
-                "row": 1,
+                "row": 2,
                 "className": "Knight",
                 "level": 12,
                 "sunderWeapon": true
@@ -3381,7 +3381,7 @@
             "xpMultiplier": 0.9,
             "spawns": [
               {
-                "col": 7,
+                "col": 6,
                 "row": 1,
                 "className": "Fighter",
                 "level": 9
@@ -3400,7 +3400,7 @@
             "xpMultiplier": 0.7,
             "spawns": [
               {
-                "col": 8,
+                "col": 9,
                 "row": 1,
                 "className": "Knight",
                 "level": 10,
