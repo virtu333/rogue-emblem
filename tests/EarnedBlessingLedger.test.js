@@ -307,12 +307,15 @@ describe('taking and skipping', () => {
     expect(result.blessing.id).toBe(first);
     expect(entry).toMatchObject({ status: 'taken', chosen: first });
     expect(rm.getActiveBlessingIds()).toEqual([first]);
-    expect(
-      rm.blessingHistory.some((r) => r.stage === 'earned_pick' && r.blessingId === first),
-    ).toBe(true);
-    expect(
-      rm.blessingHistory.filter((r) => r.eventType === 'effect_applied' && r.stage === 'run_start'),
-    ).toHaveLength(1);
+    // One 'earned_pick' record for the take; the boon it applies is a mid-run grant's record.
+    const picks = rm.blessingHistory.filter((r) => r.eventType === 'earned_pick');
+    expect(picks).toHaveLength(1);
+    expect(picks[0]).toMatchObject({ blessingId: first, stage: 'mid_run', effectType: null });
+    expect(picks[0].details).toMatchObject({ actId: 'act1', offered: entry.offered });
+    const applied = rm.blessingHistory.filter((r) => r.eventType === 'effect_applied');
+    expect(applied.length).toBeGreaterThan(0);
+    for (const record of applied) expect(record.stage, record.effectType).toBe('mid_run');
+    expect(rm.blessingHistory.some((r) => r.stage === 'run_start')).toBe(false);
   });
 
   it('a second take (a double tap, a stale menu) is refused and changes nothing', () => {

@@ -3,6 +3,7 @@
 // list, the card and the Compendium say "Earned" in place of a tier.
 import { describe, expect, it, vi } from 'vitest';
 import { RunManager } from '../src/engine/RunManager.js';
+import { describeActStartGrants } from '../src/engine/ActStartNotice.js';
 import { churchBlessingOffers, takeChurchBlessing } from '../src/engine/ChurchVow.js';
 import { availableEventBlessings, isSafeEventBlessing } from '../src/engine/EventSystem.js';
 import { heldBlessingEntries } from '../src/ui/heldBlessingsModel.js';
@@ -89,7 +90,7 @@ describe('the mid-run sources never hand out an earned blessing', () => {
 describe('the four boons have handlers and are saved', () => {
   const BOONS = [
     ['unbroken_banner', 'battle_last_stand', 'battleLastStand', { lastStand: 1 }],
-    ['second_dawn', 'act_start_vision_delta', 'actStartVisionDelta', {}],
+    ['second_dawn', 'act_start_vision_delta', null, {}],
     ['ember_lantern', 'first_kill_heal', 'firstKillHeal', { firstKillHeal: 10 }],
     ['captains_whistle', 'first_turn_mov_delta', 'firstTurnMovDelta', { firstTurnMov: 1 }],
   ];
@@ -98,8 +99,10 @@ describe('the four boons have handlers and are saved', () => {
     const rm = freshRun();
     expect(rm.addBlessingMidRun(id, { earned: true })).toBe(true);
     const mods = rm.blessingRuntimeModifiers;
-    const fields = ['battleLastStand', 'actStartVisionDelta', 'firstKillHeal', 'firstTurnMovDelta'];
+    const fields = ['battleLastStand', 'firstKillHeal', 'firstTurnMovDelta'];
     for (const f of fields) expect(mods[f] > 0, f).toBe(f === field);
+    // Second Dawn raises no field: it registers an act-start grant (kind 'vision').
+    expect(mods.actStartGrants.length > 0).toBe(field === null);
     const event = rm.blessingHistory.find((r) => r.effectType === type);
     expect(event?.details?.skipped).toBeUndefined();
   });
@@ -111,14 +114,15 @@ describe('the four boons have handlers and are saved', () => {
       firstKillHeal: 0,
       firstTurnMov: 0,
     });
-    expect(rm.getActStartVisionDelta()).toBe(0);
     for (const id of EARNED_IDS) rm.addBlessingMidRun(id, { earned: true });
     expect(rm.getBattleBlessingEffects()).toEqual({
       lastStand: 1,
       firstKillHeal: 10,
       firstTurnMov: 1,
     });
-    expect(rm.getActStartVisionDelta()).toBe(1);
+    expect(rm.blessingRuntimeModifiers.actStartGrants).toEqual([
+      { blessingId: 'second_dawn', kind: 'vision', value: 1, paidActs: ['act1'] },
+    ]);
   });
 
   it('a malformed value is skipped as invalid (the validator refuses it first)', () => {
@@ -140,16 +144,13 @@ describe('the four boons have handlers and are saved', () => {
     for (const id of EARNED_IDS) rm.addBlessingMidRun(id, { earned: true });
     const back = roundTrip(rm);
     expect(back.getBattleBlessingEffects()).toEqual(rm.getBattleBlessingEffects());
-    expect(back.getActStartVisionDelta()).toBe(1);
+    expect(back.blessingRuntimeModifiers.actStartGrants).toEqual(
+      rm.blessingRuntimeModifiers.actStartGrants,
+    );
     expect(back.getActiveBlessingIds()).toEqual(EARNED_IDS);
 
     const old = JSON.parse(JSON.stringify(freshRun().toJSON()));
-    for (const f of [
-      'battleLastStand',
-      'actStartVisionDelta',
-      'firstKillHeal',
-      'firstTurnMovDelta',
-    ])
+    for (const f of ['battleLastStand', 'firstKillHeal', 'firstTurnMovDelta'])
       delete old.blessingRuntimeModifiers[f];
     delete old.earnedBlessingPicks;
     const loaded = RunManager.fromJSON(old, data);
@@ -158,7 +159,6 @@ describe('the four boons have handlers and are saved', () => {
       firstKillHeal: 0,
       firstTurnMov: 0,
     });
-    expect(loaded.getActStartVisionDelta()).toBe(0);
     expect(loaded.earnedBlessingPicks).toEqual({});
     // And a corrupt number is read as 0, never NaN.
     old.blessingRuntimeModifiers.firstKillHeal = 'lots';
@@ -166,7 +166,7 @@ describe('the four boons have handlers and are saved', () => {
   });
 });
 
-describe('Second Dawn pays +1 Vision at the start of each act', () => {
+describe('Second Dawn pays +1 Vision at the start of each act (an act-start grant)', () => {
   it('not when it is taken', () => {
     const rm = freshRun();
     const before = rm.visionChargesRemaining;
@@ -174,20 +174,40 @@ describe('Second Dawn pays +1 Vision at the start of each act', () => {
     expect(rm.visionChargesRemaining).toBe(before);
   });
 
-  it('on entering the next act, and says so', () => {
+  it('not when another act-start grant pays the current act at the take', () => {
+    // Taking Quartermaster Cache pays the current act's Elixir; that sweep must not reach
+    // Second Dawn's grant, which is stamped as paid for the act it is taken in.
+    const rm = freshRun();
+    rm.addBlessingMidRun('second_dawn', { earned: true });
+    const before = rm.visionChargesRemaining;
+    expect(rm._payActStartGrants('mid_run')).toEqual([]);
+    expect(rm.visionChargesRemaining).toBe(before);
+  });
+
+  it('on entering the next act, written by the shared act-start notice', () => {
     const rm = freshRun();
     rm.addBlessingMidRun('second_dawn', { earned: true });
     const before = rm.visionChargesRemaining;
     const result = rm.advanceAct();
-    expect(result.visionGranted).toBe(1);
     expect(rm.visionChargesRemaining).toBe(before + 1);
-    expect(rm.consumeActStartNotice()).toBe('Second Dawn: +1 Vision');
-    expect(rm.consumeActStartNotice()).toBeNull();
+    expect(describeActStartGrants(result.actStartGrants)).toBe('Second Dawn: +1 Vision');
+    expect(describeActStartGrants(rm.takeActStartNotice())).toBe('Second Dawn: +1 Vision');
+    expect(rm.takeActStartNotice()).toEqual([]);
     const event = rm.blessingHistory.find((r) => r.stage === 'act_transition');
     expect(event).toMatchObject({
       blessingId: 'second_dawn',
       effectType: 'act_start_vision_delta',
     });
+  });
+
+  it('the notice takes its name from the catalog', () => {
+    const renamed = structuredClone(data);
+    renamed.blessings.blessings.find((b) => b.id === 'second_dawn').name = 'Late Sunrise';
+    const rm = new RunManager(renamed);
+    rm.startRun({ runSeed: 21, applyBlessingsAtStart: false });
+    rm.addBlessingMidRun('second_dawn', { earned: true });
+    rm.advanceAct();
+    expect(describeActStartGrants(rm.takeActStartNotice())).toBe('Late Sunrise: +1 Vision');
   });
 
   it('at every act, not just the first', () => {
@@ -200,7 +220,7 @@ describe('Second Dawn pays +1 Vision at the start of each act', () => {
     expect(rm.visionChargesRemaining).toBe(before + 3);
   });
 
-  it('once per act across a save and load (the act index and the charge are saved together)', () => {
+  it('once per act across a save and load (the act index, the charge and the ledger are saved together)', () => {
     const rm = freshRun();
     rm.addBlessingMidRun('second_dawn', { earned: true });
     const before = rm.visionChargesRemaining;
@@ -208,25 +228,54 @@ describe('Second Dawn pays +1 Vision at the start of each act', () => {
     const back = roundTrip(rm);
     expect(back.actIndex).toBe(1);
     expect(back.visionChargesRemaining).toBe(before + 1);
-    // Loading pays nothing, and the notice is not re-armed by a load.
-    expect(back.consumeActStartNotice()).toBeNull();
+    expect(back.blessingRuntimeModifiers.actStartGrants[0].paidActs).toEqual(['act1', 'act2']);
+    // Loading pays nothing, and re-asking for the act's grants pays nothing twice.
+    expect(back.takeActStartNotice()).toEqual([]);
+    expect(back._payActStartGrants('act_transition')).toEqual([]);
+    expect(back.visionChargesRemaining).toBe(before + 1);
     back.advanceAct();
     expect(back.visionChargesRemaining).toBe(before + 2);
+  });
+
+  it('a damaged vision grant is dropped field by field on load', () => {
+    const rm = freshRun();
+    rm.addBlessingMidRun('second_dawn', { earned: true });
+    const json = JSON.parse(JSON.stringify(rm.toJSON()));
+    json.blessingRuntimeModifiers.actStartGrants.push(
+      { blessingId: 'second_dawn', kind: 'vision', value: -1, paidActs: [] },
+      { blessingId: 'second_dawn', kind: 'vision', value: 'x', paidActs: [] },
+    );
+    const back = RunManager.fromJSON(json, data);
+    expect(back.blessingRuntimeModifiers.actStartGrants).toHaveLength(1);
   });
 
   it('nothing without it, and nothing past the last act', () => {
     const rm = freshRun();
     const before = rm.visionChargesRemaining;
-    expect(rm.advanceAct().visionGranted).toBe(0);
+    expect(rm.advanceAct().actStartGrants).toEqual([]);
     expect(rm.visionChargesRemaining).toBe(before);
-    expect(rm.consumeActStartNotice()).toBeNull();
+    expect(rm.takeActStartNotice()).toEqual([]);
 
     const held = freshRun();
     held.addBlessingMidRun('second_dawn', { earned: true });
     held.actIndex = held.actSequence.length - 1;
     const vision = held.visionChargesRemaining;
-    expect(held.advanceAct().visionGranted).toBe(0);
+    expect(held.advanceAct().actStartGrants).toEqual([]);
     expect(held.visionChargesRemaining).toBe(vision);
+  });
+
+  it('never in the prologue', () => {
+    const rm = new RunManager(data);
+    rm.startPrologue(data, data.prologue);
+    rm.blessingRuntimeModifiers.actStartGrants.push({
+      blessingId: 'second_dawn',
+      kind: 'vision',
+      value: 1,
+      paidActs: [],
+    });
+    const before = rm.visionChargesRemaining;
+    expect(rm._payActStartGrants('act_transition')).toEqual([]);
+    expect(rm.visionChargesRemaining).toBe(before);
   });
 });
 
@@ -238,7 +287,7 @@ describe('the held list, the card and the Compendium say Earned', () => {
     const [banner, steady] = heldBlessingEntries(rm);
     expect(banner).toMatchObject({ label: 'Unbroken Banner', tier: 'Earned', earned: true });
     expect(banner.price).toBeNull();
-    expect(steady).toMatchObject({ label: 'Steady Hands', tier: 'I', earned: false });
+    expect(steady).toMatchObject({ label: 'Keen Eye', tier: 'I', earned: false });
   });
 
   it('the tarot card reads Earned with a glyph in its sun, and a tiered card is unchanged', () => {

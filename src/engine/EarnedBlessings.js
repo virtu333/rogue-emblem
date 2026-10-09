@@ -198,7 +198,7 @@ export function takeEarnedBlessing(run, actId, blessingId) {
     return { ok: false, reason: 'That blessing could not be taken.' };
   entry.status = 'taken';
   entry.chosen = blessingId;
-  run._recordBlessingEvent?.('earned_pick', blessingId, null, {
+  run._recordEarnedPick?.(blessingId, {
     actId,
     source: entry.source,
     offered: [...entry.offered],

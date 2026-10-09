@@ -291,8 +291,6 @@ export class NodeMapScene extends Phaser.Scene {
     this.drawMap();
     this.input.enabled = false;
     void this.finalizeSceneReady(lifecycleGeneration).then(() => {
-      // A new act's line from a blessing (Second Dawn's Vision), when a battle just advanced the act.
-      if (this.isSceneReady) this._showActStartNotice?.();
       if (
         this.isSceneReady &&
         this.scene?.isActive?.() &&
@@ -2462,18 +2460,11 @@ export class NodeMapScene extends Phaser.Scene {
           const paidAtActStart = describeActStartGrants(actStartGrants);
           if (paidAtActStart) void showMinorHint(this, paidAtActStart);
           await this._showSkillDisplacementWarning(displacedSkills);
-          this._showActStartNotice?.();
         });
       }
     } else {
       this.drawMap();
     }
-  }
-
-  /** The line a held blessing wrote for this act's start ("Second Dawn: +1 Vision"), shown once. */
-  _showActStartNotice() {
-    const notice = this.runManager?.consumeActStartNotice?.();
-    if (notice && this.scene?.isActive?.()) this.showShopBanner(notice, UI_PALETTE.info);
   }
 
   showActCompleteBanner(onComplete) {

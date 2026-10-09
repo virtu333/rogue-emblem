@@ -56,6 +56,13 @@ function runWithAdvancePay() {
   return rm;
 }
 
+function runWithSecondDawn() {
+  const rm = new RunManager(data);
+  rm.startRun({ runSeed: 7002, applyBlessingsAtStart: false });
+  expect(rm.addBlessingMidRun('second_dawn', { earned: true })).toBe(true);
+  return rm;
+}
+
 /** Play the act through to its boss, as the route map would (every reward claimed). */
 function winAct(rm) {
   for (let guard = 0; guard < 60 && !rm.isActComplete(); guard++) {
@@ -98,6 +105,8 @@ async function enterRouteMap(rm) {
 
 const noticeCalls = () =>
   vi.mocked(showMinorHint).mock.calls.filter(([, text]) => /Advance Pay/.test(String(text)));
+const dawnCalls = () =>
+  vi.mocked(showMinorHint).mock.calls.filter(([, text]) => /Second Dawn/.test(String(text)));
 
 beforeEach(() => {
   vi.mocked(showMinorHint).mockClear();
@@ -158,5 +167,48 @@ describe('act-start notice: the NodeMapScene.checkActComplete path (advanceAct, 
     expect(noticeCalls()[0][1]).toBe('Advance Pay: +250 gold');
     await enterRouteMap(rm);
     expect(noticeCalls()).toHaveLength(1);
+  });
+});
+
+describe('act-start notice: Second Dawn rides the same system (a vision grant)', () => {
+  it('the battle-end path shows "Second Dawn: +1 Vision" on the next map entry, once', async () => {
+    const rm = runWithSecondDawn();
+    const before = rm.visionChargesRemaining;
+    winAct(rm);
+    const afterBoss = rm.visionChargesRemaining; // the boss's own Vision grant is not Second Dawn's
+    await bossVictoryTransition(rm);
+    expect(rm.currentAct).toBe('act2');
+    expect(rm.visionChargesRemaining).toBe(afterBoss + 1);
+    expect(afterBoss).toBeGreaterThanOrEqual(before);
+    expect(dawnCalls()).toHaveLength(0);
+    await enterRouteMap(rm);
+    expect(dawnCalls()).toHaveLength(1);
+    expect(dawnCalls()[0][1]).toBe('Second Dawn: +1 Vision');
+    await enterRouteMap(rm);
+    expect(dawnCalls()).toHaveLength(1);
+  });
+
+  it('the route map path shows it once and the next entry does not repeat it', async () => {
+    const rm = runWithSecondDawn();
+    const before = rm.visionChargesRemaining;
+    const scene = {
+      runManager: rm,
+      drawMap: vi.fn(),
+      persistRunSave: vi.fn(),
+      showActCompleteBanner: (onComplete) => onComplete(),
+      showWeaponArtsUnlockedBanner: vi.fn(),
+      _showSkillDisplacementWarning: vi.fn(async () => {}),
+      registry: { get: () => null },
+      sys: { isActive: () => true },
+      _sceneLifecycleGeneration: 1,
+      _pendingNodeMapHints: null,
+    };
+    rm.isActComplete = () => true;
+    rm.isRunComplete = () => false;
+    NodeMapScene.prototype.checkActComplete.call(scene);
+    expect(rm.visionChargesRemaining).toBe(before + 1);
+    expect(dawnCalls()).toHaveLength(1);
+    await enterRouteMap(rm);
+    expect(dawnCalls()).toHaveLength(1);
   });
 });
