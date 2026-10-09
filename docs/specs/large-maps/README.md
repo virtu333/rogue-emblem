@@ -1,7 +1,8 @@
 # Large maps and map variety
 
-Status: proposal, revision 4 (2026-10-09). Takes in the notes of specs 01–05 and a cross-review
-of the whole set. Specs only: no game code or data changes yet.
+Status: proposal, revision 5 (2026-10-09). Takes in the notes of specs 01–05, a cross-review
+of the whole set and a review finding on the old-client guard. Specs only: no game code or
+data changes yet.
 Branch `claude/large-maps-specs`.
 
 This folder plans bigger, more ambitious battle maps: more kinds of maps, more than one
@@ -15,7 +16,7 @@ and bigger boss and endgame maps. Ordinary procedural battles keep their sizes.
 | [`01-camera-and-navigation.md`](01-camera-and-navigation.md) | the desktop battle camera, the enemy-phase camera, objective markers, off-screen pointers, jump controls, the tactical overview, low-zoom readability, rendering cost |
 | [`02-encounters-and-pacing.md`](02-encounters-and-pacing.md) | encounter groups (pickets, sleeping pods, patrols), wake triggers, waves timed by contact rather than absolute turns, enemy count, par and enrage on big maps, enemy-phase dead air, pathfinding cost |
 | [`03-objectives.md`](03-objectives.md) | the objective model: primary objectives (new kinds), phases, bonus objectives, rewards, the objective strip, par |
-| [`04-set-pieces.md`](04-set-pieces.md) | the set-piece format (authored skeleton, chunk library, procedural fill, seeded choices), the validator, where set pieces appear in a run, the catalogue, the first maps |
+| [`04-set-pieces.md`](04-set-pieces.md) | the set-piece format (authored skeleton, chunk library, procedural fill, seeded choices), the validator, where set pieces appear in a run, the catalogue, the first maps, and the run-format guard for older clients (§12.1) |
 | [`05-boss-maps.md`](05-boss-maps.md) | enhancing every boss battle (phases, signature mechanics, arena variants, bonus objectives, the finale) and more boss set pieces |
 | [`appendix-current-systems.md`](appendix-current-systems.md) | a reference to today's code for objectives, battle config, AI modes, reinforcements, node map, NPCs and rewards (snapshot of 2026-10-08; line numbers drift) |
 
@@ -259,10 +260,18 @@ enemy phases.
   `EnemyCarry` and `AccessorySkills` do.
 - Adding a set piece to the game never changes another map for the same seed.
 
-**Old clients.** A run holding a set piece carries a `requiresClient` marker (`04` §12.1):
+**Old clients.** A run carries a `requiresClient` marker and a `requiresCapabilities` list
+when it holds **any** mechanic these specs add, not only a set piece (`04` §12.1):
+- The format is **derived from capabilities**, each detected in the node map, the locked
+  configs, the battle checkpoint and the run fields: `encounters` (groups beyond today's
+  hold packs), `parModel`, `objectives` (non-legacy objectives and phases), `gateTerrain`,
+  `bossKit` (kits and signatures), `arena`, `setPiece`. All map to format 2. A First Light
+  boss kit is held although First Light has no set piece.
 - A client too old to play it refuses to load it, and writes nothing.
 - Its run save stays local-only through the prologue's existing hold-back,
-  `CloudSync.isLocalOnlyRunSave`.
+  `CloudSync.isLocalOnlyRunSave`, widened to read the derived format.
+- The guard is its own PR (`04` PR A0) and a dependency of the earliest PR in any spec that
+  can write a capability (§5).
 
 **Prologue.** It is unchanged. Set pieces are standard-run content; `isScriptedBattle`
 keeps meaning the prologue.
@@ -310,15 +319,20 @@ Each phase is shippable alone and leaves the game better even if the next never 
 | Phase | What | Depends on |
 |---|---|---|
 | 0 | **Fixes worth doing anyway** (`02` §2): enrage never before par + 1 (`max(par+1, min(12, par+2))`); the confirmed hybrid-arena wall/wave bug; an exact binary-heap A* and an exact branch-and-bound recovery fallback; no 300 ms pause, tween or checkpoint for enemy actions the player cannot see or that do nothing, pause scaled by battle speed; prune locked configs at `advanceAct`; two bugs found by `01` (desktop [N] scrolls the HUD away, `01` §1.5.1; the enemy heal banner names a hidden target, `01` §1.5.2) | — |
+| 0g | **Run-format guard** (`04` PR A0, §12.1): the capability list and its detection in the node map, locked configs, checkpoint and run fields; the `requiresClient` / `requiresCapabilities` marker; the loader refusal and slot card; `CLOUD_SAFE_RUN_FORMAT` and the widened `isLocalOnlyRunSave`. Writes no capability itself | — |
 | 1 | **Camera and navigation** (`01`): desktop camera; enemy-phase follow; objective markers and off-screen pointers; jump controls; Recenter in portrait; danger overlay and fog hardening | — |
-| 2 | **Encounter groups** (`02`): groups, wake triggers, contact-relative waves, and the par model `groups-v1` in its own PR. Pickets and sleeping pods on today's rout maps stay owner-gated until `sim/pacing.js` shows par holds (`02` §1.5, §9) | 0 (enrage, dead air) |
-| 3 | **Objective model v2** (`03`): `objectives` with phases and bonuses; the objective strip; bonus rewards at the victory commit. First on today's maps: the village becomes a bonus objective (it keeps its in-battle payout for compatibility, `03` §9), multi-seize | 2 |
-| 4 | **Set-piece format and the first two maps** (`04`): skeleton, chunks, seeded choices, validator; The Mill Ford (Act III ordinary) and Two Towers (elite) | the PRs in the vertical slice below; Two Towers adds `03`'s model and `defeat` |
-| 5a | **Boss enhancements on today's maps** (`05` K0–K6): K0 arenas everywhere (variants, the Act I–II arenas, the share, the card's third line); K1 kit data, compile, the `bossBar` / `bossHp` triggers, `bossState`, the shared-primary rule, the core signature module and the Act I kits; K2–K4 the Act II–IV kits; K5 boss-map bonuses and Vision; K6 the finale (the Lieutenant's foretell, the Entity's echo pillars, the harness's splash) | K0: `02` PR 0b only. K1: `02` PRs 2.1, 2.2a, 2.2b, 2.4, 2.5 and `03` PRs 1, 1b, 3, 4 (or a trimmed **K1-lite**: `02` 2.1, 2.2a, 2.4 and the two trigger kinds). K2: K1 and `02` 2.3; K3, K4: K2; K5: K1 and `03` PR 5; K6: K2 (its pillar bonus also `03` PRs 5, 7). **No camera work**: everything plays on today's sizes |
+| 2 | **Encounter groups** (`02`): groups, wake triggers, contact-relative waves, and the par model `groups-v1` in its own PR. Pickets and sleeping pods on today's rout maps stay owner-gated until `sim/pacing.js` shows par holds (`02` §1.5, §9) | 0 (enrage, dead air); **0g** for PRs 2.3, 2.4, 2.6 and the first writer of `groups-v1` |
+| 3 | **Objective model v2** (`03`): `objectives` with phases and bonuses; the objective strip; bonus rewards at the victory commit. First on today's maps: the village becomes a bonus objective (it keeps its in-battle payout for compatibility, `03` §9), multi-seize | 2; **0g** for PRs 1b and 4–7 |
+| 4 | **Set-piece format and the first two maps** (`04`): skeleton, chunks, seeded choices, validator; The Mill Ford (Act III ordinary) and Two Towers (elite) | **0g**, and the PRs in the vertical slice below; Two Towers adds `03`'s model and `defeat` |
+| 5a | **Boss enhancements on today's maps** (`05` K0–K6): K0 arenas everywhere (variants, the Act I–II arenas, the share, the card's third line); K1 kit data, compile, the `bossBar` / `bossHp` triggers, `bossState`, the shared-primary rule, the core signature module and the Act I kits; K2–K4 the Act II–IV kits; K5 boss-map bonuses and Vision; K6 the finale (the Lieutenant's foretell, the Entity's echo pillars, the harness's splash) | **0g for K0 and K1** (and every later K that writes a capability). K0: `02` PR 0b only. K1: `02` PRs 2.1, 2.2a, 2.2b, 2.4, 2.5 and `03` PRs 1, 1b, 3, 4 (or a trimmed **K1-lite**: `02` 2.1, 2.2a, 2.4 and the two trigger kinds). K2: K1 and `02` 2.3; K3, K4: K2; K5: K1 and `03` PR 5; K6: K2 (its pillar bonus also `03` PRs 5, 7). **No camera work**: everything plays on today's sizes. Its switches (`bossKits.enabled`, `arenaShare`) ship off and are gated apart from set pieces ("Rollout gates") |
 | 5 | **Boss set pieces**: Long Road to the Keep (Act III, 22x14), The Emperor's Parade (Act IV, 24x14), refined by `05` K7–K8 (boss weights, the drawbridge's `until` list, the Parade's bar phases) | 4 (`04` PRs E, F; the K7–K8 refinements also need 5a's K2 and K4), and **1**: these boards don't fit desktop at zoom 1, so they need the desktop camera, enemy-phase follow and pointers (`01` PRs 3–5, 7, 8) |
 | 6 | **More set pieces**: Caravan Under Siege, Hunting Party, Break the Gate (needs a gate tile), The Burning Village, Rival Band; `05`'s Dueling Halls (K9) and the Battery (K10); the finale variant, Sanctum of Echoes on Black Sun (K11) | 4, plus the `03` kind each one uses; `05`'s three also 5a (K3–K6) and `01` as Phase 5 |
 
 **Ordering.**
+- **0g comes before every writer.** The run-format guard lands before the earliest PR, in
+  any spec, that can write a capability (`04` §12.1 step 7): `05` K0, `02` PR 2.3 and `03`
+  PR 1b are the first three, whether or not a set piece ever ships. PRs that write nothing a
+  capability detects (`02` 0a–0e, 2.0, 2.1, 2.2a, 2.2b; `03` PRs 1–3) don't wait for it.
 - **Phases 0 and 1 can run in parallel.** The enemy-phase camera does not wait for
   Phase 0; only the time they save adds up.
 - **The dead-air fix is on the critical path,** even though it is Phase 0. A 15–25-enemy
@@ -326,16 +340,18 @@ Each phase is shippable alone and leaves the game better even if the next never 
 - **20x12 boards need little from `01`.** They fit the desktop at zoom 1 (640x480 / 32 px
   = 20x15). The first two maps need only `01` PR 1 (the [N] clamp) and, on phones, the
   off-screen pointers (`01` PR 8).
-- **Phase 5a runs beside the slice.** K0 needs only `02` PR 0b and changes boss maps in
-  every act, First Light included; K1 lands with `02`'s Phase 2 core and `03` PRs 1, 1b, 3
+- **Phase 5a runs beside the slice.** K0 needs only `02` PR 0b (and 0g) and changes boss maps
+  in every act, First Light included; K1 lands with `02`'s Phase 2 core and `03` PRs 1, 1b, 3
   and 4, the same PRs Two Towers and Long Road need. Only `05`'s set pieces (K7–K11) wait
   for the camera. K0 then K1 is the cheapest large change in the set (`05` §12).
 
 ### Vertical slice: The Mill Ford, Dusk and up
 
 The shortest path to a playtestable, seeded, resumable large map, measured in the sims.
-About 20 working days.
+About 22 working days.
 
+0. **`04` PR A0, the run-format guard (0g):** before any writer. The Mill Ford is the first
+   capability the slice writes (`setPiece`, with `parModel` and `encounters`).
 1. **`02` Phase 0, two items only (PRs 0a, 0d):** the enrage floor and the dead-air fix. The A*, the
    recovery fallback and pruning can follow later.
 2. **`02` encounter groups, trimmed (PRs 2.1, 2.2a):**
@@ -349,7 +365,8 @@ About 20 working days.
    - Until `02` PR 2.2b and `03` PR 4 land, the Mill Ford's reserve wakes on its
      `turn parOffset` clock alone.
 4. **`04` format:**
-   - Trimmed: `mirrorY` only, no `byRung` patches, the core validator checks.
+   - Trimmed: `mirrorY` only, no `byRung` patches, the core validator checks (the guard is
+     step 0).
    - Then the generator, dev route and preview.
    - Then The Mill Ford itself: placement, the route-map tag, `sim/pacing --setPiece`.
 5. **`03` is not needed:** the Mill Ford is rout plus the legacy village, which today's
@@ -360,6 +377,40 @@ Then **Two Towers** (about 12 more days, `04` §14.1): `03` PR 1 (the model), `0
 per-unit `clampTile`) and the map itself. Its bonus can follow with `03` PRs 3 and 5. Before **Long Road**, the first board that doesn't fit:
 `01`'s desktop camera, enemy-phase follow and pointers.
 
+### Rollout gates
+
+Code and switches ship apart. Every mechanic these specs add is written by code that can
+merge once its dependencies have, but it plays only when a data switch turns it on. The
+switches are separate, so a change in difficulty can be traced to one of them.
+
+| Switch | Data | Ships | Numbers owned by |
+|---|---|---|---|
+| set pieces | `difficulty.json` `modes.<rung>.setPieces` | all zero; then the Mill Ford alone, on Dusk and up | `04` PR C |
+| boss kits | `modes.<rung>.bossKits.enabled` | `false` on every rung | `05` K1–K6 |
+| boss arenas | `modes.<rung>.bossKits.arenaShare` | 0 on every rung | `05` K0 |
+| rout pods | `encounterPlan.rout` | `null` | `02` PR 2.6 (owner-gated already) |
+
+- **Guard first.** No switch is turned on until the release that carries `04` PR A0 has
+  reached clients (the wait `04` §12.1 step 7 states). A writer merging dark needs no wait.
+- **Prove the slice before the catalogue.** The Mill Ford is the bounded slice: encounter
+  groups, `groups-v1` par from `parRoute`, a locked and resumable config, and the guard in the
+  field. No other switch is turned on until its exit criteria hold, none of them new:
+  - `sim/pacing.js --setPiece` meets `04` §10.1's estimates and `02` §7's measures on Dusk,
+    Nightfall and Black Sun (turn band, turtle − push gap, force-won stalls no worse than
+    today's);
+  - both browser specs (`04` §13) pass, including the refresh mid-battle;
+  - test 23 (the First Light boss-kit run held back) and test 19 pass in CI, and a Mill Ford
+    run on the dev route is seen to stay out of `run_saves`;
+  - the owner has played it.
+
+  Only then Two Towers, the boss set pieces, `bossKits.enabled`, `arenaShare` and
+  `encounterPlan.rout`, each in its own change with its own sim report.
+- **Boss kits are their own rollout.** Kits change the difficulty of boss battles on every
+  rung, First Light included, whereas set pieces are rare and never on First Light. A
+  set-piece change never turns kits on and a kit change never raises a set-piece chance, so a
+  move in boss win rates, par or enrage can be pinned on one change. `bossKits.enabled` goes on
+  rung by rung, each with `05` §11's `sim/pacing.js --bossKits` report.
+
 ## 6. Owner decisions (2026-10-09)
 
 1. **How often:** at most one set piece per act on ordinary nodes, plus a chance on elite
@@ -369,7 +420,8 @@ per-unit `clampTile`) and the map itself. Its bonus can follow with `03` PRs 3 a
    kits with gentler values and no sleeping or patrolling courts; today's map formats only
    (the procedural seize templates, the v1 hybrid arenas, their variants and the new Act
    I–II arenas, at a 0.5 share); one kit bonus per boss map, never paying Vision. `05` Q1
-   and Q10 ask the owner to confirm that reading.
+   and Q10 ask the owner to confirm that reading. The old-client guard does not exempt it:
+   a First Light boss kit requires the newer client like any other capability (`04` §12.1).
 3. **Bonus rewards:** a bonus may pay a Vision charge. Act III+, at most once per act,
    never on First Light (`03` §7.4). It may be offered on any Act III+ set-piece or
    boss-map bonus; `05`'s boss-map bonuses offer it on half their draws (`05` §6).
@@ -392,3 +444,13 @@ Each spec ends with its own open questions.
   in every act, Sanctum of Echoes on Black Sun only, First Light's reading of `05` §9.5,
   Vision on any Act III+ set-piece or boss-map bonus, the boss band from 20x12, and roadmap
   Phase 5a.
+
+- **Revision 5 (2026-10-09):** takes in a review finding (P1) on the old-client guard. The
+  required client format is now **derived from the capabilities a run holds** (`encounters`,
+  `parModel`, `objectives`, `gateTerrain`, `bossKit`, `arena`, `setPiece`), detected in the node
+  map, locked configs, battle checkpoint and run fields, not from `setPiece` alone, so a First
+  Light boss kit is held back with no set piece anywhere (`04` §12.1, tests 23–26). The guard
+  is its own PR, `04` A0 (roadmap 0g), and a dependency of the earliest PR in any spec that can
+  write a capability (`05` K0 and K1, `02` 2.3, 2.4, 2.6, `03` 1b and 4–7). New "Rollout gates":
+  separate data switches, boss kits gated apart from set pieces, and the Mill Ford slice
+  proven before the broader catalogue is switched on. The slice is about 22 days.

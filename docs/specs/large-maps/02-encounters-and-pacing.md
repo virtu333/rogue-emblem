@@ -1,6 +1,6 @@
 # Encounters and pacing
 
-Status: proposal, revision 3 (2026-10-09). Takes in the cross-review of the spec set and
+Status: proposal, revision 4 (2026-10-09). Takes in the cross-review of the spec set and
 `05`'s notes (the boss trigger kinds, the signature slot, court re-orders).
 Specs only: no game code or data changes.
 Branch `claude/large-maps-specs`. Part of the large-maps set ([README](README.md)); this
@@ -867,6 +867,13 @@ kind's PR in `03`; `04` only runs the agents.
 | 2.5 | **the par PR**: `groups-v1` (§5.2), `parRoute` derivation for procedural maps, `parModel` locking, calibration of α, β on the sim corpus, `GroupsPar.test.js` | none until a writer locks `groups-v1` | 2 days |
 | 2.6 | rout picket/pods behind `encounterPlan.rout` (shipped `null`), sims at 48 seeds per rung and policy, tuning, **owner sign-off** (§9 Q2) | yes, rung by rung, after sims | 2–3 days |
 
+**The run-format guard** (`04` PR A0, `04` §12.1) is a dependency of the PRs here that can
+write a capability: 2.3 (`triggeredWaves`), 2.4 (patrols, columns, `guard` / `seek` posts), 2.6
+(pods: `encounterPlan.rout`) and 2.5 once a writer locks `groups-v1` (`parModel`). The `encounters`
+capability counts only what an older client would misplay: a config of `hold:<pack>` groups,
+which §3.6 writes beside the unit-level hold fields, is legacy-equivalent and is not held. PRs
+0a–0e, 2.0, 2.1, 2.2a and 2.2b write nothing it detects and don't wait.
+
 `05` K1 adds `bossBar` / `bossHp` (slot 2b), the signature slot (7b) and court re-orders
 (§3.7) to this check, on top of 2.1, 2.2a, 2.2b, 2.4 and 2.5; its trimmed K1-lite needs only
 2.1, 2.2a, 2.4 and the two trigger kinds (`05` §12).
@@ -977,3 +984,9 @@ use `03`'s words (`done` / `failed`).
   rule), the signature slot 7b, court re-orders (§3.7), history words for a same-primary
   phase switch and a signature; `enemy-phase-pacing.spec.js` moved to the real
   `presentation` lane.
+
+## Revision 4 changelog (2026-10-09)
+
+- **Old clients (review finding, P1).** `encounters` and `parModel` are capabilities of the
+  run-format guard (`04` §12.1); §8 names the PRs that depend on `04` PR A0, and says a config
+  of legacy hold packs is not held.

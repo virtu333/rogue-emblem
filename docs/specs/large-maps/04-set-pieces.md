@@ -1,7 +1,8 @@
 # Set pieces: authored skeletons, chunks and seeded choices
 
-Status: proposal, revision 3 (2026-10-09). Takes in the cross-review of the spec set and
-`05`'s notes (boss picks, `signatureOverride`, the Parade's wake, the finale share).
+Status: proposal, revision 4 (2026-10-09). Takes in the cross-review of the spec set,
+`05`'s notes (boss picks, `signatureOverride`, the Parade's wake, the finale share) and a
+review finding on the old-client guard (§12.1: derived from capabilities, not from `setPiece`).
 Specs only: no game code or data changes.
 Branch `claude/large-maps-specs`. Roadmap phases 4–6 of the [README](README.md).
 - Depends on `02` (encounter groups, triggers, contact-relative waves, the par formula, the
@@ -1104,18 +1105,37 @@ phase, objective progress and the column's next route index. The checkpoint grow
 1 KB.
 
 **Run state:** `run.setPiecesOffered` (a list of ids), serialized; a node's
-`battleParams.setPieceFallback` (§6.2). An old save has neither.
+`battleParams.setPieceFallback` (§6.2); `requiresClient` and `requiresCapabilities` (§12.1), which
+any capability writes, not only a set piece. An old save has none of them.
 
 ### 12.1 Older clients never load a run they can't play
 
-**The risk.** A client from before this work reads a run save without knowing set pieces.
-On a node that holds one but is not yet entered it would generate the kept procedural
-template with the rewritten `objective` (an elite seize template played as a rout). On a
-locked set-piece config or a suspend checkpoint inside one it would play the config with
-no group, objective or phase rules: a `defeat` map as a rout of every holder, and, from
-`03` PR 7, a `Gate` tile (terrain index 19) it does not know. Saves cross clients through
-the cloud (`run_saves`): an iOS build that has not updated, or a stale web tab, fetches
-the row another device pushed.
+**The risk.** A client from before this work reads a run save without knowing what these
+specs add. Set pieces are one case. On a node that holds one but is not yet entered it would
+generate the kept procedural template with the rewritten `objective` (an elite seize
+template played as a rout). On a locked set-piece config or a suspend checkpoint inside one
+it would play the config with no group, objective or phase rules: a `defeat` map as a rout
+of every holder, and, from `03` PR 7, a `Gate` tile (terrain index 19) it does not know.
+Saves cross clients through the cloud (`run_saves`): an iOS build that has not updated, or a
+stale web tab, fetches the row another device pushed.
+
+**It is not only set pieces.** The same specs put new mechanics on maps that are not set
+pieces: encounter groups beyond today's hold packs (`02` §3.5), phases and `groups-v1` par
+on any config with written `objectives` (`03`, `02` §5.2), and `05`'s boss kits, signatures
+and arena variants on every boss battle, First Light included (`05` §9.5). The boss
+enhancements also ship on their own track, before any set piece (`05` §12). A marker keyed
+on `setPiece` misses all of them. The failure it lets through:
+1. A new client starts a First Light Act I boss battle with the Iron Captain's kit
+   (`05` §7.1).
+2. First Light never gets set pieces, so no `setPiece` is anywhere and the marker stays
+   absent.
+3. The run syncs as an ordinary format-1 save.
+4. An older client loads it, plays the old boss rules, and writes a checkpoint that drops the
+   kit's state (`bossState`: the pending tell, the signature count). The next resume on a
+   newer client finds a phase with no signature state.
+
+So the required format is **derived from the mechanics the run holds**, not from any one
+feature's field.
 
 **How the prologue does it.** `CloudSync.isLocalOnlyRunSave(run)` (`CloudSync.js:584`) is
 true for a prologue run (`isPrologueRun`), and every path that would put a run in the
@@ -1128,41 +1148,137 @@ run it was chosen over instead of pushing; logout's backup leaves it out and rep
 An old client therefore never sees the save. It works without the old client's help,
 which is the only way to protect a client that already shipped.
 
-**The equivalent for set pieces: a format marker, and the prologue's hold-back while the
-marker is new.**
-1. **The marker.** `RunManager` gets `RUN_FORMAT` (the newest format this client plays,
-   an integer; 2 with this work) and `toJSON` writes `requiresClient`: 2 when any node of
-   the current node map holds `battleParams.setPiece`, or any config in
-   `battleConfigsByNodeId` or the `battleInProgress` checkpoint holds `setPiece`; absent
-   otherwise, so a run with no set piece stays format 1 and every client keeps reading it.
-   A later rule an old client would misplay raises it again (the `Gate` terrain: 3).
-2. **Clients from the marker on honour it.** `loadRun` reads `saved.requiresClient` from
-   the parsed save **before** `RunManager.fromJSON` (whose migrations mutate the object)
-   and returns null for a save above `RUN_FORMAT`, writing nothing; `fromJSON` itself
-   throws `RunFormatError` for such a save, so a sim, test or later caller can't load it
-   by another door. `SlotManager`'s slot summary reads the same field from the raw save
-   and marks the slot `needsNewerClient`: the slot card says "This run needs a newer
-   version of the game", Continue is not offered, and New Game on that slot asks before
-   it replaces the save. The run key is never written by a client that refused it.
-   `CloudSync.applyRunSlots` stores such a cloud run locally like any other (an updated
-   client then plays it); since the client never loads it, it never pushes over it.
-3. **Clients from before the marker can't honour it**, so while they may still be in use
-   the run stays on its device, by the prologue's own predicate:
-   `isLocalOnlyRunSave(run) = isPrologueRun(run) || requiresClient(run) > CLOUD_SAFE_RUN_FORMAT`,
-   with `CLOUD_SAFE_RUN_FORMAT = 1` in `CloudSync`. Every hold-back path above then covers
-   set-piece runs unchanged: no push, the stale cloud copy of that run retired (the
-   `expected` predicate widens with it), logout's `localOnly` report (`kind` becomes
-   `'prologue'` or `'newFormat'`, and sign-out's question names a run in progress rather
-   than the prologue for the second), and sign-out's Keep playing / Sign out anyway. The
-   slot's meta still syncs.
-4. **Lifting it.** Once the marker client is the oldest in use (the TestFlight build that
-   carries it has replaced the earlier builds, and one web deploy has passed), the owner
-   raises `CLOUD_SAFE_RUN_FORMAT` to 2 in a one-line PR: set-piece runs back up again, and
-   step 2 alone protects the marker clients. Each later format bump repeats steps 3–4.
-5. **Ordering.** Steps 1–3 ship in PR A, before the generator can lock a set-piece config
-   and before placement (PR C) puts one on any player's map, so the marker has a release to
-   reach clients. Placement does not ship while `CLOUD_SAFE_RUN_FORMAT` would leave a
-   set-piece run pushed to a client older than the marker.
+**The equivalent: a capability list, a marker derived from it, and the prologue's hold-back
+while the marker is new.**
+
+**Names.** What exists, and what is proposed (new in PR A0; nothing here is built):
+
+| Exists today | Proposed |
+|---|---|
+| `RunManager.toJSON` writes `version: 1` (`RunManager.js:4972`). Nothing reads it: `fromJSON`, `loadRun` and `SlotManager` ignore it, so an older client ignores any number put there and it can't carry the guard | `requiresClient` (an integer) and `requiresCapabilities` (sorted ids), beside it in the same object; `engine/RunFormat.js` (pure): `requiredRunFormat(saved)`, `runFormatBlock(saved)`, `RunFormatError`, the capability table, `RUN_FORMAT_FIELDS`; `RUN_FORMAT` and `CLIENT_CAPABILITIES` |
+| `loadRun` (`RunManager.js:6064`: parse, then `fromJSON`); `SlotManager.getSlotSummary` (`prologueRun`, `SlotManager.js:304`) | the loader refusal, and the summary's `needsNewerClient` |
+| `isLocalOnlyRunSave` (`CloudSync.js:584`: `isPrologueRun(run)`), `retireCloudPrologueRun`, `reason: 'prologue_local'`, `listLocalOnlySaves` (`kind: 'prologue'`) | `CLOUD_SAFE_RUN_FORMAT` in `CloudSync`, the widened predicate, `reason: 'format_local'`, `kind: 'newFormat'`; the retire helper loses "Prologue" from its name |
+
+**1. The capabilities.** A capability is a mechanic an older client would misplay or drop. The
+list is part of the guard; a PR that adds a mechanic adds its row (step 8 keeps that honest).
+Every capability maps to **format 2**, the first format whose clients honour the list; a
+capability gets no number of its own, because the list is the exact door (step 3): a client
+that has the guard but not the capability refuses by id. (Revision 3's "the `Gate` terrain:
+3" is now the id `gateTerrain`.)
+
+| id | What an older client would do | Spec |
+|---|---|---|
+| `encounters` | play groups as awake chasers, ignore wakes, patrols and triggered waves, and drop `encounterState` on its next checkpoint | `02`, `05` courts |
+| `parModel` | price par with `calculatePar` instead of the locked `groups-v1` inputs, so boss enrage (`min(12, par + 2)`) lands on another turn | `02` §5.2 |
+| `objectives` | read `objective` alone: a multi-throne, `defeat` or phased map as a rout or a single seize; drop `objectiveState` and the bonus ledger | `03` |
+| `gateTerrain` | meet a `Gate` tile and its structure HP | `03` PR 7 |
+| `bossKit` | play the old boss rules and drop `bossState` | `05` |
+| `arena` | generate an unentered boss node from a rewritten `templateId` or variant it doesn't have | `05` K0 |
+| `setPiece` | generate the kept template with the rewritten `objective` | this spec |
+
+**2. Where each is detected.** `requiredRunFormat(saved)` is pure and reads the **serialized**
+run (what `toJSON` writes and `isLocalOnlyRunSave` is handed), never a `RunManager`, so the
+loader, the slot summary and the cloud predicate call it on the raw payload before
+`fromJSON`'s migrations mutate it. It returns `{ format: 1 | 2, capabilities: [ids] }` and
+looks in four places: the node map (`nodeMap.nodes[*].battleParams` of nodes not yet
+complete), the locked configs (`battleConfigsByNodeId[*]`, the current act's, which is all
+Phase 0's prune leaves), the battle checkpoint (`battleInProgress`: its `battleParams` and
+state objects, read together with the node's locked config, and the same objects inside
+`checkpoint.visionSnapshot`, `pendingVisionSnapshot` and the rewind `timeline` rows), and
+top-level run fields.
+
+| id | Node map | Locked config | Battle checkpoint | Run fields |
+|---|---|---|---|---|
+| `encounters` | — (the plan reaches generation through the run field) | `encounterGroups` holding a group that is not a legacy hold pack (id not `hold:<pack>`, a `wake` outside `[danger, hurt]`, or an `onWake.mode` other than `hunt`); `reinforcements.triggeredWaves` non-empty; a spawn with `patrolIndex` | `encounterState.groups` or `.fired` with a key not rooted in a `hold:` group; a unit with an `encounterGroupId` that is not `hold:`; `patrolIndex` | `difficultyModifiers.encounterPlan` with a non-null entry (`02` PR 2.6; `null` until then) |
+| `parModel` | — | `parModel` (any value) | via the config | — |
+| `objectives` | `battleParams.objectivePreview` | `objectives` that `normalizeObjectives` would not derive from the same config: more than one primary, a kind outside rout / seize / escape, any `phases`, a bonus other than the derived `village` / `caravan`, `parAdjust` ≠ 0; `npcAllies`; a spawn with `clampTile` or `objectiveRef` | `objectiveState` with `phase` > 0, an entry in `points`, `escorted`, `fled` or `floors`, a `thrones` or `status` id the derivation would not hold, or a `structures` entry | `bonusVisionActs` (`03` §12: saved only when Vision rewards are on) |
+| `gateTerrain` | — | `structures` non-empty | terrain index 19 anywhere in `mapLayout` | — |
+| `bossKit` | a `boss` node, once the run field holds: an unentered boss node is a kit boss | `bossKit`, `bossSignature`; a boss spawn with `bossKit` | `bossState` with any entry (`signature.pending`, `firedTurns`, `count`, `marked`, `pillars`, `musicLatch`); a unit with `bossKit` | `difficultyModifiers.bossKits.enabled` is true (`05` §10.1's snapshot, taken at run start; true on any rung with kits switched on, First Light included) |
+| `arena` | `battleParams.arenaVariant` (`05` §4.4's post-pass writes it on every node it rewrites, variant 0 included, so detection never needs the template catalogue) | `arenaVariant` in the params the config came from | `battleInProgress.battleParams.arenaVariant` | — |
+| `setPiece` | `battleParams.setPiece` or `setPieceFallback`; `objectivePreview` | `setPiece`; a `templateId` beginning `setpiece:`; `formationSpares` | via the config | `setPiecesOffered` |
+
+**Never counted** (legacy-equivalent: an older client plays them correctly today):
+- `encounterGroups` made only of `hold:<pack>` groups, and the unit-level hold fields
+  `02` §3.6 writes beside them, so a build without the module still plays them;
+- an `encounterState` or `objectiveState` that only mirrors those groups, `villageState` and
+  `caravanExited` (`03` PR 3 writes `objectiveState` on every battle), and an empty
+  `bossState`;
+- `anchors`, `encounterVersion` and a `parRoute` on their own: inert data that no old reader
+  looks at. They always arrive with a capability above, which holds the run;
+- the prologue: it stays local-only by mode, `kind: 'prologue'`, and carries no marker.
+
+**Detection errs toward holding.** A false positive keeps one run off the cloud until the
+lift (step 5). A miss lets an older client corrupt a run.
+
+**3. The marker.**
+- `toJSON` writes `requiresClient: 2` and `requiresCapabilities: [ids]`, sorted, from
+  `requiredRunFormat`. Both are absent when the list is empty, so a run with no capability
+  stays format 1 and every client keeps reading it.
+- **Ratchet.** A run keeps every id it has ever written: `fromJSON` loads the saved ids as a
+  floor and `toJSON` writes floor ∪ derived. A locked config pruned at `advanceAct`, or a
+  finished boss node, never lets a run drop back to format 1 and be pushed mid-life.
+
+**4. Clients from the marker on honour it.** `loadRun` calls `runFormatBlock(saved)` on the
+parsed save **before** `RunManager.fromJSON`. It blocks when the larger of the stored and the
+derived format exceeds `RUN_FORMAT`, or when any stored or derived id is not in
+`CLIENT_CAPABILITIES`. It then returns null and writes nothing. `fromJSON` itself throws
+`RunFormatError` for such a save, so a sim, test or later caller can't load it by another
+door. Reading both sides is the point: a save whose writer left the marker out is still
+caught by a client that knows the capability (the derived side), and a stored id this client
+has never heard of is caught by id (the stored side). `SlotManager`'s slot summary calls the
+same function on the raw save and marks the slot `needsNewerClient`: the slot card says "This
+run needs a newer version of the game", Continue is not offered, and New Game on that slot
+asks before it replaces the save. The run key is never written by a client that refused it.
+`CloudSync.applyRunSlots` stores such a cloud run locally like any other (an updated client
+then plays it); since the client never loads it, it never pushes over it.
+
+**An invariant the guard needs: a client never writes what it can't read.** Every id
+`requiredRunFormat` can return is in the same build's `CLIENT_CAPABILITIES`, and the PR that
+adds a writer adds the id in both places (test 24).
+
+**5. Clients from before the marker can't honour it**, so while they may still be in use the
+run stays on its device, by the prologue's own predicate:
+`isLocalOnlyRunSave(run) = isCloudSlotPayload(run) && (isPrologueRun(run) || requiredRunFormat(run).format > CLOUD_SAFE_RUN_FORMAT)`,
+with `CLOUD_SAFE_RUN_FORMAT = 1` in `CloudSync`. The predicate recomputes the format from the
+payload instead of trusting the stored marker alone, so a missing marker can't release a run.
+Every hold-back path above then covers every capability unchanged: no push (`reason:
+'format_local'`), the stale cloud copy of that run retired (the `expected` predicate widens
+with it), logout's `localOnly` report (`kind` becomes `'prologue'` or `'newFormat'`, and
+sign-out's question names a run in progress rather than the prologue for the second), and
+sign-out's Keep playing / Sign out anyway. The slot's meta still syncs.
+
+**6. Lifting it.** Once a client that carries the guard is the oldest in use (the TestFlight
+build that carries it has replaced the earlier builds, and one web deploy has passed), the
+owner raises `CLOUD_SAFE_RUN_FORMAT` to 2 in a one-line PR: capability runs back up again,
+and step 4 alone protects the clients that have the guard. Because step 4 refuses by id, one
+lift covers every capability added later; a later capability needs a new format number only
+if the marker's own contract changes.
+
+**7. Ordering.** PR A0 (§14) holds steps 1–6 and writes no capability itself. It is a
+dependency of **the earliest PR, in any spec, that can generate any capability**:
+- `05` K0 (`arena`) and K1 (`bossKit`, with the courts and phases it compiles);
+- `02` PR 2.3 (`triggeredWaves`), 2.4 (patrols, columns), 2.6 (pods), and 2.5 as soon as a
+  writer locks `groups-v1`;
+- `03` PR 1b (`clampTile`), 4 (phases), 5, 6, 7 (`gateTerrain`);
+- this spec's PRs B and C (`setPiece`, including the dev route that locks a set-piece config).
+
+PRs that write nothing a capability detects (`02` 0a–0e, 2.0, 2.1, 2.2a, 2.2b; `03` PRs 1–3)
+don't wait for it. The earliest of the writers are `05` K0, `02` PR 2.3 and `03` PR 1b, so
+A0 precedes all three, whether or not any set piece ever ships. It also ships a release
+before a writer is **turned on**: writers merge dark (README §5 "Rollout gates": every
+switch starts off), and none is switched on until the release carrying A0 has reached
+clients. Placement (PR C) in particular does not ship while `CLOUD_SAFE_RUN_FORMAT` would
+leave a capability run pushed to a client older than the marker.
+
+**8. Keeping the list complete.** The original miss was a new mechanic with no marker. A
+registry makes the next one fail a test instead: `RUN_FORMAT_FIELDS` classifies every key
+these specs add to a node's `battleParams`, a locked config, a checkpoint's state objects
+and the run's top level as **inert**, **legacy-equivalent** or owned by a capability id. Test
+24 generates the corpus with every switch on and fails on a key the registry doesn't list.
+
+**The regression fixture** is test 23 (§13): a First Light, non-set-piece boss run with a
+boss kit. It must require the newer client and be held back by the cloud hold-back, with no
+`setPiece` anywhere in it.
 
 ## 13. Tests
 
@@ -1188,10 +1304,14 @@ Realistic failures first; each is one test, and each is shown to fail once by pl
 | 16 | a bad event hook | `battle.setPiece` outside the acts or slot fails `EventValidation`; a gated rung fights a procedural rout |
 | 17 | scene and harness differ | every combination plays to the end (§11); scene and harness generate equal configs (`GridParity` style) |
 | 18 | the save grows | every set-piece config is ≤ 8 KB serialized |
-| 19 | an older client plays a run it can't | a save with `requiresClient` above `RUN_FORMAT`: `loadRun` returns null and the stored string is byte-identical after; `fromJSON` throws; the slot summary says `needsNewerClient`; with `CLOUD_SAFE_RUN_FORMAT` 1 a set-piece run is never pushed, its stale row is retired only while it is that run, logout lists it `newFormat`; a run with no set piece writes no `requiresClient` |
+| 19 | an older client plays a run it can't | a save with `requiresClient` above `RUN_FORMAT`, or a `requiresCapabilities` id missing from `CLIENT_CAPABILITIES` (narrowed in the test): `loadRun` returns null and the stored string is byte-identical after; `fromJSON` throws `RunFormatError`; the slot summary says `needsNewerClient`; with `CLOUD_SAFE_RUN_FORMAT` 1 a held run is never pushed, its stale row is retired only while it is that run, logout lists it `newFormat`; a run with no capability writes neither field. This row runs the Mill Ford (the `setPiece` capability); test 23 runs the case with no set piece |
 | 20 | a bonus fights the primary | replant revision 1's Two Towers armoury (behind the far tower's back door): check 9 fails and names the combination; a `slay` on the Emperor fails check 9 |
 | 21 | the fallback plays the wrong map | an elite node with an unknown set-piece id plays its seize template as a seize (`setPieceFallback` restored), not as a rout |
 | 22 | par counts the walk twice | a Two Towers config: locked par equals `02` §5.2's `groups-v1` on the written `parRoute` (hand-computed W and S), and `parAdjust` equals the hand-summed non-walk terms only (0 on Dusk; 1 on Black Sun, the stone bearer's bar) |
+| 23 | a mechanic that is not a set piece slips past the guard (the review's P1) | **Regression fixture: a First Light, non-set-piece boss run with a boss kit.** `difficultyId: 'normal'`, Act I, a procedural seize template, the Iron Captain's compiled kit (`05` §7.1), `bossKits.arenaShare` 0 so `arena` is not what holds it. Three states: (a) act start, the snapshot has `bossKits.enabled` and the boss node is unentered; (b) the boss config locked; (c) a suspend checkpoint after the Captain's first aura tell. A deep key scan asserts none of `setPiece`, `setPieceFallback`, `setPiecesOffered`, `objectivePreview` or a `setpiece:` template id appears in any state. Required, by hand from the kit's data: (a) `requiredRunFormat` = format 2, `['bossKit']`; (b) and (c) add `encounters` (the `line` court guards the gate), `objectives` (the phase record) and `parModel` (`groups-v1`). `toJSON` writes `requiresClient: 2` and the ids; a copy with both fields deleted still scores format 2, so `isLocalOnlyRunSave` is true; **the cloud hold-back holds it**: `pushRunSave` returns `{ queued: false, reason: 'format_local' }` and queues nothing, `pushChosenLocalRun` deletes the replaced cloud run instead of pushing, `listLocalOnlySaves` and `backupAllLocalSlots` report it `newFormat` and leave it out of the batch. A client simulated at `RUN_FORMAT` 1, or one whose `CLIENT_CAPABILITIES` lacks `bossKit`, gets null from `loadRun` and its slot string is unchanged. Plant: derive the format from `setPiece` alone, and all three states fail |
+| 24 | a new mechanic or field nobody classified | `RunFormatRegistry.test.js`: a key census over a corpus (every template × rung × act, 50 seeds, every data switch on). Every key in a node's `battleParams`, a locked config, a checkpoint's state objects and the run's top level is in `RUN_FORMAT_FIELDS` as inert, legacy-equivalent or owned by a capability id; an unlisted key fails with its path. Every id `requiredRunFormat` returns is in `CLIENT_CAPABILITIES` (a client never writes what it can't read). Plant: add a config key with no registry line |
+| 25 | a legacy-equivalent run is held (the false positive) | Dusk+ seize and escape maps with hold packs (`hold:<pack>` groups, derived village and caravan, a mirroring `objectiveState`, an empty `bossState`, kits and arenas switched off): `requiredRunFormat` = format 1, no ids, no marker written, the run pushes as before. The prologue stays local-only with `kind: 'prologue'`, unmarked. Plant: count any `encounterGroups` as `encounters` |
+| 26 | a run falls back to format 1 mid-life | the ratchet: a run holding `bossKit` that advances its act (configs pruned, boss node done) still writes `requiresClient: 2` with the ids it had; a run loaded from a format-1 save gains none. Plant: write only the derived ids |
 
 **Browser specs** (each in a lane of `tests/e2e/lanes.json`, so `npm run check:e2e-lanes`
 holds them):
@@ -1215,16 +1335,20 @@ that stays specified here but that nothing in the first shipment waits on.
 
 | PR | Content | Needs | Effort |
 |---|---|---|---|
-| A | Format and validator: the two data files with test chunks only, `SetPieceFormat.js`, `SetPieceValidation.js` in `validate:data` (checks 1–9), sync, parity; the old-client guard (§12.1: `requiresClient`, the loader refusal, the slot card, `CLOUD_SAFE_RUN_FORMAT`); tests 4–8, 19, 20. **Later**: `mirrorX` and `rot180` (`mirrorY` and the whole-map mirror stay), `byRung` patches, the 256-combination cap and its timing budget | nothing | 4–5 days (3 trimmed) |
-| B | Generator: `generateBattle` dispatch, `SetPieceGenerator.js` (assembly, fill scope, groups to spawns, awake `onWake` on spawns, gear chain, `formationSpares`, `parRoute`, `setPieceFallback`, config fields), `HeadlessBattle` deps, the dev route, the preview tool; tests 9–13, 17–18, 21 | A; `02` PR 2.1 (the group schema, initially awake `onWake`), `02` PR 2.5 (the par PR: `groups-v1` over `parRoute`; or `02`'s stopgap, `max(calculatePar(rout), estimate + 3)`, calibrated later). Not `03`: the Mill Ford writes no `objectives` (§3.7) | 4–5 days |
+| A0 | **The run-format guard** (§12.1), in this spec because the first writer was a set piece, but owned by no one feature: `engine/RunFormat.js` (the capability table, `requiredRunFormat`, `runFormatBlock`, `RUN_FORMAT_FIELDS`), `RUN_FORMAT` and `CLIENT_CAPABILITIES`, the `toJSON` marker and its ratchet, the loader refusal and `RunFormatError`, the slot card (`needsNewerClient`), `CLOUD_SAFE_RUN_FORMAT` and the widened `isLocalOnlyRunSave` (`reason: 'format_local'`, `kind: 'newFormat'`); tests 19, 23–26. It writes no capability itself | nothing | 2–3 days |
+| A | Format and validator: the two data files with test chunks only, `SetPieceFormat.js`, `SetPieceValidation.js` in `validate:data` (checks 1–9), sync, parity; tests 4–8, 20. **Later**: `mirrorX` and `rot180` (`mirrorY` and the whole-map mirror stay), `byRung` patches, the 256-combination cap and its timing budget | nothing | 2–3 days (2 trimmed) |
+| B | Generator: `generateBattle` dispatch, `SetPieceGenerator.js` (assembly, fill scope, groups to spawns, awake `onWake` on spawns, gear chain, `formationSpares`, `parRoute`, `setPieceFallback`, config fields), `HeadlessBattle` deps, the dev route, the preview tool; tests 9–13, 17–18, 21 | A, A0; `02` PR 2.1 (the group schema, initially awake `onWake`), `02` PR 2.5 (the par PR: `groups-v1` over `parRoute`; or `02`'s stopgap, `max(calculatePar(rout), estimate + 3)`, calibrated later). Not `03`: the Mill Ford writes no `objectives` (§3.7) | 4–5 days |
 | C | The Mill Ford and placement: `SetPiecePlacement.js`, the `difficulty.json` table, the RunManager hooks, the loom tag and place helper, the node pip, `sim/pacing --setPiece`, the two browser specs (§13); tests 1–3, 14–15, 22. **Later**: `setPiecesOffered` | B; `02` PRs 0a (enrage floor), 0d (dead air: on the critical path, a 15-enemy map of holders is unplayable on a phone without it), 2.1, 2.2a (`groupWoken`, `turn parOffset`, warn bands, always-on dormant outlines; its `tile` is no longer used by the Mill Ford), 2.5; `01` PR 1 (the [N] clamp) and, on phones, PR 8 (pointers). Nothing from `03` (§10.1). Not `02` 2.2b: the reserve's `objective` wake and Black Sun's `afterContact` clock wait for it (§10.1) | 4 days + 1 tuning |
 | D | Two Towers: elite placement, two captains, the road patrol, the `objective` wakes, the armoury | C; `03` PR 1 (the model: `defeat` is not a legacy kind), PR 1b (`defeat`, per-unit `clampTile`); `objective` events: `03` places them in PR 4, which also needs `02` PR 0b. Recommended instead: PR 1b notes `defeat`'s own `objective` events into `02` 2.2b's hook, so Two Towers needs nothing from PR 4 or 0b (a note for `03`); `02` PR 2.2b (the `objective` hook), PR 2.4 (the patrol; a `picket` is the fallback, same estimate). The bonus: `03` PR 3 and PR 5 (`reach`); the map can ship first without it | 3 days + 1 tuning |
 | E | Hybrid v2 and Long Road to the Keep: phase validation (§7: targets off seats, connectivity after each phase), the drawbridge through `02`'s `applyTerrainSetTiles` (no extraction: `02` PR 0b owns the module and deleted the harness copy); `boss.weights` and the keyed boss pick. `05` K7 adds the drawbridge's `bossBar` member and the bonus | D; `02` PRs 0b, 2.2b (the `phase` slot), 2.4 (the sally's `seek`); `03` PRs 3, 4 (phases); `01` PRs 3–5 (desktop camera), 7 (enemy-phase follow), 8 (pointers): 22x14 doesn't fit the desktop canvas at zoom 1 | 4 days |
 | F | The Emperor's Parade: the throne clamp gate for a marching column (unless `05` K2 shipped it), the routed column, the seated wake, the arrival trigger, the `slay` bonus. `05` K8 adds the bar phases | E; `02` PRs 2.2a (`tile` with `by: { group }`), 2.2b (`afterContact`), 2.3 (the gate wave), 2.4 (the column); `03` PRs 1b (`clampTile`), 4, 5 (`slay`); `01` as E (24x14) | 5 days |
 | G… | Phase 6, one PR each. **Later**: the event `setPiece` hook (test 16) with Caravan Under Siege, Hunting Party, Rival Band, The Burning Village (`villages[]`), Break the Gate (structure HP), and the finale (Sanctum of Echoes) | each the `03` kind it uses (escort, assassinate, `claim`, destroy) | 3–6 days each |
 
-PRs A and B can land before any content; C is the first a player sees. A lands first
-because its old-client guard must reach clients a release before placement does (§12.1).
+PRs A0, A and B can land before any content; C is the first a player sees. **A0 lands
+first, ahead of every PR in the set that can write a capability**, not only this spec's: `05`
+K0 and K1, `02` PRs 2.3, 2.4 and 2.6, `03` PRs 1b and 4–7 (§12.1 step 7). Its guard must
+reach clients a release before any writer is switched on, and a boss kit on First Light
+needs it as much as a set piece does.
 
 **Deferrable for the first shipment** (none of these blocks the Mill Ford or Two Towers):
 - the `mirrorX` and `rot180` transforms (keep `mirrorY`: both first maps use it);
@@ -1237,14 +1361,16 @@ because its old-client guard must reach clients a release before placement does 
 
 ### 14.1 Vertical slice: a seeded, resumable, sim-measured Mill Ford on Dusk and up
 
-The shortest path to a playtest, about 20–21 working days, in order:
+The shortest path to a playtest, about 22 working days (the guard is its own PR, A0), in
+order:
 
 | Step | PR | Effort |
 |---|---|---|
+| 0 | `04` PR A0: the run-format guard (§12.1). Before any writer; the Mill Ford is the first thing this slice writes | 2–3 days |
 | 1 | `02` PR 0a (enrage floor; the Mill Ford has no boss, but it is half a day and every later set piece needs it) and PR 0d (dead air) | 2 days |
 | 2 | `02` PR 2.1 (groups, `danger` / `hurt`, the hold-pack adapter, `encounterState`, golden parity, awake `onWake` on spawns) and PR 2.2a (`groupWoken`, `turn parOffset`, warn bands, always-on dormant outlines) | 4 days |
 | 3 | `02` PR 2.5 (`groups-v1` with W from `parRoute`), or its stopgap | 2 days (1 for the stopgap) |
-| 4 | `04` PR A trimmed: the format, `mirrorY` only, no `byRung`, validator checks 1–5, 7, 8, the old-client guard. Checks 6 (the race) and 9 (bonus before the last target) follow in PR D; both hold on the Mill Ford by the scratch numbers in §10.1 | 3 days |
+| 4 | `04` PR A trimmed: the format, `mirrorY` only, no `byRung`, validator checks 1–5, 7, 8. Checks 6 (the race) and 9 (bonus before the last target) follow in PR D; both hold on the Mill Ford by the scratch numbers in §10.1 | 2 days |
 | 5 | `04` PR B: the generator, the dev route, the preview | 4 days |
 | 6 | `04` PR C: the Mill Ford, placement, the loom tag, `sim/pacing --setPiece`, the browser specs | 4 days + 1 tuning |
 | 7 | `01` PR 1 (the [N] clamp); `01` PR 8's phone pointers once the playtest shows two fronts off-screen | 1 day |
@@ -1252,7 +1378,10 @@ The shortest path to a playtest, about 20–21 working days, in order:
 Nothing from `03`: the Mill Ford is a rout plus the legacy village, which today's predicate,
 strip and in-battle payout handle. In the slice its reserve wakes on `danger`, `hurt` and
 `turn parOffset −3` only (§10.1); the `objective` wake joins with `02` PR 2.2b and `03`
-PR 4. It is placed on Dusk, Nightfall and Black Sun (never First Light, owner decision).
+PR 4. It is placed on Dusk, Nightfall and Black Sun (never First Light, owner decision). The slice
+is also the **proof the rest of the catalogue waits on**: its exit criteria (README §5
+"Rollout gates") are met before Two Towers, the boss set pieces, any boss-kit switch or rout
+pods are turned on.
 
 Then **Two Towers** (PR D, about 12 more days with `03` PR 1, PR 1b and `02` PRs 2.2b and
 2.4), and, before **Long Road**, the first board that doesn't fit the desktop canvas,
@@ -1299,6 +1428,14 @@ Then **Two Towers** (PR D, about 12 more days with `03` PR 1, PR 1b and `02` PRs
    column's unopposed arrival (turn 4), not `03` §7.1's default `par − k`. Is a
    generator-written integer acceptable for `byTurn` (recommended: it is still locked and
    still a real number on the strip), or should the map pick a `k`?
+9. **Kits hold the whole run, or only the boss.** §12.1's `bossKit` capability is detected
+   from the run's snapshot (`bossKits.enabled`) as well as from a locked config, so every run
+   started with kits on is local-only from its first save until `CLOUD_SAFE_RUN_FORMAT` is
+   raised, not from its boss fight. That is the safe reading (an older client would otherwise
+   play the unentered boss on the old rules, and the run's par, bonus ledger and records would
+   differ by device). The cheaper reading detects only a locked config or checkpoint, and
+   leaves the cloud backup on until then. **Recommendation:** the safe reading; the lift is a
+   one-line PR (step 6) and the window is one release.
 
 ## Notes for the README
 
@@ -1322,9 +1459,10 @@ Revisions 2 and 3 of the README took in this spec's `battleConfig.anchors`, `til
    uses no `tile` trigger; its `objective` wake needs `02` 2.2b and `03` PR 4's events and
    is left out of the slice's data. `02` §8 already says so; the README's step 2 could drop
    `tile` and say the reserve wakes on its clock until then.
-7. **Open: old clients** (§12.1). README §3 "Battle config" could carry one line: a run
-   holding a set piece writes `requiresClient`, and `isLocalOnlyRunSave` holds it on its
-   device until `CLOUD_SAFE_RUN_FORMAT` is raised.
+7. **Resolved (README rev 5): old clients** (§12.1). README §3 "Old clients" now says the
+   marker is derived from capabilities, of which a set piece is one, so a boss kit on First
+   Light is held too; `isLocalOnlyRunSave` holds it on its device until
+   `CLOUD_SAFE_RUN_FORMAT` is raised.
 8. **Open: First Light has no Act IV.** README Q2's recommendation (today's arenas on First
    Light's boss maps until the Guidance notes ship) concerns only Act III's boss there.
 
@@ -1377,3 +1515,26 @@ Takes in the cross-review of the spec set.
   (§3.4, §4.3, §5); shared-primary phases and `until` lists (§3.7, Long Road's drawbridge);
   the Parade's seated wake and bar phases; the clamp gate first in `05` K2; the Nightfall
   finale share 0; `05`'s set pieces and bonuses in the catalogue.
+
+## Revision 4 changelog (2026-10-09)
+
+Takes in a review finding (P1): the old-client guard fired only for `setPiece`, so mechanics
+on maps that are not set pieces (boss kits and signatures on First Light, encounter groups,
+non-legacy objectives and phases) reached older clients as ordinary format-1 saves.
+- **§12.1 rewritten.** The required format is derived from a capability list (`encounters`,
+  `parModel`, `objectives`, `gateTerrain`, `bossKit`, `arena`, `setPiece`), each detected in
+  the node map, the locked configs, the battle checkpoint and the run fields, all mapping to
+  format 2, with the ids as the exact door (a client refuses an id it lacks). `requiresClient`
+  gains `requiresCapabilities`; the marker ratchets; `isLocalOnlyRunSave` recomputes the
+  format from the payload. Existing names are used (`isLocalOnlyRunSave`, `pushRunSave`,
+  `listLocalOnlySaves`, `loadRun`, `getSlotSummary`); the rest are marked proposed. The run
+  save's existing `version: 1` is unread, so it is not reused. Revision 3's "Gate: format 3"
+  became the id `gateTerrain`.
+- **PR A0** splits the guard out of PR A and makes it a dependency of the earliest PR in any
+  spec that can write a capability (`05` K0 and K1, `02` 2.3, 2.4, 2.6, `03` 1b, 4–7).
+- **Tests 23–26.** 23 is the regression fixture (a First Light, non-set-piece boss run with a
+  boss kit: requires format 2 and is held back by the cloud hold-back); 24 the key census;
+  25 the false positive; 26 the ratchet. Test 19 now also covers an unknown id.
+- **Slice** gains step 0 (A0), A trimmed shrinks to 2 days, the total is about 22 days, and
+  the slice is the proof the rest of the catalogue waits on (README §5 "Rollout gates").
+- **Open question 9** asks whether kits hold the whole run or only the boss.

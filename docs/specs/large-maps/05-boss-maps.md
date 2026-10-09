@@ -1,7 +1,7 @@
 # Large maps 05: boss maps
 
-Status: proposal, revision 2 (2026-10-09), fact-checked against the code; its notes are
-taken in by the README (revision 4) and `01`–`04` (revision 3). Specs only: no game code or
+Status: proposal, revision 3 (2026-10-09), fact-checked against the code; its notes are
+taken in by the README (revision 5) and `01`–`04`. Specs only: no game code or
 data changes.
 Branch `claude/large-maps-specs`. Part of the large-maps set ([README](README.md)); this
 spec owns roadmap **Phase 5** (boss set pieces) and a new strand the owner asked for:
@@ -1121,6 +1121,11 @@ keeps today's seize pool.
   default side there. The Lieutenant's is a feat.
 - **Presentation:** the card's third line, phase bands and ticks, tells, `guide_boss_tell`:
   all of it, since a tell is the gentlest teacher there is.
+- **Old clients:** First Light is not exempt from the run-format guard. It has no set piece,
+  but a First Light run with kits on holds the `bossKit` capability (detected from the run's
+  `bossKits.enabled` snapshot, the locked config or the checkpoint's `bossState`), so it
+  requires the newer client and stays local-only until `CLOUD_SAFE_RUN_FORMAT` is raised
+  (`04` §12.1, test 23: a First Light, non-set-piece boss run with a boss kit).
 
 Why this much: these are the fights the most-played rung spends the most time in, the kits
 are where a boss stops being a stat block, and a tell told a whole player phase ahead is
@@ -1167,10 +1172,16 @@ Q1), not about bosses having character.
 | battle state | `bossState: { version, signature: { pending, firedTurns, count, marked }, pillars: [ids], musicLatch }` | `BossSignature`, the echo rule, `onBossPhase` | checkpoint, Vision, validator, strip, the AI's mark term |
 | `battleParams` | `arenaVariant`; `templateId` (rewritten by the share) | node post-pass | `MapGenerator` hybrid overlay |
 | run | `bonusVisionActs` (`03`) | `BonusSettlement` | the reward choice at generation |
+| run save | `requiresClient`, `requiresCapabilities` (`bossKit`, with `encounters`, `objectives`, `parModel`, `arena` as the config writes them; `04` §12.1) | `toJSON`, derived by `RunFormat.requiredRunFormat` from the snapshot, the config and `bossState` | the loader, the slot card, `isLocalOnlyRunSave` |
 | run records | `bonusFeats` (finale bonuses, §6) | `completeBattle` on the finale | `RunRecords` |
 
 An old checkpoint without `bossState` derives it empty; a config without `bossSignature`
 has no signature; a template without `arenaVariants` has one.
+
+**Old clients.** A kit is a capability of its own, not a property of set pieces. An older
+client that loaded a kit run would play the old boss rules and write a checkpoint without
+`bossState`, so the guard is keyed on the kit's own marks (`04` §12.1), and `BossKit.compile`
+and `assignBossArenas` are not merged ahead of `04` PR A0.
 
 ### 10.3 Modules
 
@@ -1269,8 +1280,8 @@ are theirs: `01` §5 (PRs 1–10), `02` §8 (0a–0e, 2.0–2.6), `03` §14 (1, 
 
 | PR | Content | Needs | Behaviour change | Effort |
 |---|---|---|---|---|
-| **K0** | **Arenas everywhere**: `arenaVariants` on the keep and the bastion (2 variants each, variant 0 today's data), `act1_border_post`, `act2_doctrine_yard`, the arena share post-pass and `bossKits.arenaShare` per rung, the card's third line (data-driven, empty until K1), phase ticks on the bar (none until K1) | `02` PR 0b (the wall/wave fix, `TerrainPhases` and the override-on-wave validator, so the new variants are born correct) | boss nodes meet an arena whenever the act has one of the drawn biome, at the rung's share (First Light 0.5, Dusk+ 0.75); Acts I–II get one | 3 days + art review of two arena blocks |
-| **K1** | **Kit data, compile and triggers**: `bossKits` schema and `BossKitValidation`, `BossKit.compile` (courts, anchors, phases, bonus slot, First Light's compile, the rung collapse), `bossBar` / `bossHp` in `02`'s check (slot 2b), `bossState` persistence, §4.5's shared-primary rule, `onBossPhase` music, phase bands and lines, `guide_boss_tell`, the shared mid-battle affix applier (closing the `haste` MOV gap); `BossSignature.js`'s core (resolve / plan / view, slot 7b, `bossState.signature`) with the kinds Act I uses (`court_order`, `aura`, `affix`, `unclamp`); the **Act I kits** | `02` PRs 2.1, 2.2a (groups, warn bands, outlines), 2.2b (the `phase` slot calling `checkPhase`, the hostile-exchange hook), 2.4 (`guard` / `seek` posts and `together` for court orders), 2.5 (`groups-v1`: a kit config writes `objectives`, `02` §5.2 "Which model"); `03` PRs 1 (the model), 1b (`clampTile`, for `unclamp`), 3 (`objectiveState`), 4 (phases, which itself follows `02` PR 0b) | Act I bosses have two acts and a readable court; kit maps are priced by `groups-v1` | 5 days |
+| **K0** | **Arenas everywhere** (`arena` capability): `arenaVariants` on the keep and the bastion (2 variants each, variant 0 today's data), `act1_border_post`, `act2_doctrine_yard`, the arena share post-pass and `bossKits.arenaShare` per rung, the card's third line (data-driven, empty until K1), phase ticks on the bar (none until K1) | `04` PR A0 (the run-format guard: K0 is the earliest writer in this track); `02` PR 0b (the wall/wave fix, `TerrainPhases` and the override-on-wave validator, so the new variants are born correct) | boss nodes meet an arena whenever the act has one of the drawn biome, at the rung's share (First Light 0.5, Dusk+ 0.75); Acts I–II get one | 3 days + art review of two arena blocks |
+| **K1** | **Kit data, compile and triggers**: `bossKits` schema and `BossKitValidation`, `BossKit.compile` (courts, anchors, phases, bonus slot, First Light's compile, the rung collapse), `bossBar` / `bossHp` in `02`'s check (slot 2b), `bossState` persistence, §4.5's shared-primary rule, `onBossPhase` music, phase bands and lines, `guide_boss_tell`, the shared mid-battle affix applier (closing the `haste` MOV gap); `BossSignature.js`'s core (resolve / plan / view, slot 7b, `bossState.signature`) with the kinds Act I uses (`court_order`, `aura`, `affix`, `unclamp`); the **Act I kits** | `04` PR A0 (the `bossKit`, `encounters`, `objectives` and `parModel` capabilities this PR first writes); `02` PRs 2.1, 2.2a (groups, warn bands, outlines), 2.2b (the `phase` slot calling `checkPhase`, the hostile-exchange hook), 2.4 (`guard` / `seek` posts and `together` for court orders), 2.5 (`groups-v1`: a kit config writes `objectives`, `02` §5.2 "Which model"); `03` PRs 1 (the model), 1b (`clampTile`, for `unclamp`), 3 (`objectiveState`), 4 (phases, which itself follows `02` PR 0b) | Act I bosses have two acts and a readable court; kit maps are priced by `groups-v1` | 5 days |
 | **K2** | `BossSignature.js`'s `terrain` and `wave` kinds; the marching-boss clamp gate (`04` §10.4's rule, first used by the Dark Rider; `04` PR F reuses it); the **Act II and III kits** but the Archmage's volley and the Blade Lord's mark | K1; `02` PR 2.3 (triggered waves) | Acts II–III bosses have signatures | 4 days + 1 tuning |
 | **K3** | `volley` and `mark` (the Archmage, the Blade Lord); the forecast's volley line; the marked-target score term in `_scoreAttackTarget` | K2 | the two bosses with a per-unit threat | 3 days |
 | **K4** | **The Emperor's kit** (bars, `shielded`, the guard, the last bar's `regenerator` and enrage layer, the Nightfall+ gate wave), the bar-1 `setTiles` on the bastion's variants (the v1 overrides stay) | K2 (K0 for the variants) | Act IV's one boss has three acts on Black Sun, two on Dusk and Nightfall | 2 days |
@@ -1281,6 +1292,17 @@ are theirs: `01` §5 (PRs 1–10), `02` §8 (0a–0e, 2.0–2.6), `03` §14 (1, 
 | **K9** | The Dueling Halls | `04` PR E (hybrid v2) and the marching-boss clamp gate (K2, or `04` PR F); K3; K5 (the `reach` deadline); `01` PRs 3–5, 7, 8 (22 wide) | a second Act III boss set piece | 4 days + 1 tuning |
 | **K10** | The Battery | `04` PR F; `03` PR 5 (`claim`); K3 (`volley`), K4, K5; `01` as K7 | a second Act IV boss set piece, Nightfall+ | 4 days + 1 tuning |
 | **K11** | Sanctum of Echoes refined (wardens, lit pillars) | `04` PR G… (the finale slot and Sanctum of Echoes); K6; `03` PRs 5, 7; `01` PRs 3–5, 7, 8 (24x16) | Black Sun's finale variant | 3 days |
+
+**Gating.** The boss track does not wait for the set-piece track, and does not ride on it.
+- **The guard** (`04` PR A0) is a dependency of K0 and K1, the earliest PRs here that can
+  write a capability. It does not depend on any set piece (`04` §12.1).
+- **Kits ship dark.** `bossKits.enabled` is `false` and `arenaShare` is 0 on every rung when
+  K0 and K1 merge; a rung's switch goes on in its own change, with §11's `--bossKits` report,
+  so the difficulty effect of kits is read apart from larger maps' and from each other
+  rung's.
+- **The slice first.** No kit or arena switch is turned on until the Mill Ford has passed its
+  exit criteria (README §5 "Rollout gates"): the encounter and `groups-v1` par model that K1
+  relies on is proven on one bounded map before it carries every boss battle.
 
 **The cheapest big win is K0 then K1.** K0 needs nothing but `02` PR 0b and changes boss
 maps in every act in a way the player sees on the first turn (the arena, the card's line).
@@ -1493,3 +1515,11 @@ What this pass corrected against the code and specs `01`–`04`:
 - The fifteen notes are taken in by the README and `01`–`04` and marked resolved; two with a
   change: Vision may be offered on any Act III+ set-piece or boss-map bonus (§6, §13 Q3),
   and a pending tell's pointer ranks behind a commander at half HP (§5.1).
+
+## Revision 3 changelog (2026-10-09)
+
+- **Old clients (review finding, P1).** Boss kits, signatures and arenas are capabilities of
+  the run-format guard (`04` §12.1), detected without any `setPiece`; First Light is held like
+  any rung (§9.5). §10.2 lists the save marker; K0 and K1 depend on `04` PR A0.
+- **Gating (§12).** Kits and arenas ship dark (`bossKits.enabled` false, `arenaShare` 0),
+  switch on per rung in separate changes, and wait for the Mill Ford's exit criteria.

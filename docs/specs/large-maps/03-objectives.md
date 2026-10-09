@@ -1,6 +1,6 @@
 # 03 — Objectives v2: primary objectives, phases, bonus objectives
 
-Status: proposal, revision 3 (2026-10-09). Takes in the cross-review of the spec set and
+Status: proposal, revision 4 (2026-10-09). Takes in the cross-review of the spec set and
 `05`'s notes (phases that keep the primary, `until` lists, bonus extensions, Vision).
 Spec only: no game code or data changes.
 Branch `claude/large-maps-specs`. Part of the large-maps set ([README](README.md));
@@ -1083,6 +1083,13 @@ outside an allowlist (generation, words fallbacks, prologue), no `src/` file may
 | 7 | **Later**: capture points; structures: `Gate` terrain and art, Strike, `StructureController`, destroy | set pieces only | later | 4 days + art |
 | — | **Later**: `survive` (phase-only, §5.10) rides PR 4's phases, but ships with the first map that uses it | — | later | in PR 4 |
 
+**The run-format guard** (`04` PR A0, `04` §12.1) is a dependency of the PRs here that can write
+the `objectives` and `gateTerrain` capabilities: 1b (`clampTile`), 4 (phases, multi-seize), 5 and 6
+(bonus kinds in written `objectives`; `bonusVisionActs` arrives with the later `vision` reward) and 7 (`structures`, the `Gate` tile). PRs
+1–3 write nothing it detects: the derived model is never written, and the `objectiveState` that
+PR 3 adds to every checkpoint only mirrors `villageState` and `caravanExited`, which the guard
+treats as legacy-equivalent.
+
 `defeat` is pulled out of the old PR 6 into PR 1b, right after PR 1, because Two Towers
 needs it and nothing else from PRs 4–7. Every written config takes `02`'s par PR
 (`groups-v1`, §5.9), which lands before `04`'s generator PR. Each kind's PR also ships
@@ -1194,3 +1201,9 @@ Takes in the cross-review of the spec set.
   deadlines on `reach` / `claim`, `claim` with `need`, the finale's feats, the reward choice
   at generation, kit bonuses on boss nodes, and Vision on any Act III+ set-piece or
   boss-map bonus with a commit-time once-per-act check.
+
+## Revision 4 changelog (2026-10-09)
+
+- **Old clients (review finding, P1).** `objectives` and `gateTerrain` are capabilities of the
+  run-format guard (`04` §12.1); §14 names the PRs that depend on `04` PR A0, and says a derived
+  or mirroring `objectiveState` is legacy-equivalent and not held.
