@@ -73,16 +73,21 @@
    its blessings' effects in the OLD form inside `blessingRuntimeModifiers`; see section 8.
 
 ## 8. Save Migration Rules
-1. Migration is executed during `RunManager.fromJSON` before any blessing-dependent relink or runtime restoration steps.
+1. Migration is executed during `RunManager.fromJSON` before any blessing-dependent relink or runtime restoration steps. The one exception is the blessing boon migration (rule 6), which runs LAST in `fromJSON` (also before the early return for a rejected battle checkpoint), because it reads the finished map, Eclipse and roster; its ordering is stated there.
 2. Saves without blessing fields are migrated by adding defaults.
 3. Saves with legacy blessing key names are normalized to contract keys.
 4. Migration must be idempotent.
 5. Migration must not alter deterministic seed state.
 6. Blessing boon revisions: handlers never re-run on load, so a boon whose effect changed
    is converted in the saved runtime modifiers instead. `RunManager.fromJSON` runs
-   `migrateHeldBlessingBoons` once for a save below `BLESSING_BOON_REVISION`, after
-   `activeBlessings` is normalized and `blessingHistory` is loaded (it reads the old
-   handlers' records to take back exactly what they added), then stamps the current
+   `migrateHeldBlessingBoons` once for a save below `BLESSING_BOON_REVISION`, as the LAST
+   step of the load (every other step has settled the map, the Eclipse and the roster; a
+   rejected battle checkpoint is migrated before its early return), reading the loaded
+   `activeBlessings` and `blessingHistory`: the old handlers' records say exactly what they
+   added (positive `appliedValue` for a boon, negative for a price; the figures changed over
+   the game's life, so a rule falls back to its frozen constant only for a blessing with no
+   records at all). Pilgrim Coin also stamps its extra shop on the current map, ahead of the
+   party, because the blessing is taken away at once. It then stamps the current
    revision. `startRun` and `startPrologue` stamp it too, so a new run is never migrated; the
    prologue is never migrated. Any held entry migrates, whether taken at the shrine, a church
    or an event. Revision 1 converts Steady Hands, Frugal Smith, Terrain Mastery, Pilgrim Coin,

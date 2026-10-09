@@ -47,11 +47,16 @@ describe('a blessing never shares a name with an item', () => {
         ...(Array.isArray(data.consumables) ? data.consumables : []),
         ...(data.whetstones?.whetstones || data.whetstones || []),
         ...(data.imbues?.imbues || []),
+        // The imbue's stone and the Prismatic Stone are the real inventory items.
+        ...(data.imbues?.imbues || []).map((imbue) => imbue.stone),
+        data.imbues?.prismaticStone,
       ]
         .map((item) => item?.name)
         .filter(Boolean),
     );
     expect(itemNames.has('Holdfast')).toBe(true); // Cael's axe: the guard sees real names
+    expect(itemNames.has('Vampiric Imbuing Stone')).toBe(true);
+    expect(itemNames.has('Prismatic Stone')).toBe(true);
     const clashes = data.blessings.blessings
       .filter((b) => itemNames.has(b.name))
       .map((b) => `${b.id}: ${b.name}`);

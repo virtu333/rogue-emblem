@@ -43,6 +43,33 @@ function oldSteadyHandsRecord(acts = ACT_SEQUENCE, appliedValue = 3) {
 }
 
 /**
+ * One record as the old `_recordBlessingEvent` wrote it (RunManager at 2adde771 / d3c4c168:
+ * stage 'run_start', eventType 'effect_applied', the effect's type, its figures in details).
+ */
+function oldRecord(blessingId, effectType, details) {
+  return {
+    timestamp: 1,
+    stage: 'run_start',
+    eventType: 'effect_applied',
+    blessingId,
+    effectType,
+    details,
+  };
+}
+/** `act_hit_bonus` (one act): details { act, appliedValue, total }. Steady Hands was +5 in act1 before Feb 19. */
+const actHitRecord = (blessingId, act, appliedValue, total = appliedValue) =>
+  oldRecord(blessingId, 'act_hit_bonus', { act, appliedValue, total });
+/** `forge_cost_multiplier`: details.appliedValue is the DISCOUNT delta (-value), so a boon is positive and a price negative. */
+const forgeRecord = (blessingId, value) =>
+  oldRecord(blessingId, 'forge_cost_multiplier', { appliedValue: -value, total: -value });
+const itemsRecord = (blessingId, appliedValue = 1) =>
+  oldRecord(blessingId, 'shop_item_count_delta', { appliedValue, total: appliedValue });
+const shopDiscountRecord = (blessingId, appliedValue) =>
+  oldRecord(blessingId, 'shop_price_discount', { appliedValue, total: appliedValue });
+const goldMultiplierRecord = (blessingId, appliedValue) =>
+  oldRecord(blessingId, 'battle_gold_multiplier_delta', { appliedValue, total: appliedValue });
+
+/**
  * A save as the build before the reworks wrote it: a plain run at `act`, then the held
  * blessings, their old runtime numbers and history, and no `blessingBoonRevision`.
  */
@@ -132,6 +159,54 @@ describe('Steady Hands -> Keen Eye', () => {
     expect(mods(rm).actHitBonusByAct).toEqual({});
   });
 
+  it('a Feb-era save (+5 Hit in Act 1 only, an act_hit_bonus record) takes back exactly that', () => {
+    const rm = load(
+      oldSave({
+        held: ['steady_hands'],
+        modifiers: { actHitBonusByAct: { act1: 5 } },
+        history: [actHitRecord('steady_hands', 'act1', 5)],
+      }),
+    );
+    // Not the later +3 in every act: nothing negative is left behind.
+    expect(mods(rm).actHitBonusByAct).toEqual({});
+    expect(mods(rm).firstStrikeHitBonus).toBe(10);
+    for (const act of ACT_SEQUENCE)
+      expect(rm.getActHitBonusForUnit({ faction: 'player' }, act)).toBe(0);
+  });
+
+  it('a Feb-era +5 beside another blessing’s Act 1 -8 price leaves the price', () => {
+    // iron_oath holds act1_hit_down: its own negative record is not Steady Hands'.
+    const rm = load(
+      oldSave({
+        held: ['steady_hands', 'iron_oath'],
+        modifiers: { actHitBonusByAct: { act1: -3 } },
+        history: [
+          actHitRecord('steady_hands', 'act1', 5),
+          actHitRecord('iron_oath', 'act1', -8, -3),
+        ],
+      }),
+    );
+    expect(mods(rm).actHitBonusByAct).toEqual({ act1: -8 });
+  });
+
+  it('a Steady Hands record that is not a positive boon is never taken back (and is not a lost history)', () => {
+    // A skipped record has no appliedValue; the fallback +3 must not guess over it.
+    const rm = load(
+      oldSave({
+        held: ['steady_hands'],
+        modifiers: { actHitBonusByAct: { act1: 4 } },
+        history: [
+          oldRecord('steady_hands', 'all_act_hit_bonus', {
+            skipped: true,
+            reason: 'zero_all_act_hit_bonus',
+          }),
+        ],
+      }),
+    );
+    expect(mods(rm).actHitBonusByAct).toEqual({ act1: 4 });
+    expect(mods(rm).firstStrikeHitBonus).toBe(10);
+  });
+
   it('a save whose history lost the record falls back to the data’s +3 in every act', () => {
     const rm = load(
       oldSave({ held: ['steady_hands'], modifiers: { actHitBonusByAct: { ...acts } } }),
@@ -171,14 +246,44 @@ describe('Frugal Smith -> Smith’s Mark', () => {
 
   it('a +20% forge price from another blessing survives', () => {
     // forge_cost_multiplier +0.2 reads as a -0.2 discount; Frugal Smith's 0.3 on top is 0.1.
+    // (No shipped blessing holds forge_dearer now, an older price table did: its record is
+    // the sign-separated negative one, filed under whichever blessing held the price.)
     const rm = load(
       oldSave({
-        held: ['frugal_smith', 'some_forge_price_holder'],
+        held: ['frugal_smith', 'war_veteran'],
         modifiers: { forgeCostDiscount: 0.3 + -0.2, forgeLimitDelta: 1 },
       }),
     );
     expect(mods(rm).forgeCostDiscount).toBe(-0.2);
     expect(rm.getForgeCostDiscount()).toBe(-0.2);
+  });
+
+  it('a Feb-era 20% discount (forge_cost_multiplier -0.2, no extra forge) takes back 20%, not 30%', () => {
+    const rm = load(
+      oldSave({
+        held: ['frugal_smith'],
+        modifiers: { forgeCostDiscount: 0.2 },
+        history: [forgeRecord('frugal_smith', -0.2)],
+      }),
+    );
+    expect(mods(rm).forgeCostDiscount).toBe(0);
+    expect(mods(rm).freeForgesPerShop).toBe(1);
+  });
+
+  it('the logged discount is taken back and the logged +20% price (negative record) stays', () => {
+    const rm = load(
+      oldSave({
+        held: ['frugal_smith', 'war_veteran'],
+        modifiers: { forgeCostDiscount: 0.2 + -0.2 + 0.1 },
+        history: [
+          forgeRecord('frugal_smith', -0.2),
+          forgeRecord('war_veteran', 0.2),
+          oldRecord('frugal_smith', 'forge_cost_discount', { appliedValue: 0.1, total: 0.1 }),
+        ],
+      }),
+    );
+    // 0.2 and 0.1 are Frugal Smith's; the -0.2 is the price.
+    expect(mods(rm).forgeCostDiscount).toBe(-0.2);
   });
 });
 
@@ -219,10 +324,11 @@ describe('Pilgrim Coin -> Pilgrim’s Road', () => {
   });
 
   it('keeps a price another blessing put on the same fields', () => {
-    // Shops dearer +15% (a discount of -0.15) beside Pilgrim Coin's 0.15 discount: 0 in the save.
+    // Shops dearer +15% (a discount of -0.15, held by war_veteran) beside Pilgrim Coin's 0.15
+    // discount: 0 in the save.
     const rm = load(
       oldSave({
-        held: ['pilgrim_coin', 'some_shop_price_holder'],
+        held: ['pilgrim_coin', 'war_veteran'],
         modifiers: { shopItemCountDelta: 1, shopPriceDiscount: 0.15 + -0.15 },
       }),
     );
@@ -230,16 +336,151 @@ describe('Pilgrim Coin -> Pilgrim’s Road', () => {
     expect(mods(rm).shopItemCountDelta).toBe(0);
   });
 
-  it('does not re-draw the current act’s map; the next act gains its shop', () => {
+  it('a save before Feb 16 (+1 item, no discount record) takes back the item and no discount', () => {
+    const rm = load(
+      oldSave({
+        held: ['pilgrim_coin'],
+        modifiers: { shopItemCountDelta: 1, shopPriceDiscount: 0 },
+        history: [itemsRecord('pilgrim_coin')],
+      }),
+    );
+    expect(mods(rm).shopItemCountDelta).toBe(0);
+    expect(mods(rm).shopPriceDiscount).toBe(0);
+    expect(mods(rm).extraShopsPerAct).toBe(1);
+  });
+
+  it('takes back the logged item and discount and leaves the logged price (negative) alone', () => {
+    const rm = load(
+      oldSave({
+        held: ['pilgrim_coin', 'war_veteran'],
+        modifiers: { shopItemCountDelta: 1, shopPriceDiscount: 0.15 + -0.15 },
+        history: [
+          itemsRecord('pilgrim_coin'),
+          shopDiscountRecord('pilgrim_coin', 0.15),
+          shopDiscountRecord('war_veteran', -0.15),
+        ],
+      }),
+    );
+    expect(mods(rm).shopItemCountDelta).toBe(0);
+    expect(mods(rm).shopPriceDiscount).toBe(-0.15);
+  });
+
+  /** Nodes the pass converted, and the party's row. */
+  const shopsOf = (rm) => rm.nodeMap.nodes.filter((n) => n.pilgrimShop);
+
+  /** An Act 2 save with the party standing on a finished row-0 node. */
+  function pilgrimActTwoSave() {
+    const saved = oldSave({
+      held: ['pilgrim_coin'],
+      act: 1,
+      modifiers: { shopItemCountDelta: 1, shopPriceDiscount: 0.15 },
+    });
+    const here = saved.nodeMap.nodes.find((n) => n.row === 0);
+    here.completed = true;
+    saved.currentNodeId = here.id;
+    return { saved, here };
+  }
+
+  it('mid-Act 2: the current map gains one shop ahead of the party, at once', () => {
+    const { saved, here } = pilgrimActTwoSave();
+    const rm = load(saved);
+    const shops = shopsOf(rm);
+    expect(shops).toHaveLength(1);
+    expect(shops[0].type).toBe('shop');
+    expect(shops[0].row).toBeGreaterThan(here.row);
+    // Reachable from where the party stands, never a node it can no longer go to.
+    const reachable = new Set([here.id]);
+    for (const id of reachable) {
+      for (const next of rm.nodeMap.nodes.find((n) => n.id === id).edges) reachable.add(next);
+    }
+    expect(reachable.has(shops[0].id)).toBe(true);
+    // The converted node was an event or church before; the rest of the map is as saved.
+    const before = saved.nodeMap.nodes.find((n) => n.id === shops[0].id);
+    expect(['event', 'church']).toContain(before.type);
+    const changed = rm.nodeMap.nodes.filter(
+      (n) => n.type !== saved.nodeMap.nodes.find((o) => o.id === n.id).type,
+    );
+    expect(changed.map((n) => n.id)).toEqual([shops[0].id]);
+    expect(
+      rm.blessingHistory.find((e) => e.stage === 'migration' && e.blessingId === 'pilgrim_coin')
+        .details.converted,
+    ).toEqual([shops[0].id]);
+  });
+
+  it('a reload (and a second migration call) never stamps a second shop', () => {
+    const { saved } = pilgrimActTwoSave();
+    const rm = load(saved);
+    const ids = shopsOf(rm).map((n) => n.id);
+    expect(ids).toHaveLength(1);
+    expect(shopsOf(reload(rm)).map((n) => n.id)).toEqual(ids);
+    expect(migrateHeldBlessingBoons(rm)).toEqual([]);
+    expect(shopsOf(rm).map((n) => n.id)).toEqual(ids);
+    // The next act gains its own.
+    rm.advanceAct();
+    expect(shopsOf(rm)).toHaveLength(1);
+  });
+
+  it('the migration does not touch the parsed save’s own map (loading it twice gives the same shop)', () => {
+    const { saved } = pilgrimActTwoSave();
+    const a = RunManager.fromJSON(saved, data);
+    const b = RunManager.fromJSON(saved, data);
+    expect(saved.nodeMap.nodes.some((n) => n.pilgrimShop)).toBe(false);
+    expect(shopsOf(a).map((n) => n.id)).toEqual(shopsOf(b).map((n) => n.id));
+  });
+
+  it('draws nothing from the node-map stream: the same seed converts the same node', () => {
+    const one = shopsOf(load(pilgrimActTwoSave().saved)).map((n) => n.id);
+    const two = shopsOf(load(pilgrimActTwoSave().saved)).map((n) => n.id);
+    expect(two).toEqual(one);
+  });
+
+  it('runs after the Eclipse is re-applied: a road already burning never keeps a stamped shop', () => {
+    // Shadow at its cap: every node past its threshold falls on load. A shop stamped BEFORE
+    // that would be burned at once while keeping its pilgrimShop mark (and so never be
+    // replaced); stamped after, only a standing node can be chosen.
+    const { saved } = pilgrimActTwoSave();
+    saved.eclipse = { ...(saved.eclipse || {}), enabled: true, shadow: 100, actShadow: 100 };
+    const rm = load(saved);
+    for (const node of shopsOf(rm)) {
+      expect(node.type).toBe('shop');
+      expect(node.eclipse).toBeFalsy();
+    }
+    expect(rm.nodeMap.nodes.some((n) => n.eclipse)).toBe(true); // the Eclipse really ran
+  });
+
+  it('on the last row of the last act nothing can be added, and nothing throws', () => {
+    const saved = oldSave({
+      held: ['pilgrim_coin'],
+      act: ACT_SEQUENCE.length - 1,
+      modifiers: { shopItemCountDelta: 1, shopPriceDiscount: 0.15 },
+    });
+    const lastRow = Math.max(...saved.nodeMap.nodes.map((n) => n.row));
+    const here = saved.nodeMap.nodes.find((n) => n.row === lastRow);
+    saved.currentNodeId = here.id;
+    const typesBefore = saved.nodeMap.nodes.map((n) => n.type);
+    let rm;
+    expect(() => {
+      rm = load(saved);
+    }).not.toThrow();
+    expect(rm.nodeMap.nodes.map((n) => n.type)).toEqual(typesBefore);
+    expect(shopsOf(rm)).toHaveLength(0);
+    // The blessing is still converted: the rest of the numbers move.
+    expect(mods(rm).extraShopsPerAct).toBe(1);
+    expect(mods(rm).shopItemCountDelta).toBe(0);
+  });
+
+  it('a save with no map (between acts) converts the numbers and stamps nothing', () => {
     const saved = oldSave({
       held: ['pilgrim_coin'],
       modifiers: { shopItemCountDelta: 1, shopPriceDiscount: 0.15 },
     });
-    const rm = load(saved);
-    const shopsBefore = rm.nodeMap.nodes.filter((n) => n.pilgrimShop).length;
-    expect(shopsBefore).toBe(0);
-    rm.advanceAct();
-    expect(rm.nodeMap.nodes.filter((n) => n.pilgrimShop)).toHaveLength(1);
+    saved.nodeMap = null;
+    let rm;
+    expect(() => {
+      rm = load(saved);
+    }).not.toThrow();
+    expect(mods(rm).extraShopsPerAct).toBe(1);
+    expect(rm.nodeMap).toBeNull();
   });
 });
 
@@ -260,6 +501,32 @@ describe('Coin of Fate -> Advance Pay and Quartermaster Cache', () => {
     expect(rm.gold).toBe(gold + 250);
     // The recurring part does not ride the next load.
     expect(reload(rm)._payActStartGrants('act_transition')).toEqual([]);
+  });
+
+  it('a Feb-era +15% battle gold multiplier (battle_gold_multiplier_delta) is taken back', () => {
+    const saved = oldSave({
+      held: ['coin_of_fate'],
+      modifiers: { battleGoldMultiplierDelta: 0.15 },
+      history: [goldMultiplierRecord('coin_of_fate', 0.15)],
+    });
+    const rm = load(saved);
+    expect(mods(rm).battleGoldMultiplierDelta).toBe(0);
+    expect(rm.gold).toBe(saved.gold);
+    expect(mods(rm).actStartGrants).toHaveLength(1);
+  });
+
+  it('a gold multiplier another blessing logged (a price) stays', () => {
+    const rm = load(
+      oldSave({
+        held: ['coin_of_fate', 'war_veteran'],
+        modifiers: { battleGoldMultiplierDelta: 0.15 - 0.1 },
+        history: [
+          goldMultiplierRecord('coin_of_fate', 0.15),
+          goldMultiplierRecord('war_veteran', -0.1),
+        ],
+      }),
+    );
+    expect(mods(rm).battleGoldMultiplierDelta).toBe(-0.1);
   });
 
   it('Quartermaster Cache in Act 1: the Elixirs already handed out stay, one arrives each later act', () => {
@@ -414,5 +681,90 @@ describe('who is migrated', () => {
     );
     expect(migrateHeldBlessingBoons(rm)).toEqual([]);
     expect(mods(rm).forgeCostDiscount).toBe(0);
+  });
+});
+
+describe('the revision gate and each rule’s own skip-guard', () => {
+  const OLD_SHAPES = {
+    steady_hands: {
+      modifiers: { actHitBonusByAct: Object.fromEntries(ACT_SEQUENCE.map((act) => [act, 3])) },
+      history: [oldSteadyHandsRecord()],
+    },
+    frugal_smith: {
+      modifiers: { forgeCostDiscount: 0.3, forgeLimitDelta: 1 },
+      history: [forgeRecord('frugal_smith', -0.3)],
+    },
+    terrain_mastery: {
+      modifiers: {
+        terrainCombatBonuses: [{ terrains: ['Forest', 'Fort'], avoidBonus: 10, defBonus: 1 }],
+      },
+      history: [],
+    },
+    pilgrim_coin: {
+      modifiers: { shopItemCountDelta: 1, shopPriceDiscount: 0.15 },
+      history: [itemsRecord('pilgrim_coin'), shopDiscountRecord('pilgrim_coin', 0.15)],
+    },
+    coin_of_fate: { modifiers: {}, history: [] },
+    quartermaster_cache: { modifiers: {}, history: [] },
+  };
+
+  for (const [blessingId, shape] of Object.entries(OLD_SHAPES)) {
+    it(`${blessingId}: a migrated run an older client wrote back without its revision loads unchanged`, () => {
+      const first = load(oldSave({ held: [blessingId], ...shape }));
+      const once = JSON.parse(JSON.stringify(first.toJSON()));
+      expect(once.blessingBoonRevision).toBe(BLESSING_BOON_REVISION);
+      // An older client does not know the field, so it saves the run without it.
+      delete once.blessingBoonRevision;
+      const second = load(once);
+      expect(second.blessingRuntimeModifiers).toEqual(first.blessingRuntimeModifiers);
+      expect(second.blessingHistory.filter((e) => e.stage === 'migration')).toEqual(
+        first.blessingHistory.filter((e) => e.stage === 'migration'),
+      );
+      expect(second.nodeMap).toEqual(first.nodeMap);
+      expect(second.toJSON().blessingBoonRevision).toBe(BLESSING_BOON_REVISION);
+    });
+  }
+
+  it('a save whose battle checkpoint is rejected is still migrated (the early return skips nothing)', () => {
+    const saved = oldSave({
+      held: ['frugal_smith'],
+      modifiers: { forgeCostDiscount: 0.3, forgeLimitDelta: 1 },
+    });
+    // A v1 checkpoint cannot be resumed: fromJSON returns early for the recovery screen.
+    saved.battleInProgress = { nodeId: saved.nodeMap.nodes[0].id, checkpoint: { version: 1 } };
+    const rm = load(saved);
+    expect(rm._battleRecoveryInvalid).toBe(true);
+    expect(mods(rm).forgeCostDiscount).toBe(0);
+    expect(mods(rm).freeForgesPerShop).toBe(1);
+    expect(rm.blessingBoonRevision).toBe(BLESSING_BOON_REVISION);
+  });
+
+  it('a save already at the current revision is not migrated, whatever numbers it holds', () => {
+    const saved = oldSave({
+      held: ['frugal_smith', 'steady_hands', 'terrain_mastery', 'coin_of_fate'],
+      modifiers: { forgeCostDiscount: 0.3, actHitBonusByAct: { act1: 3 } },
+    });
+    saved.blessingBoonRevision = BLESSING_BOON_REVISION;
+    const rm = load(saved);
+    // Every field a rule would change is as saved.
+    expect(mods(rm).forgeCostDiscount).toBe(0.3);
+    expect(mods(rm).freeForgesPerShop).toBe(0);
+    expect(mods(rm).firstStrikeHitBonus).toBe(0);
+    expect(mods(rm).actHitBonusByAct).toEqual({ act1: 3 });
+    expect(mods(rm).stationaryCombatBonus).toEqual({ defBonus: 0, avoidBonus: 0 });
+    expect(mods(rm).actStartGrants).toEqual([]);
+    expect(rm.blessingHistory.filter((e) => e.stage === 'migration')).toEqual([]);
+    expect(rm.toJSON().blessingBoonRevision).toBe(BLESSING_BOON_REVISION);
+  });
+
+  it('a save from a newer revision is left alone as well', () => {
+    const saved = oldSave({
+      held: ['frugal_smith'],
+      modifiers: { forgeCostDiscount: 0.3 },
+    });
+    saved.blessingBoonRevision = BLESSING_BOON_REVISION + 1;
+    const rm = load(saved);
+    expect(mods(rm).forgeCostDiscount).toBe(0.3);
+    expect(mods(rm).freeForgesPerShop).toBe(0);
   });
 });

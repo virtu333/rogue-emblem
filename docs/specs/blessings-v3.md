@@ -314,8 +314,10 @@ load; a renamed one keeps its id and changes only `name`.
   and without it. It never goes below 0: the Scholar's Vow's −1 keeps its recruit-node reach.
 - **Old saves** are converted once by `engine/BlessingBoonMigration.js` (revision-gated; see
   `docs/blessings_contract.md` §8): Steady Hands, Frugal Smith, Terrain Mastery and Pilgrim
-  Coin lose their old numbers and gain the new boon; Coin of Fate and Quartermaster Cache keep
-  what they paid and start their recurring grant with the next act. The old
+  Coin lose their old numbers (the amounts come from the blessing's own logged records, so a
+  save from before Feb 19 2026 converts exactly) and gain the new boon; Pilgrim Coin's extra shop
+  is stamped on the current map ahead of the party, not only from the next act; Coin of Fate and
+  Quartermaster Cache keep what they paid and start their recurring grant with the next act. The old
   `terrain_combat_bonus` boon type is retired.
 
 ## 5. New starting blessings

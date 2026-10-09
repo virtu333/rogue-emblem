@@ -3,9 +3,10 @@
 // must both end with the line shown exactly once:
 //   - NodeMapScene.checkActComplete uses advanceAct's return, and takes the notice so the
 //     next map entry does not say it again;
-//   - PostCombatController (after a boss victory) ignores the return, so the line waits for
-//     the route map's next entry (_showPendingNodeMapHints).
-// Rendering adapters only: the real RunManager and the real scene methods, no canvas.
+//   - PostCombatController.transitionAfterBattle (after a boss victory) ignores the return,
+//     so the line waits for the route map's next entry (_showPendingNodeMapHints).
+// Rendering adapters only: the real RunManager, the real PostCombatController transition and
+// the real scene methods, no canvas (the scene-to-scene hop is the one stub).
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('phaser', () => ({
@@ -14,6 +15,10 @@ vi.mock('phaser', () => ({
     Math: { Clamp: (v, min, max) => Math.max(min, Math.min(max, v)) },
   },
 }));
+vi.mock('../src/utils/SceneRouter.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  transitionToScene: vi.fn(async () => true),
+}));
 vi.mock('../src/ui/HintDisplay.js', () => ({
   showImportantHint: vi.fn(async () => true),
   showMinorHint: vi.fn(async () => true),
@@ -21,6 +26,7 @@ vi.mock('../src/ui/HintDisplay.js', () => ({
 
 import { showMinorHint } from '../src/ui/HintDisplay.js';
 import { NodeMapScene } from '../src/scenes/NodeMapScene.js';
+import { PostCombatController } from '../src/ui/PostCombatController.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { loadGameData } from './testData.js';
 
@@ -50,6 +56,35 @@ function runWithAdvancePay() {
   return rm;
 }
 
+/** Play the act through to its boss, as the route map would (every reward claimed). */
+function winAct(rm) {
+  for (let guard = 0; guard < 60 && !rm.isActComplete(); guard++) {
+    const node = rm.getAvailableNodes()[0];
+    if (['battle', 'boss', 'recruit'].includes(node.type))
+      rm.completeBattle(rm.getRoster(), node.id, 0, { turnCount: 5, turnPar: 7 });
+    else rm.markNodeComplete(node.id);
+  }
+}
+
+/** The battle scene's end: the real controller runs the act advance, a stub hops scenes. */
+async function bossVictoryTransition(rm) {
+  const scene = {
+    _battleSession: 1,
+    runManager: rm,
+    gameData: data,
+    isElite: false,
+    battleState: 'BATTLE_END',
+    nodeId: rm.nodeMap.bossNodeId,
+    registry: { get: () => null },
+    reportLootError: vi.fn(),
+    forceTransitionAfterBattle: vi.fn(),
+    _persistBattleRunState: vi.fn(() => ({ ok: true })),
+    _showStoryDialogueOnce: vi.fn(async () => {}),
+  };
+  expect(await new PostCombatController(scene).transitionAfterBattle()).toBe(true);
+  expect(scene.reportLootError).not.toHaveBeenCalled();
+}
+
 /** The route map's entry: the scene method that shows what waits for the player. */
 async function enterRouteMap(rm) {
   const scene = {
@@ -71,7 +106,12 @@ beforeEach(() => {
 describe('act-start notice: the PostCombatController path (advanceAct, return ignored)', () => {
   it('waits on the run and shows on the next route-map entry, once', async () => {
     const rm = runWithAdvancePay();
-    rm.advanceAct(); // PostCombatController calls it bare
+    winAct(rm);
+    expect(rm.currentAct).toBe('act1');
+    await bossVictoryTransition(rm); // transitionAfterBattle calls advanceAct bare
+    expect(rm.currentAct).toBe('act2');
+    expect(rm.gold).toBeGreaterThanOrEqual(250);
+    expect(noticeCalls()).toHaveLength(0); // nothing is drawn until the map is entered
     await enterRouteMap(rm);
     expect(noticeCalls()).toHaveLength(1);
     expect(noticeCalls()[0][1]).toBe('Advance Pay: +250 gold');
@@ -83,7 +123,9 @@ describe('act-start notice: the PostCombatController path (advanceAct, return ig
   it('a map entry with nothing paid says nothing', async () => {
     const rm = new RunManager(data);
     rm.startRun({ runSeed: 7001, applyBlessingsAtStart: false });
-    rm.advanceAct();
+    winAct(rm);
+    await bossVictoryTransition(rm);
+    expect(rm.currentAct).toBe('act2');
     await enterRouteMap(rm);
     expect(showMinorHint).not.toHaveBeenCalled();
   });

@@ -16,17 +16,25 @@
 //   terrain_mastery   Terrain Mastery (Forest/Fort)      -> Hold the Line (unmoved): drop the
 //                     terrain entry (and the retired field), grant the stationary bonus.
 //   pilgrim_coin      Pilgrim Coin (+1 item, -15%)       -> Pilgrim's Road (one extra shop per
-//                     act): take back both, grant the extra shop from the next act.
+//                     act): take back both, grant the extra shop on the current map (what
+//                     is still ahead of the party) and on every later act's.
 //   coin_of_fate      Coin of Fate (+750 gold)           -> Advance Pay (+500, +250 per act):
-//                     nothing taken back; the 250 starts with the next act.
+//                     nothing taken back (but a logged +15% battle gold multiplier of the
+//                     Feb 2026 build); the 250 starts with the next act.
 //   quartermaster_cache  an Elixir per lord              -> an Elixir per act: nothing taken
 //                     back; the delivery starts with the next act.
 //   blood_forge, nomad_pact: the effect is the same (their reach widened), nothing to do.
 //
 // Taking back subtracts exactly what the old handler added, so a number another blessing
 // or price put in the same field stays (an Act 1 -8 Hit price beside Steady Hands; a +20%
-// forge price beside Frugal Smith). Every figure here is frozen at this revision: the data
-// rows may change later, a migration may not.
+// forge price beside Frugal Smith). The amount is what the blessing's OWN logged boon records
+// say (`blessingHistory`: blessingId + effectType + details.appliedValue, positive for a
+// boon, negative for a price), because the numbers changed over the game's life: before
+// Feb 19 2026 Steady Hands was +5 Hit in Act 1 only (`act_hit_bonus`), Frugal Smith -20%
+// forge (`forge_cost_multiplier` -0.2), Pilgrim Coin +1 item with no discount until Feb 16,
+// and Coin of Fate a +15% battle gold multiplier. Only a blessing with no boon records at
+// all (a history that was lost) falls back to the figures below, frozen at this revision:
+// the data rows may change later, a migration may not.
 
 import { ACT_SEQUENCE } from '../utils/constants.js';
 import { isPrologueRun } from './ScriptedBattle.js';
@@ -51,6 +59,37 @@ const QUARTERMASTER_ITEM = 'Elixir';
 /** A float field minus an old amount, without leaving 0.1 + 0.2 style dust behind. */
 function takeBack(current, amount) {
   return Math.round(((Number(current) || 0) - amount) * 1e6) / 1e6;
+}
+
+/** Round a sum of logged amounts the way `takeBack` does. */
+function round6(value) {
+  return Math.round(value * 1e6) / 1e6;
+}
+
+/**
+ * The boon records the OLD handlers logged for one blessing: every history entry with its
+ * id, leaving out what this module wrote itself (`stage: 'migration'`).
+ */
+function boonHistory(run, blessingId) {
+  return (Array.isArray(run.blessingHistory) ? run.blessingHistory : []).filter(
+    (entry) => entry?.blessingId === blessingId && entry?.stage !== 'migration',
+  );
+}
+
+/** A logged record's positive `appliedValue` (a price is negative; a skipped record has none). */
+function positiveApplied(entry) {
+  const value = Number(entry?.details?.appliedValue);
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+/** The sum of the positive `appliedValue`s of the records whose effectType passes `match`. */
+function loggedTotal(records, match) {
+  let total = 0;
+  for (const entry of records) {
+    if (typeof entry?.effectType === 'string' && match(entry.effectType))
+      total += positiveApplied(entry);
+  }
+  return round6(total);
 }
 
 function record(run, blessingId, effectType, details) {
@@ -84,25 +123,33 @@ function migrateSteadyHands(run, modifiers) {
   // A run already on Keen Eye has the first-strike bonus (a save from this build's earlier
   // commits, before the revision existed): nothing old to take back.
   if (Math.trunc(Number(modifiers.firstStrikeHitBonus) || 0) > 0) return;
-  // The old handler logged exactly which acts it raised and by how much.
-  const logged = (run.blessingHistory || []).find(
-    (entry) =>
-      entry?.blessingId === 'steady_hands' &&
-      entry?.effectType === 'all_act_hit_bonus' &&
-      Number.isFinite(Number(entry?.details?.appliedValue)),
-  );
-  const amount = logged
-    ? Math.trunc(Number(logged.details.appliedValue))
-    : STEADY_HANDS_OLD_ACT_HIT;
-  const acts =
-    Array.isArray(logged?.details?.acts) && logged.details.acts.length > 0
-      ? logged.details.acts.filter((act) => typeof act === 'string')
-      : ACT_SEQUENCE;
+  // The old handlers logged exactly which acts they raised and by how much: `act_hit_bonus`
+  // (one act, +5 in Act 1 before Feb 19 2026) and `all_act_hit_bonus` (every act, +3).
+  const records = boonHistory(run, 'steady_hands');
+  const taken = {}; // act -> Hit this blessing added
+  for (const entry of records) {
+    const amount = Math.trunc(positiveApplied(entry));
+    if (amount <= 0) continue;
+    if (entry.effectType === 'act_hit_bonus' && typeof entry.details?.act === 'string') {
+      taken[entry.details.act] = (taken[entry.details.act] || 0) + amount;
+    } else if (entry.effectType === 'all_act_hit_bonus') {
+      const acts =
+        Array.isArray(entry.details?.acts) && entry.details.acts.length > 0
+          ? entry.details.acts.filter((act) => typeof act === 'string')
+          : ACT_SEQUENCE;
+      for (const act of acts) taken[act] = (taken[act] || 0) + amount;
+    }
+  }
+  // With no record of the blessing at all (a lost history) fall back to the +3 of every act;
+  // any record that says otherwise (even a skipped one) is believed instead.
+  if (records.length === 0) {
+    for (const act of ACT_SEQUENCE) taken[act] = STEADY_HANDS_OLD_ACT_HIT;
+  }
   const byAct =
     modifiers.actHitBonusByAct && typeof modifiers.actHitBonusByAct === 'object'
       ? modifiers.actHitBonusByAct
       : {};
-  for (const act of acts) {
+  for (const [act, amount] of Object.entries(taken)) {
     const left = Math.trunc(Number(byAct[act]) || 0) - amount;
     if (left === 0) delete byAct[act];
     else byAct[act] = left;
@@ -111,17 +158,24 @@ function migrateSteadyHands(run, modifiers) {
   modifiers.firstStrikeHitBonus =
     Math.trunc(Number(modifiers.firstStrikeHitBonus) || 0) + KEEN_EYE_FIRST_STRIKE_HIT;
   record(run, 'steady_hands', 'first_strike_hit_bonus', {
-    tookBack: { amount, acts },
+    tookBack: { byAct: { ...taken } },
     firstStrikeHitBonus: modifiers.firstStrikeHitBonus,
   });
 }
 
 function migrateFrugalSmith(run, modifiers) {
   if (Math.trunc(Number(modifiers.freeForgesPerShop) || 0) > 0) return;
-  modifiers.forgeCostDiscount = takeBack(modifiers.forgeCostDiscount, FRUGAL_SMITH_OLD_DISCOUNT);
+  // The discount the handler logged (a forge price is a negative record and stays); it was
+  // 20% before Feb 19 2026 and 30% after.
+  const records = boonHistory(run, 'frugal_smith');
+  const discount =
+    records.length === 0
+      ? FRUGAL_SMITH_OLD_DISCOUNT
+      : loggedTotal(records, (type) => type.startsWith('forge_cost_'));
+  modifiers.forgeCostDiscount = takeBack(modifiers.forgeCostDiscount, discount);
   modifiers.freeForgesPerShop = Math.trunc(Number(modifiers.freeForgesPerShop) || 0) + 1;
   record(run, 'frugal_smith', 'shop_first_forge_free', {
-    tookBack: FRUGAL_SMITH_OLD_DISCOUNT,
+    tookBack: discount,
     forgeCostDiscount: modifiers.forgeCostDiscount,
     freeForgesPerShop: modifiers.freeForgesPerShop,
   });
@@ -162,22 +216,52 @@ function migrateTerrainMastery(run, modifiers) {
 
 function migratePilgrimCoin(run, modifiers) {
   if (Math.trunc(Number(modifiers.extraShopsPerAct) || 0) > 0) return;
-  modifiers.shopItemCountDelta =
-    Math.trunc(Number(modifiers.shopItemCountDelta) || 0) - PILGRIM_COIN_OLD_ITEMS;
-  modifiers.shopPriceDiscount = takeBack(modifiers.shopPriceDiscount, PILGRIM_COIN_OLD_DISCOUNT);
-  // The extra shop starts with the next act: this act's map is not re-drawn under the player.
+  // What the handlers logged: +1 item always, the 15% discount only from Feb 16 2026 on.
+  const records = boonHistory(run, 'pilgrim_coin');
+  const items =
+    records.length === 0
+      ? PILGRIM_COIN_OLD_ITEMS
+      : Math.trunc(loggedTotal(records, (type) => type === 'shop_item_count_delta'));
+  const discount =
+    records.length === 0
+      ? PILGRIM_COIN_OLD_DISCOUNT
+      : loggedTotal(records, (type) => type === 'shop_price_discount');
+  modifiers.shopItemCountDelta = Math.trunc(Number(modifiers.shopItemCountDelta) || 0) - items;
+  modifiers.shopPriceDiscount = takeBack(modifiers.shopPriceDiscount, discount);
   modifiers.extraShopsPerAct = Math.trunc(Number(modifiers.extraShopsPerAct) || 0) + 1;
+  // The blessing is taken away at once, so the shop must not wait for an act that may never
+  // come (the last act has no later map): the current map gains it now, from the next row on
+  // and only where the party can still go, as a blessing taken at a church does. The map is
+  // copied first (it is shared with the parsed save); no map or no free node changes nothing.
+  let converted = [];
+  if (run.nodeMap && typeof run.nodeMap === 'object' && Array.isArray(run.nodeMap.nodes)) {
+    run.nodeMap = structuredClone(run.nodeMap);
+    const here = run.nodeMap.nodes.find((node) => node.id === run.currentNodeId);
+    converted = run._stampExtraShops({
+      fromRow: here ? here.row + 1 : 0,
+      currentNodeId: run.currentNodeId,
+    });
+  }
   record(run, 'pilgrim_coin', 'extra_shop_per_act', {
-    tookBack: { items: PILGRIM_COIN_OLD_ITEMS, discount: PILGRIM_COIN_OLD_DISCOUNT },
+    tookBack: { items, discount },
     shopItemCountDelta: modifiers.shopItemCountDelta,
     shopPriceDiscount: modifiers.shopPriceDiscount,
     extraShopsPerAct: modifiers.extraShopsPerAct,
-    firstShop: 'next_act',
+    converted,
   });
 }
 
 function migrateCoinOfFate(run, modifiers) {
   if (hasGrant(modifiers, 'coin_of_fate')) return;
+  // Between Feb 16 and Feb 19 2026 the blessing was a +15% battle gold multiplier
+  // (`battle_gold_multiplier_delta`); take back what it logged. The gold paid up front stays.
+  const multiplier = loggedTotal(
+    boonHistory(run, 'coin_of_fate'),
+    (type) => type === 'battle_gold_multiplier_delta',
+  );
+  if (multiplier > 0) {
+    modifiers.battleGoldMultiplierDelta = takeBack(modifiers.battleGoldMultiplierDelta, multiplier);
+  }
   if (!Array.isArray(modifiers.actStartGrants)) modifiers.actStartGrants = [];
   // The 750 paid up front stays; the recurring 250 begins with the act after this one.
   modifiers.actStartGrants.push({
@@ -189,6 +273,7 @@ function migrateCoinOfFate(run, modifiers) {
   record(run, 'coin_of_fate', 'act_start_gold', {
     value: ADVANCE_PAY_RECURRING_GOLD,
     firstPayment: 'next_act',
+    ...(multiplier > 0 ? { tookBack: { battleGoldMultiplierDelta: multiplier } } : {}),
   });
 }
 

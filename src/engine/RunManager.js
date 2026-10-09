@@ -6246,11 +6246,14 @@ export class RunManager {
       ? rm.blessingRuntimeModifiers.disablePersonalSkillsUntilAct
       : null;
     // Blessings held across the v3 reworks (BlessingBoonMigration.js): handlers never re-run
-    // on load, so an old boon's saved numbers are converted here, once, and the save stamped.
-    // The prologue holds no blessings and is never migrated. The runtime modifiers and the
-    // history are shared with the parsed save, so they are copied first: loading the same
-    // object twice cannot migrate twice.
-    {
+    // on load, so an old boon's saved numbers are converted once and the save stamped. It runs
+    // LAST in this function (every other load step has settled the map, the Eclipse and the
+    // roster it reads, so Pilgrim's Road converts only a node still standing), and before the
+    // early return below that skips a rejected checkpoint. The prologue holds no blessings and
+    // is never migrated. The runtime modifiers, history and map are shared with the parsed
+    // save, so the migration works on copies: loading the same object twice cannot migrate
+    // twice.
+    const settleBlessingBoons = () => {
       const savedRevision = Number(saved.blessingBoonRevision);
       rm.blessingBoonRevision = Number.isFinite(savedRevision)
         ? Math.max(0, Math.trunc(savedRevision))
@@ -6262,7 +6265,8 @@ export class RunManager {
         if (rm.mode !== PROLOGUE_RUN_MODE) migrateHeldBlessingBoons(rm);
         rm.blessingBoonRevision = BLESSING_BOON_REVISION;
       }
-    }
+    };
+
     rm._runStartBlessingsApplied = true;
     if (rm.nodeMap?.nodes && rm.battleConfigsByNodeId) {
       for (const node of rm.nodeMap.nodes) {
@@ -6361,7 +6365,10 @@ export class RunManager {
       rm.battleInProgress.timeline = hydrateBattleTimeline(rm.battleInProgress.timeline);
       // Never migrate a rejected checkpoint: even walking its unit arrays may
       // throw, hiding the raw save from the recovery UI.
-      if (rm._battleRecoveryInvalid) return rm;
+      if (rm._battleRecoveryInvalid) {
+        settleBlessingBoons();
+        return rm;
+      }
       for (const key of ['visionSnapshot', 'pendingVisionSnapshot']) {
         if (checkpoint[key]?.version === 2 && !validateBattleState(checkpoint[key]))
           checkpoint[key] = null;
@@ -6376,6 +6383,7 @@ export class RunManager {
       } else stampCommanderFlag(pool);
     }
 
+    settleBlessingBoons();
     return rm;
   }
 }
