@@ -1,7 +1,11 @@
 # Blessings v3: prices that mean something, more kinds of blessing, earned blessings
 
-Status: proposal (2026-10-09). Only §2 is built (the blessing-fixes PR). Everything else is
-for review: numbers marked *provisional* are first estimates to validate (§9).
+Status: proposal (2026-10-09), revised after the designer's first review (same day). Only §2
+is built (the blessing-fixes PR). Everything else is for review: numbers marked
+*provisional* are first estimates to validate (§9).
+
+Settled in review: Debt is the gold price (its amounts come from calibration, §3.1);
+Kingmaker's Oath stands as written; earned blessings are blessings, never start offers.
 
 Sources: a code audit of the blessing system (`BlessingEngine.js`, `RunManager.js`
 blessing logic, `ChurchVow.js`, `EventEffects.js`), the economy figures from the harness
@@ -118,6 +122,8 @@ a number on one of a few axes, and the compounding axes win.
    `MobilePauseMenu.pauseBlessingList`): name, tier, what it does, and what it cost when
    taken (Cost or Pact). It sits under the burdens on the route map and in battle.
 4. **Card text**: Nomad's Pact, Pilgrim Coin and Armory Stash now say what they do.
+5. **Pause layout**: on a landscape phone, the burden and blessing lists shrink and scroll
+   before the actions do, so Abandon Run never leaves the screen.
 
 Left for this proposal (they need a design call): the deforge price that only rolls with
 Honed Blades, art-cost prices taxing enemies, growth text not showing the rung's scale, and
@@ -137,9 +143,9 @@ come from the conjoint and the economy numbers, on a 0.5-6 scale (*provisional*)
 |---|---|---|
 | Personal skills off until Act 3 | 6 | tier IV only |
 | −10% XP | 5 | |
-| Debt 2,000 | 5 | replaces −30% gold |
-| Debt 1,200 | 3.5 | replaces −20% gold |
-| Debt 600 | 2 | replaces −15% gold |
+| Debt, tier IV amount | 5 | replaces −30% gold; amount from calibration |
+| Debt, tier III amount | 3.5 | replaces −20% gold; amount from calibration |
+| Debt, tier II amount | 2 | replaces −15% gold; amount from calibration |
 | −1 Vision (until the next act) | 3 | base is 1, so this is every rewind for an act |
 | −2 DEF all units, Act 1 | 3 | |
 | −1 deploy, Act 1 | 2.5 | new |
@@ -155,11 +161,28 @@ come from the conjoint and the economy numbers, on a 0.5-6 scale (*provisional*)
 | −1 DEF Act 1 / −8 Hit Act 1 / recruits −1 level / arts +2 HP | 0.5 | garnish only: never a II-IV card's whole price |
 
 **Gold prices become Debt.** Debt is an existing burden: a fixed sum owed, half of each
-victory's battle gold garnished until it's paid (a quarter on First Light), not cleansable. A
-600-gold Debt is paid off within the first few Act 1 battles. It's finite, it bites early when
-gold matters most, and the held-blessings list and burden chips already show what's left.
-Run-length percentage cuts go away. The two that make sense as Act 1-only cuts can stay as
-garnish.
+victory's battle gold garnished until it's paid (a quarter on First Light), not cleansable.
+It's finite, it bites early when gold matters most, and the held-blessings list and burden
+chips already show what's left. Run-length percentage cuts go away. The two that make sense
+as Act 1-only cuts can stay as garnish.
+
+**How much Debt.** The first draft guessed 600 / 1,200 / 2,000. Review said those are too
+low: Debt 600 should not sit beside staff healing −20%, and a Debt meant to replace −15%
+battle gold has to cost about what −15% gold costs. The amounts are measured instead. The
+Blessing Ledger's **Debt calibration** rounds show one blessing at three prices (two Debt
+amounts from 400 to 2,500 gold, and one price the game already uses). The fit gives one rate
+(value per 1,000 gold of Debt) on the same scale as every existing price, and reads off the
+Debt that costs the same as −15% gold, −10% XP, staff healing −20% and the rest. In a
+simulation with a known answer, 40 rounds put that equivalence within about ±40%. The tier
+amounts are then:
+
+- tier II: the Debt equal to the middle of the II band (2 points);
+- tier III: the Debt equal to 3.5 points;
+- tier IV pacts that use Debt: the Debt equal to 5 points.
+
+They scale by rung through Debt's own garnish (a quarter on First Light), so one amount per
+tier serves every rung. Re-measure if a rung plays very differently. The first-draft
+amounts in §4, §5 and §7 read "Debt II/III/IV" until then.
 
 Never pair a gold price with a gold boon (the existing "same effect type" exclusion, kept).
 
@@ -196,25 +219,25 @@ a trap.
 | Coin of Fate | I, +750 gold | rework | **Advance Pay** (I): +500 now, +250 at the first node of each later act. |
 | Blessed Vigor | I, lords +2 HP | retune | I: lords +4 max HP. |
 | Field Medic | I, a Vulnerary each | keep | I. |
-| Swift Instinct | II, lords +1 SPD | reprice | II with curated prices: Debt 600 / staff healing −20%. |
-| Iron Oath | II, lords +2 DEF | retier | III: Debt 1,200 / Ill Omen + garnish. |
+| Swift Instinct | II, lords +1 SPD | reprice | II with curated prices: Debt II / staff healing −20%. |
+| Iron Oath | II, lords +2 DEF | retier | III: Debt III / Ill Omen + garnish. |
 | Rally Cry | II, +3 STR/MAG Act 1 | reprice | II with light prices only (staff healing −20% / Lingering Injury on the commander). |
-| War Veteran | II, +15% XP | retier | III: Debt 1,200 / −1 deploy Act 1 / shops +15%. |
+| War Veteran | II, +15% XP | retier | III: Debt III / −1 deploy Act 1 / shops +15%. |
 | Frugal Smith | II, forge −30%, +1 forge | rework | **Smith's Mark** (II): each shop's first forge is free, +1 forge per shop. |
 | Terrain Mastery | II, Forest/Fort bonus | rework | **Holdfast** (II): a unit that hasn't moved this turn gets +2 DEF and +10 avoid. A playstyle, not a terrain lottery. |
 | Quartermaster Cache | II, 1 Elixir per lord | rework | II: an Elixir in the convoy at the start of every act, Act 1 included (four over a Dusk run). |
-| Scout Blessing | III, deploy +1 | retier | II: deploy +1; prices Debt 600 / Hunted 2. |
-| Scholar's Vow | III, all growths +5 | retier | IV, pact: recruits join −1 level and Debt 1,200. The best card in the game. |
+| Scout Blessing | III, deploy +1 | retier | II: deploy +1; prices Debt II / Hunted 2. |
+| Scholar's Vow | III, all growths +5 | retier | IV, pact: recruits join −1 level and Debt III. The best card in the game. |
 | Pilgrim Coin | III, shop +1 item, −15% | rework | **Pilgrim's Road** (II): each act's route gets one more shop (a keyed post-pass converts one non-combat node; the node-map stream is untouched). |
 | Merchant Bane | III, +15% battle gold | keep, rename lore | III: Hunted 2 / Sworn Enemy (no gold price). |
-| Nomad's Pact | III, recruits +2 levels | widen | III: also boss recruits and mercenaries. Debt 1,200 / Sworn Enemy. |
-| Focused Curriculum | III, lords +12 SPD/SKL growth | retune | III: +20 SPD/SKL and the class's attack stat. |
-| Arsenal Pact | IV, a Silver weapon | keep | IV, pact: Debt 2,000. |
+| Nomad's Pact | III, recruits +2 levels | widen | III: also boss recruits and mercenaries. Debt III / Sworn Enemy. |
+| Focused Curriculum | III, lords +12 SPD/SKL growth | keep the effect | III with a real III price (Debt III / all growths −5), never garnish. Review: stronger numbers would need a much bigger price. |
+| Arsenal Pact | IV, a Silver weapon | keep | IV, pact: Debt IV. |
 | Forbidden Tome | IV, lords +12 growths | reprice | IV, pact: no church revives this run (the pact it has is near-free). |
-| Blood Forge | IV, +2 Might on lords' weapons | rework | II: +1 Might on each lord's equipped weapon, outside the forge limit. |
+| Blood Forge | IV, +2 Might on every non-staff weapon the two starting lords carry at the start (Edric's Iron and Steel Swords, Sera's tome) | rework | II: +2 Might on each starting lord's best weapon (highest Might), so it isn't spent on an Iron Sword that will be replaced. Later weapons are untouched. |
 | War Tutelage | IV, a skill per lord | keep | IV, pact: personal skills off until Act 3 (the new skills crowd out the old). |
 | Armory Stash | IV, 2 random forges | cut | Folded into a gift (§7). |
-| Scroll Archive | IV, 2 art scrolls | reprice | IV, pact: Debt 2,000 (its pact is near-free). |
+| Scroll Archive | IV, 2 art scrolls | reprice | IV, pact: Debt IV (its pact is near-free). |
 
 Ids never change (save data). A cut blessing stays in the catalog with weight 0 so old saves
 load; a renamed one keeps its id and changes only `name`.
@@ -230,9 +253,8 @@ where it acts in battle, a read in the combat-mod builder (`BattleScene` and
 
 | Blessing | Effect | Hook | Tier | Prices |
 |---|---|---|---|---|
-| Late Bloom | every unit +1 to all stats at each act cleared | `advanceAct`; new | III | Debt 1,200 / −1 DEF Act 1 + Ill Omen |
+| Late Bloom | every unit +1 to all stats at each act cleared | `advanceAct`; new | III | Debt III / −1 DEF Act 1 + Ill Omen |
 | Slow Fuse | lords −1 all stats in Act 1, +2 all stats from Act 2 | act-scoped stat delta (exists) | II | none: the Act 1 dip is the price |
-| Veteran's Road | recruits join at the commander's level −1 | `RecruitScaling`; new | III | Debt 1,200 / recruits join unarmed |
 | Dawn Tithe | +100 gold per turn under par at each victory | turn bonus; new | II | +8 shadow / staff healing −20% |
 
 ### 5.2 Build-arounds
@@ -240,30 +262,39 @@ where it acts in battle, a read in the combat-mod builder (`BattleScene` and
 | Blessing | Effect | Hook | Tier | Prices |
 |---|---|---|---|---|
 | Lone Banner | deploy cap −1; every deployed unit +25% XP | deploy delta (exists) + conditional XP; new | III | none: the cap is the price |
-| Phalanx Rite | +1 DEF per adjacent ally, up to +3 | accessory condition `adjacent_ally` | III | Debt 1,200 / Sworn Enemy |
-| Duelist's Creed | +15 avoid, +10 crit with no ally within 2 tiles | accessory condition `no_ally_within_2` | II | Lingering Injury on the commander / Debt 600 |
-| Cavalier's Hour | mounted units +1 MOV; infantry +1 DEF | move types in classes.json; new | II | Debt 600 / staff healing −20% |
+| Phalanx Rite | +1 DEF per adjacent ally, up to +3 | accessory condition `adjacent_ally` | III | Debt III / Sworn Enemy |
+| Duelist's Creed | +15 avoid, +10 crit with no ally within 2 tiles | accessory condition `no_ally_within_2` | III | Debt III / −1 deploy Act 1 |
+| Cavalier's Hour | mounted units +1 MOV; infantry +1 DEF | move types in classes.json; new | III | Debt III / Sworn Enemy + garnish |
 
 ### 5.3 Systems the catalog never touches
 
 | Blessing | Effect | Hook | Tier | Prices |
 |---|---|---|---|---|
-| Bloodless Art | weapon arts −1 HP and +1 use per map | `WeaponArtSystem` cost and `perMapLimit` | II | staff healing −20% / Debt 600 |
-| Saint's Reserve | every staff +1 use per battle | staff use table | II | Debt 600 / Ill Omen |
+| Bloodless Art | weapon arts −1 HP and +1 use per map | `WeaponArtSystem` cost and `perMapLimit` | II | staff healing −20% / Debt II |
+| Saint's Reserve | every staff +1 use per battle | staff use table | II | Debt II / Ill Omen |
 | Cutpurse's Luck | twice as many carriers; Steal skips its speed check | `carryConfig`, `Steal.js` | III | Hunted 2 / Sworn Enemy |
-| Open Roll | recruit nodes offer two candidates | `RecruitNodeSystem` | III | recruits −1 level + Debt 600 / Debt 1,200 |
-| Watcher's Grace | +1 Vision on every boss map | Vision grant at battle start | II | +8 shadow / Debt 600 |
-| Patient Dawn | +2 par turns on every map | `TurnBonusCalculator` offset | III | Act 1 −1 deploy / Ill Omen + Debt 600 |
-| Cartographer's Thread | redraw one road per act | `RouteEdit` (pure), route-map entry | II | +8 shadow |
-| Twin Chapel | churches offer two vows per visit | `ChurchVow` | II | Debt 600 |
+| Open Roll | recruit nodes offer two candidates | `RecruitNodeSystem` | III | recruits −1 level + Debt II / Debt III |
+| Watcher's Grace | +1 Vision on every boss map | Vision grant at battle start | II | +8 shadow / Debt II |
+| Patient Dawn | +2 par turns on every map | `TurnBonusCalculator` offset | III | Act 1 −1 deploy / Ill Omen + Debt II |
+| Twin Chapel | churches offer two vows per visit | `ChurchVow` | II | Debt II |
 | Omen Reader | the Eclipse's next fall shows two nodes early; falls spare recruit nodes | `EclipseSystem` thresholds | II | +8 shadow |
+
+Cut in review: **Veteran's Road** (recruits join at the commander's level −1). A recruit node
+already sets the level from the army: the floor of the average effective level of its
+strongest units (as many as the act deploys, at most 6), plus any recruit-level bonus, never
+below the act's floor (`RecruitNodeSystem.resolveRecruitNodeLevel`). The commander is
+usually among those units, so "commander −1" is about what already happens; Home Base's
+recruit upgrades (growths, flat stats, Marked Blood) don't touch level.
+
+Later, for effort: **Cartographer's Thread** (redraw one road per act). `RouteEdit` is pure
+and exists, but the route map needs a new interaction to pick the road.
 
 ### 5.4 Variance
 
 | Blessing | Effect | Hook | Tier | Prices |
 |---|---|---|---|---|
 | Gambler's Coin | each victory's battle gold is halved or doubled, seeded by run and node | battle gold; new | II | none: the variance is the price (expected value +25%) |
-| Lottery Loot | one loot card per battle comes from the next act's table | `LootSystem` tier offset (exists for event accessories) | III | Debt 1,200 / Sworn Enemy |
+| Lottery Loot | one loot card per battle comes from the next act's table | `LootSystem` tier offset (exists for event accessories) | III | Debt III / Sworn Enemy |
 
 ## 6. Earned blessings
 
@@ -278,18 +309,19 @@ under their own heading.
 |---|---|---|
 | Unbroken Banner | once per battle, the first ally who would fall survives at 1 HP | act boss |
 | Second Dawn | +1 Vision at the start of each act | eclipsed elite |
-| Standard of the Sun | the commander's personal aura reaches 1 tile further, +5 Hit | Act I boss |
+| Standard of the Sun | allies within 2 tiles of your commander +5 Hit and +5 Avoid | Act I boss |
 | Ember Lantern | the first kill each battle heals the killer 10 HP | act boss |
 | Hollow Hourglass | enemy reinforcements arrive one turn later | eclipsed elite |
 | Chronicle | +5% XP for every act cleared | Act II boss |
 | Captain's Whistle | every unit +1 MOV on turn 1 | act boss |
 | Tithe Box | 200 gold each time you enter a church | special church |
-| Saint's Reliquary | a church's Heal all also restores every staff's uses and lifts a Lingering Injury | special church |
-| Mercenary Ledger | Colosseum fees halved, +1 bout per visit | Colosseum |
+| Saint's Reliquary | staves heal 5 more HP and reach 1 tile further | special church |
+| Mercenary Ledger | Colosseum fees halved, +1 bout per visit | your first win in a Gold-tier bout (Act II on) |
 | Smith's Covenant | each shop's first forge is free; forged weapons never take wear | Wandering Smith event |
 | Thief's Lantern | carriers show on the route map preview; Steal skips its speed check | the Collectors event |
 | Lantern of the Road | fog maps open revealed within 4 tiles of each ally | eclipsed elite |
 | Crest of the Road | every recruit rolls a Mark | event |
+| Seer's Eye | fog never hides foes on your maps; a battle's preview lists its enemy classes, affixes and carriers | eclipsed elite |
 
 ### 6.2 With a twist (taken knowingly)
 
@@ -298,8 +330,22 @@ under their own heading.
 | Second Dawn (dark) | +1 Vision each act, and +1 now | +8 shadow now; the Eclipse fills 25% faster |
 | Blood Covenant | every unit, recruits included, +1 to all stats | Ill Omen never ends (+1 shadow each victory) |
 | Kingmaker's Oath | promotions are free and add +2 to the class's two best stats | Master Seals can't be used: promote only at a church, with its vow |
-| Seer's Eye | no fog; the route map shows every node's contents; one road redraw per act | enemies +1 level |
 | Hollow Sun's Favor | +50% battle gold and loot gold | Hunted until Act 3 (waves of 2) |
+
+Fact checks from review:
+
+- **Standard of the Sun** was drafted as "the commander's aura +1 tile". Only Edric's
+  Charisma is an aura. The other lords' personal skills are Foresight (+1 tome range),
+  Resolve, Renewal Aura (adjacent heal), Ride Down, Skyward and Intimidate. It is now an aura
+  any commander carries.
+- **Saint's Reliquary** drafted "restores staff uses". Staves already refill after every
+  battle (`perBattleUses`, reset in `completeBattle`), so it now strengthens staves instead.
+- **Mercenary Ledger**: the Colosseum has bout tiers (bronze, silver, gold from Act II,
+  platinum from Act III), not a ladder. A first gold-tier win offers it once per run.
+- **Seer's Eye**: the route map already shows a battle's objective, foe levels, fog,
+  village, caravan and map, and a recruit node's recruit. It doesn't show which event an
+  event node holds (picked on arrival), a shop's stock, or a battle's enemy classes, affixes
+  and carriers. Seer's Eye is now a pure earned blessing over that gap, with no price.
 
 The Unbroken Banner and Blood Covenant were drafted with weaker twists (Edric −3 max HP; a
 Lingering Injury). Both scale badly: −3 max HP is nothing late, and a Lingering Injury is one
@@ -318,15 +364,16 @@ unit −2 to one stat for three battles.
 
 That's about 3-4 earned blessings on First Light and 4-5 on Dusk+.
 
-**Snowball guards:**
-- Offer weight falls with each one already held (1, 0.6, 0.35).
+**Snowball guards** (loosened in review; start light, tighten only if playtests show
+runaways):
 - No id twice.
-- A run holds at most one blessing tagged `growth` and one tagged `xp` from any source, start
-  or earned (an `excludes` by tag).
-- On Black Sun, growth is halved, which makes stat blessings relatively stronger, so offer at
-  most one stat-tagged earned blessing per run there.
+- Offer weight falls gently with each earned blessing already held (1, 0.85, 0.7).
+- Watch, don't cap: track runs holding two or more `growth` / `xp` tagged blessings and
+  their commander-KO rate. Add a tag cap only if those runs run away.
 
 ## 7. Gifts with a catch (run start)
+
+Cut in review: Gilded Chest (gold now, a bigger Debt later) read as a loan, not a gift.
 
 Slay the Spire's Neow offers "a random rare relic, lose something". The analogue: from the
 second run on, the start offer adds a fourth card, a gift drawn (seeded) from this list. Each
@@ -335,7 +382,7 @@ is random in what it gives and clear about what it takes.
 | Gift | What you get | The catch |
 |---|---|---|
 | Sealed Reliquary | a random tier III blessing, no price | −1 Vision until Act 2 |
-| Gilded Chest | +1,200 gold now | Debt 1,800 |
+| Fallen Hoard | two random accessories from the next act's table (one may carry a skill) | Hunted for the next 3 battles |
 | Stranger's Scroll | two random weapon-art scrolls and a random skill scroll | Lingering Injury on the commander for 5 battles |
 | Marked Blade | a Silver weapon with a random imbue for the commander | Sworn Enemy on the Act I boss |
 | Pilgrim's Wager | a random tier IV blessing, its pact waived | +15 shadow now; one Act 1 node falls at once |
@@ -364,6 +411,14 @@ is random in what it gives and clear about what it takes.
   - the boss reward and the special church get the earned-blessing pick;
   - the Compendium gets an Earned section.
 - The prologue holds no blessings (unchanged).
+- **Terms explained where they appear.** A blessing card or list row that names a burden or
+  rule (Debt, Hunted, Sworn Enemy, Ill Omen, Lingering Injury, Pact, shadow, Vision, par)
+  gets the existing `ui/infoAffordance.js` treatment: a small ⓘ with a tooltip on hover,
+  press-and-hold on touch, the full text on tap. The definitions live in one `BLESSING_TERMS`
+  table beside the burden catalog (`events.json` `burdens`, whose `line` is already the
+  player's one-sentence definition). Every surface uses it: the shrine's offer cards, the
+  held list in the pause menu, the church and event pages, the boss pick, the Compendium and
+  Home Base. A test fails if any blessing or price text names a term the table lacks.
 
 ## 9. Measuring it, and the order to build it
 
@@ -402,13 +457,11 @@ growth, XP and gold cards it can see.
 
 ## Open questions
 
-1. Debt as the gold price: does garnishing half of each victory feel like a price, or a tax
-   you forget? Alternative: a flat "pay N gold now" for prices on tier II.
-2. Kingmaker's Oath: a path meets about 0.4-0.6 churches per act. Is "promote only at a
-   church" too tight? Alternative: a Master Seal costs 1,500 gold as well as the seal.
-3. Gifts with a catch: offered every run from the second, or only sometimes (a ~50% chance
+1. Debt amounts: set from the calibration rounds (§3.1). After them, check the tier II
+   amount against a playtest: is it felt in Act 1?
+2. Gifts with a catch: offered every run from the second, or only sometimes (a ~50% chance
    per run)?
-4. Should earned blessings ever be offered in a shop, as Slay the Spire's shop relics are, or
+3. Should earned blessings ever be offered in a shop, as Slay the Spire's shop relics are, or
    only won?
-5. Cut cards (Armory Stash): keep the id at weight 0 forever, or retire it through a
+4. Cut cards (Armory Stash): keep the id at weight 0 forever, or retire it through a
    `RETIRED_BLESSINGS` migration like `RETIRED_UPGRADES`?
