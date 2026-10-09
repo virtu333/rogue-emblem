@@ -32,11 +32,14 @@ export class PauseOverlay {
       gameData,
       prologue,
       burdens,
+      blessings,
     },
   ) {
     this.scene = scene;
     // The run's burdens (Burdens.describeBurdens): listed under the pause note.
     this.burdens = Array.isArray(burdens) ? burdens : [];
+    // The blessings the run holds (heldBlessingsModel): listed under the burdens.
+    this.blessings = Array.isArray(blessings) ? blessings : [];
     this.onResume = onResume;
     this.onSaveAndExit = onSaveAndExit || null;
     this.onSaveAndExitWarning = onSaveAndExitWarning || null;

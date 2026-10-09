@@ -23,6 +23,7 @@ import {
   shopSellWarnings,
   sellShopItem,
   shopForgeBlock,
+  shopForgeDiscount,
   forgeShopWeapon,
   shopRepairBlock,
   repairShopWeapon,
@@ -576,18 +577,14 @@ export class ShopMenu {
     });
   }
   forgeOptions() {
-    const blessing = Math.max(0, Math.min(0.95, this.run.getForgeCostDiscount?.() || 0));
     return {
       forgesUsed: this.scene.shopForgesUsed,
       forgeLimit:
         (SHOP_FORGE_LIMITS[this.run.currentAct] || 2) +
         (this.run.blessingRuntimeModifiers?.forgeLimitDelta || 0),
-      discount: Math.min(
-        0.95,
-        this.scene._currentShopHasAmbushDiscount
-          ? 1 - (1 - blessing) * AMBUSH_SHOP_DISCOUNT
-          : blessing,
-      ),
+      discount: shopForgeDiscount(this.run, {
+        ambushDiscount: !!this.scene._currentShopHasAmbushDiscount,
+      }),
     };
   }
   /** Mend the most recent wear step: one confirm naming the stat, the cost and the forge use. */

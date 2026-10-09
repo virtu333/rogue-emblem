@@ -108,6 +108,22 @@
   .mp-actions .mp-primary {
     grid-column: 1 / -1;
   }
+  /* The burden and blessing lists give way first: they shrink and scroll, the actions keep
+     their full height. */
+  .mp-actions {
+    flex-shrink: 0;
+  }
+}
+/* The lists under the note shrink before the actions do (a percentage max-height cannot
+   resolve against the panel's auto height), and scroll within what is left. */
+.mp-burdens,
+.mp-blessings {
+  flex: 0 1 auto;
+  min-height: 0;
+}
+.mp-burdens li,
+.mp-blessings li {
+  flex-shrink: 0;
 }
 .mp-note {
   margin: -4px 0 10px;
@@ -142,6 +158,35 @@
 .mp-burdens strong {
   font: var(--re-pf-8, 8px) / 1.5 var(--re-pixel);
   text-transform: uppercase;
+  color: var(--re-bad);
+}
+/* The blessings the run holds: the burdens' shape, in the gilt of a boon. */
+.mp-blessings {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  max-height: 30%;
+}
+.mp-blessings li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  border-left: 3px solid var(--re-gilt);
+  background: var(--re-sunken);
+  font: var(--re-t-small);
+  color: var(--re-muted);
+}
+.mp-blessings strong {
+  font: var(--re-pf-8, 8px) / 1.5 var(--re-pixel);
+  text-transform: uppercase;
+  color: var(--re-accent-text);
+}
+.mp-blessings .mp-blessing-price {
   color: var(--re-bad);
 }
 /* An open contract rides the same list, in the gilt of a seal. */
