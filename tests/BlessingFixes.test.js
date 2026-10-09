@@ -6,7 +6,7 @@
 //   1. a "+20% forge costs" price charges the base price (the shop clamped it away), or a
 //      shop refuses to forge at all under it;
 //   2. Frugal Smith's discount or a liberated village's discount stops composing;
-//   3. a repair under the price is refused as invalid;
+//   3. a repair under the price is refused, or charges the base price;
 //   4. an out-of-range discount is accepted;
 //   5. a mid-run tier III blessing (the Twin Altar's) shows a price after a save and load;
 //   6. a save from before the flag keeps that phantom price, or loses the real run-start one;
@@ -17,8 +17,10 @@ import {
   FORGE_DISCOUNT_MIN,
   forgeShopWeapon,
   shopForgeDiscount,
+  repairShopWeapon,
   shopRepairBlock,
 } from '../src/engine/ShopCommands.js';
+import { applyWear, wearCount } from '../src/engine/WeaponWear.js';
 import { getForgeCost } from '../src/engine/ForgeSystem.js';
 import { heldBlessingEntries } from '../src/ui/heldBlessingsModel.js';
 import { pauseBlessingList } from '../src/ui/MobilePauseMenu.js';
@@ -105,16 +107,31 @@ describe('forge prices from blessings', () => {
     expect(shopForgeDiscount(plain, { ambushDiscount: true })).toBeCloseTo(0.2, 10);
   });
 
-  it('a repair under the price is a repair, not an invalid request', () => {
-    const rm = runWithPrice('iron_oath', FORGE_PRICE(0.2));
-    const sword = withSword(rm);
-    sword._wear = ['might'];
-    const reason = shopRepairBlock(rm, sword, {
-      forgesUsed: 0,
-      forgeLimit: 2,
-      discount: shopForgeDiscount(rm),
-    });
-    expect(reason).not.toBe('Invalid repair.');
+  it('a repair under the price repairs the weapon and charges the surcharge', () => {
+    // Iron tier: the Might step's first forge price is 400 x 0.6 = 240, a repair half that.
+    for (const [ambushDiscount, charged] of [
+      [false, 144], // 120 x 1.2
+      [true, 115], // 120 x 1.2 x 0.8 = 115.2
+    ]) {
+      const rm = runWithPrice('iron_oath', FORGE_PRICE(0.2));
+      const sword = withSword(rm);
+      const might = sword.might;
+      expect(applyWear(sword, 'might').success).toBe(true);
+      expect(sword.might).toBe(might - 1);
+      const options = {
+        forgesUsed: 0,
+        forgeLimit: 2,
+        discount: shopForgeDiscount(rm, { ambushDiscount }),
+      };
+      expect(shopRepairBlock(rm, sword, options)).toBe('');
+      const gold = rm.gold;
+      const result = repairShopWeapon(rm, sword, options);
+      expect(result.ok).toBe(true);
+      expect(rm.gold).toBe(gold - charged);
+      expect(wearCount(sword)).toBe(0);
+      expect(sword.might).toBe(might);
+      expect(sword.name).toBe('Iron Sword');
+    }
   });
 
   it('refuses a discount outside the range', () => {
