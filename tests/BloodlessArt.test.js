@@ -57,8 +57,8 @@ describe('Bloodless Art: the card', () => {
     expect(card.lore).not.toBe(card.description);
   });
 
-  it('is the last entry, so lookups that take the first of a tier keep their answer', () => {
-    expect(data.blessings.blessings.at(-1).id).toBe('bloodless_art');
+  it('is the last offered entry (the earned blessings follow), so lookups that take the first of a tier keep their answer', () => {
+    expect(data.blessings.blessings.filter((b) => !b.earned).at(-1).id).toBe('bloodless_art');
   });
 });
 

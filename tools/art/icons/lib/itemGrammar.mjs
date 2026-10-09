@@ -661,12 +661,19 @@ export const UPGRADE_ICON_REUSE = Object.freeze({
  * mobile texture budget in tests/ItemIcons.test.js). A new blessing without a picture of its
  * own adds a line here instead of a cell: Gambler's Toss wears the Gambler's Coin, Slow Fuse
  * the Scout's Blessing banner, Bloodless Art the Blood Gem. The target must be an icon with a
- * cell of its own.
+ * cell of its own. An earned blessing (no tier) takes the Legend rim.
  */
 export const BLESSING_ICON_REUSE = Object.freeze({
   gamblers_toss: 'gamblers-coin',
   slow_fuse: 'blessing-scout_blessing',
   bloodless_art: 'blood-gem',
+  // Earned blessings (docs/specs/blessings-v3.md §6) have no tier: each wears a picture with no
+  // tier halo of its own (a banner, the Hollow Sun, a war horn) and the Legend rim; Ember
+  // Lantern shares the Scout's Blessing lantern, the only lantern in the atlas.
+  unbroken_banner: 'upgrade-commander_choice',
+  second_dawn: 'upgrade-vision_charges_2',
+  ember_lantern: 'blessing-scout_blessing',
+  captains_whistle: 'upgrade-heros_call',
 });
 
 /**

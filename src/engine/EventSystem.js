@@ -27,7 +27,7 @@
 //   requires    event- or choice-level gates (see evaluateRequires)
 //   filter      the per-unit target filter (see targetFilterBlock)
 
-import { createSeededRng } from './BlessingEngine.js';
+import { createSeededRng, isEarnedBlessing } from './BlessingEngine.js';
 import { eclipseHash, eclipsePhase, isEclipseActive } from './EclipseSystem.js';
 import { DIFFICULTY_IDS, isDifficultyAtLeast, difficultyRank } from './DifficultyEngine.js';
 import { isPrologueRun } from './ScriptedBattle.js';
@@ -491,11 +491,13 @@ export const SAFE_BLESSING_BOON_TYPES = Object.freeze([
 /**
  * True when every boon of the blessing is on the mid-run-safe list and it carries no fixed
  * pact or intrinsic price (an event hands out boons only, so a blessing whose price is a pact,
- * or lives in its own boon, would be free).
+ * or lives in its own boon, would be free). An earned blessing is never an event's to give: the
+ * run's own sources hand those out (engine/EarnedBlessings.js).
  */
 export function isSafeEventBlessing(blessing) {
   const boons = Array.isArray(blessing?.boons) ? blessing.boons : [];
   return (
+    !isEarnedBlessing(blessing) &&
     !blessing?.pact &&
     !blessing?.intrinsicPrice &&
     boons.length > 0 &&
@@ -508,7 +510,10 @@ export function availableEventBlessings(run, tier) {
   const held = new Set(run?.getActiveBlessingIds?.() || []);
   return (run?.gameData?.blessings?.blessings || []).filter(
     (blessing) =>
-      blessing?.tier === tier && !held.has(blessing.id) && isSafeEventBlessing(blessing),
+      blessing?.tier === tier &&
+      !isEarnedBlessing(blessing) &&
+      !held.has(blessing.id) &&
+      isSafeEventBlessing(blessing),
   );
 }
 

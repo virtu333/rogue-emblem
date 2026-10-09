@@ -11,6 +11,10 @@
 // An `intrinsicPrice` ({ label, points }) is the third kind of tier II-III price: the blessing's
 // own boon carries its cost (Slow Fuse's Act 1 dip, Gambler's Toss's bad tosses), so there is no
 // catalog entry to pay and nothing to apply. It still spends the one price draw a pact does.
+//
+// An `earned: true` blessing (docs/specs/blessings-v3.md §6) is won in a run, never offered at the
+// start, a church or an event: it has no tier, no prices, no pact and no costs (`weight` is its
+// draw weight among the earned).
 
 import { parseLordStatArc } from './LordStatArc.js';
 import { parseBattleGoldGamble } from './BattleGoldGamble.js';
@@ -23,12 +27,19 @@ const VALID_TIERS = new Set([1, 2, 3, 4]);
 // A Debt price's amount is set for Dusk and scaled by rung (data `debtScale`), rounded to this.
 const DEBT_ROUNDING = 50;
 const REQUIRED_TOP_LEVEL_KEYS = ['version', 'blessings', 'costPools'];
-const REQUIRED_BLESSING_KEYS = ['id', 'name', 'tier', 'description', 'boons', 'costs'];
+const REQUIRED_BLESSING_KEYS = ['id', 'name', 'description', 'boons', 'costs'];
+// Fields an earned blessing may not carry: it is free and has no tier.
+const EARNED_FORBIDDEN_KEYS = ['tier', 'prices', 'pact', 'intrinsicPrice'];
 const REQUIRED_EFFECT_KEYS = ['type', 'params'];
 const REQUIRED_COST_POOL_KEYS = ['2', '3', '4'];
 
 function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/** True for a blessing that is won in a run (`earned: true`), never offered for a pick. */
+export function isEarnedBlessing(blessing) {
+  return blessing?.earned === true;
 }
 
 function cloneDeep(value) {
@@ -44,6 +55,14 @@ export function createSeededRng(seed) {
     return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
   };
 }
+
+// Boons whose only param is a positive integer `value` (the earned blessings' effects).
+const EARNED_BOON_VALUE_TYPES = new Set([
+  'battle_last_stand',
+  'act_start_vision_delta',
+  'first_kill_heal',
+  'first_turn_mov_delta',
+]);
 
 /**
  * Params of the boons whose handler quietly skips a malformed set (a card that does nothing
@@ -68,6 +87,12 @@ function validateBoonParams(effect, path, errors) {
   } else if (effect.type === 'player_weapon_art_boon') {
     for (const message of playerWeaponArtBoonErrors(effect.params))
       errors.push(`${path}.${message}`);
+  } else if (EARNED_BOON_VALUE_TYPES.has(effect.type)) {
+    // The earned blessings' handlers read `params.value` and skip a malformed one, which would
+    // ship a card that does nothing.
+    const value = effect.params?.value;
+    if (!Number.isInteger(value) || value <= 0)
+      errors.push(`${path}.params.value must be a positive integer (${effect.type})`);
   }
 }
 
@@ -131,10 +156,20 @@ export function validateBlessingsConfig(config, options = {}) {
     if (typeof blessing.name !== 'string' || blessing.name.trim() === '') {
       errors.push(`${path}.name must be a non-empty string`);
     }
-    if (!VALID_TIERS.has(blessing.tier)) {
+    if (blessing.earned !== undefined && typeof blessing.earned !== 'boolean') {
+      errors.push(`${path}.earned must be a boolean`);
+    }
+    const earned = isEarnedBlessing(blessing);
+    if (earned) {
+      for (const key of EARNED_FORBIDDEN_KEYS)
+        if (blessing[key] !== undefined)
+          errors.push(`${path}.${key} is not allowed on an earned blessing`);
+    } else if (!('tier' in blessing)) {
+      errors.push(`${path} missing required key: tier`);
+    } else if (!VALID_TIERS.has(blessing.tier)) {
       errors.push(`${path}.tier must be one of 1,2,3,4`);
     }
-    if (blessing.tier === 1) hasTier1 = true;
+    if (!earned && blessing.tier === 1) hasTier1 = true;
     if (typeof blessing.description !== 'string' || blessing.description.trim() === '') {
       errors.push(`${path}.description must be a non-empty string`);
     }
@@ -143,6 +178,9 @@ export function validateBlessingsConfig(config, options = {}) {
     }
     if (!Array.isArray(blessing.costs)) {
       errors.push(`${path}.costs must be an array`);
+    } else if (earned) {
+      if (blessing.costs.length !== 0)
+        errors.push(`${path}.costs must be empty for an earned blessing`);
     } else {
       if (blessing.tier === 1 && blessing.costs.length !== 0) {
         errors.push(`${path}.costs must be empty for tier 1`);
@@ -153,7 +191,7 @@ export function validateBlessingsConfig(config, options = {}) {
     }
     // A pact is a fixed, always-shown price that replaces the rolled cost: catalog ids (v3)
     // or a { label, effects } entry (v2).
-    if (blessing.pact !== undefined && !Array.isArray(blessing.pact)) {
+    if (!earned && blessing.pact !== undefined && !Array.isArray(blessing.pact)) {
       if (blessing.tier < 2) errors.push(`${path}.pact is only allowed for tier 2+`);
       if (!isObject(blessing.pact)) {
         errors.push(`${path}.pact must be an object`);
@@ -177,7 +215,7 @@ export function validateBlessingsConfig(config, options = {}) {
       }
     }
 
-    if (blessing.intrinsicPrice !== undefined && config.version !== 3) {
+    if (!earned && blessing.intrinsicPrice !== undefined && config.version !== 3) {
       errors.push(`${path}.intrinsicPrice needs contract v3`);
     }
 
@@ -359,6 +397,7 @@ function validateV3Pricing(config, errors) {
 
   for (const blessing of config.blessings || []) {
     if (!isObject(blessing)) continue;
+    if (isEarnedBlessing(blessing)) continue; // free: the base validator forbids any price
     const path = `blessings.${blessing.id}`;
     const hasPrices = Array.isArray(blessing.prices) && blessing.prices.length > 0;
     const hasPact = Array.isArray(blessing.pact);
@@ -582,7 +621,8 @@ export function selectBlessingOptionsWithTelemetry(config, rand, options = {}) {
   const forceTier1 = options.forceTier1 !== false;
   const allowTier4 = options.allowTier4 !== false;
 
-  const pool = valid.blessings.slice();
+  // An earned blessing is won in a run, never offered at a shrine (docs/specs/blessings-v3.md §6).
+  const pool = valid.blessings.filter((b) => !isEarnedBlessing(b));
   const selected = [];
   const rejectionReasons = [];
   const selectedIds = new Set();
