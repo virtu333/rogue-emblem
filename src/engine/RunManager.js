@@ -324,16 +324,6 @@ function sanitizeActStartGrants(list) {
   return grants;
 }
 
-function hashStringToUint32(input) {
-  const text = String(input ?? '');
-  let hash = 2166136261 >>> 0;
-  for (let i = 0; i < text.length; i++) {
-    hash ^= text.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
-}
-
 function getBlessingEntryId(entry) {
   if (typeof entry === 'string') {
     const id = entry.trim();
@@ -1187,8 +1177,17 @@ export class RunManager {
       ...(this.activeBlessings || []),
       createActiveBlessingEntry(blessingId, null, { midRun: true }),
     ];
-    for (const effect of blessing.boons || [])
-      this._applySingleRunStartBlessingEffect(blessingId, effect);
+    // Every handler records its event as 'run_start'; while a mid-run grant applies, the
+    // record says 'mid_run' instead (see _recordBlessingEvent). Transient: never saved.
+    const outerStage = this._blessingEventStage;
+    this._blessingEventStage = 'mid_run';
+    try {
+      for (const effect of blessing.boons || [])
+        this._applySingleRunStartBlessingEffect(blessingId, effect);
+    } finally {
+      if (outerStage === undefined) delete this._blessingEventStage;
+      else this._blessingEventStage = outerStage;
+    }
     return true;
   }
 
@@ -1239,7 +1238,9 @@ export class RunManager {
   _recordBlessingEvent(stage, blessingId, effect, details = {}) {
     this.blessingHistory.push({
       timestamp: Date.now(),
-      stage,
+      // The run-start handlers all say 'run_start'; a mid-run grant (addBlessingMidRun) is
+      // recorded as 'mid_run', whichever handler wrote it.
+      stage: stage === 'run_start' && this._blessingEventStage ? this._blessingEventStage : stage,
       eventType: 'effect_applied',
       blessingId,
       effectType: effect?.type || null,
@@ -1301,7 +1302,7 @@ export class RunManager {
 
   _createBlessingRng(blessingId, contextKey = '') {
     const baseSeed = Number.isFinite(this.runSeed) ? Number(this.runSeed) : 0;
-    const seed = hashStringToUint32(`${baseSeed}|${blessingId || 'none'}|${contextKey}`);
+    const seed = eclipseHash(`${baseSeed}|${blessingId || 'none'}|${contextKey}`);
     return createSeededRng(seed);
   }
 
@@ -2464,8 +2465,9 @@ export class RunManager {
     }
 
     if (effect.type === 'extra_shop_per_act') {
-      // Pilgrim's Road: this act's map gains its shop now (a church vow takes only nodes still
-      // ahead of the party), and every later act's map in advanceAct.
+      // Pilgrim's Road: this act's map gains its shop now (a grant taken mid-run converts only
+      // a node the party can still reach from where it stands), and every later act's map in
+      // advanceAct.
       const delta = Math.max(0, Math.trunc(value));
       this.blessingRuntimeModifiers.extraShopsPerAct =
         (this.blessingRuntimeModifiers.extraShopsPerAct || 0) + delta;
@@ -3035,7 +3037,7 @@ export class RunManager {
    */
   _lordTraitRng(unit) {
     if (!Number.isFinite(this.runSeed)) return Math.random;
-    return createSeededRng(hashStringToUint32(`lord-trait:${this.runSeed >>> 0}:${unit?.name}`));
+    return createSeededRng(eclipseHash(`lord-trait:${this.runSeed >>> 0}:${unit?.name}`));
   }
 
   resolveThirdLord(unit) {
@@ -3695,7 +3697,7 @@ export class RunManager {
       const FORGE_STATS = ['might', 'crit', 'hit', 'weight'];
       // Honed Blades rolls from the run seed: the same run always gets the same forges.
       const forgeRng = Number.isFinite(this.runSeed)
-        ? createSeededRng(hashStringToUint32(`honed-blades:${this.runSeed >>> 0}`))
+        ? createSeededRng(eclipseHash(`honed-blades:${this.runSeed >>> 0}`))
         : Math.random;
       for (const unit of startingLordUnits) {
         for (const w of unit.inventory) {

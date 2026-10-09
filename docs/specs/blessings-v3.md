@@ -300,7 +300,11 @@ load; a renamed one keeps its id and changes only `name`.
 - **Pilgrim's Road converts an event or church** (`ExtraShopPass`, keyed stream). The final
   boss act has only two battle rows, the Ruins and the boss, so it has no event or church to
   convert and gains no extra shop; every other act does. Pacing preferences keep the new shop
-  off a shop's parent or sibling when they can.
+  off a shop's parent or sibling when they can. Taken mid-run (the card is tier II, so a church
+  never offers it; a future source may), it converts only a node the party can still reach
+  from where it stands (a walk forward along the route's edges), never one on a lane already
+  closed to it. A converted node keeps its `pilgrimShop` mark even if the Eclipse later makes
+  it a battle: a burned shop is not handed back.
 - **Nomad's Pact reaches boss recruits and Colosseum mercenaries** by raising the finished
   unit on its own keyed stream (`RecruitJoinLevel`), so classes and names are the same with
   and without it. It never goes below 0: the Scholar's Vow's −1 keeps its recruit-node reach.

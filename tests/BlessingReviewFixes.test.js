@@ -123,11 +123,8 @@ describe('the player-phase reset stamps anchors even when presentation throws', 
     return scene;
   }
 
-  it('stamps before the undim call: a throwing undim leaves every unit anchored', () => {
-    const scene = resetScene(() => {
-      throw new Error('sprite gone');
-    });
-    // _recoverPlayerHandoff is the caller that survives the throw; drive the reset directly.
+  // The scene members _recoverPlayerHandoff touches around the reset.
+  function stubHandoff(scene) {
     scene.battleState = 'ENEMY_PHASE';
     scene._settleUnitSpritesAfterError = () => {};
     scene.showBriefBanner = () => {};
@@ -139,7 +136,19 @@ describe('the player-phase reset stamps anchors even when presentation throws', 
     scene._playerTurnStartToken = { settle() {} };
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(console, 'warn').mockImplementation(() => {});
+  }
+
+  it('stamps before the undim call: the anchor is already there when undim runs (and throws)', () => {
+    const seenAtUndim = [];
+    const scene = resetScene((u) => {
+      // What the undim sees at the moment it is called, before it throws.
+      seenAtUndim.push([u.name, u._turnAnchor?.turn]);
+      throw new Error('sprite gone');
+    });
+    stubHandoff(scene);
     expect(scene._recoverPlayerHandoff(4, Error('handoff'))).toBe(true);
+    // The reset loop stops at the first throw, so only A reached undim; it was already anchored.
+    expect(seenAtUndim).toEqual([['A', 4]]);
     for (const u of scene.playerUnits) {
       expect(u._turnAnchor).toEqual({ turn: 4, col: u.col, row: u.row });
       expect(u.hasMoved).toBe(false);
@@ -148,25 +157,35 @@ describe('the player-phase reset stamps anchors even when presentation throws', 
     expect(isHoldingGround(scene.playerUnits[0], 4)).toBe(true);
   });
 
-  it('the fallback alone (reset threw before any flag) still zeroes movement and stamps', () => {
+  it('the handoff fallback alone: a reset that throws before any flag is set still anchors and zeroes movement', () => {
     const scene = resetScene(() => {});
-    scene.battleState = 'ENEMY_PHASE';
-    scene._settleUnitSpritesAfterError = () => {};
-    scene.showBriefBanner = () => {};
-    scene.captureVisionSnapshot = () => {};
-    scene.updateVisionHud = () => {};
-    scene._captureSuspendCheckpoint = () => {};
-    scene.refreshEndTurnControl = () => {};
-    scene._playerTurnStartToken = { settle() {} };
-    // The weapon-art usage reset is the first presentation-free call that can throw.
-    scene.playerUnits[0]._battleWeaponArtUsage = { get turn() { throw new Error('bad usage'); } }; // prettier-ignore
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    stubHandoff(scene);
+    // The first write of the reset (A.hasMoved) throws once, before anything else is touched;
+    // the fallback's own write then goes through.
+    const [first] = scene.playerUnits;
+    let moved = first.hasMoved;
+    let armed = true;
+    Object.defineProperty(first, 'hasMoved', {
+      configurable: true,
+      enumerable: true,
+      get: () => moved,
+      set: (value) => {
+        if (armed) {
+          armed = false;
+          throw new Error('bad write');
+        }
+        moved = value;
+      },
+    });
+    expect(first._movementSpent).toBe(3);
     expect(scene._recoverPlayerHandoff(2, Error('handoff'))).toBe(true);
+    expect(armed).toBe(false); // the reset really did throw first
     for (const u of scene.playerUnits) {
       expect(u._turnAnchor).toEqual({ turn: 2, col: u.col, row: u.row });
       expect(u._movementSpent).toBe(0);
+      expect(u.hasMoved).toBe(false);
     }
+    expect(scene.playerUnits[1].hasActed).toBe(false);
   });
 });
 

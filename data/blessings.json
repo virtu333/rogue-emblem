@@ -561,7 +561,7 @@
     },
     {
       "id": "frugal_smith",
-      "lore": "Honored at any forge that still stamps Varen's mark. Ask for the pilgrim rate.",
+      "lore": "Honored at any forge that still stamps Varen's mark. The first blow is on the smith.",
       "name": "Smith's Mark",
       "tier": 2,
       "description": "Each shop's first forge or repair is free, and every shop forges once more.",

@@ -10,7 +10,7 @@
 //   - another node on the map changes, or a second shop appears (reload, a second call)
 //   - two shops end up side by side when a quieter node was free
 //   - no eligible node makes it throw or leave a half-converted map
-//   - a later act gets no shop, the prologue gets one, a church vow converts a node behind
+//   - a later act gets no shop, the prologue gets one, a mid-run grant converts a node behind
 //     the party, or a reload stamps again
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RunManager } from '../src/engine/RunManager.js';
@@ -85,7 +85,7 @@ describe('who may become a shop', () => {
   it('skips completed nodes, the node the party stands on, rows already behind it and eclipsed nodes', () => {
     const map = mapOf({
       done: ['event', 2, [], { completed: true }],
-      here: ['church', 3],
+      here: ['church', 3, ['swallowed', 'omen', 'ahead']],
       behind: ['event', 1],
       swallowed: ['event', 4, [], { eclipse: { fromType: 'event', label: 'Swallowed road' } }],
       omen: ['event', 4, [], { darkOmen: true }],
@@ -99,6 +99,51 @@ describe('who may become a shop', () => {
     ]);
     for (const id of ['done', 'here', 'behind', 'swallowed', 'omen'])
       expect(typeOf(map, id)).not.toBe('shop');
+  });
+});
+
+describe('only nodes the party can still reach', () => {
+  // The party stands on `here` (row 2). `side` is on a later row but down the other lane:
+  // no edge from `here` leads to it, so a shop made there could never be visited.
+  const lanes = (extra = {}) =>
+    mapOf({
+      here: ['battle', 2, ['main']],
+      main: ['battle', 3, ['far']],
+      far: ['event', 4, ['boss']],
+      other: ['battle', 2, ['side']],
+      side: ['church', 3, ['boss']],
+      boss: ['boss', 5],
+      ...extra,
+    });
+
+  it('a node on another lane, though ahead by row, is never converted', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const map = lanes();
+      expect(stampExtraShops(map, { runSeed: seed, fromRow: 3, currentNodeId: 'here' })).toEqual([
+        'far',
+      ]);
+      expect(typeOf(map, 'side')).toBe('church');
+    }
+    // The candidates list agrees, and a church ahead of the party on its own lane qualifies.
+    expect(extraShopCandidates(lanes(), { fromRow: 3, currentNodeId: 'here' }).map((n) => n.id)).toEqual(['far']); // prettier-ignore
+  });
+
+  it('with only unreachable nodes left, nothing is converted and the map is untouched', () => {
+    const map = lanes({ far: ['battle', 4, ['boss']] });
+    const before = snapshot(map);
+    expect(stampExtraShops(map, { runSeed: 2, fromRow: 3, currentNodeId: 'here' })).toEqual([]);
+    expect(snapshot(map)).toBe(before);
+  });
+
+  it('with no current node every node counts (a map as it is generated)', () => {
+    const picked = new Set();
+    for (let seed = 1; seed <= 30; seed++)
+      picked.add(stampExtraShops(lanes({ side: ['event', 3, ['boss']] }), { runSeed: seed })[0]);
+    expect(picked.has('side')).toBe(true);
+  });
+
+  it('a current node the map does not hold restricts nothing', () => {
+    expect(extraShopCandidates(lanes(), { currentNodeId: 'gone' }).map((n) => n.id)).toEqual(['far', 'side']); // prettier-ignore
   });
 });
 
@@ -187,6 +232,23 @@ describe('determinism and the node-map stream', () => {
     expect(picks.size).toBeGreaterThanOrEqual(4);
   });
 
+  it('picks the same nodes it always has for these seeds (the shared FNV hash is unchanged)', () => {
+    // Pinned from the pass before it reused EclipseSystem.eclipseHash: same hash, same picks.
+    const picks = [1, 2, 3, 4, 5, 6, 7, 8].map((seed) => stampExtraShops(crowded(), { runSeed: seed })[0]); // prettier-ignore
+    expect(picks).toEqual(['e1', 'e0', 'e5', 'e3', 'e1', 'e1', 'e0', 'e1']);
+  });
+
+  it('a shop the Eclipse turned into a battle still counts: the pass does not hand another back', () => {
+    const map = crowded();
+    const [first] = stampExtraShops(map, { runSeed: 4 });
+    const burned = map.nodes.find((n) => n.id === first);
+    burned.type = 'battle'; // swallowed by the Eclipse, redrawn by the Cartographer...
+    expect(burned.pilgrimShop).toBe(true);
+    expect(pilgrimShopCount(map)).toBe(1);
+    expect(stampExtraShops(map, { runSeed: 4 })).toEqual([]);
+    expect(pilgrimShopCount(map)).toBe(1);
+  });
+
   it('each act draws its own node from the same layout', () => {
     const picks = (actId) =>
       Array.from({ length: 40 }, (_, i) => {
@@ -233,6 +295,22 @@ function runWith(seed, { withCard = true, difficultyId = 'dusk' } = {}) {
     run.applyRunStartBlessingEffects();
   }
   return run;
+}
+/** Independent walk: every node id reachable forward from `fromId`. */
+function reachableIds(nodes, fromId) {
+  const out = new Set();
+  const stack = [fromId];
+  while (stack.length) {
+    const id = stack.pop();
+    const node = nodes.find((n) => n.id === id);
+    for (const next of node?.edges || []) {
+      if (!out.has(next)) {
+        out.add(next);
+        stack.push(next);
+      }
+    }
+  }
+  return out;
 }
 const pilgrims = (run) => run.nodeMap.nodes.filter((n) => n.pilgrimShop);
 
@@ -315,26 +393,30 @@ describe("Pilgrim's Road on a real run", () => {
     expect(pilgrims(loaded)).toHaveLength(1);
   });
 
-  it('a church vow mid-act converts only a node still ahead of the party', () => {
+  it('a grant taken mid-act converts only a node still ahead of the party and reachable from it', () => {
     // The party stands on a row-4 node. Event and church nodes on the rows behind it that it
     // never visited are not "completed", but they are behind it all the same.
     const isService = (n) => n.type === 'event' || n.type === 'church';
     let checked = 0;
+    let offLane = 0;
     for (let seed = 51; seed < 400 && checked < 10; seed++) {
       const run = runWith(seed, { withCard: false });
       run.advanceAct();
       const here = run.nodeMap.nodes.find((n) => n.row === 4);
       const nodes = run.nodeMap.nodes;
       if (!here || !nodes.some((n) => n.row < 4 && isService(n))) continue;
-      if (!nodes.some((n) => n.row > 4 && isService(n))) continue;
+      const walk = reachableIds(nodes, here.id);
+      if (!nodes.some((n) => n.row > 4 && isService(n) && walk.has(n.id))) continue;
       checked++;
       run.currentNodeId = here.id;
+      if (nodes.some((n) => n.row > 4 && isService(n) && !walk.has(n.id))) offLane++;
       const before = JSON.parse(JSON.stringify(nodes));
       expect(run.addBlessingMidRun('pilgrim_coin')).toBe(true);
       const made = pilgrims(run);
       expect(made, `seed ${seed}`).toHaveLength(1);
       expect(made[0].row, `seed ${seed}`).toBeGreaterThan(4);
       expect(made[0].completed).toBe(false);
+      expect(reachableIds(nodes, here.id).has(made[0].id), `seed ${seed}`).toBe(true);
       for (const was of before) {
         if (was.id === made[0].id) continue;
         expect(run.nodeMap.nodes.find((n) => n.id === was.id)).toEqual(was);
@@ -344,6 +426,8 @@ describe("Pilgrim's Road on a real run", () => {
       expect(pilgrims(run)).toHaveLength(1);
     }
     expect(checked).toBe(10);
+    // The sweep did include maps with a service node ahead by row but off the party's lanes.
+    expect(offLane).toBeGreaterThan(0);
   });
 
   it('with nothing ahead to convert, taking the vow changes no node and does not throw', () => {

@@ -243,7 +243,9 @@ export function shopForgeDiscount(run, { ambushDiscount = false } = {}) {
 /**
  * Whether this forge use is free (Smith's Mark: a shop's first forge or repair). The engine
  * decides from the run and the shop's count of uses; a caller's own `free` is never read, so
- * a stale or forged flag cannot make anything free.
+ * a stale or forged flag cannot make anything free. The count itself is the caller's
+ * (`forgesUsed`, with `forgeLimit`): the engine trusts it, as it trusts the limit, and the
+ * shop menu reads it fresh from the scene's saved shop state before every command.
  */
 export function freeForgeAvailable(run, forgesUsed = 0) {
   const free = Math.max(0, Math.trunc(Number(run?.getFreeForgesPerShop?.()) || 0));

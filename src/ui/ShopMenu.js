@@ -31,7 +31,12 @@ import {
   repairShopWeapon,
 } from '../engine/ShopCommands.js';
 import { isWorn, wearCount, wearDisplay } from '../engine/WeaponWear.js';
-import { canForge, getForgeDisplayInfo, getStatForgeCount } from '../engine/ForgeSystem.js';
+import {
+  canForge,
+  forgeStatBlock,
+  getForgeDisplayInfo,
+  getStatForgeCount,
+} from '../engine/ForgeSystem.js';
 import { getSellPrice } from '../engine/LootSystem.js';
 import { itemDisplayName } from '../utils/itemNames.js';
 import { canEquip } from '../engine/UnitManager.js';
@@ -622,7 +627,13 @@ export class ShopMenu {
       label: (stat) => stat.label,
       describe: (stat) => {
         const terms = this.forgeOptions();
-        const cost = terms.free ? 'Free' : `${shopForgePrice(weapon, stat.key, terms)} gold`;
+        // "Free" is offered only where the forge can happen; a stat at its cap (or a weapon that
+        // cannot be forged) has no price to waive.
+        const cost = forgeStatBlock(weapon, stat.key)
+          ? 'Unavailable'
+          : terms.free
+            ? 'Free'
+            : `${shopForgePrice(weapon, stat.key, terms)} gold`;
         return `${cost} · ${getStatForgeCount(weapon, stat.key)}/${FORGE_STAT_CAP} upgrades${forgeImpactSuffix(owner, weapon, stat.key)}`;
       },
       blocked: (stat) =>

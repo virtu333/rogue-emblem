@@ -9,17 +9,8 @@
 // level before the bonus: the pact makes a recruit stronger, it does not upgrade the kit.
 
 import { createSeededRng } from './BlessingEngine.js';
+import { eclipseHash } from './EclipseSystem.js';
 import { applyLevelUpGains, checkLevelUpSkills, levelUp } from './UnitManager.js';
-
-function hashToUint32(input) {
-  let hash = 2166136261 >>> 0;
-  const text = String(input ?? '');
-  for (let i = 0; i < text.length; i++) {
-    hash ^= text.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
-}
 
 /**
  * The level-up stream for one recruit: a hash of the run seed and the unit's final name,
@@ -28,7 +19,7 @@ function hashToUint32(input) {
  * gains).
  */
 export function joinLevelRng(runSeed, unitName) {
-  return createSeededRng(hashToUint32(`join-level:${Number(runSeed) >>> 0}:${unitName}`));
+  return createSeededRng(eclipseHash(`join-level:${Number(runSeed) >>> 0}:${unitName}`));
 }
 
 /** What a join-level bonus is allowed to be: whole levels, never below 0. */

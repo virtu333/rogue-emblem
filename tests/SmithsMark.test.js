@@ -83,6 +83,13 @@ describe("Smith's Mark: the card", () => {
     expect(JSON.stringify(row)).not.toMatch(/forge_cost/);
   });
 
+  it('its lore is about a smith’s mark, not the old pilgrim discount (that is another card’s theme)', () => {
+    const row = data.blessings.blessings.find((b) => b.id === 'frugal_smith');
+    expect(row.lore.length).toBeLessThanOrEqual(85);
+    expect(row.lore).toMatch(/mark/i);
+    expect(row.lore).not.toMatch(/pilgrim|rate|discount/i);
+  });
+
   it('applying it frees one use per shop, adds a forge and gives no discount', () => {
     const run = markedRun();
     expect(run.getFreeForgesPerShop()).toBe(1);
@@ -228,12 +235,14 @@ describe('the engine decides what is free, never the caller', () => {
     expect(run.gold).toBe(1000 - 400);
   });
 
-  it('a spent use cannot be made free again by a stale terms object', () => {
+  it("a caller's own free flag is ignored: the engine recomputes it from the use count", () => {
     const run = markedRun();
     const { sword } = steelSwordFor(run);
     const stale = act1Terms(run, 0); // read before the first forge
     expect(stale.free).toBe(true);
     forgeShopWeapon(run, sword, 'might', { ...stale, expectedLevel: 0 });
+    // The count is the caller's (the shop menu reads it fresh); a free flag left over from
+    // the first forge changes nothing once that count says a use was spent.
     const again = forgeShopWeapon(run, sword, 'hit', {
       ...stale,
       forgesUsed: 1,
@@ -359,6 +368,21 @@ describe("Smith's Mark in the shop menu", () => {
     const next = d.menu.child.options;
     expect(next.describe(next.choices[0])).toMatch(/^800 gold · 1\/\d upgrades/);
     expect(next.describe(next.choices[1])).toMatch(/^250 gold · /);
+  });
+
+  it('does not offer Free on a stat that cannot be forged (at its cap)', () => {
+    // Might forged to its per-stat cap: the first forge is free, but not for that stat.
+    while (applyForge(weapon, 'might', 0, { free: true }).success) {
+      /* forge to the per-stat cap */
+    }
+    openForge();
+    button('Choose forge').onclick();
+    const { choices, describe: describeChoice, blocked } = d.menu.child.options;
+    const might = choices.find((c) => c.key === 'might');
+    const hit = choices.find((c) => c.key === 'hit');
+    expect(blocked(might)).not.toBe('');
+    expect(describeChoice(might)).not.toMatch(/Free/);
+    expect(describeChoice(hit)).toMatch(/^Free · /);
   });
 
   it('lets the first forge through with an empty purse', () => {

@@ -8,8 +8,9 @@
 // except for the converted node, and the same seed always converts the same node.
 //
 // Eligible: an `event` or `church` node that is not complete, is not the node the party stands
-// on, sits at or below `fromRow`, and has not been touched by the Eclipse (`node.eclipse`,
-// `node.darkOmen`). Never a battle, recruit, Colosseum, Ruins, boss or an existing shop.
+// on, sits at or below `fromRow`, can still be reached from the node the party stands on (a
+// walk forward along `edges`; with no current node every node counts), and has not been
+// touched by the Eclipse (`node.eclipse`, `node.darkOmen`). Never a battle, recruit, Colosseum, Ruins, boss or an existing shop.
 // Preference tiers (the first non-empty one is drawn from): events whose neighbours hold no
 // shop, churches whose neighbours hold no shop, any event, any church. "Neighbours" is the
 // generator's own pacing rule (NodeMapGenerator's service-streak repair): a parent that is a
@@ -18,18 +19,33 @@
 
 import { NODE_TYPES } from '../utils/constants.js';
 import { createSeededRng } from './BlessingEngine.js';
+import { eclipseHash } from './EclipseSystem.js';
 
-function hashToUint32(input) {
-  let hash = 2166136261 >>> 0;
-  const text = String(input ?? '');
-  for (let i = 0; i < text.length; i++) {
-    hash ^= text.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
+/**
+ * The ids of every node the party can still walk to from `fromId` (forward along `edges`,
+ * `fromId` itself included). A node that is not in the map yields null: no restriction.
+ */
+function reachableFrom(nodes, fromId) {
+  if (fromId == null || !nodes.some((node) => node.id === fromId)) return null;
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  const seen = new Set([fromId]);
+  const queue = [fromId];
+  while (queue.length > 0) {
+    const node = byId.get(queue.pop());
+    for (const next of node?.edges || []) {
+      if (seen.has(next) || !byId.has(next)) continue;
+      seen.add(next);
+      queue.push(next);
+    }
   }
-  return hash >>> 0;
+  return seen;
 }
 
-/** The nodes the pass converted earlier on this map (it marks each with `pilgrimShop`). */
+/**
+ * The nodes the pass converted earlier on this map (it marks each with `pilgrimShop`). A node
+ * keeps the mark when the Eclipse turns it into a battle or the Cartographer redraws it: that
+ * is deliberate, so a shop the road burned is never handed back (the pass stays idempotent).
+ */
 export function pilgrimShopCount(nodeMap) {
   return (nodeMap?.nodes || []).filter((node) => node?.pilgrimShop === true).length;
 }
@@ -48,6 +64,7 @@ function hasShopNeighbour(node, nodes) {
 /** Nodes the pass may convert, sorted by id. */
 export function extraShopCandidates(nodeMap, { fromRow = 0, currentNodeId = null } = {}) {
   const nodes = nodeMap?.nodes || [];
+  const reachable = reachableFrom(nodes, currentNodeId);
   return nodes
     .filter(
       (node) =>
@@ -55,6 +72,7 @@ export function extraShopCandidates(nodeMap, { fromRow = 0, currentNodeId = null
         node.completed !== true &&
         node.id !== currentNodeId &&
         node.row >= fromRow &&
+        (reachable === null || reachable.has(node.id)) &&
         !node.eclipse &&
         node.darkOmen !== true,
     )
@@ -91,7 +109,7 @@ export function stampExtraShops(
       ].find((list) => list.length > 0) || [];
     if (pool.length === 0) break;
     const rng = createSeededRng(
-      hashToUint32(`pilgrim-shop:${Number(runSeed) >>> 0}:${nodeMap.actId}:${index}`),
+      eclipseHash(`pilgrim-shop:${Number(runSeed) >>> 0}:${nodeMap.actId}:${index}`),
     );
     const pick = pool[Math.min(pool.length - 1, Math.floor(rng() * pool.length))];
     pick.type = NODE_TYPES.SHOP;
