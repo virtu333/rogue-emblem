@@ -237,6 +237,10 @@ a trap.
   The engine rolls one (seeded, as now). `npm run validate:data` refuses a candidate outside
   its tier's band and a gold price on a gold boon.
 - Each tier IV carries a **fixed pact** that fits its story.
+- A tier II-III card whose own boon *is* its cost (Slow Fuse's Act 1 dip, Gambler's Toss's
+  bad tosses) carries an **intrinsic price** instead of `prices`: `intrinsicPrice` `{ label,
+  points }`, validated against the same band, shown as "Price: …", spending one price draw like
+  a pact so neighbouring offers do not move. It is never granted mid-run by an event.
 - **Offer shape:** slot 1 stays a free tier I (the safe pick). Slots 2-3 draw tiers II-IV
   with weights II 1.0, III 0.8, IV 0.25, and **never share a tier**: every offer is a free
   pick, a smaller bet and a bigger one, shown in that order. A IV then shows in about 32%
@@ -290,7 +294,7 @@ where it acts in battle, a read in the combat-mod builder (`BattleScene` and
 | Blessing | Effect | Hook | Tier | Prices |
 |---|---|---|---|---|
 | Late Bloom | every unit +1 to all stats at each act cleared | `advanceAct`; new | III | Debt III / −1 DEF Act 1 + Ill Omen |
-| Slow Fuse | lords −1 all stats in Act 1, +2 all stats from Act 2 | act-scoped stat delta (exists) | II | none: the Act 1 dip is the price |
+| Slow Fuse | starting lords −1 to HP and the seven combat stats (never Move) in Act 1, +1 from Act 2 (built at +1, not +2: +2 to eight stats per lord for the rest of the run is far above a tier II bet; `lord_stat_arc` params are data) | `lord_stat_arc`, `engine/LordStatArc.js`: a dip reverted at the act's end and a rise at the next act's start | II | intrinsic (2 pt): the Act 1 dip is the price |
 | Dawn Tithe | +100 gold per turn under par at each victory | turn bonus; new | II | +8 shadow / staff healing −20% |
 
 ### 5.2 Build-arounds
@@ -329,7 +333,7 @@ and exists, but the route map needs a new interaction to pick the road.
 
 | Blessing | Effect | Hook | Tier | Prices |
 |---|---|---|---|---|
-| Gambler's Coin | each victory's battle gold is halved or doubled, seeded by run and node | battle gold; new | II | none: the variance is the price (expected value +25%) |
+| Gambler's Toss (was Gambler's Coin: an accessory has that name) | each victory's battle gold is doubled or halved on an even toss, seeded by run and node | `battle_gold_gamble`, `engine/BattleGoldGamble.js`, in `completeBattle` after the elite, Merchant Bane and rung multipliers and before a Debt garnishes | III (an even double-or-halve is +25% gold, too much for a small bet) | intrinsic (3 pt): the variance is the price; never granted by an event |
 | Lottery Loot | one loot card per battle comes from the next act's table | `LootSystem` tier offset (exists for event accessories) | III | Debt III / Sworn Enemy |
 
 ## 6. Earned blessings
@@ -492,7 +496,8 @@ growth, XP and gold cards it can see.
 2. Price catalog, curated prices, Debt as the gold price, bands and the validator; retier and
    reprice the existing 23 (§4: data and small handler changes). Re-run the Ledger.
 3. Five new cards that reuse existing hooks most directly: Slow Fuse, Phalanx Rite,
-   Duelist's Creed, Bloodless Art, Gambler's Coin.
+   Duelist's Creed, Bloodless Art, Gambler's Toss. Built so far: the intrinsic price, Slow Fuse
+   and Gambler's Toss.
 4. Earned blessings: the `earned` flag, the act-boss pick, and four pure ones (Unbroken
    Banner, Second Dawn, Ember Lantern, Captain's Whistle).
 5. The special church, the twisted earned blessings, the gifts with a catch, and the rest of
