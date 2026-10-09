@@ -113,7 +113,7 @@
     },
     "commander_injury": {
       "label": "Lingering Injury on your commander",
-      "points": 1,
+      "points": 3,
       "effects": [
         {
           "type": "burden",
@@ -518,7 +518,7 @@
       ],
       "prices": [
         "staff_heal_down",
-        "commander_injury"
+        "shadow_now"
       ],
       "costs": []
     },
@@ -689,6 +689,8 @@
           "sworn_enemy",
           "act1_def_down_1"
         ]
+     ,
+        "commander_injury"
       ],
       "costs": [],
       "excludes": [
@@ -739,7 +741,7 @@
       ],
       "prices": [
         "staff_heal_down",
-        "commander_injury"
+        "shops_dearer"
       ],
       "costs": []
     },
@@ -886,6 +888,8 @@
       "prices": [
         "debt_large",
         "growths_down"
+     ,
+        "commander_injury"
       ],
       "costs": []
     }

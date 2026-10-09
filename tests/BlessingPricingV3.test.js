@@ -245,7 +245,7 @@ describe('each price does what it says', () => {
     const stats = new Set();
     for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
       const rm = run({ seed });
-      holdAt(rm, 'rally_cry', 'commander_injury');
+      holdAt(rm, 'nomad_pact', 'commander_injury');
       const wound = rm.burdens.find((b) => b.id === 'wounded');
       const commander = findCommander(rm.roster);
       expect(wound).toMatchObject({ unitUid: commander.unitUid, value: -2 });
@@ -253,7 +253,7 @@ describe('each price does what it says', () => {
       stats.add(wound.stat);
       // Same seed, same stat.
       const again = run({ seed });
-      holdAt(again, 'rally_cry', 'commander_injury');
+      holdAt(again, 'nomad_pact', 'commander_injury');
       expect(again.burdens.find((b) => b.id === 'wounded').stat).toBe(wound.stat);
     }
     expect(stats.size).toBeGreaterThan(1);
@@ -273,7 +273,8 @@ describe('each price does what it says', () => {
 });
 
 describe('a price that would cost nothing is never offered', () => {
-  const shadowOnly = { ...byId('swift_instinct'), prices: ['shadow_now', 'staff_heal_down'] };
+  // Rally Cry's prices: staff healing, or shadow.
+  const shadowOnly = byId('rally_cry');
   const visionOnly = {
     ...byId('merchant_bane'),
     prices: ['vision_down', ['hunted', 'act1_def_down_1']],
