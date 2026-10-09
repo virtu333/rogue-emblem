@@ -5,6 +5,7 @@ import {
   calculateBonusGold,
   getLatePressureState,
   isBossEnrageActive,
+  getBossEnrageTurn,
   getParXpMultiplier,
   formatParTooltip,
 } from '../src/engine/TurnBonusCalculator.js';
@@ -385,6 +386,49 @@ describe('TurnBonusCalculator', () => {
     it('falls back to absolute enrage turn when par is unavailable', () => {
       expect(isBossEnrageActive(11, null, config)).toBe(false);
       expect(isBossEnrageActive(12, null, config)).toBe(true);
+      expect(getBossEnrageTurn(null, config)).toBe(12);
+      expect(getBossEnrageTurn(undefined, config)).toBe(12);
+    });
+
+    // large-maps/02 §2.1: the 12 cap never pulls enrage to or before par. Expected
+    // turns by hand from turnBonus.json (cap 12, over par 2, floor par + 1).
+    it('never enrages before par + 1 (the 12 cap stops binding at par 11)', () => {
+      expect(config.latePressure.bossEnrageMinOverPar).toBe(1);
+      const cases = [
+        [3, 5], // par + 2 under the cap
+        [10, 12], // par + 2 = cap
+        [11, 12], // cap binds, already par + 1
+        [12, 13], // cap would be par: floor lifts it (was 12)
+        [13, 14], // cap would be before par (was 12)
+        [14, 15],
+        [20, 21],
+      ];
+      for (const [par, turn] of cases)
+        expect([par, getBossEnrageTurn(par, config)]).toEqual([par, turn]);
+      // An on-par player on a par-12 map meets the boss un-enraged on turn 12.
+      expect(isBossEnrageActive(12, 12, config)).toBe(false);
+      expect(isBossEnrageActive(13, 12, config)).toBe(true);
+    });
+
+    it('is non-decreasing in par and always after par (rung order holds)', () => {
+      // Par is First Light >= Dusk >= Nightfall >= Black Sun on every map, so a
+      // non-decreasing rule means a harder rung never enrages later.
+      let prev = -Infinity;
+      for (let par = 0; par <= 40; par++) {
+        const turn = getBossEnrageTurn(par, config);
+        expect(turn).toBeGreaterThanOrEqual(prev);
+        expect(turn).toBeGreaterThan(par);
+        expect(turn).toBeLessThanOrEqual(Math.max(12, par + 1));
+        prev = turn;
+      }
+    });
+
+    it('a config without the floor keeps the old rule, and the floor never creates an enrage', () => {
+      const old = { latePressure: { bossEnrageTurn: 12, bossEnrageOverPar: 2 } };
+      expect(getBossEnrageTurn(13, old)).toBe(12);
+      expect(getBossEnrageTurn(null, old)).toBe(12);
+      expect(getBossEnrageTurn(10, { latePressure: { bossEnrageMinOverPar: 1 } })).toBeNull();
+      expect(getBossEnrageTurn(null, { latePressure: { bossEnrageMinOverPar: 1 } })).toBeNull();
     });
   });
 
