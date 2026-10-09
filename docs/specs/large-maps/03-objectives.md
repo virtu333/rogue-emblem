@@ -1,6 +1,7 @@
 # 03 — Objectives v2: primary objectives, phases, bonus objectives
 
-Status: proposal, revision 1 (2026-10-09). Spec only: no game code or data changes.
+Status: proposal, revision 2 (2026-10-09). Takes in the cross-review of the spec set.
+Spec only: no game code or data changes.
 Branch `claude/large-maps-specs`. Part of the large-maps set ([README](README.md));
 roadmap Phase 3. It uses the README's shared names (`battleConfig.objectives`, the trigger
 vocabulary, anchors, the checkpoint rule, Pillar 6) without renaming any of them. Where it
@@ -144,9 +145,12 @@ objectives: {
   primary: [Objective],   // all must resolve to win (AND); display order
   bonus:   [Bonus],       // 0..2 (MAX_BONUS_OBJECTIVES)
   phases:  [Phase],       // optional; when present, phases[0].primary === primary
-  parAdjust: 0,           // integer turns, summed contributions (§5.9), locked
+  parAdjust: 0,           // integer turns, non-walk contributions only (§5.9), locked
 }
 ```
+
+The walk is not in `objectives`. It is `battleConfig.parRoute`, `04` §8.3's list of legs,
+written at generation for every primary kind (§5.9) and read by `02` §5.2's W.
 
 Fields every objective shares:
 
@@ -187,8 +191,11 @@ fingerprints keep their bytes.
 | `caravanSpawn` present | | `{ id:'caravan', kind:'caravan', legacy:'caravan' }` |
 
 `'@boss'` means "every living `isBoss` enemy", today's test (`BattleScene.js:6350`). The
-recruit beacon and the ladder line are **notes** in the strip, not objectives (§10). A
-derived model has `parAdjust: 0` and no phases. Legacy bonuses have `costTurns: null`
+recruit beacon and the ladder line are **notes** in the strip, not objectives (§11). A
+derived model has `parAdjust: 0` and no phases. Its `parRoute` is derived on read too, never
+written: seize → the throne; escape → the exit tile nearest the deploy centroid; rout →
+each group's post in `02` §5.2's nearest-neighbour order (none when the map has no groups).
+Legacy bonuses have `costTurns: null`
 because today's maps never computed a detour. The strip computes one on read with the same
 pure helper (§7.5); it is cheap at today's sizes and deterministic.
 
@@ -214,6 +221,7 @@ and, on seize, `thronePos` equal to the first throne.
 objectiveState: {
   version: 1,
   phase: 0,
+  phaseStartedTurn: 1,     // the turn whose enemy-phase check made `phase` current (§6)
   status: { [objectiveId]: { s: 'open'|'done'|'failed', turn?, by?, reason? } },
   thrones: { [throneId]: 'open'|'taken' },
   points:  { [pointId]: 'neutral'|'player'|'enemy' },
@@ -226,11 +234,17 @@ objectiveState: {
 
 - `by` is the `unitUid` of the unit that completed an objective, so a forge reward has a
   hand to go to (§7.4).
+- `phaseStartedTurn` is written at every phase advance, in the same write as `phase`
+  (§6). Phase 0's is 1. The validator requires an integer ≥ 1 and ≤ the current turn, and
+  `phase` within `phases`. `02` §3.4's `turn` trigger `{ afterPhase: n }` reads it: it is
+  true at the check of turn T when T ≥ `phaseStartedTurn` + n. No other field says when a
+  phase began.
 - Legacy bonuses keep their own state as the single source of truth: `_villageState` and
   `_caravanExited` are read, never copied.
 - Fired triggers live in spec 02's trigger ledger. This module **emits** `objective`
-  events into it (`{ kind:'objective', id, outcome: 'done'|'failed' }`) and reads
-  `phase` advances from it.
+  events into it (`{ kind:'objective', id, outcome: 'done'|'failed' }`, noted when they
+  happen, read at the next check), and phase `until`s are fired in it by `02`'s check
+  (§6).
 - A missing `objectiveState` (every checkpoint written before PR 3) is created from the
   config plus the legacy fields on resume. It equals what a fresh battle at that moment
   would hold, because every legacy rule is derivable from the field.
@@ -247,11 +261,14 @@ createObjectiveState(objectives, field)
 evaluate(objectives, state, field)                // → { outcome, state, events }
 commandsFor(unit, objectives, state, field)       // → [{ id:'seize'|'escape'|'strike', target }]
 onPlayerActionEnd(unit, …) / onEnemyActionEnd(unit, …)  // take/retake points, reach, flee
-onEnemyPhaseStart(…)                              // escort steps, slay deadlines, phase turns
+onEnemyPhaseStart(…)                              // escort steps, slay deadlines
+checkPhase(objectives, state, field, triggers, turn)  // 02's check, slot `phase` (§6)
+                                                  //   → { state, effects: { setTiles, wake, line }, events }
 progressMeasure(objectives, state, field)         // → TurnPressure
-parContribution(objective, map)                   // generation only (§5.9)
+parContribution(objective, map)                   // generation only: non-walk turns (§5.9)
+defaultParRoute(objectives, map)                  // generation; derived on read for legacy (§5.9)
 bonusVerdicts(objectives, state, field)           // → commit input (§7.3)
-statusView(objectives, state, field, knowledge)   // → strip model input (§10)
+statusView(objectives, state, field, knowledge)   // → strip model input (§11)
 goalTiles(objectives, state, field)               // → agents and markers
 ```
 
@@ -266,24 +283,46 @@ data that both worlds already hold.
    field. Transitions are one-way within a timeline; only a restore puts one back.
 3. **Failures**: a primary that failed applies its `onFail`: a fallback replaces it in the
    current phase, or `'stake'` resolves it as failed (§8.2). This emits events.
-4. **Phase advance** (§6) on a fired `until`, or on completion of a phase that has no
-   `until`.
-5. **Victory**: the last phase's primaries are all resolved (done, or failed with
-   `'stake'`) and none is waiting on a fallback. Then the deferral: a victory reached
-   inside the enemy phase waits for the phase's end (today's
-   `_reinforcementsPendingThisTurn` rule, now for every kind, since no victory has ever
-   been taken mid-AI-loop). The rout field-clear wave cancel stays rout-only.
+4. **Phase readiness, never the advance.** `evaluate` never changes the phase. When the
+   current phase is not the last, has no `until`, and its primaries have just all
+   resolved, it emits `phase_ready` (the NEW OBJECTIVE band may show now, §6) and changes
+   nothing else. The advance and every `onEnter` effect wait for `02`'s check at the next
+   enemy-phase start (`checkPhase`, §6).
+5. **Victory**: the current phase is the last (a map without phases has one), and its
+   primaries are all resolved (done, or failed with `'stake'`), and none is waiting on a
+   fallback. A primary resolving in an earlier phase is never a victory, whatever the field
+   holds. Then the deferral: a victory reached inside the enemy phase waits for the phase's
+   end (today's `_reinforcementsPendingThisTurn` rule, now for every kind, since no victory
+   has ever been taken mid-AI-loop). The rout field-clear wave cancel stays rout-only.
 
 `outcome` is `'defeat' | 'victory' | 'deferred' | null`. `events` are presentation
-records (`objective_done`, `objective_failed`, `phase_changed`, `throne_taken`,
-`structure_broken`, `guard_fell`). The scene presents them through
+records (`objective_done`, `objective_failed`, `phase_ready`, `phase_changed`,
+`throne_taken`, `structure_broken`, `guard_fell`). The scene presents them through
 `safeBattlePresentation`, and the harness ignores them.
+
+**When a primary ends the battle, and when it advances a phase.**
+- In the last phase, the primary that completes the AND wins at once: the
+  `checkBattleEnd` after that action returns `victory` (Seize, a kill, a point taken, a
+  structure broken, an escort leaving), exactly as a single-throne Seize wins today. In
+  the enemy phase it is deferred to the phase's end, as above.
+- In an earlier phase, the same completion only resolves its status and emits
+  `phase_ready`. The board, the groups, the commands and par stay as they are until the
+  check. The next phase's primaries are shown as "Next" on the strip but are not
+  evaluated and offer no command (no Seize on the next phase's throne) before the advance.
+- After an advance, the check's caller runs `checkBattleEnd` once. If the new phase is
+  the last and its primaries already hold (a rout whose field is clear), that is a victory
+  reached inside the enemy phase, so it is taken at the phase's end.
+- Escape ends the battle when the last lord leaves, so an `escape` primary may stand only
+  in the last phase (validator, beside §5.3's combination rule).
 
 **Who calls it.** `checkBattleEnd` becomes the guards, then `evaluate`, then the outcome.
 The Seize command becomes `commandsFor` and then a `takeThrone` mutation followed by
 `checkBattleEnd`. Seize no longer calls `onVictory()` directly, so a single-throne seize
 wins through the same path as everything else (the prologue's `onSeize` beat is still
 awaited first). `TurnManager.js:114` keeps its standalone fallback but asks the module.
+`02`'s encounter check (top of `AIController.processEnemyPhase`, where `wakeHolders` runs
+today, `AIController.js:97`) calls `checkPhase` in its `phase` slot, in the scene and the
+harness alike (§6).
 
 ## 5. Primary kinds
 
@@ -295,7 +334,7 @@ keeps stat-line text plain.
 
 - Fields: `{ requiredRecruits? }`.
 - Win: `isRoutComplete`. Fail: none.
-- Par: today's (`objectiveBasePar.rout` 2).
+- Par: today's (`objectiveBasePar.rout` 2). Its `parRoute` is each group's post (§5.9).
 - Words: "Rout · 3 enemies remain".
 
 ### 5.2 Seize: one or more thrones
@@ -305,11 +344,12 @@ keeps stat-line text plain.
   becomes `taken`. A taken throne stays taken; enemies never retake one.
 - **Win**: every throne taken. With one throne this is exactly today's rule.
 - Fail: none.
-- **Par**: today's seize par plus, for each further throne, `ceil(walk(throne_i →
-  throne_{i+1}) / 4)` along the shortest order (Infantry BFS, the `SeizeParFloor`
-  method). The seize floor walks through every throne.
+- **Par**: one throne is today's seize par, unchanged. With more, the walk throne to throne
+  is `parRoute`'s legs in the shortest order (§5.9), so it is `02`'s W and nothing here;
+  `02`'s `W + 3 + bossTurns` floor then walks through every throne, as the seize floor
+  walks to one. The guards' Revival Stones are `parAdjust`'s boss bars.
 - **AI**: the throne clamp (`AIController.js:341`) reads `enemy.clampTile`, written on each
-  guard's spawn, instead of the one `thronePos`. The unread `guardianClampPos`
+  guard's spawn, instead of the one `thronePos` (PR 1b, §14). The unread `guardianClampPos`
   (`MapGenerator.js:360-368`) retires into it. Taking throne A emits `objective
   throne_a done`, which 02's groups can wake on ("the second garrison stirs"). (`04`'s first
   Two Towers uses two `defeat` objectives instead: walking a lord throne to throne put it
@@ -336,16 +376,26 @@ keeps stat-line text plain.
   counts.
 - Fail: none, since the targets cannot leave.
 - Par: `objectiveBasePar.defeat` (4) plus an adjustment of 1, the same as seize but without
-  the throne step.
-- AI: targets are ordinary guard or hold group members (02).
-- Victory word: VANQUISHED. Strip: "Defeat · Varro".
+  the throne step. `parRoute` walks to each target's post (nearest-neighbour from the
+  deploy centroid); the targets' Revival Stones are `parAdjust`'s boss bars (§5.9).
+- AI: targets are ordinary guard or hold group members (02). A target that should stay on
+  its post carries `clampTile` (PR 1b), which binds whatever the legacy string is: `04`'s
+  Two Towers captains are `isBoss` on a `rout`-family map, where today's clamp, keyed on
+  `objective === 'seize'`, would not hold them.
+- Victory word: SLAIN. Not VANQUISHED, which the FOE VANQUISHED band already says when a
+  boss falls and the battle goes on (`ceremonyContent.js:184`), and not FELLED, the name the
+  code gives that band (`felledContent`, `shouldShowFelled`) beside FALLEN, the word for a
+  fallen unit. Strip: "Defeat · Varro".
 
 ### 5.5 Assassinate: kill the target before it gets away
 
-- Fields: `{ target: ref, exit: [{col,row}], reward, onFail }`.
-- The target spawns in a sleeping group (02). Its `onWake` sets `aiMode: 'seek_tile'` and
-  `aiTargetTile` to the nearest exit tile. The flight trigger is the group's wake, so it
-  is always visible or told (Pillar 7).
+- Fields: `{ target: ref, exit: anchor, reward, onFail }`. `exit` names a region in
+  `battleConfig.anchors`.
+- The target spawns in a sleeping group (02). Its group's `onWake` is `02` §3.7's
+  `{ mode: 'seek', anchor: <exit>, then: 'exit' }`: `seek_tile` to the exit tile nearest
+  the target at the wake. `then: 'exit'` is this spec's to resolve: arriving, the target
+  leaves (Fail, below). The flight trigger is the group's wake, so it is always visible or
+  told (Pillar 7).
 - `_decideSeekTileAction` (`AIController.js:792`) already walks to a tile and attacks only
   a blocker. The target runs; it does not fight.
 - **Win**: the target dies.
@@ -359,7 +409,8 @@ keeps stat-line text plain.
   after its wake, to take at least the turns the army's fastest unit needs to reach the
   target from the deploy zone, plus 2. Validated.
 - The target never carries Revival Stones. Stones plus flight would be unfair (validator).
-- Par: defeat's. The flight clock is the pressure, so par needs nothing more.
+- Par: defeat's (`parRoute` to the target's post). The flight clock is the pressure, so
+  par needs nothing more.
 - Words: "Assassinate · Stop Varro reaching the road". Failure: "Varro got away."
 
 ### 5.6 Escort, and the protect clause
@@ -380,8 +431,10 @@ keeps stat-line text plain.
 - **Fail**: the escortee falls, then `onFail`.
 - **AI**: the escortee takes the caravan's +40 target score (`AIController.js:1297`, keyed
   on `isEscort` too). Chasers and sallies are 02's.
-- **Par**: `max(rout par, ceil(routeLength / mov) + 1)`. The difference goes into
-  `parAdjust`.
+- **Par**: `parRoute` is the escortee's `route` to its exit, so the walk is `02`'s W. The
+  escortee's slower pace is not a walk the army makes, so it is a `parAdjust` term:
+  `max(0, T(mov) − T(4))`, both `turnsToReach` along the same route, the escortee's `mov`
+  and MOV 4 Infantry (§5.9).
 - **Protect** is a clause, not a goal: `{ kind:'protect', unit: ref, onFail }`. It
   resolves `done` when every other primary in its phase is done, and `failed` when the unit
   falls. On its own it would be a survive timer, so the validator refuses a phase whose
@@ -400,9 +453,10 @@ keeps stat-line text plain.
 - **Win**: `need` points held at once, checked the moment a point is taken. As with seize,
   there is no timer. The puzzle is keeping earlier points while taking the last.
 - Fail: none.
-- AI: 02's `onWake: { retake: pointId }` gives a group `seek_tile` to a point. No other
-  enemy cares about points (v2).
-- Par: seize base plus the walk to the farthest point (the multi-seize rule over points).
+- AI: 02's `onWake: { mode: 'retake', point }` (`02` §3.7) gives a group `seek_tile` to a
+  point. No other enemy cares about points (v2).
+- Par: seize base. `parRoute` visits the points in the shortest order, so the walk is
+  `02`'s W.
 - Victory word: HELD. Strip: "Capture · 2/3 points".
 
 ### 5.8 Destroy: break structures
@@ -425,27 +479,68 @@ keeps stat-line text plain.
   - Enemies never strike or repair a structure in v2: to both sides, a gate is a wall.
 - **Objective**: `{ structures: [id], need? }`. Win: `need` structures broken or opened.
   Fail: none.
-- Par: `objectiveBasePar.destroy` plus an authored `parTurns` per structure, which the 04
-  validator holds in a band.
+- Par: `objectiveBasePar.destroy` plus an authored `parTurns` per structure (a `parAdjust`
+  term, which the 04 validator holds in a band). The walk to each structure is `parRoute`.
 - Art: one Gate tile (intact) for the terrain painter. Broken ground reuses Floor or Plain.
 - Victory word: DESTROYED. Strip: "Destroy · Gate 18/30".
 
 ### 5.9 Par in one place
 
-`parContribution(objective, map)` runs at generation and its sum is locked in `parAdjust`.
-`calculatePar` gains one parameter, `parAdjust`, added before `max(1, …)`, and it is called
-with `objective: parKind(objectives)`: the first primary's kind when `turnBonus.json` lists
-it, else the legacy kind. `turnBonus.json` gains `defeat 4/1`, `assassinate 4/1`,
-`escort 4/1`, `capture 4/1` and `destroy 4/1`. `survive` stays unlisted, so the test that
-pins `survive` → `null` (`tests/TurnBonusCalculator.test.js:128`) keeps holding. **Bonus
-objectives contribute nothing to par** (Pillar 6). Par is computed once at battle start,
-whatever the phases, and waves raise it as today.
+`02` §5.2 owns the par formula (`groups-v1`). This spec supplies two inputs and no
+formula of its own.
+
+**The walk is W, from `parRoute`.** Every walk term is `02`'s W, read from
+`battleConfig.parRoute` (`04` §8.3's legs, `{ to?, group?, meet?, extra? }`). It is
+written at generation for every primary kind: a set piece writes its authored legs, and
+any other config with written `objectives` (the `twin_thrones` template) takes
+`defaultParRoute(objectives, map)`:
+
+| kind | legs |
+|---|---|
+| rout | each group's post, nearest-neighbour from the deploy centroid (`02` §5.2) |
+| seize | each throne, shortest order (guards' groups on the way) |
+| escape | the exit tile nearest the deploy centroid |
+| defeat, assassinate | each target's post, nearest-neighbour |
+| escort | the escortee's `route` to its exit |
+| capture | each point, shortest order |
+| destroy | each structure, shortest order |
+| survive | none |
+
+Phases append their legs in phase order. A legacy config's `parRoute` is derived on read
+by the same rules (seize → the throne, escape → the nearest exit, rout → the group posts,
+§3.2) and never written, so `02` can read W on any map, and old locked maps keep their
+bytes.
+
+**`parAdjust` carries only non-walk turns.** `parContribution(objective, map)` runs at
+generation and its sum is locked in `parAdjust`. It has four terms and no other:
+- **survive**: exactly `n` (§5.10);
+- **structures**: each `destroy` structure's authored `parTurns` (§5.8);
+- **boss bars**: one turn per Revival Stone that a primary's target or a throne's guard
+  carries on the rung (`spawn.revivalStones`, written at generation). The boss itself is
+  `02`'s `bossTurns`;
+- **escort pace**: `max(0, T(mov) − T(4))` along the escortee's route (§5.6).
+
+`parAdjust` is added to `raw` inside `02`'s `groups-v1`, before its
+`max(par, W + 3 + bossTurns)` and before the First Light cap. A config with written
+`objectives` takes `groups-v1` whatever its groups (a First Light `twin_thrones` map has
+no `dormant` group; Notes 6). A config without them keeps `calculatePar` exactly, with a
+derived `parAdjust` of 0, so `calculatePar` gains no parameter.
+
+`groups-v1` reads `objectiveBasePar` and `objectiveAdjustments` for `parKind(objectives)`:
+the first primary's kind when `turnBonus.json` lists it, else the legacy kind.
+`turnBonus.json` gains `defeat 4/1`, `assassinate 4/1`, `escort 4/1`, `capture 4/1` and
+`destroy 4/1`. `survive` stays unlisted, so the test that pins `survive` → `null`
+(`tests/TurnBonusCalculator.test.js:128`) keeps holding. **Bonus objectives contribute
+nothing to par** (Pillar 6). Par is computed once at battle start, whatever the phases,
+and waves raise it as today.
 
 ### 5.10 Survive (phase only)
 
 `{ kind:'survive' }` is allowed only in a phase that is not the last, whose `until` is
 `{ kind:'turn', afterPhase: n }` with `1 ≤ n ≤ SURVIVE_PHASE_MAX_TURNS` (3), and only when
-the next phase has a real goal (validator). It contributes exactly `n` to par, because a
+the next phase has a real goal (validator). Entered at the check of turn T
+(`phaseStartedTurn` = T; 1 for phase 0), it advances at the check of turn T + n, so the
+army holds through n enemy phases. It contributes exactly `n` to `parAdjust`, because a
 timer cannot be beaten. TurnPressure counts every enemy phase of a survive phase as
 progress, so anti-turtle aggression does not stack on the phase's own pressure.
 `objectiveParOffset` and `holdShare` keep their keys and are read for the legacy kind
@@ -464,30 +559,61 @@ phases: [
 ```
 
 - **Order.** Phases run in order. `objectiveState.phase` is the current index.
-- **Advance.** A phase advances when its `until` trigger fires (any README trigger; the
-  `until` of phase k arms only once phase k is current), or, with no `until`, when its
-  primaries are all done. The last phase has no `until`; it ends in victory.
+- **One site.** A phase advances only in `02`'s once-per-enemy-phase encounter check
+  (`02` §3.4: top of the enemy phase, once per turn by `checkedTurn`, so a phase resumed
+  from a mid-phase checkpoint never checks again). `checkPhase` is its `phase` slot, after
+  `objective` and before `turn`: enrage, `hurt`, `tile`, `danger`, `sight`, `objective`,
+  **`phase`**, `turn`, then the `groupWoken` cascade. In that slot:
+  - the current phase's `until` is evaluated, whatever its trigger kind (any README
+    trigger; a `turn` `until` with `afterPhase` reads `phaseStartedTurn`, §3.4). An
+    `until` takes delay 0 unless it names one: `02`'s per-kind default delays are for group
+    wakes, and a phase is told by its band and the strip's named turn or goal;
+  - a phase with no `until` whose primaries are all resolved advances (it emitted
+    `phase_ready` when they resolved, §4 step 4). A phase with an `until` advances only
+    when the `until` fires;
+  - an advance sets `phase` and `phaseStartedTurn` (the check's turn) together and applies
+    every `onEnter` effect there: terrain, wakes and the band's record;
+  - an `until` arms only from the check after its phase became current, so at most one
+    `until` fires per check. A no-`until` phase entered at this check whose primaries
+    already hold advances again in the same slot (at most `phases.length − 1` advances in
+    one check);
+  - the last phase never advances. It has no `until` and ends in victory (§4).
+- **Before `groupWoken`.** `onEnter` effects apply in the `phase` slot, so the cascade sees
+  a phase's wakes: a `groupWoken` on a group a phase woke counts from this check with its
+  own delay.
 - **`onEnter.setTiles`** reuses the `phaseTerrainOverrides` entry shape and its anchor or
-  coordinate resolution (`BattleScene.js:2735-2790`). The tile logic moves into a pure
-  `applyTerrainSetTiles(grid, setTiles, anchors)` that both the hybrid overrides and phases
-  call. As with 02's §8 fix, a tile holding a unit is never set to impassable terrain:
-  that tile's entry is skipped and recorded.
-- **`onEnter.wake`** names 02 groups. The wake rides 02's ledger.
-- **`onEnter.line`** is the band's text key.
-- **Resume.** The phase index rides the checkpoint, and `onEnter` effects are recorded in
-  the ledger as fired, so a resume or rewind never re-applies them: terrain is restored
-  from `mapLayout`, groups from their state.
+  coordinate resolution (`BattleScene.js:2735-2790`). It calls `02`'s
+  `engine/TerrainPhases.js` `applyTerrainSetTiles(grid, setTiles, anchors, { occupants })`,
+  which `02` PR 0b extracts (`02` §2.2); this spec adds no terrain code. The function never
+  writes terrain an occupant could not stand on and returns those entries; a phase records
+  them in its `onEnter` record and skips them (`02` §2.2: v1 hybrid overrides defer, phases
+  and set pieces record and skip).
+- **`onEnter.wake`** names 02 groups. They wake at this check as a delay-0 wake and act in
+  this enemy phase. The wake rides 02's ledger.
+- **`onEnter.line`** is the band's text key. The record that the band was shown rides the
+  ledger with the advance.
+- **Nothing changes before the check.** When the last primary of a phase resolves in the
+  player phase, the NEW OBJECTIVE band may show at once (`phase_ready`), and the strip
+  shows the next phase's goal as "Next · from the enemy phase". The terrain, the groups,
+  the commands, `phase` and par stay as they were until the enemy phase starts. Rules
+  read only `objectiveState.phase`; the band reads the event.
+- **Resume.** `phase`, `phaseStartedTurn` and the fired ledger ride the checkpoint
+  together, and `onEnter` effects are recorded in the ledger as fired, so a resume or
+  rewind never re-applies them: terrain is restored from `mapLayout`, groups from their
+  state. A resume between `phase_ready` and the check advances once, at that check. A
+  rewind to before the resolving action takes `phase_ready` back with the status.
 - **How a switch is shown.**
   1. An objective band in the ceremony style: word NEW OBJECTIVE, the sub-line the new
-     primary's goal sentence.
-  2. The strip pulses (`_pulseObjectiveText`).
-  3. `guide_objective_changed` fires with `context.goal`. Its text already has the generic
-     branch (`Guidance.js:172`); `objectiveChange()` (`GuidanceController.js:304`) reads
-     `statusView` instead of the seize test, and the seize boss case becomes a
-     `guard_fell` event.
-  4. Spec 01 pans to the new anchor.
-- **Par.** Par does not change at a switch. It was locked as the sum of every phase's
-  contribution.
+     primary's goal sentence. A no-`until` phase shows it when its primaries resolve
+     (`phase_ready`); an `until` phase shows it at the check.
+  2. The strip pulses (`_pulseObjectiveText`) at the advance.
+  3. `guide_phase_change` (§11.3) at the first player phase of the new phase.
+     `guide_objective_changed` keeps only its seize case (a throne's guard fell, now the
+     `guard_fell` event), and `objectiveChange()` (`GuidanceController.js:304`) reads
+     `statusView` instead of the seize test.
+  4. Spec 01 pans to the new anchor at the advance.
+- **Par.** Par does not change at a switch. It was locked with every phase's legs and
+  contributions (§5.9).
 - **Not in v2**: branching phases and a phase that undoes an earlier one.
 
 ## 7. Bonus objectives
@@ -502,8 +628,18 @@ phases: [
 | `slay` | `ref` dies on or before `byTurn` | the player phase of `byTurn` ends with it alive, or it flees | the target | gold + forge step |
 | `protect` | at victory: the unit alive (or exited) | it falls | the unit | gold |
 | `unbloodied` | at victory: never broke | any deployed unit at an action boundary below `floor(maxHP × share)` (default 0.5) | none | gold + item |
-| `capture` | the ballista (`ballista.owner === 'player'`) or point is taken | (a ballista destroyed, if 04 adds that) | the ballista | item |
+| `claim` | the ballista (`ballista.owner === 'player'`) or point is taken | (a ballista destroyed, if 04 adds that) | the ballista | item |
 | `reach` | a player unit ends its action on the cache tile | a thief (04 `seek_tile`) ends on it first | the cache | item |
+
+The bonus that takes a ballista or a point is `claim`, so it never shares a name with the
+primary `capture` (§5.7), whose fields differ.
+
+**`race`** (optional, authored, tile bonuses only): `{ group, fastMov, slowMov }` names the
+group whose arrival makes the bonus a race and the two paces it is tuned between. Only
+`04`'s validator reads it (`04` §8.2 check 6: a unit at `fastMov` reaches the anchor before
+the group's arrival phase, one at `slowMov` does not). The runtime, the strip and the
+settlement never read it; the objective validator checks only its shape (a known group,
+positive integers with `slowMov < fastMov`).
 
 `byTurn` is locked at generation as `par − k` (k from data). It is a real number on the
 strip ("before turn 6"), never "par minus 2". "No unit below X%" is checked at action and
@@ -516,6 +652,15 @@ enemy-unit boundaries, not on every HP write, so a heal later in the same action
 - Set pieces (04) declare theirs. Ordinary procedural maps keep only the derived village
   and caravan in v2 (open question 5).
 - None on a scripted battle, as villages and caravans already never appear there.
+- **A bonus never fights the primary.** Victory is taken on the action that completes the
+  last phase (§4), so a bonus the player can reach only after that action asks them to
+  refrain from winning. Two rules, both checked by `04`'s validator on every combination:
+  - a tile bonus (`visit`, `rescue`, `claim`, `reach`) on a map whose primaries are all
+    kill-shaped (`rout`, `defeat`, `assassinate`: the `rout` family, §3.3) lies on the par
+    route before the last target: the bonus anchor's walk (`turnsToReach` from the deploy
+    region, MOV 4 Infantry, `04` §8.3) is at most the last `parRoute` leg's target's walk;
+  - a `slay` bonus never names a primary's target or a throne's guard: it would pay a
+    second time for the push par already rewards, and decide the map's one choice.
 
 ### 7.3 Judged once, at the victory commit
 
@@ -559,7 +704,12 @@ strip shows exactly what will be paid. The validator refuses any key outside thi
 
 - `costTurns` is locked at generation by `bonusDetourTurns`: the Infantry walk from the
   deploy centroid through the anchor to the primary anchor, minus the direct walk, divided
-  by 4 and rounded up (minimum 1 for a tile bonus). Bonuses with no tile (`unbloodied`,
+  by 4 and rounded up (minimum 1 for a tile bonus).
+- **The primary anchor** is the first `parRoute` leg's target on every map: on a rout or
+  defeat map the first group post or target, on a seize map the first throne, on an escape
+  map the nearest exit (its one leg, §5.9). A legacy rout map with no groups has no leg;
+  there it is the centroid of the config's `enemySpawns` (locked, so the strip's read
+  never moves). Bonuses with no tile (`unbloodied`,
   `protect`) show "no detour". The strip says "~2 turns".
 - **The price is the clock.** Each turn costs late-pressure decay past par and shadow past
   par − 3 (`eclipse.md` §1). Bonuses never touch par and never pay shadow relief: that
@@ -600,7 +750,7 @@ Assassinate, escort and protect must carry `onFail` (validator):
 
 A failure is not a defeat, so there is no modal prompt. When a Vision charge is unspent,
 the failure band's sub-line adds "Rewind can undo it" and the rewind control pulses once.
-The objective state rides every rewind destination (§11), so rewinding past the fall
+The objective state rides every rewind destination (§12), so rewinding past the fall
 reopens the objective.
 
 ### 8.4 The prologue
@@ -622,7 +772,7 @@ The prologue harnesses (`tests/harness/PrologueP1–P4`) are the gate.
 2. **Caravan** becomes the `caravan` bonus by derivation. Its rule ("survived") and its
    reward (`pendingCaravanShop`) are unchanged; `BonusSettlement` sets the shop from the
    verdict.
-3. **Recruit NPC** and **rout ladder** become notes in the strip (§10). They are not
+3. **Recruit NPC** and **rout ladder** become notes in the strip (§11). They are not
    bonuses: the recruit's reward is the unit, and the ladder is pressure.
 4. `secondaryObjectiveStatus` stays as an adapter over the strip model, returning today's
    `{ id, text, tone }` parts, so its tests and the phone chips keep their strings.
@@ -635,8 +785,8 @@ Save compatibility: nothing new is written for these maps. Old checkpoints resto
 | PR | Sites (§1.2) | Becomes |
 |---|---|---|
 | 1 | 1, 2, 9, 12, 13, 30 (harness, invariants) | `evaluate`, `commandsFor`; `isRoutFieldClear` asks the module whether the current phase's primary is a rout |
-| 1 | 7 | `calculatePar({ objective: parKind, parAdjust })` |
-| 1 | 8 | `new AIController(grid, data, { objectives })`; the clamp reads `enemy.clampTile ?? thronePos` |
+| 1 | 7 | `calculatePar({ objective })` unchanged for derived configs; the module exposes `parKind` and the derived `parRoute`, which `02`'s `groups-v1` reads (§5.9). No par changes |
+| 1 | 8 | `new AIController(grid, data, { objectives })`. PR 1b: the clamp reads `enemy.clampTile` on any objective, falling back to `thronePos` on seize (today's rule) |
 | 1 | 10, 11 | `progressMeasure` (old fields kept, plus `bestObjectiveScore`; the validator accepts both); hold anchors from `goalTiles` |
 | 1 | 14 | `objectiveChange()` from `statusView` |
 | 2 | 3, 5, 6, 15–22 | content and model by kind: `src/data/objectiveContent.js` (goal sentences, verbs, victory words, the deploy banner, hint ids), the strip model (§11); `compactBattleObjective` deleted |
@@ -665,7 +815,9 @@ New kinds get `battle_objective_<kind>`. `OBJECTIVE_WORDS.defend` is removed.
 - **Fog rule** (from `sideObjectiveInputs`): a target, escortee or thief out of sight
   reads "in fog" and gives no anchor. Its last seen tile is kept by the caller, never read
   from hidden units. `marker ∈ throne | exit | target | escort | point | structure |
-  bonus` goes to spec 01, which draws at most three kinds at once.
+  bonus` goes to spec 01. Its markers draw every anchor; its off-screen pointers are at
+  most 4 on screen at once (01 §2.8, `max: 4`, the one statement of that cap), by 01's
+  priority: the primary objective first, the active bonus fifth.
 - **The canvas objective text** is `objectiveLines(model)`, the same strings. Desktop keeps
   its plate (`DesktopBattleHud.js:230`); a hover tooltip adds rewards and costs.
 - **Phone, landscape and portrait.** The rail button shows `primary[0].compact` (a "+1"
@@ -685,12 +837,12 @@ New kinds get `battle_objective_<kind>`. `OBJECTIVE_WORDS.defend` is removed.
 | rout | Defeat every enemy on the map. | ROUTED |
 | seize | Defeat each throne's guard, then move a Lord onto it and choose Seize. | SEIZED |
 | escape | Bring your Lords to the green exits. The army retreats when the last Lord leaves. | ESCAPED |
-| defeat | Defeat {name}. The rest need not fall. | VANQUISHED |
-| assassinate | Defeat {name} before they reach the road. | VANQUISHED |
+| defeat | Defeat {name}. The rest need not fall. | SLAIN |
+| assassinate | Defeat {name} before they reach the road. | SLAIN |
 | escort | Keep {name} alive to the {edge} road. They walk only with a guard near. | ESCORTED |
 | capture | End a unit's action on each point, and hold them all at once. | HELD |
 | destroy | Strike the {structure} until it breaks. | DESTROYED |
-| survive (phase) | Hold until turn {n}. | (never the last phase) |
+| survive (phase) | Hold until the enemy phase of turn {n} (`phaseStartedTurn` + n). | (never the last phase) |
 
 - **Other places that read the model:**
   - the deploy banner and the `PartyMenus` status;
@@ -704,6 +856,22 @@ New kinds get `battle_objective_<kind>`. `OBJECTIVE_WORDS.defend` is removed.
   [kind] }` is written when 04 picks a set piece at node generation (the config does not
   exist yet then). The loom card and the node label read it, falling back to today's
   `OBJECTIVE[objective]` and its Village/Caravan tags (`loomModel.js:552`).
+
+### 11.3 Guidance at the point of use
+
+Two new essential notes in `engine/Guidance.js` `GUIDANCE_NOTES` (no `scope`: about the
+battle as a whole), shown in battle through `GuidanceController`, once per save slot
+(HintManager ids, as `guide_objective_changed` and the other Act 1 follow-through notes
+are) and never in the prologue run or a scripted battle. `02` §3.8 owns the third, for
+"Holding" groups.
+
+| id | when | anchor | text (plain register) |
+|---|---|---|---|
+| `guide_phase_change` | the first player phase after a phase advance (§6) | the new phase's first anchor | "The battle moved on: {goal}. The earlier objective is done, and par has not changed." |
+| `guide_bonus_cost` | the first player phase of the first battle with an open tile bonus whose `costTurns ≥ 1` (§7.5) | the bonus's anchor | "A bonus: optional. It pays {reward}, never EXP. The detour costs about {n} turns, and turns past par cost rank and shadow." |
+
+`guide_objective_changed` keeps its seize case, so a player who has seen it is still taught
+a phase switch once: most players read it on Act 1 seize maps long before a set piece.
 
 ## 12. Persistence, determinism, harness parity
 
@@ -735,15 +903,26 @@ presentation only. `bonusVisionActs` is saved only if Vision rewards are enabled
 - Calibrators and detour estimates are pure BFS.
 - The legacy village keeps its draw exactly where it is.
 
-**Harness.** `HeadlessBattle` calls the same module in four places:
+**Harness.** `HeadlessBattle` calls the same module in five places:
 1. `_checkBattleEnd` becomes the guard plus `evaluate`;
 2. the action list comes from `commandsFor`;
 3. the escort step goes in `_processEnemyPhase` beside the caravan (`:2331`);
-4. take, retake and reach go in its action-end paths.
+4. take, retake and reach go in its action-end paths;
+5. `checkPhase` runs in `02`'s encounter check, which the harness drives through the same
+   `EncounterGroups.check(...)` (`02` §6), so a phase advances at the same point in both
+   worlds.
 
 `ScriptedAgent` and `TacticianAgent` read `goalTiles` instead of testing
 `objective === 'seize'`. `Invariants.js` checks against the model. Per CLAUDE.md, no
 harness copy of any rule survives the PR that moves it.
+
+**Agents, one owner per kind.** Each kind's PR (§14) ships the agents' read for that kind,
+so its harness fixtures are played and `04` only runs them: Seize on every open throne
+whose guard is down (PR 4), a defeat target's post (PR 1b), the flight lane and the
+exit-side cut-off (PR 6), escort pacing (stay within `leash` of the escortee, and screen
+its next step; PR 6), Strike on a structure in range and standing on a point (PR 7). A
+bonus kind's PR (5) gives the agent a policy switch, take or skip, so `sim/pacing.js` can
+pair the two (§7.4).
 
 **Boundary test** (`tests/ObjectiveReaders.test.js`, in the style of `HpWriteBoundary`):
 outside an allowlist (generation, words fallbacks, prologue), no `src/` file may compare
@@ -770,6 +949,13 @@ outside an allowlist (generation, words fallbacks, prologue), no `src/` file may
     binds the wrong guard.
 14. Anti-turtle fires during a survive phase.
 15. The prologue changes.
+16. A walk is paid twice: a walk term in `parAdjust` as well as in `02`'s W.
+17. A phase advances mid-player-phase (terrain or wakes the moment its primary resolves),
+    or a last-phase completion waits for the enemy phase instead of winning at once.
+18. `{ afterPhase: n }` counts from the battle's start, or from a resume, instead of
+    `phaseStartedTurn`.
+19. A tile bonus on a kill-shaped map lies past the last target, so taking it means not
+    winning.
 
 **Suites:**
 - `tests/BattleObjectives.test.js` (pure): legacy derivation per objective, exact
@@ -777,6 +963,17 @@ outside an allowlist (generation, words fallbacks, prologue), no `src/` file may
   (expected values derived by hand, not by running the old code), every kind's win, fail,
   fallback and stake, AND resolution, deferral inside the enemy phase, the escape
   combination rule, escort on a clear field, flight versus kill on the same move.
+- `tests/ObjectivePhases.test.js` (pure, failures 6, 17, 18): an earlier phase's last
+  primary resolved in the player phase emits `phase_ready` and leaves `phase`, terrain and
+  groups as they were; the next check advances it and applies `onEnter` before the
+  `groupWoken` cascade; the same completion in the last phase wins on that action; a
+  resume between `phase_ready` and the check advances exactly once; `afterPhase: 3`
+  entered at the check of turn 5 fires at the check of turn 8, not 4 or 7; the validator
+  refuses `phaseStartedTurn` 0 or past the current turn.
+- `tests/ObjectivePar.test.js` (failures 11, 16): `parContribution` holds only survive,
+  structures, boss bars and escort pace (a two-throne seize has `parAdjust` 0 plus its
+  stones); `defaultParRoute` per kind, legs by hand; a derived config's `parRoute` is
+  never written into the locked config.
 - `tests/ObjectiveLegacyGolden.test.js`: about 200 harness battles over today's templates
   and seeds, run before and after PR 1. Outcome, turn and RNG cursor are identical. The
   checkpoint fixtures from today restore and finish identically.
@@ -793,8 +990,12 @@ outside an allowlist (generation, words fallbacks, prologue), no `src/` file may
 - `tests/EscortRoute.test.js`, `tests/AssassinateCalibration.test.js`,
   `tests/Structures.test.js` (damage, Strike availability, `brokenTerrain`, a phase
   opening it, terrain index 19 appended).
-- `tests/TurnBonusCalculator.test.js`: every primary kind has par, and `parAdjust` is
-  applied.
+- `tests/TurnBonusCalculator.test.js`: every primary kind has a `turnBonus.json` base; a
+  derived config's par is unchanged. `02`'s `groups-v1` tests own where `parAdjust` enters
+  (added to `raw` before the max and the cap).
+- The objective validator's bonus rules (failure 19): a Two Towers-shaped fixture with its
+  `reach` behind the far tower is refused; moved into the first tower's courtyard, it
+  passes; a `slay` naming a defeat target is refused.
 - Harness: `tests/harness/Objectives*.test.js` fixtures per kind, played by the agents.
   The prologue harnesses stay green.
 - e2e: `objective-strip.spec.js` (lane `mobile-ui`): desktop 640x480, 844x390, 667x375,
@@ -803,19 +1004,39 @@ outside an allowlist (generation, words fallbacks, prologue), no `src/` file may
 
 ## 14. PR breakdown
 
-| PR | What | Behaviour change | Effort |
-|---|---|---|---|
-| 1 | `BattleObjectives.js` with the legacy derivation only; every rule reader and the harness moved; `parAdjust` plumbing (always 0); boundary and golden tests | none (pinned) | 3–4 days |
-| 2 | `objectiveContent.js`, `objectiveStripModel.js`; regex parsing removed; every word site by kind | none in words for today's kinds (escape gains its help goal line) | 2 days |
-| 3 | `objectiveState` and its four persistence sites; derived village and caravan bonuses; `BonusSettlement` at the commit; bonus rows on the strip and band | the strip and the band show the bonus | 2–3 days |
-| 4 | Phases (index, `until`, `onEnter`, shared `applyTerrainSetTiles`), `objective` events into 02's ledger, multi-seize with per-guard clamp, `twin_thrones` elite seize template (Act III+, two Throne features; `MapTemplateEngine:1124` allows two when `thrones: 'all'`) | new elite maps | 3 days, after 02's ledger |
-| 5 | `data/objectives.json`, new bonus kinds (rescue, slay, protect, unbloodied, capture, reach), validator, the pacing-sim reward check | set pieces may declare bonuses | 3 days |
-| 6 | Defeat, assassinate (+ `calibrateFlight`), escort (`ObjectiveNpc`, `EscortRoute`), protect clause, `onFail` | set pieces only | 4–5 days |
-| 7 | Capture points; structures: `Gate` terrain and art, Strike, `StructureController`, destroy | set pieces only | 4 days + art |
+"First shipment" says whether a PR (or a part of one) is needed by the first set pieces.
+**Later** parts stay specified here, but nothing in `04`'s first two maps waits on them.
+
+| PR | What | Behaviour change | First shipment | Effort |
+|---|---|---|---|---|
+| 1 | `BattleObjectives.js` with the legacy derivation only (and the derived `parRoute`, never written); every rule reader and the harness moved; boundary and golden tests | none (pinned) | yes | 3–4 days |
+| 1b | `defeat` (win rule, `turnBonus.json` `defeat 4/1`, its `parContribution` boss bars and `defaultParRoute` legs, the SLAIN word); per-unit `clampTile` (the clamp reads it on any objective, `thronePos` on seize as today, released by `aggressiveMode` (anti-turtle or enrage, `TurnPressure.js:104`) as today); the agents' read for defeat | written configs only | yes (Two Towers) | 1–1.5 days |
+| 2 | `objectiveContent.js`, `objectiveStripModel.js`; regex parsing removed; every word site by kind | none in words for today's kinds (escape gains its help goal line) | yes | 2 days |
+| 3 | `objectiveState` (with `phaseStartedTurn`) and its four persistence sites; derived village and caravan bonuses; `BonusSettlement` at the commit; bonus rows on the strip and band | the strip and the band show the bonus | yes | 2–3 days |
+| 4 | Phases (index, `until`, `onEnter`, `checkPhase` in `02`'s check, calling `02`'s `applyTerrainSetTiles`), `objective` events into 02's ledger, `guide_phase_change`, multi-seize; **later**: the `twin_thrones` elite seize template (Act III+, two Throne features; `MapTemplateEngine:1124` allows two when `thrones: 'all'`) | new elite maps (with `twin_thrones`) | phases and events yes; multi-seize when a map needs it; `twin_thrones` later | 3 days, after `02` PR 0b (`TerrainPhases`) and 2.1–2.2 (the ledger, the `objective` hook) |
+| 5 | `data/objectives.json`, bonus kinds `slay`, `protect`, `reach`, `claim`, the `race` field, validator (with §7.2's two rules), `guide_bonus_cost`, the pacing-sim reward check; **later**: `rescue`, `unbloodied`, `vision` rewards | set pieces may declare bonuses | yes, but for the later kinds | 3 days |
+| 6 | Assassinate (+ `calibrateFlight`, `then: 'exit'`), protect clause, `onFail`; **later**: escort (`ObjectiveNpc`, `EscortRoute`) | set pieces only | assassinate when Hunting Party ships; escort later | 3–4 days |
+| 7 | **Later**: capture points; structures: `Gate` terrain and art, Strike, `StructureController`, destroy | set pieces only | later | 4 days + art |
+| — | **Later**: `survive` (phase-only, §5.10) rides PR 4's phases, but ships with the first map that uses it | — | later | in PR 4 |
+
+`defeat` is pulled out of the old PR 6 into PR 1b, right after PR 1, because Two Towers
+needs it and nothing else from PRs 4–7. Every written config takes `02`'s par PR
+(`groups-v1`, §5.9), which lands before `04`'s generator PR. Each kind's PR also ships
+the agents' read for that kind (§12).
 
 PRs 1–3 are worth shipping alone: one predicate, no regex, and bonuses that say what they
 pay. PR 4 is the README's "multi-seize on today's maps". PRs 6–7 feed spec 04's
 catalogue (Hunting Party, Caravan Under Siege, Break the Gate, The Bridge Must Fall).
+
+**Vertical slice.**
+- **The Mill Ford** (`04` §10.1) needs nothing from this spec. It is a rout plus the legacy
+  village, so today's predicate (`isRoutComplete`), strip (`secondaryObjectiveStatus`) and
+  in-battle payout all work. One caveat: its reserve's `objective: mill` wake needs
+  `objective` events, which arrive with PR 4; until then the reserve wakes on its `turn`
+  clock alone.
+- **Two Towers** (`04` §10.2) needs PR 1 and PR 1b (`defeat` and `clampTile`). Its bonus
+  (`reach` in the first tower's courtyard, or `unbloodied`, per §7.2's rule) needs PR 3
+  and PR 5 (`unbloodied` is a later kind); the map can ship first without it.
 
 ## 15. Open questions for the owner
 
@@ -828,7 +1049,7 @@ catalogue (Hunting Party, Caravan Under Siege, Break the Gate, The Bridge Must F
 4. **The village's payout**: keep it paid in battle (today), or move it to the commit like
    every other bonus? Moving it unifies the code, but changes the multiplied gold and
    takes the convoy item away during the battle.
-5. **Bonuses on ordinary maps** beyond the village and caravan, for example "Capture the
+5. **Bonuses on ordinary maps** beyond the village and caravan, for example "Claim the
    ballista" on Nightfall+ maps that already roll one?
 6. **Black Sun**: may a bonus ever relieve shadow? Recommendation: no (Pillar 6: the clock
    is not a bonus currency).
@@ -837,18 +1058,63 @@ catalogue (Hunting Party, Caravan Under Siege, Break the Gate, The Bridge Must F
 
 ## Notes for the README
 
-1. **`turn` trigger refinement.** Phases need a turn relative to the phase's start, so the
-   `turn` trigger gains `{ afterPhase: n }` beside `afterContact` and `parOffset`. It is
-   used for survive phases (n ≤ 3).
+Items 1, 3 and 5 were adopted in README revision 2 or by `02` and are resolved; 2 and 4
+stand; 6–9 are new in revision 2.
+
+1. **Resolved: `turn` trigger refinement.** The README's `turn` row now carries
+   `{ afterPhase: n }` (`03`) beside `afterContact` and `parOffset`, used for survive
+   phases (n ≤ 3). Revision 2 says what it counts from: `objectiveState.phaseStartedTurn`
+   (§3.4).
 2. **The legacy string for new kinds.** README §3 keeps `objective ∈ rout | seize |
    escape` for legacy readers. This spec maps each new kind to a family (§3.3) and makes
    every *rule* reader read the model (PR 1), so the string is only a fallback for words
    and generation.
-3. **The trigger ledger.** This spec assumes 02 owns the fired-trigger ledger in battle
-   state. Objectives emit `objective` events into it and read phase `until`s from it.
+3. **Resolved: the trigger ledger.** `02` owns the fired-trigger ledger in battle state
+   (README §3, "fired triggers"; `02` §6), and the README's `objective` row uses this spec's
+   words (`done` / `failed`). Objectives emit `objective` events into it, and phase
+   `until`s are fired in `02`'s check (§6).
 4. **The village exception.** Roadmap Phase 3 says bonus rewards are paid at the victory
    commit. The legacy village keeps its in-battle payout in v2 for compatibility (§9,
    open question 4). Every new bonus pays at the commit.
-5. **The 02 `onWake` contract.** Assassinate and capture need a group's `onWake` to be
-   able to set `aiMode: 'seek_tile'` with an anchor target (`{ seek: anchor }`), and
-   `{ retake: pointId }` for capture.
+5. **Resolved: the 02 `onWake` contract.** `02` §3.7 defines `{ mode: 'seek', anchor,
+   then }` and `{ mode: 'retake', point }`; this spec now uses those shapes (§5.5, §5.7)
+   and resolves `then: 'exit'`. The anchors field is the README's `battleConfig.anchors`.
+6. **Par has one owner.** `02` §5.2 owns the formula; this spec supplies `parAdjust`
+   (non-walk turns only) and `defaultParRoute`, and every walk is W over
+   `battleConfig.parRoute` (§5.9). `02` §5.2's model selection should also take a config
+   with written `objectives` (a First Light `twin_thrones` map has no `dormant` group), and
+   `parAdjust` has a fourth term the cross-review did not list: escort pace (§5.6).
+7. **The `phase` slot.** `02` §3.4's check order gains `phase` after `objective` and
+   before `turn` (§6). An `until` defaults to delay 0.
+8. **Bonus `capture` is now `claim`** (§7.1). `04` §3.7's bonus list should follow.
+9. **README §3 trigger table**: `objective` takes `on` (`done | failed | either`, `02`
+   §3.4), which should default to `done`: `04`'s Two Towers garrisons write `objective`
+   wakes without it.
+
+## Revision 2 changelog (2026-10-09)
+
+Takes in the cross-review of the spec set.
+- **Par.** `parAdjust` carries only non-walk turns (survive n, structure `parTurns`,
+  boss bars, escort pace). Every walk is `02`'s W over `battleConfig.parRoute`, written for
+  every primary kind (`defaultParRoute`, §5.9) and derived on read for legacy configs.
+  `parAdjust` enters `groups-v1`'s `raw` before the max and the cap. The walk terms in
+  §5.2 (throne to throne), §5.6 (`ceil(routeLength / mov)`) and §5.7 (the farthest point)
+  are deleted, not kept for legacy maps: today's maps have none of those kinds, and their
+  derived `parAdjust` is 0. `calculatePar` gains no parameter.
+- **Terrain.** Phases call `02` PR 0b's `applyTerrainSetTiles(grid, setTiles, anchors,
+  { occupants })`; this spec extracts nothing.
+- **Phase timing.** A phase advances only in `02`'s once-per-enemy-phase check, in a
+  `phase` slot after `objective` and before `turn`; `onEnter` (terrain, wakes, the band's
+  record) applies there, before the `groupWoken` cascade. `evaluate` emits `phase_ready`
+  and changes nothing. A last-phase completion still wins on its action (§4).
+- **`phaseStartedTurn`** in `objectiveState`, written at every advance, validated
+  ≥ 1; `{ afterPhase: n }` reads it.
+- **Bonus versus primary.** §7.2: on a kill-shaped map a tile bonus lies on the par
+  route before the last target; a `slay` never names a primary's target.
+- `onWake` shapes aligned to `02`; the detour's primary anchor is the first
+  `parRoute` leg's target; `defeat` and `clampTile` pulled into PR 1b, with what Two
+  Towers needs; optional `race` on bonuses; each kind's PR ships its agents'
+  read; `guide_phase_change` and `guide_bonus_cost` (§11.3).
+- Victory word for `defeat` and `assassinate` is SLAIN; bonus `capture` renamed `claim`;
+  01's cap is 4 off-screen pointers, not "three kinds"; `escape` only in the last phase;
+  the PR table marks what the first shipment needs; a vertical-slice note (§14).
