@@ -2,6 +2,7 @@ import { appendDetailScrollControls } from './DetailScrollControls.js';
 import { InputAction } from '../utils/InputActions.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 import { blessingCardContent, difficultyBannerContent } from './choiceContent.js';
+import { blessingTerms } from '../engine/BlessingTerms.js';
 import { blessingCardArt, costSeal } from './itemMoments.js';
 import {
   choiceButton,
@@ -99,8 +100,17 @@ export class RunSetupMenu {
   blessings(lead) {
     const s = this.scene;
     const row = draftRow(s.options.length, 'ch-tarots');
+    const termsOf = (content) =>
+      content?.cost
+        ? blessingTerms([content.cost], {
+            burdens: s.gameData?.events?.burdens,
+            difficultyId: s.difficultyId,
+            pact: content.pact,
+          })
+        : [];
     s.options.forEach((option, i) => {
       const content = blessingCardContent(option);
+      const terms = termsOf(content);
       const card = choiceButton(content.name, () => s._select(i), 'ch-card ch-tarot');
       card.dataset.focus = `choice-${i}`;
       card.dataset.tier = String(content.tier);
@@ -112,6 +122,7 @@ export class RunSetupMenu {
           content.numeral ? `Tier ${content.numeral}` : '',
           content.boon,
           content.cost ? `${content.costLabel}: ${content.cost}` : 'No cost',
+          ...terms.map((t) => `${t.term}: ${t.text}`),
         ]
           .filter(Boolean)
           .join(' · '),
@@ -139,18 +150,28 @@ export class RunSetupMenu {
         plate.append(art);
       }
       cost.prepend(costSeal(!content.cost));
+      // Hover reads what the price's words mean; the chosen card spells them out below.
+      if (terms.length) cost.title = terms.map((t) => `${t.term}: ${t.text}`).join('\n');
       plate.append(sun, element('strong', content.name, 'ch-tarot-name'), lines, cost);
       card.append(plate);
       row.append(card);
     });
     const chosen = blessingCardContent(s.options[s.selectedIndex]);
-    lead.append(
-      element(
-        'span',
-        chosen?.lore || 'Begin without a blessing or its cost.',
-        chosen?.lore ? 'ch-lore' : '',
-      ),
-    );
+    // A price that names a burden, shadow or Vision says what it means in place of the lore
+    // (the card already says "Pact").
+    const chosenTerms = termsOf(chosen).filter((t) => t.term !== 'Pact');
+    if (chosenTerms.length) {
+      const terms = element('span', null, 'ch-term');
+      for (const t of chosenTerms) terms.append(element('b', `${t.term}:`), ` ${t.text} `);
+      lead.append(terms);
+    } else
+      lead.append(
+        element(
+          'span',
+          chosen?.lore || 'Begin without a blessing or its cost.',
+          chosen?.lore ? 'ch-lore' : '',
+        ),
+      );
     return [row];
   }
   /** Difficulty as hanging banners, the chosen mode's terms read beneath. */

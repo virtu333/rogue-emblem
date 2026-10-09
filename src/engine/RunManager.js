@@ -80,7 +80,9 @@ import {
   buildBlessingIndex,
   createSeededRng,
   rollCostForBlessing,
+  rollPriceForBlessing,
   selectBlessingOptionsWithTelemetry,
+  usesPriceCatalog,
 } from './BlessingEngine.js';
 import {
   resolveDifficultyMode,
@@ -157,8 +159,10 @@ import {
   sanitizeStoryFlags,
 } from './EventSystem.js';
 import {
+  addBurden,
   battleDebuffsFor,
   burdenEffectsOnVictory,
+  WOUND_STATS,
   huntedWaveFor,
   isSwornEnemy,
   normalizeBurdens,
@@ -269,6 +273,10 @@ function createBlessingRuntimeModifiers() {
     healingEffectivenessMultiplier: 1,
     weaponArtHpCostDelta: 0,
     enemyLevelDeltas: [],
+    // v3 prices (docs/specs/blessings-v3.md §3): a deploy cap change in one act, and no
+    // church revives for the run.
+    deployCapDeltaByAct: {},
+    churchReviveDisabled: false,
   };
 }
 
@@ -296,6 +304,8 @@ function normalizeBlessingCostEntry(costEntry) {
   if (!isPlainObject(costEntry)) return null;
   const label = typeof costEntry.label === 'string' ? costEntry.label.trim() : '';
   if (!label) return null;
+  // A v3 price says whether it was the blessing's pact (the held list names it so).
+  const kind = costEntry.kind === 'pact' ? 'pact' : null;
   if (!Array.isArray(costEntry.effects) || costEntry.effects.length <= 0) return null;
   const effects = [];
   for (const effect of costEntry.effects) {
@@ -306,7 +316,7 @@ function normalizeBlessingCostEntry(costEntry) {
     effects.push({ type, params: { ...effect.params } });
   }
   if (effects.length <= 0) return null;
-  return { label, effects };
+  return kind ? { label, effects, kind } : { label, effects };
 }
 
 /**
@@ -987,6 +997,7 @@ export class RunManager {
       count: blessingOptionCount,
       forceTier1: true,
       allowTier4: true,
+      difficultyId: this.difficultyId,
       isCostApplicable: (entry) => this.isBlessingCostApplicable(entry),
     });
 
@@ -1141,6 +1152,40 @@ export class RunManager {
     return ids;
   }
 
+  /**
+   * A burden as a blessing's price (Debt, Hunted, Sworn Enemy, Ill Omen, or a Lingering
+   * Injury on the commander), through the same Burdens.addBurden an event uses. A Debt's
+   * amount is already the rung's (BlessingEngine.resolvePriceOption scaled it). An injury's
+   * stat is drawn from the run seed, never Math.random.
+   */
+  _applyBurdenPrice(blessingId, effect) {
+    const { id, ...raw } = effect.params || {};
+    const params = { ...raw };
+    if (id === 'wounded') {
+      const commander = params.target === 'commander' ? findCommander(this.roster || []) : null;
+      delete params.target;
+      if (!commander) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'no_commander',
+        });
+        return;
+      }
+      params.unitUid = commander.unitUid;
+      params.unitName = commander.name;
+      if (!WOUND_STATS.includes(params.stat)) {
+        const rand = this._createBlessingRng(blessingId, 'price:wounded');
+        params.stat = WOUND_STATS[Math.floor(rand() * WOUND_STATS.length)];
+      }
+    }
+    const result = addBurden(this, id, params);
+    this._recordBlessingEvent('run_start', blessingId, effect, {
+      burden: id,
+      applied: result?.ok !== false,
+      ...(result?.ok === false ? { reason: result.reason } : {}),
+    });
+  }
+
   _recordBlessingEvent(stage, blessingId, effect, details = {}) {
     this.blessingHistory.push({
       timestamp: Date.now(),
@@ -1224,6 +1269,21 @@ export class RunManager {
         this._countForgedLordWeapons() === 0
       )
         return false;
+      // Shadow costs nothing with the Eclipse off; a Vision price nothing with no charge to lose.
+      if (effect?.type === 'eclipse_shadow_delta' && this.eclipse?.enabled === false) return false;
+      if (
+        effect?.type === 'vision_delta' &&
+        Number(effect.params?.value) < 0 &&
+        !(Number(this.visionChargesRemaining) > 0)
+      )
+        return false;
+      if (
+        effect?.type === 'burden' &&
+        effect.params?.id === 'wounded' &&
+        effect.params?.target === 'commander' &&
+        !findCommander(this.roster || [])
+      )
+        return false;
     }
     return true;
   }
@@ -1246,6 +1306,21 @@ export class RunManager {
 
   _rollCostForBlessingWithSeed(blessing, blessingId, contextKey = 'run_start', options = {}) {
     if (!blessing || blessing.tier < 2) return null;
+    // v3: the blessing's own prices (or pact). A legacy save's migration (`ignorePact`) keeps
+    // the old pool rules below.
+    if (!options.ignorePact && usesPriceCatalog(this.gameData?.blessings)) {
+      return normalizeBlessingCostEntry(
+        rollPriceForBlessing(
+          this.gameData.blessings,
+          blessing,
+          this._createBlessingRng(blessingId, `cost_roll:${contextKey}`),
+          {
+            difficultyId: this.difficultyId,
+            isApplicable: (entry) => this.isBlessingCostApplicable(entry),
+          },
+        ),
+      );
+    }
     // A pact is the price of a blessing taken now. A legacy save that never stored a
     // price (see _normalizeActiveBlessingsForLoad) keeps the old rolled-pool rules.
     if (isPlainObject(blessing.pact) && !options.ignorePact)
@@ -2309,6 +2384,40 @@ export class RunManager {
       return;
     }
 
+    if (effect.type === 'burden') {
+      this._applyBurdenPrice(blessingId, effect);
+      return;
+    }
+
+    if (effect.type === 'vision_delta') {
+      const before = Number.isFinite(this.visionChargesRemaining)
+        ? Math.max(0, Math.trunc(this.visionChargesRemaining))
+        : 0;
+      this.visionChargesRemaining = Math.max(0, before + Math.trunc(value));
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        before,
+        after: this.visionChargesRemaining,
+      });
+      return;
+    }
+
+    if (effect.type === 'act_deploy_cap_delta') {
+      const act = typeof effect.params.act === 'string' ? effect.params.act : null;
+      const delta = Math.trunc(value);
+      if (act && delta !== 0) {
+        const byAct = (this.blessingRuntimeModifiers.deployCapDeltaByAct ||= {});
+        byAct[act] = (byAct[act] || 0) + delta;
+      }
+      this._recordBlessingEvent('run_start', blessingId, effect, { act, appliedValue: delta });
+      return;
+    }
+
+    if (effect.type === 'church_revive_disabled') {
+      this.blessingRuntimeModifiers.churchReviveDisabled = true;
+      this._recordBlessingEvent('run_start', blessingId, effect, {});
+      return;
+    }
+
     this._recordBlessingEvent('run_start', blessingId, effect, {
       skipped: true,
       reason: 'unhandled_effect_type',
@@ -2321,10 +2430,19 @@ export class RunManager {
     return Math.max(0, 1 + metaDelta + blessingDelta);
   }
 
-  getDeployBonus() {
+  getDeployBonus(actId = this.currentAct) {
     const metaDelta = this.metaEffects?.deployBonus || 0;
     const blessingDelta = this.blessingRuntimeModifiers?.deployCapDelta || 0;
-    return metaDelta + blessingDelta;
+    // A price that narrows one act's deploys (resolveDeployLimits keeps max >= the act's min).
+    const actDelta = Math.trunc(
+      Number(this.blessingRuntimeModifiers?.deployCapDeltaByAct?.[actId]) || 0,
+    );
+    return metaDelta + blessingDelta + actDelta;
+  }
+
+  /** True when a blessing's price closed church revives for this run. */
+  isChurchReviveDisabled() {
+    return this.blessingRuntimeModifiers?.churchReviveDisabled === true;
   }
 
   getActHitBonusForUnit(unit, actId = this.currentAct) {
@@ -5405,6 +5523,15 @@ export class RunManager {
     rm.blessingRuntimeModifiers.weaponArtHpCostDelta = Math.trunc(
       Number(rm.blessingRuntimeModifiers.weaponArtHpCostDelta) || 0,
     );
+    // v3 prices: saves from before have neither.
+    const deployByAct = rm.blessingRuntimeModifiers.deployCapDeltaByAct;
+    rm.blessingRuntimeModifiers.deployCapDeltaByAct = Object.fromEntries(
+      Object.entries(isPlainObject(deployByAct) ? deployByAct : {})
+        .map(([act, delta]) => [act, Math.trunc(Number(delta) || 0)])
+        .filter(([, delta]) => delta !== 0),
+    );
+    rm.blessingRuntimeModifiers.churchReviveDisabled =
+      rm.blessingRuntimeModifiers.churchReviveDisabled === true;
     // Pact enemy levels (strategy-layer): legacy saves have none.
     rm.blessingRuntimeModifiers.enemyLevelDeltas = (
       Array.isArray(rm.blessingRuntimeModifiers.enemyLevelDeltas)

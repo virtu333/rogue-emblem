@@ -25,6 +25,7 @@
 //   recruit in the first enemy phase.
 
 import { loadGameData } from '../tests/testData.js';
+import { resolvePriceOption } from '../src/engine/BlessingEngine.js';
 import { installSeed, restoreMathRandom } from './lib/SeededRNG.js';
 import { RunSimulationDriver } from '../tests/sim/RunSimulationDriver.js';
 import { GameDriver } from '../tests/harness/GameDriver.js';
@@ -1598,9 +1599,17 @@ async function sectionBlessings() {
       if (only && !only.includes(b.id)) continue;
       configs.push([b.id, `T${b.tier} boon`, b.boons]);
     }
-    if (!only || only.includes('costs'))
-      for (const [tier, pool] of Object.entries(catalog.costPools))
-        for (const cost of pool) configs.push([cost.label, `T${tier} cost`, cost.effects]);
+    if (!only || only.includes('costs')) {
+      // v3: the price catalog, each price as the run's rung pays it (a Debt scaled by rung).
+      if (catalog.priceCatalog)
+        for (const [id, entry] of Object.entries(catalog.priceCatalog)) {
+          const price = resolvePriceOption(catalog, id, { difficultyId: opts.difficulty });
+          configs.push([price.label, `${entry.points} pt price`, price.effects]);
+        }
+      else
+        for (const [tier, pool] of Object.entries(catalog.costPools))
+          for (const cost of pool) configs.push([cost.label, `T${tier} cost`, cost.effects]);
+    }
   }
   printHeader(`Blessing power — ${seeds} runs per row (recruit route, ${opts.difficulty})`);
   const results = [];

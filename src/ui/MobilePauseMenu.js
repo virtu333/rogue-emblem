@@ -50,6 +50,8 @@ export function pauseBlessingList(blessings) {
       const price = document.createElement('span');
       price.className = 'mp-blessing-price';
       price.textContent = `${blessing.priceKind || 'Cost'}: ${blessing.price}`;
+      if (blessing.terms?.length)
+        price.title = blessing.terms.map((t) => `${t.term}: ${t.text}`).join('\n');
       item.append(price);
     }
     list.append(item);

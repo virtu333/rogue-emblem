@@ -7,7 +7,7 @@
 
 ## 2. Contract Version
 1. Contract name is `blessings`.
-2. Contract version is `1`.
+2. Contract version is `3` (`BlessingEngine.BLESSINGS_CONTRACT_VERSION`). Version `2` configs (rolled tier `costPools`) still validate and select as before, so old fixtures and saves keep working.
 3. Runtime implementation must expose this version for diagnostics and telemetry.
 
 ## 3. Data Schema
@@ -26,12 +26,23 @@
 13. Optional fields are `weight`, `tags`, `requires`, `excludes`, and `ui`.
 14. Unknown fields are ignored in non-strict mode and rejected in strict mode.
 
+## 3.1 Prices (v3, docs/specs/blessings-v3.md §3)
+1. `priceCatalog` maps a price id to `{ label, points, tags?, effects }`. `points` is the price's weight on one scale; `tags` (`gold`, `xp`, `growth`, `shop`) name what it touches.
+2. A tier II or III blessing lists its candidate `prices`: each a catalog id, or an array of ids paid together. A tier IV blessing carries a fixed `pact`: an array of ids. A tier I blessing has neither.
+3. `tierBands` gives each tier's `[min, max]` price points; every candidate and pact sits inside its tier's band.
+4. A price never shares an effect type with its blessing's boons, and a blessing tagged `gold` never carries a price tagged `gold`.
+5. A Debt price's `owed` is set for Dusk; `debtScale` (rung -> multiplier) scales it when the price is rolled, rounded to 50, and the rolled price stores the amount owed and says it in its label.
+6. Price effect types: every boon effect type, plus `burden` (`{ id, ...params }`, through `Burdens.addBurden`; a `wounded` burden with `target: 'commander'` falls on the commander, its stat drawn from the run seed), `vision_delta`, `act_deploy_cap_delta` (`{ act, value }`), `church_revive_disabled`, `eclipse_shadow_delta` and a negative `shop_price_discount`.
+7. `costPools` stays for saves rolled before v3.
+
 ## 4. Selection Rules
 1. Run start presents 3 to 4 blessing options.
-2. At least one tier-1 option must be present.
-3. Tier-4 appearance is controlled by weighted chance.
-4. Candidate selection uses seeded RNG path only.
-5. Selection output stores only stable IDs and not mutable display text.
+2. At least one tier-1 option must be present: slot 1 is always a free tier I.
+3. v3: each later slot draws a tier by `offerWeights` (never one already drawn), then a blessing of that tier by its `weight`; a blessing at weight 0 is never offered. v2: later slots draw from the whole pool by weight.
+4. A price that would cost the run nothing (shadow with the Eclipse off, Vision with no charge, a deforge with nothing forged) is not rolled.
+5. The offered run's seed is kept for its slot until the run begins, so backing out and returning shows the same offer.
+6. Candidate selection uses seeded RNG path only.
+7. Selection output stores stable IDs and the rolled price (`rolledCost`: `{ label, effects, kind? }`).
 
 ## 5. Application Order
 1. Global modifier order is fixed.

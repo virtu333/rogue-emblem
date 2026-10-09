@@ -1,5 +1,324 @@
 {
-  "version": 2,
+  "version": 3,
+  "debtScale": {
+    "normal": 0.55,
+    "dusk": 1,
+    "hard": 1.07,
+    "lunatic": 1.48
+  },
+  "tierBands": {
+    "2": [
+      1,
+      2
+    ],
+    "3": [
+      2.5,
+      3.5
+    ],
+    "4": [
+      4,
+      6
+    ]
+  },
+  "offerWeights": {
+    "2": 1,
+    "3": 0.8,
+    "4": 0.25
+  },
+  "priceCatalog": {
+    "debt_small": {
+      "label": "Debt: {owed} gold",
+      "points": 2,
+      "tags": [
+        "gold"
+      ],
+      "effects": [
+        {
+          "type": "burden",
+          "params": {
+            "id": "debt",
+            "owed": 1500
+          }
+        }
+      ]
+    },
+    "debt_large": {
+      "label": "Debt: {owed} gold",
+      "points": 3.5,
+      "tags": [
+        "gold"
+      ],
+      "effects": [
+        {
+          "type": "burden",
+          "params": {
+            "id": "debt",
+            "owed": 3000
+          }
+        }
+      ]
+    },
+    "debt_heavy": {
+      "label": "Debt: {owed} gold",
+      "points": 5,
+      "tags": [
+        "gold"
+      ],
+      "effects": [
+        {
+          "type": "burden",
+          "params": {
+            "id": "debt",
+            "owed": 5000
+          }
+        }
+      ]
+    },
+    "hunted": {
+      "label": "Hunted for 2 battles",
+      "points": 2,
+      "effects": [
+        {
+          "type": "burden",
+          "params": {
+            "id": "hunted",
+            "battles": 2
+          }
+        }
+      ]
+    },
+    "sworn_enemy": {
+      "label": "Sworn Enemy",
+      "points": 2,
+      "effects": [
+        {
+          "type": "burden",
+          "params": {
+            "id": "sworn_enemy"
+          }
+        }
+      ]
+    },
+    "ill_omen": {
+      "label": "Ill Omen",
+      "points": 1.5,
+      "effects": [
+        {
+          "type": "burden",
+          "params": {
+            "id": "ill_omen"
+          }
+        }
+      ]
+    },
+    "commander_injury": {
+      "label": "Lingering Injury on your commander",
+      "points": 1,
+      "effects": [
+        {
+          "type": "burden",
+          "params": {
+            "id": "wounded",
+            "target": "commander",
+            "stat": "random"
+          }
+        }
+      ]
+    },
+    "shadow_now": {
+      "label": "+8 shadow now",
+      "points": 1.5,
+      "effects": [
+        {
+          "type": "eclipse_shadow_delta",
+          "params": {
+            "value": 8
+          }
+        }
+      ]
+    },
+    "vision_down": {
+      "label": "-1 Vision charge now",
+      "points": 3,
+      "effects": [
+        {
+          "type": "vision_delta",
+          "params": {
+            "value": -1
+          }
+        }
+      ]
+    },
+    "shops_dearer": {
+      "label": "Shop prices +15%",
+      "points": 1.5,
+      "tags": [
+        "shop"
+      ],
+      "effects": [
+        {
+          "type": "shop_price_discount",
+          "params": {
+            "value": -0.15
+          }
+        }
+      ]
+    },
+    "act1_deploy_down": {
+      "label": "Deploy 1 fewer unit in Act 1",
+      "points": 1.5,
+      "effects": [
+        {
+          "type": "act_deploy_cap_delta",
+          "params": {
+            "act": "act1",
+            "value": -1
+          }
+        }
+      ]
+    },
+    "no_revives": {
+      "label": "Churches cannot revive the fallen this run",
+      "points": 4.5,
+      "effects": [
+        {
+          "type": "church_revive_disabled",
+          "params": {}
+        }
+      ]
+    },
+    "xp_down": {
+      "label": "-10% XP gain from combat",
+      "points": 5,
+      "tags": [
+        "xp"
+      ],
+      "effects": [
+        {
+          "type": "xp_multiplier_delta",
+          "params": {
+            "value": -0.1
+          }
+        }
+      ]
+    },
+    "staff_heal_down": {
+      "label": "Staff healing -20% effective",
+      "points": 1,
+      "effects": [
+        {
+          "type": "healing_effectiveness_delta",
+          "params": {
+            "value": -0.2
+          }
+        }
+      ]
+    },
+    "growths_down": {
+      "label": "All growths -5%",
+      "points": 2.5,
+      "tags": [
+        "growth"
+      ],
+      "effects": [
+        {
+          "type": "all_growths_delta",
+          "params": {
+            "value": -5
+          }
+        }
+      ]
+    },
+    "act1_def_down_1": {
+      "label": "-1 DEF to all units in Act 1",
+      "points": 0.5,
+      "effects": [
+        {
+          "type": "act_stat_delta_all_units",
+          "params": {
+            "act": "act1",
+            "stat": "DEF",
+            "value": -1
+          }
+        }
+      ]
+    },
+    "act1_def_down_2": {
+      "label": "-2 DEF to all units in Act 1",
+      "points": 3,
+      "effects": [
+        {
+          "type": "act_stat_delta_all_units",
+          "params": {
+            "act": "act1",
+            "stat": "DEF",
+            "value": -2
+          }
+        }
+      ]
+    },
+    "act1_hit_down": {
+      "label": "-8 Hit for all units in Act 1",
+      "points": 0.5,
+      "effects": [
+        {
+          "type": "act_hit_bonus",
+          "params": {
+            "act": "act1",
+            "value": -8
+          }
+        }
+      ]
+    },
+    "recruits_level_down": {
+      "label": "Recruits join -1 level",
+      "points": 0.5,
+      "effects": [
+        {
+          "type": "recruit_level_bonus",
+          "params": {
+            "value": -1
+          }
+        }
+      ]
+    },
+    "arts_dearer": {
+      "label": "Weapon arts cost +2 HP",
+      "points": 0.5,
+      "effects": [
+        {
+          "type": "weapon_art_hp_cost_delta",
+          "params": {
+            "value": 2
+          }
+        }
+      ]
+    },
+    "personal_skills_off": {
+      "label": "Personal skills disabled until Act 3",
+      "points": 6,
+      "effects": [
+        {
+          "type": "disable_personal_skills_until_act",
+          "params": {
+            "act": "act3"
+          }
+        }
+      ]
+    },
+    "forge_dearer": {
+      "label": "+20% forge costs",
+      "points": 1.5,
+      "effects": [
+        {
+          "type": "forge_cost_multiplier",
+          "params": {
+            "value": 0.2
+          }
+        }
+      ]
+    }
+  },
   "blessings": [
     {
       "id": "steady_hands",
@@ -25,6 +344,9 @@
       "tier": 1,
       "description": "Immediately gain 750 gold.",
       "weight": 1,
+      "tags": [
+        "gold"
+      ],
       "boons": [
         {
           "type": "gold_delta",
@@ -40,13 +362,13 @@
       "lore": "The levy's send-off prayer: out on two feet, home on two feet.",
       "name": "Blessed Vigor",
       "tier": 1,
-      "description": "Your starting lords gain +2 maximum HP for this run.",
+      "description": "Your starting lords gain +4 maximum HP for this run.",
       "weight": 1,
       "boons": [
         {
           "type": "run_start_max_hp_bonus",
           "params": {
-            "value": 2,
+            "value": 4,
             "scope": "lords"
           }
         }
@@ -68,6 +390,14 @@
             "value": 1
           }
         }
+      ],
+      "prices": [
+        "debt_small",
+        "staff_heal_down",
+        [
+          "ill_omen",
+          "act1_hit_down"
+        ]
       ],
       "costs": []
     },
@@ -92,9 +422,9 @@
       "id": "iron_oath",
       "lore": "I will stand where I am set. Sworn palm-down on the anvil stone.",
       "name": "Iron Oath",
-      "tier": 2,
+      "tier": 3,
       "description": "Your starting lords gain +2 Defense for this run.",
-      "weight": 0.9,
+      "weight": 1,
       "boons": [
         {
           "type": "lord_stat_bonus",
@@ -104,15 +434,22 @@
           }
         }
       ],
+      "prices": [
+        "debt_large",
+        [
+          "hunted",
+          "act1_hit_down"
+        ]
+      ],
       "costs": []
     },
     {
       "id": "scout_blessing",
       "lore": "Pray for one more pair of hands, the wardens say, and one steps out of the trees.",
       "name": "Scout Blessing",
-      "tier": 3,
+      "tier": 2,
       "description": "Deploy +1 unit.",
-      "weight": 0.9,
+      "weight": 1,
       "boons": [
         {
           "type": "deploy_cap_delta",
@@ -120,6 +457,10 @@
             "value": 1
           }
         }
+      ],
+      "prices": [
+        "debt_small",
+        "hunted"
       ],
       "costs": [],
       "excludes": [
@@ -130,9 +471,12 @@
       "id": "scholar_vow",
       "lore": "I will learn as though the term ends tomorrow. For most novices, it did.",
       "name": "Scholar's Vow",
-      "tier": 3,
+      "tier": 4,
       "description": "All growth rates increase by 5 percentage points for this run.",
-      "weight": 0.85,
+      "weight": 1,
+      "tags": [
+        "growth"
+      ],
       "boons": [
         {
           "type": "all_growths_delta",
@@ -140,6 +484,10 @@
             "value": 5
           }
         }
+      ],
+      "pact": [
+        "recruits_level_down",
+        "debt_large"
       ],
       "costs": []
     },
@@ -149,7 +497,7 @@
       "name": "Rally Cry",
       "tier": 2,
       "description": "+3 STR and +3 MAG to all units in Act 1.",
-      "weight": 0.9,
+      "weight": 1,
       "boons": [
         {
           "type": "act_stat_delta_all_units",
@@ -168,15 +516,22 @@
           }
         }
       ],
+      "prices": [
+        "staff_heal_down",
+        "commander_injury"
+      ],
       "costs": []
     },
     {
       "id": "war_veteran",
       "lore": "The old sexton blesses only scarred hands. Show him yours and listen closely.",
       "name": "War Veteran",
-      "tier": 2,
+      "tier": 3,
       "description": "+15% XP gain from combat.",
-      "weight": 0.85,
+      "weight": 1,
+      "tags": [
+        "xp"
+      ],
       "boons": [
         {
           "type": "xp_multiplier_delta",
@@ -184,6 +539,17 @@
             "value": 0.15
           }
         }
+      ],
+      "prices": [
+        "debt_large",
+        [
+          "act1_deploy_down",
+          "shops_dearer"
+        ],
+        [
+          "sworn_enemy",
+          "act1_def_down_1"
+        ]
       ],
       "costs": []
     },
@@ -193,7 +559,7 @@
       "name": "Frugal Smith",
       "tier": 2,
       "description": "Forge costs reduced by 30%, +1 forge per shop.",
-      "weight": 0.85,
+      "weight": 1,
       "boons": [
         {
           "type": "forge_cost_multiplier",
@@ -208,6 +574,10 @@
           }
         }
       ],
+      "prices": [
+        "debt_small",
+        "ill_omen"
+      ],
       "costs": [],
       "excludes": [
         "merchant_bane"
@@ -219,7 +589,7 @@
       "name": "Arsenal Pact",
       "tier": 4,
       "description": "Start with a silver weapon.",
-      "weight": 0.2,
+      "weight": 1,
       "boons": [
         {
           "type": "starting_weapon_tier",
@@ -229,15 +599,21 @@
           }
         }
       ],
+      "pact": [
+        "debt_heavy"
+      ],
       "costs": []
     },
     {
       "id": "pilgrim_coin",
       "lore": "Show the shell token at any roadside stall. Merchants grumble, then discount.",
       "name": "Pilgrim Coin",
-      "tier": 3,
+      "tier": 2,
       "description": "Shops stock +1 item, and everything they sell is 15% off.",
-      "weight": 0.6,
+      "weight": 1,
+      "tags": [
+        "shop"
+      ],
       "boons": [
         {
           "type": "shop_item_count_delta",
@@ -252,6 +628,10 @@
           }
         }
       ],
+      "prices": [
+        "debt_small",
+        "staff_heal_down"
+      ],
       "costs": []
     },
     {
@@ -260,7 +640,10 @@
       "name": "Merchant Bane",
       "tier": 3,
       "description": "+15% battle gold.",
-      "weight": 0.65,
+      "weight": 1,
+      "tags": [
+        "gold"
+      ],
       "boons": [
         {
           "type": "battle_gold_multiplier_delta",
@@ -268,6 +651,17 @@
             "value": 0.15
           }
         }
+      ],
+      "prices": [
+        [
+          "hunted",
+          "act1_def_down_1"
+        ],
+        [
+          "sworn_enemy",
+          "act1_hit_down"
+        ],
+        "vision_down"
       ],
       "costs": [],
       "excludes": [
@@ -280,7 +674,7 @@
       "name": "Nomad's Pact",
       "tier": 3,
       "description": "Units from recruit nodes and events join 2 levels higher.",
-      "weight": 0.6,
+      "weight": 1,
       "boons": [
         {
           "type": "recruit_level_bonus",
@@ -288,6 +682,13 @@
             "value": 2
           }
         }
+      ],
+      "prices": [
+        "debt_large",
+        [
+          "sworn_enemy",
+          "act1_def_down_1"
+        ]
       ],
       "costs": [],
       "excludes": [
@@ -300,7 +701,7 @@
       "name": "Terrain Mastery",
       "tier": 2,
       "description": "+10 avoid and +1 DEF on Forest/Fort tiles.",
-      "weight": 0.6,
+      "weight": 1,
       "boons": [
         {
           "type": "terrain_combat_bonus",
@@ -314,6 +715,10 @@
           }
         }
       ],
+      "prices": [
+        "staff_heal_down",
+        "ill_omen"
+      ],
       "costs": []
     },
     {
@@ -322,7 +727,7 @@
       "name": "Quartermaster Cache",
       "tier": 2,
       "description": "Each starting lord receives 1 Elixir.",
-      "weight": 0.55,
+      "weight": 1,
       "boons": [
         {
           "type": "extra_consumable",
@@ -332,6 +737,10 @@
           }
         }
       ],
+      "prices": [
+        "staff_heal_down",
+        "commander_injury"
+      ],
       "costs": []
     },
     {
@@ -340,7 +749,10 @@
       "name": "Forbidden Tome",
       "tier": 4,
       "description": "Your lords' growth rates +12 for this run.",
-      "weight": 0.2,
+      "weight": 1,
+      "tags": [
+        "growth"
+      ],
       "boons": [
         {
           "type": "targeted_growths_delta",
@@ -360,37 +772,18 @@
           }
         }
       ],
-      "pact": {
-        "label": "Recruits' growth rates -10, all run",
-        "effects": [
-          {
-            "type": "targeted_growths_delta",
-            "params": {
-              "stats": [
-                "HP",
-                "STR",
-                "MAG",
-                "SKL",
-                "SPD",
-                "DEF",
-                "RES",
-                "LCK"
-              ],
-              "value": -10,
-              "scope": "recruits"
-            }
-          }
-        ]
-      },
+      "pact": [
+        "no_revives"
+      ],
       "costs": []
     },
     {
       "id": "blood_forge",
       "lore": "Quench the edge in your own blood. The smith-saints cursed the rite. It works.",
       "name": "Blood Forge",
-      "tier": 4,
+      "tier": 2,
       "description": "Starting lords’ current combat weapons gain up to 2 Might forges, subject to forge limits.",
-      "weight": 0.2,
+      "weight": 1,
       "boons": [
         {
           "type": "starting_weapon_forge_delta",
@@ -398,6 +791,10 @@
             "value": 2
           }
         }
+      ],
+      "prices": [
+        "debt_small",
+        "ill_omen"
       ],
       "costs": []
     },
@@ -407,7 +804,7 @@
       "name": "War Tutelage",
       "tier": 4,
       "description": "Each starting lord learns one random combat skill for this run.",
-      "weight": 0.2,
+      "weight": 1,
       "boons": [
         {
           "type": "starting_random_skill",
@@ -417,6 +814,9 @@
           }
         }
       ],
+      "pact": [
+        "personal_skills_off"
+      ],
       "costs": []
     },
     {
@@ -425,7 +825,7 @@
       "name": "Armory Stash",
       "tier": 4,
       "description": "Two random whetstone forges land on your starting lords' weapons.",
-      "weight": 0.2,
+      "weight": 0,
       "boons": [
         {
           "type": "starting_whetstones",
@@ -433,6 +833,9 @@
             "count": 2
           }
         }
+      ],
+      "pact": [
+        "debt_heavy"
       ],
       "costs": []
     },
@@ -442,7 +845,7 @@
       "name": "Scroll Archive",
       "tier": 4,
       "description": "Gain 2 weapon-art scrolls, drawn from arts that open by Act II.",
-      "weight": 0.2,
+      "weight": 1,
       "boons": [
         {
           "type": "starting_scroll",
@@ -452,17 +855,9 @@
           }
         }
       ],
-      "pact": {
-        "label": "Every weapon art costs +2 HP, all run",
-        "effects": [
-          {
-            "type": "weapon_art_hp_cost_delta",
-            "params": {
-              "value": 2
-            }
-          }
-        ]
-      },
+      "pact": [
+        "debt_heavy"
+      ],
       "costs": []
     },
     {
@@ -471,7 +866,10 @@
       "name": "Focused Curriculum",
       "tier": 3,
       "description": "Starting lords gain +12 percentage points to Speed and Skill growths for this run.",
-      "weight": 0.6,
+      "weight": 1,
+      "tags": [
+        "growth"
+      ],
       "boons": [
         {
           "type": "targeted_growths_delta",
@@ -484,6 +882,10 @@
             "scope": "lords"
           }
         }
+      ],
+      "prices": [
+        "debt_large",
+        "growths_down"
       ],
       "costs": []
     }

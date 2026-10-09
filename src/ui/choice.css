@@ -672,6 +672,19 @@
 .ch-draft[data-count='1'] .ch-card:is([aria-pressed='true'], .is-chosen) {
   transform: none;
 }
+/* The chosen blessing's price, explained (BlessingTerms): in place of its lore. */
+.ch-term {
+  font: 12px/1.35 var(--re-body);
+  color: var(--re-parchment-dim);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ch-term b {
+  color: var(--re-parchment);
+  font-weight: 700;
+}
 .ch-lore {
   font: italic 12px/1.35 var(--re-body);
   color: var(--re-parchment-dim);
