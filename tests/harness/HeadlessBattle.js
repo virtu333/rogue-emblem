@@ -154,6 +154,10 @@ import {
   ESCAPE_EVAC_GOLD_BY_ACT,
 } from '../../src/utils/constants.js';
 import { applyCombatHP, damageUnit, healUnit, setUnitHP } from '../../src/engine/UnitHealth.js';
+import {
+  battleBlessingsAtStart,
+  blessingTurnStartEffects,
+} from '../../src/engine/BattleBlessings.js';
 import { applyBlessingCombatMods, stampTurnAnchors } from '../../src/engine/BlessingCombatMods.js';
 import { resetFortHealStreak, settleTerrainHeal } from '../../src/engine/TerrainHealing.js';
 import { postCombatEffects, runPostCombatEffectsSync } from '../../src/engine/PostCombatEffects.js';
@@ -266,6 +270,7 @@ export class HeadlessBattle {
     this.lastHybridOverrideResult = null;
     this._combatRollSession = null;
     this.runManager = null;
+    this._battleBlessings = null;
     this._reinforcementsPendingThisTurn = false;
     this._villageState = null;
     this.villageRewardItems = [];
@@ -330,6 +335,13 @@ export class HeadlessBattle {
     this.villageRewardItems = [];
     this._zombieTombstones = [];
     this.remainsTargets = [];
+    // The run's earned blessings that act in battle, as BattleScene reads them at a fresh
+    // start (engine/BattleBlessings.js): from the run when one is attached, else from the
+    // numbers a sim hands in `battleParams.battleBlessings`.
+    this._battleBlessings = battleBlessingsAtStart({
+      run: this.runManager,
+      battleParams: this.battleParams,
+    });
 
     // Create player units
     if (this.roster && this.roster.length > 0) {
@@ -1124,8 +1136,12 @@ export class HeadlessBattle {
         this._processTurnStartEffects(army);
       } else {
         // Mark of the Road rolls on every player phase, turn 1 included, as BattleScene's
-        // pipeline does; the effects above have always skipped it here.
-        this._applyTurnStartMarkBuffs(getTurnStartEffects(army, [], this.gameData.marks, turn));
+        // pipeline does; the effects above have always skipped it here. Captain's Whistle
+        // (an earned blessing) is turn 1's alone, after it, as in the scene.
+        this._applyTurnStartMarkBuffs([
+          ...getTurnStartEffects(army, [], this.gameData.marks, turn),
+          ...blessingTurnStartEffects(army, this._battleBlessings, turn),
+        ]);
       }
       this._refreshFogVisibility();
       this.battleState = HEADLESS_STATES.PLAYER_IDLE;
@@ -1252,6 +1268,10 @@ export class HeadlessBattle {
       }
     }
     this._applyTurnStartMarkBuffs(skillEffects);
+    // 1b. Captain's Whistle, as BattleScene.processTurnStartEffects (turn 1 only).
+    this._applyTurnStartMarkBuffs(
+      blessingTurnStartEffects(units, this._battleBlessings, this.turnManager?.turnNumber),
+    );
     // 2. Affixes
     const affixEffects = getTurnStartAffixes(units, this.gameData.affixes);
     for (const effect of affixEffects) {
@@ -1751,6 +1771,7 @@ export class HeadlessBattle {
       skillsData: skills,
       marksData: this.gameData.marks || null,
       imbuesData: this.gameData.imbues || null,
+      ...(this._battleBlessings ? { battleBlessings: this._battleBlessings } : {}),
     };
   }
 
@@ -1777,6 +1798,7 @@ export class HeadlessBattle {
       turnNumber: this.turnManager?.turnNumber,
       skillsData: this.gameData?.skills,
       marksData: this.gameData?.marks,
+      ...(this._battleBlessings ? { battleBlessings: this._battleBlessings } : {}),
     };
   }
 

@@ -192,6 +192,9 @@ export class RunSimulationDriver {
     battleParams.extendedLevelingEnabled =
       this.runManager.getDifficultyModifier?.('extendedLevelingEnabled', false) === true;
     battleParams.blessingXpDelta = this.runManager.getXpMultiplierDelta?.() || 0;
+    // The earned blessings that act in battle (the harness reads them as BattleScene reads
+    // the run's: engine/BattleBlessings.battleBlessingsAtStart).
+    battleParams.battleBlessings = this.runManager.getBattleBlessingEffects?.() ?? null;
     battleParams.fallenUnits = Array.isArray(this.runManager.fallenUnits)
       ? structuredClone(this.runManager.fallenUnits)
       : [];

@@ -35,6 +35,7 @@
         "combat-boundary.spec.js",
         "effects-settings.spec.js",
         "forecast-parity.spec.js",
+        "unbroken-banner-forecast.spec.js",
         "progression-reveal.spec.js",
         "selection-planning.spec.js",
         "hint-reading.spec.js",

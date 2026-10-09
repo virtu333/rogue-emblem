@@ -19,6 +19,7 @@ import { isSleeping, isSilenced, isWounded, removeCondition } from './StatusCond
 import { isEntity } from './EntitySystem.js';
 import { effectiveSkills } from './EffectiveSkills.js';
 import { absorbLethal } from './UnitHealth.js';
+import { bannerReadyFor } from './BattleBlessings.js';
 import { revivalStoneCount } from './RevivalStones.js';
 import { getUnitMark, getUnitMarkFor, markActivation, markProcs } from './MarkSystem.js';
 import {
@@ -1574,6 +1575,8 @@ export function getCombatForecast(
       name: attacker.name,
       hp: attacker.currentHP ?? attacker.stats.HP,
       stones: revivalStoneCount(attacker).remaining,
+      // The Unbroken Banner would hold this side at 1 HP (present only while it would).
+      ...(bannerReadyFor(skillCtx?.battleBlessings, attacker) ? { banner: true } : {}),
       damage: atkDmg,
       hit: atkHit,
       firstHit: atkFirstHit,
@@ -1603,6 +1606,7 @@ export function getCombatForecast(
       // Revival Stones left: a blow that would fell this side breaks one instead and ends
       // the exchange (the projection says "Breaks a bar").
       stones: revivalStoneCount(defender).remaining,
+      ...(bannerReadyFor(skillCtx?.battleBlessings, defender) ? { banner: true } : {}),
       canCounter: defCanCounter,
       damage: defDmg,
       hit: defHit,
@@ -1663,6 +1667,7 @@ function rollStrike(
   drainMaxPerHit = null,
   drainPerHit = 0,
   targetUnit = null,
+  battleBlessings = null,
 ) {
   const attackerSide = strikeSides?.attackerSide || null;
   const targetSide = strikeSides?.targetSide || null;
@@ -1816,8 +1821,13 @@ function rollStrike(
   // it. The refill is the strike's own `targetHPAfter`, so every reader (applyStrikeHP, the
   // deed kill count, the loop's gating, the animation) sees a unit that stood. A unit with
   // no stones is untouched, and its event keeps the keys it always had.
-  const absorbed = targetUnit ? absorbLethal(targetUnit, hpAfter) : null;
-  if (absorbed?.stoneBroken) hpAfter = absorbed.hp;
+  // Then the Unbroken Banner (an earned blessing): a player unit the blow would still fell
+  // stands at 1 HP. Miracle has had its say too, so a Miracle that left 1 HP spends no banner.
+  // Without the blessing (`battleBlessings` null) nothing holds and no key is added.
+  const absorbed = targetUnit
+    ? absorbLethal(targetUnit, hpAfter, { blessings: battleBlessings })
+    : null;
+  if (absorbed?.stoneBroken || absorbed?.bannerHeld) hpAfter = absorbed.hp;
   return {
     type: 'strike',
     attacker: strikerName,
@@ -1836,6 +1846,7 @@ function rollStrike(
     reflectDamage,
     warpRange,
     ...(absorbed?.stoneBroken ? { stoneBroken: true, hpBeforeBreak: targetHP } : {}),
+    ...(absorbed?.bannerHeld ? { bannerHeld: true, hpBeforeHold: targetHP } : {}),
   };
 }
 
@@ -1900,8 +1911,17 @@ export function resolveCombat(
   const events = [];
   // Revival Stones: a strike that breaks a stone ends the exchange. Every loop and phase
   // below reads this, so no further strike of either side is rolled (and no further RNG).
+  // The Unbroken Banner ends it the same way (`heldBar`: the side it held).
   let exchangeEnded = false;
   const brokeBar = { attacker: false, defender: false };
+  const heldBar = { attacker: false, defender: false };
+  const battleBlessings = skillCtx?.battleBlessings ?? null;
+  const endExchangeOn = (evt, targetSide) => {
+    if (evt.stoneBroken) brokeBar[targetSide] = true;
+    else if (evt.bannerHeld) heldBar[targetSide] = true;
+    else return;
+    exchangeEnded = true;
+  };
   let atkHP = attacker.currentHP ?? attacker.stats.HP;
   let defHP = defender.currentHP ?? defender.stats.HP;
   const atkStartHP = atkHP;
@@ -2222,12 +2242,10 @@ export function resolveCombat(
         drainCap,
         drainFlat,
         isAttackingDefender ? defender : attacker,
+        battleBlessings,
       );
       if (firstStrikeApplied) evt.firstStrikeBonus = true;
-      if (evt.stoneBroken) {
-        exchangeEnded = true;
-        brokeBar[targetSide] = true;
-      }
+      endExchangeOn(evt, targetSide);
       if (isAttackingDefender) {
         defHP = evt.targetHPAfter;
         // Sol/Drain heal: striker heals HP
@@ -2291,12 +2309,10 @@ export function resolveCombat(
           drainCap,
           drainFlat,
           isAttackingDefender ? defender : attacker,
+          battleBlessings,
         );
         bonusEvt.adeptStrike = true;
-        if (bonusEvt.stoneBroken) {
-          exchangeEnded = true;
-          brokeBar[targetSide] = true;
-        }
+        endExchangeOn(bonusEvt, targetSide);
         if (isAttackingDefender) {
           defHP = bonusEvt.targetHPAfter;
           atkHP = applyStrikeHeal(bonusEvt, attacker, atkHP);
@@ -2495,7 +2511,8 @@ export function resolveCombat(
       const atkPoison =
         parsePoisonDamage(atkWeapon) + getImbuePostCombatPoison(atkWeapon, skillCtx?.imbuesData);
       // A bar that just broke is a fresh one: the poison waits for a blow that leaves a wound.
-      if (atkPoison > 0 && !brokeBar.defender) {
+      // A unit the banner just held is spared the rest of the combat's harm.
+      if (atkPoison > 0 && !brokeBar.defender && !heldBar.defender) {
         defHP = Math.max(1, defHP - atkPoison); // Poison can't kill (leave at 1 HP)
         poisonEffects.push({ target: 'defender', damage: atkPoison });
       }
@@ -2505,7 +2522,7 @@ export function resolveCombat(
         defCanCounter && defWeapon
           ? parsePoisonDamage(defWeapon) + getImbuePostCombatPoison(defWeapon, skillCtx?.imbuesData)
           : 0;
-      if (defPoison > 0 && !brokeBar.attacker) {
+      if (defPoison > 0 && !brokeBar.attacker && !heldBar.attacker) {
         atkHP = Math.max(1, atkHP - defPoison);
         poisonEffects.push({ target: 'attacker', damage: defPoison });
       }
@@ -2608,6 +2625,9 @@ export function resolveCombat(
     // HP each side entered the combat with (a heal on damage dealt ignores overkill).
     startHP: { attacker: atkStartHP, defender: defStartHP },
     // Revival Stones: which side's bar broke (the exchange ended there). Absent otherwise.
-    ...(exchangeEnded ? { stoneBroken: { ...brokeBar } } : {}),
+    ...(brokeBar.attacker || brokeBar.defender ? { stoneBroken: { ...brokeBar } } : {}),
+    // The Unbroken Banner: which side it held at 1 HP (the exchange ended there). Absent
+    // otherwise. Not a broken bar: BattleXp.combatHpLost counts only the HP down to 1.
+    ...(heldBar.attacker || heldBar.defender ? { bannerHeld: { ...heldBar } } : {}),
   };
 }
