@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { HeadlessBattle } from './HeadlessBattle.js';
 import { loadGameData } from '../testData.js';
+import { stampTurnAnchors } from '../../src/engine/BlessingCombatMods.js';
 
 describe('HeadlessBattle weapon arts', () => {
   it('supports explicit player art selection and applies cost/usage once', () => {
@@ -80,7 +81,7 @@ describe('HeadlessBattle weapon arts', () => {
     expect(attacker._battleWeaponArtUsage?.turn?.[art.id]).toBe(1);
   });
 
-  it('applies affix mods, act hit bonus, and blessing terrain bonuses in skill context', () => {
+  it('applies affix mods, act hit bonus, and the stationary blessing bonus in skill context', () => {
     const gameData = loadGameData();
     const attacker = {
       name: 'Edric',
@@ -118,6 +119,8 @@ describe('HeadlessBattle weapon arts', () => {
     battle.playerUnits = [attacker];
     battle.enemyUnits = [defender];
     battle.npcUnits = [];
+    // The attacker has stood where it is since this turn's player phase began.
+    stampTurnAnchors([attacker], 2);
     battle.grid = {
       cols: 8,
       rows: 8,
@@ -136,7 +139,7 @@ describe('HeadlessBattle weapon arts', () => {
       getBlessingCombatProfile() {
         return {
           actHitBonus: 7,
-          legacyTerrainBonuses: [{ terrains: ['Forest'], avoidBonus: 11, defBonus: 4 }],
+          stationary: { defBonus: 4, avoidBonus: 11 },
         };
       },
     };

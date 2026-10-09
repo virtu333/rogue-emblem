@@ -355,7 +355,6 @@ describe('_runCombatResolution', () => {
       actHitBonus: 0,
       firstStrikeHitBonus: 10,
       stationary: { defBonus: 0, avoidBonus: 0 },
-      legacyTerrainBonuses: [],
     }));
     // A Hit well under 100, so the +10 shows (the bonus is tagged only where it changes the roll).
     const attacker = makeUnit();

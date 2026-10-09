@@ -42,7 +42,6 @@ const PROFILE = {
   actHitBonus: 0,
   firstStrikeHitBonus: 10,
   stationary: { defBonus: 2, avoidBonus: 10 },
-  legacyTerrainBonuses: [],
 };
 
 describe('harness moveTo matches the scene: standing still is not moving', () => {

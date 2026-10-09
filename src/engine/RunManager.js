@@ -173,6 +173,7 @@ import { contractRewardOwedAt, normalizeContract, normalizeContractOwed } from '
 import { settleContract } from './ContractSettlement.js';
 import { everFallenUnits } from './LaidToRest.js';
 import { stampExtraShops } from './ExtraShopPass.js';
+import { BLESSING_BOON_REVISION, migrateHeldBlessingBoons } from './BlessingBoonMigration.js';
 import { createSpecialCharacter } from './SpecialCharacters.js';
 
 // Phaser-specific fields that must be stripped for serialization
@@ -270,7 +271,6 @@ function createBlessingRuntimeModifiers() {
     forgeLimitDelta: 0,
     shopPriceDiscount: 0,
     recruitLevelBonus: 0,
-    terrainCombatBonuses: [],
     // Keen Eye: Hit on the first strike of every combat a unit starts. Hold the Line: DEF and
     // Avoid for a unit that has not moved this turn (engine/BlessingCombatMods.js).
     firstStrikeHitBonus: 0,
@@ -587,6 +587,9 @@ export class RunManager {
     this.blessingHistory = [];
     this.blessingSelectionTelemetry = null;
     this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
+    // Which blessing-boon rules this run's saved numbers follow (BlessingBoonMigration.js):
+    // a new run is current, fromJSON reads the save's own.
+    this.blessingBoonRevision = BLESSING_BOON_REVISION;
     this._runStartBlessingsApplied = false;
     this.runSeed = null;
     this.narrativeSeen = {};
@@ -799,6 +802,7 @@ export class RunManager {
     this.lastBattleCasualtyNotices = [];
     this.battleInProgress = null;
     this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
+    this.blessingBoonRevision = BLESSING_BOON_REVISION; // a new run follows the current rules
     this.battleConfigsByNodeId = {};
     this.ensureRecruitPreviews();
     this.shopStateByNodeId = {};
@@ -875,6 +879,7 @@ export class RunManager {
     this.lastBattleCasualtyNotices = [];
     this.battleInProgress = null;
     this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
+    this.blessingBoonRevision = BLESSING_BOON_REVISION; // a new run follows the current rules
     this.battleConfigsByNodeId = {};
     for (const node of this.nodeMap.nodes) {
       const chapter = this.getPrologueChapter(node.id);
@@ -2537,31 +2542,6 @@ export class RunManager {
       return;
     }
 
-    if (effect.type === 'terrain_combat_bonus') {
-      const terrains = Array.isArray(effect.params.terrains)
-        ? effect.params.terrains.filter((t) => typeof t === 'string')
-        : [];
-      const avoidBonus = Math.trunc(Number(effect.params.avoidBonus) || 0);
-      const defBonus = Math.trunc(Number(effect.params.defBonus) || 0);
-      if (terrains.length === 0 || (avoidBonus === 0 && defBonus === 0)) {
-        this._recordBlessingEvent('run_start', blessingId, effect, {
-          skipped: true,
-          reason: 'invalid_terrain_combat_bonus_params',
-        });
-        return;
-      }
-      if (!Array.isArray(this.blessingRuntimeModifiers.terrainCombatBonuses)) {
-        this.blessingRuntimeModifiers.terrainCombatBonuses = [];
-      }
-      this.blessingRuntimeModifiers.terrainCombatBonuses.push({ terrains, avoidBonus, defBonus });
-      this._recordBlessingEvent('run_start', blessingId, effect, {
-        terrains,
-        avoidBonus,
-        defBonus,
-      });
-      return;
-    }
-
     if (effect.type === 'healing_effectiveness_delta') {
       this.blessingRuntimeModifiers.healingEffectivenessMultiplier += value;
       this._recordBlessingEvent('run_start', blessingId, effect, {
@@ -2845,17 +2825,10 @@ export class RunManager {
     );
   }
 
-  getTerrainCombatBonuses() {
-    return Array.isArray(this.blessingRuntimeModifiers?.terrainCombatBonuses)
-      ? this.blessingRuntimeModifiers.terrainCombatBonuses
-      : [];
-  }
-
   /**
    * What the run's blessings add to a combat, for `engine/BlessingCombatMods.js`: the one
    * read BattleScene and the harness make. The act's Hit (Act 1 price included), Keen
-   * Eye's first-strike Hit, Hold the Line's stationary bonus and, until saves migrate, the
-   * retired terrain boon.
+   * Eye's first-strike Hit and Hold the Line's stationary bonus.
    */
   getBlessingCombatProfile(actId = this.currentAct) {
     const modifiers = this.blessingRuntimeModifiers;
@@ -2867,7 +2840,6 @@ export class RunManager {
         defBonus: Math.trunc(stationary?.defBonus || 0),
         avoidBonus: Math.trunc(stationary?.avoidBonus || 0),
       },
-      legacyTerrainBonuses: this.getTerrainCombatBonuses(),
     };
   }
 
@@ -5449,6 +5421,7 @@ export class RunManager {
       lastBattleReport: this.lastBattleReport || null,
       eclipse: this.eclipse || createEclipseState(),
       itemNamesRevision: ITEM_NAMES_REVISION,
+      blessingBoonRevision: this.blessingBoonRevision,
     };
   }
 
@@ -5902,9 +5875,6 @@ export class RunManager {
     rm.blessingRuntimeModifiers.forgeLimitDelta = Math.trunc(
       Number(rm.blessingRuntimeModifiers.forgeLimitDelta) || 0,
     );
-    if (!Array.isArray(rm.blessingRuntimeModifiers.terrainCombatBonuses)) {
-      rm.blessingRuntimeModifiers.terrainCombatBonuses = [];
-    }
     rm.blessingRuntimeModifiers.firstStrikeHitBonus = Math.trunc(
       Number(rm.blessingRuntimeModifiers.firstStrikeHitBonus) || 0,
     );
@@ -6145,6 +6115,24 @@ export class RunManager {
     )
       ? rm.blessingRuntimeModifiers.disablePersonalSkillsUntilAct
       : null;
+    // Blessings held across the v3 reworks (BlessingBoonMigration.js): handlers never re-run
+    // on load, so an old boon's saved numbers are converted here, once, and the save stamped.
+    // The prologue holds no blessings and is never migrated. The runtime modifiers and the
+    // history are shared with the parsed save, so they are copied first: loading the same
+    // object twice cannot migrate twice.
+    {
+      const savedRevision = Number(saved.blessingBoonRevision);
+      rm.blessingBoonRevision = Number.isFinite(savedRevision)
+        ? Math.max(0, Math.trunc(savedRevision))
+        : 0;
+      if (rm.blessingBoonRevision < BLESSING_BOON_REVISION) {
+        rm.blessingRuntimeModifiers = structuredClone(rm.blessingRuntimeModifiers);
+        rm.blessingHistory = structuredClone(rm.blessingHistory);
+        delete rm.blessingRuntimeModifiers.terrainCombatBonuses; // retired with its blessing
+        if (rm.mode !== PROLOGUE_RUN_MODE) migrateHeldBlessingBoons(rm);
+        rm.blessingBoonRevision = BLESSING_BOON_REVISION;
+      }
+    }
     rm._runStartBlessingsApplied = true;
     if (rm.nodeMap?.nodes && rm.battleConfigsByNodeId) {
       for (const node of rm.nodeMap.nodes) {

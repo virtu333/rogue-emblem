@@ -41,7 +41,6 @@ const PROFILE = {
   actHitBonus: 0,
   firstStrikeHitBonus: 10,
   stationary: { defBonus: 2, avoidBonus: 10 },
-  legacyTerrainBonuses: [],
 };
 const player = (extra = {}) => ({ faction: 'player', col: 3, row: 4, ...extra });
 const holding = (extra = {}) => {
@@ -170,16 +169,15 @@ describe('blessingCombatModsFor', () => {
     });
   });
 
-  it('still reads a save-era terrain boon (Forest and Fort) until it migrates', () => {
-    const legacy = {
+  it('ignores a retired terrain list on a profile: Forest and Fort give nothing now', () => {
+    // The terrain boon was retired once saves migrated (BlessingBoonMigration); a stray
+    // legacyTerrainBonuses key must not bring it back.
+    const stale = {
       ...PROFILE,
       legacyTerrainBonuses: [{ terrains: ['Forest'], avoidBonus: 10, defBonus: 1 }],
     };
     expect(
-      blessingCombatModsFor(legacy, side(player(), { terrain: { name: 'Forest' } })),
-    ).toMatchObject({ avoidBonus: 10, defBonus: 1 });
-    expect(
-      blessingCombatModsFor(legacy, side(player(), { terrain: { name: 'Plain' } })),
+      blessingCombatModsFor(stale, side(player(), { terrain: { name: 'Forest' } })),
     ).toMatchObject({ avoidBonus: 0, defBonus: 0 });
   });
 

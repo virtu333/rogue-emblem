@@ -6,8 +6,7 @@
 // The `profile` is `RunManager.getBlessingCombatProfile()`:
 //   { actHitBonus,                    // today's act hit (Steady-style bonus, Act 1 price)
 //     firstStrikeHitBonus,            // Keen Eye
-//     stationary: { defBonus, avoidBonus },   // Hold the Line
-//     legacyTerrainBonuses }          // saves from before Hold the Line (retired by the migration)
+//     stationary: { defBonus, avoidBonus } }   // Hold the Line
 // Only player-faction units ever receive anything; enemies and NPC allies get zeros.
 
 /**
@@ -69,16 +68,6 @@ export function blessingCombatModsFor(profile, side) {
     out.avoidBonus += Math.trunc(stationary.avoidBonus || 0);
   }
 
-  // Saves from before Hold the Line still carry the old terrain boon until they migrate.
-  const terrainName = side.terrain?.name;
-  if (terrainName && Array.isArray(profile.legacyTerrainBonuses)) {
-    for (const bonus of profile.legacyTerrainBonuses) {
-      if (Array.isArray(bonus?.terrains) && bonus.terrains.includes(terrainName)) {
-        out.avoidBonus += bonus.avoidBonus || 0;
-        out.defBonus += bonus.defBonus || 0;
-      }
-    }
-  }
   return out;
 }
 

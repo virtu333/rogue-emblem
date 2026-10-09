@@ -3855,7 +3855,7 @@ describe('blessing run-start effect application', () => {
     rm.applyRunStartBlessingEffects();
 
     expect(rm.getBlessingCombatProfile().stationary).toEqual({ defBonus: 2, avoidBonus: 10 });
-    expect(rm.getTerrainCombatBonuses()).toEqual([]);
+    expect(rm.blessingRuntimeModifiers.terrainCombatBonuses).toBeUndefined();
     const restored = RunManager.fromJSON(rm.toJSON(), loadGameData());
     expect(restored.getBlessingCombatProfile().stationary).toEqual({ defBonus: 2, avoidBonus: 10 });
   });
