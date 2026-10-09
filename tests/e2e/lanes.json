@@ -47,6 +47,7 @@
         "seen-dialogue.spec.js",
         "enemy-healing.spec.js",
         "enemy-planning.spec.js",
+        "enemy-phase-pacing.spec.js",
         "threat-pins.spec.js",
         "ceremonies.spec.js",
         "zombie-remains.spec.js",
