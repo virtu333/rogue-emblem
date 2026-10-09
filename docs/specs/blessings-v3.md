@@ -143,9 +143,9 @@ come from the conjoint and the economy numbers, on a 0.5-6 scale (*provisional*)
 |---|---|---|
 | Personal skills off until Act 3 | 6 | tier IV only |
 | −10% XP | 5 | |
-| Debt IV (Dusk 4,500) | 5 | about −15% battle gold (§3.1) |
-| Debt III (Dusk 2,700) | 3.5 | about −10% battle gold |
-| Debt II (Dusk 1,300) | 2 | about −5% battle gold |
+| Debt IV (Dusk 5,000) | 5 | about −15% battle gold (§3.1) |
+| Debt III (Dusk 3,000) | 3.5 | about −10% battle gold |
+| Debt II (Dusk 1,500) | 2 | about −5% battle gold |
 | −1 Vision (until the next act) | 3 | base is 1, so this is every rewind for an act |
 | −2 DEF all units, Act 1 | 3 | |
 | −1 deploy, Act 1 | 2.5 | new |
@@ -204,13 +204,15 @@ tier IV one runs into Act 2.
 
 | Tier | Points | Replaces | First Light | Dusk | Nightfall | Black Sun |
 |---|---|---|---|---|---|---|
-| Debt II | 2 | ≈ −5% | 650 | 1,300 | 1,400 | 1,850 |
-| Debt III | 3.5 | ≈ −10% | 1,450 | 2,700 | 2,900 | 4,050 |
-| Debt IV | 5 | ≈ −15% | 2,350 | 4,500 | 4,850 | 6,700 |
+| Debt II | 2 | ≈ −5% | 850 | 1,500 | 1,600 | 2,200 |
+| Debt III | 3.5 | ≈ −10% | 1,650 | 3,000 | 3,200 | 4,450 |
+| Debt IV | 5 | ≈ −15% | 2,750 | 5,000 | 5,350 | 7,400 |
 
-That is the old tier II price (−15% gold) moved to tier IV, which matches the conjoint's
-finding that tier II was overpriced. Store one Dusk amount per tier and a blessing
-`debtScale` by rung of about 0.55 / 1 / 1.07 / 1.48. The events' `costScale`
+Built amounts (review: late gold still buys strong items, so they sit about 10% above the
+by-act reading, between it and the −3% a battle reading). That is the old tier II price
+(−15% gold) moved to tier IV, which matches the conjoint's finding that tier II was
+overpriced. One Dusk amount per tier is stored in the catalog, with `debtScale` by rung
+0.55 / 1 / 1.07 / 1.48, rounded to 50. The events' `costScale`
 (1 / 1 / 1.25 / 1.5) prices event fees, a different thing, so keep it separate. Re-run
 `sim:debt` when the battle-gold economy changes.
 
@@ -234,12 +236,13 @@ a trap.
   its tier's band and a gold price on a gold boon.
 - Each tier IV carries a **fixed pact** that fits its story.
 - **Offer shape:** slot 1 stays a free tier I (the safe pick). Slots 2-3 draw tiers II-IV
-  with weights II 1.0, III 0.8, IV 0.35, and **never share a tier**: every offer is a free
-  pick, a smaller bet and a bigger one. A IV then shows in about 30% of offers.
+  with weights II 1.0, III 0.8, IV 0.25, and **never share a tier**: every offer is a free
+  pick, a smaller bet and a bigger one, shown in that order. A IV then shows in about 32%
+  of offers (0.35 gave 40%).
 - **Mid-run grants** (church vow, Twin Altar) stay boons-only and are limited to tier I
   and the "shape" cards (§5.1), so a church never hands out a IV's boon without its pact.
-- Fix the free re-roll: the offer's seed is the run seed, kept from the first time the
-  shrine is shown.
+- Fix the free re-roll: the offered run's seed is kept in the game registry for its slot
+  until the run begins (a page reload still draws afresh).
 
 ## 4. The current 23
 
@@ -441,14 +444,19 @@ is random in what it gives and clear about what it takes.
   - the boss reward and the special church get the earned-blessing pick;
   - the Compendium gets an Earned section.
 - The prologue holds no blessings (unchanged).
-- **Terms explained where they appear.** A blessing card or list row that names a burden or
-  rule (Debt, Hunted, Sworn Enemy, Ill Omen, Lingering Injury, Pact, shadow, Vision, par)
-  gets the existing `ui/infoAffordance.js` treatment: a small ⓘ with a tooltip on hover,
-  press-and-hold on touch, the full text on tap. The definitions live in one `BLESSING_TERMS`
-  table beside the burden catalog (`events.json` `burdens`, whose `line` is already the
-  player's one-sentence definition). Every surface uses it: the shrine's offer cards, the
-  held list in the pause menu, the church and event pages, the boss pick, the Compendium and
-  Home Base. A test fails if any blessing or price text names a term the table lacks.
+- **Terms explained where they appear** (`engine/BlessingTerms.js`). A price that names a
+  burden or rule (Debt, Hunted, Sworn Enemy, Ill Omen, Lingering Injury, Pact, shadow,
+  Vision) gets its sentence. The burdens' sentences come from their catalog (`events.json`
+  `burdens`) with the rung's numbers (Debt's garnish, Ill Omen's battles).
+  - The shrine's cards are buttons, so a nested ⓘ is out. The chosen card spells its price's
+    terms out in the footer in place of its lore, readable on touch and desktop alike. Each
+    card's price carries them as hover text.
+  - The held list in the pause menu carries them on the price row. The burden list beside it
+    already shows what's owed.
+  - Later surfaces (church and event pages, the boss pick, the Compendium, Home Base) use the
+    same table, through `ui/infoAffordance.js` where the surface isn't a button.
+  - A test fails if a burden in the catalog has no sentence, or a price that is a burden,
+    shadow or Vision doesn't name its term.
 
 ## 9. Measuring it, and the order to build it
 
