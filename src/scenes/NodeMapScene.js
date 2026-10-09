@@ -28,6 +28,7 @@ import { DialogueOverlay } from '../ui/DialogueOverlay.js';
 import { MUSIC, getMusicKey, pickTrack } from '../utils/musicConfig.js';
 import { pushRunSave, deleteRunSave } from '../cloud/CloudSync.js';
 import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
+import { describeActStartGrants } from '../engine/ActStartNotice.js';
 import { DEBUG_MODE } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
 import {
@@ -636,6 +637,10 @@ export class NodeMapScene extends Phaser.Scene {
 
   async _showPendingNodeMapHints(lifecycleGeneration = this._sceneLifecycleGeneration) {
     if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
+    // What a blessing paid as this act began (Advance Pay, Quartermaster Cache): one line,
+    // queued ahead of any hint below.
+    const paidAtActStart = describeActStartGrants(this.runManager?.takeActStartNotice?.());
+    if (paidAtActStart) void showMinorHint(this, paidAtActStart);
     const pending = this._pendingNodeMapHints;
     this._pendingNodeMapHints = null;
     if (!pending) return;
@@ -2447,10 +2452,13 @@ export class NodeMapScene extends Phaser.Scene {
         });
       } else {
         this.showActCompleteBanner(async () => {
-          const { unlockedArtIds, displacedSkills } = rm.advanceAct();
+          const { unlockedArtIds, displacedSkills, actStartGrants } = rm.advanceAct();
+          rm.takeActStartNotice?.(); // shown here, so the next map entry does not repeat it
           this.persistRunSave();
           this.drawMap();
           this.showWeaponArtsUnlockedBanner(unlockedArtIds);
+          const paidAtActStart = describeActStartGrants(actStartGrants);
+          if (paidAtActStart) void showMinorHint(this, paidAtActStart);
           await this._showSkillDisplacementWarning(displacedSkills);
         });
       }

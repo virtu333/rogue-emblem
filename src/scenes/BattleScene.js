@@ -30,6 +30,7 @@ import { presentationText, isolateBattleTextFactory } from '../utils/presentatio
 import { safeBattlePresentation } from '../ui/safeBattlePresentation.js';
 import { presentTeleporterWarp } from '../ui/WarpPresentation.js';
 import { hasBattleDefeat } from '../engine/BattleDefeat.js';
+import { applyBlessingCombatMods, stampTurnAnchors } from '../engine/BlessingCombatMods.js';
 import {
   isRoutComplete,
   isRoutFieldClear,
@@ -37,7 +38,11 @@ import {
   routObjectiveLabel,
 } from '../engine/RoutObjective.js';
 import { battleSpeed, waitDuration, waitTween } from '../utils/combatTiming.js';
-import { getWeaponArtIds, killMoveRefreshesActor } from '../engine/WeaponArtSystem.js';
+import {
+  getWeaponArtIds,
+  killMoveRefreshesActor,
+  weaponArtRunOptions,
+} from '../engine/WeaponArtSystem.js';
 import {
   canInspectUnit,
   carriedItemInfo,
@@ -461,6 +466,7 @@ function necromancyOf(scene) {
 /** Reset per-battle state on a unit at deploy time. */
 export function resetUnitForBattle(unit) {
   delete unit._legendaryGraceTurn;
+  delete unit._turnAnchor;
   unit._removing = false;
   unit.hasMoved = false;
   unit._movementCommitted = false;
@@ -481,6 +487,11 @@ function resetPlayerUnitsForTurn(scene, turn) {
     u.hasActed = false;
     u._movementSpent = 0;
     u._gambitUsedThisTurn = false;
+  }
+  // Hold the Line reads where each unit stood as this player phase began. Stamped before any
+  // presentation call so a throw in the undim below cannot leave a unit without an anchor.
+  stampTurnAnchors(scene.playerUnits, turn);
+  for (const u of scene.playerUnits) {
     resetWeaponArtTurnUsage(u, { turnNumber: turn });
     scene.undimUnit(u);
   }
@@ -7695,8 +7706,6 @@ export class BattleScene extends Phaser.Scene {
       affixes,
       masteryCtx,
     );
-    atkMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(attacker) || 0;
-    defMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(defender) || 0;
     const atkTimedBuffMods = this._getTimedWeaponArtCombatBuffMods(attacker);
     const defTimedBuffMods = this._getTimedWeaponArtCombatBuffMods(defender);
     atkMods.hitBonus += atkTimedBuffMods.hitBonus || 0;
@@ -7716,21 +7725,16 @@ export class BattleScene extends Phaser.Scene {
     this._applyAccessoryPhaseCombatMods(attacker, atkMods, rollSession);
     this._applyAccessoryPhaseCombatMods(defender, defMods, rollSession);
 
-    // Blessing terrain combat bonuses
-    const terrainBonuses = this.runManager?.getTerrainCombatBonuses?.() || [];
-    if (terrainBonuses.length > 0) {
-      const applyTerrainBonus = (mods, unit, terrain) => {
-        if (!terrain?.name || unit?.faction !== 'player') return;
-        for (const bonus of terrainBonuses) {
-          if (Array.isArray(bonus.terrains) && bonus.terrains.includes(terrain.name)) {
-            mods.avoidBonus += bonus.avoidBonus || 0;
-            mods.defBonus += bonus.defBonus || 0;
-          }
-        }
-      };
-      applyTerrainBonus(atkMods, attacker, atkTerrain);
-      applyTerrainBonus(defMods, defender, defTerrain);
-    }
+    // Blessings (act Hit, Keen Eye, Hold the Line): one shared rule for scene and harness.
+    applyBlessingCombatMods(atkMods, defMods, {
+      profile: this.runManager?.getBlessingCombatProfile?.() ?? null,
+      attacker,
+      defender,
+      atkTerrain,
+      defTerrain,
+      turn: this.turnManager?.turnNumber,
+      alliesOf: getAllies,
+    });
 
     const atkWeaponArtMods = weaponArt ? getWeaponArtCombatMods(weaponArt) : null;
 
@@ -8108,7 +8112,7 @@ export class BattleScene extends Phaser.Scene {
     // Apply weapon art cost if selected
     if (selectedArt) {
       const artCostOpts = {
-        weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+        ...weaponArtRunOptions(this.runManager),
         marksData: this.gameData?.marks,
       };
       const artCost = applyWeaponArtCost(attacker, selectedArt, artCostOpts);
@@ -10333,7 +10337,9 @@ export class BattleScene extends Phaser.Scene {
       for (const u of this.playerUnits || []) {
         u.hasMoved = false;
         u.hasActed = false;
+        u._movementSpent = 0;
       }
+      stampTurnAnchors(this.playerUnits || [], playerTurn);
     }
     this.captureVisionSnapshot?.();
     this.updateVisionHud?.();

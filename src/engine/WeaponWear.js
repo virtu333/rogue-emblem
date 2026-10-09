@@ -159,12 +159,14 @@ export function repairPrice(weapon, discountRatio = 0) {
  * Pure about gold: the caller charges `cost`.
  * @param {object} weapon
  * @param {number} [discountRatio=0] - the shop's forge discount (0-1)
+ * @param {{ free?: boolean }} [options] - `free`: a repair that costs nothing (Smith's Mark)
  * @returns {{ success: boolean, cost?: number, stat?: string }}
  */
-export function repairWeapon(weapon, discountRatio = 0) {
+export function repairWeapon(weapon, discountRatio = 0, { free = false } = {}) {
   if (!isWorn(weapon)) return { success: false };
-  const cost = repairPrice(weapon, discountRatio);
-  if (cost < 0) return { success: false };
+  const listed = repairPrice(weapon, discountRatio);
+  if (listed < 0) return { success: false };
+  const cost = free ? 0 : listed;
 
   const worn = steps(weapon);
   const step = worn.pop();

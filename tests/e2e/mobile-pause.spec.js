@@ -93,6 +93,7 @@ test('held blessings and burdens list under the note and never push an action ou
 }) => {
   await battle(page);
   // A run holding a pact blessing, two mid-run ones and two burdens: both lists at once.
+  // (A mid-run grant is never a pact or intrinsic card: addBlessingMidRun refuses those.)
   await page.evaluate(() => {
     const rm = window.__emblemRogueGame.scene.getScene('Battle').runManager;
     const tome = rm.gameData.blessings.blessings.find((b) => b.id === 'forbidden_tome');
@@ -109,7 +110,7 @@ test('held blessings and burdens list under the note and never push an action ou
       },
     ];
     rm.addBlessingMidRun('field_medic');
-    rm.addBlessingMidRun('scholar_vow');
+    rm.addBlessingMidRun('iron_oath');
     rm.burdens = [
       { id: 'ill_omen', battles: 3, extraShadow: 1 },
       { id: 'debt', owed: 450, garnish: 0.5 },

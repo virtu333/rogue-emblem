@@ -47,6 +47,7 @@ import {
   getEffectiveWeaponArtHpCost,
   getWeaponArtTargeting,
   recordWeaponArtUse,
+  weaponArtRunOptions,
 } from '../engine/WeaponArtSystem.js';
 import { AreaPreviewController } from './AreaPreviewController.js';
 import { BattleBeatsController } from './BattleBeatsController.js';
@@ -103,8 +104,7 @@ export class AreaTargetingController {
 
   _costOptions() {
     return {
-      weaponArtHpCostDelta:
-        this.scene.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+      ...weaponArtRunOptions(this.scene.runManager),
       marksData: this.scene.gameData?.marks,
     };
   }

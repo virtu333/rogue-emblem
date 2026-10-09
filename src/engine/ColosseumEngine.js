@@ -25,6 +25,7 @@ import {
   getCombatWeapons,
 } from './UnitManager.js';
 import { applyRecruitJoinBonus } from './RecruitScaling.js';
+import { applyRecruitLevelBonus } from './RecruitJoinLevel.js';
 import { isNecromancyClass } from './Necromancy.js';
 
 /** Apply class abilities to new mercenaries and older persisted boards. */
@@ -358,6 +359,10 @@ function parseMinRange(weapon) {
  *   mercenaries get the recruit stat/growth upgrades and Skilled Recruits like every recruit
  * @param {{ runSeed?: number, marksData?: Array }|null} [markContext] the Mark roll
  *   (UnitManager.createRecruitUnit): run seed and data/marks.json; none = no Marks
+ * @param {{ recruitLevelBonus?: number }} [options] `recruitLevelBonus`: Nomad's Pact, levels each
+ *   mercenary is raised after it is built (engine/RecruitJoinLevel.js, a stream keyed by run seed
+ *   and name, never `rng`: the board's classes, names and prices are the same with and without
+ *   it). The weapon tier below keeps reading the level before the bonus.
  * @returns {Array<{ unit: Object, hireCost: number }>}
  */
 export function generateMercenaryCandidates(
@@ -374,6 +379,7 @@ export function generateMercenaryCandidates(
   existingNames = [],
   metaEffects = null,
   markContext = null,
+  { recruitLevelBonus = 0 } = {},
 ) {
   const mercConfig = colosseumData?.mercenaries;
   // What every recruit source gets (RecruitNodeSystem.buildRecruitNodeUnit): seasoned
@@ -505,6 +511,12 @@ export function generateMercenaryCandidates(
       // after hire, not only after save migration repairs them on reload.
       // Match the loader's current/base-class order and use the shared skill cap.
       grantMercenaryClassSkills(unit, classesData, skillsData);
+
+      // Nomad's Pact: the levels it adds, on the recruit's own stream.
+      applyRecruitLevelBonus(unit, recruitLevelBonus, {
+        classes: classesData,
+        runSeed: markContext?.runSeed,
+      });
 
       // Apply stat bonuses: +value to N random stats
       const bonusCount = mercConfig.statBonus?.count || 2;
