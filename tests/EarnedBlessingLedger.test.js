@@ -62,6 +62,22 @@ describe('who is owed a pick', () => {
     }
   });
 
+  it('completeBattle pays the boss Vision on exactly the node the pick predicate names', () => {
+    // One predicate: the Vision grant in completeBattle reads isActBossVictory, so the two
+    // cannot disagree about which victory is the act boss's.
+    const visionAfter = (pickNode) => {
+      const rm = freshRun(33);
+      const node = pickNode(rm);
+      rm.currentNodeId = node.id;
+      const before = rm.visionChargesRemaining;
+      rm.completeBattle(rm.getRoster(), node.id, 0, { turnCount: 5, turnPar: 7 });
+      return { gained: rm.visionChargesRemaining - before, boss: isActBossVictory(rm, node) };
+    };
+    expect(visionAfter(bossOf)).toEqual({ gained: 1, boss: true });
+    const plain = visionAfter((rm) => rm.nodeMap.nodes.find((n) => n.type === 'battle'));
+    expect(plain).toEqual({ gained: 0, boss: false });
+  });
+
   it('an elite captain, an event battle and an ambush are not a boss node', () => {
     const rm = freshRun();
     const first = rm.nodeMap.nodes.find((n) => n.type === 'battle');
@@ -240,6 +256,21 @@ describe('the odds an act boss offers anything (D4)', () => {
         weightByHeld: [...DEFAULT_EARNED_OFFER.weightByHeld],
       });
   });
+
+  it('one bad weight rejects the whole array (dropping it would shift the odds a place)', () => {
+    // [1, 'x', 0.5] must not read as [1, 0.5]: that would make "two held" the 0.5 odds.
+    for (const bad of [
+      [1, 'x', 0.5],
+      [1, null, 0.5],
+      [1, 2, 0.5],
+      [1, -0.1, 0.5],
+      [1, NaN, 0.5],
+    ])
+      expect(earnedOfferConfig({ earnedOffer: { actBoss: 2, weightByHeld: bad } })).toEqual({
+        actBoss: 2,
+        weightByHeld: [...DEFAULT_EARNED_OFFER.weightByHeld],
+      });
+  });
 });
 
 describe('preparing, saving and reloading the pick', () => {
@@ -402,11 +433,80 @@ describe('reading a saved ledger back', () => {
       b: null,
       c: { ...good, status: 'weird' },
       d: { ...good, offered: [] },
-      e: { ...good, status: 'taken', chosen: null },
       f: { ...good, offered: 'second_dawn' },
       ok: good,
     });
     expect(Object.keys(out)).toEqual(['ok']);
+  });
+
+  it('a taken pick with no recorded choice stays taken: never prepared a second time', () => {
+    const out = sanitizeEarnedBlessingPicks({ act1: { ...good, status: 'taken', chosen: null } });
+    expect(out.act1).toMatchObject({ status: 'taken', chosen: null });
+  });
+
+  describe('read against the catalog and the run', () => {
+    const known = { earnedIds: EARNED_IDS, actSequence: ['act1', 'act2', 'act3', 'finalBoss'] };
+
+    it('an offered id the catalog does not know as an earned blessing is dropped', () => {
+      const out = sanitizeEarnedBlessingPicks(
+        {
+          act1: { ...good, offered: ['second_dawn', 'iron_oath', 'gone', 'ember_lantern'] },
+        },
+        known,
+      );
+      expect(out.act1.offered).toEqual(['second_dawn', 'ember_lantern']);
+      expect(out.act1.status).toBe('owed');
+    });
+
+    it('an owed pick with nothing left to offer becomes none, and is not rolled again', () => {
+      const out = sanitizeEarnedBlessingPicks(
+        { act1: { ...good, offered: ['gone', 'iron_oath'] } },
+        known,
+      );
+      expect(out.act1).toMatchObject({ status: 'none', offered: [], chosen: null });
+    });
+
+    it('a taken pick keeps its record even if the catalog lost the card', () => {
+      const out = sanitizeEarnedBlessingPicks(
+        { act1: { ...good, offered: ['gone'], status: 'taken', chosen: 'gone' } },
+        known,
+      );
+      expect(out.act1).toMatchObject({ status: 'taken', chosen: 'gone' });
+    });
+
+    it('an act the run does not have has no entry', () => {
+      const out = sanitizeEarnedBlessingPicks(
+        { act1: good, act9: { ...good, actId: 'act9' }, act4: { ...good, actId: 'act4' } },
+        known,
+      );
+      expect(Object.keys(out)).toEqual(['act1']);
+    });
+
+    it('a fromJSON load reads the saved ledger against its own catalog and acts', () => {
+      const { rm, entry } = owedRun();
+      const saved = JSON.parse(JSON.stringify(rm.toJSON()));
+      saved.earnedBlessingPicks.act1.offered = ['iron_oath', entry.offered[0], 'gone'];
+      saved.earnedBlessingPicks.act9 = { ...saved.earnedBlessingPicks.act1, actId: 'act9' };
+      const back = RunManager.fromJSON(saved, data);
+      expect(Object.keys(back.earnedBlessingPicks)).toEqual(['act1']);
+      expect(back.earnedBlessingPicks.act1.offered).toEqual([entry.offered[0]]);
+
+      saved.earnedBlessingPicks.act1.offered = ['iron_oath'];
+      const none = RunManager.fromJSON(saved, data);
+      expect(none.earnedBlessingPicks.act1.status).toBe('none');
+      expect(earnedPickOwed(none)).toBeNull();
+      expect(prepareEarnedBlessingPick(none, bossOf(none)).status).toBe('none');
+    });
+
+    it('a corrupt taken entry is not re-prepared after a load (no second pick)', () => {
+      const { rm } = owedRun();
+      const saved = JSON.parse(JSON.stringify(rm.toJSON()));
+      Object.assign(saved.earnedBlessingPicks.act1, { status: 'taken', chosen: null });
+      const back = RunManager.fromJSON(saved, data);
+      expect(back.earnedBlessingPicks.act1).toMatchObject({ status: 'taken', chosen: null });
+      expect(actBossPickDue(back, bossOf(back))).toBe(false);
+      expect(earnedPickOwed(back)).toBeNull();
+    });
   });
 
   it('cleans what it keeps: duplicate and non-string offers go, a stray chosen goes', () => {

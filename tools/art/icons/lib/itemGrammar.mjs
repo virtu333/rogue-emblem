@@ -669,10 +669,11 @@ export const BLESSING_ICON_REUSE = Object.freeze({
   bloodless_art: 'blood-gem',
   // Earned blessings (docs/specs/blessings-v3.md §6) have no tier: each wears a picture with no
   // tier halo of its own (a banner, the Hollow Sun, a war horn) and the Legend rim; Ember
-  // Lantern shares the Scout's Blessing lantern, the only lantern in the atlas.
+  // Lantern wears the Phoenix Brooch (an ember flame that mends), so it no longer shares the
+  // lantern that Scout Blessing and Slow Fuse already wear (the atlas has only that one lantern).
   unbroken_banner: 'upgrade-commander_choice',
   second_dawn: 'upgrade-vision_charges_2',
-  ember_lantern: 'blessing-scout_blessing',
+  ember_lantern: 'phoenix-brooch',
   captains_whistle: 'upgrade-heros_call',
 });
 

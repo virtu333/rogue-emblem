@@ -297,6 +297,9 @@ describe('the held list, the card and the Compendium say Earned', () => {
     expect(earned).toMatchObject({ earned: true, tier: 0, tierLabel: 'Earned', cost: '' });
     expect(earned.numeral).toBeTruthy();
     expect(earned.numeral).not.toMatch(/^[IVX0-9]+$/);
+    // The Hollow Sun's numeral is set in Cinzel (var(--re-display)), whose Latin subset has no
+    // U+2726 (a star): the OS would fall back to another font. The bullet is in it.
+    expect(earned.numeral).toBe('\u2022');
     const tiered = blessingCardContent(data.blessings.blessings.find((b) => b.id === 'iron_oath'));
     expect(tiered).toMatchObject({ earned: false, numeral: 'III', tierLabel: 'Tier III' });
   });

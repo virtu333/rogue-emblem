@@ -135,7 +135,7 @@ export class RunSetupMenu {
       const terms = termsOf(content);
       const card = choiceButton(content.name, () => s._select(i), 'ch-card ch-tarot');
       card.dataset.focus = `choice-${i}`;
-      card.dataset.tier = String(content.tier);
+      card.dataset.tier = content.earned ? 'earned' : String(content.tier);
       card.setAttribute('aria-pressed', String(i === s.selectedIndex));
       card.setAttribute(
         'aria-label',

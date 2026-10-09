@@ -385,7 +385,7 @@ export function blessingPriceKind(blessing) {
 }
 
 /** The glyph an earned blessing's Hollow Sun shows in place of a tier numeral. */
-export const EARNED_GLYPH = '\u2726';
+export const EARNED_GLYPH = '\u2022';
 
 /**
  * A blessing as a tarot card: tier numeral, boon, cost (or none), lore. An earned blessing has

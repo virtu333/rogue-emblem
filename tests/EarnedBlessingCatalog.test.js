@@ -198,6 +198,51 @@ describe('offers never include an earned blessing', () => {
     }
   });
 
+  describe('a v2 catalog (a draw by weight over the whole pool, no tier slots)', () => {
+    // The v3 draw picks by tier, so an earned row (no tier) is out of reach of it even with no
+    // filter at all. The v2 draw walks the whole pool, so here the filter is the only guard.
+    function v2Catalog() {
+      const c = structuredClone(catalog);
+      c.version = 2;
+      for (const key of ['priceCatalog', 'tierBands', 'debtScale']) delete c[key];
+      c.blessings = c.blessings.filter((b) => !b.intrinsicPrice);
+      for (const b of c.blessings) delete b.prices;
+      return c;
+    }
+    const seeds = Array.from({ length: 200 }, (_, i) => i + 1);
+    const offersEarned = (config) =>
+      seeds.filter((seed) => {
+        const { selected } = selectBlessingOptionsWithTelemetry(config, createSeededRng(seed), {
+          count: 3,
+        });
+        return selected.some((b) => EARNED_IDS.includes(b.id));
+      });
+
+    it('the catalog is valid as v2, and the draw would reach an earned row if it were ordinary', () => {
+      expect(validateBlessingsConfig(v2Catalog()).errors).toEqual([]);
+      // Control: the same rows with the flag lifted (a tier given, so the validator accepts
+      // them) are offered on many seeds, so the draw can reach them and the next test can fail.
+      const ordinary = v2Catalog();
+      for (const b of ordinary.blessings)
+        if (b.earned) {
+          delete b.earned;
+          b.tier = 1;
+        }
+      expect(offersEarned(ordinary).length).toBeGreaterThan(20);
+    });
+
+    it('200 seeds: an earned card is never offered, and none is in the pool the draw reads', () => {
+      const config = v2Catalog();
+      expect(offersEarned(config)).toEqual([]);
+      for (const seed of seeds) {
+        const { telemetry } = selectBlessingOptionsWithTelemetry(config, createSeededRng(seed), {
+          count: 3,
+        });
+        expect(telemetry.candidatePoolIds.filter((id) => EARNED_IDS.includes(id))).toEqual([]);
+      }
+    });
+  });
+
   it('a heavily weighted earned card still never reaches a shrine', () => {
     const copy = structuredClone(catalog);
     for (const b of copy.blessings.filter((x) => x.earned)) b.weight = 1000;

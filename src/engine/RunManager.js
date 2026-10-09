@@ -117,7 +117,11 @@ import {
   startLordStatArc,
 } from './LordStatArc.js';
 import { parseBattleGoldGamble, settleBattleGoldGamble } from './BattleGoldGamble.js';
-import { sanitizeEarnedBlessingPicks } from './EarnedBlessings.js';
+import {
+  earnedBlessingsOf,
+  isActBossVictory,
+  sanitizeEarnedBlessingPicks,
+} from './EarnedBlessings.js';
 import {
   formatUnitUid,
   resolveBattleCasualties,
@@ -324,16 +328,6 @@ const EARNED_BOON_MODIFIERS = Object.freeze({
   first_kill_heal: 'firstKillHeal',
   first_turn_mov_delta: 'firstTurnMovDelta',
 });
-
-function hashStringToUint32(input) {
-  const text = String(input ?? '');
-  let hash = 2166136261 >>> 0;
-  for (let i = 0; i < text.length; i++) {
-    hash ^= text.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
-}
 
 /**
  * A saved act-start grants list, field by field: a grant is gold, Vision or an item, with a
@@ -4908,7 +4902,7 @@ export class RunManager {
       losses: newlyFallen.length,
     });
 
-    const isRewardBossNode = node.id === this.nodeMap?.bossNodeId && node.type === 'boss';
+    const isRewardBossNode = isActBossVictory(this, node);
     const isRewardAct =
       this.nodeMap?.actId === 'act1' ||
       this.nodeMap?.actId === 'act2' ||
@@ -6239,7 +6233,6 @@ export class RunManager {
     // Saves from before contract recovery carry none (their contracts closed at the victory).
     rm.contractOwed = normalizeContractOwed(saved.contractOwed);
     rm.laidToRest = sanitizeLaidToRest(saved.laidToRest);
-    rm.earnedBlessingPicks = sanitizeEarnedBlessingPicks(saved.earnedBlessingPicks);
     rm.applyDifficultySelection(saved.difficultyId || 'normal');
     if (saved.difficultyModifiers && typeof saved.difficultyModifiers === 'object') {
       rm.difficultyModifiers = {
@@ -6288,6 +6281,11 @@ export class RunManager {
     if (rm.actIndex >= rm.actSequence.length) {
       rm.actIndex = Math.max(0, rm.actSequence.length - 1);
     }
+    // Read against the catalog and the run's acts (after the act sequence is final).
+    rm.earnedBlessingPicks = sanitizeEarnedBlessingPicks(saved.earnedBlessingPicks, {
+      earnedIds: earnedBlessingsOf(gameData).map((b) => b.id),
+      actSequence: rm.actSequence,
+    });
     rm.pendingAmbushNodeId =
       typeof saved.pendingAmbushNodeId === 'string' ? saved.pendingAmbushNodeId : null;
     rm.pendingEventNodeId =

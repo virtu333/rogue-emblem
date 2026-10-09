@@ -50,18 +50,23 @@ function isPlainObject(value) {
 
 /**
  * The offer rules, from `blessings.json` `earnedOffer`, with a malformed or missing block
- * falling back to the defaults. `weightByHeld[n]` is the odds an act boss offers a pick at all
- * for a run already holding n earned blessings (the last entry holds for more).
+ * falling back to the defaults (a bad `weightByHeld` entry sends the whole array to its
+ * defaults). `weightByHeld[n]` is the odds an act boss offers a pick at all for a run already
+ * holding n earned blessings (the last entry holds for more).
  */
 export function earnedOfferConfig(catalog) {
   const raw = catalog?.earnedOffer;
   const count = Math.trunc(Number(raw?.actBoss));
-  const weights = Array.isArray(raw?.weightByHeld)
-    ? raw.weightByHeld.map(Number).filter((w) => Number.isFinite(w) && w >= 0 && w <= 1)
-    : [];
+  // One bad entry rejects the whole array: dropping it would shift every later entry down a
+  // place (the odds for 2 held would read as the odds for 1), which is worse than the defaults.
+  const list = raw?.weightByHeld;
+  const valid =
+    Array.isArray(list) &&
+    list.length > 0 &&
+    list.every((w) => typeof w === 'number' && Number.isFinite(w) && w >= 0 && w <= 1);
   return {
     actBoss: count >= 1 ? count : DEFAULT_EARNED_OFFER.actBoss,
-    weightByHeld: weights.length > 0 ? weights : [...DEFAULT_EARNED_OFFER.weightByHeld],
+    weightByHeld: valid ? [...list] : [...DEFAULT_EARNED_OFFER.weightByHeld],
   };
 }
 
@@ -90,7 +95,7 @@ export function earnedOfferChance(heldCount, config = DEFAULT_EARNED_OFFER) {
 
 /**
  * True when `node` is this act's boss: the one predicate `RunManager.completeBattle` reads to
- * pay the boss's Vision and relieve the Eclipse.
+ * pay the boss's Vision and that `actBossPickDue` reads for the pick.
  */
 export function isActBossVictory(run, node) {
   return Boolean(node) && node.id === run?.nodeMap?.bossNodeId && node.type === 'boss';
@@ -217,19 +222,34 @@ export function skipEarnedBlessing(run, actId) {
 /**
  * A saved ledger read back: well-formed entries kept as plain objects, anything else dropped (a
  * dropped act is simply prepared again, to the same pair, if its boss is still unclaimed).
+ *
+ * `earnedIds` (the earned ids the catalog knows) and `actSequence` (the run's acts) are what the
+ * save is read against; either left out skips that check.
+ *  - An offered id the catalog no longer has as an earned blessing is dropped from the pair; an
+ *    owed pick with none left becomes 'none' (nothing to show, and not rolled again).
+ *  - A taken entry with no recorded choice stays 'taken' (the choice null): the pick was made,
+ *    so it is never prepared a second time.
+ *  - An act the run does not have has no entry.
+ * @param {*} raw
+ * @param {{ earnedIds?: Iterable<string>|null, actSequence?: string[]|null }} [known]
  */
-export function sanitizeEarnedBlessingPicks(raw) {
+export function sanitizeEarnedBlessingPicks(raw, { earnedIds = null, actSequence = null } = {}) {
   const out = {};
   if (!isPlainObject(raw)) return out;
+  const earned = earnedIds ? new Set(earnedIds) : null;
+  const acts = Array.isArray(actSequence) ? actSequence : null;
   for (const [actId, entry] of Object.entries(raw)) {
     if (!actId || !isPlainObject(entry)) continue;
+    if (acts && !acts.includes(actId)) continue;
     if (!EARNED_PICK_STATUSES.includes(entry.status)) continue;
-    const offered = Array.isArray(entry.offered)
+    let offered = Array.isArray(entry.offered)
       ? [...new Set(entry.offered.filter((id) => typeof id === 'string' && id))]
       : [];
-    const chosen = typeof entry.chosen === 'string' && entry.chosen ? entry.chosen : null;
     if (entry.status === 'owed' && offered.length === 0) continue;
-    if (entry.status === 'taken' && !chosen) continue;
+    if (earned) offered = offered.filter((id) => earned.has(id));
+    let status = entry.status;
+    if (status === 'owed' && offered.length === 0) status = 'none';
+    const chosen = typeof entry.chosen === 'string' && entry.chosen ? entry.chosen : null;
     out[actId] = {
       version: Number.isFinite(entry.version) ? Math.trunc(entry.version) : EARNED_PICK_VERSION,
       source:
@@ -239,8 +259,8 @@ export function sanitizeEarnedBlessingPicks(raw) {
       actId,
       nodeId: typeof entry.nodeId === 'string' && entry.nodeId ? entry.nodeId : null,
       offered,
-      status: entry.status,
-      chosen: entry.status === 'taken' ? chosen : null,
+      status,
+      chosen: status === 'taken' ? chosen : null,
     };
   }
   return out;

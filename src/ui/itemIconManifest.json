@@ -540,7 +540,7 @@
     "blessing-bloodless_art": [211, 5, 8],
     "blessing-unbroken_banner": [309, 5, 4],
     "blessing-second_dawn": [306, 5, 4],
-    "blessing-ember_lantern": [246, 5, 4],
+    "blessing-ember_lantern": [214, 5, 4],
     "blessing-captains_whistle": [303, 5, 4]
   },
   "aliases": {
@@ -550,7 +550,7 @@
     "blessing-bloodless_art": "blood-gem",
     "blessing-unbroken_banner": "upgrade-commander_choice",
     "blessing-second_dawn": "upgrade-vision_charges_2",
-    "blessing-ember_lantern": "blessing-scout_blessing",
+    "blessing-ember_lantern": "phoenix-brooch",
     "blessing-captains_whistle": "upgrade-heros_call"
   }
 }
