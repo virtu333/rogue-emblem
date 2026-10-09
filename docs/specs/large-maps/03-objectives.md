@@ -1,6 +1,7 @@
 # 03 — Objectives v2: primary objectives, phases, bonus objectives
 
-Status: proposal, revision 2 (2026-10-09). Takes in the cross-review of the spec set.
+Status: proposal, revision 3 (2026-10-09). Takes in the cross-review of the spec set and
+`05`'s notes (phases that keep the primary, `until` lists, bonus extensions, Vision).
 Spec only: no game code or data changes.
 Branch `claude/large-maps-specs`. Part of the large-maps set ([README](README.md));
 roadmap Phase 3. It uses the README's shared names (`battleConfig.objectives`, the trigger
@@ -156,7 +157,7 @@ Fields every objective shares:
 
 | field | type | meaning |
 |---|---|---|
-| `id` | `[a-z0-9_]{1,24}`, unique in the config | names it for triggers, state and words |
+| `id` | `[a-z0-9_]{1,24}`, unique in the config | names it for triggers, state and words. A later phase may list an earlier phase's primary again by its id: the same objective, not a copy (the validator requires the entries to be identical), with one status record (§4, §6) |
 | `kind` | see §5 | |
 | `anchors` | `[{col,row}]`, resolved at generation | what markers point at (01) and agents walk to |
 | `text` | optional content key | overrides the kind's default words |
@@ -263,7 +264,7 @@ commandsFor(unit, objectives, state, field)       // → [{ id:'seize'|'escape'|
 onPlayerActionEnd(unit, …) / onEnemyActionEnd(unit, …)  // take/retake points, reach, flee
 onEnemyPhaseStart(…)                              // escort steps, slay deadlines
 checkPhase(objectives, state, field, triggers, turn)  // 02's check, slot `phase` (§6)
-                                                  //   → { state, effects: { setTiles, wake, line }, events }
+                                                  //   → { state, effects: { setTiles, wake, line, …05's keys }, events }
 progressMeasure(objectives, state, field)         // → TurnPressure
 parContribution(objective, map)                   // generation only: non-walk turns (§5.9)
 defaultParRoute(objectives, map)                  // generation; derived on read for legacy (§5.9)
@@ -273,8 +274,10 @@ goalTiles(objectives, state, field)               // → agents and markers
 ```
 
 `field` is `{ playerUnits, enemyUnits, npcUnits, escapedUnits, zombieTombstones,
-villageState, caravanExited, ballistas, turn, phase, reinforcementsPending }`. It is plain
-data that both worlds already hold.
+villageState, caravanExited, ballistas, turn, phase, reinforcementsPending, bossState }`.
+It is plain data that both worlds already hold. `bossState` is `05`'s (§10.2: the signature
+count and the held pillars), read only by a `signatureCount` deadline and a `claim` on
+`05`'s pillars (§7.1); a config without a boss kit passes none.
 
 **`evaluate`, in order:**
 1. **Defeat**: `hasBattleDefeat` unchanged, which returns `{ outcome: 'defeat' }`. The
@@ -288,12 +291,16 @@ data that both worlds already hold.
    resolved, it emits `phase_ready` (the NEW OBJECTIVE band may show now, §6) and changes
    nothing else. The advance and every `onEnter` effect wait for `02`'s check at the next
    enemy-phase start (`checkPhase`, §6).
-5. **Victory**: the current phase is the last (a map without phases has one), and its
-   primaries are all resolved (done, or failed with `'stake'`), and none is waiting on a
-   fallback. A primary resolving in an earlier phase is never a victory, whatever the field
-   holds. Then the deferral: a victory reached inside the enemy phase waits for the phase's
-   end (today's `_reinforcementsPendingThisTurn` rule, now for every kind, since no victory
-   has ever been taken mid-AI-loop). The rout field-clear wave cancel stays rout-only.
+5. **Victory**: the current phase is **final** and its primaries are all resolved (done, or
+   failed with `'stake'`), and none is waiting on a fallback. A phase is final when it is
+   the last (a map without phases has one), or when its primaries are the same objectives
+   (same ids) as every later phase's: a **shared primary** (`05` §4.5: a boss kit's phases
+   all keep the one seize; `04`'s Long Road drawbridge). Then the remaining phases never
+   enter. A primary resolving in a phase that is not final is never a victory, whatever the
+   field holds. Then the deferral: a victory reached inside the enemy phase waits for the
+   phase's end (today's `_reinforcementsPendingThisTurn` rule, now for every kind, since no
+   victory has ever been taken mid-AI-loop). The rout field-clear wave cancel stays
+   rout-only.
 
 `outcome` is `'defeat' | 'victory' | 'deferred' | null`. `events` are presentation
 records (`objective_done`, `objective_failed`, `phase_ready`, `phase_changed`,
@@ -301,12 +308,14 @@ records (`objective_done`, `objective_failed`, `phase_ready`, `phase_changed`,
 `safeBattlePresentation`, and the harness ignores them.
 
 **When a primary ends the battle, and when it advances a phase.**
-- In the last phase, the primary that completes the AND wins at once: the
-  `checkBattleEnd` after that action returns `victory` (Seize, a kill, a point taken, a
-  structure broken, an escort leaving), exactly as a single-throne Seize wins today. In
-  the enemy phase it is deferred to the phase's end, as above.
-- In an earlier phase, the same completion only resolves its status and emits
-  `phase_ready`. The board, the groups, the commands and par stay as they are until the
+- In the last phase, or in any phase whose primaries every later phase shares, the primary
+  that completes the AND wins at once: the `checkBattleEnd` after that action returns
+  `victory` (Seize, a kill, a point taken, a structure broken, an escort leaving), exactly
+  as a single-throne Seize wins today. In the enemy phase it is deferred to the phase's
+  end, as above. So a boss taken from above half to 0 and seized in phase 0, before its
+  `bossHp` `until` has fired, wins on the Seize (`05` §4.5).
+- In an earlier phase that is not final, the same completion only resolves its status and
+  emits `phase_ready`. The board, the groups, the commands and par stay as they are until the
   check. The next phase's primaries are shown as "Next" on the strip but are not
   evaluated and offer no command (no Seize on the next phase's throne) before the advance.
 - After an advance, the check's caller runs `checkBattleEnd` once. If the new phase is
@@ -349,7 +358,9 @@ keeps stat-line text plain.
   `02`'s floor (§5.2: `1 + W + parAdjust + bossTurns + 3`) then walks through every
   throne, as the seize floor walks to one. The guards' Revival Stones are `parAdjust`'s boss bars.
 - **AI**: the throne clamp (`AIController.js:341`) reads `enemy.clampTile`, written on each
-  guard's spawn, instead of the one `thronePos` (PR 1b, §14). The unread `guardianClampPos`
+  guard's spawn, instead of the one `thronePos` (PR 1b, §14). `clampTile: false` is an
+  explicit release (no clamp, even on seize), distinct from an absent field, which falls
+  back to `thronePos` on seize as today; `05`'s `unclamp` writes it. The unread `guardianClampPos`
   (`MapGenerator.js:360-368`) retires into it. Taking throne A emits `objective
   throne_a done`, which 02's groups can wake on ("the second garrison stirs"). (`04`'s first
   Two Towers uses two `defeat` objectives instead: walking a lord throne to throne put it
@@ -564,11 +575,15 @@ phases: [
   (`02` §3.4: top of the enemy phase, once per turn by `checkedTurn`, so a phase resumed
   from a mid-phase checkpoint never checks again). `checkPhase` is its `phase` slot, after
   `objective` and before `turn`: enrage, `hurt`, `tile`, `danger`, `sight`, `objective`,
-  **`phase`**, `turn`, then the `groupWoken` cascade. In that slot:
+  **`phase`**, `turn`, then the `groupWoken` cascade (`05` adds `boss` after `hurt` and the
+  boss signature right after `phase`, `02` §3.4). In that slot:
   - the current phase's `until` is evaluated, whatever its trigger kind (any README
-    trigger; a `turn` `until` with `afterPhase` reads `phaseStartedTurn`, §3.4). An
-    `until` takes delay 0 unless it names one: `02`'s per-kind default delays are for group
-    wakes, and a phase is told by its band and the strip's named turn or goal;
+    trigger, `05`'s `bossBar` / `bossHp` included; a `turn` `until` with `afterPhase` reads
+    `phaseStartedTurn`, §3.4). An `until` is one trigger or a **list**, of which any one
+    firing advances the phase (`04`'s Long Road drawbridge: the sally's wake, a par clock or
+    the boss's first bar, whichever comes first). An `until` takes delay 0 unless it names
+    one: `02`'s per-kind default delays are for group wakes, and a phase is told by its
+    band and the strip's named turn or goal;
   - a phase with no `until` whose primaries are all resolved advances (it emitted
     `phase_ready` when they resolved, §4 step 4). A phase with an `until` advances only
     when the `until` fires;
@@ -579,6 +594,8 @@ phases: [
     already hold advances again in the same slot (at most `phases.length − 1` advances in
     one check);
   - the last phase never advances. It has no `until` and ends in victory (§4).
+  - a phase whose primaries every later phase shares must carry an `until` (validator):
+    completing its primaries is the victory (§4), so nothing else could advance it.
 - **Before `groupWoken`.** `onEnter` effects apply in the `phase` slot, so the cascade sees
   a phase's wakes: a `groupWoken` on a group a phase woke counts from this check with its
   own delay.
@@ -593,6 +610,11 @@ phases: [
   this enemy phase. The wake rides 02's ledger.
 - **`onEnter.line`** is the band's text key. The record that the band was shown rides the
   ledger with the advance.
+- **`05`'s keys.** A boss kit's phases also carry `court`, `signature`, `affix`, `wave`,
+  `bossLine` and `music` in `onEnter` (`05` §4.1). `05` defines and validates them; this
+  module passes them through `checkPhase`'s `effects` unchanged, and they apply in the same
+  slot. When the boss has fallen (its `bossBar` / `bossHp` count as true), the effects aimed
+  at it are skipped (`05` §4.5).
 - **Nothing changes before the check.** When the last primary of a phase resolves in the
   player phase, the NEW OBJECTIVE band may show at once (`phase_ready`), and the strip
   shows the next phase's goal as "Next · from the enemy phase". The terrain, the groups,
@@ -606,7 +628,11 @@ phases: [
 - **How a switch is shown.**
   1. An objective band in the ceremony style: word NEW OBJECTIVE, the sub-line the new
      primary's goal sentence. A no-`until` phase shows it when its primaries resolve
-     (`phase_ready`); an `until` phase shows it at the check.
+     (`phase_ready`); an `until` phase shows it at the check. **An advance between phases
+     with the same primary** shows instead the new phase's own `onEnter.line` band at the
+     check (`05` §7.6: "THE POSTERNS OPEN"), raises no `guide_phase_change`, and the strip
+     shows no "Next" row (the goal did not change); its history fact is the band's sentence
+     (`02` §3.8). Steps 2 and 4 below still apply.
   2. The strip pulses (`_pulseObjectiveText`) at the advance.
   3. `guide_phase_change` (§11.3) at the first player phase of the new phase.
      `guide_objective_changed` keeps only its seize case (a throne's guard fell, now the
@@ -629,8 +655,8 @@ phases: [
 | `slay` | `ref` dies on or before `byTurn` | the player phase of `byTurn` ends with it alive, or it flees | the target | gold + forge step |
 | `protect` | at victory: the unit alive (or exited) | it falls | the unit | gold |
 | `unbloodied` | at victory: never broke | any deployed unit at an action boundary below `floor(maxHP × share)` (default 0.5) | none | gold + item |
-| `claim` | the ballista (`ballista.owner === 'player'`) or point is taken | (a ballista destroyed, if 04 adds that) | the ballista | item |
-| `reach` | a player unit ends its action on the cache tile | a thief (04 `seek_tile`) ends on it first | the cache | item |
+| `claim` | the ballista (`ballista.owner === 'player'`) or point is taken; with `points` and `need: n`, `n` of them held at the same enemy-phase check | (a ballista destroyed, if 04 adds that); its `deadline` passes | the ballista or points | item |
+| `reach` | a player unit ends its action on the cache tile | a thief (04 `seek_tile`) ends on it first; its `deadline` passes | the cache | item |
 
 The bonus that takes a ballista or a point is `claim`, so it never shares a name with the
 primary `capture` (§5.7), whose fields differ.
@@ -641,6 +667,17 @@ group whose arrival makes the bonus a race and the two paces it is tuned between
 the group's arrival phase, one at `slowMov` does not). The runtime, the strip and the
 settlement never read it; the objective validator checks only its shape (a known group,
 positive integers with `slowMov < fastMov`).
+
+**Deadlines on `reach` and `claim`** (`05` §6): an optional `deadline`, either `{ byTurn }`
+(locked as for `slay`, below; failed when the player phase of that turn ends undone) or
+`{ signatureCount: n }` on a boss map (done before the boss's n-th signature resolves,
+failed at the check where it resolves; it reads `bossState.signature.count`, which the
+signature module increments at each resolve, so the strip's "before the 2nd Calculation ·
+2 to go" and the board's tell cannot disagree). Locked as integers.
+
+**`claim` on points with `need`.** The points are §5.7's capture points (PR 7) or, on the
+finale, `05` §8.2's echo pillars, whose held set is `bossState.pillars`; `need: n` of them
+held at the same check (a unit stepping on and off between checks holds nothing).
 
 `byTurn` is locked at generation, either as `par − k` (k from data) or as an authored
 absolute turn when the map's own clock sets it (`04`'s Parade: the turn the column would
@@ -653,7 +690,9 @@ enemy-unit boundaries, not on every HP write, so a heal later in the same action
 - At most **two** per map (validator, `MAX_BONUS_OBJECTIVES`). Today's maps carry at most
   one, since the village and the caravan exclude each other (`VillageSystem.js:46`).
 - Set pieces (04) declare theirs. Ordinary procedural maps keep only the derived village
-  and caravan in v2 (open question 5).
+  and caravan in v2 (open question 5). **Boss nodes are the exception** (`05` §6): every
+  boss map, procedural or v1 arena, may carry one bonus from its boss kit, beside a derived
+  village or caravan, within the cap of two.
 - None on a scripted battle, as villages and caravans already never appear there.
 - **A bonus never fights the primary.** Victory is taken on the action that completes the
   last phase (§4), so a bonus the player can reach only after that action asks them to
@@ -673,7 +712,8 @@ enemy-unit boundaries, not on every HP write, so a heal later in the same action
   `bonusVerdicts(objectives, state, field)`, a list of
   `{ id, kind, done, reason, by, reward }` plus the stakes of done primaries, into
   `completeBattle(…, { objectiveVerdicts })`. An open `slay` resolves as failed and an open
-  `protect` as done if the unit lives.
+  `protect` as done if the unit lives. A done **feat** (§7.4) pays nothing; the band names
+  it and the run's records keep it (`RunRecords` `bonusFeats`, `05` §6).
 - `completeBattle` calls `engine/BonusSettlement.js` `settleBattleBonuses(run, { nodeId,
   verdicts })` **after** the contract settlement (`RunManager.js:4166`). It sets
   `run.lastBonusSettlement` for presentation, like `lastContractSettlement`, and its lines
@@ -694,8 +734,15 @@ strip shows exactly what will be paid. The validator refuses any key outside thi
 | `gold: n` | `run.awardGold(n)` after burdens. Not multiplied, not garnished (as a contract reward), so "+300 G" means 300 | never |
 | `item: {…whole item}` | locked as a whole item object (names are identity; the `ItemNameMigration` walk must cover `battleConfigsByNodeId[*].objectives`, with a test), drawn at generation on `keyedBattleRandom(battleSeed, 'bonus:<id>')` from the act's loot pools; into the convoy | no room: paid as its sale value (`price × SHOP_SELL_RATIO`) and said so ("No room for Elixir: sold, +150 G"). No owed record and no hold on the party |
 | `forge: true` | one free forge step (`applyForge`) on the equipped weapon of the unit in `by`, the stat on `keyedBattleRandom(battleSeed, 'bonus-forge:<id>')` | not forgeable, or that unit has gone: `forgeFallbackGold[act]` |
-| `vision: 1` | +1 Vision charge, Act III+, at most once per act (`run.bonusVisionActs`, saved) | allowed (owner decision, 2026-10-09). A second in the same act is refused by the validator, and none on First Light, which has no set pieces |
+| `vision: 1` | +1 Vision charge, Act III+, at most once per act (`run.bonusVisionActs`, saved), on any Act III+ set-piece or boss-map bonus (owner decision, 2026-10-09; `05` §6) | the act already holds a paid bonus charge: the generator does not offer it (the reward choice below takes its other side), and the commit checks again and pays the `fallback` reward locked beside it, said so. Never on First Light: its boss maps carry kit bonuses (`05` §9.5) but are never offered Vision (validated). Never on the finale, after which nothing is spent |
+| `feat: true` | nothing: the victory band names it ("Feat: Unbloodied") and the run's records keep it (`bonusFeats`) | only on the finale (`05` §6), where nothing a reward pays outlives the battle; a finale bonus is always a feat (validated) |
 
+- **A reward choice resolved at generation** (`05` §6): `objectives.json`
+  `bonusRewards.visionOffer` (0.5) is the share of eligible offers (Act III+, not First
+  Light, the act not already paid) whose reward is `vision: 1`, drawn on
+  `keyedBattleRandom(battleSeed, 'bonus-reward:<id>')`; the other side is the kind's default.
+  The locked `reward` is one plain key from this table (a `vision` reward also locks its
+  `fallback`), so the strip says which before the first move. A `oneOf` is never locked.
 - Bonuses never go through the loot screen, because gold cards carry team XP (§1.4).
 - **Sizes, to tune with `sim/pacing.js`**: gold 150/300/500/700 by act, the village's
   amounts and the S→A rank step (`0.4 × baseBonusGold × GOLD_PAR_BONUS_MULTIPLIER`). An
@@ -789,7 +836,7 @@ Save compatibility: nothing new is written for these maps. Old checkpoints resto
 |---|---|---|
 | 1 | 1, 2, 9, 12, 13, 30 (harness, invariants) | `evaluate`, `commandsFor`; `isRoutFieldClear` asks the module whether the current phase's primary is a rout |
 | 1 | 7 | `calculatePar({ objective })` unchanged for derived configs; the module exposes `parKind` and the derived `parRoute`, which `02`'s `groups-v1` reads (§5.9). No par changes |
-| 1 | 8 | `new AIController(grid, data, { objectives })`. PR 1b: the clamp reads `enemy.clampTile` on any objective, falling back to `thronePos` on seize (today's rule) |
+| 1 | 8 | `new AIController(grid, data, { objectives })`. PR 1b: the clamp reads `enemy.clampTile` on any objective, falling back to `thronePos` on seize (today's rule) when the field is absent; `clampTile: false` releases it (`05`) |
 | 1 | 10, 11 | `progressMeasure` (old fields kept, plus `bestObjectiveScore`; the validator accepts both); hold anchors from `goalTiles` |
 | 1 | 14 | `objectiveChange()` from `statusView` |
 | 2 | 3, 5, 6, 15–22 | content and model by kind: `src/data/objectiveContent.js` (goal sentences, verbs, victory words, the deploy banner, hint ids), the strip model (§11); `compactBattleObjective` deleted |
@@ -870,7 +917,7 @@ are) and never in the prologue run or a scripted battle. `02` §3.8 owns the thi
 
 | id | when | anchor | text (plain register) |
 |---|---|---|---|
-| `guide_phase_change` | the first player phase after a phase advance (§6) | the new phase's first anchor | "The battle moved on: {goal}. The earlier objective is done, and par has not changed." |
+| `guide_phase_change` | the first player phase after a phase advance (§6), never one that keeps the primary | the new phase's first anchor | "The battle moved on: {goal}. The earlier objective is done, and par has not changed." |
 | `guide_bonus_cost` | the first player phase of the first battle with an open tile bonus whose `costTurns ≥ 1` (§7.5) | the bonus's anchor | "A bonus: optional. It pays {reward}, never EXP. The detour costs about {n} turns, and turns past par cost rank and shadow." |
 
 `guide_objective_changed` keeps its seize case, so a player who has seen it is still taught
@@ -959,6 +1006,11 @@ outside an allowlist (generation, words fallbacks, prologue), no `src/` file may
     `phaseStartedTurn`.
 19. A tile bonus on a kill-shaped map lies past the last target, so taking it means not
     winning.
+20. A phase that keeps the primary makes the player wait: a boss seized in phase 0 does not
+    win at once, a later phase enters after the win, or the advance shows NEW OBJECTIVE, a
+    "Next" row or `guide_phase_change` (`05` §4.5).
+21. A `reach` / `claim` deadline is judged on the wrong check, a `signatureCount` deadline
+    disagrees with the tell, a second Vision is paid in one act, or a feat pays anything.
 
 **Suites:**
 - `tests/BattleObjectives.test.js` (pure): legacy derivation per objective, exact
@@ -972,7 +1024,12 @@ outside an allowlist (generation, words fallbacks, prologue), no `src/` file may
   `groupWoken` cascade; the same completion in the last phase wins on that action; a
   resume between `phase_ready` and the check advances exactly once; `afterPhase: 3`
   entered at the check of turn 5 fires at the check of turn 8, not 4 or 7; the validator
-  refuses `phaseStartedTurn` 0 or past the current turn.
+  refuses `phaseStartedTurn` 0 or past the current turn. Failure 20: a two-phase seize whose
+  phases share the throne (`bossHp` `until`) is won by a Seize in phase 0 and phase 1 never
+  enters; the same map's advance emits the `onEnter.line` band, no NEW OBJECTIVE and no
+  `guide_phase_change`; an `until` list fires on whichever member is true first, once; the
+  validator refuses a shared-primary phase with no `until` and a repeated id whose entries
+  differ.
 - `tests/ObjectivePar.test.js` (failures 11, 16): `parContribution` holds only survive,
   structures, boss bars and escort pace (a two-throne seize has `parAdjust` 0 plus its
   stones); `defaultParRoute` per kind, legs by hand; a derived config's `parRoute` is
@@ -986,7 +1043,11 @@ outside an allowlist (generation, words fallbacks, prologue), no `src/` file may
   the maximum-length names at 9 px.
 - `tests/BonusSettlement.test.js`: each reward key; no room becomes the sale value; forge
   falls back to gold; one payment through `completeBattle` called twice; a revert before
-  the commit pays nothing; `awardTeamXp` is never reached; the RNG cursor.
+  the commit pays nothing; `awardTeamXp` is never reached; the RNG cursor. Failure 21: a
+  `vision` reward in an act already paid pays its `fallback`; a feat changes no gold,
+  convoy or Vision and lands in `bonusFeats`; a `signatureCount` deadline fails at the
+  check of the n-th resolve and not before; a `claim` with `need: 2` counts points held at
+  one check only.
 - `tests/ObjectivePersistence.test.js`: `objectiveState` through checkpoint, Vision,
   validator and suspend, with phase index, structures, points and the `escorted`/`fled`
   lists; an old checkpoint without it; gate HP and terrain together.
@@ -1013,11 +1074,11 @@ outside an allowlist (generation, words fallbacks, prologue), no `src/` file may
 | PR | What | Behaviour change | First shipment | Effort |
 |---|---|---|---|---|
 | 1 | `BattleObjectives.js` with the legacy derivation only (and the derived `parRoute`, never written); every rule reader and the harness moved; boundary and golden tests | none (pinned) | yes | 3–4 days |
-| 1b | `defeat` (win rule, its own `done`/`failed` events for `02`'s `objective` trigger, `turnBonus.json` `defeat 4/1`, its `parContribution` boss bars and `defaultParRoute` legs, the SLAIN word); per-unit `clampTile` (the clamp reads it on any objective, `thronePos` on seize as today, released by `aggressiveMode` (anti-turtle or enrage, `TurnPressure.js:104`) as today); the agents' read for defeat | written configs only | yes (Two Towers) | 1–1.5 days |
+| 1b | `defeat` (win rule, its own `done`/`failed` events for `02`'s `objective` trigger, `turnBonus.json` `defeat 4/1`, its `parContribution` boss bars and `defaultParRoute` legs, the SLAIN word); per-unit `clampTile` (the clamp reads it on any objective, `thronePos` on seize as today when it is absent, `false` an explicit release, released by `aggressiveMode` (anti-turtle or enrage, `TurnPressure.js:104`) as today); the agents' read for defeat | written configs only | yes (Two Towers) | 1–1.5 days |
 | 2 | `objectiveContent.js`, `objectiveStripModel.js`; regex parsing removed; every word site by kind | none in words for today's kinds (escape gains its help goal line) | yes | 2 days |
 | 3 | `objectiveState` (with `phaseStartedTurn`) and its four persistence sites; derived village and caravan bonuses; `BonusSettlement` at the commit; bonus rows on the strip and band | the strip and the band show the bonus | yes | 2–3 days |
-| 4 | Phases (index, `until`, `onEnter`, `checkPhase` in `02`'s check, calling `02`'s `applyTerrainSetTiles`), `objective` events into 02's ledger, `guide_phase_change`, multi-seize; **later**: the `twin_thrones` elite seize template (Act III+, two Throne features; `MapTemplateEngine:1124` allows two when `thrones: 'all'`) | new elite maps (with `twin_thrones`) | phases and events yes; multi-seize when a map needs it; `twin_thrones` later | 3 days, after `02` PR 0b (`TerrainPhases`) and 2.1–2.2 (the ledger, the `objective` hook) |
-| 5 | `data/objectives.json`, bonus kinds `slay`, `protect`, `reach`, `claim`, the `race` field, validator (with §7.2's two rules), `guide_bonus_cost`, the pacing-sim reward check; **later**: `rescue`, `unbloodied`, `vision` rewards | set pieces may declare bonuses | yes, but for the later kinds | 3 days |
+| 4 | Phases (index, `until` and `until` lists, `onEnter`, `checkPhase` in `02`'s check, calling `02`'s `applyTerrainSetTiles`), the shared-primary rule (§4, §6), `objective` events into 02's ledger, `guide_phase_change`, multi-seize; **later**: the `twin_thrones` elite seize template (Act III+, two Throne features; `MapTemplateEngine:1124` allows two when `thrones: 'all'`) | new elite maps (with `twin_thrones`) | phases and events yes; multi-seize when a map needs it; `twin_thrones` later | 3 days, after `02` PR 0b (`TerrainPhases`) and 2.1–2.2 (the ledger, the `objective` hook) |
+| 5 | `data/objectives.json`, bonus kinds `slay`, `protect`, `reach`, `claim`, the `race` field, validator (with §7.2's two rules), `guide_bonus_cost`, the pacing-sim reward check; **later**: `rescue`, `unbloodied`, `vision` rewards; `05`'s extensions (deadlines on `reach` / `claim`, `feat`, the reward choice and `visionOffer`) ship with `05` K5, and `claim` with `need` on points with PR 7 | set pieces may declare bonuses | yes, but for the later kinds | 3 days |
 | 6 | Assassinate (+ `calibrateFlight`, `then: 'exit'`), protect clause, `onFail`; **later**: escort (`ObjectiveNpc`, `EscortRoute`) | set pieces only | assassinate when Hunting Party ships; escort later | 3–4 days |
 | 7 | **Later**: capture points; structures: `Gate` terrain and art, Strike, `StructureController`, destroy | set pieces only | later | 4 days + art |
 | — | **Later**: `survive` (phase-only, §5.10) rides PR 4's phases, but ships with the first map that uses it | — | later | in PR 4 |
@@ -1046,7 +1107,7 @@ catalogue (Hunting Party, Caravan Under Siege, Break the Gate, The Bridge Must F
 ## 15. Open questions for the owner
 
 1. **Decided (2026-10-09): Vision as a bonus reward is allowed.** Act III+, at most once
-   per act. The owner: "paying a vision charge is actually not a bad idea. That'd be kind
+   per act, on any Act III+ set-piece or boss-map bonus, never on First Light (§7.4). The owner: "paying a vision charge is actually not a bad idea. That'd be kind
    of fun." Tune the frequency with `sim/pacing.js` (a charge is worth about a rewind).
 2. **Should a failed escort or assassination ever end the run?** Recommendation: never;
    fallback or stake only.
@@ -1056,7 +1117,8 @@ catalogue (Hunting Party, Caravan Under Siege, Break the Gate, The Bridge Must F
    every other bonus? Moving it unifies the code, but changes the multiplied gold and
    takes the convoy item away during the battle.
 5. **Bonuses on ordinary maps** beyond the village and caravan, for example "Claim the
-   ballista" on Nightfall+ maps that already roll one?
+   ballista" on Nightfall+ maps that already roll one? Answered for boss nodes by `05` §6
+   (one bonus from the boss kit, §7.2); open for every other procedural map.
 6. **Black Sun**: may a bonus ever relieve shadow? Recommendation: no (Pillar 6: the clock
    is not a bonus currency).
 7. **Multi-seize on act boss nodes** (v2 says no): wanted later?
@@ -1124,3 +1186,11 @@ Takes in the cross-review of the spec set.
 - Victory word for `defeat` and `assassinate` is SLAIN; bonus `capture` renamed `claim`;
   01's cap is 4 off-screen pointers, not "three kinds"; `escape` only in the last phase;
   the PR table marks what the first shipment needs; a vertical-slice note (§14).
+
+## Revision 3 changelog (2026-10-09)
+
+- Takes in `05`'s notes: phases that keep the primary win in any phase and advance with
+  their own band (§4, §6), `until` lists, `05`'s `onEnter` keys, `clampTile: false`,
+  deadlines on `reach` / `claim`, `claim` with `need`, the finale's feats, the reward choice
+  at generation, kit bonuses on boss nodes, and Vision on any Act III+ set-piece or
+  boss-map bonus with a commit-time once-per-act check.

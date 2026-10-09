@@ -1,6 +1,7 @@
 # Set pieces: authored skeletons, chunks and seeded choices
 
-Status: proposal, revision 2 (2026-10-09). Takes in the cross-review of the spec set.
+Status: proposal, revision 3 (2026-10-09). Takes in the cross-review of the spec set and
+`05`'s notes (boss picks, `signatureOverride`, the Parade's wake, the finale share).
 Specs only: no game code or data changes.
 Branch `claude/large-maps-specs`. Roadmap phases 4–6 of the [README](README.md).
 - Depends on `02` (encounter groups, triggers, contact-relative waves, the par formula, the
@@ -192,6 +193,12 @@ So a river that runs through three cells is continuous, and a road meets a road.
   move. `mirror: ["y"]` adds a whole-map mirror as one more choice.
 - `slots` ⊆ `ordinary | elite | event | boss | finale`; `replaces` names the node objectives it
   may stand in for; `objective` is the legacy kind old readers see (`03`).
+- **Boss slots** (`05` §8.3, §8.6) may carry `boss: { weights: { <boss name>: w } }`, the
+  set piece's boss pick (§4.3; absent, every boss of the act's pool weighs 1), and
+  `signatureOverride`, a boss kit `signature` (`05` §5) that replaces the kit's on this map.
+  `signatureOverride` is allowed only on a set piece that pins its boss (one name with a
+  weight above 0, or an act pool of one, as Act IV's Emperor), so the override always meets
+  the boss it was written for (validated, with `05`'s kit checks).
 - `byRung` patches groups, choices (`options[].rungs`) and bonuses from a rung up, the
   `events.json` `weightByRung` rule. `name`/`lore` follow the template rules (≤ 140
   characters); labels and lines live in `setPieceContent.js` under the lore style guide.
@@ -254,7 +261,10 @@ A fill cell is painted with today's zone machinery, scoped to the cell:
 - **`battleConfig.parRoute`** (README §3) is written for every set piece, whatever its
   primary: the legs of §8.3's cheapest plan on the locked layout (§4.2 step 10).
 - Terrain changes are `03` phases' `onEnter.setTiles: [{ anchor, terrain }]` (§7). A phase
-  may keep the same primary and exist only to change terrain and wake groups.
+  may keep the same primary (by the same id) and exist only to change terrain and wake
+  groups. Completing a primary that every later phase shares wins at once, in any phase,
+  and the advance shows the phase's own `onEnter.line` band, not NEW OBJECTIVE (`03` §4,
+  §6; `05` §4.5). Such a phase needs an `until`, which may be a list (any one fires).
 - **Encounter groups** are authored here and written as `02` §3.2's schema
   (`{ id, members: [spawn indices], state, wake, onWake, route, loop, telegraph }`). The
   authoring form replaces `members` with `region` (an anchor, where they spawn) and `size:
@@ -355,7 +365,11 @@ All of this runs inside the caller's `withBattleSeed(battleSeed)`.
   `withEclipseSeed` pattern: the helpers need no RNG parameter, and editing one group never
   rerolls another.
 - **Bosses and captains.** `enemies.bosses[act]` with `difficultyFilter`, `bossLevelBonus` and
-  revival stones by `revivalStoneKind` (as `generateEnemies` at `:1992-2090`); elite slots
+  revival stones by `revivalStoneKind` (as `generateEnemies` at `:1992-2090`). On the
+  set-piece path the boss is drawn on `keyedBattleRandom(battleSeed, 'setpiece:<id>:boss')`
+  over the skeleton's `boss.weights` (§3.4), replacing `generateEnemies`' `Math.random`
+  pick; the procedural path keeps its pick (`05` §8.3). The boss's kit is then compiled by
+  `05`'s `BossKit.compile` into the config's fields, its courts named by `region`; elite slots
   from `eliteCaptains` with `isEliteCaptain` stones. Two captains are drawn without
   replacement on `'setpiece:<id>:captains'`. Every boss and captain spawn carries
   `isBoss: true`, as `generateEnemies` writes the throne boss (`MapGenerator.js:2046`; elite
@@ -382,6 +396,7 @@ All of this runs inside the caller's `withBattleSeed(battleSeed)`.
 | which node holds a set piece, which set piece | `keyedBattleRandom(runSeed, 'setpiece:<act>:<purpose>[:<nodeId>]')`, after the node map is built | no: the node-map stream is finished, and no `Math.random` is called |
 | choices, chunk picks | `keyedBattleRandom(battleSeed, 'setpiece:<id>:choice:<c>' / 'cell:<cell>')` | no |
 | group composition and seats | `keyedBattleRandom(battleSeed, 'setpiece:<id>:group:<g>')`, scoped swap | no |
+| a boss slot's boss | `keyedBattleRandom(battleSeed, 'setpiece:<id>:boss')` over `boss.weights` (§4.3) | no: the procedural pick on the battle stream is skipped on this path only |
 | fill terrain, enemy count, affixes | the node's `withBattleSeed` stream, as every map | only this node's map, which is the set piece |
 | caster gear, carry | their own hashes of spawns and `templateId` (`CasterGear.js:55`, `EnemyCarry.js:30`) | no |
 
@@ -421,7 +436,7 @@ validated like the other rung tables):
 |---|---|---|---|---|
 | First Light | 0 / — | 0 | 0 / — | — (the Lieutenant) |
 | Dusk | 0.5 / 0.5 | 0.25 | 0.5 / 0.5 | — (ends at the Emperor) |
-| Nightfall | 0.6 / 0.6 | 0.3 | 0.5 / 0.5 | 0.5 |
+| Nightfall | 0.6 / 0.6 | 0.3 | 0.5 / 0.5 | 0 (Sanctum of Echoes is Black Sun's, `05` §8.2) |
 | Black Sun | 0.7 / 0.7 | 0.35 | 0.5 / 0.5 | 0.5 |
 
 First Light's runs have no Act IV (`difficulty.json` `normal.actsIncluded` is Acts I–III
@@ -454,6 +469,8 @@ assign(n, sp): n.battleParams.setPieceFallback = { objective, hasVillage, fogEna
 
 - `pick` is weighted by each set piece's `weight`, after `acts`, `slots`, `replaces`, rung
   gates and `setPiecesOffered`.
+- `05`'s arena post-pass (`BossKit.assignBossArenas`, `05` §4.4) runs right after this one
+  at both sites, on its own keys; a boss node this pass gave a set piece keeps it.
 - Every call builds a fresh keyed generator. There is no shared cursor, so the order of the
   passes cannot leak.
 - Old saves are never re-assigned: `fromJSON` does not call it, and a run saved before this
@@ -657,7 +674,7 @@ estimate   = Σ walk + fight, from the deploy region
 | 12 | Long Road to the Keep | **keep** (Phase 5) | Act III boss, hybrid v2 |
 | 13 | The Emperor's Parade | **keep** (Phase 5) | Act IV's only boss gets a second shape |
 | 14 | The Bridge Must Fall | **merged** into #4 | same engine need as the gate; one destroy map first |
-| 15 | Sanctum of Echoes | **keep** (Phase 6, Nightfall+) | the finale variant; capture points that weaken the Entity |
+| 15 | Sanctum of Echoes | **keep** (Phase 6, Black Sun; `05` §8.7) | the finale variant; capture points that weaken the Entity |
 | 16 | Rival Band | **keep** (Phase 6) | the cheapest elite: no new engine needs (18x10: Notes 5) |
 
 The kept ones:
@@ -666,14 +683,18 @@ The kept ones:
 |---|---|---|---|---|---|---|---|
 | The Mill Ford | 20x12 | ordinary III | rout / `visit` the mill (race) | ford picket (`picket`), bridge hold (`dormant`: `danger`, `hurt`), mill guard (`dormant`: `groupWoken` bridge, `danger`, `hurt`), raiders (`awake`, `seek` village, written on the spawns), reserve (`dormant`: `danger`, `hurt`, `objective` village `on: done`, `turn parOffset −3`) | crossing N/S; mill N/S; bridge and ford variants | VillageSystem raze, Ballista feature | none beyond `02`/`03` |
 | Two Towers | 20x12 | elite III–IV | `defeat` both captains / `reach` the armoury inside the first tower | road patrol (`patrol`), two garrisons (`dormant`: `danger`, `hurt`, `objective` the other captain `on: done`) | tower rows (4); fillers; armoury tower; stone bearer (Black Sun) | `eliteCaptains`, stones, `03`'s per-unit `clampTile` | none beyond `02`/`03` |
-| Long Road to the Keep | 22x14 | boss III | seize / — | road picket, outer camp (`dormant`), gate and throne guards (`dormant`), sally (`dormant`: `groupWoken` camp, `turn parOffset −4`); phase *drawbridge* on the sally's trigger | road ridge/marsh; postern N/S; variants | throne clamp, actBoss stones | `TerrainPhases` (`02` §2.2) |
+| Long Road to the Keep | 22x14 | boss III | seize / `claim` the gatehouse ballista (Nightfall+) or `reach` the armoury (Dusk), `05` §8.3 | road picket, outer camp (`dormant`), gate and throne guards (`dormant`), sally (`dormant`: `groupWoken` camp, `turn parOffset −4`); phase *drawbridge* on the sally's trigger | road ridge/marsh; postern N/S; variants | throne clamp, actBoss stones | `TerrainPhases` (`02` §2.2) |
 | The Emperor's Parade | 24x14 | boss IV | seize / `slay` the standard-bearer (a column General, not the guard) before the column would be seated | column (`patrol`, `loop: false`, route to the throne), two side pods (`dormant`: `groupWoken` column), palace guard (`dormant`), gate wave (Nightfall+, `triggeredWaves` `afterContact 3`) | avenue or north street; strong flank; palace variant | emperor stones, `02`'s column, `tile by: group` | the clamp waits for a marching column (§10.4) |
 | Caravan Under Siege | 20x12 | event, ordinary III | `escort` the caravan / `slay` the raid captain | ring (`picket`), two flank waves (`triggeredWaves`, side relative to the caravan) | exit edge; start chunk; chaser weights | CaravanSystem, `03`'s `advanceEscort` | none beyond `03` |
 | Hunting Party | 20x13 | elite III | `assassinate` the target / `unbloodied` | the target's escort (`dormant`, `onWake: seek` exit), lane pickets (`sight`, `danger`) | 2–3 lanes; exit edge; escort class | `03`'s `calibrateFlight` | none beyond `03` |
 | Break the Gate | 22x12 | ordinary/event IV | `destroy` the gate, then seize (phases) / `claim` a ballista | outer pod (`picket`), inner `dormant`, sally `turn parOffset −2` if not breached | gate L/C/R; postern; ballista side; bridge segments | `03`'s Gate and Strike | none beyond `03` |
 | The Burning Village | 18x12 | event II–III | rout / `rescue` 2 of 3 villages | raider bands per village (`awake`, `seek`) | which villages; raider classes | VillageSystem | several villages on one map (`03`'s `rescue`) |
 | Rival Band | 18x10 | elite III–IV | rout / — | one band (`dormant`: `danger`) | fort sides; band composition | elite captain | none |
-| Sanctum of Echoes | 24x16 | finale (Entity) | `defeat` the Entity / `claim` the pillars | pillar wardens (`dormant`), echoes (`triggeredWaves`) | which pillars are lit; approach chunks | Entity footprint and AI | held pillars weaken the Entity |
+| Sanctum of Echoes | 24x16 | finale (Entity, Black Sun) | `defeat` the Entity / `claim` 2 of the pillars, a feat (`05` §6) | pillar wardens (`dormant`), echoes (`triggeredWaves`) | which pillars are lit; approach chunks | Entity footprint and AI | held pillars weaken the Entity |
+
+`05` §8 adds two boss set pieces to this catalogue, the Dueling Halls (Act III, 22x12) and
+the Battery (Act IV, 24x14, Nightfall+), refines Long Road, the Parade and Sanctum of Echoes
+(below and `05` §8.3, §8.4, §8.7), and lists them in `05` §8.8.
 
 ## 10. The first four
 
@@ -867,11 +888,20 @@ macro grid (cols 6|6|10, rows 7|7)       combination: ridge road, postern north 
 
 **Decision.** Squeeze through the one-tile postern now, or break the outer camp and take the
 wide gate once the garrison lowers the drawbridge to sally.
-- **Phase `drawbridge`** (`03` §6, same seize primary): `until` is the sally's trigger
-  (`groupWoken: outer_camp`, delay 1, or `turn: parOffset −4`, whichever comes first), and the
-  next phase's `onEnter` sets `drawbridge` (4 tiles) from Water to Bridge and wakes `sally`.
-  Both the `until` and the `onEnter` effects resolve at `02`'s enemy-phase check (the
-  `phase` slot, README §3), through `02`'s `applyTerrainSetTiles`.
+- **Phase `drawbridge`** (`03` §6, same seize primary): `until` is a list, whichever comes
+  first (`03` §6): `[{ kind: 'groupWoken', group: 'outer_camp', delay: 1 }, { kind: 'turn',
+  parOffset: -4 }, { kind: 'bossBar', broken: 1, fallback: { kind: 'bossHp', below: 0.5 } }]`
+  (the last from `05` §8.3: breaking the boss's first bar from the postern side opens the
+  gate behind you). The next phase's `onEnter` sets `drawbridge` (4 tiles) from Water to
+  Bridge, wakes `sally` (the kit's `posterns` court when the boss is the Iron Wall, `05`
+  §8.3) and shows its own band. Both the `until` and the `onEnter` effects resolve at `02`'s
+  enemy-phase check (the `phase` slot, README §3), through `02`'s `applyTerrainSetTiles`.
+- **Both phases carry the one seize by the same id**, so a lord who comes through the
+  postern and seizes before the drop wins at once; the drop never enters (`03` §4's shared
+  primary).
+- **The boss** is drawn by `boss: { weights: { 'Iron Wall': 3, 'Blade Lord': 1, 'Berserker
+  King': 1 } }` (§3.4, `05` §8.3): the keep is the Holder of the Breach's map; the other two
+  can hold it.
 - The sally group already stands dormant in the courtyard. It wakes; nothing spawns. So the v1
   wall-on-spawn bug cannot happen, and the validator would refuse a target under a seat.
 - Fliers can cross the moat and the gate pit before the bridge drops.
@@ -901,6 +931,8 @@ the good road): 10–11, as the cheaper of the gate and postern plans (gate 11; 
   Black Sun's extra members go to the sally, which comes to the player, so the estimate stays
   ≤ 12.
 - Nightfall+: the sally fallback is `turn parOffset −5`.
+- **Bonus** (`05` §8.3): `claim` the gatehouse ballista on Nightfall+ (under §3.2's Ballista
+  anchor rule; it covers the moat), else `reach` the armoury on Dusk.
 
 ### 10.4 The Emperor's Parade (Act IV boss, 24x14)
 
@@ -936,10 +968,14 @@ column: east gate, cols 20-23, rows 6-7   ....F.#.............#...
 - **Intercept on the avenue:** fight the Emperor off the throne, in the open, with both side
   pods joining. Estimate 11.
 - **Let him sit:** he takes the throne's bonuses and his guard becomes a hold pack.
-- The column is `02`'s `patrol` with `loop: false`: at the throne it stops and holds. A phase
-  `seated` (`until: { kind: 'tile', anchor: 'throne', by: { group: 'column' } }`, `02` §3.4)
-  wakes the palace guard and arms the Emperor's `clampTile`. Seize holds throughout: Seize
-  needs no living `isBoss` (appendix §1.2), so a lord cannot take the empty throne and win.
+- The column is `02`'s `patrol` with `loop: false`: at the throne it stops and holds.
+  **Seated is a wake, not a phase** (`05` §8.4): the palace guard wakes on `{ kind: 'tile',
+  anchor: 'throne', by: { group: 'column' } }` (`02` §3.4), and the Emperor's `clampTile`
+  engages on arrival through the clamp gate below, which needs no phase. The phases are his
+  bars (`05` §7.4, §8.4: `until: bossBar broken 1`, then the last bar), so an intercepted
+  column, which never seats, never leaves the phase machine waiting. Seize holds throughout:
+  Seize needs no living `isBoss` (appendix §1.2), so a lord cannot take the empty throne and
+  win.
 
 **Groups:**
 
@@ -948,7 +984,7 @@ column: east gate, cols 20-23, rows 6-7   ....F.#.............#...
 | column | Emperor + 3: the standard-bearer (a General, `objectiveRef: 'standard_bearer'`, never `isBoss`) and two of General / Paladin | `patrol`, `loop: false`, `route: [gate, avenue_mid \| north_street, steps, throne]`; wakes to `hunt` on `danger`/`hurt` |
 | side pod N | 2–4 | `dormant`: `groupWoken: column` (delay 1) |
 | side pod S | 2–4 | `dormant`: `groupWoken: column` (delay 1) |
-| palace guard | 2 | `dormant` |
+| palace guard | 2 | `dormant`: `tile` on `throne` `by: { group: 'column' }` (seated); bar 1 also wakes it (`05` §8.4) |
 | gate wave | 2 | Nightfall+, `triggeredWaves` `afterContact 3` (`latest: parOffset −2`), `side: 'anchor:east_gate'` |
 
 **Choices:**
@@ -960,7 +996,7 @@ That is 8 combinations. (Revision 1 also listed a start delay, "T2 on First Ligh
 Light runs have no Act IV, so the column marches from turn 1 on every rung that meets it.)
 
 **Bonus.** `slay` the standard-bearer before the column would be seated (gold + forge
-step, `03` §7.4).
+step, `03` §7.4; on Act IV the reward choice may lock `vision: 1` instead, `05` §8.4).
 - **Why not the Emperor** (revision 1). He is the throne's guard (`'@boss'`): killing him is
   a step of the primary, so a bonus on him paid twice for the push par already rewards,
   and it pulled only toward storming the palace, deciding the map's one choice. `03` §7.2
@@ -983,7 +1019,8 @@ step, `03` §7.4).
 seek-tile pipeline, so a boss with a `clampTile` would never march. `03`'s per-unit
 `clampTile` is written for the Emperor, but the clamp skips a member of a `patrol` group
 until its column reaches its last anchor. The arrival trigger is `02`'s `tile` with
-`by: { group }`.
+`by: { group }`. The clamp gate ships first in `05` K2, for the Dark Rider's patrol (one
+boss, one route); PR F reuses it (if PR F lands first, it ships the gate and K2 reuses it).
 
 **Rungs:** emperor stones 1 / 1 / 2 on Dusk / Nightfall / Black Sun (`difficulty.json`
 `revivalStones.emperor`; First Light has no Act IV); the gate wave from Nightfall.
@@ -1182,8 +1219,8 @@ that stays specified here but that nothing in the first shipment waits on.
 | B | Generator: `generateBattle` dispatch, `SetPieceGenerator.js` (assembly, fill scope, groups to spawns, awake `onWake` on spawns, gear chain, `formationSpares`, `parRoute`, `setPieceFallback`, config fields), `HeadlessBattle` deps, the dev route, the preview tool; tests 9–13, 17–18, 21 | A; `02` PR 2.1 (the group schema, initially awake `onWake`), `02` PR 2.5 (the par PR: `groups-v1` over `parRoute`; or `02`'s stopgap, `max(calculatePar(rout), estimate + 3)`, calibrated later). Not `03`: the Mill Ford writes no `objectives` (§3.7) | 4–5 days |
 | C | The Mill Ford and placement: `SetPiecePlacement.js`, the `difficulty.json` table, the RunManager hooks, the loom tag and place helper, the node pip, `sim/pacing --setPiece`, the two browser specs (§13); tests 1–3, 14–15, 22. **Later**: `setPiecesOffered` | B; `02` PRs 0a (enrage floor), 0d (dead air: on the critical path, a 15-enemy map of holders is unplayable on a phone without it), 2.1, 2.2a (`groupWoken`, `turn parOffset`, warn bands, always-on dormant outlines; its `tile` is no longer used by the Mill Ford), 2.5; `01` PR 1 (the [N] clamp) and, on phones, PR 8 (pointers). Nothing from `03` (§10.1). Not `02` 2.2b: the reserve's `objective` wake and Black Sun's `afterContact` clock wait for it (§10.1) | 4 days + 1 tuning |
 | D | Two Towers: elite placement, two captains, the road patrol, the `objective` wakes, the armoury | C; `03` PR 1 (the model: `defeat` is not a legacy kind), PR 1b (`defeat`, per-unit `clampTile`); `objective` events: `03` places them in PR 4, which also needs `02` PR 0b. Recommended instead: PR 1b notes `defeat`'s own `objective` events into `02` 2.2b's hook, so Two Towers needs nothing from PR 4 or 0b (a note for `03`); `02` PR 2.2b (the `objective` hook), PR 2.4 (the patrol; a `picket` is the fallback, same estimate). The bonus: `03` PR 3 and PR 5 (`reach`); the map can ship first without it | 3 days + 1 tuning |
-| E | Hybrid v2 and Long Road to the Keep: phase validation (§7: targets off seats, connectivity after each phase), the drawbridge through `02`'s `applyTerrainSetTiles` (no extraction: `02` PR 0b owns the module and deleted the harness copy) | D; `02` PRs 0b, 2.2b (the `phase` slot), 2.4 (the sally's `seek`); `03` PRs 3, 4 (phases); `01` PRs 3–5 (desktop camera), 7 (enemy-phase follow), 8 (pointers): 22x14 doesn't fit the desktop canvas at zoom 1 | 4 days |
-| F | The Emperor's Parade: the throne clamp gate for a marching column, the routed column, the `seated` phase, the arrival trigger, the `slay` bonus | E; `02` PRs 2.2a (`tile` with `by: { group }`), 2.2b (`afterContact`), 2.3 (the gate wave), 2.4 (the column); `03` PRs 1b (`clampTile`), 4, 5 (`slay`); `01` as E (24x14) | 5 days |
+| E | Hybrid v2 and Long Road to the Keep: phase validation (§7: targets off seats, connectivity after each phase), the drawbridge through `02`'s `applyTerrainSetTiles` (no extraction: `02` PR 0b owns the module and deleted the harness copy); `boss.weights` and the keyed boss pick. `05` K7 adds the drawbridge's `bossBar` member and the bonus | D; `02` PRs 0b, 2.2b (the `phase` slot), 2.4 (the sally's `seek`); `03` PRs 3, 4 (phases); `01` PRs 3–5 (desktop camera), 7 (enemy-phase follow), 8 (pointers): 22x14 doesn't fit the desktop canvas at zoom 1 | 4 days |
+| F | The Emperor's Parade: the throne clamp gate for a marching column (unless `05` K2 shipped it), the routed column, the seated wake, the arrival trigger, the `slay` bonus. `05` K8 adds the bar phases | E; `02` PRs 2.2a (`tile` with `by: { group }`), 2.2b (`afterContact`), 2.3 (the gate wave), 2.4 (the column); `03` PRs 1b (`clampTile`), 4, 5 (`slay`); `01` as E (24x14) | 5 days |
 | G… | Phase 6, one PR each. **Later**: the event `setPiece` hook (test 16) with Caravan Under Siege, Hunting Party, Rival Band, The Burning Village (`villages[]`), Break the Gate (structure HP), and the finale (Sanctum of Echoes) | each the `03` kind it uses (escort, assassinate, `claim`, destroy) | 3–6 days each |
 
 PRs A and B can land before any content; C is the first a player sees. A lands first
@@ -1250,11 +1287,14 @@ Then **Two Towers** (PR D, about 12 more days with `03` PR 1, PR 1b and `02` PRs
 4. **Showing choices.** Should the route card hint at the plan ("the bridge is held") or only
    name the place? This spec names the place only.
 5. **The Parade on Dusk.** It is the run's final battle there. Should Dusk always get the
-   Parade, as a finale, rather than a 0.5 share?
+   Parade, as a finale, rather than a 0.5 share? `05` §8.4 recommends no: Dusk's last
+   battle is the Emperor's kit on whichever map comes.
 6. **Two Towers' primary.** Is `defeat` both captains (recommended) acceptable, or must it
    read as a double seize?
 7. **The finale variant.** Should Sanctum of Echoes replace the Entity's sanctum at a share,
-   or only on Black Sun?
+   or only on Black Sun? Recommended (`05` §8.2): Black Sun only, at 0.5, so §6.1's
+   Nightfall finale share is 0; Nightfall keeps the procedural sanctum with `05`'s echo
+   pillars, and can be added if the owner wants it.
 8. **A `slay` deadline from a column.** The Parade locks its `slay` bonus's `byTurn` from the
    column's unopposed arrival (turn 4), not `03` §7.1's default `par − k`. Is a
    generator-written integer acceptable for `byTurn` (recommended: it is still locked and
@@ -1330,3 +1370,10 @@ Takes in the cross-review of the spec set.
   rule cites `02` §5.1; elite captains are `isBoss`, so boss enrage (par + 1 at Two Towers'
   par) is that map's anti-turtle; the bonus `capture` is now `claim`; music precedence
   for an eclipsed set piece; browser specs in lanes `run-flow` and `portrait`.
+
+## Revision 3 changelog (2026-10-09)
+
+- Takes in `05`'s notes: `boss: { weights }` with a keyed boss pick and `signatureOverride`
+  (§3.4, §4.3, §5); shared-primary phases and `until` lists (§3.7, Long Road's drawbridge);
+  the Parade's seated wake and bar phases; the clamp gate first in `05` K2; the Nightfall
+  finale share 0; `05`'s set pieces and bonuses in the catalogue.

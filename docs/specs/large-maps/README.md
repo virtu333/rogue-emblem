@@ -1,6 +1,6 @@
 # Large maps and map variety
 
-Status: proposal, revision 3 (2026-10-09). Takes in the notes of specs 01–04 and a cross-review
+Status: proposal, revision 4 (2026-10-09). Takes in the notes of specs 01–05 and a cross-review
 of the whole set. Specs only: no game code or data changes yet.
 Branch `claude/large-maps-specs`.
 
@@ -128,8 +128,8 @@ Four read-only investigations, with benchmarks run on the real `HeadlessBattle` 
 |---|---|---|
 | Ordinary procedural battles | unchanged (10x8 … 18x13) | `mapSizes.json` keeps its entries |
 | Large set piece (Act III–IV ordinary node, elite, event battle) | 20x12 – 22x14 | about two phone screens at tactical zoom. The format also serves smaller authored maps: Rival Band, an elite, is 18x10 |
-| Act boss set piece (Act III, Act IV) | 20x14 – 24x14 | an approach plus an authored arena (hybrid v2) |
-| Finale variant | up to 24x16 | optional, per rung |
+| Act boss set piece (Act III, Act IV) | 20x12 – 24x14 | an approach plus an authored arena (hybrid v2); `05`'s Dueling Halls is 22x12 |
+| Finale variant | up to 24x16 | Sanctum of Echoes, Black Sun only (`05` §8.7) |
 | Ceiling | 24x16 (384 tiles) | beyond this the walk dominates even with staging; 40x24 is out |
 
 ## 3. Shared names and rules
@@ -163,6 +163,11 @@ The four specs use these names. A spec may refine a field but not rename it.
     - `03`'s `parAdjust` carries only terms that are not walking (survive turns, a
       structure's `parTurns`, boss bars). It is added inside `02`'s formula, so the walk
       is never paid twice.
+  - `battleConfig.bossKit` and `battleConfig.bossSignature` (`05` §4.1, §10.2): the boss
+    kit a boss map was compiled from (`{ id, version }`, for display and records) and its
+    one signature, resolved for the rung and locked. Everything else a kit says is
+    compiled into the fields above (`objectives.phases`, `encounterGroups`, `anchors`,
+    `triggeredWaves`). A resume reads the config, never the kit.
 
 **Unit fields.**
 - An enemy carries its group's id in `unit.encounterGroupId`. The id rides
@@ -175,7 +180,10 @@ snapshot and the snapshot validator together, from the first PR. It covers:
 - woken groups;
 - fired triggers;
 - the current phase and the turn it started (`objectiveState.phaseStartedTurn`, `03`);
-- objective and bonus progress.
+- objective and bonus progress;
+- the boss's signature and finale state (`bossState`, `05` §5.1, §10.2: the pending tell,
+  the signature count, the marked unit, the held pillars, the music latch). An old
+  checkpoint without it derives it empty.
 
 **Triggers.** One vocabulary, used by group wakes, waves and phases. `delay` counts whole
 enemy phases.
@@ -189,16 +197,33 @@ enemy phases.
 | `tile` | a player unit (or, with `by: { group }`, a named enemy group) ends a move on a named anchor or region | 0 |
 | `objective` | a named primary or bonus objective is `done` or `failed` (`03`'s words); `on` defaults to `done` | 1 |
 | `turn` | a turn **relative to contact, par or phase**: `{ afterContact: n, latest: { parOffset } }` (`latest` is required, so a turtle can't postpone it), `{ parOffset: -k }`, or `{ afterPhase: n }` (`03`). An absolute `{ turn: n }` exists only for legacy waves | 1 |
+| `bossBar` | `{ broken: n \| 'last', fallback }` (`05` §4.3): the kit's boss has broken at least `n` Revival Stones (`'last'`: it is on its last bar). The required `fallback` (a `bossHp` or `turn` trigger, never `bossBar`) stands in, decided at compile, on a rung where the boss carries fewer than `n` stones (none, for `'last'`) | 0 |
+| `bossHp` | `{ below: share }` (`05` §4.3): the kit's boss stands at `currentHP < maxHP × share` on its current bar (at 0.5, `checkBossHalfHealth`'s own test); a bar broken since the last check counts as crossed | 0 |
 
 - `02` §3.4 defines contact precisely and deterministically.
 - Each trigger fires once.
+- **Default delays.** The column is a group wake's default when the trigger names none. A
+  triggered wave's `delay` and a phase `until`'s default to 0 for every kind (`02` §3.4).
+- **The boss kinds** are noted like `hurt` (the player's blow causes them) and read at the
+  next check. Both count a fallen boss as true and may carry `latest` (a `parOffset`, or
+  a legacy `{ turn: n }`), firing at the earlier.
+- **A phase `until` may be a list** of triggers, any one firing (as a group's `wake` list
+  is). `04`'s Long Road drawbridge needs it (`03` §6).
 - **Every trigger and every phase advance is evaluated at one point**: once per enemy
   phase, at its start, with `>=` comparisons, in `02` §3.4's fixed order.
-  - A phase's `until` sits after `objective` and before `turn`.
-  - Every effect of a phase's `onEnter` (terrain, wakes) applies there.
+  - Group wakes and waves that name `bossBar` / `bossHp` sit right after `hurt` (slot
+    2b). A phase's `until` sits after `objective` and before `turn`, whatever its kind,
+    and the boss signature (`05` §5.1) resolves and plans right after the phase (slot
+    7b), before `turn`.
+  - Every effect of a phase's `onEnter` (terrain, wakes, and a boss kit's own effects,
+    `05` §4.1) applies there.
   - The board never changes under the player's own turn. When the last primary of a
     phase resolves, the NEW OBJECTIVE band may show at once, but the change waits for the
     enemy phase (`03` §6).
+  - **Phases that keep the primary** (`05` §4.5, `03` §4): when the current phase's
+    primaries are the same objectives (same ids) as every later phase's, completing them is
+    victory at once, in any phase. An advance between such phases shows the phase's own
+    `onEnter.line` band at the check, not NEW OBJECTIVE.
 - A group that starts `awake` applies its `onWake` at battle start. For example,
   raiders seeking a village are written onto their spawns as `aiMode` / `aiTargetTile`,
   exactly as the village's bandits are today (`02` §3.3).
@@ -219,6 +244,8 @@ enemy phases.
 | `engine/TerrainPhases.js` | `02` | `applyTerrainSetTiles(grid, setTiles, anchors, { occupants })`: the one terrain override, used by hybrid arenas and `03`'s phases. It never writes a tile its occupant can't stand on. `02` PR 0b extracts it; `03` and `04` only call it |
 | `engine/BattleObjectives.js` | `03` | the one victory, failure and progress predicate |
 | `engine/BonusSettlement.js` | `03` | judges bonuses once, at the victory commit |
+| `engine/BossKit.js` | `05` | generation only: compiles a boss kit into the fields above, derives a procedural boss map's anchors, and places the boss arenas after the node map (`assignBossArenas`) |
+| `engine/BossSignature.js` | `05` | play: resolves, plans and views the boss's one telegraphed action in `02`'s check (slot 7b); owns `bossState.signature` |
 
 **Anchors.**
 - Named points and regions (`throne`, `gate`, `ford`, `village_a`, `exit`, `camp`) are
@@ -259,9 +286,19 @@ keeps meaning the prologue.
   node id. It never draws on the node-map stream (`04` §6).
 - **Event battles:** events may name a set piece (The Burning Village, Caravan Under Siege).
 - **Act III and Act IV boss nodes:** boss set pieces join the boss template pool beside the
-  hybrid arenas (Long Road to the Keep, The Emperor's Parade, and `05`'s). Every boss
-  battle, set piece or not, gets `05`'s enhancements.
-- **Finale:** an optional Entity variant, gated by rung.
+  hybrid arenas, never instead of them (owner decision 4): Long Road to the Keep and the
+  Dueling Halls in Act III, The Emperor's Parade and the Battery (Nightfall+) in Act IV
+  (`05` §8). Dusk and up only.
+- **Boss arenas in every act** (`05` §4.4; not set pieces): today's two hybrid arenas gain
+  structural variants, Acts I and II gain one arena each (`act1_border_post`,
+  `act2_doctrine_yard`), and a keyed post-pass gives boss nodes an arena of the drawn biome
+  at the rung's share (`difficulty.json` `bossKits.arenaShare`: First Light 0.5, Dusk and
+  up 0.75). A boss set piece placed by `04`'s pass wins.
+- **Every boss battle**, set piece or not, First Light included under `05` §9.5's rules,
+  gets `05`'s boss kit: phases, a signature, a court, a bonus.
+- **Finale:** Sanctum of Echoes, the Entity's variant, on Black Sun only (`05` §8.2, §8.7;
+  `04` §6.1's Nightfall finale share is 0). Nightfall and Black Sun's procedural sanctum
+  gains the echo pillars.
 
 The route map tells the player a node holds a large map before they choose it (a tag on the
 node, `04`).
@@ -277,8 +314,9 @@ Each phase is shippable alone and leaves the game better even if the next never 
 | 2 | **Encounter groups** (`02`): groups, wake triggers, contact-relative waves, and the par model `groups-v1` in its own PR. Pickets and sleeping pods on today's rout maps stay owner-gated until `sim/pacing.js` shows par holds (`02` §1.5, §9) | 0 (enrage, dead air) |
 | 3 | **Objective model v2** (`03`): `objectives` with phases and bonuses; the objective strip; bonus rewards at the victory commit. First on today's maps: the village becomes a bonus objective (it keeps its in-battle payout for compatibility, `03` §9), multi-seize | 2 |
 | 4 | **Set-piece format and the first two maps** (`04`): skeleton, chunks, seeded choices, validator; The Mill Ford (Act III ordinary) and Two Towers (elite) | the PRs in the vertical slice below; Two Towers adds `03`'s model and `defeat` |
-| 5 | **Boss set pieces**: Long Road to the Keep (Act III, 22x14), The Emperor's Parade (Act IV, 24x14) | 4, and **1**: these boards don't fit desktop at zoom 1, so they need the desktop camera, enemy-phase follow and pointers |
-| 6 | **More set pieces**: Caravan Under Siege, Hunting Party, Break the Gate (needs a gate tile), The Burning Village, the finale variant | 4, plus the `03` kind each one uses |
+| 5a | **Boss enhancements on today's maps** (`05` K0–K6): K0 arenas everywhere (variants, the Act I–II arenas, the share, the card's third line); K1 kit data, compile, the `bossBar` / `bossHp` triggers, `bossState`, the shared-primary rule, the core signature module and the Act I kits; K2–K4 the Act II–IV kits; K5 boss-map bonuses and Vision; K6 the finale (the Lieutenant's foretell, the Entity's echo pillars, the harness's splash) | K0: `02` PR 0b only. K1: `02` PRs 2.1, 2.2a, 2.2b, 2.4, 2.5 and `03` PRs 1, 1b, 3, 4 (or a trimmed **K1-lite**: `02` 2.1, 2.2a, 2.4 and the two trigger kinds). K2: K1 and `02` 2.3; K3, K4: K2; K5: K1 and `03` PR 5; K6: K2 (its pillar bonus also `03` PRs 5, 7). **No camera work**: everything plays on today's sizes |
+| 5 | **Boss set pieces**: Long Road to the Keep (Act III, 22x14), The Emperor's Parade (Act IV, 24x14), refined by `05` K7–K8 (boss weights, the drawbridge's `until` list, the Parade's bar phases) | 4 (`04` PRs E, F; the K7–K8 refinements also need 5a's K2 and K4), and **1**: these boards don't fit desktop at zoom 1, so they need the desktop camera, enemy-phase follow and pointers (`01` PRs 3–5, 7, 8) |
+| 6 | **More set pieces**: Caravan Under Siege, Hunting Party, Break the Gate (needs a gate tile), The Burning Village, Rival Band; `05`'s Dueling Halls (K9) and the Battery (K10); the finale variant, Sanctum of Echoes on Black Sun (K11) | 4, plus the `03` kind each one uses; `05`'s three also 5a (K3–K6) and `01` as Phase 5 |
 
 **Ordering.**
 - **Phases 0 and 1 can run in parallel.** The enemy-phase camera does not wait for
@@ -288,6 +326,10 @@ Each phase is shippable alone and leaves the game better even if the next never 
 - **20x12 boards need little from `01`.** They fit the desktop at zoom 1 (640x480 / 32 px
   = 20x15). The first two maps need only `01` PR 1 (the [N] clamp) and, on phones, the
   off-screen pointers (`01` PR 8).
+- **Phase 5a runs beside the slice.** K0 needs only `02` PR 0b and changes boss maps in
+  every act, First Light included; K1 lands with `02`'s Phase 2 core and `03` PRs 1, 1b, 3
+  and 4, the same PRs Two Towers and Long Road need. Only `05`'s set pieces (K7–K11) wait
+  for the camera. K0 then K1 is the cheapest large change in the set (`05` §12).
 
 ### Vertical slice: The Mill Ford, Dusk and up
 
@@ -323,9 +365,14 @@ per-unit `clampTile`) and the map itself. Its bonus can follow with `03` PRs 3 a
 1. **How often:** at most one set piece per act on ordinary nodes, plus a chance on elite
    nodes (`04` §6.1's table; the chances are tuned in its PR C).
 2. **First Light:** no set pieces at all. It is the intro difficulty. First Light may still
-   get the boss enhancements that are not set pieces (`05`).
-3. **Bonus rewards:** a bonus may pay a Vision charge. Act III+, at most once per act
-   (`03` §7.3).
+   get the boss enhancements that are not set pieces (`05`). `05` §9.5 reads that as: the
+   kits with gentler values and no sleeping or patrolling courts; today's map formats only
+   (the procedural seize templates, the v1 hybrid arenas, their variants and the new Act
+   I–II arenas, at a 0.5 share); one kit bonus per boss map, never paying Vision. `05` Q1
+   and Q10 ask the owner to confirm that reading.
+3. **Bonus rewards:** a bonus may pay a Vision charge. Act III+, at most once per act,
+   never on First Light (`03` §7.4). It may be offered on any Act III+ set-piece or
+   boss-map bonus; `05`'s boss-map bonuses offer it on half their draws (`05` §6).
 4. **Boss maps:** enhance today's boss maps rather than replace them. The hybrid arenas stay
    in the pool. `05-boss-maps.md` plans the enhancements and more boss set pieces.
 5. **Desktop default view** (still open): `01` recommends opening on the whole board, so
@@ -336,3 +383,12 @@ per-unit `clampTile`) and the map itself. Its bonus can follow with `03` PRs 3 a
 Each spec ends with its own open questions.
 
 **Next.** Phase 0 is being implemented as small, separately reviewed PRs from `main`.
+
+## Changelog
+
+- **Revision 4 (2026-10-09):** takes in `05`'s notes: the `bossBar` / `bossHp` trigger kinds
+  (slot 2b), the signature slot (7b), `until` lists, the shared-primary phase rule,
+  `bossKit` / `bossSignature` / `bossState`, `BossKit.js` and `BossSignature.js`, boss arenas
+  in every act, Sanctum of Echoes on Black Sun only, First Light's reading of `05` §9.5,
+  Vision on any Act III+ set-piece or boss-map bonus, the boss band from 20x12, and roadmap
+  Phase 5a.

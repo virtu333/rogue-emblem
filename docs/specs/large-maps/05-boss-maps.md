@@ -1,7 +1,8 @@
 # Large maps 05: boss maps
 
-Status: proposal, revision 1 (2026-10-09), fact-checked against the code. Specs only: no
-game code or data changes.
+Status: proposal, revision 2 (2026-10-09), fact-checked against the code; its notes are
+taken in by the README (revision 4) and `01`–`04` (revision 3). Specs only: no game code or
+data changes.
 Branch `claude/large-maps-specs`. Part of the large-maps set ([README](README.md)); this
 spec owns roadmap **Phase 5** (boss set pieces) and a new strand the owner asked for:
 **enhancing today's boss maps** rather than replacing them. It writes `02`'s groups and
@@ -396,8 +397,8 @@ Every kit phase carries the same primary (the one seize). `03` §4 as written ta
 only in the last phase and offers no Seize for a later phase before its advance, so a boss
 killed and seized in phase 0 (a First Light boss taken from above half to 0 in one
 exchange, before its `bossHp` `until` has fired) would leave the player waiting an enemy
-phase on a won map. `04`'s Long Road drawbridge phase has the same shape. This spec needs,
-and asks `03` to adopt (Notes for the README):
+phase on a won map. `04`'s Long Road drawbridge phase has the same shape. This spec needs
+the rule below, which `03` has adopted (`03` §4, §6, revision 3):
 - **Shared primary wins in any phase.** When the current phase's primaries are the same
   objectives (same ids) as every later phase's, their completion is victory at once, as in
   the last phase; the remaining phases never enter.
@@ -440,9 +441,10 @@ signatureView(state, signature, knowledge)           // → the tell for the boa
   second dash style and a new `UI_PALETTE` token; the Entity's splash text uses
   `rarityEpic` today), named in the strip's boss row ("The Calculation · next enemy phase ·
   3 tiles") and in the boss's inspect line, and gets a warn band at the check that plans
-  it. Two asks of `01` (Notes for the README): its pointer priority (§2.8: the boss is third)
-  promotes the boss to first while a tell is pending, and its enemy-phase beat table
-  (§2.7) gains a row, "signature resolves: the affected tiles the player can see".
+  it. Two asks of `01`, taken in (`01` §2.7, §2.8): its pointer priority promotes the boss
+  ahead of the primary objective while a tell is pending (behind only a commander at half
+  HP or less, whose safety ends runs), and its enemy-phase beat table gains a row,
+  "signature resolves: the affected tiles the player can see".
 - **RNG.** A signature that needs a draw (which tiles among equals, which flank) uses
   `keyedBattleRandom(battleSeed, 'boss-sig:<turn>:<n>')`, never `Math.random` (the
   Necromancer's raise is the precedent: a resume or rewind replays it).
@@ -506,15 +508,19 @@ a copy.
   spec's extension (Notes for the README).
 - **Vision.** `03` §7.4's `vision: 1` reward is allowed (owner decision): Act III and later,
   at most once per act (`run.bonusVisionActs`), never on First Light (`03` §7.4: "none on
-  First Light"; §9.5 keeps it so although First Light boss maps now carry bonuses). This
-  spec offers it only on boss-map bonuses (`03` allows any Act III+ bonus; the boss-only
-  choice is §13 Q3). The reward is a seeded choice at generation
+  First Light"; §9.5 keeps it so although First Light boss maps now carry bonuses). `03`
+  allows it on any Act III+ set-piece or boss-map bonus (README §6.3); this spec makes its
+  offers on boss maps, and an ordinary or elite set piece may make its own (§13 Q3,
+  decided). The reward is a seeded choice at generation
   (`keyedBattleRandom(battleSeed, 'bonus-reward:<id>')`, `objectives.json`
   `bonusRewards.visionOffer` 0.5): half the offers on Dusk+ Act III and IV boss maps are
-  `vision: 1`, half the kind's default reward (gold plus an item for `reach` and `unbloodied`, gold plus a forge step for `slay`). The choice is resolved before the
-  config is locked, so the locked `reward` is one plain `03` §7.4 key, which `03`'s
-  validator accepts; when `run.bonusVisionActs` already holds the act at generation (an
-  ordinary set piece paid one), the offer is the default side. The strip says which
+  `vision: 1`, half the kind's default reward (gold plus an item for `reach` and
+  `unbloodied`, gold plus a forge step for `slay`). The choice is resolved before the
+  config is locked, so the locked `reward` is one plain `03` §7.4 key (a `vision` reward
+  locks the default side beside it as its `fallback`), which `03`'s validator accepts; when
+  `run.bonusVisionActs` already holds the act at generation (an ordinary set piece paid
+  one), the offer is the default side, and the commit checks again and pays the
+  `fallback` (`03` §7.4). The strip says which
   before the first move ("+1 Vision" or "+500 G · Elixir"). Why boss maps: the act boss
   already pays a charge at the commit (`RunManager.js:4316-4328`), so Vision is the
   currency the player expects to see there; a bonus charge is a second one for the next
@@ -1268,7 +1274,7 @@ are theirs: `01` §5 (PRs 1–10), `02` §8 (0a–0e, 2.0–2.6), `03` §14 (1, 
 | **K2** | `BossSignature.js`'s `terrain` and `wave` kinds; the marching-boss clamp gate (`04` §10.4's rule, first used by the Dark Rider; `04` PR F reuses it); the **Act II and III kits** but the Archmage's volley and the Blade Lord's mark | K1; `02` PR 2.3 (triggered waves) | Acts II–III bosses have signatures | 4 days + 1 tuning |
 | **K3** | `volley` and `mark` (the Archmage, the Blade Lord); the forecast's volley line; the marked-target score term in `_scoreAttackTarget` | K2 | the two bosses with a per-unit threat | 3 days |
 | **K4** | **The Emperor's kit** (bars, `shielded`, the guard, the last bar's `regenerator` and enrage layer, the Nightfall+ gate wave), the bar-1 `setTiles` on the bastion's variants (the v1 overrides stay) | K2 (K0 for the variants) | Act IV's one boss has three acts on Black Sun, two on Dusk and Nightfall | 2 days |
-| **K5** | **Boss-map bonuses and Vision**: the kit's bonus, `deadline` on `reach` / `claim` (`signatureCount`, `byTurn`), the reward choice at generation, the boss-map Vision rule, the finale's feats (`bonusFeats`) | K1; `03` PR 5 (`slay`, `reach`, `claim`, the validator; its later parts `unbloodied` and the `vision` reward) | a bonus on every boss map; Vision from Act III on Dusk+ | 2 days |
+| **K5** | **Boss-map bonuses and Vision**: the kit's bonus, `deadline` on `reach` / `claim` (`signatureCount`, `byTurn`), the reward choice at generation (`visionOffer`, the `fallback` side), the finale's feats (`bonusFeats`) | K1; `03` PR 5 (`slay`, `reach`, `claim`, the validator; its later parts `unbloodied` and the `vision` reward) | a bonus on every boss map; Vision from Act III on Dusk+ | 2 days |
 | **K6** | **The finale**: `foretell` and `previewDecision` (the Lieutenant), the `unitOnField` narrative key; the echo pillars, the splash moved into `EntitySystem` (the harness splashes), the hum term, the sanctum's derived anchors; the T4/T7 waves as `bossHp` triggered waves once the paired sims pass | K2 (`02` PR 2.3 rides it); the pillar bonus also needs `03` PR 5 (`claim`) and PR 7 (capture points), with `need` (Notes); the splash, hum and waves need only positions and ship first | the Lieutenant shows his hand; the Entity can be quieted | 3 days |
 | **K7** | Long Road refined (boss weights, the half's drawbridge `until` list, the ballista `claim`) | `04` PR E; K2; `01` PRs 3–5, 7, 8 (as `04` E) | — | 1 day on top of E |
 | **K8** | The Parade refined (bars as phases, `seated` as a wake) | `04` PR F; K4; `01` as K7 | — | 1 day on top of F |
@@ -1307,10 +1313,12 @@ Captain's line holds its gate and does not reform until K1.
 2. **Volley lethality.** `lethal: false` on First Light and Dusk, lethal from Nightfall (the
    commander always floored at 1): or never lethal anywhere, so a boss can never fell a unit
    outside combat? The second is safer and weaker; the tell is a whole phase.
-3. **Vision from boss-map bonuses:** `03` §7.4 lets any Act III+ bonus pay Vision, once per
-   act. This spec offers it only on boss maps, on half the offers (Dusk+). Keep that, offer
-   it on every Act III+ act boss's bonus (simpler to read, more Vision in the economy: a run
-   could end with +2 charges an act), or let ordinary set pieces offer it too?
+3. **Decided by the owner's rule (README §6.3):** Vision may be offered on any Act III+
+   set-piece or boss-map bonus, at most once per act, never on First Light. This spec's
+   boss maps offer it on half their draws (Dusk+); ordinary and elite set pieces may offer
+   it too, and the once-per-act check (at generation and again at the commit, `03` §7.4)
+   keeps the economy at one bonus charge an act. Still open: the share (`visionOffer` 0.5),
+   tuned with `sim/pacing.js`.
 4. **The Emperor on Dusk:** the kit on whatever map (recommended), or the Parade always?
 5. **A boss's affix at the half on First Light:** this spec allows tier-1 affixes outside
    First Light's `excludedAffixes` (`anchored`, `berserker`, `regenerator`). Acceptable, or
@@ -1332,66 +1340,86 @@ Captain's line holds its gate and does not reform until K1.
 ## Notes for the README
 
 Items the owning spec should take in; none changes a rule of `01`–`04` until it does.
+**All fifteen were taken in on 2026-10-09** (README revision 4; `01`–`04` revision 3): 1–7,
+10–14 as written, 8 and 9 with a change (said under each), 15 where the files are the set's.
 
-1. **Two trigger kinds** join README §3's table and `02` §3.4: `bossBar { broken: n | 'last',
-   fallback }` (fallback a `bossHp` or `turn` trigger) and `bossHp { below: share }`
-   (`currentHP < maxHP × share`, `checkBossHalfHealth`'s own test), both default delay 0,
-   both "hurt-shaped", true for a fallen boss, both may carry `latest`. Group wakes and
-   waves that name them are evaluated in a new slot **2b** after `hurt`; a phase `until` of
-   either kind stays in the `phase` slot (7). The signature module runs in a slot **7b**
-   after `phase`, before `turn`.
-2. **A phase `until` may be a list** (any one fires, as a group's `wake` list): `04` §10.3's
-   drawbridge ("whichever comes first") already needs it; `03` §6 writes `until` singular.
-3. **Phases that keep the primary** (§4.5): `03` §4 should take victory in any phase whose
-   primaries are the same objectives as every later phase's, and `03` §6 should show such
-   an advance with the phase's own `onEnter.line` band, no NEW OBJECTIVE, no
-   `guide_phase_change`, no "Next" row (`02` §3.8's history word follows). `04`'s Long Road
-   drawbridge phase has the same shape.
-4. **`onEnter` keys** beyond `03` §6's `setTiles`, `wake` and `line`: `court`, `signature`,
-   `affix`, `wave`, `bossLine`, `music` (§4.1).
-5. **For `02` §3.7:** a court order on an `awake` group rewrites its members' orders (a
-   re-order, through the same writer as `onWake`); orders may set `guardRadius` and
-   `ignoreEnrage: false`, and an order given at a phase's `onEnter` may carry a `delay`
-   with its warn band.
-6. **For `03` PR 1b:** `clampTile: false` is an explicit release, distinct from the absent
-   field (which falls back to `thronePos` on seize).
-7. **For `03` §7 (bonuses):** a `deadline` on `reach` and `claim` (`signatureCount: n`, or
-   `byTurn` locked as `par − k`); `claim` on capture points with `need: n` held at the same
-   check (the Sanctum's pillars; points arrive with `03` PR 7); a reward-less **feat** bonus
-   for the finale (§6); a reward choice resolved at generation into one plain key
-   (`objectives.json` `bonusRewards.visionOffer`); kit bonuses on procedural boss maps, an
-   exception to `03` §7.2's "ordinary procedural maps keep only the village and caravan"
-   (its open question 5, answered for boss nodes).
-8. **Vision** (README §6.3, `03` §7.4): this spec offers it only on boss-map bonuses, Dusk+
-   Act III+, once per act, never on First Light (§13 Q3).
-9. **For `01`:** while a tell is pending its pointer priority (§2.8) promotes the boss to
-   first; its enemy-phase beat table (§2.7) gains "signature resolves: the affected tiles
-   the player can see"; the outline layer gets a second dash style for tells.
-10. **For `04`:** `setPieces.json` gains `boss: { weights }` (a keyed boss pick that replaces
-    the `generateEnemies`-style pick on the set-piece path) and `signatureOverride`; the
-    Parade's `seated` phase becomes a `tile`-by-column wake (§8.4); this spec's answer to
-    `04` Q7 (Sanctum of Echoes on Black Sun only) sets `04` §6.1's Nightfall finale share to
-    0; the marching-boss clamp gate ships first in K2.
-11. **Battle state** gains `bossState` (the pending tell, the signature count, the marked
-    unit, the held pillars, the music latch), riding the checkpoint, the Vision snapshot and
-    the validator from K1. **Shared modules** gain `engine/BossKit.js` (generation) and
-    `engine/BossSignature.js` (play), both pure and called by the scene and the harness.
-12. **§4 "Where large maps appear":** boss set pieces join the pool beside today's arenas
-    (README Q4 answered: beside, not instead), today's arenas get variants, Acts I–II get
-    one each (`difficulty.json` `bossKits.arenaShare` per rung); the Dueling Halls and the
-    Battery join Long Road and the Parade; Sanctum of Echoes is Black Sun's finale variant.
-13. **§6.2 (First Light)** is applied in §9.5: no set pieces; kits, arenas (today's hybrid
-    format) and bonuses (never Vision) apply with gentle values and no sleeping courts; §13
-    Q1 and Q10 ask the owner to confirm.
-14. **Roadmap:** a Phase 5a, "boss kits on today's maps" (K0–K6), is shippable before any
-    boss set piece and needs no camera work; Phase 5 proper (Long Road, the Parade) becomes
-    K7–K8 on top of `04`'s E and F.
-15. **Found while fact-checking, outside this spec:** `02` §2.5 puts
-    `enemy-phase-pacing.spec.js` in a "battle lane", but `tests/e2e/lanes.json` has none
-    (its lanes: smoke, contracts, presentation, mobile-ui, portrait, battle-input,
-    battle-history, art, run-flow, prologue, menus, compact, release); `CLAUDE.md` counts 12
+1. **Resolved (README §3, `02` §3.4):** two trigger kinds join README §3's table and `02`
+   §3.4: `bossBar { broken: n | 'last', fallback }` (fallback a `bossHp` or `turn` trigger)
+   and `bossHp { below: share }` (`currentHP < maxHP × share`, `checkBossHalfHealth`'s own
+   test), both default delay 0, both "hurt-shaped", true for a fallen boss, both may carry
+   `latest`. Group wakes and waves that name them are evaluated in a new slot **2b** after
+   `hurt`; a phase `until` of either kind stays in the `phase` slot (7). The signature
+   module runs in a slot **7b** after `phase`, before `turn`. `02` §5.1's awake-at-start
+   rule also counts them as "never" (but their `latest` or a `turn` fallback).
+2. **Resolved (README §3, `03` §6, `04` §10.3):** a phase `until` may be a list (any one
+   fires, as a group's `wake` list): `04`'s Long Road drawbridge now writes one, with this
+   spec's `bossBar` member (§8.3).
+3. **Resolved (README §3, `03` §4, §6, §11.3, §13; `02` §3.4, §3.8; `04` §3.7, §10.3):**
+   phases that keep the primary (§4.5). `03` §4 takes victory in any phase whose primaries
+   are the same objectives (same ids: the same objective listed again, one status record)
+   as every later phase's; such a phase must carry an `until`. `03` §6 shows such an advance
+   with the phase's own `onEnter.line` band, no NEW OBJECTIVE, no `guide_phase_change`, no
+   "Next" row, and `02` §3.8's history fact is the band's sentence. `04`'s Long Road: a
+   seize before the drawbridge drops wins at once.
+4. **Resolved (`03` §6, README §3):** `onEnter` keys beyond `03` §6's `setTiles`, `wake` and
+   `line` (`court`, `signature`, `affix`, `wave`, `bossLine`, `music`, §4.1) are this spec's;
+   `03`'s `checkPhase` passes them through in its `effects`, and skips those aimed at a
+   fallen boss.
+5. **Resolved (`02` §3.7):** a court order on an `awake` group rewrites its members' orders
+   (a re-order, through the same writer as `onWake`; not a wake: no `groupWoken`, no wake
+   band, recorded in the ledger); orders may set `guardRadius` and `ignoreEnrage: false`,
+   and an order given at a phase's `onEnter` may carry a `delay` with its warn band.
+6. **Resolved (`03` §5.2, §10, §14 PR 1b):** `clampTile: false` is an explicit release,
+   distinct from the absent field (which falls back to `thronePos` on seize).
+7. **Resolved (`03` §7.1–§7.4, §13, §14 PR 5):** a `deadline` on `reach` and `claim`
+   (`signatureCount: n`, or `byTurn` locked as `par − k`); `claim` on points with `need: n`
+   held at the same check (§5.7's points from `03` PR 7, or the finale's echo pillars from
+   `bossState.pillars`); a reward-less **feat** bonus, finale only (`feat: true`); a reward
+   choice resolved at generation into one plain key (`objectives.json`
+   `bonusRewards.visionOffer`); kit bonuses on procedural boss maps, an exception to `03`
+   §7.2 (its open question 5, answered for boss nodes).
+8. **Resolved with a change (README §6.3, `03` §7.4, §6 and §13 Q3 here):** Vision is
+   offered on any Act III+ set-piece or boss-map bonus, at most once per act, never on
+   First Light, not only on boss maps. Why: the owner allowed Vision as a bonus reward in
+   general (README §6.3), and nothing here needs the boss-only limit: the once-per-act
+   ledger already bounds the economy at one bonus charge an act, whichever battle pays it.
+   This spec's own offers stay on boss maps. `03` §7.4 also checks the ledger again at the
+   commit and pays the reward's locked `fallback` when the act is already paid.
+9. **Resolved with a change (`01` §2.7, §2.8, §2.11, §4, §5):** the beat row ("signature
+   resolves: the affected tiles the player can see") and the tell's second dash style are
+   adopted. The pointer promotion places a boss with a pending tell ahead of the primary
+   objective but **behind a commander at half HP or less** (`01`'s existing promotion to
+   first), not first outright: a falling commander ends the run, a tell costs a heal (§5.1
+   now says so).
+10. **Resolved (`04` §3.4, §4.3, §5, §6.1, §6.2, §10.4, §14, Q5, Q7):** `setPieces.json`
+    gains `boss: { weights }` (a keyed boss pick that replaces the `generateEnemies`-style
+    pick on the set-piece path) and `signatureOverride` (only on a set piece that pins its
+    boss); the Parade's `seated` phase is a `tile`-by-column wake (§8.4) and its phases are
+    the bars; Sanctum of Echoes is Black Sun's only, so `04` §6.1's Nightfall finale share is
+    0; the marching-boss clamp gate ships first in K2 (PR F reuses it, or ships it if first).
+11. **Resolved (README §3):** battle state gains `bossState` (the pending tell, the
+    signature count, the marked unit, the held pillars, the music latch), riding the
+    checkpoint, the Vision snapshot and the validator from K1. **Shared modules** gain
+    `engine/BossKit.js` (generation) and `engine/BossSignature.js` (play); the config field
+    list gains `bossKit` and `bossSignature`.
+12. **Resolved (README §2, §4):** boss set pieces join the pool beside today's arenas, today's
+    arenas get variants, Acts I–II get one each (`difficulty.json` `bossKits.arenaShare`
+    per rung); the Dueling Halls and the Battery join Long Road and the Parade; Sanctum of
+    Echoes is Black Sun's finale variant. The README's boss size band now starts at 20x12,
+    so the Dueling Halls (22x12) passes `04` §8.2 check 1.
+13. **Resolved (README §6.2):** First Light as applied in §9.5 (no set pieces; kits, today's
+    arena formats and bonuses, never Vision, with gentle values and no sleeping courts); §13
+    Q1 and Q10 still ask the owner to confirm.
+14. **Resolved (README §5):** Phase 5a, "boss enhancements on today's maps" (K0–K6), with
+    its dependencies from §12 (K0: `02` PR 0b; K1: `02`'s Phase 2 core and `03` PRs 1, 1b,
+    3, 4, or K1-lite), shippable before any boss set piece and with no camera work; Phase 5
+    (Long Road, the Parade) carries K7–K8 on top of `04`'s E and F; Phase 6 gains K9–K11;
+    the ordering notes say K0 then K1 runs beside the slice.
+15. **Resolved where the files are the set's:** `02` §2.5's `enemy-phase-pacing.spec.js` is
+    now in lane `presentation` (beside `battle-speed.spec.js`; `tests/e2e/lanes.json` has
+    no `battle` lane). Outside this set and left for the owner: `CLAUDE.md` counts 12
     affixes where `affixes.json` holds 13 and cites `docs/specs/phase3.md`, which does not
-    exist; the harness never splashes for the Entity and never applies `haste`'s MOV (§1.5).
+    exist; the harness's missing Entity splash and `haste` MOV are this spec's K6 and K1.
 
 ## Fact-check notes (revision 1, 2026-10-09)
 
@@ -1459,3 +1487,9 @@ What this pass corrected against the code and specs `01`–`04`:
   `TurnPressure.js:78-110`, `AIController.js:340-353`, `RunManager.js:4316-4328`,
   `deeds.json:97-107`, `ceremonyContent.js:113-128`); the browser spec lane `battle` does not
   exist and became `run-flow`; scratch-assembler estimates are marked as by-hand.
+
+## Revision 2 changelog (2026-10-09)
+
+- The fifteen notes are taken in by the README and `01`–`04` and marked resolved; two with a
+  change: Vision may be offered on any Act III+ set-piece or boss-map bonus (§6, §13 Q3),
+  and a pending tell's pointer ranks behind a commander at half HP (§5.1).

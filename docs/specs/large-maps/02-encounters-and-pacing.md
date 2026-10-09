@@ -1,6 +1,7 @@
 # Encounters and pacing
 
-Status: proposal, revision 2 (2026-10-09). Takes in the cross-review of the spec set.
+Status: proposal, revision 3 (2026-10-09). Takes in the cross-review of the spec set and
+`05`'s notes (the boss trigger kinds, the signature slot, court re-orders).
 Specs only: no game code or data changes.
 Branch `claude/large-maps-specs`. Part of the large-maps set ([README](README.md)); this
 spec owns roadmap **Phase 0** (fixes worth doing anyway) and **Phase 2** (encounter groups
@@ -279,8 +280,9 @@ in fixed pauses alone (300 ms each, at every speed). It lands before `04`'s firs
 Effect: today an 11-enemy phase spends 3.3 s in these delays at every speed. After the
 fix an idle or hidden enemy costs 0 and a seen one 300 / 150 / 1 ms (Normal / Fast /
 Instant): with five holders and two fogged movers Normal saves 2.1 s, Instant 3.3 s, and
-pods (§3) add no dead air. An e2e spec (`enemy-phase-pacing.spec.js`, battle lane) times
-a seeded phase with N holders at Instant: each holder adds < 50 ms.
+pods (§3) add no dead air. An e2e spec (`enemy-phase-pacing.spec.js`, lane `presentation`,
+beside `battle-speed.spec.js`; `tests/e2e/lanes.json` has no `battle` lane) times a seeded
+phase with N holders at Instant: each holder adds < 50 ms.
 
 ### 2.6 Prune locked configs at `advanceAct`
 
@@ -381,18 +383,27 @@ rewind skips nothing, and each trigger fires once.
 ledger entries due at T):
 1. boss enrage;
 2. `hurt`;
+   - 2b. **`boss`** (`05` §4.3): the group wakes and triggered waves that name `bossBar` or
+     `bossHp`. A phase `until` of either kind is evaluated in slot 7, like every `until`;
 3. `tile`;
 4. `danger`;
 5. `sight`;
 6. `objective`;
 7. **the phase slot** (`03` §6, its `checkPhase`): the current phase's `until` is
-   evaluated here, whatever its kind; a phase with no `until` whose primaries are all done
-   also advances here. At most one advance per check (the next phase's `until` arms at the
+   evaluated here, whatever its kind (one trigger, or a list of which any one fires); a
+   phase with no `until` whose primaries are all done also advances here (a phase whose
+   primaries every later phase shares never does: completing them was the victory, `03`
+   §4). At most one advance per check (the next phase's `until` arms at the
    next check). On an advance,
    `objectiveState.phase` and `objectiveState.phaseStartedTurn` (`03` §3.4) are set to the
    new index and T, and **every `onEnter` effect applies here**: terrain through
    `TerrainPhases.applyTerrainSetTiles` (§2.2), the wakes `onEnter.wake` names (reason
    `phase`, delay 0) and the band's record in the ledger;
+   - 7b. **the boss signature** (`05` §5.1, `engine/BossSignature.js`): for the living boss
+     that carries `battleConfig.bossSignature`, first resolve what was told at the last
+     check (`bossState.signature.pending`), then plan the next tell. After the phase slot,
+     so a phase's `onEnter.signature` patch is read in the same check; before `turn` and the
+     cascade, so a `court_order` it resolves is a wake the cascade sees;
 8. `turn` (so an `afterPhase` clock reads the phase just entered);
 9. `groupWoken`, cascading to a fixed point in group order (a group woken by slots 1–8,
    `onEnter.wake` included, starts the cascade);
@@ -414,10 +425,13 @@ resolved, only emits `phase_ready` (the band's cue); it never advances a phase. 
 | `tile` | a player-side unit **stands** on the anchor or in the region at the check (`battleConfig.anchors`, `04`'s field). Optional `by: { group }`: a living member of that enemy group stands there instead (`04`'s Parade). A Canto step on and off does not count | 0 | the anchor is marked on the map (`01`) |
 | `objective` | `03`'s objective engine emitted `{ kind: 'objective', id, outcome: 'done' \| 'failed' }` (`EncounterTriggers.noteObjectiveEvent`, stamped with the turn); `on: done \| failed \| either`, **default `done`** (so `04`'s `objective: mill` means "when the mill is done") | 1 | warn band at fire time |
 | `turn` | `{ afterContact: n }`: check turn ≥ contactTurn + n; `{ parOffset: -k }`: check turn ≥ live `turnPar` − k; `{ afterPhase: n }` (`03` §5.10): check turn ≥ `objectiveState.phaseStartedTurn` + n (`03` §3.4: written at every advance, 1 for phase 0, validated ≥ 1); any may carry `latest` (a `parOffset` or, legacy, `turn`): fires at the earlier | 1 | warn band at fire time; the objective line names the turn |
+| `bossBar` (`05` §4.3) | `{ broken: n }`: the kit's boss (the unit carrying `bossKit`) has broken at least `n` Revival Stones, `revivalStonesMax − revivalStones ≥ n`; `n` may be `'last'` (= `revivalStonesMax`). Required `fallback`, a `bossHp` or `turn` trigger (never `bossBar`), used instead when the boss carries fewer than `n` stones on the rung, or none for `'last'` (decided at compile from `spawn.revivalStones`, validated). True for a fallen boss. May carry `latest` (a `parOffset` or, legacy, `turn`): fires at the earlier | 0 | the stone's own beat (`RevivalStoneController`) at the blow; the band at the check |
+| `bossHp` (`05` §4.3) | `{ below: share }`: the kit's boss stands at `currentHP < maxHP × share` on its current bar at the check (at 0.5 exactly `checkBossHalfHealth`'s `currentHP * 2 < maxHP`, so the line and the trigger agree); a bar broken since the last check counts as crossed, as `checkBossHalfHealth` counts it. True for a fallen boss. May carry `latest`, as `bossBar` | 0 | the boss's `halfHealth` line at the blow, as today; the board changes at the check |
 
 **Default delays.** The column is the default for a **group wake** when the trigger names
 no `delay`: 1 for `groupWoken`, `objective` and `turn` (the warn band gets one player phase
-before the group moves), 0 for the rest. A triggered wave's `delay` (§4) and a phase
+before the group moves), 0 for the rest (`bossBar` and `bossHp` included: like `hurt`, the
+player's own blow caused them). A triggered wave's `delay` (§4) and a phase
 `until`'s delay default to 0 for every kind: a wave already arrives at the end of the enemy
 phase and acts a phase later, and a phase's `until` is the phase's own clock (`afterPhase:
 3` means three turns, as `03` §5.10's par contribution of exactly n assumes).
@@ -486,6 +500,18 @@ have.
 | `seek` | `{ mode: 'seek', anchor, then }`: `seek_tile` to the anchor (a sally to a gate), then `then` on arrival: `hunt` (default) or `exit`, `03`'s fleeing assassination target (`{ mode: 'seek', anchor: <exit>, then: 'exit' }`, `03` §5.5), which `03` resolves (the target leaves the map). The validator accepts these two values only | `seek_tile` |
 | `retake` | `{ mode: 'retake', point }` (`03` §5.7): `seek_tile` to the capture point's tile whenever the player holds it, else `guard` it | `seek_tile`, `guard` |
 
+**Re-orders** (`05` §5.2 `court_order`, §4.1 `onEnter.court`). A boss kit may give an
+`awake` group new orders: they rewrite its members' `aiMode`, `guardPost`, `guardRadius` and
+`aiTargetTile` through the same writer as `onWake` (one writer, so a re-order and a wake
+cannot disagree). Orders take this table's modes and may set `guardRadius` and
+`ignoreEnrage: false` (an authored group's `ignoreEnrage` cleared, so enrage releases it as
+any group). A re-order is not a wake: the state stays `awake`, no `groupWoken` fires and no
+wake band plays (the phase's or the tell's band says it). It is recorded in the ledger
+(`order:<group>:<source>`), so a resume never re-applies it. An order given at a phase's
+`onEnter` may carry `delay: n` (whole enemy phases): it is due at the check of T + n and
+gets a warn band at the check that gives it, as a delayed group wake does (§3.8). An order
+on a `dormant` or `patrol` group is its wake, with that order as its `onWake`.
+
 `together: true` gives the woken members one shared priority target, chosen at the wake
 check: the player-side unit nearest the group's centroid (by the AI's full knowledge, as
 targeting is today). Members still move by the ordinary chase. Staying close as a pack
@@ -546,6 +572,8 @@ is held by owner decision (its §6.3), so this spec adds no movement cap.
   | a wake with none seen | "Movement in the fog." |
   | a delayed wake fired (warn) | the warn band: "The camp stirs. It moves next enemy phase." |
   | a phase switch | "New objective: <the new primary's goal sentence>." (`03` §11.2's words) |
+  | a phase switch that keeps the primary (`03` §6, `05` §4.5) | the phase's band (`onEnter.line`) as a sentence: "The posterns open." Never "New objective" |
+  | a boss signature resolved (`05` §7.6) | its history words: "The Calculation falls on 3 tiles." (never a hidden position; a hidden tell is told in words alone) |
   | a triggered wave fired | "Reinforcements coming: <edge> edge, end of turn <n>." |
   | a triggered wave arrived | "Reinforcements arrived: <edge> edge." |
 
@@ -642,6 +670,8 @@ against the army by the check of turn 2 whatever the player does:
      else never;
    - `objective`: 1 if `on` admits `failed` (a foe can cause a failure); else never;
    - `hurt`: never (the player causes it);
+   - `bossBar` / `bossHp`: never (the player's blow causes them, as `hurt`), except their
+     `latest`, and a `turn` fallback, which count by the `turn` rule;
 3. every member of a `patrol` group, unless every route tile it can reach by the end of
    enemy phase 2 (twice its slowest member's MOV, by path cost) lies farther than its
    members' reach (MOV + longest weapon range) from every deploy tile; a patrol's own wake
@@ -764,6 +794,9 @@ map's First Light par, as `calculatePar` caps `parFloor` today
 }
 ```
 
+- **Boss state** is `05`'s own object (`bossState`, `05` §10.2), beside `encounterState` in
+  the same capture: the boss kinds read the boss unit, not the ledger, and the ledger records
+  them as fired like any trigger.
 - **Validator** (`BattleStateSnapshot.validateBattleState`): known group ids and states,
   integer turns ≥ 1, `dueTurn ≥ firedTurn`, members' `aiMode` agreeing with the group's
   state, at most 64 fired entries. A snapshot without `encounterState` derives it (§3.6).
@@ -833,6 +866,10 @@ kind's PR in `03`; `04` only runs the agents.
 | 2.4 | patrol and column, `guard`/`seek` (`then`)/`retake` onWake, `together`, group order | authored maps only | 2 days |
 | 2.5 | **the par PR**: `groups-v1` (§5.2), `parRoute` derivation for procedural maps, `parModel` locking, calibration of α, β on the sim corpus, `GroupsPar.test.js` | none until a writer locks `groups-v1` | 2 days |
 | 2.6 | rout picket/pods behind `encounterPlan.rout` (shipped `null`), sims at 48 seeds per rung and policy, tuning, **owner sign-off** (§9 Q2) | yes, rung by rung, after sims | 2–3 days |
+
+`05` K1 adds `bossBar` / `bossHp` (slot 2b), the signature slot (7b) and court re-orders
+(§3.7) to this check, on top of 2.1, 2.2a, 2.2b, 2.4 and 2.5; its trimmed K1-lite needs only
+2.1, 2.2a, 2.4 and the two trigger kinds (`05` §12).
 
 Phase 0 PRs are independent of each other; 0d is on the critical path for the first set
 piece. 2.0 lands before 2.5's calibration and 2.6 can be judged. 2.1 is the gate for
@@ -933,3 +970,10 @@ use `03`'s words (`done` / `failed`).
 - **PRs**: 0d marked on the critical path; 2.2 split into 2.2a / 2.2b; par is its own PR
   (2.5) before `04`'s generator PR; rout pods are 2.6, owner-gated; a vertical-slice note.
 - Notes the README adopted in its revision 2 are marked resolved.
+
+## Revision 3 changelog (2026-10-09)
+
+- Takes in `05`'s notes: `bossBar` / `bossHp` (table, slot 2b, delay 0, the awake-at-start
+  rule), the signature slot 7b, court re-orders (§3.7), history words for a same-primary
+  phase switch and a signature; `enemy-phase-pacing.spec.js` moved to the real
+  `presentation` lane.

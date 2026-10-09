@@ -1,6 +1,7 @@
 # Large maps 01: camera and navigation
 
-Status: proposal, revision 2 (2026-10-09). Takes in the cross-review of the spec set.
+Status: proposal, revision 3 (2026-10-09). Takes in the cross-review of the spec set and
+`05`'s notes (boss signature tells).
 Specs only: no game code or data changes yet.
 Branch `claude/large-maps-specs`. Shared names, pillars and size bands are in
 [`README.md`](README.md); this spec follows them.
@@ -276,6 +277,7 @@ A beat's subject is only what the player sees at that moment ("known" means
 | attack, status staff, heal, wall break | actor if known, target if known (the tile, for a wall) |
 | arrivals | arrivals whose graphic is visible (`ReinforcementPresenter.js:47-50`) |
 | holders woke | woken units passing `canInspectUnit` (BS:10429) |
+| boss signature resolves (`05` §5.1, at the top of the enemy phase) | the affected tiles the player can see (a volley's tiles, a door, a court's new posts); none seen, no move |
 | Entity rally line | the speaker |
 
 **Rules:**
@@ -352,7 +354,8 @@ A beat's subject is only what the player sees at that moment ("known" means
      anchors);
   2. the commander (`findCommander`, `engine/Commander.js:73`), promoted to first at half
      HP or less;
-  3. known bosses;
+  3. known bosses; a known boss whose signature tell is pending (`05` §5.1) is promoted
+     ahead of the primary objective, behind only a commander at half HP or less;
   4. the last enemy phase's seen arrivals, until that player phase ends;
   5. the active bonus objective;
   6. a recruit NPC.
@@ -433,6 +436,10 @@ Recommendation (README question 6): no minimap now.
     iPhone 13 profile.
 - **Minimum zoom:** phones keep `max(0.5k, fit)`, and within the bands fit binds (0.875 at
   24x16 landscape). Desktop is `min(1, fit)`.
+- **Tell outlines** (`05` §5.1, §9.2). A boss signature's told tiles use a second dash
+  style on the same outline layer as `02` §3.8's dormant outlines, with a new `UI_PALETTE`
+  token, so a tell never reads as a sleeping group's reach. Below an effective scale of 0.8
+  the dash is thickened, as the hatching is.
 - **Danger hatching.**
   - With effective scale s = zoom × k below 0.8: 2-world-px lines, spacing ×1.75, edges
     ×1.5. Today's values otherwise.
@@ -510,13 +517,16 @@ with its probe.
   - paired worlds differing by a hidden unit plan alike for a move, an attack, a heal and
     arrivals;
   - a hidden attacker frames the target only;
+  - a resolving boss signature frames only its seen tiles, and one wholly in fog plans no
+    move;
   - an all-hidden beat, a visible subject and Overview give no plan.
 - **`CameraPresentationInvariance.test.js`** (as `HealthPresentationInvariance.test.js`):
   - one scripted enemy phase with follow on, off and with no camera leaves identical domain
     state and the same `Math.random` cursor;
   - a spy proves the camera draws no `Math.random`.
 - **`OffscreenPointers.test.js`:** the cap and priority, merging, the commander promotion,
-  no unknown units, nothing at Overview.
+  the boss promotion while its tell is pending (still behind a commander at half HP), no
+  unknown units, nothing at Overview.
 - **`FogTexture.test.js`:** pins today's per-tile alphas first (rotated boards and contacts
   included), then requires the texture to match.
 - **`DangerBands.test.js`:** the box covers every tile, a band change re-bakes, and `tiles`
@@ -579,7 +589,7 @@ with its probe.
 | 5 | `battle-camera-changed`, re-anchoring, the insets list, settle-on-press, player-phase framing, `cameraFollow` | 2 days |
 | 6 | Fog texture, danger boxes and bands, incremental sweep, frame probe, memory doc | 2 days |
 | 7 | Enemy-phase camera with return and the invariance test; after 02's delay PR if ready (it works either way) | 2.5 days |
-| 8 | Markers, pointers, jumps, the phone Next cell, Show exits framing; 03's objectives once they exist | 2.5 days |
+| 8 | Markers, pointers, jumps, the phone Next cell, Show exits framing; 03's objectives once they exist; the boss-tell promotion and the tell outline style once `05` K1 lands | 2.5 days |
 | 9 | Portrait Recenter and large upright boards | 1 day |
 | 10 | Later, after measurement or decision: phone device resolution; desktop widescreen (B) | 2–4 days each |
 
@@ -639,3 +649,9 @@ All items below were adopted in README revision 2 and are resolved.
   phones; Long Road and the Parade need PRs 3-5, 7 and 8) and the deferrable list (widescreen,
   device resolution, Fixed, minimap).
 - §7: the README items revision 2 adopted are marked resolved.
+
+## Revision 3 changelog (2026-10-09)
+
+- Takes in `05`'s notes: a "boss signature resolves" beat (§2.7), the boss's pointer promoted
+  while its tell is pending, behind a commander at half HP (§2.8), and the tell outline's
+  dash style (§2.11).
