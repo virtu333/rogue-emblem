@@ -15,6 +15,8 @@
 //  - The dip is reverted as its act ends (advanceAct, with the other act-scoped effects) and
 //    the rise lands as the rise act begins (`applyArcsOnActEntry`, before the army's rest),
 //    once (`riseApplied`), so the dip is never "taken back twice" and the rise never twice.
+//  - A dip whose act has passed without its revert (the act moved some other way) is given
+//    back at the next act entry, so it can never become permanent.
 
 import { unitUidOf } from './UnitIdentity.js';
 import { XP_STAT_NAMES } from '../utils/constants.js';
@@ -118,24 +120,29 @@ export function startLordStatArc(run, blessingId, params) {
   return tracker;
 }
 
+/** Give a taken dip back by the stored amounts, once; `expiredAct` only labels the record. */
+function revertDip(run, tracker, expiredAct) {
+  for (const unit of holdersOf(run, tracker)) {
+    const applied = tracker.dipApplied[unitUidOf(unit)] || {};
+    for (const [stat, delta] of Object.entries(applied))
+      unit.stats[stat] = (unit.stats[stat] || 0) - delta;
+  }
+  tracker.dipReverted = true;
+  run._recordBlessingEvent(
+    'act_transition',
+    tracker.blessingId,
+    { type: 'lord_stat_arc', params: { dipAct: tracker.dipAct, dip: tracker.dip } },
+    { revertedInAct: expiredAct, stats: tracker.stats },
+  );
+}
+
 /** The act `expiredAct` is ending: every dip taken in it is given back by the stored amount. */
 export function revertArcDipsForExpiredAct(run, expiredAct) {
   const arcs = run.blessingRuntimeModifiers?.lordStatArcs;
   if (!Array.isArray(arcs) || !expiredAct) return;
   for (const tracker of arcs) {
     if (!tracker.dipTaken || tracker.dipReverted || tracker.dipAct !== expiredAct) continue;
-    for (const unit of holdersOf(run, tracker)) {
-      const applied = tracker.dipApplied[unitUidOf(unit)] || {};
-      for (const [stat, delta] of Object.entries(applied))
-        unit.stats[stat] = (unit.stats[stat] || 0) - delta;
-    }
-    tracker.dipReverted = true;
-    run._recordBlessingEvent(
-      'act_transition',
-      tracker.blessingId,
-      { type: 'lord_stat_arc', params: { dipAct: tracker.dipAct, dip: tracker.dip } },
-      { revertedInAct: expiredAct, stats: tracker.stats },
-    );
+    revertDip(run, tracker, expiredAct);
   }
 }
 
@@ -147,6 +154,14 @@ export function applyArcsOnActEntry(run) {
   const arcs = run.blessingRuntimeModifiers?.lordStatArcs;
   if (!Array.isArray(arcs)) return;
   const now = actIndexOf(run, run.currentAct);
+  // A dip whose act is already behind us but was never given back (an older client or a dev
+  // jump moved the act without the end-of-act revert) would otherwise be permanent: give it
+  // back now, before the rise. Idempotent: `dipReverted` is set.
+  for (const tracker of arcs) {
+    const dipIndex = actIndexOf(run, tracker.dipAct);
+    if (tracker.dipTaken && !tracker.dipReverted && dipIndex >= 0 && dipIndex < now)
+      revertDip(run, tracker, tracker.dipAct);
+  }
   for (const tracker of arcs) {
     if (!tracker.dipTaken && !tracker.dipReverted && tracker.dipAct === run.currentAct)
       takeDip(run, tracker);

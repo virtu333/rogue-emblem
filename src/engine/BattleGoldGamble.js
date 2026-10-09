@@ -17,6 +17,10 @@ function hashToUint32(text) {
   return hash >>> 0;
 }
 
+// The card's `lose` is 0.3334, not 0.333: floor(300 × 0.333) is 99, one gold short of a third.
+// 0.3334 floors to the exact third for every multiple of 3 below 15,000 gold, and for any
+// amount below 5,000 (a battle pays a few hundred).
+
 /** Normalised boon params `{ chance, win, lose }`, or null when they are not a usable toss. */
 export function parseBattleGoldGamble(params) {
   if (!params || typeof params !== 'object') return null;
@@ -61,6 +65,8 @@ export function gambleWord(record) {
 /** The victory band's line for a toss record: ["Gambler's Toss: doubled (+120 G)"]. */
 export function gambleLines(record) {
   if (!record) return [];
+  // A battle that paid nothing has nothing to double or cut: no line to read "(+0 G)".
+  if (!(record.goldBefore > 0)) return [];
   const delta = record.goldAfter - record.goldBefore;
   const sign = delta < 0 ? '−' : '+';
   return [`Gambler's Toss: ${gambleWord(record)} (${sign}${Math.abs(delta)} G)`];
@@ -68,5 +74,6 @@ export function gambleLines(record) {
 
 /** The reward header's suffix for a toss record ("Gambler's Toss: doubled"), or ''. */
 export function gambleSummary(record) {
-  return record ? `Gambler's Toss: ${gambleWord(record)}` : '';
+  // As gambleLines: a battle that paid nothing has nothing to say about its toss.
+  return record && record.goldBefore > 0 ? `Gambler's Toss: ${gambleWord(record)}` : '';
 }

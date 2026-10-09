@@ -100,8 +100,9 @@ export function prepareBattleRewards(run, data, ctx) {
   const total = (ctx.goldEarned || 0) + (ctx.completionGoldAward || 0) + turnGold;
   // Gambler's Toss: the header says the battle's gold was doubled or cut to a third (this node's toss).
   const toss = run.lastBattleGoldGamble;
-  const tossNote =
-    toss && toss.nodeId === (ctx.nodeId || run.currentNodeId) ? ` · ${gambleSummary(toss)}` : '';
+  const tossSummary =
+    toss && toss.nodeId === (ctx.nodeId || run.currentNodeId) ? gambleSummary(toss) : '';
+  const tossNote = tossSummary ? ` · ${tossSummary}` : '';
   run.pendingBattleReward = {
     version: 1,
     nodeId: ctx.nodeId || run.currentNodeId,

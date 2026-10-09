@@ -11,7 +11,7 @@
 //   6. current HP is left above the dipped maximum, or the rise is not healed into at Act 2;
 //   7. a save made during Act 1 loses the tracker (no rise ever);
 //   8. a malformed boon applies something, or a bad saved tracker crashes the load.
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { RunManager } from '../src/engine/RunManager.js';
 import { createUnit } from '../src/engine/UnitManager.js';
 import { sanitizeLordStatArcs } from '../src/engine/LordStatArc.js';
@@ -198,6 +198,46 @@ describe('Slow Fuse', () => {
     });
     rm.advanceAct();
     lordsOf(rm).forEach((lord, i) => expect(lord.stats.STR).toBe(base[i].STR + 1));
+  });
+
+  it('a dip whose end-of-act revert was missed is still given back at the next act entry', () => {
+    // An older client advanced the act, or a dev start set actIndex directly: the end-of-act
+    // revert never ran, so the dip would be permanent without the entry-time repair.
+    const base = baseStats(21);
+    const rm = fuseRun(21);
+    const revert = vi.spyOn(rm, '_revertActScopedBlessingEffects').mockImplementation(() => {});
+    rm.advanceAct(); // Act 2 entry, with the Act 1 revert skipped
+    const tracker = rm.blessingRuntimeModifiers.lordStatArcs[0];
+    expect(tracker.dipReverted).toBe(true);
+    lordsOf(rm).forEach((lord, i) => {
+      for (const stat of STATS)
+        expect(lord.stats[stat], `act 2 ${lord.name} ${stat}`).toBe(base[i][stat] + 1);
+    });
+    // Act 3 (revert still skipped): net +1, neither a second give-back nor a second rise.
+    rm.advanceAct();
+    revert.mockRestore();
+    lordsOf(rm).forEach((lord, i) => {
+      for (const stat of STATS)
+        expect(lord.stats[stat], `act 3 ${lord.name} ${stat}`).toBe(base[i][stat] + 1);
+    });
+  });
+
+  it('the repair gives back only what the dip took, and only once, for a lord who fell', () => {
+    const base = baseStats(21);
+    const rm = fuseRun(21);
+    const lords = lordsOf(rm);
+    const fallen = lords[lords.length - 1];
+    rm.roster = rm.roster.filter((u) => u !== fallen);
+    rm.fallenUnits.push(fallen);
+    vi.spyOn(rm, '_revertActScopedBlessingEffects').mockImplementation(() => {});
+    rm.advanceAct();
+    rm.advanceAct();
+    for (const stat of STATS)
+      expect(fallen.stats[stat], stat).toBe(base[lords.length - 1][stat] + 1);
+    const reverts = rm.blessingHistory.filter(
+      (r) => r.effectType === 'lord_stat_arc' && r.details?.revertedInAct,
+    );
+    expect(reverts).toHaveLength(1);
   });
 
   it('records what it did, and a malformed boon changes nothing', () => {

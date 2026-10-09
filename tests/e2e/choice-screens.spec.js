@@ -320,7 +320,7 @@ test('blessings as tarot: the cost is always in view, No blessing sits by Confir
   await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('BlessingSelect');
     // The longest price any blessing can roll (v3: catalog labels, a combination joined by
-    // " · ", the largest Debt), on every card.
+    // " · ", the largest Debt, an intrinsic price's label), on every card.
     const catalog = s.gameData.blessings.priceCatalog || {};
     const labelOf = (option) =>
       (Array.isArray(option) ? option : [option])
@@ -329,6 +329,12 @@ test('blessings as tarot: the cost is always in view, No blessing sits by Confir
     const longest = s.gameData.blessings.blessings
       .flatMap((x) => (x.pact ? [x.pact] : x.prices || []))
       .map(labelOf)
+      // An intrinsic price is its own label, not a catalog id.
+      .concat(
+        s.gameData.blessings.blessings
+          .filter((x) => x.intrinsicPrice)
+          .map((x) => x.intrinsicPrice.label),
+      )
       .reduce((a, c) => (c.length > a.length ? c : a), '');
     s.options = ['quartermaster_cache', 'focused_curriculum', 'forbidden_tome', 'war_tutelage'].map(
       (id) => {

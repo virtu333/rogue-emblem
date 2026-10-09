@@ -1158,11 +1158,15 @@ export class RunManager {
   /**
    * Take a blessing mid-run (a church's vow): it joins the active list and its boons
    * apply now, as they would have at the run's start. Tier-1 blessings only carry
-   * boons. Returns false for an unknown or already active blessing.
+   * boons. Returns false for an unknown or already active blessing, and for a card that
+   * carries an intrinsic price or a pact (its cost would never be paid).
    */
   addBlessingMidRun(blessingId) {
     const blessing = buildBlessingIndex(this.gameData?.blessings || {}).get(blessingId);
     if (!blessing || this.getActiveBlessingIds().includes(blessingId)) return false;
+    // A card whose cost is part of what it is (an intrinsic price, a tier IV pact) is only ever
+    // taken at the shrine, where the price is shown and paid; a mid-run grant carries none.
+    if (blessing.intrinsicPrice || blessing.pact) return false;
     this.activeBlessings = [
       ...(this.activeBlessings || []),
       createActiveBlessingEntry(blessingId, null, { midRun: true }),

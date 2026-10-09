@@ -8,9 +8,13 @@
 // Ways this can fail, a test each:
 //   1. a blessing's boon type has no handler (the card does nothing);
 //   2. a price's effect type has no handler (the price is never paid);
-//   3. the check itself is blind (it never sees an unhandled type, or applies nothing).
+//   3. a boon's params are malformed, so its handler records `invalid_*_params` and skips: the
+//      card ships doing nothing (legitimate context skips such as `no_commander` stay allowed);
+//   4. the check itself is blind (it never sees an unhandled type, a malformed boon, or
+//      applies nothing).
 import { describe, expect, it } from 'vitest';
 import { RunManager } from '../src/engine/RunManager.js';
+import { validateBlessingsConfig } from '../src/engine/BlessingEngine.js';
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
@@ -24,6 +28,9 @@ function freshRun() {
 }
 const unhandled = (rm) =>
   rm.blessingHistory.filter((r) => r.details?.reason === 'unhandled_effect_type');
+// A skip for malformed data (`invalid_lord_stat_arc_params`...), unlike a context skip.
+const invalid = (rm) =>
+  rm.blessingHistory.filter((r) => String(r.details?.reason ?? '').startsWith('invalid_'));
 const applied = (rm) => rm.blessingHistory.filter((r) => r.eventType === 'effect_applied');
 
 describe('every blessing effect has a handler', () => {
@@ -33,6 +40,7 @@ describe('every blessing effect has a handler', () => {
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
     expect(unhandled(rm).map((r) => r.effectType)).toEqual([]);
+    expect(invalid(rm).map((r) => `${r.effectType}: ${r.details.reason}`)).toEqual([]);
     // Something was recorded for each boon: the effect did not vanish before its handler.
     const types = applied(rm).map((r) => r.effectType);
     for (const boon of blessing.boons) expect(types, boon.type).toContain(boon.type);
@@ -42,6 +50,7 @@ describe('every blessing effect has a handler', () => {
     const rm = freshRun();
     for (const effect of price.effects) rm._applySingleRunStartBlessingEffect('iron_oath', effect);
     expect(unhandled(rm).map((r) => r.effectType)).toEqual([]);
+    expect(invalid(rm).map((r) => `${r.effectType}: ${r.details.reason}`)).toEqual([]);
   });
 
   it('the v2 cost pools old saves hold still apply', () => {
@@ -57,5 +66,69 @@ describe('every blessing effect has a handler', () => {
     const rm = freshRun();
     rm._applySingleRunStartBlessingEffect('iron_oath', { type: 'no_such_effect', params: {} });
     expect(unhandled(rm).map((r) => r.effectType)).toEqual(['no_such_effect']);
+  });
+
+  it('the check can see a malformed boon, which the handler skips', () => {
+    const rm = freshRun();
+    rm._applySingleRunStartBlessingEffect('slow_fuse', {
+      type: 'lord_stat_arc',
+      params: { stats: ['STR'], dipAct: 'act_1', dip: -1, riseAct: 'act2', rise: 1 },
+    });
+    rm._applySingleRunStartBlessingEffect('gamblers_toss', {
+      type: 'battle_gold_gamble',
+      params: { chance: 2, win: 2, lose: 0.5 },
+    });
+    expect(invalid(rm).map((r) => r.details.reason)).toEqual([
+      'invalid_lord_stat_arc_params',
+      'invalid_battle_gold_gamble_params',
+    ]);
+  });
+});
+
+describe('the validator refuses a malformed boon that its handler would skip', () => {
+  const errorsWith = (id, patch) => {
+    const copy = structuredClone(catalog);
+    patch(copy.blessings.find((b) => b.id === id).boons[0].params);
+    return validateBlessingsConfig(copy).errors.join('\n');
+  };
+
+  it('the shipped catalog is clean', () => {
+    expect(validateBlessingsConfig(catalog).errors).toEqual([]);
+  });
+
+  it('Slow Fuse: an unknown act, no stats, a non-number dip or a zero arc is an error', () => {
+    expect(errorsWith('slow_fuse', (p) => (p.dipAct = 'act_1'))).toMatch(/lord_stat_arc/);
+    expect(errorsWith('slow_fuse', (p) => (p.riseAct = 'act9'))).toMatch(/lord_stat_arc/);
+    expect(errorsWith('slow_fuse', (p) => (p.stats = ['MOV']))).toMatch(/lord_stat_arc/);
+    expect(errorsWith('slow_fuse', (p) => (p.dip = 'x'))).toMatch(/lord_stat_arc/);
+    expect(
+      errorsWith('slow_fuse', (p) => {
+        p.dip = 0;
+        p.rise = 0;
+      }),
+    ).toMatch(/lord_stat_arc/);
+  });
+
+  it("Gambler's Toss: odds outside 0-1, or faces that are not a cut and a raise, are errors", () => {
+    expect(errorsWith('gamblers_toss', (p) => (p.lose = 1.333))).toMatch(/lose < 1 < win/);
+    expect(errorsWith('gamblers_toss', (p) => (p.lose = 1))).toMatch(/lose < 1 < win/);
+    expect(errorsWith('gamblers_toss', (p) => (p.win = 1))).toMatch(/lose < 1 < win/);
+    expect(errorsWith('gamblers_toss', (p) => (p.chance = 1))).toMatch(/battle_gold_gamble/);
+    expect(errorsWith('gamblers_toss', (p) => (p.chance = 0))).toMatch(/battle_gold_gamble/);
+    expect(errorsWith('gamblers_toss', (p) => delete p.win)).toMatch(/battle_gold_gamble/);
+  });
+
+  it('Bloodless Art: the HP delta must be a non-positive integer, the extra uses a non-negative one', () => {
+    expect(errorsWith('bloodless_art', (p) => (p.hpCostDelta = 1))).toMatch(/hpCostDelta/);
+    expect(errorsWith('bloodless_art', (p) => (p.hpCostDelta = -0.5))).toMatch(/hpCostDelta/);
+    expect(errorsWith('bloodless_art', (p) => delete p.hpCostDelta)).toMatch(/hpCostDelta/);
+    expect(errorsWith('bloodless_art', (p) => (p.mapUsesBonus = -1))).toMatch(/mapUsesBonus/);
+    expect(errorsWith('bloodless_art', (p) => (p.mapUsesBonus = '1'))).toMatch(/mapUsesBonus/);
+    expect(
+      errorsWith('bloodless_art', (p) => {
+        p.hpCostDelta = 0;
+        p.mapUsesBonus = 0;
+      }),
+    ).toBe('');
   });
 });

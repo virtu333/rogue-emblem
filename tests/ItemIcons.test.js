@@ -18,6 +18,7 @@ import {
 import { itemSlug, baseItemName } from '../src/ui/itemIconIds.js';
 import { buildAtlases, SIZES, ATLAS_DIRS } from '../tools/art/icons/build.mjs';
 import { encodeIndexed, decodePng } from '../tools/art/icons/lib/png.mjs';
+import { BLESSING_ICON_REUSE } from '../tools/art/icons/lib/itemGrammar.mjs';
 
 const data = loadGameData();
 const imbues = JSON.parse(fs.readFileSync('data/imbues.json', 'utf8'));
@@ -49,13 +50,11 @@ describe('item icon coverage', () => {
     // The atlas is full (360 cells), so a new blessing wears an existing picture (itemGrammar
     // BLESSING_ICON_REUSE) while keeping its own id, the blessing pennant and its tier rim.
     const numeral = ['', 'I', 'II', 'III', 'IV'];
-    const reusing = {
-      slow_fuse: 'blessing-scout_blessing',
-      gamblers_toss: 'gamblers-coin',
-      bloodless_art: 'blood-gem',
-    };
-    for (const [id, of] of Object.entries(reusing)) {
+    // Every alias the grammar declares is checked, so a new line there is covered unedited.
+    expect(Object.keys(BLESSING_ICON_REUSE).length).toBeGreaterThan(0);
+    for (const [id, of] of Object.entries(BLESSING_ICON_REUSE)) {
       const blessing = data.blessings.blessings.find((b) => b.id === id);
+      expect(blessing, `${id} is a real blessing`).toBeDefined();
       expect(manifest.aliases[`blessing-${id}`], id).toBe(of);
       expect(itemIconId(blessing), id).toBe(`blessing-${id}`);
       expect(hasItemIcon(`blessing-${id}`), id).toBe(true);

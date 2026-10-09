@@ -15,8 +15,11 @@
 //   7. a malformed boon, or a saved run, loses or invents the toss.
 import { describe, expect, it, vi } from 'vitest';
 import { RunManager } from '../src/engine/RunManager.js';
+import { availableEventBlessings } from '../src/engine/EventSystem.js';
+import { churchBlessingOffers } from '../src/engine/ChurchVow.js';
 import {
   gambleLines,
+  gambleSummary,
   gambleWord,
   parseBattleGoldGamble,
   rollBattleGoldGamble,
@@ -64,13 +67,29 @@ function controlPay(opts, kills) {
 }
 
 describe("Gambler's Toss: the card", () => {
-  it('is a tier III gold card whose price is the variance, and an event never grants it', () => {
+  it('is a tier III gold card whose price is the variance', () => {
     expect(toss).toMatchObject({ tier: 3, tags: ['gold'] });
     expect(toss.boons).toEqual([
-      { type: 'battle_gold_gamble', params: { chance: 0.5, win: 2, lose: 0.333 } },
+      { type: 'battle_gold_gamble', params: { chance: 0.5, win: 2, lose: 0.3334 } },
     ]);
     expect(toss.intrinsicPrice.points).toBe(3);
     expect(toss.prices).toBeUndefined();
+  });
+
+  it('no event hands it out and no church offers it', () => {
+    const rm = startRun();
+    for (const tier of [1, 2, 3, 4])
+      expect(
+        availableEventBlessings(rm, tier).map((b) => b.id),
+        `tier ${tier}`,
+      ).not.toContain('gamblers_toss');
+    for (let node = 0; node < 30; node++)
+      expect(churchBlessingOffers(rm, `act1_${node}`, data).map((b) => b.id)).not.toContain(
+        'gamblers_toss',
+      );
+    // Nor can anything grant it mid-run: its price would never be paid.
+    expect(rm.addBlessingMidRun('gamblers_toss')).toBe(false);
+    expect(rm.getBattleGoldGamble()).toBeNull();
   });
 });
 
@@ -119,7 +138,7 @@ describe("Gambler's Toss: the toss", () => {
       const record = held.lastBattleGoldGamble;
       faces.add(record.face);
       expect(paid, `seed ${seed}`).toBe(
-        record.face === 'win' ? control * 2 : Math.floor(control * 0.333),
+        record.face === 'win' ? control * 2 : Math.floor(control * GAMBLE.lose),
       );
       expect(record).toMatchObject({
         goldBefore: control,
@@ -146,8 +165,8 @@ describe("Gambler's Toss: the toss", () => {
     }
     expect(doubled / N).toBeGreaterThan(0.47);
     expect(doubled / N).toBeLessThan(0.53);
-    // 0.5 × 2 + 0.5 × 0.333 = 1.1665.
-    expect(GAMBLE).toEqual({ chance: 0.5, win: 2, lose: 0.333 });
+    // 0.5 × 2 + 0.5 × 0.3334 = 1.1667.
+    expect(GAMBLE).toEqual({ chance: 0.5, win: 2, lose: 0.3334 });
     expect(total / N).toBeGreaterThan(1.14);
     expect(total / N).toBeLessThan(1.19);
   });
@@ -161,7 +180,7 @@ describe("Gambler's Toss: the toss", () => {
         node = id;
     }
     const settled = settleBattleGoldGamble({ runSeed: 9, nodeId: node, gamble: GAMBLE, gold: 301 });
-    expect(settled.goldAfter).toBe(100); // floor(301 × 0.333) = floor(100.233)
+    expect(settled.goldAfter).toBe(100); // floor(301 × 0.3334) = floor(100.35)
     expect(Number.isInteger(settled.goldAfter)).toBe(true);
     expect(
       settleBattleGoldGamble({ runSeed: 9, nodeId: node, gamble: GAMBLE, gold: 0 }).goldAfter,
@@ -198,7 +217,7 @@ describe("Gambler's Toss: where it sits in the payout", () => {
       const { paid } = win(rm, { kills: 100 });
       const tossed = rm.lastBattleGoldGamble.goldAfter;
       expect(tossed, `seed ${seed}`).toBe(
-        rm.lastBattleGoldGamble.face === 'win' ? control * 2 : Math.floor(control * 0.333),
+        rm.lastBattleGoldGamble.face === 'win' ? control * 2 : Math.floor(control * GAMBLE.lose),
       );
       expect(paid, `seed ${seed}`).toBe(tossed - Math.floor(tossed * 0.5));
       expect(rm.lastBurdenSettlement.goldBefore).toBe(tossed);
@@ -249,9 +268,56 @@ describe("Gambler's Toss: what the player is told", () => {
     ).not.toContain('Toss');
   });
 
+  it('a cut to a third pays exactly a third: 3 gold leaves 1, 300 leaves 100, 900 leaves 300', () => {
+    // 0.333 would pay 99 for 300 (floor(99.9)); the card's 0.3334 is exact for any multiple of
+    // 3 below 15,000 gold (a battle pays a few hundred).
+    let node = null;
+    for (let i = 0; i < 200 && !node; i++)
+      if (
+        rollBattleGoldGamble({ runSeed: 9, nodeId: `act1_1_${i}`, gamble: GAMBLE }).face === 'lose'
+      )
+        node = `act1_1_${i}`;
+    const cut = (gold) =>
+      settleBattleGoldGamble({ runSeed: 9, nodeId: node, gamble: GAMBLE, gold }).goldAfter;
+    expect(cut(3)).toBe(1);
+    expect(cut(300)).toBe(100);
+    expect(cut(900)).toBe(300);
+    for (let gold = 0; gold <= 5000; gold++)
+      if (cut(gold) !== Math.floor(gold / 3)) throw new Error(`${gold} gold cut to ${cut(gold)}`);
+    // The word for the face still reads "a third".
+    expect(gambleWord({ multiplier: GAMBLE.lose })).toBe('cut to a third');
+  });
+
+  it('says nothing for a battle that paid no gold (no "+0 G" line, no summary)', () => {
+    const empty = { nodeId: 'n', face: 'win', multiplier: 2, goldBefore: 0, goldAfter: 0 };
+    expect(gambleLines(empty)).toEqual([]);
+    expect(gambleSummary(empty)).toBe('');
+    const paid = { nodeId: 'n', face: 'win', multiplier: 2, goldBefore: 60, goldAfter: 120 };
+    expect(gambleLines(paid)).toEqual(["Gambler's Toss: doubled (+60 G)"]);
+    expect(gambleSummary(paid)).toBe("Gambler's Toss: doubled");
+  });
+
+  it('the reward header carries no empty toss suffix when the battle paid nothing', () => {
+    const rm = tossRun({ seed: 5 });
+    const { node } = win(rm);
+    rm.lastBattleGoldGamble = {
+      ...rm.lastBattleGoldGamble,
+      goldBefore: 0,
+      goldAfter: 0,
+    };
+    const reward = prepareBattleRewards(rm, data, {
+      nodeId: node.id,
+      goldEarned: 0,
+      completionGoldAward: 0,
+      battleCompletionAwardedGold: 0,
+    });
+    expect(reward.summary).toBe('Battle and completion: 0 gold');
+  });
+
   it('words a non-standard multiplier plainly', () => {
     expect(gambleWord({ multiplier: 2 })).toBe('doubled');
     expect(gambleWord({ multiplier: 0.5 })).toBe('halved');
+    expect(gambleWord({ multiplier: 0.3334 })).toBe('cut to a third');
     expect(gambleWord({ multiplier: 0.333 })).toBe('cut to a third');
     expect(gambleWord({ multiplier: 3 })).toBe('×3');
   });

@@ -12,6 +12,10 @@
 // own boon carries its cost (Slow Fuse's Act 1 dip, Gambler's Toss's bad tosses), so there is no
 // catalog entry to pay and nothing to apply. It still spends the one price draw a pact does.
 
+import { parseLordStatArc } from './LordStatArc.js';
+import { parseBattleGoldGamble } from './BattleGoldGamble.js';
+import { ACT_SEQUENCE } from '../utils/constants.js';
+
 export const BLESSINGS_CONTRACT_VERSION = 3;
 const SUPPORTED_VERSIONS = new Set([2, 3]);
 const VALID_TIERS = new Set([1, 2, 3, 4]);
@@ -38,6 +42,35 @@ export function createSeededRng(seed) {
     r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
     return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
   };
+}
+
+/**
+ * Params of the boons whose handler quietly skips a malformed set (a card that does nothing
+ * ships as a "valid" blessing). Each runs through the parser the handler uses; the bounds the
+ * parser leaves loose are checked here. Appends to `errors`.
+ */
+function validateBoonParams(effect, path, errors) {
+  if (effect.type === 'lord_stat_arc') {
+    if (!parseLordStatArc(effect.params, ACT_SEQUENCE))
+      errors.push(
+        `${path}.params is not a usable lord_stat_arc (stats, integer dip/rise, dipAct/riseAct in ${ACT_SEQUENCE.join('/')})`,
+      );
+  } else if (effect.type === 'battle_gold_gamble') {
+    const gamble = parseBattleGoldGamble(effect.params);
+    if (!gamble) {
+      errors.push(`${path}.params is not a usable battle_gold_gamble (0 < chance < 1, win, lose)`);
+    } else if (!(gamble.lose < 1 && gamble.win > 1)) {
+      errors.push(
+        `${path}.params must have lose < 1 < win (a toss that cuts the gold and one that raises it)`,
+      );
+    }
+  } else if (effect.type === 'player_weapon_art_boon') {
+    const { hpCostDelta, mapUsesBonus } = effect.params;
+    if (!Number.isInteger(hpCostDelta) || hpCostDelta > 0)
+      errors.push(`${path}.params.hpCostDelta must be a non-positive integer`);
+    if (!Number.isInteger(mapUsesBonus) || mapUsesBonus < 0)
+      errors.push(`${path}.params.mapUsesBonus must be a non-negative integer`);
+  }
 }
 
 /**
@@ -167,6 +200,8 @@ export function validateBlessingsConfig(config, options = {}) {
         }
         if (!isObject(effect.params)) {
           errors.push(`${effectPath}.params must be an object`);
+        } else if (effectKey === 'boons') {
+          validateBoonParams(effect, effectPath, errors);
         }
       });
     }

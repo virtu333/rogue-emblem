@@ -19,7 +19,8 @@ import {
   selectBlessingOptionsWithTelemetry,
   createSeededRng,
 } from '../src/engine/BlessingEngine.js';
-import { isSafeEventBlessing } from '../src/engine/EventSystem.js';
+import { availableEventBlessings, isSafeEventBlessing } from '../src/engine/EventSystem.js';
+import { churchBlessingOffers, takeChurchBlessing } from '../src/engine/ChurchVow.js';
 import { blessingCardContent, blessingPriceKind } from '../src/ui/choiceContent.js';
 import { heldBlessingEntries } from '../src/ui/heldBlessingsModel.js';
 import { pauseBlessingList } from '../src/ui/MobilePauseMenu.js';
@@ -227,13 +228,20 @@ describe('a held intrinsic price survives the run', () => {
     expect(resolved.rolledCost).toMatchObject({ label: 'The Act 1 dip', kind: 'intrinsic' });
   });
 
-  it('a mid-run grant never carries one (no phantom price after a load)', () => {
+  it('a mid-run grant of an intrinsic- or pact-priced card is refused and records nothing', () => {
+    // Granted later, the cost would never be paid (the boon would be a free gift).
     const rm = new RunManager(data);
     rm.startRun({ runSeed: 3, applyBlessingsAtStart: false });
     rm.activeBlessings = [];
-    rm.addBlessingMidRun('slow_fuse');
-    const restored = RunManager.fromJSON(JSON.parse(JSON.stringify(rm.toJSON())), data);
-    expect(restored.activeBlessings.find((b) => b.id === 'slow_fuse').rolledCost).toBeNull();
+    const before = rm.blessingHistory.length;
+    for (const id of ['slow_fuse', 'gamblers_toss', 'forbidden_tome'])
+      expect(rm.addBlessingMidRun(id), id).toBe(false);
+    expect(rm.activeBlessings).toEqual([]);
+    expect(rm.blessingHistory.length).toBe(before);
+    expect(rm.blessingRuntimeModifiers.lordStatArcs).toEqual([]);
+    expect(rm.blessingRuntimeModifiers.battleGoldGamble).toBeNull();
+    // An ordinary card still joins mid-run.
+    expect(rm.addBlessingMidRun('field_medic')).toBe(true);
   });
 });
 
@@ -280,5 +288,41 @@ describe('an event or a church never hands one out', () => {
     ).toBe(false);
     expect(isSafeEventBlessing(byId('slow_fuse'))).toBe(false);
     expect(isSafeEventBlessing(byId('gamblers_toss'))).toBe(false);
+  });
+
+  it('no event pool offers an intrinsic card, at any tier', () => {
+    const rm = new RunManager(data);
+    rm.startRun({ runSeed: 3, applyBlessingsAtStart: false });
+    const intrinsic = catalog.blessings.filter((b) => b.intrinsicPrice).map((b) => b.id);
+    expect(intrinsic).toEqual(expect.arrayContaining(['slow_fuse', 'gamblers_toss']));
+    for (const tier of [1, 2, 3, 4]) {
+      const offered = availableEventBlessings(rm, tier).map((b) => b.id);
+      for (const id of intrinsic) expect(offered, `tier ${tier}`).not.toContain(id);
+    }
+    // The pool is not trivially empty: the gate is what excludes the card, not an empty tier.
+    expect(availableEventBlessings(rm, byId('slow_fuse').tier).length).toBeGreaterThan(0);
+  });
+
+  it('a church offers only tier I cards and refuses to take an intrinsic one', () => {
+    const intrinsic = catalog.blessings.filter((b) => b.intrinsicPrice).map((b) => b.id);
+    for (let seed = 1; seed <= 20; seed++) {
+      const rm = new RunManager(data);
+      rm.startRun({ runSeed: seed, applyBlessingsAtStart: false });
+      for (let node = 0; node < 10; node++) {
+        const offers = churchBlessingOffers(rm, `act1_${node}`, data);
+        expect(offers.length).toBeGreaterThan(0);
+        for (const offer of offers) {
+          expect(offer.tier).toBe(1);
+          expect(intrinsic).not.toContain(offer.id);
+        }
+      }
+    }
+    const rm = new RunManager(data);
+    rm.startRun({ runSeed: 3, applyBlessingsAtStart: false });
+    rm.activeBlessings = [];
+    for (const id of intrinsic) {
+      expect(takeChurchBlessing(rm, 'act1_4', id, data)).toMatchObject({ ok: false });
+      expect(rm.getActiveBlessingIds()).not.toContain(id);
+    }
   });
 });
