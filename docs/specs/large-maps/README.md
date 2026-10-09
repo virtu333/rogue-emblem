@@ -1,7 +1,7 @@
 # Large maps and map variety
 
-Status: proposal, revision 2 (2026-10-09). Takes in the notes of specs 01–04. Specs only: no
-game code or data changes yet.
+Status: proposal, revision 3 (2026-10-09). Takes in the notes of specs 01–04 and a cross-review
+of the whole set. Specs only: no game code or data changes yet.
 Branch `claude/large-maps-specs`.
 
 This folder plans bigger, more ambitious battle maps: more kinds of maps, more than one
@@ -107,13 +107,16 @@ Four read-only investigations, with benchmarks run on the real `HeadlessBattle` 
    wave uses, which chunk is the ford, where the village sits. Rerolled terrain noise does
    not count.
 6. **Fair under par.**
-   - Par is computed from the primary objective's route.
+   - Par is computed from the primary objective's route. `02` §5.2 owns the formula, and
+     its walk term comes from `battleConfig.parRoute` (§3).
    - A bonus objective costs turns on purpose, and the strip says roughly how many.
    - Bonuses pay in a different currency from the clock: gold, items, a forge step, rarely
      Vision. Never XP.
-7. **Nothing wakes or arrives unannounced.** Every wake is visible (Danger draws it) or
-   told ("The garrison stirs", a horn from the gate). The design log rejects untelegraphed
-   ambush spawns (`docs/design-log.md`).
+7. **Nothing wakes or arrives unannounced.** Every wake is visible or told:
+   - A dormant group's reach is outlined on the board at all times, not only under the
+     Danger overlay (`02` §3.8).
+   - Otherwise the wake is told ("The garrison stirs", a horn from the gate).
+   - The design log rejects ambush spawns that aren't telegraphed (`docs/design-log.md`).
 8. **Same rules everywhere.** Every new rule lives in a pure engine module that `BattleScene`
    and `HeadlessBattle` both call, as `HoldActivation` and `PostCombatEffects` do. The sims
    keep measuring the real game.
@@ -149,37 +152,55 @@ The four specs use these names. A spec may refine a field but not rename it.
     resolved to tiles at generation. Markers (`01`), triggers (`02`) and objectives
     (`03`) all read this one field.
   - `battleConfig.setPiece` (`04`): `{ id, version, choices, chunks }`, the set piece,
-    the seeded choices it took and the chunks it picked. Read for display and records, never for rules: the rules read the
-    fields above.
+    the seeded choices it took and the chunks it picked. Read for display and records,
+    never for rules: the rules read the fields above.
+  - `battleConfig.parRoute` (`02` §5.2, `04` §8.3): the legs of the primary route, used for
+    the walk term `W` in par.
+    - Set pieces write it at generation.
+    - Legacy maps derive it: seize → the throne, escape → the nearest exit, rout → the
+      group posts.
+    - `03`'s `parAdjust` carries only terms that are not walking (survive turns, a
+      structure's `parTurns`, boss bars). It is added inside `02`'s formula, so the walk
+      is never paid twice.
 
 **Unit fields.**
-- An enemy carries its group in `unit.encounterGroupId`.
-- Wake state lives on the group's battle state (`02`), never in a private flag.
-- It rides `serializeBattleUnit` and the suspend checkpoint, as `holdPack` and
-  `_raisedCount` do.
+- An enemy carries its group's id in `unit.encounterGroupId`. The id rides
+  `serializeBattleUnit`, as `holdPack` and `_raisedCount` do.
+- The group's wake state lives in battle state (`02` §6: `encounterState`), never in a
+  private flag on a unit. It rides the suspend checkpoint.
 
 **Battle state that changes during play** rides the suspend checkpoint, the Vision rewind
 snapshot and the snapshot validator together, from the first PR. It covers:
 - woken groups;
 - fired triggers;
-- the current phase;
+- the current phase and the turn it started (`objectiveState.phaseStartedTurn`, `03`);
 - objective and bonus progress.
 
-**Triggers.** One vocabulary, used by group wakes, waves and phases:
+**Triggers.** One vocabulary, used by group wakes, waves and phases. `delay` counts whole
+enemy phases.
 
-| kind | fires when |
-|---|---|
-| `danger` | a player unit stands in a member's move+attack reach, as the player sees it |
-| `sight` | a member sees a player unit (fog maps) |
-| `hurt` | a member is damaged, moved, killed or given a status (today's hold rule, `HoldDisturbance`) |
-| `groupWoken` | another named group wakes; carries `delay` (whole enemy phases, default 1) |
-| `tile` | a player unit (or, with `by: { group }`, a named enemy group) ends a move on a named anchor or region |
-| `objective` | a named primary or bonus objective is `done` or `failed` (`03`'s words) |
-| `turn` | a turn **relative to contact, par or phase**: `{ afterContact: n, latest: { parOffset } }` (`latest` is required, so a turtle can't postpone it), `{ parOffset: -k }`, or `{ afterPhase: n }` (`03`). An absolute `{ turn: n }` exists only for legacy waves |
+| kind | fires when | default `delay` |
+|---|---|---|
+| `danger` | a player unit stands in a member's move+attack reach, as the player sees it | 0 |
+| `sight` | a member sees a player unit (fog maps) | 0 |
+| `hurt` | a member is damaged, moved, killed or given a status (today's hold rule, `HoldDisturbance`) | 0 |
+| `groupWoken` | another named group wakes | 1 |
+| `tile` | a player unit (or, with `by: { group }`, a named enemy group) ends a move on a named anchor or region | 0 |
+| `objective` | a named primary or bonus objective is `done` or `failed` (`03`'s words); `on` defaults to `done` | 1 |
+| `turn` | a turn **relative to contact, par or phase**: `{ afterContact: n, latest: { parOffset } }` (`latest` is required, so a turtle can't postpone it), `{ parOffset: -k }`, or `{ afterPhase: n }` (`03`). An absolute `{ turn: n }` exists only for legacy waves | 1 |
 
 - `02` §3.4 defines contact precisely and deterministically.
 - Each trigger fires once.
-- Triggers are checked once per enemy phase, with `>=` comparisons.
+- **Every trigger and every phase advance is evaluated at one point**: once per enemy
+  phase, at its start, with `>=` comparisons, in `02` §3.4's fixed order.
+  - A phase's `until` sits after `objective` and before `turn`.
+  - Every effect of a phase's `onEnter` (terrain, wakes) applies there.
+  - The board never changes under the player's own turn. When the last primary of a
+    phase resolves, the NEW OBJECTIVE band may show at once, but the change waits for the
+    enemy phase (`03` §6).
+- A group that starts `awake` applies its `onWake` at battle start. For example,
+  raiders seeking a village are written onto their spawns as `aiMode` / `aiTargetTile`,
+  exactly as the village's bandits are today (`02` §3.3).
 - Fired triggers are recorded in battle state, so a resume or rewind replays nothing and
   skips nothing.
 - Boss enrage is not a trigger kind. It stays the battle-wide wake it is today.
@@ -194,7 +215,7 @@ snapshot and the snapshot validator together, from the first PR. It covers:
 |---|---|---|
 | `engine/EncounterGroups.js` | `02` | groups, wake, `onWake` |
 | `engine/EncounterTriggers.js` | `02` | evaluates triggers for groups, waves and phases |
-| `engine/TerrainPhases.js` | `02`, `03` | `applyTerrainSetTiles`: the one terrain override, used by hybrid arenas and phases; never writes a tile its occupant can't stand on |
+| `engine/TerrainPhases.js` | `02` | `applyTerrainSetTiles(grid, setTiles, anchors, { occupants })`: the one terrain override, used by hybrid arenas and `03`'s phases. It never writes a tile its occupant can't stand on. `02` PR 0b extracts it; `03` and `04` only call it |
 | `engine/BattleObjectives.js` | `03` | the one victory, failure and progress predicate |
 | `engine/BonusSettlement.js` | `03` | judges bonuses once, at the victory commit |
 
@@ -245,19 +266,57 @@ Each phase is shippable alone and leaves the game better even if the next never 
 |---|---|---|
 | 0 | **Fixes worth doing anyway** (`02` §2): enrage never before par + 1 (`max(par+1, min(12, par+2))`); the confirmed hybrid-arena wall/wave bug; an exact binary-heap A* and an exact branch-and-bound recovery fallback; no 300 ms pause, tween or checkpoint for enemy actions the player cannot see or that do nothing, pause scaled by battle speed; prune locked configs at `advanceAct`; two bugs found by `01` (desktop [N] scrolls the HUD away, `01` §1.5.1; the enemy heal banner names a hidden target, `01` §1.5.2) | — |
 | 1 | **Camera and navigation** (`01`): desktop camera; enemy-phase follow; objective markers and off-screen pointers; jump controls; Recenter in portrait; danger overlay and fog hardening | — |
-| 2 | **Encounter groups on today's templates** (`02`): pickets and sleeping pods on every objective, wake triggers, contact-relative waves. Measured with `sim/pacing.js` before and after | 0 |
+| 2 | **Encounter groups** (`02`): groups, wake triggers, contact-relative waves, and the par model `groups-v1` in its own PR. Pickets and sleeping pods on today's rout maps stay owner-gated until `sim/pacing.js` shows par holds (`02` §1.5, §9) | 0 (enrage, dead air) |
 | 3 | **Objective model v2** (`03`): `objectives` with phases and bonuses; the objective strip; bonus rewards at the victory commit. First on today's maps: the village becomes a bonus objective (it keeps its in-battle payout for compatibility, `03` §9), multi-seize | 2 |
-| 4 | **Set-piece format and the first two maps** (`04`): skeleton, chunks, seeded choices, validator; The Mill Ford (Act III ordinary) and Two Towers (elite) | 1, 2, 3 |
-| 5 | **Boss set pieces**: Long Road to the Keep (Act III), The Emperor's Parade (Act IV) | 4 |
-| 6 | **More set pieces**: Caravan Under Siege, Hunting Party, Break the Gate (needs a gate tile), The Burning Village, the finale variant | 4 |
+| 4 | **Set-piece format and the first two maps** (`04`): skeleton, chunks, seeded choices, validator; The Mill Ford (Act III ordinary) and Two Towers (elite) | the PRs in the vertical slice below; Two Towers adds `03`'s model and `defeat` |
+| 5 | **Boss set pieces**: Long Road to the Keep (Act III, 22x14), The Emperor's Parade (Act IV, 24x14) | 4, and **1**: these boards don't fit desktop at zoom 1, so they need the desktop camera, enemy-phase follow and pointers |
+| 6 | **More set pieces**: Caravan Under Siege, Hunting Party, Break the Gate (needs a gate tile), The Burning Village, the finale variant | 4, plus the `03` kind each one uses |
 
-Phases 0 and 1 can run in parallel (the enemy-phase camera does not wait for Phase 0; only the time saved adds up). Phases 2 and 3 are the expensive design work, and every
-later phase depends on them.
+**Ordering.**
+- **Phases 0 and 1 can run in parallel.** The enemy-phase camera does not wait for
+  Phase 0; only the time they save adds up.
+- **The dead-air fix is on the critical path,** even though it is Phase 0. A 15–25-enemy
+  set piece with dormant groups that do nothing is unplayable on a phone without it.
+- **20x12 boards need little from `01`.** They fit the desktop at zoom 1 (640x480 / 32 px
+  = 20x15). The first two maps need only `01` PR 1 (the [N] clamp) and, on phones, the
+  off-screen pointers (`01` PR 8).
+
+### Vertical slice: The Mill Ford, Dusk and up
+
+The shortest path to a playtestable, seeded, resumable large map, measured in the sims.
+About 20 working days.
+
+1. **`02` Phase 0, two items only:** the enrage floor and the dead-air fix. The A*, the
+   recovery fallback and pruning can follow later.
+2. **`02` encounter groups, trimmed:**
+   - groups, the `danger` and `hurt` wakes, the hold-pack adapter, `encounterState`, and
+     parity with today's holds;
+   - the `groupWoken` and `tile` triggers, `turn` with `parOffset`, warn bands, and
+     always-on dormant outlines.
+   - No `sight`, no patrols. The Mill Ford's raiders are a group that starts awake with
+     `seek_tile`, like today's village bandits.
+3. **`02` par:** `groups-v1`, with `W` from `parRoute`, in its own PR.
+4. **`04` format:**
+   - Trimmed: `mirrorY` only, no `byRung` patches, the core validator checks.
+   - Then the generator, dev route and preview.
+   - Then The Mill Ford itself: placement, the route-map tag, `sim/pacing --setPiece`.
+5. **`03` is not needed:** the Mill Ford is rout plus the legacy village, which today's
+   predicate, strip and payout already handle.
+6. **`01` PR 1 only** (and the phone pointers once two fronts go off-screen).
+
+Then **Two Towers** (about 9 more days): `03`'s model PR, `defeat` with per-unit
+`clampTile`, and the map itself. Before **Long Road**, the first board that doesn't fit:
+`01`'s desktop camera, enemy-phase follow and pointers.
 
 ## 6. Open questions for the owner
 
 1. **How often:** at most one large set piece per act on ordinary nodes, or more?
-2. **First Light:** do set pieces appear there, or from Dusk up only?
+2. **First Light:** do set pieces appear there, or from Dusk up only? As written, `04` gives
+   First Light boss set pieces but no ordinary or elite ones. The most-played rung would
+   then meet sleeping groups and phases first at an act boss. Recommendation: keep First
+   Light's boss maps on today's arenas until the at-point-of-use Guidance notes ship
+   (`02` §3.8, `03` §11.2). Then allow one ordinary set piece on First Light, so the
+   mechanics are met before the boss.
 3. **Bonus rewards:** may a bonus pay Vision charges (rare, Act III+), or only gold, items and
    forge steps?
 4. **Boss maps:** do boss set pieces join the pool beside today's hybrid arenas, or replace

@@ -1,6 +1,7 @@
 # Large maps 01: camera and navigation
 
-Status: proposal, revision 1 (2026-10-09). Specs only: no game code or data changes yet.
+Status: proposal, revision 2 (2026-10-09). Takes in the cross-review of the spec set.
+Specs only: no game code or data changes yet.
 Branch `claude/large-maps-specs`. Shared names, pillars and size bands are in
 [`README.md`](README.md); this spec follows them.
 
@@ -357,7 +358,8 @@ A beat's subject is only what the player sees at that moment ("known" means
   6. a recruit NPC.
 
   Unknown units never get one.
-- **How many:** at most 4. Pointers within 28 CSS px on one edge merge, show a count, and
+- **How many:** at most 4 pointers are on screen at once (`max: 4` in the layout call). This
+  is the one statement of the cap; spec 03 cites it. Pointers within 28 CSS px on one edge merge, show a count, and
   target the higher priority.
 - **Look:**
   - a 20 px chevron disc 6 px inside the open view's edge, on the ray from the view centre;
@@ -375,6 +377,8 @@ A beat's subject is only what the player sees at that moment ("known" means
 **Jumps.**
 - **Desktop:** N next ready unit (as now) and Shift+N previous; L the commander; B a known
   boss (nothing when none is in sight); G cycles the objectives.
+  - Shift+N applies only in the player phase. Shift held alone is fast-forward, and only in
+    `ENEMY_PHASE` (02 §2.5), so the two never collide.
 - **Gamepad:** L1/R1 as now; L3 the commander; R2 the objectives.
 - **Phones:**
   - pointers;
@@ -581,6 +585,19 @@ with its probe.
 
 PRs 1 and 2 come first, because every later PR moves the camera. PR 6 is independent after 1.
 
+**Sequencing for the set pieces.**
+- The first two set pieces (The Mill Ford, Two Towers, both 20x12) fit the desktop at zoom 1
+  (640x480 / 32 px = 20x15). They need only PR 1 (the [N] / `UnitLocator` clamp) and, on
+  phones, PR 8 (the off-screen pointers).
+- The desktop camera (PRs 3-5), enemy-phase follow (PR 7) and pointers (PR 8) are required
+  before Long Road to the Keep (22x14) and The Emperor's Parade (24x14).
+
+**Deferrable for the first shipment.** None of these blocks a set piece, and each may be
+dropped or postponed:
+- widescreen rendering (B, §2.2) and device-resolution rendering (C, §2.2, §2.11): PR 10;
+- the desktop "Map camera: Fixed" setting (§2.3, §3) and its row in PR 3;
+- the minimap debate (§2.9, open question 2): no minimap is built.
+
 ## 6. Open questions for the owner
 
 1. **Desktop opening view** (README question 5). Recommended: the whole board. It is
@@ -600,15 +617,25 @@ PRs 1 and 2 come first, because every later PR moves the camera. PR 6 is indepen
 
 ## 7. Notes for the README
 
-- §6 questions 5 and 6: recommendations are in §6 here (the whole board; no minimap first).
-- **The anchor field needs a name.** README §3 resolves anchors to tiles on the config
-  without naming the field. 01 reads them for markers and pointers, so a shared name (for
-  example `battleConfig.anchors`, `{ id: { tiles } }`) would keep 01 and 03 from each
-  inventing one.
-- **Phase 0 candidates:**
-  - the desktop [N] drift (§1.5.1);
-  - the heal banner that names hidden enemies (§1.5.2, with 02's enemy-phase work).
-- **§1 item 1, "20x15 is a hard limit".** That is the 640x480 canvas at zoom 1 with no
-  margin. Today's 20x13 already has the desktop plates over its corners.
-- **Phase 1 does not wait for Phase 0.** The enemy-phase camera works without Phase 0's
-  delay change (§2.7); only the wall-time saving combines.
+All items below were adopted in README revision 2 and are resolved.
+
+- **Resolved:** §6 questions 5 and 6 now carry 01's recommendations (the whole board; no
+  minimap until the first set pieces are playtested).
+- **Resolved:** the anchors field is `battleConfig.anchors`, `{ <name>: { tiles } }`. 01
+  reads it for markers and pointers.
+- **Resolved:** Phase 0 gets the desktop [N] drift (§1.5.1) and the heal banner that names
+  hidden enemies (§1.5.2).
+- **Resolved:** the "20x15" wording. It is the 640x480 canvas at zoom 1 with no margin.
+  Today's 20x13 already has the desktop plates over its corners.
+- **Resolved:** Phase 1 does not wait for Phase 0. The enemy-phase camera works without
+  Phase 0's delay change (§2.7); only the wall-time saving combines.
+
+## Revision 2 changelog (2026-10-09)
+
+- §2.8: Shift+N (previous unit) is player-phase only; Shift held alone is 02's fast-forward
+  in `ENEMY_PHASE`.
+- §2.8: the cap of 4 off-screen pointers is stated in one place (spec 03 cites it).
+- §5: added the sequencing note (Mill Ford and Two Towers need only PR 1, plus PR 8 on
+  phones; Long Road and the Parade need PRs 3-5, 7 and 8) and the deferrable list (widescreen,
+  device resolution, Fixed, minimap).
+- §7: the README items revision 2 adopted are marked resolved.
