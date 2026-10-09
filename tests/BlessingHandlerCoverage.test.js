@@ -78,9 +78,14 @@ describe('every blessing effect has a handler', () => {
       type: 'battle_gold_gamble',
       params: { chance: 2, win: 2, lose: 0.5 },
     });
+    rm._applySingleRunStartBlessingEffect('bloodless_art', {
+      type: 'player_weapon_art_boon',
+      params: { hpCostDelta: 0, mapUsesBonus: 0 },
+    });
     expect(invalid(rm).map((r) => r.details.reason)).toEqual([
       'invalid_lord_stat_arc_params',
       'invalid_battle_gold_gamble_params',
+      'invalid_player_weapon_art_boon_params',
     ]);
   });
 });
@@ -121,14 +126,69 @@ describe('the validator refuses a malformed boon that its handler would skip', (
   it('Bloodless Art: the HP delta must be a non-positive integer, the extra uses a non-negative one', () => {
     expect(errorsWith('bloodless_art', (p) => (p.hpCostDelta = 1))).toMatch(/hpCostDelta/);
     expect(errorsWith('bloodless_art', (p) => (p.hpCostDelta = -0.5))).toMatch(/hpCostDelta/);
-    expect(errorsWith('bloodless_art', (p) => delete p.hpCostDelta)).toMatch(/hpCostDelta/);
+    expect(errorsWith('bloodless_art', (p) => (p.hpCostDelta = '-1'))).toMatch(/hpCostDelta/);
     expect(errorsWith('bloodless_art', (p) => (p.mapUsesBonus = -1))).toMatch(/mapUsesBonus/);
     expect(errorsWith('bloodless_art', (p) => (p.mapUsesBonus = '1'))).toMatch(/mapUsesBonus/);
+  });
+
+  it('Bloodless Art: a boon that changes nothing is an error, like a zero Slow Fuse arc', () => {
     expect(
       errorsWith('bloodless_art', (p) => {
         p.hpCostDelta = 0;
         p.mapUsesBonus = 0;
       }),
+    ).toMatch(/change nothing/);
+    expect(
+      errorsWith('bloodless_art', (p) => {
+        delete p.hpCostDelta;
+        delete p.mapUsesBonus;
+      }),
+    ).toMatch(/change nothing/);
+    expect(
+      errorsWith('bloodless_art', (p) => {
+        delete p.hpCostDelta;
+        p.mapUsesBonus = 0;
+      }),
+    ).toMatch(/change nothing/);
+  });
+
+  it('Bloodless Art: a missing field counts as 0 (the handler’s reading), so either alone is valid', () => {
+    expect(errorsWith('bloodless_art', (p) => delete p.mapUsesBonus)).toBe('');
+    expect(errorsWith('bloodless_art', (p) => delete p.hpCostDelta)).toBe('');
+    expect(
+      errorsWith('bloodless_art', (p) => {
+        p.hpCostDelta = 0;
+        p.mapUsesBonus = 2;
+      }),
     ).toBe('');
+  });
+
+  it('Bloodless Art: the validator and the handler agree on every shape', () => {
+    const shapes = [
+      { hpCostDelta: -1, mapUsesBonus: 1 },
+      { hpCostDelta: -1 },
+      { mapUsesBonus: 1 },
+      { hpCostDelta: 0, mapUsesBonus: 0 },
+      {},
+      { hpCostDelta: 1, mapUsesBonus: 1 },
+      { hpCostDelta: -1, mapUsesBonus: -1 },
+      { hpCostDelta: -0.5, mapUsesBonus: 1 },
+      { hpCostDelta: 'lots', mapUsesBonus: 1 },
+    ];
+    for (const params of shapes) {
+      const copy = structuredClone(catalog);
+      copy.blessings.find((b) => b.id === 'bloodless_art').boons[0].params = params;
+      const valid = validateBlessingsConfig(copy).errors.length === 0;
+      const rm = freshRun();
+      rm._applySingleRunStartBlessingEffect('bloodless_art', {
+        type: 'player_weapon_art_boon',
+        params,
+      });
+      const skipped = invalid(rm).length > 0;
+      expect(skipped, JSON.stringify(params)).toBe(!valid);
+      const mods = rm.blessingRuntimeModifiers;
+      const changed = mods.playerArtHpCostDelta !== 0 || mods.playerArtMapUsesBonus !== 0;
+      expect(changed, JSON.stringify(params)).toBe(valid);
+    }
   });
 });

@@ -992,7 +992,7 @@ export class MobileRosterSheet {
     const artDescription = (id, unit) => {
       const art = arts.find((entry) => entry.id === id);
       return art
-        ? `${art.name} · ${weaponArtCostText(unit, art)} · ${art.requiredRank || 'Prof'}\n${formatWeaponArtEffects(art)}`
+        ? `${art.name} · ${weaponArtCostText(unit, art, weaponArtRunOptions(this.run))} · ${art.requiredRank || 'Prof'}\n${formatWeaponArtEffects(art)}`
         : id;
     };
     const sourceLabel = (source) =>

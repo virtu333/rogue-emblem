@@ -14,6 +14,7 @@
 
 import { parseLordStatArc } from './LordStatArc.js';
 import { parseBattleGoldGamble } from './BattleGoldGamble.js';
+import { playerWeaponArtBoonErrors } from './WeaponArtSystem.js';
 import { ACT_SEQUENCE } from '../utils/constants.js';
 
 export const BLESSINGS_CONTRACT_VERSION = 3;
@@ -65,11 +66,8 @@ function validateBoonParams(effect, path, errors) {
       );
     }
   } else if (effect.type === 'player_weapon_art_boon') {
-    const { hpCostDelta, mapUsesBonus } = effect.params;
-    if (!Number.isInteger(hpCostDelta) || hpCostDelta > 0)
-      errors.push(`${path}.params.hpCostDelta must be a non-positive integer`);
-    if (!Number.isInteger(mapUsesBonus) || mapUsesBonus < 0)
-      errors.push(`${path}.params.mapUsesBonus must be a non-negative integer`);
+    for (const message of playerWeaponArtBoonErrors(effect.params))
+      errors.push(`${path}.${message}`);
   }
 }
 

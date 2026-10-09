@@ -732,6 +732,36 @@ export function weaponArtRunOptions(run) {
   };
 }
 
+/**
+ * What is wrong with a `player_weapon_art_boon` (Bloodless Art) params object, as messages
+ * (empty when it is usable). A missing field counts as 0, the handler's reading; a present one
+ * must be an integer (`hpCostDelta` ≤ 0, `mapUsesBonus` ≥ 0), and a boon that changes neither
+ * does nothing, so it is refused like a zero `lord_stat_arc`.
+ */
+export function playerWeaponArtBoonErrors(params) {
+  if (params === null || typeof params !== 'object' || Array.isArray(params))
+    return ['params must be an object { hpCostDelta, mapUsesBonus }'];
+  const errors = [];
+  const hpCostDelta = params.hpCostDelta ?? 0;
+  const mapUsesBonus = params.mapUsesBonus ?? 0;
+  if (!Number.isInteger(hpCostDelta) || hpCostDelta > 0)
+    errors.push('params.hpCostDelta must be a non-positive integer');
+  if (!Number.isInteger(mapUsesBonus) || mapUsesBonus < 0)
+    errors.push('params.mapUsesBonus must be a non-negative integer');
+  if (errors.length === 0 && hpCostDelta === 0 && mapUsesBonus === 0)
+    errors.push('params change nothing (hpCostDelta and mapUsesBonus are both 0)');
+  return errors;
+}
+
+/** The boon's `{ hpCostDelta, mapUsesBonus }` (a missing field 0), or null when unusable. */
+export function parsePlayerWeaponArtBoon(params) {
+  if (playerWeaponArtBoonErrors(params).length > 0) return null;
+  return {
+    hpCostDelta: (params.hpCostDelta ?? 0) + 0, // + 0: never -0
+    mapUsesBonus: params.mapUsesBonus ?? 0,
+  };
+}
+
 function isPlayerArtUser(unit) {
   return String(unit?.faction ?? '').toLowerCase() === 'player';
 }

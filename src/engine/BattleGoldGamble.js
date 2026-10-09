@@ -17,9 +17,11 @@ function hashToUint32(text) {
   return hash >>> 0;
 }
 
-// The card's `lose` is 0.3334, not 0.333: floor(300 × 0.333) is 99, one gold short of a third.
-// 0.3334 floors to the exact third for every multiple of 3 below 15,000 gold, and for any
-// amount below 5,000 (a battle pays a few hundred).
+// The card's `lose` is 0.3333333333333333, the double nearest 1/3. Shorter decimals are wrong
+// in one direction or the other: 0.333 pays 99 for 300 (one gold short of a third), and 0.3334
+// pays 1668 for 5003 (more than a third). The nearest double sits a hair below 1/3, so
+// floor(gold × lose) is floor(gold / 3) for every amount (`tests/GamblersToss.test.js` walks
+// 0..1,000,000; a late-act boss node pays about 5,400).
 
 /** Normalised boon params `{ chance, win, lose }`, or null when they are not a usable toss. */
 export function parseBattleGoldGamble(params) {

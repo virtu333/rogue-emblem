@@ -97,6 +97,7 @@ import {
   normalizeWeaponArtBinding,
   getWeaponArtBindings,
   getWeaponArtAllowedTypes,
+  parsePlayerWeaponArtBoon,
 } from './WeaponArtSystem.js';
 import { ensureItemUid } from '../utils/itemUid.js';
 import { restorePendingBossRecruit } from './PendingBossRecruit.js';
@@ -2403,8 +2404,15 @@ export class RunManager {
     }
 
     if (effect.type === 'player_weapon_art_boon') {
-      const hpCostDelta = Math.trunc(Number(effect.params?.hpCostDelta) || 0);
-      const mapUsesBonus = Math.max(0, Math.trunc(Number(effect.params?.mapUsesBonus) || 0));
+      const boon = parsePlayerWeaponArtBoon(effect.params);
+      if (!boon) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'invalid_player_weapon_art_boon_params',
+        });
+        return;
+      }
+      const { hpCostDelta, mapUsesBonus } = boon;
       this.blessingRuntimeModifiers.playerArtHpCostDelta += hpCostDelta;
       this.blessingRuntimeModifiers.playerArtMapUsesBonus += mapUsesBonus;
       this._recordBlessingEvent('run_start', blessingId, effect, {

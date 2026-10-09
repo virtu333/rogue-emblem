@@ -212,6 +212,17 @@ export function weaponArtCostText(unit, art, options = {}) {
 }
 
 /**
+ * The " HP-N" tail of a one-line art row (the unit sheet's and the roster's Weapon Arts lists):
+ * what the art costs THIS unit now, so Bloodless Art, a Blood Gem and a pact's price show in the
+ * row, not the catalog figure. Empty for an art that costs nothing. `options` is the run's
+ * `weaponArtRunOptions(run)`.
+ */
+export function weaponArtHpSuffix(unit, art, options = {}) {
+  const cost = getEffectiveWeaponArtHpCost(unit, art, options);
+  return cost > 0 ? ` HP-${cost}` : '';
+}
+
+/**
  * "2/3 map uses left · 1/1 turn uses left" for this unit. `options` is the run's
  * `weaponArtRunOptions(run)`: Bloodless Art's extra use is part of the limit shown, so the
  * menu says what `canUseWeaponArt` will allow.

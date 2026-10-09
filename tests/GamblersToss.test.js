@@ -70,7 +70,7 @@ describe("Gambler's Toss: the card", () => {
   it('is a tier III gold card whose price is the variance', () => {
     expect(toss).toMatchObject({ tier: 3, tags: ['gold'] });
     expect(toss.boons).toEqual([
-      { type: 'battle_gold_gamble', params: { chance: 0.5, win: 2, lose: 0.3334 } },
+      { type: 'battle_gold_gamble', params: { chance: 0.5, win: 2, lose: 1 / 3 } },
     ]);
     expect(toss.intrinsicPrice.points).toBe(3);
     expect(toss.prices).toBeUndefined();
@@ -165,8 +165,8 @@ describe("Gambler's Toss: the toss", () => {
     }
     expect(doubled / N).toBeGreaterThan(0.47);
     expect(doubled / N).toBeLessThan(0.53);
-    // 0.5 × 2 + 0.5 × 0.3334 = 1.1667.
-    expect(GAMBLE).toEqual({ chance: 0.5, win: 2, lose: 0.3334 });
+    // 0.5 × 2 + 0.5 × 1/3 = 1.1667.
+    expect(GAMBLE).toEqual({ chance: 0.5, win: 2, lose: 1 / 3 });
     expect(total / N).toBeGreaterThan(1.14);
     expect(total / N).toBeLessThan(1.19);
   });
@@ -180,7 +180,7 @@ describe("Gambler's Toss: the toss", () => {
         node = id;
     }
     const settled = settleBattleGoldGamble({ runSeed: 9, nodeId: node, gamble: GAMBLE, gold: 301 });
-    expect(settled.goldAfter).toBe(100); // floor(301 × 0.3334) = floor(100.35)
+    expect(settled.goldAfter).toBe(100); // floor(301 / 3) = floor(100.33)
     expect(Number.isInteger(settled.goldAfter)).toBe(true);
     expect(
       settleBattleGoldGamble({ runSeed: 9, nodeId: node, gamble: GAMBLE, gold: 0 }).goldAfter,
@@ -268,9 +268,10 @@ describe("Gambler's Toss: what the player is told", () => {
     ).not.toContain('Toss');
   });
 
-  it('a cut to a third pays exactly a third: 3 gold leaves 1, 300 leaves 100, 900 leaves 300', () => {
-    // 0.333 would pay 99 for 300 (floor(99.9)); the card's 0.3334 is exact for any multiple of
-    // 3 below 15,000 gold (a battle pays a few hundred).
+  it('a cut to a third pays floor(gold / 3) for every amount a run can reach', () => {
+    // A `lose` of 0.333 pays 99 for 300 (floor(99.9)); 0.3334 fixed that but paid MORE than a
+    // third from 5,003 gold (floor(1667.9) = 1667 is right, floor(5003 × 0.3334) = 1668 is not).
+    // The card's `lose` is the nearest double to 1/3, which floors exactly for every amount.
     let node = null;
     for (let i = 0; i < 200 && !node; i++)
       if (
@@ -279,10 +280,16 @@ describe("Gambler's Toss: what the player is told", () => {
         node = `act1_1_${i}`;
     const cut = (gold) =>
       settleBattleGoldGamble({ runSeed: 9, nodeId: node, gamble: GAMBLE, gold }).goldAfter;
+    // Literal expectations, worked by hand.
     expect(cut(3)).toBe(1);
     expect(cut(300)).toBe(100);
     expect(cut(900)).toBe(300);
-    for (let gold = 0; gold <= 5000; gold++)
+    expect(cut(5003)).toBe(1667);
+    expect(cut(5400)).toBe(1800);
+    expect(cut(999_999)).toBe(333_333);
+    expect(cut(1_000_000)).toBe(333_333);
+    // Every whole amount from 0 to a million (a late-act boss node can pay about 5,400).
+    for (let gold = 0; gold <= 1_000_000; gold++)
       if (cut(gold) !== Math.floor(gold / 3)) throw new Error(`${gold} gold cut to ${cut(gold)}`);
     // The word for the face still reads "a third".
     expect(gambleWord({ multiplier: GAMBLE.lose })).toBe('cut to a third');
@@ -317,6 +324,7 @@ describe("Gambler's Toss: what the player is told", () => {
   it('words a non-standard multiplier plainly', () => {
     expect(gambleWord({ multiplier: 2 })).toBe('doubled');
     expect(gambleWord({ multiplier: 0.5 })).toBe('halved');
+    expect(gambleWord({ multiplier: 1 / 3 })).toBe('cut to a third');
     expect(gambleWord({ multiplier: 0.3334 })).toBe('cut to a third');
     expect(gambleWord({ multiplier: 0.333 })).toBe('cut to a third');
     expect(gambleWord({ multiplier: 3 })).toBe('×3');

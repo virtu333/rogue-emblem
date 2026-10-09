@@ -40,6 +40,7 @@ import {
   benchedSkillsNote,
 } from '../engine/UnitManager.js';
 import { equippedMarker } from './equippedBadge.js';
+import { weaponArtHpSuffix } from './weaponArtDisplay.js';
 import { isForged } from '../engine/ForgeSystem.js';
 import { isMastered } from '../engine/MasterySystem.js';
 import {
@@ -1596,8 +1597,7 @@ export class RosterOverlay {
       for (const { weapon, art, canUse, reason } of weaponArtChoices) {
         const status = canUse ? 'Ready' : this._weaponArtReasonLabel(reason);
         const color = canUse ? UI_PALETTE.info : UI_PALETTE.muted;
-        const hpCost = Math.max(0, Number(art?.hpCost) || 0);
-        const suffix = hpCost > 0 ? ` HP-${hpCost}` : '';
+        const suffix = weaponArtHpSuffix(unit, art, weaponArtRunOptions(this.scene?.runManager));
         const weaponName = this._getWeaponBaseName(weapon);
         const row = this._text(
           x + 8,
