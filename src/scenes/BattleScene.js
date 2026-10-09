@@ -30,6 +30,7 @@ import { presentationText, isolateBattleTextFactory } from '../utils/presentatio
 import { safeBattlePresentation } from '../ui/safeBattlePresentation.js';
 import { presentTeleporterWarp } from '../ui/WarpPresentation.js';
 import { hasBattleDefeat } from '../engine/BattleDefeat.js';
+import { applyBlessingCombatMods, stampTurnAnchors } from '../engine/BlessingCombatMods.js';
 import {
   isRoutComplete,
   isRoutFieldClear,
@@ -461,6 +462,7 @@ function necromancyOf(scene) {
 /** Reset per-battle state on a unit at deploy time. */
 export function resetUnitForBattle(unit) {
   delete unit._legendaryGraceTurn;
+  delete unit._turnAnchor;
   unit._removing = false;
   unit.hasMoved = false;
   unit._movementCommitted = false;
@@ -484,6 +486,8 @@ function resetPlayerUnitsForTurn(scene, turn) {
     resetWeaponArtTurnUsage(u, { turnNumber: turn });
     scene.undimUnit(u);
   }
+  // Holdfast reads where each unit stood as this player phase began.
+  stampTurnAnchors(scene.playerUnits, turn);
 }
 
 export class BattleScene extends Phaser.Scene {
@@ -7695,8 +7699,6 @@ export class BattleScene extends Phaser.Scene {
       affixes,
       masteryCtx,
     );
-    atkMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(attacker) || 0;
-    defMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(defender) || 0;
     const atkTimedBuffMods = this._getTimedWeaponArtCombatBuffMods(attacker);
     const defTimedBuffMods = this._getTimedWeaponArtCombatBuffMods(defender);
     atkMods.hitBonus += atkTimedBuffMods.hitBonus || 0;
@@ -7716,21 +7718,16 @@ export class BattleScene extends Phaser.Scene {
     this._applyAccessoryPhaseCombatMods(attacker, atkMods, rollSession);
     this._applyAccessoryPhaseCombatMods(defender, defMods, rollSession);
 
-    // Blessing terrain combat bonuses
-    const terrainBonuses = this.runManager?.getTerrainCombatBonuses?.() || [];
-    if (terrainBonuses.length > 0) {
-      const applyTerrainBonus = (mods, unit, terrain) => {
-        if (!terrain?.name || unit?.faction !== 'player') return;
-        for (const bonus of terrainBonuses) {
-          if (Array.isArray(bonus.terrains) && bonus.terrains.includes(terrain.name)) {
-            mods.avoidBonus += bonus.avoidBonus || 0;
-            mods.defBonus += bonus.defBonus || 0;
-          }
-        }
-      };
-      applyTerrainBonus(atkMods, attacker, atkTerrain);
-      applyTerrainBonus(defMods, defender, defTerrain);
-    }
+    // Blessings (act Hit, Keen Eye, Holdfast): one shared rule for scene and harness.
+    applyBlessingCombatMods(atkMods, defMods, {
+      profile: this.runManager?.getBlessingCombatProfile?.() ?? null,
+      attacker,
+      defender,
+      atkTerrain,
+      defTerrain,
+      turn: this.turnManager?.turnNumber,
+      alliesOf: getAllies,
+    });
 
     const atkWeaponArtMods = weaponArt ? getWeaponArtCombatMods(weaponArt) : null;
 

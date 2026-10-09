@@ -480,6 +480,8 @@ export const SAFE_BLESSING_BOON_TYPES = Object.freeze([
   'battle_gold_multiplier_delta',
   'recruit_level_bonus',
   'terrain_combat_bonus',
+  'first_strike_hit_bonus',
+  'stationary_combat_bonus',
   'healing_effectiveness_delta',
   'extra_consumable',
   'starting_consumable_all',

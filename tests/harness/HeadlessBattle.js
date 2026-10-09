@@ -153,6 +153,7 @@ import {
   ESCAPE_EVAC_GOLD_BY_ACT,
 } from '../../src/utils/constants.js';
 import { applyCombatHP, damageUnit, healUnit, setUnitHP } from '../../src/engine/UnitHealth.js';
+import { applyBlessingCombatMods, stampTurnAnchors } from '../../src/engine/BlessingCombatMods.js';
 import { resetFortHealStreak, settleTerrainHeal } from '../../src/engine/TerrainHealing.js';
 import { postCombatEffects, runPostCombatEffectsSync } from '../../src/engine/PostCombatEffects.js';
 import {
@@ -1112,6 +1113,7 @@ export class HeadlessBattle {
         u._gambitUsedThisTurn = false;
         u._movementSpent = 0;
       }
+      stampTurnAnchors(this.playerUnits, turn);
       // Apply turn-start effects (Renewal, etc.) — skip turn 1 to match BattleScene
       const army = armyAndNpcAllies(this.playerUnits, this.npcUnits);
       if (turn > 1) {
@@ -1702,8 +1704,6 @@ export class HeadlessBattle {
       affixes,
       masteryCtx,
     );
-    atkMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(attacker) || 0;
-    defMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(defender) || 0;
     const atkTimedBuffMods = this._getTimedWeaponArtCombatBuffMods(attacker);
     const defTimedBuffMods = this._getTimedWeaponArtCombatBuffMods(defender);
     atkMods.hitBonus += atkTimedBuffMods.hitBonus || 0;
@@ -1723,20 +1723,16 @@ export class HeadlessBattle {
     this._applyAccessoryPhaseCombatMods(attacker, atkMods, rollSession);
     this._applyAccessoryPhaseCombatMods(defender, defMods, rollSession);
 
-    const terrainBonuses = this.runManager?.getTerrainCombatBonuses?.() || [];
-    if (terrainBonuses.length > 0) {
-      const applyTerrainBonus = (mods, unit, terrain) => {
-        if (!terrain?.name || unit?.faction !== 'player') return;
-        for (const bonus of terrainBonuses) {
-          if (Array.isArray(bonus.terrains) && bonus.terrains.includes(terrain.name)) {
-            mods.avoidBonus += bonus.avoidBonus || 0;
-            mods.defBonus += bonus.defBonus || 0;
-          }
-        }
-      };
-      applyTerrainBonus(atkMods, attacker, atkTerrain);
-      applyTerrainBonus(defMods, defender, defTerrain);
-    }
+    // Blessings (act Hit, Keen Eye, Holdfast): one shared rule for scene and harness.
+    applyBlessingCombatMods(atkMods, defMods, {
+      profile: this.runManager?.getBlessingCombatProfile?.() ?? null,
+      attacker,
+      defender,
+      atkTerrain,
+      defTerrain,
+      turn: this.turnManager?.turnNumber,
+      alliesOf: getAllies,
+    });
 
     return {
       atkMods,

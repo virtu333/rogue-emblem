@@ -270,6 +270,10 @@ function createBlessingRuntimeModifiers() {
     shopPriceDiscount: 0,
     recruitLevelBonus: 0,
     terrainCombatBonuses: [],
+    // Keen Eye: Hit on the first strike of every combat a unit starts. Holdfast: DEF and
+    // Avoid for a unit that has not moved this turn (engine/BlessingCombatMods.js).
+    firstStrikeHitBonus: 0,
+    stationaryCombatBonus: { defBonus: 0, avoidBonus: 0 },
     healingEffectivenessMultiplier: 1,
     weaponArtHpCostDelta: 0,
     enemyLevelDeltas: [],
@@ -452,6 +456,7 @@ export function serializeUnit(unit) {
   delete data._battleTimedWeaponArtAppliedStats;
   delete data._battleTimedWeaponArtAppliedCombatMods;
   delete data._movementSpent;
+  delete data._turnAnchor;
   delete data._legendaryGraceTurn;
   delete data._fortHealStreak;
   // Deed progress commits at victory (commitBattleDeeds) or not at all.
@@ -2322,6 +2327,47 @@ export class RunManager {
       return;
     }
 
+    if (effect.type === 'first_strike_hit_bonus') {
+      const delta = Math.trunc(value);
+      if (delta === 0) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'zero_first_strike_hit_bonus',
+        });
+        return;
+      }
+      this.blessingRuntimeModifiers.firstStrikeHitBonus =
+        Math.trunc(this.blessingRuntimeModifiers.firstStrikeHitBonus || 0) + delta;
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        appliedValue: delta,
+        total: this.blessingRuntimeModifiers.firstStrikeHitBonus,
+      });
+      return;
+    }
+
+    if (effect.type === 'stationary_combat_bonus') {
+      const defBonus = Math.trunc(Number(effect.params.defBonus) || 0);
+      const avoidBonus = Math.trunc(Number(effect.params.avoidBonus) || 0);
+      if (defBonus === 0 && avoidBonus === 0) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'invalid_stationary_combat_bonus_params',
+        });
+        return;
+      }
+      const held = this.blessingRuntimeModifiers.stationaryCombatBonus;
+      this.blessingRuntimeModifiers.stationaryCombatBonus = {
+        defBonus: Math.trunc(held?.defBonus || 0) + defBonus,
+        avoidBonus: Math.trunc(held?.avoidBonus || 0) + avoidBonus,
+      };
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        defBonus,
+        avoidBonus,
+        total: { ...this.blessingRuntimeModifiers.stationaryCombatBonus },
+      });
+      return;
+    }
+
     if (effect.type === 'terrain_combat_bonus') {
       const terrains = Array.isArray(effect.params.terrains)
         ? effect.params.terrains.filter((t) => typeof t === 'string')
@@ -2487,6 +2533,26 @@ export class RunManager {
     return Array.isArray(this.blessingRuntimeModifiers?.terrainCombatBonuses)
       ? this.blessingRuntimeModifiers.terrainCombatBonuses
       : [];
+  }
+
+  /**
+   * What the run's blessings add to a combat, for `engine/BlessingCombatMods.js`: the one
+   * read BattleScene and the harness make. The act's Hit (Act 1 price included), Keen
+   * Eye's first-strike Hit, Holdfast's stationary bonus and, until saves migrate, the
+   * retired terrain boon.
+   */
+  getBlessingCombatProfile(actId = this.currentAct) {
+    const modifiers = this.blessingRuntimeModifiers;
+    const stationary = modifiers?.stationaryCombatBonus;
+    return {
+      actHitBonus: this.getActHitBonusForUnit({ faction: 'player' }, actId),
+      firstStrikeHitBonus: Math.trunc(modifiers?.firstStrikeHitBonus || 0),
+      stationary: {
+        defBonus: Math.trunc(stationary?.defBonus || 0),
+        avoidBonus: Math.trunc(stationary?.avoidBonus || 0),
+      },
+      legacyTerrainBonuses: this.getTerrainCombatBonuses(),
+    };
   }
 
   _buildBlessingAllGrowthBonus() {
@@ -5514,6 +5580,16 @@ export class RunManager {
     );
     if (!Array.isArray(rm.blessingRuntimeModifiers.terrainCombatBonuses)) {
       rm.blessingRuntimeModifiers.terrainCombatBonuses = [];
+    }
+    rm.blessingRuntimeModifiers.firstStrikeHitBonus = Math.trunc(
+      Number(rm.blessingRuntimeModifiers.firstStrikeHitBonus) || 0,
+    );
+    {
+      const held = rm.blessingRuntimeModifiers.stationaryCombatBonus;
+      rm.blessingRuntimeModifiers.stationaryCombatBonus = {
+        defBonus: Math.trunc(Number(held?.defBonus) || 0),
+        avoidBonus: Math.trunc(Number(held?.avoidBonus) || 0),
+      };
     }
     rm.blessingRuntimeModifiers.healingEffectivenessMultiplier = Number.isFinite(
       rm.blessingRuntimeModifiers.healingEffectivenessMultiplier,

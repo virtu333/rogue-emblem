@@ -131,12 +131,13 @@ describe('HeadlessBattle weapon arts', () => {
       },
       updateFogOfWar() {},
     };
+    // The blessing profile (RunManager.getBlessingCombatProfile) is the one read of both.
     battle.runManager = {
-      getActHitBonusForUnit() {
-        return 7;
-      },
-      getTerrainCombatBonuses() {
-        return [{ terrains: ['Forest'], avoidBonus: 11, defBonus: 4 }];
+      getBlessingCombatProfile() {
+        return {
+          actHitBonus: 7,
+          legacyTerrainBonuses: [{ terrains: ['Forest'], avoidBonus: 11, defBonus: 4 }],
+        };
       },
     };
 
@@ -145,6 +146,7 @@ describe('HeadlessBattle weapon arts', () => {
     expect(ctx.atkMods.defBonus).toBe(1);
     expect(ctx.atkMods.avoidBonus).toBe(11);
     expect(ctx.atkMods.hitBonus).toBe(7);
-    expect(ctx.defMods.hitBonus).toBe(7);
+    // The foe is an enemy: blessings reach player units only.
+    expect(ctx.defMods.hitBonus).toBe(0);
   });
 });

@@ -323,15 +323,15 @@
     {
       "id": "steady_hands",
       "lore": "Still my hand as you still the water, and let the arrow go where I meant.",
-      "name": "Steady Hands",
+      "name": "Keen Eye",
       "tier": 1,
-      "description": "+3 Hit for all units in every act.",
+      "description": "+10 Hit on the first strike of every combat your units start.",
       "weight": 1,
       "boons": [
         {
-          "type": "all_act_hit_bonus",
+          "type": "first_strike_hit_bonus",
           "params": {
-            "value": 3
+            "value": 10
           }
         }
       ],
@@ -699,21 +699,17 @@
     },
     {
       "id": "terrain_mastery",
-      "lore": "Keep the grove and mend the wall, and both will keep you. Groundskeeper's creed.",
-      "name": "Terrain Mastery",
+      "lore": "Plant your feet and let the storm break on you. A wall is only a promise kept.",
+      "name": "Holdfast",
       "tier": 2,
-      "description": "+10 avoid and +1 DEF on Forest/Fort tiles.",
+      "description": "A unit that hasn't moved this turn gets +2 DEF and +10 Avoid, through the enemy's turn too.",
       "weight": 1,
       "boons": [
         {
-          "type": "terrain_combat_bonus",
+          "type": "stationary_combat_bonus",
           "params": {
-            "terrains": [
-              "Forest",
-              "Fort"
-            ],
-            "avoidBonus": 10,
-            "defBonus": 1
+            "defBonus": 2,
+            "avoidBonus": 10
           }
         }
       ],
