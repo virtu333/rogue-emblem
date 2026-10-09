@@ -2,7 +2,8 @@
 import { CRIT_MULTIPLIER } from '../utils/constants.js';
 import { isStatusImmune } from './StatusConditionSystem.js';
 
-const canHit = (info) => info?.attackCount > 0 && info.hit > 0;
+// A side whose first strike has a Hit of its own (Keen Eye) can land even when later strikes can't.
+const canHit = (info) => info?.attackCount > 0 && (info.firstHit ?? info.hit) > 0;
 const maxStrike = (info) =>
   Math.floor(
     Math.max(0, info?.damage || 0) * (info?.crit > 0 ? info.critMultiplier || CRIT_MULTIPLIER : 1),

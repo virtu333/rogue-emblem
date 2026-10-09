@@ -327,15 +327,15 @@
     {
       "id": "steady_hands",
       "lore": "Still my hand as you still the water, and let the arrow go where I meant.",
-      "name": "Steady Hands",
+      "name": "Keen Eye",
       "tier": 1,
-      "description": "+3 Hit for all units in every act.",
+      "description": "+10 Hit on the first strike of every combat your units start.",
       "weight": 1,
       "boons": [
         {
-          "type": "all_act_hit_bonus",
+          "type": "first_strike_hit_bonus",
           "params": {
-            "value": 3
+            "value": 10
           }
         }
       ],
@@ -343,10 +343,10 @@
     },
     {
       "id": "coin_of_fate",
-      "lore": "Altar rule: whoever needs the coins more may take them. Today, that's you.",
-      "name": "Coin of Fate",
+      "lore": "The paymaster owes you a season's wages, and pays them early, and again each spring.",
+      "name": "Advance Pay",
       "tier": 1,
-      "description": "Immediately gain 750 gold.",
+      "description": "+500 gold now, and +250 gold as each later act begins.",
       "weight": 1,
       "tags": [
         "gold"
@@ -355,7 +355,13 @@
         {
           "type": "gold_delta",
           "params": {
-            "value": 750
+            "value": 500
+          }
+        },
+        {
+          "type": "act_start_gold",
+          "params": {
+            "value": 250
           }
         }
       ],
@@ -559,16 +565,16 @@
     },
     {
       "id": "frugal_smith",
-      "lore": "Honored at any forge that still stamps Varen's mark. Ask for the pilgrim rate.",
-      "name": "Frugal Smith",
+      "lore": "Honored at any forge that still stamps Varen's mark. The first blow is on the smith.",
+      "name": "Smith's Mark",
       "tier": 2,
-      "description": "Forge costs reduced by 30%, +1 forge per shop.",
+      "description": "Each shop's first forge or repair is free, and every shop forges once more.",
       "weight": 1,
       "boons": [
         {
-          "type": "forge_cost_multiplier",
+          "type": "shop_first_forge_free",
           "params": {
-            "value": -0.3
+            "value": 1
           }
         },
         {
@@ -610,25 +616,19 @@
     },
     {
       "id": "pilgrim_coin",
-      "lore": "Show the shell token at any roadside stall. Merchants grumble, then discount.",
-      "name": "Pilgrim Coin",
+      "lore": "The shell on the cord opens a door the road did not have yesterday.",
+      "name": "Pilgrim's Road",
       "tier": 2,
-      "description": "Shops stock +1 item, and everything they sell is 15% off.",
+      "description": "Every act's route gains one more shop: an event or church on the map becomes a shop.",
       "weight": 1,
       "tags": [
         "shop"
       ],
       "boons": [
         {
-          "type": "shop_item_count_delta",
+          "type": "extra_shop_per_act",
           "params": {
             "value": 1
-          }
-        },
-        {
-          "type": "shop_price_discount",
-          "params": {
-            "value": 0.15
           }
         }
       ],
@@ -677,7 +677,7 @@
       "lore": "Sworn to the open road. Whoever answers your banner has already walked a while.",
       "name": "Nomad's Pact",
       "tier": 3,
-      "description": "Units from recruit nodes and events join 2 levels higher.",
+      "description": "Recruits join 2 levels higher: nodes, events, boss recruits and mercenaries.",
       "weight": 1,
       "boons": [
         {
@@ -692,8 +692,7 @@
         [
           "sworn_enemy",
           "act1_def_down_1"
-        ]
-     ,
+        ],
         "commander_injury"
       ],
       "costs": [],
@@ -703,21 +702,17 @@
     },
     {
       "id": "terrain_mastery",
-      "lore": "Keep the grove and mend the wall, and both will keep you. Groundskeeper's creed.",
-      "name": "Terrain Mastery",
+      "lore": "Plant your feet and let the storm break on you. A wall is only a promise kept.",
+      "name": "Hold the Line",
       "tier": 2,
-      "description": "+10 avoid and +1 DEF on Forest/Fort tiles.",
+      "description": "A unit that hasn't moved this turn gets +2 DEF and +10 Avoid, into the enemy's turn too.",
       "weight": 1,
       "boons": [
         {
-          "type": "terrain_combat_bonus",
+          "type": "stationary_combat_bonus",
           "params": {
-            "terrains": [
-              "Forest",
-              "Fort"
-            ],
-            "avoidBonus": 10,
-            "defBonus": 1
+            "defBonus": 2,
+            "avoidBonus": 10
           }
         }
       ],
@@ -729,17 +724,17 @@
     },
     {
       "id": "quartermaster_cache",
-      "lore": "Tithe-barn stores: one elixir per banner. The barn burned; the ledger didn't.",
+      "lore": "The tithe-barn burned; the ledger didn't. Each season one elixir still comes due.",
       "name": "Quartermaster Cache",
       "tier": 2,
-      "description": "Each starting lord receives 1 Elixir.",
+      "description": "An Elixir arrives in the convoy at the start of every act, this one included.",
       "weight": 1,
       "boons": [
         {
-          "type": "extra_consumable",
+          "type": "act_start_convoy_item",
           "params": {
             "itemName": "Elixir",
-            "value": 1
+            "count": 1
           }
         }
       ],
@@ -788,12 +783,13 @@
       "lore": "Quench the edge in your own blood. The smith-saints cursed the rite. It works.",
       "name": "Blood Forge",
       "tier": 2,
-      "description": "Starting lords’ current combat weapons gain up to 2 Might forges, subject to forge limits.",
+      "description": "+2 Might on each starting lord's strongest weapon.",
       "weight": 1,
       "boons": [
         {
-          "type": "starting_weapon_forge_delta",
+          "type": "starting_best_weapon_forge",
           "params": {
+            "stat": "might",
             "value": 2
           }
         }
@@ -891,8 +887,7 @@
       ],
       "prices": [
         "debt_large",
-        "growths_down"
-     ,
+        "growths_down",
         "commander_injury"
       ],
       "costs": []

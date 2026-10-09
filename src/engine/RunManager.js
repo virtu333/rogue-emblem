@@ -181,6 +181,8 @@ import { isHuntedBattle } from './HuntedWave.js';
 import { contractRewardOwedAt, normalizeContract, normalizeContractOwed } from './Contracts.js';
 import { settleContract } from './ContractSettlement.js';
 import { everFallenUnits } from './LaidToRest.js';
+import { stampExtraShops } from './ExtraShopPass.js';
+import { BLESSING_BOON_REVISION, migrateHeldBlessingBoons } from './BlessingBoonMigration.js';
 import { createSpecialCharacter } from './SpecialCharacters.js';
 
 // Phaser-specific fields that must be stripped for serialization
@@ -278,7 +280,10 @@ function createBlessingRuntimeModifiers() {
     forgeLimitDelta: 0,
     shopPriceDiscount: 0,
     recruitLevelBonus: 0,
-    terrainCombatBonuses: [],
+    // Keen Eye: Hit on the first strike of every combat a unit starts. Hold the Line: DEF and
+    // Avoid for a unit that has not moved this turn (engine/BlessingCombatMods.js).
+    firstStrikeHitBonus: 0,
+    stationaryCombatBonus: { defBonus: 0, avoidBonus: 0 },
     healingEffectivenessMultiplier: 1,
     weaponArtHpCostDelta: 0,
     // Bloodless Art (`player_weapon_art_boon`): player units' weapon arts cost this much HP
@@ -291,6 +296,14 @@ function createBlessingRuntimeModifiers() {
     // church revives for the run.
     deployCapDeltaByAct: {},
     churchReviveDisabled: false,
+    // Grants a blessing pays as each act begins (Advance Pay's gold, Quartermaster Cache's
+    // Elixir): `{ blessingId, kind: 'gold'|'item', value?, itemName?, count?, paidActs }`.
+    // `paidActs` is what makes a grant pay once per act, however often a save is loaded.
+    actStartGrants: [],
+    // Smith's Mark: how many forge uses (a forge or a repair) a shop gives free, counted from
+    // each shop's first. Pilgrim's Road: shops each act's route gains (engine/ExtraShopPass.js).
+    freeForgesPerShop: 0,
+    extraShopsPerAct: 0,
     // Slow Fuse: the starting lords' dip-then-rise stat arcs (engine/LordStatArc.js).
     lordStatArcs: [],
     // Gambler's Toss: `{ chance, win, lose }` while held (engine/BattleGoldGamble.js).
@@ -322,6 +335,37 @@ function hashStringToUint32(input) {
     hash = Math.imul(hash, 16777619);
   }
   return hash >>> 0;
+}
+
+/**
+ * A saved act-start grants list, field by field: a grant is gold or an item, with a whole
+ * positive amount, and a list of the acts it has already paid. Anything else is dropped.
+ */
+function sanitizeActStartGrants(list) {
+  if (!Array.isArray(list)) return [];
+  const grants = [];
+  for (const entry of list) {
+    if (!isPlainObject(entry) || typeof entry.blessingId !== 'string' || !entry.blessingId)
+      continue;
+    const paidActs = Array.isArray(entry.paidActs)
+      ? [...new Set(entry.paidActs.filter((act) => typeof act === 'string' && act))]
+      : [];
+    if (entry.kind === 'gold') {
+      const value = Math.trunc(Number(entry.value));
+      if (value > 0) grants.push({ blessingId: entry.blessingId, kind: 'gold', value, paidActs });
+    } else if (entry.kind === 'item') {
+      const count = Math.trunc(Number(entry.count));
+      if (typeof entry.itemName === 'string' && entry.itemName && count > 0)
+        grants.push({
+          blessingId: entry.blessingId,
+          kind: 'item',
+          itemName: entry.itemName,
+          count,
+          paidActs,
+        });
+    }
+  }
+  return grants;
 }
 
 function getBlessingEntryId(entry) {
@@ -497,6 +541,7 @@ export function serializeUnit(unit) {
   delete data._battleTimedWeaponArtAppliedStats;
   delete data._battleTimedWeaponArtAppliedCombatMods;
   delete data._movementSpent;
+  delete data._turnAnchor;
   delete data._legendaryGraceTurn;
   delete data._fortHealStreak;
   // Deed progress commits at victory (commitBattleDeeds) or not at all.
@@ -587,6 +632,9 @@ export class RunManager {
     this.blessingHistory = [];
     this.blessingSelectionTelemetry = null;
     this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
+    // Which blessing-boon rules this run's saved numbers follow (BlessingBoonMigration.js):
+    // a new run is current, fromJSON reads the save's own.
+    this.blessingBoonRevision = BLESSING_BOON_REVISION;
     this._runStartBlessingsApplied = false;
     this.runSeed = null;
     this.narrativeSeen = {};
@@ -808,6 +856,7 @@ export class RunManager {
     this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
     this.earnedBlessingPicks = {};
     this.actStartNotice = null;
+    this.blessingBoonRevision = BLESSING_BOON_REVISION; // a new run follows the current rules
     this.battleConfigsByNodeId = {};
     this.ensureRecruitPreviews();
     this.shopStateByNodeId = {};
@@ -886,6 +935,7 @@ export class RunManager {
     this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
     this.earnedBlessingPicks = {};
     this.actStartNotice = null;
+    this.blessingBoonRevision = BLESSING_BOON_REVISION; // a new run follows the current rules
     this.battleConfigsByNodeId = {};
     for (const node of this.nodeMap.nodes) {
       const chapter = this.getPrologueChapter(node.id);
@@ -1200,8 +1250,17 @@ export class RunManager {
       ...(this.activeBlessings || []),
       createActiveBlessingEntry(blessingId, null, { midRun: true }),
     ];
-    for (const effect of blessing.boons || [])
-      this._applySingleRunStartBlessingEffect(blessingId, effect);
+    // Every handler records its event as 'run_start'; while a mid-run grant applies, the
+    // record says 'mid_run' instead (see _recordBlessingEvent). Transient: never saved.
+    const outerStage = this._blessingEventStage;
+    this._blessingEventStage = 'mid_run';
+    try {
+      for (const effect of blessing.boons || [])
+        this._applySingleRunStartBlessingEffect(blessingId, effect);
+    } finally {
+      if (outerStage === undefined) delete this._blessingEventStage;
+      else this._blessingEventStage = outerStage;
+    }
     return true;
   }
 
@@ -1252,7 +1311,9 @@ export class RunManager {
   _recordBlessingEvent(stage, blessingId, effect, details = {}) {
     this.blessingHistory.push({
       timestamp: Date.now(),
-      stage,
+      // The run-start handlers all say 'run_start'; a mid-run grant (addBlessingMidRun) is
+      // recorded as 'mid_run', whichever handler wrote it.
+      stage: stage === 'run_start' && this._blessingEventStage ? this._blessingEventStage : stage,
       eventType: 'effect_applied',
       blessingId,
       effectType: effect?.type || null,
@@ -1314,7 +1375,7 @@ export class RunManager {
 
   _createBlessingRng(blessingId, contextKey = '') {
     const baseSeed = Number.isFinite(this.runSeed) ? Number(this.runSeed) : 0;
-    const seed = hashStringToUint32(`${baseSeed}|${blessingId || 'none'}|${contextKey}`);
+    const seed = eclipseHash(`${baseSeed}|${blessingId || 'none'}|${contextKey}`);
     return createSeededRng(seed);
   }
 
@@ -2314,6 +2375,103 @@ export class RunManager {
       return;
     }
 
+    if (effect.type === 'starting_best_weapon_forge') {
+      // Blood Forge: each starting lord's strongest weapon gains `value` forge steps.
+      const forgeStat = String(effect.params.stat || 'might')
+        .trim()
+        .toLowerCase();
+      const targetStat = ['might', 'crit', 'hit', 'weight'].includes(forgeStat)
+        ? forgeStat
+        : 'might';
+      const steps = Math.max(0, Math.trunc(value));
+      if (steps <= 0) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'zero_starting_best_weapon_forge',
+        });
+        return;
+      }
+      const changedWeapons = [];
+      for (const unit of this.roster) {
+        if (!unit.isLord) continue;
+        const weapon = this._bestForgeableWeapon(unit, targetStat);
+        if (!weapon) continue;
+        const before = weapon.name;
+        let applied = 0;
+        for (let i = 0; i < steps; i++) {
+          // A gift of the shrine, not a purchase: free, so resale value does not grow.
+          if (!applyForge(weapon, targetStat, 0, { free: true }).success) break; // the forge limits
+          applied++;
+        }
+        if (applied > 0)
+          changedWeapons.push({
+            unit: unit.name,
+            weapon: before,
+            stat: targetStat,
+            steps: applied,
+          });
+      }
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        forgeStat: targetStat,
+        requestedSteps: steps,
+        changedWeapons,
+      });
+      return;
+    }
+
+    if (effect.type === 'act_start_gold') {
+      // Advance Pay: the shrine's gold covers the act it is taken in (paid by `gold_delta`),
+      // so the first recurring payment is the next act's.
+      const amount = Math.max(0, Math.trunc(value));
+      if (amount <= 0) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'invalid_act_start_gold',
+        });
+        return;
+      }
+      this._actStartGrantList().push({
+        blessingId,
+        kind: 'gold',
+        value: amount,
+        paidActs: [this.currentAct],
+      });
+      // Nothing is paid now (the shrine's `gold_delta` covers this act): the record carries
+      // the recurring amount, not an applied one.
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        recurringValue: amount,
+        firstPayment: 'next_act',
+      });
+      return;
+    }
+
+    if (effect.type === 'act_start_convoy_item') {
+      // Quartermaster Cache: one item at the start of every act, this one included.
+      const itemName = typeof effect.params.itemName === 'string' ? effect.params.itemName : '';
+      const count = Math.max(
+        0,
+        Math.trunc(Number(effect.params.count ?? effect.params.value ?? 1)),
+      );
+      const template = itemName ? this.getConsumableTemplate(itemName) : null;
+      if (count <= 0 || template?.type !== 'Consumable') {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: count <= 0 ? 'invalid_act_start_item_count' : 'missing_consumable_template',
+          itemName,
+        });
+        return;
+      }
+      this._actStartGrantList().push({ blessingId, kind: 'item', itemName, count, paidActs: [] });
+      this._recordBlessingEvent('run_start', blessingId, effect, { itemName, count });
+      // The current act's delivery is owed now (a church vow in Act 2 pays Act 2 now); the
+      // record says whether it came with the shrine or from a church or an event.
+      const takenMidRun = (this.activeBlessings || []).some(
+        (entry) => getBlessingEntryId(entry) === blessingId && entry?.midRun === true,
+      );
+      this._payActStartGrants(takenMidRun ? 'mid_run' : 'run_start');
+      return;
+    }
+
     if (effect.type === 'eclipse_shadow_delta') {
       // The run's sun starts darker (a pact price). The act's own clock is unmoved:
       // act shadow counts from here, so no node falls because of it; only the
@@ -2369,6 +2527,39 @@ export class RunManager {
       return;
     }
 
+    if (effect.type === 'shop_first_forge_free') {
+      // Smith's Mark: the shop's first forge use is free; the engine decides it per shop from
+      // the shop's saved count of uses (ShopCommands.freeForgeAvailable).
+      const delta = Math.max(0, Math.trunc(value));
+      this.blessingRuntimeModifiers.freeForgesPerShop =
+        (this.blessingRuntimeModifiers.freeForgesPerShop || 0) + delta;
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        appliedValue: delta,
+        total: this.blessingRuntimeModifiers.freeForgesPerShop,
+      });
+      return;
+    }
+
+    if (effect.type === 'extra_shop_per_act') {
+      // Pilgrim's Road: this act's map gains its shop now (a grant taken mid-run converts only
+      // a node the party can still reach from where it stands), and every later act's map in
+      // advanceAct.
+      const delta = Math.max(0, Math.trunc(value));
+      this.blessingRuntimeModifiers.extraShopsPerAct =
+        (this.blessingRuntimeModifiers.extraShopsPerAct || 0) + delta;
+      const here = this.nodeMap?.nodes?.find((node) => node.id === this.currentNodeId);
+      const converted = this._stampExtraShops({
+        fromRow: here ? here.row + 1 : 0,
+        currentNodeId: this.currentNodeId,
+      });
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        appliedValue: delta,
+        total: this.blessingRuntimeModifiers.extraShopsPerAct,
+        converted,
+      });
+      return;
+    }
+
     if (effect.type === 'shop_price_discount') {
       const delta = Number(value) || 0;
       this.blessingRuntimeModifiers.shopPriceDiscount += delta;
@@ -2388,27 +2579,43 @@ export class RunManager {
       return;
     }
 
-    if (effect.type === 'terrain_combat_bonus') {
-      const terrains = Array.isArray(effect.params.terrains)
-        ? effect.params.terrains.filter((t) => typeof t === 'string')
-        : [];
-      const avoidBonus = Math.trunc(Number(effect.params.avoidBonus) || 0);
-      const defBonus = Math.trunc(Number(effect.params.defBonus) || 0);
-      if (terrains.length === 0 || (avoidBonus === 0 && defBonus === 0)) {
+    if (effect.type === 'first_strike_hit_bonus') {
+      const delta = Math.trunc(value);
+      if (delta === 0) {
         this._recordBlessingEvent('run_start', blessingId, effect, {
           skipped: true,
-          reason: 'invalid_terrain_combat_bonus_params',
+          reason: 'zero_first_strike_hit_bonus',
         });
         return;
       }
-      if (!Array.isArray(this.blessingRuntimeModifiers.terrainCombatBonuses)) {
-        this.blessingRuntimeModifiers.terrainCombatBonuses = [];
-      }
-      this.blessingRuntimeModifiers.terrainCombatBonuses.push({ terrains, avoidBonus, defBonus });
+      this.blessingRuntimeModifiers.firstStrikeHitBonus =
+        Math.trunc(this.blessingRuntimeModifiers.firstStrikeHitBonus || 0) + delta;
       this._recordBlessingEvent('run_start', blessingId, effect, {
-        terrains,
-        avoidBonus,
+        appliedValue: delta,
+        total: this.blessingRuntimeModifiers.firstStrikeHitBonus,
+      });
+      return;
+    }
+
+    if (effect.type === 'stationary_combat_bonus') {
+      const defBonus = Math.trunc(Number(effect.params.defBonus) || 0);
+      const avoidBonus = Math.trunc(Number(effect.params.avoidBonus) || 0);
+      if (defBonus === 0 && avoidBonus === 0) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'invalid_stationary_combat_bonus_params',
+        });
+        return;
+      }
+      const held = this.blessingRuntimeModifiers.stationaryCombatBonus;
+      this.blessingRuntimeModifiers.stationaryCombatBonus = {
+        defBonus: Math.trunc(held?.defBonus || 0) + defBonus,
+        avoidBonus: Math.trunc(held?.avoidBonus || 0) + avoidBonus,
+      };
+      this._recordBlessingEvent('run_start', blessingId, effect, {
         defBonus,
+        avoidBonus,
+        total: { ...this.blessingRuntimeModifiers.stationaryCombatBonus },
       });
       return;
     }
@@ -2667,6 +2874,153 @@ export class RunManager {
     return this.blessingRuntimeModifiers?.shopPriceDiscount || 0;
   }
 
+  /** Smith's Mark: how many of a shop's first forge uses cost nothing (0 without it). */
+  getFreeForgesPerShop() {
+    return Math.max(0, Math.trunc(this.blessingRuntimeModifiers?.freeForgesPerShop || 0));
+  }
+
+  /** Pilgrim's Road: the shops each act's route gains (0 without it). */
+  getExtraShopsPerAct() {
+    return Math.max(0, Math.trunc(this.blessingRuntimeModifiers?.extraShopsPerAct || 0));
+  }
+
+  /**
+   * Pilgrim's Road: make the current map hold its extra shops (an event or church becomes a
+   * shop; engine/ExtraShopPass.js, its own seeded stream). Idempotent, so a reload or a second
+   * call never adds one; the prologue never has any. Returns the ids converted by this call.
+   */
+  _stampExtraShops({ fromRow = 0, currentNodeId = null } = {}) {
+    const count = this.getExtraShopsPerAct();
+    if (count <= 0 || isPrologueRun(this) || !this.nodeMap) return [];
+    return stampExtraShops(this.nodeMap, {
+      runSeed: this.runSeed,
+      count,
+      fromRow,
+      currentNodeId,
+    });
+  }
+
+  /** The grants list on the runtime modifiers (made when an older object lacks it). */
+  _actStartGrantList() {
+    const modifiers = this.blessingRuntimeModifiers;
+    if (!Array.isArray(modifiers.actStartGrants)) modifiers.actStartGrants = [];
+    return modifiers.actStartGrants;
+  }
+
+  /**
+   * A lord's strongest weapon that the forge can still improve in `stat` (Blood Forge):
+   * the unit's own (equipped or in the bag) combat weapons it can wield, highest current
+   * Might first; a tie goes to the equipped weapon, then the earlier bag slot. A weapon at
+   * its forge limit, a staff, a scroll and a worn weapon are not candidates, so the next
+   * best is chosen instead.
+   */
+  _bestForgeableWeapon(unit, stat) {
+    const ordered = [];
+    for (const weapon of [unit.weapon, ...(unit.inventory || [])]) {
+      if (weapon && !ordered.includes(weapon)) ordered.push(weapon);
+    }
+    let best = null;
+    for (const weapon of ordered) {
+      if (['Staff', 'Consumable', 'Scroll'].includes(weapon.type)) continue;
+      if (!canEquip(unit, weapon) || !canForgeStat(weapon, stat)) continue;
+      // `ordered` lists the equipped weapon first, then the bag in slot order, so a strict
+      // comparison keeps the tie-break.
+      if (!best || (Number(weapon.might) || 0) > (Number(best.might) || 0)) best = weapon;
+    }
+    return best;
+  }
+
+  /**
+   * Pay the blessings' act-start grants for the act the run is in (docs/specs/blessings-v3.md
+   * §4): Advance Pay's gold, Quartermaster Cache's item. A grant pays once per act, however
+   * often a save is loaded (`paidActs` is saved). Never in the prologue. Gold goes straight
+   * to the purse (Debt garnishes battle gold only). An item goes to the convoy, then to the
+   * commander's bag, the other lords', then anyone's; with no room anywhere it is lost, and
+   * the act still counts as paid (the shrine's first Elixir did the same).
+   * @param {'run_start'|'mid_run'|'act_transition'} stage
+   * @returns {Array<object>} what was paid, for the route map's notice
+   */
+  _payActStartGrants(stage = 'act_transition') {
+    if (isPrologueRun(this)) return [];
+    const act = this.currentAct;
+    if (!act) return [];
+    const catalog = this.gameData?.blessings;
+    const names = new Map(
+      (Array.isArray(catalog?.blessings) ? catalog.blessings : []).map((b) => [b.id, b.name]),
+    );
+    const paid = [];
+    for (const grant of this._actStartGrantList()) {
+      if (!grant || !Array.isArray(grant.paidActs) || grant.paidActs.includes(act)) continue;
+      grant.paidActs.push(act);
+      const blessingName = names.get(grant.blessingId) || grant.blessingId;
+      if (grant.kind === 'gold') {
+        this.addGold(grant.value);
+        this._recordBlessingEvent(
+          stage,
+          grant.blessingId,
+          { type: 'act_start_gold', params: { value: grant.value } },
+          { appliedValue: grant.value, act },
+        );
+        paid.push({
+          blessingId: grant.blessingId,
+          blessingName,
+          kind: 'gold',
+          value: grant.value,
+        });
+        continue;
+      }
+      if (grant.kind === 'item') {
+        const template = this.getConsumableTemplate(grant.itemName);
+        if (template?.type !== 'Consumable') {
+          this._recordBlessingEvent(
+            stage,
+            grant.blessingId,
+            { type: 'act_start_convoy_item', params: { itemName: grant.itemName } },
+            { skipped: true, reason: 'missing_consumable_template', act },
+          );
+          continue;
+        }
+        let toConvoy = 0;
+        let toUnits = 0;
+        let overflow = 0;
+        const holders = [
+          this.getCommander(),
+          ...this.roster.filter((unit) => unit.isLord),
+          ...this.roster,
+        ].filter((unit, index, list) => unit && list.indexOf(unit) === index);
+        for (let i = 0; i < grant.count; i++) {
+          if (this.addToConvoy(template)) toConvoy++;
+          else if (holders.some((unit) => addToConsumables(unit, template))) toUnits++;
+          else overflow++;
+        }
+        this._recordBlessingEvent(
+          stage,
+          grant.blessingId,
+          { type: 'act_start_convoy_item', params: { itemName: grant.itemName } },
+          { itemName: grant.itemName, count: grant.count, act, toConvoy, toUnits, overflow },
+        );
+        paid.push({
+          blessingId: grant.blessingId,
+          blessingName,
+          kind: 'item',
+          itemName: grant.itemName,
+          count: grant.count,
+          toConvoy,
+          toUnits,
+          overflow,
+        });
+      }
+    }
+    return paid;
+  }
+
+  /** The act-start grants paid since the route map last showed them (not saved). */
+  takeActStartNotice() {
+    const notice = this._actStartNotice || [];
+    this._actStartNotice = null;
+    return notice;
+  }
+
   getRecruitLevelBonus() {
     return Math.trunc(this.blessingRuntimeModifiers?.recruitLevelBonus || 0);
   }
@@ -2682,10 +3036,22 @@ export class RunManager {
     );
   }
 
-  getTerrainCombatBonuses() {
-    return Array.isArray(this.blessingRuntimeModifiers?.terrainCombatBonuses)
-      ? this.blessingRuntimeModifiers.terrainCombatBonuses
-      : [];
+  /**
+   * What the run's blessings add to a combat, for `engine/BlessingCombatMods.js`: the one
+   * read BattleScene and the harness make. The act's Hit (Act 1 price included), Keen
+   * Eye's first-strike Hit and Hold the Line's stationary bonus.
+   */
+  getBlessingCombatProfile(actId = this.currentAct) {
+    const modifiers = this.blessingRuntimeModifiers;
+    const stationary = modifiers?.stationaryCombatBonus;
+    return {
+      actHitBonus: this.getActHitBonusForUnit({ faction: 'player' }, actId),
+      firstStrikeHitBonus: Math.trunc(modifiers?.firstStrikeHitBonus || 0),
+      stationary: {
+        defBonus: Math.trunc(stationary?.defBonus || 0),
+        avoidBonus: Math.trunc(stationary?.avoidBonus || 0),
+      },
+    };
   }
 
   _buildBlessingAllGrowthBonus() {
@@ -2880,7 +3246,7 @@ export class RunManager {
    */
   _lordTraitRng(unit) {
     if (!Number.isFinite(this.runSeed)) return Math.random;
-    return createSeededRng(hashStringToUint32(`lord-trait:${this.runSeed >>> 0}:${unit?.name}`));
+    return createSeededRng(eclipseHash(`lord-trait:${this.runSeed >>> 0}:${unit?.name}`));
   }
 
   resolveThirdLord(unit) {
@@ -3540,7 +3906,7 @@ export class RunManager {
       const FORGE_STATS = ['might', 'crit', 'hit', 'weight'];
       // Honed Blades rolls from the run seed: the same run always gets the same forges.
       const forgeRng = Number.isFinite(this.runSeed)
-        ? createSeededRng(hashStringToUint32(`honed-blades:${this.runSeed >>> 0}`))
+        ? createSeededRng(eclipseHash(`honed-blades:${this.runSeed >>> 0}`))
         : Math.random;
       for (const unit of startingLordUnits) {
         for (const w of unit.inventory) {
@@ -4809,11 +5175,14 @@ export class RunManager {
     }
   }
 
-  /** Advance to the next act. Generates a new node map. Returns { unlockedArtIds, displacedSkills }. */
+  /**
+   * Advance to the next act. Generates a new node map and pays the blessings' act-start
+   * grants. Returns { unlockedArtIds, displacedSkills, actStartGrants }.
+   */
   advanceAct() {
     this._revertActScopedBlessingEffects(this.currentAct);
     if (this.actIndex >= this.actSequence.length - 1)
-      return { unlockedArtIds: [], displacedSkills: {}, visionGranted: 0 };
+      return { unlockedArtIds: [], displacedSkills: {}, visionGranted: 0, actStartGrants: [] };
     this.actIndex++;
     this._restoreDisabledPersonalSkillsIfReady('act_transition');
     // Second Dawn: the act's Vision, paid with the act index so a save holds both or neither.
@@ -4835,6 +5204,8 @@ export class RunManager {
         caravanChanceBonus: this.metaEffects?.caravanChanceBonus || 0,
       }),
     );
+    // Pilgrim's Road: the new map gains its extra shop before anything else reads it.
+    this._stampExtraShops();
     this.shopStateByNodeId = {};
     this.ruinsChoiceByNodeId = {};
     this.churchVowByNodeId = {};
@@ -4853,7 +5224,10 @@ export class RunManager {
     this.pendingCaravanShop = null;
     this.activeCaravanShop = null;
     this.applyEclipseNow();
-    return { unlockedArtIds: unlockedNow, displacedSkills, visionGranted };
+    // Advance Pay, Quartermaster Cache: paid once the new act's map stands.
+    const actStartGrants = this._payActStartGrants('act_transition');
+    this._actStartNotice = actStartGrants.length > 0 ? actStartGrants : null;
+    return { unlockedArtIds: unlockedNow, displacedSkills, actStartGrants, visionGranted };
   }
 
   _revertActScopedBlessingEffects(expiredAct) {
@@ -5279,6 +5653,7 @@ export class RunManager {
       lastBattleReport: this.lastBattleReport || null,
       eclipse: this.eclipse || createEclipseState(),
       itemNamesRevision: ITEM_NAMES_REVISION,
+      blessingBoonRevision: this.blessingBoonRevision,
     };
   }
 
@@ -5732,9 +6107,27 @@ export class RunManager {
     rm.blessingRuntimeModifiers.forgeLimitDelta = Math.trunc(
       Number(rm.blessingRuntimeModifiers.forgeLimitDelta) || 0,
     );
-    if (!Array.isArray(rm.blessingRuntimeModifiers.terrainCombatBonuses)) {
-      rm.blessingRuntimeModifiers.terrainCombatBonuses = [];
+    rm.blessingRuntimeModifiers.firstStrikeHitBonus = Math.trunc(
+      Number(rm.blessingRuntimeModifiers.firstStrikeHitBonus) || 0,
+    );
+    {
+      const held = rm.blessingRuntimeModifiers.stationaryCombatBonus;
+      rm.blessingRuntimeModifiers.stationaryCombatBonus = {
+        defBonus: Math.trunc(Number(held?.defBonus) || 0),
+        avoidBonus: Math.trunc(Number(held?.avoidBonus) || 0),
+      };
     }
+    rm.blessingRuntimeModifiers.freeForgesPerShop = Math.max(
+      0,
+      Math.trunc(Number(rm.blessingRuntimeModifiers.freeForgesPerShop) || 0),
+    );
+    rm.blessingRuntimeModifiers.extraShopsPerAct = Math.max(
+      0,
+      Math.trunc(Number(rm.blessingRuntimeModifiers.extraShopsPerAct) || 0),
+    );
+    rm.blessingRuntimeModifiers.actStartGrants = sanitizeActStartGrants(
+      rm.blessingRuntimeModifiers.actStartGrants,
+    );
     rm.blessingRuntimeModifiers.healingEffectivenessMultiplier = Number.isFinite(
       rm.blessingRuntimeModifiers.healingEffectivenessMultiplier,
     )
@@ -5975,6 +6368,28 @@ export class RunManager {
     )
       ? rm.blessingRuntimeModifiers.disablePersonalSkillsUntilAct
       : null;
+    // Blessings held across the v3 reworks (BlessingBoonMigration.js): handlers never re-run
+    // on load, so an old boon's saved numbers are converted once and the save stamped. It runs
+    // LAST in this function (every other load step has settled the map, the Eclipse and the
+    // roster it reads, so Pilgrim's Road converts only a node still standing), and before the
+    // early return below that skips a rejected checkpoint. The prologue holds no blessings and
+    // is never migrated. The runtime modifiers, history and map are shared with the parsed
+    // save, so the migration works on copies: loading the same object twice cannot migrate
+    // twice.
+    const settleBlessingBoons = () => {
+      const savedRevision = Number(saved.blessingBoonRevision);
+      rm.blessingBoonRevision = Number.isFinite(savedRevision)
+        ? Math.max(0, Math.trunc(savedRevision))
+        : 0;
+      if (rm.blessingBoonRevision < BLESSING_BOON_REVISION) {
+        rm.blessingRuntimeModifiers = structuredClone(rm.blessingRuntimeModifiers);
+        rm.blessingHistory = structuredClone(rm.blessingHistory);
+        delete rm.blessingRuntimeModifiers.terrainCombatBonuses; // retired with its blessing
+        if (rm.mode !== PROLOGUE_RUN_MODE) migrateHeldBlessingBoons(rm);
+        rm.blessingBoonRevision = BLESSING_BOON_REVISION;
+      }
+    };
+
     rm._runStartBlessingsApplied = true;
     if (rm.nodeMap?.nodes && rm.battleConfigsByNodeId) {
       for (const node of rm.nodeMap.nodes) {
@@ -6073,7 +6488,10 @@ export class RunManager {
       rm.battleInProgress.timeline = hydrateBattleTimeline(rm.battleInProgress.timeline);
       // Never migrate a rejected checkpoint: even walking its unit arrays may
       // throw, hiding the raw save from the recovery UI.
-      if (rm._battleRecoveryInvalid) return rm;
+      if (rm._battleRecoveryInvalid) {
+        settleBlessingBoons();
+        return rm;
+      }
       for (const key of ['visionSnapshot', 'pendingVisionSnapshot']) {
         if (checkpoint[key]?.version === 2 && !validateBattleState(checkpoint[key]))
           checkpoint[key] = null;
@@ -6088,6 +6506,7 @@ export class RunManager {
       } else stampCommanderFlag(pool);
     }
 
+    settleBlessingBoons();
     return rm;
   }
 }

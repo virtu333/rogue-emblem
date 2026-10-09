@@ -336,13 +336,11 @@ test('blessings as tarot: the cost is always in view, No blessing sits by Confir
           .map((x) => x.intrinsicPrice.label),
       )
       .reduce((a, c) => (c.length > a.length ? c : a), '');
-    s.options = ['quartermaster_cache', 'focused_curriculum', 'forbidden_tome', 'war_tutelage'].map(
-      (id) => {
-        const b = structuredClone(s.gameData.blessings.blessings.find((x) => x.id === id));
-        b.rolledCost = { label: longest, effects: [] };
-        return b;
-      },
-    );
+    s.options = ['terrain_mastery', 'bloodless_art', 'slow_fuse', 'pilgrim_coin'].map((id) => {
+      const b = structuredClone(s.gameData.blessings.blessings.find((x) => x.id === id));
+      b.rolledCost = { label: longest, effects: [] };
+      return b;
+    });
     s._draw();
   });
   const count = await expectDraftInView(page, dialog, '.ch-tarot');
