@@ -544,16 +544,17 @@ class ProtectedDriver extends RunSimulationDriver {
     const fullRoster = rm.getRoster();
     const deployed = chooseDeployRoster(fullRoster, params.deployCount);
     const deployedKeys = new Set(deployed.map((u) => `${u.name}::${u.className}`));
+    // The run's blessings reach a combat only through the battle's run (Keen Eye, Hold the Line,
+    // Phalanx Rite, Duelist's Creed, the act Hit price); a battle without it measures none. It is
+    // handed in at construction so it is present from init() on.
     const driver = new GameDriver(
       this.gameData,
       params,
       deployed.map((u) => structuredClone(u)),
+      { runManager: rm },
     );
     driver.init();
     const battle = driver.battle;
-    // The run's blessings reach a combat only through the battle's run (Keen Eye, Hold the Line,
-    // Phalanx Rite, Duelist's Creed, the act Hit price); a battle without it measures none.
-    battle.runManager = rm;
     const benched = [];
     const original = battle._removeUnit.bind(battle);
     let cmdrKOThisBattle = 0;

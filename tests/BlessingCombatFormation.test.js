@@ -6,6 +6,7 @@
 // Ways this can fail, a test each:
 //   - a diagonal ally counts as adjacent (Phalanx is cardinal);
 //   - four neighbours pay more than the cap;
+//   - an ally with no tile (null col/row) reads as standing at (0,0);
 //   - foes, green NPC allies or the unit itself count (a foe is always adjacent in melee);
 //   - a dead or off-map ally counts for or against a unit;
 //   - the bonus lands on only one side of the exchange;
@@ -60,7 +61,10 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const PHALANX = { perAlly: 1, max: 3 };
+// The shipped card's params (data/blessings.json phalanx_rite).
+const PHALANX = { perAlly: 2, max: 3 };
+// Per-ally arithmetic that the cap would hide at the shipped figure.
+const PHALANX_ONE = { perAlly: 1, max: 3 };
 const DUELIST = { radius: 2, avoidBonus: 15, critBonus: 10 };
 const PROFILE = {
   actHitBonus: 0,
@@ -93,7 +97,7 @@ const side = (unit, allies, extra = {}) => ({
 describe('Phalanx Rite: DEF per ally on a cardinal neighbour tile', () => {
   const me = at(3, 3);
 
-  it('pays +1 DEF for each ally north, south, east or west', () => {
+  it('pays +2 DEF for an ally north, south, east or west', () => {
     for (const [dc, dr] of [
       [0, -1],
       [0, 1],
@@ -101,7 +105,7 @@ describe('Phalanx Rite: DEF per ally on a cardinal neighbour tile', () => {
       [-1, 0],
     ]) {
       const mods = blessingCombatModsFor(PHALANX_ONLY, side(me, [me, at(3 + dc, 3 + dr)]));
-      expect(mods.defBonus, `ally at ${dc},${dr}`).toBe(1);
+      expect(mods.defBonus, `ally at ${dc},${dr}`).toBe(2);
     }
   });
 
@@ -116,13 +120,21 @@ describe('Phalanx Rite: DEF per ally on a cardinal neighbour tile', () => {
     );
   });
 
-  it('stacks per ally: two neighbours pay +2, three pay +3', () => {
-    expect(blessingCombatModsFor(PHALANX_ONLY, side(me, [me, at(2, 3), at(4, 3)])).defBonus).toBe(
-      2,
+  it('the shipped figure: one neighbour pays +2, two or more pay the +3 cap', () => {
+    const pay = (allies) => blessingCombatModsFor(PHALANX_ONLY, side(me, [me, ...allies])).defBonus;
+    expect(pay([at(2, 3)])).toBe(2);
+    expect(pay([at(2, 3), at(2, 2)])).toBe(2); // the diagonal adds nothing
+    expect(pay([at(2, 3), at(4, 3)])).toBe(3);
+    expect(pay([at(2, 3), at(4, 3), at(3, 2)])).toBe(3);
+  });
+
+  it('stacks per ally below the cap: +1 each pays 1, 2, then 3', () => {
+    const one = { ...PHALANX_ONLY, adjacentAllyDef: [PHALANX_ONE] };
+    expect(blessingCombatModsFor(one, side(me, [me, at(2, 3)])).defBonus).toBe(1);
+    expect(blessingCombatModsFor(one, side(me, [me, at(2, 3), at(4, 3)])).defBonus).toBe(2);
+    expect(blessingCombatModsFor(one, side(me, [me, at(2, 3), at(4, 3), at(3, 2)])).defBonus).toBe(
+      3,
     );
-    expect(
-      blessingCombatModsFor(PHALANX_ONLY, side(me, [me, at(2, 3), at(4, 3), at(3, 2)])).defBonus,
-    ).toBe(3);
   });
 
   it('caps at +3 with all four neighbours (the cap is the data, not the count)', () => {
@@ -149,6 +161,22 @@ describe('Phalanx Rite: DEF per ally on a cardinal neighbour tile', () => {
     ).toBe(0);
   });
 
+  it('an ally with no tile is not at (0,0): a unit beside the corner is not paid for it', () => {
+    // Number(null) is 0, so a null-coordinate ally reads as standing on (0,0), next to (1,0).
+    const corner = at(1, 0);
+    for (const ghost of [at(null, null), at(null, 0), at(0, null), at(undefined, undefined)]) {
+      expect(blessingCombatModsFor(PHALANX_ONLY, side(corner, [corner, ghost])).defBonus).toBe(0);
+    }
+    const lowRow = at(0, 1);
+    expect(
+      blessingCombatModsFor(PHALANX_ONLY, side(lowRow, [lowRow, at(null, null)])).defBonus,
+    ).toBe(0);
+    // ...and does not break a Duelist's isolation either.
+    expect(
+      blessingCombatModsFor(DUELIST_ONLY, side(corner, [corner, at(null, null)])),
+    ).toMatchObject({ avoidBonus: 15, critBonus: 10 });
+  });
+
   it('gives enemies and NPC allies nothing, however many neighbours they have', () => {
     for (const faction of ['enemy', 'npc']) {
       const unit = at(3, 3, { faction });
@@ -171,7 +199,7 @@ describe('Phalanx Rite: DEF per ally on a cardinal neighbour tile', () => {
   it('lands on the attacker and on the defender of one exchange', () => {
     const attacker = at(3, 3);
     const defender = at(7, 3);
-    const attackerAllies = [attacker, at(3, 2), at(3, 4)];
+    const attackerAllies = [attacker, at(3, 2)];
     const defenderAllies = [defender, at(7, 2), at(7, 4), at(6, 3)];
     const atkMods = { hitBonus: 0, avoidBonus: 0, defBonus: 0, critBonus: 0 };
     const defMods = { hitBonus: 0, avoidBonus: 0, defBonus: 0, critBonus: 0 };
@@ -184,8 +212,8 @@ describe('Phalanx Rite: DEF per ally on a cardinal neighbour tile', () => {
       turn: 1,
       alliesOf: (unit) => (unit === attacker ? attackerAllies : defenderAllies),
     });
-    expect(atkMods.defBonus).toBe(2);
-    expect(defMods.defBonus).toBe(3);
+    expect(atkMods.defBonus).toBe(2); // one neighbour
+    expect(defMods.defBonus).toBe(3); // three neighbours, capped
   });
 
   it('adds to what the mods already held (a skill bonus is not overwritten)', () => {
@@ -197,12 +225,12 @@ describe('Phalanx Rite: DEF per ally on a cardinal neighbour tile', () => {
       turn: 1,
       alliesOf: (unit) => (unit === me ? [me, at(2, 3)] : []),
     });
-    expect(atk.defBonus).toBe(3);
+    expect(atk.defBonus).toBe(2 + 2);
   });
 
   it('two grants add: the entries are independent', () => {
     const profile = { ...PHALANX_ONLY, adjacentAllyDef: [PHALANX, { perAlly: 2, max: 2 }] };
-    expect(blessingCombatModsFor(profile, side(me, [me, at(2, 3)])).defBonus).toBe(1 + 2);
+    expect(blessingCombatModsFor(profile, side(me, [me, at(2, 3)])).defBonus).toBe(2 + 2);
   });
 });
 
@@ -316,7 +344,7 @@ describe('both cards together read one board', () => {
   it('a unit beside an ally gets Phalanx DEF and no Duelist bonus; a lone one the reverse', () => {
     const me = at(3, 3);
     const beside = blessingCombatModsFor(PROFILE, side(me, [me, at(3, 4)]));
-    expect(beside).toMatchObject({ defBonus: 1, avoidBonus: 0, critBonus: 0 });
+    expect(beside).toMatchObject({ defBonus: 2, avoidBonus: 0, critBonus: 0 });
     const alone = blessingCombatModsFor(PROFILE, side(me, [me, at(7, 7)]));
     expect(alone).toMatchObject({ defBonus: 0, avoidBonus: 15, critBonus: 10 });
   });
@@ -494,7 +522,7 @@ describe('the run holds the cards', () => {
       restored.getBlessingCombatProfile(),
       side(me, [me, at(3, 4)]),
     );
-    expect(mods.defBonus).toBe(1);
+    expect(mods.defBonus).toBe(2);
     const lone = blessingCombatModsFor(restored.getBlessingCombatProfile(), side(me, [me]));
     expect([lone.avoidBonus, lone.critBonus]).toEqual([15, 10]);
   });
@@ -633,16 +661,12 @@ describe('the scene, the harness and the forecast read one board', () => {
   });
 
   // One board: Edric at (3,3) fights the foe at (4,3), the foe beside him (a melee foe always is).
-  // His army: north, south and west of him (three cardinal neighbours) plus one on a diagonal.
+  // His army: one ally on a cardinal tile (north) and one on a diagonal. With +2 per ally capped at
+  // +3, a rule that counted the diagonal would pay 3 where the card pays 2.
   const phalanxBoard = () => {
     const edric = makeUnit('Edric', 'player', 3, 3);
     const foe = makeUnit('Foe', 'enemy', 4, 3);
-    const guards = [
-      makeUnit('North', 'player', 3, 2),
-      makeUnit('South', 'player', 3, 4),
-      makeUnit('West', 'player', 2, 3),
-      makeUnit('Diagonal', 'player', 2, 2),
-    ];
+    const guards = [makeUnit('North', 'player', 3, 2), makeUnit('Diagonal', 'player', 2, 2)];
     return { edric, foe, units: [edric, foe, ...guards] };
   };
   // Edric alone at (3,3): the only ally is three tiles off, a foe stands beside him.
@@ -658,10 +682,10 @@ describe('the scene, the harness and the forecast read one board', () => {
     ['the scene', sceneCtx],
     ['the harness', harnessCtx],
   ]) {
-    it(`${label}: Phalanx Rite pays +3 to an attacker with three neighbours, not four (diagonal and foe uncounted)`, () => {
+    it(`${label}: Phalanx Rite pays +2 to an attacker with one cardinal neighbour and one diagonal (diagonal and foe uncounted)`, () => {
       const { edric, foe, units } = phalanxBoard();
       const ctx = build(runWith(['phalanx_rite']), units)(edric, foe);
-      expect(pick(ctx.atkMods)).toEqual({ avoid: 0, def: 3, crit: 0 });
+      expect(pick(ctx.atkMods)).toEqual({ avoid: 0, def: 2, crit: 0 });
       expect(pick(ctx.defMods)).toEqual({ avoid: 0, def: 0, crit: 0 });
     });
 
@@ -669,14 +693,14 @@ describe('the scene, the harness and the forecast read one board', () => {
       const { edric, foe, units } = phalanxBoard();
       const ctx = build(runWith(['phalanx_rite']), units)(foe, edric);
       expect(pick(ctx.atkMods)).toEqual({ avoid: 0, def: 0, crit: 0 });
-      expect(pick(ctx.defMods)).toEqual({ avoid: 0, def: 3, crit: 0 });
+      expect(pick(ctx.defMods)).toEqual({ avoid: 0, def: 2, crit: 0 });
     });
 
     it(`${label}: a fallen neighbour stops paying`, () => {
       const { edric, foe, units } = phalanxBoard();
       units.find((u) => u.name === 'North').currentHP = 0;
       const ctx = build(runWith(['phalanx_rite']), units)(edric, foe);
-      expect(ctx.atkMods.defBonus).toBe(2);
+      expect(ctx.atkMods.defBonus).toBe(0);
     });
 
     it(`${label}: Duelist's Creed pays a unit whose nearest ally is three tiles away, with foes at its elbow`, () => {
@@ -735,8 +759,8 @@ describe('the scene, the harness and the forecast read one board', () => {
 
     const plain = forecastFrom([], phalanxBoard);
     const phalanx = forecastFrom(['phalanx_rite'], phalanxBoard);
-    // The foe's counter against Edric loses exactly the three DEF.
-    expect(plain.defender.damage - phalanx.defender.damage).toBe(3);
+    // The foe's counter against Edric loses exactly the two DEF.
+    expect(plain.defender.damage - phalanx.defender.damage).toBe(2);
     expect(phalanx.attacker.damage).toBe(plain.attacker.damage);
 
     const duelPlain = forecastFrom([], duelBoard);
@@ -750,7 +774,7 @@ describe('the scene, the harness and the forecast read one board', () => {
     const { edric, foe, units } = phalanxBoard();
     const ctx = sceneCtx(runWith(['phalanx_rite']), units)(edric, foe);
     const forecast = getCombatForecast(edric, edric.weapon, foe, foe.weapon, 1, null, null, ctx);
-    // 40 HP, the foe's STR 12 + Might 8 against DEF 7 + 3 = 10 per hit.
-    expect(forecast.defender.damage).toBe(12 + 8 - (7 + 3));
+    // The foe's STR 12 + Might 8 against DEF 7 + 2 = 11 per hit.
+    expect(forecast.defender.damage).toBe(12 + 8 - (7 + 2));
   });
 });

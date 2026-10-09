@@ -81,7 +81,9 @@ function applyAuraEffects(mods, effects) {
 
 function isLivingOnMap(unit) {
   if (!unit || unit.currentHP <= 0) return false;
-  return Number.isFinite(Number(unit.col)) && Number.isFinite(Number(unit.row));
+  // Number(null) is 0: a unit with no tile must not count as standing at (0,0).
+  const { col, row } = unit;
+  return col != null && row != null && Number.isFinite(Number(col)) && Number.isFinite(Number(row));
 }
 
 /**
