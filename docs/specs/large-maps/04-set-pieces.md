@@ -10,70 +10,43 @@ Branch `claude/large-maps-specs`. Roadmap phases 4–6 of the [README](README.md
 
 ## 1. Where we are
 
-**One generator, one template shape.**
-- `generateBattle` (`MapGenerator.js:61`) wraps `generateBattleLayout` (`:72`). The layout
-  picks a size from `mapSizes.json` with one draw (`pickMapSize`, `:97`, `:608`), unless a
-  template has `fixedSize` (`:115-121`). Only `eldritch_sanctum` has one.
-- Terrain is rolled per tile from fractional zones (`generateTerrain`, `:1034`). Then come
-  structures, then the hybrid overlay (`:128-129`), then features. A Ballista is placed only
-  at Nightfall+ outside Act I (`:138`).
-- Enemies: `rollEnemyCount` (`:205`, `:2328`), then `generateEnemies` (`:1972`). The boss
-  goes on the throne first, or an elite captain on an elite seize (`:244`, `eliteCaptains`
-  `:685`); anchors come next, then the zone fill.
-- Then caster gear (`:265`), carried items (`:273`), affixes (`:280`), the Sworn affix
-  (`:291`) and elite area arts (`:300`).
-- Then the NPC, caravan, village and escape tiles, then `ensureReachability` (`:419`), which
-  carves through anything that blocks Infantry (`:2384`). Then cavalry guarantees (`:442`),
-  holders (`:495`), the rout ladder (`:510`) and the Hunted wave (`:538`). The config is
-  assembled at `:552`.
+**Generation.**
+- `generateBattle` (`MapGenerator.js:61`) wraps `generateBattleLayout` (`:72`): a size from
+  `mapSizes.json` (one draw, `:97`), or a template's `fixedSize` (`:115-121`; only
+  `eldritch_sanctum`). Then zone terrain (`:1034`), structures, the hybrid overlay
+  (`:128-129`), features (Ballista at Nightfall+ outside Act I, `:138`).
+- Enemies: `rollEnemyCount` (`:205`), `generateEnemies` (`:1972`; boss or elite captain on the
+  throne first, `:244`), then caster gear, carry, affixes, Sworn affix and area arts
+  (`:265-305`). Then village/escape tiles, `ensureReachability` (`:419`, which carves through
+  anything blocking Infantry), holders (`:495`), the ladder (`:510`), Hunted (`:538`); the
+  config is assembled at `:552`.
+- `BattleScene` plays a locked config if one exists, else builds a prologue chapter, else runs
+  `withBattleSeed(battleSeed, () => generateBattle(...))` and locks it (`BattleScene.js:1503-1520`,
+  `:2463`). Each node's map is therefore already hermetic. The harness and `sim/carry.js` /
+  `sim/eclipse.js` generate through the same function (`HeadlessBattle.js:286`).
 
-**Locking.**
-- `BattleScene` uses `runManager.getLockedBattleConfig(nodeId)` if one exists. Otherwise it
-  builds a prologue chapter, or runs `withBattleSeed(battleParams.battleSeed, () =>
-  generateBattle(...))` and locks the result (`BattleScene.js:1503-1520`).
-- `withBattleSeed` swaps `Math.random` for a stream seeded by that node's `battleSeed`
-  (`:2463`), so every node's map is already hermetic.
-- `lockBattleConfig` is write-once (`RunManager.js:3626`).
-- The harness generates through the same `generateBattle` (`HeadlessBattle.js:286`), and so
-  do `sim/carry.js` and `sim/eclipse.js`.
+**Authored maps** exist only in the prologue: `parsePrologueMap` (`Prologue.js:411`, a legend
+plus space-separated rows) and `buildPrologueBattleConfig` (`:472`). They are gated by
+`isScriptedBattle` (`ScriptedBattle.js:31`), which suppresses the Eclipse, Guidance, deeds and
+villages: the wrong path for standard-run content.
 
-**Authored maps exist only in the prologue.**
-- `parsePrologueMap` (`Prologue.js:411`) reads a legend of character to terrain name plus
-  space-separated rows.
-- `buildPrologueBattleConfig` (`:472`) returns the `generateBattle` shape with explicit
-  spawns.
-- It is gated by `isScriptedBattle` (`ScriptedBattle.js:31`: `battleParams.prologueChapter`).
-  That gate suppresses the Eclipse, Guidance, deeds, villages, caravans and more, so it is
-  the wrong path for standard-run content.
+**Hybrid arenas v1** are absolute: `arenaOrigin`, `anchors` and `scriptedWaves` are `[col,row]`
+on a rolled size (`resolveHybridAnchors` `:835`, overlay `:851`). Overrides run in
+`BattleScene.applyDueHybridOverridesForTurn` (`:2735`) and in a harness copy
+(`HeadlessBattle.js:1039`). Both arenas stamp a 4x3 block at the top centre, away from their
+`right` throne (`data/mapTemplates.json`).
 
-**Hybrid arenas v1** (`docs/specs/act4_hybrid_boss_arena_spec.md`) are absolute:
-- `arenaOrigin`, `anchors` and `scriptedWaves` are `[col,row]` on a map whose size is still
-  rolled (`resolveHybridAnchors` `:835`, overlay `:851`).
-- Overrides apply in `BattleScene.applyDueHybridOverridesForTurn` (`BattleScene.js:2735`),
-  and the harness keeps its own copy (`HeadlessBattle.js:1039`).
-- Both arenas place a 4x3 Plain/Floor block at the top centre (`[7,0]`, `[6,0]`), away from
-  their `right` throne (`data/mapTemplates.json`).
+**Node map.** `generateNodeMap` (`NodeMapGenerator.js:47`) runs on one seeded stream
+(`_withNodeMapSeed`, `RunManager.js:4440`, called at `:718` and `:4466`). `buildBattleParams`
+(`:516`) rolls 28% seize / 12% escape (`isElite`), `battleSeed` (`:598`), caravan and village
+(always drawn, `:575-580`); `pickTemplateForNode` (`:614`) picks templates, boss nodes from the
+whole seize pool. Later passes (recruits, colosseum, `rebuildNodeAs` `:360`, ambushes) rebuild
+params; the Eclipse keeps a fallen battle's params as elite (`EclipseSystem.js:359`). Event
+battles call `convertNodeToRoutBattle` in a seeded swap (`EventEffects.js:1071`).
 
-**Node map.**
-- `generateNodeMap` (`NodeMapGenerator.js:47`) runs under `_withNodeMapSeed`
-  (`RunManager.js:4440`), at run start (`:718`) and in `advanceAct` (`:4458-4466`). Every
-  roll is on that one stream.
-- `buildBattleParams` (`:516`) rolls a mixed row's objective as 28% seize, 12% escape
-  (`isElite`) and the rest rout. Then come `battleSeed` (`:598`) and the caravan and village
-  rolls, which are drawn even when they are dropped (comment at `:575-580`).
-- Template choice is `pickTemplateForNode` (`:614`). Boss nodes draw from the whole seize
-  pool, where `bossOnly` only permits the hybrids.
-- Later passes: recruit conversion, the colosseum, the service-streak repair (`rebuildNodeAs`
-  `:360`) and ambushes. The Eclipse keeps a fallen battle's params and marks it elite
-  (`EclipseSystem.js:336-366`).
-- Event battles call `convertNodeToRoutBattle` inside `withEclipseSeed`
-  (`EventEffects.js:1071`).
-
-**Measured here** (200 seeded node maps per act, scratch):
-- An Act III map has about 3.5 non-elite rout battle nodes in rows 2–7 (0.9 of them with a
-  village) and 2.8 elite nodes. Act IV has 4.7 and 1.6.
-- Any one of those nodes lies on about 35% of root-to-boss paths.
-- A procedural Act III seize config at 24x14 serializes to about 2.4 KB (20 seeds).
+**Measured** (scratch, 200 seeded node maps per act): Act III has about 3.5 non-elite rout
+battle nodes in rows 2–7 (0.9 with a village) and 2.8 elite nodes; Act IV 4.7 and 1.6. One such
+node lies on about 35% of root-to-boss paths. A procedural 24x14 seize config is about 2.4 KB.
 
 ## 2. The design in one paragraph
 
@@ -85,13 +58,11 @@ A **set piece** is a fixed-size map. It is assembled from:
 - **procedural fill** for the cells the skeleton leaves open.
 
 Seeded **choices** (`oneOf`) pick chunks and toggle groups and bonuses, so each run meets a
-different plan on the same named place. A new generator path turns the set piece into an
-ordinary locked `battleConfig` that also carries `setPiece`, `objectives`, `encounterGroups`
-and resolved `anchors`. It is a standard battle: the Eclipse, Guidance, deeds, par, loot,
-carried items, affixes and revival stones all apply, and enemy levels and classes come from
-the act and the rung as on a procedural map. A pure validator in `npm run validate:data`
-proves every combination is connected, overlap-free and inside the 5–12 turn band. A keyed
-post-pass after node-map generation places set pieces without touching the node-map stream.
+different plan on the same named place. A new generator path makes an ordinary locked
+`battleConfig` plus `setPiece`, `objectives`, `encounterGroups` and `anchors`; it is a
+standard battle whose enemies come from the act and rung. A validator in `validate:data`
+proves every combination connected and inside 5–12 turns. A keyed post-pass places set
+pieces without touching the node-map stream.
 
 ## 3. The format
 
@@ -210,24 +181,17 @@ So a river that runs through three cells is continuous, and a road meets a road.
 }
 ```
 
-- `grid`: column widths and row heights. The map size is their sums, inside the README's
-  bands (validated). A cell may `span: [cols, rows]`.
-- A cell is a list of chunk references (a name, or `{ chunk, transform }`) or a `fill` id.
-  A chunk must exactly fit its cell.
-- Choice options carry `cells` patches. Unpatched cells keep their own list.
-- **Skeleton anchors use map coordinates.** A set piece's size is fixed, so the v1 problem
-  (absolute coordinates on a rolled size) cannot occur. Only chunk anchors are relative,
-  because chunks move.
-- `mirror: ["y"]` (optional) adds a whole-map mirror as one more choice. It remaps skeleton
-  anchors, the deploy region and every chunk.
-- `slots` is one or more of `ordinary`, `elite`, `event`, `boss`, `finale`. `replaces` names
-  the node objectives it may stand in for. `objective` is the legacy primary kind every old
-  reader sees (`03`).
-- `enemyCount.bonus` is added to the act and rung count (§4.3).
-- `byRung` patches groups, choices (`options[].rungs`) and bonuses for a rung and the rungs
-  above it, the same hold-from-here-up rule as `events.json` `weightByRung`.
-- `name` and `lore` follow the template rules (one line, ≤ 140 characters). Region labels
-  and lines live in `setPieceContent.js`, under the lore style guide.
+- `grid` gives column widths and row heights; their sums are the size, inside the README's
+  bands. A cell may `span`. A cell is a chunk-reference list (a name or `{ chunk, transform }`;
+  the chunk must fit the cell exactly) or a `fill` id.
+- **Skeleton anchors use map coordinates.** The size is fixed, so v1's problem (absolute
+  coordinates on a rolled size) cannot occur; only chunk anchors are relative, because chunks
+  move. `mirror: ["y"]` adds a whole-map mirror as one more choice.
+- `slots` ⊆ `ordinary | elite | event | boss | finale`; `replaces` names the node objectives it
+  may stand in for; `objective` is the legacy kind old readers see (`03`).
+- `byRung` patches groups, choices (`options[].rungs`) and bonuses from a rung up, the
+  `events.json` `weightByRung` rule. `name`/`lore` follow the template rules (≤ 140
+  characters); labels and lines live in `setPieceContent.js` under the lore style guide.
 
 ### 3.5 Choices
 
@@ -303,76 +267,52 @@ A fill cell is painted with today's zone machinery, scoped to the cell:
 
 All of this runs inside the caller's `withBattleSeed(battleSeed)`.
 
-1. Resolve choices and chunk picks on their keyed streams (§3.5). A `force` from the dev
-   route wins. It is validated against the options and refused outside dev.
-2. Assemble the layout: chunks with their transforms, then fills, then the whole-map
-   mirror. Resolve every anchor to map tiles.
-3. Features: Throne tiles come from chunks. `thronePos` is the throne of the first `seize`
-   primary, for legacy readers. Ballista anchors follow §3.2.
-4. Player spawns: `deployCount` tiles from the deploy region, nearest to the region's front
-   (the anchor's `front` edge) first, ties by row then column. No draw.
-   `formationSpares` is the rest of the region, so `FormationController` takes the authored
-   branch it already has (`FormationController.js:197-205`).
-5. Enemies (§4.3), then the shared gear chain unchanged: `assignCasterGear`,
-   `assignEnemyCarry`, `assignAffixesToEnemySpawns`, `assignSwornAffix` and
-   `assignEnemyAreaArts`, called exactly as at `MapGenerator.js:265-305`. They key on
-   `templateId`, which is `setpiece:<id>`.
-6. Village (when a `visit` bonus names one): `villageTile` is written from its anchor and its
-   raiders are the named group. The node's `hasVillage` flag is ignored here (§6.4).
-   Caravans and recruit NPCs never appear on a set piece in v1.
-7. `ensureReachability` on fill tiles only (§3.6), then `validateBattleConfig` in tests.
-8. Write `objectives`, `encounterGroups` (resolved regions, routes and triggers), `anchors`
-   and `setPiece`.
+1. Choices and chunk picks on their keyed streams (§3.5). A dev `force` wins; it is validated
+   and refused outside dev.
+2. Assemble: chunks with transforms, fills, the whole-map mirror. Resolve every anchor.
+3. Features: Throne tiles come from chunks; `thronePos` is the first `seize` primary's throne,
+   for legacy readers; Ballista anchors follow §3.2.
+4. Player spawns: `deployCount` tiles of the deploy region, front edge first, ties by row then
+   column, no draw. The rest become `formationSpares`, so `FormationController` takes its
+   authored branch (`FormationController.js:197-205`).
+5. Enemies (§4.3), then the gear chain unchanged (`assignCasterGear`, `assignEnemyCarry`,
+   `assignAffixesToEnemySpawns`, `assignSwornAffix`, `assignEnemyAreaArts`, as at
+   `MapGenerator.js:265-305`), keyed on `templateId: 'setpiece:<id>'`.
+6. A `visit` bonus writes `villageTile` from its anchor; its raiders are the named group. No
+   caravans or recruit NPCs in v1.
+7. `ensureReachability` on fill tiles only (§3.6).
+8. Write `objectives`, `encounterGroups` (resolved regions, routes, triggers), `anchors`,
+   `setPiece`.
 9. Waves: `02`'s contact-relative waves become `reinforcements` (contract v1) with resolved
-   spawn tiles. Set pieces never take the rout ladder (`ladder: false`) or `assignHolders`:
-   their groups replace both, and rung pressure comes from `byRung`. The Hunted burden
-   writes its wave at the `huntedEntry` region's nearest edge through `withHuntedWave`, so a
-   Hunted run still counts its victory (`RunManager.js:4067-4078`). A set piece without
-   `huntedEntry` may not take an ordinary or elite slot (validated).
-10. Par fields: `parInflation`, and `parOffset` / `parFloor` as `parOffsetConfig` (`:3129`)
-    computes them. `parRoute` is written as resolved legs for `03`'s par.
+   tiles. No rout ladder (`ladder: false`) and no `assignHolders`: groups replace both, and
+   rung pressure comes from `byRung`. Hunted writes its wave at the `huntedEntry` region's
+   nearest edge through `withHuntedWave`, so a Hunted victory still counts
+   (`RunManager.js:4067-4078`); ordinary and elite set pieces must declare `huntedEntry`.
+10. Par fields as today (`parInflation`, `parOffsetConfig` `:3129`), plus resolved `parRoute`
+    legs for `03`.
 
 ### 4.3 Enemies come from the act and the rung
 
-**How many.**
-- The total is `rollEnemyCount(...)` (one draw, as today) plus `enemyCount.bonus`, capped by
-  `enemyCountByTiles`.
-- The rung's `enemyCountBonus` and `enemyCountBase`, the deploy count and boss-node offsets
-  therefore act exactly as on a procedural map.
-- The total is split across the enabled groups: each takes its `min`, then the rest goes by
-  `share` with the largest remainder, capped by `max` and by the region's standable tiles.
-  No draw.
-- Patrol and column groups count. Boss and captain slots are extra (as the boss is today).
-
-**Which classes and levels.**
-- Classes come from `enemies.pools[act]` after `filterClassPoolByDifficulty` and
-  `earlyEnemyAllowed`.
-- Each class is drawn through `weightedClassPick` with the group's `weights` and the pool's
-  `promotedShare` (or the group's `promoted: always | never`).
-- `mapExtraNecromancer` applies across the whole map.
-- Levels are drawn uniformly in the act's row range plus the rung's `enemyLevelBonus` (the
-  `adjustedLevelRange` of `:221-228`), plus the group's `levelBonus`.
-- A group may pin `classes` only from the act's pool, or to an enemy-only class its rung
-  allows (validated against `DIFFICULTY_GATED_CLASSES`). So a gated class still never appears
-  early.
-- Each group's draws run inside a scoped swap of `Math.random` to
-  `keyedBattleRandom(battleSeed, 'setpiece:<id>:group:<groupId>')`, the `withEclipseSeed`
-  pattern. The shared helpers need no RNG parameter, and editing one group never rerolls
-  another.
-
-**Spawn tiles.** Members are seated in their region by `scoreSpawnTile` (`:1654`) on the
-group's stream.
-
-**Bosses and captains.**
-- A boss slot draws from `enemies.bosses[act]` with its `difficultyFilter`, the rung's
-  `bossLevelBonus`, and revival stones through `revivalStoneKind` (actBoss, emperor or
-  lieutenant), as `generateEnemies` does at `:1993-2090`.
-- An elite slot draws from `eliteCaptains` with `isEliteCaptain` stones.
-- Two captains on one map (Two Towers) are drawn without replacement on
-  `'setpiece:<id>:captains'`.
-
-**Unit fields.** Every member carries `encounterGroupId`. Group state is never a private
-flag (README §3).
+- **How many.** `rollEnemyCount(...)` (one draw, as today) + `enemyCount.bonus`, capped by
+  `enemyCountByTiles`, so the rung's `enemyCountBonus`/`enemyCountBase`, the deploy count and
+  boss offsets act as on a procedural map. The total is split over enabled groups: each takes
+  its `min`, the rest goes by `share` (largest remainder), capped by `max` and the region's
+  standable tiles. No draw. Bosses and captains are extra, as today.
+- **Classes and levels.** From `enemies.pools[act]` after `filterClassPoolByDifficulty` and
+  `earlyEnemyAllowed`, through `weightedClassPick` with the group's `weights` and the pool's
+  `promotedShare` (or `promoted: always | never`); `mapExtraNecromancer` holds map-wide.
+  Levels are uniform in `adjustedLevelRange` (`:223-231`, the row range + `enemyLevelBonus`)
+  + the group's `levelBonus`. Pinned `classes` must be in the act's pool or an enemy-only
+  class the rung allows (`DIFFICULTY_GATED_CLASSES`).
+- **Streams.** Each group's draws and seats (`scoreSpawnTile`, `:1654`) run in a scoped swap of
+  `Math.random` to `keyedBattleRandom(battleSeed, 'setpiece:<id>:group:<groupId>')`, the
+  `withEclipseSeed` pattern: the helpers need no RNG parameter, and editing one group never
+  rerolls another.
+- **Bosses and captains.** `enemies.bosses[act]` with `difficultyFilter`, `bossLevelBonus` and
+  revival stones by `revivalStoneKind` (as `generateEnemies` at `:1992-2090`); elite slots
+  from `eliteCaptains` with `isEliteCaptain` stones. Two captains are drawn without
+  replacement on `'setpiece:<id>:captains'`.
+- Every member carries `encounterGroupId`; group state is never a private flag (README §3).
 
 ### 4.4 Not a scripted battle
 
@@ -433,12 +373,9 @@ validated like the other rung tables):
 | Nightfall | 0.6 / 0.6 | 0.3 | 0.5 / 0.5 | 0.5 |
 | Black Sun | 0.7 / 0.7 | 0.35 | 0.5 / 0.5 | 0.5 |
 
-- With these numbers and the node counts of §1, a Nightfall run whose route ignored the tags
-  would meet about 0.4 ordinary and 0.5 elite set pieces in Acts III–IV, plus about one boss
-  set piece. The tags let a player seek them out or avoid them.
-- Why a per-act chance and not a per-node one (README §4 says "per-node"): with 3–5 eligible
-  nodes, a per-node chance mostly sets "one per act, always". The per-act chance is the knob
-  that means something.
+With §1's node counts, a Nightfall route that ignored the tags would meet about 0.4 ordinary
+and 0.5 elite set pieces in Acts III–IV, plus about one boss set piece. The tags let a player
+seek them out or avoid them. (Why per act, not per node: Notes 4.)
 
 ### 6.2 Assignment: a keyed post-pass
 
@@ -470,18 +407,16 @@ assign(n, sp): n.battleParams.setPiece = { id: sp.id }
 
 ### 6.3 The route map tells the player
 
-- `loomModel` (`:527-553`): a node with `battleParams.setPiece` takes its set piece's `name` as
-  the place, its `lore` as the line, and a `Large map` tag (`tone: 'info'`, detail "About two
-  screens. Several objectives.").
-- The objective row shows the primary's verb and "+ bonus" when one exists.
-- Choices are **not** shown. The deploy screen shows the whole board, and Pillar 5 is about
-  meeting a different plan, not reading it on a card.
-- `NodeMapScene` draws a small pennant pip on the node beside the elite aura.
-- A boss card shows the boss and the set piece name.
+- `loomModel` (`:527-553`): the set piece's `name` is the place, its `lore` the line, plus a
+  `Large map` tag (`tone: 'info'`, "About two screens. Several objectives.") and the primary's
+  verb with "+ bonus". A boss card adds the set piece's name.
+- `NodeMapScene` draws a pennant pip beside the elite aura.
+- Choices are **not** shown: the deploy screen shows the whole board, and Pillar 5 is about
+  meeting a different plan, not reading it on a card (open question 4).
 
 ### 6.4 Later changes to a node
 
-- **The Eclipse** keeps a fallen battle's params and marks it elite (`EclipseSystem.js:360`).
+- **The Eclipse** keeps a fallen battle's params and marks it elite (`EclipseSystem.js:359`).
   A set piece stays a set piece, with elite pay.
 - **A route edit** (`rebuildNodeAs`) or a fallen *service* node rebuilds params, so the set
   piece is gone. The act may end with none. It is never moved to another node.
@@ -528,16 +463,12 @@ v1's three absolute pieces become relative:
 That removes the class of bug the README reports: a wall raised on a wave's spawn tile, the
 Phase 0 fix.
 
-**Migration: none.**
-- `act3_dark_champion_keep` and `act4_boss_intent_bastion` stay v1 templates in
-  `mapTemplates.json`, with Phase 0's fix.
-- Migrating them would change their maps for the same seed, and old locked configs carry
-  `hybridArena`, `hybridAnchors` and `phaseTerrainOverrides`, so the v1 runtime must stay
-  anyway.
-- Long Road (§10.3) and the Parade (§10.4) are v2 from the start. Whether the v1 arenas stay
-  in the boss pool is README Q4. The recommendation is to keep them at their current share
-  and give each boss set piece `bossShare` 0.5, then retire the v1 arenas after a playtest
-  round if players never pick them out.
+**Migration: none.** `act3_dark_champion_keep` and `act4_boss_intent_bastion` stay v1
+templates with Phase 0's fix. Migrating would change their maps for the same seed, and old
+locked configs carry `hybridArena` / `hybridAnchors` / `phaseTerrainOverrides`, so the v1
+runtime stays anyway. Long Road and the Parade are v2 from the start. Recommendation for
+README Q4: keep the v1 arenas at their share beside a 0.5 boss-set-piece share, and retire them
+after a playtest round if players never pick them out.
 
 ## 8. The validator
 
@@ -636,14 +567,14 @@ estimate   = Σ walk + fight, from the deploy region
 | 13 | The Emperor's Parade | **keep** (Phase 5) | Act IV's only boss gets a second shape |
 | 14 | The Bridge Must Fall | **merged** into #4 | same engine need as the gate; one destroy map first |
 | 15 | Sanctum of Echoes | **keep** (Phase 6, Nightfall+) | the finale variant; capture points that weaken the Entity |
-| 16 | Rival Band | **keep** (Phase 6) | the cheapest elite: no new engine needs; at 18x10 it is below the large band, which the format allows for elite slots |
+| 16 | Rival Band | **keep** (Phase 6) | the cheapest elite: no new engine needs (18x10: Notes 6) |
 
 The kept ones:
 
 | Set piece | Size | Slot | Primary / bonus (`03`) | Groups and triggers (`02`) | Choices | Reuses | New engine needs |
 |---|---|---|---|---|---|---|---|
 | The Mill Ford | 20x12 | ordinary III | rout / visit mill (race) | ford picket (awake), bridge hold (`danger`,`hurt`), mill guard (`groupWoken` bridge, delay 1), raiders (awake, seek village), reserve (`tile` village, `objective` mill, `turn parOffset −3`) | crossing N/S; mill N/S; bridge and ford variants | VillageSystem raze, Ballista feature, hold rules | none beyond `02`/`03` |
-| Two Towers | 20x12 | elite III–IV | `defeat` both captains / `defeat` the second before turn T | road patrol (awake), two garrisons (`danger`,`hurt`), the other wakes on `objective` first captain | tower rows (4); fillers; stone bearer (Black Sun) | `eliteCaptains`, revival stones | two captains on one map |
+| Two Towers | 20x12 | elite III–IV | `defeat` both captains / `defeat` the second before turn T | road patrol (awake), two garrisons (`danger`,`hurt`), the other wakes on `objective` first captain | tower rows (4); fillers; stone bearer (Black Sun) | `eliteCaptains`, revival stones | two captains; the throne clamp reads a per-unit throne, not one `thronePos` (`AIController.js:341`) |
 | Long Road to the Keep | 22x14 | boss III | seize / — | road picket, outer camp (`danger`), gate guard (hold), sally (`groupWoken` camp delay 1, or `turn parOffset −4`), throne guard; phase *drawbridge* on the sally trigger | road ridge/marsh; postern N/S; variants | throne clamp, actBoss stones | `TerrainPhases` extraction |
 | The Emperor's Parade | 24x14 | boss IV | seize / `defeat` the Emperor before he is seated | column (route to the throne, `danger`/`hurt` → chase), two side pods (`groupWoken` column delay 1), palace guard (hold), gate wave (Nightfall+, `turn afterContact 3`) | avenue or north street; strong flank N/S; palace variant; start delay by rung | emperor stones, seek_tile | the throne clamp skips a marching boss; arrival `tile` trigger for an enemy group (Notes) |
 | Caravan Under Siege | 20x12 | event, ordinary III | `protect` the caravan to the exit / the caravan above half HP | ring (awake), two flank waves (`turn afterContact 2/4`, side relative to the caravan) | exit edge; start chunk; chaser weights | CaravanSystem walk, escape tiles | caravan as a primary (`03`) |
@@ -753,7 +684,7 @@ That is 4 × 3 × 4 = 48 combinations, 96 on Black Sun.
 **Estimate.** 9 (same row) to 11 (diagonal), from the best order.
 - A first sketch with a south-gate tower variant measured 9–12. The validator would refuse
   it, since the spread was 3, so the gate variants were dropped.
-- An earlier sketch with the towers in the east and deploy in the west measured 14–17, above
+- An earlier sketch with the towers in the east and deploy in the west measured 14–15 in the best order, above
   the band. That is why the army now starts between the towers.
 
 **Primary.** `defeat` both captains, not a double seize: a double seize forces one lord to
@@ -816,13 +747,10 @@ the good road): 10–11, as the cheaper of the gate and postern plans (gate 11; 
 
 ### 10.4 The Emperor's Parade (Act IV boss, 24x14)
 
-**Why this one.**
-- The Emperor is Act IV's only boss (`enemies.json` `bosses.act4`), and every run that
-  reaches Act IV fights him. It is the last battle of a Dusk run.
-- Only the bastion (about 17% of Act IV boss maps) gives his fight a shape. So this map
-  changes the most-repeated fight in the game.
-- It is also the one first map that proves a *moving* objective (`02`'s routed group),
-  which Caravan Under Siege and Hunting Party then reuse.
+**Why this one.** The Emperor is Act IV's only boss (`enemies.json` `bosses.act4`): every run
+that reaches Act IV fights him, and on Dusk it is the last battle. Only the bastion (about 17%
+of Act IV boss maps) gives that fight a shape today. It is also the first map to prove a
+*moving* objective (`02`'s routed group), which Caravan Under Siege and Hunting Party reuse.
 
 ```
 macro grid (cols 8|8|8, rows 7|7)        combination: avenue route, parade-ground palace
@@ -886,58 +814,41 @@ That is 8 combinations.
 
 ## 11. Authoring workflow and tooling
 
-**Workflow per set piece:**
-- About ½ day of skeleton design, 1 day of chunks (about 1 hour each), and 1 day of harness
-  and sim tuning.
-- The order: sketch on paper → chunks plus skeleton JSON → `npm run validate:data` → preview
-  every combination → play two opposite combinations on the dev route → harness → `sim/pacing`.
+**Workflow** (about ½ day of skeleton, 1 day of chunks at about an hour each, 1 day of tuning):
+sketch → chunks and skeleton JSON → `npm run validate:data` → preview every combination →
+play two opposite combinations on the dev route → harness → `sim/pacing`.
 
-**Preview.** Extend `tools/generateMapPreviews.js`:
-- `--setPiece <id> [--combos all|<n>] [--difficulty <rung>] [--seed <s>]` renders one PNG per
-  combination under `test-results/map-previews/setpieces/<id>/`.
-- Each PNG overlays anchors (outlines), group regions (coloured by start state), routes
-  (arrows), phase targets (hatched) and the deploy region, with the estimate printed in a
-  caption.
-- `tools/map-review` gains set-piece cases (`cases.json`) so the field-trial page can embed
-  them.
+**Preview.** `tools/generateMapPreviews.js --setPiece <id> [--combos all|<n>] [--difficulty
+<rung>] [--seed <s>]` renders one PNG per combination (`test-results/map-previews/setpieces/<id>/`)
+with anchors, group regions coloured by start state, routes, phase targets and the deploy
+region overlaid, and the estimate in the caption. `tools/map-review/cases.json` gains
+set-piece cases for the field-trial page.
 
 **Dev route.**
-`?devScene=battle&preset=late_act&setPiece=mill_ford&choices=crossing:bridge_south,village:north&cells=r_s:bridge_narrow&act=3&difficulty=hard&seed=42`.
-- `parseDevStartupConfig` (`devStartup.js:580`) gains `setPiece`, `choices` and `cells`.
-- `buildDevStartupRoute` puts `setPiece: { id, force }` on the battle node's params.
-- `force` is honoured only when `devRoutesEnabled()`.
+`?devScene=battle&preset=late_act&setPiece=mill_ford&choices=crossing:bridge_south,village:north&cells=r_s:bridge_narrow&act=3&difficulty=hard&seed=42`:
+`parseDevStartupConfig` (`devStartup.js:578`) reads the three new keys, `buildDevStartupRoute`
+puts `setPiece: { id, force }` on the node, and `force` is honoured only when
+`devRoutesEnabled()`.
 
-**Harness.** `tests/harness/SetPieces.test.js`:
-- For every set piece, every combination, First Light and Nightfall counts (Black Sun for
-  rung-only options), and 2 fill seeds, it generates the config.
-- `validateBattleConfig` must report no violations, and `generateSetPieceBattle` must have
-  carved no authored tile.
-- `HeadlessBattle` with `ScriptedAgent` must finish within 25 turns. Turns and stalls are
-  recorded.
-- The full matrix runs in `test:harness`; the PR slice takes 4 combinations per set piece.
+**Harness.** `tests/harness/SetPieces.test.js`: every set piece × combination × First Light
+and Nightfall (Black Sun for rung-only options) × 2 fill seeds. `validateBattleConfig` reports
+nothing, no authored tile was carved, and `HeadlessBattle` with `ScriptedAgent` finishes within
+25 turns. The full matrix runs in `test:harness`; the PR slice takes 4 combinations each.
 
-**Sims.**
-- `sim/pacing.js` gains `--setPiece <id>`, which forces the set piece onto every node it
-  fits, and `--setPieceShare <p>`.
-- Targets per set piece, on 48 paired seeds:
-  - the push median is within par − 4 … par − 2;
-  - the turtle is at least 1.5 turns slower than the push (the Dusk spec's gap);
-  - push turns across choices spread ≤ 2;
-  - force-won stalls are no more than on the act's procedural maps.
-- The TacticianAgent needs an `objectives` mode for `defeat` and for routed groups, as it
-  gained for seize in Dusk PR 3.
+**Sims.** `sim/pacing.js --setPiece <id>` forces the set piece onto every node it fits
+(`--setPieceShare <p>` for a share). Targets on 48 paired seeds: push median within par − 4 …
+par − 2; turtle at least 1.5 turns slower than push (the Dusk gap); push turns across choices
+spread ≤ 2; no more force-won stalls than the act's procedural maps. `TacticianAgent` needs an
+`objectives` mode for `defeat` and routed groups, as it gained one for seize in Dusk PR 3.
 
-**Art and biome.**
-- One biome per map, which is what `Grid` takes today. Mill Ford, Two Towers and the Parade
-  are grassland (castle walls render as plain Wall); Long Road is castle.
-- The painter needs review at seams: river bends, moat corners, the drawbridge repaint
-  through `Grid.setTerrainAt`, as hybrid overrides already do.
-- A pennant node pip.
-- A "Shallows" terrain is optional: the ford is Bog in v1.
+**Art.** One biome per map, as `Grid` takes today: grassland for the Mill Ford, Two Towers and
+the Parade, castle for Long Road. The painter needs a review at seams (river bends, moat
+corners) and of the drawbridge repaint through `Grid.setTerrainAt`, which hybrid overrides
+already use. A pennant node pip. The ford is Bog in v1; a "Shallows" terrain is optional.
 
-**Music.** `music` names a key in a new `MUSIC.battleSetPiece` table or is `null`, in which
-case `BattleMusicSelection` picks by biome and situation. Boss set pieces keep the boss
-theme and its enrage layer.
+**Music.** `music` names a key in a new `MUSIC.battleSetPiece` table, or is `null` and
+`BattleMusicSelection` picks by biome and situation. Boss set pieces keep the boss theme and
+its enrage layer.
 
 ## 12. Persistence and save size
 
@@ -949,14 +860,11 @@ theme and its enrage layer.
 
 **It never holds** chunk matrices, option lists, the skeleton or fill tables.
 
-**Size:**
-- A procedural 24x14 config measures 2.4 KB.
-- A set piece adds about 1.4 KB for 15 spawns with `encounterGroupId`, about 0.6 KB for groups
-  with triggers and routes, about 0.4 KB for anchors and about 0.4 KB for objectives, phases
-  and the record. That is about 5 KB in all.
-- An act holds at most four (one ordinary, two elite, the boss), so +12 KB worst case.
-  Phase 0 prunes `battleConfigsByNodeId` at `advanceAct`, so only the current act's configs
-  ride the save.
+**Size.** A procedural 24x14 config measures 2.4 KB. A set piece adds about 1.4 KB (15
+spawns with `encounterGroupId`), 0.6 KB (groups, triggers, routes), 0.4 KB (anchors) and 0.4 KB
+(objectives, phases, the record): about 5 KB. An act holds at most four (one ordinary, two
+elite, the boss), +12 KB worst case, and Phase 0's prune at `advanceAct` keeps only the current
+act's configs in the save.
 
 **Battle state that changes during play** rides the checkpoint, the rewind snapshot and the
 snapshot validator with `02`/`03`, from the first PR: woken groups, fired triggers, the
@@ -967,61 +875,28 @@ phase, objective progress and the column's next route index. The checkpoint grow
 
 ## 13. Tests
 
-Realistic failures first; each line is one test.
+Realistic failures first; each is one test, and each is shown to fail once by planting its bug.
 
-**Placement and streams:**
-1. *Placement moves the node-map stream.* For 50 seeds × Acts III–IV, generate node maps
-   with and without `setPieces` data. Every node's `type`, `battleSeed`, `templateId`,
-   `objective`, `edges` and flags is equal, except the fields `assign` writes on assigned
-   nodes.
-2. *A set piece changes another node's map.* Lock and serialize the configs of every
-   unassigned node on both sides of test 1: equal.
-3. *Adding a set piece changes which node is chosen.* Add a dummy eligible set piece: the
-   assigned node ids are unchanged.
-
-**The validator:**
-
-4. *A combination disconnects a lord.* Replant Long Road's first sketch: the validator names
-   the combination and the move types.
-5. *Seams don't line up.* Mirror a river chunk without its port: the port error names both
-   cells.
-6. *A transform misplaces an anchor.* In every transform of every chunk, a `throne` anchor
-   lands on Throne terrain and regions keep their size.
-7. *A wall rises on a seat.* A phase target inside a group region fails validation, and
-   `TerrainPhases` skips an occupied tile at runtime.
-8. *The estimate is out of band.* Replant Two Towers' east-only sketch (14–17): fails band
-   and spread.
-
-**Generation and play:**
-
-9. *The same seed gives the same map.* `generateSetPieceBattle` twice with one seed: deep
-   equal. A resume uses the locked config verbatim.
-10. *Treated as scripted.* The `ScriptedBattleSuppression` row: Eclipse gain, Guidance, deeds
-    and last words all run on a set piece.
-11. *The rung leaks.* Class gates hold: no Necromancer before its act, `difficultyFilter`
-    bosses, and stones per rung, all read off the spawns.
-12. *Counts ignore the rung.* The total equals `rollEnemyCount` + bonus on each rung, and the
-    split is stable.
-13. *A data edit changes an entered map.* Lock a config, then edit its chunk in data: the
-    locked map is unchanged. An unknown id falls back to the procedural template without
-    throwing.
-
-**Run layer:**
-
-14. *Placement limits.* ≤ 1 ordinary and ≤ 2 elite per act, never adjacent, none on First
-    Light ordinary (table), none in the prologue, none after `fromJSON` of an old save.
-15. *Later changes to a node.* The Eclipse keeps the set piece (elite); `rebuildNodeAs` drops
-    it; `hasVillage` matches the set piece.
-16. *Events.* `battle.setPiece` outside the set piece's acts or slot fails `EventValidation`.
-    On a gated rung the event fights a procedural rout.
-
-**Harness and saves:**
-
-17. *Harness parity.* Every combination plays to the end (§11), and the scene and the harness
-    generate equal configs (`GridParity` style).
-18. *Save size.* Every set-piece config is ≤ 8 KB serialized.
-
-Each test is shown to fail once by planting its bug (CLAUDE.md).
+| # | Failure | Test |
+|---|---|---|
+| 1 | placement moves the node-map stream | 50 seeds × Acts III–IV, node maps with and without `setPieces` data: every node's type, `battleSeed`, `templateId`, objective, edges and flags equal, except what `assign` writes |
+| 2 | a set piece changes another node's map | the locked configs of every unassigned node on both sides of test 1 are equal |
+| 3 | a new set piece moves which node is chosen | add a dummy eligible set piece: the assigned node ids are unchanged |
+| 4 | a combination cuts a lord off | replant Long Road's first sketch: the error names the combination and the move types |
+| 5 | seams don't line up | mirror a river chunk without its port: the error names both cells |
+| 6 | a transform misplaces an anchor | in every allowed transform a `throne` anchor lands on Throne and regions keep their size |
+| 7 | a wall rises on a seat | a phase target in a group region fails validation; `TerrainPhases` skips an occupied tile |
+| 8 | out of the turn band | replant Two Towers' east-only sketch (14–15): fails band and spread |
+| 9 | not deterministic | two generations with one seed are deep-equal; a resume plays the locked config verbatim |
+| 10 | treated as scripted | a `ScriptedBattleSuppression` row: Eclipse gain, Guidance, deeds and last words run |
+| 11 | the rung leaks | class gates, `difficultyFilter` bosses and stones per rung, read off the spawns |
+| 12 | counts ignore the rung | the total is `rollEnemyCount` + bonus on each rung; the split is stable |
+| 13 | a data edit changes an entered map | edit a locked map's chunk in data: the map is unchanged; an unknown id falls back to the template without throwing |
+| 14 | placement limits broken | ≤ 1 ordinary and ≤ 2 elite per act, never adjacent, none on First Light ordinary, none in the prologue or after `fromJSON` of an old save |
+| 15 | later changes to a node | the Eclipse keeps the set piece as elite; `rebuildNodeAs` drops it; `hasVillage` matches |
+| 16 | a bad event hook | `battle.setPiece` outside the acts or slot fails `EventValidation`; a gated rung fights a procedural rout |
+| 17 | scene and harness differ | every combination plays to the end (§11); scene and harness generate equal configs (`GridParity` style) |
+| 18 | the save grows | every set-piece config is ≤ 8 KB serialized |
 
 ## 14. PR breakdown
 
@@ -1067,9 +942,10 @@ PRs A and B can land before any content; C is the first a player sees.
    anchor". The vocabulary's `tile` is player-only. Proposal: `tile` takes an optional
    `group` (default: the player's units). The alternative is a routed group's `onArrive` in
    `02`.
-4. **"Per-node chance" (§4)** is implemented as a per-act chance for ordinary nodes and a
-   per-node chance for elite nodes (§6.1, with the reason). The effect the README describes
-   is unchanged.
+4. **"Per-node chance" (§4)** is implemented as a per-act chance for ordinary nodes, then
+   one node, and a per-node chance for elite nodes (§6.1). With 3–5 eligible ordinary nodes
+   an act, a per-node chance mostly means "one per act, always"; the per-act chance is the
+   knob that means something. The effect the README describes is unchanged.
 5. **The rung chances live in `difficulty.json`**, not `setPieces.json`, per CLAUDE.md
    "Difficulty is data-driven". So every rung needs an entry.
 6. **Elite slots may be smaller than the large band.** Rival Band is 18x10. The README's
