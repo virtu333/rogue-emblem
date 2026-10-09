@@ -186,6 +186,33 @@ const EXTRA_STARTER_CLASS_POOLS = {
   4: ['Archer', 'Knight', 'Cavalier', 'Paladin'],
 };
 
+/**
+ * The locked battle maps a run still needs: those of nodes on its route map (and of the
+ * battle in progress). A locked map is read only for a node of the current map or the
+ * battle in progress (getLockedBattleConfig, getLockedSpawnCount, completeBattle's Hunted
+ * check, the recruit previews, the caravan tag, RouteEdit.isRedrawable, the slot card's
+ * template); node ids carry the act (NodeMapGenerator: `${actId}_${row}_${col}`, and a
+ * run's act list holds each act once), so an earlier act's maps are dead weight in every
+ * save after it. Pure: returns a new object, never mutates `configs`. With no route map
+ * to judge by (a damaged save) everything is kept.
+ * @param {Record<string, object>|null|undefined} configs
+ * @param {{ nodes?: Array<{ id?: string }> }|null|undefined} nodeMap
+ * @param {{ keepNodeId?: string|null }} [options]
+ * @returns {Record<string, object>}
+ */
+export function pruneLockedBattleConfigs(configs, nodeMap, { keepNodeId = null } = {}) {
+  if (!configs || typeof configs !== 'object' || Array.isArray(configs)) return {};
+  const nodes = nodeMap?.nodes;
+  if (!Array.isArray(nodes) || nodes.length === 0) return configs;
+  const live = new Set(nodes.map((node) => node?.id).filter((id) => typeof id === 'string'));
+  if (typeof keepNodeId === 'string') live.add(keepNodeId);
+  const kept = {};
+  for (const [nodeId, config] of Object.entries(configs)) {
+    if (live.has(nodeId)) kept[nodeId] = config;
+  }
+  return kept;
+}
+
 function sanitizeActSequence(sequence, fallback = ACT_SEQUENCE) {
   const source = Array.isArray(sequence) ? sequence : fallback;
   const normalized = source.filter(
@@ -4617,6 +4644,10 @@ export class RunManager {
         caravanChanceBonus: this.metaEffects?.caravanChanceBonus || 0,
       }),
     );
+    // The finished act's locked maps go with its route map: nothing reads a node that is
+    // no longer on the map (pruneLockedBattleConfigs), and no node of the new map has been
+    // entered, so none of it is locked yet. Saved by the same write as the act advance.
+    this.battleConfigsByNodeId = {};
     this.shopStateByNodeId = {};
     this.ruinsChoiceByNodeId = {};
     this.churchVowByNodeId = {};
@@ -5578,7 +5609,10 @@ export class RunManager {
     // A legacy save without a seed hashes with 0, never the Date.now fallback,
     // so reloading it without saving shows the same faces.
     rm.ensurePortraitVariants(Number.isFinite(saved.runSeed) ? Number(saved.runSeed) : 0);
-    rm.battleConfigsByNodeId = saved.battleConfigsByNodeId || {};
+    // A save from before advanceAct pruned still carries every earlier act's maps.
+    rm.battleConfigsByNodeId = pruneLockedBattleConfigs(saved.battleConfigsByNodeId, rm.nodeMap, {
+      keepNodeId: saved.battleInProgress?.nodeId,
+    });
     rm.shopStateByNodeId = saved.shopStateByNodeId || {};
     // Saves from before the Ruins' choice carry none: no path chosen yet.
     rm.ruinsChoiceByNodeId = sanitizeRuinsChoices(saved.ruinsChoiceByNodeId);
