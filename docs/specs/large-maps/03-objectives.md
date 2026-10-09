@@ -694,7 +694,7 @@ strip shows exactly what will be paid. The validator refuses any key outside thi
 | `gold: n` | `run.awardGold(n)` after burdens. Not multiplied, not garnished (as a contract reward), so "+300 G" means 300 | never |
 | `item: {…whole item}` | locked as a whole item object (names are identity; the `ItemNameMigration` walk must cover `battleConfigsByNodeId[*].objectives`, with a test), drawn at generation on `keyedBattleRandom(battleSeed, 'bonus:<id>')` from the act's loot pools; into the convoy | no room: paid as its sale value (`price × SHOP_SELL_RATIO`) and said so ("No room for Elixir: sold, +150 G"). No owed record and no hold on the party |
 | `forge: true` | one free forge step (`applyForge`) on the equipped weapon of the unit in `by`, the stat on `keyedBattleRandom(battleSeed, 'bonus-forge:<id>')` | not forgeable, or that unit has gone: `forgeFallbackGold[act]` |
-| `vision: 1` | +1 Vision charge, Act III+, at most once per act (`run.bonusVisionActs`, saved) | off by default (README Q3) |
+| `vision: 1` | +1 Vision charge, Act III+, at most once per act (`run.bonusVisionActs`, saved) | allowed (owner decision, 2026-10-09). A second in the same act is refused by the validator, and none on First Light, which has no set pieces |
 
 - Bonuses never go through the loot screen, because gold cards carry team XP (§1.4).
 - **Sizes, to tune with `sim/pacing.js`**: gold 150/300/500/700 by act, the village's
@@ -1045,8 +1045,9 @@ catalogue (Hunting Party, Caravan Under Siege, Break the Gate, The Bridge Must F
 
 ## 15. Open questions for the owner
 
-1. **Vision as a bonus reward** (README Q3): off by default here. If allowed: Act III+,
-   once per act?
+1. **Decided (2026-10-09): Vision as a bonus reward is allowed.** Act III+, at most once
+   per act. The owner: "paying a vision charge is actually not a bad idea. That'd be kind
+   of fun." Tune the frequency with `sim/pacing.js` (a charge is worth about a rewind).
 2. **Should a failed escort or assassination ever end the run?** Recommendation: never;
    fallback or stake only.
 3. **An item reward with no room**: is the sale value acceptable, or should it use the

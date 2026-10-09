@@ -419,7 +419,7 @@ validated like the other rung tables):
 
 | Rung | ordinary chance per act (III / IV) | elite chance per node | boss share (III / IV) | finale share |
 |---|---|---|---|---|
-| First Light | 0 / — (open question 1) | 0 | 0 / — (open question 1) | — (the Lieutenant) |
+| First Light | 0 / — | 0 | 0 / — | — (the Lieutenant) |
 | Dusk | 0.5 / 0.5 | 0.25 | 0.5 / 0.5 | — (ends at the Emperor) |
 | Nightfall | 0.6 / 0.6 | 0.3 | 0.5 / 0.5 | 0.5 |
 | Black Sun | 0.7 / 0.7 | 0.35 | 0.5 / 0.5 | 0.5 |
@@ -1146,7 +1146,7 @@ Realistic failures first; each is one test, and each is shown to fail once by pl
 | 11 | the rung leaks | class gates, `difficultyFilter` bosses and stones per rung, read off the spawns |
 | 12 | counts ignore the rung | the total is `rollEnemyCount` + bonus on each rung; the split is stable |
 | 13 | a data edit changes an entered map | edit a locked map's chunk in data: the map is unchanged; an unknown id falls back to the template without throwing |
-| 14 | placement limits broken | ≤ 1 ordinary and ≤ 2 elite per act, never adjacent, none on First Light ordinary, none in the prologue or after `fromJSON` of an old save |
+| 14 | placement limits broken | ≤ 1 ordinary and ≤ 2 elite per act, never adjacent, none on First Light (any slot), none in the prologue or after `fromJSON` of an old save |
 | 15 | later changes to a node | the Eclipse keeps the set piece as elite; `rebuildNodeAs` drops it; `hasVillage` matches |
 | 16 | a bad event hook | `battle.setPiece` outside the acts or slot fails `EventValidation`; a gated rung fights a procedural rout |
 | 17 | scene and harness differ | every combination plays to the end (§11); scene and harness generate equal configs (`GridParity` style) |
@@ -1215,7 +1215,7 @@ The shortest path to a playtest, about 20–21 working days, in order:
 Nothing from `03`: the Mill Ford is a rout plus the legacy village, which today's predicate,
 strip and in-battle payout handle. In the slice its reserve wakes on `danger`, `hurt` and
 `turn parOffset −3` only (§10.1); the `objective` wake joins with `02` PR 2.2b and `03`
-PR 4. It is placed on Dusk, Nightfall and Black Sun (First Light: open question 1).
+PR 4. It is placed on Dusk, Nightfall and Black Sun (never First Light, owner decision).
 
 Then **Two Towers** (PR D, about 12 more days with `03` PR 1, PR 1b and `02` PRs 2.2b and
 2.4), and, before **Long Road**, the first board that doesn't fit the desktop canvas,
@@ -1223,7 +1223,11 @@ Then **Two Towers** (PR D, about 12 more days with `03` PR 1, PR 1b and `02` PRs
 
 ## 15. Open questions for the owner
 
-1. **First Light** (README Q2). Revision 1's table gave First Light boss set pieces (Long
+1. **Decided (2026-10-09): no set pieces on First Light**, ordinary, elite or boss. It is
+   the intro difficulty. The table's First Light row is all zeros and the validator refuses
+   a non-zero entry there. What follows is the reasoning that preceded the decision.
+   (`05` covers boss enhancements that are not set pieces, which First Light may still get.)
+   Revision 1's table gave First Light boss set pieces (Long
    Road at a 0.5 share; it has no Act IV) but no ordinary or elite ones, so the most-played
    rung would meet dormant groups, a phase switch and a bonus's cost for the first time at
    an act boss, where the enrage cap binds hardest (`02` §1.5). Two ways out:
@@ -1234,11 +1238,15 @@ Then **Two Towers** (PR D, about 12 more days with `03` PR 1, PR 1b and `02` PRs
      Light's counts, Act III), so the mechanics are met on an ordinary map before any boss.
    **Recommendation:** (a) now, then (b) once the notes ship, and only then a First Light
    boss share.
-2. **The per-act chance.** Does 0.5–0.7 per act on ordinary nodes, plus about 0.3 per elite
+2. **Decided (2026-10-09): at most one set piece per act on ordinary nodes, plus a chance
+   on elite nodes**, as the table proposes; the exact chances are tuned in PR C. The
+   original question: does 0.5–0.7 per act on ordinary nodes, plus about 0.3 per elite
    node, give the right frequency? That is about two large maps per run, counting bosses.
    (README Q1.)
-3. **The hybrid arenas.** Keep them in the boss pool beside Long Road and the Parade, at a
-   0.5 share each, or retire them once the boss set pieces ship? (README Q4.)
+3. **Decided (2026-10-09): keep and enhance the boss maps, don't replace them.** The
+   hybrid arenas stay in the boss pool beside Long Road and the Parade. `05-boss-maps.md`
+   plans how to enhance every boss battle (phases, signature mechanics, arena variants,
+   bonus objectives) and adds more boss set pieces.
 4. **Showing choices.** Should the route card hint at the plan ("the bridge is held") or only
    name the place? This spec names the place only.
 5. **The Parade on Dusk.** It is the run's final battle there. Should Dusk always get the

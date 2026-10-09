@@ -16,6 +16,7 @@ and bigger boss and endgame maps. Ordinary procedural battles keep their sizes.
 | [`02-encounters-and-pacing.md`](02-encounters-and-pacing.md) | encounter groups (pickets, sleeping pods, patrols), wake triggers, waves timed by contact rather than absolute turns, enemy count, par and enrage on big maps, enemy-phase dead air, pathfinding cost |
 | [`03-objectives.md`](03-objectives.md) | the objective model: primary objectives (new kinds), phases, bonus objectives, rewards, the objective strip, par |
 | [`04-set-pieces.md`](04-set-pieces.md) | the set-piece format (authored skeleton, chunk library, procedural fill, seeded choices), the validator, where set pieces appear in a run, the catalogue, the first maps |
+| [`05-boss-maps.md`](05-boss-maps.md) | enhancing every boss battle (phases, signature mechanics, arena variants, bonus objectives, the finale) and more boss set pieces |
 | [`appendix-current-systems.md`](appendix-current-systems.md) | a reference to today's code for objectives, battle config, AI modes, reinforcements, node map, NPCs and rewards (snapshot of 2026-10-08; line numbers drift) |
 
 ## 1. Evaluation (2026-10-08)
@@ -251,13 +252,15 @@ keeps meaning the prologue.
 - **Elite nodes** (mid-act seize and escape, today's `isElite`): a chance per node, at most
   two per act, from the elite set pieces (Two Towers, Hunting Party, Rival Band).
 - **No two set-piece nodes are joined by an edge.**
+- **Never on First Light** (owner decision): its row of the table is all zeros.
 - **The chances are per rung**, in `difficulty.json` (`modes.<rung>.setPieces`). Every rung
   needs an entry, including `dusk`.
 - **Placement is a keyed pass after node-map generation**, on hashes of the run seed and
   node id. It never draws on the node-map stream (`04` §6).
 - **Event battles:** events may name a set piece (The Burning Village, Caravan Under Siege).
 - **Act III and Act IV boss nodes:** boss set pieces join the boss template pool beside the
-  hybrid arenas (Long Road to the Keep, The Emperor's Parade).
+  hybrid arenas (Long Road to the Keep, The Emperor's Parade, and `05`'s). Every boss
+  battle, set piece or not, gets `05`'s enhancements.
 - **Finale:** an optional Entity variant, gated by rung.
 
 The route map tells the player a node holds a large map before they choose it (a tag on the
@@ -315,25 +318,21 @@ Then **Two Towers** (about 12 more days, `04` §14.1): `03` PR 1 (the model), `0
 per-unit `clampTile`) and the map itself. Its bonus can follow with `03` PRs 3 and 5. Before **Long Road**, the first board that doesn't fit:
 `01`'s desktop camera, enemy-phase follow and pointers.
 
-## 6. Open questions for the owner
+## 6. Owner decisions (2026-10-09)
 
-1. **How often:** at most one large set piece per act on ordinary nodes, or more?
-2. **First Light:** do set pieces appear there, or from Dusk up only? First Light has no
-   Act IV (its run ends at the Lieutenant), so only Act III maps are in question there.
-   Revision 1 of `04` gave First Light boss set pieces but no ordinary or elite ones. The most-played rung would
-   then meet sleeping groups and phases first at an act boss. Recommendation: keep First
-   Light's boss maps on today's arenas until the at-point-of-use Guidance notes ship
-   (`02` §3.8, `03` §11.2). Then allow one ordinary set piece on First Light, so the
-   mechanics are met before the boss.
-3. **Bonus rewards:** may a bonus pay Vision charges (rare, Act III+), or only gold, items and
-   forge steps?
-4. **Boss maps:** do boss set pieces join the pool beside today's hybrid arenas, or replace
-   them?
-5. **Desktop default view:** open on the whole board (fit), or at tactical zoom framed on the
-   army like the phone? `01` recommends the whole board: every map up to 20x13 then opens
-   exactly as today.
-6. **Minimap:** a corner minimap, or rely on the objective strip, jump controls, pointers and
-   Overview? `01` recommends no minimap until the first set pieces are playtested.
+1. **How often:** at most one set piece per act on ordinary nodes, plus a chance on elite
+   nodes (`04` §6.1's table; the chances are tuned in its PR C).
+2. **First Light:** no set pieces at all. It is the intro difficulty. First Light may still
+   get the boss enhancements that are not set pieces (`05`).
+3. **Bonus rewards:** a bonus may pay a Vision charge. Act III+, at most once per act
+   (`03` §7.3).
+4. **Boss maps:** enhance today's boss maps rather than replace them. The hybrid arenas stay
+   in the pool. `05-boss-maps.md` plans the enhancements and more boss set pieces.
+5. **Desktop default view** (still open): `01` recommends opening on the whole board, so
+   every map up to 20x13 opens exactly as today.
+6. **Minimap** (still open): `01` recommends no minimap until the first set pieces are
+   playtested.
 
-Each spec ends with its own open questions; these six are the ones that shape more than
-one spec.
+Each spec ends with its own open questions.
+
+**Next.** Phase 0 is being implemented as small, separately reviewed PRs from `main`.
