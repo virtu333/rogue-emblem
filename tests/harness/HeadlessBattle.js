@@ -92,6 +92,7 @@ import {
   getWeaponArtIds,
   isWeaponArtCompatibleWithWeapon,
   recordWeaponArtUse,
+  weaponArtRunOptions,
 } from '../../src/engine/WeaponArtSystem.js';
 import {
   applyCondition,
@@ -1491,7 +1492,7 @@ export class HeadlessBattle {
     const valid = canUseWeaponArt(unit, weapon, art, {
       turnNumber: this.turnManager?.turnNumber,
       isInitiating: true,
-      weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+      ...weaponArtRunOptions(this.runManager),
       ...context,
     });
     // Pure, like the scene's: executeCombat equips the art's weapon.
@@ -1511,8 +1512,7 @@ export class HeadlessBattle {
           turnNumber: this.turnManager?.turnNumber,
           isInitiating: true,
           actorFaction: unit.faction,
-          weaponArtHpCostDelta:
-            this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+          ...weaponArtRunOptions(this.runManager),
           ...context,
         });
         return { weapon: sourceWeapon, art, canUse: check.ok, reason: check.reason };
@@ -1653,7 +1653,8 @@ export class HeadlessBattle {
       choices,
       world: () => this._postCombatWorld(),
       difficultyId: this._getEnemyWeaponArtDifficultyId(),
-      weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+      // The foe's own scoring: the price surcharge taxes it, Bloodless Art never does.
+      weaponArtHpCostDelta: weaponArtRunOptions(this.runManager).weaponArtHpCostDelta,
       roll: () => this._rollEnemyWeaponArtChance(),
     });
   }
@@ -1826,7 +1827,7 @@ export class HeadlessBattle {
     if (artWeapon && attacker.weapon !== artWeapon) equipWeapon(attacker, artWeapon);
     if (selectedArt) {
       const artCostOpts = {
-        weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+        ...weaponArtRunOptions(this.runManager),
         marksData: this.gameData?.marks,
       };
       applyWeaponArtCost(attacker, selectedArt, artCostOpts);
@@ -1939,7 +1940,7 @@ export class HeadlessBattle {
     if (!entry) return false;
     const { weapon, art } = entry;
     const artCostOpts = {
-      weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+      ...weaponArtRunOptions(this.runManager),
       marksData: this.gameData?.marks,
     };
     const check = canUseWeaponArt(unit, weapon, art, {
@@ -2397,7 +2398,7 @@ export class HeadlessBattle {
     const selectedArt = this._selectEnemyWeaponArt(attacker, defender);
     if (selectedArt) {
       const artCostOpts = {
-        weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+        ...weaponArtRunOptions(this.runManager),
         marksData: this.gameData?.marks,
       };
       applyWeaponArtCost(attacker, selectedArt, artCostOpts);

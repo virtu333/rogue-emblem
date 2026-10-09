@@ -49,7 +49,11 @@ describe('item icon coverage', () => {
     // The atlas is full (360 cells), so a new blessing wears an existing picture (itemGrammar
     // BLESSING_ICON_REUSE) while keeping its own id, the blessing pennant and its tier rim.
     const numeral = ['', 'I', 'II', 'III', 'IV'];
-    const reusing = { slow_fuse: 'blessing-scout_blessing', gamblers_toss: 'gamblers-coin' };
+    const reusing = {
+      slow_fuse: 'blessing-scout_blessing',
+      gamblers_toss: 'gamblers-coin',
+      bloodless_art: 'blood-gem',
+    };
     for (const [id, of] of Object.entries(reusing)) {
       const blessing = data.blessings.blessings.find((b) => b.id === id);
       expect(manifest.aliases[`blessing-${id}`], id).toBe(of);

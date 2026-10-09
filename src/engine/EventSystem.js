@@ -484,6 +484,8 @@ export const SAFE_BLESSING_BOON_TYPES = Object.freeze([
   'healing_effectiveness_delta',
   'extra_consumable',
   'starting_consumable_all',
+  // Bloodless Art: a player-only art discount and extra use, free of any price in the boon.
+  'player_weapon_art_boon',
 ]);
 
 /**

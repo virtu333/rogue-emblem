@@ -952,6 +952,28 @@
         "points": 3
       },
       "costs": []
+    },
+    {
+      "id": "bloodless_art",
+      "name": "Bloodless Art",
+      "tier": 2,
+      "weight": 1,
+      "description": "Your units' weapon arts cost 1 less HP (never below 1), and arts with a battle limit get 1 more use.",
+      "lore": "The saints already bled for the page. Read it, and the ink asks little of you.",
+      "boons": [
+        {
+          "type": "player_weapon_art_boon",
+          "params": {
+            "hpCostDelta": -1,
+            "mapUsesBonus": 1
+          }
+        }
+      ],
+      "prices": [
+        "staff_heal_down",
+        "debt_small"
+      ],
+      "costs": []
     }
   ],
   "costPools": {

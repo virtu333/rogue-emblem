@@ -53,6 +53,7 @@ import {
   getWeaponArtBindings,
   getWeaponArtIds,
   isWeaponArtCompatibleWithWeapon,
+  weaponArtRunOptions,
 } from '../engine/WeaponArtSystem.js';
 import {
   TOOLTIP_HOVER_DELAY_MS,
@@ -1652,8 +1653,7 @@ export class RosterOverlay {
         turnNumber: this.scene?.turnManager?.turnNumber,
         isInitiating: true,
         actorFaction: unit.faction,
-        weaponArtHpCostDelta:
-          this.scene?.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+        ...weaponArtRunOptions(this.scene?.runManager),
       });
       if (!check.ok && HIDDEN_WEAPON_ART_REASONS.has(check.reason)) continue;
       choices.push({ art, canUse: check.ok, reason: check.reason });

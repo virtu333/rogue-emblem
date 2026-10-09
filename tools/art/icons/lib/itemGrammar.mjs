@@ -660,11 +660,13 @@ export const UPGRADE_ICON_REUSE = Object.freeze({
  * rim (its tier numeral); only the art is reused, because the atlas is full (360 cells, the
  * mobile texture budget in tests/ItemIcons.test.js). A new blessing without a picture of its
  * own adds a line here instead of a cell: Gambler's Toss wears the Gambler's Coin, Slow Fuse
- * the Scout's Blessing banner. The target must be an icon with a cell of its own.
+ * the Scout's Blessing banner, Bloodless Art the Blood Gem. The target must be an icon with a
+ * cell of its own.
  */
 export const BLESSING_ICON_REUSE = Object.freeze({
   gamblers_toss: 'gamblers-coin',
   slow_fuse: 'blessing-scout_blessing',
+  bloodless_art: 'blood-gem',
 });
 
 /**

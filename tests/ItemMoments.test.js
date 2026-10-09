@@ -28,8 +28,8 @@ const data = loadGameData();
 
 // Blessings that wait for a card painting (the card wears the plain medallion meanwhile; art
 // never gates play). A new blessing goes on this list until its painting ships and comes off it
-// in the commit that ships the painting: Slow Fuse and Gambler's Toss (blessings v3, PR B).
-const PAINTING_PENDING = ['slow_fuse', 'gamblers_toss'];
+// in the commit that ships the painting: Slow Fuse, Gambler's Toss and Bloodless Art (blessings v3, PR B).
+const PAINTING_PENDING = ['slow_fuse', 'gamblers_toss', 'bloodless_art'];
 const paintedBlessings = data.blessings.blessings.filter((b) => !PAINTING_PENDING.includes(b.id));
 
 describe('moment art coverage and budget', () => {

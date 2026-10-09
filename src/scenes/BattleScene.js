@@ -37,7 +37,11 @@ import {
   routObjectiveLabel,
 } from '../engine/RoutObjective.js';
 import { battleSpeed, waitDuration, waitTween } from '../utils/combatTiming.js';
-import { getWeaponArtIds, killMoveRefreshesActor } from '../engine/WeaponArtSystem.js';
+import {
+  getWeaponArtIds,
+  killMoveRefreshesActor,
+  weaponArtRunOptions,
+} from '../engine/WeaponArtSystem.js';
 import {
   canInspectUnit,
   carriedItemInfo,
@@ -8108,7 +8112,7 @@ export class BattleScene extends Phaser.Scene {
     // Apply weapon art cost if selected
     if (selectedArt) {
       const artCostOpts = {
-        weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+        ...weaponArtRunOptions(this.runManager),
         marksData: this.gameData?.marks,
       };
       const artCost = applyWeaponArtCost(attacker, selectedArt, artCostOpts);

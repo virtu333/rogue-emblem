@@ -536,11 +536,13 @@
     "generic-upgrade": [359, 6, 5],
     "upgrade-branching_threads": [262, 6, 5],
     "blessing-slow_fuse": [246, 5, 8],
-    "blessing-gamblers_toss": [218, 5, 9]
+    "blessing-gamblers_toss": [218, 5, 9],
+    "blessing-bloodless_art": [211, 5, 8]
   },
   "aliases": {
     "upgrade-branching_threads": "blessing-focused_curriculum",
     "blessing-slow_fuse": "blessing-scout_blessing",
-    "blessing-gamblers_toss": "gamblers-coin"
+    "blessing-gamblers_toss": "gamblers-coin",
+    "blessing-bloodless_art": "blood-gem"
   }
 }

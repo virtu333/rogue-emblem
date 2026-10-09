@@ -310,7 +310,7 @@ where it acts in battle, a read in the combat-mod builder (`BattleScene` and
 
 | Blessing | Effect | Hook | Tier | Prices |
 |---|---|---|---|---|
-| Bloodless Art | weapon arts −1 HP and +1 use per map | `WeaponArtSystem` cost and `perMapLimit` | II | staff healing −20% / Debt II |
+| Bloodless Art | player units' weapon arts −1 HP (floor 1) and +1 use per map (only arts that have a limit); foes get nothing | `player_weapon_art_boon`: `WeaponArtSystem.weaponArtRunOptions` / `getEffectiveWeaponArtHpCost` / `getEffectiveWeaponArtMapLimit`, read by `canUseWeaponArt` and the menus | II | staff healing −20% / Debt II |
 | Saint's Reserve | every staff +1 use per battle | staff use table | II | Debt II / Ill Omen |
 | Cutpurse's Luck | twice as many carriers; Steal skips its speed check | `carryConfig`, `Steal.js` | III | Hunted 2 / Sworn Enemy |
 | Open Roll | recruit nodes offer two candidates | `RecruitNodeSystem` | III | recruits −1 level + Debt II / Debt III |
@@ -496,8 +496,8 @@ growth, XP and gold cards it can see.
 2. Price catalog, curated prices, Debt as the gold price, bands and the validator; retier and
    reprice the existing 23 (§4: data and small handler changes). Re-run the Ledger.
 3. Five new cards that reuse existing hooks most directly: Slow Fuse, Phalanx Rite,
-   Duelist's Creed, Bloodless Art, Gambler's Toss. Built so far: the intrinsic price, Slow Fuse
-   and Gambler's Toss.
+   Duelist's Creed, Bloodless Art, Gambler's Toss. Built so far: the intrinsic price, Slow Fuse,
+   Gambler's Toss and Bloodless Art.
 4. Earned blessings: the `earned` flag, the act-boss pick, and four pure ones (Unbroken
    Banner, Second Dawn, Ember Lantern, Captain's Whistle).
 5. The special church, the twisted earned blessings, the gifts with a catch, and the rest of

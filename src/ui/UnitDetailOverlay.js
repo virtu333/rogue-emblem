@@ -31,6 +31,7 @@ import {
   canUseWeaponArt,
   getWeaponArtIds,
   isWeaponArtCompatibleWithWeapon,
+  weaponArtRunOptions,
 } from '../engine/WeaponArtSystem.js';
 import { canEquip, getDisplayLevel, inventoryDisplayOrder } from '../engine/UnitManager.js';
 import {
@@ -1098,8 +1099,7 @@ export class UnitDetailOverlay {
         turnNumber: this.scene?.turnManager?.turnNumber,
         isInitiating: true,
         actorFaction: unit.faction,
-        weaponArtHpCostDelta:
-          this.scene?.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+        ...weaponArtRunOptions(this.scene?.runManager),
       });
       if (!check.ok && HIDDEN_WEAPON_ART_REASONS.has(check.reason)) continue;
       choices.push({ art, canUse: check.ok, reason: check.reason });

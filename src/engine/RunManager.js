@@ -279,6 +279,11 @@ function createBlessingRuntimeModifiers() {
     terrainCombatBonuses: [],
     healingEffectivenessMultiplier: 1,
     weaponArtHpCostDelta: 0,
+    // Bloodless Art (`player_weapon_art_boon`): player units' weapon arts cost this much HP
+    // more (negative = less, floor 1) and get this many extra uses per map. Player units only,
+    // unlike the price delta above; read through WeaponArtSystem.weaponArtRunOptions.
+    playerArtHpCostDelta: 0,
+    playerArtMapUsesBonus: 0,
     enemyLevelDeltas: [],
     // v3 prices (docs/specs/blessings-v3.md §3): a deploy cap change in one act, and no
     // church revives for the run.
@@ -2389,6 +2394,20 @@ export class RunManager {
       this._recordBlessingEvent('run_start', blessingId, effect, {
         appliedValue: Math.trunc(value),
         total: this.blessingRuntimeModifiers.weaponArtHpCostDelta,
+      });
+      return;
+    }
+
+    if (effect.type === 'player_weapon_art_boon') {
+      const hpCostDelta = Math.trunc(Number(effect.params?.hpCostDelta) || 0);
+      const mapUsesBonus = Math.max(0, Math.trunc(Number(effect.params?.mapUsesBonus) || 0));
+      this.blessingRuntimeModifiers.playerArtHpCostDelta += hpCostDelta;
+      this.blessingRuntimeModifiers.playerArtMapUsesBonus += mapUsesBonus;
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        hpCostDelta,
+        mapUsesBonus,
+        totalHpCostDelta: this.blessingRuntimeModifiers.playerArtHpCostDelta,
+        totalMapUsesBonus: this.blessingRuntimeModifiers.playerArtMapUsesBonus,
       });
       return;
     }
@@ -5605,6 +5624,14 @@ export class RunManager {
       : 1;
     rm.blessingRuntimeModifiers.weaponArtHpCostDelta = Math.trunc(
       Number(rm.blessingRuntimeModifiers.weaponArtHpCostDelta) || 0,
+    );
+    // Bloodless Art: saves from before have neither (the bonus is never negative).
+    rm.blessingRuntimeModifiers.playerArtHpCostDelta = Math.trunc(
+      Number(rm.blessingRuntimeModifiers.playerArtHpCostDelta) || 0,
+    );
+    rm.blessingRuntimeModifiers.playerArtMapUsesBonus = Math.max(
+      0,
+      Math.trunc(Number(rm.blessingRuntimeModifiers.playerArtMapUsesBonus) || 0),
     );
     // v3 prices: saves from before have neither.
     const deployByAct = rm.blessingRuntimeModifiers.deployCapDeltaByAct;
