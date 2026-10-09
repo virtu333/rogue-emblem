@@ -144,6 +144,35 @@
   text-transform: uppercase;
   color: var(--re-bad);
 }
+/* The blessings the run holds: the burdens' shape, in the gilt of a boon. */
+.mp-blessings {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  max-height: 30%;
+}
+.mp-blessings li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  border-left: 3px solid var(--re-gilt);
+  background: var(--re-sunken);
+  font: var(--re-t-small);
+  color: var(--re-muted);
+}
+.mp-blessings strong {
+  font: var(--re-pf-8, 8px) / 1.5 var(--re-pixel);
+  text-transform: uppercase;
+  color: var(--re-accent-text);
+}
+.mp-blessings .mp-blessing-price {
+  color: var(--re-bad);
+}
 /* An open contract rides the same list, in the gilt of a seal. */
 .mp-burdens li.is-contract {
   border-left-color: var(--re-gilt);

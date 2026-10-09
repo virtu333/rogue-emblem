@@ -1,0 +1,206 @@
+// Blessing fixes: a forge price that charges what it says,
+// a church or event blessing that never grows a price on reload, and the pause menu's list
+// of the blessings a run holds.
+//
+// Ways this can fail, a test each:
+//   1. a "+20% forge costs" price charges the base price (the shop clamped it away), or a
+//      shop refuses to forge at all under it;
+//   2. Frugal Smith's discount or a liberated village's discount stops composing;
+//   3. a repair under the price is refused as invalid;
+//   4. an out-of-range discount is accepted;
+//   5. a mid-run tier III blessing (the Twin Altar's) shows a price after a save and load;
+//   6. a save from before the flag keeps that phantom price, or loses the real run-start one;
+//   7. the pause list hides a held blessing, misnames a pact, or invents a price.
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { RunManager } from '../src/engine/RunManager.js';
+import {
+  FORGE_DISCOUNT_MIN,
+  forgeShopWeapon,
+  shopForgeDiscount,
+  shopRepairBlock,
+} from '../src/engine/ShopCommands.js';
+import { getForgeCost } from '../src/engine/ForgeSystem.js';
+import { heldBlessingEntries } from '../src/ui/heldBlessingsModel.js';
+import { pauseBlessingList } from '../src/ui/MobilePauseMenu.js';
+import { installFakeDom } from './helpers/fakeDom.js';
+import { loadGameData } from './testData.js';
+
+const data = loadGameData();
+const clone = (value) => structuredClone(value);
+
+/** A run whose start pick carries `rolledCost` (applied as the shrine would). */
+function runWithPrice(id, rolledCost) {
+  const rm = new RunManager(data);
+  rm.startRun({ runSeed: 11 });
+  rm.activeBlessings = [{ id, rolledCost }];
+  rm._runStartBlessingsApplied = false;
+  rm.applyRunStartBlessingEffects();
+  return rm;
+}
+const FORGE_PRICE = (value) => ({
+  label: `+${Math.round(value * 100)}% forge costs`,
+  effects: [{ type: 'forge_cost_multiplier', params: { value } }],
+});
+
+function withSword(rm) {
+  const sword = clone(data.weapons.find((w) => w.name === 'Iron Sword'));
+  const unit = {
+    name: 'Edric',
+    stats: { HP: 22 },
+    proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+    inventory: [sword],
+    weapon: sword,
+    consumables: [],
+  };
+  rm.roster = [unit];
+  rm.gold = 10000;
+  return sword;
+}
+
+describe('forge prices from blessings', () => {
+  it('a +20% forge price makes every forge cost 20% more', () => {
+    const rm = runWithPrice('iron_oath', FORGE_PRICE(0.2));
+    const sword = withSword(rm);
+    // Iron tier is x0.6 of the 400 gold first Might step.
+    expect(getForgeCost(sword, 'might')).toBe(240);
+    const discount = shopForgeDiscount(rm);
+    expect(discount).toBeCloseTo(-0.2, 10);
+    const gold = rm.gold;
+    const result = forgeShopWeapon(rm, sword, 'might', {
+      forgesUsed: 0,
+      forgeLimit: 2,
+      discount,
+      expectedLevel: 0,
+    });
+    expect(result.ok).toBe(true);
+    expect(rm.gold).toBe(gold - 288);
+  });
+
+  it('a +35% price and a Frugal Smith discount each charge what they say', () => {
+    const dear = runWithPrice('iron_oath', FORGE_PRICE(0.35));
+    expect(shopForgeDiscount(dear)).toBeCloseTo(-0.35, 10);
+    const frugal = new RunManager(data);
+    frugal.startRun({ runSeed: 11 });
+    frugal.activeBlessings = [{ id: 'frugal_smith', rolledCost: null }];
+    frugal._runStartBlessingsApplied = false;
+    frugal.applyRunStartBlessingEffects();
+    expect(shopForgeDiscount(frugal)).toBeCloseTo(0.3, 10);
+    const sword = withSword(frugal);
+    const gold = frugal.gold;
+    forgeShopWeapon(frugal, sword, 'might', {
+      forgesUsed: 0,
+      forgeLimit: 3,
+      discount: shopForgeDiscount(frugal),
+      expectedLevel: 0,
+    });
+    expect(frugal.gold).toBe(gold - 168);
+  });
+
+  it("a liberated village's 20% off composes with either", () => {
+    const dear = runWithPrice('iron_oath', FORGE_PRICE(0.2));
+    // 1.2 x 0.8 = 0.96 of the price.
+    expect(shopForgeDiscount(dear, { ambushDiscount: true })).toBeCloseTo(0.04, 10);
+    const plain = new RunManager(data);
+    plain.startRun({ runSeed: 11 });
+    expect(shopForgeDiscount(plain, { ambushDiscount: true })).toBeCloseTo(0.2, 10);
+  });
+
+  it('a repair under the price is a repair, not an invalid request', () => {
+    const rm = runWithPrice('iron_oath', FORGE_PRICE(0.2));
+    const sword = withSword(rm);
+    sword._wear = ['might'];
+    const reason = shopRepairBlock(rm, sword, {
+      forgesUsed: 0,
+      forgeLimit: 2,
+      discount: shopForgeDiscount(rm),
+    });
+    expect(reason).not.toBe('Invalid repair.');
+  });
+
+  it('refuses a discount outside the range', () => {
+    const rm = new RunManager(data);
+    rm.startRun({ runSeed: 11 });
+    const sword = withSword(rm);
+    const options = { forgesUsed: 0, forgeLimit: 2, expectedLevel: 0 };
+    for (const discount of [FORGE_DISCOUNT_MIN - 0.5, 1, Number.NaN]) {
+      const gold = rm.gold;
+      expect(forgeShopWeapon(rm, sword, 'might', { ...options, discount }).ok).toBe(false);
+      expect(rm.gold).toBe(gold);
+    }
+  });
+});
+
+describe('blessings taken mid-run', () => {
+  const roundTrip = (rm) => RunManager.fromJSON(JSON.parse(JSON.stringify(rm.toJSON())), data);
+
+  it('a tier III blessing from an event keeps no price through a save and load', () => {
+    const rm = new RunManager(data);
+    rm.startRun({ runSeed: 11 });
+    expect(rm.addBlessingMidRun('scholar_vow')).toBe(true);
+    const restored = roundTrip(roundTrip(rm));
+    const entry = restored.activeBlessings.find((b) => b.id === 'scholar_vow');
+    expect(entry.rolledCost).toBeNull();
+    expect(entry.midRun).toBe(true);
+    expect(heldBlessingEntries(restored).find((b) => b.id === 'scholar_vow').price).toBeNull();
+  });
+
+  it('an older save drops the phantom price and keeps the run-start one', () => {
+    let rm, picked;
+    for (let seed = 1; seed < 200 && !picked; seed++) {
+      rm = new RunManager(data);
+      rm.startRun({ runSeed: seed, applyBlessingsAtStart: false });
+      picked = rm.getBlessingOptions().find((b) => b.tier >= 2 && b.rolledCost && !b.pact);
+    }
+    expect(picked).toBeTruthy();
+    expect(rm.chooseBlessing(picked.id)).toBe(true);
+    const startPrice = rm.activeBlessings[0].rolledCost.label;
+    const other = data.blessings.blessings.find((b) => b.tier === 3 && b.id !== picked.id);
+    rm.addBlessingMidRun(other.id);
+    const saved = JSON.parse(JSON.stringify(rm.toJSON()));
+    // As an older client saved it: no flag, and a price the load once rolled for it.
+    const legacy = saved.activeBlessings.find((b) => b.id === other.id);
+    delete legacy.midRun;
+    legacy.rolledCost = clone(data.blessings.costPools['3'][0]);
+    const restored = RunManager.fromJSON(saved, data);
+    expect(restored.activeBlessings.find((b) => b.id === other.id).rolledCost).toBeNull();
+    expect(restored.activeBlessings.find((b) => b.id === picked.id).rolledCost.label).toBe(
+      startPrice,
+    );
+  });
+});
+
+describe('the pause menu lists held blessings', () => {
+  beforeEach(() => installFakeDom(vi));
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('names each blessing, its tier and what it cost', () => {
+    const tome = data.blessings.blessings.find((b) => b.id === 'forbidden_tome');
+    const rm = new RunManager(data);
+    rm.startRun({ runSeed: 11 });
+    rm.activeBlessings = [{ id: 'forbidden_tome', rolledCost: clone(tome.pact) }];
+    rm.addBlessingMidRun('field_medic');
+    rm.addBlessingMidRun('scholar_vow');
+    const entries = heldBlessingEntries(rm);
+    expect(entries.map((e) => [e.label, e.tier, e.priceKind, e.price])).toEqual([
+      ['Forbidden Tome', 'IV', 'Pact', tome.pact.label],
+      ['Field Medic', 'I', null, null],
+      ["Scholar's Vow", 'III', null, null],
+    ]);
+    const list = pauseBlessingList(entries);
+    expect(list.getAttribute('aria-label')).toBe('Blessings');
+    const items = list.querySelectorAll('li');
+    expect(items).toHaveLength(3);
+    expect(items[0].querySelector('strong').textContent).toBe('Forbidden Tome · IV');
+    expect(items[0].textContent).toContain(`Pact: ${tome.pact.label}`);
+    expect(items[1].textContent).not.toContain('Cost:');
+  });
+
+  it('shows nothing for a run with no blessings, and skips an unknown id', () => {
+    const rm = new RunManager(data);
+    rm.startRun({ runSeed: 11 });
+    rm.activeBlessings = [];
+    expect(pauseBlessingList(heldBlessingEntries(rm))).toBeNull();
+    rm.activeBlessings = [{ id: 'retired_blessing' }, { id: 'steady_hands' }];
+    expect(heldBlessingEntries(rm).map((e) => e.id)).toEqual(['steady_hands']);
+  });
+});

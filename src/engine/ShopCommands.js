@@ -15,7 +15,7 @@ import { getSellPrice } from './LootSystem.js';
 import { itemDisplayName } from '../utils/itemNames.js';
 import { forgeStatBlock, applyForge, forgePrice } from './ForgeSystem.js';
 import { isWorn, wearCount, repairPrice, repairWeapon } from './WeaponWear.js';
-import { INVENTORY_MAX, CONSUMABLE_MAX } from '../utils/constants.js';
+import { INVENTORY_MAX, CONSUMABLE_MAX, AMBUSH_SHOP_DISCOUNT } from '../utils/constants.js';
 
 export function shopOwnedItems(run) {
   return [
@@ -211,18 +211,37 @@ export function sellShopItem(run, row) {
     message: `Sold ${itemDisplayName(row.item, run.gameData?.skills)} for ${price}G.${after}`,
   };
 }
+// A forge price ratio: 0.3 is 30% off, -0.2 is 20% dearer (a blessing's forge-cost price).
+// The engine accepts [FORGE_DISCOUNT_MIN, 1): never more than double, never free. A shop
+// offers at most FORGE_DISCOUNT_MAX off.
+export const FORGE_DISCOUNT_MIN = -1;
+export const FORGE_DISCOUNT_MAX = 0.95;
+
+function validForgeDiscount(discount) {
+  return Number.isFinite(discount) && discount >= FORGE_DISCOUNT_MIN && discount < 1;
+}
+
+/**
+ * The forge price ratio a shop charges: the run's blessing forge discount (Frugal Smith's
+ * 30% off, or a "+20% forge costs" price as -0.2), composed with a liberated village's own
+ * discount. Forging and repair both read it.
+ * @param {object} run - RunManager
+ * @param {{ ambushDiscount?: boolean }} [options]
+ */
+export function shopForgeDiscount(run, { ambushDiscount = false } = {}) {
+  const clamp = (v) => Math.max(FORGE_DISCOUNT_MIN, Math.min(FORGE_DISCOUNT_MAX, v));
+  const raw = Number(run?.getForgeCostDiscount?.() || 0);
+  const blessing = clamp(Number.isFinite(raw) ? raw : 0);
+  return clamp(ambushDiscount ? 1 - (1 - blessing) * AMBUSH_SHOP_DISCOUNT : blessing);
+}
+
 export function shopForgeBlock(
   run,
   weapon,
   stat,
   { forgesUsed = 0, forgeLimit = 0, discount = 0, expectedLevel } = {},
 ) {
-  if (
-    !['might', 'hit', 'crit', 'weight'].includes(stat) ||
-    !Number.isFinite(discount) ||
-    discount < 0 ||
-    discount >= 1
-  )
+  if (!['might', 'hit', 'crit', 'weight'].includes(stat) || !validForgeDiscount(discount))
     return 'Invalid forge choice.';
   if (!shopOwnedItems(run).some((row) => row.item === weapon))
     return 'This weapon is no longer available.';
@@ -254,7 +273,7 @@ export function shopRepairBlock(
   weapon,
   { forgesUsed = 0, forgeLimit = 0, discount = 0, expectedWear } = {},
 ) {
-  if (!Number.isFinite(discount) || discount < 0 || discount >= 1) return 'Invalid repair.';
+  if (!validForgeDiscount(discount)) return 'Invalid repair.';
   if (!shopOwnedItems(run).some((row) => row.item === weapon))
     return 'This weapon is no longer available.';
   if (expectedWear != null && wearCount(weapon) !== expectedWear)

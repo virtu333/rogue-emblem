@@ -309,9 +309,15 @@ function normalizeBlessingCostEntry(costEntry) {
   return { label, effects };
 }
 
-function createActiveBlessingEntry(id, rolledCost = null) {
+/**
+ * One held blessing: `{ id, rolledCost }`, plus `midRun: true` for one taken after the run
+ * began (a church vow, an event). A mid-run blessing never carries a price: its boons apply
+ * and nothing is charged, so a load must not invent one for it.
+ */
+function createActiveBlessingEntry(id, rolledCost = null, { midRun = false } = {}) {
   const blessingId = typeof id === 'string' ? id.trim() : '';
   if (!blessingId) return null;
+  if (midRun) return { id: blessingId, rolledCost: null, midRun: true };
   return {
     id: blessingId,
     rolledCost: normalizeBlessingCostEntry(rolledCost),
@@ -1116,7 +1122,10 @@ export class RunManager {
   addBlessingMidRun(blessingId) {
     const blessing = buildBlessingIndex(this.gameData?.blessings || {}).get(blessingId);
     if (!blessing || this.getActiveBlessingIds().includes(blessingId)) return false;
-    this.activeBlessings = [...(this.activeBlessings || []), { id: blessingId }];
+    this.activeBlessings = [
+      ...(this.activeBlessings || []),
+      createActiveBlessingEntry(blessingId, null, { midRun: true }),
+    ];
     for (const effect of blessing.boons || [])
       this._applySingleRunStartBlessingEffect(blessingId, effect);
     return true;
@@ -1286,10 +1295,26 @@ export class RunManager {
     const catalog = this.gameData?.blessings;
     const blessingIndex = catalog?.blessings?.length ? buildBlessingIndex(catalog) : new Map();
     const normalized = [];
+    // A save from before `midRun` was kept: the run-start selection record (chooseBlessing)
+    // names what was picked at the start, so any other held blessing came from a church or an
+    // event. Its display-only price (rolled here on an earlier load, never applied) is dropped.
+    const selection = [...(this.blessingHistory || [])]
+      .reverse()
+      .find(
+        (record) =>
+          record?.stage === 'run_start' &&
+          record?.eventType === 'selection' &&
+          Array.isArray(record?.details?.chosenIds),
+      );
+    const startPicks = selection ? selection.details.chosenIds : null;
 
     entries.forEach((entry, index) => {
       const id = getBlessingEntryId(entry);
       if (!id) return;
+      if (entry?.midRun === true || (startPicks && !startPicks.includes(id))) {
+        normalized.push(createActiveBlessingEntry(id, null, { midRun: true }));
+        return;
+      }
       const blessing = blessingIndex.get(id);
       if (!blessing) {
         normalized.push(createActiveBlessingEntry(id, null));
@@ -4858,7 +4883,9 @@ export class RunManager {
         .map((entry) => {
           const id = getBlessingEntryId(entry);
           if (!id) return null;
-          return createActiveBlessingEntry(id, entry?.rolledCost || null);
+          return createActiveBlessingEntry(id, entry?.rolledCost || null, {
+            midRun: entry?.midRun === true,
+          });
         })
         .filter(Boolean),
       blessingHistory: this.blessingHistory || [],
