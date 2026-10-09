@@ -371,14 +371,25 @@ export function rewardForWhom(choice, run) {
 
 export const TIER_NUMERALS = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V']);
 
+/**
+ * What a blessing's price is called: a tier IV blessing's fixed 'Pact', a blessing whose own
+ * boon carries the cost (Slow Fuse's dip) a 'Price', anything else a rolled 'Cost'. Reads an
+ * offer (catalog fields + `rolledCost`) or a held entry's stored `rolledCost`.
+ * @param {object|null} blessing - an offer, or `{ rolledCost, intrinsicPrice?, pact? }`
+ * @returns {'Pact'|'Price'|'Cost'}
+ */
+export function blessingPriceKind(blessing) {
+  if (blessing?.pact || blessing?.rolledCost?.kind === 'pact') return 'Pact';
+  if (blessing?.intrinsicPrice || blessing?.rolledCost?.kind === 'intrinsic') return 'Price';
+  return 'Cost';
+}
+
 /** A blessing as a tarot card: tier numeral, boon, cost (or none), lore. */
 export function blessingCardContent(blessing) {
   if (!blessing) return null;
   const tier = Math.max(0, Math.min(5, Math.trunc(num(blessing.tier))));
-  const cost =
-    typeof blessing.rolledCost?.label === 'string' && blessing.rolledCost.label.trim()
-      ? blessing.rolledCost.label.trim()
-      : '';
+  const priceLabel = blessing.rolledCost?.label ?? blessing.intrinsicPrice?.label;
+  const cost = typeof priceLabel === 'string' && priceLabel.trim() ? priceLabel.trim() : '';
   return {
     id: blessing.id || null,
     name: String(blessing.name || ''),
@@ -388,7 +399,7 @@ export function blessingCardContent(blessing) {
     cost,
     // Pacts (Forbidden Tome, Scroll Archive) carry a fixed price, named as such.
     pact: Boolean(blessing.pact),
-    costLabel: blessing.pact ? 'Pact' : 'Cost',
+    costLabel: blessingPriceKind(blessing),
     lore: typeof blessing.lore === 'string' ? blessing.lore : '',
   };
 }

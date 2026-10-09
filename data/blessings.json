@@ -892,6 +892,88 @@
         "commander_injury"
       ],
       "costs": []
+    },
+    {
+      "id": "slow_fuse",
+      "name": "Slow Fuse",
+      "tier": 2,
+      "weight": 1,
+      "description": "Starting lords: -1 to all stats but Move in Act 1, +1 to all stats but Move from Act 2.",
+      "lore": "Lit at the first frost it only smoulders. Stand clear when the thaw comes.",
+      "boons": [
+        {
+          "type": "lord_stat_arc",
+          "params": {
+            "stats": [
+              "HP",
+              "STR",
+              "MAG",
+              "SKL",
+              "SPD",
+              "DEF",
+              "RES",
+              "LCK"
+            ],
+            "dipAct": "act1",
+            "dip": -1,
+            "riseAct": "act2",
+            "rise": 1
+          }
+        }
+      ],
+      "intrinsicPrice": {
+        "label": "The Act 1 dip",
+        "points": 2
+      },
+      "costs": []
+    },
+    {
+      "id": "gamblers_toss",
+      "name": "Gambler's Toss",
+      "tier": 3,
+      "weight": 1,
+      "tags": [
+        "gold"
+      ],
+      "description": "Each victory's battle gold is doubled or cut to a third on an even toss.",
+      "lore": "Heads, the shrine pays double. Tails, it keeps two parts in three. Never short.",
+      "boons": [
+        {
+          "type": "battle_gold_gamble",
+          "params": {
+            "chance": 0.5,
+            "win": 2,
+            "lose": 0.3333333333333333
+          }
+        }
+      ],
+      "intrinsicPrice": {
+        "label": "Half your victories pay a third",
+        "points": 3
+      },
+      "costs": []
+    },
+    {
+      "id": "bloodless_art",
+      "name": "Bloodless Art",
+      "tier": 2,
+      "weight": 1,
+      "description": "Your units' weapon arts cost 1 less HP (never below 1), and arts with a battle limit get 1 more use.",
+      "lore": "The saints already bled for the page. Read it, and the ink asks little of you.",
+      "boons": [
+        {
+          "type": "player_weapon_art_boon",
+          "params": {
+            "hpCostDelta": -1,
+            "mapUsesBonus": 1
+          }
+        }
+      ],
+      "prices": [
+        "staff_heal_down",
+        "debt_small"
+      ],
+      "costs": []
     }
   ],
   "costPools": {

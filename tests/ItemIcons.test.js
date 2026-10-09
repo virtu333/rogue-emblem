@@ -18,6 +18,7 @@ import {
 import { itemSlug, baseItemName } from '../src/ui/itemIconIds.js';
 import { buildAtlases, SIZES, ATLAS_DIRS } from '../tools/art/icons/build.mjs';
 import { encodeIndexed, decodePng } from '../tools/art/icons/lib/png.mjs';
+import { BLESSING_ICON_REUSE } from '../tools/art/icons/lib/itemGrammar.mjs';
 
 const data = loadGameData();
 const imbues = JSON.parse(fs.readFileSync('data/imbues.json', 'utf8'));
@@ -43,6 +44,29 @@ describe('item icon coverage', () => {
   it('every blessing and every upgrade resolves to its own icon', () => {
     for (const b of data.blessings.blessings) expect(itemIconId(b)).toBe(`blessing-${b.id}`);
     for (const u of upgrades) expect(itemIconId(u)).toBe(`upgrade-${u.id}`);
+  });
+
+  it('a blessing without a cell of its own reuses a picture and keeps its own pennant and rim', () => {
+    // The atlas is full (360 cells), so a new blessing wears an existing picture (itemGrammar
+    // BLESSING_ICON_REUSE) while keeping its own id, the blessing pennant and its tier rim.
+    const numeral = ['', 'I', 'II', 'III', 'IV'];
+    // Every alias the grammar declares is checked, so a new line there is covered unedited.
+    expect(Object.keys(BLESSING_ICON_REUSE).length).toBeGreaterThan(0);
+    for (const [id, of] of Object.entries(BLESSING_ICON_REUSE)) {
+      const blessing = data.blessings.blessings.find((b) => b.id === id);
+      expect(blessing, `${id} is a real blessing`).toBeDefined();
+      expect(manifest.aliases[`blessing-${id}`], id).toBe(of);
+      expect(itemIconId(blessing), id).toBe(`blessing-${id}`);
+      expect(hasItemIcon(`blessing-${id}`), id).toBe(true);
+      expect(itemIconMeta(`blessing-${id}`), id).toMatchObject({
+        socket: 'blessing',
+        rim: numeral[blessing.tier],
+      });
+      // The picture is the target's cell, and the target owns that cell outright.
+      expect(manifest.icons[`blessing-${id}`][0], id).toBe(manifest.icons[of][0]);
+      expect(manifest.aliases[of], `${of} is itself a reuse`).toBeUndefined();
+    }
+    expect(Object.keys(manifest.icons).length - Object.keys(manifest.aliases).length).toBe(360);
   });
 
   it('run-state names resolve to the base item (forge level, imbue adjective)', () => {
@@ -115,12 +139,13 @@ describe('item icon atlases are deterministic', () => {
         .sort((a, b) => a[1][0] - b[1][0])
         .map(([id]) => id),
     );
-    // A reused picture (itemGrammar UPGRADE_ICON_REUSE) takes no cell of its own: it sits
-    // on the cell of the icon it shares, with its own socket and rim.
+    // A reused picture (itemGrammar UPGRADE_ICON_REUSE / BLESSING_ICON_REUSE) takes no cell
+    // of its own: it sits on the cell of the icon it shares, with its own socket (its own
+    // kind's pennant) and rim.
     expect(built.aliases.map((a) => [a.id, a.of])).toEqual(Object.entries(reused));
     for (const [id, of] of Object.entries(reused)) {
       expect(manifest.icons[id][0], id).toBe(manifest.icons[of][0]);
-      expect(manifest.sockets[manifest.icons[id][1]], id).toBe('upgrade');
+      expect(manifest.sockets[manifest.icons[id][1]], id).toBe(id.split('-')[0]);
     }
     for (const size of SIZES) {
       const a = built.atlases[size];
