@@ -5,8 +5,11 @@
 // Ways this can fail, a test each:
 //   1. backing out and returning draws a new offer;
 //   2. another slot inherits the pending seed;
-//   3. a begun run leaves the seed behind, so every later run repeats it.
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+//   3. opening another slot's shrine replaces this slot's seed, so slot 1 -> slot 2 -> slot 1
+//      draws a new offer;
+//   4. a begun run leaves the seed behind, so every later run repeats it;
+//   5. beginning a run in one slot clears another slot's pending offer.
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
 vi.mock('../src/utils/SceneRouter.js', () => ({
@@ -30,7 +33,7 @@ Object.defineProperty(globalThis, 'localStorage', {
   writable: true,
 });
 
-import { BlessingSelectScene, PENDING_RUN_SEED_KEY } from '../src/scenes/BlessingSelectScene.js';
+import { BlessingSelectScene } from '../src/scenes/BlessingSelectScene.js';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
@@ -53,12 +56,22 @@ function openShrine(reg) {
   BlessingSelectScene.prototype._rebuildRunManager.call(scene);
   return scene;
 }
+/** Choose no blessing and begin the run, as the shrine's confirm does. */
+async function beginRun(scene) {
+  scene.isTransitioning = false;
+  scene._blessingCommitted = false;
+  scene.selectedIndex = scene.options.length; // no blessing
+  scene._confirm();
+  await Promise.resolve();
+  await Promise.resolve();
+}
 const offerOf = (scene) => scene.options.map((o) => [o.id, o.rolledCost?.label || null]);
 
 describe('the shrine keeps its offer until the run begins', () => {
   beforeEach(() => {
     for (const key of Object.keys(store)) delete store[key];
   });
+  afterEach(() => vi.restoreAllMocks());
 
   it('backing out and returning shows the same cards at the same prices', () => {
     const reg = registry({ activeSlot: 1 });
@@ -70,29 +83,55 @@ describe('the shrine keeps its offer until the run begins', () => {
 
   it('another slot does not inherit it', () => {
     const reg = registry({ activeSlot: 1 });
+    vi.spyOn(Date, 'now').mockReturnValue(1000);
     const first = openShrine(reg);
     reg.set('activeSlot', 2);
-    reg.set(PENDING_RUN_SEED_KEY, { ...reg.get(PENDING_RUN_SEED_KEY) });
-    const other = Object.create(BlessingSelectScene.prototype);
-    other.registry = reg;
-    other.init({ gameData, difficultyId: 'dusk' });
-    expect(other._blessingRunSeed).toBeNull();
-    expect(first._blessingRunSeed).not.toBeNull();
+    Date.now.mockReturnValue(2000);
+    const other = openShrine(reg);
+    expect(first.runManager.runSeed).toBe(1000);
+    expect(other.runManager.runSeed).toBe(2000);
+  });
+
+  it('each slot keeps its own offer through a round trip between slots', () => {
+    const reg = registry({ activeSlot: 1 });
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1000);
+    const first = openShrine(reg);
+    reg.set('activeSlot', 2);
+    now.mockReturnValue(2000);
+    const second = openShrine(reg);
+    reg.set('activeSlot', 1);
+    now.mockReturnValue(3000);
+    const back = openShrine(reg);
+    expect(back.runManager.runSeed).toBe(1000);
+    expect(offerOf(back)).toEqual(offerOf(first));
+    reg.set('activeSlot', 2);
+    now.mockReturnValue(4000);
+    const backTo2 = openShrine(reg);
+    expect(backTo2.runManager.runSeed).toBe(2000);
+    expect(offerOf(backTo2)).toEqual(offerOf(second));
   });
 
   it('beginning the run clears it, so the next run is drawn afresh', async () => {
     const reg = registry({ activeSlot: 1 });
     const scene = openShrine(reg);
-    scene.isTransitioning = false;
-    scene._blessingCommitted = false;
-    scene.selectedIndex = scene.options.length; // no blessing
-    scene._confirm();
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(reg.has(PENDING_RUN_SEED_KEY)).toBe(false);
+    await beginRun(scene);
     const next = Object.create(BlessingSelectScene.prototype);
     next.registry = reg;
     next.init({ gameData, difficultyId: 'dusk' });
     expect(next._blessingRunSeed).toBeNull();
+  });
+
+  it("beginning a run in one slot leaves another slot's offer standing", async () => {
+    const reg = registry({ activeSlot: 1 });
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1000);
+    const first = openShrine(reg);
+    reg.set('activeSlot', 2);
+    now.mockReturnValue(2000);
+    await beginRun(openShrine(reg));
+    reg.set('activeSlot', 1);
+    now.mockReturnValue(3000);
+    const back = openShrine(reg);
+    expect(back.runManager.runSeed).toBe(1000);
+    expect(offerOf(back)).toEqual(offerOf(first));
   });
 });

@@ -47,12 +47,29 @@ export function pauseBlessingList(blessings) {
     line.textContent = blessing.line;
     item.append(name, line);
     if (blessing.price) {
-      const price = document.createElement('span');
-      price.className = 'mp-blessing-price';
-      price.textContent = `${blessing.priceKind || 'Cost'}: ${blessing.price}`;
-      if (blessing.terms?.length)
-        price.title = blessing.terms.map((t) => `${t.term}: ${t.text}`).join('\n');
-      item.append(price);
+      const label = `${blessing.priceKind || 'Cost'}: ${blessing.price}`;
+      if (blessing.terms?.length) {
+        // A price that names a burden, shadow or Vision opens on a tap (or Enter) to say
+        // what those words mean: touch has no hover.
+        const price = document.createElement('details');
+        price.className = 'mp-blessing-price';
+        const summary = document.createElement('summary');
+        summary.textContent = label;
+        const terms = document.createElement('p');
+        terms.className = 'mp-blessing-terms';
+        for (const t of blessing.terms) {
+          const term = document.createElement('b');
+          term.textContent = `${t.term}:`;
+          terms.append(term, ` ${t.text} `);
+        }
+        price.append(summary, terms);
+        item.append(price);
+      } else {
+        const price = document.createElement('span');
+        price.className = 'mp-blessing-price';
+        price.textContent = label;
+        item.append(price);
+      }
     }
     list.append(item);
   }
@@ -104,7 +121,8 @@ export class MobilePauseMenu {
     this.sync();
   }
   move(delta) {
-    const buttons = [...this.root.querySelectorAll('button')];
+    // A blessing's price that opens (a <summary>) is a stop too, after the list above it.
+    const buttons = [...this.root.querySelectorAll('button, summary')];
     if (!buttons.length) return;
     const i = buttons.indexOf(document.activeElement);
     buttons[(i + delta + buttons.length) % buttons.length].focus();

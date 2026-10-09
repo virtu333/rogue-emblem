@@ -364,6 +364,62 @@ test('blessings as tarot: the cost is always in view, No blessing sits by Confir
   await waitForScene(page, 'NodeMap');
 });
 
+test('a blessing price opens whole: the footer ⓘ and a press-and-hold on the card', async ({
+  page,
+}) => {
+  await settings(page);
+  await page.goto('/?devScene=difficulty&mobilePreview=1');
+  await waitForScene(page, 'DifficultySelect');
+  await page.getByRole('button', { name: 'Confirm', exact: true }).tap();
+  await waitForScene(page, 'BlessingSelect');
+  const shrine = page.getByRole('dialog', { name: 'Choose a blessing', exact: true });
+  // Two priced cards: Debt and Hunted (more words than the footer's three lines hold).
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('BlessingSelect');
+    const catalog = s.gameData.blessings.priceCatalog;
+    const price = (ids) => ({
+      label: ids.map((id) => catalog[id].label.replace('{owed}', '3,000')).join(' · '),
+      effects: ids.flatMap((id) => catalog[id].effects),
+    });
+    const card = (id, ids) => {
+      const b = structuredClone(s.gameData.blessings.blessings.find((x) => x.id === id));
+      b.rolledCost = price(ids);
+      return b;
+    };
+    s.options = [
+      card('iron_oath', ['debt_large']),
+      card('nomad_pact', ['hunted', 'act1_def_down_1']),
+    ];
+    s.selectedIndex = 0;
+    s._draw();
+  });
+  // The chosen card's ⓘ sits in the footer, outside the cards.
+  await shrine.getByRole('button', { name: "About Iron Oath's price" }).tap();
+  const help = page.getByRole('dialog', { name: 'Iron Oath: the price', exact: true });
+  await expect(help).toBeVisible();
+  await expect(help).toContainText('Debt: 3,000 gold');
+  await expect(help).toContainText('goes to the lender until it');
+  await help.getByRole('button', { name: 'Close', exact: true }).tap();
+  await expect(help).toBeHidden();
+  await expect(shrine.locator('[data-focus="choice-0"]')).toHaveAttribute('aria-pressed', 'true');
+  // Press and hold the other card: its own price opens, and the hold does not choose it.
+  const other = shrine.locator('[data-focus="choice-1"]');
+  const box = await other.boundingBox();
+  const at = { clientX: box.x + box.width / 2, clientY: box.y + box.height / 2 };
+  const pointer = { pointerType: 'touch', pointerId: 7, isPrimary: true, button: 0, ...at };
+  // The help makes the shrine inert (hidden from role queries): keep the card itself.
+  const card = await other.elementHandle();
+  await card.dispatchEvent('pointerdown', pointer);
+  const held = page.getByRole('dialog', { name: "Nomad's Pact: the price", exact: true });
+  await expect(held).toBeVisible();
+  await card.dispatchEvent('pointerup', pointer);
+  await card.dispatchEvent('click', at);
+  await expect(held).toContainText('Something follows your trail');
+  await held.getByRole('button', { name: 'Close', exact: true }).tap();
+  await expect(held).toBeHidden();
+  await expect(other).toHaveAttribute('aria-pressed', 'false');
+});
+
 test('difficulty banners: locked modes say why, the terms read beneath', async ({ page }, info) => {
   await settings(page);
   await page.goto('/?devScene=difficulty&mobilePreview=1');

@@ -4,6 +4,8 @@ import { MenuSurface, element, button } from './MenuSurface.js';
 import { blessingCardContent, difficultyBannerContent } from './choiceContent.js';
 import { blessingTerms } from '../engine/BlessingTerms.js';
 import { blessingCardArt, costSeal } from './itemMoments.js';
+import { ContextHelp } from './ContextHelp.js';
+import { bindHold } from './infoAffordance.js';
 import {
   choiceButton,
   choiceReducedMotion,
@@ -96,6 +98,26 @@ export class RunSetupMenu {
     } else if (oldFocus)
       this.surface.body.querySelector(`[data-focus="${oldFocus}"]`)?.focus({ preventScroll: true });
   }
+  /**
+   * The whole of a price's terms in a help dialog: the footer's ⓘ (the chosen card) and a
+   * press-and-hold on any priced card open it, so a touch player reads every word the
+   * footer's three lines may cut. One at a time, never during a transition.
+   */
+  openPriceHelp(content, terms) {
+    if (this.help || this.scene.isTransitioning || !terms.length) return;
+    this.help = new ContextHelp(
+      this.scene,
+      this.surface.root,
+      `${content.name}: the price`,
+      [{ lead: `${content.costLabel}: ${content.cost}` }, { points: terms }],
+      () => {
+        this.help = null;
+      },
+    );
+  }
+  priceHelpEnabled() {
+    return !this.help && !this.scene.isTransitioning;
+  }
   /** Shrine blessings as tarot: tier numeral, the Hollow Sun, boon and cost. */
   blessings(lead) {
     const s = this.scene;
@@ -154,16 +176,28 @@ export class RunSetupMenu {
       if (terms.length) cost.title = terms.map((t) => `${t.term}: ${t.text}`).join('\n');
       plate.append(sun, element('strong', content.name, 'ch-tarot-name'), lines, cost);
       card.append(plate);
+      if (terms.length)
+        bindHold(card, () => this.openPriceHelp(content, terms), {
+          enabled: () => this.priceHelpEnabled(),
+        });
       row.append(card);
     });
     const chosen = blessingCardContent(s.options[s.selectedIndex]);
     // A price that names a burden, shadow or Vision says what it means in place of the lore
     // (the card already says "Pact").
-    const chosenTerms = termsOf(chosen).filter((t) => t.term !== 'Pact');
+    const allTerms = termsOf(chosen);
+    const chosenTerms = allTerms.filter((t) => t.term !== 'Pact');
     if (chosenTerms.length) {
       const terms = element('span', null, 'ch-term');
       for (const t of chosenTerms) terms.append(element('b', `${t.term}:`), ` ${t.text} `);
-      lead.append(terms);
+      // The words themselves open the whole price (a tap, Enter or a click): outside the
+      // cards (a card is a button, and buttons can't nest), and no wider than the text,
+      // so a short phone's list keeps its room.
+      const open = button(null, () => this.openPriceHelp(chosen, allTerms), 'ch-term-open');
+      open.setAttribute('aria-label', `About ${chosen.name}'s price`);
+      open.dataset.focus = 'price-info';
+      open.append(terms);
+      lead.append(open);
     } else
       lead.append(
         element(
@@ -239,6 +273,8 @@ export class RunSetupMenu {
   }
   destroy() {
     this.fitStop?.();
+    this.help?.destroy();
+    this.help = null;
     this.surface.destroy();
   }
 }

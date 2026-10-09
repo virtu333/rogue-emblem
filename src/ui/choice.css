@@ -672,7 +672,24 @@
 .ch-draft[data-count='1'] .ch-card:is([aria-pressed='true'], .is-chosen) {
   transform: none;
 }
-/* The chosen blessing's price, explained (BlessingTerms): in place of its lore. */
+/* The chosen blessing's price, explained (BlessingTerms): in place of its lore. The words
+   are a button that opens all of it (RunSetupMenu.openPriceHelp): text, not a plate. */
+.re .ch-term-open {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  clip-path: none;
+  text-align: left;
+  cursor: help;
+  touch-action: manipulation;
+}
 .ch-term {
   font: 12px/1.35 var(--re-body);
   color: var(--re-parchment-dim);
@@ -684,6 +701,8 @@
 .ch-term b {
   color: var(--re-parchment);
   font-weight: 700;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
 }
 .ch-lore {
   font: italic 12px/1.35 var(--re-body);

@@ -211,6 +211,11 @@ describe('the pause menu lists held blessings', () => {
     expect(items).toHaveLength(3);
     expect(items[0].querySelector('strong').textContent).toBe('Forbidden Tome · IV');
     expect(items[0].textContent).toContain(`Pact: ${pact.label}`);
+    // The price's words open on a tap: touch has no hover.
+    expect(items[0].querySelector('summary').textContent).toBe(`Pact: ${pact.label}`);
+    expect(items[0].querySelector('.mp-blessing-terms').textContent).toContain(
+      'A pact is a fixed price',
+    );
     expect(items[1].textContent).not.toContain('Cost:');
   });
 

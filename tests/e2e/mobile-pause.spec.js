@@ -138,6 +138,24 @@ test('held blessings and burdens list under the note and never push an action ou
       }),
     })),
   ).toEqual({ scrolls: false, allInView: true });
+  // A price's words open on a tap (touch has no hover), and the actions still fit.
+  const price = blessings.locator('li').first().locator('summary');
+  const terms = blessings.locator('li').first().locator('.mp-blessing-terms');
+  await expect(terms).toBeHidden();
+  await price.tap();
+  await expect(terms).toBeVisible();
+  await expect(terms).toContainText('A pact is a fixed price');
+  expect(
+    await pause
+      .locator('.mp-actions button')
+      .evaluateAll((all) =>
+        all.every(
+          (b) =>
+            b.getBoundingClientRect().top >= 0 &&
+            b.getBoundingClientRect().bottom <= window.innerHeight,
+        ),
+      ),
+  ).toBe(true);
   const last = blessings.locator('li').last();
   await last.scrollIntoViewIfNeeded();
   await expect(last).toBeInViewport();
