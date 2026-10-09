@@ -1467,6 +1467,8 @@ export function getCombatForecast(
         damage: atkDmg,
         crit: atkCrit,
         hit: atkHit,
+        // The first strike's chance decides whether an exchange can land at all (Keen Eye).
+        firstHit: atkFirstHit,
         attackCount: atkCount,
         critMultiplier: isEntity(defender) ? ENTITY_CRIT_DMG_MULT : CRIT_MULTIPLIER,
       },

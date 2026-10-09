@@ -17,6 +17,7 @@
 // blessing grants to the run manager; item-uid draws belong to settlement.
 import { isRecruitNpc } from './RecruitNpc.js';
 import { serializeUnit } from './RunManager.js';
+import { stampTurnAnchors } from './BlessingCombatMods.js';
 import { matchUnitsToSurvivors, unitUidOf } from './UnitIdentity.js';
 
 const MAX_BATTLE_RECRUITS = 32;
@@ -150,7 +151,14 @@ export function validateRecruitJoin(npc, npcUnits, playerUnits) {
 }
 
 /** Join an already validated adjacent recruit, independently of its ceremony. */
-export function settleRecruitJoin({ npc, npcUnits, playerUnits, battleRecruits, runManager }) {
+export function settleRecruitJoin({
+  npc,
+  npcUnits,
+  playerUnits,
+  battleRecruits,
+  runManager,
+  turn = null,
+}) {
   if (!validateRecruitJoin(npc, npcUnits, playerUnits)) return null;
   npcUnits.splice(npcUnits.indexOf(npc), 1);
   npc.faction = 'player';
@@ -158,6 +166,10 @@ export function settleRecruitJoin({ npc, npcUnits, playerUnits, battleRecruits, 
   playerUnits.push(npc);
   npc.hasMoved = false;
   npc.hasActed = false;
+  npc._movementSpent = 0;
+  // It stands where it joined and has not moved this turn: Holdfast holds from here, as for
+  // any unit anchored when the player phase began (a join is always a player-phase act).
+  if (Number.isFinite(turn)) stampTurnAnchors([npc], turn);
   runManager?.assignUnitUid?.(npc);
   return { npc, battleRecruits: recordBattleRecruit(battleRecruits, npc) };
 }

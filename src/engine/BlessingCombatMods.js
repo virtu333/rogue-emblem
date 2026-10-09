@@ -27,7 +27,8 @@ export function stampTurnAnchors(units, turn) {
  * `stampTurnAnchors` recorded for `turn`, has not been marked as moved and has spent no
  * movement; this holds through the enemy phase after it (a push or a Blink off the tile
  * ends it). A unit with no anchor for this turn (a mid-turn arrival, an older checkpoint)
- * is not holding.
+ * is not holding. A move a hidden foe blocked before the first step still marks the unit as
+ * moved ("it tried to move"), so it stops holding; that is intended.
  */
 export function isHoldingGround(unit, turn) {
   const anchor = unit?._turnAnchor;

@@ -105,7 +105,10 @@ export function counterRisk(forecast, attackerHP = forecast?.attacker?.hp) {
   const a = forecast?.attacker,
     d = forecast?.defender;
   if (!d?.canCounter || d.hit <= 0 || !a) return '';
-  if (forecast.display?.simpleExchange && a.hit >= 100 && a.damage >= d.hp) return '';
+  // The kill that spares the counter is the attacker's first strike, so its chance decides
+  // (Keen Eye lifts it above the Hit every later strike rolls at).
+  if (forecast.display?.simpleExchange && (a.firstHit ?? a.hit) >= 100 && a.damage >= d.hp)
+    return '';
   if (forecast.display?.counterHasDamageProc)
     return 'Enemy skills can change counterattack damage.';
   const base = Math.max(forecastRawDamage(d), d.damage);

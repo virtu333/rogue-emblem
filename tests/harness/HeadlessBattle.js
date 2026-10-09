@@ -525,9 +525,12 @@ export class HeadlessBattle {
     const costEntry = rangeEntry;
     this.selectedUnit._movementSpent = costEntry ? costEntry.cost : 0;
 
+    // Staying put opens the action menu without moveUnit (InputController), so the unit has
+    // not "moved": hasMoved flips only when the tile changes, as in the scene.
+    const changesTile = col !== this.selectedUnit.col || row !== this.selectedUnit.row;
     this.selectedUnit.col = col;
     this.selectedUnit.row = row;
-    this.selectedUnit.hasMoved = true;
+    if (changesTile) this.selectedUnit.hasMoved = true;
     // Fog waits for the action to be committed (BattleActionCompletion.revealSettledVision).
     this.battleState = HEADLESS_STATES.UNIT_ACTION_MENU;
   }
@@ -2042,6 +2045,7 @@ export class HeadlessBattle {
       playerUnits: this.playerUnits,
       battleRecruits: this._battleRecruits,
       runManager: this.runManager,
+      turn: this.turnManager?.turnNumber,
     });
     if (!joined) throw new Error(`Invalid Talk recruit: ${npc?.name || 'missing target'}`);
     this._battleRecruits = joined.battleRecruits;

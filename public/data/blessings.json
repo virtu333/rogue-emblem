@@ -708,7 +708,7 @@
       "lore": "Plant your feet and let the storm break on you. A wall is only a promise kept.",
       "name": "Holdfast",
       "tier": 2,
-      "description": "A unit that hasn't moved this turn gets +2 DEF and +10 Avoid, through the enemy's turn too.",
+      "description": "A unit that hasn't moved this turn gets +2 DEF and +10 Avoid, into the enemy's turn too.",
       "weight": 1,
       "boons": [
         {

@@ -483,11 +483,14 @@ function resetPlayerUnitsForTurn(scene, turn) {
     u.hasActed = false;
     u._movementSpent = 0;
     u._gambitUsedThisTurn = false;
+  }
+  // Holdfast reads where each unit stood as this player phase began. Stamped before any
+  // presentation call so a throw in the undim below cannot leave a unit without an anchor.
+  stampTurnAnchors(scene.playerUnits, turn);
+  for (const u of scene.playerUnits) {
     resetWeaponArtTurnUsage(u, { turnNumber: turn });
     scene.undimUnit(u);
   }
-  // Holdfast reads where each unit stood as this player phase began.
-  stampTurnAnchors(scene.playerUnits, turn);
 }
 
 export class BattleScene extends Phaser.Scene {
@@ -10330,7 +10333,9 @@ export class BattleScene extends Phaser.Scene {
       for (const u of this.playerUnits || []) {
         u.hasMoved = false;
         u.hasActed = false;
+        u._movementSpent = 0;
       }
+      stampTurnAnchors(this.playerUnits || [], playerTurn);
     }
     this.captureVisionSnapshot?.();
     this.updateVisionHud?.();
