@@ -254,6 +254,12 @@ it('a stock out of reach says so: short rows, a greyed Buy and how much gold is 
   expect(text()).not.toContain('Nothing here is within');
   const rows = nodes().filter((n) => n.classList.contains('shop-row'));
   expect(rows.map((r) => r.classList.contains('is-short'))).toEqual([true, false]);
+  // Each buy row's price is its own span (gold, or grey on a short row: shopMenu.css).
+  expect(
+    nodes()
+      .filter((n) => n.classList.contains('shop-price'))
+      .map((n) => n.textContent),
+  ).toEqual(['1690 G', '500 G']);
   const cheapBuy = nodes().find((n) => n.tag === 'button' && n.textContent === 'Buy · 500 G');
   expect(cheapBuy.disabled).toBe(false);
   expect(cheapBuy.classList.contains('shop-buy--short')).toBe(false);
