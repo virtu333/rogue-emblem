@@ -85,6 +85,37 @@ function isLivingOnMap(unit) {
 }
 
 /**
+ * How many living allies of `unit` stand on a cardinal neighbour tile (distance 1: never a
+ * diagonal). `allies` is the unit's own side; the unit itself, the fallen and anyone off the
+ * map are not counted. The one adjacency rule the `adjacent_ally` accessory condition and
+ * Phalanx Rite share.
+ */
+export function countAdjacentAllies(unit, allies) {
+  if (!unit || !Array.isArray(allies)) return 0;
+  let count = 0;
+  for (const ally of allies) {
+    if (ally === unit || !isLivingOnMap(ally)) continue;
+    if (gridDistance(unit.col, unit.row, ally.col, ally.row) === 1) count += 1;
+  }
+  return count;
+}
+
+/**
+ * True when a living ally of `unit` (not the unit itself) stands within `radius` tiles
+ * (Manhattan, so 2 reaches a diagonal). The `no_ally_within_2` accessory condition and
+ * Duelist's Creed read this: its negation is "isolated".
+ */
+export function hasAllyWithin(unit, allies, radius) {
+  if (!unit || !Array.isArray(allies)) return false;
+  return allies.some(
+    (ally) =>
+      ally !== unit &&
+      isLivingOnMap(ally) &&
+      gridDistance(unit.col, unit.row, ally.col, ally.row) <= radius,
+  );
+}
+
+/**
  * A Gambler's Coin's odds and swing, read from its combatEffects (`gambler: { winChance,
  * winAtkBonus, lossAtkPenalty }`). The legacy `gamblerCoin: true` of older saves keeps
  * its old 50%, +5 / −3. Returns null for an accessory without the effect.
@@ -153,22 +184,8 @@ function isAccessoryConditionMet(condition, unit, opponent, allies, enemies, ter
   if (condition === 'below50') return isBelow50(unit);
   if (condition === 'above75') return unit.currentHP > Math.floor(unit.stats.HP * 0.75);
   if (condition === 'on_forest') return terrain?.name === 'Forest';
-  if (condition === 'adjacent_ally') {
-    return allies.some(
-      (ally) =>
-        ally !== unit &&
-        isLivingOnMap(ally) &&
-        gridDistance(unit.col, unit.row, ally.col, ally.row) === 1,
-    );
-  }
-  if (condition === 'no_ally_within_2') {
-    return !allies.some(
-      (ally) =>
-        ally !== unit &&
-        isLivingOnMap(ally) &&
-        gridDistance(unit.col, unit.row, ally.col, ally.row) <= 2,
-    );
-  }
+  if (condition === 'adjacent_ally') return countAdjacentAllies(unit, allies) > 0;
+  if (condition === 'no_ally_within_2') return !hasAllyWithin(unit, allies, 2);
   if (condition === 'enemies_nearby_2plus') {
     const nearby = enemies.filter(
       (enemy) =>

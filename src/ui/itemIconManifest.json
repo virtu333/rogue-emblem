@@ -537,12 +537,16 @@
     "upgrade-branching_threads": [262, 6, 5],
     "blessing-slow_fuse": [246, 5, 8],
     "blessing-gamblers_toss": [218, 5, 9],
-    "blessing-bloodless_art": [211, 5, 8]
+    "blessing-bloodless_art": [211, 5, 8],
+    "blessing-phalanx_rite": [226, 5, 9],
+    "blessing-duelists_creed": [222, 5, 9]
   },
   "aliases": {
     "upgrade-branching_threads": "blessing-focused_curriculum",
     "blessing-slow_fuse": "blessing-scout_blessing",
     "blessing-gamblers_toss": "gamblers-coin",
-    "blessing-bloodless_art": "blood-gem"
+    "blessing-bloodless_art": "blood-gem",
+    "blessing-phalanx_rite": "phalanx-band",
+    "blessing-duelists_creed": "duelists-glove"
   }
 }

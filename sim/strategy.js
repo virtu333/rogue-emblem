@@ -551,6 +551,9 @@ class ProtectedDriver extends RunSimulationDriver {
     );
     driver.init();
     const battle = driver.battle;
+    // The run's blessings reach a combat only through the battle's run (Keen Eye, Hold the Line,
+    // Phalanx Rite, Duelist's Creed, the act Hit price); a battle without it measures none.
+    battle.runManager = rm;
     const benched = [];
     const original = battle._removeUnit.bind(battle);
     let cmdrKOThisBattle = 0;

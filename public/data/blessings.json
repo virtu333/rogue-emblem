@@ -969,6 +969,57 @@
         "debt_small"
       ],
       "costs": []
+    },
+    {
+      "id": "phalanx_rite",
+      "name": "Phalanx Rite",
+      "tier": 3,
+      "weight": 1,
+      "description": "A unit gains +1 DEF per ally beside it (not diagonal), up to +3.",
+      "lore": "Shields lapped like roof tiles. The rite asks only that you stand close.",
+      "boons": [
+        {
+          "type": "adjacent_ally_def_bonus",
+          "params": {
+            "perAlly": 1,
+            "max": 3
+          }
+        }
+      ],
+      "prices": [
+        "debt_large",
+        [
+          "sworn_enemy",
+          "act1_hit_down"
+        ]
+      ],
+      "costs": []
+    },
+    {
+      "id": "duelists_creed",
+      "name": "Duelist's Creed",
+      "tier": 3,
+      "weight": 1,
+      "description": "A unit with no ally within 2 tiles gains +15 Avoid and +10 Crit.",
+      "lore": "The duelists cleared the ring before the bell. Alone, a blade keeps its counsel.",
+      "boons": [
+        {
+          "type": "isolated_combat_bonus",
+          "params": {
+            "radius": 2,
+            "avoidBonus": 15,
+            "critBonus": 10
+          }
+        }
+      ],
+      "prices": [
+        "debt_large",
+        [
+          "hunted",
+          "act1_def_down_1"
+        ]
+      ],
+      "costs": []
     }
   ],
   "costPools": {
