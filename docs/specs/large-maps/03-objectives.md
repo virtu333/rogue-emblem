@@ -311,8 +311,9 @@ keeps stat-line text plain.
 - **AI**: the throne clamp (`AIController.js:341`) reads `enemy.clampTile`, written on each
   guard's spawn, instead of the one `thronePos`. The unread `guardianClampPos`
   (`MapGenerator.js:360-368`) retires into it. Taking throne A emits `objective
-  throne_a done`, which 02's groups can wake on ("the second garrison stirs"). That is
-  Two Towers.
+  throne_a done`, which 02's groups can wake on ("the second garrison stirs"). (`04`'s first
+  Two Towers uses two `defeat` objectives instead: walking a lord throne to throne put it
+  at 12–14 turns, over the band. Multi-seize waits for a tighter map, `04` open question 6.)
 - **Boss nodes keep one throne in v2**: the boss card, `_bossName`, the boss recruit draft
   and the act's relief all assume a single boss. Multi-seize is for elite and set-piece
   maps.

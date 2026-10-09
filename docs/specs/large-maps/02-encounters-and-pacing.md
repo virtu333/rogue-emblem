@@ -299,7 +299,7 @@ with `03`'s phases), is called by `BattleScene` and `HeadlessBattle` at the same
   {
     "id": "pod:1",                       // unique; procedural: "picket", "pod:<n>", "patrol:<n>"; legacy: "hold:<pack>"
     "members": [4, 5, 7],                // indices into enemySpawns at generation; each spawn also carries encounterGroupId
-    "state": "asleep",                   // picket | asleep | patrol | awake (initial)
+    "state": "dormant",                   // picket | dormant | patrol | awake (initial)
     "wake": [                            // any one fires; README trigger vocabulary
       { "kind": "danger" },
       { "kind": "hurt" },
@@ -328,12 +328,12 @@ with `03`'s phases), is called by `BattleScene` and `HeadlessBattle` at the same
 | State | AI | Leaves when |
 |---|---|---|
 | `picket` | awake from turn 1, today's chase | never (it is awake) |
-| `asleep` | `aiMode: 'hold'` on members whose role is empty or `guard`; members with their own role (heal, Necromancer guard, artillery) keep it | any wake trigger, or boss enrage |
+| `dormant` | `aiMode: 'hold'` on members whose role is empty or `guard`; members with their own role (heal, Necromancer guard, artillery) keep it | any wake trigger, or boss enrage |
 | `patrol` | `aiMode: 'patrol'`: seek the current `route` anchor (`aiTargetTile`), advance `unit.patrolIndex` on arrival (within 1), loop (or, a column, hold at the end); attacks only a blocker (the seek_tile pipeline, `AIController.js:792`) | any wake trigger, or boss enrage |
 | `awake` | `onWake` applied once | final |
 
 The member's `aiMode` is the effect; the group's state in `encounterState` is the record.
-The validator checks they agree (an asleep group has no living ordinary member without
+The validator checks they agree (a dormant group has no living ordinary member without
 `aiMode: 'hold'`).
 
 ### 3.4 Wake triggers, precisely
@@ -352,13 +352,13 @@ in group order; then contact (below).
 |---|---|---|---|
 | `danger` | a member the player can see (`isThreatSourceVisible`) has a player unit or known NPC on its `enemyThreatTiles` (PlayerKnowledge positions). Exactly today's hold rule 1 | 0 | red zone = wake zone; a fogged member never wakes this way |
 | `sight` | a player-side unit stands within the member's vision range (`VISION_RANGES[member.moveType]`, Manhattan, the rule fog uses for the player, `Grid.js:956`; `constants.js:478`: Infantry/Armored 3, Cavalry 4, Flying 5) | 0 | if no member is visible as it wakes, the band says so without placing it ("Movement in the fog") |
-| `hurt` | a member was damaged, hexed or moved (`HoldDisturbance` marks, written by every damage, status and displacement path; its guard widens from `aiMode: 'hold'` to any member of an `asleep` or `patrol` group), or a member fell (living < `size`). Today's rule 2 | 0 | the player caused it |
+| `hurt` | a member was damaged, hexed or moved (`HoldDisturbance` marks, written by every damage, status and displacement path; its guard widens from `aiMode: 'hold'` to any member of an `dormant` or `patrol` group), or a member fell (living < `size`). Today's rule 2 | 0 | the player caused it |
 | `groupWoken` | group `group` woke (at any check) | 1 | warn band at fire time ("The camp stirs…"); its members' zones get the waking style |
 | `tile` | a player-side unit **stands** on the anchor or in the region at the check (`battleConfig.anchors`, `04`'s field). Optional `by: { group }`: a living member of that enemy group stands there instead (`04`'s Parade). A Canto step on and off does not count | 0 | the anchor is marked on the map (`01`) |
 | `objective` | `03`'s objective engine emitted `{ kind: 'objective', id, outcome: 'done' \| 'failed' }` (`EncounterTriggers.noteObjectiveEvent`, stamped with the turn); `on: done \| failed \| either` | 1 | warn band at fire time |
 | `turn` | `{ afterContact: n }`: check turn ≥ contactTurn + n; `{ parOffset: -k }`: check turn ≥ live `turnPar` − k; `{ afterPhase: n }` (`03` §5.10): n turns into the current phase; any may carry `latest` (a `parOffset` or, legacy, `turn`): fires at the earlier | 1 | warn band at fire time; the objective line names the turn |
 
-- **Boss enrage** wakes every `asleep` and `patrol` group, as it wakes holders today
+- **Boss enrage** wakes every `dormant` and `patrol` group, as it wakes holders today
   (unless an authored group sets `ignoreEnrage`). It is a battle-wide rule, not a trigger.
 - **Anti-turtle never wakes a group** and never releases a `guard` posted by `onWake`
   (dusk-pressure: "otherwise a turtle would only have to wait 3 phases"). Rolled
@@ -389,9 +389,9 @@ by distance rules alone, after `assignHolders` and the guard roll (`MapGenerator
 
 | Objective | Rule |
 |---|---|
-| seize, escape (Dusk+) | today's hold packs become `asleep` groups `hold:<pack>`, wake `[danger, hurt]`, `onWake: hunt`. Everything else stays ungrouped (awake). Behaviour identical to today (§3.6) |
+| seize, escape (Dusk+) | today's hold packs become `dormant` groups `hold:<pack>`, wake `[danger, hurt]`, `onWake: hunt`. Everything else stays ungrouped (awake). Behaviour identical to today (§3.6) |
 | seize, escape (First Light) | none (guards as today) |
-| rout (rung's `encounterPlan.rout`, owner-gated, §9 Q2) | **picket**: the `ceil(picketShare × n)` (≥ 2) non-boss spawns nearest the player-spawn centroid, awake. **Pods**: the rest, as connected components within `podRadius` (3); components smaller than `minPod` (2) join the nearest pod within 5, else the picket. Each pod `asleep`, wake `[danger, hurt]` plus `groupWoken` from every pod within `chain` (6) tiles, delay 1. Same exclusions as holders (siege carrier, hazard tile, Necromancer stays in its role). The village's bandit wave and the ladder are unchanged |
+| rout (rung's `encounterPlan.rout`, owner-gated, §9 Q2) | **picket**: the `ceil(picketShare × n)` (≥ 2) non-boss spawns nearest the player-spawn centroid, awake. **Pods**: the rest, as connected components within `podRadius` (3); components smaller than `minPod` (2) join the nearest pod within 5, else the picket. Each pod `dormant`, wake `[danger, hurt]` plus `groupWoken` from every pod within `chain` (6) tiles, delay 1. Same exclusions as holders (siege carrier, hazard tile, Necromancer stays in its role). The village's bandit wave and the ladder are unchanged |
 | any | a template with `"encounters": false`, a recruit node's guardian, and the prologue (authored `holdPack`, read by the adapter) get nothing new |
 
 Patrols, columns and `guard` posts are for authored maps (`04`) and a later procedural pass: a patrol
@@ -402,7 +402,7 @@ have.
 
 - **Old configs and checkpoints** (no `encounterGroups`, units with `holdPack`):
   `groupsFromHoldPacks(spawns or units)` derives groups `hold:<pack>` at battle start, and
-  `encounterStateFromUnits` derives their state on restore (asleep iff a living member
+  `encounterStateFromUnits` derives their state on restore (dormant iff a living member
   has `aiMode: 'hold'`; `checkedTurn` = the members' `holdCheckedTurn`). Unit fields stay
   as they are: they are save data.
 - **New configs** write both `encounterGroups` and the unit-level hold fields (`aiMode`,
@@ -439,7 +439,7 @@ is held by owner decision (its §6.3), so this spec adds no movement cap.
 - **Danger stays truthful and undimmed.** A sleeping member's zone is its full reach:
   entering it wakes the group at the next check, and the group acts in that same phase.
   A dim zone would read as "safe-ish", and it is not. `ThreatForecast` sources gain
-  `asleep: true`, so the overlay (`01`) can mark the source (a resting pip, a dashed edge)
+  `dormant: true`, so the overlay (`01`) can mark the source (a resting pip, a dashed edge)
   without lightening the tile. Enemy inspect gets one line from `telegraph.inspect`
   ("Holding: wakes if you enter its reach").
 - The objective line and the phone chips get a group summary from a pure model
@@ -513,7 +513,7 @@ A set piece (`04`) spends a budget in groups:
 
 ### 5.2 Par from the walk and the stages
 
-A config whose groups include an `asleep` or `patrol` group uses par model
+A config whose groups include an `dormant` or `patrol` group uses par model
 `groups-v1` (locked as `parModel` with its inputs, so a resume never recomputes it); every
 other config keeps `calculatePar` exactly.
 
@@ -632,7 +632,7 @@ stalls), not the map.
 | 0e | §2.6 prune at `advanceAct` | smaller saves | 0.25 day |
 | 2.0 | metrics and the agent's seek mode in `sim/pacing.js`; baseline report in this spec | none | 1 day |
 | 2.1 | `EncounterGroups.js` + `EncounterTriggers.js` with `danger`/`hurt`, legacy adapter, `encounterState` persistence and validator, golden parity, `wakeHolders` deleted | none | 2.5 days |
-| 2.2 | `sight`, `tile`, `groupWoken`, `objective` hook, `turn`, contact, warn bands, `asleep` sources in ThreatForecast, inspect line, HUD model | none until data uses it | 2.5 days |
+| 2.2 | `sight`, `tile`, `groupWoken`, `objective` hook, `turn`, contact, warn bands, `dormant` sources in ThreatForecast, inspect line, HUD model | none until data uses it | 2.5 days |
 | 2.3 | `triggeredWaves`, sides, keyed stream, ledger, contract v2 exclusion | new configs only: procedural waves avoid the player by 3 | 2 days |
 | 2.4 | patrol and column, `guard`/`seek`/`retake` onWake, `together`, group order | authored maps only | 2 days |
 | 2.5 | rout picket/pods behind `encounterPlan.rout` (shipped `null`), par `groups-v1`, sims at 48 seeds per rung and policy, tuning, owner sign-off | yes, rung by rung, after sims | 3–4 days |
@@ -660,7 +660,9 @@ everything else in Phase 2 and for `03`'s phases.
 1. **`asleep` collides with the Sleep status.** Code already has `isSleeping` (the Sleep
    staff, `AIController.js:134`) and the player reads "Asleep!". This spec keeps the
    contract's id but never shows the word: the player sees "Holding" / "Unaware". Consider
-   renaming the state to `dormant` before code lands.
+   renaming the state to `dormant` before code lands. *Adopted in README revision 2: the
+   state is `dormant` throughout this spec (the AI decision reason `asleep` in §2.5 is the
+   Sleep status's and is unchanged).*
 2. **`hurt` includes hexed.** Today's rule wakes on a status as well (`HoldDisturbance`
    `'status'`); the vocabulary table says "damaged, moved or killed".
 3. **Boss enrage is not a trigger kind.** It is the battle-wide wake that holds use today;

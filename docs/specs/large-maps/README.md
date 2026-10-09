@@ -1,6 +1,7 @@
 # Large maps and map variety
 
-Status: proposal, revision 1 (2026-10-09). Specs only: no game code or data changes yet.
+Status: proposal, revision 2 (2026-10-09). Takes in the notes of specs 01–04. Specs only: no
+game code or data changes yet.
 Branch `claude/large-maps-specs`.
 
 This folder plans bigger, more ambitious battle maps: more kinds of maps, more than one
@@ -122,7 +123,7 @@ Four read-only investigations, with benchmarks run on the real `HeadlessBattle` 
 | Use | Size | Notes |
 |---|---|---|
 | Ordinary procedural battles | unchanged (10x8 … 18x13) | `mapSizes.json` keeps its entries |
-| Large set piece (Act III–IV ordinary node, elite, event battle) | 20x12 – 22x14 | about two phone screens at tactical zoom |
+| Large set piece (Act III–IV ordinary node, elite, event battle) | 20x12 – 22x14 | about two phone screens at tactical zoom. The format also serves smaller authored maps: Rival Band, an elite, is 18x10 |
 | Act boss set piece (Act III, Act IV) | 20x14 – 24x14 | an approach plus an authored arena (hybrid v2) |
 | Finale variant | up to 24x16 | optional, per rung |
 | Ceiling | 24x16 (384 tiles) | beyond this the walk dominates even with staging; 40x24 is out |
@@ -147,8 +148,8 @@ The four specs use these names. A spec may refine a field but not rename it.
   - `battleConfig.anchors` (`04`): `{ <name>: { tiles } }`, the named points and regions
     resolved to tiles at generation. Markers (`01`), triggers (`02`) and objectives
     (`03`) all read this one field.
-  - `battleConfig.setPiece` (`04`): `{ id, choices }`, the set piece and the seeded
-    choices it took. Read for display and records, never for rules: the rules read the
+  - `battleConfig.setPiece` (`04`): `{ id, version, choices, chunks }`, the set piece,
+    the seeded choices it took and the chunks it picked. Read for display and records, never for rules: the rules read the
     fields above.
 
 **Unit fields.**
@@ -219,10 +220,15 @@ keeps meaning the prologue.
 ## 4. Where large maps appear
 
 `04` has the rules; in short:
-- **Act III and IV ordinary nodes:** a set piece replaces the procedural map at a small
-  per-node chance, at most one per act, from Act III on.
-- **Elite nodes** (mid-act seize and escape, today's `isElite`): a higher chance, and the
-  elite set pieces (Two Towers, Hunting Party, Rival Band).
+- **Act III and IV ordinary nodes:** a per-act chance that one ordinary node takes a set
+  piece (at most one per act).
+- **Elite nodes** (mid-act seize and escape, today's `isElite`): a chance per node, at most
+  two per act, from the elite set pieces (Two Towers, Hunting Party, Rival Band).
+- **No two set-piece nodes are joined by an edge.**
+- **The chances are per rung**, in `difficulty.json` (`modes.<rung>.setPieces`). Every rung
+  needs an entry, including `dusk`.
+- **Placement is a keyed pass after node-map generation**, on hashes of the run seed and
+  node id. It never draws on the node-map stream (`04` §6).
 - **Event battles:** events may name a set piece (The Burning Village, Caravan Under Siege).
 - **Act III and Act IV boss nodes:** boss set pieces join the boss template pool beside the
   hybrid arenas (Long Road to the Keep, The Emperor's Parade).
