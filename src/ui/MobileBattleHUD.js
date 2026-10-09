@@ -30,7 +30,7 @@ import {
   forecastReadingPoints,
   forecastTeachingHints,
   formatCritChance,
-  formatHitChance,
+  formatSideHit,
   formatDamageStrikes,
 } from './forecastDisplay.js';
 import {
@@ -664,7 +664,7 @@ export class MobileBattleHUD {
       // strikes as a multiplier, chances as percentages.
       for (const [name, value, kind] of [
         ['Damage × hits', formatDamageStrikes(info), 'damage'],
-        ['Hit', formatHitChance(info.hit), 'hit'],
+        ['Hit', formatSideHit(info), 'hit'],
         ['Crit', formatCritChance(info.crit), 'crit'],
         ['AS', `${info.as}`, 'speed'],
       ]) {

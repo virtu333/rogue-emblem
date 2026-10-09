@@ -615,6 +615,8 @@ class ProtectedDriver extends RunSimulationDriver {
           rm.fallenUnits || [],
           [...rm.getTakenUnitNames()],
           rm.runSeed,
+          // Nomad's Pact reaches the boss draft (never below 0), as PendingBossRecruit does.
+          { recruitLevelBonus: Math.max(0, rm.getRecruitLevelBonus?.() || 0) },
         ) || [];
       const pick = [...candidates]
         .map((c) => c?.unit)
@@ -679,6 +681,8 @@ class ProtectedDriver extends RunSimulationDriver {
       [...rm.getTakenUnitNames()],
       rm.getEffectiveMetaEffects(),
       { runSeed: rm.runSeed, marksData: this.gameData.marks || null },
+      // Nomad's Pact reaches the Colosseum (never below 0), as ColosseumOverlay does.
+      { recruitLevelBonus: Math.max(0, rm.getRecruitLevelBonus?.() || 0) },
     ).filter((c) => c?.unit && c.hireCost <= rm.gold);
     candidates.sort((a, b) => (b.unit.level || 0) - (a.unit.level || 0));
     const pick = candidates[0];

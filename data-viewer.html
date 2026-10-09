@@ -8119,6 +8119,14 @@
             return `+${p.value} recruit level`;
           case 'terrain_combat_bonus':
             return `+${p.avoidBonus} avoid, +${p.defBonus} DEF on ${(p.terrains || []).join('/')}`;
+          case 'shop_first_forge_free':
+            return `First ${p.value > 1 ? p.value + ' forge uses' : 'forge use'} free at each shop`;
+          case 'extra_shop_per_act':
+            return `+${p.value} shop per act (an event or church becomes a shop)`;
+          case 'first_strike_hit_bonus':
+            return `+${p.value} Hit on the first strike of a combat your units start`;
+          case 'stationary_combat_bonus':
+            return `+${p.defBonus} DEF, +${p.avoidBonus} avoid for a unit that has not moved this turn`;
           case 'disable_personal_skills_until_act':
             return `Personal skills disabled until ${getActLabel(p.act)}`;
           case 'starting_forge_lords':

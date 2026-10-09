@@ -118,8 +118,6 @@ function scene() {
   s.turnBonusConfig = null;
   s.turnManager = { currentPhase: 'enemy', turnNumber: 1 };
   s.runManager = {
-    getActHitBonusForUnit: () => 0,
-    getTerrainCombatBonuses: () => [],
     blessingRuntimeModifiers: {},
     getDifficultyModifier: (_key, fallback) => fallback,
     getXpMultiplierDelta: () => 0,

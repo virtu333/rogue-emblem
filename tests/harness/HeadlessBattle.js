@@ -154,6 +154,7 @@ import {
   ESCAPE_EVAC_GOLD_BY_ACT,
 } from '../../src/utils/constants.js';
 import { applyCombatHP, damageUnit, healUnit, setUnitHP } from '../../src/engine/UnitHealth.js';
+import { applyBlessingCombatMods, stampTurnAnchors } from '../../src/engine/BlessingCombatMods.js';
 import { resetFortHealStreak, settleTerrainHeal } from '../../src/engine/TerrainHealing.js';
 import { postCombatEffects, runPostCombatEffectsSync } from '../../src/engine/PostCombatEffects.js';
 import {
@@ -525,9 +526,12 @@ export class HeadlessBattle {
     const costEntry = rangeEntry;
     this.selectedUnit._movementSpent = costEntry ? costEntry.cost : 0;
 
+    // Staying put opens the action menu without moveUnit (InputController), so the unit has
+    // not "moved": hasMoved flips only when the tile changes, as in the scene.
+    const changesTile = col !== this.selectedUnit.col || row !== this.selectedUnit.row;
     this.selectedUnit.col = col;
     this.selectedUnit.row = row;
-    this.selectedUnit.hasMoved = true;
+    if (changesTile) this.selectedUnit.hasMoved = true;
     // Fog waits for the action to be committed (BattleActionCompletion.revealSettledVision).
     this.battleState = HEADLESS_STATES.UNIT_ACTION_MENU;
   }
@@ -1113,6 +1117,7 @@ export class HeadlessBattle {
         u._gambitUsedThisTurn = false;
         u._movementSpent = 0;
       }
+      stampTurnAnchors(this.playerUnits, turn);
       // Apply turn-start effects (Renewal, etc.) — skip turn 1 to match BattleScene
       const army = armyAndNpcAllies(this.playerUnits, this.npcUnits);
       if (turn > 1) {
@@ -1703,8 +1708,6 @@ export class HeadlessBattle {
       affixes,
       masteryCtx,
     );
-    atkMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(attacker) || 0;
-    defMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(defender) || 0;
     const atkTimedBuffMods = this._getTimedWeaponArtCombatBuffMods(attacker);
     const defTimedBuffMods = this._getTimedWeaponArtCombatBuffMods(defender);
     atkMods.hitBonus += atkTimedBuffMods.hitBonus || 0;
@@ -1724,20 +1727,16 @@ export class HeadlessBattle {
     this._applyAccessoryPhaseCombatMods(attacker, atkMods, rollSession);
     this._applyAccessoryPhaseCombatMods(defender, defMods, rollSession);
 
-    const terrainBonuses = this.runManager?.getTerrainCombatBonuses?.() || [];
-    if (terrainBonuses.length > 0) {
-      const applyTerrainBonus = (mods, unit, terrain) => {
-        if (!terrain?.name || unit?.faction !== 'player') return;
-        for (const bonus of terrainBonuses) {
-          if (Array.isArray(bonus.terrains) && bonus.terrains.includes(terrain.name)) {
-            mods.avoidBonus += bonus.avoidBonus || 0;
-            mods.defBonus += bonus.defBonus || 0;
-          }
-        }
-      };
-      applyTerrainBonus(atkMods, attacker, atkTerrain);
-      applyTerrainBonus(defMods, defender, defTerrain);
-    }
+    // Blessings (act Hit, Keen Eye, Hold the Line): one shared rule for scene and harness.
+    applyBlessingCombatMods(atkMods, defMods, {
+      profile: this.runManager?.getBlessingCombatProfile?.() ?? null,
+      attacker,
+      defender,
+      atkTerrain,
+      defTerrain,
+      turn: this.turnManager?.turnNumber,
+      alliesOf: getAllies,
+    });
 
     return {
       atkMods,
@@ -2047,6 +2046,7 @@ export class HeadlessBattle {
       playerUnits: this.playerUnits,
       battleRecruits: this._battleRecruits,
       runManager: this.runManager,
+      turn: this.turnManager?.turnNumber,
     });
     if (!joined) throw new Error(`Invalid Talk recruit: ${npc?.name || 'missing target'}`);
     this._battleRecruits = joined.battleRecruits;

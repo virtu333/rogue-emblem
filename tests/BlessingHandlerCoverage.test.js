@@ -10,6 +10,7 @@
 //   2. a price's effect type has no handler (the price is never paid);
 //   3. a boon's params are malformed, so its handler records `invalid_*_params` and skips: the
 //      card ships doing nothing (legitimate context skips such as `no_commander` stay allowed);
+//   3b. a blessing's own listed `costs` (the v2 shape some cards still carry) has no handler;
 //   4. the check itself is blind (it never sees an unhandled type, a malformed boon, or
 //      applies nothing).
 import { describe, expect, it } from 'vitest';
@@ -52,6 +53,24 @@ describe('every blessing effect has a handler', () => {
     expect(unhandled(rm).map((r) => r.effectType)).toEqual([]);
     expect(invalid(rm).map((r) => `${r.effectType}: ${r.details.reason}`)).toEqual([]);
   });
+
+  it('the effects the walk reaches are not a vacuous list: boons, listed costs and prices alike', () => {
+    const boons = catalog.blessings.flatMap((b) => b.boons || []);
+    const costs = catalog.blessings.flatMap((b) => b.costs || []);
+    const priced = Object.values(catalog.priceCatalog).flatMap((p) => p.effects || []);
+    expect(boons.length + costs.length + priced.length).toBeGreaterThan(40);
+    expect(boons.length).toBeGreaterThan(20);
+    expect(priced.length).toBeGreaterThan(10);
+  });
+
+  it.each(catalog.blessings.filter((b) => (b.costs || []).length > 0).map((b) => [b.id, b]))(
+    '%s: its listed costs apply',
+    (id, blessing) => {
+      const rm = freshRun();
+      for (const effect of blessing.costs) rm._applySingleRunStartBlessingEffect(id, effect);
+      expect(unhandled(rm).map((r) => r.effectType)).toEqual([]);
+    },
+  );
 
   it('the v2 cost pools old saves hold still apply', () => {
     const rm = freshRun();

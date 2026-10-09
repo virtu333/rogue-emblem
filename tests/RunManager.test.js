@@ -3808,14 +3808,16 @@ describe('blessing run-start effect application', () => {
     expect(rm.activeBlessings.length).toBeGreaterThan(0);
   });
 
-  it('all_act_hit_bonus blessing applies to player units in all acts including finalBoss', () => {
+  it('all_act_hit_bonus (kept for saves) applies to player units in all acts including finalBoss', () => {
+    // Keen Eye replaced the blessing that used it; the handler stays for old runs.
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
     rm.startRun();
 
-    rm.activeBlessings = ['steady_hands'];
-    rm._runStartBlessingsApplied = false;
-    rm.applyRunStartBlessingEffects();
+    rm._applySingleRunStartBlessingEffect('legacy', {
+      type: 'all_act_hit_bonus',
+      params: { value: 3 },
+    });
 
     expect(rm.getActHitBonusForUnit({ faction: 'player' })).toBe(3);
     expect(rm.getActHitBonusForUnit({ faction: 'enemy' })).toBe(0);
@@ -3827,7 +3829,52 @@ describe('blessing run-start effect application', () => {
     expect(rm.getActHitBonusForUnit({ faction: 'player' }, 'finalBoss')).toBe(3);
   });
 
-  it('gold_delta blessing grants starting gold for coin_of_fate', () => {
+  it('Keen Eye (steady_hands) gives +10 first-strike Hit and no flat Hit', () => {
+    const rm = new RunManager(loadGameData());
+    rm.startRun();
+    rm.activeBlessings = ['steady_hands'];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+
+    expect(rm.blessingRuntimeModifiers.firstStrikeHitBonus).toBe(10);
+    expect(rm.getActHitBonusForUnit({ faction: 'player' })).toBe(0);
+    expect(rm.getBlessingCombatProfile()).toMatchObject({
+      actHitBonus: 0,
+      firstStrikeHitBonus: 10,
+    });
+    // It follows the run through a save.
+    const restored = RunManager.fromJSON(rm.toJSON(), loadGameData());
+    expect(restored.getBlessingCombatProfile().firstStrikeHitBonus).toBe(10);
+  });
+
+  it('Hold the Line (terrain_mastery) gives +2 DEF and +10 Avoid to a unit holding ground', () => {
+    const rm = new RunManager(loadGameData());
+    rm.startRun();
+    rm.activeBlessings = ['terrain_mastery'];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+
+    expect(rm.getBlessingCombatProfile().stationary).toEqual({ defBonus: 2, avoidBonus: 10 });
+    expect(rm.blessingRuntimeModifiers.terrainCombatBonuses).toBeUndefined();
+    const restored = RunManager.fromJSON(rm.toJSON(), loadGameData());
+    expect(restored.getBlessingCombatProfile().stationary).toEqual({ defBonus: 2, avoidBonus: 10 });
+  });
+
+  it('a save from before Keen Eye and Hold the Line loads with zeroed runtime fields', () => {
+    const rm = new RunManager(loadGameData());
+    rm.startRun();
+    const json = rm.toJSON();
+    delete json.blessingRuntimeModifiers.firstStrikeHitBonus;
+    delete json.blessingRuntimeModifiers.stationaryCombatBonus;
+    const restored = RunManager.fromJSON(json, loadGameData());
+    expect(restored.blessingRuntimeModifiers.firstStrikeHitBonus).toBe(0);
+    expect(restored.blessingRuntimeModifiers.stationaryCombatBonus).toEqual({
+      defBonus: 0,
+      avoidBonus: 0,
+    });
+  });
+
+  it('gold_delta grants Advance Pay 500 gold at once and nothing more until an act turns', () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
     rm.startRun();
@@ -3836,7 +3883,7 @@ describe('blessing run-start effect application', () => {
     rm.activeBlessings = ['coin_of_fate'];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
-    expect(rm.gold).toBe(baseGold + 750);
+    expect(rm.gold).toBe(baseGold + 500);
     expect(rm.getBattleGoldMultiplier()).toBe(baseMultiplier);
   });
 
@@ -3992,9 +4039,10 @@ describe('blessing run-start effect application', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
 
-    rm.activeBlessings = ['pilgrim_coin'];
-    rm._runStartBlessingsApplied = false;
-    rm.applyRunStartBlessingEffects();
+    rm._applySingleRunStartBlessingEffect('synthetic', {
+      type: 'shop_item_count_delta',
+      params: { value: 1 },
+    });
 
     expect(rm.getShopItemCountDelta()).toBe(1);
   });
@@ -4004,12 +4052,13 @@ describe('blessing run-start effect application', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
 
-    rm.activeBlessings = ['pilgrim_coin'];
-    rm._runStartBlessingsApplied = false;
-    rm.applyRunStartBlessingEffects();
+    rm._applySingleRunStartBlessingEffect('synthetic', {
+      type: 'shop_price_discount',
+      params: { value: 0.15 },
+    });
 
     expect(rm.getShopPriceDiscount()).toBeCloseTo(0.15);
-    expect(rm.getShopItemCountDelta()).toBe(1);
+    expect(rm.getShopItemCountDelta()).toBe(0);
   });
 
   it('healing_effectiveness_delta blessing sets healingEffectivenessMultiplier (T1)', () => {

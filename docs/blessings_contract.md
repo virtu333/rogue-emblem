@@ -68,13 +68,32 @@
 4. Save additions are additive and must not mutate unrelated fields.
 5. Missing blessing fields in old saves must default safely to empty values.
 6. Unknown blessing IDs in loaded saves must be preserved as inert entries and logged.
+7. Run save payload carries `blessingBoonRevision` (an integer, `BLESSING_BOON_REVISION` in
+   `src/engine/BlessingBoonMigration.js`). A run saved at an older revision (or none) holds
+   its blessings' effects in the OLD form inside `blessingRuntimeModifiers`; see section 8.
 
 ## 8. Save Migration Rules
-1. Migration is executed during `RunManager.fromJSON` before any blessing-dependent relink or runtime restoration steps.
+1. Migration is executed during `RunManager.fromJSON` before any blessing-dependent relink or runtime restoration steps. The one exception is the blessing boon migration (rule 6), which runs LAST in `fromJSON` (also before the early return for a rejected battle checkpoint), because it reads the finished map, Eclipse and roster; its ordering is stated there.
 2. Saves without blessing fields are migrated by adding defaults.
 3. Saves with legacy blessing key names are normalized to contract keys.
 4. Migration must be idempotent.
 5. Migration must not alter deterministic seed state.
+6. Blessing boon revisions: handlers never re-run on load, so a boon whose effect changed
+   is converted in the saved runtime modifiers instead. `RunManager.fromJSON` runs
+   `migrateHeldBlessingBoons` once for a save below `BLESSING_BOON_REVISION`, as the LAST
+   step of the load (every other step has settled the map, the Eclipse and the roster; a
+   rejected battle checkpoint is migrated before its early return), reading the loaded
+   `activeBlessings` and `blessingHistory`: the old handlers' records say exactly what they
+   added (positive `appliedValue` for a boon, negative for a price; the figures changed over
+   the game's life, so a rule falls back to its frozen constant only for a blessing with no
+   records at all). Pilgrim Coin also stamps its extra shop on the current map, ahead of the
+   party, because the blessing is taken away at once. It then stamps the current
+   revision. `startRun` and `startPrologue` stamp it too, so a new run is never migrated; the
+   prologue is never migrated. Any held entry migrates, whether taken at the shrine, a church
+   or an event. Revision 1 converts Steady Hands, Frugal Smith, Terrain Mastery, Pilgrim Coin,
+   Coin of Fate and Quartermaster Cache (docs/specs/blessings-v3.md, "As built"). A new
+   revision adds a rule to that module and bumps the constant; figures in a rule are frozen at
+   its revision.
 
 ## 9. Replay Metadata Contract
 1. Replay metadata is additive and optional.
