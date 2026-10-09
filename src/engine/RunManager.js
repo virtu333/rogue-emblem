@@ -5116,12 +5116,12 @@ export class RunManager {
         caravanChanceBonus: this.metaEffects?.caravanChanceBonus || 0,
       }),
     );
+    // Pilgrim's Road: the new map gains its extra shop before anything else reads it.
+    this._stampExtraShops();
     // The finished act's locked maps go with its route map: nothing reads a node that is
     // no longer on the map (pruneLockedBattleConfigs), and no node of the new map has been
     // entered, so none of it is locked yet. Saved by the same write as the act advance.
     this.battleConfigsByNodeId = {};
-    // Pilgrim's Road: the new map gains its extra shop before anything else reads it.
-    this._stampExtraShops();
     this.shopStateByNodeId = {};
     this.ruinsChoiceByNodeId = {};
     this.churchVowByNodeId = {};
