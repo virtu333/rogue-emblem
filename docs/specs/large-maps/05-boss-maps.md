@@ -1,22 +1,28 @@
 # Large maps 05: boss maps
 
-Status: proposal, revision 1 (2026-10-09). Specs only: no game code or data changes.
+Status: proposal, revision 1 (2026-10-09), fact-checked against the code. Specs only: no
+game code or data changes.
 Branch `claude/large-maps-specs`. Part of the large-maps set ([README](README.md)); this
 spec owns roadmap **Phase 5** (boss set pieces) and a new strand the owner asked for:
 **enhancing today's boss maps** rather than replacing them. It writes `02`'s groups and
 triggers, `03`'s phases and bonuses and `04`'s set-piece format; it defines no rule those
-specs own, and it adds two trigger kinds and one engine module of its own (§5, §10).
+specs own. It adds two trigger kinds (§4.3), two engine modules (`engine/BossKit.js` at
+generation, `engine/BossSignature.js` in play, §10.3) and a short list of extensions to
+`02`–`04`'s vocabularies, each listed under "Notes for the README" so the owning spec can
+take it in.
 
-The owner's decisions this spec takes as given:
+The owner's decisions this spec takes as given (README §6):
 - set pieces appear at most once per act on ordinary nodes, plus a chance on elite nodes;
-- **First Light gets no set pieces**;
-- a bonus objective **may** pay a Vision charge;
+- **First Light gets no set pieces**; it may still get the boss enhancements that are not
+  set pieces (§9.5 says exactly which);
+- a bonus objective **may** pay a Vision charge: Act III+, at most once per act (`03` §7.4);
 - boss maps are **enhanced, not replaced**: "I'm sure there's ways for us to sort of
-  expand them in terms of creative possibilities."
+  expand them in terms of creative possibilities." The hybrid arenas stay in the pool.
 
-So this spec has two halves. The first (§4–§6) makes every boss fight in the game richer on
-the map it already plays on, First Light included. The second (§7–§8) adds boss set pieces
-to the Act III, Act IV and finale pools beside today's arenas, on Dusk and up.
+So this spec has two halves. The first (§4–§7) makes every boss fight in the game richer on
+the map it already plays on, First Light included under §9.5's rules. The second (§8) adds
+boss set pieces to the Act III, Act IV and finale pools beside today's arenas, on Dusk and
+up, never on First Light.
 
 ## 1. Where we are
 
@@ -25,9 +31,11 @@ Line numbers are from 2026-10-09 and drift. "BS" is `src/scenes/BattleScene.js`,
 
 ### 1.1 The bosses
 
-`data/enemies.json` `bosses` (`:176-272`): nine act bosses, the Emperor and two finales.
-Each is a class, a level, a name, an epithet and a lore line; nothing else. A boss has no
-kit: no signature skill, no scripted behaviour, no phases of its own.
+`data/enemies.json` `bosses` (`:176-272`): eleven bosses, namely eight act bosses
+(Acts I–III), the Emperor (Act IV) and two finales. Each is a class, a level, a name, an
+epithet and a lore line (the two finales also carry `difficultyFilter`, the Entity
+`isEntity`); nothing else. A boss has no kit: no signature skill, no scripted behaviour, no
+phases of its own.
 
 | Act | Boss | Class, level | Stones (First Light / Dusk / Nightfall / Black Sun) | Theme, enrage layer, card cue |
 |---|---|---|---|---|
@@ -35,39 +43,48 @@ kit: no signature skill, no scripted behaviour, no phases of its own.
 | II | Knight Commander, Archmage, Dark Rider | Paladin 12, Sage 12, Dark Knight 12 | 0 / 0 / 1 / 1 | `music_boss_act2` |
 | III | Blade Lord, Iron Wall, Berserker King | Swordmaster 17, General 17, Berserker 17 | 0 / 0 / 1 / 1 | `music_boss_act3` (the Lieutenant's sign appears) |
 | IV | The Emperor | General 20 | — / 1 / 1 / 2 (`emperor`) | `music_boss_emperor` |
-| finale | The Lieutenant (First Light, Dusk by filter; Dusk never reaches it) | Hero 20 | 0 | `music_boss_lieutenant`, `boss_lieutenant_card` |
-| finale | The Entity (Nightfall, Black Sun) | Entity 20, 3x3, MOV 0 | never (`RevivalStones.js:40`) | `music_boss_entity` → the finale (§1.4) |
+| finale | The Lieutenant (`difficultyFilter: normal, dusk`; Dusk's run ends at the Emperor, so only First Light meets him) | Hero 20 | 0 (`lieutenant`, every rung) | `music_boss_lieutenant`, `boss_lieutenant_card` |
+| finale | The Entity (Nightfall, Black Sun) | Entity 20, 3x3, MOV 0 | never (`RevivalStones.js:38`) | `music_boss_entity` → the finale (§1.3 item 8) |
 
 Stones per rung: `difficulty.json` `revivalStones`; First Light all 0. Boss level: the
 definition's level plus the rung's `bossLevelBonus` (0 / 2 / 3 / 4), never `enemyLevelBonus`
-(MG:2000-2003). Every boss stat is raised by `BOSS_STAT_BONUS` 2 at creation (BS:2617,
+(MG:2002-2005). Every boss stat is raised by `BOSS_STAT_BONUS` 2 at creation (BS:2613-2619,
 `constants.js:146`). Combat skills come from `assignEnemySkills` like any enemy
-(`UnitManager.js:481-493`, by act chance and level). Elite captains (`enemies.elites`,
-`:273-303`) hold mid-act seize thrones as `isBoss` with `eliteCaptain` stones (Black Sun 1)
-but `scene.isBoss` false: no card, no recruit.
+(`UnitManager.js:469-500`, by act chance and level). Act bosses roll no affixes
+(`assignRolledAffixes` skips every `isBoss` spawn, `AffixEngine.js:262`); the Entity takes two
+curated ones (`affixes.json` `config.bossAffixRules`, `AffixEngine.js:240-261`). Elite captains
+(`enemies.elites`, `:273-303`) hold mid-act seize thrones as `isBoss` with `eliteCaptain`
+stones (Black Sun 1) but `scene.isBoss` false: no card, no recruit.
 
 ### 1.2 How a boss map is made
 
 - A boss node is a seize battle: `buildBattleParams` writes `{ objective: 'seize' }`
-  (`NodeMapGenerator.js:533`); `pickTemplateForNode` draws from the act's whole seize pool
-  and only *permits* `bossOnly` templates on boss nodes (appendix §5). The seize pool is
-  `castle_assault`, `hilltop_fortress`, `great_hall` (castle, Act II+), `glacier_fortress`
-  and `eruption_point` (Act IV), plus the two `bossOnly` hybrid arenas:
-  `act3_dark_champion_keep` (castle) and `act4_boss_intent_bastion` (tundra). By the
-  appendix's reading the keep lands on about 27% of Act III boss maps and the bastion on
-  about 17% of Act IV's. **Acts I and II have no boss arena at all.** The finale always
-  plays `eldritch_sanctum` (`fixedSize [16,14]`, `entitySpawn [11,5]`, three absolute
-  waves at T4 / T7 / T10).
+  (`NodeMapGenerator.js:516-523`); `pickTemplateForNode` (`:614-647`) filters the act's
+  seize pool by the node's rolled biome (`ACT_BIOME_WEIGHTS`, `constants.js:453`) and only
+  *permits* `bossOnly` templates on boss nodes (appendix §5). The seize pool is
+  `castle_assault`, `hilltop_fortress` (no biome: grassland), `great_hall` (castle,
+  Act II+), `glacier_fortress` (tundra) and `eruption_point` (volcano, both Act IV), plus the
+  two `bossOnly` hybrid arenas: `act3_dark_champion_keep` (castle) and
+  `act4_boss_intent_bastion` (tundra). By the appendix's reading the keep lands on about 27%
+  of Act III boss maps and the bastion on about 17% of Act IV's. **Acts I and II have no
+  boss arena at all.** The finale (`finalBoss`) always plays `eldritch_sanctum`, the only
+  template listing that act (`fixedSize [16,14]`, `entitySpawn [11,5]`, no fog, three
+  absolute template waves at T4 / T7 / T10 with `difficultyScaling: false`), for the
+  Lieutenant on First Light as for the Entity.
 - `generateEnemies` draws the boss with `Math.random` on the battle stream and seats it on
-  the throne (MG:1992-2075); the Entity is stamped at `entitySpawn` with Floor under its
-  footprint and the Throne restored (MG:2011-2050). Stones are written on the spawn
-  (`revivalStoneKind` → `spawn.revivalStones`, MG:2004-2008) so a locked map keeps them.
+  the throne (MG:1992-2077); the Entity is stamped at `entitySpawn` with Floor under its
+  footprint and the Throne restored under it (MG:2012-2051). Stones are computed by
+  `revivalStoneKind` (MG:2006-2009) and written on the spawn (`spawn.revivalStones`, :2074)
+  so a locked map keeps them; `EnemySpawnGear.applyEnemySpawnGear` → `applyRevivalStones`
+  puts them on the unit in the scene and the harness alike.
 - A Sworn Enemy gives the boss one tier-1 affix on its own seeded stream
-  (`AffixEngine.assignSwornAffix` `:128-151`; `RunManager.js:3683-3685`); the Entity takes
-  none.
-- The hybrid arenas stamp a 4x3 block at an absolute origin, raise walls at absolute turns
-  (T2/T5 and T3/T6) and spawn scripted waves on the same tiles: the confirmed wall-on-wave
-  bug of `02` §2.2, fixed by `02` PR 0b and `engine/TerrainPhases.js`.
+  (`AffixEngine.assignSwornAffix` `:128-152`; `RunManager.js:3683-3685`); the Entity takes
+  none (it keeps its two curated affixes).
+- The hybrid arenas stamp a 4x3 block of Plain/Floor and one Fort at an absolute origin near
+  the top centre (`arenaOrigin [7,0]` / `[6,0]`), raise walls at absolute turns (T2/T5 and
+  T3/T6) and spawn scripted waves on the same tiles: the confirmed wall-on-wave bug of `02`
+  §2.2, which `02` PR 0b fixes with `engine/TerrainPhases.js` (proposed; not in the code
+  yet).
 
 ### 1.3 What a boss battle does today
 
@@ -77,12 +94,16 @@ but `scene.isBoss` false: no card, no recruit.
    `bossCardContent`, `ceremonyContent.js:113-126`; the Entity's card is `· · ·` in
    silence).
 2. **Lines.** `preBattle` plus the commander's `preBattleReply`, once per boss name
-   (BS:2262-2280, `BattleBeatsController.getBossPreBattleEntries` `:76-86`); in an Act III
+   (BS:2262-2280, `BattleBeatsController.getBossPreBattleEntries` `:79-93`); in an Act III
    boss battle on a road that never fights him, the Lieutenant's `vision`
-   (`:92-100`). One `halfHealth` line the first time the boss drops strictly below half, or
-   when a bar breaks (`checkBossHalfHealth` `:106-146`, awaited after deaths are applied).
-   `defeat` lines after the fall. Every boss in `dialogue.json` `bossEncounters` has all
-   four sections; the Lieutenant also has `vision`.
+   (`getLieutenantVisionEntries` `:94-105`). One `halfHealth` line the first time the
+   living boss stands strictly below half (`currentHP * 2 < maxHP`), or once a bar has
+   broken (`checkBossHalfHealth` `:107-148`, awaited after deaths are applied; a boss killed
+   outright from above half never speaks), once per run (`hasShownDialogue`). `defeat` lines
+   after the fall. Every boss in `enemies.json` `bosses` has all four sections in
+   `dialogue.json` `bossEncounters` (`halfHealth` as `{ base, variants }`, variants keyed by
+   `NarrativeDirector`'s `when` keys such as `bossKilledYouBefore` / `bossSlainBefore`); the
+   Lieutenant also has `vision`.
 3. **The bar.** A gilt reliquary bar at the boss's feet with a gold "just lost" chunk, a
    gem per stone, the ember frame when enraged, and a one-line reading for the rail and the
    desktop plate ("Warchief · 26/26 HP · Stones 1/1 · Enrages on turn 12";
@@ -90,34 +111,47 @@ but `scene.isBoss` false: no card, no recruit.
 4. **Stones.** `UnitHealth.absorbLethal` refills the bar once per stone and ends the
    exchange (`RevivalStones.js:1-16`); `RevivalStoneController` plays the refill and the
    `sealed` cue; only the last bar counts as a kill.
-5. **Enrage.** `TurnPressure.advanceTurnPressure` (`:93-108`) sets `turnEnrageActive` from
-   turn `min(12, par + 2)` (`TurnBonusCalculator.getBossEnrageTurn` `:180-195`); `02` PR 0a
-   adds the `par + 1` floor. It is a battle-wide switch: `aggressiveMode` releases the throne
-   clamp and every guard, wakes every holder, the boss gets a flame aura, the banner says
-   "The boss is enraged!" and the music crossfades to the boss's enrage layer
-   (BS:3005-3031, `BattleMusicController.onBossEnrage` `:174-182`).
-6. **The clamp.** A seize boss keeps to tiles within 1 of the throne until enrage
-   (`AIController.js:341-353`, `boss_hold_throne` `:649`). The player must come to it.
+5. **Enrage.** `TurnPressure.advanceTurnPressure` (`:78-110`) sets `turnEnrageActive` from
+   turn `min(12, par + 2)` (`TurnBonusCalculator.getBossEnrageTurn` `:180-195`) while a boss
+   lives; `02` PR 0a adds the `par + 1` floor. It is a battle-wide switch: `aggressiveMode`
+   (also raised by the anti-turtle clock) releases the throne clamp and every guard, enrage
+   wakes every holder, the boss gets a flame aura, the banner says "The boss is enraged!"
+   and the music crossfades to the boss's enrage layer (BS:3006-3031,
+   `BattleMusicController.onBossEnrage` `:167-174`).
+6. **The clamp.** A seize boss keeps to tiles within 1 of the throne until `aggressiveMode`
+   (`AIController.js:340-353`, `boss_hold_throne` `:649`); a clamped boss with no reachable
+   tile near the throne stays where it is. The player must come to it.
 7. **The fall.** `FOE VANQUISHED` (BS:9332, `_showBossDefeatedBanner` `:10917-10929`),
-   `guide_objective_changed` points at the throne, the Seize command ends the battle
-   (BS:6347-6364). The Entity's fall ends the run instead.
+   `guide_objective_changed` points at the throne, and a Lord's Seize on the throne, with no
+   living `isBoss`, ends the battle (BS:6349-6364). The finale is a seize map too: the
+   Throne lies under the Entity's footprint (restored at MG:2035-2039), so its fall is
+   followed by a Seize, and that victory ends the run (won).
 8. **The Entity** (`EntitySystem.js`; AI `_decideEntityAction` `AIController.js:209-239`):
-   stationary, strikes within 2 of its footprint with the better of two range 1–4 weapons
-   (Eldritch Grasp, Twisting Vortex: `weapons.json:2123-2149`), then splashes 0–2
-   neighbours of its target for 5–10 (`_applyEntitySplash` BS:10814-10845,
-   `ENTITY_SPLASH_*` `constants.js:472-474`). Its first wound cuts the theme, two seconds
-   of silence, the `entity_answer` violin, and `music_boss_entity_finale` starts on the
-   cue's `handoff` downbeat with the `_hum` stem following its HP
-   (`BattleMusicController.js:205-300`; `SCORE.md:25-62`). The army answers one line every
-   two bars (`BattleBeatsController.entityRally` `:153-200`, `FinaleRally.js`).
+   stationary, strikes within 2 of its footprint (`ENTITY_PRIMARY_ATTACK_RANGE`) with the
+   better of two range 1–4 weapons (Eldritch Grasp, Twisting Vortex:
+   `weapons.json:2123-2149`), then splashes 0–2 orthogonal neighbours of its target for
+   5–10 (`_applyEntitySplash` BS:10814-10850, `rollSplashTiles` / `rollSplashDamage` on the
+   battle stream, `ENTITY_SPLASH_COUNT` 2 and `ENTITY_SPLASH_DAMAGE` `[5, 10]`,
+   `constants.js:472-473`). **The splash lives only in the scene:** `HeadlessBattle` never
+   splashes, a parity gap K6 closes (§10.3). Its first wound cuts the theme, two seconds of
+   silence, the `entity_answer` violin, and `music_boss_entity_finale` starts on the cue's
+   `handoff` downbeat with the `_hum` stem's gain following its HP
+   (`entityHumGain(ratio)`, `BattleMusicController.js:43`, applied through
+   `audio.setMusicLayerGain('hum', …)` at `:216`; the finale `:209-290`; `SCORE.md:25-62`).
+   The army answers one line every two bars (`BattleBeatsController.entityRally`
+   `:151-193`, `FinaleRally.js`).
 
 ### 1.4 After the fight
 
 `RunManager.completeBattle` on a boss node: the Sworn Enemy ends (`Burdens.js:343-344`,
-`RunManager.js:4206-4215`), the Eclipse flares `−bossRelief` (3, `eclipse.json`), **+1
-Vision charge** on every act boss (`RunManager.js:4318-4328`), `GOLD_BOSS_BONUS` 300 on the
-kill (`constants.js:210`), the `bossbane` deed (`deeds.json:98-106`), then the boss recruit
-draft (`BossRecruitSystem.js`), the third lord, the loot screen and `advanceAct`.
+`RunManager.js:4206-4215`), the Eclipse relieves `bossRelief` shadow (3, `eclipse.json`;
+`RunManager.js:4388`), **+1 Vision charge** on the act boss of Acts I–IV, never the finale
+(`visionChargesRemaining + 1`, `RunManager.js:4316-4328`); the kill pays `GOLD_BOSS_BONUS`
+300 on top of kill gold (`LootSystem.js:74`, any `isBoss`, so elite captains too); the
+`bossbane` deed (`deeds.json:97-107`); then the boss recruit draft (`BossRecruitSystem.js`),
+the third lord, the loot screen and `advanceAct`. After the finale the run ends: its
+currencies are `calculateCurrencies(actIndex, completedBattles, isVictory, multiplier)`
+(`MetaProgressionManager.js:1730-1743`), which never reads gold.
 
 ### 1.5 What is thin
 
@@ -134,6 +168,10 @@ draft (`BossRecruitSystem.js`), the third lord, the loot screen and `advanceAct`
   music is the only second act. The sanctum's three waves are absolute turns.
 - **First Light** meets the enrage cap on every boss map (`02` §1.5) and, with no stones,
   gets the plainest fights of all on the rung most players play.
+- **Two parity gaps** this spec's PRs must close because kits lean on them: the Entity's
+  splash (scene only, item 8) and the `haste` affix's MOV, which `BattleScene.addEnemyFromSpawn`
+  applies at spawn (`getAffixMovBonus`, BS:2604-2611) and `HeadlessBattle._addEnemyFromSpawn`
+  does not (it copies `affixes` only, `HeadlessBattle.js:931-933`).
 
 ## 2. Goals and non-goals
 
@@ -143,9 +181,11 @@ draft (`BossRecruitSystem.js`), the third lord, the loot screen and `advanceAct`
   boss's map whatever that map is: today's procedural seize template, a hybrid arena, or a
   set piece.
 - Today's boss maps get **arena variants** and the acts with no arena get one.
-- Boss maps get **bonus objectives**, and they are where a bonus may pay Vision.
-- Two boss set pieces (`04`'s Long Road and Parade, refined here) plus three more join the
-  Act III, Act IV and finale pools beside today's arenas, on Dusk and up.
+- Boss maps get **bonus objectives**, and they are where this spec offers Vision (`03`
+  §7.4's rule; §6).
+- `04`'s two boss set pieces (Long Road and the Parade, refined here), two new ones (the
+  Dueling Halls, the Battery) and `04`'s finale variant (Sanctum of Echoes, refined) join
+  the Act III, Act IV and finale pools beside today's arenas, on Dusk and up.
 - The finale deepens without touching the hinge, the rally or the hum's contract.
 - Every rule is a pure module called by `BattleScene` and `HeadlessBattle` alike; every
   mid-battle change rides the checkpoint, the Vision snapshot and the validator.
@@ -153,8 +193,9 @@ draft (`BossRecruitSystem.js`), the third lord, the loot screen and `advanceAct`
 **Non-goals.**
 - No boss stat rebalance, no new classes, no new weapons beyond a kit's authored loadout.
 - No new run-ending defeat. A boss's signature can fell a unit; it can never end a run on
-  its own.
-- No replacement of the v1 hybrid arenas (`04` §7: they stay, with Phase 0's fix).
+  its own: no signature ever takes the commander below 1 HP (§5.2).
+- No replacement or migration of the v1 hybrid arenas (`04` §7: they stay v1, with Phase 0's
+  fix; their authored overrides and waves are untouched, §4.4).
 - No set piece on First Light; no Act I or Act II boss set piece in this revision (§13 Q6).
 - The prologue's Varro is untouched (`isScriptedBattle`).
 
@@ -174,8 +215,9 @@ draft (`BossRecruitSystem.js`), the third lord, the loot screen and `advanceAct`
    siege tomes, forced moves, terrain sets and triggered waves are the vocabulary. A
    signature that needs a new combat rule is a later revision.
 5. **First Light gets the kit, not the set piece.** The intro rung meets phases, courts and
-   tells on its own boss maps with gentler numbers (`byRung`), so a player who climbs to
-   Dusk already knows what a boss can do.
+   tells on its own boss maps, on today's map formats only, with gentler numbers
+   (`byRung.normal`) and no sleeping groups (§9.5), so a player who climbs to Dusk already
+   knows what a boss can do.
 6. **Enrage is still the clock.** No phase delays enrage, and enrage is the implicit last
    phase of every kit: everything wakes, the boss leaves the throne. A kit adds acts before
    it; it never moves it.
@@ -188,46 +230,66 @@ draft (`BossRecruitSystem.js`), the third lord, the loot screen and `advanceAct`
 `ceremonyContent.findBossDefinition`). A kit is authored in the vocabulary of `02`, `03`
 and `04` and **compiled at generation** into the ordinary config fields those specs define,
 plus one small field of its own for the signature. The runtime therefore has one phase
-machine (`03` §6), one trigger evaluator (`02` §3.4) and one terrain module; this spec adds
-two trigger kinds (§4.3) and the signature module (§5).
+machine (`03` §6), one trigger evaluator (`02` §3.4) and one terrain module
+(`TerrainPhases`); this spec adds two trigger kinds (§4.3) and the signature module (§5).
 
 ```jsonc
 "bossKits": {
   "Archmage": {
     "version": 1,
-    "signature": { "kind": "volley", "name": "The Calculation", "cadence": { "afterContact": 1, "every": 3, "latest": { "parOffset": -4 } },
-                   "tiles": 3, "weapon": "Bolting", "byRung": { "normal": { "lethal": false }, "dusk": { "lethal": false } } },
+    "signature": { "kind": "volley", "name": "The Calculation",
+                   "cadence": { "afterContact": 1, "every": 3, "latest": { "parOffset": -4 } },
+                   "tiles": 3, "weapon": "Breachbolt",
+                   "byRung": { "normal": { "lethal": false }, "dusk": { "lethal": false } } },
     "court": [
-      { "id": "circle", "pick": "nearestThrone", "share": 0.4, "state": "dormant", "wake": [{ "kind": "danger" }, { "kind": "hurt" }],
-        "onWake": { "mode": "guard", "anchor": "throne" } },
+      { "id": "circle", "pick": "nearestThrone", "share": 0.4, "state": "dormant",
+        "wake": [{ "kind": "danger" }, { "kind": "hurt" }],
+        "onWake": { "mode": "guard", "anchor": "court" } },
       { "id": "field", "pick": "rest", "state": "awake" }
     ],
     "phases": [
-      { "id": "reading", "until": { "kind": "bossBar", "broken": 1, "fallback": { "kind": "bossHp", "below": 0.5 } }, "line": "boss.archmage.half" },
-      { "id": "corrected", "onEnter": { "signature": { "cadence": { "every": 2 } }, "court": { "circle": { "mode": "artillery" } }, "affix": null,
-                                      "band": "boss.archmage.corrected", "music": "card" } }
+      { "id": "reading",
+        "until": { "kind": "bossBar", "broken": 1, "fallback": { "kind": "bossHp", "below": 0.5 } } },
+      { "id": "corrected",
+        "onEnter": { "signature": { "cadence": { "every": 2 } },
+                     "court": { "circle": { "mode": "guard", "anchor": "court", "guardRadius": 2 } },
+                     "line": "boss.archmage.corrected", "music": "card" } }
     ],
-    "bonus": [{ "id": "pages", "kind": "reach", "anchor": "lectern", "deadline": { "signatureCount": 2 }, "reward": "act" }],
-    "anchors": { "lectern": { "derive": "courtRing", "radius": 2, "pick": "farFromDeploy" } },
-    "arena": { "variants": ["archmage_study_n", "archmage_study_s"] }
+    "bonus": [{ "id": "pages", "kind": "reach", "anchor": "lectern", "deadline": { "signatureCount": 2 } }],
+    "anchors": { "lectern": { "derive": "courtRing", "radius": 2, "terrain": "Fort", "pick": "farFromDeploy" } },
+    "arena": { "variants": ["doctrine_yard_n", "doctrine_yard_s"] }
   }
 }
 ```
+
+(`reward` omitted: the bonus takes its kind's default from `objectives.json` `bonusRewards`
+by act, locked at generation, `03` §7.4. On First Light the compiler turns the `dormant`
+circle into an awake guard, §9.5.)
 
 Fields:
 
 | field | meaning | compiled into |
 |---|---|---|
 | `signature` | the boss's one telegraphed action (§5): `kind`, `name`, `cadence`, kind-specific fields, `byRung` | `battleConfig.bossSignature` (resolved per rung, locked) |
-| `court[]` | the boss's guard as `02` groups. `pick` partitions the map's non-boss spawns with **no draw**: `nearestThrone` (the `share` nearest the throne by path), `flank:<side>`, `rest`; a set piece names `region` instead | `battleConfig.encounterGroups` (`02` §3.2), members' `aiMode`/`holdPack` written as `02` §3.6 |
-| `phases[]` | `03` phases with the same primary (seize), `until` a trigger (this spec's `bossBar` / `bossHp`, or any README kind), `onEnter` effects: `court` orders (`02` §3.7 `onWake` shapes, applied to a named group whatever its state), `signature` patches, `affix` (§5.3), `setTiles`, `wave`, `band`, `music` | `battleConfig.objectives.phases` with `objectives.primary` the derived seize (`03` §3.2; written because phases say more than the derivation, `04` §3.7) |
-| `bonus[]` | at most one from a kit; `03` §7 kinds; `deadline` may count signatures (§6) | `objectives.bonus` |
+| `court[]` | the boss's guard as `02` groups. `pick` partitions the map's non-boss spawns with **no draw**: `nearestThrone` (the `share` nearest the throne by path), `flank:<side>`, `moveType:<type>` (with `count`), `rest`; ties by spawn index. A set piece names `region` instead | `battleConfig.encounterGroups` (`02` §3.2), members' `aiMode`/`holdPack` written as `02` §3.6 |
+| `phases[]` | `03` phases that all keep the same primary (the seize; §4.5), `until` a trigger (this spec's `bossBar` / `bossHp`, or any README kind) or a list of triggers (any one fires), `onEnter` effects: `03`'s own `setTiles`, `wake` and `line` (the band's text key), plus this spec's `court` orders (§5.2 `court_order`), `signature` patches, `affix` (§5.3), `wave` (a `triggeredWaves` id to fire), `bossLine` (a spoken line key) and `music` (§7.6) | `battleConfig.objectives.phases`, with `objectives.primary` the seize `03` §3.2 would derive (written because phases say more than the derivation, `04` §3.7) |
+| `bonus[]` | at most one from a kit; `03` §7.1 kinds; `deadline` may count signatures (§6) | `objectives.bonus` |
 | `anchors` | derived points on a procedural map (§4.2) or chunk anchors on a set piece | `battleConfig.anchors` |
-| `arena.variants` | arena blocks for the boss's `bossOnly` template (§4.4) | the template's hybrid overlay |
+| `arena.variants` | arena variant ids of the boss's act `bossOnly` template (§4.4); the kit prefers them when the template has several | the template's hybrid overlay |
+| `byRung` | per-rung patches to any of the above, from the rung up (`04` §3.4's rule); `normal` carries §9.5's First Light values | resolved at compile |
 
 Everything compiled is **locked with the config** (README §3); a resume reads the config,
 never the kit. A locked map from before kits plays exactly as today (no `bossSignature`, no
 phases, no groups: every reader has that branch already).
+
+**Par.** A kit writes `objectives`, so its config takes `02` §5.2's `groups-v1` ("Which
+model": every config with written `objectives`), with W from the derived seize `parRoute`
+(`03` §5.9), S counting the court's sleeping groups that touch the route, and `parAdjust`
+holding only `03`'s boss bars (one turn per stone). The kit adds no par term of its own:
+phases with a `bossBar` / `bossHp` `until` contribute nothing (only `survive` does, `03`
+§5.10), and bonuses never touch par. So a kit map's par moves only by `groups-v1`'s
+calibration against today's `calculatePar` (`02` §5.2: First Light within ±1 on maps
+without pods), which §11's sims check per boss.
 
 ### 4.2 Courts and anchors on a procedural boss map
 
@@ -245,7 +307,10 @@ A court `pick: 'nearestThrone'` takes the `share` nearest non-boss spawns by tha
 Dusk+ hold packs (`assignHolders`) are folded in: a holder inside the pick keeps its hold
 fields and the group is `dormant` (`02` §3.6's adapter already derives `hold:<pack>`
 groups; a kit's named court replaces the pack id for those members, validated to agree).
-With no kit the map is untouched.
+A pick that finds too few members (an Act II pool that rolled no cavalry for a
+`moveType:Cavalry` wedge) takes the nearest remaining spawns, and a named member a bonus
+needs (a court captain, §6) is the pick's highest-level member, ties by spawn index; with
+no member at all the bonus is not written. With no kit the map is untouched.
 
 Set pieces resolve the same anchor names from chunks (`04` §3.2), so a kit written against
 `throne`, `court`, `gate` plays on both.
@@ -257,76 +322,122 @@ happen, read at the next check, `≥` comparisons, fired once.
 
 | kind | fires when | default `delay` | as the player sees it |
 |---|---|---|---|
-| `bossBar` | `{ broken: n }`: the boss has broken at least `n` stones (`revivalStonesMax − revivalStones ≥ n`). Required `fallback`, another trigger, used **when the boss carries fewer than `n` stones on this rung** (validated), so the phase exists on every rung | 0 | the stone's own beat (`RevivalStoneController`), then the phase band at the check |
-| `bossHp` | `{ below: share }`: the boss's HP on its **current bar** is strictly below `floor(maxHP × share)` at the check. Counts a bar that broke since the last check as having crossed (as `checkBossHalfHealth` does) | 0 | the boss's `halfHealth` line plays at once as today (it is words); the board changes at the check |
+| `bossBar` | `{ broken: n }`: the boss has broken at least `n` stones (`revivalStonesMax − revivalStones ≥ n`); `n` may be `'last'` (= `revivalStonesMax`: the boss is on its last bar). Required `fallback`, a `bossHp` or `turn` trigger (never `bossBar`), used **when the boss carries fewer than `n` stones on this rung, or none for `'last'`** (decided at compile from `spawn.revivalStones`, validated), so the phase exists on every rung | 0 | the stone's own beat (`RevivalStoneController`), then the phase band at the check |
+| `bossHp` | `{ below: share }`: the boss's HP on its **current bar** satisfies `currentHP < maxHP × share` at the check (at 0.5 this is exactly `checkBossHalfHealth`'s `currentHP * 2 < maxHP`, so the line and the trigger agree). Counts a bar that broke since the last check as having crossed, as `checkBossHalfHealth` does | 0 | the boss's `halfHealth` line plays at once as today (it is words); the board changes at the check |
 
-Both may carry `latest` (`parOffset`), as `turn` does, for clocks that answer progress
-(§8's echoes). Position in the check's order: a new slot **2b, `boss`**, right after `hurt`
-and before `tile`, so a phase whose `until` is a bar break resolves in the `phase` slot of
-the same check and its court orders land before the `groupWoken` cascade.
+Both are noted from the boss's state at the check, never from a hidden unit's, and both
+count a fallen boss as true (its bars are spent). Both may carry `latest` (a `parOffset`,
+or the legacy `{ turn: n }` for a converted template wave, §8.1–§8.2), as `turn` does,
+firing at the earlier.
+
+**Position in `02` §3.4's order.** A new slot **2b, `boss`**, right after `hurt` (slot 2)
+and before `tile` (slot 3), evaluates the group wakes and triggered waves that name these
+kinds. A phase whose `until` is one of them is evaluated, like every `until`, in the
+`phase` slot (slot 7, `03`'s `checkPhase`), so its `onEnter` court orders land before the
+`groupWoken` cascade (slot 9). The order with this spec's additions is: 1 enrage, 2 `hurt`,
+**2b `boss`**, 3 `tile`, 4 `danger`, 5 `sight`, 6 `objective`, 7 `phase`, **7b the
+signature** (§5.1), 8 `turn`, 9 `groupWoken`, 10 contact.
 
 Why at the check and not at the blow: `03` §6's rule. The bar breaks in the player's phase;
-the band and the line may play then (`phase_ready`); the court moves, the doors open and the
-signature changes when the enemy phase begins. The player always gets the rest of their
-turn to answer what they just caused.
+the line may play then (it is words, as today); the band, the court's moves, the doors and
+the signature's change wait for the enemy-phase check. The player always gets the rest of
+their turn to answer what they just caused.
 
 ### 4.4 Arenas for every act, and variants for today's
 
-- **Arena variants.** The hybrid v1 contract gains `arenaVariants: [{ id, arenaTiles,
-  anchors, weight }]` on a `bossOnly` template (the existing `hybridArena.arenaTiles` is
-  variant 0). The variant is drawn on `keyedBattleRandom(runSeed, 'boss-arena:<nodeId>')`
-  at node generation and written to `battleParams.arenaVariant`: no node-map or battle
-  stream moves, and an old save without the field plays variant 0 (today's map). Variants
-  are **structural** (pillar 5): the keep's throne room with its doorway north or south;
-  the bastion's firing lane left or right of the throne, its Fort on the near or far
-  side. Phase overrides and scripted waves are authored per variant, and `02` PR 0b's
-  validator (no override on a wave tile) runs on each.
-- **Arenas for Acts I and II** (`bossOnly` v1 templates, data only, after PR 0b):
-  `act1_border_post` (grassland: a palisade with one gate, the throne behind, a Fort at
-  each corner of the yard, two variants) and `act2_doctrine_yard` (a cavalry yard: open
-  ground, a wall line with two gaps, the throne on the far side; the Knight Commander's
-  wedge wants the open ground, the Archmage's circle wants the wall). Both are ordinary v1
-  hybrid templates (approach procedural, arena fixed), validated like the keep.
-- **Arena share.** Boss nodes today draw from the whole seize pool and meet an arena about
-  a fifth of the time. A post-pass after node generation (the `04` §6.2 pattern,
-  `keyedBattleRandom(runSeed, 'boss-arena-share:<nodeId>')`, never the node-map stream)
-  replaces the drawn template with one of the act's `bossOnly` templates at
-  `BOSS_ARENA_SHARE` 0.75 when one fits the biome, else leaves it. A boss set piece (§7)
-  is placed by `04`'s pass first and wins. Old saves keep their `templateId`.
+- **Arena variants.** The hybrid v1 contract gains `arenaVariants: [{ id, weight,
+  arenaOrigin, arenaTiles, anchors, phaseTerrainOverrides, scriptedWaves }]` on a
+  `bossOnly` template (the template's own `hybridArena` block, overrides and waves are
+  variant 0, unchanged). Today's blocks are 4x3 (`[7,0]` / `[6,0]`, §1.2), too small to
+  change a decision, so a variant is a larger authored block. The variant is drawn on
+  `keyedBattleRandom(runSeed, 'boss-arena:<nodeId>')` in the post-pass below and written to
+  `battleParams.arenaVariant`: no node-map or battle stream moves, and an old save without
+  the field plays variant 0 (today's map). Variants are **structural** (pillar 5): the keep's
+  throne court with its doorway north or south; the bastion's firing lane left or right of
+  the throne, its Fort on the near or far side. Overrides and scripted waves are authored
+  per variant and stay v1 (absolute turns, deferred by `02` PR 0b's `TerrainPhases`), and
+  `02` PR 0b's validator (no override on a wave tile) runs on each. Variant 0 keeps today's
+  data exactly, so `04` §7's "migration: none" holds.
+- **Arenas for Acts I and II** (`bossOnly` v1 templates, data only, after PR 0b), both
+  grassland (no `biome`), the only biome Act I rolls (`ACT_BIOME_WEIGHTS.act1`) and the
+  most common in Act II: `act1_border_post` (a palisade with one gate, the throne behind,
+  a Fort at each corner of the yard, two variants; **terrain only: no scripted waves and no
+  phase overrides**, since v1 has no per-rung patch and Act I is every new player's first
+  boss) and `act2_doctrine_yard` (a cavalry yard: open ground, a wall line with two gaps,
+  the throne on the far side; the Knight Commander's wedge wants the open ground, the
+  Archmage's circle wants the wall; at most one scripted wave). Both are ordinary v1
+  hybrid templates (approach procedural, arena fixed), validated like the keep. Once in
+  the data, `pickTemplateForNode`'s ordinary draw may also pick them on an Act I–II boss
+  node: still one `Math.random` over a longer list, so the node-map stream's cursor does not
+  move, but that node's pick can (only boss nodes: `bossOnly` is filtered out elsewhere).
+- **Arena share.** Boss nodes today meet an arena on about 27% of Act III boss maps and 17%
+  of Act IV's, never in Acts I–II. A keyed post-pass after node generation, run right
+  after `04`'s `assignSetPieces` at both `_withNodeMapSeed(generateNodeMap…)` sites
+  (`RunManager.js:718`, `:4466`; never in the prologue), on
+  `keyedBattleRandom(runSeed, 'boss-arena-share:<nodeId>')` and never the node-map stream,
+  replaces the boss node's drawn template with one of the act's `bossOnly` templates whose
+  biome equals the drawn template's (`getTemplateBiome`; absent is grassland), at the
+  rung's `bossKits.arenaShare` (§10.1: First Light 0.5, Dusk and up 0.75), else leaves it.
+  A boss set piece (§8) placed by `04`'s pass first wins. Old saves keep their
+  `templateId` (`fromJSON` never runs the pass).
 
 Set pieces are not needed for any of this. It is the cheapest large change in this spec and
-it reaches First Light (§9.5).
+it reaches First Light (§9.5): the arenas are today's hybrid format, not set pieces.
+
+### 4.5 Phases that keep the primary
+
+Every kit phase carries the same primary (the one seize). `03` §4 as written takes victory
+only in the last phase and offers no Seize for a later phase before its advance, so a boss
+killed and seized in phase 0 (a First Light boss taken from above half to 0 in one
+exchange, before its `bossHp` `until` has fired) would leave the player waiting an enemy
+phase on a won map. `04`'s Long Road drawbridge phase has the same shape. This spec needs,
+and asks `03` to adopt (Notes for the README):
+- **Shared primary wins in any phase.** When the current phase's primaries are the same
+  objectives (same ids) as every later phase's, their completion is victory at once, as in
+  the last phase; the remaining phases never enter.
+- **The band is the kit's.** An advance between phases with the same primary shows the
+  phase's `onEnter.line` band (§7.6), not NEW OBJECTIVE; it raises no `guide_phase_change`,
+  the strip shows no "Next" row, and the history fact is the band's sentence, not "New
+  objective: …" (`02` §3.8).
+- **A fallen boss.** `bossBar` / `bossHp` count a fallen boss as true, so the phase advances
+  at the next check as usual; `onEnter` effects aimed at the boss (an `affix`, `unclamp`)
+  are skipped, court orders still apply, and a pending signature is dropped (§5.1).
 
 ## 5. Signatures
 
 ### 5.1 The module
 
-`engine/BossSignature.js` (pure). It runs in `02`'s check, in a slot **after `phase` and
-before `turn`** (so a phase's `onEnter.signature` patch is read the same check), for the
-living boss that carries `battleConfig.bossSignature`:
+`engine/BossSignature.js` (pure). It runs in `02`'s check, in a slot **7b, after `phase`
+and before `turn`** (§4.3; so a phase's `onEnter.signature` patch is read the same check),
+for the living boss that carries `battleConfig.bossSignature`. Within the slot it first
+resolves what is due, then plans the next:
 
 ```js
-planSignature(world, boss, signature, state, turn)   // → { tell, due } or null: decides at the check of T what resolves at T+1
 resolveSignature(world, boss, signature, state, turn) // → effects applied at the check of T+1 from state.pending, never re-planned
+planSignature(world, boss, signature, state, turn)   // → { tell, due } or null: decides at the check of T what resolves at T+1
 signatureView(state, signature, knowledge)           // → the tell for the board, the strip and the inspect line
 ```
 
 - **State** rides battle state as `bossState.signature: { pending, firedTurns, count,
   marked }` (`captureBattleWorldState`, the Vision snapshot, the validator) from the first
   PR (README §3). A resume shows the same outlined tiles and resolves the same effect; a
-  rewind past the tell forgets it.
+  rewind past the tell forgets it. A boss that falls with a tell pending drops it (no
+  resolve; the history says the tell ended with him).
 - **Cadence** is a `turn` clock in `02`'s sense: `{ afterContact: n, every: k, latest: {
-  parOffset } }`. It counts from contact (the boss answers an attack) with a par-relative
+  parOffset } }`. It counts from contact (`02` §3.4's `contactTurn`) with a par-relative
   `latest` (`02` §2.1: nothing that taxes the turtle is contact-relative without one), so a
-  turtle meets the first signature by `latest` whatever they do.
+  turtle meets the first signature by `latest` whatever they do. `latest` is validated
+  ≤ `parOffset −2`, so the first resolve lands before enrage (≥ par + 1, `02` PR 0a).
 - **Tell first, always.** A signature plans at the check of turn T and resolves at the
-  check of T+1. The player's phase of T+1 sits between. The tell is drawn on the board
-  through `02` §3.8's outline layer (a second dash style and colour, `UI_PALETTE.splash`),
-  named in the strip's boss row ("The Calculation · next enemy phase · 3 tiles") and in
-  the boss's inspect line, and gets a warn band at the check that plans it. `01`'s
-  pointers promote the boss to the first slot while a tell is pending; `01` §2.7 gives a
-  resolving signature its own camera beat (subject: the affected tiles the player can see).
-- **RNG.** A signature that needs a draw (which tiles, which flank) uses
+  check of T+1, at the top of that enemy phase, before any enemy acts. The player's phase
+  of T+1 sits between. The tell is drawn on the board through `02` §3.8's outline layer (a
+  second dash style and a new `UI_PALETTE` token; the Entity's splash text uses
+  `rarityEpic` today), named in the strip's boss row ("The Calculation · next enemy phase ·
+  3 tiles") and in the boss's inspect line, and gets a warn band at the check that plans
+  it. Two asks of `01` (Notes for the README): its pointer priority (§2.8: the boss is third)
+  promotes the boss to first while a tell is pending, and its enemy-phase beat table
+  (§2.7) gains a row, "signature resolves: the affected tiles the player can see".
+- **RNG.** A signature that needs a draw (which tiles among equals, which flank) uses
   `keyedBattleRandom(battleSeed, 'boss-sig:<turn>:<n>')`, never `Math.random` (the
   Necromancer's raise is the precedent: a resume or rewind replays it).
 - **Fog.** A tell is drawn only where the player sees the boss or the tiles; a hidden
@@ -340,56 +451,73 @@ call. Nothing here adds a combat rule.
 
 | kind | what it does | built on | fairness |
 |---|---|---|---|
-| `court_order` | at the tell, a named court group changes mode (`guard` an anchor, `seek` an anchor `then` `guard`/`hunt`, `hunt` with `together`, `hold`) and acts on it at the resolve | `02` §3.7 `onWake` shapes applied to any group, `seek_tile` / `guard` AI modes | the court's new posts are outlined at the tell |
-| `aura` | at the resolve, court members within `radius` of the boss take a timed buff (`stat`, `value`) for one turn, expiring as the next enemy phase starts | `applyTimedBuffEntry` (`TimedWeaponArtBuffs.js:31`), the Road Mark's one-turn MOV pattern (`MarkSystem.js:132`); badge from `StatusBadges` | the buffed units show the badge; the forecast reads the buffed stat (timed mods already ride `timedBuffCombatMods`) |
-| `affix` | the boss takes an affix at a phase's `onEnter` (not cadenced): the rung's exclusions and the class and mutual rules hold (`AffixEngine.isAffixAllowed`); a Sworn affix is kept beside it, at most `maxAffixesPerUnit` + 1 | `unit.affixes`, serialized; `updateAffixPips` draws the pip; the affix tooltip explains it | the band names the affix and what it does; First Light's excluded list still applies |
-| `volley` | at the tell, `tiles` tiles are fixed: the tiles under the `tiles` player units nearest the boss (ties by uid), drawn on the keyed stream among equals. At the resolve, every unit standing on a fixed tile takes `max(0, MAG + Mt − RES)` of the signature's siege tome through `damageUnitDetailed` (no counter, no XP, no art, no skill proc; Revival Stones and Miracle apply as for any damage). `lethal: false` floors at 1 HP | `SiegeArtillery.js`' siege tomes (`difficulty.json` `siegeWeaponConfig`), `UnitHealth.damageUnitDetailed` | the tiles are known a whole player phase ahead and the forecast's threat line shows the figure ("Volley: 14") on them; stepping off is the counter |
-| `unclamp` | the boss's per-unit `clampTile` is dropped (it leaves the throne and hunts with its court, `together`) or set (it returns: `seek` the throne, then clamp) | `03` PR 1b's `clampTile`, `02` §3.7 `seek` | the band says it; the boss's Danger zone grows the next player phase and is drawn like any |
-| `terrain` | `setTiles` at the resolve (a door closes, a postern opens) | `TerrainPhases.applyTerrainSetTiles` (`02` §2.2); never under an occupant | the target tiles are outlined at the tell |
+| `court_order` | at the tell, a named court group is given new orders (`guard` an anchor, with an optional `guardRadius`; `seek` an anchor `then` `hunt`; `hunt` with `together`; `ignoreEnrage: false`) and acts on them from the resolve. On a `dormant` or `patrol` group this is its wake with that `onWake`; on an `awake` group it rewrites the members' `aiMode` / `guardPost` / `aiTargetTile` through the same writer (a re-order: new, since `02` §3.3 applies `onWake` once) | `02` §3.7 `onWake` shapes (`hunt`, `guard`, `seek` with `then: 'hunt'`), `seek_tile` / `guard` AI modes (`02` PR 2.4) | the court's new posts are outlined at the tell |
+| `aura` | at the resolve, court members within `radius` of the boss take a timed buff (`stat`, `value`) for one turn: an entry from `resolveTimedBuffExpiry(boss, T+1, 1)`, expiring as the next enemy phase starts | `applyTimedBuffEntry` (`TimedWeaponArtBuffs.js:31`), the Road Mark's one-turn MOV entry (`MarkSystem.roadBuffEntry`, `:135`); badge from `StatusBadges` | the buffed units show the badge; the forecast reads the buffed stat (`timedBuffCombatMods`, `:162`, already feeds combat) |
+| `affix` | the boss takes or drops an affix at a phase's `onEnter` (not cadenced). The rung's `excludedAffixes`, the class exclusions and the mutual table hold (`AffixEngine`'s private `isAffixAllowed`, `:41`, exported for this through a `kitAffixAllowed` helper); the rung's `tierPool` governs rolled affixes, not authored ones, except on First Light (tier 1 only, §9.5). An affix the rules refuse at compile (a Sworn `regenerator` beside a kit's `shielded`: `affixes.json` makes them mutually exclusive) is left out of the locked config and its band word with it. A boss rolls no affixes (§1.1), so it carries at most its Sworn affix plus the kit's | `unit.affixes`, serialized; one mid-battle applier (`AffixSystem`) that also applies a spawn-time stat (`haste`'s MOV, `getAffixMovBonus`), in the scene and the harness alike (§1.5's gap); `updateAffixPips` draws the pip; the affix tooltip explains it. `regenerator` given at the check of T first heals at T+1 (turn-start effects run before the check) | the band names the affix and what it does |
+| `volley` | at the tell, `tiles` tiles are fixed: the tiles under the `tiles` player units nearest the boss (Manhattan, ties on the keyed stream). At the resolve, every player-side unit standing on a fixed tile takes `max(0, MAG + Mt − RES)`, Mt the named siege tome's (`weapon`, read from `weapons.json` by name and locked in `bossSignature`; the boss never carries it, so its AI and `SiegeArtillery`'s stance never see it) and MAG the boss's (or, with `source: <group>`, the highest MAG among that group's living members), through `damageUnitDetailed` (no hit roll, no counter, no XP, no art, no skill proc; Miracle is a combat skill and does not apply, as with area damage). `lethal: false` passes `floor: 1`; the commander is always floored at 1 (§2) | `weapons.json` `Breachbolt` (Mt 8, the one siege tome, `siegeWeaponConfig.weaponName`; First Light has no `siegeWeaponConfig`, which is why the kit names the weapon itself), `UnitHealth.damageUnitDetailed` | the tiles are known a whole player phase ahead and the forecast's threat line shows the figure ("Volley: 14") on them; stepping off is the counter |
+| `unclamp` | the boss's per-unit `clampTile` is released (`clampTile: false`, an explicit release: `03` PR 1b falls back to `thronePos` on seize when the field is absent) and it hunts with its court, `together`; or it returns: `seek_tile` to the throne, and the signature module writes `clampTile` again at the first check it stands within 1 of it (a clamp set far from the throne would freeze it: the clamp keeps only tiles within 1, §1.3 item 6) | `03` PR 1b's `clampTile`, `02` §3.7 `seek` | the band says it; the boss's Danger zone grows the next player phase and is drawn like any |
+| `terrain` | `setTiles` at the resolve (a door closes, a postern opens) | `TerrainPhases.applyTerrainSetTiles` (`02` §2.2); never under an occupant (recorded and skipped, as `03`'s phases do) | the target tiles are outlined at the tell |
 | `wave` | a triggered wave fires at the resolve from `side: anchor:<name>` | `02` §4 `triggeredWaves` | the warn band names the edge and the turn, as every triggered wave does |
-| `mark` | the boss answers the blade that touched it: `bossState.signature.marked` is the uid of the last player unit to strike it (set from `PostCombatEffects`' `damagedBy`, the one site the scene and the harness share); the boss's target scoring gives the marked unit +60 (above the caravan's +40) through a new `aiOverride: 'target_marked'` beside `target_lowest_hp` (`AIController.js:1424`) | `_scoreAttackTarget`, `_hasAiOverride` | the marked unit wears a badge and a line between it and the boss; whoever strikes last chooses who he comes for |
-| `foretell` | the Lieutenant alone (§8.1): at the check of T the AI's decision for the boss is planned against the current board and shown as a tell (his move tile and target); at T+1 he decides afresh as any enemy. The tell is a forecast, not a lock | `AIController._decideAction` through a new non-mutating `previewDecision` (it must not write `guardPost`, `_aiNoMoveStreak` or `_lastAiDecision`: a guarded copy of the inputs) | the player is shown exactly what he would do if nothing moved; moving changes it |
-| `echo` | the Entity alone (§8.2): held pillars reduce its splash | `EntitySystem` | a held pillar is a lit tile |
+| `mark` | the boss answers the blade that touched it: `bossState.signature.marked` is the uid of the last player-side unit whose strike damaged it (noted where `02` notes hostile exchanges, `world.noteHostileExchange` in `PostCombatEffects`, the `02` PR 2.2b site the scene and the harness both drive; the prologue's `damagedBy` ledger is `PrologueController`'s own and is not it). The boss's target scoring gives the marked unit +60 (above the caravan's +40, `AIController.js:1297`). It is not an affix `aiOverride`: `_hasAiOverride` (`:1424`) reads only `affixes.json` entries (`berserker`'s `target_lowest_hp`), so `_scoreAttackTarget` reads the mark from the `bossState` the AI is handed, never a private unit flag | `_scoreAttackTarget` (`:1263`) | the marked unit wears a badge and a line between it and the boss; whoever strikes last chooses who he comes for |
+| `foretell` | the Lieutenant alone (§8.1): during the player phase the boss's next decision is previewed against the board as it stands and redrawn after every player action (his move tile and target). It is a view, not a pending effect: nothing is saved, and when his phase comes he decides as any enemy. Offered only on fog-free maps (validated): the AI reads every unit | `AIController._decideAction` through a new non-mutating `previewDecision` (it must not write `guardPost` (`:296`), `weapon` (`_equipUsableWeapon`), `_aiNoMoveStreak` (`:1048`) or `_lastAiDecision` (`:155`): a guarded copy of the inputs) | the player is shown exactly what he would do if nothing else moved; moving changes it |
+| `echo` | the Entity alone (§8.2): held pillars reduce its splash | `EntitySystem` (new helpers) | a held pillar is a lit tile |
 
 Kinds this revision leaves out, and why: a boss that teleports (the `teleporter` affix
-already exists and may be given by `affix` on Nightfall+ where the rung allows it), a boss
-that heals its court (a Cleric court member with `heal` mode does it), a boss with a
-weapon art of its own (`EnemyAreaArts` exists for elites; adding one to a boss is a data
-line in the kit's loadout, not a signature), and anything that moves a player unit on the
-enemy phase without a strike (the one forced-move source today is a push art; a signature
-that shoves is `aoe-weapon-arts.md`'s to add).
+already exists and may be given by `affix` from Dusk up, where the rung's `excludedAffixes`
+allow it; First Light excludes it), a boss that heals its court (a Cleric court member in
+its heal role does it), a boss with a weapon art of its own (`EnemyAreaArts` exists for
+elites, `enemies.json` `eliteAreaArts`; adding one to a boss is a data line in the kit's
+loadout, not a signature), and anything that moves a player unit on the enemy phase outside
+a strike (a signature that shoves is `aoe-weapon-arts.md`'s to add).
 
 ### 5.3 How a kit reaches the unit
 
 `EnemySpawnGear.applyEnemySpawnGear` already turns spawn flags into unit fields (stones,
-carried items). A compiled kit writes on the boss spawn: `bossKit: { id, version }`,
-`clampTile` (the throne), the signature's `weapon` (a siege tome from the catalog, kept in
-the bag beside its class weapon: the boss never equips it; `volley` reads it by name), and
-on court spawns `encounterGroupId`. The scene and the harness build units from spawns
-through the same function, so neither keeps a copy.
+carried items, siege tomes). A compiled kit writes on the boss spawn `bossKit: { id,
+version }` and `clampTile` (the throne, or the kit's post: the Iron Wall's gate), and on
+court spawns `encounterGroupId`. It writes no weapon: a `volley`'s tome lives in
+`battleConfig.bossSignature` (§5.2). The scene and the harness build units from spawns
+through the same function (`BattleScene.js:2624`, `HeadlessBattle.js:945`), so neither keeps
+a copy.
 
 ## 6. Bonus objectives on boss maps
 
-- **Every boss map may carry one bonus** (`MAX_BONUS_OBJECTIVES` holds), authored in the
-  kit (procedural maps and v1 arenas) or the set piece. `03`'s rules hold unchanged: judged
-  once at the victory commit, never XP, never a `slay` on the boss or a throne guard, the
-  cost in turns on the strip.
-- **Kinds that fit a boss map:** `reach` (a cache in the court: the Iron Captain's sealed
-  dispatch, the Archmage's middle pages), `claim` (a ballista on the wall, Nightfall+),
-  `unbloodied`, `slay` a court captain (never `'@boss'`), and a new deadline form
-  `deadline: { signatureCount: n }` (done before the boss's n-th signature resolves:
-  "Take the pages before the second Calculation"), locked at generation as an integer of
-  signatures and shown as such. `03` §7.1's `byTurn` stays for everything else.
-- **Vision.** `03` §7.4's `vision: 1` reward is **on**, with this rule: it is paid only by a
-  bonus on a boss map (act boss or finale), Act III and later, at most once per act
-  (`run.bonusVisionActs`, `03`). The reward is a seeded `oneOf` at generation
-  (`keyedBattleRandom(battleSeed, 'bonus-reward:<id>')`): on Act III and IV boss maps half
-  the offers are `vision: 1` and half the act's gold plus item; the strip says which
+- **Every boss map may carry one bonus from its kit** (`MAX_BONUS_OBJECTIVES` 2 still
+  holds with a derived village or caravan), authored in the kit (procedural maps and v1
+  arenas) or the set piece. `03` §7.2 keeps ordinary procedural maps to the derived village
+  and caravan in v2 (its open question 5); this spec asks that boss nodes be the exception
+  (Notes for the README). `03`'s rules hold unchanged: judged once at the victory commit,
+  never XP, never a `slay` on a primary's target or a throne's guard (`'@boss'`: any
+  `isBoss`; `04` §8.2 check 9), the cost in turns on the strip. None on a scripted battle.
+- **Kinds that fit a boss map:** `reach` (a cache in the court: the Iron Captain's
+  strongbox, the Archmage's middle pages), `claim` (a ballista on the wall, only where
+  `MapGenerator` placed one: Nightfall+, not Act I), `unbloodied`, `slay` a court captain
+  (never `isBoss`), and a new deadline form `deadline: { signatureCount: n }` (done before
+  the boss's n-th signature resolves: "Take the pages before the second Calculation";
+  failed at the check where it resolves), locked at generation as an integer of signatures
+  and shown as such. `03` §7.1 gives a deadline only to `slay` (`byTurn`); a `reach` or
+  `claim` with a `deadline` (`signatureCount`, or `byTurn` locked as `par − k`) is this
+  spec's extension (Notes for the README).
+- **Vision.** `03` §7.4's `vision: 1` reward is allowed (owner decision): Act III and later,
+  at most once per act (`run.bonusVisionActs`), never on First Light (`03` §7.4: "none on
+  First Light"; §9.5 keeps it so although First Light boss maps now carry bonuses). This
+  spec offers it only on boss-map bonuses (`03` allows any Act III+ bonus; the boss-only
+  choice is §13 Q3). The reward is a seeded choice at generation
+  (`keyedBattleRandom(battleSeed, 'bonus-reward:<id>')`, `objectives.json`
+  `bonusRewards.visionOffer` 0.5): half the offers on Dusk+ Act III and IV boss maps are
+  `vision: 1`, half the kind's default gold plus item. The choice is resolved before the
+  config is locked, so the locked `reward` is one plain `03` §7.4 key, which `03`'s
+  validator accepts; when `run.bonusVisionActs` already holds the act at generation (an
+  ordinary set piece paid one), the offer is the gold-plus-item side. The strip says which
   before the first move ("+1 Vision" or "+500 G · Elixir"). Why boss maps: the act boss
-  already pays a charge at the commit (`RunManager.js:4318-4328`), so Vision is the
+  already pays a charge at the commit (`RunManager.js:4316-4328`), so Vision is the
   currency the player expects to see there; a bonus charge is a second one for the next
-  act. Why not the finale: a charge after the last battle buys nothing, so finale bonuses
-  pay gold (converted to Valor and Supply at the run's end by `currencyMultiplier`).
+  act. **The finale:** nothing `03` §7.4 can pay (gold, an item, a forge step, Vision)
+  outlives the last battle, and gold is not converted at the run's end (§1.4:
+  `calculateCurrencies` reads acts, battles and victory only). So a finale bonus is a
+  **feat**: it pays no reward, the victory band names it, and the run's records keep it
+  (`RunRecords`, a new `bonusFeats` list). A reward-less bonus is an extension of `03`
+  §7.4 (Notes for the README); §13 Q9 asks whether the finale should carry one at all.
 - **The never-XP rule holds.** A bonus pays through `BonusSettlement`, never the loot
   screen (`03` §7.3), so the +1 Vision is a plain `visionChargesRemaining + 1` beside the
   boss's own, both in one `completeBattle`, both rolled back together by a revert.
