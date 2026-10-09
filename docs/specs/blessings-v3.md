@@ -137,7 +137,9 @@ from one shared catalog of named prices, each with a point value, inside a band 
 ### 3.1 The price catalog
 
 `data/blessings.json` gains `priceCatalog`: id → `{ label, points, effects, tags }`. Points
-come from the conjoint and the economy numbers, on a 0.5-6 scale (*provisional*):
+come from the conjoint and the economy numbers, on a 0.5-6 scale (*provisional*). As built
+(#251) the catalog in `data/blessings.json` is the source of truth; where it moved from this
+table, the row says so:
 
 | Price | Points | Notes |
 |---|---|---|
@@ -148,7 +150,7 @@ come from the conjoint and the economy numbers, on a 0.5-6 scale (*provisional*)
 | Debt II (Dusk 1,500) | 2 | about −5% battle gold |
 | −1 Vision (until the next act) | 3 | base is 1, so this is every rewind for an act |
 | −2 DEF all units, Act 1 | 3 | |
-| −1 deploy, Act 1 | 2.5 | new |
+| −1 deploy, Act 1 | 1.5 | new; built at 1.5 (the strategy sim showed an Act 1 cost only) |
 | All growths −5 | 2.5 | |
 | Hunted, 2 battles | 2 | existing burden |
 | Sworn Enemy | 2 | existing burden |
@@ -157,7 +159,7 @@ come from the conjoint and the economy numbers, on a 0.5-6 scale (*provisional*)
 | Shops +15% | 1.5 | new |
 | +20% forge costs | 1.5 | works since §2 |
 | Staff healing −20% | 1 | |
-| Lingering Injury on the commander | 1 | existing burden |
+| Lingering Injury on the commander | 3 | existing burden; drafted at 1, repriced to a tier III price after the strategy sim (commander KO 71.5% vs 57.7% with no price, about All growths −5) |
 | −1 DEF Act 1 / −8 Hit Act 1 / recruits −1 level / arts +2 HP | 0.5 | garnish only: never a II-IV card's whole price |
 
 **Gold prices become Debt.** Debt is an existing burden: a fixed sum owed, half of each
@@ -241,8 +243,9 @@ a trap.
   of offers (0.35 gave 40%).
 - **Mid-run grants** (church vow, Twin Altar) stay boons-only and are limited to tier I
   and the "shape" cards (§5.1), so a church never hands out a IV's boon without its pact.
-- Fix the free re-roll: the offered run's seed is kept in the game registry for its slot
-  until the run begins (a page reload still draws afresh).
+- Fix the free re-roll: the offered run's seed is kept in the game registry for each save
+  slot (`{ [slot]: seed }`) until that slot's run begins, so backing out, or opening another
+  slot's shrine in between, shows the same offer (a page reload still draws afresh).
 
 ## 4. The current 23
 
@@ -254,17 +257,17 @@ a trap.
 | Field Medic | I, a Vulnerary each | keep | I. |
 | Swift Instinct | II, lords +1 SPD | reprice | II with curated prices: Debt II / staff healing −20%. |
 | Iron Oath | II, lords +2 DEF | retier | III: Debt III / Ill Omen + garnish. |
-| Rally Cry | II, +3 STR/MAG Act 1 | reprice | II with light prices only (staff healing −20% / Lingering Injury on the commander). |
+| Rally Cry | II, +3 STR/MAG Act 1 | reprice | II with light prices only (staff healing −20% / +8 shadow). |
 | War Veteran | II, +15% XP | retier | III: Debt III / −1 deploy Act 1 / shops +15%. |
 | Frugal Smith | II, forge −30%, +1 forge | rework | **Smith's Mark** (II): each shop's first forge is free, +1 forge per shop. |
 | Terrain Mastery | II, Forest/Fort bonus | rework | **Holdfast** (II): a unit that hasn't moved this turn gets +2 DEF and +10 avoid. A playstyle, not a terrain lottery. |
-| Quartermaster Cache | II, 1 Elixir per lord | rework | II: an Elixir in the convoy at the start of every act, Act 1 included (four over a Dusk run). |
+| Quartermaster Cache | II, 1 Elixir per lord | rework | II: an Elixir in the convoy at the start of every act, Act 1 included (four over a Dusk run). Prices: staff healing −20% / shops +15%. |
 | Scout Blessing | III, deploy +1 | retier | II: deploy +1; prices Debt II / Hunted 2. |
 | Scholar's Vow | III, all growths +5 | retier | IV, pact: recruits join −1 level and Debt III. The best card in the game. |
 | Pilgrim Coin | III, shop +1 item, −15% | rework | **Pilgrim's Road** (II): each act's route gets one more shop (a keyed post-pass converts one non-combat node; the node-map stream is untouched). |
 | Merchant Bane | III, +15% battle gold | keep, rename lore | III: Hunted 2 / Sworn Enemy (no gold price). |
-| Nomad's Pact | III, recruits +2 levels | widen | III: also boss recruits and mercenaries. Debt III / Sworn Enemy. |
-| Focused Curriculum | III, lords +12 SPD/SKL growth | keep the effect | III with a real III price (Debt III / all growths −5), never garnish. Review: stronger numbers would need a much bigger price. |
+| Nomad's Pact | III, recruits +2 levels | widen | III: also boss recruits and mercenaries. Debt III / Sworn Enemy / Lingering Injury on the commander. |
+| Focused Curriculum | III, lords +12 SPD/SKL growth | keep the effect | III with a real III price (Debt III / all growths −5 / Lingering Injury on the commander), never garnish. Review: stronger numbers would need a much bigger price. |
 | Arsenal Pact | IV, a Silver weapon | keep | IV, pact: Debt IV. |
 | Forbidden Tome | IV, lords +12 growths | reprice | IV, pact: no church revives this run (the pact it has is near-free). |
 | Blood Forge | IV, +2 Might on every non-staff weapon the two starting lords carry at the start (Edric's Iron and Steel Swords, Sera's tome) | rework | II: +2 Might on each starting lord's best weapon (highest Might), so it isn't spent on an Iron Sword that will be replaced. Later weapons are untouched. |
@@ -449,10 +452,12 @@ is random in what it gives and clear about what it takes.
   Vision) gets its sentence. The burdens' sentences come from their catalog (`events.json`
   `burdens`) with the rung's numbers (Debt's garnish, Ill Omen's battles).
   - The shrine's cards are buttons, so a nested ⓘ is out. The chosen card spells its price's
-    terms out in the footer in place of its lore, readable on touch and desktop alike. Each
-    card's price carries them as hover text.
-  - The held list in the pause menu carries them on the price row. The burden list beside it
-    already shows what's owed.
+    terms out in the footer in place of its lore (three lines at most). That line is itself a
+    button: a tap, Enter or a click opens the whole price in a help dialog, and pressing and
+    holding a priced card opens that card's. An ⓘ beside the line was tried and dropped: its
+    column pushed the line to a third row, and a 375×667 phone then showed no whole card.
+  - The held list in the pause menu: a price that names a term is a `<details>` that opens
+    on a tap or Enter. The burden list beside it already shows what's owed.
   - Later surfaces (church and event pages, the boss pick, the Compendium, Home Base) use the
     same table, through `ui/infoAffordance.js` where the surface isn't a button.
   - A test fails if a burden in the catalog has no sentence, or a price that is a burden,
