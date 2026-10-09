@@ -157,12 +157,14 @@ describe('blessings taken mid-run', () => {
   it('a tier III blessing from an event keeps no price through a save and load', () => {
     const rm = new RunManager(data);
     rm.startRun({ runSeed: 11 });
-    expect(rm.addBlessingMidRun('scholar_vow')).toBe(true);
+    // A pact card (tier IV) is never granted mid-run: its price would never be paid.
+    expect(rm.addBlessingMidRun('scholar_vow')).toBe(false);
+    expect(rm.addBlessingMidRun('iron_oath')).toBe(true);
     const restored = roundTrip(roundTrip(rm));
-    const entry = restored.activeBlessings.find((b) => b.id === 'scholar_vow');
+    const entry = restored.activeBlessings.find((b) => b.id === 'iron_oath');
     expect(entry.rolledCost).toBeNull();
     expect(entry.midRun).toBe(true);
-    expect(heldBlessingEntries(restored).find((b) => b.id === 'scholar_vow').price).toBeNull();
+    expect(heldBlessingEntries(restored).find((b) => b.id === 'iron_oath').price).toBeNull();
   });
 
   it('an older save drops the phantom price and keeps the run-start one', () => {
@@ -175,7 +177,9 @@ describe('blessings taken mid-run', () => {
     expect(picked).toBeTruthy();
     expect(rm.chooseBlessing(picked.id)).toBe(true);
     const startPrice = rm.activeBlessings[0].rolledCost.label;
-    const other = data.blessings.blessings.find((b) => b.tier === 3 && b.id !== picked.id);
+    const other = data.blessings.blessings.find(
+      (b) => b.tier === 3 && b.id !== picked.id && !b.intrinsicPrice && !b.pact,
+    );
     rm.addBlessingMidRun(other.id);
     const saved = JSON.parse(JSON.stringify(rm.toJSON()));
     // As an older client saved it: no flag, and a price the load once rolled for it.

@@ -1,5 +1,6 @@
 // Review fixes for the Task 2 blessings (Advance Pay, Quartermaster Cache, Blood Forge) and the
 // blessing names. Each test names a way the first pass could fail.
+import { readFileSync } from 'node:fs';
 import { describe, it, expect } from 'vitest';
 import { RunManager } from '../src/engine/RunManager.js';
 import { loadGameData } from './testData.js';
@@ -118,23 +119,33 @@ describe('Blood Forge price', () => {
 });
 
 describe('blessing card text', () => {
-  it('Nomad’s Pact reads short enough for the card, and no description is longer than 90', () => {
+  // The longest description in the catalog (Bloodless Art, 100 characters) is laid out in the
+  // widest hand below; a longer one needs the cap raised AND a look at the layout specs.
+  const LONGEST_ALLOWED = 100;
+
+  it('Nomad’s Pact reads short enough for the card, and no description passes the longest laid out', () => {
     const rows = data.blessings.blessings;
     expect(rows.find((b) => b.id === 'nomad_pact').description.length).toBeLessThanOrEqual(82);
     const longest = rows.map((b) => b.description.length).reduce((a, c) => Math.max(a, c), 0);
-    expect(longest).toBeLessThanOrEqual(90);
+    expect(longest).toBeLessThanOrEqual(LONGEST_ALLOWED);
   });
 
   it('the widest real hand in the layout specs holds the three longest descriptions', () => {
-    // tests/e2e/choice-screens.spec.js and portrait-cards.spec.js lay out this hand (with
-    // Nomad's Pact, the card that was the longest before it was shortened). A new longer
-    // card must be added to it, or its text goes unmeasured.
+    // tests/e2e/choice-screens.spec.js and portrait-cards.spec.js lay out this hand. A new
+    // longer card must be added to it, or its text goes unmeasured.
     const rows = data.blessings.blessings;
     const longestThree = [...rows]
       .sort((a, b) => b.description.length - a.description.length)
       .slice(0, 3)
       .map((b) => b.id)
       .sort();
-    expect(longestThree).toEqual(['focused_curriculum', 'pilgrim_coin', 'terrain_mastery']);
+    expect(longestThree).toEqual(['bloodless_art', 'slow_fuse', 'terrain_mastery']);
+    for (const spec of ['choice-screens', 'portrait-cards']) {
+      const source = readFileSync(`tests/e2e/${spec}.spec.js`, 'utf8');
+      for (const id of longestThree)
+        expect(source, `${spec} lays out ${id}`).toMatch(
+          new RegExp(`\\[[^\\]]*'${id}'[^\\]]*\\]\\.map|ids = \\[[^\\]]*'${id}'`),
+        );
+    }
   });
 });

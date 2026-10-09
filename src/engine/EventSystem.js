@@ -461,7 +461,8 @@ export function consumableHolders(run, name) {
  * deploy_cap_delta (the deploy screen's cap), act-scoped stat/hit deltas (act_stat_delta_all_units,
  * act_hit_bonus: a dud outside their act), gold_delta (gold is the events' own currency),
  * and every price type (disable_personal_skills_until_act, enemy_level_delta,
- * eclipse_shadow_delta, weapon_art_hp_cost_delta). data validation (EventValidation) checks
+ * eclipse_shadow_delta, weapon_art_hp_cost_delta), the arcs and tosses that carry their cost
+ * in the boon itself (lord_stat_arc, battle_gold_gamble: granted later they would be free). data validation (EventValidation) checks
  * that every blessing tier an event asks for still has at least one safe blessing.
  */
 export const SAFE_BLESSING_BOON_TYPES = Object.freeze([
@@ -487,16 +488,20 @@ export const SAFE_BLESSING_BOON_TYPES = Object.freeze([
   'extra_consumable',
   'act_start_convoy_item',
   'starting_consumable_all',
+  // Bloodless Art: a player-only art discount and extra use, free of any price in the boon.
+  'player_weapon_art_boon',
 ]);
 
 /**
  * True when every boon of the blessing is on the mid-run-safe list and it carries no fixed
- * pact (an event hands out boons only, so a blessing whose price is a pact would be free).
+ * pact or intrinsic price (an event hands out boons only, so a blessing whose price is a pact,
+ * or lives in its own boon, would be free).
  */
 export function isSafeEventBlessing(blessing) {
   const boons = Array.isArray(blessing?.boons) ? blessing.boons : [];
   return (
     !blessing?.pact &&
+    !blessing?.intrinsicPrice &&
     boons.length > 0 &&
     boons.every((boon) => SAFE_BLESSING_BOON_TYPES.includes(boon?.type))
   );

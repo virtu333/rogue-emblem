@@ -87,6 +87,7 @@ import {
   getWeaponArtBindings,
   canUseWeaponArt,
   isWeaponArtCompatibleWithWeapon,
+  weaponArtRunOptions,
 } from '../engine/WeaponArtSystem.js';
 import { ChoicePicker } from './ChoicePicker.js';
 import { applyRosterClassChange, rosterClassChangeBlock } from '../engine/RosterCommands.js';
@@ -911,20 +912,19 @@ export class MobileRosterSheet {
         const art = this.gameData.weaponArts?.arts?.find((a) => a.id === id);
         this.card(
           `${art?.name || id} · ${weapon.name}`,
-          `${formatWeaponArtEffects(art)} · ${weaponArtCostText(unit, art, { weaponArtHpCostDelta: this.scene.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0 })}`,
+          `${formatWeaponArtEffects(art)} · ${weaponArtCostText(unit, art, weaponArtRunOptions(this.scene.runManager))}`,
         );
         if (art && this.scene.sys?.settings?.key === 'Battle' && this.scene.turnManager) {
           const check = canUseWeaponArt(unit, weapon, art, {
             turnNumber: this.scene.turnManager?.turnNumber,
             isInitiating: true,
             actorFaction: unit.faction,
-            weaponArtHpCostDelta:
-              this.scene.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+            ...weaponArtRunOptions(this.scene.runManager),
           });
           this.body.lastElementChild.append(
             el(
               'small',
-              `${check.ok ? 'Ready' : (check.reason || 'Unavailable').replaceAll('_', ' ')} · ${weaponArtUsesText(unit, art, this.scene.turnManager.turnNumber)}`,
+              `${check.ok ? 'Ready' : (check.reason || 'Unavailable').replaceAll('_', ' ')} · ${weaponArtUsesText(unit, art, this.scene.turnManager.turnNumber, weaponArtRunOptions(this.scene.runManager))}`,
             ),
           );
         } else if (art) {
@@ -992,7 +992,7 @@ export class MobileRosterSheet {
     const artDescription = (id, unit) => {
       const art = arts.find((entry) => entry.id === id);
       return art
-        ? `${art.name} · ${weaponArtCostText(unit, art)} · ${art.requiredRank || 'Prof'}\n${formatWeaponArtEffects(art)}`
+        ? `${art.name} · ${weaponArtCostText(unit, art, weaponArtRunOptions(this.run))} · ${art.requiredRank || 'Prof'}\n${formatWeaponArtEffects(art)}`
         : id;
     };
     const sourceLabel = (source) =>
