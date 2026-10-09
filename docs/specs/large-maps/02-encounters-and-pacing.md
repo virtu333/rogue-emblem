@@ -54,8 +54,8 @@ and occupancy, drawn on a stream keyed by turn (`mixSeed(seed, turn)`,
 - `animateEnemyMove` tweens every step (80 ms, 60 on ice; `BattleScene.js:10535-10580`)
   with no visibility check.
 - Every `onUnitDone` writes a suspend checkpoint and a timeline row (`BattleScene.js:10470-10490`),
-  each a full `rm.toJSON()` persist that also reseeds the battle RNG
-  (`BattleSuspendController.js:94-110`). End Turn already writes the checkpoint the
+  each a full `rm.toJSON()` persist that, under the default rewind policy, also reseeds
+  the battle RNG (`BattleSuspendController.js:94-110`). End Turn already writes the checkpoint the
   enemy phase replays from ("a refresh during the enemy turn resumes here and replays it on
   the same RNG stream", `BattleScene.js:4415-4428`).
 
@@ -133,10 +133,10 @@ BossPresenceController and the scene's warning already call it.
 
 - **Changes only maps with par ≥ 12**, i.e. today: First Light boss maps with par 12
   (11/40 Act III, 3/40 Act IV), which enrage at par + 1 instead of at par. No Dusk+ map at
-  today's sizes changes (par + 2 ≤ 12). Large maps get par + 1.
+  today's sizes changes (par + 2 ≤ 12). On large maps any par ≥ 12 gets par + 1.
 - **Rung order holds:** f(par) is non-decreasing, and par is First Light ≥ Dusk ≥ Nightfall
   ≥ Black Sun on every map (dusk-pressure §2b), so a harder rung never enrages later.
-- The prologue's P4 (par 10 → 12) and the pinned cases in `TurnBonusCalculator.test.js:377-387`
+- The prologue's P4 (par 10, enrage 12) and the pinned cases in `TurnBonusCalculator.test.js:377-387`
   are unchanged.
 - **Why not contact-based** (`max(par + 2, contact + k)`): enrage is the clock that
   punishes waiting. A clock that starts at contact is one the turtle controls: it delays
@@ -155,7 +155,7 @@ rung, 4 seeds; traced per turn by `hybridtrace.mjs`):
 | Template | First Light / Dusk | Nightfall / Black Sun (wave offset −1) |
 |---|---|---|
 | `act4_boss_intent_bastion` | 8 of 16 scripted spawns blocked: the T2 Fighter on `wave1_a` [8,1] and the T5 Knight on `wave2_a` [10,1] | all arrive; the T1 Fighter (a `guard`) is walled in where it stands at T2 |
-| `act3_dark_champion_keep` | 8 of 16 blocked: the T3 Fighter on `wave1_a` [7,1], the T6 Knight on `wave2_a` [8,1] | 14–15 of 16 arrive; nobody walled in on the traced seed |
+| `act3_dark_champion_keep` | 8 of 16 blocked: the T3 Fighter on `wave1_a` [7,1], the T6 Knight on `wave2_a` [8,1] | 14–15 of 16 arrive (the misses: a tile already occupied); nobody walled in |
 
 Why: the override runs at the **start** of enemy phase T (`BattleScene.js:9755`,
 `HeadlessBattle.js:2280`) and writes Wall into `grid.mapLayout`, which is
@@ -168,12 +168,13 @@ Each wave therefore arrives at half strength on First Light and Dusk; par still 
 1 (one unit arrived).
 
 **Fix (one PR):**
-1. **Engine.** `engine/PhaseTerrainOverrides.js` (pure): `applyDueOverrides({ overrides,
-   anchors, turn, applied, pending, occupants, terrain, setTerrainAt })`, used by
-   `BattleScene` and the harness; the harness copy (`HeadlessBattle.js:1039-1088`) is
-   deleted. A target whose occupant could not stand on the new terrain (move type) is
-   **deferred**, not written: it joins `pendingHybridOverrideTiles` and is retried at
-   each later enemy-phase start until free. The list rides `captureBattleWorldState`
+1. **Engine.** `engine/TerrainPhases.js` (pure; the module `04` §7 names, exporting the
+   `applyTerrainSetTiles(grid, setTiles, anchors, { occupants })` that `03` §6 names),
+   used by `BattleScene` and the harness; the harness copy (`HeadlessBattle.js:1039-1088`)
+   is deleted. It never writes terrain an occupant could not stand on (its move type) and
+   returns those entries. For v1 hybrid overrides the caller **defers** them: they join
+   `pendingHybridOverrideTiles` and are retried at each later enemy-phase start until the
+   tile is free (`03`'s phases and `04` record and skip instead). The list rides `captureBattleWorldState`
    beside `appliedHybridOverrideTurns` (`BattleSnapshotState.js:20`) and the validator
    (`BattleStateSnapshot.js:175`).
 2. **Not in `setTerrainAt`.** Restore writes terrain through it
@@ -228,7 +229,7 @@ decisions.
 
 ### 2.5 Enemy-phase dead air
 
-Three rules, scene-side; the engine gains one callback.
+Scene-side rules; the engine gains one callback.
 
 1. **Beat only after something the player saw.** `processEnemyPhase` calls
    `await callbacks.afterUnit?.(enemy, decision)` instead of the fixed `_delay(300)`
@@ -245,13 +246,19 @@ Three rules, scene-side; the engine gains one callback.
    path, target, heal, staff or break (`hold`, `asleep`, `guard_hold`, `healer_hold`,
    `no_reachable_move` without a break) is marked acted and dimmed but writes no
    checkpoint and no timeline row. Why the anti-refresh guarantee survives:
-   - AI decisions draw no RNG (`enemy-ai-profiles.md` §1) and depend only on state the
-     last checkpoint holds, so a resume from it replays the skipped turns identically,
-     including their bookkeeping (`_aiNoMoveStreak`, `holdCheckedTurn`).
+   - A no-op draws no RNG (AIController has no `Math.random`; the enemy art roll,
+     `EnemyArtScoring.js:120`, happens only in combat) and depends only on state the last
+     checkpoint holds, so a resume replays the skipped turns identically, bookkeeping
+     included (`_aiNoMoveStreak`, `holdCheckedTurn`).
    - The next acting enemy's checkpoint, or the turn-start checkpoint, carries them.
    - With every enemy idle, the phase replays from End Turn's checkpoint on the same RNG
      stream, which is already the designed recovery.
    - It removes "X waited" rows from the rewind timeline. Nobody rewinds to before a wait.
+4. **Two small ones `01` hands over.** A desktop hold key (holding Shift in the enemy phase
+   sets `_holdBattleFast`, as the phone's `HoldBattleSpeed.js` control does; not Space,
+   which dismisses hints and dialogue, `HintDisplay.js:148`, `DialogueOverlay.js:246`), and the
+   enemy heal banner names its target only if the player can see it (`canInspectUnit`;
+   today it does not check, `BattleScene.js:10447-10456`).
 
 Effect: today an 11-enemy phase spends 3.3 s in these delays at every speed. After the
 fix an idle or hidden enemy costs 0 and a seen one 300 / 150 / 1 ms (Normal / Fast /
@@ -299,7 +306,8 @@ with `03`'s phases), is called by `BattleScene` and `HeadlessBattle` at the same
       { "kind": "groupWoken", "group": "pod:0", "delay": 1 }
     ],
     "onWake": { "mode": "hunt", "together": true },
-    "patrol": null,                      // { "waypoints": ["ford", "mill"], "loop": true } for state "patrol"
+    "route": null,                       // patrol or column: anchor names, e.g. ["ford", "mill"] (04's `route`)
+    "loop": true,                        // patrol loops; a column (false) stops at its last anchor and holds
     "telegraph": { "wake": "encounter.garrison_stirs", "warn": "encounter.camp_rousing", "inspect": "encounter.holding" }
   }
 ]
@@ -321,7 +329,7 @@ with `03`'s phases), is called by `BattleScene` and `HeadlessBattle` at the same
 |---|---|---|
 | `picket` | awake from turn 1, today's chase | never (it is awake) |
 | `asleep` | `aiMode: 'hold'` on members whose role is empty or `guard`; members with their own role (heal, Necromancer guard, artillery) keep it | any wake trigger, or boss enrage |
-| `patrol` | `aiMode: 'patrol'`: seek the current waypoint (`aiTargetTile`), advance `unit.patrolIndex` on arrival (within 1), loop; attacks only a blocker (the seek_tile pipeline, `AIController.js:792`) | any wake trigger, or boss enrage |
+| `patrol` | `aiMode: 'patrol'`: seek the current `route` anchor (`aiTargetTile`), advance `unit.patrolIndex` on arrival (within 1), loop (or, a column, hold at the end); attacks only a blocker (the seek_tile pipeline, `AIController.js:792`) | any wake trigger, or boss enrage |
 | `awake` | `onWake` applied once | final |
 
 The member's `aiMode` is the effect; the group's state in `encounterState` is the record.
@@ -344,11 +352,11 @@ in group order; then contact (below).
 |---|---|---|---|
 | `danger` | a member the player can see (`isThreatSourceVisible`) has a player unit or known NPC on its `enemyThreatTiles` (PlayerKnowledge positions). Exactly today's hold rule 1 | 0 | red zone = wake zone; a fogged member never wakes this way |
 | `sight` | a player-side unit stands within the member's vision range (`VISION_RANGES[member.moveType]`, Manhattan, the rule fog uses for the player, `Grid.js:956`; `constants.js:478`: Infantry/Armored 3, Cavalry 4, Flying 5) | 0 | if no member is visible as it wakes, the band says so without placing it ("Movement in the fog") |
-| `hurt` | a member was damaged, hexed or moved (`HoldDisturbance` marks, which every damage, status and displacement path already writes), or a member fell (living < `size`). Today's rule 2 | 0 | the player caused it |
+| `hurt` | a member was damaged, hexed or moved (`HoldDisturbance` marks, written by every damage, status and displacement path; its guard widens from `aiMode: 'hold'` to any member of an `asleep` or `patrol` group), or a member fell (living < `size`). Today's rule 2 | 0 | the player caused it |
 | `groupWoken` | group `group` woke (at any check) | 1 | warn band at fire time ("The camp stirs…"); its members' zones get the waking style |
-| `tile` | a player-side unit **stands** on the anchor tile or in the named region at the check (read from resolved anchor tiles, README §3). A Canto step on and off does not count | 0 | the anchor is marked on the map (`01`) |
-| `objective` | `03`'s objective engine noted `{ id, outcome: complete \| fail, turn }` (`EncounterTriggers.noteObjectiveEvent`); `on: complete \| fail \| either` | 1 | warn band at fire time |
-| `turn` | `{ afterContact: n }`: check turn ≥ contactTurn + n; `{ parOffset: -k }`: check turn ≥ live `turnPar` − k; either may carry `latest` (a `parOffset` or, legacy, `turn`): fires at the earlier | 1 | warn band at fire time; the objective line names the turn |
+| `tile` | a player-side unit **stands** on the anchor or in the region at the check (`battleConfig.anchors`, `04`'s field). Optional `by: { group }`: a living member of that enemy group stands there instead (`04`'s Parade). A Canto step on and off does not count | 0 | the anchor is marked on the map (`01`) |
+| `objective` | `03`'s objective engine emitted `{ kind: 'objective', id, outcome: 'done' \| 'failed' }` (`EncounterTriggers.noteObjectiveEvent`, stamped with the turn); `on: done \| failed \| either` | 1 | warn band at fire time |
+| `turn` | `{ afterContact: n }`: check turn ≥ contactTurn + n; `{ parOffset: -k }`: check turn ≥ live `turnPar` − k; `{ afterPhase: n }` (`03` §5.10): n turns into the current phase; any may carry `latest` (a `parOffset` or, legacy, `turn`): fires at the earlier | 1 | warn band at fire time; the objective line names the turn |
 
 - **Boss enrage** wakes every `asleep` and `patrol` group, as it wakes holders today
   (unless an authored group sets `ignoreEnrage`). It is a battle-wide rule, not a trigger.
@@ -386,7 +394,7 @@ by distance rules alone, after `assignHolders` and the guard roll (`MapGenerator
 | rout (rung's `encounterPlan.rout`, owner-gated, §9 Q2) | **picket**: the `ceil(picketShare × n)` (≥ 2) non-boss spawns nearest the player-spawn centroid, awake. **Pods**: the rest, as connected components within `podRadius` (3); components smaller than `minPod` (2) join the nearest pod within 5, else the picket. Each pod `asleep`, wake `[danger, hurt]` plus `groupWoken` from every pod within `chain` (6) tiles, delay 1. Same exclusions as holders (siege carrier, hazard tile, Necromancer stays in its role). The village's bandit wave and the ladder are unchanged |
 | any | a template with `"encounters": false`, a recruit node's guardian, and the prologue (authored `holdPack`, read by the adapter) get nothing new |
 
-Patrols and `protect` are for authored maps (`04`) and a later procedural pass: a patrol
+Patrols, columns and `guard` posts are for authored maps (`04`) and a later procedural pass: a patrol
 needs named waypoints that mean something on the map, which procedural templates do not
 have.
 
@@ -411,7 +419,8 @@ have.
 |---|---|---|
 | `hunt` (default) | clear `aiMode`: today's chase and attack | a woken holder |
 | `guard` (protect an anchor) | `aiMode: 'guard'`, `guardPost` = the anchor tile, `guardRadius` (default 3) replaces the literal 3 at `AIController.js:303`. Exempt from anti-turtle release (above); released by enrage | `guard` |
-| `seek` | `seek_tile` to the anchor (a sally to the throne or a gate), then `hunt` on arrival or on contact with a blocker | `seek_tile` |
+| `seek` | `{ mode: 'seek', anchor, then }`: `seek_tile` to the anchor (a sally to a gate; `03`'s fleeing assassination target with `then: 'exit'`, which `03` resolves), then `then` (default `hunt`) on arrival | `seek_tile` |
+| `retake` | `{ mode: 'retake', point }` (`03` §5.7): `seek_tile` to the capture point's tile whenever the player holds it, else `guard` it | `seek_tile`, `guard` |
 
 `together: true` gives the woken members one shared priority target, chosen at the wake
 check: the player-side unit nearest the group's centroid (by the AI's full knowledge, as
@@ -617,7 +626,7 @@ stalls), not the map.
 | PR | Content | Behaviour change | Effort |
 |---|---|---|---|
 | 0a | §2.1 enrage formula + data key + tests | First Light boss maps with par ≥ 12: enrage one turn later | 0.5 day |
-| 0b | §2.2 `PhaseTerrainOverrides.js`, deferral, data fix, validator, harness copy deleted | Normal/Dusk Act III–IV boss arenas get their full waves | 1.5 days + harness notes |
+| 0b | §2.2 `TerrainPhases.js`, deferral, data fix, validator, harness copy deleted | Normal/Dusk Act III–IV boss arenas get their full waves | 1.5 days + harness notes |
 | 0c | §2.3 heap A* + early exit; §2.4 branch and bound + memo | none (exact) | 1 day |
 | 0d | §2.5 `afterUnit` beat, hidden-move skip, no-op checkpoint skip, e2e timing spec | presentation only; fewer timeline rows | 1.5 days |
 | 0e | §2.6 prune at `advanceAct` | smaller saves | 0.25 day |
@@ -625,7 +634,7 @@ stalls), not the map.
 | 2.1 | `EncounterGroups.js` + `EncounterTriggers.js` with `danger`/`hurt`, legacy adapter, `encounterState` persistence and validator, golden parity, `wakeHolders` deleted | none | 2.5 days |
 | 2.2 | `sight`, `tile`, `groupWoken`, `objective` hook, `turn`, contact, warn bands, `asleep` sources in ThreatForecast, inspect line, HUD model | none until data uses it | 2.5 days |
 | 2.3 | `triggeredWaves`, sides, keyed stream, ledger, contract v2 exclusion | new configs only: procedural waves avoid the player by 3 | 2 days |
-| 2.4 | patrol, `guard`/`seek` onWake, `together`, group order | authored maps only | 2 days |
+| 2.4 | patrol and column, `guard`/`seek`/`retake` onWake, `together`, group order | authored maps only | 2 days |
 | 2.5 | rout picket/pods behind `encounterPlan.rout` (shipped `null`), par `groups-v1`, sims at 48 seeds per rung and policy, tuning, owner sign-off | yes, rung by rung, after sims | 3–4 days |
 
 Phase 0 PRs are independent. 2.0 lands before 2.5 can be judged. 2.1 is the gate for
@@ -668,3 +677,11 @@ everything else in Phase 2 and for `03`'s phases.
    depends on it being raw) but in the override applier.
 7. **`members`** are spawn indices at generation; spawns and units also carry
    `encounterGroupId`. Runtime membership is the units.
+8. **One terrain module, one anchors field.** `03` names the function
+   `applyTerrainSetTiles`, `04` the module `engine/TerrainPhases.js`, and this spec uses
+   both. Anchors resolve into `battleConfig.anchors` (`04`'s proposal), which the `tile`
+   trigger reads. The README should list both. The README's pointer to the hybrid bug
+   (`02` §8) is §2.2 here.
+9. **`tile` may name an enemy group** (`by: { group }`), as `04`'s Emperor's Parade needs;
+   the vocabulary table says player units only. Objective events use `03`'s words
+   (`done` / `failed`).
