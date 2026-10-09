@@ -326,8 +326,9 @@ describe('blessings and difficulty', () => {
   it("names a pact blessing's fixed price as a pact on the card", () => {
     const tome = data.blessings.blessings.find((x) => x.pact);
     expect(tome).toBeTruthy();
-    const card = blessingCardContent({ ...tome, rolledCost: { label: tome.pact.label } });
-    expect(card).toMatchObject({ pact: true, costLabel: 'Pact', cost: tome.pact.label });
+    const label = 'Churches cannot revive the fallen this run';
+    const card = blessingCardContent({ ...tome, rolledCost: { label, kind: 'pact' } });
+    expect(card).toMatchObject({ pact: true, costLabel: 'Pact', cost: label });
     const plain = data.blessings.blessings.find((x) => !x.pact && x.tier >= 2);
     expect(blessingCardContent({ ...plain, rolledCost: { label: 'x' } }).costLabel).toBe('Cost');
   });

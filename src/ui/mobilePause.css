@@ -189,6 +189,25 @@
 .mp-blessings .mp-blessing-price {
   color: var(--re-bad);
 }
+.mp-blessings details.mp-blessing-price summary {
+  min-height: var(--re-tap);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.mp-blessings details.mp-blessing-price summary::after {
+  content: ' \24D8';
+  margin-left: 6px;
+  color: var(--re-accent-text);
+}
+.mp-blessings .mp-blessing-terms {
+  margin: 2px 0 0;
+  color: var(--re-muted);
+}
+.mp-blessings .mp-blessing-terms b {
+  color: var(--re-text);
+}
 /* An open contract rides the same list, in the gilt of a seal. */
 .mp-burdens li.is-contract {
   border-left-color: var(--re-gilt);

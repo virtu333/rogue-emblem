@@ -9,6 +9,7 @@ import {
   clearSavedRun,
   isRunSaveCurrent,
 } from '../src/engine/RunManager.js';
+import { resolvePriceOption } from '../src/engine/BlessingEngine.js';
 import * as NodeMapGenerator from '../src/engine/NodeMapGenerator.js';
 import { loadGameData } from './testData.js';
 import { createCaravanUnit } from '../src/engine/CaravanSystem.js';
@@ -3754,9 +3755,9 @@ describe('blessing run-start effect application', () => {
     rm.activeBlessings = ['blessed_vigor'];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
-    expect(rm.roster[0].stats.HP).toBe(baseHp + 2);
+    expect(rm.roster[0].stats.HP).toBe(baseHp + 4);
     rm.applyRunStartBlessingEffects();
-    expect(rm.roster[0].stats.HP).toBe(baseHp + 2);
+    expect(rm.roster[0].stats.HP).toBe(baseHp + 4);
   });
 
   it('chooseBlessing applies offered blessing and persists chosenIds telemetry', () => {
@@ -3948,6 +3949,7 @@ describe('blessing run-start effect application', () => {
       description: '+1 MOV all units.',
       boons: [{ type: 'all_units_stat_delta', params: { stat: 'MOV', value: 1 } }],
       costs: [],
+      pact: ['debt_heavy'],
     });
     const rm = new RunManager(gameData);
     rm.startRun();
@@ -4072,27 +4074,29 @@ describe('blessing run-start effect application', () => {
     expect(recruitGrowthBonuses.SPD).toBe(5);
   });
 
-  it('Forbidden Tome teaches the lords and its pact bleeds every recruit', () => {
+  it('Forbidden Tome teaches the lords; its pact closes church revives (v3)', () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
     rm.startRun();
     const baseGrowths = rm.roster.map((u) => ({ ...u.growths }));
     const tome = gameData.blessings.blessings.find((b) => b.id === 'forbidden_tome');
-    rm.activeBlessings = [{ id: 'forbidden_tome', rolledCost: structuredClone(tome.pact) }];
+    const pact = resolvePriceOption(gameData.blessings, tome.pact, { kind: 'pact' });
+    rm.activeBlessings = [{ id: 'forbidden_tome', rolledCost: pact }];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
 
     rm.roster.forEach((unit, idx) => {
       for (const stat of ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK']) {
-        expect(unit.growths[stat]).toBe((baseGrowths[idx][stat] || 0) + (unit.isLord ? 12 : -10));
+        expect(unit.growths[stat]).toBe((baseGrowths[idx][stat] || 0) + (unit.isLord ? 12 : 0));
       }
     });
     const lordBonuses = rm.getEffectiveLordGrowthBonuses();
     const recruitBonuses = rm.getEffectiveRecruitGrowthBonuses();
     for (const stat of ['HP', 'STR', 'SPD', 'LCK']) {
       expect(lordBonuses[stat]).toBe(12);
-      expect(recruitBonuses[stat]).toBe(-10);
+      expect(recruitBonuses?.[stat] || 0).toBe(0);
     }
+    expect(rm.isChurchReviveDisabled()).toBe(true);
   });
 
   it('disable_personal_skills_until_act removes and restores lord personal skills at target act', () => {

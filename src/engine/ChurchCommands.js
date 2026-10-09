@@ -79,6 +79,8 @@ export function healRosterAtChurch(run) {
 }
 export function churchReviveBlock(run, unit) {
   if (!run.fallenUnits.includes(unit)) return 'Unit is no longer awaiting revival.';
+  // Forbidden Tome's pact (docs/specs/blessings-v3.md §4): the dead stay dead.
+  if (run.isChurchReviveDisabled?.()) return 'Your pact forbids it: the fallen stay fallen.';
   return run.gold < getReviveCost(unit) ? 'Not enough gold.' : '';
 }
 export function reviveAtChurch(run, unit) {

@@ -2,6 +2,7 @@
 // Pure: reads RunManager.activeBlessings and the blessings catalog, draws nothing.
 
 import { buildBlessingIndex } from '../engine/BlessingEngine.js';
+import { blessingTerms } from '../engine/BlessingTerms.js';
 
 const TIER_NUMERALS = ['', 'I', 'II', 'III', 'IV', 'V'];
 
@@ -16,10 +17,11 @@ function catalogIndex(run) {
 
 /**
  * One entry per held blessing, in the order it was taken:
- * `{ id, label, tier, line, price, priceKind }`. `price` is the label of what the blessing
- * cost when it was taken (its rolled cost, or its pact) and `priceKind` is 'Cost' or 'Pact';
- * both are null for a free blessing (tier I, a church's vow, an event's gift). An id the
- * catalog no longer has is left out. Empty when the run holds none.
+ * `{ id, label, tier, line, price, priceKind, terms }`. `price` is the label of what the
+ * blessing cost when it was taken (its rolled cost, or its pact) and `priceKind` is 'Cost' or
+ * 'Pact'; both are null for a free blessing (tier I, a church's vow, an event's gift).
+ * `terms` explains the price's words (BlessingTerms). An id the catalog no longer has is left
+ * out. Empty when the run holds none.
  * @param {object} run - RunManager
  * @returns {Array<{ id: string, label: string, tier: string, line: string,
  *   price: string|null, priceKind: 'Cost'|'Pact'|null }>}
@@ -35,7 +37,10 @@ export function heldBlessingEntries(run) {
     if (!blessing) continue;
     seen.add(id);
     const label = entry?.midRun ? null : entry?.rolledCost?.label || null;
-    const isPact = !!label && !!blessing.pact && blessing.pact.label === label;
+    // A v3 price says it was the pact; a v2 save names its pact by the pact's own label.
+    const isPact =
+      !!label &&
+      (entry?.rolledCost?.kind === 'pact' || (!!blessing.pact && blessing.pact.label === label));
     entries.push({
       id,
       label: blessing.name,
@@ -43,6 +48,13 @@ export function heldBlessingEntries(run) {
       line: blessing.description || '',
       price: label,
       priceKind: label ? (isPact ? 'Pact' : 'Cost') : null,
+      terms: label
+        ? blessingTerms([label], {
+            burdens: run?.gameData?.events?.burdens,
+            difficultyId: run?.difficultyId,
+            pact: isPact,
+          })
+        : [],
     });
   }
   return entries;

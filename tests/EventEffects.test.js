@@ -708,7 +708,7 @@ describe('vision, flag, stat', () => {
 describe('blessing', () => {
   const blessingEvent = (tier) => soloEvent([{ type: 'blessing', tier }]);
 
-  it('hands out a safe tier-1 blessing the run lacks, applied at once (blessed_vigor: lords +2 HP)', () => {
+  it('hands out a safe tier-1 blessing the run lacks, applied at once (blessed_vigor: lords +4 HP)', () => {
     const run = runWithEvents([blessingEvent(1)]);
     // Hold the other two safe tier-1 blessings so the draw is forced.
     run.activeBlessings = [{ id: 'steady_hands' }, { id: 'field_medic' }];
@@ -718,7 +718,7 @@ describe('blessing', () => {
     expect(run.getActiveBlessingIds()).toContain('blessed_vigor');
     const edric = run.roster.find((u) => u.name === 'Edric');
     const gaspar = run.roster.find((u) => u.name === 'Gaspar');
-    expect(edric.stats.HP).toBe(22); // lord: 20 + 2
+    expect(edric.stats.HP).toBe(24); // lord: 20 + 4
     expect(gaspar.stats.HP).toBe(18); // not a lord
   });
 
@@ -741,13 +741,13 @@ describe('blessing', () => {
       const node = arriveAs(run, 'solo');
       picked.add(chooseEventOption(run, node.id, 'go').results[0].id);
     }
-    // scout_blessing (deploy cap) is excluded; the rest are safe.
+    // Tier III since blessings v3: every one is safe mid-run (no pact, no deploy cap).
     expect([...picked].sort()).toEqual([
       'focused_curriculum',
+      'iron_oath',
       'merchant_bane',
       'nomad_pact',
-      'pilgrim_coin',
-      'scholar_vow',
+      'war_veteran',
     ]);
   });
 

@@ -22,6 +22,7 @@ import {
 } from '../src/engine/ShopCommands.js';
 import { applyWear, wearCount } from '../src/engine/WeaponWear.js';
 import { getForgeCost } from '../src/engine/ForgeSystem.js';
+import { resolvePriceOption } from '../src/engine/BlessingEngine.js';
 import { heldBlessingEntries } from '../src/ui/heldBlessingsModel.js';
 import { pauseBlessingList } from '../src/ui/MobilePauseMenu.js';
 import { installFakeDom } from './helpers/fakeDom.js';
@@ -192,23 +193,29 @@ describe('the pause menu lists held blessings', () => {
 
   it('names each blessing, its tier and what it cost', () => {
     const tome = data.blessings.blessings.find((b) => b.id === 'forbidden_tome');
+    const pact = resolvePriceOption(data.blessings, tome.pact, { kind: 'pact' });
     const rm = new RunManager(data);
     rm.startRun({ runSeed: 11 });
-    rm.activeBlessings = [{ id: 'forbidden_tome', rolledCost: clone(tome.pact) }];
+    rm.activeBlessings = [{ id: 'forbidden_tome', rolledCost: pact }];
     rm.addBlessingMidRun('field_medic');
-    rm.addBlessingMidRun('scholar_vow');
+    rm.addBlessingMidRun('iron_oath');
     const entries = heldBlessingEntries(rm);
     expect(entries.map((e) => [e.label, e.tier, e.priceKind, e.price])).toEqual([
-      ['Forbidden Tome', 'IV', 'Pact', tome.pact.label],
+      ['Forbidden Tome', 'IV', 'Pact', pact.label],
       ['Field Medic', 'I', null, null],
-      ["Scholar's Vow", 'III', null, null],
+      ['Iron Oath', 'III', null, null],
     ]);
     const list = pauseBlessingList(entries);
     expect(list.getAttribute('aria-label')).toBe('Blessings');
     const items = list.querySelectorAll('li');
     expect(items).toHaveLength(3);
     expect(items[0].querySelector('strong').textContent).toBe('Forbidden Tome · IV');
-    expect(items[0].textContent).toContain(`Pact: ${tome.pact.label}`);
+    expect(items[0].textContent).toContain(`Pact: ${pact.label}`);
+    // The price's words open on a tap: touch has no hover.
+    expect(items[0].querySelector('summary').textContent).toBe(`Pact: ${pact.label}`);
+    expect(items[0].querySelector('.mp-blessing-terms').textContent).toContain(
+      'A pact is a fixed price',
+    );
     expect(items[1].textContent).not.toContain('Cost:');
   });
 

@@ -96,7 +96,18 @@ test('held blessings and burdens list under the note and never push an action ou
   await page.evaluate(() => {
     const rm = window.__emblemRogueGame.scene.getScene('Battle').runManager;
     const tome = rm.gameData.blessings.blessings.find((b) => b.id === 'forbidden_tome');
-    rm.activeBlessings = [{ id: 'forbidden_tome', rolledCost: structuredClone(tome.pact) }];
+    const catalog = rm.gameData.blessings.priceCatalog;
+    const parts = tome.pact.map((id) => catalog[id]);
+    rm.activeBlessings = [
+      {
+        id: 'forbidden_tome',
+        rolledCost: {
+          label: parts.map((p) => p.label).join(' · '),
+          effects: parts.flatMap((p) => p.effects),
+          kind: 'pact',
+        },
+      },
+    ];
     rm.addBlessingMidRun('field_medic');
     rm.addBlessingMidRun('scholar_vow');
     rm.burdens = [
@@ -112,7 +123,9 @@ test('held blessings and burdens list under the note and never push an action ou
   const blessings = pause.getByRole('list', { name: 'Blessings' });
   await expect(blessings.locator('li')).toHaveCount(3);
   await expect(blessings.locator('li').first()).toContainText('Forbidden Tome · IV');
-  await expect(blessings.locator('li').first()).toContainText("Pact: Recruits' growth rates -10");
+  await expect(blessings.locator('li').first()).toContainText(
+    'Pact: Churches cannot revive the fallen this run',
+  );
   await expect(blessings.locator('li').nth(2)).not.toContainText('Cost:');
   await expect(pause.getByRole('list', { name: 'Burdens' }).locator('li')).toHaveCount(2);
   // The lists give way: every action stays in view, unscrolled; the lists scroll instead.
@@ -125,6 +138,24 @@ test('held blessings and burdens list under the note and never push an action ou
       }),
     })),
   ).toEqual({ scrolls: false, allInView: true });
+  // A price's words open on a tap (touch has no hover), and the actions still fit.
+  const price = blessings.locator('li').first().locator('summary');
+  const terms = blessings.locator('li').first().locator('.mp-blessing-terms');
+  await expect(terms).toBeHidden();
+  await price.tap();
+  await expect(terms).toBeVisible();
+  await expect(terms).toContainText('A pact is a fixed price');
+  expect(
+    await pause
+      .locator('.mp-actions button')
+      .evaluateAll((all) =>
+        all.every(
+          (b) =>
+            b.getBoundingClientRect().top >= 0 &&
+            b.getBoundingClientRect().bottom <= window.innerHeight,
+        ),
+      ),
+  ).toBe(true);
   const last = blessings.locator('li').last();
   await last.scrollIntoViewIfNeeded();
   await expect(last).toBeInViewport();
