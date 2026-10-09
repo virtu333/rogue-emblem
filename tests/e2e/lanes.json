@@ -107,6 +107,7 @@
         "combat-actions.spec.js",
         "compendium-input-isolation.spec.js",
         "deployment-camera.spec.js",
+        "desktop-camera.spec.js",
         "forecast-triangle.spec.js",
         "gamepad-battle.spec.js",
         "gamepad-menus.spec.js",

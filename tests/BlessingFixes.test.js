@@ -5,7 +5,7 @@
 // Ways this can fail, a test each:
 //   1. a "+20% forge costs" price charges the base price (the shop clamped it away), or a
 //      shop refuses to forge at all under it;
-//   2. Frugal Smith's discount or a liberated village's discount stops composing;
+//   2. a forge discount or a liberated village's discount stops composing;
 //   3. a repair under the price is refused, or charges the base price;
 //   4. an out-of-range discount is accepted;
 //   5. a mid-run tier III blessing (the Twin Altar's) shows a price after a save and load;
@@ -79,14 +79,17 @@ describe('forge prices from blessings', () => {
     expect(rm.gold).toBe(gold - 288);
   });
 
-  it('a +35% price and a Frugal Smith discount each charge what they say', () => {
+  it('a +35% price and a forge discount each charge what they say', () => {
     const dear = runWithPrice('iron_oath', FORGE_PRICE(0.35));
     expect(shopForgeDiscount(dear)).toBeCloseTo(-0.35, 10);
+    // No card gives a forge discount now; the effect type stays (events, old saves), so the
+    // charge is checked with a synthetic 30% off.
     const frugal = new RunManager(data);
     frugal.startRun({ runSeed: 11 });
-    frugal.activeBlessings = [{ id: 'frugal_smith', rolledCost: null }];
-    frugal._runStartBlessingsApplied = false;
-    frugal.applyRunStartBlessingEffects();
+    frugal._applySingleRunStartBlessingEffect('synthetic', {
+      type: 'forge_cost_multiplier',
+      params: { value: -0.3 },
+    });
     expect(shopForgeDiscount(frugal)).toBeCloseTo(0.3, 10);
     const sword = withSword(frugal);
     const gold = frugal.gold;
@@ -154,12 +157,14 @@ describe('blessings taken mid-run', () => {
   it('a tier III blessing from an event keeps no price through a save and load', () => {
     const rm = new RunManager(data);
     rm.startRun({ runSeed: 11 });
-    expect(rm.addBlessingMidRun('scholar_vow')).toBe(true);
+    // A pact card (tier IV) is never granted mid-run: its price would never be paid.
+    expect(rm.addBlessingMidRun('scholar_vow')).toBe(false);
+    expect(rm.addBlessingMidRun('iron_oath')).toBe(true);
     const restored = roundTrip(roundTrip(rm));
-    const entry = restored.activeBlessings.find((b) => b.id === 'scholar_vow');
+    const entry = restored.activeBlessings.find((b) => b.id === 'iron_oath');
     expect(entry.rolledCost).toBeNull();
     expect(entry.midRun).toBe(true);
-    expect(heldBlessingEntries(restored).find((b) => b.id === 'scholar_vow').price).toBeNull();
+    expect(heldBlessingEntries(restored).find((b) => b.id === 'iron_oath').price).toBeNull();
   });
 
   it('an older save drops the phantom price and keeps the run-start one', () => {
@@ -172,7 +177,9 @@ describe('blessings taken mid-run', () => {
     expect(picked).toBeTruthy();
     expect(rm.chooseBlessing(picked.id)).toBe(true);
     const startPrice = rm.activeBlessings[0].rolledCost.label;
-    const other = data.blessings.blessings.find((b) => b.tier === 3 && b.id !== picked.id);
+    const other = data.blessings.blessings.find(
+      (b) => b.tier === 3 && b.id !== picked.id && !b.intrinsicPrice && !b.pact,
+    );
     rm.addBlessingMidRun(other.id);
     const saved = JSON.parse(JSON.stringify(rm.toJSON()));
     // As an older client saved it: no flag, and a price the load once rolled for it.

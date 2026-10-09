@@ -556,6 +556,8 @@ export class ColosseumOverlay {
           this.runManager.getEffectiveMetaEffects?.() ?? this.runManager.metaEffects ?? null,
           // Their Mark roll: own stream keyed by run seed and name (UnitManager.createRecruitUnit).
           { runSeed: this.runManager.runSeed, marksData: this.gameData.marks || null },
+          // Nomad's Pact: mercenaries join higher too (never below 0).
+          { recruitLevelBonus: Math.max(0, this.runManager.getRecruitLevelBonus?.() || 0) },
         );
       } catch (err) {
         console.error('[ColosseumOverlay] Failed to generate mercenary candidates:', err);

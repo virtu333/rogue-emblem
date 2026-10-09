@@ -112,8 +112,6 @@ function battle({ show, bars }) {
     battleParams: {},
     turnManager: { turnNumber: 1 },
     runManager: {
-      getActHitBonusForUnit: () => 0,
-      getTerrainCombatBonuses: () => [],
       blessingRuntimeModifiers: {},
     },
     registry: { get: () => null },

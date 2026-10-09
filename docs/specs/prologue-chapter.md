@@ -685,7 +685,7 @@ spares (1,4), (1,6).)
   | Edric, Iron Sword | 3 ×2, counter 8 (60%) | 6 ×2 |
 
   Varro's own blow: 8 on Edric, 7 on Gaspar, 11 on Sera and on Tamsin (a Fighter's: 9, 8,
-  12, 12). Par 10; the boss enrages on turn min(12, par + 2) = 12.
+  12, 12). Par 10; the boss enrages on turn max(par + 1, min(12, par + 2)) = 12.
 - **Enemies:** Fighter `k` (`guard` at (9,3): it charges anything within 3 tiles of its post),
   Fighter `a` (chases). Both are the class at level 1 with an Iron Axe: every foe on the map
   carries an axe, so swords (Edric, Gaspar) have the triangle and the bow and the light

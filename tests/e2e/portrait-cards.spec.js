@@ -110,7 +110,7 @@ async function longestBlessings(page) {
     const s = window.__emblemRogueGame.scene.getScene('BlessingSelect');
     window.__offered ??= s.options;
     // The longest price any blessing can roll (v3: catalog labels, a combination joined by
-    // " · ", the largest Debt), on every card.
+    // " · ", the largest Debt, an intrinsic price's label), on every card.
     const catalog = s.gameData.blessings.priceCatalog || {};
     const labelOf = (option) =>
       (Array.isArray(option) ? option : [option])
@@ -119,8 +119,14 @@ async function longestBlessings(page) {
     const longest = s.gameData.blessings.blessings
       .flatMap((x) => (x.pact ? [x.pact] : x.prices || []))
       .map(labelOf)
+      // An intrinsic price is its own label, not a catalog id.
+      .concat(
+        s.gameData.blessings.blessings
+          .filter((x) => x.intrinsicPrice)
+          .map((x) => x.intrinsicPrice.label),
+      )
       .reduce((a, c) => (c.length > a.length ? c : a), '');
-    const ids = ['quartermaster_cache', 'focused_curriculum', 'forbidden_tome', 'war_tutelage'];
+    const ids = ['terrain_mastery', 'bloodless_art', 'slow_fuse', 'pilgrim_coin'];
     s.options = ids.map((id) => {
       const b = structuredClone(s.gameData.blessings.blessings.find((x) => x.id === id));
       b.rolledCost = { label: longest, effects: [] };

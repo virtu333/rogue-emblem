@@ -143,8 +143,6 @@ function makeScene({ policy = 'fixed-v1', inventory = null, heroExtra = {} } = {
     runManager: {
       battleInProgress: true,
       blessingRuntimeModifiers: {},
-      getActHitBonusForUnit: () => 0,
-      getTerrainCombatBonuses: () => [],
     },
     turnManager: {
       currentPhase: 'player',

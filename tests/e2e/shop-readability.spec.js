@@ -101,3 +101,60 @@ for (const width of [667, 844]) {
     });
   });
 }
+
+// Playtest (Oct 2026): an unaffordable price read gold and an affordable one grey, the inverse
+// of what a purse means. Affordable prices are the accent gold; a price out of reach is muted.
+test.describe('shop prices', () => {
+  test.use({ viewport: { width: 667, height: 390 } });
+  test('an affordable price reads gold, one out of reach reads grey', async ({ page }) => {
+    const errors = collectErrors(page);
+    await page.goto('/?devScene=nodemap&mobilePreview=1');
+    await waitForGame(page);
+    await waitForScene(page, 'NodeMap');
+    const skip = page.getByRole('button', { name: 'Skip conversation', exact: true });
+    if (await skip.isVisible()) await skip.tap();
+    await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('NodeMap');
+      s.dialogueOverlay?.hide?.();
+      s._storyDialogueActive = false;
+      s.registry.set('activeSlot', 1);
+      s.runManager.gold = 1265;
+      const n = s.runManager.getAvailableNodes()[0];
+      n.type = 'shop';
+      s.runManager.currentNodeId = n.id;
+      const weapon = (name) => structuredClone(s.gameData.weapons.find((w) => w.name === name));
+      s.showShopOverlay(n, [
+        { type: 'weapon', item: weapon('Steel Sword'), price: 1150 },
+        { type: 'weapon', item: weapon('Steel Lance'), price: 2300 },
+      ]);
+    });
+    const shop = page.locator('.shop-menu');
+    await expect(shop).toBeVisible();
+    const colors = await shop.evaluate((menu) => {
+      const probe = (name) => {
+        const el = document.createElement('span');
+        el.style.color = `var(${name})`;
+        menu.append(el);
+        const c = getComputedStyle(el).color;
+        el.remove();
+        return c;
+      };
+      const priceOf = (text) =>
+        getComputedStyle(
+          [...menu.querySelectorAll('.shop-row')]
+            .find((r) => r.textContent.includes(text))
+            .querySelector('.shop-price'),
+        ).color;
+      return {
+        accent: probe('--re-accent'),
+        muted: probe('--re-muted'),
+        affordable: priceOf('Steel Sword'),
+        short: priceOf('Steel Lance'),
+      };
+    });
+    expect(colors.accent).not.toBe(colors.muted);
+    expect(colors.affordable).toBe(colors.accent);
+    expect(colors.short).toBe(colors.muted);
+    expect(errors).toEqual([]);
+  });
+});

@@ -3,6 +3,7 @@
 
 import { buildBlessingIndex } from '../engine/BlessingEngine.js';
 import { blessingTerms } from '../engine/BlessingTerms.js';
+import { blessingPriceKind } from './choiceContent.js';
 
 const TIER_NUMERALS = ['', 'I', 'II', 'III', 'IV', 'V'];
 
@@ -18,13 +19,13 @@ function catalogIndex(run) {
 /**
  * One entry per held blessing, in the order it was taken:
  * `{ id, label, tier, line, price, priceKind, terms }`. `price` is the label of what the
- * blessing cost when it was taken (its rolled cost, or its pact) and `priceKind` is 'Cost' or
- * 'Pact'; both are null for a free blessing (tier I, a church's vow, an event's gift).
+ * blessing cost when it was taken (its rolled cost, or its pact) and `priceKind` is 'Cost',
+ * 'Price' (an intrinsic price: the boon carries it) or 'Pact'; both are null for a free blessing (tier I, a church's vow, an event's gift).
  * `terms` explains the price's words (BlessingTerms). An id the catalog no longer has is left
  * out. Empty when the run holds none.
  * @param {object} run - RunManager
  * @returns {Array<{ id: string, label: string, tier: string, line: string,
- *   price: string|null, priceKind: 'Cost'|'Pact'|null }>}
+ *   price: string|null, priceKind: 'Cost'|'Price'|'Pact'|null }>}
  */
 export function heldBlessingEntries(run) {
   const index = catalogIndex(run);
@@ -47,7 +48,14 @@ export function heldBlessingEntries(run) {
       tier: TIER_NUMERALS[blessing.tier] || String(blessing.tier ?? ''),
       line: blessing.description || '',
       price: label,
-      priceKind: label ? (isPact ? 'Pact' : 'Cost') : null,
+      priceKind: label
+        ? isPact
+          ? 'Pact'
+          : blessingPriceKind({
+              rolledCost: entry?.rolledCost,
+              intrinsicPrice: blessing.intrinsicPrice,
+            })
+        : null,
       terms: label
         ? blessingTerms([label], {
             burdens: run?.gameData?.events?.burdens,

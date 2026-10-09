@@ -81,9 +81,9 @@ describe('Prologue P4: The Quarry Gate', () => {
     expect(blow(gaspar)).toBe(7 + axe.might - gaspar.stats.DEF - 1);
     expect(blow(sera)).toBe(7 + axe.might - sera.stats.DEF);
     expect([blow(edric), blow(gaspar), blow(sera)]).toEqual([8, 7, 11]);
-    // Three enemies on a 13 × 7 seize map: par 10, the boss enrages on turn 12.
+    // Three enemies on a 13 × 7 seize map: par 10, the boss enrages on turn 12
+    // (max(10 + 1, min(12, 10 + 2)): the par + 1 floor does not bind).
     expect(battle.turnPar).toBe(10);
-    expect(enrageTurn(battle)).toBe(Math.min(data.turnBonus.latePressure.bossEnrageTurn, 10 + data.turnBonus.latePressure.bossEnrageOverPar)); // prettier-ignore
     expect(enrageTurn(battle)).toBe(12);
     // The rest of the garrison: the gate's guard and one Fighter that comes. No bow, no
     // lance: every foe the army meets carries an axe.

@@ -156,8 +156,6 @@ function makeScene() {
     selectedUnit: null,
     turnManager: { endPlayerPhase: vi.fn(), unitActed: vi.fn(), turnNumber: 1 },
     runManager: {
-      getActHitBonusForUnit: vi.fn(() => 0),
-      getTerrainCombatBonuses: vi.fn(() => []),
       blessingRuntimeModifiers: {},
     },
     registry: { get: vi.fn(() => null) },

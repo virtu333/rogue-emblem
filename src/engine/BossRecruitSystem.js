@@ -38,6 +38,7 @@ import {
 import { serializeUnit } from './RunManager.js';
 import { VULNERARY_NAME, consumableTemplateFor } from './VulneraryRecipe.js';
 import { rollMark } from './MarkSystem.js';
+import { applyRecruitLevelBonus } from './RecruitJoinLevel.js';
 
 const XP_STAT_NAMES = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK'];
 const LEGACY_ACT_ORDER = ['act1', 'act2', 'act3', 'finalBoss'];
@@ -303,6 +304,10 @@ export function createBossLordUnit(
  * @param {Array} [fallenUnits=[]] - units that died this run (their names stay taken)
  * @param {Array<string>} [reservedNames=[]] - names no candidate may take (RunManager.getTakenUnitNames: pending recruit-node previews, names used this run)
  * @param {number|null} [runSeed=null] - the run's seed: the Mark roll's stream (UnitManager.createRecruitUnit); none = no Marks
+ * @param {{ recruitLevelBonus?: number }} [options] - `recruitLevelBonus`: Nomad's Pact, extra levels
+ *   every candidate (the lord included) joins with, raised after the unit is built on its own
+ *   keyed stream (engine/RecruitJoinLevel.js) so classes, names and the lord slot are the same
+ *   with and without it; the candidate's equipment keeps reading the level before the bonus
  * @returns {Array|null} 3 candidate objects or null for final boss
  */
 export function generateBossRecruitCandidates(
@@ -313,6 +318,7 @@ export function generateBossRecruitCandidates(
   fallenUnits = [],
   reservedNames = [],
   runSeed = null,
+  { recruitLevelBonus = 0 } = {},
 ) {
   const actId = resolveActId(actRef);
 
@@ -457,6 +463,7 @@ export function generateBossRecruitCandidates(
       // The Mark's stream is keyed by name: a name the dedup changed rolls again, so the
       // same run seed and the final name always give the same Mark.
       if (unit.name !== pickedName) rollMark(unit, { ...markContext, metaEffects });
+      applyRecruitLevelBonus(unit, recruitLevelBonus, { classes, runSeed });
       takenNames.add(unit.name);
       takenClassNames.add(unit.className);
       unit.faction = 'player';
@@ -510,6 +517,7 @@ export function generateBossRecruitCandidates(
       );
       applyRecruitJoinBonus(unit, poolKey);
       unit.name = chosenLord.name || unit.name;
+      applyRecruitLevelBonus(unit, recruitLevelBonus, { classes, runSeed });
       takenNames.add(unit.name);
       const lordCandidate = {
         unit: serializeUnit(unit),

@@ -12,6 +12,7 @@ import {
   getHPBarColor,
 } from '../utils/uiStyles.js';
 import { unitPortraitKey } from './RebuiltPortraits.js';
+import { weaponArtHpSuffix } from './weaponArtDisplay.js';
 import { MobileRosterSheet, canShowMobileRoster } from './MobileRosterSheet.js';
 // UnitDetailOverlay.js — Center-screen full unit detail overlay (opened via V key or R key)
 // Tabbed display: Stats tab (stats, proficiencies, growths, terrain) | Gear tab (inventory, consumables, accessory, skills)
@@ -31,6 +32,7 @@ import {
   canUseWeaponArt,
   getWeaponArtIds,
   isWeaponArtCompatibleWithWeapon,
+  weaponArtRunOptions,
 } from '../engine/WeaponArtSystem.js';
 import { canEquip, getDisplayLevel, inventoryDisplayOrder } from '../engine/UnitManager.js';
 import {
@@ -951,8 +953,7 @@ export class UnitDetailOverlay {
       for (const { weapon, art, canUse, reason } of weaponArtChoices) {
         const status = canUse ? 'Ready' : this._weaponArtReasonLabel(reason);
         const color = canUse ? UI_PALETTE.info : UI_COLORS.gray;
-        const hpCost = Math.max(0, Number(art?.hpCost) || 0);
-        const suffix = hpCost > 0 ? ` HP-${hpCost}` : '';
+        const suffix = weaponArtHpSuffix(unit, art, weaponArtRunOptions(this.scene?.runManager));
         const weaponName = this._getWeaponBaseName(weapon);
         const row = this._tabText(
           lx + 8,
@@ -1098,8 +1099,7 @@ export class UnitDetailOverlay {
         turnNumber: this.scene?.turnManager?.turnNumber,
         isInitiating: true,
         actorFaction: unit.faction,
-        weaponArtHpCostDelta:
-          this.scene?.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+        ...weaponArtRunOptions(this.scene?.runManager),
       });
       if (!check.ok && HIDDEN_WEAPON_ART_REASONS.has(check.reason)) continue;
       choices.push({ art, canUse: check.ok, reason: check.reason });

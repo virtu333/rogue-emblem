@@ -20,6 +20,7 @@ import {
   prologueProtectedNames,
 } from '../../src/engine/Prologue.js';
 import { enemyThreatTiles } from '../../src/engine/ThreatForecast.js';
+import { getBossEnrageTurn } from '../../src/engine/TurnBonusCalculator.js';
 import { getWeaponTriangleBonus, gridDistance } from '../../src/engine/Combat.js';
 import { canEquip, equipWeapon } from '../../src/engine/UnitManager.js';
 import { healUnitFully } from '../../src/engine/UnitHealth.js';
@@ -600,12 +601,11 @@ export async function tally(
   return result;
 }
 
-/** The boss's enrage turn: min(bossEnrageTurn, par + bossEnrageOverPar) (turnBonus.json). */
+/** The boss's enrage turn: the game's one rule (TurnBonusCalculator.getBossEnrageTurn). */
 export function enrageTurn(battle) {
-  const pressure = data.turnBonus.latePressure;
   const par = battle.turnPar;
   if (!Number.isFinite(par)) return null;
-  return Math.min(pressure.bossEnrageTurn, par + pressure.bossEnrageOverPar);
+  return getBossEnrageTurn(par, data.turnBonus);
 }
 
 export const report = (label, t) =>
