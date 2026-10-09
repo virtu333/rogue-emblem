@@ -1,9 +1,12 @@
 # Set pieces: authored skeletons, chunks and seeded choices
 
-Status: proposal, revision 1 (2026-10-09). Specs only: no game code or data changes.
+Status: proposal, revision 2 (2026-10-09). Takes in the cross-review of the spec set.
+Specs only: no game code or data changes.
 Branch `claude/large-maps-specs`. Roadmap phases 4–6 of the [README](README.md).
-- Depends on `02` (encounter groups, triggers, contact-relative waves) and `03` (the objective
-  model, phases, bonuses, par). This spec writes their fields; it never defines their rules.
+- Depends on `02` (encounter groups, triggers, contact-relative waves, the par formula, the
+  terrain module) and `03` (the objective model, phases, bonuses, the non-walk par terms).
+  This spec writes their fields, including `battleConfig.parRoute`; it never defines their
+  rules. The exact PRs each map needs are in §14.
 - The walk and turn numbers below come from a scratch script that assembles the sketched maps
   from their chunks and runs the shipped `SeizeParFloor.turnsToReach`. They are design
   estimates, not sim results. `sim/pacing.js` measures the real maps in each content PR.
@@ -59,7 +62,7 @@ A **set piece** is a fixed-size map. It is assembled from:
 
 Seeded **choices** (`oneOf`) pick chunks and toggle groups and bonuses, so each run meets a
 different plan on the same named place. A new generator path makes an ordinary locked
-`battleConfig` plus `setPiece`, `objectives`, `encounterGroups` and `anchors`; it is a
+`battleConfig` plus `setPiece`, `objectives`, `encounterGroups`, `anchors` and `parRoute`; it is a
 standard battle whose enemies come from the act and rung. A validator in `validate:data`
 proves every combination connected and inside 5–12 turns. A keyed post-pass places set
 pieces without touching the node-map stream.
@@ -235,8 +238,21 @@ A fill cell is painted with today's zone machinery, scoped to the cell:
   Kinds are `03`'s: primaries `rout`, `seize` (one or more `thrones`), `escape`, `defeat`,
   `assassinate`, `escort`, `capture`, `destroy`, the `protect` clause and the phase-only
   `survive`; bonuses (≤ 2) `visit`, `caravan`, `rescue`, `slay`, `protect`, `unbloodied`,
-  `capture`, `reach`. The skeleton's `objective` must equal `03`'s
-  `legacyObjectiveKind(objectives)`.
+  `claim` (`03` renamed the bonus so it never shares a name with the `capture` primary),
+  `reach`. A tile bonus may carry `03` §7.1's optional authored `race: { group, fastMov,
+  slowMov }`, which only this spec's validator reads (§8.2 check 6). The skeleton's
+  `objective` must equal `03`'s `legacyObjectiveKind(objectives)`.
+- **Written only when it says more than the legacy derivation.** A set piece whose
+  objectives are exactly what `03` §3.2 derives from the legacy fields (a rout, a
+  one-throne seize or an escape, plus at most the village as `villageTile` or the caravan)
+  writes no `objectives` into the config: the derived model is the same, its ids are the
+  derived ones (`rout`, `village`), and the config stays playable by a client from before
+  `03` PR 1. The skeleton still authors them, since the validator reads them (`race`,
+  check 9). The Mill Ford is such a map (§10.1).
+- **`objective` triggers always state `on`** in this spec's data (`done | failed |
+  either`; it defaults to `done`, README §3).
+- **`battleConfig.parRoute`** (README §3) is written for every set piece, whatever its
+  primary: the legs of §8.3's cheapest plan on the locked layout (§4.2 step 10).
 - Terrain changes are `03` phases' `onEnter.setTiles: [{ anchor, terrain }]` (§7). A phase
   may keep the same primary and exist only to change terrain and wake groups.
 - **Encounter groups** are authored here and written as `02` §3.2's schema
@@ -244,8 +260,16 @@ A fill cell is painted with today's zone machinery, scoped to the cell:
   authoring form replaces `members` with `region` (an anchor, where they spawn) and `size:
   { min, max, share, weights?, promoted?, levelBonus?, classes? }` (§4.3), plus the
   skeleton's `overflow` group id. States are `02`'s `picket | dormant | patrol | awake`
-  (README §3); `onWake` modes `hunt | guard | seek | retake`; a column is a `patrol` with
-  `loop: false`.
+  (README §3); `onWake` modes `hunt | guard | seek | retake` in `02` §3.7's shapes
+  (`{ mode: 'seek', anchor, then }`, `{ mode: 'retake', point }`); a column is a `patrol`
+  with `loop: false`.
+- **A group that starts `awake` applies its `onWake` at battle start** (`02` §3.3, PR 2.1):
+  the generator writes it onto the members' spawns, as `aiMode: 'seek_tile'` plus
+  `aiTargetTile` for `seek`, exactly as the village's bandit wave carries them today
+  (`VillageSystem.buildBanditScriptedWave`). The scene and the harness already copy both
+  fields from any spawn (`BattleScene.addEnemyFromSpawn`, `:2638-2646`;
+  `HeadlessBattle.js:958-966`), and `clearSeekTileBandits` already turns them to chase once
+  the village resolves. So an awake seeker needs no patrol code (`02` PR 2.4).
 - Arrivals are `02` §4's `triggeredWaves`, with `side: 'anchor:<name>'` where authored.
 - Triggers are the README vocabulary as `02` §3.4 specifies it, anchors resolved at
   generation.
@@ -262,8 +286,10 @@ A fill cell is painted with today's zone machinery, scoped to the cell:
 - `deps` gains `setPieces` and `mapChunks`. `HeadlessBattle._generateBattleConfig` passes an
   explicit list, so add the two there.
 - If the id is unknown (data removed after a save), the branch logs a warning, deletes
-  `setPiece` and falls through to the procedural path with the node's kept `templateId`
-  (§6.4).
+  `setPiece`, restores the params `assign` overwrote from `battleParams.setPieceFallback`
+  (`objective`, `hasVillage`, `fogEnabled`, §6.2) and falls through to the procedural path
+  with the node's kept `templateId` (§6.4). Without the restore an elite node would play
+  its seize template as a rout.
 - `generateSetPieceBattle` lives in `engine/SetPieceGenerator.js` (pure, no Phaser). Its
   helpers live in `engine/SetPieceFormat.js` (parse, transform, assemble, resolve anchors,
   enumerate combinations), which the validator shares.
@@ -283,8 +309,9 @@ All of this runs inside the caller's `withBattleSeed(battleSeed)`.
 5. Enemies (§4.3), then the gear chain unchanged (`assignCasterGear`, `assignEnemyCarry`,
    `assignAffixesToEnemySpawns`, `assignSwornAffix`, `assignEnemyAreaArts`, as at
    `MapGenerator.js:265-305`), keyed on `templateId: 'setpiece:<id>'`.
-6. A `visit` bonus writes `villageTile` from its anchor; its raiders are the named group. No
-   caravans or recruit NPCs in v1.
+6. A `visit` bonus writes `villageTile` from its anchor; its raiders are the named group,
+   so the procedural bandit wave (`calibrateBanditSpawn` / `buildBanditScriptedWave`,
+   `MapGenerator.js:463-490`) is never built. No caravans or recruit NPCs in v1.
 7. `ensureReachability` on fill tiles only (§3.6).
 8. Write `objectives`, `encounterGroups` (resolved regions, routes, triggers), `anchors`
    (README §3: `{ <name>: { tiles } }`, a point being one tile), `setPiece`.
@@ -293,10 +320,17 @@ All of this runs inside the caller's `withBattleSeed(battleSeed)`.
    comes from `byRung`. Hunted writes its wave at the `huntedEntry` region's
    nearest edge through `withHuntedWave`, so a Hunted victory still counts
    (`RunManager.js:4067-4078`); ordinary and elite set pieces must declare `huntedEntry`.
-10. Par: a set piece has `dormant`/`patrol` groups, so it takes `02` §5.2's `groups-v1` model
-    (W from the primary route, S from the engagements on it) plus `03`'s `parAdjust`, with
-    `parInflation` and `parOffsetConfig` (`:3129`) as today. The resolved `parRoute` legs feed
-    `02`'s W and the §8.3 estimate alike.
+10. Par route and par. The generator resolves the skeleton's `parRoute` (§8.3) on the
+    locked layout at the rung's counts, keeps the cheapest of its `plans`, and writes that
+    plan's legs as `battleConfig.parRoute` (each `to` an anchor name in
+    `battleConfig.anchors`, each `group` a group id). Par is then `02` §5.2's `groups-v1`
+    and nothing else: W walks `parRoute`, S counts the engagements on it, and `03`'s
+    `parAdjust` (non-walk terms only: boss bars, survive turns, a structure's `parTurns`)
+    is added to `raw` inside `groups-v1`, before its `max(par, W + 3 + bossTurns)` floor
+    and the First Light cap. This spec adds no walk term of its own and `03` adds none
+    either, so the walk is counted once. The rung pipeline (`parInflation`,
+    `parOffsetConfig`, `:3129`) is the one `02` §5.2 lists. The same `parRoute` feeds the
+    §8.3 estimate.
 
 ### 4.3 Enemies come from the act and the rung
 
@@ -306,7 +340,9 @@ All of this runs inside the caller's `withBattleSeed(battleSeed)`.
   default 1.3), split over enabled groups: each takes its `min`, the rest by `share` (largest
   remainder, ties on `'setpiece:<id>:split'`), capped by `max` and the region's standable
   tiles. The rung's `enemyCountBonus` then goes to the `overflow` group (default the picket).
-  Awake-at-start members stay ≤ `base` (validated). Bosses and captains are extra, as today.
+  The members **awake at start** stay ≤ `base` by `02` §5.1's one rule (an enemy that can act
+  against the army by the check of turn 2 whatever the player does; validated, check 7).
+  Bosses and captains are extra, as today.
 - **Classes and levels.** From `enemies.pools[act]` after `filterClassPoolByDifficulty` and
   `earlyEnemyAllowed`, through `weightedClassPick` with the group's `weights` and the pool's
   `promotedShare` (or `promoted: always | never`); `mapExtraNecromancer` holds map-wide.
@@ -320,7 +356,11 @@ All of this runs inside the caller's `withBattleSeed(battleSeed)`.
 - **Bosses and captains.** `enemies.bosses[act]` with `difficultyFilter`, `bossLevelBonus` and
   revival stones by `revivalStoneKind` (as `generateEnemies` at `:1992-2090`); elite slots
   from `eliteCaptains` with `isEliteCaptain` stones. Two captains are drawn without
-  replacement on `'setpiece:<id>:captains'`.
+  replacement on `'setpiece:<id>:captains'`. Every boss and captain spawn carries
+  `isBoss: true`, as `generateEnemies` writes the throne boss (`MapGenerator.js:2046`; elite
+  captains "still hold the throne as the map's boss", `:680`), so boss enrage, the boss bar
+  and the boss AI treat them as today. A member a `slay` bonus names is never `isBoss`
+  (§8.2 check 9).
 - Every member carries `encounterGroupId`; group state is never a private flag (README §3).
 
 ### 4.4 Not a scripted battle
@@ -368,7 +408,8 @@ All of this runs inside the caller's `withBattleSeed(battleSeed)`.
 - Two set-piece battle nodes are never joined by an edge, so a path never chains two long
   battles.
 - A set piece offered in an earlier act of the run (`run.setPiecesOffered`, ids, saved) is
-  skipped when another fits.
+  skipped when another fits. (Deferrable: with one ordinary and one elite set piece in
+  the first shipment it changes nothing, §14.)
 - `fog` false (the default) deletes the node's `fogEnabled`. The fog roll was already drawn,
   so the stream does not move.
 
@@ -377,12 +418,13 @@ validated like the other rung tables):
 
 | Rung | ordinary chance per act (III / IV) | elite chance per node | boss share (III / IV) | finale share |
 |---|---|---|---|---|
-| First Light | 0 / 0 (README Q2) | 0 | 0.5 / 0.5 | — (the Lieutenant) |
+| First Light | 0 / — (open question 1) | 0 | 0 / — (open question 1) | — (the Lieutenant) |
 | Dusk | 0.5 / 0.5 | 0.25 | 0.5 / 0.5 | — (ends at the Emperor) |
 | Nightfall | 0.6 / 0.6 | 0.3 | 0.5 / 0.5 | 0.5 |
 | Black Sun | 0.7 / 0.7 | 0.35 | 0.5 / 0.5 | 0.5 |
 
-With §1's node counts, a Nightfall route that ignored the tags would meet about 0.4 ordinary
+First Light's runs have no Act IV (`difficulty.json` `normal.actsIncluded` is Acts I–III
+and the final boss), so its Act IV cells are "—". With §1's node counts, a Nightfall route that ignored the tags would meet about 0.4 ordinary
 and 0.5 elite set pieces in Acts III–IV, plus about one boss set piece. The tags let a player
 seek them out or avoid them. (Why per act, not per node: Notes 2.)
 
@@ -400,7 +442,8 @@ ordinary: E = eligibleOrdinary(nodes) sorted by id
                                                              assign(n, pick(fits(n), r('ordinary-piece')))
 elite:    for n in eligibleElite(nodes) sorted by id, not adjacent to an assigned node:
             if count < 2 && r(`elite:${n.id}`) < p         -> assign(n, pick(fits(n), r(`elite-piece:${n.id}`)))
-assign(n, sp): n.battleParams.setPiece = { id: sp.id }
+assign(n, sp): n.battleParams.setPieceFallback = { objective, hasVillage, fogEnabled }   (what assign overwrites)
+               n.battleParams.setPiece = { id: sp.id }
                n.battleParams.objective = sp.objective     (03's legacyObjectiveKind; isElite unchanged)
                n.battleParams.objectivePreview = { primary: [kinds], bonus: [kinds] }   (03 §11)
                n.battleParams.hasVillage = sp has a visit bonus

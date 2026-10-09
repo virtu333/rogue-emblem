@@ -346,8 +346,8 @@ keeps stat-line text plain.
 - Fail: none.
 - **Par**: one throne is today's seize par, unchanged. With more, the walk throne to throne
   is `parRoute`'s legs in the shortest order (§5.9), so it is `02`'s W and nothing here;
-  `02`'s `W + 3 + bossTurns` floor then walks through every throne, as the seize floor
-  walks to one. The guards' Revival Stones are `parAdjust`'s boss bars.
+  `02`'s floor (§5.2: `1 + W + parAdjust + bossTurns + 3`) then walks through every
+  throne, as the seize floor walks to one. The guards' Revival Stones are `parAdjust`'s boss bars.
 - **AI**: the throne clamp (`AIController.js:341`) reads `enemy.clampTile`, written on each
   guard's spawn, instead of the one `thronePos` (PR 1b, §14). The unread `guardianClampPos`
   (`MapGenerator.js:360-368`) retires into it. Taking throne A emits `objective
@@ -520,8 +520,9 @@ generation and its sum is locked in `parAdjust`. It has four terms and no other:
   `02`'s `bossTurns`;
 - **escort pace**: `max(0, T(mov) − T(4))` along the escortee's route (§5.6).
 
-`parAdjust` is added to `raw` inside `02`'s `groups-v1`, before its
-`max(par, W + 3 + bossTurns)` and before the First Light cap. A config with written
+`parAdjust` is added to `raw` inside `02`'s `groups-v1`, before its floor
+(`1 + W + parAdjust + bossTurns + 3`) and before the First Light cap. `02` §5.2 gives the
+full order of operations; it is never multiplied by 0.8 or the rung multiplier. A config with written
 `objectives` takes `groups-v1` whatever its groups (a First Light `twin_thrones` map has
 no `dormant` group; Notes 6). A config without them keeps `calculatePar` exactly, with a
 derived `parAdjust` of 0, so `calculatePar` gains no parameter.

@@ -269,11 +269,11 @@ in fixed pauses alone (300 ms each, at every speed). It lands before `04`'s firs
 4. **Two small ones `01` hands over.** A desktop hold key: **Shift held alone, and only
    while `battleState === 'ENEMY_PHASE'`**, sets `_holdBattleFast`, as the phone's
    `HoldBattleSpeed.js` control does (the phone's `canHoldBattleSpeed` also admits a
-   player-phase combat; the desktop key is narrower). In the player phase Shift is the modifier of `01`'s
-   Shift+N (previous unit, `01` §2.8) and never touches the speed, so the two never
-   collide; releasing Shift, or the phase ending, clears the flag. Not Space,
-   which dismisses hints and dialogue, `HintDisplay.js:148`, `DialogueOverlay.js:246`. And the
-   enemy heal banner names its target only if the player can see it (`canInspectUnit`;
+   player-phase combat; the desktop key is narrower). In the player phase Shift is the
+   modifier of `01`'s Shift+N (previous unit, `01` §2.8) and never touches the speed, so
+   the two never collide; releasing Shift, or the phase ending, clears the flag. Not Space,
+   which dismisses hints and dialogue (`HintDisplay.js:148`, `DialogueOverlay.js:246`).
+   And the enemy heal banner names its target only if the player can see it (`canInspectUnit`;
    today it does not check, `BattleScene.js:10447-10456`).
 
 Effect: today an 11-enemy phase spends 3.3 s in these delays at every speed. After the
@@ -401,7 +401,9 @@ ledger entries due at T):
 Nothing that a phase changes happens before this check: `03` may show its NEW OBJECTIVE
 band the moment the last primary resolves, but terrain, wakes and the phase index move only
 when the next enemy phase starts. `BattleObjectives.evaluate` (called after every action)
-reports progress and victory; it never advances a phase.
+reports progress and victory and, for a phase with no `until` whose primaries have just
+resolved, only emits `phase_ready` (the band's cue); it never advances a phase. Only
+`checkPhase`, in slot 7, does.
 
 | kind | Fires when | Default delay | As the player sees it |
 |---|---|---|---|
@@ -481,7 +483,7 @@ have.
 |---|---|---|
 | `hunt` (default) | clear `aiMode`: today's chase and attack | a woken holder |
 | `guard` (protect an anchor) | `aiMode: 'guard'`, `guardPost` = the anchor tile, `guardRadius` (default 3) replaces the literal 3 at `AIController.js:303`. Exempt from anti-turtle release (above); released by enrage | `guard` |
-| `seek` | `{ mode: 'seek', anchor, then }`: `seek_tile` to the anchor (a sally to a gate; `03`'s fleeing assassination target with `then: 'exit'`, which `03` resolves), then `then` (default `hunt`) on arrival | `seek_tile` |
+| `seek` | `{ mode: 'seek', anchor, then }`: `seek_tile` to the anchor (a sally to a gate), then `then` on arrival: `hunt` (default) or `exit`, `03`'s fleeing assassination target (`{ mode: 'seek', anchor: <exit>, then: 'exit' }`, `03` §5.5), which `03` resolves (the target leaves the map). The validator accepts these two values only | `seek_tile` |
 | `retake` | `{ mode: 'retake', point }` (`03` §5.7): `seek_tile` to the capture point's tile whenever the player holds it, else `guard` it | `seek_tile`, `guard` |
 
 `together: true` gives the woken members one shared priority target, chosen at the wake
@@ -651,27 +653,35 @@ Bosses and elite captains are outside the budget (extra, as today). Boss enrage 
 ### 5.2 Par from the walk and the stages
 
 **This spec owns the par formula.** `03` contributes only non-walk terms, in `parAdjust`
-(survive n, a structure's `parTurns`, boss bars: `03` §5.9); `04` writes the route
-(`parRoute`, `04` §8.3). Every walk term in par is W; a config on `calculatePar` has no W
-(its area term stands in for the walk, as today).
+(`03` §5.9, four and no other: survive `n`; each `destroy` structure's `parTurns`; boss
+bars, one turn per Revival Stone a primary's target or a throne's guard carries on the
+rung; escort pace, `max(0, T(mov) − T(4))` along the escortee's route); `04` writes the
+route (`parRoute`, `04` §8.3). Every walk term in par is W; a config on `calculatePar` has
+no W (its area term stands in for the walk, as today).
 
 **Which model.** A config uses `groups-v1` when its writer locks `parModel: 'groups-v1'`
-with its inputs (W, S, `parAdjust`), so a resume never recomputes it: every set piece
-(`04` §4.2 step 10) and every procedural map with rout pods (PR 2.6). Every other config
-keeps `calculatePar` exactly, including today's Dusk+ seize and escape maps whose hold
-packs become `hold:<pack>` groups (§3.6: their par is today's, byte for byte).
+with its inputs (W, S, `parAdjust`), so a resume never recomputes it: every config with
+written `objectives` (`03` §5.9, whatever its groups: a First Light `twin_thrones` map has
+no `dormant` group but two thrones that `calculatePar`'s area term cannot price), which
+includes every set piece (`04` §4.2 step 10), and every procedural map with rout pods
+(PR 2.6). Every other config keeps `calculatePar` exactly, including today's Dusk+ seize
+and escape maps whose hold packs become `hold:<pack>` groups (§3.6: their par is today's,
+byte for byte).
 
 **The route.** W is read from `battleConfig.parRoute`, a list of legs
 `{ to?: anchor, group?: id, meet?: true, extra?: n }` (or `plans`, alternatives of which
 the cheapest is kept), written at generation for every primary kind and locked with the
 config:
 - a set piece writes its authored legs (`04` §8.3);
-- a procedural map derives them (`03`'s `defaultParRoute`): seize → `[{ to: 'throne' }]`;
-  escape → `[{ to: <the exit nearest the deploy centroid> }]`; rout → one `{ group }` leg
-  per pod in nearest-neighbour order from the deploy centroid, each to the group's post
+- any other `groups-v1` config writes the derived legs (`03`'s `defaultParRoute`, its
+  table for every kind; phases append theirs in phase order): seize → each throne in
+  shortest order; escape → the exit nearest the deploy centroid; rout → one `{ group }`
+  leg per pod in nearest-neighbour order from the deploy centroid, each to the group's post
   (the member spawn nearest the members' centroid, ties by row then column). The anchors
   it names are written into `battleConfig.anchors`;
-- a config with no `parRoute` never uses `groups-v1`.
+- a legacy config's `parRoute` is derived on read by the same rules and never written
+  (`03` §5.9), so W can be read on any map (agents, the estimate) while its par stays
+  `calculatePar`'s. Every `groups-v1` config carries a written `parRoute` (validated).
 
 ```
 walk(leg)    = turnsToReach(previous end, leg.to or the group's post, MOV 4, Infantry) − 1
@@ -696,7 +706,7 @@ phase of n turns is worth exactly n on every rung (`03` §5.10), and **before** 
 inflation, bonus and offset, the S floor and the First Light cap; the floor (a direct push
 must be able to reach an S) counts turn 1, the walk beyond it, the turns `parAdjust` says
 cannot be beaten, the boss and S's 3 (on a one-leg seize it is today's `seizeParFloor`,
-`turnsToReach + 4`, `SeizeParFloor.js:94-104`); the cap holds the floor at or under the
+`turnsToReach + 4`, `SeizeParFloor.js:92-102`); the cap holds the floor at or under the
 map's First Light par, as `calculatePar` caps `parFloor` today
 (`TurnBonusCalculator.js:78-85`), so the rungs stay in order. `diffMult`, `parInflation`,
 `firstLightParInflation`, `parBonus` and `parOffset` are today's (`turnBonus.json`
@@ -827,8 +837,9 @@ kind's PR in `03`; `04` only runs the agents.
 Phase 0 PRs are independent of each other; 0d is on the critical path for the first set
 piece. 2.0 lands before 2.5's calibration and 2.6 can be judged. 2.1 is the gate for
 everything else in Phase 2 and for `03`'s phases (`03` PR 4 also needs 2.2b's phase slot).
-2.5 lands before `04`'s generator PR (B), which locks `groups-v1` for every set piece. 2.6
-is owner-gated and blocks nothing in `03` or `04`.
+2.5 lands before `04`'s generator PR (B), which locks `groups-v1` for every set piece, and
+before `03`'s first config with written `objectives` (`twin_thrones`, its PR 4). 2.6 is
+owner-gated and blocks nothing in `03` or `04`.
 
 **Vertical slice** (the shortest path to a playtestable Mill Ford, `04` §10.1). The first
 set piece needs, from this spec: **0a** (enrage floor), **0d** (dead air), **2.1**, a
@@ -883,6 +894,12 @@ use `03`'s words (`done` / `failed`).
 3. **Par and the TerrainPhases owner.** Pillar 6's "par from the primary objective's route"
    is §5.2's `groups-v1` with W from `battleConfig.parRoute`; the README's shared-modules
    table could name `02` alone as `TerrainPhases.js`'s owner (`03` and `04` call it).
+4. **For `03`: the floor's full form.** `03` §5.9 writes the floor as
+   `max(par, W + 3 + bossTurns)`; that is shorthand for §5.2's
+   `max(rungPar, min(1 + W + parAdjust + bossTurns + 3, firstLight))` (turn 1 and the
+   unbeatable turns counted, the First Light cap applied), the form a one-leg seize needs to
+   equal today's `seizeParFloor`. `03`'s decision that every config with written
+   `objectives` takes `groups-v1` is **adopted** (§5.2 "Which model").
 
 ## Revision 2 changelog (2026-10-09)
 
@@ -891,16 +908,20 @@ use `03`'s words (`done` / `failed`).
   carries only non-walk terms and is added to raw after the 0.8 and the rung multiplier,
   before inflation, the S floor and the First Light cap; the order of operations is written
   out; the floor counts turn 1 so a one-leg seize matches today's `seizeParFloor`;
-  `groups-v1` is chosen by its writer (set pieces, rout pods), so today's hold packs keep
-  `calculatePar`.
+  `groups-v1` covers every config with written `objectives` (adopting `03`'s decision; set
+  pieces included) and rout pods, so today's hold packs keep `calculatePar`; the four
+  `parAdjust` terms are listed (escort pace included); written vs derived-on-read
+  `parRoute` follows `03` §5.9.
 - **`engine/TerrainPhases.js`** is created in PR 0b with the one signature
   `applyTerrainSetTiles(grid, setTiles, anchors, { occupants })`; `03` and `04` call it.
 - **The check's order** (§3.4) gains the phase slot after `objective` and before `turn`
   (`03`'s `checkPhase`): a phase with no `until` whose primaries are done advances there,
   every `onEnter` effect applies there before the `groupWoken` cascade, at most one advance
-  per check; `{ afterPhase: n }` reads `objectiveState.phaseStartedTurn`.
+  per check; `evaluate` only emits `phase_ready`; `{ afterPhase: n }` reads
+  `objectiveState.phaseStartedTurn`.
 - **Defaults**: per-kind default delays stated for group wakes, 0 for waves and phase
   `until`s; `objective`'s `on` defaults to `done`; §6's example says `done`.
+- **`seek`'s `then`** takes `hunt` (default) or `exit` (`03`'s assassination target).
 - **Initially awake groups** apply `onWake` at battle start, written onto spawns as the
   village's bandits are (§3.3), so The Mill Ford's raiders need no PR 2.4.
 - **Awake at start** has one precise rule (§5.1) that `04` cites.

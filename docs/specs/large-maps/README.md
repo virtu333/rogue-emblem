@@ -286,16 +286,18 @@ Each phase is shippable alone and leaves the game better even if the next never 
 The shortest path to a playtestable, seeded, resumable large map, measured in the sims.
 About 20 working days.
 
-1. **`02` Phase 0, two items only:** the enrage floor and the dead-air fix. The A*, the
+1. **`02` Phase 0, two items only (PRs 0a, 0d):** the enrage floor and the dead-air fix. The A*, the
    recovery fallback and pruning can follow later.
-2. **`02` encounter groups, trimmed:**
+2. **`02` encounter groups, trimmed (PRs 2.1, 2.2a):**
    - groups, the `danger` and `hurt` wakes, the hold-pack adapter, `encounterState`, and
      parity with today's holds;
    - the `groupWoken` and `tile` triggers, `turn` with `parOffset`, warn bands, and
      always-on dormant outlines.
    - No `sight`, no patrols. The Mill Ford's raiders are a group that starts awake with
      `seek_tile`, like today's village bandits.
-3. **`02` par:** `groups-v1`, with `W` from `parRoute`, in its own PR.
+3. **`02` par (PR 2.5):** `groups-v1`, with `W` from `parRoute`, in its own PR.
+   - Until `02` PR 2.2b and `03` PR 4 land, the Mill Ford's reserve wakes on its
+     `turn parOffset` clock alone.
 4. **`04` format:**
    - Trimmed: `mirrorY` only, no `byRung` patches, the core validator checks.
    - Then the generator, dev route and preview.
@@ -304,8 +306,8 @@ About 20 working days.
    predicate, strip and payout already handle.
 6. **`01` PR 1 only** (and the phone pointers once two fronts go off-screen).
 
-Then **Two Towers** (about 9 more days): `03`'s model PR, `defeat` with per-unit
-`clampTile`, and the map itself. Before **Long Road**, the first board that doesn't fit:
+Then **Two Towers** (about 9 more days): `03` PR 1 (the model), `03` PR 1b (`defeat` with
+per-unit `clampTile`) and the map itself. Its bonus can follow with `03` PRs 3 and 5. Before **Long Road**, the first board that doesn't fit:
 `01`'s desktop camera, enemy-phase follow and pointers.
 
 ## 6. Open questions for the owner
