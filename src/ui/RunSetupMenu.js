@@ -141,7 +141,7 @@ export class RunSetupMenu {
         'aria-label',
         [
           content.name,
-          content.numeral ? `Tier ${content.numeral}` : '',
+          content.tierLabel,
           content.boon,
           content.cost ? `${content.costLabel}: ${content.cost}` : 'No cost',
           ...terms.map((t) => `${t.term}: ${t.text}`),

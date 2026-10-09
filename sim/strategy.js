@@ -1592,12 +1592,12 @@ async function sectionBlessings() {
         : ['arsenal_pact', 'blood_forge', 'war_tutelage', 'armory_stash', 'scholar_vow'];
     for (const id of peers) {
       const b = catalog.blessings.find((x) => x.id === id);
-      if (b) configs.push([b.id, `T${b.tier} boon`, b.boons]);
+      if (b) configs.push([b.id, b.earned ? 'Earned boon' : `T${b.tier} boon`, b.boons]);
     }
   } else {
     for (const b of catalog.blessings) {
       if (only && !only.includes(b.id)) continue;
-      configs.push([b.id, `T${b.tier} boon`, b.boons]);
+      configs.push([b.id, b.earned ? 'Earned boon' : `T${b.tier} boon`, b.boons]);
     }
     if (!only || only.includes('costs')) {
       // v3: the price catalog, each price as the run's rung pays it (a Debt scaled by rung).
