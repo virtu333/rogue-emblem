@@ -4,7 +4,7 @@ import {
   forecastModifierText,
   forecastNotes,
   formatCritChance,
-  formatHitChance,
+  formatSideHit,
   formatPlannedStrikes,
 } from './forecastDisplay.js';
 import { UI_PALETTE, UI_HEX, applyTextResolution, getHPBarColor } from '../utils/uiStyles.js';
@@ -414,7 +414,7 @@ export class ForecastOverlay {
     ).setDepth(textDepth);
     this.displayObjects.push(hitLabel);
     const hitVal = applyTextResolution(
-      scene.add.text(x + 152, y, formatHitChance(info.hit), {
+      scene.add.text(x + 152, y, formatSideHit(info), {
         fontFamily: 'Arial',
         fontSize: '10px',
         color: UI_PALETTE.info,

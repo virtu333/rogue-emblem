@@ -30,7 +30,7 @@ import {
   forecastReadingPoints,
   forecastTeachingHints,
   formatCritChance,
-  formatHitChance,
+  formatSideHit,
   formatDamageStrikes,
 } from './forecastDisplay.js';
 import {
@@ -43,6 +43,7 @@ import {
 import { bindCancelablePress } from '../utils/cancelablePress.js';
 import { isUnitMenuState, canUseDanger, isObjectiveCommand } from './battleMenuModel.js';
 import { formatWeaponArtEffects, weaponArtUsesText } from './weaponArtDisplay.js';
+import { weaponArtRunOptions } from '../engine/WeaponArtSystem.js';
 import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { battleItemBrief, battleItemSummary, ITEM_ACTION_NOTE } from './battleItemSummary.js';
@@ -663,7 +664,7 @@ export class MobileBattleHUD {
       // strikes as a multiplier, chances as percentages.
       for (const [name, value, kind] of [
         ['Damage × hits', formatDamageStrikes(info), 'damage'],
-        ['Hit', formatHitChance(info.hit), 'hit'],
+        ['Hit', formatSideHit(info), 'hit'],
         ['Crit', formatCritChance(info.crit), 'crit'],
         ['AS', `${info.as}`, 'speed'],
       ]) {
@@ -722,7 +723,12 @@ export class MobileBattleHUD {
         el(
           'p',
           'mb-detail',
-          weaponArtUsesText(unit, config.weaponArt, this.scene.turnManager?.turnNumber),
+          weaponArtUsesText(
+            unit,
+            config.weaponArt,
+            this.scene.turnManager?.turnNumber,
+            weaponArtRunOptions(this.scene.runManager),
+          ),
         ),
       );
     }

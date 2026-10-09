@@ -207,8 +207,6 @@ describe('BattleScene: an enemy attacks an unarmed unit', () => {
     s.battleState = 'ENEMY_PHASE';
     s.turnManager = { endPlayerPhase: vi.fn(), unitActed: vi.fn(), turnNumber: 1 };
     s.runManager = {
-      getActHitBonusForUnit: () => 0,
-      getTerrainCombatBonuses: () => [],
       blessingRuntimeModifiers: {},
     };
     s.registry = { get: () => null };

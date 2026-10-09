@@ -58,7 +58,7 @@ describe('the church vow', () => {
     expect(churchBlessingOffers(rm, 'c1', data).map((b) => b.id)).toContain('coin_of_fate');
     const result = takeChurchBlessing(rm, 'c1', 'coin_of_fate', data);
     expect(result.ok).toBe(true);
-    expect(rm.gold).toBe(gold + 750); // Coin of Fate's boon
+    expect(rm.gold).toBe(gold + 500); // Advance Pay's gold now (its +250 waits for the next act)
     expect(rm.getActiveBlessingIds()).toContain('coin_of_fate');
     expect(churchVow(rm, 'c1')).toBe('blessing');
     expect(churchPromotionBlock(rm, unit, 'c1', data)).toMatch(

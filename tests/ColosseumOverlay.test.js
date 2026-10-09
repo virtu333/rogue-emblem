@@ -737,6 +737,29 @@ describe('ColosseumOverlay', () => {
     vi.mocked(generateMercenaryCandidates).mockRestore();
   });
 
+  it("the board is generated with Nomad's Pact's levels, and a penalty or no pact asks for none", () => {
+    for (const [held, asked] of [
+      [2, 2],
+      [-1, 0],
+      [0, 0],
+      [undefined, 0],
+    ]) {
+      const runManager = makeRunManager({
+        gold: 1000,
+        roster: [makeUnit(gameData, 'Edric', 3, 'Lord')],
+        getRecruitLevelBonus: held === undefined ? undefined : () => held,
+      });
+      const overlay = new ColosseumOverlay(makeScene(), runManager, gameData);
+      overlay.show({ id: `col-merc-pact-${held}` }, vi.fn());
+      overlay._mercCandidates = null;
+      vi.mocked(generateMercenaryCandidates).mockClear();
+      vi.mocked(generateMercenaryCandidates).mockReturnValueOnce([]);
+      overlay._showMercBrowse();
+      const args = vi.mocked(generateMercenaryCandidates).mock.calls[0];
+      expect(args[13]).toEqual({ recruitLevelBonus: asked });
+    }
+  });
+
   it('mercenaries never take a taken or promised name, and a hire gets a run identity', () => {
     // A recruit node still ahead promised "Tamsin" (the Loom shows it): the board must
     // not offer a Tamsin, or a Talk recruit and a merc would share one name.

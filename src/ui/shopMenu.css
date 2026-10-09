@@ -198,9 +198,12 @@
 .shop-reason--gold {
   color: var(--re-warn);
 }
-/* A price the purse can't reach: warn-coloured price line on the row. */
-.shop-row.is-short .shop-row-text span {
-  color: var(--re-warn);
+/* A buy row's price: gold while the purse reaches it, grey when it can't. */
+.shop-row-text .shop-price {
+  color: var(--re-accent);
+}
+.shop-row.is-short .shop-row-text .shop-price {
+  color: var(--re-muted);
 }
 /* An unaffordable Buy must not wear the ember fill: at 45% opacity it still read as live. */
 .shop-commit .re-btn--primary.shop-buy--short:disabled {

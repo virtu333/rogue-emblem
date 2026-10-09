@@ -174,7 +174,9 @@ describe('the roll', () => {
         if (p === 0) expect(counts[0]).toBe(N);
       }
     }
-  });
+    // Explicit timeout: a full sweep that takes seconds alone brushes the 5 s default under
+    // full-suite parallel load.
+  }, 30_000);
 
   it('never gives one unit two items, and needs a unit that can carry', () => {
     for (let seed = 1; seed <= 100; seed++) {
