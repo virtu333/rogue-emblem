@@ -175,9 +175,9 @@ So a river that runs through three cells is continuous, and a road meets a road.
   "encounterGroups": [ "… §10.1 …" ],
   "objectives": { "primary": [{ "id": "rout", "kind": "rout" }], "bonus": ["… §10.1 …"], "phases": [] },
   "parRoute": [ "… §8.3 …" ],
-  "enemyCount": { "bonus": 2 },
+  "enemyCount": { "scale": 1.3 }, "overflow": "reserve",
   "huntedEntry": "reserve",
-  "byRung": { "lunatic": { "groups": { "reserve": { "wake": [{ "kind": "turn", "afterContact": 2 }] } } } }
+  "byRung": { "lunatic": { "groups": { "reserve": { "wake": [{ "kind": "turn", "afterContact": 2, "latest": { "parOffset": -2 } }] } } } }
 }
 ```
 
@@ -230,20 +230,25 @@ A fill cell is painted with today's zone machinery, scoped to the cell:
 
 ### 3.7 Objectives and encounter groups
 
-- **Objectives** are `03`'s model. The set piece writes `{ primary, bonus, phases }` with
-  anchor names, and the generator replaces each name with its resolved tiles.
-- A **phase** may carry `setTiles: [{ anchor, terrain }]`. This is how hybrid v2 changes
-  terrain (§7).
-- This spec uses the kinds `rout`, `seize`, `escape`, `defeat`, `protect`, `capture` and
-  `destroy` for primaries, and `visit`, `protect` and `defeat` (before a turn) for bonuses. If
-  `03` names them differently, the data follows `03`.
-- **Encounter groups** are `02`'s `{ id, members, state, wake, onWake, telegraph }`. A set
-  piece adds:
-  - `region`: an anchor, where members spawn;
-  - `members`: `{ min, max, share, weights?, promoted?, levelBonus?, classes? }`
-    (composition, §4.3);
-  - `route`: for a patrol or column, an anchor list.
-- Triggers use the README vocabulary only, with anchor names resolved at generation.
+- **Objectives** are `03` §3's model (`{ version, primary, bonus, phases, parAdjust }`),
+  written with anchor names and unit refs (`spawn.objectiveRef`) that the generator resolves.
+  Kinds are `03`'s: primaries `rout`, `seize` (one or more `thrones`), `escape`, `defeat`,
+  `assassinate`, `escort`, `capture`, `destroy`, the `protect` clause and the phase-only
+  `survive`; bonuses (≤ 2) `visit`, `caravan`, `rescue`, `slay`, `protect`, `unbloodied`,
+  `capture`, `reach`. The skeleton's `objective` must equal `03`'s
+  `legacyObjectiveKind(objectives)`.
+- Terrain changes are `03` phases' `onEnter.setTiles: [{ anchor, terrain }]` (§7). A phase
+  may keep the same primary and exist only to change terrain and wake groups.
+- **Encounter groups** are authored here and written as `02` §3.2's schema
+  (`{ id, members: [spawn indices], state, wake, onWake, route, loop, telegraph }`). The
+  authoring form replaces `members` with `region` (an anchor, where they spawn) and `size:
+  { min, max, share, weights?, promoted?, levelBonus?, classes? }` (§4.3), plus the
+  skeleton's `overflow` group id. States are `02`'s `picket | dormant | patrol | awake`
+  (README §3); `onWake` modes `hunt | guard | seek | retake`; a column is a `patrol` with
+  `loop: false`.
+- Arrivals are `02` §4's `triggeredWaves`, with `side: 'anchor:<name>'` where authored.
+- Triggers are the README vocabulary as `02` §3.4 specifies it, anchors resolved at
+  generation.
 
 ## 4. Generation: from set piece to locked config
 
@@ -281,23 +286,27 @@ All of this runs inside the caller's `withBattleSeed(battleSeed)`.
 6. A `visit` bonus writes `villageTile` from its anchor; its raiders are the named group. No
    caravans or recruit NPCs in v1.
 7. `ensureReachability` on fill tiles only (§3.6).
-8. Write `objectives`, `encounterGroups` (resolved regions, routes, triggers), `anchors`,
-   `setPiece`.
-9. Waves: `02`'s contact-relative waves become `reinforcements` (contract v1) with resolved
-   tiles. No rout ladder (`ladder: false`) and no `assignHolders`: groups replace both, and
-   rung pressure comes from `byRung`. Hunted writes its wave at the `huntedEntry` region's
+8. Write `objectives`, `encounterGroups` (resolved regions, routes, triggers), `anchors`
+   (README §3: `{ <name>: { tiles } }`, a point being one tile), `setPiece`.
+9. Waves: authored arrivals become `reinforcements.triggeredWaves` (`02` §4). No rout
+   ladder (`ladder: false`) and no `assignHolders`: groups replace both, and rung pressure
+   comes from `byRung`. Hunted writes its wave at the `huntedEntry` region's
    nearest edge through `withHuntedWave`, so a Hunted victory still counts
    (`RunManager.js:4067-4078`); ordinary and elite set pieces must declare `huntedEntry`.
-10. Par fields as today (`parInflation`, `parOffsetConfig` `:3129`), plus resolved `parRoute`
-    legs for `03`.
+10. Par: a set piece has `dormant`/`patrol` groups, so it takes `02` §5.2's `groups-v1` model
+    (W from the primary route, S from the engagements on it) plus `03`'s `parAdjust`, with
+    `parInflation` and `parOffsetConfig` (`:3129`) as today. The resolved `parRoute` legs feed
+    `02`'s W and the §8.3 estimate alike.
 
 ### 4.3 Enemies come from the act and the rung
 
-- **How many.** `rollEnemyCount(...)` (one draw, as today) + `enemyCount.bonus`, capped by
-  `enemyCountByTiles`, so the rung's `enemyCountBonus`/`enemyCountBase`, the deploy count and
-  boss offsets act as on a procedural map. The total is split over enabled groups: each takes
-  its `min`, the rest goes by `share` (largest remainder), capped by `max` and the region's
-  standable tiles. No draw. Bosses and captains are extra, as today.
+- **How many** (`02` §5.1's budget). `base = rollEnemyCount(...)` with `enemyCountBonus: 0`
+  (one draw, as today), so the deploy count, `enemyCountBase` and boss offsets act as on a
+  procedural map. The total is `min(round(enemyCount.scale × base), 1.6 × base)` (`scale`
+  default 1.3), split over enabled groups: each takes its `min`, the rest by `share` (largest
+  remainder, ties on `'setpiece:<id>:split'`), capped by `max` and the region's standable
+  tiles. The rung's `enemyCountBonus` then goes to the `overflow` group (default the picket).
+  Awake-at-start members stay ≤ `base` (validated). Bosses and captains are extra, as today.
 - **Classes and levels.** From `enemies.pools[act]` after `filterClassPoolByDifficulty` and
   `earlyEnemyAllowed`, through `weightedClassPick` with the group's `weights` and the pool's
   `promotedShare` (or `promoted: always | never`); `mapExtraNecromancer` holds map-wide.
@@ -375,7 +384,7 @@ validated like the other rung tables):
 
 With §1's node counts, a Nightfall route that ignored the tags would meet about 0.4 ordinary
 and 0.5 elite set pieces in Acts III–IV, plus about one boss set piece. The tags let a player
-seek them out or avoid them. (Why per act, not per node: Notes 4.)
+seek them out or avoid them. (Why per act, not per node: Notes 2.)
 
 ### 6.2 Assignment: a keyed post-pass
 
@@ -392,7 +401,8 @@ ordinary: E = eligibleOrdinary(nodes) sorted by id
 elite:    for n in eligibleElite(nodes) sorted by id, not adjacent to an assigned node:
             if count < 2 && r(`elite:${n.id}`) < p         -> assign(n, pick(fits(n), r(`elite-piece:${n.id}`)))
 assign(n, sp): n.battleParams.setPiece = { id: sp.id }
-               n.battleParams.objective = sp.objective     (legacy kind; isElite unchanged)
+               n.battleParams.objective = sp.objective     (03's legacyObjectiveKind; isElite unchanged)
+               n.battleParams.objectivePreview = { primary: [kinds], bonus: [kinds] }   (03 §11)
                n.battleParams.hasVillage = sp has a visit bonus
                delete n.fogEnabled unless sp.fog
                (node.templateId is kept as the fallback)
@@ -444,7 +454,7 @@ v1's three absolute pieces become relative:
 | `arenaOrigin: [c,r]` on a rolled size | the arena is a chunk in a cell of a fixed-size skeleton |
 | `anchors: { name: [c,r] }` global | chunk-local anchors, resolved at generation into `battleConfig.anchors` |
 | `phaseTerrainOverrides[{ turn, setTiles }]`, absolute turns | `03` phases: `{ trigger, setTiles: [{ anchor, terrain }] }`, with triggers from the README vocabulary (contact- or par-relative) |
-| `scriptedWaves.spawns[{ col,row }]` | `02` groups: asleep members already on the map, or contact-relative waves `{ region: anchor }` |
+| `scriptedWaves.spawns[{ col,row }]` | `02` groups: dormant members already on the map, or `triggeredWaves` with `side: 'anchor:<name>'` |
 
 **Runtime.**
 - A v2 config carries resolved tiles only. Phase terrain changes run in one pure module,
@@ -493,7 +503,7 @@ the product over each cell's remaining chunk list, times the whole-map mirror.
   - 4 BFS per layout state (start, then after each phase; ~0.05 ms each at 24x16);
   - 4–8 route legs (§8.3) at 0.4 ms each (`turnsToReach`, measured at 24x16).
 - That is about 3 ms per combination, under 1 s at the cap. The first four set pieces have
-  16 + 96 + 8 + 8 = 128 combinations, about 0.4 s.
+  16 + 192 + 8 + 8 = 224 combinations on Black Sun, about 0.7 s.
 
 **Fill is taken at its worst.**
 - A fill tile counts as impassable for move type M if any terrain in its weight table is
@@ -523,8 +533,10 @@ the product over each cell's remaining chunk list, times the whole-map mirror.
    reaches the anchor before the group's arrival phase, and one at `slowMov` does not. The
    race is part of the design, so the validator holds it.
 7. **The turn band** (§8.3): the estimate is in [5, 12] for every combination and rung, and
-   the spread across combinations is ≤ 2 turns per rung.
-8. **References:** chunk, fill, choice, group and objective ids exist. Classes are allowed
+   the spread across combinations is ≤ 2 turns per rung. `02` §5.1's budget holds (awake at
+   start ≤ base, total ≤ 1.6 × base) at the rung's smallest and largest base.
+8. **References:** chunk, fill, choice, group and objective ids exist; `03`'s objective
+   validator passes on the resolved model (≤ 2 bonuses, legacy kind, refs). Classes are allowed
    for the acts and rungs. `byRung` keys are rungs. Every slot requirement holds
    (`huntedEntry` for ordinary and elite).
 
@@ -543,10 +555,10 @@ estimate   = Σ walk + fight, from the deploy region
 - MOV 4 Infantry is the seize floor's slowest lord (`SeizeParFloor.js:17-20`).
 - Three kills a turn is a 6–8 unit army's rate in today's harness battles (18x13 routs end in
   4–7 turns with 10–11 enemies and 2–3 turns of walking).
-- `03`'s par reads the same resolved `parRoute`.
-- The validator checks the estimate, not par. One extra assertion: on every rung, the par
-  `03` computes for the combination is at least the estimate + 3, so a direct push can reach
-  an S, as the seize floor guarantees today.
+- `02` §5.2's W reads the same resolved `parRoute`.
+- The validator checks the estimate, not par. One extra assertion: on every rung, the locked
+  par (`groups-v1` + `parAdjust`) is at least the estimate + 3, so a direct push can reach an
+  S, as the seize floor and `02`'s `W + 3 + bossTurns` floor intend.
 
 ## 9. The catalogue
 
@@ -567,22 +579,22 @@ estimate   = Σ walk + fight, from the deploy region
 | 13 | The Emperor's Parade | **keep** (Phase 5) | Act IV's only boss gets a second shape |
 | 14 | The Bridge Must Fall | **merged** into #4 | same engine need as the gate; one destroy map first |
 | 15 | Sanctum of Echoes | **keep** (Phase 6, Nightfall+) | the finale variant; capture points that weaken the Entity |
-| 16 | Rival Band | **keep** (Phase 6) | the cheapest elite: no new engine needs (18x10: Notes 6) |
+| 16 | Rival Band | **keep** (Phase 6) | the cheapest elite: no new engine needs (18x10: Notes 5) |
 
 The kept ones:
 
 | Set piece | Size | Slot | Primary / bonus (`03`) | Groups and triggers (`02`) | Choices | Reuses | New engine needs |
 |---|---|---|---|---|---|---|---|
-| The Mill Ford | 20x12 | ordinary III | rout / visit mill (race) | ford picket (awake), bridge hold (`danger`,`hurt`), mill guard (`groupWoken` bridge, delay 1), raiders (awake, seek village), reserve (`tile` village, `objective` mill, `turn parOffset −3`) | crossing N/S; mill N/S; bridge and ford variants | VillageSystem raze, Ballista feature, hold rules | none beyond `02`/`03` |
-| Two Towers | 20x12 | elite III–IV | `defeat` both captains / `defeat` the second before turn T | road patrol (awake), two garrisons (`danger`,`hurt`), the other wakes on `objective` first captain | tower rows (4); fillers; stone bearer (Black Sun) | `eliteCaptains`, revival stones | two captains; the throne clamp reads a per-unit throne, not one `thronePos` (`AIController.js:341`) |
-| Long Road to the Keep | 22x14 | boss III | seize / — | road picket, outer camp (`danger`), gate guard (hold), sally (`groupWoken` camp delay 1, or `turn parOffset −4`), throne guard; phase *drawbridge* on the sally trigger | road ridge/marsh; postern N/S; variants | throne clamp, actBoss stones | `TerrainPhases` extraction |
-| The Emperor's Parade | 24x14 | boss IV | seize / `defeat` the Emperor before he is seated | column (route to the throne, `danger`/`hurt` → chase), two side pods (`groupWoken` column delay 1), palace guard (hold), gate wave (Nightfall+, `turn afterContact 3`) | avenue or north street; strong flank N/S; palace variant; start delay by rung | emperor stones, seek_tile | the throne clamp skips a marching boss; arrival `tile` trigger for an enemy group (Notes) |
-| Caravan Under Siege | 20x12 | event, ordinary III | `protect` the caravan to the exit / the caravan above half HP | ring (awake), two flank waves (`turn afterContact 2/4`, side relative to the caravan) | exit edge; start chunk; chaser weights | CaravanSystem walk, escape tiles | caravan as a primary (`03`) |
-| Hunting Party | 20x13 | elite III | `defeat` the target before it escapes / no lord below half HP | the target's escort (moving), lane pickets (`sight`/`danger`) | 2–3 lanes; exit edge; escort class | seek_tile, escape tiles | an enemy that exits (`03`) |
-| Break the Gate | 22x12 | ordinary/event IV | `destroy` the gate or `defeat` its captain, then seize / capture a ballista | outer pod (awake), inner hold, sally at `turn parOffset −2` if not breached | gate L/C/R; postern; ballista side; bridge segments | ballista, hold | a structure tile with HP |
-| The Burning Village | 18x12 | event II–III | rout / `protect` villages (save 2 of 3) | raider bands per village (awake, seek) | which villages; raider classes | VillageSystem ×3 | `villages[]` instead of one `villageTile` |
-| Rival Band | 18x10 | elite III–IV | rout / none | one band, `danger` | fort sides; band composition | elite captain | none |
-| Sanctum of Echoes | 24x16 | finale (Entity) | `defeat` the Entity / `capture` pillars | pillar wardens (hold), echoes (waves `afterContact`) | which pillars are lit; approach chunks | Entity footprint and AI | held pillars debuff the Entity |
+| The Mill Ford | 20x12 | ordinary III | rout / `visit` the mill (race) | ford picket (`picket`), bridge hold (`dormant`: `danger`, `hurt`), mill guard (`dormant`: `groupWoken` bridge), raiders (`awake`, `seek` village), reserve (`dormant`: `tile` village, `objective` mill, `turn parOffset −3`) | crossing N/S; mill N/S; bridge and ford variants | VillageSystem raze, Ballista feature | none beyond `02`/`03` |
+| Two Towers | 20x12 | elite III–IV | `defeat` both captains / `reach` the armoury | road patrol (`patrol`), two garrisons (`dormant`: `danger`, `hurt`, `objective` the other captain) | tower rows (4); fillers; armoury tower; stone bearer (Black Sun) | `eliteCaptains`, stones, `03`'s per-unit `clampTile` | none beyond `02`/`03` |
+| Long Road to the Keep | 22x14 | boss III | seize / — | road picket, outer camp (`dormant`), gate and throne guards (`dormant`), sally (`dormant`: `groupWoken` camp, `turn parOffset −4`); phase *drawbridge* on the sally's trigger | road ridge/marsh; postern N/S; variants | throne clamp, actBoss stones | `TerrainPhases` (`02` §2.2) |
+| The Emperor's Parade | 24x14 | boss IV | seize / `slay` the Emperor by turn par − 4 | column (`patrol`, `loop: false`, route to the throne), two side pods (`dormant`: `groupWoken` column), palace guard (`dormant`), gate wave (Nightfall+, `triggeredWaves` `afterContact 3`) | avenue or north street; strong flank; palace variant; start delay | emperor stones, `02`'s column, `tile by: group` | the clamp waits for a marching column (§10.4) |
+| Caravan Under Siege | 20x12 | event, ordinary III | `escort` the caravan / `slay` the raid captain | ring (`picket`), two flank waves (`triggeredWaves`, side relative to the caravan) | exit edge; start chunk; chaser weights | CaravanSystem, `03`'s `advanceEscort` | none beyond `03` |
+| Hunting Party | 20x13 | elite III | `assassinate` the target / `unbloodied` | the target's escort (`dormant`, `onWake: seek` exit), lane pickets (`sight`, `danger`) | 2–3 lanes; exit edge; escort class | `03`'s `calibrateFlight` | none beyond `03` |
+| Break the Gate | 22x12 | ordinary/event IV | `destroy` the gate, then seize (phases) / `capture` a ballista | outer pod (`picket`), inner `dormant`, sally `turn parOffset −2` if not breached | gate L/C/R; postern; ballista side; bridge segments | `03`'s Gate and Strike | none beyond `03` |
+| The Burning Village | 18x12 | event II–III | rout / `rescue` 2 of 3 villages | raider bands per village (`awake`, `seek`) | which villages; raider classes | VillageSystem | several villages on one map (`03`'s `rescue`) |
+| Rival Band | 18x10 | elite III–IV | rout / — | one band (`dormant`: `danger`) | fort sides; band composition | elite captain | none |
+| Sanctum of Echoes | 24x16 | finale (Entity) | `defeat` the Entity / `capture` the pillars | pillar wardens (`dormant`), echoes (`triggeredWaves`) | which pillars are lit; approach chunks | Entity footprint and AI | held pillars weaken the Entity |
 
 ## 10. The first four
 
@@ -614,15 +626,15 @@ deploy region: cols 0-2, rows 3-8      7  ..F.....F~~F...F....
 tile (3 for horses and armour), but it leads straight to the raiders. And a fast unit must
 reach the mill before the raiders do.
 
-**Groups** (Nightfall Act III, total 15):
+**Groups** (Nightfall Act III, deploy 7: base 10–11, about 15 in all):
 
 | Group | Region | Members | Start | Wake |
 |---|---|---|---|---|
-| ford picket | `ford_far` | 2 | awake | — |
-| bridge hold | `bridge_far` | 4 | asleep | `danger`, `hurt` |
-| mill guard | `village` | 3 | asleep | `groupWoken: bridge_hold` (delay 1), `danger` |
-| raiders | `camp` | 3 | awake, seek `village` | — |
-| reserve | `reserve` | 3 | asleep | `tile: village`, `objective: mill`, `turn: parOffset −3` |
+| ford picket | `ford_far` | 2 | `picket` | — |
+| bridge hold | `bridge_far` | 4 | `dormant` | `danger`, `hurt` |
+| mill guard | `village` | 3 | `dormant` | `groupWoken: bridge_hold` (delay 1), `danger` |
+| raiders | `camp` | 3 | `awake`, `onWake: { mode: 'seek', anchor: 'village' }` | — |
+| reserve | `reserve` | 3 | `dormant` (the `overflow` group) | `tile: village`, `objective: mill`, `turn: parOffset −3` |
 
 **Bonus.** `visit` the mill (village gold plus the act's convoy item, as `VillageSystem`
 pays). The raiders reach it in their third enemy phase. Of the player's units, a MOV 6 rider
@@ -636,7 +648,7 @@ route). All four move types reach every anchor.
 - First Light: not placed (table §6.1).
 - Dusk: as above with Dusk counts.
 - Nightfall: the Ballista anchor on the mill is live.
-- Black Sun: the reserve also wakes at `turn afterContact 2`.
+- Black Sun: the reserve also wakes at `turn afterContact 2` (`latest: parOffset −2`).
 
 ### 10.2 Two Towers (elite, Acts III–IV, 20x12)
 
@@ -667,29 +679,32 @@ at their back.
 
 | Group | Members | Start | Wake |
 |---|---|---|---|
-| road patrol | 2 | awake | — |
-| garrison W | 3 | asleep, `holdPack` | `danger`, `hurt`, `objective: captain_e` |
-| garrison E | 3 | asleep, `holdPack` | `danger`, `hurt`, `objective: captain_w` |
-| captains | 2 | throne-bound | — |
+| road patrol | 2 | `patrol`, route between the gates | — |
+| garrison W | 3 | `dormant` | `danger`, `hurt`, `objective: captain_e` |
+| garrison E | 3 | `dormant` | `danger`, `hurt`, `objective: captain_w` |
+| captains | 2 | `dormant`, each with its own `clampTile` (`03` §5.2) | as their garrison |
 
 **Choices:**
 - tower rows: both north, both south, or the two diagonals;
 - the filler shared by the two non-tower side cells (courtyard, rubble or orchard);
 - a tower chunk variant per tower (two interiors with the same gates);
+- which tower holds the armoury (the `reach` bonus, a back-room cache);
 - the stone bearer, on Black Sun only, where `eliteCaptain` stones are 1; on other rungs
   the stones are 0 and the choice is not offered.
 
-That is 4 × 3 × 4 = 48 combinations, 96 on Black Sun.
+That is 4 × 3 × 4 × 2 = 96 combinations, 192 on Black Sun.
 
 **Estimate.** 9 (same row) to 11 (diagonal), from the best order.
 - A first sketch with a south-gate tower variant measured 9–12. The validator would refuse
   it, since the spread was 3, so the gate variants were dropped.
-- An earlier sketch with the towers in the east and deploy in the west measured 14–15 in the best order, above
-  the band. That is why the army now starts between the towers.
+- An earlier sketch with the towers in the east and deploy in the west measured 14–15 in
+  the best order, above the band. That is why the army now starts between the towers.
 
-**Primary.** `defeat` both captains, not a double seize: a double seize forces one lord to
-walk both thrones and added two turns in the sketch. The bonus `defeat` the second captain
-before turn T rewards a fast swing.
+**Primary.** Two `defeat` objectives, `captain_w` and `captain_e`, both required (legacy
+`rout`), so each fall emits its own `objective` event for the other garrison's wake. Not
+`03` §5.2's double seize: a lord would have to walk throne to throne (4–6 turns), which puts
+the estimate at 12–14. The `reach` bonus is the detour: the armoury sits behind the far
+tower's back door.
 
 ### 10.3 Long Road to the Keep (Act III boss, 22x14, hybrid v2)
 
@@ -713,9 +728,10 @@ macro grid (cols 6|6|10, rows 7|7)       combination: ridge road, postern north 
 
 **Decision.** Squeeze through the one-tile postern now, or break the outer camp and take the
 wide gate once the garrison lowers the drawbridge to sally.
-- **Phase `drawbridge`.** It sets `drawbridge` (4 tiles) from Water to Bridge on the sally's
-  trigger: `groupWoken: outer_camp` (delay 1), or `turn: parOffset −4`, whichever comes first.
-- The sally group is already asleep in the courtyard. It wakes; nothing spawns. So the v1
+- **Phase `drawbridge`** (`03` §6, same seize primary): `until` is the sally's trigger
+  (`groupWoken: outer_camp`, delay 1, or `turn: parOffset −4`, whichever comes first), and the
+  next phase's `onEnter` sets `drawbridge` (4 tiles) from Water to Bridge and wakes `sally`.
+- The sally group already stands dormant in the courtyard. It wakes; nothing spawns. So the v1
   wall-on-spawn bug cannot happen, and the validator would refuse a target under a seat.
 - Fliers can cross the moat and the gate pit before the bridge drops.
 
@@ -723,11 +739,11 @@ wide gate once the garrison lowers the drawbridge to sally.
 
 | Group | Members |
 |---|---|
-| road picket (awake) | 2 |
-| outer camp (`danger`, `hurt`) | 3 |
-| gate guard (hold) | 2 |
-| sally | 3 |
-| throne guard (hold) | 2 |
+| road picket (`picket`) | 2 |
+| outer camp (`dormant`: `danger`, `hurt`) | 3 |
+| gate guard (`dormant`) | 2 |
+| sally (`dormant`, `onWake: { mode: 'seek', anchor: 'gate' }`, the `overflow` group) | 3 |
+| throne guard (`dormant`) | 2 |
 | boss | from `bosses.act3`, actBoss stones |
 
 **Estimate.** 8 combinations (road ridge or marsh × postern north or south × the variant of
@@ -779,20 +795,20 @@ column: east gate, cols 20-23, rows 6-7   ....F.#.............#...
 - **Intercept on the avenue:** fight the Emperor off the throne, in the open, with both side
   pods joining. Estimate 11.
 - **Let him sit:** he takes the throne's bonuses and his guard becomes a hold pack.
-- A **phase** `seated` (`tile: throne` by the column's leader) turns the column into a
-  holding group and re-arms the throne clamp. Legacy `seize` holds throughout: the Seize
-  command needs no living boss (appendix §1.2), so a lord cannot steal the empty throne and
-  win.
+- The column is `02`'s `patrol` with `loop: false`: at the throne it stops and holds. A phase
+  `seated` (`until: { kind: 'tile', anchor: 'throne', by: { group: 'column' } }`, `02` §3.4)
+  wakes the palace guard and arms the Emperor's `clampTile`. Seize holds throughout: Seize
+  needs no living `isBoss` (appendix §1.2), so a lord cannot take the empty throne and win.
 
 **Groups:**
 
 | Group | Members | Behaviour |
 |---|---|---|
-| column | Emperor + 3 (Generals and Paladins) | `route: [gate, avenue_mid \| north_street, steps, throne]`, wakes to chase on `danger`/`hurt` |
-| side pod N | 2–4 | `groupWoken: column` (delay 1) |
-| side pod S | 2–4 | `groupWoken: column` (delay 1) |
-| palace guard | 2 | hold |
-| gate wave | 2 | Nightfall+, `turn afterContact 3` at `east_gate` |
+| column | Emperor + 3 (Generals and Paladins) | `patrol`, `loop: false`, `route: [gate, avenue_mid \| north_street, steps, throne]`; wakes to `hunt` on `danger`/`hurt` |
+| side pod N | 2–4 | `dormant`: `groupWoken: column` (delay 1) |
+| side pod S | 2–4 | `dormant`: `groupWoken: column` (delay 1) |
+| palace guard | 2 | `dormant` |
+| gate wave | 2 | Nightfall+, `triggeredWaves` `afterContact 3` (`latest: parOffset −2`), `side: 'anchor:east_gate'` |
 
 **Choices:**
 - the route (avenue or north street);
@@ -802,13 +818,14 @@ column: east gate, cols 20-23, rows 6-7   ....F.#.............#...
 
 That is 8 combinations.
 
-**Bonus.** `defeat` the Emperor before the `seated` phase: an act forge item.
+**Bonus.** `slay` the Emperor by turn par − 4, about when he would be seated (gold + forge
+step, `03` §7.4).
 
-**Engine needs:**
-- `AIController`'s throne clamp (`AIController.js:341-353`) runs before seek-tile and filters
-  its candidates. A marching boss would stand still, so the clamp must skip a unit whose
-  group is on a route until `seated`.
-- An arrival trigger for an enemy group (Notes for the README).
+**Engine need.** The throne clamp (`AIController.js:341-353`) filters candidates before the
+seek-tile pipeline, so a boss with a `clampTile` would never march. `03`'s per-unit
+`clampTile` is written for the Emperor, but the clamp skips a member of a `patrol` group
+until its column reaches its last anchor. The arrival trigger is `02`'s `tile` with
+`by: { group }`.
 
 **Rungs:** emperor stones 0 / 1 / 1 / 2; the gate wave from Nightfall.
 
@@ -932,21 +949,22 @@ PRs A and B can land before any content; C is the first a player sees.
 
 ## Notes for the README
 
+Revision 2 of the README already takes in this spec's `battleConfig.anchors`, `tile` with
+`by: { group }` and `engine/TerrainPhases.js`. What remains:
+
 1. **`setPiece` is refined** to `{ id, version, choices, chunks }`. `chunks` records the
    chunk picks, for the dev route and bug reports. It is still read for display and records
    only.
-2. **The anchors field.** The README says anchors are resolved "on the config" but names no
-   field. This spec writes `battleConfig.anchors: { name: { col,row } | { tiles: [...] } }`.
-   The README's shared names should list it so `02` and `03` read the same one.
-3. **An arrival trigger.** The Parade needs "an enemy group's leader ends a move on an
-   anchor". The vocabulary's `tile` is player-only. Proposal: `tile` takes an optional
-   `group` (default: the player's units). The alternative is a routed group's `onArrive` in
-   `02`.
-4. **"Per-node chance" (§4)** is implemented as a per-act chance for ordinary nodes, then
+2. **"Per-node chance" (§4)** is implemented as a per-act chance for ordinary nodes, then
    one node, and a per-node chance for elite nodes (§6.1). With 3–5 eligible ordinary nodes
    an act, a per-node chance mostly means "one per act, always"; the per-act chance is the
    knob that means something. The effect the README describes is unchanged.
-5. **The rung chances live in `difficulty.json`**, not `setPieces.json`, per CLAUDE.md
-   "Difficulty is data-driven". So every rung needs an entry.
-6. **Elite slots may be smaller than the large band.** Rival Band is 18x10. The README's
+3. **The rung chances live in `difficulty.json`** (`modes.<rung>.setPieces`), not
+   `setPieces.json`, per CLAUDE.md "Difficulty is data-driven", so every rung needs an entry.
+4. **Two Towers is `defeat`, not a double seize.** `03` §5.2 names Two Towers as its
+   multi-seize example. With the army between the towers, a lord walking throne to throne
+   puts the estimate at 12–14 turns, at or over the band, so the first map uses `defeat`
+   both captains (legacy `rout`) and keeps multi-seize for a later, tighter map (open
+   question 6).
+5. **Elite slots may be smaller than the large band.** Rival Band is 18x10. The README's
    bands describe large set pieces; the format also serves small authored maps.
