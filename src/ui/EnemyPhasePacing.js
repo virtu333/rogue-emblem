@@ -13,7 +13,9 @@
 //    player sees both of its tiles; every other step is one position update and the
 //    sprite is shown only on a tile the player sees, so the hidden prefix, the hidden
 //    suffix and a hidden stretch in between take no time and never draw the unit in
-//    the fog.
+//    the fog. A lone seen tile between two hidden ones is held for one step's time, so
+//    a walk that clips the party's vision is drawn there. Seen steps and holds run at
+//    the enemy-phase speed (`enemyStepDuration`: hold-to-fast-forward counts as Fast).
 // 3. No checkpoint for a turn that resolved nothing (`skipsIdleCheckpoint`; the proof
 //    that the anti-refresh guarantee survives it is in engine/EnemyTurnOutcome.js).
 // 4. The enemy heal and status-staff banners name a unit only if the player can see it
@@ -36,18 +38,26 @@ export function isTileSeen(grid, col, row) {
 /**
  * How an enemy's walk is drawn. Step `i` (path[i - 1] → path[i]) is tweened only when
  * the player sees both tiles; otherwise the sprite is set on path[i] with no tween.
- * `shown` is whether the sprite may be drawn on path[i].
+ * `shown` is whether the sprite may be drawn on path[i]. `hold` marks a seen tile the
+ * walk enters from the fog and leaves into the fog again (an edge of the party's vision
+ * clipped by one tile): no step around it is tweened, so without a hold the sprite would
+ * be shown and hidden again before a frame is drawn, while `seen` still says the player
+ * saw the turn. The scene holds the sprite there for one step's time.
  * @param {Array<{col:number,row:number}>} path the walk, path[0] the start tile
  * @param {(col:number,row:number)=>boolean} seen
- * @returns {{ steps: Array<{ index:number, tween:boolean, shown:boolean }>, seen: boolean }}
- *   `seen`: the player saw some tile of the walk (the start included)
+ * @returns {{ steps: Array<{ index:number, tween:boolean, shown:boolean, hold:boolean }>,
+ *   seen: boolean }} `seen`: the player saw some tile of the walk (the start included)
  */
 export function planEnemyMoveSteps(path, seen) {
   const tiles = Array.isArray(path) ? path : [];
   const visible = tiles.map((t) => seen(t.col, t.row) === true);
   const steps = [];
+  const last = tiles.length - 1;
   for (let index = 1; index < tiles.length; index++) {
-    steps.push({ index, tween: visible[index - 1] && visible[index], shown: visible[index] });
+    const tween = visible[index - 1] && visible[index];
+    // The sprite's only moment on screen: shown here, hidden by the very next step.
+    const hold = !tween && visible[index] && index < last && !visible[index + 1];
+    steps.push({ index, tween, shown: visible[index], hold });
   }
   return { steps, seen: visible.some(Boolean) };
 }
@@ -63,6 +73,22 @@ export function skipsIdleCheckpoint(scene, decision) {
   if ((scene?._pendingLevelUpPopups || []).length) return false;
   if ((scene?._pendingXpGauges || []).length) return false;
   return true;
+}
+
+/** A walk step's time at Normal speed: a slid tile is quicker than a walked one. */
+export const ENEMY_STEP_MS = 80;
+export const ENEMY_SLIDE_STEP_MS = 60;
+export const ENEMY_STEP_LABEL = 'animate_enemy_move_step';
+
+/**
+ * A seen walk step's time now (the tween between two seen tiles, or the hold on a tile
+ * the walk only clips): the battle speed with hold-to-fast-forward counted as Fast, as
+ * the beat reads it (enemyPhaseSpeed). Read per step, so a hold pressed mid-walk speeds
+ * up the rest of it. Instant is 1 ms: still one drawn frame, as the scene awaits it.
+ */
+export function enemyStepDuration(scene, { slide = false } = {}) {
+  const ms = slide ? ENEMY_SLIDE_STEP_MS : ENEMY_STEP_MS;
+  return speedDuration(enemyPhaseSpeed(scene), ENEMY_STEP_LABEL, ms);
 }
 
 /** The beat's length now: 0 when the player saw nothing of the turn. */

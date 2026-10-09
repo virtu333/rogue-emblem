@@ -21,6 +21,7 @@ import {
   ENEMY_BEAT_LABEL,
   enemyBeatDuration,
   enemyHealBanner,
+  enemyStepDuration,
   planEnemyMoveSteps,
   seenUnitName,
   skipsIdleCheckpoint,
@@ -117,7 +118,36 @@ describe('planEnemyMoveSteps: no tween in the dark', () => {
   it('only the start tile seen: no tween, but the player saw the unit leave', () => {
     const plan = planEnemyMoveSteps(path(3), seenCols([0]));
     expect(plan.steps.map((s) => s.tween)).toEqual([false, false]);
+    expect(plan.steps.map((s) => s.hold)).toEqual([false, false]);
     expect(plan.seen).toBe(true);
+  });
+  // The review's table: a walk that clips the party's vision by one tile is seen, yet no
+  // step around that tile is tweened, so the tile must be held or it is never drawn.
+  it.each([
+    ['hidden, seen, hidden', [1], 3, [false, false], [true, false]],
+    ['hidden, seen, seen, hidden', [1, 2], 4, [false, true, false], [false, false, false]],
+    ['all hidden', [], 3, [false, false], [false, false]],
+    [
+      'a lone seen tile mid-walk',
+      [2],
+      5,
+      [false, false, false, false],
+      [false, true, false, false],
+    ],
+    ['a lone seen tile at the end (left visible)', [2], 3, [false, false], [false, false]],
+    ['two lone seen tiles', [1, 3], 5, [false, false, false, false], [true, false, true, false]],
+  ])('%s', (_label, cols, length, tweens, holds) => {
+    const plan = planEnemyMoveSteps(path(length), seenCols(cols));
+    expect(plan.steps.map((s) => s.tween)).toEqual(tweens);
+    expect(plan.steps.map((s) => s.hold)).toEqual(holds);
+    expect(plan.seen).toBe(cols.length > 0);
+    // Every seen tile past the start is drawn for a step: tweened into or out of, or held.
+    for (const col of cols.filter((c) => c > 0)) {
+      const into = plan.steps.find((s) => s.index === col);
+      const outOf = plan.steps.find((s) => s.index === col + 1);
+      const isLast = col === length - 1;
+      expect(into.tween || into.hold || outOf?.tween || isLast, `tile ${col}`).toBe(true);
+    }
   });
 });
 
@@ -172,8 +202,11 @@ describe('banners never name a unit the player cannot see', () => {
 // --- animateEnemyMove on a real scene method, rendering faked ---------------------
 
 const PX = 32;
-function moveScene({ fog, seen }) {
+function moveScene({ fog, seen, speed = 'normal', hold = false }) {
   const scene = new BattleScene();
+  scene.registry = { get: (key) => (key === 'settings' ? { getBattleSpeed: () => speed } : null) };
+  scene.turnManager = { currentPhase: 'enemy' };
+  scene._holdBattleFast = hold;
   const terrain = data.terrain;
   scene.grid = {
     cols: 8,
@@ -211,10 +244,30 @@ function moveScene({ fog, seen }) {
     };
     return part;
   };
-  scene._awaitSceneTween = vi.fn(async (config) => {
+  // What a frame drawn while the walk waits would show: the sprite at each await's start
+  // (and, for a tween, along it to its end). A sync-only show/hide is never sampled.
+  const frames = [];
+  const sample = (part) => ({
+    tile: `${Math.round(part.x / PX)},${Math.round(part.y / PX)}`,
+    visible: part.visible,
+  });
+  const holds = [];
+  scene._awaitSceneTween = vi.fn(async (config, options) => {
     const from = config.targets.map((t) => ({ x: t.x, y: t.y, visible: t.visible }));
-    tweens.push({ from, to: { x: config.x, y: config.y }, label: 'step' });
+    frames.push(sample(config.targets[0]));
+    tweens.push({
+      from,
+      to: { x: config.x, y: config.y },
+      label: 'step',
+      duration: config.duration,
+      scaled: options?.scaled === true,
+    });
     for (const t of config.targets) t.setPosition(config.x, config.y);
+    frames.push(sample(config.targets[0]));
+  });
+  scene._awaitSceneDelay = vi.fn(async (ms, options) => {
+    holds.push({ ms, ...options });
+    frames.push(sample(unitRef.graphic));
   });
   scene.updateUnitPosition = (unit) => {
     unit.graphic.setPosition(unit.col * PX, unit.row * PX);
@@ -238,7 +291,7 @@ function moveScene({ fog, seen }) {
     graphic: sprite('graphic'),
     label: sprite('label'),
   };
-  return { scene, unit: unitRef, tweens };
+  return { scene, unit: unitRef, tweens, frames, holds };
 }
 
 describe('animateEnemyMove: hidden steps are never drawn and the walk ends the same', () => {
@@ -251,11 +304,14 @@ describe('animateEnemyMove: hidden steps are never drawn and the walk ends the s
     ['emerges from the fog', true, [3, 4, 5]],
     ['walks into the fog', true, [0, 1, 2]],
     ['crosses a fogged gap', true, [0, 1, 4, 5]],
+    ['clips one seen tile', true, [2]],
+    ['clips two seen tiles', true, [2, 3]],
+    ['clips two lone seen tiles', true, [1, 3]],
   ];
   const outcomes = [];
   it.each(cases)('%s', async (_label, fog, cols) => {
     const seen = seenOf(cols);
-    const { scene, unit, tweens } = moveScene({ fog, seen });
+    const { scene, unit, tweens, frames } = moveScene({ fog, seen });
     const result = await scene.animateEnemyMove(unit, path);
     // Same final state whatever was drawn (presentation invariance).
     outcomes.push({
@@ -281,8 +337,46 @@ describe('animateEnemyMove: hidden steps are never drawn and the walk ends the s
       }
     }
     expect(result).toEqual({ seen: !fog || cols.length > 0 });
+    // Every seen tile the walk crosses is drawn: a frame shows the sprite on it.
+    for (const tile of path.slice(1)) {
+      const key = `${tile.col},0`;
+      if (fog && !seen.has(key)) continue;
+      expect(
+        frames.some((f) => f.visible && f.tile === key),
+        `drawn on ${key}`,
+      ).toBe(true);
+    }
+    // No frame ever shows the sprite on a hidden tile; a walk seen nowhere waits nowhere.
+    expect(frames.filter((f) => f.visible && fog && !seen.has(f.tile))).toEqual([]);
+    if (fog && cols.length === 0) expect(frames).toEqual([]);
     // The sprite's visibility at rest matches the destination's.
     expect(unit.graphic.visible).toBe(!fog || seen.has('5,0'));
+  });
+  it.each([
+    ['normal', false, 80, 60],
+    ['fast', false, 40, 30],
+    ['instant', false, 1, 1],
+    // Hold-to-fast-forward speeds the visible walk as it speeds the beat.
+    ['normal', true, 40, 30],
+    ['instant', true, 1, 1],
+  ])(
+    'a seen step and a clipped tile at %s (hold %s) take %i ms',
+    async (speed, hold, step, slide) => {
+      const all = moveScene({ fog: false, seen: new Set(), speed, hold });
+      expect(enemyStepDuration(all.scene, { slide: true })).toBe(slide);
+      await all.scene.animateEnemyMove(all.unit, path);
+      expect(all.tweens.map((t) => [t.duration, t.scaled])).toEqual(Array(5).fill([step, true]));
+      const clipped = moveScene({ fog: true, seen: seenOf([2]), speed, hold });
+      await clipped.scene.animateEnemyMove(clipped.unit, path);
+      expect(clipped.tweens).toEqual([]);
+      expect(clipped.holds).toEqual([{ ms: step, label: 'animate_enemy_move_step', scaled: true }]);
+    },
+  );
+  it('the hold never speeds a walk outside the enemy phase', async () => {
+    const m = moveScene({ fog: false, seen: new Set(), hold: true });
+    m.scene.turnManager.currentPhase = 'player';
+    await m.scene.animateEnemyMove(m.unit, path);
+    expect(m.tweens.map((t) => t.duration)).toEqual(Array(5).fill(80));
   });
   it('every case ends on the same tile', () => {
     expect(outcomes).toHaveLength(cases.length);

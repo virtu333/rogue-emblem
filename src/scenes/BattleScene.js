@@ -39,8 +39,10 @@ import {
 } from '../engine/RoutObjective.js';
 import { battleSpeed, waitDuration, waitTween } from '../utils/combatTiming.js';
 import {
+  ENEMY_STEP_LABEL,
   EnemyPhasePacing,
   enemyHealBanner,
+  enemyStepDuration,
   isTileSeen,
   planEnemyMoveSteps,
   seenUnitName,
@@ -1156,6 +1158,11 @@ export class BattleScene extends Phaser.Scene {
     return outcome;
   }
 
+  /**
+   * Run a tween to completion on the scene clock. A COMBAT_WAITS label scales its timing
+   * by the battle speed; `scaled: true` says the caller already did (an enemy walk reads
+   * hold-to-fast-forward through EnemyPhasePacing.enemyStepDuration).
+   */
   async _awaitSceneTween(
     tweenConfig,
     {
@@ -1163,6 +1170,7 @@ export class BattleScene extends Phaser.Scene {
       timeoutMs = null,
       onCancel = null,
       session = battleSession(this),
+      scaled = false,
     } = {},
   ) {
     if (!tweenConfig) return;
@@ -1187,7 +1195,7 @@ export class BattleScene extends Phaser.Scene {
         } catch (_) {}
       },
     });
-    const wrappedConfig = waitTween(this, label, tweenConfig);
+    const wrappedConfig = scaled ? { ...tweenConfig } : waitTween(this, label, tweenConfig);
     const originalOnComplete = wrappedConfig.onComplete;
     const originalOnStop = wrappedConfig.onStop;
     wrappedConfig.onComplete = (...args) => {
@@ -10605,11 +10613,16 @@ export class BattleScene extends Phaser.Scene {
     const targets = enemy.label ? [enemy.graphic, enemy.label] : [enemy.graphic];
     // No tween in the dark (EnemyPhasePacing): a step is drawn only where the player sees
     // both of its tiles, and the sprite is shown only on a tile the player sees. A walk
-    // the player sees none of is one position update below.
+    // the player sees none of is one position update below. A lone seen tile the walk
+    // only clips is held for one step's time, so the unit is drawn there.
     const plan = planEnemyMoveSteps(finalPath, (col, row) => isTileSeen(this.grid, col, row));
     const fog = this.grid.fogEnabled === true;
+    const isSlideStep = (stepIndex) =>
+      effective.slideSegments.some(
+        (seg) => stepIndex >= seg.startIndex && stepIndex < seg.startIndex + seg.slidePath.length,
+      );
 
-    for (const { index: stepIndex, tween, shown } of plan.steps) {
+    for (const { index: stepIndex, tween, shown, hold } of plan.steps) {
       const pos = this.grid.gridToPixel(finalPath[stepIndex].col, finalPath[stepIndex].row);
       if (!tween) {
         // Hidden before it moves, shown only once it stands on a seen tile.
@@ -10620,14 +10633,18 @@ export class BattleScene extends Phaser.Scene {
             if (shown) part?.setVisible?.(true);
           }
         }
+        if (!(fog && hold)) continue;
+        // Seen between two hidden tiles: held here for a step's time (read at the
+        // enemy-phase speed), never tweened through the fog on either side.
+        const ms = enemyStepDuration(this, { slide: isSlideStep(stepIndex) });
+        await this._awaitSceneDelay(ms, { label: ENEMY_STEP_LABEL, scaled: true });
+        if (!isCurrentBattleSession(this, session)) return;
+        if (!this._isSceneActiveForAsync(session)) return;
         continue;
       }
       // Both tiles are seen: the step is drawn, with the sprite shown.
       if (fog) for (const part of targets) part?.setVisible?.(true);
-      const isSlide = effective.slideSegments.some(
-        (seg) => stepIndex >= seg.startIndex && stepIndex < seg.startIndex + seg.slidePath.length,
-      );
-      const duration = isSlide ? 60 : 80;
+      const duration = enemyStepDuration(this, { slide: isSlideStep(stepIndex) });
       await this._awaitSceneTween(
         {
           targets,
@@ -10636,7 +10653,7 @@ export class BattleScene extends Phaser.Scene {
           duration,
           ease: 'Linear',
         },
-        { label: 'animate_enemy_move_step', timeoutMs: duration + 700 },
+        { label: ENEMY_STEP_LABEL, timeoutMs: duration + 700, scaled: true },
       );
       if (!isCurrentBattleSession(this, session)) return;
       if (!this._isSceneActiveForAsync(session)) return;
