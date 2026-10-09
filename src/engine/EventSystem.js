@@ -484,6 +484,7 @@ export const SAFE_BLESSING_BOON_TYPES = Object.freeze([
   'stationary_combat_bonus',
   'healing_effectiveness_delta',
   'extra_consumable',
+  'act_start_convoy_item',
   'starting_consumable_all',
 ]);
 

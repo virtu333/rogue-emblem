@@ -3874,7 +3874,7 @@ describe('blessing run-start effect application', () => {
     });
   });
 
-  it('gold_delta blessing grants starting gold for coin_of_fate', () => {
+  it('gold_delta grants Advance Pay 500 gold at once and nothing more until an act turns', () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
     rm.startRun();
@@ -3883,7 +3883,7 @@ describe('blessing run-start effect application', () => {
     rm.activeBlessings = ['coin_of_fate'];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
-    expect(rm.gold).toBe(baseGold + 750);
+    expect(rm.gold).toBe(baseGold + 500);
     expect(rm.getBattleGoldMultiplier()).toBe(baseMultiplier);
   });
 

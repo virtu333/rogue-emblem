@@ -339,10 +339,10 @@
     },
     {
       "id": "coin_of_fate",
-      "lore": "Altar rule: whoever needs the coins more may take them. Today, that's you.",
-      "name": "Coin of Fate",
+      "lore": "The paymaster owes you a season's wages, and pays them early, and again each spring.",
+      "name": "Advance Pay",
       "tier": 1,
-      "description": "Immediately gain 750 gold.",
+      "description": "+500 gold now, and +250 gold as each later act begins.",
       "weight": 1,
       "tags": [
         "gold"
@@ -351,7 +351,13 @@
         {
           "type": "gold_delta",
           "params": {
-            "value": 750
+            "value": 500
+          }
+        },
+        {
+          "type": "act_start_gold",
+          "params": {
+            "value": 250
           }
         }
       ],
@@ -673,7 +679,7 @@
       "lore": "Sworn to the open road. Whoever answers your banner has already walked a while.",
       "name": "Nomad's Pact",
       "tier": 3,
-      "description": "Units from recruit nodes and events join 2 levels higher.",
+      "description": "Every recruit joins 2 levels higher: recruit nodes, events, boss recruits and Colosseum mercenaries.",
       "weight": 1,
       "boons": [
         {
@@ -721,17 +727,17 @@
     },
     {
       "id": "quartermaster_cache",
-      "lore": "Tithe-barn stores: one elixir per banner. The barn burned; the ledger didn't.",
+      "lore": "The tithe-barn burned; the ledger didn't. Each season one elixir still comes due.",
       "name": "Quartermaster Cache",
       "tier": 2,
-      "description": "Each starting lord receives 1 Elixir.",
+      "description": "An Elixir arrives in the convoy at the start of every act, this one included.",
       "weight": 1,
       "boons": [
         {
-          "type": "extra_consumable",
+          "type": "act_start_convoy_item",
           "params": {
             "itemName": "Elixir",
-            "value": 1
+            "count": 1
           }
         }
       ],
@@ -780,12 +786,13 @@
       "lore": "Quench the edge in your own blood. The smith-saints cursed the rite. It works.",
       "name": "Blood Forge",
       "tier": 2,
-      "description": "Starting lords’ current combat weapons gain up to 2 Might forges, subject to forge limits.",
+      "description": "+2 Might on each starting lord's strongest weapon.",
       "weight": 1,
       "boons": [
         {
-          "type": "starting_weapon_forge_delta",
+          "type": "starting_best_weapon_forge",
           "params": {
+            "stat": "might",
             "value": 2
           }
         }

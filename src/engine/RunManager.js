@@ -281,7 +281,42 @@ function createBlessingRuntimeModifiers() {
     // church revives for the run.
     deployCapDeltaByAct: {},
     churchReviveDisabled: false,
+    // Grants a blessing pays as each act begins (Advance Pay's gold, Quartermaster Cache's
+    // Elixir): `{ blessingId, kind: 'gold'|'item', value?, itemName?, count?, paidActs }`.
+    // `paidActs` is what makes a grant pay once per act, however often a save is loaded.
+    actStartGrants: [],
   };
+}
+
+/**
+ * A saved act-start grants list, field by field: a grant is gold or an item, with a whole
+ * positive amount, and a list of the acts it has already paid. Anything else is dropped.
+ */
+function sanitizeActStartGrants(list) {
+  if (!Array.isArray(list)) return [];
+  const grants = [];
+  for (const entry of list) {
+    if (!isPlainObject(entry) || typeof entry.blessingId !== 'string' || !entry.blessingId)
+      continue;
+    const paidActs = Array.isArray(entry.paidActs)
+      ? [...new Set(entry.paidActs.filter((act) => typeof act === 'string' && act))]
+      : [];
+    if (entry.kind === 'gold') {
+      const value = Math.trunc(Number(entry.value));
+      if (value > 0) grants.push({ blessingId: entry.blessingId, kind: 'gold', value, paidActs });
+    } else if (entry.kind === 'item') {
+      const count = Math.trunc(Number(entry.count));
+      if (typeof entry.itemName === 'string' && entry.itemName && count > 0)
+        grants.push({
+          blessingId: entry.blessingId,
+          kind: 'item',
+          itemName: entry.itemName,
+          count,
+          paidActs,
+        });
+    }
+  }
+  return grants;
 }
 
 function hashStringToUint32(input) {
@@ -2253,6 +2288,96 @@ export class RunManager {
       return;
     }
 
+    if (effect.type === 'starting_best_weapon_forge') {
+      // Blood Forge: each starting lord's strongest weapon gains `value` forge steps.
+      const forgeStat = String(effect.params.stat || 'might')
+        .trim()
+        .toLowerCase();
+      const targetStat = ['might', 'crit', 'hit', 'weight'].includes(forgeStat)
+        ? forgeStat
+        : 'might';
+      const steps = Math.max(0, Math.trunc(value));
+      if (steps <= 0) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'zero_starting_best_weapon_forge',
+        });
+        return;
+      }
+      const changedWeapons = [];
+      for (const unit of this.roster) {
+        if (!unit.isLord) continue;
+        const weapon = this._bestForgeableWeapon(unit, targetStat);
+        if (!weapon) continue;
+        const before = weapon.name;
+        let applied = 0;
+        for (let i = 0; i < steps; i++) {
+          if (!applyForge(weapon, targetStat).success) break; // the forge limits
+          applied++;
+        }
+        if (applied > 0)
+          changedWeapons.push({
+            unit: unit.name,
+            weapon: before,
+            stat: targetStat,
+            steps: applied,
+          });
+      }
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        forgeStat: targetStat,
+        requestedSteps: steps,
+        changedWeapons,
+      });
+      return;
+    }
+
+    if (effect.type === 'act_start_gold') {
+      // Advance Pay: the shrine's gold covers the act it is taken in (paid by `gold_delta`),
+      // so the first recurring payment is the next act's.
+      const amount = Math.max(0, Math.trunc(value));
+      if (amount <= 0) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'invalid_act_start_gold',
+        });
+        return;
+      }
+      this._actStartGrantList().push({
+        blessingId,
+        kind: 'gold',
+        value: amount,
+        paidActs: [this.currentAct],
+      });
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        appliedValue: amount,
+        firstPayment: 'next_act',
+      });
+      return;
+    }
+
+    if (effect.type === 'act_start_convoy_item') {
+      // Quartermaster Cache: one item at the start of every act, this one included.
+      const itemName = typeof effect.params.itemName === 'string' ? effect.params.itemName : '';
+      const count = Math.max(
+        0,
+        Math.trunc(Number(effect.params.count ?? effect.params.value ?? 1)),
+      );
+      const template = itemName ? this.getConsumableTemplate(itemName) : null;
+      if (count <= 0 || template?.type !== 'Consumable') {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: count <= 0 ? 'invalid_act_start_item_count' : 'missing_consumable_template',
+          itemName,
+        });
+        return;
+      }
+      this._actStartGrantList().push({ blessingId, kind: 'item', itemName, count, paidActs: [] });
+      this._recordBlessingEvent('run_start', blessingId, effect, { itemName, count });
+      // The current act's delivery is owed now (a church vow in Act 2 pays Act 2 now).
+      this._payActStartGrants('run_start');
+      return;
+    }
+
     if (effect.type === 'eclipse_shadow_delta') {
       // The run's sun starts darker (a pact price). The act's own clock is unmoved:
       // act shadow counts from here, so no node falls because of it; only the
@@ -2512,6 +2637,127 @@ export class RunManager {
 
   getShopPriceDiscount() {
     return this.blessingRuntimeModifiers?.shopPriceDiscount || 0;
+  }
+
+  /** The grants list on the runtime modifiers (made when an older object lacks it). */
+  _actStartGrantList() {
+    const modifiers = this.blessingRuntimeModifiers;
+    if (!Array.isArray(modifiers.actStartGrants)) modifiers.actStartGrants = [];
+    return modifiers.actStartGrants;
+  }
+
+  /**
+   * A lord's strongest weapon that the forge can still improve in `stat` (Blood Forge):
+   * the unit's own (equipped or in the bag) combat weapons it can wield, highest current
+   * Might first; a tie goes to the equipped weapon, then the earlier bag slot. A weapon at
+   * its forge limit, a staff, a scroll and a worn weapon are not candidates, so the next
+   * best is chosen instead.
+   */
+  _bestForgeableWeapon(unit, stat) {
+    const ordered = [];
+    for (const weapon of [unit.weapon, ...(unit.inventory || [])]) {
+      if (weapon && !ordered.includes(weapon)) ordered.push(weapon);
+    }
+    let best = null;
+    for (const weapon of ordered) {
+      if (['Staff', 'Consumable', 'Scroll'].includes(weapon.type)) continue;
+      if (!canEquip(unit, weapon) || !canForgeStat(weapon, stat)) continue;
+      // `ordered` lists the equipped weapon first, then the bag in slot order, so a strict
+      // comparison keeps the tie-break.
+      if (!best || (Number(weapon.might) || 0) > (Number(best.might) || 0)) best = weapon;
+    }
+    return best;
+  }
+
+  /**
+   * Pay the blessings' act-start grants for the act the run is in (docs/specs/blessings-v3.md
+   * §4): Advance Pay's gold, Quartermaster Cache's item. A grant pays once per act, however
+   * often a save is loaded (`paidActs` is saved). Never in the prologue. Gold goes straight
+   * to the purse (Debt garnishes battle gold only). An item goes to the convoy, then to the
+   * commander's bag, the other lords', then anyone's; with no room anywhere it is lost, and
+   * the act still counts as paid (the shrine's first Elixir did the same).
+   * @param {'run_start'|'act_transition'} stage
+   * @returns {Array<object>} what was paid, for the route map's notice
+   */
+  _payActStartGrants(stage = 'act_transition') {
+    if (isPrologueRun(this)) return [];
+    const act = this.currentAct;
+    if (!act) return [];
+    const catalog = this.gameData?.blessings;
+    const names = new Map(
+      (Array.isArray(catalog?.blessings) ? catalog.blessings : []).map((b) => [b.id, b.name]),
+    );
+    const paid = [];
+    for (const grant of this._actStartGrantList()) {
+      if (!grant || !Array.isArray(grant.paidActs) || grant.paidActs.includes(act)) continue;
+      grant.paidActs.push(act);
+      const blessingName = names.get(grant.blessingId) || grant.blessingId;
+      if (grant.kind === 'gold') {
+        this.addGold(grant.value);
+        this._recordBlessingEvent(
+          stage,
+          grant.blessingId,
+          { type: 'act_start_gold', params: { value: grant.value } },
+          { appliedValue: grant.value, act },
+        );
+        paid.push({
+          blessingId: grant.blessingId,
+          blessingName,
+          kind: 'gold',
+          value: grant.value,
+        });
+        continue;
+      }
+      if (grant.kind === 'item') {
+        const template = this.getConsumableTemplate(grant.itemName);
+        if (template?.type !== 'Consumable') {
+          this._recordBlessingEvent(
+            stage,
+            grant.blessingId,
+            { type: 'act_start_convoy_item', params: { itemName: grant.itemName } },
+            { skipped: true, reason: 'missing_consumable_template', act },
+          );
+          continue;
+        }
+        let toConvoy = 0;
+        let toUnits = 0;
+        let overflow = 0;
+        const holders = [
+          this.getCommander(),
+          ...this.roster.filter((unit) => unit.isLord),
+          ...this.roster,
+        ].filter((unit, index, list) => unit && list.indexOf(unit) === index);
+        for (let i = 0; i < grant.count; i++) {
+          if (this.addToConvoy(template)) toConvoy++;
+          else if (holders.some((unit) => addToConsumables(unit, template))) toUnits++;
+          else overflow++;
+        }
+        this._recordBlessingEvent(
+          stage,
+          grant.blessingId,
+          { type: 'act_start_convoy_item', params: { itemName: grant.itemName } },
+          { itemName: grant.itemName, count: grant.count, act, toConvoy, toUnits, overflow },
+        );
+        paid.push({
+          blessingId: grant.blessingId,
+          blessingName,
+          kind: 'item',
+          itemName: grant.itemName,
+          count: grant.count,
+          toConvoy,
+          toUnits,
+          overflow,
+        });
+      }
+    }
+    return paid;
+  }
+
+  /** The act-start grants paid since the route map last showed them (not saved). */
+  takeActStartNotice() {
+    const notice = this._actStartNotice || [];
+    this._actStartNotice = null;
+    return notice;
   }
 
   getRecruitLevelBonus() {
@@ -4663,11 +4909,14 @@ export class RunManager {
     }
   }
 
-  /** Advance to the next act. Generates a new node map. Returns { unlockedArtIds, displacedSkills }. */
+  /**
+   * Advance to the next act. Generates a new node map and pays the blessings' act-start
+   * grants. Returns { unlockedArtIds, displacedSkills, actStartGrants }.
+   */
   advanceAct() {
     this._revertActScopedBlessingEffects(this.currentAct);
     if (this.actIndex >= this.actSequence.length - 1)
-      return { unlockedArtIds: [], displacedSkills: {} };
+      return { unlockedArtIds: [], displacedSkills: {}, actStartGrants: [] };
     this.actIndex++;
     this._restoreDisabledPersonalSkillsIfReady('act_transition');
     // The act boss has fallen: the army rests before the next act and starts it whole.
@@ -4701,7 +4950,10 @@ export class RunManager {
     this.pendingCaravanShop = null;
     this.activeCaravanShop = null;
     this.applyEclipseNow();
-    return { unlockedArtIds: unlockedNow, displacedSkills };
+    // Advance Pay, Quartermaster Cache: paid once the new act's map stands.
+    const actStartGrants = this._payActStartGrants('act_transition');
+    this._actStartNotice = actStartGrants.length > 0 ? actStartGrants : null;
+    return { unlockedArtIds: unlockedNow, displacedSkills, actStartGrants };
   }
 
   _revertActScopedBlessingEffects(expiredAct) {
@@ -5591,6 +5843,9 @@ export class RunManager {
         avoidBonus: Math.trunc(Number(held?.avoidBonus) || 0),
       };
     }
+    rm.blessingRuntimeModifiers.actStartGrants = sanitizeActStartGrants(
+      rm.blessingRuntimeModifiers.actStartGrants,
+    );
     rm.blessingRuntimeModifiers.healingEffectivenessMultiplier = Number.isFinite(
       rm.blessingRuntimeModifiers.healingEffectivenessMultiplier,
     )

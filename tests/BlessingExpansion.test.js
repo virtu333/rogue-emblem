@@ -135,22 +135,18 @@ describe('Blessing Expansion v2 � effect handlers', () => {
     }
   });
 
-  it('quartermaster_cache grants vulneraries to lords with convoy overflow handling', () => {
+  it('quartermaster_cache puts an Elixir in the convoy at once, not in the lords bags', () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
     rm.startRun();
 
-    const lordConsumableCounts = rm.roster.filter((u) => u.isLord).map((u) => u.consumables.length);
+    const lordBags = rm.roster.filter((u) => u.isLord).map((u) => u.consumables.length);
     rm.activeBlessings = [activeBlessing('quartermaster_cache')];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
 
-    rm.roster
-      .filter((u) => u.isLord)
-      .forEach((unit, idx) => {
-        expect(unit.consumables.length).toBeGreaterThanOrEqual(lordConsumableCounts[idx]);
-        expect(unit.consumables.some((item) => item.name === 'Vulnerary')).toBe(true);
-      });
+    expect(rm.getConvoyItems().consumables.map((item) => item.name)).toEqual(['Elixir']);
+    expect(rm.roster.filter((u) => u.isLord).map((u) => u.consumables.length)).toEqual(lordBags);
   });
 
   it('focused_curriculum applies targeted lord growths and updates growth bonus APIs', () => {
@@ -189,25 +185,20 @@ describe('Blessing Expansion v2 � effect handlers', () => {
     expect(lordBonuses.SKL || 0).toBe(12);
   });
 
-  it('blood_forge uses starting_weapon_forge_delta and increases lord weapon forge level', () => {
+  it('blood_forge forges each starting lord’s strongest weapon twice and nothing else', () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
     rm.startRun();
-
-    const before = rm.roster
-      .filter((u) => u.isLord)
-      .map((u) => (u.weapon ? u.weapon._forgeLevel || 0 : 0));
+    const edric = rm.roster.find((u) => u.name === 'Edric');
+    const steel = edric.inventory.find((w) => w.name === 'Steel Sword');
 
     rm.activeBlessings = [activeBlessing('blood_forge')];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
 
-    rm.roster
-      .filter((u) => u.isLord)
-      .forEach((unit, idx) => {
-        if (!unit.weapon) return;
-        expect(unit.weapon._forgeLevel || 0).toBeGreaterThanOrEqual(before[idx] + 1);
-      });
+    expect(steel._forgeLevel).toBe(2);
+    expect(steel.might).toBe(10);
+    expect(edric.inventory.find((w) => w.name === 'Iron Sword').might).toBe(5);
   });
 
   it('starting_scroll grants deterministic scrolls for same seed', () => {
