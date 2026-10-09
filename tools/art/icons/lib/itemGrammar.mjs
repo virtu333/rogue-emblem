@@ -655,6 +655,19 @@ export const UPGRADE_ICON_REUSE = Object.freeze({
 });
 
 /**
+ * Blessings drawn with another icon's cell: blessing id -> the icon id whose picture it
+ * shares. Like UPGRADE_ICON_REUSE the blessing keeps its own id, socket (the pennant) and
+ * rim (its tier numeral); only the art is reused, because the atlas is full (360 cells, the
+ * mobile texture budget in tests/ItemIcons.test.js). A new blessing without a picture of its
+ * own adds a line here instead of a cell: Gambler's Toss wears the Gambler's Coin, Slow Fuse
+ * the Scout's Blessing banner. The target must be an icon with a cell of its own.
+ */
+export const BLESSING_ICON_REUSE = Object.freeze({
+  gamblers_toss: 'gamblers-coin',
+  slow_fuse: 'blessing-scout_blessing',
+});
+
+/**
  * Upgrades: category silhouette + stat colour + badge (plus = flat, arrow = growth).
  * Recruits wear a crested helm, lords a capped crown: the crest and the cap are big
  * enough to carry the stat colour at 16px. Skills are medallions with the skill's glyph.

@@ -26,9 +26,25 @@ import { loadGameData } from './testData.js';
 
 const data = loadGameData();
 
+// Blessings that wait for a card painting (the card wears the plain medallion meanwhile; art
+// never gates play). A new blessing goes on this list until its painting ships and comes off it
+// in the commit that ships the painting: Slow Fuse and Gambler's Toss (blessings v3, PR B).
+const PAINTING_PENDING = ['slow_fuse', 'gamblers_toss'];
+const paintedBlessings = data.blessings.blessings.filter((b) => !PAINTING_PENDING.includes(b.id));
+
 describe('moment art coverage and budget', () => {
+  it('the list of blessings still waiting for a painting only names real blessings with none yet', () => {
+    const ids = data.blessings.blessings.map((b) => b.id);
+    for (const id of PAINTING_PENDING) {
+      expect(ids, `${id} is not a blessing`).toContain(id);
+      expect(manifest.cards[id], `${id} has art now: take it off the pending list`).toBeUndefined();
+      expect(hasBlessingPainting(id), id).toBe(false);
+      expect(blessingCardUrl(id), `${id}: no painting, no URL (the medallion)`).toBeNull();
+    }
+  });
+
   it('every blessing has a card painting and every service a vignette', () => {
-    for (const b of data.blessings.blessings) {
+    for (const b of paintedBlessings) {
       expect(hasBlessingPainting(b.id), b.id).toBe(true);
       expect(blessingCardUrl(b.id)).toMatch(new RegExp(`moments/cards/${b.id}\\.png\\?v=`));
     }

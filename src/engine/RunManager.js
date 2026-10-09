@@ -110,6 +110,13 @@ import {
   resolveRecruitNodeSpawnClass,
 } from './RecruitNodeSystem.js';
 import {
+  applyArcsOnActEntry,
+  revertArcDipsForExpiredAct,
+  sanitizeLordStatArcs,
+  startLordStatArc,
+} from './LordStatArc.js';
+import { parseBattleGoldGamble, settleBattleGoldGamble } from './BattleGoldGamble.js';
+import {
   formatUnitUid,
   resolveBattleCasualties,
   unitUidNumber,
@@ -277,6 +284,10 @@ function createBlessingRuntimeModifiers() {
     // church revives for the run.
     deployCapDeltaByAct: {},
     churchReviveDisabled: false,
+    // Slow Fuse: the starting lords' dip-then-rise stat arcs (engine/LordStatArc.js).
+    lordStatArcs: [],
+    // Gambler's Toss: `{ chance, win, lose }` while held (engine/BattleGoldGamble.js).
+    battleGoldGamble: null,
   };
 }
 
@@ -304,7 +315,9 @@ function normalizeBlessingCostEntry(costEntry) {
   if (!isPlainObject(costEntry)) return null;
   const label = typeof costEntry.label === 'string' ? costEntry.label.trim() : '';
   if (!label) return null;
-  // A v3 price says whether it was the blessing's pact (the held list names it so).
+  // A v3 price says whether it was the blessing's pact (the held list names it so), or its
+  // intrinsic price (the boon carries the cost: no effects of its own to apply).
+  if (costEntry.kind === 'intrinsic') return { label, effects: [], kind: 'intrinsic' };
   const kind = costEntry.kind === 'pact' ? 'pact' : null;
   if (!Array.isArray(costEntry.effects) || costEntry.effects.length <= 0) return null;
   const effects = [];
@@ -317,6 +330,15 @@ function normalizeBlessingCostEntry(costEntry) {
   }
   if (effects.length <= 0) return null;
   return kind ? { label, effects, kind } : { label, effects };
+}
+
+/** A blessing's intrinsic price as a stored price entry (no effects: the boon carries it). */
+function intrinsicCostOf(blessing) {
+  return normalizeBlessingCostEntry(
+    isPlainObject(blessing?.intrinsicPrice)
+      ? { label: blessing.intrinsicPrice.label, effects: [], kind: 'intrinsic' }
+      : null,
+  );
 }
 
 /**
@@ -568,6 +590,8 @@ export class RunManager {
     this.pendingEventNodeId = null;
     this.laidToRest = [];
     this.lastBurdenSettlement = null;
+    // Gambler's Toss: the last victory's toss, for the victory band (not saved).
+    this.lastBattleGoldGamble = null;
     // The open contract (engine/Contracts.js: a goal for the next battle), the settlement it
     // earned and has not yet delivered (`contractOwed`, saved: judged once, owed until paid or
     // a reward is given up) and what the last settlement said, for the victory band (not saved,
@@ -628,6 +652,7 @@ export class RunManager {
     this.pendingEventNodeId = null;
     this.laidToRest = [];
     this.lastBurdenSettlement = null;
+    this.lastBattleGoldGamble = null;
     this.contract = null;
     this.contractOwed = null;
     this.lastContractSettlement = null;
@@ -1343,9 +1368,11 @@ export class RunManager {
     const resolved = catalogBlessing
       ? { ...structuredClone(catalogBlessing), ...structuredClone(blessing), id: blessingId }
       : { ...structuredClone(blessing), id: blessingId };
-    resolved.rolledCost = normalizeBlessingCostEntry(blessing?.rolledCost);
+    resolved.rolledCost =
+      normalizeBlessingCostEntry(blessing?.rolledCost) || intrinsicCostOf(resolved);
     const needsV2Cost =
       resolved.tier >= 2 &&
+      !resolved.intrinsicPrice &&
       !resolved.rolledCost &&
       Array.isArray(resolved.costs) &&
       resolved.costs.length === 0;
@@ -1396,10 +1423,11 @@ export class RunManager {
         return;
       }
 
-      let rolledCost = normalizeBlessingCostEntry(entry?.rolledCost);
+      let rolledCost = normalizeBlessingCostEntry(entry?.rolledCost) || intrinsicCostOf(blessing);
       const needsV2Cost =
         id !== 'swift_instinct' &&
         blessing.tier >= 2 &&
+        !blessing.intrinsicPrice &&
         !rolledCost &&
         Array.isArray(blessing.costs) &&
         blessing.costs.length === 0;
@@ -2418,10 +2446,48 @@ export class RunManager {
       return;
     }
 
+    if (effect.type === 'lord_stat_arc') {
+      const tracker = startLordStatArc(this, blessingId, effect.params);
+      this._recordBlessingEvent(
+        'run_start',
+        blessingId,
+        effect,
+        tracker
+          ? {
+              dipAct: tracker.dipAct,
+              dip: tracker.dip,
+              riseAct: tracker.riseAct,
+              rise: tracker.rise,
+              appliedUnits: tracker.unitUids,
+              dipTaken: tracker.dipTaken,
+              riseApplied: tracker.riseApplied,
+            }
+          : { skipped: true, reason: 'invalid_lord_stat_arc_params' },
+      );
+      return;
+    }
+
+    if (effect.type === 'battle_gold_gamble') {
+      const gamble = parseBattleGoldGamble(effect.params);
+      if (gamble) this.blessingRuntimeModifiers.battleGoldGamble = gamble;
+      this._recordBlessingEvent(
+        'run_start',
+        blessingId,
+        effect,
+        gamble ? { ...gamble } : { skipped: true, reason: 'invalid_battle_gold_gamble_params' },
+      );
+      return;
+    }
+
     this._recordBlessingEvent('run_start', blessingId, effect, {
       skipped: true,
       reason: 'unhandled_effect_type',
     });
+  }
+
+  /** The held Gambler's Toss (`{ chance, win, lose }`), or null. */
+  getBattleGoldGamble() {
+    return parseBattleGoldGamble(this.blessingRuntimeModifiers?.battleGoldGamble);
   }
 
   getBattleGoldMultiplier() {
@@ -4202,7 +4268,19 @@ export class RunManager {
     const eliteMult = node?.battleParams?.isElite ? ELITE_GOLD_MULTIPLIER : 1;
     const goldMult = this.getBattleGoldMultiplier();
     const difficultyGoldMult = this.getDifficultyModifier('goldMultiplier', 1);
-    const finalGold = Math.floor(baseGold * eliteMult * goldMult * difficultyGoldMult);
+    const wholeGold = Math.floor(baseGold * eliteMult * goldMult * difficultyGoldMult);
+    // Gambler's Toss: doubled or halved on the node's own seeded toss, after the elite, Merchant
+    // Bane and rung multipliers and before a Debt garnishes what is left.
+    const heldGamble = this.getBattleGoldGamble();
+    const gambleRecord = heldGamble
+      ? settleBattleGoldGamble({
+          runSeed: this.runSeed,
+          nodeId,
+          gamble: heldGamble,
+          gold: wholeGold,
+        })
+      : null;
+    const finalGold = gambleRecord ? gambleRecord.goldAfter : wholeGold;
     // Which burdens this battle touches: a boss node ends a Sworn Enemy and was never hunted;
     // a battle whose locked map carries the Hunted wave counts one down (no locked map: the
     // headless sims and tests, where every non-boss battle was generated with it).
@@ -4292,6 +4370,7 @@ export class RunManager {
     this.awardGold(settlement.gold);
     // A wound whose unit fell (or left) in this battle ends with it: nobody carries it on.
     this.burdens = pruneGoneWounds(settlement.burdens, this.roster);
+    this.lastBattleGoldGamble = gambleRecord;
     this.lastBurdenSettlement = settlement.record
       ? {
           nodeId,
@@ -4604,6 +4683,9 @@ export class RunManager {
       return { unlockedArtIds: [], displacedSkills: {} };
     this.actIndex++;
     this._restoreDisabledPersonalSkillsIfReady('act_transition');
+    // Act-entry blessing effects (Slow Fuse's rise) land before the rest, so the army starts
+    // the act whole at its new maximum.
+    applyArcsOnActEntry(this);
     // The act boss has fallen: the army rests before the next act and starts it whole.
     for (const unit of this.roster) if (unit?.stats) healUnitFully(unit);
     this.nodeMap = this._withNodeMapSeed(() =>
@@ -4639,6 +4721,7 @@ export class RunManager {
   }
 
   _revertActScopedBlessingEffects(expiredAct) {
+    revertArcDipsForExpiredAct(this, expiredAct);
     const trackers = this.blessingRuntimeModifiers?.actStatDeltaAllUnits;
     if (!Array.isArray(trackers) || !expiredAct) return;
     for (const tracker of trackers) {
@@ -5532,6 +5615,12 @@ export class RunManager {
     );
     rm.blessingRuntimeModifiers.churchReviveDisabled =
       rm.blessingRuntimeModifiers.churchReviveDisabled === true;
+    rm.blessingRuntimeModifiers.lordStatArcs = sanitizeLordStatArcs(
+      rm.blessingRuntimeModifiers.lordStatArcs,
+    );
+    rm.blessingRuntimeModifiers.battleGoldGamble = parseBattleGoldGamble(
+      rm.blessingRuntimeModifiers.battleGoldGamble,
+    );
     // Pact enemy levels (strategy-layer): legacy saves have none.
     rm.blessingRuntimeModifiers.enemyLevelDeltas = (
       Array.isArray(rm.blessingRuntimeModifiers.enemyLevelDeltas)

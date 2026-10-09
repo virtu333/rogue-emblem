@@ -892,6 +892,66 @@
         "commander_injury"
       ],
       "costs": []
+    },
+    {
+      "id": "slow_fuse",
+      "name": "Slow Fuse",
+      "tier": 2,
+      "weight": 1,
+      "description": "Starting lords: -1 to all stats but Move in Act 1, +1 to all stats but Move from Act 2.",
+      "lore": "Lit at the first frost it only smoulders. Stand clear when the thaw comes.",
+      "boons": [
+        {
+          "type": "lord_stat_arc",
+          "params": {
+            "stats": [
+              "HP",
+              "STR",
+              "MAG",
+              "SKL",
+              "SPD",
+              "DEF",
+              "RES",
+              "LCK"
+            ],
+            "dipAct": "act1",
+            "dip": -1,
+            "riseAct": "act2",
+            "rise": 1
+          }
+        }
+      ],
+      "intrinsicPrice": {
+        "label": "The Act 1 dip",
+        "points": 2
+      },
+      "costs": []
+    },
+    {
+      "id": "gamblers_toss",
+      "name": "Gambler's Toss",
+      "tier": 3,
+      "weight": 1,
+      "tags": [
+        "gold"
+      ],
+      "description": "Each victory's battle gold is doubled or halved on an even toss.",
+      "lore": "Heads, the shrine pays double. Tails, it keeps its half. It has never gone short.",
+      "boons": [
+        {
+          "type": "battle_gold_gamble",
+          "params": {
+            "chance": 0.5,
+            "win": 2,
+            "lose": 0.5
+          }
+        }
+      ],
+      "intrinsicPrice": {
+        "label": "Half your victories pay half",
+        "points": 3
+      },
+      "costs": []
     }
   ],
   "costPools": {

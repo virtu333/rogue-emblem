@@ -7,6 +7,10 @@
 // candidate's points sit inside its tier's `tierBands`. Offers draw slots 2+ by tier
 // (`offerWeights`), never two of one tier. A v2 config (rolled tier `costPools`) still
 // validates and selects as before, so old fixtures and saves keep working.
+//
+// An `intrinsicPrice` ({ label, points }) is the third kind of tier II-III price: the blessing's
+// own boon carries its cost (Slow Fuse's Act 1 dip, Gambler's Toss's bad tosses), so there is no
+// catalog entry to pay and nothing to apply. It still spends the one price draw a pact does.
 
 export const BLESSINGS_CONTRACT_VERSION = 3;
 const SUPPORTED_VERSIONS = new Set([2, 3]);
@@ -140,6 +144,10 @@ export function validateBlessingsConfig(config, options = {}) {
           });
         }
       }
+    }
+
+    if (blessing.intrinsicPrice !== undefined && config.version !== 3) {
+      errors.push(`${path}.intrinsicPrice needs contract v3`);
     }
 
     for (const effectKey of ['boons', 'costs']) {
@@ -295,14 +303,43 @@ function validateV3Pricing(config, errors) {
       errors.push(`${path} is a gold price on a gold blessing`);
   };
 
+  // An intrinsic price is { label, points }: the blessing's own boon carries the cost, so it
+  // names no catalog entry, but its points sit inside the tier's band like any other price.
+  const checkIntrinsic = (blessing, path) => {
+    const price = blessing.intrinsicPrice;
+    if (!isObject(price)) {
+      errors.push(`${path}.intrinsicPrice must be { label, points }`);
+      return;
+    }
+    if (typeof price.label !== 'string' || price.label.trim() === '')
+      errors.push(`${path}.intrinsicPrice.label must be a non-empty string`);
+    if (!Number.isFinite(price.points) || price.points <= 0) {
+      errors.push(`${path}.intrinsicPrice.points must be a positive number`);
+      return;
+    }
+    const band = bands?.[String(blessing.tier)];
+    if (Array.isArray(band) && (price.points < band[0] - 1e-9 || price.points > band[1] + 1e-9))
+      errors.push(
+        `${path}.intrinsicPrice costs ${price.points} points, outside tier ${blessing.tier}'s band ${band[0]}-${band[1]}`,
+      );
+  };
+
   for (const blessing of config.blessings || []) {
     if (!isObject(blessing)) continue;
     const path = `blessings.${blessing.id}`;
     const hasPrices = Array.isArray(blessing.prices) && blessing.prices.length > 0;
     const hasPact = Array.isArray(blessing.pact);
+    const hasIntrinsic = blessing.intrinsicPrice !== undefined;
     if (blessing.tier === 1) {
-      if (hasPrices || blessing.pact !== undefined)
+      if (hasPrices || blessing.pact !== undefined || hasIntrinsic)
         errors.push(`${path}: a tier 1 blessing is a free gift (no prices, no pact)`);
+      continue;
+    }
+    if (hasIntrinsic) {
+      checkIntrinsic(blessing, path);
+      if (hasPrices || blessing.pact !== undefined)
+        errors.push(`${path}: an intrinsic price replaces prices and pact; name only one`);
+      if (blessing.tier === 4) errors.push(`${path}: a tier 4 blessing carries a fixed pact (v3)`);
       continue;
     }
     if (isObject(blessing.pact)) {
@@ -366,7 +403,8 @@ export function resolvePriceOption(
 }
 
 /**
- * Roll a v3 blessing's price: its pact (one draw is still spent, as for a v2 pact), or one of
+ * Roll a v3 blessing's price: its intrinsic price or its pact (one draw is still spent, as for
+ * a v2 pact), or one of
  * its candidate prices, uniformly, among those `isApplicable` accepts (a price that would cost
  * this run nothing is never offered; when none is applicable, all are candidates).
  * @returns {{label: string, effects: object[], points: number, kind: string} | null}
@@ -374,6 +412,13 @@ export function resolvePriceOption(
 export function rollPriceForBlessing(config, blessing, rand, options = {}) {
   if (typeof rand !== 'function') throw new Error('rollPriceForBlessing requires an RNG');
   const context = { difficultyId: options.difficultyId };
+  if (isObject(blessing?.intrinsicPrice)) {
+    // The boon carries its own cost: nothing to resolve or apply, but one draw is still
+    // spent (as for a pact) so every other offer's roll is unchanged.
+    rand();
+    const { label, points } = blessing.intrinsicPrice;
+    return { label, effects: [], points, kind: 'intrinsic' };
+  }
   if (Array.isArray(blessing?.pact)) {
     rand();
     return resolvePriceOption(config, blessing.pact, { ...context, kind: 'pact' });

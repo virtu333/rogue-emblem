@@ -2,6 +2,7 @@ import { generateLootChoices, calculateSkipLootBonus } from './LootSystem.js';
 import { getRating, calculateBonusGold } from './TurnBonusCalculator.js';
 import { buildPrologueLootChoices } from './Prologue.js';
 import { isPrologueRun } from './ScriptedBattle.js';
+import { gambleSummary } from './BattleGoldGamble.js';
 import {
   LOOT_CHOICES,
   ELITE_LOOT_CHOICES,
@@ -97,6 +98,10 @@ export function prepareBattleRewards(run, data, ctx) {
       if (choice.type === 'gold')
         choice.goldAmount = Math.max(0, Math.floor((choice.goldAmount || 0) * pressure));
   const total = (ctx.goldEarned || 0) + (ctx.completionGoldAward || 0) + turnGold;
+  // Gambler's Toss: the header says the battle's gold was doubled or halved (this node's toss).
+  const toss = run.lastBattleGoldGamble;
+  const tossNote =
+    toss && toss.nodeId === (ctx.nodeId || run.currentNodeId) ? ` · ${gambleSummary(toss)}` : '';
   run.pendingBattleReward = {
     version: 1,
     nodeId: ctx.nodeId || run.currentNodeId,
@@ -107,7 +112,7 @@ export function prepareBattleRewards(run, data, ctx) {
     // The skip pays from the gold the battle earned, never from the choices, so a reroll
     // leaves it as it is.
     skipGold: Math.floor(calculateSkipLootBonus(total) * GOLD_LOOT_REWARD_MULTIPLIER),
-    summary: `Battle and completion: ${ctx.battleCompletionAwardedGold ?? total - turnGold} gold${turnGold ? ` · Turn ${rating}: +${turnGold} gold` : ''}`,
+    summary: `Battle and completion: ${ctx.battleCompletionAwardedGold ?? total - turnGold} gold${turnGold ? ` · Turn ${rating}: +${turnGold} gold` : ''}${tossNote}`,
     draft: { selected: 0, path: [] },
     // How the choices were drawn (Branching Threads rerolls with the same); null for
     // authored loot, which can never be rerolled.

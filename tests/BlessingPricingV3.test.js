@@ -167,6 +167,15 @@ describe('offers', () => {
       for (const offer of rm.getBlessingOptions()) {
         if (offer.tier === 1) continue;
         const b = byId(offer.id);
+        // An intrinsic card's price is its own label (no catalog entry to resolve).
+        if (b.intrinsicPrice) {
+          expect(offer.rolledCost, offer.id).toMatchObject({
+            label: b.intrinsicPrice.label,
+            effects: [],
+            kind: 'intrinsic',
+          });
+          continue;
+        }
         const options = b.pact ? [b.pact] : b.prices;
         const labels = options.map(
           (o) => resolvePriceOption(catalog, o, { difficultyId: 'dusk' }).label,
