@@ -222,7 +222,7 @@ export function validateBlessingsConfig(config, options = {}) {
       errors.push(`${path}.tier must be one of 1,2,3,4`);
     }
     if (!earned && blessing.tier === 1) hasTier1 = true;
-    if (earned) validateEarnedFields(blessing, path, config, errors);
+    if (earned) validateEarnedFields(blessing, path, errors);
     else
       for (const key of EARNED_ONLY_KEYS)
         if (blessing[key] !== undefined)
@@ -356,7 +356,7 @@ export function validateBlessingsConfig(config, options = {}) {
  * effects }, its effects of TWIST_EFFECT_TYPES), only on a card an act boss alone offers; `requires`
  * holds only EARNED_REQUIRES_KEYS. Appends to `errors`.
  */
-function validateEarnedFields(blessing, path, config, errors) {
+function validateEarnedFields(blessing, path, errors) {
   const sources = blessing.sources;
   if (!Array.isArray(sources) || sources.length === 0) {
     errors.push(`${path}.sources must name where the earned blessing is won (at least one)`);
