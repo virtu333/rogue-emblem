@@ -28,7 +28,7 @@ import { levelUpRerollButtonState } from '../src/ui/rewardRerollButton.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { MetaProgressionManager } from '../src/engine/MetaProgressionManager.js';
 import { prepareBattleRewards, rerollBattleReward } from '../src/engine/PendingBattleRewards.js';
-import { levelUpDisplayResults, shiftDisplayStats } from '../src/ui/progressionDisplay.js';
+import { levelUpDisplayResults } from '../src/ui/progressionDisplay.js';
 import { loadGameData } from './testData.js';
 
 const STATS = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK'];

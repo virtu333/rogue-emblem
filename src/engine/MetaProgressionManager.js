@@ -538,8 +538,29 @@ export class MetaProgressionManager {
     }
   }
 
+  /**
+   * A price rise owes nobody anything, but a tier bought at the old price must refund what
+   * it cost: remember the old price of each tier in `tiersOf(id)` ([first, last], 1-based)
+   * for every revision newer than `savedRevision` (never over a price already recorded).
+   */
+  _recordLegacyTierCosts(savedRevision, tiersOf = (id) => [1, this.getUpgradeLevel(id)]) {
+    const settled = Math.max(0, Math.floor(Number(savedRevision) || 0));
+    for (const { revision, from, to } of BALANCE_REVISIONS) {
+      if (revision <= settled) continue;
+      for (const [id, oldCosts] of Object.entries(from)) {
+        const [first, last] = tiersOf(id);
+        for (let tier = Math.max(1, first); tier <= Math.min(last, oldCosts.length); tier++) {
+          const now = Number(to[id]?.[tier - 1]) || 0;
+          if (now > oldCosts[tier - 1] && this.legacyTierCosts[id]?.[tier] === undefined)
+            this.legacyTierCosts[id] = { ...this.legacyTierCosts[id], [tier]: oldCosts[tier - 1] };
+        }
+      }
+    }
+  }
+
   /** Credit every balance revision newer than the save's (see BALANCE_REVISIONS). */
   _creditBalanceRevisionsSince(savedRevision) {
+    this._recordLegacyTierCosts(savedRevision);
     const settled = Math.max(0, Math.floor(Number(savedRevision) || 0));
     for (const { revision, from, to } of BALANCE_REVISIONS) {
       if (revision <= settled) continue;
@@ -548,13 +569,6 @@ export class MetaProgressionManager {
         let credit = 0;
         for (let i = 0; i < Math.min(this.getUpgradeLevel(id), oldCosts.length); i++) {
           credit += Math.max(0, oldCosts[i] - (Number(newCosts[i]) || 0));
-        }
-        // A rise owes nothing, but the tier was bought at the old price: remember it.
-        for (let i = 0; i < Math.min(this.getUpgradeLevel(id), oldCosts.length); i++) {
-          const now = Number(newCosts[i]) || 0;
-          if (now > oldCosts[i] && this.legacyTierCosts[id]?.[i + 1] === undefined) {
-            this.legacyTierCosts[id] = { ...this.legacyTierCosts[id], [i + 1]: oldCosts[i] };
-          }
         }
         if (credit <= 0) continue;
         if (this.getCurrencyForUpgrade(id) === 'valor') this.totalValor += credit;
@@ -1605,6 +1619,11 @@ export class MetaProgressionManager {
       Number(disk.runsStarted) || 0,
       this.runsCompleted,
     );
+    // The tiers this copy did not hold: a disk payload from before a price rise bought them
+    // at the old price (a copy at or past the revision priced its own).
+    const ownedBefore = {};
+    for (const { from } of BALANCE_REVISIONS)
+      for (const id of Object.keys(from)) ownedBefore[id] = this.getUpgradeLevel(id);
     if (disk.purchasedUpgrades && typeof disk.purchasedUpgrades === 'object') {
       for (const [id, level] of Object.entries(disk.purchasedUpgrades)) {
         const diskLevel = Number(level) || 0;
@@ -1612,6 +1631,10 @@ export class MetaProgressionManager {
         this.purchasedUpgrades[id] = Math.max(localLevel, diskLevel);
       }
     }
+    this._recordLegacyTierCosts(disk.balanceRevision, (id) => {
+      const part = (key) => Math.max(0, Math.floor(Number(disk.purchasedUpgrades?.[key]) || 0));
+      return [(ownedBefore[id] || 0) + 1, part(id) + part(repeatTiersKey(id))];
+    });
     // A tier bought before a price rise keeps its price, whichever copy recorded it; a tier
     // the merged levels no longer hold has no record.
     const diskLegacy = normalizeLegacyTierCosts(disk.legacyTierCosts);

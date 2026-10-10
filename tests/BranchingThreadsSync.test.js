@@ -130,3 +130,47 @@ describe('the price rise (balance revision 4)', () => {
     expect(m.canRefund('branching_threads').refundAmount).toBe(350);
   });
 });
+
+describe('a disk or cloud payload adopted live (balance revision 4)', () => {
+  /** A rev-4 session at `localLevel`, then a newer foreign payload lands and the next save adopts it. */
+  function adopt({ localLevel, diskRevision, diskLevel }) {
+    store.set(
+      KEY,
+      JSON.stringify({
+        balanceRevision: 4,
+        totalSupply: 2000,
+        savedAt: 1000,
+        purchasedUpgrades: localLevel ? { branching_threads: localLevel } : {},
+      }),
+    );
+    const m = reload();
+    m.addSupply(1); // a save of the live session
+    const foreign = {
+      balanceRevision: diskRevision,
+      totalSupply: 2000,
+      savedAt: Date.now() + 1_000_000,
+      purchasedUpgrades: { branching_threads: diskLevel },
+    };
+    store.set(KEY, JSON.stringify(foreign));
+    m.addSupply(1); // adopts the newer payload
+    return m;
+  }
+
+  it('refunds tiers that came from a pre-rise payload at what they cost', () => {
+    const m = adopt({ localLevel: 2, diskRevision: 3, diskLevel: 4 });
+    expect(m.getUpgradeLevel('branching_threads')).toBe(4);
+    expect(m.canRefund('branching_threads').refundAmount).toBe(250);
+    m.refundUpgrade('branching_threads');
+    expect(m.canRefund('branching_threads').refundAmount).toBe(250);
+  });
+
+  it('does not re-price a tier this copy already held, nor a rev-4 payload', () => {
+    // Local bought tier 3 itself (at 300); only tier 4 came from the old payload.
+    const m = adopt({ localLevel: 3, diskRevision: 3, diskLevel: 4 });
+    expect(m.canRefund('branching_threads').refundAmount).toBe(250);
+    m.refundUpgrade('branching_threads');
+    expect(m.canRefund('branching_threads').refundAmount).toBe(300);
+    const current = adopt({ localLevel: 2, diskRevision: 4, diskLevel: 4 });
+    expect(current.canRefund('branching_threads').refundAmount).toBe(350);
+  });
+});
