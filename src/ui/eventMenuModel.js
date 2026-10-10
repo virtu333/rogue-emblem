@@ -53,13 +53,13 @@ export function eventPreviewLines(preview) {
     .filter((line) => line && typeof line.text === 'string' && line.text)
     .map((line) => ({
       lead: line.lead || '',
-      kind: String(line.lead || '').toLowerCase(),
+      kind: /%$/.test(line.lead || '') ? 'odds' : String(line.lead || '').toLowerCase(),
       text: line.text,
       details: (line.details || []).filter((d) => typeof d === 'string' && d),
     }));
 }
 
-/** The preview as one paragraph (the confirmation's words): "Either: … Or: …". */
+/** The preview as one paragraph (the confirmation's words): "70%: … 30%: …". */
 export function eventPreviewText(preview) {
   return choicePreviewText(eventPreviewLines(preview));
 }

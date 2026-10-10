@@ -10,7 +10,7 @@ Owner decisions (2026-10-06):
 - **Outcomes are hidden.** The player sees the situation and the choices, never the result
   of a choice before making it. The text hints honestly. *Revised 2026-10-10 (owner): too
   opaque in play. Each choice now lists every result it can have on the run's rung (§10
-  "Choice previews"); which one the seed holds, and the odds, stay hidden.*
+  "Choice previews"); which one the seed holds stays hidden. Revised again 2026-10-10 (owner): a choice with several weighted outcomes shows each one's chance.*
 - **Events may start battles.**
 - **More choices per act**, Act 1 especially ("can feel a little basic"): every act gains a
   row, and events take part of the battle share so the number of battles on a path stays
@@ -447,22 +447,25 @@ Intro: *Nothing on this road but birdsong and an old well. Nobody complains.*
   Fight (event battle), Continue (leave → `markNodeComplete`, save, `checkActComplete`).
 - Layout: kicker `EVENT`, title in Cinzel, intro, choices as large buttons: label, optional
   hint line, what the choice can do (below), cost seal (`150 G`), requirement reason when
-  blocked. No odds, ever. Outcome page: the outcome text, then each result as a line with its icon
+  blocked. Odds are shown only as a weighted choice's outcome percentages (§10); a check's chance never. Outcome page: the outcome text, then each result as a line with its icon
   (gold, skill learned/benched, item and recipient, HP, shadow, Vision, burden).
 - **Choice previews** (owner decision 2026-10-10, replacing "no outcome previews"):
   `engine/EventChoicePreview.js` `choicePreview(run, choice, { catalog, event, state })`, read
   by `eventView` as `choices[].preview` and drawn under the hint (`EventMenu.previewFor`; the
   plain confirmation repeats it). Built from the choice's data, so it can never disagree with
   what is applied: one line per outcome that can happen on this rung (`outcomeWeight > 0`, so
-  a weight-0 outcome of another rung is never listed), led "Either" / "Or" when there are
-  several; the choice's own effects (a Vulnerary spent, a torch) on a line of their own; a
+  a weight-0 outcome of another rung is never listed), led by its chance ("70%: …", "30%: …") when there are
+  several (the roller's own `outcomeWeight` for the rung, so `weightByRung` holds from its rung
+  up; whole percentages by largest remainder, so they sum to 100; outcomes that read the same
+  are one line and their chances add; one outcome shows no percentage); the choice's own effects (a Vulnerary spent, a torch) on a line of their own; a
   check as "Test: the chosen unit's SKL + SPD (higher is better)" then "Pass" / "Fail"; an
   outcome's fallback in brackets with the condition that brings it ("if nothing is left to
   learn: …"); a blessing's, burden's or contract's terms in small type. Amounts are the
   planner's: gold for the act (a reward is never rung-scaled), HP and burden figures for the
   rung, a weapon pool's tier for the act. A shadow change is said only while the Eclipse runs;
-  story flags never. Which outcome the seed holds, an outcome's weight, a check's chance and a
-  tell's tilt are never shown: the preview is the same for every seed
+  story flags never. Which outcome the seed holds, a check's chance and a
+  tell's tilt are never shown (a check reads "Pass" / "Fail" with no percentage, tilted or not):
+  the preview is the same for every seed
   (`tests/EventChoicePreview.test.js`). A choice whose only outcome does nothing (Leave, a
   toll paid) shows no preview. Roster tells (`reveals`) still say which result is coming.
 - Must work at 640×480 and phone landscape/portrait (`html.portrait-ui` rules inside
@@ -478,8 +481,8 @@ Intro: *Nothing on this road but birdsong and an old well. Nobody complains.*
 - Burden chips on the route map (§7).
 - Guidance: `guide_first_event` (essential, once per slot, never in the prologue), as the
   menu's status line on the first event: *"An event: choose how to meet it. Each choice lists
-  everything it can bring; which one you get stays hidden until you choose."* (revised with the
-  choice previews, 2026-10-10).
+  everything it can bring, with the odds when it is a gamble."* (revised with the
+  choice previews and again with the odds, 2026-10-10).
 - Music: the route-map track continues.
 
 ## 11. Sims and harness

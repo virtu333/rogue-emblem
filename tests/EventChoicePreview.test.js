@@ -69,18 +69,23 @@ function everyChoice() {
  * the engine): an outcome's `weightByRung` entry of the highest rung at or below the run's,
  * else its `weight`.
  */
-function possibleOutcomes(choice, difficultyId) {
+function weightOn(outcome, difficultyId) {
   const rank = DIFFICULTY_IDS.indexOf(difficultyId);
-  return (choice.outcomes || []).filter((outcome) => {
-    let weight = Number(outcome.weight) || 0;
-    for (const [rung, value] of Object.entries(outcome.weightByRung || {}))
-      if (DIFFICULTY_IDS.indexOf(rung) <= rank) weight = value;
-    return weight > 0;
-  });
+  let weight = Number(outcome.weight) || 0;
+  for (const [rung, value] of Object.entries(outcome.weightByRung || {}))
+    if (DIFFICULTY_IDS.indexOf(rung) <= rank) weight = value;
+  return weight;
 }
 
+function possibleOutcomes(choice, difficultyId) {
+  return (choice.outcomes || []).filter((outcome) => weightOn(outcome, difficultyId) > 0);
+}
+
+/** The lead of a line that states a chance: "70%" -> 70, else null. */
+const percentOf = (line) => (/^\d+%$/.test(line.lead) ? parseInt(line.lead, 10) : null);
+
 describe('what a choice can do: one line per result that can happen here', () => {
-  it('lists exactly the outcomes this rung can roll, Either/Or for several (every choice, every rung)', () => {
+  it('lists exactly the outcomes this rung can roll, each with its chance when there are several (every choice, every rung)', () => {
     for (const difficulty of DIFFICULTY_IDS) {
       const run = newRun({ difficulty });
       for (const { event, choice } of everyChoice()) {
@@ -93,13 +98,74 @@ describe('what a choice can do: one line per result that can happen here', () =>
           ).toEqual(['Test', 'Pass', 'Fail']);
           continue;
         }
-        const outcomeLines = lines.filter((l) => l.lead === 'Either' || l.lead === 'Or');
+        const outcomeLines = lines.filter((l) => percentOf(l) !== null);
         const possible = possibleOutcomes(choice, difficulty);
-        if (possible.length > 1) {
-          expect(outcomeLines.length, where).toBe(possible.length);
-          expect(outcomeLines[0].lead, where).toBe('Either');
-        } else expect(outcomeLines, where).toEqual([]);
+        for (const line of lines) expect(line.lead, where).not.toMatch(/^(Either|Or)$/);
+        if (possible.length > 1) expect(outcomeLines.length, where).toBe(possible.length);
+        else expect(outcomeLines, where).toEqual([]);
         for (const line of lines) expect(line.text, where).toMatch(/^\S/);
+      }
+    }
+  });
+
+  it("shows each outcome's chance: the data's weights, normalised, summing to 100 (every choice, every rung)", () => {
+    let gambles = 0;
+    for (const difficulty of DIFFICULTY_IDS) {
+      const run = newRun({ difficulty });
+      for (const { event, choice } of everyChoice()) {
+        if (choice.check) continue;
+        const where = `${difficulty} ${event.id}/${choice.id}`;
+        const weights = possibleOutcomes(choice, difficulty).map((o) => weightOn(o, difficulty));
+        const shown = choicePreview(run, choice, { event, state: { fallen: { name: 'Rook' } } })
+          .map(percentOf)
+          .filter((p) => p !== null);
+        if (weights.length <= 1) {
+          expect(shown, where).toEqual([]);
+          continue;
+        }
+        gambles++;
+        const total = weights.reduce((a, b) => a + b, 0);
+        expect(shown.length, where).toBe(weights.length);
+        expect(
+          shown.reduce((a, b) => a + b, 0),
+          where,
+        ).toBe(100);
+        // Whole percentages: each is its exact share rounded down or up.
+        shown.forEach((p, i) => {
+          const exact = (weights[i] / total) * 100;
+          expect(p, where).toBeGreaterThanOrEqual(Math.floor(exact));
+          expect(p, where).toBeLessThanOrEqual(Math.ceil(exact));
+        });
+      }
+    }
+    expect(gambles).toBeGreaterThan(20);
+  });
+
+  it('rounds by largest remainder: 1/1/1 reads 34/33/33, 5/3/2 reads 50/30/20, 1/6 reads 14/86', () => {
+    const run = newRun();
+    const choice = (weights) => ({
+      id: 'x',
+      outcomes: weights.map((weight, i) => ({
+        id: `o${i}`,
+        weight,
+        effects: [{ type: 'vision', value: i + 1 }],
+      })),
+    });
+    const leads = (weights) => choicePreview(run, choice(weights)).map((l) => l.lead);
+    expect(leads([1, 1, 1])).toEqual(['34%', '33%', '33%']);
+    expect(leads([5, 3, 2])).toEqual(['50%', '30%', '20%']);
+    expect(leads([1, 6])).toEqual(['14%', '86%']);
+  });
+
+  it('a check never shows a chance: no percentage on Test, Pass or Fail', () => {
+    const run = newRun();
+    for (const { event, choice } of everyChoice()) {
+      if (!choice.check) continue;
+      const lines = choicePreview(run, choice, { event, state: { fallen: { name: 'Rook' } } });
+      for (const line of lines) {
+        const where = `${event.id}/${choice.id}`;
+        expect(percentOf(line), where).toBeNull();
+        expect(`${line.lead} ${line.text}`, where).not.toMatch(/\d+%/);
       }
     }
   });
@@ -108,10 +174,10 @@ describe('what a choice can do: one line per result that can happen here', () =>
     const first = newRun({ difficulty: 'normal' });
     const black = newRun({ difficulty: 'lunatic' });
     expect(words(preview(first, 'turncoat', 'take'))).not.toMatch(/Hunted/);
-    expect(words(preview(black, 'turncoat', 'take'))).toMatch(/Or: Burden: Hunted/);
+    expect(words(preview(black, 'turncoat', 'take'))).toMatch(/35%: Burden: Hunted/);
     expect(words(preview(first, 'cartographer', 'ask'))).not.toMatch(/becomes a battle/);
     expect(words(preview(black, 'cartographer', 'ask'))).toMatch(
-      /Or: A place ahead becomes a battle/,
+      /30%: A place ahead becomes a battle/,
     );
     expect(words(preview(first, 'twin_altar', 'dawn'))).not.toMatch(/Ill Omen/);
     expect(words(preview(black, 'twin_altar', 'dawn'))).toMatch(/Ill Omen/);
@@ -123,8 +189,8 @@ describe('what a choice can do: one line per result that can happen here', () =>
     expect(preview(run, 'toll_bridge', 'pay')).toEqual([]);
     const dawn = preview(run, 'twin_altar', 'dawn');
     expect(dawn.map((l) => [l.lead, l.text])).toEqual([
-      ['Either', 'A random Tier I blessing'],
-      ['Or', 'Nothing happens'],
+      ['80%', 'A random Tier I blessing'],
+      ['20%', 'Nothing happens'],
     ]);
   });
 
@@ -132,9 +198,9 @@ describe('what a choice can do: one line per result that can happen here', () =>
     const lines = preview(newRun(), 'wounded_courier', 'tend');
     expect(lines.map((l) => [l.lead, l.text])).toEqual([
       ['', 'Spends a use of Vulnerary'],
-      ['Either', '+1 Vision'],
+      ['70%', '+1 Vision'],
       // { base: -50, perAct: -50 } in Act I.
-      ['Or', '−100 G'],
+      ['30%', '−100 G'],
     ]);
   });
 
@@ -144,11 +210,9 @@ describe('what a choice can do: one line per result that can happen here', () =>
       /Repairs every worn weapon the chosen unit carries/,
     );
     const temper = words(preview(run, 'wandering_smith', 'temper'));
-    expect(temper).toMatch(
-      /Either: Chosen unit's equipped weapon gets a free forge on a random stat/,
-    );
+    expect(temper).toMatch(/70%: Chosen unit's equipped weapon gets a free forge on a random stat/);
     expect(temper).toMatch(/One of \+1 Might, \+5 Hit, \+5 Crit or −1 Wt/);
-    expect(temper).toMatch(/Or: Chosen unit's equipped weapon takes a wear step/);
+    expect(temper).toMatch(/30%: Chosen unit's equipped weapon takes a wear step/);
     expect(temper).toMatch(/if the weapon can't wear: chosen unit loses 15% of max HP/);
     const covenant = baseData.blessings.blessings.find((b) => b.id === 'smiths_covenant');
     const sworn = preview(run, 'wandering_smith', 'covenant');
@@ -166,7 +230,8 @@ describe('the preview never tells the seed', () => {
       const ctx = { event, state: { fallen: { name: 'Rook' } } };
       const here = choicePreview(a, choice, ctx);
       expect(choicePreview(b, choice, ctx), `${event.id}/${choice.id}`).toEqual(here);
-      const said = words(here);
+      // The chance leads of a gamble are the one number said; the words never are.
+      const said = words(here.map((l) => (percentOf(l) === null ? l : { ...l, lead: '' })));
       for (const outcome of choice.outcomes || []) {
         for (const secret of [outcome.text, outcome.fallbackText].filter(Boolean))
           expect(said).not.toContain(secret);
@@ -345,10 +410,8 @@ describe('the page', () => {
     d.open();
     const temper = d.choice('temper');
     const text = nodeText(temper);
-    expect(text).toContain(
-      "Either: Chosen unit's equipped weapon gets a free forge on a random stat",
-    );
-    expect(text).toContain("Or: Chosen unit's equipped weapon takes a wear step");
+    expect(text).toContain("70%: Chosen unit's equipped weapon gets a free forge on a random stat");
+    expect(text).toContain("30%: Chosen unit's equipped weapon takes a wear step");
     expect(text).toContain('One of +1 Might, +5 Hit, +5 Crit or −1 Wt.');
     // The view's preview is the one the page drew.
     const view = eventView(d.run, d.node.id);

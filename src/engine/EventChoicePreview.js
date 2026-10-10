@@ -1,15 +1,18 @@
 // EventChoicePreview.js — what an event choice can do, said before it is made (owner decision
 // 2026-10-10, docs/specs/event-nodes.md §10 "Choice previews"). The page shows every result a
 // choice can have on this run's rung, from the event data itself, so the words can never
-// disagree with what the engine applies. WHICH result the seed will roll stays hidden, and so do
-// the odds: an outcome's weight, a check's chance and a tell's tilt are never said. Outcomes
-// with no weight on this rung (Black Sun's lying strangers elsewhere) are left out, because they
-// cannot happen here.
+// disagree with what the engine applies. WHICH result the seed will roll stays hidden, but the odds
+// of a weighted choice are said (owner decision 2026-10-10): each outcome's chance on this rung,
+// read through `outcomeWeight`, the roller's own weight, as whole percentages that sum to 100. A
+// check's chance and a tell's tilt are never said (they depend on the unit). Outcomes with no
+// weight on this rung (Black Sun's lying strangers elsewhere) are left out, because they cannot
+// happen here.
 //
 //   choicePreview(run, choice, { catalog, event, state }) ->
 //     [{ lead, text, details: [string] }]
 //   lead: ''      the choice's own effects (spent whatever the outcome), or its only outcome
-//         'Either' / 'Or'  the outcomes of a choice that has several: one of them happens
+//         '70%' ...  the outcomes of a choice that has several: one of them happens, with this
+//                    chance (largest-remainder rounding, so the leads sum to 100)
 //         'Test'  a check: whose stats are read (higher is better; no number is shown)
 //         'Pass' / 'Fail'  the check's two outcomes
 //   text: the outcome's effects as short phrases joined by ' · ' ("Nothing happens" for an
@@ -297,6 +300,24 @@ function fallbackPreview(outcome, ctx) {
 const NOTHING = 'Nothing happens';
 const GOES_ON = 'more choices follow';
 
+/**
+ * Whole percentages for weights, summing to exactly 100 (largest remainder; ties go to the
+ * earlier entry). A lone weight is 100.
+ */
+export function percentShares(weights) {
+  const total = weights.reduce((a, b) => a + b, 0);
+  if (!(total > 0)) return weights.map(() => 0);
+  const exact = weights.map((w) => (w / total) * 100);
+  const shares = exact.map(Math.floor);
+  let left = 100 - shares.reduce((a, b) => a + b, 0);
+  const order = exact
+    .map((x, i) => ({ i, rem: x - Math.floor(x) }))
+    .sort((a, b) => b.rem - a.rem || a.i - b.i);
+  for (let k = 0; left > 0 && order.length; k = (k + 1) % order.length, left--)
+    shares[order[k].i]++;
+  return shares;
+}
+
 /** One outcome as a line's text and details. */
 function outcomePreview(outcome, ctx, { alone }) {
   const main = effectsPreview(outcome?.effects, ctx);
@@ -352,18 +373,26 @@ export function choicePreview(run, choice, { catalog = null, event = null, state
   const possible = outcomes.filter((outcome) => outcomeWeight(run, outcome) > 0);
   const alone = possible.length <= 1;
   const entries = [];
-  const seen = new Set();
+  const seen = new Map();
   for (const outcome of possible) {
     const entry = outcomePreview(outcome, ctx, { alone });
     const key = entry ? `${entry.text}\n${entry.details.join('\n')}` : '';
-    if (!entry || seen.has(key)) continue;
-    seen.add(key);
-    entries.push(entry);
+    if (!entry) continue;
+    // Outcomes that read the same are one line, and their chances add.
+    if (seen.has(key)) {
+      seen.get(key).weight += outcomeWeight(run, outcome);
+      continue;
+    }
+    const merged = { ...entry, weight: outcomeWeight(run, outcome) };
+    seen.set(key, merged);
+    entries.push(merged);
   }
-  // One outcome is simply what the choice does; several read "Either … / Or …".
-  entries.forEach((entry, index) =>
-    push(entries.length === 1 ? '' : index === 0 ? 'Either' : 'Or', entry),
-  );
+  // One outcome is simply what the choice does; several lead with their chance.
+  if (entries.length === 1) push('', entries[0]);
+  else {
+    const shares = percentShares(entries.map((entry) => entry.weight));
+    entries.forEach((entry, index) => push(`${shares[index]}%`, entry));
+  }
   return lines;
 }
 

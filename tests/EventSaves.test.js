@@ -222,7 +222,7 @@ describe('the prologue has no events', () => {
   it('guide_first_event is an essential note with the spec text, never shown in the prologue', () => {
     expect(GUIDANCE_NOTES.guide_first_event).toEqual({ tier: 'essential' });
     expect(guidanceText('guide_first_event')).toBe(
-      'An event: choose how to meet it. Each choice lists everything it can bring; which one you get stays hidden until you choose.',
+      'An event: choose how to meet it. Each choice lists everything it can bring, with the odds when it is a gamble.',
     );
     const scene = (runManager) => ({
       runManager,

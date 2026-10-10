@@ -280,7 +280,7 @@ export class EventMenu {
 
   /**
    * What a choice can do (EventChoicePreview, through the view): one row per result it may have,
-   * led by its word ("Either", "Or", "Pass", "Fail", "Test"), with a blessing's, a burden's or a
+   * led by its chance ("70%") or its word ("Pass", "Fail", "Test"), with a blessing's, a burden's or a
    * contract's terms in small type under it. Spans, not a list: it sits inside the button.
    */
   previewFor(choice) {
