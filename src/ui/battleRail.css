@@ -277,6 +277,10 @@
   white-space: normal;
   min-width: 0;
 }
+.battlefield-lab .mobile-battle-hud.has-unit .mb-terrain > .mb-ballista {
+  white-space: normal;
+  min-width: 0;
+}
 .battlefield-lab .mobile-battle-hud.has-unit .mb-terrain-help.mb-button {
   min-height: 20px;
   width: auto;

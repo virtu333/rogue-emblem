@@ -1,6 +1,11 @@
 import { sceneHealPreview } from './healTargetPreview.js';
 import { DangerZoneOverlay } from './DangerZoneOverlay.js';
-import { canInspectUnit, terrainRuleLines } from '../engine/BattleInformation.js';
+import {
+  ballistaInfo,
+  canInspectUnit,
+  terrainRuleLines,
+  visibleBallistaAt,
+} from '../engine/BattleInformation.js';
 import { computeEffectivePath } from '../engine/Grid.js';
 import { movementOptionsFor } from '../engine/PassMovement.js';
 import { unitReach } from '../engine/ThreatForecast.js';
@@ -21,6 +26,7 @@ import { UI_HEX } from '../utils/uiStyles.js';
 import { combatDistance, getFootprintKeys } from '../engine/EntitySystem.js';
 import { chooseAttackTile } from '../engine/AttackOptions.js';
 import { openMenuCommand } from './battleMenuModel.js';
+import { restUnitTint } from './UnitRestAppearance.js';
 
 /** Battle states where a long press on a unit opens its detail sheet (planning only). */
 const HOLD_DETAIL_STATES = new Set([
@@ -31,6 +37,17 @@ const HOLD_DETAIL_STATES = new Set([
   'DEPLOY_POSITIONING',
 ]);
 
+/**
+ * Whether an inspected unit's move and attack range is drawn in this state. The
+ * player phase draws it for anyone; placement before turn 1 (FormationController)
+ * draws it for the foes and NPCs it can see ("check a threat, then set it down"),
+ * while its own army's reach there is the held unit's, drawn by the formation.
+ */
+function showsInspectedReach(scene, unit) {
+  if (scene.battleState === 'PLAYER_IDLE') return true;
+  return scene.battleState === 'DEPLOY_POSITIONING' && Boolean(unit) && unit.faction !== 'player';
+}
+
 // A tap on any tile of a (possibly multi-tile) unit.
 const occupies = (unit, gp) =>
   Boolean(unit) && getFootprintKeys(unit).includes(`${gp.col},${gp.row}`);
@@ -39,6 +56,20 @@ export class InputController {
   constructor(scene) {
     this.scene = scene;
     this._ballistaRangeShown = false;
+  }
+
+  // A ballista's reach is "shown" only while the very overlay it drew is still on the grid:
+  // every path that clears or replaces the attack highlights (Start battle, selecting a unit,
+  // another range) swaps the grid's array, so a stale flag can never read as lit.
+  get _ballistaRangeShown() {
+    if (!this._ballistaFlag) return false;
+    const ref = this._ballistaLit;
+    return !ref || this.scene?.grid?.attackHighlightTiles === ref;
+  }
+
+  set _ballistaRangeShown(v) {
+    this._ballistaFlag = Boolean(v);
+    this._ballistaLit = v ? this.scene?.grid?.attackHighlightTiles : undefined;
   }
 
   onPointerMove(pointer) {
@@ -94,12 +125,17 @@ export class InputController {
     const avoidBonus = parseInt(terrain.avoidBonus, 10);
     if (avoidBonus) info += ` | Avo ${avoidBonus > 0 ? '+' : ''}${avoidBonus}`;
     if (parseInt(terrain.defBonus)) info += ` | Def +${terrain.defBonus}`;
-    for (const line of terrainRuleLines(terrain)) info += `\n${line}`;
+    // A ballista the player can see on this tile: whose it is, its reach, its blow, when it fires.
+    // Its terrain note states the reach too (generically), so the specific lines replace it.
+    const ballista = ballistaInfo(visibleBallistaAt(scene.grid, scene.ballistas, col, row));
+    if (!ballista) for (const line of terrainRuleLines(terrain)) info += `\n${line}`;
     // Zombie remains the player knows of: "Zombie remains · rises in 2 enemy phases".
     const remains = scene._zombieTombstones?.length
       ? scene._zombieRemains?.().infoLine(col, row)
       : null;
     if (remains) info += `\n${remains}`;
+
+    if (ballista) info += `\n${ballista.title}\n${ballista.lines.join('\n')}`;
 
     const threat = scene._threatSight?.describe(col, row);
     if (threat) info += `\nThreat: ${threat}`;
@@ -390,6 +426,9 @@ export class InputController {
     const scene = this.scene;
     if (scene.isStoryInputLocked()) return;
     if (scene.battleState === 'BATTLE_END') return;
+    // Placement: a right click on a foe inspects it, as on a turn (Back would only
+    // set the held unit down); anything else keeps its meaning.
+    if (this._inspectFoeWhilePlacing(pointer)) return;
     if (scene.requestCancel({ allowPause: false })) {
       return;
     }
@@ -406,6 +445,19 @@ export class InputController {
     const world = this._pointerToWorld(pointer);
     if (world && this._showInspectionAtPixel(world.x, world.y)) return;
     scene.refreshEndTurnControl();
+  }
+
+  _inspectFoeWhilePlacing(pointer) {
+    const scene = this.scene;
+    const formation = scene._formation;
+    if (scene.battleState !== 'DEPLOY_POSITIONING' || !formation?.ready) return false;
+    if (formation.menu || formation.picker || scene.unitDetailOverlay?.visible) return false;
+    if (scene.inspectionPanel?.visible) return false; // the next press closes it
+    const world = this._pointerToWorld(pointer);
+    const gp = world && scene.grid?.pixelToGrid(world.x, world.y);
+    const unit = gp && scene.getUnitAt(gp.col, gp.row);
+    if (!unit || unit.faction === 'player') return false;
+    return this._showInspectionAtPixel(world.x, world.y);
   }
 
   onClick(pointer, clickPos = null) {
@@ -560,9 +612,26 @@ export class InputController {
       const { x, y } = scene.grid.gridToPixel(gp.col, gp.row);
       if (this._showInspectionAtPixel(x, y)) return;
     }
+    // A ballista is a tile, not a unit, and touch has no hover: a plain tap (or click, or the
+    // cursor's confirm) on one the player can see toggles its reach, as a tap on a foe does.
+    if (!unit && this._tapBallista(gp)) return;
+    this._ballistaRangeShown = false;
     scene.inspectionPanel.hide();
     scene.grid.clearHighlights();
     scene.grid.clearAttackHighlights();
+  }
+
+  _tapBallista(gp) {
+    const scene = this.scene;
+    const ballista = visibleBallistaAt(scene.grid, scene.ballistas, gp.col, gp.row);
+    if (!ballista) return false;
+    const shown = this._ballistaShown;
+    if (this._ballistaRangeShown && shown?.col === gp.col && shown?.row === gp.row) {
+      this.clearInspectionVisuals();
+      return true;
+    }
+    const { x, y } = scene.grid.gridToPixel(gp.col, gp.row);
+    return this._showInspectionAtPixel(x, y);
   }
 
   isPlanningSelection() {
@@ -635,7 +704,7 @@ export class InputController {
 
     if (gp.col === scene.selectedUnit.col && gp.row === scene.selectedUnit.row) {
       scene.grid.clearHighlights();
-      if (scene.selectedUnit.graphic?.clearTint) scene.selectedUnit.graphic.clearTint();
+      restUnitTint(scene.selectedUnit);
       scene.preMoveLoc = { col: scene.selectedUnit.col, row: scene.selectedUnit.row };
       scene._preFogSnapshot = scene.grid.snapshotFogState();
       scene.showActionMenu(scene.selectedUnit);
@@ -706,7 +775,7 @@ export class InputController {
     if (tile.col === unit.col && tile.row === unit.row) {
       // Same as clicking the unit's own tile, then tapping the enemy in its menu.
       s.grid.clearHighlights();
-      unit.graphic?.clearTint?.();
+      restUnitTint(unit);
       s.preMoveLoc = { col: unit.col, row: unit.row };
       s._preFogSnapshot = s.grid.snapshotFogState();
       s.showActionMenu(unit);
@@ -777,7 +846,7 @@ export class InputController {
     this.clearPlanningInspection();
     this._selectionMenu = null;
     this.scene.grid.clearHighlights();
-    this.scene.selectedUnit.graphic?.clearTint?.();
+    restUnitTint(this.scene.selectedUnit);
   }
 
   handleActionMenuClick(gp) {
@@ -986,20 +1055,22 @@ export class InputController {
     if (!gp) return false;
     const unit = scene.getUnitAt(gp.col, gp.row);
     if (!unit) {
-      if (scene.battleState === 'PLAYER_IDLE') {
-        const terrainIndex = scene.grid.mapLayout?.[gp.row]?.[gp.col];
-        if (isBallistaTile(terrainIndex)) {
-          const ballista = scene.ballistas?.find((b) => b.col === gp.col && b.row === gp.row);
-          if (ballista && ballista.owner === 'enemy') {
-            if (scene.grid.fogEnabled && !scene.grid.isVisible(gp.col, gp.row)) return false;
-            if (scene.inspectionPanel?.visible) scene.inspectionPanel.hide();
-            scene.grid.clearHighlights?.();
-            const tiles = getBallistaDangerTiles(ballista, scene.grid.cols, scene.grid.rows);
-            scene.grid.showAttackRange(tiles);
-            this._ballistaRangeShown = true;
-            scene.refreshEndTurnControl();
-            return true;
-          }
+      if (scene.battleState === 'PLAYER_IDLE' || scene.battleState === 'DEPLOY_POSITIONING') {
+        // A ballista is a tile object, not a unit: an enemy's reach is drawn the way a foe's
+        // is (its threat). One the army captured draws none (its details are on the tile
+        // info). The fog hides it either way.
+        const ballista = isBallistaTile(scene.grid.mapLayout?.[gp.row]?.[gp.col])
+          ? visibleBallistaAt(scene.grid, scene.ballistas, gp.col, gp.row)
+          : null;
+        if (ballista?.owner === 'enemy') {
+          if (scene.inspectionPanel?.visible) scene.inspectionPanel.hide();
+          scene.grid.clearHighlights?.();
+          const tiles = getBallistaDangerTiles(ballista, scene.grid.cols, scene.grid.rows);
+          scene.grid.showAttackRange(tiles);
+          this._ballistaRangeShown = true;
+          this._ballistaShown = { col: ballista.col, row: ballista.row };
+          scene.refreshEndTurnControl();
+          return true;
         }
       }
       return false;
@@ -1021,7 +1092,7 @@ export class InputController {
       this._planningThreat.show(unit.faction === 'enemy' ? scene.calculateDangerZone(unit) : []);
       scene._mobileBattleHud?.sync?.();
     }
-    if (scene.battleState === 'PLAYER_IDLE') {
+    if (showsInspectedReach(scene, unit)) {
       const isPlayer = unit.faction === 'player';
       const moveColor = isPlayer ? 0x3366cc : UI_HEX.dangerLine;
       const moveAlpha = isPlayer ? 0.4 : 0.35;
@@ -1063,7 +1134,8 @@ export class InputController {
     this._idleThreatTick = () => {
       const s = this.scene;
       const current =
-        s?.battleState === 'PLAYER_IDLE' &&
+        Boolean(s) &&
+        showsInspectedReach(s, this._idleThreatUnit) &&
         s.inspectionPanel?.visible &&
         s.inspectionPanel._unit === this._idleThreatUnit &&
         this._idleThreatUnit?.currentHP > 0;
