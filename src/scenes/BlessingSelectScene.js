@@ -31,6 +31,18 @@ function pendingRunSeed(registry) {
   return Number.isFinite(seed) ? seed : null;
 }
 
+/**
+ * DEV only: `?runSeed=<n>` fixes the offered run's seed, so a browser spec can pin what the shrine
+ * offers (a seed and its gift, tests/e2e/start-gift.spec.js). Never read in a production build.
+ */
+function devRunSeedParam() {
+  if (!import.meta.env?.DEV) return null;
+  const raw = new URLSearchParams(globalThis.location?.search || '').get('runSeed');
+  if (raw === null || raw.trim() === '') return null;
+  const seed = Number(raw);
+  return Number.isFinite(seed) ? seed : null;
+}
+
 function setPendingRunSeed(registry, seed) {
   if (!registry?.set) return;
   const seeds = { ...pendingRunSeeds(registry) };
@@ -44,6 +56,7 @@ const TIER_COLORS = {
   2: { label: '#9ed5ff', border: 0x2f5c88, bg: 0x132234 },
   3: { label: '#ffd68a', border: 0x8c6430, bg: 0x302312 },
   4: { label: '#ff9ea7', border: 0x8e2f45, bg: 0x341521 },
+  gift: { label: '#dcaaf0', border: 0x6a3f86, bg: 0x261734 },
 };
 
 export class BlessingSelectScene extends Phaser.Scene {
@@ -57,7 +70,7 @@ export class BlessingSelectScene extends Phaser.Scene {
     this.noMetaUpgrades = data.noMetaUpgrades === true;
     this.isTransitioning = false;
     this._blessingCommitted = false;
-    this._blessingRunSeed = pendingRunSeed(this.registry);
+    this._blessingRunSeed = devRunSeedParam() ?? pendingRunSeed(this.registry);
     this._pendingBlessingSelection = null;
   }
 
@@ -132,10 +145,25 @@ export class BlessingSelectScene extends Phaser.Scene {
       difficultyId: this.difficultyId,
       applyBlessingsAtStart: false,
       runSeed: this._blessingRunSeed,
+      // The gift with a catch is offered from the save's second run on (StartGifts.js). The
+      // count only moves once a run begins, so backing out and returning offers the same gift.
+      runsStarted: meta?.getRunsStarted?.() ?? 0,
     });
     if (!Number.isFinite(this._blessingRunSeed)) this._blessingRunSeed = this.runManager.runSeed;
     setPendingRunSeed(this.registry, this._blessingRunSeed);
     this.options = this.runManager.getBlessingOptions().slice(0, 4);
+    // The fourth card (after the blessings, before No blessing): a gift, or none.
+    this.gift = this.runManager.getStartGiftOffer?.() ?? null;
+  }
+
+  /** The index of "No blessing": after the blessings and the gift, always last. */
+  _skipIndex() {
+    return this.options.length + (this.gift ? 1 : 0);
+  }
+
+  /** True when the selection is the offered gift (the card right after the blessings). */
+  _giftSelected() {
+    return Boolean(this.gift) && this.selectedIndex === this.options.length;
   }
 
   _rollbackBlessingCommit() {
@@ -143,7 +171,7 @@ export class BlessingSelectScene extends Phaser.Scene {
     this._pendingBlessingSelection = null;
     if (!this.gameData) return;
     BlessingSelectScene.prototype._rebuildRunManager.call(this);
-    this.selectedIndex = Math.min(this.selectedIndex, this.options.length);
+    this.selectedIndex = Math.min(this.selectedIndex, this._skipIndex());
     this._draw();
   }
 
@@ -157,8 +185,8 @@ export class BlessingSelectScene extends Phaser.Scene {
   }
 
   _navigate(dir) {
-    // +1 for skip option at the end
-    const max = this.options.length; // 0..options.length where options.length = skip
+    // The blessings, then the gift (when offered), then skip, last.
+    const max = this._skipIndex();
     const next = this.selectedIndex + dir;
     if (next < 0 || next > max) return;
     this._select(next);
@@ -168,11 +196,16 @@ export class BlessingSelectScene extends Phaser.Scene {
     if (this.isTransitioning) return;
 
     if (!this._blessingCommitted) {
-      const isSkip = this.selectedIndex >= this.options.length;
-      const blessing = isSkip ? null : this.options[this.selectedIndex];
+      // The gift is taken in place of a blessing (StartGifts.chooseStartGift: no blessing is
+      // chosen, the gift's grant and catch apply once). A failed transition rebuilds the run.
+      const giftId = this._giftSelected() ? this.gift.id : null;
+      const isSkip = !giftId && this.selectedIndex >= this.options.length;
+      const blessing = isSkip || giftId ? null : this.options[this.selectedIndex];
       const blessingId = blessing ? blessing.id : null;
 
-      if (!this.runManager.chooseBlessing(blessingId)) return;
+      if (giftId) {
+        if (!this.runManager.chooseStartGift(giftId)?.ok) return;
+      } else if (!this.runManager.chooseBlessing(blessingId)) return;
       this._blessingCommitted = true;
       this._pendingBlessingSelection = {
         offeredIds: this.runManager.blessingSelectionTelemetry?.offeredIds || [],
@@ -299,7 +332,20 @@ export class BlessingSelectScene extends Phaser.Scene {
     const cardsTop = dividerY + 16;
     const cardsBottom = skipY - 18;
     const cardGap = 10;
-    const slotCount = Math.max(this.options.length, 1);
+    // The gift (when offered) is a card after the blessings: its badge says Gift, its foot Catch.
+    const cards = [
+      ...this.options,
+      ...(this.gift
+        ? [
+            {
+              ...this.gift,
+              tier: 'gift',
+              rolledCost: { label: this.gift.catch?.label || '', effects: [], kind: 'gift' },
+            },
+          ]
+        : []),
+    ];
+    const slotCount = Math.max(cards.length, 1);
     const cardH = Math.min(
       86,
       Math.max(68, Math.floor((cardsBottom - cardsTop - cardGap * (slotCount - 1)) / slotCount)),
@@ -307,8 +353,8 @@ export class BlessingSelectScene extends Phaser.Scene {
     const totalCardsH = cardH * slotCount + cardGap * (slotCount - 1);
     let y = cardsTop + Math.floor((cardsBottom - cardsTop - totalCardsH) / 2);
 
-    for (let i = 0; i < this.options.length; i++) {
-      const blessing = this.options[i];
+    for (let i = 0; i < cards.length; i++) {
+      const blessing = cards[i];
       const isSelected = i === this.selectedIndex;
       const tierStyle = TIER_COLORS[blessing.tier] || TIER_COLORS[1];
       const cardCY = y + cardH / 2;
@@ -326,7 +372,7 @@ export class BlessingSelectScene extends Phaser.Scene {
 
       // Tier badge
       applyTextResolution(
-        this.add.text(left, row1Y, `T${blessing.tier}`, {
+        this.add.text(left, row1Y, blessing.tier === 'gift' ? 'Gift' : `T${blessing.tier}`, {
           fontFamily: 'Arial',
           fontSize: '10px',
           color: '#0b101f',
@@ -414,7 +460,7 @@ export class BlessingSelectScene extends Phaser.Scene {
     }
 
     // Skip option
-    const isSkipSelected = this.selectedIndex >= this.options.length;
+    const isSkipSelected = this.selectedIndex >= this._skipIndex();
     const skipBtn = applyTextResolution(
       this.add.text(
         cx,
@@ -435,7 +481,7 @@ export class BlessingSelectScene extends Phaser.Scene {
     skipBtn.on('pointerout', () => {
       if (!isSkipSelected) skipBtn.setColor(UI_PALETTE.text);
     });
-    skipBtn.on('pointerdown', () => this._select(this.options.length));
+    skipBtn.on('pointerdown', () => this._select(this._skipIndex()));
 
     // Bottom buttons
     const bottomY = panelBottom - 30;

@@ -471,6 +471,9 @@ export function blessingTarotCard(
   sun.setAttribute('aria-hidden', 'true');
   const numeral = element('span', content.numeral, 'ch-numeral');
   if (content.mark === 'star') numeral.append(element('span', null, 'ch-star'));
+  // A start gift's sun holds its icon (an atlas cell it borrows: a gift has none of its own).
+  if (content.mark === 'icon' && content.icon)
+    numeral.append(itemIcon(null, { iconId: content.icon, size: 32, socket: false }));
   sun.append(numeral);
   // The boon reads (and scrolls) above; the cost is always in view below.
   const lines = fadeScroll(element('span', null, 'ch-lines'));

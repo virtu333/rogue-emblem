@@ -1081,6 +1081,14 @@
 .ch-tarot[data-tier='earned'] .ch-numeral {
   filter: drop-shadow(0 0 3px var(--ch-glow)) drop-shadow(0 1px 0 var(--ce-ink-0));
 }
+/* A start gift (the shrine's fourth card, docs/specs/blessings-v3.md §7): the dark's violet rim,
+   and the gift's borrowed icon burning in the sun where a numeral would be. */
+.ch-tarot[data-tier='gift'] {
+  --ch-tier: var(--ce-unlight-5);
+}
+.ch-tarot[data-tier='gift'] .ch-numeral .ia-icon {
+  filter: drop-shadow(0 0 3px var(--ch-glow)) drop-shadow(0 1px 0 var(--ce-ink-0));
+}
 .ch-star {
   display: block;
   width: 56%;
