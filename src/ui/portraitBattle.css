@@ -156,6 +156,7 @@
     white-space: nowrap;
   }
   html.portrait-battle-capable .battlefield-lab .mobile-battle-hud .mb-terrain > .mb-threat-line,
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud .mb-terrain > .mb-ballista,
   html.portrait-battle-capable .battlefield-lab .mobile-battle-hud .mb-terrain > .mb-terrain-help {
     flex: 1 1 100%;
     min-width: 0;

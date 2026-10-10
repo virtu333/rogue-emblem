@@ -397,6 +397,18 @@
   min-width: 0;
   color: var(--re-muted);
 }
+/* A ballista's lines (holder and range, its blow, when it fires): whole lines under the
+   tile's facts, wrapping inside a narrow card. */
+.mb-terrain .mb-ballista {
+  grid-column: 1 / -1;
+  min-width: 0;
+  flex-basis: 100%;
+  white-space: normal;
+}
+.mb-terrain .mb-ballista:first-of-type {
+  color: var(--re-text);
+  font-weight: 700;
+}
 .mb-terrain .mb-threat-clause {
   white-space: nowrap;
 }
