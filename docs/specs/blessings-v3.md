@@ -800,6 +800,54 @@ is random in what it gives and clear about what it takes.
 | Pilgrim's Wager | a random tier IV blessing, its pact waived | +15 shadow now; one Act 1 node falls at once |
 | Armory Stash | three random whetstones in the convoy | −2 DEF all units, Act 1 |
 
+### 7.1 As built (PR D5)
+
+**Data.** The gifts are a top-level `gifts` block in `data/blessings.json`, never rows of `blessings[]`:
+a gift is never a held blessing and takes no icon cell (each borrows an atlas icon for its card:
+`generic-blessing`, `generic-accessory`, `generic-art-scroll`, `silver-sword`,
+`blessing-forbidden_tome`, `blessing-armory_stash`). `offer: { fromRunsStarted: 1, chance: 0.5 }`
+(the owner's call on open question 2: about half the runs, from the save's second). Each gift has a
+`grant` and a `catch` (`{ label, prices | effects }`); the validator (`BlessingEngine.validateGifts`)
+holds text to 90/85 characters, refuses a Debt catch (a gift is not a loan), requires the Eclipse for a
+catch of shadow or a fall, and lets a gift share a blessing's name only when it `replaces` a blessing
+out of the offer (the Armory Stash, whose tier IV card stays at weight 0 with no migration: open
+question 4).
+
+| Gift | As built | Catch as built |
+|---|---|---|
+| Sealed Reliquary | a random tier III card (never earned, never one whose boon is its price: Gambler's Toss, Lone Banner; weight above 0, unheld), held with no price but the catch | −1 Vision charge now (`vision_down`) |
+| Fallen Hoard | two different accessories from the next act's table (`accessoryPoolFor(run, 1)`); the first binds a skill at 50% on the gift's stream (`bindAccessorySkill`'s `chance`), the second never | Hunted for the next 3 battles |
+| Stranger's Scroll | two weapon-art scrolls the lords can learn (the `starting_scroll` handler) and one Act II skill scroll, to the team scrolls | Lingering Injury on the commander for 5 battles (the stat from the run seed) |
+| Marked Blade | a Silver weapon of the commander's best proficiency (Mastery first; never a staff or a personal weapon), with a random imbue, in their bag (else the convoy) | Sworn Enemy (it ends at the first boss victory: Act I's) |
+| Pilgrim's Wager | a random tier IV card, its pact waived (`addBlessingMidRun`'s `waivePact`) | +15 shadow; one Act 1 node falls now (any node the Eclipse could take: never the start, the boss or the Ruins); offered only with the Eclipse on |
+| Armory Stash | three whetstone forges on the lords' combat weapons (the `starting_whetstones` handler: whetstones never enter a bag or the convoy) | −2 DEF to all units in Act 1 |
+
+**Streams.** `startRun({ runsStarted })` rolls the offer: one draw on `gift-offer:<seed>` (always
+spent), then a weighted pick on `gift-pick:<seed>` among the gifts this run can take (its `requires`, a
+grant that hands something out, a catch that costs something: no Reliquary without a Vision charge, no
+Wager with the Eclipse off). What a gift holds is rolled at the take on `gift:<seed>:<id>`, inside a
+seeded `Math.random` swap (the handlers it reuses draw on their own keys, hashed from the run seed and
+`gift:<id>`). The shrine's blessing offer, the node map, the roster and `Math.random` are the same for
+a seed whether or not a gift is offered or taken. The prologue, the sims and the dev routes start runs
+with no count, so they are never offered one.
+
+**The take.** `RunManager.chooseStartGift(id)` (`engine/StartGifts.js`) takes no blessing (the
+selection is recorded as skipped, with a `gift` history event), applies the grant and the catch once
+and saves `run.startGift` (`{ id, granted, catchLabel, fell? }`). It is refused once anything was
+chosen at the shrine (a saved selection record included), and asking again for the gift taken changes
+nothing. A load reads `startGift` and applies nothing. A blessing gift holds its catch as the card's
+price (kind `gift`: the held list reads "Catch: ..."); any other gift leads the pause list with its own
+entry ("Fallen Hoard · Gift", its catch beneath, the terms on a tap).
+
+**The shrine.** The gift is the fourth card, after the blessings and before No blessing (still the last
+choice): the shrine's tarot card with `data-tier="gift"`, the dark's violet rim, its icon in the Hollow
+Sun and its foot named "Catch"; the footer spells out the catch's terms (a Lingering Injury's sentence
+reads the catch's own five battles). Touch, the arrows and a controller reach it like any card. Backing
+out keeps the slot's pending seed, so the same gift returns; a failed start rebuilds a fresh run (the
+gift is offered again, nothing it gave remains) and the save counts the run only once it begins. A
+DEV-only `?runSeed=` fixes the offered run for the browser specs (`start-gift.spec.js`, run-flow;
+`portrait-start-gift.spec.js`, portrait: on 375×667 every chosen or focused card is whole in view).
+
 ## 8. Data and engine changes
 
 - `data/blessings.json` v3:
@@ -873,15 +921,15 @@ growth, XP and gold cards it can see.
 4. Earned blessings: the `earned` flag, the act-boss pick, and four pure ones (Unbroken
    Banner, Second Dawn, Ember Lantern, Captain's Whistle). Built (§6.4).
 5. The special church, the twisted earned blessings, the gifts with a catch, and the rest of
-   §5. Built: the rest of §5 (PR D4).
+   §5. Built: the rest of §5 (PR D4), the gifts with a catch (PR D5, §7.1).
 
 ## Open questions
 
 1. Debt amounts (§3.1): playtest the tier II amount (Dusk 1,300, about 5 battles of half
    your gold). Is it felt in Act 1?
 2. Gifts with a catch: offered every run from the second, or only sometimes (a ~50% chance
-   per run)?
+   per run)? Decided: about half the runs, from the second (§7.1).
 3. Should earned blessings ever be offered in a shop, as Slay the Spire's shop relics are, or
    only won?
 4. Cut cards (Armory Stash): keep the id at weight 0 forever, or retire it through a
-   `RETIRED_BLESSINGS` migration like `RETIRED_UPGRADES`?
+   `RETIRED_BLESSINGS` migration like `RETIRED_UPGRADES`? Decided: weight 0 forever, no migration (§7.1).
