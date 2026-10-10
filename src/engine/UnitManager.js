@@ -34,6 +34,7 @@ import {
   reapplyTraitGrowthMods,
 } from './TraitSystem.js';
 import { rollMark } from './MarkSystem.js';
+import { isFemaleOnlyClass, unitGender } from './PortraitVariants.js';
 
 // --- Weapon proficiency parsing ---
 
@@ -1479,7 +1480,8 @@ export function canReclass(unit) {
 /**
  * Get valid reclass target classes for a unit given a seal subEffect.
  * Returns array of class data objects from classesData.
- * Filters: same tier, matching moveType for seal, excludes current class, excludes lord/Dancer/Bard.
+ * Filters: same tier, matching moveType for seal, excludes current class, excludes lord/Dancer/Bard,
+ * and the women-only Pegasus Knight for a man.
  */
 export function getReclassTargets(unit, classesData, sealSubEffect) {
   if (!canReclass(unit) || !classesData || !sealSubEffect) return [];
@@ -1491,7 +1493,8 @@ export function getReclassTargets(unit, classesData, sealSubEffect) {
       allowedMoves.has(c.moveType) &&
       c.name !== unit.className &&
       !RECLASS_EXCLUDED_CLASSES.has(c.name) &&
-      !RECLASS_TARGET_EXCLUDED_CLASSES.has(c.name),
+      !RECLASS_TARGET_EXCLUDED_CLASSES.has(c.name) &&
+      !(isFemaleOnlyClass(c.name) && unitGender(unit) === 'm'),
   );
 }
 

@@ -15,10 +15,11 @@
 // man or a woman (data/recruits.json name pools) gets a matching face.
 // Lords and bosses keep their own portraits and never get a variant.
 //
-// Female-only classes (table.femaleOnlyClasses: the Pegasus Knight and its
-// Falcon Knight promotion) always show a woman, for recruits, hires, enemies
-// and anyone reclassed or promoted into them: the name's gender, a stored
-// person or an enemy face of the other gender never overrides it.
+// Female-only classes (table.femaleOnlyClasses: the base Pegasus Knight; its
+// Falcon Knight and Wyvern Lord promotions have men too) always show a woman, for
+// recruits, hires and enemies: the name's gender, a stored person or an enemy
+// face of the other gender never overrides it. A stored person is never rewritten
+// (it comes back if the unit leaves the class); displayedPerson does the mapping.
 import table from '../data/portraitVariants.json' with { type: 'json' };
 
 export const PORTRAIT_VARIANTS = table;
@@ -49,6 +50,13 @@ export function wearsOwnPortrait(unit) {
 /** True for a class only women fill (Pegasus Knight, Falcon Knight). */
 export function isFemaleOnlyClass(className) {
   return (table.femaleOnlyClasses || []).includes(className);
+}
+
+/** 'm' | 'f' | null: the unit's stored person's gender, else its name's. */
+export function unitGender(unit) {
+  const person = unit?.portraitVariant;
+  if (isPortraitPerson(person)) return table.identities[person].gender || null;
+  return nameGender(unit?.name);
 }
 
 /** Whether this person may wear this class (female-only classes take women only). */
