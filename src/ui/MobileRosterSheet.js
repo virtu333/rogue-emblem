@@ -822,16 +822,23 @@ export class MobileRosterSheet {
     for (const option of oathOptionsInOrder(options)) {
       const chosen = option.deedId === options[0].deedId;
       const b = manage
-        ? this.button(`${option.name} · ${option.skillName}`, () =>
+        ? this.button(`${option.name} · ${option.skillName}`, () => {
+            const fold = () => {
+              folds.oath = false;
+              this._focusAfterRender = '.mr-oath-toggle';
+            };
+            // The Oath it already swears: nothing to pledge or save, only the list closes.
+            if (chosen) {
+              fold();
+              this.render();
+              return;
+            }
             choose(
               () => pledgeOath(unit, option.deedId),
               `${unit.name} will swear ${option.name}.`,
-              () => {
-                folds.oath = false;
-                this._focusAfterRender = '.mr-oath-toggle';
-              },
-            ),
-          )
+              fold,
+            );
+          })
         : el('p', `${option.name} · ${option.skillName}`);
       b.classList.add('mr-oath-option');
       if (manage) b.setAttribute('aria-pressed', String(chosen));

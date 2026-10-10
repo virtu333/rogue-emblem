@@ -202,6 +202,19 @@ describe('roster: the Oath it will swear, the others folded', () => {
     sheet.destroy();
   });
 
+  it('tapping the Oath it already swears closes the list and saves nothing', () => {
+    const unit = decorated();
+    const { sheet, persist } = manage([unit]);
+    const before = JSON.stringify(unit.deeds);
+    q(sheet, '.mr-oath-toggle').click();
+    pressText(sheet, 'Oath of the Bane · Fiendish Blow');
+    expect(JSON.stringify(unit.deeds)).toBe(before);
+    expect(persist).not.toHaveBeenCalled();
+    expect(qa(sheet, '.mr-oath-option')).toHaveLength(0);
+    expect(dom.doc.activeElement).toBe(q(sheet, '.mr-oath-toggle'));
+    sheet.destroy();
+  });
+
   it('inspecting (no run) folds the Oaths as read-only lines', () => {
     const unit = decorated();
     const sheet = new MobileRosterSheet({ scene: makeScene(), units: [unit], gameData, onClose: vi.fn() }); // prettier-ignore
