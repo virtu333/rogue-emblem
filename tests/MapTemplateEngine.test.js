@@ -376,6 +376,98 @@ describe('MapTemplateEngine', () => {
     ).toBe(true);
   });
 
+  describe('scripted spawns on a phase override tile', () => {
+    // A bastion copy whose only override walls [8,1] on turn `overrideTurn`, and whose
+    // first wave puts a Fighter on [8,1] on base turn `waveTurn`.
+    function bastion({ overrideTurn, waveTurn, offsets = null, actTurnOffset = null }) {
+      const config = JSON.parse(JSON.stringify(mapTemplates));
+      const template = config.seize.find((entry) => entry.id === ACT4_HYBRID_BASE_TEMPLATE_ID);
+      template.phaseTerrainOverrides = [
+        { turn: overrideTurn, setTiles: [{ anchor: 'wave1_a', terrain: 'Wall' }] },
+      ];
+      const wave = template.reinforcements.scriptedWaves[0];
+      wave.turn = waveTurn;
+      Object.assign(wave.spawns[0], { col: 8, row: 1 });
+      if (offsets) template.reinforcements.turnOffsetByDifficulty = offsets;
+      if (actTurnOffset) template.reinforcements.actTurnOffset = actTurnOffset;
+      return config;
+    }
+    const conflicts = (result) =>
+      result.errors.filter((error) =>
+        error.includes('move the spawn to a tile no override touches'),
+      );
+    const flat = { normal: 0, dusk: 0, hard: 0, lunatic: 0 };
+
+    it('refuses the shipped data before the fix (both arenas, both waves)', () => {
+      const old = JSON.parse(JSON.stringify(mapTemplates));
+      const move = (id, waveIndex, className, col, row) =>
+        Object.assign(
+          old.seize
+            .find((t) => t.id === id)
+            .reinforcements.scriptedWaves[waveIndex].spawns.find((s) => s.className === className),
+          { col, row },
+        );
+      move('act4_boss_intent_bastion', 0, 'Fighter', 8, 1);
+      move('act4_boss_intent_bastion', 1, 'Knight', 10, 1);
+      move('act3_dark_champion_keep', 0, 'Fighter', 7, 1);
+      move('act3_dark_champion_keep', 1, 'Knight', 8, 1);
+      const result = validateMapTemplatesConfig(old);
+      expect(result.valid).toBe(false);
+      expect(conflicts(result)).toHaveLength(4);
+      expect(conflicts(validateMapTemplatesConfig(mapTemplates))).toEqual([]);
+    });
+
+    it('refuses a wave on the override turn (walled at the phase start, spawned at its end)', () => {
+      const result = validateMapTemplatesConfig(
+        bastion({ overrideTurn: 3, waveTurn: 3, offsets: flat }),
+      );
+      expect(result.valid).toBe(false);
+      expect(conflicts(result)).toHaveLength(1);
+      expect(conflicts(result)[0]).toContain('at [8,1] resolves on turn 3');
+    });
+
+    it('refuses a later wave, and accepts one that lands before the wall on every rung', () => {
+      expect(
+        conflicts(
+          validateMapTemplatesConfig(bastion({ overrideTurn: 3, waveTurn: 5, offsets: flat })),
+        ),
+      ).toHaveLength(1);
+      expect(
+        validateMapTemplatesConfig(bastion({ overrideTurn: 3, waveTurn: 2, offsets: flat })).valid,
+      ).toBe(true);
+    });
+
+    it('reads every rung: a rung whose wave comes a turn late is a conflict', () => {
+      const late = { normal: 0, dusk: 1, hard: 0, lunatic: 0 };
+      const result = validateMapTemplatesConfig(
+        bastion({ overrideTurn: 3, waveTurn: 2, offsets: late }),
+      );
+      expect(conflicts(result)).toHaveLength(1);
+      expect(conflicts(result)[0]).toContain('turn 3 (dusk)');
+      // Early rungs only move the wave further before the wall.
+      const early = { normal: 0, dusk: 0, hard: -1, lunatic: -1 };
+      expect(
+        validateMapTemplatesConfig(bastion({ overrideTurn: 3, waveTurn: 2, offsets: early })).valid,
+      ).toBe(true);
+    });
+
+    it("reads the act's actTurnOffset and difficulty.json's global offset", () => {
+      const config = bastion({
+        overrideTurn: 3,
+        waveTurn: 2,
+        offsets: flat,
+        actTurnOffset: { lunatic: { act4: 1 } },
+      });
+      expect(conflicts(validateMapTemplatesConfig(config))[0]).toContain('turn 3 (lunatic)');
+      const global = bastion({ overrideTurn: 3, waveTurn: 2, offsets: flat });
+      expect(validateMapTemplatesConfig(global).valid).toBe(true);
+      const withGlobal = validateMapTemplatesConfig(global, {
+        reinforcementTurnOffsets: { normal: 0, dusk: 0, hard: 1, lunatic: 0 },
+      });
+      expect(conflicts(withGlobal)[0]).toContain('turn 3 (hard)');
+    });
+  });
+
   it('accepts minActByDifficulty as a known reinforcement key', () => {
     const good = JSON.parse(JSON.stringify(mapTemplates));
     // open_field now has minActByDifficulty — should pass validation

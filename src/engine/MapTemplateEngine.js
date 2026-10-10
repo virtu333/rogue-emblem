@@ -856,6 +856,76 @@ function validateBridges(path, template, errors) {
   }
 }
 
+// Every turn a scripted wave can resolve on for `difficultyId`, as
+// ReinforcementScheduler schedules it: the rung's global offset (difficulty.json
+// reinforcementTurnOffset), plus, with difficultyScaling, the template's
+// turnOffsetByDifficulty and the act's actTurnOffset (merged by MapGenerator).
+function scriptedWaveTurnsForRung(template, baseTurn, difficultyId, globalOffsets) {
+  const reinforcements = template.reinforcements;
+  const globalOffset = isInteger(globalOffsets?.[difficultyId]) ? globalOffsets[difficultyId] : 0;
+  if (!reinforcements?.difficultyScaling) return [Math.max(1, baseTurn + globalOffset)];
+  const rungOffset = reinforcements.turnOffsetByDifficulty?.[difficultyId];
+  const templateOffset = isInteger(rungOffset) ? rungOffset : 0;
+  const perAct = isObject(reinforcements.actTurnOffset?.[difficultyId])
+    ? reinforcements.actTurnOffset[difficultyId]
+    : {};
+  const extraFor = (act) => (isFiniteNumber(perAct[act]) ? Math.trunc(perAct[act]) : 0);
+  const extras = Array.isArray(template.acts)
+    ? template.acts.map(extraFor)
+    : [0, ...Object.keys(perAct).map(extraFor)];
+  return extras.map((extra) => Math.max(1, baseTurn + globalOffset + templateOffset + extra));
+}
+
+// A phase override changes its tile at the START of enemy phase T; a scripted wave due
+// on turn T resolves at the END of that phase, against the changed board, and an
+// authored spawn has no fallback tile. A spawn on an override's tile whose wave can
+// resolve on or after T on any rung would be blocked (or arrive on the new terrain), so
+// the template is refused (docs/specs/large-maps/02-encounters-and-pacing.md §2.2).
+function validateOverrideSpawnConflicts(path, template, anchorCoords, errors, globalOffsets) {
+  const overrides = template.phaseTerrainOverrides;
+  const scriptedWaves = template.reinforcements?.scriptedWaves;
+  if (!Array.isArray(overrides) || !Array.isArray(scriptedWaves)) return;
+  const anchors = anchorCoords instanceof Map ? anchorCoords : new Map();
+  const overrideTurnsByTile = new Map();
+  overrides.forEach((override, oi) => {
+    if (!isObject(override) || !isInteger(override.turn) || !Array.isArray(override.setTiles))
+      return;
+    for (const setTile of override.setTiles) {
+      if (!isObject(setTile)) continue;
+      const key = Array.isArray(setTile.coord)
+        ? isInteger(setTile.coord[0]) && isInteger(setTile.coord[1])
+          ? `${setTile.coord[0]},${setTile.coord[1]}`
+          : null
+        : anchors.get(setTile.anchor) || null;
+      if (!key) continue;
+      if (!overrideTurnsByTile.has(key)) overrideTurnsByTile.set(key, []);
+      overrideTurnsByTile.get(key).push({ turn: override.turn, index: oi });
+    }
+  });
+  if (overrideTurnsByTile.size === 0) return;
+  scriptedWaves.forEach((wave, wi) => {
+    if (!isObject(wave) || !isInteger(wave.turn) || wave.turn <= 0) return;
+    if (!Array.isArray(wave.spawns)) return;
+    let latest = null;
+    for (const difficultyId of DIFFICULTY_IDS) {
+      for (const turn of scriptedWaveTurnsForRung(template, wave.turn, difficultyId, globalOffsets))
+        if (!latest || turn > latest.turn) latest = { turn, difficultyId };
+    }
+    wave.spawns.forEach((spawn, si) => {
+      if (!isObject(spawn) || !isInteger(spawn.col) || !isInteger(spawn.row)) return;
+      for (const override of overrideTurnsByTile.get(`${spawn.col},${spawn.row}`) || []) {
+        if (latest.turn < override.turn) continue;
+        errors.push(
+          `${path}.reinforcements.scriptedWaves[${wi}].spawns[${si}] at [${spawn.col},${spawn.row}] ` +
+            `resolves on turn ${latest.turn} (${latest.difficultyId}), on or after ` +
+            `phaseTerrainOverrides[${override.index}] (turn ${override.turn}) changes that tile; ` +
+            'move the spawn to a tile no override touches',
+        );
+      }
+    });
+  });
+}
+
 function validateScriptedWaveCoordsInBounds(path, template, errors) {
   const fixedSize = template.fixedSize;
   const hasValidFixedSize =
@@ -931,6 +1001,20 @@ function validateTerrainNameReferences(path, template, terrainNames, errors) {
       if (f.terrain !== undefined) check(f.terrain, `${path}.features[${i}].terrain`);
     });
   }
+}
+
+/**
+ * difficulty.json's global `reinforcementTurnOffset` per rung, for
+ * validateMapTemplatesConfig's `reinforcementTurnOffsets` option.
+ */
+export function reinforcementTurnOffsetsFrom(difficultyConfig) {
+  const modes = isObject(difficultyConfig?.modes) ? difficultyConfig.modes : {};
+  const offsets = {};
+  for (const difficultyId of DIFFICULTY_IDS) {
+    const offset = modes[difficultyId]?.reinforcementTurnOffset;
+    offsets[difficultyId] = isInteger(offset) ? offset : 0;
+  }
+  return offsets;
 }
 
 export function validateMapTemplatesConfig(config, options = {}) {
@@ -1154,6 +1238,13 @@ export function validateMapTemplatesConfig(config, options = {}) {
         }
       }
       validateScriptedWaveCoordsInBounds(path, template, errors);
+      validateOverrideSpawnConflicts(
+        path,
+        template,
+        anchorCoords,
+        errors,
+        options.reinforcementTurnOffsets,
+      );
 
       validateReinforcements(path, template, strict, errors, warnings);
       validateEscapeZone(path, objective, template, errors);

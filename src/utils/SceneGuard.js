@@ -7,7 +7,7 @@ import { UI_PALETTE } from './uiStyles.js';
 // and runtime invariants.
 
 import { cleanupScene } from './sceneCleanup.js';
-import { captureResourceSnapshot } from './resourceSnapshot.js';
+import { captureResourceSnapshot, countLeakableSounds } from './resourceSnapshot.js';
 
 // --- Overlay registries per scene (property → detection strategy) ---
 // 'visible'  = object with .visible boolean (persistent or null-pattern with .visible)
@@ -340,7 +340,7 @@ export function installSceneGuard(game) {
   const state = {
     activeScene: null,
     history: [], // last 20 transitions: { from, to, ts, reason?, pre?, post? }
-    sounds: 0, // currently playing sound count
+    sounds: 0, // playing sounds a scene can leak (resourceSnapshot.isLeakableSound)
     tweens: 0, // active tween count in current scene
     resources: null, // latest resource snapshot for active scene
     errors: [], // invariant violation strings (capped at MAX_ERRORS)
@@ -412,7 +412,7 @@ export function installSceneGuard(game) {
 
   function countPlayingSounds() {
     try {
-      return game.sound?.sounds?.filter((s) => s && s.isPlaying)?.length || 0;
+      return countLeakableSounds(game.sound);
     } catch (_) {
       return -1;
     }
