@@ -40,6 +40,7 @@ import { readSlotMilestones, selectTitleVariant } from './art/keyart/titleVarian
 import { throttledRead } from './utils/throttledRead.js';
 import { applyPortraitQuery, installPortraitUi } from './utils/portraitBattle.js';
 import { installSaveLifecycle } from './utils/saveLifecycle.js';
+import { installAndroidBackButton } from './utils/androidBackButton.js';
 import { nativeCapacitor, startNativeSaveMirror } from './utils/nativeSaveMirror.js';
 import { GAME_TITLE } from './utils/gameIdentity.js';
 
@@ -545,6 +546,10 @@ function bootGame(user) {
   // scene, or an overlay above it) receives each action. Scenes/overlays register
   // scopes via pushInputScope/popInputScope rather than subscribing here directly.
   window[GAME_INSTANCE_KEY].events.on(INPUT_ACTION_EVENT, dispatchInputAction);
+  // The Android app's system Back is the same Cancel (the title's root menu: leave).
+  installAndroidBackButton({
+    dispatch: (action) => window[GAME_INSTANCE_KEY].events.emit(INPUT_ACTION_EVENT, action),
+  });
 
   if (startupFlags.isMobile) {
     new MobileControls(window[GAME_INSTANCE_KEY]).show();

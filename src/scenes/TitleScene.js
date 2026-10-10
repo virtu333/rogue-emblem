@@ -308,6 +308,11 @@ export class TitleScene extends Phaser.Scene {
     );
   }
 
+  /** The root menu with nothing over it: the Android app's Back leaves the app here. */
+  isAtRootMenu() {
+    return !this.isTransitioning && !this._titleOverlayOpen();
+  }
+
   _onInputAction(action, payload) {
     if (this.isTransitioning) return;
     // Settings/Help/Compendium now push their own input-focus scopes, so while one

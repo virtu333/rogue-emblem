@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Rogue Dawn</string>
+    <string name="title_activity_main">Rogue Dawn</string>
+    <string name="package_name">com.davechen.emblemrogue</string>
+    <string name="custom_url_scheme">com.davechen.emblemrogue</string>
+</resources>
