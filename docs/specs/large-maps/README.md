@@ -312,8 +312,9 @@ keeps meaning the prologue.
   they are (variant 0, where the ordinary draw picks them). Act I's arena
   (`act1_border_post`) is deferred, out of scope by owner decision.
 - **Every boss battle from Act II on**, set piece or not, gets `05`'s boss kit: phases, a
-  signature, a court, a bonus. First Light gets it gently (`05` §9.5: at most one gentle,
-  telegraphed, never-lethal signature, no sleeping court, today's maps).
+  signature, a court, a bonus, on Dusk and up. First Light gets only the kit's signature
+  (`05` §9.5: at most one gentle, telegraphed, never-lethal signature on today's maps; no
+  court, phase, affix or bonus).
 - **Act I's boss battles stay as they are on every rung** (owner decision, 2026-10-10):
   today's map, no arena, no kit, no signature, no court. Phase 0's fixes still apply.
 - **Finale:** Sanctum of Echoes, the Entity's variant, on Black Sun only (`05` §8.2, §8.7;
@@ -417,12 +418,12 @@ switches are separate, so a change in difficulty can be traced to one of them.
 
   Only then Two Towers, the boss set pieces, `bossKits.enabled`, `arenaShare` and
   `encounterPlan.rout`, each in its own change with its own sim report.
-- **Boss kits are their own rollout.** Kits change the difficulty of Act II–IV and finale boss
-  battles on every rung, First Light included (gently), whereas set pieces are rare and never
-  on First Light. A
-  set-piece change never turns kits on and a kit change never raises a set-piece chance, so a
-  move in boss win rates, par or enrage can be pinned on one change. `bossKits.enabled` goes on
-  rung by rung, each with `05` §11's `sim/pacing.js --bossKits` report.
+- **Boss kits are their own rollout.** Kits change the difficulty of Act II–IV and finale
+  boss battles on every rung, First Light included (its signatures only), whereas set pieces
+  are rare and never on First Light. A set-piece change never turns kits on and a kit change
+  never raises a set-piece chance, so a move in boss win rates, par or enrage can be pinned
+  on one change. `bossKits.enabled` goes on rung by rung, each with `05` §11's
+  `sim/pacing.js --bossKits` report.
 
 ## 6. Owner decisions
 
@@ -432,11 +433,11 @@ switches are separate, so a change in difficulty can be traced to one of them.
    nodes (`04` §6.1's table; the chances are tuned in its PR C).
 2. **First Light:** no set pieces at all. It is the intro difficulty. First Light may still
    get the boss enhancements that are not set pieces (`05`). **Narrowed on 2026-10-10** (the
-   ladder below): no Act I kit or arena, no new arena or arena variant, a 0 arena share, at
-   most one gentle signature; `05` §9.5 now reads: from Act II, the kits with gentler values
-   and no sleeping or patrolling courts, on today's maps exactly as they are (the procedural
-   seize templates, the v1 hybrid arenas at variant 0, the sanctum); one kit bonus per boss
-   map, never paying Vision. This answers `05` Q1 and Q10. The old-client guard does not
+   ladder below): no Act I kit or arena, no new arena or arena variant, a 0 arena share;
+   from Act II a kit compiles to at most one gentle, telegraphed, never-lethal signature and
+   nothing else (no court, phase, affix or kit bonus), on today's maps exactly as they are
+   (the procedural seize templates, the v1 hybrid arenas at variant 0, the sanctum). This
+   answers `05` Q1, Q5 and Q10. The old-client guard does not
    exempt it: a First Light boss kit requires the newer client like any other capability
    (`04` §12.1).
 3. **Bonus rewards:** a bonus may pay a Vision charge. Act III+, at most once per act,
@@ -460,7 +461,7 @@ switches are separate, so a change in difficulty can be traced to one of them.
 
    | Rung | Act I boss | Act II boss | Act III–IV bosses | Ordinary / elite set pieces | Boss set pieces |
    |---|---|---|---|---|---|
-   | First Light | today's map, nothing new | today's map; at most one gentle, telegraphed, never-lethal signature; no sleeping court; no new arena or arena variant | today's arenas (variant 0) + that gentle signature; no sleeping court | none | none |
+   | First Light | today's map, nothing new | today's map; at most one gentle, telegraphed, never-lethal signature and nothing else from the kit (no court, phase, affix or bonus); no new arena or arena variant | today's arenas (variant 0) + that gentle signature, nothing else | none | none |
    | Dusk | today's map, nothing new | new arenas, arena variants, sleeping courts and the full signature start here | full boss enhancements on today's arenas and their variants | standard size only (20x12 or less: The Mill Ford, Two Towers, Rival Band and the other maps of that size) | none (no Long Road, Parade, Dueling Halls or Battery) |
    | Nightfall / Black Sun | today's map, nothing new | as Dusk | full enhancements | all | all the large boss set pieces (Long Road 22x14, The Emperor's Parade 24x14, the Dueling Halls, the Battery); the finale variant (Sanctum of Echoes) on Black Sun only |
 
@@ -475,17 +476,23 @@ switches are separate, so a change in difficulty can be traced to one of them.
    - **"Full signature" on Dusk** is read as the kit's own values (its tile counts, aura
      values, wave sizes), not First Light's gentler ones. Whether Dusk's volley may kill
      stays `05` Q2; until it is answered `volleyLethal` stays false on Dusk.
-   - **First Light's kit, otherwise,** keeps `05` §9.5's gentle reading (courts compiled to
-     awake guards, a tier-1 affix at most at the half, one bonus that never pays Vision).
+   - **First Light's kit is the signature and nothing else** (the strict reading, decided
+     2026-10-10). An Act II–IV boss battle there gets today's map or arena plus at most one
+     gentle, telegraphed, never-lethal signature, and nothing else from the kit: no court
+     orders (awake or sleeping), no affix at the half or a phase, no kit bonus, no phase
+     beyond today's. `BossKit.compile` for First Light is signature-only and validated so
+     (`05` §9.5, §10.1). It writes no `objectives`, so First Light's boss par is today's.
+     A kit whose signature is a court order (the Knight Commander's) is empty there.
    - **Dusk's set-piece row** carries `maxSize: [20, 12]` and a boss share of 0, both
      validated (`04` §6.1). `04` Q5 (the Parade always on Dusk?) is answered no: Dusk's last
      battle is the Emperor's kit on today's maps and the bastion's variants. Hunting Party
      (20x13) and Break the Gate (22x12) are over the size, so they are Nightfall and up as
      sketched.
    - **The guard is unchanged.** A First Light run with kits on still holds the `bossKit`
-     capability and requires the newer client (`04` §12.1); test 23's fixture moves from
-     Act I to a First Light Act II boss (the Archmage), since Act I has no kit.
-   - `05` Q1 and Q10 are answered by this ladder (`05` §9.5, §13).
+     capability and requires the newer client (`04` §12.1): a signature alone is still a
+     kit. Test 23's fixture moves from Act I to a First Light Act II boss (the Archmage's
+     signature-only kit), since Act I has no kit.
+   - `05` Q1, Q5 and Q10 are answered by this ladder (`05` §9.5, §13).
 
 Each spec ends with its own open questions.
 
@@ -513,7 +520,8 @@ Each spec ends with its own open questions.
 - **Revision 6 (2026-10-10):** the owner's decisions of 2026-10-10 (§6): the desktop opens on
   the whole board; no minimap until the set pieces are playtested; the rung ladder (Act I's
   boss stays today's map on every rung; First Light from Act II gets at most one gentle
-  signature on today's maps, arena share 0; Dusk adds the Act II arena, variants, sleeping
+  signature and nothing else from the kit (the strict reading: no court, phase, affix or
+  bonus) on today's maps, arena share 0; Dusk adds the Act II arena, variants, sleeping
   courts and full signatures, and only set pieces of 20x12 or less; the boss set pieces are
   Nightfall and up, the finale variant Black Sun only). §2's size bands, §4, the roadmap's
   Phases 5a and 5 and the rollout gates follow.

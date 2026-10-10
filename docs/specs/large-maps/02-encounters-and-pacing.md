@@ -905,9 +905,10 @@ Sun's `afterContact` clock; until then the reserve wakes on its `turn parOffset`
    decision 2026-10-09, so it meets pods nowhere unless its own `encounterPlan.rout` is
    turned on.)
 3. **Decided (owner, 2026-10-09 and 2026-10-10, README §6): First Light meets no set piece,
-   and no sleeping or patrolling boss court on any act** (`05` §9.5: a court written
-   `dormant` or `patrol` compiles to an awake guard there). Sleeping courts start at Dusk;
-   First Light seize and escape maps keep today's guards (§3.5).
+   and no boss court of any kind on any act** (`05` §9.5: on the strict reading decided
+   2026-10-10, a First Light kit compiles to its one signature alone, so no group, awake or
+   sleeping, is written there). Courts start at Dusk; First Light seize and escape maps keep
+   today's guards (§3.5).
 4. **Hybrid arena intent**: should the walls seal the wave's entry after it arrives (then
    the override turn becomes the wave turn + 1 on every rung) rather than the spawn
    moving (this spec's data fix)?
@@ -1000,5 +1001,5 @@ use `03`'s words (`done` / `failed`).
 ## Revision 5 changelog (2026-10-10)
 
 - The owner's rung ladder (README §6, 2026-10-10) answers §9 Q3: First Light meets no set
-  piece and no sleeping or patrolling boss court; sleeping courts start at Dusk. Q2 no
+  piece and no boss court at all (its kits are signature-only); courts start at Dusk. Q2 no
   longer offers First Light pods "in set pieces", which it never gets.
