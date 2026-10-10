@@ -26,6 +26,7 @@ import {
   tickRemains,
 } from '../engine/ZombieRemains.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
+import { isUnitSeenAt } from '../engine/BattleInformation.js';
 import { RemainsMarkerController } from './RemainsMarkerController.js';
 import { UI_HEX, UI_PALETTE } from '../utils/uiStyles.js';
 
@@ -59,15 +60,21 @@ export class ZombieRemainsController {
     return this.scene?._zombieTombstones || [];
   }
 
+  /** The ground's sight (remains are a record on a tile, not a unit). */
   isVisible(col, row) {
     const grid = this.scene?.grid;
     return typeof grid?.isVisible === 'function' ? Boolean(grid.isVisible(col, row)) : true;
   }
 
-  /** An enemy fell on `tile` (killer: null for poison, lava, a death burst…). */
+  /**
+   * An enemy fell on `tile` (killer: null for poison, lava, a death burst…). Its remains are known
+   * when the player saw it fall (isUnitSeenAt: under Seer's Eye every foe's fall is seen, so a
+   * pile in the fog keeps its marker and countdown).
+   */
   onEnemyFell(unit, killer, tile) {
     if (!leavesRemains(unit, killer)) return null;
-    const record = createRemains(unit, tile, { seen: this.isVisible(tile.col, tile.row) });
+    const seen = isUnitSeenAt(this.scene?.grid, unit, tile.col, tile.row);
+    const record = createRemains(unit, tile, { seen });
     this.scene._zombieTombstones = [...this.records, record];
     return record;
   }
@@ -191,8 +198,8 @@ export class ZombieRemainsController {
       scene.addUnitGraphic(unit);
       if (scene.grid?.fogEnabled) scene.updateEnemyVisibility?.();
       observeHistoryAction(scene, 'revived', unit);
-      // Seen rising only where the player sees: the fog keeps its secret.
-      if (this.isVisible(tile.col, tile.row))
+      // Seen rising only where the player sees it stand (isUnitSeenAt: Seer's Eye shows it).
+      if (isUnitSeenAt(scene.grid, unit))
         await scene.showBriefBanner(`${unit.className} has risen!`, UI_PALETTE.rarityEpic);
       if (!isCurrentBattleSession(scene, session)) return;
     }

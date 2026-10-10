@@ -20,7 +20,7 @@ import { parseLordStatArc } from './LordStatArc.js';
 import { parseBattleGoldGamble } from './BattleGoldGamble.js';
 import { playerWeaponArtBoonErrors } from './WeaponArtSystem.js';
 import { adjacentAllyDefBonusErrors, isolatedCombatBonusErrors } from './FormationBlessings.js';
-import { EARNED_D1_BOON_TYPES, earnedBoonErrors } from './EarnedBoons.js';
+import { EARNED_BOON_TYPES, earnedBoonErrors } from './EarnedBoons.js';
 import { shrineBoonErrors } from './ShrineBoons.js';
 import { TWISTED_BOON_TYPES, TWISTED_TWIST_TYPES, twistedEffectErrors } from './TwistedBoons.js';
 import { BURDEN_IDS, TWIST_BURDEN_IDS } from './Burdens.js';
@@ -228,7 +228,7 @@ function validateBoonParams(effect, path, errors) {
     // engine/TwistedBoons.js (PR D3): the parser its handler and the save's sanitizer read.
     for (const message of twistedEffectErrors(effect))
       errors.push(`${path}.${message} (${effect.type})`);
-  } else if (EARNED_D1_BOON_TYPES.includes(effect.type)) {
+  } else if (EARNED_BOON_TYPES.includes(effect.type)) {
     // engine/EarnedBoons.js: the parser its handler and the save's sanitizer read.
     for (const message of earnedBoonErrors(effect))
       errors.push(`${path}.${message} (${effect.type})`);

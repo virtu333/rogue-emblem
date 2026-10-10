@@ -49,12 +49,9 @@ function strikingWeapon(unit) {
 /** Living and visible to the player (fog + inspection rules). */
 export function isThreatSourceVisible(grid, enemy) {
   if (!enemy || enemy.currentHP <= 0 || enemy._removing) return false;
-  if (!canInspectUnit(grid, enemy)) return false;
-  if (grid?.fogEnabled) {
-    const tiles = isEntity(enemy) ? getFootprint(enemy) : [enemy];
-    if (!tiles.some((t) => grid.isVisible(t.col, t.row))) return false;
-  }
-  return true;
+  // canInspectUnit is the fog's whole rule for a foe: a tile of its body seen (an Entity's
+  // footprint), or every foe under Seer's Eye.
+  return canInspectUnit(grid, enemy);
 }
 
 /**

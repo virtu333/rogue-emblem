@@ -9,7 +9,13 @@ import { staffRunOptions } from '../engine/StaffBlessings.js';
 import { LORE_TEXT_COLOR } from '../utils/constants.js';
 import { hasProficiency, canEquip, inventoryDisplayOrder } from '../engine/UnitManager.js';
 import { applyTrade, planTrade, unitHolder } from '../engine/ItemTrade.js';
-import { getStaffRemainingUses, getStaffMaxUses, parseRange } from '../engine/Combat.js';
+import {
+  getEffectiveStaffRange,
+  getStaffHealBase,
+  getStaffRemainingUses,
+  getStaffMaxUses,
+  parseRange,
+} from '../engine/Combat.js';
 import { getConsumableDescription } from '../utils/consumableText.js';
 import { hasWeaponArt } from './WeaponArtVisibility.js';
 import {
@@ -121,10 +127,14 @@ export class RosterTradeController {
       const staffOptions = staffRunOptions(overlay.runManager, ownerUnit);
       const rem = ownerUnit ? getStaffRemainingUses(item, ownerUnit, staffOptions) : '?';
       const max = ownerUnit ? getStaffMaxUses(item, ownerUnit, staffOptions) : '?';
-      const healBase = item.healBase != null ? `Heal: MAG+${item.healBase}` : '';
+      // The run's heal and reach count (Saint's Reliquary), as in battle.
+      const healBase =
+        item.healBase != null ? `Heal: MAG+${getStaffHealBase(item, staffOptions)}` : '';
       addText(paneX, line2Y, `${healBase}  Uses: ${rem}/${max}`, UI_PALETTE.muted);
       if (item.range) {
-        const rng = parseRange(item.range);
+        const rng = ownerUnit
+          ? getEffectiveStaffRange(item, ownerUnit, staffOptions)
+          : parseRange(item.range);
         const rngStr = rng.min === rng.max ? `${rng.max}` : `${rng.min}-${rng.max}`;
         addText(paneX + 240, line2Y, `Rng ${rngStr}`, UI_PALETTE.muted);
       }

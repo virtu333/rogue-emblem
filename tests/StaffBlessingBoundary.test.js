@@ -1,13 +1,19 @@
-// Where a staff's uses are counted (Saint's Reserve, docs/specs/blessings-v3.md §5.3).
+// Where a staff's uses, heal and reach are counted (Saint's Reserve, docs/specs/blessings-v3.md
+// §5.3; Saint's Reliquary, §6.1).
 //
-// The battle menu, the heal's own check, the roster and unit sheets, the trade panes, the reward
-// card, the shop comparison and the harness each ask Combat for a staff's uses. Saint's Reserve
-// adds one through `StaffBlessings.staffRunOptions(run, unit)`; a caller that forgets it shows
-// "3/3" while the heal allows a fourth (or refuses one the menu offers).
+// The battle menu, the heal's own check, the heal preview, the roster and unit sheets, the trade
+// panes, the reward card, the shop comparison and the harness each ask Combat for a staff's uses,
+// heal or reach. Saint's Reserve adds a use and Saint's Reliquary 5 HP and a tile of reach, all
+// through `StaffBlessings.staffRunOptions(run, unit)`; a caller that forgets it shows "3/3" while
+// the heal allows a fourth, previews "+12" for a heal of 17, or offers a target the heal's own
+// check refuses (or hides one it accepts).
 //
 // Ways this can fail, a test each:
-//   1. a call to getStaffMaxUses / getStaffRemainingUses (or validateStaffAction) is made without
-//      the run's staff options, outside the enemy AI and the files that define and forward them;
+//   1. a call that counts a staff's uses (getStaffMaxUses / getStaffRemainingUses /
+//      validateStaffAction), heal (resolveHeal / calculateHealAmount / calculateStaffHealOutput /
+//      settleStaffHeal) or reach (getEffectiveStaffRange / findRelocateTargets /
+//      getRelocationDestinations) is made without the run's staff options, outside the enemy AI,
+//      the balance sims' own models and the files that define and forward them;
 //   2. a display helper that counts a staff's uses is called without the run;
 //   3. the scan itself is blind (the pattern matches nothing, or an allowlist entry is stale).
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -38,6 +44,18 @@ const SCANNED = [
 const OPTIONS_ARG_INDEX = {
   getStaffMaxUses: 2, // (staff, healer, opts)
   getStaffRemainingUses: 2, // (staff, healer, opts)
+  resolveHeal: 3, // (staff, healer, target, opts)
+  calculateHealAmount: 3, // (staff, healer, target, opts)
+  calculateStaffHealOutput: 2, // (staff, healer, opts)
+  getStaffHealBase: 1, // (staff, opts): the "MAG+N" a display shows
+  getEffectiveStaffRange: 2, // (staff, healer, opts)
+  findRelocateTargets: 5, // (staff, caster, playerUnits, grid, getUnitAt, staffOptions)
+  getRelocationDestinations: 5, // (staff, caster, ally, grid, getUnitAt, staffOptions)
+};
+// Calls that take the options as a named property of their one argument.
+const OPTIONS_PROPERTY = {
+  validateStaffAction: 'staffOptions',
+  settleStaffHeal: 'healOpts',
 };
 // Display helpers that count a staff's uses: their options must carry the run.
 const RUN_ARG_INDEX = {
@@ -55,7 +73,15 @@ const ALLOWED = {
   'src/engine/AIController.js':
     'enemy AI: a foe’s staves never take a player blessing (staffRunOptions returns {} for a foe)',
   'src/engine/StaffSettlement.js':
-    'defines validateStaffAction: it forwards the caller’s `staffOptions` to getStaffRemainingUses',
+    'defines validateStaffAction and settleStaffHeal: each forwards the caller’s options (`staffOptions`, `healOpts`) to Combat',
+  'src/engine/StaffRelocation.js':
+    'defines findRelocateTargets and getRelocationDestinations: each forwards the caller’s `staffOptions` to getEffectiveStaffRange',
+  'src/ui/healTargetPreview.js':
+    'defines healTargetPreview: it forwards the caller’s opts to resolveHeal (sceneHealPreview, its scene caller, passes staffRunOptions)',
+  'sim/fullrun.js':
+    'the balance sim’s own simplified battle model: no run, no blessings, the catalog staff as written',
+  'sim/lib/TacticianAgent.js':
+    'a sim agent’s target-picking estimate; the heal itself is settled by the harness with staffRunOptions',
 };
 
 const KEYWORDS = new Set(['true', 'false', 'null', 'undefined', 'this', 'new', 'typeof']);
@@ -147,13 +173,15 @@ function callsWithoutRunOptions(source) {
     if (!namesRunOptions(text, args[OPTIONS_ARG_INDEX[match[1]]]))
       found.push(`${match[1]} at line ${at(match.index)}`);
   }
-  // validateStaffAction({ ... }) must carry `staffOptions:` traced to the run.
-  for (const match of text.matchAll(/\bvalidateStaffAction\s*\(/g)) {
-    if (declared(match.index)) continue;
-    const [object = ''] = callArguments(text, match.index + match[0].length - 1);
-    const value = /staffOptions\s*:\s*([^,}]+)/.exec(object)?.[1];
-    if (!namesRunOptions(text, value)) found.push(`validateStaffAction at line ${at(match.index)}`);
-  }
+  // validateStaffAction({ ... }) must carry `staffOptions:`, settleStaffHeal({ ... }) `healOpts:`,
+  // traced to the run.
+  for (const [name, property] of Object.entries(OPTIONS_PROPERTY))
+    for (const match of text.matchAll(new RegExp(`\\b${name}\\s*\\(`, 'g'))) {
+      if (declared(match.index)) continue;
+      const [object = ''] = callArguments(text, match.index + match[0].length - 1);
+      const value = new RegExp(`${property}\\s*:\\s*([^,}]+)`).exec(object)?.[1];
+      if (!namesRunOptions(text, value)) found.push(`${name} at line ${at(match.index)}`);
+    }
   // The display helpers need the run in their options.
   const helpers = new RegExp(`\\b(${Object.keys(RUN_ARG_INDEX).join('|')})\\s*\\(`, 'g');
   for (const match of text.matchAll(helpers)) {
@@ -172,7 +200,7 @@ function callsWithoutRunOptions(source) {
 
 const CALLERS = SCANNED.filter((path) =>
   new RegExp(
-    `\\b(${[...Object.keys(OPTIONS_ARG_INDEX), ...Object.keys(RUN_ARG_INDEX), 'validateStaffAction'].join('|')})\\s*\\(`,
+    `\\b(${[...Object.keys(OPTIONS_ARG_INDEX), ...Object.keys(RUN_ARG_INDEX), ...Object.keys(OPTIONS_PROPERTY)].join('|')})\\s*\\(`,
   ).test(read(path)),
 );
 
@@ -191,6 +219,9 @@ describe("a staff's uses come from staffRunOptions", () => {
       'src/ui/choiceContent.js',
       'src/ui/ShopMenu.js',
       'src/ui/TradeMenu.js',
+      'src/ui/battleItemSummary.js',
+      'src/ui/healTargetPreview.js',
+      'src/engine/StaffRelocation.js',
     ])
       expect(files, expected).toContain(expected);
   });
@@ -217,6 +248,21 @@ describe("a staff's uses come from staffRunOptions", () => {
         'getStaffRemainingUses at line 1',
         'getStaffMaxUses at line 2',
       ]);
+    });
+    it('flags the heal, its preview and the reach as they were before Saint’s Reliquary', () => {
+      expect(
+        callsWithoutRunOptions(
+          'const range = getEffectiveStaffRange(staff, unit);\nresolveHeal(staff, unit, ally, { healingMultiplier: 1 });',
+        ),
+      ).toEqual(['getEffectiveStaffRange at line 1', 'resolveHeal at line 2']);
+      expect(
+        callsWithoutRunOptions(
+          'settleStaffHeal({ staff, healer, targets, healOpts: this.getHealOptions() });',
+        ),
+      ).toEqual(['settleStaffHeal at line 1']);
+      expect(
+        callsWithoutRunOptions('findRelocateTargets(staff, unit, units, grid, occupant);'),
+      ).toEqual(['findRelocateTargets at line 1']);
     });
     it('flags a heal check and a display helper without the run', () => {
       expect(

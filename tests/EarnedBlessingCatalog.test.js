@@ -15,7 +15,7 @@ import { loadGameData } from './testData.js';
 
 const data = loadGameData();
 const catalog = data.blessings;
-// Every earned row: PR C's four, PR D1's six, then PR D3's four twisted cards.
+// Every earned row: PR C's four, PR D1's six, PR D2's five, then PR D3's four twisted cards.
 const EARNED_IDS = [
   'unbroken_banner',
   'second_dawn',
@@ -27,6 +27,11 @@ const EARNED_IDS = [
   'tithe_box',
   'lantern_of_the_road',
   'crest_of_the_road',
+  'saints_reliquary',
+  'mercenary_ledger',
+  'smiths_covenant',
+  'thiefs_lantern',
+  'seers_eye',
   'darkened_dawn',
   'blood_covenant',
   'kingmakers_oath',

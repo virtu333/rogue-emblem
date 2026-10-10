@@ -460,7 +460,23 @@ export function openSanctum(run, nodeId) {
   });
 }
 
-// ── The Colosseum (D-8; the card ships in a later PR) ───────────────────
+// ── The Colosseum (D-8) ─────────────────────────────────────────────────
+
+/** The bout tiers whose win earns the Colosseum's offer (D-8: a harder win never misses it). */
+export const COLOSSEUM_OFFER_TIERS = Object.freeze(['gold', 'platinum']);
+
+/**
+ * True when this bout earns the Colosseum's offer: a win in a gold or platinum bout (the gold
+ * tier opens in Act II), in a real run, with no Colosseum entry on the ledger yet (once a run:
+ * an offer taken, skipped or found empty is never rolled again).
+ * @param {object} run
+ * @param {{ tier?: string, outcome?: string }} bout - the tier's name and the bout's outcome
+ */
+export function colosseumOfferDue(run, { tier = null, outcome = null } = {}) {
+  if (!run || isPrologueRun(run)) return false;
+  if (outcome !== 'win' || !COLOSSEUM_OFFER_TIERS.includes(tier)) return false;
+  return !ledgerOf(run)[COLOSSEUM_LEDGER_KEY];
+}
 
 /**
  * The Colosseum's offer, once a run (key `colosseum`), rolled on its own stream

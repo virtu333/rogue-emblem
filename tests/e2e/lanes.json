@@ -91,6 +91,7 @@
         "portrait-rotation.spec.js",
         "portrait-remains.spec.js",
         "portrait-prologue.spec.js",
+        "portrait-seers-eye.spec.js",
         "portrait-start-gift.spec.js"
       ],
       "shards": 6
@@ -189,6 +190,8 @@
         "slot-picker.spec.js",
         "strategy-layer.spec.js",
         "traits-v2.spec.js",
+        "seers-eye-preview.spec.js",
+        "colosseum-earned-offer.spec.js",
         "earned-twist.spec.js",
         "start-gift.spec.js"
       ]

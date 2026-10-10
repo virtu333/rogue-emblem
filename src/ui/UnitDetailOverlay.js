@@ -781,7 +781,7 @@ export class UnitDetailOverlay {
           const staffOptions = staffRunOptions(this.scene?.runManager, unit);
           const rem = getStaffRemainingUses(item, unit, staffOptions);
           const max = getStaffMaxUses(item, unit, staffOptions);
-          const rng = getEffectiveStaffRange(item, unit);
+          const rng = getEffectiveStaffRange(item, unit, staffOptions);
           const rngStr = rng.min === rng.max ? `Rng${rng.max}` : `Rng${rng.min}-${rng.max}`;
           this._tabTextSegments(
             contentX,

@@ -27,6 +27,7 @@ import { readCommittedAction } from '../src/ui/BattlePresentationCheckpoint.js';
 import { getPerBattleRemainingUses } from '../src/engine/Combat.js';
 import { canUseWeaponArt } from '../src/engine/WeaponArtSystem.js';
 import { recordAreaStrike } from '../src/engine/DeedSystem.js';
+import { markFoesShown } from '../src/engine/BattleInformation.js';
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
@@ -249,6 +250,36 @@ describe('aiming', () => {
     }
     // Board order is row then col: B (6,3) then A (4,5).
     expect(steps).toEqual(['6,3', '4,5', '6,3']);
+  });
+});
+
+describe("aiming under Seer's Eye (every foe shown through the fog)", () => {
+  // Paired worlds: the same fog, the same foes; only the Eye differs. Failure: the aim reads a
+  // body tile's sight alone, so a foe the Eye shows (drawn, inspectable) is never aimed at.
+  const aimWith = (eye, units, fogVisible) => {
+    const { scene, area } = battle(units(), { fogVisible });
+    markFoesShown(scene.grid, eye ? { foesShown: true } : {});
+    area.begin(scene.playerUnits[0], scene.playerUnits[0].weapon, stormcall);
+    return area;
+  };
+
+  it('opens on the nearest foe the Eye shows, though its tile is fogged', () => {
+    const units = () => [sage(0, 5), foe('Hidden', 3, 5), foe('Seen', 6, 5)];
+    const fogVisible = new Set(['0,5', '6,5', '5,5', '7,5', '6,4', '6,6']);
+    expect(aimWith(false, units, fogVisible).pending.aim).toEqual({ col: 6, row: 5 });
+    const eye = aimWith(true, units, fogVisible);
+    expect(eye.pending.aim).toEqual({ col: 3, row: 5 });
+    expect(eye.previewAt({ col: 3, row: 5 }).victims.map((v) => v.unit.name)).toEqual(['Hidden']);
+  });
+
+  it("aims at the Entity's nearest body tile, fogged or not", () => {
+    // Body (1..3, 4..6): only (3,6) is seen. Without the Eye the aim takes the seen tile (4
+    // away); with it, the nearest body tile in reach: (2,4) and (3,5) are both 3 away, and the
+    // board order (row, then column) takes (2,4).
+    const units = () => [sage(0, 5), foe('Entity', 1, 4, 30, { isEntity: true, isBoss: true })];
+    const fogVisible = new Set(['0,5', '3,6']);
+    expect(aimWith(false, units, fogVisible).pending.aim).toEqual({ col: 3, row: 6 });
+    expect(aimWith(true, units, fogVisible).pending.aim).toEqual({ col: 2, row: 4 });
   });
 });
 

@@ -1,7 +1,14 @@
 import { button, element } from './MenuSurface.js';
 import { createNodeArt } from './NodeArt.js';
 import { nodeFrame } from './RouteGraph.js';
-import { describeLoomNode, describeRecruitPreview, loomHeader } from './loomModel.js';
+import {
+  SCOUTED_LOOM_STATES,
+  describeBattleScout,
+  describeLoomNode,
+  describeRecruitPreview,
+  loomHeader,
+} from './loomModel.js';
+import { scoutBattle } from '../engine/BattleScout.js';
 import { traitLines, markLine } from './traitContent.js';
 import { ruinsChoice } from '../engine/RuinsCommands.js';
 import { eventView } from '../engine/EventCommands.js';
@@ -167,6 +174,45 @@ function recruitBlock(view) {
 }
 
 /**
+ * Thief's Lantern and Seer's Eye show the foes the scout found (describeBattleScout), as a titled list.
+ * Read-only text: no control, nothing to focus.
+ */
+function scoutBlock(view) {
+  const block = element('section', null, 're-loom-scout');
+  block.setAttribute('aria-label', view.label);
+  const head = element('p', null, 're-loom-scout-head');
+  head.append(element('strong', view.title), document.createTextNode(` · ${view.note}`));
+  block.append(head);
+  if (view.rows.length) {
+    const list = element('ul', null, 're-loom-scout-list');
+    for (const row of view.rows) {
+      const item = element('li', null, row.boss ? 'is-boss' : '');
+      item.append(element('span', row.text, 're-loom-scout-foe'));
+      if (row.detail) item.append(element('span', ` · ${row.detail}`, 're-loom-scout-detail'));
+      list.append(item);
+    }
+    block.append(list);
+  } else if (view.empty) block.append(element('p', view.empty, 're-loom-scout-empty'));
+  if (view.more) block.append(element('p', view.more, 're-loom-scout-more'));
+  return block;
+}
+
+/** The scout's view of `node` for the card, or null (none held, not a battle, a failed build). */
+function scoutView(rm, node, gameData) {
+  try {
+    const scout = rm ? scoutBattle(rm, node) : null;
+    if (!scout) return null;
+    const affixNames = Object.fromEntries(
+      (gameData?.affixes?.affixes || []).map((a) => [a.id, a.name]),
+    );
+    return describeBattleScout(scout, { affixNames });
+  } catch (err) {
+    console.warn('[Loom] scout failed:', err);
+    return null;
+  }
+}
+
+/**
  * Open Roll: the node's other candidate, and the button that meets them instead
  * (`onSwap`: the route map's swap, which saves and redraws the card).
  */
@@ -287,6 +333,11 @@ export function renderLoomCard(card, node, ctx = {}) {
     }
     card.append(tags);
   }
+  // Thief's Lantern and Seer's Eye show the foes waiting at a battle still ahead (a live or
+  // future node, an eclipsed battle too: its foes are as real as any), never where the party
+  // stands, a road cut off or a node already walked.
+  const scout = SCOUTED_LOOM_STATES.includes(state) ? scoutView(rm, node, gameData) : null;
+  if (scout) card.append(scoutBlock(scout));
   if (info.recruit) card.append(recruitBlock(info.recruit));
   // Open Roll: the other candidate, swappable until the encounter is set (travel only: the
   // read-only Campaign Map passes no onSwapRecruit). A lord roll makes both candidates the same

@@ -705,6 +705,15 @@ export const BLESSING_ICON_REUSE = Object.freeze({
   tithe_box: 'upgrade-starting_gold',
   lantern_of_the_road: 'blessing-pilgrim_coin',
   crest_of_the_road: 'veterans-crest',
+  // PR D2's earned blessings (the atlas is full): Saint's Reliquary the Goddess Icon (a relic of
+  // healers), Mercenary Ledger the trade-contacts ledger, Smith's Covenant the weapon forge,
+  // Thief's Lantern the Hunter's Cloak (a thief's hooded cloak; the atlas's one lantern is
+  // already worn twice) and Seer's Eye the Delphi Shield (the seer's eye on its boss).
+  saints_reliquary: 'goddess-icon',
+  mercenary_ledger: 'upgrade-trade_contacts',
+  smiths_covenant: 'upgrade-weapon_forge',
+  thiefs_lantern: 'hunters-cloak',
+  seers_eye: 'delphi-shield',
   // PR D3's twisted earned blessings (the atlas is full): a darkened sun (the third Vision cell,
   // beside Second Dawn's second), a blood shard, an heir's crown, and a gilt medallion for the
   // dark sun's coin.
