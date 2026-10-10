@@ -35,7 +35,19 @@ function burdenValue(def, rung, key) {
   return onRung && onRung[key] !== undefined ? onRung[key] : def?.[key];
 }
 
-function burdenSentence(id, def, rung) {
+/**
+ * A price that names its own count for a burden ("Lingering Injury on your commander for 5
+ * battles": a start gift's catch) is held to it; the catalog's count is the rung's default. The
+ * count belongs to the burden's own clause: the search stops at a full stop, a semicolon or a
+ * "·" (the next price of a pair: "Lingering Injury · Hunted for 3 battles" names no injury count).
+ */
+function namedBattles(text, pattern) {
+  const source = pattern.source.replace(/^\\b|\\b$/g, '');
+  const match = new RegExp(`${source}[^.;\u00b7]*?\\bfor (\\d+) battles\\b`, 'i').exec(text);
+  return match ? Number(match[1]) : null;
+}
+
+function burdenSentence(id, def, rung, named = null) {
   const line = typeof def?.line === 'string' ? def.line : '';
   if (id === 'debt') {
     const share = Number(burdenValue(def, rung, 'garnish')) || 0.5;
@@ -51,7 +63,7 @@ function burdenSentence(id, def, rung) {
       .trim();
   }
   if (id === 'wounded') {
-    const battles = burdenValue(def, rung, 'battles');
+    const battles = named ?? burdenValue(def, rung, 'battles');
     const value = Math.abs(Number(burdenValue(def, rung, 'value')) || 2);
     return `One unit fights at -${value} to one stat${battles ? ` for ${battles} battles` : ''}. A church's Heal all mends it early.`;
   }
@@ -155,7 +167,7 @@ export function blessingTerms(
     if (!pattern.test(joined)) continue;
     const sentence =
       twistBurdenSentence(id, burdens?.[id], effects, { held, taken }) ||
-      burdenSentence(id, burdens?.[id], difficultyId);
+      burdenSentence(id, burdens?.[id], difficultyId, namedBattles(joined, pattern));
     if (sentence) out.push({ term, text: sentence });
   }
   for (const { term, pattern, text: sentence } of OTHER_TERMS)

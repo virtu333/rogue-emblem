@@ -1,7 +1,7 @@
 import { appendDetailScrollControls } from './DetailScrollControls.js';
 import { InputAction } from '../utils/InputActions.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
-import { blessingCardContent, difficultyBannerContent } from './choiceContent.js';
+import { blessingCardContent, difficultyBannerContent, giftCardContent } from './choiceContent.js';
 import { blessingTerms } from '../engine/BlessingTerms.js';
 import { ContextHelp } from './ContextHelp.js';
 import {
@@ -43,8 +43,8 @@ export class RunSetupMenu {
   }
   navigate(delta) {
     if (this.scene.isTransitioning) return;
-    const count =
-      this.kind === 'blessing' ? this.scene.options.length + 1 : this.scene.modes.length;
+    // The shrine: its blessings, the gift (when one is offered), then No blessing, last.
+    const count = this.kind === 'blessing' ? this.scene._skipIndex() + 1 : this.scene.modes.length;
     this.scene.selectedIndex = (this.scene.selectedIndex + delta + count) % count;
     this.render();
     (
@@ -66,8 +66,8 @@ export class RunSetupMenu {
     const parts = blessing ? this.blessings(lead) : this.difficulties(footer);
     footer.prepend(lead);
     if (blessing) {
-      // "No blessing" is a face-down card kept beside the confirm.
-      const none = s.options.length;
+      // "No blessing" is a face-down card kept beside the confirm (after the gift, if any).
+      const none = s._skipIndex();
       const blank = button(null, () => s._select(none), 're-btn ch-blank');
       blank.append(element('span', null, 'ch-blank-back'), element('span', 'No blessing'));
       blank.dataset.focus = `choice-${none}`;
@@ -87,6 +87,7 @@ export class RunSetupMenu {
     confirm.disabled = !!chosen?.locked || s.isTransitioning;
     footer.append(confirm);
     this.surface.body.replaceChildren(...parts, footer);
+    if (blessing) this.watchLeadBoon();
     keepDraftScroll(parts[0], scrollTop);
     this.fitStop?.();
     this.fitStop = fitDraft(this.surface.body, '.ch-banner-name, .ch-tarot-name', { min: 10 });
@@ -106,8 +107,13 @@ export class RunSetupMenu {
     this.help = new ContextHelp(
       this.scene,
       this.surface.root,
-      `${content.name}: the price`,
-      [{ lead: `${content.costLabel}: ${content.cost}` }, { points: terms }],
+      `${content.name}: ${content.gift ? 'the catch' : 'the price'}`,
+      [
+        // A gift says what it gives first: the catch is only half of the bargain.
+        ...(content.gift && content.boon ? [{ lead: `Gives: ${content.boon}` }] : []),
+        { lead: `${content.costLabel}: ${content.cost}` },
+        { points: terms },
+      ],
       () => {
         this.help = null;
       },
@@ -116,10 +122,15 @@ export class RunSetupMenu {
   priceHelpEnabled() {
     return !this.help && !this.scene.isTransitioning;
   }
-  /** Shrine blessings as tarot: tier numeral, the Hollow Sun, boon and cost. */
+  /**
+   * Shrine blessings as tarot: tier numeral, the Hollow Sun, boon and cost. A start gift
+   * (StartGifts.js) is the fourth card, after the blessings: its sun holds its icon and its foot
+   * is the catch.
+   */
   blessings(lead) {
     const s = this.scene;
-    const row = draftRow(s.options.length, 'ch-tarots');
+    const gift = s.gift ? giftCardContent(s.gift) : null;
+    const row = draftRow(s.options.length + (gift ? 1 : 0), 'ch-tarots');
     const termsOf = (content) =>
       content?.cost
         ? blessingTerms([content.cost], {
@@ -141,23 +152,52 @@ export class RunSetupMenu {
       card.dataset.focus = `choice-${i}`;
       row.append(card);
     });
-    const chosen = blessingCardContent(s.options[s.selectedIndex]);
+    if (gift) {
+      const index = s.options.length;
+      const terms = termsOf(gift);
+      const card = blessingTarotCard(gift, {
+        selected: index === s.selectedIndex,
+        onSelect: () => s._select(index),
+        terms,
+        onHold: () => this.openPriceHelp(gift, terms),
+        holdEnabled: () => this.priceHelpEnabled(),
+      });
+      card.dataset.focus = `choice-${index}`;
+      card.dataset.gift = gift.id;
+      row.append(card);
+    }
+    const chosenIndex = gift && s.selectedIndex === s.options.length ? s.options.length : null;
+    const chosen = chosenIndex !== null ? gift : blessingCardContent(s.options[s.selectedIndex]);
+    // The chosen card's boon, said again ahead of the terms: always for a gift ("Gives: ..."),
+    // whose card may be the narrowest of four; for a blessing only while its card's lines are
+    // clipped (a short landscape phone: watchLeadBoon), so a boon is never unread.
+    const boonLine = chosen?.boon ? element('span', null, 'ch-lead-boon') : null;
+    if (boonLine) {
+      boonLine.append(element('b', `${chosen.gift ? 'Gives' : 'Boon'}:`), ` ${chosen.boon} `);
+      boonLine.hidden = !chosen.gift;
+    }
+    this.leadBoon = boonLine
+      ? { node: boonLine, always: Boolean(chosen.gift), index: chosenIndex ?? s.selectedIndex }
+      : null;
     // A price that names a burden, shadow or Vision says what it means in place of the lore
     // (the card already says "Pact").
     const allTerms = termsOf(chosen);
     const chosenTerms = allTerms.filter((t) => t.term !== 'Pact');
     if (chosenTerms.length) {
       const terms = element('span', null, 'ch-term');
+      if (boonLine) terms.append(boonLine);
       for (const t of chosenTerms) terms.append(element('b', `${t.term}:`), ` ${t.text} `);
       // The words themselves open the whole price (a tap, Enter or a click): outside the
       // cards (a card is a button, and buttons can't nest), and no wider than the text,
       // so a short phone's list keeps its room.
       const open = button(null, () => this.openPriceHelp(chosen, allTerms), 'ch-term-open');
-      open.setAttribute('aria-label', `About ${chosen.name}'s price`);
+      open.setAttribute('aria-label', `About ${chosen.name}'s ${chosen.gift ? 'catch' : 'price'}`);
       open.dataset.focus = 'price-info';
       open.append(terms);
       lead.append(open);
-    } else
+    } else {
+      // No terms: the boon (when shown) takes the lore's place.
+      if (boonLine) lead.append(boonLine);
       lead.append(
         element(
           'span',
@@ -165,7 +205,34 @@ export class RunSetupMenu {
           chosen?.lore ? 'ch-lore' : '',
         ),
       );
+    }
     return [row];
+  }
+  /**
+   * Show the chosen blessing's boon in the footer while its card's lines are clipped
+   * (`scrollHeight > clientHeight`), re-checked as the card settles (fonts, fitDraft, a turn of
+   * the phone). A gift's is always shown. Nothing to watch without a DOM.
+   */
+  watchLeadBoon() {
+    this.leadBoonObserver?.disconnect();
+    this.leadBoonObserver = null;
+    const lead = this.leadBoon;
+    if (!lead || lead.always) return;
+    const lines = this.surface.body.querySelector(
+      `.ch-tarot[data-focus="choice-${lead.index}"] .ch-lines`,
+    );
+    if (!lines) return;
+    const sync = () => {
+      if (this.leadBoon !== lead) return;
+      lead.node.hidden = !(lines.scrollHeight > lines.clientHeight + 1);
+    };
+    sync();
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(sync);
+    if (typeof ResizeObserver === 'function') {
+      this.leadBoonObserver = new ResizeObserver(sync);
+      this.leadBoonObserver.observe(lines);
+      for (const child of lines.children) this.leadBoonObserver.observe(child);
+    }
   }
   /** Difficulty as hanging banners, the chosen mode's terms read beneath. */
   difficulties(footer) {
@@ -231,6 +298,8 @@ export class RunSetupMenu {
     return [row, detail];
   }
   destroy() {
+    this.leadBoonObserver?.disconnect();
+    this.leadBoonObserver = null;
     this.fitStop?.();
     this.help?.destroy();
     this.help = null;

@@ -139,14 +139,18 @@ export function accessorySkillRng(item, act) {
  * @param {string} act act id ('act1'..'act4'; later acts read Act IV's table)
  * @param {{ lootTables?: object, skills?: object[] }} data a gameData serves
  * @param {() => number} [rng] defaults to the item's keyed stream
+ * @param {{ chance?: number|null }} [options] `chance`: the roll's odds in place of the act's
+ *   (a start gift's own, docs/specs/blessings-v3.md §7); the pool and price are the act's still
  * @returns {object} the same item
  */
-export function bindAccessorySkill(item, act, data, rng = null) {
+export function bindAccessorySkill(item, act, data, rng = null, { chance: override = null } = {}) {
   if (!canRollAccessorySkill(item)) return item;
   const config = accessorySkillConfig(data);
   if (!config) return item;
   const draw = rng || accessorySkillRng(item, act);
-  const chance = Number(config.chanceByAct?.[accessorySkillActKey(act)]) || 0;
+  const chance = Number.isFinite(override)
+    ? override
+    : Number(config.chanceByAct?.[accessorySkillActKey(act)]) || 0;
   if (!(draw() < chance)) return item;
   const pool = accessorySkillPool(config, act, data?.skills);
   if (pool.length === 0) return item;

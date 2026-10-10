@@ -125,13 +125,14 @@ function glyphElement(id, size) {
  * A socketed item icon.
  * @param {object|string} subject item / reward choice / blessing / upgrade / name
  * @param {{size?:number, socket?:boolean, kind?:string, className?:string,
- *   label?:string, marks?:boolean}} [options] size = the icon's CSS px (16/32/48/64/96);
- *   socket=false draws the bare icon; marks adds forge level and imbue pips.
+ *   label?:string, marks?:boolean, iconId?:string}} [options] size = the icon's CSS px
+ *   (16/32/48/64/96); socket=false draws the bare icon; marks adds forge level and imbue pips;
+ *   iconId names an atlas cell outright (a start gift's borrowed icon), when the atlas has it.
  * @returns {HTMLSpanElement}
  */
 export function itemIcon(subject, options = {}) {
   const { size = 32, socket = true, kind, className = '', label = '', marks = true } = options;
-  const id = itemIconId(subject, kind);
+  const id = options.iconId && has(options.iconId) ? options.iconId : itemIconId(subject, kind);
   const meta = itemIconMeta(id);
   const el = document.createElement('span');
   el.className = `ia-icon ${className}`.trim();

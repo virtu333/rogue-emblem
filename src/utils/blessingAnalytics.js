@@ -10,11 +10,35 @@ function createEmptySnapshot() {
       runsCompleted: 0,
       runsWithBlessing: 0,
       runsSkippedBlessing: 0,
+      // Runs that took the shrine's gift with a catch (engine/StartGifts.js): neither a
+      // blessing picked nor one skipped.
+      runsWithGift: 0,
       victories: 0,
       defeats: 0,
     },
     blessings: {},
+    // Per gift id: offers, picks (taken) and the outcomes of the runs that took it.
+    gifts: {},
   };
+}
+
+function ensureGiftStats(snapshot, giftId) {
+  if (!snapshot.gifts || typeof snapshot.gifts !== 'object') snapshot.gifts = {};
+  if (!snapshot.gifts[giftId]) {
+    snapshot.gifts[giftId] = { offers: 0, picks: 0, runs: 0, wins: 0, losses: 0 };
+  }
+  return snapshot.gifts[giftId];
+}
+
+const nonEmptyString = (value) =>
+  typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+
+/** The blessing ids a taken start gift handed out (Sealed Reliquary, Pilgrim's Wager). */
+function giftGrantedBlessingIds(startGift) {
+  return (Array.isArray(startGift?.granted) ? startGift.granted : [])
+    .filter((entry) => entry?.kind === 'blessing')
+    .map((entry) => nonEmptyString(entry.id))
+    .filter(Boolean);
 }
 
 function getStorage() {
@@ -40,6 +64,9 @@ function ensureBlessingStats(snapshot, blessingId) {
       lastOutcomeAt: null,
     };
   }
+  // A card a start gift handed out is counted apart from picks (older snapshots lack it).
+  if (!Number.isFinite(snapshot.blessings[blessingId].giftGrants))
+    snapshot.blessings[blessingId].giftGrants = 0;
   return snapshot.blessings[blessingId];
 }
 
@@ -66,6 +93,8 @@ export function loadBlessingAnalytics() {
     if (!parsed.global || typeof parsed.global !== 'object')
       parsed.global = createEmptySnapshot().global;
     if (!parsed.blessings || typeof parsed.blessings !== 'object') parsed.blessings = {};
+    if (!parsed.gifts || typeof parsed.gifts !== 'object') parsed.gifts = {};
+    if (!Number.isFinite(parsed.global.runsWithGift)) parsed.global.runsWithGift = 0;
     return parsed;
   } catch (_) {
     return createEmptySnapshot();
@@ -82,7 +111,19 @@ export function saveBlessingAnalytics(snapshot) {
   }
 }
 
-export function recordBlessingSelection({ offeredIds = [], chosenId = null } = {}) {
+/**
+ * One shrine selection. `giftOfferedId` is the gift the shrine offered (if any) and `giftId` the
+ * gift taken in place of a blessing: a gift run counts as `runsWithGift`, never as a skipped
+ * blessing, and a card the gift handed out (`grantedBlessingId`) as that card's `giftGrants`,
+ * never as a pick.
+ */
+export function recordBlessingSelection({
+  offeredIds = [],
+  chosenId = null,
+  giftOfferedId = null,
+  giftId = null,
+  grantedBlessingId = null,
+} = {}) {
   const snapshot = loadBlessingAnalytics();
   const offered = [
     ...new Set(
@@ -99,8 +140,20 @@ export function recordBlessingSelection({ offeredIds = [], chosenId = null } = {
     stats.offers += 1;
   }
 
+  const offeredGift = nonEmptyString(giftOfferedId);
+  const takenGift = nonEmptyString(giftId);
+  if (offeredGift) ensureGiftStats(snapshot, offeredGift).offers += 1;
+
   snapshot.global.selections += 1;
-  if (!selected) {
+  if (takenGift) {
+    snapshot.global.runsWithGift += 1;
+    const gift = ensureGiftStats(snapshot, takenGift);
+    // A gift taken that was not recorded as offered still counts its offer once.
+    if (takenGift !== offeredGift) gift.offers += 1;
+    gift.picks += 1;
+    const granted = nonEmptyString(grantedBlessingId);
+    if (granted) ensureBlessingStats(snapshot, granted).giftGrants += 1;
+  } else if (!selected) {
     snapshot.global.runsSkippedBlessing += 1;
   } else {
     snapshot.global.runsWithBlessing += 1;
@@ -114,19 +167,26 @@ export function recordBlessingSelection({ offeredIds = [], chosenId = null } = {
   return snapshot;
 }
 
+/**
+ * A run's outcome, credited to each blessing it held. A taken start gift (`startGift`, the run's
+ * record) is credited to the gift; a card the gift handed out is part of the gift, so its own
+ * stats are left alone.
+ */
 export function recordBlessingRunOutcome({
   activeBlessings = [],
   result = 'defeat',
   actIndex = 0,
   completedBattles = 0,
+  startGift = null,
 } = {}) {
   const snapshot = loadBlessingAnalytics();
   const now = Date.now();
+  const fromGift = new Set(giftGrantedBlessingIds(startGift));
   const blessingIds = [
     ...new Set(
       (Array.isArray(activeBlessings) ? activeBlessings : [])
         .map(extractBlessingId)
-        .filter(Boolean),
+        .filter((id) => id && !fromGift.has(id)),
     ),
   ];
   const isVictory = result === 'victory';
@@ -136,6 +196,14 @@ export function recordBlessingRunOutcome({
   snapshot.global.runsCompleted += 1;
   if (isVictory) snapshot.global.victories += 1;
   else snapshot.global.defeats += 1;
+
+  const giftId = nonEmptyString(startGift?.id);
+  if (giftId) {
+    const gift = ensureGiftStats(snapshot, giftId);
+    gift.runs += 1;
+    if (isVictory) gift.wins += 1;
+    else gift.losses += 1;
+  }
 
   for (const blessingId of blessingIds) {
     const stats = ensureBlessingStats(snapshot, blessingId);

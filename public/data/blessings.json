@@ -2054,5 +2054,157 @@
         ]
       }
     ]
+  },
+  "gifts": {
+    "offer": {
+      "fromRunsStarted": 1,
+      "chance": 0.5
+    },
+    "list": [
+      {
+        "id": "sealed_reliquary",
+        "name": "Sealed Reliquary",
+        "description": "A random tier III blessing, with no price of its own.",
+        "lore": "Wax over the lid, a saint's thumbprint in the wax. Nobody knows which saint.",
+        "icon": "generic-blessing",
+        "weight": 1,
+        "grant": {
+          "kind": "blessing",
+          "tier": 3
+        },
+        "catch": {
+          "label": "-1 Vision charge now",
+          "prices": [
+            "vision_down"
+          ]
+        }
+      },
+      {
+        "id": "fallen_hoard",
+        "name": "Fallen Hoard",
+        "description": "Two accessories from the next act's loot; one may bear a skill.",
+        "lore": "A dead knight's purse, still warm. Whoever killed him will want it back.",
+        "icon": "generic-accessory",
+        "weight": 1,
+        "grant": {
+          "kind": "accessories",
+          "count": 2,
+          "tierOffset": 1,
+          "skillChance": 0.5
+        },
+        "catch": {
+          "label": "Hunted for the next 3 battles",
+          "effects": [
+            {
+              "type": "burden",
+              "params": {
+                "id": "hunted",
+                "battles": 3
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "strangers_scroll",
+        "name": "Stranger's Scroll",
+        "description": "Two weapon-art scrolls and a skill scroll.",
+        "lore": "The stranger gave no name, only a limp, and left it with your commander.",
+        "icon": "generic-art-scroll",
+        "weight": 1,
+        "grant": {
+          "kind": "scrolls",
+          "artScrolls": 2,
+          "artScrollAct": "act2",
+          "skillScrolls": 1,
+          "skillScrollAct": "act2"
+        },
+        "catch": {
+          "label": "Lingering Injury on your commander for 5 battles",
+          "effects": [
+            {
+              "type": "burden",
+              "params": {
+                "id": "wounded",
+                "target": "commander",
+                "stat": "random",
+                "battles": 5
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "marked_blade",
+        "name": "Marked Blade",
+        "description": "A Silver weapon with a random imbue, for your commander.",
+        "lore": "A fine blade. The mark on its tang is a promise someone else made.",
+        "icon": "silver-sword",
+        "weight": 1,
+        "grant": {
+          "kind": "weapon",
+          "tier": "Silver",
+          "imbue": true
+        },
+        "catch": {
+          "label": "Sworn Enemy on the Act 1 boss",
+          "prices": [
+            "sworn_enemy"
+          ]
+        }
+      },
+      {
+        "id": "pilgrims_wager",
+        "name": "Pilgrim's Wager",
+        "description": "A random tier IV blessing, its pact waived.",
+        "lore": "The road takes its toll either way. This way you choose the coin.",
+        "icon": "gamblers-coin",
+        "weight": 1,
+        "requires": {
+          "eclipse": true
+        },
+        "grant": {
+          "kind": "blessing",
+          "tier": 4,
+          "waivePact": true
+        },
+        "catch": {
+          "label": "+15 shadow; one Act 1 node falls now",
+          "effects": [
+            {
+              "type": "eclipse_shadow_delta",
+              "params": {
+                "value": 15
+              }
+            },
+            {
+              "type": "eclipse_fall_now",
+              "params": {
+                "count": 1
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "armory_stash",
+        "name": "Armory Stash",
+        "replaces": "armory_stash",
+        "description": "Three random whetstone forges on your lords' weapons.",
+        "lore": "Whetstones packed in straw for an evil day. The day came early.",
+        "icon": "blessing-armory_stash",
+        "weight": 1,
+        "grant": {
+          "kind": "whetstones",
+          "count": 3
+        },
+        "catch": {
+          "label": "-2 DEF to all units in Act 1",
+          "prices": [
+            "act1_def_down_2"
+          ]
+        }
+      }
+    ]
   }
 }

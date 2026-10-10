@@ -164,6 +164,7 @@ import {
 } from './UnitIdentity.js';
 import {
   applyEclipse,
+  eclipseActIdOf,
   beginActShadow,
   buildEclipseView,
   commitShadow,
@@ -232,6 +233,12 @@ import {
   shrineBoonsOf,
 } from './ShrineBoons.js';
 import { createSpecialCharacter } from './SpecialCharacters.js';
+import {
+  chooseStartGift as takeStartGift,
+  findGift,
+  rollStartGiftOffer,
+  sanitizeStartGift,
+} from './StartGifts.js';
 
 // Phaser-specific fields that must be stripped for serialization
 const PHASER_FIELDS = UNIT_PRESENTATION_FIELDS;
@@ -736,6 +743,9 @@ export class RunManager {
     this.activeBlessings = [];
     this.blessingHistory = [];
     this.blessingSelectionTelemetry = null;
+    // The gift with a catch taken at the shrine (engine/StartGifts.js): `{ id, granted,
+    // catchLabel }`, saved; null for a run that took none.
+    this.startGift = null;
     this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
     // Which blessing-boon rules this run's saved numbers follow (BlessingBoonMigration.js):
     // a new run is current, fromJSON reads the save's own.
@@ -915,6 +925,9 @@ export class RunManager {
       applyBlessingsAtStart = true,
       difficultyId = this.difficultyId || 'normal',
       eclipseEnabled = true,
+      // How many runs this save has started (meta), for the shrine's gift (StartGifts.js): the
+      // sims and dev routes pass none, so they are never offered one.
+      runsStarted = 0,
     } = options;
     this.mode = STANDARD_RUN_MODE;
     this.applyDifficultySelection(difficultyId);
@@ -980,7 +993,13 @@ export class RunManager {
     this.blessingHistory = [];
     this._runStartBlessingsApplied = false;
     this._blessingChosen = false;
+    this.startGift = null;
     this.initializeBlessingsAtRunStart(options);
+    // The shrine's fourth card: a gift with a catch, on its own keyed streams (never the
+    // blessing offer's). Rolled from the run as it starts, before anything is applied.
+    const giftId = rollStartGiftOffer(this, { runsStarted });
+    if (giftId && this.blessingSelectionTelemetry)
+      this.blessingSelectionTelemetry.gift = { offeredId: giftId };
     if (applyBlessingsAtStart && this.activeBlessings.length > 0) {
       this.applyRunStartBlessingEffects();
     }
@@ -1062,6 +1081,7 @@ export class RunManager {
     this.blessingHistory = [];
     this._runStartBlessingsApplied = false;
     this._blessingChosen = false;
+    this.startGift = null; // the prologue is never offered a gift
     this.initializeBlessingsAtRunStart({ blessingSeed: this.runSeed });
     this.chooseBlessing(null);
   }
@@ -1306,6 +1326,36 @@ export class RunManager {
     return true;
   }
 
+  /**
+   * The gift this run's shrine offers beside its blessings (engine/StartGifts.js), as the
+   * catalog holds it, or null for a run offered none.
+   */
+  getStartGiftOffer() {
+    const giftId = this.blessingSelectionTelemetry?.gift?.offeredId;
+    const gift = giftId ? findGift(this.gameData, giftId) : null;
+    return gift ? structuredClone(gift) : null;
+  }
+
+  /** Take the offered gift in place of a blessing (StartGifts.chooseStartGift). */
+  chooseStartGift(giftId) {
+    return takeStartGift(this, giftId);
+  }
+
+  /**
+   * A start gift's own effects (its catch, the shrine handlers its grant reuses), applied through
+   * the shrine's handlers once, recorded under the gift's record id with stage 'gift'.
+   */
+  applyStartGiftEffects(recordId, effects = []) {
+    const outerStage = this._blessingEventStage;
+    this._blessingEventStage = 'gift';
+    try {
+      for (const effect of effects) this._applySingleRunStartBlessingEffect(recordId, effect);
+    } finally {
+      if (outerStage === undefined) delete this._blessingEventStage;
+      else this._blessingEventStage = outerStage;
+    }
+  }
+
   applyRunStartBlessingEffects() {
     if (this._runStartBlessingsApplied) return;
     if (!this.activeBlessings?.length) {
@@ -1356,17 +1406,10 @@ export class RunManager {
     blessingId,
     { earned = false, price = null, waivePact = false, source = null } = {},
   ) {
+    if (!this.canAddBlessingMidRun(blessingId, { earned, price, waivePact, source })) return false;
     const blessing = buildBlessingIndex(this.gameData?.blessings || {}).get(blessingId);
-    if (!blessing || this.getActiveBlessingIds().includes(blessingId)) return false;
-    if (blessing.earned === true && earned !== true) return false;
-    // A card whose cost is part of what it is (an intrinsic price, a tier IV pact) is only ever
-    // taken at the shrine, where the price is shown and paid; a mid-run grant carries none. A
-    // gift alone may waive a pact (never an intrinsic price: the boon itself carries it).
-    if (blessing.intrinsicPrice) return false;
-    if (blessing.pact && !(waivePact === true && source === 'gift')) return false;
     const rolledCost =
       price === null || price === undefined ? null : normalizeBlessingCostEntry(price);
-    if (price && !isMidRunPrice(rolledCost)) return false;
     this.activeBlessings = [
       ...(this.activeBlessings || []),
       createActiveBlessingEntry(blessingId, rolledCost, { midRun: true }),
@@ -1382,6 +1425,29 @@ export class RunManager {
       if (outerStage === undefined) delete this._blessingEventStage;
       else this._blessingEventStage = outerStage;
     }
+    return true;
+  }
+
+  /**
+   * Would addBlessingMidRun take this card with these options (it changes nothing): a known
+   * card not held, an earned one only with `earned`, never an intrinsic price, a pact only
+   * waived by a gift, and a price (if any) of a mid-run kind. A start gift plans its take with
+   * it before anything is chosen (StartGifts.giftBlessingPool).
+   */
+  canAddBlessingMidRun(
+    blessingId,
+    { earned = false, price = null, waivePact = false, source = null, index = null } = {},
+  ) {
+    // `index`: a caller checking many cards passes buildBlessingIndex's map once.
+    const blessing = (index || buildBlessingIndex(this.gameData?.blessings || {})).get(blessingId);
+    if (!blessing || this.getActiveBlessingIds().includes(blessingId)) return false;
+    if (blessing.earned === true && earned !== true) return false;
+    // A card whose cost is part of what it is (an intrinsic price, a tier IV pact) is only ever
+    // taken at the shrine, where the price is shown and paid; a mid-run grant carries none. A
+    // gift alone may waive a pact (never an intrinsic price: the boon itself carries it).
+    if (blessing.intrinsicPrice) return false;
+    if (blessing.pact && !(waivePact === true && source === 'gift')) return false;
+    if (price && !isMidRunPrice(normalizeBlessingCostEntry(price))) return false;
     return true;
   }
 
@@ -1844,6 +1910,31 @@ export class RunManager {
     if (!Array.isArray(items) || items.length <= 0) return null;
     const rng = this._createBlessingRng(blessingId, contextKey);
     return items[Math.floor(rng() * items.length)] || null;
+  }
+
+  /**
+   * The weapon-art scrolls a run-start grant may hand these lords (`starting_scroll`, and a
+   * start gift's Stranger's Scroll through it): an art some lord can wield, and, with
+   * `maxUnlockAct` ('act1'..'act4'), one that unlocks by that act, so a day-one grant never
+   * brings a late-act art. In catalog order.
+   */
+  startingArtScrollPool(maxUnlockAct = null) {
+    const artById = new Map((this.gameData?.weaponArts?.arts || []).map((art) => [art?.id, art]));
+    const actOrder = ['act1', 'act2', 'act3', 'act4'];
+    const maxUnlock = actOrder.indexOf(String(maxUnlockAct || ''));
+    const unlocksInTime = (scroll) => {
+      if (maxUnlock < 0) return true;
+      const art = artById.get(scroll?.teachesWeaponArtId);
+      const idx = actOrder.indexOf(String(art?.unlockAct || 'act1'));
+      return idx >= 0 && idx <= maxUnlock;
+    };
+    return (this.gameData?.weapons || []).filter(
+      (item) =>
+        item?.type === 'Scroll' &&
+        typeof item.teachesWeaponArtId === 'string' &&
+        unlocksInTime(item) &&
+        this._isScrollValidForCurrentLords(item, artById),
+    );
   }
 
   _isScrollValidForCurrentLords(scroll, artById) {
@@ -2400,30 +2491,17 @@ export class RunManager {
         return;
       }
 
-      const allScrolls = (this.gameData?.weapons || []).filter(
+      const hasCatalog = (this.gameData?.weapons || []).some(
         (item) => item?.type === 'Scroll' && typeof item.teachesWeaponArtId === 'string',
       );
-      if (allScrolls.length <= 0) {
+      if (!hasCatalog) {
         this._recordBlessingEvent('run_start', blessingId, effect, {
           skipped: true,
           reason: 'missing_scroll_catalog',
         });
         return;
       }
-      const artById = new Map((this.gameData?.weaponArts?.arts || []).map((art) => [art?.id, art]));
-      // `maxUnlockAct` keeps late-act arts out of a day-one grant (Scroll Archive draws
-      // only arts that unlock by Act II).
-      const actOrder = ['act1', 'act2', 'act3', 'act4'];
-      const maxUnlock = actOrder.indexOf(String(effect.params.maxUnlockAct || ''));
-      const unlocksInTime = (scroll) => {
-        if (maxUnlock < 0) return true;
-        const art = artById.get(scroll?.teachesWeaponArtId);
-        const idx = actOrder.indexOf(String(art?.unlockAct || 'act1'));
-        return idx >= 0 && idx <= maxUnlock;
-      };
-      const validScrolls = allScrolls.filter(
-        (scroll) => unlocksInTime(scroll) && this._isScrollValidForCurrentLords(scroll, artById),
-      );
+      const validScrolls = this.startingArtScrollPool(effect.params.maxUnlockAct);
       if (validScrolls.length <= 0) {
         this._recordBlessingEvent('run_start', blessingId, effect, {
           skipped: true,
@@ -2433,13 +2511,19 @@ export class RunManager {
       }
       if (!Array.isArray(this.scrolls)) this.scrolls = [];
       const granted = [];
+      // `distinct` (a start gift's Stranger's Scroll) never hands out the same art twice while
+      // the pool has another; each pick reads the same keyed stream as before.
+      const distinct = effect.params.distinct === true;
+      let remaining = [...validScrolls];
       for (let i = 0; i < count; i++) {
+        if (distinct && remaining.length <= 0) remaining = [...validScrolls];
         const picked = this._pickDeterministicBlessingItem(
-          validScrolls,
+          distinct ? remaining : validScrolls,
           blessingId,
           `starting_scroll:${i}`,
         );
         if (!picked) break;
+        if (distinct) remaining = remaining.filter((scroll) => scroll !== picked);
         this.scrolls.push(structuredClone(picked));
         granted.push(picked.name);
       }
@@ -5398,21 +5482,36 @@ export class RunManager {
    */
   applyEclipseNow({ activeNodeId = this.battleInProgress?.nodeId || null } = {}) {
     if (!this.isEclipseActive() || !this.nodeMap) return [];
+    // applyEclipse reads the act and the shadow from the map and the state themselves.
+    const { actId: _actId, shadow: _shadow, ...context } = this._eclipseNodeContext();
     return applyEclipse({
+      ...context,
       state: this.eclipse,
-      config: this.getEclipseConfig(),
       nodeMap: this.nodeMap,
-      runSeed: this.runSeed,
       currentNodeId: this.currentNodeId,
       activeNodeId,
-      mapTemplates: this.gameData?.mapTemplates || null,
-      fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
-      halfFogChance: this.difficultyId === 'normal',
-      // A fallen event that has a dark face to offer stays an event (a Dark Omen).
-      darkOmen: (node) => hasDarkOmen(this, node),
       // Omen Reader: the node types the dark spares (here and on load alike).
       spareTypes: shrineBoonsOf(this).eclipseSpareTypes,
     });
+  }
+
+  /**
+   * How the dark takes one of this run's nodes (EclipseSystem.eclipseNode's context): the one
+   * set of terms the Eclipse's own falls (applyEclipseNow) and a start gift's fall
+   * (StartGifts' `eclipse_fall_now`) share, so a node fallen either way is the same node.
+   */
+  _eclipseNodeContext() {
+    return {
+      runSeed: this.runSeed,
+      config: this.getEclipseConfig(),
+      actId: eclipseActIdOf(this.nodeMap),
+      mapTemplates: this.gameData?.mapTemplates || null,
+      fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
+      halfFogChance: this.difficultyId === 'normal',
+      shadow: this.eclipse?.shadow,
+      // A fallen event that has a dark face to offer stays an event (a Dark Omen).
+      darkOmen: (node) => hasDarkOmen(this, node),
+    };
   }
 
   /** Presentation view of the Eclipse for this act (see EclipseSystem.buildEclipseView). */
@@ -6025,6 +6124,7 @@ export class RunManager {
         .filter(Boolean),
       blessingHistory: this.blessingHistory || [],
       blessingSelectionTelemetry: this.blessingSelectionTelemetry || null,
+      startGift: this.startGift || null,
       blessingRuntimeModifiers: this.blessingRuntimeModifiers || createBlessingRuntimeModifiers(),
       runSeed: this.runSeed,
       legendaryLordChance: this.legendaryLordChance,
@@ -6415,6 +6515,8 @@ export class RunManager {
     const rawActiveBlessings = Array.isArray(saved.activeBlessings) ? saved.activeBlessings : [];
     rm.blessingHistory = saved.blessingHistory || [];
     rm.blessingSelectionTelemetry = saved.blessingSelectionTelemetry || null;
+    // The start gift taken (StartGifts.js): read, never applied again. A save from before has none.
+    rm.startGift = sanitizeStartGift(saved.startGift);
     if (rm.blessingSelectionTelemetry && !Array.isArray(rm.blessingSelectionTelemetry.offeredIds)) {
       rm.blessingSelectionTelemetry.offeredIds = Array.isArray(
         rm.blessingSelectionTelemetry.chosenIds,

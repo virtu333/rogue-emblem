@@ -425,6 +425,32 @@ export function blessingCardContent(blessing) {
   };
 }
 
+/**
+ * A start gift as the shrine's fourth card (docs/specs/blessings-v3.md §7; engine/StartGifts.js):
+ * no tier (it reads "Gift" and its sun holds the gift's icon, `mark: 'icon'`), the boon is what it
+ * gives and its foot is the catch, named a 'Catch'.
+ */
+export function giftCardContent(gift) {
+  if (!gift) return null;
+  const cost = typeof gift.catch?.label === 'string' ? gift.catch.label.trim() : '';
+  return {
+    id: gift.id || null,
+    name: String(gift.name || ''),
+    tier: 'gift',
+    earned: false,
+    gift: true,
+    numeral: '',
+    mark: 'icon',
+    icon: typeof gift.icon === 'string' ? gift.icon : null,
+    tierLabel: 'Gift',
+    boon: String(gift.description || ''),
+    cost,
+    pact: false,
+    costLabel: 'Catch',
+    lore: typeof gift.lore === 'string' ? gift.lore : '',
+  };
+}
+
 // Presentation copy for the banners (unknown modes simply show none).
 export const DIFFICULTY_TAGLINES = Object.freeze({
   normal: 'The road as it was walked',

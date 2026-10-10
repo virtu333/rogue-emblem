@@ -8,7 +8,13 @@
 //   3. opening another slot's shrine replaces this slot's seed, so slot 1 -> slot 2 -> slot 1
 //      draws a new offer;
 //   4. a begun run leaves the seed behind, so every later run repeats it;
-//   5. beginning a run in one slot clears another slot's pending offer.
+//   5. beginning a run in one slot clears another slot's pending offer;
+//   6. a page reload (a fresh registry) draws a new offer and gift (the seed lived only in the
+//      registry);
+//   7. the slot's stored seed survives the run's start, or a deleted slot, so a new run repeats
+//      an old offer;
+//   8. a device whose storage refuses loses the offer within the session (no registry fallback);
+//   9. the DEV `?runSeed=` pin is read outside the dev routes.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
@@ -33,7 +39,8 @@ Object.defineProperty(globalThis, 'localStorage', {
   writable: true,
 });
 
-import { BlessingSelectScene } from '../src/scenes/BlessingSelectScene.js';
+import { BlessingSelectScene, devRunSeedParam } from '../src/scenes/BlessingSelectScene.js';
+import { deleteSlot } from '../src/engine/SlotManager.js';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
@@ -60,7 +67,7 @@ function openShrine(reg) {
 async function beginRun(scene) {
   scene.isTransitioning = false;
   scene._blessingCommitted = false;
-  scene.selectedIndex = scene.options.length; // no blessing
+  scene.selectedIndex = scene._skipIndex(); // no blessing (after a gift, if one is offered)
   scene._confirm();
   await Promise.resolve();
   await Promise.resolve();
@@ -133,5 +140,100 @@ describe('the shrine keeps its offer until the run begins', () => {
     const back = openShrine(reg);
     expect(back.runManager.runSeed).toBe(1000);
     expect(offerOf(back)).toEqual(offerOf(first));
+  });
+
+  const KEY = 'emblem_rogue_slot_1_pendingSeed';
+  function meta(runsStarted = 1) {
+    return {
+      runsStarted,
+      getRunsStarted() {
+        return this.runsStarted;
+      },
+      getActiveEffects: () => null,
+      incrementRunsStarted() {
+        this.runsStarted += 1;
+      },
+    };
+  }
+
+  it('a page reload shows the same offer and the same gift (the seed is kept on the device)', () => {
+    const m = meta(1);
+    const now = vi.spyOn(Date, 'now').mockReturnValue(6);
+    const first = openShrine(registry({ activeSlot: 1, meta: m }));
+    expect(JSON.parse(store[KEY])).toEqual({ seed: 6, runsStarted: 1 });
+    // The reload: a new registry (a new session), a new clock.
+    now.mockReturnValue(999_999);
+    const reloaded = openShrine(registry({ activeSlot: 1, meta: m }));
+    expect(reloaded.runManager.runSeed).toBe(first.runManager.runSeed);
+    expect(offerOf(reloaded)).toEqual(offerOf(first));
+    expect(reloaded.gift?.id ?? null).toBe(first.gift?.id ?? null);
+    expect(first.gift).not.toBeNull();
+  });
+
+  it("the run's start clears the slot's stored seed, and the next run draws afresh", async () => {
+    const m = meta(1);
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1000);
+    const scene = openShrine(registry({ activeSlot: 1, meta: m }));
+    expect(store[KEY]).toBeDefined();
+    await beginRun(scene);
+    expect(store[KEY]).toBeUndefined();
+    expect(m.runsStarted).toBe(2);
+    now.mockReturnValue(2000);
+    const next = openShrine(registry({ activeSlot: 1, meta: m }));
+    expect(next.runManager.runSeed).toBe(2000);
+  });
+
+  it('a seed kept before a run began since is stale: the new run still draws afresh', () => {
+    // The clear at the run's start never reached the device (a crash, a refused write).
+    const m = meta(3);
+    store[KEY] = JSON.stringify({ seed: 1000, runsStarted: 2 });
+    vi.spyOn(Date, 'now').mockReturnValue(4000);
+    const scene = openShrine(registry({ activeSlot: 1, meta: m }));
+    expect(scene.runManager.runSeed).toBe(4000);
+    expect(JSON.parse(store[KEY])).toEqual({ seed: 4000, runsStarted: 3 });
+  });
+
+  it("deleting the slot clears its stored seed, and no other slot's", () => {
+    store[KEY] = JSON.stringify({ seed: 1000, runsStarted: 0 });
+    store.emblem_rogue_slot_2_pendingSeed = JSON.stringify({ seed: 2000, runsStarted: 0 });
+    deleteSlot(1);
+    expect(store[KEY]).toBeUndefined();
+    expect(store.emblem_rogue_slot_2_pendingSeed).toBeDefined();
+  });
+
+  it('when storage refuses, the registry keeps the offer for the session', () => {
+    const throwing = {
+      getItem: () => {
+        throw new Error('denied');
+      },
+      setItem: () => {
+        throw new Error('denied');
+      },
+      removeItem: () => {
+        throw new Error('denied');
+      },
+    };
+    const saved = globalThis.localStorage;
+    globalThis.localStorage = throwing;
+    try {
+      const reg = registry({ activeSlot: 1, meta: meta(1) });
+      const now = vi.spyOn(Date, 'now').mockReturnValue(1000);
+      const first = openShrine(reg);
+      now.mockReturnValue(2000);
+      const again = openShrine(reg);
+      expect(again.runManager.runSeed).toBe(first.runManager.runSeed);
+      expect(offerOf(again)).toEqual(offerOf(first));
+    } finally {
+      globalThis.localStorage = saved;
+    }
+  });
+
+  it('the ?runSeed= pin is a dev route only', () => {
+    expect(devRunSeedParam('?runSeed=6', { DEV: true })).toBe(6);
+    expect(devRunSeedParam('?runSeed=6', { DEV: false, VITE_DEV_ROUTES: 'true' })).toBe(6);
+    expect(devRunSeedParam('?runSeed=6', { DEV: false })).toBeNull();
+    expect(devRunSeedParam('?runSeed=6', {})).toBeNull();
+    expect(devRunSeedParam('?runSeed=x', { DEV: true })).toBeNull();
+    expect(devRunSeedParam('', { DEV: true })).toBeNull();
   });
 });

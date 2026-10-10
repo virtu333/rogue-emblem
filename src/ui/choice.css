@@ -704,6 +704,27 @@
   text-decoration: underline dotted;
   text-underline-offset: 2px;
 }
+/* The chosen card's boon said again ahead of its terms (RunSetupMenu.watchLeadBoon): always
+   "Gives: ..." for a start gift, "Boon: ..." for a blessing whose card clips its lines. With
+   no terms it takes the lore's place. */
+.ch-term .ch-lead-boon b,
+.ch-lead-boon b {
+  color: var(--re-parchment);
+  font-weight: 700;
+  text-decoration: none;
+}
+.ch-footer-lead > .ch-lead-boon {
+  font: 12px/1.35 var(--re-body);
+  color: var(--re-parchment-dim);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ch-footer-lead > .ch-lead-boon[hidden],
+.ch-footer-lead > .ch-lead-boon:not([hidden]) + .ch-lore {
+  display: none;
+}
 .ch-lore {
   font: italic 12px/1.35 var(--re-body);
   color: var(--re-parchment-dim);
@@ -1081,6 +1102,14 @@
 .ch-tarot[data-tier='earned'] .ch-numeral {
   filter: drop-shadow(0 0 3px var(--ch-glow)) drop-shadow(0 1px 0 var(--ce-ink-0));
 }
+/* A start gift (the shrine's fourth card, docs/specs/blessings-v3.md §7): the dark's violet rim,
+   and the gift's borrowed icon burning in the sun where a numeral would be. */
+.ch-tarot[data-tier='gift'] {
+  --ch-tier: var(--ce-unlight-5);
+}
+.ch-tarot[data-tier='gift'] .ch-numeral .ia-icon {
+  filter: drop-shadow(0 0 3px var(--ch-glow)) drop-shadow(0 1px 0 var(--ce-ink-0));
+}
 .ch-star {
   display: block;
   width: 56%;
@@ -1338,6 +1367,73 @@
   }
   .ch-tarot .ch-plate {
     gap: 4px;
+  }
+}
+
+/* Four tarot cards on a short landscape phone (568x320: the shrine with a start gift, the
+   fourth card). The sun shrinks and sits beside the name (a painted card's corner sun too),
+   the plate and the boxes tighten, and the boon's lines are a row of their own that keeps
+   at least two lines and scrolls the rest, so every card's boon is read and its cost (a
+   gift's catch) stays inside the card. Keyed on the four-card row: three cards keep the
+   rules above. Landscape only, so it never reaches an upright (portrait-ui) list. */
+@media (orientation: landscape) and (max-height: 340px) {
+  .ch-tarots[data-count='4'] .ch-tarot .ch-plate {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto minmax(2.6em, max-content) auto;
+    align-content: center;
+    align-items: stretch;
+    column-gap: 5px;
+    row-gap: 3px;
+    padding: 5px 5px 6px;
+  }
+  .ch-tarots[data-count='4'] .ch-tarot.has-art .ch-plate {
+    align-content: end;
+  }
+  .ch-tarots[data-count='4'] .ch-tarot .ch-plate > .ch-sun {
+    position: relative;
+    top: auto;
+    left: auto;
+    grid-area: 1 / 1;
+    align-self: center;
+    width: 22px;
+    height: 22px;
+  }
+  .ch-tarots[data-count='4'] .ch-tarot .ch-numeral {
+    font-size: 10px;
+    letter-spacing: 0.04em;
+  }
+  .ch-tarots[data-count='4'] .ch-tarot .ch-numeral .ia-icon {
+    scale: 0.55;
+  }
+  .ch-tarots[data-count='4'] .ch-tarot-name {
+    grid-area: 1 / 2;
+    align-self: center;
+    text-align: left;
+    font-size: 12px;
+    line-height: 1.1;
+  }
+  .ch-tarots[data-count='4'] .ch-tarot .ch-lines {
+    grid-area: 2 / 1 / 3 / 3;
+    min-height: 0;
+    gap: 3px;
+  }
+  .ch-tarots[data-count='4'] .ch-tarot .ch-cost {
+    grid-area: 3 / 1 / 4 / 3;
+  }
+  .ch-tarots[data-count='4'] .ch-boon,
+  .ch-tarots[data-count='4'] .ch-cost {
+    padding: 3px 5px;
+    font-size: 11px;
+    line-height: 1.25;
+  }
+  .ch-tarots[data-count='4'] .ch-cost {
+    padding-right: 22px;
+  }
+  .ch-tarots[data-count='4'] .ch-cost .ia-seal {
+    right: 4px;
+    width: 14px;
+    height: 14px;
   }
 }
 
