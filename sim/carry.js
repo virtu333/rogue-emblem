@@ -13,6 +13,7 @@ import { RunManager } from '../src/engine/RunManager.js';
 import { generateBattle } from '../src/engine/MapGenerator.js';
 import { createSeededRng } from '../src/engine/BlessingEngine.js';
 import { loadGameData } from '../tests/testData.js';
+import { skipOwedEarnedPick } from '../tests/sim/RunPolicies.js';
 
 const args = process.argv.slice(2);
 const arg = (name, fallback) => {
@@ -61,6 +62,7 @@ function runOnce(data, seed, difficultyId) {
     } else rm.markNodeComplete(node.id);
     if (rm.isActComplete()) {
       if (rm.isRunComplete()) break;
+      skipOwedEarnedPick(rm);
       rm.advanceAct();
     }
   }

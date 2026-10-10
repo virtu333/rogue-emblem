@@ -2,6 +2,8 @@ import { normalizeSpecialCharacter } from './SpecialCharacterPolicy.js';
 import { migrateUnitTraits } from './TraitSystem.js';
 import { normalizeBattleRecruits, reconcileRecruitIdentities } from './BattleRecruits.js';
 import { normalizeFallenBattleRecords } from './DeedSystem.js';
+import { restoreBattleBlessings, snapshotBattleBlessings } from './BattleBlessings.js';
+import { normalizePendingTerrainTiles } from './TerrainPhases.js';
 // Shared world-state contract for Vision and suspend. Unit arrays are restored
 // in snapshot order; references into that table survive JSON and duplicate names.
 const UNIT_GROUPS = ['playerUnits', 'enemyUnits', 'npcUnits'];
@@ -19,6 +21,8 @@ export function captureBattleWorldState(scene) {
     })),
     playerDeathsThisBattle: scene._playerDeathsThisBattle || 0,
     appliedHybridOverrideTurns: [...(scene.appliedHybridOverrideTurns || [])],
+    // Hybrid arena tiles a unit kept from walling, retried next enemy phase (TerrainPhases).
+    pendingHybridOverrideTiles: normalizePendingTerrainTiles(scene.pendingHybridOverrideTiles),
     latePressureWarningShown: scene._latePressureWarningShown === true,
     // Mid-battle recruits as they joined: the fallen record for a recruit who
     // dies before the battle ends (see BattleRecruits.js).
@@ -26,6 +30,11 @@ export function captureBattleWorldState(scene) {
     // What each unit that fell this battle did before it fell (deeds, item use),
     // committed to its fallen record at victory (DeedController).
     fallenBattleRecords: normalizeFallenBattleRecords(scene._fallenBattleRecords),
+    // The earned blessings this battle has spent (the Unbroken Banner's hold, the Ember
+    // Lantern): only when the run holds one, so a battle without them saves what it did.
+    ...(scene._battleBlessings
+      ? { battleBlessingsSpent: snapshotBattleBlessings(scene._battleBlessings) }
+      : {}),
   };
 }
 
@@ -58,6 +67,10 @@ export function restoreBattleWorldState(scene, snapshot) {
   if (Array.isArray(snapshot.appliedHybridOverrideTurns)) {
     scene.appliedHybridOverrideTurns = new Set(snapshot.appliedHybridOverrideTurns);
   }
+  // Older snapshots predate deferral: nothing was waiting.
+  scene.pendingHybridOverrideTiles = normalizePendingTerrainTiles(
+    snapshot.pendingHybridOverrideTiles,
+  );
   // Older snapshots predate these lists: no mid-battle recruit or fallen record.
   scene._fallenBattleRecords = normalizeFallenBattleRecords(snapshot.fallenBattleRecords);
   scene._battleRecruits = normalizeBattleRecruits(snapshot.battleRecruits);
@@ -66,6 +79,11 @@ export function restoreBattleWorldState(scene, snapshot) {
     [...UNIT_GROUPS, 'escapedUnits', 'nonDeployedUnits'].flatMap((group) => scene[group] || []),
     scene.runManager?.assignUnitUid ? (unit) => scene.runManager.assignUnitUid(unit) : null,
   );
+  // The battle's earned blessings keep their numbers (read from the run at its start); what
+  // they had spent comes back with the snapshot: a rewind to before a hold readies the banner
+  // again. A snapshot from before the field spent nothing.
+  if (scene._battleBlessings)
+    restoreBattleBlessings(scene._battleBlessings, snapshot.battleBlessingsSpent);
   if ('latePressureWarningShown' in snapshot) {
     scene._latePressureWarningShown = snapshot.latePressureWarningShown === true;
   }

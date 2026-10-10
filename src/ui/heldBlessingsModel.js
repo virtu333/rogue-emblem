@@ -18,7 +18,8 @@ function catalogIndex(run) {
 
 /**
  * One entry per held blessing, in the order it was taken:
- * `{ id, label, tier, line, price, priceKind, terms }`. `price` is the label of what the
+ * `{ id, label, tier, earned, line, price, priceKind, terms }` (`tier` reads 'Earned' for an
+ * earned blessing). `price` is the label of what the
  * blessing cost when it was taken (its rolled cost, or its pact) and `priceKind` is 'Cost',
  * 'Price' (an intrinsic price: the boon carries it) or 'Pact'; both are null for a free blessing (tier I, a church's vow, an event's gift).
  * `terms` explains the price's words (BlessingTerms). An id the catalog no longer has is left
@@ -45,7 +46,12 @@ export function heldBlessingEntries(run) {
     entries.push({
       id,
       label: blessing.name,
-      tier: TIER_NUMERALS[blessing.tier] || String(blessing.tier ?? ''),
+      // An earned blessing has no tier: the list says how it was come by.
+      tier:
+        blessing.earned === true
+          ? 'Earned'
+          : TIER_NUMERALS[blessing.tier] || String(blessing.tier ?? ''),
+      earned: blessing.earned === true,
       line: blessing.description || '',
       price: label,
       priceKind: label

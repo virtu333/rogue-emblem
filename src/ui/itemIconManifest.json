@@ -551,7 +551,11 @@
     "blessing-patient_dawn": [213, 5, 9],
     "blessing-twin_chapel": [187, 5, 8],
     "blessing-omen_reader": [223, 5, 8],
-    "blessing-lottery_loot": [300, 5, 9]
+    "blessing-lottery_loot": [300, 5, 9],
+    "blessing-unbroken_banner": [309, 5, 4],
+    "blessing-second_dawn": [306, 5, 4],
+    "blessing-ember_lantern": [214, 5, 4],
+    "blessing-captains_whistle": [303, 5, 4]
   },
   "aliases": {
     "upgrade-branching_threads": "blessing-focused_curriculum",
@@ -571,6 +575,10 @@
     "blessing-patient_dawn": "soothing-stone",
     "blessing-twin_chapel": "angelic-robe",
     "blessing-omen_reader": "warding-charm",
-    "blessing-lottery_loot": "upgrade-loot_quality"
+    "blessing-lottery_loot": "upgrade-loot_quality",
+    "blessing-unbroken_banner": "upgrade-commander_choice",
+    "blessing-second_dawn": "upgrade-vision_charges_2",
+    "blessing-ember_lantern": "phoenix-brooch",
+    "blessing-captains_whistle": "upgrade-heros_call"
   }
 }

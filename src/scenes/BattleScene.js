@@ -13,7 +13,7 @@ import {
   resetHistoryRecording,
 } from '../ui/BattleHistoryRecorder.js';
 import { hydrateBattleTimeline } from '../engine/BattleTimeline.js';
-import { combatTimelineFacts } from '../engine/BattleTimelineFacts.js';
+import { bannerHoldFact, combatTimelineFacts } from '../engine/BattleTimelineFacts.js';
 import { createBattleRng, keyedBattleRandom } from '../engine/BattleRng.js';
 import { AttackFlowController } from '../ui/AttackFlowController.js';
 import {
@@ -64,7 +64,14 @@ import {
   rowText,
 } from '../ui/battleMenuModel.js';
 import { revivalStoneCount } from '../engine/RevivalStones.js';
+import { applyDueHybridOverrides } from '../engine/TerrainPhases.js';
 import RevivalStoneController from '../ui/RevivalStoneController.js';
+import UnbrokenBannerController from '../ui/UnbrokenBannerController.js';
+import {
+  WHISTLE_NAME,
+  battleBlessingsAtStart,
+  blessingTurnStartEffects,
+} from '../engine/BattleBlessings.js';
 import {
   AREA_XP_LIVE,
   actionXpAwards,
@@ -452,6 +459,7 @@ const POST_COMBAT_HINT_COLORS = {
   buff: '#66ff99',
   heal: '#00ff00',
   mark: UI_PALETTE.mark,
+  muted: UI_PALETTE.muted,
 };
 const PAUSE_TRANSITION_TIMEOUT_MS = 6000;
 
@@ -564,6 +572,7 @@ export class BattleScene extends Phaser.Scene {
     this.reinforcementTemplatePool = null;
     this.lastReinforcementSchedule = null;
     this.appliedHybridOverrideTurns = new Set();
+    this.pendingHybridOverrideTiles = [];
     this.lastHybridOverrideResult = null;
     // A prologue chapter's teaching (PrologueController), created with the HUD.
     this._prologue = null;
@@ -584,6 +593,9 @@ export class BattleScene extends Phaser.Scene {
     this._postLootTransitionCompleted = false;
     this._postLootTransitionStartedAt = 0;
     this._postLootTransitionTimer = null;
+    // An earned-blessing pick open when the last battle's scene shut down never cleared its
+    // hold on the post-loot fallback (PostCombatController._presentEarnedPick).
+    this._earnedPickActive = false;
     this._transitionAfterBattlePromise = null;
     this._levelUpSfxKey = null;
     this._pendingLevelUpPopups = [];
@@ -763,6 +775,8 @@ export class BattleScene extends Phaser.Scene {
     this._combatFx = null;
     this._stoneFx?.destroy?.();
     this._stoneFx = null;
+    this._bannerFx?.destroy?.();
+    this._bannerFx = null;
     this._combatSpeedSnapshot = undefined;
     if (this._procBanner) {
       this._procBanner.destroy();
@@ -1486,6 +1500,12 @@ export class BattleScene extends Phaser.Scene {
       this._playerDeathsThisBattle = 0;
       this._battleRecruits = [];
       this._fallenBattleRecords = []; // DeedController.onUnitRemoved
+      // The run's earned blessings that act in battle (engine/BattleBlessings.js), read once
+      // here: null when it holds none. A resume's snapshot puts back what they had spent.
+      this._battleBlessings = battleBlessingsAtStart({
+        run: this.runManager,
+        battleParams: this.battleParams,
+      });
 
       // Track non-deployed units for merging back on victory
       if (
@@ -2741,63 +2761,33 @@ export class BattleScene extends Phaser.Scene {
     return { ...schedule, spawned };
   }
 
+  // Hybrid arena walls (engine/TerrainPhases.js, the one applier the harness shares): a
+  // tile a unit stands on and could not stand on after the change waits, and is retried
+  // at each later enemy-phase start (pendingHybridOverrideTiles, saved with the battle).
   applyDueHybridOverridesForTurn(turn) {
-    const normalizedTurn = Math.trunc(Number(turn) || 0);
-    const overrides = this.battleConfig?.phaseTerrainOverrides;
-    if (normalizedTurn <= 0 || !Array.isArray(overrides) || overrides.length === 0) {
-      const none = { turn: normalizedTurn, dueOverrides: 0, appliedOverrides: 0, changedTiles: 0 };
-      this.lastHybridOverrideResult = none;
-      return none;
-    }
-
     if (!(this.appliedHybridOverrideTurns instanceof Set)) {
       this.appliedHybridOverrideTurns = new Set();
     }
+    const { result, pendingTiles } = applyDueHybridOverrides({
+      grid: this.grid,
+      battleConfig: this.battleConfig,
+      turn,
+      occupants: [
+        ...(this.playerUnits || []),
+        ...(this.enemyUnits || []),
+        ...(this.npcUnits || []),
+      ],
+      appliedTurns: this.appliedHybridOverrideTurns,
+      pendingTiles: this.pendingHybridOverrideTiles,
+    });
+    this.pendingHybridOverrideTiles = pendingTiles;
 
-    const dueOverrides = overrides.filter(
-      (entry) =>
-        Number.isInteger(entry?.turn) &&
-        entry.turn === normalizedTurn &&
-        !this.appliedHybridOverrideTurns.has(entry.turn),
-    );
-    if (dueOverrides.length === 0) {
-      const none = { turn: normalizedTurn, dueOverrides: 0, appliedOverrides: 0, changedTiles: 0 };
-      this.lastHybridOverrideResult = none;
-      return none;
-    }
-
-    let changedTiles = 0;
-    const anchors = this.battleConfig?.hybridAnchors || {};
-    for (const entry of dueOverrides) {
-      if (!Array.isArray(entry?.setTiles)) continue;
-      for (const setTile of entry.setTiles) {
-        const target = Array.isArray(setTile?.coord)
-          ? { col: setTile.coord[0], row: setTile.coord[1] }
-          : anchors?.[setTile?.anchor];
-        if (!target || !Number.isInteger(target.col) || !Number.isInteger(target.row)) continue;
-        const terrainIndex = this.gameData.terrain.findIndex(
-          (terrain) => terrain?.name === setTile?.terrain,
-        );
-        if (terrainIndex < 0) continue;
-        const didSet = this.grid?.setTerrainAt?.(target.col, target.row, terrainIndex);
-        if (didSet) changedTiles++;
-      }
-      this.appliedHybridOverrideTurns.add(entry.turn);
-    }
-
-    if (changedTiles > 0) {
+    if (result.changedTiles > 0) {
       this.dangerZoneStale = true;
       this._pinnedThreats?.invalidate();
       if (this.grid?.fogEnabled) this.updateEnemyVisibility();
       this.updateObjectiveText();
     }
-
-    const result = {
-      turn: normalizedTurn,
-      dueOverrides: dueOverrides.length,
-      appliedOverrides: dueOverrides.length,
-      changedTiles,
-    };
     this.lastHybridOverrideResult = result;
     return result;
   }
@@ -7749,6 +7739,8 @@ export class BattleScene extends Phaser.Scene {
       skillsData: skills,
       marksData: this.gameData.marks || null,
       imbuesData: this.gameData.imbues || null,
+      // The Unbroken Banner (and the forecast's word on it): only while the run holds one.
+      ...(this._battleBlessings ? { battleBlessings: this._battleBlessings } : {}),
     };
   }
 
@@ -8602,6 +8594,7 @@ export class BattleScene extends Phaser.Scene {
       turnNumber: this.turnManager?.turnNumber,
       skillsData: this.gameData?.skills,
       marksData: this.gameData?.marks,
+      ...(this._battleBlessings ? { battleBlessings: this._battleBlessings } : {}),
     };
   }
 
@@ -8610,6 +8603,7 @@ export class BattleScene extends Phaser.Scene {
     const session = battleSession(this);
     for (const beat of beats) {
       if (!isCurrentBattleSession(this, session)) return;
+      if (beat.kind === 'banner') this._noteBannerHold(beat.unit);
       if (beat.kind === 'remove' || beat.kind === 'moved') {
         await this._playPostCombatBeat(beat);
       } else {
@@ -8649,6 +8643,9 @@ export class BattleScene extends Phaser.Scene {
       case 'stone':
         this.updateHPBar(unit);
         this._stoneBreakFx().playBreak(unit);
+        break;
+      case 'banner':
+        this._bannerHoldFx().playHold(unit);
         break;
       case 'poison':
         await this.showPoisonDamage(unit, beat.amount);
@@ -8789,6 +8786,20 @@ export class BattleScene extends Phaser.Scene {
     return (this._stoneFx ||= new RevivalStoneController(this).create());
   }
 
+  /** The Unbroken Banner's hold (UnbrokenBannerController), made on first use. */
+  _bannerHoldFx() {
+    return (this._bannerFx ||= new UnbrokenBannerController(this).create());
+  }
+
+  /**
+   * The timeline's line for a hold outside a combat's exchange (a Deathburst, a ballista bolt,
+   * the Entity's splash, a post-combat blow); the exchange's own holds are combat facts.
+   */
+  _noteBannerHold(unit) {
+    if (this.runManager?.battleInProgress)
+      this._timelineFacts = [...(this._timelineFacts || []), bannerHoldFact(unit)];
+  }
+
   /** Floating MISS over a dodging target (strike presentation, see CombatChoreography). */
   _showStrikeMiss(target, reduced) {
     const pos = this.grid.gridToPixel(target.col, target.row);
@@ -8841,6 +8852,8 @@ export class BattleScene extends Phaser.Scene {
     // A Revival Stone broke on this blow: the state is settled (the bar is full again),
     // so this only draws the refill (RevivalStoneController).
     if (event.stoneBroken) this._stoneBreakFx().playBreak(target);
+    // The Unbroken Banner held the target at 1 HP on this blow (settled: UnbrokenBannerController).
+    if (event.bannerHeld) this._bannerHoldFx().playHold(target);
 
     // Sleep: wake on damage -- remove Zzz icon and un-dim immediately
     if (event.wokeFromSleep) {
@@ -9357,12 +9370,16 @@ export class BattleScene extends Phaser.Scene {
         );
         for (const victim of victims) {
           if (victim.currentHP <= 0) continue;
-          const { stoneBroken } = damageUnitDetailed(victim, effect.amount);
+          const { stoneBroken, bannerHeld } = damageUnitDetailed(victim, effect.amount, {
+            blessings: this._battleBlessings,
+          });
+          if (bannerHeld) this._noteBannerHold(victim);
           safeBattlePresentation(
             'Deathburst',
             () => {
               this.updateHPBar(victim);
               if (stoneBroken) this._stoneBreakFx().playBreak(victim);
+              if (bannerHeld) this._bannerHoldFx().playHold(victim);
               const pos = this.grid.gridToPixel(victim.col, victim.row);
               const txt = this.add
                 .text(pos.x, pos.y - 16, `${effect.amount}`, {
@@ -9818,6 +9835,29 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
+    // 1b. Captain's Whistle (an earned blessing): +MOV to the army on turn 1's player phase,
+    // a timed buff that ends as that turn's enemy phase starts (engine/BattleBlessings.js).
+    // A resume never runs this pipeline: the buff rides the checkpoint's units.
+    if (!isCurrent()) return;
+    const whistle = blessingTurnStartEffects(
+      units,
+      this._battleBlessings,
+      this.turnManager?.turnNumber,
+    );
+    for (const effect of whistle) applyTimedBuffEntry(effect.target, effect.entry);
+    if (whistle.length > 0) {
+      await safeBattlePresentation(
+        "Captain's Whistle",
+        () =>
+          this.showBriefBanner(
+            `${WHISTLE_NAME}: +${whistle[0].entry.stats.MOV} Move this turn`,
+            UI_PALETTE.good,
+          ),
+        { scene: this },
+      );
+      if (!isCurrentBattleSession(this, session)) return;
+    }
+
     // 2. Affix effects (e.g. Regenerator, Waller)
     if (!isCurrent()) return;
     const affixEffects = getTurnStartAffixes(units, this.gameData.affixes);
@@ -9881,7 +9921,12 @@ export class BattleScene extends Phaser.Scene {
       const target = selectBallistaTarget(ballista, targetUnits);
       if (!target) continue;
       const result = resolveBallistaStrike(ballista, target);
-      const stoneBroken = result.didHit && damageUnitDetailed(target, result.damage).stoneBroken;
+      const struck = result.didHit
+        ? damageUnitDetailed(target, result.damage, { blessings: this._battleBlessings })
+        : null;
+      const stoneBroken = Boolean(struck?.stoneBroken);
+      const bannerHeld = Boolean(struck?.bannerHeld);
+      if (bannerHeld) this._noteBannerHold(target);
       // Presentation of the resolved shot: the bolt flies before the number shows.
       await safeBattlePresentation(
         'ballista shot',
@@ -9899,6 +9944,7 @@ export class BattleScene extends Phaser.Scene {
           async () => {
             this.updateHPBar(target);
             if (stoneBroken) this._stoneBreakFx().playBreak(target);
+            if (bannerHeld) this._bannerHoldFx().playHold(target);
             if (target.graphic) {
               const pos = this.grid.gridToPixel(target.col, target.row);
               const txt = this.add
@@ -10830,11 +10876,13 @@ export class BattleScene extends Phaser.Scene {
       if (!victim || victim === primaryTarget || victim.currentHP <= 0) continue;
       if (victim.faction === 'enemy') continue; // Don't splash allies
       const dmg = rollSplashDamage();
-      damageUnit(victim, dmg);
+      const { bannerHeld } = damageUnitDetailed(victim, dmg, { blessings: this._battleBlessings });
+      if (bannerHeld) this._noteBannerHold(victim);
       await safeBattlePresentation(
         'Entity splash',
         async () => {
           this.updateHPBar(victim);
+          if (bannerHeld) this._bannerHoldFx().playHold(victim);
           const pos = this.grid.gridToPixel(tile.col, tile.row);
           (this._combatFx ||= new CombatFxController(this)).playOverlay(
             'fx_sig_entity',

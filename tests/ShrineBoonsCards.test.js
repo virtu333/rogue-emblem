@@ -147,9 +147,11 @@ describe('the twelve cards', () => {
   });
 
   it('the twelve were appended: no older card moved', () => {
+    // After the 28 older offered cards; the 4 earned blessings (PR C) stay last.
     const ids = catalog.blessings.map((b) => b.id);
     expect(ids.slice(0, 28)).not.toContain('late_bloom');
-    expect(ids.slice(28)).toEqual(Object.keys(D4));
+    expect(ids.slice(28, 40)).toEqual(Object.keys(D4));
+    expect(catalog.blessings.slice(40).every((b) => b.earned === true)).toBe(true);
   });
 });
 

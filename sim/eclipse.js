@@ -16,7 +16,7 @@ import { calculatePar } from '../src/engine/TurnBonusCalculator.js';
 import { createSeededRng } from '../src/engine/BlessingEngine.js';
 import { eclipsePhase } from '../src/engine/EclipseSystem.js';
 import { arriveAtEvent, leaveEvent } from '../src/engine/EventCommands.js';
-import { playEventChoices } from '../tests/sim/RunPolicies.js';
+import { playEventChoices, skipOwedEarnedPick } from '../tests/sim/RunPolicies.js';
 import { loadGameData } from '../tests/testData.js';
 
 const args = process.argv.slice(2);
@@ -165,6 +165,7 @@ function runOnce(data, seed, offset) {
       out.byAct[rm.currentAct] = rm.eclipse.shadow;
       out.byActPressure[rm.currentAct] = rm.eclipse.actShadow ?? 0;
       if (rm.isRunComplete()) break;
+      skipOwedEarnedPick(rm);
       rm.advanceAct();
     }
   }

@@ -137,7 +137,7 @@ async function captureRecruitBattles(seeds, difficulty) {
 // Replay one capture.
 
 import { DEPLOY_LIMITS } from '../src/utils/constants.js';
-import { chooseDeployRoster } from '../tests/sim/RunPolicies.js';
+import { chooseDeployRoster, skipOwedEarnedPick } from '../tests/sim/RunPolicies.js';
 import { clearBattleScopedDeltas } from '../src/engine/BattleStatDeltas.js';
 
 function deployFor(capture) {
@@ -490,6 +490,7 @@ class ProtectedDriver extends RunSimulationDriver {
             `${u.name}:${u.className}:${u.level}${u.tier === 'promoted' ? 'P' : ''}:${u.weapon?.name || '-'}`,
         );
         if (this.runManager.isRunComplete()) return this._buildResult('victory');
+        skipOwedEarnedPick(this.runManager);
         this.runManager.advanceAct();
       }
     }
@@ -1465,7 +1466,10 @@ async function sectionGraph() {
     const rm = new RunManager(gameData, null);
     rm.startRun({ runSeed: seed, difficultyId: opts.difficulty, autoSelectBlessing: false });
     for (let i = 0; i < rm.actSequence.length; i++) {
-      if (i > 0) rm.advanceAct();
+      if (i > 0) {
+        skipOwedEarnedPick(rm);
+        rm.advanceAct();
+      }
       const act = rm.currentAct;
       if (act === 'finalBoss') continue;
       (acts[act] ||= []).push(pathStats(rm.nodeMap));
@@ -1605,12 +1609,12 @@ async function sectionBlessings() {
         : ['arsenal_pact', 'blood_forge', 'war_tutelage', 'armory_stash', 'scholar_vow'];
     for (const id of peers) {
       const b = catalog.blessings.find((x) => x.id === id);
-      if (b) configs.push([b.id, `T${b.tier} boon`, b.boons]);
+      if (b) configs.push([b.id, b.earned ? 'Earned boon' : `T${b.tier} boon`, b.boons]);
     }
   } else {
     for (const b of catalog.blessings) {
       if (only && !only.includes(b.id)) continue;
-      configs.push([b.id, `T${b.tier} boon`, b.boons]);
+      configs.push([b.id, b.earned ? 'Earned boon' : `T${b.tier} boon`, b.boons]);
     }
     if (!only || only.includes('costs')) {
       // v3: the price catalog, each price as the run's rung pays it (a Debt scaled by rung).

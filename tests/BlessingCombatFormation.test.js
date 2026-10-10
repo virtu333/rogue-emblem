@@ -462,7 +462,7 @@ describe('parsers and the validator', () => {
   it('the shipped cards validate', () => {
     expect(validateBlessingsConfig(data.blessings).errors).toEqual([]);
     const ids = data.blessings.blessings.map((b) => b.id);
-    // Appended after the older cards (the rest of §5 follows them).
+    // Appended after the older cards (the rest of §5, then the earned blessings, follow them).
     expect(ids.slice(26, 28)).toEqual(['phalanx_rite', 'duelists_creed']);
   });
 

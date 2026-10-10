@@ -21,6 +21,7 @@
 import { CHURCH_VOWS, NODE_TYPES } from '../utils/constants.js';
 import { shrineBoonsOf } from './ShrineBoons.js';
 import { isPrologueRun } from './ScriptedBattle.js';
+import { isEarnedBlessing } from './BlessingEngine.js';
 import {
   burdenDefFor,
   burdenOf,
@@ -159,7 +160,7 @@ export function churchVowCommitNote(run, nodeId, vow) {
 export function churchBlessingOffers(run, nodeId, gameData) {
   const held = new Set(run?.getActiveBlessingIds?.() || []);
   const pool = (gameData?.blessings?.blessings || []).filter(
-    (b) => b?.tier === 1 && !held.has(b.id),
+    (b) => b?.tier === 1 && !isEarnedBlessing(b) && !held.has(b.id),
   );
   const seed = `${Number(run?.runSeed) >>> 0}:${nodeId}`;
   return pool

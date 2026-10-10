@@ -25,6 +25,7 @@ import {
 import {
   forecastProjection,
   projectedFallText,
+  BANNER_HOLD_TEXT,
   forecastModifierText,
   forecastNotes,
   forecastReadingPoints,
@@ -637,8 +638,11 @@ export class MobileBattleHUD {
     const projection = forecastProjection(config.forecast);
     const hpAfter = projection ? (attacking ? projection.attackerHP : projection.defenderHP) : null;
     const hp = el('div', 'mb-hp', `HP ${unit.currentHP} / ${unit.stats.HP}`);
-    // Lead with the outcome: the projected HP (or KO) right beside current HP.
-    if (Number.isFinite(hpAfter) && hpAfter !== unit.currentHP)
+    // Lead with the outcome: the projected HP (or KO) right beside current HP. A side the
+    // Unbroken Banner would hold says so, even when it already stands at 1 HP.
+    const holds = projection?.holds === (attacking ? 'attacker' : 'defender');
+    if (holds) hp.append(el('span', 'mb-hp-after mb-hp-held', ` → ${BANNER_HOLD_TEXT}`));
+    else if (Number.isFinite(hpAfter) && hpAfter !== unit.currentHP)
       hp.append(
         el(
           'span',

@@ -322,6 +322,19 @@ describe('canonical battle state', () => {
     ],
     ['village state', { villageState: { col: 0, row: 0, status: 'unknown' } }],
     ['override iterator', { appliedHybridOverrideTurns: {} }],
+    ['pending override list', { pendingHybridOverrideTiles: {} }],
+    [
+      'pending override turn',
+      { pendingHybridOverrideTiles: [{ turn: 0, col: 1, row: 1, terrain: 'Wall' }] },
+    ],
+    [
+      'pending override tile',
+      { pendingHybridOverrideTiles: [{ turn: 2, col: 20, row: 1, terrain: 'Wall' }] },
+    ],
+    [
+      'pending override terrain',
+      { pendingHybridOverrideTiles: [{ turn: 2, col: 1, row: 1, terrain: 1 }] },
+    ],
     ['random cursor', { decisionRngState: { algorithm: 'mulberry32-v1', cursor: -1 } }],
   ])('rejects malformed %s before optional history becomes a rewind target', (_, patch) => {
     const state = captureBattleState(fixture(), { rngSeed: 42 });
@@ -336,6 +349,16 @@ describe('canonical battle state', () => {
     expect(validateBattleState(history.snapshots.s1)).toBe(false);
     expect(hydrateBattleTimeline(history)).toBeNull();
     // Rejecting optional history never mutates the separate latest recovery.
+    expect(validateBattleState(state)).toBe(true);
+  });
+
+  it('accepts a hybrid wall waiting on an occupied tile, and an old state without the list', () => {
+    const scene = fixture();
+    scene.pendingHybridOverrideTiles = [{ turn: 2, col: 19, row: 15, terrain: 'Wall' }];
+    const state = captureBattleState(scene, { rngSeed: 42 });
+    expect(state.pendingHybridOverrideTiles).toEqual(scene.pendingHybridOverrideTiles);
+    expect(validateBattleState(state)).toBe(true);
+    delete state.pendingHybridOverrideTiles;
     expect(validateBattleState(state)).toBe(true);
   });
 

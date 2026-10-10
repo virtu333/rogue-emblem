@@ -1,7 +1,10 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import Ajv from 'ajv';
-import { validateMapTemplatesConfig } from '../src/engine/MapTemplateEngine.js';
+import {
+  reinforcementTurnOffsetsFrom,
+  validateMapTemplatesConfig,
+} from '../src/engine/MapTemplateEngine.js';
 import { validatePrologueConfig } from '../src/engine/Prologue.js';
 import { validateBlessingsConfig } from '../src/engine/BlessingEngine.js';
 import { validateEventsConfig } from '../src/engine/EventValidation.js';
@@ -58,7 +61,11 @@ for (const { schema, data } of AJV_SCHEMAS) {
 const mapTemplatesData = JSON.parse(
   readFileSync(path.join(DATA_DIR, 'mapTemplates.json'), 'utf-8'),
 );
-const mtResult = validateMapTemplatesConfig(mapTemplatesData);
+const mtResult = validateMapTemplatesConfig(mapTemplatesData, {
+  reinforcementTurnOffsets: reinforcementTurnOffsetsFrom(
+    JSON.parse(readFileSync(path.join(DATA_DIR, 'difficulty.json'), 'utf-8')),
+  ),
+});
 if (mtResult.valid) {
   console.log('  OK  mapTemplates.json (engine validator)');
 } else {

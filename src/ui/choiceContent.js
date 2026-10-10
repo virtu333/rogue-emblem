@@ -385,17 +385,27 @@ export function blessingPriceKind(blessing) {
   return 'Cost';
 }
 
-/** A blessing as a tarot card: tier numeral, boon, cost (or none), lore. */
+/**
+ * A blessing as a tarot card: tier numeral, boon, cost (or none), lore. An earned blessing has
+ * no tier: it reads "Earned" and its sun shows a star (`mark: 'star'`, drawn by
+ * choiceCards.blessingTarotCard: Cinzel, the sun's face, has no star glyph), never a numeral.
+ */
 export function blessingCardContent(blessing) {
   if (!blessing) return null;
-  const tier = Math.max(0, Math.min(5, Math.trunc(num(blessing.tier))));
+  const earned = blessing.earned === true;
+  const tier = earned ? 0 : Math.max(0, Math.min(5, Math.trunc(num(blessing.tier))));
   const priceLabel = blessing.rolledCost?.label ?? blessing.intrinsicPrice?.label;
   const cost = typeof priceLabel === 'string' && priceLabel.trim() ? priceLabel.trim() : '';
   return {
     id: blessing.id || null,
     name: String(blessing.name || ''),
     tier,
-    numeral: TIER_NUMERALS[tier] || String(tier || ''),
+    earned,
+    numeral: earned ? '' : TIER_NUMERALS[tier] || String(tier || ''),
+    // What the Hollow Sun shows in place of a numeral: a star for an earned blessing.
+    mark: earned ? 'star' : null,
+    // What the card says of its standing: "Earned", or "Tier III" (empty for an unrated card).
+    tierLabel: earned ? 'Earned' : TIER_NUMERALS[tier] ? `Tier ${TIER_NUMERALS[tier]}` : '',
     boon: String(blessing.description || ''),
     cost,
     // Pacts (Forbidden Tome, Scroll Archive) carry a fixed price, named as such.
