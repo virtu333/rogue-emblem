@@ -2,9 +2,11 @@
 
 Report of `npm run sim:blessings` (2026-10-10). The 1000 runs were played from scratch on this
 branch merged with main `9f12dcf6` (#278, and #283: Fiendish Blow +5 ATK, which changes battles).
-The claiming driver and policies are those of `a5dee778`. Three stored runs were re-played on
-`45fa08ae` and came out identical. Every table below is printed by
-`npm run sim:blessings -- --from ...` at `45fa08ae`; none is edited by hand.
+The claiming driver and policies are those of `a5dee778`. Every table below is printed by
+`npm run sim:blessings -- --from ...` at `45fa08ae`; none is edited by hand. The branch then took
+main `6006ebe3` (#277, #274, #287: event choice previews, the prologue, seed storage). Forty
+stored runs, the first ten of each rung, were re-played on that merge and came out identical
+field for field.
 
 **No card data was changed for this report.** It measures the cards; it does not retune them.
 
