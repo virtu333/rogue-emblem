@@ -40,6 +40,12 @@ const PAINTING_PENDING = [
   'second_dawn',
   'ember_lantern',
   'captains_whistle',
+  'standard_of_the_sun',
+  'hollow_hourglass',
+  'chronicle',
+  'tithe_box',
+  'lantern_of_the_road',
+  'crest_of_the_road',
 ];
 const paintedBlessings = data.blessings.blessings.filter((b) => !PAINTING_PENDING.includes(b.id));
 

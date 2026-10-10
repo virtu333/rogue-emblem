@@ -31,9 +31,11 @@ describe('Old Faces in the harness', () => {
   it("a fight policy rides to his side: the green deserter on the field is the node's preview, never a lord", async () => {
     for (const seed of [5, 6, 7, 8, 9, 10]) {
       // The lord roll is made certain (chance 1), so only the rule "an event's recruit never
-      // rolls a lord" can keep a lord off the field: no flag on the battle says so.
+      // rolls a lord" can keep a lord off the field: no flag on the battle says so. The ride's
+      // spoils grant an earned blessing (Crest of the Road), which a plain fight policy leaves
+      // alone (D-25), so the policy that takes those rides here.
       const driver = driverFor(seed, {
-        eventPolicy: 'fight',
+        eventPolicy: 'earned',
         metaEffects: { lordRecruitChanceBonus: 1 },
       });
       const rm = driver.runManager;

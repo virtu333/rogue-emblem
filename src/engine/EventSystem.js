@@ -36,6 +36,7 @@ import { isWorn } from './WeaponWear.js';
 import { canForge, canForgeStat } from './ForgeSystem.js';
 import { roadCandidates } from './RouteEdit.js';
 import { unitUidOf } from './UnitIdentity.js';
+import { earnedGrantBlock } from './EarnedBlessings.js';
 import { NODE_TYPES } from '../utils/constants.js';
 
 export const EVENT_ACTS = Object.freeze(['act1', 'act2', 'act3', 'act4']);
@@ -62,6 +63,7 @@ export const REQUIRES_KEYS = Object.freeze([
   'flagAct',
   'notContract',
   'roadAhead',
+  'earnedAvailable',
 ]);
 
 /** The first page of every event (its top-level `intro` and `choices`). */
@@ -606,6 +608,10 @@ export function evaluateRequires(run, requires, ctx = {}) {
     } else if (key === 'blessingTier') {
       if (availableEventBlessings(run, need).length === 0)
         return fail('There is nothing left to give you.');
+    } else if (key === 'earnedAvailable') {
+      // The named earned blessing could still be won here (EarnedBlessings.earnedGrantBlock).
+      const line = earnedGrantBlock(run, need, { source: 'event' });
+      if (line) return fail(line);
     } else {
       return fail('Unavailable.');
     }

@@ -5,7 +5,11 @@ import { getReviveCost } from '../../src/engine/RunManager.js';
 import { getCombatForecast } from '../../src/engine/Combat.js';
 import { chooseEventOption, eventView } from '../../src/engine/EventCommands.js';
 import { eventCatalogOf, findChoice, findEvent } from '../../src/engine/EventSystem.js';
-import { earnedPickOwed, skipEarnedBlessing } from '../../src/engine/EarnedBlessings.js';
+import {
+  earnedPickOwed,
+  ledgerKeyOf,
+  skipEarnedBlessing,
+} from '../../src/engine/EarnedBlessings.js';
 
 const NODE_PRIORITY = {
   [NODE_TYPES.RECRUIT]: 5,
@@ -132,6 +136,23 @@ export function choiceMayFight(event, choiceId, pageId = 'start') {
   return (choice?.outcomes || []).some((o) => (o.effects || []).some((e) => e?.type === 'battle'));
 }
 
+/**
+ * True when any outcome of the choice can grant an earned blessing (an `earnedBlessing` effect, in
+ * its outcomes, fallbacks or a battle's spoils). The sims never take one (decision D-25), so the
+ * default policies leave such a choice alone, as they leave a fight.
+ */
+export function choiceGrantsEarned(event, choiceId, pageId = 'start') {
+  const choice = findChoice(event, choiceId, pageId);
+  const grants = (effects) =>
+    (effects || []).some(
+      (e) => e?.type === 'earnedBlessing' || (e?.type === 'battle' && grants(e.afterVictory)),
+    );
+  return (
+    grants(choice?.effects) ||
+    (choice?.outcomes || []).some((o) => grants(o.effects) || grants(o.fallback))
+  );
+}
+
 /** True when any outcome of the choice leads on to another page of the event. */
 export function choiceLeadsOn(event, choiceId, pageId = 'start') {
   const choice = findChoice(event, choiceId, pageId);
@@ -142,20 +163,24 @@ export function choiceLeadsOn(event, choiceId, pageId = 'start') {
  * The event policy for the page the event is on: the first available choice that does not
  * start a battle, with the first qualifying unit as its target. `fight: true` prefers a
  * choice that may start one. On a multi-page event the policy stops going deeper when a
- * counter is low (one left or fewer): it then prefers a choice that ends the event.
+ * counter is low (one left or fewer): it then prefers a choice that ends the event. A choice
+ * that can grant an earned blessing is left alone (the sims measure none, D-25) unless
+ * `earned: true`; when it is the only choice open, it is still taken (never a stall).
  * @returns {{ choiceId: string, targetUid: string|null, mayFight: boolean, leadsOn: boolean }|null}
  */
-export function chooseEventPlan(run, nodeId, { fight = false } = {}) {
+export function chooseEventPlan(run, nodeId, { fight = false, earned = false } = {}) {
   const view = eventView(run, nodeId);
   if (!view || view.phase !== 'choosing') return null;
   const event = findEvent(eventCatalogOf(run), view.eventId);
-  const open = view.choices
-    .filter((choice) => !choice.block)
-    .map((choice) => ({
-      choice,
-      mayFight: choiceMayFight(event, choice.id, view.page),
-      leadsOn: choiceLeadsOn(event, choice.id, view.page),
-    }));
+  const available = view.choices.filter((choice) => !choice.block);
+  const withoutEarned = earned
+    ? available
+    : available.filter((choice) => !choiceGrantsEarned(event, choice.id, view.page));
+  const open = (withoutEarned.length ? withoutEarned : available).map((choice) => ({
+    choice,
+    mayFight: choiceMayFight(event, choice.id, view.page),
+    leadsOn: choiceLeadsOn(event, choice.id, view.page),
+  }));
   if (open.length === 0) return null;
   const low = (view.counters || []).some((counter) => counter.value <= 1);
   const wanted = (entry) => (fight ? entry.mayFight : !entry.mayFight);
@@ -175,10 +200,14 @@ export function chooseEventPlan(run, nodeId, { fight = false } = {}) {
  * no choice is open (`maxSteps` bounds a page loop).
  * @returns {{ plan: object, chosen: object }[]} the steps taken (the last may be a refusal)
  */
-export function playEventChoices(run, nodeId, { fight = false, maxSteps = 12 } = {}) {
+export function playEventChoices(
+  run,
+  nodeId,
+  { fight = false, earned = false, maxSteps = 12 } = {},
+) {
   const steps = [];
   for (let i = 0; i < maxSteps; i++) {
-    const plan = chooseEventPlan(run, nodeId, { fight });
+    const plan = chooseEventPlan(run, nodeId, { fight, earned });
     if (!plan) break;
     const chosen = chooseEventOption(run, nodeId, plan.choiceId, { targetUid: plan.targetUid });
     steps.push({ plan, chosen });
@@ -188,17 +217,17 @@ export function playEventChoices(run, nodeId, { fight = false, maxSteps = 12 } =
 }
 
 /**
- * The act boss's earned-blessing pick, left before the act advances (the game never advances
- * over an owed pick): the scripted player skips it through the engine, so the ledger stays whole
- * and no earned blessing reaches a sim yet (measuring them is a separate step). Skipping touches
- * no random stream, so a sim's numbers are what they were with the pick left owed. Every pick
- * still owed is skipped (one left from an earlier act too).
+ * Every owed earned-blessing pick (an act boss's before the act advances, an eclipsed elite's
+ * drop after its victory: the game holds the party on either), skipped through the engine by its
+ * ledger key, so the ledger stays whole and no earned blessing reaches a sim (decision D-25:
+ * measuring them is a separate step). Skipping touches no random stream, so a sim's numbers are
+ * what they were with the pick left owed. Every pick still owed is skipped.
  * @returns {number} how many picks were skipped
  */
 export function skipOwedEarnedPick(run) {
   let skipped = 0;
   for (let entry = earnedPickOwed(run); entry; entry = earnedPickOwed(run)) {
-    if (!skipEarnedBlessing(run, entry.actId).ok) break;
+    if (!skipEarnedBlessing(run, ledgerKeyOf(entry)).ok) break;
     skipped++;
   }
   return skipped;

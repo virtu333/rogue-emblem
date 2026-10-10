@@ -2633,6 +2633,10 @@
                         "base": 80,
                         "perAct": 40
                       }
+                    },
+                    {
+                      "type": "earnedBlessing",
+                      "id": "crest_of_the_road"
                     }
                   ]
                 }

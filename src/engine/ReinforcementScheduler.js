@@ -427,23 +427,26 @@ export function collectEdgeSpawnCandidates({
 }
 
 // The rout ladder (engine/RoutLadder.js writes it into the battle config at generation):
-// absolute turns (no difficulty offset, no jitter, no count bonus), one edge per wave.
+// absolute turns (no difficulty offset, no jitter, no count bonus), one edge per wave. Only a
+// blessing's delay (Hollow Hourglass, `turnDelay`) moves them: every wave a turn later.
 const LADDER_DEFAULT_MIN_PLAYER_DISTANCE = 3;
 const LADDER_DEFAULT_NPC_DISTANCE = 1;
 
-function getDueLadderWaves({ turn, reinforcements } = {}) {
+function getDueLadderWaves({ turn, reinforcements, turnDelay = 0 } = {}) {
   const currentTurn = normalizeInteger(turn, 0);
   const waves = reinforcements?.ladder?.waves;
   if (currentTurn <= 0 || !Array.isArray(waves)) return [];
+  const delay = Math.max(0, normalizeInteger(turnDelay, 0));
   const due = [];
   for (let waveIndex = 0; waveIndex < waves.length; waveIndex++) {
     const wave = waves[waveIndex];
-    const scheduledTurn = normalizeInteger(wave?.turn, 0);
-    if (scheduledTurn <= 0 || scheduledTurn !== currentTurn) continue;
+    const baseTurn = normalizeInteger(wave?.turn, 0);
+    const scheduledTurn = baseTurn + delay;
+    if (baseTurn <= 0 || scheduledTurn !== currentTurn) continue;
     due.push({
       waveType: LADDER_WAVE_TYPE,
       waveIndex,
-      baseTurn: scheduledTurn,
+      baseTurn,
       scheduledTurn,
       wave,
       xpMultiplier: Number.isFinite(wave?.xpMultiplier) ? wave.xpMultiplier : 0,
@@ -453,18 +456,20 @@ function getDueLadderWaves({ turn, reinforcements } = {}) {
 }
 
 // The Hunted wave: one absolute turn (no difficulty offset, no jitter, no count bonus: the
-// burden resolved its numbers when it was taken), edges named by the wave itself.
-function getDueHuntedWaves({ turn, reinforcements } = {}) {
+// burden resolved its numbers when it was taken), edges named by the wave itself. A blessing's
+// delay (Hollow Hourglass, `turnDelay`) moves it a turn later like every other wave.
+function getDueHuntedWaves({ turn, reinforcements, turnDelay = 0 } = {}) {
   const currentTurn = normalizeInteger(turn, 0);
   const wave = reinforcements?.hunted;
   if (currentTurn <= 0 || !wave || typeof wave !== 'object') return [];
-  const scheduledTurn = normalizeInteger(wave.turn, 0);
-  if (scheduledTurn <= 0 || scheduledTurn !== currentTurn) return [];
+  const baseTurn = normalizeInteger(wave.turn, 0);
+  const scheduledTurn = baseTurn + Math.max(0, normalizeInteger(turnDelay, 0));
+  if (baseTurn <= 0 || scheduledTurn !== currentTurn) return [];
   return [
     {
       waveType: HUNTED_WAVE_TYPE,
       waveIndex: HUNTED_WAVE_INDEX,
-      baseTurn: scheduledTurn,
+      baseTurn,
       scheduledTurn,
       wave,
       xpMultiplier: Number.isFinite(wave.xpMultiplier) ? wave.xpMultiplier : 0.5,
@@ -507,12 +512,17 @@ export function scheduleReinforcementsForTurn({
   classMoveType = null,
   difficultyId = 'normal',
   difficultyTurnOffset = 0,
+  turnDelay = 0,
   enemyCountBonus = 0,
   activeEnemyCount = 0,
   playerTiles = [],
   npcTiles = [],
   promotedMoveTypes = null,
 } = {}) {
+  // A blessing's delay (Hollow Hourglass) moves every kind of wave: the offset the template,
+  // scripted and repeating waves already read, and the ladder's and Hunted's absolute turns.
+  const delay = Math.max(0, normalizeInteger(turnDelay, 0));
+  difficultyTurnOffset = normalizeInteger(difficultyTurnOffset, 0) + delay;
   const dueWaves = getDueReinforcementWaves({
     turn,
     seed,
@@ -533,8 +543,8 @@ export function scheduleReinforcementsForTurn({
     difficultyTurnOffset,
     activeEnemyCount,
   });
-  const dueLadderWaves = getDueLadderWaves({ turn, reinforcements });
-  const dueHuntedWaves = getDueHuntedWaves({ turn, reinforcements });
+  const dueLadderWaves = getDueLadderWaves({ turn, reinforcements, turnDelay: delay });
+  const dueHuntedWaves = getDueHuntedWaves({ turn, reinforcements, turnDelay: delay });
   if (
     dueWaves.length === 0 &&
     dueScriptedWaves.length === 0 &&

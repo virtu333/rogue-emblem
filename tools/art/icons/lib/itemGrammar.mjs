@@ -678,6 +678,14 @@ export const BLESSING_ICON_REUSE = Object.freeze({
   second_dawn: 'upgrade-vision_charges_2',
   ember_lantern: 'phoenix-brooch',
   captains_whistle: 'upgrade-heros_call',
+  // PR D1's earned blessings (the atlas is full): a standard's crest, an hourglass-pale moon, a
+  // studied book, the tithe's purse, a road lantern and a veteran's crest.
+  standard_of_the_sun: 'vanguard-crest',
+  hollow_hourglass: 'moontide-amulet',
+  chronicle: 'upgrade-studied_training',
+  tithe_box: 'gold-pouch',
+  lantern_of_the_road: 'blessing-pilgrim_coin',
+  crest_of_the_road: 'veterans-crest',
 });
 
 /**

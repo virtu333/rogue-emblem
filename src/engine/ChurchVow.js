@@ -16,6 +16,9 @@
 import { CHURCH_VOWS, NODE_TYPES } from '../utils/constants.js';
 import { isPrologueRun } from './ScriptedBattle.js';
 import { isEarnedBlessing } from './BlessingEngine.js';
+import { earnedLedgerEntry, sanctumLedgerKey, takeEarnedBlessing } from './EarnedBlessings.js';
+import { isSanctum } from './SanctumPass.js';
+import { payChurchTithe } from './ChurchTithe.js';
 import {
   burdenDefFor,
   burdenOf,
@@ -58,10 +61,67 @@ export function churchVowLine(vow) {
 }
 
 /**
+ * The Old Sanctum's ledger entry when this church is one and its vow offers earned blessings
+ * ('open', or 'taken' once its vow took one), else null: an ordinary church, or a sanctum with
+ * nothing left to offer ('none': its altar gives the tier I blessings, decision D-6). The entry is
+ * written when the door opens (EarnedBlessings.openSanctum, ChurchController.handleChurch).
+ */
+export function sanctumEntry(run, nodeId) {
+  const node = run?.nodeMap?.nodes?.find((n) => n?.id === nodeId);
+  if (!isSanctum(node)) return null;
+  const entry = earnedLedgerEntry(run, sanctumLedgerKey(nodeId));
+  return entry && (entry.status === 'open' || entry.status === 'taken') ? entry : null;
+}
+
+/** The earned blessings the Old Sanctum's altar offers (catalog rows), in the order rolled. */
+export function sanctumBlessingOffers(run, nodeId, gameData) {
+  const entry = sanctumEntry(run, nodeId);
+  if (!entry || entry.status !== 'open') return [];
+  const catalog = gameData?.blessings?.blessings || [];
+  return entry.offered
+    .map((id) => catalog.find((b) => b?.id === id))
+    .filter((b) => b && isEarnedBlessing(b));
+}
+
+/** Why this earned blessing cannot be taken at the Old Sanctum now ('' when it can). */
+export function sanctumBlessingBlock(run, nodeId, blessingId, gameData) {
+  const entry = sanctumEntry(run, nodeId);
+  if (!entry) return 'That blessing is not offered here.';
+  if (entry.status === 'taken' || churchVow(run, nodeId) === 'blessing')
+    return 'This altar has already blessed you.';
+  const reason = churchVowBlock(run, nodeId, 'blessing');
+  if (reason) return reason;
+  if (!sanctumBlessingOffers(run, nodeId, gameData).some((b) => b.id === blessingId))
+    return 'That blessing is not offered here.';
+  if ((run.getActiveBlessingIds?.() || []).includes(blessingId)) return 'You already carry it.';
+  return '';
+}
+
+/**
+ * Vow a Blessing at the Old Sanctum: the chosen earned blessing joins the run (the ledger's take)
+ * and the church's vow is made. A Tithe Box taken here pays this church at once (it is in hand).
+ */
+export function takeSanctumBlessing(run, nodeId, blessingId, gameData) {
+  const reason = sanctumBlessingBlock(run, nodeId, blessingId, gameData);
+  if (reason) return { ok: false, reason };
+  const taken = takeEarnedBlessing(run, sanctumLedgerKey(nodeId), blessingId);
+  if (!taken.ok) return taken;
+  commitChurchVow(run, nodeId, 'blessing');
+  const tithe = payChurchTithe(run, nodeId);
+  const blessing = taken.blessing;
+  return {
+    ok: true,
+    message: `${blessing.name}: ${blessing.description}${tithe.paid ? ` ${tithe.message}` : ''}`,
+  };
+}
+
+/**
  * The minor blessings this altar offers: tier 1, none the run already holds, in an
- * order hashed from the run seed and the node (the same offer on every visit).
+ * order hashed from the run seed and the node (the same offer on every visit). An Old Sanctum
+ * whose vow offers earned blessings offers these instead (sanctumBlessingOffers), never both.
  */
 export function churchBlessingOffers(run, nodeId, gameData) {
+  if (sanctumEntry(run, nodeId)) return [];
   const held = new Set(run?.getActiveBlessingIds?.() || []);
   const pool = (gameData?.blessings?.blessings || []).filter(
     (b) => b?.tier === 1 && !isEarnedBlessing(b) && !held.has(b.id),

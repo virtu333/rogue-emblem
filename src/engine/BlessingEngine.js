@@ -20,6 +20,7 @@ import { parseLordStatArc } from './LordStatArc.js';
 import { parseBattleGoldGamble } from './BattleGoldGamble.js';
 import { playerWeaponArtBoonErrors } from './WeaponArtSystem.js';
 import { adjacentAllyDefBonusErrors, isolatedCombatBonusErrors } from './FormationBlessings.js';
+import { EARNED_D1_BOON_TYPES, earnedBoonErrors } from './EarnedBoons.js';
 import { ACT_SEQUENCE } from '../utils/constants.js';
 
 export const BLESSINGS_CONTRACT_VERSION = 3;
@@ -31,6 +32,30 @@ const REQUIRED_TOP_LEVEL_KEYS = ['version', 'blessings', 'costPools'];
 const REQUIRED_BLESSING_KEYS = ['id', 'name', 'description', 'boons', 'costs'];
 // Fields an earned blessing may not carry: it is free and has no tier.
 const EARNED_FORBIDDEN_KEYS = ['tier', 'prices', 'pact', 'intrinsicPrice'];
+// Fields only an earned blessing may carry (docs/specs/blessings-v3.md §6.3): where it is won,
+// the twist a twisted one is taken with, and what the run must have for it to be offered.
+const EARNED_ONLY_KEYS = ['sources', 'twist', 'requires'];
+
+/**
+ * Where an earned blessing can be won (`sources[].kind`): an act boss's pick, an eclipsed elite's
+ * spoils, the Old Sanctum's vow, the Colosseum and an event's outcome.
+ */
+export const EARNED_SOURCE_KINDS = Object.freeze([
+  'act_boss',
+  'eclipsed_elite',
+  'sanctum',
+  'colosseum',
+  'event',
+]);
+// The acts a source's `acts` may name (the final boss's act has no pick).
+const EARNED_SOURCE_ACTS = ['act1', 'act2', 'act3', 'act4'];
+/** The keys an earned blessing's `requires` may hold: `eclipse` (the run's Eclipse is on). */
+export const EARNED_REQUIRES_KEYS = Object.freeze(['eclipse']);
+/**
+ * Effect types a twist may carry beyond the price catalog's own (the twisted cards' effects that
+ * are no price a shrine sells). Appended to as twisted cards ship.
+ */
+export const TWIST_ONLY_EFFECT_TYPES = Object.freeze([]);
 const REQUIRED_EFFECT_KEYS = ['type', 'params'];
 const REQUIRED_COST_POOL_KEYS = ['2', '3', '4'];
 
@@ -57,7 +82,7 @@ export function createSeededRng(seed) {
   };
 }
 
-// Boons whose only param is a positive integer `value` (the earned blessings' effects).
+// Boons whose only param is a positive integer `value` (the first earned blessings' effects).
 const EARNED_BOON_VALUE_TYPES = new Set([
   'battle_last_stand',
   'act_start_vision_delta',
@@ -94,6 +119,10 @@ function validateBoonParams(effect, path, errors) {
     const value = effect.params?.value;
     if (!Number.isInteger(value) || value <= 0)
       errors.push(`${path}.params.value must be a positive integer (${effect.type})`);
+  } else if (EARNED_D1_BOON_TYPES.includes(effect.type)) {
+    // engine/EarnedBoons.js: the parser its handler and the save's sanitizer read.
+    for (const message of earnedBoonErrors(effect))
+      errors.push(`${path}.${message} (${effect.type})`);
   } else if (effect.type === 'adjacent_ally_def_bonus') {
     for (const message of adjacentAllyDefBonusErrors(effect.params))
       errors.push(`${path}.${message}`);
@@ -177,6 +206,11 @@ export function validateBlessingsConfig(config, options = {}) {
       errors.push(`${path}.tier must be one of 1,2,3,4`);
     }
     if (!earned && blessing.tier === 1) hasTier1 = true;
+    if (earned) validateEarnedFields(blessing, path, config, errors);
+    else
+      for (const key of EARNED_ONLY_KEYS)
+        if (blessing[key] !== undefined)
+          errors.push(`${path}.${key} is only allowed on an earned blessing`);
     if (typeof blessing.description !== 'string' || blessing.description.trim() === '') {
       errors.push(`${path}.description must be a non-empty string`);
     }
@@ -297,6 +331,73 @@ export function validateBlessingsConfig(config, options = {}) {
   }
 
   return { valid: errors.length === 0, errors, warnings };
+}
+
+/**
+ * An earned row's own fields (docs/specs/blessings-v3.md §6.3): `sources` names where it is won
+ * (required, at least one; a kind from EARNED_SOURCE_KINDS, `acts` a list of acts for a pick that
+ * belongs to some acts only); `twist` is the price a twisted card is taken with ({ label,
+ * effects }, its effects of a price's types), only on a card an act boss alone offers; `requires`
+ * holds only EARNED_REQUIRES_KEYS. Appends to `errors`.
+ */
+function validateEarnedFields(blessing, path, config, errors) {
+  const sources = blessing.sources;
+  if (!Array.isArray(sources) || sources.length === 0) {
+    errors.push(`${path}.sources must name where the earned blessing is won (at least one)`);
+  } else {
+    const kinds = new Set();
+    sources.forEach((source, i) => {
+      const where = `${path}.sources[${i}]`;
+      if (!isObject(source)) {
+        errors.push(`${where} must be { kind, acts? }`);
+        return;
+      }
+      if (!EARNED_SOURCE_KINDS.includes(source.kind))
+        errors.push(`${where}.kind must be one of ${EARNED_SOURCE_KINDS.join(', ')}`);
+      else if (kinds.has(source.kind)) errors.push(`${where}.kind "${source.kind}" is named twice`);
+      kinds.add(source.kind);
+      if (
+        source.acts !== undefined &&
+        (!Array.isArray(source.acts) ||
+          source.acts.length === 0 ||
+          source.acts.some((act) => !EARNED_SOURCE_ACTS.includes(act)))
+      )
+        errors.push(`${where}.acts must list acts from ${EARNED_SOURCE_ACTS.join(', ')}`);
+      for (const key of Object.keys(source))
+        if (key !== 'kind' && key !== 'acts') errors.push(`${where}.${key} is not a source field`);
+    });
+    if (blessing.twist !== undefined && (kinds.size !== 1 || !kinds.has('act_boss')))
+      errors.push(`${path}.twist: a twisted blessing is offered by an act boss only`);
+  }
+  if (blessing.twist !== undefined) {
+    const twist = blessing.twist;
+    if (!isObject(twist) || typeof twist.label !== 'string' || twist.label.trim() === '') {
+      errors.push(`${path}.twist must be { label, effects }`);
+    } else if (!Array.isArray(twist.effects) || twist.effects.length === 0) {
+      errors.push(`${path}.twist.effects must be a non-empty array`);
+    } else {
+      const allowed = new Set(TWIST_ONLY_EFFECT_TYPES);
+      for (const entry of Object.values(isObject(config.priceCatalog) ? config.priceCatalog : {}))
+        for (const type of effectTypesOf(entry?.effects)) allowed.add(type);
+      twist.effects.forEach((effect, i) => {
+        const where = `${path}.twist.effects[${i}]`;
+        if (!isObject(effect) || typeof effect.type !== 'string' || !isObject(effect.params))
+          errors.push(`${where} must be { type, params }`);
+        else if (!allowed.has(effect.type))
+          errors.push(`${where}.type "${effect.type}" is no price or twist effect`);
+      });
+    }
+  }
+  if (blessing.requires !== undefined) {
+    if (!isObject(blessing.requires)) errors.push(`${path}.requires must be an object`);
+    else
+      for (const [key, value] of Object.entries(blessing.requires)) {
+        if (!EARNED_REQUIRES_KEYS.includes(key))
+          errors.push(`${path}.requires.${key} is not a known requirement`);
+        else if (typeof value !== 'boolean')
+          errors.push(`${path}.requires.${key} must be true or false`);
+      }
+  }
 }
 
 function priceOptionIds(option) {

@@ -38,7 +38,10 @@ export function heldBlessingEntries(run) {
     const blessing = index.get(id);
     if (!blessing) continue;
     seen.add(id);
-    const label = entry?.midRun ? null : entry?.rolledCost?.label || null;
+    // A mid-run blessing shows no price, but the one its grant applied: a twisted earned card's
+    // twist ("Twist: ..."), a start gift's catch ("Catch: ...").
+    const midRunPrice = ['twist', 'gift'].includes(entry?.rolledCost?.kind);
+    const label = entry?.midRun && !midRunPrice ? null : entry?.rolledCost?.label || null;
     // A v3 price says it was the pact; a v2 save names its pact by the pact's own label.
     const isPact =
       !!label &&

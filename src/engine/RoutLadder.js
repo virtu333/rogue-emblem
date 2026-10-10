@@ -136,10 +136,13 @@ export function buildRoutLadder({
  * before the current one, or the current one once its enemy phase brought them.
  * Null for a battle without a ladder.
  */
-export function routLadderStatus(reinforcements, { resolvedThroughTurn = 0 } = {}) {
+export function routLadderStatus(reinforcements, { resolvedThroughTurn = 0, turnDelay = 0 } = {}) {
   const waves = reinforcements?.ladder?.waves;
   if (!Array.isArray(waves) || waves.length === 0) return null;
-  const through = int(resolvedThroughTurn);
+  // Hollow Hourglass (`battleParams.reinforcementDelay`) holds every wave back as many turns,
+  // as the scheduler does (ReinforcementScheduler), so the line names the turn they arrive.
+  const delay = Math.max(0, int(turnDelay));
+  const through = int(resolvedThroughTurn) - delay;
   const resolved = waves.filter((w) => int(w?.turn) <= through).length;
   const next = waves
     .filter((w) => int(w?.turn) > through)
@@ -151,7 +154,7 @@ export function routLadderStatus(reinforcements, { resolvedThroughTurn = 0 } = {
     total: waves.length,
     next: next
       ? {
-          turn: int(next.turn),
+          turn: int(next.turn) + delay,
           max: Math.max(0, int(next.count?.[1], int(next.count?.[0]))),
           edge,
           // A flank wave goes to the front when, as it arrives, no tile on its flank is

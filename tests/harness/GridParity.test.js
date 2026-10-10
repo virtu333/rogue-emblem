@@ -7,6 +7,7 @@ import { Grid } from '../../src/engine/Grid.js';
 import { generateBattle } from '../../src/engine/MapGenerator.js';
 import { loadGameData } from '../testData.js';
 import { installSeed, restoreMathRandom } from '../../sim/lib/SeededRNG.js';
+import { applyFogOpening } from '../../src/engine/FogOpening.js';
 
 const terrainNameIndex = Object.fromEntries(
   JSON.parse(readFileSync('data/terrain.json', 'utf8')).map((t, i) => [t.name, i]),
@@ -61,6 +62,31 @@ describe('GridParity', () => {
     );
     return { headless, production, bc };
   }
+
+  it("Lantern of the Road's opening reveal shows the same tiles on both grids, and clears alike", () => {
+    // Failure: the harness grid ignores contacts (its sims see less than the scene's player).
+    const { bc } = createGridPair();
+    const headless = new HeadlessGrid(bc.cols, bc.rows, gameData.terrain, bc.mapLayout, true);
+    // A scene whose fog overlays take an alpha (the grid shades them as the fog changes).
+    const scene = createMockScene();
+    const overlay = { setAlpha: () => overlay, setDepth: () => overlay, destroy: () => {} };
+    scene.add.rectangle = () => overlay;
+    const production = new Grid(scene, bc.cols, bc.rows, gameData.terrain, bc.mapLayout, true);
+    const army = bc.playerSpawns
+      .slice(0, 3)
+      .map((p) => ({ col: p.col, row: p.row, currentHP: 20, moveType: 'Infantry' }));
+    for (const grid of [headless, production]) {
+      expect(applyFogOpening(grid, army, 4)).toBe(true);
+      grid.updateFogOfWar(army);
+    }
+    expect([...headless.visibleSet].sort()).toEqual([...production.visibleSet].sort());
+    expect(headless.visibleSet.size).toBeGreaterThan(0);
+    for (const grid of [headless, production]) {
+      grid.clearContacts();
+      grid.updateFogOfWar(army);
+    }
+    expect([...headless.visibleSet].sort()).toEqual([...production.visibleSet].sort());
+  });
 
   it('getTerrainAt matches for all tiles', () => {
     const { headless, production, bc } = createGridPair();

@@ -8,10 +8,33 @@
 //     firstStrikeHitBonus,            // Keen Eye
 //     stationary: { defBonus, avoidBonus },   // Hold the Line
 //     adjacentAllyDef: [{ perAlly, max }],    // Phalanx Rite
-//     isolated: [{ radius, avoidBonus, critBonus }] }   // Duelist's Creed
+//     isolated: [{ radius, avoidBonus, critBonus }],    // Duelist's Creed
+//     commanderAuras: [{ radius, hitBonus, avoidBonus }] }   // Standard of the Sun
 // Only player-faction units ever receive anything; enemies and NPC allies get zeros.
 
 import { adjacentAllyDefBonus, isolatedCombatBonus } from './FormationBlessings.js';
+import { findCommander } from './Commander.js';
+
+/**
+ * Standard of the Sun (an earned blessing): Hit and Avoid for a unit within `radius` tiles
+ * (Manhattan) of the army's living commander, never the commander itself. Each held entry adds.
+ * `allies` is the unit's own side (the player's units: an NPC ally is no part of it).
+ */
+export function commanderAuraBonus(entries, unit, allies) {
+  const out = { hitBonus: 0, avoidBonus: 0 };
+  if (!Array.isArray(entries) || entries.length === 0 || !unit) return out;
+  const commander = findCommander(allies);
+  if (!commander || commander === unit || !(Number(commander.currentHP) > 0)) return out;
+  if (commander.faction !== 'player') return out;
+  const distance = Math.abs(commander.col - unit.col) + Math.abs(commander.row - unit.row);
+  if (!Number.isFinite(distance)) return out;
+  for (const aura of entries) {
+    if (!(distance <= Math.trunc(Number(aura?.radius) || 0))) continue;
+    out.hitBonus += Math.trunc(Number(aura.hitBonus) || 0);
+    out.avoidBonus += Math.trunc(Number(aura.avoidBonus) || 0);
+  }
+  return out;
+}
 
 /**
  * Remember where each living unit stood as `turn`'s player phase began. Hold the Line reads it
@@ -79,6 +102,11 @@ export function blessingCombatModsFor(profile, side) {
   const isolated = isolatedCombatBonus(profile.isolated, unit, side.allies);
   out.avoidBonus += isolated.avoidBonus;
   out.critBonus += isolated.critBonus;
+
+  // Standard of the Sun: Hit and Avoid near the commander (the commander itself gets none).
+  const aura = commanderAuraBonus(profile.commanderAuras, unit, side.allies);
+  out.hitBonus += aura.hitBonus;
+  out.avoidBonus += aura.avoidBonus;
 
   return out;
 }

@@ -25,13 +25,13 @@ function activeBlessing(id, rolledCost = null) {
 }
 
 describe('Blessing Expansion v2 � data validation', () => {
-  it('blessings.json passes validation with 32 entries (28 offered, 4 earned)', () => {
+  it('blessings.json passes validation with 38 entries (28 offered, 10 earned)', () => {
     const gameData = loadGameData();
     const result = validateBlessingsConfig(gameData.blessings);
     expect(result.valid).toBe(true);
     expect(result.errors).toEqual([]);
-    expect(gameData.blessings.blessings).toHaveLength(32);
-    expect(gameData.blessings.blessings.filter((b) => b.earned)).toHaveLength(4);
+    expect(gameData.blessings.blessings).toHaveLength(38);
+    expect(gameData.blessings.blessings.filter((b) => b.earned)).toHaveLength(10);
   });
 
   it('tier distribution is 4/10/8/6', () => {

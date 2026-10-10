@@ -818,6 +818,8 @@ export class NodeMapScene extends Phaser.Scene {
       this.shopOverlay ||
       this.churchOverlay ||
       this.eventOverlay ||
+      this.colosseumOverlay?.visible ||
+      this._colosseumLoading ||
       this._pendingRewards ||
       this._bossRecruitResume ||
       this.rosterOverlay?.visible ||
@@ -2058,9 +2060,14 @@ export class NodeMapScene extends Phaser.Scene {
       onComplete: () => {
         this._pendingRewards = null;
         this.checkActComplete();
-        // An event battle's spoils come after its loot choices, then a contract reward owed.
-        if (!this._maybeOpenPendingEventSettlement?.())
-          this._maybeOpenPendingContractSettlement?.();
+        // An event battle's spoils come after its loot choices, then a contract reward owed,
+        // then an earned pick still owed (an eclipsed elite's drop; single-flight, so an act
+        // boss's pick checkActComplete already opened is not opened twice).
+        if (
+          !this._maybeOpenPendingEventSettlement?.() &&
+          !this._maybeOpenPendingContractSettlement?.()
+        )
+          this._maybeOpenEarnedPick?.();
       },
     });
   }

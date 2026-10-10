@@ -31,6 +31,7 @@ import { safeBattlePresentation } from '../ui/safeBattlePresentation.js';
 import { presentTeleporterWarp } from '../ui/WarpPresentation.js';
 import { hasBattleDefeat } from '../engine/BattleDefeat.js';
 import { applyBlessingCombatMods, stampTurnAnchors } from '../engine/BlessingCombatMods.js';
+import { applyFogOpening } from '../engine/FogOpening.js';
 import {
   isRoutComplete,
   isRoutFieldClear,
@@ -2334,6 +2335,12 @@ export class BattleScene extends Phaser.Scene {
         }
         // Dev/preview review setups only (devStartup sets battleParams.devScenario).
         if (this.battleParams?.devScenario) applyDevScenario(this);
+        // Lantern of the Road: a fresh fog battle opens revealed around the army where it stands
+        // (engine/FogOpening.js, shared with the harness); a resume's fog is the checkpoint's.
+        if (applyFogOpening(this.grid, this.playerUnits, this.battleParams?.fogOpeningRadius)) {
+          this.grid.updateFogOfWar(this.playerUnits);
+          this.updateEnemyVisibility();
+        }
         this._bossPresence?.sync();
         this.turnManager.startBattle();
       }
@@ -11134,6 +11141,7 @@ export class BattleScene extends Phaser.Scene {
       this.turnManager?.currentPhase === 'enemy' && this._ladderResolvedTurn === turn;
     return routLadderStatus(this.battleConfig?.reinforcements, {
       resolvedThroughTurn: resolvedNow ? turn : turn - 1,
+      turnDelay: this.battleParams?.reinforcementDelay,
     });
   }
 
