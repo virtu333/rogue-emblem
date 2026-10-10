@@ -25,6 +25,7 @@ import {
   chooseChurchPlan,
   chooseShopPurchases,
   playEventChoices,
+  skipOwedEarnedPick,
 } from './RunPolicies.js';
 import { arriveAtEvent, completeEventBattle, leaveEvent } from '../../src/engine/EventCommands.js';
 import { isRecruitBattleNode } from '../../src/engine/RecruitNodeSystem.js';
@@ -154,6 +155,7 @@ export class RunSimulationDriver {
         if (this.runManager.isRunComplete()) {
           return this._buildResult('victory');
         }
+        skipOwedEarnedPick(this.runManager);
         this.runManager.advanceAct();
         this.metrics.actsAdvanced++;
       }
@@ -192,6 +194,9 @@ export class RunSimulationDriver {
     battleParams.extendedLevelingEnabled =
       this.runManager.getDifficultyModifier?.('extendedLevelingEnabled', false) === true;
     battleParams.blessingXpDelta = this.runManager.getXpMultiplierDelta?.() || 0;
+    // The earned blessings that act in battle (the harness reads them as BattleScene reads
+    // the run's: engine/BattleBlessings.battleBlessingsAtStart).
+    battleParams.battleBlessings = this.runManager.getBattleBlessingEffects?.() ?? null;
     battleParams.fallenUnits = Array.isArray(this.runManager.fallenUnits)
       ? structuredClone(this.runManager.fallenUnits)
       : [];
