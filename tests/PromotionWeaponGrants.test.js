@@ -104,7 +104,7 @@ describe('seal promotion and reclass grants', () => {
   });
 });
 
-describe('lords with several promotion weapon types', () => {
+describe('lords whose promotion opens one or more weapon types', () => {
   const lord = (name) => {
     const def = data.lords.find((l) => l.name === name);
     const u = createLordUnit(def, cls(def.class), data.weapons);
@@ -117,9 +117,16 @@ describe('lords with several promotion weapon types', () => {
     expect(promoteAtChurch(run, u, 'n1', target(u), data).ok).toBe(true);
     return u;
   };
-  it('Voss receives the Iron Axe and Iron Bow his promotion opens', () => {
-    const u = promoted('Voss');
-    expect(names(u)).toEqual(expect.arrayContaining(['Iron Axe', 'Iron Bow']));
+  it('Voss receives only the Iron Axe: swords and bows he already wielded give nothing', () => {
+    const u = lord('Voss');
+    u.inventory = ['Steel Sword', 'Steel Bow'].map((n) => ({
+      ...data.weapons.find((w) => w.name === n),
+    }));
+    run.roster = [u];
+    const res = promoteAtChurch(run, u, 'n1', target(u), data);
+    expect(res.ok).toBe(true);
+    expect(names(u)).toEqual(['Steel Sword', 'Steel Bow', 'Iron Axe']);
+    expect(res.message).toContain('Received Iron Axe.');
   });
   it('Rowan receives Heal and Glimmer', () => {
     expect(names(promoted('Rowan'))).toEqual(expect.arrayContaining(['Heal', 'Glimmer']));
@@ -131,11 +138,19 @@ describe('lords with several promotion weapon types', () => {
     promoteAtChurch(run, u, 'n1', target(u), data);
     expect(names(u).filter((n) => n.startsWith('Iron Lance'))).toEqual(['Iron Lance +1']);
   });
-  it('a type already carried grants nothing twice', () => {
-    const u = lord('Voss');
-    const before = new Set(u.proficiencies.map((p) => p.type));
-    const grants = getClassChangeWeaponGrants(u, before, data, true);
-    expect(grants.map((w) => w.name)).not.toContain(u.inventory[0].name);
+  it('every lord is granted exactly the types the promotion newly opens', () => {
+    for (const def of data.lords) {
+      const u = lord(def.name);
+      const before = new Set(u.proficiencies.map((p) => p.type));
+      run.roster = [u];
+      u.inventory = [];
+      run.gold = 10000;
+      expect(promoteAtChurch(run, u, `n-${def.name}`, target(u), data).ok).toBe(true);
+      const opened = u.proficiencies.filter((p) => !before.has(p.type)).map((p) => p.type);
+      expect(u.inventory.map((w) => w.type).sort()).toEqual(
+        opened.filter((t) => data.weapons.some((w) => w.type === t && w.tier === 'Iron')).sort(),
+      );
+    }
   });
 });
 

@@ -207,7 +207,7 @@ export function promotionPathContent(unit, cls, gameData = {}, { churchRun = nul
   let grantsShort = [];
   try {
     const oldTypes = new Set((unit.proficiencies || []).map((p) => p.type));
-    grants = getClassChangeWeaponGrants(projected, oldTypes, gameData, true).map((w) => w.name);
+    grants = getClassChangeWeaponGrants(projected, oldTypes, gameData).map((w) => w.name);
     // A full bag takes the first grants in order; the rest are lost (promotion still happens).
     grantsShort = grants.slice(Math.max(0, INVENTORY_MAX - (unit.inventory || []).length));
   } catch {

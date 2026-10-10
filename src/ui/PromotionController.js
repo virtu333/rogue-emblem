@@ -161,11 +161,10 @@ export class PromotionController {
 
     scene.battleState = 'COMBAT_RESOLVING'; // block input during promotion
 
-    let promotionBonuses, promotionWeapons;
+    let promotionBonuses;
 
     if (lordData) {
       promotionBonuses = lordData.promotionBonuses;
-      promotionWeapons = lordData.promotionWeapons;
     } else {
       promotionBonuses = promotedClassData.promotionBonuses;
     }
@@ -211,9 +210,11 @@ export class PromotionController {
     markSealConsumed();
 
     // Grant the Iron weapon of each newly wielded type (the lord's own list too).
-    for (const newWeapon of getClassChangeWeaponGrants(unit, oldTypes, scene.gameData, true)) {
+    const ungranted = [];
+    for (const newWeapon of getClassChangeWeaponGrants(unit, oldTypes, scene.gameData)) {
       // A unit left with nothing equipped takes up the granted weapon.
       if (addToInventory(unit, newWeapon)) equipIfUnarmed(unit, unit.inventory.at(-1));
+      else ungranted.push(newWeapon.name);
     }
 
     try {
@@ -277,6 +278,15 @@ export class PromotionController {
       // (the rite lists them in its closing note)
       if (droppedNotice && !riteShown) await scene.showBriefBanner(droppedNotice, UI_PALETTE.bad);
       if (!isCurrentBattleSession(scene, session)) return true;
+      // A full bag drops the starter weapon: say so (never silent). The rite is DOM-only,
+      // so this shows after it, over the map.
+      if (ungranted.length) {
+        await scene.showBriefBanner(
+          `Bag full: ${ungranted.join(', ')} could not be granted.`,
+          UI_PALETTE.bad,
+        );
+        if (!isCurrentBattleSession(scene, session)) return true;
+      }
     } catch (error) {
       if (isCurrentBattleSession(scene, session))
         console.warn('[PromotionController] presentation failed:', error);

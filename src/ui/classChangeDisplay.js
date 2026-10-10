@@ -47,7 +47,7 @@ export function classChangePreview(unit, item, target, gameData) {
   if (unit.moveType !== projected.moveType)
     lines.push(`Movement: ${unit.moveType} → ${projected.moveType}`);
   const previousTypes = new Set(unit.proficiencies.map((p) => p.type));
-  const grants = getClassChangeWeaponGrants(projected, previousTypes, gameData, promoting);
+  const grants = getClassChangeWeaponGrants(projected, previousTypes, gameData);
   let spaces = Math.max(0, INVENTORY_MAX - unit.inventory.length);
   const available = [];
   for (const weapon of grants) {

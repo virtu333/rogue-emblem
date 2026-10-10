@@ -55,24 +55,11 @@ export function applyRosterClassChange(run, unit, item, target, gameData) {
     : reclass(run, unit, item, canonical, gameData);
 }
 // Shared with previews: return catalog entries only, without creating UIDs or
-// consuming RNG. Preserve the existing lord-specific starter-weapon rule.
-export function getClassChangeWeaponGrants(unit, oldTypes, gameData, promotion = false) {
-  const lordWeapons =
-    promotion && gameData.lords.find((l) => l.name === unit.name)?.promotionWeapons;
-  const labels = {
-    Swords: 'Sword',
-    Lances: 'Lance',
-    Axes: 'Axe',
-    Bows: 'Bow',
-    Tomes: 'Tome',
-    Staves: 'Staff',
-    Light: 'Light',
-  };
-  // Every type a class change newly opens. A lord's promotion also names its own list
-  // ("Swords (M), Axes (P), Bows (P)"): all of them count, not only the first word.
+// consuming RNG. One rule for promotion, reclass and a lord's promotion alike: the
+// Iron weapon of each weapon type the class change newly opens (a lord's
+// `promotionWeapons` list is always among them), never one for a type already wielded.
+export function getClassChangeWeaponGrants(unit, oldTypes, gameData) {
   const types = unit.proficiencies.filter((p) => !oldTypes.has(p.type)).map((p) => p.type);
-  if (lordWeapons)
-    for (const [, word] of lordWeapons.matchAll(/(\w+)\s*\(/g)) types.push(labels[word] || word);
   const names = new Set(unit.inventory.map((w) => stripItemNameSuffix(w.name)));
   return [...new Set(types)]
     .map((type) => gameData.weapons.find((w) => w.type === type && w.tier === 'Iron'))
@@ -104,7 +91,7 @@ function promote(run, unit, item, promotedClassData, gameData) {
   if (oath?.learned) notices.push(`${oath.name}: learned ${oath.skillName}.`);
   if (oath?.benched) notices.push(oathBenchedNote(unit, oath));
 
-  for (const newWeapon of getClassChangeWeaponGrants(unit, oldTypes, gameData, true)) {
+  for (const newWeapon of getClassChangeWeaponGrants(unit, oldTypes, gameData)) {
     if (!addToInventory(unit, newWeapon))
       notices.push(`Bag full: ${newWeapon.name} could not be granted.`);
   }
