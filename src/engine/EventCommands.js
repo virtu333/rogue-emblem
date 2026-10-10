@@ -148,6 +148,7 @@ import {
 } from './EventSystem.js';
 import { contractBound } from './Contracts.js';
 import { choiceTells, tellTilt } from './EventTells.js';
+import { choicePreview } from './EventChoicePreview.js';
 import { withEclipseSeed } from './EclipseSystem.js';
 import { isPrologueRun } from './ScriptedBattle.js';
 import { unitUidOf } from './UnitIdentity.js';
@@ -382,6 +383,8 @@ export function eventView(run, nodeId) {
       id: choice.id,
       label: choice.label,
       hint: choice.hint || '',
+      // What the choice can do (every result possible on this rung; never which, never the odds).
+      preview: choicePreview(run, choice, { catalog, event, state }),
       cost: choiceCost(run, choice, catalog),
       block: eventChoiceBlock(run, nodeId, choice.id),
       target: choice.target

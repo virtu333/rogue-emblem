@@ -161,7 +161,7 @@ export function guidanceText(id, context = {}) {
     case 'guide_first_shop':
       return 'A shop: buy and sell here, and Forge makes a weapon stronger for gold. Every shop stocks its own wares; gold also pays for revivals and promotions.';
     case 'guide_first_event':
-      return "An event: choose how to meet it. You won't see what a choice brings until you make it, but the words are honest.";
+      return 'An event: choose how to meet it. Each choice lists everything it can bring; which one you get stays hidden until you choose.';
     case 'guide_first_church':
       return 'A church: Heal all is free, and the fallen revive for gold. Each church takes one vow: a promotion or a blessing, not both.';
     case 'guide_prepare':

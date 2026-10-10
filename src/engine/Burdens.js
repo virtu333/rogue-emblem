@@ -794,6 +794,57 @@ export function describeBurden(burden, { def = {}, roster = [] } = {}) {
 }
 
 /**
+ * The words of a burden an event choice could leave, before it is taken (the choice preview,
+ * EventChoicePreview.js): { label, line, detail }. The numbers are the ones `addBurden` would
+ * store on this rung and act: the catalog's entry with its `onRung` overrides, under the effect's
+ * own `params` (a Debt's `owed` already resolved for the act by the caller). An Injury names who
+ * by the effect's `scope` ('target': the chosen unit; else a random unit) and its stat by `stat`.
+ */
+export function burdenPreview(id, params = {}, { catalog = null, difficultyId = null } = {}) {
+  const def = burdenDefFor(catalog, id, difficultyId) || {};
+  const label = def.label || id;
+  const line = def.line || '';
+  const p = isPlain(params) ? params : {};
+  if (id === 'ill_omen') {
+    const battles = Math.max(1, int(p.battles ?? def.battles, 1));
+    const shadow = Math.max(0, int(p.extraShadow ?? def.extraShadow, 1));
+    const victories = battles === 1 ? 'victory' : `${battles} victories`;
+    return { label, line, detail: `+${shadow} shadow on each of the next ${victories}` };
+  }
+  if (id === 'debt') {
+    const owed = Math.max(1, int(p.owed ?? def.owed, 1));
+    const garnish = Number(p.garnish ?? def.garnish);
+    const share = Math.round((Number.isFinite(garnish) && garnish > 0 ? garnish : 0.5) * 100);
+    return {
+      label,
+      line,
+      detail: `${owed} G owed: the lender takes ${share}% of each victory's gold until it is paid`,
+    };
+  }
+  if (id === 'hunted') {
+    const battles = Math.max(1, int(p.battles ?? def.battles, 1));
+    const wave = normalizeHuntedWave(p.wave ?? def.wave);
+    return { label, line, detail: `the next ${plural(battles, 'battle')}: ${waveText(wave)}` };
+  }
+  if (id === 'sworn_enemy')
+    return { label, line, detail: 'the act boss carries an extra affix until it falls' };
+  const battles = Math.max(1, int(p.battles ?? def.battles, 1));
+  const value = clamp(Math.abs(int(p.value ?? def.value, -2)), 1, WOUND_MAX_PENALTY);
+  const who = p.scope === 'target' ? 'the chosen unit' : 'a random unit';
+  const stat =
+    p.stat === 'random' || p.stat === undefined
+      ? 'a random stat'
+      : p.stat === 'attack'
+        ? 'their attack stat'
+        : p.stat;
+  return {
+    label,
+    line,
+    detail: `${who} fights at ${minus(value)} to ${stat} for the next ${plural(battles, 'battle')}; a church heal ends it`,
+  };
+}
+
+/**
  * Display model of the run's burdens for the route map's chips, the pause menu and the church:
  * [{ id, label, short, line, detail, cleansable, refusal, twist, twistShort?, twistRefusal?,
  * lift? }]. `short` is the chip's number ("3 left", "450 G"; a merged twist record names both
