@@ -136,7 +136,7 @@ async function captureRecruitBattles(seeds, difficulty) {
 // Replay one capture.
 
 import { DEPLOY_LIMITS } from '../src/utils/constants.js';
-import { chooseDeployRoster } from '../tests/sim/RunPolicies.js';
+import { chooseDeployRoster, skipOwedEarnedPick } from '../tests/sim/RunPolicies.js';
 
 function deployFor(capture) {
   const limits = DEPLOY_LIMITS[capture.act] || { min: 1, max: 4 };
@@ -488,6 +488,7 @@ class ProtectedDriver extends RunSimulationDriver {
             `${u.name}:${u.className}:${u.level}${u.tier === 'promoted' ? 'P' : ''}:${u.weapon?.name || '-'}`,
         );
         if (this.runManager.isRunComplete()) return this._buildResult('victory');
+        skipOwedEarnedPick(this.runManager);
         this.runManager.advanceAct();
       }
     }
@@ -1460,7 +1461,10 @@ async function sectionGraph() {
     const rm = new RunManager(gameData, null);
     rm.startRun({ runSeed: seed, difficultyId: opts.difficulty, autoSelectBlessing: false });
     for (let i = 0; i < rm.actSequence.length; i++) {
-      if (i > 0) rm.advanceAct();
+      if (i > 0) {
+        skipOwedEarnedPick(rm);
+        rm.advanceAct();
+      }
       const act = rm.currentAct;
       if (act === 'finalBoss') continue;
       (acts[act] ||= []).push(pathStats(rm.nodeMap));

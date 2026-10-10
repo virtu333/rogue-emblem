@@ -828,6 +828,8 @@ export class NodeMapScene extends Phaser.Scene {
     }
     const rm = this.runManager;
     if (!rm || rm.pendingBattleReward || rm.pendingBossRecruit || rm.pendingThirdLord) return false;
+    // A finished run settles (RunComplete); a pick has nothing left to belong to.
+    if (rm.isRunComplete?.()) return false;
     const current = rm.nodeMap?.nodes?.find((entry) => entry?.id === rm.currentNodeId);
     if (current && contractRewardOwedAt(rm, current)) return false;
     const entry = earnedPickOwed(rm);
@@ -835,7 +837,10 @@ export class NodeMapScene extends Phaser.Scene {
     const pick = new EarnedBlessingPick(this, {
       run: rm,
       entry,
-      save: () => saveServiceRun(this),
+      save: () => {
+        const warning = saveServiceRun(this);
+        if (warning) void showMinorHint(this, warning.trim());
+      },
       onDone: () => {
         if (this._earnedPick !== pick) return;
         this._earnedPick = null;
@@ -857,6 +862,29 @@ export class NodeMapScene extends Phaser.Scene {
     }
     if (!opened) this._earnedPick = null;
     return opened;
+  }
+
+  /**
+   * An owed earned-blessing pick the map could not open because something stood in front of it
+   * (the Roster, the pause menu, Settings): tried again when that closes, in the map's order. A
+   * completed act goes through checkActComplete (rewards, a contract reward owed at the boss,
+   * then the pick, then the advance); a pick left from an earlier act opens where it can. Never
+   * while another page or overlay is open, and never over a finished run.
+   * @returns {boolean} true when the pick is open
+   */
+  _retryOwedEarnedPick() {
+    const rm = this.runManager;
+    if (this._earnedPick) return true;
+    if (!rm || !earnedPickOwed(rm) || rm.isRunComplete?.()) return false;
+    if (this._sceneShuttingDown || this.sys?.isActive?.() === false || !this.isSceneReady)
+      return false;
+    if (this.isTransitioning || this.battleLaunchInFlight) return false;
+    if (this._nodeMapOverlayOpen() || this._pendingRewards || this._bossRecruitResume) return false;
+    if (rm.isActComplete()) {
+      this.checkActComplete();
+      return Boolean(this._earnedPick);
+    }
+    return this._maybeOpenEarnedPick();
   }
 
   /** An event node whose own page (its spoils, or its victory page) must be read before the contract's. */
@@ -1282,6 +1310,7 @@ export class NodeMapScene extends Phaser.Scene {
       onResume: () => {
         this.pauseOverlay = null;
         options.onResume?.();
+        this._retryOwedEarnedPick?.();
       },
       onSaveAndExit: async () => {
         // Leaving for good (the recovery prompt only offers Retry/Reload):
@@ -1527,6 +1556,7 @@ export class NodeMapScene extends Phaser.Scene {
       if (this.settingsOverlay?.visible) return;
       this.settingsOverlay = new SettingsOverlay(this, () => {
         this.settingsOverlay = null;
+        this._retryOwedEarnedPick?.();
       });
       this.settingsOverlay.show();
     });
@@ -1800,6 +1830,7 @@ export class NodeMapScene extends Phaser.Scene {
         if (this._sceneShuttingDown || this.sys?.isActive?.() === false) return;
         if (!this.shopOverlay && !this.churchOverlay && !this.eventOverlay) {
           this.drawMap();
+          this._retryOwedEarnedPick?.();
         }
       },
     });
@@ -2065,7 +2096,8 @@ export class NodeMapScene extends Phaser.Scene {
       this.pauseOverlay?.visible
     )
       return;
-    // An owed earned-blessing pick (one that could not open by itself) opens on a tap.
+    // An owed earned-blessing pick opens on a tap when nothing holds it (a contract reward owed
+    // where the party stands comes first: the tap falls through to that page below).
     if (earnedPickOwed(this.runManager) && this._maybeOpenEarnedPick()) return;
     if (node.completed && !this.runManager.canReenterService?.(node.id)) return;
     // The node a kept contract's reward holds the party at: its settlement page (an event node's

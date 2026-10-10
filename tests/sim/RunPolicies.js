@@ -5,6 +5,7 @@ import { getReviveCost } from '../../src/engine/RunManager.js';
 import { getCombatForecast } from '../../src/engine/Combat.js';
 import { chooseEventOption, eventView } from '../../src/engine/EventCommands.js';
 import { eventCatalogOf, findChoice, findEvent } from '../../src/engine/EventSystem.js';
+import { earnedPickOwed, skipEarnedBlessing } from '../../src/engine/EarnedBlessings.js';
 
 const NODE_PRIORITY = {
   [NODE_TYPES.RECRUIT]: 5,
@@ -184,4 +185,21 @@ export function playEventChoices(run, nodeId, { fight = false, maxSteps = 12 } =
     if (!chosen.ok || !chosen.next || chosen.battle) break;
   }
   return steps;
+}
+
+/**
+ * The act boss's earned-blessing pick, left before the act advances (the game never advances
+ * over an owed pick): the scripted player skips it through the engine, so the ledger stays whole
+ * and no earned blessing reaches a sim yet (measuring them is a separate step). Skipping touches
+ * no random stream, so a sim's numbers are what they were with the pick left owed. Every pick
+ * still owed is skipped (one left from an earlier act too).
+ * @returns {number} how many picks were skipped
+ */
+export function skipOwedEarnedPick(run) {
+  let skipped = 0;
+  for (let entry = earnedPickOwed(run); entry; entry = earnedPickOwed(run)) {
+    if (!skipEarnedBlessing(run, entry.actId).ok) break;
+    skipped++;
+  }
+  return skipped;
 }

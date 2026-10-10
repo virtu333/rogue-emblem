@@ -525,15 +525,26 @@ sitting between a boss and the act advance, is prepared on the route map from th
 act-start grant (`_payActStartGrants`) is stamped with that act and pays from the next one.
 
 - The battle scene: `PostCombatController.transitionAfterBattle`, after the rewards are claimed.
-  A pick that cannot be shown (no document, an error) goes to the route map with the act
-  unadvanced. The post-loot fallback (8 s) holds while it is open (`scene._earnedPickActive`).
+  A kept contract's reward owed at the boss goes to the route map first, act unadvanced (the
+  map's order below). A pick that cannot be shown (no document, an error) goes to the route map
+  with the act unadvanced. The post-loot fallback holds while it is open
+  (`scene._earnedPickActive`, cleared on close, on scene shutdown and in `BattleScene.init`), and
+  its clock (8 s, or 30 s while story input is locked) starts again when the pick closes, so the
+  act card and story that follow are never cut off. A save the device refuses says so (a minor
+  hint); the act advance's save tries again.
 - The route map, after a reload or rewards left with View map: `NodeMapScene.checkActComplete`,
   in the order rewards, contract reward, pick, Act Complete, advance. `_maybeOpenEarnedPick` is
-  single-flight: the scene's finalize chain also opens an owed pick (one left from an earlier act
-  too), and a node tap opens one that could not open by itself.
+  single-flight and never opens over a finished run: the scene's finalize chain also opens an owed
+  pick (one left from an earlier act too). A pick the map could not open because the Roster, the
+  pause menu or Settings stood in front of it is tried again when that closes
+  (`_retryOwedEarnedPick`, through `checkActComplete` when the act is complete, so a contract
+  reward owed at the boss still comes first). A node tap also opens an owed pick when nothing
+  holds it; with a contract reward owed where the party stands, the tap opens that page instead.
+  A save the device refuses says so (`saveServiceRun`'s warning, a minor hint).
 
-The act never advances over an owed pick on either path. (The sims and the debug overlay call
-`advanceAct` directly and leave it owed.)
+The act never advances over an owed pick on either path. (The sims leave an owed pick through
+`skipEarnedBlessing` before they call `advanceAct`, so their ledgers stay whole and they measure
+no earned blessing yet; the debug overlay's advance leaves it owed, and the route map offers it.)
 
 **The menu** (`ui/EarnedBlessingPick.js`, `ui/earnedBlessingPickModel.js`). A modal "An earned
 blessing" with the two cards as the shrine draws them (`choiceCards.blessingTarotCard`, shared

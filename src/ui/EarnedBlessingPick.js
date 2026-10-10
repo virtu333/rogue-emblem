@@ -135,8 +135,12 @@ export class EarnedBlessingPick {
     const blessingId = this.chosen;
     const result = takeEarnedBlessing(this.run, this.entry.actId, blessingId);
     if (!result.ok) {
+      // Refused (nothing changed): the menu comes back whole, the header's Skip too, and focus
+      // returns to it, so a refused take never leaves a menu nothing can leave.
       this.busy = false;
+      this.surface.header.querySelector('button').disabled = false;
       this.render(result.reason);
+      this.surface.focusContent();
       return;
     }
     this._save();
@@ -179,14 +183,15 @@ export class EarnedBlessingPick {
           )?.focus({ preventScroll: true });
       },
     });
+    // Focus starts on Back, never on "Leave them": a stray Enter or Confirm keeps the pick.
+    this.confirm.surface.header.querySelector('button')?.focus({ preventScroll: true });
   }
 
+  /** The host's save (it reports a refused write itself); a throw never strands the menu. */
   _save() {
     try {
       this.save?.();
     } catch (err) {
-      // The choice stands in memory; the host's next save (the act advance) carries it, and a
-      // reload before that offers the same pick again (the save never held it).
       console.warn('[EarnedBlessingPick] save failed:', err);
     }
   }

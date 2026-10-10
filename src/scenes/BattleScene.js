@@ -591,6 +591,9 @@ export class BattleScene extends Phaser.Scene {
     this._postLootTransitionCompleted = false;
     this._postLootTransitionStartedAt = 0;
     this._postLootTransitionTimer = null;
+    // An earned-blessing pick open when the last battle's scene shut down never cleared its
+    // hold on the post-loot fallback (PostCombatController._presentEarnedPick).
+    this._earnedPickActive = false;
     this._transitionAfterBattlePromise = null;
     this._levelUpSfxKey = null;
     this._pendingLevelUpPopups = [];

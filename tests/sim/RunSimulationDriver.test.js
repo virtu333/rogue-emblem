@@ -117,6 +117,49 @@ describe('RunSimulationDriver', () => {
     // Hard run fights stronger, affixed enemies (~530 turns vs ~320): a longer budget.
   }, 30000);
 
+  it.each(['normal', 'hard'])(
+    '%s: every act boss pick is skipped through the engine before the act advances',
+    async (difficultyId) => {
+      // Failure: the driver calls advanceAct over an owed pick (the game never does), so a run's
+      // ledger ends with picks still owed. The battles are stubbed as quick wins: only the
+      // act-advance path is under test.
+      const driver = new RunSimulationDriver(loadGameData(), {
+        runOptions: { runSeed: 77, difficultyId, autoSelectBlessing: false },
+        maxNodes: 200,
+      });
+      driver.init();
+      const rm = driver.runManager;
+      const owedAtAdvance = [];
+      const advance = rm.advanceAct.bind(rm);
+      rm.advanceAct = () => {
+        owedAtAdvance.push(
+          Object.values(rm.earnedBlessingPicks).filter((e) => e.status === 'owed'),
+        );
+        return advance();
+      };
+      driver._runBattleNode = async (node) => {
+        rm.completeBattle(rm.getRoster(), node.id, 0, { turnCount: 5, turnPar: 7 });
+        return { result: 'victory' };
+      };
+      driver._runShopNode = driver._runEventNode = async (node) => {
+        rm.markNodeComplete(node.id);
+        return { result: 'skipped' };
+      };
+      driver._runChurchNode = (node) => {
+        rm.markNodeComplete(node.id);
+        return { result: 'skipped' };
+      };
+      const result = await driver.run();
+      expect(result.result).toBe('victory');
+      expect(owedAtAdvance).toHaveLength(rm.actSequence.length - 1);
+      expect(owedAtAdvance.flat()).toEqual([]);
+      const statuses = Object.values(rm.earnedBlessingPicks).map((e) => e.status);
+      expect(statuses).toContain('skipped');
+      expect(statuses).not.toContain('owed');
+      expect(statuses).not.toContain('taken');
+    },
+  );
+
   it('applies difficulty and blessing shop pricing in simulation', () => {
     const gameData = loadGameData();
     const driver = new RunSimulationDriver(gameData);

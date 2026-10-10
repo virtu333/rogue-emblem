@@ -46,7 +46,10 @@ import { recordRunLordsMet } from '../engine/LordsMet.js';
 import { settlementLines } from '../engine/Burdens.js';
 import { gambleLines } from '../engine/BattleGoldGamble.js';
 import { earnedPickOwed } from '../engine/EarnedBlessings.js';
+import { contractRewardOwedAt } from '../engine/Contracts.js';
 import { presentEarnedBlessingPick } from './EarnedBlessingPick.js';
+import { EARNED_PICK_SAVE_FAILED } from './earnedBlessingPickModel.js';
+import { showMinorHint } from './HintDisplay.js';
 
 // Watchdog: a single RunComplete transition attempt that hangs past this is
 // treated as failed so the retry loop (and ultimately the recovery UI) still runs.
@@ -419,6 +422,22 @@ export class PostCombatController {
           if (!isCurrentBattleSession(scene, session)) return;
           if (!ok) throw new Error('Scene transition to RunComplete blocked');
         } else {
+          // A kept contract's reward earned on the boss and not yet delivered holds the party at
+          // the boss: the route map settles it first, then the pick, then the act advance (the
+          // map path's order, NodeMapScene.checkActComplete). Nothing advances here.
+          const rm = scene.runManager;
+          const bossNode = rm.nodeMap?.nodes?.find((entry) => entry?.id === rm.nodeMap?.bossNodeId);
+          if (bossNode && contractRewardOwedAt(rm, bossNode)) {
+            const okHeld = await transitionToScene(
+              scene,
+              'NodeMap',
+              { gameData: scene.gameData, runManager: rm },
+              { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
+            );
+            if (!isCurrentBattleSession(scene, session)) return;
+            if (!okHeld) throw new Error('Scene transition to NodeMap blocked (contract reward)');
+            return true;
+          }
           // An act boss's earned-blessing pick (rolled and saved with the victory) comes after
           // its rewards, recruit and lord and before the act advances, so a blessing taken here
           // belongs to this act (Second Dawn pays from the next). The act never advances over an
@@ -528,24 +547,46 @@ export class PostCombatController {
 
   /**
    * The owed earned-blessing pick, over the won battle (EarnedBlessingPick). Its take or skip
-   * is saved with the battle's own run save before the act advances. While it is open the
-   * post-loot fallback holds (`scene._earnedPickActive`, LootFlowController).
+   * is saved with the battle's own run save before the act advances; a save the device refuses
+   * says so (a minor hint), and the act advance's save tries again. While it is open the
+   * post-loot fallback holds (`scene._earnedPickActive`, LootFlowController), and its clock
+   * starts again when the pick closes. The flag is cleared when the pick closes and when the
+   * scene shuts down under it (the pick's promise never settles then; BattleScene.init clears
+   * it too, since Phaser reuses the scene).
    * @returns {Promise<{ outcome: string }>} 'unavailable' when it could not be shown
    */
   async _presentEarnedPick(session) {
     const scene = this.scene;
     if (!hasDOMHost()) return { outcome: 'unavailable' };
     scene._earnedPickActive = true;
+    const clearOnShutdown = () => {
+      scene._earnedPickActive = false;
+    };
+    scene.events?.once?.('shutdown', clearOnShutdown);
     try {
       return await presentEarnedBlessingPick(scene, {
         run: scene.runManager,
-        save: () => scene._persistBattleRunState?.(null, { session }),
+        save: () => {
+          const result = scene._persistBattleRunState?.(null, { session });
+          if (
+            result &&
+            result.ok === false &&
+            !['missing_slot', 'stale_session'].includes(result.reason) &&
+            isCurrentBattleSession(scene, session)
+          )
+            void showMinorHint(scene, EARNED_PICK_SAVE_FAILED);
+          return result;
+        },
       });
     } catch (err) {
       console.warn('[BattleScene] earned pick failed:', err);
       return { outcome: 'unavailable' };
     } finally {
-      if (isCurrentBattleSession(scene, session)) scene._earnedPickActive = false;
+      scene.events?.off?.('shutdown', clearOnShutdown);
+      if (isCurrentBattleSession(scene, session)) {
+        scene._earnedPickActive = false;
+        if (scene._postLootTransitionStarted) scene._postLootTransitionStartedAt = Date.now();
+      }
     }
   }
 

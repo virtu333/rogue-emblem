@@ -25,6 +25,7 @@ import {
   chooseChurchPlan,
   chooseShopPurchases,
   playEventChoices,
+  skipOwedEarnedPick,
 } from './RunPolicies.js';
 import { arriveAtEvent, completeEventBattle, leaveEvent } from '../../src/engine/EventCommands.js';
 import { isRecruitBattleNode } from '../../src/engine/RecruitNodeSystem.js';
@@ -154,6 +155,7 @@ export class RunSimulationDriver {
         if (this.runManager.isRunComplete()) {
           return this._buildResult('victory');
         }
+        skipOwedEarnedPick(this.runManager);
         this.runManager.advanceAct();
         this.metrics.actsAdvanced++;
       }

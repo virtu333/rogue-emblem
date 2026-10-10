@@ -13,6 +13,8 @@ import { actLabel } from './ceremonyContent.js';
 export const EARNED_PICK_TITLE = 'An earned blessing';
 export const EARNED_PICK_TAKE = 'Take';
 export const EARNED_PICK_SKIP = 'Skip';
+/** A take or skip the device refused to save (the battle's minor hint; serviceSave's words). */
+export const EARNED_PICK_SAVE_FAILED = 'Save failed: device storage may be full or unavailable.';
 
 /** The skip confirmation (a ChoicePicker): a stray Escape or Skip never leaves them silently. */
 export const EARNED_SKIP_CONFIRM = Object.freeze({

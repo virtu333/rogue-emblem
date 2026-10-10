@@ -23,10 +23,48 @@ vi.mock('../src/ui/HintDisplay.js', () => ({
   showImportantHint: vi.fn(async () => true),
   showMinorHint: vi.fn(async () => true),
 }));
+// The battle's own run save is the real BattleScene._persistBattleRunState over a stubbed disk.
+vi.mock('../src/engine/RunManager.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  saveRun: vi.fn(() => ({ ok: true })),
+}));
+// Rendering adapters for the route map's overlays: open, visible, and closed through the
+// scene's own callbacks (the real _openRoster / showPauseMenu wiring).
+vi.mock('../src/ui/RosterOverlay.js', () => ({
+  RosterOverlay: class {
+    constructor(scene, run, gameData, callbacks = {}) {
+      this.onClose = callbacks.onClose || null;
+      this.visible = false;
+    }
+    show() {
+      this.visible = true;
+    }
+    hide() {
+      if (!this.visible) return;
+      this.visible = false;
+      this.onClose?.();
+    }
+  },
+}));
+vi.mock('../src/ui/PauseOverlay.js', () => ({
+  PauseOverlay: class {
+    constructor(scene, callbacks = {}) {
+      this.onResume = callbacks.onResume || null;
+      this.visible = false;
+    }
+    show() {
+      this.visible = true;
+    }
+    hide() {
+      this.visible = false;
+      this.onResume?.();
+    }
+  },
+}));
 
 import { installFakeDom } from './helpers/fakeDom.js';
 import { loadGameData } from './testData.js';
-import { RunManager } from '../src/engine/RunManager.js';
+import { RunManager, saveRun } from '../src/engine/RunManager.js';
 import {
   earnedPickOwed,
   skipEarnedBlessing,
@@ -41,6 +79,9 @@ import { blessingTarotCard } from '../src/ui/choiceCards.js';
 import { blessingCardContent } from '../src/ui/choiceContent.js';
 import { transitionToScene } from '../src/utils/SceneRouter.js';
 import { saveServiceRun } from '../src/ui/serviceSave.js';
+import { showMinorHint } from '../src/ui/HintDisplay.js';
+import { BattleScene } from '../src/scenes/BattleScene.js';
+import { EARNED_PICK_SAVE_FAILED } from '../src/ui/earnedBlessingPickModel.js';
 import { InputAction } from '../src/utils/InputActions.js';
 import { _resetInputFocus, dispatchInputAction } from '../src/utils/inputFocus.js';
 import { DIFFICULTY_IDS } from '../src/engine/DifficultyEngine.js';
@@ -60,6 +101,10 @@ beforeEach(() => {
   });
   vi.mocked(transitionToScene).mockClear();
   vi.mocked(saveServiceRun).mockClear();
+  vi.mocked(saveServiceRun).mockImplementation(() => '');
+  vi.mocked(showMinorHint).mockClear();
+  vi.mocked(saveRun).mockClear();
+  vi.mocked(saveRun).mockImplementation(() => ({ ok: true }));
 });
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -101,6 +146,42 @@ function winAct(rm) {
     else rm.markNodeComplete(node.id);
   }
   return rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.bossNodeId);
+}
+
+/**
+ * Win every act of a run, leaving Act I's pick owed (a debug advance over it) and skipping the
+ * others: the final boss is won, the run is complete, and a stale pick is still owed.
+ */
+function winRunWithStalePick(rm) {
+  winAct(rm);
+  for (let act = 1; act < rm.actSequence.length; act++) {
+    rm.advanceAct();
+    winAct(rm);
+    if (rm.earnedBlessingPicks[rm.currentAct]?.status === 'owed')
+      skipEarnedBlessing(rm, rm.currentAct);
+  }
+  return rm;
+}
+
+/** A kept contract's reward earned on the act boss and not yet delivered (it holds the party). */
+function oweBossContract(rm) {
+  const boss = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.bossNodeId);
+  rm.currentNodeId = boss.id;
+  rm.contractOwed = {
+    battleNodeId: boss.id,
+    contractNodeId: 'contract',
+    eventId: 'contract',
+    act: rm.currentAct,
+    goal: 'underPar',
+    kept: true,
+    noPar: false,
+    losses: 0,
+    effects: [{ type: 'gold', value: 50 }],
+    seedKey: 'event-contract:1:contract',
+    blocked: null,
+    failed: null,
+  };
+  return boss;
 }
 
 const dialogs = (doc) =>
@@ -353,25 +434,186 @@ describe('the battle path: the pick before the act advance', () => {
   });
 });
 
-describe('the post-loot fallback never cuts the pick off', () => {
-  it('holds while the pick is open and fires once it closes', async () => {
-    // Failure: the 8 s fallback forces the route map under an open pick (the act never advances
-    // and the pick is torn down mid-choice).
-    vi.useFakeTimers();
-    const scene = {
+describe('the battle path: what comes before the pick, and its save', () => {
+  it('a contract reward owed at the boss goes to the route map first, act unadvanced and the pick unshown', async () => {
+    // Failure: the battle shows the pick (and advances the act) over the boss's owed contract
+    // reward, so the map's order (contract, pick, advance) is broken on this path.
+    const { doc } = withDom();
+    const rm = freshRun({ seed: 9320 });
+    winAct(rm);
+    oweBossContract(rm);
+    const scene = battleScene(rm);
+    expect(await new PostCombatController(scene).transitionAfterBattle()).toBe(true);
+    expect(dialogNamed(doc, 'An earned blessing')).toBeUndefined();
+    expect(rm.currentAct).toBe('act1');
+    expect(earnedPickOwed(rm)).toBeTruthy();
+    expect(vi.mocked(transitionToScene).mock.calls.map((c) => c[1])).toEqual(['NodeMap']);
+    // On the map: the contract's page first, never the pick, never the advance.
+    const map = mapScene(rm);
+    map.handleContractSettlement = vi.fn(() => true);
+    NodeMapScene.prototype.checkActComplete.call(map);
+    expect(map.handleContractSettlement).toHaveBeenCalledWith({ auto: true });
+    expect(dialogNamed(doc, 'An earned blessing')).toBeUndefined();
+    expect(rm.currentAct).toBe('act1');
+  });
+
+  it('the take is written by the real battle save, for this battle session', async () => {
+    // Failure: the pick's save is called without `{ session }`, so _persistBattleRunState refuses
+    // it as a stale session and nothing reaches the disk until the act advance.
+    const { doc } = withDom();
+    const rm = freshRun({ seed: 9321 });
+    winAct(rm);
+    const written = [];
+    vi.mocked(saveRun).mockImplementation((run) => {
+      written.push([run.currentAct, run.earnedBlessingPicks.act1.status]);
+      return { ok: true };
+    });
+    const scene = battleScene(rm, {
+      registry: { get: (key) => (key === 'activeSlot' ? 2 : null) },
+      _persistBattleRunState: BattleScene.prototype._persistBattleRunState,
+    });
+    const done = new PostCombatController(scene).transitionAfterBattle();
+    await vi.waitFor(() => expect(dialogNamed(doc, 'An earned blessing')).toBeTruthy());
+    pickCards(doc)[0].click();
+    buttonIn(dialogNamed(doc, 'An earned blessing'), 'Take').click();
+    expect(await done).toBe(true);
+    expect(written[0]).toEqual(['act1', 'taken']); // the pick's own write, before the advance
+    expect(written.at(-1)).toEqual(['act2', 'taken']);
+    expect(saveRun.mock.calls[0][2]).toBe(2); // the active slot
+  });
+
+  it.each([
+    ['quota', true],
+    ['write_error', true],
+    ['missing_slot', false],
+  ])('a pick save refused with %s says so: %s', async (reason, warned) => {
+    // Failure: a refused write after Take is silent (the player believes the choice is kept),
+    // or a dev route with no slot warns about a save it never meant to make.
+    const { doc } = withDom();
+    const rm = freshRun({ seed: 9322 });
+    winAct(rm);
+    let first = true;
+    const scene = battleScene(rm, {
+      _persistBattleRunState: vi.fn(() => {
+        if (!first) return { ok: true };
+        first = false;
+        return { ok: false, reason };
+      }),
+    });
+    const done = new PostCombatController(scene).transitionAfterBattle();
+    await vi.waitFor(() => expect(dialogNamed(doc, 'An earned blessing')).toBeTruthy());
+    pickCards(doc)[0].click();
+    buttonIn(dialogNamed(doc, 'An earned blessing'), 'Take').click();
+    await done;
+    const hints = vi.mocked(showMinorHint).mock.calls.map((c) => c[1]);
+    expect(hints.includes(EARNED_PICK_SAVE_FAILED)).toBe(warned);
+    expect(rm.currentAct).toBe('act2'); // the act advance's save tries again
+  });
+});
+
+describe('the post-loot fallback never cuts the pick off, nor what follows it', () => {
+  function fallbackScene(extra = {}) {
+    return {
       _battleSession: 1,
       _earnedPickActive: true,
-      isStoryInputLocked: () => false,
+      _storyLocked: false,
+      isStoryInputLocked() {
+        return this._storyLocked;
+      },
       forceTransitionAfterBattle: vi.fn(),
-      // The transition is waiting on the pick: it never settles in this test.
+      // The transition is waiting on the pick: it never settles in these tests.
       transitionAfterBattle: () => new Promise(() => {}),
+      ...extra,
     };
+  }
+
+  it('holds while the pick is open; once it closes, a story beat keeps its 30 s from the close', async () => {
+    // Failure: the 8 s fallback forces the route map under an open pick, or (the pick open past
+    // the 30 s grace) fires the moment it closes, cutting the act card and story off.
+    vi.useFakeTimers();
+    const scene = fallbackScene();
     new LootFlowController(scene)._startPostLootTransition();
     await vi.advanceTimersByTimeAsync(60_000);
     expect(scene.forceTransitionAfterBattle).not.toHaveBeenCalled();
-    scene._earnedPickActive = false;
-    await vi.advanceTimersByTimeAsync(1_000);
+    scene._earnedPickActive = false; // Take: the act transition's story begins
+    scene._storyLocked = true;
+    await vi.advanceTimersByTimeAsync(29_000);
+    expect(scene.forceTransitionAfterBattle).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(2_000);
     expect(scene.forceTransitionAfterBattle).toHaveBeenCalledTimes(1);
+  });
+
+  it('once the pick closes with no story beat, the transition still has its own 8 s', async () => {
+    // Failure: the re-check ignores POST_LOOT_TRANSITION_TIMEOUT_MS after a long pick, so the
+    // fallback fires within a quarter second of the close (the act advance and its save are
+    // still running).
+    vi.useFakeTimers();
+    const scene = fallbackScene();
+    new LootFlowController(scene)._startPostLootTransition();
+    await vi.advanceTimersByTimeAsync(20_000);
+    scene._earnedPickActive = false;
+    await vi.advanceTimersByTimeAsync(7_000);
+    expect(scene.forceTransitionAfterBattle).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(scene.forceTransitionAfterBattle).toHaveBeenCalledTimes(1);
+  });
+
+  it('a pick held 40 s, then Take: the act story plays out and the fallback never fires', async () => {
+    // Failure (the review's repro): the grace was counted from the transition's start, so the
+    // story that follows a long pick (_storyDialogueActive) is cut off by a forced exit.
+    vi.useFakeTimers();
+    const { doc } = withDom();
+    const rm = freshRun({ seed: 9310 });
+    winAct(rm);
+    const scene = battleScene(rm, {
+      isStoryInputLocked: () => scene._storyDialogueActive === true,
+      _showStoryDialogueOnce: vi.fn(() => {
+        scene._storyDialogueActive = true;
+        return new Promise((resolve) =>
+          setTimeout(() => {
+            scene._storyDialogueActive = false;
+            resolve();
+          }, 20_000),
+        );
+      }),
+    });
+    const controller = new PostCombatController(scene);
+    scene.transitionAfterBattle = () => controller.transitionAfterBattle();
+    new LootFlowController(scene)._startPostLootTransition();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(dialogNamed(doc, 'An earned blessing')).toBeTruthy();
+    await vi.advanceTimersByTimeAsync(40_000);
+    pickCards(doc)[0].click();
+    buttonIn(dialogNamed(doc, 'An earned blessing'), 'Take').click();
+    await vi.advanceTimersByTimeAsync(1_000); // the seal, then the act story begins
+    expect(rm.currentAct).toBe('act2');
+    expect(scene._storyDialogueActive).toBe(true);
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(scene._storyDialogueActive).toBe(true);
+    expect(scene.forceTransitionAfterBattle).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(10_000); // the story ends; the route map opens
+    expect(vi.mocked(transitionToScene).mock.calls.map((c) => c[1])).toEqual(['NodeMap']);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(scene.forceTransitionAfterBattle).not.toHaveBeenCalled();
+  });
+
+  it('a scene shut down under an open pick, and the next battle, hold nothing', async () => {
+    // Failure: the pick's promise never settles on shutdown, so `_earnedPickActive` stays true on
+    // the reused scene and the next battle's post-loot fallback never fires.
+    withDom();
+    const rm = freshRun({ seed: 9311 });
+    winAct(rm);
+    const scene = battleScene(rm);
+    void new PostCombatController(scene).transitionAfterBattle();
+    await vi.waitFor(() => expect(scene._earnedPickActive).toBe(true));
+    scene._battleSession = 2; // the scene is left (a quit, a crash recovery)
+    scene.events.emit('shutdown');
+    expect(scene._earnedPickActive).toBe(false);
+
+    const reused = Object.create(BattleScene.prototype);
+    reused._earnedPickActive = true;
+    BattleScene.prototype.init.call(reused, { gameData: { skills: [] } });
+    expect(reused._earnedPickActive).toBe(false);
   });
 });
 
@@ -427,15 +669,109 @@ describe('the route map path', () => {
     expect(scene._maybeOpenPendingCaravanShop).toHaveBeenCalled();
   });
 
-  it('a tap on the route map opens an owed pick that could not open by itself', () => {
+  it('a tap on the route map opens an owed pick when nothing holds it', () => {
     // Failure: a pick that failed to open leaves no way back to it but a reload.
     const { doc } = withDom();
-    const rm = freshRun({ seed: 9402 });
+    const rm = freshRun({ seed: 9408 });
     winAct(rm);
     const scene = mapScene(rm);
     const boss = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.bossNodeId);
     NodeMapScene.prototype.onNodeClick.call(scene, boss);
     expect(dialogNamed(doc, 'An earned blessing')).toBeTruthy();
+  });
+
+  it('a pick refused because the Roster was open opens when the Roster closes', () => {
+    // Failure: an owed pick the map refused once (an overlay in front of it) stays stuck until a
+    // reload: nothing tries it again when the overlay closes.
+    const { doc } = withDom();
+    const rm = freshRun({ seed: 9402 });
+    winAct(rm);
+    const scene = mapScene(rm);
+    NodeMapScene.prototype._openRoster.call(scene);
+    expect(scene.rosterOverlay.visible).toBe(true);
+    NodeMapScene.prototype.checkActComplete.call(scene); // the finalize chain, under the Roster
+    expect(dialogNamed(doc, 'An earned blessing')).toBeUndefined();
+    expect(rm.currentAct).toBe('act1');
+    scene.rosterOverlay.hide(); // the player closes the Roster
+    expect(scene.rosterOverlay).toBeNull();
+    expect(dialogNamed(doc, 'An earned blessing')).toBeTruthy();
+    expect(rm.currentAct).toBe('act1');
+  });
+
+  it('a pick refused under the pause menu opens when it resumes', () => {
+    // Failure: the pause menu's Resume leaves a refused pick stuck.
+    const { doc } = withDom();
+    const rm = freshRun({ seed: 9403 });
+    winAct(rm);
+    const scene = mapScene(rm);
+    NodeMapScene.prototype.showPauseMenu.call(scene);
+    expect(NodeMapScene.prototype._maybeOpenEarnedPick.call(scene)).toBe(false);
+    scene.pauseOverlay.hide();
+    expect(dialogNamed(doc, 'An earned blessing')).toBeTruthy();
+  });
+
+  it('closing the Roster with a contract reward owed at the boss opens the contract page, never the pick', () => {
+    // Failure: the retry opens the pick straight away, ahead of the boss's owed contract reward
+    // (the map's order is contract, pick, advance).
+    const { doc } = withDom();
+    const rm = freshRun({ seed: 9404 });
+    winAct(rm);
+    oweBossContract(rm);
+    const scene = mapScene(rm);
+    scene.handleContractSettlement = vi.fn(() => true);
+    NodeMapScene.prototype._openRoster.call(scene);
+    scene.rosterOverlay.hide();
+    expect(scene.handleContractSettlement).toHaveBeenCalledWith({ auto: true });
+    expect(dialogNamed(doc, 'An earned blessing')).toBeUndefined();
+    expect(rm.currentAct).toBe('act1');
+  });
+
+  it('a tap with a contract reward owed where the party stands opens that page, not the pick', () => {
+    // Failure: _maybeOpenEarnedPick ignores the held contract, so a tap opens the pick first.
+    const { doc } = withDom();
+    const rm = freshRun({ seed: 9405 });
+    winAct(rm);
+    const boss = oweBossContract(rm);
+    const scene = mapScene(rm);
+    scene.handleContractSettlement = vi.fn(() => true);
+    NodeMapScene.prototype.onNodeClick.call(scene, boss);
+    expect(dialogNamed(doc, 'An earned blessing')).toBeUndefined();
+    expect(scene.handleContractSettlement).toHaveBeenCalledWith({ manual: true });
+  });
+
+  it('a take the device refuses to save says so on the route map', async () => {
+    // Failure: saveServiceRun's warning is dropped, so a refused write after Take is silent.
+    const { doc } = withDom();
+    const rm = freshRun({ seed: 9406 });
+    winAct(rm);
+    vi.mocked(saveServiceRun).mockImplementation(
+      () => ' Save failed: device storage may be full or unavailable.',
+    );
+    const scene = mapScene(rm);
+    expect(NodeMapScene.prototype._maybeOpenEarnedPick.call(scene)).toBe(true);
+    pickCards(doc)[0].click();
+    buttonIn(dialogNamed(doc, 'An earned blessing'), 'Take').click();
+    await vi.waitFor(() => expect(scene._earnedPick).toBeNull());
+    expect(vi.mocked(showMinorHint)).toHaveBeenCalledWith(
+      scene,
+      'Save failed: device storage may be full or unavailable.',
+    );
+  });
+
+  it('a finished run with a stale pick owed settles (RunComplete) and never opens the pick', () => {
+    // Failure: checkActComplete (without its `!isRunComplete()` guard) or _maybeOpenEarnedPick
+    // opens a pick over the won run, and the run never reaches its settlement.
+    const { doc } = withDom();
+    const rm = winRunWithStalePick(freshRun({ seed: 9407 }));
+    expect(rm.isRunComplete()).toBe(true);
+    expect(earnedPickOwed(rm)?.actId).toBe('act1');
+    const scene = mapScene(rm);
+    expect(NodeMapScene.prototype._maybeOpenEarnedPick.call(scene)).toBe(false);
+    expect(dialogNamed(doc, 'An earned blessing')).toBeUndefined();
+    NodeMapScene.prototype.checkActComplete.call(scene);
+    expect(dialogNamed(doc, 'An earned blessing')).toBeUndefined();
+    expect(rm.status).toBe('victory');
+    expect(vi.mocked(transitionToScene).mock.calls.map((c) => c[1])).toEqual(['RunComplete']);
   });
 });
 
@@ -481,6 +817,46 @@ describe('the pick menu: nothing skips it silently', () => {
     expect(dialogNamed(doc, 'Leave them?')).toBeTruthy();
     expect(earnedPickOwed(rm)).toBeTruthy();
     expect(onDone).not.toHaveBeenCalled();
+  });
+
+  it('the confirmation opens on Back: a stray Enter or Confirm keeps the pick', () => {
+    // Failure: focus lands on "Leave them" (the confirmation's first content button), so the
+    // Enter that opened Skip, or the next one, throws both blessings away.
+    const { doc, key, rm, onDone } = openPick(9504);
+    buttonIn(dialogNamed(doc, 'An earned blessing'), 'Skip').click();
+    const confirm = dialogNamed(doc, 'Leave them?');
+    expect(doc.activeElement).toBe(buttonIn(confirm, 'Back'));
+    key('Enter');
+    expect(dialogNamed(doc, 'Leave them?')).toBeUndefined();
+    expect(earnedPickOwed(rm)).toBeTruthy();
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
+  it('a refused take leaves the menu whole: Skip, Take and focus come back, and a take still works', async () => {
+    // Failure: a refused take leaves the header's Skip disabled, or `busy` set (every card and
+    // Take then dead: a menu nothing can leave), or focus on a disabled button.
+    const { doc, rm, onDone } = openPick(9505);
+    const [first, second] = earnedPickOwed(rm).offered;
+    rm.addBlessingMidRun(first, { earned: true }); // already held: the engine refuses it
+    pickCards(doc)
+      .find((c) => c.dataset.blessing === first)
+      .click();
+    buttonIn(dialogNamed(doc, 'An earned blessing'), 'Take').click();
+    const menu = dialogNamed(doc, 'An earned blessing');
+    expect(menu).toBeTruthy();
+    expect(earnedPickOwed(rm)).toBeTruthy();
+    expect(buttonIn(menu, 'Skip').disabled).toBe(false);
+    expect(buttonIn(menu, 'Take').disabled).toBe(false);
+    expect(menu.contains(doc.activeElement)).toBe(true);
+    expect(doc.activeElement.disabled).not.toBe(true);
+    pickCards(doc)
+      .find((c) => c.dataset.blessing === second)
+      .click();
+    buttonIn(dialogNamed(doc, 'An earned blessing'), 'Take').click();
+    await vi.waitFor(() =>
+      expect(onDone).toHaveBeenCalledWith({ outcome: 'taken', blessingId: second }),
+    );
+    expect(rm.earnedBlessingPicks.act1).toMatchObject({ status: 'taken', chosen: second });
   });
 
   it('Leave them skips for good, saves, and closes both menus', async () => {
