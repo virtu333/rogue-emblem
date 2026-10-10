@@ -204,6 +204,7 @@ export class MovementActionController {
           battleRecruits: scene._battleRecruits,
           runManager: scene.runManager,
           turn: scene.turnManager?.turnNumber,
+          battleBlessings: scene._battleBlessings || null,
         });
         scene._battleRecruits = result.battleRecruits;
         observeHistoryAction(scene, 'recruited', lord, npc);
