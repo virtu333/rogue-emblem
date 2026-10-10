@@ -147,7 +147,7 @@ test('phone: the coach Skip confirms, then the ending plays and Home Base holds 
   await context.close();
 });
 
-test('phone: Hide folds the coach to its goal line, Show opens it; the fold is kept on reload', async ({
+test('phone: Hide folds the coach to a Guide chip, the chip opens it; the fold is kept on reload', async ({
   browser,
 }) => {
   const { context, page, errors, coach } = await openPrologueRun(browser, { phone: true });
@@ -159,27 +159,32 @@ test('phone: Hide folds the coach to its goal line, Show opens it; the fold is k
   await expect(hide).toHaveText('Hide');
   await expect(hide).toHaveAttribute('aria-expanded', 'true');
   await hide.tap();
-  // Folded: the goal line and Show only, a smaller plate over the map.
+  // Folded: the Guide chip only, a small corner of the map.
   await expect(detail).toBeHidden();
-  await expect(goal).toHaveText('Select Edric');
+  await expect(goal).toBeHidden();
   await expect(coach.getByRole('button', { name: 'Skip step', exact: true })).toBeHidden();
   await expect(
     coach.getByRole('button', { name: 'Skip the rest of the prologue', exact: true }),
   ).toBeHidden();
   const show = coach.getByRole('button', { name: 'Show the goal details', exact: true });
   await expect(show).toHaveAttribute('aria-expanded', 'false');
+  await expect(show).toHaveText('Guide');
   const folded = await coach.boundingBox();
   expect(folded.height).toBeLessThan(open.height);
-  expect(folded.width * folded.height).toBeLessThan(open.width * open.height * 0.75);
+  // Failure this holds against: a fold that kept the goal line left a plate as wide as
+  // the open coach across the top of the map.
+  expect(folded.width).toBeLessThan(120);
+  expect(folded.width * folded.height).toBeLessThan(open.width * open.height * 0.25);
   const tap = await show.boundingBox();
   expect(tap.height).toBeGreaterThanOrEqual(44);
-  // The goal still follows play while folded.
+  expect(tap.width).toBeGreaterThanOrEqual(44);
+  // The goal still follows play while folded: opening shows the current step.
   await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     s.selectUnit(s.playerUnits[0]);
   });
   await expect(goal).toHaveText('Move onto the Fort');
-  await expect(detail).toBeHidden();
+  await expect(goal).toBeHidden();
   // Kept on this device: the next coach (a reload's resumed battle, the next chapter)
   // opens folded.
   expect(
@@ -202,11 +207,12 @@ test('phone: Hide folds the coach to its goal line, Show opens it; the fold is k
   await context.close();
 });
 
-test('phone: a tap on the folded goal opens the coach', async ({ browser }) => {
+test('phone: a tap on the Guide chip opens the coach', async ({ browser }) => {
   const { context, page, errors, coach } = await openPrologueRun(browser, { phone: true });
   await coach.getByRole('button', { name: 'Hide the goal details', exact: true }).tap();
   await expect(coach.locator('.re-coach-detail')).toBeHidden();
-  await coach.locator('.re-coach-goal').tap();
+  await coach.getByRole('button', { name: 'Show the goal details', exact: true }).tap();
+  await expect(coach.locator('.re-coach-goal')).toBeVisible();
   await expect(coach.locator('.re-coach-detail')).toBeVisible();
   await expect(coach.getByRole('button', { name: 'Skip step', exact: true })).toBeVisible();
   expect(
