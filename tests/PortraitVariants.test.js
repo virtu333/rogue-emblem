@@ -555,26 +555,44 @@ describe('female-only classes (Pegasus Knight line)', () => {
         }
   });
 
-  it('assignPortraitVariant replaces a stored man in the line, keeps a stored woman', () => {
+  it('a stored person is never rewritten: assign and backfill keep a man in the line', () => {
     const man = unitOf('Pegasus Knight', 'Elysia', { portraitVariant: 'pegasus_d' });
-    const fixed = assignPortraitVariant(man, { seed: 3 });
-    expect(person(fixed).gender).toBe('f');
-    expect(man.portraitVariant).toBe(fixed);
-    const woman = unitOf('Pegasus Knight', 'Iris', { portraitVariant: 'pegasus_b' });
-    expect(assignPortraitVariant(woman, { seed: 3 })).toBe('pegasus_b');
+    expect(assignPortraitVariant(man, { seed: 3 })).toBe('pegasus_d');
+    const evin = unitOf('Pegasus Knight', 'Evin', { portraitVariant: 'pegasus_d' });
+    expect(backfillPortraitVariants([evin, man], { seed: 5 })).toBe(0);
+    expect(evin.portraitVariant).toBe('pegasus_d');
+    expect(evin.name).toBe('Evin');
   });
 
-  it('a man saved before the rule is shown, and persisted on load, as a woman; his name stays', () => {
+  it('a man in the line shows one woman, the same before and after a save round trip', () => {
     const evin = unitOf('Pegasus Knight', 'Evin', { portraitVariant: 'pegasus_d' });
-    // Before the load repairs anything, the display already refuses the man.
     const shown = variantPortraitId(evin);
-    expect(Object.values(person('pegasus_d').renders)).not.toContain(shown);
+    const owner = Object.values(table.identities).find(
+      (p) => p.renders['Pegasus Knight'] === shown,
+    );
+    expect(owner.gender).toBe('f');
     const other = unitOf('Pegasus Knight', 'Iris', { portraitVariant: 'pegasus_a' });
-    expect(backfillPortraitVariants([evin, other], { seed: 5 })).toBe(1);
-    expect(person(evin.portraitVariant).gender).toBe('f');
-    expect(evin.portraitVariant).not.toBe(other.portraitVariant);
-    expect(evin.name).toBe('Evin');
-    expect(variantPortraitId(evin)).toBe(person(evin.portraitVariant).renders['Pegasus Knight']);
+    const reloaded = JSON.parse(JSON.stringify(evin));
+    backfillPortraitVariants([reloaded, other], { seed: 99 });
+    expect(variantPortraitId(reloaded)).toBe(shown);
+    // and after a promotion, the display is one woman in the new class, stable on reload
+    reloaded.className = 'Falcon Knight';
+    const promoted = variantPortraitId(reloaded);
+    backfillPortraitVariants([reloaded], { seed: 1 });
+    expect(variantPortraitId(reloaded)).toBe(promoted);
+  });
+
+  it('a man sealed out of the line gets his own face back', () => {
+    const u = unitOf('Wyvern Rider', 'Draven', { portraitVariant: 'wyvern_a' });
+    const before = variantPortraitId(u);
+    u.className = 'Falcon Knight';
+    expect(variantPortraitId(u)).not.toBe(before);
+    expect(u.portraitVariant).toBe('wyvern_a');
+    u.className = 'Wyvern Rider';
+    expect(variantPortraitId(u)).toBe(before);
+    const peg = unitOf('Pegasus Knight', 'Evin', { portraitVariant: 'pegasus_d' });
+    const man = variantPortraitId({ ...peg, className: 'Wyvern Lord' });
+    expect(man).toBe(person('pegasus_d').renders['Wyvern Lord']);
   });
 
   it('a man promoted or reclassed into the line shows a woman in its portrait', () => {

@@ -147,11 +147,7 @@ export function assignPortraitVariant(unit, context = {}) {
     if (face) unit.portraitVariant = face;
     return face;
   }
-  if (
-    isPortraitPerson(unit.portraitVariant) &&
-    personFitsClass(unit.portraitVariant, unit.className)
-  )
-    return unit.portraitVariant;
+  if (isPortraitPerson(unit.portraitVariant)) return unit.portraitVariant;
   const person = choosePortraitPerson({
     name: unit.name,
     className: unit.className,
@@ -179,19 +175,15 @@ export function assignPortraitVariants(units, context = {}) {
 /**
  * Legacy saves: units from before portrait variety get a stable,
  * de-duplicated person on load. Roster order decides ties, so loading the
- * same save twice gives the same faces; units that have one keep it. A man
- * stored on a unit now in a female-only class (a Pegasus Knight saved before
- * the rule, a male Wyvern Rider promoted to Falcon Knight) is given a woman's
- * face the same way; its name stays.
+ * same save twice gives the same faces; units that have one keep it, even a
+ * man now in a female-only class: the stored person is never rewritten (it comes
+ * back if he leaves the line), displayedPerson maps it to a woman.
  */
 export function backfillPortraitVariants(roster = [], { fallen = [], seed } = {}) {
   const all = [...(roster || []), ...(fallen || [])];
   const missing = all.filter(
     (u) =>
-      u &&
-      !wearsOwnPortrait(u) &&
-      u.faction !== 'enemy' &&
-      !(isPortraitPerson(u.portraitVariant) && personFitsClass(u.portraitVariant, u.className)),
+      u && !wearsOwnPortrait(u) && u.faction !== 'enemy' && !isPortraitPerson(u.portraitVariant),
   );
   for (const unit of missing)
     assignPortraitVariant(unit, { roster: all.filter((u) => u !== unit), seed });
