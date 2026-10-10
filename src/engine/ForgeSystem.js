@@ -135,12 +135,17 @@ export function forgePrice(weapon, stat, discountRatio = 0) {
  * @param {object} weapon
  * @param {'might'|'crit'|'hit'|'weight'} stat - which stat to boost
  * @param {number} [discountRatio=0] - fraction discount (0–1), e.g. 0.2 = 20% off
+ * @param {{ free?: boolean }} [options] - `free`: a forge that costs nothing (Smith's Mark).
+ *   It adds nothing to the weapon's resale price (the price only grows with gold paid) and
+ *   records a zero-cost history step, so a later deforge refunds nothing for it. The
+ *   `forgePrice` floor of 1 gold stays for every discount; only `free` waives it.
  * @returns {{ success: boolean, cost?: number }}
  */
-export function applyForge(weapon, stat, discountRatio = 0) {
+export function applyForge(weapon, stat, discountRatio = 0, { free = false } = {}) {
   if (!canForgeStat(weapon, stat)) return { success: false };
-  const cost = forgePrice(weapon, stat, discountRatio);
-  if (cost < 0) return { success: false };
+  const listed = forgePrice(weapon, stat, discountRatio);
+  if (listed < 0) return { success: false };
+  const cost = free ? 0 : listed;
 
   const level = weapon._forgeLevel || 0;
 

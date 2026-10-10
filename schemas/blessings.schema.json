@@ -144,6 +144,21 @@
             "items": {
               "$ref": "#/$defs/priceOption"
             }
+          },
+          "intrinsicPrice": {
+            "type": "object",
+            "properties": {
+              "label": {
+                "type": "string",
+                "minLength": 1
+              },
+              "points": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              }
+            },
+            "required": ["label", "points"],
+            "additionalProperties": false
           }
         },
         "required": ["id", "name", "tier", "description", "weight", "boons", "costs"],

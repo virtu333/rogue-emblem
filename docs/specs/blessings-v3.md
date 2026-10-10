@@ -237,6 +237,10 @@ a trap.
   The engine rolls one (seeded, as now). `npm run validate:data` refuses a candidate outside
   its tier's band and a gold price on a gold boon.
 - Each tier IV carries a **fixed pact** that fits its story.
+- A tier II-III card whose own boon *is* its cost (Slow Fuse's Act 1 dip, Gambler's Toss's
+  bad tosses) carries an **intrinsic price** instead of `prices`: `intrinsicPrice` `{ label,
+  points }`, validated against the same band, shown as "Price: …", spending one price draw like
+  a pact so neighbouring offers do not move. It is never granted mid-run by an event.
 - **Offer shape:** slot 1 stays a free tier I (the safe pick). Slots 2-3 draw tiers II-IV
   with weights II 1.0, III 0.8, IV 0.25, and **never share a tier**: every offer is a free
   pick, a smaller bet and a bigger one, shown in that order. A IV then shows in about 32%
@@ -251,32 +255,70 @@ a trap.
 
 | Blessing | Today | Verdict | Proposed |
 |---|---|---|---|
-| Steady Hands | I, +3 Hit | rework | **Keen Eye** (I): +10 Hit on the first strike of each combat you start. Under two-dice hit that matters for axes and low-SKL recruits. |
-| Coin of Fate | I, +750 gold | rework | **Advance Pay** (I): +500 now, +250 at the first node of each later act. |
+| Steady Hands | I, +3 Hit | rework | **Keen Eye** (I): +10 Hit on the first strike of each combat you start. Under two-dice hit that matters for axes and low-SKL recruits. **Built.** |
+| Coin of Fate | I, +750 gold | rework | **Advance Pay** (I): +500 now, +250 at the first node of each later act. **Built**, paid at act start (see as built). |
 | Blessed Vigor | I, lords +2 HP | retune | I: lords +4 max HP. |
 | Field Medic | I, a Vulnerary each | keep | I. |
 | Swift Instinct | II, lords +1 SPD | reprice | II with curated prices: Debt II / staff healing −20%. |
 | Iron Oath | II, lords +2 DEF | retier | III: Debt III / Ill Omen + garnish. |
 | Rally Cry | II, +3 STR/MAG Act 1 | reprice | II with light prices only (staff healing −20% / +8 shadow). |
 | War Veteran | II, +15% XP | retier | III: Debt III / −1 deploy Act 1 / shops +15%. |
-| Frugal Smith | II, forge −30%, +1 forge | rework | **Smith's Mark** (II): each shop's first forge is free, +1 forge per shop. |
-| Terrain Mastery | II, Forest/Fort bonus | rework | **Holdfast** (II): a unit that hasn't moved this turn gets +2 DEF and +10 avoid. A playstyle, not a terrain lottery. |
-| Quartermaster Cache | II, 1 Elixir per lord | rework | II: an Elixir in the convoy at the start of every act, Act 1 included (four over a Dusk run). Prices: staff healing −20% / shops +15%. |
+| Frugal Smith | II, forge −30%, +1 forge | rework | **Smith's Mark** (II): each shop's first forge is free, +1 forge per shop. **Built.** |
+| Terrain Mastery | II, Forest/Fort bonus | rework | **Hold the Line** (II): a unit that hasn't moved this turn gets +2 DEF and +10 avoid. A playstyle, not a terrain lottery. **Built**, renamed (see as built). |
+| Quartermaster Cache | II, 1 Elixir per lord | rework | II: an Elixir in the convoy at the start of every act, Act 1 included (four over a Dusk run). Prices: staff healing −20% / shops +15%. **Built.** |
 | Scout Blessing | III, deploy +1 | retier | II: deploy +1; prices Debt II / Hunted 2. |
 | Scholar's Vow | III, all growths +5 | retier | IV, pact: recruits join −1 level and Debt III. The best card in the game. |
-| Pilgrim Coin | III, shop +1 item, −15% | rework | **Pilgrim's Road** (II): each act's route gets one more shop (a keyed post-pass converts one non-combat node; the node-map stream is untouched). |
+| Pilgrim Coin | III, shop +1 item, −15% | rework | **Pilgrim's Road** (II): each act's route gets one more shop (a keyed post-pass converts one non-combat node; the node-map stream is untouched). **Built.** |
 | Merchant Bane | III, +15% battle gold | keep, rename lore | III: Hunted 2 / Sworn Enemy (no gold price). |
-| Nomad's Pact | III, recruits +2 levels | widen | III: also boss recruits and mercenaries. Debt III / Sworn Enemy / Lingering Injury on the commander. |
+| Nomad's Pact | III, recruits +2 levels | widen | III: also boss recruits and mercenaries. Debt III / Sworn Enemy / Lingering Injury on the commander. **Built.** |
 | Focused Curriculum | III, lords +12 SPD/SKL growth | keep the effect | III with a real III price (Debt III / all growths −5 / Lingering Injury on the commander), never garnish. Review: stronger numbers would need a much bigger price. |
 | Arsenal Pact | IV, a Silver weapon | keep | IV, pact: Debt IV. |
 | Forbidden Tome | IV, lords +12 growths | reprice | IV, pact: no church revives this run (the pact it has is near-free). |
-| Blood Forge | IV, +2 Might on every non-staff weapon the two starting lords carry at the start (Edric's Iron and Steel Swords, Sera's tome) | rework | II: +2 Might on each starting lord's best weapon (highest Might), so it isn't spent on an Iron Sword that will be replaced. Later weapons are untouched. |
+| Blood Forge | IV, +2 Might on every non-staff weapon the two starting lords carry at the start (Edric's Iron and Steel Swords, Sera's tome) | rework | II: +2 Might on each starting lord's best weapon (highest Might), so it isn't spent on an Iron Sword that will be replaced. Later weapons are untouched. **Built.** |
 | War Tutelage | IV, a skill per lord | keep | IV, pact: personal skills off until Act 3 (the new skills crowd out the old). |
 | Armory Stash | IV, 2 random forges | cut | Folded into a gift (§7). |
 | Scroll Archive | IV, 2 art scrolls | reprice | IV, pact: Debt IV (its pact is near-free). |
 
 Ids never change (save data). A cut blessing stays in the catalog with weight 0 so old saves
 load; a renamed one keeps its id and changes only `name`.
+
+**As built (the reworks that needed code).**
+
+- **Hold the Line, not Holdfast.** Terrain Mastery's id is unchanged; the card is named
+  *Hold the Line* because Cael's signature axe is already called **Holdfast** (`weapons.json`),
+  and item names are identity. `tests/BlessingReviewFixesA2.test.js` keeps a blessing from
+  taking an item's name. A unit holds when it has not moved since its player phase began
+  (`BlessingCombatMods.isHoldingGround`); the enemy phase that follows counts too.
+- **Keen Eye** adds its Hit to the attacker's first rolled strike only, in `resolveCombat` and
+  the forecast (`firstStrikeHitBonus`); counters, follow-ups and Brave strikes roll at the
+  base Hit.
+- **Advance Pay pays at act start**, inside `RunManager.advanceAct` after the new map is built
+  (`_payActStartGrants`), on every act transition including the final boss's; the shrine's
+  +500 covers the act it is taken in. `paidActs` is saved, so a reload never pays twice.
+  Quartermaster Cache delivers through the same list (Act 1 now; a church take pays the
+  current act now). The history record for Advance Pay's boon carries `recurringValue`
+  (nothing is paid when it is taken).
+- **Smith's Mark's free forge includes a repair.** A shop's first forge *use* (a forge or a
+  Village repair) costs nothing; it never raises resale value (`applyForge` `{ free: true }`);
+  Blood Forge's shrine forges use the same option. The engine decides `free`, never the UI.
+- **Pilgrim's Road converts an event or church** (`ExtraShopPass`, keyed stream). The final
+  boss act has only two battle rows, the Ruins and the boss, so it has no event or church to
+  convert and gains no extra shop; every other act does. Pacing preferences keep the new shop
+  off a shop's parent or sibling when they can. Taken mid-run (the card is tier II, so a church
+  never offers it; a future source may), it converts only a node the party can still reach
+  from where it stands (a walk forward along the route's edges), never one on a lane already
+  closed to it. A converted node keeps its `pilgrimShop` mark even if the Eclipse later makes
+  it a battle: a burned shop is not handed back.
+- **Nomad's Pact reaches boss recruits and Colosseum mercenaries** by raising the finished
+  unit on its own keyed stream (`RecruitJoinLevel`), so classes and names are the same with
+  and without it. It never goes below 0: the Scholar's Vow's −1 keeps its recruit-node reach.
+- **Old saves** are converted once by `engine/BlessingBoonMigration.js` (revision-gated; see
+  `docs/blessings_contract.md` §8): Steady Hands, Frugal Smith, Terrain Mastery and Pilgrim
+  Coin lose their old numbers (the amounts come from the blessing's own logged records, so a
+  save from before Feb 19 2026 converts exactly) and gain the new boon; Pilgrim Coin's extra shop
+  is stamped on the current map ahead of the party, not only from the next act; Coin of Fate and
+  Quartermaster Cache keep what they paid and start their recurring grant with the next act. The old
+  `terrain_combat_bonus` boon type is retired.
 
 ## 5. New starting blessings
 
@@ -290,7 +332,7 @@ where it acts in battle, a read in the combat-mod builder (`BattleScene` and
 | Blessing | Effect | Hook | Tier | Prices |
 |---|---|---|---|---|
 | Late Bloom | every unit +1 to all stats at each act cleared | `advanceAct`; new | III | Debt III / −1 DEF Act 1 + Ill Omen |
-| Slow Fuse | lords −1 all stats in Act 1, +2 all stats from Act 2 | act-scoped stat delta (exists) | II | none: the Act 1 dip is the price |
+| Slow Fuse | starting lords −1 to HP and the seven combat stats (never Move) in Act 1, +1 from Act 2 (built at +1, not +2: +2 to eight stats per lord for the rest of the run is far above a tier II bet; `lord_stat_arc` params are data) | `lord_stat_arc`, `engine/LordStatArc.js`: a dip reverted at the act's end and a rise at the next act's start | II | intrinsic (2 pt): the Act 1 dip is the price |
 | Dawn Tithe | +100 gold per turn under par at each victory | turn bonus; new | II | +8 shadow / staff healing −20% |
 
 ### 5.2 Build-arounds
@@ -298,15 +340,48 @@ where it acts in battle, a read in the combat-mod builder (`BattleScene` and
 | Blessing | Effect | Hook | Tier | Prices |
 |---|---|---|---|---|
 | Lone Banner | deploy cap −1; every deployed unit +25% XP | deploy delta (exists) + conditional XP; new | III | none: the cap is the price |
-| Phalanx Rite | +1 DEF per adjacent ally, up to +3 | accessory condition `adjacent_ally` | III | Debt III / Sworn Enemy |
-| Duelist's Creed | +15 avoid, +10 crit with no ally within 2 tiles | accessory condition `no_ally_within_2` | III | Debt III / −1 deploy Act 1 |
+| Phalanx Rite | +2 DEF per ally on a cardinal neighbour tile (never a diagonal), up to +3 (so +2 with one, +3 with two or more; was +1 per ally); **Built** | `adjacent_ally_def_bonus`: `SkillSystem.countAdjacentAllies` (the accessory condition `adjacent_ally`'s rule), read in `BlessingCombatMods` | III | Debt III / Sworn Enemy + −8 Hit Act 1 |
+| Duelist's Creed | +15 avoid, +10 crit while no ally is within 2 tiles (Manhattan); **Built** | `isolated_combat_bonus`: `SkillSystem.hasAllyWithin` (the accessory condition `no_ally_within_2`'s rule), read in `BlessingCombatMods` | III | Debt III / Hunted 2 + −1 DEF Act 1 (was: −1 deploy Act 1; see as built) |
 | Cavalier's Hour | mounted units +1 MOV; infantry +1 DEF | move types in classes.json; new | III | Debt III / Sworn Enemy + garnish |
+
+**As built (the formation cards).** Both are player-faction combat bonuses read in
+`BlessingCombatMods.blessingCombatModsFor` (the one place a blessing reaches a combat's mods),
+on both sides of an exchange, from `side.allies`, the unit's own side as the scene and the
+harness pass it (the player's army: green NPCs and foes never count, the unit itself and the
+fallen never count). Boon params are positive integers; a boon that would do nothing is refused
+by `validateBoonParams` and skipped by the handler (`engine/FormationBlessings.js` is the one
+reading). Held as `blessingRuntimeModifiers.adjacentAllyDefBonuses` / `isolatedCombatBonuses`
+(one entry per grant, saved, sanitised on load) and handed to combat in the profile as
+`adjacentAllyDef` / `isolated`.
+
+- **Phalanx Rite** counts allies at distance 1 (the four cardinal tiles, as the `adjacent_ally`
+  accessory condition does). The DEF counts against any physical blow; a magical blow reads RES,
+  as every DEF mod does. `max` caps the bonus, not the ally count. Tuned to `{ perAlly: 2, max: 3 }`
+  (the review found +1 per ally too small for a tier III card): one neighbour
+  pays +2, two or more pay the +3 cap, so the third and fourth neighbour add nothing.
+- **Where the formation cards apply.** They are combat mods for DEF, Avoid and Crit in a combat
+  exchange, on the attacker's side or the defender's, and nowhere else. The things that ignore
+  every DEF mod ignore them too: an area or line art's blows on victims other than the primary
+  target, rams, the ballista and Deathburst. The enemy AI's target scoring does not see
+  blessing mods (as for every blessing), so a foe does not weigh a Phalanx or a duelist when it
+  picks whom to strike. Arena bouts get no blessing, so neither card acts there.
+- **Duelist's Creed** counts any living ally within `radius` (Manhattan, so 2 reaches a
+  diagonal neighbour and a tile two steps away). Foes within the radius do not break the duel.
+  A lone unit (an army of one) is always isolated.
+- **Prices.** The brief's pair for Duelist's Creed (Debt III / −1 deploy Act 1) became Debt III /
+  Hunted + −1 DEF Act 1: a deploy-cap price on a card that rewards fewer units standing together
+  is a gift, not a cost. Phalanx Rite keeps the spec's Sworn Enemy, with the Act 1 −8 Hit dip
+  beside it so the pair sits in the tier III band.
+- **Events** may grant either (`SAFE_BLESSING_BOON_TYPES`): the boons carry no price of their own.
+- **The strategy sim** (`sim/strategy.js`, blessings section) now gives each battle its run (`runManager` in `HeadlessBattle`'s options, so it is present from `init()`), so combat blessings (Keen Eye, Hold the Line, these two, the act Hit price) show in its numbers; before, only stat and gold effects did. Setting `runManager` also turns on the run-level battle effects the harness reads from it: the staff heal multiplier price, the weapon-art price and Bloodless Art, village rewards to the convoy and the consumables a recruit battle uses in-battle. Strategy-layer blessing numbers from before this change are not comparable with those after it.
+- **Icons** reuse the Phalanx Band's and the Duelist's Glove's cells (`BLESSING_ICON_REUSE`: the
+  atlas is full); both cards wait for a painting (`PAINTING_PENDING`).
 
 ### 5.3 Systems the catalog never touches
 
 | Blessing | Effect | Hook | Tier | Prices |
 |---|---|---|---|---|
-| Bloodless Art | weapon arts −1 HP and +1 use per map | `WeaponArtSystem` cost and `perMapLimit` | II | staff healing −20% / Debt II |
+| Bloodless Art | player units' weapon arts −1 HP (floor 1) and +1 use per map (only arts that have a limit); foes get nothing | `player_weapon_art_boon`: `WeaponArtSystem.weaponArtRunOptions` / `getEffectiveWeaponArtHpCost` / `getEffectiveWeaponArtMapLimit`, read by `canUseWeaponArt` and the menus | II | staff healing −20% / Debt II |
 | Saint's Reserve | every staff +1 use per battle | staff use table | II | Debt II / Ill Omen |
 | Cutpurse's Luck | twice as many carriers; Steal skips its speed check | `carryConfig`, `Steal.js` | III | Hunted 2 / Sworn Enemy |
 | Open Roll | recruit nodes offer two candidates | `RecruitNodeSystem` | III | recruits −1 level + Debt II / Debt III |
@@ -329,7 +404,7 @@ and exists, but the route map needs a new interaction to pick the road.
 
 | Blessing | Effect | Hook | Tier | Prices |
 |---|---|---|---|---|
-| Gambler's Coin | each victory's battle gold is halved or doubled, seeded by run and node | battle gold; new | II | none: the variance is the price (expected value +25%) |
+| Gambler's Toss (was Gambler's Coin: an accessory has that name) | each victory's battle gold is doubled or cut to a third on an even toss, seeded by run and node (expected +17%; even double-or-halve, +25%, out-earned Merchant Bane in the strategy sim) | `battle_gold_gamble`, `engine/BattleGoldGamble.js`, in `completeBattle` after the elite, Merchant Bane and rung multipliers and before a Debt garnishes | III | intrinsic (3 pt): the variance is the price; never granted by an event |
 | Lottery Loot | one loot card per battle comes from the next act's table | `LootSystem` tier offset (exists for event accessories) | III | Debt III / Sworn Enemy |
 
 ## 6. Earned blessings
@@ -492,7 +567,8 @@ growth, XP and gold cards it can see.
 2. Price catalog, curated prices, Debt as the gold price, bands and the validator; retier and
    reprice the existing 23 (§4: data and small handler changes). Re-run the Ledger.
 3. Five new cards that reuse existing hooks most directly: Slow Fuse, Phalanx Rite,
-   Duelist's Creed, Bloodless Art, Gambler's Coin.
+   Duelist's Creed, Bloodless Art, Gambler's Toss. Built: the intrinsic price, Slow Fuse,
+   Gambler's Toss, Bloodless Art, Phalanx Rite and Duelist's Creed.
 4. Earned blessings: the `earned` flag, the act-boss pick, and four pure ones (Unbroken
    Banner, Second Dawn, Ember Lantern, Captain's Whistle).
 5. The special church, the twisted earned blessings, the gifts with a catch, and the rest of

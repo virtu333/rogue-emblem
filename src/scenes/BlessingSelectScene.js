@@ -8,6 +8,7 @@ import { MUSIC } from '../utils/musicConfig.js';
 import { RunManager, clearSavedRun } from '../engine/RunManager.js';
 import { deleteRunSave } from '../cloud/CloudSync.js';
 import { recordBlessingSelection } from '../utils/blessingAnalytics.js';
+import { blessingPriceKind } from '../ui/choiceContent.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { InputAction } from '../utils/InputActions.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
@@ -374,7 +375,7 @@ export class BlessingSelectScene extends Phaser.Scene {
           this.add.text(
             nameX,
             row1Y + cardH - 34,
-            `${blessing.pact ? 'Pact' : 'Cost'}: ${blessing.rolledCost.label}`,
+            `${blessingPriceKind(blessing)}: ${blessing.rolledCost.label}`,
             {
               fontFamily: 'Arial',
               fontSize: '9px',

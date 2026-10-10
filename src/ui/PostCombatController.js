@@ -44,6 +44,7 @@ import { presentQueuedProgress } from './BattlePresentationCheckpoint.js';
 import { UI_PALETTE } from '../utils/uiStyles.js';
 import { recordRunLordsMet } from '../engine/LordsMet.js';
 import { settlementLines } from '../engine/Burdens.js';
+import { gambleLines } from '../engine/BattleGoldGamble.js';
 
 // Watchdog: a single RunComplete transition attempt that hangs past this is
 // treated as failed so the retry loop (and ultimately the recovery UI) still runs.
@@ -200,6 +201,9 @@ export class PostCombatController {
       if (completionApplied) recordRunLordsMet(scene.registry?.get?.('meta'), scene.runManager);
       // What a burden took at this commit ("Debt −120 G", "Ill Omen +1") joins the band.
       if (completionApplied) {
+        // Gambler's Toss comes first: the Debt garnishes what the toss left.
+        const tossed = scene.runManager.lastBattleGoldGamble;
+        if (tossed && tossed.nodeId === scene.nodeId) band?.addParts?.(gambleLines(tossed));
         const settled = scene.runManager.lastBurdenSettlement;
         if (settled && settled.nodeId === scene.nodeId) band?.addParts?.(settlementLines(settled));
         // So does a contract this victory kept or broke ("Contract kept: Gained 600 G").

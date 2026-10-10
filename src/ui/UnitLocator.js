@@ -1,6 +1,7 @@
 // UnitLocator — "where is that unit?" answered on the map.
 //
-// Brings a ready unit into view (only when it is not comfortably on screen),
+// Brings a ready unit into view (only when it is not comfortably on screen, and only
+// through the battle camera controller: desktop has none and never scrolls),
 // selects it so its move range, the cursor and the unit panel are live, and
 // draws an Ink & Ember locator: gold corner brackets that close in on the tile
 // and a brief beam of light from above. Reduced motion shows the brackets
@@ -43,10 +44,15 @@ function isComfortablyVisible(scene, x, y) {
 export function locateUnit(scene, unit, { select = true } = {}) {
   if (!scene?.grid || !unit || !(unit.currentHP > 0)) return false;
   const p = scene.grid.gridToPixel(unit.col, unit.row);
-  if (!isComfortablyVisible(scene, p.x, p.y)) {
-    scene._battleCamera?.clearTouches?.();
+  // Only a battle camera controller (phones) may move the view, and it clamps it to the
+  // board. Without one (desktop) the board is centred on the main camera once and the
+  // HUD is drawn at scroll 0, so scrolling the main camera would carry the whole battle,
+  // plates included, off-screen and leave it there (large-maps spec 01 §1.5.1).
+  const battleCamera = scene._battleCamera;
+  if (battleCamera && !isComfortablyVisible(scene, p.x, p.y)) {
+    battleCamera.clearTouches?.();
     scene.cameras?.main?.centerOn?.(p.x, p.y);
-    scene._battleCamera?.clampToBounds?.();
+    battleCamera.clampToBounds?.();
     scene._syncMobileResetViewButton?.();
   }
   scene._mobileTerrainFocus = { col: unit.col, row: unit.row };

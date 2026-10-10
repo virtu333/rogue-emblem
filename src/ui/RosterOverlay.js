@@ -40,6 +40,7 @@ import {
   benchedSkillsNote,
 } from '../engine/UnitManager.js';
 import { equippedMarker } from './equippedBadge.js';
+import { weaponArtHpSuffix } from './weaponArtDisplay.js';
 import { isForged } from '../engine/ForgeSystem.js';
 import { isMastered } from '../engine/MasterySystem.js';
 import {
@@ -53,6 +54,7 @@ import {
   getWeaponArtBindings,
   getWeaponArtIds,
   isWeaponArtCompatibleWithWeapon,
+  weaponArtRunOptions,
 } from '../engine/WeaponArtSystem.js';
 import {
   TOOLTIP_HOVER_DELAY_MS,
@@ -1595,8 +1597,7 @@ export class RosterOverlay {
       for (const { weapon, art, canUse, reason } of weaponArtChoices) {
         const status = canUse ? 'Ready' : this._weaponArtReasonLabel(reason);
         const color = canUse ? UI_PALETTE.info : UI_PALETTE.muted;
-        const hpCost = Math.max(0, Number(art?.hpCost) || 0);
-        const suffix = hpCost > 0 ? ` HP-${hpCost}` : '';
+        const suffix = weaponArtHpSuffix(unit, art, weaponArtRunOptions(this.scene?.runManager));
         const weaponName = this._getWeaponBaseName(weapon);
         const row = this._text(
           x + 8,
@@ -1652,8 +1653,7 @@ export class RosterOverlay {
         turnNumber: this.scene?.turnManager?.turnNumber,
         isInitiating: true,
         actorFaction: unit.faction,
-        weaponArtHpCostDelta:
-          this.scene?.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+        ...weaponArtRunOptions(this.scene?.runManager),
       });
       if (!check.ok && HIDDEN_WEAPON_ART_REASONS.has(check.reason)) continue;
       choices.push({ art, canUse: check.ok, reason: check.reason });

@@ -26,6 +26,65 @@ const DIRECTIONS = [
 ];
 
 /**
+ * The open set of computePath and computeMovementRange: a binary min-heap that pops entries
+ * in exactly the order the searches' former `queue.sort((a, b) => a.p - b.p); queue.shift()`
+ * did. That sort is stable and each round's pushes land after the remainder of the previous
+ * round, so it popped the lowest priority and, among equals, the earliest pushed: the
+ * heap's order (priority, insertion sequence). A priority that compares with nothing (NaN:
+ * an unknown move type's costs) ties with everything, as it did under the sort's
+ * comparator (`NaN < 0` is false), so such entries keep insertion order too.
+ */
+class InsertionOrderedHeap {
+  constructor() {
+    this.items = [];
+    this.nextSeq = 0;
+  }
+
+  get size() {
+    return this.items.length;
+  }
+
+  push(priority, value) {
+    const entry = { priority, seq: this.nextSeq++, value };
+    const items = this.items;
+    let i = items.length;
+    items.push(entry);
+    while (i > 0) {
+      const parent = (i - 1) >> 1;
+      if (!popsBefore(entry, items[parent])) break;
+      items[i] = items[parent];
+      i = parent;
+    }
+    items[i] = entry;
+  }
+
+  pop() {
+    const items = this.items;
+    const top = items[0];
+    const last = items.pop();
+    const length = items.length;
+    if (length > 0) {
+      let i = 0;
+      for (;;) {
+        const left = 2 * i + 1;
+        if (left >= length) break;
+        const right = left + 1;
+        const child = right < length && popsBefore(items[right], items[left]) ? right : left;
+        if (!popsBefore(items[child], last)) break;
+        items[i] = items[child];
+        i = child;
+      }
+      items[i] = last;
+    }
+    return top.value;
+  }
+}
+
+function popsBefore(a, b) {
+  return a.priority < b.priority || (!(b.priority < a.priority) && a.seq < b.seq);
+}
+
+/**
  * Does a mover with Pass walk through this occupant? Enemy units only, and never for an
  * enemy mover (Pass is a player skill: the AI's movement code never sets the option).
  * NPC allies keep blocking as they always did.
@@ -233,7 +292,8 @@ export function computeMovementRange(
 ) {
   const pass = options?.pass === true;
   const reachable = new Map();
-  const queue = [{ col: startCol, row: startRow, cost: 0 }];
+  const queue = new InsertionOrderedHeap();
+  queue.push(0, { col: startCol, row: startRow, cost: 0 });
   reachable.set(`${startCol},${startRow}`, { cost: 0, parent: null });
 
   // Build occupied set for ice slide blocking (all units except mover).
@@ -255,16 +315,16 @@ export function computeMovementRange(
     if (goesOn) {
       if (existing && !existing.slideStop && existing.cost <= entry.cost) return;
       reachable.set(key, entry);
-      queue.push({ col, row, cost: entry.cost });
+      queue.push(entry.cost, { col, row, cost: entry.cost });
       return;
     }
     if (existing && (!existing.slideStop || existing.cost <= entry.cost)) return;
     reachable.set(key, { ...entry, slideStop: true });
   };
 
-  while (queue.length > 0) {
-    queue.sort((a, b) => a.cost - b.cost);
-    const current = queue.shift();
+  while (queue.size > 0) {
+    // Cheapest first, ties in arrival order (InsertionOrderedHeap).
+    const current = queue.pop();
     const currentKey = `${current.col},${current.row}`;
     // A tile reached again more cheaply was expanded from that arrival.
     if ((reachable.get(currentKey)?.cost ?? Infinity) < current.cost) continue;
@@ -413,9 +473,23 @@ export function reconstructRangePath(reachable, startCol, startRow, goalCol, goa
 
 /**
  * A* from (startCol,startRow) to (goalCol,goalRow). Shared by the scene's Grid and the
- * headless harness's grid (anything with cols, rows and getMoveCost), so the two never
- * drift. Enemy-occupied tiles block, allies' tiles do not; with `options.pass` (Pass) a
- * foe's tile is walked through too (computeMovementRange's rule).
+ * headless harness's grid (anything with cols, rows and getMoveCost, whose cost is
+ * Infinity off an integer tile), so the two never drift. Enemy-occupied tiles block,
+ * allies' tiles do not; with `options.pass` (Pass) a foe's tile is walked through too
+ * (computeMovementRange's rule).
+ *
+ * The path is exactly the one the former sorted-array search returned, ties included
+ * (tests/GridPathfindingIdentity.test.js runs the two side by side):
+ * - the open set pops the lowest f and, among equal f, the earliest pushed entry
+ *   (InsertionOrderedHeap), the order the stable sort + shift() popped in;
+ * - an entry whose tile has since been reached more cheaply is skipped. The cheaper entry
+ *   has the lower f (same tile, same h), so it was popped and expanded first, and every
+ *   neighbour already holds a g at least that low: expanding the stale entry could never
+ *   lower a g, set a parent or push, which is all the old search did with it;
+ * - a goal the search can never push (off the board, impassable for the move type, or
+ *   held by a unit that blocks the mover) returns null at once instead of flooding the
+ *   map first. Only the start is matched without a push, so start = goal still returns
+ *   [start].
  * @returns {Array<{col, row}>|null} start to goal, or null when unreachable
  */
 export function computePath(
@@ -431,56 +505,91 @@ export function computePath(
   options = null,
 ) {
   const pass = options?.pass === true;
+  const cols = grid.cols;
+  const rows = grid.rows;
   const heuristic = (c, r) => Math.abs(c - goalCol) + Math.abs(r - goalRow);
+  // Enemy-occupied tiles block (the mover passes through allies, and through foes with Pass).
+  const blocks = (col, row) => {
+    if (!unitPositions) return false;
+    const occupant = unitPositions.get(`${col},${row}`);
+    return Boolean(
+      occupant &&
+      occupant.faction !== moverFaction &&
+      !(pass && passesThrough(occupant, moverFaction)),
+    );
+  };
 
-  const openSet = [{ col: startCol, row: startRow, g: 0, f: heuristic(startCol, startRow) }];
-  const cameFrom = new Map();
-  const gScore = new Map();
-  gScore.set(`${startCol},${startRow}`, 0);
+  if (
+    !(startCol === goalCol && startRow === goalRow) &&
+    Number.isInteger(goalCol) &&
+    Number.isInteger(goalRow) &&
+    (goalCol < 0 ||
+      goalCol >= cols ||
+      goalRow < 0 ||
+      goalRow >= rows ||
+      grid.getMoveCost(goalCol, goalRow, moveType, costModifier) === Infinity ||
+      blocks(goalCol, goalRow))
+  ) {
+    return null;
+  }
 
-  while (openSet.length > 0) {
-    openSet.sort((a, b) => a.f - b.f);
-    const current = openSet.shift();
-    const currentKey = `${current.col},${current.row}`;
+  // Tiles are indexed row * cols + col; the start gets the spare last slot when it is not a
+  // tile of the board (only neighbours that pass the bounds check are ever indexed).
+  const tileCount = cols * rows;
+  const startOnBoard =
+    Number.isInteger(startCol) &&
+    Number.isInteger(startRow) &&
+    startCol >= 0 &&
+    startCol < cols &&
+    startRow >= 0 &&
+    startRow < rows;
+  const startIndex = startOnBoard ? startRow * cols + startCol : tileCount;
+  const gScore = new Float64Array(tileCount + 1);
+  // The tile each tile was best reached from; -1 = not reached yet, the start is its own.
+  const cameFrom = new Int32Array(tileCount + 1).fill(-1);
+  cameFrom[startIndex] = startIndex;
+
+  const openSet = new InsertionOrderedHeap();
+  openSet.push(heuristic(startCol, startRow), {
+    index: startIndex,
+    col: startCol,
+    row: startRow,
+    g: 0,
+  });
+
+  while (openSet.size > 0) {
+    const current = openSet.pop();
+    if (current.g > gScore[current.index]) continue; // reached more cheaply since
 
     if (current.col === goalCol && current.row === goalRow) {
-      // Reconstruct path
       const path = [];
-      let key = currentKey;
-      while (key) {
-        const [c, r] = key.split(',').map(Number);
-        path.unshift({ col: c, row: r });
-        key = cameFrom.get(key);
+      for (let index = current.index; ; index = cameFrom[index]) {
+        if (index === tileCount) {
+          // `+ 0` keeps the old string key round trip's coordinates (-0 read back as 0).
+          path.unshift({ col: startCol + 0, row: startRow + 0 });
+        } else {
+          const col = index % cols;
+          path.unshift({ col, row: (index - col) / cols });
+        }
+        if (index === startIndex) return path;
       }
-      return path;
     }
 
     for (const { dc, dr } of DIRECTIONS) {
       const nc = current.col + dc;
       const nr = current.row + dr;
-      if (nc < 0 || nc >= grid.cols || nr < 0 || nr >= grid.rows) continue;
+      if (nc < 0 || nc >= cols || nr < 0 || nr >= rows) continue;
 
       const moveCost = grid.getMoveCost(nc, nr, moveType, costModifier);
       if (moveCost === Infinity) continue;
+      if (blocks(nc, nr)) continue;
 
-      // Block enemy-occupied tiles (can pass through allies, and through foes with Pass)
-      const nKey = `${nc},${nr}`;
-      if (unitPositions) {
-        const occupant = unitPositions.get(nKey);
-        if (
-          occupant &&
-          occupant.faction !== moverFaction &&
-          !(pass && passesThrough(occupant, moverFaction))
-        )
-          continue;
-      }
-
+      const index = nr * cols + nc;
       const tentativeG = current.g + moveCost;
-
-      if (!gScore.has(nKey) || tentativeG < gScore.get(nKey)) {
-        cameFrom.set(nKey, currentKey);
-        gScore.set(nKey, tentativeG);
-        openSet.push({ col: nc, row: nr, g: tentativeG, f: tentativeG + heuristic(nc, nr) });
+      if (cameFrom[index] === -1 || tentativeG < gScore[index]) {
+        cameFrom[index] = current.index;
+        gScore[index] = tentativeG;
+        openSet.push(tentativeG + heuristic(nc, nr), { index, col: nc, row: nr, g: tentativeG });
       }
     }
   }

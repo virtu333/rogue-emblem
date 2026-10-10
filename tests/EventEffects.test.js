@@ -742,11 +742,14 @@ describe('blessing', () => {
       picked.add(chooseEventOption(run, node.id, 'go').results[0].id);
     }
     // Tier III since blessings v3: every one is safe mid-run (no pact, no deploy cap).
+    // Phalanx Rite and Duelist's Creed read the board, not a price, so they are safe too.
     expect([...picked].sort()).toEqual([
+      'duelists_creed',
       'focused_curriculum',
       'iron_oath',
       'merchant_bane',
       'nomad_pact',
+      'phalanx_rite',
       'war_veteran',
     ]);
   });

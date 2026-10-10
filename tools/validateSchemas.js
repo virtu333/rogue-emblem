@@ -6,6 +6,7 @@ import {
   validateMapTemplatesConfig,
 } from '../src/engine/MapTemplateEngine.js';
 import { validatePrologueConfig } from '../src/engine/Prologue.js';
+import { validateBlessingsConfig } from '../src/engine/BlessingEngine.js';
 import { validateEventsConfig } from '../src/engine/EventValidation.js';
 import { validateCrossReferences } from './validateCrossReferences.js';
 
@@ -94,6 +95,19 @@ if (prologueResult.valid) {
 } else {
   console.error('FAIL  prologue.json (engine validator)');
   for (const err of prologueResult.errors) {
+    console.error(`      ${err}`);
+  }
+  failed = true;
+}
+
+// Validate the blessings catalog (engine validator: shape, v3 pricing, and the params of the
+// boons whose handler would otherwise skip a malformed set and ship a card that does nothing)
+const blessingsResult = validateBlessingsConfig(readData('blessings.json'));
+if (blessingsResult.valid) {
+  console.log('  OK  blessings.json (engine validator)');
+} else {
+  console.error('FAIL  blessings.json (engine validator)');
+  for (const err of blessingsResult.errors) {
     console.error(`      ${err}`);
   }
   failed = true;

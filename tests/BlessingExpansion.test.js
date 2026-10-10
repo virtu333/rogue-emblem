@@ -25,21 +25,21 @@ function activeBlessing(id, rolledCost = null) {
 }
 
 describe('Blessing Expansion v2 � data validation', () => {
-  it('blessings.json passes validation with 23 entries', () => {
+  it('blessings.json passes validation with 28 entries', () => {
     const gameData = loadGameData();
     const result = validateBlessingsConfig(gameData.blessings);
     expect(result.valid).toBe(true);
     expect(result.errors).toEqual([]);
-    expect(gameData.blessings.blessings).toHaveLength(23);
+    expect(gameData.blessings.blessings).toHaveLength(28);
   });
 
-  it('tier distribution is 4/8/5/6', () => {
+  it('tier distribution is 4/10/8/6', () => {
     const gameData = loadGameData();
     const tiers = { 1: 0, 2: 0, 3: 0, 4: 0 };
     for (const blessing of gameData.blessings.blessings) tiers[blessing.tier]++;
     expect(tiers[1]).toBe(4);
-    expect(tiers[2]).toBe(8);
-    expect(tiers[3]).toBe(5);
+    expect(tiers[2]).toBe(10);
+    expect(tiers[3]).toBe(8);
     expect(tiers[4]).toBe(6);
   });
 
@@ -55,11 +55,21 @@ describe('Blessing Expansion v2 � data validation', () => {
     expect(index.get('scholar_vow').pact).toEqual(['recruits_level_down', 'debt_large']);
     expect(index.get('armory_stash').weight).toBe(0);
     expect(index.get('blessed_vigor').boons[0].params.value).toBe(4);
-    expect(index.get('terrain_mastery').boons[0].params.avoidBonus).toBe(10);
+    // Hold the Line (was Terrain Mastery): a unit that has not moved gets +2 DEF and +10 Avoid.
+    expect(index.get('terrain_mastery').name).toBe('Hold the Line');
+    expect(index.get('terrain_mastery').boons).toEqual([
+      { type: 'stationary_combat_bonus', params: { defBonus: 2, avoidBonus: 10 } },
+    ]);
+    expect(index.get('steady_hands').name).toBe('Keen Eye');
+    expect(index.get('steady_hands').boons).toEqual([
+      { type: 'first_strike_hit_bonus', params: { value: 10 } },
+    ]);
     expect(index.get('nomad_pact').boons[0].params.value).toBe(2);
     for (const b of index.values()) {
       if (b.tier === 4) expect(Array.isArray(b.pact), b.id).toBe(true);
-      if (b.tier === 2 || b.tier === 3) expect(b.prices?.length, b.id).toBeGreaterThan(0);
+      // A tier II-III card names candidate prices, or carries its cost in its own boon.
+      if (b.tier === 2 || b.tier === 3)
+        expect((b.prices?.length || 0) + (b.intrinsicPrice ? 1 : 0), b.id).toBeGreaterThan(0);
     }
   });
 
@@ -108,17 +118,17 @@ describe('Blessing Expansion v2 � selection and exclusions', () => {
 });
 
 describe('Blessing Expansion v2 � effect handlers', () => {
-  it('frugal_smith applies forge_cost_multiplier as a discount', () => {
+  it('forge_cost_multiplier is still a discount (an effect of its own, no card carries it now)', () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
     rm.startRun();
 
-    rm.activeBlessings = [activeBlessing('frugal_smith')];
-    rm._runStartBlessingsApplied = false;
-    rm.applyRunStartBlessingEffects();
+    rm._applySingleRunStartBlessingEffect('synthetic', {
+      type: 'forge_cost_multiplier',
+      params: { value: -0.3 },
+    });
 
     expect(rm.getForgeCostDiscount()).toBeCloseTo(0.3, 5);
-    expect(rm.blessingRuntimeModifiers.forgeLimitDelta).toBe(1);
     const weapon = rm.roster[0].weapon;
     if (weapon) {
       const baseCost = getForgeCost(weapon, 'might');
@@ -127,22 +137,32 @@ describe('Blessing Expansion v2 � effect handlers', () => {
     }
   });
 
-  it('quartermaster_cache grants vulneraries to lords with convoy overflow handling', () => {
+  it("frugal_smith (Smith's Mark) frees each shop's first forge and adds a forge, with no discount", () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
     rm.startRun();
 
-    const lordConsumableCounts = rm.roster.filter((u) => u.isLord).map((u) => u.consumables.length);
+    rm.activeBlessings = [activeBlessing('frugal_smith')];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+
+    expect(rm.getFreeForgesPerShop()).toBe(1);
+    expect(rm.blessingRuntimeModifiers.forgeLimitDelta).toBe(1);
+    expect(rm.getForgeCostDiscount()).toBe(0);
+  });
+
+  it('quartermaster_cache puts an Elixir in the convoy at once, not in the lords bags', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+
+    const lordBags = rm.roster.filter((u) => u.isLord).map((u) => u.consumables.length);
     rm.activeBlessings = [activeBlessing('quartermaster_cache')];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
 
-    rm.roster
-      .filter((u) => u.isLord)
-      .forEach((unit, idx) => {
-        expect(unit.consumables.length).toBeGreaterThanOrEqual(lordConsumableCounts[idx]);
-        expect(unit.consumables.some((item) => item.name === 'Vulnerary')).toBe(true);
-      });
+    expect(rm.getConvoyItems().consumables.map((item) => item.name)).toEqual(['Elixir']);
+    expect(rm.roster.filter((u) => u.isLord).map((u) => u.consumables.length)).toEqual(lordBags);
   });
 
   it('focused_curriculum applies targeted lord growths and updates growth bonus APIs', () => {
@@ -181,25 +201,20 @@ describe('Blessing Expansion v2 � effect handlers', () => {
     expect(lordBonuses.SKL || 0).toBe(12);
   });
 
-  it('blood_forge uses starting_weapon_forge_delta and increases lord weapon forge level', () => {
+  it('blood_forge forges each starting lord’s strongest weapon twice and nothing else', () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
     rm.startRun();
-
-    const before = rm.roster
-      .filter((u) => u.isLord)
-      .map((u) => (u.weapon ? u.weapon._forgeLevel || 0 : 0));
+    const edric = rm.roster.find((u) => u.name === 'Edric');
+    const steel = edric.inventory.find((w) => w.name === 'Steel Sword');
 
     rm.activeBlessings = [activeBlessing('blood_forge')];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
 
-    rm.roster
-      .filter((u) => u.isLord)
-      .forEach((unit, idx) => {
-        if (!unit.weapon) return;
-        expect(unit.weapon._forgeLevel || 0).toBeGreaterThanOrEqual(before[idx] + 1);
-      });
+    expect(steel._forgeLevel).toBe(2);
+    expect(steel.might).toBe(10);
+    expect(edric.inventory.find((w) => w.name === 'Iron Sword').might).toBe(5);
   });
 
   it('starting_scroll grants deterministic scrolls for same seed', () => {

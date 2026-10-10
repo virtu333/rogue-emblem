@@ -544,10 +544,14 @@ class ProtectedDriver extends RunSimulationDriver {
     const fullRoster = rm.getRoster();
     const deployed = chooseDeployRoster(fullRoster, params.deployCount);
     const deployedKeys = new Set(deployed.map((u) => `${u.name}::${u.className}`));
+    // The run's blessings reach a combat only through the battle's run (Keen Eye, Hold the Line,
+    // Phalanx Rite, Duelist's Creed, the act Hit price); a battle without it measures none. It is
+    // handed in at construction so it is present from init() on.
     const driver = new GameDriver(
       this.gameData,
       params,
       deployed.map((u) => structuredClone(u)),
+      { runManager: rm },
     );
     driver.init();
     const battle = driver.battle;
@@ -615,6 +619,8 @@ class ProtectedDriver extends RunSimulationDriver {
           rm.fallenUnits || [],
           [...rm.getTakenUnitNames()],
           rm.runSeed,
+          // Nomad's Pact reaches the boss draft (never below 0), as PendingBossRecruit does.
+          { recruitLevelBonus: Math.max(0, rm.getRecruitLevelBonus?.() || 0) },
         ) || [];
       const pick = [...candidates]
         .map((c) => c?.unit)
@@ -679,6 +685,8 @@ class ProtectedDriver extends RunSimulationDriver {
       [...rm.getTakenUnitNames()],
       rm.getEffectiveMetaEffects(),
       { runSeed: rm.runSeed, marksData: this.gameData.marks || null },
+      // Nomad's Pact reaches the Colosseum (never below 0), as ColosseumOverlay does.
+      { recruitLevelBonus: Math.max(0, rm.getRecruitLevelBonus?.() || 0) },
     ).filter((c) => c?.unit && c.hireCost <= rm.gold);
     candidates.sort((a, b) => (b.unit.level || 0) - (a.unit.level || 0));
     const pick = candidates[0];
