@@ -98,9 +98,12 @@ promises and what the fight actually is.
 
 - **Classes.** A list is uniform. A table keyed by act holds from its act up: in Act II a slot
   `{ "act1": ["Zombie"], "act3": ["Revenant"] }` draws from `["Zombie"]`. A class must be a
-  real class and may be enemy-only. The validator refuses Necromancer and Dragon in a slot
-  for any act earlier than every rung's `enemyClassEarliestAct` gate allows: a set piece
-  never breaks the ladder's promise.
+  real class and may be enemy-only.
+- **Rung gates.** A set piece honours each rung's `enemyClassEarliestAct` (Dragons,
+  Necromancers): the validator refuses a slot that is in play in an act where its rung holds
+  that class back. It does not honour First Light's blanket ban on `DIFFICULTY_GATED_CLASSES`,
+  which is a rule for the random pools. The set piece is the story, and its text names what is
+  there, so First Light meets the Toll-House's Zombies (only there).
 - **Levels.** A filler slot takes `lo + floor(r × (hi − lo + 1)) + level`, the generator's
   filler rule. `[lo, hi]` is the battle's adjusted range (`levelRange` or the pool's range,
   plus `enemyLevelBonus`). A captain takes the elite captain's rule (`captainLevel`: `hi` + the
@@ -131,10 +134,13 @@ promises and what the fight actually is.
 - **`engine/AuthoredMap.js`** holds the map parser that Prologue.js and the set pieces share
   (`parseAuthoredMap`; `parsePrologueMap` is now an alias of it).
 - **`engine/SetPieces.js`** (pure):
-  - `findSetPiece(gameData, id)`;
-  - `setPieceDeployLimits(setPiece)`;
-  - `generateSetPieceLayout(params, deps)`, which returns the map, spawns, slots and waves;
-  - `validateSetPieces(data, deps)`, which `npm run validate:data` runs.
+  - `findSetPiece(data, id)` and `setPieceIdOfConfig(config)`;
+  - `setPieceDeployCap(setPiece)`;
+  - `buildSetPieceBattle(...)`, which returns the map, spawns, slots and waves
+    (`MapGenerator.generateSetPieceLayout` calls it, then the shared steps);
+  - `validateSetPiecesConfig(config, data)`, which `npm run validate:data` runs.
+- **Review route.** `?devScene=battle&preset=battle_smoke&setPiece=<id>[&act=N][&difficulty=]`
+  opens a set piece directly (dev server and deploy previews only).
 - **`MapGenerator.generateBattleLayout`.** When `params.setPiece` names a known set piece,
   the template steps (size, template, terrain, features, toxic overlay, spawn zones, enemy
   composition, NPC, caravan, village, escape, reachability carving, bridges, cavalry
@@ -164,7 +170,7 @@ promises and what the fight actually is.
   carries the map. An event battle chosen before this shipped keeps its `templateId` and its
   ordinary rout.
 
-### 3.4 Validation (`validateSetPieces`, part of `npm run validate:data`)
+### 3.4 Validation (`validateSetPiecesConfig`, part of `npm run validate:data`)
 
 - Unique ids, a known objective (Phase A: `rout`), `deploy.max` from 1 to 8, and a
   `title` and `lore` within their limits.
@@ -181,8 +187,9 @@ promises and what the fight actually is.
   - At most one captain.
 - Each slot: real classes, an act table whose keys are act ids, gates that are real rungs and
   acts, a hold pack that is an integer, and a weapon that exists.
-- Every `setPiece` named by an `events.json` battle exists, and the set piece's acts cover the
-  event's acts.
+- Every `setPiece` named by an `events.json` battle exists, never beside a `recruit` (no NPC tile
+  yet), and at every act the event reaches and every rung, each variant fields at least one
+  foe, every slot in play has classes, and no class breaks the rung's act gate.
 
 ### 3.5 The Toll-House (two set pieces)
 
@@ -197,10 +204,9 @@ rope bridge, under fog.
 - The bridge is the only crossing.
 - Smash matters: a fallen Zombie comes back unless its bones are stamped out (the
   ZombieRemains rule, already built).
-- Zombies come to Act I only here. The levels follow the battle's range, so an Act I Zombie
-  is level 2–4.
+- Zombies come to Act I (and to First Light) only here. The levels follow the battle's range.
 
-**`toll_hideout`** is the plain face's failed Bluff. It is a bandit crossing, with archers on
+**`toll_crossing`** is the plain face's failed Bluff. It is a bandit crossing, with archers on
 the far bank in forts.
 
 - The toll-keeper is the captain, with a bow:
