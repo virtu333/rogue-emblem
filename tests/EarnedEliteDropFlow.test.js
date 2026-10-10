@@ -36,6 +36,7 @@ import { loadGameData } from './testData.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { earnedPickOwed } from '../src/engine/EarnedBlessings.js';
 import { NodeMapScene } from '../src/scenes/NodeMapScene.js';
+import { ContractSettlementController } from '../src/ui/ContractSettlementController.js';
 import { saveServiceRun } from '../src/ui/serviceSave.js';
 
 const data = loadGameData();
@@ -68,6 +69,24 @@ function eliteWon(seed = 5150) {
   rm.completeBattle(rm.getRoster(), node.id, 0, { turnCount: 5, turnPar: 7 });
   rm.pendingBattleReward = null;
   return { rm, node };
+}
+
+/** A kept contract whose reward (100 gold) is owed at the elite the party just won. */
+function keptContractAt(rm, node) {
+  return {
+    battleNodeId: node.id,
+    contractNodeId: 'c1',
+    eventId: 'mercenary_contract',
+    act: rm.currentAct,
+    goal: 'underPar',
+    kept: true,
+    noPar: false,
+    losses: 0,
+    effects: [{ type: 'gold', value: 100 }],
+    seedKey: 'event-contract:1:c1',
+    blocked: null,
+    failed: null,
+  };
 }
 
 function mapScene(rm) {
@@ -163,11 +182,64 @@ describe("an eclipsed elite's drop on the route map", () => {
     expect(NodeMapScene.prototype._maybeOpenEarnedPick.call(scene)).toBe(false);
     expect(dialogNamed(doc, PICK)).toBeUndefined();
     rm.pendingBattleReward = null;
+    // A kept contract's reward is owed where the party stands: its page opens first.
+    rm.contractOwed = keptContractAt(rm, node);
     scene._maybeOpenPendingContractSettlement.mockReturnValueOnce(true);
     scene._lastRewardCallbacks.onComplete();
     expect(dialogNamed(doc, PICK)).toBeUndefined(); // the contract's page first
+    rm.contractOwed = null;
     scene._lastRewardCallbacks.onComplete();
     expect(dialogNamed(doc, PICK)).toBeTruthy();
+  });
+
+  it("an event's own page comes first too: the drop waits for the spoils it owes", () => {
+    // Failure: the drop opens over (or before) an event's spoils page, a second modal surface.
+    withDom();
+    const { rm } = eliteWon(5156);
+    const scene = mapScene(rm);
+    const eventNode = rm.nodeMap.nodes.find((n) => n.id !== rm.currentNodeId && !n.completed);
+    eventNode.type = 'event';
+    eventNode.completed = true;
+    rm.eventStateByNodeId = {
+      [eventNode.id]: { eventId: 'cartographer', battle: 'pending', results: [], afterVictory: [] },
+    };
+    rm.pendingEventNodeId = eventNode.id;
+    expect(NodeMapScene.prototype._maybeOpenEarnedPick.call(scene)).toBe(false);
+    rm.pendingEventNodeId = null;
+    rm.eventStateByNodeId = {};
+    eventNode.completed = false;
+    expect(NodeMapScene.prototype._maybeOpenEarnedPick.call(scene)).toBe(true);
+  });
+
+  it("a contract's Continue (ContractSettlementController.finish) opens the owed drop", () => {
+    // Failure: Continue only redraws the map (checkActComplete's last branch), so the drop owed
+    // behind the contract's page waits for a reload or a node tap.
+    const { doc } = withDom();
+    const { rm, node } = eliteWon(5155);
+    rm.contractOwed = keptContractAt(rm, node);
+    const scene = mapScene(rm);
+    expect(NodeMapScene.prototype._maybeOpenEarnedPick.call(scene)).toBe(false);
+    const contract = new ContractSettlementController(scene);
+    const gold = rm.gold;
+    expect(contract.claim()).toEqual({ ok: true });
+    expect(rm.gold).toBe(gold + 100);
+    expect(dialogNamed(doc, PICK)).toBeUndefined();
+    contract.finish();
+    expect(dialogNamed(doc, PICK)).toBeTruthy();
+    expect(scene._earnedPick).toBeTruthy();
+    // The caravan waits for the pick (the pick's own close opens it).
+    expect(scene._maybeOpenPendingCaravanShop).not.toHaveBeenCalled();
+  });
+
+  it('with nothing owed, a page closing on the map still opens the caravan', () => {
+    // Failure: the new branch swallows the caravan when there is no pick.
+    withDom();
+    const { rm, node } = eliteWon(5157);
+    rm.earnedBlessingPicks[`elite:${node.id}`].status = 'skipped';
+    const scene = mapScene(rm);
+    NodeMapScene.prototype.checkActComplete.call(scene);
+    expect(scene._earnedPick).toBeNull();
+    expect(scene._maybeOpenPendingCaravanShop).toHaveBeenCalledTimes(1);
   });
 
   it('never opens while the Colosseum stands in front of it', () => {
@@ -178,6 +250,19 @@ describe("an eclipsed elite's drop on the route map", () => {
     scene.colosseumOverlay = { visible: true };
     expect(NodeMapScene.prototype._maybeOpenEarnedPick.call(scene)).toBe(false);
     scene.colosseumOverlay = { visible: false };
+    expect(NodeMapScene.prototype._maybeOpenEarnedPick.call(scene)).toBe(true);
+  });
+
+  it("never opens while the Colosseum's menu is still loading", () => {
+    // Failure: the pick opens in the gap between the arena tap and its menu (the overlay is not
+    // built yet), and the arena's menu then opens over it.
+    withDom();
+    const { rm } = eliteWon(5158);
+    const scene = mapScene(rm);
+    scene._colosseumLoading = true;
+    expect(NodeMapScene.prototype._maybeOpenEarnedPick.call(scene)).toBe(false);
+    expect(scene._earnedPick).toBeNull();
+    scene._colosseumLoading = false;
     expect(NodeMapScene.prototype._maybeOpenEarnedPick.call(scene)).toBe(true);
   });
 });

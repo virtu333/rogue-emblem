@@ -15,7 +15,8 @@
 //   blessings   a blessing tier (an effect's or `requires.blessingTier`) with no
 //               mid-run-safe blessing (EventSystem.SAFE_BLESSING_BOON_TYPES); an `earnedBlessing`
 //               effect or `requires.earnedAvailable` naming anything but an earned blessing an
-//               event can give (its `sources` include `event`)
+//               event can give (its `sources` include `event`); a choice's own (strict)
+//               `earnedBlessing` whose choice does not require `earnedAvailable` of that card
 //   targets     an unsatisfiable filter (no class can match it), a `to: target` /
 //               `scope: target` effect or a target-reading check on a choice with no `target`
 //   {fallen}    the token (or a fallenSkill / layToRest effect) in an event that does not
@@ -662,6 +663,11 @@ export function validateEventsConfig(config, data = {}) {
         break;
       case 'earnedBlessing':
         needsEventEarned(where, effect.id);
+        // A choice's own grant is strict (held, it is refused and the choice fails): the choice
+        // must be greyed while the card cannot be given. The spoils after a fight are lenient
+        // (skipped with a note), so they need no requirement.
+        if (phase !== 'a' && choice?.requires?.earnedAvailable !== effect.id)
+          err(where, `earnedBlessing needs the choice to require earnedAvailable "${effect.id}"`);
         break;
       case 'burden':
         if (!BURDEN_IDS.includes(effect.id)) err(where, `unknown burden "${effect.id}"`);

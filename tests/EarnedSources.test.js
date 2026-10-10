@@ -24,7 +24,7 @@ import {
   skipEarnedBlessing,
   takeEarnedBlessing,
 } from '../src/engine/EarnedBlessings.js';
-import { validateBlessingsConfig } from '../src/engine/BlessingEngine.js';
+import { TWIST_EFFECT_TYPES, validateBlessingsConfig } from '../src/engine/BlessingEngine.js';
 import { heldBlessingEntries } from '../src/ui/heldBlessingsModel.js';
 import { blessingCardContent } from '../src/ui/choiceContent.js';
 import { earnedPickFooter, earnedPickModel } from '../src/ui/earnedBlessingPickModel.js';
@@ -417,8 +417,18 @@ describe('the validator reads the earned fields', () => {
           label: 'x',
           effects: [{ type: 'no_such_twist', params: {} }],
         }),
-      /no price or twist effect/,
+      /is not a twist effect/,
     ],
+    ...[
+      ['act_stat_delta_all_units', { act: 'act1', stat: 'DEF', value: -1 }],
+      ['act_deploy_cap_delta', { act: 'act1', value: -1 }],
+      ['act_hit_bonus', { act: 'act1', value: -8 }],
+      ['disable_personal_skills_until_act', { act: 'act3' }],
+    ].map(([type, params]) => [
+      `a twist that is a price fixed to an act (${type})`,
+      (row) => (row('ember_lantern').twist = { label: 'x', effects: [{ type, params }] }),
+      /is not a twist effect/,
+    ]),
     [
       'an unknown requirement',
       (row) => (row('ember_lantern').requires = { moon: true }),
@@ -433,6 +443,31 @@ describe('the validator reads the earned fields', () => {
     // Failure: a card that can never be won (no source), a twisted card at a source with no
     // warning, or a typo in a kind ships as valid data.
     expect(errorsOf((_copy, row) => patch(row))).toMatch(message);
+  });
+
+  it('a twist may carry the run-wide prices on the whitelist (shadow, a burden, Vision...)', () => {
+    // Failure: the whitelist is so tight the twisted cards D3 ships (shadow now, a burden) are
+    // refused, or it is no list at all (every price passes, act-fixed ones included).
+    for (const effects of [
+      [{ type: 'eclipse_shadow_delta', params: { value: 8 } }],
+      [{ type: 'burden', params: { id: 'ill_omen' } }],
+      [{ type: 'vision_delta', params: { value: -1 } }],
+      [{ type: 'xp_multiplier_delta', params: { value: -0.1 } }],
+    ])
+      expect(
+        errorsOf((_copy, row) => (row('ember_lantern').twist = { label: 'x', effects })),
+        effects[0].type,
+      ).toBe('');
+    expect([...TWIST_EFFECT_TYPES].sort()).toEqual(
+      [
+        'burden',
+        'eclipse_shadow_delta',
+        'forge_cost_multiplier',
+        'shop_price_discount',
+        'vision_delta',
+        'xp_multiplier_delta',
+      ].sort(),
+    );
   });
 
   it.each([
@@ -645,6 +680,39 @@ describe("an eclipsed elite's drop", () => {
     expect(earnedSourceConfig(data.blessings).eclipsedEliteChance).toBe(0.3333);
   });
 
+  it('two eclipsed elites in one act roll apart (the stream is keyed by the node), each one fixed', () => {
+    // Failure: the drop's stream is keyed by the act or the seed alone, so every eclipsed elite
+    // of an act rolls the same (all drop the same card, or none does).
+    const rm = freshRun(37);
+    const elite = (id) => ({
+      id,
+      type: 'battle',
+      battleParams: { isEclipsed: true, isElite: true },
+    });
+    const ids = Array.from({ length: 16 }, (_, i) => `act1_${3 + (i % 5)}_${i % 4}`).filter(
+      (id, i, all) => all.indexOf(id) === i,
+    );
+    const roll = (id) => {
+      rm.earnedBlessingPicks = {};
+      const entry = prepareEliteEarnedDrop(rm, elite(id));
+      return `${entry.status}:${entry.offered.join(',')}`;
+    };
+    const outcomes = ids.map(roll);
+    expect(new Set(outcomes).size).toBeGreaterThan(1);
+    expect(outcomes.some((o) => o.startsWith('owed'))).toBe(true);
+    expect(outcomes.some((o) => o.startsWith('none'))).toBe(true);
+    // Each node's roll is its own and the same every time; both live on one ledger together.
+    expect(ids.map(roll)).toEqual(outcomes);
+    rm.earnedBlessingPicks = {};
+    for (const id of ids) prepareEliteEarnedDrop(rm, elite(id));
+    expect(
+      ids.map((id) => {
+        const entry = rm.earnedBlessingPicks[`elite:${id}`];
+        return `${entry.status}:${entry.offered.join(',')}`;
+      }),
+    ).toEqual(outcomes);
+  });
+
   it('with every elite card held, a hit drops nothing ("none", never an empty pick)', () => {
     const rm = freshRun(34);
     for (const id of ['second_dawn', 'hollow_hourglass', 'lantern_of_the_road'])
@@ -678,11 +746,21 @@ describe("an eclipsed elite's drop", () => {
 // ── The Colosseum (D-8, infrastructure for a later card) ───────────────────
 
 describe("the Colosseum's offer (no shipped card yet)", () => {
-  it('is null with no Colosseum card, and once a run with one', () => {
-    // Failure: an offer of nothing is filed (an owed pick the menu cannot show).
+  it("files 'none' when no Colosseum card is left (never rolled again, never owed), and once a run", () => {
+    // Failure: an offer of nothing is filed as owed (a pick the menu cannot show), or nothing is
+    // filed, so every later win rolls the offer again.
     const rm = freshRun(36);
-    expect(prepareColosseumOffer(rm, 'arena')).toBeNull();
-    expect(rm.earnedBlessingPicks).toEqual({});
+    const none = prepareColosseumOffer(rm, 'arena');
+    expect(none).toMatchObject({
+      key: 'colosseum',
+      source: 'colosseum',
+      status: 'none',
+      offered: [],
+    });
+    expect(rm.earnedBlessingPicks.colosseum).toBe(none);
+    expect(prepareColosseumOffer(rm, 'arena2')).toBe(none);
+    expect(earnedPickOwed(rm)).toBeNull();
+    expect(roundTrip(rm).earnedBlessingPicks.colosseum).toMatchObject({ status: 'none' });
     const gameData = withCards({
       ...twisted('ledger_card'),
       twist: undefined,
@@ -741,6 +819,56 @@ describe("an event's earned blessing", () => {
     expect(run.getActiveBlessingIds().filter((id) => id === 'crest_of_the_road')).toHaveLength(1);
   });
 
+  it('a spoils step that throws after the grant rolls the grant back whole; Try again grants it', () => {
+    // Failure: the rollback restores the blessings but not the ledger (earnedBlessingPicks left
+    // out of EventEffects.RUN_FIELDS), so the ledger says "taken" for a card the run does not
+    // hold: Try again finds it "already given here", skips it, and the card is lost for good.
+    const run = newRun({ seed: 307 });
+    const node = arriveAs(run, 'old_faces');
+    expect(chooseEventOption(run, node.id, 'ride').ok).toBe(true);
+    run.completeBattle(run.getRoster(), node.id, 0, { turnCount: 5, turnPar: 5 });
+    // A step after the grant that fails as it is applied.
+    run.eventStateByNodeId[node.id].afterVictory.push({ type: 'gold', value: 7 });
+    const addGold = run.addGold.bind(run);
+    let fail = true;
+    run.addGold = (value) => {
+      if (fail && value === 7) throw new Error('the purse tore');
+      return addGold(value);
+    };
+    const gold = run.gold;
+    const failed = completeEventBattle(run, node.id);
+    expect(failed.ok).toBe(false);
+    expect(run.getActiveBlessingIds()).not.toContain('crest_of_the_road');
+    expect(run.earnedBlessingPicks[`event:${node.id}`]).toBeUndefined();
+    expect(run.blessingRuntimeModifiers.recruitMarkChance || 0).toBe(0);
+    expect(run.gold).toBe(gold);
+    fail = false;
+    const retried = completeEventBattle(run, node.id);
+    expect(retried.ok, retried.reason).toBe(true);
+    expect(run.getActiveBlessingIds()).toContain('crest_of_the_road');
+    expect(run.earnedBlessingPicks[`event:${node.id}`]).toMatchObject({ status: 'taken' });
+    expect(retried.results.some((r) => r.kind === 'earnedBlessing')).toBe(true);
+  });
+
+  it('a grant files under its node\'s event key when no key is named, and never under "undefined"', () => {
+    // Failure: a caller that names no key files the entry under "undefined" (a key the sanitizer
+    // keeps, and that every later keyless grant would collide with).
+    const run = newRun({ seed: 308 });
+    const granted = grantEarnedBlessing(run, 'crest_of_the_road', {
+      source: 'event',
+      nodeId: 'act1_3_1',
+    });
+    expect(granted.ok, granted.reason).toBe(true);
+    expect(Object.keys(run.earnedBlessingPicks)).toEqual(['event:act1_3_1']);
+    expect(run.earnedBlessingPicks['event:act1_3_1']).toMatchObject({ key: 'event:act1_3_1' });
+    const keyless = newRun({ seed: 309 });
+    expect(grantEarnedBlessing(keyless, 'crest_of_the_road', { source: 'event' })).toMatchObject({
+      ok: false,
+    });
+    expect(Object.keys(keyless.earnedBlessingPicks || {})).toEqual([]);
+    expect(keyless.getActiveBlessingIds()).not.toContain('crest_of_the_road');
+  });
+
   it("a choice's own grant of a held card is refused, and twice in one plan is refused", () => {
     // Failure: the event grants a held card twice (two entries, the boon doubled).
     const run = newRun({ seed: 303 });
@@ -797,6 +925,22 @@ describe("an event's earned blessing", () => {
     expect(withEffect('crest_of_the_road', 'requires')).toBe('');
   });
 
+  it("a choice's own grant needs `requires.earnedAvailable` naming its card; spoils do not", () => {
+    // Failure: a choice grants a card strictly (a refusal once it is held) with nothing greying
+    // it, so a player who holds the card picks a choice that can only fail.
+    const strict = (requires) => {
+      const events = structuredClone(data.events);
+      const choice = findEvent(events, 'old_faces').choices.find((c) => c.id === 'coin');
+      choice.outcomes[0].effects.push({ type: 'earnedBlessing', id: 'crest_of_the_road' });
+      if (requires) choice.requires = { ...(choice.requires || {}), ...requires };
+      return validateEventsConfig(events, { ...data }).errors.join('\n');
+    };
+    expect(strict(null)).toMatch(/needs the choice to require earnedAvailable "crest_of_the_road"/);
+    expect(strict({ earnedAvailable: 'crest_of_the_road' })).toBe('');
+    // The ride's spoils (lenient: skipped with a note when held) need no requirement.
+    expect(validateEventsConfig(data.events, { ...data }).errors).toEqual([]);
+  });
+
   it('the sims leave a choice that grants one alone (D-25), unless their policy takes them', () => {
     // Failure: a fight policy rides to Old Faces and a sim's numbers start measuring an earned
     // blessing (the fullrun baselines drift).
@@ -813,11 +957,154 @@ describe("an event's earned blessing", () => {
 
 // ── The sanctum's offer is pure (D-6): unit checks; the church is tests/OldSanctum.test.js ──
 
+describe('an offered card the run already holds is never a Take', () => {
+  it('a take elsewhere drops the card from every open or owed offer; one left with none is none', () => {
+    // Failure: the sanctum still offers a card the run now holds (an elite dropped it, or an
+    // event gave it), so Take is refused and the vow does nothing; or a sanctum whose cards are
+    // all held offers no blessing at all (neither its pair nor the tier I three).
+    const rm = freshRun(51);
+    rm.earnedBlessingPicks = {
+      'sanctum:s': {
+        version: 2,
+        key: 'sanctum:s',
+        source: 'sanctum',
+        actId: 'act1',
+        nodeId: 's',
+        offered: ['tithe_box', 'hollow_hourglass'],
+        status: 'open',
+        chosen: null,
+      },
+      'sanctum:t': {
+        version: 2,
+        key: 'sanctum:t',
+        source: 'sanctum',
+        actId: 'act1',
+        nodeId: 't',
+        offered: ['hollow_hourglass'],
+        status: 'open',
+        chosen: null,
+      },
+      'elite:e': {
+        version: 2,
+        key: 'elite:e',
+        source: 'eclipsed_elite',
+        actId: 'act1',
+        nodeId: 'e',
+        offered: ['hollow_hourglass'],
+        status: 'owed',
+        chosen: null,
+      },
+    };
+    expect(takeEarnedBlessing(rm, 'elite:e', 'hollow_hourglass').ok).toBe(true);
+    expect(rm.earnedBlessingPicks['sanctum:s']).toMatchObject({
+      status: 'open',
+      offered: ['tithe_box'],
+    });
+    expect(rm.earnedBlessingPicks['sanctum:t']).toMatchObject({ status: 'none', offered: [] });
+    // An event's grant prunes the same way.
+    rm.earnedBlessingPicks['sanctum:u'] = {
+      version: 2,
+      key: 'sanctum:u',
+      source: 'sanctum',
+      actId: 'act1',
+      nodeId: 'u',
+      offered: ['crest_of_the_road', 'lantern_of_the_road'],
+      status: 'open',
+      chosen: null,
+    };
+    expect(
+      grantEarnedBlessing(rm, 'crest_of_the_road', { source: 'event', key: 'event:n' }).ok,
+    ).toBe(true);
+    expect(rm.earnedBlessingPicks['sanctum:u']).toMatchObject({
+      status: 'open',
+      offered: ['lantern_of_the_road'],
+    });
+    // A taken entry keeps the record of what it offered.
+    expect(rm.earnedBlessingPicks['elite:e']).toMatchObject({
+      status: 'taken',
+      offered: ['hollow_hourglass'],
+    });
+  });
+
+  it('a save holding such an offer loads with the card dropped (or as none); the pick model hides it', () => {
+    // Failure: an old save (or one written before the prune) shows a card that cannot be taken.
+    const raw = {
+      'sanctum:s': {
+        key: 'sanctum:s',
+        source: 'sanctum',
+        actId: 'act1',
+        offered: ['tithe_box', 'hollow_hourglass'],
+        status: 'open',
+      },
+      'elite:e': {
+        key: 'elite:e',
+        source: 'eclipsed_elite',
+        actId: 'act1',
+        offered: ['hollow_hourglass'],
+        status: 'owed',
+      },
+      act1: {
+        source: 'act_boss',
+        actId: 'act1',
+        offered: ['hollow_hourglass'],
+        status: 'taken',
+        chosen: 'hollow_hourglass',
+      },
+    };
+    const clean = sanitizeEarnedBlessingPicks(raw, { heldIds: ['hollow_hourglass'] });
+    expect(clean['sanctum:s']).toMatchObject({ status: 'open', offered: ['tithe_box'] });
+    expect(clean['elite:e']).toMatchObject({ status: 'none', offered: [] });
+    // A taken entry keeps what it offered: the record of the pick.
+    expect(clean.act1).toMatchObject({ status: 'taken', offered: ['hollow_hourglass'] });
+    // Through a real load.
+    const rm = freshRun(52);
+    rm.addBlessingMidRun('hollow_hourglass', { earned: true });
+    rm.earnedBlessingPicks = structuredClone(raw);
+    const back = roundTrip(rm);
+    expect(back.earnedBlessingPicks['elite:e'].status).toBe('none');
+    expect(earnedPickOwed(back)).toBeNull();
+    // The model, read before any prune, shows only what can be taken.
+    rm.earnedBlessingPicks = {
+      'elite:f': {
+        key: 'elite:f',
+        source: 'eclipsed_elite',
+        actId: 'act1',
+        offered: ['hollow_hourglass', 'lantern_of_the_road'],
+        status: 'owed',
+      },
+    };
+    expect(earnedPickModel(rm).cards.map((c) => c.id)).toEqual(['lantern_of_the_road']);
+    rm.earnedBlessingPicks['elite:f'].offered = ['hollow_hourglass'];
+    expect(earnedPickModel(rm)).toBeNull();
+  });
+});
+
 describe('the sanctum pair', () => {
   it('is null on a node that is no sanctum', () => {
     const rm = freshRun(50);
     const church = rm.nodeMap.nodes.find((n) => n.type === 'church') || rm.nodeMap.nodes[1];
     expect(openSanctum(rm, church.id)).toBeNull();
     expect(rm.earnedBlessingPicks).toEqual({});
+  });
+
+  it('fills from the pure act-boss and elite cards only: never a twisted card, however heavy', () => {
+    // Failure: the fill takes the act boss's whole pool, twisted cards included, so the sanctum
+    // (a free vow) hands out a card with a curse on it.
+    const gameData = withCards(twisted('dark_bargain', { weight: 1000 }));
+    let filled = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      const rm = freshRun(seed, { gameData });
+      // The sanctum's own card is held, so both its cards come from the fill.
+      rm.addBlessingMidRun('tithe_box', { earned: true });
+      expect(earnedPoolFor(rm, 'act_boss').map((b) => b.id)).toContain('dark_bargain');
+      const church = rm.nodeMap.nodes.find((n) => n.type === 'battle' && !n.completed);
+      church.type = 'church';
+      church.sanctum = true;
+      const entry = openSanctum(rm, church.id);
+      expect(entry.offered).toHaveLength(2);
+      expect(entry.offered, `seed ${seed}`).not.toContain('dark_bargain');
+      filled++;
+    }
+    expect(filled).toBe(40);
   });
 });

@@ -16,7 +16,12 @@
 import { CHURCH_VOWS, NODE_TYPES } from '../utils/constants.js';
 import { isPrologueRun } from './ScriptedBattle.js';
 import { isEarnedBlessing } from './BlessingEngine.js';
-import { earnedLedgerEntry, sanctumLedgerKey, takeEarnedBlessing } from './EarnedBlessings.js';
+import {
+  earnedLedgerEntry,
+  sanctumLedgerKey,
+  takeEarnedBlessing,
+  takeableOffered,
+} from './EarnedBlessings.js';
 import { isSanctum } from './SanctumPass.js';
 import { payChurchTithe } from './ChurchTithe.js';
 import {
@@ -62,23 +67,48 @@ export function churchVowLine(vow) {
 
 /**
  * The Old Sanctum's ledger entry when this church is one and its vow offers earned blessings
- * ('open', or 'taken' once its vow took one), else null: an ordinary church, or a sanctum with
- * nothing left to offer ('none': its altar gives the tier I blessings, decision D-6). The entry is
- * written when the door opens (EarnedBlessings.openSanctum, ChurchController.handleChurch).
+ * ('open' with a card the run can still take, or 'taken' once its vow took one), else null: an
+ * ordinary church, or a sanctum with nothing left to offer ('none', or every card it offered now
+ * held: its altar gives the tier I blessings, decision D-6). The entry is written when the door
+ * opens (EarnedBlessings.openSanctum, ChurchController.handleChurch).
  */
 export function sanctumEntry(run, nodeId) {
   const node = run?.nodeMap?.nodes?.find((n) => n?.id === nodeId);
   if (!isSanctum(node)) return null;
   const entry = earnedLedgerEntry(run, sanctumLedgerKey(nodeId));
-  return entry && (entry.status === 'open' || entry.status === 'taken') ? entry : null;
+  if (entry?.status === 'taken') return entry;
+  return entry?.status === 'open' && takeableOffered(run, entry).length > 0 ? entry : null;
 }
 
-/** The earned blessings the Old Sanctum's altar offers (catalog rows), in the order rolled. */
+/**
+ * Where the Old Sanctum stands, for the route map's line: 'unopened' (its pair is rolled when its
+ * door first opens), 'open' (its vow can still take an earned card), 'taken' (its vow took one),
+ * 'spent' (its vow went to another service) or 'none' (nothing earned is left: it rolled none,
+ * or the run holds every card it offered; its altar gives the tier I blessings). Null for a node
+ * that is no sanctum.
+ */
+export function sanctumStatus(run, nodeId) {
+  const node = run?.nodeMap?.nodes?.find((n) => n?.id === nodeId);
+  if (!isSanctum(node)) return null;
+  const raw = earnedLedgerEntry(run, sanctumLedgerKey(nodeId));
+  if (!raw) return 'unopened';
+  const entry = sanctumEntry(run, nodeId);
+  if (!entry) return 'none';
+  if (entry.status === 'taken') return 'taken';
+  return churchVowBlock(run, nodeId, 'blessing') || churchVow(run, nodeId) === 'blessing'
+    ? 'spent'
+    : 'open';
+}
+
+/**
+ * The earned blessings the Old Sanctum's altar offers (catalog rows), in the order rolled; a card
+ * the run already holds is never one (its Take would be refused).
+ */
 export function sanctumBlessingOffers(run, nodeId, gameData) {
   const entry = sanctumEntry(run, nodeId);
   if (!entry || entry.status !== 'open') return [];
   const catalog = gameData?.blessings?.blessings || [];
-  return entry.offered
+  return takeableOffered(run, entry)
     .map((id) => catalog.find((b) => b?.id === id))
     .filter((b) => b && isEarnedBlessing(b));
 }

@@ -7,7 +7,7 @@
 
 import { blessingTerms } from '../engine/BlessingTerms.js';
 import { buildBlessingIndex } from '../engine/BlessingEngine.js';
-import { earnedPickOwed, ledgerKeyOf } from '../engine/EarnedBlessings.js';
+import { earnedPickOwed, ledgerKeyOf, takeableOffered } from '../engine/EarnedBlessings.js';
 import { blessingCardContent } from './choiceContent.js';
 import { actLabel } from './ceremonyContent.js';
 
@@ -61,7 +61,7 @@ export function earnedPickSource(entry) {
 
 /**
  * The owed pick as the menu shows it, or null when nothing is owed (or none of its cards is
- * still in the catalog). `cards[i]` = `{ id, content, terms }`: `content` is the tarot face
+ * still in the catalog, or one the run does not already hold: a Take of it would be refused). `cards[i]` = `{ id, content, terms }`: `content` is the tarot face
  * (choiceContent.blessingCardContent), `terms` explain the words its boon uses (Vision).
  * @param {object} run - RunManager
  * @param {object} [entry] - a ledger entry; the owed one by default
@@ -70,7 +70,7 @@ export function earnedPickModel(run, entry = earnedPickOwed(run)) {
   if (!entry || entry.status !== 'owed' || !Array.isArray(entry.offered)) return null;
   const index = catalogIndex(run);
   const cards = [];
-  for (const id of entry.offered) {
+  for (const id of takeableOffered(run, entry)) {
     const blessing = index.get(id);
     if (!blessing || blessing.earned !== true) continue;
     const content = blessingCardContent(blessing);

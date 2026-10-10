@@ -5,6 +5,7 @@
 // recorded save).
 //
 // Each test names the realistic failure it catches.
+import fs from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import './harness/JourneyTestSetup.js';
 import { RunDriver, JourneyStorage } from './harness/RunDriver.js';
@@ -18,15 +19,27 @@ import {
   sanctumBlessingBlock,
   sanctumBlessingOffers,
   sanctumEntry,
+  sanctumStatus,
   takeChurchBlessing,
   takeSanctumBlessing,
 } from '../src/engine/ChurchVow.js';
 import { churchPromotionBlock } from '../src/engine/ChurchCommands.js';
 import { payChurchTithe, sanitizeChurchTithes } from '../src/engine/ChurchTithe.js';
 import { nodeLabel } from '../src/ui/RouteGraph.js';
-import { loomShortLabel, SANCTUM_TEXT } from '../src/ui/loomModel.js';
+import {
+  describeLoomNode,
+  loomShortLabel,
+  SANCTUM_EMPTY_TEXT,
+  SANCTUM_SPENT_TEXT,
+  SANCTUM_TAKEN_TEXT,
+  SANCTUM_TEXT,
+} from '../src/ui/loomModel.js';
 import { createUnit } from '../src/engine/UnitManager.js';
+import { chooseEventOption } from '../src/engine/EventCommands.js';
+import { isRedrawable, serviceStreakProblems } from '../src/engine/RouteEdit.js';
+import { rebuildNodeAs } from '../src/engine/NodeMapGenerator.js';
 import { installSeed, restoreMathRandom } from '../sim/lib/SeededRNG.js';
+import { arriveAs } from './eventKit.js';
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
@@ -116,6 +129,45 @@ describe('stamping the Old Sanctum', () => {
     expect(sanctumOf(prologue)).toBeNull();
   });
 
+  it("never in the run's last act on any rung (Dusk's Act IV included), as the act boss's pick", () => {
+    // Failure: the guard names the final boss's act only, so a rung whose run ends elsewhere
+    // (Dusk ends at the Emperor, Act IV) stamps a sanctum in its last act, where an earned card
+    // has almost no road left to pay off.
+    const finals = {};
+    for (const difficultyId of ['normal', 'dusk', 'hard', 'lunatic']) {
+      let earlier = 0;
+      for (let seed = 1; seed <= 12; seed++) {
+        const rm = freshRun(seed, { difficultyId });
+        while (rm.actIndex < rm.actSequence.length - 1) {
+          rm.advanceAct();
+          const last = rm.actIndex === rm.actSequence.length - 1;
+          const sanctum = sanctumOf(rm);
+          if (last) {
+            finals[difficultyId] = rm.currentAct;
+            expect(sanctum, `${difficultyId} ${rm.currentAct} seed ${seed}`).toBeNull();
+            // A church stood for it: only the rule kept it off (not a map without one).
+            if (rm.currentAct !== 'finalBoss')
+              expect(sanctumCandidates(rm.nodeMap).length).toBeGreaterThan(0);
+          } else if (sanctum) earlier++;
+        }
+      }
+      expect(earlier, difficultyId).toBeGreaterThan(0);
+    }
+    expect(finals).toEqual({
+      normal: 'finalBoss',
+      dusk: 'act4',
+      hard: 'finalBoss',
+      lunatic: 'finalBoss',
+    });
+    // The pass itself: the last act of the run takes none, whatever its id.
+    const map = () => ({
+      actId: 'act4',
+      nodes: [{ id: 'c', type: 'church', row: 2, col: 0, edges: [] }],
+    });
+    expect(stampSanctum(map(), { runSeed: 1, actIndex: 3, actCount: 4, chance: 1 })).toBeNull();
+    expect(stampSanctum(map(), { runSeed: 1, actIndex: 3, actCount: 5, chance: 1 })).toBe('c');
+  });
+
   it('about half the acts that could have one do, with the shipped chance', () => {
     // Failure: the chance is read wrong (always, or never), so the count leaves the spec's 3-4
     // earned blessings a run.
@@ -195,8 +247,73 @@ describe('stamping the Old Sanctum', () => {
         { id: 'b', type: 'church', completed: true },
       ],
     };
-    expect(stampSanctum(map, { runSeed: 1, actIndex: 1, chance: 1 })).toBeNull();
+    expect(stampSanctum(map, { runSeed: 1, actIndex: 1, actCount: 4, chance: 1 })).toBeNull();
     expect(map.sanctumRolled).toBe(true);
+  });
+
+  it("a Cartographer's or a Bad Map's redraw never takes the sanctum (its own outcome on every rung)", () => {
+    // Failure: a route edit redraws the sanctum church as a shop or a battle (the act's earned
+    // card is gone), or a redrawn node keeps a stale `sanctum: true`. The real events on the
+    // shipped data: the Cartographer's `ask` (First Light: `true_map`, a shop; Black Sun: `lied`,
+    // a battle, too) and A Bad Map's `trust` (`misled`, a battle), from every node the sanctum is
+    // in reach of (the next two rows).
+    const outcomes = new Set();
+    let inReach = 0;
+    let redrawn = 0;
+    for (const difficultyId of ['normal', 'lunatic']) {
+      for (let seed = 1; seed <= 40; seed++) {
+        const rm = inActTwo(seed, { difficultyId });
+        const sanctum = sanctumOf(rm);
+        if (!sanctum) continue;
+        const byId = new Map(rm.nodeMap.nodes.map((n) => [n.id, n]));
+        const reaches = (from) =>
+          (from.edges || []).some(
+            (id) => id === sanctum.id || (byId.get(id)?.edges || []).includes(sanctum.id),
+          );
+        const stands = rm.nodeMap.nodes.filter((n) => {
+          if (n === sanctum || n.completed || !['battle', 'shop', 'church'].includes(n.type))
+            return false;
+          if (!reaches(n)) return false;
+          const trial = structuredClone(rm.nodeMap);
+          trial.nodes.find((t) => t.id === n.id).type = 'event';
+          return serviceStreakProblems(trial).length === 0;
+        });
+        for (const stand of stands)
+          for (const [eventId, choiceId] of [
+            ['cartographer', 'ask'],
+            ['bad_map', 'trust'],
+          ]) {
+            const run = roundTrip(rm);
+            const node = run.nodeMap.nodes.find((n) => n.id === stand.id);
+            arriveAs(run, eventId, node);
+            run.currentNodeId = node.id;
+            inReach++;
+            const result = chooseEventOption(run, node.id, choiceId);
+            expect(result.ok, result.reason).toBe(true);
+            outcomes.add(`${eventId}:${result.outcomeId}`);
+            if (result.results.some((r) => r.kind === 'route' && r.op === 'redraw')) redrawn++;
+            const after = run.nodeMap.nodes.find((n) => n.id === sanctum.id);
+            expect(after.type, `${difficultyId} seed ${seed} ${eventId} from ${stand.id}`).toBe(
+              'church',
+            );
+            expect(isSanctum(after)).toBe(true);
+            expect(run.nodeMap.nodes.filter((n) => n.sanctum === true)).toHaveLength(1);
+          }
+      }
+    }
+    expect(inReach).toBeGreaterThan(40);
+    expect(redrawn).toBeGreaterThan(20);
+    for (const seen of ['cartographer:true_map', 'cartographer:lied', 'bad_map:misled'])
+      expect([...outcomes]).toContain(seen);
+    // The two guards, each on its own: the sanctum is never a redraw candidate, and a node
+    // rebuilt as another type loses the flag (a stale flag would make a shop "an old sanctum").
+    const rm = sanctumRun(19);
+    const sanctum = sanctumOf(rm);
+    expect(isRedrawable(rm, sanctum)).toBe(false);
+    expect(isRedrawable(rm, { ...sanctum, sanctum: false })).toBe(true);
+    const rebuilt = rebuildNodeAs(structuredClone(sanctum), 'shop', 'act2', 10, data.mapTemplates);
+    expect(rebuilt.type).toBe('shop');
+    expect('sanctum' in rebuilt).toBe(false);
   });
 
   it('the route map names it: an Old sanctum, its short label and its inspect line', () => {
@@ -207,6 +324,43 @@ describe('stamping the Old Sanctum', () => {
     expect(loomShortLabel(sanctum)).toBe('SANCTUM');
     expect(SANCTUM_TEXT).toMatch(/earned blessing/);
     expect(nodeLabel({ ...sanctum, sanctum: false })).toBe('Church');
+  });
+
+  it('the inspect line follows the sanctum: its offer, a vow that took it, a vow spent, an empty altar', () => {
+    // Failure: once its vow is made (or nothing is left) the route map still promises "its vow
+    // offers an earned blessing", and the player walks back to an altar with nothing for them.
+    const line = (rm, node) =>
+      describeLoomNode(node, { state: 'done', sanctumStatus: sanctumStatus(rm, node.id) }).text;
+    const rm = sanctumRun(20);
+    const node = sanctumOf(rm);
+    expect(sanctumStatus(rm, node.id)).toBe('unopened');
+    expect(line(rm, node)).toBe(SANCTUM_TEXT);
+    const entry = openSanctum(rm, node.id);
+    expect(sanctumStatus(rm, node.id)).toBe('open');
+    expect(line(rm, node)).toBe(SANCTUM_TEXT);
+    // A promotion spent the vow.
+    const spent = roundTrip(rm);
+    spent.churchVowByNodeId[node.id] = 'promote';
+    expect(sanctumStatus(spent, node.id)).toBe('spent');
+    expect(line(spent, node)).toBe(SANCTUM_SPENT_TEXT);
+    // Its vow took an earned card.
+    expect(takeSanctumBlessing(rm, node.id, entry.offered[0], rm.gameData).ok).toBe(true);
+    expect(sanctumStatus(rm, node.id)).toBe('taken');
+    expect(line(rm, node)).toBe(SANCTUM_TAKEN_TEXT);
+    // Nothing left: every card it offered is held elsewhere (or it rolled none).
+    const empty = sanctumRun(20);
+    const emptyNode = sanctumOf(empty);
+    for (const id of openSanctum(empty, emptyNode.id).offered)
+      empty.addBlessingMidRun(id, { earned: true });
+    expect(sanctumStatus(empty, emptyNode.id)).toBe('none');
+    expect(line(empty, emptyNode)).toBe(SANCTUM_EMPTY_TEXT);
+    expect(churchBlessingOffers(empty, emptyNode.id, empty.gameData).length).toBe(3);
+    // Not a sanctum: no status, the church's own line.
+    const church = { ...node, sanctum: false };
+    expect(sanctumStatus(rm, 'nowhere')).toBeNull();
+    expect(describeLoomNode(church, { state: 'live' }).text).not.toMatch(/sanctum/);
+    // The route map's card passes the status in.
+    expect(fs.readFileSync('src/ui/LoomPanels.js', 'utf8')).toMatch(/sanctumStatus: /);
   });
 });
 

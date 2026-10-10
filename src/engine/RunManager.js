@@ -3030,7 +3030,7 @@ export class RunManager {
 
   /**
    * The Old Sanctum: stamp this act's map with at most one (engine/SanctumPass.js, its own seeded
-   * stream; never in the first act, the final boss's act or the prologue). Called by advanceAct
+   * stream; never in the first act, the run's last act or the prologue). Called by advanceAct
    * only, never on load. Returns the stamped node's id, or null.
    */
   _stampSanctum() {
@@ -3038,6 +3038,7 @@ export class RunManager {
     return stampSanctum(this.nodeMap, {
       runSeed: this.runSeed,
       actIndex: this.actIndex,
+      actCount: Array.isArray(this.actSequence) ? this.actSequence.length : 0,
       chance: earnedSourceConfig(this.gameData?.blessings).sanctumChance,
     });
   }
@@ -6482,6 +6483,8 @@ export class RunManager {
     rm.earnedBlessingPicks = sanitizeEarnedBlessingPicks(saved.earnedBlessingPicks, {
       earnedIds: earnedBlessingsOf(gameData).map((b) => b.id),
       actSequence: rm.actSequence,
+      // An owed or open offer never shows a card the run holds (EarnedBlessings.pruneHeldOffers).
+      heldIds: rm.getActiveBlessingIds(),
     });
     rm.pendingAmbushNodeId =
       typeof saved.pendingAmbushNodeId === 'string' ? saved.pendingAmbushNodeId : null;

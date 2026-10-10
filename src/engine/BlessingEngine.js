@@ -52,10 +52,21 @@ const EARNED_SOURCE_ACTS = ['act1', 'act2', 'act3', 'act4'];
 /** The keys an earned blessing's `requires` may hold: `eclipse` (the run's Eclipse is on). */
 export const EARNED_REQUIRES_KEYS = Object.freeze(['eclipse']);
 /**
- * Effect types a twist may carry beyond the price catalog's own (the twisted cards' effects that
- * are no price a shrine sells). Appended to as twisted cards ship.
+ * The effect types a twist may carry: a small explicit list, never "every price". A twist is
+ * taken mid-run (an act boss's pick), so a price fixed to an act (`act_stat_delta_all_units`,
+ * `act_deploy_cap_delta`, `act_hit_bonus` and `disable_personal_skills_until_act` name the act
+ * they bite in, usually one already past) is no twist; these act on the run from the take on.
+ * Extended as twisted cards ship (PR D3 adds its own types here). Whether a twist's burden can be
+ * cleansed at a church is D3's decision (docs/specs/blessings-v3.md §6.5).
  */
-export const TWIST_ONLY_EFFECT_TYPES = Object.freeze([]);
+export const TWIST_EFFECT_TYPES = Object.freeze([
+  'burden',
+  'eclipse_shadow_delta',
+  'vision_delta',
+  'xp_multiplier_delta',
+  'shop_price_discount',
+  'forge_cost_multiplier',
+]);
 const REQUIRED_EFFECT_KEYS = ['type', 'params'];
 const REQUIRED_COST_POOL_KEYS = ['2', '3', '4'];
 
@@ -337,7 +348,7 @@ export function validateBlessingsConfig(config, options = {}) {
  * An earned row's own fields (docs/specs/blessings-v3.md §6.3): `sources` names where it is won
  * (required, at least one; a kind from EARNED_SOURCE_KINDS, `acts` a list of acts for a pick that
  * belongs to some acts only); `twist` is the price a twisted card is taken with ({ label,
- * effects }, its effects of a price's types), only on a card an act boss alone offers; `requires`
+ * effects }, its effects of TWIST_EFFECT_TYPES), only on a card an act boss alone offers; `requires`
  * holds only EARNED_REQUIRES_KEYS. Appends to `errors`.
  */
 function validateEarnedFields(blessing, path, config, errors) {
@@ -376,15 +387,14 @@ function validateEarnedFields(blessing, path, config, errors) {
     } else if (!Array.isArray(twist.effects) || twist.effects.length === 0) {
       errors.push(`${path}.twist.effects must be a non-empty array`);
     } else {
-      const allowed = new Set(TWIST_ONLY_EFFECT_TYPES);
-      for (const entry of Object.values(isObject(config.priceCatalog) ? config.priceCatalog : {}))
-        for (const type of effectTypesOf(entry?.effects)) allowed.add(type);
       twist.effects.forEach((effect, i) => {
         const where = `${path}.twist.effects[${i}]`;
         if (!isObject(effect) || typeof effect.type !== 'string' || !isObject(effect.params))
           errors.push(`${where} must be { type, params }`);
-        else if (!allowed.has(effect.type))
-          errors.push(`${where}.type "${effect.type}" is no price or twist effect`);
+        else if (!TWIST_EFFECT_TYPES.includes(effect.type))
+          errors.push(
+            `${where}.type "${effect.type}" is not a twist effect (one of ${TWIST_EFFECT_TYPES.join(', ')})`,
+          );
       });
     }
   }

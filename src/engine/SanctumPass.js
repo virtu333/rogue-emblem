@@ -8,8 +8,9 @@
 // stream, a hash of the run seed and the act. Two draws: the first is the chance (always spent),
 // the second picks one of the act's churches that are not complete and not taken by the Eclipse,
 // sorted by id. The node gains `sanctum: true` and the map `sanctumRolled: true`, so a second
-// call (or a reload) never stamps another. Never in the first act, the final boss's act or the
-// prologue (the caller's checks), and never on load: a save from before sanctums gets one from
+// call (or a reload) never stamps another. Never in the first act, the run's last act (whatever
+// act that is: the final boss's, or Dusk's Act IV; the act boss's pick follows the same rule) or
+// the prologue (the caller's check), and never on load: a save from before sanctums gets one from
 // its next act. A sanctum can still fall to the Eclipse like any church (it is then a battle).
 
 import { NODE_TYPES } from '../utils/constants.js';
@@ -35,14 +36,28 @@ export function sanctumCandidates(nodeMap) {
 }
 
 /**
+ * True when the act at `actIndex` of a run of `actCount` acts may hold a sanctum: from the second
+ * act, never the last (an earned card there has no road left to pay off; the act boss's pick
+ * follows the same rule). The final boss's act is always last; it is named too, in case a caller
+ * passes no count.
+ */
+export function sanctumActAllowed({ actIndex, actCount, actId = null } = {}) {
+  const index = Math.trunc(Number(actIndex));
+  const count = Math.trunc(Number(actCount));
+  if (!(index >= 1) || !(count >= 1) || index >= count - 1) return false;
+  return actId !== 'finalBoss';
+}
+
+/**
  * Stamp this act's Old Sanctum, in place: returns the stamped node's id, or null (the chance
  * missed, no church stood, the map was already rolled, or the act takes none).
  * @param {object} nodeMap - { actId, nodes }
- * @param {{ runSeed: number, actIndex: number, chance: number }} options
+ * @param {{ runSeed: number, actIndex: number, actCount: number, chance: number }} options -
+ *   `actCount` is the run's act sequence length
  */
-export function stampSanctum(nodeMap, { runSeed, actIndex, chance } = {}) {
+export function stampSanctum(nodeMap, { runSeed, actIndex, actCount, chance } = {}) {
   if (!nodeMap || !Array.isArray(nodeMap.nodes) || nodeMap.sanctumRolled === true) return null;
-  if (!(Math.trunc(Number(actIndex)) >= 1) || nodeMap.actId === 'finalBoss') return null;
+  if (!sanctumActAllowed({ actIndex, actCount, actId: nodeMap.actId })) return null;
   nodeMap.sanctumRolled = true;
   const rng = createSeededRng(eclipseHash(`sanctum:${Number(runSeed) >>> 0}:${nodeMap.actId}`));
   const hit = rng() < (Number(chance) || 0);

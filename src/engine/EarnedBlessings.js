@@ -26,7 +26,9 @@
 // Statuses: 'owed' (a pick to take or skip: the act boss, an elite's drop, the Colosseum's),
 // 'open' (the Old Sanctum's pair, taken by its vow; never "owed": leaving the church leaves it
 // open), 'taken', 'skipped' and 'none' (the source offered nothing, recorded so it is never
-// rolled twice).
+// rolled twice). An owed or open offer never shows a card the run already holds: when a card
+// joins the run (a take, an event's grant) it leaves every other owed or open offer, and an offer
+// left with no card is 'none' (`pruneHeldOffers`; the load does the same, `heldIds`).
 //
 // Every offer is drawn from its own seeded stream (a hash of the run seed and the source's key),
 // never `Math.random`, so an earned blessing moves neither the battle, the node-map, the loot,
@@ -280,6 +282,31 @@ function fileEntry(run, key, { source, nodeId, offered, status, chosen = null })
   return entry;
 }
 
+/**
+ * An owed or open offer never shows a card the run holds (a Take of it would be refused): drop
+ * every held card from every owed or open entry, and an entry left with none becomes 'none' (an
+ * open sanctum then gives its tier I blessings back; an owed pick asks nothing). Taken, skipped
+ * and none entries keep their cards as the record of what was offered. Called after every card
+ * that joins the run here; the load does the same (`sanitizeEarnedBlessingPicks`'s `heldIds`).
+ */
+export function pruneHeldOffers(run) {
+  const held = new Set(run?.getActiveBlessingIds?.() || []);
+  for (const entry of Object.values(ledgerOf(run))) {
+    if (!isPlainObject(entry) || (entry.status !== 'owed' && entry.status !== 'open')) continue;
+    if (!Array.isArray(entry.offered)) continue;
+    const left = entry.offered.filter((id) => !held.has(id));
+    if (left.length === entry.offered.length) continue;
+    entry.offered = left;
+    if (left.length === 0) entry.status = 'none';
+  }
+}
+
+/** The cards of an offer the run can still take (the run's held cards left out). */
+export function takeableOffered(run, entry) {
+  const held = new Set(run?.getActiveBlessingIds?.() || []);
+  return (Array.isArray(entry?.offered) ? entry.offered : []).filter((id) => !held.has(id));
+}
+
 // ── The act boss ────────────────────────────────────────────────────────
 
 /**
@@ -419,8 +446,10 @@ export function openSanctum(run, nodeId) {
 // ── The Colosseum (D-8; the card ships in a later PR) ───────────────────
 
 /**
- * The Colosseum's offer, once a run (key `colosseum`): one `colosseum` card, owed. Idempotent;
- * null when the run already has an entry for it or nothing is left to offer.
+ * The Colosseum's offer, once a run (key `colosseum`), rolled on its own stream
+ * (`earned-colosseum:<seed>`): one `colosseum` card, owed; or, when no such card is left to
+ * offer, a 'none' entry (never owed, and never rolled again). Idempotent: a run with an entry
+ * gets that entry back. Null only in the prologue (or with no run).
  */
 export function prepareColosseumOffer(run, nodeId) {
   if (!run || isPrologueRun(run)) return null;
@@ -428,12 +457,11 @@ export function prepareColosseumOffer(run, nodeId) {
   if (existing) return existing;
   const rand = createSeededRng(hash(`earned-colosseum:${seedOf(run)}`));
   const card = drawCards(earnedPoolFor(run, 'colosseum'), 1, rand)[0] || null;
-  if (!card) return null;
   return fileEntry(run, COLOSSEUM_LEDGER_KEY, {
     source: 'colosseum',
     nodeId,
-    offered: [card.id],
-    status: 'owed',
+    offered: card ? [card.id] : [],
+    status: card ? 'owed' : 'none',
   });
 }
 
@@ -451,15 +479,20 @@ export function earnedGrantBlock(run, blessingId, { source = 'event', key = null
 
 /**
  * An earned blessing handed out directly (an event's `earnedBlessing` effect): it joins the run,
- * its boons apply, and the ledger records it taken under `key`. Refused (nothing changes) when
- * `earnedGrantBlock` names a reason or the blessing cannot join.
+ * its boons apply, and the ledger records it taken under `key` (an event's grant with no key
+ * files under its node's, `event:<node>`). Refused (nothing changes) when there is no key to
+ * file it under, `earnedGrantBlock` names a reason or the blessing cannot join.
  * @returns {{ ok: true, blessing: object, entry: object } | { ok: false, reason: string }}
  */
 export function grantEarnedBlessing(
   run,
   blessingId,
-  { source = 'event', key, nodeId = null } = {},
+  { source = 'event', key = null, nodeId = null } = {},
 ) {
+  if (typeof key !== 'string' || !key)
+    key =
+      source === 'event' && typeof nodeId === 'string' && nodeId ? eventLedgerKey(nodeId) : null;
+  if (!key) return { ok: false, reason: 'There is no record to keep it under.' };
   const reason = earnedGrantBlock(run, blessingId, { source, key });
   if (reason) return { ok: false, reason };
   const blessing = run.gameData.blessings.blessings.find((b) => b.id === blessingId);
@@ -473,6 +506,7 @@ export function grantEarnedBlessing(
     chosen: blessingId,
   });
   run._recordEarnedPick?.(blessingId, { actId: entry.actId, source, key, offered: [blessingId] });
+  pruneHeldOffers(run);
   return { ok: true, blessing, entry };
 }
 
@@ -526,6 +560,7 @@ export function takeEarnedBlessing(run, key, blessingId) {
     ...(source === EARNED_PICK_SOURCE_ACT_BOSS ? {} : { key }),
     offered: [...entry.offered],
   });
+  pruneHeldOffers(run);
   return { ok: true, blessing };
 }
 
@@ -541,21 +576,27 @@ export function skipEarnedBlessing(run, key) {
  * A saved ledger read back: well-formed entries kept as plain objects, anything else dropped (a
  * dropped act boss is simply prepared again, to the same pair, if its boss is still unclaimed).
  *
- * `earnedIds` (the earned ids the catalog knows) and `actSequence` (the run's acts) are what the
- * save is read against; either left out skips that check.
+ * `earnedIds` (the earned ids the catalog knows), `actSequence` (the run's acts) and `heldIds`
+ * (the blessings the run holds) are what the save is read against; any left out skips that check.
  *  - An offered id the catalog no longer has as an earned blessing is dropped from the cards; an
  *    owed or open offer with none left becomes 'none' (nothing to show, and not rolled again).
+ *  - An owed or open offer drops a card the run already holds the same way (`pruneHeldOffers`).
  *  - A taken entry with no recorded choice stays 'taken' (the choice null): the pick was made,
  *    so it is never prepared a second time.
  *  - An entry earned in an act the run does not have (its `actId`, or an act boss's key) is gone.
  *  - An unknown source is gone. An entry that is not an act boss's keeps its ledger key as `key`.
  * @param {*} raw
- * @param {{ earnedIds?: Iterable<string>|null, actSequence?: string[]|null }} [known]
+ * @param {{ earnedIds?: Iterable<string>|null, actSequence?: string[]|null,
+ *   heldIds?: Iterable<string>|null }} [known]
  */
-export function sanitizeEarnedBlessingPicks(raw, { earnedIds = null, actSequence = null } = {}) {
+export function sanitizeEarnedBlessingPicks(
+  raw,
+  { earnedIds = null, actSequence = null, heldIds = null } = {},
+) {
   const out = {};
   if (!isPlainObject(raw)) return out;
   const earned = earnedIds ? new Set(earnedIds) : null;
+  const held = heldIds ? new Set(heldIds) : null;
   const acts = Array.isArray(actSequence) ? actSequence : null;
   for (const [key, entry] of Object.entries(raw)) {
     if (!key || !isPlainObject(entry)) continue;
@@ -574,6 +615,7 @@ export function sanitizeEarnedBlessingPicks(raw, { earnedIds = null, actSequence
     const showing = entry.status === 'owed' || entry.status === 'open';
     if (showing && offered.length === 0) continue;
     if (earned) offered = offered.filter((id) => earned.has(id));
+    if (held && showing) offered = offered.filter((id) => !held.has(id));
     let status = entry.status;
     if (showing && offered.length === 0) status = 'none';
     const chosen = typeof entry.chosen === 'string' && entry.chosen ? entry.chosen : null;

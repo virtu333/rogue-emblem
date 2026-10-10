@@ -21,12 +21,14 @@ function catalogIndex(run) {
  * `{ id, label, tier, earned, line, price, priceKind, terms }` (`tier` reads 'Earned' for an
  * earned blessing). `price` is the label of what the
  * blessing cost when it was taken (its rolled cost, or its pact) and `priceKind` is 'Cost',
- * 'Price' (an intrinsic price: the boon carries it) or 'Pact'; both are null for a free blessing (tier I, a church's vow, an event's gift).
+ * 'Price' (an intrinsic price: the boon carries it), 'Pact', 'Twist' (a twisted earned card's
+ * twist) or 'Catch' (a start gift's catch); both are null for a free blessing (tier I, a church's
+ * vow, an event's gift).
  * `terms` explains the price's words (BlessingTerms). An id the catalog no longer has is left
  * out. Empty when the run holds none.
  * @param {object} run - RunManager
  * @returns {Array<{ id: string, label: string, tier: string, line: string,
- *   price: string|null, priceKind: 'Cost'|'Price'|'Pact'|null }>}
+ *   price: string|null, priceKind: 'Cost'|'Price'|'Pact'|'Twist'|'Catch'|null }>}
  */
 export function heldBlessingEntries(run) {
   const index = catalogIndex(run);

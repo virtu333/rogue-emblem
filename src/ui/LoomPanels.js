@@ -5,6 +5,7 @@ import { describeLoomNode, describeRecruitPreview, loomHeader } from './loomMode
 import { traitLines, markLine } from './traitContent.js';
 import { ruinsChoice } from '../engine/RuinsCommands.js';
 import { eventView } from '../engine/EventCommands.js';
+import { sanctumStatus } from '../engine/ChurchVow.js';
 import { contractRewardOwedAt } from '../engine/Contracts.js';
 import { crestElement } from './crestArt.js';
 import { regionName } from './placeDisplay.js';
@@ -217,6 +218,8 @@ export function renderLoomCard(card, node, ctx = {}) {
     recruit,
     recruitMods: rm?.getRecruitNodeBattleMods?.(node) || null,
     ruinsChoice: node.type === 'ruins' && rm ? ruinsChoice(rm, node.id) : null,
+    // The Old Sanctum's line follows its vow (offered, taken, spent, nothing left).
+    sanctumStatus: node.type === 'church' && rm ? sanctumStatus(rm, node.id) : null,
     // A visited event keeps the line of what was chosen there.
     eventChoice:
       node.type === 'event' && rm && (!node.eclipse || node.darkOmen === true)
