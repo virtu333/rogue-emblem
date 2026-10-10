@@ -2762,6 +2762,193 @@
             ]
           }
         ]
+      },
+      "preBattleExchange": {
+        "variants": [
+          {
+            "when": {
+              "commander": "Edric",
+              "bossMetBefore": true
+            },
+            "pool": [
+              {
+                "exchange": [
+                  {
+                    "speaker": "Iron Captain",
+                    "portrait": "portrait_boss_iron_captain",
+                    "line": "Twenty years I've watched this road. You're the first who didn't turn back at the cairn."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "We nearly did. Then we remembered who's waiting on the other side."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "Iron Captain",
+                    "portrait": "portrait_boss_iron_captain",
+                    "line": "Relief's due any season now. Until it comes, nobody crosses."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Captain, I don't think relief is coming. We could be it, if you'd let us."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "Iron Captain",
+                    "portrait": "portrait_boss_iron_captain",
+                    "line": "Rangers, rebels, refugees. From the saddle they all look the same."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "From the ground they look like people. Get down and see."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "Iron Captain",
+                    "portrait": "portrait_boss_iron_captain",
+                    "line": "Turn your column around. I'd rather not bury farmers' sons today."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Neither would I. So we agree on something. Stand aside."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossKilledYouBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Iron Captain",
+                    "portrait": "portrait_boss_iron_captain",
+                    "line": "Back again? Something in my bones says I've broken you once already."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Maybe you did. I'm still counting my people, and they're all here."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossKilledYouBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Iron Captain",
+                    "portrait": "portrait_boss_iron_captain",
+                    "line": "I know that banner. I've seen it trampled into this mud."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Mud washes out. We washed it, and we came back."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossSlainBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Iron Captain",
+                    "portrait": "portrait_boss_iron_captain",
+                    "line": "You... I know your face. From a dream where I died. Not this time."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "I'd rather nobody died here at all. You could still make that dream wrong."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossSlainBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Iron Captain",
+                    "portrait": "portrait_boss_iron_captain",
+                    "line": "Strange. My horse balks at this ridge, as if it's thrown me here before."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Listen to your horse, Captain. It's the wisest one on this border."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "dusk"
+                },
+                "exchange": [
+                  {
+                    "speaker": "Iron Captain",
+                    "portrait": "portrait_boss_iron_captain",
+                    "line": "Dusk on the border. My riders know these roads blind. Yours will stumble."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then we walk slow, a hand on the shoulder ahead. We'll manage."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "hard"
+                },
+                "exchange": [
+                  {
+                    "speaker": "Iron Captain",
+                    "portrait": "portrait_boss_iron_captain",
+                    "line": "They finally sent me reinforcements. Imagine that. Just in time for you."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Twenty years waiting, and they arrive for this. I'm sorry, Captain. Truly."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "lunatic"
+                },
+                "exchange": [
+                  {
+                    "speaker": "Iron Captain",
+                    "portrait": "portrait_boss_iron_captain",
+                    "line": "The sky's gone black and the orders still say hold. So I hold."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "The orders were never worth this. But I understand. We hold too."
+                  }
+                ]
+              }
+            ]
+          }
+        ]
       }
     },
     "Warchief": {
@@ -2983,6 +3170,193 @@
                 "speaker": "Cael",
                 "portrait": "portrait_lord_cael",
                 "line": "Try the shield before you reach my soldiers."
+              }
+            ]
+          }
+        ]
+      },
+      "preBattleExchange": {
+        "variants": [
+          {
+            "when": {
+              "commander": "Edric",
+              "bossMetBefore": true
+            },
+            "pool": [
+              {
+                "exchange": [
+                  {
+                    "speaker": "Warchief",
+                    "portrait": "portrait_boss_warchief",
+                    "line": "The empire pays my clans by the head. Yours will feed us through winter."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "We'd share our bread for free. You don't need our heads for it."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "Warchief",
+                    "portrait": "portrait_boss_warchief",
+                    "line": "No treaties, no terms. The axe is the only promise I keep."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then I'll make one for both of us: leave our wounded be, and we'll leave your hearths be."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "Warchief",
+                    "portrait": "portrait_boss_warchief",
+                    "line": "Ha! A lordling with a flag. I'll hang it in my hall."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "It's heavier than it looks. Ask anyone who's carried it."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "Warchief",
+                    "portrait": "portrait_boss_warchief",
+                    "line": "The pass is clan ground. You pay in blood, or you pay in blood."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "That isn't much of a choice. I'll find a third one."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossKilledYouBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Warchief",
+                    "portrait": "portrait_boss_warchief",
+                    "line": "Hah! My axe remembers your blood. Come — let it drink twice!"
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Your axe can remember what it likes. It goes thirsty today."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossKilledYouBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Warchief",
+                    "portrait": "portrait_boss_warchief",
+                    "line": "Back for more? My clans still sing about the last time we met."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Let them sing. We'll be quieter, and closer together, this time."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossSlainBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Warchief",
+                    "portrait": "portrait_boss_warchief",
+                    "line": "You! I dreamed an army of fools cut me down. Dreams lie. Axes don't."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Not fools. Just stubborn. You'd like them, if you ever stopped swinging."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossSlainBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Warchief",
+                    "portrait": "portrait_boss_warchief",
+                    "line": "My shaman read the bones this morning and wouldn't say what she saw."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then she's wiser than both of us. Lower the axe."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "dusk"
+                },
+                "exchange": [
+                  {
+                    "speaker": "Warchief",
+                    "portrait": "portrait_boss_warchief",
+                    "line": "The clans hunt best at dusk. You'll hear us before you see us."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then everyone listens. And nobody wanders off to look."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "hard"
+                },
+                "exchange": [
+                  {
+                    "speaker": "Warchief",
+                    "portrait": "portrait_boss_warchief",
+                    "line": "Every clan on the ridge came down for you. Even the ones who hate me."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "So they made peace for a fight. Imagine what they could make it for instead."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "lunatic"
+                },
+                "exchange": [
+                  {
+                    "speaker": "Warchief",
+                    "portrait": "portrait_boss_warchief",
+                    "line": "The sun's gone dark and my clans are howling. Good. So is my axe."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then it's dark for all of us. Stay close, everyone. Close as you can."
+                  }
+                ]
               }
             ]
           }
@@ -3212,6 +3586,193 @@
             ]
           }
         ]
+      },
+      "preBattleExchange": {
+        "variants": [
+          {
+            "when": {
+              "commander": "Edric",
+              "bossMetBefore": true
+            },
+            "pool": [
+              {
+                "exchange": [
+                  {
+                    "speaker": "Knight Commander",
+                    "portrait": "portrait_boss_knight_commander",
+                    "line": "Chapter four of my doctrine: break the center and the flanks run. Shall we test it?"
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "My flanks don't run. They're too busy looking after each other."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "Knight Commander",
+                    "portrait": "portrait_boss_knight_commander",
+                    "line": "I have read every casualty table this war produced. Yours will be a short one."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "I keep a list too. Names, not numbers. I mean to keep it short as well."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "Knight Commander",
+                    "portrait": "portrait_boss_knight_commander",
+                    "line": "Rebels with farm lances. The war colleges would laugh."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Let them laugh. The farm lances have gotten us this far."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "Knight Commander",
+                    "portrait": "portrait_boss_knight_commander",
+                    "line": "The second push never stopped for weather, nor for mercy. It will not stop for you."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then we'll have to stop it ourselves. Line up, everyone."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossKilledYouBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Knight Commander",
+                    "portrait": "portrait_boss_knight_commander",
+                    "line": "The emperor's justice found you once. It is patient enough to find you twice."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "We're patient too. We had a long walk back to practice."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossKilledYouBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Knight Commander",
+                    "portrait": "portrait_boss_knight_commander",
+                    "line": "I used your last charge as a lesson for my cadets. They took notes."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "I hope they noted that we got back up. That's the part worth learning."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossSlainBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Knight Commander",
+                    "portrait": "portrait_boss_knight_commander",
+                    "line": "I have died for the emperor in my nightmares. You were there. It changes nothing."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "If you've seen how it ends, sir, you could choose a different ending."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossSlainBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Knight Commander",
+                    "portrait": "portrait_boss_knight_commander",
+                    "line": "My lancers keep checking their straps. They say this ground feels like an old grave."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "It doesn't have to be one. Not theirs, not ours."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "dusk"
+                },
+                "exchange": [
+                  {
+                    "speaker": "Knight Commander",
+                    "portrait": "portrait_boss_knight_commander",
+                    "line": "A charge at dusk. Your archers will be shooting at shadows."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then we hold the line until the shadows come to us."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "hard"
+                },
+                "exchange": [
+                  {
+                    "speaker": "Knight Commander",
+                    "portrait": "portrait_boss_knight_commander",
+                    "line": "The war colleges sent their best class to meet you. I taught every one of them."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then they had a good teacher. I'm sorry they're spent on this."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "lunatic"
+                },
+                "exchange": [
+                  {
+                    "speaker": "Knight Commander",
+                    "portrait": "portrait_boss_knight_commander",
+                    "line": "The emperor has emptied the reserve stables for you. No doctrine covers this."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "No doctrine covers us either. We look after each other and keep going."
+                  }
+                ]
+              }
+            ]
+          }
+        ]
       }
     },
     "Archmage": {
@@ -3437,6 +3998,193 @@
             ]
           }
         ]
+      },
+      "preBattleExchange": {
+        "variants": [
+          {
+            "when": {
+              "commander": "Edric",
+              "bossMetBefore": true
+            },
+            "pool": [
+              {
+                "exchange": [
+                  {
+                    "speaker": "Archmage",
+                    "portrait": "portrait_boss_archmage",
+                    "line": "Hold still. I want to record how a rebellion looks at close range."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Write that it looked tired and kept going anyway."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "Archmage",
+                    "portrait": "portrait_boss_archmage",
+                    "line": "The summoning can still be steered. I only need a few more subjects."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "You won't be counting any of mine. Not one."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "Archmage",
+                    "portrait": "portrait_boss_archmage",
+                    "line": "Your prophet's threads fray where you walk. I collect the loose ends."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Leave her threads alone. You've pulled on enough of this world."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "Archmage",
+                    "portrait": "portrait_boss_archmage",
+                    "line": "Do you even know what you are fighting? No? Then you are the experiment, not I."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "I know who I'm fighting for. That's always been enough to start with."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossKilledYouBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Archmage",
+                    "portrait": "portrait_boss_archmage",
+                    "line": "Fascinating — the same variables return. Last iteration, you perished. Shall we replicate?"
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "We changed a few variables. Mostly, we stopped listening to you."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossKilledYouBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Archmage",
+                    "portrait": "portrait_boss_archmage",
+                    "line": "My notes on your last attempt run to six pages. The ending is very short."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Leave a page blank, then. I'd like to finish it differently."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossSlainBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Archmage",
+                    "portrait": "portrait_boss_archmage",
+                    "line": "So the rifts do loop. I kept notes on your last visit... and on how you die in this one."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then you know how your own page ends. You could still close the book."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossSlainBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Archmage",
+                    "portrait": "portrait_boss_archmage",
+                    "line": "Every rift I open now shows me the same face. Yours. Holding a banner."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then stop opening them, and you won't have to look at me."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "dusk"
+                },
+                "exchange": [
+                  {
+                    "speaker": "Archmage",
+                    "portrait": "portrait_boss_archmage",
+                    "line": "The light is failing. Rifts open wider in the dark, did you know?"
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "I didn't. Stay out of the dark spots, everyone, and stay near each other."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "hard"
+                },
+                "exchange": [
+                  {
+                    "speaker": "Archmage",
+                    "portrait": "portrait_boss_archmage",
+                    "line": "I have opened the middle pages wider than the circle allowed. For you."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "You keep tearing the world to stop us. We'll keep stitching it back."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "lunatic"
+                },
+                "exchange": [
+                  {
+                    "speaker": "Archmage",
+                    "portrait": "portrait_boss_archmage",
+                    "line": "The ground is screaming, and I can finally read what it says. You will not like it."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "I don't need to read it. I can hear it too. That's why we came."
+                  }
+                ]
+              }
+            ]
+          }
+        ]
       }
     },
     "Blade Lord": {
@@ -3628,6 +4376,193 @@
                 "speaker": "Cael",
                 "portrait": "portrait_lord_cael",
                 "line": "Try cutting a path through me."
+              }
+            ]
+          }
+        ]
+      },
+      "preBattleExchange": {
+        "variants": [
+          {
+            "when": {
+              "commander": "Edric",
+              "bossMetBefore": true
+            },
+            "pool": [
+              {
+                "exchange": [
+                  {
+                    "speaker": "Blade Lord",
+                    "portrait": "portrait_boss_blade_lord",
+                    "line": "Never touched in formal combat. You are not formal, so this will be quick."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "We're not very formal. We're very many, though, and we look after each other."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "Blade Lord",
+                    "portrait": "portrait_boss_blade_lord",
+                    "line": "The halls taught me there is one perfect cut. I have been saving it."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Save it a little longer. Nobody here needs to see it."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "Blade Lord",
+                    "portrait": "portrait_boss_blade_lord",
+                    "line": "Bring your best. I tire of cutting down your worst."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "There's no worst among us. Just people I mean to bring home."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "Blade Lord",
+                    "portrait": "portrait_boss_blade_lord",
+                    "line": "The lieutenant says you hesitate before every order. I will be waiting in that pause."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "I hesitate because I'm counting. I'm not going to stop."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossKilledYouBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Blade Lord",
+                    "portrait": "portrait_boss_blade_lord",
+                    "line": "The lieutenant showed me this thread. It ends the same way: on my blade."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "He showed you one thread. We've tied a few more since."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossKilledYouBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Blade Lord",
+                    "portrait": "portrait_boss_blade_lord",
+                    "line": "Your guard dropped left last time. I trust it still does."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "It does. That's why someone stands on my left now."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossSlainBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Blade Lord",
+                    "portrait": "portrait_boss_blade_lord",
+                    "line": "The lieutenant warned me the sealed path had been walked before. So it's you."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "It's us. All of us. You never fought just me."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossSlainBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Blade Lord",
+                    "portrait": "portrait_boss_blade_lord",
+                    "line": "My hand shakes. It has never shaken. I believe it remembers you."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then listen to it. A shaking hand has saved more lives than a steady one."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "dusk"
+                },
+                "exchange": [
+                  {
+                    "speaker": "Blade Lord",
+                    "portrait": "portrait_boss_blade_lord",
+                    "line": "Twilight hides the edge of a blade. Watch closely, if you can."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "We'll watch each other instead. That's served us better."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "hard"
+                },
+                "exchange": [
+                  {
+                    "speaker": "Blade Lord",
+                    "portrait": "portrait_boss_blade_lord",
+                    "line": "The empire gave me a finer blade for this duel. It almost feels unfair."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "It isn't a duel. It never was. Everyone, together."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "lunatic"
+                },
+                "exchange": [
+                  {
+                    "speaker": "Blade Lord",
+                    "portrait": "portrait_boss_blade_lord",
+                    "line": "On the sacred ground there are no forms left. Only the cut, and the one who falls."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then we make sure nobody falls alone."
+                  }
+                ]
               }
             ]
           }
@@ -3827,6 +4762,193 @@
             ]
           }
         ]
+      },
+      "preBattleExchange": {
+        "variants": [
+          {
+            "when": {
+              "commander": "Edric",
+              "bossMetBefore": true
+            },
+            "pool": [
+              {
+                "exchange": [
+                  {
+                    "speaker": "Iron Wall",
+                    "portrait": "portrait_boss_iron_wall",
+                    "line": "I held the breach for forty days. You will not last forty breaths."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Forty days alone. I'm sorry, truly. But we're not leaving."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "Iron Wall",
+                    "portrait": "portrait_boss_iron_wall",
+                    "line": "No order to fall back ever reached me. None will reach you either."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then here's one from me: fall back. You've held long enough."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "Iron Wall",
+                    "portrait": "portrait_boss_iron_wall",
+                    "line": "The empire made my stand its doctrine. Now you will learn it."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "We know how to hold a line too. Ours just moves forward."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "Iron Wall",
+                    "portrait": "portrait_boss_iron_wall",
+                    "line": "Walls, then shields, then me. In that order. Choose where to break."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "We'll go around. Mostly, we go around."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossKilledYouBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Iron Wall",
+                    "portrait": "portrait_boss_iron_wall",
+                    "line": "These walls broke you once. Stones remember. So do I."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "So do I. That's why we brought ladders this time."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossKilledYouBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Iron Wall",
+                    "portrait": "portrait_boss_iron_wall",
+                    "line": "Your army scattered at my gate. I watched every one of them run."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "They didn't scatter. They carried their wounded out. There's a difference."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossSlainBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Iron Wall",
+                    "portrait": "portrait_boss_iron_wall",
+                    "line": "I have felt these walls fall before — in a dream that tasted of your steel."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Walls fall. People don't have to. Open the gate and walk out with us."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossSlainBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Iron Wall",
+                    "portrait": "portrait_boss_iron_wall",
+                    "line": "These stones are cracked in places I never saw struck."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Some cracks come from holding too long. Let it go, General."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "dusk"
+                },
+                "exchange": [
+                  {
+                    "speaker": "Iron Wall",
+                    "portrait": "portrait_boss_iron_wall",
+                    "line": "Dusk. The hour a garrison lights its watchfires and counts who is left."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "I count mine every hour. I'd count yours too, if you'd let them come home."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "hard"
+                },
+                "exchange": [
+                  {
+                    "speaker": "Iron Wall",
+                    "portrait": "portrait_boss_iron_wall",
+                    "line": "Every wall in the fens was raised a course higher for your coming. My work."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "All that stone, and nobody ever sent you a relief column. We'll climb."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "lunatic"
+                },
+                "exchange": [
+                  {
+                    "speaker": "Iron Wall",
+                    "portrait": "portrait_boss_iron_wall",
+                    "line": "The ground rots under my walls. I hold them anyway. It is all I know."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Holding is all you know. Walking away can be learned. Let us teach you."
+                  }
+                ]
+              }
+            ]
+          }
+        ]
       }
     },
     "The Lieutenant": {
@@ -3983,6 +5105,159 @@
                 "speaker": "Cael",
                 "portrait": "portrait_lord_cael",
                 "line": "Then you've seen my shield too. Tell me — did you find a way through it?"
+              }
+            ]
+          }
+        ]
+      },
+      "preBattleExchange": {
+        "variants": [
+          {
+            "when": {
+              "commander": "Edric",
+              "bossMetBefore": true
+            },
+            "pool": [
+              {
+                "exchange": [
+                  {
+                    "speaker": "The Lieutenant",
+                    "portrait": "portrait_boss_the_lieutenant",
+                    "line": "I have watched you from the far side of the glass. You count your soldiers. Every night."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Every night. I'll count them again tonight, after this."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "The Lieutenant",
+                    "portrait": "portrait_boss_the_lieutenant",
+                    "line": "The ritual is beyond your reach. You came all this way to watch it finish."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "We came all this way together. Whatever finishes, that part's already done."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "The Lieutenant",
+                    "portrait": "portrait_boss_the_lieutenant",
+                    "line": "Sera's threads are clumsy. Every one of them leads you here, to me."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then they did their job. We're here, and we're all here."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "The Lieutenant",
+                    "portrait": "portrait_boss_the_lieutenant",
+                    "line": "In ten thousand futures you lose someone on these steps. Choose who."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "No. I'm not choosing. Nobody gets left on these steps."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossKilledYouBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "The Lieutenant",
+                    "portrait": "portrait_boss_the_lieutenant",
+                    "line": "You return. Of course you return. I have ended you before — this timeline makes one more."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "You keep ending us. We keep coming back. One of us has to tire first."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossKilledYouBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "The Lieutenant",
+                    "portrait": "portrait_boss_the_lieutenant",
+                    "line": "I closed your last road myself. I remember the sound your banner made as it fell."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then listen today. It sounds different going up. Banner up, everyone."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossSlainBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "The Lieutenant",
+                    "portrait": "portrait_boss_the_lieutenant",
+                    "line": "So it was never one path I failed to seal, but a weave of them. Impressive. Futile — but impressive."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "It isn't futile. Every thread is someone who kept walking."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossSlainBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "The Lieutenant",
+                    "portrait": "portrait_boss_the_lieutenant",
+                    "line": "The glass shows me my own fall now. Over and over. I have stopped looking."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then look at us instead. We didn't come to gloat. Just to get through."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "normal"
+                },
+                "exchange": [
+                  {
+                    "speaker": "The Lieutenant",
+                    "portrait": "portrait_boss_the_lieutenant",
+                    "line": "Even at first light I can see the dusk that follows. You are early, nothing more."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Early's fine. Better early than too late for anyone."
+                  }
+                ]
               }
             ]
           }
@@ -4207,6 +5482,193 @@
           }
         ]
       },
+      "preBattleExchange": {
+        "variants": [
+          {
+            "when": {
+              "commander": "Edric",
+              "bossMetBefore": true
+            },
+            "pool": [
+              {
+                "exchange": [
+                  {
+                    "speaker": "The Emperor",
+                    "portrait": "portrait_boss_the_emperor",
+                    "line": "Every life I spent bought power. The arithmetic is simple, rebel."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "I count lives too. I've never once made them add up to power."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "The Emperor",
+                    "portrait": "portrait_boss_the_emperor",
+                    "line": "Kneel, and I may let your little army keep its names."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "They'll keep their names either way. I know every one of them by heart."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "The Emperor",
+                    "portrait": "portrait_boss_the_emperor",
+                    "line": "My captains failed me. Bear that in mind: I am not my captains."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Your captains held because you told them to. They deserved better than you."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "The Emperor",
+                    "portrait": "portrait_boss_the_emperor",
+                    "line": "This throne room has not seen a rebel in a century. Look around. Remember it."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "It's colder than I pictured. I'd rather be out on the road with my people."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossKilledYouBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "The Emperor",
+                    "portrait": "portrait_boss_the_emperor",
+                    "line": "The ritual showed me your corpse, rebel. I have already outlived you once."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "You outlived me. You didn't outlast us. Everyone, with me."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossKilledYouBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "The Emperor",
+                    "portrait": "portrait_boss_the_emperor",
+                    "line": "Your banner hangs in my hall from last time. I had it cleaned."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Thank you. I'll be taking it back with me."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossSlainBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "The Emperor",
+                    "portrait": "portrait_boss_the_emperor",
+                    "line": "You. The regicide echoes through the rift — I have felt this death before. Never again."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then don't make us. Stop the ritual, and nobody has to die in this room."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossSlainBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "The Emperor",
+                    "portrait": "portrait_boss_the_emperor",
+                    "line": "My crown has grown heavier every day since you crossed the border."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "It was always that heavy. You stopped noticing who carried it for you."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "dusk"
+                },
+                "exchange": [
+                  {
+                    "speaker": "The Emperor",
+                    "portrait": "portrait_boss_the_emperor",
+                    "line": "The sun sets on your rebellion, and rises on my empire."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "We'll be here in the morning either way. All of us, if I can help it."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "hard"
+                },
+                "exchange": [
+                  {
+                    "speaker": "The Emperor",
+                    "portrait": "portrait_boss_the_emperor",
+                    "line": "Every soldier in the capital stands between you and me. Count them, if you like."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "I'll count my own. They're the ones I promised to bring home."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "lunatic"
+                },
+                "exchange": [
+                  {
+                    "speaker": "The Emperor",
+                    "portrait": "portrait_boss_the_emperor",
+                    "line": "The god beneath us is waking, and it answers to me. Look up. Even the sun obeys."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "It doesn't answer to you. Nothing down there does. That's why we came."
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
       "defeat": {
         "base": [
           {
@@ -4381,6 +5843,186 @@
                 "speaker": "Cael",
                 "portrait": "portrait_lord_cael",
                 "line": "It can stare all it wants. The wall doesn't blink."
+              }
+            ]
+          }
+        ]
+      },
+      "preBattleExchange": {
+        "variants": [
+          {
+            "when": {
+              "commander": "Edric",
+              "bossMetBefore": true
+            },
+            "pool": [
+              {
+                "exchange": [
+                  {
+                    "speaker": null,
+                    "portrait": null,
+                    "line": "..."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Don't look at it too long. Look at each other. That's how we get through."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": null,
+                    "portrait": null,
+                    "line": "..."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "It's bigger than us. It's always been bigger than us. We're still here."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": null,
+                    "portrait": null,
+                    "line": "..."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Sound off, everyone. Let it hear every name it means to take."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": null,
+                    "portrait": null,
+                    "line": "..."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Whatever it is, it isn't waiting for us. So we don't wait for it. Forward."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossKilledYouBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": null,
+                    "portrait": null,
+                    "line": "..."
+                  },
+                  {
+                    "speaker": "Sera",
+                    "portrait": "portrait_lord_sera",
+                    "line": "It stirs before we move. It remembers... unmaking us."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then it remembers wrong. We're not unmade. We're right here."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossKilledYouBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": null,
+                    "portrait": null,
+                    "line": "..."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Last time it took us apart one by one. This time nobody stands alone."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossSlainBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": null,
+                    "portrait": null,
+                    "line": "..."
+                  },
+                  {
+                    "speaker": "Sera",
+                    "portrait": "portrait_lord_sera",
+                    "line": "It knows we've hurt it before. The air itself is afraid. So is it."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "We hurt it before. We can hurt it again. Together."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossSlainBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": null,
+                    "portrait": null,
+                    "line": "..."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "We've seen it fall. Remember that when it stops feeling possible."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "hard"
+                },
+                "exchange": [
+                  {
+                    "speaker": null,
+                    "portrait": null,
+                    "line": "..."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Nightfall, and it's waiting. Keep your lanterns lit and your eyes on each other."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "lunatic"
+                },
+                "exchange": [
+                  {
+                    "speaker": null,
+                    "portrait": null,
+                    "line": "..."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "No sun left above us. Then we light the way for each other. Forward."
+                  }
+                ]
               }
             ]
           }
@@ -4633,6 +6275,193 @@
             ]
           }
         ]
+      },
+      "preBattleExchange": {
+        "variants": [
+          {
+            "when": {
+              "commander": "Edric",
+              "bossMetBefore": true
+            },
+            "pool": [
+              {
+                "exchange": [
+                  {
+                    "speaker": "Dark Rider",
+                    "portrait": "portrait_boss_dark_rider",
+                    "line": "The roads empty when I ride. Yours did not. That is a mistake I will correct."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "They emptied because people were afraid. We're bringing them back."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "Dark Rider",
+                    "portrait": "portrait_boss_dark_rider",
+                    "line": "I carry orders sealed by the circle. You do not get to read them."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "I don't want to read them. I want them to stop arriving."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "Dark Rider",
+                    "portrait": "portrait_boss_dark_rider",
+                    "line": "Hear my hooves? Every village on this road has learned that sound."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then they'll learn ours: boots, slow and steady, and nobody running."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "Dark Rider",
+                    "portrait": "portrait_boss_dark_rider",
+                    "line": "Stand in the road, then. I have ridden over braver."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "I'm not brave. I'm just not alone, and that's better."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossKilledYouBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Dark Rider",
+                    "portrait": "portrait_boss_dark_rider",
+                    "line": "The shadows still carry your scent. They led me to you once. They will feast twice."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then they'll find us together this time. Nobody walks the road alone."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossKilledYouBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Dark Rider",
+                    "portrait": "portrait_boss_dark_rider",
+                    "line": "I delivered your end to the circle once. They filed it with the rest."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then someone in the circle has some filing to undo."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossSlainBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Dark Rider",
+                    "portrait": "portrait_boss_dark_rider",
+                    "line": "The dark whispered that a rider falls at this crossroads. I thought it meant another."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "It doesn't have to mean anyone. Get off the road and let it be wrong."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossSlainBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Dark Rider",
+                    "portrait": "portrait_boss_dark_rider",
+                    "line": "My horse will not cross this ford. It shies as if it has drowned here."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Your horse has more sense than your orders. Turn it home."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "dusk"
+                },
+                "exchange": [
+                  {
+                    "speaker": "Dark Rider",
+                    "portrait": "portrait_boss_dark_rider",
+                    "line": "Dusk is my hour. You will not see me until the orders are delivered."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then we light every lantern we've got. Torches up, everyone."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "hard"
+                },
+                "exchange": [
+                  {
+                    "speaker": "Dark Rider",
+                    "portrait": "portrait_boss_dark_rider",
+                    "line": "The circle gave me a fresh mount for every mile, just to reach you sooner."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "That's a lot of good horses spent on us. We'll try not to waste the trip."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "lunatic"
+                },
+                "exchange": [
+                  {
+                    "speaker": "Dark Rider",
+                    "portrait": "portrait_boss_dark_rider",
+                    "line": "Night has swallowed the roads whole. I ride wherever I please now."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then we make our own road. Step where I step, everyone."
+                  }
+                ]
+              }
+            ]
+          }
+        ]
       }
     },
     "Berserker King": {
@@ -4824,6 +6653,193 @@
                 "speaker": "Cael",
                 "portrait": "portrait_lord_cael",
                 "line": "Meet the shield."
+              }
+            ]
+          }
+        ]
+      },
+      "preBattleExchange": {
+        "variants": [
+          {
+            "when": {
+              "commander": "Edric",
+              "bossMetBefore": true
+            },
+            "pool": [
+              {
+                "exchange": [
+                  {
+                    "speaker": "Berserker King",
+                    "portrait": "portrait_boss_berserker_king",
+                    "line": "They crowned me because they were afraid! Are YOU afraid?"
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Yes. Very. That's never stopped us before."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "Berserker King",
+                    "portrait": "portrait_boss_berserker_king",
+                    "line": "My school teaches one lesson: hit it until it stops moving!"
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Ours teaches another: pick each other up. It's slower, but it lasts."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "Berserker King",
+                    "portrait": "portrait_boss_berserker_king",
+                    "line": "No plan! No tactics! Just ME! Come find out what that's worth!"
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "That's honest, at least. Our plan is to keep standing. Shields up."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "Berserker King",
+                    "portrait": "portrait_boss_berserker_king",
+                    "line": "The corruption made everyone else mad. It just made me LOUDER!"
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "We can hear you from the border. Line up, everyone, and stay together."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossKilledYouBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Berserker King",
+                    "portrait": "portrait_boss_berserker_king",
+                    "line": "YOU! My blood sang of this! The one I crushed comes crawling back for more!"
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Not crawling. Walking, and not alone. Never alone."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossKilledYouBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Berserker King",
+                    "portrait": "portrait_boss_berserker_king",
+                    "line": "I broke your line last time with my bare hands! I've been practicing!"
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "So have we. Mostly at getting back up."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossSlainBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Berserker King",
+                    "portrait": "portrait_boss_berserker_king",
+                    "line": "I know you! The worthy death from my dreams! COME! Give it to me again!"
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "I don't want to give anyone that. But I won't let you hurt my people for it."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossSlainBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "Berserker King",
+                    "portrait": "portrait_boss_berserker_king",
+                    "line": "I've dreamed of you every night! Is that strange? It feels strange!"
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "It's a little strange. Let's both live through today and talk about it."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "dusk"
+                },
+                "exchange": [
+                  {
+                    "speaker": "Berserker King",
+                    "portrait": "portrait_boss_berserker_king",
+                    "line": "Sun's going down! The best fights always happen in bad light!"
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "The worst ones too. Torches up, and nobody chases him into the dark."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "hard"
+                },
+                "exchange": [
+                  {
+                    "speaker": "Berserker King",
+                    "portrait": "portrait_boss_berserker_king",
+                    "line": "My whole school came to watch! Don't disappoint them!"
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "I'd rather disappoint your school than lose one of mine. Hold."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "lunatic"
+                },
+                "exchange": [
+                  {
+                    "speaker": "Berserker King",
+                    "portrait": "portrait_boss_berserker_king",
+                    "line": "The sky's gone black and I'm still standing! Nothing ends me! NOTHING!"
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Everyone, together. He's strong, but he's alone. We aren't."
+                  }
+                ]
               }
             ]
           }

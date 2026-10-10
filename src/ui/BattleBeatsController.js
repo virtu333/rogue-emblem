@@ -16,8 +16,9 @@ import { createSeededRng } from '../engine/BlessingEngine.js';
  *    shared 10s cooldown; a lord's killing blow on a boss always quips.
  *    Preserved at every effects quality with isolated presentation randomness.
  *  - getBossPreBattleEntries: composes the boss's preBattle entries with
- *    the commander's reply (preBattleReply, variant-gated per commander;
- *    only the loop-aware bosses have one).
+ *    the commander's reply (preBattleReply, variant-gated per commander).
+ *    A rematch may instead play one exchange from preBattleExchange (a pool
+ *    walked across runs: the boss's line and the commander's answer together).
  *  - entityRally: when the Entity's finale answers (see BattleMusicController),
  *    the army says its lines over its own units, one every two bars from the
  *    finale's first downbeat (engine/FinaleRally.js, dialogue.json
@@ -74,13 +75,19 @@ export class BattleBeatsController {
 
   /**
    * Boss preBattle entries + the commander's reply, in order. Bosses without
-   * a preBattleReply section (most of them) get just their preBattle lines.
+   * a preBattleReply section get just their preBattle lines. When the boss's
+   * preBattleExchange has an exchange for this context (a rematch, by its
+   * `when`), that exchange is the whole pre-battle beat: it carries its own
+   * answer, so the reply would be a second one. Its first entry carries the
+   * pool's `lineKey`, which the scene records once the beat is shown.
    */
   getBossPreBattleEntries(bossName) {
     const encounters = this.scene.gameData?.dialogue?.bossEncounters;
     const boss = encounters?.[bossName];
     if (!boss) return [];
     const ctx = this._ctx(bossName);
+    const exchange = selectDialogueEntries(boss.preBattleExchange, ctx);
+    if (Array.isArray(exchange) && exchange.length > 0) return exchange;
     const pre = selectDialogueEntries(boss.preBattle, ctx) || [];
     const reply = selectDialogueEntries(boss.preBattleReply, ctx) || [];
     return [...pre, ...reply];
