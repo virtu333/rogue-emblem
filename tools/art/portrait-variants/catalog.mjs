@@ -609,6 +609,12 @@ export const ENEMY_LOOKS = Object.freeze([
   { g: 'm', look: 'a young man, deep brown skin, short twists, a cold arrogant smirk' },
 ]);
 
+// Classes only women fill: a recruit, mercenary, boss recruit, reclass or promotion
+// into one always wears a woman's face and sprite (PortraitVariants.js), whatever
+// the name or the stored person says. The enemy faces of these classes are the
+// women's alone. Recruit pools hold only women's names for them (tested).
+export const FEMALE_ONLY_CLASSES = Object.freeze(['Pegasus Knight', 'Falcon Knight']);
+
 // Recruit name -> presentation, from the data/recruits.json name pools (and
 // the names of earlier pools, which legacy saves still carry). `n` lists
 // names that read as either: they match any face. Every pool name must be
@@ -722,6 +728,10 @@ export const NAME_GENDERS = Object.freeze({
     'Jory',
   ],
   f: [
+    'Tarin',
+    'Ardis',
+    'Marisol',
+    'Thessaly',
     'Wynn',
     'Lise',
     'Odila',
@@ -863,9 +873,7 @@ export const NAME_GENDERS = Object.freeze({
     'Kestrel',
     'Hollis',
     'Morrow',
-    'Tarin',
     'Kari',
     'Varga',
-    'Ardis',
   ],
 });

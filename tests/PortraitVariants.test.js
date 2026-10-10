@@ -533,3 +533,120 @@ describe('lazy canvas textures', () => {
     expect(u.portraitVariant).toBeUndefined(); // previews never persist a choice
   });
 });
+
+describe('female-only classes (Pegasus Knight line)', () => {
+  const FEMALE_ONLY = ['Pegasus Knight', 'Falcon Knight'];
+  const womenOf = (className) =>
+    portraitPeopleForClass(className).filter((p) => person(p).gender === 'f');
+
+  it('names the line in the table and the recruit pools hold only women for it', () => {
+    expect(table.femaleOnlyClasses).toEqual(FEMALE_ONLY);
+    for (const cls of FEMALE_ONLY)
+      for (const name of data.recruits.namePool[cls])
+        expect(nameGender(name), `${cls} ${name}`).toBe('f');
+  });
+
+  it('every recruit of the line gets a woman, whatever the seed or the name', () => {
+    for (const cls of FEMALE_ONLY)
+      for (let seed = 0; seed < 40; seed++)
+        for (const name of ['Bram', 'Evin', 'Shade', 'Elysia']) {
+          const p = choosePortraitPerson({ name, className: cls, seed });
+          expect(person(p).gender, `${cls} ${name} ${seed}`).toBe('f');
+        }
+  });
+
+  it('assignPortraitVariant replaces a stored man in the line, keeps a stored woman', () => {
+    const man = unitOf('Pegasus Knight', 'Elysia', { portraitVariant: 'pegasus_d' });
+    const fixed = assignPortraitVariant(man, { seed: 3 });
+    expect(person(fixed).gender).toBe('f');
+    expect(man.portraitVariant).toBe(fixed);
+    const woman = unitOf('Pegasus Knight', 'Iris', { portraitVariant: 'pegasus_b' });
+    expect(assignPortraitVariant(woman, { seed: 3 })).toBe('pegasus_b');
+  });
+
+  it('a man saved before the rule is shown, and persisted on load, as a woman; his name stays', () => {
+    const evin = unitOf('Pegasus Knight', 'Evin', { portraitVariant: 'pegasus_d' });
+    // Before the load repairs anything, the display already refuses the man.
+    const shown = variantPortraitId(evin);
+    expect(Object.values(person('pegasus_d').renders)).not.toContain(shown);
+    const other = unitOf('Pegasus Knight', 'Iris', { portraitVariant: 'pegasus_a' });
+    expect(backfillPortraitVariants([evin, other], { seed: 5 })).toBe(1);
+    expect(person(evin.portraitVariant).gender).toBe('f');
+    expect(evin.portraitVariant).not.toBe(other.portraitVariant);
+    expect(evin.name).toBe('Evin');
+    expect(variantPortraitId(evin)).toBe(person(evin.portraitVariant).renders['Pegasus Knight']);
+  });
+
+  it('a man promoted or reclassed into the line shows a woman in its portrait', () => {
+    for (const [from, to] of [
+      ['Wyvern Rider', 'Falcon Knight'],
+      ['Wyvern Rider', 'Pegasus Knight'],
+      ['Fighter', 'Pegasus Knight'],
+      ['Fighter', 'Falcon Knight'],
+      ['Mercenary', 'Pegasus Knight'],
+    ]) {
+      for (const man of Object.keys(table.identities).filter((id) => person(id).gender === 'm')) {
+        const u = unitOf(from, 'Kestrel', { portraitVariant: man });
+        u.className = to;
+        const wearer = Object.values(table.identities).filter(
+          (p) => p.renders[to] === variantPortraitId(u),
+        );
+        expect(wearer.length, `${man} ${from}->${to}`).toBe(1);
+        expect(wearer[0].gender, `${man} ${from}->${to}`).toBe('f');
+      }
+    }
+  });
+
+  it('a woman reclassed out of the line is unchanged (only the female-only classes restrict)', () => {
+    const u = unitOf('Pegasus Knight', 'Elysia', { portraitVariant: 'pegasus_c' });
+    u.className = 'Wyvern Lord';
+    expect(variantPortraitId(u)).toBe(person('pegasus_c').renders['Wyvern Lord']);
+  });
+
+  it('the map sprite follows the same woman as the portrait', async () => {
+    const { tracedKeyFor, personSpriteKey } = await import('../src/ui/TracedSprites.js');
+    const sprites = Object.fromEntries(
+      Object.entries(table.classes)
+        .flatMap(([cls, people]) => people.map((p) => personSpriteKey(cls, p)))
+        .map((k) => [k, {}]),
+    );
+    const u = unitOf('Falcon Knight', 'Ardis', { portraitVariant: 'wyvern_a' });
+    const key = tracedKeyFor(u, sprites);
+    const personId = key.replace('falcon_knight-', '');
+    expect(person(personId).gender).toBe('f');
+  });
+
+  it('enemy Pegasus and Falcon Knights wear only the women faces', () => {
+    for (const cls of FEMALE_ONLY) {
+      const faces = new Set();
+      for (let i = 0; i < 200; i++) faces.add(chooseEnemyFace(cls, `spawn-${i}`));
+      expect(faces.size).toBeGreaterThan(0);
+      for (const id of faces) expect(table.enemyGender[id], `${cls} ${id}`).toBe('f');
+    }
+    // Other classes keep all four faces.
+    const faces = new Set();
+    for (let i = 0; i < 200; i++) faces.add(chooseEnemyFace('Fighter', `spawn-${i}`));
+    expect(faces.size).toBe(4);
+  });
+
+  it('a stored male enemy face on a Pegasus Knight is replaced, a woman face kept', () => {
+    const e = { faction: 'enemy', className: 'Pegasus Knight', name: 'Pegasus Knight', level: 3 };
+    e.portraitVariant = 'enemy_pegasus_knight__b'; // a man
+    const id = assignPortraitVariant(e, { spawnKey: 'x' });
+    expect(table.enemyGender[id]).toBe('f');
+    e.portraitVariant = 'enemy_pegasus_knight__c';
+    expect(assignPortraitVariant(e, { spawnKey: 'y' })).toBe('enemy_pegasus_knight__c');
+    expect(variantPortraitId({ ...e, portraitVariant: 'enemy_pegasus_knight__d' })).not.toBe(
+      'enemy_pegasus_knight__d',
+    );
+  });
+
+  it('new recruits through the run are women (roster, hires, boss recruits)', () => {
+    const run = new RunManager(data);
+    run.startRun({ runSeed: 11 });
+    const base = classData('Pegasus Knight');
+    const u = createUnit(base, 3, data.weapons, { name: 'Elysia' });
+    assignPortraitVariant(u, { roster: run.roster, seed: 11 });
+    expect(person(u.portraitVariant).gender).toBe('f');
+  });
+});
