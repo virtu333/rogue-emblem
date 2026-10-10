@@ -249,6 +249,22 @@ describe('applyUnits (resume restore)', () => {
     expect(scene._addConditionIcon).toHaveBeenCalledWith(restored, 'poison');
   });
 
+  it('an enemy-phase resume re-dims the foes that already acted this phase', () => {
+    const scene = makeScene({ undimUnit: vi.fn() });
+    const acted = makeUnit({ name: 'Spent Foe', faction: 'enemy', hasActed: true });
+    const waiting = makeUnit({ name: 'Waiting Foe', faction: 'enemy', hasActed: false });
+    const source = makeScene({ _battleSession: 1, enemyUnits: [acted, waiting] });
+    new BattleSuspendController(source).captureCheckpoint();
+    const cp = roundTrip(source.runManager.battleInProgress.checkpoint);
+
+    new BattleSuspendController(scene).applyUnits(cp);
+
+    const [spent, ready] = scene.enemyUnits;
+    expect(spent.name).toBe('Spent Foe');
+    expect(scene.dimUnit).toHaveBeenCalledWith(spent);
+    expect(scene.dimUnit).not.toHaveBeenCalledWith(ready);
+  });
+
   it('restores scene-scoped battle state', () => {
     const scene = makeScene();
     new BattleSuspendController(scene).applyUnits(

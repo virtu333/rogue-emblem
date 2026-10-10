@@ -16,6 +16,7 @@ import { lentSkillLine } from '../engine/AccessorySkillNames.js';
 import { getDisplayLevel, canEquip } from '../engine/UnitManager.js';
 import { getStaticCombatStats, getStaffMaxUses } from '../engine/Combat.js';
 import { rewardWeaponEligible } from '../engine/LootRewardCommands.js';
+import { weaponComparisonRows } from './equipmentComparison.js';
 import { classChangeItemTag } from '../engine/TwistedBoons.js';
 
 /** Stats compared on a candidate card, in reading order (HP sits in the identity). */
@@ -255,6 +256,31 @@ function attackOf(unit, weapon) {
   }
 }
 
+// Beside attack, what else the weapon changes against the one the unit holds: attack
+// speed, hit and crit as signed changes, a new range in full (weaponComparisonRows, the
+// shop's and the roster's comparison). Arts and effects are on the card already; an
+// unarmed unit gets attack alone.
+const SIDE_LABELS = { as: 'AS', hit: 'Hit', crit: 'Crit' };
+function sideChanges(unit, item) {
+  // Unarmed: hit and crit from nothing say nothing; "Atk 0 → 13" is the answer.
+  if (!unit?.weapon) return [];
+  let rows = [];
+  try {
+    rows = weaponComparisonRows(unit, item, unit.weapon);
+  } catch {
+    return [];
+  }
+  const parts = [];
+  for (const row of rows) {
+    if (SIDE_LABELS[row.id] && row.delta)
+      parts.push(
+        `${SIDE_LABELS[row.id]}\u00a0${row.delta > 0 ? '+' : '\u2212'}${Math.abs(row.delta)}`,
+      );
+    else if (row.id === 'range') parts.push(`Range\u00a0${row.from}\u00a0→\u00a0${row.to}`);
+  }
+  return parts;
+}
+
 /**
  * "For whom" for a reward: { who, detail, tone } lines a card can show.
  * Weapons name the wielder who gains the most attack (and how many can
@@ -366,7 +392,7 @@ export function rewardForWhom(choice, run) {
   if (!best) return { who: count, detail: '', tone: 'muted' };
   return {
     who: `For ${best.u.name}`,
-    detail: `Atk ${best.now} → ${best.next} · ${count}`,
+    detail: [`Atk ${best.now} → ${best.next}`, ...sideChanges(best.u, item), count].join(' · '),
     tone: best.delta > 0 ? 'good' : best.delta < 0 ? 'bad' : 'muted',
     unit: best.u.name,
     delta: best.delta,

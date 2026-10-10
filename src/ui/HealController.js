@@ -44,6 +44,7 @@ import { staffAllyCandidates } from '../engine/RecruitNpc.js';
 import { canInspectUnit, seenTileOccupant } from '../engine/BattleInformation.js';
 import { showContextualHint } from './HintDisplay.js';
 import { CombatFxController } from './CombatFxController.js';
+import { restUnitAppearance, restUnitTint } from './UnitRestAppearance.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 import { EQUIPPED_MARKER } from './equippedBadge.js';
 
@@ -529,8 +530,9 @@ export class HealController {
             () => scene._removeAllConditionIcons(facts.target),
             { scene },
           );
-          if (!facts.target.hasActed)
-            safeBattlePresentation('staff undim', () => scene.undimUnit(facts.target), { scene });
+          safeBattlePresentation('staff undim', () => restUnitAppearance(scene, facts.target), {
+            scene,
+          });
           await safeBattlePresentation('staff cure', () => this.animateCure(facts.target, healer), {
             scene,
           });
@@ -601,7 +603,8 @@ export class HealController {
 
     await scene._awaitSceneDelay(reduced ? 120 : 250, { label: 'animate_cure_tint_clear' });
     if (!isCurrentBattleSession(scene, session)) return;
-    if (target.graphic?.clearTint) target.graphic.clearTint();
+    // The look the target's state asks for now: an ally that had already acted stays spent.
+    restUnitTint(target);
     await scene._awaitSceneDelay(reduced ? 100 : 250, { label: 'animate_cure_tail' });
     if (!isCurrentBattleSession(scene, session)) return;
   }
@@ -643,7 +646,8 @@ export class HealController {
 
     await scene._awaitSceneDelay(reduced ? 120 : 250, { label: 'animate_heal_tint_clear' });
     if (!isCurrentBattleSession(scene, session)) return;
-    if (target.graphic?.clearTint) target.graphic.clearTint();
+    // The look the target's state asks for now: an ally that had already acted stays spent.
+    restUnitTint(target);
     await scene._awaitSceneDelay(reduced ? 100 : 250, { label: 'animate_heal_tail' });
     if (!isCurrentBattleSession(scene, session)) return;
   }

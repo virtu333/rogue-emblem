@@ -45,6 +45,7 @@ import { captureBattleState } from './BattleCheckpointAdapter.js';
 import { applyGridFogState } from './fogState.js';
 import { RETRYABLE_SAVE_REASONS } from '../engine/SavePersistenceStatus.js';
 import { UI_PALETTE } from '../utils/uiStyles.js';
+import { restUnitAppearance } from './UnitRestAppearance.js';
 
 export const serializeSuspendUnit = serializeBattleUnit;
 
@@ -376,9 +377,9 @@ export class BattleSuspendController {
       registerBattleEntity(scene, unit);
       return unit;
     });
-    for (const unit of scene.playerUnits) {
-      if (unit.hasActed || isSleeping(unit)) scene.dimUnit(unit);
-    }
+    // An enemy-phase checkpoint holds foes that have already acted this phase: they rest
+    // dimmed, as they were before the refresh, while the rest of the phase plays out.
+    for (const unit of [...scene.playerUnits, ...scene.enemyUnits]) restUnitAppearance(scene, unit);
     scene.nonDeployedUnits = structuredClone(checkpoint.nonDeployedUnits || []);
     for (const unit of scene.nonDeployedUnits) {
       normalizeSpecialCharacter(unit, scene.gameData?.specialChars);

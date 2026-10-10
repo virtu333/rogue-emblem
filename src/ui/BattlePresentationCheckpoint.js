@@ -11,6 +11,7 @@ import { levelUpKind } from './growthContent.js';
 import { safeBattlePresentation } from './safeBattlePresentation.js';
 import { xpGaugeFor } from './XpGaugeController.js';
 import { progressSteps } from './xpGaugeModel.js';
+import { restUnitAppearance } from './UnitRestAppearance.js';
 
 // Save fields are untrusted; the one definition of the shape lives in the engine.
 export { readActionContinuation };
@@ -252,7 +253,7 @@ export function completeResolvedAction(scene, continuation, { session } = {}) {
       ally.hasMoved = false;
       ally._movementCommitted = false;
       ally._movementSpent = 0;
-      safeBattlePresentation('Gambit tint', () => ally.graphic?.clearTint?.(), { scene });
+      safeBattlePresentation('Gambit tint', () => restUnitAppearance(scene, ally), { scene });
     }
   } else if (galeforce) {
     observeHistoryAction(scene, 'refreshed', unit, unit, 'Galeforce');
@@ -260,7 +261,7 @@ export function completeResolvedAction(scene, continuation, { session } = {}) {
     unit.hasMoved = false;
     unit._movementCommitted = false;
     unit._movementSpent = 0;
-    safeBattlePresentation('Galeforce tint', () => unit.graphic?.clearTint?.(), { scene });
+    safeBattlePresentation('Galeforce tint', () => restUnitAppearance(scene, unit), { scene });
   } else if (unit) {
     scene.finishUnitAction(unit, {
       session,
