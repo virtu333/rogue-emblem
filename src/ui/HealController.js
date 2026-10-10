@@ -25,6 +25,7 @@ import {
   getEffectiveStaffRange,
   gridDistance,
 } from '../engine/Combat.js';
+import { staffRunOptions } from '../engine/StaffBlessings.js';
 import {
   equipWeapon,
   canEquip,
@@ -102,9 +103,15 @@ export class HealController {
     };
   }
 
+  /** The run's staff options for `unit` (Saint's Reserve's uses; StaffBlessings). */
+  staffOptions(unit) {
+    return staffRunOptions(this.scene.runManager, unit);
+  }
+
   getUsableStaves(unit) {
+    const options = this.staffOptions(unit);
     return inventoryDisplayOrder(unit).filter(
-      (w) => w.type === 'Staff' && canEquip(unit, w) && getStaffRemainingUses(w, unit) > 0,
+      (w) => w.type === 'Staff' && canEquip(unit, w) && getStaffRemainingUses(w, unit, options) > 0,
     );
   }
 
@@ -244,8 +251,8 @@ export class HealController {
       const itemY = menuPos.y + 6 + i * itemHeight + itemHeight / 2;
       const itemX = menuPos.x + 8;
       const marker = staff === unit.weapon ? EQUIPPED_MARKER : '  ';
-      const rem = getStaffRemainingUses(staff, unit);
-      const max = getStaffMaxUses(staff, unit);
+      const rem = getStaffRemainingUses(staff, unit, this.staffOptions(unit));
+      const max = getStaffMaxUses(staff, unit, this.staffOptions(unit));
       const rng = getEffectiveStaffRange(staff, unit);
       const label = `${marker}${staff.name}\n   ${rem}/${max} uses  Rng ${rng.min}-${rng.max}`;
       const defaultColor = staff === unit.weapon ? UI_PALETTE.accentText : UI_PALETTE.text;
@@ -354,6 +361,7 @@ export class HealController {
           healer,
           targets: [ally],
           usable: this.findHealTargets(healer, staff),
+          staffOptions: this.staffOptions(healer),
           dest,
           destinations: getRelocationDestinations(
             staff,
@@ -484,7 +492,13 @@ export class HealController {
         selected = all ? usable.filter((target) => targets?.includes(target)) : targets;
         return (
           (!all || staff?.healAll) &&
-          validateStaffAction({ staff, healer, targets: selected, usable })
+          validateStaffAction({
+            staff,
+            healer,
+            targets: selected,
+            usable,
+            staffOptions: this.staffOptions(healer),
+          })
         );
       },
       settle: () => {

@@ -864,6 +864,9 @@
   margin: 0;
   white-space: pre-line;
 }
+.ch-reward .ch-lines p.ch-lottery {
+  color: var(--re-accent-text);
+}
 .ch-forwhom {
   display: flex;
   flex-direction: column;

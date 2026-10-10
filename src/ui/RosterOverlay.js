@@ -1,3 +1,4 @@
+import { staffRunOptions } from '../engine/StaffBlessings.js';
 import {
   specialCharacterRefusalText,
   speakSpecialCharacterRefusal,
@@ -1350,8 +1351,9 @@ export class RosterOverlay {
         const hasArt = hasWeaponArt(item, this.gameData?.weaponArts?.arts || []);
         const artMarkerSegments = hasArt ? [{ text: '*', color: lineColor }] : [];
         if (item.type === 'Staff') {
-          const rem = getStaffRemainingUses(item, unit);
-          const max = getStaffMaxUses(item, unit);
+          const staffOptions = staffRunOptions(this.runManager, unit);
+          const rem = getStaffRemainingUses(item, unit, staffOptions);
+          const max = getStaffMaxUses(item, unit, staffOptions);
           const rng = parseRange(item.range);
           const rngStr = rng.min === rng.max ? `Rng${rng.max}` : `Rng${rng.min}-${rng.max}`;
           const line = this._textSegments(

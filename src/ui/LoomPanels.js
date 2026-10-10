@@ -1,4 +1,4 @@
-import { element } from './MenuSurface.js';
+import { button, element } from './MenuSurface.js';
 import { createNodeArt } from './NodeArt.js';
 import { nodeFrame } from './RouteGraph.js';
 import { describeLoomNode, describeRecruitPreview, loomHeader } from './loomModel.js';
@@ -167,6 +167,25 @@ function recruitBlock(view) {
 }
 
 /**
+ * Open Roll: the node's other candidate, and the button that meets them instead
+ * (`onSwap`: the route map's swap, which saves and redraws the card).
+ */
+function recruitAlternateBlock(view, onSwap) {
+  const block = element('section', null, 're-loom-recruit-alt');
+  block.setAttribute('aria-label', `Open Roll: ${view.name} also answers the call`);
+  block.dataset.recruitAlternate = view.name;
+  const line = element('p', null, 're-loom-recruit-alt-line');
+  line.append(
+    document.createTextNode('Open Roll · also waiting: '),
+    element('strong', view.name),
+    document.createTextNode(` · ${view.className} · Lv ${view.level}`),
+  );
+  const swap = button(`Meet ${view.name} instead`, onSwap, 're-btn re-loom-recruit-swap');
+  block.append(line, swap);
+  return block;
+}
+
+/**
  * Fill `card` with the inspect view of `node`.
  * @param {HTMLElement} card
  * @param {object} node
@@ -269,6 +288,23 @@ export function renderLoomCard(card, node, ctx = {}) {
     card.append(tags);
   }
   if (info.recruit) card.append(recruitBlock(info.recruit));
+  // Open Roll: the other candidate, swappable until the encounter is set (travel only: the
+  // read-only Campaign Map passes no onSwapRecruit). A lord roll makes both candidates the same
+  // lord (the node's unit stream decides it), so then there is nothing to choose.
+  const alternate =
+    info.recruit && !info.recruit.isLord && typeof ctx.onSwapRecruit === 'function'
+      ? rm?.getRecruitAlternate?.(node.id) || null
+      : null;
+  if (alternate) {
+    let altView = null;
+    try {
+      altView = describeRecruitPreview(rm.getRecruitNodeUnit(node, { preview: alternate }), {});
+    } catch (err) {
+      console.warn('[Loom] recruit alternate failed:', err);
+    }
+    if (altView && !altView.isLord)
+      card.append(recruitAlternateBlock(altView, () => ctx.onSwapRecruit(node.id)));
+  }
   if (text && !info.recruit) card.append(text);
   if (info.warning) card.append(element('p', info.warning, 're-loom-eclipse-warn'));
   if (info.flavor) card.append(element('p', `“${info.flavor}”`, 're-loom-flavor'));

@@ -1,3 +1,4 @@
+import { staffRunOptions } from '../engine/StaffBlessings.js';
 import { REVIVAL_STONE_DESCRIPTION, revivalStonesLine } from '../engine/RevivalStones.js';
 import { skipsClassProgression } from '../engine/SpecialCharacterPolicy.js';
 import { rosterDeploySlots } from '../engine/BattleDeployCount.js';
@@ -1365,7 +1366,8 @@ export class MobileRosterSheet {
       return `${getConsumableDescription(item)} · ${formatUses(item)}`;
     if (item.type === 'Staff') {
       const range = getEffectiveStaffRange(item, unit);
-      return `Staff · Range ${range.min === range.max ? range.max : `${range.min}–${range.max}`} · Uses ${getStaffRemainingUses(item, unit)}/${getStaffMaxUses(item, unit)}${item.perBattleUses ? ' · Refills after battle' : ''}`;
+      const staffOptions = staffRunOptions(this.run, unit);
+      return `Staff · Range ${range.min === range.max ? range.max : `${range.min}–${range.max}`} · Uses ${getStaffRemainingUses(item, unit, staffOptions)}/${getStaffMaxUses(item, unit, staffOptions)}${item.perBattleUses ? ' · Refills after battle' : ''}`;
     }
     // The keyword row above already names the type ("Silver Sword").
     const kind = itemBaseLine(item) ? '' : `${item.type} · `;

@@ -345,11 +345,11 @@ describe('the held list, the card and the Compendium say Earned', () => {
     it('T1 to T4 never list an earned blessing, and together hold every other one', () => {
       const tiered = ['T1', 'T2', 'T3', 'T4'].flatMap(filteredBy);
       for (const id of EARNED_IDS) expect(tiered).not.toContain(id);
-      expect(tiered).toHaveLength(28);
+      expect(tiered).toHaveLength(40);
     });
 
     it('All still lists everything', () => {
-      expect(filteredBy('All')).toHaveLength(38);
+      expect(filteredBy('All')).toHaveLength(50);
     });
 
     it('a row reads "Earned" at its right edge, not "Tier ?", and the reference summary agrees', () => {

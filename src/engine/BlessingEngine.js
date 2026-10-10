@@ -21,6 +21,7 @@ import { parseBattleGoldGamble } from './BattleGoldGamble.js';
 import { playerWeaponArtBoonErrors } from './WeaponArtSystem.js';
 import { adjacentAllyDefBonusErrors, isolatedCombatBonusErrors } from './FormationBlessings.js';
 import { EARNED_D1_BOON_TYPES, earnedBoonErrors } from './EarnedBoons.js';
+import { shrineBoonErrors } from './ShrineBoons.js';
 import { ACT_SEQUENCE } from '../utils/constants.js';
 
 export const BLESSINGS_CONTRACT_VERSION = 3;
@@ -139,6 +140,10 @@ function validateBoonParams(effect, path, errors) {
       errors.push(`${path}.${message}`);
   } else if (effect.type === 'isolated_combat_bonus') {
     for (const message of isolatedCombatBonusErrors(effect.params))
+      errors.push(`${path}.${message}`);
+  } else {
+    // The rest of the §5 starting blessings (engine/ShrineBoons.js): null for any other type.
+    for (const message of shrineBoonErrors(effect.type, effect.params) || [])
       errors.push(`${path}.${message}`);
   }
 }

@@ -25,24 +25,24 @@ function activeBlessing(id, rolledCost = null) {
 }
 
 describe('Blessing Expansion v2 � data validation', () => {
-  it('blessings.json passes validation with 38 entries (28 offered, 10 earned)', () => {
+  it('blessings.json passes validation with 50 entries (40 offered, 10 earned)', () => {
     const gameData = loadGameData();
     const result = validateBlessingsConfig(gameData.blessings);
     expect(result.valid).toBe(true);
     expect(result.errors).toEqual([]);
-    expect(gameData.blessings.blessings).toHaveLength(38);
+    expect(gameData.blessings.blessings).toHaveLength(50);
     expect(gameData.blessings.blessings.filter((b) => b.earned)).toHaveLength(10);
   });
 
-  it('tier distribution is 4/10/8/6', () => {
+  it('tier distribution is 4/15/15/6', () => {
     const gameData = loadGameData();
     const tiers = { 1: 0, 2: 0, 3: 0, 4: 0 };
     // Earned blessings have no tier; they are not part of the offered split.
     for (const blessing of gameData.blessings.blessings.filter((b) => !b.earned))
       tiers[blessing.tier]++;
     expect(tiers[1]).toBe(4);
-    expect(tiers[2]).toBe(10);
-    expect(tiers[3]).toBe(8);
+    expect(tiers[2]).toBe(15);
+    expect(tiers[3]).toBe(15);
     expect(tiers[4]).toBe(6);
   });
 

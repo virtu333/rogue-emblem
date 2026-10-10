@@ -16,6 +16,7 @@ import { earnedPoolFor, openSanctum, sanctumLedgerKey } from '../src/engine/Earn
 import {
   churchBlessingOffers,
   churchVow,
+  churchVows,
   sanctumBlessingBlock,
   sanctumBlessingOffers,
   sanctumEntry,
@@ -448,6 +449,41 @@ describe("the sanctum's vow", () => {
     // Saved: a reload keeps the vow and the ledger.
     const back = roundTrip(rm);
     expect(sanctumBlessingBlock(back, id, first, back.gameData)).toBe(
+      'This altar has already blessed you.',
+    );
+  });
+
+  it("with Twin Chapel the sanctum's earned card is one of the church's two vows, never two blessings", () => {
+    // Failure: the second vow lets the altar give a tier I blessing (or the other earned card)
+    // beside the earned one, or the take uses up both vows (no promotion after it).
+    const rm = sanctumRun(19);
+    rm.gold = 99999;
+    expect(rm.addBlessingMidRun('twin_chapel')).toBe(true);
+    const id = sanctumOf(rm).id;
+    const [first, second] = openSanctum(rm, id).offered;
+    const unit = createUnit(
+      rm.gameData.classes.find((c) => c.name === 'Fighter'),
+      10,
+      rm.gameData.weapons,
+      { name: 'Bram' },
+    );
+    unit.faction = 'player';
+    rm.roster.push(unit);
+    expect(takeSanctumBlessing(rm, id, first, rm.gameData).ok).toBe(true);
+    expect(takeSanctumBlessing(rm, id, second, rm.gameData).ok).toBe(false);
+    expect(churchBlessingOffers(rm, id, rm.gameData)).toEqual([]);
+    expect(takeChurchBlessing(rm, id, 'steady_hands', rm.gameData).ok).toBe(false);
+    expect(churchPromotionBlock(rm, unit, id, rm.gameData)).toBe('');
+    // A promotion made first leaves the earned card as the second vow; then the altar is done.
+    const promoted = sanctumRun(19);
+    expect(promoted.addBlessingMidRun('twin_chapel')).toBe(true);
+    const pid = sanctumOf(promoted).id;
+    const pair = openSanctum(promoted, pid).offered;
+    promoted.churchVowByNodeId[pid] = ['promote'];
+    expect(sanctumBlessingBlock(promoted, pid, pair[0], promoted.gameData)).toBe('');
+    expect(takeSanctumBlessing(promoted, pid, pair[0], promoted.gameData).ok).toBe(true);
+    expect(churchVows(promoted, pid)).toEqual(['promote', 'blessing']);
+    expect(sanctumBlessingBlock(promoted, pid, pair[1], promoted.gameData)).toBe(
       'This altar has already blessed you.',
     );
   });

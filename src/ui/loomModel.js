@@ -648,10 +648,22 @@ export function describeLoomNode(
     };
   else stateLine = { tone: 'cut', text: 'A frayed thread · out of reach' };
 
-  const warning =
+  const countdown =
     !eclipsed && eclipse?.near && Number.isFinite(eclipse.remaining) && state !== 'cut'
       ? fallCountdownText(eclipse.remaining)
       : null;
+  // Omen Reader: a foretold knot says where it stands in the falls to come, and a knot that falls
+  // together with others (one threshold, one fall) says so.
+  const omenShared = Math.max(0, Math.trunc(Number(eclipse?.omenShared) || 0));
+  const omenWith =
+    omenShared === 0 ? '' : omenShared === 1 ? ', with one other' : `, with ${omenShared} others`;
+  const omen =
+    !eclipsed && eclipse?.foretold === true && state !== 'done'
+      ? eclipse.omenRank === 1
+        ? `Omen: the dark takes this knot next${omenWith}.`
+        : `Omen: the dark takes this knot soon after the next${omenWith}.`
+      : null;
+  const warning = [countdown, omen].filter(Boolean).join(' ') || null;
 
   return {
     kind: darkOmen

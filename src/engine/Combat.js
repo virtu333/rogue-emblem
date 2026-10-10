@@ -535,16 +535,21 @@ export function calculateBonusUses(mag) {
   return STAFF_BONUS_USE_THRESHOLDS.filter((t) => mag >= t).length;
 }
 
-/** Total max uses for a staff given the healer's MAG. */
-export function getStaffMaxUses(staff, healer) {
+/**
+ * Total max uses for a staff given the healer's MAG, plus the run's blessing uses
+ * (`opts.bonusUses`: Saint's Reserve, from StaffBlessings.staffRunOptions; never a hand count).
+ * @param {{ bonusUses?: number }} [opts]
+ */
+export function getStaffMaxUses(staff, healer, opts = {}) {
   const base = staff.uses ?? 0;
-  return base + calculateBonusUses(healer.stats.MAG);
+  const bonus = Math.max(0, Math.trunc(Number(opts?.bonusUses) || 0));
+  return base + calculateBonusUses(healer.stats.MAG) + bonus;
 }
 
-/** Remaining uses for a staff given uses spent. */
-export function getStaffRemainingUses(staff, healer) {
+/** Remaining uses for a staff given uses spent (`opts` as getStaffMaxUses). */
+export function getStaffRemainingUses(staff, healer, opts = {}) {
   const spent = staff._usesSpent || 0;
-  return Math.max(0, getStaffMaxUses(staff, healer) - spent);
+  return Math.max(0, getStaffMaxUses(staff, healer, opts) - spent);
 }
 
 /** Spend one use of a staff (mutates staff). */
