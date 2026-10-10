@@ -1,10 +1,16 @@
+import { REVIVAL_STONE_DESCRIPTION, revivalStonesLine } from '../engine/RevivalStones.js';
 import { skipsClassProgression } from '../engine/SpecialCharacterPolicy.js';
 import { rosterDeploySlots } from '../engine/BattleDeployCount.js';
 import { saveServiceRun } from './serviceSave.js';
 import { skillScrollText, weaponArtScrollText } from './weaponArtDisplay.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
 import { itemUsageText } from '../engine/ItemUsage.js';
-import { statusDescriptions, statusStaffInfo } from '../engine/BattleInformation.js';
+import { goldPouchValue } from '../engine/GoldPouch.js';
+import {
+  statusDescriptions,
+  statusStaffInfo,
+  carriedItemInfo,
+} from '../engine/BattleInformation.js';
 import { classChangePreview } from './classChangeDisplay.js';
 import {
   formatWeaponArtEffects,
@@ -27,7 +33,12 @@ import {
 import { attachInfo, holdTip } from './infoAffordance.js';
 import { getForgeDisplayInfo } from '../engine/ForgeSystem.js';
 import { isWorn, wearCount, wearLine } from '../engine/WeaponWear.js';
-import { composeWeaponName, stripItemNameSuffix } from '../utils/itemNames.js';
+import { composeWeaponName, itemDisplayName, stripItemNameSuffix } from '../utils/itemNames.js';
+import {
+  accessorySkillAlreadyKnown,
+  hasAccessorySkill,
+  lentSkillLine,
+} from '../engine/AccessorySkillNames.js';
 import { getImbueDisplayInfo } from '../engine/ImbueSystem.js';
 import { getEffectiveStaffRange } from '../engine/Combat.js';
 import {
@@ -36,7 +47,7 @@ import {
   isMastered,
   getMasteryPerk,
 } from '../engine/MasterySystem.js';
-import { traitLines } from './traitContent.js';
+import { traitLines, markLine } from './traitContent.js';
 import { calculateAvoid } from '../engine/Combat.js';
 import { rosterArtBlock, bindRosterArt } from '../engine/RosterArtCommands.js';
 import { CONSUMABLE_MAX, INVENTORY_MAX, MAX_SKILLS } from '../utils/constants.js';
@@ -76,6 +87,7 @@ import {
   getWeaponArtBindings,
   canUseWeaponArt,
   isWeaponArtCompatibleWithWeapon,
+  weaponArtRunOptions,
 } from '../engine/WeaponArtSystem.js';
 import { ChoicePicker } from './ChoicePicker.js';
 import { applyRosterClassChange, rosterClassChangeBlock } from '../engine/RosterCommands.js';
@@ -135,6 +147,7 @@ import { orderedStatKeys } from './statOrder.js';
 import { PrologueRosterCoach, rosterTradeEvents } from './PrologueRosterCoach.js';
 import { unarmedConvoyLine } from '../data/prologueContent.js';
 import { canEquip } from '../engine/UnitManager.js';
+import { isPrologueRun } from '../engine/ScriptedBattle.js';
 
 // Movement between pointerdown and click that still counts as a tap, for touch
 // and pen. Mice hold a line far tighter, so they keep the original 10px.
@@ -465,6 +478,8 @@ export class MobileRosterSheet {
         const affix = this.gameData.affixes?.affixes?.find((a) => a.id === id);
         this.card(affix?.name || id, affix?.description || '');
       }
+      const stonesLine = revivalStonesLine(unit);
+      if (stonesLine) this.card(stonesLine, REVIVAL_STONE_DESCRIPTION);
 
       this.benchCallout(unit);
       if (this.tab === 'stats') this.stats(unit);
@@ -530,6 +545,8 @@ export class MobileRosterSheet {
       );
     const statusStaff = statusStaffInfo(unit);
     if (statusStaff) this.card('Status staff', statusStaff.text);
+    const carrying = carriedItemInfo(unit);
+    if (carrying) this.card('Carrying', carrying.text);
     const terrain = this.terrainForUnit?.(unit);
     const grid = el('dl', null, 'mr-stats');
     // Two pairs per row upright (the portrait .mr-stats rule), three in landscape.
@@ -632,6 +649,9 @@ export class MobileRosterSheet {
           `${trait.legendary ? 'Legendary · ' : trait.special ? 'Special · ' : ''}${trait.name}`,
           trait.text,
         );
+      // One Mark line under the traits (docs/specs/phase3.md 3C).
+      const mark = markLine(unit, this.gameData);
+      if (mark) this.card(`Mark · ${mark.name}`, mark.text);
       // Flavor only: how this recruit talks (level-ups, promotion, last words).
       const temperament = unit.isLord ? null : unitTemperament(this.scene, unit);
       if (temperament)
@@ -858,6 +878,13 @@ export class MobileRosterSheet {
         );
     }
     if (!(unit.skills || []).length) this.card('Skills', 'No skills learned yet.');
+    // An accessory's skill is lent, not learned: it is not in the equipped count above, cannot
+    // be benched, and leaves with the ring.
+    const lent = lentSkillLine(unit, this.gameData.skills);
+    if (lent) {
+      this.body.append(el('h3', 'Lent by accessory', 'mr-section'));
+      this.card(lent.name, lent.known ? `${lent.label}: the accessory adds nothing.` : lent.text);
+    }
     const bench = benchedSkillsOf(unit);
     if (bench.length || manage) {
       this.body.append(el('h3', `Bench · ${bench.length}`, 'mr-section'));
@@ -885,20 +912,19 @@ export class MobileRosterSheet {
         const art = this.gameData.weaponArts?.arts?.find((a) => a.id === id);
         this.card(
           `${art?.name || id} · ${weapon.name}`,
-          `${formatWeaponArtEffects(art)} · ${weaponArtCostText(unit, art, { weaponArtHpCostDelta: this.scene.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0 })}`,
+          `${formatWeaponArtEffects(art)} · ${weaponArtCostText(unit, art, weaponArtRunOptions(this.scene.runManager))}`,
         );
         if (art && this.scene.sys?.settings?.key === 'Battle' && this.scene.turnManager) {
           const check = canUseWeaponArt(unit, weapon, art, {
             turnNumber: this.scene.turnManager?.turnNumber,
             isInitiating: true,
             actorFaction: unit.faction,
-            weaponArtHpCostDelta:
-              this.scene.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+            ...weaponArtRunOptions(this.scene.runManager),
           });
           this.body.lastElementChild.append(
             el(
               'small',
-              `${check.ok ? 'Ready' : (check.reason || 'Unavailable').replaceAll('_', ' ')} · ${weaponArtUsesText(unit, art, this.scene.turnManager.turnNumber)}`,
+              `${check.ok ? 'Ready' : (check.reason || 'Unavailable').replaceAll('_', ' ')} · ${weaponArtUsesText(unit, art, this.scene.turnManager.turnNumber, weaponArtRunOptions(this.scene.runManager))}`,
             ),
           );
         } else if (art) {
@@ -966,7 +992,7 @@ export class MobileRosterSheet {
     const artDescription = (id, unit) => {
       const art = arts.find((entry) => entry.id === id);
       return art
-        ? `${art.name} · ${weaponArtCostText(unit, art)} · ${art.requiredRank || 'Prof'}\n${formatWeaponArtEffects(art)}`
+        ? `${art.name} · ${weaponArtCostText(unit, art, weaponArtRunOptions(this.run))} · ${art.requiredRank || 'Prof'}\n${formatWeaponArtEffects(art)}`
         : id;
     };
     const sourceLabel = (source) =>
@@ -1333,7 +1359,8 @@ export class MobileRosterSheet {
     });
   }
   itemDescription(item, unit) {
-    if (item.type === 'Accessory') return formatAccessoryDetail(item);
+    if (item.type === 'Accessory')
+      return formatAccessoryDetail(item, { skills: this.gameData.skills });
     if (item.type === 'Consumable')
       return `${getConsumableDescription(item)} · ${formatUses(item)}`;
     if (item.type === 'Staff') {
@@ -1352,9 +1379,13 @@ export class MobileRosterSheet {
       forgeLevel,
       wearSteps: wearCount(item),
     });
-    const c = this.card(displayName, this.itemDescription(item, unit), item, {
-      keys: itemKeywordRow(item, { displayName }),
-    });
+    // An accessory's card title carries its bound skill; its identity name never changes.
+    const c = this.card(
+      hasAccessorySkill(item) ? itemDisplayName(item, this.gameData.skills) : displayName,
+      this.itemDescription(item, unit),
+      item,
+      { keys: itemKeywordRow(item, { displayName }) },
+    );
     const equipped = !!unit && (item === unit.weapon || item === unit.accessory);
     if (equipped) c.querySelector('h4')?.append(equippedBadgeElement());
     if (Object.values(forge.bonuses).some(Boolean))
@@ -1375,6 +1406,9 @@ export class MobileRosterSheet {
     const usage = itemUsageText(item);
     if (usage) c.append(el('p', usage, 'mr-usage'));
     if (equipped) c.append(el('p', 'Equipped', 'mr-equipped'));
+    // The ring lends a skill the unit already has equipped: it adds nothing.
+    if (unit && accessorySkillAlreadyKnown(unit, item))
+      c.append(el('p', 'Already known: this unit has the skill, so the accessory adds nothing.'));
     // A special the tags already state isn't repeated; staves and flavour keep theirs.
     if (item.special && !itemKeywords(item).length) c.append(el('p', item.special));
     if (item.description) c.append(el('p', item.description));
@@ -1409,12 +1443,16 @@ export class MobileRosterSheet {
           this.useBooster(unit, item);
           return;
         }
+        const gold = action === 'use' ? goldPouchValue(item) : 0;
         const result = rosterItemAction(this.run, unit, item, action);
         if (!result && ['heal', 'healFull', 'cureHeal'].includes(item.effect))
           this.scene.registry.get('audio')?.playSFX('sfx_heal');
         if (!result) this.lesson?.observe({ action, unit: unit.name, item: item.name });
         this.render(
-          result || `${label}: ${item.name}${warning ? `. ${warning}` : ''}${this.persistNow()}`,
+          result ||
+            (gold > 0
+              ? `${item.name}: +${gold} G.${this.persistNow()}`
+              : `${label}: ${item.name}${warning ? `. ${warning}` : ''}${this.persistNow()}`),
         );
       },
       reason,
@@ -1426,6 +1464,55 @@ export class MobileRosterSheet {
       b.title = warning;
       card.append(el('small', warning, 'mr-warn'));
     }
+  }
+  /**
+   * Discard on a bag or convoy item card: throws the item away for good, after asking.
+   * Not offered in the prologue (its kits are authored); a lord's personal weapon shows it
+   * greyed with the reason. `item` is the LIVE object and `where` ('bag' | 'convoy') its place:
+   * the engine destroys only that instance there, so a clone or a moved item is refused.
+   */
+  discardButton(card, unit, item, where) {
+    if (!this.run || isPrologueRun(this.run)) return;
+    const reason = rosterItemBlock(this.run, unit, item, 'discard', where);
+    const b = this.button('Discard', () => this.confirmDiscard(unit, item, where), reason);
+    b.classList.add('mr-discard');
+    card.append(b);
+    if (reason) card.append(el('small', reason));
+  }
+  /** The warning words an allowed Discard carries ("Leaves Edric unarmed."), '' for none. */
+  discardWarning(unit, item, where) {
+    return rosterItemWarnings(this.run, unit, item, 'discard', where)
+      .map(tradeWarningText)
+      .filter(Boolean)
+      .map((text) => `${text}.`)
+      .join(' ');
+  }
+  confirmDiscard(unit, item, where) {
+    if (this.picker || this.destroyed) return;
+    this.picker = new ChoicePicker({
+      scene: this.scene,
+      title: `Discard ${item.name}?`,
+      choices: [item],
+      confirmation: true,
+      closeLabel: 'Cancel',
+      confirmLabel: 'Discard',
+      label: () => item.name,
+      describe: () =>
+        `It is gone for good: not stored in the convoy, and it pays no gold. ${this.discardWarning(unit, item, where)}`.trim(),
+      blocked: () => rosterItemBlock(this.run, unit, item, 'discard', where),
+      apply: () => {
+        const warning = this.discardWarning(unit, item, where);
+        const reason = rosterItemAction(this.run, unit, item, 'discard', where);
+        if (reason) return { ok: false, reason };
+        const saved = this.persistNow();
+        this.render(`Discarded ${item.name}.${warning ? ` ${warning}` : ''}${saved}`);
+        return { ok: true };
+      },
+      onClose: () => {
+        this.picker = null;
+        if (!this.destroyed) this.root.querySelector('button')?.focus();
+      },
+    });
   }
   useBooster(unit, item) {
     if (this.picker || this.destroyed) return;
@@ -1487,6 +1574,7 @@ export class MobileRosterSheet {
         if (unit.weapon !== item) this.action(c, 'Equip', unit, item, 'equip');
         c.append(this.button('Trade…', () => this.tradeItem(unit, item)));
         this.action(c, 'Store', unit, item, 'store');
+        this.discardButton(c, unit, item, 'bag');
       }
     }
     if (!unit.inventory?.length)
@@ -1500,7 +1588,7 @@ export class MobileRosterSheet {
     for (const item of unit.consumables || []) {
       const c = this.itemCard(item, unit);
       if (this.run) {
-        if (['heal', 'healFull', 'cure', 'cureHeal', 'statBoost'].includes(item.effect))
+        if (['heal', 'healFull', 'cure', 'cureHeal', 'statBoost', 'gold'].includes(item.effect))
           this.action(c, 'Use', unit, item, 'use');
         if (['promote', 'reclass'].includes(item.effect)) {
           const reason = rosterClassChangeBlock(this.run, unit, item, this.gameData);
@@ -1515,6 +1603,7 @@ export class MobileRosterSheet {
         }
         c.append(this.button('Trade…', () => this.tradeItem(unit, item)));
         this.action(c, 'Store', unit, item, 'store');
+        this.discardButton(c, unit, item, 'bag');
       }
     }
     if (!unit.consumables?.length)
@@ -1549,7 +1638,7 @@ export class MobileRosterSheet {
           this.button('Equip accessory', () =>
             this.render(
               rosterAccessoryAction(this.run, unit, item) ||
-                `${item.name} equipped.${this.persistNow()}`,
+                `${itemDisplayName(item, this.gameData.skills)} equipped.${this.persistNow()}`,
             ),
           ),
         );
@@ -1558,7 +1647,9 @@ export class MobileRosterSheet {
   }
   /** A convoy consumable's Use (or Promote / Reclass) on `unit`, without withdrawing it. */
   convoyUse(card, unit, item) {
-    if (['heal', 'healFull', 'cure', 'cureHeal', 'statBoost'].includes(item.effect))
+    if (item.effect === 'gold')
+      this.action(card, `Use (+${goldPouchValue(item)} G)`, unit, item, 'use');
+    else if (['heal', 'healFull', 'cure', 'cureHeal', 'statBoost'].includes(item.effect))
       this.action(card, `Use on ${unit.name}`, unit, item, 'use');
     if (['promote', 'reclass'].includes(item.effect)) {
       const reason = rosterClassChangeBlock(this.run, unit, item, this.gameData);
@@ -1624,21 +1715,23 @@ export class MobileRosterSheet {
         bagItems(this.tradeCtx(), holder, bag).length < bagCapacity(this.tradeCtx(), holder, bag)
       ) {
         this.action(c, 'Withdraw', unit, item, 'withdraw');
-        return;
+      } else {
+        // A full bag: Withdraw becomes Trade…, a swap with one of the unit's items.
+        c.append(
+          this.button('Trade…', () =>
+            this.openTrade(unit, CONVOY_HOLDER, {
+              cursor: { holder: CONVOY_HOLDER, bag, item: live[index] },
+              bag,
+            }),
+          ),
+          el(
+            'small',
+            `${bag === 'consumables' ? 'Consumables' : 'Equipment'} full: trade to swap it for a carried item.`,
+          ),
+        );
       }
-      // A full bag: Withdraw becomes Trade…, a swap with one of the unit's items.
-      c.append(
-        this.button('Trade…', () =>
-          this.openTrade(unit, CONVOY_HOLDER, {
-            cursor: { holder: CONVOY_HOLDER, bag, item: live[index] },
-            bag,
-          }),
-        ),
-        el(
-          'small',
-          `${bag === 'consumables' ? 'Consumables' : 'Equipment'} full: trade to swap it for a carried item.`,
-        ),
-      );
+      // The live convoy item, not the snapshot: a duplicate is told apart by identity.
+      this.discardButton(c, unit, live[index], 'convoy');
     });
     if (!items.weapons.length && !items.consumables.length)
       this.card('Convoy is empty', 'Store carried items here to share them with your roster.');

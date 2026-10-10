@@ -118,6 +118,8 @@ const TOME_ELEMENT = {
   Endgame: 'wind',
   Breachbolt: 'thunder',
   'Twisting Vortex': 'dark',
+  // The Necromancer's tome (enemy only): a dark cover, as the dark element reads.
+  Gravesong: 'dark',
 };
 const ELEMENT_COVER = {
   fire: 'blood',
@@ -321,6 +323,8 @@ export function consumableSpec(c) {
       return D.herb();
     case 'cureHeal':
       return D.vial({ shape: 'tin', glass: 'silver', cork: 'silverFit', liquid: 'blood' });
+    case 'gold': // Gold Pouch
+      return D.pouch({ cloth: 'wood', tie: 'gilt', sparkle: 'gilt' });
     default:
       return D.vial();
   }
@@ -641,6 +645,33 @@ const STAT_FROM_ID = (id) => {
 };
 
 /**
+ * Upgrades drawn with another icon's cell: upgrade id -> the icon id whose picture it
+ * shares. The upgrade keeps its own id, socket (the pennant) and rim; only the art is
+ * reused, so it costs no atlas cell (the mobile texture budget in tests/ItemIcons.test.js
+ * holds 360 cells). Branching Threads: the hourglass, the run's sand turned again.
+ */
+export const UPGRADE_ICON_REUSE = Object.freeze({
+  branching_threads: 'blessing-focused_curriculum',
+});
+
+/**
+ * Blessings drawn with another icon's cell: blessing id -> the icon id whose picture it
+ * shares. Like UPGRADE_ICON_REUSE the blessing keeps its own id, socket (the pennant) and
+ * rim (its tier numeral); only the art is reused, because the atlas is full (360 cells, the
+ * mobile texture budget in tests/ItemIcons.test.js). A new blessing without a picture of its
+ * own adds a line here instead of a cell: Gambler's Toss wears the Gambler's Coin, Slow Fuse
+ * the Scout's Blessing banner, Bloodless Art the Blood Gem, Phalanx Rite the Phalanx Band and
+ * Duelist's Creed the Duelist's Glove. The target must be an icon with a cell of its own.
+ */
+export const BLESSING_ICON_REUSE = Object.freeze({
+  gamblers_toss: 'gamblers-coin',
+  slow_fuse: 'blessing-scout_blessing',
+  bloodless_art: 'blood-gem',
+  phalanx_rite: 'phalanx-band',
+  duelists_creed: 'duelists-glove',
+});
+
+/**
  * Upgrades: category silhouette + stat colour + badge (plus = flat, arrow = growth).
  * Recruits wear a crested helm, lords a capped crown: the crest and the cap are big
  * enough to carry the stat colour at 16px. Skills are medallions with the skill's glyph.
@@ -650,6 +681,8 @@ export function upgradeSpec(u, ctx = grammarContext()) {
   const growth = /growth/.test(u.id);
   const statMat = stat ? STAT_MATERIAL[stat] : null;
   const badge = (s) => (growth ? withBadge(s, 'growth') : stat ? withBadge(s, 'plus') : s);
+  // Marked Blood (Phase 3C): a dark helm with a rose crest, the Mark's own colour.
+  if (u.id === 'marked_blood') return X.crestHelm({ metal: 'unlight', crest: 'rose' });
   if (u.category === 'recruit_stats')
     return badge(X.crestHelm({ metal: 'iron', crest: statMat || 'blood' }));
   if (u.category === 'lord_bonuses') {

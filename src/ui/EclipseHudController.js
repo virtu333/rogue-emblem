@@ -20,6 +20,7 @@ import { withPresentationRandom } from '../utils/presentationRandom.js';
 import { showContextualHint } from './HintDisplay.js';
 import { shadowProjectionLabel, shadowProjectionTone } from './eclipseContent.js';
 import { projectedMeterGain } from '../engine/EclipseSystem.js';
+import { burdenEffectsOnVictory } from '../engine/Burdens.js';
 
 const TONE_COLORS = {
   held: UI_PALETTE.accentText,
@@ -41,7 +42,9 @@ export function projectedShadow(scene) {
   if (!isEclipseClock(scene)) return null;
   const turn = Math.max(0, Math.trunc(Number(scene.turnManager?.turnNumber) || 0));
   if (turn <= 0) return 0;
-  return scene.runManager.projectShadowGain(turn, scene.turnPar);
+  const gain = scene.runManager.projectShadowGain(turn, scene.turnPar);
+  // An Ill Omen (engine/Burdens.js) adds its shadow at the same commit.
+  return gain + burdenEffectsOnVictory(scene.runManager, { shadowGain: gain }).extraShadow;
 }
 
 /**

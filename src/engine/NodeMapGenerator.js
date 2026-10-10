@@ -2,7 +2,7 @@
 // No Phaser deps. Follows MapGenerator.js pattern.
 // Uses a fixed column-lane system (like Slay the Spire) to prevent edge crossings.
 
-import { NODE_TYPES, FOG_CHANCE_BY_ACT } from '../utils/constants.js';
+import { NODE_TYPES, FOG_CHANCE_BY_ACT, NODE_TYPE_WEIGHTS } from '../utils/constants.js';
 import { rollBiome, getTemplateBiome } from './MapGenerator.js';
 import { rollCaravanSpawn, templateAllowsCaravan } from './CaravanSystem.js';
 import { rollVillageSpawn } from './VillageSystem.js';
@@ -36,6 +36,15 @@ const ACT_LEVEL_SCALING = {
  *   difficulty.json `villageMinRow` (act id -> first row that may hold a village)
  * @returns {{ actId, nodes: Array, startNodeId, bossNodeId }}
  */
+// What a conflicting non-combat node becomes before it falls back to a battle (the
+// service-streak repair): a shop tries a church then an event, and so on.
+const NON_COMBAT_ALTERNATIVES = Object.freeze({
+  [NODE_TYPES.SHOP]: [NODE_TYPES.CHURCH, NODE_TYPES.EVENT],
+  [NODE_TYPES.CHURCH]: [NODE_TYPES.SHOP, NODE_TYPES.EVENT],
+  [NODE_TYPES.EVENT]: [NODE_TYPES.SHOP, NODE_TYPES.CHURCH],
+  [NODE_TYPES.COLOSSEUM]: [NODE_TYPES.SHOP, NODE_TYPES.CHURCH],
+});
+
 export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
   const fogChanceBonus = Number.isFinite(options.fogChanceBonus) ? options.fogChanceBonus : 0;
   const halfFogChance = options.halfFogChance === true;
@@ -214,7 +223,14 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
 
   // Repair service pacing after recruit/arena placement, before ambush rolls.
   // Never alter edges, recruit guarantees, the opening, or the pre-boss rest.
-  const serviceTypes = new Set([NODE_TYPES.SHOP, NODE_TYPES.CHURCH, NODE_TYPES.COLOSSEUM]);
+  // An event counts as a non-combat node here: no more than two in a row on a path, and
+  // no event beside or above another event (a conflicting event becomes a battle).
+  const serviceTypes = new Set([
+    NODE_TYPES.SHOP,
+    NODE_TYPES.CHURCH,
+    NODE_TYPES.COLOSSEUM,
+    NODE_TYPES.EVENT,
+  ]);
   const serviceStreak = new Map();
   const processed = new Set();
   for (const node of nodes) {
@@ -230,36 +246,18 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
             ),
         );
       if (priorStreak >= 2 || conflicts(node.type)) {
-        const alternative = node.type === NODE_TYPES.SHOP ? NODE_TYPES.CHURCH : NODE_TYPES.SHOP;
-        node.type = priorStreak < 2 && !conflicts(alternative) ? alternative : NODE_TYPES.BATTLE;
-        node.battleParams = buildBattleParams(
-          actId,
-          node.type,
-          node.row,
-          rows,
+        // Another non-combat node first (a shop, church or event that does not conflict
+        // here), a battle only when none fits or the streak is full.
+        const alternative =
+          priorStreak < 2
+            ? (NON_COMBAT_ALTERNATIVES[node.type] || []).find((type) => !conflicts(type))
+            : null;
+        rebuildNodeAs(node, alternative || NODE_TYPES.BATTLE, actId, rows, mapTemplates, {
           caravanChanceBonus,
           villageMinRow,
-        );
-        if (node.type === NODE_TYPES.BATTLE) {
-          const template = pickTemplateForNode(
-            node.battleParams.objective,
-            mapTemplates,
-            actId,
-            false,
-            rollBiome(actId),
-            { caravan: node.battleParams.hasCaravan === true },
-          );
-          if (template) {
-            node.templateId = template.id;
-            node.battleParams.templateId = template.id;
-          }
-          let chance = Math.max(
-            0,
-            Math.min(0.9, (template?.fogChance ?? FOG_CHANCE_BY_ACT[actId] ?? 0) + fogChanceBonus),
-          );
-          if (halfFogChance) chance = Math.floor((chance * 100) / 2) / 100;
-          if (Math.random() < chance) node.fogEnabled = true;
-        }
+          fogChanceBonus,
+          halfFogChance,
+        });
       }
     }
     serviceStreak.set(node.id, serviceTypes.has(node.type) ? priorStreak + 1 : 0);
@@ -343,6 +341,86 @@ export function convertNodeToRoutBattle(node, actId, mapTemplates, options = {})
 }
 
 /**
+ * Give a node a new type in place, with the params that type carries at generation: the
+ * generator's own builders, in the generator's draw order (the service-streak repair
+ * above, and the Cartographer's `redraw` in RouteEdit.js, which calls this under its own
+ * seeded Math.random stream). A battle gets its objective roll, battle seed, caravan and
+ * village rolls (buildBattleParams), a biome-matched template and a fog roll; every other
+ * type here carries no params. Stale template and fog fields are dropped first.
+ * @param {object} node - mutated: type, battleParams, templateId, fogEnabled
+ * @param {string} type - a NODE_TYPES value
+ * @param {string} actId
+ * @param {number} totalRows - rows in the act (the seize-row gating reads it)
+ * @param {Object} [mapTemplates]
+ * @param {{ caravanChanceBonus?: number, villageMinRow?: number, fogChanceBonus?: number,
+ *   halfFogChance?: boolean }} [options] - villageMinRow is already resolved
+ *   (villageMinRowFor), not the difficulty table
+ * @returns {object} the node
+ */
+export function rebuildNodeAs(node, type, actId, totalRows, mapTemplates, options = {}) {
+  const caravanChanceBonus = Number.isFinite(options.caravanChanceBonus)
+    ? options.caravanChanceBonus
+    : 0;
+  const villageMinRow = Number.isInteger(options.villageMinRow) ? options.villageMinRow : 0;
+  const fogChanceBonus = Number.isFinite(options.fogChanceBonus) ? options.fogChanceBonus : 0;
+  node.type = type;
+  delete node.templateId;
+  delete node.fogEnabled;
+  node.battleParams = buildBattleParams(
+    actId,
+    node.type,
+    node.row,
+    totalRows,
+    caravanChanceBonus,
+    villageMinRow,
+  );
+  if (node.type === NODE_TYPES.BATTLE) {
+    const template = pickTemplateForNode(
+      node.battleParams.objective,
+      mapTemplates,
+      actId,
+      false,
+      rollBiome(actId),
+      { caravan: node.battleParams.hasCaravan === true },
+    );
+    if (template) {
+      node.templateId = template.id;
+      node.battleParams.templateId = template.id;
+    }
+    let chance = Math.max(
+      0,
+      Math.min(0.9, (template?.fogChance ?? FOG_CHANCE_BY_ACT[actId] ?? 0) + fogChanceBonus),
+    );
+    if (options.halfFogChance === true) chance = Math.floor((chance * 100) / 2) / 100;
+    if (Math.random() < chance) node.fogEnabled = true;
+  }
+  return node;
+}
+
+/**
+ * True when an edge (sourceCol -> targetCol) would cross one of `edgePairs` ([sourceCol,
+ * targetCol] pairs between the same two rows): the lane map's no-crossing rule. Edges that
+ * share an end never cross.
+ */
+export function edgeCrosses(edgePairs, sourceCol, targetCol) {
+  for (const [sCol, tCol] of edgePairs) {
+    if ((sCol < sourceCol && tCol > targetCol) || (sCol > sourceCol && tCol < targetCol)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * True when two adjacent rows are joined by the lane rules without ±1 lanes or a crossing
+ * check: an edge to or from a single node converges or diverges from one point, so the
+ * generator relaxes the column rule there (connectRows).
+ */
+export function rowsAreUnconstrained(currentRow, nextRow) {
+  return currentRow.length === 1 || nextRow.length === 1;
+}
+
+/**
  * Pick columns for a row, ensuring ±1 coverage of the previous row's columns.
  * All selected columns are guaranteed reachable (within ±1 of some prevCol).
  * Always includes at least one center-band column (1, 2, or 3) for boss reachability.
@@ -389,23 +467,21 @@ function pickColumnsWithCoverage(desiredCount, prevCols) {
 /**
  * Pick node type based on row position and act.
  * Row 0 = battle (opening), last row = boss, row 1 = battle (no church/shop yet).
- * Act 1: 70% battle, 20% shop, 10% church (fewer distractions early).
- * Acts 2+: 60% battle, 25% shop, 15% church.
+ * Mixed rows (2..rows-3) take ONE Math.random() draw against the cumulative
+ * thresholds in NODE_TYPE_WEIGHTS (act 1: 56% battle, 16% shop, 8% church, 20% event;
+ * acts 2+: 50/21/12.5/16.5). An extra draw would shift every later draw of the stream.
  */
-function pickNodeType(row, totalRows, actId) {
+export function pickNodeType(row, totalRows, actId) {
   if (row === totalRows - 1) return NODE_TYPES.BOSS;
   if (row === totalRows - 2) return NODE_TYPES.RUINS;
   if (row === 0) return NODE_TYPES.BATTLE;
   if (row === 1) return NODE_TYPES.BATTLE; // no non-combat nodes row 1
   const roll = Math.random();
-  if (actId === 'act1') {
-    if (roll < 0.7) return NODE_TYPES.BATTLE;
-    if (roll < 0.9) return NODE_TYPES.SHOP;
-    return NODE_TYPES.CHURCH;
-  }
-  if (roll < 0.6) return NODE_TYPES.BATTLE;
-  if (roll < 0.85) return NODE_TYPES.SHOP;
-  return NODE_TYPES.CHURCH;
+  const w = NODE_TYPE_WEIGHTS[actId] || NODE_TYPE_WEIGHTS.default;
+  if (roll < w.battle) return NODE_TYPES.BATTLE;
+  if (roll < w.shop) return NODE_TYPES.SHOP;
+  if (roll < w.church) return NODE_TYPES.CHURCH;
+  return NODE_TYPES.EVENT;
 }
 
 /**
@@ -446,8 +522,14 @@ function buildBattleParams(actId, type, row, totalRows, caravanChanceBonus = 0, 
     if (bossRange) params.levelRange = bossRange;
     return params;
   }
-  if (type === NODE_TYPES.SHOP || type === NODE_TYPES.CHURCH || type === NODE_TYPES.RUINS) {
-    return null; // Non-combat nodes
+  if (
+    type === NODE_TYPES.SHOP ||
+    type === NODE_TYPES.CHURCH ||
+    type === NODE_TYPES.RUINS ||
+    type === NODE_TYPES.EVENT
+  ) {
+    // Non-combat nodes. An event has no battle params until a choice starts a battle.
+    return null;
   }
 
   let params;
@@ -577,19 +659,14 @@ export function pickTemplateForNode(
  */
 function connectRows(currentRow, nextRow) {
   // Edges to/from a single node converge/diverge — can never cross
-  const skipConstraints = currentRow.length === 1 || nextRow.length === 1;
+  const skipConstraints = rowsAreUnconstrained(currentRow, nextRow);
 
   // Track all edges as [sourceCol, targetCol] pairs for crossing detection
   const edgePairs = [];
 
   function wouldCross(sourceCol, targetCol) {
     if (skipConstraints) return false;
-    for (const [sCol, tCol] of edgePairs) {
-      if ((sCol < sourceCol && tCol > targetCol) || (sCol > sourceCol && tCol < targetCol)) {
-        return true;
-      }
-    }
-    return false;
+    return edgeCrosses(edgePairs, sourceCol, targetCol);
   }
 
   function isValidTarget(sourceCol, targetCol) {

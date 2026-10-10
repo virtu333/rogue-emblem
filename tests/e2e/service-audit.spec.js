@@ -251,6 +251,6 @@ test('Church vow: taking a blessing is this church’s vow, and closes its promo
     return { ids: run.getActiveBlessingIds(), gold: run.gold };
   });
   expect(after.ids).toHaveLength(1);
-  if (name === 'Coin of Fate') expect(after.gold).toBe(gold + 750);
+  if (name === 'Advance Pay') expect(after.gold).toBe(gold + 500);
   expect(errors).toEqual([]);
 });

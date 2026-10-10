@@ -15,11 +15,58 @@ import { clearAllConditions, getConditions } from './StatusConditionSystem.js';
 import { TRADE_WARNINGS } from './ItemTrade.js';
 import { INVENTORY_MAX, CONSUMABLE_MAX } from '../utils/constants.js';
 import { healUnit, healUnitFully } from './UnitHealth.js';
+import { goldPouchValue, isGoldPouch } from './GoldPouch.js';
+import { isSignatureWeapon } from './SignatureWeapons.js';
+import { isPrologueRun } from './ScriptedBattle.js';
 
 function convoyIndex(list, item) {
   return list.findIndex((candidate) =>
     item.uid ? candidate.uid === item.uid : JSON.stringify(candidate) === JSON.stringify(item),
   );
+}
+
+/**
+ * Where a discarded item is, by object identity alone: the live item in the unit's own bag, or
+ * the live item in the shared convoy. { place: 'bag' } | { place: 'convoy', index } | null.
+ * Discard destroys, so it needs an unambiguous instance and location: there is no fallback to
+ * a matching uid or equal JSON (a duplicate uid, a uid-less twin or a stale snapshot would
+ * destroy the wrong instance), and a request that names one place never reads the other, so a
+ * stale bag request cannot reach a convoy copy. `where` ('bag' | 'convoy') names the place; left
+ * out, either is read, still by identity. The convoy list is the run's own (getConvoyItems()
+ * hands out clones, which are refused), so `index` is what takeFromConvoy removes.
+ */
+function locateDiscardable(run, unit, item, where = null) {
+  if (!item || typeof item !== 'object') return null;
+  const consumable = item.type === 'Consumable';
+  if (where !== 'convoy') {
+    const bag = consumable ? unit?.consumables : unit?.inventory;
+    if (run.roster.includes(unit) && Array.isArray(bag) && bag.includes(item))
+      return { place: 'bag' };
+  }
+  if (where === 'bag') return null;
+  run.getConvoyItems();
+  const list = consumable ? run.convoy.consumables : run.convoy.weapons;
+  const index = list.indexOf(item);
+  return index >= 0 ? { place: 'convoy', index } : null;
+}
+
+/**
+ * Why an item cannot be thrown away, '' when it can: a unit's bag weapon, staff or consumable,
+ * or a convoy weapon or consumable (`unit` is only the viewer for the convoy). Never in a
+ * battle or the prologue (its kits are authored), never a lord's personal weapon (nothing
+ * hands it back), and an accessory has no capacity to free. Only the live item is accepted
+ * (see locateDiscardable): a clone or stale reference is "no longer here".
+ */
+function discardBlock(run, unit, item, where) {
+  if (!Array.isArray(run?.roster)) return 'Unavailable action.';
+  if (isPrologueRun(run)) return 'Nothing is discarded in the prologue.';
+  if (run.battleInProgress) return 'Items cannot be discarded during a battle.';
+  if (item?.type === 'Accessory') return 'Accessories are not discarded.';
+  if (isSignatureWeapon(item)) return "A lord's personal weapon cannot be discarded.";
+  if (locateDiscardable(run, unit, item, where)) return '';
+  return !unit || run.roster.includes(unit)
+    ? 'Item is no longer here.'
+    : 'Unit is no longer in the roster.';
 }
 
 /**
@@ -43,7 +90,8 @@ export function spendConsumableUse(run, unit, item) {
     run.convoy.consumables.splice(run.convoy.consumables.indexOf(item), 1);
 }
 
-export function rosterItemBlock(run, unit, item, action) {
+export function rosterItemBlock(run, unit, item, action, where = null) {
+  if (action === 'discard') return discardBlock(run, unit, item, where);
   if (!run?.roster?.includes(unit)) return 'Unit is no longer in the roster.';
   const consumable = item?.type === 'Consumable';
   const owned =
@@ -77,6 +125,9 @@ export function rosterItemBlock(run, unit, item, action) {
         ? ''
         : 'Invalid stat booster.';
     }
+    // A Gold Pouch pays the army, not the unit holding it (it also works from the convoy).
+    if (isGoldPouch(item) && action === 'use')
+      return goldPouchValue(item) > 0 ? '' : 'Invalid Gold Pouch.';
     const hurt = unit.currentHP < unit.stats.HP;
     const afflicted = getConditions(unit).length > 0;
     if (['heal', 'healFull'].includes(item.effect)) return hurt ? '' : 'HP is already full.';
@@ -90,20 +141,32 @@ export function rosterItemBlock(run, unit, item, action) {
 
 /**
  * What an allowed roster action costs the unit, as ItemTrade-style warnings
- * ([{ code: 'leaves_unarmed', unit }], worded by tradeWarningText): today only
- * Store of the unit's last combat weapon. [] when there is nothing to say, or
- * when the action is blocked (the block reason says it instead). Never mutates.
+ * ([{ code: 'leaves_unarmed', unit }], worded by tradeWarningText): Store or Discard of
+ * the unit's last combat weapon (a convoy item belongs to no unit). [] when there is
+ * nothing to say, or when the action is blocked (the block reason says it instead).
+ * Never mutates.
  */
-export function rosterItemWarnings(run, unit, item, action) {
-  if (action !== 'store' || item?.type === 'Consumable') return [];
-  if (rosterItemBlock(run, unit, item, action)) return [];
+export function rosterItemWarnings(run, unit, item, action, where = null) {
+  if (!['store', 'discard'].includes(action) || item?.type === 'Consumable') return [];
+  if (rosterItemBlock(run, unit, item, action, where)) return [];
+  if (action === 'discard' && locateDiscardable(run, unit, item, where).place !== 'bag') return [];
   return isLastCombatWeapon(unit, item) ? [{ code: TRADE_WARNINGS.leavesUnarmed, unit }] : [];
 }
 
-export function rosterItemAction(run, unit, item, action) {
-  const reason = rosterItemBlock(run, unit, item, action);
+export function rosterItemAction(run, unit, item, action, where = null) {
+  const reason = rosterItemBlock(run, unit, item, action, where);
   if (reason) return reason;
   const consumable = item.type === 'Consumable';
+  if (action === 'discard') {
+    // Gone for good: not the convoy, no gold. An equipped weapon leaves through the same
+    // removeFromInventory Store uses, so the unit re-equips (or is left unarmed) alike.
+    const found = locateDiscardable(run, unit, item, where);
+    if (found.place === 'convoy') {
+      const gone = run.takeFromConvoy(consumable ? 'consumable' : 'weapon', found.index);
+      return gone ? '' : 'Item is no longer here.';
+    }
+    (consumable ? removeFromConsumables : removeFromInventory)(unit, item);
+  }
   if (action === 'equip') equipWeapon(unit, item);
   if (action === 'store') {
     if (!run.addToConvoy(item)) return 'Convoy is full.';
@@ -124,6 +187,7 @@ export function rosterItemAction(run, unit, item, action) {
   }
   if (action === 'heal' || action === 'use') {
     if (item.effect === 'statBoost') applyStatBoost(unit, item);
+    if (isGoldPouch(item)) run.awardGold(goldPouchValue(item));
     // UnitHealth settles HP accessory debt on a heal to full; a partial heal keeps it.
     if (item.effect === 'healFull') healUnitFully(unit);
     else if (['heal', 'cureHeal'].includes(item.effect)) healUnit(unit, item.value);

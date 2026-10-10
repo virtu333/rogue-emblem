@@ -1,5 +1,7 @@
 // SkillSystem.js — Pure skill evaluation functions (no Phaser dependencies)
-// Skills are identified by ID strings stored on unit.skills[].
+// Skills are identified by ID strings stored on unit.skills[]. Every battle read of a unit's
+// skills goes through effectiveSkills (EffectiveSkills.js), which adds a weapon's or ring's
+// bound skill.
 // All functions take skillsData (from skills.json) for metadata lookup.
 
 import { gridDistance, getConditionalWeaponBonuses, usesMagic } from './Combat.js';
@@ -8,6 +10,8 @@ import { isSilenced } from './StatusConditionSystem.js';
 import { getMasteryCombatMods } from './MasterySystem.js';
 import { getTraitCombatMods } from './TraitSystem.js';
 import { setUnitHP } from './UnitHealth.js';
+import { effectiveSkills, hasEffectiveSkill } from './EffectiveSkills.js';
+import { getUnitMarkFor, markActivation, markProcs, roadBuffEntry } from './MarkSystem.js';
 
 // The seven flat combat-mod keys shared by mastery perks and trait combatMods.
 const MOD_KEYS = [
@@ -28,6 +32,11 @@ function getSkill(skillId, skillsData) {
 
 function isBelow50(unit) {
   return unit.currentHP <= Math.floor(unit.stats.HP / 2);
+}
+
+/** Defiant's threshold: a quarter of max HP or less (HP 10: 2 holds, 3 does not). */
+function isBelow25(unit) {
+  return unit.currentHP <= Math.floor(unit.stats.HP / 4);
 }
 
 export function getActivationChance(unit, activation) {
@@ -72,7 +81,40 @@ function applyAuraEffects(mods, effects) {
 
 function isLivingOnMap(unit) {
   if (!unit || unit.currentHP <= 0) return false;
-  return Number.isFinite(Number(unit.col)) && Number.isFinite(Number(unit.row));
+  // Number(null) is 0: a unit with no tile must not count as standing at (0,0).
+  const { col, row } = unit;
+  return col != null && row != null && Number.isFinite(Number(col)) && Number.isFinite(Number(row));
+}
+
+/**
+ * How many living allies of `unit` stand on a cardinal neighbour tile (distance 1: never a
+ * diagonal). `allies` is the unit's own side; the unit itself, the fallen and anyone off the
+ * map are not counted. The one adjacency rule the `adjacent_ally` accessory condition and
+ * Phalanx Rite share.
+ */
+export function countAdjacentAllies(unit, allies) {
+  if (!unit || !Array.isArray(allies)) return 0;
+  let count = 0;
+  for (const ally of allies) {
+    if (ally === unit || !isLivingOnMap(ally)) continue;
+    if (gridDistance(unit.col, unit.row, ally.col, ally.row) === 1) count += 1;
+  }
+  return count;
+}
+
+/**
+ * True when a living ally of `unit` (not the unit itself) stands within `radius` tiles
+ * (Manhattan, so 2 reaches a diagonal). The `no_ally_within_2` accessory condition and
+ * Duelist's Creed read this: its negation is "isolated".
+ */
+export function hasAllyWithin(unit, allies, radius) {
+  if (!unit || !Array.isArray(allies)) return false;
+  return allies.some(
+    (ally) =>
+      ally !== unit &&
+      isLivingOnMap(ally) &&
+      gridDistance(unit.col, unit.row, ally.col, ally.row) <= radius,
+  );
 }
 
 /**
@@ -144,22 +186,8 @@ function isAccessoryConditionMet(condition, unit, opponent, allies, enemies, ter
   if (condition === 'below50') return isBelow50(unit);
   if (condition === 'above75') return unit.currentHP > Math.floor(unit.stats.HP * 0.75);
   if (condition === 'on_forest') return terrain?.name === 'Forest';
-  if (condition === 'adjacent_ally') {
-    return allies.some(
-      (ally) =>
-        ally !== unit &&
-        isLivingOnMap(ally) &&
-        gridDistance(unit.col, unit.row, ally.col, ally.row) === 1,
-    );
-  }
-  if (condition === 'no_ally_within_2') {
-    return !allies.some(
-      (ally) =>
-        ally !== unit &&
-        isLivingOnMap(ally) &&
-        gridDistance(unit.col, unit.row, ally.col, ally.row) <= 2,
-    );
-  }
+  if (condition === 'adjacent_ally') return countAdjacentAllies(unit, allies) > 0;
+  if (condition === 'no_ally_within_2') return !hasAllyWithin(unit, allies, 2);
   if (condition === 'enemies_nearby_2plus') {
     const nearby = enemies.filter(
       (enemy) =>
@@ -278,13 +306,10 @@ export function getSkillCombatMods(
     }
   }
 
-  // Combine unit skills + weapon granted skill (deduped)
-  const unitSkills = [...(unit.skills || [])];
-  const grantedSkill = weapon?._grantedSkill;
-  if (grantedSkill && !unitSkills.includes(grantedSkill)) unitSkills.push(grantedSkill);
+  // The unit's own skills, the weapon's granted skill and a ring's bound skill (deduped)
+  const unitSkills = effectiveSkills(unit, { weapon });
   // Silenced units contribute no skill effects (but accessory/aura from others still apply)
   const unitSilenced = isSilenced(unit);
-  // Unit's own skills + weapon granted skill
   for (const skillId of unitSkills) {
     if (unitSilenced) break;
     const skill = getSkill(skillId, skillsData);
@@ -321,6 +346,7 @@ export function getSkillCombatMods(
     if (skill.trigger === 'on-combat-start') {
       let condMet = !skill.condition;
       if (skill.condition === 'below50') condMet = isBelow50(unit);
+      if (skill.condition === 'below25') condMet = isBelow25(unit);
       if (skill.condition === 'adjacent_ally') {
         condMet = allies.some(
           (a) => a !== unit && gridDistance(unit.col, unit.row, a.col, a.row) === 1,
@@ -393,8 +419,8 @@ export function getSkillCombatMods(
 
   // Aura effects from allies (buffs by default) — silenced units don't project auras
   for (const ally of allies) {
-    if (ally === unit || !ally.skills || isSilenced(ally) || ally.currentHP <= 0) continue;
-    for (const skillId of ally.skills) {
+    if (ally === unit || !ally || isSilenced(ally) || ally.currentHP <= 0) continue;
+    for (const skillId of effectiveSkills(ally)) {
       const skill = getSkill(skillId, skillsData);
       if (!skill || skill.trigger !== 'passive-aura') continue;
       const auraTarget = skill.auraTarget || 'ally';
@@ -406,8 +432,8 @@ export function getSkillCombatMods(
 
   // Enemy aura effects (debuffs) — silenced enemies don't project auras
   for (const enemy of enemies) {
-    if (!enemy || !enemy.skills || isSilenced(enemy) || enemy.currentHP <= 0) continue;
-    for (const skillId of enemy.skills) {
+    if (!enemy || isSilenced(enemy) || enemy.currentHP <= 0) continue;
+    for (const skillId of effectiveSkills(enemy)) {
       const skill = getSkill(skillId, skillsData);
       if (!skill || skill.trigger !== 'passive-aura') continue;
       if (skill.auraTarget !== 'enemy') continue;
@@ -449,10 +475,7 @@ export function rollStrikeSkills(attacker, normalDamage, target, skillsData, com
 
   if (!skillsData || isSilenced(attacker)) return result;
 
-  // Combine unit skills + weapon granted skill (deduped)
-  const skillIds = [...(attacker.skills || [])];
-  const grantedSkill = attacker.weapon?._grantedSkill;
-  if (grantedSkill && !skillIds.includes(grantedSkill)) skillIds.push(grantedSkill);
+  const skillIds = effectiveSkills(attacker);
   if (skillIds.length === 0) return result;
 
   // Resolve one offensive proc per strike with explicit precedence.
@@ -560,9 +583,18 @@ export function rollStrikeSkills(attacker, normalDamage, target, skillsData, com
  * `liveHP` is the defender's HP at this point in combat resolution — during
  * multi-strike rounds defender.currentHP is stale (resolveCombat tracks HP in
  * locals), so Miracle's lethality check must use the live value when provided.
+ * Mark of the Veil (3C, `marksData`) halves a magic strike on its bearer before the skills
+ * below; Aegis then cannot halve it again (one halving), though its own roll is still taken.
  * Returns { modifiedDamage, miracleTriggered, activated: [{id, name}] }
  */
-export function rollDefenseSkills(defender, damage, isPhysicalAttack, skillsData, liveHP = null) {
+export function rollDefenseSkills(
+  defender,
+  damage,
+  isPhysicalAttack,
+  skillsData,
+  liveHP = null,
+  marksData = null,
+) {
   const result = {
     modifiedDamage: damage,
     miracleTriggered: false,
@@ -570,11 +602,18 @@ export function rollDefenseSkills(defender, damage, isPhysicalAttack, skillsData
     activated: [],
   };
 
+  // Not a skill: Silence does not stop a Mark.
+  let veilHalved = false;
+  const veil = isPhysicalAttack ? null : getUnitMarkFor(defender, 'on-defend', marksData);
+  if (veil && damage > 0 && markProcs(veil)) {
+    result.modifiedDamage = Math.floor(result.modifiedDamage / 2);
+    result.activated.push(markActivation(veil, 'target'));
+    veilHalved = true;
+  }
+
   if (!skillsData || isSilenced(defender)) return result;
 
-  const defSkills = [...(defender.skills || [])];
-  const grantedSkill = defender.weapon?._grantedSkill;
-  if (grantedSkill && !defSkills.includes(grantedSkill)) defSkills.push(grantedSkill);
+  const defSkills = effectiveSkills(defender);
   if (defSkills.length === 0) return result;
 
   for (const skillId of defSkills) {
@@ -597,7 +636,7 @@ export function rollDefenseSkills(defender, damage, isPhysicalAttack, skillsData
       result.activated.push({ id: 'pavise', name: 'Pavise' });
     }
 
-    if (skill.id === 'aegis' && !isPhysicalAttack) {
+    if (skill.id === 'aegis' && !isPhysicalAttack && !veilHalved) {
       result.modifiedDamage = Math.floor(result.modifiedDamage / 2);
       result.activated.push({ id: 'aegis', name: 'Aegis' });
     }
@@ -636,8 +675,7 @@ export function rollDefenseSkills(defender, damage, isPhysicalAttack, skillsData
 export function checkAstra(attacker, skillsData) {
   if (!skillsData || isSilenced(attacker)) return { triggered: false };
 
-  const hasAstra = attacker.skills?.includes('astra') || attacker.weapon?._grantedSkill === 'astra';
-  if (!hasAstra) return { triggered: false };
+  if (!hasEffectiveSkill(attacker, 'astra')) return { triggered: false };
 
   const skill = getSkill('astra', skillsData);
   if (!skill) return { triggered: false };
@@ -653,8 +691,11 @@ export function checkAstra(attacker, skillsData) {
 /**
  * Gather all turn-start effects for a set of units.
  * Returns array of effects: [{ type: 'heal', target: unit, amount, source: skillName }]
+ * With `marksData` and a `turn`, a player unit's Mark of the Road rolls here, on the battle's
+ * Math.random, and a hit is `{ type: 'buff', target, entry, source, sourceUnit }`: `entry`
+ * goes to TimedWeaponArtBuffs.applyTimedBuffEntry (+1 MOV until its phase ends).
  */
-export function getTurnStartEffects(units, skillsData) {
+export function getTurnStartEffects(units, skillsData, marksData = null, turn = 1) {
   const effects = [];
 
   const resolvedSkillsData = Array.isArray(skillsData) ? skillsData : [];
@@ -662,8 +703,8 @@ export function getTurnStartEffects(units, skillsData) {
   for (const unit of units) {
     if (!unit || unit.currentHP <= 0) continue;
     // Silenced units get no turn-start skill effects
-    if (Array.isArray(unit.skills) && !isSilenced(unit)) {
-      for (const skillId of unit.skills) {
+    if (!isSilenced(unit)) {
+      for (const skillId of effectiveSkills(unit)) {
         const skill = getSkill(skillId, resolvedSkillsData);
         if (!skill || skill.trigger !== 'on-turn-start') continue;
 
@@ -703,6 +744,21 @@ export function getTurnStartEffects(units, skillsData) {
           }
         }
       }
+    }
+
+    // Mark of the Road: the army's own player-phase start (recruits only bear Marks; an NPC
+    // ally has not joined). Not a skill, so Silence does not stop it.
+    const road =
+      unit.faction === 'player' ? getUnitMarkFor(unit, 'on-turn-start', marksData) : null;
+    if (road && markProcs(road)) {
+      effects.push({
+        type: 'buff',
+        target: unit,
+        entry: roadBuffEntry(unit, road, turn),
+        source: road.name,
+        sourceUnit: unit,
+        markId: road.id,
+      });
     }
 
     const accessory = unit.accessory;
@@ -826,10 +882,11 @@ export function checkPhoenixBrooch(unit) {
  * Get bonus range for a weapon due to skills (e.g. Foresight: +1 Tome range).
  */
 export function getWeaponRangeBonus(unit, weapon, skillsData) {
-  if (!skillsData || !unit.skills || !weapon) return 0;
+  if (!skillsData || !unit || !weapon) return 0;
 
   let bonus = 0;
-  for (const skillId of unit.skills) {
+  // `weapon` is the one whose range is asked for, so its own grant counts, not the equipped one's.
+  for (const skillId of effectiveSkills(unit, { weapon })) {
     const skill = getSkill(skillId, skillsData);
     if (!skill || skill.trigger !== 'passive') continue;
 
@@ -844,8 +901,8 @@ export function getWeaponRangeBonus(unit, weapon, skillsData) {
 
 /** Get terrain cost reduction from unit's passive skills (e.g. Pathfinder). */
 export function getTerrainCostReduction(unit, skillsData) {
-  if (!skillsData || !unit?.skills) return 0;
-  for (const skillId of unit.skills) {
+  if (!skillsData || !unit) return 0;
+  for (const skillId of effectiveSkills(unit)) {
     const skill = getSkill(skillId, skillsData);
     if (skill?.effects?.terrainCostReduction) return skill.effects.terrainCostReduction;
   }

@@ -368,6 +368,7 @@ const KIND = {
   ruins: 'RUINS',
   recruit: 'RECRUIT',
   colosseum: 'COLOSSEUM',
+  event: 'EVENT',
 };
 const OBJECTIVE = {
   rout: ['ROUT', 'Defeat all enemies on the map.'],
@@ -382,17 +383,24 @@ const ECLIPSED_TEXT = {
   church: 'The chapel was desecrated. Its defilers wait; spoils are elite.',
   recruit: 'The ally you might have met was lost to the dark. Only foes remain.',
   colosseum: 'The arena fell silent. Something else fights there now; spoils are elite.',
+  event: 'The dark took this road. Something else waits where the story was; spoils are elite.',
 };
+// A fallen event that kept its story: the same road, a darker face (price and prize both higher).
+const DARK_OMEN_TEXT =
+  'The dark took this road, but the story stayed. It wears a darker face now: a harsher price, a richer prize.';
 const SERVICE = {
   shop: 'Buy, sell and forge equipment.',
   church: 'Heal, revive allies and promote units.',
   ruins: 'Rest (heal, revive) or scavenge the wares. Only one.',
   colosseum: 'Arena and mercenary board.',
   recruit: 'Battle with a potential ally.',
+  event: 'Something waits on the road.',
 };
 
 /** Short pixel label shown under a reachable medal. */
 export function loomShortLabel(node) {
+  // A Dark Omen is a fallen event that kept its story (EclipseSystem.eclipseNode).
+  if (node?.darkOmen === true) return 'OMEN';
   if (node?.eclipse) return 'ECLIPSED';
   const elite = BATTLE_TYPES.has(node?.type) && node?.battleParams?.isElite;
   return elite ? 'ELITE' : KIND[node?.type] || String(node?.type || '').toUpperCase();
@@ -415,6 +423,8 @@ function flavorPool(node, dialogue, actId) {
   if (node.type === 'boss') return pick(nf.boss);
   if (node.type === 'recruit') return pick(nf.recruit);
   if (node.type === 'battle') return pick(node.battleParams?.isElite ? nf.elite : nf.battle);
+  // An event that turned into a fight speaks like a battle; before that, the road's own lines.
+  if (node.type === 'event') return pick(node.eventBattle === true ? nf.battle : nf.event);
   // Church, ruins and colosseum have no flavour pool yet.
   return null;
 }
@@ -434,10 +444,11 @@ const STAT_LABEL = {
 /**
  * The recruit a node would give you, as card data (strategy-layer spec): who, what
  * level, the stats that matter for the class, where they will grow, and their traits.
- * `built` is RunManager.getRecruitNodeUnit(node); `traitLines` is traitContent's.
+ * `built` is RunManager.getRecruitNodeUnit(node); `traitLines` and `markLine` are
+ * traitContent's (the Mark, if any, is one row under the traits).
  * Pure; returns null without a unit.
  */
-export function describeRecruitPreview(built, { traitLines = null } = {}) {
+export function describeRecruitPreview(built, { traitLines = null, markLine = null } = {}) {
   const unit = built?.unit;
   if (!unit) return null;
   const magical = (unit.stats?.MAG || 0) > (unit.stats?.STR || 0);
@@ -448,6 +459,7 @@ export function describeRecruitPreview(built, { traitLines = null } = {}) {
     .slice(0, 2)
     .map(([k, v]) => ({ stat: STAT_LABEL[k] || k, value: Math.round(v) }));
   const traits = typeof traitLines === 'function' ? traitLines(unit) : [];
+  const mark = typeof markLine === 'function' ? markLine(unit) : null;
   return {
     name: unit.name,
     className: unit.className,
@@ -463,6 +475,7 @@ export function describeRecruitPreview(built, { traitLines = null } = {}) {
       legendary: !!t.legendary,
       special: !!t.special,
     })),
+    mark: mark ? { name: mark.name, text: mark.text } : null,
     kicker: [
       built.isLord ? 'LORD' : null,
       unit.className.toUpperCase(),
@@ -492,15 +505,19 @@ export function describeLoomNode(
     firstBattle = false,
     eliteLoot = null,
     shopOpen = false,
+    contractOwed = false,
     activeLabel = null,
     eclipse = null,
     recruit = null,
     recruitMods = null,
     ruinsChoice = null,
+    eventChoice = null,
   } = {},
 ) {
   if (!node) return null;
   const eclipsed = !!node.eclipse;
+  // A Dark Omen is eclipsed yet still an event: it reads as one ("Dark Omen") and opens as one.
+  const darkOmen = eclipsed && node.darkOmen === true;
   // Who waits at a recruit node (describeRecruitPreview), shown until it is walked.
   const recruitView = node.type === 'recruit' && !eclipsed && state !== 'done' ? recruit : null;
   // Only real encounters reveal battle details. A service node may carry hidden
@@ -514,13 +531,15 @@ export function describeLoomNode(
     : null;
   // An authored node (the prologue's chapters) names itself; others take the template.
   const authoredTitle = typeof node.title === 'string' && node.title.trim() ? node.title : null;
-  const place = eclipsed
-    ? node.eclipse.label || 'Eclipsed'
-    : node.type === 'recruit'
-      ? recruitView
-        ? `${recruitView.name}, ${recruitView.isLord ? 'a lord' : 'a potential ally'}`
-        : 'A potential ally'
-      : authoredTitle || template?.name || null;
+  const place = darkOmen
+    ? null
+    : eclipsed
+      ? node.eclipse.label || 'Eclipsed'
+      : node.type === 'recruit'
+        ? recruitView
+          ? `${recruitView.name}, ${recruitView.isLord ? 'a lord' : 'a potential ally'}`
+          : 'A potential ally'
+        : authoredTitle || template?.name || null;
 
   const tags = [];
   if (eclipsed) tags.push({ text: 'Eclipsed', tone: 'bad' });
@@ -550,31 +569,56 @@ export function describeLoomNode(
         detail: `${captains === 1 ? 'One hunter carries' : `${captains} hunters carry`} an affix — inspect ${captains === 1 ? 'it' : 'them'} in battle.`,
       });
   }
-  if (params && node.encounterLocked) tags.push({ text: 'Encounter locked', tone: 'plain' });
+  // A locked encounter keeps its map: say that, not "locked" beside a usable Travel
+  // (QA, Oct 2026). The prologue's authored chapters are all fixed, so they say nothing.
+  // An event shows as an event even once its choice started a fight; its map is set the same way.
+  const mapSet = {
+    text: 'Map set',
+    tone: 'plain',
+    detail: 'Leaving and coming back brings the same map and foes.',
+  };
+  if (params && node.encounterLocked && !authoredTitle) tags.push(mapSet);
+  else if (node.type === 'event' && node.eventBattle === true && node.encounterLocked && !eclipsed)
+    tags.push(mapSet);
 
-  const text = eclipsed
-    ? ECLIPSED_TEXT[node.eclipse.fromType] || ECLIPSED_TEXT.battle
-    : recruitView
-      ? `Hunters are closing on ${recruitView.name}. Reach them with a lord and Talk.`
-      : node.type === 'ruins' && ruinsChoice
-        ? chosenLine(ruinsChoice)
-        : // An authored node (the prologue's) says what it holds itself.
-          (typeof node.preview === 'string' && node.preview) ||
-          SERVICE[node.type] ||
-          objective?.[1] ||
-          '';
-  const pool = state === 'cut' || eclipsed ? null : flavorPool(node, dialogue, actId);
+  // A walked Dark Omen keeps the line of what was chosen there, like any visited event.
+  const text =
+    darkOmen && eventChoice
+      ? `You chose: ${eventChoice}`
+      : darkOmen
+        ? DARK_OMEN_TEXT
+        : eclipsed
+          ? ECLIPSED_TEXT[node.eclipse.fromType] || ECLIPSED_TEXT.battle
+          : recruitView
+            ? `Hunters are closing on ${recruitView.name}. Reach them with a lord and Talk.`
+            : node.type === 'ruins' && ruinsChoice
+              ? chosenLine(ruinsChoice)
+              : node.type === 'event' && eventChoice
+                ? `You chose: ${eventChoice}`
+                : // An authored node (the prologue's) says what it holds itself.
+                  (typeof node.preview === 'string' && node.preview) ||
+                  SERVICE[node.type] ||
+                  objective?.[1] ||
+                  '';
+  // A visited event keeps its chosen line, not the road's flavour (the card stays short).
+  const pool =
+    state === 'cut' || eclipsed || eventChoice ? null : flavorPool(node, dialogue, actId);
   const flavor =
     Array.isArray(pool) && pool.length ? pool[stableIndex(node.id, pool.length)] : null;
 
   let stateLine;
-  if (shopOpen)
+  // A kept contract's reward earned here and not delivered holds the party (Contracts.contractRewardOwedAt).
+  if (contractOwed)
+    stateLine = { tone: 'done', text: 'The fight is won · the contract reward waits' };
+  else if (shopOpen)
     stateLine = {
       tone: 'done',
       text:
         node.type === 'shop'
           ? 'Shop still open · Stock and prices retained'
-          : 'Still open · Purchases and services retained',
+          : node.type === 'event'
+            ? 'The fight is won · the spoils await'
+            : 'Still open · Purchases and services retained',
     };
   else if (state === 'current')
     stateLine = { tone: 'done', text: activeLabel || 'The party rests here' };
@@ -593,11 +637,13 @@ export function describeLoomNode(
       : null;
 
   return {
-    kind: eclipsed
-      ? 'ECLIPSED'
-      : elite
-        ? 'ELITE'
-        : KIND[node.type] || String(node.type || '').toUpperCase(),
+    kind: darkOmen
+      ? 'DARK OMEN'
+      : eclipsed
+        ? 'ECLIPSED'
+        : elite
+          ? 'ELITE'
+          : KIND[node.type] || String(node.type || '').toUpperCase(),
     elite,
     eclipsed,
     warning,

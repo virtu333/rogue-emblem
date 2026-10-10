@@ -7,13 +7,22 @@ function graphics(unit) {
   );
 }
 
-/** Animate coordinates already settled by ActionMovement; callbacks never change the world. */
+/** Milliseconds per tile of a forced move that crossed more than one: Ice slides as walking's. */
+const SLIDE_STEP_MS = 60;
+const FORCED_STEP_MS = 80;
+
+/**
+ * Animate coordinates already settled by ActionMovement; callbacks never change the world.
+ * A move that carries its `path` (a forced slide) is drawn tile by tile, the tiles of the
+ * slide at walking's slide speed, with the same cleanup as any move: the path is only
+ * ever what the settled move already did.
+ */
 export async function presentSettledMoves(
   scene,
   moves,
   { session, label, fade = false, duration = 80 },
 ) {
-  const presentMove = async ({ unit, to }) => {
+  const presentMove = async ({ unit, to, path }) => {
     if (!isCurrentBattleSession(scene, session)) return;
     const targets = fade ? graphics(unit) : [unit.graphic, unit.label].filter(Boolean);
     const originalAlpha = new Map(targets.map((target) => [target, target.alpha]));
@@ -22,14 +31,31 @@ export async function presentSettledMoves(
       async () => {
         try {
           if (targets.length) {
-            const position = scene.grid.gridToPixel(to.col, to.row);
-            await scene._awaitSceneTween(
-              fade
-                ? { targets, alpha: 0, duration: 180 }
-                : { targets, x: position.x, y: position.y, duration, ease: 'Linear' },
-              { session, label: `${label}_${fade ? 'fade_out' : 'move'}` },
-            );
-            if (!isCurrentBattleSession(scene, session)) return;
+            if (!fade && Array.isArray(path) && path.length > 2) {
+              for (const tile of path.slice(1)) {
+                const position = scene.grid.gridToPixel(tile.col, tile.row);
+                await scene._awaitSceneTween(
+                  {
+                    targets,
+                    x: position.x,
+                    y: position.y,
+                    duration: tile.slide ? SLIDE_STEP_MS : FORCED_STEP_MS,
+                    ease: 'Linear',
+                  },
+                  { session, label: `${label}_slide` },
+                );
+                if (!isCurrentBattleSession(scene, session)) return;
+              }
+            } else {
+              const position = scene.grid.gridToPixel(to.col, to.row);
+              await scene._awaitSceneTween(
+                fade
+                  ? { targets, alpha: 0, duration: 180 }
+                  : { targets, x: position.x, y: position.y, duration, ease: 'Linear' },
+                { session, label: `${label}_${fade ? 'fade_out' : 'move'}` },
+              );
+              if (!isCurrentBattleSession(scene, session)) return;
+            }
           }
           scene.updateUnitPosition(unit);
           if (fade && targets.length) {

@@ -30,6 +30,7 @@ import { presentationText, isolateBattleTextFactory } from '../utils/presentatio
 import { safeBattlePresentation } from '../ui/safeBattlePresentation.js';
 import { presentTeleporterWarp } from '../ui/WarpPresentation.js';
 import { hasBattleDefeat } from '../engine/BattleDefeat.js';
+import { applyBlessingCombatMods, stampTurnAnchors } from '../engine/BlessingCombatMods.js';
 import {
   isRoutComplete,
   isRoutFieldClear,
@@ -37,23 +38,40 @@ import {
   routObjectiveLabel,
 } from '../engine/RoutObjective.js';
 import { battleSpeed, waitDuration, waitTween } from '../utils/combatTiming.js';
-import { getWeaponArtIds, killMoveRefreshesActor } from '../engine/WeaponArtSystem.js';
+import {
+  getWeaponArtIds,
+  killMoveRefreshesActor,
+  weaponArtRunOptions,
+} from '../engine/WeaponArtSystem.js';
 import {
   canInspectUnit,
+  carriedItemInfo,
   seenTileOccupant,
   statusStaffThreat,
 } from '../engine/BattleInformation.js';
-import { ambushStop, pathCostTo } from '../engine/FogAmbush.js';
+import { fogMoveCut } from '../engine/FogAmbush.js';
 import { playerKnowledgeOf } from '../ui/battleKnowledge.js';
+import { forcedMoveProbes } from '../ui/forcedMoveProbes.js';
+import { presentSettledMoves } from '../ui/ActionMovementPresentation.js';
+import { findShoveTargets as shoveTargetsOf } from '../engine/ForcedMovement.js';
 import {
   CANTO_CONFIRM_STATE,
   canUseDanger,
+  isObjectiveCommand,
   isUnitMenuState,
   menuRow,
   railOwnsMenus,
   rowText,
 } from '../ui/battleMenuModel.js';
-import { AREA_XP_LIVE, actionXpAwards, applyXpGain, scaledXp } from '../engine/BattleXp.js';
+import { revivalStoneCount } from '../engine/RevivalStones.js';
+import RevivalStoneController from '../ui/RevivalStoneController.js';
+import {
+  AREA_XP_LIVE,
+  actionXpAwards,
+  applyXpGain,
+  combatHpLost,
+  scaledXp,
+} from '../engine/BattleXp.js';
 import { postCombatEffects, allyBuff } from '../engine/PostCombatEffects.js';
 import {
   applyTimedBuffEntry,
@@ -61,11 +79,16 @@ import {
   resolveTimedBuffExpiry,
   timedBuffCombatMods,
 } from '../engine/TimedWeaponArtBuffs.js';
-import { applyBattleDebuff, clearBattleScopedDeltas } from '../engine/BattleStatDeltas.js';
+import {
+  applyBattleDebuff,
+  applyBattleStartDebuffs,
+  clearBattleScopedDeltas,
+} from '../engine/BattleStatDeltas.js';
 import {
   applyCombatHP,
   applyStrikeHP,
   damageUnit,
+  damageUnitDetailed,
   healUnit,
   healUnitFully,
   setUnitHP,
@@ -97,6 +120,7 @@ import { paintBattlefieldTerrain, battlefieldSpriteArtEnabled } from '../ui/Batt
 import { AtmosphereController } from '../ui/AtmosphereController.js';
 import { DesktopBattleHud } from '../ui/DesktopBattleHud.js';
 import { EclipseHudController } from '../ui/EclipseHudController.js';
+import { ContractHudController } from '../ui/ContractHudController.js';
 import { createFactionRing, setFactionRingActed, RING_OFFSET_Y } from '../ui/FactionRings.js';
 import { createBattlefieldLabFixture } from '../utils/battlefieldLabFixture.js';
 import { inputHint } from '../utils/inputHint.js';
@@ -163,6 +187,9 @@ import {
   resolveGamblerDelta,
   applyAccessoryPhaseCombatMods,
 } from '../engine/SkillSystem.js';
+import { hasEffectiveSkill } from '../engine/EffectiveSkills.js';
+import { movementOptionsFor, passesHiddenUnit } from '../engine/PassMovement.js';
+import { findDanceRefreshTargets } from '../engine/ActionAbilitySystem.js';
 import {
   getTurnStartAffixes,
   getOnDeathAffixes,
@@ -340,6 +367,8 @@ import { CaravanController } from '../ui/CaravanController.js';
 import { VillageController } from '../ui/VillageController.js';
 import { RecruitBeaconController } from '../ui/RecruitBeaconController.js';
 import { SMASH_TARGET_STATE, ZombieRemainsController } from '../ui/ZombieRemainsController.js';
+import { NecromancyController } from '../ui/NecromancyController.js';
+import { isNecromancer } from '../engine/Necromancy.js';
 import { HealController } from '../ui/HealController.js';
 import { InputController } from '../ui/InputController.js';
 import { LootFlowController } from '../ui/LootFlowController.js';
@@ -385,6 +414,8 @@ import {
 import { consumeEscEvent, isEscConsumed } from '../utils/escPriority.js';
 import { hasOpenOverlay, routeCancel } from '../utils/overlayStack.js';
 import { InputAction } from '../utils/InputActions.js';
+import { pauseBurdenEntries } from '../ui/eventMenuModel.js';
+import { heldBlessingEntries } from '../ui/heldBlessingsModel.js';
 import { pushInputScope, popInputScope, hasInputFocus } from '../utils/inputFocus.js';
 import {
   summarizeWeaponArtEffect,
@@ -418,6 +449,7 @@ const POST_COMBAT_HINT_COLORS = {
   splash: '#ff9966',
   buff: '#66ff99',
   heal: '#00ff00',
+  mark: UI_PALETTE.mark,
 };
 const PAUSE_TRANSITION_TIMEOUT_MS = 6000;
 
@@ -426,9 +458,15 @@ function remainsOf(scene) {
   return (scene._remainsCtrl ||= new ZombieRemainsController(scene));
 }
 
+/** The battle's Necromancer raises and crumbles (NecromancyController), made on first use. */
+function necromancyOf(scene) {
+  return (scene._necromancyCtrl ||= new NecromancyController(scene));
+}
+
 /** Reset per-battle state on a unit at deploy time. */
 export function resetUnitForBattle(unit) {
   delete unit._legendaryGraceTurn;
+  delete unit._turnAnchor;
   unit._removing = false;
   unit.hasMoved = false;
   unit._movementCommitted = false;
@@ -436,6 +474,7 @@ export function resetUnitForBattle(unit) {
   unit._miracleUsed = false;
   unit._gambitUsedThisTurn = false;
   unit._conditions = [];
+  delete unit._speedtakerStacks;
   for (const w of unit.inventory || []) {
     if (w.perBattleUses) w._usesSpent = 0;
   }
@@ -448,6 +487,11 @@ function resetPlayerUnitsForTurn(scene, turn) {
     u.hasActed = false;
     u._movementSpent = 0;
     u._gambitUsedThisTurn = false;
+  }
+  // Hold the Line reads where each unit stood as this player phase began. Stamped before any
+  // presentation call so a throw in the undim below cannot leave a unit without an anchor.
+  stampTurnAnchors(scene.playerUnits, turn);
+  for (const u of scene.playerUnits) {
     resetWeaponArtTurnUsage(u, { turnNumber: turn });
     scene.undimUnit(u);
   }
@@ -715,6 +759,8 @@ export class BattleScene extends Phaser.Scene {
     this._areaTargetingController = null;
     this._combatFx?.destroy?.();
     this._combatFx = null;
+    this._stoneFx?.destroy?.();
+    this._stoneFx = null;
     this._combatSpeedSnapshot = undefined;
     if (this._procBanner) {
       this._procBanner.destroy();
@@ -754,6 +800,10 @@ export class BattleScene extends Phaser.Scene {
     if (this._remainsCtrl) {
       this._remainsCtrl.destroy();
       this._remainsCtrl = null;
+    }
+    if (this._necromancyCtrl) {
+      this._necromancyCtrl.destroy();
+      this._necromancyCtrl = null;
     }
     if (this._promotionController) {
       this._promotionController.destroy();
@@ -829,6 +879,8 @@ export class BattleScene extends Phaser.Scene {
     this._desktopHud = null;
     this._eclipseHud?.destroy();
     this._eclipseHud = null;
+    this._contractHud?.destroy();
+    this._contractHud = null;
     this._battlefieldTerrain?.destroy();
     this._battlefieldTerrain = null;
     this._teardownBattleCameraSystem();
@@ -1724,6 +1776,9 @@ export class BattleScene extends Phaser.Scene {
         for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
           unit._phoenixBroochUsed = false;
         }
+        // The Lingering Injury burden (id `wounded`, engine/Burdens.js): it is a battle stat delta applied once,
+        // here, so the first forecast already shows it. A resume's units carry it already.
+        applyBattleStartDebuffs(this.playerUnits, this.battleParams?.battleDebuffs);
       }
 
       // Throne marker for Seize objective
@@ -2174,6 +2229,8 @@ export class BattleScene extends Phaser.Scene {
       // act mood (grade + night).
       this._eclipseHud?.destroy();
       this._eclipseHud = new EclipseHudController(this).create();
+      this._contractHud?.destroy();
+      this._contractHud = new ContractHudController(this).create();
       this._desktopHud?.destroy();
       this._desktopHud = new DesktopBattleHud(this).create();
       this._atmosphere?.destroy();
@@ -2578,6 +2635,10 @@ export class BattleScene extends Phaser.Scene {
     applyEnemySpawnGear(enemy, spawn, {
       weapons: this.gameData.weapons,
       difficultyId: this.battleParams?.difficultyId,
+      // A carrier's item, as this run acquires it (the Vulnerary recipe), with a uid that
+      // never draws Math.random (engine/EnemyCarry.js).
+      consumables: this.runManager?.getConsumableCatalog?.() ?? this.gameData.consumables,
+      battleKey: String(this.deriveBattleSeed()),
     });
     // An authored spawn's own weapon, skills and id win (prologue chapters).
     applySpawnLoadout(enemy, spawn, {
@@ -2922,8 +2983,9 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** Turn / par / rating text read by both HUDs (the phone rail parses it). */
-  renderTurnCounter(turn = this.getCurrentTurnNumber?.() ?? 1) {
+  renderTurnCounter(turnArg) {
     if (!this.turnCounterText) return;
+    const turn = turnArg ?? this.getCurrentTurnNumber?.() ?? 1;
     const pressureSuffix = this.getTurnPressureSummary(turn);
     if (this.turnPar !== null && this.turnPar !== undefined) {
       const rating = getRating(turn, this.turnPar, this.turnBonusConfig);
@@ -3197,21 +3259,46 @@ export class BattleScene extends Phaser.Scene {
     this.updateAffixPips(unit);
   }
 
+  /**
+   * The pips over a unit's tile: a square per affix, then a gem per Revival Stone it still
+   * holds (engine/RevivalStones.js). One row, so fog, dimming, moves and removal treat them
+   * as the one set of pips they already handle.
+   */
   updateAffixPips(unit) {
     if (unit.affixPips) {
       unit.affixPips.forEach((p) => p.destroy());
     }
     unit.affixPips = [];
-    if (!unit.affixes || unit.affixes.length === 0) return;
+    // Pip row, left to right: Revival Stone gems (a boss), affix pips, then the sack of a
+    // carrier (EnemyCarry.js: the item a Thief's Steal would take). A boss never carries, so
+    // the gems and the sack never share a unit; the count below still sums all three so the
+    // row stays centred whichever mix a unit wears. Each hides with its unit in fog.
+    const affixIds = Array.isArray(unit.affixes) ? unit.affixes : [];
+    const stones = revivalStoneCount(unit).remaining;
+    const carries = Boolean(carriedItemInfo(unit));
+    const count = affixIds.length + stones + (carries ? 1 : 0);
+    if (count === 0) return;
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
     const pipY = pos.y - TILE_SIZE / 2 + 4;
     const pipSize = 4;
     const gap = 2;
-    const totalW = pipSize * unit.affixes.length + gap * (unit.affixes.length - 1);
+    const totalW = pipSize * count + gap * (count - 1);
     let startX = pos.x - totalW / 2 + pipSize / 2;
+    const inView = canInspectUnit(this.grid, unit);
 
-    for (const affixId of unit.affixes) {
+    for (let i = 0; i < stones; i++) {
+      const gem = this.add
+        .rectangle(startX, pipY, pipSize, pipSize, UI_HEX.info)
+        .setStrokeStyle(1, UI_HEX.void)
+        .setAngle(45)
+        .setDepth(14)
+        .setVisible(inView);
+      unit.affixPips.push(gem);
+      startX += pipSize + gap;
+    }
+
+    for (const affixId of affixIds) {
       const affix = this.gameData.affixes?.affixes?.find((a) => a.id === affixId);
       const tier = affix?.tier || 1;
       const color = tier === 2 ? UI_HEX.dangerLine : UI_HEX.accent;
@@ -3221,6 +3308,14 @@ export class BattleScene extends Phaser.Scene {
         .setDepth(14);
       unit.affixPips.push(pip);
       startX += pipSize + gap;
+    }
+    if (carries) {
+      const sack = this.add
+        .rectangle(startX, pipY, pipSize, pipSize + 1, UI_HEX.emberPale)
+        .setStrokeStyle(1, 0x000000)
+        .setDepth(14)
+        .setVisible(canInspectUnit(this.grid, unit));
+      unit.affixPips.push(sack);
     }
   }
 
@@ -3245,8 +3340,12 @@ export class BattleScene extends Phaser.Scene {
     this.refreshVisibleDangerZone?.();
   }
 
-  /** Draw a unit's HP bar. Presentation only: HP rules live in UnitHealth.js. */
-  updateHPBar(unit) {
+  /**
+   * Draw a unit's HP bar. Presentation only: HP rules live in UnitHealth.js.
+   * `ratio` shows a fill other than the unit's HP for a moment (a broken Revival Stone's
+   * refill, RevivalStoneController); the bar is redrawn from HP as soon as it is dropped.
+   */
+  updateHPBar(unit, { ratio: shownRatio = null } = {}) {
     let pos, barWidth, barHeight;
     if (isEntity(unit)) {
       const center = getEntityCenter(unit);
@@ -3260,13 +3359,14 @@ export class BattleScene extends Phaser.Scene {
     }
     const entityH = isEntity(unit) ? TILE_SIZE * ENTITY_FOOTPRINT.height : TILE_SIZE;
     const barY = pos.y + entityH / 2 - 4;
-    const ratio = Math.max(0, unit.currentHP / unit.stats.HP);
+    const ratio = shownRatio ?? Math.max(0, unit.currentHP / unit.stats.HP);
     const fillWidth = barWidth * ratio;
 
     unit.hpBar?.bg?.setPosition(pos.x, barY);
     unit.hpBar?.fill?.setPosition(pos.x - barWidth / 2 + fillWidth / 2, barY);
     unit.hpBar?.fill?.setSize(fillWidth, barHeight);
     unit.hpBar?.fill?.setFillStyle(getHPBarColor(ratio));
+    if (shownRatio !== null) return;
     if (unit.isBoss) this._bossPresence?.onUnitHp(unit);
     this._inputController?.refreshHoverInfo();
   }
@@ -3373,9 +3473,11 @@ export class BattleScene extends Phaser.Scene {
   /**
    * Cut a player's planned path where it runs into a unit hidden in the fog
    * (FogAmbush.js): an enemy, or an NPC the fog hides. Returns the path to walk,
-   * its movement cost and the unit that stopped it.
+   * its movement cost and the unit that stopped it. The plan's slides ride along so a
+   * hidden unit inside a slide holds it, exactly as a seen one would (IceMovement.js).
+   * `allowance` is the movement the unit has to spend (the move's MOV, or Canto's rest).
    */
-  _ambushCut(unit, effective) {
+  _ambushCut(unit, effective, { allowance = null } = {}) {
     const path = effective.effectivePath;
     if (unit?.faction !== 'player' || !this.grid?.fogEnabled)
       return { path, cost: effective.movementCost, ambusher: null };
@@ -3391,28 +3493,34 @@ export class BattleScene extends Phaser.Scene {
             : u.col === col && u.row === row),
       ) || null;
     const knowledge = playerKnowledgeOf(this);
-    const cut = ambushStop(path, {
+    const costMod = this._getCostModifier(unit);
+    const cut = fogMoveCut(path, effective.slideSegments, effective.movementCost, {
       hiddenAt: (col, row) => {
         const found = occupant(col, row);
         return found && !knowledge.isKnown(found) ? found : null;
       },
       blockedAt: (col, row) => Boolean(occupant(col, row)),
+      // Pass: a hidden foe on the way is walked through, as a seen one; only one on the
+      // last tile (where the unit would stand) or inside an ice slide (which it holds) stops
+      // the walk.
+      passes: (hidden) => passesHiddenUnit(unit, hidden),
+      costAt: (col, row) => this.grid.getMoveCost(col, row, unit.moveType, costMod),
+      allowance,
     });
-    if (!cut.ambusher) return { path, cost: effective.movementCost, ambusher: null };
-    const costMod = this._getCostModifier(unit);
-    const cost = pathCostTo(path, effective.slideSegments, cut.stopIndex, (col, row) =>
-      this.grid.getMoveCost(col, row, unit.moveType, costMod),
-    );
-    return { path: cut.path, cost, ambusher: cut.ambusher };
+    return { path: cut.path, cost: cut.cost, ambusher: cut.ambusher };
   }
 
   /**
    * A move stopped by a hidden enemy: the move is locked in (no undo: it has shown
-   * something), the fog lifts from where the unit stands, and the save records it.
-   * The unit may still act.
+   * something), the fog lifts from where the unit stands and from the unit it ran into,
+   * and the save records it. The unit may still act.
    */
   _resolveAmbush(unit, ambusher, { canto = false } = {}) {
     const session = battleSession(this);
+    // The unit that stopped the move is shown for the rest of the phase, even when the cut
+    // left the mover past its vision (a Pass unit backed off over occupied tiles, or one
+    // that could not pay for the repriced route: FogAmbush.fogMoveCut).
+    this.grid.revealContact?.(getFootprint(ambusher));
     // A hidden NPC stops the move the same way, but it is no ambush.
     const hostile = ambusher.faction === 'enemy';
     if (hostile) observeHistoryAction(this, 'was ambushed by', unit, ambusher);
@@ -4026,8 +4134,8 @@ export class BattleScene extends Phaser.Scene {
       remainsOf(this).cancel();
       this.showActionMenu(this.selectedUnit);
     } else if (this.battleState === 'SELECTING_ABILITY_TILE') {
-      this._cancelAbilityTileSelection();
-      this.showActionMenu(this.selectedUnit);
+      // Blink Strike's foe step goes back to its destination step and stays here.
+      if (!this._cancelAbilityTileSelection()) this.showActionMenu(this.selectedUnit);
     } else if (this.battleState === AREA_CENTER_STATE) {
       // Prompt → aiming → the art picker (AreaTargetingController.back).
       if (!this._areaTargeting().back()) this.showActionMenu(this.selectedUnit);
@@ -4503,6 +4611,8 @@ export class BattleScene extends Phaser.Scene {
     const backToMap =
       placing && this._formation?.canReturnToMap() ? () => this._formation.returnToMap() : null;
     this.pauseOverlay = new PauseOverlay(this, {
+      burdens: pauseBurdenEntries(this.runManager, this.gameData?.events),
+      blessings: heldBlessingEntries(this.runManager),
       onAbandonWarning: abandonPayout
         ? `Abandon this run?\nKeep ${abandonPayout.valor} Valor and ${abandonPayout.supply} Supply. This run and its gold, items and route progress will end.`
         : null,
@@ -4553,6 +4663,11 @@ export class BattleScene extends Phaser.Scene {
   confirmForecastCombat() {
     if (!this.forecastTarget || !this.selectedUnit || this.battleState !== 'SHOWING_FORECAST')
       return;
+    // Blink Strike's forecast: Confirm settles the warp and the attack as one action.
+    if (this._warpStrike) {
+      this._warpStrikeFlow().confirm();
+      return;
+    }
     const unit = this.selectedUnit;
     // The forecast only planned this weapon; confirming is the one place it is equipped.
     const planned = this._forecastWeapon || unit.weapon;
@@ -4634,6 +4749,7 @@ export class BattleScene extends Phaser.Scene {
       this.unitPositions,
       unit.faction,
       this._getCostModifier(unit),
+      movementOptionsFor(unit),
     );
     this.grid.showMovementRange(this.movementRange, unit.col, unit.row);
     this._gridCursor?.snapTo(unit.col, unit.row);
@@ -4784,6 +4900,7 @@ export class BattleScene extends Phaser.Scene {
           this.unitPositions,
           unit.faction,
           this._getCostModifier(unit),
+          movementOptionsFor(unit),
         );
       }
     } catch (err) {
@@ -4839,7 +4956,9 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     // A hidden enemy on the way stops the move short (it may not move at all).
-    const ambush = this._ambushCut(unit, effective);
+    const ambush = this._ambushCut(unit, effective, {
+      allowance: isRooted(unit) ? 0 : unit.mov,
+    });
     const finalPath = ambush.path;
     const finalDest = finalPath[finalPath.length - 1];
     const rollbackLoc = { col: unit.col, row: unit.row };
@@ -5112,30 +5231,15 @@ export class BattleScene extends Phaser.Scene {
 
   // --- Shove / Pull / Canto ---
 
+  /**
+   * Allies the unit can Shove, each with where it would end as the player knows the
+   * board: one tile on, then on across any Ice it lands on (engine/ForcedMovement.js).
+   */
   findShoveTargets(unit) {
-    const targets = [];
-    const dirs = [
-      { dc: 0, dr: -1 },
-      { dc: 0, dr: 1 },
-      { dc: -1, dr: 0 },
-      { dc: 1, dr: 0 },
-    ];
-    for (const { dc, dr } of dirs) {
-      const ac = unit.col + dc;
-      const ar = unit.row + dr;
-      // Must be an ally at that position
-      const ally = this.playerUnits.find((u) => u !== unit && u.col === ac && u.row === ar);
-      if (!ally) continue;
-      const destC = ac + dc;
-      const destR = ar + dr;
-      if (destC < 0 || destC >= this.grid.cols || destR < 0 || destR >= this.grid.rows) continue;
-      const moveCost = this.grid.getMoveCost(destC, destR, ally.moveType);
-      if (moveCost === Infinity) continue;
-      // A fogged tile counts as taken: a hidden foe must not show by the option's absence.
-      if (this._seenTileOccupant(destC, destR)) continue;
-      targets.push({ ally, destCol: destC, destRow: destR, dc, dr });
-    }
-    return targets;
+    return shoveTargetsOf(unit, {
+      ...forcedMoveProbes(this).preview,
+      allies: this.playerUnits,
+    });
   }
 
   findPullTargets(unit) {
@@ -5216,26 +5320,9 @@ export class BattleScene extends Phaser.Scene {
     return targets;
   }
 
+  /** Allies Dance can refresh: the rule is engine-side (Goddess Dance reads it too). */
   findDanceTargets(unit) {
-    const targets = [];
-    const dirs = [
-      { dc: 0, dr: -1 },
-      { dc: 0, dr: 1 },
-      { dc: -1, dr: 0 },
-      { dc: 1, dr: 0 },
-    ];
-    for (const { dc, dr } of dirs) {
-      const ac = unit.col + dc;
-      const ar = unit.row + dr;
-      const ally = this.playerUnits.find((u) => u !== unit && u.col === ac && u.row === ar);
-      if (!ally) continue;
-
-      // Must have acted AND not be another dancer
-      if (ally.hasActed && !ally.skills?.includes('dance')) {
-        targets.push({ ally });
-      }
-    }
-    return targets;
+    return findDanceRefreshTargets(unit, this.playerUnits).map((ally) => ({ ally }));
   }
 
   findBreakTargets(unit) {
@@ -5587,6 +5674,7 @@ export class BattleScene extends Phaser.Scene {
       positions,
       unit.faction,
       this._getCostModifier(unit),
+      movementOptionsFor(unit),
     );
     this.cantoRange = moveRange;
     safeBattlePresentation(
@@ -5675,6 +5763,7 @@ export class BattleScene extends Phaser.Scene {
           positions,
           unit.faction,
           this._getCostModifier(unit),
+          movementOptionsFor(unit),
         );
       }
     } catch (err) {
@@ -5732,7 +5821,9 @@ export class BattleScene extends Phaser.Scene {
       console.warn('[handleCantoClick] effectivePath returned null/short path', { from, to });
       return;
     }
-    const cantoAmbush = this._ambushCut(unit, cantoEffective);
+    const cantoAmbush = this._ambushCut(unit, cantoEffective, {
+      allowance: this._cantoRemaining,
+    });
     const cantoFinalPath = cantoAmbush.path;
     this.battleState = 'UNIT_MOVING';
     const targets = unit.label ? [unit.graphic, unit.label] : [unit.graphic];
@@ -6233,9 +6324,9 @@ export class BattleScene extends Phaser.Scene {
     const consumables = unit.consumables || [];
     if (consumables.length > 0) command('item', 'Item', () => this.showItemMenu(unit));
     // Shove/Pull: show if unit has skill and valid targets exist
-    if (unit.skills?.includes('shove') && this.findShoveTargets(unit).length > 0)
+    if (hasEffectiveSkill(unit, 'shove') && this.findShoveTargets(unit).length > 0)
       command('shove', 'Shove', () => this.startShoveTargetSelection(unit));
-    if (unit.skills?.includes('pull') && this.findPullTargets(unit).length > 0)
+    if (hasEffectiveSkill(unit, 'pull') && this.findPullTargets(unit).length > 0)
       command('pull', 'Pull', () => this.startPullTargetSelection(unit));
     // Trade: show if adjacent ally with items/space exists
     if (this.findTradeTargets(unit).length > 0)
@@ -6244,7 +6335,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.findSwapTargets(unit).length > 0)
       command('swap', 'Swap', () => this.startSwapTargetSelection(unit));
     // Dance: show if unit has skill and valid targets exist
-    if (unit.skills?.includes('dance') && this.findDanceTargets(unit).length > 0)
+    if (hasEffectiveSkill(unit, 'dance') && this.findDanceTargets(unit).length > 0)
       command('dance', 'Dance', () => this.startDanceTargetSelection(unit));
     // Ability: action-trigger skills with structured actionAbility data
     // (Blink/Rally Cry/Healing Circle/Ensnare). Keep the picker discoverable;
@@ -6311,7 +6402,11 @@ export class BattleScene extends Phaser.Scene {
         // No Visit command exists: Wait says when ending here visits the village.
         note: id === 'wait' ? this._villageController?.getWaitNote(unit) || null : null,
         disabled: blocked,
-        color: blocked ? UI_PALETTE.muted : UI_PALETTE.text,
+        color: blocked
+          ? UI_PALETTE.muted
+          : isObjectiveCommand({ id })
+            ? UI_PALETTE.good
+            : UI_PALETTE.text,
         invoke: () => {
           if (blocked || isSleeping(unit)) return;
           const audio = this.registry.get('audio');
@@ -6697,8 +6792,14 @@ export class BattleScene extends Phaser.Scene {
     return (this._abilityController ||= new AbilityController(this)).hasAbilities(unit);
   }
 
+  /** @returns {boolean} true when it stepped back inside Blink Strike and the state stays */
   _cancelAbilityTileSelection() {
-    (this._abilityController ||= new AbilityController(this)).cancelTileSelection();
+    return (this._abilityController ||= new AbilityController(this)).cancelTileSelection();
+  }
+
+  /** Blink Strike's flow (destination, foe, forecast, confirm): WarpStrikeController. */
+  _warpStrikeFlow() {
+    return (this._abilityController ||= new AbilityController(this))._warpStrike();
   }
 
   /** Chosen-center weapon arts (Stormcall): aiming, the prompt and the strike. */
@@ -6989,7 +7090,9 @@ export class BattleScene extends Phaser.Scene {
                     ? refusal || 'Promotion unavailable'
                     : isReclass && !canUseReclass
                       ? refusal || 'No available reclass'
-                      : '';
+                      : item.effect === 'gold'
+                        ? 'Use it from the roster'
+                        : '';
         const usable = !reason;
         let label = item.name;
         if (item.uses !== undefined) label += ` (${item.uses})`;
@@ -7603,8 +7706,6 @@ export class BattleScene extends Phaser.Scene {
       affixes,
       masteryCtx,
     );
-    atkMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(attacker) || 0;
-    defMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(defender) || 0;
     const atkTimedBuffMods = this._getTimedWeaponArtCombatBuffMods(attacker);
     const defTimedBuffMods = this._getTimedWeaponArtCombatBuffMods(defender);
     atkMods.hitBonus += atkTimedBuffMods.hitBonus || 0;
@@ -7624,21 +7725,16 @@ export class BattleScene extends Phaser.Scene {
     this._applyAccessoryPhaseCombatMods(attacker, atkMods, rollSession);
     this._applyAccessoryPhaseCombatMods(defender, defMods, rollSession);
 
-    // Blessing terrain combat bonuses
-    const terrainBonuses = this.runManager?.getTerrainCombatBonuses?.() || [];
-    if (terrainBonuses.length > 0) {
-      const applyTerrainBonus = (mods, unit, terrain) => {
-        if (!terrain?.name || unit?.faction !== 'player') return;
-        for (const bonus of terrainBonuses) {
-          if (Array.isArray(bonus.terrains) && bonus.terrains.includes(terrain.name)) {
-            mods.avoidBonus += bonus.avoidBonus || 0;
-            mods.defBonus += bonus.defBonus || 0;
-          }
-        }
-      };
-      applyTerrainBonus(atkMods, attacker, atkTerrain);
-      applyTerrainBonus(defMods, defender, defTerrain);
-    }
+    // Blessings (act Hit, Keen Eye, Hold the Line): one shared rule for scene and harness.
+    applyBlessingCombatMods(atkMods, defMods, {
+      profile: this.runManager?.getBlessingCombatProfile?.() ?? null,
+      attacker,
+      defender,
+      atkTerrain,
+      defTerrain,
+      turn: this.turnManager?.turnNumber,
+      alliesOf: getAllies,
+    });
 
     const atkWeaponArtMods = weaponArt ? getWeaponArtCombatMods(weaponArt) : null;
 
@@ -7653,6 +7749,7 @@ export class BattleScene extends Phaser.Scene {
       checkAstra,
       affixData: affixes,
       skillsData: skills,
+      marksData: this.gameData.marks || null,
       imbuesData: this.gameData.imbues || null,
     };
   }
@@ -7917,10 +8014,13 @@ export class BattleScene extends Phaser.Scene {
     return this._attackFlow().showForecast(attacker, defender, options);
   }
 
-  /** `acknowledge`: the player confirmed or cancelled, having read the forecast's rules. */
-  hideForecast({ acknowledge = false } = {}) {
+  /**
+   * `acknowledge`: the player confirmed or cancelled, having read the forecast's rules.
+   * `cancelled`: the player backed out of it (the forecast's Cancel, Esc, right-click).
+   */
+  hideForecast({ acknowledge = false, cancelled = false } = {}) {
     this._attackFlowController?.closeForecast({ acknowledge });
-    this._prologue?.onForecastClosed({ acknowledge });
+    this._prologue?.onForecastClosed({ acknowledge, cancelled });
     if (this._forecastOverlay) {
       this._forecastOverlay.destroy();
       this._forecastOverlay = null;
@@ -7931,6 +8031,9 @@ export class BattleScene extends Phaser.Scene {
     this._forecastValidWeapons = null;
     this._forecastWeaponArt = null;
     this._forecastGamblerLine = null;
+    // A Blink Strike forecast is only the forecast: once it closes (confirmed, cancelled,
+    // End Turn, a rewind) no later forecast may read the destination it planned from.
+    this._warpStrike = null;
   }
 
   /**
@@ -8004,14 +8107,16 @@ export class BattleScene extends Phaser.Scene {
 
   async _runCombatResolutionAtSpeed(attacker, defender, ctx) {
     const session = battleSession(this);
-    const { dist, atkTerrain, defTerrain, selectedArt } = ctx;
+    const { dist, atkTerrain, defTerrain, selectedArt, actionLabel } = ctx;
 
     // Apply weapon art cost if selected
     if (selectedArt) {
       const artCostOpts = {
-        weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+        ...weaponArtRunOptions(this.runManager),
+        marksData: this.gameData?.marks,
       };
-      applyWeaponArtCost(attacker, selectedArt, artCostOpts);
+      const artCost = applyWeaponArtCost(attacker, selectedArt, artCostOpts);
+      if (artCost.waived) this.showMarkProc(attacker, `${artCost.mark.name}: no cost`);
       recordWeaponArtUse(attacker, selectedArt, { turnNumber: this.turnManager?.turnNumber });
       this._applyRecoilGuardAfterArtUse(attacker, selectedArt);
       safeBattlePresentation('art cost HP', () => this.updateHPBar(attacker), { scene: this });
@@ -8038,7 +8143,13 @@ export class BattleScene extends Phaser.Scene {
         ...combatTimelineFacts(this, attacker, defender, result),
       ];
 
-    observeHistoryAction(this, 'attacked', attacker, defender, selectedArt?.name || '');
+    observeHistoryAction(
+      this,
+      'attacked',
+      attacker,
+      defender,
+      selectedArt?.name || actionLabel || '',
+    );
     for (const event of result.events || []) {
       if (event.type !== 'strike') continue;
       const striker = event.attackerSide === 'defender' ? defender : attacker;
@@ -8165,7 +8276,7 @@ export class BattleScene extends Phaser.Scene {
    * readCommittedAction). Every later checkpoint in this action is taken after
    * the result is applied, so the intent is cleared as soon as that happens.
    */
-  _commitCombatIntent(attacker, defender) {
+  _commitCombatIntent(attacker, defender, { warpStrike = false } = {}) {
     const session = battleSession(this);
     this._pendingCommittedAction = null;
     if (!this.runManager?.battleInProgress) return;
@@ -8185,6 +8296,10 @@ export class BattleScene extends Phaser.Scene {
             ...(art.weaponUid ? { weaponUid: art.weaponUid } : {}),
           }
         : null,
+      // Blink Strike: the warp is already settled in this checkpoint (the unit stands on its
+      // destination, the use spent); the flag only keeps a resumed replay a Blink Strike
+      // (no Canto, its name in the history).
+      ...(warpStrike ? { warpStrike: true } : {}),
     };
     // Gambler's Coin: the forecast already rolled the attack modifier. Legacy
     // battles roll it from the live battle stream, so a resume must reuse the
@@ -8254,7 +8369,11 @@ export class BattleScene extends Phaser.Scene {
     const run = () => {
       // Seed the roll session right before the attack reads it.
       this._restoreCommittedGamblerDeltas(intent, attacker, defender);
-      return this.executeCombat(attacker, defender);
+      // A resumed Blink Strike is already warped (the checkpoint holds the unit on its
+      // destination): the replay is the attack alone, still a Blink Strike.
+      return intent.warpStrike
+        ? this.executeCombat(attacker, defender, { warpStrike: {} })
+        : this.executeCombat(attacker, defender);
     };
     if (typeof this._scheduleSafeDelayedAsync === 'function')
       this._scheduleSafeDelayedAsync(400, 'resume_committed_attack', run, {
@@ -8265,13 +8384,21 @@ export class BattleScene extends Phaser.Scene {
     return true;
   }
 
-  async executeCombat(attacker, defender) {
+  /**
+   * A player attack, from the confirmed forecast to the resolved action's checkpoint.
+   * `warpStrike` marks a Blink Strike (WarpStrikeController): its warp is ALREADY settled
+   * (the unit stands on its destination, the use spent, in the same synchronous turn as this
+   * call), so the intent checkpoint taken here is the one durable write for the warp and
+   * the attack together. `warpStrike.present` draws the warp once that checkpoint is saved
+   * (absent on a resume: the unit is simply there). A Blink Strike never offers Canto.
+   */
+  async executeCombat(attacker, defender, { warpStrike = null } = {}) {
     const session = battleSession(this);
     this.battleState = 'COMBAT_RESOLVING';
     safeBattlePresentation('combat highlights', () => this.grid.clearAttackHighlights(), {
       scene: this,
     });
-    this._commitCombatIntent(attacker, defender);
+    this._commitCombatIntent(attacker, defender, { warpStrike: Boolean(warpStrike) });
     const saveGate = this._saveRetryGate(session);
     if (saveGate) {
       await saveGate;
@@ -8284,6 +8411,12 @@ export class BattleScene extends Phaser.Scene {
       )
         return;
     }
+    if (warpStrike?.present) {
+      await safeBattlePresentation('blink strike warp', () => warpStrike.present(), {
+        scene: this,
+      });
+      if (!isCurrentBattleSession(this, session)) return;
+    }
     this.resetFortHealStreak(attacker);
     const defenderHpAtStart = Math.max(0, Math.trunc(Number(defender?.currentHP) || 0));
     const attackerHpAtStart = Math.max(0, Math.trunc(Number(attacker?.currentHP) || 0));
@@ -8293,6 +8426,8 @@ export class BattleScene extends Phaser.Scene {
         isPlayerInitiator: true,
         equipArtWeapon: true,
       });
+      // The rewind row and the history name a Blink Strike's attack by the skill.
+      if (warpStrike) ctx.actionLabel = 'Blink Strike';
       const { result, selectedArt } = await this._runCombatResolution(attacker, defender, ctx);
       if (!isCurrentBattleSession(this, session)) return;
       // The outcome is applied to live state now; every checkpoint from here
@@ -8300,10 +8435,7 @@ export class BattleScene extends Phaser.Scene {
       this._pendingCommittedAction = null;
 
       if (attacker.faction === 'player' && attacker.currentHP > 0) {
-        const damageDealt = Math.max(
-          0,
-          defenderHpAtStart - Math.max(0, Math.trunc(Number(result.defenderHP) || 0)),
-        );
+        const damageDealt = combatHpLost(result, 'defender', defenderHpAtStart);
         // The area art's other victims pay too (BattleXp.AREA_XP_LIVE, the switch the
         // harness reads), each credit the attacker's own.
         await this.awardXP(
@@ -8386,6 +8518,8 @@ export class BattleScene extends Phaser.Scene {
         gambitTriggered: result.events.some((event) =>
           event.skillActivations?.some((skill) => skill.id === 'commanders_gambit'),
         ),
+        // Blink Strike is an attack: no Canto after it.
+        ...(warpStrike ? { skipCanto: true } : {}),
         // Galeforce: decided now, after the casualties fell; saved with the action.
         ...(killMoveRefreshesActor({ art: selectedArt, attacker, primary: defender })
           ? { refreshActor: true }
@@ -8468,6 +8602,8 @@ export class BattleScene extends Phaser.Scene {
       hostilesOf: (unit) => this._getTier5HostileUnitsFor(unit),
       alliesOf: (unit) => this.getDivineChargeAllies(unit),
       turnNumber: this.turnManager?.turnNumber,
+      skillsData: this.gameData?.skills,
+      marksData: this.gameData?.marks,
     };
   }
 
@@ -8496,6 +8632,13 @@ export class BattleScene extends Phaser.Scene {
         await this.removeUnit(unit, { killer: beat.killer });
         break;
       case 'moved':
+        // A push that slid on Ice is drawn crossing its tiles (the coordinates are settled).
+        if (beat.slides?.length)
+          await presentSettledMoves(this, beat.slides, {
+            session: battleSession(this),
+            label: 'push',
+            duration: 80,
+          });
         for (const moved of beat.units)
           safeBattlePresentation('post-combat position', () => this.updateUnitPosition(moved), {
             scene: this,
@@ -8504,6 +8647,10 @@ export class BattleScene extends Phaser.Scene {
         break;
       case 'hp':
         this.updateHPBar(unit);
+        break;
+      case 'stone':
+        this.updateHPBar(unit);
+        this._stoneBreakFx().playBreak(unit);
         break;
       case 'poison':
         await this.showPoisonDamage(unit, beat.amount);
@@ -8639,6 +8786,11 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
+  /** A broken Revival Stone's presentation (RevivalStoneController), made on first use. */
+  _stoneBreakFx() {
+    return (this._stoneFx ||= new RevivalStoneController(this).create());
+  }
+
   /** Floating MISS over a dodging target (strike presentation, see CombatChoreography). */
   _showStrikeMiss(target, reduced) {
     const pos = this.grid.gridToPixel(target.col, target.row);
@@ -8688,6 +8840,9 @@ export class BattleScene extends Phaser.Scene {
     });
 
     this.updateHPBar(target);
+    // A Revival Stone broke on this blow: the state is settled (the bar is full again),
+    // so this only draws the refill (RevivalStoneController).
+    if (event.stoneBroken) this._stoneBreakFx().playBreak(target);
 
     // Sleep: wake on damage -- remove Zzz icon and un-dim immediately
     if (event.wokeFromSleep) {
@@ -9151,6 +9306,12 @@ export class BattleScene extends Phaser.Scene {
       // Zombie / Revenant remains: a tile record that rises in 3 enemy phases unless
       // smashed (engine/ZombieRemains.js, ZombieRemainsController).
       remainsOf(this).onEnemyFell(unit, killer, { col: deathCol, row: deathRow });
+      // A Necromancer's Skeletons crumble with it (no killer: no gold, no XP), before any
+      // battle-end check reads the roster (engine/Necromancy.js).
+      if (isNecromancer(unit)) {
+        await necromancyOf(this).crumble(unit);
+        if (!isCurrentBattleSession(this, session)) return;
+      }
     }
     safeBattlePresentation('death hover', () => this._inputController?.refreshHoverInfo(), {
       scene: this,
@@ -9198,11 +9359,12 @@ export class BattleScene extends Phaser.Scene {
         );
         for (const victim of victims) {
           if (victim.currentHP <= 0) continue;
-          damageUnit(victim, effect.amount);
+          const { stoneBroken } = damageUnitDetailed(victim, effect.amount);
           safeBattlePresentation(
             'Deathburst',
             () => {
               this.updateHPBar(victim);
+              if (stoneBroken) this._stoneBreakFx().playBreak(victim);
               const pos = this.grid.gridToPixel(victim.col, victim.row);
               const txt = this.add
                 .text(pos.x, pos.y - 16, `${effect.amount}`, {
@@ -9550,6 +9712,8 @@ export class BattleScene extends Phaser.Scene {
       }
     } else if (phase === 'enemy') {
       this.battleState = 'ENEMY_PHASE';
+      // A contact (Grid.revealContact) lasts the player phase it was made in: the foes move now.
+      if (this.grid?.clearContacts?.()) revealSettledVision(this);
       this._prologue?.onPhaseStart('enemy', turn);
       // Siege casters take their stance from the board the player left, before any
       // phase-start blow (hazards, ballistas) can empty a ring Danger drew (SiegeArtillery).
@@ -9592,6 +9756,7 @@ export class BattleScene extends Phaser.Scene {
           await this.processTerrainDamage(armyAndNpcAllies(this.playerUnits, this.npcUnits));
           await this.processTurnStartEffects(this.enemyUnits);
           await this.processZombieRevival();
+          await this.processNecromancy();
           await this.processBallistaFire(this.playerUnits, 'enemy');
           this.applyDueHybridOverridesForTurn(turn);
           await this.startEnemyPhase();
@@ -9634,7 +9799,12 @@ export class BattleScene extends Phaser.Scene {
     if (!isCurrent()) return;
 
     // 1. Skill effects (e.g. Renewal)
-    const skillEffects = getTurnStartEffects(units, this.gameData.skills);
+    const skillEffects = getTurnStartEffects(
+      units,
+      this.gameData.skills,
+      this.gameData.marks,
+      this.turnManager?.turnNumber,
+    );
     for (const effect of skillEffects) {
       if (!isCurrent()) return;
       if (effect.type === 'heal' && effect.amount > 0) {
@@ -9643,6 +9813,10 @@ export class BattleScene extends Phaser.Scene {
         if (this._showsTurnEffectOn(effect.target))
           await this.animateHeal(effect.target, effect.amount);
         if (!isCurrentBattleSession(this, session)) return;
+      } else if (effect.type === 'buff' && effect.entry) {
+        // Mark of the Road: +1 MOV until the player phase ends (TimedWeaponArtBuffs).
+        applyTimedBuffEntry(effect.target, effect.entry);
+        this.showMarkProc(effect.target, `${effect.source}: +${effect.entry.stats.MOV} MOV`);
       }
     }
 
@@ -9709,7 +9883,7 @@ export class BattleScene extends Phaser.Scene {
       const target = selectBallistaTarget(ballista, targetUnits);
       if (!target) continue;
       const result = resolveBallistaStrike(ballista, target);
-      if (result.didHit) damageUnit(target, result.damage);
+      const stoneBroken = result.didHit && damageUnitDetailed(target, result.damage).stoneBroken;
       // Presentation of the resolved shot: the bolt flies before the number shows.
       await safeBattlePresentation(
         'ballista shot',
@@ -9726,6 +9900,7 @@ export class BattleScene extends Phaser.Scene {
           'ballista hit',
           async () => {
             this.updateHPBar(target);
+            if (stoneBroken) this._stoneBreakFx().playBreak(target);
             if (target.graphic) {
               const pos = this.grid.gridToPixel(target.col, target.row);
               const txt = this.add
@@ -9809,6 +9984,17 @@ export class BattleScene extends Phaser.Scene {
     if (!isCurrentBattleSession(this, session)) return;
   }
 
+  /**
+   * Enemy-phase start, after the remains tick: each Necromancer with fewer than two living
+   * Skeletons raises one (engine/Necromancy.js, NecromancyController).
+   */
+  async processNecromancy() {
+    const session = battleSession(this);
+    if (!this.enemyUnits.some(isNecromancer)) return;
+    await necromancyOf(this).processRaises();
+    if (!isCurrentBattleSession(this, session)) return;
+  }
+
   _zombieRemains() {
     return remainsOf(this);
   }
@@ -9889,6 +10075,17 @@ export class BattleScene extends Phaser.Scene {
       const pos = this.grid.gridToPixel(pick.col, pick.row);
       this.showMinorHintAt(pos.x, pos.y, 'Wall!', UI_PALETTE.text);
     }
+  }
+
+  /** A Mark's proc, floated over its bearer (Mark of the Forge, Mark of the Road). */
+  showMarkProc(unit, text) {
+    if (!unit || !this._showsTurnEffectOn(unit)) return;
+    const pos = this.grid.gridToPixel(unit.col, unit.row);
+    safeBattlePresentation(
+      'mark proc hint',
+      () => this.showMinorHintAt(pos.x, pos.y, text, UI_PALETTE.mark),
+      { scene: this },
+    );
   }
 
   showMinorHintAt(x, y, message, color = UI_PALETTE.accentText) {
@@ -10140,7 +10337,9 @@ export class BattleScene extends Phaser.Scene {
       for (const u of this.playerUnits || []) {
         u.hasMoved = false;
         u.hasActed = false;
+        u._movementSpent = 0;
       }
+      stampTurnAnchors(this.playerUnits || [], playerTurn);
     }
     this.captureVisionSnapshot?.();
     this.updateVisionHud?.();
@@ -10520,10 +10719,7 @@ export class BattleScene extends Phaser.Scene {
       // Award XP to player defender if they survived: at least the survival
       // minimum, even with no counter (unarmed, out of reach) or no damage dealt.
       if (target.faction === 'player' && target.currentHP > 0) {
-        const counterDamage = Math.max(
-          0,
-          enemyHpAtStart - Math.max(0, Math.trunc(Number(result.attackerHP) || 0)),
-        );
+        const counterDamage = combatHpLost(result, 'attacker', enemyHpAtStart);
         await this.awardXP(target, enemy, enemy.currentHP <= 0, counterDamage, enemyHpAtStart, {
           survivedAttack: true,
         });
@@ -11076,6 +11272,7 @@ export class BattleScene extends Phaser.Scene {
       separator: '\n',
       statSeparator: '/',
       fallback: 'Equip for passive bonus',
+      skills: this.gameData?.skills,
     });
   }
 

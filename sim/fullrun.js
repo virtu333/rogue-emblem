@@ -1,5 +1,10 @@
 // Full Run Monte Carlo — Abstract battle resolution, full act progression
 // Usage: node sim/fullrun.js [--trials N] [--seed S] [--csv] [--verbose] [--meta LEVEL]
+//
+// A battle-only model: it ignores services (shops, churches) and the route map's story
+// Events (docs/specs/event-nodes.md) alike. Run sims that walk real node maps through
+// RunManager (sim:pacing, sim:strategy, sim:eclipse) route events through the event
+// commands (engine/EventCommands.js).
 
 import { installSeed, restoreMathRandom } from './lib/SeededRNG.js';
 import {

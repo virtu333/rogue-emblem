@@ -107,6 +107,8 @@ export function summarizeWeaponArtEffect(art) {
   pushSigned('Res', mods.resBonus);
   if (mods.statScaling)
     chunks.push(`Adds ${mods.statScaling.stat} / ${mods.statScaling.divisor} to Attack`);
+  if (mods.foeDefShare > 0)
+    chunks.push(`Adds ${Math.round(mods.foeDefShare * 100)}% of foe DEF to damage`);
   if (mods.drainPercent)
     chunks.push(
       `Heals ${Math.round(mods.drainPercent * 100)}% of damage dealt${mods.drainMaxPerHit ? ` (at most ${mods.drainMaxPerHit} HP a hit)` : ''}`,

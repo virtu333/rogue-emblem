@@ -162,6 +162,7 @@ export class ArenaMenu {
       c._openSheet({ run: c.runManager, unit: c._selectedUnit }, () => c._showTierSelect(message)),
     );
     if (message) m.text(message);
+    m.boutsLeft();
     for (const [name, tier] of getAvailableTiers(c._actId, c._colosseumData)) {
       m.action(
         `${name[0].toUpperCase() + name.slice(1)} · Win +${tier.goldReward} G · Loss −${tier.entryFee} G · XP ×${tier.xpMultiplier}`,
@@ -195,6 +196,7 @@ export class ArenaMenu {
     }
     m.surface.body.append(grid);
     if (odds) m.surface.body.append(el('p', arenaOddsText(odds), 'arena-odds'));
+    m.boutsLeft();
     const tier = c._selectedTier;
     const rounds = arenaMaxRounds(c._colosseumData);
     m.text(

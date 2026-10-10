@@ -76,7 +76,15 @@ const IMBUE_ADJECTIVES = new Set([
 
 // Keys whose string values are item names wherever they appear: item and art
 // names, siege weapon names, battle-history weapon names.
-const NAME_KEYS = new Set(['name', '_baseName', 'weaponName', 'siegeWeapon', 'itemName', 'weapon']);
+const NAME_KEYS = new Set([
+  'name',
+  '_baseName',
+  'weaponName',
+  'siegeWeapon',
+  'carries',
+  'itemName',
+  'weapon',
+]);
 const ITEM_TYPES = new Set([
   'Sword',
   'Lance',

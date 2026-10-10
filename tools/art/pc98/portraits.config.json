@@ -4,6 +4,10 @@
       "keepBackground": true,
       "faction": "unlight",
       "outlier": "A texture of eyes, not a bust; boss_the_entity art covers the boss"
+    },
+    "generic_merchant": {
+      "faction": "verdigris",
+      "note": "The caravan Merchant (CaravanSystem.createCaravanUnit, faction npc): one design, no variants; its plate is the ally verdigris the game shows an NPC on"
     }
   }
 }

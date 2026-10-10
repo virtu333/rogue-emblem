@@ -433,6 +433,8 @@ describe('BossRecruitOverlay', () => {
     // Names promised by pending recruit nodes (and every other taken name) are
     // reserved: a boss recruit never takes them.
     runManager.getTakenUnitNames = () => new Set(['Edric', 'FallenHero', 'Linnet']);
+    // The run's seed keys the candidates' Mark roll (UnitManager.createRecruitUnit).
+    runManager.runSeed = 4242;
 
     generateBossRecruitCandidatesMock.mockReturnValue(null);
 
@@ -446,7 +448,26 @@ describe('BossRecruitOverlay', () => {
       meta,
       fallen,
       ['Edric', 'FallenHero', 'Linnet'],
+      4242,
+      { recruitLevelBonus: 0 },
     );
+  });
+
+  it("passes Nomad's Pact's levels to the draft, and none for a penalty", () => {
+    generateBossRecruitCandidatesMock.mockReturnValue(null);
+    for (const [held, asked] of [
+      [2, 2],
+      [-1, 0],
+    ]) {
+      generateBossRecruitCandidatesMock.mockClear();
+      runManager.currentAct = 'act2';
+      runManager.pendingBossRecruit = null;
+      runManager.getRecruitLevelBonus = () => held;
+      overlay.show(vi.fn());
+      expect(generateBossRecruitCandidatesMock.mock.calls[0][7]).toEqual({
+        recruitLevelBonus: asked,
+      });
+    }
   });
 
   it('lord candidate card renders lord tag', () => {

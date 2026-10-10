@@ -1,19 +1,52 @@
 import { battleSession, isCurrentBattleSession } from './BattleSession.js';
 import { settleAndPresent } from './BattleActionSettlement.js';
 import { settleMoves } from '../engine/ActionMovement.js';
+import { settleShove } from '../engine/ForcedMovement.js';
+import { forcedMoveProbes } from './forcedMoveProbes.js';
 import { settleRecruitJoin, validateRecruitJoin } from '../engine/BattleRecruits.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { deedsFor } from './DeedController.js';
 import { presentSettledMoves } from './ActionMovementPresentation.js';
 import { safeBattlePresentation } from './safeBattlePresentation.js';
 import { CombatFxController } from './CombatFxController.js';
+import { hasEffectiveSkill } from '../engine/EffectiveSkills.js';
+import { refreshActedAlly } from '../engine/ActionAbilitySystem.js';
 import { XP_BASE_DANCE } from '../utils/constants.js';
-import { UI_HEX } from '../utils/uiStyles.js';
+import { UI_HEX, UI_PALETTE } from '../utils/uiStyles.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { growthCeremonies } from './GrowthCeremonyController.js';
 
 function isActor(scene, unit) {
   return !!unit && scene.playerUnits.includes(unit) && unit.currentHP > 0 && !unit.hasActed;
+}
+/**
+ * A dancer's refresh, drawn on the ally (presentation only): the dimming of a unit that has
+ * acted lifts, with a heal chime, a buff glint and a sparkle. Dance and Goddess Dance share it.
+ */
+export function presentRefreshSparkle(scene, ally) {
+  safeBattlePresentation('dance refresh graphic', () => scene.undimUnit(ally), { scene });
+  safeBattlePresentation(
+    'dance sparkle',
+    () => {
+      scene.registry.get('audio')?.playSFX('sfx_heal');
+      const pos = scene.grid.gridToPixel(ally.col, ally.row);
+      (scene._combatFx ||= new CombatFxController(scene)).playBuff(pos.x, pos.y);
+      const sparkle = scene.add
+        .circle(pos.x, pos.y, 20, UI_HEX.hpHigh, scene._reduceMotion() ? 0.4 : 0.6)
+        .setDepth(200);
+      if (scene._reduceMotion()) scene.time.delayedCall(120, () => sparkle.destroy());
+      else
+        scene.tweens.add({
+          targets: sparkle,
+          alpha: 0,
+          scale: 1.5,
+          duration: 400,
+          ease: 'Quad.easeOut',
+          onComplete: () => sparkle.destroy(),
+        });
+    },
+    { scene },
+  );
 }
 function matches(a, b, keys) {
   return a?.ally === b?.ally && keys.every((key) => a[key] === b[key]);
@@ -39,7 +72,7 @@ export class MovementActionController {
       label: kind,
       validate: () =>
         isActor(scene, unit) &&
-        (kind === 'swap' || unit.skills?.includes(kind)) &&
+        (kind === 'swap' || hasEffectiveSkill(unit, kind)) &&
         target?.ally?.currentHP > 0 &&
         scene[`find${title}Targets`](unit).some((entry) => matches(entry, target, keys)),
       settle: () => {
@@ -50,22 +83,34 @@ export class MovementActionController {
           unit,
           target.ally,
         );
-        const moves =
-          kind === 'shove'
-            ? [{ unit: target.ally, to: { col: target.destCol, row: target.destRow } }]
-            : [
-                {
-                  unit,
-                  to:
-                    kind === 'pull'
-                      ? { col: target.retreatCol, row: target.retreatRow }
-                      : { col: target.ally.col, row: target.ally.row },
-                },
-                { unit: target.ally, to: { col: unit.col, row: unit.row } },
-              ];
-        return { moves: settleMoves(moves), allyWasActed };
+        // Shove is a forced move: the ally slides on if it lands on Ice, over the real
+        // board (ForcedMovement.js); a unit the fog hid can stop the slide, as it stops a walk.
+        let moves;
+        let ambusher = null;
+        if (kind === 'shove') {
+          const shove = settleShove(target, forcedMoveProbes(scene).world);
+          moves = shove.moves;
+          const blocker = shove.blocker;
+          if (blocker && typeof blocker === 'object' && scene._isHiddenUnit(blocker)) {
+            ambusher = blocker;
+            if (blocker.faction === 'enemy')
+              observeHistoryAction(scene, 'was ambushed by', target.ally, blocker);
+          }
+        } else {
+          moves = settleMoves([
+            {
+              unit,
+              to:
+                kind === 'pull'
+                  ? { col: target.retreatCol, row: target.retreatRow }
+                  : { col: target.ally.col, row: target.ally.row },
+            },
+            { unit: target.ally, to: { col: unit.col, row: unit.row } },
+          ]);
+        }
+        return { moves, allyWasActed, ambusher };
       },
-      present: async ({ moves, allyWasActed }) => {
+      present: async ({ moves, allyWasActed, ambusher }) => {
         safeBattlePresentation(`${kind} menu`, () => scene.hideActionMenu(), { scene });
         await presentSettledMoves(scene, moves, {
           session,
@@ -73,6 +118,21 @@ export class MovementActionController {
           duration: kind === 'swap' ? 120 : 80,
         });
         if (!isCurrentBattleSession(scene, session)) return;
+        if (ambusher)
+          safeBattlePresentation(
+            'shove ambush',
+            () => {
+              const hostile = ambusher.faction === 'enemy';
+              const pos = scene.grid.gridToPixel(ambusher.col, ambusher.row);
+              scene.showMinorHintAt?.(
+                pos.x,
+                pos.y,
+                hostile ? 'Ambush!' : 'Blocked',
+                hostile ? UI_PALETTE.bad : UI_PALETTE.text,
+              );
+            },
+            { scene },
+          );
         safeBattlePresentation(
           `${kind} movement state`,
           () =>
@@ -98,46 +158,20 @@ export class MovementActionController {
       label: 'dance',
       validate: () =>
         isActor(scene, unit) &&
-        unit.skills?.includes('dance') &&
+        hasEffectiveSkill(unit, 'dance') &&
         target?.ally?.currentHP > 0 &&
         scene.findDanceTargets(unit).some((entry) => entry.ally === target?.ally),
       settle: () => {
         observeHistoryAction(scene, 'danced for', unit, target.ally);
         deedsFor(scene).onRefresh(unit);
-        target.ally.hasMoved = false;
-        target.ally._movementCommitted = false;
-        target.ally.hasActed = false;
+        refreshActedAlly(target.ally);
         return { xp: scene.awardScaledXP(unit, XP_BASE_DANCE, { present: false }) };
       },
       // The gain's EXP gauge plays after this, with any level-up card (awardScaledXP
       // queued its record in the settlement).
       present: () => {
         safeBattlePresentation('dance menu', () => scene.hideActionMenu(), { scene });
-        safeBattlePresentation('dance refresh graphic', () => scene.undimUnit(target.ally), {
-          scene,
-        });
-        safeBattlePresentation(
-          'dance sparkle',
-          () => {
-            scene.registry.get('audio')?.playSFX('sfx_heal');
-            const pos = scene.grid.gridToPixel(target.ally.col, target.ally.row);
-            (scene._combatFx ||= new CombatFxController(scene)).playBuff(pos.x, pos.y);
-            const sparkle = scene.add
-              .circle(pos.x, pos.y, 20, UI_HEX.hpHigh, scene._reduceMotion() ? 0.4 : 0.6)
-              .setDepth(200);
-            if (scene._reduceMotion()) scene.time.delayedCall(120, () => sparkle.destroy());
-            else
-              scene.tweens.add({
-                targets: sparkle,
-                alpha: 0,
-                scale: 1.5,
-                duration: 400,
-                ease: 'Quad.easeOut',
-                onComplete: () => sparkle.destroy(),
-              });
-          },
-          { scene },
-        );
+        presentRefreshSparkle(scene, target.ally);
       },
     });
   }
@@ -169,6 +203,7 @@ export class MovementActionController {
           playerUnits: scene.playerUnits,
           battleRecruits: scene._battleRecruits,
           runManager: scene.runManager,
+          turn: scene.turnManager?.turnNumber,
         });
         scene._battleRecruits = result.battleRecruits;
         observeHistoryAction(scene, 'recruited', lord, npc);

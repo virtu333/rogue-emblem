@@ -2,6 +2,7 @@ import {
   getWeaponArtArea,
   getWeaponArtTargeting,
   getEffectiveWeaponArtHpCost,
+  getEffectiveWeaponArtMapLimit,
   getWeaponArtTier2Effects,
   getWeaponArtTier5Effects,
   getWeaponArtMissEffects,
@@ -110,6 +111,7 @@ export function weaponArtEffectRows(art) {
         swap: 'swap places with the target',
         push: `push the target back ${tiles(e.distance)} (only when next to it)`,
         through: `pass ${tiles(e.distance)} through the target`,
+        pushAreaVictims: `push the target and each foe the line hit back ${tiles(e.distance)} (only when next to the target)`,
         ram: `ram the target back up to ${tiles(e.distance)} (only when next to it); if blocked, it and any foe it hits take ${e.collisionDamage}`,
       }[e.mode] || `move (${e.mode})`,
     );
@@ -174,6 +176,8 @@ export function weaponArtModsText(art) {
   if (mods.rangeOverride) parts.push(`Range ${mods.rangeOverride.min}–${mods.rangeOverride.max}`);
   if (mods.statScaling)
     parts.push(`Adds ${mods.statScaling.stat} ÷ ${mods.statScaling.divisor} to Attack`);
+  if (mods.foeDefShare > 0)
+    parts.push(`Adds ${Math.round(mods.foeDefShare * 100)}% of the foe's Defense to damage`);
   if (mods.drainPercent)
     parts.push(
       `Heals ${Math.round(mods.drainPercent * 100)}% of damage dealt${mods.drainMaxPerHit ? ` (at most ${mods.drainMaxPerHit} HP a hit)` : ''}`,
@@ -207,13 +211,28 @@ export function weaponArtCostText(unit, art, options = {}) {
   return `HP cost ${cost}${cost !== base ? ` (base ${base})` : ''}`;
 }
 
-export function weaponArtUsesText(unit, art, turnNumber) {
+/**
+ * The " HP-N" tail of a one-line art row (the unit sheet's and the roster's Weapon Arts lists):
+ * what the art costs THIS unit now, so Bloodless Art, a Blood Gem and a pact's price show in the
+ * row, not the catalog figure. Empty for an art that costs nothing. `options` is the run's
+ * `weaponArtRunOptions(run)`.
+ */
+export function weaponArtHpSuffix(unit, art, options = {}) {
+  const cost = getEffectiveWeaponArtHpCost(unit, art, options);
+  return cost > 0 ? ` HP-${cost}` : '';
+}
+
+/**
+ * "2/3 map uses left · 1/1 turn uses left" for this unit. `options` is the run's
+ * `weaponArtRunOptions(run)`: Bloodless Art's extra use is part of the limit shown, so the
+ * menu says what `canUseWeaponArt` will allow.
+ */
+export function weaponArtUsesText(unit, art, turnNumber, options = {}) {
   const usage = unit?._battleWeaponArtUsage || {};
   const parts = [];
-  if (Number(art?.perMapLimit) > 0)
-    parts.push(
-      `${Math.max(0, art.perMapLimit - (usage.map?.[art.id] || 0))}/${art.perMapLimit} map uses left`,
-    );
+  const mapLimit = getEffectiveWeaponArtMapLimit(unit, art, options);
+  if (mapLimit > 0)
+    parts.push(`${Math.max(0, mapLimit - (usage.map?.[art.id] || 0))}/${mapLimit} map uses left`);
   if (Number(art?.perTurnLimit) > 0 && turnNumber != null) {
     const used = usage.turnKey === String(turnNumber) ? usage.turn?.[art.id] || 0 : 0;
     parts.push(`${Math.max(0, art.perTurnLimit - used)}/${art.perTurnLimit} turn uses left`);

@@ -147,6 +147,111 @@
   }
 }
 
+/* ───────── Burdens: an event's lasting price, one chip each (NodeMapMenu._burdenRow) ───────── */
+.re-loom-burdens {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  flex-shrink: 0;
+}
+.re-burden {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  padding: 4px 10px;
+  border: 1px solid var(--re-danger-line);
+  border-radius: 14px;
+  background: var(--re-danger-bg);
+  color: var(--re-text);
+  font: var(--re-pf-8, 8px) / 1 var(--re-pixel);
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+/* A 44px tap target around the 28px chip, without making the row taller. */
+.re-burden::before {
+  content: '';
+  position: absolute;
+  inset: -8px -2px;
+}
+.re-burden:focus-visible {
+  outline: 3px solid var(--re-gold);
+  outline-offset: 1px;
+}
+.re-burden[aria-expanded='true'] {
+  border-color: var(--re-bad);
+  background: var(--re-selected);
+}
+.re-burden-name {
+  color: var(--re-bad);
+}
+.re-burden-short {
+  color: var(--re-accent-text);
+}
+.re-burden-note {
+  flex: 1 1 100%;
+  margin: 0;
+  padding: 6px 10px;
+  border-left: 3px solid var(--re-bad);
+  background: var(--re-sunken);
+  color: var(--re-muted);
+  font: var(--re-t-small);
+}
+.re-burden-note[hidden] {
+  display: none;
+}
+/* A contract is a promise, not a wound: the same chip in the gilt of a seal. */
+.re-burden.re-contract {
+  border-color: var(--re-gilt);
+  background: var(--re-sunken);
+}
+.re-burden.re-contract[aria-expanded='true'] {
+  border-color: var(--re-accent-text);
+  background: var(--re-selected);
+}
+.re-contract .re-burden-name {
+  color: var(--re-accent-text);
+}
+/* A settlement earned and waiting to be claimed: the seal's chip in the warning tone, and it opens its page. */
+.re-burden.re-contract.is-owed {
+  border-color: var(--re-warn);
+}
+.re-burden-note.is-contract {
+  border-left-color: var(--re-gilt);
+}
+
+/* A road an event drew, or a place it changed: ringed on the loom for a few seconds. */
+.re-loom-changed {
+  position: absolute;
+  inset: 1px;
+  border: 2px solid var(--re-accent-text);
+  border-radius: 50%;
+  box-shadow: 0 0 10px 2px var(--re-ember-glow);
+  pointer-events: none;
+}
+.re-loom-changed.is-pulsing {
+  animation: re-loom-changed 1.4s ease-out 4;
+}
+@keyframes re-loom-changed {
+  0% {
+    transform: scale(0.85);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .re-loom-changed.is-pulsing {
+    animation: none;
+  }
+}
+
 /* ───────── Body: loom + side pane (the pane stays a column at every width) ───────── */
 .re-loom-screen .re-node-layout {
   flex: 1;
@@ -277,6 +382,30 @@
 }
 .re-loom--roomy .re-loom-medal .re-node-art {
   transform: scale(1.1);
+}
+.re-loom-mark {
+  position: absolute;
+  right: -3px;
+  top: -3px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--re-info);
+  color: var(--re-void);
+  box-shadow: 0 0 0 1px var(--re-void);
+  font: var(--re-pf-8, 8px) / 1 var(--re-pixel);
+  pointer-events: none;
+}
+.re-node.is-done .re-loom-mark,
+.re-node.is-cut .re-loom-mark {
+  background: var(--re-line-strong);
+}
+.re-loom-card-medal .re-loom-mark {
+  right: -6px;
+  top: -6px;
 }
 .re-loom-label {
   position: absolute;
@@ -562,6 +691,7 @@
   gap: 9px;
 }
 .re-loom-card-medal {
+  position: relative;
   flex: none;
   width: 30px;
   height: 30px;
@@ -697,6 +827,10 @@
     inset 0 1px 0 var(--re-ember-pale),
     inset 0 -2px 0 var(--re-shade),
     0 0 16px var(--re-ember-haze);
+}
+.re-loom-screen .re-loom-travel.is-long {
+  font-size: var(--re-pf-8, 8px);
+  letter-spacing: 0.04em;
 }
 .re-loom-screen .re-loom-travel:disabled {
   opacity: 1;
@@ -872,6 +1006,15 @@
 }
 .re-loom-recruit-traits li.is-legendary strong {
   color: var(--re-accent-text);
+}
+.re-loom-screen .re-loom-recruit-mark {
+  margin: 3px 0 0;
+  font: 10.5px/1.3 var(--re-body);
+  color: var(--re-text);
+}
+.re-loom-recruit-mark strong {
+  font-weight: 700;
+  color: var(--re-mark);
 }
 
 /* ───────── Campaign Map (in-battle, read-only) ───────── */

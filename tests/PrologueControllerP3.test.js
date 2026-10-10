@@ -218,6 +218,10 @@ describe('P3: Sera, the green unit', () => {
       { category: 'prologue', key: 'p3_intro' },
     );
     expect(prologue.scripted()).toMatchObject({ id: 'p3_reach_sera', goal: 'Reach Sera and Talk' });
+    // By name and the banner: her robe reads blue, so "the green unit" misled (QA, Oct 2026).
+    expect(prologue.scripted().detail).toBe(
+      'Move Edric next to Sera under the gold RECRUIT banner, then choose Talk. Only a lord can.',
+    );
     await flushNotes(prologue);
     expect(notes().at(-1)).toContain('Sera (Light Sage) under the gold banner can join you.');
     expect(hints.markSeen).toHaveBeenCalledWith('guide_recruit_on_map');

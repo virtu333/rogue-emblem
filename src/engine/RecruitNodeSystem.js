@@ -107,6 +107,22 @@ function isValidPreview(preview) {
   );
 }
 
+/**
+ * True for a node whose battle has a recruit's green unit: a recruit node, or an event whose
+ * fight was started with a `recruit` (engine/EventEffects.js `battle.recruit`: the Old Faces).
+ * Every reader of "a recruit battle" (the promised names, the spawn class, the unit, the
+ * battle params' preview) asks this rather than the node's type.
+ */
+export function isRecruitBattleNode(node) {
+  if (node?.type === 'recruit') return true;
+  return (
+    node?.type === 'event' &&
+    node.eventBattle === true &&
+    node.battleParams?.isRecruitBattle === true &&
+    isValidPreview(node.recruitPreview)
+  );
+}
+
 function namesInUse({ usedRecruitNames = {}, roster = [], fallenUnits = [] } = {}) {
   const used = new Set();
   for (const list of Object.values(usedRecruitNames || {}))
@@ -438,6 +454,10 @@ export function buildRecruitNodeUnit(opts = {}) {
         traitsData: gameData.traits || null,
         skillsData: gameData.skills,
         rng,
+        // The Mark roll (UnitManager.createRecruitUnit): its own stream, never `rng`.
+        runSeed: seedBase(runSeed),
+        metaEffects,
+        marksData: gameData.marks || null,
       };
       const def = { name: preview.name, className: preview.className, level };
       let unit;

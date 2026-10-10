@@ -76,6 +76,86 @@ describe('dev startup helpers', () => {
     expect(route.data.battleParams.recruitPreview?.className).toBeTruthy();
   });
 
+  it('preset=event stands the party one click from an event (the event review route)', () => {
+    const config = parseDevStartupConfig(
+      '?devScene=nodemap&preset=event&seed=42&event=abandoned_armory',
+      { devMode: true },
+    );
+    expect(config).toMatchObject({
+      preset: 'event',
+      event: 'abandoned_armory',
+      sceneKey: 'NodeMap',
+    });
+    const registry = createRegistry();
+    const route = buildDevStartupRoute(loadGameData(), registry, config);
+    expect(route.key).toBe('NodeMap');
+    const run = route.data.runManager;
+    const event = run.nodeMap.nodes.find((n) => n.type === 'event');
+    expect(event.row).toBeGreaterThanOrEqual(2);
+    expect(event.battleParams).toBeNull();
+    // The party stands on a completed node that leads to it: the event is one step on.
+    expect(run.getAvailableNodes().map((n) => n.id)).toContain(event.id);
+    expect(run.nodeMap.nodes.find((n) => n.id === run.currentNodeId).edges).toContain(event.id);
+    expect(run.gold).toBeGreaterThanOrEqual(1000);
+    // Only the named event (and the fallback) can be picked; its first-time note teaches.
+    expect(run.gameData.events.events.map((e) => e.id).sort()).toEqual([
+      'abandoned_armory',
+      'quiet_road',
+    ]);
+    expect(registry.get('hints').hasSeen('guide_first_event')).toBe(false);
+    // The same seed builds the same road.
+    const again = buildDevStartupRoute(loadGameData(), createRegistry(), config).data.runManager;
+    expect(again.nodeMap.nodes.find((n) => n.type === 'event').id).toBe(event.id);
+    // Without &event=, the whole catalog stays.
+    const open = buildDevStartupRoute(
+      loadGameData(),
+      createRegistry(),
+      parseDevStartupConfig('?devScene=nodemap&preset=event&seed=42', { devMode: true }),
+    ).data.runManager;
+    expect(open.gameData.events.events.length).toBeGreaterThan(5);
+  });
+
+  it('the event review extras: act, node kind, burdens, contract, omen, units and the dev fixtures', () => {
+    const build = (query) =>
+      buildDevStartupRoute(
+        loadGameData(),
+        createRegistry(),
+        parseDevStartupConfig(`?devScene=nodemap&preset=event&seed=42&${query}`, { devMode: true }),
+      ).data.runManager;
+    // A later act: that act's map, the event waits there.
+    const act2 = build('act=2&event=sunken_mine');
+    expect(act2.currentAct).toBe('act2');
+    expect(act2.nodeMap.nodes.find((n) => n.type === 'event')).toBeTruthy();
+    // A church to Cleanse at, carrying burdens (Debt with its figure, a wound on the first lord).
+    const church = build('as=church&burdens=ill_omen:2,debt:450,wounded');
+    expect(church.getAvailableNodes().some((n) => n.type === 'church')).toBe(true);
+    expect(church.burdens.map((b) => [b.id, b.battles ?? b.owed ?? null])).toEqual([
+      ['ill_omen', 2],
+      ['debt', 450],
+      ['wounded', 2],
+    ]);
+    expect(church.burdens[2].unitUid).toBe(church.roster.find((u) => u.isLord).unitUid);
+    // The arena, an open contract, and a Dark Omen node that has already fallen.
+    expect(
+      build('as=colosseum')
+        .getAvailableNodes()
+        .some((n) => n.type === 'colosseum'),
+    ).toBe(true);
+    expect(build('contract=noLosses').contract).toMatchObject({ goal: 'noLosses' });
+    const omen = build('omen=1').nodeMap.nodes.find((n) => n.darkOmen);
+    expect(omen).toMatchObject({ type: 'event', eclipse: { fromType: 'event', seen: true } });
+    // Roster additions and a review fixture (the only event on the road, its Thief aboard).
+    const fixture = build('event=dev_mine');
+    expect(fixture.gameData.events.events.map((e) => e.id).sort()).toEqual([
+      'dev_mine',
+      'quiet_road',
+    ]);
+    expect(fixture.roster.some((u) => u.name === 'Mira' && u.className === 'Thief')).toBe(true);
+    expect(build('units=Mage,Nonsense').roster.filter((u) => u.className === 'Mage').length).toBe(
+      1,
+    );
+  });
+
   it('ignores unknown scene aliases', () => {
     const config = parseDevStartupConfig('?devScene=unknown', { devMode: true });
     expect(config).toBeNull();
@@ -200,6 +280,26 @@ describe('phone review routes (deploy previews)', () => {
     expect(sera.skills).toContain('canto');
     expect(sera.inventory.map((w) => w.name)).toContain('Rescue Staff');
     expect(registry.get('activeSlot')).toBeNull();
+  });
+
+  it('contract HUD review: &contract= opens a contract on a battle route, &par=N shortens its par', () => {
+    const r = route('?devScene=battle&preset=battle_smoke&seed=42&contract=noLosses&par=2');
+    expect(r.key).toBe('Battle');
+    // The contract settles on the very node the battle is fought at.
+    expect(r.data.runManager.contract).toMatchObject({ goal: 'noLosses' });
+    expect(r.data.runManager.openBattleNode(r.data.nodeId)).not.toBeNull();
+    expect(r.data.battleParams).toMatchObject({ devScenario: 'short_par', devPar: 2 });
+    // Neither is on by default, and a goal that is no goal opens nothing.
+    const plain = route('?devScene=battle&preset=battle_smoke&seed=42');
+    expect(plain.data.runManager.contract).toBeNull();
+    expect(plain.data.battleParams.devScenario).toBeUndefined();
+    expect(
+      route('?devScene=battle&preset=battle_smoke&seed=42&contract=bogus').data.runManager.contract,
+    ).toBeNull();
+    // Another review scenario keeps its own setup (par is not stacked on it).
+    expect(
+      route('?devScene=battle&preset=fog_ambush&seed=42&par=3').data.battleParams.devScenario,
+    ).toBe('fog_ambush');
   });
 
   it('roster_checks: an Oath on the bench, one to meet the cap, Edric in a robe at 1 HP', () => {

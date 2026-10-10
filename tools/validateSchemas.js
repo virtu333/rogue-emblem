@@ -3,6 +3,8 @@ import path from 'node:path';
 import Ajv from 'ajv';
 import { validateMapTemplatesConfig } from '../src/engine/MapTemplateEngine.js';
 import { validatePrologueConfig } from '../src/engine/Prologue.js';
+import { validateBlessingsConfig } from '../src/engine/BlessingEngine.js';
+import { validateEventsConfig } from '../src/engine/EventValidation.js';
 import { validateCrossReferences } from './validateCrossReferences.js';
 
 const DATA_DIR = path.resolve('data');
@@ -28,6 +30,8 @@ const AJV_SCHEMAS = [
   { schema: 'deeds.schema.json', data: 'deeds.json' },
   { schema: 'traits.schema.json', data: 'traits.json' },
   { schema: 'eclipse.schema.json', data: 'eclipse.json' },
+  { schema: 'events.schema.json', data: 'events.json' },
+  { schema: 'marks.schema.json', data: 'marks.json' },
 ];
 
 const ajv = new Ajv({ allErrors: true });
@@ -84,6 +88,42 @@ if (prologueResult.valid) {
 } else {
   console.error('FAIL  prologue.json (engine validator)');
   for (const err of prologueResult.errors) {
+    console.error(`      ${err}`);
+  }
+  failed = true;
+}
+
+// Validate the blessings catalog (engine validator: shape, v3 pricing, and the params of the
+// boons whose handler would otherwise skip a malformed set and ship a card that does nothing)
+const blessingsResult = validateBlessingsConfig(readData('blessings.json'));
+if (blessingsResult.valid) {
+  console.log('  OK  blessings.json (engine validator)');
+} else {
+  console.error('FAIL  blessings.json (engine validator)');
+  for (const err of blessingsResult.errors) {
+    console.error(`      ${err}`);
+  }
+  failed = true;
+}
+
+// Validate the story events' semantics against the game data (engine validator)
+const eventsResult = validateEventsConfig(readData('events.json'), {
+  skills: readData('skills.json'),
+  weapons: readData('weapons.json'),
+  consumables: readData('consumables.json'),
+  classes: readData('classes.json'),
+  blessings: readData('blessings.json'),
+  eclipse: readData('eclipse.json'),
+  lootTables: readData('lootTables.json'),
+  traits: readData('traits.json'),
+  recruits: readData('recruits.json'),
+  accessories: readData('accessories.json'),
+});
+if (eventsResult.valid) {
+  console.log('  OK  events.json (engine validator)');
+} else {
+  console.error('FAIL  events.json (engine validator)');
+  for (const err of eventsResult.errors) {
     console.error(`      ${err}`);
   }
   failed = true;

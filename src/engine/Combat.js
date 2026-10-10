@@ -17,6 +17,10 @@ import { rollHit } from './HitRoll.js';
 import { rollDefenseAffixes } from './AffixSystem.js';
 import { isSleeping, isSilenced, isWounded, removeCondition } from './StatusConditionSystem.js';
 import { isEntity } from './EntitySystem.js';
+import { effectiveSkills } from './EffectiveSkills.js';
+import { absorbLethal } from './UnitHealth.js';
+import { revivalStoneCount } from './RevivalStones.js';
+import { getUnitMark, getUnitMarkFor, markActivation, markProcs } from './MarkSystem.js';
 import {
   getImbueCombatMods,
   getImbuePostCombatPoison,
@@ -193,6 +197,17 @@ function hasWeaponArtActivation(mods) {
   return mods.activated.some((entry) => entry?.id === 'weapon_art');
 }
 
+/** A share of the foe's DEF a physical strike adds as damage (Lunar Brace); 0 when absent. */
+function normalizeCombatFoeDefShare(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+/** A Hit rating as a roll's input: 0 to 100. */
+function clampHit(hit) {
+  return Math.max(0, Math.min(100, hit));
+}
+
 function normalizeCombatMods(mods) {
   if (!mods || typeof mods !== 'object') return null;
   return {
@@ -228,6 +243,8 @@ function normalizeCombatMods(mods) {
     damageMultiplier: normalizeCombatDamageMultiplier(mods.damageMultiplier),
     ignoreWeaponTriangle: Boolean(mods.ignoreWeaponTriangle),
     ignoreRES: Boolean(mods.ignoreRES),
+    foeDefShare: normalizeCombatFoeDefShare(mods.foeDefShare),
+    firstStrikeHitBonus: Math.trunc(Number(mods.firstStrikeHitBonus) || 0),
     activated: Array.isArray(mods.activated) ? [...mods.activated] : [],
   };
 }
@@ -274,6 +291,8 @@ export function mergeCombatMods(baseMods, extraMods) {
         : null,
     ignoreWeaponTriangle: base.ignoreWeaponTriangle || extra.ignoreWeaponTriangle,
     ignoreRES: base.ignoreRES || extra.ignoreRES,
+    foeDefShare: base.foeDefShare + extra.foeDefShare,
+    firstStrikeHitBonus: base.firstStrikeHitBonus + extra.firstStrikeHitBonus,
     activated: [...base.activated, ...extra.activated],
   };
 }
@@ -790,6 +809,25 @@ export function calculateCritRate(attacker, weapon, defender) {
   return Math.max(0, Math.min(100, rawCrit - defender.stats.LCK));
 }
 
+/**
+ * The stat defence a strike's damage formula subtracts, and the terrain's DEF bonus beside
+ * it: the one place that decides it (DEF or RES; halved by Sunder or `halveDefense`;
+ * nothing against an RES strike that ignores RES). calculateDamage and the DEF-share bonus
+ * both read it, so the two can never disagree.
+ */
+function strikeDefense(defender, atkWeapon, defenderTerrain, options = null) {
+  const targetsRES = Boolean(options?.targetsRES);
+  let def = targetsRES ? Number(defender?.stats?.RES) || 0 : calculateDefense(defender, atkWeapon);
+  if (options?.halveDefense || (!targetsRES && hasSunderEffect(atkWeapon))) {
+    def = Math.floor(def / 2);
+  }
+  // Divine Flare: RES-targeting strikes pierce resistance entirely
+  if (options?.ignoreRES && (targetsRES || usesMagic(atkWeapon))) {
+    def = 0;
+  }
+  return { def, terrainDef: getTerrainBonus(defender, defenderTerrain, 'defBonus') };
+}
+
 /** Raw damage (before crit), minimum 0. Includes terrain DEF bonus + weapon effectiveness. */
 export function calculateDamage(
   attacker,
@@ -804,7 +842,6 @@ export function calculateDamage(
     defWeapon && !options?.ignoreTriangle
       ? getWeaponTriangleBonus(atkWeapon, defWeapon, attacker.weaponRank)
       : { hit: 0, damage: 0 };
-  const targetsRES = Boolean(options?.targetsRES);
   const effectivenessMultiplier = Number(options?.effectivenessMultiplier);
   const atk = calculateAttack(
     attacker,
@@ -814,20 +851,40 @@ export function calculateDamage(
     isInitiating,
     Number.isFinite(effectivenessMultiplier) ? effectivenessMultiplier : null,
   );
-  let def = targetsRES ? Number(defender?.stats?.RES) || 0 : calculateDefense(defender, atkWeapon);
-  if (options?.halveDefense || (!targetsRES && hasSunderEffect(atkWeapon))) {
-    def = Math.floor(def / 2);
-  }
-  // Divine Flare: RES-targeting strikes pierce resistance entirely
-  if (options?.ignoreRES && (targetsRES || usesMagic(atkWeapon))) {
-    def = 0;
-  }
-  const terrainDef = getTerrainBonus(defender, defenderTerrain, 'defBonus');
+  const { def, terrainDef } = strikeDefense(defender, atkWeapon, defenderTerrain, options);
   const result = Math.max(0, atk - def - terrainDef);
   if (IS_DEV && Number.isNaN(result)) {
     console.warn('[Combat] NaN damage:', { attacker: attacker?.name, weapon: atkWeapon?.name });
   }
   return result;
+}
+
+/**
+ * Lunar Brace's bonus (`foeDefShare`): floor(share × the foe's DEF) added to a physical
+ * strike. "The foe's DEF" is exactly what that strike's damage formula subtracts: the
+ * stat after Sunder or Luna's halving (`strikeDefense`), plus the terrain's DEF bonus, the
+ * defender's DEF mods and its weapon's DEF bonus, never below 0. A strike against RES
+ * (magic, a magic sword, an art that targets RES) gets nothing.
+ */
+function foeDefShareBonus(
+  defender,
+  atkWeapon,
+  defWeapon,
+  defTerrain,
+  atkMods,
+  defMods,
+  { halveDefense = false } = {},
+) {
+  const share = Number(atkMods?.foeDefShare) || 0;
+  if (!(share > 0) || !atkWeapon || strikeHitsRes(atkWeapon, atkMods)) return 0;
+  const { def, terrainDef } = strikeDefense(defender, atkWeapon, defTerrain, {
+    halveDefense,
+    ignoreRES: atkMods?.ignoreRES,
+  });
+  const weaponDef = defWeapon ? sumWeaponBonus(getWeaponStatBonuses(defWeapon), 'DEF') : 0;
+  const foeDef = Math.max(0, def + terrainDef + combatModDefense(defMods, false) + weaponDef);
+  // The epsilon keeps a share like 0.3 of 30 from landing a hair under 9.
+  return Math.floor(foeDef * share + 1e-9);
 }
 
 /**
@@ -868,6 +925,7 @@ export function strikeDamage(
       defWeaponDef,
   );
   damage += getCombatStatScalingBonus(attacker, atkMods);
+  damage += foeDefShareBonus(defender, atkWeapon, defWeapon, defTerrain, atkMods, defMods);
   if (atkMods?.vengeance) damage += getMissingHp(attacker);
   if (defMods?.halfPhysicalDamage && isPhysical(atkWeapon)) damage = Math.floor(damage / 2);
   if (atkMods?.damageMultiplier > 1) damage = Math.floor(damage * atkMods.damageMultiplier);
@@ -946,6 +1004,17 @@ export function artFollowUpStrike(
         targetWeaponDef,
     );
     dmg += getCombatStatScalingBonus(striker, strikerMods);
+    dmg += foeDefShareBonus(
+      target,
+      strikerWeapon,
+      targetWeapon,
+      targetTerrain,
+      strikerMods,
+      targetMods,
+      {
+        halveDefense,
+      },
+    );
     if (strikerMods?.vengeance) dmg += getMissingHp(striker);
     if (targetMods?.halfPhysicalDamage && isPhysical(strikerWeapon)) dmg = Math.floor(dmg / 2);
     if (strikerMods?.damageMultiplier > 1) dmg = Math.floor(dmg * strikerMods.damageMultiplier);
@@ -1034,10 +1103,12 @@ export function forecastStrikeGroups(side) {
     drainMaxPerHit: side.drainMaxPerHit || null,
     drainPerHit: side.drainPerHit || 0,
   };
+  // Keen Eye: only the very first strike rolls at `firstHit`; group 0 carries it.
+  const withFirstHit = (group) => ({ ...group, firstHit: side.firstHit ?? side.hit });
   if (side.followUp) {
     const firstCount = Math.max(0, side.attackCount - side.followUp.attackCount);
     return [
-      { ...first, count: firstCount },
+      { ...withFirstHit(first), count: firstCount },
       {
         damage: side.followUp.damage,
         hit: side.followUp.hit,
@@ -1053,11 +1124,11 @@ export function forecastStrikeGroups(side) {
   if (side.doubles) {
     const half = Math.max(1, Math.round(side.attackCount / 2));
     return [
-      { ...first, count: half },
+      { ...withFirstHit(first), count: half },
       { ...first, count: side.attackCount - half },
     ].filter((group) => group.count > 0);
   }
-  return [{ ...first, count: side.attackCount }];
+  return [{ ...withFirstHit(first), count: side.attackCount }];
 }
 
 /** Total damage a forecast side deals if every strike lands without a crit. */
@@ -1141,6 +1212,17 @@ const EXCHANGE_NEUTRAL_ACCESSORY_EFFECTS = new Set([
   'buffDEF',
   'buffRES',
 ]);
+
+/**
+ * True when a unit's Mark can change the exchange's HP outcome: Hunt adds damage on a
+ * strike, Veil halves a magic strike (docs/specs/phase3.md 3C). They are listed with Luna
+ * and Aegis below, so the forecast hides its projection instead of promising an outcome
+ * they could change. Forge, Ember and Road never act inside the exchange.
+ */
+export function markChangesExchangeHp(unit, marksData) {
+  const mark = getUnitMark(unit, marksData);
+  return mark?.trigger === 'on-attack' || mark?.trigger === 'on-defend';
+}
 
 /** True when a unit's accessory can change HP inside the exchange (see above). */
 export function accessoryChangesExchangeHp(unit) {
@@ -1243,11 +1325,13 @@ export function getCombatForecast(
   const defTerrainForAtkHit = atkMods?.ignoreTerrainAvoid ? null : defTerrain;
   let atkDmg = strikeDamage(attacker, atkWeapon, defender, defWeapon, defTerrain, atkMods, defMods);
   if (atkMultiHit) atkDmg = Math.max(1, Math.floor(atkDmg * atkMultiHit.damageMultiplier));
-  let atkHit =
+  // Keen Eye: the first strike of a combat its holder starts has a Hit of its own.
+  const atkHitRaw =
     calculateHitRate(attacker, atkWeapon, defender, defTerrainForAtkHit, atkTriangle) +
     (atkMods?.hitBonus || 0) -
     (defMods?.avoidBonus || 0);
-  atkHit = Math.max(0, Math.min(100, atkHit));
+  let atkHit = clampHit(atkHitRaw);
+  let atkFirstHit = clampHit(atkHitRaw + (atkMods?.firstStrikeHitBonus || 0));
   let atkCrit = calculateCritRate(attacker, atkWeapon, defender) + (atkMods?.critBonus || 0);
   atkCrit = Math.max(0, Math.min(100, atkCrit));
   if (isEntity(defender)) atkCrit = Math.floor(atkCrit * ENTITY_CRIT_RATE_MULT);
@@ -1258,6 +1342,7 @@ export function getCombatForecast(
   if (fSilencedAttacker) {
     atkDmg = 0;
     atkHit = 0;
+    atkFirstHit = 0;
   }
 
   // Doubling with accessory + skill + weight modifiers
@@ -1382,6 +1467,8 @@ export function getCombatForecast(
         damage: atkDmg,
         crit: atkCrit,
         hit: atkHit,
+        // The first strike's chance decides whether an exchange can land at all (Keen Eye).
+        firstHit: atkFirstHit,
         attackCount: atkCount,
         critMultiplier: isEntity(defender) ? ENTITY_CRIT_DMG_MULT : CRIT_MULTIPLIER,
       },
@@ -1418,9 +1505,10 @@ export function getCombatForecast(
     display: {
       triangle: atkTriangle,
       distance,
-      counterHasDamageProc: [...(defender.skills || []), defWeapon?._grantedSkill].some((skill) =>
-        COUNTER_DAMAGE_PROCS.has(typeof skill === 'string' ? skill : skill?.id),
-      ),
+      counterHasDamageProc:
+        effectiveSkills(defender, { weapon: defWeapon }).some((id) =>
+          COUNTER_DAMAGE_PROCS.has(id),
+        ) || Boolean(getUnitMarkFor(defender, 'on-attack', skillCtx?.marksData)),
       counterReason: defCanCounter
         ? null
         : isSleeping(defender)
@@ -1456,11 +1544,12 @@ export function getCombatForecast(
         ].some(
           ([u, weapon]) =>
             accessoryChangesExchangeHp(u) ||
+            markChangesExchangeHp(u, skillCtx?.marksData) ||
             (u.affixes || []).some((id) => {
               const affix = skillCtx?.affixData?.affixes?.find((entry) => entry.id === id);
               return !affix || (affix.forecast === 'exchange' && !affix.forecastProjectionSafe);
             }) ||
-            [...(u.skills || []), weapon?._grantedSkill].some((s) =>
+            effectiveSkills(u, { weapon }).some((id) =>
               [
                 'miracle',
                 'sol',
@@ -1477,15 +1566,17 @@ export function getCombatForecast(
                 'dragon_scale',
                 'drain',
                 'zombie_drain',
-              ].includes(typeof s === 'string' ? s : s?.id),
+              ].includes(id),
             ),
         ),
     },
     attacker: {
       name: attacker.name,
       hp: attacker.currentHP ?? attacker.stats.HP,
+      stones: revivalStoneCount(attacker).remaining,
       damage: atkDmg,
       hit: atkHit,
+      firstHit: atkFirstHit,
       crit: atkCrit,
       as: atkEffectiveSpd,
       doubles: atkDoubles,
@@ -1509,6 +1600,9 @@ export function getCombatForecast(
     defender: {
       name: defender.name,
       hp: defender.currentHP ?? defender.stats.HP,
+      // Revival Stones left: a blow that would fell this side breaks one instead and ends
+      // the exchange (the projection says "Breaks a bar").
+      stones: revivalStoneCount(defender).remaining,
       canCounter: defCanCounter,
       damage: defDmg,
       hit: defHit,
@@ -1568,6 +1662,7 @@ function rollStrike(
   critMultiplier = CRIT_MULTIPLIER,
   drainMaxPerHit = null,
   drainPerHit = 0,
+  targetUnit = null,
 ) {
   const attackerSide = strikeSides?.attackerSide || null;
   const targetSide = strikeSides?.targetSide || null;
@@ -1596,6 +1691,7 @@ function rollStrike(
   let reflectDamage = 0;
   let warpRange = 0;
   const skillActivations = [];
+  let huntSkipped = false;
   // Append activations by id, deduplicating
   function mergeActivations(activated) {
     if (!activated?.length) return;
@@ -1637,6 +1733,18 @@ function rollStrike(
     }
     // Always surface all on-attack skill activations
     mergeActivations(skillResult.activated);
+    huntSkipped = Boolean(skillResult.lethal);
+  }
+
+  // Mark of the Hunt (3C): a strike-level chance of +damage on a strike that deals any, on the
+  // battle's Math.random, after the on-attack procs. Not a skill: Silence does not stop it,
+  // and a Lethality kill does not need it.
+  const hunt = huntSkipped
+    ? null
+    : getUnitMarkFor(strikeSkills?.striker, 'on-attack', strikeSkills?.marksData);
+  if (hunt && finalDmg > 0 && markProcs(hunt)) {
+    finalDmg += Math.max(0, Math.trunc(Number(hunt.effect?.damageBonus) || 0));
+    mergeActivations([markActivation(hunt)]);
   }
 
   // On-defend skills (Pavise, Aegis, Miracle, Intimidate)
@@ -1648,6 +1756,7 @@ function rollStrike(
       isPhysicalAtk,
       strikeSkills.skillsData,
       targetHP,
+      strikeSkills.marksData,
     );
     if (defResult.modifiedDamage !== finalDmg) {
       finalDmg = defResult.modifiedDamage;
@@ -1701,7 +1810,14 @@ function rollStrike(
   }
 
   if (!Number.isFinite(finalDmg)) finalDmg = 0;
-  const hpAfter = Math.max(0, targetHP - finalDmg);
+  let hpAfter = Math.max(0, targetHP - finalDmg);
+  // Revival Stones (UnitHealth.absorbLethal): after the on-defend skills, Miracle and affixes
+  // had their say, a blow that still takes the bar to 0 breaks a stone instead and refills
+  // it. The refill is the strike's own `targetHPAfter`, so every reader (applyStrikeHP, the
+  // deed kill count, the loop's gating, the animation) sees a unit that stood. A unit with
+  // no stones is untouched, and its event keeps the keys it always had.
+  const absorbed = targetUnit ? absorbLethal(targetUnit, hpAfter) : null;
+  if (absorbed?.stoneBroken) hpAfter = absorbed.hp;
   return {
     type: 'strike',
     attacker: strikerName,
@@ -1719,6 +1835,7 @@ function rollStrike(
     commandersGambit,
     reflectDamage,
     warpRange,
+    ...(absorbed?.stoneBroken ? { stoneBroken: true, hpBeforeBreak: targetHP } : {}),
   };
 }
 
@@ -1766,6 +1883,7 @@ function applyStrikeHeal(evt, striker, strikerHP) {
  *   rollStrikeSkills — function(striker, dmg, target, skillsData, combatState)
  *   checkAstra — function(striker, skillsData)
  *   skillsData — full skills array
+ *   marksData — data/marks.json (Mark of the Hunt / Veil; none = no Mark acts)
  * }
  */
 export function resolveCombat(
@@ -1780,6 +1898,10 @@ export function resolveCombat(
 ) {
   const combatSkillState = { adeptUsed: new Set() };
   const events = [];
+  // Revival Stones: a strike that breaks a stone ends the exchange. Every loop and phase
+  // below reads this, so no further strike of either side is rolled (and no further RNG).
+  let exchangeEnded = false;
+  const brokeBar = { attacker: false, defender: false };
   let atkHP = attacker.currentHP ?? attacker.stats.HP;
   let defHP = defender.currentHP ?? defender.stats.HP;
   const atkStartHP = atkHP;
@@ -1856,19 +1978,20 @@ export function resolveCombat(
       defWeaponDefBonus,
   );
   atkLunaDmg += getCombatStatScalingBonus(attacker, atkMods);
+  atkLunaDmg += foeDefShareBonus(defender, atkWeapon, defWeapon, defTerrain, atkMods, defMods, {
+    halveDefense: true,
+  });
   if (atkMods?.vengeance) atkLunaDmg += getMissingHp(attacker);
   if (defMods?.halfPhysicalDamage && isPhysical(atkWeapon)) atkLunaDmg = Math.floor(atkLunaDmg / 2);
   if (atkMods?.damageMultiplier > 1) atkLunaDmg = Math.floor(atkLunaDmg * atkMods.damageMultiplier);
   atkLunaDmg = Math.max(0, atkLunaDmg);
-  let atkHit = Math.max(
-    0,
-    Math.min(
-      100,
-      calculateHitRate(attacker, atkWeapon, defender, defTerrainForAtkHit, atkTriangle) +
-        (atkMods?.hitBonus || 0) -
-        (defMods?.avoidBonus || 0),
-    ),
-  );
+  // Keen Eye: only the attacker's first rolled strike takes `firstStrikeHitBonus`.
+  const atkHitRaw =
+    calculateHitRate(attacker, atkWeapon, defender, defTerrainForAtkHit, atkTriangle) +
+    (atkMods?.hitBonus || 0) -
+    (defMods?.avoidBonus || 0);
+  let atkHit = clampHit(atkHitRaw);
+  let atkFirstHit = clampHit(atkHitRaw + (atkMods?.firstStrikeHitBonus || 0));
   let atkCrit = Math.max(
     0,
     Math.min(100, calculateCritRate(attacker, atkWeapon, defender) + (atkMods?.critBonus || 0)),
@@ -1881,6 +2004,7 @@ export function resolveCombat(
   if (silencedAttacker) {
     atkDmg = 0;
     atkHit = 0;
+    atkFirstHit = 0;
   }
 
   // Silenced defenders cannot counter with magic weapons (Tome/Light/Staff)
@@ -2014,6 +2138,7 @@ export function resolveCombat(
         isFirstHit: !defender._hitByPlayerThisPhase,
         isMelee,
         skillsData: skillCtx.skillsData,
+        marksData: skillCtx.marksData || null,
         combatState: combatSkillState,
       }
     : null;
@@ -2031,6 +2156,7 @@ export function resolveCombat(
           isFirstHit: false, // Player doesn't have Shielded usually, but keeping consistent
           isMelee,
           skillsData: skillCtx.skillsData,
+          marksData: skillCtx.marksData || null,
           combatState: combatSkillState,
         }
       : null;
@@ -2045,6 +2171,9 @@ export function resolveCombat(
   const atkCritMult = isEntity(defender) ? ENTITY_CRIT_DMG_MULT : CRIT_MULTIPLIER;
   const defCritMult = isEntity(attacker) ? ENTITY_CRIT_DMG_MULT : CRIT_MULTIPLIER;
 
+  // Keen Eye's first strike is spent by the attacker's first rolled strike.
+  let atkFirstStrikePending = true;
+
   // Execute N strikes from one combatant against the other
   function strike(
     aName,
@@ -2057,6 +2186,7 @@ export function resolveCombat(
     strikeSkills,
     weaponSpecial,
     strikerMods,
+    firstStrikeHit = null,
   ) {
     const attackerSide = isAttackingDefender ? 'attacker' : 'defender';
     const targetSide = isAttackingDefender ? 'defender' : 'attacker';
@@ -2065,12 +2195,21 @@ export function resolveCombat(
     const drainFlat = strikerMods?.drainPerHit || 0;
     const strikePerHitHeal = isAttackingDefender ? atkPerHitHeal : defPerHitHeal;
     const strikeCritMult = isAttackingDefender ? atkCritMult : defCritMult;
-    for (let i = 0; i < count && atkHP > 0 && defHP > 0; i++) {
+    for (let i = 0; i < count && atkHP > 0 && defHP > 0 && !exchangeEnded; i++) {
       const targetHP = isAttackingDefender ? defHP : atkHP;
+      // Keen Eye: the attacker's first rolled strike of the combat (a Vantage defender's
+      // phase leaves it pending; brave, follow-up and bonus strikes roll at `hit`).
+      let strikeHit = hit;
+      let firstStrikeApplied = false;
+      if (isAttackingDefender && firstStrikeHit !== null && atkFirstStrikePending) {
+        atkFirstStrikePending = false;
+        strikeHit = firstStrikeHit;
+        firstStrikeApplied = firstStrikeHit !== hit;
+      }
       const evt = rollStrike(
         aName,
         tName,
-        hit,
+        strikeHit,
         dmg,
         crit,
         targetHP,
@@ -2082,7 +2221,13 @@ export function resolveCombat(
         strikeCritMult,
         drainCap,
         drainFlat,
+        isAttackingDefender ? defender : attacker,
       );
+      if (firstStrikeApplied) evt.firstStrikeBonus = true;
+      if (evt.stoneBroken) {
+        exchangeEnded = true;
+        brokeBar[targetSide] = true;
+      }
       if (isAttackingDefender) {
         defHP = evt.targetHPAfter;
         // Sol/Drain heal: striker heals HP
@@ -2125,7 +2270,7 @@ export function resolveCombat(
       // Adept/Aether: extra strike at full damage (one bonus strike per hit).
       // Defense skills/affixes (Pavise, Aegis, Miracle, Shielded, Thorns, …) still
       // apply; only on-attack procs are disabled so bonus strikes can't chain.
-      if (evt.extraStrike && atkHP > 0 && defHP > 0) {
+      if (evt.extraStrike && atkHP > 0 && defHP > 0 && !exchangeEnded) {
         // Aether Luna: bonus strike at 1.5x damage
         const bonusDmg = evt.aetherLuna ? Math.floor(dmg * 1.5) : dmg;
         const bonusTargetHP = isAttackingDefender ? defHP : atkHP;
@@ -2145,8 +2290,13 @@ export function resolveCombat(
           strikeCritMult,
           drainCap,
           drainFlat,
+          isAttackingDefender ? defender : attacker,
         );
         bonusEvt.adeptStrike = true;
+        if (bonusEvt.stoneBroken) {
+          exchangeEnded = true;
+          brokeBar[targetSide] = true;
+        }
         if (isAttackingDefender) {
           defHP = bonusEvt.targetHPAfter;
           atkHP = applyStrikeHeal(bonusEvt, attacker, atkHP);
@@ -2196,7 +2346,9 @@ export function resolveCombat(
     weapon,
     strikerMods,
     lunaDamage,
+    firstStrikeHit = null,
   ) {
+    if (exchangeEnded) return;
     let count = braveCount;
     let phaseDmg = dmg;
     let phaseMultiplier = null;
@@ -2233,6 +2385,7 @@ export function resolveCombat(
       strikeSkills,
       weapon?.special || '',
       strikerMods,
+      firstStrikeHit,
     );
     if (strikeSkills) strikeSkills.lunaDamage = originalLunaDamage;
   }
@@ -2255,6 +2408,7 @@ export function resolveCombat(
       atkWeapon,
       f ? f.mods : atkMods,
       f ? f.lunaDamage : undefined,
+      f ? null : atkFirstHit,
     );
     if (f) markArtFollowUpStrikes(events, firstEvent);
   }
@@ -2308,7 +2462,7 @@ export function resolveCombat(
   } else if (defenderDesperation && defDoubles) {
     // Defender-side Desperation: defender follow-up occurs before attacker follow-up
     atkPhase();
-    if (atkHP > 0 && defHP > 0 && !warpedSide()) {
+    if (atkHP > 0 && defHP > 0 && !exchangeEnded && !warpedSide()) {
       events.push({ type: 'skill', name: 'Desperation', unit: defender.name });
       if (defCanCounter) {
         defPhase();
@@ -2340,7 +2494,8 @@ export function resolveCombat(
     if (escapedSide !== 'attacker' && landedHit('attacker')) {
       const atkPoison =
         parsePoisonDamage(atkWeapon) + getImbuePostCombatPoison(atkWeapon, skillCtx?.imbuesData);
-      if (atkPoison > 0) {
+      // A bar that just broke is a fresh one: the poison waits for a blow that leaves a wound.
+      if (atkPoison > 0 && !brokeBar.defender) {
         defHP = Math.max(1, defHP - atkPoison); // Poison can't kill (leave at 1 HP)
         poisonEffects.push({ target: 'defender', damage: atkPoison });
       }
@@ -2350,7 +2505,7 @@ export function resolveCombat(
         defCanCounter && defWeapon
           ? parsePoisonDamage(defWeapon) + getImbuePostCombatPoison(defWeapon, skillCtx?.imbuesData)
           : 0;
-      if (defPoison > 0) {
+      if (defPoison > 0 && !brokeBar.attacker) {
         atkHP = Math.max(1, atkHP - defPoison);
         poisonEffects.push({ target: 'attacker', damage: defPoison });
       }
@@ -2452,5 +2607,7 @@ export function resolveCombat(
     strikeMods: { attacker: atkMods, defender: defMods },
     // HP each side entered the combat with (a heal on damage dealt ignores overkill).
     startHP: { attacker: atkStartHP, defender: defStartHP },
+    // Revival Stones: which side's bar broke (the exchange ended there). Absent otherwise.
+    ...(exchangeEnded ? { stoneBroken: { ...brokeBar } } : {}),
   };
 }

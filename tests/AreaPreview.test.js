@@ -8,6 +8,8 @@ import { areaForecastLines, previewAreaArt } from '../src/engine/AreaPreview.js'
 import { combatStrikeMods } from '../src/engine/Combat.js';
 import { getWeaponArtCombatMods } from '../src/engine/WeaponArtSystem.js';
 import { createPlayerKnowledge } from '../src/engine/PlayerKnowledge.js';
+import { resolvePostCombatMove } from '../src/engine/WeaponArtPostCombat.js';
+import { HeadlessGrid } from './harness/HeadlessGrid.js';
 import { AttackFlowController } from '../src/ui/AttackFlowController.js';
 import { forecastNotes } from '../src/ui/forecastDisplay.js';
 
@@ -90,6 +92,38 @@ describe('area preview numbers', () => {
     // The forecast lists them with the attacker's notes.
     const forecast = { attacker: { areaNotes: visible(p).lines }, defender: {} };
     expect(forecastNotes(forecast, true, 30)).toEqual(expect.arrayContaining(visible(p).lines));
+  });
+});
+
+describe('area preview and Revival Stones', () => {
+  it('a blow that would fell a stoned foe previews as breaking a bar, not a KO', () => {
+    // As above: the 10-HP foes take 12 and would fall. One holds a Revival Stone.
+    const mage = unit('Mage', 'player', 1, 1, { MAG: 20 }, { weapon: weapon('Fire') });
+    const target = unit('Target', 'enemy', 2, 1, { RES: 4 });
+    const frail = unit('Frail', 'enemy', 3, 1, { RES: 4, HP: 10 });
+    const warchief = unit(
+      'Warchief',
+      'enemy',
+      2,
+      2,
+      { RES: 4, HP: 10 },
+      { isBoss: true, revivalStones: 1, revivalStonesMax: 1 },
+    );
+    const p = preview({
+      attacker: mage,
+      artId: 'magic_burning_quake',
+      target,
+      units: [mage, target, frail, warchief],
+    });
+    expect(p.victims.map((v) => [v.unit.name, v.damage, v.kills, Boolean(v.breaks)])).toEqual([
+      ['Frail', 10, true, false],
+      ['Warchief', 10, false, true],
+    ]);
+    expect(areaForecastLines(p)).toEqual([
+      'Area if it hits: 2 foes, 1 KO',
+      'Frail −10 KO',
+      'Warchief −10 breaks a bar',
+    ]);
   });
 });
 
@@ -292,6 +326,83 @@ describe('a hidden unit never changes the preview', () => {
     const seen = build(false);
     expect(visible(build(true))).toEqual(visible(seen));
     expect(seen.push).toEqual({ to: { col: 4, row: 1 }, crash: false, damage: 0, obstacle: null });
+  });
+
+  it('a fogged foe on the ice a ram slides across (a forced slide reads known units only)', () => {
+    // Row 1: plain 0, 1, 2; ice 3, 4; plain 5, 6, 7. The Lancer at 1 rams the Target at
+    // 2 two tiles east: tile 3 is ice, so the slide goes 4 and lands on 5 (worked by
+    // hand: three tiles moved against a push of two, no crash).
+    const ram = {
+      id: 'fixture_ram',
+      targeting: 'normal_attack',
+      effects: { afterCombat: [{ type: 'move', mode: 'ram', distance: 2, collisionDamage: 5 }] },
+      combatMods: {},
+    };
+    const T = Object.fromEntries(data.terrain.map((t, i) => [t.name, i]));
+    const layout = Array.from({ length: 8 }, (_, r) =>
+      Array.from({ length: 8 }, (_, c) => (r === 1 && (c === 3 || c === 4) ? T.Ice : T.Plain)),
+    );
+    const iceGrid = new HeadlessGrid(8, 8, data.terrain, layout);
+    const iceWorld = {
+      cols: 8,
+      rows: 8,
+      getMoveCost: (c, r, moveType) => iceGrid.getMoveCost(c, r, moveType),
+      getTerrainAt: (c, r) => iceGrid.getTerrainAt(c, r),
+      affixes: data.affixes,
+    };
+    const build = (hiddenAt) => {
+      const lancer = unit('Lancer', 'player', 1, 1);
+      const target = unit('Target', 'enemy', 2, 1);
+      const units = [lancer, target];
+      const lurker = hiddenAt ? unit('Lurker', 'enemy', hiddenAt, 1) : null;
+      if (lurker) units.push(lurker);
+      const knowledge = createPlayerKnowledge({
+        grid: fogGrid(hiddenAt ? [`${hiddenAt},1`] : []),
+        units,
+      });
+      const shown = previewAreaArt({
+        attacker: lancer,
+        art: ram,
+        target,
+        knowledge,
+        world: iceWorld,
+      });
+      // What execution does on the real board, for the same ram.
+      const done = resolvePostCombatMove({
+        sourceUnit: lancer,
+        targetUnit: target,
+        mode: 'ram',
+        distance: 2,
+        cols: 8,
+        rows: 8,
+        getMoveCost: iceWorld.getMoveCost,
+        getTerrainAt: iceWorld.getTerrainAt,
+        getUnitAt: (c, r) => units.find((u) => u.col === c && u.row === r) || null,
+      });
+      return { shown, done };
+    };
+    const seen = build(null);
+    expect(seen.shown.push).toEqual({
+      to: { col: 5, row: 1 },
+      crash: false,
+      damage: 0,
+      obstacle: null,
+    });
+    expect(seen.done.assignments[0]).toMatchObject({ col: 5, row: 1, slid: true });
+    // A Lurker the fog hides on the slide's landing (5) or beside the ice (4): the preview
+    // is identical in every world...
+    for (const hiddenAt of [4, 5]) {
+      expect(visible(build(hiddenAt).shown)).toEqual(visible(seen.shown));
+    }
+    // ...and the real ram stops where the real board stops it: held on the ice at 4 by a
+    // body on 5 (the push was spent: no crash), or at 3 by a body on 4 (stopped short: a
+    // crash).
+    const onLanding = build(5).done;
+    expect(onLanding.assignments[0]).toMatchObject({ col: 4, row: 1 });
+    expect(onLanding.collision).toBeNull();
+    const onIce = build(4).done;
+    expect(onIce.assignments[0]).toMatchObject({ col: 3, row: 1 });
+    expect(onIce.collision).not.toBeNull();
   });
 });
 

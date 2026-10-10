@@ -22,7 +22,7 @@ import { convertNodeToRoutBattle } from './NodeMapGenerator.js';
 export const ECLIPSE_STATE_VERSION = 2;
 
 // Node types (NODE_TYPES values) that can fall, and what they become.
-const FALLABLE_TYPES = new Set(['battle', 'shop', 'church', 'recruit', 'colosseum']);
+const FALLABLE_TYPES = new Set(['battle', 'shop', 'church', 'recruit', 'colosseum', 'event']);
 const DEFAULT_CAP = 100;
 // Act pressure is uncapped by the global meter; this only bounds corrupt saves.
 const ACT_SHADOW_LIMIT = 9999;
@@ -287,11 +287,13 @@ export function fallCopy(fromType, config) {
   return {
     label: String(entry?.label || 'Eclipsed battle'),
     noun: String(entry?.noun || 'land'),
+    // What a fallen EVENT that kept its story is called (a Dark Omen).
+    darkLabel: String(entry?.darkLabel || 'Dark Omen'),
   };
 }
 
 // The loss a toast names first: a lost service stings more than a battlefield.
-const FALL_WEIGHT = { shop: 5, church: 4, recruit: 3, colosseum: 2, battle: 1 };
+const FALL_WEIGHT = { shop: 5, church: 4, recruit: 3, event: 2.5, colosseum: 2, battle: 1 };
 
 /** The player-facing line for a set of falls: "The dark takes the village." */
 export function fallToastText(nodes, config) {
@@ -301,6 +303,8 @@ export function fallToastText(nodes, config) {
     (FALL_WEIGHT[n.eclipse.fromType] || 0) > (FALL_WEIGHT[best.eclipse.fromType] || 0) ? n : best,
   );
   const { noun } = fallCopy(first.eclipse.fromType, config);
+  // A Dark Omen is a road the dark twisted but did not take: its story is still there.
+  if (list.length === 1 && first.darkOmen === true) return `The dark twists the ${noun}.`;
   if (list.length === 1) return `The dark takes the ${noun}.`;
   return `The dark takes the ${noun} and ${list.length - 1} more.`;
 }
@@ -322,7 +326,12 @@ export function withEclipseSeed(key, fn) {
 /**
  * Transform one node into its eclipsed form (in place). A battle keeps its encounter
  * and becomes elite; a service/recruit/arena node becomes a fresh rout battle rolled
- * under `eclipse-node:${runSeed}:${nodeId}`.
+ * under `eclipse-node:${runSeed}:${nodeId}`. An event node stays an event when
+ * `ctx.darkOmen(node)` says an event with a `dark` face could be met there now (Phase 2B,
+ * docs/specs/event-nodes-phase2.md §2B): it keeps `type: 'event'`, is stamped like any fallen
+ * node and wears `node.darkOmen = true`; EventCommands then picks only among the events that
+ * have a dark face. Without one it falls to a rout battle as before. The decision is made once,
+ * here, from the run as it is when the dark arrives; no draw is made for it.
  */
 export function eclipseNode(node, ctx) {
   const {
@@ -333,9 +342,20 @@ export function eclipseNode(node, ctx) {
     fogChanceBonus = 0,
     halfFogChance = false,
     shadow = 0,
+    darkOmen = null,
   } = ctx;
   const fromType = node.type;
-  const { label } = fallCopy(fromType, config);
+  const { label, darkLabel } = fallCopy(fromType, config);
+  if (fromType === 'event' && typeof darkOmen === 'function' && darkOmen(node) === true) {
+    node.darkOmen = true;
+    node.eclipse = {
+      fellAtShadow: Math.max(0, int(shadow, 0)),
+      fromType,
+      label: darkLabel,
+      seen: false,
+    };
+    return node;
+  }
   if (fromType === 'battle' && node.battleParams) {
     node.battleParams = { ...node.battleParams, isEclipsed: true, isElite: true };
   } else {
@@ -374,6 +394,7 @@ export function applyEclipse({
   mapTemplates = null,
   fogChanceBonus = 0,
   halfFogChance = false,
+  darkOmen = null,
 }) {
   if (!isEclipseActive(state, config) || !Array.isArray(nodeMap?.nodes)) return [];
   const act = actShadowOf(state);
@@ -392,6 +413,7 @@ export function applyEclipse({
       fogChanceBonus,
       halfFogChance,
       shadow: state.shadow,
+      darkOmen,
     });
     fallen.push(node);
   }

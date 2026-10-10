@@ -254,9 +254,44 @@ it('a stock out of reach says so: short rows, a greyed Buy and how much gold is 
   expect(text()).not.toContain('Nothing here is within');
   const rows = nodes().filter((n) => n.classList.contains('shop-row'));
   expect(rows.map((r) => r.classList.contains('is-short'))).toEqual([true, false]);
+  // Each buy row's price is its own span (gold, or grey on a short row: shopMenu.css).
+  expect(
+    nodes()
+      .filter((n) => n.classList.contains('shop-price'))
+      .map((n) => n.textContent),
+  ).toEqual(['1690 G', '500 G']);
   const cheapBuy = nodes().find((n) => n.tag === 'button' && n.textContent === 'Buy · 500 G');
   expect(cheapBuy.disabled).toBe(false);
   expect(cheapBuy.classList.contains('shop-buy--short')).toBe(false);
+});
+
+// QA (Oct 2026): the prologue's Market said "Sell, restock or leave" with no Restock button.
+it('a shop without Restock (the prologue market, a caravan) never offers one in its lines', () => {
+  const item = structuredClone(d.data.weapons.find((i) => i.name === 'Steel Sword'));
+  d.run.gold = 100;
+  d.scene.shopBuyItems = [{ type: 'weapon', item, price: 1690 }];
+  const menu = d.shop.nativeMenu;
+  const text = () =>
+    menu.surface.body
+      .all()
+      .map((n) => n.textContent)
+      .join(' | ');
+  const restockButton = () =>
+    menu.surface.body.all().some((n) => n.tag === 'button' && /^Restock/.test(n.textContent));
+  menu.selected = item;
+  menu.render();
+  expect(text()).toContain('Sell, restock or leave.');
+  expect(restockButton()).toBe(true);
+
+  vi.spyOn(d.shop, 'canReroll').mockReturnValue(false);
+  menu.render();
+  expect(text()).toContain('Nothing here is within 100 G. Sell or leave.');
+  expect(text()).not.toMatch(/restock/i);
+  expect(restockButton()).toBe(false);
+  d.scene.shopBuyItems = [];
+  menu.render();
+  expect(text()).toContain('Sold out.');
+  expect(text()).not.toMatch(/restock/i);
 });
 
 // Player feedback (Oct 2026): selling trash was overwhelming without knowing whether

@@ -1,5 +1,6 @@
 import { createBattleTerrain } from '../ui/BattleMapVisuals.js';
 import { safeBattlePresentation } from '../ui/safeBattlePresentation.js';
+import { paintFogOverlays } from '../ui/fogState.js';
 // Grid — tile rendering, terrain management, movement range (Dijkstra), A* pathfinding, attack range
 
 import {
@@ -10,7 +11,12 @@ import {
 } from '../utils/constants.js';
 import { parseRange } from './Combat.js';
 import { createBoardTransform } from '../utils/boardOrientation.js';
-import { ICE_FREE_SLIDE_TILES, iceSlideStop } from './IceMovement.js';
+import {
+  ICE_FREE_SLIDE_TILES,
+  getTerrainAtLayout,
+  iceSlideStop,
+  resolveIceSlide,
+} from './IceMovement.js';
 
 const DIRECTIONS = [
   { dc: 0, dr: -1 },
@@ -19,19 +25,72 @@ const DIRECTIONS = [
   { dc: 1, dr: 0 },
 ];
 
-function getTerrainAtLayout(mapLayout, terrainData, col, row, cols, rows) {
-  if (col < 0 || col >= cols || row < 0 || row >= rows) return null;
-  const terrainIdx = mapLayout[row]?.[col];
-  if (terrainIdx == null) return null;
-  return terrainData[terrainIdx] || null;
+/**
+ * The open set of computePath and computeMovementRange: a binary min-heap that pops entries
+ * in exactly the order the searches' former `queue.sort((a, b) => a.p - b.p); queue.shift()`
+ * did. That sort is stable and each round's pushes land after the remainder of the previous
+ * round, so it popped the lowest priority and, among equals, the earliest pushed: the
+ * heap's order (priority, insertion sequence). A priority that compares with nothing (NaN:
+ * an unknown move type's costs) ties with everything, as it did under the sort's
+ * comparator (`NaN < 0` is false), so such entries keep insertion order too.
+ */
+class InsertionOrderedHeap {
+  constructor() {
+    this.items = [];
+    this.nextSeq = 0;
+  }
+
+  get size() {
+    return this.items.length;
+  }
+
+  push(priority, value) {
+    const entry = { priority, seq: this.nextSeq++, value };
+    const items = this.items;
+    let i = items.length;
+    items.push(entry);
+    while (i > 0) {
+      const parent = (i - 1) >> 1;
+      if (!popsBefore(entry, items[parent])) break;
+      items[i] = items[parent];
+      i = parent;
+    }
+    items[i] = entry;
+  }
+
+  pop() {
+    const items = this.items;
+    const top = items[0];
+    const last = items.pop();
+    const length = items.length;
+    if (length > 0) {
+      let i = 0;
+      for (;;) {
+        const left = 2 * i + 1;
+        if (left >= length) break;
+        const right = left + 1;
+        const child = right < length && popsBefore(items[right], items[left]) ? right : left;
+        if (!popsBefore(items[child], last)) break;
+        items[i] = items[child];
+        i = child;
+      }
+      items[i] = last;
+    }
+    return top.value;
+  }
 }
 
-function isPassableForMoveType(mapLayout, terrainData, col, row, cols, rows, moveType) {
-  const terrain = getTerrainAtLayout(mapLayout, terrainData, col, row, cols, rows);
-  if (!terrain) return false;
-  const moveCost = terrain.moveCost?.[moveType];
-  if (moveCost === '--') return false;
-  return Number.isFinite(parseInt(moveCost, 10));
+function popsBefore(a, b) {
+  return a.priority < b.priority || (!(b.priority < a.priority) && a.seq < b.seq);
+}
+
+/**
+ * Does a mover with Pass walk through this occupant? Enemy units only, and never for an
+ * enemy mover (Pass is a player skill: the AI's movement code never sets the option).
+ * NPC allies keep blocking as they always did.
+ */
+export function passesThrough(occupant, moverFaction) {
+  return occupant?.faction === 'enemy' && moverFaction !== 'enemy';
 }
 
 export function getEntryDirection(path) {
@@ -41,52 +100,7 @@ export function getEntryDirection(path) {
   return { dc: curr.col - prev.col, dr: curr.row - prev.row };
 }
 
-export function resolveIceSlide(
-  col,
-  row,
-  entryDir,
-  mapLayout,
-  terrainData,
-  cols,
-  rows,
-  moveType,
-  occupiedTiles = new Set(),
-) {
-  if (!entryDir || (!entryDir.dc && !entryDir.dr)) {
-    return { col, row, slidePath: [{ col, row }] };
-  }
-
-  let currentCol = col;
-  let currentRow = row;
-  const slidePath = [{ col, row }];
-
-  while (true) {
-    const nextCol = currentCol + entryDir.dc;
-    const nextRow = currentRow + entryDir.dr;
-    const nextKey = `${nextCol},${nextRow}`;
-
-    if (nextCol < 0 || nextCol >= cols || nextRow < 0 || nextRow >= rows) {
-      return { col: currentCol, row: currentRow, slidePath };
-    }
-    if (occupiedTiles.has(nextKey)) {
-      return { col: currentCol, row: currentRow, slidePath };
-    }
-    if (!isPassableForMoveType(mapLayout, terrainData, nextCol, nextRow, cols, rows, moveType)) {
-      return { col: currentCol, row: currentRow, slidePath };
-    }
-
-    const nextTerrain = getTerrainAtLayout(mapLayout, terrainData, nextCol, nextRow, cols, rows);
-    slidePath.push({ col: nextCol, row: nextRow });
-
-    if (nextTerrain?.name === 'Ice') {
-      currentCol = nextCol;
-      currentRow = nextRow;
-      continue;
-    }
-
-    return { col: nextCol, row: nextRow, slidePath };
-  }
-}
+export { resolveIceSlide };
 
 export function computeEffectivePath(
   path,
@@ -260,6 +274,9 @@ export function computeEffectivePath(
  * @param {Map} [unitPositions] - Map of "col,row" -> { faction } for occupied tiles
  * @param {string} [moverFaction] - faction of the moving unit
  * @param {number} [costModifier]
+ * @param {{ pass?: boolean }} [options] - `pass`: the mover has Pass (passesThrough): it
+ *   walks through enemy units and may not stop on one, the rule an ally's tile already
+ *   follows. An occupied tile still ends an ice slide.
  * @returns {Map} "col,row" -> { cost, parent, slidePath?, slideStop?, stoppable? }
  */
 export function computeMovementRange(
@@ -271,9 +288,12 @@ export function computeMovementRange(
   unitPositions = null,
   moverFaction = null,
   costModifier = 0,
+  options = null,
 ) {
+  const pass = options?.pass === true;
   const reachable = new Map();
-  const queue = [{ col: startCol, row: startRow, cost: 0 }];
+  const queue = new InsertionOrderedHeap();
+  queue.push(0, { col: startCol, row: startRow, cost: 0 });
   reachable.set(`${startCol},${startRow}`, { cost: 0, parent: null });
 
   // Build occupied set for ice slide blocking (all units except mover).
@@ -295,16 +315,16 @@ export function computeMovementRange(
     if (goesOn) {
       if (existing && !existing.slideStop && existing.cost <= entry.cost) return;
       reachable.set(key, entry);
-      queue.push({ col, row, cost: entry.cost });
+      queue.push(entry.cost, { col, row, cost: entry.cost });
       return;
     }
     if (existing && (!existing.slideStop || existing.cost <= entry.cost)) return;
     reachable.set(key, { ...entry, slideStop: true });
   };
 
-  while (queue.length > 0) {
-    queue.sort((a, b) => a.cost - b.cost);
-    const current = queue.shift();
+  while (queue.size > 0) {
+    // Cheapest first, ties in arrival order (InsertionOrderedHeap).
+    const current = queue.pop();
     const currentKey = `${current.col},${current.row}`;
     // A tile reached again more cheaply was expanded from that arrival.
     if ((reachable.get(currentKey)?.cost ?? Infinity) < current.cost) continue;
@@ -322,11 +342,15 @@ export function computeMovementRange(
       if (unitPositions) {
         const occupant = unitPositions.get(key);
         if (occupant) {
-          if (occupant.faction !== moverFaction) {
-            // Enemy on tile — can't move through
+          if (
+            occupant.faction !== moverFaction &&
+            !(pass && passesThrough(occupant, moverFaction))
+          ) {
+            // Enemy on tile — can't move through (unless the mover has Pass)
             continue;
           }
-          // Ally on tile — can traverse but mark as occupied (filter below)
+          // Ally on tile (or a foe a Pass unit walks through) — can traverse but mark as
+          // occupied (filter below)
         }
       }
 
@@ -373,13 +397,17 @@ export function computeMovementRange(
     }
   }
 
-  // Mark ally-occupied tiles as non-stoppable (can pass through but not stop on).
-  // We keep them in the map so parent chains stay intact for path reconstruction.
+  // Mark ally-occupied tiles (and, with Pass, foe-occupied ones) as non-stoppable (can
+  // pass through but not stop on). We keep them in the map so parent chains stay intact
+  // for path reconstruction.
   if (unitPositions && moverFaction) {
     for (const [key, entry] of reachable) {
       if (key === `${startCol},${startRow}`) continue; // own tile is fine
       const occupant = unitPositions.get(key);
-      if (occupant && occupant.faction === moverFaction) {
+      if (
+        occupant &&
+        (occupant.faction === moverFaction || (pass && passesThrough(occupant, moverFaction)))
+      ) {
         entry.stoppable = false;
       }
     }
@@ -443,6 +471,132 @@ export function reconstructRangePath(reachable, startCol, startRow, goalCol, goa
   return path;
 }
 
+/**
+ * A* from (startCol,startRow) to (goalCol,goalRow). Shared by the scene's Grid and the
+ * headless harness's grid (anything with cols, rows and getMoveCost, whose cost is
+ * Infinity off an integer tile), so the two never drift. Enemy-occupied tiles block,
+ * allies' tiles do not; with `options.pass` (Pass) a foe's tile is walked through too
+ * (computeMovementRange's rule).
+ *
+ * The path is exactly the one the former sorted-array search returned, ties included
+ * (tests/GridPathfindingIdentity.test.js runs the two side by side):
+ * - the open set pops the lowest f and, among equal f, the earliest pushed entry
+ *   (InsertionOrderedHeap), the order the stable sort + shift() popped in;
+ * - an entry whose tile has since been reached more cheaply is skipped. The cheaper entry
+ *   has the lower f (same tile, same h), so it was popped and expanded first, and every
+ *   neighbour already holds a g at least that low: expanding the stale entry could never
+ *   lower a g, set a parent or push, which is all the old search did with it;
+ * - a goal the search can never push (off the board, impassable for the move type, or
+ *   held by a unit that blocks the mover) returns null at once instead of flooding the
+ *   map first. Only the start is matched without a push, so start = goal still returns
+ *   [start].
+ * @returns {Array<{col, row}>|null} start to goal, or null when unreachable
+ */
+export function computePath(
+  grid,
+  startCol,
+  startRow,
+  goalCol,
+  goalRow,
+  moveType,
+  unitPositions = null,
+  moverFaction = null,
+  costModifier = 0,
+  options = null,
+) {
+  const pass = options?.pass === true;
+  const cols = grid.cols;
+  const rows = grid.rows;
+  const heuristic = (c, r) => Math.abs(c - goalCol) + Math.abs(r - goalRow);
+  // Enemy-occupied tiles block (the mover passes through allies, and through foes with Pass).
+  const blocks = (col, row) => {
+    if (!unitPositions) return false;
+    const occupant = unitPositions.get(`${col},${row}`);
+    return Boolean(
+      occupant &&
+      occupant.faction !== moverFaction &&
+      !(pass && passesThrough(occupant, moverFaction)),
+    );
+  };
+
+  if (
+    !(startCol === goalCol && startRow === goalRow) &&
+    Number.isInteger(goalCol) &&
+    Number.isInteger(goalRow) &&
+    (goalCol < 0 ||
+      goalCol >= cols ||
+      goalRow < 0 ||
+      goalRow >= rows ||
+      grid.getMoveCost(goalCol, goalRow, moveType, costModifier) === Infinity ||
+      blocks(goalCol, goalRow))
+  ) {
+    return null;
+  }
+
+  // Tiles are indexed row * cols + col; the start gets the spare last slot when it is not a
+  // tile of the board (only neighbours that pass the bounds check are ever indexed).
+  const tileCount = cols * rows;
+  const startOnBoard =
+    Number.isInteger(startCol) &&
+    Number.isInteger(startRow) &&
+    startCol >= 0 &&
+    startCol < cols &&
+    startRow >= 0 &&
+    startRow < rows;
+  const startIndex = startOnBoard ? startRow * cols + startCol : tileCount;
+  const gScore = new Float64Array(tileCount + 1);
+  // The tile each tile was best reached from; -1 = not reached yet, the start is its own.
+  const cameFrom = new Int32Array(tileCount + 1).fill(-1);
+  cameFrom[startIndex] = startIndex;
+
+  const openSet = new InsertionOrderedHeap();
+  openSet.push(heuristic(startCol, startRow), {
+    index: startIndex,
+    col: startCol,
+    row: startRow,
+    g: 0,
+  });
+
+  while (openSet.size > 0) {
+    const current = openSet.pop();
+    if (current.g > gScore[current.index]) continue; // reached more cheaply since
+
+    if (current.col === goalCol && current.row === goalRow) {
+      const path = [];
+      for (let index = current.index; ; index = cameFrom[index]) {
+        if (index === tileCount) {
+          // `+ 0` keeps the old string key round trip's coordinates (-0 read back as 0).
+          path.unshift({ col: startCol + 0, row: startRow + 0 });
+        } else {
+          const col = index % cols;
+          path.unshift({ col, row: (index - col) / cols });
+        }
+        if (index === startIndex) return path;
+      }
+    }
+
+    for (const { dc, dr } of DIRECTIONS) {
+      const nc = current.col + dc;
+      const nr = current.row + dr;
+      if (nc < 0 || nc >= cols || nr < 0 || nr >= rows) continue;
+
+      const moveCost = grid.getMoveCost(nc, nr, moveType, costModifier);
+      if (moveCost === Infinity) continue;
+      if (blocks(nc, nr)) continue;
+
+      const index = nr * cols + nc;
+      const tentativeG = current.g + moveCost;
+      if (cameFrom[index] === -1 || tentativeG < gScore[index]) {
+        cameFrom[index] = current.index;
+        gScore[index] = tentativeG;
+        openSet.push(tentativeG + heuristic(nc, nr), { index, col: nc, row: nr, g: tentativeG });
+      }
+    }
+  }
+
+  return null;
+}
+
 export class Grid {
   constructor(
     scene,
@@ -479,6 +633,9 @@ export class Grid {
     this.fogOverlays = [];
     this.visibleSet = new Set(); // currently visible "col,row"
     this.everSeenSet = new Set(); // ever revealed "col,row"
+    // Tiles a move ran into this player phase ("col,row"): the hidden unit that stopped it
+    // stays shown even when it stands past every unit's vision (revealContact).
+    this.contactSet = new Set();
 
     // Center the grid on the canvas
     const mapWidth = this.mapPixelWidth;
@@ -674,6 +831,7 @@ export class Grid {
     unitPositions = null,
     moverFaction = null,
     costModifier = 0,
+    options = null,
   ) {
     return computeMovementRange(
       this,
@@ -684,6 +842,7 @@ export class Grid {
       unitPositions,
       moverFaction,
       costModifier,
+      options,
     );
   }
 
@@ -692,8 +851,8 @@ export class Grid {
     return reconstructRangePath(reachable, startCol, startRow, goalCol, goalRow);
   }
 
-  // A* pathfinding from (startCol,startRow) to (goalCol,goalRow)
-  // Returns array of {col, row} from start to goal, or null if unreachable
+  // A* pathfinding from (startCol,startRow) to (goalCol,goalRow): computePath, shared with
+  // the headless grid. Returns array of {col, row} from start to goal, or null if unreachable.
   findPath(
     startCol,
     startRow,
@@ -703,57 +862,20 @@ export class Grid {
     unitPositions = null,
     moverFaction = null,
     costModifier = 0,
+    options = null,
   ) {
-    const heuristic = (c, r) => Math.abs(c - goalCol) + Math.abs(r - goalRow);
-
-    const openSet = [{ col: startCol, row: startRow, g: 0, f: heuristic(startCol, startRow) }];
-    const cameFrom = new Map();
-    const gScore = new Map();
-    gScore.set(`${startCol},${startRow}`, 0);
-
-    while (openSet.length > 0) {
-      openSet.sort((a, b) => a.f - b.f);
-      const current = openSet.shift();
-      const currentKey = `${current.col},${current.row}`;
-
-      if (current.col === goalCol && current.row === goalRow) {
-        // Reconstruct path
-        const path = [];
-        let key = currentKey;
-        while (key) {
-          const [c, r] = key.split(',').map(Number);
-          path.unshift({ col: c, row: r });
-          key = cameFrom.get(key);
-        }
-        return path;
-      }
-
-      for (const { dc, dr } of DIRECTIONS) {
-        const nc = current.col + dc;
-        const nr = current.row + dr;
-        if (nc < 0 || nc >= this.cols || nr < 0 || nr >= this.rows) continue;
-
-        const moveCost = this.getMoveCost(nc, nr, moveType, costModifier);
-        if (moveCost === Infinity) continue;
-
-        // Block enemy-occupied tiles (can pass through allies)
-        const nKey = `${nc},${nr}`;
-        if (unitPositions) {
-          const occupant = unitPositions.get(nKey);
-          if (occupant && occupant.faction !== moverFaction) continue;
-        }
-
-        const tentativeG = current.g + moveCost;
-
-        if (!gScore.has(nKey) || tentativeG < gScore.get(nKey)) {
-          cameFrom.set(nKey, currentKey);
-          gScore.set(nKey, tentativeG);
-          openSet.push({ col: nc, row: nr, g: tentativeG, f: tentativeG + heuristic(nc, nr) });
-        }
-      }
-    }
-
-    return null;
+    return computePath(
+      this,
+      startCol,
+      startRow,
+      goalCol,
+      goalRow,
+      moveType,
+      unitPositions,
+      moverFaction,
+      costModifier,
+      options,
+    );
   }
 
   /**
@@ -937,8 +1059,8 @@ export class Grid {
   updateFogOfWar(playerUnits) {
     if (!this.fogEnabled) return;
 
-    // Calculate vision union
-    const newVisible = new Set();
+    // Calculate vision union, plus the tiles a move ran into this phase
+    const newVisible = new Set(this.contactSet || []);
     for (const unit of playerUnits) {
       const range = VISION_RANGES[unit.moveType] || 3;
       const tiles = this.getVisionRange(unit.col, unit.row, range);
@@ -947,28 +1069,30 @@ export class Grid {
 
     this.visibleSet = newVisible;
     for (const key of newVisible) this.everSeenSet.add(key);
+    paintFogOverlays(this);
+  }
 
-    // Update fog overlay alpha
-    for (let row = 0; row < this.rows; row++) {
-      for (let col = 0; col < this.cols; col++) {
-        const key = `${col},${row}`;
-        const fog = this.fogOverlays[row]?.[col];
-        if (!fog) continue;
-        safeBattlePresentation(
-          'fog overlay',
-          () => {
-            if (newVisible.has(key)) {
-              fog.setAlpha(0); // fully visible
-            } else if (this.everSeenSet.has(key)) {
-              fog.setAlpha(0.3); // seen before
-            } else {
-              fog.setAlpha(0.7); // never seen
-            }
-          },
-          { scene: this.scene },
-        );
-      }
+  /**
+   * A committed move ran into a unit the fog hid (FogAmbush): its tiles stay shown for the
+   * rest of the player phase, whatever the movers' vision, so the unit that stopped the move
+   * can be inspected and planned around even when the cut left the mover far from it. Takes
+   * effect at the next fog update (the action's settled vision). Cleared when the enemy
+   * phase starts (clearContacts); saved with the fog (gridFogState).
+   */
+  revealContact(tiles) {
+    if (!this.fogEnabled) return;
+    if (!(this.contactSet instanceof Set)) this.contactSet = new Set();
+    for (const t of tiles || []) {
+      if (t.col >= 0 && t.col < this.cols && t.row >= 0 && t.row < this.rows)
+        this.contactSet.add(`${t.col},${t.row}`);
     }
+  }
+
+  /** Forget this phase's contacts. True when there were any (the fog needs an update). */
+  clearContacts() {
+    const had = (this.contactSet?.size ?? 0) > 0;
+    this.contactSet = new Set();
+    return had;
   }
 
   /** Snapshot fog state for undo support. */

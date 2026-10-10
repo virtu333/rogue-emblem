@@ -2,8 +2,8 @@
   "version": 1,
   "seed": 1209,
   "grant": {
-    "valor": 60,
-    "supply": 40
+    "valor": 50,
+    "supply": 35
   },
   "consumableEffects": {
     "vulneraryUses": 3
@@ -855,6 +855,17 @@
                 "id": "range_two",
                 "kind": "shown"
               }
+            }
+          ]
+        },
+        {
+          "id": "p3_looked",
+          "on": "forecastCancelled",
+          "once": true,
+          "unit": "Sera",
+          "do": [
+            {
+              "clearCoach": true
             }
           ]
         },

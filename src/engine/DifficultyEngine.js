@@ -1,5 +1,7 @@
 // DifficultyEngine.js - Wave 8 difficulty validation and lookup helpers.
 
+import { REVIVAL_STONE_KINDS, hasRevivalStones } from './RevivalStones.js';
+
 export const DIFFICULTY_CONTRACT_VERSION = 1;
 
 /**
@@ -86,6 +88,7 @@ export const DIFFICULTY_REQUIRED_KEYS = [
   'enemyPoisonChance',
   'enemyStatusStaffChance',
   'statusStaffConfig',
+  'carryConfig',
   'shopCureGating',
   'goldMultiplier',
   'shopPriceMultiplier',
@@ -123,6 +126,9 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   enemyPoisonChance: 0,
   enemyStatusStaffChance: 0,
   statusStaffConfig: null,
+  // Enemies that carry an item a Thief can steal (docs/specs/phase3.md 3G, EnemyCarry.js):
+  // { perBattle, act1..act4, finalBoss, maxPerBattle }. null: none (a run saved before it).
+  carryConfig: null,
   shopCureGating: null,
   goldMultiplier: 1,
   shopPriceMultiplier: 1,
@@ -152,6 +158,9 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   // ({ seize: -2, rout: { act4: -2 } }, null: none).
   holdShare: null,
   objectiveParOffset: null,
+  // Revival Stones a boss carries ({ actBoss, emperor, lieutenant, eliteCaptain }, RevivalStones.js;
+  // null: none). Every rung in difficulty.json names all four; a run saved before them has none.
+  revivalStones: null,
   // Act id -> first node row that may hold a village ({ act1: 3 }: none in an act's first
   // three rows; null / a missing act: any row). Applied when a node map is generated.
   villageMinRow: null,
@@ -212,8 +221,12 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
   if (mode.villageAmbushChance > (defaults.villageAmbushChance || 0)) {
     lines.push(`${Math.round(mode.villageAmbushChance * 100)}% shop ambush chance`);
   }
+  // Above the default it pays back ("+25% meta currency"); below it is a term of the
+  // run, worded like gold and XP ("80% meta currency").
   if (mode.currencyMultiplier > (defaults.currencyMultiplier ?? 1)) {
     lines.push(`+${Math.round((mode.currencyMultiplier - 1) * 100)}% meta currency`);
+  } else if (mode.currencyMultiplier < (defaults.currencyMultiplier ?? 1)) {
+    lines.push(`${Math.round(mode.currencyMultiplier * 100)}% meta currency`);
   }
   if (mode.extendedLevelingEnabled && !defaults.extendedLevelingEnabled) {
     lines.push('Extended leveling past Lv 20');
@@ -258,6 +271,29 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
     lines.push(
       'Map reinforcement waves no longer extend par; village bandits and keep garrisons still do',
     );
+  }
+  if (mode.carryConfig) {
+    const cfg = mode.carryConfig;
+    const firstAct = ['act1', 'act2', 'act3', 'act4'].find((a) => cfg[a] > 0);
+    if (firstAct && cfg.maxPerBattle > 0) {
+      const actNum = firstAct.replace('act', '');
+      lines.push(
+        `Foes carry items a Thief can steal from Act ${actNum}+ (max ${cfg.maxPerBattle}/battle)`,
+      );
+    }
+  }
+  if (hasRevivalStones(mode.revivalStones)) {
+    const stones = mode.revivalStones;
+    const label = {
+      actBoss: 'act bosses',
+      emperor: 'the Emperor',
+      lieutenant: 'the Lieutenant',
+      eliteCaptain: 'elite captains',
+    };
+    const parts = REVIVAL_STONE_KINDS.filter((kind) => stones[kind] > 0).map(
+      (kind) => `${label[kind]} ${stones[kind]}`,
+    );
+    lines.push(`Revival Stones (a boss refills when felled): ${parts.join(', ')}`);
   }
   if (mode.siegeWeaponConfig) {
     const cfg = mode.siegeWeaponConfig;
@@ -359,7 +395,7 @@ export function validateDifficultyConfig(config) {
           errors.push(`modes.${difficultyId}.extendedLevelingEnabled must be boolean`);
         continue;
       }
-      if (key === 'statusStaffConfig' || key === 'shopCureGating') {
+      if (key === 'statusStaffConfig' || key === 'carryConfig' || key === 'shopCureGating') {
         if (value !== null && !isObject(value)) {
           errors.push(`modes.${difficultyId}.${key} must be null or an object`);
         }
@@ -408,6 +444,45 @@ function validateCasterGear(mode, path) {
   return errors;
 }
 
+/**
+ * Carried items (EnemyCarry.js): every rung has a per-battle config, with a chance between 0
+ * and 1 for each of the four acts and the final boss, and a non-negative integer
+ * maxPerBattle. A rung that does not carry anything says so with chances of 0, never with
+ * a missing config.
+ */
+function validateCarryConfig(mode, path) {
+  const cfg = mode.carryConfig;
+  if (!isObject(cfg)) return [`${path}.carryConfig must be an object`];
+  const errors = [];
+  if (cfg.perBattle !== true) errors.push(`${path}.carryConfig.perBattle must be true`);
+  for (const act of ['act1', 'act2', 'act3', 'act4', 'finalBoss']) {
+    if (!isFiniteNumber(cfg[act]) || cfg[act] < 0 || cfg[act] > 1)
+      errors.push(`${path}.carryConfig.${act} must be a chance between 0 and 1`);
+  }
+  if (!(Number.isInteger(cfg.maxPerBattle) && cfg.maxPerBattle >= 0))
+    errors.push(`${path}.carryConfig.maxPerBattle must be a non-negative integer`);
+  return errors;
+}
+
+/**
+ * Revival Stones (docs/specs/phase3.md 3D): every rung names all four kinds, each a
+ * non-negative integer. A rung with none writes zeros; the key is not optional, so a new
+ * rung cannot forget that its bosses carry nothing.
+ */
+function validateRevivalStones(mode, path) {
+  const table = mode.revivalStones;
+  if (!isObject(table)) return [`${path}.revivalStones must be an object of stone counts`];
+  const errors = [];
+  for (const kind of REVIVAL_STONE_KINDS) {
+    if (!(Number.isInteger(table[kind]) && table[kind] >= 0))
+      errors.push(`${path}.revivalStones.${kind} must be a non-negative integer`);
+  }
+  for (const key of Object.keys(table))
+    if (!REVIVAL_STONE_KINDS.includes(key))
+      errors.push(`${path}.revivalStones.${key} is not a stone kind`);
+  return errors;
+}
+
 /** The pacing keys (all optional): routLadder, parInflation, templateWavesRaisePar, villageMinRow. */
 function validateBattlePacing(mode, path) {
   const errors = [];
@@ -420,6 +495,7 @@ function validateBattlePacing(mode, path) {
   if (mode.templateWavesRaisePar !== undefined && typeof mode.templateWavesRaisePar !== 'boolean')
     errors.push(`${path}.templateWavesRaisePar must be boolean`);
   errors.push(...validateCasterGear(mode, path));
+  errors.push(...validateCarryConfig(mode, path));
   for (const key of ['holdShare', 'objectiveParOffset']) {
     const value = mode[key];
     if (value === undefined || value === null) continue;
@@ -446,6 +522,7 @@ function validateBattlePacing(mode, path) {
       }
     }
   }
+  errors.push(...validateRevivalStones(mode, path));
   const minRows = mode.villageMinRow;
   if (minRows !== undefined && minRows !== null) {
     if (!isObject(minRows)) {

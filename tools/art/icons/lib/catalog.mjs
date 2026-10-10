@@ -70,6 +70,11 @@ function consumableRim(c) {
   return 'plain';
 }
 
+/** A blessing's pennant rim: its tier numeral. */
+function blessingRim(b) {
+  return ['I', 'II', 'III', 'IV'][Math.max(0, Math.min(3, (b.tier || 1) - 1))];
+}
+
 /**
  * @returns {Array<{id:string, group:string, name:string, socket:string, rim:string,
  *   spec:object, kind:string, type?:string, source?:object}>}
@@ -178,28 +183,30 @@ export function iconEntries(data) {
     spec: G.goldSpec(),
   });
   for (const b of data.blessings.blessings)
-    add({
-      id: `blessing-${b.id}`,
-      group: 'Blessings',
-      name: b.name,
-      kind: 'blessing',
-      socket: 'blessing',
-      rim: ['I', 'II', 'III', 'IV'][Math.max(0, Math.min(3, (b.tier || 1) - 1))],
-      spec: G.blessingSpec(b),
-      source: b,
-    });
+    if (!G.BLESSING_ICON_REUSE[b.id])
+      add({
+        id: `blessing-${b.id}`,
+        group: 'Blessings',
+        name: b.name,
+        kind: 'blessing',
+        socket: 'blessing',
+        rim: blessingRim(b),
+        spec: G.blessingSpec(b),
+        source: b,
+      });
   const upgrades = data.metaUpgrades.upgrades || data.metaUpgrades;
   for (const u of upgrades)
-    add({
-      id: `upgrade-${u.id}`,
-      group: 'Upgrades',
-      name: u.name,
-      kind: 'upgrade',
-      socket: 'upgrade',
-      rim: 'plain',
-      spec: G.upgradeSpec(u, ctx),
-      source: u,
-    });
+    if (!G.UPGRADE_ICON_REUSE[u.id])
+      add({
+        id: `upgrade-${u.id}`,
+        group: 'Upgrades',
+        name: u.name,
+        kind: 'upgrade',
+        socket: 'upgrade',
+        rim: 'plain',
+        spec: G.upgradeSpec(u, ctx),
+        source: u,
+      });
   for (const g of G.genericSpecs())
     add({
       id: `generic-${g.key}`,
@@ -211,4 +218,31 @@ export function iconEntries(data) {
       spec: g.spec,
     });
   return out;
+}
+
+/**
+ * Icons that share another icon's atlas cell (itemGrammar UPGRADE_ICON_REUSE and
+ * BLESSING_ICON_REUSE): each keeps its own id, socket and rim in the manifest and points at
+ * the cell of `of`. Upgrades first, then blessings, each in data order.
+ */
+export function iconAliases(data) {
+  const upgrades = data.metaUpgrades.upgrades || data.metaUpgrades;
+  return [
+    ...upgrades
+      .filter((u) => G.UPGRADE_ICON_REUSE[u.id])
+      .map((u) => ({
+        id: `upgrade-${u.id}`,
+        of: G.UPGRADE_ICON_REUSE[u.id],
+        socket: 'upgrade',
+        rim: 'plain',
+      })),
+    ...data.blessings.blessings
+      .filter((b) => G.BLESSING_ICON_REUSE[b.id])
+      .map((b) => ({
+        id: `blessing-${b.id}`,
+        of: G.BLESSING_ICON_REUSE[b.id],
+        socket: 'blessing',
+        rim: blessingRim(b),
+      })),
+  ];
 }

@@ -34,7 +34,15 @@ function allLines(node, path = 'unitVoice') {
 
 // Classes a recruit can hold: recruitable base classes and their promotions.
 const LORD_CLASSES = new Set(gameData.lords.flatMap((l) => [l.class, l.promotedClass]));
-const ENEMY_ONLY = new Set(['Zombie', 'Revenant', 'Dragon', 'Dragon Lord', 'Entity']);
+const ENEMY_ONLY = new Set([
+  'Zombie',
+  'Revenant',
+  'Dragon',
+  'Dragon Lord',
+  'Necromancer',
+  'Skeleton',
+  'Entity',
+]);
 const recruitClasses = gameData.classes
   .filter((c) => !LORD_CLASSES.has(c.name) && !ENEMY_ONLY.has(c.name) && c.tier !== 'boss')
   .map((c) => c.name);

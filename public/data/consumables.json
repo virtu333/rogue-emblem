@@ -143,5 +143,14 @@
     "value": 10,
     "uses": 1,
     "price": 800
+  },
+  {
+    "name": "Gold Pouch",
+    "lore": "Somebody's wages, drawstring still knotted. Spend it, or sell the knot.",
+    "type": "Consumable",
+    "effect": "gold",
+    "value": 300,
+    "uses": 1,
+    "price": 600
   }
 ]

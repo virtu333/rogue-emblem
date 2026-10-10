@@ -40,6 +40,7 @@ import {
   benchedSkillsNote,
 } from '../engine/UnitManager.js';
 import { equippedMarker } from './equippedBadge.js';
+import { weaponArtHpSuffix } from './weaponArtDisplay.js';
 import { isForged } from '../engine/ForgeSystem.js';
 import { isMastered } from '../engine/MasterySystem.js';
 import {
@@ -53,6 +54,7 @@ import {
   getWeaponArtBindings,
   getWeaponArtIds,
   isWeaponArtCompatibleWithWeapon,
+  weaponArtRunOptions,
 } from '../engine/WeaponArtSystem.js';
 import {
   TOOLTIP_HOVER_DELAY_MS,
@@ -60,6 +62,7 @@ import {
   TOOLTIP_LONG_PRESS_MOVE_THRESHOLD,
 } from '../utils/tooltipTiming.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
+import { lentSkillLine } from '../engine/AccessorySkillNames.js';
 import { STAT_DESCRIPTIONS } from '../data/helpContent.js';
 import {
   hasWeaponArt,
@@ -73,14 +76,16 @@ import { BoundingFocusController } from './BoundingFocusController.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
 import { portraitCanvasFrame } from './portraitArt.js';
-import { traitLines } from './traitContent.js';
+import { traitLines, markLine } from './traitContent.js';
 import { epithetText } from '../engine/DeedTitles.js';
 import { fitCanvasText } from './deedDisplay.js';
 import { LEVEL_UP_CUE_WAIT_MS, playCue } from './ceremonyMusic.js';
 import { healUnit } from '../engine/UnitHealth.js';
+import { goldPouchValue } from '../engine/GoldPouch.js';
+import { rosterItemAction } from '../engine/RosterInventory.js';
 import { drawCanvasXpRow } from './xpBar.js';
 import { isWorn, wearCount, wearLine, wearStatDelta } from '../engine/WeaponWear.js';
-import { stripItemNameSuffix } from '../utils/itemNames.js';
+import { itemDisplayName, stripItemNameSuffix } from '../utils/itemNames.js';
 
 const WEAPON_ART_RANK_ORDER = { Prof: 0, Mast: 1 };
 const WEAPON_ART_MAX_SLOTS = 3;
@@ -1301,6 +1306,17 @@ export class RosterOverlay {
       );
       y += 16;
     }
+    // One Mark line under the traits (docs/specs/phase3.md 3C).
+    const mark = markLine(unit, this.gameData);
+    if (mark) {
+      if (!traits.length) y += 6;
+      const row = fitCanvasText(
+        this._text(x, y, `Mark: ${mark.name}`, UI_PALETTE.mark, '9px'),
+        DETAIL_WIDTH - 24,
+      );
+      this._wireTooltipTarget(row, () => this._showSkillTooltip(row, mark.text));
+      y += 16;
+    }
     const bio = this.gameData?.specialChars?.find((entry) => entry.id === unit.specialCharId)?.bio;
     if (bio) {
       const row = fitCanvasText(this._text(x, y, bio, UI_PALETTE.muted, '9px'), DETAIL_WIDTH - 24);
@@ -1458,6 +1474,8 @@ export class RosterOverlay {
           if (unit.currentHP < unit.stats.HP) {
             this._actionBtn(btnX, y, '[Use]', () => this._useHealItem(unit, item));
           }
+        } else if (item.effect === 'gold') {
+          this._actionBtn(btnX, y, '[Use]', () => this._useGoldPouch(unit, item));
         } else if (item.effect === 'promote') {
           if (
             specialCharacterRefusalText(this.gameData, unit, 'promote') ||
@@ -1502,7 +1520,13 @@ export class RosterOverlay {
     y += 14;
     if (unit.accessory) {
       const acc = unit.accessory;
-      this._text(x + 8, y, acc.name, UI_PALETTE.rarityEpic, '9px');
+      this._text(
+        x + 8,
+        y,
+        itemDisplayName(acc, this.gameData?.skills),
+        UI_PALETTE.rarityEpic,
+        '9px',
+      );
       this._actionBtn(x + 280, y, '[Unequip]', () => {
         const old = unequipAccessory(unit);
         if (old) {
@@ -1521,6 +1545,19 @@ export class RosterOverlay {
         this._actionBtn(x + 280, y, '[Equip]', () => this._showAccessoryPicker(unit));
       }
       y += 14;
+    }
+
+    // An accessory's skill is lent, not learned: its own line, outside the equipped count below.
+    const lent = lentSkillLine(unit, this.gameData?.skills);
+    if (lent) {
+      this._text(
+        x + 8,
+        y,
+        lent.known ? `${lent.name}: ${lent.label}` : `${lent.label}: ${lent.name}`,
+        UI_PALETTE.rarityEpic,
+        '9px',
+      );
+      y += 13;
     }
 
     // Skills
@@ -1560,8 +1597,7 @@ export class RosterOverlay {
       for (const { weapon, art, canUse, reason } of weaponArtChoices) {
         const status = canUse ? 'Ready' : this._weaponArtReasonLabel(reason);
         const color = canUse ? UI_PALETTE.info : UI_PALETTE.muted;
-        const hpCost = Math.max(0, Number(art?.hpCost) || 0);
-        const suffix = hpCost > 0 ? ` HP-${hpCost}` : '';
+        const suffix = weaponArtHpSuffix(unit, art, weaponArtRunOptions(this.scene?.runManager));
         const weaponName = this._getWeaponBaseName(weapon);
         const row = this._text(
           x + 8,
@@ -1617,8 +1653,7 @@ export class RosterOverlay {
         turnNumber: this.scene?.turnManager?.turnNumber,
         isInitiating: true,
         actorFaction: unit.faction,
-        weaponArtHpCostDelta:
-          this.scene?.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+        ...weaponArtRunOptions(this.scene?.runManager),
       });
       if (!check.ok && HIDDEN_WEAPON_ART_REASONS.has(check.reason)) continue;
       choices.push({ art, canUse: check.ok, reason: check.reason });
@@ -1801,6 +1836,19 @@ export class RosterOverlay {
     const audio = this.scene.registry.get('audio');
     if (audio) audio.playSFX('sfx_heal');
     this._showBanner(`${unit.name} healed!`, UI_PALETTE.good);
+    this.refresh();
+  }
+
+  /** A Gold Pouch pays the army its gold (engine/RosterInventory.js), from the unit's bag. */
+  _useGoldPouch(unit, item) {
+    const gold = goldPouchValue(item);
+    const reason = rosterItemAction(this.runManager, unit, item, 'use');
+    if (reason) {
+      this._showBanner(reason, UI_PALETTE.bad);
+      return;
+    }
+    this.scene.registry.get('audio')?.playSFX('sfx_confirm');
+    this._showBanner(`+${gold} G`, UI_PALETTE.good);
     this.refresh();
   }
 
@@ -2354,8 +2402,9 @@ export class RosterOverlay {
 
       pageItems.forEach((acc, i) => {
         const y = topY + titleH + i * itemH + pad;
-        const detail = formatAccessoryDetail(acc);
-        const label = detail ? `${acc.name} - ${detail}` : acc.name;
+        const detail = formatAccessoryDetail(acc, { skills: this.gameData?.skills });
+        const shownName = itemDisplayName(acc, this.gameData?.skills);
+        const label = detail ? `${shownName} - ${detail}` : shownName;
         const btn = applyTextResolution(
           this.scene.add.text(cx, y, label, {
             fontFamily: 'Arial',
@@ -2394,7 +2443,10 @@ export class RosterOverlay {
           const audio = this.scene.registry.get('audio');
           if (audio) audio.playSFX('sfx_confirm');
           this._destroyTrade();
-          this._showBanner(`${unit.name} equipped ${selected.name}!`, UI_PALETTE.rarityEpic);
+          this._showBanner(
+            `${unit.name} equipped ${itemDisplayName(selected, this.gameData?.skills)}!`,
+            UI_PALETTE.rarityEpic,
+          );
           this.refresh();
         });
         this.tradeObjects.push(btn);

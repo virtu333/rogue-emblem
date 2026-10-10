@@ -16,6 +16,17 @@ export default [
       'no-console': 'off',
       'no-empty': 'warn',
       'no-useless-assignment': 'warn',
+      'no-restricted-syntax': [
+        'error',
+        {
+          // esbuild lowers `a?.b?.()` for the build's Chrome 87 target; inside a default
+          // value the lowering leaked a temporary (`o is not defined` at the prologue's
+          // end). Resolve the default in the body instead.
+          selector: 'AssignmentPattern > .right CallExpression[optional=true]',
+          message:
+            'No optional call in a default value: the build mis-lowers it. Resolve the default in the function body.',
+        },
+      ],
     },
   },
   {

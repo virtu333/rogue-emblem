@@ -2,6 +2,7 @@
 // tile next enemy phase get a crimson eye, and the move preview says how many.
 import { test, expect, devices } from '@playwright/test';
 import { waitForScene } from './helpers.js';
+import { placeEnemiesAround } from './boardSetup.js';
 
 const foes = (n) => `${n} ${n === 1 ? 'foe' : 'foes'}`;
 const QUIET = { musicVolume: 0, sfxVolume: 0, hints: false };
@@ -16,20 +17,9 @@ async function openBattle(page, settings = QUIET, query = '') {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     return s.battleState === 'PLAYER_IDLE' && Boolean(s._playerTurnStartToken);
   });
-  // Bring the enemy line within reach of Sera's move range (presentation test only).
-  await page.evaluate(() => {
-    const s = window.__emblemRogueGame.scene.getScene('Battle');
-    const spots = [
-      [6, 4],
-      [7, 2],
-      [6, 6],
-      [8, 5],
-    ];
-    s.enemyUnits.slice(0, spots.length).forEach((e, i) => {
-      [e.col, e.row] = spots[i];
-      s.updateUnitPosition(e);
-    });
-  });
+  // Bring the enemy line within reach of Sera's move range (presentation test only):
+  // onto open ground round her, whatever map this seed generated.
+  await placeEnemiesAround(page, 'Sera', { count: 4, minDistance: 3 });
 }
 
 const screenOf = (page, col, row) =>

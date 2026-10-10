@@ -1,5 +1,5 @@
 import { resolveDeploymentSelection } from '../engine/DeploymentSelection.js';
-import { traitLines } from './traitContent.js';
+import { traitLines, markLine } from './traitContent.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 import { unitPortrait, withUnitFace } from './unitPortrait.js';
 import { getDisplayLevel, inventoryDisplayOrder } from '../engine/UnitManager.js';
@@ -7,6 +7,7 @@ import { findCommander } from '../engine/Commander.js';
 import { isStandaloneScriptedBattle } from '../engine/ScriptedBattle.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
 import { getStaticCombatStats } from '../engine/Combat.js';
+import { lentSkillLine } from '../engine/AccessorySkillNames.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { candidateCards } from './choiceContent.js';
 import {
@@ -58,10 +59,23 @@ export function describeUnit(gameData, unit, scene = null) {
     box.append(element('p', unit.proficiencies.map((p) => `${p.type} ${p.rank}`).join(' · ')));
   for (const trait of traitLines(unit, gameData))
     box.append(element('p', `${trait.special ? 'Special · ' : ''}${trait.name}: ${trait.text}`));
+  const mark = markLine(unit, gameData);
+  if (mark) box.append(element('p', `Mark · ${mark.name}: ${mark.text}`));
   for (const id of unit.skills || []) {
     const skill = gameData.skills?.find((s) => s.id === id);
     box.append(element('p', `${skill?.name || id}: ${skill?.description || ''}`));
   }
+  // An accessory's skill is lent, not learned: its own line, never counted with the list above.
+  const lent = lentSkillLine(unit, gameData.skills);
+  if (lent)
+    box.append(
+      element(
+        'p',
+        lent.known
+          ? `${lent.name}: ${lent.label}`
+          : `${lent.label}: ${lent.name}${lent.text ? `: ${lent.text}` : ''}`,
+      ),
+    );
   if (unit.inventory?.length)
     box.append(
       element(

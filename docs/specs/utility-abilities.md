@@ -115,3 +115,153 @@ Design constraints that keep UI cost low:
 
 - Enemy/AI use of abilities; pick-a-center AOE targeting; multi-use or cooldown models; ability
   XP; accessory-granted abilities (skills+scrolls only in v1); new meta upgrades.
+
+## Addendum: Smite and Transfuse (adjacent-target abilities)
+
+Two more registry skills with no `perMapLimit` (usable every turn, `usableWhileSilenced`):
+
+| skill id | actionAbility |
+|---|---|
+| `smite` | `{ kind: "push_enemy", distance: 2, usableWhileSilenced: true }` |
+| `transfuse` | `{ kind: "transfer_hp", amount: 10, usableWhileSilenced: true }` |
+
+- Rules are pure, in `ActionAbilitySystem.js`: `findSmiteTargets` / `settleSmite`,
+  `findTransfuseTargets` / `transfuseAmount` / `settleTransfuse`. The finders take what the player
+  may know (`ctx`: seen foes, a `getUnitAt` that counts a fogged tile as taken, the affix data).
+- **Smite** pushes an adjacent foe `distance` tiles straight away. The first tile must be in
+  bounds, passable for the foe's own move type and unoccupied, otherwise the foe is not a target;
+  a blocked second tile moves it one tile. A foe the push puts on Ice slides on (the forced-slide
+  rule below); lava and acid do nothing at once (the ground works on it at the end of its phase, as
+  after any move). Never targets bosses, the Entity, Anchored foes (`isDisplacementImmune`) or
+  rooted foes (the weapon-art push rule). `settleMoves` marks a holder disturbed, so the pack wakes.
+- **Transfuse** gives `min(amount, giver HP - 1, ally missing HP)`: the ally is healed through
+  `UnitHealth.healUnit`, then the giver pays exactly that through `damageUnit(..., { floor: 1 })`.
+  A Wounded ally is not a target (no HP could land). No XP, no deeds.
+- Targets are picked in `SELECTING_ABILITY_TILE` (Blink's state, so no new state in any list) on
+  the target unit's tile; `ui/AbilityTargetingController.js` owns the step and the action.
+- History beats `smote` / `transfused` give the rewind rows "Before X's smite on Y" /
+  "Before X's transfuse on Y" (`RewindDestinations.js`).
+- Scrolls: `Smite Scroll`, `Transfuse Scroll` sit in the act 3 and act 4 `skillScroll` pools,
+  where Shove and Pull do. Enemies never get either (no `classInnate`, not in the enemy skill pool).
+- Swap stays an innate command for every unit (`findSwapTargets`), not a skill.
+
+## Addendum: forced moves slide on Ice (owner decision 2026-10-06)
+
+Until now a unit moved by Shove or Smite (or a weapon-art push) landed on its tile and stopped:
+`IceMovement` priced only walking. One rule now covers every forced displacement.
+
+**The rule.** A unit that another unit's action puts on an Ice tile slides on in the direction it
+was pushed, exactly as it would have if it had walked there, minus the movement cost (a forced
+slide has no budget): it stops on the last Ice tile when the next tile is off the map, holds a
+unit or is ground its move type cannot stand on, and otherwise ends on the first tile that is not
+Ice, whatever that tile is (lava and acid included: it stands there as if it had walked, and the
+ground works on it at the end of its phase; nothing happens at once, as for a walk). Fliers do not
+slide. Only the push direction, never diagonal. Implemented once: `IceMovement.slideAcrossIce` is
+the slide itself (walking's `resolveIceSlide` and `traceForcedSlide` both call it, so what ends a
+slide is decided in one place), `IceMovement.traceForcedSlide(unit, from, direction, grid,
+occupantAt)` is the forced entry, and `ForcedMovement.traceForcedMove(unit, dc, dr, distance, grid,
+occupantAt, slideOccupantAt)` composes a push with it.
+
+**A push and its slide.** A push moves up to `distance` tiles, stopping before the edge, ground the
+unit cannot stand on or a unit. Whenever it puts the unit on Ice (the first tile or the second of a
+Smite, the one tile of a Shove) the slide runs from there to its end. A slid tile counts as a tile of
+the push, so Ice never makes a push shorter (a push with distance left when the slide leaves the Ice
+goes on from the landing). `stoppedShort` (something held the unit before the push's distance was
+spent) is what a Battering Ram calls a collision: a slide held after the distance was spent is
+terrain doing its work, not a crash.
+
+**Which moves use it.**
+
+| move | forced? | slides |
+|---|---|---|
+| Shove (the ally) | yes | yes (`ForcedMovement.findShoveTargets` / `settleShove`) |
+| Smite (the foe) | yes | yes (`findSmiteTargets` / `settleSmite`) |
+| Weapon-art `push` and `ram` (the target) | yes | yes (`WeaponArtPostCombat.resolvePostCombatMove`, `PostCombatEffects` yields the tiles as `slides` on the `moved` beat) |
+| Pull (the pulled ally) | yes | never leaves its tile: it lands on the puller's old tile and the puller, who stepped back, holds the next one (`tests/ForcedSlide.test.js`, `tests/ForcedSlideBattle.test.js`) |
+| Pull (the puller's step back), art `advance` / `retreat` / `through` / `swap`, the Swap command | no: the unit moves itself | no: unchanged |
+| Blink, Warp, Rescue | teleports | no |
+
+The line is "displaced by someone else's action". A unit moving itself by an ability is still
+walking-by-other-means, which keeps Pull's exchange and the art's own steps exactly as they were; if
+the owner wants them to slide too, they are one call each (`traceForcedSlide`). Enemies never Shove
+or Smite (no `classInnate`, not in their skill pool); an enemy's weapon-art push goes through the same
+`resolvePostCombatMove`, so the rule holds for it without more code.
+
+**What the player may know.** A push's tiles are chosen as before (a fogged tile counts as taken, so a
+hidden unit never decides which option exists). The slide is the consequence of that choice and is
+traced over different boards for the two uses (`ui/forcedMoveProbes.js`):
+
+- the preview (`landing` in the target list: `destCol` / `destRow`, `steps`, `slid`, `path`) reads
+  the units the player knows (`PlayerKnowledge.occupied`), so a hidden unit never shortens the slide
+  shown and the fog itself is not a body;
+- execution reads the real board for the slide, so a unit the fog hides stops it exactly as one stops
+  a walk (`FogAmbush`). The push's own tiles are the same in both. Shove reports it as a walk does: a
+  hidden foe is an "Ambush!" (history beat `was ambushed by` for the ally, hint on the foe), a hidden
+  neutral a "Blocked" hint; Smite shows nothing (nobody on the player's side bumped into it).
+
+The art ram's forecast (`AreaPreview.previewAreaArt`) is the same: it passes the terrain and the
+known units, so its landing shows the slide and a fogged unit never shortens it, while the real ram
+(`PostCombatEffects` over the real board) stops where the real board stops it. The slide's landing is
+data on the target entries (`destCol` / `destRow`, `path`); the board shows no landing marker today
+(Shove and Smite highlight the target tile only), for ice or not.
+
+`tests/ForcedSlideBattle.test.js` and `tests/AreaPreview.test.js` pair worlds that differ only by a
+hidden unit and require the same preview and a different outcome.
+
+**Presentation.** `settleMoves` carries `path` on the move's fact; `presentSettledMoves` tweens a move
+that has one tile by tile (slide tiles at walking's 60 ms), the same lifecycle and cleanup as any move.
+The final tile is the only state: rewind, suspend and resume read `unit.col/row`
+(`tests/RewindForcedSlide.test.js`), the hold-pack mark is unchanged (`settleMoves` marks `moved`).
+Whether or not the slide is drawn, the board is identical (`tests/ForcedSlideBattle.test.js`).
+
+
+## Addendum: Great Sacrifice, Goddess Dance, Blink Strike and Pass (Phase 3E, as built)
+
+Spec: `docs/specs/phase3.md` "3E. Action skills and Pass". Three more registry abilities (each
+`perMapLimit: 1`, so tracked on `unit._battleAbilityUsage` by skill id: the limit belongs to the
+user, never to an accessory that lends the skill) and one passive.
+
+| skill id | actionAbility | learned |
+|---|---|---|
+| `great_sacrifice` | `{ kind: "sacrifice_heal", radius: 2, amount: 10, perMapLimit: 1 }` | scroll (Act III–IV loot) |
+| `goddess_dance` | `{ kind: "refresh_adjacent", perMapLimit: 1, usableWhileSilenced: true }` | the Bard, level 5 (`learnableSkills`; `migrateClassLearnableSkills` gives it to a promoted Dancer from an old save). No scroll; `neverBound`. |
+| `blink_strike` | `{ kind: "warp_strike", range: 4, perMapLimit: 1 }` | scroll (Act III–IV loot) |
+| `pass` | passive, `classInnate: "Trickster"` | innate (`migrateClassInnateSkills`: an old Trickster gains it, benched when the list is full), scroll (Act II–IV), lent in Act IV |
+
+- **Great Sacrifice.** The user pays `min(10, HP − 1, what the most hurt healable ally in range
+  is missing)` through `damageUnit` (floor 1); every ally within 2 tiles (the army and the NPC
+  allies the caster sees, as Healing Circle) is healed by exactly that through `healUnit`. A
+  Wounded ally heals nothing and is never counted, so the ability is offered only when it would
+  do something (the user above 1 HP, someone hurt and healable in range): it never wastes the turn.
+  Silence stops it. Rules: `sacrificeTargets` / `sacrificeAmount` / `settleGreatSacrifice`.
+- **Goddess Dance.** Refreshes every cardinal neighbour that has acted and is not a dancer. The
+  target rule is `findDanceRefreshTargets`, the one Dance's own targets read (`BattleScene.findDanceTargets`),
+  and the refresh is `refreshActedAlly`, the one `executeDance` calls: `hasMoved`,
+  `_movementCommitted` and `hasActed` reset, `_movementSpent` left alone. A deed (`onRefresh`) and
+  Dance XP (`XP_BASE_DANCE`) per refreshed ally; the confirm prompt names how many.
+- **Blink Strike** (`ui/WarpStrikeController.js`). Ability → Blink Strike →
+  1. **destination**: a free tile of Blink's diamond (`getBlinkTiles`, over what the player knows: a
+     fogged tile or a known unit counts as taken) from which the equipped weapon reaches a seen
+     foe (`findWarpStrikeOptions`). "Beside" means in the weapon's reach: a sword user is offered
+     the tiles next to a foe, a bow user the tiles two away, a tome user both rings;
+  2. **foe**: among those the destination reaches;
+  3. **forecast**: the ordinary forecast, computed from the destination
+     (`AttackFlowController.atWarpDestination` lends the unit its landing coordinates for the
+     synchronous read and puts them back); the equipped weapon only, no cycling, **no weapon art**;
+  4. **Confirm** settles the warp and the attack as one action. **Cancel** steps back one stage
+     (forecast → foe → destination → the action menu); nothing has moved before Confirm.
+
+  The seam: Confirm re-plans the pair (`planWarpStrike`), settles the warp in the domain
+  (`settleWarpStrike`: the use is spent, the unit is on the destination) and, in the same
+  synchronous turn, calls `executeCombat(unit, foe, { warpStrike: { present } })`. Its first act is
+  the intent checkpoint (`pendingCommittedAction.warpStrike`), which therefore already holds the
+  warped unit: a Blink Strike makes the two durable writes any attack makes (the intent, the
+  resolved action) and none for the warp alone. The warp is drawn (Blink's fade) only after the
+  intent is saved. A refresh replays the attack as a Blink Strike, a rewind returns to before
+  the warp ("Before X's Blink Strike on Y"), and Canto is never offered. If the real board has a
+  unit on the destination the player's view lacked (a hidden occupant), the warp fails as a
+  settled action: the use is spent, the unit stays, the action ends (no Canto).
+- **Pass.** `Grid.computeMovementRange` / `computePath` take `{ pass: true }` (see CLAUDE.md for the
+  full rule). Enemy units are entered and marked `stoppable: false`; NPC allies still block; an
+  occupied tile still ends an ice slide; at execution a hidden foe on the way does not stop the
+  walk, one on the last tile backs it off (`FogAmbush.ambushStop`'s `passes`).

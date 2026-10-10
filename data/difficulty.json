@@ -16,6 +16,15 @@
       "enemyStatusStaffChance": 0,
       "statusStaffConfig": null,
       "shopCureGating": null,
+      "carryConfig": {
+        "perBattle": true,
+        "act1": 0,
+        "act2": 0.15,
+        "act3": 0.2,
+        "act4": 0.25,
+        "finalBoss": 0.25,
+        "maxPerBattle": 1
+      },
       "goldMultiplier": 1,
       "shopPriceMultiplier": 1,
       "lootQualityShift": 0,
@@ -24,7 +33,7 @@
       "fogChanceBonus": 0,
       "villageAmbushChance": 0.1,
       "reinforcementTurnOffset": 0,
-      "currencyMultiplier": 1,
+      "currencyMultiplier": 0.8,
       "actsIncluded": [
         "act1",
         "act2",
@@ -43,6 +52,7 @@
       "templateWavesRaisePar": true,
       "routLadder": null,
       "holdShare": null,
+      "revivalStones": { "actBoss": 0, "emperor": 0, "lieutenant": 0, "eliteCaptain": 0 },
       "objectiveParOffset": { "escape": -2 },
       "villageMinRow": { "act1": 3 },
       "enemyClassEarliestAct": {},
@@ -85,15 +95,24 @@
         "act3": true,
         "act4": true
       },
+      "carryConfig": {
+        "perBattle": true,
+        "act1": 0.1,
+        "act2": 0.25,
+        "act3": 0.3,
+        "act4": 0.35,
+        "finalBoss": 0.35,
+        "maxPerBattle": 1
+      },
       "goldMultiplier": 0.95,
       "shopPriceMultiplier": 1.08,
       "lootQualityShift": 0,
       "deployLimitBonus": 0,
-      "xpMultiplier": 0.95,
+      "xpMultiplier": 0.9,
       "fogChanceBonus": 0.08,
       "villageAmbushChance": 0.15,
       "reinforcementTurnOffset": 0,
-      "currencyMultiplier": 1.1,
+      "currencyMultiplier": 1.15,
       "actsIncluded": [
         "act1",
         "act2",
@@ -139,9 +158,11 @@
         }
       },
       "holdShare": { "seize": 0.35, "escape": 0.3 },
+      "revivalStones": { "actBoss": 0, "emperor": 1, "lieutenant": 0, "eliteCaptain": 0 },
       "objectiveParOffset": { "seize": -3, "escape": -2, "rout": { "act4": -2 } },
       "enemyClassEarliestAct": {
-        "Dragon": "act4"
+        "Dragon": "act4",
+        "Necromancer": "act4"
       },
       "recruitAffixExcludedActs": []
     },
@@ -185,15 +206,24 @@
         "act4": true,
         "finalBoss": true
       },
+      "carryConfig": {
+        "perBattle": true,
+        "act1": 0.2,
+        "act2": 0.35,
+        "act3": 0.45,
+        "act4": 0.5,
+        "finalBoss": 0.5,
+        "maxPerBattle": 2
+      },
       "goldMultiplier": 0.9,
       "shopPriceMultiplier": 1.15,
       "lootQualityShift": 0,
       "deployLimitBonus": 0,
-      "xpMultiplier": 0.9,
+      "xpMultiplier": 0.8,
       "fogChanceBonus": 0.15,
       "villageAmbushChance": 0.2,
       "reinforcementTurnOffset": 0,
-      "currencyMultiplier": 1.25,
+      "currencyMultiplier": 1.5,
       "actsIncluded": [
         "act1",
         "act2",
@@ -250,8 +280,9 @@
         }
       },
       "holdShare": { "seize": 0.45, "escape": 0.4 },
+      "revivalStones": { "actBoss": 1, "emperor": 1, "lieutenant": 0, "eliteCaptain": 0 },
       "objectiveParOffset": { "seize": -4, "escape": -2, "rout": { "act4": -2 } },
-      "enemyClassEarliestAct": {},
+      "enemyClassEarliestAct": { "Necromancer": "act4" },
       "recruitAffixExcludedActs": []
     },
     "lunatic": {
@@ -284,15 +315,24 @@
         "act4": true,
         "finalBoss": true
       },
+      "carryConfig": {
+        "perBattle": true,
+        "act1": 0.3,
+        "act2": 0.45,
+        "act3": 0.55,
+        "act4": 0.6,
+        "finalBoss": 0.6,
+        "maxPerBattle": 3
+      },
       "goldMultiplier": 0.8,
       "shopPriceMultiplier": 1.25,
       "lootQualityShift": 0,
       "deployLimitBonus": 0,
-      "xpMultiplier": 0.8,
+      "xpMultiplier": 0.7,
       "fogChanceBonus": 0.25,
       "villageAmbushChance": 0.25,
       "reinforcementTurnOffset": 0,
-      "currencyMultiplier": 1.5,
+      "currencyMultiplier": 2,
       "actsIncluded": [
         "act1",
         "act2",
@@ -325,8 +365,9 @@
       "templateWavesRaisePar": false,
       "routLadder": null,
       "holdShare": { "seize": 0.55, "escape": 0.5 },
+      "revivalStones": { "actBoss": 1, "emperor": 2, "lieutenant": 0, "eliteCaptain": 1 },
       "objectiveParOffset": { "seize": -4, "escape": -1, "rout": { "act4": -1 } },
-      "enemyClassEarliestAct": {},
+      "enemyClassEarliestAct": { "Necromancer": "act3" },
       "recruitAffixExcludedActs": []
     }
   }

@@ -37,6 +37,8 @@ import {
 } from './UnitManager.js';
 import { serializeUnit } from './RunManager.js';
 import { VULNERARY_NAME, consumableTemplateFor } from './VulneraryRecipe.js';
+import { rollMark } from './MarkSystem.js';
+import { applyRecruitLevelBonus } from './RecruitJoinLevel.js';
 
 const XP_STAT_NAMES = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK'];
 const LEGACY_ACT_ORDER = ['act1', 'act2', 'act3', 'finalBoss'];
@@ -301,6 +303,11 @@ export function createBossLordUnit(
  * @param {Object|null} metaEffects - meta-progression effects
  * @param {Array} [fallenUnits=[]] - units that died this run (their names stay taken)
  * @param {Array<string>} [reservedNames=[]] - names no candidate may take (RunManager.getTakenUnitNames: pending recruit-node previews, names used this run)
+ * @param {number|null} [runSeed=null] - the run's seed: the Mark roll's stream (UnitManager.createRecruitUnit); none = no Marks
+ * @param {{ recruitLevelBonus?: number }} [options] - `recruitLevelBonus`: Nomad's Pact, extra levels
+ *   every candidate (the lord included) joins with, raised after the unit is built on its own
+ *   keyed stream (engine/RecruitJoinLevel.js) so classes, names and the lord slot are the same
+ *   with and without it; the candidate's equipment keeps reading the level before the bonus
  * @returns {Array|null} 3 candidate objects or null for final boss
  */
 export function generateBossRecruitCandidates(
@@ -310,6 +317,8 @@ export function generateBossRecruitCandidates(
   metaEffects,
   fallenUnits = [],
   reservedNames = [],
+  runSeed = null,
+  { recruitLevelBonus = 0 } = {},
 ) {
   const actId = resolveActId(actRef);
 
@@ -317,6 +326,7 @@ export function generateBossRecruitCandidates(
   if (actId === 'finalBoss') return null;
 
   const { lords, classes, weapons, recruits, skills, consumables, accessories } = gameData;
+  const markContext = { runSeed, marksData: gameData.marks || null, metaEffects };
   const rosterClassNames = new Set(roster.map((u) => u.className));
 
   // Recruit scaling anchor is the commander to keep behavior aligned across systems.
@@ -443,11 +453,17 @@ export function generateBossRecruitCandidates(
       baseLevelOverride,
       gameData.traits || null,
       accessories || null,
+      markContext,
     );
     if (unit) {
       if (!isClassAvailable(unit.className)) continue;
       applyRecruitJoinBonus(unit, poolKey);
+      const pickedName = unit.name;
       unit.name = makeUniqueRecruitName(unit.name, takenNames);
+      // The Mark's stream is keyed by name: a name the dedup changed rolls again, so the
+      // same run seed and the final name always give the same Mark.
+      if (unit.name !== pickedName) rollMark(unit, { ...markContext, metaEffects });
+      applyRecruitLevelBonus(unit, recruitLevelBonus, { classes, runSeed });
       takenNames.add(unit.name);
       takenClassNames.add(unit.className);
       unit.faction = 'player';
@@ -501,6 +517,7 @@ export function generateBossRecruitCandidates(
       );
       applyRecruitJoinBonus(unit, poolKey);
       unit.name = chosenLord.name || unit.name;
+      applyRecruitLevelBonus(unit, recruitLevelBonus, { classes, runSeed });
       takenNames.add(unit.name);
       const lordCandidate = {
         unit: serializeUnit(unit),
@@ -534,7 +551,13 @@ function createRecruitFromPool(
   baseLevelOverride = null,
   traitsData = null,
   accessories = null,
+  markContext = null,
 ) {
+  const markOptions = {
+    runSeed: markContext?.runSeed,
+    marksData: markContext?.marksData || null,
+    metaEffects,
+  };
   const statBonuses = metaEffects?.statBonuses || null;
   const growthBonuses = metaEffects?.growthBonuses || null;
   // Boss recruits get what recruit-node recruits get: seasoned growths and the
@@ -583,6 +606,7 @@ function createRecruitFromPool(
         rng: Math.random,
         traitClassData: promotedClassData,
         seasoned: true,
+        ...markOptions,
       },
     );
     addClassInnates(unit, baseClassData.name);
@@ -628,7 +652,7 @@ function createRecruitFromPool(
       growthBonuses,
       skillPool,
       classes,
-      { traitsData, skillsData: skills, rng: Math.random, seasoned: true },
+      { traitsData, skillsData: skills, rng: Math.random, seasoned: true, ...markOptions },
     );
     addClassInnates(unit, classData.name);
     if (metaEffects?.lethalArmoryTier) {

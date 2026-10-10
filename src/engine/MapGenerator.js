@@ -18,7 +18,9 @@ import {
   RECRUIT_PROMOTION_BASE_LEVEL,
   DEFAULT_ENEMY_PROMOTED_SHARE,
 } from '../utils/constants.js';
-import { assignAffixesToEnemySpawns } from './AffixEngine.js';
+import { assignAffixesToEnemySpawns, assignSwornAffix } from './AffixEngine.js';
+import { withHuntedWave } from './HuntedWave.js';
+import { createSeededRng } from './ReinforcementScheduler.js';
 import { assignEnemyAreaArts } from './EnemyAreaArts.js';
 import { pickCaravanSpawnTile } from './CaravanSystem.js';
 import { ballistaRangeForAct, createBallistaState } from './BallistaEngine.js';
@@ -31,8 +33,11 @@ import {
 import { createScopedLogger } from '../utils/logger.js';
 import { buildRoutLadder } from './RoutLadder.js';
 import { assignHolders, holdShareFor } from './HoldActivation.js';
+import { revivalStoneKind, revivalStonesFor } from './RevivalStones.js';
+import { mapExtraNecromancer } from './Necromancy.js';
 import { seizeParFloor } from './SeizeParFloor.js';
 import { assignCasterGear, isPerBattleGearConfig } from './CasterGear.js';
+import { assignEnemyCarry } from './EnemyCarry.js';
 import { buildReinforcementTemplatePool } from './ReinforcementSpawns.js';
 import { reinforcementMoveTypes } from './ReinforcementScheduler.js';
 
@@ -81,6 +86,7 @@ export function generateBattleLayout(params, deps) {
     enemyPoisonChance = 0,
     statusStaffConfig = null,
     siegeWeaponConfig = null,
+    carryConfig = null,
     isAmbush = false,
     enemyLevelBonus = 0,
     enemyCountBase = 0,
@@ -249,6 +255,10 @@ export function generateBattleLayout(params, deps) {
       difficultyId: params.difficultyId,
       // Elite captains already scale with the act's (rung-adjusted) level range.
       bossLevelBonus: params.isElite === true && !isBoss ? 0 : params.bossLevelBonus,
+      // Revival Stones (difficulty.json `revivalStones`, RevivalStones.js): the boss spawn
+      // carries its count, so a locked map keeps it. Elite captains are their own kind.
+      revivalStones: params.revivalStones,
+      isEliteCaptain: params.isElite === true && !isBoss && objective === 'seize',
     },
   );
   // Per-battle staves and siege tomes (CasterGear.js, its own stream: no Math.random).
@@ -259,6 +269,14 @@ export function generateBattleLayout(params, deps) {
     statusStaffConfig,
     siegeWeaponConfig,
   });
+  // Carried items (EnemyCarry.js, its own stream: no Math.random). A Thief's Steal takes one.
+  assignEnemyCarry(enemySpawns, {
+    act,
+    difficultyId: params.difficultyId,
+    templateId: template?.id,
+    carryConfig,
+    lootTables: deps.lootTables,
+  });
   enemySpawns = assignAffixesToEnemySpawns(enemySpawns, {
     allowAffixes:
       params.allowEnemyAffixes !== false && recruitAffixesAllowed(params, deps.difficulty),
@@ -267,6 +285,15 @@ export function generateBattleLayout(params, deps) {
     act,
     eclipse: params.eclipseAffix || null,
   });
+  // The Sworn Enemy burden (engine/Burdens.js): the act boss carries one more tier-1 affix.
+  // Its own seeded stream (`params.swornEnemy.seed`), so Math.random is never touched.
+  if (params.swornEnemy) {
+    enemySpawns = assignSwornAffix(enemySpawns, {
+      affixConfig: deps.affixes,
+      difficultyId: params.difficultyId || 'normal',
+      random: createSeededRng(Number(params.swornEnemy.seed) >>> 0),
+    });
+  }
   // Elite battles from Act III at Nightfall+: one or two enemies carry an area art
   // (EnemyAreaArts.js, enemies.json eliteAreaArts). Draws from the battle seed only
   // when the battle qualifies.
@@ -503,6 +530,16 @@ export function generateBattleLayout(params, deps) {
       waves: [],
       ladder,
     };
+  }
+  // The Hunted burden (engine/Burdens.js, HuntedWave.js): one extra wave on its turn at the
+  // map's reinforcement edge, written here so a locked map keeps it. Never a boss map. No
+  // draw: the arrivals are rolled by the scheduler from the battle's own seed.
+  if (params.huntedWave && !isBoss) {
+    reinforcementConfig.reinforcements = withHuntedWave(
+      reinforcementConfig.reinforcements,
+      params.huntedWave,
+      { cols, rows, playerSpawns, enemySpawns },
+    );
   }
   // Black Sun: the template's procedural waves keep coming but no longer raise par.
   if (
@@ -1966,6 +2003,10 @@ function generateEnemies(
     // The rung's boss level bonus (difficulty.json `bossLevelBonus`): boss levels are
     // otherwise fixed by their definitions and ignore `enemyLevelBonus`.
     const bossLevelBonus = Math.max(0, Math.trunc(Number(extraOptions.bossLevelBonus) || 0));
+    const stones = revivalStonesFor(
+      extraOptions.revivalStones,
+      revivalStoneKind({ bossDef, act, isEliteCaptain: extraOptions.isEliteCaptain === true }),
+    );
 
     // Entity boss: place at entitySpawn coords if template provides them
     const entityFootprintInBounds =
@@ -2030,6 +2071,7 @@ function generateEnemies(
           row: bossPos.row,
           isBoss: true,
           name: bossDef.name,
+          ...(stones > 0 ? { revivalStones: stones } : {}),
         });
       }
     }
@@ -2152,6 +2194,10 @@ function generateEnemies(
       className = weightedClassPick(allClasses, enemyWeights, classes);
     }
 
+    // One Necromancer per battle: a further pick is mapped to the pool's next class (no
+    // re-roll, no extra draw: the streams stay where they were).
+    className = mapExtraNecromancer(className, spawns, pool);
+
     const unit = { className };
 
     // Score all remaining candidate tiles for this unit
@@ -2253,7 +2299,8 @@ function generateEnemies(
       sunderWeapon: sunderWeapon || undefined,
       poisonWeapon: poisonWeapon || undefined,
       statusStaff: statusStaff || undefined,
-      aiMode: className === 'Cleric' ? 'heal' : undefined,
+      // A Cleric heals; a Necromancer holds its post and raises (the existing guard mode).
+      aiMode: className === 'Cleric' ? 'heal' : className === 'Necromancer' ? 'guard' : undefined,
       siegeWeapon: siegeWeapon || undefined,
     });
   }

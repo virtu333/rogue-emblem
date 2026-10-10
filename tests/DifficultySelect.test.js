@@ -64,15 +64,31 @@ describe('generateModifierSummary', () => {
     expect(result.some((l) => l.includes('10%'))).toBe(true);
   });
 
+  it('First Light earns less meta currency and says so as a term, never as a bonus', () => {
+    const result = generateModifierSummary(gameData.difficulty.modes.normal);
+    expect(result).toContain('80% meta currency');
+    expect(result.some((l) => /\+\d+% meta currency/.test(l))).toBe(false);
+  });
+
+  it('every rung above First Light pays back: Dusk +15%, Nightfall +50%, Black Sun +100%', () => {
+    const line = (id) =>
+      generateModifierSummary(gameData.difficulty.modes[id]).find((l) => /meta currency/.test(l));
+    expect([line('dusk'), line('hard'), line('lunatic')]).toEqual([
+      '+15% meta currency',
+      '+50% meta currency',
+      '+100% meta currency',
+    ]);
+  });
+
   it('returns correct modifier lines for Hard mode', () => {
     const hardMode = gameData.difficulty.modes.hard;
     const result = generateModifierSummary(hardMode);
     expect(result.length).toBeGreaterThan(0);
     expect(result.some((l) => l.includes('Enemy stats +1'))).toBe(true);
     expect(result.some((l) => l.includes('90% gold earned'))).toBe(true);
-    expect(result.some((l) => l.includes('+25% meta currency'))).toBe(true);
+    expect(result.some((l) => l.includes('+50% meta currency'))).toBe(true);
     expect(result.some((l) => l.includes('Shop prices +15%'))).toBe(true);
-    expect(result.some((l) => l.includes('90% XP earned'))).toBe(true);
+    expect(result.some((l) => l.includes('80% XP earned'))).toBe(true);
     expect(result.some((l) => l.includes('20% shop ambush chance'))).toBe(true);
   });
 

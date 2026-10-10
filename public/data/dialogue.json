@@ -6857,6 +6857,33 @@
         "'I dreamt you'd come this way. Thought I ought to be here when you did.'",
         "Someone has been camped on the landing a long while. Their fire is still lit."
       ]
+    },
+    "event": {
+      "act1": [
+        "A signpost, turned around by someone with a sense of humor.",
+        "Smoke from a cookfire, a little off the road.",
+        "The ruts here are fresh. Somebody stopped, and did not stay.",
+        "'Is that on the map?' 'It is now.'",
+        "Chalked on a gatepost: ASK FIRST."
+      ],
+      "act2": [
+        "A toll post with no toll-keeper. The ledger is still open.",
+        "The imperial road forks here. A boot print points down the lesser branch.",
+        "A cart left at the verge, its wheel mended by someone who was not the owner.",
+        "'Don't take the offer.' 'What offer?' 'Exactly.'"
+      ],
+      "act3": [
+        "The fens give back odd things. Today, a lantern, still lit.",
+        "A shrine without a name, tidied by hands nobody has seen.",
+        "Somebody has laid a place at a table that is no longer there.",
+        "The reeds lean away from the road, all in the same direction."
+      ],
+      "act4": [
+        "The capital's outer road, swept clean for a visitor nobody announced.",
+        "A bell rings from a tower that fell last winter.",
+        "Torches burn at a crossing. Nobody tends them.",
+        "A sealed carriage, the horses long gone, the door ajar."
+      ]
     }
   },
   "lordFarewell": {
@@ -9284,6 +9311,10 @@
           "I've stood here before. I don't remember how it ended. Let's change that.",
           "Something in my bones says we lost here once. My bones can be wrong."
         ],
+        "herald": [
+          "The hooded man on the road said it was nearly time. He never said for whom.",
+          "I listened to a stranger's prophecy once. Tonight I'd like to prove him wrong."
+        ],
         "wounded": [
           "Bleeding? Fine. So is it. Keep going!",
           "I'm still up. Don't slow down for me. Not now."
@@ -9318,6 +9349,10 @@
           "I know this position. We lost it once. Never the same way twice.",
           "I've seen this board before. Last time I blinked. Not tonight."
         ],
+        "herald": [
+          "A herald told us how this ends. I never trust a script I didn't write.",
+          "He gave me the opening line. I'm improvising the rest."
+        ],
         "wounded": [
           "A sacrifice? No. Just a scratch. Keep moving.",
           "Down a few points. Still winning. Go!"
@@ -9351,6 +9386,10 @@
         "memory": [
           "Been here. Didn't walk out. This time I do.",
           "My ledger has this place in it. Crossing it out tonight."
+        ],
+        "herald": [
+          "The hooded one said the dark was patient. So am I. Longer, I'd wager.",
+          "He wasn't lying about the sun. Doesn't mean he got the ending right."
         ],
         "wounded": [
           "Hit. Still standing. Obviously.",
@@ -9392,6 +9431,10 @@
           "We've died here before. I remember every time. Not this time.",
           "I've woven this moment again and again. Tonight I won't have to."
         ],
+        "herald": [
+          "The herald saw only the dark. There are other threads, and you are all in them.",
+          "He listened to the sun go out. I listened to you. Mine is the louder sound."
+        ],
         "wounded": [
           "The light is dimming... no. Not yet. Keep going!",
           "I'm fine. The thread is stronger than I am. Hold it!"
@@ -9425,6 +9468,10 @@
         "memory": [
           "Funny, I feel like I've lost this one before. My luck's due to turn.",
           "We've been here. I remember losing. I don't remember losing twice."
+        ],
+        "herald": [
+          "That hooded fellow swore tonight was the end. Funny, my luck disagrees.",
+          "A herald told me the sun would fail. Pity. I'd just polished the lance."
         ],
         "wounded": [
           "Hit! Just a flesh wound. On me. My mount's fine. We're fine!",
@@ -9460,6 +9507,10 @@
           "I've fallen from this sky before. I know the way down. Not today.",
           "Same wind as last time. Different ending."
         ],
+        "herald": [
+          "The herald called this the end of the light. From up here it looks like morning.",
+          "He pointed at the sky as if it were his. It never was."
+        ],
         "wounded": [
           "Clipped a wing. Still flying.",
           "Hit. I'll bleed on the way down. Later."
@@ -9493,6 +9544,10 @@
         "memory": [
           "I've held here before and broken. Stone learns.",
           "This wall fell here once. Rebuilt. Thicker."
+        ],
+        "herald": [
+          "The hooded man said nothing holds. Tell that to the wall.",
+          "He said the dark takes everything. It can try me first."
         ],
         "wounded": [
           "Cracked. Walls crack. Walls hold.",

@@ -195,22 +195,24 @@ test('touch run: loadout, battle action, rewards, shop, equipment, next battle a
     .getByRole('dialog', { name: `Give ${entry.name} to`, exact: true })
     .getByRole('button', { name: 'Confirm', exact: true })
     .tap();
-  await expect
-    .poll(() =>
-      page.evaluate(
-        (name) =>
-          window.__emblemRogueGame.scene
-            .getScene('NodeMap')
-            .runManager.roster.some((u) =>
-              [...u.inventory, ...(u.consumables || [])].some((i) => i.name === name),
-            ),
-        entry.name,
-      ),
-    )
-    .toBe(true);
+  // Who got it: the picker lists units who can equip it first, so a Javelin goes to a
+  // lance user, not the roster's first unit (the sheet opens on the first unit).
+  const holder = () =>
+    page.evaluate(
+      (name) =>
+        window.__emblemRogueGame.scene
+          .getScene('NodeMap')
+          .runManager.roster.find((u) =>
+            [...u.inventory, ...(u.consumables || [])].some((i) => i.name === name),
+          )?.name ?? null,
+      entry.name,
+    );
+  await expect.poll(holder).not.toBeNull();
+  const recipient = await holder();
   await page.locator('.shop-menu').getByRole('button', { name: 'Leave', exact: true }).tap();
   await page.evaluate(() => window.__emblemRogueGame.scene.getScene('NodeMap')._openRoster());
   const sheet = page.getByRole('dialog', { name: 'Manage roster' });
+  await sheet.getByRole('button', { name: new RegExp(`^${recipient}, Level`) }).tap();
   await sheet.getByRole('button', { name: 'Equipment', exact: true }).tap();
   await expect(sheet.getByRole('heading', { name: entry.name, exact: true }).first()).toBeVisible();
   await sheet.getByRole('button', { name: 'Close', exact: true }).tap();

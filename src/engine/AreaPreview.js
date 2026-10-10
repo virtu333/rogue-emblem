@@ -19,6 +19,9 @@ import {
 } from './WeaponArtSystem.js';
 import { resolvePostCombatMove } from './WeaponArtPostCombat.js';
 import { isDisplacementImmune } from './AffixSystem.js';
+import { planAreaPush } from './AreaPush.js';
+import { getFootprint } from './EntitySystem.js';
+import { revivalStoneCount } from './RevivalStones.js';
 
 const isHostile = (a, b) => {
   if (!a || !b || a === b) return false;
@@ -39,7 +42,9 @@ const isHostile = (a, b) => {
  *                                confirming equips; default: the equipped one)
  * @param {number} [p.blows]      how many blows a per-hit area lands (the forecast's hits)
  * @param {number} [p.dealt]      the damage the forecast says the target takes (for heals)
- * @returns {{ tiles: object[], victims: object[], heals: object[], push: object|null } | null}
+ * @returns {{ tiles: object[], victims: object[], heals: object[], push: object|null,
+ *   pushes: object[] } | null} `push` is a ram's landing; `pushes` Override's: one entry per
+ *   foe it drives back, farthest first (AreaPush.planAreaPush: from, to, moved, reason)
  */
 export function previewAreaArt({
   attacker,
@@ -57,7 +62,7 @@ export function previewAreaArt({
   const known = (knowledge?.units || []).filter((u) => u.currentHP > 0);
   const area = getWeaponArtArea(art);
   const targeting = getWeaponArtTargeting(art);
-  const out = { target, center, tiles: [], victims: [], heals: [], push: null };
+  const out = { target, center, tiles: [], victims: [], heals: [], push: null, pushes: [] };
 
   if (area) {
     out.tiles = areaTilesFor(area, { attacker, target, center }, areaBounds(world));
@@ -75,7 +80,15 @@ export function previewAreaArt({
     });
     out.victims = plan.map(({ unit, damage }) => {
       const hpAfter = Math.max(Math.min(floor, unit.currentHP), unit.currentHP - damage * count);
-      return { unit, damage: unit.currentHP - hpAfter, hpAfter, kills: hpAfter <= 0 };
+      // A blow that would fell a unit holding Revival Stones breaks one instead (it stands).
+      const breaks = hpAfter <= 0 && revivalStoneCount(unit).remaining > 0;
+      return {
+        unit,
+        damage: unit.currentHP - hpAfter,
+        hpAfter,
+        kills: hpAfter <= 0 && !breaks,
+        ...(breaks ? { breaks: true } : {}),
+      };
     });
   }
 
@@ -91,6 +104,28 @@ export function previewAreaArt({
       }));
   }
 
+  // Override: the line's foes and the target are driven back, over the units the player
+  // knows. A foe the preview says dies is not pushed (and blocks nothing).
+  const driveBack = (getWeaponArtTier2Effects(art).postCombatMove || []).find(
+    (m) => m.mode === 'pushAreaVictims',
+  );
+  if (driveBack && area && target && targeting === 'normal_attack') {
+    const felled = out.victims.filter((v) => v.kills).map((v) => v.unit);
+    if (dealt >= target.currentHP && revivalStoneCount(target).remaining <= 0) felled.push(target);
+    const plan = planAreaPush({
+      source: attacker,
+      primary: target,
+      area,
+      distance: driveBack.distance,
+      units: known.filter((u) => isHostile(attacker, u)),
+      world,
+      getUnitAt: (col, row) =>
+        known.find((u) => getFootprint(u).some((t) => t.col === col && t.row === row)) || null,
+      felled,
+    });
+    out.pushes = plan.entries;
+  }
+
   const ram = (getWeaponArtTier2Effects(art).postCombatMove || []).find((m) => m.mode === 'ram');
   if (ram && target) {
     const knownAt = (col, row) => known.find((u) => u.col === col && u.row === row) || null;
@@ -103,6 +138,7 @@ export function previewAreaArt({
       rows: world.rows,
       getMoveCost: world.getMoveCost,
       getUnitAt: knownAt,
+      getTerrainAt: world.getTerrainAt,
       isImmovable: (unit) => isDisplacementImmune(unit, world.affixes),
     });
     if (move.ok) {
@@ -135,18 +171,26 @@ export function previewAreaArt({
 export function areaForecastLines(preview, { max = 3, onHit = true } = {}) {
   if (!preview) return [];
   const lines = [];
-  const { victims = [], heals = [], push = null } = preview;
+  const { victims = [], heals = [], push = null, pushes = [] } = preview;
   if (victims.length > 0) {
     const kos = victims.filter((v) => v.kills).length;
     const count = `${victims.length} ${victims.length === 1 ? 'foe' : 'foes'}${kos ? `, ${kos} KO` : ''}`;
     lines.push(onHit ? `Area if it hits: ${count}` : `Area: ${count}`);
     for (const v of victims.slice(0, max))
-      lines.push(`${v.unit.name} −${v.damage}${v.kills ? ' KO' : ''}`);
+      lines.push(`${v.unit.name} −${v.damage}${v.kills ? ' KO' : v.breaks ? ' breaks a bar' : ''}`);
     if (victims.length > max) lines.push(`+${victims.length - max} more`);
   }
   const healing = heals.filter((h) => h.amount > 0);
   if (healing.length > 0)
     lines.push(`If it hits: ${healing.map((h) => `${h.unit.name} +${h.amount}`).join(', ')}`);
+  const driven = pushes.filter((p) => p.moved);
+  if (driven.length > 0) {
+    const names = driven.slice(0, max).map((p) => p.unit.name);
+    if (driven.length > max) names.push(`+${driven.length - max} more`);
+    lines.push(`Pushed back: ${names.join(', ')}`);
+  }
+  const braced = pushes.filter((p) => p.reason && p.reason !== 'blocked');
+  if (braced.length > 0) lines.push(`Braced: ${braced.map((p) => p.unit.name).join(', ')}`);
   if (push?.braced) lines.push('Push: the target braces');
   else if (push?.crash)
     lines.push(

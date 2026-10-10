@@ -65,6 +65,21 @@ function lowestHpPctFirst(a, b) {
 }
 
 /**
+ * The live units of `units` on the tiles `area` covers, in area order, the primary and the
+ * source never among them. Geometry and `units` only: who is a victim is decided here and
+ * nowhere else (the blows and Override's push both ask).
+ */
+export function areaVictims({ source, primary = null, center = null, area, units = [], world }) {
+  if (!source || !area) return [];
+  const tiles = areaTilesFor(
+    area,
+    { attacker: source, target: primary, center },
+    areaBounds(world),
+  );
+  return unitsOnTiles(tiles, (units || []).filter(isLive), { exclude: [primary, source] });
+}
+
+/**
  * The victims of one use of an area art and each one's blow.
  * @param {object} p
  * @param {object} p.source       the art's user
@@ -89,12 +104,7 @@ export function planAreaBlows({
   weapon = null,
 }) {
   if (!source || !area) return [];
-  const tiles = areaTilesFor(
-    area,
-    { attacker: source, target: primary, center },
-    areaBounds(world),
-  );
-  let victims = unitsOnTiles(tiles, (units || []).filter(isLive), { exclude: [primary, source] });
+  let victims = areaVictims({ source, primary, center, area, units, world });
   if (area.pick === 'lowest_hp_pct') victims = [...victims].sort(lowestHpPctFirst);
   if (area.maxTargets > 0) victims = victims.slice(0, area.maxTargets);
   return victims.map((unit) => ({

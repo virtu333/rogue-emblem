@@ -515,6 +515,9 @@
 .ch-line.is-legend > b {
   color: var(--re-rarity-legend);
 }
+.ch-line.is-mark > b {
+  color: var(--re-mark);
+}
 .ch-line.is-skill > b {
   color: var(--re-accent-text);
 }
@@ -669,6 +672,38 @@
 .ch-draft[data-count='1'] .ch-card:is([aria-pressed='true'], .is-chosen) {
   transform: none;
 }
+/* The chosen blessing's price, explained (BlessingTerms): in place of its lore. The words
+   are a button that opens all of it (RunSetupMenu.openPriceHelp): text, not a plate. */
+.re .ch-term-open {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  clip-path: none;
+  text-align: left;
+  cursor: help;
+  touch-action: manipulation;
+}
+.ch-term {
+  font: 12px/1.35 var(--re-body);
+  color: var(--re-parchment-dim);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ch-term b {
+  color: var(--re-parchment);
+  font-weight: 700;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
 .ch-lore {
   font: italic 12px/1.35 var(--re-body);
   color: var(--re-parchment-dim);
@@ -742,6 +777,9 @@
 }
 .ch-terms-line.is-trait > b {
   color: var(--ce-unlight-5);
+}
+.ch-terms-line.is-mark > b {
+  color: var(--re-mark);
 }
 .ch-terms-line.is-skill > b {
   color: var(--re-accent-text);
@@ -921,6 +959,12 @@
 .mu-screen .ch-rewards-footer .mu-buy {
   flex: none;
   min-width: 150px;
+}
+/* Branching Threads' Reroll beside the claim: its label never wraps. Kept below the
+   portrait footer's button rule in specificity, so upright it fills its row like the rest. */
+.ch-rewards-footer .ch-reroll {
+  flex: none;
+  white-space: nowrap;
 }
 /* Recipient rows: the unit's face beside its comparison. */
 .mh-skill.ch-recipient {

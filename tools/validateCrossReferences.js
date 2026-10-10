@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { DIFFICULTY_IDS } from '../src/engine/DifficultyEngine.js';
 import { getWeaponArtTier2Effects } from '../src/engine/WeaponArtSystem.js';
+import { validateAccessorySkillData } from '../src/engine/AccessorySkills.js';
+import { validateCarryPools } from '../src/engine/EnemyCarry.js';
 
 const DATA_DIR = path.resolve('data');
 
@@ -217,6 +219,41 @@ export function validateCrossReferences(datasets = null) {
     }
   }
 
+  // Enemy-only gear (classes.json `enemyWeapon`: the Necromancer's Gravesong): a real
+  // weapon the class can wield, priced 0 (shops skip it) and in no loot table.
+  const enemyWeaponNames = new Set();
+  for (const cls of Array.isArray(classes) ? classes : []) {
+    if (cls?.enemyWeapon === undefined) continue;
+    const weapon = (Array.isArray(weapons) ? weapons : []).find((w) => w?.name === cls.enemyWeapon);
+    if (!weapon) {
+      errors.push(
+        `classes.json:${cls.name}.enemyWeapon references unknown weapon "${cls.enemyWeapon}"`,
+      );
+      continue;
+    }
+    enemyWeaponNames.add(weapon.name);
+    if (weapon.price !== 0)
+      errors.push(
+        `weapons.json:${weapon.name} is ${cls.name}'s enemy-only weapon: its price must be 0`,
+      );
+    const word = PROFICIENCY_WORD[weapon.type];
+    if (!word || !String(cls.weaponProficiencies || '').includes(word))
+      errors.push(
+        `classes.json:${cls.name}.enemyWeapon "${weapon.name}" is a ${weapon.type}, which ${cls.name} cannot wield`,
+      );
+  }
+  for (const [actId, table] of Object.entries(lootTables || {})) {
+    for (const [poolKey, pool] of Object.entries(table || {})) {
+      for (const entry of Array.isArray(pool) ? pool : []) {
+        const itemName = typeof entry === 'string' ? entry : entry?.name;
+        if (enemyWeaponNames.has(itemName))
+          errors.push(
+            `lootTables.json:${actId}.${poolKey} lists enemy-only weapon "${itemName}" (it never drops or sells)`,
+          );
+      }
+    }
+  }
+
   for (const actId of ['act1', 'act2', 'act3', 'act4']) {
     for (const className of Array.isArray(recruits?.[actId]?.classPool)
       ? recruits[actId].classPool
@@ -274,6 +311,14 @@ export function validateCrossReferences(datasets = null) {
       if (!(Number.isInteger(art.perTurnLimit) && art.perTurnLimit >= 1))
         errors.push(`${where} has a killMove: it needs a perTurnLimit, or refreshes chain`);
     }
+    // Override (docs/specs/phase3.md 3F): the push takes the foes a line hit, so it needs one.
+    if (
+      (art?.effects?.afterCombat || []).some(
+        (e) => e?.type === 'move' && e?.mode === 'pushAreaVictims',
+      ) &&
+      (art?.area?.shape !== 'line' || art?.targeting === 'chosen_center')
+    )
+      errors.push(`${where} has a pushAreaVictims move: it needs a normal-attack line area`);
     const area = art?.area;
     const chosenCenter = art?.targeting === 'chosen_center';
     if (chosenCenter && !area) errors.push(`${where} is chosen_center but has no area`);
@@ -330,6 +375,12 @@ export function validateCrossReferences(datasets = null) {
         errors.push(`${at}: "${artId}" moves units (no enemy knockback)`);
     }
   }
+
+  // Accessory skills (docs/specs/phase3.md 3H): every pool skill exists and can be lent.
+  errors.push(...validateAccessorySkillData({ lootTables, skills, accessories }));
+
+  // Carried items (docs/specs/phase3.md 3G): every act's carry pool names real items.
+  errors.push(...validateCarryPools({ lootTables, consumables, weapons }));
 
   return { valid: errors.length === 0, errors };
 }

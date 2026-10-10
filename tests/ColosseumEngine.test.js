@@ -14,7 +14,7 @@ import {
   calculateArenaXP,
 } from '../src/engine/ColosseumEngine.js';
 import { generateNodeMap } from '../src/engine/NodeMapGenerator.js';
-import { NODE_TYPES, ACT_SEQUENCE } from '../src/utils/constants.js';
+import { NODE_TYPES, ACT_SEQUENCE, ACT_CONFIG } from '../src/utils/constants.js';
 import { getClassInnateSkills } from '../src/engine/UnitManager.js';
 
 const gameData = loadGameData();
@@ -1009,7 +1009,7 @@ describe('ColosseumEngine', () => {
       }
     });
 
-    it('spawns late-act colosseum with ~70% frequency', () => {
+    it('spawns late-act colosseum with about 61% frequency (70% attempted)', () => {
       let spawned = 0;
       const trials = 5000;
       // Pin the sample and reduce sampling noise. Route repair can remove an
@@ -1017,7 +1017,7 @@ describe('ColosseumEngine', () => {
       const random = vi.spyOn(Math, 'random').mockImplementation(makeRng(42));
       try {
         for (let i = 0; i < trials; i++) {
-          const map = generateNodeMap('act2', { name: 'Test', rows: 8 }, gameData.mapTemplates, {
+          const map = generateNodeMap('act2', ACT_CONFIG.act2, gameData.mapTemplates, {
             colosseumConfig: colosseumData.nodeGeneration,
           });
           if (map.nodes.some((n) => n.type === NODE_TYPES.COLOSSEUM)) spawned++;
@@ -1026,9 +1026,11 @@ describe('ColosseumEngine', () => {
         random.mockRestore();
       }
       const rate = spawned / trials;
-      // Act 2+ override is 0.70; reject the old 0.55 frequency.
-      expect(rate).toBeGreaterThan(0.62);
-      expect(rate).toBeLessThan(0.78);
+      // Act 2+ override is 0.70 of attempts; events and recruits take battles from rows 2-4
+      // (the arena only replaces a battle), so the final rate is about 0.61 on a 10-row act.
+      // The act 1 default 0.55 lands near 0.49 here: keep the two apart.
+      expect(rate).toBeGreaterThan(0.55);
+      expect(rate).toBeLessThan(0.7);
     });
   });
 });

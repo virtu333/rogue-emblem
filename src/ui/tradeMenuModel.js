@@ -7,6 +7,10 @@
 // holder: { kind: 'unit', unit } | { kind: 'convoy' }
 // slot:   { holder, bag: 'inventory' | 'consumables' | 'accessory', item | null }
 // focus:  { side: 'left' | 'right', index } (a row of the visible tab)
+import { itemDisplayName } from '../utils/itemNames.js';
+
+// An item's display name (an accessory with a bound skill shows it; no catalog needed here).
+const shown = (item) => itemDisplayName(item);
 
 export const TRADE_BAGS = Object.freeze([
   Object.freeze({ bag: 'inventory', label: 'Weapons' }),
@@ -52,7 +56,7 @@ export function tradeWarningText(warning) {
   const name = warning?.unit?.name || 'This unit';
   if (warning?.code === 'cannot_equip')
     return warning.item?.name
-      ? `${name} can't wield ${warning.item.name}`
+      ? `${name} can't wield ${shown(warning.item)}`
       : `${name} can't wield this`;
   if (warning?.code === 'leaves_unarmed') return `Leaves ${name} unarmed`;
   if (warning?.code === 'leaves_no_staff') return `Leaves ${name} without a staff`;
@@ -122,14 +126,16 @@ function emptySlotSuffix(row) {
 
 function rowName(row, held) {
   if (row.state === 'reorder')
-    return row.equips ? `Equip ${row.equips.name}` : `Swap ${held.item.name} with ${row.item.name}`;
+    return row.equips
+      ? `Equip ${shown(row.equips)}`
+      : `Swap ${shown(held.item)} with ${shown(row.item)}`;
   if (row.state === 'commit') {
     return row.empty
-      ? `Give ${held.item.name} to ${holderName(row.slot.holder)}${emptySlotSuffix(row)}`
-      : `Trade ${held.item.name} for ${row.item.name}`;
+      ? `Give ${shown(held.item)} to ${holderName(row.slot.holder)}${emptySlotSuffix(row)}`
+      : `Trade ${shown(held.item)} for ${shown(row.item)}`;
   }
   if (row.empty) return isConvoyHolder(row.slot?.holder) ? 'Empty' : `Empty slot ${row.index + 1}`;
-  return row.equipped ? `${row.item.name}, equipped` : row.item.name;
+  return row.equipped ? `${shown(row.item)}, equipped` : shown(row.item);
 }
 
 function plan(engine, ctx, from, to, method = 'planTrade') {
@@ -447,19 +453,19 @@ export function baseStatus(view) {
   if (!view || view.empty) return 'Nothing to trade.';
   if (view.held) {
     const notes = (view.heldNotes || []).map((note) => `${note}. `).join('');
-    return `Holding ${view.held.item.name}. ${notes}Choose where it goes.`;
+    return `Holding ${shown(view.held.item)}. ${notes}Choose where it goes.`;
   }
   return 'Choose an item to trade.';
 }
 
 /** The status line after a successful commit (when the caller gives no message). */
 export function commitMessage(from, to, kind) {
-  if (to?.item && kind !== 'give') return `Traded ${from.item.name} for ${to.item.name}.`;
-  return `Gave ${from.item.name} to ${holderName(to?.holder)}.`;
+  if (to?.item && kind !== 'give') return `Traded ${shown(from.item)} for ${shown(to.item)}.`;
+  return `Gave ${shown(from.item)} to ${holderName(to?.holder)}.`;
 }
 
 /** The status line after a reorder (when the caller gives no message). */
 export function reorderMessage(from, to, equips) {
-  if (equips) return `${equips.name} is now equipped.`;
-  return `Swapped ${from.item.name} and ${to.item.name}.`;
+  if (equips) return `${shown(equips)} is now equipped.`;
+  return `Swapped ${shown(from.item)} and ${shown(to.item)}.`;
 }

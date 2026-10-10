@@ -12,9 +12,15 @@ import {
 } from './UnitManager.js';
 import { weaponTypeNoun } from './ItemKeywords.js';
 import { getSellPrice } from './LootSystem.js';
+import { itemDisplayName } from '../utils/itemNames.js';
 import { forgeStatBlock, applyForge, forgePrice } from './ForgeSystem.js';
 import { isWorn, wearCount, repairPrice, repairWeapon } from './WeaponWear.js';
-import { INVENTORY_MAX, CONSUMABLE_MAX } from '../utils/constants.js';
+import {
+  INVENTORY_MAX,
+  CONSUMABLE_MAX,
+  AMBUSH_SHOP_DISCOUNT,
+  SHOP_FORGE_LIMITS,
+} from '../utils/constants.js';
 
 export function shopOwnedItems(run) {
   return [
@@ -109,7 +115,7 @@ export function purchaseShopItem(run, stock, entry, recipient) {
   stock.splice(stock.indexOf(entry), 1);
   return {
     ok: true,
-    message: `${entry.item.name} → ${pool === 'accessories' && recipient != null && recipient !== 'pool' ? `${recipient.name} (equipped)` : pool ? (pool === 'scrolls' ? 'Scroll pool' : 'Accessory pool') : convoy ? 'Convoy' : recipient.name}.`,
+    message: `${itemDisplayName(entry.item, run.gameData?.skills)} → ${pool === 'accessories' && recipient != null && recipient !== 'pool' ? `${recipient.name} (equipped)` : pool ? (pool === 'scrolls' ? 'Scroll pool' : 'Accessory pool') : convoy ? 'Convoy' : recipient.name}.`,
   };
 }
 // Selling a unit's last combat weapon (or staff) is allowed (a unit may carry
@@ -205,20 +211,87 @@ export function sellShopItem(run, row) {
       : risk === SELL_RISKS.onlyStaff
         ? ` ${row.unit.name} has no staff now.`
         : '';
-  return { ok: true, message: `Sold ${row.item.name} for ${price}G.${after}` };
+  return {
+    ok: true,
+    message: `Sold ${itemDisplayName(row.item, run.gameData?.skills)} for ${price}G.${after}`,
+  };
 }
+// A forge price ratio: 0.3 is 30% off, -0.2 is 20% dearer (a blessing's forge-cost price).
+// The engine accepts [FORGE_DISCOUNT_MIN, 1): never more than double, never free. A shop
+// offers at most FORGE_DISCOUNT_MAX off.
+export const FORGE_DISCOUNT_MIN = -1;
+export const FORGE_DISCOUNT_MAX = 0.95;
+
+function validForgeDiscount(discount) {
+  return Number.isFinite(discount) && discount >= FORGE_DISCOUNT_MIN && discount < 1;
+}
+
+/**
+ * The forge price ratio a shop charges: the run's blessing forge discount (a +20% forge
+ * cost price as -0.2, or a discount from a blessing's boon), composed with a liberated
+ * village's own discount. Forging and repair both read it.
+ * @param {object} run - RunManager
+ * @param {{ ambushDiscount?: boolean }} [options]
+ */
+export function shopForgeDiscount(run, { ambushDiscount = false } = {}) {
+  const clamp = (v) => Math.max(FORGE_DISCOUNT_MIN, Math.min(FORGE_DISCOUNT_MAX, v));
+  const raw = Number(run?.getForgeCostDiscount?.() || 0);
+  const blessing = clamp(Number.isFinite(raw) ? raw : 0);
+  return clamp(ambushDiscount ? 1 - (1 - blessing) * AMBUSH_SHOP_DISCOUNT : blessing);
+}
+
+/**
+ * Whether this forge use is free (Smith's Mark: a shop's first forge or repair). The engine
+ * decides from the run and the shop's count of uses; a caller's own `free` is never read, so
+ * a stale or forged flag cannot make anything free. The count itself is the caller's
+ * (`forgesUsed`, with `forgeLimit`): the engine trusts it, as it trusts the limit, and the
+ * shop menu reads it fresh from the scene's saved shop state before every command.
+ */
+export function freeForgeAvailable(run, forgesUsed = 0) {
+  const free = Math.max(0, Math.trunc(Number(run?.getFreeForgesPerShop?.()) || 0));
+  return (Number(forgesUsed) || 0) < free;
+}
+
+/**
+ * What a shop's forge asks right now: the uses spent and allowed (the act's limit plus a
+ * blessing's extra forges), the price ratio, and whether the next use is free. The shop menu
+ * reads this to show the forge and passes it back to the commands below, which recompute
+ * `free` themselves.
+ * @param {object} run - RunManager
+ * @param {{ act?: string, forgesUsed?: number, ambushDiscount?: boolean }} [options]
+ */
+export function shopForgeTerms(
+  run,
+  { act = run?.currentAct, forgesUsed = 0, ambushDiscount = false } = {},
+) {
+  return {
+    forgesUsed,
+    // `||`, not `??`: an act the table lists at 0 (the final act, which has no forge tab)
+    // has always read as the default 2.
+    forgeLimit:
+      (SHOP_FORGE_LIMITS[act] || 2) + (run?.blessingRuntimeModifiers?.forgeLimitDelta || 0),
+    discount: shopForgeDiscount(run, { ambushDiscount }),
+    free: freeForgeAvailable(run, forgesUsed),
+  };
+}
+
+/** What one forge costs under `terms`: 0 when free, else the discounted price (-1: not forgeable). */
+export function shopForgePrice(weapon, stat, terms) {
+  return terms?.free ? 0 : forgePrice(weapon, stat, terms?.discount || 0);
+}
+
+/** What one repair costs under `terms`: 0 when free, else the discounted price. */
+export function shopRepairPrice(weapon, terms) {
+  return terms?.free ? 0 : repairPrice(weapon, terms?.discount || 0);
+}
+
 export function shopForgeBlock(
   run,
   weapon,
   stat,
   { forgesUsed = 0, forgeLimit = 0, discount = 0, expectedLevel } = {},
 ) {
-  if (
-    !['might', 'hit', 'crit', 'weight'].includes(stat) ||
-    !Number.isFinite(discount) ||
-    discount < 0 ||
-    discount >= 1
-  )
+  if (!['might', 'hit', 'crit', 'weight'].includes(stat) || !validForgeDiscount(discount))
     return 'Invalid forge choice.';
   if (!shopOwnedItems(run).some((row) => row.item === weapon))
     return 'This weapon is no longer available.';
@@ -227,22 +300,31 @@ export function shopForgeBlock(
   if (forgesUsed >= forgeLimit) return 'No forges remain at this shop.';
   const statBlock = forgeStatBlock(weapon, stat);
   if (statBlock) return statBlock;
-  const cost = forgePrice(weapon, stat, discount);
+  // A free forge (Smith's Mark) needs no gold at all, even from an empty purse.
+  const cost = freeForgeAvailable(run, forgesUsed) ? 0 : forgePrice(weapon, stat, discount);
   return run.gold < cost ? 'Not enough gold.' : '';
 }
 export function forgeShopWeapon(run, weapon, stat, options) {
   const reason = shopForgeBlock(run, weapon, stat, options);
   if (reason) return { ok: false, reason };
-  const result = applyForge(weapon, stat, options.discount);
+  const free = freeForgeAvailable(run, options.forgesUsed);
+  const result = applyForge(weapon, stat, options.discount, { free });
   if (!result.success) return { ok: false, reason: 'This forge is unavailable.' };
-  run.spendGold(result.cost);
-  return { ok: true, message: `Forged ${weapon.name} for ${result.cost}G.` };
+  run.spendGold(result.cost); // 0 when free: applyForge is the one place that waives it
+  return {
+    ok: true,
+    free,
+    message: free
+      ? `Forged ${weapon.name} for free (Smith's Mark).`
+      : `Forged ${weapon.name} for ${result.cost}G.`,
+  };
 }
 
 /**
  * Why a worn weapon cannot be repaired at this shop right now, or '' when it can.
  * A repair is a forge service: it spends one of the shop's forge uses (`forgesUsed` of
- * `forgeLimit`, the counter forging uses) and the shop's forge discount applies.
+ * `forgeLimit`, the counter forging uses) and the shop's forge discount applies. The shop's
+ * first use is free under Smith's Mark, a repair as much as a forge.
  * `expectedWear` (the wear the player reviewed) refuses a weapon that changed since.
  */
 export function shopRepairBlock(
@@ -250,14 +332,15 @@ export function shopRepairBlock(
   weapon,
   { forgesUsed = 0, forgeLimit = 0, discount = 0, expectedWear } = {},
 ) {
-  if (!Number.isFinite(discount) || discount < 0 || discount >= 1) return 'Invalid repair.';
+  if (!validForgeDiscount(discount)) return 'Invalid repair.';
   if (!shopOwnedItems(run).some((row) => row.item === weapon))
     return 'This weapon is no longer available.';
   if (expectedWear != null && wearCount(weapon) !== expectedWear)
     return 'Weapon changed. Review it again.';
   if (!isWorn(weapon)) return 'This weapon is not worn.';
   if (forgesUsed >= forgeLimit) return 'No forges remain at this shop.';
-  return run.gold < repairPrice(weapon, discount) ? 'Not enough gold.' : '';
+  const price = freeForgeAvailable(run, forgesUsed) ? 0 : repairPrice(weapon, discount);
+  return run.gold < price ? 'Not enough gold.' : '';
 }
 /**
  * Repair the weapon's most recent wear step: gold is spent and the weapon mended, or
@@ -266,8 +349,16 @@ export function shopRepairBlock(
 export function repairShopWeapon(run, weapon, options) {
   const reason = shopRepairBlock(run, weapon, options);
   if (reason) return { ok: false, reason };
-  const result = repairWeapon(weapon, options.discount);
+  const free = freeForgeAvailable(run, options.forgesUsed);
+  const result = repairWeapon(weapon, options.discount, { free });
   if (!result.success) return { ok: false, reason: 'This repair is unavailable.' };
-  run.spendGold(result.cost);
-  return { ok: true, message: `Repaired ${weapon.name} for ${result.cost}G.`, stat: result.stat };
+  run.spendGold(result.cost); // 0 when free: repairWeapon is the one place that waives it
+  return {
+    ok: true,
+    free,
+    message: free
+      ? `Repaired ${weapon.name} for free (Smith's Mark).`
+      : `Repaired ${weapon.name} for ${result.cost}G.`,
+    stat: result.stat,
+  };
 }

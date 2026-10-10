@@ -266,14 +266,14 @@ describe('Smash reach', () => {
 });
 
 describe('Smash', () => {
-  it('removes exactly one record: the one on the tile that would rise first', () => {
+  it('removes every record on the tile (a stacked pile is one pile), and only there', () => {
     const a = record(2, 2, 3);
     const b = record(2, 2, 1);
     const c = record(3, 3, 1);
     const list = [a, b, c];
     const { list: next, smashed } = smashRemains(list, { col: 2, row: 2 });
-    expect(smashed).toBe(b);
-    expect(next).toEqual([a, c]);
+    expect(smashed).toEqual([a, b]);
+    expect(next).toEqual([c]);
     expect(list).toEqual([a, b, c]); // input untouched
   });
 

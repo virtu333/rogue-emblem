@@ -1,3 +1,4 @@
+import { everFallenUnits } from './LaidToRest.js';
 import { generateThirdLordCandidates } from './BossRecruitSystem.js';
 import { migrateUnitTraits } from './TraitSystem.js';
 import { normalizeUnitDeeds } from './DeedSystem.js';
@@ -40,7 +41,7 @@ export function prepareThirdLord(run, data) {
     run.roster,
     data,
     run.getEffectiveMetaEffects(),
-    run.fallenUnits || [],
+    everFallenUnits(run),
     mode,
     draftRng(run),
   );

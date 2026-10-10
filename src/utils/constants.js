@@ -157,10 +157,10 @@ export const RECRUIT_PROMOTION_CHANCE_CAP = 0.95;
 export const ACT_SEQUENCE = ['act1', 'act2', 'act3', 'act4', 'finalBoss'];
 
 export const ACT_CONFIG = {
-  act1: { name: 'Border Skirmishes', rows: 8 },
-  act2: { name: 'Occupied Territory', rows: 9 },
-  act3: { name: 'Enemy Stronghold', rows: 9 },
-  act4: { name: 'Ashen Summit', rows: 9 },
+  act1: { name: 'Border Skirmishes', rows: 9 },
+  act2: { name: 'Occupied Territory', rows: 10 },
+  act3: { name: 'Enemy Stronghold', rows: 10 },
+  act4: { name: 'Ashen Summit', rows: 10 },
   finalBoss: { name: 'Final Battle', rows: 2 },
 };
 
@@ -172,6 +172,19 @@ export const NODE_TYPES = {
   RECRUIT: 'recruit',
   CHURCH: 'church',
   COLOSSEUM: 'colosseum',
+  EVENT: 'event',
+};
+
+// Mixed rows (2..rows-3) draw ONE Math.random() per node against these cumulative
+// thresholds (NodeMapGenerator.pickNodeType): roll < battle -> battle, < shop -> shop,
+// < church -> church, otherwise an event. `default` serves acts 2-4.
+// Raw shares: act1 .52/.06/.08/.34, acts 2-4 .44/.13/.16/.27. The service-streak repair
+// then turns conflicting events and churches into shops (and only then battles), so per
+// path these give the same fights, shops and churches as the 8/9-row acts did, plus about
+// one event (measured; docs/specs/event-nodes.md §1).
+export const NODE_TYPE_WEIGHTS = {
+  act1: { battle: 0.52, shop: 0.58, church: 0.66 },
+  default: { battle: 0.44, shop: 0.57, church: 0.73 },
 };
 
 // Gold multiplier per node type (applied to kill gold subtotal in calculateBattleGold)
@@ -183,6 +196,7 @@ export const NODE_GOLD_MULTIPLIER = {
   shop: 0, // No combat
   ruins: 0, // No combat
   colosseum: 0, // No standard combat
+  event: 1.0, // An event battle pays like a battle (0 would read as 1.0 anyway)
 };
 
 // Gold economy
@@ -232,8 +246,9 @@ export const RUINS_SHOP_ITEM_COUNT_FINAL = { min: 8, max: 10 };
 export const RUINS_SHOP_MARKUP = 1.25;
 // The Ruins offer one of two paths per visit: rest (heal, revive) or scavenge (wares).
 export const RUINS_PATHS = Object.freeze(['rest', 'scavenge']);
-// A church's one vow per visit: a promotion, or a minor blessing (ChurchVow.js).
-export const CHURCH_VOWS = Object.freeze(['promote', 'blessing']);
+// A church's one vow per visit: a promotion, a minor blessing, or the cleansing of one burden
+// (ChurchVow.js).
+export const CHURCH_VOWS = Object.freeze(['promote', 'blessing', 'cleanse']);
 export const INVENTORY_MAX = 5; // Combat weapons + staves only
 export const CONSUMABLE_MAX = 3; // Separate consumables array
 export const CONVOY_WEAPON_CAPACITY = 20;
@@ -344,13 +359,25 @@ export const POISON_WEAPON_BY_TYPE = {
 // Proficiency prefixes that have poison variants (used to gate poison rolls)
 export const POISON_ELIGIBLE_PROFS = new Set(['Swords', 'Bows']);
 
-// Difficulty-gated enemy classes (Hard/Lunatic only)
-export const DIFFICULTY_GATED_CLASSES = new Set(['Zombie', 'Revenant', 'Dragon', 'Dragon Lord']);
+// Difficulty-gated enemy classes: First Light never meets them (Dusk and up do, and
+// difficulty.json `enemyClassEarliestAct` holds some back until an act).
+export const DIFFICULTY_GATED_CLASSES = new Set([
+  'Zombie',
+  'Revenant',
+  'Dragon',
+  'Dragon Lord',
+  'Necromancer',
+  'Skeleton',
+]);
 export const ZOMBIE_CLASSES = new Set(['Zombie', 'Revenant']);
+// A Necromancer raises at most this many Skeletons in a battle, in all (engine/Necromancy.js):
+// a repeatable summon must not be an unlimited reward source (Phase 3I owner review).
+export const NECROMANCER_RAISE_CAP = 6;
 // Classes that count as "dark" for Endword / Divine Flare effectiveness
 export const DARK_CLASSES = new Set([
   'Dark Knight',
   'Warlock',
+  'Necromancer',
   'Zombie',
   'Revenant',
   'Dragon',
@@ -398,6 +425,11 @@ export const DEADLY_ARSENAL_SIGNATURE_WEAPONS = {
   Tome: 'Witchfire',
   Light: 'Sunflare',
 };
+// Pass (docs/specs/phase3.md 3E) is a player skill: the AI's movement never reads it. A skill id
+// listed in ENEMY_NEVER_SKILLS is stripped from every generated enemy, so an enemy Trickster
+// (whose class innate it is) never shows a card that says it can walk through the player's units.
+export const PASS_SKILL_ID = 'pass';
+export const ENEMY_NEVER_SKILLS = Object.freeze([PASS_SKILL_ID]);
 export const RECRUIT_SKILL_POOL = [
   'sol',
   'luna',

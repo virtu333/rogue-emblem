@@ -1,6 +1,7 @@
 import { affixSummaryText } from '../engine/AffixForecast.js';
+import { REVIVAL_STONE_DESCRIPTION, revivalStonesLine } from '../engine/RevivalStones.js';
 import { skipsClassProgression } from '../engine/SpecialCharacterPolicy.js';
-import { canInspectUnit } from '../engine/BattleInformation.js';
+import { canInspectUnit, carriedItemInfo } from '../engine/BattleInformation.js';
 import { formatPerkMods } from './rosterDisplay.js';
 import {
   UI_PALETTE,
@@ -11,6 +12,7 @@ import {
   getHPBarColor,
 } from '../utils/uiStyles.js';
 import { unitPortraitKey } from './RebuiltPortraits.js';
+import { weaponArtHpSuffix } from './weaponArtDisplay.js';
 import { MobileRosterSheet, canShowMobileRoster } from './MobileRosterSheet.js';
 // UnitDetailOverlay.js — Center-screen full unit detail overlay (opened via V key or R key)
 // Tabbed display: Stats tab (stats, proficiencies, growths, terrain) | Gear tab (inventory, consumables, accessory, skills)
@@ -30,6 +32,7 @@ import {
   canUseWeaponArt,
   getWeaponArtIds,
   isWeaponArtCompatibleWithWeapon,
+  weaponArtRunOptions,
 } from '../engine/WeaponArtSystem.js';
 import { canEquip, getDisplayLevel, inventoryDisplayOrder } from '../engine/UnitManager.js';
 import {
@@ -38,7 +41,7 @@ import {
   isMastered,
   getMasteryPerk,
 } from '../engine/MasterySystem.js';
-import { traitLines } from './traitContent.js';
+import { traitLines, markLine } from './traitContent.js';
 import { isStatusStaff, parseStaffRange } from '../engine/StatusConditionSystem.js';
 import { getImbueDisplayInfo, isImbued } from '../engine/ImbueSystem.js';
 import {
@@ -52,7 +55,8 @@ import { epithetText } from '../engine/DeedTitles.js';
 import { fitCanvasText } from './deedDisplay.js';
 import { drawCanvasXpRow } from './xpBar.js';
 import { isWorn, wearCount, wearLine, wearStatDelta } from '../engine/WeaponWear.js';
-import { stripItemNameSuffix, weaponCatalogNames } from '../utils/itemNames.js';
+import { itemDisplayName, stripItemNameSuffix, weaponCatalogNames } from '../utils/itemNames.js';
+import { lentSkillLine } from '../engine/AccessorySkillNames.js';
 
 const OVERLAY_W = 400;
 const OVERLAY_H = 370;
@@ -362,6 +366,15 @@ export class UnitDetailOverlay {
         this._wireTooltipTarget(text, () =>
           this._showSkillTooltip(text, `${affix.name}: ${affix.description}`),
         );
+      y += 14;
+    }
+    const stonesLine = revivalStonesLine(unit);
+    if (stonesLine) {
+      const text = this._unitText(lx, y, stonesLine, UI_PALETTE.info, '9px');
+      fitCanvasText(text, OVERLAY_W - 24);
+      this._wireTooltipTarget(text, () =>
+        this._showSkillTooltip(text, `Revival Stones: ${REVIVAL_STONE_DESCRIPTION}`),
+      );
       y += 14;
     }
 
@@ -686,6 +699,15 @@ export class UnitDetailOverlay {
         traitText.on('pointerout', () => this._hideSkillTooltip());
         y += 13;
       }
+      // One Mark line under the traits (recruits only; docs/specs/phase3.md 3C)
+      const mark = markLine(unit, this.gameData);
+      if (mark) {
+        const markText = this._tabText(lx, y, `Mark: ${mark.name}`, UI_PALETTE.mark, '9px');
+        markText.setInteractive({ useHandCursor: true });
+        markText.on('pointerover', () => this._showSkillTooltip(markText, mark.text));
+        markText.on('pointerout', () => this._hideSkillTooltip());
+        y += 13;
+      }
     }
 
     // Growths (player/NPC only)
@@ -830,6 +852,13 @@ export class UnitDetailOverlay {
       y += 12;
     }
 
+    // Carried item (enemy-only): what a Thief's Steal would take.
+    const carrying = carriedItemInfo(unit);
+    if (carrying) {
+      this._tabText(lx, y, ` ${carrying.text}`, UI_PALETTE.good, '9px');
+      y += 12;
+    }
+
     // Accessory
     if (unit.accessory) {
       this._tabSep(lx, y);
@@ -838,7 +867,13 @@ export class UnitDetailOverlay {
         .filter(([, v]) => v)
         .map(([k, v]) => `${k}+${v}`)
         .join(' ');
-      this._tabText(lx, y, `Acc: ${unit.accessory.name}`, UI_PALETTE.rarityEpic, '9px');
+      this._tabText(
+        lx,
+        y,
+        `Acc: ${itemDisplayName(unit.accessory, this.gameData?.skills)}`,
+        UI_PALETTE.rarityEpic,
+        '9px',
+      );
       if (fx) {
         this._tabText(lx + 180, y, fx, UI_PALETTE.rarityEpic, '9px');
       }
@@ -884,6 +919,28 @@ export class UnitDetailOverlay {
       }
     }
 
+    // A skill lent by the accessory: its own line, never counted in the equipped list above.
+    const lent = lentSkillLine(unit, this.gameData?.skills);
+    if (lent) {
+      if (!(unit.skills && unit.skills.length > 0)) {
+        this._tabSep(lx, y);
+        y += 12;
+      }
+      const lentText = this._tabText(
+        lx,
+        y,
+        lent.known ? `${lent.name}: ${lent.label}` : `${lent.label}: ${lent.name}`,
+        UI_PALETTE.rarityEpic,
+        '9px',
+      );
+      if (lent.text) {
+        lentText.setInteractive({ useHandCursor: true });
+        lentText.on('pointerover', () => this._showSkillTooltip(lentText, lent.text));
+        lentText.on('pointerout', () => this._hideSkillTooltip());
+      }
+      y += 12;
+    }
+
     this._tabSep(lx, y);
     y += 12;
     this._tabText(lx, y, 'Weapon Arts:', UI_PALETTE.info, '9px');
@@ -896,8 +953,7 @@ export class UnitDetailOverlay {
       for (const { weapon, art, canUse, reason } of weaponArtChoices) {
         const status = canUse ? 'Ready' : this._weaponArtReasonLabel(reason);
         const color = canUse ? UI_PALETTE.info : UI_COLORS.gray;
-        const hpCost = Math.max(0, Number(art?.hpCost) || 0);
-        const suffix = hpCost > 0 ? ` HP-${hpCost}` : '';
+        const suffix = weaponArtHpSuffix(unit, art, weaponArtRunOptions(this.scene?.runManager));
         const weaponName = this._getWeaponBaseName(weapon);
         const row = this._tabText(
           lx + 8,
@@ -1043,8 +1099,7 @@ export class UnitDetailOverlay {
         turnNumber: this.scene?.turnManager?.turnNumber,
         isInitiating: true,
         actorFaction: unit.faction,
-        weaponArtHpCostDelta:
-          this.scene?.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+        ...weaponArtRunOptions(this.scene?.runManager),
       });
       if (!check.ok && HIDDEN_WEAPON_ART_REASONS.has(check.reason)) continue;
       choices.push({ art, canUse: check.ok, reason: check.reason });

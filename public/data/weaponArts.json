@@ -2688,6 +2688,69 @@
           }
         ]
       }
+    },
+    {
+      "id": "lance_lunar_brace",
+      "name": "Lunar Brace",
+      "weaponType": "Lance",
+      "tierAffinity": "Steel",
+      "unlockAct": "act2",
+      "requiredRank": "Prof",
+      "hpCost": 3,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "Leans the spear on the foe's own plate: heavier armour, deeper bite.",
+      "combatMods": {
+        "foeDefShare": 0.3,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Lunar Brace"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lance_override",
+      "name": "Override",
+      "weaponType": "Lance",
+      "tierAffinity": "Silver",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 5,
+      "perMapLimit": 1,
+      "targeting": "normal_attack",
+      "area": {
+        "shape": "line",
+        "length": 2,
+        "damage": {
+          "kind": "scaled",
+          "multiplier": 0.6
+        },
+        "strikes": "each_landed"
+      },
+      "description": "Rides down the line and sweeps every foe in it back.",
+      "allowedFactions": [
+        "player"
+      ],
+      "effects": {
+        "afterCombat": [
+          {
+            "type": "move",
+            "mode": "pushAreaVictims",
+            "distance": 1
+          }
+        ]
+      },
+      "combatMods": {
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Override"
+          }
+        ]
+      },
+      "noFollowUp": true
     }
   ]
 }

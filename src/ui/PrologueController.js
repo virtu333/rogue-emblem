@@ -144,6 +144,7 @@ export class PrologueController {
     // matched beats, taken before it renders (prepareForecast) so the tip is drawn in.
     this.forecastTip = null;
     this.prepared = null;
+    this.openForecast = null; // the open forecast's two units, for forecastCancelled
     this.started = false;
     this.restarting = false;
     this.offeredRewind = false;
@@ -210,6 +211,7 @@ export class PrologueController {
     this.closeTip();
     this.forecastTip = null;
     this.prepared = null;
+    this.openForecast = null;
     this.clearHighlights();
     this.reach?.destroy?.();
     this.reach = null;
@@ -1169,6 +1171,7 @@ export class PrologueController {
    */
   prepareForecast(attacker, defender, forecast, weapon = null) {
     this.prepared = null;
+    this.openForecast = null;
     if (this.destroyed || attacker?.faction !== 'player') return null;
     this.forecastTip = null;
     this.forecastCount += 1;
@@ -1183,6 +1186,7 @@ export class PrologueController {
     };
     const actions = this.match(event, { oneNote: true });
     this.prepared = { attacker, defender, event, actions };
+    this.openForecast = { attacker, defender };
     for (const action of actions)
       if ('tip' in action) this.tip(action.tip, event, {}, action.beat || null);
     return this.forecastTipText();
@@ -1191,13 +1195,26 @@ export class PrologueController {
   /**
    * The forecast closed. `acknowledge`: the player confirmed or cancelled (having read
    * it), so its tip is read; End Turn, a rewind or a shutdown closes it unread.
+   * `cancelled`: the player backed out, which raises `forecastCancelled` (P3's "open
+   * it, then Cancel" step ends on it, from every cancel input).
    */
-  onForecastClosed({ acknowledge = false } = {}) {
+  onForecastClosed({ acknowledge = false, cancelled = false } = {}) {
     if (this.gate?.kind === 'confirm') this.gate = null;
     const tip = this.forecastTip;
+    const open = this.openForecast;
     this.forecastTip = null;
     this.prepared = null;
+    this.openForecast = null;
     if (tip && acknowledge && this.sceneLive()) this.markTaught(tip.id);
+    if (cancelled && open && !this.destroyed && this.sceneLive()) {
+      const event = {
+        type: 'forecastCancelled',
+        unit: open.attacker?.name,
+        target: this.unitKey(open.defender),
+        turn: this.turn(),
+      };
+      void this.emit(event);
+    }
   }
 
   /**

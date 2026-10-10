@@ -685,7 +685,7 @@ spares (1,4), (1,6).)
   | Edric, Iron Sword | 3 ×2, counter 8 (60%) | 6 ×2 |
 
   Varro's own blow: 8 on Edric, 7 on Gaspar, 11 on Sera and on Tamsin (a Fighter's: 9, 8,
-  12, 12). Par 10; the boss enrages on turn min(12, par + 2) = 12.
+  12, 12). Par 10; the boss enrages on turn max(par + 1, min(12, par + 2)) = 12.
 - **Enemies:** Fighter `k` (`guard` at (9,3): it charges anything within 3 tiles of its post),
   Fighter `a` (chases). Both are the class at level 1 with an Iron Axe: every foe on the map
   carries an axe, so swords (Edric, Gaspar) have the triangle and the bow and the light
@@ -938,7 +938,7 @@ The schema is documented at the top of `src/engine/Prologue.js`, which is the re
 {
   "version": 1,
   "seed": 1209,
-  "grant": { "valor": 60, "supply": 40 },        // one cheap upgrade of each (§12)
+  "grant": { "valor": 50, "supply": 35 },        // one cheap upgrade of each (§12)
   "units": {                                     // keyed by unit name (the key is the name)
     "Edric":  { "lord": "Edric", "level": 1,
                 "stats": { /* every stat incl. MOV: his lords.json base */ },
@@ -1063,7 +1063,9 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   mutated). The vocabulary (documented in the module header):
   - triggers: `battleStart`, `turnStart {turn, phase}` (phase defaults to the player's),
     `unitSelected {unit, turn}`, `afterMove {unit, tile, terrain, dangerFrom, turn}`,
-    `forecastOpened {unit, target, nth, concept, turn}`, `combatResolved {unit, target, turn}`,
+    `forecastOpened {unit, target, nth, concept, turn}`, `forecastCancelled {unit, target, turn}`
+    (the player backed out of an open forecast; P3's `p3_looked` ends "open it, then Cancel"
+    there, from every cancel input), `combatResolved {unit, target, turn}`,
     `unitActed {unit, turn}`, `unitDefeated {unit}`, `levelUp {unit}`, `hpBelow {unit, pct}`,
     `holdWoken {unit}`, `talk {unit, target}`, `healed {unit, target}`, `rewound`,
     `seize {unit}`, `victory`; Phase 2B added `hurt` (someone below full HP) to `turnStart` and
@@ -1724,8 +1726,9 @@ marked `unmet: "???"` are a voice not yet met (`endingLinesFor`).
 1. **Loop, not carry-over** (§3).
 2. **The prologue is the default.** Every fresh slot offers it, highlighted. It is never forced,
    and it can be skipped at the start or mid-way.
-3. **The Home Base grant is small:** about one cheap upgrade of each currency. Lord upgrades start
-   at 50 Valor and recruit upgrades at 35 Supply, so the grant is 60 Valor and 40 Supply.
+3. **The Home Base grant is small:** one cheap upgrade of each currency. Lord upgrades start
+   at 50 Valor and recruit upgrades at 35 Supply, so the grant is 50 Valor and 35 Supply (it was
+   60 and 40 until the owner's retune of 2026-10-07, which also lowered First Light's run earnings).
 4. **The row-2 fork stays** (Market or Chapel). It is the prologue's only real route choice, and
    whichever service the player skips gets a first-visit note in Act 1.
 5. **Tamsin keeps her name** as a faint loop echo, unless the user asks otherwise.

@@ -286,6 +286,22 @@ export function glyph(kind, cx, cy, s = 1) {
           accent: true,
         },
       ];
+    case 'purse': // Steal: a drawstring pouch, gathered at the neck, a coin showing
+      return [
+        { shape: E(0, 2.4, 5.6, 4.4, 0) },
+        {
+          shape: P([
+            [-2.8, -1.4],
+            [-4.4, -5.4],
+            [-1.6, -3.6],
+            [0, -5.8],
+            [1.6, -3.6],
+            [4.4, -5.4],
+            [2.8, -1.4],
+          ]),
+        },
+        { shape: C(0, 3, 1.6), accent: true },
+      ];
     case 'eye': // Blink
       return [
         {
@@ -499,12 +515,25 @@ export const SKILL_GLYPH = Object.freeze({
   rally_cry_skill: ['horn', 'ember'],
   healing_circle: ['healCircle', 'verdigris'],
   ensnare: ['knot', 'verdigris'],
+  steal: ['purse', 'gilt'],
+  smite: ['push', 'blood'],
+  transfuse: ['halo', 'rose'],
+  great_sacrifice: ['healCircle', 'blood'],
+  goddess_dance: ['twin', 'rose'],
+  blink_strike: ['fang', 'lilac'],
+  pass: ['chevron', 'earth'],
   renewal: ['sprout', 'verdigris'],
+  lifetaker: ['halo', 'verdigris'],
+  speedtaker: ['bolt', 'ember'],
+  uncanny_blow: ['eye', 'ember'],
+  warding_blow: ['aegis', 'sky'],
+  defiant: ['heartCrack', 'ember'],
 });
 
 const TRIGGER_GLYPH = {
   'on-attack': ['fang', 'ember'],
   'on-defend': ['shield', 'steel'],
+  'on-kill': ['fang', 'blood'],
   'on-combat-start': ['chevron', 'sky'],
   'on-turn-start': ['sun', 'ember'],
   action: ['push', 'verdigris'],

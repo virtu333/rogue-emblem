@@ -2,8 +2,10 @@ import { element } from './MenuSurface.js';
 import { createNodeArt } from './NodeArt.js';
 import { nodeFrame } from './RouteGraph.js';
 import { describeLoomNode, describeRecruitPreview, loomHeader } from './loomModel.js';
-import { traitLines } from './traitContent.js';
+import { traitLines, markLine } from './traitContent.js';
 import { ruinsChoice } from '../engine/RuinsCommands.js';
+import { eventView } from '../engine/EventCommands.js';
+import { contractRewardOwedAt } from '../engine/Contracts.js';
 import { crestElement } from './crestArt.js';
 import { regionName } from './placeDisplay.js';
 import { ACT_CONFIG, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS } from '../utils/constants.js';
@@ -152,6 +154,14 @@ function recruitBlock(view) {
     }
     block.append(list);
   }
+  if (view.mark) {
+    const mark = element('p', null, 're-loom-recruit-mark');
+    mark.append(
+      element('strong', `Mark · ${view.mark.name}`),
+      document.createTextNode(` ${view.mark.text}`),
+    );
+    block.append(mark);
+  }
   return block;
 }
 
@@ -179,6 +189,7 @@ export function renderLoomCard(card, node, ctx = {}) {
     try {
       recruit = describeRecruitPreview(rm?.getRecruitNodeUnit?.(node) || null, {
         traitLines: (unit) => traitLines(unit, gameData),
+        markLine: (unit) => markLine(unit, gameData),
       });
     } catch (err) {
       console.warn('[Loom] recruit preview failed:', err);
@@ -200,11 +211,17 @@ export function renderLoomCard(card, node, ctx = {}) {
     firstBattle: rm?.completedBattles === 0 && !!ctx.isFirstBattle?.(node),
     eliteLoot: { choices: ELITE_LOOT_CHOICES, picks: ELITE_MAX_PICKS },
     shopOpen: !!ctx.shopOpen,
+    contractOwed: !!(rm && contractRewardOwedAt(rm, node)),
     activeLabel: ctx.activeLabel || null,
     eclipse,
     recruit,
     recruitMods: rm?.getRecruitNodeBattleMods?.(node) || null,
     ruinsChoice: node.type === 'ruins' && rm ? ruinsChoice(rm, node.id) : null,
+    // A visited event keeps the line of what was chosen there.
+    eventChoice:
+      node.type === 'event' && rm && (!node.eclipse || node.darkOmen === true)
+        ? eventView(rm, node.id)?.outcome?.choiceLabel || null
+        : null,
   });
   card.dataset.tone = info.eclipsed ? 'eclipsed' : info.elite && state === 'live' ? 'elite' : state;
 

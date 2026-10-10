@@ -110,6 +110,25 @@ describe('traced sprite coverage (every unit the game can spawn)', () => {
   });
 });
 
+describe('enemy-only classes drawn ahead of their data (Phase 3, 3I)', () => {
+  // The Necromancer and the Skeleton ship in classes.json later; their art is baked first so
+  // the coverage tests above hold the moment the classes exist.
+  for (const className of ['Necromancer', 'Skeleton']) {
+    it(`${className} bakes the three keys an enemy-only class needs`, () => {
+      const base = key(className);
+      for (const k of [base, `enemy_${base}`, `enemy_${base}-corrupt`]) {
+        expect(sprites[k], k).toBeTruthy();
+        expect(sprites[k].kind, k).toBe(base === 'necromancer' ? 'mage' : 'infantry');
+      }
+      const enemy = { name: className, className, faction: 'enemy' };
+      expect(tracedKeyFor(enemy, sprites)).toBe(`enemy_${base}`);
+      expect(tracedKeyFor({ ...enemy, affixes: ['vampiric'] }, sprites)).toBe(
+        `enemy_${base}-corrupt`,
+      );
+    });
+  }
+});
+
 describe('traced sprite keys', () => {
   it('maps lords, enemies, corrupted enemies, NPCs and bosses', () => {
     expect(

@@ -3,11 +3,16 @@
 import { NODE_TYPES } from '../../src/utils/constants.js';
 import { getReviveCost } from '../../src/engine/RunManager.js';
 import { getCombatForecast } from '../../src/engine/Combat.js';
+import { chooseEventOption, eventView } from '../../src/engine/EventCommands.js';
+import { eventCatalogOf, findChoice, findEvent } from '../../src/engine/EventSystem.js';
 
 const NODE_PRIORITY = {
   [NODE_TYPES.RECRUIT]: 5,
   [NODE_TYPES.BATTLE]: 4,
   [NODE_TYPES.SHOP]: 3,
+  // An event is worth a detour as much as a village (the policy takes its first
+  // non-battle choice: see chooseEventPlan), so the same weight as a shop.
+  [NODE_TYPES.EVENT]: 3,
   [NODE_TYPES.CHURCH]: 2,
   [NODE_TYPES.BOSS]: 1,
 };
@@ -118,4 +123,65 @@ export function chooseShopPurchases(runManager, inventory) {
   }
 
   return picks;
+}
+
+/** True when any outcome of the choice starts a battle (the sims know what a player cannot). */
+export function choiceMayFight(event, choiceId, pageId = 'start') {
+  const choice = findChoice(event, choiceId, pageId);
+  return (choice?.outcomes || []).some((o) => (o.effects || []).some((e) => e?.type === 'battle'));
+}
+
+/** True when any outcome of the choice leads on to another page of the event. */
+export function choiceLeadsOn(event, choiceId, pageId = 'start') {
+  const choice = findChoice(event, choiceId, pageId);
+  return (choice?.outcomes || []).some((o) => typeof o.next === 'string');
+}
+
+/**
+ * The event policy for the page the event is on: the first available choice that does not
+ * start a battle, with the first qualifying unit as its target. `fight: true` prefers a
+ * choice that may start one. On a multi-page event the policy stops going deeper when a
+ * counter is low (one left or fewer): it then prefers a choice that ends the event.
+ * @returns {{ choiceId: string, targetUid: string|null, mayFight: boolean, leadsOn: boolean }|null}
+ */
+export function chooseEventPlan(run, nodeId, { fight = false } = {}) {
+  const view = eventView(run, nodeId);
+  if (!view || view.phase !== 'choosing') return null;
+  const event = findEvent(eventCatalogOf(run), view.eventId);
+  const open = view.choices
+    .filter((choice) => !choice.block)
+    .map((choice) => ({
+      choice,
+      mayFight: choiceMayFight(event, choice.id, view.page),
+      leadsOn: choiceLeadsOn(event, choice.id, view.page),
+    }));
+  if (open.length === 0) return null;
+  const low = (view.counters || []).some((counter) => counter.value <= 1);
+  const wanted = (entry) => (fight ? entry.mayFight : !entry.mayFight);
+  const pick =
+    (low && open.find((entry) => wanted(entry) && !entry.leadsOn)) || open.find(wanted) || open[0];
+  const target = pick.choice.target?.candidates.find((c) => c.ok) || null;
+  return {
+    choiceId: pick.choice.id,
+    targetUid: target?.uid ?? null,
+    mayFight: pick.mayFight,
+    leadsOn: pick.leadsOn,
+  };
+}
+
+/**
+ * Walk an event with the policy: one choice per page until the event ends, a fight starts or
+ * no choice is open (`maxSteps` bounds a page loop).
+ * @returns {{ plan: object, chosen: object }[]} the steps taken (the last may be a refusal)
+ */
+export function playEventChoices(run, nodeId, { fight = false, maxSteps = 12 } = {}) {
+  const steps = [];
+  for (let i = 0; i < maxSteps; i++) {
+    const plan = chooseEventPlan(run, nodeId, { fight });
+    if (!plan) break;
+    const chosen = chooseEventOption(run, nodeId, plan.choiceId, { targetUid: plan.targetUid });
+    steps.push({ plan, chosen });
+    if (!chosen.ok || !chosen.next || chosen.battle) break;
+  }
+  return steps;
 }

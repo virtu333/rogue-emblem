@@ -114,8 +114,26 @@ export function placeZombieRemains(scene) {
   return { unit: edric, zombie, spot: { ...tile } };
 }
 
+/**
+ * short_par: the battle's turn par is `battleParams.devPar` turns (like a par bump from
+ * reinforcements, it is a field the checkpoint and a Vision rewind keep), so a contract's
+ * "Under par" is broken after a few real turns. Returns the par, or null.
+ */
+export function setShortPar(scene) {
+  const par = Math.trunc(Number(scene?.battleParams?.devPar));
+  if (!(par > 0) || !scene.turnBonusConfig) return null;
+  scene.turnPar = par;
+  scene.renderTurnCounter?.();
+  return par;
+}
+
 export function applyDevScenario(scene) {
   const scenario = scene?.battleParams?.devScenario;
+  if (scenario === 'short_par') {
+    const par = setShortPar(scene);
+    scene._devScenarioResult = par;
+    return par;
+  }
   if (scenario === 'zombie_remains') {
     const placed = placeZombieRemains(scene);
     scene._devScenarioResult = placed;

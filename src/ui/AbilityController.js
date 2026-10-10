@@ -5,12 +5,16 @@ import { battleSession, isCurrentBattleSession } from './BattleSession.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 // AbilityController — the "Ability" action-menu surface for utility abilities
 // (action-trigger skills with structured `actionAbility` data: Blink, Rally
-// Cry, Healing Circle, Ensnare). Owns the ability submenu (patterned on
-// WeaponArtController.showWeaponArtPicker), the SELECTING_ABILITY_TILE flow
-// for Blink, the confirm prompt for self-centered AOE abilities, and effect
-// execution. State lives on the scene (abilityTiles/_pendingAbility) so the
-// shared ESC/cancel recovery paths in BattleScene can clean it up.
-import { TILE_SIZE } from '../utils/constants.js';
+// Cry, Healing Circle, Ensnare, Smite, Transfuse, Steal, Great Sacrifice, Goddess Dance,
+// Blink Strike). Owns the ability submenu (patterned on
+// WeaponArtController.showWeaponArtPicker), the SELECTING_ABILITY_TILE flow for Blink,
+// the confirm prompt for self-centered abilities (the AOEs, Great Sacrifice, Goddess
+// Dance), and effect execution; the adjacent-target abilities (Smite, Transfuse,
+// Steal) hand their target step and action to AbilityTargetingController, and Blink
+// Strike, the one ability that leads into an attack, to WarpStrikeController.
+// State lives on the scene (abilityTiles/_pendingAbility) so the shared
+// ESC/cancel recovery paths in BattleScene can clean it up.
+import { TILE_SIZE, XP_BASE_DANCE } from '../utils/constants.js';
 import { hasRoomRightOf } from '../utils/boardOrientation.js';
 import {
   getActionAbilities,
@@ -21,10 +25,21 @@ import {
   settleRally,
   settleHealingCircle,
   settleEnsnare,
+  settleGreatSacrifice,
+  settleGoddessDance,
+  sacrificeAmount,
+  sacrificeTargets,
+  findDanceRefreshTargets,
   getBlinkTiles,
   collectAffected,
   abilityHasTargets,
+  TARGETED_ABILITY_KINDS,
+  stealStatus,
 } from '../engine/ActionAbilitySystem.js';
+import { STEAL_ABILITY_KIND, stealReasonLabel } from '../engine/Steal.js';
+import { AbilityTargetingController } from './AbilityTargetingController.js';
+import { WarpStrikeController, knownTileOccupant } from './WarpStrikeController.js';
+import { presentRefreshSparkle } from './MovementActionController.js';
 import { staffAllyCandidates } from '../engine/RecruitNpc.js';
 import { canInspectUnit, seenTileOccupant } from '../engine/BattleInformation.js';
 import { deedsFor } from './DeedController.js';
@@ -35,6 +50,16 @@ import { menuRow, railOwnsMenus, rowText } from './battleMenuModel.js';
 const BLINK_TILE_COLOR = UI_HEX.lineStrong;
 const ALLY_AOE_COLOR = UI_HEX.hpHigh;
 const ENEMY_AOE_COLOR = UI_HEX.warn;
+/** Kinds that mend whoever a heal staff can (the army plus the NPC allies the caster sees). */
+const HEALS_LIKE_A_STAFF = new Set(['aoe_heal', 'sacrifice_heal']);
+/** Self-centered kinds: no pick, a confirm prompt naming who is affected. */
+const SELF_CENTERED_KINDS = [
+  'ally_buff',
+  'aoe_heal',
+  'aoe_root',
+  'sacrifice_heal',
+  'refresh_adjacent',
+];
 
 export class AbilityController {
   constructor(scene) {
@@ -57,7 +82,7 @@ export class AbilityController {
   _allyPool(unit, kind) {
     const scene = this.scene;
     const allies = scene.getDivineChargeAllies(unit);
-    if (kind !== 'aoe_heal' || unit?.faction !== 'player') return allies;
+    if (!HEALS_LIKE_A_STAFF.has(kind) || unit?.faction !== 'player') return allies;
     return staffAllyCandidates(allies, scene.npcUnits).filter((ally) =>
       canInspectUnit(scene.grid, ally),
     );
@@ -79,13 +104,26 @@ export class AbilityController {
     const skillsData = scene.gameData?.skills || [];
     return getActionAbilities(unit, skillsData).map((skill) => {
       const check = canUseAbility(unit, skill);
-      const hasTargets = abilityHasTargets(unit, skill, {
+      const ctx = {
         grid: scene.grid,
-        getUnitAt: seenTileOccupant(scene.grid, (col, row) => scene.getUnitAt(col, row)),
+        // Blink Strike's choices read the player's knowledge, never the real board.
+        getUnitAt:
+          skill.actionAbility?.kind === 'warp_strike'
+            ? knownTileOccupant(scene, unit)
+            : seenTileOccupant(scene.grid, (col, row) => scene.getUnitAt(col, row)),
         allies: this._allyPool(unit, skill.actionAbility?.kind),
         enemies: this._seenHostiles(unit),
-      });
-      return { skill, canUse: check.ok, reason: check.reason, hasTargets };
+        affixes: scene.gameData?.affixes,
+        skillsData,
+        canAddToConvoy: (item) => Boolean(scene.runManager?.canAddToConvoy?.(item)),
+      };
+      const hasTargets = abilityHasTargets(unit, skill, ctx);
+      // Steal says why it is greyed beside a carrier: "Too slow", "Bag and convoy full".
+      const stealReason =
+        skill.actionAbility?.kind === STEAL_ABILITY_KIND && !hasTargets
+          ? stealStatus(unit, skill.actionAbility, ctx).reason
+          : null;
+      return { skill, canUse: check.ok, reason: check.reason, hasTargets, stealReason };
     });
   }
 
@@ -99,10 +137,16 @@ export class AbilityController {
     return getActionAbilities(unit, skillsData).find((skill) => skill.id === skillId) || null;
   }
 
-  _reasonLabel(entry) {
+  _reasonLabel(entry, unit = null) {
     if (entry.reason === 'per_map_limit') return 'Used this battle';
     if (entry.reason === 'silenced') return 'Silenced';
-    if (!entry.hasTargets) return 'No valid targets';
+    if (!entry.hasTargets && entry.stealReason) return stealReasonLabel(entry.stealReason);
+    if (!entry.hasTargets) {
+      // Great Sacrifice never takes the last HP: say so rather than "no targets".
+      if (entry.skill.actionAbility?.kind === 'sacrifice_heal' && (unit?.currentHP ?? 2) <= 1)
+        return 'Too little HP';
+      return 'No valid targets';
+    }
     return 'Unavailable';
   }
 
@@ -113,7 +157,7 @@ export class AbilityController {
     const usesLabel =
       limit > 0 ? `${Math.max(0, limit - used)}/${limit} uses left` : 'Unlimited uses';
     const status =
-      !entry.canUse || !entry.hasTargets ? this._reasonLabel(entry) : 'Ends unit action';
+      !entry.canUse || !entry.hasTargets ? this._reasonLabel(entry, unit) : 'Ends unit action';
     return `${usesLabel} · ${status}`;
   }
 
@@ -237,7 +281,26 @@ export class AbilityController {
       this.startBlinkTileSelection(unit, skill);
       return;
     }
+    if (TARGETED_ABILITY_KINDS.has(kind)) {
+      this._targeting().begin(unit, skill);
+      return;
+    }
+    if (kind === 'warp_strike') {
+      // Nothing to pick: the picker only offered Blink Strike with a destination in reach.
+      if (!this._warpStrike().begin(unit, skill)) this.showAbilityPicker(unit);
+      return;
+    }
     this._showConfirmPrompt(unit, skill);
+  }
+
+  /** Smite / Transfuse: pick an adjacent unit (AbilityTargetingController). */
+  _targeting() {
+    return (this._targetingController ||= new AbilityTargetingController(this));
+  }
+
+  /** Blink Strike: destination, target, forecast, one action (WarpStrikeController). */
+  _warpStrike() {
+    return (this._warpStrikeController ||= new WarpStrikeController(this));
   }
 
   // --- Blink: tile targeting (SELECTING_ABILITY_TILE) ---
@@ -267,6 +330,14 @@ export class AbilityController {
     if (!tile) return;
     const skill = this._getAbilityById(unit, pending.skillId);
     if (!skill || !canUseAbility(unit, skill).ok) return;
+    if (TARGETED_ABILITY_KINDS.has(skill.actionAbility?.kind)) {
+      this._targeting().handleClick(unit, skill, gp);
+      return;
+    }
+    if (skill.actionAbility?.kind === 'warp_strike') {
+      this._warpStrike().handleClick(unit, skill, gp);
+      return;
+    }
     const audio = scene.registry.get('audio');
     if (audio) audio.playSFX('sfx_confirm');
     scene.grid.clearAttackHighlights();
@@ -275,12 +346,19 @@ export class AbilityController {
     void this.executeBlink(unit, skill, tile);
   }
 
-  /** Shared cleanup for ESC/right-click out of SELECTING_ABILITY_TILE. */
+  /**
+   * Shared cleanup for ESC/right-click out of SELECTING_ABILITY_TILE. Blink Strike's second
+   * step (the foe) steps back to its first (the destination) and stays in the state: it
+   * returns true, so the caller does not reopen the action menu. Everything else clears.
+   * @returns {boolean} true when it stepped back and the state stays
+   */
   cancelTileSelection() {
     const scene = this.scene;
+    if (this._warpStrikeController?.backFromTarget()) return true;
     scene.grid.clearAttackHighlights();
     scene.abilityTiles = [];
     scene._pendingAbility = null;
+    return false;
   }
 
   executeBlink(unit, skill, tile) {
@@ -329,7 +407,23 @@ export class AbilityController {
     );
   }
 
-  // --- Self-centered AOE (Rally Cry / Healing Circle / Ensnare) ---
+  // --- Self-centered abilities (Rally Cry / Healing Circle / Ensnare / Great Sacrifice /
+  //     Goddess Dance): a confirm prompt naming who is affected ---
+
+  /**
+   * The units a self-centered ability would affect right now, as the player knows them:
+   * the AOEs' radius, Great Sacrifice's hurt and healable allies in range, Goddess Dance's
+   * adjacent allies who have acted.
+   */
+  _affectedBy(unit, skill) {
+    const ability = skill.actionAbility;
+    if (ability.kind === 'aoe_root')
+      return collectAffected(unit, ability, this._seenHostiles(unit));
+    const pool = this._allyPool(unit, ability.kind);
+    if (ability.kind === 'sacrifice_heal') return sacrificeTargets(unit, ability, pool);
+    if (ability.kind === 'refresh_adjacent') return findDanceRefreshTargets(unit, pool);
+    return collectAffected(unit, ability, pool);
+  }
 
   _showConfirmPrompt(unit, skill) {
     const scene = this.scene;
@@ -339,8 +433,7 @@ export class AbilityController {
 
     const ability = skill.actionAbility;
     const hostile = ability.kind === 'aoe_root';
-    const pool = hostile ? this._seenHostiles(unit) : this._allyPool(unit, ability.kind);
-    const affected = collectAffected(unit, ability, pool);
+    const affected = this._affectedBy(unit, skill);
     const tiles = affected.map((target) => ({ col: target.col, row: target.row }));
     scene.grid.showAttackRange(tiles, hostile ? ENEMY_AOE_COLOR : ALLY_AOE_COLOR, 0.4);
 
@@ -380,7 +473,12 @@ export class AbilityController {
       : affected.length === 1
         ? 'ally'
         : 'allies';
-    const confirmLabel = `Use ${skill.name} (${affected.length} ${targetNoun})`;
+    // Great Sacrifice names what it costs: the HP the user pays is what each ally heals.
+    const cost =
+      ability.kind === 'sacrifice_heal'
+        ? `-${sacrificeAmount(unit, ability, this._allyPool(unit, ability.kind))} HP, `
+        : '';
+    const confirmLabel = `Use ${skill.name} (${cost}${affected.length} ${targetNoun})`;
     const makeRow = (rowIndex, label, color, onClick) => {
       const rowY = menuPos.y + 6 + rowIndex * itemHeight + itemHeight / 2;
       const text = scene._makeMenuTextButton(
@@ -428,7 +526,7 @@ export class AbilityController {
       label: 'ability',
       validate: () =>
         this._validateAbility(unit, skill) &&
-        ['ally_buff', 'aoe_heal', 'aoe_root'].includes(skill.actionAbility.kind) &&
+        SELF_CENTERED_KINDS.includes(skill.actionAbility.kind) &&
         abilityHasTargets(unit, skill, {
           allies: this._allyPool(unit, skill.actionAbility.kind),
           enemies: this._seenHostiles(unit),
@@ -464,6 +562,29 @@ export class AbilityController {
             }
           return { kind: ability.kind, targets };
         }
+        if (ability.kind === 'sacrifice_heal') {
+          const facts = settleGreatSacrifice(unit, ability, this._allyPool(unit, ability.kind));
+          for (const entry of facts.targets)
+            if (entry.healed > 0) {
+              deedsFor(scene).onHeal(unit, entry.unit, entry.hpBefore);
+              observeHistoryAction(scene, 'healed', unit, entry.unit, `${entry.healed} HP`, {
+                amount: entry.healed,
+              });
+            }
+          return { kind: ability.kind, ...facts };
+        }
+        if (ability.kind === 'refresh_adjacent') {
+          const targets = findDanceRefreshTargets(unit, this._allyPool(unit, ability.kind));
+          settleGoddessDance(targets);
+          // Each refresh is a deed and earns Dance XP, as Dance's does (queued, not drawn).
+          const xp = [];
+          for (const ally of targets) {
+            observeHistoryAction(scene, 'danced for', unit, ally, skill.name);
+            deedsFor(scene).onRefresh(unit);
+            xp.push(scene.awardScaledXP(unit, XP_BASE_DANCE, { present: false }));
+          }
+          return { kind: ability.kind, refreshed: targets, xp };
+        }
         const targets = settleEnsnare(unit, ability, scene._getTier5HostileUnitsFor(unit));
         for (const entry of targets)
           if (entry.rooted) observeHistoryAction(scene, 'rooted', unit, entry.unit, skill.name);
@@ -473,12 +594,33 @@ export class AbilityController {
       present: async (facts) => {
         safeBattlePresentation('ability menu', () => scene.hideActionMenu(), { scene });
         scene.inEquipMenu = false;
-        if (facts.kind === 'ally_buff' || facts.kind === 'aoe_heal')
+        if (facts.kind === 'refresh_adjacent') {
+          // Goddess Dance: every refreshed ally wakes (its dimming lifts) with Dance's sparkle.
+          for (const ally of facts.refreshed) presentRefreshSparkle(scene, ally);
+          return;
+        }
+        if (
+          facts.kind === 'ally_buff' ||
+          facts.kind === 'aoe_heal' ||
+          facts.kind === 'sacrifice_heal'
+        )
           safeBattlePresentation(
             'ability sound',
             () => scene.registry.get('audio')?.playSFX('sfx_heal'),
             { scene },
           );
+        if (facts.kind === 'sacrifice_heal') {
+          // The user's bar drops by what it paid; each mended ally rises like Healing Circle's.
+          safeBattlePresentation(
+            'great sacrifice cost',
+            () => {
+              scene.updateHPBar(facts.user);
+              const pos = scene.grid.gridToPixel(facts.user.col, facts.user.row);
+              scene.showMinorHintAt(pos.x, pos.y, `-${facts.paid}`, UI_PALETTE.bad);
+            },
+            { scene },
+          );
+        }
         if (facts.kind === 'ally_buff') {
           for (const ally of facts.affected)
             safeBattlePresentation(
@@ -495,7 +637,7 @@ export class AbilityController {
         for (const entry of facts.targets) {
           if (!isCurrentBattleSession(scene, session)) return;
           const target = entry.unit;
-          if (facts.kind === 'aoe_heal') {
+          if (facts.kind === 'aoe_heal' || facts.kind === 'sacrifice_heal') {
             if (entry.healed <= 0) continue;
             safeBattlePresentation(
               'healing circle target',

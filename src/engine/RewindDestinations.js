@@ -18,6 +18,9 @@ const VERBS = {
   relocated: 'warp',
   rallied: 'rally',
   rooted: 'ensnare',
+  smote: 'smite',
+  transfused: 'transfuse',
+  'stole from': 'steal',
   'danced for': 'dance',
   refreshed: 'refresh',
   shoved: 'shove',
@@ -46,6 +49,9 @@ const PRIORITY = [
   'warp',
   'rally',
   'ensnare',
+  'smite',
+  'transfuse',
+  'steal',
   'dance',
   'refresh',
   'shove',
@@ -72,6 +78,9 @@ export const ACTION_NOUNS = Object.freeze({
   warp: 'staff',
   rally: 'rally',
   ensnare: 'ensnare',
+  smite: 'smite',
+  transfuse: 'transfuse',
+  steal: 'steal',
   dance: 'dance',
   refresh: 'gambit',
   shove: 'shove',
@@ -125,7 +134,7 @@ export function summarizeActionFact(beats, actorId, lookup = () => null) {
         verb = noun;
         primary = beat;
       }
-      if (noun === 'heal' && Number.isFinite(beat.outcome?.amount))
+      if ((noun === 'heal' || noun === 'transfuse') && Number.isFinite(beat.outcome?.amount))
         outcome.healed += beat.outcome.amount;
     }
     if (['hit', 'missed', 'critically hit'].includes(beat.type) && beat.outcome) {
@@ -165,7 +174,7 @@ export function summarizeActionFact(beats, actorId, lookup = () => null) {
     fact.targetId = primary.targetId;
   }
   const detail = detailOf(primary?.label);
-  if (detail && !['heal'].includes(verb)) fact.detail = detail;
+  if (detail && !['heal', 'transfuse'].includes(verb)) fact.detail = detail;
   const kept = Object.fromEntries(Object.entries(outcome).filter(([, v]) => v > 0));
   if (Object.keys(kept).length) fact.outcome = kept;
   if (ko.length) fact.ko = ko;

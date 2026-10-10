@@ -9,6 +9,7 @@ import {
   clearSavedRun,
   isRunSaveCurrent,
 } from '../src/engine/RunManager.js';
+import { resolvePriceOption } from '../src/engine/BlessingEngine.js';
 import * as NodeMapGenerator from '../src/engine/NodeMapGenerator.js';
 import { loadGameData } from './testData.js';
 import { createCaravanUnit } from '../src/engine/CaravanSystem.js';
@@ -3754,9 +3755,9 @@ describe('blessing run-start effect application', () => {
     rm.activeBlessings = ['blessed_vigor'];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
-    expect(rm.roster[0].stats.HP).toBe(baseHp + 2);
+    expect(rm.roster[0].stats.HP).toBe(baseHp + 4);
     rm.applyRunStartBlessingEffects();
-    expect(rm.roster[0].stats.HP).toBe(baseHp + 2);
+    expect(rm.roster[0].stats.HP).toBe(baseHp + 4);
   });
 
   it('chooseBlessing applies offered blessing and persists chosenIds telemetry', () => {
@@ -3807,14 +3808,16 @@ describe('blessing run-start effect application', () => {
     expect(rm.activeBlessings.length).toBeGreaterThan(0);
   });
 
-  it('all_act_hit_bonus blessing applies to player units in all acts including finalBoss', () => {
+  it('all_act_hit_bonus (kept for saves) applies to player units in all acts including finalBoss', () => {
+    // Keen Eye replaced the blessing that used it; the handler stays for old runs.
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
     rm.startRun();
 
-    rm.activeBlessings = ['steady_hands'];
-    rm._runStartBlessingsApplied = false;
-    rm.applyRunStartBlessingEffects();
+    rm._applySingleRunStartBlessingEffect('legacy', {
+      type: 'all_act_hit_bonus',
+      params: { value: 3 },
+    });
 
     expect(rm.getActHitBonusForUnit({ faction: 'player' })).toBe(3);
     expect(rm.getActHitBonusForUnit({ faction: 'enemy' })).toBe(0);
@@ -3826,7 +3829,52 @@ describe('blessing run-start effect application', () => {
     expect(rm.getActHitBonusForUnit({ faction: 'player' }, 'finalBoss')).toBe(3);
   });
 
-  it('gold_delta blessing grants starting gold for coin_of_fate', () => {
+  it('Keen Eye (steady_hands) gives +10 first-strike Hit and no flat Hit', () => {
+    const rm = new RunManager(loadGameData());
+    rm.startRun();
+    rm.activeBlessings = ['steady_hands'];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+
+    expect(rm.blessingRuntimeModifiers.firstStrikeHitBonus).toBe(10);
+    expect(rm.getActHitBonusForUnit({ faction: 'player' })).toBe(0);
+    expect(rm.getBlessingCombatProfile()).toMatchObject({
+      actHitBonus: 0,
+      firstStrikeHitBonus: 10,
+    });
+    // It follows the run through a save.
+    const restored = RunManager.fromJSON(rm.toJSON(), loadGameData());
+    expect(restored.getBlessingCombatProfile().firstStrikeHitBonus).toBe(10);
+  });
+
+  it('Hold the Line (terrain_mastery) gives +2 DEF and +10 Avoid to a unit holding ground', () => {
+    const rm = new RunManager(loadGameData());
+    rm.startRun();
+    rm.activeBlessings = ['terrain_mastery'];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+
+    expect(rm.getBlessingCombatProfile().stationary).toEqual({ defBonus: 2, avoidBonus: 10 });
+    expect(rm.blessingRuntimeModifiers.terrainCombatBonuses).toBeUndefined();
+    const restored = RunManager.fromJSON(rm.toJSON(), loadGameData());
+    expect(restored.getBlessingCombatProfile().stationary).toEqual({ defBonus: 2, avoidBonus: 10 });
+  });
+
+  it('a save from before Keen Eye and Hold the Line loads with zeroed runtime fields', () => {
+    const rm = new RunManager(loadGameData());
+    rm.startRun();
+    const json = rm.toJSON();
+    delete json.blessingRuntimeModifiers.firstStrikeHitBonus;
+    delete json.blessingRuntimeModifiers.stationaryCombatBonus;
+    const restored = RunManager.fromJSON(json, loadGameData());
+    expect(restored.blessingRuntimeModifiers.firstStrikeHitBonus).toBe(0);
+    expect(restored.blessingRuntimeModifiers.stationaryCombatBonus).toEqual({
+      defBonus: 0,
+      avoidBonus: 0,
+    });
+  });
+
+  it('gold_delta grants Advance Pay 500 gold at once and nothing more until an act turns', () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
     rm.startRun();
@@ -3835,7 +3883,7 @@ describe('blessing run-start effect application', () => {
     rm.activeBlessings = ['coin_of_fate'];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
-    expect(rm.gold).toBe(baseGold + 750);
+    expect(rm.gold).toBe(baseGold + 500);
     expect(rm.getBattleGoldMultiplier()).toBe(baseMultiplier);
   });
 
@@ -3948,6 +3996,7 @@ describe('blessing run-start effect application', () => {
       description: '+1 MOV all units.',
       boons: [{ type: 'all_units_stat_delta', params: { stat: 'MOV', value: 1 } }],
       costs: [],
+      pact: ['debt_heavy'],
     });
     const rm = new RunManager(gameData);
     rm.startRun();
@@ -3990,9 +4039,10 @@ describe('blessing run-start effect application', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
 
-    rm.activeBlessings = ['pilgrim_coin'];
-    rm._runStartBlessingsApplied = false;
-    rm.applyRunStartBlessingEffects();
+    rm._applySingleRunStartBlessingEffect('synthetic', {
+      type: 'shop_item_count_delta',
+      params: { value: 1 },
+    });
 
     expect(rm.getShopItemCountDelta()).toBe(1);
   });
@@ -4002,12 +4052,13 @@ describe('blessing run-start effect application', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
 
-    rm.activeBlessings = ['pilgrim_coin'];
-    rm._runStartBlessingsApplied = false;
-    rm.applyRunStartBlessingEffects();
+    rm._applySingleRunStartBlessingEffect('synthetic', {
+      type: 'shop_price_discount',
+      params: { value: 0.15 },
+    });
 
     expect(rm.getShopPriceDiscount()).toBeCloseTo(0.15);
-    expect(rm.getShopItemCountDelta()).toBe(1);
+    expect(rm.getShopItemCountDelta()).toBe(0);
   });
 
   it('healing_effectiveness_delta blessing sets healingEffectivenessMultiplier (T1)', () => {
@@ -4072,27 +4123,29 @@ describe('blessing run-start effect application', () => {
     expect(recruitGrowthBonuses.SPD).toBe(5);
   });
 
-  it('Forbidden Tome teaches the lords and its pact bleeds every recruit', () => {
+  it('Forbidden Tome teaches the lords; its pact closes church revives (v3)', () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
     rm.startRun();
     const baseGrowths = rm.roster.map((u) => ({ ...u.growths }));
     const tome = gameData.blessings.blessings.find((b) => b.id === 'forbidden_tome');
-    rm.activeBlessings = [{ id: 'forbidden_tome', rolledCost: structuredClone(tome.pact) }];
+    const pact = resolvePriceOption(gameData.blessings, tome.pact, { kind: 'pact' });
+    rm.activeBlessings = [{ id: 'forbidden_tome', rolledCost: pact }];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
 
     rm.roster.forEach((unit, idx) => {
       for (const stat of ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK']) {
-        expect(unit.growths[stat]).toBe((baseGrowths[idx][stat] || 0) + (unit.isLord ? 12 : -10));
+        expect(unit.growths[stat]).toBe((baseGrowths[idx][stat] || 0) + (unit.isLord ? 12 : 0));
       }
     });
     const lordBonuses = rm.getEffectiveLordGrowthBonuses();
     const recruitBonuses = rm.getEffectiveRecruitGrowthBonuses();
     for (const stat of ['HP', 'STR', 'SPD', 'LCK']) {
       expect(lordBonuses[stat]).toBe(12);
-      expect(recruitBonuses[stat]).toBe(-10);
+      expect(recruitBonuses?.[stat] || 0).toBe(0);
     }
+    expect(rm.isChurchReviveDisabled()).toBe(true);
   });
 
   it('disable_personal_skills_until_act removes and restores lord personal skills at target act', () => {

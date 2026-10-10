@@ -4,9 +4,10 @@
 // here can show a unit the fog hides.
 //
 //   footprint  a soft tint on every tile the area covers (pure geometry and terrain)
-//   victims    a ring on each known foe it reaches; with numbers, "-8" or "KO"
+//   victims    a ring on each known foe it reaches; with numbers, "-8", "KO" or "BREAKS"
 //   heals      "+8" on each ally a heal reaches
-//   push       a line to where a ram leaves its target, and a crash mark
+//   push       a line to where a ram leaves its target, and a crash mark; Override's
+//              line to where it drives each foe back
 //
 // Tiles are placed with grid.gridToPixel, so a portrait board's turn is already applied.
 // Phaser construction runs under the presentation RNG: drawing never moves the battle's.
@@ -58,6 +59,14 @@ export class AreaPreviewController {
       };
       for (const v of preview.victims || []) ring(v.unit, AREA_PREVIEW_TINT);
       for (const h of preview.heals || []) if (h.amount > 0) ring(h.unit, HEAL_TINT);
+      // Override: an arrow from each foe it drives back to where it lands.
+      for (const entry of preview.pushes || []) {
+        if (!entry.moved) continue;
+        const from = scene.grid.gridToPixel(entry.from.col, entry.from.row);
+        const to = scene.grid.gridToPixel(entry.to.col, entry.to.row);
+        g.lineStyle(3, UI_HEX.accentText, 0.9);
+        g.lineBetween(from.x, from.y, to.x, to.y);
+      }
       if (preview.push && !preview.push.braced) {
         const target = preview.target || null;
         const from = target ? scene.grid.gridToPixel(target.col, target.row) : null;
@@ -84,7 +93,7 @@ export class AreaPreviewController {
       this.objects.push(label);
     };
     for (const v of preview.victims || [])
-      chip(v.unit, v.kills ? 'KO' : `-${v.damage}`, UI_PALETTE.warn);
+      chip(v.unit, v.kills ? 'KO' : v.breaks ? 'BREAKS' : `-${v.damage}`, UI_PALETTE.warn);
     for (const h of preview.heals || [])
       if (h.amount > 0) chip(h.unit, `+${h.amount}`, UI_PALETTE.good);
     if (preview.push?.crash && preview.push.obstacle)

@@ -331,6 +331,8 @@ export class BootScene extends Phaser.Scene {
       'generic_battle_monk',
       'generic_trickster',
       'generic_hunter',
+      // The caravan Merchant (CaravanSystem builds it outside the class factories)
+      'generic_merchant',
       // Enemy-faction portraits (38)
       'enemy_archer',
       'enemy_assassin',
@@ -356,10 +358,13 @@ export class BootScene extends Phaser.Scene {
       'enemy_mage',
       'enemy_mercenary',
       'enemy_myrmidon',
+      // enemy-only classes of Phase 3 (3I): single portraits, unlight plate
+      'enemy_necromancer',
       'enemy_paladin',
       'enemy_pegasus_knight',
       'enemy_revenant',
       'enemy_sage',
+      'enemy_skeleton',
       'enemy_sniper',
       'enemy_soldier',
       'enemy_swordmaster',
@@ -402,7 +407,8 @@ export class BootScene extends Phaser.Scene {
       }
     }
 
-    // Node map icons (8) - keyed as node_{type}
+    // Node map icons - keyed as node_{type} (the canvas fallback map; the DOM loom's medals
+    // come from NodeArt.js). node_event is the Event medal baked at 48 px.
     const nodeIcons = [
       'battle',
       'rest',
@@ -413,6 +419,7 @@ export class BootScene extends Phaser.Scene {
       'elite',
       'colosseum',
       'ruins',
+      'event',
     ];
     for (const name of nodeIcons) {
       this.load.image(`node_${name}`, `assets/sprites/nodes/node_${name}.png`);

@@ -150,11 +150,11 @@
     "category": "recruit_stats",
     "maxLevel": 5,
     "costs": [
-      65,
-      85,
-      130,
-      175,
-      260
+      75,
+      100,
+      150,
+      200,
+      300
     ],
     "effects": [
       {
@@ -430,9 +430,9 @@
     "category": "recruit_stats",
     "maxLevel": 3,
     "costs": [
-      150,
-      365,
-      760
+      175,
+      420,
+      875
     ],
     "effects": [
       {
@@ -556,6 +556,30 @@
           "id": "recruit_lck_growth",
           "level": 3
         }
+      ]
+    }
+  },
+  {
+    "id": "marked_blood",
+    "name": "Marked Blood",
+    "description": "Recruits are more likely to bear a Mark (a rare proc, shown beside their traits): 1 in 6, then 1 in 4",
+    "category": "recruit_stats",
+    "maxLevel": 2,
+    "costs": [
+      250,
+      400
+    ],
+    "effects": [
+      {
+        "markChance": 0.1667
+      },
+      {
+        "markChance": 0.25
+      }
+    ],
+    "requires": {
+      "milestones": [
+        "beatAct1"
       ]
     }
   },
@@ -710,11 +734,11 @@
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      105,
-      150,
-      260,
-      365,
-      570
+      120,
+      175,
+      300,
+      420,
+      655
     ],
     "effects": [
       {
@@ -1002,9 +1026,9 @@
     "category": "lord_bonuses",
     "maxLevel": 3,
     "costs": [
-      250,
-      695,
-      1460
+      290,
+      800,
+      1680
     ],
     "effects": [
       {
@@ -1221,8 +1245,8 @@
     "category": "economy",
     "maxLevel": 2,
     "costs": [
-      150,
-      300
+      120,
+      240
     ],
     "effects": [
       {
@@ -1245,8 +1269,8 @@
     "category": "economy",
     "maxLevel": 2,
     "costs": [
-      150,
-      300
+      120,
+      240
     ],
     "effects": [
       {
@@ -1281,8 +1305,8 @@
     "category": "economy",
     "maxLevel": 2,
     "costs": [
-      150,
-      300
+      120,
+      240
     ],
     "effects": [
       {
@@ -1309,15 +1333,42 @@
     }
   },
   {
+    "id": "branching_threads",
+    "name": "Branching Threads",
+    "description": "Reroll a battle's loot choices before your first pick",
+    "category": "economy",
+    "maxLevel": 4,
+    "costs": [
+      100,
+      200,
+      250,
+      250
+    ],
+    "effects": [
+      {
+        "rewardRerolls": 1
+      },
+      {
+        "rewardRerolls": 2
+      },
+      {
+        "rewardRerolls": 3
+      },
+      {
+        "rewardRerolls": 4
+      }
+    ]
+  },
+  {
     "id": "heros_call",
     "name": "Hero's Call",
     "description": "+8% lord recruit chance per tier",
     "category": "economy",
     "maxLevel": 3,
     "costs": [
-      150,
-      300,
-      500
+      120,
+      240,
+      400
     ],
     "effects": [
       {
@@ -1343,8 +1394,8 @@
     "category": "economy",
     "maxLevel": 2,
     "costs": [
-      150,
-      250
+      60,
+      100
     ],
     "effects": [
       {
@@ -1790,7 +1841,7 @@
     "category": "starting_equipment",
     "maxLevel": 1,
     "costs": [
-      600
+      1000
     ],
     "effects": [
       {
@@ -1828,7 +1879,7 @@
     "category": "starting_equipment",
     "maxLevel": 1,
     "costs": [
-      800
+      500
     ],
     "effects": [
       {
@@ -1949,7 +2000,7 @@
   {
     "id": "unlock_luna",
     "name": "Luna",
-    "description": "SKL% chance on hit to halve the target\u2019s DEF or RES (rounded down). Terrain protection remains.",
+    "description": "SKL% chance on hit to halve the target’s DEF or RES (rounded down). Terrain protection remains.",
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
@@ -2118,8 +2169,8 @@
     "category": "lord_bonuses",
     "maxLevel": 2,
     "costs": [
-      300,
-      600
+      150,
+      300
     ],
     "effects": [
       {

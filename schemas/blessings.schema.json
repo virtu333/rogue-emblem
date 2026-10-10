@@ -3,13 +3,56 @@
   "title": "Blessings",
   "type": "object",
   "properties": {
-    "version": { "type": "integer", "minimum": 1 },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "debtScale": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number",
+        "exclusiveMinimum": 0
+      }
+    },
+    "tierBands": {
+      "type": "object",
+      "patternProperties": {
+        "^\\d+$": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": 0
+          },
+          "minItems": 2,
+          "maxItems": 2
+        }
+      },
+      "additionalProperties": false
+    },
+    "offerWeights": {
+      "type": "object",
+      "patternProperties": {
+        "^\\d+$": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "priceCatalog": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/priceEntry"
+      }
+    },
     "costPools": {
       "type": "object",
       "patternProperties": {
         "^\\d+$": {
           "type": "array",
-          "items": { "$ref": "#/$defs/costEntry" }
+          "items": {
+            "$ref": "#/$defs/costEntry"
+          }
         }
       },
       "additionalProperties": false
@@ -19,19 +62,38 @@
       "items": {
         "type": "object",
         "properties": {
-          "id": { "type": "string", "minLength": 1 },
-          "name": { "type": "string", "minLength": 1 },
-          "tier": { "type": "integer", "minimum": 1 },
-          "description": { "type": "string" },
-          "weight": { "type": "number", "minimum": 0 },
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "tier": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "description": {
+            "type": "string"
+          },
+          "weight": {
+            "type": "number",
+            "minimum": 0
+          },
           "boons": {
             "type": "array",
             "minItems": 1,
             "items": {
               "type": "object",
               "properties": {
-                "type": { "type": "string", "minLength": 1 },
-                "params": { "type": "object" }
+                "type": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "params": {
+                  "type": "object"
+                }
               },
               "required": ["type", "params"],
               "additionalProperties": false
@@ -39,11 +101,65 @@
           },
           "costs": {
             "type": "array",
-            "items": { "$ref": "#/$defs/costEntry" }
+            "items": {
+              "$ref": "#/$defs/costEntry"
+            }
           },
-          "pact": { "$ref": "#/$defs/costEntry" },
-          "excludes": { "type": "array", "items": { "type": "string", "minLength": 1 } },
-          "lore": { "type": "string", "minLength": 1 }
+          "pact": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/costEntry"
+              },
+              {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            ]
+          },
+          "excludes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "lore": {
+            "type": "string",
+            "minLength": 1
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "prices": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/$defs/priceOption"
+            }
+          },
+          "intrinsicPrice": {
+            "type": "object",
+            "properties": {
+              "label": {
+                "type": "string",
+                "minLength": 1
+              },
+              "points": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              }
+            },
+            "required": ["label", "points"],
+            "additionalProperties": false
+          }
         },
         "required": ["id", "name", "tier", "description", "weight", "boons", "costs"],
         "additionalProperties": false
@@ -56,8 +172,13 @@
     "effectEntry": {
       "type": "object",
       "properties": {
-        "type": { "type": "string", "minLength": 1 },
-        "params": { "type": "object" }
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "params": {
+          "type": "object"
+        }
       },
       "required": ["type", "params"],
       "additionalProperties": false
@@ -65,15 +186,65 @@
     "costEntry": {
       "type": "object",
       "properties": {
-        "label": { "type": "string", "minLength": 1 },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
         "effects": {
           "type": "array",
           "minItems": 1,
-          "items": { "$ref": "#/$defs/effectEntry" }
+          "items": {
+            "$ref": "#/$defs/effectEntry"
+          }
         }
       },
       "required": ["label", "effects"],
       "additionalProperties": false
+    },
+    "priceEntry": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "points": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "effects": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/effectEntry"
+          }
+        }
+      },
+      "required": ["label", "points", "effects"],
+      "additionalProperties": false
+    },
+    "priceOption": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
     }
   }
 }

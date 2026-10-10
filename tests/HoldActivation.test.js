@@ -88,8 +88,9 @@ describe('who holds', () => {
           const target = Math.round(shares.seize * nonBoss.length);
           expect(holders.length, label).toBeLessThanOrEqual(target + 1);
           expect(bc.enemySpawns.find((s) => s.isBoss)?.aiMode, label).not.toBe('hold');
+          // Holds replace guards, but a Necromancer keeps its own guard post (Necromancy.js).
           expect(
-            nonBoss.some((s) => s.aiMode === 'guard'),
+            nonBoss.some((s) => s.aiMode === 'guard' && s.className !== 'Necromancer'),
             label,
           ).toBe(false);
           // No holder stands alone; a pack is linked by holders within 3 tiles.
@@ -106,7 +107,9 @@ describe('who holds', () => {
             );
           }
           // The nearest candidate with a partner within 3 always holds.
-          const eligible = nonBoss.filter((x) => x.aiMode !== 'heal' && !x.siegeWeapon);
+          const eligible = nonBoss.filter(
+            (x) => x.aiMode !== 'heal' && !x.siegeWeapon && x.className !== 'Necromancer',
+          );
           const firstPaired = [...eligible]
             .sort(
               (a, b) =>

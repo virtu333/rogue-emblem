@@ -37,7 +37,7 @@ export const TAB_DEFS = [
   {
     label: 'Skills',
     key: 'skills',
-    filters: ['All', 'Passive', 'Aura', 'Combat', 'Attack', 'Defend', 'Turn', 'Action'],
+    filters: ['All', 'Passive', 'Aura', 'Combat', 'Attack', 'Defend', 'Kill', 'Turn', 'Action'],
   },
   { label: 'Arts', key: 'weaponArts', filters: ['All', 'Sword', 'Lance', 'Axe', 'Bow', 'Tome'] },
   { label: 'Class', key: 'classes', filters: ['All', 'base', 'promoted'] },
@@ -59,6 +59,7 @@ const SKILL_FILTER_MAP = {
   Combat: 'on-combat-start',
   Attack: 'on-attack',
   Defend: 'on-defend',
+  Kill: 'on-kill',
   Turn: 'on-turn-start',
   Action: 'action',
 };

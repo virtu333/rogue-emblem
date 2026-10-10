@@ -20,6 +20,7 @@ import {
   PROMOTION_MIN_LEVEL,
   MAX_SKILLS,
   ENEMY_PROMOTION_BASE_LEVEL,
+  ENEMY_NEVER_SKILLS,
 } from '../utils/constants.js';
 import { ensureItemUid, ensureItemUidWith } from '../utils/itemUid.js';
 import { accessoryHpOwed, setAccessoryHpOwed, settleAccessoryHpOwed } from './UnitHealth.js';
@@ -32,6 +33,7 @@ import {
   getTraitReclassStatShift,
   reapplyTraitGrowthMods,
 } from './TraitSystem.js';
+import { rollMark } from './MarkSystem.js';
 
 // --- Weapon proficiency parsing ---
 
@@ -471,6 +473,7 @@ function assignEnemySkills(unit, classData, level, skillsData, act, difficultyCo
   if (classData.tier === 'promoted') {
     const innateSkills = getClassInnateSkills(classData.name, skillsData);
     for (const sid of innateSkills) {
+      if (ENEMY_NEVER_SKILLS.includes(sid)) continue;
       learnSkill(unit, sid);
     }
   }
@@ -572,6 +575,25 @@ export function createEnemyUnit(
 }
 
 /**
+ * A class's own enemy-only weapon (classes.json `enemyWeapon`: the Necromancer's
+ * Gravesong) replaces the tier pick. It takes over the dropped weapon's uid, so it draws
+ * no extra Math.random and the battle's stream is unchanged. A weapon the unit cannot
+ * wield, or one missing from the catalog, leaves the tier pick in place.
+ */
+function equipClassEnemyWeapon(enemy, classData, allWeapons) {
+  const name = classData?.enemyWeapon;
+  if (typeof name !== 'string' || !name) return;
+  const data = (allWeapons || []).find((w) => w?.name === name);
+  if (!data || !canEquip(enemy, data)) return;
+  const weapon = structuredClone(data);
+  const inherited = enemy.weapon?.uid;
+  if (typeof inherited === 'string') weapon.uid = inherited;
+  ensureItemUid(weapon);
+  enemy.weapon = weapon;
+  enemy.inventory = [weapon];
+}
+
+/**
  * Create a promoted enemy from base class with capped pre-promotion growth.
  * Difficulty modifiers are applied once to the final promoted statline.
  */
@@ -619,9 +641,12 @@ export function createPromotedEnemyUnit(
     enemy.weapon = weaponClone;
     enemy.inventory = [weaponClone];
   }
+  equipClassEnemyWeapon(enemy, promotedClassData, allWeapons);
 
   applyEnemyDifficultyModifiers(enemy, difficultyConfig);
   assignEnemySkills(enemy, promotedClassData, spawnLevel, skillsData, act, difficultyConfig);
+  // The promotion above gave the class's innates: the ones that are the player's alone go.
+  enemy.skills = (enemy.skills || []).filter((id) => !ENEMY_NEVER_SKILLS.includes(id));
   return enemy;
 }
 
@@ -807,6 +832,16 @@ export function createRecruitUnit(
   // class it will actually play, so its traits fit that class.
   rollAndApplyTraits(unit, options.traitsData || null, options.rng || Math.random, {
     profile: traitProfileForClass(unit, options.traitClassData),
+  });
+
+  // Roll a Mark (docs/specs/phase3.md 3C): recruits only, on its own stream keyed by run
+  // seed and name (never `options.rng`, so the caller's seeded stream is untouched). The
+  // name is final here: every source names the recruit before building it. No-op without
+  // options.runSeed and options.marksData (sims and tests that omit them stay unchanged).
+  rollMark(unit, {
+    runSeed: options.runSeed,
+    metaEffects: options.metaEffects,
+    marksData: options.marksData,
   });
 
   return unit;
@@ -1412,8 +1447,19 @@ const RECLASS_EXCLUDED_CLASSES = new Set([
   'Bard',
 ]);
 
-// Enemy-only lines (undead, dragons): never a seal target (a unit already in one may still reclass out).
-const RECLASS_TARGET_EXCLUDED_CLASSES = new Set(['Zombie', 'Revenant', 'Dragon', 'Dragon Lord']);
+// Enemy-only lines (undead, dragons, the Necromancer and its Skeletons): never a seal target
+// (a unit already in one may still reclass out).
+const RECLASS_TARGET_EXCLUDED_CLASSES = new Set([
+  'Zombie',
+  'Revenant',
+  'Dragon',
+  'Dragon Lord',
+  'Necromancer',
+  'Skeleton',
+]);
+// The same lines, named for callers that need to know a class (or a skill innate to it) is
+// enemy-only (events never teach those skills).
+export const ENEMY_ONLY_CLASS_NAMES = RECLASS_TARGET_EXCLUDED_CLASSES;
 
 // Seal subEffect → allowed moveTypes.
 const RECLASS_SEAL_MOVE_TYPES = {

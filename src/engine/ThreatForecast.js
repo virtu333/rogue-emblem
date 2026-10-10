@@ -30,6 +30,7 @@ import { getBallistaDangerTiles } from './BallistaEngine.js';
 import { ENTITY_PRIMARY_ATTACK_RANGE } from '../utils/constants.js';
 import { getPerBattleRemainingUses, isStaff, nextStrikeWeapon, parseRange } from './Combat.js';
 import { plantsAmongPositions } from './SiegeArtillery.js';
+import { movementOptionsFor } from './PassMovement.js';
 
 const tileKey = (col, row) => `${col},${row}`;
 
@@ -113,6 +114,7 @@ export function enemyThreatTiles(ctx, enemy, positions = ctx.positions()) {
  * @returns {{ moveRange: Map, attackTiles: Array<{col,row}> }}
  */
 export function unitReach(grid, unit, { mov = 0, positions = null, costModifier = 0 } = {}) {
+  // A player unit with Pass walks through foes (never stopping on one): its reach reads it.
   const moveRange = grid.getMovementRange(
     unit.col,
     unit.row,
@@ -121,6 +123,7 @@ export function unitReach(grid, unit, { mov = 0, positions = null, costModifier 
     positions,
     unit.faction,
     costModifier,
+    movementOptionsFor(unit),
   );
   const attack = new Set();
   const weapon = strikingWeapon(unit);

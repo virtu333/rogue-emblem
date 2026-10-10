@@ -48,6 +48,10 @@
       "Hit Whetstone",
       "Weight Whetstone"
     ],
+    "carryPool": [
+      { "item": "Vulnerary", "weight": 6 },
+      { "item": "Gold Pouch", "weight": 3, "value": 300 }
+    ],
     "weights": {
       "weapon": 20,
       "healing": 12,
@@ -166,7 +170,14 @@
       "Desperation Scroll",
       "Rally Cry Scroll",
       "Healing Circle Scroll",
-      "Ensnare Scroll"
+      "Ensnare Scroll",
+      "Pass Scroll",
+      "Steal Scroll",
+      "Uncanny Blow Scroll",
+      "Warding Blow Scroll",
+      "Lifetaker Scroll",
+      "Speedtaker Scroll",
+      "Defiant Scroll"
     ],
     "weaponArtScroll": ["Grounder Scroll", "Helm Splitter Scroll"],
     "artTiers": {
@@ -202,6 +213,11 @@
       "Weight Whetstone",
       "Weight Whetstone",
       "Prismatic Stone"
+    ],
+    "carryPool": [
+      { "item": "Vulnerary", "weight": 5 },
+      { "item": "Gold Pouch", "weight": 3, "value": 300 },
+      { "from": "statBooster", "weight": 1 }
     ],
     "weights": {
       "weapon": 20,
@@ -277,10 +293,21 @@
       "Darting Blow Scroll",
       "Shove Scroll",
       "Pull Scroll",
+      "Smite Scroll",
+      "Transfuse Scroll",
+      "Great Sacrifice Scroll",
+      "Blink Strike Scroll",
+      "Pass Scroll",
       "Blink Scroll",
       "Rally Cry Scroll",
       "Healing Circle Scroll",
-      "Ensnare Scroll"
+      "Ensnare Scroll",
+      "Steal Scroll",
+      "Uncanny Blow Scroll",
+      "Warding Blow Scroll",
+      "Lifetaker Scroll",
+      "Speedtaker Scroll",
+      "Defiant Scroll"
     ],
     "weaponArtScroll": [
       "Grounder Scroll",
@@ -351,6 +378,12 @@
       "Vampiric Imbuing Stone",
       "Cruel Imbuing Stone"
     ],
+    "carryPool": [
+      { "item": "Vulnerary", "weight": 3 },
+      { "item": "Elixir", "weight": 3 },
+      { "item": "Gold Pouch", "weight": 3, "value": 500 },
+      { "from": "statBooster", "weight": 1 }
+    ],
     "weights": {
       "weapon": 25,
       "healing": 2,
@@ -420,10 +453,21 @@
       "Darting Blow Scroll",
       "Shove Scroll",
       "Pull Scroll",
+      "Smite Scroll",
+      "Transfuse Scroll",
+      "Great Sacrifice Scroll",
+      "Blink Strike Scroll",
+      "Pass Scroll",
       "Blink Scroll",
       "Rally Cry Scroll",
       "Healing Circle Scroll",
-      "Ensnare Scroll"
+      "Ensnare Scroll",
+      "Steal Scroll",
+      "Uncanny Blow Scroll",
+      "Warding Blow Scroll",
+      "Lifetaker Scroll",
+      "Speedtaker Scroll",
+      "Defiant Scroll"
     ],
     "weaponArtScroll": [
       "Grounder Scroll",
@@ -486,6 +530,13 @@
       "Vampiric Imbuing Stone",
       "Cruel Imbuing Stone"
     ],
+    "carryPool": [
+      { "item": "Vulnerary", "weight": 2 },
+      { "item": "Elixir", "weight": 3 },
+      { "item": "Gold Pouch", "weight": 3, "value": 800 },
+      { "from": "statBooster", "weight": 1 },
+      { "item": "Master Seal", "weight": 1 }
+    ],
     "weights": {
       "weapon": 15,
       "healing": 2,
@@ -513,12 +564,54 @@
     "legendaryWeapon": [],
     "accessories": [],
     "forge": [],
+    "carryPool": [
+      { "item": "Vulnerary", "weight": 2 },
+      { "item": "Elixir", "weight": 3 },
+      { "item": "Gold Pouch", "weight": 3, "value": 800 },
+      { "item": "Master Seal", "weight": 1 }
+    ],
     "weights": {
       "gold": 100
     },
     "goldRange": [
       1450,
       2200
+    ]
+  },
+  "accessorySkills": {
+    "chanceByAct": { "act1": 0.03, "act2": 0.05, "act3": 0.06, "act4": 0.08 },
+    "poolByAct": {
+      "act1": [
+        "uncanny_blow", "warding_blow", "armored_blow", "darting_blow", "death_blow", "pathfinder",
+        "vantage", "wrath", "defiant", "guard", "skirmisher", "foresight", "canto"
+      ],
+      "act2": [
+        "uncanny_blow", "warding_blow", "armored_blow", "darting_blow", "death_blow", "pathfinder",
+        "vantage", "wrath", "defiant", "guard", "skirmisher", "foresight", "canto"
+      ],
+      "act3": [
+        "vantage", "wrath", "defiant", "guard", "skirmisher", "foresight", "canto",
+        "luna", "sol", "lifetaker", "speedtaker", "pavise", "aegis", "renewal"
+      ],
+      "act4": [
+        "luna", "sol", "lifetaker", "speedtaker", "pavise", "aegis", "renewal",
+        "astra", "aether", "miracle", "blink", "pass"
+      ]
+    },
+    "priceMultiplier": 1.5,
+    "neverBound": ["dance", "shove", "pull", "lethality", "steal", "goddess_dance"],
+    "lentInnates": [
+      "armored_blow",
+      "darting_blow",
+      "pathfinder",
+      "skirmisher",
+      "foresight",
+      "canto",
+      "pavise",
+      "aegis",
+      "renewal",
+      "aether",
+      "pass"
     ]
   }
 }

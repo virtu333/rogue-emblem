@@ -102,11 +102,29 @@ function asLegacySave(rm) {
   return json;
 }
 
-// The reviewer's probe, reproduced: run seed 51 promises "Tamsin" (an Archer) at a
-// recruit node; the act-1 colosseum on stream 51 offered two Archers, one of them
-// named Tamsin, when it only avoided roster names.
-const PROBE_SEED = 51;
-const PROMISED = 'Tamsin';
+// The reviewer's probe, reproduced: a run whose recruit node promises a name that the
+// act-1 colosseum on the same stream offered while it only avoided roster names. (The
+// original probe was run seed 51 / the Archer Tamsin.) Map generation moves the recruit
+// nodes whenever the node map changes, so the case is found by search, not pinned: the
+// first seed whose colosseum stream offers one of its promised names.
+function findProbe() {
+  for (let seed = 1; seed <= 400; seed++) {
+    const rm = freshRun(seed);
+    const promised = new Set(
+      rm.nodeMap.nodes
+        .filter((n) => n.type === 'recruit' && n.recruitPreview?.name)
+        .map((n) => n.recruitPreview.name),
+    );
+    const offered = mercs(
+      seed,
+      rm.roster.map((u) => u.name),
+    ).map((c) => c.unit.name);
+    const name = offered.find((n) => promised.has(n));
+    if (name) return { seed, name };
+  }
+  throw new Error('no probe seed in 1..400: widen the search');
+}
+const { seed: PROBE_SEED, name: PROMISED } = findProbe();
 
 function probeRun() {
   const rm = freshRun(PROBE_SEED);
@@ -338,9 +356,9 @@ describe('names a recruit node promised are reserved', () => {
 
 describe('hire → fixed recruit → one namesake dies (reviewer scenario, legacy collision)', () => {
   /**
-   * A save from before the fix: an Archer named Tamsin was hired at the colosseum
-   * while the recruit node still promised Tamsin. The preview is kept (the Loom showed
-   * it), so the battle spawns a second Tamsin.
+   * A save from before the fix: a Mage named Lira was hired at the colosseum
+   * while the recruit node still promised Lira. The preview is kept (the Loom showed
+   * it), so the battle spawns a second Lira.
    */
   function legacyCollision() {
     const { rm, node } = probeRun();
@@ -377,7 +395,7 @@ describe('hire → fixed recruit → one namesake dies (reviewer scenario, legac
     const { army, npc, records } = enterAndRecruit(rm, node);
     expect(npc.unitUid).not.toBe(merc.unitUid);
 
-    // The recruit falls; everyone else (the merc Tamsin too) wins the battle.
+    // The recruit falls; everyone else (the merc Lira too) wins the battle.
     const survivors = army;
     const fallenRecruits = fallenBattleRecruits(records, survivors, rm.roster);
     expect(fallenRecruits.map((u) => u.unitUid)).toEqual([npc.unitUid]);

@@ -10,6 +10,7 @@ import { settleStaffHeal } from '../../src/engine/StaffSettlement.js';
 // Mirrors BattleScene's MVP subset (7 states) using real engine functions.
 
 import { HeadlessGrid } from './HeadlessGrid.js';
+import { movementOptionsFor } from '../../src/engine/PassMovement.js';
 import { TurnManager } from '../../src/engine/TurnManager.js';
 import {
   commitBattleDeeds,
@@ -91,6 +92,7 @@ import {
   getWeaponArtIds,
   isWeaponArtCompatibleWithWeapon,
   recordWeaponArtUse,
+  weaponArtRunOptions,
 } from '../../src/engine/WeaponArtSystem.js';
 import {
   applyCondition,
@@ -102,6 +104,8 @@ import {
 } from '../../src/engine/StatusConditionSystem.js';
 import { applyEnemySpawnGear, applySpawnLoadout } from '../../src/engine/EnemySpawnGear.js';
 import { applyHoldSpawn } from '../../src/engine/HoldActivation.js';
+import { registerBattleEntity } from '../../src/engine/BattleEntityIdentity.js';
+import { crumbleFor, isNecromancer, raiseFor, raisers } from '../../src/engine/Necromancy.js';
 import { createPlayerKnowledge } from '../../src/engine/PlayerKnowledge.js';
 import {
   spendAreaStrikeShot,
@@ -150,6 +154,7 @@ import {
   ESCAPE_EVAC_GOLD_BY_ACT,
 } from '../../src/utils/constants.js';
 import { applyCombatHP, damageUnit, healUnit, setUnitHP } from '../../src/engine/UnitHealth.js';
+import { applyBlessingCombatMods, stampTurnAnchors } from '../../src/engine/BlessingCombatMods.js';
 import { resetFortHealStreak, settleTerrainHeal } from '../../src/engine/TerrainHealing.js';
 import { postCombatEffects, runPostCombatEffectsSync } from '../../src/engine/PostCombatEffects.js';
 import {
@@ -163,8 +168,18 @@ import {
   resolveTimedBuffExpiry,
   timedBuffCombatMods,
 } from '../../src/engine/TimedWeaponArtBuffs.js';
-import { applyBattleDebuff, clearBattleScopedDeltas } from '../../src/engine/BattleStatDeltas.js';
-import { AREA_XP_LIVE, actionXpAwards, applyXpGain, scaledXp } from '../../src/engine/BattleXp.js';
+import {
+  applyBattleDebuff,
+  applyBattleStartDebuffs,
+  clearBattleScopedDeltas,
+} from '../../src/engine/BattleStatDeltas.js';
+import {
+  AREA_XP_LIVE,
+  actionXpAwards,
+  applyXpGain,
+  combatHpLost,
+  scaledXp,
+} from '../../src/engine/BattleXp.js';
 import { selectEnemyWeaponArt } from '../../src/engine/EnemyArtScoring.js';
 import { bindEnemyAreaArt } from '../../src/engine/EnemyAreaArts.js';
 import { settleArtilleryStances } from '../../src/engine/SiegeArtillery.js';
@@ -205,8 +220,19 @@ const HIDDEN_WEAPON_ART_REASONS = new Set([
 ]);
 
 export class HeadlessBattle {
-  constructor(gameData, battleParams, roster = null) {
+  /**
+   * @param {object} gameData
+   * @param {object} [battleParams]
+   * @param {Array|null} [roster]
+   * @param {{ buildRecruit?: (preview: object) => ({ unit: object }|null) }} [options]
+   *   `buildRecruit`: how a full run builds a recruit battle's green unit (the run's own
+   *   `getRecruitNodeUnit`); without it the battle builds one from its own params.
+   *   `runManager`: the run the battle belongs to, present from `init()` (its blessings, the
+   *   Vulnerary recipe and the run-level battle effects); without it the battle is standalone.
+   */
+  constructor(gameData, battleParams, roster = null, options = {}) {
     this.gameData = gameData;
+    this.buildRecruit = typeof options?.buildRecruit === 'function' ? options.buildRecruit : null;
     if (!this.gameData.skills) this.gameData.skills = [];
     this.battleParams = battleParams || { act: 'act1', objective: 'rout' };
     this.roster = roster;
@@ -241,7 +267,7 @@ export class HeadlessBattle {
     this.appliedHybridOverrideTurns = new Set();
     this.lastHybridOverrideResult = null;
     this._combatRollSession = null;
-    this.runManager = null;
+    this.runManager = options?.runManager ?? null;
     this._reinforcementsPendingThisTurn = false;
     this._villageState = null;
     this.villageRewardItems = [];
@@ -271,6 +297,7 @@ export class HeadlessBattle {
       weapons: this.gameData.weapons,
       affixes: this.gameData.affixes,
       difficulty: this.gameData.difficulty,
+      lootTables: this.gameData.lootTables,
     });
   }
 
@@ -340,9 +367,12 @@ export class HeadlessBattle {
       this._addEnemyFromSpawn(spawn);
     }
 
-    // Spawn NPC for recruit battles — the same RecruitNodeSystem build as BattleScene
-    // (own seeded stream; the battle's Math.random is not consumed). Full-run sims
-    // pass the run roster / seed / node id so the NPC matches the Loom preview.
+    // Spawn NPC for recruit battles — the same RecruitNodeSystem build as BattleScene (own
+    // seeded stream; the battle's Math.random is not consumed). A full run hands in the
+    // production builder (`options.buildRecruit`, RunManager.getRecruitNodeUnit: the one place
+    // that knows the run's roster and seed and that an event's recruit never rolls a lord), as
+    // BattleScene calls it; a standalone battle builds from its own params, like the scene's
+    // no-run fallback.
     if (bc.npcSpawn?.prologueUnit) {
       // An authored green unit (P3's Sera): the one builder BattleScene uses too.
       const npc = buildPrologueNpcUnit(bc.npcSpawn, this.gameData);
@@ -350,21 +380,24 @@ export class HeadlessBattle {
       this.npcUnits.push(npc);
     } else if (bc.npcSpawn) {
       const npcSpawn = bc.npcSpawn;
-      const built = buildRecruitNodeUnit({
-        preview: { className: npcSpawn.className, name: npcSpawn.name },
-        nodeId: this.battleParams?.recruitNodeId || 'recruit',
-        runSeed: this.battleParams?.recruitRunSeed ?? this.battleParams?.battleSeed ?? 0,
-        act: this.battleParams?.act || 'act1',
-        roster: Array.isArray(this.battleParams?.recruitRoster)
-          ? this.battleParams.recruitRoster
-          : this.playerUnits,
-        fallenUnits: this.battleParams?.fallenUnits || [],
-        gameData: this.gameData,
-        metaEffects: this.battleParams?.metaEffects || null,
-        startingLordNames: this.battleParams?.startingLordNames,
-        recruitLevelBonus: Math.trunc(Number(this.battleParams?.recruitLevelBonus) || 0),
-        deployBonus: Math.trunc(Number(this.battleParams?.deployBonus) || 0),
-      });
+      const preview = { className: npcSpawn.className, name: npcSpawn.name };
+      const built = this.buildRecruit
+        ? this.buildRecruit(preview)
+        : buildRecruitNodeUnit({
+            preview,
+            nodeId: this.battleParams?.recruitNodeId || 'recruit',
+            runSeed: this.battleParams?.recruitRunSeed ?? this.battleParams?.battleSeed ?? 0,
+            act: this.battleParams?.act || 'act1',
+            roster: Array.isArray(this.battleParams?.recruitRoster)
+              ? this.battleParams.recruitRoster
+              : this.playerUnits,
+            fallenUnits: this.battleParams?.fallenUnits || [],
+            gameData: this.gameData,
+            metaEffects: this.battleParams?.metaEffects || null,
+            startingLordNames: this.battleParams?.startingLordNames,
+            recruitLevelBonus: Math.trunc(Number(this.battleParams?.recruitLevelBonus) || 0),
+            deployBonus: Math.trunc(Number(this.battleParams?.deployBonus) || 0),
+          });
       if (built?.unit) {
         const npc = built.unit;
         // Mirrors BattleScene: the tile must suit the unit that spawned (lord roll).
@@ -390,6 +423,8 @@ export class HeadlessBattle {
     for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
       unit._phoenixBroochUsed = false;
     }
+    // The Wounded burden's stat delta, as BattleScene applies it at a fresh start.
+    applyBattleStartDebuffs(this.playerUnits, this.battleParams?.battleDebuffs);
 
     // Anti-turtle clock (engine/TurnPressure.js), as BattleScene: measured once the
     // field is populated, advanced at the start of every enemy phase.
@@ -468,6 +503,8 @@ export class HeadlessBattle {
       unit.moveType,
       this._buildUnitPositionMap(unit.faction),
       unit.faction,
+      0,
+      movementOptionsFor(unit),
     );
     this.battleState = HEADLESS_STATES.UNIT_SELECTED;
   }
@@ -491,9 +528,12 @@ export class HeadlessBattle {
     const costEntry = rangeEntry;
     this.selectedUnit._movementSpent = costEntry ? costEntry.cost : 0;
 
+    // Staying put opens the action menu without moveUnit (InputController), so the unit has
+    // not "moved": hasMoved flips only when the tile changes, as in the scene.
+    const changesTile = col !== this.selectedUnit.col || row !== this.selectedUnit.row;
     this.selectedUnit.col = col;
     this.selectedUnit.row = row;
-    this.selectedUnit.hasMoved = true;
+    if (changesTile) this.selectedUnit.hasMoved = true;
     // Fog waits for the action to be committed (BattleActionCompletion.revealSettledVision).
     this.battleState = HEADLESS_STATES.UNIT_ACTION_MENU;
   }
@@ -912,6 +952,8 @@ export class HeadlessBattle {
     applyEnemySpawnGear(enemy, spawn, {
       weapons: this.gameData.weapons,
       difficultyId: this.battleParams?.difficultyId,
+      consumables: this.runManager?.getConsumableCatalog?.() ?? this.gameData.consumables,
+      battleKey: String(this._deriveBattleSeed()),
     });
     // As BattleScene: an authored spawn's own weapon, skills and id win.
     applySpawnLoadout(enemy, spawn, {
@@ -1077,9 +1119,15 @@ export class HeadlessBattle {
         u._gambitUsedThisTurn = false;
         u._movementSpent = 0;
       }
+      stampTurnAnchors(this.playerUnits, turn);
       // Apply turn-start effects (Renewal, etc.) — skip turn 1 to match BattleScene
+      const army = armyAndNpcAllies(this.playerUnits, this.npcUnits);
       if (turn > 1) {
-        this._processTurnStartEffects(armyAndNpcAllies(this.playerUnits, this.npcUnits));
+        this._processTurnStartEffects(army);
+      } else {
+        // Mark of the Road rolls on every player phase, turn 1 included, as BattleScene's
+        // pipeline does; the effects above have always skipped it here.
+        this._applyTurnStartMarkBuffs(getTurnStartEffects(army, [], this.gameData.marks, turn));
       }
       this._refreshFogVisibility();
       this.battleState = HEADLESS_STATES.PLAYER_IDLE;
@@ -1175,6 +1223,13 @@ export class HeadlessBattle {
     this.battleState = HEADLESS_STATES.BATTLE_END;
   }
 
+  /** Mark of the Road: +1 MOV until the player phase ends (TimedWeaponArtBuffs). */
+  _applyTurnStartMarkBuffs(effects) {
+    for (const effect of effects) {
+      if (effect.type === 'buff' && effect.entry) applyTimedBuffEntry(effect.target, effect.entry);
+    }
+  }
+
   _processTurnStartEffects(units) {
     if (!Array.isArray(units)) return;
     // 0b. Acid ticks, as BattleScene._processAcidTicks: non-lethal, and the ground's own
@@ -1184,7 +1239,12 @@ export class HeadlessBattle {
       damageUnit(unit, computeAcidDamage(unit.stats?.HP), { floor: 1, disturbs: false });
     }
     // 1. Skills
-    const skillEffects = getTurnStartEffects(units, this.gameData.skills);
+    const skillEffects = getTurnStartEffects(
+      units,
+      this.gameData.skills,
+      this.gameData.marks,
+      this.turnManager?.turnNumber,
+    );
     for (const effect of skillEffects) {
       if (effect.type === 'heal' && effect.target.currentHP < effect.target.stats.HP) {
         effect.target.currentHP = Math.min(
@@ -1193,6 +1253,7 @@ export class HeadlessBattle {
         );
       }
     }
+    this._applyTurnStartMarkBuffs(skillEffects);
     // 2. Affixes
     const affixEffects = getTurnStartAffixes(units, this.gameData.affixes);
     for (const effect of affixEffects) {
@@ -1438,7 +1499,7 @@ export class HeadlessBattle {
     const valid = canUseWeaponArt(unit, weapon, art, {
       turnNumber: this.turnManager?.turnNumber,
       isInitiating: true,
-      weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+      ...weaponArtRunOptions(this.runManager),
       ...context,
     });
     // Pure, like the scene's: executeCombat equips the art's weapon.
@@ -1458,8 +1519,7 @@ export class HeadlessBattle {
           turnNumber: this.turnManager?.turnNumber,
           isInitiating: true,
           actorFaction: unit.faction,
-          weaponArtHpCostDelta:
-            this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+          ...weaponArtRunOptions(this.runManager),
           ...context,
         });
         return { weapon: sourceWeapon, art, canUse: check.ok, reason: check.reason };
@@ -1563,6 +1623,8 @@ export class HeadlessBattle {
 
   _applyKillRewards(defeatedUnit, killer = null) {
     if (defeatedUnit?.faction !== 'enemy') return;
+    // As BattleScene._applyKillRewards: a unit that pays nothing (a risen Zombie) pays no gold.
+    if (defeatedUnit._noXP) return;
     this.goldEarned += calculateKillReward(defeatedUnit, killer, {
       rewardMultiplier: this._getEnemyRewardMultiplier(defeatedUnit),
       pressureGoldMultiplier: this.getTurnPressureState?.()?.goldMultiplier,
@@ -1598,7 +1660,8 @@ export class HeadlessBattle {
       choices,
       world: () => this._postCombatWorld(),
       difficultyId: this._getEnemyWeaponArtDifficultyId(),
-      weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+      // The foe's own scoring: the price surcharge taxes it, Bloodless Art never does.
+      weaponArtHpCostDelta: weaponArtRunOptions(this.runManager).weaponArtHpCostDelta,
       roll: () => this._rollEnemyWeaponArtChance(),
     });
   }
@@ -1647,8 +1710,6 @@ export class HeadlessBattle {
       affixes,
       masteryCtx,
     );
-    atkMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(attacker) || 0;
-    defMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(defender) || 0;
     const atkTimedBuffMods = this._getTimedWeaponArtCombatBuffMods(attacker);
     const defTimedBuffMods = this._getTimedWeaponArtCombatBuffMods(defender);
     atkMods.hitBonus += atkTimedBuffMods.hitBonus || 0;
@@ -1668,20 +1729,16 @@ export class HeadlessBattle {
     this._applyAccessoryPhaseCombatMods(attacker, atkMods, rollSession);
     this._applyAccessoryPhaseCombatMods(defender, defMods, rollSession);
 
-    const terrainBonuses = this.runManager?.getTerrainCombatBonuses?.() || [];
-    if (terrainBonuses.length > 0) {
-      const applyTerrainBonus = (mods, unit, terrain) => {
-        if (!terrain?.name || unit?.faction !== 'player') return;
-        for (const bonus of terrainBonuses) {
-          if (Array.isArray(bonus.terrains) && bonus.terrains.includes(terrain.name)) {
-            mods.avoidBonus += bonus.avoidBonus || 0;
-            mods.defBonus += bonus.defBonus || 0;
-          }
-        }
-      };
-      applyTerrainBonus(atkMods, attacker, atkTerrain);
-      applyTerrainBonus(defMods, defender, defTerrain);
-    }
+    // Blessings (act Hit, Keen Eye, Hold the Line): one shared rule for scene and harness.
+    applyBlessingCombatMods(atkMods, defMods, {
+      profile: this.runManager?.getBlessingCombatProfile?.() ?? null,
+      attacker,
+      defender,
+      atkTerrain,
+      defTerrain,
+      turn: this.turnManager?.turnNumber,
+      alliesOf: getAllies,
+    });
 
     return {
       atkMods,
@@ -1694,6 +1751,7 @@ export class HeadlessBattle {
       checkAstra,
       affixData: affixes,
       skillsData: skills,
+      marksData: this.gameData.marks || null,
       imbuesData: this.gameData.imbues || null,
     };
   }
@@ -1719,6 +1777,8 @@ export class HeadlessBattle {
         unit?.faction === 'enemy' ? this.playerUnits || [] : unit ? this.enemyUnits || [] : [],
       alliesOf: (unit) => this._getDivineChargeAllies(unit),
       turnNumber: this.turnManager?.turnNumber,
+      skillsData: this.gameData?.skills,
+      marksData: this.gameData?.marks,
     };
   }
 
@@ -1768,7 +1828,8 @@ export class HeadlessBattle {
     if (artWeapon && attacker.weapon !== artWeapon) equipWeapon(attacker, artWeapon);
     if (selectedArt) {
       const artCostOpts = {
-        weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+        ...weaponArtRunOptions(this.runManager),
+        marksData: this.gameData?.marks,
       };
       applyWeaponArtCost(attacker, selectedArt, artCostOpts);
       recordWeaponArtUse(attacker, selectedArt, { turnNumber: this.turnManager?.turnNumber });
@@ -1804,10 +1865,7 @@ export class HeadlessBattle {
     this._checkAreaVictimBrooches(result);
 
     if (attacker.faction === 'player' && attacker.currentHP > 0) {
-      const damageDealt = Math.max(
-        0,
-        defenderHpAtStart - Math.max(0, Math.trunc(Number(result.defenderHP) || 0)),
-      );
+      const damageDealt = combatHpLost(result, 'defender', defenderHpAtStart);
       this._awardCombatXP(
         attacker,
         defender,
@@ -1883,7 +1941,8 @@ export class HeadlessBattle {
     if (!entry) return false;
     const { weapon, art } = entry;
     const artCostOpts = {
-      weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+      ...weaponArtRunOptions(this.runManager),
+      marksData: this.gameData?.marks,
     };
     const check = canUseWeaponArt(unit, weapon, art, {
       turnNumber: this.turnManager?.turnNumber,
@@ -1989,6 +2048,7 @@ export class HeadlessBattle {
       playerUnits: this.playerUnits,
       battleRecruits: this._battleRecruits,
       runManager: this.runManager,
+      turn: this.turnManager?.turnNumber,
     });
     if (!joined) throw new Error(`Invalid Talk recruit: ${npc?.name || 'missing target'}`);
     this._battleRecruits = joined.battleRecruits;
@@ -2106,6 +2166,9 @@ export class HeadlessBattle {
         const seen = this.grid?.isVisible ? this.grid.isVisible(tile.col, tile.row) : true;
         this._zombieTombstones = [...this._zombieTombstones, createRemains(unit, tile, { seen })];
       }
+      // As BattleScene.removeUnit: a Necromancer's Skeletons crumble with it (no killer:
+      // no gold, no XP), before any battle-end check reads the roster.
+      if (isNecromancer(unit)) crumbleFor(unit, this.enemyUnits);
     }
   }
 
@@ -2135,6 +2198,34 @@ export class HeadlessBattle {
       this.enemyUnits.push(buildRisenUnit(record, tile));
     }
     if (rising.length > 0) this._checkBattleEnd();
+  }
+
+  /**
+   * Mirrors NecromancyController.processRaises (no banner, no graphics): each living
+   * Necromancer with fewer than two living Skeletons raises one onto its first free
+   * passable neighbour, from the keyed stream (never Math.random).
+   */
+  _processNecromancy() {
+    const turn = this.turnManager?.turnNumber ?? 1;
+    // The harness never hands out battle entity ids; a Necromancer needs one to own its raises.
+    for (const unit of this.enemyUnits) if (isNecromancer(unit)) registerBattleEntity(this, unit);
+    for (const necromancer of raisers(this.enemyUnits)) {
+      const raised = raiseFor(necromancer, {
+        enemyUnits: this.enemyUnits,
+        cols: this.battleConfig.cols,
+        rows: this.battleConfig.rows,
+        isOccupied: (c, r) => Boolean(this.getUnitAt(c, r)),
+        moveCostAt: (c, r, moveType) => this.grid.getTerrainAt(c, r)?.moveCost?.[moveType],
+        classes: this.gameData.classes,
+        weapons: this.gameData.weapons,
+        seed: this._getReinforcementSeed(),
+        turn,
+        difficultyConfig: this._getEnemyDifficultyConfig(),
+      });
+      if (!raised) continue;
+      registerBattleEntity(this, raised.unit);
+      this.enemyUnits.push(raised.unit);
+    }
   }
 
   /** Faction-aware ally pool for Divine Charge heals (enemy→enemy, player→player, npc→player+npc) */
@@ -2187,6 +2278,7 @@ export class HeadlessBattle {
       this._stepCaravan();
       this._processTurnStartEffects(this.enemyUnits);
       this._processZombieRevival();
+      this._processNecromancy();
       if (this.battleState === HEADLESS_STATES.BATTLE_END) return;
       this._applyDueHybridOverridesForTurn(this.turnManager?.turnNumber || 0);
       this.currentEnemyPhaseAiStats = this._createEnemyPhaseAiStats();
@@ -2308,7 +2400,8 @@ export class HeadlessBattle {
     const selectedArt = this._selectEnemyWeaponArt(attacker, defender);
     if (selectedArt) {
       const artCostOpts = {
-        weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+        ...weaponArtRunOptions(this.runManager),
+        marksData: this.gameData?.marks,
       };
       applyWeaponArtCost(attacker, selectedArt, artCostOpts);
       recordWeaponArtUse(attacker, selectedArt, { turnNumber: this.turnManager?.turnNumber });
@@ -2346,10 +2439,7 @@ export class HeadlessBattle {
     // Award XP to a player defender that lived: at least the survival minimum, even
     // with no counter or no damage dealt (BattleScene.executeEnemyCombat).
     if (defender.faction === 'player' && defender.currentHP > 0) {
-      const counterDamage = Math.max(
-        0,
-        attackerHpAtStart - Math.max(0, Math.trunc(Number(result.attackerHP) || 0)),
-      );
+      const counterDamage = combatHpLost(result, 'attacker', attackerHpAtStart);
       this._awardCombatXP(
         defender,
         attacker,

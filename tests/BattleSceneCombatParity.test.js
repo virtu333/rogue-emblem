@@ -123,8 +123,7 @@ function setupScene() {
   scene.selectedUnit = null;
   scene.turnManager = { endPlayerPhase: vi.fn(), unitActed: vi.fn(), turnNumber: 1 };
   scene.runManager = {
-    getActHitBonusForUnit: vi.fn(() => 0),
-    getTerrainCombatBonuses: vi.fn(() => []),
+    getBlessingCombatProfile: vi.fn(() => null),
     blessingRuntimeModifiers: {},
   };
 
@@ -349,6 +348,37 @@ describe('_runCombatResolution', () => {
     // 4 + 10 = 14, under the max of 25.
     expect(beside.currentHP).toBe(14);
     expect(beside._phoenixBroochUsed).toBe(true);
+  });
+
+  it('reads the run blessings: a Keen Eye profile marks the first strike of a combat the player starts', async () => {
+    scene.runManager.getBlessingCombatProfile = vi.fn(() => ({
+      actHitBonus: 0,
+      firstStrikeHitBonus: 10,
+      stationary: { defBonus: 0, avoidBonus: 0 },
+    }));
+    // A Hit well under 100, so the +10 shows (the bonus is tagged only where it changes the roll).
+    const attacker = makeUnit();
+    attacker.weapon = { ...attacker.weapon, hit: 40 };
+    const defender = makeEnemy();
+    scene.playerUnits = [attacker];
+    scene.enemyUnits = [defender];
+    const ctx = scene._prepareCombatContext(attacker, defender, { isPlayerInitiator: true });
+    const { result } = await scene._runCombatResolution(attacker, defender, ctx);
+    const strikes = result.events.filter((e) => e.attacker === attacker.name);
+    expect(strikes.length).toBeGreaterThan(0);
+    expect(strikes[0].firstStrikeBonus).toBe(true);
+    expect(strikes.slice(1).some((e) => e.firstStrikeBonus)).toBe(false);
+    expect(result.events.filter((e) => e.attacker === defender.name).some((e) => e.firstStrikeBonus)).toBe(false); // prettier-ignore
+  });
+
+  it('gives no blessing bonus without a profile', async () => {
+    const attacker = makeUnit();
+    const defender = makeEnemy();
+    scene.playerUnits = [attacker];
+    scene.enemyUnits = [defender];
+    const ctx = scene._prepareCombatContext(attacker, defender, { isPlayerInitiator: true });
+    const { result } = await scene._runCombatResolution(attacker, defender, ctx);
+    expect(result.events.some((e) => e.firstStrikeBonus)).toBe(false);
   });
 
   it('tracks _hitByPlayerThisPhase on non-miss player attacks', async () => {
@@ -630,6 +660,7 @@ describe('Measured Step scene completion', () => {
       expect.any(Map),
       'player',
       null,
+      { pass: false },
     );
   });
 
@@ -653,6 +684,7 @@ describe('Measured Step scene completion', () => {
       expect.any(Map),
       'player',
       null,
+      { pass: false },
     );
   });
 

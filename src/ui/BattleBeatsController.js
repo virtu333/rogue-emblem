@@ -32,7 +32,7 @@ import {
   victoryEndingKey,
 } from '../engine/NarrativeDirector.js';
 import { adaptDialogueEntries } from '../engine/DialogueCast.js';
-import { composeFinaleRally } from '../engine/FinaleRally.js';
+import { composeFinaleRally, heraldHeard } from '../engine/FinaleRally.js';
 import { isEntity } from '../engine/EntitySystem.js';
 
 const QUIP_DEPTH = 501; // Screen-pinned above battlefield effects.
@@ -110,7 +110,11 @@ export class BattleBeatsController {
     const boss = scene.enemyUnits?.find((u) => u?.isBoss && u.currentHP > 0);
     if (!boss) return;
     const maxHP = Number(boss.stats?.HP) || 0;
-    if (maxHP <= 0 || boss.currentHP * 2 >= maxHP) return;
+    // A bar that already broke (Revival Stones) crossed half on its way down, even when one
+    // exchange took it from above half to empty and the refill hides it: the line is still
+    // the first bar's, said once (the shown-dialogue key below).
+    const barFell = Number(boss.revivalStones) < Number(boss.revivalStonesMax);
+    if (maxHP <= 0 || (boss.currentHP * 2 >= maxHP && !barFell)) return;
 
     const bossName = scene._resolveBossDialogueName?.(scene._bossName);
     if (!bossName) return;
@@ -165,6 +169,7 @@ export class BattleBeatsController {
         commander: ctx.commander,
         seed: Number(rm?.runSeed) >>> 0,
         memory: ctx.bossSlainCount + ctx.bossKilledYouCount > 0,
+        herald: heraldHeard(rm?.storyFlags, rm?.difficultyId),
         fallen,
         hurt: !entity || maxHP <= 0 || entity.currentHP < maxHP,
       });

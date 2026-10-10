@@ -13,6 +13,7 @@ import {
   getUnitTraits,
 } from '../engine/TraitSystem.js';
 import { getMasteryPerk, getMasteryThreshold } from '../engine/MasterySystem.js';
+import { getUnitMark } from '../engine/MarkSystem.js';
 import { MASTERY_BATTLES } from '../utils/constants.js';
 import { formatPerkMods } from './rosterDisplay.js';
 
@@ -106,4 +107,14 @@ export function traitLines(unit, gameData) {
     legendary: trait.rarity === 'legendary',
     special: trait.rarity === 'special',
   }));
+}
+
+/**
+ * The one "Mark" row for a unit (docs/specs/phase3.md 3C), shown under its traits wherever
+ * `traitLines` is: `{ id, name, text }`, or null when the unit bears none (or an id the
+ * catalog does not know). A Mark is not a trait, so it never joins `traitLines`.
+ */
+export function markLine(unit, gameData) {
+  const mark = getUnitMark(unit, gameData?.marks);
+  return mark ? { id: mark.id, name: mark.name, text: mark.description } : null;
 }

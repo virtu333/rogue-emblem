@@ -99,7 +99,12 @@ describe('advanced starting-skill unlocks', () => {
     const total = sumCosts(priced.filter((u) => !isMagLckTrack(u)));
     // 2026-09-29: the Battalion tab went from 11,575 to 5,600 (Expanded Ranks retired,
     // the rest halved, Tactical Advantage 150): 53,385 - 5,975. Apothecary's Recipe: +200.
-    expect(total).toBe(47610);
+    // 2026-10-07: Marked Blood (Phase 3C, 250 + 400): +650.
+    // 2026-10-08: SPD tracks +15% (+890), Deadly Arsenal II 1000 (+400), Steel Arms 500
+    // (-300), Trade Contacts 60/100 (-240), Lucky Finds / Studied Training / Trinket
+    // Collector 120/240 (-270), Hero's Call 120/240/400 (-190): +290.
+    // 2026-10-08: Branching Threads (100 + 200 + 250 + 250): +800.
+    expect(total).toBe(47610 + 650 + 290 + 800);
     expect(total / 53428).toBeLessThan(1.03);
     expect(sumCosts(priced.filter(isMagLckTrack))).toBe(4080);
   });

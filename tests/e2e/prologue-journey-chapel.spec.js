@@ -185,11 +185,11 @@ test('the Chapel road the wrong way round: nudges, cancelled forecasts, Gaspar t
   expect(meta.prologue).toMatchObject({ state: 'complete', grantPaid: true });
   expect(meta.prologue.chaptersCompleted).toHaveLength(4);
   expect(meta.prologue.practised).not.toContain('veteran_kills');
-  expect([meta.totalValor, meta.totalSupply, meta.runsStarted]).toEqual([60, 40, 0]);
+  expect([meta.totalValor, meta.totalSupply, meta.runsStarted]).toEqual([50, 35, 0]);
   await page.reload();
   await activeScene(page, 'Title');
   const again = await slotMeta(page);
-  expect([again.totalValor, again.totalSupply]).toEqual([60, 40]);
+  expect([again.totalValor, again.totalSupply]).toEqual([50, 35]);
   expect(errors).toEqual([]);
   await context.close();
 });

@@ -23,6 +23,7 @@
           "on-attack",
           "on-turn-start",
           "on-defend",
+          "on-kill",
           "action"
         ]
       },
@@ -30,7 +31,17 @@
         "type": "string"
       },
       "condition": {
-        "type": "string"
+        "type": "string",
+        "enum": [
+          "initiating",
+          "defending",
+          "adjacent_ally",
+          "no_adjacent_ally",
+          "above50_defending",
+          "moved_3_plus_initiating",
+          "below50",
+          "below25"
+        ]
       },
       "range": {
         "type": "integer"
@@ -49,7 +60,18 @@
         "properties": {
           "kind": {
             "type": "string",
-            "enum": ["teleport_self", "ally_buff", "aoe_heal", "aoe_root"]
+            "enum": [
+              "teleport_self",
+              "ally_buff",
+              "aoe_heal",
+              "aoe_root",
+              "push_enemy",
+              "transfer_hp",
+              "sacrifice_heal",
+              "refresh_adjacent",
+              "warp_strike",
+              "steal_item"
+            ]
           },
           "range": {
             "type": "integer",
@@ -76,13 +98,90 @@
           "includeSelf": {
             "type": "boolean"
           },
+          "distance": {
+            "type": "integer",
+            "minimum": 1
+          },
           "perMapLimit": {
             "type": "integer",
             "minimum": 1
+          },
+          "usableWhileSilenced": {
+            "type": "boolean"
           }
         },
-        "required": ["kind", "perMapLimit"],
-        "additionalProperties": false
+        "required": ["kind"],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "teleport_self",
+                    "ally_buff",
+                    "aoe_heal",
+                    "aoe_root",
+                    "sacrifice_heal",
+                    "refresh_adjacent",
+                    "warp_strike"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "required": ["perMapLimit"]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "push_enemy"
+                }
+              }
+            },
+            "then": {
+              "required": ["distance"]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "transfer_hp"
+                }
+              }
+            },
+            "then": {
+              "required": ["amount"]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "sacrifice_heal"
+                }
+              }
+            },
+            "then": {
+              "required": ["amount", "radius"]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "warp_strike"
+                }
+              }
+            },
+            "then": {
+              "required": ["range"]
+            }
+          }
+        ]
       },
       "personal": {
         "type": "boolean"

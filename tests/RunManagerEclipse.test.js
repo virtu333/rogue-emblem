@@ -120,7 +120,8 @@ describe('RunManager · the dark takes the map', () => {
     const byId = new Map(rm.nodeMap.nodes.map((n) => [n.id, n]));
     for (const id of fell) {
       expect(byId.get(id).eclipse.seen).toBe(false);
-      expect(byId.get(id).type).toBe('battle');
+      // A fallen event may stay an event (a Dark Omen); everything else becomes a battle.
+      expect(byId.get(id).type).toBe(byId.get(id).darkOmen === true ? 'event' : 'battle');
     }
     expect(byId.get(rm.nodeMap.startNodeId).eclipse).toBeUndefined();
   });
@@ -369,16 +370,34 @@ describe('church Kindle', () => {
 // Review R2: act pressure is its own field, uncapped by the global meter, so an act
 // that opens near the cap still loses land to slow play.
 describe('act pressure vs the global cap (review R2)', () => {
-  /** Seed 42 on Normal, walked (fast clears) to Act III, whose map has an outer-lane
-   *  shop (act3_6_0) with fall threshold 8. */
-  function act3Seed42() {
-    const rm = freshRun(42);
+  /** A run on Normal walked (fast clears) to Act III whose map has an outer-lane shop
+   *  (col 0) with fall threshold 8. Map generation moves nodes whenever the node map
+   *  changes, so the run is found by search (seeds 1..300), not pinned. */
+  function walkToAct3(seed) {
+    const rm = freshRun(seed);
     for (let act = 0; act < 2; act++) {
       bossPathTo(rm);
       rm.advanceAct();
     }
+    return rm;
+  }
+  let act3ShopCase = null;
+  function findAct3ShopCase() {
+    for (let seed = 1; seed <= 300; seed++) {
+      const rm = walkToAct3(seed);
+      const view = rm.getEclipseView();
+      const shop = rm.nodeMap.nodes.find(
+        (n) => n.type === 'shop' && n.col === 0 && view.nodes.get(n.id)?.threshold === 8,
+      );
+      if (shop) return { seed, id: shop.id };
+    }
+    throw new Error('no Act III outer-lane shop with threshold 8 in seeds 1..300');
+  }
+  function act3Shop() {
+    act3ShopCase ||= findAct3ShopCase();
+    const rm = walkToAct3(act3ShopCase.seed);
     expect(rm.currentAct).toBe('act3');
-    const shop = rm.nodeMap.nodes.find((n) => n.id === 'act3_6_0');
+    const shop = rm.nodeMap.nodes.find((n) => n.id === act3ShopCase.id);
     expect(shop).toMatchObject({ type: 'shop', col: 0 });
     return { rm, shop };
   }
@@ -386,7 +405,7 @@ describe('act pressure vs the global cap (review R2)', () => {
   const pickBattle = (nodes) => nodes.find((n) => n.type === 'battle') || nodes[0];
 
   it('the review reproduction: shadow 100 / act start 97 — the shop now falls to slow victories', () => {
-    const { rm, shop } = act3Seed42();
+    const { rm, shop } = act3Shop();
     // The reviewed save: a version-1 state (act pressure derived: 100 - 97 = 3).
     const saved = JSON.parse(JSON.stringify(rm.toJSON()));
     saved.eclipse = {
@@ -469,7 +488,7 @@ describe('act pressure vs the global cap (review R2)', () => {
 
   it('falls stay deterministic (runSeed + node id), never drawing from Math.random', () => {
     const play = () => {
-      const { rm } = act3Seed42();
+      const { rm } = act3Shop();
       rm.eclipse = { ...rm.eclipse, shadow: 97, actStartShadow: 97, actShadow: 0 };
       const prev = Math.random;
       let draws = 0;

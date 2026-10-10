@@ -138,6 +138,8 @@ export class DesktopBattleHud {
       s.turnCounterText,
       s.visionHudText,
       s.eclipseHudText,
+      s.contractHudText,
+      s.contractTipText,
       s.objectiveText,
       s.infoText,
       s.parTooltipText,
@@ -195,6 +197,13 @@ export class DesktopBattleHud {
       statusBottom = shadow.y + shadow.displayHeight;
       statusRight = Math.max(statusRight, shadow.x + shadow.displayWidth);
     }
+    // The open contract (ContractHudController): one more line of the plate.
+    const contract = s.contractHudText;
+    if (contract?.visible && contract.text) {
+      contract.setOrigin(0, 0).setPosition(MARGIN + PAD_X, statusBottom + 5);
+      statusBottom = contract.y + contract.displayHeight;
+      statusRight = Math.max(statusRight, contract.x + contract.displayWidth);
+    }
     const status = {
       x: MARGIN,
       y: MARGIN,
@@ -243,6 +252,18 @@ export class DesktopBattleHud {
     if (fog?.visible) {
       fog.setOrigin(1, 0).setPosition(W - MARGIN - PAD_X, rightBottom + GAP + PAD_Y - 2);
       this._plate(this._pad(bounds(fog), 4), { tone: 'warn' });
+    }
+
+    // The contract's terms (hover): the same place, wrapped to the room the objective leaves.
+    const terms = s.contractTipText;
+    if (terms?.visible && terms.text) {
+      const left = status.x + status.w + GAP + PAD_X;
+      const objective = s.objectiveText;
+      const stop =
+        objective?.visible && objective.text ? bounds(objective).x - PAD_X : W - MARGIN - PAD_X;
+      terms.setWordWrapWidth?.(Math.max(120, stop - GAP - PAD_X - left));
+      terms.setOrigin(0, 0).setPosition(left, MARGIN + PAD_Y);
+      this._plate(this._pad(bounds(terms)));
     }
 
     // Bottom: one faint command/hint line.

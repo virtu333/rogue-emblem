@@ -24,8 +24,18 @@ import { showMinorHint } from './HintDisplay.js';
 import { rosterBenchedUnseen } from '../engine/SkillLoadout.js';
 import { playCue } from './ceremonyMusic.js';
 import { isPrologueRun } from '../engine/ScriptedBattle.js';
+import { eventState } from '../engine/EventCommands.js';
+import { describeBurdens } from '../engine/Burdens.js';
+import {
+  contractRewardOwedAt,
+  describeContract,
+  describeOwedContract,
+} from '../engine/Contracts.js';
+import { contractChipModel, owedContractChipModel } from './eventMenuModel.js';
 
 const ECLIPSE_TOAST_MS = 4200;
+// How long an event's change to the route (a new road, a redrawn place) stays ringed.
+const ROUTE_CHANGE_MS = 7000;
 
 /** Every node the party can still reach from the available choices (inclusive). */
 function reachableFrom(nodes, available) {
@@ -67,6 +77,7 @@ export class NodeMapMenu {
         !s.isSceneReady ||
         s.shopOverlay ||
         s.churchOverlay ||
+        s.eventOverlay ||
         s.colosseumOverlay?.visible ||
         s._colosseumLoading ||
         s.rosterOverlay?.visible ||
@@ -271,10 +282,14 @@ export class NodeMapMenu {
     Object.assign(this, { side, actions, party, wrap });
     this._orderSheet();
     layout.append(wrap, side);
-    this.root.append(header, layout);
+    // The run's burdens (an event's lasting price), when it carries any: a chip each.
+    const burdens = this._burdenRow();
+    if (burdens) this.root.append(header, burdens, layout);
+    else this.root.append(header, layout);
     if (this._toast?.isConnected === false && this._toastUntil > Date.now()) this._placeToast();
 
     this._renderSelection();
+    this._applyRouteChange();
     // The route owns the edge cues (more-left/right, or more-up/down upright).
     this.routeGraph.mount(this.scroll, { position: scroll, cues: wrap });
     this.routeGraph.setActive(!this.root.hidden);
@@ -283,6 +298,127 @@ export class NodeMapMenu {
         .find((b) => b.dataset.node === focus)
         ?.focus({ preventScroll: true });
     this.sync();
+  }
+
+  /**
+   * The burden chips (Burdens.describeBurdens): "Ill Omen · 2 left", "Debt · 450 G", and the
+   * open contract's ("Contract · Under par", Contracts.describeContract). A tap or Enter shows
+   * the chip's line and what is left under the row (hover and long-press read its title). Null
+   * when the run carries none.
+   */
+  _burdenRow() {
+    const rm = this.scene.runManager;
+    const burdens = describeBurdens(rm, this.scene.gameData?.events).map((burden) => ({
+      ...burden,
+      name: burden.label,
+      note: `${burden.line} ${burden.detail}.`,
+    }));
+    // An open contract, or one earned and not yet delivered (its chip reads "Reward waiting").
+    const contract =
+      contractChipModel(describeContract(rm)) || owedContractChipModel(describeOwedContract(rm));
+    const chipsData = contract
+      ? [...burdens, { ...contract, name: contract.label, note: contract.terms }]
+      : burdens;
+    if (!chipsData.length) {
+      this._burdenOpen = null;
+      return null;
+    }
+    const row = element('div', null, 're-loom-burdens');
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', contract ? 'Burdens and contract' : 'Burdens');
+    const note = element('p', null, 're-burden-note');
+    note.setAttribute('role', 'status');
+    note.hidden = true;
+    const chips = [];
+    const show = (chipData) => {
+      const open = this._burdenOpen === chipData.id ? null : chipData.id;
+      this._burdenOpen = open;
+      for (const [chip, b] of chips) chip.setAttribute('aria-expanded', String(b.id === open));
+      note.hidden = !open;
+      note.textContent = open ? chipData.note : '';
+      note.classList.toggle('is-contract', open === 'contract');
+    };
+    for (const chipData of chipsData) {
+      const isContract = chipData.id === 'contract';
+      const chip = button(
+        null,
+        // A settlement that waits opens its page (Claim / Roster / Give up); a contract in force
+        // and a burden only say their line.
+        () =>
+          chipData.owed ? this.scene.handleContractSettlement?.({ manual: true }) : show(chipData),
+        isContract ? 're-burden re-contract' : 're-burden',
+      );
+      chip.dataset.burden = chipData.id;
+      if (chipData.owed) {
+        chip.dataset.owed = 'true';
+        chip.classList.add('is-owed');
+      }
+      chip.title = `${chipData.name}: ${chipData.note}`;
+      chip.setAttribute('aria-expanded', 'false');
+      chip.append(
+        element('span', chipData.name, 're-burden-name'),
+        element('span', chipData.short, 're-burden-short'),
+      );
+      chips.push([chip, chipData]);
+      row.append(chip);
+    }
+    row.append(note);
+    // The line a chip showed stays open through a redraw of the same map.
+    const open = this._burdenOpen;
+    this._burdenOpen = null;
+    const still = chipsData.find((b) => b.id === open);
+    if (still) show(still);
+    return row;
+  }
+
+  /**
+   * A road drawn or a place changed by an event (EventController.noteRouteChange): select the
+   * first changed place, ring each of them on the next draw, and say it in one line. Shown once
+   * the event page has closed; the change itself is already in the map (the engine did it).
+   */
+  noteRouteChange(change) {
+    if (!change?.nodeIds?.length) return;
+    this._routeChange = {
+      ids: [...change.nodeIds],
+      text: change.text || '',
+      until: 0,
+      toasted: false,
+    };
+    this.selected = change.nodeIds[0];
+  }
+
+  _applyRouteChange() {
+    const change = this._routeChange;
+    if (!change || this.scene.eventOverlay) return;
+    if (!change.until) change.until = Date.now() + ROUTE_CHANGE_MS;
+    if (Date.now() >= change.until) {
+      this._routeChange = null;
+      return;
+    }
+    const pulse = !this._reducedMotion();
+    for (const id of change.ids) {
+      const node = [...this.root.querySelectorAll('.re-node')].find((b) => b.dataset.node === id);
+      if (!node || node.querySelector('.re-loom-changed')) continue;
+      node.classList.add('is-changed');
+      const ring = element('span', null, pulse ? 're-loom-changed is-pulsing' : 're-loom-changed');
+      ring.setAttribute('aria-hidden', 'true');
+      node.append(ring);
+    }
+    if (!change.toasted && change.text) {
+      change.toasted = true;
+      this._showToast(change.text);
+    }
+    clearTimeout(this._changeTimer);
+    this._changeTimer = setTimeout(
+      () => {
+        this._routeChange = null;
+        for (const ring of [...this.root.querySelectorAll('.re-loom-changed')]) {
+          ring.parentNode?.classList.remove('is-changed');
+          ring.remove();
+        }
+      },
+      Math.max(0, change.until - Date.now()),
+    );
   }
 
   /**
@@ -335,14 +471,28 @@ export class NodeMapMenu {
         this.detail,
         'Choose your remaining battle rewards before advancing. You can still review your roster and menu.',
       );
+    // An event the party already walked into and has not left (its page is reopened,
+    // nothing re-rolls), or whose won fight still owes a page.
+    const eventReturn =
+      selected?.type === 'event' &&
+      rm.currentNodeId === selected.id &&
+      (!selected.completed || shopOpen) &&
+      !!eventState(rm, selected.id);
+    const contractHold = !!selected && contractRewardOwedAt(rm, selected);
     const label = rm.pendingBattleReward
       ? 'Return to rewards'
-      : shopOpen
-        ? selected?.type === 'ruins'
-          ? 'Return to ruins'
-          : `Re-enter ${selected?.type === 'church' ? 'church' : 'shop'}`
-        : 'Travel';
+      : eventReturn
+        ? 'Return to the event'
+        : contractHold
+          ? 'Settle contract'
+          : shopOpen
+            ? selected?.type === 'ruins'
+              ? 'Return to ruins'
+              : `Re-enter ${selected?.type === 'church' ? 'church' : 'shop'}`
+            : 'Travel';
     this.travel.replaceChildren(element('span', label));
+    // A long label ("Return to the event") steps down a size rather than wrapping.
+    this.travel.classList.toggle('is-long', label.length > 16);
     const enabled = !!rm.pendingBattleReward || available.has(this.selected);
     if (enabled && label === 'Travel') {
       const arrow = element('span', null, 're-loom-arrow');
@@ -451,6 +601,7 @@ export class NodeMapMenu {
     if (this.destroyed) return;
     this.destroyed = true;
     clearTimeout(this._toastTimer);
+    clearTimeout(this._changeTimer);
     this._unwatchLayout?.();
     this._cardOverflow?.destroy();
     this._eclipseCard?.destroy();

@@ -12,6 +12,7 @@ import {
   hue,
   hueDiff,
 } from '../tools/art/pc98/lib/color.mjs';
+import { createCaravanUnit } from '../src/engine/CaravanSystem.js';
 import { choosePalette, families } from '../tools/art/pc98/lib/palette.mjs';
 import { assignDithered, canMix, quantizeMix, MATERIAL } from '../tools/art/pc98/lib/dither.mjs';
 import { renderFigure, bake, INK } from '../tools/art/pc98/lib/pipeline.mjs';
@@ -391,6 +392,37 @@ describe('PC-98 portrait runtime', () => {
     expect(portraitFaction({ faction: 'player', isLord: true }, 'lord_sera')).toBe('ember');
     expect(portraitFaction({ faction: 'player' }, 'boss_warchief')).toBe('steel');
     expect(portraitFaction(null, 'boss_the_entity')).toBe('unlight');
+  });
+
+  it('the caravan Merchant (built outside the unit factories) shows its own portrait', () => {
+    const merchant = createCaravanUnit('act2', { col: 3, row: 4 });
+    expect(portraitCandidates(merchant, gameData)).toContain('generic_merchant');
+    expect(portraitIdForUnit(merchant, gameData)).toBe('generic_merchant');
+    expect(PC98_MANIFEST.portraits.generic_merchant.variant).toBeUndefined();
+    // an NPC ally: verdigris plate, and the legacy canvas key has a texture file to load
+    expect(portraitFaction(merchant, 'generic_merchant')).toBe('verdigris');
+    expect(PC98_MANIFEST.portraits.generic_merchant.faction).toBe('verdigris');
+    expect(legacyPortraitUrl('generic_merchant', 'pc98')).toBe(
+      'assets/portraits/pc98/baked/generic_merchant.png',
+    );
+    expect(existsSync('assets/portraits/pc98/baked/generic_merchant.png')).toBe(true);
+    // the same unit as it is saved and loaded keeps resolving to it
+    const reloaded = JSON.parse(JSON.stringify(merchant));
+    expect(portraitIdForUnit(reloaded, gameData)).toBe('generic_merchant');
+  });
+
+  it('the enemy-only Necromancer and Skeleton (classes ship in 3I) have unlight portraits', () => {
+    for (const className of ['Necromancer', 'Skeleton']) {
+      const id = `enemy_${className.toLowerCase()}`;
+      const unit = { name: className, className, faction: 'enemy', tier: 'promoted' };
+      // single portraits (like the Zombie): no variant faces, so the enemy-face table has no entry
+      expect(portraitIdForUnit(unit, gameData)).toBe(id);
+      expect(PC98_MANIFEST.portraits[id].faction).toBe('unlight');
+      expect(PC98_MANIFEST.portraits[id].variant).toBeUndefined();
+      expect(defaultFaction(id)).toBe('unlight');
+      expect(portraitFaction(unit, id)).toBe('unlight');
+      expect(existsSync(`assets/portraits/pc98/baked/${id}.png`)).toBe(true);
+    }
   });
 
   it('canvas draws the atlas frame when loaded, else the texture', () => {

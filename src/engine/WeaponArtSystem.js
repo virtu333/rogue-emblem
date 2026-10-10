@@ -4,6 +4,7 @@ import { hasPerBattleUsesLeft } from './Combat.js';
 import { isRooted, isSilenced } from './StatusConditionSystem.js';
 import { setUnitHP } from './UnitHealth.js';
 import { weaponCatalogNames } from '../utils/itemNames.js';
+import { getUnitMarkFor, markProcs } from './MarkSystem.js';
 
 const RANK_ORDER = { Prof: 0, Mast: 1 };
 const VALID_FACTIONS = new Set(['player', 'enemy', 'npc']);
@@ -165,12 +166,23 @@ function normalizeDrainPercent(value) {
   return n > 0 ? n : null;
 }
 
+function normalizeFoeDefShare(value) {
+  const n = toFiniteNumber(value, 0);
+  return n > 0 ? Math.min(1, n) : 0;
+}
+
 function normalizeDamageMultiplier(value) {
   const n = toFiniteNumber(value, 0);
   return n > 1 ? n : null;
 }
 
-const VALID_TIER2_MOVE_MODES = new Set(['advance', 'retreat', 'swap', 'push', 'through', 'ram']);
+// Lower-cased token -> the mode as the pipeline spells it (every mode but one is all lower case).
+const VALID_TIER2_MOVE_MODES = new Map(
+  ['advance', 'retreat', 'swap', 'push', 'through', 'ram', 'pushAreaVictims'].map((mode) => [
+    mode.toLowerCase(),
+    mode,
+  ]),
+);
 const VALID_TIER2_DEBUFF_STATS = new Set(['STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK', 'MOV']);
 const VALID_AREA_SHAPES = new Set(['radius', 'line', 'around_attacker']);
 const VALID_TARGETING = new Set(['normal_attack', 'chosen_center']);
@@ -214,8 +226,8 @@ function normalizeTier2DebuffEffect(effect) {
 
 function normalizeTier2MoveEffect(effect) {
   if (!effect || typeof effect !== 'object') return null;
-  const mode = toNonEmptyString(effect.mode)?.toLowerCase();
-  if (!mode || !VALID_TIER2_MOVE_MODES.has(mode)) return null;
+  const mode = VALID_TIER2_MOVE_MODES.get(toNonEmptyString(effect.mode)?.toLowerCase());
+  if (!mode) return null;
   const distance = Math.max(1, Math.trunc(toFiniteNumber(effect.distance, 1)));
   if (mode !== 'ram') return { mode, distance };
   // A ram pushes up to `distance` tiles; stopped short, the target (and a foe it hits)
@@ -580,6 +592,8 @@ export function getWeaponArtCombatMods(art) {
     damageMultiplier: normalizeDamageMultiplier(mods.damageMultiplier),
     ignoreWeaponTriangle: Boolean(mods.ignoreWeaponTriangle),
     ignoreRES: Boolean(mods.ignoreRES),
+    // Lunar Brace: a share of the foe's DEF added to a physical strike (Combat.strikeDamage).
+    foeDefShare: normalizeFoeDefShare(mods.foeDefShare),
     activated: Array.isArray(mods.activated) ? [...mods.activated] : [],
   };
 }
@@ -644,6 +658,7 @@ export function canUseWeaponArt(unit, weapon, art, context = {}) {
 
   const hpCost = getEffectiveWeaponArtHpCost(unit, art, {
     weaponArtHpCostDelta: context.weaponArtHpCostDelta,
+    playerArtHpCostDelta: context.playerArtHpCostDelta,
   });
   const hp = toFiniteNumber(unit.currentHP, toFiniteNumber(unit?.stats?.HP, 0));
   const maxHp = Math.max(0, toFiniteNumber(unit?.stats?.HP, hp));
@@ -660,7 +675,9 @@ export function canUseWeaponArt(unit, weapon, art, context = {}) {
     if (hp - hpCost < minHp) return { ok: false, reason: 'ai_hp_floor' };
   }
 
-  const mapLimit = Math.max(0, Math.trunc(toFiniteNumber(art.perMapLimit, 0)));
+  const mapLimit = getEffectiveWeaponArtMapLimit(unit, art, {
+    playerArtMapUsesBonus: context.playerArtMapUsesBonus,
+  });
   if (mapLimit > 0 && getMapCount(unit, art.id) >= mapLimit) {
     return { ok: false, reason: 'per_map_limit' };
   }
@@ -699,6 +716,56 @@ export function recordWeaponArtUse(unit, art, context = {}) {
   }
 }
 
+/**
+ * The run's weapon-art modifiers, in the shape every art call takes as options or context.
+ * The one place a run's blessing state is read for weapon arts (a source scan holds it):
+ * `weaponArtHpCostDelta` is the price blessings' HP surcharge, which taxes every faction's arts
+ * (the long-standing rule, pinned); `playerArtHpCostDelta` and `playerArtMapUsesBonus` are
+ * Bloodless Art's boon and reach player units only (`player_weapon_art_boon`).
+ */
+export function weaponArtRunOptions(run) {
+  const mods = run?.blessingRuntimeModifiers;
+  return {
+    weaponArtHpCostDelta: toFiniteNumber(mods?.weaponArtHpCostDelta, 0),
+    playerArtHpCostDelta: toFiniteNumber(mods?.playerArtHpCostDelta, 0),
+    playerArtMapUsesBonus: toFiniteNumber(mods?.playerArtMapUsesBonus, 0),
+  };
+}
+
+/**
+ * What is wrong with a `player_weapon_art_boon` (Bloodless Art) params object, as messages
+ * (empty when it is usable). A missing field counts as 0, the handler's reading; a present one
+ * must be an integer (`hpCostDelta` ≤ 0, `mapUsesBonus` ≥ 0), and a boon that changes neither
+ * does nothing, so it is refused like a zero `lord_stat_arc`.
+ */
+export function playerWeaponArtBoonErrors(params) {
+  if (params === null || typeof params !== 'object' || Array.isArray(params))
+    return ['params must be an object { hpCostDelta, mapUsesBonus }'];
+  const errors = [];
+  const hpCostDelta = params.hpCostDelta ?? 0;
+  const mapUsesBonus = params.mapUsesBonus ?? 0;
+  if (!Number.isInteger(hpCostDelta) || hpCostDelta > 0)
+    errors.push('params.hpCostDelta must be a non-positive integer');
+  if (!Number.isInteger(mapUsesBonus) || mapUsesBonus < 0)
+    errors.push('params.mapUsesBonus must be a non-negative integer');
+  if (errors.length === 0 && hpCostDelta === 0 && mapUsesBonus === 0)
+    errors.push('params change nothing (hpCostDelta and mapUsesBonus are both 0)');
+  return errors;
+}
+
+/** The boon's `{ hpCostDelta, mapUsesBonus }` (a missing field 0), or null when unusable. */
+export function parsePlayerWeaponArtBoon(params) {
+  if (playerWeaponArtBoonErrors(params).length > 0) return null;
+  return {
+    hpCostDelta: (params.hpCostDelta ?? 0) + 0, // + 0: never -0
+    mapUsesBonus: params.mapUsesBonus ?? 0,
+  };
+}
+
+function isPlayerArtUser(unit) {
+  return String(unit?.faction ?? '').toLowerCase() === 'player';
+}
+
 export function getEffectiveWeaponArtHpCost(unit, art, opts = {}) {
   const baseCost = Math.max(0, toFiniteNumber(art?.hpCost, 0));
   if (baseCost <= 0) return 0;
@@ -714,14 +781,39 @@ export function getEffectiveWeaponArtHpCost(unit, art, opts = {}) {
   );
   const fallbackReduction = combatEffects?.bloodGem ? 5 : 0;
   const reduction = Math.max(explicitReduction, fallbackReduction);
-  return Math.max(1, baseCost - reduction + toFiniteNumber(opts.weaponArtHpCostDelta, 0));
+  const playerDelta = isPlayerArtUser(unit) ? toFiniteNumber(opts.playerArtHpCostDelta, 0) : 0;
+  return Math.max(
+    1,
+    baseCost - reduction + toFiniteNumber(opts.weaponArtHpCostDelta, 0) + playerDelta,
+  );
 }
 
+/**
+ * How many times per battle the unit may use the art: its `perMapLimit` (0 = no limit), plus
+ * Bloodless Art's extra use for a player unit when the art has a limit at all (an unlimited art
+ * stays unlimited, a once-per-battle art becomes twice).
+ */
+export function getEffectiveWeaponArtMapLimit(unit, art, opts = {}) {
+  const limit = Math.max(0, Math.trunc(toFiniteNumber(art?.perMapLimit, 0)));
+  if (limit <= 0 || !isPlayerArtUser(unit)) return limit;
+  return limit + Math.max(0, Math.trunc(toFiniteNumber(opts.playerArtMapUsesBonus, 0)));
+}
+
+/**
+ * Pay an art's HP cost. Mark of the Forge (3C, `opts.marksData`) has a chance, on the
+ * battle's Math.random, to waive a cost that is due: the roll is taken only when there is a
+ * cost, and affordability (`canUseWeaponArt`) never counts it, so an art the unit could not
+ * afford stays unusable. Returns `{ cost, waived }`: what was taken, and whether the Mark
+ * spared it (the caller shows the proc).
+ */
 export function applyWeaponArtCost(unit, art, opts = {}) {
   const hpCost = getEffectiveWeaponArtHpCost(unit, art, opts);
-  if (!unit || hpCost <= 0) return;
+  if (!unit || hpCost <= 0) return { cost: 0, waived: false };
+  const forge = getUnitMarkFor(unit, 'weapon-art-cost', opts.marksData);
+  if (forge && markProcs(forge)) return { cost: 0, waived: true, mark: forge };
   const hp = toFiniteNumber(unit.currentHP, toFiniteNumber(unit?.stats?.HP, 0));
   setUnitHP(unit, Math.max(1, hp - hpCost));
+  return { cost: hpCost, waived: false };
 }
 
 export function resetWeaponArtTurnUsage(unit, context = {}) {

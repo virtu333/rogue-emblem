@@ -7,6 +7,9 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOTS = ['src/scenes', 'src/ui'];
+// Engine files that apply HP changes to the run on the player's behalf and so must not
+// bypass UnitHealth either (the engine as a whole is not scanned: many modules own HP rules).
+const ENGINE_FILES = ['src/engine/EventEffects.js'];
 const WRITE = /\bcurrentHP\s*(?:[-+*/]?=(?!=)|\+\+|--)/;
 
 // Each allowed write, by file and the text of its line, with why it is not play.
@@ -55,6 +58,16 @@ describe('HP writes stay in the engine', () => {
       (w) => !ALLOWED.some((a) => a.file === w.file && a.line === w.line),
     );
     expect(unexpected.map((w) => `${w.file}:${w.at}  ${w.line}`)).toEqual([]);
+  });
+
+  it('event effects change HP only through UnitHealth', () => {
+    const writes = ENGINE_FILES.flatMap((file) =>
+      readFileSync(file, 'utf8')
+        .split('\n')
+        .map((text, i) => ({ file, at: i + 1, code: text.replace(/\/\/.*$/, '').trim() }))
+        .filter((w) => WRITE.test(w.code)),
+    );
+    expect(writes.map((w) => `${w.file}:${w.at}  ${w.code}`)).toEqual([]);
   });
 
   it('every allowed write still exists (the list cannot go stale)', () => {

@@ -1,8 +1,28 @@
 // BlessingEngine.js - Wave 6 blessing validation and deterministic option selection.
 // Pure functions, no scene dependency.
+//
+// Contract v3 (docs/specs/blessings-v3.md §3): prices come from a named `priceCatalog`, each
+// with a point value. A tier II-III blessing names its candidate `prices` (a catalog id, or an
+// array of ids paid together); a tier IV blessing carries a fixed `pact` (catalog ids). Every
+// candidate's points sit inside its tier's `tierBands`. Offers draw slots 2+ by tier
+// (`offerWeights`), never two of one tier. A v2 config (rolled tier `costPools`) still
+// validates and selects as before, so old fixtures and saves keep working.
+//
+// An `intrinsicPrice` ({ label, points }) is the third kind of tier II-III price: the blessing's
+// own boon carries its cost (Slow Fuse's Act 1 dip, Gambler's Toss's bad tosses), so there is no
+// catalog entry to pay and nothing to apply. It still spends the one price draw a pact does.
 
-export const BLESSINGS_CONTRACT_VERSION = 2;
+import { parseLordStatArc } from './LordStatArc.js';
+import { parseBattleGoldGamble } from './BattleGoldGamble.js';
+import { playerWeaponArtBoonErrors } from './WeaponArtSystem.js';
+import { adjacentAllyDefBonusErrors, isolatedCombatBonusErrors } from './FormationBlessings.js';
+import { ACT_SEQUENCE } from '../utils/constants.js';
+
+export const BLESSINGS_CONTRACT_VERSION = 3;
+const SUPPORTED_VERSIONS = new Set([2, 3]);
 const VALID_TIERS = new Set([1, 2, 3, 4]);
+// A Debt price's amount is set for Dusk and scaled by rung (data `debtScale`), rounded to this.
+const DEBT_ROUNDING = 50;
 const REQUIRED_TOP_LEVEL_KEYS = ['version', 'blessings', 'costPools'];
 const REQUIRED_BLESSING_KEYS = ['id', 'name', 'tier', 'description', 'boons', 'costs'];
 const REQUIRED_EFFECT_KEYS = ['type', 'params'];
@@ -24,6 +44,38 @@ export function createSeededRng(seed) {
     r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
     return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
   };
+}
+
+/**
+ * Params of the boons whose handler quietly skips a malformed set (a card that does nothing
+ * ships as a "valid" blessing). Each runs through the parser the handler uses; the bounds the
+ * parser leaves loose are checked here. Appends to `errors`.
+ */
+function validateBoonParams(effect, path, errors) {
+  if (effect.type === 'lord_stat_arc') {
+    if (!parseLordStatArc(effect.params, ACT_SEQUENCE))
+      errors.push(
+        `${path}.params is not a usable lord_stat_arc (stats, integer dip/rise, dipAct/riseAct in ${ACT_SEQUENCE.join('/')})`,
+      );
+  } else if (effect.type === 'battle_gold_gamble') {
+    const gamble = parseBattleGoldGamble(effect.params);
+    if (!gamble) {
+      errors.push(`${path}.params is not a usable battle_gold_gamble (0 < chance < 1, win, lose)`);
+    } else if (!(gamble.lose < 1 && gamble.win > 1)) {
+      errors.push(
+        `${path}.params must have lose < 1 < win (a toss that cuts the gold and one that raises it)`,
+      );
+    }
+  } else if (effect.type === 'player_weapon_art_boon') {
+    for (const message of playerWeaponArtBoonErrors(effect.params))
+      errors.push(`${path}.${message}`);
+  } else if (effect.type === 'adjacent_ally_def_bonus') {
+    for (const message of adjacentAllyDefBonusErrors(effect.params))
+      errors.push(`${path}.${message}`);
+  } else if (effect.type === 'isolated_combat_bonus') {
+    for (const message of isolatedCombatBonusErrors(effect.params))
+      errors.push(`${path}.${message}`);
+  }
 }
 
 /**
@@ -57,7 +109,7 @@ export function validateBlessingsConfig(config, options = {}) {
 
   if (typeof config.version !== 'number') {
     errors.push('version must be a number');
-  } else if (config.version !== BLESSINGS_CONTRACT_VERSION) {
+  } else if (!SUPPORTED_VERSIONS.has(config.version)) {
     const message = `version mismatch: expected ${BLESSINGS_CONTRACT_VERSION}, got ${config.version}`;
     if (strict) errors.push(message);
     else warnings.push(message);
@@ -106,8 +158,9 @@ export function validateBlessingsConfig(config, options = {}) {
         errors.push(`${path}.costs must be empty for tier ${blessing.tier}; use costPools`);
       }
     }
-    // A pact is a fixed, always-shown price that replaces the rolled cost.
-    if (blessing.pact !== undefined) {
+    // A pact is a fixed, always-shown price that replaces the rolled cost: catalog ids (v3)
+    // or a { label, effects } entry (v2).
+    if (blessing.pact !== undefined && !Array.isArray(blessing.pact)) {
       if (blessing.tier < 2) errors.push(`${path}.pact is only allowed for tier 2+`);
       if (!isObject(blessing.pact)) {
         errors.push(`${path}.pact must be an object`);
@@ -131,6 +184,10 @@ export function validateBlessingsConfig(config, options = {}) {
       }
     }
 
+    if (blessing.intrinsicPrice !== undefined && config.version !== 3) {
+      errors.push(`${path}.intrinsicPrice needs contract v3`);
+    }
+
     for (const effectKey of ['boons', 'costs']) {
       const effects = blessing[effectKey];
       if (!Array.isArray(effects)) continue;
@@ -148,6 +205,8 @@ export function validateBlessingsConfig(config, options = {}) {
         }
         if (!isObject(effect.params)) {
           errors.push(`${effectPath}.params must be an object`);
+        } else if (effectKey === 'boons') {
+          validateBoonParams(effect, effectPath, errors);
         }
       });
     }
@@ -156,6 +215,8 @@ export function validateBlessingsConfig(config, options = {}) {
   if (!hasTier1) {
     errors.push('at least one tier-1 blessing is required');
   }
+
+  if (config.version === 3) validateV3Pricing(config, errors);
 
   if (isObject(config.costPools)) {
     for (const tierKey of REQUIRED_COST_POOL_KEYS) {
@@ -198,6 +259,225 @@ export function validateBlessingsConfig(config, options = {}) {
   }
 
   return { valid: errors.length === 0, errors, warnings };
+}
+
+function priceOptionIds(option) {
+  return Array.isArray(option) ? option : [option];
+}
+
+function effectTypesOf(effects) {
+  return new Set((Array.isArray(effects) ? effects : []).map((e) => e?.type).filter(Boolean));
+}
+
+/** A blessing's own tags: those it declares. */
+function tagsOf(entry) {
+  return new Set(Array.isArray(entry?.tags) ? entry.tags : []);
+}
+
+function validateV3Pricing(config, errors) {
+  const catalog = config.priceCatalog;
+  if (!isObject(catalog) || Object.keys(catalog).length === 0) {
+    errors.push('priceCatalog must be a non-empty object (v3)');
+    return;
+  }
+  for (const [id, entry] of Object.entries(catalog)) {
+    const path = `priceCatalog.${id}`;
+    if (!isObject(entry)) {
+      errors.push(`${path} must be an object`);
+      continue;
+    }
+    if (typeof entry.label !== 'string' || entry.label.trim() === '')
+      errors.push(`${path}.label must be a non-empty string`);
+    if (!Number.isFinite(entry.points) || entry.points <= 0)
+      errors.push(`${path}.points must be a positive number`);
+    if (!Array.isArray(entry.effects) || entry.effects.length === 0) {
+      errors.push(`${path}.effects must be a non-empty array`);
+      continue;
+    }
+    entry.effects.forEach((effect, i) => {
+      if (!isObject(effect) || typeof effect.type !== 'string' || !isObject(effect.params))
+        errors.push(`${path}.effects[${i}] must be { type, params }`);
+    });
+  }
+  const bands = config.tierBands;
+  for (const tier of ['2', '3', '4']) {
+    const band = bands?.[tier];
+    if (!Array.isArray(band) || band.length !== 2 || !(band[0] <= band[1]))
+      errors.push(`tierBands.${tier} must be [min, max] (v3)`);
+  }
+  const weights = config.offerWeights;
+  if (!isObject(weights) || !['2', '3', '4'].some((t) => Number(weights[t]) > 0))
+    errors.push('offerWeights must give tier 2, 3 or 4 a positive weight (v3)');
+  if (config.debtScale !== undefined && !isObject(config.debtScale))
+    errors.push('debtScale must be an object of rung -> multiplier');
+
+  const checkOption = (blessing, option, path) => {
+    const ids = priceOptionIds(option);
+    if (ids.length === 0) {
+      errors.push(`${path} must name at least one price`);
+      return;
+    }
+    let points = 0;
+    const priceTypes = new Set();
+    const priceTags = new Set();
+    for (const id of ids) {
+      const entry = isObject(catalog) ? catalog[id] : null;
+      if (typeof id !== 'string' || !entry) {
+        errors.push(`${path}: unknown price "${id}"`);
+        return;
+      }
+      points += Number(entry.points) || 0;
+      for (const t of effectTypesOf(entry.effects)) priceTypes.add(t);
+      for (const t of tagsOf(entry)) priceTags.add(t);
+    }
+    const band = bands?.[String(blessing.tier)];
+    if (Array.isArray(band) && (points < band[0] - 1e-9 || points > band[1] + 1e-9))
+      errors.push(
+        `${path} costs ${points} points, outside tier ${blessing.tier}'s band ${band[0]}-${band[1]}`,
+      );
+    const boonTypes = effectTypesOf(blessing.boons);
+    for (const t of priceTypes)
+      if (boonTypes.has(t)) errors.push(`${path} shares the effect type "${t}" with its boon`);
+    // Never a gold price on a gold boon (a Debt on Merchant Bane cancels itself).
+    if (tagsOf(blessing).has('gold') && priceTags.has('gold'))
+      errors.push(`${path} is a gold price on a gold blessing`);
+  };
+
+  // An intrinsic price is { label, points }: the blessing's own boon carries the cost, so it
+  // names no catalog entry, but its points sit inside the tier's band like any other price.
+  const checkIntrinsic = (blessing, path) => {
+    const price = blessing.intrinsicPrice;
+    if (!isObject(price)) {
+      errors.push(`${path}.intrinsicPrice must be { label, points }`);
+      return;
+    }
+    if (typeof price.label !== 'string' || price.label.trim() === '')
+      errors.push(`${path}.intrinsicPrice.label must be a non-empty string`);
+    if (!Number.isFinite(price.points) || price.points <= 0) {
+      errors.push(`${path}.intrinsicPrice.points must be a positive number`);
+      return;
+    }
+    const band = bands?.[String(blessing.tier)];
+    if (Array.isArray(band) && (price.points < band[0] - 1e-9 || price.points > band[1] + 1e-9))
+      errors.push(
+        `${path}.intrinsicPrice costs ${price.points} points, outside tier ${blessing.tier}'s band ${band[0]}-${band[1]}`,
+      );
+  };
+
+  for (const blessing of config.blessings || []) {
+    if (!isObject(blessing)) continue;
+    const path = `blessings.${blessing.id}`;
+    const hasPrices = Array.isArray(blessing.prices) && blessing.prices.length > 0;
+    const hasPact = Array.isArray(blessing.pact);
+    const hasIntrinsic = blessing.intrinsicPrice !== undefined;
+    if (blessing.tier === 1) {
+      if (hasPrices || blessing.pact !== undefined || hasIntrinsic)
+        errors.push(`${path}: a tier 1 blessing is a free gift (no prices, no pact)`);
+      continue;
+    }
+    if (hasIntrinsic) {
+      checkIntrinsic(blessing, path);
+      if (hasPrices || blessing.pact !== undefined)
+        errors.push(`${path}: an intrinsic price replaces prices and pact; name only one`);
+      if (blessing.tier === 4) errors.push(`${path}: a tier 4 blessing carries a fixed pact (v3)`);
+      continue;
+    }
+    if (isObject(blessing.pact)) {
+      errors.push(`${path}.pact must be a list of priceCatalog ids (v3)`);
+      continue;
+    }
+    if (blessing.tier === 4 && !hasPact)
+      errors.push(`${path}: a tier 4 blessing carries a fixed pact (v3)`);
+    if (blessing.tier < 4 && hasPact)
+      errors.push(`${path}: only tier 4 carries a pact; tier ${blessing.tier} names its prices`);
+    if (blessing.tier < 4 && !hasPrices)
+      errors.push(`${path}.prices must name the blessing's candidate prices (v3)`);
+    if (hasPact) checkOption(blessing, blessing.pact, `${path}.pact`);
+    if (hasPrices)
+      blessing.prices.forEach((option, i) => checkOption(blessing, option, `${path}.prices[${i}]`));
+  }
+}
+
+/**
+ * One price as a run applies it: `{ label, effects, points, kind }` from catalog ids (a
+ * single id or ids paid together). A Debt is set for Dusk in the catalog and scaled to the
+ * rung here (`debtScale`), so the stored price carries the amount the run will owe and its
+ * label says it.
+ * @param {object} config - blessings config (v3)
+ * @param {string|string[]} option
+ * @param {{ difficultyId?: string, kind?: 'cost'|'pact' }} [context]
+ * @returns {{label: string, effects: object[], points: number, kind: string} | null}
+ */
+export function resolvePriceOption(
+  config,
+  option,
+  { difficultyId = 'normal', kind = 'cost' } = {},
+) {
+  const catalog = config?.priceCatalog;
+  if (!isObject(catalog)) return null;
+  const scale = Number(config?.debtScale?.[difficultyId]);
+  const debtScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
+  const labels = [];
+  const effects = [];
+  let points = 0;
+  for (const id of priceOptionIds(option)) {
+    const entry = catalog[id];
+    if (!isObject(entry)) return null;
+    points += Number(entry.points) || 0;
+    let label = entry.label;
+    for (const effect of entry.effects || []) {
+      const copy = cloneDeep(effect);
+      if (copy.type === 'burden' && copy.params?.id === 'debt' && Number(copy.params.owed) > 0) {
+        const owed = Math.max(
+          DEBT_ROUNDING,
+          Math.round((Number(copy.params.owed) * debtScale) / DEBT_ROUNDING) * DEBT_ROUNDING,
+        );
+        copy.params.owed = owed;
+        label = label.replace('{owed}', owed.toLocaleString('en-US'));
+      }
+      effects.push(copy);
+    }
+    labels.push(label);
+  }
+  return { label: labels.join(' · '), effects, points, kind };
+}
+
+/**
+ * Roll a v3 blessing's price: its intrinsic price or its pact (one draw is still spent, as for
+ * a v2 pact), or one of
+ * its candidate prices, uniformly, among those `isApplicable` accepts (a price that would cost
+ * this run nothing is never offered; when none is applicable, all are candidates).
+ * @returns {{label: string, effects: object[], points: number, kind: string} | null}
+ */
+export function rollPriceForBlessing(config, blessing, rand, options = {}) {
+  if (typeof rand !== 'function') throw new Error('rollPriceForBlessing requires an RNG');
+  const context = { difficultyId: options.difficultyId };
+  if (isObject(blessing?.intrinsicPrice)) {
+    // The boon carries its own cost: nothing to resolve or apply, but one draw is still
+    // spent (as for a pact) so every other offer's roll is unchanged.
+    rand();
+    const { label, points } = blessing.intrinsicPrice;
+    return { label, effects: [], points, kind: 'intrinsic' };
+  }
+  if (Array.isArray(blessing?.pact)) {
+    rand();
+    return resolvePriceOption(config, blessing.pact, { ...context, kind: 'pact' });
+  }
+  const candidates = (Array.isArray(blessing?.prices) ? blessing.prices : [])
+    .map((option) => resolvePriceOption(config, option, context))
+    .filter(Boolean);
+  if (candidates.length === 0) return null;
+  const applicable =
+    typeof options.isApplicable === 'function'
+      ? candidates.filter((price) => options.isApplicable(price))
+      : candidates;
+  const pool = applicable.length > 0 ? applicable : candidates;
+  return pool[Math.floor(rand() * pool.length)] || null;
+}
+
+/** True when a config prices blessings through the v3 catalog. */
+export function usesPriceCatalog(config) {
+  return config?.version === 3 && isObject(config?.priceCatalog);
 }
 
 /**
@@ -336,7 +616,40 @@ export function selectBlessingOptionsWithTelemetry(config, rand, options = {}) {
     selectedIds.add(first.id);
   }
 
-  while (selected.length < count) {
+  const v3 = usesPriceCatalog(valid);
+  const usedTiers = new Set();
+  while (v3 && selected.length < count) {
+    // v3: each later slot draws a tier by `offerWeights` (never one already drawn), then a
+    // blessing of that tier by its weight. A blessing at weight 0 is never offered.
+    const available = (tier) =>
+      pool.filter(
+        (b) =>
+          b.tier === tier &&
+          !selectedIds.has(b.id) &&
+          (Number.isFinite(b.weight) ? b.weight : 1) > 0 &&
+          (allowTier4 || b.tier !== 4) &&
+          !violatesExclusion(b),
+      );
+    const tiers = Object.entries(valid.offerWeights || {})
+      .map(([tier, weight]) => ({ tier: Number(tier), weight: Number(weight) || 0 }))
+      .filter((t) => t.weight > 0 && !usedTiers.has(t.tier) && available(t.tier).length > 0)
+      .sort((a, b) => a.tier - b.tier);
+    if (tiers.length === 0) break;
+    const { tier } = pickWeighted(tiers, rand);
+    usedTiers.add(tier);
+    const next = pickWeighted(available(tier), rand);
+    selected.push(next);
+    selectedIds.add(next.id);
+  }
+
+  // v3 reads in order of the bet: the free gift, then the smaller bet, then the bigger one.
+  if (v3) {
+    const lead = forceTier1 ? selected.splice(0, 1) : [];
+    selected.sort((a, b) => a.tier - b.tier);
+    selected.unshift(...lead);
+  }
+
+  while (!v3 && selected.length < count) {
     let candidates = pool.filter((b) => !selectedIds.has(b.id));
     if (!allowTier4) candidates = candidates.filter((b) => b.tier !== 4);
     const filtered = [];
@@ -357,7 +670,15 @@ export function selectBlessingOptionsWithTelemetry(config, rand, options = {}) {
 
   const selectedWithCosts = selected.map((blessing) => {
     const copy = cloneDeep(blessing);
-    if (copy.tier >= 2) {
+    if (v3) {
+      copy.rolledCost =
+        copy.tier >= 2
+          ? rollPriceForBlessing(valid, copy, rand, {
+              difficultyId: options.difficultyId,
+              isApplicable: options.isCostApplicable,
+            })
+          : null;
+    } else if (copy.tier >= 2) {
       const tierPool = valid.costPools?.[String(copy.tier)];
       copy.rolledCost = rollCostForBlessing(tierPool, copy, rand, {
         isApplicable: options.isCostApplicable,

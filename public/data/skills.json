@@ -315,6 +315,69 @@
     }
   },
   {
+    "id": "smite",
+    "name": "Smite",
+    "description": "Push an adjacent enemy 2 tiles away",
+    "trigger": "action",
+    "actionAbility": {
+      "kind": "push_enemy",
+      "distance": 2,
+      "usableWhileSilenced": true
+    }
+  },
+  {
+    "id": "transfuse",
+    "name": "Transfuse",
+    "description": "Give up to 10 HP to an adjacent ally",
+    "trigger": "action",
+    "actionAbility": {
+      "kind": "transfer_hp",
+      "amount": 10,
+      "usableWhileSilenced": true
+    }
+  },
+  {
+    "id": "great_sacrifice",
+    "name": "Great Sacrifice",
+    "description": "Once per battle: pay up to 10 HP (never your last); allies within 2 tiles heal that much",
+    "trigger": "action",
+    "actionAbility": {
+      "kind": "sacrifice_heal",
+      "radius": 2,
+      "amount": 10,
+      "perMapLimit": 1
+    }
+  },
+  {
+    "id": "goddess_dance",
+    "name": "Goddess Dance",
+    "description": "Once per battle: every adjacent ally who has acted can act again",
+    "trigger": "action",
+    "actionAbility": {
+      "kind": "refresh_adjacent",
+      "perMapLimit": 1,
+      "usableWhileSilenced": true
+    }
+  },
+  {
+    "id": "blink_strike",
+    "name": "Blink Strike",
+    "description": "Once per battle: warp next to a foe within 4 spaces and attack it",
+    "trigger": "action",
+    "actionAbility": {
+      "kind": "warp_strike",
+      "range": 4,
+      "perMapLimit": 1
+    }
+  },
+  {
+    "id": "pass",
+    "name": "Pass",
+    "description": "Move through enemy units (but never stop on one)",
+    "trigger": "passive",
+    "classInnate": "Trickster"
+  },
+  {
     "id": "canto",
     "name": "Canto",
     "description": "Use remaining movement after acting",
@@ -573,5 +636,66 @@
     "description": "Use remaining movement after a noncombat action. Not after fighting.",
     "trigger": "passive",
     "cantoRule": "noncombat"
+  },
+  {
+    "id": "lifetaker",
+    "name": "Lifetaker",
+    "description": "Defeating a foe in combat heals 25% of max HP",
+    "trigger": "on-kill",
+    "effects": {
+      "healPercentMaxHp": 25
+    }
+  },
+  {
+    "id": "speedtaker",
+    "name": "Speedtaker",
+    "description": "Defeating a foe in combat gives +1 SPD for the battle, up to +5",
+    "trigger": "on-kill",
+    "effects": {
+      "spdPerKill": 1,
+      "spdMax": 5
+    }
+  },
+  {
+    "id": "uncanny_blow",
+    "name": "Uncanny Blow",
+    "description": "+30 Hit when initiating combat",
+    "trigger": "on-combat-start",
+    "condition": "initiating",
+    "effects": {
+      "hitBonus": 30
+    }
+  },
+  {
+    "id": "warding_blow",
+    "name": "Warding Blow",
+    "description": "+6 RES when initiating combat",
+    "trigger": "on-combat-start",
+    "condition": "initiating",
+    "effects": {
+      "resBonus": 6
+    }
+  },
+  {
+    "id": "defiant",
+    "name": "Defiant",
+    "description": "+4 DEF/RES when at 25% HP or less",
+    "trigger": "on-combat-start",
+    "condition": "below25",
+    "effects": {
+      "defBonus": 4,
+      "resBonus": 4
+    }
+  },
+  {
+    "id": "steal",
+    "name": "Steal",
+    "description": "Take the item an adjacent enemy carries, if you are at least as fast",
+    "trigger": "action",
+    "classInnate": "Thief",
+    "actionAbility": {
+      "kind": "steal_item",
+      "usableWhileSilenced": true
+    }
   }
 ]

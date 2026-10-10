@@ -23,23 +23,26 @@ import {
   shopSellWarnings,
   sellShopItem,
   shopForgeBlock,
+  shopForgeTerms,
+  shopForgePrice,
+  shopRepairPrice,
   forgeShopWeapon,
   shopRepairBlock,
   repairShopWeapon,
 } from '../engine/ShopCommands.js';
-import { isWorn, wearCount, wearDisplay, repairPrice } from '../engine/WeaponWear.js';
+import { isWorn, wearCount, wearDisplay } from '../engine/WeaponWear.js';
 import {
   canForge,
-  forgePrice,
+  forgeStatBlock,
   getForgeDisplayInfo,
   getStatForgeCount,
 } from '../engine/ForgeSystem.js';
 import { getSellPrice } from '../engine/LootSystem.js';
+import { itemDisplayName } from '../utils/itemNames.js';
 import { canEquip } from '../engine/UnitManager.js';
 import { getImbueDisplayInfo } from '../engine/ImbueSystem.js';
 import { itemUsageShort, itemUsageText } from '../engine/ItemUsage.js';
 import {
-  SHOP_FORGE_LIMITS,
   SHOP_REROLL_COST,
   SHOP_REROLL_ESCALATION,
   AMBUSH_SHOP_DISCOUNT,
@@ -186,13 +189,17 @@ export class ShopMenu {
     this.selected = chosen?.item;
     const split = el('div', null, 'shop-split');
     const stock = el('div', null, 'shop-stock re-scroll');
+    // The prologue's Market and a caravan have no Restock: their lines never offer it.
+    const canRestock = this.controller.canReroll?.() !== false && !this.scene._currentShopIsCaravan;
     stock.setAttribute('aria-label', 'Shop items');
     if (!rows.length)
       stock.append(
         el(
           'p',
           this.scene.activeShopTab === 'buy'
-            ? 'Sold out. You can restock or leave.'
+            ? canRestock
+              ? 'Sold out. You can restock or leave.'
+              : 'Sold out.'
             : 'No eligible items.',
         ),
       );
@@ -205,7 +212,7 @@ export class ShopMenu {
       stock.append(
         el(
           'p',
-          `Nothing here is within ${this.run.gold} G. Sell, restock or leave.`,
+          `Nothing here is within ${this.run.gold} G. ${canRestock ? 'Sell, restock or leave.' : 'Sell or leave.'}`,
           'shop-reason shop-reason--gold',
         ),
       );
@@ -223,24 +230,28 @@ export class ShopMenu {
       if (short(row)) b.classList.add('is-short');
       b.setAttribute('aria-pressed', String(row.item === this.selected));
       const selling = this.scene.activeShopTab === 'sell';
-      const sub =
-        this.scene.activeShopTab === 'buy'
-          ? [`${row.entry.price} G`, row.item.type, itemKeywordText(row.item)]
+      const buying = this.scene.activeShopTab === 'buy';
+      const sub = buying
+        ? [row.item.type, itemKeywordText(row.item)].filter(Boolean).join(' · ')
+        : selling
+          ? // How much it has been used: "Edric · +875 G · 14 strikes".
+            [row.owner, `+${getSellPrice(row.item)} G`, itemUsageShort(row.item)]
               .filter(Boolean)
               .join(' · ')
-          : selling
-            ? // How much it has been used: "Edric · +875 G · 14 strikes".
-              [row.owner, `+${getSellPrice(row.item)} G`, itemUsageShort(row.item)]
-                .filter(Boolean)
-                .join(' · ')
-            : isWorn(row.item)
-              ? `${row.owner} · Worn ${wearCount(row.item)}/${wearDisplay(row.item).max}`
-              : `${row.owner} · Forge ${row.item._forgeLevel || 0}`;
-      const name = el('strong', row.item.name);
+          : isWorn(row.item)
+            ? `${row.owner} · Worn ${wearCount(row.item)}/${wearDisplay(row.item).max}`
+            : `${row.owner} · Forge ${row.item._forgeLevel || 0}`;
+      const name = el('strong', this.shown(row.item));
       if (row.kind === 'inventory' && row.unit?.weapon === row.item)
         name.append(equippedBadgeElement((tag) => el(tag)));
       const text = el('span', null, 'shop-row-text');
-      text.append(name, el('span', sub));
+      // A buy row's price is its own span: gold while the purse reaches it, grey when it
+      // doesn't (.shop-price; the row is .is-short).
+      const line = el('span', null);
+      if (buying)
+        line.append(el('span', `${row.entry.price} G`, 'shop-price'), sub ? ` · ${sub}` : '');
+      else line.textContent = sub;
+      text.append(name, line);
       // Selling someone's only weapon (or staff, or bow) reads on the row itself,
       // before it is chosen; spares, supplies and the convoy carry no tag.
       const risks = selling ? this.riskTags(row) : null;
@@ -271,11 +282,7 @@ export class ShopMenu {
     status.setAttribute('role', 'status');
     status.setAttribute('aria-live', 'polite');
     const actions = el('div', null, 'shop-tools');
-    if (
-      this.scene.activeShopTab === 'buy' &&
-      this.controller.canReroll?.() !== false &&
-      !this.scene._currentShopIsCaravan
-    ) {
+    if (this.scene.activeShopTab === 'buy' && canRestock) {
       const cost = SHOP_REROLL_COST + this.scene.shopRerollCount * SHOP_REROLL_ESCALATION;
       const reroll = button(`Restock · ${cost} G`, () =>
         this.confirm(
@@ -307,6 +314,10 @@ export class ShopMenu {
         .find((b) => b.dataset.shopFocus === focus)
         ?.focus();
   }
+  /** An item's display name: an accessory with a bound skill shows it. */
+  shown(item) {
+    return itemDisplayName(item, this.scene.gameData?.skills);
+  }
   details(container, row) {
     const { item } = row;
     const copy = el('div', null, 'shop-copy re-scroll');
@@ -316,7 +327,7 @@ export class ShopMenu {
     // What it is ("Silver Lance", "Legend Sword"), then its rules as tags.
     const kicker = itemBaseLine(item) || [item.tier, item.type].filter(Boolean).join(' · ');
     if (kicker) title.append(el('p', kicker, 'shop-kicker'));
-    title.append(el('h3', item.name));
+    title.append(el('h3', this.shown(item)));
     const keys = itemKeywordRow(item, { baseLine: false, make: (tag) => el(tag) });
     if (keys) title.append(keys);
     const requirement = shopRequirementLabel(item);
@@ -402,7 +413,7 @@ export class ShopMenu {
         `Sell · ${getSellPrice(item)} G`,
         () =>
           this.confirm(
-            `Sell ${item.name}?`,
+            `Sell ${this.shown(item)}?`,
             `${row.owner} loses this item.${warning ? ` ${warning}` : ''} Receive ${getSellPrice(item)} gold.`,
             () => this.complete(sellShopItem(this.run, row)),
           ),
@@ -422,16 +433,22 @@ export class ShopMenu {
       action.append(b);
     } else {
       const options = this.forgeOptions();
+      // Smith's Mark: the shop's first forge or repair costs nothing while it is unspent.
+      const remaining = Math.max(0, options.forgeLimit - options.forgesUsed);
       copy.append(
         el(
           'p',
-          `${Math.max(0, options.forgeLimit - options.forgesUsed)} of ${options.forgeLimit} shop forges remaining.`,
+          `${remaining} of ${options.forgeLimit} shop forges remaining.${options.free && remaining > 0 ? (options.forgesUsed > 0 ? ' The next is free.' : ' The first is free.') : ''}`,
         ),
       );
       if (isWorn(item)) {
         // A worn weapon shows Repair in place of the forge stats; it spends a forge use.
-        const price = repairPrice(item, options.discount);
-        const b = button(`Repair · ${price} G`, () => this.repair(item), 're-btn re-btn--primary');
+        const price = shopRepairPrice(item, options);
+        const b = button(
+          options.free ? 'Repair · Free' : `Repair · ${price} G`,
+          () => this.repair(item),
+          're-btn re-btn--primary',
+        );
         reason = shopRepairBlock(this.run, item, options);
         b.disabled = !!reason;
         goldShort = reason === 'Not enough gold.';
@@ -515,7 +532,7 @@ export class ShopMenu {
   buy(entry) {
     if (entry.type === 'accessory') {
       this.picker({
-        title: `Buy and equip ${entry.item.name}`,
+        title: `Buy and equip ${this.shown(entry.item)}`,
         choices: [...this.run.roster, 'pool'],
         label: (unit) => (unit === 'pool' ? 'Keep in shared pool' : unit.name),
         face: (unit) => this.face(unit),
@@ -523,7 +540,7 @@ export class ShopMenu {
           `${entry.price} gold · ` +
           (unit === 'pool'
             ? 'Equip later.'
-            : `Equip now${unit.accessory ? `; ${unit.accessory.name} returns to the shared pool` : ''}.`),
+            : `Equip now${unit.accessory ? `; ${this.shown(unit.accessory)} returns to the shared pool` : ''}.`),
         blocked: () => shopBuyBlock(this.run, this.scene.shopBuyItems, entry),
         apply: (unit) =>
           this.complete(purchaseShopItem(this.run, this.scene.shopBuyItems, entry, unit)),
@@ -532,7 +549,7 @@ export class ShopMenu {
     }
     if (entry.type === 'scroll') {
       this.confirm(
-        `Buy ${entry.item.name}?`,
+        `Buy ${this.shown(entry.item)}?`,
         `${entry.price} gold · Added to the team ${entry.type} pool.`,
         () => this.complete(purchaseShopItem(this.run, this.scene.shopBuyItems, entry)),
       );
@@ -540,7 +557,7 @@ export class ShopMenu {
     }
     const supply = entry.item.type === 'Consumable';
     this.picker({
-      title: `Give ${entry.item.name} to`,
+      title: `Give ${this.shown(entry.item)} to`,
       choices: [...this.run.roster]
         .sort(
           (a, b) =>
@@ -571,29 +588,22 @@ export class ShopMenu {
     });
   }
   forgeOptions() {
-    const blessing = Math.max(0, Math.min(0.95, this.run.getForgeCostDiscount?.() || 0));
-    return {
+    return shopForgeTerms(this.run, {
+      act: this.run.currentAct,
       forgesUsed: this.scene.shopForgesUsed,
-      forgeLimit:
-        (SHOP_FORGE_LIMITS[this.run.currentAct] || 2) +
-        (this.run.blessingRuntimeModifiers?.forgeLimitDelta || 0),
-      discount: Math.min(
-        0.95,
-        this.scene._currentShopHasAmbushDiscount
-          ? 1 - (1 - blessing) * AMBUSH_SHOP_DISCOUNT
-          : blessing,
-      ),
-    };
+      ambushDiscount: !!this.scene._currentShopHasAmbushDiscount,
+    });
   }
   /** Mend the most recent wear step: one confirm naming the stat, the cost and the forge use. */
   repair(weapon) {
     const expectedWear = wearCount(weapon);
     const owner = this.run.roster.find((u) => u.inventory?.includes(weapon));
     const step = wearDisplay(weapon).steps.at(-1);
-    const price = repairPrice(weapon, this.forgeOptions().discount);
+    const terms = this.forgeOptions();
+    const cost = terms.free ? "Free (Smith's Mark)" : `${shopRepairPrice(weapon, terms)} gold`;
     this.confirm(
       `Repair ${weapon.name}?`,
-      `${step.label}: restores ${step.restore}${repairImpactSuffix(owner, weapon)}. ${price} gold and one shop forge.`,
+      `${step.label}: restores ${step.restore}${repairImpactSuffix(owner, weapon)}. ${cost} and one shop forge.`,
       () => {
         const options = { ...this.forgeOptions(), expectedWear };
         const result = repairShopWeapon(this.run, weapon, options);
@@ -615,8 +625,17 @@ export class ShopMenu {
       title: `Forge ${weapon.name}`,
       choices: stats,
       label: (stat) => stat.label,
-      describe: (stat) =>
-        `${forgePrice(weapon, stat.key, this.forgeOptions().discount)} gold · ${getStatForgeCount(weapon, stat.key)}/${FORGE_STAT_CAP} upgrades${forgeImpactSuffix(owner, weapon, stat.key)}`,
+      describe: (stat) => {
+        const terms = this.forgeOptions();
+        // "Free" is offered only where the forge can happen; a stat at its cap (or a weapon that
+        // cannot be forged) has no price to waive.
+        const cost = forgeStatBlock(weapon, stat.key)
+          ? 'Unavailable'
+          : terms.free
+            ? 'Free'
+            : `${shopForgePrice(weapon, stat.key, terms)} gold`;
+        return `${cost} · ${getStatForgeCount(weapon, stat.key)}/${FORGE_STAT_CAP} upgrades${forgeImpactSuffix(owner, weapon, stat.key)}`;
+      },
       blocked: (stat) =>
         shopForgeBlock(this.run, weapon, stat.key, { ...this.forgeOptions(), expectedLevel }),
       apply: (stat) => {

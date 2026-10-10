@@ -47,6 +47,13 @@ describe('the ladder', () => {
     expect(boss('lunatic').map((b) => b.name)).toEqual(['The Entity']);
   });
 
+  it('meta currency climbs with the ladder: First Light below the base rate, each rung above it more', () => {
+    const rates = DIFFICULTY_IDS.map((id) => modes[id].currencyMultiplier);
+    expect(rates[0]).toBeLessThan(1);
+    for (let i = 1; i < rates.length; i++) expect(rates[i]).toBeGreaterThan(rates[i - 1]);
+    expect(modes.dusk.currencyMultiplier).toBeGreaterThan(1.1);
+  });
+
   it('Dusk sits between First Light and Nightfall on every tuned number', () => {
     const between = [
       'enemyCountBonus',

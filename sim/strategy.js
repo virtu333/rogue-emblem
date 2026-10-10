@@ -25,6 +25,7 @@
 //   recruit in the first enemy phase.
 
 import { loadGameData } from '../tests/testData.js';
+import { resolvePriceOption } from '../src/engine/BlessingEngine.js';
 import { installSeed, restoreMathRandom } from './lib/SeededRNG.js';
 import { RunSimulationDriver } from '../tests/sim/RunSimulationDriver.js';
 import { GameDriver } from '../tests/harness/GameDriver.js';
@@ -336,13 +337,15 @@ import { findCommander } from '../src/engine/Commander.js';
 
 import { buildRecruitNodeUnit } from '../src/engine/RecruitNodeSystem.js';
 
+// Events (docs/specs/event-nodes.md) rank beside the services: a story event is a stop on
+// the road, taken through the same commands as the route map (the driver's _runEventNode).
 const POLICY_PRIORITY = {
-  recruit: ['recruit', 'battle', 'colosseum', 'shop', 'church', 'ruins', 'boss'],
-  battle: ['battle', 'shop', 'colosseum', 'church', 'recruit', 'ruins', 'boss'],
-  shop: ['shop', 'colosseum', 'battle', 'church', 'recruit', 'ruins', 'boss'],
-  church: ['church', 'shop', 'colosseum', 'battle', 'recruit', 'ruins', 'boss'],
+  recruit: ['recruit', 'battle', 'colosseum', 'shop', 'event', 'church', 'ruins', 'boss'],
+  battle: ['battle', 'shop', 'event', 'colosseum', 'church', 'recruit', 'ruins', 'boss'],
+  shop: ['shop', 'colosseum', 'battle', 'event', 'church', 'recruit', 'ruins', 'boss'],
+  church: ['church', 'shop', 'colosseum', 'battle', 'event', 'recruit', 'ruins', 'boss'],
   // Services are never entered; take fights only (recruit last).
-  fights: ['battle', 'recruit', 'shop', 'colosseum', 'church', 'ruins', 'boss'],
+  fights: ['battle', 'recruit', 'shop', 'colosseum', 'church', 'event', 'ruins', 'boss'],
 };
 
 function policyChooser(policy) {
@@ -443,6 +446,7 @@ class ProtectedDriver extends RunSimulationDriver {
       else if (node.type === 'shop') res = await this._runShopNode(node);
       else if (node.type === 'church') res = this._runChurchNode(node);
       else if (node.type === 'colosseum') res = this._runColosseumNode(node);
+      else if (node.type === 'event') res = await this._runEventNode(node);
       else {
         this.runManager.markNodeComplete(node.id);
         res = { result: 'skipped' };
@@ -540,10 +544,14 @@ class ProtectedDriver extends RunSimulationDriver {
     const fullRoster = rm.getRoster();
     const deployed = chooseDeployRoster(fullRoster, params.deployCount);
     const deployedKeys = new Set(deployed.map((u) => `${u.name}::${u.className}`));
+    // The run's blessings reach a combat only through the battle's run (Keen Eye, Hold the Line,
+    // Phalanx Rite, Duelist's Creed, the act Hit price); a battle without it measures none. It is
+    // handed in at construction so it is present from init() on.
     const driver = new GameDriver(
       this.gameData,
       params,
       deployed.map((u) => structuredClone(u)),
+      { runManager: rm },
     );
     driver.init();
     const battle = driver.battle;
@@ -610,6 +618,9 @@ class ProtectedDriver extends RunSimulationDriver {
           rm.getEffectiveMetaEffects(),
           rm.fallenUnits || [],
           [...rm.getTakenUnitNames()],
+          rm.runSeed,
+          // Nomad's Pact reaches the boss draft (never below 0), as PendingBossRecruit does.
+          { recruitLevelBonus: Math.max(0, rm.getRecruitLevelBonus?.() || 0) },
         ) || [];
       const pick = [...candidates]
         .map((c) => c?.unit)
@@ -673,6 +684,9 @@ class ProtectedDriver extends RunSimulationDriver {
       this.gameData.traits || null,
       [...rm.getTakenUnitNames()],
       rm.getEffectiveMetaEffects(),
+      { runSeed: rm.runSeed, marksData: this.gameData.marks || null },
+      // Nomad's Pact reaches the Colosseum (never below 0), as ColosseumOverlay does.
+      { recruitLevelBonus: Math.max(0, rm.getRecruitLevelBonus?.() || 0) },
     ).filter((c) => c?.unit && c.hireCost <= rm.gold);
     candidates.sort((a, b) => (b.unit.level || 0) - (a.unit.level || 0));
     const pick = candidates[0];
@@ -1593,9 +1607,17 @@ async function sectionBlessings() {
       if (only && !only.includes(b.id)) continue;
       configs.push([b.id, `T${b.tier} boon`, b.boons]);
     }
-    if (!only || only.includes('costs'))
-      for (const [tier, pool] of Object.entries(catalog.costPools))
-        for (const cost of pool) configs.push([cost.label, `T${tier} cost`, cost.effects]);
+    if (!only || only.includes('costs')) {
+      // v3: the price catalog, each price as the run's rung pays it (a Debt scaled by rung).
+      if (catalog.priceCatalog)
+        for (const [id, entry] of Object.entries(catalog.priceCatalog)) {
+          const price = resolvePriceOption(catalog, id, { difficultyId: opts.difficulty });
+          configs.push([price.label, `${entry.points} pt price`, price.effects]);
+        }
+      else
+        for (const [tier, pool] of Object.entries(catalog.costPools))
+          for (const cost of pool) configs.push([cost.label, `T${tier} cost`, cost.effects]);
+    }
   }
   printHeader(`Blessing power — ${seeds} runs per row (recruit route, ${opts.difficulty})`);
   const results = [];

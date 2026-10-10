@@ -25,6 +25,8 @@ import {
   getCombatWeapons,
 } from './UnitManager.js';
 import { applyRecruitJoinBonus } from './RecruitScaling.js';
+import { applyRecruitLevelBonus } from './RecruitJoinLevel.js';
+import { isNecromancyClass } from './Necromancy.js';
 
 /** Apply class abilities to new mercenaries and older persisted boards. */
 export function grantMercenaryClassSkills(unit, classesData, skillsData) {
@@ -90,7 +92,7 @@ export function generateChallenger(
   classPool = filterClassPoolByDifficulty(classPool, difficultyMode, {
     act: actId,
     difficulty: difficultyData,
-  });
+  }).filter((name) => !isNecromancyClass(name)); // a bout has no Skeletons to raise
   if (classPool.length === 0) throw new Error(`Empty class pool for act: ${actId}`);
 
   const className = classPool[Math.floor(rng() * classPool.length)];
@@ -355,6 +357,12 @@ function parseMinRange(weapon) {
  * @param {Array<string>} [existingNames]
  * @param {Object|null} [metaEffects] effective meta effects (RunManager.getEffectiveMetaEffects):
  *   mercenaries get the recruit stat/growth upgrades and Skilled Recruits like every recruit
+ * @param {{ runSeed?: number, marksData?: Array }|null} [markContext] the Mark roll
+ *   (UnitManager.createRecruitUnit): run seed and data/marks.json; none = no Marks
+ * @param {{ recruitLevelBonus?: number }} [options] `recruitLevelBonus`: Nomad's Pact, levels each
+ *   mercenary is raised after it is built (engine/RecruitJoinLevel.js, a stream keyed by run seed
+ *   and name, never `rng`: the board's classes, names and prices are the same with and without
+ *   it). The weapon tier below keeps reading the level before the bonus.
  * @returns {Array<{ unit: Object, hireCost: number }>}
  */
 export function generateMercenaryCandidates(
@@ -370,6 +378,8 @@ export function generateMercenaryCandidates(
   traitsData = null,
   existingNames = [],
   metaEffects = null,
+  markContext = null,
+  { recruitLevelBonus = 0 } = {},
 ) {
   const mercConfig = colosseumData?.mercenaries;
   // What every recruit source gets (RecruitNodeSystem.buildRecruitNodeUnit): seasoned
@@ -379,6 +389,13 @@ export function generateMercenaryCandidates(
   if (!mercConfig) {
     throw new Error('[ColosseumEngine] Missing mercenary config');
   }
+  // The Mark roll keys on run seed and name, never the board's rng (a seeded board stays
+  // reproducible). The name is final before createRecruitUnit below.
+  const markOptions = {
+    runSeed: markContext?.runSeed,
+    marksData: markContext?.marksData || null,
+    metaEffects,
+  };
 
   const [minCount, maxCount] = mercConfig.candidateCount;
   const count = minCount + Math.floor(rng() * (maxCount - minCount + 1));
@@ -458,7 +475,14 @@ export function generateMercenaryCandidates(
           growthBonuses,
           null,
           classesData,
-          { traitsData, skillsData, rng, traitClassData: classData, seasoned: true },
+          {
+            traitsData,
+            skillsData,
+            rng,
+            traitClassData: classData,
+            seasoned: true,
+            ...markOptions,
+          },
         );
         promoteUnit(unit, classData, classData.promotionBonuses || {}, skillsData);
 
@@ -478,7 +502,7 @@ export function generateMercenaryCandidates(
           growthBonuses,
           null,
           classesData,
-          { traitsData, skillsData, rng, seasoned: true },
+          { traitsData, skillsData, rng, seasoned: true, ...markOptions },
         );
       }
       unit.faction = 'player'; // Mercenaries join the player's team
@@ -487,6 +511,12 @@ export function generateMercenaryCandidates(
       // after hire, not only after save migration repairs them on reload.
       // Match the loader's current/base-class order and use the shared skill cap.
       grantMercenaryClassSkills(unit, classesData, skillsData);
+
+      // Nomad's Pact: the levels it adds, on the recruit's own stream.
+      applyRecruitLevelBonus(unit, recruitLevelBonus, {
+        classes: classesData,
+        runSeed: markContext?.runSeed,
+      });
 
       // Apply stat bonuses: +value to N random stats
       const bonusCount = mercConfig.statBonus?.count || 2;

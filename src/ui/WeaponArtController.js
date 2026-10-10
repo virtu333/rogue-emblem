@@ -7,6 +7,7 @@ import {
   getEffectiveWeaponArtHpCost,
   getWeaponArtTargeting,
   isWeaponArtCompatibleWithWeapon,
+  weaponArtRunOptions,
 } from '../engine/WeaponArtSystem.js';
 import { resolveWeaponArtIds } from './WeaponArtVisibility.js';
 import { enemyAreaArtOf, selectEnemyWeaponArt } from '../engine/EnemyArtScoring.js';
@@ -129,8 +130,7 @@ export class WeaponArtController {
           const latest = canUseWeaponArt(unit, weapon, art, {
             turnNumber: scene.turnManager?.turnNumber,
             isInitiating: true,
-            weaponArtHpCostDelta:
-              scene.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+            ...weaponArtRunOptions(scene.runManager),
           });
           if (!latest.ok) {
             this.showWeaponArtPicker(unit);
@@ -229,10 +229,11 @@ export class WeaponArtController {
   _resolveWeaponArtCostValues(unit, art) {
     const scene = this.scene;
     const baseCost = Math.max(0, Number(art?.hpCost) || 0);
-    const artOpts = {
-      weaponArtHpCostDelta: scene.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
-    };
-    const effectiveCost = getEffectiveWeaponArtHpCost(unit, art, artOpts);
+    const effectiveCost = getEffectiveWeaponArtHpCost(
+      unit,
+      art,
+      weaponArtRunOptions(scene.runManager),
+    );
     return { baseCost, effectiveCost };
   }
 
@@ -284,10 +285,7 @@ export class WeaponArtController {
     const scene = this.scene;
     if (!unit || !art) return unit?.currentHP;
     const hp = Number(unit.currentHP) || 0;
-    const artOpts = {
-      weaponArtHpCostDelta: scene.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
-    };
-    const cost = getEffectiveWeaponArtHpCost(unit, art, artOpts);
+    const cost = getEffectiveWeaponArtHpCost(unit, art, weaponArtRunOptions(scene.runManager));
     return Math.max(1, hp - cost);
   }
 
@@ -353,7 +351,7 @@ export class WeaponArtController {
     const valid = canUseWeaponArt(unit, weapon, art, {
       turnNumber: scene.turnManager?.turnNumber,
       isInitiating: true,
-      weaponArtHpCostDelta: scene.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+      ...weaponArtRunOptions(scene.runManager),
       ...context,
     });
     // Pure: the art's weapon is equipped on confirm (or by executeCombat for a
@@ -373,7 +371,7 @@ export class WeaponArtController {
     const valid = canUseWeaponArt(unit, selectedEntry.weapon, selectedEntry.art, {
       turnNumber: scene.turnManager?.turnNumber,
       isInitiating: true,
-      weaponArtHpCostDelta: scene.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+      ...weaponArtRunOptions(scene.runManager),
       ...context,
     });
     if (!valid.ok) this._clearSelectedWeaponArt();
@@ -393,8 +391,7 @@ export class WeaponArtController {
           turnNumber: scene.turnManager?.turnNumber,
           isInitiating: true,
           actorFaction: unit.faction,
-          weaponArtHpCostDelta:
-            scene.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+          ...weaponArtRunOptions(scene.runManager),
           ...context,
         });
         return { weapon: sourceWeapon, art, canUse: check.ok, reason: check.reason };
@@ -451,7 +448,8 @@ export class WeaponArtController {
       choices,
       world: () => scene._postCombatWorld?.() || null,
       difficultyId: this._getEnemyWeaponArtDifficultyId(),
-      weaponArtHpCostDelta: scene.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+      // The foe's own scoring: the price surcharge taxes it, Bloodless Art never does.
+      weaponArtHpCostDelta: weaponArtRunOptions(scene.runManager).weaponArtHpCostDelta,
       roll: () => this._rollEnemyWeaponArtChance(),
     });
   }
@@ -527,14 +525,14 @@ export class WeaponArtController {
       canUseWeaponArt(unit, unit?.weapon, art, {
         turnNumber: scene.turnManager?.turnNumber,
         isInitiating: true,
-        weaponArtHpCostDelta: scene.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+        ...weaponArtRunOptions(scene.runManager),
       });
     if (check?.ok === false || check?.canUse === false)
-      return `${this._weaponArtReasonLabel(check.reason)} · ${weaponArtUsesText(unit, art, scene.turnManager?.turnNumber)}`;
+      return `${this._weaponArtReasonLabel(check.reason)} · ${weaponArtUsesText(unit, art, scene.turnManager?.turnNumber, weaponArtRunOptions(scene.runManager))}`;
     const hpCostLabel = this._formatWeaponArtCostLabel(unit, art);
     const hpNow = Math.max(0, Number(unit?.currentHP) || 0);
     const hpAfter = this._getWeaponArtHpAfterCost(unit, art);
-    return `HP-${hpCostLabel} (${hpNow}->${hpAfter}) · ${weaponArtUsesText(unit, art, scene.turnManager?.turnNumber)}`;
+    return `HP-${hpCostLabel} (${hpNow}->${hpAfter}) · ${weaponArtUsesText(unit, art, scene.turnManager?.turnNumber, weaponArtRunOptions(scene.runManager))}`;
   }
 
   destroy() {

@@ -122,8 +122,6 @@ function setupScene() {
     turnNumber: 1,
   };
   scene.runManager = {
-    getActHitBonusForUnit: vi.fn(() => 0),
-    getTerrainCombatBonuses: vi.fn(() => []),
     blessingRuntimeModifiers: {},
   };
   scene.animateStrike = vi.fn(async () => {});

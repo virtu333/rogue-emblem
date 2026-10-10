@@ -1,6 +1,7 @@
 import { sceneHealPreview } from './healTargetPreview.js';
 import { visionLabel } from './visionLabel.js';
 import { ContextHelp } from './ContextHelp.js';
+import { contractHelpBlocks } from './contractHudModel.js';
 import { renderFormationPanel, startButton } from './FormationPanel.js';
 import { objectiveHelp, terrainHelp } from './helpTopics.js';
 import { locateUnit, nextReadyUnit, readyUnits } from './UnitLocator.js';
@@ -14,6 +15,7 @@ import { battlePlace } from './placeDisplay.js';
 import { bindHoldBattleSpeed, canHoldBattleSpeed } from './HoldBattleSpeed.js';
 import { syncPrologueForecastLayout } from './prologueForecastLayout.js';
 import { isScriptedBattle } from '../engine/ScriptedBattle.js';
+import { hasEffectiveSkill } from '../engine/EffectiveSkills.js';
 import {
   showContextualHint,
   claimContextualHint,
@@ -22,23 +24,26 @@ import {
 } from './HintDisplay.js';
 import {
   forecastProjection,
+  projectedFallText,
   forecastModifierText,
   forecastNotes,
   forecastReadingPoints,
   forecastTeachingHints,
   formatCritChance,
-  formatHitChance,
+  formatSideHit,
   formatDamageStrikes,
 } from './forecastDisplay.js';
 import {
   canInspectUnit,
   statusDescriptions,
   statusStaffInfo,
+  carriedItemInfo,
   terrainRuleLines,
 } from '../engine/BattleInformation.js';
 import { bindCancelablePress } from '../utils/cancelablePress.js';
-import { isUnitMenuState, canUseDanger } from './battleMenuModel.js';
+import { isUnitMenuState, canUseDanger, isObjectiveCommand } from './battleMenuModel.js';
 import { formatWeaponArtEffects, weaponArtUsesText } from './weaponArtDisplay.js';
+import { weaponArtRunOptions } from '../engine/WeaponArtSystem.js';
 import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { battleItemBrief, battleItemSummary, ITEM_ACTION_NOTE } from './battleItemSummary.js';
@@ -94,6 +99,16 @@ function staffRelocateHint(s, state) {
   const caster = s.selectedUnit;
   const ally = state === 'SELECTING_STAFF_TILE' ? s.staffRelocateAlly : null;
   return relocatePrompt(caster?.weapon, caster, ally);
+}
+
+// Blink Strike: step 1 names the tile to warp to, step 2 the foe to strike from it.
+function warpStrikeHint(s, state) {
+  if (state !== 'SELECTING_ABILITY_TILE') return null;
+  const step = s._pendingAbility?.step;
+  if (step === 'destination')
+    return 'Tap a lit tile to warp to: you strike a foe from there. Back to go back.';
+  if (step === 'target') return 'Tap a foe to strike from the outlined tile. Back to choose another tile.'; // prettier-ignore
+  return null;
 }
 
 // Item rows teach their long press once: the hint line shows until the player
@@ -233,6 +248,9 @@ export class MobileBattleHUD {
     this.root.hidden = true;
     this.root.tabIndex = -1;
     this.phase = el('div', 'mb-phase');
+    // The open contract (ContractHudController) has its own row under the turn counters: the
+    // upright rail gives it the rail's whole width, so the longest wording keeps one line.
+    this.contractSlot = el('div', 'mb-contract-slot');
     this.summary = el('div', 'mb-summary');
     this.objective = el('div', 'mb-objective-slot');
     this.terrain = el('div', 'mb-terrain-slot');
@@ -257,6 +275,7 @@ export class MobileBattleHUD {
     }
     this.root.append(
       this.phase,
+      this.contractSlot,
       this.objective,
       this.terrain,
       this.summary,
@@ -312,6 +331,30 @@ export class MobileBattleHUD {
       !s.rosterOverlay?.visible &&
       !s.lootSettingsOverlay
     );
+  }
+
+  /**
+   * The open contract's line in the counters row ("Contract · Under par", "— missed"): a compact
+   * button whose tap opens the terms (the objective's pattern). Hover and long-press read its title.
+   */
+  contractLine(model) {
+    const s = this.scene;
+    const line = this.button(
+      model.text,
+      () => {
+        this.help = new ContextHelp(s, this.root, 'Contract', contractHelpBlocks(model), () => {
+          this.help = null;
+          this.lastSnapshot = '';
+          this.sync();
+          this.contractSlot.querySelector('.mb-contract')?.focus({ preventScroll: true });
+        });
+      },
+      `mb-contract is-${model.status}`,
+    );
+    line.title = model.title;
+    line.dataset.contract = model.goal;
+    line.setAttribute('aria-label', model.title);
+    return line;
   }
 
   button(label, action, className = '', onLongPress = null) {
@@ -600,7 +643,9 @@ export class MobileBattleHUD {
         el(
           'span',
           `mb-hp-after${hpAfter === 0 ? ' mb-hp-ko' : ''}`,
-          hpAfter === 0 ? ' → KO' : ` → ${hpAfter}`,
+          hpAfter === 0
+            ? ` → ${projectedFallText(projection, attacking ? 'attacker' : 'defender')}`
+            : ` → ${hpAfter}`,
         ),
       );
     who.append(hp);
@@ -619,7 +664,7 @@ export class MobileBattleHUD {
       // strikes as a multiplier, chances as percentages.
       for (const [name, value, kind] of [
         ['Damage × hits', formatDamageStrikes(info), 'damage'],
-        ['Hit', formatHitChance(info.hit), 'hit'],
+        ['Hit', formatSideHit(info), 'hit'],
         ['Crit', formatCritChance(info.crit), 'crit'],
         ['AS', `${info.as}`, 'speed'],
       ]) {
@@ -659,7 +704,7 @@ export class MobileBattleHUD {
         side.append(disclosure);
       } else side.append(el('p', 'mb-detail', skill.name));
     }
-    if (unit.skills?.some((skill) => (typeof skill === 'string' ? skill : skill?.id) === 'miracle'))
+    if (hasEffectiveSkill(unit, 'miracle', { weapon }))
       side.append(el('p', 'mb-detail', `Miracle: ${unit._miracleUsed ? 'used' : 'ready'}`));
     if (attacking && config.weaponArt) {
       const cost = this.scene._formatWeaponArtCostLabel(unit, config.weaponArt);
@@ -678,7 +723,12 @@ export class MobileBattleHUD {
         el(
           'p',
           'mb-detail',
-          weaponArtUsesText(unit, config.weaponArt, this.scene.turnManager?.turnNumber),
+          weaponArtUsesText(
+            unit,
+            config.weaponArt,
+            this.scene.turnManager?.turnNumber,
+            weaponArtRunOptions(this.scene.runManager),
+          ),
         ),
       );
     }
@@ -859,6 +909,8 @@ export class MobileBattleHUD {
     const remaining = (s.playerUnits || []).filter((u) => u.currentHP > 0 && !u.hasActed).length;
     const threat = s._threatSight?.current || null;
     const upright = uprightBattleRail();
+    // The open contract and where it stands (ContractHudController): derived on every read.
+    const contract = s._contractHud?.model?.() || null;
     // Village and caravan: the compact objective keeps only the main line (upright shows these).
     const sideStatus = secondaryObjectiveStatus(sideObjectiveInputs(s, (this._sideMemory ||= {})));
     const key = JSON.stringify([
@@ -875,6 +927,7 @@ export class MobileBattleHUD {
       unit?.weapon?.name,
       unit?._conditions,
       statusStaffInfo(unit)?.text,
+      carriedItemInfo(unit)?.text,
       [s.getBossPressureWarning?.(), s._bossPresence?.summaryLine?.()].join('|'),
       s.inspectMode,
       Boolean(s.inspectionPanel?.visible),
@@ -895,6 +948,7 @@ export class MobileBattleHUD {
       s.turnCounterText?.text,
       s.visionHudText?.text,
       s._eclipseHud?.label?.(),
+      contract?.title,
       state === 'SELECTING_TARGET' ? this.targetListKey() : null,
       state === 'SELECTING_HEAL_TARGET'
         ? (s.healTargets || []).map((t) => [
@@ -928,6 +982,7 @@ export class MobileBattleHUD {
     // from the turn label and must keep its format).
     const shadow = s._eclipseHud?.label?.();
     if (shadow) counters.append(el('span', `mb-shadow is-${s._eclipseHud.tone()}`, shadow));
+    this.contractSlot.replaceChildren(...(contract ? [this.contractLine(contract)] : []));
     this.phase.append(counters);
     this.objective.replaceChildren();
     const objectiveText = s.objectiveText?.text || s.battleConfig?.objective || 'Battle';
@@ -1119,6 +1174,9 @@ export class MobileBattleHUD {
     // The boss's full reading lives here; the map carries only its compact bar.
     const bossLine = s._bossPresence?.summaryLine?.();
     if (bossLine) detailContent.append(el('p', 'mb-boss-line', bossLine));
+    // The open contract, with its terms and where it stands.
+    const contractLine = s._contractHud?.model?.();
+    if (contractLine) detailContent.append(el('p', 'mb-contract-detail', contractLine.title));
     if (s.dangerZone?.visible)
       detailContent.append(el('p', '', 'Darker: more enemies · Purple outline: status staff'));
     if (s.pinnedThreatEnemies?.size >= 5)
@@ -1127,6 +1185,8 @@ export class MobileBattleHUD {
       );
     const staffInfo = statusStaffInfo(unit);
     if (staffInfo) detailContent.append(el('p', '', staffInfo.text));
+    const carrying = carriedItemInfo(unit);
+    if (carrying) detailContent.append(el('p', '', carrying.text));
     detailContent.append(el('pre', '', info || 'Tap a tile to inspect terrain.'));
     if (canUseDanger(s)) {
       detailContent.append(
@@ -1218,6 +1278,7 @@ export class MobileBattleHUD {
           s.inspectMode
             ? 'Tap an ally or enemy to view their details.'
             : staffRelocateHint(s, state) ||
+                warpStrikeHint(s, state) ||
                 HINTS[state] ||
                 (state.startsWith('SELECTING_')
                   ? 'Tap a highlighted target. Back to go back.'
@@ -1514,6 +1575,8 @@ export class MobileBattleHUD {
       },
       [
         item.id === 'attack' && !item.disabled ? 'mb-primary' : '',
+        // Seize and Escape win the battle: they wear the exits' green (cohesion.css).
+        isObjectiveCommand(item) ? 'mb-win-command' : '',
         expanded ? 'is-expanded' : '',
         className,
       ]

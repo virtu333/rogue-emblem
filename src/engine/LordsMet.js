@@ -32,7 +32,7 @@ export function mergeLordNames(...lists) {
 export function lordNamesInRun(run) {
   if (!run || typeof run !== 'object') return [];
   const names = [];
-  for (const pool of [run.roster, run.fallenUnits])
+  for (const pool of [run.roster, run.fallenUnits, run.laidToRest])
     for (const unit of Array.isArray(pool) ? pool : [])
       if (unit?.isLord === true && validName(unit.name)) names.push(unit.name);
   return mergeLordNames(names);

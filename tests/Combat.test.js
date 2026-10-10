@@ -774,22 +774,29 @@ describe('Combat resolution', () => {
       proficiencies: [{ type: 'Sword', rank: 'Prof' }],
     });
     const terrain = data.terrain.find((t) => t.name === 'Plain');
-    const result = resolveCombat(
-      attacker,
-      attacker.weapon,
-      defender,
-      defender.weapon,
-      1,
-      terrain,
-      terrain,
-    );
-    // Both survived (high DEF), so both poisons fire
-    if (result.attackerHP > 0 && result.defenderHP > 0) {
-      expect(result.poisonEffects).toBeDefined();
-      expect(result.poisonEffects.length).toBe(2);
-      expect(result.poisonEffects.find((p) => p.target === 'defender')).toBeTruthy();
-      expect(result.poisonEffects.find((p) => p.target === 'attacker')).toBeTruthy();
+    // Poison needs a landed strike, so every roll hits: an unseeded miss left one poison.
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+    let result;
+    try {
+      result = resolveCombat(
+        attacker,
+        attacker.weapon,
+        defender,
+        defender.weapon,
+        1,
+        terrain,
+        terrain,
+      );
+    } finally {
+      randomSpy.mockRestore();
     }
+    // Both survive (high DEF) and both strikes land, so both poisons fire.
+    expect(result.attackerHP).toBeGreaterThan(0);
+    expect(result.defenderHP).toBeGreaterThan(0);
+    expect(result.poisonEffects).toBeDefined();
+    expect(result.poisonEffects.length).toBe(2);
+    expect(result.poisonEffects.find((p) => p.target === 'defender')).toBeTruthy();
+    expect(result.poisonEffects.find((p) => p.target === 'attacker')).toBeTruthy();
   });
 
   it('adds bloodshard per-hit heal after drain cap and keeps bonus on lethal hit', () => {

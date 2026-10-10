@@ -291,7 +291,7 @@ describe('Iron and Steel arts without Iron Arms or Steel Arms', () => {
     const live = arts.filter(
       (a) => ['Iron', 'Steel'].includes(a.tierAffinity) && !a.legacy && !a.scrollOnly,
     );
-    expect(live.length).toBe(40);
+    expect(live.length).toBe(41);
     for (const a of live) {
       const scroll = data.weapons.find((w) => w.teachesWeaponArtId === a.id);
       expect(scroll?.name, a.name).toBe(`${a.name} Scroll`);

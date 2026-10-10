@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { transitionToSceneMock } = vi.hoisted(() => ({
   transitionToSceneMock: vi.fn(async () => true),
@@ -25,6 +25,13 @@ vi.mock('../src/ui/PrologueEnding.js', async () => {
     finishPrologue: finishPrologueMock,
     offerPrologueLeaveRetry: offerPrologueLeaveRetryMock,
   };
+});
+
+// The victory band is a DOM ceremony: a test that wants one turns the host on for itself.
+const { domHost } = vi.hoisted(() => ({ domHost: { on: false } }));
+vi.mock('../src/utils/domUI.js', async () => {
+  const actual = await vi.importActual('../src/utils/domUI.js');
+  return { ...actual, hasDOMHost: () => domHost.on || actual.hasDOMHost() };
 });
 
 import { TRANSITION_REASONS } from '../src/utils/SceneRouter.js';
@@ -307,6 +314,78 @@ describe('PostCombatController', () => {
       { rite: ['keen_edge'] },
     ]);
     expect(scene.playerUnits[0].deeds.lastBattle).toBe('act1:n4:3');
+  });
+
+  describe('what the victory commit settled, on the band', () => {
+    // The band has its turn line; a burden's share and a contract's verdict join it as parts
+    // (Burdens.settlementLines, ContractSettlement.lines), for THIS battle's node only.
+    const bandScene = (settle) => {
+      const scene = makeScene();
+      const band = { addParts: vi.fn(), release: vi.fn() };
+      scene._getCeremonies = () => ({ showVictory: vi.fn(() => band) });
+      scene.runManager.completeBattle = vi.fn(() => {
+        Object.assign(scene.runManager, settle);
+        return true;
+      });
+      return { scene, band };
+    };
+    beforeEach(() => {
+      domHost.on = true;
+    });
+    afterEach(() => {
+      domHost.on = false;
+    });
+
+    it('a kept contract adds its line to the band', () => {
+      const { scene, band } = bandScene({
+        lastContractSettlement: {
+          nodeId: 'node-1',
+          kept: true,
+          lines: ['Contract kept: +600 G'],
+        },
+      });
+      new PostCombatController(scene).onVictory();
+      expect(band.addParts).toHaveBeenCalledWith(['Contract kept: +600 G']);
+    });
+
+    it('a broken contract and a burden both speak, the burden first', () => {
+      const { scene, band } = bandScene({
+        lastBurdenSettlement: {
+          nodeId: 'node-1',
+          debt: { paid: 120, remaining: 80, cleared: false },
+        },
+        lastContractSettlement: {
+          nodeId: 'node-1',
+          kept: false,
+          lines: ['Contract broken: Debt (300 G owed)'],
+        },
+      });
+      new PostCombatController(scene).onVictory();
+      expect(band.addParts.mock.calls).toEqual([
+        [['Debt −120 G']],
+        [['Contract broken: Debt (300 G owed)']],
+      ]);
+    });
+
+    it("another battle's settlement (an old record on the run) is not this band's", () => {
+      const { scene, band } = bandScene({
+        lastContractSettlement: { nodeId: 'elsewhere', kept: true, lines: ['Contract kept'] },
+      });
+      new PostCombatController(scene).onVictory();
+      expect(band.addParts).not.toHaveBeenCalled();
+    });
+
+    it('no contract, nothing added; a no-op commit adds nothing either', () => {
+      const none = bandScene({ lastContractSettlement: null });
+      new PostCombatController(none.scene).onVictory();
+      expect(none.band.addParts).not.toHaveBeenCalled();
+      const failed = bandScene({
+        lastContractSettlement: { nodeId: 'node-1', kept: true, lines: ['Contract kept'] },
+      });
+      failed.scene.runManager.completeBattle = vi.fn(() => false);
+      new PostCombatController(failed.scene).onVictory();
+      expect(failed.band.addParts).not.toHaveBeenCalled();
+    });
   });
 
   describe('Merchant Caravan reward wiring', () => {

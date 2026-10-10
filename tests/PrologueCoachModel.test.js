@@ -96,7 +96,11 @@ describe('Prologue coach: the free goal follows the board', () => {
       goal: 'Advance on the last enemy',
       anchor: { kind: 'tile', col: 9, row: 0 },
     });
-    expect(state.detail).toContain("The Soldier holds its ground and won't come to you");
+    // It holds only until someone enters its reach or hits it (HoldActivation): never "won't come".
+    expect(state.detail).toContain(
+      'The Soldier holds its post until someone steps into its red reach or strikes it; then it comes for you.',
+    );
+    expect(state.detail).not.toContain("won't come");
     expect(state.detail).not.toContain('Attack');
     expect(state.detail).not.toContain('starts over');
   });
@@ -165,6 +169,60 @@ describe('Prologue coach: which actions the open menu offers', () => {
     const scene = { actionMenu: [panel, row('Attack'), row('Item'), row('Wait')] };
     expect(availableMenuLabels(scene)).toEqual(['Attack', 'Item', 'Wait']);
     expect(free({ menu: availableMenuLabels(scene) }).id).toBe('act-attack');
+  });
+
+  describe('a hurt ally and a selected healer: the heal goal holds through move and menu', () => {
+    const sera = { name: 'Sera', hp: 18, maxHp: 18, healer: true };
+    const tamsin = { name: 'Tamsin', hp: 6, maxHp: 17 };
+    const edric = { name: 'Edric', hp: 20, maxHp: 20 };
+
+    it('menu offers Attack and Heal: Heal the hurt ally, not the forecast advice', () => {
+      const state = free({
+        selected: 'Sera',
+        units: [sera, tamsin],
+        menu: ['Attack', 'Heal', 'Wait'],
+      });
+      expect(state).toMatchObject({ id: 'act-heal', goal: 'Heal Tamsin' });
+      expect(state.detail).not.toContain('forecast');
+    });
+
+    it('the healer selected, before the move: walk next to the hurt ally', () => {
+      const state = free({ state: 'UNIT_SELECTED', selected: 'Sera', units: [sera, tamsin] });
+      expect(state).toMatchObject({
+        id: 'heal',
+        goal: 'Heal Tamsin',
+        anchor: { kind: 'unit', name: 'Tamsin' },
+      });
+    });
+
+    it('a non-healer selected, or nobody hurt: the ordinary advice', () => {
+      expect(
+        free({ selected: 'Edric', units: [edric, sera, tamsin], menu: ['Attack', 'Wait'] }).id,
+      ).toBe('act-attack');
+      expect(
+        free({ state: 'UNIT_SELECTED', selected: 'Edric', units: [edric, sera, tamsin] }).id,
+      ).toBe('move-free');
+      const healthy = { ...tamsin, hp: 17 };
+      expect(
+        free({ selected: 'Sera', units: [sera, healthy], menu: ['Attack', 'Heal', 'Wait'] }).id,
+      ).toBe('act-attack');
+    });
+
+    it('the hurt healer herself is not told to heal herself', () => {
+      const hurtSera = { ...sera, hp: 5 };
+      expect(
+        free({ selected: 'Sera', units: [hurtSera, edric], menu: ['Attack', 'Heal', 'Wait'] }).id,
+      ).toBe('act-attack');
+    });
+  });
+
+  it('names Item only when the menu offers it (a unit with nothing to use has no Item row)', () => {
+    const without = free({ menu: ['Trade', 'Wait'] });
+    expect(without.id).toBe('act-wait');
+    expect(without.detail).toBe('No enemy in reach. Wait ends this move.');
+    expect(free({ menu: ['Item', 'Wait'] }).detail).toBe(
+      'No enemy in reach. Wait ends this move; Item uses what it carries.',
+    );
   });
 
   it('leaves out a greyed row on desktop and on the phone rail', () => {

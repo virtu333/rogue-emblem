@@ -25,6 +25,7 @@ import { unitPortrait } from './unitPortrait.js';
 import { createXpRow } from './xpBar.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
+import { itemDisplayName } from '../utils/itemNames.js';
 import {
   bundleTargetBlock,
   applyRewardBundle,
@@ -39,6 +40,7 @@ import { pushOverlay, removeOverlay } from '../utils/overlayStack.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
 import { playRewardReveal, rewardRevealPending } from './rewardReveal.js';
+import { rewardRerollButtonState } from './rewardRerollButton.js';
 import { itemIcon, itemHero } from './itemIcons.js';
 import { itemKeywordRow } from './itemKeywordChips.js';
 import { itemKeywords, itemBaseLineFor } from '../engine/ItemKeywords.js';
@@ -231,8 +233,9 @@ export class MobileRewards {
     const label = (c) =>
       c.type === 'skip'
         ? `Take ${this.skipGold} gold instead`
-        : (c.item ? `${c.item.name}${c.quantity > 1 ? ` ×${c.quantity}` : ''}` : '') ||
-          `${c.goldAmount || 0} gold${c.xpAmount ? ` + ${c.xpAmount} team XP` : ''}`;
+        : (c.item
+            ? `${itemDisplayName(c.item, scene.gameData?.skills)}${c.quantity > 1 ? ` ×${c.quantity}` : ''}`
+            : '') || `${c.goldAmount || 0} gold${c.xpAmount ? ` + ${c.xpAmount} team XP` : ''}`;
     const describe = (c) =>
       c.type === 'skip'
         ? skipDominated
@@ -352,13 +355,24 @@ export class MobileRewards {
     }
     const actions = node('div', null, 'ch-footer ch-rewards-footer');
     const picks = scene._elitePicksRemaining || 1;
-    actions.append(
-      node(
-        'span',
-        `Choose ${picks} reward${picks > 1 ? 's' : ''}${scene.isBoss ? ' · the boss’s spoils' : ''}`,
-        'mu-help ch-footer-lead',
-      ),
+    const lead = node(
+      'span',
+      `${this.rerolled && !this.controller.claimed?.size ? 'New choices drawn · ' : ''}Choose ${picks} reward${picks > 1 ? 's' : ''}${scene.isBoss ? ' · the boss’s spoils' : ''}`,
+      'mu-help ch-footer-lead',
     );
+    lead.setAttribute('aria-live', 'polite');
+    actions.append(lead);
+    // Branching Threads (Home Base): redraw every choice before the first pick. Hidden
+    // when the run has no rerolls, so the screen is unchanged without the upgrade.
+    const rerollState = rewardRerollButtonState(this.controller.rerollStatus?.() || null);
+    if (!rerollState.hidden) {
+      const reroll = this.button(rerollState.label, () => this.reroll());
+      reroll.dataset.focus = 'reroll';
+      reroll.className = 'ch-reroll';
+      reroll.title = rerollState.reason;
+      reroll.disabled = rerollState.disabled;
+      actions.append(reroll);
+    }
     const claim = this.button(c.type === 'skip' ? 'Take gold' : 'Choose reward', () => {
       if (!this.controller.isRewardAvailable(this.selected)) return;
       if (c.type === 'skip' || c.type === 'gold' || c.item?.type === 'Scroll') {
@@ -380,12 +394,44 @@ export class MobileRewards {
         .querySelector(`[data-focus="${focus}"]:not(:disabled)`)
         ?.focus({ preventScroll: true });
     if (this.revealPending) this.startReveal(row, all);
+    else if (this.replayReveal) {
+      // A reroll's new cards turn face up like the first ones (already saved face up).
+      this.replayReveal = false;
+      this.playReveal(row, all);
+    }
+  }
+  /**
+   * Branching Threads: draw the whole set of choices again (the controller saves the new
+   * choices and the spent charge in one write; a failed save changes nothing and shows
+   * Retry save). Only from the cards, never mid-choice.
+   */
+  reroll() {
+    if (this.busy || this.child || this.notice || this.steps.length || !this.visible) return;
+    const result = this.controller.rerollRewards?.();
+    if (!result?.ok) {
+      if (this.controller.saveError) return this.renderSaveFailure();
+      return this.render();
+    }
+    this.reveal?.skip();
+    this.choices = this.controller.choices;
+    this.selected = 0;
+    this.draftScroll = 0;
+    this.rerolled = true;
+    this.replayReveal = true;
+    this.scene.registry?.get?.('audio')?.playSFX('sfx_confirm');
+    this.render();
+    // Keep the focus on Reroll while it can go again; else on the first card.
+    if (!this.root.contains(document.activeElement) || document.activeElement.disabled)
+      this.root.querySelector('.reward-card:not(:disabled)')?.focus({ preventScroll: true });
   }
   /** Reward reveal: Hollow Sun backs turn in order (presentation only; tap skips). */
   startReveal(row, all) {
     this.revealPending = false;
     this.controller.record.revealed = true;
     if (this.controller.persist && !this.controller.persist()) return this.renderSaveFailure();
+    this.playReveal(row, all);
+  }
+  playReveal(row, all) {
     const speed = this.overlayScene.registry?.get?.('settings')?.getBattleSpeed?.();
     this.reveal = playRewardReveal(row, [...row.children], {
       still: choiceReducedMotion(this.overlayScene) || speed === 'instant',
@@ -595,14 +641,14 @@ export class MobileRewards {
     const run = this.scene.runManager;
     if (choice.type === 'accessory') {
       this.pushStep({
-        title: `Equip ${item.name}`,
+        title: `Equip ${itemDisplayName(item, this.scene.gameData?.skills)}`,
         subject: item,
         choices: [...run.roster, 'pool'],
         label: (unit) => (unit === 'pool' ? 'Keep in shared pool' : unit.name),
         describe: (unit) =>
           unit === 'pool'
             ? 'Choose who equips it later.'
-            : `Equip now${unit.accessory ? `; ${unit.accessory.name} returns to the shared pool` : ''}.`,
+            : `Equip now${unit.accessory ? `; ${itemDisplayName(unit.accessory, this.scene.gameData?.skills)} returns to the shared pool` : ''}.`,
         final: true,
         apply: (unit) => applyAccessoryReward(run, item, unit),
       });

@@ -138,8 +138,8 @@ test('phone: the coach Skip confirms, then the ending plays and Home Base holds 
     JSON.parse(localStorage.getItem('emblem_rogue_slot_1_meta')),
   );
   expect(meta.prologue).toMatchObject({ state: 'complete', grantPaid: true });
-  expect(meta.totalValor).toBe(60);
-  expect(meta.totalSupply).toBe(40);
+  expect(meta.totalValor).toBe(50);
+  expect(meta.totalSupply).toBe(35);
   expect(meta.runsStarted).toBe(0);
   expect(await page.evaluate(() => localStorage.getItem('emblem_rogue_slot_1_run'))).toBeNull();
   await expect(page.locator('.mh-onboarding')).toContainText('This is what stays between runs.');

@@ -173,6 +173,52 @@ describe('checkBossHalfHealth', () => {
     await new BattleBeatsController(scene, () => Math.random()).checkBossHalfHealth();
     expect(scene.dialogueOverlay.show).toHaveBeenCalled();
   });
+
+  describe('a boss with Revival Stones (docs/specs/phase3.md 3D)', () => {
+    const stoned = (extra) => ({
+      isBoss: true,
+      name: 'Iron Captain',
+      stats: { HP: 20 },
+      revivalStonesMax: 2,
+      ...extra,
+    });
+
+    it('speaks on the first bar even when one exchange took it from above half to empty', async () => {
+      // A bar broke (1 of 2 stones left) and the refill hides that it crossed half: the line
+      // is still the first bar's, said once.
+      const { scene } = makeScene({
+        enemyUnits: [stoned({ currentHP: 20, revivalStones: 1 })],
+      });
+      await new BattleBeatsController(scene, () => Math.random()).checkBossHalfHealth();
+      expect(scene.dialogueOverlay.show).toHaveBeenCalledTimes(1);
+      expect(scene.runManager.markDialogueShown).toHaveBeenCalledWith('boss_half_Iron Captain');
+    });
+
+    it('stays silent on a full, untouched stoned bar', async () => {
+      const { scene } = makeScene({
+        enemyUnits: [stoned({ currentHP: 20, revivalStones: 2 })],
+      });
+      await new BattleBeatsController(scene, () => Math.random()).checkBossHalfHealth();
+      expect(scene.dialogueOverlay.show).not.toHaveBeenCalled();
+    });
+
+    it('does not speak again on the second bar (the shown-dialogue key holds)', async () => {
+      const { scene } = makeScene({
+        enemyUnits: [stoned({ currentHP: 5, revivalStones: 1 })],
+      });
+      scene.runManager.hasShownDialogue = vi.fn(() => true);
+      await new BattleBeatsController(scene, () => Math.random()).checkBossHalfHealth();
+      expect(scene.dialogueOverlay.show).not.toHaveBeenCalled();
+    });
+
+    it('a boss that never had stones is unchanged: full HP is silent', async () => {
+      const { scene } = makeScene({
+        enemyUnits: [{ isBoss: true, name: 'Iron Captain', currentHP: 20, stats: { HP: 20 } }],
+      });
+      await new BattleBeatsController(scene, () => Math.random()).checkBossHalfHealth();
+      expect(scene.dialogueOverlay.show).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe('lord quips', () => {

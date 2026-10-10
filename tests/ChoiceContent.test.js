@@ -326,10 +326,17 @@ describe('blessings and difficulty', () => {
   it("names a pact blessing's fixed price as a pact on the card", () => {
     const tome = data.blessings.blessings.find((x) => x.pact);
     expect(tome).toBeTruthy();
-    const card = blessingCardContent({ ...tome, rolledCost: { label: tome.pact.label } });
-    expect(card).toMatchObject({ pact: true, costLabel: 'Pact', cost: tome.pact.label });
+    const label = 'Churches cannot revive the fallen this run';
+    const card = blessingCardContent({ ...tome, rolledCost: { label, kind: 'pact' } });
+    expect(card).toMatchObject({ pact: true, costLabel: 'Pact', cost: label });
     const plain = data.blessings.blessings.find((x) => !x.pact && x.tier >= 2);
     expect(blessingCardContent({ ...plain, rolledCost: { label: 'x' } }).costLabel).toBe('Cost');
+  });
+  it("lists First Light's lower meta currency with the terms, not with what pays back", () => {
+    const summary = generateModifierSummary(data.difficulty.modes.normal);
+    const content = difficultyBannerContent({ id: 'normal', label: 'First Light', summary }, 0);
+    expect(content.harder).toContain('80% meta currency');
+    expect(content.rewards.some((l) => /meta currency/.test(l))).toBe(false);
   });
   it('splits a mode into what grows harder and what pays back', () => {
     const mode = data.difficulty.modes.lunatic;

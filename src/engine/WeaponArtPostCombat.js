@@ -10,6 +10,9 @@ import {
 import { mergeCombatMods } from './Combat.js';
 import { isRooted } from './StatusConditionSystem.js';
 import { isEntity } from './EntitySystem.js';
+import { traceForcedMove } from './ForcedMovement.js';
+import { effectiveSkills } from './EffectiveSkills.js';
+import { getUnitMarkFor } from './MarkSystem.js';
 
 const SIDE_ORDER = ['attacker', 'defender'];
 const TIER2_EFFECT_ORDER = [
@@ -131,12 +134,34 @@ function areaDamageStep(side, art, result, attacker, defender) {
   };
 }
 
+/**
+ * The on-kill skills a unit has in this combat (docs/specs/phase3.md 3B): its effective
+ * skills (equipped list, the weapon's bound skill, the accessory's) whose trigger is
+ * `on-kill`, each once, in effective order.
+ */
+export function onKillSkillIds(unit, skillsData) {
+  if (!unit || !Array.isArray(skillsData)) return [];
+  return effectiveSkills(unit).filter(
+    (id) => skillsData.find((skill) => skill?.id === id)?.trigger === 'on-kill',
+  );
+}
+
+/**
+ * The Mark a unit bears when it fires on a kill (Mark of the Ember, 3C): its id, or null.
+ * It rides the same step as the on-kill skills, so it too fires once per combat.
+ */
+export function onKillMarkId(unit, marksData) {
+  return getUnitMarkFor(unit, 'on-kill', marksData)?.id ?? null;
+}
+
 export function getPostCombatPipelineSteps({
   attacker = null,
   defender = null,
   result = null,
   attackerWeaponArt = null,
   defenderWeaponArt = null,
+  skillsData = null,
+  marksData = null,
 } = {}) {
   const steps = [
     { type: 'affix', sourceSide: 'attacker' },
@@ -254,6 +279,10 @@ export function getPostCombatPipelineSteps({
             mode: effect.mode,
             distance: effect.distance,
             ...(effect.mode === 'ram' ? { collisionDamage: effect.collisionDamage } : {}),
+            // Override pushes the foes its line hit as well, so it needs the line.
+            ...(effect.mode === 'pushAreaVictims'
+              ? { area: getWeaponArtArea(artsBySide[side]) }
+              : {}),
           });
           continue;
         }
@@ -338,6 +367,23 @@ export function getPostCombatPipelineSteps({
     }
   }
 
+  // On-kill skills (Lifetaker, Speedtaker): last, so a blast's or a ram's victims have
+  // fallen (and left their `areaCredits`) by the time the kill is read, and after
+  // `art_kill_buff`. One step per side, whatever it killed; death is read at application.
+  for (const side of SIDE_ORDER) {
+    const unit = side === 'attacker' ? attacker : defender;
+    const skillIds = onKillSkillIds(unit, skillsData);
+    const markId = onKillMarkId(unit, marksData);
+    if (skillIds.length <= 0 && !markId) continue;
+    steps.push({
+      type: 'skill_on_kill',
+      sourceSide: side,
+      targetSide: getOpposingSide(side),
+      skillIds,
+      ...(markId ? { markId } : {}),
+    });
+  }
+
   return steps;
 }
 
@@ -407,6 +453,7 @@ export function resolvePostCombatMove({
   rows = 0,
   getMoveCost = null,
   getUnitAt = null,
+  getTerrainAt = null,
   isImmovable = null,
 } = {}) {
   if (!sourceUnit || typeof getMoveCost !== 'function' || typeof getUnitAt !== 'function') {
@@ -528,55 +575,49 @@ export function resolvePostCombatMove({
     };
   }
 
+  // The target of a push or a ram is displaced by the art's user, so it slides if it
+  // lands on Ice (ForcedMovement.traceForcedMove: the one forced-slide rule). The user's
+  // own moves (advance, retreat, through, swap) are not forced and never slide.
+  const forcedMove = () => {
+    const grid = { cols, rows, getMoveCost, getTerrainAt: getTerrainAt || undefined };
+    // A defeated unit still on the grid does not block (post-combat moves resolve first).
+    const occupantAt = (col, row) => {
+      const occupant = getUnitAt(col, row);
+      if (!occupant || occupant === targetUnit) return null;
+      return occupant.currentHP <= 0 ? null : occupant;
+    };
+    return traceForcedMove(targetUnit, direction.dc, direction.dr, stepDistance, grid, occupantAt);
+  };
+  const forcedAssignment = (move) => ({
+    unit: targetUnit,
+    col: move.col,
+    row: move.row,
+    ...(move.slid ? { slid: true, path: move.path } : {}),
+  });
+
   if (normalizedMode === 'ram') {
-    // The Entity's footprint never moves. Otherwise the target slides up to `distance`
-    // tiles and stops before the edge, impassable ground or a living unit; stopping
-    // short is a collision (with that unit, or with nothing for a wall).
+    // The Entity's footprint never moves. Otherwise the target is driven up to
+    // `distance` tiles, then slides on if that put it on Ice; the push stops before the
+    // edge, impassable ground or a living unit, and stopping short of the distance is a
+    // collision (with that unit, or with nothing for a wall). A slide held after the
+    // push's distance was spent is no collision: only the push was stopped.
     if (isEntity(targetUnit)) return { ok: false, reason: 'immovable' };
-    let col = targetUnit.col;
-    let row = targetUnit.row;
-    let collision = null;
-    for (let i = 0; i < stepDistance; i++) {
-      const nextCol = col + direction.dc;
-      const nextRow = row + direction.dr;
-      if (
-        !isInBounds(nextCol, nextRow, cols, rows) ||
-        !Number.isFinite(getMoveCost(nextCol, nextRow, targetUnit.moveType))
-      ) {
-        collision = { obstacle: null };
-        break;
-      }
-      const occupant = getUnitAt(nextCol, nextRow);
-      if (occupant && occupant !== targetUnit && !(occupant.currentHP <= 0)) {
-        collision = { obstacle: occupant };
-        break;
-      }
-      col = nextCol;
-      row = nextRow;
-    }
-    const moved = col !== targetUnit.col || row !== targetUnit.row;
+    const move = forcedMove();
+    const collision = move.stoppedShort
+      ? { obstacle: move.stop === 'unit' && typeof move.blocker === 'object' ? move.blocker : null }
+      : null;
     return {
       ok: true,
-      assignments: moved ? [{ unit: targetUnit, col, row }] : [],
+      assignments: move.steps > 0 ? [forcedAssignment(move)] : [],
       collision,
     };
   }
 
   if (normalizedMode === 'push') {
-    const dest = traceLinearDestination({
-      unit: targetUnit,
-      startCol: targetUnit.col,
-      startRow: targetUnit.row,
-      dc: direction.dc,
-      dr: direction.dr,
-      distance: stepDistance,
-      cols,
-      rows,
-      getMoveCost,
-      getUnitAt,
-    });
-    if (!dest) return { ok: false, reason: 'blocked' };
-    return { ok: true, assignments: [{ unit: targetUnit, col: dest.col, row: dest.row }] };
+    // All or nothing: every tile of the push must be enterable, or the target stays.
+    const move = forcedMove();
+    if (move.steps <= 0 || move.stoppedShort) return { ok: false, reason: 'blocked' };
+    return { ok: true, assignments: [forcedAssignment(move)] };
   }
 
   const dest = traceLinearDestination({

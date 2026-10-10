@@ -1,4 +1,5 @@
 import { isDifficultyId } from './DifficultyEngine.js';
+import { DEFAULT_MARK_CHANCE } from './MarkSystem.js';
 import { mergeSeenDialogueKeys } from '../utils/seenDialogue.js';
 import { mergeRunRecords, runRecordsUnderPressure } from './RunRecords.js';
 import { isQuotaExceededError, setItemFreeingSpace } from './SaveSpace.js';
@@ -271,6 +272,29 @@ export const BALANCE_REVISIONS = Object.freeze([
       recruit_xp: [175, 350],
       recruit_accessory: [325],
       recruit_weapon_forge: [200, 350],
+    },
+  },
+  {
+    revision: 3, // 2026-10-08 balance: cheaper loot-chance upgrades, Steel Arms, Legends Awaken
+    // (Quick Feet, Lord Swiftness, their flat tracks and Deadly Arsenal II rose in price
+    // the same day: a rise owes nobody anything, so it is not listed.)
+    from: {
+      steel_arms: [800],
+      legendary_lord_chance: [300, 600],
+      trade_contacts: [150, 250],
+      loot_quality: [150, 300],
+      studied_training: [150, 300],
+      trinket_collector: [150, 300],
+      heros_call: [150, 300, 500],
+    },
+    to: {
+      steel_arms: [500],
+      legendary_lord_chance: [150, 300],
+      trade_contacts: [60, 100],
+      loot_quality: [120, 240],
+      studied_training: [120, 240],
+      trinket_collector: [120, 240],
+      heros_call: [120, 240, 400],
     },
   },
 ]);
@@ -1117,6 +1141,7 @@ export class MetaProgressionManager {
    *            lordRecruitChanceBonus, recruitPromotionChanceBonus,
    *            deployBonus, visionChargesBonus, caravanChanceBonus, recruitRandomSkill, recruitStartingVulnerary, extraStartingUnitTier,
    *            lethalArmoryTier, recruitWeaponForge, recruitStartingAccessory, recruitXpBonus,
+   *            markChance (Marked Blood: the share of recruits that bear a Mark),
    *            startingWeaponForge, deadlyArsenalTier,
    *            ironArms, steelArms, artAdept, startingAccessoryTier, startingStaffTier,
    *            startingReclassSeal,
@@ -1134,6 +1159,8 @@ export class MetaProgressionManager {
       battleGoldMultiplier: 0,
       extraVulnerary: 0,
       vulneraryUses: 0,
+      // Branching Threads: battle-reward rerolls a run starts with (tier totals, not increments).
+      rewardRerolls: 0,
       lootCategoryWeightBonuses: {},
       lootWeaponQualityBonus: 0,
       lordRecruitChanceBonus: 0,
@@ -1148,6 +1175,7 @@ export class MetaProgressionManager {
       recruitWeaponForge: 0,
       recruitStartingAccessory: 0,
       recruitXpBonus: 0,
+      markChance: DEFAULT_MARK_CHANCE,
       startingWeaponForge: 0,
       deadlyArsenalTier: 0,
       ironArms: 0,
@@ -1200,6 +1228,11 @@ export class MetaProgressionManager {
       if (effect.extraVulnerary !== undefined) effects.extraVulnerary = effect.extraVulnerary;
       if (effect.vulneraryUses !== undefined)
         effects.vulneraryUses = Math.max(effects.vulneraryUses, Number(effect.vulneraryUses) || 0);
+      if (effect.rewardRerolls !== undefined)
+        effects.rewardRerolls = Math.max(
+          effects.rewardRerolls,
+          Math.max(0, Math.trunc(Number(effect.rewardRerolls) || 0)),
+        );
       if (effect.lootCategoryWeightBonuses) {
         const mapped = normalizeLootCategoryWeightBonuses(effect.lootCategoryWeightBonuses);
         if (mapped) {
@@ -1259,6 +1292,9 @@ export class MetaProgressionManager {
           effects.recruitXpBonus,
           Number(effect.recruitXpBonus) || 0,
         );
+      }
+      if (effect.markChance !== undefined) {
+        effects.markChance = Math.max(effects.markChance, Number(effect.markChance) || 0);
       }
       // Starting equipment effects
       if (effect.startingWeaponForge !== undefined)

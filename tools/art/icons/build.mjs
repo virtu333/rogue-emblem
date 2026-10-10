@@ -13,7 +13,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { renderIcon } from './lib/pixelIcon.mjs';
 import { MATERIALS } from './lib/palette.mjs';
-import { iconEntries, loadData, SOCKETS, RIMS } from './lib/catalog.mjs';
+import { iconEntries, iconAliases, loadData, SOCKETS, RIMS } from './lib/catalog.mjs';
 import { encodeIndexed } from './lib/png.mjs';
 import prettier from 'prettier';
 
@@ -36,6 +36,15 @@ export function buildAtlases(data = loadData()) {
     if (!SOCKETS.includes(e.socket)) throw new Error(`${e.id}: unknown socket ${e.socket}`);
     if (!RIMS.includes(e.rim)) throw new Error(`${e.id}: unknown rim ${e.rim}`);
   }
+  const aliases = iconAliases(data);
+  for (const a of aliases) {
+    if (seen.has(a.id)) throw new Error(`duplicate icon id ${a.id}`);
+    seen.add(a.id);
+    if (!entries.some((e) => e.id === a.of))
+      throw new Error(`${a.id}: reuses unknown icon ${a.of}`);
+    if (!SOCKETS.includes(a.socket)) throw new Error(`${a.id}: unknown socket ${a.socket}`);
+    if (!RIMS.includes(a.rim)) throw new Error(`${a.id}: unknown rim ${a.rim}`);
+  }
   const rows = Math.ceil(entries.length / COLUMNS);
   const atlases = {};
   for (const size of SIZES) {
@@ -51,7 +60,7 @@ export function buildAtlases(data = loadData()) {
     });
     atlases[size] = { w, h, rgba };
   }
-  return { entries, atlases, rows };
+  return { entries, aliases, atlases, rows };
 }
 
 function readHeroes() {
@@ -68,11 +77,17 @@ function readHeroes() {
   return out;
 }
 
-export function buildManifest({ entries, atlases }, pngs, heroes) {
+export function buildManifest({ entries, aliases = [], atlases }, pngs, heroes) {
   const icons = {};
   entries.forEach((e, i) => {
     icons[e.id] = [i, SOCKETS.indexOf(e.socket), RIMS.indexOf(e.rim)];
   });
+  // A reused picture: its own socket and rim on the cell of the icon it shares.
+  const reused = {};
+  for (const a of aliases) {
+    icons[a.id] = [icons[a.of][0], SOCKETS.indexOf(a.socket), RIMS.indexOf(a.rim)];
+    reused[a.id] = a.of;
+  }
   const atlasInfo = {};
   for (const size of SIZES)
     atlasInfo[size] = {
@@ -94,6 +109,7 @@ export function buildManifest({ entries, atlases }, pngs, heroes) {
     heroSize: 96,
     heroes,
     icons,
+    aliases: reused,
   };
 }
 

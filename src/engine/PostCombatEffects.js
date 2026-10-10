@@ -5,12 +5,16 @@
 // It is a generator. Every state change happens here, in order; between changes it
 // yields "beats" for the caller to act on:
 //   { kind: 'remove', unit, killer }  REQUIRED — the unit fell; remove it now
-//   { kind: 'moved', units }          REQUIRED — units changed tile; refresh what
-//                                     depends on positions (fog, danger)
+//   { kind: 'moved', units, slides? } REQUIRED — units changed tile; refresh what
+//                                     depends on positions (fog, danger). `slides`
+//                                     ({ unit, from, to, path }) lists a push that slid on
+//                                     Ice, for the scene to draw; the tiles are settled
 //   { kind: 'hp', unit }              presentation — HP changed
 //   { kind: 'poison', unit, amount }  presentation — a damage-over-time number
 //   { kind: 'status', unit, status }  presentation — a status condition landed
 //   { kind: 'hint', unit, text, tone} presentation — a short floating label
+//   { kind: 'stone', unit }           presentation — a Revival Stone broke and refilled the bar
+//                                     (UnitHealth.damageUnitDetailed; the refill is settled)
 // The scene awaits each beat (a death animation plays before the next effect); the
 // harness acts on the required beats and skips the rest. Either way the effects
 // resolve in the same order against the same state.
@@ -21,6 +25,8 @@
 //   hostilesOf(unit), alliesOf(unit)   (area victims; Divine Charge / buff allies)
 //   getTerrainAt?(col, row)            (an area victim's terrain DEF; none when absent)
 //   turnNumber
+//   skillsData?                        gameData.skills (the on-kill skills' catalog)
+//   marksData?                         gameData.marks (Mark of the Ember's catalog)
 //
 // Area arts also leave a credit for every victim they hit on `result.areaCredits`
 // ({ source, victim, damage, hpBefore, killed }): plain state for the owner's XP award,
@@ -28,12 +34,14 @@
 
 import { applyGrievousStatus, getAttackAffixes, isDisplacementImmune } from './AffixSystem.js';
 import { planAreaBlows } from './AreaDamage.js';
+import { planAreaPush } from './AreaPush.js';
 import { gridDistance } from './Combat.js';
-import { applyCondition } from './StatusConditionSystem.js';
-import { damageUnit, healUnit, setUnitHP } from './UnitHealth.js';
+import { applyCondition, isSilenced } from './StatusConditionSystem.js';
+import { damageUnit, damageUnitDetailed, healUnit, setUnitHP } from './UnitHealth.js';
 import { markHoldDisturbed } from './HoldDisturbance.js';
 import { applyBattleDebuff } from './BattleStatDeltas.js';
 import { applyTimedBuffEntry, resolveTimedBuffExpiry } from './TimedWeaponArtBuffs.js';
+import { getMarkDef, markProcs } from './MarkSystem.js';
 import {
   didCombatSideLandHit,
   getPostCombatPipelineSteps,
@@ -53,6 +61,8 @@ export function* postCombatEffects(
     result,
     attackerWeaponArt,
     defenderWeaponArt,
+    skillsData: world?.skillsData ?? null,
+    marksData: world?.marksData ?? null,
   });
   for (const step of steps) {
     const sourceUnit = step.sourceSide === 'defender' ? defender : attacker;
@@ -147,6 +157,9 @@ function* postCombatStep(step, { attacker, defender, result, sourceUnit, targetU
         yield { kind: 'hint', unit: sourceUnit, text: 'Bloodlust!', tone: 'bloodlust' };
       }
       break;
+    case 'skill_on_kill':
+      yield* skillOnKill(step, sourceUnit, targetUnit, result, world);
+      break;
     case 'tier2_move':
       yield* postCombatMove(sourceUnit, targetUnit, step, world, result);
       break;
@@ -167,11 +180,91 @@ function* postCombatStep(step, { attacker, defender, result, sourceUnit, targetU
   }
 }
 
+/** The most Speedtaker stacks a unit may hold when its skill names none. */
+const DEFAULT_SPEEDTAKER_MAX = 5;
+
+/**
+ * Did this side's combat kill? The primary target is down, or one of the side's own
+ * area or line strikes (or a ram's collision) in this combat felled a victim: those left
+ * `result.areaCredits` when their blows were dealt, earlier in the pipeline. A kill that
+ * is not part of a combat (Deathburst, terrain, poison ticks) never leaves a credit.
+ */
+function killedInCombat(sourceUnit, targetUnit, result) {
+  if (targetUnit && targetUnit.currentHP <= 0) return true;
+  return (result?.areaCredits || []).some(
+    (credit) => credit?.source === sourceUnit && credit.killed === true,
+  );
+}
+
+/**
+ * On-kill skills (docs/specs/phase3.md 3B): a side that killed in this combat and still
+ * stands applies each of its on-kill skills once, however many foes fell. Death is read
+ * here, at application, after the art kill buff and every blast has resolved. So is
+ * Silence: a Silenced unit's skills (learned, the weapon's or the ring's) give nothing, as
+ * in every other skill trigger, but its Mark is not a skill and still fires.
+ */
+function* skillOnKill(step, sourceUnit, targetUnit, result, world) {
+  if (!sourceUnit || sourceUnit.currentHP <= 0) return;
+  if (!killedInCombat(sourceUnit, targetUnit, result)) return;
+  const catalog = Array.isArray(world?.skillsData) ? world.skillsData : [];
+  const applied = new Set();
+  const skillIds = isSilenced(sourceUnit) ? [] : step.skillIds || [];
+  for (const skillId of skillIds) {
+    if (applied.has(skillId)) continue;
+    applied.add(skillId);
+    const skill = catalog.find((entry) => entry?.id === skillId);
+    if (!skill || skill.trigger !== 'on-kill' || !skill.effects) continue;
+    yield* onKillHeal(skill, sourceUnit);
+    yield* onKillSpeed(skill, sourceUnit);
+  }
+  if (step.markId) yield* onKillMark(step.markId, sourceUnit, world);
+}
+
+/**
+ * Mark of the Ember (3C): a chance on the battle's Math.random to restore flat HP on a kill,
+ * through UnitHealth (Wounded blocks it). The roll is taken whether or not it heals.
+ */
+function* onKillMark(markId, unit, world) {
+  const mark = getMarkDef(markId, world?.marksData);
+  if (!mark || mark.trigger !== 'on-kill' || unit.markId !== markId) return;
+  if (!markProcs(mark)) return;
+  const amount = Math.max(0, Math.trunc(Number(mark.effect?.healFlat) || 0));
+  if (amount <= 0) return;
+  const healed = healUnit(unit, amount);
+  if (healed <= 0) return;
+  yield { kind: 'hp', unit };
+  yield { kind: 'hint', unit, text: `${mark.name} +${healed}`, tone: 'mark' };
+}
+
+/** Lifetaker: heal a share of max HP (floored, at least 1) through UnitHealth, so Wounded blocks it. */
+function* onKillHeal(skill, unit) {
+  const percent = Number(skill.effects.healPercentMaxHp) || 0;
+  if (percent <= 0) return;
+  const amount = Math.max(1, Math.floor(((Number(unit.stats?.HP) || 0) * percent) / 100));
+  const healed = healUnit(unit, amount);
+  if (healed <= 0) return;
+  yield { kind: 'hp', unit };
+  yield { kind: 'hint', unit, text: `${skill.name} +${healed}`, tone: 'heal' };
+}
+
+/** Speedtaker: +SPD for the battle per kill up to a cap; the stacks ride `_speedtakerStacks`. */
+function* onKillSpeed(skill, unit) {
+  const gain = Math.trunc(Number(skill.effects.spdPerKill) || 0);
+  if (gain <= 0) return;
+  const max = Math.max(0, Math.trunc(Number(skill.effects.spdMax) || DEFAULT_SPEEDTAKER_MAX));
+  const stacks = Math.max(0, Math.trunc(Number(unit._speedtakerStacks) || 0));
+  if (stacks >= max) return;
+  applyBattleDebuff(unit, 'SPD', gain);
+  unit._speedtakerStacks = stacks + 1;
+  yield { kind: 'hint', unit, text: `${skill.name} +${gain} SPD`, tone: 'buff' };
+}
+
 function* damageOverTime(unit, amount, floor) {
-  const actual = damageUnit(unit, amount, { floor });
+  const { lost: actual, stoneBroken } = damageUnitDetailed(unit, amount, { floor });
   if (actual > 0) {
     yield { kind: 'hp', unit };
     yield { kind: 'poison', unit, amount: actual };
+    if (stoneBroken) yield { kind: 'stone', unit };
   }
 }
 
@@ -241,6 +334,10 @@ function* divineChargeHeal(step, attacker, defender, world) {
 
 function* postCombatMove(sourceUnit, targetUnit, step, world, result) {
   if (!sourceUnit) return;
+  if (step.mode === 'pushAreaVictims') {
+    yield* pushAreaVictims(sourceUnit, targetUnit, step, world);
+    return;
+  }
   const moveResult = resolvePostCombatMove({
     sourceUnit,
     targetUnit,
@@ -250,6 +347,7 @@ function* postCombatMove(sourceUnit, targetUnit, step, world, result) {
     rows: world.rows,
     getMoveCost: world.getMoveCost,
     getUnitAt: world.getUnitAt,
+    getTerrainAt: world.getTerrainAt,
     isImmovable: (unit) => isDisplacementImmune(unit, world.affixes),
   });
   if (!moveResult.ok) {
@@ -259,15 +357,60 @@ function* postCombatMove(sourceUnit, targetUnit, step, world, result) {
     return;
   }
   const units = [];
+  const slides = [];
   for (const assignment of moveResult.assignments) {
     const moved = assignment.unit.col !== assignment.col || assignment.unit.row !== assignment.row;
+    // A pushed unit that slid on Ice: the tiles it crossed, for the scene to draw.
+    if (moved && assignment.slid)
+      slides.push({
+        unit: assignment.unit,
+        from: { col: assignment.unit.col, row: assignment.unit.row },
+        to: { col: assignment.col, row: assignment.row },
+        path: assignment.path,
+      });
     assignment.unit.col = assignment.col;
     assignment.unit.row = assignment.row;
     if (moved) markHoldDisturbed(assignment.unit, 'moved');
     units.push(assignment.unit);
   }
-  if (units.length > 0) yield { kind: 'moved', units };
+  if (units.length > 0) yield { kind: 'moved', units, ...(slides.length > 0 ? { slides } : {}) };
   if (moveResult.collision) yield* collide(step, sourceUnit, targetUnit, moveResult, world, result);
+}
+
+/**
+ * Override: after the line's blows, the primary and every foe the line hit are driven
+ * away from the user, the farthest first (engine/AreaPush.js plans it over the real
+ * board; the preview plans the same push over the board the player knows). One `moved`
+ * beat settles every tile, then each foe that stood firm says so. A source that fell to
+ * the counter pushes nothing, as for every art move.
+ */
+function* pushAreaVictims(sourceUnit, primary, step, world) {
+  if (sourceUnit.currentHP <= 0 || !step.area) return;
+  const plan = planAreaPush({
+    source: sourceUnit,
+    primary,
+    area: step.area,
+    distance: step.distance,
+    units: world.hostilesOf(sourceUnit),
+    world,
+    getUnitAt: world.getUnitAt,
+  });
+  const units = [];
+  const slides = [];
+  for (const entry of plan.entries) {
+    if (!entry.moved) continue;
+    const { unit } = entry;
+    // A pushed unit that slid on Ice: the tiles it crossed, for the scene to draw.
+    if (entry.slid) slides.push({ unit, from: entry.from, to: entry.to, path: entry.path });
+    unit.col = entry.to.col;
+    unit.row = entry.to.row;
+    markHoldDisturbed(unit, 'moved');
+    units.push(unit);
+  }
+  if (units.length > 0) yield { kind: 'moved', units, ...(slides.length > 0 ? { slides } : {}) };
+  for (const entry of plan.entries)
+    if (entry.reason && entry.reason !== 'blocked' && entry.unit.currentHP > 0)
+      yield { kind: 'hint', unit: entry.unit, text: 'Braced!', tone: 'good' };
 }
 
 /**
@@ -286,11 +429,12 @@ function* collide(step, sourceUnit, targetUnit, moveResult, world, result) {
   const dealt = new Map();
   for (const unit of struck) {
     const hpBefore = unit.currentHP;
-    const actual = damageUnit(unit, amount);
+    const { lost: actual, stoneBroken } = damageUnitDetailed(unit, amount);
     dealt.set(unit, { hpBefore, actual });
     if (actual <= 0) continue;
     yield { kind: 'hp', unit };
     yield { kind: 'hint', unit, text: `Crash -${actual}`, tone: 'splash' };
+    if (stoneBroken) yield { kind: 'stone', unit };
   }
   if (hostile && dealt.get(obstacle)?.actual > 0) {
     if (result)
@@ -371,14 +515,21 @@ export function* areaDamage(step, sourceUnit, primary, world, result = null) {
   const tone = step.area.shape === 'line' ? 'pierce' : 'splash';
   const dealt = new Map(plan.map(({ unit }) => [unit, { hpBefore: unit.currentHP, damage: 0 }]));
 
+  // A victim whose Revival Stone broke is struck no more by this art: one bar per blow
+  // sequence, as a broken stone ends a combat's exchange.
+  const brokeBar = new Set();
   for (let blow = 0; blow < blows; blow++) {
     for (const { unit, damage } of plan) {
-      if (unit.currentHP <= 0 || damage <= 0) continue;
-      const actual = damageUnit(unit, damage, { floor });
+      if (unit.currentHP <= 0 || damage <= 0 || brokeBar.has(unit)) continue;
+      const { lost: actual, stoneBroken } = damageUnitDetailed(unit, damage, { floor });
       if (actual <= 0) continue;
       dealt.get(unit).damage += actual;
       yield { kind: 'hp', unit };
       yield { kind: 'hint', unit, text: `${label} -${actual}`, tone };
+      if (stoneBroken) {
+        brokeBar.add(unit);
+        yield { kind: 'stone', unit };
+      }
     }
   }
 

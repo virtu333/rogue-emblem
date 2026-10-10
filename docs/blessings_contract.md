@@ -7,7 +7,7 @@
 
 ## 2. Contract Version
 1. Contract name is `blessings`.
-2. Contract version is `1`.
+2. Contract version is `3` (`BlessingEngine.BLESSINGS_CONTRACT_VERSION`). Version `2` configs (rolled tier `costPools`) still validate and select as before, so old fixtures and saves keep working.
 3. Runtime implementation must expose this version for diagnostics and telemetry.
 
 ## 3. Data Schema
@@ -26,12 +26,27 @@
 13. Optional fields are `weight`, `tags`, `requires`, `excludes`, and `ui`.
 14. Unknown fields are ignored in non-strict mode and rejected in strict mode.
 
+## 3.1 Prices (v3, docs/specs/blessings-v3.md §3)
+1. `priceCatalog` maps a price id to `{ label, points, tags?, effects }`. `points` is the price's weight on one scale; `tags` (`gold`, `xp`, `growth`, `shop`) name what it touches.
+2. A tier II or III blessing lists its candidate `prices`: each a catalog id, or an array of ids paid together. A tier IV blessing carries a fixed `pact`: an array of ids. A tier I blessing has neither.
+3. `tierBands` gives each tier's `[min, max]` price points; every candidate and pact sits inside its tier's band.
+4. A price never shares an effect type with its blessing's boons, and a blessing tagged `gold` never carries a price tagged `gold`.
+5. A Debt price's `owed` is set for Dusk; `debtScale` (rung -> multiplier) scales it when the price is rolled, rounded to 50, and the rolled price stores the amount owed and says it in its label.
+6. Price effect types: every boon effect type, plus `burden` (`{ id, ...params }`, through `Burdens.addBurden`; a `wounded` burden with `target: 'commander'` falls on the commander, its stat drawn from the run seed), `vision_delta`, `act_deploy_cap_delta` (`{ act, value }`), `church_revive_disabled`, `eclipse_shadow_delta` and a negative `shop_price_discount`.
+7. `costPools` stays for saves rolled before v3.
+8. A tier II or III blessing whose own boon carries its cost (Slow Fuse's Act 1 dip, Gambler's Toss's bad tosses) names an `intrinsicPrice` `{ label, points }` in place of `prices`/`pact`. It is validated against the tier's band like any price, may not sit beside `prices` or `pact`, and is not allowed on tier I or IV. Rolling it spends one price draw (as a pact does, so no neighbouring offer moves) and stores `{ label, effects: [], kind: 'intrinsic' }`; there is no effect to apply, and a load never rolls a pool price for it. The shrine names it a **Price** (not a Cost or Pact). An intrinsic blessing is never safe for an event or a church to grant (granted later it would be a free boon).
+9. Boons that carry an intrinsic price: `lord_stat_arc` `{ stats, dipAct, dip, riseAct, rise }` (the starting lords: the dip applies in `dipAct` and is given back as it ends, the rise lands as `riseAct` begins, once; HP never below 1 and other stats never below 0; the tracker `blessingRuntimeModifiers.lordStatArcs` is saved; `engine/LordStatArc.js`) and `battle_gold_gamble` `{ chance, win, lose }` (each victory's gold is multiplied by `win` with probability `chance`, else `lose`, floored, on a toss hashed from the run seed and node id, after the elite/blessing/rung multipliers and before a Debt garnishes; `blessingRuntimeModifiers.battleGoldGamble` is saved; `engine/BattleGoldGamble.js`).
+10. `player_weapon_art_boon` `{ hpCostDelta, mapUsesBonus }` (Bloodless Art): `blessingRuntimeModifiers.playerArtHpCostDelta` (added to a **player** unit's art HP cost, floor 1 kept) and `playerArtMapUsesBonus` (extra per-map uses for a player unit, only for an art that has a `perMapLimit`); both saved. A missing param counts as 0, an integer is required (`hpCostDelta` ≤ 0, `mapUsesBonus` ≥ 0), and a boon that changes neither is refused by the validator and skipped by the handler (`invalid_player_weapon_art_boon_params`; `WeaponArtSystem.parsePlayerWeaponArtBoon` is the one reading). Foes never get either. This is separate from the price effect `weapon_art_hp_cost_delta`, which taxes every faction's arts. Every weapon-art call reads the run through `WeaponArtSystem.weaponArtRunOptions(run)`, never the modifiers by hand (`tests/WeaponArtBlessingBoundary.test.js`); the menus show the real limit and cost (`weaponArtUsesText` takes those options).
+11. `adjacent_ally_def_bonus` `{ perAlly, max }` (Phalanx Rite) and `isolated_combat_bonus` `{ radius, avoidBonus, critBonus }` (Duelist's Creed): player-unit combat bonuses on both sides of an exchange, read in `engine/BlessingCombatMods.js` from the profile's `adjacentAllyDef` / `isolated` lists (`blessingRuntimeModifiers.adjacentAllyDefBonuses` / `isolatedCombatBonuses`, saved). Phalanx Rite adds `min(max, perAlly x allies on a cardinal neighbour tile)` DEF; Duelist's Creed adds Avoid and Crit while no living ally is within `radius` tiles (Manhattan). Allies are the unit's own side (never foes or NPCs), the unit itself and the fallen excluded (`SkillSystem.countAdjacentAllies` / `hasAllyWithin`, shared with the `adjacent_ally` / `no_ally_within_2` accessory conditions). Every param is a positive integer (`avoidBonus` / `critBonus` may be omitted, not both, and `max` is at least `perAlly`); the validator refuses anything else and the handler skips it (`invalid_adjacent_ally_def_bonus_params`, `invalid_isolated_combat_bonus_params`). Both are safe to hand out in an event. Phalanx Rite ships as `{ perAlly: 2, max: 3 }` (+2 with one neighbour, +3 with two or more). Both apply to DEF / Avoid / Crit in a combat exchange (attacker or defender) and to nothing else; the effects that ignore every DEF mod ignore them (an area or line art's blows on victims other than the primary target, rams, the ballista, Deathburst). The enemy AI's target scoring does not see blessing mods (as for every blessing), and arena bouts get no blessing.
+
 ## 4. Selection Rules
 1. Run start presents 3 to 4 blessing options.
-2. At least one tier-1 option must be present.
-3. Tier-4 appearance is controlled by weighted chance.
-4. Candidate selection uses seeded RNG path only.
-5. Selection output stores only stable IDs and not mutable display text.
+2. At least one tier-1 option must be present: slot 1 is always a free tier I.
+3. v3: each later slot draws a tier by `offerWeights` (never one already drawn), then a blessing of that tier by its `weight`; a blessing at weight 0 is never offered. v2: later slots draw from the whole pool by weight.
+4. A price that would cost the run nothing (shadow with the Eclipse off, Vision with no charge, a deforge with nothing forged) is not rolled.
+5. The offered run's seed is kept for its slot until the run begins, so backing out and returning shows the same offer.
+6. Candidate selection uses seeded RNG path only.
+7. Selection output stores stable IDs and the rolled price (`rolledCost`: `{ label, effects, kind? }`; `kind` is `pact` or `intrinsic`).
 
 ## 5. Application Order
 1. Global modifier order is fixed.
@@ -54,13 +69,32 @@
 4. Save additions are additive and must not mutate unrelated fields.
 5. Missing blessing fields in old saves must default safely to empty values.
 6. Unknown blessing IDs in loaded saves must be preserved as inert entries and logged.
+7. Run save payload carries `blessingBoonRevision` (an integer, `BLESSING_BOON_REVISION` in
+   `src/engine/BlessingBoonMigration.js`). A run saved at an older revision (or none) holds
+   its blessings' effects in the OLD form inside `blessingRuntimeModifiers`; see section 8.
 
 ## 8. Save Migration Rules
-1. Migration is executed during `RunManager.fromJSON` before any blessing-dependent relink or runtime restoration steps.
+1. Migration is executed during `RunManager.fromJSON` before any blessing-dependent relink or runtime restoration steps. The one exception is the blessing boon migration (rule 6), which runs LAST in `fromJSON` (also before the early return for a rejected battle checkpoint), because it reads the finished map, Eclipse and roster; its ordering is stated there.
 2. Saves without blessing fields are migrated by adding defaults.
 3. Saves with legacy blessing key names are normalized to contract keys.
 4. Migration must be idempotent.
 5. Migration must not alter deterministic seed state.
+6. Blessing boon revisions: handlers never re-run on load, so a boon whose effect changed
+   is converted in the saved runtime modifiers instead. `RunManager.fromJSON` runs
+   `migrateHeldBlessingBoons` once for a save below `BLESSING_BOON_REVISION`, as the LAST
+   step of the load (every other step has settled the map, the Eclipse and the roster; a
+   rejected battle checkpoint is migrated before its early return), reading the loaded
+   `activeBlessings` and `blessingHistory`: the old handlers' records say exactly what they
+   added (positive `appliedValue` for a boon, negative for a price; the figures changed over
+   the game's life, so a rule falls back to its frozen constant only for a blessing with no
+   records at all). Pilgrim Coin also stamps its extra shop on the current map, ahead of the
+   party, because the blessing is taken away at once. It then stamps the current
+   revision. `startRun` and `startPrologue` stamp it too, so a new run is never migrated; the
+   prologue is never migrated. Any held entry migrates, whether taken at the shrine, a church
+   or an event. Revision 1 converts Steady Hands, Frugal Smith, Terrain Mastery, Pilgrim Coin,
+   Coin of Fate and Quartermaster Cache (docs/specs/blessings-v3.md, "As built"). A new
+   revision adds a rule to that module and bumps the constant; figures in a rule are frozen at
+   its revision.
 
 ## 9. Replay Metadata Contract
 1. Replay metadata is additive and optional.

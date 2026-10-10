@@ -1267,6 +1267,71 @@ export class CombatFxController {
     });
   }
 
+  // ------------------------------------------------------------------ raise --
+
+  /**
+   * "Raised": an ember column climbs out of the tile and the unit stands up through it
+   * (a Necromancer's Skeleton). Presentation only. Reduced motion and low quality skip the
+   * column and just fade the unit in; the unit is on its tile (and hidden by the fog, if
+   * it is in fog) before this runs.
+   */
+  async raise(unit) {
+    const g = unit?.graphic;
+    if (!g || !this._live()) return;
+    const reduced = this._reduced();
+    const parts = [
+      g,
+      unit.label,
+      unit.factionIndicator,
+      unit.hpBar?.bg,
+      unit.hpBar?.fill,
+      ...(unit.affixPips || []),
+    ].filter(Boolean);
+    const rest = parts.map((o) => (Number.isFinite(o.alpha) ? o.alpha : 1));
+    parts.forEach((o) => o.setAlpha?.(0));
+    const pts = unitPoints(unit);
+    if (!reduced && !this._low() && pts) {
+      const seed = fxSeed(unit.battleEntityId || unit.name, this.scene.turnManager?.turnNumber, 'raise'); // prettier-ignore
+      const rand = fxRandom(seed);
+      const pool = this._motePool();
+      for (let i = 0; i < 14; i++) {
+        pool.spawn({
+          x: pts.feet.x + (rand() - 0.5) * 16,
+          y: pts.feet.y - rand() * 4,
+          dx: (rand() - 0.5) * 6,
+          dy: -(20 + rand() * 24),
+          curve: 1,
+          sway: 1 + rand() * 2,
+          cycles: 0.6 + rand(),
+          phase: rand() * 6.28,
+          lifeMs: combatDuration(this.scene, 420 + rand() * 380),
+          size: rand() < 0.4 ? 1 : 0,
+          colors: [MOTE_COLORS.emberHot, MOTE_COLORS.ember, MOTE_COLORS.crimsonDim],
+          alpha: [1, 0],
+          blend: 'add',
+        });
+      }
+    }
+    const state = { p: 0 };
+    const epoch = this.epoch;
+    const paint = () => {
+      if (this.stale(epoch)) return;
+      parts.forEach((o, n) => o.setAlpha?.(rest[n] * state.p));
+    };
+    await this.scene._awaitSceneTween(
+      {
+        targets: state,
+        p: 1,
+        duration: reduced ? 140 : 380,
+        ease: 'Quad.easeOut',
+        onUpdate: paint,
+      },
+      { label: 'combat_fx_raise' },
+    );
+    state.p = 1;
+    paint();
+  }
+
   // ------------------------------------------------------------------ death --
 
   /**

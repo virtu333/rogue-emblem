@@ -1,3 +1,4 @@
+import { everFallenUnits } from './LaidToRest.js';
 import { generateBossRecruitCandidates } from './BossRecruitSystem.js';
 import { migrateUnitTraits } from './TraitSystem.js';
 import { normalizeUnitDeeds } from './DeedSystem.js';
@@ -18,8 +19,12 @@ export function prepareBossRecruit(run, data) {
     run.roster,
     data,
     run.getEffectiveMetaEffects(),
-    run.fallenUnits || [],
+    everFallenUnits(run),
     [...(run.getTakenUnitNames?.() || [])],
+    run.runSeed,
+    // Nomad's Pact reaches the boss draft too (never below 0: the Scholar's Vow's -1 price
+    // keeps its recruit-node reach only).
+    { recruitLevelBonus: Math.max(0, run.getRecruitLevelBonus?.() || 0) },
   );
   if (!candidates?.length) return null;
   // Each candidate shows (and keeps, once chosen) a face the army lacks.

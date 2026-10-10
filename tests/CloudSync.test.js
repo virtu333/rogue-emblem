@@ -435,13 +435,14 @@ describe('CloudSync run merge guard', () => {
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
     const kept = JSON.parse(store[key]);
     expect(kept.prologue).toEqual({ ...done, practised: ['forecast', 'seize'] });
-    expect([kept.totalValor, kept.totalSupply]).toEqual([60, 40]);
+    // data/prologue.json's grant: 50 Valor, 35 Supply.
+    expect([kept.totalValor, kept.totalSupply]).toEqual([50, 35]);
     // A merged-in paid grant is never paid again by the live manager.
     const meta = new MetaProgressionManager([], key);
-    expect(meta.completePrologue({ grant: { valor: 60, supply: 40 } })).toMatchObject({
+    expect(meta.completePrologue({ grant: { valor: 50, supply: 35 } })).toMatchObject({
       paid: false,
     });
-    expect([meta.totalValor, meta.totalSupply]).toEqual([60, 40]);
+    expect([meta.totalValor, meta.totalSupply]).toEqual([50, 35]);
 
     // The cloud copy is newer and wins, but never knew the prologue (a client from before
     // it drops the record and keeps the currencies): local's record stays, nothing added.
