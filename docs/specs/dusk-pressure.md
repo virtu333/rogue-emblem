@@ -114,7 +114,7 @@ multiplier (0 past the list), and gold uses the same value. A template opts out 
 |---|---|---|---|---|---|---|
 | Dusk | T4 1, T8 1–2 | T4 1–2, T8 2 (+1), T12 2 (+1) | T4 2, T8 2 (+1), T12 2 (+2) | T4 2, T8 2–3 (+1), T12 2–3 (+2) (no final) | .75 .5 .25 .1 | never |
 | Nightfall | T4 1–2, T7 1–2 (+1) | T4 1–2, T7 2 (+1), T10 2–3 (+1) | T4 2, T7 2–3 (+1), T10 3 (+2) | same as III | .75 .5 .25 .1 | last wave, Act III+ |
-| Black Sun | T4 1–2, T7 2 (+1) | T3 2, T6 2–3 (+1), T9 2–3 (+1) | T3 2–3, T6 2–3 (+1), T9 3 (+1), T12 3 (+2) | T3 2–3, T6 3 (+1), T9 3 (+1), T12 3 (+2) | .75 .5 .25 .1 | last wave, Act III+ |
+| Black Sun | T4 1–2, T7 2 (+1) | T3 2, T6 2–3 (+1), T9 2–3 (+1) | T3 2, T6 2–3 (+1), T9 3 (+1), T12 3 (+2) | T3 2–3, T6 3 (+1), T9 3 (+1), T12 3 (+2) | .75 .5 .25 .1 | last wave, Act III+ |
 
 - **Nightfall Act I retune (2026-10-04).** A playtest found Nightfall Act I rout maps too
   heavy: the first map fielded 6 enemies against 2 lords, then sent 4–6 reinforcements
@@ -469,9 +469,11 @@ Given an eligible caster, the share matches the rung's chance (Nightfall Act IV 
   |---|---|---|---|---|
   | Dusk | 2.5 / 2.5 | 5.5 / 3.5 | 6.0 / 4.0 | 7.0 / 4.5 |
   | Nightfall | 3.0 / 3.0 | 6.0 / 6.0 | 7.5 / 7.5 | 7.5 / 7.5 |
-  | Black Sun | 3.5 / 3.5 | 7.0 / 7.0 | 11.0 / 8.0 | 11.5 / 8.5 |
+  | Black Sun | 3.5 / 3.5 | 7.0 / 7.0 | 10.5 / 7.5 | 11.5 / 8.5 |
 
-  Both figures climb Dusk < Nightfall < Black Sun in every act. Runs in progress keep
+  Both figures climb Dusk < Nightfall < Black Sun in every act, except that up to T10
+  Black Sun Act III equals Nightfall (it arrives a turn earlier and adds a promoted
+  fourth wave). Runs in progress keep
   the table they started with (`RunManager.fromJSON` restores the saved
   `difficultyModifiers`), on every rung: a Dusk or Nightfall run saved before keeps the
   2-turn ladder, a Black Sun one its template waves. The summary line on the difficulty

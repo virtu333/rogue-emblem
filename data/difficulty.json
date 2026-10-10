@@ -372,7 +372,7 @@
             { "turn": 9, "count": [2, 3], "levels": 1 }
           ],
           "act3": [
-            { "turn": 3, "count": [2, 3] },
+            { "turn": 3, "count": [2, 2] },
             { "turn": 6, "count": [2, 3], "levels": 1 },
             { "turn": 9, "count": [3, 3], "levels": 1 },
             { "turn": 12, "count": [3, 3], "levels": 2, "promoted": true }
