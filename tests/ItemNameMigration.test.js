@@ -103,8 +103,9 @@ function legacyRun() {
     ...saved.difficultyModifiers,
     siegeWeaponConfig: { weaponName: 'Bolting' },
   };
+  // A node of the save's route map: fromJSON keeps only those maps.
   saved.battleConfigsByNodeId = {
-    n2: { enemySpawns: [{ className: 'Mage', siegeWeapon: 'Bolting' }] },
+    [saved.nodeMap.nodes[1].id]: { enemySpawns: [{ className: 'Mage', siegeWeapon: 'Bolting' }] },
   };
   return saved;
 }
@@ -121,7 +122,9 @@ describe('RunManager.fromJSON on an old save', () => {
     expect(rm.shopStateByNodeId.n1.items[0].item.name).toBe('Keen Lance');
     expect(rm.pendingBattleReward.choices[0].item.name).toBe('Firstwind');
     expect(rm.difficultyModifiers.siegeWeaponConfig.weaponName).toBe('Breachbolt');
-    expect(rm.battleConfigsByNodeId.n2.enemySpawns[0].siegeWeapon).toBe('Breachbolt');
+    expect(rm.battleConfigsByNodeId[rm.nodeMap.nodes[1].id].enemySpawns[0].siegeWeapon).toBe(
+      'Breachbolt',
+    );
   });
 
   it('a renamed item takes the text the catalog changed with it; run state stays', () => {
