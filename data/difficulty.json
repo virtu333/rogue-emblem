@@ -136,24 +136,22 @@
         "acts": {
           "act1": [
             { "turn": 4, "count": [1, 1] },
-            { "turn": 6, "count": [1, 2] }
+            { "turn": 8, "count": [1, 2] }
           ],
           "act2": [
             { "turn": 4, "count": [1, 2] },
-            { "turn": 6, "count": [2, 2], "levels": 1 },
-            { "turn": 8, "count": [2, 3], "levels": 1 }
+            { "turn": 8, "count": [2, 2], "levels": 1 },
+            { "turn": 12, "count": [2, 2], "levels": 1 }
           ],
           "act3": [
             { "turn": 4, "count": [2, 2] },
-            { "turn": 6, "count": [2, 2], "levels": 1 },
             { "turn": 8, "count": [2, 2], "levels": 1 },
-            { "turn": 10, "count": [2, 2], "levels": 2 }
+            { "turn": 12, "count": [2, 2], "levels": 2 }
           ],
           "act4": [
             { "turn": 4, "count": [2, 2] },
-            { "turn": 6, "count": [2, 2], "levels": 1 },
             { "turn": 8, "count": [2, 3], "levels": 1 },
-            { "turn": 10, "count": [2, 2], "levels": 2 }
+            { "turn": 12, "count": [2, 3], "levels": 2 }
           ]
         }
       },
@@ -254,28 +252,24 @@
             { "turn": 7, "count": [1, 2], "levels": 1 }
           ],
           "act2": [
-            { "turn": 3, "count": [1, 2] },
-            { "turn": 5, "count": [2, 2], "levels": 1 },
-            { "turn": 7, "count": [2, 3], "levels": 1 },
-            { "turn": 9, "count": [2, 3], "levels": 2 }
+            { "turn": 4, "count": [1, 2] },
+            { "turn": 7, "count": [2, 2], "levels": 1 },
+            { "turn": 10, "count": [2, 3], "levels": 1 }
           ],
           "act3": [
-            { "turn": 3, "count": [2, 2] },
-            { "turn": 5, "count": [2, 3], "levels": 1 },
+            { "turn": 4, "count": [2, 2] },
             { "turn": 7, "count": [2, 3], "levels": 1 },
-            { "turn": 9, "count": [3, 3], "levels": 2, "promoted": true }
+            { "turn": 10, "count": [3, 3], "levels": 2, "promoted": true }
           ],
           "act4": [
-            { "turn": 3, "count": [2, 2] },
-            { "turn": 5, "count": [2, 3], "levels": 1 },
+            { "turn": 4, "count": [2, 2] },
             { "turn": 7, "count": [2, 3], "levels": 1 },
-            { "turn": 9, "count": [3, 3], "levels": 2, "promoted": true }
+            { "turn": 10, "count": [3, 3], "levels": 2, "promoted": true }
           ],
           "finalBoss": [
-            { "turn": 3, "count": [2, 2] },
-            { "turn": 5, "count": [2, 3], "levels": 1 },
+            { "turn": 4, "count": [2, 2] },
             { "turn": 7, "count": [2, 3], "levels": 1 },
-            { "turn": 9, "count": [3, 3], "levels": 2, "promoted": true }
+            { "turn": 10, "count": [3, 3], "levels": 2, "promoted": true }
           ]
         }
       },
@@ -368,29 +362,32 @@
         "minPlayerDistance": 3,
         "minFlankTiles": 4,
         "acts": {
+          "act1": [
+            { "turn": 4, "count": [1, 2] },
+            { "turn": 7, "count": [2, 2], "levels": 1 }
+          ],
           "act2": [
             { "turn": 3, "count": [2, 2] },
-            { "turn": 5, "count": [2, 3], "levels": 1 },
-            { "turn": 7, "count": [3, 3], "levels": 1 },
-            { "turn": 9, "count": [3, 3], "levels": 2 }
+            { "turn": 6, "count": [2, 3], "levels": 1 },
+            { "turn": 9, "count": [2, 3], "levels": 1 }
           ],
           "act3": [
             { "turn": 3, "count": [2, 3] },
-            { "turn": 5, "count": [3, 3], "levels": 1 },
-            { "turn": 7, "count": [3, 3], "levels": 1 },
-            { "turn": 9, "count": [3, 3], "levels": 2, "promoted": true }
+            { "turn": 6, "count": [2, 3], "levels": 1 },
+            { "turn": 9, "count": [3, 3], "levels": 1 },
+            { "turn": 12, "count": [3, 3], "levels": 2, "promoted": true }
           ],
           "act4": [
             { "turn": 3, "count": [2, 3] },
-            { "turn": 5, "count": [3, 3], "levels": 1 },
-            { "turn": 7, "count": [3, 3], "levels": 1 },
-            { "turn": 9, "count": [3, 3], "levels": 2, "promoted": true }
+            { "turn": 6, "count": [3, 3], "levels": 1 },
+            { "turn": 9, "count": [3, 3], "levels": 1 },
+            { "turn": 12, "count": [3, 3], "levels": 2, "promoted": true }
           ],
           "finalBoss": [
             { "turn": 3, "count": [2, 3] },
-            { "turn": 5, "count": [3, 3], "levels": 1 },
-            { "turn": 7, "count": [3, 3], "levels": 1 },
-            { "turn": 9, "count": [3, 3], "levels": 2, "promoted": true }
+            { "turn": 6, "count": [3, 3], "levels": 1 },
+            { "turn": 9, "count": [3, 3], "levels": 1 },
+            { "turn": 12, "count": [3, 3], "levels": 2, "promoted": true }
           ]
         }
       },

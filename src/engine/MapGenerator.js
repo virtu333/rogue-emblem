@@ -505,7 +505,7 @@ export function generateBattleLayout(params, deps) {
     mapLayout,
   });
 
-  // Dusk/Nightfall rout ladder (engine/RoutLadder.js, docs/specs/dusk-pressure.md): it
+  // Dusk/Nightfall/Black Sun rout ladder (engine/RoutLadder.js, docs/specs/dusk-pressure.md): it
   // replaces the template's procedural waves and stacks on scripted ones (the village's
   // bandits). Written into the config here, so a locked map keeps its ladder.
   const ladder =
@@ -544,7 +544,8 @@ export function generateBattleLayout(params, deps) {
       { cols, rows, playerSpawns, enemySpawns },
     );
   }
-  // Black Sun: the template's procedural waves keep coming but no longer raise par.
+  // Black Sun: the template's procedural waves (seize and escape; rout runs the ladder)
+  // keep coming but no longer raise par.
   if (
     params.templateWavesRaisePar === false &&
     reinforcementConfig.reinforcements?.waves?.length > 0

@@ -1,7 +1,8 @@
 // The rout reinforcement ladder (docs/specs/dusk-pressure.md §2a, engine/RoutLadder.js).
 // Ways it can go wrong, one test each:
 //   - the generated schedule drifts from the spec's table (turns, counts, levels, reward,
-//     promoted wave), or reaches First Light, Black Sun, seize/escape or a `ladder: false` map;
+//     promoted wave), or reaches First Light, seize/escape or a `ladder: false` map;
+//   - waves bunch up again (closer than Dusk's 4 turns or the harder rungs' 3);
 //   - generating it moves the map itself (an extra RNG draw);
 //   - a chokepoint flank keeps its waves, or a wave scatters over several edges;
 //   - an arrival lands within 3 of a player, next to an NPC, on excluded terrain, or on a
@@ -41,25 +42,28 @@ const T = Object.fromEntries(data.terrain.map((t, i) => [t.name, i]));
 afterEach(() => restoreMathRandom());
 
 // The spec's table, written out by hand: [turn, min, max, +levels, promoted].
-const LATE = [[3, 2, 2], [5, 2, 3, 1], [7, 2, 3, 1], [9, 3, 3, 2, true]]; // prettier-ignore
-const BLACK_SUN_LATE = [[3, 2, 3], [5, 3, 3, 1], [7, 3, 3, 1], [9, 3, 3, 2, true]]; // prettier-ignore
+// Waves come every 4 turns on Dusk and every 3 on Nightfall and Black Sun, from T4
+// (Black Sun from T3 after Act I, with larger waves).
+const NIGHTFALL_LATE = [[4, 2, 2], [7, 2, 3, 1], [10, 3, 3, 2, true]]; // prettier-ignore
+const BLACK_SUN_LATE = [[3, 2, 3], [6, 3, 3, 1], [9, 3, 3, 1], [12, 3, 3, 2, true]]; // prettier-ignore
 const SPEC = {
   dusk: {
-    act1: [[4, 1, 1], [6, 1, 2]],
-    act2: [[4, 1, 2], [6, 2, 2, 1], [8, 2, 3, 1]],
-    act3: [[4, 2, 2], [6, 2, 2, 1], [8, 2, 2, 1], [10, 2, 2, 2]],
-    act4: [[4, 2, 2], [6, 2, 2, 1], [8, 2, 3, 1], [10, 2, 2, 2]],
+    act1: [[4, 1, 1], [8, 1, 2]],
+    act2: [[4, 1, 2], [8, 2, 2, 1], [12, 2, 2, 1]],
+    act3: [[4, 2, 2], [8, 2, 2, 1], [12, 2, 2, 2]],
+    act4: [[4, 2, 2], [8, 2, 3, 1], [12, 2, 3, 2]],
   },
   hard: {
     act1: [[4, 1, 2], [7, 1, 2, 1]],
-    act2: [[3, 1, 2], [5, 2, 2, 1], [7, 2, 3, 1], [9, 2, 3, 2]],
-    act3: LATE,
-    act4: LATE,
-    finalBoss: LATE,
+    act2: [[4, 1, 2], [7, 2, 2, 1], [10, 2, 3, 1]],
+    act3: NIGHTFALL_LATE,
+    act4: NIGHTFALL_LATE,
+    finalBoss: NIGHTFALL_LATE,
   },
   lunatic: {
-    act2: [[3, 2, 2], [5, 2, 3, 1], [7, 3, 3, 1], [9, 3, 3, 2]],
-    act3: BLACK_SUN_LATE,
+    act1: [[4, 1, 2], [7, 2, 2, 1]],
+    act2: [[3, 2, 2], [6, 2, 3, 1], [9, 2, 3, 1]],
+    act3: [[3, 2, 3], [6, 2, 3, 1], [9, 3, 3, 1], [12, 3, 3, 2, true]],
     act4: BLACK_SUN_LATE,
     finalBoss: BLACK_SUN_LATE,
   },
@@ -142,29 +146,40 @@ describe('the ladder a rout map is generated with', () => {
   });
 
   it('arrivals climb with the rung in every act, and Black Sun stays near Nightfall', () => {
-    // The mean arrivals of a rung's ladder (counts are ranges, so the midpoint). Black Sun's
-    // template waves used to roll twice Nightfall's total (count bonus on every wave).
-    const total = (rung, act) =>
-      gen({ act, ...pacing(rung) }, 1).reinforcements.ladder.waves.reduce(
-        (sum, w) => sum + (w.count[0] + w.count[1]) / 2,
-        0,
-      );
-    for (const act of ['act2', 'act3', 'act4']) {
-      const [dusk, hard, lunatic] = ['dusk', 'hard', 'lunatic'].map((r) => total(r, act));
-      expect(dusk, act).toBeLessThan(hard);
-      expect(hard, act).toBeLessThan(lunatic);
-      expect(lunatic, act).toBeLessThanOrEqual(hard * 1.4);
+    // The mean arrivals of a rung's ladder (counts are ranges, so the midpoint), over the
+    // whole battle and up to turn 10 (about a rout par): the waves a fight on par meets.
+    const arrivals = (rung, act, byTurn = Infinity) =>
+      gen({ act, ...pacing(rung) }, 1)
+        .reinforcements.ladder.waves.filter((w) => w.turn <= byTurn)
+        .reduce((sum, w) => sum + (w.count[0] + w.count[1]) / 2, 0);
+    for (const act of ['act1', 'act2', 'act3', 'act4']) {
+      for (const byTurn of [Infinity, 10]) {
+        const [dusk, hard, lunatic] = ['dusk', 'hard', 'lunatic'].map((r) =>
+          arrivals(r, act, byTurn),
+        );
+        const label = `${act} by T${byTurn}`;
+        expect(dusk, label).toBeLessThan(hard);
+        expect(hard, label).toBeLessThan(lunatic);
+        if (byTurn === 10) expect(lunatic, label).toBeLessThanOrEqual(hard + 2);
+      }
     }
   });
 
-  it('never reaches First Light, Black Sun Act I, seize or escape maps', () => {
+  it('spaces waves 4 turns apart on Dusk and 3 on Nightfall and Black Sun', () => {
+    for (const [rung, acts] of Object.entries(SPEC)) {
+      for (const [act, rows] of Object.entries(acts)) {
+        const gaps = rows.slice(1).map(([turn], i) => turn - rows[i][0]);
+        for (const gap of gaps) expect(gap, `${rung} ${act}`).toBe(rung === 'dusk' ? 4 : 3);
+        expect(rows[0][0], `${rung} ${act}`).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
+
+  it('never reaches First Light, seize or escape maps', () => {
     for (const seed of [1, 2, 3]) {
       for (const act of ['act1', 'act3']) {
         expect(gen({ act, ...pacing('normal') }, seed).reinforcements?.ladder).toBeUndefined();
       }
-      expect(
-        gen({ act: 'act1', ...pacing('lunatic') }, seed).reinforcements?.ladder,
-      ).toBeUndefined();
       for (const objective of ['seize', 'escape']) {
         const bc = gen({ act: 'act3', objective, ...pacing('hard') }, seed);
         expect(bc.reinforcements?.ladder, objective).toBeUndefined();
@@ -250,7 +265,7 @@ describe('ladder edges', () => {
   const enemies = [{ col: 8, row: 3 }, { col: 8, row: 5 }]; // prettier-ignore
   const ladderOn = (layout) =>
     buildRoutLadder({
-      routLadder: data.difficulty.modes.dusk.routLadder,
+      routLadder: data.difficulty.modes.lunatic.routLadder,
       act: 'act3',
       playerSpawns: players,
       enemySpawns: enemies,
@@ -483,14 +498,14 @@ describe('ladder arrivals in a battle (headless harness, as the scene)', () => {
     }
   });
 
-  it("Nightfall's fourth wave from Act III is promoted classes from the act pool", () => {
+  it("Nightfall's last wave from Act III is promoted classes from the act pool", () => {
     const promotedPool = new Set(data.enemies.pools.act3.promoted);
     let seen = 0;
     for (const seed of [1, 2, 3]) {
       const battle = harness({ act: 'act3', ...pacing('hard') }, seed);
       for (const a of arrivalsByTurn(battle)) {
         const tier = data.classes.find((c) => c.name === a.className)?.tier;
-        if (a.turn === 9) {
+        if (a.turn === 10) {
           seen++;
           expect(promotedPool.has(a.className), a.className).toBe(true);
           expect(tier).toBe('promoted');
@@ -832,7 +847,13 @@ describe('locked maps and saves', () => {
     const m = data.difficulty.modes;
     expect([m.normal, m.dusk, m.hard, m.lunatic].map((x) => x.parInflation)).toEqual([1, 2, 3, 3]);
     expect(m.normal.routLadder).toBeNull();
-    expect(Object.keys(m.lunatic.routLadder.acts)).toEqual(['act2', 'act3', 'act4', 'finalBoss']);
+    expect(Object.keys(m.lunatic.routLadder.acts)).toEqual([
+      'act1',
+      'act2',
+      'act3',
+      'act4',
+      'finalBoss',
+    ]);
     expect(m.lunatic.templateWavesRaisePar).toBe(false);
     const bad = structuredClone(data.difficulty);
     bad.modes.dusk.routLadder.acts.act1 = [
