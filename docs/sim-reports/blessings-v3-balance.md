@@ -1,9 +1,13 @@
 # Blessings v3 balance, with policies that claim the cards
 
-Report of `npm run sim:blessings` (2026-10-10). The runs were played at `1a11bb2c` (main
-`7c9a9305`, which has the #272 Talk-recruit fix, merged into this branch). The tables were
-aggregated by `fc5a1936`, which changes only how the report compares cards. **No card data was changed for this report.** It
-measures the cards; it does not retune them.
+Report of `npm run sim:blessings` (2026-10-10). The 1000 runs were played from scratch on this
+branch merged with main `003de6cc` (#275, #276). The claiming driver and policies are those of
+`a5dee778`. Three stored runs were re-played on `227a8d9c` and came out identical. The per-rung
+outcomes match the first 1000-run batch exactly, so the runs are deterministic for their seeds.
+Every table below is printed by `npm run sim:blessings -- --from ...` at `227a8d9c`; none is edited
+by hand.
+
+**No card data was changed for this report.** It measures the cards; it does not retune them.
 
 ## Why
 
@@ -66,19 +70,24 @@ agent never uses an art), Branching Threads rerolls (a meta upgrade: these runs 
 - **Choices are keyed.** Every policy choice between equals (which offered card, which pair card)
   is a hash of the run seed and a key, never Math.random. So whether a run takes a card does not
   depend on how the run is going.
-- **Comparisons.** For a start card or gift: the runs that took it against the runs offered it
-  that took something else (another card, the gift or nothing), over the whole run. For an
-  earned card from a pair (act boss, sanctum): took it against took the other card of the same
-  pick, over the battles from that offer on. For an eclipsed elite's card (always taken): the runs
-  whose first eclipsed-elite drop was this card against those whose first drop was another. For a
-  pair, a run is a taker if it took the card AT its first offer of it and a decliner if it passed;
-  both read their battles from that first offer (a run that passed it and took it at a later offer
-  is in neither group). Which card a run takes of an offer is keyed by seed, but whether a run is
-  offered an earned card at all follows the snowball guard (fewer offers to a run already holding
-  earned cards), which depends on the run's history, so these are observational comparisons that
-  are close to randomized, not randomized trials. Per-rung differences are pooled
-  with weights nA·nB/(nA+nB); intervals are 95% (Welch standard errors). An earned card's
-  difference is **relative to the alternative card it was offered with**, not to "no card".
+- **Comparisons.**
+  - **Start cards and gifts:** the runs that took it against the runs offered it that took
+    something else (another card, the gift or nothing), over the whole run.
+  - **Earned cards from a pair** (act boss, sanctum): judged at the run's FIRST offer of the card.
+    Took it there, against passed it there and took the other card. Both groups read their battles
+    from that first offer on. A run that passed it and took it at a later offer counts with those
+    who passed it (intention to treat at the first offer; the earned table's `took later` column
+    counts them).
+  - **Eclipsed elite's card** (always taken): the runs whose first eclipsed-elite drop was this
+    card, against those whose first drop was another.
+  - **Why the comparison is approximate.** Which card a run takes of an offer is keyed by seed. But
+    whether a run is offered an earned card at all follows the snowball guard (fewer offers to a
+    run already holding earned cards), which depends on the run's history. So these are
+    observational comparisons, close to randomized but not randomized trials.
+  - **Pooling and intervals.** Per-rung differences are pooled with weights nA·nB/(nA+nB);
+    intervals are 95% (Welch standard errors).
+  - An earned card's difference is **relative to the alternative card it was offered with**, not
+    to "no card".
 - **Outcomes.** `koBattle%`: share of battles with a commander KO. `ko/battle`: commander KOs per
   battle (severity; a restored commander can fall again). `deaths/battle`: other units' falls.
   `winsBeforeKO`: battles won before the first commander KO. `stall%`: share of battles unwon at
@@ -88,22 +97,17 @@ agent never uses an art), Branching Threads rerolls (a meta upgrade: these runs 
   second vow, a lottery card, Dawn Tithe gold, a free forge, a tithe, a halved arena fee, a rewind
   while a Vision card is held, ...): the share of runs holding it where it fired. A passive card
   counts as exercised when held in a battle.
-- **Flags.** "nominal": a 95% interval that excludes 0, with at least 10 takers. With about 65 cards
-  and 6 outcomes, roughly 20 nominal flags are expected by chance alone. "family-wise" (FW): |z| ≥
-  3.83 with at least 30 takers. The cutoff is computed from the comparisons the report makes (65
-  cards x 6 outcomes = 390, Bonferroni: each two-sided test at 0.05 / 390, `familyCutoff` in
-  `sim/lib/BlessingReport.js`); the 30-taker minimum is there because a cutoff that far out in the
-  tail of a normal approximation is not trustworthy for a handful of runs. Only FW flags are strong
-  evidence. (An earlier draft of this report used 3.66 and 10 takers; 3.66 is the cutoff for about
-  200 comparisons, not 400.)
-- **Which threshold the tables below used.** The 1000-run data was not re-simulated for this
-  correction. The tables were produced by the earlier code (FW at |z| ≥ 3.66, 10 takers, and an
-  earned card's takers defined as "took it at any offer"), and the FW marks below were reclassified
-  by hand from the printed intervals (z = difference / ((hi - lo) / 3.92)) at 3.83 and 30 takers.
-  Blood Covenant winsBeforeKO (z about 3.79) and Forbidden Tome's deaths/battle, stall% (z about
-  3.68) and gold (10 takers) are therefore no longer FW. The earned-card rows were also computed
-  with the old taker definition; the code now counts a taker at the first offer, which moves them
-  only by the runs that passed a card and took it later. A re-run will print both.
+- **Flags.**
+  - **Nominal:** a 95% interval that excludes 0, with at least 10 takers. With about 65 cards and
+    6 outcomes, roughly 20 nominal flags are expected by chance alone.
+  - **Family-wise (FW):** |z| ≥ 3.83 with at least 30 takers.
+  - **How the cutoff is set.** It is computed from the comparisons the report makes: 65 cards × 6
+    outcomes = 390, Bonferroni, each two-sided test at 0.05 / 390 (`familyCutoff` in
+    `sim/lib/BlessingReport.js`). An earlier draft used 3.66, which is the cutoff for about 200
+    comparisons.
+  - **Why 30 takers.** A cutoff that far out in the tail of a normal approximation is not
+    trustworthy for a handful of runs.
+  - Only FW flags are strong evidence. The flags table prints each flag's z.
 - **Reproduce.** `npm run sim:blessings -- --trials 300 --difficulty normal --out fl.jsonl` (and
   `dusk` 300, `hard` 200, `lunatic` 200), then `npm run sim:blessings -- --from fl.jsonl,dusk.jsonl,nf.jsonl,bs.jsonl --md tables.md`.
   `--workers 2` splits one batch over two processes.
@@ -234,168 +238,187 @@ Took it − offered it and took something else (or nothing), over the whole run.
 
 ### Earned cards
 
-Took it − offered it in a pick and took the other card, over the run's battles from that offer on; a card its source offers alone (an eclipsed elite's drop, the Colosseum's) is compared at each run's first offer from that source (this card first against another card first). `granted`: given by an event (no choice, not compared).
+Took it at its first offer − passed it at its first offer (a run that passed it and took it at a later offer counts with those who passed it: `took later`), over the run's battles from that first offer on; a card its source offers alone (an eclipsed elite's drop, the Colosseum's) is compared at each run's first offer from that source (this card first against another card first). `granted`: given by an event (no choice, not compared).
 
-| card | kind | offered | taken | granted | compared with | exercised | ΔkoBattle% | Δko/battle | Δdeaths/battle | ΔwinsBeforeKO | Δstall% | Δgold | flags |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Unbroken Banner | earned | 771 | 484 | 0 | the other card | 100% detected | −4.1 [−7.0, −1.1] | 0.17 [−1.05, 1.39] | −0.17 [−0.29, −0.05] | 0.26 [0.03, 0.49] | 0.0 [−3.7, 3.7] | −716 [−2036, 604] | koBattle% stronger; deaths/battle stronger; winsBeforeKO stronger |
-| Second Dawn | earned | 177 | 177 | 0 | source peers | 94% detected | −0.8 [−3.5, 1.9] | −0.91 [−1.88, 0.07] | −0.06 [−0.11, −0.01] | 0.04 [−0.19, 0.28] | −3.6 [−6.7, −0.5] | 1535 [−419, 3490] | deaths/battle stronger; stall% stronger |
-| Ember Lantern | earned | 729 | 455 | 0 | the other card | 100% detected | −1.2 [−4.3, 2.0] | 0.59 [−0.64, 1.82] | −0.18 [−0.31, −0.06] | 0.12 [−0.09, 0.34] | 2.2 [−1.4, 5.9] | −478 [−1926, 969] | deaths/battle stronger |
-| Captain's Whistle | earned | 739 | 454 | 0 | the other card | 100% passive | 0.3 [−3.3, 3.9] | 0.54 [−0.79, 1.86] | −0.15 [−0.27, −0.04] | 0.05 [−0.20, 0.30] | −2.4 [−6.3, 1.4] | −692 [−2041, 656] | deaths/battle stronger |
-| Standard of the Sun | earned | 310 | 162 | 0 | the other card | 100% passive | 3.8 [0.5, 7.1] | 0.88 [−0.23, 1.99] | −0.02 [−0.06, 0.01] | −0.20 [−0.57, 0.17] | 3.3 [−0.4, 7.0] | 687 [−870, 2245] | koBattle% weaker |
-| Hollow Hourglass | earned | 220 | 220 | 0 | source peers | 100% detected | −0.8 [−3.5, 1.9] | 0.91 [−0.10, 1.92] | −0.00 [−0.06, 0.06] | −0.02 [−0.25, 0.22] | 4.6 [1.3, 8.0] | −1348 [−2179, −518] | stall% weaker; gold weaker |
-| Chronicle | earned | 301 | 143 | 0 | the other card | 100% detected | −0.6 [−4.3, 3.2] | −0.25 [−1.81, 1.31] | 0.05 [−0.01, 0.11] | −0.05 [−0.23, 0.13] | −2.2 [−7.2, 2.7] | −281 [−2744, 2182] |  |
-| Tithe Box | earned | 253 | 153 | 0 | the other card | 31% detected | −2.3 [−6.7, 2.0] | −1.02 [−3.09, 1.05] | 0.02 [−0.09, 0.13] | 0.03 [−0.26, 0.32] | −2.4 [−7.5, 2.7] | −1545 [−3243, 153] |  |
-| Lantern of the Road | earned | 250 | 250 | 0 | source peers | 83% detected | 0.6 [−1.7, 3.0] | −0.19 [−1.14, 0.77] | 0.05 [−0.01, 0.11] | −0.02 [−0.22, 0.18] | −1.8 [−4.8, 1.2] | 413 [−1175, 2000] |  |
-| Crest of the Road | earned | 0 | 0 | 6 | - | 100% detected | n/a | n/a | n/a | n/a | n/a | n/a |  |
-| Saint's Reliquary | earned | 253 | 111 | 0 | the other card | 32% detected | 2.4 [−1.9, 6.7] | 1.13 [−0.84, 3.10] | −0.06 [−0.17, 0.04] | 0.01 [−0.28, 0.30] | 3.0 [−1.9, 8.0] | 1363 [−188, 2915] |  |
-| Mercenary Ledger | earned | 185 | 185 | 0 | - | 4% detected | n/a | n/a | n/a | n/a | n/a | n/a |  |
-| Smith's Covenant | earned | 0 | 0 | 128 | - | 38% detected | n/a | n/a | n/a | n/a | n/a | n/a |  |
-| Thief's Lantern | earned | 0 | 0 | 0 | - | - | n/a | n/a | n/a | n/a | n/a | n/a |  |
-| Seer's Eye | earned | 239 | 239 | 0 | source peers | 81% detected | 0.7 [−1.6, 3.1] | 0.07 [−0.86, 1.00] | −0.00 [−0.06, 0.05] | 0.00 [−0.19, 0.20] | 0.4 [−2.7, 3.6] | −403 [−1696, 891] |  |
-| Darkened Dawn | twisted | 264 | 148 | 0 | the other card | 100% detected | −1.2 [−6.2, 3.8] | −0.04 [−2.13, 2.05] | −0.10 [−0.28, 0.08] | −0.17 [−0.51, 0.16] | −3.9 [−9.9, 2.1] | −956 [−3493, 1582] |  |
-| Blood Covenant | twisted | 460 | 267 | 0 | the other card | 100% passive | −8.1 [−12.5, −3.7] | −2.47 [−4.00, −0.95] | 0.04 [−0.11, 0.19] | 0.58 [0.28, 0.88] | −9.8 [−14.3, −5.3] | 248 [−1823, 2319] | koBattle% stronger; ko/battle stronger; winsBeforeKO stronger; stall% stronger (FW) |
-| Kingmaker's Oath | twisted | 471 | 274 | 0 | the other card | 27% detected | 0.2 [−3.9, 4.3] | 0.15 [−1.41, 1.71] | −0.02 [−0.16, 0.11] | 0.02 [−0.20, 0.24] | −2.4 [−7.0, 2.3] | 286 [−1270, 1842] |  |
-| Hollow Sun's Favor | twisted | 462 | 257 | 0 | the other card | 59% detected | 2.9 [−0.8, 6.6] | −0.72 [−2.27, 0.84] | 0.11 [0.00, 0.22] | −0.27 [−0.47, −0.06] | −1.4 [−5.7, 3.0] | 1914 [597, 3230] | deaths/battle weaker; winsBeforeKO weaker; gold stronger |
+| card | kind | offered | taken | took later | granted | compared with | exercised | ΔkoBattle% | Δko/battle | Δdeaths/battle | ΔwinsBeforeKO | Δstall% | Δgold | flags |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Unbroken Banner | earned | 771 | 391 | 93 | 0 | the other card | 100% detected | −1.3 [−4.2, 1.6] | 0.94 [−0.23, 2.11] | −0.05 [−0.16, 0.06] | 0.08 [−0.15, 0.31] | 3.8 [0.4, 7.3] | −187 [−1509, 1134] | stall% weaker |
+| Second Dawn | earned | 177 | 177 | 0 | 0 | source peers | 94% detected | −0.8 [−3.5, 1.9] | −0.91 [−1.88, 0.07] | −0.06 [−0.11, −0.01] | 0.04 [−0.19, 0.28] | −3.6 [−6.7, −0.5] | 1535 [−419, 3490] | deaths/battle stronger; stall% stronger |
+| Ember Lantern | earned | 729 | 357 | 98 | 0 | the other card | 100% detected | 1.4 [−1.6, 4.4] | 1.15 [−0.04, 2.34] | −0.06 [−0.18, 0.05] | −0.02 [−0.23, 0.19] | 6.4 [2.9, 9.9] | −295 [−1676, 1087] | stall% weaker |
+| Captain's Whistle | earned | 739 | 361 | 93 | 0 | the other card | 100% passive | 0.5 [−2.8, 3.7] | 0.22 [−1.04, 1.47] | −0.06 [−0.16, 0.05] | −0.05 [−0.28, 0.17] | −0.5 [−4.1, 3.1] | −942 [−2163, 278] |  |
+| Standard of the Sun | earned | 310 | 162 | 0 | 0 | the other card | 100% passive | 3.8 [0.5, 7.1] | 0.88 [−0.23, 1.99] | −0.02 [−0.06, 0.01] | −0.20 [−0.57, 0.17] | 3.3 [−0.4, 7.0] | 687 [−870, 2245] | koBattle% weaker |
+| Hollow Hourglass | earned | 220 | 220 | 0 | 0 | source peers | 100% detected | −0.8 [−3.5, 1.9] | 0.91 [−0.10, 1.92] | −0.00 [−0.06, 0.06] | −0.02 [−0.25, 0.22] | 4.6 [1.3, 8.0] | −1348 [−2179, −518] | stall% weaker; gold weaker |
+| Chronicle | earned | 301 | 143 | 0 | 0 | the other card | 100% detected | −0.6 [−4.3, 3.2] | −0.25 [−1.81, 1.31] | 0.05 [−0.01, 0.11] | −0.05 [−0.23, 0.13] | −2.2 [−7.2, 2.7] | −281 [−2744, 2182] |  |
+| Tithe Box | earned | 253 | 148 | 5 | 0 | the other card | 31% detected | −2.2 [−6.5, 2.2] | −1.04 [−3.06, 0.98] | 0.04 [−0.06, 0.15] | −0.05 [−0.35, 0.24] | −2.3 [−7.4, 2.7] | −1452 [−3078, 174] |  |
+| Lantern of the Road | earned | 250 | 250 | 1 | 0 | source peers | 83% detected | 0.6 [−1.7, 3.0] | −0.19 [−1.14, 0.77] | 0.05 [−0.01, 0.11] | −0.02 [−0.22, 0.18] | −1.8 [−4.8, 1.2] | 413 [−1175, 2000] |  |
+| Crest of the Road | earned | 0 | 0 | 0 | 6 | - | 100% detected | n/a | n/a | n/a | n/a | n/a | n/a |  |
+| Saint's Reliquary | earned | 253 | 105 | 6 | 0 | the other card | 32% detected | 2.2 [−2.2, 6.5] | 1.04 [−0.98, 3.06] | −0.04 [−0.15, 0.06] | 0.05 [−0.24, 0.35] | 2.3 [−2.7, 7.4] | 1452 [−174, 3078] |  |
+| Mercenary Ledger | earned | 185 | 185 | 0 | 0 | - | 4% detected | n/a | n/a | n/a | n/a | n/a | n/a |  |
+| Smith's Covenant | earned | 0 | 0 | 0 | 128 | - | 38% detected | n/a | n/a | n/a | n/a | n/a | n/a |  |
+| Thief's Lantern | earned | 0 | 0 | 0 | 0 | - | - | n/a | n/a | n/a | n/a | n/a | n/a |  |
+| Seer's Eye | earned | 239 | 239 | 1 | 0 | source peers | 81% detected | 0.7 [−1.6, 3.1] | 0.07 [−0.86, 1.00] | −0.00 [−0.06, 0.05] | 0.00 [−0.19, 0.20] | 0.4 [−2.7, 3.6] | −403 [−1696, 891] |  |
+| Darkened Dawn | twisted | 264 | 141 | 7 | 0 | the other card | 100% detected | −2.2 [−7.1, 2.8] | −0.37 [−2.47, 1.72] | −0.07 [−0.25, 0.11] | −0.15 [−0.47, 0.18] | −4.9 [−10.8, 1.1] | −743 [−3187, 1701] |  |
+| Blood Covenant | twisted | 460 | 242 | 25 | 0 | the other card | 100% passive | −8.3 [−12.8, −3.8] | −1.93 [−3.43, −0.43] | 0.11 [−0.04, 0.26] | 0.56 [0.25, 0.86] | −7.2 [−11.7, −2.8] | −421 [−2502, 1660] | koBattle% stronger; ko/battle stronger; winsBeforeKO stronger; stall% stronger |
+| Kingmaker's Oath | twisted | 471 | 249 | 25 | 0 | the other card | 27% detected | −0.1 [−4.1, 3.9] | 0.32 [−1.21, 1.86] | 0.04 [−0.09, 0.18] | −0.12 [−0.33, 0.10] | −2.3 [−6.9, 2.4] | 364 [−1133, 1861] |  |
+| Hollow Sun's Favor | twisted | 462 | 227 | 30 | 0 | the other card | 59% detected | 2.6 [−1.0, 6.3] | −1.17 [−2.72, 0.38] | 0.19 [0.08, 0.30] | −0.27 [−0.47, −0.08] | −1.1 [−5.4, 3.2] | 1917 [580, 3255] | deaths/battle weaker; winsBeforeKO weaker; gold stronger |
 
 ### Flags
 
-| card | taken | outcome | reading | level | delta |
-| --- | --- | --- | --- | --- | --- |
-| Keen Eye | 72 | deaths/battle | weaker | nominal | 0.03 [0.00, 0.06] |
-| Advance Pay | 60 | ko/battle | stronger | nominal | -1.82 [-3.07, -0.57] |
-| Advance Pay | 60 | stall% | stronger | nominal | -5.52 [-10.13, -0.92] |
-| Blessed Vigor | 63 | koBattle% | stronger | nominal | -5.70 [-9.47, -1.93] |
-| Blessed Vigor | 63 | ko/battle | stronger | nominal | -1.66 [-2.91, -0.42] |
-| Blessed Vigor | 63 | winsBeforeKO | stronger | nominal | 0.88 [0.14, 1.62] |
-| Field Medic | 52 | ko/battle | weaker | nominal | 1.49 [0.08, 2.90] |
-| Field Medic | 52 | stall% | weaker | nominal | 5.90 [1.80, 9.99] |
-| Scout Blessing | 10 | stall% | stronger | nominal | -9.66 [-19.16, -0.15] |
-| Scholar's Vow | 17 | ko/battle | stronger | nominal | -2.10 [-3.97, -0.23] |
-| Scholar's Vow | 17 | stall% | stronger | nominal | -11.44 [-19.59, -3.28] |
-| Pilgrim's Road | 14 | deaths/battle | stronger | nominal | -0.04 [-0.07, -0.00] |
-| Forbidden Tome | 10 | koBattle% | stronger | nominal | -13.06 [-21.86, -4.25] |
-| Forbidden Tome | 10 | ko/battle | stronger | nominal | -2.31 [-3.54, -1.07] |
-| Forbidden Tome | 10 | deaths/battle | stronger | nominal | -0.36 [-0.42, -0.31] |
-| Forbidden Tome | 10 | stall% | stronger | nominal | -12.94 [-19.82, -6.05] |
-| Forbidden Tome | 10 | gold | stronger | nominal | 38975.20 [32405.15, 45545.25] |
-| Focused Curriculum | 15 | ko/battle | stronger | nominal | -2.28 [-4.01, -0.54] |
-| Focused Curriculum | 15 | winsBeforeKO | weaker | nominal | -0.96 [-1.87, -0.05] |
-| Slow Fuse | 18 | winsBeforeKO | weaker | nominal | -0.93 [-1.54, -0.32] |
-| Slow Fuse | 18 | gold | weaker | nominal | -1763.65 [-2807.39, -719.92] |
-| Gambler's Toss | 13 | deaths/battle | weaker | nominal | 0.07 [0.01, 0.13] |
-| Omen Reader | 14 | koBattle% | weaker | nominal | 6.27 [0.22, 12.32] |
-| Omen Reader | 14 | deaths/battle | weaker | nominal | 0.10 [0.04, 0.15] |
-| Omen Reader | 14 | stall% | weaker | nominal | 10.37 [1.00, 19.73] |
-| Lottery Loot | 15 | koBattle% | weaker | nominal | 6.87 [1.06, 12.68] |
-| Armory Stash | 12 | gold | weaker | nominal | -1640.92 [-3161.29, -120.55] |
-| Unbroken Banner | 484 | koBattle% | stronger | nominal | -4.05 [-6.99, -1.12] |
-| Unbroken Banner | 484 | deaths/battle | stronger | nominal | -0.17 [-0.29, -0.05] |
-| Unbroken Banner | 484 | winsBeforeKO | stronger | nominal | 0.26 [0.03, 0.49] |
-| Second Dawn | 177 | deaths/battle | stronger | nominal | -0.06 [-0.11, -0.01] |
-| Second Dawn | 177 | stall% | stronger | nominal | -3.60 [-6.71, -0.50] |
-| Ember Lantern | 455 | deaths/battle | stronger | nominal | -0.18 [-0.31, -0.06] |
-| Captain's Whistle | 454 | deaths/battle | stronger | nominal | -0.15 [-0.27, -0.04] |
-| Standard of the Sun | 162 | koBattle% | weaker | nominal | 3.81 [0.55, 7.06] |
-| Hollow Hourglass | 220 | stall% | weaker | nominal | 4.64 [1.29, 7.98] |
-| Hollow Hourglass | 220 | gold | weaker | nominal | -1348.34 [-2178.76, -517.91] |
-| Blood Covenant | 267 | koBattle% | stronger | nominal | -8.10 [-12.49, -3.70] |
-| Blood Covenant | 267 | ko/battle | stronger | nominal | -2.47 [-4.00, -0.95] |
-| Blood Covenant | 267 | winsBeforeKO | stronger | nominal | 0.58 [0.28, 0.88] |
-| Blood Covenant | 267 | stall% | stronger | family-wise | -9.79 [-14.27, -5.30] |
-| Hollow Sun's Favor | 257 | deaths/battle | weaker | nominal | 0.11 [0.00, 0.22] |
-| Hollow Sun's Favor | 257 | winsBeforeKO | weaker | nominal | -0.27 [-0.47, -0.06] |
-| Hollow Sun's Favor | 257 | gold | stronger | nominal | 1913.54 [597.03, 3230.06] |
+| card | taken | outcome | reading | level | delta | z |
+| --- | --- | --- | --- | --- | --- | --- |
+| Keen Eye | 72 | deaths/battle | weaker | nominal | 0.03 [0.00, 0.06] | 2.29 |
+| Advance Pay | 60 | ko/battle | stronger | nominal | -1.82 [-3.07, -0.57] | -2.86 |
+| Advance Pay | 60 | stall% | stronger | nominal | -5.52 [-10.13, -0.92] | -2.35 |
+| Blessed Vigor | 63 | koBattle% | stronger | nominal | -5.70 [-9.47, -1.93] | -2.96 |
+| Blessed Vigor | 63 | ko/battle | stronger | nominal | -1.66 [-2.91, -0.42] | -2.62 |
+| Blessed Vigor | 63 | winsBeforeKO | stronger | nominal | 0.88 [0.14, 1.62] | 2.33 |
+| Field Medic | 52 | ko/battle | weaker | nominal | 1.49 [0.08, 2.90] | 2.06 |
+| Field Medic | 52 | stall% | weaker | nominal | 5.90 [1.80, 9.99] | 2.82 |
+| Scout Blessing | 10 | stall% | stronger | nominal | -9.66 [-19.16, -0.15] | -1.99 |
+| Scholar's Vow | 17 | ko/battle | stronger | nominal | -2.10 [-3.97, -0.23] | -2.20 |
+| Scholar's Vow | 17 | stall% | stronger | nominal | -11.44 [-19.59, -3.28] | -2.75 |
+| Pilgrim's Road | 14 | deaths/battle | stronger | nominal | -0.04 [-0.07, -0.00] | -2.08 |
+| Forbidden Tome | 10 | koBattle% | stronger | nominal | -13.06 [-21.86, -4.25] | -2.91 |
+| Forbidden Tome | 10 | ko/battle | stronger | nominal | -2.31 [-3.54, -1.07] | -3.65 |
+| Forbidden Tome | 10 | deaths/battle | stronger | nominal | -0.36 [-0.42, -0.31] | -12.92 |
+| Forbidden Tome | 10 | stall% | stronger | nominal | -12.94 [-19.82, -6.05] | -3.68 |
+| Forbidden Tome | 10 | gold | stronger | nominal | 38975.20 [32405.15, 45545.25] | 11.63 |
+| Focused Curriculum | 15 | ko/battle | stronger | nominal | -2.28 [-4.01, -0.54] | -2.57 |
+| Focused Curriculum | 15 | winsBeforeKO | weaker | nominal | -0.96 [-1.87, -0.05] | -2.07 |
+| Slow Fuse | 18 | winsBeforeKO | weaker | nominal | -0.93 [-1.54, -0.32] | -2.99 |
+| Slow Fuse | 18 | gold | weaker | nominal | -1763.65 [-2807.39, -719.92] | -3.31 |
+| Gambler's Toss | 13 | deaths/battle | weaker | nominal | 0.07 [0.01, 0.13] | 2.24 |
+| Omen Reader | 14 | koBattle% | weaker | nominal | 6.27 [0.22, 12.32] | 2.03 |
+| Omen Reader | 14 | deaths/battle | weaker | nominal | 0.10 [0.04, 0.15] | 3.53 |
+| Omen Reader | 14 | stall% | weaker | nominal | 10.37 [1.00, 19.73] | 2.17 |
+| Lottery Loot | 15 | koBattle% | weaker | nominal | 6.87 [1.06, 12.68] | 2.32 |
+| Armory Stash | 12 | gold | weaker | nominal | -1640.92 [-3161.29, -120.55] | -2.12 |
+| Unbroken Banner | 391 | stall% | weaker | nominal | 3.82 [0.36, 7.27] | 2.17 |
+| Second Dawn | 177 | deaths/battle | stronger | nominal | -0.06 [-0.11, -0.01] | -2.36 |
+| Second Dawn | 177 | stall% | stronger | nominal | -3.60 [-6.71, -0.50] | -2.28 |
+| Ember Lantern | 357 | stall% | weaker | nominal | 6.39 [2.86, 9.92] | 3.55 |
+| Standard of the Sun | 162 | koBattle% | weaker | nominal | 3.81 [0.55, 7.06] | 2.29 |
+| Hollow Hourglass | 220 | stall% | weaker | nominal | 4.64 [1.29, 7.98] | 2.72 |
+| Hollow Hourglass | 220 | gold | weaker | nominal | -1348.34 [-2178.76, -517.91] | -3.18 |
+| Blood Covenant | 242 | koBattle% | stronger | nominal | -8.31 [-12.78, -3.84] | -3.64 |
+| Blood Covenant | 242 | ko/battle | stronger | nominal | -1.93 [-3.43, -0.43] | -2.53 |
+| Blood Covenant | 242 | winsBeforeKO | stronger | nominal | 0.56 [0.25, 0.86] | 3.55 |
+| Blood Covenant | 242 | stall% | stronger | nominal | -7.24 [-11.73, -2.75] | -3.16 |
+| Hollow Sun's Favor | 227 | deaths/battle | weaker | nominal | 0.19 [0.08, 0.30] | 3.43 |
+| Hollow Sun's Favor | 227 | winsBeforeKO | weaker | nominal | -0.27 [-0.47, -0.08] | -2.74 |
+| Hollow Sun's Favor | 227 | gold | stronger | nominal | 1917.43 [580.30, 3254.57] | 2.81 |
 
 ## Outliers
 
-Ordered by strength of evidence. Unless a line says FW, the evidence is a nominal flag. Each one
-could be one of the roughly 20 chance flags this many comparisons produce.
+Ordered by strength of evidence. With about 65 cards and 6 outcomes, roughly 20 nominal flags are
+expected by chance alone, so any single nominal line below may be one of them.
 
-**Strong (family-wise, |z| ≥ 3.83, at least 30 takers):**
+**Family-wise (|z| ≥ 3.83 over 390 comparisons, at least 30 runs on each side): none.** No card
+reaches the corrected cutoff.
 
-1. **Blood Covenant looks too strong for a twisted card.** Compared with the card it was offered
-   with (267 takers): koBattle −8.1 points [−12.5, −3.7], ko/battle −2.5 [−4.0, −1.0],
-   winsBeforeKO +0.58 [0.28, 0.88] (nominal, z about 3.8), stall −9.8 points [−14.3, −5.3] (FW,
-   z about 4.3). The headline stands on stall% alone. The direction is
-   the same on First Light, Dusk and Nightfall (koBattle −10.4, −9.9, −9.4). Its twist, an Ill
-   Omen that never ends (+1 shadow a victory), shows no cost in any outcome measured here,
-   gold included (+248 [−1823, 2319]). +1 to every stat for every unit outweighs the extra
-   Eclipse pressure for this player.
-**Large, but not family-wise:**
+**The largest nominal signals:**
 
-2. **Forbidden Tome's numbers are a policy artifact, not evidence.** Deaths/battle −0.36,
-   stall −12.9 points (z about 3.7) and gold +38,975, but from only 10 takers (below the 30 a
-   family-wise flag needs, so all nominal). Its pact forbids church revives.
-   The claiming church revives about 11 fallen units a run at full price, and revived units come
-   back weak (catch-up growths minus 10) and fall again. With the Tome, the gold stays in the purse
-   and the weak revived units never return, so the run looks richer and loses fewer units. The
-   sim cannot price what the pact really costs (the fallen units themselves). Treat the Tome as
-   unmeasured.
+1. **Blood Covenant: the most consistent signal, but not family-wise.** It was taken at its first
+   offer in 242 runs, against 218 runs that took the other card there (25 of them took Blood
+   Covenant later and count with the decliners).
+   - koBattle −8.3 points [−12.8, −3.8] (z −3.64)
+   - winsBeforeKO +0.56 [0.25, 0.86] (z 3.55)
+   - stall −7.2 points [−11.7, −2.8] (z −3.16)
+   - ko/battle −1.9 [−3.4, −0.4] (z −2.53)
 
-**Nominal, worth a look:**
+   Its strongest outcome, koBattle%, has |z| 3.64, below the 3.83 cutoff. So **the family-wise
+   finding does not stand on any outcome.** The earlier "stall% FW, z about 4.3" came from the old
+   taker definition, which also counted runs that passed the card first and took it later. Judged
+   at the first offer, stall% is z −3.16.
 
-3. **Unbroken Banner is the strongest pure act-boss card.** Against the other card of its pair
-   (484 takers): koBattle −4.1 [−7.0, −1.1], deaths −0.17 [−0.29, −0.05], winsBeforeKO
-   +0.26 [0.03, 0.49]. It is largest on First Light (koBattle −8.5, deaths −0.43). It fired in every
-   run that held it (5.5 holds a run).
-4. **Ember Lantern and Captain's Whistle also cut deaths.** Against the card they were offered with:
-   −0.18 [−0.31, −0.06] and −0.15 [−0.27, −0.04] deaths a battle. Their pairs are often each
-   other or the Banner, so these are differences among the act-boss cards.
-5. **Standard of the Sun is the weakest Act I boss card.** koBattle +3.8 [0.5, 7.1] against the
-   card offered with it (162 takers), +8.6 on First Light. Its aura (+5 Hit and Avoid near the
-   commander) possibly does little for this agent's positioning.
-6. **Hollow Hourglass costs this player.** Against another first eclipsed-elite card (220 runs):
-   stall +4.6 points [1.3, 8.0], gold −1348 [−2179, −518]. Delayed reinforcements make battles last
-   longer. A player who wants to clear a map before waves arrive may value it; this agent does not.
-7. **Hollow Sun's Favor trades as designed.** Gold +1914 [597, 3230], but deaths +0.11
-   [0.00, 0.22] and winsBeforeKO −0.27 [−0.47, −0.06]: its Hunted twist bites.
-8. **Blessed Vigor (tier I) looks strong for a free card.** koBattle −5.7 [−9.5, −1.9],
-   ko/battle −1.7, winsBeforeKO +0.9 (63 takers), almost all of it on First Light (koBattle −16.8,
-   14 takers). This needs a larger sample before acting on it.
-9. **Advance Pay (tier I):** ko/battle −1.8 [−3.1, −0.6], stall −5.5 [−10.1, −0.9]. **Field
-   Medic (tier I)** reads the other way: ko/battle +1.5 [0.1, 2.9], stall +5.9 [1.8, 10.0]. Possibly
-   because Field Medic's Vulneraries add little to what the item policy already buys. "Took something else" is mostly
-   another tier I card, so these are tier I cards ranked against each other.
-10. **Scholar's Vow (17 takers):** ko/battle −2.1 [−4.0, −0.2], stall −11.4 [−19.6, −3.3]. This
-    is consistent with the spec's "best card in the game", but the sample is small.
-11. **Omen Reader (14 takers):** koBattle +6.3, deaths +0.10, stall +10.4, all nominal. The route
-    policy never reads its marks, so this measures its price (+8 shadow) without its benefit. It
-    does not show the card is weak.
-12. **Lottery Loot (15 takers):** koBattle +6.9 [1.1, 12.7]. **Slow Fuse (18):** winsBeforeKO
-    −0.9, gold −1764. **Gambler's Toss (13):** deaths +0.07. **Armory Stash gift (12):** gold
-    −1641. These samples are small and any of them is plausibly chance.
+   The direction is the same on First Light, Dusk and Nightfall (koBattle −9.9, −12.4, −10.4) and
+   flat on Black Sun (+0.5). Its twist, an Ill Omen that never ends, shows no measured cost
+   (gold −421 [−2502, 1660]). It stays the card most worth a closer look, as a candidate too
+   strong for a twisted card, but this sample does not establish it.
+2. **Forbidden Tome: a policy artifact, not evidence.** It had only 10 takers, below the 30 a
+   family-wise flag needs, so every flag is nominal, however large its z: deaths/battle −0.36
+   (z −12.9), gold +38,975 (z 11.6), stall −12.9 points.
+   - Its pact forbids church revives. The claiming church revives about 11 fallen units a run at
+     full price, and revived units come back weak (catch-up growths minus 10) and fall again.
+   - With the Tome, the gold stays in the purse and the weak revived units never return.
+   - The sim cannot price what the pact really costs, the fallen units themselves. Treat the Tome
+     as unmeasured.
+3. **Ember Lantern: stall +6.4 points [2.9, 9.9] (z 3.55)** against the card offered with it
+   (357 first-offer takers). Other outcomes show no difference. A first-kill heal is unlikely to
+   make battles slower by itself, so this possibly reflects what it displaces in its pairs (often
+   the Banner, the Whistle or a twisted card). Read it as act-boss cards ranked against each other.
+4. **Hollow Sun's Favor trades as designed.**
+   - Gold +1917 [580, 3255] (z 2.81).
+   - Deaths +0.19 [0.08, 0.30] (z 3.43) and winsBeforeKO −0.27 [−0.47, −0.08]: its Hunted twist
+     bites.
+5. **Unbroken Banner no longer separates from its alternatives.** Judged at the first offer (391
+   takers, 93 later takers counted as decliners):
+   - koBattle −1.3 [−4.2, 1.6], deaths −0.05 [−0.16, 0.06], both not significant.
+   - stall +3.8 [0.4, 7.3], nominal.
+
+   The earlier reading ("the strongest act-boss card, koBattle −4.1") came from the any-offer taker
+   definition and does not survive the first-offer comparison. The Banner fired in every run that
+   held it.
+6. **Standard of the Sun:** koBattle +3.8 [0.5, 7.1] against the card offered with it (162 takers).
+7. **Hollow Hourglass costs this player.** Against another first eclipsed-elite card (220 runs):
+   stall +4.6 points [1.3, 8.0], gold −1348 [−2179, −518]. Delayed reinforcements make battles
+   last longer.
+8. **Second Dawn** (177 runs, against another first eclipsed-elite card): deaths −0.06
+   [−0.11, −0.01], stall −3.6 [−6.7, −0.5].
+9. **Start cards (unchanged by the taker fix):**
+   - Blessed Vigor (63 takers): koBattle −5.7 [−9.5, −1.9], winsBeforeKO +0.9, almost all of it
+     on First Light.
+   - Advance Pay (60): ko/battle −1.8, stall −5.5.
+   - Field Medic (52): ko/battle +1.5, stall +5.9. "Took something else" is mostly another tier I
+     card, so these rank tier I cards against each other.
+   - Scholar's Vow (17): ko/battle −2.1, stall −11.4.
+   - Omen Reader (14): koBattle +6.3, deaths +0.10, stall +10.4. This measures its price only:
+     the route never reads its marks.
+   - Lottery Loot (15): koBattle +6.9. Slow Fuse (18): winsBeforeKO −0.9, gold −1764. Gambler's
+     Toss (13): deaths +0.07. Armory Stash gift (12): gold −1641.
+   - All of these are nominal, on small samples.
 
 **Mechanics the policies reach rarely (coverage, not balance):**
 
 - **Cutpurse's Luck:** carriers doubled as designed (22 a run against 12), but its 29 holder runs
-  made only 4 steals. A Thief is rare in the army: Act II's recruit pool, and the deploy policy
-  seldom fields it. Its speed waiver never decided a steal: of 179 steals in all runs, 0 needed
-  it, because Thieves are fast. Its value depends on owning and fielding a Thief.
+  made only 4 steals. A Thief is rare in the army: it comes from Act II's recruit pool, and the
+  deploy policy seldom fields it. Its speed waiver never decided a steal: of 179 steals in all runs,
+  0 needed it, because Thieves are fast. Its value depends on owning and fielding a Thief.
 - **Thief's Lantern** was never granted: the Collectors' fight was never reached. It is untested.
-- **Twin Chapel:** a second vow in 6 of 15 holder runs (Blessing plus Promotion or Cleanse; with
-  nothing to promote or cleanse there is one vow).
-- **Mercenary Ledger:** taken 185 times, but a later bout used the halved fee in only 4% of those
-  runs (few colosseums follow the first gold win). **Tithe Box** 31%, **Saint's Reliquary** 32%,
-  **Kingmaker's Oath** 27%, **Smith's Mark** and **Smith's Covenant** 38%: each needs a service
-  node after the take.
-- **Open Roll:** 40 second candidates offered, 16 swapped. **Watcher's Grace:** 36 rewinds spent
-  a boss map's charge, in 9 of its holder runs.
+- **Twin Chapel:** a second vow in 6 of 15 holder runs. It needs Promotion or Cleanse beside the
+  Blessing; with nothing to promote or cleanse, a church takes one vow.
+- **Services after the take:** each of these cards needs a service node after it is taken, and the
+  share of holder runs where it fired was low:
+  - Mercenary Ledger: taken 185 times, but a later bout used the halved fee in only 4% of those
+    runs (few colosseums follow the first gold win).
+  - Tithe Box 31%, Saint's Reliquary 32%, Kingmaker's Oath 27%.
+  - Smith's Mark and Smith's Covenant 38%.
+- **Open Roll:** 40 second candidates offered, 16 swapped. **Watcher's Grace:** 36 rewinds spent a
+  boss map's charge, in 9 of its holder runs.
 
 ## Limits
 
-- **Agent strength.** On Nightfall and Black Sun 93-98% of battles have a commander KO and 41-60%
+- **Agent strength.** On Nightfall and Black Sun, 93-98% of battles have a commander KO and 41-60%
   hit the turn cap, so differences there are mostly noise. First Light (41% KO battles) and Dusk
-  (73%) carry the signal. No run is clean of commander KOs: a would-be win rate cannot be measured
-  with this player.
+  (73%) carry the signal. No run is clean of commander KOs, so a would-be win rate cannot be
+  measured with this player.
 - **Take rates are the policy's**, a keyed-random pick, not a preference. They exist to make the
   with/without comparison fair. They say nothing about how attractive a card is.
-- **Earned-card differences are relative** to the card offered alongside, never to "no card". A card
-  always offered next to a strong one looks weak.
+- **Earned-card differences are relative** to the card offered alongside, never to "no card". A
+  card always offered next to a strong one looks weak.
+- **Later takers dilute.** 11-26% of an act-boss card's first-offer decliners took it at a later
+  offer (Banner 93 of 380, Ember Lantern 98 of 372, Whistle 93 of 378, Kingmaker's Oath 25 of 222,
+  Blood Covenant 25 of 218).
+  They count as decliners (intention to treat at the first offer). This can only pull a difference
+  toward zero, never invent one.
 - **Gold is dominated by revive spending** (about 11 revives a run): a card that changes deaths
   changes gold.
-- **Sample sizes.** Start cards have 5-22 takers each (tier I 52-72), gifts 8-22, act-boss cards
-  110-480. Intervals are wide; most cards show no difference that this sample can detect.
+- **Sample sizes.**
+  - Start cards: 5-22 takers each; tier I cards 52-72.
+  - Gifts: 8-22 takers each.
+  - Act-boss and sanctum cards: 105-391 first-offer takers.
+
+  Intervals are wide; most cards show no difference that this sample can detect.
 - **Not modelled:** weapon arts in battle, items used in battle, route choice by scout, preview or
   omen, merc hiring, Branching Threads (meta), and the Master Seal purchases a human would make.
 
@@ -453,25 +476,25 @@ Each card's takers and differences within one rung (same comparisons, one stratu
 | Marked Blade | gift | 33 | 2 | −3.9 [−37.7, 30.0] | −0.06 [−0.12, −0.00] | −3.61 [−6.02, −1.21] | −3.9 [−8.1, 0.4] |
 | Pilgrim's Wager | gift | 24 | 4 | −1.3 [−12.8, 10.2] | −0.12 [−0.23, −0.01] | 1.85 [−1.11, 4.81] | 5.9 [−2.3, 14.1] |
 | Armory Stash | gift | 30 | 3 | −9.5 [−30.6, 11.5] | 0.00 [−0.30, 0.30] | −1.81 [−9.26, 5.63] | −3.2 [−9.0, 2.7] |
-| Unbroken Banner | earned | 219 | 138 | −8.5 [−16.2, −0.7] | −0.43 [−0.81, −0.05] | 0.37 [−0.34, 1.08] | −2.1 [−9.3, 5.1] |
+| Unbroken Banner | earned | 219 | 115 | −1.3 [−8.7, 6.1] | −0.19 [−0.53, 0.14] | −0.12 [−0.79, 0.54] | 1.1 [−5.4, 7.7] |
 | Second Dawn | earned | 37 | 37 | 3.9 [−4.3, 12.0] | −0.22 [−0.42, −0.03] | 0.17 [−0.57, 0.92] | −3.5 [−10.0, 3.0] |
-| Ember Lantern | earned | 208 | 126 | −6.9 [−14.2, 0.4] | −0.29 [−0.65, 0.07] | 0.70 [0.11, 1.29] | 5.9 [−0.9, 12.7] |
-| Captain's Whistle | earned | 208 | 120 | −4.9 [−12.6, 2.7] | −0.19 [−0.52, 0.13] | 0.48 [−0.18, 1.14] | −3.3 [−11.4, 4.8] |
+| Ember Lantern | earned | 208 | 108 | 0.6 [−6.5, 7.6] | −0.08 [−0.43, 0.26] | 0.20 [−0.42, 0.83] | 7.6 [0.7, 14.4] |
+| Captain's Whistle | earned | 208 | 102 | −1.1 [−8.5, 6.2] | −0.06 [−0.38, 0.25] | 0.22 [−0.43, 0.87] | −3.4 [−11.0, 4.3] |
 | Standard of the Sun | earned | 103 | 47 | 8.6 [1.3, 15.8] | −0.05 [−0.11, 0.01] | −0.50 [−1.37, 0.38] | 4.7 [−0.1, 9.5] |
 | Hollow Hourglass | earned | 57 | 57 | 1.2 [−6.4, 8.8] | 0.00 [−0.21, 0.21] | −0.23 [−0.84, 0.38] | 5.8 [−1.2, 12.7] |
 | Chronicle | earned | 91 | 39 | 1.0 [−8.2, 10.3] | 0.17 [0.01, 0.33] | −0.22 [−0.76, 0.32] | −5.7 [−12.7, 1.3] |
-| Tithe Box | earned | 92 | 62 | −3.5 [−13.7, 6.7] | 0.12 [−0.16, 0.40] | −0.05 [−0.86, 0.76] | −3.7 [−11.5, 4.2] |
+| Tithe Box | earned | 92 | 59 | −3.8 [−13.8, 6.2] | 0.18 [−0.09, 0.44] | −0.11 [−0.91, 0.68] | −4.3 [−11.9, 3.3] |
 | Lantern of the Road | earned | 59 | 59 | −0.0 [−7.6, 7.5] | 0.08 [−0.14, 0.29] | 0.01 [−0.64, 0.65] | −2.6 [−8.3, 3.2] |
 | Crest of the Road | earned | 0 | 0 | n/a | n/a | n/a | n/a |
-| Saint's Reliquary | earned | 92 | 36 | 4.3 [−5.6, 14.1] | −0.23 [−0.49, 0.02] | −0.01 [−0.78, 0.77] | 5.2 [−2.2, 12.5] |
+| Saint's Reliquary | earned | 92 | 33 | 3.8 [−6.2, 13.8] | −0.18 [−0.44, 0.09] | 0.11 [−0.68, 0.91] | 4.3 [−3.3, 11.9] |
 | Mercenary Ledger | earned | 56 | 56 | n/a | n/a | n/a | n/a |
 | Smith's Covenant | earned | 0 | 0 | n/a | n/a | n/a | n/a |
 | Thief's Lantern | earned | 0 | 0 | n/a | n/a | n/a | n/a |
 | Seer's Eye | earned | 39 | 39 | −5.2 [−14.4, 3.9] | 0.11 [−0.16, 0.38] | 0.12 [−0.63, 0.87] | −0.7 [−8.2, 6.7] |
-| Darkened Dawn | twisted | 90 | 54 | 2.7 [−8.7, 14.1] | −0.38 [−0.90, 0.15] | −0.53 [−1.38, 0.32] | −0.0 [−11.7, 11.7] |
-| Blood Covenant | twisted | 139 | 79 | −10.4 [−20.0, −0.8] | 0.34 [−0.05, 0.73] | 1.04 [0.16, 1.91] | −8.4 [−16.9, 0.1] |
-| Kingmaker's Oath | twisted | 117 | 65 | −4.5 [−14.8, 5.8] | −0.26 [−0.73, 0.21] | 0.23 [−0.49, 0.96] | 1.9 [−8.3, 12.2] |
-| Hollow Sun's Favor | twisted | 116 | 58 | 5.2 [−4.8, 15.2] | −0.05 [−0.40, 0.30] | −0.45 [−1.13, 0.24] | −4.5 [−13.6, 4.6] |
+| Darkened Dawn | twisted | 90 | 52 | 2.0 [−9.1, 13.2] | −0.32 [−0.83, 0.18] | −0.49 [−1.31, 0.33] | −0.7 [−12.2, 10.8] |
+| Blood Covenant | twisted | 139 | 73 | −9.9 [−19.7, −0.1] | 0.45 [0.05, 0.84] | 0.98 [0.08, 1.88] | −7.3 [−15.5, 1.0] |
+| Kingmaker's Oath | twisted | 117 | 56 | −3.0 [−13.3, 7.3] | −0.07 [−0.54, 0.41] | −0.34 [−1.06, 0.37] | 0.5 [−9.8, 10.7] |
+| Hollow Sun's Favor | twisted | 116 | 52 | 7.4 [−2.4, 17.3] | 0.06 [−0.29, 0.42] | −0.53 [−1.20, 0.13] | −5.2 [−14.0, 3.5] |
 
 ### Dusk (300 runs)
 
@@ -523,14 +546,14 @@ Each card's takers and differences within one rung (same comparisons, one stratu
 | Marked Blade | gift | 16 | 1 | n/a | n/a | n/a | n/a |
 | Pilgrim's Wager | gift | 18 | 2 | −1.7 [−13.1, 9.7] | 0.17 [−0.06, 0.40] | 2.31 [−2.74, 7.36] | −10.7 [−18.4, −3.0] |
 | Armory Stash | gift | 29 | 2 | 15.1 [5.1, 25.0] | 0.13 [−0.05, 0.32] | −1.13 [−2.30, 0.04] | −8.1 [−19.7, 3.6] |
-| Unbroken Banner | earned | 208 | 128 | −3.3 [−8.5, 1.8] | −0.06 [−0.10, −0.01] | 0.49 [0.10, 0.89] | 0.6 [−5.3, 6.5] |
+| Unbroken Banner | earned | 208 | 108 | −1.0 [−6.2, 4.3] | −0.06 [−0.10, −0.01] | 0.33 [−0.12, 0.77] | 4.0 [−1.6, 9.7] |
 | Second Dawn | earned | 68 | 68 | −5.3 [−10.4, −0.2] | −0.02 [−0.08, 0.03] | 0.12 [−0.34, 0.58] | −4.0 [−8.5, 0.4] |
-| Ember Lantern | earned | 202 | 122 | 3.6 [−2.7, 9.9] | −0.03 [−0.09, 0.02] | −0.31 [−0.73, 0.10] | 3.3 [−3.0, 9.6] |
-| Captain's Whistle | earned | 208 | 125 | 1.0 [−4.2, 6.2] | 0.04 [−0.00, 0.08] | −0.31 [−0.82, 0.21] | −2.0 [−7.5, 3.4] |
+| Ember Lantern | earned | 202 | 95 | 6.0 [0.4, 11.7] | −0.03 [−0.08, 0.02] | −0.39 [−0.74, −0.04] | 6.1 [0.2, 12.1] |
+| Captain's Whistle | earned | 208 | 101 | 1.7 [−3.1, 6.4] | −0.01 [−0.05, 0.03] | −0.37 [−0.81, 0.07] | −0.1 [−5.4, 5.1] |
 | Standard of the Sun | earned | 95 | 50 | 1.0 [−5.0, 7.0] | 0.04 [−0.01, 0.10] | −0.07 [−0.76, 0.62] | 0.6 [−6.5, 7.6] |
 | Hollow Hourglass | earned | 71 | 71 | −1.7 [−6.8, 3.4] | −0.05 [−0.10, −0.00] | 0.10 [−0.43, 0.62] | 4.9 [−0.5, 10.2] |
 | Chronicle | earned | 102 | 53 | −2.6 [−8.9, 3.7] | 0.03 [−0.04, 0.10] | 0.04 [−0.19, 0.27] | 0.1 [−8.4, 8.6] |
-| Tithe Box | earned | 58 | 30 | −1.5 [−9.0, 6.0] | 0.05 [−0.01, 0.11] | 0.29 [−0.08, 0.66] | 6.3 [−2.7, 15.3] |
+| Tithe Box | earned | 58 | 29 | −0.6 [−8.0, 6.9] | 0.04 [−0.02, 0.11] | 0.03 [−0.35, 0.42] | 6.3 [−2.6, 15.2] |
 | Lantern of the Road | earned | 74 | 74 | 3.6 [−0.7, 7.9] | 0.10 [−0.00, 0.20] | −0.21 [−0.59, 0.16] | −1.6 [−6.6, 3.4] |
 | Crest of the Road | earned | 0 | 0 | n/a | n/a | n/a | n/a |
 | Saint's Reliquary | earned | 58 | 29 | 0.6 [−6.9, 8.0] | −0.04 [−0.11, 0.02] | −0.03 [−0.42, 0.35] | −6.3 [−15.2, 2.6] |
@@ -538,10 +561,10 @@ Each card's takers and differences within one rung (same comparisons, one stratu
 | Smith's Covenant | earned | 0 | 0 | n/a | n/a | n/a | n/a |
 | Thief's Lantern | earned | 0 | 0 | n/a | n/a | n/a | n/a |
 | Seer's Eye | earned | 83 | 83 | 2.8 [−1.5, 7.1] | −0.02 [−0.07, 0.03] | 0.00 [−0.38, 0.39] | 0.6 [−4.8, 6.0] |
-| Darkened Dawn | twisted | 77 | 42 | −5.5 [−13.5, 2.5] | −0.03 [−0.08, 0.03] | 0.11 [−0.44, 0.67] | −9.0 [−18.0, 0.1] |
-| Blood Covenant | twisted | 115 | 61 | −9.9 [−17.7, −2.0] | 0.02 [−0.04, 0.08] | 0.78 [0.30, 1.25] | −8.2 [−16.2, −0.1] |
-| Kingmaker's Oath | twisted | 131 | 70 | 2.4 [−4.6, 9.3] | −0.05 [−0.11, 0.01] | −0.06 [−0.44, 0.33] | −2.5 [−9.6, 4.5] |
-| Hollow Sun's Favor | twisted | 114 | 57 | 8.6 [1.4, 15.8] | 0.08 [0.01, 0.15] | −0.56 [−0.92, −0.20] | 2.6 [−5.4, 10.6] |
+| Darkened Dawn | twisted | 77 | 40 | −6.9 [−14.9, 1.2] | −0.01 [−0.07, 0.05] | 0.15 [−0.41, 0.70] | −9.4 [−18.5, −0.2] |
+| Blood Covenant | twisted | 115 | 55 | −12.4 [−20.4, −4.3] | 0.02 [−0.04, 0.08] | 0.91 [0.41, 1.40] | −7.4 [−15.4, 0.6] |
+| Kingmaker's Oath | twisted | 131 | 65 | 1.0 [−5.9, 7.9] | −0.05 [−0.11, 0.01] | −0.02 [−0.41, 0.36] | −2.7 [−9.7, 4.3] |
+| Hollow Sun's Favor | twisted | 114 | 54 | 8.4 [1.3, 15.4] | 0.09 [0.02, 0.15] | −0.54 [−0.88, −0.19] | 1.4 [−6.6, 9.5] |
 
 ### Nightfall (200 runs)
 
@@ -593,25 +616,25 @@ Each card's takers and differences within one rung (same comparisons, one stratu
 | Marked Blade | gift | 13 | 2 | −0.9 [−4.9, 3.1] | −0.07 [−0.10, −0.04] | −0.27 [−0.55, 0.00] | 3.5 [−7.4, 14.5] |
 | Pilgrim's Wager | gift | 27 | 9 | 3.4 [−0.7, 7.6] | 0.07 [0.00, 0.14] | −0.06 [−0.34, 0.23] | 0.2 [−11.7, 12.1] |
 | Armory Stash | gift | 17 | 5 | 3.5 [−3.7, 10.7] | −0.01 [−0.09, 0.07] | −0.17 [−0.39, 0.05] | 1.1 [−20.2, 22.4] |
-| Unbroken Banner | earned | 172 | 103 | −1.4 [−5.6, 2.8] | −0.06 [−0.28, 0.16] | 0.07 [−0.06, 0.20] | 1.3 [−7.7, 10.4] |
+| Unbroken Banner | earned | 172 | 82 | −0.5 [−4.7, 3.7] | 0.08 [−0.15, 0.31] | 0.10 [−0.04, 0.23] | 7.0 [−1.4, 15.4] |
 | Second Dawn | earned | 38 | 38 | 2.9 [−0.1, 5.9] | −0.05 [−0.10, 0.00] | −0.18 [−0.39, 0.03] | −3.2 [−10.6, 4.2] |
-| Ember Lantern | earned | 155 | 100 | −0.2 [−5.3, 4.9] | −0.19 [−0.37, −0.01] | −0.02 [−0.17, 0.12] | 2.6 [−5.8, 10.9] |
-| Captain's Whistle | earned | 157 | 106 | 2.5 [−6.0, 11.0] | −0.17 [−0.38, 0.04] | 0.06 [−0.10, 0.22] | −6.0 [−15.7, 3.7] |
+| Ember Lantern | earned | 155 | 71 | −0.5 [−5.7, 4.6] | −0.08 [−0.22, 0.07] | 0.04 [−0.10, 0.18] | 8.5 [0.6, 16.4] |
+| Captain's Whistle | earned | 157 | 76 | −0.4 [−7.6, 6.8] | −0.01 [−0.19, 0.17] | −0.04 [−0.21, 0.14] | 1.3 [−7.2, 9.9] |
 | Standard of the Sun | earned | 51 | 26 | 4.6 [0.2, 9.0] | −0.05 [−0.11, 0.01] | −0.09 [−0.36, 0.18] | 3.1 [−7.3, 13.5] |
 | Hollow Hourglass | earned | 55 | 55 | −2.3 [−5.9, 1.3] | 0.05 [−0.03, 0.14] | 0.02 [−0.22, 0.25] | 2.9 [−4.2, 10.1] |
 | Chronicle | earned | 51 | 22 | −0.3 [−5.7, 5.1] | −0.00 [−0.08, 0.08] | 0.01 [−0.10, 0.12] | −4.4 [−19.3, 10.4] |
 | Tithe Box | earned | 47 | 26 | −6.4 [−11.9, −1.0] | −0.02 [−0.17, 0.14] | −0.05 [−0.14, 0.05] | −6.6 [−20.7, 7.5] |
 | Lantern of the Road | earned | 55 | 55 | −3.2 [−7.1, 0.7] | 0.01 [−0.04, 0.07] | 0.22 [−0.05, 0.49] | −4.5 [−11.7, 2.7] |
 | Crest of the Road | earned | 0 | 0 | n/a | n/a | n/a | n/a |
-| Saint's Reliquary | earned | 47 | 23 | 6.4 [0.7, 12.1] | 0.01 [−0.14, 0.15] | 0.04 [−0.04, 0.13] | 9.5 [−4.1, 23.1] |
+| Saint's Reliquary | earned | 47 | 21 | 6.4 [1.0, 11.9] | 0.02 [−0.14, 0.17] | 0.05 [−0.05, 0.14] | 6.6 [−7.5, 20.7] |
 | Mercenary Ledger | earned | 33 | 33 | n/a | n/a | n/a | n/a |
 | Smith's Covenant | earned | 0 | 0 | n/a | n/a | n/a | n/a |
 | Thief's Lantern | earned | 0 | 0 | n/a | n/a | n/a | n/a |
 | Seer's Eye | earned | 50 | 50 | 3.4 [0.8, 6.0] | −0.03 [−0.08, 0.02] | −0.10 [−0.30, 0.09] | 4.3 [−2.6, 11.1] |
-| Darkened Dawn | twisted | 50 | 25 | 1.9 [−6.6, 10.3] | 0.08 [−0.09, 0.25] | −0.20 [−0.57, 0.17] | −2.4 [−17.2, 12.3] |
-| Blood Covenant | twisted | 104 | 67 | −9.4 [−17.9, −0.9] | −0.29 [−0.57, −0.01] | 0.21 [0.08, 0.34] | −21.0 [−31.5, −10.5] |
-| Kingmaker's Oath | twisted | 107 | 73 | 4.5 [−5.6, 14.5] | 0.04 [−0.17, 0.24] | −0.10 [−0.30, 0.10] | −9.0 [−20.5, 2.5] |
-| Hollow Sun's Favor | twisted | 125 | 75 | 1.1 [−4.5, 6.7] | 0.16 [0.02, 0.31] | −0.06 [−0.24, 0.12] | −4.5 [−13.1, 4.1] |
+| Darkened Dawn | twisted | 50 | 23 | 0.5 [−7.6, 8.6] | 0.11 [−0.07, 0.28] | −0.16 [−0.51, 0.19] | −4.6 [−19.3, 10.0] |
+| Blood Covenant | twisted | 104 | 61 | −10.4 [−18.9, −1.9] | −0.20 [−0.46, 0.07] | 0.24 [0.10, 0.38] | −16.0 [−26.8, −5.2] |
+| Kingmaker's Oath | twisted | 107 | 65 | 2.3 [−6.7, 11.3] | 0.11 [−0.09, 0.31] | −0.11 [−0.29, 0.07] | −7.0 [−18.2, 4.2] |
+| Hollow Sun's Favor | twisted | 125 | 65 | 0.4 [−5.0, 5.7] | 0.22 [0.07, 0.36] | −0.06 [−0.23, 0.11] | −1.9 [−10.6, 6.8] |
 
 ### Black Sun (200 runs)
 
@@ -663,23 +686,23 @@ Each card's takers and differences within one rung (same comparisons, one stratu
 | Marked Blade | gift | 19 | 3 | 2.7 [−0.3, 5.7] | −0.09 [−0.15, −0.03] | 0.00 [0.00, 0.00] | 14.8 [4.9, 24.8] |
 | Pilgrim's Wager | gift | 20 | 1 | n/a | n/a | n/a | n/a |
 | Armory Stash | gift | 16 | 2 | 0.5 [−3.3, 4.2] | 0.04 [−0.09, 0.17] | 0.00 [0.00, 0.00] | −11.4 [−37.6, 14.9] |
-| Unbroken Banner | earned | 172 | 115 | −1.9 [−6.3, 2.4] | −0.08 [−0.21, 0.05] | 0.01 [−0.04, 0.05] | 0.7 [−7.0, 8.4] |
+| Unbroken Banner | earned | 172 | 86 | −2.5 [−7.1, 2.2] | 0.01 [−0.11, 0.12] | 0.02 [−0.02, 0.07] | 3.8 [−3.5, 11.1] |
 | Second Dawn | earned | 34 | 34 | −1.4 [−4.3, 1.5] | 0.03 [−0.03, 0.10] | 0.01 [−0.05, 0.07] | −3.4 [−11.2, 4.4] |
-| Ember Lantern | earned | 164 | 107 | −0.6 [−5.7, 4.5] | −0.23 [−0.48, 0.02] | 0.07 [−0.04, 0.17] | −4.4 [−12.9, 4.1] |
-| Captain's Whistle | earned | 166 | 103 | 4.5 [−3.0, 11.9] | −0.34 [−0.55, −0.12] | −0.06 [−0.14, 0.03] | 1.4 [−6.5, 9.3] |
+| Ember Lantern | earned | 164 | 83 | −1.4 [−6.1, 3.3] | −0.06 [−0.28, 0.15] | 0.10 [−0.03, 0.22] | 3.3 [−4.6, 11.1] |
+| Captain's Whistle | earned | 166 | 82 | 1.7 [−5.1, 8.6] | −0.15 [−0.36, 0.05] | −0.02 [−0.10, 0.05] | 0.9 [−6.5, 8.3] |
 | Standard of the Sun | earned | 61 | 39 | −0.8 [−4.8, 3.3] | −0.07 [−0.13, −0.01] | 0.00 [0.00, 0.00] | 5.5 [−4.3, 15.4] |
 | Hollow Hourglass | earned | 37 | 37 | 0.0 [−2.5, 2.5] | 0.01 [−0.06, 0.08] | 0.01 [−0.05, 0.07] | 5.0 [−3.0, 12.9] |
 | Chronicle | earned | 57 | 29 | 0.4 [−4.1, 4.9] | −0.04 [−0.12, 0.04] | 0.00 [0.00, 0.00] | 1.0 [−11.2, 13.3] |
-| Tithe Box | earned | 56 | 35 | 2.2 [−4.9, 9.2] | −0.14 [−0.32, 0.04] | −0.07 [−0.26, 0.13] | −6.2 [−17.7, 5.4] |
+| Tithe Box | earned | 56 | 34 | 2.3 [−4.5, 9.2] | −0.12 [−0.30, 0.05] | −0.06 [−0.25, 0.13] | −5.0 [−16.5, 6.5] |
 | Lantern of the Road | earned | 62 | 62 | 1.0 [−0.7, 2.7] | 0.00 [−0.04, 0.05] | −0.03 [−0.06, −0.00] | 1.1 [−5.5, 7.7] |
 | Crest of the Road | earned | 0 | 0 | n/a | n/a | n/a | n/a |
-| Saint's Reliquary | earned | 56 | 23 | −2.0 [−8.6, 4.6] | 0.12 [−0.04, 0.29] | 0.06 [−0.12, 0.24] | 4.1 [−7.4, 15.6] |
+| Saint's Reliquary | earned | 56 | 22 | −2.3 [−9.2, 4.5] | 0.12 [−0.05, 0.30] | 0.06 [−0.13, 0.25] | 5.0 [−6.5, 16.5] |
 | Mercenary Ledger | earned | 36 | 36 | n/a | n/a | n/a | n/a |
 | Smith's Covenant | earned | 0 | 0 | n/a | n/a | n/a | n/a |
 | Thief's Lantern | earned | 0 | 0 | n/a | n/a | n/a | n/a |
 | Seer's Eye | earned | 67 | 67 | −0.1 [−2.0, 1.9] | −0.03 [−0.08, 0.02] | 0.01 [−0.03, 0.06] | −2.3 [−8.3, 3.7] |
-| Darkened Dawn | twisted | 47 | 27 | −4.5 [−13.6, 4.5] | 0.09 [−0.04, 0.22] | 0.04 [−0.04, 0.11] | −4.5 [−18.0, 9.0] |
-| Blood Covenant | twisted | 102 | 60 | −1.6 [−9.7, 6.5] | −0.03 [−0.33, 0.28] | 0.06 [−0.13, 0.25] | −2.8 [−11.8, 6.2] |
-| Kingmaker's Oath | twisted | 116 | 66 | −1.0 [−6.4, 4.3] | 0.19 [0.01, 0.37] | −0.00 [−0.05, 0.04] | −1.2 [−10.2, 7.9] |
-| Hollow Sun's Favor | twisted | 107 | 67 | −4.0 [−9.7, 1.7] | 0.28 [0.09, 0.47] | 0.03 [−0.04, 0.11] | 1.4 [−7.5, 10.3] |
+| Darkened Dawn | twisted | 47 | 26 | −5.1 [−14.4, 4.2] | 0.11 [−0.02, 0.24] | 0.04 [−0.04, 0.11] | −5.6 [−19.1, 8.0] |
+| Blood Covenant | twisted | 102 | 53 | 0.5 [−7.9, 8.9] | 0.06 [−0.23, 0.36] | −0.11 [−0.32, 0.11] | 1.6 [−7.3, 10.6] |
+| Kingmaker's Oath | twisted | 116 | 63 | −0.5 [−5.8, 4.8] | 0.19 [0.01, 0.37] | −0.00 [−0.05, 0.05] | −0.3 [−9.3, 8.7] |
+| Hollow Sun's Favor | twisted | 107 | 56 | −6.0 [−12.5, 0.6] | 0.40 [0.21, 0.59] | 0.05 [−0.03, 0.13] | 1.5 [−7.2, 10.3] |
 
