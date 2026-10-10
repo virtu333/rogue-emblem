@@ -71,6 +71,37 @@ export const TWIST_EFFECT_TYPES = Object.freeze([
 const REQUIRED_EFFECT_KEYS = ['type', 'params'];
 const REQUIRED_COST_POOL_KEYS = ['2', '3', '4'];
 
+/**
+ * Gifts with a catch (docs/specs/blessings-v3.md §7; engine/StartGifts.js): what a gift's
+ * `grant.kind` may be, and the effect types its `catch` may carry. A catch bites from the run's
+ * start (a gift is taken before the first node), so a price fixed to Act 1 is real; plus
+ * `eclipse_fall_now`, the one catch only a gift has. Never a Debt: a gift is not a loan.
+ */
+export const GIFT_GRANT_KINDS = Object.freeze([
+  'blessing',
+  'accessories',
+  'scrolls',
+  'weapon',
+  'whetstones',
+]);
+export const GIFT_CATCH_EFFECT_TYPES = Object.freeze([
+  'burden',
+  'eclipse_shadow_delta',
+  'eclipse_fall_now',
+  'vision_delta',
+  'act_stat_delta_all_units',
+  'act_hit_bonus',
+  'act_deploy_cap_delta',
+  'xp_multiplier_delta',
+  'shop_price_discount',
+  'forge_cost_multiplier',
+]);
+// The burdens a catch may name (never Debt).
+const GIFT_CATCH_BURDENS = ['ill_omen', 'hunted', 'sworn_enemy', 'wounded'];
+// A catch that darkens the Eclipse costs nothing with it off: the gift must require it on.
+const GIFT_ECLIPSE_EFFECTS = ['eclipse_shadow_delta', 'eclipse_fall_now'];
+const GIFT_TEXT_LIMITS = { description: 90, lore: 85 };
+
 function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
@@ -305,6 +336,11 @@ export function validateBlessingsConfig(config, options = {}) {
   }
 
   if (config.version === 3) validateV3Pricing(config, errors);
+  // Gifts read the v3 price catalog (their catches name its prices).
+  if (config.gifts !== undefined) {
+    if (config.version !== 3) errors.push('gifts needs contract v3 (a catch names catalog prices)');
+    else validateGifts(config, errors);
+  }
 
   if (isObject(config.costPools)) {
     for (const tierKey of REQUIRED_COST_POOL_KEYS) {
@@ -347,6 +383,178 @@ export function validateBlessingsConfig(config, options = {}) {
   }
 
   return { valid: errors.length === 0, errors, warnings };
+}
+
+const positiveInt = (value) => Number.isInteger(value) && value > 0;
+
+/** A gift's grant params by kind (StartGifts.js reads them). Appends to `errors`. */
+function validateGiftGrant(config, gift, path, errors) {
+  const grant = gift.grant;
+  if (!isObject(grant) || !GIFT_GRANT_KINDS.includes(grant.kind)) {
+    errors.push(`${path}.grant.kind must be one of ${GIFT_GRANT_KINDS.join(', ')}`);
+    return;
+  }
+  const at = `${path}.grant`;
+  if (grant.kind === 'blessing') {
+    if (![1, 2, 3, 4].includes(grant.tier)) errors.push(`${at}.tier must be 1-4`);
+    // A pact card is only ever handed out with its pact waived; nothing else has one to waive.
+    if (grant.tier === 4 && grant.waivePact !== true)
+      errors.push(`${at}.waivePact must be true for tier 4 (a pact card is never granted with it)`);
+    if (grant.tier !== 4 && grant.waivePact !== undefined)
+      errors.push(`${at}.waivePact is only for tier 4`);
+    // An empty pool (every card of the tier at weight 0, as fixtures do) is not an error: the
+    // gift is simply never offered then (StartGifts.isGiftEligible).
+  } else if (grant.kind === 'accessories') {
+    if (!positiveInt(grant.count) || grant.count > 3) errors.push(`${at}.count must be 1-3`);
+    if (!Number.isInteger(grant.tierOffset) || grant.tierOffset < 0 || grant.tierOffset > 3)
+      errors.push(`${at}.tierOffset must be an integer 0-3`);
+    if (
+      !(typeof grant.skillChance === 'number' && grant.skillChance >= 0 && grant.skillChance <= 1)
+    )
+      errors.push(`${at}.skillChance must be a number in [0, 1]`);
+  } else if (grant.kind === 'scrolls') {
+    const arts = grant.artScrolls ?? 0;
+    const skills = grant.skillScrolls ?? 0;
+    if (!Number.isInteger(arts) || arts < 0 || !Number.isInteger(skills) || skills < 0)
+      errors.push(`${at}.artScrolls and skillScrolls must be whole numbers`);
+    else if (arts + skills <= 0) errors.push(`${at} must hand out at least one scroll`);
+    if (skills > 0 && !EARNED_SOURCE_ACTS.includes(grant.skillScrollAct))
+      errors.push(`${at}.skillScrollAct must be one of ${EARNED_SOURCE_ACTS.join(', ')}`);
+  } else if (grant.kind === 'weapon') {
+    if (typeof grant.tier !== 'string' || !grant.tier.trim())
+      errors.push(`${at}.tier must be a weapon tier`);
+    if (grant.imbue !== undefined && typeof grant.imbue !== 'boolean')
+      errors.push(`${at}.imbue must be a boolean`);
+  } else if (grant.kind === 'whetstones') {
+    if (!positiveInt(grant.count) || grant.count > 5) errors.push(`${at}.count must be 1-5`);
+  }
+}
+
+/** A gift's catch: a label, and catalog `prices` or its own `effects`. Appends to `errors`. */
+function validateGiftCatch(config, gift, path, errors) {
+  const source = gift.catch;
+  const at = `${path}.catch`;
+  if (!isObject(source)) {
+    errors.push(`${at} must be an object`);
+    return;
+  }
+  if (typeof source.label !== 'string' || !source.label.trim())
+    errors.push(`${at}.label must be a non-empty string`);
+  const hasPrices = source.prices !== undefined;
+  const hasEffects = source.effects !== undefined;
+  if (hasPrices === hasEffects) {
+    errors.push(`${at} must name exactly one of prices or effects`);
+    return;
+  }
+  const effects = [];
+  if (hasPrices) {
+    if (!Array.isArray(source.prices) || source.prices.length === 0) {
+      errors.push(`${at}.prices must be a non-empty array`);
+      return;
+    }
+    for (const id of source.prices) {
+      const entry = config.priceCatalog?.[id];
+      if (!isObject(entry) || !Array.isArray(entry.effects)) {
+        errors.push(`${at}.prices names "${id}", which the priceCatalog does not hold`);
+        continue;
+      }
+      if (String(entry.label).includes('{owed}'))
+        errors.push(`${at}.prices "${id}" is a Debt: a gift is never a loan`);
+      effects.push(...entry.effects);
+    }
+  } else if (!Array.isArray(source.effects) || source.effects.length === 0) {
+    errors.push(`${at}.effects must be a non-empty array`);
+    return;
+  } else effects.push(...source.effects);
+  effects.forEach((effect, i) => {
+    const ep = `${at}.effects[${i}]`;
+    if (!isObject(effect) || !isObject(effect.params)) {
+      errors.push(`${ep} must be { type, params }`);
+      return;
+    }
+    if (!GIFT_CATCH_EFFECT_TYPES.includes(effect.type))
+      errors.push(`${ep}.type "${effect.type}" is not a catch (GIFT_CATCH_EFFECT_TYPES)`);
+    if (effect.type === 'burden' && !GIFT_CATCH_BURDENS.includes(effect.params.id))
+      errors.push(`${ep}: a catch's burden is one of ${GIFT_CATCH_BURDENS.join(', ')}`);
+    if (effect.type === 'eclipse_fall_now' && !positiveInt(effect.params.count))
+      errors.push(`${ep}.params.count must be a positive integer`);
+    if (GIFT_ECLIPSE_EFFECTS.includes(effect.type) && gift.requires?.eclipse !== true)
+      errors.push(`${path}.requires.eclipse must be true for a catch of ${effect.type}`);
+  });
+}
+
+/**
+ * The `gifts` block (docs/specs/blessings-v3.md §7): `{ offer: { fromRunsStarted, chance }, list }`.
+ * Each gift has a unique id, a name, a description (at most 90 characters) and a lore line (at
+ * most 85, not the description), an icon, a weight, its `grant` and its `catch`, and may carry
+ * `requires` ({ eclipse }) and `replaces`. A gift is never a blessing: its name and id may only
+ * match a blessing's when it `replaces` that blessing and the blessing is out of the offer
+ * (weight 0: the cut Armory Stash). Appends to `errors`.
+ */
+function validateGifts(config, errors) {
+  const gifts = config.gifts;
+  if (!isObject(gifts)) {
+    errors.push('gifts must be an object');
+    return;
+  }
+  const offer = gifts.offer;
+  if (
+    !isObject(offer) ||
+    !Number.isInteger(offer.fromRunsStarted) ||
+    offer.fromRunsStarted < 0 ||
+    !(typeof offer.chance === 'number' && offer.chance >= 0 && offer.chance <= 1)
+  )
+    errors.push('gifts.offer must be { fromRunsStarted: integer >= 0, chance: [0, 1] }');
+  if (!Array.isArray(gifts.list)) {
+    errors.push('gifts.list must be an array');
+    return;
+  }
+  const blessings = (config.blessings || []).filter(isObject);
+  const byName = new Map(blessings.map((b) => [String(b.name).trim().toLowerCase(), b]));
+  const byId = new Map(blessings.map((b) => [b.id, b]));
+  const ids = new Set();
+  gifts.list.forEach((gift, idx) => {
+    const path = `gifts.list[${idx}]`;
+    if (!isObject(gift)) {
+      errors.push(`${path} must be an object`);
+      return;
+    }
+    if (typeof gift.id !== 'string' || !gift.id.trim()) errors.push(`${path}.id must be a string`);
+    else if (ids.has(gift.id)) errors.push(`${path}.id duplicate: ${gift.id}`);
+    else ids.add(gift.id);
+    for (const key of ['name', 'description', 'lore', 'icon'])
+      if (typeof gift[key] !== 'string' || !gift[key].trim())
+        errors.push(`${path}.${key} must be a non-empty string`);
+    for (const [key, max] of Object.entries(GIFT_TEXT_LIMITS))
+      if (typeof gift[key] === 'string' && gift[key].length > max)
+        errors.push(`${path}.${key} is longer than ${max} characters`);
+    if (typeof gift.lore === 'string' && gift.lore.trim() === String(gift.description).trim())
+      errors.push(`${path}.lore must say something the description does not`);
+    if (!(typeof gift.weight === 'number' && gift.weight >= 0))
+      errors.push(`${path}.weight must be a number >= 0`);
+    if (gift.requires !== undefined) {
+      if (!isObject(gift.requires)) errors.push(`${path}.requires must be an object`);
+      else
+        for (const [key, value] of Object.entries(gift.requires))
+          if (!EARNED_REQUIRES_KEYS.includes(key) || typeof value !== 'boolean')
+            errors.push(`${path}.requires.${key} is not a gift requirement`);
+    }
+    // A gift is never a blessing: it may share a blessing's name or id only by replacing it.
+    const replaced = gift.replaces !== undefined ? byId.get(gift.replaces) : null;
+    if (gift.replaces !== undefined) {
+      if (!replaced) errors.push(`${path}.replaces names "${gift.replaces}", no blessing`);
+      else if (Number(replaced.weight ?? 1) > 0)
+        errors.push(`${path}.replaces "${gift.replaces}", which is still offered (weight > 0)`);
+    }
+    const twin = byName.get(String(gift.name).trim().toLowerCase());
+    if (twin && twin !== replaced)
+      errors.push(`${path}.name "${gift.name}" is a blessing's name (replaces it? say so)`);
+    const idTwin = byId.get(gift.id);
+    if (idTwin && idTwin !== replaced)
+      errors.push(`${path}.id "${gift.id}" is a blessing's id (replaces it? say so)`);
+    validateGiftGrant(config, gift, path, errors);
+    validateGiftCatch(config, gift, path, errors);
+  });
 }
 
 /**

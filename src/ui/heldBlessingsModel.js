@@ -4,6 +4,7 @@
 import { buildBlessingIndex } from '../engine/BlessingEngine.js';
 import { blessingTerms } from '../engine/BlessingTerms.js';
 import { blessingPriceKind } from './choiceContent.js';
+import { startGiftEntry } from '../engine/StartGifts.js';
 
 const TIER_NUMERALS = ['', 'I', 'II', 'III', 'IV', 'V'];
 
@@ -26,6 +27,9 @@ function catalogIndex(run) {
  * vow, an event's gift).
  * `terms` explains the price's words (BlessingTerms). An id the catalog no longer has is left
  * out. Empty when the run holds none.
+ * A start gift that handed out no blessing (engine/StartGifts.js) leads the list as its own
+ * entry: `tier: 'Gift'`, `gift: true`, its catch as a 'Catch' (one that handed out a blessing is
+ * that blessing's entry, its catch the price).
  * @param {object} run - RunManager
  * @returns {Array<{ id: string, label: string, tier: string, line: string,
  *   price: string|null, priceKind: 'Cost'|'Price'|'Pact'|'Twist'|'Catch'|null }>}
@@ -34,6 +38,17 @@ export function heldBlessingEntries(run) {
   const index = catalogIndex(run);
   const seen = new Set();
   const entries = [];
+  const gift = startGiftEntry(run);
+  if (gift)
+    entries.push({
+      ...gift,
+      terms: gift.price
+        ? blessingTerms([gift.price], {
+            burdens: run?.gameData?.events?.burdens,
+            difficultyId: run?.difficultyId,
+          })
+        : [],
+    });
   for (const entry of run?.activeBlessings || []) {
     const id = typeof entry === 'string' ? entry : entry?.id;
     if (typeof id !== 'string' || seen.has(id)) continue;

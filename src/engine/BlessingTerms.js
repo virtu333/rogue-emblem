@@ -33,7 +33,17 @@ function burdenValue(def, rung, key) {
   return onRung && onRung[key] !== undefined ? onRung[key] : def?.[key];
 }
 
-function burdenSentence(id, def, rung) {
+/**
+ * A price that names its own count for a burden ("Lingering Injury on your commander for 5
+ * battles": a start gift's catch) is held to it; the catalog's count is the rung's default.
+ */
+function namedBattles(text, pattern) {
+  const source = pattern.source.replace(/^\\b|\\b$/g, '');
+  const match = new RegExp(`${source}[^.;]*?\\bfor (\\d+) battles\\b`, 'i').exec(text);
+  return match ? Number(match[1]) : null;
+}
+
+function burdenSentence(id, def, rung, named = null) {
   const line = typeof def?.line === 'string' ? def.line : '';
   if (id === 'debt') {
     const share = Number(burdenValue(def, rung, 'garnish')) || 0.5;
@@ -49,7 +59,7 @@ function burdenSentence(id, def, rung) {
       .trim();
   }
   if (id === 'wounded') {
-    const battles = burdenValue(def, rung, 'battles');
+    const battles = named ?? burdenValue(def, rung, 'battles');
     const value = Math.abs(Number(burdenValue(def, rung, 'value')) || 2);
     return `One unit fights at -${value} to one stat${battles ? ` for ${battles} battles` : ''}. A church's Heal all mends it early.`;
   }
@@ -72,7 +82,7 @@ export function blessingTerms(
   if (pact) out.push({ term: 'Pact', text: PACT_TEXT });
   for (const { id, term, pattern } of BURDEN_TERMS) {
     if (!pattern.test(joined)) continue;
-    const sentence = burdenSentence(id, burdens?.[id], difficultyId);
+    const sentence = burdenSentence(id, burdens?.[id], difficultyId, namedBattles(joined, pattern));
     if (sentence) out.push({ term, text: sentence });
   }
   for (const { term, pattern, text: sentence } of OTHER_TERMS)

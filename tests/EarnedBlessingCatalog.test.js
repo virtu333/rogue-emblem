@@ -223,7 +223,8 @@ describe('offers never include an earned blessing', () => {
     function v2Catalog() {
       const c = structuredClone(catalog);
       c.version = 2;
-      for (const key of ['priceCatalog', 'tierBands', 'debtScale']) delete c[key];
+      // The start gifts (v3 only: their catches name catalog prices) go with the price catalog.
+      for (const key of ['priceCatalog', 'tierBands', 'debtScale', 'gifts']) delete c[key];
       c.blessings = c.blessings.filter((b) => !b.intrinsicPrice);
       for (const b of c.blessings) delete b.prices;
       return c;

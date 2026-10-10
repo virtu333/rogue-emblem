@@ -221,6 +221,12 @@ import {
   shrineBoonsOf,
 } from './ShrineBoons.js';
 import { createSpecialCharacter } from './SpecialCharacters.js';
+import {
+  chooseStartGift as takeStartGift,
+  findGift,
+  rollStartGiftOffer,
+  sanitizeStartGift,
+} from './StartGifts.js';
 
 // Phaser-specific fields that must be stripped for serialization
 const PHASER_FIELDS = UNIT_PRESENTATION_FIELDS;
@@ -722,6 +728,9 @@ export class RunManager {
     this.activeBlessings = [];
     this.blessingHistory = [];
     this.blessingSelectionTelemetry = null;
+    // The gift with a catch taken at the shrine (engine/StartGifts.js): `{ id, granted,
+    // catchLabel }`, saved; null for a run that took none.
+    this.startGift = null;
     this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
     // Which blessing-boon rules this run's saved numbers follow (BlessingBoonMigration.js):
     // a new run is current, fromJSON reads the save's own.
@@ -901,6 +910,9 @@ export class RunManager {
       applyBlessingsAtStart = true,
       difficultyId = this.difficultyId || 'normal',
       eclipseEnabled = true,
+      // How many runs this save has started (meta), for the shrine's gift (StartGifts.js): the
+      // sims and dev routes pass none, so they are never offered one.
+      runsStarted = 0,
     } = options;
     this.mode = STANDARD_RUN_MODE;
     this.applyDifficultySelection(difficultyId);
@@ -966,7 +978,13 @@ export class RunManager {
     this.blessingHistory = [];
     this._runStartBlessingsApplied = false;
     this._blessingChosen = false;
+    this.startGift = null;
     this.initializeBlessingsAtRunStart(options);
+    // The shrine's fourth card: a gift with a catch, on its own keyed streams (never the
+    // blessing offer's). Rolled from the run as it starts, before anything is applied.
+    const giftId = rollStartGiftOffer(this, { runsStarted });
+    if (giftId && this.blessingSelectionTelemetry)
+      this.blessingSelectionTelemetry.gift = { offeredId: giftId };
     if (applyBlessingsAtStart && this.activeBlessings.length > 0) {
       this.applyRunStartBlessingEffects();
     }
@@ -1048,6 +1066,7 @@ export class RunManager {
     this.blessingHistory = [];
     this._runStartBlessingsApplied = false;
     this._blessingChosen = false;
+    this.startGift = null; // the prologue is never offered a gift
     this.initializeBlessingsAtRunStart({ blessingSeed: this.runSeed });
     this.chooseBlessing(null);
   }
@@ -1290,6 +1309,36 @@ export class RunManager {
     this.applyRunStartBlessingEffects();
     this._blessingChosen = true;
     return true;
+  }
+
+  /**
+   * The gift this run's shrine offers beside its blessings (engine/StartGifts.js), as the
+   * catalog holds it, or null for a run offered none.
+   */
+  getStartGiftOffer() {
+    const giftId = this.blessingSelectionTelemetry?.gift?.offeredId;
+    const gift = giftId ? findGift(this.gameData, giftId) : null;
+    return gift ? structuredClone(gift) : null;
+  }
+
+  /** Take the offered gift in place of a blessing (StartGifts.chooseStartGift). */
+  chooseStartGift(giftId) {
+    return takeStartGift(this, giftId);
+  }
+
+  /**
+   * A start gift's own effects (its catch, the shrine handlers its grant reuses), applied through
+   * the shrine's handlers once, recorded under the gift's record id with stage 'gift'.
+   */
+  applyStartGiftEffects(recordId, effects = []) {
+    const outerStage = this._blessingEventStage;
+    this._blessingEventStage = 'gift';
+    try {
+      for (const effect of effects) this._applySingleRunStartBlessingEffect(recordId, effect);
+    } finally {
+      if (outerStage === undefined) delete this._blessingEventStage;
+      else this._blessingEventStage = outerStage;
+    }
   }
 
   applyRunStartBlessingEffects() {
@@ -5959,6 +6008,7 @@ export class RunManager {
         .filter(Boolean),
       blessingHistory: this.blessingHistory || [],
       blessingSelectionTelemetry: this.blessingSelectionTelemetry || null,
+      startGift: this.startGift || null,
       blessingRuntimeModifiers: this.blessingRuntimeModifiers || createBlessingRuntimeModifiers(),
       runSeed: this.runSeed,
       legendaryLordChance: this.legendaryLordChance,
@@ -6349,6 +6399,8 @@ export class RunManager {
     const rawActiveBlessings = Array.isArray(saved.activeBlessings) ? saved.activeBlessings : [];
     rm.blessingHistory = saved.blessingHistory || [];
     rm.blessingSelectionTelemetry = saved.blessingSelectionTelemetry || null;
+    // The start gift taken (StartGifts.js): read, never applied again. A save from before has none.
+    rm.startGift = sanitizeStartGift(saved.startGift);
     if (rm.blessingSelectionTelemetry && !Array.isArray(rm.blessingSelectionTelemetry.offeredIds)) {
       rm.blessingSelectionTelemetry.offeredIds = Array.isArray(
         rm.blessingSelectionTelemetry.chosenIds,
