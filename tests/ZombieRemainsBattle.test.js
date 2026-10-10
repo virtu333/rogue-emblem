@@ -325,7 +325,7 @@ describe('the Smash command', () => {
     openMenuCommand(scene, 'smash').onActivate();
     const rows = scene._remainsCtrl.targetRows(unit);
     expect(rows.map(({ label, detail }) => [label, detail])).toEqual([
-      ['2 Zombie remains (underfoot)', 'rises in 2 enemy phases'],
+      ['2 Zombie remains (underfoot)', 'first rises in 2 enemy phases'],
       ['Zombie remains', 'rises in 1 enemy phase'],
     ]);
     // A stale row (the state moved on) does nothing.

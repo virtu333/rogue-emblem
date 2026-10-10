@@ -145,7 +145,8 @@ export class ZombieRemainsController {
       return {
         target,
         label: `${count > 1 ? `${count} ` : ''}${kind} remains${under ? ' (underfoot)' : ''}`,
-        detail: riseText(target.turnsRemaining),
+        // Several on one tile rise one by one: say the first (as remainsInfoLine does).
+        detail: `${count > 1 ? 'first ' : ''}${riseText(target.turnsRemaining)}`,
       };
     });
   }
