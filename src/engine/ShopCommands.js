@@ -10,6 +10,7 @@ import {
   canEquip,
   getCombatWeapons,
 } from './UnitManager.js';
+import { isDuplicateLegendary, recordLegendaryGrant } from './LegendaryOwnership.js';
 import { weaponTypeNoun } from './ItemKeywords.js';
 import { getSellPrice } from './LootSystem.js';
 import { itemDisplayName } from '../utils/itemNames.js';
@@ -65,6 +66,8 @@ export function shopBuyBlock(run, stock, entry) {
   if (!stock.includes(entry)) return 'This item is no longer in stock.';
   if (!Number.isFinite(entry.price) || entry.price < 0) return 'Item price is unavailable.';
   if (run.gold < entry.price) return 'Not enough gold.';
+  // Stock rolled before the first one was bought (or loaded from an older save).
+  if (isDuplicateLegendary(run, entry.item)) return 'Already owned this run.';
   return '';
 }
 export function purchaseShopItem(run, stock, entry, recipient) {
@@ -113,6 +116,7 @@ export function purchaseShopItem(run, stock, entry, recipient) {
     };
   }
   stock.splice(stock.indexOf(entry), 1);
+  recordLegendaryGrant(run, entry.item);
   return {
     ok: true,
     message: `${itemDisplayName(entry.item, run.gameData?.skills)} → ${pool === 'accessories' && recipient != null && recipient !== 'pool' ? `${recipient.name} (equipped)` : pool ? (pool === 'scrolls' ? 'Scroll pool' : 'Accessory pool') : convoy ? 'Convoy' : recipient.name}.`,
