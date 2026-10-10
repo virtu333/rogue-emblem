@@ -5,6 +5,7 @@ import { isPrologueRun } from './ScriptedBattle.js';
 import { gambleSummary } from './BattleGoldGamble.js';
 import { applyLotteryCards, lotteryDrawParams } from './LotteryLoot.js';
 import { dawnTitheGold, shrineBoonsOf } from './ShrineBoons.js';
+import { lootGoldMultiplierOf } from './TwistedBoons.js';
 import {
   LOOT_CHOICES,
   ELITE_LOOT_CHOICES,
@@ -30,6 +31,9 @@ export function rewardDrawParams(run, ctx) {
       ? structuredClone(meta.lootCategoryWeightBonuses)
       : null,
     goldMultiplier: Number.isFinite(pressure) ? pressure : 1,
+    // Hollow Sun's Favor: what gold loot cards are worth (engine/TwistedBoons.js); absent without
+    // it, so an unblessed draw (and every record saved before) is exactly as it was.
+    ...(lootGoldMultiplierOf(run) !== 1 ? { lootGoldMultiplier: lootGoldMultiplierOf(run) } : {}),
     // Lottery Loot: which table its card comes from (engine/LotteryLoot.js); absent without it.
     ...(lotteryDrawParams(run, { nodeId: ctx.nodeId || run.currentNodeId }) || {}),
   };
@@ -67,9 +71,17 @@ export function rollBattleRewardChoices(run, data, draw, { round = 0 } = {}) {
   for (const choice of choices)
     if (choice.item?.name === 'Vulnerary') choice.quantity = LOOT_VULNERARY_BUNDLE;
   const pressure = Number.isFinite(draw.goldMultiplier) ? draw.goldMultiplier : 1;
+  // Hollow Sun's Favor, read from the draw (never the run), so a reroll pays what the first offer
+  // would have, and a card rolled before the take is not raised by it.
+  const favor =
+    Number.isFinite(draw.lootGoldMultiplier) && draw.lootGoldMultiplier > 0
+      ? draw.lootGoldMultiplier
+      : 1;
   for (const choice of choices)
-    if (choice.type === 'gold')
+    if (choice.type === 'gold') {
       choice.goldAmount = Math.max(0, Math.floor((choice.goldAmount || 0) * pressure));
+      if (favor !== 1) choice.goldAmount = Math.floor(choice.goldAmount * favor);
+    }
   return JSON.parse(JSON.stringify(choices));
 }
 

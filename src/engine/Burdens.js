@@ -32,8 +32,18 @@
 // keeps the larger wave; Sworn Enemy is one record; a fresh Lingering Injury (id `wounded`) replaces the old one (an injury
 // is on one unit at a time).
 //
-// Cleansing (ChurchVow.cleanseAtChurch) lifts any burden except Debt (UNCLEANSABLE_BURDENS)
-// and Lingering Injury (HEALED_BURDENS: Heal all, which is free and always open at a church, mends it).
+// A twisted earned blessing (docs/specs/blessings-v3.md §6.2, PR D3) leaves burdens that do not
+// count down: Blood Covenant's Ill Omen never ends (`permanent: true`), and Hollow Sun's Favor's
+// Hunted lasts through the next act (`untilAct`: the act it ends as, set from the twist's
+// `actsAhead` when it is taken; `permanent` when the run has no such act). `expireActBurdens` ends
+// an `untilAct` as that act begins (RunManager.advanceAct, and on load). A countdown taken on top
+// (an event's Hunted for 2 battles) merges into the record: it ends when both are spent.
+//
+// Cleansing (ChurchVow.cleanseAtChurch) lifts any burden except Debt (UNCLEANSABLE_BURDENS),
+// Lingering Injury (HEALED_BURDENS: Heal all, which is free and always open at a church, mends it)
+// and a twist's burden (one that never ends or ends with an act: `isTwistBurden`). A twist is the
+// price of a strong earned card; a free vow lifting it would make the card free. `isCleansable` is
+// the one rule.
 //
 // Settlement happens at exactly one place, the battle's victory commit
 // (RunManager.completeBattle -> burdenEffectsOnVictory), and nowhere mid-battle, so
@@ -53,6 +63,15 @@ export const UNCLEANSABLE_BURDENS = Object.freeze(['debt']);
 
 /** Burdens a church's free Heal all ends, so Cleanse never offers them (an injury ends with its heal). */
 export const HEALED_BURDENS = Object.freeze(['wounded']);
+
+/** Burdens a twist may leave with no countdown (`permanent`; Hunted also `actsAhead`). */
+export const TWIST_BURDEN_IDS = Object.freeze(['ill_omen', 'hunted']);
+
+/** What an altar says of a burden it will not lift. */
+export const CLEANSE_REFUSALS = Object.freeze({
+  debt: 'The lender has lawyers. No altar lifts this.',
+  twist: "A twisted blessing's price: no altar lifts it while you hold the blessing.",
+});
 
 /** The stats a wound may name (never HP: the wound is a battle stat delta, MOV stays whole). */
 export const WOUND_STATS = Object.freeze(['STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK']);
@@ -123,8 +142,11 @@ export function normalizeBurdens(raw) {
     if (!isPlain(entry) || out.some((b) => b.id === entry.id)) continue;
     if (entry.id === 'ill_omen') {
       const battles = Math.max(0, int(entry.battles));
-      if (battles > 0)
-        out.push({ id: 'ill_omen', battles, extraShadow: Math.max(0, int(entry.extraShadow, 1)) });
+      const extraShadow = Math.max(0, int(entry.extraShadow, 1));
+      // Blood Covenant's omen never ends: no countdown of its own.
+      if (entry.permanent === true)
+        out.push({ id: 'ill_omen', battles: 0, extraShadow, permanent: true });
+      else if (battles > 0) out.push({ id: 'ill_omen', battles, extraShadow });
     } else if (entry.id === 'debt') {
       const owed = Math.max(0, int(entry.owed));
       const garnish = Number(entry.garnish);
@@ -136,7 +158,9 @@ export function normalizeBurdens(raw) {
         });
     } else if (entry.id === 'hunted') {
       const battles = Math.max(0, int(entry.battles));
-      if (battles > 0) out.push({ id: 'hunted', battles, wave: normalizeHuntedWave(entry.wave) });
+      const span = huntSpanOf(entry);
+      if (battles > 0 || span)
+        out.push({ id: 'hunted', battles, wave: normalizeHuntedWave(entry.wave), ...span });
     } else if (entry.id === 'sworn_enemy') {
       out.push({ id: 'sworn_enemy' });
     } else if (entry.id === 'wounded') {
@@ -161,6 +185,53 @@ export function normalizeBurdens(raw) {
   return out;
 }
 
+/**
+ * A Hunted record's span beyond its countdown: `{ permanent: true }`, `{ untilAct }` (an act id),
+ * or null. A permanent record never also names an act.
+ */
+function huntSpanOf(entry) {
+  if (entry?.permanent === true) return { permanent: true };
+  if (typeof entry?.untilAct === 'string' && entry.untilAct) return { untilAct: entry.untilAct };
+  return null;
+}
+
+/** The index of an act in the run's sequence (-1 when it is not one of them). */
+function actIndexIn(run, actId) {
+  return Array.isArray(run?.actSequence) ? run.actSequence.indexOf(actId) : -1;
+}
+
+/**
+ * A twist's Hunted span from `actsAhead` when it is taken: through the next `actsAhead` acts, so
+ * the record ends as act `actIndex + 1 + actsAhead` begins (taken at Act I's boss with 1: all of
+ * Act II, ending as Act III begins); with no such act, for the rest of the run.
+ */
+function huntSpanFromActsAhead(run, actsAhead) {
+  const ahead = int(actsAhead);
+  if (!(ahead > 0)) return null;
+  const index = Math.max(0, int(run?.actIndex)) + 1 + ahead;
+  const act = Array.isArray(run?.actSequence) ? run.actSequence[index] : undefined;
+  return typeof act === 'string' && act ? { untilAct: act } : { permanent: true };
+}
+
+/** The later of two Hunted spans (permanent outlasts any act; an unknown act counts as none). */
+function laterHuntSpan(run, a, b) {
+  if (a?.permanent || b?.permanent) return { permanent: true };
+  if (!a?.untilAct) return b?.untilAct ? { untilAct: b.untilAct } : null;
+  if (!b?.untilAct) return { untilAct: a.untilAct };
+  return actIndexIn(run, b.untilAct) > actIndexIn(run, a.untilAct)
+    ? { untilAct: b.untilAct }
+    : { untilAct: a.untilAct };
+}
+
+/**
+ * True for a burden a twisted blessing left: one with no countdown of its own (it never ends, or
+ * it ends with an act). Only a twist's price writes these (the validator refuses `permanent` and
+ * `actsAhead` anywhere else).
+ */
+export function isTwistBurden(burden) {
+  return Boolean(burden) && (burden.permanent === true || typeof burden.untilAct === 'string');
+}
+
 /** The run's burden record for an id, or null. */
 export function burdenOf(run, id) {
   return (run?.burdens || []).find((burden) => burden?.id === id) || null;
@@ -182,13 +253,17 @@ export function addBurden(run, id, params = {}, catalog = null) {
   const existing = list.find((burden) => burden.id === id);
   let next;
   if (id === 'ill_omen') {
-    const battles = Math.max(1, int(params.battles ?? def.battles, 1));
     const extraShadow = Math.max(0, int(params.extraShadow ?? def.extraShadow, 1));
-    next = {
-      id,
-      battles,
-      extraShadow: existing ? Math.max(existing.extraShadow, extraShadow) : extraShadow,
-    };
+    const shadow = existing ? Math.max(existing.extraShadow, extraShadow) : extraShadow;
+    // An omen that never ends (a twist) swallows any countdown, before or after it.
+    if (params.permanent === true || existing?.permanent === true)
+      next = { id, battles: 0, extraShadow: shadow, permanent: true };
+    else
+      next = {
+        id,
+        battles: Math.max(1, int(params.battles ?? def.battles, 1)),
+        extraShadow: shadow,
+      };
   } else if (id === 'debt') {
     const owed = Math.max(1, int(params.owed ?? def.owed, 1));
     const garnish = Number(params.garnish ?? def.garnish);
@@ -198,12 +273,21 @@ export function addBurden(run, id, params = {}, catalog = null) {
       garnish: Number.isFinite(garnish) && garnish > 0 && garnish <= 1 ? garnish : 0.5,
     };
   } else if (id === 'hunted') {
-    const battles = Math.max(1, int(params.battles ?? def.battles, 1));
+    // A twist's Hunted runs through acts (`actsAhead`) or for good (`permanent`), with no
+    // countdown of its own; anything else counts battles. Merged, the record ends when both are
+    // spent: its battles counted down and its act begun.
+    const twistSpan =
+      params.permanent === true
+        ? { permanent: true }
+        : huntSpanFromActsAhead(run, params.actsAhead);
+    const battles = twistSpan ? 0 : Math.max(1, int(params.battles ?? def.battles, 1));
     const wave = normalizeHuntedWave(params.wave ?? def.wave);
+    const span = laterHuntSpan(run, huntSpanOf(existing), twistSpan);
     next = {
       id,
       battles: existing ? Math.max(existing.battles, battles) : battles,
       wave: existing && existing.wave.count[1] > wave.count[1] ? existing.wave : wave,
+      ...span,
     };
   } else if (id === 'sworn_enemy') {
     next = { id };
@@ -229,15 +313,56 @@ export function addBurden(run, id, params = {}, catalog = null) {
 
 /**
  * True when a church could lift this burden with a Cleanse vow: every one but Debt (the lender
- * has lawyers) and Lingering Injury (Heal all mends it for free at any church or sanctuary, so a
- * church's one vow is never spent on it: `endWoundByHealing`).
+ * has lawyers), Lingering Injury (Heal all mends it for free at any church or sanctuary, so a
+ * church's one vow is never spent on it: `endWoundByHealing`) and a twist's burden (`isTwistBurden`:
+ * Blood Covenant's endless Ill Omen, Hollow Sun's Favor's Hunted through the next act). A twist is
+ * the price of a strong earned card, taken knowingly; a free vow lifting it would make the card
+ * free. The one rule the church's offer, its refusal and its menu read.
  */
 export function isCleansable(burden) {
   return (
     Boolean(burden) &&
     !UNCLEANSABLE_BURDENS.includes(burden.id) &&
-    !HEALED_BURDENS.includes(burden.id)
+    !HEALED_BURDENS.includes(burden.id) &&
+    !isTwistBurden(burden)
   );
+}
+
+/** What an altar says of a burden it will not lift ('' when it would lift it). */
+export function cleanseRefusal(burden) {
+  if (!burden || isCleansable(burden)) return '';
+  if (UNCLEANSABLE_BURDENS.includes(burden.id)) return CLEANSE_REFUSALS.debt;
+  if (HEALED_BURDENS.includes(burden.id))
+    return 'Heal all mends a lingering injury. It needs no vow.';
+  return CLEANSE_REFUSALS.twist;
+}
+
+/**
+ * End the Hunted spans whose act has begun: a record whose `untilAct` is the run's current act
+ * or an earlier one (or an act the run does not have) loses the span, and is gone when it has no
+ * battles left either. Pure: returns `{ burdens, ended }` (`ended`: the ids that ended). Called by
+ * RunManager.advanceAct after the act advances, and on load.
+ */
+export function expireActBurdens(burdens, { actSequence = null, actIndex = 0 } = {}) {
+  const list = normalizeBurdens(burdens);
+  const acts = Array.isArray(actSequence) ? actSequence : [];
+  const ended = [];
+  const next = [];
+  for (const burden of list) {
+    if (burden.id !== 'hunted' || typeof burden.untilAct !== 'string') {
+      next.push(burden);
+      continue;
+    }
+    const until = acts.indexOf(burden.untilAct);
+    if (until > int(actIndex)) {
+      next.push(burden);
+      continue;
+    }
+    const { untilAct: _spent, ...rest } = burden;
+    if (rest.battles > 0) next.push(rest);
+    else ended.push(burden.id);
+  }
+  return { burdens: next, ended };
 }
 
 /**
@@ -323,6 +448,12 @@ export function burdenEffectsOnVictory(run, { gold = 0, shadowGain = 0, battle =
   for (const burden of current) {
     if (burden.id === 'ill_omen') {
       extraShadow += burden.extraShadow;
+      if (burden.permanent === true) {
+        // Blood Covenant's omen never counts down.
+        record.illOmen = { extraShadow: burden.extraShadow, remaining: null, ended: false };
+        next.push(burden);
+        continue;
+      }
       const remaining = burden.battles - 1;
       record.illOmen = { extraShadow: burden.extraShadow, remaining, ended: remaining <= 0 };
       if (remaining > 0) next.push({ ...burden, battles: remaining });
@@ -336,9 +467,11 @@ export function burdenEffectsOnVictory(run, { gold = 0, shadowGain = 0, battle =
       if (remaining > 0) next.push({ ...burden, owed: remaining });
     } else if (burden.id === 'hunted') {
       if (battle?.hunted === true) {
-        const remaining = burden.battles - 1;
-        record.hunted = { remaining, ended: remaining <= 0 };
-        if (remaining > 0) next.push({ ...burden, battles: remaining });
+        // A twist's span outlasts the countdown: the record stays until its act (or for good).
+        const remaining = Math.max(0, burden.battles - 1);
+        const spans = isTwistBurden(burden);
+        record.hunted = { remaining, ended: remaining <= 0 && !spans };
+        if (remaining > 0 || spans) next.push({ ...burden, battles: remaining });
       } else next.push(burden);
     } else if (burden.id === 'sworn_enemy') {
       if (battle?.boss === true) record.sworn = { ended: true };
@@ -374,7 +507,14 @@ export function burdenEffectsOnVictory(run, { gold = 0, shadowGain = 0, battle =
 export function huntedWaveFor(run, { isBoss = false } = {}) {
   if (isBoss) return null;
   const hunted = burdenOf(run, 'hunted');
-  return hunted && int(hunted.battles) > 0 ? normalizeHuntedWave(hunted.wave) : null;
+  if (!hunted) return null;
+  // A twist's span holds until its act begins (expireActBurdens ends it then; a stale span on a
+  // record no act advance has reached yet is read against the run's own act).
+  const spans =
+    hunted.permanent === true ||
+    (typeof hunted.untilAct === 'string' &&
+      actIndexIn(run, hunted.untilAct) > Math.max(0, int(run?.actIndex)));
+  return int(hunted.battles) > 0 || spans ? normalizeHuntedWave(hunted.wave) : null;
 }
 
 /** True while a Sworn Enemy waits for the act boss. */
@@ -395,6 +535,15 @@ export function battleDebuffsFor(run) {
 // ── Display ───────────────────────────────────────────────────────────────
 
 const minus = (n) => `−${Math.abs(n)}`;
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI'];
+
+/** "Act III" for `act3`, "the final act" for `finalBoss` (engine-side: no UI import). */
+function actName(actId) {
+  const match = /^act(\d+)$/.exec(String(actId || ''));
+  if (match) return `Act ${ROMAN[Number(match[1])] || match[1]}`;
+  if (actId === 'finalBoss') return 'the final act';
+  return 'a later act';
+}
 
 /**
  * The words of one burden record: { label, short, line, detail }. `short` is the chip's
@@ -404,6 +553,14 @@ export function describeBurden(burden, { def = {}, roster = [] } = {}) {
   const label = def.label || burden.id;
   const line = def.line || '';
   const left = `${plural(burden.battles, 'battle')} left`;
+  if (burden.id === 'ill_omen' && burden.permanent === true)
+    return {
+      label,
+      // The catalog's line says the omen passes; this one never does.
+      line: 'Each victory gathers more shadow.',
+      short: 'Never ends',
+      detail: `never ends: +${burden.extraShadow} shadow each victory; no altar lifts it`,
+    };
   if (burden.id === 'ill_omen')
     return {
       label,
@@ -421,12 +578,22 @@ export function describeBurden(burden, { def = {}, roster = [] } = {}) {
   if (burden.id === 'hunted') {
     const [min, max] = burden.wave.count;
     const foes = min === max ? `${min}` : `${min}–${max}`;
-    return {
-      label,
-      line,
-      short: `${burden.battles} left`,
-      detail: `${left}: an extra wave of ${foes} foes on turn ${burden.wave.turn}, boss maps spared`,
-    };
+    const wave = `an extra wave of ${foes} foes on turn ${burden.wave.turn}, boss maps spared`;
+    // A twist's span (no altar lifts it); a countdown merged on top still ends with its battles.
+    if (burden.permanent === true)
+      return { label, line, short: 'Rest of run', detail: `for the rest of the run: ${wave}` };
+    if (typeof burden.untilAct === 'string') {
+      const act = actName(burden.untilAct);
+      const extra =
+        burden.battles > 0 ? ` and ${plural(burden.battles, 'more battle')} are fought` : '';
+      return {
+        label,
+        line,
+        short: `Until ${act}`,
+        detail: `until ${act} begins${extra}: ${wave}`,
+      };
+    }
+    return { label, line, short: `${burden.battles} left`, detail: `${left}: ${wave}` };
   }
   if (burden.id === 'sworn_enemy')
     return {
@@ -454,6 +621,9 @@ export function describeBurdens(run, catalog = null) {
   const defs = burdenDefs(catalog || run?.gameData?.events);
   return normalizeBurdens(run?.burdens).map((burden) => ({
     id: burden.id,
+    // Whether a church's Cleanse could lift it (`isCleansable`, the one rule), and why not.
+    cleansable: isCleansable(burden),
+    refusal: cleanseRefusal(burden),
     ...describeBurden(burden, { def: defs[burden.id], roster: run?.roster }),
   }));
 }

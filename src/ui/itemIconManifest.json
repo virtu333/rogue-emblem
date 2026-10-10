@@ -561,7 +561,11 @@
     "blessing-chronicle": [301, 5, 4],
     "blessing-tithe_box": [296, 5, 4],
     "blessing-lantern_of_the_road": [252, 5, 4],
-    "blessing-crest_of_the_road": [204, 5, 4]
+    "blessing-crest_of_the_road": [204, 5, 4],
+    "blessing-darkened_dawn": [307, 5, 4],
+    "blessing-blood_covenant": [212, 5, 4],
+    "blessing-kingmakers_oath": [308, 5, 4],
+    "blessing-hollow_sun_favor": [220, 5, 4]
   },
   "aliases": {
     "upgrade-branching_threads": "blessing-focused_curriculum",
@@ -591,6 +595,10 @@
     "blessing-chronicle": "upgrade-studied_training",
     "blessing-tithe_box": "upgrade-starting_gold",
     "blessing-lantern_of_the_road": "blessing-pilgrim_coin",
-    "blessing-crest_of_the_road": "veterans-crest"
+    "blessing-crest_of_the_road": "veterans-crest",
+    "blessing-darkened_dawn": "upgrade-vision_charges_3",
+    "blessing-blood_covenant": "vampires-bloodshard",
+    "blessing-kingmakers_oath": "upgrade-legendary_heir",
+    "blessing-hollow_sun_favor": "diamond-medallion"
   }
 }

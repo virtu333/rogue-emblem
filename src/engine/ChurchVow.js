@@ -34,6 +34,7 @@ import {
   burdenDefFor,
   burdenOf,
   cleansableBurdens,
+  cleanseRefusal,
   HEALED_BURDENS,
   isCleansable,
   removeBurden,
@@ -318,7 +319,9 @@ export function churchCleanseBlock(run, nodeId, burdenId) {
   if (!burden) return 'That burden is not on you.';
   if (HEALED_BURDENS.includes(burden.id))
     return 'Heal all mends a lingering injury. It needs no vow.';
-  if (!isCleansable(burden)) return 'The lender has lawyers. No altar lifts this.';
+  // Debt (the lender has lawyers) and a twist's burden (Burdens.isCleansable: a twisted blessing's
+  // price stays while the blessing is held).
+  if (!isCleansable(burden)) return cleanseRefusal(burden);
   return '';
 }
 

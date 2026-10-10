@@ -77,9 +77,11 @@ export function earnedPickModel(run, entry = earnedPickOwed(run)) {
     cards.push({
       id,
       content,
-      terms: blessingTerms([content.boon], {
+      // A twisted card's twist is explained too (Hunted, Ill Omen, shadow): it is taken knowingly.
+      terms: blessingTerms([content.boon, content.cost], {
         burdens: run?.gameData?.events?.burdens,
         difficultyId: run?.difficultyId,
+        effects: blessing.twist?.effects || null,
       }),
     });
   }

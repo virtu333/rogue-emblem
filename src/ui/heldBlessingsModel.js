@@ -72,6 +72,7 @@ export function heldBlessingEntries(run) {
             burdens: run?.gameData?.events?.burdens,
             difficultyId: run?.difficultyId,
             pact: isPact,
+            effects: entry?.rolledCost?.effects || null,
           })
         : [],
     });

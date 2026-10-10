@@ -1200,7 +1200,8 @@ export function applyStep(ctx, step) {
           label: def.label || step.id,
           line: def.line || '',
           detail:
-            step.id === 'ill_omen'
+            // A twist's endless omen already held swallows this one: say what stands.
+            step.id === 'ill_omen' && !b.permanent
               ? `${b.battles} battles, +${b.extraShadow} shadow each`
               : step.id === 'debt'
                 ? `${b.owed} G owed`

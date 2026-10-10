@@ -57,22 +57,56 @@ function burdenSentence(id, def, rung) {
 }
 
 /**
+ * A twist's burden that outlasts its battles (Blood Covenant's endless Ill Omen, Hollow Sun's
+ * Favor's Hunted through the next act: `permanent` / `actsAhead`, engine/Burdens.js) says so in
+ * its own sentence, with the price's own numbers rather than the rung's countdown; null for any
+ * other burden (the catalog's sentence stands).
+ */
+function twistBurdenSentence(id, def, effects) {
+  const params = (Array.isArray(effects) ? effects : []).find(
+    (e) => e?.type === 'burden' && e.params?.id === id,
+  )?.params;
+  if (!params || (params.permanent !== true && params.actsAhead === undefined)) return null;
+  const line = typeof def?.line === 'string' ? def.line : '';
+  const lift = 'No altar lifts it while you hold the blessing.';
+  if (id === 'ill_omen') {
+    const extra = Number(params.extraShadow ?? def?.extraShadow) || 1;
+    return `Each victory gathers +${extra} more shadow, for the rest of the run. ${lift}`;
+  }
+  if (id === 'hunted') {
+    const count = Array.isArray(params.wave?.count) ? params.wave.count : null;
+    const foes = count ? (count[0] === count[1] ? `${count[0]}` : `${count[0]}-${count[1]}`) : '';
+    const turn = params.wave?.turn;
+    const wave = foes && turn ? ` Each battle brings a wave of ${foes} foes on turn ${turn}.` : '';
+    const span =
+      params.permanent === true
+        ? ' It lasts the rest of the run.'
+        : ` It lasts through the next ${params.actsAhead > 1 ? `${params.actsAhead} acts` : 'act'}.`;
+    return `${line}${wave}${span} ${lift}`.replace(/\s+/g, ' ').trim();
+  }
+  return null;
+}
+
+/**
  * The terms a piece of blessing text uses, each with its sentence, in a fixed order.
  * @param {string|string[]} text - a price label, a description, or several
- * @param {{ burdens?: object, difficultyId?: string, pact?: boolean }} [context]
- *   `burdens`: events.json `burdens`; `pact`: the price is the blessing's pact
+ * @param {{ burdens?: object, difficultyId?: string, pact?: boolean, effects?: object[] }} [context]
+ *   `burdens`: events.json `burdens`; `pact`: the price is the blessing's pact; `effects`: the
+ *   price's own effects (a twist's burden that outlasts its battles is explained from them)
  * @returns {{ term: string, text: string }[]}
  */
 export function blessingTerms(
   text,
-  { burdens = null, difficultyId = 'normal', pact = false } = {},
+  { burdens = null, difficultyId = 'normal', pact = false, effects = null } = {},
 ) {
   const joined = (Array.isArray(text) ? text : [text]).filter(Boolean).join(' ');
   const out = [];
   if (pact) out.push({ term: 'Pact', text: PACT_TEXT });
   for (const { id, term, pattern } of BURDEN_TERMS) {
     if (!pattern.test(joined)) continue;
-    const sentence = burdenSentence(id, burdens?.[id], difficultyId);
+    const sentence =
+      twistBurdenSentence(id, burdens?.[id], effects) ||
+      burdenSentence(id, burdens?.[id], difficultyId);
     if (sentence) out.push({ term, text: sentence });
   }
   for (const { term, pattern, text: sentence } of OTHER_TERMS)

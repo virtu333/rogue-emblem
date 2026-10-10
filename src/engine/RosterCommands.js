@@ -15,6 +15,7 @@ import {
 } from './UnitManager.js';
 import { applyPromotionOath, oathBenchedNote } from './DeedSystem.js';
 import { consumableSource, spendConsumableUse } from './RosterInventory.js';
+import { classChangeItemBlock } from './TwistedBoons.js';
 
 export function rosterClassChangeBlock(run, unit, item, gameData) {
   if (!run?.roster?.includes(unit)) return 'Unit is no longer in the roster.';
@@ -23,6 +24,9 @@ export function rosterClassChangeBlock(run, unit, item, gameData) {
     return 'Seal is no longer available.';
   const refusal = specialCharacterRefusalText(gameData, unit, item.effect);
   if (refusal) return refusal;
+  // Kingmaker's Oath: no Master Seal in this run (a reclass seal still works).
+  const banned = classChangeItemBlock(run, item);
+  if (banned) return banned;
   if (item.effect === 'promote') {
     if (!canPromote(unit)) return 'Requires a base class at level 10 or higher.';
     return resolvePromotionTargets(unit, gameData.classes, gameData.lords)?.length

@@ -22,13 +22,19 @@ import { loadGameData } from './testData.js';
 const data = loadGameData();
 const EARNED_IDS = ['unbroken_banner', 'second_dawn', 'ember_lantern', 'captains_whistle'];
 // What Act I's boss may offer (PR D1 re-sourced the cards: Second Dawn is an eclipsed elite's,
-// Standard of the Sun is Act I's boss's own, Chronicle Act II's).
+// Standard of the Sun is Act I's boss's own, Chronicle Act II's; PR D3 adds the four twisted
+// cards, an act boss's only, two of them while the Eclipse is on, as it is in every run here).
 const ACT1_BOSS_IDS = [
   'unbroken_banner',
   'ember_lantern',
   'captains_whistle',
   'standard_of_the_sun',
+  'darkened_dawn',
+  'blood_covenant',
+  'kingmakers_oath',
+  'hollow_sun_favor',
 ];
+const TWISTED_IDS = ['darkened_dawn', 'blood_covenant', 'kingmakers_oath', 'hollow_sun_favor'];
 
 function freshRun(seed = 7, difficultyId = 'normal') {
   const rm = new RunManager(data);
@@ -164,6 +170,8 @@ describe('rolling the offer', () => {
         expect(ACT1_BOSS_IDS).toContain(id);
         expect(id).not.toBe('ember_lantern');
       }
+      // D-3: never two twisted cards in one pair.
+      expect(roll.offered.filter((id) => TWISTED_IDS.includes(id)).length).toBeLessThanOrEqual(1);
     }
   });
 
@@ -186,10 +194,10 @@ describe('rolling the offer', () => {
   });
 
   it('offers a lone card when one is left and nothing when none is', () => {
-    // Three of Act I's boss cards held: the odds are 0.7 and one card is left. (Re-sourced in
+    // All of Act I's boss cards held but one: the odds are 0.7 and one card is left. (Re-sourced in
     // PR D1: Second Dawn left the boss's pool and Standard of the Sun joined it, so the lone card
-    // and the full set are Act I's boss pool, not PR C's four.)
-    const three = rollerFor(ACT1_BOSS_IDS.slice(0, 3));
+    // and the full set are Act I's boss pool, not PR C's four; PR D3's twisted cards joined it.)
+    const three = rollerFor(ACT1_BOSS_IDS.filter((id) => id !== 'standard_of_the_sun'));
     const rolls = [];
     for (let seed = 1; seed <= 300; seed++) rolls.push(three(seed));
     expect(
