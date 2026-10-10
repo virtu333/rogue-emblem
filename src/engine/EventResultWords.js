@@ -304,6 +304,12 @@ export function describeResult(record, { gameData = null } = {}) {
         text: `Blessing: ${record.name}`,
         ...(record.description ? { detail: record.description } : {}),
       };
+    case 'earnedBlessing':
+      return {
+        tone: 'good',
+        text: `Earned blessing: ${record.name}`,
+        ...(record.description ? { detail: record.description } : {}),
+      };
     case 'burden':
       return burdenLine(record);
     case 'forge':

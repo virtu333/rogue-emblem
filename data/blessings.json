@@ -27,11 +27,11 @@
   },
   "earnedOffer": {
     "actBoss": 2,
-    "weightByHeld": [
-      1,
-      0.85,
-      0.7
-    ]
+    "weightByHeld": [1, 0.85, 0.7],
+    "eclipsedEliteChance": 0.3333,
+    "sanctum": {
+      "chance": 0.5
+    }
   },
   "priceCatalog": {
     "debt_small": {
@@ -1351,6 +1351,11 @@
       "name": "Unbroken Banner",
       "earned": true,
       "weight": 1,
+      "sources": [
+        {
+          "kind": "act_boss"
+        }
+      ],
       "description": "Once per battle, the first ally who would fall survives at 1 HP.",
       "lore": "Sewn from the cloth of fallen standards by widows who refuse the word. It stays up.",
       "boons": [
@@ -1368,6 +1373,11 @@
       "name": "Second Dawn",
       "earned": true,
       "weight": 1,
+      "sources": [
+        {
+          "kind": "eclipsed_elite"
+        }
+      ],
       "description": "+1 Vision charge at the start of each act.",
       "lore": "Pilgrims swear the sun rose twice that day. The seers say it rises again for you.",
       "boons": [
@@ -1385,6 +1395,11 @@
       "name": "Ember Lantern",
       "earned": true,
       "weight": 1,
+      "sources": [
+        {
+          "kind": "act_boss"
+        }
+      ],
       "description": "The first kill of each battle heals the killer 10 HP.",
       "lore": "Lit from the first pyre of the first war. It warms whoever strikes the opening blow.",
       "boons": [
@@ -1402,11 +1417,156 @@
       "name": "Captain's Whistle",
       "earned": true,
       "weight": 1,
+      "sources": [
+        {
+          "kind": "act_boss"
+        }
+      ],
       "description": "Every unit has +1 Move on turn 1 of each battle.",
       "lore": "Two notes: form up, then run. Old drillmasters swore it cut a march in half.",
       "boons": [
         {
           "type": "first_turn_mov_delta",
+          "params": {
+            "value": 1
+          }
+        }
+      ],
+      "costs": []
+    },
+    {
+      "id": "standard_of_the_sun",
+      "name": "Standard of the Sun",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "act_boss",
+          "acts": [
+            "act1"
+          ]
+        }
+      ],
+      "description": "Allies within 2 tiles of your commander have +5 Hit and +5 Avoid.",
+      "lore": "A sun stitched on old silk. Men fight harder when they can see it from the line.",
+      "boons": [
+        {
+          "type": "commander_aura",
+          "params": {
+            "radius": 2,
+            "hitBonus": 5,
+            "avoidBonus": 5
+          }
+        }
+      ],
+      "costs": []
+    },
+    {
+      "id": "hollow_hourglass",
+      "name": "Hollow Hourglass",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "eclipsed_elite"
+        }
+      ],
+      "description": "Enemy reinforcements arrive one turn later.",
+      "lore": "Its sand runs upward. Whoever sends for help finds the road a little longer.",
+      "boons": [
+        {
+          "type": "reinforcement_delay",
+          "params": {
+            "value": 1
+          }
+        }
+      ],
+      "costs": []
+    },
+    {
+      "id": "chronicle",
+      "name": "Chronicle",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "act_boss",
+          "acts": [
+            "act2"
+          ]
+        }
+      ],
+      "description": "+5% XP from battles for each act you have cleared.",
+      "lore": "Every page a road walked. The army reads it at night and wakes knowing more.",
+      "boons": [
+        {
+          "type": "xp_per_act_cleared",
+          "params": {
+            "value": 0.05
+          }
+        }
+      ],
+      "costs": []
+    },
+    {
+      "id": "tithe_box",
+      "name": "Tithe Box",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "sanctum"
+        }
+      ],
+      "description": "+200 gold the first time you enter each church.",
+      "lore": "The priests fill it gladly for a banner they have heard of. Word travels ahead.",
+      "boons": [
+        {
+          "type": "church_entry_gold",
+          "params": {
+            "value": 200
+          }
+        }
+      ],
+      "costs": []
+    },
+    {
+      "id": "lantern_of_the_road",
+      "name": "Lantern of the Road",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "eclipsed_elite"
+        }
+      ],
+      "description": "Fog maps open with 4 tiles around each of your units revealed for turn 1.",
+      "lore": "Hung at every crossroads by people long gone. One still burns for you.",
+      "boons": [
+        {
+          "type": "fog_opening_reveal",
+          "params": {
+            "radius": 4
+          }
+        }
+      ],
+      "costs": []
+    },
+    {
+      "id": "crest_of_the_road",
+      "name": "Crest of the Road",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "event"
+        }
+      ],
+      "description": "Every recruit who joins you bears a Mark (never a lord).",
+      "lore": "Pinned to a coat, it tells the road you are worth following. The marked come.",
+      "boons": [
+        {
+          "type": "recruit_mark_chance",
           "params": {
             "value": 1
           }

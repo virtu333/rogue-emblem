@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import Ajv from 'ajv';
 import {
+  maxReinforcementDelayFrom,
   reinforcementTurnOffsetsFrom,
   validateMapTemplatesConfig,
 } from '../src/engine/MapTemplateEngine.js';
@@ -64,6 +65,10 @@ const mapTemplatesData = JSON.parse(
 const mtResult = validateMapTemplatesConfig(mapTemplatesData, {
   reinforcementTurnOffsets: reinforcementTurnOffsetsFrom(
     JSON.parse(readFileSync(path.join(DATA_DIR, 'difficulty.json'), 'utf-8')),
+  ),
+  // Hollow Hourglass: a wave can come a turn later than its rung schedules it.
+  maxReinforcementDelay: maxReinforcementDelayFrom(
+    JSON.parse(readFileSync(path.join(DATA_DIR, 'blessings.json'), 'utf-8')),
   ),
 });
 if (mtResult.valid) {

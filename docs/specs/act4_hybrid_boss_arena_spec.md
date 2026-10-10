@@ -62,6 +62,12 @@ Constraints:
   difficulty.json's `reinforcementTurnOffset` applied): the override changes the tile at
   the start of enemy phase T and the wave for T resolves at its end, so the spawn would be
   blocked. `validateMapTemplatesConfig` refuses it.
+- A blessing's reinforcement delay counts too. With the Hollow Hourglass every wave comes a
+  turn later (added after the turn-1 clamp), so a wall that rises the turn after its wave was
+  due rises a turn before the wave now arrives and blocks it. The validator reads the latest
+  turn with the most delay a run can hold (`maxReinforcementDelay`, from
+  `maxReinforcementDelayFrom(blessings)`: every `reinforcement_delay` boon summed), passed by
+  `DataLoader` and `npm run validate:data`.
 
 Runtime (`engine/TerrainPhases.js`, shared by BattleScene and the headless harness):
 - `applyTerrainSetTiles(grid, setTiles, anchors, { occupants })` is the one override

@@ -23,6 +23,14 @@ import { shrineBoonsOf } from './ShrineBoons.js';
 import { isPrologueRun } from './ScriptedBattle.js';
 import { isEarnedBlessing } from './BlessingEngine.js';
 import {
+  earnedLedgerEntry,
+  sanctumLedgerKey,
+  takeEarnedBlessing,
+  takeableOffered,
+} from './EarnedBlessings.js';
+import { isSanctum } from './SanctumPass.js';
+import { payChurchTithe } from './ChurchTithe.js';
+import {
   burdenDefFor,
   burdenOf,
   cleansableBurdens,
@@ -118,9 +126,11 @@ export function churchVowStatusLine(run, nodeId, { offersCleanse = false } = {})
   if (vows.length > 0 && left <= 0) return churchVowLine(vows);
   if (vows.length > 0)
     return `${vows.length === 1 ? 'Your vow here was' : 'Your vows here were'} ${vowNames(vows)}. Twin Chapel: ${left === 1 ? 'one more vow is' : `${left} more vows are`} open, each a different one.`;
+  // The Old Sanctum's altar offers an earned blessing (sanctumEntry).
+  const blessing = sanctumEntry(run, nodeId) ? 'an earned blessing' : 'a blessing';
   const choices = offersCleanse
-    ? 'Promote your units, take a blessing or lift a burden'
-    : 'Promote your units, or take a blessing';
+    ? `Promote your units, take ${blessing} or lift a burden`
+    : `Promote your units, or take ${blessing}`;
   const capacity = churchVowCapacity(run);
   if (capacity > 1)
     return `${choices}: ${VOW_COUNT_WORDS[capacity] || capacity} different vows per church (Twin Chapel). The first promotion, the blessing or the cleansing makes each.`;
@@ -154,10 +164,93 @@ export function churchVowCommitNote(run, nodeId, vow) {
 }
 
 /**
+ * The Old Sanctum's ledger entry when this church is one and its vow offers earned blessings
+ * ('open' with a card the run can still take, or 'taken' once its vow took one), else null: an
+ * ordinary church, or a sanctum with nothing left to offer ('none', or every card it offered now
+ * held: its altar gives the tier I blessings, decision D-6). The entry is written when the door
+ * opens (EarnedBlessings.openSanctum, ChurchController.handleChurch).
+ */
+export function sanctumEntry(run, nodeId) {
+  const node = run?.nodeMap?.nodes?.find((n) => n?.id === nodeId);
+  if (!isSanctum(node)) return null;
+  const entry = earnedLedgerEntry(run, sanctumLedgerKey(nodeId));
+  if (entry?.status === 'taken') return entry;
+  return entry?.status === 'open' && takeableOffered(run, entry).length > 0 ? entry : null;
+}
+
+/**
+ * Where the Old Sanctum stands, for the route map's line: 'unopened' (its pair is rolled when its
+ * door first opens), 'open' (its vow can still take an earned card), 'taken' (its vow took one),
+ * 'spent' (its vow went to another service) or 'none' (nothing earned is left: it rolled none,
+ * or the run holds every card it offered; its altar gives the tier I blessings). Null for a node
+ * that is no sanctum.
+ */
+export function sanctumStatus(run, nodeId) {
+  const node = run?.nodeMap?.nodes?.find((n) => n?.id === nodeId);
+  if (!isSanctum(node)) return null;
+  const raw = earnedLedgerEntry(run, sanctumLedgerKey(nodeId));
+  if (!raw) return 'unopened';
+  const entry = sanctumEntry(run, nodeId);
+  if (!entry) return 'none';
+  if (entry.status === 'taken') return 'taken';
+  return churchVowBlock(run, nodeId, 'blessing') || churchVows(run, nodeId).includes('blessing')
+    ? 'spent'
+    : 'open';
+}
+
+/**
+ * The earned blessings the Old Sanctum's altar offers (catalog rows), in the order rolled; a card
+ * the run already holds is never one (its Take would be refused).
+ */
+export function sanctumBlessingOffers(run, nodeId, gameData) {
+  const entry = sanctumEntry(run, nodeId);
+  if (!entry || entry.status !== 'open') return [];
+  const catalog = gameData?.blessings?.blessings || [];
+  return takeableOffered(run, entry)
+    .map((id) => catalog.find((b) => b?.id === id))
+    .filter((b) => b && isEarnedBlessing(b));
+}
+
+/** Why this earned blessing cannot be taken at the Old Sanctum now ('' when it can). */
+export function sanctumBlessingBlock(run, nodeId, blessingId, gameData) {
+  const entry = sanctumEntry(run, nodeId);
+  if (!entry) return 'That blessing is not offered here.';
+  // Under Twin Chapel the sanctum's earned card is one of the church's vows, made first or not.
+  if (entry.status === 'taken' || churchVows(run, nodeId).includes('blessing'))
+    return 'This altar has already blessed you.';
+  const reason = churchVowBlock(run, nodeId, 'blessing');
+  if (reason) return reason;
+  if (!sanctumBlessingOffers(run, nodeId, gameData).some((b) => b.id === blessingId))
+    return 'That blessing is not offered here.';
+  if ((run.getActiveBlessingIds?.() || []).includes(blessingId)) return 'You already carry it.';
+  return '';
+}
+
+/**
+ * Vow a Blessing at the Old Sanctum: the chosen earned blessing joins the run (the ledger's take)
+ * and the church's vow is made. A Tithe Box taken here pays this church at once (it is in hand).
+ */
+export function takeSanctumBlessing(run, nodeId, blessingId, gameData) {
+  const reason = sanctumBlessingBlock(run, nodeId, blessingId, gameData);
+  if (reason) return { ok: false, reason };
+  const taken = takeEarnedBlessing(run, sanctumLedgerKey(nodeId), blessingId);
+  if (!taken.ok) return taken;
+  commitChurchVow(run, nodeId, 'blessing');
+  const tithe = payChurchTithe(run, nodeId);
+  const blessing = taken.blessing;
+  return {
+    ok: true,
+    message: `${blessing.name}: ${blessing.description}${tithe.paid ? ` ${tithe.message}` : ''}`,
+  };
+}
+
+/**
  * The minor blessings this altar offers: tier 1, none the run already holds, in an
- * order hashed from the run seed and the node (the same offer on every visit).
+ * order hashed from the run seed and the node (the same offer on every visit). An Old Sanctum
+ * whose vow offers earned blessings offers these instead (sanctumBlessingOffers), never both.
  */
 export function churchBlessingOffers(run, nodeId, gameData) {
+  if (sanctumEntry(run, nodeId)) return [];
   const held = new Set(run?.getActiveBlessingIds?.() || []);
   const pool = (gameData?.blessings?.blessings || []).filter(
     (b) => b?.tier === 1 && !isEarnedBlessing(b) && !held.has(b.id),

@@ -46,8 +46,13 @@ import {
   churchVowStatusLine,
   churchVows,
   cleanseAtChurch,
+  sanctumBlessingBlock,
+  sanctumBlessingOffers,
+  sanctumEntry,
   takeChurchBlessing,
+  takeSanctumBlessing,
 } from '../engine/ChurchVow.js';
+import { isSanctum } from '../engine/SanctumPass.js';
 import { describeBurdens, isCleansable, woundHealLine } from '../engine/Burdens.js';
 import { createEclipseSunCanvas } from '../art/eclipse/eclipseSun.js';
 import {
@@ -69,6 +74,14 @@ const RUINS_KICKER = Object.freeze({
   scavenge: 'Scavenge · Wares',
 });
 const ruinsMarkupPct = () => Math.round((RUINS_SHOP_MARKUP - 1) * 100);
+// The Old Sanctum (engine/SanctumPass.js): a church whose vow offers an earned blessing.
+export const SANCTUM_TITLE = 'Old Sanctum';
+export const SANCTUM_BLESSING_HEADING = 'Earned blessing · Free';
+/** The title a church's menu wears: the Ruins', the Old Sanctum's or a church's. */
+function serviceTitle(scene) {
+  if (scene._churchRuinsMode) return 'Ruins sanctuary';
+  return isSanctum(scene._churchNode) ? SANCTUM_TITLE : 'Church';
+}
 // Revive preview: the weapon an unarmed fallen unit is handed back (reviveStarterWeapon).
 const starterLine = (unit, gameData) => {
   const weapon = reviveStarterWeapon(unit, gameData?.weapons || [], INVENTORY_MAX);
@@ -95,17 +108,16 @@ export class ChurchMenu {
       this.status = guidanceText('guide_first_church');
       markNoteSeen(this.scene, 'guide_first_church');
     }
+    // What the door paid (the Tithe Box: ChurchController.handleChurch).
+    if (!ruins && c.entryStatus)
+      this.status = [this.status, c.entryStatus].filter(Boolean).join(' ');
     this.open();
   }
   open() {
     if (this.surface || this.destroyed) return;
-    this.surface = new MenuSurface(
-      this.scene,
-      this.scene._churchRuinsMode ? 'Ruins sanctuary' : 'Church',
-      () => {
-        if (!this.child) this.c.leaveChurchNode();
-      },
-    );
+    this.surface = new MenuSurface(this.scene, serviceTitle(this.scene), () => {
+      if (!this.child) this.c.leaveChurchNode();
+    });
     this.surface.root.classList.add('service-menu');
     this.surface.header.querySelector('button').textContent = 'Leave';
     this.gold = el('span', '', 'shop-gold');
@@ -126,7 +138,7 @@ export class ChurchMenu {
     const path = ruins ? ruinsChoice(run, nodeId) : null;
     body.append(
       applyServiceVignette(this.surface.root, ruins ? 'ruins' : 'church', {
-        title: ruins ? 'Ruins sanctuary' : 'Church',
+        title: serviceTitle(this.scene),
         kicker: ruins ? RUINS_KICKER[path] || RUINS_KICKER.none : 'Heal · Revive · Promote',
         still: prefersStill(this.scene),
         backdrop: true,
@@ -283,10 +295,47 @@ export class ChurchMenu {
       body.append(el('p', 'The lender has lawyers: no altar lifts a Debt.', 'church-cleanse-debt'));
     }
   }
+  /**
+   * The Old Sanctum's altar (ChurchVow.sanctumBlessingOffers): the earned pair it rolled when its
+   * door first opened, in place of the tier I offers. Taking one is this church's vow, behind the
+   * same confirmation. A sanctum with nothing left to offer shows the church's own (renderBlessings).
+   */
+  renderSanctumBlessings(body, run, nodeId) {
+    const gameData = this.scene.gameData;
+    body.append(el('h3', SANCTUM_BLESSING_HEADING));
+    const offers = sanctumBlessingOffers(run, nodeId, gameData);
+    for (const blessing of offers) {
+      const reason = sanctumBlessingBlock(run, nodeId, blessing.id, gameData);
+      const b = button(
+        `${blessing.name} · ${blessing.description} · Earned`,
+        () =>
+          this.choose({
+            title: `Take ${blessing.name}?`,
+            choices: [blessing],
+            confirmation: true,
+            confirmLabel: 'Take the blessing',
+            label: (x) => x.name,
+            describe: (x) =>
+              `${x.description} An earned blessing: no price. ${churchVowCommitNote(run, nodeId, 'blessing') ?? 'This is your vow here: this church will promote no one.'}`,
+            blocked: (x) => sanctumBlessingBlock(run, nodeId, x.id, gameData),
+            apply: (x) => this.finish(takeSanctumBlessing(run, nodeId, x.id, gameData)),
+          }),
+        're-btn church-blessing church-earned',
+      );
+      b.dataset.blessing = blessing.id;
+      b.disabled = !!reason;
+      body.append(b);
+      if (reason) body.append(el('p', reason));
+    }
+  }
   /** The altar's minor blessings: taking one is this church's vow. */
   renderBlessings(body, run, nodeId) {
     const gameData = this.scene.gameData;
     if (churchVows(run, nodeId).includes('blessing')) return;
+    if (sanctumEntry(run, nodeId)) {
+      this.renderSanctumBlessings(body, run, nodeId);
+      return;
+    }
     body.append(el('h3', 'Blessing · Free'));
     const offers = churchBlessingOffers(run, nodeId, gameData);
     if (!offers.length) body.append(el('p', 'You already hold every blessing this altar gives.'));

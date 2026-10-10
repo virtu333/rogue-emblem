@@ -15,7 +15,19 @@ import { loadGameData } from './testData.js';
 
 const data = loadGameData();
 const catalog = data.blessings;
-const EARNED_IDS = ['unbroken_banner', 'second_dawn', 'ember_lantern', 'captains_whistle'];
+// Every earned row: PR C's four, then PR D1's six.
+const EARNED_IDS = [
+  'unbroken_banner',
+  'second_dawn',
+  'ember_lantern',
+  'captains_whistle',
+  'standard_of_the_sun',
+  'hollow_hourglass',
+  'chronicle',
+  'tithe_box',
+  'lantern_of_the_road',
+  'crest_of_the_road',
+];
 const earnedRows = () => catalog.blessings.filter((b) => b.earned === true);
 
 function errorsOf(patch) {
@@ -26,10 +38,11 @@ function errorsOf(patch) {
 const row = (copy, id) => copy.blessings.find((b) => b.id === id);
 
 describe('the shipped earned rows', () => {
-  it('four earned blessings sit at the end of the list, after every offered card', () => {
+  it('the earned blessings sit at the end of the list, after every offered card', () => {
     const list = catalog.blessings;
-    expect(list.slice(-4).map((b) => b.id)).toEqual(EARNED_IDS);
-    expect(list.slice(0, -4).some(isEarnedBlessing)).toBe(false);
+    const n = EARNED_IDS.length;
+    expect(list.slice(-n).map((b) => b.id)).toEqual(EARNED_IDS);
+    expect(list.slice(0, -n).some(isEarnedBlessing)).toBe(false);
     expect(validateBlessingsConfig(catalog).errors).toEqual([]);
   });
 
@@ -51,7 +64,13 @@ describe('the shipped earned rows', () => {
   });
 
   it('the pick odds sit in the data: two cards, 1 / 0.85 / 0.7 by earned blessings held', () => {
-    expect(catalog.earnedOffer).toEqual({ actBoss: 2, weightByHeld: [1, 0.85, 0.7] });
+    // PR D1 adds the eclipsed elite's flat third (D-4) and the Old Sanctum's stamp chance (D-5).
+    expect(catalog.earnedOffer).toEqual({
+      actBoss: 2,
+      weightByHeld: [1, 0.85, 0.7],
+      eclipsedEliteChance: 0.3333,
+      sanctum: { chance: 0.5 },
+    });
   });
 });
 
@@ -226,6 +245,7 @@ describe('offers never include an earned blessing', () => {
       for (const b of ordinary.blessings)
         if (b.earned) {
           delete b.earned;
+          delete b.sources; // an earned row's own field (an ordinary row may not carry it)
           b.tier = 1;
         }
       expect(offersEarned(ordinary).length).toBeGreaterThan(20);

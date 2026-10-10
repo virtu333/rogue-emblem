@@ -692,6 +692,97 @@ checkpoint and the Vision rewind):
 - **Second Dawn.** A `{ kind: 'vision' }` act-start grant: +1 Vision at every act start while held,
   never on the take.
 
+### 6.5 As built: the other sources and six more cards (PR D1)
+
+PR D1 ships the eclipsed elite's drop, the Old Sanctum, an event's grant and six pure cards:
+Standard of the Sun, Hollow Hourglass, Chronicle, Tithe Box, Lantern of the Road and Crest of the
+Road. The twisted cards, the Colosseum's card, the rest of §6.1 and the start gifts come later.
+
+**Sources are data.** Every earned row names `sources: [{ kind, acts? }]` (kinds `act_boss`,
+`eclipsed_elite`, `sanctum`, `colosseum`, `event`; `acts` limits a source to some acts), and may
+carry a `twist` (`{ label, effects }`, a twisted card's price, offered by an act boss only) and
+`requires` (`{ eclipse }`). The validator refuses an earned row without sources and these fields
+on any other row. A twist's effects come from a small explicit list (`BlessingEngine.TWIST_EFFECT_TYPES`:
+a burden, shadow, Vision, XP, shop and forge prices), never a price fixed to an act
+(`act_stat_delta_all_units`, `act_deploy_cap_delta`, `act_hit_bonus`,
+`disable_personal_skills_until_act`: a twist is taken mid-run); D3 extends the list with its own
+types. Whether a twist's burden can be lifted by the Cleanse vow is D3's decision. PR C's cards were re-sourced: Second Dawn is an eclipsed elite's (as §6.1's table
+says), Unbroken Banner, Ember Lantern and Captain's Whistle stay act bosses'. Standard of the Sun is
+Act I's boss's and Chronicle Act II's, so an act boss's pair for a given seed differs from PR C's.
+
+**One ledger, keyed** (`engine/EarnedBlessings.js`, version 2). An act boss keeps its act key and
+PR C's entry shape; the others file under `elite:<node>`, `sanctum:<node>`, `event:<node>` and
+`colosseum`. Take and skip go by ledger key (`ledgerKeyOf`). `open` is the sanctum's status: never
+owed, so the route map never asks about a sanctum the party walked past. Each source draws from
+`earnedPoolFor(run, kind)` (earned, weight above 0, unheld, `excludes` either way, `requires` met,
+won from that kind and act), on its own stream keyed by the run seed and the source's node, so no
+other stream moves. A pair holds at most one twisted card (D-3). The PR C odds (1 / 0.85 / 0.7)
+stay on the act boss only. An owed or open offer never shows a card the run holds: when a card
+joins the run (a take, an event's grant) it leaves every other owed or open offer, and one left
+empty is `none` (`pruneHeldOffers`; a load does the same). The Colosseum's offer files `none` when
+no card is left, so it is never rolled again.
+
+**The eclipsed elite's drop** (D-4, D-7). At the victory commit of a battle node the Eclipse took
+(`node.battleParams.isEclipsed`; never a Dark Omen's event fight, an ordinary elite or the
+prologue), `completeBattle` rolls a flat third (`earnedOffer.eclipsedEliteChance` 0.3333) for one
+pure `eclipsed_elite` card (Second Dawn, Hollow Hourglass, Lantern of the Road), on
+`earned-elite:<seed>:<node>` (the chance draw always spent). Owed, or `none`. It is offered by the
+route map host PR C built (`NodeMapScene._maybeOpenEarnedPick`): on arrival from the battle, after
+the loot screen (its `onComplete` now ends with the pick), an event's spoils and a contract reward,
+before the caravan; a page that held the map closing on it (a contract's Continue) opens it too.
+A node tap opens it instead of travelling on. The menu shows one card ("Won
+from an eclipsed elite. Take it, or leave it."; Skip asks "Leave it?"). No new BattleScene flow.
+A save from before PR D1 gets no drop for an elite already won.
+
+**The Old Sanctum** (D-5, D-6). From the run's second act each act's map may hold one:
+`RunManager.advanceAct` calls `_stampSanctum` right after Pilgrim's Road's shops
+(`engine/SanctumPass.js`): two draws on `sanctum:<seed>:<act>` (the chance, `earnedOffer.sanctum.chance`
+0.5, always spent; then one of the act's unfinished, un-eclipsed churches sorted by id). The node
+gains `sanctum: true` and the map `sanctumRolled: true`; never on load (an old save gets one from
+its next act), never in Act I, the run's last act (the final boss's act, or Dusk's Act IV: the
+act boss's pick follows the same rule) or the prologue. Pilgrim's Road never turns it into a shop
+and a route edit (the Cartographer, A Bad Map) never redraws it (`RouteEdit.isRedrawable`; a
+rebuilt node drops the flag); the Eclipse may take it like any church (then it is a battle). The route map calls it
+"Old sanctum" (label SANCTUM in gilt, the inspect line "An old sanctum: its vow offers an earned
+blessing.", which follows it once settled: "its vow gave you an earned blessing", "its vow is
+made", "no earned blessing is left on its altar"; `ChurchVow.sanctumStatus`). When its door first opens (`ChurchController.handleChurch`) `openSanctum` rolls its
+pair on `earned-sanctum:<seed>:<node>`: up to two `sanctum` cards, filled from the pure act-boss and
+eclipsed-elite cards, saved at once. The menu is titled "Old Sanctum"; its blessing section reads
+"Earned blessing · Free" and lists the pair (`Name · description · Earned`) **in place of** the tier
+I offers, behind the same confirmation; the take is the church's vow (`ChurchVow.takeSanctumBlessing`).
+Leaving keeps the pair open; re-entering shows it again; after the take the altar "has already
+blessed you". With nothing left to offer the entry is `none` and the tier I offers return.
+
+**The Tithe Box** pays 200 gold the first time the party enters each church of an act
+(`engine/ChurchTithe.js`, `run.churchTitheByNodeId`, saved, reset in `advanceAct`), never the Ruins.
+Taken at a sanctum it pays that church at once. The church's status line says so.
+
+**An event's grant** (D-9). The effect `earnedBlessing { id }` grants a named earned card whose
+sources include `event` (`EarnedBlessings.grantEarnedBlessing`, a `taken` entry under
+`event:<node>`, the node's key when the caller names none); strict in a choice ("You already
+carry it."), skipped with a note in a won fight's spoils. The requirement `earnedAvailable: <id>`
+greys a choice once the card is held; the validator requires it on a choice whose own outcome
+grants a card. A grant rolled back with its step (a later step failing) leaves no ledger entry,
+so Try again grants it. Old Faces'
+`ride` gains Crest of the Road in its spoils. The result line is "Earned blessing: Crest of the
+Road". The Wandering Smith's covenant and the Collectors' lantern wait for their cards.
+
+**The six cards.**
+
+| Card | Source | Boon | Where it acts |
+|---|---|---|---|
+| Standard of the Sun | Act I boss | `commander_aura { radius: 2, hitBonus: 5, avoidBonus: 5 }` | `BlessingCombatMods` (scene and harness): a player unit within 2 tiles (Manhattan) of the living commander (the unit flagged `isCommander`; one who escaped takes the banner along), never the commander, an NPC or a foe |
+| Hollow Hourglass | eclipsed elite | `reinforcement_delay { value: 1 }` | `battleParams.reinforcementDelay` (saved with the battle): every wave, template, scripted, pursuit, ladder and Hunted, a turn later, added after the turn-1 clamp (a wave Black Sun pulls to turn 1 comes on turn 2); the ladder's line names the new turn; the template validator reads the delay against the hybrid arenas' walls |
+| Chronicle | Act II boss | `xp_per_act_cleared { value: 0.05 }` | `getXpMultiplierDelta` adds 5% × `actIndex` (the acts cleared); never the arena |
+| Tithe Box | Old Sanctum | `church_entry_gold { value: 200 }` | `payChurchTithe`, once a church |
+| Lantern of the Road | eclipsed elite | `fog_opening_reveal { radius: 4 }` | `battleParams.fogOpeningRadius`: at a fresh fog battle's start, `engine/FogOpening.js` reveals radius 4 around each unit as a contact (turn 1 only, saved with the fog, never applied again on a resume) |
+| Crest of the Road | event (Old Faces) | `recruit_mark_chance { value: 1 }` | `getEffectiveMetaEffects().markChance`, read by every recruit source (recruit node, event join, boss recruit, mercenary, Vanguard Cadre); the Mark stream keeps its two draws |
+
+Each new boon type has a handler (`engine/EarnedBoons.js`), a validator rule, the handler-coverage
+walk and no place on the event-safe list. The sims never take an earned card (D-25): they skip owed
+picks after every node, and their event policies leave a choice that grants one alone unless
+`eventPolicy: 'earned'`.
+
 ## 7. Gifts with a catch (run start)
 
 Cut in review: Gilded Chest (gold now, a bigger Debt later) read as a loan, not a gift.

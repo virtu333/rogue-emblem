@@ -14,6 +14,9 @@ export class HeadlessGrid {
     this.fogEnabled = fogEnabled;
     this.visibleSet = new Set();
     this.everSeenSet = new Set();
+    // As Grid: tiles revealed for the current player phase (Grid.revealContact; the harness uses
+    // them for Lantern of the Road's opening reveal, engine/FogOpening.js).
+    this.contactSet = new Set();
   }
 
   getTerrainAt(col, row) {
@@ -120,7 +123,7 @@ export class HeadlessGrid {
 
   updateFogOfWar(playerUnits) {
     if (!this.fogEnabled) return;
-    const newVisible = new Set();
+    const newVisible = new Set(this.contactSet || []);
     for (const unit of playerUnits) {
       const range = VISION_RANGES[unit.moveType] || 3;
       const tiles = this.getVisionRange(unit.col, unit.row, range);
@@ -128,6 +131,23 @@ export class HeadlessGrid {
     }
     this.visibleSet = newVisible;
     for (const key of newVisible) this.everSeenSet.add(key);
+  }
+
+  /** As Grid.revealContact: these tiles stay shown for the rest of the player phase. */
+  revealContact(tiles) {
+    if (!this.fogEnabled) return;
+    if (!(this.contactSet instanceof Set)) this.contactSet = new Set();
+    for (const t of tiles || []) {
+      if (t.col >= 0 && t.col < this.cols && t.row >= 0 && t.row < this.rows)
+        this.contactSet.add(`${t.col},${t.row}`);
+    }
+  }
+
+  /** As Grid.clearContacts: forget them as the enemy phase starts. True when there were any. */
+  clearContacts() {
+    const had = (this.contactSet?.size ?? 0) > 0;
+    this.contactSet = new Set();
+    return had;
   }
 
   isVisible(col, row) {

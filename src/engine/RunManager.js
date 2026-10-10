@@ -121,10 +121,25 @@ import { parseBattleGoldGamble, settleBattleGoldGamble } from './BattleGoldGambl
 import {
   actBossPickDue,
   earnedBlessingsOf,
+  earnedSourceConfig,
+  eliteDropDue,
   isActBossVictory,
   prepareEarnedBlessingPick,
+  prepareEliteEarnedDrop,
   sanitizeEarnedBlessingPicks,
 } from './EarnedBlessings.js';
+import {
+  applyEarnedBoon,
+  chronicleXpDeltaOf,
+  commanderAurasOf,
+  earnedBoonModifierDefaults,
+  fogOpeningRadiusOf,
+  recruitMarkChanceOf,
+  reinforcementDelayOf,
+  sanitizeEarnedBoonModifiers,
+} from './EarnedBoons.js';
+import { stampSanctum } from './SanctumPass.js';
+import { sanitizeChurchTithes } from './ChurchTithe.js';
 import {
   parseAdjacentAllyDefBonus,
   parseIsolatedCombatBonus,
@@ -379,6 +394,9 @@ function createBlessingRuntimeModifiers() {
     battleLastStand: 0,
     firstKillHeal: 0,
     firstTurnMovDelta: 0,
+    // The earned blessings of engine/EarnedBoons.js (Standard of the Sun, Hollow Hourglass,
+    // Chronicle, Tithe Box, Lantern of the Road, Crest of the Road).
+    ...earnedBoonModifierDefaults(),
   };
 }
 
@@ -447,7 +465,9 @@ function normalizeBlessingCostEntry(costEntry) {
   // A v3 price says whether it was the blessing's pact (the held list names it so), or its
   // intrinsic price (the boon carries the cost: no effects of its own to apply).
   if (costEntry.kind === 'intrinsic') return { label, effects: [], kind: 'intrinsic' };
-  const kind = costEntry.kind === 'pact' ? 'pact' : null;
+  // A twisted earned blessing's twist and a start gift's catch are prices paid mid-run
+  // (addBlessingMidRun's `price`): the held list names them so (docs/specs/blessings-v3.md §6.2).
+  const kind = ['pact', 'twist', 'gift'].includes(costEntry.kind) ? costEntry.kind : null;
   if (!Array.isArray(costEntry.effects) || costEntry.effects.length <= 0) return null;
   const effects = [];
   for (const effect of costEntry.effects) {
@@ -470,15 +490,24 @@ function intrinsicCostOf(blessing) {
   );
 }
 
+/** True for a held price a mid-run grant applied (a twist, a gift's catch). */
+function isMidRunPrice(cost) {
+  return cost?.kind === 'twist' || cost?.kind === 'gift';
+}
+
 /**
  * One held blessing: `{ id, rolledCost }`, plus `midRun: true` for one taken after the run
- * began (a church vow, an event). A mid-run blessing never carries a price: its boons apply
- * and nothing is charged, so a load must not invent one for it.
+ * began (a church vow, an event, an earned pick). A mid-run blessing carries no price but the
+ * one its grant applied (a twisted card's twist, a gift's catch: `addBlessingMidRun`'s `price`);
+ * any other is dropped, so a load never invents one for it.
  */
 function createActiveBlessingEntry(id, rolledCost = null, { midRun = false } = {}) {
   const blessingId = typeof id === 'string' ? id.trim() : '';
   if (!blessingId) return null;
-  if (midRun) return { id: blessingId, rolledCost: null, midRun: true };
+  if (midRun) {
+    const price = normalizeBlessingCostEntry(rolledCost);
+    return { id: blessingId, rolledCost: isMidRunPrice(price) ? price : null, midRun: true };
+  }
   return {
     id: blessingId,
     rolledCost: normalizeBlessingCostEntry(rolledCost),
@@ -712,6 +741,8 @@ export class RunManager {
     this.ruinsChoiceByNodeId = {};
     // Each church's one vow ('promote' | 'blessing'); see ChurchVow.js.
     this.churchVowByNodeId = {};
+    // The churches whose Tithe Box gold was paid this act (ChurchCommands.payChurchTithe).
+    this.churchTitheByNodeId = {};
     // Story Events (engine/EventCommands.js, docs/specs/event-nodes.md §4): the event each
     // node holds and what was chosen there (reset per act), the run-long log, the story
     // flags events write, the burdens they leave (engine/Burdens.js), the event node whose
@@ -922,6 +953,7 @@ export class RunManager {
     this.shopStateByNodeId = {};
     this.ruinsChoiceByNodeId = {};
     this.churchVowByNodeId = {};
+    this.churchTitheByNodeId = {};
     this._resetEventState();
     this.metaUnlockedWeaponArts = [];
     this.actUnlockedWeaponArts = [];
@@ -1004,6 +1036,7 @@ export class RunManager {
     this.shopStateByNodeId = {};
     this.ruinsChoiceByNodeId = {};
     this.churchVowByNodeId = {};
+    this.churchTitheByNodeId = {};
     this._resetEventState(); // the prologue has no events: it starts empty and stays empty
     this.metaUnlockedWeaponArts = [];
     this.actUnlockedWeaponArts = [];
@@ -1291,30 +1324,45 @@ export class RunManager {
   }
 
   /**
-   * Take a blessing mid-run (a church's vow): it joins the active list and its boons
-   * apply now, as they would have at the run's start. Tier-1 blessings only carry
-   * boons. Returns false for an unknown or already active blessing, and for a card that
-   * carries an intrinsic price or a pact (its cost would never be paid). An earned blessing is
-   * handed out only by the run's own sources (engine/EarnedBlessings.js passes `earned: true`):
-   * a church, an event or any other caller is refused it.
+   * Take a blessing mid-run (a church's vow, an event, an earned pick): it joins the active list
+   * and its boons apply now, as they would have at the run's start. Returns false for an
+   * unknown or already active blessing, and for a card that carries an intrinsic price or a pact
+   * (its cost would never be paid). An earned blessing is handed out only by the run's own
+   * sources (engine/EarnedBlessings.js passes `earned: true`): a church, an event or any other
+   * caller is refused it.
+   *
+   * Options (docs/specs/blessings-v3.md §6-7):
+   *  - `price`: `{ label, effects, kind: 'twist' | 'gift' }`, applied after the boons (a twisted
+   *    card's twist, a gift's catch) and kept as the held entry's price, so the held list shows
+   *    what was taken. Any other kind, or a malformed price, is refused.
+   *  - `waivePact` with `source: 'gift'`: a gift may hand out a pact card with its pact waived.
+   *  - `source`: where it came from (`'gift'`, or an earned source kind).
    */
-  addBlessingMidRun(blessingId, { earned = false } = {}) {
+  addBlessingMidRun(
+    blessingId,
+    { earned = false, price = null, waivePact = false, source = null } = {},
+  ) {
     const blessing = buildBlessingIndex(this.gameData?.blessings || {}).get(blessingId);
     if (!blessing || this.getActiveBlessingIds().includes(blessingId)) return false;
     if (blessing.earned === true && earned !== true) return false;
     // A card whose cost is part of what it is (an intrinsic price, a tier IV pact) is only ever
-    // taken at the shrine, where the price is shown and paid; a mid-run grant carries none.
-    if (blessing.intrinsicPrice || blessing.pact) return false;
+    // taken at the shrine, where the price is shown and paid; a mid-run grant carries none. A
+    // gift alone may waive a pact (never an intrinsic price: the boon itself carries it).
+    if (blessing.intrinsicPrice) return false;
+    if (blessing.pact && !(waivePact === true && source === 'gift')) return false;
+    const rolledCost =
+      price === null || price === undefined ? null : normalizeBlessingCostEntry(price);
+    if (price && !isMidRunPrice(rolledCost)) return false;
     this.activeBlessings = [
       ...(this.activeBlessings || []),
-      createActiveBlessingEntry(blessingId, null, { midRun: true }),
+      createActiveBlessingEntry(blessingId, rolledCost, { midRun: true }),
     ];
     // Every handler records its event as 'run_start'; while a mid-run grant applies, the
     // record says 'mid_run' instead (see _recordBlessingEvent). Transient: never saved.
     const outerStage = this._blessingEventStage;
     this._blessingEventStage = 'mid_run';
     try {
-      for (const effect of blessing.boons || [])
+      for (const effect of [...(blessing.boons || []), ...(rolledCost?.effects || [])])
         this._applySingleRunStartBlessingEffect(blessingId, effect);
     } finally {
       if (outerStage === undefined) delete this._blessingEventStage;
@@ -1588,7 +1636,12 @@ export class RunManager {
       const id = getBlessingEntryId(entry);
       if (!id) return;
       if (entry?.midRun === true || (startPicks && !startPicks.includes(id))) {
-        normalized.push(createActiveBlessingEntry(id, null, { midRun: true }));
+        // Only a price the grant applied (a twist, a gift's catch) stays: see isMidRunPrice.
+        normalized.push(
+          createActiveBlessingEntry(id, entry?.midRun === true ? entry?.rolledCost : null, {
+            midRun: true,
+          }),
+        );
         return;
       }
       const blessing = blessingIndex.get(id);
@@ -1803,6 +1856,8 @@ export class RunManager {
 
   _applySingleRunStartBlessingEffect(blessingId, effect) {
     if (!effect || !effect.type || !effect.params) return;
+    // Standard of the Sun, Hollow Hourglass, Chronicle, Tithe Box, Lantern and Crest.
+    if (applyEarnedBoon(this, blessingId, effect)) return;
     const value = Number(effect.params.value || 0);
     if (!Number.isFinite(value)) return;
 
@@ -2971,7 +3026,8 @@ export class RunManager {
   }
 
   getXpMultiplierDelta() {
-    return this.blessingRuntimeModifiers?.xpMultiplierDelta || 0;
+    // Chronicle: its share for every act already cleared (engine/EarnedBoons.js).
+    return (this.blessingRuntimeModifiers?.xpMultiplierDelta || 0) + chronicleXpDeltaOf(this);
   }
 
   getForgeCostDiscount() {
@@ -3005,6 +3061,21 @@ export class RunManager {
       count,
       fromRow,
       currentNodeId,
+    });
+  }
+
+  /**
+   * The Old Sanctum: stamp this act's map with at most one (engine/SanctumPass.js, its own seeded
+   * stream; never in the first act, the run's last act or the prologue). Called by advanceAct
+   * only, never on load. Returns the stamped node's id, or null.
+   */
+  _stampSanctum() {
+    if (isPrologueRun(this) || !this.nodeMap) return null;
+    return stampSanctum(this.nodeMap, {
+      runSeed: this.runSeed,
+      actIndex: this.actIndex,
+      actCount: Array.isArray(this.actSequence) ? this.actSequence.length : 0,
+      chance: earnedSourceConfig(this.gameData?.blessings).sanctumChance,
     });
   }
 
@@ -3217,6 +3288,8 @@ export class RunManager {
       },
       adjacentAllyDef: sanitizeAdjacentAllyDefBonuses(modifiers?.adjacentAllyDefBonuses),
       isolated: sanitizeIsolatedCombatBonuses(modifiers?.isolatedCombatBonuses),
+      // Standard of the Sun: Hit and Avoid near the commander.
+      commanderAuras: commanderAurasOf(this),
     };
   }
 
@@ -3325,6 +3398,9 @@ export class RunManager {
     const lordGrowthBonuses = this.getEffectiveLordGrowthBonuses();
     base.growthBonuses = recruitGrowthBonuses || {};
     base.lordGrowthBonuses = lordGrowthBonuses || {};
+    // Crest of the Road: every recruit source rolls its Mark at least this often (MarkSystem).
+    const crest = recruitMarkChanceOf(this);
+    if (crest > 0) base.markChance = Math.max(Number(base.markChance) || 0, crest);
     return base;
   }
 
@@ -4009,9 +4085,10 @@ export class RunManager {
         traitsData: this.gameData?.traits || null,
         skillsData: this.gameData?.skills,
         rng: Math.random,
-        // The Mark roll: own stream keyed by run seed and the name picked above.
+        // The Mark roll: own stream keyed by run seed and the name picked above, at the run's
+        // effective chance (Crest of the Road raises it, as for every recruit source).
         runSeed: this.runSeed,
-        metaEffects: this.metaEffects,
+        metaEffects: this.getEffectiveMetaEffects(),
         marksData: this.gameData?.marks || null,
         traitClassData: hasRecruitTemplate ? null : classData,
         // The Cadre is a recruit like any other: seasoned growths and the join bonus.
@@ -4362,6 +4439,15 @@ export class RunManager {
     battleParams.goldMultiplier = this.getDifficultyModifier('goldMultiplier', 1);
     battleParams.enemyPoisonChance = this.getDifficultyModifier('enemyPoisonChance', 0);
     battleParams.reinforcementTurnOffset = this.getDifficultyModifier('reinforcementTurnOffset', 0);
+    // Hollow Hourglass: every wave a turn later (ReinforcementSpawns reads it for the scene and the
+    // harness alike); Lantern of the Road: a fog map's opening reveal (engine/FogOpening.js).
+    // Keys only when held, so the params of a run without them are exactly as they were.
+    const reinforcementDelay = reinforcementDelayOf(this);
+    if (reinforcementDelay > 0) battleParams.reinforcementDelay = reinforcementDelay;
+    else delete battleParams.reinforcementDelay;
+    const fogOpeningRadius = fogOpeningRadiusOf(this);
+    if (fogOpeningRadius > 0) battleParams.fogOpeningRadius = fogOpeningRadius;
+    else delete battleParams.fogOpeningRadius;
     battleParams.recruitGuardianChance = this.getDifficultyModifier(
       'recruitGuardianChance',
       Number.isFinite(battleParams.recruitGuardianChance) ? battleParams.recruitGuardianChance : 0,
@@ -5164,6 +5250,9 @@ export class RunManager {
     // save and a reload offers the same pair (engine/EarnedBlessings.js). The pick is shown
     // after the boss's reward, recruit and lord, before the act advances.
     if (actBossPickDue(this, node)) prepareEarnedBlessingPick(this, node);
+    // An eclipsed elite's drop (a third of the time, one pure earned card): rolled here on its own
+    // stream, in this victory's save; the route map offers it (engine/EarnedBlessings.js).
+    if (eliteDropDue(this, node)) prepareEliteEarnedDrop(this, node);
 
     if (node?.isAmbush && node.ambushCleared !== true) {
       node.ambushCleared = true;
@@ -5468,6 +5557,8 @@ export class RunManager {
     );
     // Pilgrim's Road: the new map gains its extra shop before anything else reads it.
     this._stampExtraShops();
+    // The Old Sanctum (engine/SanctumPass.js): its own stream, after the shops.
+    this._stampSanctum();
     // The finished act's locked maps go with its route map: nothing reads a node that is
     // no longer on the map (pruneLockedBattleConfigs), and no node of the new map has been
     // entered, so none of it is locked yet. Saved by the same write as the act advance.
@@ -5475,6 +5566,7 @@ export class RunManager {
     this.shopStateByNodeId = {};
     this.ruinsChoiceByNodeId = {};
     this.churchVowByNodeId = {};
+    this.churchTitheByNodeId = {};
     // Each act's events are its own (the log, flags and burdens run on).
     this.eventStateByNodeId = {};
     this.pendingEventNodeId = null;
@@ -5881,6 +5973,7 @@ export class RunManager {
       shopStateByNodeId: this.shopStateByNodeId || {},
       ruinsChoiceByNodeId: this.ruinsChoiceByNodeId || {},
       churchVowByNodeId: this.churchVowByNodeId || {},
+      churchTitheByNodeId: this.churchTitheByNodeId || {},
       eventStateByNodeId: this.eventStateByNodeId || {},
       eventLog: this.eventLog || [],
       storyFlags: this.storyFlags || {},
@@ -6435,6 +6528,7 @@ export class RunManager {
     // The rest of the §5 starting blessings: a save from before them reads the defaults.
     sanitizeShrineBoonModifiers(rm.blessingRuntimeModifiers);
     // Earned blessings: a save from before them holds none.
+    sanitizeEarnedBoonModifiers(rm.blessingRuntimeModifiers);
     for (const field of Object.values(EARNED_BOON_MODIFIERS))
       rm.blessingRuntimeModifiers[field] = Math.max(
         0,
@@ -6494,6 +6588,8 @@ export class RunManager {
     // Saves from before the Ruins' choice carry none: no path chosen yet.
     rm.ruinsChoiceByNodeId = sanitizeRuinsChoices(saved.ruinsChoiceByNodeId);
     rm.churchVowByNodeId = sanitizeChurchVows(saved.churchVowByNodeId);
+    // Saves from before the Tithe Box carry none: no church has paid it.
+    rm.churchTitheByNodeId = sanitizeChurchTithes(saved.churchTitheByNodeId);
     // Saves from before Events carry none of these: nothing chosen, no flags, no burdens.
     rm.eventStateByNodeId = sanitizeEventStates(saved.eventStateByNodeId);
     rm.eventLog = sanitizeEventLog(saved.eventLog);
@@ -6555,6 +6651,8 @@ export class RunManager {
     rm.earnedBlessingPicks = sanitizeEarnedBlessingPicks(saved.earnedBlessingPicks, {
       earnedIds: earnedBlessingsOf(gameData).map((b) => b.id),
       actSequence: rm.actSequence,
+      // An owed or open offer never shows a card the run holds (EarnedBlessings.pruneHeldOffers).
+      heldIds: rm.getActiveBlessingIds(),
     });
     rm.pendingAmbushNodeId =
       typeof saved.pendingAmbushNodeId === 'string' ? saved.pendingAmbushNodeId : null;

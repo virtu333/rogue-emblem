@@ -1,12 +1,13 @@
 // earnedBlessingPickModel — what the earned-blessing pick says (docs/specs/blessings-v3.md §6.4),
 // computed without the DOM. An act boss's pick (engine/EarnedBlessings.js) is two earned
-// blessings drawn at the victory commit; this turns the owed ledger entry into the cards, the
-// footer line for whichever card is chosen and the words of the skip confirmation.
+// blessings drawn at the victory commit, an eclipsed elite's drop one; this turns the owed ledger
+// entry into the cards, the footer line for whichever card is chosen and the words of the skip
+// confirmation.
 // Pure: reads the run and the catalog, never changes them, never draws.
 
 import { blessingTerms } from '../engine/BlessingTerms.js';
 import { buildBlessingIndex } from '../engine/BlessingEngine.js';
-import { earnedPickOwed } from '../engine/EarnedBlessings.js';
+import { earnedPickOwed, ledgerKeyOf, takeableOffered } from '../engine/EarnedBlessings.js';
 import { blessingCardContent } from './choiceContent.js';
 import { actLabel } from './ceremonyContent.js';
 
@@ -24,6 +25,19 @@ export const EARNED_SKIP_CONFIRM = Object.freeze({
   confirmLabel: 'Leave them',
   closeLabel: 'Back',
 });
+/** The same confirmation for a pick of one card (an eclipsed elite's drop). */
+export const EARNED_SKIP_CONFIRM_ONE = Object.freeze({
+  title: 'Leave it?',
+  heading: 'Leave the blessing',
+  text: 'It is gone for good: it will not be offered again.',
+  confirmLabel: 'Leave it',
+  closeLabel: 'Back',
+});
+
+/** The skip confirmation's words for a pick of `count` cards. */
+export function earnedSkipConfirm(count) {
+  return count === 1 ? EARNED_SKIP_CONFIRM_ONE : EARNED_SKIP_CONFIRM;
+}
 
 function catalogIndex(run) {
   try {
@@ -34,15 +48,20 @@ function catalogIndex(run) {
   }
 }
 
-/** Where the pick came from, for its lead line: "the Act I boss" (or "the act's boss"). */
+/**
+ * Where the pick came from, for its lead line: "the Act I boss" (or "the act's boss"), "an
+ * eclipsed elite", "the Colosseum".
+ */
 export function earnedPickSource(entry) {
+  if (entry?.source === 'eclipsed_elite') return 'an eclipsed elite';
+  if (entry?.source === 'colosseum') return 'the Colosseum';
   const act = actLabel(entry?.actId);
   return act ? `the ${act} boss` : "the act's boss";
 }
 
 /**
  * The owed pick as the menu shows it, or null when nothing is owed (or none of its cards is
- * still in the catalog). `cards[i]` = `{ id, content, terms }`: `content` is the tarot face
+ * still in the catalog, or one the run does not already hold: a Take of it would be refused). `cards[i]` = `{ id, content, terms }`: `content` is the tarot face
  * (choiceContent.blessingCardContent), `terms` explain the words its boon uses (Vision).
  * @param {object} run - RunManager
  * @param {object} [entry] - a ledger entry; the owed one by default
@@ -51,7 +70,7 @@ export function earnedPickModel(run, entry = earnedPickOwed(run)) {
   if (!entry || entry.status !== 'owed' || !Array.isArray(entry.offered)) return null;
   const index = catalogIndex(run);
   const cards = [];
-  for (const id of entry.offered) {
+  for (const id of takeableOffered(run, entry)) {
     const blessing = index.get(id);
     if (!blessing || blessing.earned !== true) continue;
     const content = blessingCardContent(blessing);
@@ -67,6 +86,7 @@ export function earnedPickModel(run, entry = earnedPickOwed(run)) {
   if (!cards.length) return null;
   return {
     actId: entry.actId,
+    key: ledgerKeyOf(entry),
     source: earnedPickSource(entry),
     cards,
   };
@@ -82,7 +102,9 @@ export function earnedPickFooter(model, chosenId = null) {
   const card = model?.cards?.find((c) => c.id === chosenId) || null;
   if (!card) {
     const source = model?.source || "the act's boss";
-    return { kind: 'prompt', text: `Won from ${source}. Take one, or leave them both.` };
+    const choice =
+      model?.cards?.length === 1 ? 'Take it, or leave it.' : 'Take one, or leave them both.';
+    return { kind: 'prompt', text: `Won from ${source}. ${choice}` };
   }
   if (card.terms.length) return { kind: 'terms', terms: card.terms };
   if (card.content.lore) return { kind: 'lore', text: card.content.lore };

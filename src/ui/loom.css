@@ -427,6 +427,10 @@
 .re-node.is-elite .re-loom-label {
   color: var(--re-bad);
 }
+/* The Old Sanctum (a church whose vow offers an earned blessing): its label in the seal's gilt. */
+.re-node.is-sanctum .re-loom-label {
+  color: var(--re-gilt);
+}
 .re-loom-crack {
   position: absolute;
   left: 50%;

@@ -270,6 +270,8 @@ export function resolveBattleReinforcements({
     classMoveType,
     difficultyId: battleParams?.difficultyId || fallbackDifficultyId,
     difficultyTurnOffset: Math.trunc(Number(battleParams?.reinforcementTurnOffset) || 0),
+    // Hollow Hourglass (RunManager.getBattleParams): every wave a turn later.
+    turnDelay: Math.max(0, Math.trunc(Number(battleParams?.reinforcementDelay) || 0)),
     enemyCountBonus: Math.trunc(Number(battleParams?.enemyCountBonus) || 0),
     activeEnemyCount: enemyUnits.length,
     playerTiles: occupiedUnitTiles(playerUnits),

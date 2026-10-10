@@ -10,7 +10,8 @@
 // Eligible: an `event` or `church` node that is not complete, is not the node the party stands
 // on, sits at or below `fromRow`, can still be reached from the node the party stands on (a
 // walk forward along `edges`; with no current node every node counts), and has not been
-// touched by the Eclipse (`node.eclipse`, `node.darkOmen`). Never a battle, recruit, Colosseum, Ruins, boss or an existing shop.
+// touched by the Eclipse (`node.eclipse`, `node.darkOmen`). Never a battle, recruit, Colosseum, Ruins, boss, an
+// existing shop or the Old Sanctum (`node.sanctum`).
 // Preference tiers (the first non-empty one is drawn from): events whose neighbours hold no
 // shop, churches whose neighbours hold no shop, any event, any church. "Neighbours" is the
 // generator's own pacing rule (NodeMapGenerator's service-streak repair): a parent that is a
@@ -74,7 +75,9 @@ export function extraShopCandidates(nodeMap, { fromRow = 0, currentNodeId = null
         node.row >= fromRow &&
         (reachable === null || reachable.has(node.id)) &&
         !node.eclipse &&
-        node.darkOmen !== true,
+        node.darkOmen !== true &&
+        // The Old Sanctum (engine/SanctumPass.js) is never turned into a shop.
+        node.sanctum !== true,
     )
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }

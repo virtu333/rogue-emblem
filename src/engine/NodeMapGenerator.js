@@ -347,7 +347,7 @@ export function convertNodeToRoutBattle(node, actId, mapTemplates, options = {})
  * seeded Math.random stream). A battle gets its objective roll, battle seed, caravan and
  * village rolls (buildBattleParams), a biome-matched template and a fog roll; every other
  * type here carries no params. Stale template and fog fields are dropped first.
- * @param {object} node - mutated: type, battleParams, templateId, fogEnabled
+ * @param {object} node - mutated: type, battleParams, templateId, fogEnabled, sanctum (dropped)
  * @param {string} type - a NODE_TYPES value
  * @param {string} actId
  * @param {number} totalRows - rows in the act (the seize-row gating reads it)
@@ -366,6 +366,8 @@ export function rebuildNodeAs(node, type, actId, totalRows, mapTemplates, option
   node.type = type;
   delete node.templateId;
   delete node.fogEnabled;
+  // A stamped Old Sanctum is a church's mark (SanctumPass.js): another type never keeps it.
+  delete node.sanctum;
   node.battleParams = buildBattleParams(
     actId,
     node.type,

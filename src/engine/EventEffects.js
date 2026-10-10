@@ -31,6 +31,11 @@
 //                                                 -> { kind:'vision', value }
 //   blessing    { tier }                        a seeded mid-run-safe boon blessing the run lacks
 //                                                 -> { kind:'blessing', id, name, description, tier }
+//   earnedBlessing { id }                       a named earned blessing won from an event
+//                                                 (EarnedBlessings.grantEarnedBlessing: the ledger
+//                                                 records it under `event:<node>`); held already ->
+//                                                 an error, or skipped with a note in the spoils
+//                                                 -> { kind:'earnedBlessing', id, name, description }
 //   burden      { id, params }                  Burdens.js
 //                                                 -> { kind:'burden', id, label, line, detail }
 //   flag        { key, value }                  storyFlags
@@ -93,6 +98,7 @@ import { planRouteEdit, applyRouteEdit } from './RouteEdit.js';
 import { accessoryDisplayName, bindAccessorySkill, hasAccessorySkill } from './AccessorySkills.js';
 import { CONSUMABLE_MAX, INVENTORY_MAX, NODE_TYPES } from '../utils/constants.js';
 import { unitUidOf } from './UnitIdentity.js';
+import { earnedGrantBlock, eventLedgerKey, grantEarnedBlessing } from './EarnedBlessings.js';
 import {
   START_PAGE,
   choiceCost,
@@ -136,6 +142,7 @@ export const EVENT_EFFECT_TYPES = Object.freeze([
   'forge',
   'wear',
   'mend',
+  'earnedBlessing',
 ]);
 
 /** Effect types that must name a chosen unit (`to: 'target'` / `scope: 'target'`). */
@@ -256,6 +263,7 @@ export function createLedger(run) {
     contract: false,
     routeEdit: false,
     weapons: new Set(),
+    earned: new Set(),
   };
 }
 
@@ -275,6 +283,7 @@ export function cloneLedger(ledger) {
     contract: ledger.contract,
     routeEdit: ledger.routeEdit,
     weapons: new Set(ledger.weapons),
+    earned: new Set(ledger.earned || []),
   };
 }
 
@@ -554,6 +563,22 @@ function planBlessing(ctx, effect, index, ledger, lenient) {
       : { error: 'There is nothing left to give you.' };
   const blessing = pickFrom(candidates, rngFor(ctx, index, 'blessing'));
   return { step: { type: 'blessing', blessing } };
+}
+
+/**
+ * An earned blessing won from the event (docs/specs/blessings-v3.md §6.3): the named card, if the
+ * run can still take it here (EarnedBlessings.earnedGrantBlock: an earned card won from events,
+ * not held, the node's grant not yet given). A choice's grant fails with the reason; the spoils
+ * after a won fight skip it with a note (a won battle never loses its other rewards).
+ */
+function planEarnedBlessing(ctx, effect, index, ledger, lenient) {
+  const key = eventLedgerKey(ctx.nodeId);
+  const reason = ledger.earned?.has(effect.id)
+    ? 'You already carry it.'
+    : earnedGrantBlock(ctx.run, effect.id, { source: 'event', key });
+  if (reason) return lenient ? skipNote('earnedBlessing', reason) : { error: reason };
+  ledger.earned?.add(effect.id);
+  return { step: { type: 'earnedBlessing', id: effect.id, key } };
 }
 
 function planBurden(ctx, effect, index) {
@@ -880,6 +905,9 @@ export function planEffects(
       case 'mend':
         planned = planMend(ctx, effect, index, ledger);
         break;
+      case 'earnedBlessing':
+        planned = planEarnedBlessing(ctx, effect, index, ledger, lenient);
+        break;
       default:
         planned = { error: `Unknown effect "${effect?.type}".` };
     }
@@ -891,7 +919,7 @@ export function planEffects(
       return { ok: false, empty: true, reason: planned.reason || 'Nothing to learn.' };
     }
     if (planned.error) {
-      if (lenient && ['item', 'blessing'].includes(effect.type)) {
+      if (lenient && ['item', 'blessing', 'earnedBlessing'].includes(effect.type)) {
         steps.push(skipNote(effect.type, planned.error).step);
         continue;
       }
@@ -1142,6 +1170,22 @@ export function applyStep(ctx, step) {
         },
       ];
     }
+    case 'earnedBlessing': {
+      const granted = grantEarnedBlessing(run, step.id, {
+        source: 'event',
+        key: step.key,
+        nodeId: ctx.nodeId || null,
+      });
+      if (!granted.ok) throw new Error(granted.reason);
+      return [
+        {
+          kind: 'earnedBlessing',
+          id: step.id,
+          name: granted.blessing.name,
+          description: granted.blessing.description,
+        },
+      ];
+    }
     case 'burden': {
       const added = addBurden(run, step.id, step.params, ctx.catalog);
       if (!added.ok) throw new Error(added.reason);
@@ -1262,6 +1306,7 @@ export const RUN_FIELDS = Object.freeze([
   'activeBlessings',
   'blessingHistory',
   'blessingRuntimeModifiers',
+  'earnedBlessingPicks',
   'storyFlags',
   'burdens',
   'accessories',

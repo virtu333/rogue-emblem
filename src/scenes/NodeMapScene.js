@@ -802,8 +802,8 @@ export class NodeMapScene extends Phaser.Scene {
   /**
    * The earned-blessing pick the run still owes (engine/EarnedBlessings.js; EarnedBlessingPick):
    * single-flight (an open pick is never opened twice, whichever caller comes first). It waits
-   * for the boss's rewards, recruit and lord, a contract reward owed where the party stands and
-   * any story beat or overlay; once taken or skipped (saved first) the act completes through
+   * for the boss's rewards, recruit and lord, an event's own page, a contract reward owed where
+   * the party stands and any story beat or overlay; once taken or skipped (saved first) the act completes through
    * checkActComplete, or, for a pick left from an earlier act, the map carries on.
    * @returns {boolean} true when the pick is open (now or already)
    */
@@ -818,6 +818,8 @@ export class NodeMapScene extends Phaser.Scene {
       this.shopOverlay ||
       this.churchOverlay ||
       this.eventOverlay ||
+      this.colosseumOverlay?.visible ||
+      this._colosseumLoading ||
       this._pendingRewards ||
       this._bossRecruitResume ||
       this.rosterOverlay?.visible ||
@@ -832,6 +834,13 @@ export class NodeMapScene extends Phaser.Scene {
     if (rm.isRunComplete?.()) return false;
     const current = rm.nodeMap?.nodes?.find((entry) => entry?.id === rm.currentNodeId);
     if (current && contractRewardOwedAt(rm, current)) return false;
+    // An event's own page (the spoils it owes, or its victory page) comes first too: the route
+    // map's order is events, the contract, the pick, then the caravan.
+    if (
+      getPendingEventSettlement(rm) ||
+      (current?.type === NODE_TYPES.EVENT && current.completed && eventPageOwed(rm, current.id))
+    )
+      return false;
     const entry = earnedPickOwed(rm);
     if (!entry) return false;
     const pick = new EarnedBlessingPick(this, {
@@ -2058,9 +2067,14 @@ export class NodeMapScene extends Phaser.Scene {
       onComplete: () => {
         this._pendingRewards = null;
         this.checkActComplete();
-        // An event battle's spoils come after its loot choices, then a contract reward owed.
-        if (!this._maybeOpenPendingEventSettlement?.())
-          this._maybeOpenPendingContractSettlement?.();
+        // An event battle's spoils come after its loot choices, then a contract reward owed,
+        // then an earned pick still owed (an eclipsed elite's drop; single-flight, so an act
+        // boss's pick checkActComplete already opened is not opened twice).
+        if (
+          !this._maybeOpenPendingEventSettlement?.() &&
+          !this._maybeOpenPendingContractSettlement?.()
+        )
+          this._maybeOpenEarnedPick?.();
       },
     });
   }
@@ -2591,6 +2605,9 @@ export class NodeMapScene extends Phaser.Scene {
       }
     } else {
       this.drawMap();
+      // A page that held the map has closed (a contract's Continue, a service left): an earned
+      // pick still owed (an eclipsed elite's drop) opens now, else the caravan's shop.
+      if (!this._maybeOpenEarnedPick()) this._maybeOpenPendingCaravanShop?.();
     }
   }
 

@@ -11,6 +11,7 @@ import {
   LOOM_MEDAL,
 } from './loomModel.js';
 import { drawLoomFx, drawLoomWeave, loomFxAnimates } from '../art/loom/loomThreads.js';
+import { isSanctum } from '../engine/SanctumPass.js';
 
 // Shared route renderer for node travel (NodeMapMenu) and the read-only in-battle
 // Campaign Map: "the Loom" (docs/art-direction/board/loom). DOM buttons keep focus,
@@ -65,6 +66,8 @@ export function nodeFrame(node, act) {
 }
 export function nodeLabel(node) {
   if (isEclipsed(node)) return node.eclipse.label || 'Eclipsed battle';
+  // The Old Sanctum (engine/SanctumPass.js): a church whose vow offers an earned blessing.
+  if (isSanctum(node)) return 'Old sanctum';
   return isEliteBattle(node) ? 'Elite battle' : LABELS[node.type] || node.type;
 }
 
@@ -213,6 +216,7 @@ export function createRouteGraph({
     b.classList.toggle('is-elite', isEliteBattle(n));
     b.classList.toggle('is-boss', n.type === 'boss');
     b.classList.toggle('is-event', n.type === 'event');
+    b.classList.toggle('is-sanctum', isSanctum(n));
     const fallen = isEclipsed(n);
     const eclipseInfo = eclipse?.nodes?.get?.(n.id) || null;
     b.classList.toggle('is-eclipsed', fallen);

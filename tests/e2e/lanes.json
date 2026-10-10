@@ -176,6 +176,7 @@
         "local-play.spec.js",
         "loom-route.spec.js",
         "native-rewards.spec.js",
+        "old-sanctum.spec.js",
         "open-roll.spec.js",
         "reward-reload.spec.js",
         "reward-reroll.spec.js",

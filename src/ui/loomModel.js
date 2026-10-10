@@ -8,6 +8,7 @@
 
 import { fallCountdownText } from './eclipseContent.js';
 import { chosenLine } from '../engine/RuinsCommands.js';
+import { isSanctum } from '../engine/SanctumPass.js';
 
 export const LOOM_LANES = 5;
 
@@ -388,6 +389,19 @@ const ECLIPSED_TEXT = {
 // A fallen event that kept its story: the same road, a darker face (price and prize both higher).
 const DARK_OMEN_TEXT =
   'The dark took this road, but the story stayed. It wears a darker face now: a harsher price, a richer prize.';
+// The Old Sanctum (engine/SanctumPass.js): a church whose vow offers an earned blessing, and
+// what it says once that is settled (ChurchVow.sanctumStatus).
+export const SANCTUM_TEXT = 'An old sanctum: its vow offers an earned blessing.';
+export const SANCTUM_TAKEN_TEXT = 'An old sanctum: its vow gave you an earned blessing.';
+export const SANCTUM_SPENT_TEXT = 'An old sanctum: its vow is made. The earned blessing stays.';
+export const SANCTUM_EMPTY_TEXT = 'An old sanctum: no earned blessing is left on its altar.';
+const SANCTUM_LINES = {
+  unopened: SANCTUM_TEXT,
+  open: SANCTUM_TEXT,
+  taken: SANCTUM_TAKEN_TEXT,
+  spent: SANCTUM_SPENT_TEXT,
+  none: SANCTUM_EMPTY_TEXT,
+};
 const SERVICE = {
   shop: 'Buy, sell and forge equipment.',
   church: 'Heal, revive allies and promote units.',
@@ -402,6 +416,7 @@ export function loomShortLabel(node) {
   // A Dark Omen is a fallen event that kept its story (EclipseSystem.eclipseNode).
   if (node?.darkOmen === true) return 'OMEN';
   if (node?.eclipse) return 'ECLIPSED';
+  if (isSanctum(node)) return 'SANCTUM';
   const elite = BATTLE_TYPES.has(node?.type) && node?.battleParams?.isElite;
   return elite ? 'ELITE' : KIND[node?.type] || String(node?.type || '').toUpperCase();
 }
@@ -512,6 +527,7 @@ export function describeLoomNode(
     recruitMods = null,
     ruinsChoice = null,
     eventChoice = null,
+    sanctumStatus = null,
   } = {},
 ) {
   if (!node) return null;
@@ -597,6 +613,7 @@ export function describeLoomNode(
                 ? `You chose: ${eventChoice}`
                 : // An authored node (the prologue's) says what it holds itself.
                   (typeof node.preview === 'string' && node.preview) ||
+                  (isSanctum(node) ? SANCTUM_LINES[sanctumStatus] || SANCTUM_TEXT : null) ||
                   SERVICE[node.type] ||
                   objective?.[1] ||
                   '';
@@ -655,7 +672,9 @@ export function describeLoomNode(
         ? 'ECLIPSED'
         : elite
           ? 'ELITE'
-          : KIND[node.type] || String(node.type || '').toUpperCase(),
+          : isSanctum(node)
+            ? 'OLD SANCTUM'
+            : KIND[node.type] || String(node.type || '').toUpperCase(),
     elite,
     eclipsed,
     warning,

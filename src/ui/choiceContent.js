@@ -374,12 +374,15 @@ export const TIER_NUMERALS = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V']);
 
 /**
  * What a blessing's price is called: a tier IV blessing's fixed 'Pact', a blessing whose own
- * boon carries the cost (Slow Fuse's dip) a 'Price', anything else a rolled 'Cost'. Reads an
- * offer (catalog fields + `rolledCost`) or a held entry's stored `rolledCost`.
- * @param {object|null} blessing - an offer, or `{ rolledCost, intrinsicPrice?, pact? }`
- * @returns {'Pact'|'Price'|'Cost'}
+ * boon carries the cost (Slow Fuse's dip) a 'Price', a twisted earned blessing's 'Twist', a start
+ * gift's 'Catch', anything else a rolled 'Cost'. Reads an offer (catalog fields + `rolledCost`)
+ * or a held entry's stored `rolledCost`.
+ * @param {object|null} blessing - an offer, or `{ rolledCost, intrinsicPrice?, pact?, twist? }`
+ * @returns {'Pact'|'Price'|'Twist'|'Catch'|'Cost'}
  */
 export function blessingPriceKind(blessing) {
+  if (blessing?.twist || blessing?.rolledCost?.kind === 'twist') return 'Twist';
+  if (blessing?.rolledCost?.kind === 'gift') return 'Catch';
   if (blessing?.pact || blessing?.rolledCost?.kind === 'pact') return 'Pact';
   if (blessing?.intrinsicPrice || blessing?.rolledCost?.kind === 'intrinsic') return 'Price';
   return 'Cost';
@@ -394,7 +397,9 @@ export function blessingCardContent(blessing) {
   if (!blessing) return null;
   const earned = blessing.earned === true;
   const tier = earned ? 0 : Math.max(0, Math.min(5, Math.trunc(num(blessing.tier))));
-  const priceLabel = blessing.rolledCost?.label ?? blessing.intrinsicPrice?.label;
+  // A twisted earned card shows its twist where a shrine card shows its price.
+  const priceLabel =
+    blessing.rolledCost?.label ?? blessing.intrinsicPrice?.label ?? blessing.twist?.label;
   const cost = typeof priceLabel === 'string' && priceLabel.trim() ? priceLabel.trim() : '';
   return {
     id: blessing.id || null,

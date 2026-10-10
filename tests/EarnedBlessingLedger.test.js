@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { RunManager } from '../src/engine/RunManager.js';
 import {
   DEFAULT_EARNED_OFFER,
+  EARNED_PICK_VERSION,
   actBossPickDue,
   earnedOfferChance,
   earnedOfferConfig,
@@ -20,6 +21,14 @@ import { loadGameData } from './testData.js';
 
 const data = loadGameData();
 const EARNED_IDS = ['unbroken_banner', 'second_dawn', 'ember_lantern', 'captains_whistle'];
+// What Act I's boss may offer (PR D1 re-sourced the cards: Second Dawn is an eclipsed elite's,
+// Standard of the Sun is Act I's boss's own, Chronicle Act II's).
+const ACT1_BOSS_IDS = [
+  'unbroken_banner',
+  'ember_lantern',
+  'captains_whistle',
+  'standard_of_the_sun',
+];
 
 function freshRun(seed = 7, difficultyId = 'normal') {
   const rm = new RunManager(data);
@@ -152,7 +161,7 @@ describe('rolling the offer', () => {
       expect(roll.offered).toHaveLength(2);
       expect(new Set(roll.offered).size).toBe(2);
       for (const id of roll.offered) {
-        expect(EARNED_IDS).toContain(id);
+        expect(ACT1_BOSS_IDS).toContain(id);
         expect(id).not.toBe('ember_lantern');
       }
     }
@@ -177,24 +186,28 @@ describe('rolling the offer', () => {
   });
 
   it('offers a lone card when one is left and nothing when none is', () => {
-    // Three held: the odds are 0.7 and one card is left.
-    const three = rollerFor(EARNED_IDS.slice(0, 3));
+    // Three of Act I's boss cards held: the odds are 0.7 and one card is left. (Re-sourced in
+    // PR D1: Second Dawn left the boss's pool and Standard of the Sun joined it, so the lone card
+    // and the full set are Act I's boss pool, not PR C's four.)
+    const three = rollerFor(ACT1_BOSS_IDS.slice(0, 3));
     const rolls = [];
     for (let seed = 1; seed <= 300; seed++) rolls.push(three(seed));
     expect(
       rolls
         .filter((r) => r.status === 'owed')
-        .every((r) => r.offered.join() === 'captains_whistle'),
+        .every((r) => r.offered.join() === 'standard_of_the_sun'),
     ).toBe(true);
     expect(rolls.some((r) => r.status === 'owed')).toBe(true);
-    const all = rollerFor(EARNED_IDS);
+    const all = rollerFor(ACT1_BOSS_IDS);
     for (let seed = 1; seed <= 50; seed++)
       expect(all(seed)).toEqual({ status: 'none', offered: [] });
   });
 
   it('never offers a card whose weight is 0', () => {
+    // (PR D1: Second Dawn is an eclipsed elite's now, so a boss card keeps its weight here.)
     const copy = structuredClone(data);
-    for (const b of copy.blessings.blessings) if (b.earned && b.id !== 'second_dawn') b.weight = 0;
+    for (const b of copy.blessings.blessings)
+      if (b.earned && b.id !== 'captains_whistle') b.weight = 0;
     const rm = freshRun(5);
     rm.gameData = copy;
     let owed = 0;
@@ -203,7 +216,7 @@ describe('rolling the offer', () => {
       const roll = rollActBossEarnedOffer(rm);
       if (roll.status === 'owed') {
         owed++;
-        expect(roll.offered).toEqual(['second_dawn']);
+        expect(roll.offered).toEqual(['captains_whistle']);
       }
     }
     expect(owed).toBeGreaterThan(0);
@@ -278,7 +291,7 @@ describe('preparing, saving and reloading the pick', () => {
     const { rm, entry } = owedRun();
     expect(rm.earnedBlessingPicks[rm.currentAct]).toBe(entry);
     expect(entry).toMatchObject({
-      version: 1,
+      version: EARNED_PICK_VERSION, // 2 since PR D1's keyed ledger (a v1 entry loads as it was)
       source: 'act_boss',
       actId: 'act1',
       nodeId: rm.nodeMap.bossNodeId,
@@ -315,7 +328,7 @@ describe('preparing, saving and reloading the pick', () => {
     expect(skipEarnedBlessing(rm, 'act1').ok).toBe(true);
     expect(roundTrip(rm).earnedBlessingPicks.act1.status).toBe('skipped');
     const none = freshRun(3);
-    for (const id of EARNED_IDS) none.addBlessingMidRun(id, { earned: true });
+    for (const id of ACT1_BOSS_IDS) none.addBlessingMidRun(id, { earned: true });
     expect(prepareEarnedBlessingPick(none, bossOf(none)).status).toBe('none');
     expect(roundTrip(none).earnedBlessingPicks.act1.status).toBe('none');
   });

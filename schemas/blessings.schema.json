@@ -54,6 +54,23 @@
             "minimum": 0,
             "maximum": 1
           }
+        },
+        "eclipsedEliteChance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "sanctum": {
+          "type": "object",
+          "properties": {
+            "chance": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "required": ["chance"],
+          "additionalProperties": false
         }
       },
       "required": ["actBoss", "weightByHeld"],
@@ -182,6 +199,25 @@
             },
             "required": ["label", "points"],
             "additionalProperties": false
+          },
+          "sources": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/$defs/earnedSource"
+            }
+          },
+          "twist": {
+            "$ref": "#/$defs/costEntry"
+          },
+          "requires": {
+            "type": "object",
+            "properties": {
+              "eclipse": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
           }
         },
         "required": ["id", "name", "description", "weight", "boons", "costs"],
@@ -195,6 +231,7 @@
           "required": ["earned"]
         },
         "then": {
+          "required": ["sources"],
           "not": {
             "anyOf": [
               { "required": ["tier"] },
@@ -205,7 +242,14 @@
           }
         },
         "else": {
-          "required": ["tier"]
+          "required": ["tier"],
+          "not": {
+            "anyOf": [
+              { "required": ["sources"] },
+              { "required": ["twist"] },
+              { "required": ["requires"] }
+            ]
+          }
         }
       }
     }
@@ -289,6 +333,24 @@
           }
         }
       ]
+    },
+    "earnedSource": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": ["act_boss", "eclipsed_elite", "sanctum", "colosseum", "event"]
+        },
+        "acts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": ["kind"],
+      "additionalProperties": false
     }
   }
 }

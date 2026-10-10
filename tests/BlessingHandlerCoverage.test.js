@@ -72,6 +72,22 @@ describe('every blessing effect has a handler', () => {
     },
   );
 
+  // A twisted earned blessing's twist is applied by the same handlers as a price
+  // (addBlessingMidRun's `price`): every twist the catalog ships must have one. None ships in
+  // PR D1; the fixture below proves the walk would see one that is unhandled.
+  const twistsApply = (blessings) => {
+    const rm = freshRun();
+    for (const b of blessings.filter((x) => x.twist))
+      for (const effect of b.twist.effects) rm._applySingleRunStartBlessingEffect(b.id, effect);
+    return unhandled(rm).map((r) => r.effectType);
+  };
+  it("every twisted card's twist applies", () => {
+    expect(twistsApply(catalog.blessings)).toEqual([]);
+    expect(
+      twistsApply([{ id: 'x', twist: { effects: [{ type: 'no_such_twist', params: {} }] } }]),
+    ).toEqual(['no_such_twist']);
+  });
+
   it('the v2 cost pools old saves hold still apply', () => {
     const rm = freshRun();
     for (const pool of Object.values(catalog.costPools))
@@ -101,10 +117,26 @@ describe('every blessing effect has a handler', () => {
       type: 'player_weapon_art_boon',
       params: { hpCostDelta: 0, mapUsesBonus: 0 },
     });
+    // PR D1's earned boons (engine/EarnedBoons.js) skip a malformed set the same way.
+    for (const [id, type, params] of [
+      ['standard_of_the_sun', 'commander_aura', { radius: 0, hitBonus: 5 }],
+      ['hollow_hourglass', 'reinforcement_delay', { value: 0 }],
+      ['chronicle', 'xp_per_act_cleared', { value: 3 }],
+      ['tithe_box', 'church_entry_gold', { value: 'lots' }],
+      ['lantern_of_the_road', 'fog_opening_reveal', {}],
+      ['crest_of_the_road', 'recruit_mark_chance', { value: -1 }],
+    ])
+      rm._applySingleRunStartBlessingEffect(id, { type, params });
     expect(invalid(rm).map((r) => r.details.reason)).toEqual([
       'invalid_lord_stat_arc_params',
       'invalid_battle_gold_gamble_params',
       'invalid_player_weapon_art_boon_params',
+      'invalid_commander_aura_params',
+      'invalid_reinforcement_delay_params',
+      'invalid_xp_per_act_cleared_params',
+      'invalid_church_entry_gold_params',
+      'invalid_fog_opening_reveal_params',
+      'invalid_recruit_mark_chance_params',
     ]);
   });
 });

@@ -161,6 +161,7 @@ import {
   blessingTurnStartEffects,
 } from '../../src/engine/BattleBlessings.js';
 import { applyBlessingCombatMods, stampTurnAnchors } from '../../src/engine/BlessingCombatMods.js';
+import { applyFogOpening } from '../../src/engine/FogOpening.js';
 import { resetFortHealStreak, settleTerrainHeal } from '../../src/engine/TerrainHealing.js';
 import { postCombatEffects, runPostCombatEffectsSync } from '../../src/engine/PostCombatEffects.js';
 import {
@@ -483,6 +484,9 @@ export class HeadlessBattle {
     this.aiController.setHoldContext(() => this._playerThreatContext());
     // Override delay for synchronous execution
     this.aiController._delay = () => Promise.resolve();
+
+    // Lantern of the Road, as BattleScene at a fresh start: the opening reveal (FogOpening.js).
+    applyFogOpening(this.grid, this.playerUnits, this.battleParams?.fogOpeningRadius);
 
     // Start battle
     this.turnManager.startBattle();
@@ -1099,6 +1103,8 @@ export class HeadlessBattle {
       this._refreshFogVisibility();
       this.battleState = HEADLESS_STATES.PLAYER_IDLE;
     } else if (phase === 'enemy') {
+      // As BattleScene: a contact (the Lantern's opening reveal) lasts its player phase only.
+      if (this.grid?.clearContacts?.()) this._refreshFogVisibility();
       this._advanceTurnPressure(turn);
       processConditionRecovery(this.enemyUnits);
       this.grid.tickTemporaryTerrains?.();
