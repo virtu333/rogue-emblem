@@ -47,7 +47,9 @@ function defaultStoryFlags() {
   return { bossSlain: {}, defeatedBy: {}, lordFalls: {}, lastRun: null, linesPlayed: [] };
 }
 
-const MAX_LINES_PLAYED = 64;
+// Room for the commander's run-start pool and the bosses' rematch exchanges
+// (several a run), so neither pushes the other's history out within a few runs.
+const MAX_LINES_PLAYED = 256;
 
 /**
  * Pool lines already played on this save (NarrativeDirector line keys), least

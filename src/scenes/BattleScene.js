@@ -2513,6 +2513,10 @@ export class BattleScene extends Phaser.Scene {
     if (this.runManager.hasShownDialogue(dialogueKey)) return;
     if (!Array.isArray(entries) || entries.length <= 0) return;
     this.runManager.markDialogueShown(dialogueKey);
+    // A pooled line (a boss rematch exchange) rotates by what this save has heard,
+    // so it is remembered as it is shown, never again on a resume.
+    const lineKeys = entries.map((e) => e?.lineKey).filter(Boolean);
+    if (lineKeys.length) this.registry?.get?.('meta')?.recordLinesPlayed?.(lineKeys);
     await this._showStorySequence(entries, { ...options, key: dialogueKey });
     if (!isCurrentBattleSession(this, session)) return;
   }
