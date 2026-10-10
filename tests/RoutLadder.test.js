@@ -161,10 +161,9 @@ describe('the ladder a rout map is generated with', () => {
         expect(dusk, label).toBeLessThan(hard);
         // Up to T10, Black Sun Act III matches Nightfall's count (its edge is the earlier T3
         // wave and the fourth, promoted one); everywhere else it is strictly above.
-        if (byTurn === 10) {
-          expect(hard, label).toBeLessThanOrEqual(lunatic);
-          expect(lunatic, label).toBeLessThanOrEqual(hard + 2);
-        } else expect(hard, label).toBeLessThan(lunatic);
+        if (byTurn === 10 && act === 'act3') expect(hard, label).toBeLessThanOrEqual(lunatic);
+        else expect(hard, label).toBeLessThan(lunatic);
+        if (byTurn === 10) expect(lunatic, label).toBeLessThanOrEqual(hard + 2);
       }
     }
   });
