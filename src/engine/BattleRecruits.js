@@ -18,6 +18,7 @@
 import { isRecruitNpc } from './RecruitNpc.js';
 import { serializeUnit } from './RunManager.js';
 import { stampTurnAnchors } from './BlessingCombatMods.js';
+import { applyBattleJoinBoons } from './BattleJoinBoons.js';
 import { matchUnitsToSurvivors, unitUidOf } from './UnitIdentity.js';
 
 const MAX_BATTLE_RECRUITS = 32;
@@ -45,6 +46,7 @@ function copyWithoutBattleDeltas(unit) {
     if (Number.isFinite(data.stats.MOV)) data.mov = data.stats.MOV;
   }
   delete data._battleDeltas;
+  delete data._battleDeltaSources;
   delete data._speedtakerStacks;
   // Status conditions are battle-scoped; structuredClone keeps weapon ===
   // inventory[i], which serializeUnit relies on to relink the equipped item.
@@ -150,7 +152,16 @@ export function validateRecruitJoin(npc, npcUnits, playerUnits) {
   );
 }
 
-/** Join an already validated adjacent recruit, independently of its ceremony. */
+/**
+ * Join an already validated adjacent recruit, independently of its ceremony. The scene
+ * (MovementActionController.executeTalk) and the harness (HeadlessBattle._executeTalk) both call
+ * it, so a recruit joins with the same grants either way: its run identity first (the grants and
+ * the battle's deltas below are keyed by it), the run's joiner grants
+ * (RunManager.grantRecruitBlessingConsumables: Field Medic, Blood Covenant, the act's stat cards),
+ * then what the army was given as the battle began (engine/BattleJoinBoons.js: Cavalier's Hour,
+ * Captain's Whistle on turn 1), as battle-scoped state the battle's end takes back.
+ * `battleBlessings` is the battle's earned-blessing state (engine/BattleBlessings.js).
+ */
 export function settleRecruitJoin({
   npc,
   npcUnits,
@@ -158,10 +169,12 @@ export function settleRecruitJoin({
   battleRecruits,
   runManager,
   turn = null,
+  battleBlessings = null,
 }) {
   if (!validateRecruitJoin(npc, npcUnits, playerUnits)) return null;
   npcUnits.splice(npcUnits.indexOf(npc), 1);
   npc.faction = 'player';
+  runManager?.assignUnitUid?.(npc);
   runManager?.grantRecruitBlessingConsumables?.(npc);
   playerUnits.push(npc);
   npc.hasMoved = false;
@@ -170,6 +183,8 @@ export function settleRecruitJoin({
   // It stands where it joined and has not moved this turn: Hold the Line holds from here, as for
   // any unit anchored when the player phase began (a join is always a player-phase act).
   if (Number.isFinite(turn)) stampTurnAnchors([npc], turn);
-  runManager?.assignUnitUid?.(npc);
+  applyBattleJoinBoons(npc, { run: runManager || null, battleBlessings, turn });
+  // The record is the unit as it joined the army: recordBattleRecruit takes the battle-scoped
+  // deltas and buffs back out of its copy.
   return { npc, battleRecruits: recordBattleRecruit(battleRecruits, npc) };
 }

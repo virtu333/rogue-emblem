@@ -460,7 +460,8 @@ export class HeadlessBattle {
     for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
       unit._phoenixBroochUsed = false;
     }
-    // The Wounded burden's stat delta, as BattleScene applies it at a fresh start.
+    // The battle-start stat deltas (a Lingering Injury, Cavalier's Hour), as BattleScene applies
+    // them at a fresh start; a Talk recruit takes its own in settleRecruitJoin, as in the scene.
     applyBattleStartDebuffs(this.playerUnits, this.battleParams?.battleDebuffs);
 
     // Anti-turtle clock (engine/TurnPressure.js), as BattleScene: measured once the
@@ -2138,6 +2139,7 @@ export class HeadlessBattle {
       battleRecruits: this._battleRecruits,
       runManager: this.runManager,
       turn: this.turnManager?.turnNumber,
+      battleBlessings: this._battleBlessings || null,
     });
     if (!joined) throw new Error(`Invalid Talk recruit: ${npc?.name || 'missing target'}`);
     this._battleRecruits = joined.battleRecruits;

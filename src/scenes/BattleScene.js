@@ -1848,7 +1848,8 @@ export class BattleScene extends Phaser.Scene {
         }
         // The Lingering Injury burden (id `wounded`, engine/Burdens.js) and Cavalier's Hour (by move
         // type, engine/ShrineBoons.js): battle stat deltas applied once, here, so the first forecast
-        // already shows them. A resume's units carry them already.
+        // already shows them. A resume's units carry them already; a Talk recruit takes its own as
+        // it joins (BattleRecruits.settleRecruitJoin -> engine/BattleJoinBoons.js).
         applyBattleStartDebuffs(this.playerUnits, this.battleParams?.battleDebuffs);
       }
 
