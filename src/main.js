@@ -1,3 +1,4 @@
+import './utils/storageGuard.js';
 import { showUpdateToast } from './ui/UpdateToast.js';
 import { ownRecoveryInput, installDOMDragRelease } from './utils/domInputBoundary.js';
 import { UI_PALETTE } from './utils/uiStyles.js';
