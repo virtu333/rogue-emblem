@@ -21,6 +21,7 @@ import { UI_HEX } from '../utils/uiStyles.js';
 import { combatDistance, getFootprintKeys } from '../engine/EntitySystem.js';
 import { chooseAttackTile } from '../engine/AttackOptions.js';
 import { openMenuCommand } from './battleMenuModel.js';
+import { restUnitTint } from './UnitRestAppearance.js';
 
 /** Battle states where a long press on a unit opens its detail sheet (planning only). */
 const HOLD_DETAIL_STATES = new Set([
@@ -635,7 +636,7 @@ export class InputController {
 
     if (gp.col === scene.selectedUnit.col && gp.row === scene.selectedUnit.row) {
       scene.grid.clearHighlights();
-      if (scene.selectedUnit.graphic?.clearTint) scene.selectedUnit.graphic.clearTint();
+      restUnitTint(scene.selectedUnit);
       scene.preMoveLoc = { col: scene.selectedUnit.col, row: scene.selectedUnit.row };
       scene._preFogSnapshot = scene.grid.snapshotFogState();
       scene.showActionMenu(scene.selectedUnit);
@@ -706,7 +707,7 @@ export class InputController {
     if (tile.col === unit.col && tile.row === unit.row) {
       // Same as clicking the unit's own tile, then tapping the enemy in its menu.
       s.grid.clearHighlights();
-      unit.graphic?.clearTint?.();
+      restUnitTint(unit);
       s.preMoveLoc = { col: unit.col, row: unit.row };
       s._preFogSnapshot = s.grid.snapshotFogState();
       s.showActionMenu(unit);
@@ -777,7 +778,7 @@ export class InputController {
     this.clearPlanningInspection();
     this._selectionMenu = null;
     this.scene.grid.clearHighlights();
-    this.scene.selectedUnit.graphic?.clearTint?.();
+    restUnitTint(this.scene.selectedUnit);
   }
 
   handleActionMenuClick(gp) {

@@ -41,6 +41,7 @@ import { unitReach } from '../engine/ThreatForecast.js';
 import { isRooted } from '../engine/StatusConditionSystem.js';
 import { UI_HEX } from '../utils/uiStyles.js';
 import { ATTACK_RANGE_ALPHA, ATTACK_RANGE_COLOR, TILE_SIZE } from '../utils/constants.js';
+import { restUnitTint } from './UnitRestAppearance.js';
 import './formation.css';
 
 export const FORMATION_STATE = 'DEPLOY_POSITIONING';
@@ -754,7 +755,7 @@ export class FormationController {
   tintHeld() {
     const unit = this.heldTile() === null ? null : this.heldUnit;
     if (this.tinted === unit) return;
-    this.tinted?.graphic?.clearTint?.();
+    restUnitTint(this.tinted);
     this.tinted = unit;
     unit?.graphic?.setTint?.(0xaaaaff);
   }
@@ -762,7 +763,7 @@ export class FormationController {
   clearMarkers() {
     for (const marker of this.markers) marker?.destroy?.();
     this.markers = [];
-    this.tinted?.graphic?.clearTint?.();
+    restUnitTint(this.tinted);
     this.tinted = null;
   }
 
