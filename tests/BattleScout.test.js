@@ -115,14 +115,16 @@ describe('the scout touches nothing', () => {
   it('never draws from Math.random, and puts it back exactly', () => {
     // Failure: the generation runs on the shared stream (every later draw in the run moves), or
     // the swap is not undone (the run keeps drawing from the scout's seed).
-    const rm = runHolding(['seers_eye']);
+    // Seed 12's map holds a recruit node too (its params and its recruit are built as well).
+    const runs = [11, 12].map((seed) => runHolding(['seers_eye'], { seed }));
+    expect(runs.some((rm) => battleNodes(rm).some((n) => n.type === 'recruit'))).toBe(true);
     let calls = 0;
     const spy = () => {
       calls += 1;
       return realRandom();
     };
     Math.random = spy;
-    for (const node of battleNodes(rm)) scoutBattle(rm, node);
+    for (const rm of runs) for (const node of battleNodes(rm)) scoutBattle(rm, node);
     expect(calls).toBe(0);
     expect(Math.random).toBe(spy);
   });
