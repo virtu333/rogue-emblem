@@ -13,11 +13,15 @@
 //   gold          gold held at the run's end
 //
 // Comparisons are within the runs that were OFFERED the card: took it against offered it and took
-// something else. The sims' start pick and earned pick are keyed by the run seed alone (independent
-// of how the run goes), so this is a randomized comparison; across rungs the per-rung differences
-// are pooled with weights nA·nB/(nA+nB). Intervals are 95% normal intervals on a Welch standard
-// error. With ~65 cards and 6 outcomes, about 5% of nominal flags are expected by chance: the
-// report marks |z| ≥ 3.66 (Bonferroni, 0.05 over about 400 comparisons) separately.
+// something else. The shrine's pick and each earned pick are keyed by the run seed alone
+// (independent of how the run goes), but WHETHER an earned offer is made follows the snowball
+// guard (fewer offers to a run already holding earned cards) and so the run's history: the
+// comparison is observational, not a randomized one (the report doc says so). Across rungs the
+// per-rung differences are pooled with weights nA·nB/(nA+nB). Intervals are 95% normal intervals
+// on a Welch standard error. With ~65 cards and 6 outcomes, about 5% of nominal flags are
+// expected by chance: the report marks separately the differences past a Bonferroni cutoff over
+// ALL the comparisons it makes (`familyCutoff`: two-sided 0.05 over cards × outcomes, about 3.83
+// for 65 × 6 = 390), and only for cards with at least MIN_TAKEN_FOR_FAMILY takers.
 
 export const OUTCOMES = Object.freeze([
   { key: 'koBattleRate', label: 'koBattle%', scale: 100, better: 'lower' },
@@ -31,8 +35,53 @@ export const OUTCOMES = Object.freeze([
 export const Z95 = 1.96;
 // Earned sources that offer one card at a time (compared at each run's first offer from them).
 export const SINGLE_CARD_SOURCES = Object.freeze(['eclipsed_elite', 'colosseum']);
-export const Z_FAMILY = 3.66;
 export const MIN_TAKEN_FOR_FLAG = 10;
+// A family-wise flag sits about 3.8 standard errors out, in the far tail of a normal approximation
+// to a Welch difference of means (and of binary shares). With 10 takers that tail is not
+// trustworthy (a few runs decide it), so family-wise needs at least 30 takers per card, the usual
+// rule of thumb for the central limit theorem to be doing its work; fewer stay 'nominal'.
+export const MIN_TAKEN_FOR_FAMILY = 30;
+export const FAMILY_ALPHA = 0.05;
+
+/** The standard normal quantile (Acklam's rational approximation, relative error < 1.2e-9). */
+export function normalQuantile(p) {
+  if (!(p > 0 && p < 1)) return p <= 0 ? -Infinity : Infinity;
+  const a = [
+    -3.969683028665376e1, 2.209460984245205e2, -2.759285104469687e2, 1.38357751867269e2,
+    -3.066479806614716e1, 2.506628277459239,
+  ];
+  const b = [
+    -5.447609879822406e1, 1.615858368580409e2, -1.556989798598866e2, 6.680131188771972e1,
+    -1.328068155288572e1,
+  ];
+  const c = [
+    -7.784894002430293e-3, -3.223964580411365e-1, -2.400758277161838, -2.549732539343734,
+    4.374664141464968, 2.938163982698783,
+  ];
+  const d = [7.784695709041462e-3, 3.224671290700398e-1, 2.445134137142996, 3.754408661907416];
+  const low = 0.02425;
+  const tail = (q) =>
+    (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+    ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+  if (p < low) return tail(Math.sqrt(-2 * Math.log(p)));
+  if (p > 1 - low) return -tail(Math.sqrt(-2 * Math.log(1 - p)));
+  const q = p - 0.5;
+  const r = q * q;
+  return (
+    ((((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q) /
+    (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1)
+  );
+}
+
+/**
+ * The |z| cutoff that holds a two-sided family-wise error of `alpha` over `comparisons` tests
+ * (Bonferroni: each test at alpha / comparisons). 390 comparisons (65 cards x 6 outcomes) give
+ * about 3.83. One comparison gives 1.96.
+ */
+export function familyCutoff(comparisons, alpha = FAMILY_ALPHA) {
+  const m = Math.max(1, Math.trunc(Number(comparisons)) || 1);
+  return normalQuantile(1 - alpha / (2 * m));
+}
 
 /**
  * How each card's own mechanic is detected (ClaimingRunDriver `exercise`), or why it cannot be:
@@ -262,7 +311,8 @@ export function startCardRows(results, gameData, { rungs = null } = {}) {
 /**
  * Per earned card: the runs that were shown it in a pick (an act boss's pair, an eclipsed elite's
  * card, the sanctum's pair, the Colosseum's card), the runs that took it, how they got it, the
- * exercise rate, and the outcome differences over the battles from the card's first offer on:
+ * exercise rate, and the outcome differences over the battles from the card's first offer on
+ * (takers and decliners alike: a run is a taker if it took the card AT that first offer):
  * against the runs offered it that took the other card (`basis` 'pair'), or, for a card its source
  * offers alone, against the runs that source offered another card ('source'). Event grants (no
  * choice: the card is given) are counted, not compared ('none').
@@ -284,11 +334,15 @@ export function earnedCardRows(results, gameData, { rungs = null } = {}) {
       if (!picked.length) return;
       const first = Math.min(...picked.map((o) => o.battleIndex));
       firstOffer.set(i, first);
-      const took = picked.some((o) => o.taken);
       for (const o of picked) if (o.taken) sources[o.source] = (sources[o.source] || 0) + 1;
+      // One clock for both groups: the run's FIRST offer of the card, and whether it was taken
+      // there. A run that passed the card at its first offer and took it at a later one is in
+      // neither group (its outcome window would start before its take, the takers' would not).
+      const tookFirst = picked.some((o) => o.battleIndex === first && o.taken);
+      if (!tookFirst && picked.some((o) => o.taken)) return;
       const g = (groups[result.difficulty] ||= { taken: [], other: [] });
-      (took ? g.taken : g.other).push(i);
-      if (took) takenRuns.push(i);
+      (tookFirst ? g.taken : g.other).push(i);
+      if (tookFirst) takenRuns.push(i);
     });
     // A source that offers one card at a time (an eclipsed elite's drop, the Colosseum's) is
     // always taken, so nobody was offered it and took another. There the comparison is made at
@@ -375,10 +429,12 @@ export function rungSummary(results) {
 
 /**
  * Flags: a difference whose 95% interval excludes 0 with at least MIN_TAKEN_FOR_FLAG takers
- * ('nominal'), and one past |z| ≥ Z_FAMILY ('family-wise'); plus a detected mechanic that never
- * fired among the takers ('never exercised').
+ * ('nominal'), and one past |z| ≥ `zFamily` with at least MIN_TAKEN_FOR_FAMILY takers
+ * ('family-wise'); plus a detected mechanic that never fired among the takers ('never
+ * exercised'). `zFamily` is `familyCutoff` of the comparisons the report makes (cards × outcomes);
+ * left out, no flag is family-wise.
  */
-export function flagsFor(row) {
+export function flagsFor(row, { zFamily = Infinity } = {}) {
   const flags = [];
   for (const outcome of OUTCOMES) {
     const d = row.diffs?.[outcome.key];
@@ -388,7 +444,8 @@ export function flagsFor(row) {
     flags.push({
       outcome: outcome.label,
       direction: good ? 'stronger' : 'weaker',
-      level: Math.abs(d.z) >= Z_FAMILY ? 'family-wise' : 'nominal',
+      level:
+        Math.abs(d.z) >= zFamily && row.taken >= MIN_TAKEN_FOR_FAMILY ? 'family-wise' : 'nominal',
       delta: d.delta * outcome.scale,
       lo: d.lo * outcome.scale,
       hi: d.hi * outcome.scale,

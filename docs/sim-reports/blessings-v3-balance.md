@@ -70,8 +70,13 @@ agent never uses an art), Branching Threads rerolls (a meta upgrade: these runs 
   that took something else (another card, the gift or nothing), over the whole run. For an
   earned card from a pair (act boss, sanctum): took it against took the other card of the same
   pick, over the battles from that offer on. For an eclipsed elite's card (always taken): the runs
-  whose first eclipsed-elite drop was this card against those whose first drop was another. Because
-  the picks are keyed by seed, these are randomized comparisons. Per-rung differences are pooled
+  whose first eclipsed-elite drop was this card against those whose first drop was another. For a
+  pair, a run is a taker if it took the card AT its first offer of it and a decliner if it passed;
+  both read their battles from that first offer (a run that passed it and took it at a later offer
+  is in neither group). Which card a run takes of an offer is keyed by seed, but whether a run is
+  offered an earned card at all follows the snowball guard (fewer offers to a run already holding
+  earned cards), which depends on the run's history, so these are observational comparisons that
+  are close to randomized, not randomized trials. Per-rung differences are pooled
   with weights nA·nB/(nA+nB); intervals are 95% (Welch standard errors). An earned card's
   difference is **relative to the alternative card it was offered with**, not to "no card".
 - **Outcomes.** `koBattle%`: share of battles with a commander KO. `ko/battle`: commander KOs per
@@ -85,7 +90,20 @@ agent never uses an art), Branching Threads rerolls (a meta upgrade: these runs 
   counts as exercised when held in a battle.
 - **Flags.** "nominal": a 95% interval that excludes 0, with at least 10 takers. With about 65 cards
   and 6 outcomes, roughly 20 nominal flags are expected by chance alone. "family-wise" (FW): |z| ≥
-  3.66 (Bonferroni at 0.05 over about 400 comparisons). Only FW flags are strong evidence.
+  3.83 with at least 30 takers. The cutoff is computed from the comparisons the report makes (65
+  cards x 6 outcomes = 390, Bonferroni: each two-sided test at 0.05 / 390, `familyCutoff` in
+  `sim/lib/BlessingReport.js`); the 30-taker minimum is there because a cutoff that far out in the
+  tail of a normal approximation is not trustworthy for a handful of runs. Only FW flags are strong
+  evidence. (An earlier draft of this report used 3.66 and 10 takers; 3.66 is the cutoff for about
+  200 comparisons, not 400.)
+- **Which threshold the tables below used.** The 1000-run data was not re-simulated for this
+  correction. The tables were produced by the earlier code (FW at |z| ≥ 3.66, 10 takers, and an
+  earned card's takers defined as "took it at any offer"), and the FW marks below were reclassified
+  by hand from the printed intervals (z = difference / ((hi - lo) / 3.92)) at 3.83 and 30 takers.
+  Blood Covenant winsBeforeKO (z about 3.79) and Forbidden Tome's deaths/battle, stall% (z about
+  3.68) and gold (10 takers) are therefore no longer FW. The earned-card rows were also computed
+  with the old taker definition; the code now counts a taker at the first offer, which moves them
+  only by the runs that passed a card and took it later. A re-run will print both.
 - **Reproduce.** `npm run sim:blessings -- --trials 300 --difficulty normal --out fl.jsonl` (and
   `dusk` 300, `hard` 200, `lunatic` 200), then `npm run sim:blessings -- --from fl.jsonl,dusk.jsonl,nf.jsonl,bs.jsonl --md tables.md`.
   `--workers 2` splits one batch over two processes.
@@ -184,7 +202,7 @@ Took it − offered it and took something else (or nothing), over the whole run.
 | Nomad's Pact | T3 | 44 | 10 | 100% detected | 2.8 [−3.1, 8.8] | −0.19 [−4.49, 4.11] | −0.02 [−0.09, 0.05] | 0.60 [−0.83, 2.03] | 8.4 [−0.8, 17.6] | −673 [−2236, 889] |  |
 | Hold the Line | T2 | 47 | 14 | 100% passive | −4.9 [−10.8, 1.0] | 0.58 [−3.91, 5.06] | −0.02 [−0.06, 0.03] | 0.66 [−1.24, 2.56] | 7.4 [−6.2, 21.0] | 347 [−1039, 1733] |  |
 | Quartermaster Cache | T2 | 52 | 15 | 100% detected | −2.2 [−11.5, 7.1] | −0.92 [−4.43, 2.59] | −0.01 [−0.05, 0.04] | −0.25 [−1.20, 0.71] | −3.1 [−14.1, 7.8] | −111 [−1594, 1372] |  |
-| Forbidden Tome | T4 | 57 | 10 | 100% passive | −13.1 [−21.9, −4.3] | −2.31 [−3.54, −1.07] | −0.36 [−0.42, −0.31] | 0.56 [−3.06, 4.18] | −12.9 [−19.8, −6.1] | 38975 [32405, 45545] | koBattle% stronger; ko/battle stronger; deaths/battle stronger (FW); stall% stronger (FW); gold stronger (FW) |
+| Forbidden Tome | T4 | 57 | 10 | 100% passive | −13.1 [−21.9, −4.3] | −2.31 [−3.54, −1.07] | −0.36 [−0.42, −0.31] | 0.56 [−3.06, 4.18] | −12.9 [−19.8, −6.1] | 38975 [32405, 45545] | koBattle% stronger; ko/battle stronger; deaths/battle stronger; stall% stronger; gold stronger |
 | Blood Forge | T2 | 67 | 15 | 100% passive | 5.4 [−3.1, 13.8] | 1.54 [−0.52, 3.60] | −0.02 [−0.07, 0.03] | −0.10 [−1.85, 1.65] | 3.1 [−3.0, 9.2] | −2588 [−6500, 1323] |  |
 | War Tutelage | T4 | 74 | 17 | 100% passive | −1.0 [−9.1, 7.0] | 0.67 [−1.77, 3.11] | 0.01 [−0.05, 0.06] | −0.54 [−1.30, 0.22] | −2.6 [−8.8, 3.5] | 587 [−706, 1880] |  |
 | Armory Stash | T4 | 0 | 0 | - | n/a | n/a | n/a | n/a | n/a | n/a |  |
@@ -236,7 +254,7 @@ Took it − offered it in a pick and took the other card, over the run's battles
 | Thief's Lantern | earned | 0 | 0 | 0 | - | - | n/a | n/a | n/a | n/a | n/a | n/a |  |
 | Seer's Eye | earned | 239 | 239 | 0 | source peers | 81% detected | 0.7 [−1.6, 3.1] | 0.07 [−0.86, 1.00] | −0.00 [−0.06, 0.05] | 0.00 [−0.19, 0.20] | 0.4 [−2.7, 3.6] | −403 [−1696, 891] |  |
 | Darkened Dawn | twisted | 264 | 148 | 0 | the other card | 100% detected | −1.2 [−6.2, 3.8] | −0.04 [−2.13, 2.05] | −0.10 [−0.28, 0.08] | −0.17 [−0.51, 0.16] | −3.9 [−9.9, 2.1] | −956 [−3493, 1582] |  |
-| Blood Covenant | twisted | 460 | 267 | 0 | the other card | 100% passive | −8.1 [−12.5, −3.7] | −2.47 [−4.00, −0.95] | 0.04 [−0.11, 0.19] | 0.58 [0.28, 0.88] | −9.8 [−14.3, −5.3] | 248 [−1823, 2319] | koBattle% stronger; ko/battle stronger; winsBeforeKO stronger (FW); stall% stronger (FW) |
+| Blood Covenant | twisted | 460 | 267 | 0 | the other card | 100% passive | −8.1 [−12.5, −3.7] | −2.47 [−4.00, −0.95] | 0.04 [−0.11, 0.19] | 0.58 [0.28, 0.88] | −9.8 [−14.3, −5.3] | 248 [−1823, 2319] | koBattle% stronger; ko/battle stronger; winsBeforeKO stronger; stall% stronger (FW) |
 | Kingmaker's Oath | twisted | 471 | 274 | 0 | the other card | 27% detected | 0.2 [−3.9, 4.3] | 0.15 [−1.41, 1.71] | −0.02 [−0.16, 0.11] | 0.02 [−0.20, 0.24] | −2.4 [−7.0, 2.3] | 286 [−1270, 1842] |  |
 | Hollow Sun's Favor | twisted | 462 | 257 | 0 | the other card | 59% detected | 2.9 [−0.8, 6.6] | −0.72 [−2.27, 0.84] | 0.11 [0.00, 0.22] | −0.27 [−0.47, −0.06] | −1.4 [−5.7, 3.0] | 1914 [597, 3230] | deaths/battle weaker; winsBeforeKO weaker; gold stronger |
 
@@ -258,9 +276,9 @@ Took it − offered it in a pick and took the other card, over the run's battles
 | Pilgrim's Road | 14 | deaths/battle | stronger | nominal | -0.04 [-0.07, -0.00] |
 | Forbidden Tome | 10 | koBattle% | stronger | nominal | -13.06 [-21.86, -4.25] |
 | Forbidden Tome | 10 | ko/battle | stronger | nominal | -2.31 [-3.54, -1.07] |
-| Forbidden Tome | 10 | deaths/battle | stronger | family-wise | -0.36 [-0.42, -0.31] |
-| Forbidden Tome | 10 | stall% | stronger | family-wise | -12.94 [-19.82, -6.05] |
-| Forbidden Tome | 10 | gold | stronger | family-wise | 38975.20 [32405.15, 45545.25] |
+| Forbidden Tome | 10 | deaths/battle | stronger | nominal | -0.36 [-0.42, -0.31] |
+| Forbidden Tome | 10 | stall% | stronger | nominal | -12.94 [-19.82, -6.05] |
+| Forbidden Tome | 10 | gold | stronger | nominal | 38975.20 [32405.15, 45545.25] |
 | Focused Curriculum | 15 | ko/battle | stronger | nominal | -2.28 [-4.01, -0.54] |
 | Focused Curriculum | 15 | winsBeforeKO | weaker | nominal | -0.96 [-1.87, -0.05] |
 | Slow Fuse | 18 | winsBeforeKO | weaker | nominal | -0.93 [-1.54, -0.32] |
@@ -283,7 +301,7 @@ Took it − offered it in a pick and took the other card, over the run's battles
 | Hollow Hourglass | 220 | gold | weaker | nominal | -1348.34 [-2178.76, -517.91] |
 | Blood Covenant | 267 | koBattle% | stronger | nominal | -8.10 [-12.49, -3.70] |
 | Blood Covenant | 267 | ko/battle | stronger | nominal | -2.47 [-4.00, -0.95] |
-| Blood Covenant | 267 | winsBeforeKO | stronger | family-wise | 0.58 [0.28, 0.88] |
+| Blood Covenant | 267 | winsBeforeKO | stronger | nominal | 0.58 [0.28, 0.88] |
 | Blood Covenant | 267 | stall% | stronger | family-wise | -9.79 [-14.27, -5.30] |
 | Hollow Sun's Favor | 257 | deaths/battle | weaker | nominal | 0.11 [0.00, 0.22] |
 | Hollow Sun's Favor | 257 | winsBeforeKO | weaker | nominal | -0.27 [-0.47, -0.06] |
@@ -294,17 +312,21 @@ Took it − offered it in a pick and took the other card, over the run's battles
 Ordered by strength of evidence. Unless a line says FW, the evidence is a nominal flag. Each one
 could be one of the roughly 20 chance flags this many comparisons produce.
 
-**Strong (family-wise):**
+**Strong (family-wise, |z| ≥ 3.83, at least 30 takers):**
 
 1. **Blood Covenant looks too strong for a twisted card.** Compared with the card it was offered
    with (267 takers): koBattle −8.1 points [−12.5, −3.7], ko/battle −2.5 [−4.0, −1.0],
-   winsBeforeKO +0.58 [0.28, 0.88] (FW), stall −9.8 points [−14.3, −5.3] (FW). The direction is
+   winsBeforeKO +0.58 [0.28, 0.88] (nominal, z about 3.8), stall −9.8 points [−14.3, −5.3] (FW,
+   z about 4.3). The headline stands on stall% alone. The direction is
    the same on First Light, Dusk and Nightfall (koBattle −10.4, −9.9, −9.4). Its twist, an Ill
    Omen that never ends (+1 shadow a victory), shows no cost in any outcome measured here,
    gold included (+248 [−1823, 2319]). +1 to every stat for every unit outweighs the extra
    Eclipse pressure for this player.
-2. **Forbidden Tome's numbers are a policy artifact, not evidence.** FW on deaths/battle −0.36,
-   stall −12.9 points and gold +38,975, but from only 10 takers. Its pact forbids church revives.
+**Large, but not family-wise:**
+
+2. **Forbidden Tome's numbers are a policy artifact, not evidence.** Deaths/battle −0.36,
+   stall −12.9 points (z about 3.7) and gold +38,975, but from only 10 takers (below the 30 a
+   family-wise flag needs, so all nominal). Its pact forbids church revives.
    The claiming church revives about 11 fallen units a run at full price, and revived units come
    back weak (catch-up growths minus 10) and fall again. With the Tome, the gold stays in the purse
    and the weak revived units never return, so the run looks richer and loses fewer units. The

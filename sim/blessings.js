@@ -27,10 +27,11 @@ import { DIFFICULTY_IDS } from '../src/engine/DifficultyEngine.js';
 import { parseArgs, printHeader, printTable, toCSV } from './lib/TableFormatter.js';
 import {
   OUTCOMES,
+  MIN_TAKEN_FOR_FAMILY,
   MIN_TAKEN_FOR_FLAG,
-  Z_FAMILY,
   claimCoverage,
   earnedCardRows,
+  familyCutoff,
   flagsFor,
   fmtDiff,
   rungSummary,
@@ -177,7 +178,7 @@ async function playAll() {
 const pct = (x) => (Number.isFinite(x) ? `${(100 * x).toFixed(0)}%` : '-');
 const num = (x, d = 2) => (Number.isFinite(x) ? Number(x.toFixed(d)) : null);
 
-function cardTableRows(rows, { earned = false } = {}) {
+function cardTableRows(rows, { earned = false, zFamily = Infinity } = {}) {
   return rows.map((row) => {
     const out = {
       card: row.name,
@@ -200,7 +201,7 @@ function cardTableRows(rows, { earned = false } = {}) {
         outcome.scale,
         outcome.key === 'gold' ? 0 : outcome.scale === 100 ? 1 : 2,
       );
-    out.flags = flagsFor(row)
+    out.flags = flagsFor(row, { zFamily })
       .map((f) => `${f.outcome} ${f.direction}${f.level === 'family-wise' ? ' (FW)' : ''}`)
       .join('; ');
     return out;
@@ -281,8 +282,10 @@ function report(allRuns, gameData, { seconds = null } = {}) {
     ...OUTCOMES.map((o) => `Δ${o.label}`),
     'flags',
   ];
-  const startTable = cardTableRows(startRows);
-  const earnedTable = cardTableRows(earnedRows, { earned: true });
+  // Every card row is compared on every outcome: that is the family the cutoff is held over.
+  const zFamily = familyCutoff((startRows.length + earnedRows.length) * OUTCOMES.length);
+  const startTable = cardTableRows(startRows, { zFamily });
+  const earnedTable = cardTableRows(earnedRows, { earned: true, zFamily });
   if (opts.csv) {
     console.log('\n# start cards and gifts');
     toCSV(startCols, startTable);
@@ -347,7 +350,7 @@ function report(allRuns, gameData, { seconds = null } = {}) {
 
   // Flags.
   const flagged = [...startRows, ...earnedRows]
-    .map((row) => ({ row, flags: flagsFor(row) }))
+    .map((row) => ({ row, flags: flagsFor(row, { zFamily }) }))
     .filter((entry) => entry.flags.length);
   const flagRows = flagged.flatMap(({ row, flags }) =>
     flags.map((f) => ({
@@ -362,7 +365,7 @@ function report(allRuns, gameData, { seconds = null } = {}) {
     })),
   );
   printTable(['card', 'taken', 'outcome', 'reading', 'level', 'delta'], flagRows, {
-    title: `Flags (95% interval excludes 0, at least ${MIN_TAKEN_FOR_FLAG} takers; FW: |z| ≥ ${Z_FAMILY})`,
+    title: `Flags (95% interval excludes 0, at least ${MIN_TAKEN_FOR_FLAG} takers; FW: |z| ≥ ${zFamily.toFixed(2)} over ${(startRows.length + earnedRows.length) * OUTCOMES.length} comparisons, at least ${MIN_TAKEN_FOR_FAMILY} takers)`,
   });
   md.push(
     '### Flags',
