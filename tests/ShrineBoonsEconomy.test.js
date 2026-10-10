@@ -41,6 +41,10 @@ describe('Late Bloom: every unit +1 to all stats but Move as each act ends', () 
     const plain = startRun();
     const bloom = hold(startRun(), 'late_bloom');
     expect(statsOf(bloom.roster)).toEqual(statsOf(plain.roster));
+    // Another act-start grant paid mid-act (Quartermaster Cache taken at a church pays the
+    // current act at once) must not pay Late Bloom for the act it was taken in.
+    expect(bloom.addBlessingMidRun('quartermaster_cache')).toBe(true);
+    expect(statsOf(bloom.roster)).toEqual(statsOf(plain.roster));
   });
 
   it('pays +1 to the eight stats and never Move, to the roster and the fallen, as Act 2 begins', () => {

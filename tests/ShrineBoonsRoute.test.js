@@ -99,6 +99,18 @@ describe("Cutpurse's Luck: twice as many carriers", () => {
     expect(lucky / plain).toBeLessThan(2.15);
   });
 
+  it('the second pass is independent of the first (its own stream, not the same roll again)', () => {
+    // Independent passes at 0.3: one carrier in 2 x 0.3 x 0.7 = 42% of battles, two in 9%.
+    // A pass that replayed the first one's stream would give one carrier never and two in 30%.
+    const counts = [0, 0, 0];
+    const N = 4000;
+    for (let seed = 1; seed <= N; seed++) counts[roll(garrison(seed), 2).carriers]++;
+    expect(counts[1] / N).toBeGreaterThan(0.38);
+    expect(counts[1] / N).toBeLessThan(0.46);
+    expect(counts[2] / N).toBeGreaterThan(0.07);
+    expect(counts[2] / N).toBeLessThan(0.11);
+  });
+
   it('never makes a boss or an elite captain a carrier', () => {
     for (let seed = 1; seed <= 200; seed++) {
       const spawns = garrison(seed).map((s, i) => (i < 5 ? { ...s, isBoss: true } : s));
@@ -266,6 +278,25 @@ describe('Open Roll: recruit nodes show two candidates', () => {
       const promised = rm.getPromisedRecruitNames();
       for (const name of names) expect(promised.has(name)).toBe(true);
     }
+  });
+
+  it('an alternate drawn later (a node that lacked one) never takes a name already promised', () => {
+    let checked = 0;
+    for (let seed = 1; seed <= 120; seed++) {
+      const rm = hold(startRun({ seed }), 'open_roll');
+      const nodes = recruits(rm);
+      if (nodes.length < 2) continue;
+      // Node A loses its alternate; node B's alternate takes the very name A would draw again.
+      const [a, b] = nodes;
+      const again = a.recruitAlternate;
+      delete a.recruitAlternate;
+      b.recruitAlternate = { ...b.recruitAlternate, name: again.name };
+      rm.ensureRecruitPreviews();
+      const names = nodes.flatMap((n) => [n.recruitPreview.name, n.recruitAlternate.name]);
+      expect(new Set(names).size, `seed ${seed}`).toBe(names.length);
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(5);
   });
 
   it('a swap meets the other candidate, built on the same unit stream', () => {
