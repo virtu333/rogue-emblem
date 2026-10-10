@@ -118,6 +118,12 @@ import {
 } from './LordStatArc.js';
 import { parseBattleGoldGamble, settleBattleGoldGamble } from './BattleGoldGamble.js';
 import {
+  parseAdjacentAllyDefBonus,
+  parseIsolatedCombatBonus,
+  sanitizeAdjacentAllyDefBonuses,
+  sanitizeIsolatedCombatBonuses,
+} from './FormationBlessings.js';
+import {
   formatUnitUid,
   resolveBattleCasualties,
   unitUidNumber,
@@ -283,6 +289,11 @@ function createBlessingRuntimeModifiers() {
     // Avoid for a unit that has not moved this turn (engine/BlessingCombatMods.js).
     firstStrikeHitBonus: 0,
     stationaryCombatBonus: { defBonus: 0, avoidBonus: 0 },
+    // Phalanx Rite: `[{ perAlly, max }]`, DEF per ally on a cardinal neighbour tile. Duelist's
+    // Creed: `[{ radius, avoidBonus, critBonus }]`, while no ally is within the radius. One
+    // entry per grant; both read through engine/FormationBlessings.js.
+    adjacentAllyDefBonuses: [],
+    isolatedCombatBonuses: [],
     healingEffectivenessMultiplier: 1,
     weaponArtHpCostDelta: 0,
     // Bloodless Art (`player_weapon_art_boon`): player units' weapon arts cost this much HP
@@ -2582,6 +2593,46 @@ export class RunManager {
       return;
     }
 
+    if (effect.type === 'adjacent_ally_def_bonus') {
+      const bonus = parseAdjacentAllyDefBonus(effect.params);
+      if (!bonus) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'invalid_adjacent_ally_def_bonus_params',
+        });
+        return;
+      }
+      this.blessingRuntimeModifiers.adjacentAllyDefBonuses = [
+        ...sanitizeAdjacentAllyDefBonuses(this.blessingRuntimeModifiers.adjacentAllyDefBonuses),
+        bonus,
+      ];
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        ...bonus,
+        held: this.blessingRuntimeModifiers.adjacentAllyDefBonuses.length,
+      });
+      return;
+    }
+
+    if (effect.type === 'isolated_combat_bonus') {
+      const bonus = parseIsolatedCombatBonus(effect.params);
+      if (!bonus) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'invalid_isolated_combat_bonus_params',
+        });
+        return;
+      }
+      this.blessingRuntimeModifiers.isolatedCombatBonuses = [
+        ...sanitizeIsolatedCombatBonuses(this.blessingRuntimeModifiers.isolatedCombatBonuses),
+        bonus,
+      ];
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        ...bonus,
+        held: this.blessingRuntimeModifiers.isolatedCombatBonuses.length,
+      });
+      return;
+    }
+
     if (effect.type === 'healing_effectiveness_delta') {
       this.blessingRuntimeModifiers.healingEffectivenessMultiplier += value;
       this._recordBlessingEvent('run_start', blessingId, effect, {
@@ -2927,7 +2978,8 @@ export class RunManager {
   /**
    * What the run's blessings add to a combat, for `engine/BlessingCombatMods.js`: the one
    * read BattleScene and the harness make. The act's Hit (Act 1 price included), Keen
-   * Eye's first-strike Hit and Hold the Line's stationary bonus.
+   * Eye's first-strike Hit, Hold the Line's stationary bonus, Phalanx Rite's DEF per adjacent
+   * ally and Duelist's Creed's isolation bonus.
    */
   getBlessingCombatProfile(actId = this.currentAct) {
     const modifiers = this.blessingRuntimeModifiers;
@@ -2939,6 +2991,8 @@ export class RunManager {
         defBonus: Math.trunc(stationary?.defBonus || 0),
         avoidBonus: Math.trunc(stationary?.avoidBonus || 0),
       },
+      adjacentAllyDef: sanitizeAdjacentAllyDefBonuses(modifiers?.adjacentAllyDefBonuses),
+      isolated: sanitizeIsolatedCombatBonuses(modifiers?.isolatedCombatBonuses),
     };
   }
 
@@ -6001,6 +6055,13 @@ export class RunManager {
         avoidBonus: Math.trunc(Number(held?.avoidBonus) || 0),
       };
     }
+    // Phalanx Rite and Duelist's Creed: saves from before have neither.
+    rm.blessingRuntimeModifiers.adjacentAllyDefBonuses = sanitizeAdjacentAllyDefBonuses(
+      rm.blessingRuntimeModifiers.adjacentAllyDefBonuses,
+    );
+    rm.blessingRuntimeModifiers.isolatedCombatBonuses = sanitizeIsolatedCombatBonuses(
+      rm.blessingRuntimeModifiers.isolatedCombatBonuses,
+    );
     rm.blessingRuntimeModifiers.freeForgesPerShop = Math.max(
       0,
       Math.trunc(Number(rm.blessingRuntimeModifiers.freeForgesPerShop) || 0),

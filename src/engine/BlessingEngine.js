@@ -15,6 +15,7 @@
 import { parseLordStatArc } from './LordStatArc.js';
 import { parseBattleGoldGamble } from './BattleGoldGamble.js';
 import { playerWeaponArtBoonErrors } from './WeaponArtSystem.js';
+import { adjacentAllyDefBonusErrors, isolatedCombatBonusErrors } from './FormationBlessings.js';
 import { ACT_SEQUENCE } from '../utils/constants.js';
 
 export const BLESSINGS_CONTRACT_VERSION = 3;
@@ -67,6 +68,12 @@ function validateBoonParams(effect, path, errors) {
     }
   } else if (effect.type === 'player_weapon_art_boon') {
     for (const message of playerWeaponArtBoonErrors(effect.params))
+      errors.push(`${path}.${message}`);
+  } else if (effect.type === 'adjacent_ally_def_bonus') {
+    for (const message of adjacentAllyDefBonusErrors(effect.params))
+      errors.push(`${path}.${message}`);
+  } else if (effect.type === 'isolated_combat_bonus') {
+    for (const message of isolatedCombatBonusErrors(effect.params))
       errors.push(`${path}.${message}`);
   }
 }

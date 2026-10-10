@@ -57,8 +57,11 @@ describe('Bloodless Art: the card', () => {
     expect(card.lore).not.toBe(card.description);
   });
 
-  it('is the last entry, so lookups that take the first of a tier keep their answer', () => {
-    expect(data.blessings.blessings.at(-1).id).toBe('bloodless_art');
+  it('was appended after the older cards, so lookups that take the first of a tier keep their answer', () => {
+    // Later cards (Phalanx Rite, Duelist's Creed) follow it; none was inserted ahead of it.
+    const ids = data.blessings.blessings.map((b) => b.id);
+    expect(ids.indexOf('bloodless_art')).toBe(25);
+    expect(ids.slice(26)).toEqual(['phalanx_rite', 'duelists_creed']);
   });
 });
 
