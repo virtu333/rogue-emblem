@@ -1048,9 +1048,10 @@ export class MobileBattleHUD {
     if (focus) {
       const terrain = s.grid.getTerrainAt(focus.col, focus.row);
       if (terrain) {
-        const visibleUnit = s.grid.isVisible(focus.col, focus.row)
-          ? s.getUnitAt(focus.col, focus.row)
-          : null;
+        // The unit the player can see there (canInspectUnit: the fog's one rule, which
+        // Seer's Eye opens for every foe).
+        const occupant = s.getUnitAt(focus.col, focus.row);
+        const visibleUnit = occupant && canInspectUnit(s.grid, occupant) ? occupant : null;
         const moveType = s.selectedUnit?.moveType || visibleUnit?.moveType || 'Infantry';
         const cost = terrain.moveCost?.[moveType];
         const bonus = (value) =>

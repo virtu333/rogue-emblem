@@ -36,7 +36,7 @@ import {
   evaluateRequires,
   findEvent,
 } from '../src/engine/EventSystem.js';
-import { EARNED_D1_BOON_TYPES } from '../src/engine/EarnedBoons.js';
+import { EARNED_BOON_TYPES } from '../src/engine/EarnedBoons.js';
 import { planEffects } from '../src/engine/EventEffects.js';
 import { validateEventsConfig } from '../src/engine/EventValidation.js';
 import { chooseEventPlan, choiceGrantsEarned, skipOwedEarnedPick } from './sim/RunPolicies.js';
@@ -295,9 +295,15 @@ describe('each source draws only its own cards', () => {
       'second_dawn',
       'hollow_hourglass',
       'lantern_of_the_road',
+      'seers_eye',
     ]);
-    expect(ids(earnedPoolFor(rm, 'sanctum'))).toEqual(['tithe_box']);
-    expect(ids(earnedPoolFor(rm, 'event'))).toEqual(['crest_of_the_road']);
+    expect(ids(earnedPoolFor(rm, 'sanctum'))).toEqual(['tithe_box', 'saints_reliquary']);
+    expect(ids(earnedPoolFor(rm, 'colosseum'))).toEqual(['mercenary_ledger']);
+    expect(ids(earnedPoolFor(rm, 'event'))).toEqual([
+      'crest_of_the_road',
+      'smiths_covenant',
+      'thiefs_lantern',
+    ]);
   });
 
   it('a boss in Act II never offers Standard of the Sun over 300 seeds; in Act I it does', () => {
@@ -492,6 +498,23 @@ describe('the validator reads the earned fields', () => {
     ['church_entry_gold', 'tithe_box', (p) => (p.value = -200)],
     ['fog_opening_reveal', 'lantern_of_the_road', (p) => delete p.radius],
     ['recruit_mark_chance', 'crest_of_the_road', (p) => (p.value = 2)],
+    // PR D2's boons (the first boon of each card).
+    ['staff_heal_range_bonus', 'saints_reliquary', (p) => (p.heal = -5)],
+    [
+      'staff_heal_range_bonus (does nothing)',
+      'saints_reliquary',
+      (p) => ((p.heal = 0), (p.range = 0)),
+    ],
+    ['staff_heal_range_bonus (range too long)', 'saints_reliquary', (p) => (p.range = 9)],
+    ['arena_terms (a fee share of 0)', 'mercenary_ledger', (p) => (p.feeMultiplier = 0)],
+    ['arena_terms (a percentage)', 'mercenary_ledger', (p) => (p.feeMultiplier = 50)],
+    [
+      'arena_terms (does nothing)',
+      'mercenary_ledger',
+      (p) => ((p.feeMultiplier = 1), (p.visitBouts = 0)),
+    ],
+    ['route_scout', 'thiefs_lantern', (p) => (p.level = 'everything')],
+    ['route_scout (no level)', 'seers_eye', (p) => delete p.level],
   ])('refuses a malformed %s boon (its handler would skip it)', (_type, id, patch) => {
     // Failure: a card that does nothing ships as valid (its handler skips malformed params).
     expect(errorsOf((_copy, row) => patch(row(id).boons[0].params))).not.toBe('');
@@ -682,7 +705,7 @@ describe("an eclipsed elite's drop", () => {
       const entry = prepareEliteEarnedDrop(rm, node);
       if (entry.status !== 'owed') continue;
       owed++;
-      expect(['hollow_hourglass', 'lantern_of_the_road']).toContain(entry.offered[0]);
+      expect(['hollow_hourglass', 'lantern_of_the_road', 'seers_eye']).toContain(entry.offered[0]);
     }
     expect(owed / N).toBeGreaterThan(0.31);
     expect(owed / N).toBeLessThan(0.36);
@@ -724,7 +747,7 @@ describe("an eclipsed elite's drop", () => {
 
   it('with every elite card held, a hit drops nothing ("none", never an empty pick)', () => {
     const rm = freshRun(34);
-    for (const id of ['second_dawn', 'hollow_hourglass', 'lantern_of_the_road'])
+    for (const id of ['second_dawn', 'hollow_hourglass', 'lantern_of_the_road', 'seers_eye'])
       rm.addBlessingMidRun(id, { earned: true });
     for (let seed = 1; seed <= 50; seed++) {
       rm.runSeed = seed;
@@ -752,13 +775,15 @@ describe("an eclipsed elite's drop", () => {
   });
 });
 
-// ── The Colosseum (D-8, infrastructure for a later card) ───────────────────
+// ── The Colosseum (D-8; its card, the Mercenary Ledger, is PR D2's) ─────────
 
-describe("the Colosseum's offer (no shipped card yet)", () => {
+describe("the Colosseum's offer", () => {
   it("files 'none' when no Colosseum card is left (never rolled again, never owed), and once a run", () => {
     // Failure: an offer of nothing is filed as owed (a pick the menu cannot show), or nothing is
-    // filed, so every later win rolls the offer again.
+    // filed, so every later win rolls the offer again. The run already holds the one Colosseum
+    // card (the Mercenary Ledger), so none is left.
     const rm = freshRun(36);
+    expect(rm.addBlessingMidRun('mercenary_ledger', { earned: true })).toBe(true);
     const none = prepareColosseumOffer(rm, 'arena');
     expect(none).toMatchObject({
       key: 'colosseum',
@@ -776,6 +801,7 @@ describe("the Colosseum's offer (no shipped card yet)", () => {
       sources: [{ kind: 'colosseum' }],
     });
     const withCard = freshRun(36, { gameData });
+    expect(withCard.addBlessingMidRun('mercenary_ledger', { earned: true })).toBe(true);
     const entry = prepareColosseumOffer(withCard, 'arena');
     expect(entry).toMatchObject({ key: 'colosseum', source: 'colosseum', status: 'owed' });
     expect(entry.offered).toEqual(['ledger_card']);
@@ -900,7 +926,7 @@ describe("an event's earned blessing", () => {
   it("no earned boon is on the event's mid-run-safe list: an event's `blessing` never hands one out", () => {
     // Failure: a new earned boon type is added to SAFE_BLESSING_BOON_TYPES, and an event's tiered
     // `blessing` effect starts handing out earned cards without their source.
-    for (const type of EARNED_D1_BOON_TYPES) expect(SAFE_BLESSING_BOON_TYPES).not.toContain(type);
+    for (const type of EARNED_BOON_TYPES) expect(SAFE_BLESSING_BOON_TYPES).not.toContain(type);
     const run = newRun({ seed: 306 });
     for (const tier of [1, 2, 3, 4])
       for (const b of availableEventBlessings(run, tier)) expect(b.earned).not.toBe(true);

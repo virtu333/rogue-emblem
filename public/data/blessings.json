@@ -1575,6 +1575,136 @@
       "costs": []
     },
     {
+      "id": "saints_reliquary",
+      "name": "Saint's Reliquary",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "sanctum"
+        }
+      ],
+      "description": "Your staves heal 5 more HP and reach 1 tile further.",
+      "lore": "A finger bone in silver. Healers swear their prayers carry farther near it.",
+      "boons": [
+        {
+          "type": "staff_heal_range_bonus",
+          "params": {
+            "heal": 5,
+            "range": 1
+          }
+        }
+      ],
+      "costs": []
+    },
+    {
+      "id": "mercenary_ledger",
+      "name": "Mercenary Ledger",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "colosseum"
+        }
+      ],
+      "description": "Colosseum entry fees are halved, and each visit allows one more bout.",
+      "lore": "Names, debts and favours in a sellsword's hand. Every arena knows the book.",
+      "boons": [
+        {
+          "type": "arena_terms",
+          "params": {
+            "feeMultiplier": 0.5,
+            "visitBouts": 1
+          }
+        }
+      ],
+      "costs": []
+    },
+    {
+      "id": "smiths_covenant",
+      "name": "Smith's Covenant",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "event"
+        }
+      ],
+      "description": "Each shop's first forge is free, and your weapons never take wear.",
+      "lore": "A smith's word, struck into the steel itself. Nothing he has blessed will dull.",
+      "boons": [
+        {
+          "type": "shop_first_forge_free",
+          "params": {
+            "value": 1
+          }
+        },
+        {
+          "type": "weapons_never_wear",
+          "params": {
+            "value": 1
+          }
+        }
+      ],
+      "costs": []
+    },
+    {
+      "id": "thiefs_lantern",
+      "name": "Thief's Lantern",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "event"
+        }
+      ],
+      "description": "Route previews show which foes carry items. Steal ignores the speed check.",
+      "lore": "A shuttered lamp that only lights on pockets. Its last owner was never caught.",
+      "boons": [
+        {
+          "type": "route_scout",
+          "params": {
+            "level": "carriers"
+          }
+        },
+        {
+          "type": "carrier_luck",
+          "params": {
+            "stealIgnoresSpeed": true
+          }
+        }
+      ],
+      "costs": []
+    },
+    {
+      "id": "seers_eye",
+      "name": "Seer's Eye",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "eclipsed_elite"
+        }
+      ],
+      "description": "Fog never hides foes. Route previews list foes, affixes and carriers.",
+      "lore": "A glass eye that never closes. Whatever waits on the road, it has already seen.",
+      "boons": [
+        {
+          "type": "route_scout",
+          "params": {
+            "level": "foes"
+          }
+        },
+        {
+          "type": "foes_shown",
+          "params": {
+            "value": 1
+          }
+        }
+      ],
+      "costs": []
+    },
+    {
       "id": "darkened_dawn",
       "name": "Darkened Dawn",
       "earned": true,

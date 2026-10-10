@@ -483,19 +483,38 @@ export function normalizeHealingMultiplier(multiplier) {
   return Math.max(0, value);
 }
 
+/** A staff option's whole-number bonus (`healBonus`, `rangeBonus`): 0 when absent or malformed. */
+function staffBonusOf(value) {
+  return Math.max(0, Math.trunc(Number(value) || 0));
+}
+
 /**
- * Effective staff output BEFORE the missing-HP cap: floor((MAG + healBase) × multiplier).
+ * What a staff adds to the healer's MAG: its `healBase` plus the run's `opts.healBonus` (Saint's
+ * Reliquary, from StaffBlessings.staffRunOptions). calculateStaffHealOutput and every display of a
+ * staff's "MAG+N" read it, so the words and the heal agree.
+ * @param {object} staff
+ * @param {{ healBonus?: number }} [opts]
+ */
+export function getStaffHealBase(staff, opts = {}) {
+  // Dereferences the staff on purpose (calculateStaffHealOutput's caller-bug throw).
+  return (staff.healBase ?? 0) + staffBonusOf(opts?.healBonus);
+}
+
+/**
+ * Effective staff output BEFORE the missing-HP cap:
+ * floor((MAG + healBase + healBonus) × multiplier).
  * The multiplier scales what the staff produces, never the already-capped amount —
  * otherwise a -20% penalty would round a 1-HP top-off down to 0 and a >1 bonus
  * could push the target past max HP.
  * A tiny epsilon keeps accumulated float error (e.g. 1 - 0.9) from flooring a whole
  * number down by one.
- * @param {object} opts - Optional. `healingMultiplier` scales the heal (default 1).
+ * @param {object} opts - Optional, from StaffBlessings.staffRunOptions: `healingMultiplier`
+ *   scales the heal (default 1); `healBonus` (Saint's Reliquary) adds HP before it.
  */
 export function calculateStaffHealOutput(staff, healer, opts = {}) {
   // Intentionally dereferences staff/healer: a missing staff is a caller bug and
   // must throw so the scene's action-error recovery sees it.
-  const raw = healer.stats.MAG + (staff.healBase ?? 0);
+  const raw = healer.stats.MAG + getStaffHealBase(staff, opts);
   const multiplier = normalizeHealingMultiplier(opts.healingMultiplier);
   if (multiplier === 1) return Math.max(0, raw);
   return Math.max(0, Math.floor(raw * multiplier + 1e-9));
@@ -635,15 +654,21 @@ export function settlePerBattleWeaponUses(attacker, defender, result) {
 
 // --- Staff range ---
 
-/** Get effective range for a staff, accounting for MAG-based range bonuses (Physic). */
-export function getEffectiveStaffRange(staff, healer) {
+/**
+ * Get effective range for a staff, accounting for MAG-based range bonuses (Physic) and the
+ * run's reach (`opts.rangeBonus`: Saint's Reliquary, from StaffBlessings.staffRunOptions; never
+ * a hand count), which lengthens the longest reach only.
+ * @param {{ rangeBonus?: number }} [opts]
+ */
+export function getEffectiveStaffRange(staff, healer, opts = {}) {
   const baseRange = parseRange(staff.range);
-  if (!staff.rangeBonuses) return baseRange;
-  const bonus = staff.rangeBonuses.reduce(
+  const runBonus = staffBonusOf(opts?.rangeBonus);
+  const magBonus = (staff.rangeBonuses || []).reduce(
     (sum, rb) => sum + (healer.stats.MAG >= rb.mag ? rb.bonus : 0),
     0,
   );
-  return { min: baseRange.min, max: baseRange.max + bonus };
+  if (magBonus === 0 && runBonus === 0) return baseRange;
+  return { min: baseRange.min, max: baseRange.max + magBonus + runBonus };
 }
 
 // --- Range helpers ---

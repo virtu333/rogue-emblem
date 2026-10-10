@@ -135,6 +135,7 @@ import {
   commanderAurasOf,
   earnedBoonModifierDefaults,
   fogOpeningRadiusOf,
+  foesShownOf,
   recruitMarkChanceOf,
   reinforcementDelayOf,
   sanitizeEarnedBoonModifiers,
@@ -4482,6 +4483,10 @@ export class RunManager {
     const fogOpeningRadius = fogOpeningRadiusOf(this);
     if (fogOpeningRadius > 0) battleParams.fogOpeningRadius = fogOpeningRadius;
     else delete battleParams.fogOpeningRadius;
+    // Seer's Eye: fog never hides a foe (BattleInformation.canInspectUnit reads the grid's flag,
+    // set from this key by the scene and the harness alike; saved with the battle's params).
+    if (foesShownOf(this)) battleParams.foesShown = true;
+    else delete battleParams.foesShown;
     battleParams.recruitGuardianChance = this.getDifficultyModifier(
       'recruitGuardianChance',
       Number.isFinite(battleParams.recruitGuardianChance) ? battleParams.recruitGuardianChance : 0,

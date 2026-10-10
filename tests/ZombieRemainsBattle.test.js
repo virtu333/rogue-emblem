@@ -27,6 +27,7 @@ import { BattleSuspendController } from '../src/ui/BattleSuspendController.js';
 import { captureBattleState } from '../src/ui/BattleCheckpointAdapter.js';
 import { validateBattleState } from '../src/engine/BattleStateSnapshot.js';
 import { createRemains } from '../src/engine/ZombieRemains.js';
+import { markFoesShown } from '../src/engine/BattleInformation.js';
 import { createUnit } from '../src/engine/UnitManager.js';
 import { resetBattleIdentities, registerBattleEntity } from '../src/engine/BattleEntityIdentity.js';
 import { loadGameData } from './testData.js';
@@ -307,6 +308,45 @@ describe('a zombie falls', () => {
       [6, 2, 3, false],
     ]);
     expect(scene.enemyUnits).toEqual([]);
+  });
+
+  it("under Seer's Eye a zombie that falls in the fog leaves a known pile and countdown, and rises with its banner", async () => {
+    // Paired with the test above: the same fall on a fogged tile; only the Eye differs. Failure:
+    // the remains read the tile's sight alone, so a foe the Eye showed dies without a marker and
+    // rises unannounced.
+    const fall = async (eye) => {
+      const scene = fallScene((c) => c < 4);
+      markFoesShown(scene.grid, eye ? { foesShown: true } : {});
+      const far = zombieUnit(6, 2);
+      scene.enemyUnits.push(far);
+      await scene.removeUnit(far, null); // poison in the fog: no killer
+      return scene;
+    };
+    const plain = await fall(false);
+    expect(plain._zombieTombstones.map((r) => r.seen)).toEqual([false]);
+    expect(plain._zombieRemains().knownTiles()).toEqual([]);
+    expect(plain._zombieRemains().infoLine(6, 2)).toBeNull();
+
+    const scene = await fall(true);
+    expect(scene._zombieTombstones.map((r) => [r.col, r.row, r.turnsRemaining, r.seen])).toEqual([
+      [6, 2, 3, true],
+    ]);
+    const remains = scene._zombieRemains();
+    expect(remains.knownTiles().map((t) => [t.col, t.row])).toEqual([[6, 2]]);
+    expect(remains.infoLine(6, 2)).toMatch(/^Zombie remains · rises in 3/);
+    // It rises with its banner, as a foe the Eye shows.
+    scene._zombieTombstones = scene._zombieTombstones.map((r) => ({ ...r, turnsRemaining: 1 }));
+    Object.assign(scene, {
+      addUnitGraphic: vi.fn(),
+      showBriefBanner: vi.fn(async () => {}),
+      updateEnemyVisibility: vi.fn(),
+      checkBattleEnd: vi.fn(),
+      getUnitAt: () => null,
+    });
+    scene.grid.getTerrainAt = () => ({ moveCost: { Infantry: '1' } });
+    await scene.processZombieRevival();
+    expect(scene.enemyUnits.map((u) => [u.col, u.row])).toEqual([[6, 2]]);
+    expect(scene.showBriefBanner).toHaveBeenCalledWith('Zombie has risen!', expect.anything());
   });
 
   it('Light leaves nothing', async () => {
