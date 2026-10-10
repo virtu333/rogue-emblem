@@ -130,6 +130,7 @@ describe('Narrative data', () => {
             `${vLabel}.pool must be a non-empty array`,
           ).toBe(true);
           expect(variant.entries, `${vLabel} has both pool and entries`).toBeUndefined();
+          const lines = [];
           for (const entry of variant.pool) {
             for (const key of Object.keys(entry?.when || {})) {
               expect(
@@ -137,8 +138,19 @@ describe('Narrative data', () => {
                 `${vLabel} pool uses unknown when key "${key}"`,
               ).toBe(true);
             }
+            // A pool entry is one line, or an exchange (lines played as one).
+            if (entry?.exchange === undefined) {
+              lines.push(entry);
+              continue;
+            }
+            expect(entry.line, `${vLabel} pool entry has both line and exchange`).toBeUndefined();
+            expect(
+              Array.isArray(entry.exchange) && entry.exchange.length > 0,
+              `${vLabel} pool exchange must be a non-empty array`,
+            ).toBe(true);
+            lines.push(...entry.exchange);
           }
-          pools.push({ entries: variant.pool, label: `${vLabel}.pool` });
+          pools.push({ entries: lines, label: `${vLabel}.pool` });
           return;
         }
         expect(
@@ -184,6 +196,9 @@ describe('Narrative data', () => {
       validateSection(boss.halfHealth, `bossEncounters.${name}.halfHealth`);
       if (boss.preBattleReply) {
         validateSection(boss.preBattleReply, `bossEncounters.${name}.preBattleReply`);
+      }
+      if (boss.preBattleExchange) {
+        validateSection(boss.preBattleExchange, `bossEncounters.${name}.preBattleExchange`);
       }
     }
 

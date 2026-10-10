@@ -1695,11 +1695,11 @@ describe('storyFlags (run-aware narrative memory)', () => {
 
   it('linesPlayed stays bounded: the oldest lines are forgotten first', () => {
     const meta = new MetaProgressionManager(upgradesData);
-    meta.recordLinesPlayed(Array.from({ length: 70 }, (_, i) => `l${i}`));
+    meta.recordLinesPlayed(Array.from({ length: 260 }, (_, i) => `l${i}`));
     const played = meta.getStoryFlags().linesPlayed;
-    expect(played).toHaveLength(64);
-    expect(played[0]).toBe('l6');
-    expect(played.at(-1)).toBe('l69');
+    expect(played).toHaveLength(256);
+    expect(played[0]).toBe('l4');
+    expect(played.at(-1)).toBe('l259');
   });
 
   it('adopt-merge keeps lines played on either copy, local most recent', () => {
