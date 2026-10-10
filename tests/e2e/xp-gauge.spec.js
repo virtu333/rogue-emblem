@@ -11,7 +11,8 @@
 //   5. Fast ignored (the planned fill and hold not halved, or the gauge outliving them);
 //   6. the gauge outside the map frame, over the rail or away from the unit.
 // A MutationObserver records the gauge as it opens, counts and closes, so every check
-// reads what was on screen without racing its timers.
+// reads what was on screen without racing its timers. A hold is measured on the clock it
+// runs on (sceneClockSpan), never on wall time or the scene's `time.now`.
 import { test, expect, devices } from '@playwright/test';
 import { waitForScene } from './helpers.js';
 
@@ -97,11 +98,25 @@ async function stageKill(page, { xp, levels = 6 }) {
   );
 }
 
-/** Record every gauge (open: geometry and plan; each count; close) and level card. */
+/**
+ * Record every gauge (open: geometry and plan; each count; close) and level card. Each
+ * event carries `step`: how many Battle scene steps had run when it was seen, indexing
+ * `window.__xgSteps` (sceneClockSpan).
+ */
 async function watchGauge(page) {
   await page.evaluate(() => {
     const events = [];
     window.__xg = events;
+    // The clock the gauge's hold runs on (CeremonyClock → scene.time.delayedCall): a
+    // Phaser timer advances by each step's delta × time.timeScale, the delta smoothed
+    // over the last ten frames, while `time.now` is the step's raw timestamp. After a
+    // run of long frames the smoothed deltas outrun the timestamps, so a 400 ms hold can
+    // span 317 ms of `time.now` (and of wall time). The Clock reads the delta on UPDATE;
+    // this reads the same delta on PRE_UPDATE, just before it.
+    const steps = [];
+    window.__xgSteps = steps;
+    const battle = window.__emblemRogueGame.scene.getScene('Battle');
+    battle.events.on('preupdate', (_time, delta) => steps.push(delta * battle.time.timeScale));
     const rect = (node) => {
       const r = node?.getBoundingClientRect?.();
       return r ? { left: r.left, top: r.top, right: r.right, bottom: r.bottom } : null;
@@ -121,13 +136,13 @@ async function watchGauge(page) {
     window.addEventListener('click', () => events.push({ type: 'click', t: performance.now() }), true); // prettier-ignore
     new MutationObserver((records) => {
       const t = performance.now();
-      // The scene clock the gauge's hold runs on (CeremonyClock): wall time seen here
-      // can trail a mount by the rest of its task under load.
-      const st = window.__emblemRogueGame.scene.getScene('Battle')?.time?.now ?? null;
+      // Steps run so far. The observer runs in a microtask, never inside a step, so a
+      // timer started by what it saw takes its first delta in the next step (index `step`).
+      const step = steps.length;
       for (const record of records) {
         if (record.type === 'attributes') {
           if (record.target.classList?.contains('xg-track'))
-            events.push({ type: 'value', t, v: Number(record.target.getAttribute('aria-valuenow')) }); // prettier-ignore
+            events.push({ type: 'value', t, step, v: Number(record.target.getAttribute('aria-valuenow')) }); // prettier-ignore
           continue;
         }
         for (const node of record.addedNodes) {
@@ -137,7 +152,7 @@ async function watchGauge(page) {
             events.push({
               type: 'open',
               t,
-              st,
+              step,
               v: Number(track.getAttribute('aria-valuenow')),
               plus: node.querySelector('.xg-plus').textContent,
               fillMs: Number(node.dataset.fillMs),
@@ -158,7 +173,7 @@ async function watchGauge(page) {
           const track = node.querySelector('.xg-track');
           const v = Number(track.getAttribute('aria-valuenow'));
           // Why it closed (XpGaugeController): done, skip, watchdog or closed.
-          events.push({ type: 'close', t, st, v, by: node.dataset.closedBy });
+          events.push({ type: 'close', t, step, v, by: node.dataset.closedBy });
         }
       }
     }).observe(document.body, {
@@ -171,6 +186,23 @@ async function watchGauge(page) {
 }
 
 const events = (page) => page.evaluate(() => window.__xg);
+
+/**
+ * The scene clock between two recorded events, as a Phaser timer started at `from`
+ * counts it: `elapsed`, the deltas of the steps after `from` up to and including the
+ * step that saw `to` (summed from 0 in step order, as TimerEvent.elapsed is), and
+ * `last`, that final step's delta. A timer of `delay` started at `from` that fires at
+ * `to` (closing the gauge in that step) has elapsed >= delay > elapsed - last.
+ */
+const sceneClockSpan = (page, from, to) =>
+  page.evaluate(
+    ({ a, b }) => {
+      const span = window.__xgSteps.slice(a, b);
+      return { elapsed: span.reduce((sum, delta) => sum + delta, 0), last: span.at(-1) ?? 0 };
+    },
+    { a: from.step, b: to.step },
+  );
+
 const closed = (page) =>
   page.waitForFunction(() => window.__xg?.some((e) => e.type === 'close'), null, {
     timeout: 30_000,
@@ -430,10 +462,13 @@ test('Instant shows the end state at once and holds it', async ({ page }) => {
   expect(open.plus).toBe(`+${xp - before.xp}`);
   // No count between open and close: nothing filled.
   expect(log.filter((e) => e.type === 'value' && e.t > open.t && e.t < close.t)).toEqual([]);
-  // Held, then closed by its own hold (not a skip or the watchdog), on the clock the hold
-  // runs on: wall time seen by this observer can trail the mount under load (CI: 286 ms).
+  // Held, then closed by its own hold (not a skip or the watchdog) in the step its 400 ms
+  // ran out, on the clock the hold runs on (watchGauge): wall time and `time.now` both
+  // read it short after slow frames (CI: 286 ms wall, 333 ms `time.now`).
   expect(close.by).toBe('done');
-  expect(close.st - open.st).toBeGreaterThanOrEqual(350);
+  const held = await sceneClockSpan(page, open, close);
+  expect(held.elapsed).toBeGreaterThanOrEqual(open.holdMs);
+  expect(held.elapsed - held.last).toBeLessThan(open.holdMs);
   expect(errors).toEqual([]);
 });
 
@@ -452,8 +487,19 @@ test('Fast halves the fill and hold and closes within them', async ({ page }) =>
   // 100 XP per 450 ms, a 175 ms hold.
   expect(open).toMatchObject({ isStatic: false, holdMs: 175 });
   expect(open.fillMs).toBe(Math.round(gained * 4.5));
+  // Each part on the clock it runs on: the fill on the animation clock (wall time, the
+  // observer trailing the mount by a little), ending with the end state drawn (the last
+  // count before the close); the hold from that draw, on the scene clock (watchGauge).
+  const filled = log
+    .slice(0, log.indexOf(close))
+    .filter((e) => e.type === 'value')
+    .at(-1);
+  expect(filled.v).toBe(close.v);
+  expect(filled.t - open.t).toBeGreaterThanOrEqual(open.fillMs - 50);
+  const held = await sceneClockSpan(page, filled, close);
+  expect(held.elapsed).toBeGreaterThanOrEqual(open.holdMs);
+  expect(held.elapsed - held.last).toBeLessThan(open.holdMs);
   const elapsed = close.t - open.t;
-  expect(elapsed).toBeGreaterThanOrEqual(open.fillMs + open.holdMs - 50);
   // Well inside what Normal would take (gained × 9 + 350 ms), with room for a slow frame.
   expect(elapsed).toBeLessThan(gained * 9 + 350 + 1000);
   expect(errors).toEqual([]);

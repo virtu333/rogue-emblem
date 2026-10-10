@@ -16,7 +16,7 @@
 // control, a tap on the map or a skip key only skips. A watchdog closes a gauge whose
 // timers never fire. Silent (decision 4): the level-up cue on the card marks the wrap.
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
-import { battleSpeed } from '../utils/combatTiming.js';
+import { enemyPhaseSpeed } from '../utils/combatTiming.js';
 import { TILE_SIZE, XP_PER_LEVEL } from '../utils/constants.js';
 import { InputAction } from '../utils/InputActions.js';
 import {
@@ -53,15 +53,11 @@ const now = () => globalThis.performance?.now?.() ?? Date.now();
  * speed snapshot that battleSpeed reads the hold through).
  */
 export function gaugeSpeed(scene) {
-  let speed;
   try {
-    speed = battleSpeed(scene);
+    return enemyPhaseSpeed(scene);
   } catch {
-    speed = 'normal';
+    return 'normal';
   }
-  if (speed !== 'instant' && scene?._holdBattleFast && scene?.turnManager?.currentPhase === 'enemy')
-    return 'fast';
-  return speed;
 }
 
 /** The gauge's DOM (built once per gauge; render() updates it). */

@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { bindHoldBattleSpeed, canHoldBattleSpeed } from '../src/ui/HoldBattleSpeed.js';
-import { battleSpeed } from '../src/utils/combatTiming.js';
+import {
+  bindHoldBattleSpeed,
+  bindShiftHoldBattleSpeed,
+  canHoldBattleSpeed,
+} from '../src/ui/HoldBattleSpeed.js';
+import { battleSpeed, enemyPhaseSpeed } from '../src/utils/combatTiming.js';
 
 afterEach(() => vi.unstubAllGlobals());
 function setup() {
@@ -62,5 +66,91 @@ describe('phase-level battle speed hold', () => {
     expect(scene._holdBattleFast).toBe(false);
     fire('keydown', { key: 'Enter' });
     expect(scene._holdBattleFast).toBe(false);
+  });
+});
+
+// The desktop hold key (docs/specs/large-maps/02-encounters-and-pacing.md §2.5).
+function fakeKeyboard() {
+  const handlers = new Map();
+  return {
+    on(type, fn) {
+      handlers.set(type, [...(handlers.get(type) || []), fn]);
+    },
+    off(type, fn) {
+      handlers.set(
+        type,
+        (handlers.get(type) || []).filter((h) => h !== fn),
+      );
+    },
+    emit(type, event) {
+      for (const fn of handlers.get(type) || []) fn(event);
+    },
+    count: () => [...handlers.values()].reduce((n, list) => n + list.length, 0),
+  };
+}
+function shiftSetup(battleState = 'ENEMY_PHASE') {
+  vi.stubGlobal('window', new EventTarget());
+  vi.stubGlobal('document', new EventTarget());
+  const keyboard = fakeKeyboard();
+  const scene = {
+    battleState,
+    turnManager: { currentPhase: battleState === 'ENEMY_PHASE' ? 'enemy' : 'player' },
+    registry: { get: () => ({ getBattleSpeed: () => 'normal' }) },
+  };
+  const hold = bindShiftHoldBattleSpeed(scene, keyboard);
+  const key = (type, key, mods = {}) => keyboard.emit(type, { key, ...mods });
+  return { scene, keyboard, hold, key };
+}
+describe('Shift held alone fast-forwards the enemy phase only', () => {
+  it('in ENEMY_PHASE Shift sets the hold the beat and gauge read; releasing clears it', () => {
+    const { scene, key } = shiftSetup();
+    key('keydown', 'Shift');
+    expect(scene._holdBattleFast).toBe(true);
+    expect(enemyPhaseSpeed(scene)).toBe('fast');
+    key('keyup', 'Shift');
+    expect(scene._holdBattleFast).toBe(false);
+    expect(enemyPhaseSpeed(scene)).toBe('normal');
+  });
+  it('in the player phase Shift (the Shift+N modifier) never touches the speed', () => {
+    for (const state of ['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU', 'PAUSED']) {
+      const { scene, key } = shiftSetup(state);
+      key('keydown', 'Shift');
+      expect(scene._holdBattleFast, state).toBeUndefined();
+      key('keydown', 'N', { shiftKey: true });
+      expect(scene._holdBattleFast, state).toBeUndefined();
+    }
+  });
+  it('a chord is not Shift alone: Ctrl/Alt/Meta+Shift never hold, another key releases', () => {
+    const { scene, key } = shiftSetup();
+    for (const mod of ['ctrlKey', 'altKey', 'metaKey']) {
+      key('keydown', 'Shift', { [mod]: true });
+      expect(scene._holdBattleFast, mod).toBeUndefined();
+    }
+    key('keydown', 'Shift');
+    expect(scene._holdBattleFast).toBe(true);
+    key('keydown', 'N', { shiftKey: true });
+    expect(scene._holdBattleFast).toBe(false);
+  });
+  it('the phase ending (release), a lost focus or destroy clears it; destroy unbinds', () => {
+    const { scene, key, hold, keyboard } = shiftSetup();
+    key('keydown', 'Shift');
+    hold.release();
+    expect(scene._holdBattleFast).toBe(false);
+    key('keydown', 'Shift');
+    window.dispatchEvent(new Event('blur'));
+    expect(scene._holdBattleFast).toBe(false);
+    key('keydown', 'Shift');
+    hold.destroy();
+    expect(scene._holdBattleFast).toBe(false);
+    expect(keyboard.count()).toBe(0);
+    key('keydown', 'Shift');
+    expect(scene._holdBattleFast).toBe(false);
+  });
+  it('never clears a hold it did not set (the phone control owns its own press)', () => {
+    const { scene, hold, key } = shiftSetup();
+    scene._holdBattleFast = true;
+    key('keyup', 'Shift');
+    hold.release();
+    expect(scene._holdBattleFast).toBe(true);
   });
 });

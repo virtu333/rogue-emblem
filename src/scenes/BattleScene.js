@@ -39,6 +39,16 @@ import {
 } from '../engine/RoutObjective.js';
 import { battleSpeed, waitDuration, waitTween } from '../utils/combatTiming.js';
 import {
+  ENEMY_STEP_LABEL,
+  EnemyPhasePacing,
+  enemyHealBanner,
+  enemyStepDuration,
+  isTileSeen,
+  planEnemyMoveSteps,
+  seenUnitName,
+  skipsIdleCheckpoint,
+} from '../ui/EnemyPhasePacing.js';
+import {
   getWeaponArtIds,
   killMoveRefreshesActor,
   weaponArtRunOptions,
@@ -308,6 +318,7 @@ import {
   showContextualHint,
   mobileBattleHint,
 } from '../ui/HintDisplay.js';
+import { bindShiftHoldBattleSpeed } from '../ui/HoldBattleSpeed.js';
 import { generateBossRecruitCandidates } from '../engine/BossRecruitSystem.js';
 import { stampCommanderFlag } from '../engine/Commander.js';
 import { buildRecruitNodeUnit, spawnTilesForDeployment } from '../engine/RecruitNodeSystem.js';
@@ -1115,7 +1126,14 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  async _awaitSceneDelay(delayMs, { label = 'scene_delay', timeoutMs = null } = {}) {
+  /**
+   * Wait on the scene clock. A COMBAT_WAITS label scales the delay by the battle speed;
+   * `scaled: true` says the caller already did (the enemy beat reads hold-to-fast).
+   */
+  async _awaitSceneDelay(
+    delayMs,
+    { label = 'scene_delay', timeoutMs = null, scaled = false } = {},
+  ) {
     const session = battleSession(this);
     const safeDelay = Number.isFinite(delayMs) ? Math.max(0, delayMs) : 0;
     if (!this._isSceneActiveForAsync(session)) return new Promise(() => {});
@@ -1133,10 +1151,13 @@ export class BattleScene extends Phaser.Scene {
       },
     });
     try {
-      timer = this.time?.delayedCall?.(waitDuration(this, label, safeDelay), () => {
-        this._removeManagedSceneTimer(timer);
-        guard.resolve();
-      });
+      timer = this.time?.delayedCall?.(
+        scaled ? safeDelay : waitDuration(this, label, safeDelay),
+        () => {
+          this._removeManagedSceneTimer(timer);
+          guard.resolve();
+        },
+      );
       this._trackManagedSceneTimer(timer);
       if (!timer) guard.resolve();
     } catch (err) {
@@ -1153,6 +1174,11 @@ export class BattleScene extends Phaser.Scene {
     return outcome;
   }
 
+  /**
+   * Run a tween to completion on the scene clock. A COMBAT_WAITS label scales its timing
+   * by the battle speed; `scaled: true` says the caller already did (an enemy walk reads
+   * hold-to-fast-forward through EnemyPhasePacing.enemyStepDuration).
+   */
   async _awaitSceneTween(
     tweenConfig,
     {
@@ -1160,6 +1186,7 @@ export class BattleScene extends Phaser.Scene {
       timeoutMs = null,
       onCancel = null,
       session = battleSession(this),
+      scaled = false,
     } = {},
   ) {
     if (!tweenConfig) return;
@@ -1184,7 +1211,7 @@ export class BattleScene extends Phaser.Scene {
         } catch (_) {}
       },
     });
-    const wrappedConfig = waitTween(this, label, tweenConfig);
+    const wrappedConfig = scaled ? { ...tweenConfig } : waitTween(this, label, tweenConfig);
     const originalOnComplete = wrappedConfig.onComplete;
     const originalOnStop = wrappedConfig.onStop;
     wrappedConfig.onComplete = (...args) => {
@@ -1439,6 +1466,8 @@ export class BattleScene extends Phaser.Scene {
     keyboard.on('keydown-W', this._gameplayKeyHandlers.wait);
     keyboard.on('keydown-LEFT', this._gameplayKeyHandlers.previousForecastWeapon);
     keyboard.on('keydown-RIGHT', this._gameplayKeyHandlers.nextForecastWeapon);
+    // Shift held alone in the enemy phase fast-forwards it (HoldBattleSpeed).
+    this._shiftHoldSpeed = bindShiftHoldBattleSpeed(this, keyboard);
   }
 
   _unbindGameplayKeyboardHandlers() {
@@ -1459,6 +1488,8 @@ export class BattleScene extends Phaser.Scene {
       keyboard.off('keydown-RIGHT', this._gameplayKeyHandlers.nextForecastWeapon);
     }
     this._gameplayKeyHandlers = null;
+    this._shiftHoldSpeed?.destroy();
+    this._shiftHoldSpeed = null;
 
     if (this._devToggleKey?.off && this._onDevToggleKeyDown) {
       this._devToggleKey.off('down', this._onDevToggleKeyDown);
@@ -9448,6 +9479,8 @@ export class BattleScene extends Phaser.Scene {
 
   onPhaseChange(phase, turn) {
     const session = battleSession(this);
+    // The desktop hold key fast-forwards the enemy phase only (HoldBattleSpeed).
+    if (phase !== 'enemy') this._shiftHoldSpeed?.release();
     this._playerTurnStartPipelineTurn = null;
     this._playerTurnStartToken?.settle?.();
     const turnStartToken = {};
@@ -10466,6 +10499,9 @@ export class BattleScene extends Phaser.Scene {
       }
 
       this.currentEnemyPhaseAiStats = this.createEnemyPhaseAiStats();
+      // What the player saw of each enemy's turn sets the beat after it (EnemyPhasePacing).
+      const pacing = (this._enemyPhasePacing ||= new EnemyPhasePacing(this));
+      pacing.beginUnit();
       try {
         await this.aiController.processEnemyPhase(
           this.enemyUnits,
@@ -10492,40 +10528,56 @@ export class BattleScene extends Phaser.Scene {
                   { scene: this },
                 );
             },
-            onMoveUnit: (enemy, path) => {
-              if (this.visionDialog || phaseSuperseded()) return Promise.resolve();
-              return this.animateEnemyMove(enemy, path);
+            onMoveUnit: async (enemy, path) => {
+              if (this.visionDialog || phaseSuperseded()) return;
+              const move = await this.animateEnemyMove(enemy, path);
+              pacing.noteSeen(move?.seen === true);
             },
             onHeal: (_enemy, target, result) => {
               if (this.visionDialog || phaseSuperseded()) return Promise.resolve();
+              pacing.noteUnits(_enemy, target);
               observeHistoryAction(this, 'healed', _enemy, target, `${result.healAmount} HP`);
               this.updateHPBar(target);
-              this.showBriefBanner?.(
-                `${target.name} healed ${result.healAmount} HP`,
-                UI_PALETTE.good,
-              );
+              // Never name, or announce, a unit the player cannot see (PlayerKnowledge).
+              const banner = enemyHealBanner(this.grid, _enemy, target, result.healAmount);
+              if (banner) this.showBriefBanner?.(banner, UI_PALETTE.good);
               return Promise.resolve();
             },
             onStatusStaff: (enemy, target) => {
               if (this.visionDialog || phaseSuperseded()) return Promise.resolve();
+              pacing.noteUnits(enemy, target);
               return this.executeEnemyStatusStaff(enemy, target);
             },
             onAttack: (enemy, target) => {
               if (this.visionDialog || phaseSuperseded()) return Promise.resolve();
+              pacing.noteUnits(enemy, target);
               return this.executeEnemyCombat(enemy, target);
             },
             onBreak: (enemy, tile) => {
               if (this.visionDialog || phaseSuperseded()) return Promise.resolve();
+              pacing.noteUnits(enemy);
+              pacing.noteTile(tile);
               return this.executeEnemyBreak(enemy, tile);
             },
-            onDecision: (enemy, decision) => this.recordEnemyAiDecision(enemy, decision),
-            onUnitDone: async (enemy) => {
+            onDecision: (enemy, decision) => {
+              pacing.beginUnit();
+              this.recordEnemyAiDecision(enemy, decision);
+            },
+            // The beat between enemies: only after a turn the player saw (EnemyPhasePacing).
+            afterUnit: () =>
+              pacing.afterUnit({ isCurrent: () => !phaseSuperseded() && !this.visionDialog }),
+            onUnitDone: async (enemy, decision) => {
               if (phaseSuperseded() || this.visionDialog) return;
               enemy.hasActed = true;
               this.dimUnit(enemy);
               // Village raze: a seek_tile bandit ending its move on the
               // intact village tile burns it down.
-              this._villageController?.handleEnemyUnitDone(enemy);
+              const razed = this._villageController?.handleEnemyUnitDone(enemy) === true;
+              if (razed) pacing.noteSeen(true);
+              // A turn that resolved nothing (hold, asleep, guard_hold, ...) writes no
+              // checkpoint and no timeline row: it drew no RNG and replays from the last
+              // checkpoint exactly (engine/EnemyTurnOutcome.js).
+              if (!razed && skipsIdleCheckpoint(this, decision)) return;
               if (!phaseSuperseded() && !this.visionDialog) {
                 if (!(this._historyBeats || []).length) observeHistoryAction(this, 'waited', enemy);
                 this._historyActor = historyUnitVisible(this, enemy) ? enemy.battleEntityId : null;
@@ -10603,13 +10655,40 @@ export class BattleScene extends Phaser.Scene {
     if (!finalPath || finalPath.length < 2) return;
 
     const targets = enemy.label ? [enemy.graphic, enemy.label] : [enemy.graphic];
-
-    for (let stepIndex = 1; stepIndex < finalPath.length; stepIndex++) {
-      const pos = this.grid.gridToPixel(finalPath[stepIndex].col, finalPath[stepIndex].row);
-      const isSlide = effective.slideSegments.some(
+    // No tween in the dark (EnemyPhasePacing): a step is drawn only where the player sees
+    // both of its tiles, and the sprite is shown only on a tile the player sees. A walk
+    // the player sees none of is one position update below. A lone seen tile the walk
+    // only clips is held for one step's time, so the unit is drawn there.
+    const plan = planEnemyMoveSteps(finalPath, (col, row) => isTileSeen(this.grid, col, row));
+    const fog = this.grid.fogEnabled === true;
+    const isSlideStep = (stepIndex) =>
+      effective.slideSegments.some(
         (seg) => stepIndex >= seg.startIndex && stepIndex < seg.startIndex + seg.slidePath.length,
       );
-      const duration = isSlide ? 60 : 80;
+
+    for (const { index: stepIndex, tween, shown, hold } of plan.steps) {
+      const pos = this.grid.gridToPixel(finalPath[stepIndex].col, finalPath[stepIndex].row);
+      if (!tween) {
+        // Hidden before it moves, shown only once it stands on a seen tile.
+        if (fog) {
+          for (const part of targets) {
+            if (!shown) part?.setVisible?.(false);
+            part?.setPosition?.(pos.x, pos.y);
+            if (shown) part?.setVisible?.(true);
+          }
+        }
+        if (!(fog && hold)) continue;
+        // Seen between two hidden tiles: held here for a step's time (read at the
+        // enemy-phase speed), never tweened through the fog on either side.
+        const ms = enemyStepDuration(this, { slide: isSlideStep(stepIndex) });
+        await this._awaitSceneDelay(ms, { label: ENEMY_STEP_LABEL, scaled: true });
+        if (!isCurrentBattleSession(this, session)) return;
+        if (!this._isSceneActiveForAsync(session)) return;
+        continue;
+      }
+      // Both tiles are seen: the step is drawn, with the sprite shown.
+      if (fog) for (const part of targets) part?.setVisible?.(true);
+      const duration = enemyStepDuration(this, { slide: isSlideStep(stepIndex) });
       await this._awaitSceneTween(
         {
           targets,
@@ -10618,7 +10697,7 @@ export class BattleScene extends Phaser.Scene {
           duration,
           ease: 'Linear',
         },
-        { label: 'animate_enemy_move_step', timeoutMs: duration + 700 },
+        { label: ENEMY_STEP_LABEL, timeoutMs: duration + 700, scaled: true },
       );
       if (!isCurrentBattleSession(this, session)) return;
       if (!this._isSceneActiveForAsync(session)) return;
@@ -10630,6 +10709,7 @@ export class BattleScene extends Phaser.Scene {
     enemy.row = dest.row;
     this.updateUnitPosition(enemy);
     if (this.grid.fogEnabled) this.updateEnemyVisibility();
+    return { seen: plan.seen };
   }
 
   async executeEnemyStatusStaff(enemy, target) {
@@ -10646,9 +10726,12 @@ export class BattleScene extends Phaser.Scene {
       { miss: !result.hit },
     );
     spendStaffUse(staff);
+    // The banners name only units the player can see (PlayerKnowledge).
+    const casterName = seenUnitName(this.grid, enemy, 'An unseen enemy');
+    const targetName = seenUnitName(this.grid, target, 'An unseen unit');
     if (result.immune) {
       await this.showBriefBanner(
-        `${enemy.name} used ${staff.name}! ${target.name} is protected!`,
+        `${casterName} used ${staff.name}! ${targetName} is protected!`,
         UI_PALETTE.good,
       );
       if (!isCurrentBattleSession(this, session)) return;
@@ -10658,10 +10741,10 @@ export class BattleScene extends Phaser.Scene {
     if (result.hit) {
       const statusText =
         result.conditionId === 'sleep'
-          ? `${target.name} fell asleep!`
-          : `${target.name} was silenced!`;
+          ? `${targetName} fell asleep!`
+          : `${targetName} was silenced!`;
       await this.showBriefBanner(
-        `${enemy.name} used ${staff.name}! ${statusText} (${hitPct}%)`,
+        `${casterName} used ${staff.name}! ${statusText} (${hitPct}%)`,
         UI_PALETTE.bad,
       );
       if (!isCurrentBattleSession(this, session)) return;
@@ -10680,7 +10763,7 @@ export class BattleScene extends Phaser.Scene {
       }
     } else {
       await this.showBriefBanner(
-        `${enemy.name} used ${staff.name}! Miss! (${hitPct}%)`,
+        `${casterName} used ${staff.name}! Miss! (${hitPct}%)`,
         UI_PALETTE.muted,
       );
       if (!isCurrentBattleSession(this, session)) return;
