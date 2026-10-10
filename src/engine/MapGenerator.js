@@ -87,6 +87,7 @@ export function generateBattleLayout(params, deps) {
     statusStaffConfig = null,
     siegeWeaponConfig = null,
     carryConfig = null,
+    carryPasses = 1,
     isAmbush = false,
     enemyLevelBonus = 0,
     enemyCountBase = 0,
@@ -276,6 +277,8 @@ export function generateBattleLayout(params, deps) {
     templateId: template?.id,
     carryConfig,
     lootTables: deps.lootTables,
+    // Cutpurse's Luck: a second pass on its own stream (the first is the rung's own roll).
+    passes: carryPasses,
   });
   enemySpawns = assignAffixesToEnemySpawns(enemySpawns, {
     allowAffixes:

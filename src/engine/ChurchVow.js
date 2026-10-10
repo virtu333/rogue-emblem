@@ -12,8 +12,14 @@
 // on the run (RunManager.churchVowByNodeId, saved), like the Ruins' one path, so
 // leaving, re-entering or reloading never opens the other side. Pure: no Phaser, no
 // DOM. The offer is hashed from the run seed and the node, never the battle RNG.
+//
+// Twin Chapel (blessings v3 §5.3, `church_extra_vows`): a church accepts one more vow, each a
+// different one (Promotion and a Blessing, say; never the same vow twice). The saved vow is a
+// string for one vow (as every save before it) and an array of distinct vows once a second is
+// made (`churchVows` reads both).
 
 import { CHURCH_VOWS, NODE_TYPES } from '../utils/constants.js';
+import { shrineBoonsOf } from './ShrineBoons.js';
 import { isPrologueRun } from './ScriptedBattle.js';
 import { isEarnedBlessing } from './BlessingEngine.js';
 import {
@@ -40,21 +46,111 @@ function hash(text) {
   return h >>> 0;
 }
 
-/** The vow made at this church: 'promote', 'blessing', 'cleanse', or null (none yet). */
-export function churchVow(run, nodeId) {
-  const vow = run?.churchVowByNodeId?.[nodeId];
-  return CHURCH_VOWS.includes(vow) ? vow : null;
+/** A saved vow entry (a string, or an array once Twin Chapel's second vow is made) as a list. */
+export function normalizeChurchVows(raw) {
+  const list = Array.isArray(raw) ? raw : [raw];
+  return [...new Set(list.filter((vow) => CHURCH_VOWS.includes(vow)))];
 }
 
-/** The line a church shows once its vow is made. */
+/** The vows made at this church, in the order made (empty when none yet). */
+export function churchVows(run, nodeId) {
+  return normalizeChurchVows(run?.churchVowByNodeId?.[nodeId]);
+}
+
+/** The first vow made at this church: 'promote', 'blessing', 'cleanse', or null (none yet). */
+export function churchVow(run, nodeId) {
+  return churchVows(run, nodeId)[0] ?? null;
+}
+
+/** How many vows a church accepts in this run: one, or more with Twin Chapel. */
+export function churchVowCapacity(run) {
+  return 1 + shrineBoonsOf(run).extraChurchVows;
+}
+
+/** How many more vows this church accepts (0 once they are all made). */
+export function churchVowsLeft(run, nodeId) {
+  return Math.max(0, churchVowCapacity(run) - churchVows(run, nodeId).length);
+}
+
+// A church's vows, in words (capacity is at most the three vows there are).
+const VOW_COUNT_WORDS = Object.freeze(['', 'one', 'two', 'three']);
+
+const VOW_NAME = Object.freeze({
+  promote: 'Promotion',
+  blessing: 'a Blessing',
+  cleanse: 'Cleansing',
+});
+const VOW_CLOSES = Object.freeze({
+  promote: 'promotes no one',
+  blessing: 'gives no blessing',
+  cleanse: 'lifts no burden',
+});
+
+/** "Promotion", "Promotion and a Blessing", "Promotion, a Blessing and Cleansing". */
+function vowNames(vows) {
+  const names = vows.map((vow) => VOW_NAME[vow]);
+  return names.length <= 1
+    ? names.join('')
+    : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
+/**
+ * The line a church shows once its vows are made: `vow` is the one vow (a string) or the list
+ * made here. Every vow not made is named as closed.
+ */
 export function churchVowLine(vow) {
-  if (vow === 'promote')
-    return 'Your vow here was Promotion: this altar gives no blessing and lifts no burden.';
-  if (vow === 'blessing')
-    return 'Your vow here was a Blessing: this altar promotes no one and lifts no burden.';
-  if (vow === 'cleanse')
-    return 'Your vow here was Cleansing: this altar promotes no one and gives no blessing.';
-  return '';
+  const vows = normalizeChurchVows(vow);
+  if (vows.length === 0) return '';
+  const closed = CHURCH_VOWS.filter((v) => !vows.includes(v)).map((v) => VOW_CLOSES[v]);
+  const lead = vows.length === 1 ? 'Your vow here was' : 'Your vows here were';
+  if (closed.length === 0) return `${lead} ${vowNames(vows)}: this altar has nothing more to give.`;
+  return `${lead} ${vowNames(vows)}: this altar ${closed.join(' and ')}.`;
+}
+
+/**
+ * The church's vow line for the menu: before any vow, how many vows it takes; after one with a
+ * vow left (Twin Chapel), which was made and that one more is open; once every vow is made, the
+ * closed line (`churchVowLine`). `offersCleanse` says whether Cleansing is on the altar's list.
+ */
+export function churchVowStatusLine(run, nodeId, { offersCleanse = false } = {}) {
+  const vows = churchVows(run, nodeId);
+  const left = churchVowsLeft(run, nodeId);
+  if (vows.length > 0 && left <= 0) return churchVowLine(vows);
+  if (vows.length > 0)
+    return `${vows.length === 1 ? 'Your vow here was' : 'Your vows here were'} ${vowNames(vows)}. Twin Chapel: ${left === 1 ? 'one more vow is' : `${left} more vows are`} open, each a different one.`;
+  const choices = offersCleanse
+    ? 'Promote your units, take a blessing or lift a burden'
+    : 'Promote your units, or take a blessing';
+  const capacity = churchVowCapacity(run);
+  if (capacity > 1)
+    return `${choices}: ${VOW_COUNT_WORDS[capacity] || capacity} different vows per church (Twin Chapel). The first promotion, the blessing or the cleansing makes each.`;
+  return offersCleanse
+    ? `${choices}: one vow per church. The first promotion, the blessing or the cleansing makes it.`
+    : `${choices}: one vow per church. The first promotion or the blessing makes it.`;
+}
+
+const VOW_WILL_CLOSE = Object.freeze({
+  promote: 'promote no one',
+  blessing: 'give no blessing',
+  cleanse: 'lift no burden',
+});
+
+/**
+ * Twin Chapel's line for a vow's confirmation: what making `vow` here leaves open. Null when the
+ * church takes one vow (the menu keeps its own line) or `vow` is already made.
+ */
+export function churchVowCommitNote(run, nodeId, vow) {
+  if (churchVowCapacity(run) <= 1) return null;
+  const made = churchVows(run, nodeId);
+  if (made.includes(vow)) return null;
+  const after = [...made, vow];
+  const left = churchVowCapacity(run) - after.length;
+  if (left > 0)
+    return `Twin Chapel: this is one of your vows here; ${left === 1 ? 'one more stays' : `${left} more stay`} open.`;
+  const closed = CHURCH_VOWS.filter((v) => !after.includes(v)).map((v) => VOW_WILL_CLOSE[v]);
+  return closed.length
+    ? `This is your last vow here: this church will ${closed.join(' and ')}.`
+    : 'This is your last vow here.';
 }
 
 /**
@@ -74,11 +170,15 @@ export function churchBlessingOffers(run, nodeId, gameData) {
     .map(({ b }) => b);
 }
 
-/** Why a vow cannot be made (or used) here now: '' when it can. */
+/**
+ * Why a vow cannot be made (or used) here now: '' when it can. A vow already made here stays
+ * open (a church's promotions are one vow); another needs a vow left (Twin Chapel).
+ */
 export function churchVowBlock(run, nodeId, vow) {
   if (!CHURCH_VOWS.includes(vow)) return 'Choose Promotion, a Blessing or Cleansing.';
-  const made = churchVow(run, nodeId);
-  if (made && made !== vow) return churchVowLine(made);
+  const made = churchVows(run, nodeId);
+  if (made.includes(vow) || made.length === 0) return '';
+  if (churchVowsLeft(run, nodeId) <= 0) return churchVowLine(made);
   return '';
 }
 
@@ -86,8 +186,7 @@ export function churchVowBlock(run, nodeId, vow) {
 export function churchBlessingBlock(run, nodeId, blessingId, gameData) {
   // The prologue's chapel shows the altar, greyed: blessings start with the first run.
   if (isPrologueRun(run)) return PROLOGUE_BLESSING_BLOCK;
-  const made = churchVow(run, nodeId);
-  if (made === 'blessing') return 'This altar has already blessed you.';
+  if (churchVows(run, nodeId).includes('blessing')) return 'This altar has already blessed you.';
   const reason = churchVowBlock(run, nodeId, 'blessing');
   if (reason) return reason;
   if (!churchBlessingOffers(run, nodeId, gameData).some((b) => b.id === blessingId))
@@ -119,7 +218,7 @@ export function churchCleanseBlock(run, nodeId, burdenId) {
   if (isPrologueRun(run)) return 'Nothing weighs on you yet.';
   const node = run?.nodeMap?.nodes?.find((n) => n?.id === nodeId);
   if (node?.type !== NODE_TYPES.CHURCH) return 'Only a church can cleanse.';
-  if (churchVow(run, nodeId) === 'cleanse') return 'This altar has already cleansed you.';
+  if (churchVows(run, nodeId).includes('cleanse')) return 'This altar has already cleansed you.';
   const vowed = churchVowBlock(run, nodeId, 'cleanse');
   if (vowed) return vowed;
   const burden = burdenOf(run, burdenId);
@@ -141,10 +240,16 @@ export function cleanseAtChurch(run, nodeId, burdenId) {
   return { ok: true, burden: removed, message: `${label} lifted.` };
 }
 
-/** Record the vow (a promotion commits 'promote' through this). */
+/**
+ * Record the vow (a promotion commits 'promote' through this). A vow already made here is not
+ * recorded again; a second one (Twin Chapel) turns the entry into the list of vows made.
+ */
 export function commitChurchVow(run, nodeId, vow) {
   if (!nodeId || !CHURCH_VOWS.includes(vow)) return;
   if (!run.churchVowByNodeId || typeof run.churchVowByNodeId !== 'object')
     run.churchVowByNodeId = {};
-  run.churchVowByNodeId[nodeId] = vow;
+  const made = churchVows(run, nodeId);
+  if (made.includes(vow)) return;
+  const vows = [...made, vow];
+  run.churchVowByNodeId[nodeId] = vows.length === 1 ? vow : vows;
 }

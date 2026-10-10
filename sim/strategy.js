@@ -9,6 +9,7 @@
 //   route      recruit-first vs other routing policies  [--policies recruit,battle,church] [--muster N]
 //   graph      recruit nodes and services per route (generated node maps)
 //   blessings  blessing and price power                 [--candidates 1-4] [--only id,…]
+//                                                       [--prices id,…: these price rows only]
 //   arts       what Scroll Archive can hand out on day one
 //
 // Battles are played by TacticianAgent (sim/lib/TacticianAgent.js; --agent scripted for
@@ -137,6 +138,7 @@ async function captureRecruitBattles(seeds, difficulty) {
 
 import { DEPLOY_LIMITS } from '../src/utils/constants.js';
 import { chooseDeployRoster, skipOwedEarnedPick } from '../tests/sim/RunPolicies.js';
+import { clearBattleScopedDeltas } from '../src/engine/BattleStatDeltas.js';
 
 function deployFor(capture) {
   const limits = DEPLOY_LIMITS[capture.act] || { min: 1, max: 4 };
@@ -605,6 +607,9 @@ class ProtectedDriver extends RunSimulationDriver {
       survivors.push(u);
     }
     const bench = fullRoster.filter((u) => !deployedKeys.has(`${u.name}::${u.className}`));
+    // Battle-scoped stat deltas (a Lingering Injury, Cavalier's Hour, Intimidate) end with the
+    // battle, as PostCombatController and RunSimulationDriver take them back before the commit.
+    clearBattleScopedDeltas(survivors);
     rm.completeBattle([...survivors, ...bench], node.id, battle.goldEarned || 0, {
       turnCount: turns,
       turnPar: battle.turnPar,
@@ -1615,6 +1620,7 @@ async function sectionBlessings() {
       // v3: the price catalog, each price as the run's rung pays it (a Debt scaled by rung).
       if (catalog.priceCatalog)
         for (const [id, entry] of Object.entries(catalog.priceCatalog)) {
+          if (opts.prices && !String(opts.prices).split(',').includes(id)) continue;
           const price = resolvePriceOption(catalog, id, { difficultyId: opts.difficulty });
           configs.push([price.label, `${entry.points} pt price`, price.effects]);
         }

@@ -159,7 +159,7 @@ table, the row says so:
 | Shops +15% | 1.5 | new |
 | +20% forge costs | 1.5 | works since §2 |
 | Staff healing −20% | 1 | |
-| Lingering Injury on the commander | 3 | existing burden; drafted at 1, repriced to a tier III price after the strategy sim (commander KO 71.5% vs 57.7% with no price, about All growths −5) |
+| Lingering Injury on the commander | 2 | existing burden; drafted at 1, priced 3 after a strategy sim (commander KO 71.5% vs 57.7% with no price) whose battles never took a battle's stat deltas back, so the injury's −2 stayed on the commander for good. Re-priced to 2 once the sim cleared them (PR D4): commander KO 45.3% vs 39.3% with no price (First Light, 30 runs a row), next to Hunted 2 (2 pt, 45.8%) and well under −2 DEF Act 1 (3 pt, 51.8%). **The numbers before that fix are not comparable with these.** Nomad's Pact and Focused Curriculum, whose 3-point candidate it was alone, now pair it with −8 Hit Act 1 (2.5) |
 | −1 DEF Act 1 / −8 Hit Act 1 / recruits −1 level / arts +2 HP | 0.5 | garnish only: never a II-IV card's whole price |
 
 **Gold prices become Debt.** Debt is an existing burden: a fixed sum owed, half of each
@@ -331,18 +331,18 @@ where it acts in battle, a read in the combat-mod builder (`BattleScene` and
 
 | Blessing | Effect | Hook | Tier | Prices |
 |---|---|---|---|---|
-| Late Bloom | every unit +1 to all stats at each act cleared | `advanceAct`; new | III | Debt III / −1 DEF Act 1 + Ill Omen |
+| Late Bloom | every unit +1 in its two strongest growths at each act cleared (re-tuned from +1 to every stat but Move: see as built); **Built** | `act_clear_army_stats` `{ value: 1, stats: 2 }`: an act-start grant (`kind: 'army_stats'`) | III | Debt III / Ill Omen + −1 DEF + −8 Hit Act 1 |
 | Slow Fuse | starting lords −1 to HP and the seven combat stats (never Move) in Act 1, +1 from Act 2 (built at +1, not +2: +2 to eight stats per lord for the rest of the run is far above a tier II bet; `lord_stat_arc` params are data) | `lord_stat_arc`, `engine/LordStatArc.js`: a dip reverted at the act's end and a rise at the next act's start | II | intrinsic (2 pt): the Act 1 dip is the price |
-| Dawn Tithe | +100 gold per turn under par at each victory | turn bonus; new | II | +8 shadow / staff healing −20% |
+| Dawn Tithe | +100 gold per turn under par at each victory; **Built** | `under_par_gold`, paid with the turn bonus | II | +8 shadow / staff healing −20% |
 
 ### 5.2 Build-arounds
 
 | Blessing | Effect | Hook | Tier | Prices |
 |---|---|---|---|---|
-| Lone Banner | deploy cap −1; every deployed unit +25% XP | deploy delta (exists) + conditional XP; new | III | none: the cap is the price |
+| Lone Banner | deploy cap −1; every unit +25% XP from battles; **Built** | `deploy_cap_delta` + `xp_multiplier_delta` (both exist) | III | intrinsic (3 pt): the cap is the price |
 | Phalanx Rite | +2 DEF per ally on a cardinal neighbour tile (never a diagonal), up to +3 (so +2 with one, +3 with two or more; was +1 per ally); **Built** | `adjacent_ally_def_bonus`: `SkillSystem.countAdjacentAllies` (the accessory condition `adjacent_ally`'s rule), read in `BlessingCombatMods` | III | Debt III / Sworn Enemy + −8 Hit Act 1 |
 | Duelist's Creed | +15 avoid, +10 crit while no ally is within 2 tiles (Manhattan); **Built** | `isolated_combat_bonus`: `SkillSystem.hasAllyWithin` (the accessory condition `no_ally_within_2`'s rule), read in `BlessingCombatMods` | III | Debt III / Hunted 2 + −1 DEF Act 1 (was: −1 deploy Act 1; see as built) |
-| Cavalier's Hour | mounted units +1 MOV; infantry +1 DEF | move types in classes.json; new | III | Debt III / Sworn Enemy + garnish |
+| Cavalier's Hour | mounted units +1 MOV; foot soldiers (Infantry) +1 DEF; Armored nothing; **Built** | `move_type_battle_stats`: battle-start deltas | III | Debt III / Sworn Enemy + −8 Hit Act 1 |
 
 **As built (the formation cards).** Both are player-faction combat bonuses read in
 `BlessingCombatMods.blessingCombatModsFor` (the one place a blessing reaches a combat's mods),
@@ -382,13 +382,13 @@ reading). Held as `blessingRuntimeModifiers.adjacentAllyDefBonuses` / `isolatedC
 | Blessing | Effect | Hook | Tier | Prices |
 |---|---|---|---|---|
 | Bloodless Art | player units' weapon arts −1 HP (floor 1) and +1 use per map (only arts that have a limit); foes get nothing | `player_weapon_art_boon`: `WeaponArtSystem.weaponArtRunOptions` / `getEffectiveWeaponArtHpCost` / `getEffectiveWeaponArtMapLimit`, read by `canUseWeaponArt` and the menus | II | staff healing −20% / Debt II |
-| Saint's Reserve | every staff +1 use per battle | staff use table | II | Debt II / Ill Omen |
-| Cutpurse's Luck | twice as many carriers; Steal skips its speed check | `carryConfig`, `Steal.js` | III | Hunted 2 / Sworn Enemy |
-| Open Roll | recruit nodes offer two candidates | `RecruitNodeSystem` | III | recruits −1 level + Debt II / Debt III |
-| Watcher's Grace | +1 Vision on every boss map | Vision grant at battle start | II | +8 shadow / Debt II |
-| Patient Dawn | +2 par turns on every map | `TurnBonusCalculator` offset | III | Act 1 −1 deploy / Ill Omen + Debt II |
-| Twin Chapel | churches offer two vows per visit | `ChurchVow` | II | Debt II |
-| Omen Reader | the Eclipse's next fall shows two nodes early; falls spare recruit nodes | `EclipseSystem` thresholds | II | +8 shadow |
+| Saint's Reserve | every staff +1 use per battle; **Built** | `staff_uses_bonus`: `StaffBlessings.staffRunOptions` | II | Debt II / Ill Omen |
+| Cutpurse's Luck | twice as many carriers; Steal skips its speed check; **Built** | `carrier_luck`: a second carry pass, `Steal` `ignoreSpeed` | III | Hunted 2 + −8 Hit Act 1 / Sworn Enemy + −1 DEF Act 1 |
+| Open Roll | recruit nodes offer two candidates; **Built** | `recruit_alternate`: `RecruitNodeSystem.ensureRecruitAlternates` | III | recruits −1 level + Debt II / Debt III |
+| Watcher's Grace | +1 Vision on every boss map, unspent it fades; **Built** | `boss_battle_vision`: `beginBattleInProgress` / `completeBattle` | II | +8 shadow / Debt II |
+| Patient Dawn | +2 par turns on every map; **Built** | `par_turn_delta`: `battleParams.blessingParTurns` | III | Act 1 −1 deploy + Ill Omen / Ill Omen + Debt II |
+| Twin Chapel | each church accepts two different vows; **Built** | `church_extra_vows`: `ChurchVow` | II | Debt II |
+| Omen Reader | the route map marks the next two falls; falls spare recruit nodes; **Built** | `eclipse_omen`: `EclipseSystem` `spareTypes` / `foretold` | II | +8 shadow |
 
 Cut in review: **Veteran's Road** (recruits join at the commander's level −1). A recruit node
 already sets the level from the army: the floor of the average effective level of its
@@ -405,7 +405,116 @@ and exists, but the route map needs a new interaction to pick the road.
 | Blessing | Effect | Hook | Tier | Prices |
 |---|---|---|---|---|
 | Gambler's Toss (was Gambler's Coin: an accessory has that name) | each victory's battle gold is doubled or cut to a third on an even toss, seeded by run and node (expected +17%; even double-or-halve, +25%, out-earned Merchant Bane in the strategy sim) | `battle_gold_gamble`, `engine/BattleGoldGamble.js`, in `completeBattle` after the elite, Merchant Bane and rung multipliers and before a Debt garnishes | III | intrinsic (3 pt): the variance is the price; never granted by an event |
-| Lottery Loot | one loot card per battle comes from the next act's table | `LootSystem` tier offset (exists for event accessories) | III | Debt III / Sworn Enemy |
+| Lottery Loot | one loot card per battle comes from the next act's table; **Built** | `next_act_loot_card`: `engine/LotteryLoot.js` | III | Debt III / Sworn Enemy + −8 Hit Act 1 |
+
+**As built (the rest of §5, PR D4).** Twelve cards, one module for their boons
+(`engine/ShrineBoons.js`: params, run state, load defaults; the validator and the handler read
+the params the same way, so a malformed card is refused rather than shipped doing nothing, and
+the totals held are capped the same on take and on load: Dawn Tithe 500 gold a turn, Saint's
+Reserve +3 uses, Watcher's Grace +3 charges, Patient Dawn +5 turns).
+Prices are re-paired where the brief's pair fell outside the tier band (Late Bloom's Ill Omen
+pair takes the two Act 1 garnishes, Cavalier's Hour, Cutpurse's Luck and Lottery Loot take an
+Act 1 garnish beside their burden, Patient Dawn's −1 deploy takes an Ill Omen). Every boon but
+Lone Banner's (an intrinsic price) is on the event allow-list; none is tier I, so no church altar
+offers one. Each icon reuses an existing cell (`BLESSING_ICON_REUSE`); every card waits for a
+painting (`PAINTING_PENDING`).
+
+- **Late Bloom** pays as each later act begins (`_payActStartGrants`, after the act's rest), to
+  the roster and the fallen (a revived ally has kept pace); never on the take; `paidActs` is
+  saved, so a reload never pays twice. Each unit gains +1 in its two highest growths
+  (`ShrineBoons.lateBloomStats`: the unit's own `growths`, else its class's, the middle of each
+  range, a promoted class through its base plus its `growthBonuses`; a tie goes to the earlier
+  stat in HP, STR, MAG, SKL, SPD, DEF, RES, LCK; never Move; no randomness). A living unit's HP
+  gain raises its current HP through `UnitHealth.setUnitHP`; the fallen gain none (a revival sets
+  it). A grant saved without its `stats` count (only before the re-tune) reads as all eight.
+  **Re-tune (review, decided).** As first built (+1 to every stat but Move) the strategy sim put
+  it far above tier III (Δsquad A3 +76 against single digits for the other tier III cards, the
+  best commander KO of the set), and it contradicted §5.1's Slow Fuse reasoning (+1 to eight stats
+  for every unit for the rest of the run is not a tier II-III bet). Re-tuned to the two strongest growths
+  (`{ value: 1, stats: 2 }`). `sim:strategy --section blessings --only
+  late_bloom,iron_oath,merchant_bane --seeds 12 --difficulty dusk`, each against its own base row:
+  as first built Δsquad A3 +76, Δlords A3 +64, commander KO 40.3% (base 57.2%); re-tuned Δsquad
+  A3 +30, Δlords A3 +16, commander KO 53.9% (base 57.4%), between Iron Oath (45.7%) and no
+  blessing, as the target asked. Its squad gain is still the largest of the three (Iron Oath +9,
+  Merchant Bane +11), so it remains the strongest growth card of tier III.
+- **Dawn Tithe** pays with the turn bonus in `prepareBattleRewards`, after the victory commit, so
+  a Debt never garnishes it, and counts turns under the map's OWN par (Patient Dawn's turns taken
+  off: holding both never pays for stretched turns). Nothing on a battle without par. The reward
+  header names it ("Dawn Tithe: +N gold"). The strategy sim pays no turn gold, so it cannot see it.
+- **Lone Banner** is two existing boons behind an intrinsic price ("Deploy one fewer unit in every
+  battle", 3 points); `resolveDeployLimits` never takes the cap below an act's minimum, and a
+  recruit node's join level averages the squad that rule fields
+  (`RecruitNodeSystem.resolveRecruitNodeLevel`), so Lone Banner with Act 1's deploy price on top
+  (−2 in all) still averages Act 1's three.
+- **Cavalier's Hour** writes uid-keyed deltas into `battleParams.battleDebuffs` by each unit's move
+  type at battle time (Cavalry and Flying +1 MOV, Infantry +1 DEF, Armored nothing; the card says
+  "foot soldiers +1 DEF (not Armored)"), beside a Lingering Injury's delta, applied once
+  at a fresh start by `BattleStatDeltas.applyBattleStartDebuffs` in the scene and the harness and
+  taken back with every battle delta. A recruit who joins mid-battle (Talk) takes none.
+- **Saint's Reserve**: `engine/StaffBlessings.staffRunOptions(run, unit)` gives a PLAYER unit's
+  staves `bonusUses`; `Combat.getStaffMaxUses` / `getStaffRemainingUses` take it, and so does
+  `StaffSettlement.validateStaffAction` (`staffOptions`). Every caller (the battle menu, the heal,
+  the roster and unit sheets, trade panes, the reward card, the shop comparison, the harness)
+  passes it (`tests/StaffBlessingBoundary.test.js`); the enemy AI never does.
+- **Cutpurse's Luck** sets `battleParams.carryPasses` (2): `EnemyCarry.assignEnemyCarry` runs the
+  carry roll again on its own stream over the spawns still empty-handed, so the first pass is the
+  roll without the card and the expected carriers double (a pass at 0.3 with one slot each gives
+  0.6 a battle). Each pass has its own `maxPerBattle`, so a battle can hold twice as many
+  carriers. It is written into the map at generation, so a locked map keeps its carriers.
+  A player thief's Steal skips the speed check (`ShrineBoons.stealRunOptions` → Steal's
+  `ignoreSpeed`); room is still checked, and a foe thief never gains it.
+- **Open Roll**: every open recruit node gains `node.recruitAlternate`, drawn on its own stream
+  (`recruit-preview-alt:`) and preferring another class; its name is promised like the preview's.
+  The loom card shows the second candidate and a "Meet X instead" button
+  (`RunManager.swapRecruitCandidate`, saved at once) until the encounter is set; the node's unit
+  stream builds whichever candidate the player meets. A node whose lord roll hits shows no choice
+  (both candidates would be the same lord).
+- **Watcher's Grace** grants its charge in `beginBattleInProgress` AFTER the entry snapshot (so
+  Continue from Map takes it back) on every boss node (the final boss and the Entity included),
+  recorded as `battleInProgress.bossVisionGranted`; the victory takes back what the battle's
+  rewinds did not spend. The scene calls it at a fresh start only, so a resume never grants twice.
+  A battle that never reached its first checkpoint (a refresh or Save & Exit on the boss card, or a
+  `beginBattle` that threw) gives the grant back: `fromJSON` restores the flag's entry Vision when
+  it drops a checkpoint-less flag that granted one, and `beginBattleInProgress` does the same for
+  a checkpoint-less flag still in memory, so neither path can farm charges.
+- **Patient Dawn**: `battleParams.blessingParTurns`, added last by `calculatePar` (after the seize
+  floor), through `TurnBonusCalculator.battleParMapParams`, the one builder BattleScene and the
+  harness share. The boss enrage turn, the Eclipse's shadow and a contract's "under par" read the
+  raised par; a chapter without par has none. So the enrage can land past turn 12 (intended): a
+  map whose own par is 10 has par 12, and the enrage floor (`bossEnrageMinOverPar`, one turn past
+  par) puts the enrage on turn 13.
+- **Twin Chapel**: `churchVowByNodeId[node]` is a string for one vow (every save before) and the
+  list of distinct vows once a second is made; a vow already made stays open (promotions), the
+  same vow never counts twice, and a third is refused. The church names both vows made, and its
+  vow line counts the vows from `extraChurchVows` ("two different vows per church"). The altar
+  stays open after a promotion or a cleansing (`ChurchMenu.renderBlessings` hides it only once the
+  blessing vow is made).
+- **Omen Reader**: `nodeFallExemption` takes `spareTypes` (recruit), threaded through
+  `applyEclipse` (in play and on load) and `buildEclipseView`; the view marks the next two falls
+  among nodes that can fall now `foretold`. A fall is every node at one threshold (they fall
+  together), so ranks are distinct thresholds, lowest first: every node at a marked threshold takes
+  its rank (`omenRank`) and `omenShared` (how many fall with it), and marking stops once two ranks
+  are filled (review: about a fifth of maps tie the two lowest nodes, and a quarter leave an
+  unmarked node on #2's threshold). The route map rings them with their number, and the card says
+  "Omen: the dark takes this knot next" (", with one other" for a tie). With the Eclipse off (no
+  run today) the card and its price would do nothing yet could be offered: a TODO for D3's
+  `requires`.
+- **Lottery Loot**: the battle's own draw is made first, unchanged (the same cards before the
+  last, the same Math.random cursor); then its last card is drawn from the next act's table under
+  a seeded stream `lottery-loot:${seed}:${node}:${round}` (round n for the n-th Branching Threads
+  reroll). A table with no positive non-gold weight is never drawn (the final boss's pays only
+  gold): the act then draws its own table (First Light Act III, Nightfall and Black Sun Act IV,
+  Dusk's last act), and a gold-only act has no lottery. When every attempt repeats a card already
+  on offer, the battle's own card stays. `draw.lotteryActId` is saved with the reward, so a reroll
+  draws from the same table. Authored (prologue) loot is untouched. A card from the next act reads
+  "Lottery: from the next act's spoils"; one from the act's own table says nothing
+  (`LotteryLoot.lotteryCardLine`).
+- **Known limitation: an older build re-saving a newer save.** Two new save shapes are dropped by
+  a build from before this PR when it loads and re-saves the run: a Late Bloom act-start grant
+  (`kind: 'army_stats'`; the old grant sanitiser keeps only gold and items, so the card stops
+  paying) and a church's list of vows (Twin Chapel; the old reader keeps a string vow only, so the
+  church's vows are forgotten). Nothing else is lost; a run is only affected when a player moves a
+  save back to an older client (a cached tab, or the cloud copy read by one).
 
 ## 6. Earned blessings
 
@@ -673,7 +782,7 @@ growth, XP and gold cards it can see.
 4. Earned blessings: the `earned` flag, the act-boss pick, and four pure ones (Unbroken
    Banner, Second Dawn, Ember Lantern, Captain's Whistle). Built (§6.4).
 5. The special church, the twisted earned blessings, the gifts with a catch, and the rest of
-   §5.
+   §5. Built: the rest of §5 (PR D4).
 
 ## Open questions
 

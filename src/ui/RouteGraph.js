@@ -136,6 +136,13 @@ function crackSvg() {
   return svg;
 }
 
+/** 2 -> "2nd", 3 -> "3rd" (an omen's place in the falls to come). */
+function ordinal(n) {
+  const k = Math.trunc(Number(n) || 0);
+  const suffix = k % 100 >= 11 && k % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][k % 10] || 'th';
+  return `${k}${suffix}`;
+}
+
 function span(className, text) {
   const el = document.createElement('span');
   el.className = className;
@@ -213,8 +220,13 @@ export function createRouteGraph({
     b.classList.toggle('is-dark-omen', fallen && n.darkOmen === true);
     const waning = !fallen && !!eclipseInfo?.near && state !== 'done' && state !== 'current';
     b.classList.toggle('is-waning', waning);
+    // Omen Reader: the next falls are foretold (EclipseSystem.buildEclipseView `foretold`).
+    const foretold = !fallen && eclipseInfo?.foretold === true && state !== 'done';
+    b.classList.toggle('is-foretold', foretold);
     const stateText = state === 'current' ? currentLabel : STATE_TEXT[state];
-    const warn = waning ? ` · falls in ${eclipseInfo.remaining} shadow` : '';
+    const omenShared = foretold ? Math.max(0, Math.trunc(Number(eclipseInfo.omenShared) || 0)) : 0;
+    const omenWith = omenShared ? `, with ${omenShared} other${omenShared === 1 ? '' : 's'}` : '';
+    const warn = `${waning ? ` · falls in ${eclipseInfo.remaining} shadow` : ''}${foretold ? ` · omen: falls ${eclipseInfo.omenRank === 1 ? 'next' : `${ordinal(eclipseInfo.omenRank)}`}${omenWith}` : ''}`;
     b.setAttribute(
       'aria-label',
       `${nodeLabel(n)} · ${stateText}${warn} · row ${n.row + 1} lane ${n.col + 1}`,
@@ -232,6 +244,11 @@ export function createRouteGraph({
       bite.style.setProperty('--bite', String(Math.max(1, Math.min(3, eclipseInfo.remaining))));
       bite.append(span('re-eclipse-bite-disc'));
       b.append(bite);
+    }
+    if (foretold) {
+      const omen = span('re-omen-mark');
+      omen.textContent = String(eclipseInfo.omenRank || 1);
+      b.append(omen);
     }
     if (isEliteBattle(n) && !fallen) b.append(crackSvg());
     if (state === 'current') b.append(span('re-loom-here'));

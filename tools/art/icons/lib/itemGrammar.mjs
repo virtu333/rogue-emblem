@@ -661,8 +661,12 @@ export const UPGRADE_ICON_REUSE = Object.freeze({
  * mobile texture budget in tests/ItemIcons.test.js). A new blessing without a picture of its
  * own adds a line here instead of a cell: Gambler's Toss wears the Gambler's Coin, Slow Fuse
  * the Scout's Blessing banner, Bloodless Art the Blood Gem, Phalanx Rite the Phalanx Band and
- * Duelist's Creed the Duelist's Glove. The target must be an icon with a cell of its own. An
- * earned blessing (no tier) takes the Legend rim.
+ * Duelist's Creed the Duelist's Glove. An earned blessing (no tier) takes the Legend rim. The rest
+ * of §5 (PR D4): Late Bloom the herb, Dawn Tithe the Coin of Fate, Lone Banner the deploy-limit
+ * banner, Cavalier's Hour the Mounted Seal, Saint's Reserve the staff upgrade, Cutpurse's Luck the
+ * Steal Scroll, Open Roll the extra-recruit pool, Watcher's Grace the Talisman, Patient Dawn the
+ * Soothing Stone, Twin Chapel the Angelic Robe, Omen Reader the Warding Charm and Lottery Loot the
+ * loot-quality chest. The target must be an icon with a cell of its own.
  */
 export const BLESSING_ICON_REUSE = Object.freeze({
   gamblers_toss: 'gamblers-coin',
@@ -678,6 +682,18 @@ export const BLESSING_ICON_REUSE = Object.freeze({
   second_dawn: 'upgrade-vision_charges_2',
   ember_lantern: 'phoenix-brooch',
   captains_whistle: 'upgrade-heros_call',
+  late_bloom: 'herb',
+  dawn_tithe: 'blessing-coin_of_fate',
+  lone_banner: 'upgrade-deploy_limit',
+  cavaliers_hour: 'mounted-seal',
+  saints_reserve: 'upgrade-staff_upgrade',
+  cutpurses_luck: 'steal-scroll',
+  open_roll: 'upgrade-extra_starting_unit_pool',
+  watchers_grace: 'talisman',
+  patient_dawn: 'soothing-stone',
+  twin_chapel: 'angelic-robe',
+  omen_reader: 'warding-charm',
+  lottery_loot: 'upgrade-loot_quality',
 });
 
 /**

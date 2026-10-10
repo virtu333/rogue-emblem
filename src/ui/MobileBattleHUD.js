@@ -1562,7 +1562,9 @@ export class MobileBattleHUD {
       item.label.startsWith(EQUIPPED_MARKER);
     // Weapon and item rows show a one-line brief; a long press opens the row's
     // full stats and effect in place (and closes it again).
-    const detail = item.description ? '' : battleItemSummary(item.item, menu.unit);
+    const detail = item.description
+      ? ''
+      : battleItemSummary(item.item, menu.unit, { run: s.runManager });
     const expanded = Boolean(detail) && this.expandedItem === item.item;
     const button = this.button(
       equippedRow ? item.label.slice(EQUIPPED_MARKER.length) : item.label,
@@ -1606,7 +1608,7 @@ export class MobileBattleHUD {
       button.setAttribute('aria-label', item.label);
       button.setAttribute('aria-description', item.note);
     } else if (detail) {
-      const brief = battleItemBrief(item.item, menu.unit);
+      const brief = battleItemBrief(item.item, menu.unit, { run: s.runManager });
       button.append(el('small', 'mb-item-summary', expanded ? detail : brief));
       // Screen readers always hear every stat and the effect.
       button.setAttribute('aria-description', detail);

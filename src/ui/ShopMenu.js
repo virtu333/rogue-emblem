@@ -80,7 +80,8 @@ export class ShopMenu {
   /** Catalogs the equip comparison names arts and imbues from. */
   compareOptions() {
     const data = this.scene.gameData || {};
-    return { arts: data.weaponArts?.arts || [], imbues: data.imbues };
+    // `run`: a staff's uses for a unit count the run's blessing uses (Saint's Reserve).
+    return { arts: data.weaponArts?.arts || [], imbues: data.imbues, run: this.run || null };
   }
   open() {
     if (this.surface || this.destroyed) return;

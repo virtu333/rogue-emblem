@@ -31,6 +31,7 @@ import {
   RECRUIT_SKILL_POOL,
 } from '../utils/constants.js';
 import { createSeededRng } from './BlessingEngine.js';
+import { resolveDeployLimits } from './BattleDeployCount.js';
 import {
   createBossLordUnit,
   getAvailableLords,
@@ -155,8 +156,12 @@ export function ensureRecruitPreviews(
   if (!Array.isArray(pool) || pool.length === 0) return 0;
   const namePool = recruits?.namePool || {};
   const taken = namesInUse({ usedRecruitNames, roster, fallenUnits });
-  for (const node of nodes)
+  for (const node of nodes) {
     if (isValidPreview(node?.recruitPreview)) taken.add(node.recruitPreview.name);
+    // An Open Roll alternate is promised too (none exist without the blessing, so this changes
+    // nothing for a run that does not hold it).
+    if (isValidPreview(node?.recruitAlternate)) taken.add(node.recruitAlternate.name);
+  }
   let created = 0;
   for (const node of nodes) {
     if (node?.type !== 'recruit' || node.completed) continue;
@@ -173,6 +178,70 @@ export function ensureRecruitPreviews(
     created++;
   }
   return created;
+}
+
+/**
+ * Open Roll (docs/specs/blessings-v3.md §5.3): give every open recruit node a second candidate,
+ * `node.recruitAlternate = { v, className, name }`, when it has none. Drawn on its own stream
+ * (`recruit-preview-alt:${runSeed}:${nodeId}`), so the node's preview, the node-map stream and
+ * the unit stream (`recruit-unit:…`, which builds whichever candidate the player meets) never
+ * move. It prefers a class other than the preview's, and a name no unit, preview or alternate on
+ * the map holds. Completed, eclipsed and locked nodes are left alone (their encounter is set).
+ * Idempotent.
+ * @returns {number} how many alternates were created
+ */
+export function ensureRecruitAlternates(
+  nodeMap,
+  { runSeed, recruits, usedRecruitNames = {}, roster = [], fallenUnits = [] } = {},
+) {
+  const nodes = Array.isArray(nodeMap?.nodes) ? nodeMap.nodes : [];
+  const actId = nodeMap?.actId || null;
+  const pool = recruits?.[actId]?.classPool;
+  if (!Array.isArray(pool) || pool.length === 0) return 0;
+  const namePool = recruits?.namePool || {};
+  const taken = namesInUse({ usedRecruitNames, roster, fallenUnits });
+  for (const node of nodes) {
+    if (isValidPreview(node?.recruitPreview)) taken.add(node.recruitPreview.name);
+    if (isValidPreview(node?.recruitAlternate)) taken.add(node.recruitAlternate.name);
+  }
+  let created = 0;
+  for (const node of nodes) {
+    if (node?.type !== 'recruit' || node.completed || node.eclipse || node.encounterLocked)
+      continue;
+    if (!isValidPreview(node.recruitPreview) || isValidPreview(node.recruitAlternate)) continue;
+    const rng = createSeededRng(recruitHash(`recruit-preview-alt:${seedBase(runSeed)}:${node.id}`));
+    const others = pool.filter((c) => c !== node.recruitPreview.className);
+    const classes = others.length ? others : pool;
+    const className = classes[Math.floor(rng() * classes.length)];
+    const names = Array.isArray(namePool[className]) ? namePool[className] : [];
+    const free = names.filter((n) => !taken.has(n));
+    const name = free.length
+      ? free[Math.floor(rng() * free.length)]
+      : uniqueName(names.length ? names[Math.floor(rng() * names.length)] : className, taken);
+    taken.add(name);
+    node.recruitAlternate = { v: RECRUIT_PREVIEW_VERSION, className, name };
+    created++;
+  }
+  return created;
+}
+
+/**
+ * Open Roll: meet the node's other candidate instead. Swaps `recruitPreview` and
+ * `recruitAlternate` in place (the unit stream is the node's, so each candidate is built the
+ * same whichever way round). Refused once the encounter is locked, the node is done or fallen,
+ * or there is no alternate.
+ * @returns {{ ok: true, preview: object } | { ok: false, reason: string }}
+ */
+export function swapRecruitAlternate(node) {
+  if (node?.type !== 'recruit') return { ok: false, reason: 'not_recruit' };
+  if (node.completed || node.eclipse) return { ok: false, reason: 'closed' };
+  if (node.encounterLocked) return { ok: false, reason: 'locked' };
+  if (!isValidPreview(node.recruitPreview) || !isValidPreview(node.recruitAlternate))
+    return { ok: false, reason: 'no_alternate' };
+  const preview = node.recruitAlternate;
+  node.recruitAlternate = node.recruitPreview;
+  node.recruitPreview = preview;
+  return { ok: true, preview };
 }
 
 /**
@@ -222,7 +291,12 @@ export function resolveRecruitNodeLevel({
   deployBonus = 0,
   recruitLevelBonus = 0,
 } = {}) {
-  const deployCap = (DEPLOY_LIMITS[act]?.max || 4) + Math.trunc(Number(deployBonus) || 0);
+  // The squad you can field: the deploy screen's own limit (a deploy price never takes it below
+  // the act's minimum, so a stacked negative bonus never shrinks the squad further).
+  const deployCap = resolveDeployLimits({
+    base: DEPLOY_LIMITS[act] || { min: 3, max: 4 },
+    deployBonus,
+  }).max;
   const cap = Math.max(1, Math.min(RECRUIT_NODE_LEVEL_SQUAD_MAX, deployCap));
   const levels = (Array.isArray(roster) ? roster : [])
     .filter(contributesToTeamLevel)

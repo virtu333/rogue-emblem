@@ -27,7 +27,11 @@
   },
   "earnedOffer": {
     "actBoss": 2,
-    "weightByHeld": [1, 0.85, 0.7]
+    "weightByHeld": [
+      1,
+      0.85,
+      0.7
+    ]
   },
   "priceCatalog": {
     "debt_small": {
@@ -117,7 +121,7 @@
     },
     "commander_injury": {
       "label": "Lingering Injury on your commander",
-      "points": 3,
+      "points": 2,
       "effects": [
         {
           "type": "burden",
@@ -693,7 +697,10 @@
           "sworn_enemy",
           "act1_def_down_1"
         ],
-        "commander_injury"
+        [
+          "commander_injury",
+          "act1_hit_down"
+        ]
       ],
       "costs": [],
       "excludes": [
@@ -888,7 +895,10 @@
       "prices": [
         "debt_large",
         "growths_down",
-        "commander_injury"
+        [
+          "commander_injury",
+          "act1_hit_down"
+        ]
       ],
       "costs": []
     },
@@ -1021,6 +1031,317 @@
         [
           "hunted",
           "act1_def_down_1"
+        ]
+      ],
+      "costs": []
+    },
+    {
+      "id": "late_bloom",
+      "name": "Late Bloom",
+      "tier": 3,
+      "weight": 1,
+      "description": "As each act ends, every unit gains +1 in its two strongest growths.",
+      "lore": "Some roots take an age to reach water. When they do, the whole field rises.",
+      "tags": [
+        "growth"
+      ],
+      "boons": [
+        {
+          "type": "act_clear_army_stats",
+          "params": {
+            "value": 1,
+            "stats": 2
+          }
+        }
+      ],
+      "prices": [
+        "debt_large",
+        [
+          "ill_omen",
+          "act1_def_down_1",
+          "act1_hit_down"
+        ]
+      ],
+      "costs": []
+    },
+    {
+      "id": "dawn_tithe",
+      "name": "Dawn Tithe",
+      "tier": 2,
+      "weight": 1,
+      "description": "+100 gold for each turn under par at every victory.",
+      "lore": "An early start is its own reward. The dawn priests prefer it in coin.",
+      "tags": [
+        "gold"
+      ],
+      "boons": [
+        {
+          "type": "under_par_gold",
+          "params": {
+            "perTurn": 100
+          }
+        }
+      ],
+      "prices": [
+        "shadow_now",
+        "staff_heal_down"
+      ],
+      "costs": []
+    },
+    {
+      "id": "lone_banner",
+      "name": "Lone Banner",
+      "tier": 3,
+      "weight": 1,
+      "description": "Deploy one fewer unit. Every unit gains +25% XP from battles.",
+      "lore": "Fewer hands, heavier loads. The few who carry the banner grow strong under it.",
+      "tags": [
+        "xp"
+      ],
+      "boons": [
+        {
+          "type": "deploy_cap_delta",
+          "params": {
+            "value": -1
+          }
+        },
+        {
+          "type": "xp_multiplier_delta",
+          "params": {
+            "value": 0.25
+          }
+        }
+      ],
+      "intrinsicPrice": {
+        "label": "Deploy one fewer unit in every battle",
+        "points": 3
+      },
+      "costs": []
+    },
+    {
+      "id": "cavaliers_hour",
+      "name": "Cavalier's Hour",
+      "tier": 3,
+      "weight": 1,
+      "description": "Mounted units +1 Move in battle; foot soldiers +1 DEF (not Armored).",
+      "lore": "Riders go first, foot hold fast. Every army knows the hour; few keep it.",
+      "boons": [
+        {
+          "type": "move_type_battle_stats",
+          "params": {
+            "bonuses": [
+              {
+                "moveTypes": [
+                  "Cavalry",
+                  "Flying"
+                ],
+                "stat": "MOV",
+                "value": 1
+              },
+              {
+                "moveTypes": [
+                  "Infantry"
+                ],
+                "stat": "DEF",
+                "value": 1
+              }
+            ]
+          }
+        }
+      ],
+      "prices": [
+        "debt_large",
+        [
+          "sworn_enemy",
+          "act1_hit_down"
+        ]
+      ],
+      "costs": []
+    },
+    {
+      "id": "saints_reserve",
+      "name": "Saint's Reserve",
+      "tier": 2,
+      "weight": 1,
+      "description": "Your staves have +1 use in each battle.",
+      "lore": "A healer's last prayer, held back for the worst hour. It always comes.",
+      "boons": [
+        {
+          "type": "staff_uses_bonus",
+          "params": {
+            "value": 1
+          }
+        }
+      ],
+      "prices": [
+        "debt_small",
+        "ill_omen"
+      ],
+      "costs": []
+    },
+    {
+      "id": "cutpurses_luck",
+      "name": "Cutpurse's Luck",
+      "tier": 3,
+      "weight": 1,
+      "description": "Twice as many foes carry items. Your Steal ignores the speed check.",
+      "lore": "Pockets find you. Purses loosen. It is not luck if it happens every time.",
+      "boons": [
+        {
+          "type": "carrier_luck",
+          "params": {
+            "carryMultiplier": 2,
+            "stealIgnoresSpeed": true
+          }
+        }
+      ],
+      "prices": [
+        [
+          "hunted",
+          "act1_hit_down"
+        ],
+        [
+          "sworn_enemy",
+          "act1_def_down_1"
+        ]
+      ],
+      "costs": []
+    },
+    {
+      "id": "open_roll",
+      "name": "Open Roll",
+      "tier": 3,
+      "weight": 1,
+      "description": "Recruit nodes show two candidates: choose who you meet before you go.",
+      "lore": "The roll is open: two names answer the call, and you choose who waits.",
+      "boons": [
+        {
+          "type": "recruit_alternate",
+          "params": {
+            "value": 1
+          }
+        }
+      ],
+      "prices": [
+        [
+          "recruits_level_down",
+          "debt_small"
+        ],
+        "debt_large"
+      ],
+      "costs": []
+    },
+    {
+      "id": "watchers_grace",
+      "name": "Watcher's Grace",
+      "tier": 2,
+      "weight": 1,
+      "description": "+1 Vision charge on every boss map. Unspent, it fades with the battle.",
+      "lore": "Someone keeps watch for the hardest fights. They will not watch for long.",
+      "boons": [
+        {
+          "type": "boss_battle_vision",
+          "params": {
+            "value": 1
+          }
+        }
+      ],
+      "prices": [
+        "shadow_now",
+        "debt_small"
+      ],
+      "costs": []
+    },
+    {
+      "id": "patient_dawn",
+      "name": "Patient Dawn",
+      "tier": 3,
+      "weight": 1,
+      "description": "Every battle's par is 2 turns higher.",
+      "lore": "The dawn does not rush. Neither need you, if you trust the light to wait.",
+      "boons": [
+        {
+          "type": "par_turn_delta",
+          "params": {
+            "value": 2
+          }
+        }
+      ],
+      "prices": [
+        [
+          "act1_deploy_down",
+          "ill_omen"
+        ],
+        [
+          "ill_omen",
+          "debt_small"
+        ]
+      ],
+      "costs": []
+    },
+    {
+      "id": "twin_chapel",
+      "name": "Twin Chapel",
+      "tier": 2,
+      "weight": 1,
+      "description": "Each church accepts two vows instead of one.",
+      "lore": "Two altars under one roof: the priests stopped arguing and built another.",
+      "boons": [
+        {
+          "type": "church_extra_vows",
+          "params": {
+            "value": 1
+          }
+        }
+      ],
+      "prices": [
+        "debt_small"
+      ],
+      "costs": []
+    },
+    {
+      "id": "omen_reader",
+      "name": "Omen Reader",
+      "tier": 2,
+      "weight": 1,
+      "description": "Route maps mark the next two nodes to fall. The Eclipse spares recruits.",
+      "lore": "Ash in a bowl, read at dusk. The reader never says which way to walk.",
+      "boons": [
+        {
+          "type": "eclipse_omen",
+          "params": {
+            "foretell": 2,
+            "spare": [
+              "recruit"
+            ]
+          }
+        }
+      ],
+      "prices": [
+        "shadow_now"
+      ],
+      "costs": []
+    },
+    {
+      "id": "lottery_loot",
+      "name": "Lottery Loot",
+      "tier": 3,
+      "weight": 1,
+      "description": "One loot card each battle is drawn from the next act's table.",
+      "lore": "A lucky draw now and then. The spoils remember a road you have not walked.",
+      "boons": [
+        {
+          "type": "next_act_loot_card",
+          "params": {
+            "count": 1
+          }
+        }
+      ],
+      "prices": [
+        "debt_large",
+        [
+          "sworn_enemy",
+          "act1_hit_down"
         ]
       ],
       "costs": []

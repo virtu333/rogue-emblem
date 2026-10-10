@@ -101,6 +101,7 @@ import {
   applyBattleStartDebuffs,
   clearBattleScopedDeltas,
 } from '../engine/BattleStatDeltas.js';
+import { staffRunOptions } from '../engine/StaffBlessings.js';
 import {
   applyCombatHP,
   applyStrikeHP,
@@ -298,6 +299,7 @@ import {
 } from '../engine/LootSystem.js';
 import {
   calculatePar,
+  battleParMapParams,
   getRating,
   getLatePressureState,
   getBossEnrageTurn,
@@ -1827,8 +1829,9 @@ export class BattleScene extends Phaser.Scene {
         for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
           unit._phoenixBroochUsed = false;
         }
-        // The Lingering Injury burden (id `wounded`, engine/Burdens.js): it is a battle stat delta applied once,
-        // here, so the first forecast already shows it. A resume's units carry it already.
+        // The Lingering Injury burden (id `wounded`, engine/Burdens.js) and Cavalier's Hour (by move
+        // type, engine/ShrineBoons.js): battle stat deltas applied once, here, so the first forecast
+        // already shows them. A resume's units carry them already.
         applyBattleStartDebuffs(this.playerUnits, this.battleParams?.battleDebuffs);
       }
 
@@ -1857,18 +1860,12 @@ export class BattleScene extends Phaser.Scene {
       this.turnPar = null;
       this.turnBonusConfig = this.gameData.turnBonus;
       if (this.turnBonusConfig && this.battleConfig && !this.battleConfig.hidePar) {
-        const mapParams = {
-          cols: this.battleConfig.cols,
-          rows: this.battleConfig.rows,
+        // One builder with the harness (Patient Dawn's turns ride battleParams).
+        const mapParams = battleParMapParams(this.battleConfig, {
           enemyCount: this.enemyUnits.length,
-          objective: this.battleConfig.objective,
-          mapLayout: this.battleConfig.mapLayout,
           terrainData: this.gameData.terrain,
-          parBonus: this.battleConfig.parBonus || 0,
-          parInflation: this.battleConfig.parInflation,
-          parOffset: this.battleConfig.parOffset,
-          parFloor: this.battleConfig.parFloor,
-        };
+          battleParams: this.battleParams,
+        });
         this.turnPar = calculatePar(
           mapParams,
           this.turnBonusConfig,
@@ -6295,8 +6292,9 @@ export class BattleScene extends Phaser.Scene {
     // Silence blocks staff healing
     if (!silenced && preferredHealOption) {
       const preferred = preferredHealOption.staff;
-      const rem = getStaffRemainingUses(preferred, unit);
-      const max = getStaffMaxUses(preferred, unit);
+      const staffOptions = staffRunOptions(this.runManager, unit);
+      const rem = getStaffRemainingUses(preferred, unit, staffOptions);
+      const max = getStaffMaxUses(preferred, unit, staffOptions);
       // Warp/Rescue staves relocate instead of healing — label generically.
       const verb = preferred.relocate ? 'Staff' : 'Heal';
       command('staff', `${verb} (${rem}/${max})`, staff);
@@ -7205,7 +7203,7 @@ export class BattleScene extends Phaser.Scene {
         this,
         ix,
         iy + 8,
-        row.description || battleItemBrief(row.item, unit),
+        row.description || battleItemBrief(row.item, unit, { run: this.runManager }),
         {
           fontFamily: 'Arial',
           fontSize: '10px',

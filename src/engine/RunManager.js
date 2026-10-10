@@ -38,7 +38,6 @@ import {
   REVIVE_COST_PER_LEVEL,
   REVIVE_PROMOTION_MULTIPLIER,
   RUINS_PATHS,
-  CHURCH_VOWS,
   INVENTORY_MAX,
 } from '../utils/constants.js';
 import { calculateBattleGold } from './LootSystem.js';
@@ -107,8 +106,10 @@ import {
   RECRUIT_PREVIEW_VERSION,
   isRecruitBattleNode,
   buildRecruitNodeUnit,
+  ensureRecruitAlternates,
   ensureRecruitPreviews,
   resolveRecruitNodeSpawnClass,
+  swapRecruitAlternate,
 } from './RecruitNodeSystem.js';
 import {
   applyArcsOnActEntry,
@@ -195,6 +196,15 @@ import { settleContract } from './ContractSettlement.js';
 import { everFallenUnits } from './LaidToRest.js';
 import { stampExtraShops } from './ExtraShopPass.js';
 import { BLESSING_BOON_REVISION, migrateHeldBlessingBoons } from './BlessingBoonMigration.js';
+import { normalizeChurchVows } from './ChurchVow.js';
+import {
+  applyShrineBoon,
+  createShrineBoonModifiers,
+  lateBloomStats,
+  moveTypeBattleDeltas,
+  sanitizeShrineBoonModifiers,
+  shrineBoonsOf,
+} from './ShrineBoons.js';
 import { createSpecialCharacter } from './SpecialCharacters.js';
 
 // Phaser-specific fields that must be stripped for serialization
@@ -293,11 +303,17 @@ function sanitizeRuinsChoices(raw) {
   return out;
 }
 
+// A church's vow: one vow (a string, as every save before Twin Chapel), or the distinct vows
+// made there (an array, once Twin Chapel's second vow is made). A one-vow list is kept a string.
 function sanitizeChurchVows(raw) {
   const out = {};
   if (!isPlainObject(raw)) return out;
-  for (const [nodeId, vow] of Object.entries(raw))
-    if (nodeId && CHURCH_VOWS.includes(vow)) out[nodeId] = vow;
+  for (const [nodeId, entry] of Object.entries(raw)) {
+    if (!nodeId) continue;
+    const vows = normalizeChurchVows(entry);
+    if (vows.length === 1) out[nodeId] = vows[0];
+    else if (vows.length > 1) out[nodeId] = vows;
+  }
   return out;
 }
 
@@ -341,7 +357,7 @@ function createBlessingRuntimeModifiers() {
     deployCapDeltaByAct: {},
     churchReviveDisabled: false,
     // Grants a blessing pays as each act begins (Advance Pay's gold, Quartermaster Cache's
-    // Elixir): `{ blessingId, kind: 'gold'|'item', value?, itemName?, count?, paidActs }`.
+    // Elixir, Second Dawn's Vision, Late Bloom's stats): `{ blessingId, kind: 'gold'|'vision'|'army_stats'|'item', value?, stats?, itemName?, count?, paidActs }`.
     // `paidActs` is what makes a grant pay once per act, however often a save is loaded.
     actStartGrants: [],
     // Smith's Mark: how many forge uses (a forge or a repair) a shop gives free, counted from
@@ -352,6 +368,10 @@ function createBlessingRuntimeModifiers() {
     lordStatArcs: [],
     // Gambler's Toss: `{ chance, win, lose }` while held (engine/BattleGoldGamble.js).
     battleGoldGamble: null,
+    // The rest of the §5 starting blessings (Dawn Tithe, Cavalier's Hour, Saint's Reserve,
+    // Cutpurse's Luck, Open Roll, Watcher's Grace, Patient Dawn, Twin Chapel, Omen Reader,
+    // Lottery Loot): engine/ShrineBoons.js owns their fields and their load defaults.
+    ...createShrineBoonModifiers(),
     // Earned blessings (docs/specs/blessings-v3.md §6): how many allies the Unbroken Banner
     // saves per battle, the HP the Ember Lantern's first kill heals and the MOV the Captain's
     // Whistle gives on turn 1. Read through getBattleBlessingEffects; the battle reads them
@@ -383,9 +403,18 @@ function sanitizeActStartGrants(list) {
       ? [...new Set(entry.paidActs.filter((act) => typeof act === 'string' && act))]
       : [];
     if (entry.kind === 'gold' || entry.kind === 'vision') {
+      // Gold (Advance Pay) or Vision (Second Dawn).
       const value = Math.trunc(Number(entry.value));
       if (value > 0)
         grants.push({ blessingId: entry.blessingId, kind: entry.kind, value, paidActs });
+    } else if (entry.kind === 'army_stats') {
+      // Late Bloom: +value in each unit's `stats` strongest growths (a grant saved without the
+      // count gave every stat but Move, so it reads as all eight).
+      const value = Math.trunc(Number(entry.value));
+      const count = Math.trunc(Number(entry.stats));
+      const stats = count >= 1 && count <= XP_STAT_NAMES.length ? count : XP_STAT_NAMES.length;
+      if (value > 0)
+        grants.push({ blessingId: entry.blessingId, kind: 'army_stats', value, stats, paidActs });
     } else if (entry.kind === 'item') {
       const count = Math.trunc(Number(entry.count));
       if (typeof entry.itemName === 'string' && entry.itemName && count > 0)
@@ -2831,6 +2860,13 @@ export class RunManager {
       return;
     }
 
+    // The rest of the §5 starting blessings (engine/ShrineBoons.js): null when not one of them.
+    const shrine = applyShrineBoon(this, blessingId, effect);
+    if (shrine) {
+      this._recordBlessingEvent('run_start', blessingId, effect, shrine);
+      return;
+    }
+
     if (effect.type === 'act_start_vision_delta') {
       // Second Dawn: +value Vision as each act begins (an act-start grant, paid by
       // _payActStartGrants). The take happens at an act boss, before advanceAct, so the act it
@@ -3038,6 +3074,42 @@ export class RunManager {
           blessingName,
           kind: 'gold',
           value: grant.value,
+        });
+        continue;
+      }
+      if (grant.kind === 'army_stats') {
+        // Late Bloom: every unit, the fallen included (a revived ally has kept pace), gains the
+        // value in the stats its growths favour (ShrineBoons.lateBloomStats: never Move, no
+        // randomness). A living unit's HP gain raises its current HP with it (UnitHealth); the
+        // fallen gain none (a revival sets it).
+        const count = grant.stats ?? XP_STAT_NAMES.length;
+        const classes = this.gameData?.classes || [];
+        const living = (this.roster || []).filter((unit) => unit?.stats);
+        const fallen = (this.fallenUnits || []).filter((unit) => unit?.stats);
+        for (const unit of [...living, ...fallen]) {
+          for (const stat of lateBloomStats(unit, count, classes)) {
+            unit.stats[stat] = (Number(unit.stats[stat]) || 0) + grant.value;
+            if (stat === 'HP' && !fallen.includes(unit))
+              setUnitHP(unit, (Number(unit.currentHP) || 0) + grant.value);
+          }
+        }
+        this._recordBlessingEvent(
+          stage,
+          grant.blessingId,
+          { type: 'act_clear_army_stats', params: { value: grant.value, stats: count } },
+          {
+            appliedValue: grant.value,
+            act,
+            units: [...living, ...fallen].map((unit) => unitUidOf(unit)),
+          },
+        );
+        paid.push({
+          blessingId: grant.blessingId,
+          blessingName,
+          kind: 'army_stats',
+          value: grant.value,
+          stats: count,
+          units: living.length + fallen.length,
         });
         continue;
       }
@@ -3691,6 +3763,8 @@ export class RunManager {
       if (!isRecruitBattleNode(node) || node.completed || node.id === excludeNodeId) continue;
       const names = [
         node.recruitPreview?.name,
+        // Open Roll: the candidate not (yet) chosen is promised too, until the node is done.
+        node.recruitAlternate?.name,
         this.battleConfigsByNodeId?.[node.id]?.npcSpawn?.name,
       ];
       for (const name of names)
@@ -4131,13 +4205,45 @@ export class RunManager {
         };
       }
     }
-    return ensureRecruitPreviews(this.nodeMap, {
+    const context = {
       runSeed: this.runSeed,
       recruits: this.gameData?.recruits,
       usedRecruitNames: this.usedRecruitNames,
       roster: this.roster,
       fallenUnits: everFallenUnits(this),
-    });
+    };
+    const created = ensureRecruitPreviews(this.nodeMap, context);
+    // Open Roll: every open recruit node also shows a second candidate (its own stream).
+    if (shrineBoonsOf(this).recruitAlternates > 0 && !isPrologueRun(this))
+      return created + ensureRecruitAlternates(this.nodeMap, context);
+    return created;
+  }
+
+  /**
+   * Open Roll: meet the other candidate at a recruit node (the loom's "Meet X instead"). The
+   * node's preview and alternate change places; refused without the blessing, or once the
+   * encounter is locked. The caller saves the run.
+   * @returns {{ ok: true, preview: object } | { ok: false, reason: string }}
+   */
+  swapRecruitCandidate(nodeId) {
+    if (shrineBoonsOf(this).recruitAlternates <= 0 || isPrologueRun(this))
+      return { ok: false, reason: 'no_blessing' };
+    if (this.battleConfigsByNodeId?.[nodeId]) return { ok: false, reason: 'locked' };
+    return swapRecruitAlternate(this.nodeMap?.nodes?.find((n) => n.id === nodeId));
+  }
+
+  /**
+   * Open Roll: the other candidate a recruit node could swap in now (`{ className, name }`), or
+   * null (no blessing, no alternate, a locked, done or fallen node).
+   */
+  getRecruitAlternate(nodeId) {
+    if (shrineBoonsOf(this).recruitAlternates <= 0 || isPrologueRun(this)) return null;
+    const node = this.nodeMap?.nodes?.find((n) => n.id === nodeId);
+    if (node?.type !== 'recruit' || node.completed || node.eclipse || node.encounterLocked)
+      return null;
+    if (this.battleConfigsByNodeId?.[nodeId]) return null;
+    const alt = node.recruitAlternate;
+    return typeof alt?.className === 'string' && typeof alt?.name === 'string' ? alt : null;
   }
 
   /**
@@ -4311,6 +4417,16 @@ export class RunManager {
     battleParams.siegeWeaponConfig = this.difficultyModifiers?.siegeWeaponConfig ?? null;
     // Carried items (EnemyCarry.js): a run saved before the table existed has none.
     battleParams.carryConfig = this.difficultyModifiers?.carryConfig ?? null;
+    // Cutpurse's Luck: the map makes this many carry rolls (EnemyCarry's second pass rolls on
+    // its own stream, so the first pass's carriers are the same with or without it). Only
+    // written when it changes something, so other runs' params are as they were.
+    const shrine = shrineBoonsOf(this);
+    if (shrine.carryMultiplier > 1 && battleParams.carryConfig)
+      battleParams.carryPasses = shrine.carryMultiplier;
+    else delete battleParams.carryPasses;
+    // Patient Dawn: turns TurnBonusCalculator.calculatePar adds to the map's par, last.
+    if (shrine.parTurnDelta > 0) battleParams.blessingParTurns = shrine.parTurnDelta;
+    else delete battleParams.blessingParTurns;
     // Battle pacing (docs/specs/dusk-pressure.md), written into the map when it is
     // generated: the rout ladder, the rung's par inflation, and whether template waves
     // raise par. A run saved before these existed keeps none of them (DIFFICULTY_DEFAULTS).
@@ -4342,7 +4458,9 @@ export class RunManager {
     if (bossBattle && isSwornEnemy(this))
       battleParams.swornEnemy = { seed: eclipseHash(`sworn:${this.runSeed}:${node.id}`) };
     else delete battleParams.swornEnemy;
-    const debuffs = battleDebuffsFor(this);
+    // Battle-start stat deltas: the Lingering Injury burden's, and Cavalier's Hour's by move
+    // type (engine/ShrineBoons.js). Applied at a fresh start only; taken back at the battle's end.
+    const debuffs = [...battleDebuffsFor(this), ...moveTypeBattleDeltas(this)];
     if (debuffs.length) battleParams.battleDebuffs = debuffs;
     else delete battleParams.battleDebuffs;
     return battleParams;
@@ -4748,6 +4866,12 @@ export class RunManager {
    * battle progresses.
    */
   beginBattleInProgress(nodeId, entryInfo = {}) {
+    // A battle that never reached its first checkpoint (beginBattle threw and sent the player
+    // back to the route map) leaves its flag in memory. A Watcher's Grace it granted goes back
+    // before the new entry snapshot, or the granted charge would become the entry and be
+    // granted again.
+    if (this.battleInProgress && !this.battleInProgress.checkpoint)
+      restoreUncheckpointedBossVision(this, this.battleInProgress);
     // Healed to full since taking off an HP accessory: the debt is gone before battle.
     for (const unit of this.roster || []) settleAccessoryHpOwed(unit);
     if (this.currentAct === 'act1' && entryInfo.isBoss === true) this.reachedFirstActBoss = true;
@@ -4777,6 +4901,41 @@ export class RunManager {
         : {}),
       checkpoint: null,
     };
+    // Watcher's Grace: a boss map's extra Vision charge, granted AFTER the entry snapshot above,
+    // so Continue from Map (which restores the entry's charges) takes it back, and recorded on
+    // the flag so the victory commit can take back what was not spent. Called at a fresh start
+    // only (a resume keeps the flag it had), so a resume never grants twice.
+    const grace = entryInfo.isBoss === true && !isPrologueRun(this) ? this._bossBattleVision() : 0;
+    if (grace > 0) {
+      const before = Number.isFinite(this.visionChargesRemaining)
+        ? Math.max(0, Math.trunc(this.visionChargesRemaining))
+        : 0;
+      this.visionChargesRemaining = before + grace;
+      this.battleInProgress.bossVisionGranted = grace;
+    }
+  }
+
+  /** Watcher's Grace: Vision charges a boss map grants (0 without it). */
+  _bossBattleVision() {
+    return shrineBoonsOf(this).bossBattleVision;
+  }
+
+  /**
+   * Take back a Watcher's Grace charge the battle did not spend (at its victory). Charges spent
+   * this battle are counted by the rewinds made since entry (`visionCount`); a grace spent is
+   * gone, an unspent one fades with the battle. Never below 0.
+   * @returns {number} the charges taken back
+   */
+  _settleBossBattleVision(flag) {
+    const granted = Math.max(0, Math.trunc(Number(flag?.bossVisionGranted) || 0));
+    if (granted <= 0) return 0;
+    const spent = Number.isFinite(flag.visionCountAtEntry)
+      ? Math.max(0, (Number(this.visionCount) || 0) - flag.visionCountAtEntry)
+      : 0;
+    const before = Math.max(0, Math.trunc(Number(this.visionChargesRemaining) || 0));
+    const takeBack = Math.min(before, Math.max(0, granted - spent));
+    this.visionChargesRemaining = before - takeBack;
+    return takeBack;
   }
 
   /** Attach/replace the suspend checkpoint for the in-progress battle. */
@@ -4844,7 +5003,9 @@ export class RunManager {
    */
   completeBattle(survivingUnits, nodeId, goldEarned = 0, options = {}) {
     // Battle is over either way — never leave a stale suspend flag that
-    // would offer to resume a finished fight on the next load.
+    // would offer to resume a finished fight on the next load. A Watcher's Grace charge the
+    // battle did not spend fades with it (before the act boss's own +1 below).
+    this._settleBossBattleVision(this.battleInProgress);
     this.battleInProgress = null;
     const node = this.openBattleNode(nodeId);
     if (!node) return false;
@@ -5102,6 +5263,8 @@ export class RunManager {
       halfFogChance: this.difficultyId === 'normal',
       // A fallen event that has a dark face to offer stays an event (a Dark Omen).
       darkOmen: (node) => hasDarkOmen(this, node),
+      // Omen Reader: the node types the dark spares (here and on load alike).
+      spareTypes: shrineBoonsOf(this).eclipseSpareTypes,
     });
   }
 
@@ -5116,6 +5279,9 @@ export class RunManager {
       currentNodeId: this.currentNodeId,
       activeNodeId: activeNodeId || this.battleInProgress?.nodeId || null,
       reachableIds,
+      // Omen Reader: spared types never show a fall; the next falls are marked `foretold`.
+      spareTypes: shrineBoonsOf(this).eclipseSpareTypes,
+      foretell: shrineBoonsOf(this).eclipseForetell,
     });
   }
 
@@ -6266,6 +6432,8 @@ export class RunManager {
     rm.blessingRuntimeModifiers.battleGoldGamble = parseBattleGoldGamble(
       rm.blessingRuntimeModifiers.battleGoldGamble,
     );
+    // The rest of the §5 starting blessings: a save from before them reads the defaults.
+    sanitizeShrineBoonModifiers(rm.blessingRuntimeModifiers);
     // Earned blessings: a save from before them holds none.
     for (const field of Object.values(EARNED_BOON_MODIFIERS))
       rm.blessingRuntimeModifiers[field] = Math.max(
@@ -6575,6 +6743,11 @@ export class RunManager {
       typeof rawBattleInProgress.checkpoint === 'object'
         ? rawBattleInProgress
         : null;
+    // The raw data is the pre-battle save except for one write: a Watcher's Grace charge
+    // granted at the fresh start. A flag dropped here takes it back, or a refresh on the boss
+    // card would keep the charge (and a repeat would farm them).
+    if (!rm.battleInProgress && rawBattleInProgress && typeof rawBattleInProgress === 'object')
+      restoreUncheckpointedBossVision(rm, rawBattleInProgress);
 
     // The checkpoint stores its own unit arrays (restored directly into the
     // scene, never through the roster), so legacy ones are healed here too.
@@ -6750,6 +6923,18 @@ export function saveRun(runManager, onSave, slotNumber, { candidate = null } = {
   }
 
   return { ok: true, cloud };
+}
+
+/**
+ * Watcher's Grace on a battle flag that never reached its first checkpoint: restore the entry
+ * Vision the flag recorded (the grant is the only Vision write before that checkpoint). Does
+ * nothing for a flag that granted nothing or recorded no entry.
+ */
+function restoreUncheckpointedBossVision(run, flag) {
+  if (!(Number(flag?.bossVisionGranted) > 0)) return;
+  if (!Number.isFinite(flag.visionChargesAtEntry)) return;
+  run.visionChargesRemaining = Math.max(0, Math.trunc(flag.visionChargesAtEntry));
+  if (Number.isFinite(flag.visionCountAtEntry)) run.visionCount = flag.visionCountAtEntry;
 }
 
 /**
