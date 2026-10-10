@@ -16,7 +16,8 @@
 //   under_par_gold         Dawn Tithe: PendingBattleRewards.prepareBattleRewards, beside the turn
 //                          bonus, so a Debt never garnishes it (`dawnTitheGold`).
 //   move_type_battle_stats Cavalier's Hour: battle stat deltas in `battleParams.battleDebuffs`
-//                          (`moveTypeBattleDeltas`), applied at a fresh start only.
+//                          (`moveTypeBattleDeltas`), applied at a fresh start only; a Talk
+//                          recruit takes its own as it joins (engine/BattleJoinBoons.js).
 //   staff_uses_bonus       Saint's Reserve: engine/StaffBlessings.js `staffRunOptions`.
 //   carrier_luck           Cutpurse's Luck: `battleParams.carryPasses` (EnemyCarry rolls a second
 //                          pass on its own stream) and Steal's `ignoreSpeed` (`stealRunOptions`).
@@ -415,31 +416,48 @@ export function unitMoveType(unit, classes = []) {
   return MOVE_TYPES.includes(cls?.moveType) ? cls.moveType : null;
 }
 
+/** The source Cavalier's Hour's battle deltas carry (`battleParams.battleDebuffs[].source`). */
+export const CAVALIERS_HOUR_SOURCE = 'cavaliers_hour';
+
+/**
+ * Cavalier's Hour for one unit: the battle stat deltas `bonuses` (the held
+ * `moveTypeBattleStats`) give it by its move type now, uid-keyed in the shape of
+ * `battleParams.battleDebuffs`. None for a unit with no uid or no move type. The one rule the
+ * battle's start (`moveTypeBattleDeltas`, the roster) and a mid-battle joiner
+ * (engine/BattleJoinBoons.js) both read.
+ * @returns {Array<{ unitUid: string, stat: string, value: number, source: string }>}
+ */
+export function unitMoveTypeBattleDeltas(unit, bonuses, classes = []) {
+  const uid = unitUidOf(unit);
+  const moveType = unitMoveType(unit, classes);
+  if (!uid || !moveType || !Array.isArray(bonuses)) return [];
+  const deltas = [];
+  for (const bonus of bonuses)
+    if (bonus.moveTypes.includes(moveType))
+      deltas.push({
+        unitUid: uid,
+        stat: bonus.stat,
+        value: bonus.value,
+        source: CAVALIERS_HOUR_SOURCE,
+      });
+  return deltas;
+}
+
 /**
  * Cavalier's Hour: the battle stat deltas each roster unit starts a battle with, by its move
  * type now (a unit promoted onto a horse takes the mounted bonus). The shape of
  * `battleParams.battleDebuffs` (BattleStatDeltas.applyBattleStartDebuffs): uid-keyed, applied at
- * a fresh start only and taken back with every battle delta when the battle ends.
+ * a fresh start only and taken back with every battle delta when the battle ends. A unit that
+ * joins the army mid-battle (a Talk recruit) takes its own by the same rule as it joins
+ * (engine/BattleJoinBoons.js).
  * @returns {Array<{ unitUid: string, stat: string, value: number, source: string }>}
  */
 export function moveTypeBattleDeltas(run, classes = run?.gameData?.classes || []) {
   const bonuses = shrineBoonsOf(run).moveTypeBattleStats;
   if (bonuses.length === 0) return [];
-  const deltas = [];
-  for (const unit of Array.isArray(run?.roster) ? run.roster : []) {
-    const uid = unitUidOf(unit);
-    const moveType = unitMoveType(unit, classes);
-    if (!uid || !moveType) continue;
-    for (const bonus of bonuses)
-      if (bonus.moveTypes.includes(moveType))
-        deltas.push({
-          unitUid: uid,
-          stat: bonus.stat,
-          value: bonus.value,
-          source: 'cavaliers_hour',
-        });
-  }
-  return deltas;
+  return (Array.isArray(run?.roster) ? run.roster : []).flatMap((unit) =>
+    unitMoveTypeBattleDeltas(unit, bonuses, classes),
+  );
 }
 
 /** Steal's run options for `thief` (Cutpurse's Luck): a player unit's speed check waived. */

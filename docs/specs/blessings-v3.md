@@ -453,7 +453,29 @@ painting (`PAINTING_PENDING`).
   type at battle time (Cavalry and Flying +1 MOV, Infantry +1 DEF, Armored nothing; the card says
   "foot soldiers +1 DEF (not Armored)"), beside a Lingering Injury's delta, applied once
   at a fresh start by `BattleStatDeltas.applyBattleStartDebuffs` in the scene and the harness and
-  taken back with every battle delta. A recruit who joins mid-battle (Talk) takes none.
+  taken back with every battle delta. A recruit who joins mid-battle (Talk: a recruit node's, an
+  event's `battle.recruit`) is a mounted unit or a foot soldier too, so it takes its own as it
+  joins, by the same rule (`ShrineBoons.unitMoveTypeBattleDeltas`, which the start reads per roster
+  unit): `BattleRecruits.settleRecruitJoin`, the one join both the scene's Talk and the harness's
+  call, gives the recruit its run identity first and then applies `engine/BattleJoinBoons.js`
+  (`applyBattleJoinBoons`), as battle deltas (`_battleDeltas`), so the victory's
+  `clearBattleScopedDeltas` takes them back and the roster unit keeps its own stats. Each landed
+  battle-start source is recorded on the unit (`_battleDeltaSources`, dropped with the deltas and
+  by `serializeUnit`), so a unit already carrying Cavalier's Hour is never given it twice. A
+  suspend keeps both on the checkpoint's units and a resume joins nobody again; a Vision rewind to
+  before the Talk puts the recruit back without them, and the Talk again gives them once. A
+  Lingering Injury is one named unit's and never a joiner's (`tests/BattleJoinBoons.test.js`).
+- **A joiner and the act's stat cards** (`act_stat_delta_all_units`: Rally Cry, the "−1 / −2 DEF to
+  all units in Act 1" prices, Armory Stash's catch). They are permanent stats until the act ends,
+  not battle deltas, so a joiner takes them through `RunManager.grantRecruitBlessingConsumables`
+  (`_applyActStatDeltasToRecruit`) and the tracker lists its uid for the act's end. Whether the
+  unit holds one is read from the unit (`recruitBlessingGrants` gains
+  `actStatDeltaGrantKey(tracker, index)`), never from the tracker alone: the tracker is run state
+  a battle checkpoint does not hold, so after a Vision rewind to before a Talk it still lists the
+  recruit's uid while the recruit stands without the delta, and the Talk again must give it once
+  (or the act's end would take back what it never had). A uid the tracker lists for a unit already
+  in the roster or the fallen is held. A tracker from before holders were tracked reverts the
+  whole roster at the act's end, so a joiner takes it too.
 - **Saint's Reserve**: `engine/StaffBlessings.staffRunOptions(run, unit)` gives a PLAYER unit's
   staves `bonusUses`; `Combat.getStaffMaxUses` / `getStaffRemainingUses` take it, and so does
   `StaffSettlement.validateStaffAction` (`staffOptions`). Every caller (the battle menu, the heal,
@@ -691,7 +713,9 @@ checkpoint and the Vision rewind):
   do not.
 - **Captain's Whistle.** A turn-1 timed MOV buff from the turn-start pipeline (decision D8). It
   keeps the strongest per stat, so it does not stack with Mark of the Road, and a resumed turn 1
-  keeps it without applying it again.
+  keeps it without applying it again. "Every unit has +1 Move on turn 1": a recruit who joins on
+  turn 1 (Talk) takes the same keyed buff as it joins (`engine/BattleJoinBoons.js`), ending with
+  the army's as turn 1's enemy phase starts; a join on a later turn takes nothing.
 - **Second Dawn.** A `{ kind: 'vision' }` act-start grant: +1 Vision at every act start while held,
   never on the take.
 

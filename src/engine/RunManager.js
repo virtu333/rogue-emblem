@@ -646,6 +646,7 @@ export function serializeUnit(unit) {
     }
   }
   delete data._battleDeltas;
+  delete data._battleDeltaSources;
   delete data._battleWeaponArtUsage;
   delete data._battleAbilityUsage;
   delete data._speedtakerStacks;
@@ -685,6 +686,15 @@ export function getReviveCost(unit) {
   const level = Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 1;
   const base = REVIVE_BASE_COST + level * REVIVE_COST_PER_LEVEL;
   return Math.round(unit?.tier === 'promoted' ? base * REVIVE_PROMOTION_MULTIPLIER : base);
+}
+
+/**
+ * The key a unit carries in `recruitBlessingGrants` once an act-scoped stat card's delta (tracker
+ * `index` of `blessingRuntimeModifiers.actStatDeltaAllUnits`, a list only ever appended to) has
+ * reached it as a joiner (RunManager._applyActStatDeltasToRecruit).
+ */
+export function actStatDeltaGrantKey(tracker, index) {
+  return `${tracker?.blessingId ?? ''}:act_stat_delta:${index}:${tracker?.act ?? ''}:${tracker?.stat ?? ''}`;
 }
 
 /**
@@ -3589,16 +3599,37 @@ export class RunManager {
   /**
    * A unit joining mid-act takes the act's running stat blessings and costs ("+2 STR
    * to all units in Act 1"), and is recorded so the act's end takes them back.
+   *
+   * Whether the unit already holds one is read from the unit (its `recruitBlessingGrants` key,
+   * `actStatDeltaGrantKey`), never from the tracker alone: a Talk recruit joins mid-battle, and a
+   * Vision rewind to before the Talk puts the unit back as it stood (without the delta) while the
+   * run's tracker keeps its uid, so the second Talk must give it again, once. A unit the tracker
+   * lists that is already one of the run's own (roster or fallen) holds it from the take or an
+   * earlier join. A legacy tracker (no holder list) reverts the whole roster at the act's end, a
+   * joiner with it, so the joiner takes it too.
    */
   _applyActStatDeltasToRecruit(unit) {
-    for (const tracker of this.blessingRuntimeModifiers?.actStatDeltaAllUnits || []) {
-      if (!tracker?.applied || tracker.reverted || tracker.act !== this.currentAct) continue;
-      if (!Array.isArray(tracker.unitUids)) continue; // legacy tracker: reverts the roster
+    const trackers = this.blessingRuntimeModifiers?.actStatDeltaAllUnits || [];
+    trackers.forEach((tracker, index) => {
+      if (!tracker?.applied || tracker.reverted || tracker.act !== this.currentAct) return;
       const uid = this.assignUnitUid(unit);
-      if (!uid || tracker.unitUids.includes(uid)) continue;
+      if (!uid) return;
+      const key = actStatDeltaGrantKey(tracker, index);
+      const grants = Array.isArray(unit.recruitBlessingGrants) ? unit.recruitBlessingGrants : [];
+      if (grants.includes(key)) return;
+      const holders = Array.isArray(tracker.unitUids) ? tracker.unitUids : null;
+      if (holders?.includes(uid) && this._isRunMemberUid(uid)) return;
       this._applyStatDeltaToUnits([unit], tracker.stat, tracker.value);
-      tracker.unitUids.push(uid);
-    }
+      unit.recruitBlessingGrants = [...grants, key];
+      if (holders && !holders.includes(uid)) holders.push(uid);
+    });
+  }
+
+  /** True when a unit of the run's roster or its fallen carries `uid`. */
+  _isRunMemberUid(uid) {
+    return [...(this.roster || []), ...(this.fallenUnits || [])].some(
+      (member) => unitUidOf(member) === uid,
+    );
   }
 
   /**
