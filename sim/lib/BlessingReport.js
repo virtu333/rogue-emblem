@@ -312,7 +312,8 @@ export function startCardRows(results, gameData, { rungs = null } = {}) {
  * Per earned card: the runs that were shown it in a pick (an act boss's pair, an eclipsed elite's
  * card, the sanctum's pair, the Colosseum's card), the runs that took it, how they got it, the
  * exercise rate, and the outcome differences over the battles from the card's first offer on
- * (takers and decliners alike: a run is a taker if it took the card AT that first offer):
+ * (takers and decliners alike: a run is a taker if it took the card AT that first offer, and a
+ * run that passed it there and took it later is a decliner, counted in `laterTakers`):
  * against the runs offered it that took the other card (`basis` 'pair'), or, for a card its source
  * offers alone, against the runs that source offered another card ('source'). Event grants (no
  * choice: the card is given) are counted, not compared ('none').
@@ -326,6 +327,7 @@ export function earnedCardRows(results, gameData, { rungs = null } = {}) {
     const takenRuns = [];
     const sources = {};
     let granted = 0;
+    let laterTakers = 0;
     const firstOffer = new Map();
     results.forEach((result, i) => {
       const offers = (result.offers || []).filter((o) => o.id === card.id);
@@ -336,10 +338,12 @@ export function earnedCardRows(results, gameData, { rungs = null } = {}) {
       firstOffer.set(i, first);
       for (const o of picked) if (o.taken) sources[o.source] = (sources[o.source] || 0) + 1;
       // One clock for both groups: the run's FIRST offer of the card, and whether it was taken
-      // there. A run that passed the card at its first offer and took it at a later one is in
-      // neither group (its outcome window would start before its take, the takers' would not).
+      // there. A run that passed the card at its first offer and took it at a later one counts
+      // with the decliners (judged by its decision at that offer: an intention-to-treat reading,
+      // which can only pull a difference toward zero, never invent one) and is counted in
+      // `laterTakers`.
       const tookFirst = picked.some((o) => o.battleIndex === first && o.taken);
-      if (!tookFirst && picked.some((o) => o.taken)) return;
+      if (!tookFirst && picked.some((o) => o.taken)) laterTakers++;
       const g = (groups[result.difficulty] ||= { taken: [], other: [] });
       (tookFirst ? g.taken : g.other).push(i);
       if (tookFirst) takenRuns.push(i);
@@ -379,6 +383,7 @@ export function earnedCardRows(results, gameData, { rungs = null } = {}) {
           ? takenRuns.length
           : takenRuns.length + Object.values(groups).reduce((n, g) => n + g.other.length, 0),
       taken: takenRuns.length,
+      laterTakers,
       basis,
       granted,
       held: heldRuns.length,

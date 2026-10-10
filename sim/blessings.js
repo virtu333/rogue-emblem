@@ -187,6 +187,7 @@ function cardTableRows(rows, { earned = false, zFamily = Infinity } = {}) {
       taken: row.taken,
     };
     if (earned) {
+      out['took later'] = row.laterTakers;
       out.granted = row.granted;
       out['compared with'] =
         row.basis === 'source' ? 'source peers' : row.basis === 'none' ? '-' : 'the other card';
@@ -276,6 +277,7 @@ function report(allRuns, gameData, { seconds = null } = {}) {
     'kind',
     'offered',
     'taken',
+    'took later',
     'granted',
     'compared with',
     'exercised',
@@ -306,7 +308,7 @@ function report(allRuns, gameData, { seconds = null } = {}) {
     '',
     '### Earned cards',
     '',
-    "Took it − offered it in a pick and took the other card, over the run's battles from that offer on; a card its source offers alone (an eclipsed elite's drop, the Colosseum's) is compared at each run's first offer from that source (this card first against another card first). `granted`: given by an event (no choice, not compared).",
+    "Took it at its first offer − passed it at its first offer (a run that passed it and took it at a later offer counts with those who passed it: `took later`), over the run's battles from that first offer on; a card its source offers alone (an eclipsed elite's drop, the Colosseum's) is compared at each run's first offer from that source (this card first against another card first). `granted`: given by an event (no choice, not compared).",
     '',
     mdTable(earnedCols, earnedTable),
     '',
@@ -362,15 +364,16 @@ function report(allRuns, gameData, { seconds = null } = {}) {
       delta: Number.isFinite(f.delta)
         ? `${f.delta.toFixed(2)} [${f.lo.toFixed(2)}, ${f.hi.toFixed(2)}]`
         : '',
+      z: Number.isFinite(f.z) ? f.z.toFixed(2) : '',
     })),
   );
-  printTable(['card', 'taken', 'outcome', 'reading', 'level', 'delta'], flagRows, {
+  printTable(['card', 'taken', 'outcome', 'reading', 'level', 'delta', 'z'], flagRows, {
     title: `Flags (95% interval excludes 0, at least ${MIN_TAKEN_FOR_FLAG} takers; FW: |z| ≥ ${zFamily.toFixed(2)} over ${(startRows.length + earnedRows.length) * OUTCOMES.length} comparisons, at least ${MIN_TAKEN_FOR_FAMILY} takers)`,
   });
   md.push(
     '### Flags',
     '',
-    mdTable(['card', 'taken', 'outcome', 'reading', 'level', 'delta'], flagRows),
+    mdTable(['card', 'taken', 'outcome', 'reading', 'level', 'delta', 'z'], flagRows),
     '',
   );
 

@@ -12,9 +12,20 @@
 // scans a range for one, which holds whatever the stream's exact values are. Each assertion is a
 // property of the plumbing (the policy acted, the driver counted it), never a rate.
 //
+// Every forced scenario starts with no blessing and no gift (`claims: { startOffer: 'none', gift:
+// false }`): the shrine's random pick is the seed's, and a card it hands out (the Sealed Reliquary
+// can grant Cutpurse's Luck, say) would change what a scenario measures. Only the shrine's own
+// tests opt in to the shrine. The setups are plumbing shortcuts the game itself never produces,
+// there to reach a policy's code without waiting for a run to: a non-Thief given the `steal` skill
+// (and a carrier moved beside it), the commander removed by `_removeUnit` with HP left, an Act I
+// church marked `sanctum`, every unit at level 12 for a church promotion, +25 to stats and level 20
+// for the Colosseum, a boss battle read as won on turn one for Dawn Tithe, +60 HP on Open Roll's
+// other candidate, a green recruit moved beside the lord. None of it is a balance claim.
+//
 // Proof that a policy is guarded: turn it off (`claims.<name>: false`, or break its function) and
 // the test of that policy goes red (see the "off switch" test, which does it for the two the
-// report once ran without: Steal and Vision).
+// report once ran without: Steal and Vision). SEED is arbitrary: the scenarios pass under any seed
+// (BLESSING_GUARD_SEED=n runs them under another; checked over 1..40).
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { loadGameData } from '../testData.js';
@@ -26,7 +37,7 @@ import { ClaimingRunDriver } from './ClaimingRunDriver.js';
 vi.setConfig({ testTimeout: 90_000 });
 
 const gameData = loadGameData();
-const SEED = 4;
+const SEED = Number(process.env.BLESSING_GUARD_SEED) || 4;
 
 let rng = null;
 beforeEach(() => {
@@ -37,12 +48,16 @@ afterEach(() => {
   rng = null;
 });
 
+/** No shrine pick and no gift unless a test asks (`claims` merges over this). */
+const QUIET_SHRINE = Object.freeze({ startOffer: 'none', gift: false });
+
 function makeDriver(options = {}) {
-  const { seed = SEED, ...rest } = options;
+  const { seed = SEED, claims = {}, ...rest } = options;
   rng.setState(seed);
   const driver = new ClaimingRunDriver(gameData, {
     rng,
     runOptions: { runSeed: seed, difficultyId: 'normal', autoSelectBlessing: false },
+    claims: { ...QUIET_SHRINE, ...claims },
     ...rest,
   });
   driver.init();
@@ -106,6 +121,7 @@ function onBattle(driver, setup, { every = false } = {}) {
 describe('the shrine', () => {
   it('takes the first blessing on offer under the "first" policy', () => {
     const driver = makeDriver({ claims: { startOffer: 'first' } });
+    expect(driver.startChoice.kind).toBe('blessing');
     expect(count(driver, 'startBlessings')).toBe(1);
     expect(ids(driver).length).toBe(1);
   });
@@ -113,7 +129,7 @@ describe('the shrine', () => {
   it('takes the gift when the random pick lands on it (a seed whose shrine offers one is found)', () => {
     let taken = null;
     for (let seed = 1; seed <= 120 && !taken; seed++) {
-      const driver = makeDriver({ seed });
+      const driver = makeDriver({ seed, claims: { startOffer: 'random', gift: true } });
       if (count(driver, 'giftsTaken') > 0) taken = driver;
     }
     expect(taken, 'a seed in 1..120 whose random shrine pick is the gift').not.toBeNull();
@@ -344,8 +360,11 @@ describe('a Thief beside a carrier', () => {
     const lucky = await playSteal({ carrierSpeed: 40, grant: ['cutpurses_luck'] });
     expect(count(lucky, 'steals')).toBeGreaterThan(0);
     expect(count(lucky, 'stealsSpeedWaived')).toBeGreaterThan(0);
+    // A plain Thief cannot rob a faster carrier at all.
     const plain = await playSteal({ carrierSpeed: 40 });
-    expect(count(plain, 'stealsSpeedWaived')).toBe(0);
+    expect(ids(plain)).not.toContain('cutpurses_luck');
+    expect(ids(plain)).not.toContain('thiefs_lantern');
+    expect(count(plain, 'steals')).toBe(0);
   });
 });
 

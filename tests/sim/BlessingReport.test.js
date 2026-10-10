@@ -70,7 +70,7 @@ describe('earnedCardRows: takers and decliners share one clock', () => {
     })),
   });
 
-  it('counts a taker only at the first offer, and leaves a later taker out of both groups', () => {
+  it('counts a taker only at the first offer; a later taker counts with the decliners', () => {
     const results = [
       run([[2, true]]),
       run([[2, true]]),
@@ -83,7 +83,10 @@ describe('earnedCardRows: takers and decliners share one clock', () => {
     ];
     const row = earnedCardRows(results, gameData).find((r) => r.id === card.id);
     expect(row.taken).toBe(2);
-    expect(row.offeredRuns).toBe(4);
+    expect(row.laterTakers).toBe(1);
+    expect(row.offeredRuns).toBe(5);
+    expect(row.diffs.koBattleRate.nA).toBe(2);
+    expect(row.diffs.koBattleRate.nB).toBe(3);
     expect(row.sources.act_boss).toBe(3);
     // Every counted run reads its battles from index 2: same window, so no difference here.
     expect(row.diffs.koBattleRate.delta).toBeCloseTo(0, 9);
