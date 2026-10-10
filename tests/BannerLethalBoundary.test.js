@@ -53,8 +53,13 @@ export function damageCalls(file, text) {
   return calls;
 }
 
-/** A call the banner can hold, or one that cannot kill. */
-export const coversBanner = (args) => /\bfloor:\s*1\b/.test(args) || /\bblessings\b/.test(args);
+/**
+ * A call the banner can hold (it hands over `blessings:` with a value: never a literal null or
+ * undefined, and never the bare shorthand of a local that may be anything), or one that
+ * cannot kill (`floor: 1`).
+ */
+export const coversBanner = (args) =>
+  /\bfloor:\s*1\b/.test(args) || /\bblessings:\s*(?!null\b|undefined\b|void\b)[\w.$?]/.test(args);
 
 function allCalls() {
   const files = [...ROOTS.flatMap(sourceFiles), ...EXTRA_FILES]
@@ -71,7 +76,7 @@ describe('every lethal damageUnit call hands the banner its chance', () => {
 
   it('the scan finds the lethal paths it guards (it cannot silently find nothing)', () => {
     const calls = allCalls();
-    const lethal = calls.filter((c) => /\bblessings\b/.test(c.args));
+    const lethal = calls.filter((c) => /\bblessings:/.test(c.args));
     const where = new Set(lethal.map((c) => c.file));
     expect(where).toEqual(
       new Set(['src/engine/PostCombatEffects.js', 'src/scenes/BattleScene.js']),
@@ -92,8 +97,66 @@ describe('every lethal damageUnit call hands the banner its chance', () => {
     expect(coversBanner('unit, 5, { floor: 1, disturbs: false }')).toBe(true);
     expect(coversBanner('unit, 5, { floor }')).toBe(false);
     expect(coversBanner('victim, dmg, { blessings: this._battleBlessings }')).toBe(true);
+    expect(coversBanner('victim, dmg, { blessings: world?.battleBlessings ?? null }')).toBe(true);
+    expect(coversBanner('victim, dmg, { blessings: null }')).toBe(false);
+    expect(coversBanner('victim, dmg, { blessings: undefined }')).toBe(false);
+    expect(coversBanner('victim, dmg, { blessings }')).toBe(false);
     expect(damageCalls('x.js', 'export function damageUnit(unit, amount, opts = {}) {}')).toEqual(
       [],
     );
   });
+});
+
+/** A method's body (balanced braces) in `text`, by its definition `  name(`. */
+function methodBody(text, name) {
+  const at = text.search(new RegExp(`\\n  ${name}\\(`));
+  if (at < 0) return null;
+  let i = text.indexOf('{', text.indexOf(')', at));
+  const start = i;
+  let depth = 0;
+  do {
+    if (text[i] === '{') depth++;
+    else if (text[i] === '}') depth--;
+    i++;
+  } while (i < text.length && depth > 0);
+  return text.slice(start, i);
+}
+
+describe('every exchange the battle resolves carries the banner', () => {
+  // The exchange's hold (Combat.rollStrike) reads `skillCtx.battleBlessings`, and the
+  // post-combat blows read `world.battleBlessings`. A resolveCombat call with a context built
+  // elsewhere, or a builder that drops the field, would let an ally die in the exchange while
+  // every damageUnit call above still passes.
+  const FILES = {
+    'src/scenes/BattleScene.js': { ctx: 'buildSkillCtx', world: '_postCombatWorld' },
+    'tests/harness/HeadlessBattle.js': { ctx: '_buildSkillCtx', world: '_postCombatWorld' },
+  };
+
+  it.each(Object.entries(FILES))('%s: its builders hand over the battle’s state', (file, names) => {
+    const text = readFileSync(file, 'utf8');
+    for (const name of [names.ctx, names.world]) {
+      const body = methodBody(text, name);
+      expect(body, `${file} ${name}`).toBeTruthy();
+      expect(body, `${file} ${name}`).toMatch(/battleBlessings:\s*this\._battleBlessings\b/);
+    }
+  });
+
+  it.each(Object.entries(FILES))(
+    '%s: every resolveCombat call takes the context its builder made',
+    (file, names) => {
+      const code = readFileSync(file, 'utf8').replace(/\/\/.*$/gm, '');
+      const calls = [...code.matchAll(/\bresolveCombat\(([^;]*?)\);/gs)];
+      expect(calls.length, file).toBeGreaterThan(0);
+      for (const call of calls) {
+        const args = call[1]
+          .split(',')
+          .map((a) => a.trim())
+          .filter(Boolean);
+        expect(args.at(-1), `${file}: resolveCombat(${args.join(', ')})`).toBe('skillCtx');
+        const before = code.slice(0, call.index);
+        const made = before.slice(before.lastIndexOf('const skillCtx ='));
+        expect(made, file).toMatch(new RegExp(`^const skillCtx = this\\.${names.ctx}\\(`));
+      }
+    },
+  );
 });

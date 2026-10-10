@@ -1,4 +1,5 @@
 import { getFootprint } from './EntitySystem.js';
+import { BANNER_NAME } from './BattleBlessings.js';
 // Presentation projection is captured at the event's visibility, never at the
 // later viewer's visibility. No live objects or hidden-unit identifiers escape.
 export function timelineUnitVisible(state, unit) {
@@ -142,7 +143,7 @@ export function timelineChanges(previous, next) {
 
 /** The timeline's line for an Unbroken Banner hold (an earned blessing). */
 export function bannerHoldFact(unit) {
-  return `${unit?.name || 'An ally'} held by the Unbroken Banner.`;
+  return `${unit?.name || 'An ally'} held by the ${BANNER_NAME}.`;
 }
 
 export function combatTimelineFacts(scene, attacker, defender, result) {

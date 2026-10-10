@@ -28,10 +28,11 @@ export const BANNER = 'banner';
 export const LANTERN = 'lantern';
 const SPENDABLE = new Set([BANNER, LANTERN]);
 
+/** The catalog's names (data/blessings.json), held to it by tests/UnbrokenBanner.test.js. */
 export const BANNER_NAME = 'Unbroken Banner';
 export const LANTERN_NAME = 'Ember Lantern';
 export const WHISTLE_NAME = "Captain's Whistle";
-export const WHISTLE_BUFF_PREFIX = 'blessing_captains_whistle::';
+const WHISTLE_BUFF_PREFIX = 'blessing_captains_whistle::';
 
 const count = (value) => Math.max(0, Math.trunc(Number(value)) || 0);
 
@@ -65,7 +66,7 @@ export function battleBlessingsAtStart({ run = null, battleParams = null, fallba
   return createBattleBlessings(effects);
 }
 
-export function spentCount(state, key) {
+function spentCount(state, key) {
   return (state?.spent || []).filter((entry) => entry === key).length;
 }
 
@@ -113,7 +114,6 @@ export function blessingTurnStartEffects(units, state, turn) {
       type: 'buff',
       target: unit,
       source: WHISTLE_NAME,
-      blessing: 'captains_whistle',
       entry: {
         key: `${WHISTLE_BUFF_PREFIX}${String(unit.name || '')}`,
         artId: null,

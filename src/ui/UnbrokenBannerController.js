@@ -12,7 +12,7 @@
 import { UI_PALETTE } from '../utils/uiStyles.js';
 import { playCue } from './ceremonyMusic.js';
 
-export const BANNER_HOLD_LINE = 'The banner holds.';
+const BANNER_HOLD_LINE = 'The banner holds.';
 
 export default class UnbrokenBannerController {
   constructor(scene) {

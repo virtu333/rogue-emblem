@@ -34,7 +34,12 @@
 //                                      the Ember Lantern after the steps (absent: neither acts)
 //
 // A unit the Unbroken Banner held in this combat (in the exchange, or by one of these effects)
-// is spared any further fall in it: what follows can take it no lower than 1 HP.
+// cannot fall again in this combat: what follows can take it no lower than 1 HP. That is all it
+// is spared. Status and debuff effects (an imbue's status, Grievous, Corrosive, Intimidate, an
+// art's tier-2 status or debuff) still land, as they do after a broken Revival Stone. A death
+// trigger outside this pipeline is not covered either: a Deathburst raised by a `remove` beat
+// (the scene's, after the fall it reports) meets the banner already spent, so it can fell the
+// unit the banner held.
 //
 // Area arts also leave a credit for every victim they hit on `result.areaCredits`
 // ({ source, victim, damage, hpBefore, killed }): plain state for the owner's XP award,
@@ -354,9 +359,13 @@ function* onAttackAffixes(attacker, defender, events, sourceSide, world) {
   const affixResult = getAttackAffixes(attacker, world.affixes);
 
   if (affixResult.poisonDamage > 0 && defender.currentHP > 0) {
-    damageUnit(defender, affixResult.poisonDamage, { floor: 1 });
-    yield { kind: 'hp', unit: defender };
-    yield { kind: 'poison', unit: defender, amount: affixResult.poisonDamage };
+    // Floor 1: the number shown is what the bar lost (none on a unit at 1 HP, as one the
+    // Unbroken Banner just held; 2 on a unit at 3 HP), never the affix's whole amount.
+    const lost = damageUnit(defender, affixResult.poisonDamage, { floor: 1 });
+    if (lost > 0) {
+      yield { kind: 'hp', unit: defender };
+      yield { kind: 'poison', unit: defender, amount: lost };
+    }
   }
 
   if (affixResult.debuffStat && defender.currentHP > 0) {

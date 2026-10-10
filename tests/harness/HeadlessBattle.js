@@ -1130,19 +1130,7 @@ export class HeadlessBattle {
         u._movementSpent = 0;
       }
       stampTurnAnchors(this.playerUnits, turn);
-      // Apply turn-start effects (Renewal, etc.) — skip turn 1 to match BattleScene
-      const army = armyAndNpcAllies(this.playerUnits, this.npcUnits);
-      if (turn > 1) {
-        this._processTurnStartEffects(army);
-      } else {
-        // Mark of the Road rolls on every player phase, turn 1 included, as BattleScene's
-        // pipeline does; the effects above have always skipped it here. Captain's Whistle
-        // (an earned blessing) is turn 1's alone, after it, as in the scene.
-        this._applyTurnStartMarkBuffs([
-          ...getTurnStartEffects(army, [], this.gameData.marks, turn),
-          ...blessingTurnStartEffects(army, this._battleBlessings, turn),
-        ]);
-      }
+      this._processPlayerPhaseStartEffects(armyAndNpcAllies(this.playerUnits, this.npcUnits), turn);
       this._refreshFogVisibility();
       this.battleState = HEADLESS_STATES.PLAYER_IDLE;
     } else if (phase === 'enemy') {
@@ -1244,6 +1232,22 @@ export class HeadlessBattle {
     }
   }
 
+  /**
+   * The player phase's turn-start effects (Renewal, etc.). Turn 1 skips them to match
+   * BattleScene, except Mark of the Road, which rolls on every player phase as the scene's
+   * pipeline does, and Captain's Whistle (an earned blessing), which is turn 1's alone.
+   */
+  _processPlayerPhaseStartEffects(units, turn) {
+    if (turn > 1) {
+      this._processTurnStartEffects(units);
+      return;
+    }
+    this._applyTurnStartMarkBuffs([
+      ...getTurnStartEffects(units, [], this.gameData.marks, turn),
+      ...blessingTurnStartEffects(units, this._battleBlessings, turn),
+    ]);
+  }
+
   _processTurnStartEffects(units) {
     if (!Array.isArray(units)) return;
     // 0b. Acid ticks, as BattleScene._processAcidTicks: non-lethal, and the ground's own
@@ -1268,10 +1272,8 @@ export class HeadlessBattle {
       }
     }
     this._applyTurnStartMarkBuffs(skillEffects);
-    // 1b. Captain's Whistle, as BattleScene.processTurnStartEffects (turn 1 only).
-    this._applyTurnStartMarkBuffs(
-      blessingTurnStartEffects(units, this._battleBlessings, this.turnManager?.turnNumber),
-    );
+    // (Captain's Whistle is turn 1's alone: _onPhaseChange applies it there, since this runs
+    // only from turn 2 and for the enemy phase.)
     // 2. Affixes
     const affixEffects = getTurnStartAffixes(units, this.gameData.affixes);
     for (const effect of affixEffects) {

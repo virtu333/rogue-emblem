@@ -22,6 +22,9 @@ import {
 } from '../src/engine/UnitHealth.js';
 import {
   BANNER,
+  BANNER_NAME,
+  LANTERN_NAME,
+  WHISTLE_NAME,
   bannerReadyFor,
   battleBlessingsAtStart,
   createBattleBlessings,
@@ -39,6 +42,7 @@ import {
   forecastNotes,
   forecastProjection,
   forecastReadingPoints,
+  forecastTeachingHints,
   projectedHpText,
 } from '../src/ui/forecastDisplay.js';
 import { loadGameData } from './testData.js';
@@ -260,6 +264,37 @@ describe('in the exchange (Combat.rollStrike)', () => {
       ['attacker', 25],
       ['attacker', 10],
     ]);
+  });
+
+  it('an Adept bonus strike that would fell the ally is held, and nothing follows it', () => {
+    // The foe's Adept procs (SPD% at roll 0) on its first hit: 20 -> 5, then the bonus strike's
+    // 15 would fell Edric: held at 1. The hold ends the exchange: no counter (30 -> 19) is
+    // rolled. Without the blessing the same bonus strike kills (the contrast).
+    const adept = () => foe({ skills: ['adept'] });
+    const state = banner();
+    const result = fight(adept(), edric({ hp: 20 }), ctx(state));
+    expect(hps(result)).toEqual([
+      ['attacker', 5],
+      ['attacker', 1],
+    ]);
+    expect(strikes(result)[1]).toMatchObject({
+      adeptStrike: true,
+      bannerHeld: true,
+      hpBeforeHold: 5,
+    });
+    expect(result).toMatchObject({
+      defenderHP: 1,
+      defenderDied: false,
+      attackerHP: 30,
+      bannerHeld: { attacker: false, defender: true },
+    });
+    expect(state.spent).toEqual([BANNER]);
+    const open = fight(adept(), edric({ hp: 20 }), ctx(null));
+    expect(hps(open)).toEqual([
+      ['attacker', 5],
+      ['attacker', 0],
+    ]);
+    expect(open.defenderDied).toBe(true);
   });
 
   it('a second lethal blow in the same battle falls, on the same unit or another ally', () => {
@@ -536,6 +571,43 @@ describe('after the exchange (PostCombatEffects): every floor-0 blow', () => {
   });
 });
 
+describe("a Venomous foe's after-combat poison (floor 1) on a held unit", () => {
+  // The affix deals 5 after a landed hit and cannot kill (floor 1): on a unit the banner held
+  // at 1 HP it takes nothing, so no HP or poison number is shown; on a unit at 3 HP the number
+  // is the 2 HP it actually took, never the affix's 5.
+  const venom = () => unit('Viper', 'enemy', { col: 1, row: 0, affixes: ['venomous'] });
+  const beatsOn = (hero, result = { events: landed }) => {
+    const caster = venom();
+    return [
+      ...postCombatEffects(
+        { attacker: caster, defender: hero, result },
+        world([caster, hero], banner()),
+      ),
+    ];
+  };
+
+  it('a unit at 1 HP (held by the banner) takes nothing and shows no poison number', () => {
+    const hero = edric({ col: 0, row: 0, hp: 1 });
+    const beats = beatsOn(hero, {
+      events: landed,
+      bannerHeld: { attacker: false, defender: true },
+    });
+    expect(hero.currentHP).toBe(1);
+    expect(beats.filter((b) => b.kind === 'poison' || b.kind === 'hp')).toEqual([]);
+  });
+
+  it('a unit at 3 HP shows the 2 it lost; at 30 HP the full 5', () => {
+    const low = edric({ col: 0, row: 0, hp: 3 });
+    const lowBeats = beatsOn(low);
+    expect(low.currentHP).toBe(1);
+    expect(lowBeats.filter((b) => b.kind === 'poison').map((b) => b.amount)).toEqual([2]);
+    const whole = edric({ col: 0, row: 0, hp: 30 });
+    const wholeBeats = beatsOn(whole);
+    expect(whole.currentHP).toBe(25);
+    expect(wholeBeats.filter((b) => b.kind === 'poison').map((b) => b.amount)).toEqual([5]);
+  });
+});
+
 describe('the forecast says "1 HP (Unbroken Banner)"', () => {
   const forecastOf = (attacker, defender, state) =>
     getCombatForecast(
@@ -585,6 +657,30 @@ describe('the forecast says "1 HP (Unbroken Banner)"', () => {
     expect(counterRisk(f, 10)).toBe(
       'The counterattack could fell Edric: the Unbroken Banner would hold at 1 HP.',
     );
+  });
+
+  it('the teaching hint never calls a counter the banner would hold lethal', () => {
+    // The forecast's note says the banner would hold; a hint beside it saying the exchange can
+    // be lethal would contradict it. The lesson waits for a counter that is lethal.
+    const lethalWord = (f) =>
+      forecastTeachingHints(f, 10)
+        .filter((h) => /lethal/.test(h.text))
+        .map((h) => h.id);
+    expect(lethalWord(forecastOf(edric({ hp: 10 }), foe(), banner()))).toEqual([]);
+    expect(lethalWord(forecastOf(edric({ hp: 10 }), foe(), null))).toEqual(['battle_counter_risk']);
+    const spent = createBattleBlessings({ lastStand: 1 }, { spent: [BANNER] });
+    expect(lethalWord(forecastOf(edric({ hp: 10 }), foe(), spent))).toEqual([
+      'battle_counter_risk',
+    ]);
+  });
+
+  it("the names the battle shows are the catalog's", () => {
+    // Failure: a renamed card leaves the forecast, the timeline and the banners on the old name.
+    const named = (id) => gameData.blessings.blessings.find((b) => b.id === id)?.name;
+    expect(BANNER_NAME).toBe(named('unbroken_banner'));
+    expect(LANTERN_NAME).toBe(named('ember_lantern'));
+    expect(WHISTLE_NAME).toBe(named('captains_whistle'));
+    expect(BANNER_HOLD_TEXT).toBe(`1 HP (${named('unbroken_banner')})`);
   });
 
   it('a foe the attack would fell still reads KO (the banner is the army’s alone)', () => {

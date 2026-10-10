@@ -3,6 +3,7 @@ import { getMasteryPerk } from '../engine/MasterySystem.js';
 import { formatPerkMods } from './rosterDisplay.js';
 import { hitProbability } from '../engine/HitRoll.js';
 import { forecastRawDamage, forecastStrikeGroups } from '../engine/Combat.js';
+import { BANNER_NAME } from '../engine/BattleBlessings.js';
 
 /**
  * A strike's real chance to land, as a whole percent. Hit is rolled as the
@@ -107,7 +108,7 @@ export function projectedFallText(projection, side) {
 }
 
 /** A side the Unbroken Banner would hold, as the forecast says it. */
-export const BANNER_HOLD_TEXT = '1 HP (Unbroken Banner)';
+export const BANNER_HOLD_TEXT = `1 HP (${BANNER_NAME})`;
 
 /**
  * A side's projected HP as the forecast says it: the banner's hold, "KO" / "Breaks a bar" at
@@ -141,7 +142,7 @@ export function counterRisk(forecast, attackerHP = forecast?.attacker?.hp) {
   const blow = d.crit > 0 && base < attackerHP ? 'A critical counter' : 'The counterattack';
   // The Unbroken Banner would hold the attacker: the counter cannot defeat it, only spend it.
   return a.banner
-    ? `${blow} could fell ${a.name}: the Unbroken Banner would hold at 1 HP.`
+    ? `${blow} could fell ${a.name}: the ${BANNER_NAME} would hold at 1 HP.`
     : `${blow} could defeat ${a.name}.`;
 }
 
@@ -210,14 +211,16 @@ export function forecastReadingPoints(forecast) {
     );
   if (forecast?.attacker?.banner || forecast?.defender?.banner)
     points.push(
-      'The Unbroken Banner holds the first ally a blow would fell at 1 HP, once a battle. That blow ends the exchange.',
+      `The ${BANNER_NAME} holds the first ally a blow would fell at 1 HP, once a battle. That blow ends the exchange.`,
     );
   return points;
 }
 
 export function forecastTeachingHints(forecast, attackerHP) {
   const hints = [];
-  if (counterRisk(forecast, attackerHP))
+  // A counter the Unbroken Banner would hold is not lethal this exchange (the notes say it
+  // would hold): the lethal-counter lesson waits for a counter that is.
+  if (counterRisk(forecast, attackerHP) && !forecast?.attacker?.banner)
     hints.push({
       id: 'battle_counter_risk',
       text: 'Check your HP after any art cost. Enemy hits and critical hits can make this exchange lethal; Cancel lets you choose another plan.',

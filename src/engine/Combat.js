@@ -2511,7 +2511,10 @@ export function resolveCombat(
       const atkPoison =
         parsePoisonDamage(atkWeapon) + getImbuePostCombatPoison(atkWeapon, skillCtx?.imbuesData);
       // A bar that just broke is a fresh one: the poison waits for a blow that leaves a wound.
-      // A unit the banner just held is spared the rest of the combat's harm.
+      // A unit the banner just held cannot fall again in this combat, and its weapon poison
+      // would only claim a 0 HP loss: skipped. Status and debuff effects (an imbue's status,
+      // Grievous, Corrosive, Intimidate, an art's status or debuff) still land, as they do
+      // after a broken Revival Stone.
       if (atkPoison > 0 && !brokeBar.defender && !heldBar.defender) {
         defHP = Math.max(1, defHP - atkPoison); // Poison can't kill (leave at 1 HP)
         poisonEffects.push({ target: 'defender', damage: atkPoison });

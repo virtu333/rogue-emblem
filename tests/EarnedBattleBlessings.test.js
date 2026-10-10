@@ -253,7 +253,7 @@ function harnessWorld(players, enemies, state, roll = 0.01) {
     enemyAttack: async (foe, target) => withRoll(() => battle._executeEnemyCombat(foe, target)),
     turnStart: async (units, turn = 1) => {
       battle.turnManager.turnNumber = turn;
-      withRoll(() => battle._processTurnStartEffects(units));
+      withRoll(() => battle._processPlayerPhaseStartEffects(units, turn));
     },
     expire: (phase, turn) => battle._expireTimedWeaponArtBuffs(phase, turn),
   };
