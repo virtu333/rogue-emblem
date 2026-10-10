@@ -59,7 +59,7 @@
           ],
           "waves": [
             {
-              "turn": 2,
+              "turn": 1,
               "spawns": [
                 { "col": 7, "row": 7, "classes": ["Zombie"], "level": -1 },
                 { "col": 6, "row": 8, "classes": ["Zombie"], "level": -1 },
@@ -119,7 +119,7 @@
           ],
           "waves": [
             {
-              "turn": 2,
+              "turn": 1,
               "spawns": [
                 { "col": 6, "row": 5, "classes": ["Zombie"], "level": -1 },
                 { "col": 6, "row": 6, "classes": ["Zombie"], "level": -1 },
@@ -183,8 +183,8 @@
               "aiMode": "guard"
             },
             { "col": 8, "row": 1, "classes": ["Archer"] },
-            { "col": 8, "row": 4, "classes": { "act1": ["Fighter"], "act3": ["Fighter", "Warrior"] }, "hold": 1 },
-            { "col": 9, "row": 3, "classes": { "act1": ["Fighter"], "act3": ["Fighter", "Warrior"] }, "hold": 1 },
+            { "col": 8, "row": 4, "classes": { "act1": ["Fighter"], "act3": ["Fighter", "Warrior"] }, "hold": 1, "wake": 4 },
+            { "col": 9, "row": 3, "classes": { "act1": ["Fighter"], "act3": ["Fighter", "Warrior"] }, "hold": 1, "wake": 4 },
             { "col": 10, "row": 3, "classes": { "act1": ["Thief"], "act3": ["Thief", "Assassin"] } },
             { "col": 8, "row": 6, "classes": ["Archer"], "minRung": "dusk" },
             { "col": 9, "row": 7, "classes": ["Fighter", "Mercenary"], "minRung": "hard" }

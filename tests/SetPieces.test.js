@@ -11,7 +11,7 @@
 //   - the shared steps (affixes, carry, the Hunted wave, par fields) are skipped on a set piece;
 //   - the template path changes when a set piece is not asked for;
 //   - the validator lets a broken map, tile, class or gate ship.
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   buildSetPieceBattle,
   captainLevelFor,
@@ -260,8 +260,8 @@ describe('the generator on shipped set pieces', () => {
     const captain = config.enemySpawns.find((s) => s.isBoss);
     expect(captain).toMatchObject({ name: 'The Toll-Keeper', className: 'Zombie' });
     expect(captain.carries).toBeUndefined();
-    // The turn-2 rising from the bog reaches the scheduler.
-    expect(config.reinforcements.scriptedWaves[0].turn).toBe(2);
+    // The turn-1 rising from the bog reaches the scheduler.
+    expect(config.reinforcements.scriptedWaves[0].turn).toBe(1);
     expect(
       config.reinforcements.scriptedWaves[0].spawns.every((s) => s.className === 'Zombie'),
     ).toBe(true);
@@ -328,10 +328,17 @@ describe('the generator on shipped set pieces', () => {
     expect(a.setPieceId).toBeUndefined();
   });
 
-  it('an unknown set piece throws rather than building a different fight', () => {
-    expect(() => generateSeededBattle(params('no_such_place'), data, 1)).toThrow(
-      /Unknown set piece "no_such_place"/,
-    );
+  it("an unknown set piece id (a newer build's save) falls back to an ordinary map with a warning", () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const config = generateSeededBattle(params('no_such_place'), data, 1);
+      expect(config.setPieceId).toBeUndefined();
+      expect(config.templateId.startsWith('setpiece:')).toBe(false);
+      expect(config.enemySpawns.length).toBeGreaterThan(0);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('no_such_place'));
+    } finally {
+      warn.mockRestore();
+    }
   });
 });
 
@@ -461,5 +468,75 @@ describe('validateSetPiecesConfig', () => {
       { events },
     );
     expect(errors.join('\n')).toMatch(/fixture\/a fields no foe in act1 on normal/);
+  });
+});
+
+describe('a hold pack with a wake turn', () => {
+  const UNMIRRORED = [0.9, 0.6, 0.0, 0.1, 0.99, 0.3, 0.3, 0.2, 0.5, 0.4, 0.4, 0.0, 0.0, 0.5, 0.5];
+  const withWake = (turn, { second = turn } = {}) => {
+    const piece = structuredClone(FIXTURE);
+    const holders = piece.variants[0].enemies.filter((e) => e.hold === 2);
+    holders[0].wake = turn;
+    if (second !== null) holders[1].wake = second;
+    return piece;
+  };
+  const deps = {
+    terrain: data.terrain,
+    classes: data.classes,
+    weapons: data.weapons,
+    difficulty: data.difficulty,
+    events: { events: [] },
+  };
+  const errorsOf = (piece) => validateSetPiecesConfig({ setPieces: [piece] }, deps).errors;
+
+  it("writes the slot's wake turn on the pack's spawns, and only on holders", () => {
+    const built = buildSetPieceBattle({
+      setPiece: withWake(4),
+      act: 'act1',
+      difficultyId: 'lunatic',
+      levelRange: [3, 6],
+      deployCount: 2,
+      classes: data.classes,
+      terrain: data.terrain,
+      random: scripted(UNMIRRORED),
+    });
+    const holders = built.enemySpawns.filter((s) => s.aiMode === HOLD_AI_MODE);
+    expect(holders.map((s) => s.holdWakeTurn)).toEqual([4, 4]);
+    expect(built.enemySpawns.filter((s) => s.aiMode !== HOLD_AI_MODE)).toSatisfy((list) =>
+      list.every((s) => s.holdWakeTurn === undefined),
+    );
+  });
+
+  it('is validated: a turn from 2 on, a hold pack, and one turn for the whole pack', () => {
+    expect(errorsOf(withWake(4))).toEqual([]);
+    expect(errorsOf(withWake(1)).join('\n')).toMatch(/wake must be a turn from 2 to/);
+    expect(errorsOf(withWake(99)).join('\n')).toMatch(/wake must be a turn from 2 to/);
+    expect(errorsOf(withWake(2.5)).join('\n')).toMatch(/wake must be a turn from 2 to/);
+    expect(errorsOf(withWake(4, { second: 5 })).join('\n')).toMatch(/must share one wake turn/);
+    expect(errorsOf(withWake(4, { second: null })).join('\n')).toMatch(/must share one wake turn/);
+    const loose = structuredClone(FIXTURE);
+    loose.variants[0].enemies[0].wake = 3;
+    expect(errorsOf(loose).join('\n')).toMatch(/wake needs a hold pack/);
+  });
+
+  it('the Toll Crossing guards wake by turn 4 on every variant', () => {
+    const crossing = findSetPiece(data.setPieces, 'toll_crossing');
+    for (const variant of crossing.variants) {
+      const holders = variant.enemies.filter((e) => e.hold !== undefined);
+      expect(holders.length).toBeGreaterThan(0);
+      for (const slot of holders) expect(slot.wake, variant.id).toBe(4);
+    }
+  });
+});
+
+describe('the Toll-House bog wave', () => {
+  it('is due on turn 1: a clear field cancels later waves, so the rising must come before any army can clear it', () => {
+    const house = findSetPiece(data.setPieces, 'toll_house');
+    for (const variant of house.variants) {
+      expect(
+        variant.waves.map((w) => w.turn),
+        variant.id,
+      ).toEqual([1]);
+    }
   });
 });

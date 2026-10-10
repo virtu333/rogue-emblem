@@ -55,6 +55,7 @@ const SLOT_KEYS = new Set([
   'captain',
   'aiMode',
   'hold',
+  'wake',
   'weapon',
   'minRung',
   'minAct',
@@ -64,6 +65,9 @@ const WAVE_SPAWN_KEYS = new Set(['col', 'row', 'classes', 'level', 'aiMode', 'mi
 // Elite captains (and set-piece captains) sit above the act's range by this many levels.
 const CAPTAIN_LEVEL_OFFSET = { act1: 0 };
 const CAPTAIN_DEFAULT_OFFSET = 2;
+
+/** A hold pack's latest authored wake turn. */
+const MAX_WAKE_TURN = 12;
 
 const isInt = (v) => Number.isInteger(v);
 const isObject = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
@@ -224,6 +228,7 @@ export function buildSetPieceBattle({
     if (isInt(slot.hold)) {
       spawn.aiMode = HOLD_AI_MODE;
       spawn.holdPack = slot.hold;
+      if (isInt(slot.wake)) spawn.holdWakeTurn = slot.wake;
     } else {
       const aiMode = typeof slot.aiMode === 'string' ? slot.aiMode : defaultAiMode(spawn.className);
       if (aiMode) spawn.aiMode = aiMode;
@@ -488,6 +493,7 @@ export function validateSetPiecesConfig(config, data = {}) {
       const enemies = Array.isArray(variant.enemies) ? variant.enemies : [];
       if (enemies.length === 0) err(vw, 'needs at least one enemy slot');
       let captains = 0;
+      const packWake = new Map();
       for (const [ei, slot] of enemies.entries()) {
         const ew = `${vw}.enemies[${ei}]`;
         if (!isObject(slot)) {
@@ -513,6 +519,16 @@ export function validateSetPiecesConfig(config, data = {}) {
         }
         if (slot.hold !== undefined && !(isInt(slot.hold) && slot.hold >= 0))
           err(ew, 'hold must be a pack number >= 0');
+        if (slot.wake !== undefined) {
+          if (slot.hold === undefined) err(ew, 'wake needs a hold pack');
+          else if (!(isInt(slot.wake) && slot.wake >= 2 && slot.wake <= MAX_WAKE_TURN))
+            err(ew, `wake must be a turn from 2 to ${MAX_WAKE_TURN}`);
+        }
+        if (isInt(slot.hold)) {
+          const turns = packWake.get(slot.hold) || new Set();
+          turns.add(isInt(slot.wake) ? slot.wake : null);
+          packWake.set(slot.hold, turns);
+        }
         if (slot.hold !== undefined && slot.aiMode !== undefined)
           err(ew, 'hold and aiMode are exclusive (a holder holds)');
         if (slot.weapon !== undefined && !weaponNames.has(slot.weapon))
@@ -525,6 +541,9 @@ export function validateSetPiecesConfig(config, data = {}) {
           err(ew, `(${tileKey(slot)}) cannot be reached from the player spawns`);
       }
       if (captains > 1) err(vw, 'has more than one captain');
+      // A pack wakes as one: every member names the same wake turn, or none does.
+      for (const [pack, turns] of packWake)
+        if (turns.size > 1) err(vw, `hold pack ${pack} must share one wake turn`);
 
       const waves = variant.waves === undefined ? [] : variant.waves;
       if (!Array.isArray(waves)) err(vw, 'waves must be a list');

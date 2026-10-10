@@ -81,6 +81,7 @@ promises and what the fight actually is.
               "captain": { "name": "The Toll-Keeper" },  // isBoss: name, boss stats, captain level
               "aiMode": "guard",          // optional: guard | hold (see hold) | an AI profile
               "hold": 1,                  // optional: a hold pack (HoldActivation), size counted
+              "wake": 4,                  // optional, with hold: the pack wakes in the enemy phase of this turn
               "weapon": "Hand Axe",       // optional: an authored weapon (applySpawnLoadout)
               "minRung": "hard",          // optional: only from this rung up (draws taken anyway)
               "minAct": "act2"            // optional: only from this act up (draws taken anyway)
@@ -102,8 +103,9 @@ promises and what the fight actually is.
 - **Rung gates.** A set piece honours each rung's `enemyClassEarliestAct` (Dragons,
   Necromancers): the validator refuses a slot that is in play in an act where its rung holds
   that class back. It does not honour First Light's blanket ban on `DIFFICULTY_GATED_CLASSES`,
-  which is a rule for the random pools. The set piece is the story, and its text names what is
-  there, so First Light meets the Toll-House's Zombies (only there).
+  which is a rule for the random pools. **Owner decision (2026-10-10): First Light does meet the
+  Toll-House's Zombies.** The set piece is the story, and its text names what is there, so the
+  Zombies are there on every rung (only there: no random pool gains them). Do not gate them.
 - **Levels.** A filler slot takes `lo + floor(r × (hi − lo + 1)) + level`, the generator's
   filler rule. `[lo, hi]` is the battle's adjusted range (`levelRange` or the pool's range,
   plus `enemyLevelBonus`). A captain takes the elite captain's rule (`captainLevel`: `hi` + the
@@ -113,6 +115,12 @@ promises and what the fight actually is.
   never carries items, as an elite captain doesn't. A captain is not an act boss: no boss
   node, no Sworn Enemy, no boss recruit and no earned pick. A Zombie captain leaves no
   remains (`leavesRemains`: a boss doesn't).
+- **Hold packs and `wake`.** A `hold` pack sleeps until a member is threatened, hurt or killed
+  (HoldActivation), so an army that waits was never attacked. `wake: N` (2 to 12, only with
+  `hold`, the same on every member of a pack) adds a fourth rule: the pack wakes in the enemy
+  phase of turn N (`spawn.holdWakeTurn` -> `unit.holdWakeTurn`, reason `'turn'`, the same
+  once-per-turn check as the others, so a resume never checks twice). The validator refuses a
+  `wake` without a `hold`, a turn outside 2..12 and a pack whose members disagree.
 - **Waves** become the config's `reinforcements.scriptedWaves`, with each spawn's class and
   level resolved at generation. Their turns move with the rung's
   `reinforcementTurnOffset` and Hollow Hourglass, as every scripted wave's do.
@@ -154,8 +162,14 @@ promises and what the fight actually is.
   - the Black Sun `templateWavesRaisePar`;
   - par offsets.
 
+  The exceptions are the template steps' own rolls: a set piece's foes never roll
+  `sunderWeapon` or `poisonWeapon` (those are the random pools' weapon riders; a set piece's
+  loadouts are authored, `weapon` per slot), and a scripted wave's spawns carry no affixes.
+  An unknown `setPiece` id (a save from a newer build) logs a warning and fights an ordinary
+  template map instead of failing the battle's start.
+
   The config carries `templateId: "setpiece:<id>"`, `setPieceId`, `setPieceVariant` and
-  `mirrored`. An unknown id throws: `validate:data` refuses that before it ships.
+  `mirrored`. An unknown id in data is refused by `validate:data` before it ships.
 - **`EventEffects.applyBattle`.** A `battle` step with `setPiece` calls
   `NodeMapGenerator.convertNodeToSetPieceBattle`. That writes
   `battleParams.setPiece`, `objective`, `deployCap`, the battle seed and the act-1 row scaling.
@@ -200,7 +214,14 @@ rope bridge, under fog.
   - Act I: a Zombie.
   - Act III on: a Revenant.
 - More Zombies wait inside and on the far bank.
-- On turn 2, two rise out of the bog behind the hut (a scripted wave).
+- On turn 1 (the first enemy phase), two rise out of the bog behind the hut (a scripted wave).
+  It is turn 1 on purpose: the engine cancels the waves still to come once a Rout's field is
+  clear (`isRoutFieldClear`), so a turn-2 wave was skipped whenever the army cleared the map
+  first (4 of 11 First Light wins in the harness). No army can clear this map in one player
+  phase, so the rising is guaranteed without a new rule in the Rout predicate that every other
+  map would then carry. (The alternative, holding the Rout open while a scripted wave is still
+  due, is a change to `RoutObjective` for every template and the prologue; not worth it for one
+  set piece.) Hollow Hourglass can still delay it a turn, as it delays every wave.
 - The bridge is the only crossing.
 - Smash matters: a fallen Zombie comes back unless its bones are stamped out (the
   ZombieRemains rule, already built).
@@ -212,7 +233,9 @@ the far bank in forts.
 - The toll-keeper is the captain, with a bow:
   - an Archer in Acts I–II;
   - a Sniper from Act III.
-- Fighters hold the bridge as a hold pack.
+- Fighters hold the bridge as a hold pack that wakes on turn 4 (`wake: 4`: the army has had
+  three turns to cross or bait them, and a cautious army can no longer wait them out for good;
+  the other guards keep their posts by design).
 - A Thief guards the hut's strongbox.
 - A shallow bog downstream is the slow flank.
 
@@ -295,5 +318,19 @@ The design needs:
     and locking keeps it.
   - The deploy cap.
   - The place name.
-- A harness run (`tests/harness`) plays each Toll-House set piece to a win with the default
-  policy at Act I and Act III, so the maps are winnable and the remains rule closes the rout.
+- A harness run (`tests/harness/SetPieceBattles.test.js`) plays both set pieces and an ordinary
+  route battle as a control, from real runs' armies, with a careful policy and a reckless one, at
+  First Light and Dusk in Act I (the Act III cell was dropped: the control itself is never won there, so it says nothing about the set pieces, and it cost a third of the run time). Every battle must end with the harness
+  invariants holding, the deploy cap respected, a won Rout leaving no foe or remains, the
+  Toll-House's bog wave always seen on a win and the Toll Crossing never running to the turn
+  cap. `tests/harness/HeadlessSetPiece.test.js` pins that `HeadlessBattle` builds a set piece
+  from `gameData.setPieces` itself and that a passive army meets the awake pack on turn 4. The
+  sim driver deploys through `deployLimitsForParams` / `resolveDeployLimits` (a set piece's cap
+  holds in simulated Act III), and the roster header's "Deploy up to N" reads the same rule while
+  a set piece fight is waiting (`rosterDeploySlots`).
+- Balance as measured (First Light, Act I, careful policy, 11 seeds): ordinary route battle 82%
+  at 5.2 turns; Toll-House 73% at 7.5 turns before the guaranteed rising, 64% at 7.8 after it;
+  Toll Crossing 73% at 12.8 turns with one run to the 40-turn cap before `wake`, 73% at 9.6 and
+  none to the cap after (same maps and seeds). The harness now generates a set piece through
+  `gameData.setPieces` on the ambient seeded stream, so its maps differ from those runs;
+  on them the Crossing reads 10.6 turns with no stall.

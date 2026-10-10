@@ -76,7 +76,12 @@ export function generateBattle(params, deps) {
 /** One layout, no caravan retry (generateBattle wraps it). */
 export function generateBattleLayout(params, deps) {
   // An event's set piece (engine/SetPieces.js): an authored map in place of a template's.
-  if (params?.setPiece) return generateSetPieceLayout(params, deps);
+  if (params?.setPiece) {
+    if (findSetPiece(deps.setPieces, params.setPiece)) return generateSetPieceLayout(params, deps);
+    // A save that names a set piece this build lacks (a newer client's) fights an ordinary map
+    // rather than failing the battle's start.
+    console.warn(`[MapGenerator] unknown set piece "${params.setPiece}"; using a template map`);
+  }
   const {
     act = 'act1',
     objective = 'rout',
@@ -560,13 +565,12 @@ export function generateBattleLayout(params, deps) {
  * A set piece's battle (docs/specs/event-set-pieces.md): the authored map, spawns, slots and
  * waves (engine/SetPieces.js) in place of the template steps, then the steps every map takes
  * (dressEnemySpawns, finishReinforcements, the par fields). Draws come from Math.random, which
- * generateSeededBattle has made the battle seed's stream. Throws on an unknown set piece
- * (`npm run validate:data` refuses one before it ships).
+ * generateSeededBattle has made the battle seed's stream. The caller has checked the id is known
+ * (an unknown one falls back to the template path; `npm run validate:data` refuses one in data).
  */
 function generateSetPieceLayout(params, deps) {
   const act = params.act || 'act1';
   const setPiece = findSetPiece(deps.setPieces, params.setPiece);
-  if (!setPiece) throw new Error(`Unknown set piece "${params.setPiece}"`);
   const objective = setPiece.objective || 'rout';
   const enemyLevelBonus = Math.trunc(Number(params.enemyLevelBonus) || 0);
   const baseLevelRange = params.levelRange || deps.enemies?.pools?.[act]?.levelRange || [1, 1];
@@ -588,13 +592,6 @@ function generateSetPieceLayout(params, deps) {
   const templateId = `${SET_PIECE_TEMPLATE_PREFIX}${setPiece.id}`;
   const enemySpawns = dressEnemySpawns(built.enemySpawns, { params, deps, act, templateId });
   const reinforcementConfig = built.reinforcements ? structuredClone(built.reinforcements) : {};
-  if (
-    !(params.allowEnemyAffixes !== false && recruitAffixesAllowed(params, deps.difficulty)) &&
-    reinforcementConfig.reinforcements
-  ) {
-    for (const wave of reinforcementConfig.reinforcements.scriptedWaves || [])
-      for (const spawn of wave.spawns || []) delete spawn.affixes;
-  }
   finishReinforcements(reinforcementConfig, params, {
     isBoss: false,
     cols,

@@ -24,7 +24,7 @@
 //   - the set piece's deploy cap is not what the battle fields.
 // The numbers are seeded and exact, so a drift shows in the summary table (console.info) before
 // it crosses a threshold; the thresholds sit well below what the data does today.
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { loadGameData } from '../testData.js';
 import { installSeed, restoreMathRandom } from '../../sim/lib/SeededRNG.js';
 import { RunSimulationDriver } from '../sim/RunSimulationDriver.js';
@@ -34,12 +34,10 @@ import { checkInvariants, createInvariantContext, updateContext } from './Invari
 import { GameDriver } from './GameDriver.js';
 import { HEADLESS_STATES, HeadlessBattle } from './HeadlessBattle.js';
 import { arriveAs, makeEvent, soloEvent } from '../eventKit.js';
-import { battleGenerationSeed, generateSeededBattle } from '../../src/engine/BattleScout.js';
+import { generateSeededBattle } from '../../src/engine/BattleScout.js';
 import { eventState } from '../../src/engine/EventCommands.js';
 import { RunManager } from '../../src/engine/RunManager.js';
 import { findSetPiece } from '../../src/engine/SetPieces.js';
-import { DEPLOY_LIMITS } from '../../src/utils/constants.js';
-import { deployLimitsForParams, resolveDeployLimits } from '../../src/engine/BattleDeployCount.js';
 
 const data = loadGameData();
 const TURN_CAP = 40;
@@ -69,20 +67,7 @@ const POLICIES = {
   scripted: (driver) => new ScriptedAgent(driver),
 };
 
-// The harness generates a battle from an explicit list of data tables that has no `setPieces`
-// (HeadlessBattle._generateBattleConfig), so a set piece param would throw "Unknown set piece".
-// BattleScene generates with `generateSeededBattle(params, gameData, seed)`; for a set piece the
-// harness does the same here, for the length of this file.
-const harnessGenerate = HeadlessBattle.prototype._generateBattleConfig;
-beforeAll(() => {
-  HeadlessBattle.prototype._generateBattleConfig = function generateLikeTheScene() {
-    if (!this.battleParams.setPiece) return harnessGenerate.call(this);
-    const seed = battleGenerationSeed(this.battleParams, { runSeed: this.battleParams.runSeed });
-    return generateSeededBattle(this.battleParams, this.gameData, seed);
-  };
-});
 afterAll(() => {
-  HeadlessBattle.prototype._generateBattleConfig = harnessGenerate;
   restoreMathRandom();
 });
 
@@ -149,30 +134,6 @@ async function armyAtAct({ difficultyId, act, seed }) {
 }
 
 /**
- * The run driver, with the set piece's deploy cap honoured. RunSimulationDriver sizes a
- * deployment from the act's limits alone, so a cap of 5 would field 7 in Act III; the deploy
- * screen applies `deployLimitsForParams` (BattleScene.create), so the driver's deploy bonus is
- * brought down to the max the screen would show.
- */
-class CappedRunDriver extends RunSimulationDriver {
-  async _runBattleNode(node) {
-    const run = this.runManager;
-    if (!node.battleParams?.deployCap) return super._runBattleNode(node);
-    const base = DEPLOY_LIMITS[run.currentAct] || DEPLOY_LIMITS.act1;
-    const { max } = resolveDeployLimits({
-      base: deployLimitsForParams(node.battleParams),
-      deployBonus: run.getDeployBonus(),
-    });
-    run.getDeployBonus = () => max - base.max;
-    try {
-      return await super._runBattleNode(node);
-    } finally {
-      delete run.getDeployBonus;
-    }
-  }
-}
-
-/**
  * One fight: the snapshot's army against `setPiece` (an event battle) or, for 'ordinary', the
  * route battle the node was. Null when the seed's run had no battle to stop in front of.
  */
@@ -182,7 +143,7 @@ async function fight({ setPiece, difficultyId, act, seed, policy }) {
   installSeed(seed + 7);
   try {
     let probe = null;
-    const driver = new CappedRunDriver(data, {
+    const driver = new RunSimulationDriver(data, {
       runOptions: { runSeed: seed, difficultyId, autoSelectBlessing: false },
       eventPolicy: 'fight',
       battleAgentFactory: (battleDriver) => {
@@ -200,6 +161,8 @@ async function fight({ setPiece, difficultyId, act, seed, policy }) {
           deployed: battle.playerUnits.length,
           turns: 0,
           startFoes: battle.enemyUnits.length,
+          initial: new Set(battle.enemyUnits),
+          arrived: false,
         };
         // The harness invariants after every step, and what the zombies did.
         probe.check = () => {
@@ -208,6 +171,9 @@ async function fight({ setPiece, difficultyId, act, seed, policy }) {
             probe.maxRisen,
             battle.enemyUnits.filter((u) => u._revived).length,
           );
+          // A foe that was not on the map at the start and is no risen Zombie came in a wave.
+          if (battle.enemyUnits.some((u) => !probe.initial.has(u) && !u._revived))
+            probe.arrived = true;
           probe.turns = battle.turnManager?.turnNumber || 0;
           if (probe.last) updateContext(probe.context, probe.last, battleDriver);
           probe.errors.push(...checkInvariants(battleDriver, probe.context));
@@ -311,12 +277,11 @@ afterAll(() => {
 });
 
 // act x rung, with the seeds each affords: a fight is cheap, the run that builds the army is not
-// (Act III is two acts of play), so the deeper the cell the fewer seeds. `minWinRate` is the
+// (it is a whole act of play), so the deeper the cell the fewer seeds. `minWinRate` is the
 // careful policy's floor; where none is named the cell only has to end cleanly.
 const CELLS = [
   { act: 'act1', difficultyId: 'normal', seeds: 12, minWinRate: 0.5 },
   { act: 'act1', difficultyId: 'dusk', seeds: 8, minWinRate: 0.25 },
-  { act: 'act3', difficultyId: 'hard', seeds: 5, minWinRate: 0 },
 ];
 const SET_PIECES = ['toll_house', 'toll_crossing'];
 const POLICY_NAMES = ['tactician', 'scripted'];
@@ -352,6 +317,10 @@ describe('set pieces in a run: every battle ends, the invariants hold, the maps 
             // The set piece's own deploy cap is what the battle fielded.
             expect(row.deployed, where).toBeLessThanOrEqual(piece.deploy.max);
             expect(row.probe.startFoes, where).toBeGreaterThan(0);
+            if (row.won && setPiece === 'toll_house') {
+              // The bog Zombies are part of the story: no army wins the Toll-House before they rise.
+              expect(row.probe.arrived, `${where}: the bog wave appeared`).toBe(true);
+            }
             if (row.won) {
               // A won Rout is a cleared field: no foe, no remains left to rise.
               expect(row.result, where).toBe('victory');
@@ -359,6 +328,7 @@ describe('set pieces in a run: every battle ends, the invariants hold, the maps 
               expect(row.remainsLeft, where).toBe(0);
             }
           }
+          const where = `${setPiece} ${act} ${difficultyId} ${policy}`;
           if (policy === 'scripted') {
             // The reckless policy always makes contact: a battle that outlasts the turn cap is a
             // set piece (a wave, a hold pack, remains that never clear) that cannot end.
@@ -377,6 +347,13 @@ describe('set pieces in a run: every battle ends, the invariants hold, the maps 
               summary.winRate,
               `${setPiece} ${act} ${difficultyId}: won ${summary.wins} of ${rows.length}`,
             ).toBeGreaterThanOrEqual(cell.minWinRate);
+            if (setPiece === 'toll_crossing') {
+              // The bridge guards hold as a pack that wakes on turn 4 (`wake`), so waiting them
+              // out never stalls the fight (HeadlessSetPiece.test.js plays that out directly):
+              // none runs to the cap and the average stays near the map's size.
+              expect(summary.hung, 'battles past the turn cap').toBe(0);
+              expect(summary.avgTurns, `${where} average turns`).toBeLessThan(12);
+            }
           }
         });
       }

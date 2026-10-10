@@ -77,17 +77,42 @@ export function resolveDeployLimits({
 }
 
 /**
- * The deploy slots a run's battles open in its current act (the deploy screen's max:
- * the act's max plus the deploy bonus), for the roster's header. A re-entered battle
- * may open fewer (its locked map: resolveDeployLimits), which only the deploy screen
- * knows. Null for no run and for the prologue, whose chapters author their own deploys.
+ * The params of the event fight the party is held at (a set piece chosen and not yet won:
+ * `node.eventBattle`, not complete), or null. Its set piece's cap is the deploy limit the next
+ * deploy screen opens on, so the roster's header reads it.
  * @param {object|null} run a RunManager
- * @returns {{slots: number, bonus: number, units: number}|null}
+ */
+export function activeEventBattleParams(run) {
+  const nodes = Array.isArray(run?.nodeMap?.nodes) ? run.nodeMap.nodes : [];
+  const node = nodes.find(
+    (n) => n?.eventBattle === true && !n.completed && Number(n.battleParams?.deployCap) > 0,
+  );
+  return node?.battleParams || null;
+}
+
+/**
+ * The deploy slots a run's battles open in its current act (the deploy screen's max:
+ * the act's max plus the deploy bonus), for the roster's header. While an event set piece
+ * waits, its deploy cap holds too (`deployLimitsForParams`, the deploy screen's own rule), and
+ * `capped` says so. A re-entered battle may open fewer (its locked map: resolveDeployLimits),
+ * which only the deploy screen knows. Null for no run and for the prologue, whose chapters
+ * author their own deploys.
+ * @param {object|null} run a RunManager
+ * @returns {{slots: number, bonus: number, units: number, capped: boolean}|null}
  */
 export function rosterDeploySlots(run) {
   if (!run || isPrologueRun(run)) return null;
-  const base = DEPLOY_LIMITS[run.currentAct] || DEPLOY_LIMITS.act1;
+  const params = activeEventBattleParams(run);
+  const base = deployLimitsForParams({ act: run.currentAct, deployCap: params?.deployCap });
   const bonus = Math.trunc(Number(run.getDeployBonus?.()) || 0);
   const { max } = resolveDeployLimits({ base, deployBonus: bonus });
-  return { slots: max, bonus, units: Array.isArray(run.roster) ? run.roster.length : 0 };
+  const actBase = deployLimitsForParams({ act: run.currentAct });
+  const capped = max < actBase.max + bonus;
+  return {
+    slots: max,
+    // The cap swallows part of the bonus first: only what still opens a slot is shown.
+    bonus: capped ? Math.max(0, max - actBase.max) : bonus,
+    units: Array.isArray(run.roster) ? run.roster.length : 0,
+    capped,
+  };
 }
