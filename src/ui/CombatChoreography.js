@@ -113,7 +113,7 @@ export class CombatChoreography {
             px: plan.mode === 'full' ? plan.flags.lungePx : undefined,
             ghost: plan.flags.ghosts && !plan.flags.ranged,
           });
-          if (sg?.clearTint && !fx.stale(epoch)) sg.clearTint();
+          if (sg && !fx.stale(epoch)) fx.restTint(striker);
           break;
         case 'travel':
           await fx.travel(family, striker, target, {
@@ -138,7 +138,7 @@ export class CombatChoreography {
           this._react(s, family, plan);
           break;
         case 'recover':
-          if (target?.graphic?.clearTint && !miss) target.graphic.clearTint();
+          if (target?.graphic && !miss) fx.restTint(target);
           await fx.lungeBack(striker, target, { wait: step.wait });
           break;
         default:

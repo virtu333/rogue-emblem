@@ -45,6 +45,7 @@ import { captureBattleState } from './BattleCheckpointAdapter.js';
 import { applyGridFogState } from './fogState.js';
 import { RETRYABLE_SAVE_REASONS } from '../engine/SavePersistenceStatus.js';
 import { UI_PALETTE } from '../utils/uiStyles.js';
+import { restUnitAppearance } from './UnitRestAppearance.js';
 
 export const serializeSuspendUnit = serializeBattleUnit;
 
@@ -312,9 +313,7 @@ export class BattleSuspendController {
       registerBattleEntity(scene, unit);
       return unit;
     });
-    for (const unit of scene.playerUnits) {
-      if (unit.hasActed || isSleeping(unit)) scene.dimUnit(unit);
-    }
+    for (const unit of scene.playerUnits) restUnitAppearance(scene, unit);
     scene.nonDeployedUnits = structuredClone(checkpoint.nonDeployedUnits || []);
     for (const unit of scene.nonDeployedUnits) {
       normalizeSpecialCharacter(unit, scene.gameData?.specialChars);
