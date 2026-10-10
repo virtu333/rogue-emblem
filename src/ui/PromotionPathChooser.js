@@ -111,7 +111,10 @@ export function buildPathCard({ scene, unit, cls, content, selected, onSelect })
   if (content.growths.length)
     notes.push(`Growth ${content.growths.map((g) => `${g.stat} +${g.bonus}%`).join(', ')}`);
   if (content.moveType) notes.push(`${content.moveType.from} → ${content.moveType.to}`);
-  if (content.grants.length) notes.push(`Receives ${content.grants.join(', ')}`);
+  const short = content.grantsShort || [];
+  const received = content.grants.filter((name) => !short.includes(name));
+  if (received.length) notes.push(`Receives ${received.join(', ')}`);
+  if (short.length) notes.push(`Bag full: ${short.join(', ')} cannot be granted. Make room first`);
   if (content.dropped.length)
     notes.push(`To the bench (slots full): ${content.dropped.join(', ')}`);
   if (content.oath?.benched)

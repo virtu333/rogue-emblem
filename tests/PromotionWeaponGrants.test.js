@@ -8,6 +8,8 @@ import {
   resolvePromotionTargets,
   getReclassTargets,
 } from '../src/engine/UnitManager.js';
+import { getClassChangeWeaponGrants } from '../src/engine/RosterCommands.js';
+import { promotionPathContent } from '../src/ui/growthContent.js';
 import { promoteAtChurch } from '../src/engine/ChurchCommands.js';
 import { applyRosterClassChange } from '../src/engine/RosterCommands.js';
 import { loadGameData } from './testData.js';
@@ -99,5 +101,67 @@ describe('seal promotion and reclass grants', () => {
     expect(applyRosterClassChange(run, u, s, t, data).ok).toBe(true);
     for (const p of u.proficiencies.filter((p) => !before.has(p.type)))
       expect(u.inventory.some((w) => w.type === p.type)).toBe(true);
+  });
+});
+
+describe('lords with several promotion weapon types', () => {
+  const lord = (name) => {
+    const def = data.lords.find((l) => l.name === name);
+    const u = createLordUnit(def, cls(def.class), data.weapons);
+    u.level = 10;
+    return u;
+  };
+  const promoted = (name) => {
+    const u = lord(name);
+    run.roster = [u];
+    expect(promoteAtChurch(run, u, 'n1', target(u), data).ok).toBe(true);
+    return u;
+  };
+  it('Voss receives the Iron Axe and Iron Bow his promotion opens', () => {
+    const u = promoted('Voss');
+    expect(names(u)).toEqual(expect.arrayContaining(['Iron Axe', 'Iron Bow']));
+  });
+  it('Rowan receives Heal and Glimmer', () => {
+    expect(names(promoted('Rowan'))).toEqual(expect.arrayContaining(['Heal', 'Glimmer']));
+  });
+  it('a carried "Iron Lance +1" stops a second Iron Lance', () => {
+    const u = edric();
+    u.inventory = [{ ...data.weapons.find((w) => w.name === 'Iron Lance'), name: 'Iron Lance +1' }];
+    run.roster = [u];
+    promoteAtChurch(run, u, 'n1', target(u), data);
+    expect(names(u).filter((n) => n.startsWith('Iron Lance'))).toEqual(['Iron Lance +1']);
+  });
+  it('a type already carried grants nothing twice', () => {
+    const u = lord('Voss');
+    const before = new Set(u.proficiencies.map((p) => p.type));
+    const grants = getClassChangeWeaponGrants(u, before, data, true);
+    expect(grants.map((w) => w.name)).not.toContain(u.inventory[0].name);
+  });
+});
+
+describe('full bag preview', () => {
+  it('names the grants a full bag cannot take, and nothing otherwise', () => {
+    const u = mage();
+    const fire = data.weapons.find((w) => w.name === 'Fire');
+    u.inventory = [fire, fire, fire, fire].map((w) => ({ ...w }));
+    const t = target(u);
+    const content = promotionPathContent(u, t, data);
+    expect(content.grants).toEqual(expect.arrayContaining(['Heal', 'Glimmer']));
+    expect(content.grantsShort).toEqual(['Glimmer']);
+    u.inventory = [];
+    expect(promotionPathContent(u, t, data).grantsShort).toEqual([]);
+  });
+  it('a full bag keeps the promotion and the church spends the vow, with the shortfall in the message', () => {
+    const u = mage();
+    run.roster = [u];
+    const fire = data.weapons.find((w) => w.name === 'Fire');
+    u.inventory = [1, 2, 3, 4, 5].map(() => ({ ...fire }));
+    const gold = run.gold;
+    const res = promoteAtChurch(run, u, 'n1', target(u), data);
+    expect(res.ok).toBe(true);
+    expect(u.inventory).toHaveLength(5);
+    expect(run.gold).toBe(gold - 2000);
+    expect(run.getChurchPromotionCount('n1')).toBe(1);
+    expect(res.message).toContain('Bag full');
   });
 });

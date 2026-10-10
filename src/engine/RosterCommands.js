@@ -16,6 +16,7 @@ import {
 import { applyPromotionOath, oathBenchedNote } from './DeedSystem.js';
 import { consumableSource, spendConsumableUse } from './RosterInventory.js';
 import { classChangeItemBlock } from './TwistedBoons.js';
+import { stripItemNameSuffix } from '../utils/itemNames.js';
 
 export function rosterClassChangeBlock(run, unit, item, gameData) {
   if (!run?.roster?.includes(unit)) return 'Unit is no longer in the roster.';
@@ -58,22 +59,22 @@ export function applyRosterClassChange(run, unit, item, target, gameData) {
 export function getClassChangeWeaponGrants(unit, oldTypes, gameData, promotion = false) {
   const lordWeapons =
     promotion && gameData.lords.find((l) => l.name === unit.name)?.promotionWeapons;
-  let types;
-  if (lordWeapons) {
-    const type = lordWeapons.match(/(\w+)/)?.[1];
-    const labels = {
-      Swords: 'Sword',
-      Lances: 'Lance',
-      Axes: 'Axe',
-      Bows: 'Bow',
-      Tomes: 'Tome',
-      Staves: 'Staff',
-      Light: 'Light',
-    };
-    types = [labels[type] || type];
-  } else types = unit.proficiencies.filter((p) => !oldTypes.has(p.type)).map((p) => p.type);
-  const names = new Set(unit.inventory.map((w) => w.name));
-  return types
+  const labels = {
+    Swords: 'Sword',
+    Lances: 'Lance',
+    Axes: 'Axe',
+    Bows: 'Bow',
+    Tomes: 'Tome',
+    Staves: 'Staff',
+    Light: 'Light',
+  };
+  // Every type a class change newly opens. A lord's promotion also names its own list
+  // ("Swords (M), Axes (P), Bows (P)"): all of them count, not only the first word.
+  const types = unit.proficiencies.filter((p) => !oldTypes.has(p.type)).map((p) => p.type);
+  if (lordWeapons)
+    for (const [, word] of lordWeapons.matchAll(/(\w+)\s*\(/g)) types.push(labels[word] || word);
+  const names = new Set(unit.inventory.map((w) => stripItemNameSuffix(w.name)));
+  return [...new Set(types)]
     .map((type) => gameData.weapons.find((w) => w.type === type && w.tier === 'Iron'))
     .filter((w) => {
       if (!w || names.has(w.name)) return false;
