@@ -539,7 +539,19 @@
     "blessing-gamblers_toss": [218, 5, 9],
     "blessing-bloodless_art": [211, 5, 8],
     "blessing-phalanx_rite": [226, 5, 9],
-    "blessing-duelists_creed": [222, 5, 9]
+    "blessing-duelists_creed": [222, 5, 9],
+    "blessing-late_bloom": [191, 5, 9],
+    "blessing-dawn_tithe": [241, 5, 8],
+    "blessing-lone_banner": [305, 5, 9],
+    "blessing-cavaliers_hour": [190, 5, 9],
+    "blessing-saints_reserve": [329, 5, 8],
+    "blessing-cutpurses_luck": [177, 5, 9],
+    "blessing-open_roll": [314, 5, 9],
+    "blessing-watchers_grace": [186, 5, 8],
+    "blessing-patient_dawn": [213, 5, 9],
+    "blessing-twin_chapel": [187, 5, 8],
+    "blessing-omen_reader": [223, 5, 8],
+    "blessing-lottery_loot": [300, 5, 9]
   },
   "aliases": {
     "upgrade-branching_threads": "blessing-focused_curriculum",
@@ -547,6 +559,18 @@
     "blessing-gamblers_toss": "gamblers-coin",
     "blessing-bloodless_art": "blood-gem",
     "blessing-phalanx_rite": "phalanx-band",
-    "blessing-duelists_creed": "duelists-glove"
+    "blessing-duelists_creed": "duelists-glove",
+    "blessing-late_bloom": "herb",
+    "blessing-dawn_tithe": "blessing-coin_of_fate",
+    "blessing-lone_banner": "upgrade-deploy_limit",
+    "blessing-cavaliers_hour": "mounted-seal",
+    "blessing-saints_reserve": "upgrade-staff_upgrade",
+    "blessing-cutpurses_luck": "steal-scroll",
+    "blessing-open_roll": "upgrade-extra_starting_unit_pool",
+    "blessing-watchers_grace": "talisman",
+    "blessing-patient_dawn": "soothing-stone",
+    "blessing-twin_chapel": "angelic-robe",
+    "blessing-omen_reader": "warding-charm",
+    "blessing-lottery_loot": "upgrade-loot_quality"
   }
 }

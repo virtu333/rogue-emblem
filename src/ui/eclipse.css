@@ -287,6 +287,27 @@
     0 0 8px 1px var(--re-danger-bg);
 }
 
+/* ───────── Foretold knots (Omen Reader): the order the dark takes them ───────── */
+.re-omen-mark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(
+    calc(var(--medal, 40px) * -0.5 - 4px),
+    calc(var(--medal, 40px) * -0.5 - 4px)
+  );
+  min-width: 14px;
+  height: 14px;
+  padding: 0 2px;
+  border: 1px solid var(--re-warn);
+  border-radius: 7px;
+  background: var(--re-void);
+  color: var(--re-warn);
+  font: var(--re-pf-9, 9px) / 12px var(--re-pixel);
+  text-align: center;
+  pointer-events: none;
+}
+
 /* ───────── Inspect card ───────── */
 .re-loom-card[data-tone='eclipsed'] {
   --card-thread: var(--re-accent-text);

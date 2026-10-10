@@ -58,10 +58,11 @@ describe('Bloodless Art: the card', () => {
   });
 
   it('was appended after the older cards, so lookups that take the first of a tier keep their answer', () => {
-    // Later cards (Phalanx Rite, Duelist's Creed) follow it; none was inserted ahead of it.
+    // Later cards (Phalanx Rite, Duelist's Creed, the rest of §5) follow it; none was inserted
+    // ahead of it.
     const ids = data.blessings.blessings.map((b) => b.id);
     expect(ids.indexOf('bloodless_art')).toBe(25);
-    expect(ids.slice(26)).toEqual(['phalanx_rite', 'duelists_creed']);
+    expect(ids.slice(26, 28)).toEqual(['phalanx_rite', 'duelists_creed']);
   });
 });
 

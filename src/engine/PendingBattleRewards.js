@@ -3,6 +3,8 @@ import { getRating, calculateBonusGold } from './TurnBonusCalculator.js';
 import { buildPrologueLootChoices } from './Prologue.js';
 import { isPrologueRun } from './ScriptedBattle.js';
 import { gambleSummary } from './BattleGoldGamble.js';
+import { applyLotteryCards, lotteryDrawParams } from './LotteryLoot.js';
+import { dawnTitheGold, shrineBoonsOf } from './ShrineBoons.js';
 import {
   LOOT_CHOICES,
   ELITE_LOOT_CHOICES,
@@ -28,6 +30,8 @@ export function rewardDrawParams(run, ctx) {
       ? structuredClone(meta.lootCategoryWeightBonuses)
       : null,
     goldMultiplier: Number.isFinite(pressure) ? pressure : 1,
+    // Lottery Loot: which table its card comes from (engine/LotteryLoot.js); absent without it.
+    ...(lotteryDrawParams(run, { nodeId: ctx.nodeId || run.currentNodeId }) || {}),
   };
 }
 
@@ -35,10 +39,11 @@ export function rewardDrawParams(run, ctx) {
  * Roll a battle's random item choices: the one draw the first offer and every reroll
  * share, so they cannot drift. Uses Math.random (as it always has); the Vulnerary bundle
  * and the late-pressure gold multiplier apply here. Accessory skills and weapon-art
- * spawns ride generateLootChoices itself.
+ * spawns ride generateLootChoices itself. Lottery Loot's card replaces the last one after the
+ * battle's own draw, on its own stream (`round`: 0 for the first offer, n for the n-th reroll).
  */
-export function rollBattleRewardChoices(run, data, draw) {
-  const choices = generateLootChoices(
+export function rollBattleRewardChoices(run, data, draw, { round = 0 } = {}) {
+  const drawn = generateLootChoices(
     draw.actId || run.currentAct,
     data.lootTables,
     data.weapons,
@@ -57,6 +62,7 @@ export function rollBattleRewardChoices(run, data, draw) {
       imbues: data.imbues || null,
     },
   );
+  const choices = applyLotteryCards(run, data, draw, drawn, { round });
   // A rolled Vulnerary reward is a small bundle (LOOT_VULNERARY_BUNDLE items).
   for (const choice of choices)
     if (choice.item?.name === 'Vulnerary') choice.quantity = LOOT_VULNERARY_BUNDLE;
@@ -86,6 +92,19 @@ export function prepareBattleRewards(run, data, ctx) {
       ),
     );
   }
+  // Dawn Tithe: gold for each turn under the map's own par (Patient Dawn's turns taken off),
+  // paid here with the turn bonus, so a Debt never garnishes it. Never on a chapter without par.
+  let titheGold = 0;
+  if (ctx.turnPar != null && ctx.turnBonusConfig && !isPrologueRun(run)) {
+    titheGold = run.awardGold(
+      dawnTitheGold({
+        perTurn: shrineBoonsOf(run).underParGoldPerTurn,
+        turnPar: ctx.turnPar,
+        parTurnDelta: ctx.blessingParTurns,
+        turnNumber: ctx.turnNumber,
+      }),
+    );
+  }
   const authored = Array.isArray(ctx.authoredLoot);
   const draw = authored ? null : rewardDrawParams(run, ctx);
   const choices = authored
@@ -113,7 +132,7 @@ export function prepareBattleRewards(run, data, ctx) {
     // The skip pays from the gold the battle earned, never from the choices, so a reroll
     // leaves it as it is.
     skipGold: Math.floor(calculateSkipLootBonus(total) * GOLD_LOOT_REWARD_MULTIPLIER),
-    summary: `Battle and completion: ${ctx.battleCompletionAwardedGold ?? total - turnGold} gold${turnGold ? ` · Turn ${rating}: +${turnGold} gold` : ''}${tossNote}`,
+    summary: `Battle and completion: ${ctx.battleCompletionAwardedGold ?? total - turnGold} gold${turnGold ? ` · Turn ${rating}: +${turnGold} gold` : ''}${titheGold ? ` · Dawn Tithe: +${titheGold} gold` : ''}${tossNote}`,
     draft: { selected: 0, path: [] },
     // How the choices were drawn (Branching Threads rerolls with the same); null for
     // authored loot, which can never be rerolled.
@@ -205,7 +224,9 @@ export function rerollBattleReward(run, data, { persist = null } = {}) {
     rerolls: record.rerolls,
     spent: run.rewardRerollsSpent,
   };
-  const choices = rollBattleRewardChoices(run, data, record.draw);
+  // Each reroll draws Lottery Loot's card on the next round of its stream.
+  const round = Math.max(0, Math.trunc(Number(record.rerolls) || 0)) + 1;
+  const choices = rollBattleRewardChoices(run, data, record.draw, { round });
   record.choices = choices;
   record.draft = { selected: 0, path: [] };
   // The new cards turn face up as they arrive; a reload shows them face up.

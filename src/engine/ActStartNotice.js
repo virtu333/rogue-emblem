@@ -8,6 +8,8 @@ export function describeActStartGrants(grants) {
     const name = grant?.blessingName || 'Blessing';
     if (grant?.kind === 'gold') {
       lines.push(`${name}: +${grant.value} gold`);
+    } else if (grant?.kind === 'army_stats') {
+      lines.push(`${name}: every unit +${grant.value} to all stats but Move`);
     } else if (grant?.kind === 'item') {
       const what = grant.count > 1 ? `${grant.count} ${grant.itemName}s` : grant.itemName;
       if (grant.overflow >= grant.count) lines.push(`${name}: no room for ${what}`);

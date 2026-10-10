@@ -5,7 +5,15 @@ import { clearAllConditions } from './StatusConditionSystem.js';
 import { markHoldDisturbed } from './HoldDisturbance.js';
 import { applyLegendaryStaffHeal } from './TraitSystem.js';
 
-export function validateStaffAction({ staff, healer, targets, usable, destinations, dest }) {
+export function validateStaffAction({
+  staff,
+  healer,
+  targets,
+  usable,
+  destinations,
+  dest,
+  staffOptions = {},
+}) {
   if (
     !staff ||
     staff.type !== 'Staff' ||
@@ -16,7 +24,7 @@ export function validateStaffAction({ staff, healer, targets, usable, destinatio
     !canEquip(healer, staff) ||
     !Array.isArray(healer.inventory) ||
     !healer.inventory.includes(staff) ||
-    getStaffRemainingUses(staff, healer) <= 0 ||
+    getStaffRemainingUses(staff, healer, staffOptions) <= 0 ||
     !targets?.length ||
     !targets.every(
       (target) => target?.currentHP > 0 && !target._removing && usable.includes(target),

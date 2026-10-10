@@ -137,6 +137,7 @@ async function captureRecruitBattles(seeds, difficulty) {
 
 import { DEPLOY_LIMITS } from '../src/utils/constants.js';
 import { chooseDeployRoster } from '../tests/sim/RunPolicies.js';
+import { clearBattleScopedDeltas } from '../src/engine/BattleStatDeltas.js';
 
 function deployFor(capture) {
   const limits = DEPLOY_LIMITS[capture.act] || { min: 1, max: 4 };
@@ -604,6 +605,9 @@ class ProtectedDriver extends RunSimulationDriver {
       survivors.push(u);
     }
     const bench = fullRoster.filter((u) => !deployedKeys.has(`${u.name}::${u.className}`));
+    // Battle-scoped stat deltas (a Lingering Injury, Cavalier's Hour, Intimidate) end with the
+    // battle, as PostCombatController and RunSimulationDriver take them back before the commit.
+    clearBattleScopedDeltas(survivors);
     rm.completeBattle([...survivors, ...bench], node.id, battle.goldEarned || 0, {
       turnCount: turns,
       turnPar: battle.turnPar,

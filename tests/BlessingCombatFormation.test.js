@@ -462,7 +462,8 @@ describe('parsers and the validator', () => {
   it('the shipped cards validate', () => {
     expect(validateBlessingsConfig(data.blessings).errors).toEqual([]);
     const ids = data.blessings.blessings.map((b) => b.id);
-    expect(ids.slice(-2)).toEqual(['phalanx_rite', 'duelists_creed']);
+    // Appended after the older cards (the rest of §5 follows them).
+    expect(ids.slice(26, 28)).toEqual(['phalanx_rite', 'duelists_creed']);
   });
 
   it('the validator refuses a Phalanx Rite that would do nothing', () => {

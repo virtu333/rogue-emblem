@@ -8131,6 +8131,30 @@
             return `+${p.perAlly} DEF per ally on an adjacent tile (up to +${p.max})`;
           case 'isolated_combat_bonus':
             return `+${p.avoidBonus || 0} avoid, +${p.critBonus || 0} crit with no ally within ${p.radius} tiles`;
+          case 'act_clear_army_stats':
+            return `Every unit +${p.value} to all stats but MOV as each later act begins`;
+          case 'under_par_gold':
+            return `+${p.perTurn} gold per turn under par at each victory`;
+          case 'move_type_battle_stats':
+            return (p.bonuses || [])
+              .map((b) => `${(b.moveTypes || []).join('/')} +${b.value} ${b.stat} in battle`)
+              .join('; ');
+          case 'staff_uses_bonus':
+            return `+${p.value} use per staff in each battle (player units)`;
+          case 'carrier_luck':
+            return `x${p.carryMultiplier || 1} carry rolls${p.stealIgnoresSpeed ? '; Steal ignores speed' : ''}`;
+          case 'recruit_alternate':
+            return `Recruit nodes show ${p.value} alternate candidate`;
+          case 'boss_battle_vision':
+            return `+${p.value} Vision on boss maps (unspent fades)`;
+          case 'par_turn_delta':
+            return `+${p.value} par turns on every battle`;
+          case 'church_extra_vows':
+            return `+${p.value} vow per church`;
+          case 'eclipse_omen':
+            return `Foretell the next ${p.foretell || 0} falls; spare ${(p.spare || []).join('/') || 'nothing'}`;
+          case 'next_act_loot_card':
+            return `${p.count} loot card per battle from the next act's table`;
           case 'disable_personal_skills_until_act':
             return `Personal skills disabled until ${getActLabel(p.act)}`;
           case 'starting_forge_lords':

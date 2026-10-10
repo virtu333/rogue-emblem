@@ -266,9 +266,13 @@ function mapRows(nodeMap) {
 
 /**
  * Why a node can never fall right now (null when it can).
- * start / boss / ruins / completed / current / locked / eclipsed / type
+ * start / boss / ruins / completed / current / locked / eclipsed / type / spared
+ * `spareTypes`: node types the run's Omen Reader keeps from the dark (blessings v3 §5.3).
  */
-export function nodeFallExemption(node, { nodeMap, currentNodeId = null, activeNodeId = null }) {
+export function nodeFallExemption(
+  node,
+  { nodeMap, currentNodeId = null, activeNodeId = null, spareTypes = null },
+) {
   if (!node) return 'missing';
   if (isNodeEclipsed(node)) return 'eclipsed';
   if (node.id === nodeMap?.startNodeId) return 'start';
@@ -278,6 +282,7 @@ export function nodeFallExemption(node, { nodeMap, currentNodeId = null, activeN
   if (node.id === currentNodeId || node.id === activeNodeId) return 'current';
   if (node.encounterLocked) return 'locked';
   if (!FALLABLE_TYPES.has(node.type)) return 'type';
+  if (Array.isArray(spareTypes) && spareTypes.includes(node.type)) return 'spared';
   return null;
 }
 
@@ -395,6 +400,7 @@ export function applyEclipse({
   fogChanceBonus = 0,
   halfFogChance = false,
   darkOmen = null,
+  spareTypes = null,
 }) {
   if (!isEclipseActive(state, config) || !Array.isArray(nodeMap?.nodes)) return [];
   const act = actShadowOf(state);
@@ -403,7 +409,7 @@ export function applyEclipse({
   const actId = nodeMap.actId || nodeMap.nodes[0]?.battleParams?.act || 'act1';
   const fallen = [];
   for (const node of nodeMap.nodes) {
-    if (nodeFallExemption(node, { nodeMap, currentNodeId, activeNodeId })) continue;
+    if (nodeFallExemption(node, { nodeMap, currentNodeId, activeNodeId, spareTypes })) continue;
     if (act < nodeFallThreshold(node, { runSeed, rows, config })) continue;
     eclipseNode(node, {
       runSeed,
@@ -512,7 +518,9 @@ export function kindleResult({ state, config, nodeId, actId, gold }) {
  * Everything the Loom needs to draw the Eclipse for the current act: the run phase,
  * each node's fall status, and how far the next fall is. Pure; reads only.
  * @param {object} opts { state, config, nodeMap, runSeed, currentNodeId, activeNodeId,
- *   reachableIds? (Set of ids the party can still reach; limits `nextFall`) }
+ *   reachableIds? (Set of ids the party can still reach; limits `nextFall`),
+ *   spareTypes? (node types Omen Reader spares: never shown falling),
+ *   foretell? (Omen Reader: how many of the next falls to mark `foretold`) }
  */
 export function buildEclipseView({
   state,
@@ -522,6 +530,8 @@ export function buildEclipseView({
   currentNodeId = null,
   activeNodeId = null,
   reachableIds = null,
+  spareTypes = null,
+  foretell = 0,
 }) {
   if (!isEclipseActive(state, config)) return null;
   const shadow = clampShadow(state.shadow, config);
@@ -552,7 +562,7 @@ export function buildEclipseView({
       continue;
     }
     if (!node.completed && node.type !== 'boss') laneTotals[lane] += 1;
-    const exempt = nodeFallExemption(node, { nodeMap, currentNodeId, activeNodeId });
+    const exempt = nodeFallExemption(node, { nodeMap, currentNodeId, activeNodeId, spareTypes });
     if (exempt && exempt !== 'current' && exempt !== 'locked') {
       nodes.set(node.id, { eclipsed: false, remaining: null, near: false });
       continue;
@@ -572,6 +582,23 @@ export function buildEclipseView({
     if (!reachableIds || reachableIds.has(node.id)) {
       if (nextFall == null || remaining < nextFall) nextFall = remaining;
     }
+  }
+  // Omen Reader: the next `foretell` nodes the dark will take, in the order it takes them (the
+  // lowest thresholds first; a tie falls together, so map order breaks it). Only nodes that can
+  // fall now are read, so a guarded (current or locked) node is never foretold.
+  const omens = Math.max(0, Math.trunc(Number(foretell) || 0));
+  if (omens > 0) {
+    const order = (nodeMap?.nodes || [])
+      .map((node, index) => ({ node, index, info: nodes.get(node.id) }))
+      .filter(
+        ({ info }) => info && !info.eclipsed && Number.isFinite(info.threshold) && !info.guarded,
+      )
+      .sort((a, b) => a.info.threshold - b.info.threshold || a.index - b.index)
+      .slice(0, omens);
+    order.forEach(({ info }, rank) => {
+      info.foretold = true;
+      info.omenRank = rank + 1;
+    });
   }
   return {
     shadow,

@@ -1,3 +1,4 @@
+import { staffRunOptions } from '../engine/StaffBlessings.js';
 import { affixSummaryText } from '../engine/AffixForecast.js';
 import { REVIVAL_STONE_DESCRIPTION, revivalStonesLine } from '../engine/RevivalStones.js';
 import { skipsClassProgression } from '../engine/SpecialCharacterPolicy.js';
@@ -777,8 +778,9 @@ export class UnitDetailOverlay {
             this._showWeaponTooltip(item, tooltipAnchor),
           );
         if (item.type === 'Staff') {
-          const rem = getStaffRemainingUses(item, unit);
-          const max = getStaffMaxUses(item, unit);
+          const staffOptions = staffRunOptions(this.scene?.runManager, unit);
+          const rem = getStaffRemainingUses(item, unit, staffOptions);
+          const max = getStaffMaxUses(item, unit, staffOptions);
           const rng = getEffectiveStaffRange(item, unit);
           const rngStr = rng.min === rng.max ? `Rng${rng.max}` : `Rng${rng.min}-${rng.max}`;
           this._tabTextSegments(

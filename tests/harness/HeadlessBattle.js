@@ -6,6 +6,7 @@ import {
 } from '../../src/engine/RoutObjective.js';
 import { settleRecruitJoin } from '../../src/engine/BattleRecruits.js';
 import { settleStaffHeal } from '../../src/engine/StaffSettlement.js';
+import { staffRunOptions } from '../../src/engine/StaffBlessings.js';
 // HeadlessBattle — Synchronous battle state machine for headless testing.
 // Mirrors BattleScene's MVP subset (7 states) using real engine functions.
 
@@ -122,6 +123,7 @@ import {
 import { calculateKillReward } from '../../src/engine/LootSystem.js';
 import {
   calculatePar,
+  battleParMapParams,
   getLatePressureState,
   getParXpMultiplier,
 } from '../../src/engine/TurnBonusCalculator.js';
@@ -435,18 +437,11 @@ export class HeadlessBattle {
     this.turnPar =
       this.gameData.turnBonus && !bc.hidePar
         ? calculatePar(
-            {
-              cols: bc.cols,
-              rows: bc.rows,
+            battleParMapParams(bc, {
               enemyCount: this.enemyUnits.length,
-              objective: bc.objective,
-              mapLayout: bc.mapLayout,
               terrainData: this.gameData.terrain,
-              parBonus: bc.parBonus || 0,
-              parInflation: bc.parInflation,
-              parOffset: bc.parOffset,
-              parFloor: bc.parFloor,
-            },
+              battleParams: this.battleParams,
+            }),
             this.gameData.turnBonus,
             this.battleParams?.difficultyId,
           )
@@ -2019,12 +2014,14 @@ export class HeadlessBattle {
     // Warp/Rescue relocation staves are a player-flow-only utility; the
     // harness AI never relocates, so exclude them from its heal-staff pool
     // (otherwise a looted relocate staff would be "used" as a 0-base heal).
+    // Saint's Reserve's uses come from the run, as the scene reads them (StaffBlessings).
+    const options = staffRunOptions(this.runManager, unit);
     return unit.inventory.filter(
       (w) =>
         w.type === 'Staff' &&
         !w.relocate &&
-        getStaffMaxUses(w, unit) > 0 &&
-        getStaffRemainingUses(w, unit) > 0,
+        getStaffMaxUses(w, unit, options) > 0 &&
+        getStaffRemainingUses(w, unit, options) > 0,
     );
   }
 

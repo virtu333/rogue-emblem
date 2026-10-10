@@ -773,6 +773,8 @@ export class PostCombatController {
       turnPar: s.turnPar,
       turnBonusConfig: s.turnBonusConfig,
       turnNumber: s.turnManager?.turnNumber,
+      // Patient Dawn's turns in the par, so Dawn Tithe counts the map's own par.
+      blessingParTurns: s.battleParams?.blessingParTurns || 0,
       victoryPressureState: s._victoryPressureState,
       completionGoldAward: s._completionGoldAward,
       battleCompletionAwardedGold: s._battleCompletionAwardedGold,

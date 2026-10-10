@@ -8,6 +8,7 @@
 // cue computed from the roster, a reward's "for whom", a blessing's boon and
 // cost. Presentation only: it never mutates a unit, a reward or the run, never
 // reads Math.random, and every engine helper it calls is a read.
+import { staffRunOptions } from '../engine/StaffBlessings.js';
 import { rankRequirementText } from './rosterDisplay.js';
 import { traitLines, markLine } from './traitContent.js';
 import { epithetText } from '../engine/DeedTitles.js';
@@ -333,7 +334,7 @@ export function rewardForWhom(choice, run) {
         u,
         uses: (() => {
           try {
-            return getStaffMaxUses(item, u);
+            return getStaffMaxUses(item, u, staffRunOptions(run, u));
           } catch {
             return 0;
           }

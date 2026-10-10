@@ -31,6 +31,7 @@ import {
   settleTransfuse,
 } from '../engine/ActionAbilitySystem.js';
 import { STEAL_ABILITY_KIND, settleSteal, stealReasonLabel } from '../engine/Steal.js';
+import { stealRunOptions } from '../engine/ShrineBoons.js';
 
 const FOE_TILE_COLOR = UI_HEX.warn;
 const ALLY_TILE_COLOR = UI_HEX.hpHigh;
@@ -58,6 +59,8 @@ export class AbilityTargetingController {
       affixes: scene.gameData?.affixes,
       // Steal's room check: the convoy takes the item when the thief's own bag cannot.
       canAddToConvoy: (item) => Boolean(scene.runManager?.canAddToConvoy?.(item)),
+      // Cutpurse's Luck: a player thief's speed check is waived (ShrineBoons.stealRunOptions).
+      ...stealRunOptions(scene.runManager, unit),
     };
   }
 

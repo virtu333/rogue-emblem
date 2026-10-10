@@ -41,8 +41,10 @@ import {
   churchBlessingOffers,
   churchCleanseBlock,
   churchOffersCleanse,
-  churchVow,
-  churchVowLine,
+  churchVowCapacity,
+  churchVowCommitNote,
+  churchVowStatusLine,
+  churchVows,
   cleanseAtChurch,
   takeChurchBlessing,
 } from '../engine/ChurchVow.js';
@@ -196,17 +198,12 @@ export class ChurchMenu {
       if (reason) body.append(el('p', reason));
     }
     if (!ruins) {
-      // One vow per church: Promotion or a Blessing (ChurchVow).
-      const vow = churchVow(run, nodeId);
-      body.append(el('h3', 'Your vow here'));
+      // One vow per church (two with Twin Chapel): Promotion, a Blessing or Cleansing (ChurchVow).
+      body.append(el('h3', churchVowCapacity(run) > 1 ? 'Your vows here' : 'Your vow here'));
       body.append(
         el(
           'p',
-          vow
-            ? churchVowLine(vow)
-            : churchOffersCleanse(run, nodeId)
-              ? 'Promote your units, take a blessing or lift a burden: one vow per church. The first promotion, the blessing or the cleansing makes it.'
-              : 'Promote your units, or take a blessing: one vow per church. The first promotion or the blessing makes it.',
+          churchVowStatusLine(run, nodeId, { offersCleanse: churchOffersCleanse(run, nodeId) }),
           'church-vow-line',
         ),
       );
@@ -242,7 +239,7 @@ export class ChurchMenu {
    */
   renderCleanse(body, run, nodeId) {
     if (!churchOffersCleanse(run, nodeId)) return;
-    if (churchVow(run, nodeId) === 'cleanse') return;
+    if (churchVows(run, nodeId).includes('cleanse')) return;
     body.append(el('h3', 'Cleanse · Free'));
     const catalog = this.scene.gameData?.events;
     const burdens = describeBurdens(run, catalog);
@@ -264,7 +261,7 @@ export class ChurchMenu {
             confirmLabel: 'Lift the burden',
             label: (x) => x.label,
             describe: (x) =>
-              `${x.line} Now: ${x.detail}. This is your vow here: this church will promote no one and give no blessing.`,
+              `${x.line} Now: ${x.detail}. ${churchVowCommitNote(run, nodeId, 'cleanse') ?? 'This is your vow here: this church will promote no one and give no blessing.'}`,
             blocked: (x) => churchCleanseBlock(run, nodeId, x.id),
             apply: (x) => this.finish(cleanseAtChurch(run, nodeId, x.id)),
           }),
@@ -289,8 +286,7 @@ export class ChurchMenu {
   /** The altar's minor blessings: taking one is this church's vow. */
   renderBlessings(body, run, nodeId) {
     const gameData = this.scene.gameData;
-    const vow = churchVow(run, nodeId);
-    if (vow === 'blessing') return;
+    if (churchVows(run, nodeId).includes('blessing')) return;
     body.append(el('h3', 'Blessing · Free'));
     const offers = churchBlessingOffers(run, nodeId, gameData);
     if (!offers.length) body.append(el('p', 'You already hold every blessing this altar gives.'));
@@ -306,7 +302,7 @@ export class ChurchMenu {
             confirmLabel: 'Take the blessing',
             label: (x) => x.name,
             describe: (x) =>
-              `${x.description} This is your vow here: this church will promote no one.`,
+              `${x.description} ${churchVowCommitNote(run, nodeId, 'blessing') ?? 'This is your vow here: this church will promote no one.'}`,
             blocked: (x) => churchBlessingBlock(run, nodeId, x.id, gameData),
             apply: (x) => this.finish(takeChurchBlessing(run, nodeId, x.id, gameData)),
           }),

@@ -15,6 +15,9 @@ import { GOLD_PAR_BONUS_MULTIPLIER } from '../utils/constants.js';
  *   lord's walk to the throne + 4, so an S stays reachable). Par rises to it, but never
  *   above the map's First Light par (raw par + turnBonus.firstLightParInflation +
  *   parBonus), so the rungs stay in order: First Light ≥ Dusk ≥ Nightfall ≥ Black Sun.
+ *   blessingParTurns: Patient Dawn's turns (battleParams.blessingParTurns), added last, after
+ *   the floor: the run's blessing, never the map's, so a locked map re-entered after taking it
+ *   gets them too.
  * @param {object} config - turnBonus.json data
  * @param {string|null} [difficultyId=null] - difficulty mode id for par scaling
  * @returns {number|null} integer par, or null if objective has no basePar entry
@@ -31,6 +34,7 @@ export function calculatePar(mapParams, config, difficultyId = null) {
     parInflation = null,
     parOffset = 0,
     parFloor = null,
+    blessingParTurns = 0,
   } = mapParams;
 
   const basePar = config.objectiveBasePar[objective];
@@ -77,12 +81,39 @@ export function calculatePar(mapParams, config, difficultyId = null) {
   const offset = Number.isFinite(parOffset) ? Math.trunc(parOffset) : 0;
   const scaled = diffMult >= 1 ? rawPar : Math.max(1, Math.floor(rawPar * diffMult));
   const par = Math.max(1, scaled + inflation + templateParBonus + offset);
-  if (!Number.isFinite(parFloor)) return par;
+  const blessing = Number.isFinite(blessingParTurns)
+    ? Math.max(0, Math.trunc(blessingParTurns))
+    : 0;
+  if (!Number.isFinite(parFloor)) return par + blessing;
   // First Light's own inflation (difficulty.json normal.parInflation); parInflation
   // stays the value for maps generated before inflation was locked with the map.
   const firstLightInflation = config.firstLightParInflation ?? config.parInflation ?? 0;
   const firstLightPar = rawPar + firstLightInflation + templateParBonus;
-  return Math.max(par, Math.min(Math.trunc(parFloor), firstLightPar));
+  return Math.max(par, Math.min(Math.trunc(parFloor), firstLightPar)) + blessing;
+}
+
+/**
+ * The par inputs of a battle: its locked map (`battleConfig`), the foes it opened with and the
+ * run's Patient Dawn turns (`battleParams.blessingParTurns`). The one builder BattleScene and the
+ * headless harness both call, so their par can never disagree.
+ * @param {object} battleConfig
+ * @param {{ enemyCount: number, terrainData?: object[], battleParams?: object|null }} ctx
+ */
+export function battleParMapParams(battleConfig, { enemyCount, terrainData, battleParams } = {}) {
+  const bc = battleConfig || {};
+  return {
+    cols: bc.cols,
+    rows: bc.rows,
+    enemyCount,
+    objective: bc.objective,
+    mapLayout: bc.mapLayout,
+    terrainData,
+    parBonus: bc.parBonus || 0,
+    parInflation: bc.parInflation,
+    parOffset: bc.parOffset,
+    parFloor: bc.parFloor,
+    blessingParTurns: Math.max(0, Math.trunc(Number(battleParams?.blessingParTurns) || 0)),
+  };
 }
 
 /**

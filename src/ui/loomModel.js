@@ -631,10 +631,18 @@ export function describeLoomNode(
     };
   else stateLine = { tone: 'cut', text: 'A frayed thread · out of reach' };
 
-  const warning =
+  const countdown =
     !eclipsed && eclipse?.near && Number.isFinite(eclipse.remaining) && state !== 'cut'
       ? fallCountdownText(eclipse.remaining)
       : null;
+  // Omen Reader: a foretold knot says where it stands in the falls to come.
+  const omen =
+    !eclipsed && eclipse?.foretold === true && state !== 'done'
+      ? eclipse.omenRank === 1
+        ? 'Omen: the dark takes this knot next.'
+        : 'Omen: the dark takes this knot soon after the next.'
+      : null;
+  const warning = [countdown, omen].filter(Boolean).join(' ') || null;
 
   return {
     kind: darkOmen

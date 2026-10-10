@@ -158,6 +158,7 @@
       "specs": [
         "battle-entry-music.spec.js",
         "choice-screens.spec.js",
+        "church-twin-chapel.spec.js",
         "deeds.spec.js",
         "eclipse.spec.js",
         "event-nodes.spec.js",
@@ -171,6 +172,7 @@
         "local-play.spec.js",
         "loom-route.spec.js",
         "native-rewards.spec.js",
+        "open-roll.spec.js",
         "reward-reload.spec.js",
         "reward-reroll.spec.js",
         "rewards-desktop.spec.js",

@@ -1,3 +1,4 @@
+import { staffRunOptions } from '../engine/StaffBlessings.js';
 import { getConsumableDescription } from '../utils/consumableText.js';
 import {
   getEffectiveStaffRange,
@@ -54,12 +55,14 @@ export function attackSpeedBrief(speed) {
  * Given the unit, a weapon adds its attack speed on a second line (with the change
  * from the equipped weapon): the rail is too narrow to hold it on the first.
  */
-export function battleItemBrief(item, unit) {
+export function battleItemBrief(item, unit, { run = null } = {}) {
   if (!item) return '';
   if (item.type === 'Consumable') return getConsumableDescription(item);
   if (item.type === 'Staff') {
     const range = unit ? getEffectiveStaffRange(item, unit) : item.range;
-    return `Rng ${formatRange(range)} · ${getStaffRemainingUses(item, unit)}/${getStaffMaxUses(item, unit)} uses`;
+    // `run`: the run's blessing uses (Saint's Reserve) count, as in battle.
+    const staffOptions = staffRunOptions(run, unit);
+    return `Rng ${formatRange(range)} · ${getStaffRemainingUses(item, unit, staffOptions)}/${getStaffMaxUses(item, unit, staffOptions)} uses`;
   }
   const parts = [`Mt ${item.might ?? 0}`, `Hit ${item.hit ?? 0}`];
   if (Number(item.crit) > 0) parts.push(`Crt ${item.crit}`);
@@ -70,12 +73,13 @@ export function battleItemBrief(item, unit) {
 }
 
 /** The full detail of an item: every stat and its effect (long press, screen readers). */
-export function battleItemSummary(item, unit) {
+export function battleItemSummary(item, unit, { run = null } = {}) {
   if (!item) return '';
   if (item.type === 'Consumable') return `${getConsumableDescription(item)} · Uses do not refill`;
   if (item.type === 'Staff') {
     const range = unit ? getEffectiveStaffRange(item, unit) : item.range;
-    return `${item.special || item.description || 'Staff'} · Range ${formatRange(range)} · Uses ${getStaffRemainingUses(item, unit)}/${getStaffMaxUses(item, unit)} · Refills each battle`;
+    const staffOptions = staffRunOptions(run, unit);
+    return `${item.special || item.description || 'Staff'} · Range ${formatRange(range)} · Uses ${getStaffRemainingUses(item, unit, staffOptions)}/${getStaffMaxUses(item, unit, staffOptions)} · Refills each battle`;
   }
   const speed = weaponAttackSpeed(item, unit);
   const speedLine = !speed
