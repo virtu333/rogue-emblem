@@ -670,6 +670,11 @@ export function validateEventsConfig(config, data = {}) {
           err(where, `earnedBlessing needs the choice to require earnedAvailable "${effect.id}"`);
         break;
       case 'burden':
+        // A burden with no countdown of its own is a twisted blessing's price only (a church can
+        // never lift one: Burdens.isTwistBurden).
+        for (const key of ['permanent', 'actsAhead', 'untilAct'])
+          if (effect.params?.[key] !== undefined)
+            err(where, `burden.${key} is a twisted blessing's price only`);
         if (!BURDEN_IDS.includes(effect.id)) err(where, `unknown burden "${effect.id}"`);
         else if (effect.id === 'debt') {
           if (effect.params?.owed === undefined) err(where, 'debt needs params.owed');

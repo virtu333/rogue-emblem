@@ -15,8 +15,14 @@ import { kindleBlock } from './EclipseSystem.js';
 import { churchVowBlock, commitChurchVow } from './ChurchVow.js';
 import { endWoundByHealing, injuryPhrase } from './Burdens.js';
 import { healUnitFully } from './UnitHealth.js';
-/** What a church charges to promote this unit: lords pay more than everyone else. */
-export function churchPromoteCost(unit) {
+import { applyKingmakerBonus, kingmakerOf } from './TwistedBoons.js';
+/**
+ * What a church charges to promote this unit: lords pay more than everyone else; nothing while
+ * the run holds Kingmaker's Oath (docs/specs/blessings-v3.md §6.2). `run` may be left out (no
+ * blessing then).
+ */
+export function churchPromoteCost(unit, run = null) {
+  if (kingmakerOf(run)) return 0;
   return unit?.isLord ? CHURCH_PROMOTE_COST_LORD : CHURCH_PROMOTE_COST_RECRUIT;
 }
 export function churchPromotionBlock(run, unit, nodeId, gameData) {
@@ -32,7 +38,7 @@ export function churchPromotionBlock(run, unit, nodeId, gameData) {
   if (vowed) return vowed;
   const limit = run.getDifficultyModifier('churchPromotionLimit', -1);
   if (limit >= 0 && run.getChurchPromotionCount(nodeId) >= limit) return 'Promotion limit reached.';
-  if (run.gold < churchPromoteCost(unit)) return 'Not enough gold.';
+  if (run.gold < churchPromoteCost(unit, run)) return 'Not enough gold.';
   return '';
 }
 export function promoteAtChurch(run, unit, nodeId, target, gameData) {
@@ -45,18 +51,26 @@ export function promoteAtChurch(run, unit, nodeId, target, gameData) {
     gameData.lords.find((l) => l.name === unit.name)?.promotionBonuses ||
     canonical?.promotionBonuses;
   if (!canonical || !bonuses) return { ok: false, reason: 'Promotion unavailable.' };
-  if (!run.spendGold(churchPromoteCost(unit))) return { ok: false, reason: 'Not enough gold.' };
+  const cost = churchPromoteCost(unit, run);
+  if (cost > 0 && !run.spendGold(cost)) return { ok: false, reason: 'Not enough gold.' };
   const result = promoteUnit(unit, canonical, bonuses, gameData.skills);
+  // Kingmaker's Oath: the altar adds to the stats the class's own promotion favours (its
+  // canonical bonuses, a lord's too; never Move).
+  const crowned = applyKingmakerBonus(run, unit, canonical.promotionBonuses || bonuses);
   // A deed's Oath is sworn at the altar too.
   const oath = applyPromotionOath(unit, gameData);
   run.setChurchPromotionCount(nodeId, run.getChurchPromotionCount(nodeId) + 1);
   commitChurchVow(run, nodeId, 'promote');
   const dropped = getSkillDisplayNames(result?.droppedSkills || [], gameData.skills);
   const waits = oath?.benched ? ` ${oathBenchedNote(unit, oath)}` : '';
+  const kingmaker = crowned.length
+    ? ` Kingmaker's Oath: ${crowned.map((c) => `+${c.value} ${c.stat}`).join(', ')}.`
+    : '';
   return {
     ok: true,
     oath,
-    message: `${unit.name} promoted to ${canonical.name}.${oath?.learned ? ` ${oath.name}: learned ${oath.skillName}.` : ''}${dropped.length ? ` ${benchedSkillsNote(dropped)}` : ''}${waits}`,
+    kingmaker: crowned,
+    message: `${unit.name} promoted to ${canonical.name}.${kingmaker}${oath?.learned ? ` ${oath.name}: learned ${oath.skillName}.` : ''}${dropped.length ? ` ${benchedSkillsNote(dropped)}` : ''}${waits}`,
   };
 }
 /**

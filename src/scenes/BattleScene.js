@@ -401,6 +401,7 @@ import { RecruitBeaconController } from '../ui/RecruitBeaconController.js';
 import { SMASH_TARGET_STATE, ZombieRemainsController } from '../ui/ZombieRemainsController.js';
 import { NecromancyController } from '../ui/NecromancyController.js';
 import { isNecromancer } from '../engine/Necromancy.js';
+import { classChangeItemBlock } from '../engine/TwistedBoons.js';
 import { HealController } from '../ui/HealController.js';
 import { InputController } from '../ui/InputController.js';
 import { LootFlowController } from '../ui/LootFlowController.js';
@@ -6620,11 +6621,16 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * The Master Seal this unit can promote with now, or null: none carried, or the run's
+   * Kingmaker's Oath forbids them (TwistedBoons.classChangeItemBlock: the Promote command and the
+   * item menu both read this).
+   */
   getPromotionConsumable(unit) {
     if (!unit?.consumables?.length) return null;
-    return (
-      unit.consumables.find((item) => item?.effect === 'promote' && (item.uses ?? 0) > 0) || null
-    );
+    const seal =
+      unit.consumables.find((item) => item?.effect === 'promote' && (item.uses ?? 0) > 0) || null;
+    return seal && !classChangeItemBlock(this.runManager, seal) ? seal : null;
   }
 
   getReclassConsumable(unit) {
@@ -7126,7 +7132,9 @@ export class BattleScene extends Phaser.Scene {
                 : isCure && !canUseCure
                   ? 'No conditions to cure'
                   : isPromote && !canUsePromote
-                    ? refusal || 'Promotion unavailable'
+                    ? classChangeItemBlock(this.runManager, item) ||
+                      refusal ||
+                      'Promotion unavailable'
                     : isReclass && !canUseReclass
                       ? refusal || 'No available reclass'
                       : item.effect === 'gold'

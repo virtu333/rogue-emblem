@@ -53,7 +53,8 @@ import {
   takeSanctumBlessing,
 } from '../engine/ChurchVow.js';
 import { isSanctum } from '../engine/SanctumPass.js';
-import { describeBurdens, isCleansable, woundHealLine } from '../engine/Burdens.js';
+import { describeBurdens, woundHealLine } from '../engine/Burdens.js';
+import { kingmakerOf } from '../engine/TwistedBoons.js';
 import { createEclipseSunCanvas } from '../art/eclipse/eclipseSun.js';
 import {
   CHURCH_PROMOTE_COST_LORD,
@@ -87,6 +88,26 @@ const starterLine = (unit, gameData) => {
   const weapon = reviveStarterWeapon(unit, gameData?.weapons || [], INVENTORY_MAX);
   return weapon ? ` Comes back carrying ${withIndefiniteArticle(weapon.name)}.` : '';
 };
+/** The church's promotion heading: its prices, or "Free" while Kingmaker's Oath is held. */
+export function churchPromoteHeading(run) {
+  if (kingmakerOf(run)) return "Promote · Free (Kingmaker's Oath)";
+  return `Promote · ${CHURCH_PROMOTE_COST_RECRUIT} G · lords ${CHURCH_PROMOTE_COST_LORD} G`;
+}
+
+/** What promoting this unit here costs, as the confirm button says it. */
+export function churchPromotePriceText(unit, run) {
+  const cost = churchPromoteCost(unit, run);
+  return cost > 0 ? `${cost} G` : 'Free';
+}
+
+/** The path chooser's note: the price and the purse, or what Kingmaker's Oath adds. */
+export function churchPromoteNote(unit, run) {
+  const oath = kingmakerOf(run);
+  if (oath)
+    return `Free (Kingmaker's Oath): +${oath.bonus} to the ${oath.stats === 1 ? 'stat' : `${oath.stats} stats`} the class favours most`;
+  return `${churchPromoteCost(unit, run)} G · you have ${run.gold} G`;
+}
+
 export function ruinsPathLabel(path) {
   return path === 'rest'
     ? 'Rest — heal everyone, revive the fallen'
@@ -219,12 +240,7 @@ export class ChurchMenu {
           'church-vow-line',
         ),
       );
-      body.append(
-        el(
-          'h3',
-          `Promote · ${CHURCH_PROMOTE_COST_RECRUIT} G · lords ${CHURCH_PROMOTE_COST_LORD} G`,
-        ),
-      );
+      body.append(el('h3', churchPromoteHeading(run)));
       const eligible = run.roster.filter(canPromote);
       if (!eligible.length)
         body.append(el('p', 'No units eligible yet. Base classes can promote from level 10.'));
@@ -244,18 +260,25 @@ export class ChurchMenu {
     body.scrollTop = scroll;
   }
   /**
-   * Cleanse: when the run holds a burden a church can lift (Burdens.cleansableBurdens: all but
-   * Debt and a Lingering Injury, which Heal all mends), the altar offers to lift one of the player's choosing: a row per burden, its words
-   * under it, behind a confirmation. Taking it is this church's vow. A Debt the run carries is
-   * shown as a row the altar will not lift, so the player sees why it stays.
+   * Cleanse: when the run holds a burden a church can lift (Burdens.isCleansable: all but Debt, a
+   * Lingering Injury, which Heal all mends, and a twisted blessing's part), the altar offers to
+   * lift one of the player's choosing: a row per burden, its words under it, behind a
+   * confirmation. Taking it is this church's vow. On a twist's record with a passing countdown
+   * merged into it, the row lifts that countdown only (Burdens.cleanseBurden).
+   * A twisted blessing's burden is listed whenever the run holds one (greyed, with the altar's
+   * refusal), even with nothing to lift, so the player sees why it stays; a Debt is listed beside
+   * the section whenever it shows.
    */
   renderCleanse(body, run, nodeId) {
-    if (!churchOffersCleanse(run, nodeId)) return;
-    if (churchVows(run, nodeId).includes('cleanse')) return;
-    body.append(el('h3', 'Cleanse · Free'));
     const catalog = this.scene.gameData?.events;
     const burdens = describeBurdens(run, catalog);
-    const lifts = burdens.filter(isCleansable);
+    const twists = burdens.filter((burden) => burden.twist);
+    // Only the rows that lift anything wait on the altar's offer and its vow.
+    const offers = churchOffersCleanse(run, nodeId) && !churchVows(run, nodeId).includes('cleanse');
+    if (!offers && !twists.length) return;
+    body.append(el('h3', offers ? 'Cleanse · Free' : 'Cleanse'));
+    // Burdens.isCleansable is the one rule; the described burden carries its verdict.
+    const lifts = offers ? burdens.filter((burden) => burden.cleansable) : [];
     // One reason for the whole section when a vow already made here shuts them all
     // (not the same line under every row).
     const reasons = lifts.map((burden) => churchCleanseBlock(run, nodeId, burden.id));
@@ -263,8 +286,10 @@ export class ChurchMenu {
     if (shared) body.append(el('p', shared, 'church-cleanse-reason'));
     lifts.forEach((burden, index) => {
       const reason = reasons[index];
+      // A merged record lifts its passing countdown only: the row names that part.
+      const part = burden.lift || null;
       const b = button(
-        `${burden.label} · ${burden.short}`,
+        `${burden.label} · ${part ? part.short : burden.short}`,
         () =>
           this.choose({
             title: `Lift ${burden.label}?`,
@@ -273,7 +298,7 @@ export class ChurchMenu {
             confirmLabel: 'Lift the burden',
             label: (x) => x.label,
             describe: (x) =>
-              `${x.line} Now: ${x.detail}. ${churchVowCommitNote(run, nodeId, 'cleanse') ?? 'This is your vow here: this church will promote no one and give no blessing.'}`,
+              `${x.line} Now: ${x.detail}.${x.lift ? ` The altar lifts only the passing part (${x.lift.detail}); ${x.twistRefusal}` : ''} ${churchVowCommitNote(run, nodeId, 'cleanse') ?? 'This is your vow here: this church will promote no one and give no blessing.'}`,
             blocked: (x) => churchCleanseBlock(run, nodeId, x.id),
             apply: (x) => this.finish(cleanseAtChurch(run, nodeId, x.id)),
           }),
@@ -282,7 +307,13 @@ export class ChurchMenu {
       b.dataset.burden = burden.id;
       b.disabled = !!reason;
       body.append(b);
-      body.append(el('p', `${burden.line} ${burden.detail}.`, 'church-cleanse-text'));
+      body.append(
+        el(
+          'p',
+          part ? `${burden.line} ${part.detail}.` : `${burden.line} ${burden.detail}.`,
+          'church-cleanse-text',
+        ),
+      );
       if (reason && !shared) body.append(el('p', reason));
     });
     // A Debt on the run: listed, greyed, with the altar's refusal (never offered, never lifted).
@@ -293,6 +324,16 @@ export class ChurchMenu {
       b.disabled = true;
       body.append(b);
       body.append(el('p', 'The lender has lawyers: no altar lifts a Debt.', 'church-cleanse-debt'));
+    }
+    // A twisted blessing's burden (Blood Covenant's omen, Hollow Sun's Favor's Hunted), its twist
+    // part alone on a merged record: listed, greyed, with the altar's refusal.
+    for (const twist of twists) {
+      const b = button(`${twist.label} · ${twist.twistShort}`, () => {}, 're-btn church-cleanse');
+      b.dataset.burden = twist.id;
+      b.dataset.twist = 'true';
+      b.disabled = true;
+      body.append(b);
+      body.append(el('p', twist.twistRefusal, 'church-cleanse-twist'));
     }
   }
   /**
@@ -519,11 +560,13 @@ export class ChurchMenu {
       gameData,
       title: `Promote ${unit.name}`,
       closeLabel: 'Close',
-      note: `${churchPromoteCost(unit)} G · you have ${run.gold} G`,
-      confirmLabel: (cls) => `Promote to ${cls.name} · ${churchPromoteCost(unit)} G`,
+      note: churchPromoteNote(unit, run),
+      // Kingmaker's Oath's +2 shows in the paths and the rite (the altar adds it).
+      churchRun: run,
+      confirmLabel: (cls) => `Promote to ${cls.name} · ${churchPromotePriceText(unit, run)}`,
       blocked: () => churchPromotionBlock(run, unit, nodeId, gameData),
       apply: (target) => {
-        const content = promotionPathContent(unit, target, gameData);
+        const content = promotionPathContent(unit, target, gameData, { churchRun: run });
         const before = projectUnit(unit);
         const result = promoteAtChurch(run, unit, nodeId, target, gameData);
         if (!result.ok) return result;

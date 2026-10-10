@@ -1703,6 +1703,178 @@
         }
       ],
       "costs": []
+    },
+    {
+      "id": "darkened_dawn",
+      "name": "Darkened Dawn",
+      "earned": true,
+      "weight": 0.6,
+      "sources": [
+        {
+          "kind": "act_boss"
+        }
+      ],
+      "excludes": [
+        "second_dawn"
+      ],
+      "requires": {
+        "eclipse": true
+      },
+      "description": "+1 Vision charge now and at the start of each act.",
+      "lore": "The sun rose twice, the second time black. The seers stopped talking about it.",
+      "boons": [
+        {
+          "type": "vision_delta",
+          "params": {
+            "value": 1
+          }
+        },
+        {
+          "type": "act_start_vision_delta",
+          "params": {
+            "value": 1
+          }
+        }
+      ],
+      "twist": {
+        "label": "+8 shadow now; the Eclipse gathers 25% faster",
+        "effects": [
+          {
+            "type": "eclipse_shadow_delta",
+            "params": {
+              "value": 8
+            }
+          },
+          {
+            "type": "eclipse_gain_multiplier_delta",
+            "params": {
+              "value": 0.25
+            }
+          }
+        ]
+      },
+      "costs": []
+    },
+    {
+      "id": "blood_covenant",
+      "name": "Blood Covenant",
+      "earned": true,
+      "weight": 0.6,
+      "sources": [
+        {
+          "kind": "act_boss"
+        }
+      ],
+      "requires": {
+        "eclipse": true
+      },
+      "description": "Every unit, recruits included, has +1 to every stat but Move.",
+      "lore": "Signed in what runs through all of you. The ink never quite dries.",
+      "boons": [
+        {
+          "type": "army_stat_bonus",
+          "params": {
+            "value": 1
+          }
+        }
+      ],
+      "twist": {
+        "label": "An Ill Omen that never ends: +1 shadow each victory",
+        "effects": [
+          {
+            "type": "burden",
+            "params": {
+              "id": "ill_omen",
+              "permanent": true,
+              "extraShadow": 1
+            }
+          }
+        ]
+      },
+      "costs": []
+    },
+    {
+      "id": "kingmakers_oath",
+      "name": "Kingmaker's Oath",
+      "earned": true,
+      "weight": 0.6,
+      "sources": [
+        {
+          "kind": "act_boss"
+        }
+      ],
+      "description": "Church promotions are free and add +2 to the class's two best stats.",
+      "lore": "Kings were once made at altars, not by seals. The old priests remember how.",
+      "boons": [
+        {
+          "type": "kingmaker_promotion",
+          "params": {
+            "bonus": 2,
+            "stats": 2
+          }
+        }
+      ],
+      "twist": {
+        "label": "Master Seals can't be used: promote only at a church",
+        "effects": [
+          {
+            "type": "master_seals_forbidden",
+            "params": {}
+          }
+        ]
+      },
+      "costs": []
+    },
+    {
+      "id": "hollow_sun_favor",
+      "name": "Hollow Sun's Favor",
+      "earned": true,
+      "weight": 0.6,
+      "sources": [
+        {
+          "kind": "act_boss"
+        }
+      ],
+      "tags": [
+        "gold"
+      ],
+      "description": "+50% battle gold and +50% gold from loot cards.",
+      "lore": "The dark sun pays its debts in coin. It collects in other ways.",
+      "boons": [
+        {
+          "type": "battle_gold_multiplier_delta",
+          "params": {
+            "value": 0.5
+          }
+        },
+        {
+          "type": "loot_gold_multiplier_delta",
+          "params": {
+            "value": 0.5
+          }
+        }
+      ],
+      "twist": {
+        "label": "Hunted through the next act: a wave of 2 foes in each battle",
+        "effects": [
+          {
+            "type": "burden",
+            "params": {
+              "id": "hunted",
+              "actsAhead": 1,
+              "wave": {
+                "turn": 3,
+                "count": [
+                  2,
+                  2
+                ],
+                "xpMultiplier": 0.5
+              }
+            }
+          }
+        ]
+      },
+      "costs": []
     }
   ],
   "costPools": {

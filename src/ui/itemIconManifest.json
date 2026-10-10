@@ -566,7 +566,11 @@
     "blessing-mercenary_ledger": [304, 5, 4],
     "blessing-smiths_covenant": [322, 5, 4],
     "blessing-thiefs_lantern": [221, 5, 4],
-    "blessing-seers_eye": [203, 5, 4]
+    "blessing-seers_eye": [203, 5, 4],
+    "blessing-darkened_dawn": [307, 5, 4],
+    "blessing-blood_covenant": [212, 5, 4],
+    "blessing-kingmakers_oath": [308, 5, 4],
+    "blessing-hollow_sun_favor": [220, 5, 4]
   },
   "aliases": {
     "upgrade-branching_threads": "blessing-focused_curriculum",
@@ -601,6 +605,10 @@
     "blessing-mercenary_ledger": "upgrade-trade_contacts",
     "blessing-smiths_covenant": "upgrade-weapon_forge",
     "blessing-thiefs_lantern": "hunters-cloak",
-    "blessing-seers_eye": "delphi-shield"
+    "blessing-seers_eye": "delphi-shield",
+    "blessing-darkened_dawn": "upgrade-vision_charges_3",
+    "blessing-blood_covenant": "vampires-bloodshard",
+    "blessing-kingmakers_oath": "upgrade-legendary_heir",
+    "blessing-hollow_sun_favor": "diamond-medallion"
   }
 }

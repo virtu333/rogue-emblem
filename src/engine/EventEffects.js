@@ -1203,9 +1203,12 @@ export function applyStep(ctx, step) {
           kind: 'burden',
           id: step.id,
           label: def.label || step.id,
-          line: def.line || '',
+          // A twist's endless omen never "passes": its own line, not the catalog's.
+          line: words.line || def.line || '',
           detail:
-            step.id === 'ill_omen'
+            // A twist's omen already held takes this one as its passing part: the merged
+            // record's words say both (never ends; +N for M more battles).
+            step.id === 'ill_omen' && !b.permanent
               ? `${b.battles} battles, +${b.extraShadow} shadow each`
               : step.id === 'debt'
                 ? `${b.owed} G owed`

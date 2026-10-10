@@ -1,4 +1,4 @@
-// Seer's Eye upright (docs/portrait-battles.md; docs/specs/blessings-v3.md §6.6): the route map's
+// Seer's Eye upright (docs/portrait-battles.md; docs/specs/blessings-v3.md §6.7): the route map's
 // scout panel on an upright phone wraps inside its card. Nothing scrolls sideways, no row clips,
 // and the panel reads what the scout found. The landscape journey (the panel, then the battle it
 // scouted) is seers-eye-preview.spec.js.

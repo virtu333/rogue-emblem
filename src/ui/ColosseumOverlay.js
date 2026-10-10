@@ -18,7 +18,7 @@ import {
 } from '../engine/EarnedBlessings.js';
 // ColosseumOverlay.js — Overlay UI for the Colosseum node (Arena + Mercenary Board)
 // ArenaMenu owns rendering/input; this controller owns gameplay and visit persistence.
-// The Colosseum's earned blessing (docs/specs/blessings-v3.md §6.6, D-8): the first win in a gold
+// The Colosseum's earned blessing (docs/specs/blessings-v3.md §6.7, D-8): the first win in a gold
 // or platinum bout rolls its offer with the bout's own save (_settleFight); the colosseum's menu
 // opens it (_showMenu: EarnedBlessingPick, saved by the service save), and the route map opens it
 // if it is still owed when the party leaves.

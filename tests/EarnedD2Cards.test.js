@@ -1,4 +1,4 @@
-// PR D2's earned blessings at work (docs/specs/blessings-v3.md §6.6): Saint's Reliquary, Smith's
+// PR D2's earned blessings at work (docs/specs/blessings-v3.md §6.7): Saint's Reliquary, Smith's
 // Covenant, Thief's Lantern and Seer's Eye (the Mercenary Ledger: tests/MercenaryLedger.test.js;
 // the route preview's scout: tests/BattleScout.test.js). Each card reaches its system through one
 // shared engine path (StaffBlessings.staffRunOptions, EventEffects.planWear, ShrineBoons

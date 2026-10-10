@@ -1,4 +1,4 @@
-// Seer's Eye (docs/specs/blessings-v3.md §6.6): fog never hides a foe. Every reader of "does the
+// Seer's Eye (docs/specs/blessings-v3.md §6.7): fog never hides a foe. Every reader of "does the
 // player see this foe" asks one rule (BattleInformation.isUnitSeenAt / isUnitTileSeen /
 // canInspectUnit), so the Eye reaches all of them or none.
 //

@@ -1,4 +1,4 @@
-// Seer's Eye (docs/specs/blessings-v3.md §6.6): the route map's card lists the foes a battle holds
+// Seer's Eye (docs/specs/blessings-v3.md §6.7): the route map's card lists the foes a battle holds
 // (the scout: engine/BattleScout.js), and the battle entered from it fields exactly those foes, with
 // the fog never hiding one. On a landscape phone (the upright panel is portrait-seers-eye.spec.js,
 // in the portrait lane). Every wait is on state (the scene, the battle's state, the card's panel),

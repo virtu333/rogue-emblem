@@ -31,6 +31,10 @@ const ALL_EARNED_IDS = [
   'smiths_covenant',
   'thiefs_lantern',
   'seers_eye',
+  'darkened_dawn',
+  'blood_covenant',
+  'kingmakers_oath',
+  'hollow_sun_favor',
 ];
 
 function freshRun(seed = 21, difficultyId = 'normal') {
@@ -355,7 +359,7 @@ describe('the held list, the card and the Compendium say Earned', () => {
     });
 
     it('All still lists everything', () => {
-      expect(filteredBy('All')).toHaveLength(55);
+      expect(filteredBy('All')).toHaveLength(data.blessings.blessings.length);
     });
 
     it('a row reads "Earned" at its right edge, not "Tier ?", and the reference summary agrees', () => {

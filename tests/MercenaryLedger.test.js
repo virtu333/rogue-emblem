@@ -1,4 +1,4 @@
-// The Mercenary Ledger (docs/specs/blessings-v3.md §6.6, decision D-8): the Colosseum's earned
+// The Mercenary Ledger (docs/specs/blessings-v3.md §6.7, decision D-8): the Colosseum's earned
 // blessing. The first win in a gold or platinum bout rolls its offer with that bout's save; the
 // colosseum's menu opens it; held, every entry fee is halved and each visit allows one more bout.
 //

@@ -190,7 +190,8 @@
         "strategy-layer.spec.js",
         "traits-v2.spec.js",
         "seers-eye-preview.spec.js",
-        "colosseum-earned-offer.spec.js"
+        "colosseum-earned-offer.spec.js",
+        "earned-twist.spec.js"
       ]
     },
     {

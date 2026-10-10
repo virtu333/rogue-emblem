@@ -1,4 +1,4 @@
-// The route preview's scout (docs/specs/blessings-v3.md §6.6, decision D-21): Thief's Lantern
+// The route preview's scout (docs/specs/blessings-v3.md §6.7, decision D-21): Thief's Lantern
 // lists the foes that carry items, Seer's Eye every foe with its affixes and what it carries.
 // The scout generates a node's map exactly as the battle will, never locks it and never moves a
 // stream.

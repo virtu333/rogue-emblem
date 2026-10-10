@@ -1,4 +1,4 @@
-// The Colosseum's earned blessing (docs/specs/blessings-v3.md §6.6, D-8): the first win in a gold
+// The Colosseum's earned blessing (docs/specs/blessings-v3.md §6.7, D-8): the first win in a gold
 // bout offers the Mercenary Ledger, saved with the bout; the colosseum's menu opens the one-card
 // pick; taken, the fees are halved and the visit allows one more bout. On a landscape phone.
 // Every wait is on state (dialogs, the slot's save), never on time.

@@ -15,7 +15,7 @@ import { loadGameData } from './testData.js';
 
 const data = loadGameData();
 const catalog = data.blessings;
-// Every earned row: PR C's four, then PR D1's six, then PR D2's five.
+// Every earned row: PR C's four, PR D1's six, PR D2's five, then PR D3's four twisted cards.
 const EARNED_IDS = [
   'unbroken_banner',
   'second_dawn',
@@ -32,6 +32,10 @@ const EARNED_IDS = [
   'smiths_covenant',
   'thiefs_lantern',
   'seers_eye',
+  'darkened_dawn',
+  'blood_covenant',
+  'kingmakers_oath',
+  'hollow_sun_favor',
 ];
 const earnedRows = () => catalog.blessings.filter((b) => b.earned === true);
 
@@ -250,7 +254,8 @@ describe('offers never include an earned blessing', () => {
       for (const b of ordinary.blessings)
         if (b.earned) {
           delete b.earned;
-          delete b.sources; // an earned row's own field (an ordinary row may not carry it)
+          // An earned row's own fields (an ordinary row may carry none of them).
+          for (const key of ['sources', 'twist', 'requires']) delete b[key];
           b.tier = 1;
         }
       expect(offersEarned(ordinary).length).toBeGreaterThan(20);

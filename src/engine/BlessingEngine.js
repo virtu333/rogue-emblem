@@ -22,6 +22,8 @@ import { playerWeaponArtBoonErrors } from './WeaponArtSystem.js';
 import { adjacentAllyDefBonusErrors, isolatedCombatBonusErrors } from './FormationBlessings.js';
 import { EARNED_BOON_TYPES, earnedBoonErrors } from './EarnedBoons.js';
 import { shrineBoonErrors } from './ShrineBoons.js';
+import { TWISTED_BOON_TYPES, TWISTED_TWIST_TYPES, twistedEffectErrors } from './TwistedBoons.js';
+import { BURDEN_IDS, TWIST_BURDEN_IDS } from './Burdens.js';
 import { ACT_SEQUENCE } from '../utils/constants.js';
 
 export const BLESSINGS_CONTRACT_VERSION = 3;
@@ -57,8 +59,9 @@ export const EARNED_REQUIRES_KEYS = Object.freeze(['eclipse']);
  * taken mid-run (an act boss's pick), so a price fixed to an act (`act_stat_delta_all_units`,
  * `act_deploy_cap_delta`, `act_hit_bonus` and `disable_personal_skills_until_act` name the act
  * they bite in, usually one already past) is no twist; these act on the run from the take on.
- * Extended as twisted cards ship (PR D3 adds its own types here). Whether a twist's burden can be
- * cleansed at a church is D3's decision (docs/specs/blessings-v3.md §6.5).
+ * PR D3 adds the twisted cards' own types (engine/TwistedBoons.js): the Eclipse's faster gain and
+ * the ban on Master Seals. A twist's burden may have no countdown of its own (`permanent`, or a
+ * Hunted's `actsAhead`): only a twist may, and no church lifts one (Burdens.isCleansable).
  */
 export const TWIST_EFFECT_TYPES = Object.freeze([
   'burden',
@@ -67,7 +70,46 @@ export const TWIST_EFFECT_TYPES = Object.freeze([
   'xp_multiplier_delta',
   'shop_price_discount',
   'forge_cost_multiplier',
+  ...TWISTED_TWIST_TYPES,
 ]);
+/** The burden params only a twist may carry: a span with no countdown (Burdens.isTwistBurden). */
+const TWIST_SPAN_KEYS = Object.freeze(['permanent', 'actsAhead', 'untilAct']);
+
+/**
+ * Why a burden effect's span params are not usable (appends to `errors`). In a twist (`twist`
+ * true): `permanent: true` on an Ill Omen or a Hunted, or a Hunted's `actsAhead` (a positive
+ * whole number of acts), never both; `untilAct` is the record's own field, never data. Anywhere
+ * else none of them: a burden with no countdown is a twist's price only.
+ */
+function validateBurdenSpan(effect, path, errors, { twist = false } = {}) {
+  if (effect?.type !== 'burden' || !isObject(effect.params)) return;
+  const params = effect.params;
+  const spans = TWIST_SPAN_KEYS.filter((key) => params[key] !== undefined);
+  if (!twist) {
+    for (const key of spans)
+      errors.push(`${path}.params.${key}: a burden with no countdown is a twist's price only`);
+    return;
+  }
+  if (!BURDEN_IDS.includes(params.id)) errors.push(`${path}.params.id must name a burden`);
+  if (params.untilAct !== undefined)
+    errors.push(`${path}.params.untilAct is set when the twist is taken (use actsAhead)`);
+  if (params.permanent !== undefined && params.permanent !== true)
+    errors.push(`${path}.params.permanent must be true when given`);
+  if (params.permanent !== undefined && params.actsAhead !== undefined)
+    errors.push(`${path}.params: permanent or actsAhead, not both`);
+  if (
+    (params.permanent !== undefined || params.actsAhead !== undefined) &&
+    !TWIST_BURDEN_IDS.includes(params.id)
+  )
+    errors.push(`${path}.params: only ${TWIST_BURDEN_IDS.join(' or ')} may outlast its battles`);
+  if (params.actsAhead !== undefined) {
+    if (params.id !== 'hunted') errors.push(`${path}.params.actsAhead is a Hunted's only`);
+    if (!(Number.isInteger(params.actsAhead) && params.actsAhead > 0 && params.actsAhead <= 3))
+      errors.push(`${path}.params.actsAhead must be a whole number from 1 to 3`);
+  }
+  if (spans.length && params.battles !== undefined)
+    errors.push(`${path}.params.battles: a burden with no countdown names no battles`);
+}
 const REQUIRED_EFFECT_KEYS = ['type', 'params'];
 const REQUIRED_COST_POOL_KEYS = ['2', '3', '4'];
 
@@ -131,6 +173,13 @@ function validateBoonParams(effect, path, errors) {
     const value = effect.params?.value;
     if (!Number.isInteger(value) || value <= 0)
       errors.push(`${path}.params.value must be a positive integer (${effect.type})`);
+  } else if (
+    TWISTED_BOON_TYPES.includes(effect.type) ||
+    TWISTED_TWIST_TYPES.includes(effect.type)
+  ) {
+    // engine/TwistedBoons.js (PR D3): the parser its handler and the save's sanitizer read.
+    for (const message of twistedEffectErrors(effect))
+      errors.push(`${path}.${message} (${effect.type})`);
   } else if (EARNED_BOON_TYPES.includes(effect.type)) {
     // engine/EarnedBoons.js: the parser its handler and the save's sanitizer read.
     for (const message of earnedBoonErrors(effect))
@@ -267,6 +316,8 @@ export function validateBlessingsConfig(config, options = {}) {
             if (typeof effect.type !== 'string' || effect.type.trim() === '')
               errors.push(`${effectPath}.type must be a non-empty string`);
             if (!isObject(effect.params)) errors.push(`${effectPath}.params must be an object`);
+            // A pact is a shrine price: no burden without a countdown (a twist's only).
+            else validateBurdenSpan(effect, effectPath, errors);
           });
         }
       }
@@ -340,6 +391,9 @@ export function validateBlessingsConfig(config, options = {}) {
           }
           if (!isObject(effect.params)) {
             errors.push(`${effectPath}.params must be an object`);
+          } else {
+            // A v2 rolled cost is a shrine price: no burden without a countdown.
+            validateBurdenSpan(effect, effectPath, errors);
           }
         });
       });
@@ -400,6 +454,11 @@ function validateEarnedFields(blessing, path, errors) {
           errors.push(
             `${where}.type "${effect.type}" is not a twist effect (one of ${TWIST_EFFECT_TYPES.join(', ')})`,
           );
+        else {
+          // The twist's own params, read as its handler reads them.
+          validateBurdenSpan(effect, where, errors, { twist: true });
+          validateBoonParams(effect, where, errors);
+        }
       });
     }
   }
@@ -451,6 +510,7 @@ function validateV3Pricing(config, errors) {
     entry.effects.forEach((effect, i) => {
       if (!isObject(effect) || typeof effect.type !== 'string' || !isObject(effect.params))
         errors.push(`${path}.effects[${i}] must be { type, params }`);
+      else validateBurdenSpan(effect, `${path}.effects[${i}]`, errors);
     });
   }
   const bands = config.tierBands;

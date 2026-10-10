@@ -1,5 +1,5 @@
 // BattleScout.js - a battle node's foes, read before the party walks in (docs/specs/blessings-v3.md
-// §6.6, decision D-21): Thief's Lantern shows which foes carry items, Seer's Eye every foe with its
+// §6.7, decision D-21): Thief's Lantern shows which foes carry items, Seer's Eye every foe with its
 // affixes and what it carries (`route_scout`, EarnedBoons.routeScoutOf).
 //
 // THE SCOUT NEVER LOCKS THE NODE. A locked node keeps its map and is exempt from the Eclipse's

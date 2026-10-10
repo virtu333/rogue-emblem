@@ -1,4 +1,4 @@
-// Seer's Eye in the browser (docs/specs/blessings-v3.md §6.6): the dev route map with the card held
+// Seer's Eye in the browser (docs/specs/blessings-v3.md §6.7): the dev route map with the card held
 // and a fogged battle in reach. Shared by seers-eye-preview.spec.js (a landscape phone) and
 // portrait-seers-eye.spec.js (upright, the portrait lane). Every wait is on state.
 import { expect } from '@playwright/test';

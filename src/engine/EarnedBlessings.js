@@ -283,28 +283,45 @@ function fileEntry(run, key, { source, nodeId, offered, status, chosen = null })
 }
 
 /**
- * An owed or open offer never shows a card the run holds (a Take of it would be refused): drop
- * every held card from every owed or open entry, and an entry left with none becomes 'none' (an
- * open sanctum then gives its tier I blessings back; an owed pick asks nothing). Taken, skipped
- * and none entries keep their cards as the record of what was offered. Called after every card
- * that joins the run here; the load does the same (`sanitizeEarnedBlessingPicks`'s `heldIds`).
+ * A predicate for the offered ids the run could not take now: one it holds, or one a held
+ * blessing excludes (or that excludes a held one: `excludes`, either way, as `earnedPoolFor`
+ * reads it). A held Darkened Dawn shuts an offered Second Dawn, and the other way round.
+ */
+function heldOrExcluded(run) {
+  const held = run?.getActiveBlessingIds?.() || [];
+  const heldSet = new Set(held);
+  const catalog = run?.gameData?.blessings?.blessings || [];
+  const index = new Map(catalog.map((b) => [b?.id, b]));
+  return (id) => {
+    if (heldSet.has(id)) return true;
+    const blessing = index.get(id);
+    return Boolean(blessing) && excludedByHeld(blessing, held, index);
+  };
+}
+
+/**
+ * An owed or open offer never shows a card the run holds, nor one a held blessing excludes (a
+ * Take of it would be refused): drop each such card from every owed or open entry, and an entry
+ * left with none becomes 'none' (an open sanctum then gives its tier I blessings back; an owed
+ * pick asks nothing). Taken, skipped and none entries keep their cards as the record of what was
+ * offered. Called after every card that joins the run here, and after a load.
  */
 export function pruneHeldOffers(run) {
-  const held = new Set(run?.getActiveBlessingIds?.() || []);
+  const blocked = heldOrExcluded(run);
   for (const entry of Object.values(ledgerOf(run))) {
     if (!isPlainObject(entry) || (entry.status !== 'owed' && entry.status !== 'open')) continue;
     if (!Array.isArray(entry.offered)) continue;
-    const left = entry.offered.filter((id) => !held.has(id));
+    const left = entry.offered.filter((id) => !blocked(id));
     if (left.length === entry.offered.length) continue;
     entry.offered = left;
     if (left.length === 0) entry.status = 'none';
   }
 }
 
-/** The cards of an offer the run can still take (the run's held cards left out). */
+/** The cards of an offer the run can still take (held cards and those they exclude left out). */
 export function takeableOffered(run, entry) {
-  const held = new Set(run?.getActiveBlessingIds?.() || []);
-  return (Array.isArray(entry?.offered) ? entry.offered : []).filter((id) => !held.has(id));
+  const blocked = heldOrExcluded(run);
+  return (Array.isArray(entry?.offered) ? entry.offered : []).filter((id) => !blocked(id));
 }
 
 // ── The act boss ────────────────────────────────────────────────────────

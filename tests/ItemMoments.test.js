@@ -64,6 +64,10 @@ const PAINTING_PENDING = [
   'smiths_covenant',
   'thiefs_lantern',
   'seers_eye',
+  'darkened_dawn',
+  'blood_covenant',
+  'kingmakers_oath',
+  'hollow_sun_favor',
 ];
 const paintedBlessings = data.blessings.blessings.filter((b) => !PAINTING_PENDING.includes(b.id));
 

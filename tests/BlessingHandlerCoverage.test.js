@@ -73,19 +73,44 @@ describe('every blessing effect has a handler', () => {
   );
 
   // A twisted earned blessing's twist is applied by the same handlers as a price
-  // (addBlessingMidRun's `price`): every twist the catalog ships must have one. None ships in
-  // PR D1; the fixture below proves the walk would see one that is unhandled.
+  // (addBlessingMidRun's `price`): every twist the catalog ships must have one, and its params
+  // must not be skipped as malformed. PR D3 ships four; the fixtures below prove the walk would
+  // see one that is unhandled or malformed.
   const twistsApply = (blessings) => {
     const rm = freshRun();
     for (const b of blessings.filter((x) => x.twist))
       for (const effect of b.twist.effects) rm._applySingleRunStartBlessingEffect(b.id, effect);
-    return unhandled(rm).map((r) => r.effectType);
+    return [
+      ...unhandled(rm).map((r) => r.effectType),
+      ...invalid(rm).map((r) => `${r.effectType}: ${r.details.reason}`),
+    ];
   };
-  it("every twisted card's twist applies", () => {
+  it.each(catalog.blessings.filter((b) => b.twist).map((b) => [b.id, b]))(
+    "%s: its twist's effects apply",
+    (id, blessing) => {
+      expect(twistsApply([blessing])).toEqual([]);
+      const rm = freshRun();
+      for (const effect of blessing.twist.effects)
+        rm._applySingleRunStartBlessingEffect(id, effect);
+      const types = applied(rm).map((r) => r.effectType);
+      for (const effect of blessing.twist.effects)
+        expect(types, effect.type).toContain(effect.type);
+    },
+  );
+  it("every twisted card's twist applies; the walk sees an unhandled or a malformed twist", () => {
+    expect(catalog.blessings.filter((b) => b.twist).length).toBeGreaterThanOrEqual(4);
     expect(twistsApply(catalog.blessings)).toEqual([]);
     expect(
       twistsApply([{ id: 'x', twist: { effects: [{ type: 'no_such_twist', params: {} }] } }]),
     ).toEqual(['no_such_twist']);
+    expect(
+      twistsApply([
+        {
+          id: 'x',
+          twist: { effects: [{ type: 'eclipse_gain_multiplier_delta', params: { value: 0.3 } }] },
+        },
+      ]),
+    ).toEqual(['eclipse_gain_multiplier_delta: invalid_eclipse_gain_multiplier_delta_params']);
   });
 
   it('the v2 cost pools old saves hold still apply', () => {
@@ -131,6 +156,12 @@ describe('every blessing effect has a handler', () => {
       ['smiths_covenant', 'weapons_never_wear', { value: true }],
       ['thiefs_lantern', 'route_scout', { level: 'all' }],
       ['seers_eye', 'foes_shown', { value: 2 }],
+      // PR D3's twisted cards (engine/TwistedBoons.js) skip a malformed set the same way.
+      ['blood_covenant', 'army_stat_bonus', { value: 0 }],
+      ['kingmakers_oath', 'kingmaker_promotion', { bonus: 2, stats: 9 }],
+      ['hollow_sun_favor', 'loot_gold_multiplier_delta', { value: 'lots' }],
+      ['darkened_dawn', 'eclipse_gain_multiplier_delta', { value: 0.1 }],
+      ['kingmakers_oath', 'master_seals_forbidden', { value: 1 }],
     ])
       rm._applySingleRunStartBlessingEffect(id, { type, params });
     expect(invalid(rm).map((r) => r.details.reason)).toEqual([
@@ -148,6 +179,11 @@ describe('every blessing effect has a handler', () => {
       'invalid_weapons_never_wear_params',
       'invalid_route_scout_params',
       'invalid_foes_shown_params',
+      'invalid_army_stat_bonus_params',
+      'invalid_kingmaker_promotion_params',
+      'invalid_loot_gold_multiplier_delta_params',
+      'invalid_eclipse_gain_multiplier_delta_params',
+      'invalid_master_seals_forbidden_params',
     ]);
   });
 });
@@ -252,5 +288,59 @@ describe('the validator refuses a malformed boon that its handler would skip', (
       const changed = mods.playerArtHpCostDelta !== 0 || mods.playerArtMapUsesBonus !== 0;
       expect(changed, JSON.stringify(params)).toBe(valid);
     }
+  });
+  it("PR D3's twisted cards: the validator refuses exactly what the handler skips (boons and twists)", () => {
+    // Failure: a card the validator passes ships doing nothing (or a valid one is refused).
+    const cases = [
+      [
+        'blood_covenant',
+        'boons',
+        0,
+        [{ value: 1 }, { value: 3 }],
+        [{ value: 0 }, { value: 4 }, {}],
+      ],
+      [
+        'kingmakers_oath',
+        'boons',
+        0,
+        [
+          { bonus: 2, stats: 2 },
+          { bonus: 5, stats: 8 },
+        ],
+        [{ bonus: 0, stats: 2 }, { bonus: 2, stats: 9 }, { bonus: 2 }],
+      ],
+      [
+        'hollow_sun_favor',
+        'boons',
+        1,
+        [{ value: 0.5 }, { value: 2 }],
+        [{ value: 0 }, { value: 3 }],
+      ],
+      [
+        'darkened_dawn',
+        'twist',
+        1,
+        [{ value: 0.25 }, { value: 1 }],
+        [{ value: 0.3 }, { value: 0 }],
+      ],
+      ['kingmakers_oath', 'twist', 0, [{}], [{ value: 1 }]],
+    ];
+    for (const [id, where, index, good, bad] of cases)
+      for (const [params, valid] of [
+        ...good.map((p) => [p, true]),
+        ...bad.map((p) => [p, false]),
+      ]) {
+        const copy = structuredClone(catalog);
+        const row = copy.blessings.find((b) => b.id === id);
+        const effects = where === 'twist' ? row.twist.effects : row.boons;
+        effects[index].params = params;
+        expect(
+          validateBlessingsConfig(copy).errors.length === 0,
+          `${id} ${JSON.stringify(params)}`,
+        ).toBe(valid);
+        const rm = freshRun();
+        rm._applySingleRunStartBlessingEffect(id, { type: effects[index].type, params });
+        expect(invalid(rm).length > 0, `${id} ${JSON.stringify(params)}`).toBe(!valid);
+      }
   });
 });

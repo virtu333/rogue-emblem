@@ -268,22 +268,28 @@ describe('each source draws only its own cards', () => {
     // Failure: `acts` is ignored (Chronicle at the first boss), or PR C's Second Dawn is still an
     // act boss card after it moved to the eclipsed elites.
     const rm = freshRun(15);
+    // PR D3's twisted cards are every act boss's (Darkened Dawn and Blood Covenant need the
+    // Eclipse, which this run has).
+    const twisted = ['darkened_dawn', 'blood_covenant', 'kingmakers_oath', 'hollow_sun_favor'];
     expect(ids(earnedPoolFor(rm, 'act_boss', { actId: 'act1' }))).toEqual([
       'unbroken_banner',
       'ember_lantern',
       'captains_whistle',
       'standard_of_the_sun',
+      ...twisted,
     ]);
     expect(ids(earnedPoolFor(rm, 'act_boss', { actId: 'act2' }))).toEqual([
       'unbroken_banner',
       'ember_lantern',
       'captains_whistle',
       'chronicle',
+      ...twisted,
     ]);
     expect(ids(earnedPoolFor(rm, 'act_boss', { actId: 'act3' }))).toEqual([
       'unbroken_banner',
       'ember_lantern',
       'captains_whistle',
+      ...twisted,
     ]);
     expect(ids(earnedPoolFor(rm, 'eclipsed_elite'))).toEqual([
       'second_dawn',
@@ -472,6 +478,9 @@ describe('the validator reads the earned fields', () => {
         'shop_price_discount',
         'vision_delta',
         'xp_multiplier_delta',
+        // PR D3's own twist types (engine/TwistedBoons.js).
+        'eclipse_gain_multiplier_delta',
+        'master_seals_forbidden',
       ].sort(),
     );
   });
