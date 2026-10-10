@@ -1257,7 +1257,7 @@ export function validateMapTemplatesConfig(config, options = {}) {
       if (template.caravan !== undefined && typeof template.caravan !== 'boolean') {
         errors.push(`${path}.caravan must be a boolean when provided`);
       }
-      // `ladder: false` keeps a rout template off the Dusk/Nightfall reinforcement ladder.
+      // `ladder: false` keeps a rout template off the rout reinforcement ladder.
       if (template.ladder !== undefined && template.ladder !== false) {
         errors.push(`${path}.ladder may only be false (opt out of the rout ladder)`);
       }
