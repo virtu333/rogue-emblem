@@ -13,6 +13,7 @@ import { showImportantHint } from '../src/ui/HintDisplay.js';
 import { prologueGuidanceAllows } from '../src/engine/Guidance.js';
 import { showPrologueDeployNote } from '../src/ui/PrologueDeployNote.js';
 import { prologueBattleParams } from '../src/engine/ScriptedBattle.js';
+import { prologueBeatsFor } from '../src/engine/Prologue.js';
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
@@ -71,5 +72,27 @@ describe("the deploy screen's note follows the setting", () => {
     await showPrologueDeployNote(sceneWith('auto', { runsCompleted: 0 }), { max: 3 });
     await showPrologueDeployNote(sceneWith('auto', { runsCompleted: 2 }), { max: 3 });
     expect(showImportantHint).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("prologueBeatsFor's one-note slot and what will be heard", () => {
+  const chapter = {
+    beats: [
+      { id: 't', on: 'afterMove', once: true, do: [{ tip: 'x' }, { markLesson: { id: 'a' } }] },
+      { id: 'n', on: 'afterMove', once: true, do: [{ note: 'y' }] },
+    ],
+  };
+  const event = { type: 'afterMove' };
+
+  it('by default the first beat that speaks takes the slot; the next waits unspent', () => {
+    const { fired } = prologueBeatsFor(chapter, event, {}, { oneNote: true });
+    expect(fired).toEqual(['t']);
+  });
+
+  it('a beat nobody will hear still fires (its other actions run) but leaves the slot', () => {
+    const heard = (a) => !('tip' in a);
+    const { fired, actions } = prologueBeatsFor(chapter, event, {}, { oneNote: true, heard });
+    expect(fired).toEqual(['t', 'n']);
+    expect(actions.map((a) => Object.keys(a)[0])).toEqual(['tip', 'markLesson', 'note']);
   });
 });

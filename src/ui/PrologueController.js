@@ -184,6 +184,8 @@ export class PrologueController {
       });
     }
     this._tick = () => {
+      // Guidance set Off mid-step (Settings): the live guided step goes now.
+      this.guided();
       this.syncTip();
       // A queued exit first: the player asked to leave; a deferred note can wait.
       this.flushLeave();
@@ -231,7 +233,14 @@ export class PrologueController {
   /** The chapter's actions for an event (the beat state advances; `once` beats spend). */
   match(event, options = {}) {
     if (this.destroyed || !this.chapter) return [];
-    const { actions, state } = prologueBeatsFor(this.chapter, event, this.beatState, options);
+    // What the Guidance setting hides says nothing: a hidden tip or note never takes the
+    // decision's one-note slot (oneNote) from a beat that will show.
+    const heard = (a) =>
+      !(('tip' in a && !this.allows('tip')) || ('note' in a && !this.allows('note')));
+    const { actions, state } = prologueBeatsFor(this.chapter, event, this.beatState, {
+      ...options,
+      heard,
+    });
     this.beatState = state;
     return actions;
   }
@@ -244,15 +253,25 @@ export class PrologueController {
 
   async runActions(actions, event = {}, extra = {}) {
     let held = false;
-    // A Danger reach drawn for a beat's note or tip (reachOf) explains nothing once the
-    // Guidance setting hides that teaching: it goes with it.
+    // A highlight goes with what it was drawn for: a Danger reach (reachOf) with its
+    // beat's note or tip, once the Guidance setting hides that teaching; a guided step's
+    // ring (a beat with a gate) with its gate, once the steps are skipped or Guidance is
+    // Off (no gate would release it, so the ring would outlive its step).
     const teaches = (a) => 'note' in a || 'tip' in a;
     const shows = (a) => ('note' in a && this.allows('note')) || ('tip' in a && this.allows('tip'));
     const teachingBeats = new Set(actions.filter(teaches).map((a) => a.beat));
     const shownBeats = new Set(actions.filter(shows).map((a) => a.beat));
-    const reachHidden = (a) =>
-      Boolean(a.highlight?.reachOf) && teachingBeats.has(a.beat) && !shownBeats.has(a.beat);
-    const sync = actions.filter((a) => SYNC_ACTIONS.some((key) => key in a) && !reachHidden(a));
+    const gatedBeats = new Set(
+      actions
+        .filter((a) => 'gateSelect' in a || 'gateMove' in a || 'gateConfirm' in a)
+        .map((a) => a.beat),
+    );
+    const stepsReleased = gatedBeats.size > 0 && (this.gatesSkipped || !this.guided());
+    const highlightHidden = (a) =>
+      'highlight' in a &&
+      ((Boolean(a.highlight?.reachOf) && teachingBeats.has(a.beat) && !shownBeats.has(a.beat)) ||
+        (stepsReleased && gatedBeats.has(a.beat)));
+    const sync = actions.filter((a) => SYNC_ACTIONS.some((key) => key in a) && !highlightHidden(a));
     const blocking = actions.filter((a) => 'note' in a || 'dialogue' in a);
     // Tips never hold anything: after the beat's notes and lines (a tip that follows
     // a line shows once the line is read), and never awaited.
@@ -375,13 +394,28 @@ export class PrologueController {
     return prologueGuidanceAllows(guidanceLevelOf(this.scene), kind);
   }
 
+  /**
+   * Guided steps show (Guidance Full or Light). Seen under Off, a live guided step is
+   * released for good, as Skip step does (gatesSkipped rides the checkpoint): its gate,
+   * goal and ring go, and turning Guidance back on never brings back a step the player
+   * has already played past.
+   */
+  guided() {
+    if (this.allows('guided')) return true;
+    if (this.gate && !this.gatesSkipped && !this.destroyed) {
+      this.gatesSkipped = true;
+      this.releaseGate();
+    }
+    return false;
+  }
+
   // --- Gates and the coach ---------------------------------------------------------
 
   setGate(gate) {
     // Skipped steps stay skipped: a later step's goal (set by its beat just before its
     // gate) goes with the gate, so no goal is left that nothing can complete or clear.
     // Guidance Off plays the chapter as if every guided step were skipped.
-    if (this.gatesSkipped || !this.allows('guided')) {
+    if (this.gatesSkipped || !this.guided()) {
       this.coachGoal = null;
       return;
     }
@@ -395,7 +429,7 @@ export class PrologueController {
       !this.destroyed &&
       !this.gatesSkipped &&
       (this.gate?.kind === 'select' || this.gate?.kind === 'move') &&
-      this.allows('guided'),
+      this.guided(),
     );
   }
 
@@ -411,9 +445,7 @@ export class PrologueController {
 
   /** The first forecast: only Confirm or Cancel, no weapon or target cycling. */
   allowsForecastCycling() {
-    return (
-      this.destroyed || this.gatesSkipped || this.gate?.kind !== 'confirm' || !this.allows('guided')
-    );
+    return this.destroyed || this.gatesSkipped || this.gate?.kind !== 'confirm' || !this.guided();
   }
 
   /** The step's goal is done: the gate lifts, its goal and highlights go. */
@@ -442,7 +474,7 @@ export class PrologueController {
   /** The live guided step's coach goal (prologueContent), or null. */
   scripted() {
     // A guided step's goal goes with its gate once Guidance is Off (set Off mid-step).
-    if (this.gate && !this.allows('guided')) return null;
+    this.guided();
     return this.coachGoal ? prologueCoachGoal(this.coachGoal, this.ctx()) : null;
   }
 
@@ -1080,6 +1112,8 @@ export class PrologueController {
       void this.emit({ type: 'battleStart' });
     }
     this.started = true;
+    // A saved guided step resumed under Guidance Off is released, never redrawn.
+    this.guided();
     // The guided step's tile ring comes back with its gate.
     if (this.gate?.kind === 'move') this.markTile(this.gate.col, this.gate.row, UI_HEX.accent);
     if (this.gate?.kind === 'select') this.highlight({ unit: this.gate.unit });

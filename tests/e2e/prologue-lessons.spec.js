@@ -268,6 +268,12 @@ test('Guidance Off: the prologue plays without its field notes, tips or guided s
     return e.col === 3 && e.row === 2;
   });
   await expect(coach.locator('.re-coach-nudge')).toBeHidden();
+  // No guided ring was drawn (on Edric, on the Fort): nothing would ever clear it.
+  expect(
+    await page.evaluate(
+      () => window.__emblemRogueGame.scene.getScene('Battle')._prologue.markers.length,
+    ),
+  ).toBe(0);
   // The Fort's tip and the forecast's note: neither.
   await expect(page.locator('.re-guide')).toHaveCount(0);
   await openFirstForecast(page);
@@ -314,10 +320,15 @@ test("Settings → Guidance Off mid-chapter releases P1's guided step at once", 
   await control.tap();
   await control.tap();
   await expect(control).toHaveText('Guidance · Off');
-  expect(
-    await page.evaluate(() =>
-      window.__emblemRogueGame.scene.getScene('Battle')._prologue.isGateActive(),
-    ),
-  ).toBe(false);
+  // Released for good: no gate, no ring on Edric, and Full again brings neither back.
+  const step = () =>
+    page.evaluate(() => {
+      const p = window.__emblemRogueGame.scene.getScene('Battle')._prologue;
+      return { gated: p.isGateActive(), markers: p.markers.length, skipped: p.gatesSkipped };
+    });
+  expect(await step()).toEqual({ gated: false, markers: 0, skipped: true });
+  await control.tap();
+  await expect(control).toHaveText('Guidance · Full');
+  expect(await step()).toEqual({ gated: false, markers: 0, skipped: true });
   expect(errors).toEqual([]);
 });

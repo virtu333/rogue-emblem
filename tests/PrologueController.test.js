@@ -650,12 +650,15 @@ describe('PrologueController: the Guidance setting', () => {
     const { scene, edric } = makeScene({ guidance: 'off' });
     const prologue = new PrologueController(scene).create();
     prologue.onPhaseStart('player', 1);
+    // No ring for a step that is not there (nothing would ever clear it).
+    expect(scene.add.rectangle).not.toHaveBeenCalled();
     expect(prologue.gate).toBeNull();
     expect(prologue.isGateActive()).toBe(false);
     expect(prologue.scripted()).toBeNull();
     expect(prologue.allowsSelect(unitOf(scene, 'a'))).toBe(true);
     prologue.onUnitSelected(edric);
     expect(prologue.allowsMoveTo(2, 2)).toBe(true);
+    expect(scene.add.rectangle).not.toHaveBeenCalled(); // the Fort's frame: none either
     edric.col = FORT.col;
     edric.row = FORT.row;
     expect(await prologue.onAfterMove(edric)).toBe(false);
@@ -686,6 +689,59 @@ describe('PrologueController: the Guidance setting', () => {
     expect(prologue.isGateActive()).toBe(false);
     expect(prologue.scripted()).toBeNull();
     expect(prologue.allowsSelect(unitOf(scene, 'a'))).toBe(true);
+  });
+
+  it('Off mid-step releases the step for good: its ring goes, and Full again never brings it back', () => {
+    const { scene, edric, settings, markers } = makeScene({ guidance: 'full' });
+    const prologue = new PrologueController(scene).create();
+    prologue.onPhaseStart('player', 1);
+    prologue.onUnitSelected(edric);
+    expect(prologue.gate).toEqual({ kind: 'move', ...FORT });
+    const fortRing = markers.at(-1);
+    expect(fortRing.destroy).not.toHaveBeenCalled();
+    settings.level = 'off';
+    expect(prologue.isGateActive()).toBe(false);
+    expect(fortRing.destroy).toHaveBeenCalled();
+    expect(markers.every((m) => m.destroy.mock.calls.length > 0)).toBe(true);
+    // The release rides the checkpoint, so a resume keeps it too.
+    expect(prologue.snapshot()).toMatchObject({ gatesSkipped: true, gate: null, coachGoal: null });
+    // Edric walks elsewhere; Guidance back on: the played-past step stays gone.
+    edric.col = 1;
+    edric.row = 2;
+    settings.level = 'full';
+    expect(prologue.isGateActive()).toBe(false);
+    expect(prologue.allowsMoveTo(2, 2)).toBe(true);
+    expect(prologue.scripted()).toBeNull();
+  });
+
+  it('a checkpoint saved mid-step and resumed under Off draws no ring and keeps no gate', () => {
+    const first = makeScene({ guidance: 'full' });
+    const saved = new PrologueController(first.scene).create();
+    saved.onPhaseStart('player', 1);
+    const state = structuredClone(saved.snapshot());
+    expect(state.gate).toEqual({ kind: 'select', unit: 'Edric' });
+    const { scene } = makeScene({ guidance: 'off' });
+    const resumed = new PrologueController(scene).create();
+    resumed.onResume(state, { turn: 1, phase: 'player' });
+    expect(scene.add.rectangle).not.toHaveBeenCalled();
+    expect(resumed.gate).toBeNull();
+    expect(resumed.isGateActive()).toBe(false);
+  });
+
+  it("Light: a hidden tip never takes the decision's one-note slot from a note that will show", async () => {
+    const { scene, edric } = makeScene({ guidance: 'light' });
+    const prologue = new PrologueController(scene).create();
+    prologue.chapter = {
+      ...chapter,
+      beats: [
+        { id: 't', on: 'afterMove', once: true, do: [{ tip: 'battle_terrain' }] },
+        { id: 'n', on: 'afterMove', once: true, do: [{ note: 'battle_forecast' }] },
+      ],
+    };
+    await prologue.onAfterMove(edric);
+    expect(showPrologueTip).not.toHaveBeenCalled();
+    expect(notes()).toHaveLength(1);
+    expect(notes()[0]).toContain('Reading a forecast');
   });
 
   it('a note already pending (scheduled under Full, or a resumed checkpoint) is dropped unread under Off', async () => {

@@ -27,7 +27,7 @@ const COVERING_STATES = new Set([
   'CONFIRMING_ATTACK',
 ]);
 
-/** Device-wide: the player folded the coach to its goal line (kept across chapters). */
+/** Device-wide: the player folded the coach to its Guide chip (kept across chapters). */
 export const COACH_FOLDED_KEY = 'emblem_rogue_prologue_coach_folded';
 
 function readFolded() {
