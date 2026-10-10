@@ -4,7 +4,8 @@
 // numbers), the reinforcement is a tip that never takes the rail (the Fort, the
 // Vulnerary beside the map; the triangle a line in the forecast itself), each marks
 // the slot's hint only once read, and victory takes the run on to its route map while
-// recording only the lessons read.
+// recording only the lessons read. The Guidance setting thins it: Light drops the tips,
+// Off the notes and guided steps too.
 import { test, expect, devices } from '@playwright/test';
 import { waitForScene } from './helpers.js';
 test.use({ ...devices['iPhone SE'], viewport: { width: 667, height: 375 } });
@@ -204,5 +205,119 @@ test('a fresh prologue teaches the forecast as a note, the Fort, the triangle an
     practised: [], // the forecasts here were looked at, never committed
   });
   expect(meta.runsStarted).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+/** A fresh device with a stored Guidance preference, on the prologue run's P1. */
+async function openPrologueWithGuidance(page, guidance) {
+  await page.addInitScript((level) => {
+    localStorage.setItem(
+      'emblem_rogue_settings',
+      JSON.stringify({ musicVolume: 0, sfxVolume: 0, hints: level !== 'off', guidance: level }),
+    );
+  }, guidance);
+  await page.goto('/?mobilePreview=1&battleLab=1');
+  await waitForScene(page, 'Title');
+  await page.getByRole('button', { name: /^Prologue/ }).tap();
+  await waitForScene(page, 'Battle');
+  const coach = page.getByRole('region', { name: 'Prologue guide', exact: true });
+  await expect(coach).toBeVisible({ timeout: 15000 });
+  await page.waitForFunction(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    return Boolean(s._prologue) && s.battleState === 'PLAYER_IDLE';
+  });
+  return coach;
+}
+
+/** Open the forecast of Edric against `a` beside him (the first forecast's note beat). */
+async function openFirstForecast(page) {
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle'),
+      attacker = s.playerUnits[0],
+      d = s.enemyUnits.find((u) => u.authoredId === 'a');
+    s.hideForecast();
+    s.hideActionMenu();
+    d.col = attacker.col + 1;
+    d.row = attacker.row;
+    void s.showForecast(attacker, d);
+  });
+  await expect(page.getByRole('dialog', { name: 'Combat forecast', exact: true })).toBeVisible();
+}
+
+test('Guidance Off: the prologue plays without its field notes, tips or guided steps; the story and the coach stay', async ({
+  page,
+}) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const coach = await openPrologueWithGuidance(page, 'off');
+  const note = page.getByRole('dialog', { name: 'Field notes', exact: true });
+  // No guided step: any unit, any tile, no correction.
+  expect(
+    await page.evaluate(() =>
+      window.__emblemRogueGame.scene.getScene('Battle')._prologue.isGateActive(),
+    ),
+  ).toBe(false);
+  await expect(coach.locator('.re-coach-goal')).not.toHaveText('Select Edric');
+  await expect(
+    coach.getByRole('button', { name: 'Skip the rest of the prologue', exact: true }),
+  ).toBeVisible();
+  await tapTile(page, 0, 2);
+  await tapTile(page, 3, 2);
+  await page.waitForFunction(() => {
+    const e = window.__emblemRogueGame.scene.getScene('Battle').playerUnits[0];
+    return e.col === 3 && e.row === 2;
+  });
+  await expect(coach.locator('.re-coach-nudge')).toBeHidden();
+  // The Fort's tip and the forecast's note: neither.
+  await expect(page.locator('.re-guide')).toHaveCount(0);
+  await openFirstForecast(page);
+  await expect(note).toHaveCount(0);
+  expect(
+    await page.evaluate(() =>
+      window.__emblemRogueGame.registry.get('hints').hasSeen('battle_forecast'),
+    ),
+  ).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+test('Guidance Light: the forecast note and the guided steps stay, the Fort tip does not', async ({
+  page,
+}) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const coach = await openPrologueWithGuidance(page, 'light');
+  const note = page.getByRole('dialog', { name: 'Field notes', exact: true });
+  await expect(coach.locator('.re-coach-goal')).toHaveText('Select Edric');
+  await tapTile(page, 0, 2);
+  await expect(coach.locator('.re-coach-goal')).toHaveText('Move onto the Fort');
+  await tapTile(page, 3, 2);
+  await page.waitForFunction(
+    () => !window.__emblemRogueGame.scene.getScene('Battle')._prologue.isGateActive(),
+  );
+  await expect(page.locator('.re-guide')).toHaveCount(0);
+  await openFirstForecast(page);
+  await expect(note).toContainText('Reading a forecast');
+  expect(errors).toEqual([]);
+});
+
+test("Settings → Guidance Off mid-chapter releases P1's guided step at once", async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const coach = await openPrologueWithGuidance(page, 'auto');
+  await expect(coach.locator('.re-coach-goal')).toHaveText('Select Edric');
+  await page.getByRole('button', { name: 'Menu', exact: true }).tap();
+  const pause = page.getByRole('dialog', { name: 'Paused', exact: true });
+  await pause.getByRole('button', { name: 'Settings', exact: true }).tap();
+  const control = page.locator('[data-setting="guidance"]');
+  // A fresh slot's Auto is Full: Full -> Light -> Off.
+  await expect(control).toHaveText('Guidance · Full');
+  await control.tap();
+  await control.tap();
+  await expect(control).toHaveText('Guidance · Off');
+  expect(
+    await page.evaluate(() =>
+      window.__emblemRogueGame.scene.getScene('Battle')._prologue.isGateActive(),
+    ),
+  ).toBe(false);
   expect(errors).toEqual([]);
 });
