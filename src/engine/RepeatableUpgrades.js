@@ -40,6 +40,32 @@ export function upgradeTierCost(upgrade, tier) {
   return isRepeatableUpgrade(upgrade) ? upgrade.repeatable.cost : null;
 }
 
+/**
+ * Where the tiers past the list are stored. Older builds read `purchasedUpgrades[id]` as an
+ * index into their own `costs` / `effects` (`effects[level - 1]`, no clamp; a refund's
+ * `costs[level - 1]`, so a level past the list gives them no effect and a NaN refund that
+ * saves as 0 Supply and syncs back). The synced value for the id therefore never passes
+ * the listed tiers; the repeat tiers live under this key, which an older build never
+ * reads (it only looks up the ids its own data lists) and keeps when it saves.
+ */
+export function repeatTiersKey(id) {
+  return `${id}__repeat_tiers`;
+}
+
+/** A tier split into what the id stores (the listed tiers) and the repeat tiers past them. */
+export function splitUpgradeLevel(upgrade, level) {
+  const total = Math.max(0, Math.trunc(Number(level) || 0));
+  const listed = Math.min(total, listedTiers(upgrade));
+  return { listed, repeat: total - listed };
+}
+
+/** The tier from its two stored parts (`listed` is clamped to the list). */
+export function joinUpgradeLevel(listed, repeat) {
+  return (
+    Math.max(0, Math.trunc(Number(listed) || 0)) + Math.max(0, Math.trunc(Number(repeat) || 0))
+  );
+}
+
 /** Whether every tier has been bought (never, for a repeatable upgrade). */
 export function upgradeMaxedAt(upgrade, level) {
   if (!upgrade || isRepeatableUpgrade(upgrade)) return false;
@@ -55,7 +81,9 @@ export function upgradeEffectAtLevel(upgrade, level) {
   const lv = Math.trunc(Number(level) || 0);
   const effects = Array.isArray(upgrade?.effects) ? upgrade.effects : [];
   if (lv <= 0) return undefined;
-  if (lv <= effects.length || !isRepeatableUpgrade(upgrade)) return effects[lv - 1];
+  // Past the list of an upgrade that does not repeat, the last tier stands (never undefined).
+  if (!isRepeatableUpgrade(upgrade)) return effects[Math.min(lv, effects.length) - 1];
+  if (lv <= effects.length) return effects[lv - 1];
   const extra = lv - effects.length;
   const effect = { ...(effects[effects.length - 1] || {}) };
   for (const [key, value] of Object.entries(upgrade.repeatable.effect))

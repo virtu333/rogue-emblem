@@ -56,7 +56,12 @@ export function levelUpRerollButtonState(status) {
     };
   const label = `Reroll (${left})`;
   if (status.block)
-    return { hidden: false, disabled: true, label, reason: 'This level-up cannot be rerolled.' };
+    return {
+      hidden: false,
+      disabled: true,
+      label,
+      reason: 'Only your latest level can be rerolled.',
+    };
   return {
     hidden: false,
     disabled: false,

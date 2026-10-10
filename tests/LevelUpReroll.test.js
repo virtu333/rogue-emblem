@@ -345,6 +345,7 @@ describe('the button', () => {
       hidden: false,
       disabled: true,
       label: 'Reroll (2)',
+      reason: 'Only your latest level can be rerolled.',
     });
   });
 });

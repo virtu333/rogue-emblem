@@ -82,7 +82,8 @@ describe('buying', () => {
     expect(m.isMaxed(plain.id)).toBe(true);
     expect(m.getNextCost(plain.id)).toBeNull();
     expect(upgradeTierCost(plain, 3)).toBeNull();
-    expect(upgradeEffectAtLevel(plain, 3)).toBeUndefined();
+    // A level past the list never reads out of range: the last tier stands.
+    expect(upgradeEffectAtLevel(plain, 3)).toEqual(plain.effects[plain.effects.length - 1]);
     // Only Branching Threads repeats today.
     expect(data.metaUpgrades.filter(isRepeatableUpgrade).map((u) => u.id)).toEqual([
       'branching_threads',

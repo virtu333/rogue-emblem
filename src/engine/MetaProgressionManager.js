@@ -3,7 +3,15 @@ import { DEFAULT_MARK_CHANCE } from './MarkSystem.js';
 import { mergeSeenDialogueKeys } from '../utils/seenDialogue.js';
 import { mergeRunRecords, runRecordsUnderPressure } from './RunRecords.js';
 import { isQuotaExceededError, setItemFreeingSpace } from './SaveSpace.js';
-import { upgradeEffectAtLevel, upgradeMaxedAt, upgradeTierCost } from './RepeatableUpgrades.js';
+import {
+  isRepeatableUpgrade,
+  joinUpgradeLevel,
+  repeatTiersKey,
+  splitUpgradeLevel,
+  upgradeEffectAtLevel,
+  upgradeMaxedAt,
+  upgradeTierCost,
+} from './RepeatableUpgrades.js';
 // MetaProgressionManager.js — Pure class: persistent meta-progression (dual currency + upgrades)
 // No Phaser deps. Follows SettingsManager pattern.
 
@@ -300,6 +308,18 @@ export const BALANCE_REVISIONS = Object.freeze([
       heros_call: [120, 240, 400],
     },
   },
+  {
+    revision: 4, // 2026-10-10 Branching Threads: tiers 3 and 4 rise (250 -> 300, 250 -> 350)
+    // A rise credits nobody, but a refund pays the CURRENT price: a buyer from before this
+    // revision would net +50/+100 a tier. `_creditBalanceRevisionsSince` therefore records
+    // what each tier already owned was paid (`legacyTierCosts`) and the refund returns that.
+    from: {
+      branching_threads: [100, 200, 250, 250],
+    },
+    to: {
+      branching_threads: [100, 200, 300, 350],
+    },
+  },
 ]);
 
 export const CURRENT_BALANCE_REVISION = BALANCE_REVISIONS[BALANCE_REVISIONS.length - 1].revision;
@@ -321,6 +341,22 @@ function normalizeRetiredUpgradeRefunds(raw) {
   for (const id of Object.keys(RETIRED_UPGRADES)) {
     const levels = Math.max(0, Math.floor(Number(raw[id]) || 0));
     if (levels > 0) out[id] = levels;
+  }
+  return out;
+}
+
+function normalizeLegacyTierCosts(raw) {
+  const out = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  for (const [id, tiers] of Object.entries(raw)) {
+    if (!tiers || typeof tiers !== 'object' || Array.isArray(tiers)) continue;
+    const kept = {};
+    for (const [tier, cost] of Object.entries(tiers)) {
+      const t = Math.trunc(Number(tier));
+      const c = Math.trunc(Number(cost));
+      if (t >= 1 && c > 0) kept[t] = c;
+    }
+    if (Object.keys(kept).length) out[id] = kept;
   }
   return out;
 }
@@ -401,6 +437,9 @@ export class MetaProgressionManager {
     this.savedAt = 0;
     this.purchasedUpgrades = {};
     this.retiredUpgradeRefunds = {}; // { roster_cap: 1 }: retired levels already refunded
+    // { branching_threads: { 3: 250 } }: what a tier bought before a price rise was paid, so
+    // its refund returns that (BALANCE_REVISIONS revision 4). Old clients ignore the field.
+    this.legacyTierCosts = {};
     this.runsCompleted = 0;
     this.runsStarted = 0;
     this.lastDifficulty = null;
@@ -468,8 +507,9 @@ export class MetaProgressionManager {
         this.solRefundBasis = Number(saved.solRefundBasis) === 400 ? 400 : 600;
         if (!saved.balanceRevision && this.getUpgradeLevel('unlock_sol') > 0)
           this.solRefundBasis = 400;
-        this._creditBalanceRevisionsSince(saved.balanceRevision);
         this.retiredUpgradeRefunds = normalizeRetiredUpgradeRefunds(saved.retiredUpgradeRefunds);
+        this.legacyTierCosts = normalizeLegacyTierCosts(saved.legacyTierCosts);
+        this._creditBalanceRevisionsSince(saved.balanceRevision);
         this._settleRetiredUpgrades();
         // The next normal save persists credits and markers atomically without making
         // a read-only load appear newer than a pending cloud merge.
@@ -508,6 +548,13 @@ export class MetaProgressionManager {
         let credit = 0;
         for (let i = 0; i < Math.min(this.getUpgradeLevel(id), oldCosts.length); i++) {
           credit += Math.max(0, oldCosts[i] - (Number(newCosts[i]) || 0));
+        }
+        // A rise owes nothing, but the tier was bought at the old price: remember it.
+        for (let i = 0; i < Math.min(this.getUpgradeLevel(id), oldCosts.length); i++) {
+          const now = Number(newCosts[i]) || 0;
+          if (now > oldCosts[i] && this.legacyTierCosts[id]?.[i + 1] === undefined) {
+            this.legacyTierCosts[id] = { ...this.legacyTierCosts[id], [i + 1]: oldCosts[i] };
+          }
         }
         if (credit <= 0) continue;
         if (this.getCurrencyForUpgrade(id) === 'valor') this.totalValor += credit;
@@ -702,9 +749,34 @@ export class MetaProgressionManager {
     this._save();
   }
 
+  /**
+   * The upgrade's tier. For a repeatable upgrade (RepeatableUpgrades.js) that is the listed
+   * tiers plus the repeat tiers, which are stored apart (`repeatTiersKey`): the synced
+   * `purchasedUpgrades[id]` never passes the tiers an older build's data lists, so an old
+   * client never reads `effects[level - 1]` or `costs[level - 1]` out of range.
+   */
   getUpgradeLevel(id) {
-    const raw = this.purchasedUpgrades[id];
-    return Math.max(0, Number.isFinite(raw) ? Math.floor(raw) : 0);
+    const count = (key) => {
+      const raw = this.purchasedUpgrades[key];
+      return Math.max(0, Number.isFinite(raw) ? Math.floor(raw) : 0);
+    };
+    const upgrade = this.upgradesData.find((u) => u.id === id);
+    if (!isRepeatableUpgrade(upgrade)) return count(id);
+    return joinUpgradeLevel(count(id), count(repeatTiersKey(id)));
+  }
+
+  /** Store an upgrade's tier (the one writer; the split is described at getUpgradeLevel). */
+  _setUpgradeLevel(id, level) {
+    const upgrade = this.upgradesData.find((u) => u.id === id);
+    const { listed, repeat } = isRepeatableUpgrade(upgrade)
+      ? splitUpgradeLevel(upgrade, level)
+      : { listed: level, repeat: 0 };
+    const put = (key, value) => {
+      if (value > 0) this.purchasedUpgrades[key] = value;
+      else delete this.purchasedUpgrades[key];
+    };
+    put(id, listed);
+    if (isRepeatableUpgrade(upgrade)) put(repeatTiersKey(id), repeat);
   }
 
   getNextCost(id) {
@@ -714,6 +786,17 @@ export class MetaProgressionManager {
     // A repeatable upgrade (RepeatableUpgrades.js) sells tiers past its list forever.
     if (upgradeMaxedAt(upgrade, level)) return null;
     return upgradeTierCost(upgrade, level + 1);
+  }
+
+  /**
+   * What refunding the top tier returns: the Sol's basis, what a tier bought before a price
+   * rise was paid (`legacyTierCosts`), else the tier's current price.
+   */
+  _refundAmount(upgrade, level) {
+    if (upgrade.id === 'unlock_sol') return this.solRefundBasis;
+    const legacy = Number(this.legacyTierCosts[upgrade.id]?.[level]);
+    if (Number.isFinite(legacy) && legacy > 0) return legacy;
+    return upgradeTierCost(upgrade, level) || 0;
   }
 
   /** Get the currency type ('valor' or 'supply') for an upgrade by its ID. */
@@ -951,7 +1034,7 @@ export class MetaProgressionManager {
       this.totalSupply -= cost;
     }
     if (id === 'unlock_sol') this.solRefundBasis = cost;
-    this.purchasedUpgrades[id] = this.getUpgradeLevel(id) + 1;
+    this._setUpgradeLevel(id, this.getUpgradeLevel(id) + 1);
     this._save();
     return true;
   }
@@ -1403,8 +1486,7 @@ export class MetaProgressionManager {
     }
 
     // The top tier at its price: a repeat tier past the list returns its repeat price.
-    const refundAmount =
-      id === 'unlock_sol' ? this.solRefundBasis : upgradeTierCost(upgrade, level) || 0;
+    const refundAmount = this._refundAmount(upgrade, level);
     return { success: true, refundAmount, refundFee: REFUND_FEE };
   }
 
@@ -1421,8 +1503,7 @@ export class MetaProgressionManager {
     const upgrade = this.upgradesData.find((u) => u.id === id);
     const level = this.getUpgradeLevel(id);
     const currency = this.getCurrencyForUpgrade(id);
-    const refundAmount =
-      id === 'unlock_sol' ? this.solRefundBasis : upgradeTierCost(upgrade, level) || 0;
+    const refundAmount = this._refundAmount(upgrade, level);
 
     // Deduct fee + refund tier cost
     if (currency === 'valor') {
@@ -1432,8 +1513,11 @@ export class MetaProgressionManager {
     }
 
     // Decrement level
-    this.purchasedUpgrades[id] = level - 1;
-    if (this.purchasedUpgrades[id] <= 0) delete this.purchasedUpgrades[id];
+    this._setUpgradeLevel(id, level - 1);
+    if (this.legacyTierCosts[id]) {
+      delete this.legacyTierCosts[id][level];
+      if (Object.keys(this.legacyTierCosts[id]).length === 0) delete this.legacyTierCosts[id];
+    }
 
     // If skill unlock refunded to 0, auto-unassign from all lords
     if (level === 1) {
@@ -1464,6 +1548,7 @@ export class MetaProgressionManager {
     this.totalValor = 0;
     this.totalSupply = 0;
     this.purchasedUpgrades = {};
+    this.legacyTierCosts = {};
     this.runsCompleted = 0;
     this.runsStarted = 0;
     this.skillAssignments = {};
@@ -1526,6 +1611,16 @@ export class MetaProgressionManager {
         const localLevel = Number(this.purchasedUpgrades[id]) || 0;
         this.purchasedUpgrades[id] = Math.max(localLevel, diskLevel);
       }
+    }
+    // A tier bought before a price rise keeps its price, whichever copy recorded it; a tier
+    // the merged levels no longer hold has no record.
+    const diskLegacy = normalizeLegacyTierCosts(disk.legacyTierCosts);
+    for (const [id, tiers] of Object.entries(diskLegacy))
+      this.legacyTierCosts[id] = { ...tiers, ...this.legacyTierCosts[id] };
+    for (const id of Object.keys(this.legacyTierCosts)) {
+      for (const tier of Object.keys(this.legacyTierCosts[id]))
+        if (Number(tier) > this.getUpgradeLevel(id)) delete this.legacyTierCosts[id][tier];
+      if (Object.keys(this.legacyTierCosts[id]).length === 0) delete this.legacyTierCosts[id];
     }
     // A refund either copy paid stays paid; a retired key the merge brought back from
     // a stale copy is dropped again (and paid only if neither copy has refunded it).
@@ -1648,6 +1743,7 @@ export class MetaProgressionManager {
       totalSupply: this.totalSupply,
       purchasedUpgrades: this.purchasedUpgrades,
       retiredUpgradeRefunds: this.retiredUpgradeRefunds,
+      legacyTierCosts: this.legacyTierCosts,
       runsCompleted: this.runsCompleted,
       runsStarted: this.runsStarted,
       lastDifficulty: this.lastDifficulty,
@@ -1684,6 +1780,7 @@ export class MetaProgressionManager {
       totalSupply: this.totalSupply,
       purchasedUpgrades: this.purchasedUpgrades,
       retiredUpgradeRefunds: this.retiredUpgradeRefunds,
+      legacyTierCosts: this.legacyTierCosts,
       runsCompleted: this.runsCompleted,
       runsStarted: this.runsStarted,
       lastDifficulty: this.lastDifficulty,
