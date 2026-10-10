@@ -1002,6 +1002,7 @@
                 "effects": [
                   {
                     "type": "battle",
+                    "setPiece": "toll_house",
                     "enemyLevelBonus": 1,
                     "victoryText": "The strongbox was the bait, and the bait was real. Coin, and steel worth a second look.",
                     "afterVictory": [
@@ -1121,6 +1122,7 @@
               "effects": [
                 {
                   "type": "battle",
+                  "setPiece": "toll_crossing",
                   "enemyLevelBonus": 0,
                   "victoryText": "The ledger is yours now, and so is the strongbox behind it.",
                   "afterVictory": [

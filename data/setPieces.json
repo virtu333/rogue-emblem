@@ -1,0 +1,206 @@
+{
+  "setPieces": [
+    {
+      "id": "toll_house",
+      "title": "The Toll-House",
+      "lore": "The ledger's last entry stops mid-word. Whoever wrote it is still in the hut, more or less.",
+      "objective": "rout",
+      "biome": null,
+      "fog": true,
+      "deploy": { "max": 5 },
+      "variants": [
+        {
+          "id": "near_bank",
+          "mirror": true,
+          "map": {
+            "legend": {
+              ".": "Plain",
+              "F": "Forest",
+              "#": "Wall",
+              "_": "Floor",
+              "~": "Water",
+              "=": "Bridge",
+              "b": "Bog",
+              "s": "Swamp"
+            },
+            "rows": [
+              "F F . . . F . b ~ ~ . F",
+              "F . . # # # # . ~ ~ . .",
+              ". . . # _ _ # . ~ ~ F .",
+              ". . . # _ _ # . ~ ~ . .",
+              ". . . . _ _ . . = = . .",
+              ". . . # _ _ # . ~ ~ . F",
+              ". . . # # # # b ~ ~ . .",
+              "F . . . . b b b ~ ~ F .",
+              "F F . . . . b s ~ ~ F F"
+            ]
+          },
+          "playerSpawns": [
+            { "col": 0, "row": 4 },
+            { "col": 1, "row": 3 },
+            { "col": 1, "row": 5 },
+            { "col": 0, "row": 3 },
+            { "col": 0, "row": 5 },
+            { "col": 1, "row": 4 },
+            { "col": 0, "row": 2 }
+          ],
+          "enemies": [
+            {
+              "col": 5,
+              "row": 2,
+              "classes": { "act1": ["Zombie"], "act3": ["Revenant"] },
+              "captain": { "name": "The Toll-Keeper" },
+              "aiMode": "guard"
+            },
+            { "col": 4, "row": 5, "classes": ["Zombie"], "level": -1 },
+            { "col": 10, "row": 2, "classes": ["Zombie"] },
+            { "col": 11, "row": 6, "classes": ["Zombie"], "minRung": "dusk" },
+            { "col": 7, "row": 0, "classes": ["Zombie"], "level": -1, "minRung": "hard" }
+          ],
+          "waves": [
+            {
+              "turn": 2,
+              "spawns": [
+                { "col": 7, "row": 7, "classes": ["Zombie"], "level": -1 },
+                { "col": 6, "row": 8, "classes": ["Zombie"], "level": -1 },
+                { "col": 7, "row": 6, "classes": ["Zombie"], "level": -1, "minRung": "lunatic" }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "far_bank",
+          "mirror": true,
+          "map": {
+            "legend": {
+              ".": "Plain",
+              "F": "Forest",
+              "#": "Wall",
+              "_": "Floor",
+              "~": "Water",
+              "=": "Bridge",
+              "b": "Bog",
+              "s": "Swamp"
+            },
+            "rows": [
+              "F . . . ~ ~ . . . F F F",
+              ". . . . ~ ~ . # # # # .",
+              ". . . . = = . # _ _ # .",
+              ". . F . ~ ~ . . _ _ # .",
+              ". . . . ~ ~ b # _ _ # .",
+              ". . . . ~ ~ b # # . # .",
+              "F . . . ~ ~ b b . . . F",
+              ". . . . = = . . . . F F",
+              ". . F . ~ ~ . . s s F F"
+            ]
+          },
+          "playerSpawns": [
+            { "col": 0, "row": 4 },
+            { "col": 1, "row": 3 },
+            { "col": 1, "row": 5 },
+            { "col": 0, "row": 3 },
+            { "col": 0, "row": 5 },
+            { "col": 1, "row": 4 },
+            { "col": 0, "row": 2 }
+          ],
+          "enemies": [
+            {
+              "col": 9,
+              "row": 2,
+              "classes": { "act1": ["Zombie"], "act3": ["Revenant"] },
+              "captain": { "name": "The Toll-Keeper" },
+              "aiMode": "guard"
+            },
+            { "col": 8, "row": 4, "classes": ["Zombie"], "level": -1 },
+            { "col": 11, "row": 2, "classes": ["Zombie"] },
+            { "col": 6, "row": 7, "classes": ["Zombie"] },
+            { "col": 11, "row": 6, "classes": ["Zombie"], "minRung": "dusk" },
+            { "col": 6, "row": 0, "classes": ["Zombie"], "level": -1, "minRung": "hard" }
+          ],
+          "waves": [
+            {
+              "turn": 2,
+              "spawns": [
+                { "col": 6, "row": 5, "classes": ["Zombie"], "level": -1 },
+                { "col": 6, "row": 6, "classes": ["Zombie"], "level": -1 },
+                { "col": 7, "row": 6, "classes": ["Zombie"], "level": -1, "minRung": "lunatic" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "toll_crossing",
+      "title": "The Toll Crossing",
+      "lore": "One hut, one bridge, one man with a ledger. Behind the hut, a stockade full of his cousins.",
+      "objective": "rout",
+      "biome": null,
+      "deploy": { "max": 6 },
+      "variants": [
+        {
+          "id": "stockade",
+          "mirror": true,
+          "map": {
+            "legend": {
+              ".": "Plain",
+              "F": "Forest",
+              "T": "Fort",
+              "#": "Wall",
+              "_": "Floor",
+              "~": "Water",
+              "=": "Bridge",
+              "b": "Bog"
+            },
+            "rows": [
+              "F F . . . F ~ ~ . . F F F",
+              "F . . . . . ~ ~ T . . . F",
+              ". . . . . . ~ ~ . . # # #",
+              ". . . F . . ~ ~ . . _ _ #",
+              ". . . . . . = = . . _ T #",
+              ". . . . . . ~ ~ . . # # #",
+              ". . . F . . ~ ~ T . . . F",
+              "F . . . . . b b . . . F F",
+              "F F . . . . b b . . F F F"
+            ]
+          },
+          "playerSpawns": [
+            { "col": 1, "row": 4 },
+            { "col": 1, "row": 3 },
+            { "col": 1, "row": 5 },
+            { "col": 0, "row": 4 },
+            { "col": 0, "row": 3 },
+            { "col": 0, "row": 5 },
+            { "col": 2, "row": 4 },
+            { "col": 0, "row": 2 }
+          ],
+          "enemies": [
+            {
+              "col": 11,
+              "row": 4,
+              "classes": { "act1": ["Archer"], "act3": ["Sniper"] },
+              "captain": { "name": "The Toll-Keeper" },
+              "aiMode": "guard"
+            },
+            { "col": 8, "row": 1, "classes": ["Archer"] },
+            { "col": 8, "row": 4, "classes": { "act1": ["Fighter"], "act3": ["Fighter", "Warrior"] }, "hold": 1 },
+            { "col": 9, "row": 3, "classes": { "act1": ["Fighter"], "act3": ["Fighter", "Warrior"] }, "hold": 1 },
+            { "col": 10, "row": 3, "classes": { "act1": ["Thief"], "act3": ["Thief", "Assassin"] } },
+            { "col": 8, "row": 6, "classes": ["Archer"], "minRung": "dusk" },
+            { "col": 9, "row": 7, "classes": ["Fighter", "Mercenary"], "minRung": "hard" }
+          ],
+          "waves": [
+            {
+              "turn": 3,
+              "spawns": [
+                { "col": 11, "row": 1, "classes": ["Fighter", "Thief"], "level": -1 },
+                { "col": 12, "row": 7, "classes": ["Fighter", "Thief"], "level": -1 },
+                { "col": 11, "row": 0, "classes": ["Fighter"], "level": -1, "minRung": "lunatic" }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

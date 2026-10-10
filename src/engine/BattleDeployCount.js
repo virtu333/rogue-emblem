@@ -29,7 +29,11 @@ export function battleDeployCount({ deployedRoster = null, resuming = false, rec
  */
 export function deployLimitsForParams(battleParams) {
   const act = battleParams?.act || 'act1';
-  return DEPLOY_LIMITS[act] || DEPLOY_LIMITS.act1;
+  const limits = DEPLOY_LIMITS[act] || DEPLOY_LIMITS.act1;
+  // An event's set piece fields no more than its authored spawns (`deployCap`,
+  // docs/specs/event-set-pieces.md): a cap the deploy bonus never passes.
+  const cap = Number(battleParams?.deployCap);
+  return Number.isInteger(cap) && cap > 0 ? { ...limits, cap } : limits;
 }
 
 /**
@@ -41,7 +45,7 @@ export function deployLimitsForParams(battleParams) {
  * spawn would never be placed (and, missing from both the field and the bench, would be
  * counted as fallen at victory).
  *
- * @param {{base?: {min: number, max: number}, deployBonus?: number,
+ * @param {{base?: {min: number, max: number, cap?: number}, deployBonus?: number,
  *          lockedSpawnCount?: number|null}} options
  * @returns {{min: number, max: number, lockedTo: number|null}}
  *   lockedTo: the lock's spawn count when it lowered the cap, else null.
@@ -56,6 +60,12 @@ export function resolveDeployLimits({
   const bonus = Math.trunc(Number(deployBonus) || 0);
   let min = Math.max(1, base.min);
   let max = Math.max(min, base.max + bonus);
+  // A set piece's cap (deployLimitsForParams) holds after the bonus; the min follows it down.
+  const cap = Number(base.cap);
+  if (Number.isInteger(cap) && cap > 0 && cap < max) {
+    max = cap;
+    min = Math.min(min, cap);
+  }
   let lockedTo = null;
   const locked = Number(lockedSpawnCount);
   if (Number.isInteger(locked) && locked > 0 && locked < max) {

@@ -329,6 +329,12 @@ export function convertNodeToRoutBattle(node, actId, mapTemplates, options = {})
     template && template.fogChance !== undefined
       ? template.fogChance
       : FOG_CHANCE_BY_ACT[actId] || 0;
+  rollNodeFog(node, fogChance, { fogChanceBonus, halfFogChance });
+  return node;
+}
+
+/** One fog draw for a converted node (the rung's bonus, First Light's half). */
+function rollNodeFog(node, fogChance, { fogChanceBonus = 0, halfFogChance = false } = {}) {
   let adjustedFogChance = Math.max(0, Math.min(0.9, fogChance + fogChanceBonus));
   if (halfFogChance) {
     adjustedFogChance = Math.floor((adjustedFogChance * 100) / 2) / 100;
@@ -336,6 +342,46 @@ export function convertNodeToRoutBattle(node, actId, mapTemplates, options = {})
   delete node.fogEnabled;
   if (Math.random() < adjustedFogChance) {
     node.fogEnabled = true;
+  }
+}
+
+/**
+ * Give an event node its set piece's battle params in place (docs/specs/event-set-pieces.md):
+ * battle seed, per-row level range, the set piece's id, objective and deploy cap, and fog (the
+ * set piece's when it forces it, else one roll at the act's chance). No template or biome
+ * draw: the map is the set piece's, built at battle entry from the battle seed.
+ * @param {object} node - mutated: battleParams, fogEnabled (templateId removed)
+ * @param {string} actId
+ * @param {object} setPiece - a data/setPieces.json entry
+ * @param {{ fogChanceBonus?: number, halfFogChance?: boolean, extraParams?: object }} [options]
+ * @returns {object} the node
+ */
+export function convertNodeToSetPieceBattle(node, actId, setPiece, options = {}) {
+  const extraParams =
+    options.extraParams && typeof options.extraParams === 'object' ? options.extraParams : {};
+  const cap = Number.isInteger(setPiece?.deploy?.max) ? setPiece.deploy.max : null;
+  node.battleParams = {
+    act: actId,
+    objective: setPiece.objective || 'rout',
+    row: node.row,
+    battleSeed: rollBattleSeed(),
+    setPiece: setPiece.id,
+    ...(cap ? { deployCap: cap } : {}),
+    ...extraParams,
+  };
+  const scaling = ACT_LEVEL_SCALING[actId];
+  if (scaling && node.row !== undefined) {
+    node.battleParams.levelRange = scaling[node.row] || scaling.default;
+  }
+  delete node.templateId;
+  if (typeof setPiece.fog === 'boolean') {
+    delete node.fogEnabled;
+    if (setPiece.fog) node.fogEnabled = true;
+  } else {
+    rollNodeFog(node, FOG_CHANCE_BY_ACT[actId] || 0, {
+      fogChanceBonus: Number.isFinite(options.fogChanceBonus) ? options.fogChanceBonus : 0,
+      halfFogChance: options.halfFogChance === true,
+    });
   }
   return node;
 }

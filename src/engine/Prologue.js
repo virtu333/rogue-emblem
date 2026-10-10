@@ -208,6 +208,7 @@
 //   clearCoach: true                    the coach goal (one without a gate) is done
 // The ids are resolved by the scene (PrologueController); this module only matches.
 
+import { parseAuthoredMap } from './AuthoredMap.js';
 import { LOOT_GOLD_TEAM_XP, NODE_TYPES, TERRAIN, XP_STAT_NAMES } from '../utils/constants.js';
 import { TRAIT_RULES_VERSION } from './TraitSystem.js';
 import { usesMagic, isStaff } from './Combat.js';
@@ -404,52 +405,8 @@ const isPlainObject = (v) => Boolean(v) && typeof v === 'object' && !Array.isArr
 
 // --- Map ---------------------------------------------------------------------------
 
-/**
- * Parse a chapter's ASCII map against terrain.json. Never throws.
- * @returns {{ mapLayout: number[][]|null, cols: number, rows: number, errors: string[] }}
- */
-export function parsePrologueMap(map, terrainData) {
-  const errors = [];
-  const rowsIn = map?.rows;
-  const legend = map?.legend;
-  if (!Array.isArray(rowsIn) || rowsIn.length === 0) {
-    return { mapLayout: null, cols: 0, rows: 0, errors: ['map.rows must be a non-empty array'] };
-  }
-  if (!legend || typeof legend !== 'object' || Array.isArray(legend)) {
-    return { mapLayout: null, cols: 0, rows: 0, errors: ['map.legend must be an object'] };
-  }
-  const indexOf = {};
-  for (const [char, name] of Object.entries(legend)) {
-    if (!/^\S$/.test(char)) errors.push(`map.legend key "${char}" must be one character`);
-    const index = (terrainData || []).findIndex((t) => t?.name === name);
-    if (index < 0) errors.push(`map.legend "${char}" names unknown terrain "${name}"`);
-    else indexOf[char] = index;
-  }
-  const tokens = rowsIn.map((row) => (typeof row === 'string' ? row.trim().split(/\s+/) : null));
-  const cols = tokens[0]?.length || 0;
-  const mapLayout = [];
-  tokens.forEach((line, r) => {
-    if (!line) {
-      errors.push(`map row ${r} must be a string`);
-      return;
-    }
-    if (line.length !== cols) {
-      errors.push(
-        `map row ${r} has ${line.length} tiles, expected ${cols} (rows must be rectangular)`,
-      );
-    }
-    mapLayout.push(
-      line.map((char, c) => {
-        if (!(char in indexOf)) {
-          if (!(char in legend)) errors.push(`map tile (${c},${r}) "${char}" is not in the legend`);
-          return -1;
-        }
-        return indexOf[char];
-      }),
-    );
-  });
-  return { mapLayout: errors.length ? null : mapLayout, cols, rows: rowsIn.length, errors };
-}
+/** A chapter's ASCII map (engine/AuthoredMap.js, the grammar set pieces share). */
+export const parsePrologueMap = parseAuthoredMap;
 
 function throneTiles(mapLayout) {
   const out = [];

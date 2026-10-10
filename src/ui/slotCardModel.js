@@ -6,6 +6,7 @@
 // is derived from getSlotSummary() plus game data, so the copy is unit-testable
 // and the renderer (SlotPickerView.js) stays thin. Read-only: never writes saves.
 
+import { findSetPiece, setPieceIdOfConfig } from '../engine/SetPieces.js';
 import { actCardContent, actRegion, ACT_GRADE_KEYS, romanNumeral } from './ceremonyContent.js';
 import { portraitIdForUnit } from './portraitArt.js';
 
@@ -73,8 +74,13 @@ export function friendlySavedTime(savedAt, now = Date.now()) {
   return { text, title };
 }
 
-/** Map template display name ("River Crossing") from its id, or ''. */
-export function templateName(mapTemplates, templateId) {
+/**
+ * Map template display name ("River Crossing") from its id, or ''. An event set piece's id
+ * (`setpiece:<id>`, docs/specs/event-set-pieces.md) reads the set piece's title.
+ */
+export function templateName(mapTemplates, templateId, setPieces = null) {
+  const setPiece = findSetPiece(setPieces, setPieceIdOfConfig({ templateId }));
+  if (setPiece?.title) return String(setPiece.title);
   if (!templateId || !mapTemplates || typeof mapTemplates !== 'object') return '';
   for (const list of Object.values(mapTemplates)) {
     if (!Array.isArray(list)) continue;
@@ -230,7 +236,7 @@ export function slotCardModel(slot, summary, { gameData = {}, now = Date.now(), 
       }
     : null;
   const portraitId = portraitUnit ? portraitIdForUnit(portraitUnit, gameData) : null;
-  const where = templateName(gameData?.mapTemplates, summary.templateId);
+  const where = templateName(gameData?.mapTemplates, summary.templateId, gameData?.setPieces);
   let status;
   let tone = 'route';
   if (summary.battleSuspended) {
