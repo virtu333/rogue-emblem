@@ -147,9 +147,11 @@ export function bannerHoldFact(unit) {
 }
 
 export function combatTimelineFacts(scene, attacker, defender, result) {
+  // Seer's Eye (`grid.foesShown`): no foe is unseen.
   const visible = (unit) =>
     unit.faction === 'player' ||
     !scene.grid?.fogEnabled ||
+    (unit.faction === 'enemy' && scene.grid.foesShown === true) ||
     getFootprint(unit).some((p) => scene.grid.isVisible?.(p.col, p.row) === true);
   const name = (unit) => (visible(unit) ? unit.name : 'Unseen enemy');
   const facts = [];

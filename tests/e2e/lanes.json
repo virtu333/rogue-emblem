@@ -187,7 +187,9 @@
         "service-audit.spec.js",
         "slot-picker.spec.js",
         "strategy-layer.spec.js",
-        "traits-v2.spec.js"
+        "traits-v2.spec.js",
+        "seers-eye-preview.spec.js",
+        "colosseum-earned-offer.spec.js"
       ]
     },
     {

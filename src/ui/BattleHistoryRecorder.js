@@ -3,11 +3,15 @@ import { historyFrameAt } from '../engine/BattleHistoryPresentation.js';
 import { getFootprint } from '../engine/EntitySystem.js';
 
 const copy = (v) => structuredClone(v);
+// Seer's Eye (`grid.foesShown`): the fog never hides a foe, so its name and its walk are history.
+const foeShown = (scene, unit) => unit?.faction === 'enemy' && scene.grid?.foesShown === true;
+
 export function historyUnitVisible(scene, unit) {
   return Boolean(
     unit &&
     (unit.faction === 'player' ||
       !scene.grid?.fogEnabled ||
+      foeShown(scene, unit) ||
       getFootprint(unit).some((p) => scene.grid.isVisible?.(p.col, p.row))),
   );
 }
@@ -54,6 +58,7 @@ export function rememberHistoryPath(scene, unit, path, staged = true) {
     .map((p) =>
       unit.faction === 'player' ||
       !scene.grid?.fogEnabled ||
+      foeShown(scene, unit) ||
       getFootprint({ ...unit, col: p.col, row: p.row }).some((tile) =>
         scene.grid.isVisible?.(tile.col, tile.row),
       )

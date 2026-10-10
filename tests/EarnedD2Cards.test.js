@@ -40,6 +40,8 @@ import { stealStatus } from '../src/engine/ActionAbilitySystem.js';
 import { canInspectUnit, markFoesShown } from '../src/engine/BattleInformation.js';
 import { createPlayerKnowledge } from '../src/engine/PlayerKnowledge.js';
 import { isFoeStepSeen } from '../src/ui/EnemyPhasePacing.js';
+import { historyUnitVisible } from '../src/ui/BattleHistoryRecorder.js';
+import { combatTimelineFacts } from '../src/engine/BattleTimelineFacts.js';
 import { foesShownOf, routeScoutOf, staffHealRangeOf } from '../src/engine/EarnedBoons.js';
 import { chooseEventPlan, choiceGrantsEarned } from './sim/RunPolicies.js';
 import { findEvent } from '../src/engine/EventSystem.js';
@@ -420,6 +422,24 @@ describe("Seer's Eye: fog never hides a foe", () => {
     expect(enemyLoop).not.toMatch(/isVisible\(/);
     const targets = src.slice(src.indexOf('In fog mode, player can only target'));
     expect(targets.slice(0, 300)).toMatch(/canInspectUnit\(this\.grid, enemy\)/);
+  });
+
+  it('the battle history and the timeline name a shown foe, and keep its walk', () => {
+    // Failure: the sprite shows the foe but the history reads "Unseen enemy" (two rules for one
+    // fact), or drops the walk the player watched.
+    const grid = foggy(true);
+    const scene = { grid, runManager: { battleInProgress: {} } };
+    const foe = { name: 'Brigand', faction: 'enemy', col: 10, row: 10, currentHP: 5 };
+    const ally = { name: 'Edric', faction: 'player', col: 0, row: 0, currentHP: 5 };
+    expect(historyUnitVisible(scene, foe)).toBe(true);
+    expect(historyUnitVisible({ ...scene, grid: foggy(false) }, foe)).toBe(false);
+    const strike = { events: [{ type: 'strike', attackerSide: 'attacker', damage: 3 }] };
+    expect(combatTimelineFacts(scene, foe, ally, strike)).toContain(
+      'Brigand hit Edric for 3 damage.',
+    );
+    expect(combatTimelineFacts({ ...scene, grid: foggy(false) }, foe, ally, strike)).toContain(
+      'Unseen enemy hit Edric for 3 damage.',
+    );
   });
 
   it("the enemy AI's view never changes: it never reads the fog", () => {
