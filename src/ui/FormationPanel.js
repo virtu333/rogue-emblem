@@ -6,6 +6,9 @@ import { isUnarmed } from '../engine/UnitManager.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 
+export const DANGER_STATUS_LEGEND =
+  'Purple outline: a foe’s status staff (Sleep, Silence) can reach.';
+
 function el(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -41,6 +44,9 @@ export function renderFormationPanel(container, formation, makeButton, { withSta
   const count = el('p', 'fm-count', `${placed} / ${n} placed`);
   count.setAttribute('role', 'status');
   container.append(count);
+  // Danger's purple outline (status-staff reach) is otherwise unexplained on this screen.
+  if (s.dangerZone?.visible && s.dangerZone.tiles?.some((tile) => tile.statusThreat))
+    container.append(el('p', 'fm-legend', DANGER_STATUS_LEGEND));
   if (formation.lesson) container.append(el('p', 'fm-notice', formation.lesson));
   if (formation.notice) container.append(el('p', 'fm-notice', formation.notice));
 

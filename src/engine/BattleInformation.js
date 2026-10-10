@@ -4,6 +4,7 @@ import { ACID_DAMAGE_PERCENT, STATUS_CONDITIONS } from '../utils/constants.js';
 import { ACID_DAMAGE_TURNS } from './TerrainHazards.js';
 import { isRecruitNpc } from './RecruitNpc.js';
 import { goldPouchValue } from './GoldPouch.js';
+import { BALLISTA_HIT, BALLISTA_MIGHT, getBallistaRange } from './BallistaEngine.js';
 
 // All inspection entry points use the same information boundary as map graphics.
 // A recruit waiting on the map is always in view: the army knows who it came for
@@ -164,4 +165,38 @@ export function carriedItemInfo(unit) {
 /** Does the map draw the sack pip over this unit? Only while the unit itself is in view. */
 export function carrierPipShown(grid, unit) {
   return Boolean(carriedItemInfo(unit)) && unit.currentHP > 0 && canInspectUnit(grid, unit);
+}
+
+/**
+ * The ballista the player can see on a tile, or null: the fog hides a ballista's tile like any
+ * other (the Danger overlay and Threat Sight read enemy ballistas the same way).
+ */
+export function visibleBallistaAt(grid, ballistas, col, row) {
+  const ballista = (ballistas || []).find((b) => b.col === col && b.row === row);
+  if (!ballista) return null;
+  if (grid?.fogEnabled && typeof grid.isVisible === 'function' && !grid.isVisible(col, row))
+    return null;
+  return ballista;
+}
+
+/**
+ * What a ballista does, read from BallistaEngine and the battle's own rules, as short lines for
+ * the tile info: who holds it, its reach, its blow, and when it fires (BattleScene
+ * processBallistaFire: a player's ballista as the player turn begins, an enemy's as the enemy
+ * phase begins, each at the nearest unit of the other side in range, lowest HP on a tie). A
+ * ballista is a map object, never crewed or unmanned: it belongs to the foe until a unit
+ * standing on it uses Capture.
+ */
+export function ballistaInfo(ballista) {
+  if (!ballista) return null;
+  const yours = ballista.owner === 'player';
+  return {
+    title: `${yours ? 'Your' : 'Enemy'} ballista · Range 1-${getBallistaRange(ballista)}`,
+    lines: [
+      `Mt ${BALLISTA_MIGHT} vs RES · Hit ${BALLISTA_HIT} · no counter`,
+      yours
+        ? 'Fires at the nearest foe each player turn.'
+        : 'Fires at your nearest unit each enemy phase.',
+    ],
+  };
 }

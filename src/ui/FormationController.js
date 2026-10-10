@@ -137,6 +137,7 @@ export class FormationController {
     this.ready = false;
     this.heldUnit = null;
     this.selectedTile = null;
+    this.clearInspection();
     if (s.battleState === FORMATION_STATE) s.battleState = 'PLAYER_IDLE';
     if (s.grid?.fogEnabled) {
       s.grid.updateFogOfWar(s.playerUnits);
@@ -313,9 +314,12 @@ export class FormationController {
     if (!this.ready) return;
     const s = this.scene;
     const t = this.tileIndexAt(gp.col, gp.row);
+    // Picking up, placing or choosing a tile ends a look at a foe's reach.
+    if (t !== -1) this.clearInspection();
     if (t === -1) {
       if (this.selectedTile !== null) this.selectTile(null);
-      // Off the formation: enemies and terrain inspect as on a normal turn, and a
+      // Off the formation: enemies and terrain inspect as on a normal turn (a foe's
+      // move and attack range included, InputController.showsInspectedReach), and a
       // unit in hand stays there (check a threat, then set it down).
       s._inputController?.handleIdleClick?.(gp);
       return;
@@ -345,6 +349,16 @@ export class FormationController {
     this.openPicker(t);
   }
 
+  /**
+   * Drop the foe being inspected (panel and the range it drew). Placement changes the
+   * board the range was read from, and a unit picked up or set down ends the look.
+   */
+  clearInspection() {
+    const s = this.scene;
+    if (s.inspectionPanel?.visible || s._inputController?._ballistaRangeShown)
+      s.clearInspectionVisuals?.();
+  }
+
   selectTile(t) {
     this.selectedTile = t;
     this.drawMarkers();
@@ -358,6 +372,7 @@ export class FormationController {
    */
   holdUnit(unit) {
     if (!this.ready) return;
+    this.clearInspection();
     const from = this.heldTile();
     const u = this.unitIndex(unit);
     if (from !== null && this.heldUnit !== unit && this.formation.at[u] === null) {
@@ -643,6 +658,7 @@ export class FormationController {
   /** Show each placed unit on its tile; keep benched units hidden. */
   syncField() {
     const s = this.scene;
+    this.clearInspection();
     s.playerUnits.length = 0;
     for (const [u, unit] of this.units.entries()) {
       const t = this.formation.at[u];
