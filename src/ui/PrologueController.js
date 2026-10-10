@@ -17,6 +17,11 @@
 // stand in for only once read. On the enemy phase a note or a tip is a coach nudge, and
 // one raised at a phase start waits until the player can act.
 //
+// The Guidance setting (engine/Guidance.js prologueGuidanceAllows, read live, so a change
+// in Settings mid-chapter applies to what comes next): Full shows everything, Light no
+// tips, Off no tips, no field notes and no guided steps (as Skip step). The spoken lines,
+// the coach's goal line and the exits always stay.
+//
 // Two modes (engine/ScriptedBattle.js). In the prologue run (scene.runManager, mode
 // 'prologue') the chapter is a node of a real run: notes mark the slot's hints, a won
 // chapter records its practised lessons on the slot's meta, and a named unit's fall
@@ -50,6 +55,8 @@ import {
   prologueNudgeText,
 } from '../data/prologueContent.js';
 import { recordTaughtLessons } from './prologueLessons.js';
+import { guidanceLevelOf } from './guidanceGate.js';
+import { prologueGuidanceAllows } from '../engine/Guidance.js';
 import { showPrologueTip, tipText } from './PrologueTip.js';
 import { showImportantHint } from './HintDisplay.js';
 import { hasDOMHost } from '../utils/domUI.js';
@@ -237,7 +244,15 @@ export class PrologueController {
 
   async runActions(actions, event = {}, extra = {}) {
     let held = false;
-    const sync = actions.filter((a) => SYNC_ACTIONS.some((key) => key in a));
+    // A Danger reach drawn for a beat's note or tip (reachOf) explains nothing once the
+    // Guidance setting hides that teaching: it goes with it.
+    const teaches = (a) => 'note' in a || 'tip' in a;
+    const shows = (a) => ('note' in a && this.allows('note')) || ('tip' in a && this.allows('tip'));
+    const teachingBeats = new Set(actions.filter(teaches).map((a) => a.beat));
+    const shownBeats = new Set(actions.filter(shows).map((a) => a.beat));
+    const reachHidden = (a) =>
+      Boolean(a.highlight?.reachOf) && teachingBeats.has(a.beat) && !shownBeats.has(a.beat);
+    const sync = actions.filter((a) => SYNC_ACTIONS.some((key) => key in a) && !reachHidden(a));
     const blocking = actions.filter((a) => 'note' in a || 'dialogue' in a);
     // Tips never hold anything: after the beat's notes and lines (a tip that follows
     // a line shows once the line is read), and never awaited.
@@ -355,12 +370,18 @@ export class PrologueController {
     return granted;
   }
 
+  /** The Guidance setting lets this kind ('tip' | 'note' | 'guided') show now. */
+  allows(kind) {
+    return prologueGuidanceAllows(guidanceLevelOf(this.scene), kind);
+  }
+
   // --- Gates and the coach ---------------------------------------------------------
 
   setGate(gate) {
     // Skipped steps stay skipped: a later step's goal (set by its beat just before its
     // gate) goes with the gate, so no goal is left that nothing can complete or clear.
-    if (this.gatesSkipped) {
+    // Guidance Off plays the chapter as if every guided step were skipped.
+    if (this.gatesSkipped || !this.allows('guided')) {
       this.coachGoal = null;
       return;
     }
@@ -373,7 +394,8 @@ export class PrologueController {
     return Boolean(
       !this.destroyed &&
       !this.gatesSkipped &&
-      (this.gate?.kind === 'select' || this.gate?.kind === 'move'),
+      (this.gate?.kind === 'select' || this.gate?.kind === 'move') &&
+      this.allows('guided'),
     );
   }
 
@@ -389,7 +411,9 @@ export class PrologueController {
 
   /** The first forecast: only Confirm or Cancel, no weapon or target cycling. */
   allowsForecastCycling() {
-    return this.destroyed || this.gatesSkipped || this.gate?.kind !== 'confirm';
+    return (
+      this.destroyed || this.gatesSkipped || this.gate?.kind !== 'confirm' || !this.allows('guided')
+    );
   }
 
   /** The step's goal is done: the gate lifts, its goal and highlights go. */
@@ -417,6 +441,8 @@ export class PrologueController {
 
   /** The live guided step's coach goal (prologueContent), or null. */
   scripted() {
+    // A guided step's goal goes with its gate once Guidance is Off (set Off mid-step).
+    if (this.gate && !this.allows('guided')) return null;
     return this.coachGoal ? prologueCoachGoal(this.coachGoal, this.ctx()) : null;
   }
 
@@ -496,6 +522,7 @@ export class PrologueController {
    * Returns the pending record, or null when nothing is left to show.
    */
   scheduleNote(id, event = {}, extra = {}, beat = null) {
+    if (!this.allows('note')) return null;
     const text = prologueNoteText(id, this.ctx(extra.ctx));
     if (!text) return null;
     if (event.type === 'turnStart' && event.phase === 'enemy') {
@@ -542,8 +569,9 @@ export class PrologueController {
    * otherwise it docks beside the map now. Returns true when something will show.
    */
   tip(id, event = {}, extra = {}, beat = null) {
+    if (this.destroyed || !this.allows('tip')) return false;
     const text = prologueNoteText(id, this.ctx(extra.ctx));
-    if (!text || this.destroyed) return false;
+    if (!text) return false;
     if (event.type === 'turnStart' && event.phase === 'enemy') {
       this.markTaught(id);
       const line = tipText(text);
@@ -571,7 +599,7 @@ export class PrologueController {
 
   /** Dock a tip beside the map (one at a time: a new one replaces the last, unread). */
   openTip(id, text, event = {}) {
-    if (!this.sceneLive()) return null;
+    if (!this.sceneLive() || !this.allows('tip')) return null;
     this.closeTip();
     const name = SCOPED_TIP_EVENTS.has(event.type) && event.unit ? event.unit : null;
     const unit = name ? (this.scene.playerUnits || []).find((u) => u?.name === name) : null;
@@ -740,6 +768,12 @@ export class PrologueController {
   async showNote(record) {
     const scene = this.scene;
     if (!this.sceneLive()) return false;
+    // Guidance set Off after it was scheduled (or a resume's pending note): dropped
+    // unread, so the lessons it stands in for stay unmarked.
+    if (!this.allows('note')) {
+      this.settlePending(record);
+      return false;
+    }
     const previous = this.notes;
     let release;
     this.notes = new Promise((resolve) => (release = resolve));

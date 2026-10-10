@@ -97,7 +97,7 @@ export class SettingsMenu {
       guidance,
       element(
         'p',
-        'Full: field notes while you play (a fragile unit moved into reach, healing, your first turn) plus first-use explanations. Light: first-use explanations only. Off: none. New saves start on Full, then Light after a finished run. The prologue stays available.',
+        'Full: field notes while you play (a fragile unit moved into reach, healing, your first turn) plus first-use explanations. Light: first-use explanations only. Off: none. New saves start on Full, then Light after a finished run. In the prologue, Light hides its tips; Off also hides its field notes and guided steps (the story stays).',
         're-muted',
       ),
     );

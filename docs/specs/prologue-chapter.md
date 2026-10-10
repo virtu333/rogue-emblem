@@ -147,6 +147,17 @@ line or tip speak per move or forecast), the reuse beats (P2's Soldier, P4's unp
 heal and 2-tile strikes) and the fading in P4 (its only blocking notes are its own new rules:
 deploy, then seize and par; the throne and the gate's change are tips).
 
+**For a player who knows the genre (playtest, 2026-10-10).** The Settings → Guidance level
+thins the prologue without skipping its story (`engine/Guidance.js`
+`prologueGuidanceAllows`, read live by `PrologueController` and the deploy note, so a change
+mid-chapter applies to what comes next): **Full** shows everything; **Light** drops the
+tips; **Off** drops the blocking notes (the deploy note too) and the guided steps as well
+(P1 plays as after Skip step; a pending note is dropped unread; a `reachOf` highlight goes
+with the note or tip it was drawn for). The spoken lines, joins, the coach's goal line
+(foldable to its Guide chip) and the exits stay. Auto resolves as everywhere (Full until the
+slot finishes a run). Nothing hidden is marked read, so Act 1 still teaches it where its
+own level allows.
+
 ### Why a chapter run, not only a longer practice battle
 
 The research recommends a short practice battle followed by contextual lessons in the first run,
