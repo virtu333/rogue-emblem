@@ -430,7 +430,8 @@ Given an eligible caster, the share matches the rung's chance (Nightfall Act IV 
   Dusk-strength, so the real Black Sun numbers will be lower. Re-run with a Black Sun
   calibration before release.
 
-- **Reinforcement pacing retune (2026-10-10).** A playtest said rout fights drag on because
+- **Reinforcement pacing retune (2026-10-10; its schedule is superseded by the wave
+  spacing retune below, its measurements of the template waves stand).** A playtest said rout fights drag on because
   waves arrive too fast on some maps. Measured with the real generator and scheduler (40
   seeds per cell, mean arrivals over a whole battle, rout):
 
