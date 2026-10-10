@@ -245,6 +245,13 @@ describe("Smith's Covenant: the Wandering Smith's word", () => {
       });
     const withCovenant = outcomes(data);
     expect(withCovenant).toEqual(outcomes(without));
+    // The guarantee is the key, not the place: even a covenant listed first (shifting every
+    // other choice's index) leaves tempering's outcomes as they were.
+    const first = structuredClone(data);
+    const firstSmith = first.events.events.find((e) => e.id === 'wandering_smith');
+    const covenant = firstSmith.choices.find((c) => c.id === 'covenant');
+    firstSmith.choices = [covenant, ...firstSmith.choices.filter((c) => c !== covenant)];
+    expect(outcomes(first)).toEqual(withCovenant);
     expect(new Set(withCovenant)).toEqual(new Set(['tempered', 'too_hot']));
   });
 
