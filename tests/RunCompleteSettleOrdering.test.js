@@ -49,6 +49,7 @@ vi.mock('../src/cloud/CloudSync.js', async () => {
 
 import { RunCompleteScene } from '../src/scenes/RunCompleteScene.js';
 import { clearSavedRun } from '../src/engine/RunManager.js';
+import { recordBlessingRunOutcome } from '../src/utils/blessingAnalytics.js';
 
 const store = {};
 Object.defineProperty(globalThis, 'localStorage', {
@@ -160,5 +161,19 @@ describe('RunCompleteScene reward settlement ordering', () => {
 
     // Never await createPromise — the dialogue intentionally never resolves.
     void createPromise;
+  });
+
+  it("hands the run's start gift to the blessing analytics with its outcome", async () => {
+    // Failure: a gift run's outcome is credited to the card the gift handed out (as if picked)
+    // and never to the gift.
+    const { scene } = makeScene({ result: 'defeat' });
+    scene.runManager.startGift = {
+      id: 'sealed_reliquary',
+      granted: [{ kind: 'blessing', id: 'iron_oath' }],
+    };
+    await RunCompleteScene.prototype.create.call(scene);
+    expect(recordBlessingRunOutcome).toHaveBeenCalledWith(
+      expect.objectContaining({ result: 'defeat', startGift: scene.runManager.startGift }),
+    );
   });
 });

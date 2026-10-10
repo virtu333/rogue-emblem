@@ -389,6 +389,11 @@ export function eclipseNode(node, ctx) {
  * eclipsed nodes are exempt, so a second call with the same state changes nothing.
  * @returns {Array<object>} the nodes that fell in this call (in map order)
  */
+/** The act a map's falls are rolled for: its own `actId`, else its first battle's act. */
+export function eclipseActIdOf(nodeMap) {
+  return nodeMap?.actId || nodeMap?.nodes?.[0]?.battleParams?.act || 'act1';
+}
+
 export function applyEclipse({
   state,
   config,
@@ -406,7 +411,7 @@ export function applyEclipse({
   const act = actShadowOf(state);
   if (act <= 0) return [];
   const rows = mapRows(nodeMap);
-  const actId = nodeMap.actId || nodeMap.nodes[0]?.battleParams?.act || 'act1';
+  const actId = eclipseActIdOf(nodeMap);
   const fallen = [];
   for (const node of nodeMap.nodes) {
     if (nodeFallExemption(node, { nodeMap, currentNodeId, activeNodeId, spareTypes })) continue;

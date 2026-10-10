@@ -1813,6 +1813,7 @@
         "grant": {
           "kind": "scrolls",
           "artScrolls": 2,
+          "artScrollAct": "act2",
           "skillScrolls": 1,
           "skillScrollAct": "act2"
         },
@@ -1844,7 +1845,7 @@
           "imbue": true
         },
         "catch": {
-          "label": "Sworn Enemy on the Act I boss",
+          "label": "Sworn Enemy on the Act 1 boss",
           "prices": [
             "sworn_enemy"
           ]
@@ -1855,7 +1856,7 @@
         "name": "Pilgrim's Wager",
         "description": "A random tier IV blessing, its pact waived.",
         "lore": "The road takes its toll either way. This way you choose the coin.",
-        "icon": "blessing-forbidden_tome",
+        "icon": "gamblers-coin",
         "weight": 1,
         "requires": {
           "eclipse": true

@@ -35,11 +35,13 @@ function burdenValue(def, rung, key) {
 
 /**
  * A price that names its own count for a burden ("Lingering Injury on your commander for 5
- * battles": a start gift's catch) is held to it; the catalog's count is the rung's default.
+ * battles": a start gift's catch) is held to it; the catalog's count is the rung's default. The
+ * count belongs to the burden's own clause: the search stops at a full stop, a semicolon or a
+ * "·" (the next price of a pair: "Lingering Injury · Hunted for 3 battles" names no injury count).
  */
 function namedBattles(text, pattern) {
   const source = pattern.source.replace(/^\\b|\\b$/g, '');
-  const match = new RegExp(`${source}[^.;]*?\\bfor (\\d+) battles\\b`, 'i').exec(text);
+  const match = new RegExp(`${source}[^.;\u00b7]*?\\bfor (\\d+) battles\\b`, 'i').exec(text);
   return match ? Number(match[1]) : null;
 }
 

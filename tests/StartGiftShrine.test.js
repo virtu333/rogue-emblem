@@ -30,13 +30,16 @@ Object.defineProperty(globalThis, 'localStorage', {
 
 import { BlessingSelectScene } from '../src/scenes/BlessingSelectScene.js';
 import { transitionToScene } from '../src/utils/SceneRouter.js';
+import { recordBlessingSelection } from '../src/utils/blessingAnalytics.js';
 import { InputAction } from '../src/utils/InputActions.js';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
-// tests/StartGifts.test.js pins these: seed 6 offers the Fallen Hoard, seed 1 no gift.
+// tests/StartGifts.test.js pins these: seed 6 offers the Fallen Hoard, seed 3 the Sealed
+// Reliquary, seed 1 no gift.
 const HOARD_SEED = 6;
 const NO_GIFT_SEED = 1;
+const RELIQUARY_SEED = 3;
 
 function meta(runsStarted = 1) {
   return {
@@ -64,7 +67,10 @@ function registry(initial = {}) {
 /** Open the shrine as the game does (init, then the offer) on a pinned seed. */
 function openShrine(reg, seed) {
   if (seed !== undefined)
-    reg.set('pendingBlessingRunSeeds', { [String(reg.get('activeSlot'))]: seed });
+    store[`emblem_rogue_slot_${reg.get('activeSlot')}_pendingSeed`] = JSON.stringify({
+      seed,
+      runsStarted: reg.get('meta')?.getRunsStarted?.() ?? 0,
+    });
   const scene = Object.create(BlessingSelectScene.prototype);
   scene.registry = reg;
   scene.init({ gameData, difficultyId: 'normal' });
@@ -171,6 +177,101 @@ describe("the shrine's gift card", () => {
     expect(m.incrementRunsStarted).toHaveBeenCalledTimes(1);
   });
 
+  for (const [label, failure] of [
+    [
+      'returns { ok: false }',
+      (run) => {
+        // Part-way: the selection made and part of a grant, then a failure.
+        run.chooseBlessing(null);
+        run.accessories.push({ name: 'Leaked Ring', type: 'Accessory' });
+        return { ok: false, reason: 'grant_failed', dirty: true };
+      },
+    ],
+    [
+      'throws',
+      (run) => {
+        run.chooseBlessing(null);
+        run.accessories.push({ name: 'Leaked Ring', type: 'Accessory' });
+        throw new Error('the grant broke');
+      },
+    ],
+  ]) {
+    it(`a take that ${label} rolls the shrine back: no start, nothing leaks, the gift can be taken again`, async () => {
+      // Failure: the shrine keeps the half-changed run (the selection already made, so every
+      // retry is refused and the player is stuck), begins a run with nothing granted, or lets
+      // the partial grant leak into the retried run.
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      const m = meta(1);
+      const scene = openShrine(registry({ activeSlot: 1, meta: m }), HOARD_SEED);
+      scene.selectedIndex = scene.options.length;
+      const failing = scene.runManager;
+      vi.spyOn(failing, 'chooseStartGift').mockImplementation(() => failure(failing));
+      scene._confirm();
+      await flush();
+      expect(transitionToScene).not.toHaveBeenCalled();
+      expect(scene._blessingCommitted).toBe(false);
+      expect(scene.isTransitioning).toBe(false);
+      expect(scene.runManager).not.toBe(failing);
+      expect(scene.runManager.accessories).toEqual([]);
+      expect(scene.runManager._blessingChosen).toBe(false);
+      expect(scene.gift?.id).toBe('fallen_hoard');
+      expect(scene._giftSelected()).toBe(true);
+      expect(m.incrementRunsStarted).not.toHaveBeenCalled();
+      // The player chooses again: the gift is taken once and the run begins.
+      scene._confirm();
+      await flush();
+      expect(transitionToScene).toHaveBeenCalledTimes(1);
+      expect(scene.runManager.startGift?.id).toBe('fallen_hoard');
+      expect(scene.runManager.accessories.map((a) => a.name)).not.toContain('Leaked Ring');
+      expect(scene.runManager.accessories).toHaveLength(2);
+      expect(m.incrementRunsStarted).toHaveBeenCalledTimes(1);
+    });
+  }
+
+  it("records a gift run as a gift, and a gift's card as granted, never as a pick", async () => {
+    // Failure: the selection record reads as "skipped the blessing", or the Reliquary's card is
+    // attributed to the shrine's pick.
+    vi.mocked(recordBlessingSelection).mockClear();
+    const hoard = openShrine(registry({ activeSlot: 1, meta: meta(1) }), HOARD_SEED);
+    hoard.selectedIndex = hoard.options.length;
+    hoard._confirm();
+    await flush();
+    expect(recordBlessingSelection).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        chosenId: null,
+        giftOfferedId: 'fallen_hoard',
+        giftId: 'fallen_hoard',
+        grantedBlessingId: null,
+      }),
+    );
+    const reliquary = openShrine(registry({ activeSlot: 2, meta: meta(1) }), RELIQUARY_SEED);
+    expect(reliquary.gift?.id).toBe('sealed_reliquary');
+    reliquary.selectedIndex = reliquary.options.length;
+    reliquary._confirm();
+    await flush();
+    const card = reliquary.runManager.startGift.granted.find((g) => g.kind === 'blessing');
+    expect(card?.id).toBeTruthy();
+    expect(recordBlessingSelection).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        chosenId: null,
+        giftId: 'sealed_reliquary',
+        grantedBlessingId: card.id,
+      }),
+    );
+    // A blessing chosen beside an offered gift: the gift's offer only.
+    const blessing = openShrine(registry({ activeSlot: 3, meta: meta(1) }), HOARD_SEED);
+    blessing.selectedIndex = 0;
+    blessing._confirm();
+    await flush();
+    expect(recordBlessingSelection).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        chosenId: blessing.options[0].id,
+        giftOfferedId: 'fallen_hoard',
+        giftId: null,
+      }),
+    );
+  });
+
   it('No blessing after a gift is offered still begins with no blessing and no gift', async () => {
     // Failure: skip's old index (options.length) now takes the gift.
     const scene = openShrine(registry({ activeSlot: 1, meta: meta(1) }), HOARD_SEED);
@@ -180,5 +281,71 @@ describe("the shrine's gift card", () => {
     expect(scene.runManager.startGift).toBeNull();
     expect(scene.runManager.activeBlessings).toEqual([]);
     expect(scene.runManager.accessories).toEqual([]);
+  });
+
+  it('the canvas fallback (no DOM host) fits four cards above Skip, each cost line on its card', () => {
+    // Failure: four cards keep the three-card minimum height (68), so the last overlaps the
+    // Skip button, or a card's cost line is drawn over the next card.
+    const scene = openShrine(registry({ activeSlot: 1, meta: meta(1) }), HOARD_SEED);
+    expect(scene.gift?.id).toBe('fallen_hoard');
+    const rects = [];
+    const texts = [];
+    const chain = (extra) => {
+      const obj = {
+        setStrokeStyle: () => obj,
+        setInteractive: () => obj,
+        setOrigin: () => obj,
+        setColor: () => obj,
+        setText(text) {
+          obj.text = text;
+          return obj;
+        },
+        on: () => obj,
+        ...extra,
+      };
+      return obj;
+    };
+    scene.children = { removeAll: () => {} };
+    scene.cameras = { main: { width: 640, height: 480 } };
+    scene.add = {
+      rectangle: (x, y, w, h) => {
+        const r = chain({ x, y, w, h });
+        rects.push(r);
+        return r;
+      },
+      text: (x, y, text, style) => {
+        // One line per ~6px of 9-10px text on a wrap: enough to drive the truncation.
+        const width = style?.wordWrap?.width || 1e9;
+        const t = chain({ x, y, text, style });
+        Object.defineProperty(t, 'height', {
+          get: () => Math.ceil((t.text.length * 5.5) / width) * 12,
+        });
+        texts.push(t);
+        return t;
+      },
+    };
+    BlessingSelectScene.prototype._draw.call(scene);
+    const cardW = Math.min(600, 640 - 40) - 28;
+    const cards = rects.filter((r) => r.w === cardW && r.h > 10);
+    expect(cards).toHaveLength(4);
+    const skip = texts.find((t) => /Skip Blessing/.test(t.text));
+    for (let i = 0; i < cards.length; i++) {
+      const top = cards[i].y - cards[i].h / 2;
+      const bottom = cards[i].y + cards[i].h / 2;
+      if (i > 0) expect(top).toBeGreaterThanOrEqual(cards[i - 1].y + cards[i - 1].h / 2);
+      expect(bottom).toBeLessThan(skip.y - 10);
+      const cost = texts.find(
+        (t) => /^(Cost|Price|Pact|Catch|Twist): /.test(t.text) && t.y >= top && t.y < bottom,
+      );
+      if (cost) expect(cost.y + 11).toBeLessThanOrEqual(bottom);
+    }
+    // Every priced card's cost line sits on its own card (the gift's catch included).
+    const costs = texts.filter((t) => /^(Cost|Price|Pact|Catch|Twist): /.test(t.text));
+    expect(costs.some((t) => t.text.includes('Hunted for the next 3 battles'))).toBe(true);
+    for (const cost of costs)
+      expect(
+        cards.some((c) => cost.y >= c.y - c.h / 2 && cost.y + 11 <= c.y + c.h / 2),
+        cost.text,
+      ).toBe(true);
   });
 });

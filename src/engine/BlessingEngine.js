@@ -96,6 +96,23 @@ export const GIFT_CATCH_EFFECT_TYPES = Object.freeze([
   'shop_price_discount',
   'forge_cost_multiplier',
 ]);
+/**
+ * Which way each catch effect must point to cost something (a positive Vision delta is a
+ * boon, not a catch): -1 means the value must be below 0, +1 above it. `burden` and
+ * `eclipse_fall_now` are costs by kind.
+ */
+export const GIFT_CATCH_SIGNS = Object.freeze({
+  vision_delta: -1,
+  eclipse_shadow_delta: 1,
+  act_stat_delta_all_units: -1,
+  act_hit_bonus: -1,
+  act_deploy_cap_delta: -1,
+  xp_multiplier_delta: -1,
+  shop_price_discount: -1,
+  forge_cost_multiplier: 1,
+});
+/** The weapon tiers a `weapon` gift may name: priced tiers (a Legend costs 0, never handed out). */
+export const GIFT_WEAPON_TIERS = Object.freeze(['Iron', 'Steel', 'Silver', 'Rare']);
 // The burdens a catch may name (never Debt).
 const GIFT_CATCH_BURDENS = ['ill_omen', 'hunted', 'sworn_enemy', 'wounded'];
 // A catch that darkens the Eclipse costs nothing with it off: the gift must require it on.
@@ -418,11 +435,14 @@ function validateGiftGrant(config, gift, path, errors) {
     if (!Number.isInteger(arts) || arts < 0 || !Number.isInteger(skills) || skills < 0)
       errors.push(`${at}.artScrolls and skillScrolls must be whole numbers`);
     else if (arts + skills <= 0) errors.push(`${at} must hand out at least one scroll`);
+    // The arts a day-one gift hands out unlock by this act (StartGifts.giftArtScrollPool).
+    if (arts > 0 && !EARNED_SOURCE_ACTS.includes(grant.artScrollAct))
+      errors.push(`${at}.artScrollAct must be one of ${EARNED_SOURCE_ACTS.join(', ')}`);
     if (skills > 0 && !EARNED_SOURCE_ACTS.includes(grant.skillScrollAct))
       errors.push(`${at}.skillScrollAct must be one of ${EARNED_SOURCE_ACTS.join(', ')}`);
   } else if (grant.kind === 'weapon') {
-    if (typeof grant.tier !== 'string' || !grant.tier.trim())
-      errors.push(`${at}.tier must be a weapon tier`);
+    if (!GIFT_WEAPON_TIERS.includes(grant.tier))
+      errors.push(`${at}.tier must be one of ${GIFT_WEAPON_TIERS.join(', ')}`);
     if (grant.imbue !== undefined && typeof grant.imbue !== 'boolean')
       errors.push(`${at}.imbue must be a boolean`);
   } else if (grant.kind === 'whetstones') {
@@ -452,6 +472,7 @@ function validateGiftCatch(config, gift, path, errors) {
       errors.push(`${at}.prices must be a non-empty array`);
       return;
     }
+    const label = typeof source.label === 'string' ? source.label.toLowerCase() : '';
     for (const id of source.prices) {
       const entry = config.priceCatalog?.[id];
       if (!isObject(entry) || !Array.isArray(entry.effects)) {
@@ -460,6 +481,9 @@ function validateGiftCatch(config, gift, path, errors) {
       }
       if (String(entry.label).includes('{owed}'))
         errors.push(`${at}.prices "${id}" is a Debt: a gift is never a loan`);
+      // The card's label says what the catalog price is: it names each price's own label.
+      else if (label && !label.includes(String(entry.label).trim().toLowerCase()))
+        errors.push(`${at}.label does not name the price "${id}" ("${entry.label}")`);
       effects.push(...entry.effects);
     }
   } else if (!Array.isArray(source.effects) || source.effects.length === 0) {
@@ -478,6 +502,12 @@ function validateGiftCatch(config, gift, path, errors) {
       errors.push(`${ep}: a catch's burden is one of ${GIFT_CATCH_BURDENS.join(', ')}`);
     if (effect.type === 'eclipse_fall_now' && !positiveInt(effect.params.count))
       errors.push(`${ep}.params.count must be a positive integer`);
+    const sign = GIFT_CATCH_SIGNS[effect.type];
+    const value = Number(effect.params.value);
+    if (sign && !(Number.isFinite(value) && Math.sign(value) === sign))
+      errors.push(
+        `${ep}.params.value must be ${sign < 0 ? 'below' : 'above'} 0: a ${effect.type} catch must cost something`,
+      );
     if (GIFT_ECLIPSE_EFFECTS.includes(effect.type) && gift.requires?.eclipse !== true)
       errors.push(`${path}.requires.eclipse must be true for a catch of ${effect.type}`);
   });

@@ -42,8 +42,9 @@ export function heldBlessingEntries(run) {
   if (gift)
     entries.push({
       ...gift,
-      terms: gift.price
-        ? blessingTerms([gift.price], {
+      // The terms explain the catch's own words (its live state is beside it in the price).
+      terms: gift.catchLabel
+        ? blessingTerms([gift.catchLabel], {
             burdens: run?.gameData?.events?.burdens,
             difficultyId: run?.difficultyId,
           })

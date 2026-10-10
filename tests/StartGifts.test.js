@@ -19,10 +19,11 @@ import {
 } from '../src/engine/StartGifts.js';
 import {
   GIFT_CATCH_EFFECT_TYPES,
+  GIFT_WEAPON_TIERS,
   createSeededRng,
   validateBlessingsConfig,
 } from '../src/engine/BlessingEngine.js';
-import { eclipseHash, nodeFallExemption } from '../src/engine/EclipseSystem.js';
+import { eclipseHash, eclipseNode, nodeFallExemption } from '../src/engine/EclipseSystem.js';
 import { blessingTerms } from '../src/engine/BlessingTerms.js';
 import { canEquip } from '../src/engine/UnitManager.js';
 import { findCommander } from '../src/engine/Commander.js';
@@ -275,6 +276,111 @@ describe('the take', () => {
   });
 });
 
+describe('the take is planned before anything is chosen', () => {
+  /** A Marked Blade run with the commander's bag filled with Iron copies. */
+  function bladeRunWithFullBag() {
+    const rm = startRun(PINNED.marked_blade);
+    expect(rm.getStartGiftOffer()?.id).toBe('marked_blade');
+    const commander = findCommander(rm.roster);
+    const iron = data.weapons.find((w) => w.tier === 'Iron' && canEquip(commander, w));
+    while (commander.inventory.length < 5) commander.inventory.push(structuredClone(iron));
+    return { rm, commander };
+  }
+  const selectionRecords = (rm) =>
+    rm.blessingHistory.filter((r) => r.stage === 'run_start' && r.eventType === 'selection');
+
+  it("Marked Blade with the commander's bag full goes to the convoy", () => {
+    // Failure: the weapon is lost (granted to nobody), or the take is refused with room left.
+    const { rm, commander } = bladeRunWithFullBag();
+    const convoyBefore = rm.convoy.weapons.length;
+    const result = rm.chooseStartGift('marked_blade');
+    expect(result.ok).toBe(true);
+    const [entry] = result.startGift.granted;
+    expect(entry).toMatchObject({ kind: 'weapon', unit: commander.name, to: 'convoy' });
+    expect(commander.inventory).toHaveLength(5);
+    expect(rm.convoy.weapons).toHaveLength(convoyBefore + 1);
+    expect(rm.convoy.weapons.at(-1).name).toBe(entry.name);
+  });
+
+  it('with no room anywhere it is refused before anything is chosen, and the run is untouched', () => {
+    // Failure: the take chooses "no blessing" first and then finds no room: the run is left with
+    // the selection made, the catch maybe paid, and nothing granted.
+    const { rm } = bladeRunWithFullBag();
+    const caps = rm.getConvoyCapacities();
+    const iron = data.weapons.find((w) => w.tier === 'Iron' && w.type === 'Sword');
+    while (rm.convoy.weapons.length < caps.weapons) rm.convoy.weapons.push(structuredClone(iron));
+    const before = runState(rm);
+    const result = rm.chooseStartGift('marked_blade');
+    expect(result).toMatchObject({ ok: false, reason: 'unavailable' });
+    expect(result.dirty).toBeUndefined();
+    expect(runState(rm)).toEqual(before);
+    expect(rm.startGift).toBeNull();
+    expect(rm._blessingChosen).toBe(false);
+    expect(selectionRecords(rm)).toEqual([]);
+    // A blessing can still be chosen at this shrine.
+    expect(rm.chooseBlessing(null)).toBe(true);
+  });
+
+  it('a blessing gift whose cards cannot be added is refused before anything is chosen', () => {
+    // Failure: the Reliquary chooses "no blessing", then addBlessingMidRun refuses its card.
+    const rm = startRun(PINNED.sealed_reliquary);
+    vi.spyOn(rm, 'canAddBlessingMidRun').mockReturnValue(false);
+    const before = runState(rm);
+    expect(rm.chooseStartGift('sealed_reliquary')).toMatchObject({
+      ok: false,
+      reason: 'unavailable',
+    });
+    expect(runState(rm)).toEqual(before);
+    expect(selectionRecords(rm)).toEqual([]);
+  });
+
+  it('a grant that still comes up empty is reported dirty and records no gift', () => {
+    // Failure: an empty grant is saved as a taken gift (a pause entry for nothing, its catch
+    // paid for nothing), or reported clean so the shrine keeps the half-changed run.
+    const rm = startRun(PINNED.sealed_reliquary);
+    vi.spyOn(rm, 'addBlessingMidRun').mockReturnValue(false);
+    const result = rm.chooseStartGift('sealed_reliquary');
+    expect(result).toMatchObject({ ok: false, reason: 'grant_failed', dirty: true });
+    expect(rm.startGift).toBeNull();
+    expect(rm.blessingHistory.some((r) => r.eventType === 'gift')).toBe(false);
+  });
+
+  it('a gift record with nothing granted has no pause entry', () => {
+    // Failure: an old or hand-made save with an empty grant shows "Fallen Hoard · Gift" for
+    // nothing.
+    const rm = taken(PINNED.fallen_hoard);
+    expect(startGiftEntry(rm)).not.toBeNull();
+    rm.startGift = { ...rm.startGift, granted: [] };
+    expect(startGiftEntry(rm)).toBeNull();
+    expect(heldBlessingEntries(rm).some((entry) => entry.gift)).toBe(false);
+  });
+});
+
+describe("a gift's history stage", () => {
+  it("records its effects as stage 'gift' and restores the outer stage, even when a handler throws", () => {
+    // Failure: a throwing handler leaves the run stuck in stage 'gift' (every later record,
+    // a church vow's included, is filed under the gift), or a nested call loses 'mid_run'.
+    const rm = startRun(PINNED.fallen_hoard);
+    rm.applyStartGiftEffects('gift:test', [{ type: 'vision_delta', params: { value: -1 } }]);
+    expect(rm.blessingHistory.at(-1)).toMatchObject({ stage: 'gift', blessingId: 'gift:test' });
+    expect('_blessingEventStage' in rm).toBe(false);
+
+    const spy = vi.spyOn(rm, '_applySingleRunStartBlessingEffect').mockImplementation(() => {
+      throw new Error('handler broke');
+    });
+    expect(() =>
+      rm.applyStartGiftEffects('gift:test', [{ type: 'vision_delta', params: { value: -1 } }]),
+    ).toThrow('handler broke');
+    expect('_blessingEventStage' in rm).toBe(false);
+    rm._blessingEventStage = 'mid_run';
+    expect(() =>
+      rm.applyStartGiftEffects('gift:test', [{ type: 'vision_delta', params: { value: -1 } }]),
+    ).toThrow('handler broke');
+    expect(rm._blessingEventStage).toBe('mid_run');
+    spy.mockRestore();
+  });
+});
+
 describe('the six gifts', () => {
   it('Sealed Reliquary: an unheld tier III card that is neither earned nor intrinsic, its catch the price', () => {
     // Failure: the pool lets in Gambler's Toss or another intrinsic card (a free boon whose price
@@ -359,6 +465,28 @@ describe('the six gifts', () => {
     expect(giftFallableNodes(rm).some((n) => n.id === rm.nodeMap.startNodeId)).toBe(false);
   });
 
+  it("Pilgrim's Wager's fall is the Eclipse's own: the node is what eclipseNode makes with the run's context", () => {
+    // Failure: the gift builds its own copy of the Eclipse's terms (fog, the act, the Dark
+    // Omen, the shadow) and drifts from it, so a node the gift lets fall differs from the same
+    // node fallen to the Eclipse.
+    let checked = 0;
+    for (const difficultyId of ['normal', 'hard']) {
+      for (const seed of seedsOffering('pilgrims_wager', 300, { difficultyId }).slice(0, 6)) {
+        const fresh = startRun(seed, { difficultyId });
+        const rm = taken(seed, { difficultyId });
+        expect(rm.startGift.fell).toHaveLength(1);
+        const [id] = rm.startGift.fell;
+        const expected = structuredClone(fresh.nodeMap.nodes.find((n) => n.id === id));
+        // The catch's +15 shadow is paid before the node falls.
+        fresh.eclipse.shadow = rm.eclipse.shadow;
+        eclipseNode(expected, fresh._eclipseNodeContext());
+        expect(rm.nodeMap.nodes.find((n) => n.id === id)).toEqual(expected);
+        checked++;
+      }
+    }
+    expect(checked).toBe(12);
+  });
+
   it("Pilgrim's Wager is never offered with the Eclipse off", () => {
     // Failure: with the Eclipse off its whole catch costs nothing.
     for (let seed = 1; seed <= 300; seed++)
@@ -425,14 +553,50 @@ describe('the six gifts', () => {
       expect(rm.accessories).toHaveLength(2);
       for (const item of rm.accessories) expect(act2.has(item.name), item.name).toBe(true);
       expect(rm.accessories[0].name).not.toBe(rm.accessories[1].name);
-      expect(rm.accessories[1]._boundSkill).toBeUndefined();
-      if (rm.accessories[0]._boundSkill) skilled++;
+      // One roll, on the first that can bear a skill (a legendary first passes it on).
+      const rollsOn = rm.accessories.findIndex((item) => item.legendary !== true);
+      rm.accessories.forEach((item, i) => {
+        if (i !== rollsOn) expect(item._boundSkill).toBeUndefined();
+      });
+      if (rm.accessories[rollsOn]?._boundSkill) skilled++;
       total++;
       expect(rm.burdens).toEqual([expect.objectContaining({ id: 'hunted', battles: 3 })]);
     }
     expect(total).toBeGreaterThan(50);
     expect(skilled / total).toBeGreaterThan(0.3);
     expect(skilled / total).toBeLessThan(0.7);
+  });
+
+  it('Fallen Hoard with a legendary first pick binds the skill to the second, on the gift stream', () => {
+    // Failure: the roll is spent on the legendary (which never bears one), so the card's "one may
+    // bear a skill" is never true; or the second binds on Math.random and a seed's gift differs.
+    const legendary = data.accessories.find((a) => a.legendary === true);
+    const ordinary = data.accessories.find(
+      (a) => a.type === 'Accessory' && a.legendary !== true && !a.combatEffects,
+    );
+    const pair = patched((b) => {
+      b.gifts.list.find((g) => g.id === 'fallen_hoard').grant.skillChance = 1;
+    });
+    pair.lootTables = structuredClone(pair.lootTables);
+    pair.lootTables.act2.accessories = [legendary.name, ordinary.name];
+    let legendaryFirst = 0;
+    for (let seed = 1; seed <= 600 && legendaryFirst < 5; seed++) {
+      const rm = startRun(seed, { gameData: pair });
+      if (rm.getStartGiftOffer()?.id !== 'fallen_hoard') continue;
+      expect(rm.chooseStartGift('fallen_hoard').ok).toBe(true);
+      const [first, second] = rm.accessories;
+      if (first.name !== legendary.name) continue;
+      legendaryFirst++;
+      expect(first._boundSkill).toBeUndefined();
+      expect(second.name).toBe(ordinary.name);
+      expect(second._boundSkill).toBeTruthy();
+      expect(rm.startGift.granted[1].skill).toBeTruthy();
+      // The same seed binds the same skill (the gift's stream, not Math.random).
+      const again = startRun(seed, { gameData: pair });
+      again.chooseStartGift('fallen_hoard');
+      expect(again.accessories[1]._boundSkill).toEqual(second._boundSkill);
+    }
+    expect(legendaryFirst).toBe(5);
   });
 
   it("Stranger's Scroll: two art scrolls the lords can use and an Act II skill scroll; the commander's injury lasts 5", () => {
@@ -455,6 +619,49 @@ describe('the six gifts', () => {
         expect.objectContaining({ id: 'wounded', unitUid: commander.unitUid, battles: 5 }),
       ]);
     }
+  });
+
+  it("Stranger's Scroll: its arts unlock by Act II and are two different scrolls", () => {
+    // Failure: a day-one gift hands out an Act III or IV art (the handler's pool unfiltered, or
+    // the gift's eligibility reading another pool than the grant), or the same art twice.
+    const artById = new Map(data.weaponArts.arts.map((a) => [a.id, a]));
+    const early = new Set(['act1', 'act2']);
+    const seeds = seedsOffering('strangers_scroll', 1500);
+    expect(seeds.length).toBeGreaterThan(60);
+    for (const seed of seeds) {
+      const rm = startRun(seed);
+      expect(rm.chooseStartGift('strangers_scroll').ok).toBe(true);
+      const arts = rm.scrolls.filter((s) => s.teachesWeaponArtId);
+      expect(arts, `seed ${seed}`).toHaveLength(2);
+      for (const scroll of arts)
+        expect(early.has(artById.get(scroll.teachesWeaponArtId)?.unlockAct || 'act1')).toBe(true);
+      expect(arts[0].name, `seed ${seed}`).not.toBe(arts[1].name);
+    }
+    // Two arts in the pool (every other art scroll cut): always both, never one twice.
+    const rm0 = startRun(PINNED.strangers_scroll);
+    const pool = rm0.startingArtScrollPool('act2');
+    const keep = new Set(pool.slice(0, 2).map((scroll) => scroll.name));
+    const narrow = structuredClone(data);
+    narrow.weapons = narrow.weapons.filter(
+      (item) => !(item.type === 'Scroll' && item.teachesWeaponArtId) || keep.has(item.name),
+    );
+    let checked = 0;
+    for (let seed = 1; seed <= 400 && checked < 12; seed++) {
+      const rm = startRun(seed, { gameData: narrow });
+      if (rm.getStartGiftOffer()?.id !== 'strangers_scroll') continue;
+      expect(rm.chooseStartGift('strangers_scroll').ok).toBe(true);
+      const names = rm.scrolls.filter((s) => s.teachesWeaponArtId).map((s) => s.name);
+      expect(new Set(names)).toEqual(keep);
+      checked++;
+    }
+    expect(checked).toBe(12);
+    // The gift's own act is data, validated.
+    const bad = patched((catalog) => {
+      delete catalog.gifts.list.find((gift) => gift.id === 'strangers_scroll').grant.artScrollAct;
+    });
+    expect(validateBlessingsConfig(bad.blessings).errors).toContainEqual(
+      expect.stringContaining('artScrollAct'),
+    );
   });
 
   it("Marked Blade: a Silver weapon of the commander's best proficiency, imbued, in their bag; Sworn Enemy", () => {
@@ -504,6 +711,10 @@ describe('the data', () => {
       expect(gift.lore.length, gift.id).toBeLessThanOrEqual(85);
       expect(gift.lore).not.toBe(gift.description);
       expect(ITEM_ICON_MANIFEST.icons[gift.icon], gift.icon).toBeTruthy();
+      // A gift never wears another blessing's own icon (it would read as that card): only the
+      // blessing it replaces.
+      const owner = /^blessing-(.+)$/.exec(gift.icon)?.[1];
+      if (owner) expect(owner, gift.id).toBe(gift.replaces);
       const price = giftCatchOf(gift, data);
       for (const effect of price.effects) expect(GIFT_CATCH_EFFECT_TYPES).toContain(effect.type);
       const terms = blessingTerms([price.label], { burdens: data.events.burdens }).map(
@@ -527,6 +738,17 @@ describe('the data', () => {
       burdens: data.events.burdens,
     });
     expect(injury[0].text).toContain('for 5 battles');
+    // A count in the next price of a pair ("·") is that price's, never the injury's: the
+    // injury reads the rung's own length (First Light's 2 battles in events.json).
+    const pair = blessingTerms(['Lingering Injury on your commander \u00b7 Hunted for 3 battles'], {
+      burdens: data.events.burdens,
+      difficultyId: 'normal',
+    });
+    const pairInjury = pair.find((t) => t.term === 'Lingering Injury');
+    expect(pairInjury.text).toContain(
+      `for ${data.events.burdens.wounded.onRung.normal.battles} battles`,
+    );
+    expect(pairInjury.text).not.toContain('for 3 battles');
   });
 
   it("refuses a gift named for a blessing it does not replace (the Armory Stash's exemption)", () => {
@@ -577,6 +799,44 @@ describe('the data', () => {
         b.gifts.list[1].lore = b.gifts.list[1].description;
       }),
     ).toMatch(/lore must say something/);
+    // A prices catch's label names the catalog prices it pays.
+    expect(
+      errorsOf((b) => {
+        b.gifts.list.find((g) => g.id === 'armory_stash').catch.label =
+          '-1 DEF to all units in Act 1';
+      }),
+    ).toMatch(/label does not name the price "act1_def_down_2"/);
+    // A catch costs something: a positive Vision delta, less shadow or cheaper forging is a boon.
+    for (const [type, value] of [
+      ['vision_delta', 1],
+      ['eclipse_shadow_delta', -5],
+      ['act_stat_delta_all_units', 2],
+      ['forge_cost_multiplier', -0.2],
+      ['shop_price_discount', 0.1],
+    ])
+      expect(
+        errorsOf((b) => {
+          const gift = b.gifts.list.find((g) => g.id === 'pilgrims_wager');
+          gift.catch = {
+            label: 'x',
+            effects: [{ type, params: { act: 'act1', stat: 'DEF', value } }],
+          };
+        }),
+        type,
+      ).toMatch(/must cost something/);
+    // A weapon gift names a priced tier the catalog has.
+    for (const tier of ['Gold', 'Legend', 'silver'])
+      expect(
+        errorsOf((b) => {
+          b.gifts.list.find((g) => g.id === 'marked_blade').grant.tier = tier;
+        }),
+        tier,
+      ).toMatch(/grant\.tier must be one of/);
+    for (const tier of GIFT_WEAPON_TIERS)
+      expect(
+        data.weapons.some((w) => w.tier === tier && w.price > 0 && !w.signatureOf),
+        tier,
+      ).toBe(true);
     // Gifts read the v3 price catalog: a v2 config cannot carry them.
     expect(
       errorsOf((b) => {
@@ -619,10 +879,13 @@ describe('the save and the surfaces', () => {
       label: 'Fallen Hoard',
       tier: 'Gift',
       gift: true,
-      price: 'Hunted for the next 3 battles',
+      price: 'Hunted for the next 3 battles (Hunted: 3 battles left)',
       priceKind: 'Catch',
     });
     expect(entry.terms.map((t) => t.term)).toEqual(['Hunted']);
+    // It says what it gave (the accessories by name, a bound skill beside its ring).
+    for (const item of hoard.accessories) expect(entry.line).toContain(item.name);
+    expect(entry.line.startsWith('Gave: ')).toBe(true);
     expect(heldBlessingEntries(roundTrip(hoard))).toEqual(heldBlessingEntries(hoard));
     const reliquary = taken(PINNED.sealed_reliquary);
     expect(startGiftEntry(reliquary)).toBeNull();
@@ -630,6 +893,24 @@ describe('the save and the surfaces', () => {
     expect(entries).toHaveLength(1);
     expect(entries[0]).toMatchObject({ priceKind: 'Catch', price: '-1 Vision charge now' });
     expect(heldBlessingEntries(startRun(PINNED.fallen_hoard))).toEqual([]);
+  });
+
+  it("the pause entry reads the catch's live burden: battles left, then ended", () => {
+    // Failure: the entry keeps saying "Hunted for the next 3 battles" after the hunt is over, or
+    // reads a count of its own instead of the run's burden record.
+    const hoard = taken(PINNED.fallen_hoard);
+    hoard.burdens.find((b) => b.id === 'hunted').battles = 1;
+    expect(startGiftEntry(hoard).catchState).toBe('Hunted: 1 battle left');
+    hoard.burdens = hoard.burdens.filter((b) => b.id !== 'hunted');
+    expect(startGiftEntry(hoard).catchState).toBe('Hunted: ended');
+    expect(startGiftEntry(hoard).price).toBe('Hunted for the next 3 battles (Hunted: ended)');
+    const blade = taken(PINNED.marked_blade);
+    expect(startGiftEntry(blade).catchState).toBe('Sworn Enemy: until the act boss falls');
+    expect(startGiftEntry(blade).line).toContain(blade.startGift.granted[0].name);
+    // A catch that is no burden (Armory Stash's DEF) has no live state.
+    const stash = taken(PINNED.armory_stash);
+    expect(startGiftEntry(stash).catchState).toBeNull();
+    expect(startGiftEntry(stash).price).toBe('-2 DEF to all units in Act 1');
   });
 
   it("the shrine's gift card is a tarot card marked 'gift', its foot a Catch and its sun the icon", () => {

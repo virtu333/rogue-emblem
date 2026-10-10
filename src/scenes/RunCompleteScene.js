@@ -53,6 +53,8 @@ export class RunCompleteScene extends Phaser.Scene {
       result: this.result,
       actIndex: rm.actIndex,
       completedBattles: rm.completedBattles,
+      // A start gift is credited as a gift, its card (if any) apart from the picks.
+      startGift: rm.startGift || null,
     });
     const meta = this.registry.get('meta');
     const rewards = rm.settleEndRunRewards(meta, this.result);

@@ -11,28 +11,33 @@
 //   - `gift-offer:<seed>`: one draw, whether this run offers a gift at all (always spent);
 //   - `gift-pick:<seed>`: which gift, by weight, among those this run can take;
 //   - `gift:<seed>:<giftId>`: what it holds, rolled at the take inside a seeded Math.random swap
-//     (EclipseSystem.withEclipseSeed), so every draw the grant makes (the items' uids included)
-//     is on that stream. The shrine handlers a gift reuses (`starting_whetstones`,
-//     `starting_scroll`, the wound's stat) draw on their own keys, hashed from the run seed and
-//     the gift's record id `gift:<giftId>`.
+//     (EclipseSystem.withEclipseSeed), so every draw the grant makes is on that stream, the
+//     random suffix of each new item's uid included. A uid is not a pure function of the seed:
+//     its leading counter is the session's own (utils/itemUid.js), and the art scrolls the
+//     `starting_scroll` handler hands out get none at the take. The shrine handlers a gift
+//     reuses (`starting_whetstones`, `starting_scroll`, the wound's stat) draw on their own
+//     keys, hashed from the run seed and the gift's record id `gift:<giftId>`.
 //
-// The take is guarded (`chooseStartGift` refuses once anything was chosen) and saved whole as
-// `run.startGift` (`{ id, granted, catchLabel }`): a load reads it and never applies anything
-// again (sanitizeStartGift).
+// The take is planned first (isGiftEligible: something to draw, room for it, a card that can be
+// added, a catch that costs something) and refused before anything is chosen; it is guarded
+// (`chooseStartGift` refuses once anything was chosen) and saved whole as `run.startGift`
+// (`{ id, granted, catchLabel, fell? }`): a load reads it and never applies anything again
+// (sanitizeStartGift).
 
-import { createSeededRng, isEarnedBlessing } from './BlessingEngine.js';
+import { buildBlessingIndex, createSeededRng, isEarnedBlessing } from './BlessingEngine.js';
 import { eclipseHash, eclipseNode, nodeFallExemption, withEclipseSeed } from './EclipseSystem.js';
 import { accessoryPoolFor, accessoryTableActFor } from './EventEffects.js';
-import { bindAccessorySkill } from './AccessorySkills.js';
-import { accessorySkillOf } from './AccessorySkillNames.js';
+import { bindAccessorySkill, canRollAccessorySkill } from './AccessorySkills.js';
+import { accessorySkillOf, boundSkillName } from './AccessorySkillNames.js';
+import { burdenOf } from './Burdens.js';
 import { applyImbue, canImbue, pickRandomImbue } from './ImbueSystem.js';
 import { canForge } from './ForgeSystem.js';
 import { addToInventory, canEquip } from './UnitManager.js';
 import { findCommander } from './Commander.js';
 import { isPrologueRun } from './ScriptedBattle.js';
 import { shrineBoonsOf } from './ShrineBoons.js';
-import { hasDarkOmen } from './EventSystem.js';
 import { ensureItemUid } from '../utils/itemUid.js';
+import { INVENTORY_MAX } from '../utils/constants.js';
 
 export { GIFT_CATCH_EFFECT_TYPES, GIFT_GRANT_KINDS } from './BlessingEngine.js';
 
@@ -104,10 +109,13 @@ const fallCountOf = (price) =>
  * one whose own boon carries its price, an intrinsic price: Gambler's Toss, Lone Banner, Slow
  * Fuse), weight above 0 and not already held. Sorted by id, so the draw never reads catalog order.
  */
-export function giftBlessingPool(run, grant) {
+export function giftBlessingPool(run, grant, price = null) {
   const catalog = run?.gameData?.blessings;
   const tier = Math.trunc(num(grant?.tier, 0));
   const held = new Set(run?.getActiveBlessingIds?.() || []);
+  const options = giftBlessingOptions(grant, price);
+  const index = safeBlessingIndex(catalog);
+  if (index) options.index = index;
   return (Array.isArray(catalog?.blessings) ? catalog.blessings : [])
     .filter(
       (blessing) =>
@@ -117,9 +125,31 @@ export function giftBlessingPool(run, grant) {
         num(blessing.weight, 1) > 0 &&
         !held.has(blessing.id) &&
         // A pact card is only handed out with its pact waived.
-        (!blessing.pact || grant?.waivePact === true),
+        (!blessing.pact || grant?.waivePact === true) &&
+        // Planned before anything is chosen: every card drawn can be added as the gift adds it.
+        (typeof run?.canAddBlessingMidRun !== 'function' ||
+          run.canAddBlessingMidRun(blessing.id, options)),
     )
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+
+/** The catalog's blessing index (built once per pool), or null for a catalog that will not build. */
+function safeBlessingIndex(catalog) {
+  if (!catalog) return null;
+  try {
+    return buildBlessingIndex(catalog);
+  } catch {
+    return null;
+  }
+}
+
+/** How a blessing gift adds its card (addBlessingMidRun's options): its catch is the price. */
+function giftBlessingOptions(grant, price) {
+  return {
+    price: price ? { label: price.label, effects: handlerEffectsOf(price), kind: 'gift' } : null,
+    waivePact: grant?.waivePact === true,
+    source: 'gift',
+  };
 }
 
 /** The Silver (or `grant.tier`) weapons a `weapon` gift can give the commander, best rank first. */
@@ -163,15 +193,16 @@ function lordsHaveForgeableWeapon(run) {
   );
 }
 
-/** The weapon-art scrolls the `starting_scroll` handler could give these lords. */
-function artScrollPool(run) {
-  const artById = new Map((run?.gameData?.weaponArts?.arts || []).map((art) => [art?.id, art]));
-  return (run?.gameData?.weapons || []).filter(
-    (item) =>
-      item?.type === 'Scroll' &&
-      typeof item.teachesWeaponArtId === 'string' &&
-      run._isScrollValidForCurrentLords?.(item, artById),
-  );
+/** The act a scrolls gift's arts unlock by (`grant.artScrollAct`, Act II when unnamed). */
+const artScrollActOf = (grant) =>
+  typeof grant?.artScrollAct === 'string' && grant.artScrollAct ? grant.artScrollAct : 'act2';
+
+/**
+ * The weapon-art scrolls the `starting_scroll` handler could give these lords for this grant:
+ * the handler's own pool (RunManager.startingArtScrollPool), held to `grant.artScrollAct`.
+ */
+export function giftArtScrollPool(run, grant) {
+  return run?.startingArtScrollPool?.(artScrollActOf(grant)) || [];
 }
 
 /** The skill scrolls of an act's loot table (`skillScroll`), sorted by name. */
@@ -200,18 +231,34 @@ export function giftFallableNodes(run) {
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
-/** True when the grant can hand out something real on this run as it stands. */
-function grantPossible(run, gift) {
+/** A weapon gift's room: the commander's bag, else the convoy (grantWeapon's order). */
+function weaponRoom(run, weapon) {
+  const commander = findCommander(run?.roster || []);
+  if (!commander || !weapon) return false;
+  return (
+    (commander.inventory || []).length < INVENTORY_MAX || Boolean(run.canAddToConvoy?.(weapon))
+  );
+}
+
+/**
+ * True when the grant can hand out something real on this run as it stands, planned before
+ * anything is taken: something to draw from, room for what is drawn (a weapon's bag or convoy
+ * slot), and a blessing gift's every card addable with its catch as the price.
+ */
+function grantPossible(run, gift, price = null) {
   const grant = gift?.grant || {};
-  if (grant.kind === 'blessing') return giftBlessingPool(run, grant).length > 0;
+  if (grant.kind === 'blessing') return giftBlessingPool(run, grant, price).length > 0;
   if (grant.kind === 'accessories') return accessoryPoolFor(run, grant.tierOffset).length > 0;
   if (grant.kind === 'scrolls')
     return (
-      (num(grant.artScrolls) <= 0 || artScrollPool(run).length > 0) &&
+      (num(grant.artScrolls) <= 0 || giftArtScrollPool(run, grant).length > 0) &&
       (num(grant.skillScrolls) <= 0 ||
         giftSkillScrollPool(run, grant.skillScrollAct || 'act2').length > 0)
     );
-  if (grant.kind === 'weapon') return giftWeaponCandidates(run, grant).length > 0;
+  if (grant.kind === 'weapon') {
+    const candidates = giftWeaponCandidates(run, grant);
+    return candidates.length > 0 && weaponRoom(run, candidates[0]);
+  }
   if (grant.kind === 'whetstones') return lordsHaveForgeableWeapon(run);
   return false;
 }
@@ -233,7 +280,7 @@ export function isGiftEligible(run, gift) {
   const falls = fallCountOf(price);
   if (falls > 0 && (!run?.isEclipseActive?.() || giftFallableNodes(run).length < falls))
     return false;
-  return grantPossible(run, gift);
+  return grantPossible(run, gift, price);
 }
 
 function pickWeighted(items, rand) {
@@ -280,16 +327,12 @@ function historyDetails(run, recordId, effectType) {
 }
 
 function grantBlessing(run, gift, price, rand) {
-  const pool = giftBlessingPool(run, gift.grant);
+  const pool = giftBlessingPool(run, gift.grant, price);
   const blessing = pickWeighted(pool, rand);
   if (!blessing) return null;
   // The gift's catch is the held card's price (the held list reads "Catch: ..."); a tier IV
   // card's pact is waived.
-  const ok = run.addBlessingMidRun(blessing.id, {
-    price: { label: price.label, effects: handlerEffectsOf(price), kind: 'gift' },
-    waivePact: gift.grant.waivePact === true,
-    source: 'gift',
-  });
+  const ok = run.addBlessingMidRun(blessing.id, giftBlessingOptions(gift.grant, price));
   return ok ? { granted: [{ kind: 'blessing', id: blessing.id, name: blessing.name }] } : null;
 }
 
@@ -300,6 +343,7 @@ function grantAccessories(run, gift, rand) {
   const count = Math.max(1, Math.trunc(num(grant.count, 1)));
   const remaining = [...pool];
   const granted = [];
+  let skillRolled = false;
   if (!Array.isArray(run.accessories)) run.accessories = [];
   for (let i = 0; i < count && pool.length; i++) {
     // Distinct while the table has enough; then it may repeat.
@@ -308,9 +352,13 @@ function grantAccessories(run, gift, rand) {
     const template = from[index];
     if (from === remaining) remaining.splice(index, 1);
     const item = ensureItemUid(structuredClone(template));
-    // Only the first may bear a skill, at the gift's own chance (decision D-16).
-    if (i === 0)
+    // Only one may bear a skill, at the gift's own chance (decision D-16): the first that can
+    // (a legendary never does: canRollAccessorySkill), so a legendary first pick passes the
+    // roll to the next. Its draw is on the gift's stream, as always.
+    if (!skillRolled && canRollAccessorySkill(item)) {
+      skillRolled = true;
       bindAccessorySkill(item, act, run.gameData, rand, { chance: num(grant.skillChance, 0) });
+    }
     run.accessories.push(item);
     granted.push({
       kind: 'accessory',
@@ -327,7 +375,14 @@ function grantScrolls(run, gift, rand) {
   const granted = [];
   const arts = Math.max(0, Math.trunc(num(grant.artScrolls, 0)));
   if (arts > 0) {
-    run.applyStartGiftEffects(recordId, [{ type: 'starting_scroll', params: { count: arts } }]);
+    // Arts that unlock by `artScrollAct` (a day-one gift brings no late-act art), two
+    // different ones while the pool allows.
+    run.applyStartGiftEffects(recordId, [
+      {
+        type: 'starting_scroll',
+        params: { count: arts, maxUnlockAct: artScrollActOf(grant), distinct: true },
+      },
+    ]);
     for (const name of historyDetails(run, recordId, 'starting_scroll').granted || [])
       granted.push({ kind: 'scroll', name });
   }
@@ -389,21 +444,13 @@ function grantWhetstones(run, gift) {
 /** Let the dark take `count` fallable nodes now, drawn on the gift's stream. Returns their ids. */
 function fallNow(run, count, rand) {
   const fell = [];
-  const config = run.getEclipseConfig?.();
   for (let i = 0; i < count; i++) {
     const nodes = giftFallableNodes(run);
-    if (!nodes.length || !config) break;
+    // The Eclipse's own terms (RunManager._eclipseNodeContext), read at each fall.
+    const context = run._eclipseNodeContext();
+    if (!nodes.length || !context.config) break;
     const node = nodes[Math.min(nodes.length - 1, Math.floor(rand() * nodes.length))];
-    eclipseNode(node, {
-      runSeed: run.runSeed,
-      config,
-      actId: run.nodeMap?.actId || run.currentAct,
-      mapTemplates: run.gameData?.mapTemplates || null,
-      fogChanceBonus: run.getDifficultyModifier?.('fogChanceBonus', 0) || 0,
-      halfFogChance: run.difficultyId === 'normal',
-      shadow: run.eclipse?.shadow || 0,
-      darkOmen: (candidate) => hasDarkOmen(run, candidate),
-    });
+    eclipseNode(node, context);
     fell.push(node.id);
   }
   return fell;
@@ -451,16 +498,23 @@ export function chooseStartGift(run, giftId) {
   if (!giftId || giftId !== offeredId) return { ok: false, reason: 'not_offered' };
   const gift = findGift(run.gameData, giftId);
   const price = giftCatchOf(gift, run.gameData);
+  // The plan: everything the take needs (something to draw, room for it, a card that can be
+  // added, a catch that costs something, nodes left to fall) is checked here, before anything
+  // is chosen, so a refusal leaves the run exactly as it was.
   if (!gift || !price || !isGiftEligible(run, gift)) return { ok: false, reason: 'unavailable' };
   if (!run.chooseBlessing(null)) return { ok: false, reason: 'already_chosen' };
   const result = withEclipseSeed(`gift:${seedOf(run)}:${giftId}`, () =>
     applyGift(run, gift, price),
   );
+  // Past the plan a grant should never come up empty; if it does, the run was already changed
+  // (no blessing chosen, perhaps part of a grant): `dirty` tells the shrine to rebuild it
+  // (BlessingSelectScene._rollbackBlessingCommit). A throw here reaches the shrine the same way.
+  if (!result?.granted?.length) return { ok: false, reason: 'grant_failed', dirty: true };
   const startGift = {
     id: gift.id,
-    granted: result?.granted || [],
+    granted: result.granted,
     catchLabel: price.label,
-    ...(result?.fell?.length ? { fell: result.fell } : {}),
+    ...(result.fell?.length ? { fell: result.fell } : {}),
   };
   run.startGift = startGift;
   if (run.blessingSelectionTelemetry?.gift) run.blessingSelectionTelemetry.gift.chosen = true;
@@ -506,24 +560,79 @@ export function sanitizeStartGift(raw) {
   };
 }
 
+/** What a taken gift handed out, as one phrase ("Power Ring · Vantage, Speed Ring"). */
+export function giftGrantedText(record, skills = null) {
+  return (Array.isArray(record?.granted) ? record.granted : [])
+    .map((entry) => {
+      if (entry.kind === 'accessory')
+        return entry.skill
+          ? `${entry.name} \u00b7 ${boundSkillName(entry.skill, skills)}`
+          : entry.name;
+      if (entry.kind === 'weapon')
+        return entry.to === 'convoy' ? `${entry.name} (convoy)` : entry.name;
+      if (entry.kind === 'forge') return entry.weapon ? `${entry.weapon} forged` : null;
+      return entry.name || null;
+    })
+    .filter(Boolean)
+    .join(', ');
+}
+
+const BURDEN_LABELS = {
+  hunted: 'Hunted',
+  wounded: 'Lingering Injury',
+  sworn_enemy: 'Sworn Enemy',
+  ill_omen: 'Ill Omen',
+};
+
+/**
+ * The live state of a taken gift's catch, read from the run's burden records (a catch that is
+ * a burden: Hunted, a Lingering Injury, Sworn Enemy, Ill Omen): "Hunted: 2 battles left" while
+ * the record stands, "Hunted: ended" once it is gone. Null for a catch with no burden.
+ */
+export function giftCatchState(run, gift) {
+  const price = giftCatchOf(gift, run?.gameData);
+  const parts = [];
+  for (const effect of price?.effects || []) {
+    if (effect.type !== 'burden') continue;
+    const id = effect.params?.id;
+    const label = run?.gameData?.events?.burdens?.[id]?.label || BURDEN_LABELS[id] || id;
+    const live = burdenOf(run, id);
+    if (!live) parts.push(`${label}: ended`);
+    else if (Number.isFinite(live.battles))
+      parts.push(`${label}: ${live.battles} battle${live.battles === 1 ? '' : 's'} left`);
+    else parts.push(`${label}: until the act boss falls`);
+  }
+  return parts.length ? parts.join(' \u00b7 ') : null;
+}
+
 /**
  * The gift a run holds as the pause list shows it, or null: a gift that handed out a blessing is
- * that blessing's entry already (its "Catch: ..." price), so it has none of its own.
- * @returns {{ id, label, tier: 'Gift', earned: false, gift: true, line, price, priceKind } | null}
+ * that blessing's entry already (its "Catch: ..." price), so it has none of its own; a record
+ * that granted nothing has none either. The line says what it gave, the price its catch and the
+ * catch's live state (`catchState`: "Hunted: ended" once it is over).
+ * @returns {{ id, label, tier: 'Gift', earned: false, gift: true, line, price, priceKind,
+ *   catchState } | null}
  */
 export function startGiftEntry(run) {
   const record = run?.startGift;
-  if (!record || record.granted?.some((entry) => entry.kind === 'blessing')) return null;
+  // Nothing granted is nothing to show; a gift that handed out a blessing is that blessing.
+  if (!record?.granted?.length || record.granted.some((entry) => entry.kind === 'blessing'))
+    return null;
   const gift = findGift(run?.gameData, record.id);
   if (!gift) return null;
+  const gave = giftGrantedText(record, run?.gameData?.skills);
+  const catchLabel = record.catchLabel || gift.catch?.label || null;
+  const catchState = giftCatchState(run, gift);
   return {
     id: giftRecordId(gift.id),
     label: gift.name,
     tier: 'Gift',
     earned: false,
     gift: true,
-    line: gift.description || '',
-    price: record.catchLabel || gift.catch?.label || null,
+    line: gave ? `Gave: ${gave}.` : gift.description || '',
+    price: catchLabel && catchState ? `${catchLabel} (${catchState})` : catchLabel,
     priceKind: 'Catch',
+    catchLabel,
+    catchState,
   };
 }

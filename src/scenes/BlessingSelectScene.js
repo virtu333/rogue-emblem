@@ -12,43 +12,33 @@ import { blessingPriceKind } from '../ui/choiceContent.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { InputAction } from '../utils/InputActions.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
+import { devRoutesEnabled } from '../utils/devStartup.js';
+import {
+  clearPendingRunSeed,
+  readPendingRunSeed,
+  writePendingRunSeed,
+} from '../utils/pendingRunSeed.js';
 
-// The seed of a run offered but not yet begun, kept in the game registry for each slot
-// (`{ [slot]: seed }`): backing out of the shrine and returning shows the same offer (and the
-// same run), even after another slot's shrine was opened, so the offer cannot be re-rolled
-// for free (docs/specs/blessings-v3.md §3.2). A slot's seed is cleared once its run begins.
-export const PENDING_RUN_SEED_KEY = 'pendingBlessingRunSeeds';
+// The seed of a run offered but not yet begun is kept for each slot (utils/pendingRunSeed.js:
+// the slot's localStorage key, the registry when storage refuses): backing out of the shrine,
+// opening another slot's shrine or reloading the page shows the same offer and gift, so neither
+// can be re-rolled for free (docs/specs/blessings-v3.md §3.2). Cleared once the run begins.
+export { PENDING_RUN_SEED_KEY } from '../utils/pendingRunSeed.js';
 
-const slotKey = (registry) => String(registry?.get?.('activeSlot') ?? 'none');
-
-function pendingRunSeeds(registry) {
-  const seeds = registry?.get?.(PENDING_RUN_SEED_KEY);
-  return seeds && typeof seeds === 'object' ? seeds : {};
-}
-
-function pendingRunSeed(registry) {
-  const seed = pendingRunSeeds(registry)[slotKey(registry)];
-  return Number.isFinite(seed) ? seed : null;
-}
+/** The save's run count (the pending seed is stale once it moves). */
+const runsStartedOf = (registry) => registry?.get?.('meta')?.getRunsStarted?.() ?? 0;
 
 /**
- * DEV only: `?runSeed=<n>` fixes the offered run's seed, so a browser spec can pin what the shrine
- * offers (a seed and its gift, tests/e2e/start-gift.spec.js). Never read in a production build.
+ * Dev routes only (`devRoutesEnabled`, as `?devScene=` is): `?runSeed=<n>` fixes the offered
+ * run's seed, so a browser spec can pin what the shrine offers (a seed and its gift,
+ * tests/e2e/start-gift.spec.js). Never read in a production build. `env` is injectable for tests.
  */
-function devRunSeedParam() {
-  if (!import.meta.env?.DEV) return null;
-  const raw = new URLSearchParams(globalThis.location?.search || '').get('runSeed');
+export function devRunSeedParam(search = globalThis.location?.search, env = import.meta.env) {
+  if (!devRoutesEnabled(env)) return null;
+  const raw = new URLSearchParams(search || '').get('runSeed');
   if (raw === null || raw.trim() === '') return null;
   const seed = Number(raw);
   return Number.isFinite(seed) ? seed : null;
-}
-
-function setPendingRunSeed(registry, seed) {
-  if (!registry?.set) return;
-  const seeds = { ...pendingRunSeeds(registry) };
-  if (Number.isFinite(seed)) seeds[slotKey(registry)] = seed;
-  else delete seeds[slotKey(registry)];
-  registry.set(PENDING_RUN_SEED_KEY, seeds);
 }
 
 const TIER_COLORS = {
@@ -70,7 +60,9 @@ export class BlessingSelectScene extends Phaser.Scene {
     this.noMetaUpgrades = data.noMetaUpgrades === true;
     this.isTransitioning = false;
     this._blessingCommitted = false;
-    this._blessingRunSeed = devRunSeedParam() ?? pendingRunSeed(this.registry);
+    this._blessingRunSeed =
+      devRunSeedParam() ??
+      readPendingRunSeed(this.registry, { runsStarted: runsStartedOf(this.registry) });
     this._pendingBlessingSelection = null;
   }
 
@@ -150,7 +142,9 @@ export class BlessingSelectScene extends Phaser.Scene {
       runsStarted: meta?.getRunsStarted?.() ?? 0,
     });
     if (!Number.isFinite(this._blessingRunSeed)) this._blessingRunSeed = this.runManager.runSeed;
-    setPendingRunSeed(this.registry, this._blessingRunSeed);
+    writePendingRunSeed(this.registry, this._blessingRunSeed, {
+      runsStarted: runsStartedOf(this.registry),
+    });
     this.options = this.runManager.getBlessingOptions().slice(0, 4);
     // The fourth card (after the blessings, before No blessing): a gift, or none.
     this.gift = this.runManager.getStartGiftOffer?.() ?? null;
@@ -204,12 +198,32 @@ export class BlessingSelectScene extends Phaser.Scene {
       const blessingId = blessing ? blessing.id : null;
 
       if (giftId) {
-        if (!this.runManager.chooseStartGift(giftId)?.ok) return;
+        let taken = null;
+        try {
+          taken = this.runManager.chooseStartGift(giftId);
+        } catch (err) {
+          console.error('[BlessingSelectScene] the gift could not be taken:', err);
+        }
+        if (!taken?.ok) {
+          // A refused take changed nothing, but one that failed or threw part-way may have left
+          // the run half-changed (no blessing chosen, part of a grant): rebuild it from the
+          // slot's seed, so the shrine offers the same cards and gift and nothing leaks.
+          this._rollbackBlessingCommit();
+          return;
+        }
       } else if (!this.runManager.chooseBlessing(blessingId)) return;
       this._blessingCommitted = true;
+      const telemetry = this.runManager.blessingSelectionTelemetry;
       this._pendingBlessingSelection = {
-        offeredIds: this.runManager.blessingSelectionTelemetry?.offeredIds || [],
+        offeredIds: telemetry?.offeredIds || [],
         chosenId: blessingId,
+        // The gift: counted as a gift run (never a skipped blessing), and a card it handed out
+        // as a gift's, never a pick.
+        giftOfferedId: telemetry?.gift?.offeredId || null,
+        giftId,
+        grantedBlessingId:
+          this.runManager.startGift?.granted?.find((entry) => entry.kind === 'blessing')?.id ||
+          null,
       };
     }
 
@@ -233,7 +247,7 @@ export class BlessingSelectScene extends Phaser.Scene {
         }
         // The run is committed: count the attempt (finished runs are counted
         // separately when the run settles). The next run gets a fresh seed.
-        setPendingRunSeed(this.registry, null);
+        clearPendingRunSeed(this.registry);
         this.registry.get('meta')?.incrementRunsStarted?.();
         // Clear stale run save only after transition success.
         const cloud = this.registry.get('cloud');
@@ -346,9 +360,16 @@ export class BlessingSelectScene extends Phaser.Scene {
         : []),
     ];
     const slotCount = Math.max(cards.length, 1);
+    // Four cards (a gift beside three blessings) are compact so they fit above Skip: a shorter
+    // minimum, the boon a line under the name, the cost on the card's last line. Three keep
+    // their layout.
+    const compact = slotCount > 3;
     const cardH = Math.min(
       86,
-      Math.max(68, Math.floor((cardsBottom - cardsTop - cardGap * (slotCount - 1)) / slotCount)),
+      Math.max(
+        compact ? 50 : 68,
+        Math.floor((cardsBottom - cardsTop - cardGap * (slotCount - 1)) / slotCount),
+      ),
     );
     const totalCardsH = cardH * slotCount + cardGap * (slotCount - 1);
     let y = cardsTop + Math.floor((cardsBottom - cardsTop - totalCardsH) / 2);
@@ -399,8 +420,10 @@ export class BlessingSelectScene extends Phaser.Scene {
         typeof blessing?.rolledCost?.label === 'string' &&
         blessing.rolledCost.label.trim().length > 0;
       const descFontSize = cardH < 76 ? '9px' : '10px';
+      const descY = compact ? row1Y + 16 : row1Y + 20;
+      const costY = compact ? y + cardH - 14 : row1Y + cardH - 34;
       const desc = applyTextResolution(
-        this.add.text(nameX, row1Y + 20, blessing.description || '-', {
+        this.add.text(nameX, descY, blessing.description || '-', {
           fontFamily: 'Arial',
           fontSize: descFontSize,
           color: UI_PALETTE.muted,
@@ -409,7 +432,11 @@ export class BlessingSelectScene extends Phaser.Scene {
       );
       // Truncate if too tall
       let guard = 0;
-      const maxDescHeight = hasCostLine ? Math.max(12, cardH - 48) : Math.max(18, cardH - 34);
+      const maxDescHeight = compact
+        ? Math.max(11, (hasCostLine ? costY : y + cardH - 4) - descY - 1)
+        : hasCostLine
+          ? Math.max(12, cardH - 48)
+          : Math.max(18, cardH - 34);
       while (desc.height > maxDescHeight && desc.text.length > 8 && guard < 40) {
         const next = `${desc.text.slice(0, -4).trimEnd()}...`;
         if (next === desc.text) break;
@@ -420,7 +447,7 @@ export class BlessingSelectScene extends Phaser.Scene {
         applyTextResolution(
           this.add.text(
             nameX,
-            row1Y + cardH - 34,
+            costY,
             `${blessingPriceKind(blessing)}: ${blessing.rolledCost.label}`,
             {
               fontFamily: 'Arial',

@@ -247,9 +247,12 @@ a trap.
   of offers (0.35 gave 40%).
 - **Mid-run grants** (church vow, Twin Altar) stay boons-only and are limited to tier I
   and the "shape" cards (§5.1), so a church never hands out a IV's boon without its pact.
-- Fix the free re-roll: the offered run's seed is kept in the game registry for each save
-  slot (`{ [slot]: seed }`) until that slot's run begins, so backing out, or opening another
-  slot's shrine in between, shows the same offer (a page reload still draws afresh).
+- Fix the free re-roll: the offered run's seed is kept for each save slot until that slot's
+  run begins, so backing out, opening another slot's shrine in between, or reloading the page
+  shows the same offer (and the same gift, §7.1). As built (PR D5): the slot's localStorage key
+  `emblem_rogue_slot_<n>_pendingSeed` holds `{ seed, runsStarted }` (`utils/pendingRunSeed.js`;
+  the game registry holds it when storage refuses), read as none once the save's run count has
+  moved (a run began since), cleared when the run begins and when the slot is deleted.
 
 ## 4. The current 23
 
@@ -796,7 +799,7 @@ is random in what it gives and clear about what it takes.
 | Sealed Reliquary | a random tier III blessing, no price | −1 Vision until Act 2 |
 | Fallen Hoard | two random accessories from the next act's table (one may carry a skill) | Hunted for the next 3 battles |
 | Stranger's Scroll | two random weapon-art scrolls and a random skill scroll | Lingering Injury on the commander for 5 battles |
-| Marked Blade | a Silver weapon with a random imbue for the commander | Sworn Enemy on the Act I boss |
+| Marked Blade | a Silver weapon with a random imbue for the commander | Sworn Enemy on the Act 1 boss |
 | Pilgrim's Wager | a random tier IV blessing, its pact waived | +15 shadow now; one Act 1 node falls at once |
 | Armory Stash | three random whetstones in the convoy | −2 DEF all units, Act 1 |
 
@@ -805,21 +808,24 @@ is random in what it gives and clear about what it takes.
 **Data.** The gifts are a top-level `gifts` block in `data/blessings.json`, never rows of `blessings[]`:
 a gift is never a held blessing and takes no icon cell (each borrows an atlas icon for its card:
 `generic-blessing`, `generic-accessory`, `generic-art-scroll`, `silver-sword`,
-`blessing-forbidden_tome`, `blessing-armory_stash`). `offer: { fromRunsStarted: 1, chance: 0.5 }`
+`gamblers-coin`, `blessing-armory_stash`; a gift wears another blessing's own cell only when it
+`replaces` that blessing). `offer: { fromRunsStarted: 1, chance: 0.5 }`
 (the owner's call on open question 2: about half the runs, from the save's second). Each gift has a
 `grant` and a `catch` (`{ label, prices | effects }`); the validator (`BlessingEngine.validateGifts`)
 holds text to 90/85 characters, refuses a Debt catch (a gift is not a loan), requires the Eclipse for a
-catch of shadow or a fall, and lets a gift share a blessing's name only when it `replaces` a blessing
+catch of shadow or a fall, holds each catch effect to its costly sign (`GIFT_CATCH_SIGNS`: a positive
+Vision delta is a boon), a `prices` catch's label to the catalog labels it names, a weapon grant's tier
+to `GIFT_WEAPON_TIERS` and a scrolls grant to its `artScrollAct`, and lets a gift share a blessing's name only when it `replaces` a blessing
 out of the offer (the Armory Stash, whose tier IV card stays at weight 0 with no migration: open
 question 4).
 
 | Gift | As built | Catch as built |
 |---|---|---|
 | Sealed Reliquary | a random tier III card (never earned, never one whose boon is its price: Gambler's Toss, Lone Banner; weight above 0, unheld), held with no price but the catch | −1 Vision charge now (`vision_down`) |
-| Fallen Hoard | two different accessories from the next act's table (`accessoryPoolFor(run, 1)`); the first binds a skill at 50% on the gift's stream (`bindAccessorySkill`'s `chance`), the second never | Hunted for the next 3 battles |
-| Stranger's Scroll | two weapon-art scrolls the lords can learn (the `starting_scroll` handler) and one Act II skill scroll, to the team scrolls | Lingering Injury on the commander for 5 battles (the stat from the run seed) |
-| Marked Blade | a Silver weapon of the commander's best proficiency (Mastery first; never a staff or a personal weapon), with a random imbue, in their bag (else the convoy) | Sworn Enemy (it ends at the first boss victory: Act I's) |
-| Pilgrim's Wager | a random tier IV card, its pact waived (`addBlessingMidRun`'s `waivePact`) | +15 shadow; one Act 1 node falls now (any node the Eclipse could take: never the start, the boss or the Ruins); offered only with the Eclipse on |
+| Fallen Hoard | two different accessories from the next act's table (`accessoryPoolFor(run, 1)`); the first that can bear a skill (a legendary never does, so a legendary first pick passes it on) binds one at 50% on the gift's stream (`bindAccessorySkill`'s `chance`), the other never | Hunted for the next 3 battles |
+| Stranger's Scroll | two different weapon-art scrolls the lords can learn, of arts that unlock by Act II (`grant.artScrollAct`; the `starting_scroll` handler with `maxUnlockAct` and `distinct`), and one Act II skill scroll, to the team scrolls | Lingering Injury on the commander for 5 battles (the stat from the run seed) |
+| Marked Blade | a Silver weapon of the commander's best proficiency (Mastery first; never a staff or a personal weapon), with a random imbue, in their bag (else the convoy) | Sworn Enemy on the Act 1 boss (it ends at the first boss victory) |
+| Pilgrim's Wager | a random tier IV card, its pact waived (`addBlessingMidRun`'s `waivePact`) | +15 shadow; one Act 1 node falls now (any node the Eclipse could take: never the start, the boss or the Ruins; a recruit node can fall, as it can to the Eclipse), made by `eclipseNode` with `RunManager._eclipseNodeContext()`, the Eclipse's own terms; offered only with the Eclipse on |
 | Armory Stash | three whetstone forges on the lords' combat weapons (the `starting_whetstones` handler: whetstones never enter a bag or the convoy) | −2 DEF to all units in Act 1 |
 
 **Streams.** `startRun({ runsStarted })` rolls the offer: one draw on `gift-offer:<seed>` (always
@@ -831,22 +837,39 @@ seeded `Math.random` swap (the handlers it reuses draw on their own keys, hashed
 a seed whether or not a gift is offered or taken. The prologue, the sims and the dev routes start runs
 with no count, so they are never offered one.
 
-**The take.** `RunManager.chooseStartGift(id)` (`engine/StartGifts.js`) takes no blessing (the
-selection is recorded as skipped, with a `gift` history event), applies the grant and the catch once
-and saves `run.startGift` (`{ id, granted, catchLabel, fell? }`). It is refused once anything was
-chosen at the shrine (a saved selection record included), and asking again for the gift taken changes
-nothing. A load reads `startGift` and applies nothing. A blessing gift holds its catch as the card's
-price (kind `gift`: the held list reads "Catch: ..."); any other gift leads the pause list with its own
-entry ("Fallen Hoard · Gift", its catch beneath, the terms on a tap).
+**The take.** `RunManager.chooseStartGift(id)` (`engine/StartGifts.js`) is planned first: the
+eligibility check runs again before anything is chosen (something to draw, room for it: a weapon's bag
+or convoy slot; a blessing gift's every card addable with its catch as the price,
+`RunManager.canAddBlessingMidRun`; a catch that costs something; nodes left to fall), so a refusal
+leaves the run exactly as it was. It then takes no blessing (the selection is recorded as skipped,
+with a `gift` history event), applies the grant and the catch once and saves `run.startGift`
+(`{ id, granted, catchLabel, fell? }`). A grant that still comes up empty past the plan returns
+`{ ok: false, reason: 'grant_failed', dirty: true }` and records no gift; the shrine rolls any failed
+or throwing take back (`_rollbackBlessingCommit`: the run rebuilt from the slot's seed, the same
+cards and gift offered again). It is refused once anything was chosen at the shrine (a saved
+selection record included), and asking again for the gift taken changes nothing. A load reads
+`startGift` and applies nothing. A blessing gift holds its catch as the card's price (kind `gift`:
+the held list reads "Catch: ..."); any other gift leads the pause list with its own entry ("Fallen
+Hoard · Gift": "Gave: ..." and its catch beneath with the catch's live state read from the burden
+record, "Hunted: 2 battles left", then "Hunted: ended"; the terms on a tap). Analytics count a gift run
+as a gift (`runsWithGift`, per-gift offers, picks and outcomes), never as a skipped blessing, and a
+card a gift handed out as that card's `giftGrants`, never a pick.
 
 **The shrine.** The gift is the fourth card, after the blessings and before No blessing (still the last
 choice): the shrine's tarot card with `data-tier="gift"`, the dark's violet rim, its icon in the Hollow
-Sun and its foot named "Catch"; the footer spells out the catch's terms (a Lingering Injury's sentence
-reads the catch's own five battles). Touch, the arrows and a controller reach it like any card. Backing
-out keeps the slot's pending seed, so the same gift returns; a failed start rebuilds a fresh run (the
-gift is offered again, nothing it gave remains) and the save counts the run only once it begins. A
-DEV-only `?runSeed=` fixes the offered run for the browser specs (`start-gift.spec.js`, run-flow;
-`portrait-start-gift.spec.js`, portrait: on 375×667 every chosen or focused card is whole in view).
+Sun and its foot named "Catch". The footer always says what the chosen gift gives ("Gives: ..."), then
+spells out the catch's terms (a Lingering Injury's sentence reads the catch's own five battles; a count
+belongs to its own clause, never the next price after a "·"); a blessing's boon is said there too while
+its card clips its lines (`RunSetupMenu.watchLeadBoon`). On a short landscape phone (568×320, `max-height:
+340px`) four cards take a compact layout (choice.css: the sun beside the name, the boon a row that keeps
+two lines and scrolls, the cost inside the card); three cards keep theirs. The canvas fallback (no DOM
+host) compacts four cards the same way so they fit above Skip. Touch, the arrows and a controller reach
+it like any card. Backing out or reloading keeps the slot's pending seed (§3.2), so the same gift
+returns; a failed start rebuilds a fresh run (the gift is offered again, nothing it gave remains) and
+the save counts the run only once it begins. A dev-routes-only `?runSeed=` (`devRoutesEnabled`, as
+`?devScene=`) fixes the offered run for the browser specs (`start-gift.spec.js`, run-flow, with a
+568×320 case; `portrait-start-gift.spec.js`, portrait: on 375×667 every chosen or focused card is whole
+in view).
 
 ## 8. Data and engine changes
 
