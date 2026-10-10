@@ -3,15 +3,13 @@ import { InputAction } from '../utils/InputActions.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 import { blessingCardContent, difficultyBannerContent } from './choiceContent.js';
 import { blessingTerms } from '../engine/BlessingTerms.js';
-import { blessingCardArt, costSeal } from './itemMoments.js';
 import { ContextHelp } from './ContextHelp.js';
-import { bindHold } from './infoAffordance.js';
 import {
+  blessingTarotCard,
   choiceButton,
   choiceReducedMotion,
   draftRow,
   draftScrollTop,
-  fadeScroll,
   fitDraft,
   keepDraftScroll,
   softList,
@@ -133,53 +131,14 @@ export class RunSetupMenu {
     s.options.forEach((option, i) => {
       const content = blessingCardContent(option);
       const terms = termsOf(content);
-      const card = choiceButton(content.name, () => s._select(i), 'ch-card ch-tarot');
+      const card = blessingTarotCard(content, {
+        selected: i === s.selectedIndex,
+        onSelect: () => s._select(i),
+        terms,
+        onHold: () => this.openPriceHelp(content, terms),
+        holdEnabled: () => this.priceHelpEnabled(),
+      });
       card.dataset.focus = `choice-${i}`;
-      card.dataset.tier = String(content.tier);
-      card.setAttribute('aria-pressed', String(i === s.selectedIndex));
-      card.setAttribute(
-        'aria-label',
-        [
-          content.name,
-          content.numeral ? `Tier ${content.numeral}` : '',
-          content.boon,
-          content.cost ? `${content.costLabel}: ${content.cost}` : 'No cost',
-          ...terms.map((t) => `${t.term}: ${t.text}`),
-        ]
-          .filter(Boolean)
-          .join(' · '),
-      );
-      const plate = element('span', null, 'ch-plate');
-      // The tier numeral burns inside the Hollow Sun.
-      const sun = element('span', null, 'ch-sun');
-      sun.setAttribute('aria-hidden', 'true');
-      sun.append(element('span', content.numeral, 'ch-numeral'));
-      // The boon reads (and scrolls) above; the cost is always in view below.
-      const lines = fadeScroll(element('span', null, 'ch-lines'));
-      const boon = element('span', null, 'ch-boon');
-      boon.append(element('span', 'Boon', 'ch-boon-k'), element('span', content.boon));
-      lines.append(boon);
-      const cost = element('span', null, `ch-cost${content.cost ? '' : ' is-none'}`);
-      cost.append(
-        element('span', content.costLabel, 'ch-boon-k'),
-        element('span', content.cost || 'None: a clean gift'),
-      );
-      // The shrine's painting behind the numeral and the name (items art: blessing cards);
-      // the cost wears a wax seal: crimson with a price, verdigris when the gift is clean.
-      const art = content.id ? blessingCardArt(content.id) : null;
-      if (art) {
-        card.classList.add('has-art');
-        plate.append(art);
-      }
-      cost.prepend(costSeal(!content.cost));
-      // Hover reads what the price's words mean; the chosen card spells them out below.
-      if (terms.length) cost.title = terms.map((t) => `${t.term}: ${t.text}`).join('\n');
-      plate.append(sun, element('strong', content.name, 'ch-tarot-name'), lines, cost);
-      card.append(plate);
-      if (terms.length)
-        bindHold(card, () => this.openPriceHelp(content, terms), {
-          enabled: () => this.priceHelpEnabled(),
-        });
       row.append(card);
     });
     const chosen = blessingCardContent(s.options[s.selectedIndex]);

@@ -19,6 +19,12 @@
 // exchange (Combat.rollStrike) and every other lethal source (`damageUnit`) call it.
 // `setUnitHP` never does, so a debug set or a revive is never absorbed.
 //
+// The third: the Unbroken Banner (an earned blessing, engine/BattleBlessings.js). After the
+// stones, a blow that would still fell one of the army's own units leaves it at 1 HP instead,
+// once a battle. The callers that can fell a unit hand the battle's blessings in
+// (`{ blessings }`); a caller that hands none holds nobody, so a blessing-free battle is
+// untouched.
+//
 // Callers keep what belongs to their action: XP, staff uses, deeds, floors such as
 // "poison never kills", death removal, banners and animation.
 
@@ -48,6 +54,7 @@ export function settleAccessoryHpOwed(unit) {
 import { isWounded } from './StatusConditionSystem.js';
 import { markHoldDisturbed } from './HoldDisturbance.js';
 import { revivalStoneCount } from './RevivalStones.js';
+import { BANNER, bannerReadyFor, spendBattleBlessing } from './BattleBlessings.js';
 
 const maxHpOf = (unit) => Number(unit?.stats?.HP);
 
@@ -88,23 +95,34 @@ export function healUnitFully(unit) {
 }
 
 /**
- * Revival Stones: a blow that would leave `unit` at `hp` <= 0 breaks one stone instead and
- * refills the bar to the unit's max HP. Pure apart from spending that stone.
- * @returns {{ hp: number, stoneBroken: boolean }} `hp` is what the unit stands at after
- *   the blow; with no stones (or a blow that does not take the bar) it is `hp` unchanged.
+ * A blow that would leave `unit` at `hp` <= 0. Revival Stones first: one breaks instead and
+ * refills the bar to the unit's max HP. Then the Unbroken Banner (`blessings`, the battle's
+ * BattleBlessings state): a player unit stands at 1 HP and the banner is spent. Pure apart
+ * from spending that stone or banner.
+ * @returns {{ hp: number, stoneBroken: boolean, bannerHeld?: true }} `hp` is what the unit
+ *   stands at after the blow; when nothing holds it (or the blow does not take the bar) it is
+ *   `hp` unchanged. `bannerHeld` is present only when the banner held.
  */
-export function absorbLethal(unit, hp) {
+export function absorbLethal(unit, hp, { blessings = null } = {}) {
+  if (!(hp <= 0)) return { hp, stoneBroken: false };
   const { remaining } = revivalStoneCount(unit);
-  if (!(hp <= 0) || remaining <= 0) return { hp, stoneBroken: false };
-  unit.revivalStones = remaining - 1;
-  const max = maxHpOf(unit);
-  return { hp: Number.isFinite(max) && max > 0 ? max : 1, stoneBroken: true };
+  if (remaining > 0) {
+    unit.revivalStones = remaining - 1;
+    const max = maxHpOf(unit);
+    return { hp: Number.isFinite(max) && max > 0 ? max : 1, stoneBroken: true };
+  }
+  if (bannerReadyFor(blessings, unit)) {
+    spendBattleBlessing(blessings, BANNER);
+    return { hp: 1, stoneBroken: false, bannerHeld: true };
+  }
+  return { hp, stoneBroken: false };
 }
 
 /**
  * Take damage, never below `floor` (1 for effects that cannot kill). A unit already
  * at or below the floor loses nothing. A blow that would fell a unit holding Revival
- * Stones (floor 0 only) breaks one instead and refills the bar: see `damageUnitDetailed`.
+ * Stones (floor 0 only) breaks one instead and refills the bar, and one the Unbroken Banner
+ * covers (`blessings`) leaves it at 1 HP: see `damageUnitDetailed`.
  * @returns the HP actually lost; a broken stone counts the whole bar that fell.
  */
 export function damageUnit(unit, amount, opts = {}) {
@@ -112,22 +130,31 @@ export function damageUnit(unit, amount, opts = {}) {
 }
 
 /**
- * `damageUnit` that also says whether a Revival Stone broke. `lost` is the HP the bar
- * lost (the whole bar when a stone breaks, so a caller's gold/XP/credit math reads the
- * damage that was dealt, never the refill). A stone breaks only when the blow takes a
- * standing unit to 0 (`floor` 0): damage that cannot kill never touches one.
- * @returns {{ lost: number, stoneBroken: boolean }}
+ * `damageUnit` that also says whether a Revival Stone broke or the Unbroken Banner held.
+ * `lost` is the HP the bar lost (the whole bar when a stone breaks, so a caller's
+ * gold/XP/credit math reads the damage that was dealt, never the refill; down to 1 when the
+ * banner holds). Either can happen only when the blow takes a standing unit to 0 (`floor` 0):
+ * damage that cannot kill never touches one. The banner needs the battle's `blessings`.
+ * @returns {{ lost: number, stoneBroken: boolean, bannerHeld?: true }}
  */
-export function damageUnitDetailed(unit, amount, { floor = 0, disturbs = true } = {}) {
+export function damageUnitDetailed(
+  unit,
+  amount,
+  { floor = 0, disturbs = true, blessings = null } = {},
+) {
   const prev = Number(unit.currentHP) || 0;
   const next = Math.min(prev, Math.max(floor, prev - Math.max(0, Number(amount) || 0)));
   if (prev > 0 && next <= 0) {
-    const absorbed = absorbLethal(unit, next);
+    const absorbed = absorbLethal(unit, next, { blessings });
     if (absorbed.stoneBroken) {
       setUnitHP(unit, absorbed.hp, { disturbs: false });
       // A refilled bar is not "less HP", but the blow still woke its pack.
       if (disturbs) markHoldDisturbed(unit, 'hurt');
       return { lost: prev, stoneBroken: true };
+    }
+    if (absorbed.bannerHeld) {
+      setUnitHP(unit, absorbed.hp, { disturbs });
+      return { lost: prev - absorbed.hp, stoneBroken: false, bannerHeld: true };
     }
   }
   setUnitHP(unit, next, { disturbs });

@@ -39,6 +39,26 @@
       },
       "additionalProperties": false
     },
+    "earnedOffer": {
+      "type": "object",
+      "properties": {
+        "actBoss": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "weightByHeld": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      },
+      "required": ["actBoss", "weightByHeld"],
+      "additionalProperties": false
+    },
     "priceCatalog": {
       "type": "object",
       "additionalProperties": {
@@ -73,6 +93,9 @@
           "tier": {
             "type": "integer",
             "minimum": 1
+          },
+          "earned": {
+            "type": "boolean"
           },
           "description": {
             "type": "string"
@@ -161,8 +184,29 @@
             "additionalProperties": false
           }
         },
-        "required": ["id", "name", "tier", "description", "weight", "boons", "costs"],
-        "additionalProperties": false
+        "required": ["id", "name", "description", "weight", "boons", "costs"],
+        "additionalProperties": false,
+        "if": {
+          "properties": {
+            "earned": {
+              "const": true
+            }
+          },
+          "required": ["earned"]
+        },
+        "then": {
+          "not": {
+            "anyOf": [
+              { "required": ["tier"] },
+              { "required": ["prices"] },
+              { "required": ["pact"] },
+              { "required": ["intrinsicPrice"] }
+            ]
+          }
+        },
+        "else": {
+          "required": ["tier"]
+        }
       }
     }
   },

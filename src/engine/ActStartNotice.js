@@ -1,5 +1,5 @@
 // ActStartNotice.js — the route map's line for what a blessing paid as the act began
-// (RunManager._payActStartGrants): "Advance Pay: +250 gold". Pure.
+// (RunManager._payActStartGrants): "Advance Pay: +250 gold", "Second Dawn: +1 Vision". Pure.
 
 /** One line per paid grant, joined; '' when nothing was paid. */
 export function describeActStartGrants(grants) {
@@ -8,6 +8,8 @@ export function describeActStartGrants(grants) {
     const name = grant?.blessingName || 'Blessing';
     if (grant?.kind === 'gold') {
       lines.push(`${name}: +${grant.value} gold`);
+    } else if (grant?.kind === 'vision') {
+      lines.push(`${name}: +${grant.value} Vision`);
     } else if (grant?.kind === 'item') {
       const what = grant.count > 1 ? `${grant.count} ${grant.itemName}s` : grant.itemName;
       if (grant.overflow >= grant.count) lines.push(`${name}: no room for ${what}`);

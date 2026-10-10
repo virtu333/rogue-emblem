@@ -71,6 +71,11 @@
 .mb-hp-after.mb-hp-ko {
   color: var(--re-bad);
 }
+/* → 1 HP (Unbroken Banner): the earned blessing holds this side; long, so it may wrap. */
+.mb-hp-after.mb-hp-held {
+  color: var(--re-warn);
+  white-space: normal;
+}
 
 /* Target selection list on the phone command pane. */
 .mb-targets .mb-target-focused {

@@ -43,7 +43,7 @@ export const TAB_DEFS = [
   { label: 'Class', key: 'classes', filters: ['All', 'base', 'promoted'] },
   { label: 'Items', key: 'items', filters: ['All', 'Consumable', 'Accessory', 'Whetstone'] },
   { label: 'Lords', key: 'lords', filters: null },
-  { label: 'Bless', key: 'blessings', filters: ['All', 'T1', 'T2', 'T3', 'T4'] },
+  { label: 'Bless', key: 'blessings', filters: ['All', 'T1', 'T2', 'T3', 'T4', 'Earned'] },
   { label: 'Terrain', key: 'terrain', filters: null },
   { label: 'Affixes', key: 'affixes', filters: ['All', 'T1', 'T2'] },
   // Appended last so existing tab indices (and index-based tests) stay stable.
@@ -359,6 +359,8 @@ export class CompendiumOverlay {
       case 'items':
         return items.filter((i) => i.type === filterLabel);
       case 'blessings': {
+        // Earned blessings have no tier: they list under their own heading.
+        if (filterLabel === 'Earned') return items.filter((i) => i.earned === true);
         const tier = parseInt(filterLabel.replace('T', ''), 10);
         return items.filter((i) => i.tier === tier);
       }
@@ -393,6 +395,7 @@ export class CompendiumOverlay {
           item.weaponType || '',
           item.lore || '',
           item.tier != null ? String(item.tier) : '',
+          item.earned === true ? 'earned' : '',
         ];
         this.searchIndex.push({
           tabIndex,
@@ -1071,7 +1074,13 @@ export class CompendiumOverlay {
   _renderBlessing(item, y, left, rightX) {
     const nameColor = this._matchesSearch(item.name) ? UI_PALETTE.good : UI_PALETTE.text;
     this._text(left + 25, y, item.name, nameColor);
-    this._text(rightX, y, `Tier ${item.tier || '?'}`, UI_PALETTE.muted, 1);
+    this._text(
+      rightX,
+      y,
+      item.earned === true ? 'Earned' : `Tier ${item.tier || '?'}`,
+      UI_PALETTE.muted,
+      1,
+    );
     this._text(left + 25, y + 14, item.description || '', UI_PALETTE.muted);
     this._renderLoreLine(item, y + 28, left);
   }

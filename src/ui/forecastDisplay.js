@@ -3,6 +3,7 @@ import { getMasteryPerk } from '../engine/MasterySystem.js';
 import { formatPerkMods } from './rosterDisplay.js';
 import { hitProbability } from '../engine/HitRoll.js';
 import { forecastRawDamage, forecastStrikeGroups } from '../engine/Combat.js';
+import { BANNER_NAME } from '../engine/BattleBlessings.js';
 
 /**
  * A strike's real chance to land, as a whole percent. Hit is rolled as the
@@ -54,8 +55,10 @@ export function forecastProjection(forecast) {
   let attackerHP = a.hp,
     defenderHP = d.hp;
   // Revival Stones: a side's blow that would take a stoned bar to 0 breaks it instead and
-  // ends the exchange (Combat.rollStrike), so the projection stops there and says so.
+  // ends the exchange (Combat.rollStrike), so the projection stops there and says so. The
+  // Unbroken Banner (`banner`, after the stones) holds its side at 1 HP and ends it too.
   let broke = null;
+  let held = null;
   // Each side's strikes as rounds: the first (a brave weapon or multi-hit art strikes
   // more than once), then the follow-up, which for a weapon art is a plain strike.
   const groups = { a: forecastStrikeGroups(a), d: d.canCounter ? forecastStrikeGroups(d) : [] };
@@ -63,7 +66,7 @@ export function forecastProjection(forecast) {
     const g = groups[side][index];
     if (!g) return;
     for (let i = 0; i < g.count; i++) {
-      if (attackerHP <= 0 || defenderHP <= 0 || broke) return;
+      if (attackerHP <= 0 || defenderHP <= 0 || broke || held) return;
       // Thorns sends part of each landed hit back, but never takes the last HP.
       // The very first strike of the attacker may roll at a Hit of its own (Keen Eye).
       const landing = index === 0 && i === 0 ? (g.firstHit ?? g.hit) : g.hit;
@@ -71,11 +74,19 @@ export function forecastProjection(forecast) {
         defenderHP = Math.max(0, defenderHP - g.damage);
         if (g.thornsReflect > 0) attackerHP = Math.max(1, attackerHP - g.thornsReflect);
         if (defenderHP <= 0 && d.stones > 0) broke = 'defender';
+        else if (defenderHP <= 0 && d.banner) {
+          defenderHP = 1;
+          held = 'defender';
+        }
       }
       if (side === 'd' && g.hit > 0) {
         attackerHP = Math.max(0, attackerHP - g.damage);
         if (g.thornsReflect > 0) defenderHP = Math.max(1, defenderHP - g.thornsReflect);
         if (attackerHP <= 0 && a.stones > 0) broke = 'attacker';
+        else if (attackerHP <= 0 && a.banner) {
+          attackerHP = 1;
+          held = 'attacker';
+        }
       }
     }
   };
@@ -87,12 +98,26 @@ export function forecastProjection(forecast) {
     attackerHP,
     defenderHP,
     ...(broke ? { breaks: broke } : {}),
+    ...(held ? { holds: held } : {}),
   };
 }
 
 /** What a projected HP of 0 means for a side: "KO", or "Breaks a bar" for a Revival Stone. */
 export function projectedFallText(projection, side) {
   return projection?.breaks === side ? 'Breaks a bar' : 'KO';
+}
+
+/** A side the Unbroken Banner would hold, as the forecast says it. */
+export const BANNER_HOLD_TEXT = `1 HP (${BANNER_NAME})`;
+
+/**
+ * A side's projected HP as the forecast says it: the banner's hold, "KO" / "Breaks a bar" at
+ * 0, else "N HP".
+ */
+export function projectedHpText(projection, side) {
+  if (projection?.holds === side) return BANNER_HOLD_TEXT;
+  const hp = side === 'attacker' ? projection?.attackerHP : projection?.defenderHP;
+  return hp === 0 ? projectedFallText(projection, side) : `${hp} HP`;
 }
 
 export function triangleText(forecast) {
@@ -113,9 +138,12 @@ export function counterRisk(forecast, attackerHP = forecast?.attacker?.hp) {
     return 'Enemy skills can change counterattack damage.';
   const base = Math.max(forecastRawDamage(d), d.damage);
   const possible = base * (d.crit > 0 ? 3 : 1);
-  return possible >= attackerHP
-    ? `${d.crit > 0 && base < attackerHP ? 'A critical counter' : 'The counterattack'} could defeat ${a.name}.`
-    : '';
+  if (possible < attackerHP) return '';
+  const blow = d.crit > 0 && base < attackerHP ? 'A critical counter' : 'The counterattack';
+  // The Unbroken Banner would hold the attacker: the counter cannot defeat it, only spend it.
+  return a.banner
+    ? `${blow} could fell ${a.name}: the ${BANNER_NAME} would hold at 1 HP.`
+    : `${blow} could defeat ${a.name}.`;
 }
 
 /** True when the side's first strike rolls differently from the ones after it. */
@@ -140,11 +168,8 @@ export function forecastNotes(forecast, attacking, attackerHP, weapons = null) {
   const { planned, equipped } = weapons || {};
   if (attacking && planned && planned !== equipped) notes.push(`Confirming equips ${planned.name}`);
   if (projection) {
-    const hp = attacking ? projection.attackerHP : projection.defenderHP;
     const side = attacking ? 'attacker' : 'defender';
-    notes.push(
-      `If all hits land: ${hp === 0 ? projectedFallText(projection, side) : `${hp} HP`} (no crits/procs)`,
-    );
+    notes.push(`If all hits land: ${projectedHpText(projection, side)} (no crits/procs)`);
   }
   // A one-time lesson on this side (the armor note: AttackFlowController.armorLesson).
   const side = attacking ? forecast.attacker : forecast.defender;
@@ -184,12 +209,18 @@ export function forecastReadingPoints(forecast) {
     points.push(
       'A Revival Stone refills its bearer when a blow would fell it. That blow ends the exchange: no more strikes this combat.',
     );
+  if (forecast?.attacker?.banner || forecast?.defender?.banner)
+    points.push(
+      `The ${BANNER_NAME} holds the first ally a blow would fell at 1 HP, once a battle. That blow ends the exchange.`,
+    );
   return points;
 }
 
 export function forecastTeachingHints(forecast, attackerHP) {
   const hints = [];
-  if (counterRisk(forecast, attackerHP))
+  // A counter the Unbroken Banner would hold is not lethal this exchange (the notes say it
+  // would hold): the lethal-counter lesson waits for a counter that is.
+  if (counterRisk(forecast, attackerHP) && !forecast?.attacker?.banner)
     hints.push({
       id: 'battle_counter_risk',
       text: 'Check your HP after any art cost. Enemy hits and critical hits can make this exchange lethal; Cancel lets you choose another plan.',

@@ -60,7 +60,8 @@ describe('item icon coverage', () => {
       expect(hasItemIcon(`blessing-${id}`), id).toBe(true);
       expect(itemIconMeta(`blessing-${id}`), id).toMatchObject({
         socket: 'blessing',
-        rim: numeral[blessing.tier],
+        // An earned blessing has no tier numeral: it wears the Legend rim.
+        rim: blessing.earned ? 'Legend' : numeral[blessing.tier],
       });
       // The picture is the target's cell, and the target owns that cell outright.
       expect(manifest.icons[`blessing-${id}`][0], id).toBe(manifest.icons[of][0]);

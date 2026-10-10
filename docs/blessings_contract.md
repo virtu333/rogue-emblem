@@ -15,7 +15,7 @@
 2. Top-level keys are `version`, `blessings`, and optional `rules`.
 3. `version` is a number and must match contract version for strict mode.
 4. `blessings` is an array of blessing definitions.
-5. Each blessing definition includes required fields `id`, `name`, `tier`, `description`, `boons`, and `costs`.
+5. Each blessing definition includes required fields `id`, `name`, `tier`, `description`, `boons`, and `costs`. An earned blessing (rule 15) has no `tier`.
 6. `id` is a stable string key and is immutable after release.
 7. `tier` is an integer in range 1 through 4.
 8. `boons` is a non-empty array of effect descriptors.
@@ -25,6 +25,8 @@
 12. `params` is an object with effect-specific numeric or string fields.
 13. Optional fields are `weight`, `tags`, `requires`, `excludes`, and `ui`.
 14. Unknown fields are ignored in non-strict mode and rejected in strict mode.
+15. `earned` (optional boolean; docs/specs/blessings-v3.md §6): `true` marks a blessing the run awards (the act boss's pick) instead of offering it at the start. An earned blessing has no `tier`, `prices`, `pact` or `intrinsicPrice`, its `costs` are empty, and its `weight` is its draw weight among the earned blessings. A non-boolean `earned`, or a tier or price on an earned blessing, is a validation error. The flag is additive: the contract version stays 3.
+16. Optional top-level `earnedOffer` `{ actBoss, weightByHeld }`: how many earned cards an act boss offers (default 2), and the chance it offers any for a run already holding 0, 1, 2+ earned blessings (default `[1, 0.85, 0.7]`; one bad entry sends the whole list to its default).
 
 ## 3.1 Prices (v3, docs/specs/blessings-v3.md §3)
 1. `priceCatalog` maps a price id to `{ label, points, tags?, effects }`. `points` is the price's weight on one scale; `tags` (`gold`, `xp`, `growth`, `shop`) name what it touches.
@@ -42,6 +44,7 @@
 ## 4. Selection Rules
 1. Run start presents 3 to 4 blessing options.
 2. At least one tier-1 option must be present: slot 1 is always a free tier I.
+2a. An earned blessing is never offered at the start, by a church or by an event (`BlessingEngine.isEarnedBlessing`); `RunManager.addBlessingMidRun(id, { earned: true })` is its only way in, called by `engine/EarnedBlessings.js` when a pick is taken.
 3. v3: each later slot draws a tier by `offerWeights` (never one already drawn), then a blessing of that tier by its `weight`; a blessing at weight 0 is never offered. v2: later slots draw from the whole pool by weight.
 4. A price that would cost the run nothing (shadow with the Eclipse off, Vision with no charge, a deforge with nothing forged) is not rolled.
 5. The offered run's seed is kept for its slot until the run begins, so backing out and returning shows the same offer.
@@ -68,6 +71,7 @@
 3. Event record schema is `timestamp`, `stage`, `eventType`, `blessingId`, `effectType`, and optional `details`.
 4. Save additions are additive and must not mutate unrelated fields.
 5. Missing blessing fields in old saves must default safely to empty values.
+5a. Run save payload carries `earnedBlessingPicks`: the earned-pick ledger, one entry per act (`{ version, source, actId, nodeId, offered, status: 'owed' | 'taken' | 'skipped' | 'none', chosen }`). A save without it loads as `{}`; `sanitizeEarnedBlessingPicks` drops malformed entries, acts the run does not have and offered ids the catalog no longer has as earned (an owed pick left with none becomes `none`). Taking a pick records an `earned_pick` event in `blessingHistory`.
 6. Unknown blessing IDs in loaded saves must be preserved as inert entries and logged.
 7. Run save payload carries `blessingBoonRevision` (an integer, `BLESSING_BOON_REVISION` in
    `src/engine/BlessingBoonMigration.js`). A run saved at an older revision (or none) holds

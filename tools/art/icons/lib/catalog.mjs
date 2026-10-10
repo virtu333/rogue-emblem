@@ -70,8 +70,9 @@ function consumableRim(c) {
   return 'plain';
 }
 
-/** A blessing's pennant rim: its tier numeral. */
+/** A blessing's pennant rim: its tier numeral; an earned blessing (no tier) wears the Legend rim. */
 function blessingRim(b) {
+  if (b.earned === true) return 'Legend';
   return ['I', 'II', 'III', 'IV'][Math.max(0, Math.min(3, (b.tier || 1) - 1))];
 }
 

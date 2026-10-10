@@ -97,8 +97,10 @@ export class AIController {
    * Process all enemy units one at a time.
    * @param {Array} enemyUnits
    * @param {Array} playerUnits
-   * @param {Object} callbacks - { onMoveUnit(enemy, path), onAttack(enemy, target), onUnitDone(enemy), onDecision(enemy, decision) },
-   *   plus `turnNumber`, the turn whose enemy phase this is (the hold wake check runs once per turn)
+   * @param {Object} callbacks - { onMoveUnit(enemy, path), onAttack(enemy, target), onUnitDone(enemy, decision), onDecision(enemy, decision) },
+   *   plus `turnNumber`, the turn whose enemy phase this is (the hold wake check runs once per turn),
+   *   and `afterUnit(enemy, decision)`, the pause after each enemy (the scene's beat,
+   *   ui/EnemyPhasePacing.js); without it every enemy is followed by a fixed 300 ms
    * @returns {Promise<void>}
    */
   async processEnemyPhase(enemyUnits, playerUnits, npcUnits, callbacks) {
@@ -133,10 +135,17 @@ export class AIController {
       if (!enemyUnits.includes(enemy) || enemy.hasActed) continue;
       if (playerUnits.length === 0) break;
 
-      await this._processOneEnemy(enemy, enemyUnits, playerUnits, npcUnits || [], callbacks);
+      const decision = await this._processOneEnemy(
+        enemy,
+        enemyUnits,
+        playerUnits,
+        npcUnits || [],
+        callbacks,
+      );
 
-      // Small delay between enemies for visual clarity
-      await this._delay(300);
+      // A pause between enemies for visual clarity: the caller's beat when it gives one.
+      if (typeof callbacks.afterUnit === 'function') await callbacks.afterUnit(enemy, decision);
+      else await this._delay(300);
     }
   }
 
@@ -145,8 +154,8 @@ export class AIController {
       const decision = { path: null, target: null, reason: 'asleep' };
       enemy._lastAiDecision = decision;
       callbacks.onDecision?.(enemy, decision);
-      await callbacks.onUnitDone(enemy);
-      return;
+      await callbacks.onUnitDone(enemy, decision);
+      return decision;
     }
 
     // Entity boss: stationary, dual weapon, range-2 primary attack
@@ -157,8 +166,8 @@ export class AIController {
       if (decision?.target) {
         await callbacks.onAttack(enemy, decision.target);
       }
-      await callbacks.onUnitDone(enemy);
-      return;
+      await callbacks.onUnitDone(enemy, decision);
+      return decision;
     }
 
     const decision = this._decideAction(enemy, allEnemies, playerUnits, npcUnits);
@@ -170,19 +179,19 @@ export class AIController {
       await callbacks.onMoveUnit(enemy, decision.path);
     }
 
-    if (callbacks.isCurrent?.() === false) return;
+    if (callbacks.isCurrent?.() === false) return decision;
     if (decision.healTarget) {
       const result = this.applyHealDecision(enemy, decision.healTarget, decision.healStaff);
       if (result) await callbacks.onHeal?.(enemy, decision.healTarget, result);
-      await callbacks.onUnitDone(enemy);
-      return;
+      await callbacks.onUnitDone(enemy, decision);
+      return decision;
     }
 
     // Status staff use (separate from normal attack)
     if (decision.statusStaffTarget) {
       await callbacks.onStatusStaff?.(enemy, decision.statusStaffTarget);
-      await callbacks.onUnitDone(enemy);
-      return;
+      await callbacks.onUnitDone(enemy, decision);
+      return decision;
     }
 
     // Attack if we have a target in range. If movement/terrain changed state and the
@@ -212,7 +221,8 @@ export class AIController {
       await callbacks.onBreak?.(enemy, decision.breakTile);
     }
 
-    await callbacks.onUnitDone(enemy);
+    await callbacks.onUnitDone(enemy, decision);
+    return decision;
   }
 
   /** Entity AI: stationary, picks best weapon, targets within ENTITY_PRIMARY_ATTACK_RANGE. */

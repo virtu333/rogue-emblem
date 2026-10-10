@@ -1,4 +1,5 @@
 import { getFootprint } from './EntitySystem.js';
+import { BANNER_NAME } from './BattleBlessings.js';
 // Presentation projection is captured at the event's visibility, never at the
 // later viewer's visibility. No live objects or hidden-unit identifiers escape.
 export function timelineUnitVisible(state, unit) {
@@ -140,6 +141,11 @@ export function timelineChanges(previous, next) {
   return facts;
 }
 
+/** The timeline's line for an Unbroken Banner hold (an earned blessing). */
+export function bannerHoldFact(unit) {
+  return `${unit?.name || 'An ally'} held by the ${BANNER_NAME}.`;
+}
+
 export function combatTimelineFacts(scene, attacker, defender, result) {
   const visible = (unit) =>
     unit.faction === 'player' ||
@@ -165,6 +171,8 @@ export function combatTimelineFacts(scene, attacker, defender, result) {
     );
     // Revival Stones: the blow that broke one (a hidden unit's stone stays unspoken).
     if (event.stoneBroken && visible(target)) facts.push(`${name(target)}'s Revival Stone broke.`);
+    // The Unbroken Banner holds only the army's own, who are always seen.
+    if (event.bannerHeld) facts.push(bannerHoldFact(target));
   }
 
   return facts.slice(0, 100);

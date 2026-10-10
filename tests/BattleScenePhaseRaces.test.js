@@ -80,6 +80,38 @@ function makePlayerPhaseScene() {
   return { scene, delayedCallbacks };
 }
 
+describe('the desktop hold key (Shift) lasts the enemy phase only', () => {
+  it('binds with the gameplay keys, holds in ENEMY_PHASE and is released as the player phase starts', () => {
+    vi.stubGlobal('window', new EventTarget());
+    vi.stubGlobal('document', new EventTarget());
+    const { scene } = makePlayerPhaseScene();
+    const handlers = new Map();
+    scene.input = {
+      keyboard: {
+        on: (type, fn) => handlers.set(type, [...(handlers.get(type) || []), fn]),
+        off: (type, fn) =>
+          handlers.set(
+            type,
+            (handlers.get(type) || []).filter((h) => h !== fn),
+          ),
+      },
+    };
+    const emit = (type, event) => (handlers.get(type) || []).forEach((fn) => fn(event));
+    scene._bindGameplayKeyboardHandlers();
+    scene.turnManager = { currentPhase: 'enemy', turnNumber: 3, endPlayerPhase: vi.fn() };
+    scene.battleState = 'ENEMY_PHASE';
+    emit('keydown', { key: 'Shift' });
+    expect(scene._holdBattleFast).toBe(true);
+    // Still held as the turn passes: the player phase must not inherit the fast speed.
+    scene.turnManager.currentPhase = 'player';
+    scene.onPhaseChange('player', 4);
+    expect(scene._holdBattleFast).toBe(false);
+    scene._unbindGameplayKeyboardHandlers();
+    expect([...handlers.values()].flat()).toEqual([]);
+    vi.unstubAllGlobals();
+  });
+});
+
 describe('player turn-start pipeline vs fast End Turn', () => {
   it('skips turn-start effects when the phase flipped to enemy before the pipeline fired', async () => {
     const { scene, delayedCallbacks } = makePlayerPhaseScene();

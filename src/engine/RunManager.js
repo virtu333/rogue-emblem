@@ -118,6 +118,13 @@ import {
 } from './LordStatArc.js';
 import { parseBattleGoldGamble, settleBattleGoldGamble } from './BattleGoldGamble.js';
 import {
+  actBossPickDue,
+  earnedBlessingsOf,
+  isActBossVictory,
+  prepareEarnedBlessingPick,
+  sanitizeEarnedBlessingPicks,
+} from './EarnedBlessings.js';
+import {
   parseAdjacentAllyDefBonus,
   parseIsolatedCombatBonus,
   sanitizeAdjacentAllyDefBonuses,
@@ -345,12 +352,26 @@ function createBlessingRuntimeModifiers() {
     lordStatArcs: [],
     // Gambler's Toss: `{ chance, win, lose }` while held (engine/BattleGoldGamble.js).
     battleGoldGamble: null,
+    // Earned blessings (docs/specs/blessings-v3.md §6): how many allies the Unbroken Banner
+    // saves per battle, the HP the Ember Lantern's first kill heals and the MOV the Captain's
+    // Whistle gives on turn 1. Read through getBattleBlessingEffects; the battle reads them
+    // once. Second Dawn's Vision is an act-start grant (`kind: 'vision'`), not a modifier.
+    battleLastStand: 0,
+    firstKillHeal: 0,
+    firstTurnMovDelta: 0,
   };
 }
 
+// Earned boon type -> the runtime modifier it raises (each takes a positive integer `value`).
+const EARNED_BOON_MODIFIERS = Object.freeze({
+  battle_last_stand: 'battleLastStand',
+  first_kill_heal: 'firstKillHeal',
+  first_turn_mov_delta: 'firstTurnMovDelta',
+});
+
 /**
- * A saved act-start grants list, field by field: a grant is gold or an item, with a whole
- * positive amount, and a list of the acts it has already paid. Anything else is dropped.
+ * A saved act-start grants list, field by field: a grant is gold, Vision or an item, with a
+ * whole positive amount, and a list of the acts it has already paid. Anything else is dropped.
  */
 function sanitizeActStartGrants(list) {
   if (!Array.isArray(list)) return [];
@@ -361,9 +382,10 @@ function sanitizeActStartGrants(list) {
     const paidActs = Array.isArray(entry.paidActs)
       ? [...new Set(entry.paidActs.filter((act) => typeof act === 'string' && act))]
       : [];
-    if (entry.kind === 'gold') {
+    if (entry.kind === 'gold' || entry.kind === 'vision') {
       const value = Math.trunc(Number(entry.value));
-      if (value > 0) grants.push({ blessingId: entry.blessingId, kind: 'gold', value, paidActs });
+      if (value > 0)
+        grants.push({ blessingId: entry.blessingId, kind: entry.kind, value, paidActs });
     } else if (entry.kind === 'item') {
       const count = Math.trunc(Number(entry.count));
       if (typeof entry.itemName === 'string' && entry.itemName && count > 0)
@@ -674,6 +696,9 @@ export class RunManager {
     this.lastBurdenSettlement = null;
     // Gambler's Toss: the last victory's toss, for the victory band (not saved).
     this.lastBattleGoldGamble = null;
+    // Earned blessings: the per-act pick ledger (engine/EarnedBlessings.js), and Second Dawn's
+    // act-start line for the route map, read once (not saved).
+    this.earnedBlessingPicks = {};
     // The open contract (engine/Contracts.js: a goal for the next battle), the settlement it
     // earned and has not yet delivered (`contractOwed`, saved: judged once, owed until paid or
     // a reward is given up) and what the last settlement said, for the victory band (not saved,
@@ -861,6 +886,7 @@ export class RunManager {
     this.lastBattleCasualtyNotices = [];
     this.battleInProgress = null;
     this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
+    this.earnedBlessingPicks = {};
     this.blessingBoonRevision = BLESSING_BOON_REVISION; // a new run follows the current rules
     this.battleConfigsByNodeId = {};
     this.ensureRecruitPreviews();
@@ -938,6 +964,7 @@ export class RunManager {
     this.lastBattleCasualtyNotices = [];
     this.battleInProgress = null;
     this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
+    this.earnedBlessingPicks = {};
     this.blessingBoonRevision = BLESSING_BOON_REVISION; // a new run follows the current rules
     this.battleConfigsByNodeId = {};
     for (const node of this.nodeMap.nodes) {
@@ -1238,11 +1265,14 @@ export class RunManager {
    * Take a blessing mid-run (a church's vow): it joins the active list and its boons
    * apply now, as they would have at the run's start. Tier-1 blessings only carry
    * boons. Returns false for an unknown or already active blessing, and for a card that
-   * carries an intrinsic price or a pact (its cost would never be paid).
+   * carries an intrinsic price or a pact (its cost would never be paid). An earned blessing is
+   * handed out only by the run's own sources (engine/EarnedBlessings.js passes `earned: true`):
+   * a church, an event or any other caller is refused it.
    */
-  addBlessingMidRun(blessingId) {
+  addBlessingMidRun(blessingId, { earned = false } = {}) {
     const blessing = buildBlessingIndex(this.gameData?.blessings || {}).get(blessingId);
     if (!blessing || this.getActiveBlessingIds().includes(blessingId)) return false;
+    if (blessing.earned === true && earned !== true) return false;
     // A card whose cost is part of what it is (an intrinsic price, a tier IV pact) is only ever
     // taken at the shrine, where the price is shown and paid; a mid-run grant carries none.
     if (blessing.intrinsicPrice || blessing.pact) return false;
@@ -1317,6 +1347,22 @@ export class RunManager {
       eventType: 'effect_applied',
       blessingId,
       effectType: effect?.type || null,
+      details,
+    });
+  }
+
+  /**
+   * The history record of an earned pick being taken (engine/EarnedBlessings.js): its own
+   * event type, not an applied effect (the boons the blessing then applies are recorded by
+   * their handlers, stage 'mid_run', as any mid-run grant's).
+   */
+  _recordEarnedPick(blessingId, details = {}) {
+    this.blessingHistory.push({
+      timestamp: Date.now(),
+      stage: 'mid_run',
+      eventType: 'earned_pick',
+      blessingId,
+      effectType: null,
       details,
     });
   }
@@ -2785,10 +2831,70 @@ export class RunManager {
       return;
     }
 
+    if (effect.type === 'act_start_vision_delta') {
+      // Second Dawn: +value Vision as each act begins (an act-start grant, paid by
+      // _payActStartGrants). The take happens at an act boss, before advanceAct, so the act it
+      // is taken in counts as paid: the first payment is the next act's, never the take's.
+      const amount = Math.trunc(value);
+      if (!(amount > 0)) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'invalid_act_start_vision_delta_params',
+        });
+        return;
+      }
+      this._actStartGrantList().push({
+        blessingId,
+        kind: 'vision',
+        value: amount,
+        paidActs: this.currentAct ? [this.currentAct] : [],
+      });
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        recurringValue: amount,
+        firstPayment: 'next_act',
+      });
+      return;
+    }
+
+    // Earned blessings: only a field is raised here; the battle reads it.
+    const earnedModifier = EARNED_BOON_MODIFIERS[effect.type];
+    if (earnedModifier) {
+      const amount = Math.trunc(value);
+      if (!(amount > 0)) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: `invalid_${effect.type}_params`,
+        });
+        return;
+      }
+      this.blessingRuntimeModifiers[earnedModifier] =
+        Math.max(0, Math.trunc(Number(this.blessingRuntimeModifiers[earnedModifier]) || 0)) +
+        amount;
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        appliedValue: amount,
+        total: this.blessingRuntimeModifiers[earnedModifier],
+      });
+      return;
+    }
+
     this._recordBlessingEvent('run_start', blessingId, effect, {
       skipped: true,
       reason: 'unhandled_effect_type',
     });
+  }
+
+  /**
+   * The held earned blessings' battle numbers: `{ lastStand, firstKillHeal, firstTurnMov }`,
+   * all 0 when none is held. A battle reads this once, at its start.
+   */
+  getBattleBlessingEffects() {
+    const mods = this.blessingRuntimeModifiers || {};
+    const count = (value) => Math.max(0, Math.trunc(Number(value)) || 0);
+    return {
+      lastStand: count(mods.battleLastStand),
+      firstKillHeal: count(mods.firstKillHeal),
+      firstTurnMov: count(mods.firstTurnMovDelta),
+    };
   }
 
   /** The held Gambler's Toss (`{ chance, win, lose }`), or null. */
@@ -2931,6 +3037,25 @@ export class RunManager {
           blessingId: grant.blessingId,
           blessingName,
           kind: 'gold',
+          value: grant.value,
+        });
+        continue;
+      }
+      if (grant.kind === 'vision') {
+        const before = Number.isFinite(this.visionChargesRemaining)
+          ? Math.max(0, Math.trunc(this.visionChargesRemaining))
+          : 0;
+        this.visionChargesRemaining = before + grant.value;
+        this._recordBlessingEvent(
+          stage,
+          grant.blessingId,
+          { type: 'act_start_vision_delta', params: { value: grant.value } },
+          { appliedValue: grant.value, act, before, after: this.visionChargesRemaining },
+        );
+        paid.push({
+          blessingId: grant.blessingId,
+          blessingName,
+          kind: 'vision',
           value: grant.value,
         });
         continue;
@@ -4860,7 +4985,7 @@ export class RunManager {
       losses: newlyFallen.length,
     });
 
-    const isRewardBossNode = node.id === this.nodeMap?.bossNodeId && node.type === 'boss';
+    const isRewardBossNode = isActBossVictory(this, node);
     const isRewardAct =
       this.nodeMap?.actId === 'act1' ||
       this.nodeMap?.actId === 'act2' ||
@@ -4873,6 +4998,11 @@ export class RunManager {
         : 0;
       this.visionChargesRemaining = currentVision + 1;
     }
+    // An act boss (never the final act's, the prologue's, an elite's or an event's) owes an
+    // earned-blessing pick: rolled here, on its own seeded stream, so it is in this victory's
+    // save and a reload offers the same pair (engine/EarnedBlessings.js). The pick is shown
+    // after the boss's reward, recruit and lord, before the act advances.
+    if (actBossPickDue(this, node)) prepareEarnedBlessingPick(this, node);
 
     if (node?.isAmbush && node.ambushCleared !== true) {
       node.ambushCleared = true;
@@ -5592,6 +5722,7 @@ export class RunManager {
       contract: this.contract || null,
       contractOwed: this.contractOwed || null,
       laidToRest: this.laidToRest || [],
+      earnedBlessingPicks: this.earnedBlessingPicks || {},
       difficultyId: this.difficultyId || 'normal',
       difficultyModifiers: this.difficultyModifiers || {
         ...DIFFICULTY_DEFAULTS,
@@ -6135,6 +6266,12 @@ export class RunManager {
     rm.blessingRuntimeModifiers.battleGoldGamble = parseBattleGoldGamble(
       rm.blessingRuntimeModifiers.battleGoldGamble,
     );
+    // Earned blessings: a save from before them holds none.
+    for (const field of Object.values(EARNED_BOON_MODIFIERS))
+      rm.blessingRuntimeModifiers[field] = Math.max(
+        0,
+        Math.trunc(Number(rm.blessingRuntimeModifiers[field]) || 0),
+      );
     // Pact enemy levels (strategy-layer): legacy saves have none.
     rm.blessingRuntimeModifiers.enemyLevelDeltas = (
       Array.isArray(rm.blessingRuntimeModifiers.enemyLevelDeltas)
@@ -6246,6 +6383,11 @@ export class RunManager {
     if (rm.actIndex >= rm.actSequence.length) {
       rm.actIndex = Math.max(0, rm.actSequence.length - 1);
     }
+    // Read against the catalog and the run's acts (after the act sequence is final).
+    rm.earnedBlessingPicks = sanitizeEarnedBlessingPicks(saved.earnedBlessingPicks, {
+      earnedIds: earnedBlessingsOf(gameData).map((b) => b.id),
+      actSequence: rm.actSequence,
+    });
     rm.pendingAmbushNodeId =
       typeof saved.pendingAmbushNodeId === 'string' ? saved.pendingAmbushNodeId : null;
     rm.pendingEventNodeId =
