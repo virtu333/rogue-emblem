@@ -7,6 +7,14 @@ import {
 import { settleRecruitJoin } from '../../src/engine/BattleRecruits.js';
 import { settleStaffHeal } from '../../src/engine/StaffSettlement.js';
 import { staffRunOptions } from '../../src/engine/StaffBlessings.js';
+import { STEAL_ABILITY_KIND, settleSteal } from '../../src/engine/Steal.js';
+import { stealRunOptions } from '../../src/engine/ShrineBoons.js';
+import {
+  canUseAbility,
+  findStealTargets,
+  getActionAbilities,
+  markUsed,
+} from '../../src/engine/ActionAbilitySystem.js';
 // HeadlessBattle — Synchronous battle state machine for headless testing.
 // Mirrors BattleScene's MVP subset (7 states) using real engine functions.
 
@@ -208,6 +216,8 @@ export const HEADLESS_STATES = {
   SELECTING_TARGET: 'SELECTING_TARGET',
   SELECTING_HEAL_TARGET: 'SELECTING_HEAL_TARGET',
   SELECTING_REMAINS_TARGET: 'SELECTING_REMAINS_TARGET',
+  // Steal's target (opt-in: `options.steal`, see the constructor).
+  SELECTING_STEAL_TARGET: 'SELECTING_STEAL_TARGET',
   ENEMY_PHASE: 'ENEMY_PHASE',
   BATTLE_END: 'BATTLE_END',
 };
@@ -237,6 +247,9 @@ export class HeadlessBattle {
    *   `getRecruitNodeUnit`); without it the battle builds one from its own params.
    *   `runManager`: the run the battle belongs to, present from `init()` (its blessings, the
    *   Vulnerary recipe and the run-level battle effects); without it the battle is standalone.
+   *   `steal`: offer Steal (a Thief's `steal_item` ability) in the action menu, as
+   *   AbilityTargetingController does. Off by default, so the stock agents' legal actions (and
+   *   every default sim) are what they were; the blessing sims' claiming policies turn it on.
    */
   constructor(gameData, battleParams, roster = null, options = {}) {
     this.gameData = gameData;
@@ -277,6 +290,10 @@ export class HeadlessBattle {
     this.lastHybridOverrideResult = null;
     this._combatRollSession = null;
     this.runManager = options?.runManager ?? null;
+    this.stealEnabled = options?.steal === true;
+    // What Steal took this battle: { thief, carrier, item, destination, speedWaived }.
+    this.steals = [];
+    this.stealTargets = [];
     this._battleBlessings = null;
     this._reinforcementsPendingThisTurn = false;
     this._villageState = null;
@@ -599,6 +616,10 @@ export class HeadlessBattle {
       }
     }
 
+    // Steal (opt-in): a Thief beside a carrier it can rob (engine/Steal.js).
+    if (this.stealEnabled && this._findStealTargets(unit).length > 0)
+      actions.push({ label: 'Steal', supported: true });
+
     // Deferred actions (listed but unsupported in MVP)
     const equippable = unit.inventory.filter(
       (item) => item.type !== 'Consumable' && canEquip(unit, item),
@@ -665,6 +686,13 @@ export class HeadlessBattle {
         this._executeTalk(this.selectedUnit, target);
         break;
       }
+      case 'Steal': {
+        if (!this.stealEnabled) throw new Error('Steal is not enabled in this battle');
+        this.stealTargets = this._findStealTargets(this.selectedUnit).map((t) => t.unit);
+        if (this.stealTargets.length === 0) throw new Error('No steal targets');
+        this.battleState = HEADLESS_STATES.SELECTING_STEAL_TARGET;
+        break;
+      }
       default: {
         const actions = this.getAvailableActions();
         const action = actions.find((a) => a.label === label);
@@ -690,6 +718,46 @@ export class HeadlessBattle {
     // Ensure equipped weapon can reach target
     this._ensureValidWeaponForTarget(this.selectedUnit, target);
     this._executeCombat(this.selectedUnit, target);
+  }
+
+  /**
+   * Steal from an adjacent carrier, as AbilityTargetingController.execute: the finder validates
+   * the target again, the per-map counter is marked when the ability has one, and settleSteal
+   * moves the item in one atomic step (the thief's bag, else the run's convoy). Ends the action.
+   */
+  chooseStealTarget(targetName) {
+    if (this.battleState !== HEADLESS_STATES.SELECTING_STEAL_TARGET) {
+      throw new Error(`Cannot choose steal target in state: ${this.battleState}`);
+    }
+    const thief = this.selectedUnit;
+    const legal = this._findStealTargets(thief);
+    const target =
+      targetName && typeof targetName === 'object'
+        ? legal.find((t) => t.unit === targetName)
+        : legal.find((t) => t.unit.name === targetName);
+    if (!target) throw new Error(`Not a steal target: ${targetName?.name ?? targetName}`);
+    const skill = this._stealSkill(thief);
+    if (Number(skill.actionAbility.perMapLimit) > 0) markUsed(thief, skill.id);
+    // Whether the run's waiver (Cutpurse's Luck, Thief's Lantern) decided it: read before the
+    // item moves (the carrier's speed does not change with it).
+    const speedWaived =
+      stealRunOptions(this.runManager, thief).ignoreSpeed === true &&
+      findStealTargets(thief, skill.actionAbility, {
+        ...this._stealContext(thief),
+        ignoreSpeed: false,
+      }).every((t) => t.unit !== target.unit);
+    const facts = settleSteal(thief, target.unit, { run: this.runManager });
+    if (!facts) throw new Error('Steal refused after its target was validated');
+    this.steals.push({
+      thief: thief.name,
+      carrier: target.unit.name,
+      item: facts.item.name,
+      destination: facts.destination,
+      speedWaived,
+      turn: this.turnManager?.turnNumber || 0,
+    });
+    this.stealTargets = [];
+    this._finishUnitAction(thief);
   }
 
   chooseHealTarget(targetName) {
@@ -746,9 +814,11 @@ export class HeadlessBattle {
       case HEADLESS_STATES.SELECTING_TARGET:
       case HEADLESS_STATES.SELECTING_HEAL_TARGET:
       case HEADLESS_STATES.SELECTING_REMAINS_TARGET:
+      case HEADLESS_STATES.SELECTING_STEAL_TARGET:
         this.attackTargets = [];
         this.healTargets = [];
         this.remainsTargets = [];
+        this.stealTargets = [];
         this.battleState = HEADLESS_STATES.UNIT_ACTION_MENU;
         break;
       default:
@@ -1349,6 +1419,31 @@ export class HeadlessBattle {
       }
     }
     return targets;
+  }
+
+  /** The unit's Steal skill (an action ability of kind `steal_item`) it can use now, or null. */
+  _stealSkill(unit) {
+    const skill = getActionAbilities(unit, this.gameData.skills || []).find(
+      (s) => s.actionAbility?.kind === STEAL_ABILITY_KIND,
+    );
+    return skill && canUseAbility(unit, skill).ok ? skill : null;
+  }
+
+  /** As AbilityTargetingController._context for Steal: the seen foes, the convoy, the waiver. */
+  _stealContext(unit) {
+    return {
+      enemies: this.enemyUnits.filter((foe) => canInspectUnit(this.grid, foe)),
+      canAddToConvoy: (item) => Boolean(this.runManager?.canAddToConvoy?.(item)),
+      ...stealRunOptions(this.runManager, unit),
+    };
+  }
+
+  /** Legal Steal targets ([{ unit, item, destination }]); [] when Steal is off or unknown. */
+  _findStealTargets(unit) {
+    if (!this.stealEnabled || unit?.faction !== 'player') return [];
+    const skill = this._stealSkill(unit);
+    if (!skill) return [];
+    return findStealTargets(unit, skill.actionAbility, this._stealContext(unit));
   }
 
   _findTalkTarget(unit) {

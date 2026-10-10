@@ -217,7 +217,7 @@ See `ROADMAP.md` for all planned features. Key architectural constraints:
 - **Pattern:** Tests import pure engine modules directly + load JSON from `data/` via `tests/testData.js`. No Phaser needed.
 
 ## Balance Simulations
-- **Run:** `npm run sim:progression`, `sim:matchups`, `sim:economy`, `sim:fullrun`, `sim:carry` (carried items on real node maps: carriers and Gold Pouch gold per run, an upper bound that assumes every carrier is robbed)
+- **Run:** `npm run sim:progression`, `sim:matchups`, `sim:economy`, `sim:fullrun`, `sim:carry` (carried items on real node maps: carriers and Gold Pouch gold per run, an upper bound that assumes every carrier is robbed), `sim:blessings` (blessings v3 balance: full runs whose player takes earned picks, gifts, steals, Vision rewinds and second vows (`tests/sim/ClaimingPolicies.js`, `ClaimingRunDriver.js`, all opt-in; the stock sims never use them), per-card offer/take/exercise rates and outcome deltas with intervals; results in `docs/sim-reports/blessings-v3-balance.md`; `tests/sim/BlessingClaimPolicies.test.js` keeps each policy firing)
 - **All scripts** accept `--seed S` (Mulberry32 PRNG), `--trials N`, `--csv` for data export
 - **Pattern:** Import pure engine modules + JSON via `sim/lib/SimUnitFactory.js`. Seeded RNG. No Phaser.
 
