@@ -120,7 +120,7 @@ describe('the swap', () => {
     expect(u.level).toBe(20);
   });
 
-  it('the first of two levels from one gain: stats end as both levels with the new first', () => {
+  it('two levels from one gain: only the latest can be rerolled, and its swap is exact', () => {
     const u = unitAt({ level: 4, gains: zero() });
     delete u.record;
     u.xp = 0;
@@ -130,19 +130,38 @@ describe('the swap', () => {
     vi.restoreAllMocks();
     expect(levelUps.map((l) => l.newLevel)).toEqual([5, 6]);
     const cards = levelUpDisplayResults(u.stats, levelUps);
-    const result = rerollLevelUp(run(), u, cards[0], { rng: scripted(drawsFor(['SKL', 'SPD'])) });
+    const afterAward = { ...u.stats };
+    const r = run();
+    // The earlier level is refused: nothing changes, nothing is spent.
+    expect(levelUpRerollBlock(r, u, cards[0])).toBe('invalid');
+    const refused = rerollLevelUp(r, u, cards[0], { rng: scripted(drawsFor(['SKL', 'SPD'])) });
+    expect(refused).toMatchObject({ ok: false, reason: 'invalid' });
+    expect(u.stats).toEqual(afterAward);
+    expect(rerollsSpent(r)).toBe(0);
+    expect(levelUps[0].gains).toEqual(gainsOf(['HP']));
+    // The latest level rerolls: its gains come off and the new ones go on, exactly.
+    expect(levelUpRerollBlock(r, u, cards[1])).toBe('');
+    const result = rerollLevelUp(r, u, cards[1], { rng: scripted(drawsFor(['SKL', 'SPD'])) });
     expect(result.ok).toBe(true);
-    // The rerolled first level and the untouched second, added to where it started.
     const expected = { ...start };
-    for (const s of ['SKL', 'SPD', 'MAG', 'RES']) expected[s] += 1;
+    for (const s of ['HP', 'SKL', 'SPD']) expected[s] += 1;
     expect(u.stats).toEqual(expected);
-    // The record's gains object is the level's own (every view of it agrees).
-    expect(levelUps[0].gains).toEqual(gainsOf(['SKL', 'SPD']));
-    // The cards count their stats from it: shift this card and the later one.
-    shiftDisplayStats(cards, result.previous, result.gains);
-    expect(cards[1].displayStats).toEqual(u.stats);
-    expect(cards[0].displayStats.SKL).toBe(expected.SKL);
-    expect(cards[0].displayStats.MAG).toBe(start.MAG);
+  });
+
+  it('a guarded award cannot end in two one-stat levels by rerolling the earlier one', () => {
+    // First level two stats, second one stat, both rolled with thinBefore false. Rerolling the
+    // first into one stat would leave two thin levels in a row, which the guard forbids and
+    // nothing reconciles the second level afterwards: so the first is not offered.
+    const u = unitAt({ level: 6, gains: gainsOf(['SPD']) });
+    u.lastLevelUpThin = true;
+    const first = { gains: gainsOf(['HP', 'STR']), newLevel: 5, guard: true, thinBefore: false };
+    const second = { gains: gainsOf(['SPD']), newLevel: 6, guard: true, thinBefore: false };
+    const before = JSON.stringify([u.stats, first, second, u.lastLevelUpThin]);
+    const r = run();
+    const result = rerollLevelUp(r, u, first, { rng: scripted(drawsFor(['DEF'])) });
+    expect(result).toMatchObject({ ok: false, reason: 'invalid' });
+    expect(JSON.stringify([u.stats, first, second, u.lastLevelUpThin])).toBe(before);
+    expect(rerollsSpent(r)).toBe(0);
   });
 });
 
@@ -304,15 +323,6 @@ describe('the streak guard and the reroll', () => {
     u.lastLevelUpThin = false;
     rerollLevelUp(run(), u, u.record, { rng: scripted(drawsFor(['SPD'])) });
     expect(u.record.gains).toEqual(gainsOf(['SPD']));
-    expect(u.lastLevelUpThin).toBe(true);
-  });
-
-  it('rerolling the earlier of two levels leaves the later level’s flag standing', () => {
-    const u = unitAt({ level: 7, gains: gainsOf(['HP', 'STR']) });
-    u.record.newLevel = 6;
-    Object.assign(u.record, { guard: true, thinBefore: false });
-    u.lastLevelUpThin = true; // set by level 7
-    rerollLevelUp(run(), u, u.record, { rng: scripted(drawsFor(['SPD', 'DEF'])) });
     expect(u.lastLevelUpThin).toBe(true);
   });
 });

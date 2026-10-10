@@ -102,12 +102,16 @@ function holdsLevelUp(unit, record) {
     return false;
   if (unit.faction === 'enemy' || unit.faction === 'npc') return false;
   if (!levelUpLabel(record)) return false;
+  // Only the unit's LATEST level can be rerolled. One XP award may give several levels, and
+  // the streak guard decides each against the level before it: rerolling an earlier one would
+  // change what the later one should have been, and nothing reconciles it. (The Team XP path
+  // has the same rule: the last level of an award is the one it offers.)
   const level = Math.trunc(Number(unit.level) || 0);
+  const extended = Math.trunc(Number(unit.extendedLevels) || 0);
+  if (level !== Math.trunc(Number(record.newLevel))) return false;
   if (record.isExtended === true) {
-    if (level !== Math.trunc(Number(record.newLevel))) return false;
-    if (Math.trunc(Number(unit.extendedLevels) || 0) < Math.trunc(Number(record.extendedLevel)))
-      return false;
-  } else if (level < Math.trunc(Number(record.newLevel))) return false;
+    if (extended !== Math.trunc(Number(record.extendedLevel))) return false;
+  } else if (extended > 0) return false;
   for (const stat of XP_STAT_NAMES) {
     const value = Number(unit.stats[stat]);
     if (!Number.isFinite(value) || value - gainOf(record.gains, stat) < 0) return false;
