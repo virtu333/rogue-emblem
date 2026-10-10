@@ -322,6 +322,53 @@ describe('Vision world state and hydration', () => {
     expect(restored.grid.mapLayout[2][2]).toBe(0);
   });
 
+  it('a hybrid wall waiting on an occupied tile survives suspend/resume; Vision takes it back', () => {
+    const s = scene();
+    s.battleConfig = {
+      phaseTerrainOverrides: [
+        {
+          turn: 2,
+          setTiles: [
+            { coord: [2, 1], terrain: 'Wall' },
+            { coord: [3, 1], terrain: 'Wall' },
+          ],
+        },
+      ],
+    };
+    const guard = s.enemyUnits[0];
+    Object.assign(guard, { col: 2, row: 1 });
+    s.captureVisionSnapshot(); // the player phase before the override's enemy phase
+    s.applyDueHybridOverridesForTurn(2);
+    const waiting = [{ turn: 2, col: 2, row: 1, terrain: 'Wall' }];
+    expect(s.grid.mapLayout[1][2]).toBe(0); // never under the guard
+    expect(s.grid.mapLayout[1][3]).toBe(1);
+    expect(s.pendingHybridOverrideTiles).toEqual(waiting);
+
+    s._captureSuspendCheckpoint({ session: s._battleSession });
+    const checkpoint = s.runManager.battleInProgress.checkpoint;
+    expect(checkpoint.pendingHybridOverrideTiles).toEqual(waiting);
+    const resumed = restoreCheckpoint(checkpoint);
+    resumed.battleConfig = s.battleConfig;
+    expect(resumed.pendingHybridOverrideTiles).toEqual(waiting);
+    expect([...resumed.appliedHybridOverrideTurns]).toEqual([2]);
+    expect(resumed.grid.mapLayout[1]).toEqual([0, 0, 0, 1]);
+    // The guard leaves; the resumed battle raises the wall at the next enemy phase.
+    Object.assign(resumed.enemyUnits[0], { col: 0, row: 3 });
+    expect(resumed.applyDueHybridOverridesForTurn(3)).toMatchObject({
+      retriedTiles: 1,
+      changedTiles: 1,
+      pendingTiles: 0,
+    });
+    expect(resumed.grid.mapLayout[1]).toEqual([0, 0, 1, 1]);
+    expect(resumed.pendingHybridOverrideTiles).toEqual([]);
+
+    // Vision to before the override: no walls, nothing waiting, the override due again.
+    s._visionController._applySnapshot();
+    expect(s.grid.mapLayout[1]).toEqual([0, 0, 0, 0]);
+    expect(s.pendingHybridOverrideTiles).toEqual([]);
+    expect(s.appliedHybridOverrideTurns.size).toBe(0);
+  });
+
   it('accepts old Vision snapshots without terrain/casualty fields', () => {
     const s = scene();
     s.captureVisionSnapshot();

@@ -269,6 +269,7 @@ describe('HeadlessBattle', () => {
     battle.reinforcementTemplatePool = [{ className: '__stale__', level: 1 }];
     battle.lastReinforcementSchedule = { spawns: [{ col: 0, row: 0 }] };
     battle.appliedHybridOverrideTurns = new Set([2]);
+    battle.pendingHybridOverrideTiles = [{ turn: 2, col: 1, row: 1, terrain: 'Wall' }];
     battle.lastHybridOverrideResult = {
       turn: 2,
       dueOverrides: 1,
@@ -281,6 +282,7 @@ describe('HeadlessBattle', () => {
     expect(battle.reinforcementTemplatePool).toBeNull();
     expect(battle.lastReinforcementSchedule).toBeNull();
     expect(battle.appliedHybridOverrideTurns.size).toBe(0);
+    expect(battle.pendingHybridOverrideTiles).toEqual([]);
     expect(battle.lastHybridOverrideResult).toBeNull();
     const rebuiltPool = battle._getReinforcementTemplatePool();
     expect(rebuiltPool.some((entry) => entry.className === '__stale__')).toBe(false);
@@ -1123,7 +1125,7 @@ describe('HeadlessBattle', () => {
     expect(secondApply.appliedOverrides).toBe(0);
   });
 
-  it('hybrid boss templates keep at least one baseline scripted spawn per wave after due overrides', () => {
+  it('hybrid boss templates land every scripted spawn of every wave after due overrides', () => {
     const scenarios = [
       { act: 'act4', templateId: ACT4_BOSS_INTENT_TEMPLATE_ID, row: 11 },
       { act: 'act3', templateId: ACT3_DARK_CHAMPION_TEMPLATE_ID, row: 7 },
@@ -1159,9 +1161,9 @@ describe('HeadlessBattle', () => {
           (entry) => entry.waveType === 'scripted' && entry.waveIndex === waveIndex,
         );
         expect(due).toBeTruthy();
-        if (due) {
-          expect(due.spawnedCount).toBeGreaterThanOrEqual(1);
-        }
+        // An empty board: only terrain could refuse a spawn, and no override touches one
+        // (data/mapTemplates.json; validateMapTemplatesConfig refuses it).
+        expect(due.spawnedCount).toBe(wave.spawns.length);
         if (scenario.templateId === ACT4_BOSS_INTENT_TEMPLATE_ID) {
           const spawnedForWave = (schedule.spawns || []).filter(
             (spawn) => spawn.waveType === 'scripted' && spawn.waveIndex === waveIndex,

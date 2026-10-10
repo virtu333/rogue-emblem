@@ -85,6 +85,16 @@ function validRestoreFields(state, width, height) {
   )
     return false;
   if (
+    !optional(state, 'pendingHybridOverrideTiles', (value) =>
+      list(
+        value,
+        (entry) => tile(entry) && integer(entry.turn, 1) && text(entry.terrain),
+        width * height,
+      ),
+    )
+  )
+    return false;
+  if (
     !optional(state, 'zombieTombstones', (value) =>
       list(value, (tomb) => {
         const saved = tomb?.snapshot;

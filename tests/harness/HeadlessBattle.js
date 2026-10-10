@@ -187,6 +187,7 @@ import {
 import { selectEnemyWeaponArt } from '../../src/engine/EnemyArtScoring.js';
 import { bindEnemyAreaArt } from '../../src/engine/EnemyAreaArts.js';
 import { settleArtilleryStances } from '../../src/engine/SiegeArtillery.js';
+import { applyDueHybridOverrides } from '../../src/engine/TerrainPhases.js';
 import {
   buildRisenUnit,
   createRemains,
@@ -269,6 +270,7 @@ export class HeadlessBattle {
     this.reinforcementTemplatePool = null;
     this.lastReinforcementSchedule = null;
     this.appliedHybridOverrideTurns = new Set();
+    this.pendingHybridOverrideTiles = [];
     this.lastHybridOverrideResult = null;
     this._combatRollSession = null;
     this.runManager = options?.runManager ?? null;
@@ -330,6 +332,7 @@ export class HeadlessBattle {
     this.reinforcementTemplatePool = null;
     this.lastReinforcementSchedule = null;
     this.appliedHybridOverrideTurns = new Set();
+    this.pendingHybridOverrideTiles = [];
     this.lastHybridOverrideResult = null;
     this._combatRollSession = null;
     this._reinforcementsPendingThisTurn = false;
@@ -1055,56 +1058,21 @@ export class HeadlessBattle {
     return { ...schedule, spawned };
   }
 
+  // As BattleScene.applyDueHybridOverridesForTurn: engine/TerrainPhases.js is the one
+  // applier (deferral of an occupied tile included), never a copy.
   _applyDueHybridOverridesForTurn(turn) {
-    const normalizedTurn = Math.trunc(Number(turn) || 0);
-    const overrides = this.battleConfig?.phaseTerrainOverrides;
-    if (normalizedTurn <= 0 || !Array.isArray(overrides) || overrides.length === 0) {
-      const none = { turn: normalizedTurn, dueOverrides: 0, appliedOverrides: 0, changedTiles: 0 };
-      this.lastHybridOverrideResult = none;
-      return none;
-    }
-
     if (!(this.appliedHybridOverrideTurns instanceof Set)) {
       this.appliedHybridOverrideTurns = new Set();
     }
-
-    const dueOverrides = overrides.filter(
-      (entry) =>
-        Number.isInteger(entry?.turn) &&
-        entry.turn === normalizedTurn &&
-        !this.appliedHybridOverrideTurns.has(entry.turn),
-    );
-    if (dueOverrides.length === 0) {
-      const none = { turn: normalizedTurn, dueOverrides: 0, appliedOverrides: 0, changedTiles: 0 };
-      this.lastHybridOverrideResult = none;
-      return none;
-    }
-
-    let changedTiles = 0;
-    const anchors = this.battleConfig?.hybridAnchors || {};
-    for (const entry of dueOverrides) {
-      if (!Array.isArray(entry?.setTiles)) continue;
-      for (const setTile of entry.setTiles) {
-        const target = Array.isArray(setTile?.coord)
-          ? { col: setTile.coord[0], row: setTile.coord[1] }
-          : anchors?.[setTile?.anchor];
-        if (!target || !Number.isInteger(target.col) || !Number.isInteger(target.row)) continue;
-        const terrainIndex = this.gameData.terrain.findIndex(
-          (terrain) => terrain?.name === setTile?.terrain,
-        );
-        if (terrainIndex < 0) continue;
-        const didSet = this.grid?.setTerrainAt?.(target.col, target.row, terrainIndex);
-        if (didSet) changedTiles++;
-      }
-      this.appliedHybridOverrideTurns.add(entry.turn);
-    }
-
-    const result = {
-      turn: normalizedTurn,
-      dueOverrides: dueOverrides.length,
-      appliedOverrides: dueOverrides.length,
-      changedTiles,
-    };
+    const { result, pendingTiles } = applyDueHybridOverrides({
+      grid: this.grid,
+      battleConfig: this.battleConfig,
+      turn,
+      occupants: [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits],
+      appliedTurns: this.appliedHybridOverrideTurns,
+      pendingTiles: this.pendingHybridOverrideTiles,
+    });
+    this.pendingHybridOverrideTiles = pendingTiles;
     this.lastHybridOverrideResult = result;
     return result;
   }

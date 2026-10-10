@@ -57,6 +57,20 @@ Constraints:
 - Anchor coordinates must be in bounds.
 - Any anchor used by overrides or scripted waves must exist.
 - Multiple `setTiles` entries targeting the same destination in one phase entry are invalid.
+- A scripted spawn may not stand on an override's tile when its wave resolves on or after
+  that override's turn on any rung (`turnOffsetByDifficulty`, `actTurnOffset` and
+  difficulty.json's `reinforcementTurnOffset` applied): the override changes the tile at
+  the start of enemy phase T and the wave for T resolves at its end, so the spawn would be
+  blocked. `validateMapTemplatesConfig` refuses it.
+
+Runtime (`engine/TerrainPhases.js`, shared by BattleScene and the headless harness):
+- `applyTerrainSetTiles(grid, setTiles, anchors, { occupants })` is the one override
+  applier. It never writes terrain a unit standing on the tile could not stand on (its
+  move type); `Grid.setTerrainAt` stays a raw setter because restore goes through it.
+- A refused tile waits in `pendingHybridOverrideTiles` (`{ turn, col, row, terrain }`) and
+  is retried at each later enemy-phase start until it is free; a later override of the same
+  tile replaces it. The list rides the suspend checkpoint and the Vision snapshot
+  (`captureBattleWorldState`) and is validated by `validateBattleState`.
 
 ## 5. Affected Modules/Files
 
