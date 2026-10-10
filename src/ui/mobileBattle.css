@@ -49,6 +49,12 @@
   overflow-wrap: anywhere;
   margin: 4px 0;
 }
+.mb-gear {
+  font-size: 13px;
+  color: var(--re-text);
+  overflow-wrap: anywhere;
+  margin: 2px 0;
+}
 .mb-hp {
   font-size: 13px;
   color: var(--re-text);
