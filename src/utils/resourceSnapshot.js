@@ -47,6 +47,31 @@ function countOverlayOpenFromSceneState() {
   return open;
 }
 
+/**
+ * Whether a playing sound is one a scene can leak. A fire-and-forget one-shot
+ * (Phaser's `sound.play(key)`, which destroys the sound on `complete`; every
+ * `AudioManager.playSFX` effect is one) ends and removes itself, so it is not a
+ * leak however a transition falls: a few quick menu clicks leave as many 1.4 s
+ * effects playing into the next scene. Music (`loop`) always counts.
+ * @param {object} sound
+ * @returns {boolean}
+ */
+export function isLeakableSound(sound) {
+  if (!sound?.isPlaying) return false;
+  if (sound.loop ?? sound.currentConfig?.loop) return true;
+  const onComplete = sound.listeners?.('complete');
+  return !(Array.isArray(onComplete) && onComplete.includes(sound.destroy));
+}
+
+/**
+ * The number of playing sounds a scene can leak (`isLeakableSound`).
+ * @param {object} soundManager
+ * @returns {number}
+ */
+export function countLeakableSounds(soundManager) {
+  return soundManager?.sounds?.filter(isLeakableSound)?.length || 0;
+}
+
 export function captureResourceSnapshot(scene) {
   let sounds = 0;
   let tweens = 0;
@@ -54,7 +79,7 @@ export function captureResourceSnapshot(scene) {
   let objects = 0;
 
   try {
-    sounds = scene?.game?.sound?.sounds?.filter((s) => s?.isPlaying)?.length || 0;
+    sounds = countLeakableSounds(scene?.game?.sound);
   } catch (_) {}
   try {
     tweens = scene?.tweens?.getTweens?.()?.length || 0;

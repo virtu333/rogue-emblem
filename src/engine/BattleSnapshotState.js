@@ -2,6 +2,7 @@ import { normalizeSpecialCharacter } from './SpecialCharacterPolicy.js';
 import { migrateUnitTraits } from './TraitSystem.js';
 import { normalizeBattleRecruits, reconcileRecruitIdentities } from './BattleRecruits.js';
 import { normalizeFallenBattleRecords } from './DeedSystem.js';
+import { normalizePendingTerrainTiles } from './TerrainPhases.js';
 // Shared world-state contract for Vision and suspend. Unit arrays are restored
 // in snapshot order; references into that table survive JSON and duplicate names.
 const UNIT_GROUPS = ['playerUnits', 'enemyUnits', 'npcUnits'];
@@ -19,6 +20,8 @@ export function captureBattleWorldState(scene) {
     })),
     playerDeathsThisBattle: scene._playerDeathsThisBattle || 0,
     appliedHybridOverrideTurns: [...(scene.appliedHybridOverrideTurns || [])],
+    // Hybrid arena tiles a unit kept from walling, retried next enemy phase (TerrainPhases).
+    pendingHybridOverrideTiles: normalizePendingTerrainTiles(scene.pendingHybridOverrideTiles),
     latePressureWarningShown: scene._latePressureWarningShown === true,
     // Mid-battle recruits as they joined: the fallen record for a recruit who
     // dies before the battle ends (see BattleRecruits.js).
@@ -58,6 +61,10 @@ export function restoreBattleWorldState(scene, snapshot) {
   if (Array.isArray(snapshot.appliedHybridOverrideTurns)) {
     scene.appliedHybridOverrideTurns = new Set(snapshot.appliedHybridOverrideTurns);
   }
+  // Older snapshots predate deferral: nothing was waiting.
+  scene.pendingHybridOverrideTiles = normalizePendingTerrainTiles(
+    snapshot.pendingHybridOverrideTiles,
+  );
   // Older snapshots predate these lists: no mid-battle recruit or fallen record.
   scene._fallenBattleRecords = normalizeFallenBattleRecords(snapshot.fallenBattleRecords);
   scene._battleRecruits = normalizeBattleRecruits(snapshot.battleRecruits);
