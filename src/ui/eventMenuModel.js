@@ -13,6 +13,7 @@
 import { describeBurdens } from '../engine/Burdens.js';
 import { describeContract, describeOwedContract } from '../engine/Contracts.js';
 import { describeResult, num, plural, sentence, wornText } from '../engine/EventResultWords.js';
+import { choicePreviewText } from '../engine/EventChoicePreview.js';
 
 // The words of a result record live in the engine (EventResultWords), shared with the
 // contract's victory band; these two are re-exported for the pages that already import them.
@@ -41,6 +42,27 @@ export const RESULT_CHIPS = Object.freeze({
   mend: 'MEND',
   earnedBlessing: 'EARNED',
 });
+
+/**
+ * A choice's preview (eventView().choices[].preview, EventChoicePreview.choicePreview) as the
+ * page draws it: [{ lead, kind, text, details }], `kind` the lead in lower case for the row's
+ * class ('either', 'or', 'test', 'pass', 'fail'; '' for no lead). Empty for none.
+ */
+export function eventPreviewLines(preview) {
+  return (Array.isArray(preview) ? preview : [])
+    .filter((line) => line && typeof line.text === 'string' && line.text)
+    .map((line) => ({
+      lead: line.lead || '',
+      kind: /%$/.test(line.lead || '') ? 'odds' : String(line.lead || '').toLowerCase(),
+      text: line.text,
+      details: (line.details || []).filter((d) => typeof d === 'string' && d),
+    }));
+}
+
+/** The preview as one paragraph (the confirmation's words): "70%: … 30%: …". */
+export function eventPreviewText(preview) {
+  return choicePreviewText(eventPreviewLines(preview));
+}
 
 /** "150 G" for a gold cost (the seal on a choice), '' for a free one. */
 export function eventCostSeal(cost) {

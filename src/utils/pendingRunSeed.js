@@ -16,6 +16,20 @@ import { getSlotPendingSeedKey } from '../engine/SlotManager.js';
 
 export const PENDING_RUN_SEED_KEY = 'pendingBlessingRunSeeds';
 
+/**
+ * The storage to use: the injected one (tests; null means none), else the browser's. Reading
+ * `globalThis.localStorage` itself can throw (SecurityError when storage is denied), so it is
+ * resolved here, inside a guard, never in a default argument (those run outside the body's try).
+ */
+function resolveStorage(injected) {
+  if (injected !== undefined) return injected;
+  try {
+    return globalThis.localStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
 const slotOf = (registry) => {
   const slot = registry?.get?.('activeSlot');
   return Number.isInteger(Number(slot)) && Number(slot) > 0 ? Number(slot) : null;
@@ -66,10 +80,8 @@ const current = (entry, runsStarted) =>
  * @param {object} registry the game registry (`activeSlot`, the fallback map)
  * @param {{ runsStarted?: number, storage?: Storage|null }} [options]
  */
-export function readPendingRunSeed(
-  registry,
-  { runsStarted = 0, storage = globalThis.localStorage } = {},
-) {
+export function readPendingRunSeed(registry, { runsStarted = 0, storage: injected } = {}) {
+  const storage = resolveStorage(injected);
   const slot = slotOf(registry);
   if (slot !== null && storage) {
     try {
@@ -86,11 +98,8 @@ export function readPendingRunSeed(
  * Keep `seed` as the active slot's pending run seed (or clear it with null). Storage first; the
  * registry only when storage refuses, so a cleared slot never finds a stale registry copy.
  */
-export function writePendingRunSeed(
-  registry,
-  seed,
-  { runsStarted = 0, storage = globalThis.localStorage } = {},
-) {
+export function writePendingRunSeed(registry, seed, { runsStarted = 0, storage: injected } = {}) {
+  const storage = resolveStorage(injected);
   const slot = slotOf(registry);
   const entry = Number.isFinite(seed) ? { seed, runsStarted: countOf(runsStarted) } : null;
   let stored = false;

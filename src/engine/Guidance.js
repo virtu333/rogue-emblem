@@ -7,6 +7,8 @@
 //          veteran who should not take the kills…).
 //   Off    no field notes (the prologue stays available).
 //   Auto   Full for a save slot that has not finished a run yet, Light after.
+// The prologue reads the same level (prologueGuidanceAllows): Light drops its tips,
+// Off its field notes and guided steps too; its story, goal line and exits stay.
 // Every note shows at most once per save slot (HintManager ids) and never blocks
 // input. Legacy "hints: false" maps to Off.
 
@@ -35,6 +37,20 @@ export function guidanceAllows(level, tier) {
   if (level === 'off') return false;
   if (level === 'light') return tier === 'essential';
   return level === 'full';
+}
+
+/**
+ * What a prologue chapter shows at a Guidance level. kind: 'tip' (the non-blocking
+ * reinforcement: Full only), 'note' (the chapter's few blocking field notes, the deploy
+ * screen's included) and 'guided' (P1's guided steps: the select/move/confirm gates and
+ * their goals; as Skip step does). Light and Off are for a player who knows the genre:
+ * the lessons a hidden tip or note stood in for are never marked read, so Act 1 teaches
+ * them at their point of use where the level allows it.
+ */
+export function prologueGuidanceAllows(level, kind) {
+  if (kind === 'tip') return level === 'full';
+  if (kind === 'note' || kind === 'guided') return level !== 'off';
+  return true;
 }
 
 // scope: what a note talks about, so it can step aside once that is gone.
@@ -161,7 +177,7 @@ export function guidanceText(id, context = {}) {
     case 'guide_first_shop':
       return 'A shop: buy and sell here, and Forge makes a weapon stronger for gold. Every shop stocks its own wares; gold also pays for revivals and promotions.';
     case 'guide_first_event':
-      return "An event: choose how to meet it. You won't see what a choice brings until you make it, but the words are honest.";
+      return 'An event: choose how to meet it. Each choice lists everything it can bring, with the odds when it is a gamble.';
     case 'guide_first_church':
       return 'A church: Heal all is free, and the fallen revive for gold. Each church takes one vow: a promotion or a blessing, not both.';
     case 'guide_prepare':

@@ -36,8 +36,8 @@ const ROUTE_PLACE = Object.freeze({
   colosseum: 'colosseum',
   event: 'event',
 });
-const placeName = (type) => ROUTE_PLACE[type] || String(type || 'place');
-const withArticle = (word) => `${/^[aeiou]/i.test(word) ? 'an' : 'a'} ${word}`;
+export const placeName = (type) => ROUTE_PLACE[type] || String(type || 'place');
+export const withArticle = (word) => `${/^[aeiou]/i.test(word) ? 'an' : 'a'} ${word}`;
 
 /** The skill's display name from the catalog (the id itself when it is unknown). */
 function skillName(gameData, id) {

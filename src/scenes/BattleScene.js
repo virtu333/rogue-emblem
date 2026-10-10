@@ -4049,7 +4049,7 @@ export class BattleScene extends Phaser.Scene {
       // Placement: close the detail view or inspection first, then the tile choice;
       // with nothing to back out of, Back opens the formation menu.
       if (this.unitDetailOverlay?.visible) this.unitDetailOverlay.hide();
-      else if (this.inspectionPanel?.visible) this.clearInspectionVisuals();
+      else if (this._formation.hasInspection()) this.clearInspectionVisuals();
       else if (!this._formation.cancel() && allowPause) this._formation.openMenu();
       this.refreshEndTurnControl();
       return true;

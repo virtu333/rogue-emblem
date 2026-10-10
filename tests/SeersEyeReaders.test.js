@@ -195,7 +195,6 @@ const DEFINITION = /^\s*(?:export\s+)?(?:function\s+)?(?:isVisible|isTileSeen)\s
 const ALLOWED = {
   'src/scenes/BattleScene.js': [2, 'terrain: a wall a foe made or broke, told only where seen'],
   'src/ui/CombatFxController.js': [1, "ballista: the engine's tile, not a unit"],
-  'src/ui/InputController.js': [1, "ballista: an enemy ballista's range, shown only when seen"],
   'src/ui/PrologueController.js': [1, 'prologue: never under the Eye (no blessings)'],
   'src/ui/PrologueCoach.js': [1, 'prologue: never under the Eye (no blessings)'],
   'src/ui/battleSidebarDisplay.js': [1, "the caravan's last tile (a green unit, never a foe)"],

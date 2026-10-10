@@ -132,6 +132,8 @@ const STATIC_HELP_TABS = [
         lines: [
           { text: 'Enemy Mages/Sages/Bishops may carry', color: CYAN },
           { text: 'status staves on higher difficulties.' },
+          { text: 'Danger shows their staff reach as a', color: GRAY },
+          { text: 'purple outline: Sleep or Silence.', color: GRAY },
           { text: '' },
           { text: 'Countermeasures:', color: GOLD },
           { text: '  Herb - cures all conditions (2 uses)' },
@@ -876,7 +878,7 @@ export const HOW_TO_PLAY_PAGES = [
         mobileText: 'Tap Danger to toggle the danger zone',
         color: GRAY,
       },
-      { text: '(shows all enemy threat ranges).', color: GRAY },
+      { text: '(enemy ranges. Purple edge: status staff)', color: GRAY },
     ],
   },
   {
