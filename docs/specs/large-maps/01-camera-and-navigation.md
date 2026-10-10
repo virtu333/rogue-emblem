@@ -1,7 +1,8 @@
 # Large maps 01: camera and navigation
 
-Status: proposal, revision 3 (2026-10-09). Takes in the cross-review of the spec set and
-`05`'s notes (boss signature tells).
+Status: proposal, revision 4 (2026-10-10). Takes in the cross-review of the spec set,
+`05`'s notes (boss signature tells) and the owner's decisions of 2026-10-10 (README §6: the
+opening view and the minimap).
 Specs only: no game code or data changes yet.
 Branch `claude/large-maps-specs`. Shared names, pillars and size bands are in
 [`README.md`](README.md); this spec follows them.
@@ -176,8 +177,8 @@ one exists (`:174-205`).
 - **Overview** is the whole board, with half-tile margins:
   - desktop `minZoom = min(1, fit)`;
   - phones as today.
-- **The opening view** is Overview (home on desktop) on every device; this is README
-  question 5 (§6).
+- **The opening view** is Overview (home on desktop) on every device. **Decided by the owner
+  (2026-10-10, README §6):** the desktop opens on the whole board.
   - At 24x16, desktop fit is 42–57 CSS px a tile on common windows.
   - On phones the first selection, Recenter or jump goes to tactical zoom.
 - **Tactical zoom:**
@@ -398,7 +399,8 @@ below the readable zoom.
 
 ### 2.9 Overview, not a minimap
 
-Recommendation (README question 6): no minimap now.
+**Decided by the owner (2026-10-10, README §6): no minimap until the first set pieces are
+playtested.** The reasons:
 - Overview is already a map, at 19–20 CSS px a tile on phones at 24x16.
 - A corner minimap there would be 3–5 CSS px a tile, unreadable for fog, faction and the
   view rectangle, and would cost a rail cell or cover the board.
@@ -601,19 +603,24 @@ PRs 1 and 2 come first, because every later PR moves the camera. PR 6 is indepen
   phones, PR 8 (the off-screen pointers).
 - The desktop camera (PRs 3-5), enemy-phase follow (PR 7) and pointers (PR 8) are required
   before Long Road to the Keep (22x14) and The Emperor's Parade (24x14).
+- **Dusk never needs them** (README §6, the 2026-10-10 rung ladder): Dusk takes only set
+  pieces of 20x12 or less and no boss set piece, so every board it meets fits the desktop at
+  zoom 1. The boards over 20 wide (Long Road, the Parade, the Dueling Halls, the Battery,
+  Break the Gate, Sanctum of Echoes) are Nightfall and up.
 
 **Deferrable for the first shipment.** None of these blocks a set piece, and each may be
 dropped or postponed:
 - widescreen rendering (B, §2.2) and device-resolution rendering (C, §2.2, §2.11): PR 10;
 - the desktop "Map camera: Fixed" setting (§2.3, §3) and its row in PR 3;
-- the minimap debate (§2.9, open question 2): no minimap is built.
+- the minimap (§2.9): none is built (decided, 2026-10-10).
 
 ## 6. Open questions for the owner
 
-1. **Desktop opening view** (README question 5). Recommended: the whole board. It is
+1. **Decided (owner, 2026-10-10): the desktop opens on the whole board** (README §6). It is
    today's view for every current map, readable at 24x16 on desktop, and the phone rule.
-   The alternative is tactical zoom on the army.
-2. **Minimap** (README question 6). Recommended: none until after the Phase 4 playtests.
+   The alternative was tactical zoom on the army.
+2. **Decided (owner, 2026-10-10): no minimap** until the first set pieces are playtested
+   (after the Phase 4 playtests; §2.9 says how one would be built).
 3. **Widescreen desktop (B)**: is it worth the overlay audit?
 4. **Device resolution:** fund `uiViewport()` for desktop (C)? Turn the phone path on for
    large boards after the frame-time pass?
@@ -630,7 +637,8 @@ dropped or postponed:
 All items below were adopted in README revision 2 and are resolved.
 
 - **Resolved:** §6 questions 5 and 6 now carry 01's recommendations (the whole board; no
-  minimap until the first set pieces are playtested).
+  minimap until the first set pieces are playtested). The owner decided both as recommended
+  on 2026-10-10.
 - **Resolved:** the anchors field is `battleConfig.anchors`, `{ <name>: { tiles } }`. 01
   reads it for markers and pointers.
 - **Resolved:** Phase 0 gets the desktop [N] drift (§1.5.1) and the heal banner that names
@@ -655,3 +663,10 @@ All items below were adopted in README revision 2 and are resolved.
 - Takes in `05`'s notes: a "boss signature resolves" beat (§2.7), the boss's pointer promoted
   while its tell is pending, behind a commander at half HP (§2.8), and the tell outline's
   dash style (§2.11).
+
+## Revision 4 changelog (2026-10-10)
+
+- The owner decided README questions 5 and 6 (README §6, 2026-10-10): the desktop opens on the
+  whole board (§2.3, Q1) and no minimap is built until the set pieces are playtested (§2.9,
+  §5, Q2). §5 notes that Dusk, which now takes only boards of 20x12 or less, never needs the
+  desktop camera.

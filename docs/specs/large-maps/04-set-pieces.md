@@ -1,8 +1,10 @@
 # Set pieces: authored skeletons, chunks and seeded choices
 
-Status: proposal, revision 4 (2026-10-09). Takes in the cross-review of the spec set,
-`05`'s notes (boss picks, `signatureOverride`, the Parade's wake, the finale share) and a
-review finding on the old-client guard (§12.1: derived from capabilities, not from `setPiece`).
+Status: proposal, revision 5 (2026-10-10). Takes in the cross-review of the spec set,
+`05`'s notes (boss picks, `signatureOverride`, the Parade's wake, the finale share), a
+review finding on the old-client guard (§12.1: derived from capabilities, not from `setPiece`)
+and the owner's rung ladder of 2026-10-10 (README §6: Dusk takes only set pieces of 20x12 or
+less and no boss set piece).
 Specs only: no game code or data changes.
 Branch `claude/large-maps-specs`. Roadmap phases 4–6 of the [README](README.md).
 - Depends on `02` (encounter groups, triggers, contact-relative waves, the par formula, the
@@ -77,7 +79,7 @@ post-pass places set pieces without touching the node-map stream.
 |---|---|---|
 | `data/setPieces.json` | `{ version, setPieces: [skeleton…] }` | `public/data/` by `sync-data`, as every data file |
 | `data/mapChunks.json` | `{ version, legend, ports, chunks: [chunk…] }` | same |
-| `difficulty.json` `modes.<rung>.setPieces` | placement chances per rung (§6) | snapshotted into `difficultyModifiers`, as `routLadder` |
+| `difficulty.json` `modes.<rung>.setPieces` | placement chances per rung and Dusk's `maxSize` (§6.1) | snapshotted into `difficultyModifiers`, as `routLadder` |
 | `src/data/setPieceContent.js` | telegraph lines, region labels for markers, the node card's line | — |
 
 Two files, not one: chunks are shared across set pieces (a `ford_shallow` serves the Mill
@@ -433,17 +435,34 @@ All of this runs inside the caller's `withBattleSeed(battleSeed)`.
 **Proposed rung table** (`difficulty.json` `modes.<id>.setPieces`; every rung needs an entry,
 validated like the other rung tables):
 
-| Rung | ordinary chance per act (III / IV) | elite chance per node | boss share (III / IV) | finale share |
-|---|---|---|---|---|
-| First Light | 0 / — | 0 | 0 / — | — (the Lieutenant) |
-| Dusk | 0.5 / 0.5 | 0.25 | 0.5 / 0.5 | — (ends at the Emperor) |
-| Nightfall | 0.6 / 0.6 | 0.3 | 0.5 / 0.5 | 0 (Sanctum of Echoes is Black Sun's, `05` §8.2) |
-| Black Sun | 0.7 / 0.7 | 0.35 | 0.5 / 0.5 | 0.5 |
+| Rung | ordinary chance per act (III / IV) | elite chance per node | boss share (III / IV) | finale share | largest set piece (`maxSize`) |
+|---|---|---|---|---|---|
+| First Light | 0 / — | 0 | 0 / — | — (the Lieutenant) | — (none placed) |
+| Dusk | 0.5 / 0.5 | 0.25 | **0 / 0** (owner decision, 2026-10-10) | — (ends at the Emperor) | **20x12** (owner decision, 2026-10-10) |
+| Nightfall | 0.6 / 0.6 | 0.3 | 0.5 / 0.5 | 0 (Sanctum of Echoes is Black Sun's, `05` §8.2) | absent: README §2's bands |
+| Black Sun | 0.7 / 0.7 | 0.35 | 0.5 / 0.5 | 0.5 | absent: README §2's bands |
 
 First Light's runs have no Act IV (`difficulty.json` `normal.actsIncluded` is Acts I–III
 and the final boss), so its Act IV cells are "—". With §1's node counts, a Nightfall route that ignored the tags would meet about 0.4 ordinary
 and 0.5 elite set pieces in Acts III–IV, plus about one boss set piece. The tags let a player
 seek them out or avoid them. (Why per act, not per node: Notes 2.)
+
+**The rung ladder** (owner decision, 2026-10-10, README §6): no set piece on First Light;
+on Dusk only ordinary, elite and event set pieces of standard size and no boss set piece;
+every set piece from Nightfall, the finale variant on Black Sun only.
+- **`maxSize: [cols, rows]`** is a rung gate. `pick` (§6.2) and the event hook (§6.5) leave
+  out a set piece whose size exceeds either figure. Absent, README §2's bands bound the rung.
+- **Validated** like First Light's zeros: the validator refuses a Dusk entry with a boss or
+  finale share above 0, or with no `maxSize` or one above `[20, 12]`.
+- **What Dusk meets:** The Mill Ford (20x12), Two Towers (20x12), Rival Band (18x10),
+  Caravan Under Siege (20x12) and The Burning Village (18x12). Hunting Party (20x13) and
+  Break the Gate (22x12) are over the size, so they are Nightfall and up as sketched;
+  trimming Hunting Party to 20x12 would bring it to Dusk (a content decision for its PR).
+  Act IV's ordinary slot has nothing that fits on Dusk until an Act IV ordinary set piece of
+  that size exists; the keyed draw is still taken, so nothing moves.
+- **Dusk's boss maps** are `05`'s kits on today's maps and the arena variants (`05` §9.5).
+  A Dusk route therefore meets ordinary and elite set pieces only, and every board it meets
+  fits the desktop at zoom 1 (`01` §5).
 
 ### 6.2 Assignment: a keyed post-pass
 
@@ -469,7 +488,7 @@ assign(n, sp): n.battleParams.setPieceFallback = { objective, hasVillage, fogEna
 ```
 
 - `pick` is weighted by each set piece's `weight`, after `acts`, `slots`, `replaces`, rung
-  gates and `setPiecesOffered`.
+  gates (the rung's `maxSize` included, §6.1) and `setPiecesOffered`.
 - `05`'s arena post-pass (`BossKit.assignBossArenas`, `05` §4.4) runs right after this one
   at both sites, on its own keys; a boss node this pass gave a set piece keeps it.
 - Every call builds a fresh keyed generator. There is no shared cursor, so the order of the
@@ -501,9 +520,9 @@ assign(n, sp): n.battleParams.setPieceFallback = { objective, hasVillage, fogEna
 `events.json` `battle` gains `setPiece: "<id>"`:
 - `applyBattle` (`EventEffects.js:1071`) runs `convertNodeToRoutBattle` exactly as today,
   inside the same seeded swap.
-- Then, if the set piece fits the act and rung, it sets `battleParams.setPiece` and the
-  legacy `objective`. Otherwise the event fights its procedural rout, so the event still
-  works on a rung where the set piece is gated.
+- Then, if the set piece fits the act and rung (the rung's `maxSize` included, §6.1), it sets
+  `battleParams.setPiece` and the legacy `objective`. Otherwise the event fights its
+  procedural rout, so the event still works on a rung where the set piece is gated.
 - `EventValidation` checks that the id exists, that the set piece has the `event` slot, and
   that its acts cover the event's acts.
 
@@ -684,8 +703,8 @@ The kept ones:
 |---|---|---|---|---|---|---|---|
 | The Mill Ford | 20x12 | ordinary III | rout / `visit` the mill (race) | ford picket (`picket`), bridge hold (`dormant`: `danger`, `hurt`), mill guard (`dormant`: `groupWoken` bridge, `danger`, `hurt`), raiders (`awake`, `seek` village, written on the spawns), reserve (`dormant`: `danger`, `hurt`, `objective` village `on: done`, `turn parOffset −3`) | crossing N/S; mill N/S; bridge and ford variants | VillageSystem raze, Ballista feature | none beyond `02`/`03` |
 | Two Towers | 20x12 | elite III–IV | `defeat` both captains / `reach` the armoury inside the first tower | road patrol (`patrol`), two garrisons (`dormant`: `danger`, `hurt`, `objective` the other captain `on: done`) | tower rows (4); fillers; armoury tower; stone bearer (Black Sun) | `eliteCaptains`, stones, `03`'s per-unit `clampTile` | none beyond `02`/`03` |
-| Long Road to the Keep | 22x14 | boss III | seize / `claim` the gatehouse ballista (Nightfall+) or `reach` the armoury (Dusk), `05` §8.3 | road picket, outer camp (`dormant`), gate and throne guards (`dormant`), sally (`dormant`: `groupWoken` camp, `turn parOffset −4`); phase *drawbridge* on the sally's trigger | road ridge/marsh; postern N/S; variants | throne clamp, actBoss stones | `TerrainPhases` (`02` §2.2) |
-| The Emperor's Parade | 24x14 | boss IV | seize / `slay` the standard-bearer (a column General, not the guard) before the column would be seated | column (`patrol`, `loop: false`, route to the throne), two side pods (`dormant`: `groupWoken` column), palace guard (`dormant`), gate wave (Nightfall+, `triggeredWaves` `afterContact 3`) | avenue or north street; strong flank; palace variant | emperor stones, `02`'s column, `tile by: group` | the clamp waits for a marching column (§10.4) |
+| Long Road to the Keep | 22x14 | boss III (Nightfall+) | seize / `claim` the gatehouse ballista, `05` §8.3 (the `reach` armoury stays authored as the fallback where no ballista is placed) | road picket, outer camp (`dormant`), gate and throne guards (`dormant`), sally (`dormant`: `groupWoken` camp, `turn parOffset −4`); phase *drawbridge* on the sally's trigger | road ridge/marsh; postern N/S; variants | throne clamp, actBoss stones | `TerrainPhases` (`02` §2.2) |
+| The Emperor's Parade | 24x14 | boss IV (Nightfall+) | seize / `slay` the standard-bearer (a column General, not the guard) before the column would be seated | column (`patrol`, `loop: false`, route to the throne), two side pods (`dormant`: `groupWoken` column), palace guard (`dormant`), gate wave (Nightfall+, `triggeredWaves` `afterContact 3`) | avenue or north street; strong flank; palace variant | emperor stones, `02`'s column, `tile by: group` | the clamp waits for a marching column (§10.4) |
 | Caravan Under Siege | 20x12 | event, ordinary III | `escort` the caravan / `slay` the raid captain | ring (`picket`), two flank waves (`triggeredWaves`, side relative to the caravan) | exit edge; start chunk; chaser weights | CaravanSystem, `03`'s `advanceEscort` | none beyond `03` |
 | Hunting Party | 20x13 | elite III | `assassinate` the target / `unbloodied` | the target's escort (`dormant`, `onWake: seek` exit), lane pickets (`sight`, `danger`) | 2–3 lanes; exit edge; escort class | `03`'s `calibrateFlight` | none beyond `03` |
 | Break the Gate | 22x12 | ordinary/event IV | `destroy` the gate, then seize (phases) / `claim` a ballista | outer pod (`picket`), inner `dormant`, sally `turn parOffset −2` if not breached | gate L/C/R; postern; ballista side; bridge segments | `03`'s Gate and Strike | none beyond `03` |
@@ -696,6 +715,11 @@ The kept ones:
 `05` §8 adds two boss set pieces to this catalogue, the Dueling Halls (Act III, 22x12) and
 the Battery (Act IV, 24x14, Nightfall+), refines Long Road, the Parade and Sanctum of Echoes
 (below and `05` §8.3, §8.4, §8.7), and lists them in `05` §8.8.
+
+**By rung** (§6.1, owner decision 2026-10-10): every boss set piece is Nightfall and up, and
+Sanctum of Echoes Black Sun only. Dusk takes the kept maps of 20x12 or less (The Mill Ford,
+Two Towers, Rival Band, Caravan Under Siege, The Burning Village); Hunting Party (20x13) and
+Break the Gate (22x12) wait for Nightfall as sketched. First Light takes none.
 
 ## 10. The first four
 
@@ -928,18 +952,21 @@ the good road): 10–11, as the cheaper of the gate and postern plans (gate 11; 
   at start.
 
 **Rungs:**
-- Stones: 0 on First Light and Dusk, 1 on Nightfall and Black Sun, so the boss leg is +1 there.
-  Black Sun's extra members go to the sally, which comes to the player, so the estimate stays
-  ≤ 12.
-- Nightfall+: the sally fallback is `turn parOffset −5`.
-- **Bonus** (`05` §8.3): `claim` the gatehouse ballista on Nightfall+ (under §3.2's Ballista
-  anchor rule; it covers the moat), else `reach` the armoury on Dusk.
+- Placed on Nightfall and Black Sun only (§6.1, owner decision 2026-10-10).
+- Stones: 1 on both (`actBoss`), so the boss leg is +1. Black Sun's extra members go to the
+  sally, which comes to the player, so the estimate stays ≤ 12.
+- The sally fallback is `turn parOffset −5`.
+- **Bonus** (`05` §8.3): `claim` the gatehouse ballista (under §3.2's Ballista anchor rule,
+  which places it on every rung this map meets; it covers the moat). The `reach` armoury,
+  written for Dusk before Dusk lost boss set pieces, stays authored as the fallback should
+  the ballista not be placed.
 
 ### 10.4 The Emperor's Parade (Act IV boss, 24x14)
 
 **Why this one.** The Emperor is Act IV's only boss (`enemies.json` `bosses.act4`): every run
-that reaches Act IV fights him, and on Dusk it is the last battle. Only the bastion (about 17%
-of Act IV boss maps) gives that fight a shape today. It is also the first map to prove a
+that reaches Act IV fights him, and on Dusk it is the last battle (fought there on today's
+maps with his kit, never the Parade: §6.1). Only the bastion (about 17% of Act IV boss maps)
+gives that fight a shape today. It is also the first map to prove a
 *moving* objective (`02`'s routed group), which Caravan Under Siege and Hunting Party reuse.
 
 ```
@@ -1023,8 +1050,9 @@ until its column reaches its last anchor. The arrival trigger is `02`'s `tile` w
 `by: { group }`. The clamp gate ships first in `05` K2, for the Dark Rider's patrol (one
 boss, one route); PR F reuses it (if PR F lands first, it ships the gate and K2 reuses it).
 
-**Rungs:** emperor stones 1 / 1 / 2 on Dusk / Nightfall / Black Sun (`difficulty.json`
-`revivalStones.emperor`; First Light has no Act IV); the gate wave from Nightfall.
+**Rungs:** placed on Nightfall and Black Sun only (§6.1, owner decision 2026-10-10);
+emperor stones 1 / 2 there (`difficulty.json` `revivalStones.emperor`); the gate wave on
+both.
 
 ## 11. Authoring workflow and tooling
 
@@ -1122,17 +1150,19 @@ stale web tab, fetches the row another device pushed.
 **It is not only set pieces.** The same specs put new mechanics on maps that are not set
 pieces: encounter groups beyond today's hold packs (`02` §3.5), phases and `groups-v1` par
 on any config with written `objectives` (`03`, `02` §5.2), and `05`'s boss kits, signatures
-and arena variants on every boss battle, First Light included (`05` §9.5). The boss
+and arena variants on boss battles from Act II, First Light included (its kits are
+signature-only, `05` §9.5). The boss
 enhancements also ship on their own track, before any set piece (`05` §12). A marker keyed
 on `setPiece` misses all of them. The failure it lets through:
-1. A new client starts a First Light Act I boss battle with the Iron Captain's kit
-   (`05` §7.1).
+1. A new client starts a First Light Act II boss battle with the Archmage's kit, which on
+   First Light is the Calculation alone (`05` §7.2, §9.5; Act I's bosses carry no kit on any
+   rung, owner decision 2026-10-10).
 2. First Light never gets set pieces, so no `setPiece` is anywhere and the marker stays
    absent.
 3. The run syncs as an ordinary format-1 save.
 4. An older client loads it, plays the old boss rules, and writes a checkpoint that drops the
    kit's state (`bossState`: the pending tell, the signature count). The next resume on a
-   newer client finds a phase with no signature state.
+   newer client finds a signature with no tell, or a volley told that never resolves.
 
 So the required format is **derived from the mechanics the run holds**, not from any one
 feature's field.
@@ -1193,7 +1223,7 @@ top-level run fields.
 | `parModel` | — | `parModel` (any value) | via the config | — |
 | `objectives` | `battleParams.objectivePreview` | `objectives` that `normalizeObjectives` would not derive from the same config: more than one primary, a kind outside rout / seize / escape, any `phases`, a bonus other than the derived `village` / `caravan`, `parAdjust` ≠ 0; `npcAllies`; a spawn with `clampTile` or `objectiveRef` | `objectiveState` with `phase` > 0, an entry in `points`, `escorted`, `fled` or `floors`, a `thrones` or `status` id the derivation would not hold, or a `structures` entry | `bonusVisionActs` (`03` §12: saved only when Vision rewards are on) |
 | `gateTerrain` | — | `structures` non-empty | terrain index 19 anywhere in `mapLayout` | — |
-| `bossKit` | a `boss` node, once the run field holds: an unentered boss node is a kit boss | `bossKit`, `bossSignature`; a boss spawn with `bossKit` | `bossState` with any entry (`signature.pending`, `firedTurns`, `count`, `marked`, `pillars`, `musicLatch`); a unit with `bossKit` | `difficultyModifiers.bossKits.enabled` is true (`05` §10.1's snapshot, taken at run start; true on any rung with kits switched on, First Light included) |
+| `bossKit` | a `boss` node of Act II or later, once the run field holds: an unentered boss node there is a kit boss (Act I's bosses are `kitless`) | `bossKit`, `bossSignature`; a boss spawn with `bossKit` | `bossState` with any entry (`signature.pending`, `firedTurns`, `count`, `marked`, `pillars`, `musicLatch`); a unit with `bossKit` | `difficultyModifiers.bossKits.enabled` is true (`05` §10.1's snapshot, taken at run start; true on any rung with kits switched on, First Light included) |
 | `arena` | `battleParams.arenaVariant` (`05` §4.4's post-pass writes it on every node it rewrites, variant 0 included, so detection never needs the template catalogue) | `arenaVariant` in the params the config came from | `battleInProgress.battleParams.arenaVariant` | — |
 | `setPiece` | `battleParams.setPiece` or `setPieceFallback`; `objectivePreview` | `setPiece`; a `templateId` beginning `setpiece:`; `formationSpares` | via the config | `setPiecesOffered` |
 
@@ -1299,7 +1329,7 @@ Realistic failures first; each is one test, and each is shown to fail once by pl
 | 11 | the rung leaks | class gates, `difficultyFilter` bosses and stones per rung, read off the spawns |
 | 12 | counts ignore the rung | the total is `rollEnemyCount` + bonus on each rung; the split is stable |
 | 13 | a data edit changes an entered map | edit a locked map's chunk in data: the map is unchanged; an unknown id falls back to the template without throwing |
-| 14 | placement limits broken | ≤ 1 ordinary and ≤ 2 elite per act, never adjacent, none on First Light (any slot), none in the prologue or after `fromJSON` of an old save |
+| 14 | placement limits broken | ≤ 1 ordinary and ≤ 2 elite per act, never adjacent, none on First Light (any slot), on Dusk none above 20x12 and no boss or finale set piece (an event naming Break the Gate fights its procedural rout there), none in the prologue or after `fromJSON` of an old save; the validator refuses a Dusk entry with a boss share above 0 or a `maxSize` above `[20, 12]` |
 | 15 | later changes to a node | the Eclipse keeps the set piece as elite; `rebuildNodeAs` drops it; `hasVillage` matches |
 | 16 | a bad event hook | `battle.setPiece` outside the acts or slot fails `EventValidation`; a gated rung fights a procedural rout |
 | 17 | scene and harness differ | every combination plays to the end (§11); scene and harness generate equal configs (`GridParity` style) |
@@ -1308,7 +1338,7 @@ Realistic failures first; each is one test, and each is shown to fail once by pl
 | 20 | a bonus fights the primary | replant revision 1's Two Towers armoury (behind the far tower's back door): check 9 fails and names the combination; a `slay` on the Emperor fails check 9 |
 | 21 | the fallback plays the wrong map | an elite node with an unknown set-piece id plays its seize template as a seize (`setPieceFallback` restored), not as a rout |
 | 22 | par counts the walk twice | a Two Towers config: locked par equals `02` §5.2's `groups-v1` on the written `parRoute` (hand-computed W and S), and `parAdjust` equals the hand-summed non-walk terms only (0 on Dusk; 1 on Black Sun, the stone bearer's bar) |
-| 23 | a mechanic that is not a set piece slips past the guard (the review's P1) | **Regression fixture: a First Light, non-set-piece boss run with a boss kit.** `difficultyId: 'normal'`, Act I, a procedural seize template, the Iron Captain's compiled kit (`05` §7.1), `bossKits.arenaShare` 0 so `arena` is not what holds it. Three states: (a) act start, the snapshot has `bossKits.enabled` and the boss node is unentered; (b) the boss config locked; (c) a suspend checkpoint after the Captain's first aura tell. A deep key scan asserts none of `setPiece`, `setPieceFallback`, `setPiecesOffered`, `objectivePreview` or a `setpiece:` template id appears in any state. Required, by hand from the kit's data: (a) `requiredRunFormat` = format 2, `['bossKit']`; (b) and (c) add `encounters` (the `line` court guards the gate), `objectives` (the phase record) and `parModel` (`groups-v1`). `toJSON` writes `requiresClient: 2` and the ids; a copy with both fields deleted still scores format 2, so `isLocalOnlyRunSave` is true; **the cloud hold-back holds it**: `pushRunSave` returns `{ queued: false, reason: 'format_local' }` and queues nothing, `pushChosenLocalRun` deletes the replaced cloud run instead of pushing, `listLocalOnlySaves` and `backupAllLocalSlots` report it `newFormat` and leave it out of the batch. A client simulated at `RUN_FORMAT` 1, or one whose `CLIENT_CAPABILITIES` lacks `bossKit`, gets null from `loadRun` and its slot string is unchanged. Plant: derive the format from `setPiece` alone, and all three states fail |
+| 23 | a mechanic that is not a set piece slips past the guard (the review's P1) | **Regression fixture: a First Light, non-set-piece boss run with a boss kit.** `difficultyId: 'normal'`, Act II (Act I's bosses have no kit on any rung, owner decision 2026-10-10), a procedural seize template, the Archmage's compiled First Light kit (`05` §7.2, §9.5: signature-only, the Calculation on 2 tiles and never lethal; no court, phase or bonus), and First Light's `bossKits.arenaShare` 0 (validated) so `arena` is not what holds it. Three states: (a) Act II start, the snapshot has `bossKits.enabled` and the boss node is unentered; (b) the boss config locked; (c) a suspend checkpoint after the Archmage's first Calculation tell. A deep key scan asserts none of `setPiece`, `setPieceFallback`, `setPiecesOffered`, `objectivePreview` or a `setpiece:` template id appears in any state. Required, by hand from the kit's data: (a), (b) and (c) all give `requiredRunFormat` = format 2, `['bossKit']` and nothing else: a signature alone is still a kit (`bossKits.enabled` in (a), `bossKit` / `bossSignature` in the config in (b), `bossState.signature.pending` in (c)), while the signature-only compile writes no group, phase or `objectives`, so `encounters`, `objectives` and `parModel` are absent (asserted, so a First Light compile that leaked a court or a phase fails here too). `toJSON` writes `requiresClient: 2` and the ids; a copy with both fields deleted still scores format 2, so `isLocalOnlyRunSave` is true; **the cloud hold-back holds it**: `pushRunSave` returns `{ queued: false, reason: 'format_local' }` and queues nothing, `pushChosenLocalRun` deletes the replaced cloud run instead of pushing, `listLocalOnlySaves` and `backupAllLocalSlots` report it `newFormat` and leave it out of the batch. A client simulated at `RUN_FORMAT` 1, or one whose `CLIENT_CAPABILITIES` lacks `bossKit`, gets null from `loadRun` and its slot string is unchanged. Plant: derive the format from `setPiece` alone, and all three states fail |
 | 24 | a new mechanic or field nobody classified | `RunFormatRegistry.test.js`: a key census over a corpus (every template × rung × act, 50 seeds, every data switch on). Every key in a node's `battleParams`, a locked config, a checkpoint's state objects and the run's top level is in `RUN_FORMAT_FIELDS` as inert, legacy-equivalent or owned by a capability id; an unlisted key fails with its path. Every id `requiredRunFormat` returns is in `CLIENT_CAPABILITIES` (a client never writes what it can't read). Plant: add a config key with no registry line |
 | 25 | a legacy-equivalent run is held (the false positive) | Dusk+ seize and escape maps with hold packs (`hold:<pack>` groups, derived village and caravan, a mirroring `objectiveState`, an empty `bossState`, kits and arenas switched off): `requiredRunFormat` = format 1, no ids, no marker written, the run pushes as before. The prologue stays local-only with `kind: 'prologue'`, unmarked. Plant: count any `encounterGroups` as `encounters` |
 | 26 | a run falls back to format 1 mid-life | the ratchet: a run holding `bossKit` that advances its act (configs pruned, boss node done) still writes `requiresClient: 2` with the ids it had; a run loaded from a format-1 save gains none. Plant: write only the derived ids |
@@ -1338,7 +1368,7 @@ that stays specified here but that nothing in the first shipment waits on.
 | A0 | **The run-format guard** (§12.1), in this spec because the first writer was a set piece, but owned by no one feature: `engine/RunFormat.js` (the capability table, `requiredRunFormat`, `runFormatBlock`, `RUN_FORMAT_FIELDS`), `RUN_FORMAT` and `CLIENT_CAPABILITIES`, the `toJSON` marker and its ratchet, the loader refusal and `RunFormatError`, the slot card (`needsNewerClient`), `CLOUD_SAFE_RUN_FORMAT` and the widened `isLocalOnlyRunSave` (`reason: 'format_local'`, `kind: 'newFormat'`); tests 19, 23–26. It writes no capability itself | nothing | 2–3 days |
 | A | Format and validator: the two data files with test chunks only, `SetPieceFormat.js`, `SetPieceValidation.js` in `validate:data` (checks 1–9), sync, parity; tests 4–8, 20. **Later**: `mirrorX` and `rot180` (`mirrorY` and the whole-map mirror stay), `byRung` patches, the 256-combination cap and its timing budget | nothing | 2–3 days (2 trimmed) |
 | B | Generator: `generateBattle` dispatch, `SetPieceGenerator.js` (assembly, fill scope, groups to spawns, awake `onWake` on spawns, gear chain, `formationSpares`, `parRoute`, `setPieceFallback`, config fields), `HeadlessBattle` deps, the dev route, the preview tool; tests 9–13, 17–18, 21 | A, A0; `02` PR 2.1 (the group schema, initially awake `onWake`), `02` PR 2.5 (the par PR: `groups-v1` over `parRoute`; or `02`'s stopgap, `max(calculatePar(rout), estimate + 3)`, calibrated later). Not `03`: the Mill Ford writes no `objectives` (§3.7) | 4–5 days |
-| C | The Mill Ford and placement: `SetPiecePlacement.js`, the `difficulty.json` table, the RunManager hooks, the loom tag and place helper, the node pip, `sim/pacing --setPiece`, the two browser specs (§13); tests 1–3, 14–15, 22. **Later**: `setPiecesOffered` | B; `02` PRs 0a (enrage floor), 0d (dead air: on the critical path, a 15-enemy map of holders is unplayable on a phone without it), 2.1, 2.2a (`groupWoken`, `turn parOffset`, warn bands, always-on dormant outlines; its `tile` is no longer used by the Mill Ford), 2.5; `01` PR 1 (the [N] clamp) and, on phones, PR 8 (pointers). Nothing from `03` (§10.1). Not `02` 2.2b: the reserve's `objective` wake and Black Sun's `afterContact` clock wait for it (§10.1) | 4 days + 1 tuning |
+| C | The Mill Ford and placement: `SetPiecePlacement.js`, the `difficulty.json` table (with Dusk's `maxSize` and the ladder's validation, §6.1), the RunManager hooks, the loom tag and place helper, the node pip, `sim/pacing --setPiece`, the two browser specs (§13); tests 1–3, 14–15, 22. **Later**: `setPiecesOffered` | B; `02` PRs 0a (enrage floor), 0d (dead air: on the critical path, a 15-enemy map of holders is unplayable on a phone without it), 2.1, 2.2a (`groupWoken`, `turn parOffset`, warn bands, always-on dormant outlines; its `tile` is no longer used by the Mill Ford), 2.5; `01` PR 1 (the [N] clamp) and, on phones, PR 8 (pointers). Nothing from `03` (§10.1). Not `02` 2.2b: the reserve's `objective` wake and Black Sun's `afterContact` clock wait for it (§10.1) | 4 days + 1 tuning |
 | D | Two Towers: elite placement, two captains, the road patrol, the `objective` wakes, the armoury | C; `03` PR 1 (the model: `defeat` is not a legacy kind), PR 1b (`defeat`, per-unit `clampTile`); `objective` events: `03` places them in PR 4, which also needs `02` PR 0b. Recommended instead: PR 1b notes `defeat`'s own `objective` events into `02` 2.2b's hook, so Two Towers needs nothing from PR 4 or 0b (a note for `03`); `02` PR 2.2b (the `objective` hook), PR 2.4 (the patrol; a `picket` is the fallback, same estimate). The bonus: `03` PR 3 and PR 5 (`reach`); the map can ship first without it | 3 days + 1 tuning |
 | E | Hybrid v2 and Long Road to the Keep: phase validation (§7: targets off seats, connectivity after each phase), the drawbridge through `02`'s `applyTerrainSetTiles` (no extraction: `02` PR 0b owns the module and deleted the harness copy); `boss.weights` and the keyed boss pick. `05` K7 adds the drawbridge's `bossBar` member and the bonus | D; `02` PRs 0b, 2.2b (the `phase` slot), 2.4 (the sally's `seek`); `03` PRs 3, 4 (phases); `01` PRs 3–5 (desktop camera), 7 (enemy-phase follow), 8 (pointers): 22x14 doesn't fit the desktop canvas at zoom 1 | 4 days |
 | F | The Emperor's Parade: the throne clamp gate for a marching column (unless `05` K2 shipped it), the routed column, the seated wake, the arrival trigger, the `slay` bonus. `05` K8 adds the bar phases | E; `02` PRs 2.2a (`tile` with `by: { group }`), 2.2b (`afterContact`), 2.3 (the gate wave), 2.4 (the column); `03` PRs 1b (`clampTile`), 4, 5 (`slay`); `01` as E (24x14) | 5 days |
@@ -1403,7 +1433,9 @@ Then **Two Towers** (PR D, about 12 more days with `03` PR 1, PR 1b and `02` PRs
    - (b) allow one ordinary set piece per run on First Light (the Mill Ford, at First
      Light's counts, Act III), so the mechanics are met on an ordinary map before any boss.
    **Recommendation:** (a) now, then (b) once the notes ship, and only then a First Light
-   boss share.
+   boss share. (Superseded on 2026-10-10 by the owner's rung ladder, README §6: First Light
+   takes no set piece of any kind, and its boss maps stay today's maps, so (b) is off the
+   table with the rest.)
 2. **Decided (2026-10-09): at most one set piece per act on ordinary nodes, plus a chance
    on elite nodes**, as the table proposes; the exact chances are tuned in PR C. The
    original question: does 0.5–0.7 per act on ordinary nodes, plus about 0.3 per elite
@@ -1415,9 +1447,11 @@ Then **Two Towers** (PR D, about 12 more days with `03` PR 1, PR 1b and `02` PRs
    bonus objectives) and adds more boss set pieces.
 4. **Showing choices.** Should the route card hint at the plan ("the bridge is held") or only
    name the place? This spec names the place only.
-5. **The Parade on Dusk.** It is the run's final battle there. Should Dusk always get the
-   Parade, as a finale, rather than a 0.5 share? `05` §8.4 recommends no: Dusk's last
-   battle is the Emperor's kit on whichever map comes.
+5. **Decided (2026-10-10): no Parade on Dusk** (README §6, the rung ladder). Dusk takes no
+   boss set piece at all (§6.1: boss share 0, validated); its last battle is the Emperor's
+   kit on today's maps and the bastion's variants (`05` §8.4). The original question: should
+   Dusk, where the Emperor is the run's final battle, always get the Parade as a finale
+   rather than a 0.5 share?
 6. **Two Towers' primary.** Is `defeat` both captains (recommended) acceptable, or must it
    read as a double seize?
 7. **The finale variant.** Should Sanctum of Echoes replace the Entity's sanctum at a share,
@@ -1463,8 +1497,10 @@ Revisions 2 and 3 of the README took in this spec's `battleConfig.anchors`, `til
    marker is derived from capabilities, of which a set piece is one, so a boss kit on First
    Light is held too; `isLocalOnlyRunSave` holds it on its device until
    `CLOUD_SAFE_RUN_FORMAT` is raised.
-8. **Open: First Light has no Act IV.** README Q2's recommendation (today's arenas on First
-   Light's boss maps until the Guidance notes ship) concerns only Act III's boss there.
+8. **Resolved (README rev 6): First Light has no Act IV.** README Q2's recommendation
+   (today's arenas on First Light's boss maps until the Guidance notes ship) concerned only
+   Act III's boss there; the owner's rung ladder of 2026-10-10 makes it permanent on every
+   act (First Light's arena share is 0, `05` §9.5).
 
 ## Revision 2 changelog (2026-10-09)
 
@@ -1538,3 +1574,21 @@ non-legacy objectives and phases) reached older clients as ordinary format-1 sav
 - **Slice** gains step 0 (A0), A trimmed shrinks to 2 days, the total is about 22 days, and
   the slice is the proof the rest of the catalogue waits on (README §5 "Rollout gates").
 - **Open question 9** asks whether kits hold the whole run or only the boss.
+
+## Revision 5 changelog (2026-10-10)
+
+Takes in the owner's rung ladder (README §6, 2026-10-10).
+- **§6.1.** Dusk's boss share is 0 and its set pieces are 20x12 or less (`maxSize`, a rung
+  gate read by `pick` and the event hook); both validated like First Light's zeros. Dusk meets
+  The Mill Ford, Two Towers, Rival Band, Caravan Under Siege and The Burning Village; Hunting
+  Party (20x13) and Break the Gate (22x12) are Nightfall and up as sketched. The boss set
+  pieces are Nightfall and up, Sanctum of Echoes Black Sun only.
+- **§9, §10.3, §10.4.** Long Road and the Parade are marked Nightfall+ (their Dusk stones and
+  Long Road's Dusk bonus note are gone; the armoury `reach` stays as the fallback).
+- **§12.1, tests 14 and 23.** Act I's bosses carry no kit on any rung, so the failure story and
+  test 23's regression fixture move to a First Light Act II boss (the Archmage); the
+  `bossKit` node-map detection names Act II and later. Test 14 holds Dusk's limits.
+- **§15.** Q5 decided (no Parade on Dusk); Q1's option (b) superseded; Notes 8 resolved.
+- **Strict First Light reading (decided 2026-10-10, README §6).** A First Light kit is its
+  one gentle signature and nothing else, so test 23's fixture (the Archmage's signature-only
+  kit) requires exactly `['bossKit']` in all three states; §12.1's failure story says so.

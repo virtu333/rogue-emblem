@@ -1,7 +1,8 @@
 # Encounters and pacing
 
-Status: proposal, revision 4 (2026-10-09). Takes in the cross-review of the spec set and
-`05`'s notes (the boss trigger kinds, the signature slot, court re-orders).
+Status: proposal, revision 5 (2026-10-10). Takes in the cross-review of the spec set,
+`05`'s notes (the boss trigger kinds, the signature slot, court re-orders) and the owner's
+rung ladder of 2026-10-10 (README §6), which answers §9 Q3.
 Specs only: no game code or data changes.
 Branch `claude/large-maps-specs`. Part of the large-maps set ([README](README.md)); this
 spec owns roadmap **Phase 0** (fixes worth doing anyway) and **Phase 2** (encounter groups
@@ -900,8 +901,14 @@ Sun's `afterContact` clock; until then the reserve wakes on its `turn parOffset`
 1. **Enrage cap.** Keep 12 as a cap that may pull enrage to par + 1 (this spec: changes
    only par ≥ 12), or drop it (every First Light boss map enrages one turn later)?
 2. **Rout pods.** dusk-pressure kept rout hold share at 0%. With par `groups-v1`, do rout
-   pods ship on Dusk+ (and on First Light only in set pieces), or stay set-piece-only?
-3. **First Light set pieces**: do sleeping pods and patrols appear there at all (README Q2)?
+   pods ship on Dusk+, or stay set-piece-only? (First Light has no set pieces, owner
+   decision 2026-10-09, so it meets pods nowhere unless its own `encounterPlan.rout` is
+   turned on.)
+3. **Decided (owner, 2026-10-09 and 2026-10-10, README §6): First Light meets no set piece,
+   and no boss court of any kind on any act** (`05` §9.5: on the strict reading decided
+   2026-10-10, a First Light kit compiles to its one signature alone, so no group, awake or
+   sleeping, is written there). Courts start at Dusk; First Light seize and escape maps keep
+   today's guards (§3.5).
 4. **Hybrid arena intent**: should the walls seal the wave's entry after it arrives (then
    the override turn becomes the wave turn + 1 on every rung) rather than the spawn
    moving (this spec's data fix)?
@@ -990,3 +997,9 @@ use `03`'s words (`done` / `failed`).
 - **Old clients (review finding, P1).** `encounters` and `parModel` are capabilities of the
   run-format guard (`04` §12.1); §8 names the PRs that depend on `04` PR A0, and says a config
   of legacy hold packs is not held.
+
+## Revision 5 changelog (2026-10-10)
+
+- The owner's rung ladder (README §6, 2026-10-10) answers §9 Q3: First Light meets no set
+  piece and no boss court at all (its kits are signature-only); courts start at Dusk. Q2 no
+  longer offers First Light pods "in set pieces", which it never gets.
