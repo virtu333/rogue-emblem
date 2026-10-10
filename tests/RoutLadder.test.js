@@ -42,12 +42,13 @@ afterEach(() => restoreMathRandom());
 
 // The spec's table, written out by hand: [turn, min, max, +levels, promoted].
 const LATE = [[3, 2, 2], [5, 2, 3, 1], [7, 2, 3, 1], [9, 3, 3, 2, true]]; // prettier-ignore
+const BLACK_SUN_LATE = [[3, 2, 3], [5, 3, 3, 1], [7, 3, 3, 1], [9, 3, 3, 2, true]]; // prettier-ignore
 const SPEC = {
   dusk: {
     act1: [[4, 1, 1], [6, 1, 2]],
     act2: [[4, 1, 2], [6, 2, 2, 1], [8, 2, 3, 1]],
-    act3: [[4, 2, 2], [6, 2, 2, 1], [8, 2, 3, 1], [10, 2, 3, 2]],
-    act4: [[4, 2, 2], [6, 2, 3, 1], [8, 2, 3, 1], [10, 3, 3, 2]],
+    act3: [[4, 2, 2], [6, 2, 2, 1], [8, 2, 2, 1], [10, 2, 2, 2]],
+    act4: [[4, 2, 2], [6, 2, 2, 1], [8, 2, 3, 1], [10, 2, 2, 2]],
   },
   hard: {
     act1: [[4, 1, 2], [7, 1, 2, 1]],
@@ -55,6 +56,12 @@ const SPEC = {
     act3: LATE,
     act4: LATE,
     finalBoss: LATE,
+  },
+  lunatic: {
+    act2: [[3, 2, 2], [5, 2, 3, 1], [7, 3, 3, 1], [9, 3, 3, 2]],
+    act3: BLACK_SUN_LATE,
+    act4: BLACK_SUN_LATE,
+    finalBoss: BLACK_SUN_LATE,
   },
 }; // prettier-ignore
 const XP = [0.75, 0.5, 0.25, 0.1];
@@ -97,7 +104,7 @@ function harness(params, seed) {
 }
 
 describe('the ladder a rout map is generated with', () => {
-  it('is the spec table on Dusk and Nightfall, for every act', () => {
+  it('is the spec table on Dusk, Nightfall and Black Sun, for every act', () => {
     for (const [rung, acts] of Object.entries(SPEC)) {
       for (const [act, rows] of Object.entries(acts)) {
         for (const seed of [1, 2, 3]) {
@@ -134,12 +141,30 @@ describe('the ladder a rout map is generated with', () => {
     }
   });
 
-  it('never reaches First Light or Black Sun, seize or escape maps', () => {
+  it('arrivals climb with the rung in every act, and Black Sun stays near Nightfall', () => {
+    // The mean arrivals of a rung's ladder (counts are ranges, so the midpoint). Black Sun's
+    // template waves used to roll twice Nightfall's total (count bonus on every wave).
+    const total = (rung, act) =>
+      gen({ act, ...pacing(rung) }, 1).reinforcements.ladder.waves.reduce(
+        (sum, w) => sum + (w.count[0] + w.count[1]) / 2,
+        0,
+      );
+    for (const act of ['act2', 'act3', 'act4']) {
+      const [dusk, hard, lunatic] = ['dusk', 'hard', 'lunatic'].map((r) => total(r, act));
+      expect(dusk, act).toBeLessThan(hard);
+      expect(hard, act).toBeLessThan(lunatic);
+      expect(lunatic, act).toBeLessThanOrEqual(hard * 1.4);
+    }
+  });
+
+  it('never reaches First Light, Black Sun Act I, seize or escape maps', () => {
     for (const seed of [1, 2, 3]) {
       for (const act of ['act1', 'act3']) {
         expect(gen({ act, ...pacing('normal') }, seed).reinforcements?.ladder).toBeUndefined();
-        expect(gen({ act, ...pacing('lunatic') }, seed).reinforcements?.ladder).toBeUndefined();
       }
+      expect(
+        gen({ act: 'act1', ...pacing('lunatic') }, seed).reinforcements?.ladder,
+      ).toBeUndefined();
       for (const objective of ['seize', 'escape']) {
         const bc = gen({ act: 'act3', objective, ...pacing('hard') }, seed);
         expect(bc.reinforcements?.ladder, objective).toBeUndefined();
@@ -526,10 +551,10 @@ describe('ladder arrivals in a battle (headless harness, as the scene)', () => {
     expect(village.turnPar).toBe(villagePar + 1);
   });
 
-  it("Black Sun's template waves keep coming but no longer raise par", () => {
+  it("Black Sun's template waves (a map saved before its ladder) keep coming but no longer raise par", () => {
     let checked = 0;
     for (let seed = 1; seed <= 12 && checked < 2; seed++) {
-      const battle = harness({ act: 'act3', ...pacing('lunatic') }, seed);
+      const battle = harness({ act: 'act3', ...pacing('lunatic'), routLadder: null }, seed);
       const par = battle.turnPar;
       let arrived = 0;
       for (let turn = 1; turn <= 12; turn++)
@@ -806,7 +831,8 @@ describe('locked maps and saves', () => {
     expect(validateDifficultyConfig(data.difficulty)).toEqual({ valid: true, errors: [] });
     const m = data.difficulty.modes;
     expect([m.normal, m.dusk, m.hard, m.lunatic].map((x) => x.parInflation)).toEqual([1, 2, 3, 3]);
-    expect([m.normal.routLadder, m.lunatic.routLadder]).toEqual([null, null]);
+    expect(m.normal.routLadder).toBeNull();
+    expect(Object.keys(m.lunatic.routLadder.acts)).toEqual(['act2', 'act3', 'act4', 'finalBoss']);
     expect(m.lunatic.templateWavesRaisePar).toBe(false);
     const bad = structuredClone(data.difficulty);
     bad.modes.dusk.routLadder.acts.act1 = [

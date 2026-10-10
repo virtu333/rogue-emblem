@@ -146,14 +146,14 @@
           "act3": [
             { "turn": 4, "count": [2, 2] },
             { "turn": 6, "count": [2, 2], "levels": 1 },
-            { "turn": 8, "count": [2, 3], "levels": 1 },
-            { "turn": 10, "count": [2, 3], "levels": 2 }
+            { "turn": 8, "count": [2, 2], "levels": 1 },
+            { "turn": 10, "count": [2, 2], "levels": 2 }
           ],
           "act4": [
             { "turn": 4, "count": [2, 2] },
-            { "turn": 6, "count": [2, 3], "levels": 1 },
+            { "turn": 6, "count": [2, 2], "levels": 1 },
             { "turn": 8, "count": [2, 3], "levels": 1 },
-            { "turn": 10, "count": [3, 3], "levels": 2 }
+            { "turn": 10, "count": [2, 2], "levels": 2 }
           ]
         }
       },
@@ -363,7 +363,37 @@
       },
       "parInflation": 3,
       "templateWavesRaisePar": false,
-      "routLadder": null,
+      "routLadder": {
+        "xp": [0.75, 0.5, 0.25, 0.1],
+        "minPlayerDistance": 3,
+        "minFlankTiles": 4,
+        "acts": {
+          "act2": [
+            { "turn": 3, "count": [2, 2] },
+            { "turn": 5, "count": [2, 3], "levels": 1 },
+            { "turn": 7, "count": [3, 3], "levels": 1 },
+            { "turn": 9, "count": [3, 3], "levels": 2 }
+          ],
+          "act3": [
+            { "turn": 3, "count": [2, 3] },
+            { "turn": 5, "count": [3, 3], "levels": 1 },
+            { "turn": 7, "count": [3, 3], "levels": 1 },
+            { "turn": 9, "count": [3, 3], "levels": 2, "promoted": true }
+          ],
+          "act4": [
+            { "turn": 3, "count": [2, 3] },
+            { "turn": 5, "count": [3, 3], "levels": 1 },
+            { "turn": 7, "count": [3, 3], "levels": 1 },
+            { "turn": 9, "count": [3, 3], "levels": 2, "promoted": true }
+          ],
+          "finalBoss": [
+            { "turn": 3, "count": [2, 3] },
+            { "turn": 5, "count": [3, 3], "levels": 1 },
+            { "turn": 7, "count": [3, 3], "levels": 1 },
+            { "turn": 9, "count": [3, 3], "levels": 2, "promoted": true }
+          ]
+        }
+      },
       "holdShare": { "seize": 0.55, "escape": 0.5 },
       "revivalStones": { "actBoss": 1, "emperor": 2, "lieutenant": 0, "eliteCaptain": 1 },
       "objectiveParOffset": { "seize": -4, "escape": -1, "rout": { "act4": -1 } },

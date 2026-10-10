@@ -427,6 +427,32 @@ Given an eligible caster, the share matches the rung's chance (Nightfall Act IV 
   Dusk-strength, so the real Black Sun numbers will be lower. Re-run with a Black Sun
   calibration before release.
 
+- **Reinforcement pacing retune (2026-10-10).** A playtest said rout fights drag on because
+  waves arrive too fast on some maps. Measured with the real generator and scheduler (40
+  seeds per cell, mean arrivals over a whole battle, rout):
+
+  | Rung | Act II | Act III | Act IV | By turn 4 (Act III) |
+  |---|---|---|---|---|
+  | Dusk before / after | 6.0 / 6.0 | 9.1 / 8.0 | 10.0 / 8.5 | 2.0 / 2.0 |
+  | Nightfall (unchanged) | 8.5 | 10.0 | 10.0 | 2.0 |
+  | Black Sun before / after | 16.3 / 10.4 | 15.8 / 11.5 | 18.8 / 11.5 | 5.8 / 2.5 |
+
+  Black Sun was the outlier: its template waves took a -3 turn offset and +2 on every
+  wave's count, so it fielded nearly twice Nightfall's arrivals and four or five of them
+  by turn 4 (on a 10-12 enemy opening force). Dusk's Acts III-IV matched Nightfall's total.
+  - **Black Sun gets a ladder** (Acts II-IV and the final boss; Act I has no rout waves on
+    that rung, as before). It replaces the template waves on rout maps only: finite, one
+    edge per wave, never within 3 tiles of a player, par-neutral and telegraphed like the
+    other rungs. Four waves on T3/5/7/9, a little over Nightfall's total (10.4 / 11.5 / 11.5
+    against 8.5 / 10 / 10), the fourth wave promoted from Act III. Seize and escape keep
+    their template waves and `templateWavesRaisePar: false`. A Black Sun run saved before
+    this keeps its template waves (the run's saved modifiers carry no ladder).
+  - **Dusk Acts III-IV trimmed** one or two arrivals (8.0 and 8.5 in all), so the rungs
+    climb in order: Dusk < Nightfall < Black Sun in every act.
+  - The reverse decision of 2d's "Black Sun keeps its waves" (owner 2026-10-01) now that
+    the waves are measured; restoring it is the one `routLadder: null` in difficulty.json.
+  - `tests/RoutLadder.test.js` holds the three tables and the rung order.
+
 ## 3. Risks, targets, tests, rollout
 
 **Targets** (calibrated, 48 paired seeds, rout):
