@@ -8,7 +8,6 @@ import {
   resolvePromotionTargets,
   getReclassTargets,
 } from '../src/engine/UnitManager.js';
-import { getClassChangeWeaponGrants } from '../src/engine/RosterCommands.js';
 import { promotionPathContent } from '../src/ui/growthContent.js';
 import { promoteAtChurch } from '../src/engine/ChurchCommands.js';
 import { applyRosterClassChange } from '../src/engine/RosterCommands.js';

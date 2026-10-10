@@ -56,8 +56,8 @@ export function applyRosterClassChange(run, unit, item, target, gameData) {
 }
 // Shared with previews: return catalog entries only, without creating UIDs or
 // consuming RNG. One rule for promotion, reclass and a lord's promotion alike: the
-// Iron weapon of each weapon type the class change newly opens (a lord's
-// `promotionWeapons` list is always among them), never one for a type already wielded.
+// Iron weapon of each weapon type the class change newly opens, never one for a type
+// already wielded (a lord's `promotionWeapons` also lists types the class already had).
 export function getClassChangeWeaponGrants(unit, oldTypes, gameData) {
   const types = unit.proficiencies.filter((p) => !oldTypes.has(p.type)).map((p) => p.type);
   const names = new Set(unit.inventory.map((w) => stripItemNameSuffix(w.name)));

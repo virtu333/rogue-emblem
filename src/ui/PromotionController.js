@@ -209,7 +209,7 @@ export class PromotionController {
     if (seal.uses <= 0) removeFromConsumables(unit, seal);
     markSealConsumed();
 
-    // Grant the Iron weapon of each newly wielded type (the lord's own list too).
+    // Grant the Iron weapon of each newly wielded type.
     const ungranted = [];
     for (const newWeapon of getClassChangeWeaponGrants(unit, oldTypes, scene.gameData)) {
       // A unit left with nothing equipped takes up the granted weapon.
