@@ -18,6 +18,7 @@ import { CombatFxController } from './CombatFxController.js';
 import { safeBattlePresentation } from './safeBattlePresentation.js';
 import { crumbleFor, raiseFor, raisers } from '../engine/Necromancy.js';
 import { enemyDifficultyConfigFromParams } from '../engine/UnitManager.js';
+import { canInspectUnit } from '../engine/BattleInformation.js';
 import { UI_PALETTE } from '../utils/uiStyles.js';
 
 export class NecromancyController {
@@ -33,14 +34,9 @@ export class NecromancyController {
     this.scene = null;
   }
 
-  isVisible(col, row) {
-    const grid = this.scene?.grid;
-    return typeof grid?.isVisible === 'function' ? Boolean(grid.isVisible(col, row)) : true;
-  }
-
-  /** Is this Skeleton in the player's view? Its tile's sight, or always under Seer's Eye. */
+  /** Is this Skeleton in the player's view? The fog's one rule (canInspectUnit: Seer's Eye shows it). */
   seesUnit(unit) {
-    return this.scene?.grid?.foesShown === true || this.isVisible(unit.col, unit.row);
+    return canInspectUnit(this.scene?.grid, unit);
   }
 
   /** The scene's combat effects (made on first use, as removeUnit makes them). */

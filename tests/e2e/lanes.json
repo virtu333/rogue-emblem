@@ -90,7 +90,8 @@
         "portrait-journey.spec.js",
         "portrait-rotation.spec.js",
         "portrait-remains.spec.js",
-        "portrait-prologue.spec.js"
+        "portrait-prologue.spec.js",
+        "portrait-seers-eye.spec.js"
       ],
       "shards": 6
     },

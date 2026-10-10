@@ -1,19 +1,13 @@
 import { battleTimelinePreview } from '../engine/BattleTimelineFacts.js';
 import { historyFrameAt } from '../engine/BattleHistoryPresentation.js';
-import { getFootprint } from '../engine/EntitySystem.js';
+import { isUnitSeenAt } from '../engine/BattleInformation.js';
 
 const copy = (v) => structuredClone(v);
-// Seer's Eye (`grid.foesShown`): the fog never hides a foe, so its name and its walk are history.
-const foeShown = (scene, unit) => unit?.faction === 'enemy' && scene.grid?.foesShown === true;
 
+// What the history names and draws is what the player saw: the one fog rule (isUnitSeenAt: a
+// tile of the body seen, and every foe under Seer's Eye).
 export function historyUnitVisible(scene, unit) {
-  return Boolean(
-    unit &&
-    (unit.faction === 'player' ||
-      !scene.grid?.fogEnabled ||
-      foeShown(scene, unit) ||
-      getFootprint(unit).some((p) => scene.grid.isVisible?.(p.col, p.row))),
-  );
+  return isUnitSeenAt(scene.grid, unit);
 }
 
 // Hooks observe resolved intent/outcomes. They never consume RNG, allocate a
@@ -55,16 +49,7 @@ export function rememberHistoryPath(scene, unit, path, staged = true) {
   if (!scene.runManager?.battleInProgress || !unit?.battleEntityId || !Array.isArray(path)) return;
   const clipped = path
     .slice(0, 1024)
-    .map((p) =>
-      unit.faction === 'player' ||
-      !scene.grid?.fogEnabled ||
-      foeShown(scene, unit) ||
-      getFootprint({ ...unit, col: p.col, row: p.row }).some((tile) =>
-        scene.grid.isVisible?.(tile.col, tile.row),
-      )
-        ? { col: p.col, row: p.row }
-        : null,
-    );
+    .map((p) => (isUnitSeenAt(scene.grid, unit, p.col, p.row) ? { col: p.col, row: p.row } : null));
   if (!clipped.some(Boolean)) return;
   // A hidden endpoint must not give the path an identifying owner.
   const visible = historyUnitVisible(scene, unit);
@@ -101,7 +86,7 @@ export function resetHistoryRecording(scene) {
 
 export function captureHistoryFrame(scene, state, archive) {
   const previous = historyFrameAt(archive, (archive?.records.length || 0) - 1);
-  const base = battleTimelinePreview(state, scene.gameData?.terrain);
+  const base = battleTimelinePreview(state, scene.gameData?.terrain, { grid: scene.grid });
   const allUnits = [...state.playerUnits, ...state.enemyUnits, ...state.npcUnits];
   const byId = new Map(allUnits.map((u) => [u.battleEntityId, u]));
   const live = new Map(

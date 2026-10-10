@@ -2,6 +2,7 @@ import { button, element } from './MenuSurface.js';
 import { createNodeArt } from './NodeArt.js';
 import { nodeFrame } from './RouteGraph.js';
 import {
+  SCOUTED_LOOM_STATES,
   describeBattleScout,
   describeLoomNode,
   describeRecruitPreview,
@@ -192,6 +193,7 @@ function scoutBlock(view) {
     }
     block.append(list);
   } else if (view.empty) block.append(element('p', view.empty, 're-loom-scout-empty'));
+  if (view.more) block.append(element('p', view.more, 're-loom-scout-more'));
   return block;
 }
 
@@ -331,9 +333,10 @@ export function renderLoomCard(card, node, ctx = {}) {
     }
     card.append(tags);
   }
-  // Thief's Lantern and Seer's Eye show the foes waiting at a battle not yet walked (an eclipsed
-  // battle too: its foes are as real as any).
-  const scout = state !== 'done' ? scoutView(rm, node, gameData) : null;
+  // Thief's Lantern and Seer's Eye show the foes waiting at a battle still ahead (a live or
+  // future node, an eclipsed battle too: its foes are as real as any), never where the party
+  // stands, a road cut off or a node already walked.
+  const scout = SCOUTED_LOOM_STATES.includes(state) ? scoutView(rm, node, gameData) : null;
   if (scout) card.append(scoutBlock(scout));
   if (info.recruit) card.append(recruitBlock(info.recruit));
   // Open Roll: the other candidate, swappable until the encounter is set (travel only: the

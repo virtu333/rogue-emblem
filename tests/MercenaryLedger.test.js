@@ -161,6 +161,24 @@ describe('the fee and the visit, held', () => {
     expect(run.gold).toBe(before - 100 + 100 + TIERS.gold.goldReward);
   });
 
+  it('a tier the purse cannot pay says the halved fee it needs', () => {
+    // Failure: the refusal names the tier's full fee ("Requires 200 gold.") while the Ledger
+    // asks 100, so a player with 150 is told they are 50 short of a bout they can pay.
+    const { run, scene, node, a } = runFixture({ ledger: true });
+    run.gold = 60; // bronze 25 and silver 50 are open; gold's halved 100 is not
+    open(scene, run, node);
+    press(scene, 'Arena');
+    press(scene, startsWith(`${a.name} ·`));
+    expect(texts(scene)).toContain('Requires 100 gold.');
+    expect(texts(scene)).not.toContain('Requires 200 gold.');
+    expect(buttons(scene).find((b) => String(b.textContent).startsWith('Gold')).disabled).toBe(
+      true,
+    );
+    expect(buttons(scene).find((b) => String(b.textContent).startsWith('Silver')).disabled).toBe(
+      false,
+    );
+  });
+
   it('a lost bout forfeits only the fee paid', () => {
     // Failure: the loss is booked at the tier's full fee (the rewards say −200 for a −100 loss).
     const { run, scene, node, a } = runFixture({ ledger: true });

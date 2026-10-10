@@ -44,7 +44,6 @@ import {
   EnemyPhasePacing,
   enemyHealBanner,
   enemyStepDuration,
-  isFoeStepSeen,
   planEnemyMoveSteps,
   seenUnitName,
   skipsIdleCheckpoint,
@@ -57,6 +56,8 @@ import {
 import {
   canInspectUnit,
   carriedItemInfo,
+  fogHidesFoes,
+  isUnitSeenAt,
   markFoesShown,
   seenTileOccupant,
   statusStaffThreat,
@@ -247,7 +248,6 @@ import {
   CONSUMABLE_MAX,
   LOOT_CHOICES,
   ELITE_LOOT_CHOICES,
-  DEPLOY_LIMITS,
   TERRAIN,
   LAVA_CRACK_DAMAGE,
   GOLD_LOOT_REWARD_MULTIPLIER,
@@ -330,7 +330,11 @@ import { bindShiftHoldBattleSpeed } from '../ui/HoldBattleSpeed.js';
 import { generateBossRecruitCandidates } from '../engine/BossRecruitSystem.js';
 import { stampCommanderFlag } from '../engine/Commander.js';
 import { buildRecruitNodeUnit, spawnTilesForDeployment } from '../engine/RecruitNodeSystem.js';
-import { battleDeployCount, resolveDeployLimits } from '../engine/BattleDeployCount.js';
+import {
+  battleDeployCount,
+  deployLimitsForParams,
+  resolveDeployLimits,
+} from '../engine/BattleDeployCount.js';
 import {
   adaptDialogueEntries,
   adaptDialogueLine,
@@ -659,8 +663,8 @@ export class BattleScene extends Phaser.Scene {
     this._registerSceneShutdownCleanup();
     this._setupGamepadInput();
 
-    // Determine deploy limits for this act (+ meta upgrade bonus)
-    const act = this.battleParams.act || 'act1';
+    // Determine deploy limits for this act (+ meta upgrade bonus): the act's limits are
+    // deployLimitsForParams, the rule the route map's scout reads too.
     // A re-entered battle keeps its locked map, so it deploys no more units than that
     // map has spawns (resolveDeployLimits). A prologue chapter with a deploy rule (P4)
     // fields one unit per authored spawn and at least its own minimum, in the run and
@@ -675,7 +679,7 @@ export class BattleScene extends Phaser.Scene {
           lockedTo: null,
         }
       : resolveDeployLimits({
-          base: DEPLOY_LIMITS[act] || DEPLOY_LIMITS.act1,
+          base: deployLimitsForParams(this.battleParams),
           deployBonus: this.runManager?.getDeployBonus?.() || 0,
           lockedSpawnCount: isStandaloneScriptedBattle(this.battleParams, this.runManager)
             ? null
@@ -2262,8 +2266,10 @@ export class BattleScene extends Phaser.Scene {
           .setDepth(100));
         this._pinToScreen(fogLabel);
 
+        // Under Seer's Eye the fog hides no foe, so the hint's lesson waits for a map where it
+        // does (unseen, it still teaches a later run).
         const hints = this.registry.get('hints');
-        if (hints && !hints.hasSeen('battle_fog')) {
+        if (hints && fogHidesFoes(this.grid) && !hints.hasSeen('battle_fog')) {
           showContextualHint(
             this,
             'battle_fog',
@@ -10671,7 +10677,11 @@ export class BattleScene extends Phaser.Scene {
     // both of its tiles, and the sprite is shown only on a tile the player sees. A walk
     // the player sees none of is one position update below. A lone seen tile the walk
     // only clips is held for one step's time, so the unit is drawn there.
-    const plan = planEnemyMoveSteps(finalPath, (col, row) => isFoeStepSeen(this.grid, col, row));
+    // A step is seen where the player would see this foe stand (isUnitSeenAt: Seer's Eye shows
+    // its whole walk).
+    const plan = planEnemyMoveSteps(finalPath, (col, row) =>
+      isUnitSeenAt(this.grid, enemy, col, row),
+    );
     const fog = this.grid.fogEnabled === true;
     const isSlideStep = (stepIndex) =>
       effective.slideSegments.some(

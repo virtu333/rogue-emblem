@@ -695,15 +695,36 @@ export function describeLoomNode(
 /** Who scouts a route preview, by the scout's rung (engine/BattleScout.js). */
 export const SCOUT_TITLES = Object.freeze({ foes: "Seer's Eye", carriers: "Thief's Lantern" });
 
+/** The node states whose card shows a scout: a battle still ahead (never the current, cut or done). */
+export const SCOUTED_LOOM_STATES = Object.freeze(['live', 'future']);
+
+/**
+ * Seer's Eye's line for what arrives after the starting foes (BattleScout.reinforcementsOf), or
+ * null for none.
+ * @param {{ waves?: number, endless?: boolean }|null} reinforcements
+ */
+export function scoutReinforcementLine(reinforcements) {
+  if (!reinforcements) return null;
+  const waves = Math.max(0, Math.trunc(Number(reinforcements.waves) || 0));
+  if (reinforcements.endless === true)
+    return waves > 0
+      ? `More arrive: ${waves} ${waves === 1 ? 'wave' : 'waves'}, and pursuers keep coming.`
+      : 'More arrive: pursuers keep coming.';
+  if (waves <= 0) return null;
+  return `More arrive: ${waves} ${waves === 1 ? 'wave' : 'waves'} of reinforcements.`;
+}
+
 /**
  * A scouted battle (BattleScout.scoutBattle) as the inspect card's panel: a title (the earned
  * blessing that scouts it), the note that says what the list assumes ("Scouted for 4 in the
- * field", or the set map's "The foes that wait here"), and the foes, alike ones counted together
- * in the order they stand on the map, the boss first. Seer's Eye lists every foe with its affixes
- * and what it carries; Thief's Lantern only the foes that carry something. Pure; null without a
- * scout. `affixNames` maps an affix id to its name (an unknown id shows as itself).
+ * field", or the set map's "The foes that wait here"), and the foes, alike ones counted together:
+ * the boss first (by its name: "Boss · Warchief, Fighter Lv 7"), then by class and level. Seer's
+ * Eye lists every foe with its affixes and what it carries, and what arrives later (`more`);
+ * Thief's Lantern only the foes that carry something. Pure; null without a scout. `affixNames`
+ * maps an affix id to its name (an unknown id shows as itself).
  * @returns {{ title: string, note: string, rows: Array<{ text: string, detail: string,
- *   count: number, boss: boolean, carries: string|null }>, empty: string|null, label: string }|null}
+ *   count: number, boss: boolean, carries: string|null }>, empty: string|null,
+ *   more: string|null, label: string }|null}
  */
 export function describeBattleScout(scout, { affixNames = {} } = {}) {
   if (!scout || !Array.isArray(scout.foes)) return null;
@@ -715,30 +736,48 @@ export function describeBattleScout(scout, { affixNames = {} } = {}) {
   const groups = new Map();
   for (const foe of scout.foes) {
     const affixes = (foe.affixes || []).map((id) => affixNames[id] || id);
-    const key = [foe.isBoss, foe.className, foe.level, affixes.join(','), foe.carries || ''].join(
-      '|',
-    );
+    const key = [
+      foe.isBoss,
+      foe.name || '',
+      foe.className,
+      foe.level,
+      affixes.join(','),
+      foe.carries || '',
+    ].join('|');
     const group = groups.get(key);
     if (group) group.count += 1;
     else groups.set(key, { foe, affixes, count: 1 });
   }
+  const detailOf = ({ foe, affixes }) =>
+    [affixes.join(', '), foe.carries ? `carries ${foe.carries}` : ''].filter(Boolean).join(' · ');
   const rows = [...groups.values()]
-    .sort((a, b) => Number(b.foe.isBoss) - Number(a.foe.isBoss))
-    .map(({ foe, affixes, count: n }) => ({
-      text: `${foe.isBoss ? 'Boss · ' : ''}${foe.className} Lv ${foe.level}${n > 1 ? ` ×${n}` : ''}`,
-      detail: [affixes.join(', '), foe.carries ? `carries ${foe.carries}` : '']
-        .filter(Boolean)
-        .join(' · '),
-      count: n,
-      boss: foe.isBoss === true,
-      carries: foe.carries || null,
-    }));
+    .sort(
+      (a, b) =>
+        Number(b.foe.isBoss) - Number(a.foe.isBoss) ||
+        String(a.foe.className).localeCompare(String(b.foe.className)) ||
+        a.foe.level - b.foe.level ||
+        detailOf(a).localeCompare(detailOf(b)),
+    )
+    .map((group) => {
+      const { foe, count: n } = group;
+      const who = foe.isBoss
+        ? `Boss · ${foe.name ? `${foe.name}, ` : ''}${foe.className}`
+        : foe.className;
+      return {
+        text: `${who} Lv ${foe.level}${n > 1 ? ` ×${n}` : ''}`,
+        detail: detailOf(group),
+        count: n,
+        boss: foe.isBoss === true,
+        carries: foe.carries || null,
+      };
+    });
   const empty = rows.length
     ? null
     : scout.level === 'carriers'
       ? 'No foe here carries anything.'
       : 'No foes wait here.';
-  return { title, note, rows, empty, label: `${title} · ${note}` };
+  const more = scout.level === 'carriers' ? null : scoutReinforcementLine(scout.reinforcements);
+  return { title, note, rows, empty, more, label: `${title} · ${note}` };
 }
 
 /**

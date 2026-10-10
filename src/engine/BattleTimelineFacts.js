@@ -1,17 +1,15 @@
-import { getFootprint } from './EntitySystem.js';
+import { isUnitSeenAt, savedFogView } from './BattleInformation.js';
 import { BANNER_NAME } from './BattleBlessings.js';
 // Presentation projection is captured at the event's visibility, never at the
 // later viewer's visibility. No live objects or hidden-unit identifiers escape.
-export function timelineUnitVisible(state, unit) {
-  return (
-    unit.faction === 'player' ||
-    !state.fog ||
-    getFootprint(unit).some((p) => state.fog.visible.includes(`${p.col},${p.row}`))
-  );
+// `grid`: the live battle grid, for Seer's Eye (savedFogView); the fog itself is the state's.
+export function timelineUnitVisible(state, unit, { grid = null, view = null } = {}) {
+  return isUnitSeenAt(view || savedFogView(state.fog, grid), unit);
 }
-export function battleTimelinePreview(state, terrain = []) {
+export function battleTimelinePreview(state, terrain = [], { grid = null } = {}) {
+  const view = savedFogView(state.fog, grid);
   const units = [...state.playerUnits, ...state.enemyUnits, ...state.npcUnits]
-    .filter((unit) => timelineUnitVisible(state, unit))
+    .filter((unit) => timelineUnitVisible(state, unit, { view }))
     .map((unit) => ({
       id: unit.battleEntityId,
       name: unit.name,
@@ -147,12 +145,8 @@ export function bannerHoldFact(unit) {
 }
 
 export function combatTimelineFacts(scene, attacker, defender, result) {
-  // Seer's Eye (`grid.foesShown`): no foe is unseen.
-  const visible = (unit) =>
-    unit.faction === 'player' ||
-    !scene.grid?.fogEnabled ||
-    (unit.faction === 'enemy' && scene.grid.foesShown === true) ||
-    getFootprint(unit).some((p) => scene.grid.isVisible?.(p.col, p.row) === true);
+  // The one fog rule (isUnitSeenAt: Seer's Eye shows every foe).
+  const visible = (unit) => isUnitSeenAt(scene.grid, unit);
   const name = (unit) => (visible(unit) ? unit.name : 'Unseen enemy');
   const facts = [];
   for (const event of result.events || []) {

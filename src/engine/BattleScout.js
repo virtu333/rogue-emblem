@@ -19,18 +19,22 @@
 // "Scouted for N in the field"), or the run changing before the party arrives (the Eclipse's
 // phase, a burden). A LOCKED node is read, never generated: its map is set.
 //
-// Nothing is written to the run: the params are a copy (generation writes a recruit's name to the
-// run's used-name ledger, which the params share), and the map is never locked. The one thing a
-// scout may do early is what getBattleParams does at every battle's entry: the roster's idempotent,
-// stream-free preparation (duplicate names repaired and tracked, uids, portrait variants).
-// No Phaser, no DOM.
+// Nothing is written to the run, the roster included, and the map is never locked. getBattleParams
+// prepares the roster at every battle's entry (duplicate names repaired and tracked in the
+// used-name ledger, uids, portrait variants: idempotent, no stream); the scout runs it on a view
+// of the run whose roster, fallen and used-name ledger are copies (`scoutParams`), so the params
+// are the battle's own while the live roster is never touched, and the params themselves are a
+// copy (a recruit battle's generation writes its recruit's name to the ledger they carry).
+//
+// What waits beyond the starting foes is told too, for Seer's Eye: the battle's reinforcements
+// (template, scripted, the rung's ladder and a Hunted wave), counted from the same map
+// (`reinforcementsOf`). No Phaser, no DOM.
 
 import { generateBattle } from './MapGenerator.js';
 import { createSeededRng } from './BlessingEngine.js';
-import { resolveDeployLimits } from './BattleDeployCount.js';
+import { deployLimitsForParams, resolveDeployLimits } from './BattleDeployCount.js';
 import { routeScoutOf, ROUTE_SCOUT_LEVELS } from './EarnedBoons.js';
 import { isPrologueRun } from './ScriptedBattle.js';
-import { DEPLOY_LIMITS } from '../utils/constants.js';
 
 /** The node types a scout reads (an event's fight is picked on arrival; a service is no battle). */
 export const SCOUTED_NODE_TYPES = Object.freeze(['battle', 'boss', 'recruit']);
@@ -89,9 +93,9 @@ export function generateSeededBattle(params, gameData, seed) {
  * spawns.
  */
 export function scoutDeployCount(run, node) {
-  const act = node?.battleParams?.act || run?.currentAct || 'act1';
   const { max } = resolveDeployLimits({
-    base: DEPLOY_LIMITS[act] || DEPLOY_LIMITS.act1,
+    // The scene's rule for the act's limits (its params' act, else Act 1's).
+    base: deployLimitsForParams(node?.battleParams),
     deployBonus: run?.getDeployBonus?.() || 0,
     lockedSpawnCount: run?.getLockedSpawnCount?.(node?.id) ?? null,
   });
@@ -99,17 +103,59 @@ export function scoutDeployCount(run, node) {
   return Math.max(1, Math.min(roster || max, max));
 }
 
-/** What a scout shows of one spawn: who, how strong, its affixes and what it carries. */
+/**
+ * What a scout shows of one spawn: who, how strong, its affixes and what it carries. A boss keeps
+ * its name (an act boss's, an elite captain's); the Entity's is never told.
+ */
 function foeOf(spawn) {
+  const isBoss = spawn?.isBoss === true;
+  const named = isBoss && spawn?.isEntity !== true && typeof spawn?.name === 'string';
   return {
     className: String(spawn?.className || ''),
+    name: named && spawn.name.trim() ? spawn.name.trim() : null,
     level: Math.max(1, Math.trunc(Number(spawn?.level) || 1)),
-    isBoss: spawn?.isBoss === true,
+    isBoss,
     affixes: Array.isArray(spawn?.affixes)
       ? spawn.affixes.filter((a) => typeof a === 'string')
       : [],
     carries: typeof spawn?.carries === 'string' && spawn.carries ? spawn.carries : null,
   };
+}
+
+/**
+ * The arrivals a battle's map holds beyond its starting foes, or null for none: `waves`, the
+ * timed waves (the template's, scripted ones such as a village's bandits, the rung's ladder and a
+ * Hunted wave); `endless`, true when pursuit waves keep coming (an escape map). Read from the
+ * map's own `reinforcements` block, which the battle schedules from (ReinforcementScheduler).
+ * @param {object|null} config - a generated or locked battle config
+ * @returns {{ waves: number, endless: boolean }|null}
+ */
+export function reinforcementsOf(config) {
+  const r = config?.reinforcements;
+  if (!r || typeof r !== 'object') return null;
+  const timed = (list) =>
+    Array.isArray(list) ? list.filter((wave) => Math.trunc(Number(wave?.turn)) > 0).length : 0;
+  const waves =
+    timed(r.waves) + timed(r.scriptedWaves) + timed(r.ladder?.waves) + (r.hunted ? 1 : 0);
+  const endless = Array.isArray(r.repeatingWaves) && r.repeatingWaves.length > 0;
+  return waves > 0 || endless ? { waves, endless } : null;
+}
+
+/**
+ * The battle's params for `node`, as getBattleParams builds them at the battle's entry, built on a
+ * view of the run whose roster, fallen and used-name ledger are copies: its roster preparation
+ * (names, uids, portrait variants) lands on the copies, never on the live run. The params are
+ * returned as a copy too.
+ */
+function scoutParams(run, node) {
+  const copy = (value) =>
+    value && typeof value === 'object' ? JSON.parse(JSON.stringify(value)) : value;
+  const view = Object.create(run);
+  view.roster = copy(run.roster);
+  view.fallenUnits = copy(run.fallenUnits);
+  view.usedRecruitNames = copy(run.usedRecruitNames);
+  const params = view.getBattleParams(node);
+  return params ? structuredClone(params) : null;
 }
 
 // In memory only (never saved): node id -> { key, scout } per run. The key is everything the map
@@ -141,9 +187,11 @@ export function isScoutableNode(run, node) {
  * the deploy the foes were sized for. Never locks the node and never moves a stream.
  * @param {object} run - RunManager
  * @param {object} node
+ * `reinforcements` (Seer's Eye only, else null): reinforcementsOf the map.
  * @returns {{ nodeId: string, level: string, locked: boolean, deployCount: number,
- *   foes: Array<{ className: string, level: number, isBoss: boolean, affixes: string[],
- *   carries: string|null }> }|null}
+ *   foes: Array<{ className: string, name: string|null, level: number, isBoss: boolean,
+ *   affixes: string[], carries: string|null }>,
+ *   reinforcements: { waves: number, endless: boolean }|null }|null}
  */
 export function scoutBattle(run, node) {
   const rank = routeScoutOf(run);
@@ -155,6 +203,9 @@ export function scoutBattle(run, node) {
       ? foes.map((f) => ({ ...f, affixes: [...f.affixes] }))
       : foes.filter((f) => f.carries).map((f) => ({ ...f, affixes: [] }));
   // A locked map is read as stored (read-only: nothing is reconciled or written here).
+  // Seer's Eye tells what arrives later too; the Lantern's list is the carriers alone (a wave
+  // that arrives in battle carries nothing: EnemyCarry rolls at generation).
+  const more = (reinforcements) => (level === 'foes' ? reinforcements : null);
   const locked = run.battleConfigsByNodeId?.[node.id] || null;
   if (locked) {
     const spawns = Array.isArray(locked.enemySpawns) ? locked.enemySpawns : [];
@@ -164,21 +215,31 @@ export function scoutBattle(run, node) {
       locked: true,
       deployCount: Array.isArray(locked.playerSpawns) ? locked.playerSpawns.length : 0,
       foes: shown(spawns.map(foeOf)),
+      reinforcements: more(reinforcementsOf(locked)),
     };
   }
   try {
-    // A copy: the params hold the run's own used-name ledger, which a recruit battle's
-    // generation writes to (the recruit's name). The scout's copy keeps that write to itself.
-    const params = structuredClone(run.getBattleParams(node));
+    const params = scoutParams(run, node);
     if (!params) return null;
     const deployCount = scoutDeployCount(run, node);
     applyGenerationFields(params, { deployCount, isBoss: node.type === 'boss' });
     const seed = battleGenerationSeed(params, { runSeed: run.runSeed, nodeId: node.id });
     const key = `${seed}|${JSON.stringify(params)}`;
-    const foes = cached(run, node.id, key, () =>
-      (generateSeededBattle(params, run.gameData, seed).enemySpawns || []).map(foeOf),
-    );
-    return { nodeId: node.id, level, locked: false, deployCount, foes: shown(foes) };
+    const field = cached(run, node.id, key, () => {
+      const config = generateSeededBattle(params, run.gameData, seed);
+      return {
+        foes: (config.enemySpawns || []).map(foeOf),
+        reinforcements: reinforcementsOf(config),
+      };
+    });
+    return {
+      nodeId: node.id,
+      level,
+      locked: false,
+      deployCount,
+      foes: shown(field.foes),
+      reinforcements: more(field.reinforcements ? { ...field.reinforcements } : null),
+    };
   } catch (err) {
     console.warn('[BattleScout] could not scout', node?.id, err);
     return null;

@@ -47,6 +47,7 @@ const OPTIONS_ARG_INDEX = {
   resolveHeal: 3, // (staff, healer, target, opts)
   calculateHealAmount: 3, // (staff, healer, target, opts)
   calculateStaffHealOutput: 2, // (staff, healer, opts)
+  getStaffHealBase: 1, // (staff, opts): the "MAG+N" a display shows
   getEffectiveStaffRange: 2, // (staff, healer, opts)
   findRelocateTargets: 5, // (staff, caster, playerUnits, grid, getUnitAt, staffOptions)
   getRelocationDestinations: 5, // (staff, caster, ally, grid, getUnitAt, staffOptions)

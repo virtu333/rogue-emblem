@@ -21,6 +21,18 @@ export function battleDeployCount({ deployedRoster = null, resuming = false, rec
 }
 
 /**
+ * The act's deploy limits (`DEPLOY_LIMITS`) for a battle's params: its own act, else Act 1's.
+ * The deploy screen (BattleScene.create) and the route map's scout (BattleScout) both read it, so
+ * a scout sizes the foes for the deploy the player will see.
+ * @param {{ act?: string }|null} battleParams
+ * @returns {{ min: number, max: number }}
+ */
+export function deployLimitsForParams(battleParams) {
+  const act = battleParams?.act || 'act1';
+  return DEPLOY_LIMITS[act] || DEPLOY_LIMITS.act1;
+}
+
+/**
  * The deploy screen's limits for a battle: the act's min, and its max plus the deploy
  * bonus. A battle's map is locked the first time it
  * is entered (RunManager.lockBattleConfig) with one player spawn per unit deployed then,

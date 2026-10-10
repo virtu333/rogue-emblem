@@ -35,7 +35,7 @@ import { areaForecastLines, previewAreaArt } from '../engine/AreaPreview.js';
 import { canAttackWithWeapon } from '../engine/AttackOptions.js';
 import { AREA_XP_LIVE } from '../engine/BattleXp.js';
 import { hasBattleDefeat } from '../engine/BattleDefeat.js';
-import { canInspectUnit } from '../engine/BattleInformation.js';
+import { canInspectUnit, isUnitTileSeen } from '../engine/BattleInformation.js';
 import { deedsFor } from './DeedController.js';
 import { findBattleEntity } from '../engine/BattleEntityIdentity.js';
 import { spendAreaStrikeShot } from '../engine/PerBattleWeapons.js';
@@ -180,15 +180,16 @@ export class AreaTargetingController {
     const scene = this.scene;
     if (!p) return [];
     const grid = scene.grid;
-    // Seer's Eye shows every foe whole (grid.foesShown): its fogged body tiles count as seen.
-    const seen = (t) =>
-      !grid?.fogEnabled || grid.foesShown === true || grid.isVisible(t.col, t.row);
+    // A body tile counts when the fog's one rule shows it (isUnitTileSeen: Seer's Eye shows
+    // every foe whole, its fogged body tiles too).
     const byNearest = (a, b) =>
       distance(p.unit, a) - distance(p.unit, b) || a.row - b.row || a.col - b.col;
     return (scene._getTier5HostileUnitsFor(p.unit) || [])
       .filter((foe) => foe.currentHP > 0 && canInspectUnit(grid, foe))
       .map((foe) => {
-        const tiles = getFootprint(foe).filter((t) => p.keys.has(key(t)) && seen(t));
+        const tiles = getFootprint(foe).filter(
+          (t) => p.keys.has(key(t)) && isUnitTileSeen(grid, foe, t.col, t.row),
+        );
         return { foe, tiles, tile: tiles.slice().sort(byNearest)[0] || null };
       })
       .filter(({ tile }) => tile)

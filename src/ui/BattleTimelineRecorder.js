@@ -136,7 +136,7 @@ export function recordBattleTimeline(scene, state) {
   scene._timelineBoundary = null;
   const queued = scene._timelineFacts || [];
   // Avoid duplicate rows for writes with no new event or completed boundary.
-  const preview = battleTimelinePreview(state, scene.gameData?.terrain);
+  const preview = battleTimelinePreview(state, scene.gameData?.terrain, { grid: scene.grid });
   const previous = history.entries.at(-1)?.preview;
   let frame = null;
   try {

@@ -818,20 +818,38 @@ on the event-safe list), like D1's.
 
 **Seer's Eye in battle.** `RunManager.getBattleParams` writes `battleParams.foesShown` while the
 card is held (saved with the battle, so a resume keeps it); BattleScene and the harness call
-`BattleInformation.markFoesShown(grid, battleParams)` as they build the grid, and `canInspectUnit`
-then shows every enemy through the fog. Everything that already read `canInspectUnit` follows: the
-sprites (`updateEnemyVisibility`), attack targets, inspection, PlayerKnowledge's previews (Danger,
-the blue range, Threat Sight), the fog ambush (a shown foe never ambushes), the heal and staff
-banners; the enemy's walk is drawn in full (`EnemyPhasePacing.isFoeStepSeen`), the boss bar is
-never concealed, the history and the timeline name the foe, the Necromancer's raise plays, and an
-area art aims at a fogged body tile. The terrain stays fogged, a green caravan stays hidden, and
-the enemy AI never reads the fog.
+`BattleInformation.markFoesShown(grid, battleParams)` as they build the grid. **One rule** then
+answers "does the player see this unit" for every presentation and preview reader:
+`BattleInformation.isUnitTileSeen(grid, unit, col, row)` (a tile of its body: no fog, the player's
+own, a foe under the Eye, else the tile's sight), `isUnitSeenAt(grid, unit, col?, row?)` (its body
+standing there, an Entity's 3×3 footprint) and `canInspectUnit` (where it stands, plus the waiting
+recruit). Nothing else reads `grid.foesShown`, and no reader in `src/ui` or `src/scenes` decides a
+unit's visibility from a tile's sight alone (`tests/SeersEyeReaders.test.js` holds both, with an
+allowlist of tile reads that are never a foe's: terrain, the ballista, the prologue, the caravan's
+last tile, zombie remains as ground). So the Eye reaches, with the same words: the sprites
+(`updateEnemyVisibility`), attack targets, inspection, PlayerKnowledge's previews (Danger, the blue
+range, Threat Sight), the fog ambush (a shown foe never ambushes), the heal and staff banners, the
+enemy's walk (drawn in full: `animateEnemyMove` asks `isUnitSeenAt` at each step), the boss bar
+(never concealed), the history and the timeline (names, walks, and the history viewer's board:
+`battleTimelinePreview` reads the saved fog through `savedFogView` with the live grid's Eye), the
+Necromancer's raise and crumble, a Zombie's remains (a fall in the fog is a fall the player saw:
+its pile keeps its marker and countdown, and its rise has its banner) and an area art's aim (a
+fogged body tile counts). The fog's teaching hint waits for a map whose fog hides foes
+(`fogHidesFoes`), so a later run without the Eye still learns it. The terrain stays fogged, a
+green caravan stays hidden, and the enemy AI never reads the fog. Each reader has a paired test
+(the same fogged foe, the Eye on and off): without the Eye every reader behaves as before.
 
 **The route preview's scout** (D-21, `engine/BattleScout.js`). For a battle, boss or recruit node
-not yet walked, while Thief's Lantern or Seer's Eye is held, the route map's card shows a panel:
+still ahead (a `live` or `future` node on the loom, never where the party stands, a cut road or a
+walked node), while Thief's Lantern or Seer's Eye is held, the route map's card shows a panel:
 the scout's name, what it assumed ("Scouted for N in the field.", or "The map is set: these foes
-wait here." for a locked node) and the foes, alike ones counted together, the boss first (the
-Lantern: the carriers alone, no affixes). It **never locks the node**: a locked node is exempt from
+wait here." for a locked node) and the foes, alike ones (class, level, affixes, what they carry)
+counted together, the boss first by its name ("Boss · Warchief, Fighter Lv 7"; the Entity's name
+is never told), then by class and level (the Lantern: the carriers alone, no affixes). The Eye
+also says what arrives later: "More arrive: N waves of reinforcements." (the map's template,
+scripted, ladder and Hunted waves, `reinforcementsOf`), or that pursuers keep coming on an escape
+map; the turns are not told (jitter and the rung's offsets make them the battle's). It **never
+locks the node**: a locked node is exempt from
 the Eclipse's falls (`nodeFallExemption` 'locked'), so locking what it showed would change the
 Eclipse for every holder. A node not yet locked is generated as the battle will generate it:
 `getBattleParams(node)` (copied: the params share the run's used-name ledger, which a recruit
@@ -839,11 +857,19 @@ battle's generation writes to), `applyGenerationFields` (the deploy count and th
 `battleGenerationSeed` and `generateSeededBattle` (Math.random is a stream of the battle's seed for
 the generation only, and is put back even on a throw), the same four calls BattleScene.beginBattle
 makes. The deploy count is the deploy screen's (the roster up to the act's cap and bonus, never
-past a lock's spawns). The result is cached in memory by everything the map is generated from
-(never saved). A locked node is read as stored. What can differ from the fight is only its inputs:
-fewer units deployed than assumed, or the run changing before arrival (the Eclipse's phase, a
-burden). The one thing a scout may do early is getBattleParams's own battle-entry preparation of
-the roster (duplicate names, uids, portrait variants: idempotent, no stream).
+past a lock's spawns; the act's limits are `BattleDeployCount.deployLimitsForParams`, which the
+scene reads too). The result is cached in memory by everything the map is generated from (never
+saved). A locked node is read as stored. What can differ from the fight is only its inputs: fewer
+units deployed than assumed, or the run changing before arrival (the Eclipse's phase, a burden).
+The scout writes nothing to the run: getBattleParams's battle-entry preparation of the roster
+(duplicate names repaired and tracked, uids, portrait variants) runs on a view of the run whose
+roster, fallen and used-name ledger are copies (`scoutParams`), so the params are the battle's own
+and the live roster is untouched.
+
+**Smaller fixes in review.** The roster's trade pane says a staff's "MAG+N" and range with the
+Reliquary counted (`Combat.getStaffHealBase`, the rule the heal itself reads, and
+`getEffectiveStaffRange`); the colosseum's "Requires N gold." names the Ledger's fee; the
+Wandering Smith's intro offers his three jobs ("One job a customer").
 
 ## 7. Gifts with a catch (run start)
 

@@ -1,45 +1,13 @@
 // Seer's Eye (docs/specs/blessings-v3.md §6.6): the route map's card lists the foes a battle holds
 // (the scout: engine/BattleScout.js), and the battle entered from it fields exactly those foes, with
-// the fog never hiding one. On a landscape phone, then upright. Every wait is on state (the scene,
-// the battle's state, the card's panel), never on time.
+// the fog never hiding one. On a landscape phone (the upright panel is portrait-seers-eye.spec.js,
+// in the portrait lane). Every wait is on state (the scene, the battle's state, the card's panel),
+// never on time.
 import { test, expect } from '@playwright/test';
-import { attachSlot, pageErrors, phone, quietSettings } from './portraitHelpers.js';
-import { waitForGame, waitForScene } from './helpers.js';
+import { pageErrors, phone } from './portraitHelpers.js';
+import { loomCard as card, routeWithTheEye, scoutPanel as panel } from './seersEyeHelpers.js';
 
 test.setTimeout(150_000);
-
-/** The dev route map, with Seer's Eye held and the first reachable node a fogged battle. */
-async function routeWithTheEye(page) {
-  await quietSettings(page, { battleSpeed: 'fast' });
-  await page.goto('/?devScene=nodemap&mobilePreview=1');
-  await waitForGame(page);
-  await waitForScene(page, 'NodeMap');
-  const skip = page.getByRole('button', { name: 'Skip conversation', exact: true });
-  if (await skip.isVisible()) await skip.tap();
-  await attachSlot(page);
-  await expect
-    .poll(() =>
-      page.evaluate(() => window.__emblemRogueGame.scene.getScene('NodeMap')?.isSceneReady),
-    )
-    .toBe(true);
-  return page.evaluate(() => {
-    const s = window.__emblemRogueGame.scene.getScene('NodeMap');
-    const r = s.runManager;
-    if (!r.addBlessingMidRun('seers_eye', { earned: true })) throw new Error('no Seer’s Eye');
-    // A battle the party can walk into, with fog (a run's first battle never has fog).
-    const node = r.getAvailableNodes().find((n) => n.type === 'battle' && n.battleParams);
-    if (!node) throw new Error('no battle in reach');
-    node.fogEnabled = true;
-    r.completedBattles = Math.max(1, r.completedBattles || 0);
-    // A small army: every unit deploys, as the scout assumes (no deploy screen to choose fewer).
-    r.roster = r.roster.slice(0, 2);
-    s.drawMap();
-    return node.id;
-  });
-}
-
-const card = (page) => page.locator('.re-loom-card');
-const panel = (page) => card(page).locator('.re-loom-scout');
 
 test.describe('landscape phone', () => {
   const { defaultBrowserType: _browser, ...use } = phone({ width: 667, height: 375 });
@@ -97,28 +65,6 @@ test.describe('landscape phone', () => {
     expect(field.foesShown).toBe(true);
     expect(field.inFog).toBeGreaterThan(0);
     expect(field.drawn).toBe(true);
-    expect(errors).toEqual([]);
-  });
-});
-
-test.describe('upright phone', () => {
-  const { defaultBrowserType: _browser, ...use } = phone({ width: 375, height: 667 });
-  test.use(use);
-
-  test('the panel wraps inside the card: no sideways scroll, every row readable', async ({
-    page,
-  }) => {
-    const errors = pageErrors(page);
-    const nodeId = await routeWithTheEye(page);
-    await expect(page.locator('html')).toHaveClass(/\bportrait-ui\b/);
-    await page.locator(`.re-node[data-node="${nodeId}"]`).tap();
-    await expect(panel(page)).toBeAttached();
-    await panel(page).scrollIntoViewIfNeeded();
-    await expect(panel(page)).toContainText('Scouted for 2 in the field.');
-    expect(await card(page).evaluate((e) => e.scrollWidth <= e.clientWidth + 1)).toBe(true);
-    const rows = panel(page).locator('li');
-    for (const row of await rows.all())
-      expect(await row.evaluate((e) => e.scrollWidth <= e.clientWidth + 1)).toBe(true);
     expect(errors).toEqual([]);
   });
 });

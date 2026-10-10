@@ -489,6 +489,18 @@ function staffBonusOf(value) {
 }
 
 /**
+ * What a staff adds to the healer's MAG: its `healBase` plus the run's `opts.healBonus` (Saint's
+ * Reliquary, from StaffBlessings.staffRunOptions). calculateStaffHealOutput and every display of a
+ * staff's "MAG+N" read it, so the words and the heal agree.
+ * @param {object} staff
+ * @param {{ healBonus?: number }} [opts]
+ */
+export function getStaffHealBase(staff, opts = {}) {
+  // Dereferences the staff on purpose (calculateStaffHealOutput's caller-bug throw).
+  return (staff.healBase ?? 0) + staffBonusOf(opts?.healBonus);
+}
+
+/**
  * Effective staff output BEFORE the missing-HP cap:
  * floor((MAG + healBase + healBonus) × multiplier).
  * The multiplier scales what the staff produces, never the already-capped amount —
@@ -502,7 +514,7 @@ function staffBonusOf(value) {
 export function calculateStaffHealOutput(staff, healer, opts = {}) {
   // Intentionally dereferences staff/healer: a missing staff is a caller bug and
   // must throw so the scene's action-error recovery sees it.
-  const raw = healer.stats.MAG + (staff.healBase ?? 0) + staffBonusOf(opts?.healBonus);
+  const raw = healer.stats.MAG + getStaffHealBase(staff, opts);
   const multiplier = normalizeHealingMultiplier(opts.healingMultiplier);
   if (multiplier === 1) return Math.max(0, raw);
   return Math.max(0, Math.floor(raw * multiplier + 1e-9));

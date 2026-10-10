@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadGameData } from './testData.js';
 import { BossPresenceController, BOSS_BAR_DEPTH } from '../src/ui/BossPresenceController.js';
+import { markFoesShown } from '../src/engine/BattleInformation.js';
 
 const gameData = loadGameData();
 
@@ -212,6 +213,23 @@ describe('BossPresenceController (world bar on the boss)', () => {
     presence.sync();
     expect(presence.view().hpText).toBe('52 / 52');
     expect(scene.made[0].visible).toBe(false);
+  });
+
+  it("Seer's Eye: a boss in the fog is never concealed (the bar reads its HP as it falls)", () => {
+    // Paired worlds: the same fog over the boss; only the Eye differs. Failure: the bar reads the
+    // boss's tile alone, so a boss the Eye draws on the map keeps a stale bar.
+    const reading = (eye) => {
+      const scene = makeScene();
+      const presence = new BossPresenceController(scene).create();
+      presence.sync({ silent: true });
+      scene.grid = { fogEnabled: true, isVisible: () => false };
+      markFoesShown(scene.grid, eye ? { foesShown: true } : {});
+      scene.boss.currentHP = 40;
+      presence.sync();
+      return presence.view().hpText;
+    };
+    expect(reading(false)).toBe('52 / 52');
+    expect(reading(true)).toBe('40 / 52');
   });
 
   it('the Entity bar has no name or numbers and spans its footprint', () => {

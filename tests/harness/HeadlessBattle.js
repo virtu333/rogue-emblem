@@ -43,7 +43,7 @@ import {
   findRecruitNpc,
   staffAllyCandidates,
 } from '../../src/engine/RecruitNpc.js';
-import { canInspectUnit, markFoesShown } from '../../src/engine/BattleInformation.js';
+import { canInspectUnit, isUnitSeenAt, markFoesShown } from '../../src/engine/BattleInformation.js';
 import {
   resolveCombat,
   resolveHeal,
@@ -2157,7 +2157,8 @@ export class HeadlessBattle {
       this._applyKillRewards(unit, killer);
       if (leavesRemains(unit, killer)) {
         const tile = { col: unit.col, row: unit.row };
-        const seen = this.grid?.isVisible ? this.grid.isVisible(tile.col, tile.row) : true;
+        // As ZombieRemainsController.onEnemyFell: a fall the player saw (the one fog rule).
+        const seen = isUnitSeenAt(this.grid, unit, tile.col, tile.row);
         this._zombieTombstones = [...this._zombieTombstones, createRemains(unit, tile, { seen })];
       }
       // As BattleScene.removeUnit: a Necromancer's Skeletons crumble with it (no killer:

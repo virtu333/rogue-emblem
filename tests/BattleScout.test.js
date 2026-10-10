@@ -14,6 +14,7 @@ import {
   battleGenerationSeed,
   deriveNodeBattleSeed,
   generateSeededBattle,
+  reinforcementsOf,
   scoutBattle,
   scoutDeployCount,
 } from '../src/engine/BattleScout.js';
@@ -47,6 +48,8 @@ function enterAndGenerate(rm, node, deployCount) {
 const foesOf = (config) =>
   config.enemySpawns.map((s) => ({
     className: s.className,
+    // A boss keeps its name; the Entity's is never told.
+    name: s.isBoss && !s.isEntity && s.name ? s.name : null,
     level: s.level,
     isBoss: s.isBoss === true,
     affixes: s.affixes || [],
@@ -65,6 +68,7 @@ describe("the scout is the battle's own map", () => {
         expect(scout.locked).toBe(false);
         const battle = enterAndGenerate(rm, node, scout.deployCount);
         expect(scout.foes, node.id).toEqual(foesOf(battle));
+        expect(scout.reinforcements, node.id).toEqual(reinforcementsOf(battle));
       }
     }
   });
@@ -109,6 +113,30 @@ describe("the scout is the battle's own map", () => {
     expect(scoutDeployCount(rm, node)).toBe(4 + (rm.getDeployBonus?.() || 0));
     expect(scoutBattle(rm, node).deployCount).toBe(scoutDeployCount(rm, node));
   });
+
+  it('counts the deploy bonus (Tactical Advantage, a blessing), as the deploy screen does', () => {
+    // Failure: the scout sizes foes for the act's bare cap while the deploy screen opens the
+    // bonus slots too (the bonus is 0 in every run above, so they could not tell).
+    const rm = runHolding(['seers_eye']);
+    const node = battleNodes(rm).find((n) => n.type === 'battle');
+    const extra = rm.roster[1];
+    for (let i = 0; i < 8; i++) rm.roster.push({ ...structuredClone(extra), name: `X${i}` });
+    rm.metaEffects = { ...(rm.metaEffects || {}), deployBonus: 1 }; // Tactical Advantage
+    rm.blessingRuntimeModifiers.deployCapDelta = 1;
+    expect(rm.getDeployBonus()).toBe(2);
+    expect(scoutDeployCount(rm, node)).toBe(6);
+    expect(scoutBattle(rm, node).deployCount).toBe(6);
+  });
+
+  it("reads the act's limits as the scene does: the node's act, else Act 1's", () => {
+    // Failure: a node whose params name no act is sized by the run's current act.
+    const rm = runHolding(['seers_eye']);
+    for (let i = 0; i < 8; i++) rm.roster.push({ ...structuredClone(rm.roster[1]), name: `Y${i}` });
+    const node = battleNodes(rm).find((n) => n.type === 'battle');
+    const bare = { ...node, battleParams: { ...node.battleParams, act: undefined } };
+    rm.actIndex = 2; // Act III caps more units than Act I
+    expect(scoutDeployCount(rm, bare)).toBe(4 + rm.getDeployBonus());
+  });
 });
 
 describe('the scout touches nothing', () => {
@@ -139,12 +167,15 @@ describe('the scout touches nothing', () => {
   it('never locks a node (the Eclipse could still take it) and writes nothing to the run', () => {
     // Failure: the scout locks what it shows (lockBattleConfig), which exempts the node from the
     // Eclipse's falls ('locked') and changes the run for every holder; or a recruit battle's
-    // generation writes its recruit's name into the run's used-name ledger (the params share it).
-    // The battle-entry roster preparation getBattleParams always does (idempotent, no stream)
-    // is done first, so what is compared is everything else.
+    // generation writes its recruit's name into the run's used-name ledger (the params share it);
+    // or the battle-entry roster preparation getBattleParams does (duplicate names, uids,
+    // portrait variants) lands on the live roster while the player only looks at a card. The
+    // roster here needs all three.
     const rm = runHolding(['seers_eye'], { seed: 12 });
     expect(battleNodes(rm).some((n) => n.type === 'recruit')).toBe(true);
-    rm.getBattleParams(battleNodes(rm)[0]);
+    rm.roster.push({ ...structuredClone(rm.roster[1]), unitUid: undefined, portraitVariant: null });
+    delete rm.roster.at(-1).unitUid;
+    delete rm.roster.at(-1).portraitVariant;
     const before = JSON.stringify(rm.toJSON());
     for (const node of battleNodes(rm)) {
       expect(scoutBattle(rm, node)).not.toBeNull();
@@ -154,6 +185,10 @@ describe('the scout touches nothing', () => {
     }
     expect(rm.battleConfigsByNodeId?.[battleNodes(rm)[0].id]).toBeUndefined();
     expect(JSON.stringify(rm.toJSON())).toBe(before);
+    // The scout's params are the battle's own: the preparation ran on its copies.
+    const node = battleNodes(rm).find((n) => n.type === 'battle');
+    const scouted = scoutBattle(rm, node);
+    expect(scouted.foes).toEqual(foesOf(enterAndGenerate(rm, node, scouted.deployCount)));
   });
 
   it('a scouted battle generates the same map as one never scouted', () => {
@@ -173,6 +208,54 @@ describe('the scout touches nothing', () => {
 });
 
 describe('what the scout reads', () => {
+  it("counts a map's reinforcements for the Eye: template, scripted, ladder and Hunted waves", () => {
+    // Failure: the Eye lists the starting foes only, so a map with a ladder or a Hunted wave
+    // reads as a small fight.
+    expect(reinforcementsOf({})).toBeNull();
+    expect(reinforcementsOf({ reinforcements: { waves: [], spawnEdges: ['top'] } })).toBeNull();
+    expect(
+      reinforcementsOf({
+        reinforcements: {
+          waves: [{ turn: 3 }, { turn: 0 }, { turn: 5 }],
+          scriptedWaves: [{ turn: 2 }],
+          ladder: { waves: [{ turn: 4 }, { turn: 6 }] },
+          hunted: { turn: 3, count: [2, 2] },
+        },
+      }),
+    ).toEqual({ waves: 6, endless: false });
+    expect(reinforcementsOf({ reinforcements: { repeatingWaves: [{ every: 2 }] } })).toEqual({
+      waves: 0,
+      endless: true,
+    });
+    // On a real Nightfall route a rout map carries the rung's ladder: the scout tells it, and
+    // the Lantern (carriers only) never does.
+    let seen = 0;
+    for (const seed of [11, 12, 13]) {
+      const eye = runHolding(['seers_eye'], { seed });
+      const lantern = runHolding(['thiefs_lantern'], { seed });
+      for (const node of battleNodes(eye)) {
+        const scout = scoutBattle(eye, node);
+        if (scout.reinforcements) seen += 1;
+        expect(
+          scoutBattle(
+            lantern,
+            lantern.nodeMap.nodes.find((n) => n.id === node.id),
+          ).reinforcements,
+        ).toBeNull();
+      }
+    }
+    expect(seen).toBeGreaterThan(0);
+  });
+
+  it('a locked map tells its reinforcements as stored', () => {
+    const rm = runHolding(['seers_eye']);
+    const node = battleNodes(rm).find((n) => n.type === 'battle');
+    const config = enterAndGenerate(rm, node, 3);
+    config.reinforcements = { waves: [{ turn: 2 }], hunted: { turn: 4 } };
+    rm.lockBattleConfig(node.id, config);
+    expect(scoutBattle(rm, node).reinforcements).toEqual({ waves: 2, endless: false });
+  });
+
   it('reads a locked node’s map as stored, and generates no other', () => {
     // Failure: a locked node is generated afresh (the preview names foes the set map lacks).
     const rm = runHolding(['seers_eye']);
@@ -185,7 +268,14 @@ describe('what the scout reads', () => {
     const scout = scoutBattle(rm, node);
     expect(scout).toMatchObject({ locked: true, deployCount: config.playerSpawns.length });
     expect(scout.foes).toEqual([
-      { className: 'Knight', level: 9, isBoss: false, affixes: ['thorns'], carries: 'Elixir' },
+      {
+        className: 'Knight',
+        name: null,
+        level: 9,
+        isBoss: false,
+        affixes: ['thorns'],
+        carries: 'Elixir',
+      },
     ]);
     const view = describeBattleScout(scout, { affixNames: { thorns: 'Thorns' } });
     expect(view.note).toBe('The map is set: these foes wait here.');
@@ -267,7 +357,9 @@ describe('what the scout reads', () => {
 });
 
 describe('the loom’s words', () => {
-  it('counts alike foes together, the boss first, and says what it assumed', () => {
+  it('counts alike foes together: the boss first by its name, then by class and level', () => {
+    // Failure: rows read in map order (a Fighter, an Archer, a Fighter Lv 1: hard to scan), or the
+    // boss is a bare class with no name.
     const view = describeBattleScout(
       {
         level: 'foes',
@@ -283,19 +375,64 @@ describe('the loom’s words', () => {
             affixes: ['venomous'],
             carries: 'Vulnerary',
           },
-          { className: 'Brigand', level: 5, isBoss: true, affixes: [], carries: null },
+          { className: 'Fighter', level: 1, isBoss: false, affixes: [], carries: null },
+          {
+            className: 'Fighter',
+            name: 'Warchief',
+            level: 5,
+            isBoss: true,
+            affixes: [],
+            carries: null,
+          },
         ],
+        reinforcements: null,
       },
       { affixNames: { venomous: 'Venomous' } },
     );
     expect(view.title).toBe("Seer's Eye");
     expect(view.note).toBe('Scouted for 4 in the field.');
     expect(view.rows.map((r) => [r.text, r.detail])).toEqual([
-      ['Boss · Brigand Lv 5', ''],
-      ['Fighter Lv 2 ×2', ''],
+      ['Boss · Warchief, Fighter Lv 5', ''],
       ['Archer Lv 3', 'Venomous · carries Vulnerary'],
+      ['Fighter Lv 1', ''],
+      ['Fighter Lv 2 ×2', ''],
     ]);
     expect(view.empty).toBeNull();
+    expect(view.more).toBeNull();
+  });
+
+  it('keeps foes with different affixes apart (one row each), alike ones together', () => {
+    // Failure: the grouping forgets the affixes, so a Thorns Knight hides inside "Knight ×2".
+    const knight = (affixes) => ({ className: 'Knight', level: 6, isBoss: false, affixes, carries: null }); // prettier-ignore
+    const view = describeBattleScout(
+      {
+        level: 'foes',
+        locked: true,
+        deployCount: 3,
+        foes: [knight([]), knight(['thorns']), knight([]), knight(['thorns'])],
+      },
+      { affixNames: { thorns: 'Thorns' } },
+    );
+    expect(view.rows.map((r) => [r.text, r.detail])).toEqual([
+      ['Knight Lv 6 ×2', ''],
+      ['Knight Lv 6 ×2', 'Thorns'],
+    ]);
+  });
+
+  it("the Eye says what arrives later; the Lantern's list never does", () => {
+    const base = { locked: false, deployCount: 3, foes: [] };
+    const eye = (reinforcements) =>
+      describeBattleScout({ ...base, level: 'foes', reinforcements }).more;
+    expect(eye(null)).toBeNull();
+    expect(eye({ waves: 1, endless: false })).toBe('More arrive: 1 wave of reinforcements.');
+    expect(eye({ waves: 3, endless: false })).toBe('More arrive: 3 waves of reinforcements.');
+    expect(eye({ waves: 0, endless: true })).toBe('More arrive: pursuers keep coming.');
+    expect(eye({ waves: 2, endless: true })).toBe(
+      'More arrive: 2 waves, and pursuers keep coming.',
+    );
+    expect(
+      describeBattleScout({ ...base, level: 'carriers', reinforcements: { waves: 2 } }).more,
+    ).toBeNull();
   });
 
   it('the Lantern with no carrier says so (an empty list is not a broken one)', () => {
@@ -315,11 +452,10 @@ describe('the route map’s card', () => {
   beforeEach(() => installFakeDom(vi));
   afterEach(() => vi.unstubAllGlobals());
 
-  const model = { nodeState: () => 'live', steps: new Map() };
-  const render = (rm, node) => {
+  const render = (rm, node, state = 'live') => {
     const card = document.createElement('section');
     renderLoomCard(card, node, {
-      model,
+      model: { nodeState: () => state, steps: new Map() },
       actId: rm.currentAct,
       gameData: rm.gameData,
       runManager: rm,
@@ -344,6 +480,28 @@ describe('the route map’s card', () => {
     });
     expect(panel.querySelectorAll('li').map((li) => li.textContent)).toEqual(
       view.rows.map((r) => `${r.text}${r.detail ? ` · ${r.detail}` : ''}`),
+    );
+  });
+
+  it('scouts only a battle still ahead: never where the party stands, a cut road or a walked node', () => {
+    // Failure: the card scouts by "not done" alone, so the node the party stands on and the
+    // roads the route has cut off list foes the player will never meet there.
+    const rm = runHolding(['seers_eye'], { seed: 61 });
+    const node = battleNodes(rm).find((n) => n.type === 'battle');
+    expect(scoutPanel(render(rm, node, 'live'))).not.toBeNull();
+    expect(scoutPanel(render(rm, node, 'future'))).not.toBeNull();
+    for (const state of ['current', 'cut', 'done'])
+      expect(scoutPanel(render(rm, node, state)), state).toBeNull();
+  });
+
+  it("the panel tells the Eye's reinforcement line", () => {
+    const rm = runHolding(['seers_eye'], { seed: 61 });
+    const node = battleNodes(rm).find((n) => n.type === 'battle');
+    const config = enterAndGenerate(rm, node, 3);
+    config.reinforcements = { waves: [{ turn: 3 }, { turn: 5 }] };
+    rm.lockBattleConfig(node.id, config);
+    expect(scoutPanel(render(rm, node)).textContent).toContain(
+      'More arrive: 2 waves of reinforcements.',
     );
   });
 

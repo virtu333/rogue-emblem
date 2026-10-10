@@ -29,6 +29,7 @@ import { findRelocateTargets, getRelocationDestinations } from '../src/engine/St
 import { sceneHealPreview } from '../src/ui/healTargetPreview.js';
 import { battleItemSummary } from '../src/ui/battleItemSummary.js';
 import { HealController } from '../src/ui/HealController.js';
+import { RosterTradeController } from '../src/ui/RosterTradeController.js';
 import { HeadlessBattle } from './harness/HeadlessBattle.js';
 import { HeadlessGrid } from './harness/HeadlessGrid.js';
 import { freeForgeAvailable } from '../src/engine/ShopCommands.js';
@@ -37,9 +38,13 @@ import { describeResult } from '../src/engine/EventResultWords.js';
 import { stealRunOptions } from '../src/engine/ShrineBoons.js';
 import { settleSteal, stealBlockReason, STEAL_REASONS } from '../src/engine/Steal.js';
 import { stealStatus } from '../src/engine/ActionAbilitySystem.js';
-import { canInspectUnit, markFoesShown } from '../src/engine/BattleInformation.js';
+import {
+  canInspectUnit,
+  fogHidesFoes,
+  isUnitSeenAt,
+  markFoesShown,
+} from '../src/engine/BattleInformation.js';
 import { createPlayerKnowledge } from '../src/engine/PlayerKnowledge.js';
-import { isFoeStepSeen } from '../src/ui/EnemyPhasePacing.js';
 import { historyUnitVisible } from '../src/ui/BattleHistoryRecorder.js';
 import { combatTimelineFacts } from '../src/engine/BattleTimelineFacts.js';
 import { foesShownOf, routeScoutOf, staffHealRangeOf } from '../src/engine/EarnedBoons.js';
@@ -187,6 +192,33 @@ describe("Saint's Reliquary: staves heal 5 more and reach a tile further", () =>
       distant,
     ]);
     expect(getStaffMaxUses(warp, caster, options)).toBe(getStaffMaxUses(warp, caster));
+  });
+
+  it('the trade pane says what the staff heals and how far it reaches, the Reliquary counted', () => {
+    // Failure: the roster's trade pane reads the catalog's healBase and range ("MAG+5", "Rng 1")
+    // while the heal in battle adds the Reliquary's 5 HP and a tile.
+    const drawn = (run) => {
+      const texts = [];
+      const text = { setDepth: () => text, destroy() {} };
+      const overlay = {
+        _tradeDetailPaneY: 0,
+        runManager: run,
+        scene: { add: { text: (x, y, str) => (texts.push(str), text) } },
+        _getWeaponBaseName: (item) => item.name,
+        _getWeaponForgeLevel: () => 0,
+        _getWeaponNameColor: () => '#fff',
+      };
+      const heal = staff('Heal');
+      const healer = unit('Cleric', 'player', 0, 0, { inventory: [heal], weapon: heal });
+      new RosterTradeController(overlay)._drawTradeDetailPane(heal, healer, null);
+      return texts;
+    };
+    const held = drawn(runHolding(['saints_reliquary']));
+    expect(held.some((t) => t.startsWith('Heal: MAG+10  Uses:'))).toBe(true);
+    expect(held).toContain('Rng 1-2');
+    const plain = drawn(runHolding([]));
+    expect(plain.some((t) => t.startsWith('Heal: MAG+5  Uses:'))).toBe(true);
+    expect(plain).toContain('Rng 1');
   });
 
   it('every reader of a staff passes the options (tests/StaffBlessingBoundary.test.js scans)', () => {
@@ -393,10 +425,10 @@ describe("Seer's Eye: fog never hides a foe", () => {
     expect(canInspectUnit(grid, foe)).toBe(true);
     expect(canInspectUnit(grid, caravan)).toBe(false);
     expect(createPlayerKnowledge({ grid, units: [foe, caravan] }).units).toEqual([foe]);
-    expect(isFoeStepSeen(grid, 10, 10)).toBe(true);
+    expect(isUnitSeenAt(grid, foe, 11, 11)).toBe(true);
     const plain = foggy(false);
     expect(canInspectUnit(plain, foe)).toBe(false);
-    expect(isFoeStepSeen(plain, 10, 10)).toBe(false);
+    expect(isUnitSeenAt(plain, foe, 11, 11)).toBe(false);
   });
 
   it('the run writes `foesShown` into the params only while held; the grid reads it at build', () => {
@@ -429,6 +461,17 @@ describe("Seer's Eye: fog never hides a foe", () => {
     expect(enemyLoop).not.toMatch(/isVisible\(/);
     const targets = src.slice(src.indexOf('In fog mode, player can only target'));
     expect(targets.slice(0, 300)).toMatch(/canInspectUnit\(this\.grid, enemy\)/);
+  });
+
+  it("the fog's hint waits for a map whose fog hides foes (never under the Eye)", () => {
+    // Failure: under the Eye the hint says "enemies beyond sight are hidden" (they are not), and
+    // marks itself read, so a later run without the Eye never learns the fog.
+    expect(fogHidesFoes(foggy(false))).toBe(true);
+    expect(fogHidesFoes(foggy(true))).toBe(false);
+    expect(fogHidesFoes({ fogEnabled: false })).toBe(false);
+    const src = fs.readFileSync('src/scenes/BattleScene.js', 'utf8');
+    const hint = src.slice(src.lastIndexOf('if (', src.indexOf("hasSeen('battle_fog')")));
+    expect(hint.slice(0, hint.indexOf('{'))).toMatch(/fogHidesFoes\(this\.grid\)/);
   });
 
   it('the battle history and the timeline name a shown foe, and keep its walk', () => {

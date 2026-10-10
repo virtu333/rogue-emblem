@@ -35,6 +35,7 @@ import {
   createUnit,
 } from '../src/engine/UnitManager.js';
 import { skeletonsOf } from '../src/engine/Necromancy.js';
+import { markFoesShown } from '../src/engine/BattleInformation.js';
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
@@ -236,6 +237,26 @@ describe('the fog keeps its secret', () => {
     expect(scene.updateEnemyVisibility).toHaveBeenCalled(); // the fog update hides the new unit
     // Nothing of it reaches the action history either: neither end of the raise is seen.
     expect(scene._historyBeats || []).toEqual([]);
+  });
+
+  it("under Seer's Eye a raise in the fog plays its banner and effect, and the history names both", async () => {
+    // Paired with the test above: the same fogged raise; only the Eye differs. Failure: the raise
+    // reads its tile's sight alone, so a Skeleton the Eye draws on the map rises in silence.
+    const { scene, player } = battle({ fog: true });
+    markFoesShown(scene.grid, { foesShown: true });
+    scene.runManager = { battleInProgress: { rewindPolicy: 'fixed-v1' } };
+    const necro = necromancer(8, 4, { scene }); // column 8: fogged; so is its Skeleton at 7
+    scene.enemyUnits.push(necro);
+    await scene.processNecromancy();
+    const [sk] = skeletonsOf(necro, scene.enemyUnits);
+    expect(scene.showBriefBanner).toHaveBeenCalledWith('Necromancer raises a Skeleton!', expect.anything()); // prettier-ignore
+    expect(scene._combatFx.raise).toHaveBeenCalledWith(sk);
+    expect(scene._historyBeats.map((b) => b.label)).toEqual(['Necromancer raised Skeleton.']);
+    // Its crumble plays too (the fall the player watches).
+    scene.runManager = {};
+    await scene.removeUnit(necro, { killer: player });
+    expect(scene.enemyUnits).not.toContain(sk);
+    expect(scene._combatFx.deathFade).toHaveBeenCalledWith(sk);
   });
 
   it('a Skeleton raised at the edge of the light is told only as seen: the actor stays "Unseen enemy"', async () => {

@@ -2428,7 +2428,7 @@
       "id": "wandering_smith",
       "title": "The Wandering Smith",
       "weight": 1,
-      "intro": "A smith with a handcart forge has set up in the lee of a broken wall, working the bellows with one foot. 'Mend or temper,' he says, without stopping. 'Not both. I'm not made of hands.'",
+      "intro": "A smith with a handcart forge has set up in the lee of a broken wall, working the bellows with one foot. 'One job a customer,' he says, without stopping. 'Mend it, temper it, or buy my word on the lot. I'm not made of hands.'",
       "choices": [
         {
           "id": "mend",
