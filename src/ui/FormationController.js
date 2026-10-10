@@ -13,6 +13,8 @@ import { PROLOGUE_FORMATION_LINE } from '../data/prologueContent.js';
 // on Start, when `commit()` puts every unit on its chosen tile. Nothing is saved
 // before turn 1 (the first suspend checkpoint is taken at the first player phase),
 // so leaving mid-placement simply returns to the route map.
+// The Roster opened here (FormationRoster.js) leaves the battle the same way and
+// enters it again on close, carrying who deploys and where they stood.
 import {
   autoFill,
   clearAll,
@@ -30,6 +32,11 @@ import {
   unitOnTile,
 } from '../engine/FormationPlacement.js';
 import { FormationPicker } from './FormationPicker.js';
+import {
+  canOpenFormationRoster,
+  openFormationRoster,
+  restorePlacement,
+} from './FormationRoster.js';
 import { FormationDock, renderFormationPanel } from './FormationPanel.js';
 import { MenuSurface, button as menuButton } from './MenuSurface.js';
 import {
@@ -184,7 +191,19 @@ export class FormationController {
     s.selectedUnit = null;
     this.active = true;
     s.battleState = FORMATION_STATE;
-    this.drawMarkers();
+    // Back from the Roster (FormationRoster.js): everyone stands where they stood, if
+    // they still may (a reclassed unit can lose its tile and waits).
+    const memory = s._formationReturn;
+    const restored = memory
+      ? restorePlacement(this, memory, (u, t) => {
+          if (this.issue(u, t)) return false;
+          this.formation = placeUnit(this.formation, u, t);
+          return true;
+        })
+      : 0;
+    if (restored) this.syncField();
+    else this.drawMarkers();
+    if (memory?.changed) this.flash('Roster saved. Your formation is as you left it.');
     this.refreshFog();
     this.frameCamera();
     this.touch();
@@ -430,6 +449,8 @@ export class FormationController {
         this.clear(t);
       },
       onDetails: () => this.showDetails(u),
+      // Gear, items and skills for this unit, when the Roster is offered here.
+      onRoster: canOpenFormationRoster(this.scene) ? () => this.openRoster(u) : null,
       // Closing the menu keeps the unit in hand; Back again sets it down.
       onClose: () => {
         this.picker = null;
@@ -455,6 +476,16 @@ export class FormationController {
       rosterIndex: placed.indexOf(unit),
     });
     s.refreshEndTurnControl?.();
+  }
+
+  /** The Roster, on unit u when given (FormationRoster.js). */
+  openRoster(u = -1) {
+    return openFormationRoster(this.scene, this.units[u] || null);
+  }
+
+  /** Whether the Roster can be opened from this screen now. */
+  canOpenRoster() {
+    return canOpenFormationRoster(this.scene);
   }
 
   assign(u, t) {

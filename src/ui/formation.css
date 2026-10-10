@@ -118,6 +118,13 @@
   width: 100%;
   margin-bottom: 8px;
 }
+/* A placed unit's Details and Gear & skills share one row, the same height. */
+.fm-unit-actions {
+  margin: 0 0 8px;
+}
+.fm-unit-actions > .fm-details {
+  margin-bottom: 0;
+}
 .fm-picker-head {
   margin: 0 0 6px;
   font: 13px/1.4 var(--re-body);

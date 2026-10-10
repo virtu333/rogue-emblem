@@ -21,6 +21,7 @@
         "forecast-input-contract.spec.js",
         "contextual-help.spec.js",
         "formation.spec.js",
+        "formation-roster.spec.js",
         "journey-contracts.spec.js",
         "battle-timeline.spec.js",
         "save-retry.spec.js",

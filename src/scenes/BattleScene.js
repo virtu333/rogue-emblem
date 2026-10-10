@@ -429,6 +429,7 @@ import { AbilityController } from '../ui/AbilityController.js';
 import { AREA_CENTER_STATE, AreaTargetingController } from '../ui/AreaTargetingController.js';
 import { GridCursorController } from '../ui/GridCursorController.js';
 import { FormationController, FORMATION_STATE } from '../ui/FormationController.js';
+import { deployedFromMemory, openFormationRoster } from '../ui/FormationRoster.js';
 import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { CombatFxController } from '../ui/CombatFxController.js';
 import { CombatChoreography } from '../ui/CombatChoreography.js';
@@ -566,6 +567,11 @@ export class BattleScene extends Phaser.Scene {
     this._resumeCheckpoint = data.resumeCheckpoint || null;
     // Re-opened in the other orientation (portrait battles), not a player resume.
     this._presentationSwitch = data.presentationSwitch === true;
+    // Back from the Roster opened on the formation screen (FormationRoster.js): who
+    // deploys and where they stood, so the screen opens as the player left it.
+    this._formationReturn = data.formationReturn || null;
+    this._formationRoster = null;
+    this._keepMusicOnShutdown = false;
     this._portraitBattle = null;
     this._fatalResumeParked = false;
     this._battleSuspendController = null;
@@ -688,9 +694,16 @@ export class BattleScene extends Phaser.Scene {
             : this.runManager?.getLockedSpawnCount?.(this.nodeId),
         });
 
+    // Back from the formation's Roster: the same army again, without asking twice.
+    const returning =
+      !this._resumeCheckpoint && this.roster
+        ? deployedFromMemory(this.roster, this._formationReturn, limits)
+        : null;
     if (this._resumeCheckpoint) {
       // Resuming a suspended battle -- units come from the checkpoint
       this.beginBattle(null);
+    } else if (returning) {
+      this.beginBattle(returning);
     } else if (!this.roster) {
       // Standalone mode -- no deploy screen
       this.beginBattle(null);
@@ -726,7 +739,12 @@ export class BattleScene extends Phaser.Scene {
     const audio = this.registry.get('audio');
     // Turning the phone re-opens the battle from its checkpoint; the re-opened scene
     // asks for the same track, which then plays on from where it was.
-    if (audio && !this._portraitBattle?.switching) audio.releaseMusic(this, 0);
+    // Back from the formation's Roster re-opens it the same way.
+    if (audio && !this._portraitBattle?.switching && !this._keepMusicOnShutdown)
+      audio.releaseMusic(this, 0);
+    this._keepMusicOnShutdown = false;
+    this._formationRoster?.sheet?.destroy?.();
+    this._formationRoster = null;
     this._musicCtrl?.destroy();
     this._musicCtrl = null;
     this._formation?.destroy();
@@ -2474,6 +2492,8 @@ export class BattleScene extends Phaser.Scene {
     this._bossPresence = new BossPresenceController(this).create();
     // Resume: the bar is raised silently once the checkpoint is fully restored.
     if (this._resumeCheckpoint) return;
+    // Back from the formation's Roster: the card was shown when the battle was entered.
+    if (this._formationReturn) return;
     if (!this.isBoss || !this._bossName || !this.runManager) return;
     try {
       await this._getCeremonies().showBossIntro({
@@ -4378,6 +4398,11 @@ export class BattleScene extends Phaser.Scene {
 
   _onRosterClick() {
     if (this.isStoryInputLocked()) return;
+    // Placement: the Roster to manage gear and items (FormationRoster.js), when offered.
+    if (this.battleState === FORMATION_STATE) {
+      openFormationRoster(this);
+      return;
+    }
     const rosterStates = [
       'PLAYER_IDLE',
       'UNIT_SELECTED',
