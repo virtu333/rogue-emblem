@@ -102,7 +102,9 @@ describe('every generic unit wears the sprite of the person its portrait shows',
     const wrong = [];
     for (const [person, className] of cases) {
       const unit = { name: 'Ren', className, faction: 'player', portraitVariant: person };
-      const shown = personOfPortrait(className, variantPortraitId(unit));
+      // the sprite person is displayedPerson's; the portrait keeps the unit's own face
+      // across lines (facePerson), so the two agree only inside the person's own line
+      const shown = displayedPerson(unit);
       const k = tracedKeyFor(unit);
       const s = sprites[k];
       if (!shown || !s?.person || s.person.id !== shown || !k.startsWith(`${key(className)}-`))
@@ -219,14 +221,15 @@ describe('the person survives promotion, previews, reclass and recruitment', () 
     }
   });
 
-  it('a reclass shows the portrait counterpart on the map', () => {
+  it('a reclass across lines keeps the face and shows a same-gender counterpart figure on the map', () => {
     const unit = recruit('Fighter', 'fighter_e');
     reclassUnit(unit, classOf('Mage'), classOf('Fighter'), data.classes, data.skills);
     expect(unit.className).toBe('Mage');
-    const shown = personOfPortrait('Mage', variantPortraitId(unit));
+    const shown = displayedPerson(unit);
     expect(table.identities[shown].gender).toBe('f');
     expect(tracedKeyFor(unit)).toBe(`mage-${shown}`);
-    expect(displayedPerson(unit)).toBe(shown);
+    // the portrait is still fighter_e's own face, not the Mage counterpart's
+    expect(variantPortraitId(unit)).toBe(table.identities.fighter_e.renders.Fighter);
   });
 
   it('an NPC is its person in verdigris, and stays that person when it joins', () => {

@@ -78,7 +78,10 @@ backdrop, eye line / face size normalised to the approved set via vision-model f
 - **Promotion:** the person is kept; the resolver shows that person's drawing for the new class
   (decision: matched promoted drawings rather than mapping promoted units to their base face -
   the promotion rite and path chooser now show *this* unit in the new class's gear). A reclass
-  into another line maps to a stable same-gender counterpart (reversible).
+  into another line keeps the unit's own face (its drawing in its own line, at its tier: a Hero
+  sealed into a Swordmaster is the same man; `facePerson`). Only the map sprite takes a stable
+  same-gender counterpart (`displayedPerson`), since sprites exist only inside a person's line.
+  Reversible: back in the line, the class's own drawing shows.
 - **Enemies:** face = hash(run seed | node id | battle entity id | class), stored at placement,
   so a refresh restores the same face and nothing reads the battle RNG.
 - Victory records now also store `portraitVariant` and `tier` (optional; old records fall back).
