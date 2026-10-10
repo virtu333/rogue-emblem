@@ -41,7 +41,14 @@ vi.mock('../src/engine/AIController.js', () => ({
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { RunManager } from '../src/engine/RunManager.js';
-import { deriveBattleStreamSeed, deriveNodeBattleSeed } from '../src/engine/BattleScout.js';
+import {
+  deriveBattleStreamSeed,
+  deriveNodeBattleSeed,
+  openingBattleStreamSeed,
+  PINNED_BATTLE_STREAM_KEY,
+} from '../src/engine/BattleScout.js';
+import { buildDevStartupRoute } from '../src/utils/devStartup.js';
+import { createBattleRng } from '../src/engine/BattleRng.js';
 import { BattleSuspendController } from '../src/ui/BattleSuspendController.js';
 import { hashRewindSeed } from '../src/ui/VisionRewindController.js';
 import { loadGameData } from './testData.js';
@@ -362,37 +369,98 @@ describe('the battle stream across a revert and a resume', () => {
   });
 });
 
-describe('the prologue run: one stream per chapter', () => {
-  it("each chapter opens on its own node's stream, the same for every player", () => {
-    // Failure: every chapter of every player's prologue opens on the fixed prologue seed's one
-    // stream (rngSeed = prologue.seed for the whole run).
+describe('the prologue run: the pinned seed', () => {
+  // The prologue's authored chapters, harnesses and browser specs are tuned on one fixed stream
+  // (data/prologue.json `seed`, 1209, set by RunManager.startPrologue): a prologue battle opens
+  // on exactly what it opened on before the per-node stream, for every player.
+  function prologueChapterSeeds() {
     const prologue = gameData.prologue;
+    const rm = new RunManager(gameData, null);
+    rm.startPrologue(gameData);
     const chapterNodes = prologue.route.nodes.filter((n) => n.chapter).map((n) => n.id);
     expect(chapterNodes.length).toBeGreaterThanOrEqual(4);
-    const seedsFor = () => {
-      const rm = new RunManager(gameData, null);
-      rm.startPrologue(gameData);
-      return chapterNodes.map((nodeId) => {
-        const node = rm.nodeMap.nodes.find((n) => n.id === nodeId);
-        const scene = new BattleScene();
-        scene.runManager = rm;
-        scene.nodeId = nodeId;
-        scene.battleParams = structuredClone(node.battleParams);
-        scene._resumeCheckpoint = null;
-        scene.add = { text: vi.fn() };
-        scene.initializeVisionState();
-        scene.installBattleRng();
-        try {
-          return { seed: rm.rngSeed, first: Math.random() };
-        } finally {
-          scene._battleRandomRestore?.();
-        }
-      });
-    };
-    const one = seedsFor();
-    expect(new Set(one.map((c) => c.seed)).size).toBe(chapterNodes.length);
-    expect(new Set(one.map((c) => c.first)).size).toBe(chapterNodes.length);
-    expect(one.map((c) => c.seed)).not.toContain(prologue.seed >>> 0);
-    expect(seedsFor()).toEqual(one);
+    return chapterNodes.map((nodeId) => {
+      const node = rm.nodeMap.nodes.find((n) => n.id === nodeId);
+      const scene = new BattleScene();
+      scene.runManager = rm;
+      scene.nodeId = nodeId;
+      scene.battleParams = structuredClone(node.battleParams);
+      scene._resumeCheckpoint = null;
+      scene.add = { text: vi.fn() };
+      scene.initializeVisionState();
+      scene.installBattleRng();
+      try {
+        return { seed: rm.rngSeed, base: scene.visionBaseSeed, first: Math.random() };
+      } finally {
+        scene._battleRandomRestore?.();
+      }
+    });
+  }
+
+  it("every chapter's fresh battle opens on the pre-branch seed and its draws", () => {
+    // Failure: the prologue takes the per-node stream, so the tuned chapters (and the harness
+    // and browser specs built on them) play different hit, crit and AI rolls.
+    expect(gameData.prologue.seed).toBe(1209);
+    const expectedFirst = createBattleRng(1209)();
+    for (const c of prologueChapterSeeds()) {
+      expect(c.seed).toBe(1209);
+      expect(c.base).toBe(1209);
+      expect(c.first).toBe(expectedFirst);
+    }
+  });
+
+  it('the fresh-battle rule gives a standard run per-node seeds and the prologue one seed', () => {
+    // Failure: the choice is made on something other than the run (a mode string, a node id
+    // prefix), so one kind of run picks up the other's stream.
+    const prologueRm = new RunManager(gameData, null);
+    prologueRm.startPrologue(gameData);
+    const standard = newRun(1209);
+    const seedAt = (runManager, nodeId) =>
+      openingBattleStreamSeed({ runManager, act: 'act1', nodeId, fallbackSeed: 5 });
+    expect(seedAt(prologueRm, 'a')).toBe(1209);
+    expect(seedAt(prologueRm, 'b')).toBe(1209);
+    expect(seedAt(standard, 'a')).not.toBe(seedAt(standard, 'b'));
+    expect(seedAt(standard, 'a')).not.toBe(1209);
+  });
+});
+
+describe('a dev review route: the pinned stream', () => {
+  // `?devScene=` fixtures and the browser specs built on them are tuned on the run seed's one
+  // stream (a lab battle's Fighter, a reward screen's gold, a recruit's candidates).
+  it('a pinned fresh battle of a standard run keeps the run seed; an unpinned one does not', () => {
+    // Failure: the dev routes take the per-node stream, so fixture-tuned specs roll new outcomes.
+    const rm = newRun(42);
+    const at = (pinned, nodeId) =>
+      openingBattleStreamSeed({ runManager: rm, pinned, act: 'act1', nodeId, fallbackSeed: 5 });
+    expect(at(true, 'a')).toBe(42);
+    expect(at(true, 'b')).toBe(42);
+    expect(at(false, 'a')).not.toBe(42);
+  });
+
+  it('buildDevStartupRoute pins the stream and the scene reads it into the battle seed', () => {
+    // Failure: the flag is not set (or the scene ignores it), so the rule above never applies.
+    const registry = new Map();
+    buildDevStartupRoute(gameData, registry, {
+      enabled: true,
+      sceneKey: 'Battle',
+      preset: 'combat_actions',
+      seed: 42,
+    });
+    expect(registry.get(PINNED_BATTLE_STREAM_KEY)).toBe(true);
+    const rm = newRun(42);
+    const scene = new BattleScene();
+    scene.runManager = rm;
+    scene.nodeId = 'act1_0_0';
+    scene.battleParams = { act: 'act1' };
+    scene._resumeCheckpoint = null;
+    scene.registry = registry;
+    scene.add = { text: vi.fn() };
+    scene.initializeVisionState();
+    scene.installBattleRng();
+    try {
+      expect(rm.rngSeed).toBe(42);
+    } finally {
+      scene._battleRandomRestore?.();
+    }
   });
 });

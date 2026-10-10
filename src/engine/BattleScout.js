@@ -81,6 +81,32 @@ export function deriveBattleStreamSeed(runSeed, { act = null, nodeId = null } = 
   return deriveNodeBattleSeed(runSeed, `battle-stream:${act ?? ''}:${nodeId ?? ''}`);
 }
 
+/**
+ * The seed a battle's stream opens on: the one rule BattleScene.installBattleRng follows.
+ * A run's FRESH battle opens on its own node's stream (`deriveBattleStreamSeed`); a resume keeps
+ * the run's saved seed (finalizeResume then restores seed and cursor); the PROLOGUE run keeps its
+ * pinned seed (`RunManager.startPrologue` sets `rngSeed` to the prologue's fixed seed, and its
+ * authored chapters, harnesses and browser specs are tuned on that one stream); a battle with no
+ * run (a standalone chapter) takes the node fallback. A dev review route (`?devScene=`, the
+ * registry's PINNED_BATTLE_STREAM_KEY, `pinned`) keeps the run seed's stream too: its fixtures
+ * and browser specs are tuned on it.
+ */
+export const PINNED_BATTLE_STREAM_KEY = 'devPinnedBattleStream';
+
+export function openingBattleStreamSeed({
+  runManager,
+  resume = false,
+  pinned = false,
+  act = null,
+  nodeId = null,
+  fallbackSeed = 0,
+}) {
+  if (runManager && !resume && !pinned && !isPrologueRun(runManager)) {
+    return deriveBattleStreamSeed(runManager.runSeed, { act, nodeId }) >>> 0;
+  }
+  return Number.isFinite(runManager?.rngSeed) ? runManager.rngSeed >>> 0 : fallbackSeed >>> 0;
+}
+
 /** The seed a battle's map is generated from: its params' `battleSeed`, else the derived one. */
 export function battleGenerationSeed(params, { runSeed = 0, nodeId = null } = {}) {
   if (Number.isFinite(params?.battleSeed)) return params.battleSeed;

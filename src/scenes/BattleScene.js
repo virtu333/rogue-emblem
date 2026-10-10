@@ -267,9 +267,10 @@ import { generateBattle, reconcileRecruitSpawnTile } from '../engine/MapGenerato
 import {
   applyGenerationFields,
   battleGenerationSeed,
-  deriveBattleStreamSeed,
   deriveNodeBattleSeed,
   generateSeededBattle,
+  openingBattleStreamSeed,
+  PINNED_BATTLE_STREAM_KEY,
 } from '../engine/BattleScout.js';
 import {
   computeAcidDamage,
@@ -2557,29 +2558,19 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  /**
-   * The battle stream's seed at a fresh start of a run's battle (engine/BattleScout.js
-   * deriveBattleStreamSeed): its own per run and node, never the stream an earlier battle
-   * opened on. Written to the run before beginBattleInProgress records `rngSeedAtEntry`.
-   */
-  freshBattleStreamSeed() {
-    return deriveBattleStreamSeed(this.runManager?.runSeed, {
+  installBattleRng() {
+    // The one rule is engine/BattleScout.js openingBattleStreamSeed: a fresh battle of a
+    // standard run opens on its own node's stream (written to the run before
+    // beginBattleInProgress records `rngSeedAtEntry`); a resume and the prologue run keep the
+    // run's seed.
+    const currentSeed = openingBattleStreamSeed({
+      runManager: this.runManager,
+      resume: Boolean(this._resumeCheckpoint),
+      pinned: this.registry?.get?.(PINNED_BATTLE_STREAM_KEY) === true,
       act: this.battleParams?.act ?? this.runManager?.currentAct ?? null,
       nodeId: this.nodeId,
+      fallbackSeed: this.deriveBattleSeed(),
     });
-  }
-
-  installBattleRng() {
-    // A fresh battle of a run opens on its own node's stream; a resume keeps the run's seed
-    // (the suspended battle's, which finalizeResume then restores with its cursor); a battle
-    // with no run (a standalone prologue chapter) keeps the node fallback.
-    const fallbackSeed = this.deriveBattleSeed();
-    const currentSeed =
-      this.runManager && !this._resumeCheckpoint
-        ? this.freshBattleStreamSeed() >>> 0
-        : Number.isFinite(this.runManager?.rngSeed)
-          ? this.runManager.rngSeed >>> 0
-          : fallbackSeed >>> 0;
     if (this.runManager) this.runManager.rngSeed = currentSeed;
     this.visionBaseSeed = currentSeed;
     const prevRandom = Math.random;
