@@ -1,7 +1,8 @@
 # Large maps and map variety
 
-Status: proposal, revision 5 (2026-10-09). Takes in the notes of specs 01–05, a cross-review
-of the whole set and a review finding on the old-client guard. Specs only: no game code or
+Status: proposal, revision 6 (2026-10-10). Takes in the notes of specs 01–05, a cross-review
+of the whole set, a review finding on the old-client guard and the owner's decisions of
+2026-10-10 (§6: the desktop view, the minimap, the rung ladder). Specs only: no game code or
 data changes yet.
 Branch `claude/large-maps-specs`.
 
@@ -128,8 +129,8 @@ Four read-only investigations, with benchmarks run on the real `HeadlessBattle` 
 | Use | Size | Notes |
 |---|---|---|
 | Ordinary procedural battles | unchanged (10x8 … 18x13) | `mapSizes.json` keeps its entries |
-| Large set piece (Act III–IV ordinary node, elite, event battle) | 20x12 – 22x14 | about two phone screens at tactical zoom. The format also serves smaller authored maps: Rival Band, an elite, is 18x10 |
-| Act boss set piece (Act III, Act IV) | 20x12 – 24x14 | an approach plus an authored arena (hybrid v2); `05`'s Dueling Halls is 22x12 |
+| Large set piece (Act III–IV ordinary node, elite, event battle) | 20x12 – 22x14 | about two phone screens at tactical zoom. The format also serves smaller authored maps: Rival Band, an elite, is 18x10. Dusk takes only those of 20x12 or less (§6, 2026-10-10) |
+| Act boss set piece (Act III, Act IV) | 20x12 – 24x14 | an approach plus an authored arena (hybrid v2); `05`'s Dueling Halls is 22x12. Nightfall and Black Sun only (§6, 2026-10-10) |
 | Finale variant | up to 24x16 | Sanctum of Echoes, Black Sun only (`05` §8.7) |
 | Ceiling | 24x16 (384 tiles) | beyond this the walk dominates even with staging; 40x24 is out |
 
@@ -289,6 +290,10 @@ keeps meaning the prologue.
   two per act, from the elite set pieces (Two Towers, Hunting Party, Rival Band).
 - **No two set-piece nodes are joined by an edge.**
 - **Never on First Light** (owner decision): its row of the table is all zeros.
+- **Dusk: standard size only** (owner decision, 2026-10-10): ordinary, elite and event set
+  pieces of 20x12 or less (The Mill Ford, Two Towers, Rival Band, Caravan Under Siege, The
+  Burning Village), never a boss set piece. Dusk's entry carries `maxSize: [20, 12]` and a
+  boss share of 0, both validated (`04` §6.1).
 - **The chances are per rung**, in `difficulty.json` (`modes.<rung>.setPieces`). Every rung
   needs an entry, including `dusk`.
 - **Placement is a keyed pass after node-map generation**, on hashes of the run seed and
@@ -296,15 +301,21 @@ keeps meaning the prologue.
 - **Event battles:** events may name a set piece (The Burning Village, Caravan Under Siege).
 - **Act III and Act IV boss nodes:** boss set pieces join the boss template pool beside the
   hybrid arenas, never instead of them (owner decision 4): Long Road to the Keep and the
-  Dueling Halls in Act III, The Emperor's Parade and the Battery (Nightfall+) in Act IV
-  (`05` §8). Dusk and up only.
-- **Boss arenas in every act** (`05` §4.4; not set pieces): today's two hybrid arenas gain
-  structural variants, Acts I and II gain one arena each (`act1_border_post`,
-  `act2_doctrine_yard`), and a keyed post-pass gives boss nodes an arena of the drawn biome
-  at the rung's share (`difficulty.json` `bossKits.arenaShare`: First Light 0.5, Dusk and
-  up 0.75). A boss set piece placed by `04`'s pass wins.
-- **Every boss battle**, set piece or not, First Light included under `05` §9.5's rules,
-  gets `05`'s boss kit: phases, a signature, a court, a bonus.
+  Dueling Halls in Act III, The Emperor's Parade and the Battery in Act IV (`05` §8).
+  **Nightfall and Black Sun only** (owner decision, 2026-10-10): Dusk meets its Act III and
+  IV bosses, the Emperor included, on today's maps with their kits.
+- **Boss arenas in Acts II–IV, Dusk and up** (`05` §4.4; not set pieces): today's two hybrid
+  arenas gain structural variants, Act II gains one arena (`act2_doctrine_yard`), and a
+  keyed post-pass gives boss nodes an arena of the drawn biome at the rung's share
+  (`difficulty.json` `bossKits.arenaShare`: First Light 0, validated; Dusk and up 0.75). A
+  boss set piece placed by `04`'s pass wins. First Light keeps today's v1 arenas exactly as
+  they are (variant 0, where the ordinary draw picks them). Act I's arena
+  (`act1_border_post`) is deferred, out of scope by owner decision.
+- **Every boss battle from Act II on**, set piece or not, gets `05`'s boss kit: phases, a
+  signature, a court, a bonus. First Light gets it gently (`05` §9.5: at most one gentle,
+  telegraphed, never-lethal signature, no sleeping court, today's maps).
+- **Act I's boss battles stay as they are on every rung** (owner decision, 2026-10-10):
+  today's map, no arena, no kit, no signature, no court. Phase 0's fixes still apply.
 - **Finale:** Sanctum of Echoes, the Entity's variant, on Black Sun only (`05` §8.2, §8.7;
   `04` §6.1's Nightfall finale share is 0). Nightfall and Black Sun's procedural sanctum
   gains the echo pillars.
@@ -324,8 +335,8 @@ Each phase is shippable alone and leaves the game better even if the next never 
 | 2 | **Encounter groups** (`02`): groups, wake triggers, contact-relative waves, and the par model `groups-v1` in its own PR. Pickets and sleeping pods on today's rout maps stay owner-gated until `sim/pacing.js` shows par holds (`02` §1.5, §9) | 0 (enrage, dead air); **0g** for PRs 2.3, 2.4, 2.6 and the first writer of `groups-v1` |
 | 3 | **Objective model v2** (`03`): `objectives` with phases and bonuses; the objective strip; bonus rewards at the victory commit. First on today's maps: the village becomes a bonus objective (it keeps its in-battle payout for compatibility, `03` §9), multi-seize | 2; **0g** for PRs 1b and 4–7 |
 | 4 | **Set-piece format and the first two maps** (`04`): skeleton, chunks, seeded choices, validator; The Mill Ford (Act III ordinary) and Two Towers (elite) | **0g**, and the PRs in the vertical slice below; Two Towers adds `03`'s model and `defeat` |
-| 5a | **Boss enhancements on today's maps** (`05` K0–K6): K0 arenas everywhere (variants, the Act I–II arenas, the share, the card's third line); K1 kit data, compile, the `bossBar` / `bossHp` triggers, `bossState`, the shared-primary rule, the core signature module and the Act I kits; K2–K4 the Act II–IV kits; K5 boss-map bonuses and Vision; K6 the finale (the Lieutenant's foretell, the Entity's echo pillars, the harness's splash) | **0g for K0 and K1** (and every later K that writes a capability). K0: `02` PR 0b only. K1: `02` PRs 2.1, 2.2a, 2.2b, 2.4, 2.5 and `03` PRs 1, 1b, 3, 4 (or a trimmed **K1-lite**: `02` 2.1, 2.2a, 2.4 and the two trigger kinds). K2: K1 and `02` 2.3; K3, K4: K2; K5: K1 and `03` PR 5; K6: K2 (its pillar bonus also `03` PRs 5, 7). **No camera work**: everything plays on today's sizes. Its switches (`bossKits.enabled`, `arenaShare`) ship off and are gated apart from set pieces ("Rollout gates") |
-| 5 | **Boss set pieces**: Long Road to the Keep (Act III, 22x14), The Emperor's Parade (Act IV, 24x14), refined by `05` K7–K8 (boss weights, the drawbridge's `until` list, the Parade's bar phases) | 4 (`04` PRs E, F; the K7–K8 refinements also need 5a's K2 and K4), and **1**: these boards don't fit desktop at zoom 1, so they need the desktop camera, enemy-phase follow and pointers (`01` PRs 3–5, 7, 8) |
+| 5a | **Boss enhancements on today's maps** (`05` K0–K6), from Act II (Act I stays as today on every rung): K0 arenas (variants, the Act II arena, the share, the card's third line; Dusk and up, First Light's share 0); K1 kit data, compile, the `bossBar` / `bossHp` triggers, `bossState`, the shared-primary rule, the core signature module and the Knight Commander's kit; K2–K4 the other Act II–IV kits; K5 boss-map bonuses and Vision; K6 the finale (the Lieutenant's foretell, the Entity's echo pillars, the harness's splash) | **0g for K0 and K1** (and every later K that writes a capability). K0: `02` PR 0b only. K1: `02` PRs 2.1, 2.2a, 2.2b, 2.4, 2.5 and `03` PRs 1, 1b, 3, 4 (or a trimmed **K1-lite**: `02` 2.1, 2.2a, 2.4 and the two trigger kinds). K2: K1 and `02` 2.3; K3, K4: K2; K5: K1 and `03` PR 5; K6: K2 (its pillar bonus also `03` PRs 5, 7). **No camera work**: everything plays on today's sizes. Its switches (`bossKits.enabled`, `arenaShare`) ship off and are gated apart from set pieces ("Rollout gates") |
+| 5 | **Boss set pieces** (Nightfall and Black Sun only): Long Road to the Keep (Act III, 22x14), The Emperor's Parade (Act IV, 24x14), refined by `05` K7–K8 (boss weights, the drawbridge's `until` list, the Parade's bar phases) | 4 (`04` PRs E, F; the K7–K8 refinements also need 5a's K2 and K4), and **1**: these boards don't fit desktop at zoom 1, so they need the desktop camera, enemy-phase follow and pointers (`01` PRs 3–5, 7, 8) |
 | 6 | **More set pieces**: Caravan Under Siege, Hunting Party, Break the Gate (needs a gate tile), The Burning Village, Rival Band; `05`'s Dueling Halls (K9) and the Battery (K10); the finale variant, Sanctum of Echoes on Black Sun (K11) | 4, plus the `03` kind each one uses; `05`'s three also 5a (K3–K6) and `01` as Phase 5 |
 
 **Ordering.**
@@ -340,10 +351,11 @@ Each phase is shippable alone and leaves the game better even if the next never 
 - **20x12 boards need little from `01`.** They fit the desktop at zoom 1 (640x480 / 32 px
   = 20x15). The first two maps need only `01` PR 1 (the [N] clamp) and, on phones, the
   off-screen pointers (`01` PR 8).
-- **Phase 5a runs beside the slice.** K0 needs only `02` PR 0b (and 0g) and changes boss maps
-  in every act, First Light included; K1 lands with `02`'s Phase 2 core and `03` PRs 1, 1b, 3
-  and 4, the same PRs Two Towers and Long Road need. Only `05`'s set pieces (K7–K11) wait
-  for the camera. K0 then K1 is the cheapest large change in the set (`05` §12).
+- **Phase 5a runs beside the slice.** K0 needs only `02` PR 0b (and 0g) and changes Act II–IV
+  boss maps on Dusk and up (First Light and Act I keep today's maps); K1 lands with `02`'s
+  Phase 2 core and `03` PRs 1, 1b, 3 and 4, the same PRs Two Towers and Long Road need. Only
+  `05`'s set pieces (K7–K11) wait for the camera. K0 then K1 is the cheapest large change in
+  the set (`05` §12).
 
 ### Vertical slice: The Mill Ford, Dusk and up
 
@@ -387,7 +399,7 @@ switches are separate, so a change in difficulty can be traced to one of them.
 |---|---|---|---|
 | set pieces | `difficulty.json` `modes.<rung>.setPieces` | all zero; then the Mill Ford alone, on Dusk and up | `04` PR C |
 | boss kits | `modes.<rung>.bossKits.enabled` | `false` on every rung | `05` K1–K6 |
-| boss arenas | `modes.<rung>.bossKits.arenaShare` | 0 on every rung | `05` K0 |
+| boss arenas | `modes.<rung>.bossKits.arenaShare` | 0 on every rung; First Light's stays 0 for good (validated, §6 2026-10-10) | `05` K0 |
 | rout pods | `encounterPlan.rout` | `null` | `02` PR 2.6 (owner-gated already) |
 
 - **Guard first.** No switch is turned on until the release that carries `04` PR A0 has
@@ -405,32 +417,75 @@ switches are separate, so a change in difficulty can be traced to one of them.
 
   Only then Two Towers, the boss set pieces, `bossKits.enabled`, `arenaShare` and
   `encounterPlan.rout`, each in its own change with its own sim report.
-- **Boss kits are their own rollout.** Kits change the difficulty of boss battles on every
-  rung, First Light included, whereas set pieces are rare and never on First Light. A
+- **Boss kits are their own rollout.** Kits change the difficulty of Act II–IV and finale boss
+  battles on every rung, First Light included (gently), whereas set pieces are rare and never
+  on First Light. A
   set-piece change never turns kits on and a kit change never raises a set-piece chance, so a
   move in boss win rates, par or enrage can be pinned on one change. `bossKits.enabled` goes on
   rung by rung, each with `05` §11's `sim/pacing.js --bossKits` report.
 
-## 6. Owner decisions (2026-10-09)
+## 6. Owner decisions
+
+### Owner decisions (2026-10-09)
 
 1. **How often:** at most one set piece per act on ordinary nodes, plus a chance on elite
    nodes (`04` §6.1's table; the chances are tuned in its PR C).
 2. **First Light:** no set pieces at all. It is the intro difficulty. First Light may still
-   get the boss enhancements that are not set pieces (`05`). `05` §9.5 reads that as: the
-   kits with gentler values and no sleeping or patrolling courts; today's map formats only
-   (the procedural seize templates, the v1 hybrid arenas, their variants and the new Act
-   I–II arenas, at a 0.5 share); one kit bonus per boss map, never paying Vision. `05` Q1
-   and Q10 ask the owner to confirm that reading. The old-client guard does not exempt it:
-   a First Light boss kit requires the newer client like any other capability (`04` §12.1).
+   get the boss enhancements that are not set pieces (`05`). **Narrowed on 2026-10-10** (the
+   ladder below): no Act I kit or arena, no new arena or arena variant, a 0 arena share, at
+   most one gentle signature; `05` §9.5 now reads: from Act II, the kits with gentler values
+   and no sleeping or patrolling courts, on today's maps exactly as they are (the procedural
+   seize templates, the v1 hybrid arenas at variant 0, the sanctum); one kit bonus per boss
+   map, never paying Vision. This answers `05` Q1 and Q10. The old-client guard does not
+   exempt it: a First Light boss kit requires the newer client like any other capability
+   (`04` §12.1).
 3. **Bonus rewards:** a bonus may pay a Vision charge. Act III+, at most once per act,
    never on First Light (`03` §7.4). It may be offered on any Act III+ set-piece or
    boss-map bonus; `05`'s boss-map bonuses offer it on half their draws (`05` §6).
 4. **Boss maps:** enhance today's boss maps rather than replace them. The hybrid arenas stay
    in the pool. `05-boss-maps.md` plans the enhancements and more boss set pieces.
-5. **Desktop default view** (still open): `01` recommends opening on the whole board, so
-   every map up to 20x13 opens exactly as today.
-6. **Minimap** (still open): `01` recommends no minimap until the first set pieces are
-   playtested.
+5. **Desktop default view: decided 2026-10-10** (below): open on the whole board, so every
+   map up to 20x13 opens exactly as today.
+6. **Minimap: decided 2026-10-10** (below): none until the first set pieces are playtested.
+
+### Owner decisions (2026-10-10)
+
+1. **Desktop default view:** a battle opens on the whole board (`01` §2.3's recommendation,
+   `01` Q1). Every map up to 20x13 opens exactly as today; a larger board opens at Overview.
+2. **Minimap:** none until the first set pieces are playtested (`01` §2.9's
+   recommendation, `01` Q2). Overview, pointers, jumps and `03`'s strip carry navigation.
+3. **The rung ladder for boss enhancements and set pieces.** The owner left the details to
+   the specs and agreed this rule: **the Act I boss stays simple everywhere; scale grows with
+   the rung.**
+
+   | Rung | Act I boss | Act II boss | Act III–IV bosses | Ordinary / elite set pieces | Boss set pieces |
+   |---|---|---|---|---|---|
+   | First Light | today's map, nothing new | today's map; at most one gentle, telegraphed, never-lethal signature; no sleeping court; no new arena or arena variant | today's arenas (variant 0) + that gentle signature; no sleeping court | none | none |
+   | Dusk | today's map, nothing new | new arenas, arena variants, sleeping courts and the full signature start here | full boss enhancements on today's arenas and their variants | standard size only (20x12 or less: The Mill Ford, Two Towers, Rival Band and the other maps of that size) | none (no Long Road, Parade, Dueling Halls or Battery) |
+   | Nightfall / Black Sun | today's map, nothing new | as Dusk | full enhancements | all | all the large boss set pieces (Long Road 22x14, The Emperor's Parade 24x14, the Dueling Halls, the Battery); the finale variant (Sanctum of Echoes) on Black Sun only |
+
+   - **"Act I boss: today's map, nothing new"** means no Act I arena, no Act I kit or
+     signature and no court, on every rung. Phase 0's fixes (`02` §2) still apply. `05`
+     keeps its Act I designs (§7.1, `act1_border_post`) marked deferred, out of scope by
+     this decision; K0 and K1 no longer deliver them, and the Act I bosses are `kitless`.
+   - **First Light's arena share is 0** (validated), so it meets no new arena and no variant.
+     Today's v1 hybrid arenas stay as they are where the ordinary template draw picks them.
+     The new Act II arena is reached only through the share post-pass (`05` §4.4), so the
+     ordinary draw never brings it to First Light either.
+   - **"Full signature" on Dusk** is read as the kit's own values (its tile counts, aura
+     values, wave sizes), not First Light's gentler ones. Whether Dusk's volley may kill
+     stays `05` Q2; until it is answered `volleyLethal` stays false on Dusk.
+   - **First Light's kit, otherwise,** keeps `05` §9.5's gentle reading (courts compiled to
+     awake guards, a tier-1 affix at most at the half, one bonus that never pays Vision).
+   - **Dusk's set-piece row** carries `maxSize: [20, 12]` and a boss share of 0, both
+     validated (`04` §6.1). `04` Q5 (the Parade always on Dusk?) is answered no: Dusk's last
+     battle is the Emperor's kit on today's maps and the bastion's variants. Hunting Party
+     (20x13) and Break the Gate (22x12) are over the size, so they are Nightfall and up as
+     sketched.
+   - **The guard is unchanged.** A First Light run with kits on still holds the `bossKit`
+     capability and requires the newer client (`04` §12.1); test 23's fixture moves from
+     Act I to a First Light Act II boss (the Archmage), since Act I has no kit.
+   - `05` Q1 and Q10 are answered by this ladder (`05` §9.5, §13).
 
 Each spec ends with its own open questions.
 
@@ -454,3 +509,11 @@ Each spec ends with its own open questions.
   write a capability (`05` K0 and K1, `02` 2.3, 2.4, 2.6, `03` 1b and 4–7). New "Rollout gates":
   separate data switches, boss kits gated apart from set pieces, and the Mill Ford slice
   proven before the broader catalogue is switched on. The slice is about 22 days.
+
+- **Revision 6 (2026-10-10):** the owner's decisions of 2026-10-10 (§6): the desktop opens on
+  the whole board; no minimap until the set pieces are playtested; the rung ladder (Act I's
+  boss stays today's map on every rung; First Light from Act II gets at most one gentle
+  signature on today's maps, arena share 0; Dusk adds the Act II arena, variants, sleeping
+  courts and full signatures, and only set pieces of 20x12 or less; the boss set pieces are
+  Nightfall and up, the finale variant Black Sun only). §2's size bands, §4, the roadmap's
+  Phases 5a and 5 and the rollout gates follow.
