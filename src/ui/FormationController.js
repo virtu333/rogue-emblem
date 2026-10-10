@@ -354,9 +354,13 @@ export class FormationController {
    * board the range was read from, and a unit picked up or set down ends the look.
    */
   clearInspection() {
+    if (this.hasInspection()) this.scene.clearInspectionVisuals?.();
+  }
+
+  /** Is a foe's panel or a ballista's range up (what Back and Esc close first)? */
+  hasInspection() {
     const s = this.scene;
-    if (s.inspectionPanel?.visible || s._inputController?._ballistaRangeShown)
-      s.clearInspectionVisuals?.();
+    return Boolean(s.inspectionPanel?.visible || s._inputController?._ballistaRangeShown);
   }
 
   selectTile(t) {

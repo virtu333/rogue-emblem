@@ -382,6 +382,8 @@ describe('A ballista is tapped like a foe', () => {
     expect(input._ballistaRangeShown).toBe(true);
     expect(scene.infoText.text).toContain('Enemy ballista · Range 1-4');
     expect(scene.infoText.text).toContain('Mt 10 vs RES · Hit 85');
+    // The terrain's generic note repeats the reach; the ballista's own lines stand alone.
+    expect(scene.infoText.text).not.toContain('Fires at enemies in range');
     expect(scene.infoText.text).toContain('Fires at your nearest unit each enemy phase.');
     tap(c, enemyBallista);
     expect(litTiles(scene)).toEqual({ move: [], attack: [] });
@@ -461,5 +463,64 @@ describe('A ballista is tapped like a foe', () => {
     scene.grid.updateFogOfWar([{ col: 5, row: 0, moveType: 'Infantry' }]);
     tap(c, enemyBallista);
     expect(litTiles(scene).attack).toEqual(reachOf(enemyBallista));
+  });
+});
+
+describe('A ballista look never goes stale', () => {
+  const enemyBallista = { col: 6, row: 0, owner: 'enemy', range: 4 };
+  const tap = (c, b) => c.handleTileTap({ col: b.col, row: b.row });
+  const lit = (scene) => litTiles(scene).attack.length;
+
+  it('after Start battle the first tap draws the reach', () => {
+    const { c, scene, input } = setup({ ballistas: [enemyBallista] });
+    c.autoPlace();
+    tap(c, enemyBallista);
+    expect(lit(scene)).toBeGreaterThan(0);
+    expect(c.start()).toBe(true);
+    expect(lit(scene)).toBe(0);
+    expect(input._ballistaRangeShown).toBe(false);
+    input.handleIdleClick({ col: 6, row: 0 });
+    expect(lit(scene)).toBeGreaterThan(0);
+    expect(input._ballistaRangeShown).toBe(true);
+  });
+
+  it('after selecting a unit and cancelling, the next tap draws it again', () => {
+    const { scene, input } = setup({ state: 'PLAYER_IDLE', ballistas: [enemyBallista] });
+    const mine = unit('Edric', 'player', 0, 0);
+    scene.playerUnits.push(mine);
+    input.handleIdleClick({ col: 6, row: 0 });
+    expect(lit(scene)).toBeGreaterThan(0);
+    // Selecting one's own unit clears the board's highlights without the input's help.
+    scene.grid.clearHighlights();
+    scene.grid.clearAttackHighlights();
+    expect(input._ballistaRangeShown).toBe(false);
+    input.handleIdleClick({ col: 6, row: 0 });
+    expect(lit(scene)).toBeGreaterThan(0);
+  });
+
+  it('the gamepad inspect does not read a cleared range as shown', () => {
+    const { scene, input } = setup({ state: 'PLAYER_IDLE', ballistas: [enemyBallista] });
+    input.handleIdleClick({ col: 6, row: 0 });
+    scene.grid.clearAttackHighlights();
+    expect(input._ballistaRangeShown).toBe(false);
+  });
+
+  it('Back closes a ballista look first, then acts as before', () => {
+    const { c, scene, input } = setup({ ballistas: [enemyBallista] });
+    scene.requestCancel = BattleScene.prototype.requestCancel.bind(scene);
+    scene.canRequestCancel = () => true;
+    scene._isPrologueGateActive = () => false;
+    c.assign(0, 0);
+    c.handleTileTap(tiles[0]);
+    const held = c.heldUnit;
+    expect(held).toBeTruthy();
+    tap(c, enemyBallista);
+    expect(lit(scene)).toBeGreaterThan(0);
+    expect(scene.requestCancel({ allowPause: true })).toBe(true);
+    expect(lit(scene)).toBe(0);
+    expect(input._ballistaRangeShown).toBe(false);
+    expect(c.heldUnit).toBe(held);
+    scene.requestCancel({ allowPause: true });
+    expect(c.heldUnit).toBeFalsy();
   });
 });

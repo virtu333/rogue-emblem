@@ -45,7 +45,9 @@ export function renderFormationPanel(container, formation, makeButton, { withSta
   count.setAttribute('role', 'status');
   container.append(count);
   // Danger's purple outline (status-staff reach) is otherwise unexplained on this screen.
-  if (s.dangerZone?.visible && s.dangerZone.tiles?.some((tile) => tile.statusThreat))
+  // Danger's overlay, or a single foe's look (its focus edge), may carry it.
+  const statusEdge = (zone) => zone?.visible && zone.tiles?.some((tile) => tile.statusThreat);
+  if (statusEdge(s.dangerZone) || statusEdge(s._inputController?._idleThreat))
     container.append(el('p', 'fm-legend', DANGER_STATUS_LEGEND));
   if (formation.lesson) container.append(el('p', 'fm-notice', formation.lesson));
   if (formation.notice) container.append(el('p', 'fm-notice', formation.notice));

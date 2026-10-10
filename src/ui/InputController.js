@@ -57,6 +57,20 @@ export class InputController {
     this._ballistaRangeShown = false;
   }
 
+  // A ballista's reach is "shown" only while the very overlay it drew is still on the grid:
+  // every path that clears or replaces the attack highlights (Start battle, selecting a unit,
+  // another range) swaps the grid's array, so a stale flag can never read as lit.
+  get _ballistaRangeShown() {
+    if (!this._ballistaFlag) return false;
+    const ref = this._ballistaLit;
+    return !ref || this.scene?.grid?.attackHighlightTiles === ref;
+  }
+
+  set _ballistaRangeShown(v) {
+    this._ballistaFlag = Boolean(v);
+    this._ballistaLit = v ? this.scene?.grid?.attackHighlightTiles : undefined;
+  }
+
   onPointerMove(pointer) {
     const scene = this.scene;
     if (scene.isStoryInputLocked()) return;
@@ -110,15 +124,16 @@ export class InputController {
     const avoidBonus = parseInt(terrain.avoidBonus, 10);
     if (avoidBonus) info += ` | Avo ${avoidBonus > 0 ? '+' : ''}${avoidBonus}`;
     if (parseInt(terrain.defBonus)) info += ` | Def +${terrain.defBonus}`;
-    for (const line of terrainRuleLines(terrain)) info += `\n${line}`;
+    // A ballista the player can see on this tile: whose it is, its reach, its blow, when it fires.
+    // Its terrain note states the reach too (generically), so the specific lines replace it.
+    const ballista = ballistaInfo(visibleBallistaAt(scene.grid, scene.ballistas, col, row));
+    if (!ballista) for (const line of terrainRuleLines(terrain)) info += `\n${line}`;
     // Zombie remains the player knows of: "Zombie remains · rises in 2 enemy phases".
     const remains = scene._zombieTombstones?.length
       ? scene._zombieRemains?.().infoLine(col, row)
       : null;
     if (remains) info += `\n${remains}`;
 
-    // A ballista the player can see on this tile: whose it is, its reach, its blow, when it fires.
-    const ballista = ballistaInfo(visibleBallistaAt(scene.grid, scene.ballistas, col, row));
     if (ballista) info += `\n${ballista.title}\n${ballista.lines.join('\n')}`;
 
     const threat = scene._threatSight?.describe(col, row);
