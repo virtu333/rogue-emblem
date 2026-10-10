@@ -36,6 +36,14 @@ export function isTileSeen(grid, col, row) {
 }
 
 /**
+ * Can the player see a foe step onto this tile? The tile's own sight, or always under Seer's
+ * Eye (`grid.foesShown`: the fog never hides a foe, so its walk is drawn in full).
+ */
+export function isFoeStepSeen(grid, col, row) {
+  return grid?.foesShown === true || isTileSeen(grid, col, row);
+}
+
+/**
  * How an enemy's walk is drawn. Step `i` (path[i - 1] → path[i]) is tweened only when
  * the player sees both tiles; otherwise the sprite is set on path[i] with no tween.
  * `shown` is whether the sprite may be drawn on path[i]. `hold` marks a seen tile the

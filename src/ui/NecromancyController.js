@@ -38,6 +38,11 @@ export class NecromancyController {
     return typeof grid?.isVisible === 'function' ? Boolean(grid.isVisible(col, row)) : true;
   }
 
+  /** Is this Skeleton in the player's view? Its tile's sight, or always under Seer's Eye. */
+  seesUnit(unit) {
+    return this.scene?.grid?.foesShown === true || this.isVisible(unit.col, unit.row);
+  }
+
   /** The scene's combat effects (made on first use, as removeUnit makes them). */
   _fx() {
     const scene = this.scene;
@@ -69,7 +74,7 @@ export class NecromancyController {
         difficultyConfig: enemyDifficultyConfigFromParams(scene.battleParams),
       });
       if (!raised) continue; // no free tile beside it: nothing is raised
-      const { unit, tile } = raised;
+      const { unit } = raised;
       scene.enemyUnits.push(unit);
       scene.addUnitGraphic(unit);
       if (scene.grid?.fogEnabled) scene.updateEnemyVisibility?.();
@@ -78,7 +83,7 @@ export class NecromancyController {
       observeHistoryAction(scene, 'raised', necromancer, unit);
       // Seen rising only where the player sees: the fog keeps its secret (no banner, no
       // effect, and the hidden Skeleton stays hidden like any enemy in fog).
-      if (this.isVisible(tile.col, tile.row)) {
+      if (this.seesUnit(unit)) {
         await safeBattlePresentation(
           'necromancer raise',
           async () => {
@@ -115,7 +120,7 @@ export class NecromancyController {
     await Promise.all(
       crumbled.map(async (unit) => {
         // Presentation only: a failed fall must never keep a Skeleton on the board.
-        if (this.isVisible(unit.col, unit.row))
+        if (this.seesUnit(unit))
           await safeBattlePresentation('skeleton crumble', () => this._fx()?.deathFade?.(unit), {
             scene,
           });

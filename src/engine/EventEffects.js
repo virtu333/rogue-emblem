@@ -99,6 +99,7 @@ import { accessoryDisplayName, bindAccessorySkill, hasAccessorySkill } from './A
 import { CONSUMABLE_MAX, INVENTORY_MAX, NODE_TYPES } from '../utils/constants.js';
 import { unitUidOf } from './UnitIdentity.js';
 import { earnedGrantBlock, eventLedgerKey, grantEarnedBlessing } from './EarnedBlessings.js';
+import { weaponsNeverWearOf } from './EarnedBoons.js';
 import {
   START_PAGE,
   choiceCost,
@@ -735,6 +736,10 @@ function planForge(ctx, effect, index, ledger) {
 function planWear(ctx, effect, index, ledger) {
   const unit = ctx.target;
   if (!unit) return { error: 'No one to work for.' };
+  // Smith's Covenant (an earned blessing): the army's weapons never take wear, so the outcome's
+  // fallback stands in for it (a `wear` always names one), on whatever weapon was meant.
+  if (weaponsNeverWearOf(ctx.run))
+    return { empty: true, reason: "The smith's covenant holds: the steel will not mark." };
   const weapon = carriedWeapon(unit);
   const stats = weapon && !ledger.weapons.has(weapon) ? wearableStats(weapon) : [];
   if (stats.length === 0) return { empty: true, reason: 'Their weapon cannot wear.' };

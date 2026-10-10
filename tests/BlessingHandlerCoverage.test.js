@@ -125,6 +125,12 @@ describe('every blessing effect has a handler', () => {
       ['tithe_box', 'church_entry_gold', { value: 'lots' }],
       ['lantern_of_the_road', 'fog_opening_reveal', {}],
       ['crest_of_the_road', 'recruit_mark_chance', { value: -1 }],
+      // PR D2's.
+      ['saints_reliquary', 'staff_heal_range_bonus', { heal: 0, range: 0 }],
+      ['mercenary_ledger', 'arena_terms', { feeMultiplier: 0 }],
+      ['smiths_covenant', 'weapons_never_wear', { value: true }],
+      ['thiefs_lantern', 'route_scout', { level: 'all' }],
+      ['seers_eye', 'foes_shown', { value: 2 }],
     ])
       rm._applySingleRunStartBlessingEffect(id, { type, params });
     expect(invalid(rm).map((r) => r.details.reason)).toEqual([
@@ -137,6 +143,11 @@ describe('every blessing effect has a handler', () => {
       'invalid_church_entry_gold_params',
       'invalid_fog_opening_reveal_params',
       'invalid_recruit_mark_chance_params',
+      'invalid_staff_heal_range_bonus_params',
+      'invalid_arena_terms_params',
+      'invalid_weapons_never_wear_params',
+      'invalid_route_scout_params',
+      'invalid_foes_shown_params',
     ]);
   });
 });

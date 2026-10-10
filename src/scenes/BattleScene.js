@@ -44,7 +44,7 @@ import {
   EnemyPhasePacing,
   enemyHealBanner,
   enemyStepDuration,
-  isTileSeen,
+  isFoeStepSeen,
   planEnemyMoveSteps,
   seenUnitName,
   skipsIdleCheckpoint,
@@ -57,6 +57,7 @@ import {
 import {
   canInspectUnit,
   carriedItemInfo,
+  markFoesShown,
   seenTileOccupant,
   statusStaffThreat,
 } from '../engine/BattleInformation.js';
@@ -263,6 +264,12 @@ import {
   UI_HEX,
 } from '../utils/uiStyles.js';
 import { generateBattle, reconcileRecruitSpawnTile } from '../engine/MapGenerator.js';
+import {
+  applyGenerationFields,
+  battleGenerationSeed,
+  deriveNodeBattleSeed,
+  generateSeededBattle,
+} from '../engine/BattleScout.js';
 import {
   computeAcidDamage,
   computeLavaCrackHp,
@@ -1561,8 +1568,9 @@ export class BattleScene extends Phaser.Scene {
         resuming: Boolean(this._resumeCheckpoint),
         recorded: this.battleParams?.deployCount,
       });
-      this.battleParams.deployCount = deployCount;
-      this.battleParams.isBoss = !!this.isBoss;
+      // The fields the map is generated with, through the one helper the route map's scout
+      // (engine/BattleScout.js, Seer's Eye) reads too.
+      applyGenerationFields(this.battleParams, { deployCount, isBoss: this.isBoss });
 
       // Generate or reuse locked encounter for this node. The prologue run's chapters
       // are pre-locked at startPrologue (the same authored config every entry); a
@@ -1576,12 +1584,13 @@ export class BattleScene extends Phaser.Scene {
       } else if (prologueChapter) {
         this.battleConfig = buildPrologueBattleConfig(prologueChapter, this.gameData.terrain);
       } else {
-        const battleSeed = Number.isFinite(this.battleParams?.battleSeed)
-          ? this.battleParams.battleSeed
-          : this.deriveBattleSeed();
-        this.battleConfig = this.withBattleSeed(battleSeed, () =>
-          generateBattle(this.battleParams, this.gameData),
-        );
+        // Generated as the scout generates it (BattleScout: the same seed, the same call), so a
+        // route preview and the battle are one map at the same inputs.
+        const battleSeed = battleGenerationSeed(this.battleParams, {
+          runSeed: this.runManager?.runSeed,
+          nodeId: this.nodeId,
+        });
+        this.battleConfig = generateSeededBattle(this.battleParams, this.gameData, battleSeed);
         this.runManager?.lockBattleConfig?.(this.nodeId, this.battleConfig);
       }
       if (
@@ -1623,6 +1632,8 @@ export class BattleScene extends Phaser.Scene {
         bc.biome || null,
         boardPresentation,
       );
+      // Seer's Eye: fog never hides a foe on this map (canInspectUnit reads the grid's flag).
+      markFoesShown(this.grid, this.battleParams);
       this._portraitBattle.create();
       this._battlefieldTerrain?.destroy();
       this._battlefieldTerrain = paintBattlefieldTerrain(this, this.grid);
@@ -2428,15 +2439,10 @@ export class BattleScene extends Phaser.Scene {
   }
 
   deriveBattleSeed() {
-    const runSeed = Number(this.runManager?.runSeed || 0) >>> 0;
-    const nodePart = String(this.nodeId || this.battleParams?.act || 'battle');
-    let h = 2166136261 >>> 0;
-    const input = `${runSeed}:${nodePart}`;
-    for (let i = 0; i < input.length; i++) {
-      h ^= input.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    return h >>> 0;
+    return deriveNodeBattleSeed(
+      this.runManager?.runSeed,
+      this.nodeId || this.battleParams?.act || 'battle',
+    );
   }
 
   isStoryInputLocked() {
@@ -5128,13 +5134,10 @@ export class BattleScene extends Phaser.Scene {
     const enemies = unit.faction === 'player' ? this.enemyUnits : this.playerUnits;
     // Check all combat weapons in inventory for range (with skill bonuses)
     for (const enemy of enemies) {
-      // In fog mode, player can only target visible enemies
-      if (this.grid.fogEnabled && unit.faction === 'player') {
-        const fogVis = isEntity(enemy)
-          ? getFootprint(enemy).some((t) => this.grid.isVisible(t.col, t.row))
-          : this.grid.isVisible(enemy.col, enemy.row);
-        if (!fogVis) continue;
-      }
+      // In fog mode, player can only target enemies it can see (canInspectUnit: an Entity's
+      // footprint, Seer's Eye's shown foes)
+      if (this.grid.fogEnabled && unit.faction === 'player' && !canInspectUnit(this.grid, enemy))
+        continue;
       const dist = combatDistance(unit, enemy);
       if (
         combatWeapons.some((w) => {
@@ -9240,9 +9243,7 @@ export class BattleScene extends Phaser.Scene {
     }
     if (
       this.runManager?.battleInProgress &&
-      (unit.faction === 'player' ||
-        !this.grid?.fogEnabled ||
-        this.grid.isVisible?.(unit.col, unit.row))
+      (unit.faction === 'player' || !this.grid?.fogEnabled || canInspectUnit(this.grid, unit))
     )
       this._timelineFacts = [...(this._timelineFacts || []), `${unit.name} fell.`];
     if (killer) observeHistoryAction(this, 'defeated', killer, unit);
@@ -10670,7 +10671,7 @@ export class BattleScene extends Phaser.Scene {
     // both of its tiles, and the sprite is shown only on a tile the player sees. A walk
     // the player sees none of is one position update below. A lone seen tile the walk
     // only clips is held for one step's time, so the unit is drawn there.
-    const plan = planEnemyMoveSteps(finalPath, (col, row) => isTileSeen(this.grid, col, row));
+    const plan = planEnemyMoveSteps(finalPath, (col, row) => isFoeStepSeen(this.grid, col, row));
     const fog = this.grid.fogEnabled === true;
     const isSlideStep = (stepIndex) =>
       effective.slideSegments.some(
@@ -11324,12 +11325,9 @@ export class BattleScene extends Phaser.Scene {
       safeBattlePresentation(
         'enemy visibility',
         () => {
-          let vis;
-          if (isEntity(enemy)) {
-            vis = getFootprint(enemy).some((t) => this.grid.isVisible(t.col, t.row));
-          } else {
-            vis = this.grid.isVisible(enemy.col, enemy.row);
-          }
+          // canInspectUnit: an Entity shows when any tile of its body is seen, and Seer's Eye
+          // shows every foe through the fog.
+          const vis = canInspectUnit(this.grid, enemy);
           if (enemy.graphic) enemy.graphic.setVisible(vis);
           if (enemy.label) enemy.label.setVisible(vis);
           if (enemy.factionIndicator) enemy.factionIndicator.setVisible(vis);

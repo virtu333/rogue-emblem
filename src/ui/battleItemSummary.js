@@ -59,9 +59,10 @@ export function battleItemBrief(item, unit, { run = null } = {}) {
   if (!item) return '';
   if (item.type === 'Consumable') return getConsumableDescription(item);
   if (item.type === 'Staff') {
-    const range = unit ? getEffectiveStaffRange(item, unit) : item.range;
-    // `run`: the run's blessing uses (Saint's Reserve) count, as in battle.
+    // `run`: the run's blessing uses (Saint's Reserve) and reach (Saint's Reliquary) count, as
+    // in battle.
     const staffOptions = staffRunOptions(run, unit);
+    const range = unit ? getEffectiveStaffRange(item, unit, staffOptions) : item.range;
     return `Rng ${formatRange(range)} · ${getStaffRemainingUses(item, unit, staffOptions)}/${getStaffMaxUses(item, unit, staffOptions)} uses`;
   }
   const parts = [`Mt ${item.might ?? 0}`, `Hit ${item.hit ?? 0}`];
@@ -77,8 +78,8 @@ export function battleItemSummary(item, unit, { run = null } = {}) {
   if (!item) return '';
   if (item.type === 'Consumable') return `${getConsumableDescription(item)} · Uses do not refill`;
   if (item.type === 'Staff') {
-    const range = unit ? getEffectiveStaffRange(item, unit) : item.range;
     const staffOptions = staffRunOptions(run, unit);
+    const range = unit ? getEffectiveStaffRange(item, unit, staffOptions) : item.range;
     return `${item.special || item.description || 'Staff'} · Range ${formatRange(range)} · Uses ${getStaffRemainingUses(item, unit, staffOptions)}/${getStaffMaxUses(item, unit, staffOptions)} · Refills each battle`;
   }
   const speed = weaponAttackSpeed(item, unit);

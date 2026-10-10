@@ -692,6 +692,55 @@ export function describeLoomNode(
   };
 }
 
+/** Who scouts a route preview, by the scout's rung (engine/BattleScout.js). */
+export const SCOUT_TITLES = Object.freeze({ foes: "Seer's Eye", carriers: "Thief's Lantern" });
+
+/**
+ * A scouted battle (BattleScout.scoutBattle) as the inspect card's panel: a title (the earned
+ * blessing that scouts it), the note that says what the list assumes ("Scouted for 4 in the
+ * field", or the set map's "The foes that wait here"), and the foes, alike ones counted together
+ * in the order they stand on the map, the boss first. Seer's Eye lists every foe with its affixes
+ * and what it carries; Thief's Lantern only the foes that carry something. Pure; null without a
+ * scout. `affixNames` maps an affix id to its name (an unknown id shows as itself).
+ * @returns {{ title: string, note: string, rows: Array<{ text: string, detail: string,
+ *   count: number, boss: boolean, carries: string|null }>, empty: string|null, label: string }|null}
+ */
+export function describeBattleScout(scout, { affixNames = {} } = {}) {
+  if (!scout || !Array.isArray(scout.foes)) return null;
+  const title = SCOUT_TITLES[scout.level] || SCOUT_TITLES.foes;
+  const count = Math.max(0, Math.trunc(Number(scout.deployCount) || 0));
+  const note = scout.locked
+    ? 'The map is set: these foes wait here.'
+    : `Scouted for ${count} in the field.`;
+  const groups = new Map();
+  for (const foe of scout.foes) {
+    const affixes = (foe.affixes || []).map((id) => affixNames[id] || id);
+    const key = [foe.isBoss, foe.className, foe.level, affixes.join(','), foe.carries || ''].join(
+      '|',
+    );
+    const group = groups.get(key);
+    if (group) group.count += 1;
+    else groups.set(key, { foe, affixes, count: 1 });
+  }
+  const rows = [...groups.values()]
+    .sort((a, b) => Number(b.foe.isBoss) - Number(a.foe.isBoss))
+    .map(({ foe, affixes, count: n }) => ({
+      text: `${foe.isBoss ? 'Boss · ' : ''}${foe.className} Lv ${foe.level}${n > 1 ? ` ×${n}` : ''}`,
+      detail: [affixes.join(', '), foe.carries ? `carries ${foe.carries}` : '']
+        .filter(Boolean)
+        .join(' · '),
+      count: n,
+      boss: foe.isBoss === true,
+      carries: foe.carries || null,
+    }));
+  const empty = rows.length
+    ? null
+    : scout.level === 'carriers'
+      ? 'No foe here carries anything.'
+      : 'No foes wait here.';
+  return { title, note, rows, empty, label: `${title} · ${note}` };
+}
+
 /**
  * Act header: Cinzel title ("Act I · Border Marches") and the pixel subline. `act`
  * and `title` replace the act's own ("Prologue · The Quarry Road").

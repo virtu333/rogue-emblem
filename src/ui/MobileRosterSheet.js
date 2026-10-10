@@ -1365,8 +1365,8 @@ export class MobileRosterSheet {
     if (item.type === 'Consumable')
       return `${getConsumableDescription(item)} · ${formatUses(item)}`;
     if (item.type === 'Staff') {
-      const range = getEffectiveStaffRange(item, unit);
       const staffOptions = staffRunOptions(this.run, unit);
+      const range = getEffectiveStaffRange(item, unit, staffOptions);
       return `Staff · Range ${range.min === range.max ? range.max : `${range.min}–${range.max}`} · Uses ${getStaffRemainingUses(item, unit, staffOptions)}/${getStaffMaxUses(item, unit, staffOptions)}${item.perBattleUses ? ' · Refills after battle' : ''}`;
     }
     // The keyword row above already names the type ("Silver Sword").

@@ -43,7 +43,7 @@ import {
   findRecruitNpc,
   staffAllyCandidates,
 } from '../../src/engine/RecruitNpc.js';
-import { canInspectUnit } from '../../src/engine/BattleInformation.js';
+import { canInspectUnit, markFoesShown } from '../../src/engine/BattleInformation.js';
 import {
   resolveCombat,
   resolveHeal,
@@ -321,6 +321,8 @@ export class HeadlessBattle {
       bc.mapLayout,
       Boolean(this.battleParams.fogEnabled),
     );
+    // Seer's Eye, as BattleScene: fog never hides a foe (canInspectUnit reads the grid's flag).
+    markFoesShown(this.grid, this.battleParams);
 
     this.playerUnits = [];
     this.enemyUnits = [];
@@ -1307,10 +1309,9 @@ export class HeadlessBattle {
     if (combatWeapons.length === 0) return targets;
     const enemies = unit.faction === 'player' ? this.enemyUnits : this.playerUnits;
     for (const enemy of enemies) {
-      const seen = isEntity(enemy)
-        ? getFootprint(enemy).some((t) => this.grid.isVisible(t.col, t.row))
-        : this.grid.isVisible(enemy.col, enemy.row);
-      if (this.grid.fogEnabled && unit.faction === 'player' && !seen) continue;
+      // As BattleScene.findAttackTargets: a foe the player can see (canInspectUnit).
+      if (this.grid.fogEnabled && unit.faction === 'player' && !canInspectUnit(this.grid, enemy))
+        continue;
       const dist = combatDistance(unit, enemy);
       if (
         combatWeapons.some((w) => {
@@ -1329,8 +1330,8 @@ export class HeadlessBattle {
     if (!hasStaff(unit)) return [];
     const staff = this._getActiveHealStaff(unit);
     if (!staff) return [];
-    const range = getEffectiveStaffRange(staff, unit);
-    const healOpts = this._healOptions();
+    const healOpts = this._healOptions(unit);
+    const range = getEffectiveStaffRange(staff, unit, healOpts);
     const targets = [];
     // Mirrors HealController: the army first, then living NPC allies (recruits,
     // the merchant caravan) the army can see.
@@ -1977,11 +1978,9 @@ export class HeadlessBattle {
     return true;
   }
 
-  _healOptions() {
-    return {
-      healingMultiplier:
-        this.runManager?.blessingRuntimeModifiers?.healingEffectivenessMultiplier ?? 1,
-    };
+  /** As HealController.staffOptions: the run's staff options for `unit` (StaffBlessings). */
+  _healOptions(unit) {
+    return staffRunOptions(this.runManager, unit);
   }
 
   _executeHeal(healer, target) {
@@ -1991,7 +1990,7 @@ export class HeadlessBattle {
       staff,
       healer,
       targets: [target],
-      healOpts: this._healOptions(),
+      healOpts: this._healOptions(healer),
       traits: this.gameData?.traits,
       turn: this.turnManager.turnNumber,
       phase: this.turnManager.currentPhase,

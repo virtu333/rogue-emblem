@@ -1047,6 +1047,51 @@
   overflow-wrap: anywhere;
 }
 
+/* Thief's Lantern and Seer's Eye: the foes a route preview scouted (LoomPanels scoutBlock). */
+.re-loom-scout {
+  margin: 6px 0 0;
+  padding: 6px 8px;
+  border-radius: 3px;
+  background: var(--re-panel);
+  box-shadow: inset 0 0 0 1px var(--re-line-soft);
+}
+.re-loom-screen .re-loom-scout-head {
+  margin: 0;
+  font: 10.5px/1.3 var(--re-body);
+  color: var(--re-muted);
+  overflow-wrap: anywhere;
+}
+.re-loom-scout-head strong {
+  font-weight: 700;
+  color: var(--re-gilt);
+}
+.re-loom-scout-list {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.re-loom-scout-list li {
+  margin: 2px 0 0;
+  font: 10.5px/1.3 var(--re-body);
+  color: var(--re-text);
+  overflow-wrap: anywhere;
+}
+.re-loom-scout-foe {
+  font-weight: 600;
+  color: var(--re-parchment);
+}
+.re-loom-scout-list li.is-boss .re-loom-scout-foe {
+  color: var(--re-bad);
+}
+.re-loom-scout-detail {
+  color: var(--re-parchment-dim);
+}
+.re-loom-screen .re-loom-scout-empty {
+  margin: 4px 0 0;
+  font: 10.5px/1.3 var(--re-body);
+  color: var(--re-muted);
+}
+
 /* ───────── Campaign Map (in-battle, read-only) ───────── */
 .re-campaign-map .re-header .re-loom-heading {
   margin-right: auto;

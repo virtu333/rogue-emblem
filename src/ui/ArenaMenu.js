@@ -163,14 +163,18 @@ export class ArenaMenu {
     );
     if (message) m.text(message);
     m.boutsLeft();
+    // The Mercenary Ledger (an earned blessing) halves every fee: say so once, above the tiers.
+    if (getAvailableTiers(c._actId, c._colosseumData).some(([, t]) => c._entryFee(t) < t.entryFee))
+      m.text('Mercenary Ledger: entry fees are halved.');
     for (const [name, tier] of getAvailableTiers(c._actId, c._colosseumData)) {
+      const fee = c._entryFee(tier);
       m.action(
-        `${name[0].toUpperCase() + name.slice(1)} · Win +${tier.goldReward} G · Loss −${tier.entryFee} G · XP ×${tier.xpMultiplier}`,
+        `${name[0].toUpperCase() + name.slice(1)} · Win +${tier.goldReward} G · Loss −${fee} G · XP ×${tier.xpMultiplier}`,
         () => {
           c._selectedTier = { name, ...tier };
           c._generateAndShowForecast();
         },
-        c._canAffordTier(tier) ? '' : `Requires ${tier.entryFee} gold.`,
+        c._canAffordTier(tier) ? '' : `Requires ${fee} gold.`,
       );
     }
     return m.focus();
@@ -200,7 +204,7 @@ export class ArenaMenu {
     const tier = c._selectedTier;
     const rounds = arenaMaxRounds(c._colosseumData);
     m.text(
-      `Rounds repeat until one fighter falls. Entry ${tier.entryFee} G, paid now. Win: +${tier.goldReward} G and your fee back, with full XP. Lose: the fee is gone and your fighter is left at 1 HP. Between rounds you may yield: the fee is gone, your fighter keeps its HP. After ${rounds} rounds it is a draw: the fee comes back, with a little XP. HP lost here stays lost after the arena.`,
+      `Rounds repeat until one fighter falls. Entry ${c._entryFee(tier)} G, paid now. Win: +${tier.goldReward} G and your fee back, with full XP. Lose: the fee is gone and your fighter is left at 1 HP. Between rounds you may yield: the fee is gone, your fighter keeps its HP. After ${rounds} rounds it is a draw: the fee comes back, with a little XP. HP lost here stays lost after the arena.`,
     );
     m.action('Fight', () => c._executeFight());
     return m.focus();

@@ -119,6 +119,7 @@ export class BossPresenceController {
     const concealed = Boolean(
       boss &&
       grid?.fogEnabled &&
+      grid.foesShown !== true &&
       typeof grid.isVisible === 'function' &&
       !grid.isVisible(boss.col, boss.row),
     );

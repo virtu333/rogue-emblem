@@ -2513,6 +2513,33 @@
           ]
         },
         {
+          "id": "covenant",
+          "label": "Ask for his covenant",
+          "hint": "Coin for a smith's word over everything you carry. He gives it once, and never cheap.",
+          "cost": {
+            "gold": {
+              "base": 150,
+              "perAct": 100
+            }
+          },
+          "requires": {
+            "earnedAvailable": "smiths_covenant"
+          },
+          "outcomes": [
+            {
+              "id": "sworn",
+              "weight": 100,
+              "text": "He takes the purse without counting it, lays a hand on each blade in turn and says something to the steel, not to you. 'There. They know my name now.'",
+              "effects": [
+                {
+                  "type": "earnedBlessing",
+                  "id": "smiths_covenant"
+                }
+              ]
+            }
+          ]
+        },
+        {
           "id": "leave",
           "label": "Leave him to his anvil",
           "outcomes": [
@@ -2819,7 +2846,7 @@
                   "type": "battle",
                   "enemyLevelBonus": 1,
                   "elite": true,
-                  "victoryText": "The abacus is in pieces. The clerk, to his credit, kept counting to the end. His strongbox is yours.",
+                  "victoryText": "The abacus is in pieces. The clerk, to his credit, kept counting to the end. His strongbox is yours, and the shuttered lamp he counted by.",
                   "afterVictory": [
                     {
                       "type": "gold",
@@ -2827,6 +2854,10 @@
                         "base": 300,
                         "perAct": 150
                       }
+                    },
+                    {
+                      "type": "earnedBlessing",
+                      "id": "thiefs_lantern"
                     }
                   ]
                 }

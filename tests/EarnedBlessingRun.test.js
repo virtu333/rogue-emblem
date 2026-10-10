@@ -14,7 +14,7 @@ import { loadGameData } from './testData.js';
 
 const data = loadGameData();
 const EARNED_IDS = ['unbroken_banner', 'second_dawn', 'ember_lantern', 'captains_whistle'];
-// Every earned row (PR C's four, then PR D1's six).
+// Every earned row (PR C's four, then PR D1's six, then PR D2's five).
 const ALL_EARNED_IDS = [
   'unbroken_banner',
   'second_dawn',
@@ -26,6 +26,11 @@ const ALL_EARNED_IDS = [
   'tithe_box',
   'lantern_of_the_road',
   'crest_of_the_road',
+  'saints_reliquary',
+  'mercenary_ledger',
+  'smiths_covenant',
+  'thiefs_lantern',
+  'seers_eye',
 ];
 
 function freshRun(seed = 21, difficultyId = 'normal') {
@@ -336,7 +341,8 @@ describe('the held list, the card and the Compendium say Earned', () => {
       return overlay._getFilteredItems().map((b) => b.id);
     };
 
-    // PR D1 adds six earned blessings to PR C's four: the filter lists all ten, in catalog order.
+    // PR D1 adds six earned blessings to PR C's four and PR D2 five more: the filter lists all
+    // fifteen, in catalog order.
     it('has an Earned filter that lists exactly the earned blessings', () => {
       expect(TAB_DEFS[tabIndex].filters).toContain('Earned');
       expect(filteredBy('Earned')).toEqual(ALL_EARNED_IDS);
@@ -349,7 +355,7 @@ describe('the held list, the card and the Compendium say Earned', () => {
     });
 
     it('All still lists everything', () => {
-      expect(filteredBy('All')).toHaveLength(50);
+      expect(filteredBy('All')).toHaveLength(55);
     });
 
     it('a row reads "Earned" at its right edge, not "Tier ?", and the reference summary agrees', () => {

@@ -376,7 +376,8 @@ describe("the sanctum's vow", () => {
     const entry = openSanctum(rm, id);
     expect(entry).toMatchObject({ key: sanctumLedgerKey(id), source: 'sanctum', status: 'open' });
     expect(entry.offered).toHaveLength(2);
-    expect(entry.offered[0]).toBe('tithe_box'); // the sanctum's own card is drawn first
+    // The sanctum's own two cards (Tithe Box, and PR D2's Saint's Reliquary) are drawn first.
+    expect([...entry.offered].sort()).toEqual(['saints_reliquary', 'tithe_box']);
     const back = roundTrip(rm);
     expect(openSanctum(back, id)).toEqual(entry);
     back.addBlessingMidRun('hollow_hourglass', { earned: true });
@@ -385,8 +386,10 @@ describe("the sanctum's vow", () => {
 
   it('fills past its own card from the pure boss and elite cards, never a held one', () => {
     // Failure: a sanctum with one card of its own offers one (or a twisted, or a held, card).
+    // Saint's Reliquary is held, so Tithe Box is its one card left.
     const rm = sanctumRun(15);
     rm.addBlessingMidRun('ember_lantern', { earned: true });
+    rm.addBlessingMidRun('saints_reliquary', { earned: true });
     const pure = new Set(
       [...earnedPoolFor(rm, 'act_boss'), ...earnedPoolFor(rm, 'eclipsed_elite')].map((b) => b.id),
     );
@@ -394,6 +397,7 @@ describe("the sanctum's vow", () => {
     expect(entry.offered[0]).toBe('tithe_box');
     expect(pure.has(entry.offered[1])).toBe(true);
     expect(entry.offered).not.toContain('ember_lantern');
+    expect(entry.offered).not.toContain('saints_reliquary');
   });
 
   it("offers the earned pair instead of the tier I three, never both; with nothing left, the church's own", () => {

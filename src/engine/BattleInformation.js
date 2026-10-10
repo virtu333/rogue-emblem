@@ -7,12 +7,26 @@ import { goldPouchValue } from './GoldPouch.js';
 
 // All inspection entry points use the same information boundary as map graphics.
 // A recruit waiting on the map is always in view: the army knows who it came for
-// (its banner already stood above the fog; now the recruit does too).
+// (its banner already stood above the fog; now the recruit does too). Under Seer's Eye
+// (an earned blessing: `grid.foesShown`, markFoesShown) the fog never hides a foe either:
+// every enemy is drawn, inspectable and known to the previews (PlayerKnowledge), while the
+// terrain stays fogged and the enemy AI's view never changes.
 export function canInspectUnit(grid, unit) {
   if (!unit) return false;
   if (unit.faction === 'player' || !grid?.fogEnabled) return true;
   if (unit.faction === 'npc' && isRecruitNpc(unit)) return true;
+  if (unit.faction === 'enemy' && grid.foesShown === true) return true;
   return (isEntity(unit) ? getFootprint(unit) : [unit]).some((t) => grid.isVisible(t.col, t.row));
+}
+/**
+ * Seer's Eye on a battle's grid: `battleParams.foesShown` (RunManager.getBattleParams, saved with
+ * the battle) sets `grid.foesShown`, which canInspectUnit reads. BattleScene and the headless
+ * harness both call this right after building the grid, a fresh start and a resume alike.
+ */
+export function markFoesShown(grid, battleParams) {
+  if (!grid) return false;
+  grid.foesShown = battleParams?.foesShown === true;
+  return grid.foesShown;
 }
 /**
  * `getUnitAt` for choosing a destination tile (Blink, Warp/Rescue): a tile the fog

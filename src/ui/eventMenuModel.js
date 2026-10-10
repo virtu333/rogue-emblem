@@ -39,6 +39,7 @@ export const RESULT_CHIPS = Object.freeze({
   forge: 'FORGE',
   wear: 'WEAR',
   mend: 'MEND',
+  earnedBlessing: 'EARNED',
 });
 
 /** "150 G" for a gold cost (the seal on a choice), '' for a free one. */

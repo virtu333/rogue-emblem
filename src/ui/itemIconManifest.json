@@ -561,7 +561,12 @@
     "blessing-chronicle": [301, 5, 4],
     "blessing-tithe_box": [296, 5, 4],
     "blessing-lantern_of_the_road": [252, 5, 4],
-    "blessing-crest_of_the_road": [204, 5, 4]
+    "blessing-crest_of_the_road": [204, 5, 4],
+    "blessing-saints_reliquary": [200, 5, 4],
+    "blessing-mercenary_ledger": [304, 5, 4],
+    "blessing-smiths_covenant": [322, 5, 4],
+    "blessing-thiefs_lantern": [221, 5, 4],
+    "blessing-seers_eye": [203, 5, 4]
   },
   "aliases": {
     "upgrade-branching_threads": "blessing-focused_curriculum",
@@ -591,6 +596,11 @@
     "blessing-chronicle": "upgrade-studied_training",
     "blessing-tithe_box": "upgrade-starting_gold",
     "blessing-lantern_of_the_road": "blessing-pilgrim_coin",
-    "blessing-crest_of_the_road": "veterans-crest"
+    "blessing-crest_of_the_road": "veterans-crest",
+    "blessing-saints_reliquary": "goddess-icon",
+    "blessing-mercenary_ledger": "upgrade-trade_contacts",
+    "blessing-smiths_covenant": "upgrade-weapon_forge",
+    "blessing-thiefs_lantern": "hunters-cloak",
+    "blessing-seers_eye": "delphi-shield"
   }
 }

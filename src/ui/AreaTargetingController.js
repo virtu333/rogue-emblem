@@ -180,7 +180,9 @@ export class AreaTargetingController {
     const scene = this.scene;
     if (!p) return [];
     const grid = scene.grid;
-    const seen = (t) => !grid?.fogEnabled || grid.isVisible(t.col, t.row);
+    // Seer's Eye shows every foe whole (grid.foesShown): its fogged body tiles count as seen.
+    const seen = (t) =>
+      !grid?.fogEnabled || grid.foesShown === true || grid.isVisible(t.col, t.row);
     const byNearest = (a, b) =>
       distance(p.unit, a) - distance(p.unit, b) || a.row - b.row || a.col - b.col;
     return (scene._getTier5HostileUnitsFor(p.unit) || [])

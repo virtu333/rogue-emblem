@@ -20,7 +20,7 @@ import { parseLordStatArc } from './LordStatArc.js';
 import { parseBattleGoldGamble } from './BattleGoldGamble.js';
 import { playerWeaponArtBoonErrors } from './WeaponArtSystem.js';
 import { adjacentAllyDefBonusErrors, isolatedCombatBonusErrors } from './FormationBlessings.js';
-import { EARNED_D1_BOON_TYPES, earnedBoonErrors } from './EarnedBoons.js';
+import { EARNED_BOON_TYPES, earnedBoonErrors } from './EarnedBoons.js';
 import { shrineBoonErrors } from './ShrineBoons.js';
 import { ACT_SEQUENCE } from '../utils/constants.js';
 
@@ -131,7 +131,7 @@ function validateBoonParams(effect, path, errors) {
     const value = effect.params?.value;
     if (!Number.isInteger(value) || value <= 0)
       errors.push(`${path}.params.value must be a positive integer (${effect.type})`);
-  } else if (EARNED_D1_BOON_TYPES.includes(effect.type)) {
+  } else if (EARNED_BOON_TYPES.includes(effect.type)) {
     // engine/EarnedBoons.js: the parser its handler and the save's sanitizer read.
     for (const message of earnedBoonErrors(effect))
       errors.push(`${path}.${message} (${effect.type})`);
