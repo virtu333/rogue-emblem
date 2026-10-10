@@ -28,6 +28,7 @@ import { showMinorHint } from '../src/ui/HintDisplay.js';
 import { NodeMapScene } from '../src/scenes/NodeMapScene.js';
 import { PostCombatController } from '../src/ui/PostCombatController.js';
 import { RunManager } from '../src/engine/RunManager.js';
+import { earnedPickOwed, skipEarnedBlessing } from '../src/engine/EarnedBlessings.js';
 import { loadGameData } from './testData.js';
 
 const store = {};
@@ -71,6 +72,10 @@ function winAct(rm) {
       rm.completeBattle(rm.getRoster(), node.id, 0, { turnCount: 5, turnPar: 7 });
     else rm.markNodeComplete(node.id);
   }
+  // The boss's earned-blessing pick is made (left) before the act advances, as the pick
+  // screen would (tests/EarnedBlessingPickFlow.test.js covers the pick itself).
+  const owed = earnedPickOwed(rm);
+  if (owed) skipEarnedBlessing(rm, owed.actId);
 }
 
 /** The battle scene's end: the real controller runs the act advance, a stub hops scenes. */

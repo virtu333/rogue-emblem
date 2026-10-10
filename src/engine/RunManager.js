@@ -118,8 +118,10 @@ import {
 } from './LordStatArc.js';
 import { parseBattleGoldGamble, settleBattleGoldGamble } from './BattleGoldGamble.js';
 import {
+  actBossPickDue,
   earnedBlessingsOf,
   isActBossVictory,
+  prepareEarnedBlessingPick,
   sanitizeEarnedBlessingPicks,
 } from './EarnedBlessings.js';
 import {
@@ -4915,6 +4917,11 @@ export class RunManager {
         : 0;
       this.visionChargesRemaining = currentVision + 1;
     }
+    // An act boss (never the final act's, the prologue's, an elite's or an event's) owes an
+    // earned-blessing pick: rolled here, on its own seeded stream, so it is in this victory's
+    // save and a reload offers the same pair (engine/EarnedBlessings.js). The pick is shown
+    // after the boss's reward, recruit and lord, before the act advances.
+    if (actBossPickDue(this, node)) prepareEarnedBlessingPick(this, node);
 
     if (node?.isAmbush && node.ambushCleared !== true) {
       node.ambushCleared = true;

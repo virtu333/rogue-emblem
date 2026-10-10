@@ -57,9 +57,11 @@ export class LootFlowController {
       if (scene._postLootTransitionCompleted) return;
       const elapsed = Date.now() - scene._postLootTransitionStartedAt;
       // The prologue's ending plays inside this scene for as long as the player reads
-      // it (lines, cards, the handoff page): never force a second exit under it.
+      // it (lines, cards, the handoff page), and so does an act boss's earned-blessing pick
+      // (the player may take as long as they like): never force a second exit under either.
       if (
         scene._prologueEndingActive ||
+        scene._earnedPickActive ||
         (scene.isStoryInputLocked() && elapsed < POST_LOOT_TRANSITION_STORY_GRACE_MS)
       ) {
         scene._postLootTransitionTimer = setTimeout(

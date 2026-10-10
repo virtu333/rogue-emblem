@@ -290,18 +290,22 @@ describe('the held list, the card and the Compendium say Earned', () => {
     expect(steady).toMatchObject({ label: 'Keen Eye', tier: 'I', earned: false });
   });
 
-  it('the tarot card reads Earned with a glyph in its sun, and a tiered card is unchanged', () => {
+  it('the tarot card reads Earned with a star in its sun, and a tiered card is unchanged', () => {
     const earned = blessingCardContent(
       data.blessings.blessings.find((b) => b.id === 'second_dawn'),
     );
     expect(earned).toMatchObject({ earned: true, tier: 0, tierLabel: 'Earned', cost: '' });
-    expect(earned.numeral).toBeTruthy();
-    expect(earned.numeral).not.toMatch(/^[IVX0-9]+$/);
-    // The Hollow Sun's numeral is set in Cinzel (var(--re-display)), whose Latin subset has no
-    // U+2726 (a star): the OS would fall back to another font. The bullet is in it.
-    expect(earned.numeral).toBe('\u2022');
+    // No numeral and no font glyph: the Hollow Sun's face is Cinzel (var(--re-display)), whose
+    // Latin subset has no star, so the card draws one (choiceCards.blessingTarotCard: a CSS shape).
+    expect(earned.numeral).toBe('');
+    expect(earned.mark).toBe('star');
     const tiered = blessingCardContent(data.blessings.blessings.find((b) => b.id === 'iron_oath'));
-    expect(tiered).toMatchObject({ earned: false, numeral: 'III', tierLabel: 'Tier III' });
+    expect(tiered).toMatchObject({
+      earned: false,
+      numeral: 'III',
+      tierLabel: 'Tier III',
+      mark: null,
+    });
   });
 
   describe('Compendium', () => {

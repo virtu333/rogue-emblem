@@ -449,6 +449,96 @@ runaways):
 - Watch, don't cap: track runs holding two or more `growth` / `xp` tagged blessings and
   their commander-KO rate. Add a tag cap only if those runs run away.
 
+### 6.4 As built: the act-boss pick and the first four
+
+Slice 4 of §9 ships the `earned` flag, the act boss's pick and the four pure blessings Unbroken
+Banner, Second Dawn, Ember Lantern and Captain's Whistle. The other sources (eclipsed elites,
+the special church, events) and the twisted blessings wait for slice 5.
+
+**Data.** An earned row has `earned: true` and no `tier`, `prices` or `pact`; its `costs` are
+empty and its `weight` is its draw weight among the earned blessings. `earnedOffer`
+(`{ actBoss: 2, weightByHeld: [1, 0.85, 0.7] }`) sets how many cards an act boss offers and the
+snowball guard. Earned blessings never reach a start offer, a church vow or an event grant;
+`addBlessingMidRun(id, { earned: true })` is their only way in. The contract version stays 3
+(the flag is additive). The pause list and the Compendium say "Earned" where a tier would be.
+
+**When a pick is owed.** Every act boss but the one that ends the run, in a real run:
+
+| Rung | Acts | Bosses that offer a pick |
+|---|---|---|
+| First Light | act1-3, then the Lieutenant | Acts I-III |
+| Dusk | act1-4 | Acts I-III (the Emperor ends the run) |
+| Nightfall, Black Sun | act1-4, then the Entity | Acts I-IV |
+
+Never the prologue (Varro), an elite, an event fight or a seize map's elite captain: the
+predicate is `isActBossVictory` (the node is the act's `bossNodeId` and a `boss` node), the one
+`completeBattle` already reads for the boss's Vision.
+
+**The roll** (`engine/EarnedBlessings.js`, pure). `RunManager.completeBattle` prepares the pick at
+the victory commit, so it is in the victory's own save. It draws from its own stream
+(`earned-pick:<run seed>:<act>`), never `Math.random`, so the battle and node-map streams never
+move. The first draw is the odds roll (decision D4: the chance the boss offers anything at all
+is 1, 0.85 or 0.7 as the run holds 0, 1 or 2+ earned blessings; one function,
+`earnedOfferChance`). It is always spent, so the pair does not depend on the odds. Then two
+unheld cards are drawn by weight. A miss, or nothing left to offer, is stored as `none`. The
+ledger `run.earnedBlessingPicks` keeps one entry per act (`offered`, `status: owed | taken |
+skipped | none`, `chosen`). An act with an entry is never rolled again: a reload shows the same
+pair, and a pick taken or skipped is never offered again. A save from before the feature,
+sitting between a boss and the act advance, is prepared on the route map from the same seed
+(the same pair).
+
+**When it is shown.** After the boss's reward, its recruit and the third lord, and before
+`advanceAct`, on both paths. A blessing taken there belongs to the act just won: Second Dawn's
+act-start grant (`_payActStartGrants`) is stamped with that act and pays from the next one.
+
+- The battle scene: `PostCombatController.transitionAfterBattle`, after the rewards are claimed.
+  A pick that cannot be shown (no document, an error) goes to the route map with the act
+  unadvanced. The post-loot fallback (8 s) holds while it is open (`scene._earnedPickActive`).
+- The route map, after a reload or rewards left with View map: `NodeMapScene.checkActComplete`,
+  in the order rewards, contract reward, pick, Act Complete, advance. `_maybeOpenEarnedPick` is
+  single-flight: the scene's finalize chain also opens an owed pick (one left from an earlier act
+  too), and a node tap opens one that could not open by itself.
+
+The act never advances over an owed pick on either path. (The sims and the debug overlay call
+`advanceAct` directly and leave it owed.)
+
+**The menu** (`ui/EarnedBlessingPick.js`, `ui/earnedBlessingPickModel.js`). A modal "An earned
+blessing" with the two cards as the shrine draws them (`choiceCards.blessingTarotCard`, shared
+with `RunSetupMenu`). An earned card has a gold rim and a star in the Hollow Sun: a clipped CSS
+shape sized from the sun, because Cinzel has no star glyph. Its foot reads "Earned: No cost:
+won, never bought". The footer shows the chosen card's lore, or its terms when the boon names
+Vision. Take stays disabled until a card is chosen. Skip, Escape and a controller's Cancel all
+open the same confirmation ("Leave them?": Leave them / Back), so a stray Escape never skips;
+Pause is swallowed. A busy guard makes Take one-shot, and the engine refuses a second take
+anyway. The take or skip is saved before anything follows: the battle's run save
+(`_persistBattleRunState`), or `saveServiceRun` on the route map. Upright, the cards are rows
+like every draft.
+
+**The battle effects** (`engine/BattleBlessings.js`; the battle's state is
+`{ lastStand, firstKillHeal, firstTurnMov, spent }`, and its spent list rides the suspend
+checkpoint and the Vision rewind):
+
+- **Unbroken Banner.** `UnitHealth.absorbLethal(unit, hp, { blessings })`: Miracle first, then a
+  Revival Stone, then the banner, which holds a player unit (never an NPC ally or a foe) at
+  1 HP once per battle. A hold ends the exchange, like a broken stone (Adept and Aether bonus
+  strikes included). Every floor-0 damage path passes it: strikes, area and line arts, rams,
+  Deathburst, the ballista and the Entity's splash. Decision D5, as built: a held unit cannot
+  fall again in this combat (its post-combat effects take it no lower than 1 HP, and a floor-1
+  poison number shows only what the bar lost). Status and debuff effects (an imbue's status,
+  Grievous, Corrosive, Intimidate, an art's status or debuff) still land, as after a broken
+  stone. A later death trigger is not covered: a Deathburst raised by a fall meets the banner
+  already spent and can fell the unit. The forecast reads "1 HP (Unbroken Banner)", and its
+  teaching hint never calls a held counter lethal.
+- **Ember Lantern.** The army's first combat kill heals the killer 10 HP (`healUnit`, so a Wounded
+  killer heals nothing). It is spent even at 0 healed (decision D6). Counter-kills and the
+  unit's own area and ram kills count; a stone's refilled bar, Deathburst, terrain and poison
+  do not.
+- **Captain's Whistle.** A turn-1 timed MOV buff from the turn-start pipeline (decision D8). It
+  keeps the strongest per stat, so it does not stack with Mark of the Road, and a resumed turn 1
+  keeps it without applying it again.
+- **Second Dawn.** A `{ kind: 'vision' }` act-start grant: +1 Vision at every act start while held,
+  never on the take.
+
 ## 7. Gifts with a catch (run start)
 
 Cut in review: Gilded Chest (gold now, a bigger Debt later) read as a loan, not a gift.
@@ -537,7 +627,7 @@ growth, XP and gold cards it can see.
    Duelist's Creed, Bloodless Art, Gambler's Toss. Built so far: the intrinsic price, Slow Fuse,
    Gambler's Toss and Bloodless Art.
 4. Earned blessings: the `earned` flag, the act-boss pick, and four pure ones (Unbroken
-   Banner, Second Dawn, Ember Lantern, Captain's Whistle).
+   Banner, Second Dawn, Ember Lantern, Captain's Whistle). Built (§6.4).
 5. The special church, the twisted earned blessings, the gifts with a catch, and the rest of
    §5.
 

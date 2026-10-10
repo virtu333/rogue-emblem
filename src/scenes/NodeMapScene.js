@@ -2,6 +2,13 @@ import { specialCharacterEntries } from '../engine/SpecialCharacterDialogue.js';
 import { PendingRewardController } from '../ui/PendingRewardController.js';
 import { resumeBossRecruit } from '../ui/BossRecruitResume.js';
 import { resumeLordArrival } from '../ui/LordArrivalResume.js';
+import { EarnedBlessingPick } from '../ui/EarnedBlessingPick.js';
+import { saveServiceRun } from '../ui/serviceSave.js';
+import {
+  actBossPickDue,
+  earnedPickOwed,
+  prepareEarnedBlessingPick,
+} from '../engine/EarnedBlessings.js';
 import { CampaignMapOverlay } from '../ui/CampaignMapOverlay.js';
 import { NodeMapMenu } from '../ui/NodeMapMenu.js';
 import { hasDOMHost } from '../utils/domUI.js';
@@ -219,6 +226,7 @@ export class NodeMapScene extends Phaser.Scene {
   create() {
     this._pendingRewards = null;
     this._bossRecruitResume = null;
+    this._earnedPick = null;
     const lifecycleGeneration = beginSceneLifecycle(this);
     this._promotionChoicePanelOpen = 0;
 
@@ -397,6 +405,8 @@ export class NodeMapScene extends Phaser.Scene {
     this._pendingRewards = null;
     this._bossRecruitResume?._cleanup?.();
     this._bossRecruitResume = null;
+    this._earnedPick?.destroy();
+    this._earnedPick = null;
 
     const audio = this.registry.get('audio');
     if (audio) audio.releaseMusic(this, 0);
@@ -627,7 +637,14 @@ export class NodeMapScene extends Phaser.Scene {
             !openedAmbushShop &&
             !openedEvent &&
             this._maybeOpenPendingContractSettlement?.(lifecycleGeneration) === true;
-          if (!openedAmbushShop && !openedEvent && !openedContract) {
+          // An earned-blessing pick still owed (a reload between a boss and its pick, or one
+          // left from an earlier act): after the pages above, before the caravan's shop.
+          const openedPick =
+            !openedAmbushShop &&
+            !openedEvent &&
+            !openedContract &&
+            this._maybeOpenEarnedPick?.(lifecycleGeneration) === true;
+          if (!openedAmbushShop && !openedEvent && !openedContract && !openedPick) {
             this._maybeOpenPendingCaravanShop?.(lifecycleGeneration);
           }
         }
@@ -780,6 +797,66 @@ export class NodeMapScene extends Phaser.Scene {
     if (!current || !contractRewardOwedAt(rm, current)) return false;
     if (this._contractOwnerBusy(current)) return false;
     return this.handleContractSettlement({ auto: true }) === true;
+  }
+
+  /**
+   * The earned-blessing pick the run still owes (engine/EarnedBlessings.js; EarnedBlessingPick):
+   * single-flight (an open pick is never opened twice, whichever caller comes first). It waits
+   * for the boss's rewards, recruit and lord, a contract reward owed where the party stands and
+   * any story beat or overlay; once taken or skipped (saved first) the act completes through
+   * checkActComplete, or, for a pick left from an earlier act, the map carries on.
+   * @returns {boolean} true when the pick is open (now or already)
+   */
+  _maybeOpenEarnedPick(lifecycleGeneration = this._sceneLifecycleGeneration) {
+    if (this._earnedPick) return true;
+    if (!isSceneLifecycleActive(this, lifecycleGeneration)) return false;
+    if (this.sys?.isActive?.() === false) return false;
+    if (!this.isSceneReady) return false;
+    if (this._storyDialogueActive || this.dialogueOverlay?.visible) return false;
+    if (this.isTransitioning || this.battleLaunchInFlight) return false;
+    if (
+      this.shopOverlay ||
+      this.churchOverlay ||
+      this.eventOverlay ||
+      this._pendingRewards ||
+      this._bossRecruitResume ||
+      this.rosterOverlay?.visible ||
+      this.pauseOverlay?.visible ||
+      this.settingsOverlay?.visible
+    ) {
+      return false;
+    }
+    const rm = this.runManager;
+    if (!rm || rm.pendingBattleReward || rm.pendingBossRecruit || rm.pendingThirdLord) return false;
+    const current = rm.nodeMap?.nodes?.find((entry) => entry?.id === rm.currentNodeId);
+    if (current && contractRewardOwedAt(rm, current)) return false;
+    const entry = earnedPickOwed(rm);
+    if (!entry) return false;
+    const pick = new EarnedBlessingPick(this, {
+      run: rm,
+      entry,
+      save: () => saveServiceRun(this),
+      onDone: () => {
+        if (this._earnedPick !== pick) return;
+        this._earnedPick = null;
+        if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
+        if (rm.isActComplete()) this.checkActComplete();
+        else {
+          this.drawMap();
+          this._maybeOpenPendingCaravanShop?.(lifecycleGeneration);
+        }
+      },
+    });
+    this._earnedPick = pick;
+    let opened = false;
+    try {
+      opened = pick.create();
+    } catch (err) {
+      console.warn('[NodeMapScene] earned pick failed to open:', err);
+      pick.destroy();
+    }
+    if (!opened) this._earnedPick = null;
+    return opened;
   }
 
   /** An event node whose own page (its spoils, or its victory page) must be read before the contract's. */
@@ -1988,6 +2065,8 @@ export class NodeMapScene extends Phaser.Scene {
       this.pauseOverlay?.visible
     )
       return;
+    // An owed earned-blessing pick (one that could not open by itself) opens on a tap.
+    if (earnedPickOwed(this.runManager) && this._maybeOpenEarnedPick()) return;
     if (node.completed && !this.runManager.canReenterService?.(node.id)) return;
     // The node a kept contract's reward holds the party at: its settlement page (an event node's
     // own page, when it has one to read, comes first).
@@ -2420,6 +2499,22 @@ export class NodeMapScene extends Phaser.Scene {
       this.drawMap();
       this._maybeOpenPendingContractSettlement?.();
       return;
+    }
+    if (rm.isActComplete() && !isPrologueRun(rm) && !rm.isRunComplete()) {
+      // The act boss's earned-blessing pick, before the act completes: a save from before the
+      // pick was rolled at the victory (between that boss and the act advance) rolls it now,
+      // from the same seed (the same pair); an owed pick opens, and taking or skipping it comes
+      // back here. The act never advances over an owed pick.
+      const boss = rm.nodeMap?.nodes?.find((entry) => entry?.id === rm.nodeMap?.bossNodeId);
+      if (boss?.completed && actBossPickDue(rm, boss)) {
+        prepareEarnedBlessingPick(rm, boss);
+        saveServiceRun(this);
+      }
+      if (earnedPickOwed(rm)) {
+        this.drawMap();
+        this._maybeOpenEarnedPick();
+        return;
+      }
     }
     if (rm.isActComplete()) {
       if (isPrologueRun(rm)) {

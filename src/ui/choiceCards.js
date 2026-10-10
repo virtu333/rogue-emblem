@@ -17,6 +17,8 @@ import { battleUnitSpriteKey } from './BattleUnitVisuals.js';
 import { unitSpriteImage } from './growthSprites.js';
 import { ROSTER_DESKTOP_QUERY } from './unitPortrait.js';
 import { itemIcon, itemHero, itemIconId } from './itemIcons.js';
+import { blessingCardArt, costSeal } from './itemMoments.js';
+import { bindHold } from './infoAffordance.js';
 
 export const CHOICE_SMALL_QUERY = '(max-width: 700px)';
 
@@ -431,6 +433,76 @@ export function fitDraft(root, selector = '.ch-name', { min = 12 } = {}) {
     observer?.disconnect();
     if (frame) cancelAnimationFrame(frame);
   };
+}
+
+/**
+ * A blessing as a tarot card (choiceContent.blessingCardContent): the tier numeral burning in
+ * the Hollow Sun (a star for an earned blessing), the name, the boon and the cost. The shrine
+ * (RunSetupMenu) and the earned pick (EarnedBlessingPick) draw the same card.
+ * `terms` (BlessingTerms) explain the price's words: on hover, in the card's spoken label, and
+ * on a press-and-hold (`onHold`, while `holdEnabled()`). The caller sets `data-focus`.
+ * @param {object} content - blessingCardContent(...)
+ * @param {{ selected?: boolean, onSelect?: Function, terms?: Array<{term: string, text: string}>,
+ *   onHold?: Function|null, holdEnabled?: Function }} [options]
+ */
+export function blessingTarotCard(
+  content,
+  { selected = false, onSelect, terms = [], onHold = null, holdEnabled = () => true } = {},
+) {
+  const card = choiceButton(content.name, onSelect, 'ch-card ch-tarot');
+  card.dataset.tier = content.earned ? 'earned' : String(content.tier);
+  card.setAttribute('aria-pressed', String(Boolean(selected)));
+  card.setAttribute(
+    'aria-label',
+    [
+      content.name,
+      content.tierLabel,
+      content.boon,
+      content.cost ? `${content.costLabel}: ${content.cost}` : 'No cost',
+      ...terms.map((t) => `${t.term}: ${t.text}`),
+    ]
+      .filter(Boolean)
+      .join(' · '),
+  );
+  const plate = element('span', null, 'ch-plate');
+  // The tier numeral burns inside the Hollow Sun; an earned blessing's sun holds a star
+  // (a clipped shape, not a glyph: the sun's face, Cinzel, has none).
+  const sun = element('span', null, 'ch-sun');
+  sun.setAttribute('aria-hidden', 'true');
+  const numeral = element('span', content.numeral, 'ch-numeral');
+  if (content.mark === 'star') numeral.append(element('span', null, 'ch-star'));
+  sun.append(numeral);
+  // The boon reads (and scrolls) above; the cost is always in view below.
+  const lines = fadeScroll(element('span', null, 'ch-lines'));
+  const boon = element('span', null, 'ch-boon');
+  boon.append(element('span', 'Boon', 'ch-boon-k'), element('span', content.boon));
+  lines.append(boon);
+  const cost = element('span', null, `ch-cost${content.cost ? '' : ' is-none'}`);
+  // An earned blessing was won, not bought: its foot says so in place of a cost.
+  if (content.earned && !content.cost)
+    cost.append(
+      element('span', 'Earned', 'ch-boon-k'),
+      element('span', 'No cost: won, never bought'),
+    );
+  else
+    cost.append(
+      element('span', content.costLabel, 'ch-boon-k'),
+      element('span', content.cost || 'None: a clean gift'),
+    );
+  // The shrine's painting behind the numeral and the name (items art: blessing cards);
+  // the cost wears a wax seal: crimson with a price, verdigris when the gift is clean.
+  const art = content.id ? blessingCardArt(content.id) : null;
+  if (art) {
+    card.classList.add('has-art');
+    plate.append(art);
+  }
+  cost.prepend(costSeal(!content.cost));
+  // Hover reads what the price's words mean; the chosen card spells them out below.
+  if (terms.length) cost.title = terms.map((t) => `${t.term}: ${t.text}`).join('\n');
+  plate.append(sun, element('strong', content.name, 'ch-tarot-name'), lines, cost);
+  card.append(plate);
+  if (terms.length && onHold) bindHold(card, onHold, { enabled: holdEnabled });
+  return card;
 }
 
 /** A gold wax seal with a price: { amount, after, short } */

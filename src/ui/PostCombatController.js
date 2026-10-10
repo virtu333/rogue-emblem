@@ -45,6 +45,8 @@ import { UI_PALETTE } from '../utils/uiStyles.js';
 import { recordRunLordsMet } from '../engine/LordsMet.js';
 import { settlementLines } from '../engine/Burdens.js';
 import { gambleLines } from '../engine/BattleGoldGamble.js';
+import { earnedPickOwed } from '../engine/EarnedBlessings.js';
+import { presentEarnedBlessingPick } from './EarnedBlessingPick.js';
 
 // Watchdog: a single RunComplete transition attempt that hangs past this is
 // treated as failed so the retry loop (and ultimately the recovery UI) still runs.
@@ -417,6 +419,27 @@ export class PostCombatController {
           if (!isCurrentBattleSession(scene, session)) return;
           if (!ok) throw new Error('Scene transition to RunComplete blocked');
         } else {
+          // An act boss's earned-blessing pick (rolled and saved with the victory) comes after
+          // its rewards, recruit and lord and before the act advances, so a blessing taken here
+          // belongs to this act (Second Dawn pays from the next). The act never advances over an
+          // owed pick: one that cannot be shown here waits on the route map, act unadvanced.
+          if (earnedPickOwed(scene.runManager)) {
+            const picked = await this._presentEarnedPick(session);
+            if (!isCurrentBattleSession(scene, session)) return;
+            if (earnedPickOwed(scene.runManager)) {
+              if (picked.outcome !== 'unavailable')
+                console.warn('[BattleScene] earned pick still owed after', picked.outcome);
+              const okMap = await transitionToScene(
+                scene,
+                'NodeMap',
+                { gameData: scene.gameData, runManager: scene.runManager },
+                { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
+              );
+              if (!isCurrentBattleSession(scene, session)) return;
+              if (!okMap) throw new Error('Scene transition to NodeMap blocked (earned pick)');
+              return true;
+            }
+          }
           const fromAct = scene.runManager.currentAct;
           scene.runManager.advanceAct();
           // Save the new act now: the act card and story below can take a
@@ -500,6 +523,29 @@ export class PostCombatController {
       });
       scene.forceTransitionAfterBattle();
       return false;
+    }
+  }
+
+  /**
+   * The owed earned-blessing pick, over the won battle (EarnedBlessingPick). Its take or skip
+   * is saved with the battle's own run save before the act advances. While it is open the
+   * post-loot fallback holds (`scene._earnedPickActive`, LootFlowController).
+   * @returns {Promise<{ outcome: string }>} 'unavailable' when it could not be shown
+   */
+  async _presentEarnedPick(session) {
+    const scene = this.scene;
+    if (!hasDOMHost()) return { outcome: 'unavailable' };
+    scene._earnedPickActive = true;
+    try {
+      return await presentEarnedBlessingPick(scene, {
+        run: scene.runManager,
+        save: () => scene._persistBattleRunState?.(null, { session }),
+      });
+    } catch (err) {
+      console.warn('[BattleScene] earned pick failed:', err);
+      return { outcome: 'unavailable' };
+    } finally {
+      if (isCurrentBattleSession(scene, session)) scene._earnedPickActive = false;
     }
   }
 
