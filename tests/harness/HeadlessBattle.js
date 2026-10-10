@@ -2265,7 +2265,6 @@ export class HeadlessBattle {
     // board the player left, before the phase-start hazards (SiegeArtillery).
     settleArtilleryStances({
       enemyUnits: this.enemyUnits,
-      playerUnits: this.playerUnits,
       turn: this.turnManager?.turnNumber ?? null,
     });
     try {

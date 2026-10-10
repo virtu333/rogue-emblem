@@ -1,34 +1,22 @@
-// SiegeArtillery.js — enemy siege casters hold and fire (docs/specs/dusk-pressure.md §2c).
-// Pure, no Phaser, no RNG.
+// SiegeArtillery.js — enemy siege casters and status-staff casters hold their post
+// (docs/specs/dusk-pressure.md §2c). Pure, no Phaser, no RNG.
 //
 // An enemy whose next strike weapon is a siege tome (Breachbolt: "Siege magic", 3-10)
-// with shots left is artillery. As the enemy phase begins, before anything else happens
-// (the player's hazards, enemy turn-start effects, ballista fire: BattleScene.onPhaseChange
-// and HeadlessBattle._processEnemyPhase), it takes a stance from the board the player left:
-//   * planted, when one of the player's units stands inside its siege range: it does
-//     not move this phase and fires from where it stands at the best target in range
-//     (none left by then: it waits);
-//   * otherwise it moves and fires like any caster (out of range, or out of shots).
-// The stance is fixed for the phase, so no phase-start blow and no ally's kill sends it
-// walking, and the Danger overlay (ThreatForecast) draws exactly the reach it will use:
-// the ring from its post while a player unit is in it, its full reach otherwise.
-// Only the player's own units count, on purpose: they are never hidden and none moves
-// between the player's last action and the stance. (The hold wake and guard rules also
-// count the NPCs the player knows of; an NPC can move first: the caravan steps.)
-// The stance is saved with the unit (`artilleryStance: { turn, planted }`), keyed by turn:
-// AIController.processEnemyPhase settles it again and keeps it, and so does a phase
-// resumed from a mid-phase checkpoint, instead of reading a board that has changed.
+// with shots left is artillery; an enemy carrying a Sleep or Silence Staff with a use
+// left is a staff caster. Neither ever walks: artillery fires from where it stands at
+// the best target in siege range (none: it waits), a staff caster casts, or strikes with
+// its weapon, from where it stands (nothing in reach: it waits). The Danger overlay
+// (ThreatForecast) draws exactly that: the reach from the post, never a walked-to tile.
+// Once the siege shots or the staff's uses are gone the unit is an ordinary caster again.
+// The stance is taken as the enemy phase begins (BattleScene.onPhaseChange and
+// HeadlessBattle._processEnemyPhase) and saved with the unit
+// (`artilleryStance: { turn, planted }`), keyed by turn, so a phase resumed from a
+// mid-phase checkpoint keeps it. It no longer depends on where the player stands.
 //
-// Holders (HoldActivation: a siege caster never holds) and village bandits (`seek_tile`)
-// keep their own orders. The Entity has its own AI.
+// Holders (HoldActivation) and village bandits (`seek_tile`) keep their own orders.
+// The Entity has its own AI.
 
-import {
-  gridDistance,
-  hasPerBattleUsesLeft,
-  isInRange,
-  isStaff,
-  nextStrikeWeapon,
-} from './Combat.js';
+import { hasPerBattleUsesLeft, isStaff, nextStrikeWeapon } from './Combat.js';
 import { isEntity } from './EntitySystem.js';
 
 /** Units whose own orders come before the artillery stance. */
@@ -53,57 +41,41 @@ export function artilleryWeapon(unit) {
   return isSiegeWeapon(weapon) && hasPerBattleUsesLeft(weapon, unit) ? weapon : null;
 }
 
-/** True when an artillery unit, where it stands, has one of `tiles` in siege range. */
-export function plantsAgainst(unit, tiles) {
-  const weapon = artilleryWeapon(unit);
-  if (!weapon) return false;
-  for (const t of tiles || []) {
-    if (t && isInRange(weapon, gridDistance(unit.col, unit.row, t.col, t.row))) return true;
-  }
-  return false;
+/** An enemy status staff (Sleep / Silence) with a use left, or null. */
+export function readyStatusStaff(unit) {
+  if (!unit || unit.faction !== 'enemy' || isEntity(unit) || OWN_ORDERS.has(unit.aiMode))
+    return null;
+  const staff = unit.statusStaff;
+  return staff && staff.uses > 0 && (staff._usesSpent || 0) < staff.uses ? staff : null;
 }
 
-/**
- * The same test over a positions map ("col,row" -> { faction }, PlayerKnowledge): the
- * player's units in it are the targets. What the Danger overlay and every preview use.
- */
-export function plantsAmongPositions(unit, positions) {
-  if (!artilleryWeapon(unit) || !positions) return false;
-  const tiles = [];
-  for (const [key, entry] of positions) {
-    if (entry?.faction !== 'player') continue;
-    const [col, row] = key.split(',').map(Number);
-    tiles.push({ col, row });
-  }
-  return plantsAgainst(unit, tiles);
+/** True when the unit never walks: siege artillery with shots left, or a staff caster with a use left. */
+export function holdsPost(unit) {
+  return Boolean(artilleryWeapon(unit) || readyStatusStaff(unit));
 }
 
 const isLive = (u) => Boolean(u) && u.currentHP > 0 && !u._removing;
 
 /**
- * Take every artillery unit's stance for this enemy phase (mutates the units). Call at
- * the top of the phase with its turn number: a unit that already holds a stance for that
- * turn keeps it (a resumed phase). Without a turn number the stance is taken afresh.
- * A unit that is not artillery (no siege tome, or its shots spent) drops any old stance.
+ * Take every post-holding caster's stance for this enemy phase (mutates the units). Call
+ * at the top of the phase with its turn number: a unit that already holds a stance for
+ * that turn keeps it (a resumed phase). Without a turn number the stance is taken afresh.
+ * A unit that holds no post (no siege tome or staff left) drops any old stance.
  */
-export function settleArtilleryStances({ enemyUnits = [], playerUnits = [], turn = null } = {}) {
+export function settleArtilleryStances({ enemyUnits = [], turn = null } = {}) {
   const checked = Number.isInteger(turn);
-  const targets = (playerUnits || []).filter(isLive);
   for (const enemy of enemyUnits || []) {
     if (!isLive(enemy)) continue;
-    if (!artilleryWeapon(enemy)) {
+    if (!holdsPost(enemy)) {
       delete enemy.artilleryStance;
       continue;
     }
     if (checked && enemy.artilleryStance?.turn === turn) continue;
-    enemy.artilleryStance = {
-      turn: checked ? turn : null,
-      planted: plantsAgainst(enemy, targets),
-    };
+    enemy.artilleryStance = { turn: checked ? turn : null, planted: true };
   }
 }
 
-/** True when the unit holds its post and fires this phase. */
+/** True when the unit holds its post this phase (stance taken, and still a caster that holds). */
 export function isArtilleryPlanted(unit) {
-  return unit?.artilleryStance?.planted === true && Boolean(artilleryWeapon(unit));
+  return unit?.artilleryStance?.planted === true && holdsPost(unit);
 }

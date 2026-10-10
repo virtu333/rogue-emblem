@@ -29,7 +29,7 @@ import { willRemainRootedNextPhase } from './StatusConditionSystem.js';
 import { getBallistaDangerTiles } from './BallistaEngine.js';
 import { ENTITY_PRIMARY_ATTACK_RANGE } from '../utils/constants.js';
 import { getPerBattleRemainingUses, isStaff, nextStrikeWeapon, parseRange } from './Combat.js';
-import { plantsAmongPositions } from './SiegeArtillery.js';
+import { artilleryWeapon, holdsPost } from './SiegeArtillery.js';
 import { movementOptionsFor } from './PassMovement.js';
 
 const tileKey = (col, row) => `${col},${row}`;
@@ -74,8 +74,8 @@ export function enemyThreatTiles(ctx, enemy, positions = ctx.positions()) {
   }
   // No movement while it stays rooted (willRemainRootedNextPhase, not isRooted: a root
   // expiring at the enemy's next phase start must not understate its threat range), nor
-  // while a player unit stands in its siege range (planted artillery, SiegeArtillery.js).
-  const planted = plantsAmongPositions(enemy, positions);
+  // while it holds its post (siege artillery and status-staff casters, SiegeArtillery.js).
+  const planted = holdsPost(enemy);
   const moveRange = grid.getMovementRange(
     enemy.col,
     enemy.row,
@@ -85,8 +85,8 @@ export function enemyThreatTiles(ctx, enemy, positions = ctx.positions()) {
     enemy.faction,
     ctx.costModifier ? ctx.costModifier(enemy) : 0,
   );
-  // Planted artillery only fires (AIController._decideArtilleryAction): no staff.
-  const staff = planted ? null : statusStaffThreat(enemy);
+  // Artillery only fires (AIController._decideArtilleryAction): no staff.
+  const staff = artilleryWeapon(enemy) ? null : statusStaffThreat(enemy);
   const weapon = strikingWeapon(enemy);
   for (const [key, entry] of moveRange) {
     if (entry?.stoppable === false) continue;

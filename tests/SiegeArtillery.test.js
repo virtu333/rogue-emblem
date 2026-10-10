@@ -1,19 +1,18 @@
-// Siege casters hold and fire (docs/specs/dusk-pressure.md §2c, engine/SiegeArtillery.js).
-// An enemy Breachbolt caster with shots left takes a stance at the top of each enemy
-// phase: planted (no move, fires from its post at the best target 3-10 away) while one
-// of the player's units is in siege range, its normal orders otherwise. The Danger
+// Siege casters and status-staff casters hold their post (docs/specs/dusk-pressure.md
+// §2c, engine/SiegeArtillery.js). An enemy Breachbolt caster with shots left, or one with
+// a Sleep / Silence Staff use left, never walks: it acts from where it stands (artillery
+// fires at the best target 3-10 away; a staff caster casts or strikes) or waits. The Danger
 // overlay, Threat Sight and the inspected reach draw the reach it will actually use.
 //
 // Ways this can break, one test each (or more):
-// * the caster still walks (to cover, closer) when it could fire from where it stands;
-// * it stays put with nobody in range, or with its shots spent, instead of its orders;
-// * the stance is read per unit mid-phase: an ally killing its only target sends it
-//   walking at a unit Danger called safe;
+// * the caster still walks (to cover, closer) when it could act from where it stands;
+// * it walks toward a target out of range instead of waiting, or stays after its shots or
+//   staff uses are spent instead of its orders;
+// * an ally killing its only target changes what it does mid-phase;
 // * a resumed phase re-reads a board enemies have already changed;
 // * guard orders (walk back to the post) beat the stance;
-// * Danger / Threat Sight / the inspected reach draw the full mov + 10 for a planted
-//   caster, or the ring for one that will move; Threat Sight reads the board before
-//   the previewed move; its cache misses a spent shot;
+// * Danger / Threat Sight / the inspected reach draw a walk for a caster that stays; its
+//   cache misses a spent shot;
 // * the harness and the scene disagree (both run AIController.processEnemyPhase);
 // * the stance draws on Math.random.
 import { describe, it, expect, vi, afterEach } from 'vitest';
@@ -81,6 +80,22 @@ function sage(col, row, extra = {}) {
     skills: [],
     weapon: bolt,
     inventory: [bolt, fire],
+    ...extra,
+  };
+}
+
+/** A Mage with a Sleep Staff: it casts from its post and never walks. */
+function mage(col, row, extra = {}) {
+  const fire = weapon('Fire');
+  const staff = weapon('Sleep Staff');
+  staff.statusEffect = 'sleep';
+  return {
+    ...sage(col, row),
+    name: 'Mage',
+    className: 'Mage',
+    weapon: fire,
+    inventory: [fire],
+    statusStaff: staff,
     ...extra,
   };
 }
@@ -221,17 +236,18 @@ describe('a siege caster with shots left and a target in range', () => {
 });
 
 describe('falling back to its orders', () => {
-  it('with no player unit in siege range it moves and fires like any caster', async () => {
+  it('with no player unit in siege range it waits at its post: it never walks', async () => {
     const grid = makeGrid(25, 25);
     const caster = sage(12, 22);
     const target = foe('Target', 12, 8); // 14 away: out of 3-10, inside MOV 5 + 10
-    const { attacks } = await enemyPhase(controller(grid), {
+    const { attacks, decisions } = await enemyPhase(controller(grid), {
       enemies: [caster],
       players: [target],
     });
-    expect(caster.artilleryStance).toEqual({ turn: 1, planted: false });
-    expect(manhattan(caster, { col: 12, row: 22 })).toBeGreaterThan(0);
-    expect(attacks).toEqual([{ by: 'Sage', target: 'Target', weapon: 'Breachbolt' }]);
+    expect(caster.artilleryStance).toEqual({ turn: 1, planted: true });
+    expect({ col: caster.col, row: caster.row }).toEqual({ col: 12, row: 22 });
+    expect(decisions.get(caster).reason).toBe('artillery_hold');
+    expect(attacks).toEqual([]);
   });
 
   it('with its shots spent it is no longer artillery: it closes in with its own tome', async () => {
@@ -249,7 +265,7 @@ describe('falling back to its orders', () => {
     expect(attacks).toEqual([{ by: 'Sage', target: 'Target', weapon: 'Fire' }]);
   });
 
-  it('planted, a caster that also carries a status staff (an old per-spawn roll) only fires', async () => {
+  it('a caster that also carries a status staff (an old per-spawn roll) only fires', async () => {
     const grid = makeGrid(25, 25);
     const caster = sage(12, 12, { statusStaff: weapon('Silence Staff') });
     const target = foe('Target', 12, 7); // 5 away: in Silence (3-7) and siege range
@@ -351,34 +367,36 @@ describe('the stance is taken once, at the top of the phase', () => {
     expect(b.currentHP).toBe(1);
   });
 
-  it('only living player units, 3-10 away, plant it', () => {
-    const at = (col, row, extra = {}) => ({ ...foe('U', col, row), ...extra });
-    const stance = (players) => {
-      const caster = sage(12, 12);
-      settleArtilleryStances({ enemyUnits: [caster], playerUnits: players, turn: 1 });
-      return caster.artilleryStance.planted;
+  it('a siege caster or a staff caster with something left holds its post; nothing left, none', () => {
+    const stance = (caster) => {
+      settleArtilleryStances({ enemyUnits: [caster], turn: 1 });
+      return caster.artilleryStance?.planted ?? null;
     };
-    expect(stance([at(12, 9)])).toBe(true); // 3 away: the near edge
-    expect(stance([at(12, 2)])).toBe(true); // 10 away: the far edge
-    expect(stance([at(12, 10)])).toBe(false); // 2 away: inside the minimum range
-    expect(stance([at(12, 11)])).toBe(false); // adjacent
-    expect(stance([at(12, 1)])).toBe(false); // 11 away
-    expect(stance([at(12, 6, { currentHP: 0 })])).toBe(false); // fallen
-    expect(stance([at(12, 6, { _removing: true })])).toBe(false); // being removed
+    expect(stance(sage(12, 12))).toBe(true);
+    expect(stance(mage(12, 12))).toBe(true);
+    const spentBolt = sage(12, 12);
+    spentBolt.weapon._usesSpent = ENEMY_SHOTS;
+    expect(stance(spentBolt)).toBeNull();
+    const spentStaff = mage(12, 12);
+    spentStaff.statusStaff._usesSpent = spentStaff.statusStaff.uses;
+    expect(stance(spentStaff)).toBeNull();
+    expect(stance(mage(12, 12, { aiMode: 'hold' }))).toBeNull(); // its own orders
+    expect(stance(mage(12, 12, { aiMode: 'seek_tile' }))).toBeNull();
+    expect(stance(mage(12, 12, { faction: 'player' }))).toBeNull();
+    expect(stance(mage(12, 12, { currentHP: 0 }))).toBeNull(); // fallen
   });
 
-  it('a phase resumed from a checkpoint keeps the stance; the next turn takes a new one', async () => {
+  it('a phase resumed from a checkpoint keeps the stance; the next turn takes it again', async () => {
     const grid = makeGrid(25, 25);
     const caster = sage(12, 12);
     const target = foe('Target', 12, 6);
-    settleArtilleryStances({ enemyUnits: [caster], playerUnits: [target], turn: 3 });
+    settleArtilleryStances({ enemyUnits: [caster], turn: 3 });
     expect(isArtilleryPlanted(caster)).toBe(true);
     // Saved with the unit (suspend checkpoint, Vision snapshot).
     const restored = JSON.parse(JSON.stringify(serializeBattleUnit(caster)));
     expect(restored.artilleryStance).toEqual({ turn: 3, planted: true });
 
-    // By the resume an ally had moved the target out of range (a board the stance must
-    // not re-read): it still holds its post this turn.
+    // By the resume an ally had moved the target out of range: it still waits at its post.
     target.row = 0; // 12 away
     let phase = await enemyPhase(controller(grid), {
       enemies: [caster],
@@ -390,14 +408,14 @@ describe('the stance is taken once, at the top of the phase', () => {
 
     caster.hasActed = false;
     phase = await enemyPhase(controller(grid), { enemies: [caster], players: [target], turn: 4 });
-    expect(caster.artilleryStance).toEqual({ turn: 4, planted: false });
-    expect(phase.attacks.map((a) => a.target)).toEqual(['Target']);
-    expect(caster.row).toBeLessThan(12);
+    expect(caster.artilleryStance).toEqual({ turn: 4, planted: true });
+    expect(phase.attacks).toEqual([]);
+    expect({ col: caster.col, row: caster.row }).toEqual({ col: 12, row: 12 });
   });
 });
 
 describe('what the player sees is the reach it uses', () => {
-  it('Danger draws the ring from its post while a player unit is in range, the full reach otherwise', () => {
+  it('Danger draws the ring from its post, wherever the player stands', () => {
     const grid = makeGrid(41, 41);
     const caster = sage(20, 20);
     const post = { col: 20, row: 20 };
@@ -415,17 +433,17 @@ describe('what the player sees is the reach it uses', () => {
       }
     expect(damageKeys(tiles).size).toBe(ring);
 
-    unit.row = 5; // 15 away: out of range, the caster will move
+    unit.row = 5; // 15 away: out of range, the caster still stays
     tiles = computeDangerTiles(ctx);
-    expect(farthest(tiles, post)).toBe(MOV + SIEGE_MAX);
+    expect(farthest(tiles, post)).toBe(SIEGE_MAX);
 
-    unit.row = 14; // back in range, but its shots are spent: it moves with Fire
+    // Its shots are spent: it moves with Fire
     caster.weapon._usesSpent = ENEMY_SHOTS;
     tiles = computeDangerTiles(ctx);
     expect(farthest(tiles, post)).toBe(MOV + 2);
   });
 
-  it('Danger: a unit inside the minimum range, an NPC or a fallen unit does not plant it', () => {
+  it('Danger: the ring is the same with an NPC, a fallen unit or nobody near', () => {
     const grid = makeGrid(41, 41);
     const caster = sage(20, 20);
     const post = { col: 20, row: 20 };
@@ -435,26 +453,23 @@ describe('what the player sees is the reach it uses', () => {
       const ctx = { ...threatCtx(grid, [caster], []), positions: () => knowledge.positions() };
       return farthest(computeDangerTiles(ctx), post);
     };
-    expect(reachWith([foe('Close', 20, 18)])).toBe(MOV + SIEGE_MAX); // 2 away
-    expect(reachWith([{ ...foe('Villager', 20, 14), faction: 'npc' }])).toBe(MOV + SIEGE_MAX);
-    expect(reachWith([{ ...foe('Fallen', 20, 14), currentHP: 0 }])).toBe(MOV + SIEGE_MAX);
-    expect(reachWith([{ ...foe('Leaving', 20, 14), _removing: true }])).toBe(MOV + SIEGE_MAX);
-    // The same unit standing, 6 away: planted, the ring only.
+    expect(reachWith([foe('Close', 20, 18)])).toBe(SIEGE_MAX);
+    expect(reachWith([{ ...foe('Villager', 20, 14), faction: 'npc' }])).toBe(SIEGE_MAX);
+    expect(reachWith([{ ...foe('Fallen', 20, 14), currentHP: 0 }])).toBe(SIEGE_MAX);
     expect(reachWith([foe('Standing', 20, 14)])).toBe(SIEGE_MAX);
+    expect(reachWith([])).toBe(SIEGE_MAX);
   });
 
-  it('every tile Danger marks is one it strikes, and no other (planted and moving)', async () => {
+  it('every tile Danger marks is one it strikes, and no other (it never moves)', async () => {
     // A sturdy anchor nothing hurts, in range or not, and a frail probe on every tile:
     // the AI kills the probe whenever it can reach it, so "struck" = "reachable".
     const size = 17;
     const post = { col: 8, row: 8 };
     for (const anchorAt of [
-      { col: 8, row: 3 }, // in range: the caster is planted
-      { col: 8, row: 16 }, // 8 away, on the other side: planted
-      { col: 0, row: 0 }, // 16 away: it moves
+      { col: 8, row: 3 }, // in range
+      { col: 8, row: 16 }, // 8 away, on the other side
+      { col: 0, row: 0 }, // 16 away: out of range, it still stays
     ]) {
-      const inRange =
-        manhattan(anchorAt, post) >= SIEGE_MIN && manhattan(anchorAt, post) <= SIEGE_MAX;
       let struck = 0;
       let mismatches = [];
       for (let row = 0; row < size; row++)
@@ -479,24 +494,19 @@ describe('what the player sees is the reach it uses', () => {
         }
       expect(mismatches, JSON.stringify(anchorAt)).toEqual([]);
       expect(struck).toBeGreaterThan(0);
-      // Planted, it never strikes inside 3 of its post; moving, it can.
-      if (inRange) expect(struck).toBeLessThan(size * size - 2);
+      // It never strikes inside 3 of its post.
+      expect(struck).toBeLessThan(size * size - 2);
     }
   });
 
-  it('Threat Sight reads the board after the previewed move', () => {
+  it('Threat Sight: only the ring around the post threatens, whoever stays or moves', () => {
     const grid = makeGrid(25, 25);
     const caster = sage(12, 12);
-    const mover = foe('Mover', 12, 6); // in range now
+    const mover = foe('Mover', 12, 6);
     const ctx = threatCtx(grid, [caster], [mover]);
-    // Moving the only unit in range to 12 away: the caster will walk and reach it.
-    expect(threatsOnTile(ctx, 12, 0, { mover }).damage).toEqual([caster]);
-    // With another unit left in range, the caster stays planted: 12 away is safe.
-    const stays = foe('Stays', 12, 16);
-    const ctx2 = threatCtx(grid, [caster], [mover, stays]);
-    expect(threatsOnTile(ctx2, 12, 0, { mover }).damage).toEqual([]);
-    // Moving into the hole next to it (2 away) is safe from a planted caster.
-    expect(threatsOnTile(ctx2, 12, 10, { mover }).damage).toEqual([]);
+    expect(threatsOnTile(ctx, 12, 0, { mover }).damage).toEqual([]); // 12 away: safe
+    expect(threatsOnTile(ctx, 12, 6, { mover }).damage).toEqual([caster]); // 6 away
+    expect(threatsOnTile(ctx, 12, 10, { mover }).damage).toEqual([]); // 2 away: inside the minimum
   });
 
   it("Threat Sight's cache sees a spent shot", () => {
@@ -509,7 +519,7 @@ describe('what the player sees is the reach it uses', () => {
     expect(threatWorldSignature(ctx, [caster, unit])).not.toBe(before);
   });
 
-  it('the inspected reach of a planted caster has no movement', () => {
+  it('the inspected reach of a post-holding caster has no movement', () => {
     const caster = sage(2, 3);
     const getMovementRange = vi.fn(() => new Map([['2,3', { cost: 0 }]]));
     const scene = {
@@ -537,10 +547,99 @@ describe('what the player sees is the reach it uses', () => {
       scene._showInspectionAtPixel(100, 100);
       return getMovementRange.mock.calls[0][2];
     };
-    // A player unit 6 away: planted.
+    // A player unit 6 away, or nobody in range: it does not move either way.
     expect(movFor(new Map([['2,9', { faction: 'player' }]]))).toBe(0);
-    // Nobody in range: it moves.
-    expect(movFor(new Map([['2,20', { faction: 'player' }]]))).toBe(MOV);
+    expect(movFor(new Map([['2,20', { faction: 'player' }]]))).toBe(0);
+  });
+});
+
+describe('a status-staff caster with a use left holds its post', () => {
+  const run = async (grid, caster, players, turn = 1) => {
+    const casts = [];
+    const { attacks, decisions } = await (async () => {
+      const attacks = [];
+      const decisions = new Map();
+      const ai = controller(grid);
+      await ai.processEnemyPhase([caster], players, [], {
+        turnNumber: turn,
+        onDecision: (e, d) => decisions.set(e, d),
+        onMoveUnit: (e, path) => {
+          const end = path[path.length - 1];
+          e.col = end.col;
+          e.row = end.row;
+          return Promise.resolve();
+        },
+        onAttack: (e, t) => {
+          attacks.push(t.name);
+          return Promise.resolve();
+        },
+        onStatusStaff: (e, t) => {
+          casts.push(t.name);
+          return Promise.resolve();
+        },
+        onUnitDone: (e) => {
+          e.hasActed = true;
+          return Promise.resolve();
+        },
+      });
+      return { attacks, decisions };
+    })();
+    return { attacks, casts, decisions };
+  };
+
+  it('casts from its post at a unit in staff range, without stepping', async () => {
+    const grid = makeGrid(25, 25);
+    const caster = mage(12, 12);
+    const target = foe('Target', 12, 8); // 4 away: Sleep Staff reaches 3-5
+    const { casts, decisions } = await run(grid, caster, [target]);
+    expect(casts).toEqual(['Target']);
+    expect(decisions.get(caster).reason).toBe('status_staff');
+    expect({ col: caster.col, row: caster.row }).toEqual({ col: 12, row: 12 });
+  });
+
+  it('with nobody in reach it waits instead of walking toward the army', async () => {
+    const grid = makeGrid(25, 25);
+    const caster = mage(12, 12);
+    const target = foe('Target', 12, 1); // 11 away: a walk would bring it in
+    const { casts, attacks } = await run(grid, caster, [target]);
+    expect(casts).toEqual([]);
+    expect(attacks).toEqual([]);
+    expect({ col: caster.col, row: caster.row }).toEqual({ col: 12, row: 12 });
+  });
+
+  it('strikes with its weapon from the post when a unit stands in weapon reach', async () => {
+    const grid = makeGrid(25, 25);
+    const caster = mage(12, 12);
+    const target = foe('Target', 12, 11); // adjacent: inside Fire (1-2), too close for the staff
+    const { casts, attacks } = await run(grid, caster, [target]);
+    expect(casts).toEqual([]);
+    expect(attacks).toEqual(['Target']);
+    expect({ col: caster.col, row: caster.row }).toEqual({ col: 12, row: 12 });
+  });
+
+  it('once the staff is spent it is an ordinary caster again and closes in', async () => {
+    const grid = makeGrid(25, 25);
+    const caster = mage(12, 12);
+    caster.statusStaff._usesSpent = caster.statusStaff.uses;
+    const target = foe('Target', 12, 7);
+    const { casts, attacks } = await run(grid, caster, [target]);
+    expect(casts).toEqual([]);
+    expect(attacks).toEqual(['Target']);
+    expect(manhattan(caster, target)).toBeLessThanOrEqual(2);
+  });
+
+  it('Danger draws the staff ring from the post, with no walked reach', () => {
+    const grid = makeGrid(41, 41);
+    const caster = mage(20, 20);
+    const post = { col: 20, row: 20 };
+    const tiles = computeDangerTiles(threatCtx(grid, [caster], [foe('Unit', 20, 5)]));
+    const status = tiles.filter((t) => t.statusThreat);
+    expect(status.length).toBeGreaterThan(0);
+    for (const t of status) {
+      expect(manhattan(t, post)).toBeGreaterThanOrEqual(3);
+      expect(manhattan(t, post)).toBeLessThanOrEqual(5);
+    }
+    expect(farthest(tiles, post)).toBeLessThanOrEqual(2); // Fire from the post only
   });
 });
 
