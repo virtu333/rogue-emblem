@@ -60,6 +60,7 @@ import {
   isUnitSeenAt,
   markFoesShown,
   seenTileOccupant,
+  statusStaffInfo,
   statusStaffThreat,
 } from '../engine/BattleInformation.js';
 import { fogMoveCut } from '../engine/FogAmbush.js';
@@ -3312,14 +3313,17 @@ export class BattleScene extends Phaser.Scene {
       unit.affixPips.forEach((p) => p.destroy());
     }
     unit.affixPips = [];
-    // Pip row, left to right: Revival Stone gems (a boss), affix pips, then the sack of a
-    // carrier (EnemyCarry.js: the item a Thief's Steal would take). A boss never carries, so
-    // the gems and the sack never share a unit; the count below still sums all three so the
-    // row stays centred whichever mix a unit wears. Each hides with its unit in fog.
+    // Pip row, left to right: Revival Stone gems (a boss), affix pips, the sack of a
+    // carrier (EnemyCarry.js: the item a Thief's Steal would take), then the violet staff
+    // pip of a status-staff caster with uses left (a spent staff takes its pip away). A boss
+    // never carries, so the gems and the sack never share a unit; the count below still sums
+    // them all so the row stays centred whichever mix a unit wears. Each hides with its unit
+    // in fog.
     const affixIds = Array.isArray(unit.affixes) ? unit.affixes : [];
     const stones = revivalStoneCount(unit).remaining;
     const carries = Boolean(carriedItemInfo(unit));
-    const count = affixIds.length + stones + (carries ? 1 : 0);
+    const staff = (statusStaffInfo(unit)?.uses || 0) > 0;
+    const count = affixIds.length + stones + (carries ? 1 : 0) + (staff ? 1 : 0);
     if (count === 0) return;
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
@@ -3359,6 +3363,15 @@ export class BattleScene extends Phaser.Scene {
         .setDepth(14)
         .setVisible(canInspectUnit(this.grid, unit));
       unit.affixPips.push(sack);
+      startX += pipSize + gap;
+    }
+    if (staff) {
+      const staffPip = this.add
+        .rectangle(startX, pipY, pipSize - 1, pipSize + 2, UI_HEX.threatStatus)
+        .setStrokeStyle(1, 0x000000)
+        .setDepth(14)
+        .setVisible(inView);
+      unit.affixPips.push(staffPip);
     }
   }
 
@@ -10757,6 +10770,16 @@ export class BattleScene extends Phaser.Scene {
       { miss: !result.hit },
     );
     spendStaffUse(staff);
+    // The use is spent whatever the roll: a staff left empty takes its pip off the caster's
+    // row and its violet reach out of a shown Danger zone now, a miss included.
+    safeBattlePresentation(
+      'staff spent',
+      () => {
+        this.updateAffixPips(enemy);
+        this.refreshVisibleDangerZone?.();
+      },
+      { scene: this },
+    );
     // The banners name only units the player can see (PlayerKnowledge).
     const casterName = seenUnitName(this.grid, enemy, 'An unseen enemy');
     const targetName = seenUnitName(this.grid, target, 'An unseen unit');
