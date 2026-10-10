@@ -64,6 +64,7 @@ function makeScene({
   battleParams = prologueBattleParams(chapter, { seed: 1209 }),
   chapterId = chapter.id,
   run = false,
+  guidance = 'auto',
 } = {}) {
   installSeed(7);
   const played = data.prologue.chapters.find((c) => c.id === chapterId);
@@ -89,6 +90,8 @@ function makeScene({
     battleConfig: played === chapter ? config : buildPrologueBattleConfig(played, data.terrain),
   });
   const hints = { markSeen: vi.fn(), hasSeen: () => false, shouldShow: () => false };
+  // The Guidance setting (Settings → Guidance); `settings.level` can change mid-chapter.
+  const settings = { level: guidance, getGuidance: () => settings.level };
   const meta = {
     _save: vi.fn(),
     hintState: null,
@@ -121,7 +124,8 @@ function makeScene({
     events,
     sys: { isActive: () => true },
     registry: {
-      get: (key) => (key === 'hints' ? hints : key === 'meta' ? meta : null),
+      get: (key) =>
+        key === 'hints' ? hints : key === 'meta' ? meta : key === 'settings' ? settings : null,
     },
     add: {
       rectangle: vi.fn(() => {
@@ -152,7 +156,7 @@ function makeScene({
     dangerZone: { hide: vi.fn() },
     _battleSession: 1,
   };
-  return { scene, battle, edric, hints, meta, markers, events, rm, roster };
+  return { scene, battle, edric, hints, meta, markers, events, rm, roster, settings };
 }
 
 const unitOf = (scene, id) => scene.enemyUnits.find((u) => u.authoredId === id);
@@ -594,6 +598,170 @@ describe('PrologueController: forecasts, actions and the enemy phase', () => {
     prologue.flushDeferred();
     await Promise.resolve();
     expect(showImportantHint).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('PrologueController: the Guidance setting', () => {
+  const triangle = { display: { triangle: { damage: 1, hit: 10 } }, attacker: {}, defender: {} };
+
+  it('Full (and Auto on a slot with no finished run) keeps every tip, note and guided step', async () => {
+    for (const guidance of ['auto', 'full']) {
+      vi.clearAllMocks();
+      const { scene, edric } = makeScene({ guidance });
+      const prologue = new PrologueController(scene).create();
+      prologue.onPhaseStart('player', 1);
+      expect(prologue.isGateActive()).toBe(true);
+      prologue.onUnitSelected(edric);
+      edric.col = FORT.col;
+      edric.row = FORT.row;
+      await prologue.onAfterMove(edric);
+      expect(tips()).toHaveLength(1);
+    }
+  });
+
+  it('Light drops the tips (unread, so Act 1 still teaches them) and keeps the notes and guided steps', async () => {
+    const { scene, edric } = makeScene({ guidance: 'light' });
+    const prologue = new PrologueController(scene).create();
+    prologue.onPhaseStart('player', 1);
+    expect(prologue.isGateActive()).toBe(true);
+    expect(prologue.scripted()).toMatchObject({ goal: 'Select Edric' });
+    prologue.onUnitSelected(edric);
+    expect(prologue.gate).toEqual({ kind: 'move', ...FORT });
+    edric.col = FORT.col;
+    edric.row = FORT.row;
+    expect(await prologue.onAfterMove(edric)).toBe(false);
+    // The Fort's terrain tip: none.
+    expect(showPrologueTip).not.toHaveBeenCalled();
+    // The first forecast's note still shows, and its Confirm-only step still holds.
+    await prologue.onForecastOpened(edric, unitOf(scene, 'a'), triangle, edric.weapon);
+    expect(notes()).toHaveLength(1);
+    expect(notes()[0]).toContain('Reading a forecast');
+    expect(prologue.allowsForecastCycling()).toBe(false);
+    prologue.onForecastClosed({ acknowledge: true });
+    // The triangle's forecast tip: none, and never marked read.
+    expect(prologue.prepareForecast(edric, unitOf(scene, 'b'), triangle, edric.weapon)).toBeNull();
+    await prologue.onForecastOpened(edric, unitOf(scene, 'b'), triangle, edric.weapon);
+    expect(prologue.forecastTipText()).toBeNull();
+    prologue.onForecastClosed({ acknowledge: true });
+    expect(prologue.taught).toEqual(new Set(['battle_forecast']));
+  });
+
+  it('Off drops the notes, the tips and the guided steps: P1 plays freely from its first turn', async () => {
+    const { scene, edric } = makeScene({ guidance: 'off' });
+    const prologue = new PrologueController(scene).create();
+    prologue.onPhaseStart('player', 1);
+    // No ring for a step that is not there (nothing would ever clear it).
+    expect(scene.add.rectangle).not.toHaveBeenCalled();
+    expect(prologue.gate).toBeNull();
+    expect(prologue.isGateActive()).toBe(false);
+    expect(prologue.scripted()).toBeNull();
+    expect(prologue.allowsSelect(unitOf(scene, 'a'))).toBe(true);
+    prologue.onUnitSelected(edric);
+    expect(prologue.allowsMoveTo(2, 2)).toBe(true);
+    expect(scene.add.rectangle).not.toHaveBeenCalled(); // the Fort's frame: none either
+    edric.col = FORT.col;
+    edric.row = FORT.row;
+    expect(await prologue.onAfterMove(edric)).toBe(false);
+    expect(await prologue.onForecastOpened(edric, unitOf(scene, 'a'), triangle, edric.weapon)).toBe(
+      false,
+    );
+    expect(prologue.allowsForecastCycling()).toBe(true);
+    prologue.onForecastClosed({ acknowledge: true });
+    // The end-of-action note (and the reach it explains) and the enemy phase's nudge: none.
+    expect(await prologue.beforeUnitActionCompletes(edric)).toBe(false);
+    expect(prologue.reach?.visible ?? false).toBe(false);
+    scene.turnManager.currentPhase = 'enemy';
+    prologue.onPhaseStart('enemy', 1);
+    await Promise.resolve();
+    expect(showImportantHint).not.toHaveBeenCalled();
+    expect(showPrologueTip).not.toHaveBeenCalled();
+    expect(scene.showBriefBanner).not.toHaveBeenCalled();
+    expect(prologue.pending).toEqual([]);
+    expect(prologue.taught.size).toBe(0);
+  });
+
+  it('a change in Settings mid-chapter applies at once: Off releases the live guided step', () => {
+    const { scene, settings } = makeScene({ guidance: 'full' });
+    const prologue = new PrologueController(scene).create();
+    prologue.onPhaseStart('player', 1);
+    expect(prologue.isGateActive()).toBe(true);
+    settings.level = 'off';
+    expect(prologue.isGateActive()).toBe(false);
+    expect(prologue.scripted()).toBeNull();
+    expect(prologue.allowsSelect(unitOf(scene, 'a'))).toBe(true);
+  });
+
+  it('Off mid-step releases the step for good: its ring goes, and Full again never brings it back', () => {
+    const { scene, edric, settings, markers } = makeScene({ guidance: 'full' });
+    const prologue = new PrologueController(scene).create();
+    prologue.onPhaseStart('player', 1);
+    prologue.onUnitSelected(edric);
+    expect(prologue.gate).toEqual({ kind: 'move', ...FORT });
+    const fortRing = markers.at(-1);
+    expect(fortRing.destroy).not.toHaveBeenCalled();
+    settings.level = 'off';
+    expect(prologue.isGateActive()).toBe(false);
+    expect(fortRing.destroy).toHaveBeenCalled();
+    expect(markers.every((m) => m.destroy.mock.calls.length > 0)).toBe(true);
+    // The release rides the checkpoint, so a resume keeps it too.
+    expect(prologue.snapshot()).toMatchObject({ gatesSkipped: true, gate: null, coachGoal: null });
+    // Edric walks elsewhere; Guidance back on: the played-past step stays gone.
+    edric.col = 1;
+    edric.row = 2;
+    settings.level = 'full';
+    expect(prologue.isGateActive()).toBe(false);
+    expect(prologue.allowsMoveTo(2, 2)).toBe(true);
+    expect(prologue.scripted()).toBeNull();
+  });
+
+  it('a checkpoint saved mid-step and resumed under Off draws no ring and keeps no gate', () => {
+    const first = makeScene({ guidance: 'full' });
+    const saved = new PrologueController(first.scene).create();
+    saved.onPhaseStart('player', 1);
+    const state = structuredClone(saved.snapshot());
+    expect(state.gate).toEqual({ kind: 'select', unit: 'Edric' });
+    const { scene } = makeScene({ guidance: 'off' });
+    const resumed = new PrologueController(scene).create();
+    resumed.onResume(state, { turn: 1, phase: 'player' });
+    expect(scene.add.rectangle).not.toHaveBeenCalled();
+    expect(resumed.gate).toBeNull();
+    expect(resumed.isGateActive()).toBe(false);
+  });
+
+  it("Light: a hidden tip never takes the decision's one-note slot from a note that will show", async () => {
+    const { scene, edric } = makeScene({ guidance: 'light' });
+    const prologue = new PrologueController(scene).create();
+    prologue.chapter = {
+      ...chapter,
+      beats: [
+        { id: 't', on: 'afterMove', once: true, do: [{ tip: 'battle_terrain' }] },
+        { id: 'n', on: 'afterMove', once: true, do: [{ note: 'battle_forecast' }] },
+      ],
+    };
+    await prologue.onAfterMove(edric);
+    expect(showPrologueTip).not.toHaveBeenCalled();
+    expect(notes()).toHaveLength(1);
+    expect(notes()[0]).toContain('Reading a forecast');
+  });
+
+  it('a note already pending (scheduled under Full, or a resumed checkpoint) is dropped unread under Off', async () => {
+    const { scene, settings } = makeScene({ guidance: 'full' });
+    const prologue = new PrologueController(scene).create();
+    prologue.chapter = {
+      ...chapter,
+      beats: [{ id: 'x', on: 'turnStart', turn: 2, do: [{ note: 'p1_exp' }] }],
+    };
+    scene.battleState = 'TURN_START_RESOLVING';
+    prologue.onPhaseStart('player', 2);
+    expect(prologue.pending).toHaveLength(1);
+    settings.level = 'off';
+    scene.battleState = 'PLAYER_IDLE';
+    prologue.flushDeferred();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(showImportantHint).not.toHaveBeenCalled();
+    expect(prologue.pending).toEqual([]);
+    expect(prologue.taught.size).toBe(0);
   });
 });
 

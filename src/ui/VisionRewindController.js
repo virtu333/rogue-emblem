@@ -42,6 +42,7 @@ import { getRating } from '../engine/TurnBonusCalculator.js';
 import { unitEpithet } from '../engine/DeedTitles.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 import { playCue } from './ceremonyMusic.js';
+import { restUnitAppearance } from './UnitRestAppearance.js';
 
 /**
  * FNV-1a hash — deterministic seed derivation for rewind RNG re-seeding.
@@ -241,7 +242,7 @@ export class VisionRewindController {
     );
     for (const key of BATTLE_UNIT_GROUPS)
       for (const unit of scene[key] || []) registerBattleEntity(scene, unit);
-    for (const unit of scene.playerUnits) if (unit.hasActed) scene.dimUnit?.(unit);
+    for (const unit of scene.playerUnits) restUnitAppearance(scene, unit);
     if (Number.isFinite(scene.visionSnapshot.goldEarned)) {
       scene.goldEarned = scene.visionSnapshot.goldEarned;
     }

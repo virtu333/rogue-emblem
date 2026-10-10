@@ -35,11 +35,13 @@ import {
   formatDamageStrikes,
 } from './forecastDisplay.js';
 import {
+  ballistaInfo,
   canInspectUnit,
   statusDescriptions,
   statusStaffInfo,
   carriedItemInfo,
   terrainRuleLines,
+  visibleBallistaAt,
 } from '../engine/BattleInformation.js';
 import { bindCancelablePress } from '../utils/cancelablePress.js';
 import { isUnitMenuState, canUseDanger, isObjectiveCommand } from './battleMenuModel.js';
@@ -135,6 +137,17 @@ function el(tag, className, text) {
   if (className) node.className = className;
   if (text != null) node.textContent = String(text);
   return node;
+}
+
+/**
+ * The unit card's line for a foe's status staff, or null. The staff is gear beside the
+ * weapon, outside the inventory, so the card names it ("Silence Staff · Range 3-7 · 1/2
+ * uses"; "· spent" once used up): the caster behind the Danger zone's violet outline can be
+ * found by tapping it. The card shows only a unit the player may inspect.
+ */
+export function statusStaffGearLine(unit) {
+  const text = statusStaffInfo(unit)?.text;
+  return text ? el('p', 'mb-gear', text) : null;
 }
 
 /**
@@ -1035,6 +1048,8 @@ export class MobileBattleHUD {
         el('div', 'mb-detail', `${unit.className} · ${unit.weapon?.name || 'Unarmed'}`),
       );
       this.summary.append(el('span', 'mb-hp', `${unit.currentHP}/${unit.stats.HP} HP`));
+      const staffLine = statusStaffGearLine(unit);
+      if (staffLine) this.summary.append(staffLine);
       const conditions = statusDescriptions(unit);
       if (conditions.length) this.summary.append(el('p', 'mb-status', conditions.join(' · ')));
     } else {
@@ -1073,6 +1088,11 @@ export class MobileBattleHUD {
           ? s._zombieRemains?.().infoLine(focus.col, focus.row)
           : null;
         if (remains) card.append(el('span', 'mb-remains', remains));
+        // A ballista the player can see on this tile: its holder, reach, blow and when it fires.
+        const ballista = ballistaInfo(visibleBallistaAt(s.grid, s.ballistas, focus.col, focus.row));
+        if (ballista)
+          for (const line of [ballista.title, ...ballista.lines])
+            card.append(el('span', 'mb-ballista', line));
         if (terrainRuleLines(terrain).length) {
           const help = this.button(
             'Terrain details ⓘ',
@@ -1144,7 +1164,14 @@ export class MobileBattleHUD {
     this.body.replaceChildren();
 
     if (formation) {
-      this.summary.replaceChildren();
+      // A foe being inspected (a tap on it) keeps its summary in the header, as on a turn;
+      // otherwise the header's "units ready" line says nothing before turn 1.
+      if (!unit) this.summary.replaceChildren();
+      else {
+        const inspection = el('div', 'mb-command-grid');
+        inspection.append(this.button('View unit', () => s.openUnitDetailOverlay()));
+        this.body.append(inspection);
+      }
       renderFormationPanel(
         this.body,
         s._formation,
@@ -1188,8 +1215,6 @@ export class MobileBattleHUD {
       detailContent.append(
         el('p', '', '5 ranges pinned. Pinning another enemy replaces the oldest.'),
       );
-    const staffInfo = statusStaffInfo(unit);
-    if (staffInfo) detailContent.append(el('p', '', staffInfo.text));
     const carrying = carriedItemInfo(unit);
     if (carrying) detailContent.append(el('p', '', carrying.text));
     detailContent.append(el('pre', '', info || 'Tap a tile to inspect terrain.'));

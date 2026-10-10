@@ -86,6 +86,7 @@
         "ceremony-ghost-click.spec.js",
         "third-lord-reload.spec.js",
         "portrait-rail.spec.js",
+        "portrait-formation-inspect.spec.js",
         "portrait-screens.spec.js",
         "portrait-journey.spec.js",
         "portrait-rotation.spec.js",

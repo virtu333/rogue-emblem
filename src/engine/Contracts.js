@@ -81,7 +81,8 @@ export const CONTRACT_EFFECT_TYPES = Object.freeze([
   'stat',
 ]);
 
-const GOAL_LINES = Object.freeze({
+/** The words of each goal: the chip's `short` and the full `line`. */
+export const CONTRACT_GOAL_LINES = Object.freeze({
   underPar: { short: 'Under par', line: 'Win the next battle by turn par or sooner.' },
   noLosses: { short: 'No losses', line: 'Win the next battle without losing anyone.' },
 });
@@ -236,7 +237,7 @@ const phrases = (effects, run) => effects.map((e) => effectPhrase(e, run)).filte
 export function describeContract(run) {
   const contract = contractOf(run);
   if (!contract) return null;
-  const words = GOAL_LINES[contract.goal];
+  const words = CONTRACT_GOAL_LINES[contract.goal];
   return {
     goal: contract.goal,
     label: 'Contract',
@@ -264,7 +265,7 @@ export function describeOwedContract(run) {
     short: owed.kept ? 'Reward waiting' : 'Penalty waiting',
     kept: owed.kept,
     goal: owed.goal,
-    goalShort: GOAL_LINES[owed.goal].short,
+    goalShort: CONTRACT_GOAL_LINES[owed.goal].short,
     owed: phrases(owed.effects, run),
     reason: owed.blocked || owed.failed || '',
     blocked: Boolean(owed.blocked),

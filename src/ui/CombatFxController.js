@@ -46,6 +46,7 @@ import {
 } from '../art/combatFx/strikePlan.js';
 import { buildDissolve, paintDissolve, pickMotes } from '../art/combatFx/deathDissolve.js';
 import { FxMotePool } from './FxMotePool.js';
+import { restUnitTint } from './UnitRestAppearance.js';
 
 const LUNGE_PX = STRIKE_TIMING.lungePx.melee;
 const DODGE_PX = 8;
@@ -118,7 +119,7 @@ export class CombatFxController {
     this._units = new Set();
     this._poses = new Map(); // graphic -> frame name to restore
     this._poseList = []; // same graphics, iterated per frame without allocating
-    this._tinted = new Set(); // graphics this strike tinted (flash, struck crimson)
+    this._tinted = new Map(); // graphic -> unit this strike tinted (flash, struck crimson)
     this._dissolves = new Map(); // unit -> { key, graphic }
     this._zoomCamera = null;
     this._lastSoundAt = new Map();
@@ -225,8 +226,9 @@ export class CombatFxController {
     }
     this._units.clear();
     this.clearPoses();
-    // A strike cut short (rewind, shutdown, error) must not leave a unit flashed or red.
-    for (const g of this._tinted) if (g && g.active !== false) g.clearTint?.();
+    // A strike cut short (rewind, shutdown, error) must not leave a unit flashed or red;
+    // each sprite returns to its unit's resting look (an acted unit stays dimmed).
+    for (const [g, unit] of this._tinted) if (g && g.active !== false) restUnitTint(unit, g);
     this._tinted.clear();
     if (this._zoomCamera) this._zoomCamera.setZoom(1);
     this._zoomCamera = null;
@@ -359,7 +361,12 @@ export class CombatFxController {
     if (fill && g.setTintFill) g.setTintFill(color);
     else if (g.setTint) g.setTint(color);
     else return;
-    this._tinted.add(g);
+    this._tinted.set(g, unit);
+  }
+
+  /** End a unit's flash: its sprite returns to the unit's resting look (UnitRestAppearance). */
+  restTint(unit) {
+    restUnitTint(unit);
   }
 
   // ------------------------------------------------------------------ poses --

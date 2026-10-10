@@ -470,7 +470,7 @@ export function generateBattleLayout(params, deps) {
     mapLayout,
   });
 
-  // Dusk/Nightfall rout ladder (engine/RoutLadder.js, docs/specs/dusk-pressure.md): it
+  // Dusk/Nightfall/Black Sun rout ladder (engine/RoutLadder.js, docs/specs/dusk-pressure.md): it
   // replaces the template's procedural waves and stacks on scripted ones (the village's
   // bandits). Written into the config here, so a locked map keeps its ladder.
   const ladder =

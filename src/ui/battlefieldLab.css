@@ -374,6 +374,11 @@ html.touch-ui .battlefield-lab .mobile-battle-hud {
   grid-column: 1 / -1;
   margin: 0;
 }
+.battlefield-lab .mb-summary .mb-gear {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  margin: 0;
+}
 .battlefield-lab .mb-summary .mb-status {
   grid-column: 1 / -1;
   font-size: 12px;

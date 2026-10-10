@@ -835,10 +835,11 @@ function beatMatches(beat, event) {
 }
 
 // A beat that says something: a blocking note, a line, or a non-blocking tip. One
-// concept per decision (oneNote) counts all three.
-const readsAloud = (beat) =>
+// concept per decision (oneNote) counts all three, but only those `heard` lets through
+// (the Guidance setting hides some).
+const readsAloud = (beat, heard) =>
   (Array.isArray(beat?.do) ? beat.do : []).some(
-    (a) => a && ('note' in a || 'tip' in a || 'dialogue' in a),
+    (a) => a && ('note' in a || 'tip' in a || 'dialogue' in a) && heard(a),
   );
 
 /**
@@ -847,14 +848,21 @@ const readsAloud = (beat) =>
  * with its beat id. A `once` beat fires at most once: the returned state records it.
  * With `oneNote` (every forecastOpened event: one concept per forecast), only the first
  * matching beat that shows a note or a line fires; later note beats are neither run
- * nor spent, so they wait for a later event they match.
+ * nor spent, so they wait for a later event they match. `heard(action)` says whether a
+ * note, line or tip will show (default: all do); a beat whose speech nobody will hear
+ * still fires but never takes the one slot.
  * @param {object} chapter
  * @param {{ type: string }} event - see the module header for each trigger's fields
  * @param {{ fired?: string[] }} [state]
- * @param {{ oneNote?: boolean }} [options]
+ * @param {{ oneNote?: boolean, heard?: (action: object) => boolean }} [options]
  * @returns {{ actions: object[], fired: string[], state: { fired: string[] } }}
  */
-export function prologueBeatsFor(chapter, event, state = {}, { oneNote = false } = {}) {
+export function prologueBeatsFor(
+  chapter,
+  event,
+  state = {},
+  { oneNote = false, heard = () => true } = {},
+) {
   const done = new Set(Array.isArray(state?.fired) ? state.fired : []);
   const actions = [];
   const fired = [];
@@ -863,7 +871,7 @@ export function prologueBeatsFor(chapter, event, state = {}, { oneNote = false }
     for (const beat of Array.isArray(chapter?.beats) ? chapter.beats : []) {
       if (!beat || (beat.once && done.has(beat.id))) continue;
       if (!beatMatches(beat, event)) continue;
-      const speaks = readsAloud(beat);
+      const speaks = readsAloud(beat, heard);
       if (oneNote && speaks && spoke) continue;
       if (speaks) spoke = true;
       fired.push(beat.id);

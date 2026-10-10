@@ -93,6 +93,10 @@ test('hidden inspection cannot open or cycle to enemies; status staff reach refr
   });
   const hud = page.getByRole('complementary', { name: 'Battle commands' });
   await expect(hud).toContainText('Sleep · Range 3-5 · 3/3 uses');
+  // The staff is gear outside the inventory: the unit card names it, not only the
+  // collapsed Battle details, so the caster behind the violet outline can be found.
+  await expect(hud.locator('.mb-summary .mb-gear')).toHaveText('Sleep · Range 3-5 · 3/3 uses');
+  await expect(hud.locator('.mb-summary .mb-gear')).toBeVisible();
   await expect(hud).toContainText('Purple outline: status staff');
   expect(
     await page.evaluate(() =>
@@ -113,11 +117,26 @@ test('hidden inspection cannot open or cycle to enemies; status staff reach refr
     };
   });
   expect(moved).toEqual({ changed: true, current: true, visible: true });
+  const STATUS_VIOLET = 0xb98ee0; // uiPalette.json threatStatus
+  const staffPips = () =>
+    page.evaluate(
+      (violet) =>
+        window.__emblemRogueGame.scene
+          .getScene('Battle')
+          .enemyUnits[0].affixPips.filter((p) => p.fillColor === violet && p.visible).length,
+      STATUS_VIOLET,
+    );
+  expect(await staffPips()).toBe(1);
   await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
-    s.enemyUnits[0].statusStaff._usesSpent = 3;
+    const u = s.enemyUnits[0];
+    u.statusStaff._usesSpent = 3;
     s.dangerZoneStale = true;
+    s.updateAffixPips(u);
+    s._mobileBattleHud.sync();
   });
+  await expect(hud.locator('.mb-summary .mb-gear')).toHaveText('Sleep · Range 3-5 · spent');
+  expect(await staffPips()).toBe(0);
   await expect
     .poll(() =>
       page.evaluate(() =>
