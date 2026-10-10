@@ -67,8 +67,10 @@ describe('stamping the Old Sanctum', () => {
     // Failure: the stamp draws from the node-map stream (every later map changes) or from
     // Math.random (every battle after the act advance changes).
     for (const seed of [3, 4, 5, 6, 7]) {
+      // `chance` 1 stamps; null takes the pass out altogether (the map as it was before it).
       const advance = (chance) => {
-        const rm = freshRun(seed, { gameData: dataWithChance(chance) });
+        const rm = freshRun(seed, { gameData: dataWithChance(chance ?? 0) });
+        if (chance === null) rm._stampSanctum = () => null;
         installSeed(9000 + seed);
         rm.advanceAct();
         const cursor = [Math.random(), Math.random(), Math.random()];
@@ -77,9 +79,9 @@ describe('stamping the Old Sanctum', () => {
         return { rm, cursor, act3: JSON.stringify(rm.nodeMap) };
       };
       const on = advance(1);
-      const off = advance(0);
+      const off = advance(null);
       expect(on.cursor).toEqual(off.cursor);
-      const strip = (map) =>
+      const strip = ({ sanctumRolled: _r, ...map }) =>
         JSON.stringify({
           ...map,
           nodes: map.nodes.map(({ sanctum: _s, ...node }) => node),
