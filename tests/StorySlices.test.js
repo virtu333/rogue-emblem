@@ -112,6 +112,7 @@ describe('story slice selection contracts', () => {
           'currentDefeatWasBoss',
           'bossSlainBefore',
           'bossKilledYouBefore',
+          'bossMetBefore',
           'firstClear',
           'commanderHasEpithet',
         ]);
@@ -130,7 +131,8 @@ describe('story slice selection contracts', () => {
             expect(typeof condition, key).toBe('string');
             expect(condition.length, key).toBeGreaterThan(0);
             if (key === 'commander' || key === 'partner') expect(commanders).toContain(condition);
-            if (key === 'difficulty') expect(['normal', 'hard', 'lunatic']).toContain(condition);
+            if (key === 'difficulty')
+              expect(['normal', 'dusk', 'hard', 'lunatic']).toContain(condition);
             if (key === 'lastRunResult') expect(['none', 'victory', 'defeat']).toContain(condition);
           }
         }
