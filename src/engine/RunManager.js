@@ -126,6 +126,7 @@ import {
   isActBossVictory,
   prepareEarnedBlessingPick,
   prepareEliteEarnedDrop,
+  pruneHeldOffers,
   sanitizeEarnedBlessingPicks,
 } from './EarnedBlessings.js';
 import {
@@ -5356,9 +5357,10 @@ export class RunManager {
       config,
     );
     // Darkened Dawn: the battle's own gain gathers faster (an Ill Omen's shadow is not scaled);
-    // the quarters left over carry to the next victory, saved with this commit.
+    // the quarters left over carry to the next victory, saved with this commit. The carry is
+    // written on every commit, 0 included, so a remainder spent this victory is never read again.
     const scaled = this._scaledShadowGain(gain);
-    if (eclipseGainOf(this).delta > 0)
+    if (this.blessingRuntimeModifiers)
       this.blessingRuntimeModifiers.eclipseGainCarry = scaled.carry;
     const isBoss = node.id === this.nodeMap?.bossNodeId && node.type === 'boss';
     const relief = isBoss ? Math.max(0, Math.trunc(Number(config.bossRelief) || 0)) : 0;
@@ -6721,6 +6723,8 @@ export class RunManager {
       // An owed or open offer never shows a card the run holds (EarnedBlessings.pruneHeldOffers).
       heldIds: rm.getActiveBlessingIds(),
     });
+    // Nor one a held blessing excludes (`excludes`, read against the catalog).
+    pruneHeldOffers(rm);
     rm.pendingAmbushNodeId =
       typeof saved.pendingAmbushNodeId === 'string' ? saved.pendingAmbushNodeId : null;
     rm.pendingEventNodeId =

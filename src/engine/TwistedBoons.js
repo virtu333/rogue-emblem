@@ -251,6 +251,18 @@ export function classChangeItemBlock(run, item) {
   return '';
 }
 
+/** The tag a shop row and a loot card show on a Master Seal while Kingmaker's Oath forbids it. */
+export const MASTER_SEAL_BANNED_TAG = "Can't be used: Kingmaker's Oath";
+
+/**
+ * The short tag for an item the run refuses (`classChangeItemBlock`), '' when it can be used: the
+ * shop's buy row and the loot card mark a Master Seal rather than leave it out (filtering it from a
+ * loot draw would move the loot stream, and the twist is taken knowingly).
+ */
+export function classChangeItemTag(run, item) {
+  return classChangeItemBlock(run, item) ? MASTER_SEAL_BANNED_TAG : '';
+}
+
 /**
  * The stats Kingmaker's Oath raises: the `count` with the highest values in the class's promotion
  * bonuses (`bonuses`), ties in the order HP, STR, MAG, SKL, SPD, DEF, RES, LCK. Never Move, never

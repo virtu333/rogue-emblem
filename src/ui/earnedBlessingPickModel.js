@@ -82,6 +82,9 @@ export function earnedPickModel(run, entry = earnedPickOwed(run)) {
         burdens: run?.gameData?.events?.burdens,
         difficultyId: run?.difficultyId,
         effects: blessing.twist?.effects || null,
+        // A passing omen or hunt the run carries: the twist's burden merges with it, and the
+        // card says how before the take.
+        held: run?.burdens || null,
       }),
     });
   }

@@ -5,12 +5,15 @@
 // real data throughout.
 //
 // Each test names the realistic failure it catches.
-import { afterEach, describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RunManager } from '../src/engine/RunManager.js';
 import {
   earnedPoolFor,
   prepareEarnedBlessingPick,
+  pruneHeldOffers,
   rollActBossEarnedOffer,
+  takeableOffered,
   takeEarnedBlessing,
   twistPriceOf,
 } from '../src/engine/EarnedBlessings.js';
@@ -38,14 +41,22 @@ import {
 import { applyRosterClassChange, rosterClassChangeBlock } from '../src/engine/RosterCommands.js';
 import {
   MASTER_SEAL_BANNED,
+  MASTER_SEAL_BANNED_TAG,
   armyStatBonusKey,
   classChangeItemBlock,
+  classChangeItemTag,
   kingmakerBonusStats,
   scaledShadowGain,
 } from '../src/engine/TwistedBoons.js';
 import { rewardDrawParams, rollBattleRewardChoices } from '../src/engine/PendingBattleRewards.js';
 import { blessingTerms } from '../src/engine/BlessingTerms.js';
+import { arriveAtEvent, chooseEventOption } from '../src/engine/EventCommands.js';
 import { heldBlessingEntries } from '../src/ui/heldBlessingsModel.js';
+import { promotionPathContent } from '../src/ui/growthContent.js';
+import { PromotionPathChooser } from '../src/ui/PromotionPathChooser.js';
+import { rewardForWhom } from '../src/ui/choiceContent.js';
+import { actLabel } from '../src/utils/actNames.js';
+import { installFakeDom } from './helpers/fakeDom.js';
 import { earnedPickModel } from '../src/ui/earnedBlessingPickModel.js';
 import { churchPromoteHeading, churchPromoteNote } from '../src/ui/ChurchMenu.js';
 import { createUnit, resolvePromotionTargets } from '../src/engine/UnitManager.js';
@@ -307,6 +318,41 @@ describe('Darkened Dawn: +1 Vision now and each act; +8 shadow, the Eclipse 25% 
     expect(play(true)).toBe(base * 5);
   });
 
+  it('the carry returns to 0 when its quarters are spent, and stays exact past it (8 victories)', () => {
+    // Failure: a carry spent to 0 is never written, so the stale remainder pays again at the next
+    // victory (the Eclipse then gathers more than 25% faster).
+    const probe = freshRun({ seed: 47 });
+    const turnCount = [7, 8, 9, 10, 11, 12].find((t) => probe.projectShadowGain(t, 6) % 4 !== 0);
+    const base = probe.projectShadowGain(turnCount, 6);
+    expect(base % 4).not.toBe(0);
+    const rm = take(freshRun({ seed: 47 }), 'darkened_dawn');
+    let carry = 0;
+    let crossed = 0;
+    for (let i = 0; i < 8; i++) {
+      // Expected by hand: a quarter of the gain, in quarter units, plus what was carried.
+      const quarters = base + carry;
+      const gain = base + Math.floor(quarters / 4);
+      carry = quarters % 4;
+      if (carry === 0) crossed++;
+      for (let guard = 0; guard < 40; guard++) {
+        if (rm.isActComplete()) rm.advanceAct();
+        const node = rm.getAvailableNodes()[0];
+        if (['battle', 'recruit'].includes(node.type)) {
+          rm.completeBattle(rm.getRoster(), node.id, 0, { turnCount, turnPar: 6 });
+          break;
+        }
+        if (node.type === 'boss') {
+          rm.completeBattle(rm.getRoster(), node.id, 0, { turnCount, turnPar: 6 });
+          break;
+        }
+        rm.markNodeComplete(node.id);
+      }
+      expect(rm.lastEclipseCommit.gain, `victory ${i + 1}`).toBe(gain);
+      expect(rm.blessingRuntimeModifiers.eclipseGainCarry, `victory ${i + 1}`).toBe(carry);
+    }
+    expect(crossed).toBeGreaterThan(0);
+  });
+
   it("an Ill Omen's shadow is not scaled; a run without it gathers what it always did", () => {
     // Failure: the multiplier reaches the burden's +1, or leaks into a run that never took it.
     const plain = freshRun({ seed: 44 });
@@ -351,10 +397,14 @@ describe('Blood Covenant: +1 to every stat but Move for every unit; an Ill Omen 
     const rm = take(freshRun(), 'blood_covenant');
     const unit = addRecruit(rm, 'Mage', 4);
     const base = { ...unit.stats };
+    expect(unit.currentHP).toBe(unit.stats.HP);
     rm.grantRecruitBlessingConsumables(unit);
     rm.roster.push(unit);
     expect(unit.recruitBlessingGrants).toContain(armyStatBonusKey('blood_covenant'));
     for (const stat of XP_STAT_NAMES) expect(unit.stats[stat]).toBe(base[stat] + 1);
+    // A joiner arrives whole: its current HP rises with the +1 (never left a point short, as a
+    // fallen unit's is).
+    expect(unit.currentHP).toBe(unit.stats.HP);
     rm.grantRecruitBlessingConsumables(unit);
     const loaded = roundTrip(rm);
     const again = loaded.roster.find((u) => u.unitUid === unit.unitUid);
@@ -410,20 +460,6 @@ describe('Blood Covenant: +1 to every stat but Move for every unit; an Ill Omen 
     rm.completeBattle(rm.getRoster(), node.id, 0, { turnCount: 1, turnPar: 9 });
     expect(rm.lastEclipseCommit.burdenShadow).toBe(1);
     expect(roundTrip(rm).burdens).toEqual([
-      { id: 'ill_omen', battles: 0, extraShadow: 1, permanent: true },
-    ]);
-  });
-
-  it("an event's Ill Omen taken on top merges into it and it stays endless", () => {
-    // Failure: the event's countdown replaces the endless omen (it would then pass).
-    const rm = take(freshRun(), 'blood_covenant');
-    expect(addBurden(rm, 'ill_omen', { battles: 2 }).ok).toBe(true);
-    expect(rm.burdens).toEqual([{ id: 'ill_omen', battles: 0, extraShadow: 1, permanent: true }]);
-    // Taken the other way round: the countdown is swallowed.
-    const other = freshRun();
-    addBurden(other, 'ill_omen', { battles: 2 });
-    take(other, 'blood_covenant');
-    expect(other.burdens).toEqual([
       { id: 'ill_omen', battles: 0, extraShadow: 1, permanent: true },
     ]);
   });
@@ -606,6 +642,150 @@ describe("Kingmaker's Oath: free church promotions +2 to the class's best two; n
   });
 });
 
+describe("Kingmaker's Oath: what the player is shown is what the altar does", () => {
+  it('across a save the oath still promotes for nothing and still bans the Master Seal', () => {
+    // Failure: the save drops `kingmakerPromotion` (the church charges again after a reload)
+    // while the ban survives, or the other way round.
+    const loaded = roundTrip(take(freshRun(), 'kingmakers_oath'));
+    loaded.gold = 0;
+    const unit = addRecruit(loaded, 'Fighter', 10);
+    loaded.roster = [unit];
+    expect(churchPromoteCost(unit, loaded)).toBe(0);
+    expect(churchPromotionBlock(loaded, unit, 'church-x', data)).toBe('');
+    const target = resolvePromotionTargets(unit, data.classes, data.lords)[0];
+    const before = { ...unit.stats };
+    expect(promoteAtChurch(loaded, unit, 'church-x', target, data).ok).toBe(true);
+    const best = kingmakerBonusStats(target.promotionBonuses, 2);
+    for (const stat of best)
+      expect(unit.stats[stat], stat).toBe(before[stat] + (target.promotionBonuses[stat] || 0) + 2);
+    expect(
+      classChangeItemBlock(
+        loaded,
+        data.consumables.find((c) => c.name === 'Master Seal'),
+      ),
+    ).toBe(MASTER_SEAL_BANNED);
+  });
+
+  it("the church's promotion preview (and its rite) equals the promotion, +2 included", () => {
+    // Failure: the paths and the rite show the class's bonuses without the oath's +2, so the
+    // player is shown one set of stats and gets another.
+    const rm = take(freshRun(), 'kingmakers_oath');
+    for (const className of ['Fighter', 'Mage', 'Archer']) {
+      const unit = addRecruit(rm, className, 10);
+      rm.roster = [unit];
+      for (const target of resolvePromotionTargets(unit, data.classes, data.lords)) {
+        const subject = structuredClone(unit);
+        rm.roster = [subject];
+        const preview = promotionPathContent(subject, target, data, { churchRun: rm });
+        expect(promoteAtChurch(rm, subject, `church-${className}`, target, data).ok).toBe(true);
+        for (const stat of [...XP_STAT_NAMES, 'MOV']) {
+          const row = preview.stats.find((r) => r.stat === stat);
+          expect(row ? row.after : unit.stats[stat], `${target.name} ${stat}`).toBe(
+            subject.stats[stat],
+          );
+        }
+        // Without the church's run (a Master Seal's path), no oath bonus is shown.
+        const sealed = promotionPathContent(unit, target, data);
+        const best = kingmakerBonusStats(target.promotionBonuses, 2);
+        for (const stat of best)
+          expect(sealed.stats.find((r) => r.stat === stat)?.after).toBe(
+            preview.stats.find((r) => r.stat === stat).after - 2,
+          );
+      }
+    }
+  });
+
+  it('the path chooser a church opens shows the oath in every path', () => {
+    // Failure: ChurchMenu hands the chooser no run, so its path cards read the plain bonuses.
+    installFakeDom(vi);
+    try {
+      const rm = take(freshRun(), 'kingmakers_oath');
+      const unit = addRecruit(rm, 'Fighter', 10);
+      const targets = resolvePromotionTargets(unit, data.classes, data.lords);
+      const scene = {
+        events: { once() {}, off() {} },
+        textures: { exists: () => false, get: () => null },
+        registry: { get: () => null },
+      };
+      const chooser = new PromotionPathChooser({
+        scene,
+        unit,
+        targets,
+        gameData: data,
+        churchRun: rm,
+      });
+      for (const target of targets)
+        expect(chooser.contents.get(target)).toEqual(
+          promotionPathContent(unit, target, data, { churchRun: rm }),
+        );
+      const plain = new PromotionPathChooser({ scene, unit, targets, gameData: data });
+      expect(plain.contents.get(targets[0])).not.toEqual(chooser.contents.get(targets[0]));
+      chooser.destroy();
+      plain.destroy();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("a Master Seal stays in shops and loot, marked: the card says it can't be used", () => {
+    // Failure: the seal is filtered out of the loot draw (moving the loot stream), or offered
+    // with no word that it is useless under the oath.
+    const rm = take(freshRun(), 'kingmakers_oath');
+    const seal = structuredClone(data.consumables.find((c) => c.name === 'Master Seal'));
+    expect(classChangeItemTag(rm, seal)).toBe(MASTER_SEAL_BANNED_TAG);
+    expect(MASTER_SEAL_BANNED_TAG).toBe("Can't be used: Kingmaker's Oath");
+    expect(rewardForWhom({ type: 'item', item: seal }, rm)).toMatchObject({
+      who: MASTER_SEAL_BANNED_TAG,
+      tone: 'bad',
+    });
+    // Without the oath (and for a reclass seal) the card reads as ever.
+    expect(rewardForWhom({ type: 'item', item: seal }, freshRun()).who).toBe('Any unit');
+    const reclass = data.consumables.find((c) => c.name === 'Infantry Seal');
+    expect(rewardForWhom({ type: 'item', item: reclass }, rm).who).toBe('Any unit');
+    // The draw is the same with the oath held as without it, card for card.
+    const plain = freshRun();
+    const names = () => (c) => [c.type, c.goldAmount ?? null, c.item?.name ?? null];
+    let seals = 0;
+    for (const actId of ['act1', 'act3', 'act4'])
+      for (let seed = 1; seed <= 60; seed++) {
+        const draw = { actId, isElite: seed % 3 === 0, isBoss: seed % 5 === 0 };
+        Math.random = createSeededRng(seed);
+        const a = rollBattleRewardChoices(rm, rm.gameData, draw).map(names());
+        Math.random = createSeededRng(seed);
+        const b = rollBattleRewardChoices(plain, plain.gameData, draw).map(names());
+        expect(a, `${actId} ${seed}`).toEqual(b);
+        seals += a.filter((card) => card[2] === 'Master Seal').length;
+      }
+    // The draws compared do hold Master Seals (the comparison is not empty).
+    expect(seals).toBeGreaterThan(0);
+  });
+
+  it("the run's ban is read before a special character's own refusal", () => {
+    // Failure: a unit with its own refusal line (the old knight) hides the oath's reason.
+    // The old knight's own refusal lines (data/dialogue.json `specialChars`).
+    const withVoices = {
+      ...data,
+      dialogue: JSON.parse(readFileSync(new URL('../data/dialogue.json', import.meta.url))),
+    };
+    const rm = take(freshRun(), 'kingmakers_oath');
+    const knight = addRecruit(rm, 'Fighter', 10);
+    knight.specialCharId = 'old_knight';
+    rm.roster.push(knight);
+    const seal = structuredClone(data.consumables.find((c) => c.name === 'Master Seal'));
+    knight.consumables = [seal];
+    expect(rosterClassChangeBlock(rm, knight, seal, withVoices)).toBe(MASTER_SEAL_BANNED);
+    // Without the oath the knight still refuses in his own words.
+    const plain = freshRun();
+    const other = addRecruit(plain, 'Fighter', 10);
+    other.specialCharId = 'old_knight';
+    plain.roster.push(other);
+    other.consumables = [structuredClone(seal)];
+    expect(rosterClassChangeBlock(plain, other, other.consumables[0], withVoices)).toMatch(
+      /^Test Fighter: /,
+    );
+  });
+});
+
 // ── Hollow Sun's Favor ────────────────────────────────────────────────────
 
 describe("Hollow Sun's Favor: +50% battle and loot gold; Hunted through the next act", () => {
@@ -644,6 +824,11 @@ describe("Hollow Sun's Favor: +50% battle and loot gold; Hunted through the next
     expect(draw.lootGoldMultiplier).toBe(1.5);
     const plainDraw = rewardDrawParams(freshRun(), { nodeId: 'n' });
     expect('lootGoldMultiplier' in plainDraw).toBe(false);
+    // A reload keeps the share (the runtime field is saved and sanitized, not reset).
+    expect(
+      rewardDrawParams(roundTrip(rm), { nodeId: 'n', isElite: false, isBoss: false })
+        .lootGoldMultiplier,
+    ).toBe(1.5);
     const gameData = rm.gameData;
     // Item uids are minted fresh on every roll: compare what the cards are.
     const roll = (d) => {
@@ -727,23 +912,292 @@ describe("Hollow Sun's Favor: +50% battle and loot gold; Hunted through the next
     rm.actIndex = rm.actSequence.length - 1;
     expect(expireActBurdens(rm.burdens, rm).burdens).toEqual(rm.burdens);
   });
+});
 
-  it("an event's Hunted merged on top ends with both: its battles and the act", () => {
-    // Failure: the event's countdown is lost to the twist's span, or the span to the countdown.
-    const run = freshRun();
-    clearAct(run);
-    take(run, 'hollow_sun_favor');
-    run.advanceAct();
-    addBurden(run, 'hunted', { battles: 2 });
-    expect(run.burdens[0]).toMatchObject({ battles: 2, untilAct: 'act3' });
-    // A save from Act III whose span was never ended (a load ends it, the battles stay).
-    const loaded = expireActBurdens(run.burdens, { actSequence: run.actSequence, actIndex: 2 });
-    expect(loaded.burdens).toEqual([
-      { id: 'hunted', battles: 2, wave: { turn: 3, count: [2, 2], xpMultiplier: 0.5 } },
+// ── A twist's burden and a passing one: one record, two parts ─────────────
+
+describe("a twist's burden and a passing one share a record: the twist's part and the event's", () => {
+  const omenDef = data.events.burdens.ill_omen;
+  const huntDef = data.events.burdens.hunted;
+  /** A burden field on a rung, read from the catalog (the onRung override over the base). */
+  const onRung = (def, rung, key) => def.onRung?.[rung]?.[key] ?? def[key];
+  const altar = data.events.events.find((e) => e.id === 'twin_altar');
+  const kneelOmen = altar.dark.choices
+    .find((c) => c.id === 'kneel')
+    .outcomes[0].effects.find((e) => e.type === 'burden');
+  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+  /** A run whose route holds the Twin Altar, fallen to its dark face, at a node ready to enter. */
+  function altarRun(seed = 3) {
+    const rm = freshRun({ seed });
+    rm.gameData = {
+      ...rm.gameData,
+      events: {
+        ...structuredClone(data.events),
+        events: [
+          structuredClone(altar),
+          ...structuredClone(data.events.events.filter((e) => e.fallback)),
+        ],
+      },
+    };
+    const node = rm.nodeMap.nodes.find((n) => n.type === 'battle' && !n.completed && n.row >= 3);
+    node.type = 'event';
+    node.battleParams = null;
+    node.darkOmen = true;
+    node.eclipse = { fromType: 'event', label: 'Dark Omen', seen: false, fellAtShadow: 0 };
+    return { rm, node };
+  }
+  /** Kneel to the dark face (the event's own Ill Omen: +2 shadow a victory). */
+  function kneel(rm, node) {
+    expect(arriveAtEvent(rm, node.id)).toMatchObject({ eventId: 'twin_altar', dark: true });
+    const result = chooseEventOption(rm, node.id, 'kneel');
+    expect(result.ok, result.reason).toBe(true);
+    return result;
+  }
+  /** Win the next fight, a boss's included (the act advances when it is done). */
+  function winAny(rm) {
+    for (let guard = 0; guard < 40; guard++) {
+      if (rm.isActComplete()) rm.advanceAct();
+      const node = rm.getAvailableNodes()[0];
+      if (['battle', 'boss', 'recruit'].includes(node.type)) {
+        expect(rm.completeBattle(rm.getRoster(), node.id, 0, { turnCount: 1, turnPar: 9 })).toBe(
+          true,
+        );
+        return node;
+      }
+      rm.markNodeComplete(node.id);
+    }
+    throw new Error('no fight on the route');
+  }
+
+  it("the Twin Altar's dark face with Blood Covenant held: one record, the same in either order", () => {
+    // Failure: the event's +2 is folded into the twist's record for good (the endless omen then
+    // gathers +2 forever), or the order of taking them changes what the run carries.
+    const battles = onRung(omenDef, 'dusk', 'battles');
+    expect(kneelOmen.params.extraShadow).toBe(2);
+    const expected = [
+      {
+        id: 'ill_omen',
+        battles: 0,
+        extraShadow: 1,
+        permanent: true,
+        event: { battles, extraShadow: kneelOmen.params.extraShadow },
+      },
+    ];
+    // The twist first, then the altar.
+    const first = altarRun();
+    take(first.rm, 'blood_covenant');
+    const result = kneel(first.rm, first.node);
+    expect(first.rm.burdens).toEqual(expected);
+    // The altar first, then the twist.
+    const second = altarRun();
+    kneel(second.rm, second.node);
+    expect(second.rm.burdens).toEqual([{ id: 'ill_omen', battles, extraShadow: 2 }]);
+    take(second.rm, 'blood_covenant');
+    expect(second.rm.burdens).toEqual(expected);
+    // The event's result says what now stands: an omen that never ends, +2 while the event's lasts.
+    const line = result.results.find((r) => r.kind === 'burden');
+    expect(line.detail).toMatch(/^never ends: \+1 shadow each victory, \+2 for 3 more battles/);
+    expect(line.line).not.toMatch(/passes/);
+    // The save keeps both parts.
+    expect(roundTrip(first.rm).burdens).toEqual(expected);
+  });
+
+  it("6 victories: the larger shadow while the passing omen lasts, then the twist's +1 alone", () => {
+    // Failure: the merged record keeps the event's +2 forever, or drops it at once.
+    const battles = onRung(omenDef, 'dusk', 'battles');
+    for (const order of ['twist first', 'event first']) {
+      let { rm, node } = altarRun();
+      if (order === 'twist first') take(rm, 'blood_covenant');
+      kneel(rm, node);
+      if (order === 'event first') take(rm, 'blood_covenant');
+      const shadows = [];
+      for (let i = 0; i < 6; i++) {
+        winAny(rm);
+        shadows.push(rm.lastEclipseCommit.burdenShadow);
+        if (i === 1) rm = roundTrip(rm); // a reload mid-countdown keeps the event part
+      }
+      const expected = Array.from({ length: 6 }, (_, i) => (i < battles ? 2 : 1));
+      expect(shadows, order).toEqual(expected);
+      expect(rm.burdens, order).toEqual([
+        { id: 'ill_omen', battles: 0, extraShadow: 1, permanent: true },
+      ]);
+    }
+  });
+
+  it("Cleanse lifts only the event's omen; the twist's stays, and is then refused", () => {
+    // Failure: Cleanse lifts the whole record (the twist's price made free), or refuses the
+    // event's part it would lift on its own.
+    const { rm, node } = altarRun();
+    take(rm, 'blood_covenant');
+    kneel(rm, node);
+    const churches = battleNodes(rm).slice(0, 2);
+    for (const church of churches) {
+      church.type = 'church';
+      church.battleParams = null;
+    }
+    expect(isCleansable(rm.burdens[0])).toBe(true);
+    expect(churchOffersCleanse(rm, churches[0].id)).toBe(true);
+    const lifted = cleanseAtChurch(rm, churches[0].id, 'ill_omen');
+    expect(lifted.ok, lifted.reason).toBe(true);
+    expect(lifted.message).toMatch(/all but a twisted blessing's price/);
+    expect(rm.burdens).toEqual([{ id: 'ill_omen', battles: 0, extraShadow: 1, permanent: true }]);
+    // Another altar: nothing left it may lift.
+    expect(churchOffersCleanse(rm, churches[1].id)).toBe(false);
+    expect(cleanseAtChurch(rm, churches[1].id, 'ill_omen').ok).toBe(false);
+    expect(churchCleanseBlock(rm, churches[1].id, 'ill_omen')).toBe(
+      "A twisted blessing's price: no altar lifts it.",
+    );
+  });
+
+  it("Hollow Sun's Hunted and an event's: one record in either order, the bigger wave while it lasts", () => {
+    // Failure: the event's bigger wave rides the twist's span for the whole act, or the order of
+    // taking them changes the record.
+    const rung = 'lunatic';
+    const twistWave = { turn: 3, count: [2, 2], xpMultiplier: 0.5 };
+    const eventWave = onRung(huntDef, rung, 'wave');
+    expect(eventWave.count[1]).toBeGreaterThan(twistWave.count[1]);
+    const battles = onRung(huntDef, rung, 'battles');
+    const expected = [
+      {
+        id: 'hunted',
+        battles: 0,
+        wave: twistWave,
+        untilAct: 'act3',
+        event: { battles, wave: eventWave },
+      },
+    ];
+    const first = take(freshRun({ difficultyId: rung }), 'hollow_sun_favor');
+    expect(addBurden(first, 'hunted').ok).toBe(true);
+    const second = freshRun({ difficultyId: rung });
+    expect(addBurden(second, 'hunted').ok).toBe(true);
+    take(second, 'hollow_sun_favor');
+    expect(first.burdens).toEqual(expected);
+    expect(second.burdens).toEqual(expected);
+    expect(roundTrip(first).burdens).toEqual(expected);
+    expect(huntedWaveFor(first)).toEqual(eventWave);
+  });
+
+  it("victories on a merged Hunted count the passing hunt down, then the twist's wave alone (both orders)", () => {
+    // Failure: a victory counts nothing down on a merged record (the bigger wave rides the act),
+    // or spends the twist's span with the event's battles.
+    const rung = 'lunatic';
+    const battles = onRung(huntDef, rung, 'battles');
+    const eventWave = onRung(huntDef, rung, 'wave');
+    const twistWave = { turn: 3, count: [2, 2], xpMultiplier: 0.5 };
+    for (const order of ['twist first', 'event first']) {
+      const rm = freshRun({ seed: 43, difficultyId: rung });
+      if (order === 'twist first') take(rm, 'hollow_sun_favor');
+      addBurden(rm, 'hunted');
+      if (order === 'event first') take(rm, 'hollow_sun_favor');
+      const waves = [];
+      for (let i = 0; i < battles + 2; i++) {
+        // The next fight on the route (service nodes on the way completed as visited).
+        let node = rm.getAvailableNodes()[0];
+        while (node && !['battle', 'recruit'].includes(node.type)) {
+          rm.markNodeComplete(node.id);
+          node = rm.getAvailableNodes()[0];
+        }
+        waves.push(rm.getBattleParams(node).huntedWave);
+        expect(
+          rm.completeBattle(rm.getRoster(), node.id, 0, { turnCount: 1, turnPar: 9 }),
+          order,
+        ).toBe(true);
+      }
+      const expected = Array.from({ length: battles + 2 }, (_, i) =>
+        i < battles ? eventWave : twistWave,
+      );
+      expect(waves, order).toEqual(expected);
+      expect(rm.burdens, order).toEqual([
+        { id: 'hunted', battles: 0, wave: twistWave, untilAct: 'act3' },
+      ]);
+    }
+  });
+
+  it("Cleanse lifts only the event's hunt; the twist's span stays", () => {
+    // Failure: Cleanse lifts Hollow Sun's Hunted along with the event's.
+    const rm = take(freshRun({ difficultyId: 'lunatic' }), 'hollow_sun_favor');
+    addBurden(rm, 'hunted');
+    const church = battleNodes(rm)[0];
+    church.type = 'church';
+    church.battleParams = null;
+    expect(cleanseAtChurch(rm, church.id, 'hunted').ok).toBe(true);
+    expect(rm.burdens).toEqual([
+      {
+        id: 'hunted',
+        battles: 0,
+        wave: { turn: 3, count: [2, 2], xpMultiplier: 0.5 },
+        untilAct: 'act3',
+      },
     ]);
-    expect(isCleansable(loaded.burdens[0])).toBe(true);
-    expect(normalizeBurdens([{ id: 'hunted', battles: 0, untilAct: 'act3' }])).toHaveLength(1);
-    expect(normalizeBurdens([{ id: 'hunted', battles: 0 }])).toHaveLength(0);
+    expect(isCleansable(rm.burdens[0])).toBe(false);
+  });
+
+  it('an event part outlives the span as a plain hunt; a spent part leaves the twist alone', () => {
+    // Failure: the act's start ends the event's battles with the twist's span, or a load drops
+    // the part (or keeps a spent one).
+    const rm = freshRun();
+    clearAct(rm);
+    take(rm, 'hollow_sun_favor');
+    rm.advanceAct();
+    addBurden(rm, 'hunted', { battles: 2 });
+    const wave = onRung(huntDef, 'dusk', 'wave');
+    expect(rm.burdens[0]).toMatchObject({ untilAct: 'act3', event: { battles: 2, wave } });
+    // Act III begins with the event's battles unspent: they stand alone, and an altar lifts them.
+    const later = expireActBurdens(rm.burdens, { actSequence: rm.actSequence, actIndex: 2 });
+    expect(later.burdens).toEqual([{ id: 'hunted', battles: 2, wave }]);
+    expect(isCleansable(later.burdens[0])).toBe(true);
+    // The sanitizer: a spent or malformed part is dropped, an old save without one is unchanged.
+    const twist = { id: 'hunted', battles: 0, wave, untilAct: 'act3' };
+    expect(normalizeBurdens([{ ...twist, event: { battles: 0, wave } }])).toEqual([twist]);
+    expect(normalizeBurdens([{ ...twist, event: 'nonsense' }])).toEqual([twist]);
+    expect(normalizeBurdens([twist])).toEqual([twist]);
+    const omen = { id: 'ill_omen', battles: 0, extraShadow: 1, permanent: true };
+    expect(normalizeBurdens([omen])).toEqual([omen]);
+    expect(normalizeBurdens([{ ...omen, event: { battles: 2, extraShadow: 3 } }])).toEqual([
+      { ...omen, event: { battles: 2, extraShadow: 3 } },
+    ]);
+    // A plain record never carries an event part.
+    expect(normalizeBurdens([{ id: 'ill_omen', battles: 2, extraShadow: 1, event: {} }])).toEqual([
+      { id: 'ill_omen', battles: 2, extraShadow: 1 },
+    ]);
+  });
+
+  it('the chips, the church and the pick say both parts', () => {
+    // Failure: a merged chip reads only "Never ends" (the +2 hidden), the church offers to lift
+    // the whole record, or the pick hides that the twist merges with a burden already carried.
+    const { rm, node } = altarRun();
+    take(rm, 'blood_covenant');
+    kneel(rm, node);
+    addBurden(rm, 'hunted', { battles: 2 });
+    take(rm, 'hollow_sun_favor');
+    const battles = onRung(omenDef, 'dusk', 'battles');
+    const [omen, hunt] = describeBurdens(rm);
+    expect(omen.short).toBe(`Never ends; +2 for ${plural(battles, 'more battle')}`);
+    expect(omen).toMatchObject({ cleansable: true, twist: true, twistShort: 'Never ends' });
+    expect(omen.lift.short).toBe(`${battles} left`);
+    expect(hunt.short).toBe('Until Act III; 2 more battles');
+    expect(hunt.detail).toMatch(/until Act III begins: an extra wave of 2 foes on turn 3/);
+    expect(hunt.lift.short).toBe('2 left');
+    // The pick, with an event's omen already carried: its Ill Omen term says how they merge.
+    const picker = altarRun();
+    kneel(picker.rm, picker.node);
+    picker.rm.earnedBlessingPicks = {
+      act1: {
+        version: 2,
+        source: 'act_boss',
+        actId: 'act1',
+        nodeId: picker.rm.nodeMap.bossNodeId,
+        offered: ['blood_covenant'],
+        status: 'owed',
+        chosen: null,
+      },
+    };
+    const term = earnedPickModel(picker.rm).cards[0].terms.find((t) => t.term === 'Ill Omen').text;
+    expect(term).toMatch(
+      new RegExp(`passing Ill Omen \\(\\+2, ${battles} more battles\\): it keeps its own count`),
+    );
+    expect(term).toMatch(/A twisted blessing's price: no altar lifts it\./);
   });
 });
 
@@ -787,6 +1241,105 @@ describe('what the pick, the pause list and the chips say', () => {
     for (const chip of chips)
       expect(`${chip.short} ${chip.detail}`).not.toMatch(/\b0 (left|battles)/);
     expect(heldBlessingEntries(rm).map((e) => e.priceKind)).toEqual(['Twist', 'Twist']);
+  });
+});
+
+describe('review: offers, the held list and the words', () => {
+  const owedPick = (rm, offered) => ({
+    act1: {
+      version: 2,
+      source: 'act_boss',
+      actId: 'act1',
+      nodeId: rm.nodeMap.bossNodeId,
+      offered,
+      status: 'owed',
+      chosen: null,
+    },
+  });
+
+  it('a held Darkened Dawn drops an offered Second Dawn, and the other way round', () => {
+    // Failure: an offer already drawn shows a card the held one excludes (its Take is refused).
+    for (const [held, shut] of [
+      ['darkened_dawn', 'second_dawn'],
+      ['second_dawn', 'darkened_dawn'],
+    ]) {
+      const rm = freshRun();
+      if (held === 'darkened_dawn') take(rm, held);
+      else expect(rm.addBlessingMidRun(held, { earned: true })).toBe(true);
+      rm.earnedBlessingPicks = owedPick(rm, [shut, 'kingmakers_oath']);
+      expect(takeableOffered(rm, rm.earnedBlessingPicks.act1), held).toEqual(['kingmakers_oath']);
+      expect(earnedPickModel(rm).cards.map((c) => c.id)).toEqual(['kingmakers_oath']);
+      // A load prunes the saved offer the same way.
+      expect(roundTrip(rm).earnedBlessingPicks.act1.offered, held).toEqual(['kingmakers_oath']);
+      pruneHeldOffers(rm);
+      expect(rm.earnedBlessingPicks.act1.offered).toEqual(['kingmakers_oath']);
+      // An offer left with nothing it may take asks nothing.
+      rm.earnedBlessingPicks = owedPick(rm, [shut]);
+      pruneHeldOffers(rm);
+      expect(rm.earnedBlessingPicks.act1.status).toBe('none');
+    }
+  });
+
+  it("the held list's Hunted reads the live record: once its act has begun, the hunt has ended", () => {
+    // Failure: the pause list still says "It lasts through the next act" long after it ended.
+    const rm = freshRun();
+    clearAct(rm);
+    take(rm, 'hollow_sun_favor');
+    rm.advanceAct();
+    const hunted = () =>
+      heldBlessingEntries(rm)
+        .find((e) => e.id === 'hollow_sun_favor')
+        .terms.find((t) => t.term === 'Hunted').text;
+    expect(hunted()).toMatch(/It lasts through the next act\./);
+    clearAct(rm);
+    rm.advanceAct();
+    expect(rm.currentAct).toBe('act3');
+    expect(hunted()).toMatch(/hunt has ended/);
+    expect(hunted()).not.toMatch(/It lasts through/);
+  });
+
+  it('a span ending as the final act begins is named as the act card names it; ranges use en dashes', () => {
+    // Failure: the chip reads "Until the final act" beside an act card that says "Final Act",
+    // or a wave reads "1-2" where every other range reads "1–2".
+    const wave = { turn: 3, count: [1, 2], xpMultiplier: 0.5 };
+    const words = describeBurdens({
+      burdens: [{ id: 'hunted', battles: 0, wave, untilAct: 'finalBoss' }],
+      gameData: data,
+    })[0];
+    expect(words.short).toBe(`Until ${actLabel('finalBoss')}`);
+    expect(words.detail).toMatch(/^until the Final Act begins: an extra wave of 1–2 foes/);
+    expect(
+      describeBurdens({ burdens: [{ id: 'hunted', battles: 0, wave, untilAct: 'act3' }] })[0].short,
+    ).toBe(`Until ${actLabel('act3')}`);
+    const terms = blessingTerms(['Hunted'], {
+      burdens: data.events.burdens,
+      effects: [{ type: 'burden', params: { id: 'hunted', actsAhead: 1, wave } }],
+    });
+    expect(terms[0].text).toMatch(/a wave of 1–2 foes on turn 3/);
+    expect(terms[0].text).toMatch(/A twisted blessing's price: no altar lifts it\.$/);
+  });
+
+  it('the validator refuses a burden with no countdown in a v2 rolled cost and an object pact', () => {
+    // Failure: an endless burden slips into a shrine price through the legacy shapes, and no
+    // altar could ever lift it.
+    const pooled = structuredClone(data.blessings);
+    pooled.costPools['2'][0].effects.push({
+      type: 'burden',
+      params: { id: 'ill_omen', permanent: true },
+    });
+    expect(validateBlessingsConfig(pooled).errors.join('\n')).toMatch(
+      /costPools\.2\[0\]\.effects\[1\]\.params\.permanent: a burden with no countdown is a twist's price only/,
+    );
+    const pacted = structuredClone(data.blessings);
+    const tier2 = pacted.blessings.find((b) => b.tier === 2 && !b.earned);
+    tier2.pact = {
+      label: 'Hunted',
+      effects: [{ type: 'burden', params: { id: 'hunted', actsAhead: 1 } }],
+    };
+    expect(validateBlessingsConfig(pacted).errors.join('\n')).toMatch(
+      /pact\.effects\[0\]\.params\.actsAhead: a burden with no countdown is a twist's price only/,
+    );
+    expect(validateBlessingsConfig(data.blessings).errors).toEqual([]);
   });
 });
 

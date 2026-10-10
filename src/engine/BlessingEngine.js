@@ -316,6 +316,8 @@ export function validateBlessingsConfig(config, options = {}) {
             if (typeof effect.type !== 'string' || effect.type.trim() === '')
               errors.push(`${effectPath}.type must be a non-empty string`);
             if (!isObject(effect.params)) errors.push(`${effectPath}.params must be an object`);
+            // A pact is a shrine price: no burden without a countdown (a twist's only).
+            else validateBurdenSpan(effect, effectPath, errors);
           });
         }
       }
@@ -389,6 +391,9 @@ export function validateBlessingsConfig(config, options = {}) {
           }
           if (!isObject(effect.params)) {
             errors.push(`${effectPath}.params must be an object`);
+          } else {
+            // A v2 rolled cost is a shrine price: no burden without a countdown.
+            validateBurdenSpan(effect, effectPath, errors);
           }
         });
       });

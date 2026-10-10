@@ -806,11 +806,12 @@ as `invalid_<type>_params`; none is on the event-safe list). `TWIST_EFFECT_TYPES
 types.
 
 - **Darkened Dawn** `excludes: ['second_dawn']` (either way: neither is offered while the other is
-  held) and `requires: { eclipse: true }` (with the Eclipse off its twist costs nothing). Each
+  held, and an owed or open offer already drawn drops the one the other shuts: `takeableOffered`
+  and `pruneHeldOffers`, after every take and on load) and `requires: { eclipse: true }` (with the Eclipse off its twist costs nothing). Each
   victory's shadow gain (`computeShadowGain`, after its per-battle cap) grows by the share in exact
   quarters: `extra = floor((gain × quarters + carry) / 4)`, the remainder carried
-  (`blessingRuntimeModifiers.eclipseGainDelta`, `eclipseGainCarry` 0-3, saved), so four victories
-  of 1 gather 5. `TwistedBoons.scaledShadowGain` is the one reading: the HUD's
+  (`blessingRuntimeModifiers.eclipseGainDelta`, `eclipseGainCarry` 0-3, saved and written at every
+  commit, 0 included, so a remainder spent is never paid twice), so four victories of 1 gather 5. `TwistedBoons.scaledShadowGain` is the one reading: the HUD's
   `projectShadowGain` and the victory's `_commitBattleShadow` both call `_scaledShadowGain`, so the
   projection is the commit. An Ill Omen's shadow is added after, unscaled. The commit record names
   the card's share (`blessingShadow`). The +8 shifts the act's start too (as every
@@ -822,7 +823,9 @@ types.
   again (`_grantHeldArmyStatBonuses`). A living unit's HP gain raises its current HP through
   `UnitHealth.setUnitHP`; a fallen unit's does not (a revival sets it). The key makes a reload, a
   second call and a revival a no-op. Its Ill Omen is `permanent`: +1 shadow every victory, never
-  counted down; an event's Ill Omen taken on top merges into it and it stays endless.
+  counted down. An event's Ill Omen (the Twin Altar's dark face: +2 for the rung's battles), or a
+  shrine price's, taken before or after it, is held in the same record as its `event` part (see
+  "A twist's burden and a passing one" below).
 - **Kingmaker's Oath**: `ChurchCommands.churchPromoteCost(unit, run)` is 0 while held (the church
   heading reads "Promote · Free (Kingmaker's Oath)"); after `promoteUnit`, `promoteAtChurch` adds
   +2 to the two stats with the highest values in the target class's canonical
@@ -835,7 +838,14 @@ types.
   names the ban) and the promotion itself (`PromotionController._executePromotion`, for a seal
   handed in directly). The reclass seals (Infantry Seal, Mounted Seal) are never caught.
   `tests/MasterSealBanBoundary.test.js` lists every file that reads a `promote` consumable with its
-  gate. Shops still sell Master Seals (the twist is taken knowingly).
+  gate; `RosterCommands.rosterClassChangeBlock` reads the run's ban before a special character's
+  own refusal. Shops still sell Master Seals and loot still offers them (the twist is taken
+  knowingly; filtering them from a draw would move the loot stream), marked: the shop's buy row and
+  the loot card read "Can't be used: Kingmaker's Oath" (`TwistedBoons.classChangeItemTag`, from
+  `classChangeItemBlock`). The church's path chooser and the rite show the +2 the altar adds:
+  `promotionPathContent(unit, cls, gameData, { churchRun })` applies `applyKingmakerBonus` to its
+  projection exactly as `promoteAtChurch` does (ChurchMenu hands the run to the chooser and to the
+  rite's content; a Master Seal's or a battle's path passes none).
 - **Hollow Sun's Favor**: +50% battle gold (`getBattleGoldMultiplier`, additive with the other gold
   boons, before a Debt garnishes) and +50% on gold loot cards: `rewardDrawParams` saves
   `lootGoldMultiplier` in the reward's `draw` (absent without the card, so every other draw and
@@ -845,17 +855,46 @@ types.
   `untilAct = actSequence[actIndex + 2]` (taken at Act I's boss: all of Act II, ending as Act III
   begins), or `permanent` when the run has no such act. It never counts down; `advanceAct` (and a
   load, once the act sequence is final) ends it as its act begins (`Burdens.expireActBurdens`). An
-  event's Hunted merged on top keeps its own battles: the record ends when both are spent. The
-  chips read "Never ends" and "Until Act III".
+  event's Hunted meeting it is the record's `event` part (below). The chips read "Never ends" and
+  "Until Act III" (the act card's own names, `utils/actNames.js` `actLabel`: "Until Final Act",
+  "until the Final Act begins"); merged, "Never ends; +2 for 3 more battles" and "Until Act III;
+  2 more battles". The held list reads the live record: once the act has begun it says the hunt has
+  ended.
+
+**A twist's burden and a passing one (review fix).** One record per burden id still holds, in two
+parts. The **twist part** is the record's own fields: `permanent` or `untilAct`, the twist's own
+`extraShadow` or `wave`, and `battles: 0`; never cleansable. The **event part** is `event`:
+`{ battles, extraShadow }` for an Ill Omen, `{ battles, wave }` for a Hunted, the countdown's own
+values (an event's, or a shrine price's), counted down exactly as it would be alone (every victory
+for an omen; a victory in a battle that carried the wave for a hunt) and dropped when spent; a
+countdown taken again refreshes it by the countdown's own rule. While the event part lasts the
+record acts with the larger of the two: an omen's shadow per victory is `max(twist, event)`
+(`Burdens.illOmenShadowOf`, which `burdenEffectsOnVictory` and the HUD projection read), a hunt's
+wave the bigger one (`huntedWaveFor`, `largerHuntedWave`: more foes at most, then at least, then
+the earlier turn). After it, only the twist's values. Both orders of taking them make the same
+record (`addBurden` puts a held countdown into `event` when the twist arrives, and an arriving
+countdown into `event` when the twist is held). A Hollow Sun span that ends with the event part
+still counting leaves it a plain record. The sanitizer reads the part back; a spent or malformed
+part is dropped, a plain record never carries one, and a save without one reads as before. The
+event's result line, the chips and the pick say both parts: the result reads the merged record
+("never ends: +1 shadow each victory, +2 for 3 more battles while a passing omen lasts ..."), and
+the earned pick's terms say what the twist merges with when the run already carries the countdown
+("You carry a passing Ill Omen (+2, 3 more battles): it keeps its own count, and until it ends each
+victory takes the larger."). An event choice never shows its burden before it is made (its outcomes
+are hidden, docs/specs/event-nodes.md), so the twist-first order is told by the result line.
 
 **The cleansing decision (owner-level, decided in D3): a twist's burden is never cleansable.** A
 twist is the price of a strong earned card, taken knowingly; a free church vow lifting it would
 make the card free. One rule, `Burdens.isCleansable`: a burden that never ends or ends with an act
 (`isTwistBurden`: `permanent` or `untilAct`) is refused like Debt; the church's Cleanse is not
-offered for it, its refusal says "A twisted blessing's price: no altar lifts it while you hold the
-blessing.", and the church menu lists it greyed. Only a twist may write those fields: the
-validator refuses `permanent` / `actsAhead` / `untilAct` on a shrine price or an event's burden. An
-event's own Hunted or Ill Omen stays cleansable; merged into a twist's, the record is not.
+offered for it, its refusal says "A twisted blessing's price: no altar lifts it.", and the church
+menu lists it greyed whenever the run holds one, even when nothing else can be lifted. Only a twist
+may write those fields: the validator refuses `permanent` / `actsAhead` / `untilAct` on a shrine
+price (a v3 catalog price, a v2 rolled cost, an object pact) or an event's burden. An event's own
+Hunted or Ill Omen stays cleansable, alone or as a twist record's event part: Cleanse
+(`Burdens.cleanseBurden`) lifts that part only, exactly as it would lift it alone, and the twist's
+part stays (the church's row names the part it lifts, "Ill Omen · 3 left", beside the greyed
+"Ill Omen · Never ends").
 
 The sims never take an earned pick, so `sim:fullrun:pr` is unchanged.
 
