@@ -881,7 +881,17 @@ function scriptedWaveTurnsForRung(template, baseTurn, difficultyId, globalOffset
 // authored spawn has no fallback tile. A spawn on an override's tile whose wave can
 // resolve on or after T on any rung would be blocked (or arrive on the new terrain), so
 // the template is refused (docs/specs/large-maps/02-encounters-and-pacing.md §2.2).
-function validateOverrideSpawnConflicts(path, template, anchorCoords, errors, globalOffsets) {
+// A blessing's reinforcement delay (Hollow Hourglass: every wave `maxDelay` turns later,
+// added after the turn-1 clamp as ReinforcementScheduler adds it) can bring a wave onto a
+// wall that rises a turn after it was due, so the latest turn is read with it.
+function validateOverrideSpawnConflicts(
+  path,
+  template,
+  anchorCoords,
+  errors,
+  globalOffsets,
+  maxDelay = 0,
+) {
   const overrides = template.phaseTerrainOverrides;
   const scriptedWaves = template.reinforcements?.scriptedWaves;
   if (!Array.isArray(overrides) || !Array.isArray(scriptedWaves)) return;
@@ -908,8 +918,14 @@ function validateOverrideSpawnConflicts(path, template, anchorCoords, errors, gl
     if (!Array.isArray(wave.spawns)) return;
     let latest = null;
     for (const difficultyId of DIFFICULTY_IDS) {
-      for (const turn of scriptedWaveTurnsForRung(template, wave.turn, difficultyId, globalOffsets))
-        if (!latest || turn > latest.turn) latest = { turn, difficultyId };
+      for (const rungTurn of scriptedWaveTurnsForRung(
+        template,
+        wave.turn,
+        difficultyId,
+        globalOffsets,
+      ))
+        for (const turn of maxDelay > 0 ? [rungTurn, rungTurn + maxDelay] : [rungTurn])
+          if (!latest || turn > latest.turn) latest = { turn, difficultyId };
     }
     wave.spawns.forEach((spawn, si) => {
       if (!isObject(spawn) || !isInteger(spawn.col) || !isInteger(spawn.row)) return;
@@ -917,7 +933,8 @@ function validateOverrideSpawnConflicts(path, template, anchorCoords, errors, gl
         if (latest.turn < override.turn) continue;
         errors.push(
           `${path}.reinforcements.scriptedWaves[${wi}].spawns[${si}] at [${spawn.col},${spawn.row}] ` +
-            `resolves on turn ${latest.turn} (${latest.difficultyId}), on or after ` +
+            `resolves on turn ${latest.turn} (${latest.difficultyId}` +
+            `${maxDelay > 0 ? `, with a reinforcement delay of ${maxDelay}` : ''}), on or after ` +
             `phaseTerrainOverrides[${override.index}] (turn ${override.turn}) changes that tile; ` +
             'move the spawn to a tile no override touches',
         );
@@ -1015,6 +1032,22 @@ export function reinforcementTurnOffsetsFrom(difficultyConfig) {
     offsets[difficultyId] = isInteger(offset) ? offset : 0;
   }
   return offsets;
+}
+
+/**
+ * The most turns a blessing can hold reinforcements back in one run (Hollow Hourglass's
+ * `reinforcement_delay`), for validateMapTemplatesConfig's `maxReinforcementDelay` option:
+ * every such boon in blessings.json summed (each card is held at most once, and a run may hold
+ * them all). 0 when there is none.
+ */
+export function maxReinforcementDelayFrom(blessingsConfig) {
+  const blessings = Array.isArray(blessingsConfig?.blessings) ? blessingsConfig.blessings : [];
+  let total = 0;
+  for (const blessing of blessings)
+    for (const boon of Array.isArray(blessing?.boons) ? blessing.boons : [])
+      if (boon?.type === 'reinforcement_delay' && isInteger(boon.params?.value))
+        total += Math.max(0, boon.params.value);
+  return total;
 }
 
 export function validateMapTemplatesConfig(config, options = {}) {
@@ -1244,6 +1277,7 @@ export function validateMapTemplatesConfig(config, options = {}) {
         anchorCoords,
         errors,
         options.reinforcementTurnOffsets,
+        isInteger(options.maxReinforcementDelay) ? Math.max(0, options.maxReinforcementDelay) : 0,
       );
 
       validateReinforcements(path, template, strict, errors, warnings);

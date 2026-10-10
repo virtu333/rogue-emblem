@@ -223,6 +223,11 @@ export function createSeededRng(seed) {
   };
 }
 
+/** A blessing's reinforcement delay (Hollow Hourglass) as whole turns, never below 0. */
+function delayOf(turnDelay) {
+  return Math.max(0, normalizeInteger(turnDelay, 0));
+}
+
 export function rollWaveTurnJitter({ seed = 0, waveIndex = 0, turnJitter = [0, 0] } = {}) {
   const [minDelta, maxDelta] =
     Array.isArray(turnJitter) && turnJitter.length === 2 ? turnJitter : [0, 0];
@@ -235,17 +240,25 @@ export function rollWaveTurnJitter({ seed = 0, waveIndex = 0, turnJitter = [0, 0
   return min + Math.floor(rng() * (max - min + 1));
 }
 
+/**
+ * The turn a template wave arrives: its turn plus the offsets and jitter, never before turn 1,
+ * then `turnDelay` turns later (Hollow Hourglass). The delay is added AFTER the clamp, so a wave
+ * a rung pulls to turn 1 still comes a turn later with it.
+ */
 export function resolveScheduledTurn({
   baseTurn,
   totalOffset = 0,
   seed = 0,
   waveIndex = 0,
   turnJitter = [0, 0],
+  turnDelay = 0,
 } = {}) {
   const normalizedBaseTurn = normalizeInteger(baseTurn, 0);
   if (normalizedBaseTurn <= 0) return 0;
   const jitter = rollWaveTurnJitter({ seed, waveIndex, turnJitter });
-  return Math.max(1, normalizedBaseTurn + normalizeInteger(totalOffset, 0) + jitter);
+  return (
+    Math.max(1, normalizedBaseTurn + normalizeInteger(totalOffset, 0) + jitter) + delayOf(turnDelay)
+  );
 }
 
 export function getDueReinforcementWaves({
@@ -254,6 +267,7 @@ export function getDueReinforcementWaves({
   reinforcements,
   difficultyId = 'normal',
   difficultyTurnOffset = 0,
+  turnDelay = 0,
 } = {}) {
   const currentTurn = normalizeInteger(turn, 0);
   if (currentTurn <= 0 || !reinforcements || !Array.isArray(reinforcements.waves)) return [];
@@ -274,6 +288,7 @@ export function getDueReinforcementWaves({
       seed,
       waveIndex,
       turnJitter,
+      turnDelay,
     });
     if (scheduledTurn !== currentTurn) continue;
     due.push({
@@ -306,6 +321,7 @@ export function getDueRepeatingReinforcementWaves({
   reinforcements,
   difficultyId = 'normal',
   difficultyTurnOffset = 0,
+  turnDelay = 0,
   activeEnemyCount = 0,
 } = {}) {
   const currentTurn = normalizeInteger(turn, 0);
@@ -324,7 +340,8 @@ export function getDueRepeatingReinforcementWaves({
     const every = normalizeInteger(wave?.every, 0);
     if (startTurn <= 0 || every <= 0) continue;
 
-    const effectiveStart = Math.max(1, startTurn + totalOffset);
+    // The delay after the clamp (see resolveScheduledTurn).
+    const effectiveStart = Math.max(1, startTurn + totalOffset) + delayOf(turnDelay);
     if (currentTurn < effectiveStart || (currentTurn - effectiveStart) % every !== 0) continue;
 
     const maxActive = Number.isFinite(wave?.maxActiveEnemies)
@@ -353,6 +370,7 @@ function getDueScriptedReinforcementWaves({
   reinforcements,
   difficultyId = 'normal',
   difficultyTurnOffset = 0,
+  turnDelay = 0,
 } = {}) {
   const currentTurn = normalizeInteger(turn, 0);
   if (currentTurn <= 0 || !reinforcements || !Array.isArray(reinforcements.scriptedWaves))
@@ -371,7 +389,8 @@ function getDueScriptedReinforcementWaves({
     const scriptedWave = reinforcements.scriptedWaves[scriptedWaveIndex];
     const baseTurn = normalizeInteger(scriptedWave?.turn, 0);
     if (baseTurn <= 0) continue;
-    const scheduledTurn = Math.max(1, baseTurn + totalOffset);
+    // The delay after the clamp (see resolveScheduledTurn).
+    const scheduledTurn = Math.max(1, baseTurn + totalOffset) + delayOf(turnDelay);
     if (scheduledTurn !== currentTurn) continue;
     due.push({
       waveType: 'scripted',
@@ -436,7 +455,7 @@ function getDueLadderWaves({ turn, reinforcements, turnDelay = 0 } = {}) {
   const currentTurn = normalizeInteger(turn, 0);
   const waves = reinforcements?.ladder?.waves;
   if (currentTurn <= 0 || !Array.isArray(waves)) return [];
-  const delay = Math.max(0, normalizeInteger(turnDelay, 0));
+  const delay = delayOf(turnDelay);
   const due = [];
   for (let waveIndex = 0; waveIndex < waves.length; waveIndex++) {
     const wave = waves[waveIndex];
@@ -463,7 +482,7 @@ function getDueHuntedWaves({ turn, reinforcements, turnDelay = 0 } = {}) {
   const wave = reinforcements?.hunted;
   if (currentTurn <= 0 || !wave || typeof wave !== 'object') return [];
   const baseTurn = normalizeInteger(wave.turn, 0);
-  const scheduledTurn = baseTurn + Math.max(0, normalizeInteger(turnDelay, 0));
+  const scheduledTurn = baseTurn + delayOf(turnDelay);
   if (baseTurn <= 0 || scheduledTurn !== currentTurn) return [];
   return [
     {
@@ -519,28 +538,31 @@ export function scheduleReinforcementsForTurn({
   npcTiles = [],
   promotedMoveTypes = null,
 } = {}) {
-  // A blessing's delay (Hollow Hourglass) moves every kind of wave: the offset the template,
-  // scripted and repeating waves already read, and the ladder's and Hunted's absolute turns.
-  const delay = Math.max(0, normalizeInteger(turnDelay, 0));
-  difficultyTurnOffset = normalizeInteger(difficultyTurnOffset, 0) + delay;
+  // A blessing's delay (Hollow Hourglass) moves every kind of wave a turn later: the template,
+  // scripted and repeating waves after their offsets and turn-1 clamp (a wave a rung pulls to
+  // turn 1 still comes later), the ladder's and Hunted's absolute turns as they stand.
+  const delay = delayOf(turnDelay);
   const dueWaves = getDueReinforcementWaves({
     turn,
     seed,
     reinforcements,
     difficultyId,
     difficultyTurnOffset,
+    turnDelay: delay,
   });
   const dueScriptedWaves = getDueScriptedReinforcementWaves({
     turn,
     reinforcements,
     difficultyId,
     difficultyTurnOffset,
+    turnDelay: delay,
   });
   const dueRepeatingWaves = getDueRepeatingReinforcementWaves({
     turn,
     reinforcements,
     difficultyId,
     difficultyTurnOffset,
+    turnDelay: delay,
     activeEnemyCount,
   });
   const dueLadderWaves = getDueLadderWaves({ turn, reinforcements, turnDelay: delay });

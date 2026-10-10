@@ -1201,7 +1201,7 @@
           "kind": "sanctum"
         }
       ],
-      "description": "+200 gold at each church you enter.",
+      "description": "+200 gold the first time you enter each church.",
       "lore": "The priests fill it gladly for a banner they have heard of. Word travels ahead.",
       "boons": [
         {
@@ -1223,7 +1223,7 @@
           "kind": "eclipsed_elite"
         }
       ],
-      "description": "Fog maps open revealed within 4 tiles of each ally.",
+      "description": "Fog maps open with 4 tiles around each of your units revealed for turn 1.",
       "lore": "Hung at every crossroads by people long gone. One still burns for you.",
       "boons": [
         {
@@ -1245,7 +1245,7 @@
           "kind": "event"
         }
       ],
-      "description": "Every recruit who joins bears a Mark.",
+      "description": "Every recruit who joins you bears a Mark (never a lord).",
       "lore": "Pinned to a coat, it tells the road you are worth following. The marked come.",
       "boons": [
         {

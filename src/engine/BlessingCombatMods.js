@@ -13,17 +13,18 @@
 // Only player-faction units ever receive anything; enemies and NPC allies get zeros.
 
 import { adjacentAllyDefBonus, isolatedCombatBonus } from './FormationBlessings.js';
-import { findCommander } from './Commander.js';
 
 /**
  * Standard of the Sun (an earned blessing): Hit and Avoid for a unit within `radius` tiles
  * (Manhattan) of the army's living commander, never the commander itself. Each held entry adds.
- * `allies` is the unit's own side (the player's units: an NPC ally is no part of it).
+ * `allies` is the unit's own side (the player's units: an NPC ally is no part of it). The
+ * commander is the unit flagged `isCommander` and no other: a commander who has left the field
+ * (escaped) takes the banner along, and Edric does not carry it in their place.
  */
 export function commanderAuraBonus(entries, unit, allies) {
   const out = { hitBonus: 0, avoidBonus: 0 };
   if (!Array.isArray(entries) || entries.length === 0 || !unit) return out;
-  const commander = findCommander(allies);
+  const commander = (Array.isArray(allies) ? allies : []).find((u) => u?.isCommander === true);
   if (!commander || commander === unit || !(Number(commander.currentHP) > 0)) return out;
   if (commander.faction !== 'player') return out;
   const distance = Math.abs(commander.col - unit.col) + Math.abs(commander.row - unit.row);

@@ -120,6 +120,28 @@ describe('Standard of the Sun: +5 Hit and +5 Avoid within 2 tiles of the command
     expect(commanderAuraBonus(AURA, near, allies)).toEqual({ hitBonus: 0, avoidBonus: 0 });
   });
 
+  it("follows the flagged commander only: once Sera (commanding) escapes, Edric's side has no banner", () => {
+    // Failure: the aura finds its commander by Edric's name when no unit carries the flag (the
+    // commander escaped the map), so Edric, not commanding, lifts the line in her place.
+    const sera = makeUnit('Sera', 'player', 0, 0, { isCommander: true });
+    const edric = makeUnit('Edric', 'player', 3, 3, { isCommander: false });
+    const near = makeUnit('Near', 'player', 3, 4);
+    expect(commanderAuraBonus(AURA, near, [sera, edric, near])).toEqual({
+      hitBonus: 0,
+      avoidBonus: 0,
+    });
+    const seraNear = makeUnit('Sera', 'player', 3, 5, { isCommander: true });
+    expect(commanderAuraBonus(AURA, near, [seraNear, edric, near])).toEqual({
+      hitBonus: 5,
+      avoidBonus: 5,
+    });
+    // Sera escaped: she is off the field, so no unit on it carries the flag.
+    expect(commanderAuraBonus(AURA, near, [edric, near])).toEqual({ hitBonus: 0, avoidBonus: 0 });
+    expect(
+      blessingCombatModsFor({ commanderAuras: AURA }, { unit: near, allies: [edric, near] }),
+    ).toMatchObject({ hitBonus: 0, avoidBonus: 0 });
+  });
+
   it('the run records it and a save keeps it; a run without it holds none', () => {
     // Failure: the boon is lost on load (the aura vanishes after a refresh).
     const rm = runHolding(['standard_of_the_sun']);
@@ -244,6 +266,58 @@ describe('Hollow Hourglass: every reinforcement a turn later', () => {
       repeating: [3, 6, 9],
       ladder: [6],
       hunted: [4],
+    });
+  });
+
+  it('a wave the rung pulls to turn 1 still comes a turn later: the delay is added after the clamp', () => {
+    // Failure: the delay is folded into the difficulty offset, so the turn-1 clamp swallows it
+    // where Black Sun (or Nightfall's late acts) pulls a wave below turn 1 (frozen_pass on Black
+    // Sun: turn 3, template offset -3, jitter -1..+1, so the first wave lands on turn 1 whatever
+    // the jitter; with the Hourglass on turn 2, never turn 1).
+    const all = Object.values(data.mapTemplates).filter(Array.isArray).flat();
+    const frozen = all.find((t) => t.id === 'frozen_pass');
+    expect(frozen.reinforcements.turnOffsetByDifficulty.lunatic).toBe(-3);
+    expect(frozen.reinforcements.turnJitter).toEqual([-1, 1]);
+    expect(frozen.reinforcements.waves[0].turn).toBe(3);
+    const firstWaveTurn = (seed, battleParams) => {
+      for (let turn = 1; turn <= 6; turn++) {
+        const result = resolveBattleReinforcements({
+          turn,
+          seed,
+          battleConfig: config(structuredClone(frozen.reinforcements)),
+          battleParams,
+          gameData: data,
+          templates: [{ className: 'Fighter' }],
+          playerUnits: [{ col: 5, row: 5, faction: 'player' }],
+        });
+        if ((result.dueWaves || []).some((w) => w.waveType === 'procedural' && w.waveIndex === 0))
+          return turn;
+      }
+      return null;
+    };
+    for (let seed = 1; seed <= 12; seed++) {
+      expect(firstWaveTurn(seed, { difficultyId: 'lunatic' }), `seed ${seed}`).toBe(1);
+      expect(
+        firstWaveTurn(seed, { difficultyId: 'lunatic', reinforcementDelay: 1 }),
+        `seed ${seed}`,
+      ).toBe(2);
+    }
+    // The scripted and pursuit clamps the same way: pulled to turn 1 by the rung, then delayed.
+    const pulled = config({
+      spawnEdges: ['top'],
+      difficultyScaling: true,
+      turnOffsetByDifficulty: { lunatic: -3 },
+      waves: [],
+      scriptedWaves: [{ turn: 2, spawns: [{ col: 0, row: 0, className: 'Fighter' }] }],
+      repeatingWaves: [{ startTurn: 2, every: 3, count: [1, 1], edges: ['left'] }],
+    });
+    expect(dueTurns(pulled, { difficultyId: 'lunatic' })).toEqual({
+      scripted: [1],
+      repeating: [1, 4, 7],
+    });
+    expect(dueTurns(pulled, { difficultyId: 'lunatic', reinforcementDelay: 1 })).toEqual({
+      scripted: [2],
+      repeating: [2, 5, 8],
     });
   });
 
@@ -412,6 +486,24 @@ describe('Lantern of the Road: a fog map opens revealed within 4 tiles of each a
     expect(src.slice(resumeBranch, elseBranch)).toMatch(/finalizeResume/);
     expect(elseBranch).toBeLessThan(call);
     expect(src.slice(elseBranch, call)).not.toMatch(/\n {6}\}/);
+  });
+
+  it('BattleScene reveals after formation places the army, never over the empty field', () => {
+    // Failure: the reveal runs before formation (FormationController.lift has emptied
+    // scene.playerUnits, and the army is placed only once `_formation.run()` settles), so it
+    // reveals around nobody, or around the tiles the army stood on before it was lifted.
+    const src = fs.readFileSync('src/scenes/BattleScene.js', 'utf8');
+    const call = src.indexOf('applyFogOpening(');
+    const lift = src.indexOf('this._formation.lift();');
+    const run = src.indexOf('await this._formation.run();');
+    expect(lift).toBeGreaterThan(0);
+    expect(run).toBeGreaterThan(lift);
+    expect(call).toBeGreaterThan(run);
+    // Lifted, the army is off the board: a reveal then has nothing to stand on.
+    const lifted = [];
+    expect(
+      applyFogOpening(new HeadlessGrid(12, 12, data.terrain, layout(12), true), lifted, 4),
+    ).toBe(false);
   });
 });
 

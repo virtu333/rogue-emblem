@@ -1,6 +1,10 @@
 import { validateBlessingsConfig } from './BlessingEngine.js';
 import { validateDifficultyConfig } from './DifficultyEngine.js';
-import { reinforcementTurnOffsetsFrom, validateMapTemplatesConfig } from './MapTemplateEngine.js';
+import {
+  maxReinforcementDelayFrom,
+  reinforcementTurnOffsetsFrom,
+  validateMapTemplatesConfig,
+} from './MapTemplateEngine.js';
 
 // DataLoader — fetches and parses game data JSON files
 
@@ -141,6 +145,8 @@ export class DataLoader {
     }
     const mapTemplateValidation = validateMapTemplatesConfig(this.mapTemplates, {
       reinforcementTurnOffsets: reinforcementTurnOffsetsFrom(this.difficulty),
+      // Hollow Hourglass: a wave can come a turn later than its rung schedules it.
+      maxReinforcementDelay: maxReinforcementDelayFrom(this.blessings),
     });
     if (!mapTemplateValidation.valid) {
       throw new Error(`Invalid map templates data: ${mapTemplateValidation.errors.join('; ')}`);
