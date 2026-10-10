@@ -13,6 +13,7 @@ import {
   benchedSkillsNote,
 } from '../engine/UnitManager.js';
 import { getClassChangeWeaponGrants } from '../engine/RosterCommands.js';
+import { applyKingmakerBonus } from '../engine/TwistedBoons.js';
 import { applyPromotionOath, promotionOathCandidates } from '../engine/DeedSystem.js';
 import { crestSpecForClass } from './classCrests.js';
 import { levelBeatLine, levelUpLine, promotionLine } from '../engine/UnitVoice.js';
@@ -147,13 +148,19 @@ export function promotionRoleLine(unit, cls, ranks = [], classes = []) {
  *   grants: string[],                            starter weapons granted
  *   role: string,
  * }}
+ * @param {{ churchRun?: object|null }} [options] - `churchRun`: the run whose church performs the
+ *   promotion; its Kingmaker's Oath adds its bonus here exactly as `promoteAtChurch` does
+ *   (TwistedBoons.applyKingmakerBonus on the class's canonical bonuses), so the preview and the
+ *   rite show the stats the unit gets. Left out (a Master Seal, a battle's Promote), none applies.
  */
-export function promotionPathContent(unit, cls, gameData = {}) {
+export function promotionPathContent(unit, cls, gameData = {}, { churchRun = null } = {}) {
   if (!unit || !cls?.name) return null;
   const bonuses = lordBonuses(unit, cls, gameData);
   if (!bonuses) return null;
   const projected = projectUnit(unit);
   const result = promoteUnit(projected, cls, bonuses, gameData.skills || []);
+  // Kingmaker's Oath at a church: the same bonus on the same stats the altar adds.
+  if (churchRun) applyKingmakerBonus(churchRun, projected, cls.promotionBonuses || bonuses);
   // The Oaths open on this path: one the new class already teaches is not among them.
   const oathOptions = promotionOathCandidates(projected, gameData.deeds, gameData.skills);
   // The Oath a deed swears on this promotion (same rule the command applies).

@@ -124,7 +124,9 @@ export class PromotionPathChooser {
   /**
    * @param {{scene, unit, targets: object[], gameData, title?: string,
    *   closeLabel?: string, confirmLabel?: (cls) => string, note?: string,
-   *   blocked?: (cls) => string, apply?: (cls) => any, onClose?: (cls|null) => void}} o
+   *   blocked?: (cls) => string, apply?: (cls) => any, onClose?: (cls|null) => void,
+   *   churchRun?: object|null}} o - `churchRun`: a church's promotion (its Kingmaker's Oath shows
+   *   in every path's stats, growthContent.promotionPathContent)
    */
   constructor({
     scene,
@@ -138,11 +140,13 @@ export class PromotionPathChooser {
     blocked = () => '',
     apply = null,
     onClose = null,
+    churchRun = null,
   }) {
     Object.assign(this, {
       scene,
       unit,
       gameData,
+      churchRun,
       confirmLabel,
       note,
       blocked,
@@ -169,7 +173,9 @@ export class PromotionPathChooser {
       this.targets.map((cls) => {
         let content = null;
         try {
-          content = promotionPathContent(this.unit, cls, this.gameData);
+          content = promotionPathContent(this.unit, cls, this.gameData, {
+            churchRun: this.churchRun,
+          });
         } catch (error) {
           console.warn('[PromotionPathChooser] preview failed:', error);
         }

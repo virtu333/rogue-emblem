@@ -34,9 +34,10 @@ import {
   burdenDefFor,
   burdenOf,
   cleansableBurdens,
+  cleanseBurden,
+  cleanseRefusal,
   HEALED_BURDENS,
   isCleansable,
-  removeBurden,
 } from './Burdens.js';
 import { PROLOGUE_BLESSING_BLOCK } from '../data/prologueContent.js';
 
@@ -318,7 +319,9 @@ export function churchCleanseBlock(run, nodeId, burdenId) {
   if (!burden) return 'That burden is not on you.';
   if (HEALED_BURDENS.includes(burden.id))
     return 'Heal all mends a lingering injury. It needs no vow.';
-  if (!isCleansable(burden)) return 'The lender has lawyers. No altar lifts this.';
+  // Debt (the lender has lawyers) and a twist's burden (Burdens.isCleansable: a twisted blessing's
+  // price stays while the blessing is held).
+  if (!isCleansable(burden)) return cleanseRefusal(burden);
   return '';
 }
 
@@ -326,11 +329,16 @@ export function churchCleanseBlock(run, nodeId, burdenId) {
 export function cleanseAtChurch(run, nodeId, burdenId) {
   const reason = churchCleanseBlock(run, nodeId, burdenId);
   if (reason) return { ok: false, reason };
-  const removed = removeBurden(run, burdenId);
+  // A twist's record with a passing countdown merged into it loses that part only
+  // (Burdens.cleanseBurden); the twisted blessing's part stays.
+  const removed = cleanseBurden(run, burdenId);
   if (!removed) return { ok: false, reason: 'That burden is not on you.' };
   commitChurchVow(run, nodeId, 'cleanse');
   const label = burdenDefFor(run.gameData?.events, burdenId, run.difficultyId)?.label || burdenId;
-  return { ok: true, burden: removed, message: `${label} lifted.` };
+  const message = removed.partial
+    ? `${label} lifted, all but a twisted blessing's price.`
+    : `${label} lifted.`;
+  return { ok: true, burden: removed, message };
 }
 
 /**

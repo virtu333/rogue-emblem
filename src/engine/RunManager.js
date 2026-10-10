@@ -126,6 +126,7 @@ import {
   isActBossVictory,
   prepareEarnedBlessingPick,
   prepareEliteEarnedDrop,
+  pruneHeldOffers,
   sanitizeEarnedBlessingPicks,
 } from './EarnedBlessings.js';
 import {
@@ -138,6 +139,14 @@ import {
   reinforcementDelayOf,
   sanitizeEarnedBoonModifiers,
 } from './EarnedBoons.js';
+import {
+  applyTwistedBoon,
+  eclipseGainOf,
+  grantArmyStatBonus,
+  sanitizeTwistedBoonModifiers,
+  scaledShadowGain,
+  twistedBoonModifierDefaults,
+} from './TwistedBoons.js';
 import { stampSanctum } from './SanctumPass.js';
 import { sanitizeChurchTithes } from './ChurchTithe.js';
 import {
@@ -199,6 +208,7 @@ import {
   addBurden,
   battleDebuffsFor,
   burdenEffectsOnVictory,
+  expireActBurdens,
   WOUND_STATS,
   huntedWaveFor,
   isSwornEnemy,
@@ -397,6 +407,9 @@ function createBlessingRuntimeModifiers() {
     // The earned blessings of engine/EarnedBoons.js (Standard of the Sun, Hollow Hourglass,
     // Chronicle, Tithe Box, Lantern of the Road, Crest of the Road).
     ...earnedBoonModifierDefaults(),
+    // The twisted earned blessings of engine/TwistedBoons.js (Darkened Dawn's faster Eclipse and
+    // its carry, Kingmaker's Oath and its ban on Master Seals, Hollow Sun's Favor's loot gold).
+    ...twistedBoonModifierDefaults(),
   };
 }
 
@@ -1858,6 +1871,9 @@ export class RunManager {
     if (!effect || !effect.type || !effect.params) return;
     // Standard of the Sun, Hollow Hourglass, Chronicle, Tithe Box, Lantern and Crest.
     if (applyEarnedBoon(this, blessingId, effect)) return;
+    // The twisted earned blessings' boons and twists (Blood Covenant, Kingmaker's Oath, Hollow
+    // Sun's Favor, Darkened Dawn's faster Eclipse).
+    if (applyTwistedBoon(this, blessingId, effect)) return;
     const value = Number(effect.params.value || 0);
     if (!Number.isFinite(value)) return;
 
@@ -3449,6 +3465,8 @@ export class RunManager {
   grantRecruitBlessingConsumables(unit) {
     if (!unit) return;
     this._applyActStatDeltasToRecruit(unit);
+    // Blood Covenant: a joiner takes the army's +1 on joining, once (keyed on the unit).
+    this._grantHeldArmyStatBonuses(unit);
     if (!this.activeBlessings?.length || !this.gameData?.blessings?.blessings) return;
     const catalog = buildBlessingIndex(this.gameData.blessings);
     for (const active of this.activeBlessings || []) {
@@ -3465,6 +3483,22 @@ export class RunManager {
         if (granted) unit.recruitBlessingGrants = [...(unit.recruitBlessingGrants || []), key];
       }
     }
+  }
+
+  /**
+   * Blood Covenant (`army_stat_bonus`, engine/TwistedBoons.js): every held grant reaches `unit`
+   * once (the key on the unit makes a reload, a second call or a revival a no-op). A fallen unit
+   * gains no current HP (a revival sets it).
+   */
+  _grantHeldArmyStatBonuses(unit, { fallen = false } = {}) {
+    if (!unit?.stats || !this.activeBlessings?.length) return;
+    const list = Array.isArray(this.gameData?.blessings?.blessings)
+      ? this.gameData.blessings.blessings
+      : [];
+    for (const id of this.getActiveBlessingIds())
+      for (const effect of list.find((b) => b?.id === id)?.boons || [])
+        if (effect?.type === 'army_stat_bonus')
+          grantArmyStatBonus(unit, id, effect.params?.value, { fallen });
   }
 
   /**
@@ -5289,10 +5323,21 @@ export class RunManager {
    */
   projectShadowGain(turnsTaken, par) {
     if (!this.isEclipseActive()) return 0;
-    return computeShadowGain(
+    const gain = computeShadowGain(
       { turnsTaken, par: Number.isFinite(par) ? par : null, difficultyId: this.difficultyId },
       this.getEclipseConfig(),
     );
+    // Darkened Dawn: the same scaling (and carry) the victory's commit will apply.
+    return this._scaledShadowGain(gain).gain;
+  }
+
+  /**
+   * A battle's shadow gain with Darkened Dawn's faster Eclipse (TwistedBoons.scaledShadowGain:
+   * exact quarters, the remainder carried): the one reading the projection and the commit share.
+   * Never stores the carry; the commit does. `{ gain, carry }`; without the blessing, the gain.
+   */
+  _scaledShadowGain(gain) {
+    return scaledShadowGain(gain, eclipseGainOf(this));
   }
 
   /**
@@ -5311,18 +5356,26 @@ export class RunManager {
       },
       config,
     );
+    // Darkened Dawn: the battle's own gain gathers faster (an Ill Omen's shadow is not scaled);
+    // the quarters left over carry to the next victory, saved with this commit. The carry is
+    // written on every commit, 0 included, so a remainder spent this victory is never read again.
+    const scaled = this._scaledShadowGain(gain);
+    if (this.blessingRuntimeModifiers)
+      this.blessingRuntimeModifiers.eclipseGainCarry = scaled.carry;
     const isBoss = node.id === this.nodeMap?.bossNodeId && node.type === 'boss';
     const relief = isBoss ? Math.max(0, Math.trunc(Number(config.bossRelief) || 0)) : 0;
     // An Ill Omen (engine/Burdens.js) adds its shadow to the battle's gain, before the cap.
     const burden = Math.max(0, Math.trunc(Number(burdenShadow) || 0));
     // The global meter stops at the cap; the act's pressure takes the whole gain.
-    const commit = commitShadow(this.eclipse, { gain: gain + burden, relief }, config);
+    const commit = commitShadow(this.eclipse, { gain: scaled.gain + burden, relief }, config);
     this.eclipse = commit.state;
     return {
       nodeId: node.id,
       before,
-      gain: gain + burden,
+      gain: scaled.gain + burden,
       burdenShadow: burden,
+      // Darkened Dawn's share of the gain (only while it adds some).
+      ...(scaled.gain > gain ? { blessingShadow: scaled.gain - gain } : {}),
       relief,
       after: commit.after,
       meterGain: commit.meterGain,
@@ -5462,6 +5515,9 @@ export class RunManager {
       this.gameData?.classes || [],
       createSeededRng(seed),
     );
+    // Blood Covenant reached the fallen at its take; one who lacks it (a save from between) takes
+    // it now, before the revival sets its HP.
+    this._grantHeldArmyStatBonuses(unit, { fallen: true });
     setUnitHP(unit, 1); // Catch-up HP gains do not turn revival into a full heal.
     delete unit._accessoryHpOwed; // A revived unit owes nothing from its last life.
     // Death sent its gear to the convoy: an unarmed unit comes back with an Iron weapon.
@@ -5538,6 +5594,11 @@ export class RunManager {
     if (this.actIndex >= this.actSequence.length - 1)
       return { unlockedArtIds: [], displacedSkills: {}, actStartGrants: [] };
     this.actIndex++;
+    // Hollow Sun's Favor's Hunted runs through the next act: it ends as its act begins.
+    this.burdens = expireActBurdens(this.burdens, {
+      actSequence: this.actSequence,
+      actIndex: this.actIndex,
+    }).burdens;
     this._restoreDisabledPersonalSkillsIfReady('act_transition');
     // Act-entry blessing effects (Slow Fuse's rise) land before the rest, so the army starts
     // the act whole at its new maximum.
@@ -6529,6 +6590,8 @@ export class RunManager {
     sanitizeShrineBoonModifiers(rm.blessingRuntimeModifiers);
     // Earned blessings: a save from before them holds none.
     sanitizeEarnedBoonModifiers(rm.blessingRuntimeModifiers);
+    // The twisted earned blessings (PR D3): a save from before them holds none.
+    sanitizeTwistedBoonModifiers(rm.blessingRuntimeModifiers);
     for (const field of Object.values(EARNED_BOON_MODIFIERS))
       rm.blessingRuntimeModifiers[field] = Math.max(
         0,
@@ -6647,6 +6710,12 @@ export class RunManager {
     if (rm.actIndex >= rm.actSequence.length) {
       rm.actIndex = Math.max(0, rm.actSequence.length - 1);
     }
+    // A Hunted span whose act has begun is gone, as advanceAct ends it (read against the run's
+    // acts once the sequence is final).
+    rm.burdens = expireActBurdens(rm.burdens, {
+      actSequence: rm.actSequence,
+      actIndex: rm.actIndex,
+    }).burdens;
     // Read against the catalog and the run's acts (after the act sequence is final).
     rm.earnedBlessingPicks = sanitizeEarnedBlessingPicks(saved.earnedBlessingPicks, {
       earnedIds: earnedBlessingsOf(gameData).map((b) => b.id),
@@ -6654,6 +6723,8 @@ export class RunManager {
       // An owed or open offer never shows a card the run holds (EarnedBlessings.pruneHeldOffers).
       heldIds: rm.getActiveBlessingIds(),
     });
+    // Nor one a held blessing excludes (`excludes`, read against the catalog).
+    pruneHeldOffers(rm);
     rm.pendingAmbushNodeId =
       typeof saved.pendingAmbushNodeId === 'string' ? saved.pendingAmbushNodeId : null;
     rm.pendingEventNodeId =

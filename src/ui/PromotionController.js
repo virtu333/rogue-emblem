@@ -26,6 +26,7 @@ import { hasDOMHost } from '../utils/domUI.js';
 import { promotionPathContent, projectUnit } from './growthContent.js';
 import { growthCeremonies } from './GrowthCeremonyController.js';
 import { applyPromotionOath, promotionOathCandidates } from '../engine/DeedSystem.js';
+import { classChangeItemBlock } from '../engine/TwistedBoons.js';
 
 export class PromotionController {
   constructor(scene) {
@@ -62,7 +63,11 @@ export class PromotionController {
       return false;
     }
 
-    const refusal = speakSpecialCharacterRefusal(scene.gameData, unit, 'promote', scene.runManager);
+    // Kingmaker's Oath: no Master Seal in this run, however it was offered (the item menu, a
+    // seal handed in directly).
+    const banned = classChangeItemBlock(scene.runManager, seal);
+    const refusal =
+      banned || speakSpecialCharacterRefusal(scene.gameData, unit, 'promote', scene.runManager);
     if (refusal) {
       await scene.showBriefBanner(refusal, UI_PALETTE.bad);
       if (!isCurrentBattleSession(scene, session)) return false;
