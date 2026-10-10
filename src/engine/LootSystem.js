@@ -26,6 +26,7 @@ import { getWeaponArtAllowedTypes } from './WeaponArtSystem.js';
 import { getImbueStoneItems } from './ImbueSystem.js';
 import { isSignatureWeapon } from './SignatureWeapons.js';
 import { bindAccessorySkill } from './AccessorySkills.js';
+import { legendaryExclusions } from './LegendaryOwnership.js';
 
 const META_INNATE_TIERS = new Set(['Iron', 'Steel', 'Silver']);
 // Tiers an act tunes in lootTables.json `artTiers` (base art chance, scroll slots).
@@ -992,7 +993,7 @@ export function generateLootChoices(
   const { pools, weights } = buildLootTablesFromAct(table, allWeapons, consumables);
   const options = generateOptions || {};
   // Legendaries the run already owns (engine/LegendaryOwnership.js): never offered again.
-  const ownedLegendaries = new Set(options.excludeLegendaryNames || []);
+  const ownedLegendaries = legendaryExclusions(options.excludeLegendaryNames, allWeapons);
   const rosterTypes = roster ? getRosterWeaponTypes(roster) : null;
   pools.weaponArtScroll = [
     ...pools.weaponArtScroll,
@@ -1150,7 +1151,7 @@ export function generateShopInventory(
     table.artTiers?.innateChance,
   );
 
-  const ownedLegendaries = new Set(generateOptions?.excludeLegendaryNames || []);
+  const ownedLegendaries = legendaryExclusions(generateOptions?.excludeLegendaryNames, allWeapons);
   const recentNames = new Set(generateOptions?.recentItemNames || []);
   const preferFresh = (pool) => {
     const fresh = pool.filter((name) => !recentNames.has(name));

@@ -7,9 +7,29 @@
 // those names out of their pools (the draw falls to another item of the tier), and add no draw
 // when nothing is owned, so a run that owns no legendary rolls exactly as it did.
 
-import { stripItemNameSuffix } from '../utils/itemNames.js';
+import { stripItemNameSuffix, weaponCatalogNames } from '../utils/itemNames.js';
 
-const isLegend = (item) => item?.tier === 'Legend';
+// Legend-tier weapons only: the Legend staves (Warp Staff, Fortify) stay repeatable.
+const isLegend = (item) => item?.tier === 'Legend' && item.type !== 'Staff';
+
+/** The catalog name of a Legend item: no forge/wear suffix, no imbue adjective. */
+function plainName(item) {
+  const base = stripItemNameSuffix(item._baseName || item.name);
+  return item._imbueId && !item._baseName ? base.replace(/^\S+\s+/, '') : base;
+}
+
+/** The Legend-tier weapon names a catalog holds: the only names the ledger can exclude. */
+export function legendaryCatalogNames(allWeapons) {
+  return new Set(
+    (Array.isArray(allWeapons) ? allWeapons : []).filter(isLegend).map((weapon) => weapon.name),
+  );
+}
+
+/** `names` held to the catalog's Legend weapons (a stray or corrupt entry excludes nothing). */
+export function legendaryExclusions(names, allWeapons) {
+  const legends = legendaryCatalogNames(allWeapons);
+  return new Set([...(names || [])].filter((name) => legends.has(name)));
+}
 
 /** The ledger as saved: unique non-empty strings. Anything else is dropped. */
 export function sanitizeLegendaryGrants(raw) {
@@ -20,7 +40,7 @@ export function sanitizeLegendaryGrants(raw) {
 /** Record a granted weapon in the run's ledger (no-op for anything but a Legend-tier item). */
 export function recordLegendaryGrant(run, item) {
   if (!run || !isLegend(item) || typeof item.name !== 'string') return false;
-  const name = stripItemNameSuffix(item.name);
+  const name = plainName(item);
   if (!name) return false;
   const ledger = sanitizeLegendaryGrants(run.legendaryGrants);
   if (!ledger.includes(name)) ledger.push(name);
@@ -32,7 +52,8 @@ export function recordLegendaryGrant(run, item) {
 export function ownedLegendaryNames(run) {
   const owned = new Set(sanitizeLegendaryGrants(run?.legendaryGrants));
   const add = (item) => {
-    if (isLegend(item) && typeof item.name === 'string') owned.add(stripItemNameSuffix(item.name));
+    if (isLegend(item) && typeof item.name === 'string')
+      for (const name of weaponCatalogNames(item)) owned.add(name);
   };
   const units = [
     ...(Array.isArray(run?.roster) ? run.roster : []),
@@ -51,8 +72,6 @@ export function ownedLegendaryNames(run) {
 /** True when this item is a Legend-tier weapon the run already has (granted or held). */
 export function isDuplicateLegendary(run, item) {
   return (
-    isLegend(item) &&
-    typeof item.name === 'string' &&
-    ownedLegendaryNames(run).has(stripItemNameSuffix(item.name))
+    isLegend(item) && typeof item.name === 'string' && ownedLegendaryNames(run).has(plainName(item))
   );
 }

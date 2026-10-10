@@ -65,9 +65,9 @@ export function shopItemOwned(run, row) {
 export function shopBuyBlock(run, stock, entry) {
   if (!stock.includes(entry)) return 'This item is no longer in stock.';
   if (!Number.isFinite(entry.price) || entry.price < 0) return 'Item price is unavailable.';
-  if (run.gold < entry.price) return 'Not enough gold.';
   // Stock rolled before the first one was bought (or loaded from an older save).
   if (isDuplicateLegendary(run, entry.item)) return 'Already owned this run.';
+  if (run.gold < entry.price) return 'Not enough gold.';
   return '';
 }
 export function purchaseShopItem(run, stock, entry, recipient) {

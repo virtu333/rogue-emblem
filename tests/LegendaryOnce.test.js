@@ -6,6 +6,7 @@ import {
   ownedLegendaryNames,
   recordLegendaryGrant,
   sanitizeLegendaryGrants,
+  legendaryExclusions,
 } from '../src/engine/LegendaryOwnership.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { mulberry32 } from '../src/engine/CasterGear.js';
@@ -73,10 +74,12 @@ describe('a legendary is granted once a run', () => {
   });
 
   it('quality upgrades never land on an owned legendary', () => {
-    const open = lootNames([], 3, { bonus: 100, act: 'act2' }).filter((i) => i.tier === 'Legend');
+    const open = lootNames([], 3, { bonus: 100, act: 'act2' }).filter(
+      (i) => i.tier === 'Legend' && i.type !== 'Staff',
+    );
     expect(open.length).toBeGreaterThan(0);
     const allOwned = lootNames(legendNames, 3, { bonus: 100, act: 'act2' });
-    expect(allOwned.filter((i) => i.tier === 'Legend')).toHaveLength(0);
+    expect(allOwned.filter((i) => i.tier === 'Legend' && i.type !== 'Staff')).toHaveLength(0);
     const one = lootNames(['Ragnarok'], 3, { bonus: 100, act: 'act2' });
     expect(one.some((i) => i.name === 'Ragnarok')).toBe(false);
   });
@@ -106,26 +109,41 @@ describe('a legendary is granted once a run', () => {
     expect(run({ excludeLegendaryNames: [] })).toEqual(run({}));
   });
 
+  // A sellable Legend sword: the shipped legendaries are unsellable (price 0), so the catalog
+  // and the act's pool get one test blade.
+  const shopCatalog = () => {
+    const blade = { ...data.weapons.find((w) => w.name === 'Ragnarok'), name: 'Test Blade' };
+    blade.price = 3000;
+    const tables = structuredClone(data.lootTables);
+    tables.act4.legendaryWeapon = ['Test Blade'];
+    return { weapons: [...data.weapons, blade], tables };
+  };
+  const stock = (excluded) => {
+    const { weapons, tables } = shopCatalog();
+    seedRandom(5);
+    const names = [];
+    for (let i = 0; i < 300; i++)
+      for (const e of generateShopInventory(
+        'act4',
+        tables,
+        weapons,
+        consumables,
+        data.accessories,
+        roster,
+        null,
+        { excludeLegendaryNames: excluded },
+      ))
+        names.push(e.item.name);
+    return names;
+  };
+
   it('shops stop stocking an owned legendary', () => {
-    const stock = (excluded) => {
-      seedRandom(5);
-      const names = [];
-      for (let i = 0; i < 300; i++)
-        for (const e of generateShopInventory(
-          'act4',
-          data.lootTables,
-          data.weapons,
-          consumables,
-          data.accessories,
-          roster,
-          null,
-          { excludeLegendaryNames: excluded },
-        ))
-          names.push(e.item.name);
-      return names;
-    };
-    expect(stock([])).toContain('Warp Staff');
-    expect(stock(['Warp Staff'])).not.toContain('Warp Staff');
+    expect(stock([])).toContain('Test Blade');
+    expect(stock(['Test Blade'])).not.toContain('Test Blade');
+  });
+
+  it('shops keep selling Warp Staff after one is owned', () => {
+    expect(stock(['Warp Staff'])).toContain('Warp Staff');
   });
 });
 
@@ -156,10 +174,7 @@ describe('the ledger', () => {
   });
 
   it('blocks buying a legendary the run already owns, and records one it buys', () => {
-    const staff = {
-      ...data.weapons.find((w) => w.name === 'Warp Staff'),
-      uid: 'x',
-    };
+    const staff = { ...data.weapons.find((w) => w.name === 'Ragnarok'), uid: 'x', price: 100 };
     const entry = { item: staff, price: 100, type: 'weapon' };
     const unit = { inventory: [], consumables: [], proficiencies: [], stats: {} };
     const run = {
@@ -180,7 +195,7 @@ describe('the ledger', () => {
     };
     const stock = [entry];
     expect(purchaseShopItem(run, stock, entry, 'convoy').ok).toBe(true);
-    expect(run.legendaryGrants).toEqual(['Warp Staff']);
+    expect(run.legendaryGrants).toEqual(['Ragnarok']);
     run.convoy.weapons.length = 0;
     const again = { ...entry, item: { ...staff } };
     expect(shopBuyBlock(run, [again], again)).toBe('Already owned this run.');
@@ -208,5 +223,59 @@ describe('save and resume', () => {
     expect(RunManager.fromJSON(saved, loadGameData()).legendaryGrants).toEqual(['Ragnarok']);
     delete saved.legendaryGrants;
     expect(RunManager.fromJSON(saved, loadGameData()).legendaryGrants).toEqual([]);
+  });
+});
+
+describe('scope and old saves', () => {
+  it('leaves Legend-tier staves repeatable', () => {
+    const run = { roster: [], convoy: { weapons: [], consumables: [] } };
+    expect(recordLegendaryGrant(run, { name: 'Warp Staff', tier: 'Legend', type: 'Staff' })).toBe(
+      false,
+    );
+    run.convoy.weapons.push({ name: 'Fortify', tier: 'Legend', type: 'Staff' });
+    expect(ownedLegendaryNames(run).size).toBe(0);
+  });
+
+  it('counts an imbued, forged legendary an old save holds', () => {
+    const imbued = {
+      name: 'Vampiric Ragnarok +1',
+      _imbueId: 'vampiric',
+      tier: 'Legend',
+      type: 'Sword',
+    };
+    const run = { roster: [{ inventory: [imbued] }] };
+    expect(ownedLegendaryNames(run).has('Ragnarok')).toBe(true);
+    const ledger = {};
+    recordLegendaryGrant(ledger, imbued);
+    expect(ledger.legendaryGrants).toEqual(['Ragnarok']);
+  });
+
+  it('a corrupt ledger entry excludes nothing outside the Legend catalog', () => {
+    const names = legendaryExclusions(
+      ['Vulnerary', 'Iron Sword', 'Warp Staff', 'Ragnarok'],
+      data.weapons,
+    );
+    expect([...names]).toEqual(['Ragnarok']);
+  });
+
+  it('refuses a reward card or shop entry for a legendary already owned', () => {
+    const unit = {
+      inventory: [],
+      consumables: [],
+      proficiencies: [{ type: 'Sword', rank: 'Mast' }],
+      stats: {},
+    };
+    const run = {
+      roster: [unit],
+      legendaryGrants: ['Ragnarok'],
+      convoy: { weapons: [], consumables: [] },
+    };
+    const card = structuredClone(data.weapons.find((w) => w.name === 'Ragnarok'));
+    expect(applyRewardTarget(run, card, unit)).toEqual({
+      ok: false,
+      reason: 'Already owned this run.',
+    });
+    const entry = { item: card, price: 999999, type: 'weapon' };
+    expect(shopBuyBlock({ ...run, gold: 0 }, [entry], entry)).toBe('Already owned this run.');
   });
 });

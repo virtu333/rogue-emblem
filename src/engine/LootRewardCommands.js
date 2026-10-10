@@ -15,7 +15,7 @@ import {
   getImbueList,
   applyImbue,
 } from './ImbueSystem.js';
-import { recordLegendaryGrant } from './LegendaryOwnership.js';
+import { isDuplicateLegendary, recordLegendaryGrant } from './LegendaryOwnership.js';
 import { INVENTORY_MAX, CONSUMABLE_MAX } from '../utils/constants.js';
 
 export const REWARD_FORGE_STATS = [
@@ -32,6 +32,8 @@ export function rewardWeaponEligible(item, weapon) {
       : canForgeStat(weapon, item.forgeStat);
 }
 export function rewardTargetBlock(run, item, target) {
+  // A card rolled before this run took its first copy (or by an older build).
+  if (isDuplicateLegendary(run, item)) return 'Already owned this run.';
   if (target === 'convoy') return run.canAddToConvoy?.(item) ? '' : 'Convoy full';
   if (!run.roster?.includes(target)) return 'Unit is no longer in the roster.';
   if (item.type === 'Consumable' && item.effect === 'statBoost') return '';
