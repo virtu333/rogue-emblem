@@ -84,6 +84,26 @@ for (const [label, device] of [
       await expect(rite.locator('.gr-deed-epithet-text')).toHaveText('Bane of the Iron Captain');
       await expect(rite.locator('.gr-deed-name')).toHaveText(`${name},`);
       await expect(rite.locator('.gr-deed-count')).toHaveText('1 / 2');
+      // Each card reveals on its own clock (deedSchedule, about 1.8 s at normal speed); the
+      // checks wait for it rather than race it. Mid-reveal the epithet is still slamming in
+      // (gr-deed-slam scales it up to 1.55x, and a transform counts in its parents'
+      // scrollWidth), and a press sent just as the reveal ends moves on to the next card
+      // instead of completing this one. The press that completes a revealing card is
+      // DeedRite.test.js's, on fake timers.
+      const revealed = async (buttonName) => {
+        const button = rite.getByRole('button', { name: buttonName, exact: true });
+        await expect(button).toBeVisible({ timeout: 15000 });
+        await expect(rite).toHaveClass(/is-done/);
+        await rite.locator('.gr-deed-text').evaluate((node) =>
+          Promise.all(
+            node
+              .getAnimations({ subtree: true })
+              .filter((a) => Number.isFinite(a.effect?.getComputedTiming?.().endTime))
+              .map((a) => a.finished.catch(() => null)),
+          ),
+        );
+      };
+      await revealed('Next deed');
       if (SHOTS) await page.waitForTimeout(2600);
       await page.screenshot({ path: info.outputPath(`deed-rite-${label}.png`) });
       if (SHOTS) await page.screenshot({ path: `${SHOTS}/deed-rite-${label}.png` });
@@ -97,18 +117,12 @@ for (const [label, device] of [
         );
       expect(overflow).toEqual([]);
 
-      // Reveal, then the next card; then continue out of the rite.
-      // (The first press completes a card still revealing; the next moves on.)
-      const revealThen = async (label) => {
-        const button = rite.getByRole('button', { name: label, exact: true });
-        if (!(await button.isVisible())) await page.keyboard.press('Enter');
-        await expect(button).toBeVisible();
-        await page.keyboard.press('Enter');
-      };
-      await revealThen('Next deed');
+      // The revealed card moves on to the next; the last one continues out of the rite.
+      await page.keyboard.press('Enter');
       await expect(rite.locator('.gr-deed-epithet-text')).toHaveText('the Keen Edge');
       await expect(rite.locator('.gr-deed-count')).toHaveText('2 / 2');
-      await revealThen('Continue');
+      await revealed('Continue');
+      await page.keyboard.press('Enter');
       await expect(page.getByRole('dialog', { name: /^Deed\./ })).toHaveCount(0);
 
       // The rewards follow; the roster shows the title and the Deeds section.
