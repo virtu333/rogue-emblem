@@ -185,7 +185,11 @@ function cardTableRows(rows, { earned = false } = {}) {
       offered: earned ? row.offeredRuns : row.offered,
       taken: row.taken,
     };
-    if (earned) out.granted = row.granted;
+    if (earned) {
+      out.granted = row.granted;
+      out['compared with'] =
+        row.basis === 'source' ? 'source peers' : row.basis === 'none' ? '-' : 'the other card';
+    }
     out.exercised =
       row.exercise.rate == null
         ? row.exercise.text || '-'
@@ -272,6 +276,7 @@ function report(allRuns, gameData, { seconds = null } = {}) {
     'offered',
     'taken',
     'granted',
+    'compared with',
     'exercised',
     ...OUTCOMES.map((o) => `Δ${o.label}`),
     'flags',
@@ -298,7 +303,7 @@ function report(allRuns, gameData, { seconds = null } = {}) {
     '',
     '### Earned cards',
     '',
-    "Took it − offered it in a pick and took the other card, over the run's battles from that offer on. `granted`: given by an event (no choice, not compared).",
+    "Took it − offered it in a pick and took the other card, over the run's battles from that offer on; a card its source offers alone (an eclipsed elite's drop, the Colosseum's) is compared at each run's first offer from that source (this card first against another card first). `granted`: given by an event (no choice, not compared).",
     '',
     mdTable(earnedCols, earnedTable),
     '',

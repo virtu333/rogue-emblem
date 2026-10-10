@@ -29,6 +29,8 @@ export const OUTCOMES = Object.freeze([
 ]);
 
 export const Z95 = 1.96;
+// Earned sources that offer one card at a time (compared at each run's first offer from them).
+export const SINGLE_CARD_SOURCES = Object.freeze(['eclipsed_elite', 'colosseum']);
 export const Z_FAMILY = 3.66;
 export const MIN_TAKEN_FOR_FLAG = 10;
 
@@ -260,8 +262,10 @@ export function startCardRows(results, gameData, { rungs = null } = {}) {
 /**
  * Per earned card: the runs that were shown it in a pick (an act boss's pair, an eclipsed elite's
  * card, the sanctum's pair, the Colosseum's card), the runs that took it, how they got it, the
- * exercise rate, and the outcome differences over the battles from the card's first offer on.
- * Event grants (no choice: the card is given) are counted, not compared.
+ * exercise rate, and the outcome differences over the battles from the card's first offer on:
+ * against the runs offered it that took the other card (`basis` 'pair'), or, for a card its source
+ * offers alone, against the runs that source offered another card ('source'). Event grants (no
+ * choice: the card is given) are counted, not compared ('none').
  */
 export function earnedCardRows(results, gameData, { rungs = null } = {}) {
   const catalog = cardCatalog(gameData);
@@ -286,6 +290,29 @@ export function earnedCardRows(results, gameData, { rungs = null } = {}) {
       (took ? g.taken : g.other).push(i);
       if (took) takenRuns.push(i);
     });
+    // A source that offers one card at a time (an eclipsed elite's drop, the Colosseum's) is
+    // always taken, so nobody was offered it and took another. There the comparison is made at
+    // each run's FIRST offer from that source: the runs whose first card was this one against the
+    // runs whose first card was another (the card is drawn on the source's own seeded stream, so
+    // which card a run is shown first does not depend on how it plays), from that offer on.
+    let basis = firstOffer.size ? 'pair' : 'none';
+    const single = SINGLE_CARD_SOURCES.filter((kind) => sources[kind]);
+    if (single.length && Object.values(groups).every((g) => g.other.length < 2)) {
+      basis = 'source';
+      for (const key of Object.keys(groups)) delete groups[key];
+      firstOffer.clear();
+      takenRuns.length = 0;
+      results.forEach((result, i) => {
+        const peer = (result.offers || []).filter((o) => single.includes(o.source));
+        if (!peer.length) return;
+        const first = peer.reduce((m, o) => (o.battleIndex < m.battleIndex ? o : m), peer[0]);
+        firstOffer.set(i, first.battleIndex);
+        const took = first.id === card.id && first.taken;
+        (groups[result.difficulty] ||= { taken: [], other: [] })[took ? 'taken' : 'other'].push(i);
+        if (took) takenRuns.push(i);
+      });
+      if (Object.values(groups).every((g) => g.other.length === 0)) basis = 'none';
+    }
     const heldRuns = results
       .map((r, i) => ((r.heldAtEnd || []).includes(card.id) ? i : -1))
       .filter((i) => i >= 0);
@@ -293,8 +320,12 @@ export function earnedCardRows(results, gameData, { rungs = null } = {}) {
       id: card.id,
       name: card.name,
       kind: card.twist ? 'twisted' : 'earned',
-      offeredRuns: firstOffer.size,
+      offeredRuns:
+        basis === 'source'
+          ? takenRuns.length
+          : takenRuns.length + Object.values(groups).reduce((n, g) => n + g.other.length, 0),
       taken: takenRuns.length,
+      basis,
       granted,
       held: heldRuns.length,
       sources,
