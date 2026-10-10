@@ -124,6 +124,12 @@ export function statusDescriptions(unit) {
     return `${name} · ${early ? 'up to ' : ''}${duration} turn${duration === 1 ? '' : 's'}. ${effect}${early ? ' May recover at turn start.' : ''}`;
   });
 }
+/**
+ * A foe's status staff (Sleep / Silence) as an item line: it rides `unit.statusStaff`, beside
+ * the weapon and outside `inventory`, so every place that lists a foe's items reads it here
+ * ("Silence Staff · Range 3-7 · 1/2 uses", "Sleep Staff · Range 3-5 · spent"). Callers show it
+ * only for a unit the player may inspect (`statusStaffPipShown` is the one rule for the map).
+ */
 export function statusStaffInfo(unit) {
   const staff = unit?.statusStaff;
   if (!staff || !(staff.uses > 0)) return null;
@@ -132,8 +138,12 @@ export function statusStaffInfo(unit) {
     staff,
     uses,
     ...parseStaffRange(staff.range),
-    text: `${staff.name} · Range ${staff.range} · ${uses}/${staff.uses} uses`,
+    text: `${staff.name} · Range ${staff.range} · ${uses > 0 ? `${uses}/${staff.uses} uses` : 'spent'}`,
   };
+}
+/** Does the map draw the staff pip over this unit? A staff with uses left, while in view. */
+export function statusStaffPipShown(grid, unit) {
+  return (statusStaffInfo(unit)?.uses || 0) > 0 && unit.currentHP > 0 && canInspectUnit(grid, unit);
 }
 export function statusStaffThreat(unit) {
   const info = statusStaffInfo(unit);

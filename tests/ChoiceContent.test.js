@@ -253,8 +253,49 @@ describe('rewardForWhom', () => {
     const steel = structuredClone(data.weapons.find((w) => w.name === 'Steel Sword'));
     const result = rewardForWhom({ type: 'weapon', item: steel }, run([a, b]));
     expect(result.who).toBe('For Brom');
-    expect(result.detail).toMatch(/^Atk \d+ → \d+ · 2 can wield$/);
+    expect(result.detail).toMatch(/^Atk \d+ → \d+ · .*2 can wield$/);
     expect(result.tone).toBe('good');
+  });
+  it('beside attack, names what else changes against the weapon held', () => {
+    // The playtest's ask: a weapon card said only "Atk 13 → 16". Brom swaps an Iron
+    // Sword (Mt 5, Hit 90, Crit 0, Wt 5) for a Killing Edge-like blade, worked by hand.
+    const brom = recruit('Mercenary', 'Brom');
+    brom.stats = { ...brom.stats, STR: 10, SKL: 10, SPD: 10, LCK: 0 };
+    const iron = {
+      name: 'Iron Sword',
+      type: 'Sword',
+      tier: 'Iron',
+      might: 5,
+      hit: 90,
+      crit: 0,
+      weight: 5,
+      range: '1',
+      rankRequired: 'Prof',
+    };
+    brom.inventory = [iron];
+    brom.weapon = iron;
+    const blade = {
+      name: 'Test Blade',
+      type: 'Sword',
+      tier: 'Steel',
+      might: 8,
+      hit: 80,
+      crit: 30,
+      weight: 9,
+      range: '1-2',
+      rankRequired: 'Prof',
+    };
+    const result = rewardForWhom({ type: 'weapon', item: blade }, run([brom]));
+    // Atk 10+5=15 → 10+8=18; AS: weight over floor(STR/5)=2 costs 3 → 7 vs 9 → 3: −4;
+    // Hit −10; Crit +30; range 1 → 1-2.
+    expect(result.detail).toBe(
+      'Atk 15 → 18 · AS\u00a0\u22124 · Hit\u00a0\u221210 · Crit\u00a0+30 · Range\u00a01\u00a0→\u00a01-2 · 1 can wield',
+    );
+    // Nothing else changes: attack alone.
+    const same = { ...iron, name: 'Iron Sword Copy', might: 6 };
+    expect(rewardForWhom({ type: 'weapon', item: same }, run([brom])).detail).toBe(
+      'Atk 15 → 16 · 1 can wield',
+    );
   });
   it('says plainly when no one can wield it', () => {
     const lance = structuredClone(
