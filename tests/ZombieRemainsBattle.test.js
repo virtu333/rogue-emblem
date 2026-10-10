@@ -4,7 +4,11 @@
 // Vision rewind). Ways this can break:
 //   - Smash is missing, or offered for remains the fog hides
 //   - smashing leaves a record on the tile (two zombies that fell on one tile), takes
-//     a record from another tile, rolls the RNG or lets Canto move on
+//     a record from another tile, or rolls the RNG
+//   - a unit with Canto cannot move on after smashing (Smash is not a fight), or the
+//     smash is not saved before the Canto opens (a refresh would undo it)
+//   - the phone rail has no row per pile (only a tap on the board), or a row smashes
+//     the wrong pile
 //   - the last remains of a Rout do not win it (they blocked the win before Smash)
 //   - the objective line keeps counting smashed remains
 //   - a zombie that falls unseen is drawn, or a seen one is not
@@ -214,7 +218,7 @@ describe('the Smash command', () => {
     expect(openMenuCommand(scene, 'smash')).not.toBeNull();
   });
 
-  it('smashing: the record goes, nothing is rolled, the action ends without Canto', () => {
+  it('smashing: the record goes, nothing is rolled, the action ends', async () => {
     const foe = { name: 'Fighter', faction: 'enemy', col: 6, row: 6, currentHP: 20 };
     const { scene, unit, random } = battle({ enemies: [foe] });
     scene.updateObjectiveText();
@@ -225,11 +229,10 @@ describe('the Smash command', () => {
     expect(scene._zombieTombstones).toHaveLength(1);
     scene.handleRemainsTargetClick({ col: 2, row: 1 });
     expect(scene._zombieTombstones).toEqual([]);
+    await vi.waitFor(() =>
+      expect(scene.finishUnitAction).toHaveBeenCalledWith(unit, { session: scene._battleSession }),
+    );
     expect(scene.objectiveText.text).toBe('Rout: 1 enemy remaining');
-    expect(scene.finishUnitAction).toHaveBeenCalledWith(unit, {
-      skipCanto: true,
-      session: scene._battleSession,
-    });
     expect(scene.commitVisionSnapshotIfPending).toHaveBeenCalled();
     expect(scene.onVictory).not.toHaveBeenCalled();
     expect(random).not.toHaveBeenCalled();
@@ -237,18 +240,55 @@ describe('the Smash command', () => {
     expect(unit.xp).toBeUndefined();
   });
 
-  it('the last remains of a Rout: smashing them wins the battle', () => {
+  it('Canto: a unit with movement left moves on after smashing, the smash saved first', async () => {
+    const foe = { name: 'Fighter', faction: 'enemy', col: 6, row: 6, currentHP: 20 };
+    const { scene, unit } = battle({ enemies: [foe] });
+    unit._movementSpent = 2; // walked 2 of its 5
+    delete scene.finishUnitAction; // the real end of an action
+    const range = new Map([['1,1', { cost: 0 }]]);
+    scene.grid.getMovementRange = vi.fn(() => range);
+    scene.grid.showMovementRange = vi.fn();
+    scene.buildUnitPositionMap = () => new Map();
+    scene._getCostModifier = () => null;
+    const saved = [];
+    scene._captureSuspendCheckpoint = vi.fn(() => {
+      saved.push({
+        remains: scene._zombieTombstones.length,
+        continuation: scene._pendingActionCompletion,
+      });
+      return true;
+    });
+    scene.showActionMenu(unit);
+    openMenuCommand(scene, 'smash').onActivate();
+    scene.handleRemainsTargetClick({ col: 2, row: 1 });
+    await vi.waitFor(() => expect(scene.battleState).toBe('CANTO_MOVING'));
+    expect(scene._zombieTombstones).toEqual([]);
+    expect(scene.grid.getMovementRange.mock.calls[0][2]).toBe(3); // 5 MOV less the 2 spent
+    expect(scene.cantoRange).toBe(range);
+    expect(unit.hasActed).toBe(true);
+    // Durable before the Canto opens: a resume replays the finish, Canto included.
+    expect(saved[0]).toEqual({
+      remains: 0,
+      continuation: expect.objectContaining({
+        kind: 'finish',
+        unitName: 'Edric',
+        skipCanto: false,
+      }),
+    });
+  });
+
+  it('the last remains of a Rout: smashing them wins the battle, no Canto', async () => {
     const { scene, unit } = battle({ enemies: [] });
     expect(scene.checkBattleEnd()).toBe(false); // remains still block the win
     expect(scene.onVictory).not.toHaveBeenCalled();
     scene.showActionMenu(unit);
     openMenuCommand(scene, 'smash').onActivate();
     scene.handleRemainsTargetClick({ col: 2, row: 1 });
-    expect(scene.onVictory).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(scene.onVictory).toHaveBeenCalledTimes(1));
     expect(scene.finishUnitAction).not.toHaveBeenCalled();
   });
 
-  it('two zombies fell on one tile: stamping on it clears both and wins the Rout', () => {
+  it('two zombies fell on one tile: stamping on it clears both and wins the Rout', async () => {
     // The pile under the smasher is hidden by its sprite and no one else can reach an
     // occupied tile, so a record left there would block the win and rise unseen.
     const { scene, unit } = battle({
@@ -259,6 +299,7 @@ describe('the Smash command', () => {
     openMenuCommand(scene, 'smash').onActivate();
     scene.handleRemainsTargetClick({ col: 1, row: 1 });
     expect(scene._zombieTombstones.map((r) => [r.col, r.row])).toEqual([[5, 5]]);
+    await vi.waitFor(() => expect(scene.finishUnitAction).toHaveBeenCalled());
     expect(scene.onVictory).not.toHaveBeenCalled(); // the pile at (5,5) still stands
     scene._zombieTombstones = [remainsAt(1, 1), remainsAt(1, 1)];
     scene.battleState = 'UNIT_ACTION_MENU';
@@ -266,7 +307,38 @@ describe('the Smash command', () => {
     openMenuCommand(scene, 'smash').onActivate();
     scene.handleRemainsTargetClick({ col: 1, row: 1 });
     expect(scene._zombieTombstones).toEqual([]);
-    expect(scene.onVictory).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(scene.onVictory).toHaveBeenCalledTimes(1));
+  });
+
+  it('the rail lists each pile in reach as a row; a row smashes its own pile', async () => {
+    const foe = { name: 'Fighter', faction: 'enemy', col: 6, row: 6, currentHP: 20 };
+    const { scene, unit } = battle({
+      enemies: [foe],
+      remains: [
+        remainsAt(1, 1),
+        remainsAt(1, 1, { turnsRemaining: 2 }),
+        remainsAt(1, 2, { turnsRemaining: 1 }),
+        remainsAt(5, 5),
+      ],
+    });
+    scene.showActionMenu(unit);
+    openMenuCommand(scene, 'smash').onActivate();
+    const rows = scene._remainsCtrl.targetRows(unit);
+    expect(rows.map(({ label, detail }) => [label, detail])).toEqual([
+      ['2 Zombie remains (underfoot)', 'first rises in 2 enemy phases'],
+      ['Zombie remains', 'rises in 1 enemy phase'],
+    ]);
+    // A stale row (the state moved on) does nothing.
+    scene.battleState = 'UNIT_ACTION_MENU';
+    expect(scene._remainsCtrl.choose(rows[1].target)).toBe(false);
+    scene.battleState = 'SELECTING_REMAINS_TARGET';
+    expect(scene._remainsCtrl.choose(rows[1].target)).toBe(true);
+    expect(scene._zombieTombstones.map((r) => [r.col, r.row])).toEqual([
+      [1, 1],
+      [1, 1],
+      [5, 5],
+    ]);
+    await vi.waitFor(() => expect(scene.finishUnitAction).toHaveBeenCalled());
   });
 
   it('a tap on the board reaches the smash through the input controller', () => {
