@@ -151,12 +151,34 @@ async function clipVisionWalk(page, speed) {
       return `${x.toFixed(1)},${y.toFixed(1)}`;
     };
     const frames = [];
+    // What the renderer itself drew: Phaser only calls a game object's render function
+    // when it passed the camera's filter this frame, so a call is a drawn sprite, which
+    // `visible` alone is not (the sprite can be visible and never reach a frame).
+    const g = enemy.graphic;
+    let drawnThisFrame = [];
+    const wrapped = [];
+    for (const name of ['renderWebGL', 'renderCanvas']) {
+      const original = g[name];
+      if (typeof original !== 'function') continue;
+      g[name] = function (...args) {
+        drawnThisFrame.push(tileOf(this.x, this.y));
+        return original.apply(this, args);
+      };
+      wrapped.push(name);
+    }
+    const onPreRender = () => {
+      drawnThisFrame = [];
+    };
     const onRender = () => {
-      const g = enemy.graphic;
-      frames.push({ tile: tileOf(g.x, g.y), shown: g.visible === true && g.alpha > 0 });
+      frames.push({
+        tile: tileOf(g.x, g.y),
+        shown: g.visible === true && g.alpha > 0,
+        drawn: drawnThisFrame,
+      });
     };
     scene.turnManager.currentPhase = 'enemy';
     scene.battleState = 'ENEMY_PHASE';
+    game.events.on('prerender', onPreRender);
     game.events.on('postrender', onRender);
     const started = performance.now();
     let result;
@@ -165,13 +187,16 @@ async function clipVisionWalk(page, speed) {
       // Two more frames after the walk: the sprite rests hidden on its fogged end tile.
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     } finally {
+      game.events.off('prerender', onPreRender);
       game.events.off('postrender', onRender);
+      for (const name of wrapped) delete g[name];
     }
     return {
       ms: performance.now() - started,
       seen: result?.seen,
       tiles: path.map((t) => `${t.col},${t.row}`),
       frames,
+      wrapped,
       end: `${enemy.col},${enemy.row}`,
       endShown: enemy.graphic.visible,
     };
@@ -189,11 +214,18 @@ for (const speed of ['normal', 'instant']) {
     expect(walk.error).toBeUndefined();
     const [start, mid, end] = walk.tiles;
     expect(walk.seen).toBe(true);
+    // The renderer drew the sprite (its render function ran), so the draw is observed.
+    expect(walk.wrapped.length).toBeGreaterThan(0);
     // At least one rendered frame shows the enemy on the seen tile...
     const onMid = walk.frames.filter((f) => f.shown && f.tile === mid);
     expect(onMid.length, JSON.stringify(walk.frames)).toBeGreaterThanOrEqual(1);
-    // ...and none shows it anywhere the party cannot see.
+    expect(
+      walk.frames.filter((f) => f.drawn.includes(mid)).length,
+      JSON.stringify(walk.frames),
+    ).toBeGreaterThanOrEqual(1);
+    // ...and none draws it anywhere the party cannot see.
     expect(walk.frames.filter((f) => f.shown && f.tile !== mid)).toEqual([]);
+    expect(walk.frames.flatMap((f) => f.drawn).filter((tile) => tile !== mid)).toEqual([]);
     expect(walk.frames.some((f) => f.tile === start || f.tile === end)).toBe(true);
     expect(walk.end).toBe(end);
     expect(walk.endShown).toBe(false);
