@@ -257,7 +257,8 @@ jobs:
           elif [ "$AAB_MB" -gt 180 ]; then
             echo "::warning::The bundle is ${AAB_MB} MB, close to Play's 200 MB download limit"
           fi
-          unzip -l "$AAB" | grep -q 'base/assets/public/index.html' \
+          # Consume the full listing: grep -q can SIGPIPE unzip under pipefail.
+          unzip -l "$AAB" | grep 'base/assets/public/index.html' > /dev/null \
             || { echo "::error::the web game is missing from the bundle"; exit 1; }
           if [ -n "${ANDROID_KEYSTORE_PATH:-}" ]; then
             jarsigner -verify "$AAB" | tee "$RUNNER_TEMP/verify.log"
