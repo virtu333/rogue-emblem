@@ -155,8 +155,26 @@ describe('the twelve cards', () => {
 
 describe('the validator and the handler read every boon the same way', () => {
   const shapes = {
-    act_clear_army_stats: [{ value: 1 }, { value: 0 }, { value: 4 }, { value: 1.5 }, {}],
-    under_par_gold: [{ perTurn: 100 }, { perTurn: 0 }, { perTurn: -5 }, { value: 100 }],
+    act_clear_army_stats: [
+      { value: 1, stats: 2 },
+      { value: 1, stats: 8 },
+      { value: 1 },
+      { value: 1, stats: 0 },
+      { value: 1, stats: 9 },
+      { value: 1, stats: 2.5 },
+      { value: 0, stats: 2 },
+      { value: 4, stats: 2 },
+      { value: 1.5, stats: 2 },
+      {},
+    ],
+    under_par_gold: [
+      { perTurn: 100 },
+      { perTurn: 500 },
+      { perTurn: 501 },
+      { perTurn: 0 },
+      { perTurn: -5 },
+      { value: 100 },
+    ],
     move_type_battle_stats: [
       { bonuses: [{ moveTypes: ['Cavalry'], stat: 'MOV', value: 1 }] },
       { bonuses: [] },
@@ -170,7 +188,7 @@ describe('the validator and the handler read every boon the same way', () => {
         ],
       },
     ],
-    staff_uses_bonus: [{ value: 1 }, { value: 0 }, { value: '1' }],
+    staff_uses_bonus: [{ value: 1 }, { value: 3 }, { value: 4 }, { value: 0 }, { value: '1' }],
     carrier_luck: [
       { carryMultiplier: 2, stealIgnoresSpeed: true },
       { carryMultiplier: 2 },
@@ -180,8 +198,8 @@ describe('the validator and the handler read every boon the same way', () => {
       { carryMultiplier: 2, stealIgnoresSpeed: 'yes' },
     ],
     recruit_alternate: [{ value: 1 }, { value: 2 }, { value: 0 }],
-    boss_battle_vision: [{ value: 1 }, { value: -1 }],
-    par_turn_delta: [{ value: 2 }, { value: 0 }, { value: 2.5 }],
+    boss_battle_vision: [{ value: 1 }, { value: 3 }, { value: 4 }, { value: -1 }],
+    par_turn_delta: [{ value: 2 }, { value: 5 }, { value: 6 }, { value: 0 }, { value: 2.5 }],
     church_extra_vows: [{ value: 1 }, { value: 2 }, { value: 3 }, { value: 0 }],
     eclipse_omen: [
       { foretell: 2, spare: ['recruit'] },
@@ -219,6 +237,45 @@ describe('the validator and the handler read every boon the same way', () => {
     // The list really holds both kinds (the check is not vacuous).
     expect(valid).toBeGreaterThan(0);
     expect(invalid).toBeGreaterThan(0);
+  });
+
+  it('a hand-edited save or stacked cards never go past the caps the validator holds a card to', () => {
+    for (const [type, params] of [
+      ['under_par_gold', { perTurn: 501 }],
+      ['staff_uses_bonus', { value: 4 }],
+      ['boss_battle_vision', { value: 4 }],
+      ['par_turn_delta', { value: 6 }],
+    ]) {
+      expect(shrineBoonErrors(type, params).length, type).toBe(1);
+      expect(validFor(type, params), type).toBe(false);
+    }
+    const mods = sanitizeShrineBoonModifiers({
+      ...createShrineBoonModifiers(),
+      underParGoldPerTurn: 99999,
+      staffUsesBonus: 40,
+      bossBattleVision: 12,
+      parTurnDelta: 30,
+    });
+    expect(mods).toMatchObject({
+      underParGoldPerTurn: 500,
+      staffUsesBonus: 3,
+      bossBattleVision: 3,
+      parTurnDelta: 5,
+    });
+    // Cards taken one after another stop at the same caps as a load would.
+    const rm = freshRun();
+    for (let i = 0; i < 4; i++) {
+      applyShrineBoon(rm, 'a', { type: 'under_par_gold', params: { perTurn: 200 } });
+      applyShrineBoon(rm, 'b', { type: 'staff_uses_bonus', params: { value: 1 } });
+      applyShrineBoon(rm, 'c', { type: 'boss_battle_vision', params: { value: 1 } });
+      applyShrineBoon(rm, 'd', { type: 'par_turn_delta', params: { value: 2 } });
+    }
+    expect(rm.blessingRuntimeModifiers).toMatchObject({
+      underParGoldPerTurn: 500,
+      staffUsesBonus: 3,
+      bossBattleVision: 3,
+      parTurnDelta: 5,
+    });
   });
 
   it('a type that is not one of these is left to RunManager (null), never claimed', () => {
@@ -300,6 +357,7 @@ describe('saves', () => {
       blessingId: 'late_bloom',
       kind: 'army_stats',
       value: 1,
+      stats: 2,
       paidActs: ['act1'],
     });
   });
@@ -363,9 +421,17 @@ describe('saves', () => {
       value: 0,
       paidActs: [],
     });
+    // A grant saved without its count (before the re-tune) gave every stat but Move: kept so.
+    saved.blessingRuntimeModifiers.actStartGrants.push({
+      blessingId: 'old_bloom',
+      kind: 'army_stats',
+      value: 1,
+      paidActs: ['act1'],
+    });
     const back = RunManager.fromJSON(saved, data);
     expect(back.blessingRuntimeModifiers.actStartGrants).toEqual([
-      { blessingId: 'late_bloom', kind: 'army_stats', value: 1, paidActs: ['act1'] },
+      { blessingId: 'late_bloom', kind: 'army_stats', value: 1, stats: 2, paidActs: ['act1'] },
+      { blessingId: 'old_bloom', kind: 'army_stats', value: 1, stats: 8, paidActs: ['act1'] },
     ]);
   });
 });

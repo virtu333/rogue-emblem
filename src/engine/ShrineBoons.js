@@ -11,7 +11,8 @@
 //
 // Where each boon acts:
 //   act_clear_army_stats   Late Bloom: an act-start grant (`kind: 'army_stats'`) paid by
-//                          RunManager._payActStartGrants as each later act begins.
+//                          RunManager._payActStartGrants as each later act begins, to the
+//                          stats each unit's growths favour (`lateBloomStats`).
 //   under_par_gold         Dawn Tithe: PendingBattleRewards.prepareBattleRewards, beside the turn
 //                          bonus, so a Debt never garnishes it (`dawnTitheGold`).
 //   move_type_battle_stats Cavalier's Hour: battle stat deltas in `battleParams.battleDebuffs`
@@ -26,6 +27,9 @@
 //                          TurnBonusCalculator.calculatePar.
 //   church_extra_vows      Twin Chapel: engine/ChurchVow.js.
 //   eclipse_omen           Omen Reader: EclipseSystem `spareTypes` and the view's `foretold`.
+//                          TODO(D3 `requires`): with the Eclipse off (never in the game today:
+//                          every run starts it) the card and its `shadow_now` price do nothing,
+//                          yet it can still be offered; gate it on `run.isEclipseActive()`.
 //   next_act_loot_card     Lottery Loot: PendingBattleRewards (engine/LotteryLoot.js).
 
 import { CHURCH_VOWS, XP_STAT_NAMES } from '../utils/constants.js';
@@ -62,6 +66,10 @@ const MAX_ARMY_STATS = 3;
 const MAX_FORETELL = 5;
 const MAX_LOTTERY_CARDS = 2;
 const MAX_CARRY_MULTIPLIER = 4;
+const MAX_UNDER_PAR_GOLD = 500;
+const MAX_STAFF_USES_BONUS = 3;
+const MAX_BOSS_BATTLE_VISION = 3;
+const MAX_PAR_TURN_DELTA = 5;
 
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -77,6 +85,15 @@ function positiveIntErrors(params, key, max = Infinity) {
   if (!isPositiveInteger(value)) return [`params.${key} must be a positive integer`];
   if (value > max) return [`params.${key} must be at most ${max}`];
   return [];
+}
+
+function armyStatsErrors(params) {
+  const errors = positiveIntErrors(params, 'value', MAX_ARMY_STATS);
+  if (errors.length) return errors;
+  const count = params.stats;
+  if (!Number.isInteger(count) || count < 1 || count > XP_STAT_NAMES.length)
+    errors.push(`params.stats must be an integer from 1 to ${XP_STAT_NAMES.length}`);
+  return errors;
 }
 
 function moveTypeBonusErrors(params) {
@@ -144,15 +161,17 @@ function eclipseOmenErrors(params) {
 export function shrineBoonErrors(type, params) {
   switch (type) {
     case 'act_clear_army_stats':
-      return positiveIntErrors(params, 'value', MAX_ARMY_STATS);
+      return armyStatsErrors(params);
     case 'under_par_gold':
-      return positiveIntErrors(params, 'perTurn');
+      return positiveIntErrors(params, 'perTurn', MAX_UNDER_PAR_GOLD);
     case 'move_type_battle_stats':
       return moveTypeBonusErrors(params);
     case 'staff_uses_bonus':
+      return positiveIntErrors(params, 'value', MAX_STAFF_USES_BONUS);
     case 'boss_battle_vision':
+      return positiveIntErrors(params, 'value', MAX_BOSS_BATTLE_VISION);
     case 'par_turn_delta':
-      return positiveIntErrors(params, 'value');
+      return positiveIntErrors(params, 'value', MAX_PAR_TURN_DELTA);
     case 'carrier_luck':
       return carrierLuckErrors(params);
     case 'recruit_alternate':
@@ -208,16 +227,16 @@ const nonNegInt = (value, max = Infinity) =>
  */
 export function sanitizeShrineBoonModifiers(mods) {
   if (!isPlainObject(mods)) return mods;
-  mods.underParGoldPerTurn = nonNegInt(mods.underParGoldPerTurn);
+  mods.underParGoldPerTurn = nonNegInt(mods.underParGoldPerTurn, MAX_UNDER_PAR_GOLD);
   mods.moveTypeBattleStats = (
     Array.isArray(mods.moveTypeBattleStats) ? mods.moveTypeBattleStats : []
   ).filter((bonus) => moveTypeBonusErrors({ bonuses: [bonus] }).length === 0);
-  mods.staffUsesBonus = nonNegInt(mods.staffUsesBonus);
+  mods.staffUsesBonus = nonNegInt(mods.staffUsesBonus, MAX_STAFF_USES_BONUS);
   mods.carryMultiplier = Math.max(1, nonNegInt(mods.carryMultiplier, MAX_CARRY_MULTIPLIER) || 1);
   mods.stealIgnoresSpeed = mods.stealIgnoresSpeed === true;
   mods.recruitAlternates = nonNegInt(mods.recruitAlternates, 1);
-  mods.bossBattleVision = nonNegInt(mods.bossBattleVision);
-  mods.parTurnDelta = nonNegInt(mods.parTurnDelta);
+  mods.bossBattleVision = nonNegInt(mods.bossBattleVision, MAX_BOSS_BATTLE_VISION);
+  mods.parTurnDelta = nonNegInt(mods.parTurnDelta, MAX_PAR_TURN_DELTA);
   mods.extraChurchVows = nonNegInt(mods.extraChurchVows, CHURCH_VOWS.length - 1);
   mods.eclipseForetell = nonNegInt(mods.eclipseForetell, MAX_FORETELL);
   mods.eclipseSpareTypes = [
@@ -262,12 +281,16 @@ export function applyShrineBoon(run, blessingId, effect) {
         blessingId,
         kind: 'army_stats',
         value: params.value,
+        stats: params.stats,
         paidActs: [run.currentAct].filter(Boolean),
       });
-      return { recurringValue: params.value, firstPayment: 'next_act' };
+      return { recurringValue: params.value, stats: params.stats, firstPayment: 'next_act' };
     }
     case 'under_par_gold':
-      mods.underParGoldPerTurn += params.perTurn;
+      mods.underParGoldPerTurn = Math.min(
+        MAX_UNDER_PAR_GOLD,
+        mods.underParGoldPerTurn + params.perTurn,
+      );
       return { perTurn: params.perTurn, total: mods.underParGoldPerTurn };
     case 'move_type_battle_stats':
       mods.moveTypeBattleStats = [
@@ -280,7 +303,7 @@ export function applyShrineBoon(run, blessingId, effect) {
       ];
       return { bonuses: params.bonuses.length };
     case 'staff_uses_bonus':
-      mods.staffUsesBonus += params.value;
+      mods.staffUsesBonus = Math.min(MAX_STAFF_USES_BONUS, mods.staffUsesBonus + params.value);
       return { appliedValue: params.value, total: mods.staffUsesBonus };
     case 'carrier_luck': {
       const multiplier = params.carryMultiplier ?? 1;
@@ -299,10 +322,13 @@ export function applyShrineBoon(run, blessingId, effect) {
       return { recruitAlternates: 1, created };
     }
     case 'boss_battle_vision':
-      mods.bossBattleVision += params.value;
+      mods.bossBattleVision = Math.min(
+        MAX_BOSS_BATTLE_VISION,
+        mods.bossBattleVision + params.value,
+      );
       return { appliedValue: params.value, total: mods.bossBattleVision };
     case 'par_turn_delta':
-      mods.parTurnDelta += params.value;
+      mods.parTurnDelta = Math.min(MAX_PAR_TURN_DELTA, mods.parTurnDelta + params.value);
       return { appliedValue: params.value, total: mods.parTurnDelta };
     case 'church_extra_vows':
       mods.extraChurchVows = Math.min(CHURCH_VOWS.length - 1, mods.extraChurchVows + params.value);
@@ -320,6 +346,49 @@ export function applyShrineBoon(run, blessingId, effect) {
 }
 
 // ── Reads ────────────────────────────────────────────────────────────────
+
+/** A growth range's middle ("55-70" -> 62.5; a plain number reads as itself). */
+function rangeMiddle(range) {
+  if (Number.isFinite(range)) return range;
+  const [low, high = low] = String(range ?? '')
+    .split('-')
+    .map((part) => Number(part.trim()));
+  return Number.isFinite(low) && Number.isFinite(high) ? (low + high) / 2 : 0;
+}
+
+/**
+ * The growth rates a class gives a unit: the middle of each of its ranges, or, for a promoted
+ * class (no ranges of its own), its base class's plus its own `growthBonuses`. Null when the
+ * class is unknown.
+ */
+function classGrowthRates(className, classes = []) {
+  const list = Array.isArray(classes) ? classes : [];
+  const cls = list.find((c) => c?.name === className);
+  if (!cls) return null;
+  const source = cls.growthRanges ? cls : list.find((c) => c?.name === cls.promotesFrom);
+  if (!source?.growthRanges) return null;
+  const rates = {};
+  for (const stat of XP_STAT_NAMES)
+    rates[stat] = rangeMiddle(source.growthRanges[stat]) + (Number(cls.growthBonuses?.[stat]) || 0);
+  return rates;
+}
+
+/**
+ * Late Bloom: the `count` stats a unit's growths favour, highest growth first; a tie goes to
+ * the earlier stat in HP, STR, MAG, SKL, SPD, DEF, RES, LCK. Never Move, never random. The
+ * growths are the unit's own (`unit.growths`), else its class's.
+ * @returns {string[]}
+ */
+export function lateBloomStats(unit, count, classes = []) {
+  const own = isPlainObject(unit?.growths) ? unit.growths : null;
+  const hasOwn = own && XP_STAT_NAMES.some((stat) => Number.isFinite(Number(own[stat])));
+  const growths = (hasOwn ? own : classGrowthRates(unit?.className, classes)) || {};
+  const n = Math.max(0, Math.min(XP_STAT_NAMES.length, Math.trunc(Number(count) || 0)));
+  return XP_STAT_NAMES.map((stat, index) => ({ stat, index, growth: Number(growths[stat]) || 0 }))
+    .sort((a, b) => b.growth - a.growth || a.index - b.index)
+    .slice(0, n)
+    .map((entry) => entry.stat);
+}
 
 /**
  * Dawn Tithe: the gold a victory pays for the turns it came in under the map's OWN par (Patient

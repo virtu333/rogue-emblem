@@ -803,6 +803,10 @@ export class PostCombatController {
       return;
     }
 
+    // Legacy canvas rewards: unreachable in the game (index.html always has #game-wrapper, so
+    // hasDOMHost() is true above). It does not pay the reward rules prepareBattleRewards owns
+    // (Dawn Tithe, Lottery Loot, Branching Threads); route it through rewardContext() and
+    // prepareBattleRewards before it is ever used again.
     scene._lootController = new LootScreenController(scene, scene.runManager, scene.gameData, {
       isElite: scene.isElite,
       isBoss: scene.isBoss,

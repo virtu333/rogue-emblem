@@ -20,10 +20,12 @@ import {
   getBossEnrageTurn,
 } from '../src/engine/TurnBonusCalculator.js';
 import { resolveDeployLimits } from '../src/engine/BattleDeployCount.js';
+import { resolveRecruitNodeLevel } from '../src/engine/RecruitNodeSystem.js';
 import { battleItemBrief, battleItemSummary } from '../src/ui/battleItemSummary.js';
 import { equipmentComparison } from '../src/ui/equipmentComparison.js';
 import { rewardForWhom } from '../src/ui/choiceContent.js';
-import { createLordUnit, createUnit } from '../src/engine/UnitManager.js';
+import { createLordUnit, createUnit, equipAccessory } from '../src/engine/UnitManager.js';
+import { addBurden } from '../src/engine/Burdens.js';
 import { DEPLOY_LIMITS } from '../src/utils/constants.js';
 import { HeadlessBattle } from './harness/HeadlessBattle.js';
 import { loadFixture } from './fixtures/battles/index.js';
@@ -116,6 +118,43 @@ describe("Cavalier's Hour: mounted +1 Move, infantry +1 DEF, in battle", () => {
     expect(moveTypeBattleDeltas(rm).filter((d) => d.unitUid === unit.unitUid)).toEqual([
       { unitUid: unit.unitUid, stat: 'MOV', value: 1, source: 'cavaliers_hour' },
     ]);
+  });
+
+  it("reads the unit's move type now: Mercury Sandals put an Infantry unit in the air", () => {
+    const rm = hold(startRun(), 'cavaliers_hour');
+    const unit = unitOf(rm, 'Fighter', 'Shod');
+    const sandals = structuredClone(data.accessories.find((a) => a.name === 'Mercury Sandals'));
+    expect(sandals.combatEffects.moveTypeOverride).toBe('Flying');
+    equipAccessory(unit, sandals);
+    expect(unit.moveType).toBe('Flying');
+    expect(classOf('Fighter').moveType).toBe('Infantry');
+    expect(moveTypeBattleDeltas(rm).filter((d) => d.unitUid === unit.unitUid)).toEqual([
+      { unitUid: unit.unitUid, stat: 'MOV', value: 1, source: 'cavaliers_hour' },
+    ]);
+  });
+
+  it('rides beside a Lingering Injury: both deltas reach the battle and both land', () => {
+    const rm = hold(startRun(), 'cavaliers_hour');
+    const foot = unitOf(rm, 'Fighter', 'Hurt');
+    expect(
+      addBurden(rm, 'wounded', { unitUid: foot.unitUid, unitName: foot.name, stat: 'STR' }).ok,
+    ).toBe(true);
+    const debuffs = rm.getBattleParams(firstBattle(rm)).battleDebuffs;
+    const of = debuffs.filter((d) => d.unitUid === foot.unitUid);
+    expect(of).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ stat: 'STR', source: 'wounded' }),
+        { unitUid: foot.unitUid, stat: 'DEF', value: 1, source: 'cavaliers_hour' },
+      ]),
+    );
+    expect(of).toHaveLength(2);
+    const fielded = rm.getRoster().find((u) => u.unitUid === foot.unitUid);
+    const { STR, DEF } = fielded.stats;
+    applyBattleStartDebuffs([fielded], debuffs);
+    const injury = of.find((d) => d.source === 'wounded').value;
+    expect(injury).toBeLessThan(0);
+    expect(fielded.stats.STR).toBe(STR + injury);
+    expect(fielded.stats.DEF).toBe(DEF + 1);
   });
 
   it('a run without it writes no battleDebuffs key (other runs keep their params as they were)', () => {
@@ -289,6 +328,57 @@ describe("Watcher's Grace: +1 Vision on every boss map, unspent it fades", () =>
     );
   });
 
+  it('a refresh before the first checkpoint gives the grace back, however often it repeats', () => {
+    // The boss card, dialogue or formation is on screen: the battle-in-progress save holds the
+    // granted charge and a flag with no checkpoint yet. Continue drops that flag on load.
+    const rm = hold(startRun(), 'watchers_grace');
+    const charges = rm.visionChargesRemaining;
+    const count = rm.visionCount;
+    const boss = bossOf(rm);
+    let run = rm;
+    for (let i = 0; i < 3; i++) {
+      run.beginBattleInProgress(boss.id, { isBoss: true });
+      expect(run.visionChargesRemaining).toBe(charges + 1);
+      run = RunManager.fromJSON(JSON.parse(JSON.stringify(run.toJSON())), data);
+      expect(run.battleInProgress).toBeNull();
+      expect(run.visionChargesRemaining).toBe(charges);
+      expect(run.visionCount).toBe(count);
+    }
+  });
+
+  it('a battle that failed to start and starts again never grants twice', () => {
+    // beginBattle threw after the flag was written: the player is back on the route map with the
+    // flag still in memory (no checkpoint). The next fresh start must not snapshot the granted
+    // charge as its entry.
+    const rm = hold(startRun(), 'watchers_grace');
+    const charges = rm.visionChargesRemaining;
+    const boss = bossOf(rm);
+    rm.beginBattleInProgress(boss.id, { isBoss: true });
+    rm.beginBattleInProgress(boss.id, { isBoss: true });
+    expect(rm.visionChargesRemaining).toBe(charges + 1);
+    expect(rm.battleInProgress.visionChargesAtEntry).toBe(charges);
+    // The same from a plain battle's flag (nothing granted): nothing is restored.
+    const plain = hold(startRun(), 'watchers_grace');
+    plain.beginBattleInProgress(firstBattle(plain).id, { isBoss: false });
+    plain.visionChargesRemaining += 2; // e.g. a mid-run grant elsewhere
+    plain.beginBattleInProgress(bossOf(plain).id, { isBoss: true });
+    expect(plain.visionChargesRemaining).toBe(charges + 3);
+  });
+
+  it('a suspended boss battle keeps its grant through a load, and the victory takes it back', () => {
+    const rm = hold(startRun(), 'watchers_grace');
+    const charges = rm.visionChargesRemaining;
+    const boss = bossOf(rm);
+    rm.beginBattleInProgress(boss.id, { isBoss: true });
+    rm.setBattleCheckpoint({ version: 2, checkpointIndex: 3 });
+    const back = RunManager.fromJSON(JSON.parse(JSON.stringify(rm.toJSON())), data);
+    expect(back.visionChargesRemaining).toBe(charges + 1);
+    expect(back.battleInProgress?.bossVisionGranted).toBe(1);
+    back.completeBattle(back.getRoster(), boss.id, 0, { turnCount: 4, turnPar: 8 });
+    // The unspent grace faded; only the act boss's own +1 remains.
+    expect(back.visionChargesRemaining).toBe(charges + 1);
+  });
+
   it('an unspent charge fades at the victory; a spent one is gone (the act boss still pays its own)', () => {
     const unspent = hold(startRun(), 'watchers_grace');
     const charges = unspent.visionChargesRemaining;
@@ -417,5 +507,20 @@ describe('Lone Banner: one fewer deploy, +25% XP', () => {
         base.min,
       );
     }
+  });
+
+  it("a recruit joins at the level of the squad you can really field (Act 1's price on top)", () => {
+    const rm = hold(startRun(), 'lone_banner');
+    // Act 1's deploy price (act1_deploy_down): -2 in all on Act 1's 3-4 slots, so 3 still deploy.
+    rm.blessingRuntimeModifiers.deployCapDeltaByAct = { act1: -1 };
+    const deployBonus = rm.getDeployBonus('act1');
+    expect(deployBonus).toBe(-2);
+    const fielded = resolveDeployLimits({ base: DEPLOY_LIMITS.act1, deployBonus }).max;
+    expect(fielded).toBe(3);
+    // The three best units are levels 9, 7 and 2: the join level is their average, 6.
+    const roster = [9, 7, 2, 1].map((level) => ({ name: `L${level}`, level, tier: 'base' }));
+    expect(
+      resolveRecruitNodeLevel({ roster, act: 'act1', enemies: data.enemies, deployBonus }),
+    ).toBe(Math.floor((9 + 7 + 2) / 3));
   });
 });

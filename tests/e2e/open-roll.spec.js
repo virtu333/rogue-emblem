@@ -61,6 +61,17 @@ async function swapAndReload(page, vp) {
   expect(picked, 'seed 42 act II has a recruit knot with a second candidate').not.toBeNull();
   expect(picked.second).not.toBe(picked.first);
 
+  // The slot's saved preview, read straight from storage (the swap's own save must change it).
+  const savedPreviewName = () =>
+    page.evaluate(
+      (id) =>
+        JSON.parse(localStorage.getItem('emblem_rogue_slot_1_run') || 'null')?.nodeMap?.nodes?.find(
+          (n) => n.id === id,
+        )?.recruitPreview?.name ?? null,
+      picked.id,
+    );
+  expect(await savedPreviewName()).toBe(picked.first);
+
   await route.locator(`.re-node[data-node="${picked.id}"]`).click();
   const card = route.locator('.re-loom-card');
   await expect(card.locator('.re-loom-recruit-name')).toHaveText(picked.first);
@@ -87,18 +98,9 @@ async function swapAndReload(page, vp) {
     await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
   ).toBeLessThanOrEqual(1);
 
-  // Saved: the slot's run holds the swap.
-  await expect
-    .poll(() =>
-      page.evaluate(
-        (id) =>
-          JSON.parse(
-            localStorage.getItem('emblem_rogue_slot_1_run') || 'null',
-          )?.nodeMap?.nodes?.find((n) => n.id === id)?.recruitPreview?.name,
-        picked.id,
-      ),
-    )
-    .toBeTruthy();
+  // Saved: the swap's own save (NodeMapMenu.onSwapRecruit) puts the second candidate in the slot
+  // before anything reloads; the slot held the first one until then.
+  await expect.poll(savedPreviewName).toBe(picked.second);
 
   // Reload into the slot: the knot still meets the second candidate.
   await page.evaluate(() => history.replaceState(null, '', '/'));

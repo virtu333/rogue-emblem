@@ -224,7 +224,9 @@ export function createRouteGraph({
     const foretold = !fallen && eclipseInfo?.foretold === true && state !== 'done';
     b.classList.toggle('is-foretold', foretold);
     const stateText = state === 'current' ? currentLabel : STATE_TEXT[state];
-    const warn = `${waning ? ` · falls in ${eclipseInfo.remaining} shadow` : ''}${foretold ? ` · omen: falls ${eclipseInfo.omenRank === 1 ? 'next' : `${ordinal(eclipseInfo.omenRank)}`}` : ''}`;
+    const omenShared = foretold ? Math.max(0, Math.trunc(Number(eclipseInfo.omenShared) || 0)) : 0;
+    const omenWith = omenShared ? `, with ${omenShared} other${omenShared === 1 ? '' : 's'}` : '';
+    const warn = `${waning ? ` · falls in ${eclipseInfo.remaining} shadow` : ''}${foretold ? ` · omen: falls ${eclipseInfo.omenRank === 1 ? 'next' : `${ordinal(eclipseInfo.omenRank)}`}${omenWith}` : ''}`;
     b.setAttribute(
       'aria-label',
       `${nodeLabel(n)} · ${stateText}${warn} · row ${n.row + 1} lane ${n.col + 1}`,

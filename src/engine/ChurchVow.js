@@ -71,6 +71,9 @@ export function churchVowsLeft(run, nodeId) {
   return Math.max(0, churchVowCapacity(run) - churchVows(run, nodeId).length);
 }
 
+// A church's vows, in words (capacity is at most the three vows there are).
+const VOW_COUNT_WORDS = Object.freeze(['', 'one', 'two', 'three']);
+
 const VOW_NAME = Object.freeze({
   promote: 'Promotion',
   blessing: 'a Blessing',
@@ -113,12 +116,13 @@ export function churchVowStatusLine(run, nodeId, { offersCleanse = false } = {})
   const left = churchVowsLeft(run, nodeId);
   if (vows.length > 0 && left <= 0) return churchVowLine(vows);
   if (vows.length > 0)
-    return `Your vow here was ${vowNames(vows)}. Twin Chapel: ${left === 1 ? 'one more vow is' : `${left} more vows are`} open, each a different one.`;
+    return `${vows.length === 1 ? 'Your vow here was' : 'Your vows here were'} ${vowNames(vows)}. Twin Chapel: ${left === 1 ? 'one more vow is' : `${left} more vows are`} open, each a different one.`;
   const choices = offersCleanse
     ? 'Promote your units, take a blessing or lift a burden'
     : 'Promote your units, or take a blessing';
-  if (churchVowCapacity(run) > 1)
-    return `${choices}: two different vows per church (Twin Chapel). The first promotion, the blessing or the cleansing makes each.`;
+  const capacity = churchVowCapacity(run);
+  if (capacity > 1)
+    return `${choices}: ${VOW_COUNT_WORDS[capacity] || capacity} different vows per church (Twin Chapel). The first promotion, the blessing or the cleansing makes each.`;
   return offersCleanse
     ? `${choices}: one vow per church. The first promotion, the blessing or the cleansing makes it.`
     : `${choices}: one vow per church. The first promotion or the blessing makes it.`;

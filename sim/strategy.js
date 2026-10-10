@@ -9,6 +9,7 @@
 //   route      recruit-first vs other routing policies  [--policies recruit,battle,church] [--muster N]
 //   graph      recruit nodes and services per route (generated node maps)
 //   blessings  blessing and price power                 [--candidates 1-4] [--only id,…]
+//                                                       [--prices id,…: these price rows only]
 //   arts       what Scroll Archive can hand out on day one
 //
 // Battles are played by TacticianAgent (sim/lib/TacticianAgent.js; --agent scripted for
@@ -1615,6 +1616,7 @@ async function sectionBlessings() {
       // v3: the price catalog, each price as the run's rung pays it (a Debt scaled by rung).
       if (catalog.priceCatalog)
         for (const [id, entry] of Object.entries(catalog.priceCatalog)) {
+          if (opts.prices && !String(opts.prices).split(',').includes(id)) continue;
           const price = resolvePriceOption(catalog, id, { difficultyId: opts.difficulty });
           configs.push([price.label, `${entry.points} pt price`, price.effects]);
         }

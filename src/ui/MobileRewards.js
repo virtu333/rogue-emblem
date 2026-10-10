@@ -44,6 +44,7 @@ import { rewardRerollButtonState } from './rewardRerollButton.js';
 import { itemIcon, itemHero } from './itemIcons.js';
 import { itemKeywordRow } from './itemKeywordChips.js';
 import { itemKeywords, itemBaseLineFor } from '../engine/ItemKeywords.js';
+import { lotteryCardLine } from '../engine/LotteryLoot.js';
 const node = (tag, text, cls = '') => {
   const el = document.createElement(tag);
   el.className = cls;
@@ -280,8 +281,9 @@ export class MobileRewards {
       const said = new Set();
       if (keys && itemBaseLineFor(c.item) !== null) said.add(c.item.type);
       if (c.item && itemKeywords(c.item).length) said.add(c.item.special);
-      // Lottery Loot: this card came from the next act's spoils (engine/LotteryLoot.js).
-      const lottery = c.lottery ? "Lottery: from the next act's spoils" : '';
+      // Lottery Loot: this card came from the next act's spoils (engine/LotteryLoot.js); a card
+      // from the act's own table says nothing.
+      const lottery = lotteryCardLine(c);
       if (lottery) lines.append(node('p', lottery, 'ch-lottery'));
       for (const line of text)
         if (line.trim() && !said.has(line.trim())) lines.append(node('p', line));

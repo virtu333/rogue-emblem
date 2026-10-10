@@ -583,8 +583,10 @@ export function buildEclipseView({
       if (nextFall == null || remaining < nextFall) nextFall = remaining;
     }
   }
-  // Omen Reader: the next `foretell` nodes the dark will take, in the order it takes them (the
-  // lowest thresholds first; a tie falls together, so map order breaks it). Only nodes that can
+  // Omen Reader: the next `foretell` falls the dark will make, in the order it makes them. A fall
+  // is every node at one threshold (they fall together), so ranks are distinct thresholds,
+  // lowest first: every node at a marked threshold takes its rank (`omenShared` counts the others
+  // that fall with it), and marking stops once `foretell` ranks are filled. Only nodes that can
   // fall now are read, so a guarded (current or locked) node is never foretold.
   const omens = Math.max(0, Math.trunc(Number(foretell) || 0));
   if (omens > 0) {
@@ -593,11 +595,20 @@ export function buildEclipseView({
       .filter(
         ({ info }) => info && !info.eclipsed && Number.isFinite(info.threshold) && !info.guarded,
       )
-      .sort((a, b) => a.info.threshold - b.info.threshold || a.index - b.index)
-      .slice(0, omens);
-    order.forEach(({ info }, rank) => {
-      info.foretold = true;
-      info.omenRank = rank + 1;
+      .sort((a, b) => a.info.threshold - b.info.threshold || a.index - b.index);
+    const ranks = [];
+    for (const entry of order) {
+      const group = ranks.at(-1);
+      if (group && group[0].info.threshold === entry.info.threshold) group.push(entry);
+      else if (ranks.length < omens) ranks.push([entry]);
+      else break;
+    }
+    ranks.forEach((group, rank) => {
+      for (const { info } of group) {
+        info.foretold = true;
+        info.omenRank = rank + 1;
+        info.omenShared = group.length - 1;
+      }
     });
   }
   return {

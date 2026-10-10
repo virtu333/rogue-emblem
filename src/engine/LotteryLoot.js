@@ -1,5 +1,6 @@
 // LotteryLoot.js - Lottery Loot (`next_act_loot_card`, blessings v3 §5.4): one card of each
-// battle's loot is drawn from the NEXT act's table (the final act draws its own).
+// battle's loot is drawn from the NEXT act's table (the final act, or one whose next table pays only
+// gold, draws its own; a gold-only act has no lottery).
 //
 // The battle's own draw is made first, exactly as without the blessing (its Math.random draws do
 // not move: the same cards, the same cursor); then its last card(s) are replaced by a draw from
@@ -17,13 +18,33 @@ import { shrineBoonsOf } from './ShrineBoons.js';
 // Extra draws on the lottery stream when the first repeats a card already on offer.
 const LOTTERY_ATTEMPTS = 3;
 
-/** The loot table a run's lottery draws from: the next act's, or the final act's own. */
+/** A loot table that can pay something other than gold (the final boss's pays only gold). */
+function drawsItems(table) {
+  const weights = table?.weights;
+  if (!weights || typeof weights !== 'object') return false;
+  return Object.entries(weights).some(
+    ([category, weight]) => category !== 'gold' && Number(weight) > 0,
+  );
+}
+
+/**
+ * The loot table a run's lottery draws from: the next act's, else the current act's own (the
+ * last act, or a next act whose table pays only gold), else none (null: no lottery). A table
+ * with no positive non-gold weight is never drawn: it could only repeat the battle's gold.
+ */
 export function lotteryActFor(run, lootTables = run?.gameData?.lootTables) {
   const sequence = Array.isArray(run?.actSequence) ? run.actSequence : [];
   const index = Number.isInteger(run?.actIndex) ? run.actIndex : sequence.indexOf(run?.currentAct);
-  const next = sequence[index + 1];
-  if (next && lootTables?.[next]) return next;
-  return run?.currentAct || null;
+  for (const actId of [sequence[index + 1], run?.currentAct])
+    if (actId && drawsItems(lootTables?.[actId])) return actId;
+  return null;
+}
+
+/** The lottery line a reward card shows: only a card drawn from the next act's table says so. */
+export function lotteryCardLine(card) {
+  return card?.lottery && card.lottery.nextAct !== false
+    ? "Lottery: from the next act's spoils"
+    : '';
 }
 
 /**
@@ -83,17 +104,18 @@ export function applyLotteryCards(run, data, draw, choices, { round = 0 } = {}) 
           },
         )[0] || null,
     );
+  // `nextAct`: whether the card came from a later act's table (the card says so) or the act's own.
+  const nextAct = actId !== (draw.actId || run?.currentAct);
   const out = [...kept];
   for (let slot = 0; slot < count; slot++) {
     let card = null;
-    for (let attempt = 0; attempt < LOTTERY_ATTEMPTS; attempt++) {
+    for (let attempt = 0; attempt < LOTTERY_ATTEMPTS && !card; attempt++) {
       const candidate = drawOne(slot, attempt);
-      if (!candidate) continue;
-      card = candidate;
-      if (!out.some((existing) => sameCard(existing, candidate))) break;
+      if (candidate && !out.some((existing) => sameCard(existing, candidate))) card = candidate;
     }
-    // Nothing drawable (an empty table): the battle's own card stays.
-    out.push(card ? { ...card, lottery: { actId } } : choices[kept.length + slot]);
+    // Nothing new drawable (an empty table, or every attempt repeated a card already on offer):
+    // the battle's own card stays.
+    out.push(card ? { ...card, lottery: { actId, nextAct } } : choices[kept.length + slot]);
   }
   return out;
 }

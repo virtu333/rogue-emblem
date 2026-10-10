@@ -31,6 +31,7 @@ import {
   RECRUIT_SKILL_POOL,
 } from '../utils/constants.js';
 import { createSeededRng } from './BlessingEngine.js';
+import { resolveDeployLimits } from './BattleDeployCount.js';
 import {
   createBossLordUnit,
   getAvailableLords,
@@ -290,7 +291,12 @@ export function resolveRecruitNodeLevel({
   deployBonus = 0,
   recruitLevelBonus = 0,
 } = {}) {
-  const deployCap = (DEPLOY_LIMITS[act]?.max || 4) + Math.trunc(Number(deployBonus) || 0);
+  // The squad you can field: the deploy screen's own limit (a deploy price never takes it below
+  // the act's minimum, so a stacked negative bonus never shrinks the squad further).
+  const deployCap = resolveDeployLimits({
+    base: DEPLOY_LIMITS[act] || { min: 3, max: 4 },
+    deployBonus,
+  }).max;
   const cap = Math.max(1, Math.min(RECRUIT_NODE_LEVEL_SQUAD_MAX, deployCap));
   const levels = (Array.isArray(roster) ? roster : [])
     .filter(contributesToTeamLevel)

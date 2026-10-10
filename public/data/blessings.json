@@ -113,7 +113,7 @@
     },
     "commander_injury": {
       "label": "Lingering Injury on your commander",
-      "points": 3,
+      "points": 2,
       "effects": [
         {
           "type": "burden",
@@ -689,7 +689,7 @@
           "sworn_enemy",
           "act1_def_down_1"
         ],
-        "commander_injury"
+        ["commander_injury", "act1_hit_down"]
       ],
       "costs": [],
       "excludes": [
@@ -884,7 +884,7 @@
       "prices": [
         "debt_large",
         "growths_down",
-        "commander_injury"
+        ["commander_injury", "act1_hit_down"]
       ],
       "costs": []
     },
@@ -1026,7 +1026,7 @@
       "name": "Late Bloom",
       "tier": 3,
       "weight": 1,
-      "description": "Every unit gains +1 to every stat but Move as each act ends.",
+      "description": "As each act ends, every unit gains +1 in its two strongest growths.",
       "lore": "Some roots take an age to reach water. When they do, the whole field rises.",
       "tags": [
         "growth"
@@ -1035,7 +1035,8 @@
         {
           "type": "act_clear_army_stats",
           "params": {
-            "value": 1
+            "value": 1,
+            "stats": 2
           }
         }
       ],
@@ -1108,7 +1109,7 @@
       "name": "Cavalier's Hour",
       "tier": 3,
       "weight": 1,
-      "description": "In battle, mounted units have +1 Move and infantry +1 DEF.",
+      "description": "Mounted units +1 Move in battle; foot soldiers +1 DEF (not Armored).",
       "lore": "Riders go first, foot hold fast. Every army knows the hour; few keep it.",
       "boons": [
         {

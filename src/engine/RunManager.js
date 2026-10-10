@@ -193,6 +193,7 @@ import { normalizeChurchVows } from './ChurchVow.js';
 import {
   applyShrineBoon,
   createShrineBoonModifiers,
+  lateBloomStats,
   moveTypeBattleDeltas,
   sanitizeShrineBoonModifiers,
   shrineBoonsOf,
@@ -380,11 +381,18 @@ function sanitizeActStartGrants(list) {
     const paidActs = Array.isArray(entry.paidActs)
       ? [...new Set(entry.paidActs.filter((act) => typeof act === 'string' && act))]
       : [];
-    if (entry.kind === 'gold' || entry.kind === 'army_stats') {
-      // Gold (Advance Pay) or +value to every stat but Move for every unit (Late Bloom).
+    if (entry.kind === 'gold') {
+      // Gold (Advance Pay).
       const value = Math.trunc(Number(entry.value));
+      if (value > 0) grants.push({ blessingId: entry.blessingId, kind: 'gold', value, paidActs });
+    } else if (entry.kind === 'army_stats') {
+      // Late Bloom: +value in each unit's `stats` strongest growths (a grant saved without the
+      // count gave every stat but Move, so it reads as all eight).
+      const value = Math.trunc(Number(entry.value));
+      const count = Math.trunc(Number(entry.stats));
+      const stats = count >= 1 && count <= XP_STAT_NAMES.length ? count : XP_STAT_NAMES.length;
       if (value > 0)
-        grants.push({ blessingId: entry.blessingId, kind: entry.kind, value, paidActs });
+        grants.push({ blessingId: entry.blessingId, kind: 'army_stats', value, stats, paidActs });
     } else if (entry.kind === 'item') {
       const count = Math.trunc(Number(entry.count));
       if (typeof entry.itemName === 'string' && entry.itemName && count > 0)
@@ -2964,24 +2972,38 @@ export class RunManager {
         continue;
       }
       if (grant.kind === 'army_stats') {
-        // Late Bloom: every unit, the fallen included (a revived ally has kept pace), gains
-        // the value in every stat but Move. HP raises current HP with it.
-        const units = [...(this.roster || []), ...(this.fallenUnits || [])].filter(
-          (unit) => unit?.stats,
-        );
-        for (const stat of XP_STAT_NAMES) this._applyStatDeltaToUnits(units, stat, grant.value);
+        // Late Bloom: every unit, the fallen included (a revived ally has kept pace), gains the
+        // value in the stats its growths favour (ShrineBoons.lateBloomStats: never Move, no
+        // randomness). A living unit's HP gain raises its current HP with it (UnitHealth); the
+        // fallen gain none (a revival sets it).
+        const count = grant.stats ?? XP_STAT_NAMES.length;
+        const classes = this.gameData?.classes || [];
+        const living = (this.roster || []).filter((unit) => unit?.stats);
+        const fallen = (this.fallenUnits || []).filter((unit) => unit?.stats);
+        for (const unit of [...living, ...fallen]) {
+          for (const stat of lateBloomStats(unit, count, classes)) {
+            unit.stats[stat] = (Number(unit.stats[stat]) || 0) + grant.value;
+            if (stat === 'HP' && !fallen.includes(unit))
+              setUnitHP(unit, (Number(unit.currentHP) || 0) + grant.value);
+          }
+        }
         this._recordBlessingEvent(
           stage,
           grant.blessingId,
-          { type: 'act_clear_army_stats', params: { value: grant.value } },
-          { appliedValue: grant.value, act, units: units.map((unit) => unitUidOf(unit)) },
+          { type: 'act_clear_army_stats', params: { value: grant.value, stats: count } },
+          {
+            appliedValue: grant.value,
+            act,
+            units: [...living, ...fallen].map((unit) => unitUidOf(unit)),
+          },
         );
         paid.push({
           blessingId: grant.blessingId,
           blessingName,
           kind: 'army_stats',
           value: grant.value,
-          units: units.length,
+          stats: count,
+          units: living.length + fallen.length,
         });
         continue;
       }
@@ -4719,6 +4741,12 @@ export class RunManager {
    * battle progresses.
    */
   beginBattleInProgress(nodeId, entryInfo = {}) {
+    // A battle that never reached its first checkpoint (beginBattle threw and sent the player
+    // back to the route map) leaves its flag in memory. A Watcher's Grace it granted goes back
+    // before the new entry snapshot, or the granted charge would become the entry and be
+    // granted again.
+    if (this.battleInProgress && !this.battleInProgress.checkpoint)
+      restoreUncheckpointedBossVision(this, this.battleInProgress);
     // Healed to full since taking off an HP accessory: the debt is gone before battle.
     for (const unit of this.roster || []) settleAccessoryHpOwed(unit);
     if (this.currentAct === 'act1' && entryInfo.isBoss === true) this.reachedFirstActBoss = true;
@@ -6573,6 +6601,11 @@ export class RunManager {
       typeof rawBattleInProgress.checkpoint === 'object'
         ? rawBattleInProgress
         : null;
+    // The raw data is the pre-battle save except for one write: a Watcher's Grace charge
+    // granted at the fresh start. A flag dropped here takes it back, or a refresh on the boss
+    // card would keep the charge (and a repeat would farm them).
+    if (!rm.battleInProgress && rawBattleInProgress && typeof rawBattleInProgress === 'object')
+      restoreUncheckpointedBossVision(rm, rawBattleInProgress);
 
     // The checkpoint stores its own unit arrays (restored directly into the
     // scene, never through the roster), so legacy ones are healed here too.
@@ -6748,6 +6781,18 @@ export function saveRun(runManager, onSave, slotNumber, { candidate = null } = {
   }
 
   return { ok: true, cloud };
+}
+
+/**
+ * Watcher's Grace on a battle flag that never reached its first checkpoint: restore the entry
+ * Vision the flag recorded (the grant is the only Vision write before that checkpoint). Does
+ * nothing for a flag that granted nothing or recorded no entry.
+ */
+function restoreUncheckpointedBossVision(run, flag) {
+  if (!(Number(flag?.bossVisionGranted) > 0)) return;
+  if (!Number.isFinite(flag.visionChargesAtEntry)) return;
+  run.visionChargesRemaining = Math.max(0, Math.trunc(flag.visionChargesAtEntry));
+  if (Number.isFinite(flag.visionCountAtEntry)) run.visionCount = flag.visionCountAtEntry;
 }
 
 /**
