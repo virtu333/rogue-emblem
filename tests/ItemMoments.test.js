@@ -59,6 +59,10 @@ const PAINTING_PENDING = [
   'tithe_box',
   'lantern_of_the_road',
   'crest_of_the_road',
+  'darkened_dawn',
+  'blood_covenant',
+  'kingmakers_oath',
+  'hollow_sun_favor',
 ];
 const paintedBlessings = data.blessings.blessings.filter((b) => !PAINTING_PENDING.includes(b.id));
 

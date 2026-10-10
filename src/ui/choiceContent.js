@@ -16,6 +16,7 @@ import { lentSkillLine } from '../engine/AccessorySkillNames.js';
 import { getDisplayLevel, canEquip } from '../engine/UnitManager.js';
 import { getStaticCombatStats, getStaffMaxUses } from '../engine/Combat.js';
 import { rewardWeaponEligible } from '../engine/LootRewardCommands.js';
+import { classChangeItemTag } from '../engine/TwistedBoons.js';
 
 /** Stats compared on a candidate card, in reading order (HP sits in the identity). */
 export const CHOICE_STATS = Object.freeze(['STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK']);
@@ -301,6 +302,10 @@ export function rewardForWhom(choice, run) {
       : { who: 'No weapon can take it', detail: 'Nothing carried qualifies', tone: 'bad' };
   }
   if (item.type === 'Consumable') {
+    // A Master Seal while Kingmaker's Oath forbids it: offered as ever (the loot stream never
+    // moves), marked so the card says it can't be used.
+    const banned = classChangeItemTag(run, item);
+    if (banned) return { who: banned, detail: 'Promote at a church instead', tone: 'bad' };
     if (item.effect === 'statBoost') {
       // No recipient advice: a high growth rate is no reason to take a flat bonus
       // now. The recipient step shows each unit's stat before → after instead.

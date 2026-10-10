@@ -26,6 +26,10 @@ const ALL_EARNED_IDS = [
   'tithe_box',
   'lantern_of_the_road',
   'crest_of_the_road',
+  'darkened_dawn',
+  'blood_covenant',
+  'kingmakers_oath',
+  'hollow_sun_favor',
 ];
 
 function freshRun(seed = 21, difficultyId = 'normal') {
@@ -349,7 +353,7 @@ describe('the held list, the card and the Compendium say Earned', () => {
     });
 
     it('All still lists everything', () => {
-      expect(filteredBy('All')).toHaveLength(50);
+      expect(filteredBy('All')).toHaveLength(data.blessings.blessings.length);
     });
 
     it('a row reads "Earned" at its right edge, not "Tier ?", and the reference summary agrees', () => {

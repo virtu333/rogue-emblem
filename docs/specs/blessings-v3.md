@@ -709,7 +709,7 @@ on any other row. A twist's effects come from a small explicit list (`BlessingEn
 a burden, shadow, Vision, XP, shop and forge prices), never a price fixed to an act
 (`act_stat_delta_all_units`, `act_deploy_cap_delta`, `act_hit_bonus`,
 `disable_personal_skills_until_act`: a twist is taken mid-run); D3 extends the list with its own
-types. Whether a twist's burden can be lifted by the Cleanse vow is D3's decision. PR C's cards were re-sourced: Second Dawn is an eclipsed elite's (as §6.1's table
+types. Whether a twist's burden can be lifted by the Cleanse vow is D3's decision (§6.6: never). PR C's cards were re-sourced: Second Dawn is an eclipsed elite's (as §6.1's table
 says), Unbroken Banner, Ember Lantern and Captain's Whistle stay act bosses'. Standard of the Sun is
 Act I's boss's and Chronicle Act II's, so an act boss's pair for a given seed differs from PR C's.
 
@@ -786,6 +786,121 @@ walk and no place on the event-safe list. The sims never take an earned card (D-
 picks after every node, and their event policies leave a choice that grants one alone unless
 `eventPolicy: 'earned'`.
 
+### 6.6 As built: the twisted cards (PR D3)
+
+PR D3 ships §6.2's four twisted cards. Each is an act boss's card only (`sources: [{ kind:
+'act_boss' }]`, weight 0.6, so a twisted card shows up in a pair a little less often than a pure
+one), at most one to a pair (D-3, PR D1's rule), and taken knowingly: its `twist` (`{ label,
+effects }`) is applied after its boons (`addBlessingMidRun`'s `price`, kind `twist`) and held as
+its price, so the pause list reads "Twist: ..." and a load never charges it again. The pick's
+footer explains the twist's words too (Hunted, Ill Omen, shadow), with the twist's own numbers for
+a burden that does not count down (`BlessingTerms` reads the price's effects).
+
+| Card | Boon | Twist |
+|---|---|---|
+| Darkened Dawn (§6.2's "Second Dawn (dark)") | `vision_delta { 1 }` now and `act_start_vision_delta { 1 }` (a `vision` act-start grant from the next act) | `eclipse_shadow_delta { 8 }` and `eclipse_gain_multiplier_delta { 0.25 }` |
+| Blood Covenant | `army_stat_bonus { 1 }` | `burden { id: 'ill_omen', permanent: true, extraShadow: 1 }` |
+| Kingmaker's Oath | `kingmaker_promotion { bonus: 2, stats: 2 }` | `master_seals_forbidden {}` |
+| Hollow Sun's Favor (tag `gold`) | `battle_gold_multiplier_delta { 0.5 }` and `loot_gold_multiplier_delta { 0.5 }` | `burden { id: 'hunted', actsAhead: 1, wave: { turn: 3, count: [2, 2], xpMultiplier: 0.5 } }` |
+
+The new effect types live in `engine/TwistedBoons.js` (one parser per type for the validator, the
+handler and the save's sanitizer; a malformed set is refused by `npm run validate:data` and skipped
+as `invalid_<type>_params`; none is on the event-safe list). `TWIST_EFFECT_TYPES` gains the two twist
+types.
+
+- **Darkened Dawn** `excludes: ['second_dawn']` (either way: neither is offered while the other is
+  held, and an owed or open offer already drawn drops the one the other shuts: `takeableOffered`
+  and `pruneHeldOffers`, after every take and on load) and `requires: { eclipse: true }` (with the Eclipse off its twist costs nothing). Each
+  victory's shadow gain (`computeShadowGain`, after its per-battle cap) grows by the share in exact
+  quarters: `extra = floor((gain × quarters + carry) / 4)`, the remainder carried
+  (`blessingRuntimeModifiers.eclipseGainDelta`, `eclipseGainCarry` 0-3, saved and written at every
+  commit, 0 included, so a remainder spent is never paid twice), so four victories of 1 gather 5. `TwistedBoons.scaledShadowGain` is the one reading: the HUD's
+  `projectShadowGain` and the victory's `_commitBattleShadow` both call `_scaledShadowGain`, so the
+  projection is the commit. An Ill Omen's shadow is added after, unscaled. The commit record names
+  the card's share (`blessingShadow`). The +8 shifts the act's start too (as every
+  `eclipse_shadow_delta`), so nothing falls on the take.
+- **Blood Covenant** `requires: { eclipse: true }`. +1 to every stat but Move (`XP_STAT_NAMES`), once
+  per unit (`unit.recruitBlessingGrants` gains `blood_covenant:army_stat_bonus`): the roster and the
+  fallen at the take, every later joiner through `grantRecruitBlessingConsumables` (recruit nodes,
+  event joins, boss recruits, mercenaries, a Talk recruit, the third lord), and a revival checks
+  again (`_grantHeldArmyStatBonuses`). A living unit's HP gain raises its current HP through
+  `UnitHealth.setUnitHP`; a fallen unit's does not (a revival sets it). The key makes a reload, a
+  second call and a revival a no-op. Its Ill Omen is `permanent`: +1 shadow every victory, never
+  counted down. An event's Ill Omen (the Twin Altar's dark face: +2 for the rung's battles), or a
+  shrine price's, taken before or after it, is held in the same record as its `event` part (see
+  "A twist's burden and a passing one" below).
+- **Kingmaker's Oath**: `ChurchCommands.churchPromoteCost(unit, run)` is 0 while held (the church
+  heading reads "Promote · Free (Kingmaker's Oath)"); after `promoteUnit`, `promoteAtChurch` adds
+  +2 to the two stats with the highest values in the target class's canonical
+  `promotionBonuses` (a lord's own bonuses only when the class has none), ties in the order HP, STR,
+  MAG, SKL, SPD, DEF, RES, LCK, never Move or a stat the class does not raise (D-13). The promotion
+  is still the church's vow. Its twist: `TwistedBoons.classChangeItemBlock(run, item)` refuses a
+  Master Seal (a `promote` consumable) on every path: the roster sheet's bag and convoy cards
+  (`RosterCommands.rosterClassChangeBlock`, which `applyRosterClassChange` and the desktop overlay
+  read), the battle's Promote command and item menu (`BattleScene.getPromotionConsumable`; the row
+  names the ban) and the promotion itself (`PromotionController._executePromotion`, for a seal
+  handed in directly). The reclass seals (Infantry Seal, Mounted Seal) are never caught.
+  `tests/MasterSealBanBoundary.test.js` lists every file that reads a `promote` consumable with its
+  gate; `RosterCommands.rosterClassChangeBlock` reads the run's ban before a special character's
+  own refusal. Shops still sell Master Seals and loot still offers them (the twist is taken
+  knowingly; filtering them from a draw would move the loot stream), marked: the shop's buy row and
+  the loot card read "Can't be used: Kingmaker's Oath" (`TwistedBoons.classChangeItemTag`, from
+  `classChangeItemBlock`). The church's path chooser and the rite show the +2 the altar adds:
+  `promotionPathContent(unit, cls, gameData, { churchRun })` applies `applyKingmakerBonus` to its
+  projection exactly as `promoteAtChurch` does (ChurchMenu hands the run to the chooser and to the
+  rite's content; a Master Seal's or a battle's path passes none).
+- **Hollow Sun's Favor**: +50% battle gold (`getBattleGoldMultiplier`, additive with the other gold
+  boons, before a Debt garnishes) and +50% on gold loot cards: `rewardDrawParams` saves
+  `lootGoldMultiplier` in the reward's `draw` (absent without the card, so every other draw and
+  every older record is unchanged), and `rollBattleRewardChoices` applies it after the late-pressure
+  multiplier, so a Branching Threads reroll pays the same and a card rolled before the take is not
+  raised. Its Hunted runs "through the next act" (D-11): `actsAhead: 1` resolves at the take to
+  `untilAct = actSequence[actIndex + 2]` (taken at Act I's boss: all of Act II, ending as Act III
+  begins), or `permanent` when the run has no such act. It never counts down; `advanceAct` (and a
+  load, once the act sequence is final) ends it as its act begins (`Burdens.expireActBurdens`). An
+  event's Hunted meeting it is the record's `event` part (below). The chips read "Never ends" and
+  "Until Act III" (the act card's own names, `utils/actNames.js` `actLabel`: "Until Final Act",
+  "until the Final Act begins"); merged, "Never ends; +2 for 3 more battles" and "Until Act III;
+  2 more battles". The held list reads the live record: once the act has begun it says the hunt has
+  ended.
+
+**A twist's burden and a passing one (review fix).** One record per burden id still holds, in two
+parts. The **twist part** is the record's own fields: `permanent` or `untilAct`, the twist's own
+`extraShadow` or `wave`, and `battles: 0`; never cleansable. The **event part** is `event`:
+`{ battles, extraShadow }` for an Ill Omen, `{ battles, wave }` for a Hunted, the countdown's own
+values (an event's, or a shrine price's), counted down exactly as it would be alone (every victory
+for an omen; a victory in a battle that carried the wave for a hunt) and dropped when spent; a
+countdown taken again refreshes it by the countdown's own rule. While the event part lasts the
+record acts with the larger of the two: an omen's shadow per victory is `max(twist, event)`
+(`Burdens.illOmenShadowOf`, which `burdenEffectsOnVictory` and the HUD projection read), a hunt's
+wave the bigger one (`huntedWaveFor`, `largerHuntedWave`: more foes at most, then at least, then
+the earlier turn). After it, only the twist's values. Both orders of taking them make the same
+record (`addBurden` puts a held countdown into `event` when the twist arrives, and an arriving
+countdown into `event` when the twist is held). A Hollow Sun span that ends with the event part
+still counting leaves it a plain record. The sanitizer reads the part back; a spent or malformed
+part is dropped, a plain record never carries one, and a save without one reads as before. The
+event's result line, the chips and the pick say both parts: the result reads the merged record
+("never ends: +1 shadow each victory, +2 for 3 more battles while a passing omen lasts ..."), and
+the earned pick's terms say what the twist merges with when the run already carries the countdown
+("You carry a passing Ill Omen (+2, 3 more battles): it keeps its own count, and until it ends each
+victory takes the larger."). An event choice never shows its burden before it is made (its outcomes
+are hidden, docs/specs/event-nodes.md), so the twist-first order is told by the result line.
+
+**The cleansing decision (owner-level, decided in D3): a twist's burden is never cleansable.** A
+twist is the price of a strong earned card, taken knowingly; a free church vow lifting it would
+make the card free. One rule, `Burdens.isCleansable`: a burden that never ends or ends with an act
+(`isTwistBurden`: `permanent` or `untilAct`) is refused like Debt; the church's Cleanse is not
+offered for it, its refusal says "A twisted blessing's price: no altar lifts it.", and the church
+menu lists it greyed whenever the run holds one, even when nothing else can be lifted. Only a twist
+may write those fields: the validator refuses `permanent` / `actsAhead` / `untilAct` on a shrine
+price (a v3 catalog price, a v2 rolled cost, an object pact) or an event's burden. An event's own
+Hunted or Ill Omen stays cleansable, alone or as a twist record's event part: Cleanse
+(`Burdens.cleanseBurden`) lifts that part only, exactly as it would lift it alone, and the twist's
+part stays (the church's row names the part it lifts, "Ill Omen · 3 left", beside the greyed
+"Ill Omen · Never ends").
+
+The sims never take an earned pick, so `sim:fullrun:pr` is unchanged.
+
 ## 7. Gifts with a catch (run start)
 
 Cut in review: Gilded Chest (gold now, a bigger Debt later) read as a loan, not a gift.
@@ -853,7 +968,11 @@ the held list reads "Catch: ..."); any other gift leads the pause list with its 
 Hoard · Gift": "Gave: ..." and its catch beneath with the catch's live state read from the burden
 record, "Hunted: 2 battles left", then "Hunted: ended"; the terms on a tap). Analytics count a gift run
 as a gift (`runsWithGift`, per-gift offers, picks and outcomes), never as a skipped blessing, and a
-card a gift handed out as that card's `giftGrants`, never a pick.
+card a gift handed out as that card's `giftGrants`, never a pick. A burden catch (the Fallen Hoard's
+Hunted, Stranger's Scroll's Lingering Injury, Marked Blade's Sworn Enemy) is an ordinary burden, as an
+event's: a twisted card's Hunted taken later (§6.6) merges with it as the record's `event` part, counted
+down and lifted by Cleanse exactly as it would be alone, and the pause entry reads that part (the
+twist's own span is the twisted card's).
 
 **The shrine.** The gift is the fourth card, after the blessings and before No blessing (still the last
 choice): the shrine's tarot card with `data-tier="gift"`, the dark's violet rim, its icon in the Hollow
@@ -944,7 +1063,8 @@ growth, XP and gold cards it can see.
 4. Earned blessings: the `earned` flag, the act-boss pick, and four pure ones (Unbroken
    Banner, Second Dawn, Ember Lantern, Captain's Whistle). Built (§6.4).
 5. The special church, the twisted earned blessings, the gifts with a catch, and the rest of
-   §5. Built: the rest of §5 (PR D4), the gifts with a catch (PR D5, §7.1).
+   §5. Built: the rest of §5 (PR D4), the Old Sanctum and six earned cards (PR D1, §6.5), the
+   twisted cards (PR D3, §6.6), the gifts with a catch (PR D5, §7.1).
 
 ## Open questions
 

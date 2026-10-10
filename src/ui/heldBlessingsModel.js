@@ -88,6 +88,11 @@ export function heldBlessingEntries(run) {
             burdens: run?.gameData?.events?.burdens,
             difficultyId: run?.difficultyId,
             pact: isPact,
+            effects: entry?.rolledCost?.effects || null,
+            // The twist's burden as it stands now (a passing countdown beside it; a hunt whose
+            // act has begun has ended).
+            held: run?.burdens || null,
+            taken: true,
           })
         : [],
     });

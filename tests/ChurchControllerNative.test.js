@@ -2,6 +2,8 @@ import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import './harness/JourneyTestSetup.js';
 import { RunDriver, JourneyStorage } from './harness/RunDriver.js';
 import { loadRun } from '../src/engine/RunManager.js';
+import { twistPriceOf } from '../src/engine/EarnedBlessings.js';
+import { addBurden } from '../src/engine/Burdens.js';
 // The unit sheet is a DOM view; record how the church opens it.
 vi.mock('../src/ui/MobileRosterSheet.js', () => ({
   MobileRosterSheet: class {
@@ -240,4 +242,59 @@ it('a fallen ally shows their details and comes back with an Iron weapon', async
   expect(revived.inventory[0]).toBe(revived.weapon);
   const saved = loadRun(d.data, 1).roster.find((u) => u.name === 'Journey Fallen');
   expect(saved.weapon?.name).toBe('Iron Axe');
+});
+
+// Review (blessings v3 D3): a twisted blessing's burden held alone used to leave the church
+// silent (the section returned before its refusal rows, since nothing could be lifted).
+it("a twist's burden held alone is still listed at the altar, greyed, with the refusal", async () => {
+  const card = (id) => d.data.blessings.blessings.find((b) => b.id === id);
+  for (const id of ['blood_covenant', 'hollow_sun_favor'])
+    expect(d.run.addBlessingMidRun(id, { earned: true, price: twistPriceOf(card(id)) }), id).toBe(
+      true,
+    );
+  expect(d.run.burdens.map((b) => b.id)).toEqual(['ill_omen', 'hunted']);
+  d.enter('church'); // the run was changed by hand above: no persistence boundary to check
+  const nodes = d.church.nativeMenu.surface.body.all();
+  expect(nodes.some((n) => n.tag === 'h3' && n.textContent === 'Cleanse')).toBe(true);
+  const refusals = nodes.filter((n) => String(n.className).includes('church-cleanse-twist'));
+  expect(refusals.map((n) => n.textContent)).toEqual([
+    "A twisted blessing's price: no altar lifts it.",
+    "A twisted blessing's price: no altar lifts it.",
+  ]);
+  const rows = d.buttons().filter((b) => String(b.className).includes('church-cleanse'));
+  expect(rows.map((b) => b.textContent)).toEqual([
+    'Ill Omen · Never ends',
+    'Hunted · Until Act III',
+  ]);
+  expect(rows.every((b) => b.disabled)).toBe(true);
+});
+
+it("on a merged record the altar lifts the passing part only and lists the twist's beside it", async () => {
+  const card = d.data.blessings.blessings.find((b) => b.id === 'blood_covenant');
+  d.run.addBlessingMidRun('blood_covenant', { earned: true, price: twistPriceOf(card) });
+  addBurden(d.run, 'ill_omen', { battles: 2, extraShadow: 2 });
+  d.enter('church'); // the run was changed by hand above: no persistence boundary to check
+  const nodes = d.church.nativeMenu.surface.body.all();
+  expect(nodes.some((n) => n.tag === 'h3' && n.textContent === 'Cleanse · Free')).toBe(true);
+  const rows = d.buttons().filter((b) => String(b.className).includes('church-cleanse'));
+  expect(rows.map((b) => [b.textContent, b.disabled])).toEqual([
+    ['Ill Omen · 2 left', false],
+    ['Ill Omen · Never ends', true],
+  ]);
+  d.press('Ill Omen · 2 left');
+  const result = d.confirm(0);
+  expect(result.ok, result.reason).toBe(true);
+  expect(d.run.burdens).toEqual([{ id: 'ill_omen', battles: 0, extraShadow: 1, permanent: true }]);
+  expect(loadRun(d.data, 1).burdens).toEqual(d.run.burdens);
+});
+
+it("Kingmaker's Oath: the church's path chooser is handed the run, so its paths show the +2", () => {
+  const card = d.data.blessings.blessings.find((b) => b.id === 'kingmakers_oath');
+  d.run.addBlessingMidRun('kingmakers_oath', { earned: true, price: twistPriceOf(card) });
+  d.enter('church');
+  const unit = d.run.roster[0];
+  d.press(new RegExp(`^${unit.name} · ${unit.className} · Lv`));
+  const chooser = d.church.nativeMenu.child;
+  expect(chooser.options.churchRun).toBe(d.run);
+  expect(chooser.options.note).toMatch(/^Free \(Kingmaker's Oath\)/);
 });

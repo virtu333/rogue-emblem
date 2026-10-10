@@ -705,6 +705,13 @@ export const BLESSING_ICON_REUSE = Object.freeze({
   tithe_box: 'upgrade-starting_gold',
   lantern_of_the_road: 'blessing-pilgrim_coin',
   crest_of_the_road: 'veterans-crest',
+  // PR D3's twisted earned blessings (the atlas is full): a darkened sun (the third Vision cell,
+  // beside Second Dawn's second), a blood shard, an heir's crown, and a gilt medallion for the
+  // dark sun's coin.
+  darkened_dawn: 'upgrade-vision_charges_3',
+  blood_covenant: 'vampires-bloodshard',
+  kingmakers_oath: 'upgrade-legendary_heir',
+  hollow_sun_favor: 'diamond-medallion',
 });
 
 /**

@@ -189,6 +189,7 @@
         "slot-picker.spec.js",
         "strategy-layer.spec.js",
         "traits-v2.spec.js",
+        "earned-twist.spec.js",
         "start-gift.spec.js"
       ]
     },

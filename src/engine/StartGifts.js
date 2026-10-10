@@ -29,7 +29,7 @@ import { eclipseHash, eclipseNode, nodeFallExemption, withEclipseSeed } from './
 import { accessoryPoolFor, accessoryTableActFor } from './EventEffects.js';
 import { bindAccessorySkill, canRollAccessorySkill } from './AccessorySkills.js';
 import { accessorySkillOf, boundSkillName } from './AccessorySkillNames.js';
-import { burdenOf } from './Burdens.js';
+import { burdenOf, hasEventPart, isTwistBurden } from './Burdens.js';
 import { applyImbue, canImbue, pickRandomImbue } from './ImbueSystem.js';
 import { canForge } from './ForgeSystem.js';
 import { addToInventory, canEquip } from './UnitManager.js';
@@ -587,7 +587,8 @@ const BURDEN_LABELS = {
 /**
  * The live state of a taken gift's catch, read from the run's burden records (a catch that is
  * a burden: Hunted, a Lingering Injury, Sworn Enemy, Ill Omen): "Hunted: 2 battles left" while
- * the record stands, "Hunted: ended" once it is gone. Null for a catch with no burden.
+ * its countdown stands (a plain record, or a twist's record's `event` part), "Hunted: ended" once
+ * it is gone (a twist's own part outlasting it is the twisted card's, not the gift's). Null for a catch with no burden.
  */
 export function giftCatchState(run, gift) {
   const price = giftCatchOf(gift, run?.gameData);
@@ -596,7 +597,11 @@ export function giftCatchState(run, gift) {
     if (effect.type !== 'burden') continue;
     const id = effect.params?.id;
     const label = run?.gameData?.events?.burdens?.[id]?.label || BURDEN_LABELS[id] || id;
-    const live = burdenOf(run, id);
+    // The gift's countdown: the record itself, or, on a twist's record (Burdens.isTwistBurden:
+    // a twisted card's Hunted or Ill Omen took the same id), its merged `event` part. The
+    // twist's own part is never the gift's.
+    const record = burdenOf(run, id);
+    const live = isTwistBurden(record) ? (hasEventPart(record) ? record.event : null) : record;
     if (!live) parts.push(`${label}: ended`);
     else if (Number.isFinite(live.battles))
       parts.push(`${label}: ${live.battles} battle${live.battles === 1 ? '' : 's'} left`);

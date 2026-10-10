@@ -7,6 +7,7 @@
 // Each test names the realistic failure it catches.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RunManager } from '../src/engine/RunManager.js';
+import { addBurden, burdenOf, cleanseBurden, isCleansable } from '../src/engine/Burdens.js';
 import {
   giftBlessingPool,
   giftCatchOf,
@@ -911,6 +912,31 @@ describe('the save and the surfaces', () => {
     const stash = taken(PINNED.armory_stash);
     expect(startGiftEntry(stash).catchState).toBeNull();
     expect(startGiftEntry(stash).price).toBe('-2 DEF to all units in Act 1');
+  });
+
+  it("the Fallen Hoard's Hunted merges with a twist's Hunted as its event part, and Cleanse lifts only that", () => {
+    // Failure: a twisted card's Hunted taken later swallows the gift's countdown (or keeps it as
+    // a second record), Cleanse refuses the gift's part or lifts the twist's, or the pause entry
+    // reads the twist's endless span as the gift's catch.
+    const rm = taken(PINNED.fallen_hoard);
+    expect(burdenOf(rm, 'hunted')).toMatchObject({ battles: 3 });
+    // Hollow Sun's Favor's twist: a Hunted for the rest of the run.
+    expect(addBurden(rm, 'hunted', { permanent: true }).ok).toBe(true);
+    expect(rm.burdens.filter((b) => b.id === 'hunted')).toHaveLength(1);
+    const record = burdenOf(rm, 'hunted');
+    expect(record.permanent).toBe(true);
+    expect(record.event).toMatchObject({ battles: 3 });
+    expect(startGiftEntry(rm).catchState).toBe('Hunted: 3 battles left');
+    expect(isCleansable(record)).toBe(true);
+    const lifted = cleanseBurden(rm, 'hunted');
+    expect(lifted).toMatchObject({ id: 'hunted', battles: 3, partial: true });
+    expect(burdenOf(rm, 'hunted')).toMatchObject({ permanent: true });
+    expect(burdenOf(rm, 'hunted').event).toBeUndefined();
+    expect(startGiftEntry(rm).catchState).toBe('Hunted: ended');
+    // Alone, Cleanse lifts the gift's Hunted whole.
+    const alone = taken(PINNED.fallen_hoard);
+    expect(cleanseBurden(alone, 'hunted')).toMatchObject({ id: 'hunted', battles: 3 });
+    expect(burdenOf(alone, 'hunted')).toBeNull();
   });
 
   it("the shrine's gift card is a tarot card marked 'gift', its foot a Catch and its sun the icon", () => {
