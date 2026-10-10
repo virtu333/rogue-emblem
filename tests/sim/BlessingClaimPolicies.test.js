@@ -16,7 +16,7 @@ import { installStatefulSeed, restoreStatefulRandom } from '../../sim/lib/Statef
 import { ClaimingRunDriver } from './ClaimingRunDriver.js';
 
 const NATURAL_SEEDS = [1, 3, 5, 7, 11];
-const GRANTED_SEEDS = [2, 9];
+const GRANTED_SEEDS = [2, 9, 11];
 const GRANTED = [
   'twin_chapel',
   'cutpurses_luck',
