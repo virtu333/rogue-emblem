@@ -3,6 +3,7 @@ import { DEFAULT_MARK_CHANCE } from './MarkSystem.js';
 import { mergeSeenDialogueKeys } from '../utils/seenDialogue.js';
 import { mergeRunRecords, runRecordsUnderPressure } from './RunRecords.js';
 import { isQuotaExceededError, setItemFreeingSpace } from './SaveSpace.js';
+import { upgradeEffectAtLevel, upgradeMaxedAt, upgradeTierCost } from './RepeatableUpgrades.js';
 // MetaProgressionManager.js — Pure class: persistent meta-progression (dual currency + upgrades)
 // No Phaser deps. Follows SettingsManager pattern.
 
@@ -710,8 +711,9 @@ export class MetaProgressionManager {
     const upgrade = this.upgradesData.find((u) => u.id === id);
     if (!upgrade) return null;
     const level = this.getUpgradeLevel(id);
-    if (level >= upgrade.maxLevel) return null;
-    return upgrade.costs[level];
+    // A repeatable upgrade (RepeatableUpgrades.js) sells tiers past its list forever.
+    if (upgradeMaxedAt(upgrade, level)) return null;
+    return upgradeTierCost(upgrade, level + 1);
   }
 
   /** Get the currency type ('valor' or 'supply') for an upgrade by its ID. */
@@ -732,7 +734,7 @@ export class MetaProgressionManager {
   isMaxed(id) {
     const upgrade = this.upgradesData.find((u) => u.id === id);
     if (!upgrade) return false;
-    return this.getUpgradeLevel(id) >= upgrade.maxLevel;
+    return upgradeMaxedAt(upgrade, this.getUpgradeLevel(id));
   }
 
   // --- Milestone methods ---
@@ -1007,7 +1009,7 @@ export class MetaProgressionManager {
     for (const upgrade of this.upgradesData) {
       const level = this.getUpgradeLevel(upgrade.id);
       if (level === 0) continue;
-      const effect = upgrade.effects[level - 1];
+      const effect = upgradeEffectAtLevel(upgrade, level);
       if (!effect) continue;
 
       pushIfValid(effect.unlockWeaponArt);
@@ -1081,7 +1083,7 @@ export class MetaProgressionManager {
     for (const upgrade of this.upgradesData) {
       const level = this.getUpgradeLevel(upgrade.id);
       if (level === 0) continue;
-      const effectTier = Number(upgrade.effects[level - 1]?.commanderChoiceTier) || 0;
+      const effectTier = Number(upgradeEffectAtLevel(upgrade, level)?.commanderChoiceTier) || 0;
       if (effectTier > tier) tier = effectTier;
     }
     return tier;
@@ -1161,7 +1163,8 @@ export class MetaProgressionManager {
       battleGoldMultiplier: 0,
       extraVulnerary: 0,
       vulneraryUses: 0,
-      // Branching Threads: battle-reward rerolls a run starts with (tier totals, not increments).
+      // Branching Threads: rerolls a run starts with, spent on battle rewards or level-ups
+      // (tier totals, not increments; repeatable past tier 4: RepeatableUpgrades.js).
       rewardRerolls: 0,
       lootCategoryWeightBonuses: {},
       lootWeaponQualityBonus: 0,
@@ -1199,7 +1202,7 @@ export class MetaProgressionManager {
       const level = this.getUpgradeLevel(upgrade.id);
       if (level === 0) continue;
 
-      const effect = upgrade.effects[level - 1];
+      const effect = upgradeEffectAtLevel(upgrade, level);
       if (!effect) continue;
 
       if (Number.isFinite(effect.legendaryLordChanceBonus))
@@ -1399,7 +1402,9 @@ export class MetaProgressionManager {
       }
     }
 
-    const refundAmount = id === 'unlock_sol' ? this.solRefundBasis : upgrade.costs[level - 1];
+    // The top tier at its price: a repeat tier past the list returns its repeat price.
+    const refundAmount =
+      id === 'unlock_sol' ? this.solRefundBasis : upgradeTierCost(upgrade, level) || 0;
     return { success: true, refundAmount, refundFee: REFUND_FEE };
   }
 
@@ -1416,7 +1421,8 @@ export class MetaProgressionManager {
     const upgrade = this.upgradesData.find((u) => u.id === id);
     const level = this.getUpgradeLevel(id);
     const currency = this.getCurrencyForUpgrade(id);
-    const refundAmount = id === 'unlock_sol' ? this.solRefundBasis : upgrade.costs[level - 1];
+    const refundAmount =
+      id === 'unlock_sol' ? this.solRefundBasis : upgradeTierCost(upgrade, level) || 0;
 
     // Deduct fee + refund tier cost
     if (currency === 'valor') {

@@ -712,6 +712,7 @@ function applyBattleEntryRevert(run, flag) {
     run.visionChargesRemaining = patch.visionChargesRemaining;
   if (patch.visionCount !== undefined) run.visionCount = patch.visionCount;
   if (patch.rngSeed !== undefined) run.rngSeed = patch.rngSeed;
+  if (patch.rewardRerollsSpent !== undefined) run.rewardRerollsSpent = patch.rewardRerollsSpent;
   if (patch.prologueVisionGranted !== undefined)
     run.prologueVisionGranted = patch.prologueVisionGranted;
   if (patch.removeConvoyUid) run.removeFromConvoyByUid(patch.removeConvoyUid);
@@ -5135,6 +5136,8 @@ export class RunManager {
         : null,
       visionCountAtEntry: Number.isFinite(this.visionCount) ? this.visionCount : null,
       rngSeedAtEntry: Number.isFinite(this.rngSeed) ? this.rngSeed : null,
+      // Branching Threads: a level-up reroll spent in the battle is refunded by Continue from Map.
+      rewardRerollsSpentAtEntry: Math.max(0, Math.trunc(Number(this.rewardRerollsSpent) || 0)),
       // The prologue's Vision grant reverts with the battle (a restart re-teaches it).
       ...(isPrologueRun(this)
         ? { prologueVisionGrantedAtEntry: this.prologueVisionGranted === true }
@@ -7267,6 +7270,8 @@ export function battleEntryRevertPatch(flag) {
     patch.visionChargesRemaining = flag.visionChargesAtEntry;
   if (Number.isFinite(flag.visionCountAtEntry)) patch.visionCount = flag.visionCountAtEntry;
   if (Number.isFinite(flag.rngSeedAtEntry)) patch.rngSeed = flag.rngSeedAtEntry;
+  if (Number.isInteger(flag.rewardRerollsSpentAtEntry) && flag.rewardRerollsSpentAtEntry >= 0)
+    patch.rewardRerollsSpent = flag.rewardRerollsSpentAtEntry;
   if (typeof flag.prologueVisionGrantedAtEntry === 'boolean')
     patch.prologueVisionGranted = flag.prologueVisionGrantedAtEntry;
   return patch;
@@ -7299,6 +7304,8 @@ export function clearBattleInProgressInSave(onSave, slotNumber) {
       parsed.visionChargesRemaining = patch.visionChargesRemaining;
     if (patch.visionCount !== undefined) parsed.visionCount = patch.visionCount;
     if (patch.rngSeed !== undefined) parsed.rngSeed = patch.rngSeed;
+    if (patch.rewardRerollsSpent !== undefined)
+      parsed.rewardRerollsSpent = patch.rewardRerollsSpent;
     if (patch.prologueVisionGranted !== undefined)
       parsed.prologueVisionGranted = patch.prologueVisionGranted;
     if (patch.removeConvoyUid && parsed.convoy && typeof parsed.convoy === 'object') {

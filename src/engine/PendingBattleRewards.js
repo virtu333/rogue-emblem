@@ -2,6 +2,7 @@ import { generateLootChoices, calculateSkipLootBonus } from './LootSystem.js';
 import { getRating, calculateBonusGold } from './TurnBonusCalculator.js';
 import { buildPrologueLootChoices } from './Prologue.js';
 import { isPrologueRun } from './ScriptedBattle.js';
+import { rerollsGranted, rerollsLeft, rerollsSpent } from './RerollPool.js';
 import { gambleSummary } from './BattleGoldGamble.js';
 import { applyLotteryCards, lotteryDrawParams } from './LotteryLoot.js';
 import { dawnTitheGold, shrineBoonsOf } from './ShrineBoons.js';
@@ -165,25 +166,16 @@ export function finishRewardClaim(run, index) {
 }
 
 // ── Branching Threads: battle-reward rerolls ────────────────────────────
+// The pool is shared with level-up rerolls (engine/RerollPool.js; engine/LevelUpReroll.js).
 
-/**
- * Rerolls this run was granted (the Home Base upgrade, snapshotted into the run's meta
- * effects at its start). The prologue run applies no meta effects and has none.
- */
-export function rewardRerollsGranted(run) {
-  if (!run || isPrologueRun(run)) return 0;
-  return Math.max(0, Math.trunc(Number(run.metaEffects?.rewardRerolls) || 0));
-}
+/** Rerolls this run was granted (the prologue has none). */
+export const rewardRerollsGranted = rerollsGranted;
 
-/** Rerolls spent this run (saved as `run.rewardRerollsSpent`; older saves read 0). */
-export function rewardRerollsSpent(run) {
-  return Math.max(0, Math.trunc(Number(run?.rewardRerollsSpent) || 0));
-}
+/** Rerolls spent this run, on rewards or level-ups (`run.rewardRerollsSpent`). */
+export const rewardRerollsSpent = rerollsSpent;
 
 /** Rerolls left this run. */
-export function rewardRerollsLeft(run) {
-  return Math.max(0, rewardRerollsGranted(run) - rewardRerollsSpent(run));
-}
+export const rewardRerollsLeft = rerollsLeft;
 
 export const REWARD_REROLL_BLOCKS = Object.freeze({
   none: 'none', // no Branching Threads this run

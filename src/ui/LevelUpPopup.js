@@ -19,6 +19,9 @@ export class LevelUpPopup {
    * @param {boolean} isPromotion - if true, shows "PROMOTION" title instead of level-up
    * @param {string[]} learnedSkills - names of skills learned this level-up
    * @param {object} [growthBonuses] - optional {stat: bonus%} from promoted class
+   * @param {{ reroll?: { state: () => object, run: () => object } | null }} [options]
+   *   `reroll`: Branching Threads' Reroll for this level (ui/LevelUpRerollController.js);
+   *   the card shows the button and calls it, never touching the unit itself.
    */
   constructor(
     scene,
@@ -27,6 +30,7 @@ export class LevelUpPopup {
     isPromotion = false,
     learnedSkills = [],
     growthBonuses = null,
+    { reroll = null } = {},
   ) {
     this.scene = scene;
     this.unit = unit;
@@ -34,6 +38,7 @@ export class LevelUpPopup {
     this.isPromotion = isPromotion;
     this.learnedSkills = learnedSkills;
     this.growthBonuses = growthBonuses;
+    this.reroll = isPromotion ? null : reroll;
     this.objects = [];
   }
 
@@ -60,6 +65,7 @@ export class LevelUpPopup {
               result: this.levelUpResult,
               learnedNames: this.learnedSkills,
               handle: this._growthHandle,
+              reroll: this.reroll,
             })
             .then(
               () => this.destroy(),
@@ -78,228 +84,277 @@ export class LevelUpPopup {
         );
         return;
       }
-      const cam = this.scene.cameras.main;
-      const cx = cam.width / 2;
-      const cy = cam.height / 2;
-
-      const gains = this.levelUpResult.gains;
-
-      // Compute display-friendly level strings (extended: "20+N")
-      let oldLevelStr, newLevelStr;
-      if (this.levelUpResult.isExtended) {
-        const extLv = this.levelUpResult.extendedLevel;
-        newLevelStr = `20+${extLv}`;
-        oldLevelStr = extLv - 1 === 0 ? '20' : `20+${extLv - 1}`;
-      } else {
-        oldLevelStr = String(this.levelUpResult.newLevel - 1);
-        newLevelStr = String(this.levelUpResult.newLevel);
-      }
-
-      // Build text lines
-      const lines = [];
-      lines.push(`  LEVEL UP!  Lv ${oldLevelStr} → Lv ${newLevelStr}`);
-      lines.push('');
-
-      const statLines = [];
-      for (const stat of XP_STAT_NAMES) {
-        const val = (this.levelUpResult.displayStats || this.unit.stats)[stat];
-        const gained = gains[stat] || 0;
-        const label = stat.padEnd(4);
-        if (gained > 0) {
-          statLines.push({
-            text: `  ${label} ${String(val).padStart(3)}  +${gained}`,
-            gained: true,
-          });
-        } else {
-          statLines.push({ text: `  ${label} ${String(val).padStart(3)}`, gained: false });
-        }
-      }
-
-      // Growth bonus lines (promotion only)
-      const growthLines = [];
-      if (this.growthBonuses) {
-        for (const [stat, val] of Object.entries(this.growthBonuses)) {
-          growthLines.push(`  +${val}% ${stat} Growth`);
-        }
-      }
-
-      // The unit's reaction (canvas fallback: wrapped under the stats).
-      let quoteText = null;
-      if (!this.isPromotion) {
-        try {
-          const voice = voiceContext({
-            gameData: this.scene.gameData,
-            runManager: this.scene.runManager,
-            units: this.scene.playerUnits,
-          });
-          const quote = levelUpContent(this.unit, this.levelUpResult, this.learnedSkills, voice).quote; // prettier-ignore
-          if (quote) quoteText = `“${quote}”`;
-        } catch {
-          quoteText = null;
-        }
-      }
-
-      // Panel dimensions
-      const lineHeight = 18;
-      const panelWidth = 260;
-      const quoteLineCount = quoteText ? 3 : 0;
-      const blocked = this.levelUpResult?.blockedSkills || [];
-      const skillLineCount =
-        (this.learnedSkills.length > 0 ? this.learnedSkills.length + 1 : 0) +
-        (blocked.length ? blocked.length + (this.learnedSkills.length ? 0 : 1) : 0);
-      const growthLineCount = growthLines.length > 0 ? growthLines.length + 1 : 0;
-      const panelHeight =
-        (statLines.length + 4 + skillLineCount + growthLineCount + quoteLineCount) * lineHeight +
-        16;
-
-      // Dim background
-      const dimBg = this.scene.add
-        .rectangle(cam.width / 2, cam.height / 2, cam.width, cam.height, 0x000000, 0.4)
-        .setDepth(900)
-        .setInteractive();
-      this.objects.push(dimBg);
-
-      // Panel background
-      const bg = this.scene.add
-        .rectangle(cx, cy, panelWidth, panelHeight, UI_HEX.panel, 0.95)
-        .setDepth(901)
-        .setStrokeStyle(2, UI_HEX.line);
-      this.objects.push(bg);
-
-      // Title
-      let y = cy - panelHeight / 2 + 14;
-      const titleStr = this.isPromotion
-        ? `PROMOTION!  ${this.unit.className}`
-        : `LEVEL UP!  Lv ${oldLevelStr} → Lv ${newLevelStr}`;
-      const titleColor = this.isPromotion ? UI_PALETTE.info : UI_PALETTE.accentText;
-      const title = presentationText(this.scene, cx, y, titleStr, {
-        fontFamily: 'monospace',
-        fontSize: '13px',
-        color: titleColor,
-        fontStyle: 'bold',
-      })
-        .setOrigin(0.5, 0)
-        .setDepth(902);
-      this.objects.push(title);
-      y += lineHeight + 6;
-
-      // Stat lines with color coding
-      const statNames = [...XP_STAT_NAMES];
-      for (let si = 0; si < statLines.length; si++) {
-        const sl = statLines[si];
-        const stat = statNames[si];
-        const color = sl.gained ? UI_PALETTE.good : STAT_COLORS[stat] || UI_PALETTE.text;
-        const text = presentationText(this.scene, cx - panelWidth / 2 + 12, y, sl.text, {
-          fontFamily: 'monospace',
-          fontSize: '12px',
-          color,
-        })
-          .setOrigin(0, 0)
-          .setDepth(902);
-        this.objects.push(text);
-        y += lineHeight;
-      }
-
-      // Growth bonuses (promotion only)
-      if (growthLines.length > 0) {
-        y += 4;
-        for (const gl of growthLines) {
-          const growthText = presentationText(this.scene, cx - panelWidth / 2 + 12, y, gl, {
-            fontFamily: 'monospace',
-            fontSize: '12px',
-            color: UI_PALETTE.info,
-          })
-            .setOrigin(0, 0)
-            .setDepth(902);
-          this.objects.push(growthText);
-          y += lineHeight;
-        }
-      }
-
-      // Learned skills
-      if (this.learnedSkills.length > 0) {
-        y += 4;
-        for (const skillName of this.learnedSkills) {
-          const skillText = presentationText(
-            this.scene,
-            cx - panelWidth / 2 + 12,
-            y,
-            `  NEW SKILL: ${skillName}`,
-            {
-              fontFamily: 'monospace',
-              fontSize: '12px',
-              color: UI_PALETTE.info,
-              fontStyle: 'bold',
-            },
-          )
-            .setOrigin(0, 0)
-            .setDepth(902);
-          this.objects.push(skillText);
-          y += lineHeight;
-        }
-      }
-
-      // Skills that came due at this level with every skill slot full (kept benched).
-      if (blocked.length > 0) {
-        if (!this.learnedSkills.length) y += 4;
-        for (const skillName of blocked) {
-          const blockedText = presentationText(
-            this.scene,
-            cx - panelWidth / 2 + 12,
-            y,
-            `  BENCHED: ${skillName} (slots full)`,
-            { fontFamily: 'monospace', fontSize: '12px', color: UI_PALETTE.muted },
-          )
-            .setOrigin(0, 0)
-            .setDepth(902);
-          this.objects.push(blockedText);
-          y += lineHeight;
-        }
-      }
-
-      if (quoteText) {
-        y += 4;
-        const quote = presentationText(this.scene, cx, y, quoteText, {
-          fontFamily: 'monospace',
-          fontSize: '11px',
-          fontStyle: 'italic',
-          color: UI_PALETTE.text,
-          align: 'center',
-          wordWrap: { width: panelWidth - 24 },
-        })
-          .setOrigin(0.5, 0)
-          .setDepth(902);
-        this.objects.push(quote);
-        y += quoteLineCount * lineHeight - 4;
-      }
-
-      // Dismiss hint
-      y += 6;
-      const hint = presentationText(
-        this.scene,
-        cx,
-        y,
-        inputHint(this.scene, '(click to continue)', '(tap to continue)'),
-        {
-          fontFamily: 'monospace',
-          fontSize: '10px',
-          color: UI_PALETTE.muted,
-        },
-      )
-        .setOrigin(0.5, 0)
-        .setDepth(902);
-      this.objects.push(hint);
-
+      this._renderCanvas();
       // Hook shutdown only after the popup built successfully -- a throw
       // above (e.g. dead scene) must not leave a stale listener behind.
       this._onSceneShutdown = () => this.destroy();
       this.scene.events?.once?.('shutdown', this._onSceneShutdown);
-
-      // Click to dismiss
-      dimBg.once('pointerdown', () => {
-        this.destroy();
-      });
     });
+  }
+
+  /** The canvas card (no DOM host). Rebuilt in place after a reroll. */
+  _renderCanvas(notice = '') {
+    const cam = this.scene.cameras.main;
+    const cx = cam.width / 2;
+    const cy = cam.height / 2;
+
+    const gains = this.levelUpResult.gains;
+
+    // Compute display-friendly level strings (extended: "20+N")
+    let oldLevelStr, newLevelStr;
+    if (this.levelUpResult.isExtended) {
+      const extLv = this.levelUpResult.extendedLevel;
+      newLevelStr = `20+${extLv}`;
+      oldLevelStr = extLv - 1 === 0 ? '20' : `20+${extLv - 1}`;
+    } else {
+      oldLevelStr = String(this.levelUpResult.newLevel - 1);
+      newLevelStr = String(this.levelUpResult.newLevel);
+    }
+
+    // Build text lines
+    const lines = [];
+    lines.push(`  LEVEL UP!  Lv ${oldLevelStr} → Lv ${newLevelStr}`);
+    lines.push('');
+
+    const statLines = [];
+    for (const stat of XP_STAT_NAMES) {
+      const val = (this.levelUpResult.displayStats || this.unit.stats)[stat];
+      const gained = gains[stat] || 0;
+      const label = stat.padEnd(4);
+      if (gained > 0) {
+        statLines.push({
+          text: `  ${label} ${String(val).padStart(3)}  +${gained}`,
+          gained: true,
+        });
+      } else {
+        statLines.push({ text: `  ${label} ${String(val).padStart(3)}`, gained: false });
+      }
+    }
+
+    // Growth bonus lines (promotion only)
+    const growthLines = [];
+    if (this.growthBonuses) {
+      for (const [stat, val] of Object.entries(this.growthBonuses)) {
+        growthLines.push(`  +${val}% ${stat} Growth`);
+      }
+    }
+
+    // The unit's reaction (canvas fallback: wrapped under the stats).
+    let quoteText = null;
+    if (!this.isPromotion) {
+      try {
+        const voice = voiceContext({
+          gameData: this.scene.gameData,
+          runManager: this.scene.runManager,
+          units: this.scene.playerUnits,
+        });
+        const quote = levelUpContent(this.unit, this.levelUpResult, this.learnedSkills, voice).quote; // prettier-ignore
+        if (quote) quoteText = `“${quote}”`;
+      } catch {
+        quoteText = null;
+      }
+    }
+
+    // Panel dimensions
+    const lineHeight = 18;
+    const panelWidth = 260;
+    const quoteLineCount = quoteText ? 3 : 0;
+    const blocked = this.levelUpResult?.blockedSkills || [];
+    const skillLineCount =
+      (this.learnedSkills.length > 0 ? this.learnedSkills.length + 1 : 0) +
+      (blocked.length ? blocked.length + (this.learnedSkills.length ? 0 : 1) : 0);
+    const growthLineCount = growthLines.length > 0 ? growthLines.length + 1 : 0;
+    const rerollLineCount = notice ? 3 : this.reroll?.state?.()?.hidden === false ? 1 : 0;
+    const panelHeight =
+      (statLines.length + 4 + skillLineCount + growthLineCount + quoteLineCount + rerollLineCount) *
+        lineHeight +
+      16;
+
+    // Dim background
+    const dimBg = this.scene.add
+      .rectangle(cam.width / 2, cam.height / 2, cam.width, cam.height, 0x000000, 0.4)
+      .setDepth(900)
+      .setInteractive();
+    this.objects.push(dimBg);
+
+    // Panel background
+    const bg = this.scene.add
+      .rectangle(cx, cy, panelWidth, panelHeight, UI_HEX.panel, 0.95)
+      .setDepth(901)
+      .setStrokeStyle(2, UI_HEX.line);
+    this.objects.push(bg);
+
+    // Title
+    let y = cy - panelHeight / 2 + 14;
+    const titleStr = this.isPromotion
+      ? `PROMOTION!  ${this.unit.className}`
+      : `LEVEL UP!  Lv ${oldLevelStr} → Lv ${newLevelStr}`;
+    const titleColor = this.isPromotion ? UI_PALETTE.info : UI_PALETTE.accentText;
+    const title = presentationText(this.scene, cx, y, titleStr, {
+      fontFamily: 'monospace',
+      fontSize: '13px',
+      color: titleColor,
+      fontStyle: 'bold',
+    })
+      .setOrigin(0.5, 0)
+      .setDepth(902);
+    this.objects.push(title);
+    y += lineHeight + 6;
+
+    // Stat lines with color coding
+    const statNames = [...XP_STAT_NAMES];
+    for (let si = 0; si < statLines.length; si++) {
+      const sl = statLines[si];
+      const stat = statNames[si];
+      const color = sl.gained ? UI_PALETTE.good : STAT_COLORS[stat] || UI_PALETTE.text;
+      const text = presentationText(this.scene, cx - panelWidth / 2 + 12, y, sl.text, {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color,
+      })
+        .setOrigin(0, 0)
+        .setDepth(902);
+      this.objects.push(text);
+      y += lineHeight;
+    }
+
+    // Growth bonuses (promotion only)
+    if (growthLines.length > 0) {
+      y += 4;
+      for (const gl of growthLines) {
+        const growthText = presentationText(this.scene, cx - panelWidth / 2 + 12, y, gl, {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: UI_PALETTE.info,
+        })
+          .setOrigin(0, 0)
+          .setDepth(902);
+        this.objects.push(growthText);
+        y += lineHeight;
+      }
+    }
+
+    // Learned skills
+    if (this.learnedSkills.length > 0) {
+      y += 4;
+      for (const skillName of this.learnedSkills) {
+        const skillText = presentationText(
+          this.scene,
+          cx - panelWidth / 2 + 12,
+          y,
+          `  NEW SKILL: ${skillName}`,
+          {
+            fontFamily: 'monospace',
+            fontSize: '12px',
+            color: UI_PALETTE.info,
+            fontStyle: 'bold',
+          },
+        )
+          .setOrigin(0, 0)
+          .setDepth(902);
+        this.objects.push(skillText);
+        y += lineHeight;
+      }
+    }
+
+    // Skills that came due at this level with every skill slot full (kept benched).
+    if (blocked.length > 0) {
+      if (!this.learnedSkills.length) y += 4;
+      for (const skillName of blocked) {
+        const blockedText = presentationText(
+          this.scene,
+          cx - panelWidth / 2 + 12,
+          y,
+          `  BENCHED: ${skillName} (slots full)`,
+          { fontFamily: 'monospace', fontSize: '12px', color: UI_PALETTE.muted },
+        )
+          .setOrigin(0, 0)
+          .setDepth(902);
+        this.objects.push(blockedText);
+        y += lineHeight;
+      }
+    }
+
+    if (quoteText) {
+      y += 4;
+      const quote = presentationText(this.scene, cx, y, quoteText, {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        fontStyle: 'italic',
+        color: UI_PALETTE.text,
+        align: 'center',
+        wordWrap: { width: panelWidth - 24 },
+      })
+        .setOrigin(0.5, 0)
+        .setDepth(902);
+      this.objects.push(quote);
+      y += quoteLineCount * lineHeight - 4;
+    }
+
+    // Dismiss hint
+    y += 6;
+    const hint = presentationText(
+      this.scene,
+      cx,
+      y,
+      inputHint(this.scene, '(click to continue)', '(tap to continue)'),
+      {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: UI_PALETTE.muted,
+      },
+    )
+      .setOrigin(0.5, 0)
+      .setDepth(902);
+    this.objects.push(hint);
+
+    // Branching Threads: the Reroll (there is no reveal stage here: the gains show at once).
+    const rerollState = this.reroll?.state?.() || { hidden: true };
+    if (!rerollState.hidden || notice) {
+      y += lineHeight;
+      const rerollText = presentationText(this.scene, cx, y, notice || `[ ${rerollState.label} ]`, {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: notice || rerollState.disabled ? UI_PALETTE.muted : UI_PALETTE.accentText,
+        align: 'center',
+        wordWrap: { width: panelWidth - 24 },
+      })
+        .setOrigin(0.5, 0)
+        .setDepth(903);
+      this.objects.push(rerollText);
+      if (!notice && !rerollState.disabled) {
+        rerollText.setInteractive({ useHandCursor: true });
+        rerollText.on('pointerdown', (_pointer, _x, _y, event) => {
+          event?.stopPropagation?.();
+          this._rerollCanvas();
+        });
+      }
+    }
+
+    // Click to dismiss
+    dimBg.once('pointerdown', () => {
+      this.destroy();
+    });
+  }
+
+  /** One reroll from the canvas card: committed by the handle, then the card redrawn. */
+  _rerollCanvas() {
+    if (!this.reroll || !this._resolve) return;
+    let outcome;
+    try {
+      outcome = this.reroll.run();
+    } catch {
+      outcome = { ok: false };
+    }
+    if (outcome?.ok && outcome.result) this.levelUpResult = outcome.result;
+    if (outcome?.ok) this.scene.registry?.get?.('audio')?.playSFX?.('sfx_confirm');
+    this._clearCanvas();
+    this._renderCanvas(outcome?.ok ? '' : outcome?.message || 'Could not reroll.');
+  }
+
+  _clearCanvas() {
+    for (const obj of this.objects) obj.destroy();
+    this.objects = [];
   }
 
   destroy() {
