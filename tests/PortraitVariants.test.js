@@ -294,6 +294,30 @@ describe('promotion and reclass', () => {
     expect(variantPortraitId(hero)).toBe(person('mercenary_a').renders.Hero);
   });
 
+  it('a promoted unit sealed out of its line keeps the drawing of the class it held', async () => {
+    const { reclassUnit } = await import('../src/engine/UnitManager.js');
+    const cases = [
+      ['Berserker', 'Swordmaster', 'fighter_a'],
+      ['Dark Knight', 'Duelist', 'cavalier_a'],
+      ['Bishop', 'Sage', 'cleric_b'],
+    ];
+    for (const [from, to, id] of cases) {
+      const base = classData(classData(from).promotesFrom);
+      const u = createUnit(base, 10, data.weapons, { name: 'Ren' });
+      promoteUnit(u, classData(from), classData(from).promotionBonuses || {}, data.skills);
+      u.portraitVariant = id;
+      const held = person(id).renders[from];
+      expect(portraitIdForUnit(u, data)).toBe(held);
+      reclassUnit(u, classData(to), classData(from), data.classes, data.skills);
+      expect(u.className).toBe(to);
+      expect(variantPortraitId(u), `${from} sealed to ${to}`).toBe(held);
+      // back into a drawn class: the class's own drawing, the memory cleared
+      reclassUnit(u, classData(from), classData(to), data.classes, data.skills);
+      expect(u.portraitFaceClass).toBeUndefined();
+      expect(variantPortraitId(u)).toBe(held);
+    }
+  });
+
   it('every person keeps the same face across every other class line', () => {
     const faces = new Set();
     for (const [id, p] of Object.entries(table.identities)) {

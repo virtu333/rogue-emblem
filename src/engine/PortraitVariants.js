@@ -202,13 +202,13 @@ export function backfillPortraitVariants(roster = [], { fallen = [], seed } = {}
 /**
  * The person a player-side unit shows in its current class, or null (lords,
  * bosses, enemies, classes without people). This is the one resolver for
- * both the portrait (variantPortraitId) and the map sprite
- * (TracedSprites.tracedKeyFor), so the face and the figure are always the
- * same person. Units without a stored choice (previews, units that never
+ * the map sprite (TracedSprites.tracedKeyFor) and, inside a person's own line,
+ * for the portrait too (variantPortraitId, through facePerson). Units without a stored choice (previews, units that never
  * passed an assignment point) get a stable hash-based person that is not
  * persisted. A unit reclassed out of its line gets a stable counterpart of the
  * same gender here, for the map sprite (sprites exist only inside a person's own
- * line); its portrait keeps its own face (facePerson).
+ * line); its portrait keeps its own face (facePerson), so after a cross-line reclass
+ * the portrait and the sprite are two people of the same gender.
  */
 export function displayedPerson(unit) {
   if (!unit || wearsOwnPortrait(unit) || unit.faction === 'enemy') return null;
@@ -247,10 +247,31 @@ export function facePerson(unit) {
   return personFitsClass(person, unit.className) ? person : displayedPerson(unit);
 }
 
-/** A person's drawing outside the class they stand in: their own line, at the unit's tier if drawn. */
+/**
+ * Remember the class whose drawing a unit's face is shown in when a reclass takes
+ * it out of its person's line (`unit.portraitFaceClass`, saved; absent otherwise):
+ * a Berserker sealed into a Swordmaster keeps the Berserker drawing, not the line's
+ * first promoted one. A seal back into a drawn class clears it; a second seal out
+ * keeps the first (the class that was last drawn).
+ */
+export function noteReclassFace(unit, fromClass, toClass) {
+  const person = unit?.portraitVariant;
+  if (!isPortraitPerson(person) || wearsOwnPortrait(unit)) return;
+  const renders = table.identities[person].renders;
+  if (renders[toClass]) delete unit.portraitFaceClass;
+  else if (!unit.portraitFaceClass && renders[fromClass]) unit.portraitFaceClass = fromClass;
+}
+
+/**
+ * A person's drawing outside the class they stand in: the class the face was last
+ * drawn in (noteReclassFace) while the unit is still at that tier, else their own
+ * line's drawing at the unit's tier (old saves, previews).
+ */
 function keptDrawing(person, unit) {
   const renders = table.identities[person].renders;
-  const tier = TIER_OF_CLASS.get(unit.className) || unit.tier || 'base';
+  const tier = unit.tier || TIER_OF_CLASS.get(unit.className) || 'base';
+  const held = unit.portraitFaceClass;
+  if (renders[held] && TIER_OF_CLASS.get(held) === tier) return renders[held];
   const classes = Object.keys(renders);
   const same = classes.find((c) => TIER_OF_CLASS.get(c) === tier);
   return renders[same || classes[0]];

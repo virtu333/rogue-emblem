@@ -1,4 +1,6 @@
-// The map sprite is the person the portrait shows (iOS report, 2026-09-26: "a sprite is
+// The map sprite is the person the portrait shows inside the person's own line; after a
+// cross-line reclass the portrait keeps the unit's face and the sprite is a same-gender
+// counterpart (PortraitVariants.facePerson). (iOS report, 2026-09-26: "a sprite is
 // black but the matching portrait is not"). The sprite and the portrait used to be picked
 // by two independent hashes; now tracedKeyFor resolves the person through
 // PortraitVariants.displayedPerson, the same function variantPortraitId uses, and every
