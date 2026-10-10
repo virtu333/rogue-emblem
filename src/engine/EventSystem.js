@@ -484,6 +484,9 @@ export const SAFE_BLESSING_BOON_TYPES = Object.freeze([
   'recruit_level_bonus',
   'first_strike_hit_bonus',
   'stationary_combat_bonus',
+  // Phalanx Rite and Duelist's Creed: formation bonuses, free of any price in the boon.
+  'adjacent_ally_def_bonus',
+  'isolated_combat_bonus',
   'healing_effectiveness_delta',
   'extra_consumable',
   'act_start_convoy_item',

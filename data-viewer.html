@@ -8127,6 +8127,10 @@
             return `+${p.value} Hit on the first strike of a combat your units start`;
           case 'stationary_combat_bonus':
             return `+${p.defBonus} DEF, +${p.avoidBonus} avoid for a unit that has not moved this turn`;
+          case 'adjacent_ally_def_bonus':
+            return `+${p.perAlly} DEF per ally on an adjacent tile (up to +${p.max})`;
+          case 'isolated_combat_bonus':
+            return `+${p.avoidBonus || 0} avoid, +${p.critBonus || 0} crit with no ally within ${p.radius} tiles`;
           case 'disable_personal_skills_until_act':
             return `Personal skills disabled until ${getActLabel(p.act)}`;
           case 'starting_forge_lords':

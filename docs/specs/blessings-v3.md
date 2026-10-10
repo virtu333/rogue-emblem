@@ -340,9 +340,42 @@ where it acts in battle, a read in the combat-mod builder (`BattleScene` and
 | Blessing | Effect | Hook | Tier | Prices |
 |---|---|---|---|---|
 | Lone Banner | deploy cap −1; every deployed unit +25% XP | deploy delta (exists) + conditional XP; new | III | none: the cap is the price |
-| Phalanx Rite | +1 DEF per adjacent ally, up to +3 | accessory condition `adjacent_ally` | III | Debt III / Sworn Enemy |
-| Duelist's Creed | +15 avoid, +10 crit with no ally within 2 tiles | accessory condition `no_ally_within_2` | III | Debt III / −1 deploy Act 1 |
+| Phalanx Rite | +2 DEF per ally on a cardinal neighbour tile (never a diagonal), up to +3 (so +2 with one, +3 with two or more; was +1 per ally); **Built** | `adjacent_ally_def_bonus`: `SkillSystem.countAdjacentAllies` (the accessory condition `adjacent_ally`'s rule), read in `BlessingCombatMods` | III | Debt III / Sworn Enemy + −8 Hit Act 1 |
+| Duelist's Creed | +15 avoid, +10 crit while no ally is within 2 tiles (Manhattan); **Built** | `isolated_combat_bonus`: `SkillSystem.hasAllyWithin` (the accessory condition `no_ally_within_2`'s rule), read in `BlessingCombatMods` | III | Debt III / Hunted 2 + −1 DEF Act 1 (was: −1 deploy Act 1; see as built) |
 | Cavalier's Hour | mounted units +1 MOV; infantry +1 DEF | move types in classes.json; new | III | Debt III / Sworn Enemy + garnish |
+
+**As built (the formation cards).** Both are player-faction combat bonuses read in
+`BlessingCombatMods.blessingCombatModsFor` (the one place a blessing reaches a combat's mods),
+on both sides of an exchange, from `side.allies`, the unit's own side as the scene and the
+harness pass it (the player's army: green NPCs and foes never count, the unit itself and the
+fallen never count). Boon params are positive integers; a boon that would do nothing is refused
+by `validateBoonParams` and skipped by the handler (`engine/FormationBlessings.js` is the one
+reading). Held as `blessingRuntimeModifiers.adjacentAllyDefBonuses` / `isolatedCombatBonuses`
+(one entry per grant, saved, sanitised on load) and handed to combat in the profile as
+`adjacentAllyDef` / `isolated`.
+
+- **Phalanx Rite** counts allies at distance 1 (the four cardinal tiles, as the `adjacent_ally`
+  accessory condition does). The DEF counts against any physical blow; a magical blow reads RES,
+  as every DEF mod does. `max` caps the bonus, not the ally count. Tuned to `{ perAlly: 2, max: 3 }`
+  (the review found +1 per ally too small for a tier III card): one neighbour
+  pays +2, two or more pay the +3 cap, so the third and fourth neighbour add nothing.
+- **Where the formation cards apply.** They are combat mods for DEF, Avoid and Crit in a combat
+  exchange, on the attacker's side or the defender's, and nowhere else. The things that ignore
+  every DEF mod ignore them too: an area or line art's blows on victims other than the primary
+  target, rams, the ballista and Deathburst. The enemy AI's target scoring does not see
+  blessing mods (as for every blessing), so a foe does not weigh a Phalanx or a duelist when it
+  picks whom to strike. Arena bouts get no blessing, so neither card acts there.
+- **Duelist's Creed** counts any living ally within `radius` (Manhattan, so 2 reaches a
+  diagonal neighbour and a tile two steps away). Foes within the radius do not break the duel.
+  A lone unit (an army of one) is always isolated.
+- **Prices.** The brief's pair for Duelist's Creed (Debt III / −1 deploy Act 1) became Debt III /
+  Hunted + −1 DEF Act 1: a deploy-cap price on a card that rewards fewer units standing together
+  is a gift, not a cost. Phalanx Rite keeps the spec's Sworn Enemy, with the Act 1 −8 Hit dip
+  beside it so the pair sits in the tier III band.
+- **Events** may grant either (`SAFE_BLESSING_BOON_TYPES`): the boons carry no price of their own.
+- **The strategy sim** (`sim/strategy.js`, blessings section) now gives each battle its run (`runManager` in `HeadlessBattle`'s options, so it is present from `init()`), so combat blessings (Keen Eye, Hold the Line, these two, the act Hit price) show in its numbers; before, only stat and gold effects did. Setting `runManager` also turns on the run-level battle effects the harness reads from it: the staff heal multiplier price, the weapon-art price and Bloodless Art, village rewards to the convoy and the consumables a recruit battle uses in-battle. Strategy-layer blessing numbers from before this change are not comparable with those after it.
+- **Icons** reuse the Phalanx Band's and the Duelist's Glove's cells (`BLESSING_ICON_REUSE`: the
+  atlas is full); both cards wait for a painting (`PAINTING_PENDING`).
 
 ### 5.3 Systems the catalog never touches
 
@@ -624,8 +657,8 @@ growth, XP and gold cards it can see.
 2. Price catalog, curated prices, Debt as the gold price, bands and the validator; retier and
    reprice the existing 23 (§4: data and small handler changes). Re-run the Ledger.
 3. Five new cards that reuse existing hooks most directly: Slow Fuse, Phalanx Rite,
-   Duelist's Creed, Bloodless Art, Gambler's Toss. Built so far: the intrinsic price, Slow Fuse,
-   Gambler's Toss and Bloodless Art.
+   Duelist's Creed, Bloodless Art, Gambler's Toss. Built: the intrinsic price, Slow Fuse,
+   Gambler's Toss, Bloodless Art, Phalanx Rite and Duelist's Creed.
 4. Earned blessings: the `earned` flag, the act-boss pick, and four pure ones (Unbroken
    Banner, Second Dawn, Ember Lantern, Captain's Whistle). Built (§6.4).
 5. The special church, the twisted earned blessings, the gifts with a catch, and the rest of

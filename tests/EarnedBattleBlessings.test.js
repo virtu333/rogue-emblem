@@ -25,7 +25,7 @@ import { presentationFailureProxy as rendering } from './harness/PresentationFai
 import { createBattleRng } from '../src/engine/BattleRng.js';
 import { registerBattleEntity } from '../src/engine/BattleEntityIdentity.js';
 import { applyCondition } from '../src/engine/StatusConditionSystem.js';
-import { serializeUnit } from '../src/engine/RunManager.js';
+import { RunManager, serializeUnit } from '../src/engine/RunManager.js';
 import { serializeBattleUnit } from '../src/engine/BattleUnitState.js';
 import { postCombatEffects } from '../src/engine/PostCombatEffects.js';
 import {
@@ -613,6 +613,23 @@ describe('scene and harness agree on the same battle', () => {
       expect(u._battleTimedWeaponArtBuffs?.some((b) => b.sourceName === "Captain's Whistle")).toBe(
         true,
       );
+  });
+
+  it('a run handed in at construction (as sim/strategy.js does) is read the same way', () => {
+    // Failure: the constructor's `runManager` is overwritten (or read before init), so the sims
+    // that hand the run in at construction play every battle without the earned blessings.
+    const run = new RunManager(data);
+    run.startRun({ runSeed: 77, applyBlessingsAtStart: false });
+    expect(run.addBlessingMidRun('unbroken_banner', { earned: true })).toBeTruthy();
+    const battle = new HeadlessBattle(
+      structuredClone(data),
+      { act: 'act1', objective: 'rout' },
+      null,
+      { runManager: run },
+    );
+    expect(battle.runManager).toBe(run);
+    battle.init();
+    expect(battle._battleBlessings).toMatchObject({ lastStand: 1, firstKillHeal: 0, spent: [] });
   });
 
   it('without the blessings neither world adds a key to the skill context or the world', () => {

@@ -6,8 +6,12 @@
 // The `profile` is `RunManager.getBlessingCombatProfile()`:
 //   { actHitBonus,                    // today's act hit (Steady-style bonus, Act 1 price)
 //     firstStrikeHitBonus,            // Keen Eye
-//     stationary: { defBonus, avoidBonus } }   // Hold the Line
+//     stationary: { defBonus, avoidBonus },   // Hold the Line
+//     adjacentAllyDef: [{ perAlly, max }],    // Phalanx Rite
+//     isolated: [{ radius, avoidBonus, critBonus }] }   // Duelist's Creed
 // Only player-faction units ever receive anything; enemies and NPC allies get zeros.
+
+import { adjacentAllyDefBonus, isolatedCombatBonus } from './FormationBlessings.js';
 
 /**
  * Remember where each living unit stood as `turn`'s player phase began. Hold the Line reads it
@@ -67,6 +71,14 @@ export function blessingCombatModsFor(profile, side) {
     out.defBonus += Math.trunc(stationary.defBonus || 0);
     out.avoidBonus += Math.trunc(stationary.avoidBonus || 0);
   }
+
+  // Phalanx Rite: DEF for each ally on a cardinal neighbour tile (either side of the exchange).
+  out.defBonus += adjacentAllyDefBonus(profile.adjacentAllyDef, unit, side.allies);
+
+  // Duelist's Creed: Avoid and Crit while no ally stands within the radius.
+  const isolated = isolatedCombatBonus(profile.isolated, unit, side.allies);
+  out.avoidBonus += isolated.avoidBonus;
+  out.critBonus += isolated.critBonus;
 
   return out;
 }

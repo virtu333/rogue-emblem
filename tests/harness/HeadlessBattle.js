@@ -231,6 +231,8 @@ export class HeadlessBattle {
    * @param {{ buildRecruit?: (preview: object) => ({ unit: object }|null) }} [options]
    *   `buildRecruit`: how a full run builds a recruit battle's green unit (the run's own
    *   `getRecruitNodeUnit`); without it the battle builds one from its own params.
+   *   `runManager`: the run the battle belongs to, present from `init()` (its blessings, the
+   *   Vulnerary recipe and the run-level battle effects); without it the battle is standalone.
    */
   constructor(gameData, battleParams, roster = null, options = {}) {
     this.gameData = gameData;
@@ -269,7 +271,7 @@ export class HeadlessBattle {
     this.appliedHybridOverrideTurns = new Set();
     this.lastHybridOverrideResult = null;
     this._combatRollSession = null;
-    this.runManager = null;
+    this.runManager = options?.runManager ?? null;
     this._battleBlessings = null;
     this._reinforcementsPendingThisTurn = false;
     this._villageState = null;
