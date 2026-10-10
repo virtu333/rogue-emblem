@@ -548,7 +548,7 @@
     "blessing-hollow_hourglass": [217, 5, 4],
     "blessing-chronicle": [301, 5, 4],
     "blessing-tithe_box": [296, 5, 4],
-    "blessing-lantern_of_the_road": [246, 5, 4],
+    "blessing-lantern_of_the_road": [252, 5, 4],
     "blessing-crest_of_the_road": [204, 5, 4]
   },
   "aliases": {
@@ -566,7 +566,7 @@
     "blessing-hollow_hourglass": "moontide-amulet",
     "blessing-chronicle": "upgrade-studied_training",
     "blessing-tithe_box": "upgrade-starting_gold",
-    "blessing-lantern_of_the_road": "blessing-scout_blessing",
+    "blessing-lantern_of_the_road": "blessing-pilgrim_coin",
     "blessing-crest_of_the_road": "veterans-crest"
   }
 }

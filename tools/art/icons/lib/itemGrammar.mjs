@@ -679,15 +679,15 @@ export const BLESSING_ICON_REUSE = Object.freeze({
   ember_lantern: 'phoenix-brooch',
   captains_whistle: 'upgrade-heros_call',
   // PR D1's earned blessings (the atlas is full): a standard's crest, an hourglass-pale moon, a
-  // studied book, a strongbox for the tithe (Starting Gold's chest: no blessing or item wears it),
-  // a road lantern (Scout Blessing's own lantern, drawn as one: the only lantern cell; Pilgrim's
-  // Road's shell is not a lantern) and a veteran's crest. Earned cards take the Legend rim, so
-  // a shared cell still reads apart from its shrine card.
+  // studied book, a strongbox for the tithe (Starting Gold's chest: no blessing or item wears
+  // it), a road light and a veteran's crest. Lantern of the Road keeps Pilgrim's Road's shell
+  // (the pilgrim's road it lights): the atlas's one lantern is already worn by Scout Blessing and
+  // Slow Fuse, and Ember Lantern was moved off it for that reason.
   standard_of_the_sun: 'vanguard-crest',
   hollow_hourglass: 'moontide-amulet',
   chronicle: 'upgrade-studied_training',
   tithe_box: 'upgrade-starting_gold',
-  lantern_of_the_road: 'blessing-scout_blessing',
+  lantern_of_the_road: 'blessing-pilgrim_coin',
   crest_of_the_road: 'veterans-crest',
 });
 
