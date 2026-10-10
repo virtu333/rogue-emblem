@@ -54,11 +54,14 @@ const QUIET_SHRINE = Object.freeze({ startOffer: 'none', gift: false });
 function makeDriver(options = {}) {
   const { seed = SEED, claims = {}, ...rest } = options;
   rng.setState(seed);
+  // No shrine pick by default: a seed's random blessing or gift (a Sealed Reliquary granting
+  // Cutpurse's Luck, say) must not leak into a forced scenario. A scenario that needs the shrine
+  // or a card asks for it (`claims`, `grantBlessings`).
   const driver = new ClaimingRunDriver(gameData, {
     rng,
     runOptions: { runSeed: seed, difficultyId: 'normal', autoSelectBlessing: false },
-    claims: { ...QUIET_SHRINE, ...claims },
     ...rest,
+    claims: { ...QUIET_SHRINE, ...claims },
   });
   driver.init();
   return driver;
