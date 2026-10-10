@@ -152,6 +152,11 @@ function installHold(battle, share) {
 
 const EDGE_STATS = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES'];
 
+/** A unit's progress in levels: a promoted unit counts 20 base levels first. */
+const levelScore = (u) => (u?.tier === 'promoted' ? 20 : 0) + (u?.level || 1) + (u?.xp || 0) / 100;
+/** Level scores by name for the army that walks into a battle (joiners are not counted). */
+const levelsByName = (roster) => new Map((roster || []).map((u) => [u.name, levelScore(u)]));
+
 class PushAgent extends TacticianAgent {
   _planFor(u, threats) {
     return super._planFor(u, threats, true);
@@ -235,10 +240,14 @@ class PacingDriver extends RunSimulationDriver {
       hasRepeating: Boolean(battle.battleConfig?.reinforcements?.repeatingWaves?.length),
       wavesArrived: 0,
       reinfUnits: 0,
+      reinfByT4: 0,
       kos: 0,
+      kosByT4: 0,
       guards: battle.enemyUnits.filter((e) => e.aiMode === 'guard').length,
       holdersStart: battle.enemyUnits.filter((e) => e.aiMode === 'hold').length,
       edge,
+      goldBefore: this.runManager.gold || 0,
+      levelsBefore: levelsByName(this.runManager.roster),
     };
     record.ladder = Boolean(battle.battleConfig?.reinforcements?.ladder?.waves?.length);
     record.holders = installHold(battle, Number(opts.holdRout) || 0);
@@ -248,6 +257,7 @@ class PacingDriver extends RunSimulationDriver {
     battle._removeUnit = (unit) => {
       if (unit?.faction === 'player') {
         record.kos++;
+        if ((battle.turnManager?.turnNumber || 0) <= 4) record.kosByT4++;
         unit.currentHP = Math.max(1, unit.currentHP || 1);
         return;
       }
@@ -260,6 +270,7 @@ class PacingDriver extends RunSimulationDriver {
       const added = battle.enemyUnits.length - before;
       if (added > 0) {
         record.reinfUnits += added;
+        if (turn <= 4) record.reinfByT4 += added;
         const waves = new Set(
           (result?.spawns || []).map((s) => `${s.waveType || 'p'}:${s.waveIndex}`),
         );
@@ -292,7 +303,18 @@ class PacingDriver extends RunSimulationDriver {
       this.battles.push(r);
       this._current = null;
     }
-    return super._completeBattle(driver, merged, node);
+    const out = super._completeBattle(driver, merged, node);
+    if (r) {
+      // What the battle paid: gold banked and levels gained by the army that fought it.
+      r.gold = (this.runManager.gold || 0) - r.goldBefore;
+      r.levels = (this.runManager.roster || []).reduce((sum, u) => {
+        const before = r.levelsBefore.get(u.name);
+        return before == null ? sum : sum + Math.max(0, levelScore(u) - before);
+      }, 0);
+      delete r.goldBefore;
+      delete r.levelsBefore;
+    }
+    return out;
   }
 }
 
@@ -301,6 +323,11 @@ const median = (xs) => {
   if (!xs.length) return 0;
   const s = [...xs].sort((a, b) => a - b);
   return s[Math.floor(s.length / 2)];
+};
+const quantile = (xs, q) => {
+  if (!xs.length) return 0;
+  const s = [...xs].sort((a, b) => a - b);
+  return s[Math.min(s.length - 1, Math.floor(q * s.length))];
 };
 const r1 = (x) => Math.round(x * 10) / 10;
 const pct = (n, d) => (d ? Math.round((100 * n) / d) : 0);
@@ -313,6 +340,10 @@ function summarize(label, battles) {
     n,
     turns: r1(mean(battles.map((b) => b.turns))),
     'turns p50': median(battles.map((b) => b.turns)),
+    'turns p90': quantile(
+      battles.map((b) => b.turns),
+      0.9,
+    ),
     par: r1(mean(battles.map((b) => b.parEnd ?? 0))),
     'turns-par': r1(mean(battles.map((b) => b.turns - (b.parEnd ?? b.turns)))),
     'S%': pct(count('S'), n),
@@ -324,6 +355,10 @@ function summarize(label, battles) {
     'wavesCfg%': pct(battles.filter((b) => b.hasWaves).length, n),
     'KOs/btl': r1(mean(battles.map((b) => b.kos))),
     'reinf/btl': r1(mean(battles.map((b) => b.reinfUnits))),
+    'reinf<=T4': r1(mean(battles.map((b) => b.reinfByT4 || 0))),
+    'KOs<=T4': r1(mean(battles.map((b) => b.kosByT4 || 0))),
+    'gold/btl': Math.round(mean(battles.map((b) => b.gold || 0))),
+    'lvls/btl': r1(mean(battles.map((b) => b.levels || 0))),
   };
 }
 
@@ -359,6 +394,8 @@ async function main() {
       shadow,
       phase: eclipsePhase(shadow, data.eclipse).name,
       kos: battles.reduce((s, b) => s + b.kos, 0),
+      gold: battles.reduce((s, b) => s + (b.gold || 0), 0),
+      levels: battles.reduce((s, b) => s + (b.levels || 0), 0),
       // Shadow the force-won battles added (the harness agent's stalls, not the map).
       forcedShadow: battles.filter((b) => b.forced).reduce((s, b) => s + b.shadow, 0),
     });
@@ -422,7 +459,8 @@ async function main() {
     `\nRuns: ${runs.length}, victories ${runs.filter((r) => r.result === 'victory').length}; ` +
       `battles/run ${r1(mean(runs.map((r) => r.battles)))}; turns/run ${r1(mean(runs.map((r) => r.turns)))}; ` +
       `final shadow mean ${r1(mean(shadows))} (min ${Math.min(...shadows)}, max ${Math.max(...shadows)}); ` +
-      `phases ${JSON.stringify(phases)}; would-be KOs/run ${r1(mean(runs.map((r) => r.kos)))}; ` +
+      `phases ${JSON.stringify(phases)}; battle gold/run ${Math.round(mean(runs.map((r) => r.gold)))}; ` +
+      `levels gained/run ${r1(mean(runs.map((r) => r.levels)))}; would-be KOs/run ${r1(mean(runs.map((r) => r.kos)))}; ` +
       `forced (action budget) battles excluded from the table: ${forced} ${JSON.stringify(forcedBy)}; ` +
       `final shadow net of forced battles ${r1(mean(netShadows))} ` +
       `(Pale ${netShadows.filter((x) => x < 25).length}, Waning ${netShadows.filter((x) => x >= 25 && x < 50).length}, ` +

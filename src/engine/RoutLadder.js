@@ -1,8 +1,8 @@
 // RoutLadder.js — the rout reinforcement ladder (docs/specs/dusk-pressure.md, §2a).
 // Pure, no Phaser.
 //
-// On Dusk and Nightfall a rout map gets a finite schedule of waves that starts early and
-// comes every two turns, each wave larger and higher-level. Clearing the field still
+// On Dusk, Nightfall and Black Sun a rout map gets a finite schedule of waves, spaced
+// several turns apart, each wave larger and higher-level. Clearing the field still
 // wins (the waves still pending never come), so a fast clear sees few waves and a turtle
 // sees them all. The rung's table lives in difficulty.json (`routLadder`); MapGenerator
 // writes the act's waves into the battle config (`reinforcements.ladder`) when the map is

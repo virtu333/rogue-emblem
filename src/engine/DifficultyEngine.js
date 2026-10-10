@@ -181,6 +181,16 @@ export function recruitAffixesAllowed(params, difficultyData) {
   return !excluded.includes(params.act || 'act1');
 }
 
+/** The shortest and longest turn gap between a rung's ladder waves, or null without a ladder. */
+function routLadderGaps(routLadder) {
+  const gaps = [];
+  for (const rows of Object.values(routLadder?.acts || {})) {
+    const turns = (Array.isArray(rows) ? rows : []).map((r) => r?.turn).filter(Number.isFinite);
+    for (let i = 1; i < turns.length; i++) gaps.push(turns[i] - turns[i - 1]);
+  }
+  return gaps.length > 0 ? [Math.min(...gaps), Math.max(...gaps)] : null;
+}
+
 /**
  * Compare a difficulty mode against DIFFICULTY_DEFAULTS and return human-readable
  * modifier summary lines. Normal mode (matching defaults) returns an empty array.
@@ -260,8 +270,10 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
   if (Number.isFinite(mode.growthBonusMultiplier) && mode.growthBonusMultiplier < 1) {
     lines.push(`Growth bonuses ×${mode.growthBonusMultiplier}`);
   }
-  if (mode.routLadder?.acts && Object.keys(mode.routLadder.acts).length > 0) {
-    lines.push('Rout maps: reinforcement waves every 2 turns');
+  const ladderGaps = routLadderGaps(mode.routLadder);
+  if (ladderGaps) {
+    const [lo, hi] = ladderGaps;
+    lines.push(`Rout maps: reinforcement waves every ${lo === hi ? lo : `${lo}–${hi}`} turns`);
   }
   if (mode.holdShare && Object.values(mode.holdShare).some((n) => n > 0)) {
     lines.push('Part of each seize and escape garrison holds its ground until disturbed');
