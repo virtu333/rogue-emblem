@@ -5,6 +5,8 @@ vi.mock('phaser', () => ({ default: { BlendModes: { ADD: 1, NORMAL: 0 } } }));
 import { CombatChoreography } from '../src/ui/CombatChoreography.js';
 import { CombatFxController } from '../src/ui/CombatFxController.js';
 import { FxMotePool } from '../src/ui/FxMotePool.js';
+import { battlefieldContrastEnabled } from '../src/ui/battlefieldArtFlags.js';
+import { UI_HEX } from '../src/utils/uiStyles.js';
 
 function makeObject(kind, x = 0, y = 0) {
   const o = {
@@ -257,6 +259,31 @@ describe('CombatChoreography', () => {
     await strike(scene, { crit: true });
     expect(scene.created.filter((o) => o.kind === 'sprite')).toEqual([]);
     expect(scene.labels).toContain('combat_fx_hit_stop');
+  });
+
+  // The enemy phase: every player unit is spent (dimmed) as it begins. A blow's flash or a
+  // counter's lunge used to end by clearing the tint, so a struck or countering unit lost
+  // its grey while its neighbours kept theirs. A flash ends on the unit's resting look.
+  it('a strike on, or a counter by, a spent unit leaves it dimmed (UnitRestAppearance)', async () => {
+    const acted = battlefieldContrastEnabled() ? 0xb8b8b8 : UI_HEX.lineStrong;
+    const spent = (u) => {
+      u.hasActed = true;
+      u.graphic.setTint(acted);
+      return u;
+    };
+    for (const [striker, target] of [
+      [unit('Knight', 'enemy', 2, 2), spent(unit('Edric', 'player', 3, 2))],
+      [spent(unit('Edric', 'player', 2, 2)), unit('Knight', 'enemy', 3, 2)],
+    ]) {
+      const scene = makeScene();
+      await strike(scene, { a: striker, b: target });
+      const player = [striker, target].find((u) => u.faction === 'player');
+      const enemy = [striker, target].find((u) => u.faction === 'enemy');
+      expect(player.graphic.tint).toBe(acted);
+      scene._combatFx.finishStrike(striker, target);
+      expect(player.graphic.tint).toBe(acted);
+      expect(enemy.graphic.isTinted).toBe(false);
+    }
   });
 
   it('an interrupted strike (rewind mid-freeze) leaves units home, untinted, at scale 1', async () => {

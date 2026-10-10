@@ -139,7 +139,7 @@ describe('Blow skills (initiate-only)', () => {
     expect(defMods.defBonus).toBe(0);
   });
 
-  it('fiendish_blow grants +4 ATK when initiating', () => {
+  it('fiendish_blow grants +5 ATK when initiating', () => {
     const unit = makeUnit({ skills: ['fiendish_blow'] });
     const opp = makeOpponent();
     const initMods = getSkillCombatMods(
@@ -151,7 +151,7 @@ describe('Blow skills (initiate-only)', () => {
       { name: 'Plain' },
       true,
     );
-    expect(initMods.atkBonus).toBe(4);
+    expect(initMods.atkBonus).toBe(5);
     const defMods = getSkillCombatMods(
       unit,
       opp,
@@ -162,6 +162,12 @@ describe('Blow skills (initiate-only)', () => {
       false,
     );
     expect(defMods.atkBonus).toBe(0);
+  });
+
+  it('fiendish_blow stays below the Death Blow scroll skill', () => {
+    const byId = Object.fromEntries(data.skills.map((s) => [s.id, s]));
+    expect(byId.fiendish_blow.effects.atkBonus).toBeLessThan(byId.death_blow.effects.atkBonus);
+    expect(byId.fiendish_blow.effects.atkBonus).toBeGreaterThan(byId.colossus.effects.atkBonus);
   });
 
   it('darting_blow grants +6 SPD when initiating', () => {

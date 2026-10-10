@@ -410,3 +410,43 @@ for (const blocked of ['spent', 'silenced', 'no targets']) {
     expect(errors).toEqual([]);
   });
 }
+// Playtest: "units are not grayed out after moves, maybe some heals". A staff's flash on an
+// ally that has already acted ended by clearing the sprite's tint, so the spent ally looked
+// ready. Its resting look comes from its state (engine: hasActed), whatever flash ran last.
+for (const staff of ['Heal', 'Restore']) {
+  test(`${staff} on a spent ally leaves it dimmed once the flash ends`, async ({ page }) => {
+    test.setTimeout(60_000);
+    const { hud, errors } = await boot(page);
+    const look = () =>
+      page.evaluate(() => {
+        const s = window.__emblemRogueGame.scene.getScene('Battle');
+        const u = s.playerUnits.find((u) => u.name === 'Patient');
+        return { acted: u.hasActed, tinted: u.graphic.isTinted, label: u.label?.alpha ?? null };
+      });
+    await select(page, 'Patient');
+    await hud.getByRole('button', { name: 'Wait', exact: true }).tap();
+    const spent = await look();
+    expect(spent).toMatchObject({ acted: true, tinted: true });
+    if (staff === 'Restore')
+      // Synthetic condition setup only; the cure itself uses normal UI and rules.
+      await page.evaluate(() => {
+        window.__emblemRogueGame.scene
+          .getScene('Battle')
+          .playerUnits.find((u) => u.name === 'Patient')._conditions = [
+          { id: 'poison', turnsRemaining: 3 },
+        ];
+      });
+    await select(page, 'Sera');
+    await hud.getByRole('button', { name: /^Heal \(/ }).tap();
+    await hud.getByRole('button', { name: new RegExp(`^${staff} `) }).tap();
+    await tapTile(page, 2, 4);
+    // The action ends after its presentation: the healer is dimmed once the heal has played.
+    await page.waitForFunction(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const sera = s.playerUnits.find((u) => u.name === 'Sera');
+      return sera.hasActed && s.battleState === 'PLAYER_IDLE';
+    });
+    expect(await look()).toEqual(spent);
+    expect(errors).toEqual([]);
+  });
+}

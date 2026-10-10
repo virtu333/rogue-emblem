@@ -126,7 +126,7 @@ import {
   measureTurnPressure,
 } from '../engine/TurnPressure.js';
 import { applyDevScenario } from '../utils/devScenarios.js';
-import { battleContrastEnabled, contrastSpriteKey } from '../ui/BattleContrast.js';
+import { contrastSpriteKey } from '../ui/BattleContrast.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { BattleTradeMenu } from '../ui/BattleTradeMenu.js';
 import { battleTradeController } from '../ui/BattleTradeController.js';
@@ -143,7 +143,13 @@ import { AtmosphereController } from '../ui/AtmosphereController.js';
 import { DesktopBattleHud } from '../ui/DesktopBattleHud.js';
 import { EclipseHudController } from '../ui/EclipseHudController.js';
 import { ContractHudController } from '../ui/ContractHudController.js';
-import { createFactionRing, setFactionRingActed, RING_OFFSET_Y } from '../ui/FactionRings.js';
+import { createFactionRing, RING_OFFSET_Y } from '../ui/FactionRings.js';
+import {
+  applyActedLook,
+  applyReadyLook,
+  restUnitAppearance,
+  restUnitTint,
+} from '../ui/UnitRestAppearance.js';
 import { createBattlefieldLabFixture } from '../utils/battlefieldLabFixture.js';
 import { inputHint } from '../utils/inputHint.js';
 // BattleScene -- Phase 3: multi-unit tactical combat with unit system
@@ -515,7 +521,7 @@ export function resetUnitForBattle(unit) {
   }
 }
 
-function resetPlayerUnitsForTurn(scene, turn) {
+export function resetPlayerUnitsForTurn(scene, turn) {
   for (const u of scene.playerUnits) {
     u.hasMoved = false;
     u._movementCommitted = false;
@@ -530,6 +536,9 @@ function resetPlayerUnitsForTurn(scene, turn) {
     resetWeaponArtTurnUsage(u, { turnNumber: turn });
     scene.undimUnit(u);
   }
+  // Foes dimmed as they acted are ready again once their phase ends
+  // (TurnManager.endEnemyPhase): the look follows that state.
+  for (const e of scene.enemyUnits || []) restUnitAppearance(scene, e);
 }
 
 export class BattleScene extends Phaser.Scene {
@@ -3455,26 +3464,13 @@ export class BattleScene extends Phaser.Scene {
     this._removeAllConditionIcons(unit);
   }
 
+  /** The acted look (ui/UnitRestAppearance.js); a flash's end goes through restUnitTint. */
   dimUnit(unit) {
-    if (unit.graphic && unit.graphic.setTint) {
-      unit.graphic.setTint(battleContrastEnabled() ? 0xb8b8b8 : UI_HEX.lineStrong);
-    }
-    if (unit.label) unit.label.setAlpha(0.5);
-    setFactionRingActed(unit.factionIndicator, true);
-    if (unit.affixPips) {
-      unit.affixPips.forEach((p) => p.setAlpha(0.5));
-    }
+    applyActedLook(unit);
   }
 
   undimUnit(unit) {
-    if (unit.graphic && unit.graphic.clearTint) {
-      unit.graphic.clearTint();
-    }
-    if (unit.label) unit.label.setAlpha(1);
-    setFactionRingActed(unit.factionIndicator, false);
-    if (unit.affixPips) {
-      unit.affixPips.forEach((p) => p.setAlpha(1));
-    }
+    applyReadyLook(unit);
   }
 
   // --- Position tracking ---
@@ -4469,7 +4465,7 @@ export class BattleScene extends Phaser.Scene {
     this.grid.clearHighlights();
     this.grid.clearAttackHighlights();
     this.grid.clearPath();
-    if (this.selectedUnit?.graphic?.clearTint) this.selectedUnit.graphic.clearTint();
+    if (this.selectedUnit) restUnitTint(this.selectedUnit);
     this.selectedUnit = null;
     if (this.inspectionPanel?.visible) this.inspectionPanel.hide();
 
@@ -4815,9 +4811,7 @@ export class BattleScene extends Phaser.Scene {
 
   deselectUnit() {
     this._inputController?.clearPlanningInspection();
-    if (this.selectedUnit && this.selectedUnit.graphic?.clearTint) {
-      this.selectedUnit.graphic.clearTint();
-    }
+    if (this.selectedUnit) restUnitTint(this.selectedUnit);
     this.selectedUnit = null;
     this._clearCombatRollSession();
     this._clearSelectedWeaponArt();
@@ -5095,7 +5089,7 @@ export class BattleScene extends Phaser.Scene {
       unit._movementSpent = ambush.cost;
 
       this.grid.clearHighlights();
-      if (unit.graphic.clearTint) unit.graphic.clearTint();
+      restUnitTint(unit);
 
       // Safety net: if a tween completion callback is dropped, finalize movement anyway.
       // This must be armed before starting animation setup to avoid hard locks on throws.
@@ -7325,8 +7319,9 @@ export class BattleScene extends Phaser.Scene {
             () => this._removeAllConditionIcons(target),
             { scene: this },
           );
-          if (!target.hasActed)
-            safeBattlePresentation('item undim', () => this.undimUnit(target), { scene: this });
+          safeBattlePresentation('item undim', () => restUnitAppearance(this, target), {
+            scene: this,
+          });
         }
         safeBattlePresentation('item HP', () => this.updateHPBar(target), { scene: this });
         const message =
@@ -8928,10 +8923,11 @@ export class BattleScene extends Phaser.Scene {
     // The Unbroken Banner held the target at 1 HP on this blow (settled: UnbrokenBannerController).
     if (event.bannerHeld) this._bannerHoldFx().playHold(target);
 
-    // Sleep: wake on damage -- remove Zzz icon and un-dim immediately
+    // Sleep: wake on damage -- remove the Zzz icon; the look follows the woken unit's state
+    // (a player unit hit in the enemy phase has acted and stays spent until its turn).
     if (event.wokeFromSleep) {
       this._removeConditionIcon(target, 'sleep');
-      this.undimUnit(target);
+      restUnitAppearance(this, target);
     }
 
     if (event.heal > 0 && event.strikerHealTo !== undefined) {
@@ -10277,9 +10273,9 @@ export class BattleScene extends Phaser.Scene {
         if (isSleeping(unit)) {
           removeCondition(unit, 'sleep');
           this._removeConditionIcon(unit, 'sleep');
-          // Un-dim only units that can still act — keep the acted-grey on
-          // units that already moved this phase (same pattern as cures).
-          if (!unit.hasActed) this.undimUnit(unit);
+          // Awake, the unit takes the look its state asks for: a unit that has
+          // already acted keeps the acted grey (same rule as cures).
+          restUnitAppearance(this, unit);
           if (shown)
             await this.showBriefBanner(`${unit.name} woke up from lava damage!`, UI_PALETTE.warn);
           if (!isCurrentBattleSession(this, session)) return;
@@ -10318,8 +10314,6 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async showTerrainDamage(unit, damage) {
-    const wasTinted = Boolean(unit.graphic?.isTinted);
-    const previousTint = unit.graphic?.tintTopLeft;
     if (unit.graphic?.setTint) unit.graphic.setTint(0xff4400);
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
@@ -10342,17 +10336,13 @@ export class BattleScene extends Phaser.Scene {
     });
 
     await this._awaitSceneDelay(120, { label: 'terrain_damage_tint_clear' });
-    if (unit.graphic) {
-      if (wasTinted && unit.graphic.setTint && previousTint != null)
-        unit.graphic.setTint(previousTint);
-      else if (unit.graphic.clearTint) unit.graphic.clearTint();
-    }
+    // Back to the look the unit's state asks for now (it may have been dimmed, woken or
+    // refreshed while the flash played), never to a tint remembered before it.
+    restUnitTint(unit);
     await this._awaitSceneDelay(60, { label: 'terrain_damage_tail' });
   }
 
   async showAcidDamage(unit, damage) {
-    const wasTinted = Boolean(unit.graphic?.isTinted);
-    const previousTint = unit.graphic?.tintTopLeft;
     if (unit.graphic?.setTint) unit.graphic.setTint(0x88cc44);
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
@@ -10375,11 +10365,9 @@ export class BattleScene extends Phaser.Scene {
     });
 
     await this._awaitSceneDelay(120, { label: 'acid_damage_tint_clear' });
-    if (unit.graphic) {
-      if (wasTinted && unit.graphic.setTint && previousTint != null)
-        unit.graphic.setTint(previousTint);
-      else if (unit.graphic.clearTint) unit.graphic.clearTint();
-    }
+    // Back to the look the unit's state asks for now (it may have been dimmed, woken or
+    // refreshed while the flash played), never to a tint remembered before it.
+    restUnitTint(unit);
     await this._awaitSceneDelay(60, { label: 'acid_damage_tail' });
   }
 
