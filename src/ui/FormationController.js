@@ -32,6 +32,7 @@ import {
   unitOnTile,
 } from '../engine/FormationPlacement.js';
 import { FormationPicker } from './FormationPicker.js';
+import { unitIdentityKey } from '../engine/UnitIdentity.js';
 import {
   canOpenFormationRoster,
   openFormationRoster,
@@ -203,7 +204,16 @@ export class FormationController {
       : 0;
     if (restored) this.syncField();
     else this.drawMarkers();
-    if (memory?.changed) this.flash('Roster saved. Your formation is as you left it.');
+    // A unit the Roster changed so it may no longer stand on its tile waits, and is named.
+    const waiting = (memory?.placed || [])
+      .map((entry) => this.units.findIndex((unit) => unitIdentityKey(unit) === entry.key))
+      .filter((u) => u !== -1 && this.formation.at[u] === null)
+      .map((u) => this.units[u].name);
+    if (waiting.length)
+      this.flash(
+        `Roster saved. ${waiting.join(', ')} ${waiting.length === 1 ? 'waits: it' : 'wait: they'} can't stand on that tile now.`,
+      );
+    else if (memory?.changed) this.flash('Roster saved. Your formation is as you left it.');
     this.refreshFog();
     this.frameCamera();
     this.touch();

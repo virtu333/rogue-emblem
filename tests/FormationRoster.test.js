@@ -64,6 +64,7 @@ import {
 } from '../src/ui/FormationRoster.js';
 import { renderFormationPanel } from '../src/ui/FormationPanel.js';
 import { RunManager } from '../src/engine/RunManager.js';
+import { createUnit, equipAccessory } from '../src/engine/UnitManager.js';
 import { Grid } from '../src/engine/Grid.js';
 import { unitIdentityKey } from '../src/engine/UnitIdentity.js';
 import { TRANSITION_REASONS } from '../src/utils/SceneRouter.js';
@@ -239,7 +240,8 @@ describe('FormationRoster: closing', () => {
     expect(data).toMatchObject({
       gameData,
       runManager: rm,
-      battleParams: scene.battleParams,
+      // Rebuilt as the route map builds them on entry, after the edit.
+      battleParams: rm.getBattleParams(rm.nodeMap.nodes.find((n) => n.id === scene.nodeId)),
       nodeId: scene.nodeId,
       isBoss: false,
       isElite: false,
@@ -290,6 +292,40 @@ describe('FormationRoster: closing', () => {
       ].filter((i) => i.uid === 'itm_dup_probe');
       expect(copies, reenter ? 're-entered' : 'closed with the sheet open').toHaveLength(1);
     }
+  });
+
+  it("re-reads the params: a unit put in the air there takes Cavalier's Hour's Move, not DEF", () => {
+    // Failure: the restart reused the first entry's params, so the Fighter who put on Mercury
+    // Sandals in the Roster kept infantry's +1 DEF (and the battle flag saved it for a resume).
+    const rm = new RunManager(gameData);
+    rm.startRun({ runSeed: 515, applyBlessingsAtStart: false });
+    rm.activeBlessings = [{ id: 'cavaliers_hour', rolledCost: null }];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+    rm.ensureUnitUids();
+    const fighter = createUnit(
+      gameData.classes.find((c) => c.name === 'Fighter'),
+      5,
+      gameData.weapons,
+      { name: 'Shod' },
+    );
+    rm.assignUnitUid(fighter);
+    rm.roster.push(fighter);
+    const node = rm.nodeMap.nodes.find((n) => n.type === 'battle');
+    const deltaOf = (params) =>
+      params.battleDebuffs.filter((d) => d.unitUid === fighter.unitUid).map((d) => d.stat);
+    const entryParams = rm.getBattleParams(node);
+    expect(deltaOf(entryParams)).toEqual(['DEF']);
+    rm.beginBattleInProgress(node.id, { battleParams: entryParams });
+    const { scene } = formationScene({ rm, nodeId: node.id });
+    scene.battleParams = entryParams;
+    expect(openFormationRoster(scene)).toBe(true);
+    // In the sheet: the Fighter puts on Mercury Sandals.
+    const sandals = structuredClone(gameData.accessories.find((a) => a.name === 'Mercury Sandals'));
+    equipAccessory(fighter, sandals);
+    expect(fighter.moveType).toBe('Flying');
+    sheets[0].opts.onClose();
+    expect(deltaOf(restarts[0].data.battleParams)).toEqual(['MOV']);
   });
 
   it('says nothing changed when nothing did', () => {
@@ -464,6 +500,28 @@ describe('FormationRoster: placement restored on the re-opened screen', () => {
     expect(f.notice).toMatch(/Roster saved/);
   });
 
+  it('names a unit the Roster changed so it can no longer stand on its tile', () => {
+    // Failure: the notice says "as you left it" while a reclassed unit is back to waiting.
+    vi.useFakeTimers();
+    const units = [unit('ru1', { name: 'Rider', moveType: 'Cavalry' }), unit('ru2'), unit('ru3')];
+    const scene = liftScene(units, {
+      deployed: ['ru1', 'ru2', 'ru3'],
+      placed: [
+        { key: 'ru1', col: 0, row: 2 },
+        { key: 'ru2', col: 0, row: 0 },
+      ],
+      changed: true,
+    });
+    const mountain = gameData.terrain.findIndex((t) => t.name === 'Mountain');
+    expect(gameData.terrain[mountain].moveCost.Cavalry).not.toBeTypeOf('number');
+    scene.grid.mapLayout[2][0] = mountain;
+    const f = new FormationController(scene);
+    f.lift();
+    expect(f.formation.at[0]).toBeNull();
+    expect(f.tiles[f.formation.at[1]]).toEqual({ col: 0, row: 0 });
+    expect(f.notice).toBe("Roster saved. Rider waits: it can't stand on that tile now.");
+  });
+
   it('a fresh battle (no memory) starts with everyone waiting and no notice', () => {
     const units = [unit('ru1'), unit('ru2'), unit('ru3')];
     const f = new FormationController(liftScene(units, null));
@@ -523,5 +581,20 @@ describe('FormationRoster: the entry points', () => {
     expect(sheets).toHaveLength(1);
     expect(battle.unitDetailOverlay.show).not.toHaveBeenCalled();
     expect(unitIdentityKey(sheets[0].opts.units[0])).toBeTruthy();
+  });
+});
+
+describe('FormationRoster: turning the phone while the Roster is open', () => {
+  it('waits for the re-opened battle instead of locking the board for good', async () => {
+    // Failure: with no battle flag, check() locked the board and said it keeps its
+    // orientation for this battle, though the battle re-opens in the phone's orientation.
+    const { PortraitBattleController } = await import('../src/ui/PortraitBattleController.js');
+    const scene = { _formationRoster: { closed: false } };
+    const c = new PortraitBattleController(scene);
+    c.mismatch = () => true;
+    c._lock = vi.fn();
+    expect(c.check()).toBe(false);
+    expect(c._lock).not.toHaveBeenCalled();
+    expect(c.locked).toBe(false);
   });
 });

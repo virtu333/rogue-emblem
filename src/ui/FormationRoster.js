@@ -144,6 +144,21 @@ export function openFormationRoster(scene, unit = null) {
   return true;
 }
 
+/**
+ * The battle's params as the route map builds them on entry (`rm.getBattleParams(node)`),
+ * read after the Roster closed: `battleDebuffs` and the move-type deltas (Cavalier's Hour)
+ * are taken from the roster as it now stands, so a unit that changed its move type there
+ * (Mercury Sandals, a seal, a promotion) gets its new bonus. Falls back to the scene's own
+ * params when the node is not on the route map (it always is where the Roster is offered).
+ */
+export function reentryBattleData(s) {
+  const rm = s.runManager;
+  const node = rm?.nodeMap?.nodes?.find((n) => n?.id === s.nodeId);
+  const battleParams = node ? rm.getBattleParams(node) : null;
+  if (!battleParams) return { battleParams: s.battleParams, isBoss: s.isBoss, isElite: s.isElite };
+  return { battleParams, isBoss: s.isBoss, isElite: battleParams.isElite || false };
+}
+
 /** Enter the same battle again with the run's roster as it now stands. */
 function reenterBattle(s, memory) {
   const rm = s.runManager;
@@ -155,11 +170,11 @@ function reenterBattle(s, memory) {
     {
       gameData: s.gameData,
       runManager: rm,
-      battleParams: s.battleParams,
+      // The params the route map would build now: some follow the roster just edited
+      // (a unit's Lingering Injury, Cavalier's Hour by move type).
+      ...reentryBattleData(s),
       roster: rm.getRoster(),
       nodeId: s.nodeId,
-      isBoss: s.isBoss,
-      isElite: s.isElite,
       formationReturn: memory,
     },
     { reason: TRANSITION_REASONS.CONTINUE },
