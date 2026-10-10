@@ -87,6 +87,7 @@ export class RunSetupMenu {
     confirm.disabled = !!chosen?.locked || s.isTransitioning;
     footer.append(confirm);
     this.surface.body.replaceChildren(...parts, footer);
+    if (blessing) this.watchLeadBoon();
     keepDraftScroll(parts[0], scrollTop);
     this.fitStop?.();
     this.fitStop = fitDraft(this.surface.body, '.ch-banner-name, .ch-tarot-name', { min: 10 });
@@ -107,7 +108,12 @@ export class RunSetupMenu {
       this.scene,
       this.surface.root,
       `${content.name}: ${content.gift ? 'the catch' : 'the price'}`,
-      [{ lead: `${content.costLabel}: ${content.cost}` }, { points: terms }],
+      [
+        // A gift says what it gives first: the catch is only half of the bargain.
+        ...(content.gift && content.boon ? [{ lead: `Gives: ${content.boon}` }] : []),
+        { lead: `${content.costLabel}: ${content.cost}` },
+        { points: terms },
+      ],
       () => {
         this.help = null;
       },
@@ -160,16 +166,26 @@ export class RunSetupMenu {
       card.dataset.gift = gift.id;
       row.append(card);
     }
-    const chosen =
-      gift && s.selectedIndex === s.options.length
-        ? gift
-        : blessingCardContent(s.options[s.selectedIndex]);
+    const chosenIndex = gift && s.selectedIndex === s.options.length ? s.options.length : null;
+    const chosen = chosenIndex !== null ? gift : blessingCardContent(s.options[s.selectedIndex]);
+    // The chosen card's boon, said again ahead of the terms: always for a gift ("Gives: ..."),
+    // whose card may be the narrowest of four; for a blessing only while its card's lines are
+    // clipped (a short landscape phone: watchLeadBoon), so a boon is never unread.
+    const boonLine = chosen?.boon ? element('span', null, 'ch-lead-boon') : null;
+    if (boonLine) {
+      boonLine.append(element('b', `${chosen.gift ? 'Gives' : 'Boon'}:`), ` ${chosen.boon} `);
+      boonLine.hidden = !chosen.gift;
+    }
+    this.leadBoon = boonLine
+      ? { node: boonLine, always: Boolean(chosen.gift), index: chosenIndex ?? s.selectedIndex }
+      : null;
     // A price that names a burden, shadow or Vision says what it means in place of the lore
     // (the card already says "Pact").
     const allTerms = termsOf(chosen);
     const chosenTerms = allTerms.filter((t) => t.term !== 'Pact');
     if (chosenTerms.length) {
       const terms = element('span', null, 'ch-term');
+      if (boonLine) terms.append(boonLine);
       for (const t of chosenTerms) terms.append(element('b', `${t.term}:`), ` ${t.text} `);
       // The words themselves open the whole price (a tap, Enter or a click): outside the
       // cards (a card is a button, and buttons can't nest), and no wider than the text,
@@ -179,7 +195,9 @@ export class RunSetupMenu {
       open.dataset.focus = 'price-info';
       open.append(terms);
       lead.append(open);
-    } else
+    } else {
+      // No terms: the boon (when shown) takes the lore's place.
+      if (boonLine) lead.append(boonLine);
       lead.append(
         element(
           'span',
@@ -187,7 +205,34 @@ export class RunSetupMenu {
           chosen?.lore ? 'ch-lore' : '',
         ),
       );
+    }
     return [row];
+  }
+  /**
+   * Show the chosen blessing's boon in the footer while its card's lines are clipped
+   * (`scrollHeight > clientHeight`), re-checked as the card settles (fonts, fitDraft, a turn of
+   * the phone). A gift's is always shown. Nothing to watch without a DOM.
+   */
+  watchLeadBoon() {
+    this.leadBoonObserver?.disconnect();
+    this.leadBoonObserver = null;
+    const lead = this.leadBoon;
+    if (!lead || lead.always) return;
+    const lines = this.surface.body.querySelector(
+      `.ch-tarot[data-focus="choice-${lead.index}"] .ch-lines`,
+    );
+    if (!lines) return;
+    const sync = () => {
+      if (this.leadBoon !== lead) return;
+      lead.node.hidden = !(lines.scrollHeight > lines.clientHeight + 1);
+    };
+    sync();
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(sync);
+    if (typeof ResizeObserver === 'function') {
+      this.leadBoonObserver = new ResizeObserver(sync);
+      this.leadBoonObserver.observe(lines);
+      for (const child of lines.children) this.leadBoonObserver.observe(child);
+    }
   }
   /** Difficulty as hanging banners, the chosen mode's terms read beneath. */
   difficulties(footer) {
@@ -253,6 +298,8 @@ export class RunSetupMenu {
     return [row, detail];
   }
   destroy() {
+    this.leadBoonObserver?.disconnect();
+    this.leadBoonObserver = null;
     this.fitStop?.();
     this.help?.destroy();
     this.help = null;

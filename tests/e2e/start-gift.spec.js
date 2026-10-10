@@ -39,9 +39,9 @@ const shrineOffer = (page) =>
   });
 
 /** The shrine of a save's second run on the pinned seed. */
-async function openShrine(page) {
+async function openShrine(page, seed = SEED) {
   await quietSettings(page);
-  await page.goto(`/?devScene=difficulty&mobilePreview=1&gamepadSim=1&runSeed=${SEED}`);
+  await page.goto(`/?devScene=difficulty&mobilePreview=1&gamepadSim=1&runSeed=${seed}`);
   await page.waitForFunction(() => window.__sceneState?.activeScene === 'DifficultySelect', null, {
     timeout: 60_000,
   });
@@ -195,4 +195,68 @@ test('backing out of the shrine and returning offers the same gift', async ({ pa
     page.getByRole('dialog', { name: 'Choose a blessing', exact: true }).locator('.ch-tarot'),
   ).toHaveCount(4);
   expect(await offer()).toEqual(first);
+});
+
+// The shortest landscape phone (568x320): four cards share the row. Every card keeps some of
+// its boon in view, the gift's catch stays inside its card, and the footer names what the gift
+// gives (tests/StartGifts.test.js pins seed 5 -> Stranger's Scroll, the longest catch, and
+// seed 6 -> the Fallen Hoard).
+test.describe('on a 568x320 phone', () => {
+  const { defaultBrowserType: _short, ...shortUse } = phone({ width: 568, height: 320 });
+  test.use(shortUse);
+  const GIFTS = [
+    { seed: 5, name: "Stranger's Scroll", boon: 'Two weapon-art scrolls and a skill scroll.' },
+    { seed: 6, name: 'Fallen Hoard', boon: "Two accessories from the next act's loot" },
+  ];
+  for (const { seed, name, boon } of GIFTS) {
+    test(`seed ${seed}: every boon has room, the catch stays in its card, the footer gives the boon`, async ({
+      page,
+    }) => {
+      const errors = pageErrors(page);
+      const shrine = await openShrine(page, seed);
+      const cards = shrine.locator('.ch-tarot');
+      await expect(cards).toHaveCount(4);
+      const gift = cards.nth(3);
+      await expect(gift.locator('.ch-tarot-name')).toHaveText(name);
+      await gift.tap();
+      await expect(gift).toHaveAttribute('aria-pressed', 'true');
+      // Measured once the cards settle (fonts, the name fit): poll until both hold.
+      const layout = () =>
+        page.evaluate(() =>
+          [...document.querySelectorAll('.ch-tarot')].map((card) => {
+            const box = card.getBoundingClientRect();
+            const cost = card.querySelector('.ch-cost').getBoundingClientRect();
+            return {
+              lines: card.querySelector('.ch-lines').clientHeight,
+              costInside:
+                cost.top >= box.top - 0.5 &&
+                cost.bottom <= box.bottom + 0.5 &&
+                cost.left >= box.left - 0.5 &&
+                cost.right <= box.right + 0.5,
+            };
+          }),
+        );
+      await expect.poll(async () => (await layout()).every((card) => card.lines > 0)).toBe(true);
+      await expect.poll(async () => (await layout())[3].costInside).toBe(true);
+      // A blessing says its boon in the footer exactly while its card clips its lines.
+      for (let i = 0; i < 3; i++) {
+        await cards.nth(i).tap();
+        await expect(cards.nth(i)).toHaveAttribute('aria-pressed', 'true');
+        const clipped = () =>
+          cards
+            .nth(i)
+            .locator('.ch-lines')
+            .evaluate((el) => el.scrollHeight > el.clientHeight + 1);
+        const boonShown = () => shrine.locator('.ch-footer-lead .ch-lead-boon').isVisible();
+        await expect.poll(async () => (await boonShown()) === (await clipped())).toBe(true);
+      }
+      await gift.tap();
+      // Shown, not only present (a hidden line still has text).
+      const gives = shrine.locator('.ch-footer-lead .ch-lead-boon');
+      await expect(gives).toBeVisible();
+      await expect(gives).toContainText('Gives:');
+      await expect(gives).toContainText(boon);
+      expect(errors).toEqual([]);
+    });
+  }
 });
