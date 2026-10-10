@@ -2642,7 +2642,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   getEnemyXpMultiplier(enemyUnit) {
-    return enemyXpMultiplier(enemyUnit);
+    return enemyXpMultiplier(enemyUnit, this.battleParams?.specialXpMultiplier);
   }
 
   buildReinforcementSpawnSpec(scheduledSpawn, spawnOrdinal = 0) {
@@ -9055,6 +9055,7 @@ export class BattleScene extends Phaser.Scene {
       // Training Doctrine meta upgrade: non-lord units earn bonus combat XP.
       recruitXpBonus: Number(this.runManager?.metaEffects?.recruitXpBonus) || 0,
       allies: this.playerUnits || [],
+      underdogCap: this.battleParams?.xpUnderdogCap,
     });
     for (const award of awards) {
       // The scene may have shut down while a level-up popup was showing.

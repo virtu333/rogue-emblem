@@ -13,6 +13,7 @@ import {
   XP_KILL_BONUS,
   XP_LEVEL_DIFF_SCALE,
   XP_LEVEL_DIFF_STEEP,
+  XP_UNDERDOG_CAP,
   XP_MIN,
   XP_STAT_NAMES,
   BASE_CLASS_LEVEL_CAP,
@@ -1212,14 +1213,18 @@ export function gainExperience(unit, xpAmount, options = {}) {
  * - Advantage 0-3: normal scale (-5 per level)
  * - Advantage 4-6: steep scale (-8 per level for excess beyond 3)
  * - Advantage 7+: flat minimum XP, no kill bonus
- * - Underdog bonus (defender higher than attacker) is capped at +6 levels
+ * - Underdog bonus (defender higher than attacker) is capped at `underdogCap` levels (default 6;
+ *   the rung's `xpUnderdogCap`)
  */
 export function getXpEffectiveLevel(unit) {
   const visibleLevel = Math.max(1, Math.trunc(Number(unit?.level) || 1));
   return unit?.tier === 'promoted' ? visibleLevel + 12 : visibleLevel;
 }
 
-export function calculateCombatXP(attacker, defender, defenderDied) {
+export function calculateCombatXP(attacker, defender, defenderDied, { underdogCap } = {}) {
+  const cap = Number.isFinite(Number(underdogCap))
+    ? Math.max(0, Number(underdogCap))
+    : XP_UNDERDOG_CAP;
   const atkLevel = getXpEffectiveLevel(attacker);
   const defLevel = getXpEffectiveLevel(defender);
   const advantage = atkLevel - defLevel; // positive when attacker is higher
@@ -1239,7 +1244,7 @@ export function calculateCombatXP(attacker, defender, defenderDied) {
 
   // Tier 1: normal (under-leveled, equal, or slight advantage 0-3)
   const rawLevelDiff = defLevel - atkLevel; // positive when defender is higher (bonus), negative when attacker is higher (penalty)
-  const levelDiff = rawLevelDiff > 0 ? Math.min(rawLevelDiff, 6) : rawLevelDiff;
+  const levelDiff = rawLevelDiff > 0 ? Math.min(rawLevelDiff, cap) : rawLevelDiff;
   const killBonus = defenderDied ? XP_KILL_BONUS : 0;
   return Math.max(XP_MIN, XP_BASE_COMBAT + levelDiff * XP_LEVEL_DIFF_SCALE + killBonus);
 }

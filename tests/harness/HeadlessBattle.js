@@ -850,7 +850,7 @@ export class HeadlessBattle {
   }
 
   _getEnemyXpMultiplier(unit) {
-    return enemyXpMultiplier(unit);
+    return enemyXpMultiplier(unit, this.battleParams?.specialXpMultiplier);
   }
 
   /**
@@ -874,6 +874,7 @@ export class HeadlessBattle {
       ).xpMultiplier,
       recruitXpBonus: Number(this.battleParams?.metaEffects?.recruitXpBonus) || 0,
       allies: this.playerUnits,
+      underdogCap: this.battleParams?.xpUnderdogCap,
       ...extra,
     });
     for (const award of awards) this._grantScaledXP(award.unit, award.baseXp);

@@ -39,6 +39,8 @@ import {
   REVIVE_PROMOTION_MULTIPLIER,
   RUINS_PATHS,
   INVENTORY_MAX,
+  XP_SPECIAL_ENEMY_MULTIPLIER,
+  XP_UNDERDOG_CAP,
 } from '../utils/constants.js';
 import { calculateBattleGold } from './LootSystem.js';
 import { reconcileRecruitSpawnTile, sanitizeEscapeTilePassability } from './MapGenerator.js';
@@ -4586,6 +4588,11 @@ export class RunManager {
     battleParams.act1EnemyCountDeployCap = this.getDifficultyModifier('act1EnemyCountDeployCap', 3);
     battleParams.enemyEquipTierShift = this.getDifficultyModifier('enemyEquipTierShift', 0);
     battleParams.xpMultiplier = this.getDifficultyModifier('xpMultiplier', 1);
+    battleParams.specialXpMultiplier = this.getDifficultyModifier(
+      'specialXpMultiplier',
+      XP_SPECIAL_ENEMY_MULTIPLIER,
+    );
+    battleParams.xpUnderdogCap = this.getDifficultyModifier('xpUnderdogCap', XP_UNDERDOG_CAP);
     battleParams.goldMultiplier = this.getDifficultyModifier('goldMultiplier', 1);
     battleParams.enemyPoisonChance = this.getDifficultyModifier('enemyPoisonChance', 0);
     battleParams.reinforcementTurnOffset = this.getDifficultyModifier('reinforcementTurnOffset', 0);
