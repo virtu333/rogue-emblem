@@ -40,6 +40,8 @@ const COMBAT_WAITS = new Set([
   // The EXP gauge (XpGaugeController): its fill and wrap beat, its closing hold.
   'xp_gauge_fill',
   'xp_gauge_hold',
+  // The beat after an enemy whose turn the player saw (ui/EnemyPhasePacing.js).
+  'enemy_between_units',
 ]);
 export const BATTLE_SPEEDS = ['normal', 'fast', 'instant'];
 export function battleSpeed(scene) {
@@ -48,6 +50,18 @@ export function battleSpeed(scene) {
   if (value !== 'instant' && scene?._holdBattleFast && scene?._combatSpeedSnapshot !== undefined)
     return 'fast';
   return BATTLE_SPEEDS.includes(value) ? value : 'normal';
+}
+/**
+ * The battle speed between exchanges of the enemy phase: battleSpeed, with
+ * hold-to-fast-forward counted as Fast while the enemy phase runs. battleSpeed reads
+ * the hold only inside a combat's speed snapshot; the EXP gauge and the beat between
+ * enemies play outside it, so they read the hold here.
+ */
+export function enemyPhaseSpeed(scene) {
+  const speed = battleSpeed(scene);
+  if (speed !== 'instant' && scene?._holdBattleFast && scene?.turnManager?.currentPhase === 'enemy')
+    return 'fast';
+  return speed;
 }
 export function combatDuration(scene, milliseconds) {
   if (!Number.isFinite(milliseconds) || milliseconds <= 0) return milliseconds;
