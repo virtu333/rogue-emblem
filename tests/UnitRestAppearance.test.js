@@ -237,6 +237,62 @@ describe('a staff on an ally that has already acted (the reported case)', () => 
   });
 });
 
+// Playtest memory: "staves healing and canto". A healer with Canto heals a spent ally: the
+// ally's flash ends on its spent look; the healer, whose turn is not over while it can still
+// move, is drawn ready through the Canto and spent once it ends there.
+describe('a healer with Canto', () => {
+  for (const [how, finish] of [
+    [
+      'skips the Canto on its own tile',
+      (scene, u) => scene.handleCantoClick({ col: u.col, row: u.row }),
+    ],
+    [
+      'moves and confirms Wait',
+      (scene, u) => {
+        scene.handleCantoClick({ col: u.col + 1, row: u.row });
+        expect(scene.battleState).toBe('CANTO_CONFIRM');
+        scene.confirmCantoMove();
+      },
+    ],
+    ['is cut short by End Turn', (scene) => scene.forceEndTurn()],
+  ]) {
+    it(`heals a spent ally: the ally stays dimmed, the healer is spent once it ${how}`, async () => {
+      const { scene, actor, target } = fixture();
+      actor.skills = ['canto'];
+      spend(scene, target);
+      scene.showCantoConfirmMenu = function () {
+        this.battleState = 'CANTO_CONFIRM';
+      };
+      // The Canto's reach: its own tile and the one east of it (the map stubs are flat).
+      Object.assign(scene.grid, {
+        terrainData: data.terrain,
+        getMovementRange: (col, row) =>
+          new Map([
+            [`${col},${row}`, { cost: 0 }],
+            [`${col + 1},${row}`, { cost: 1 }],
+          ]),
+        showMovementRange: () => {},
+        reconstructIcePath: (_range, c0, r0, c1, r1) => [
+          { col: c0, row: r0 },
+          { col: c1, row: r1 },
+        ],
+      });
+      await scene.executeHeal(actor, target);
+      expect(scene.battleState).toBe('CANTO_MOVING');
+      expect(scene.selectedUnit).toBe(actor);
+      expect(look(target)).toEqual(SPENT());
+      expect(look(actor)).toEqual(READY); // it can still move
+      // Let the Canto's walk finish at once.
+      scene.tweens = { add: (cfg) => cfg.onComplete?.() };
+      scene.time = { ...(scene.time || {}), delayedCall: () => {} };
+      finish(scene, actor);
+      expect(actor.hasActed).toBe(true);
+      expect(look(actor)).toEqual(SPENT());
+      expect(look(target)).toEqual(SPENT());
+    });
+  }
+});
+
 describe('turn-start flashes end on the state at their end', () => {
   it('Fort healing on a sleeping unit (dimmed at turn start) keeps it dimmed', async () => {
     const { scene, target } = fixture();

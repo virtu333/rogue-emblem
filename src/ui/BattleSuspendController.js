@@ -313,7 +313,9 @@ export class BattleSuspendController {
       registerBattleEntity(scene, unit);
       return unit;
     });
-    for (const unit of scene.playerUnits) restUnitAppearance(scene, unit);
+    // An enemy-phase checkpoint holds foes that have already acted this phase: they rest
+    // dimmed, as they were before the refresh, while the rest of the phase plays out.
+    for (const unit of [...scene.playerUnits, ...scene.enemyUnits]) restUnitAppearance(scene, unit);
     scene.nonDeployedUnits = structuredClone(checkpoint.nonDeployedUnits || []);
     for (const unit of scene.nonDeployedUnits) {
       normalizeSpecialCharacter(unit, scene.gameData?.specialChars);
