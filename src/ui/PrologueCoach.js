@@ -112,8 +112,8 @@ export class PrologueCoach {
     this.leave.type = 'button';
     this.leave.setAttribute('aria-label', leaveAria);
     this.leave.addEventListener('click', () => this.onLeave?.());
-    // Hide folds the plate to its goal line so it covers less of the map; Show (or a
-    // tap on the folded goal) opens it again. Corrections still show while folded.
+    // Hide folds the plate to a small Guide chip in its corner so it covers almost
+    // none of the map; the chip opens it again. Corrections still show while folded.
     this.fold = el('button', 're-coach-btn re-coach-fold');
     this.fold.type = 'button';
     this.fold.addEventListener('click', () => this.setFolded(!this.folded));
@@ -131,9 +131,6 @@ export class PrologueCoach {
     this.nudgeLine.setAttribute('role', 'alert');
     this.nudgeLine.hidden = true;
     this.root.append(top, this.detail, this.nudgeLine);
-    this.goal.addEventListener('click', () => {
-      if (this.folded) this.setFolded(false);
-    });
     this.applyFolded(readFolded());
     this.wrapper?.append(this.root);
 
@@ -147,7 +144,7 @@ export class PrologueCoach {
     this.sync();
   }
 
-  /** Fold the coach to its goal line (or open it), remembered on this device. */
+  /** Fold the coach to its Guide chip (or open it), remembered on this device. */
   setFolded(folded) {
     if (this.destroyed) return;
     this.applyFolded(Boolean(folded));
@@ -159,7 +156,7 @@ export class PrologueCoach {
   applyFolded(folded) {
     this.folded = folded;
     this.root.classList.toggle('is-folded', folded);
-    this.fold.textContent = folded ? 'Show' : 'Hide';
+    this.fold.textContent = folded ? 'Guide' : 'Hide';
     this.fold.setAttribute('aria-expanded', String(!folded));
     this.fold.setAttribute(
       'aria-label',
@@ -365,7 +362,7 @@ export class PrologueCoach {
     this.lastKey = key;
     this.goal.textContent = state.goal;
     this.detail.textContent = state.detail;
-    // Folded, the plate is only its goal line and Show: Skip step waits until it opens.
+    // Folded, the plate is only the Guide chip: Skip step and Leave wait until it opens.
     this.skip.hidden = !state.canSkip || this.folded;
     this.leave.hidden = this.folded;
     const current = coachChapterIndex(state.chapter);
@@ -384,7 +381,7 @@ export class PrologueCoach {
       const width = Math.min(pane ? 500 : 480, Math.max(220, map.width - 16));
       const left = pane ? map.left + 8 : map.left + (map.width - width) / 2;
       this.root.style.left = `${Math.round(left)}px`;
-      // Folded, it takes only the width its goal needs (up to the same plate).
+      // Folded, it takes only the width the chip (and a correction) needs.
       this.root.style.width = this.folded ? '' : `${Math.round(width)}px`;
       this.root.style.maxWidth = `${Math.round(width)}px`;
       if (bottom) {
