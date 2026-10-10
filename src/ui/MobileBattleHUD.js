@@ -138,6 +138,17 @@ function el(tag, className, text) {
 }
 
 /**
+ * The unit card's line for a foe's status staff, or null. The staff is gear beside the
+ * weapon, outside the inventory, so the card names it ("Silence Staff · Range 3-7 · 1/2
+ * uses"; "· spent" once used up): the caster behind the Danger zone's violet outline can be
+ * found by tapping it. The card shows only a unit the player may inspect.
+ */
+export function statusStaffGearLine(unit) {
+  const text = statusStaffInfo(unit)?.text;
+  return text ? el('p', 'mb-gear', text) : null;
+}
+
+/**
  * The terrain card's move preview: how many visible foes could strike this tile next
  * phase. Crimson when one can; violet (the status eyes' colour) when only status
  * staves can, so that tile never looks safe; plain otherwise. Each " · " clause is
@@ -1035,6 +1046,8 @@ export class MobileBattleHUD {
         el('div', 'mb-detail', `${unit.className} · ${unit.weapon?.name || 'Unarmed'}`),
       );
       this.summary.append(el('span', 'mb-hp', `${unit.currentHP}/${unit.stats.HP} HP`));
+      const staffLine = statusStaffGearLine(unit);
+      if (staffLine) this.summary.append(staffLine);
       const conditions = statusDescriptions(unit);
       if (conditions.length) this.summary.append(el('p', 'mb-status', conditions.join(' · ')));
     } else {
@@ -1188,8 +1201,6 @@ export class MobileBattleHUD {
       detailContent.append(
         el('p', '', '5 ranges pinned. Pinning another enemy replaces the oldest.'),
       );
-    const staffInfo = statusStaffInfo(unit);
-    if (staffInfo) detailContent.append(el('p', '', staffInfo.text));
     const carrying = carriedItemInfo(unit);
     if (carrying) detailContent.append(el('p', '', carrying.text));
     detailContent.append(el('pre', '', info || 'Tap a tile to inspect terrain.'));
