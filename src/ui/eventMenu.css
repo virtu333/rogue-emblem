@@ -310,6 +310,41 @@
   font-weight: 600;
   color: var(--re-warn);
 }
+/* What a choice can do (EventChoicePreview): every result it may have, never which one or the
+   odds. Under the hint, set off by a rule; a lead word per row, terms in small type. */
+.ev-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 3px;
+  padding-left: 8px;
+  border-left: 2px solid var(--re-gilt-lo);
+}
+.ev-preview-line {
+  display: block;
+  font: var(--re-t-small);
+  font-weight: 600;
+  color: var(--re-parchment-dim);
+}
+.ev-preview-lead {
+  margin-right: 5px;
+  color: var(--re-accent-text);
+  font-weight: 700;
+}
+.ev-preview-line.is-pass .ev-preview-lead {
+  color: var(--re-good);
+}
+.ev-preview-line.is-fail .ev-preview-lead {
+  color: var(--re-warn);
+}
+.ev-preview-detail {
+  display: block;
+  padding-left: 10px;
+  font: var(--re-t-small);
+  font-weight: 400;
+  color: var(--re-muted);
+}
+
 /* The price: a seal on the right edge, never in the label (the label stays the choice). */
 .ev-seal {
   flex-shrink: 0;
