@@ -58,6 +58,7 @@ export function presentationFailureProxy(
   const fxMethods = Object.fromEntries(
     [
       'tintUnit',
+      'restTint',
       'lungeForward',
       'travel',
       'dodge',
