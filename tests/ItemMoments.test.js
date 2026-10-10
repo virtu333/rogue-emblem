@@ -29,13 +29,17 @@ const data = loadGameData();
 // Blessings that wait for a card painting (the card wears the plain medallion meanwhile; art
 // never gates play). A new blessing goes on this list until its painting ships and comes off it
 // in the commit that ships the painting: Slow Fuse, Gambler's Toss, Bloodless Art, Phalanx Rite and
-// Duelist's Creed (blessings v3, PR B).
+// Duelist's Creed (blessings v3, PR B), then the four earned blessings (PR C).
 const PAINTING_PENDING = [
   'slow_fuse',
   'gamblers_toss',
   'bloodless_art',
   'phalanx_rite',
   'duelists_creed',
+  'unbroken_banner',
+  'second_dawn',
+  'ember_lantern',
+  'captains_whistle',
 ];
 const paintedBlessings = data.blessings.blessings.filter((b) => !PAINTING_PENDING.includes(b.id));
 

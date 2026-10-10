@@ -25,6 +25,10 @@
     "3": 0.8,
     "4": 0.25
   },
+  "earnedOffer": {
+    "actBoss": 2,
+    "weightByHeld": [1, 0.85, 0.7]
+  },
   "priceCatalog": {
     "debt_small": {
       "label": "Debt: {owed} gold",
@@ -1018,6 +1022,74 @@
           "hunted",
           "act1_def_down_1"
         ]
+      ],
+      "costs": []
+    },
+    {
+      "id": "unbroken_banner",
+      "name": "Unbroken Banner",
+      "earned": true,
+      "weight": 1,
+      "description": "Once per battle, the first ally who would fall survives at 1 HP.",
+      "lore": "Sewn from the cloth of fallen standards by widows who refuse the word. It stays up.",
+      "boons": [
+        {
+          "type": "battle_last_stand",
+          "params": {
+            "value": 1
+          }
+        }
+      ],
+      "costs": []
+    },
+    {
+      "id": "second_dawn",
+      "name": "Second Dawn",
+      "earned": true,
+      "weight": 1,
+      "description": "+1 Vision charge at the start of each act.",
+      "lore": "Pilgrims swear the sun rose twice that day. The seers say it rises again for you.",
+      "boons": [
+        {
+          "type": "act_start_vision_delta",
+          "params": {
+            "value": 1
+          }
+        }
+      ],
+      "costs": []
+    },
+    {
+      "id": "ember_lantern",
+      "name": "Ember Lantern",
+      "earned": true,
+      "weight": 1,
+      "description": "The first kill of each battle heals the killer 10 HP.",
+      "lore": "Lit from the first pyre of the first war. It warms whoever strikes the opening blow.",
+      "boons": [
+        {
+          "type": "first_kill_heal",
+          "params": {
+            "value": 10
+          }
+        }
+      ],
+      "costs": []
+    },
+    {
+      "id": "captains_whistle",
+      "name": "Captain's Whistle",
+      "earned": true,
+      "weight": 1,
+      "description": "Every unit has +1 Move on turn 1 of each battle.",
+      "lore": "Two notes: form up, then run. Old drillmasters swore it cut a march in half.",
+      "boons": [
+        {
+          "type": "first_turn_mov_delta",
+          "params": {
+            "value": 1
+          }
+        }
       ],
       "costs": []
     }

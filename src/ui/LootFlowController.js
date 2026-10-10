@@ -55,11 +55,18 @@ export class LootFlowController {
     const maybeForceFallback = () => {
       if (!isCurrentBattleSession(scene, session)) return;
       if (scene._postLootTransitionCompleted) return;
+      // An act boss's earned-blessing pick may stay open as long as the player likes: while it
+      // is open the clock stands at now, so the transition's own time (8 s, or 30 s while story
+      // input is locked) starts when the pick closes, not when the transition began.
+      if (scene._earnedPickActive) scene._postLootTransitionStartedAt = Date.now();
       const elapsed = Date.now() - scene._postLootTransitionStartedAt;
       // The prologue's ending plays inside this scene for as long as the player reads
-      // it (lines, cards, the handoff page): never force a second exit under it.
+      // it (lines, cards, the handoff page), and so does the pick: never force a second exit
+      // under either, nor before the transition has had its time since the pick closed.
       if (
         scene._prologueEndingActive ||
+        scene._earnedPickActive ||
+        elapsed < POST_LOOT_TRANSITION_TIMEOUT_MS ||
         (scene.isStoryInputLocked() && elapsed < POST_LOOT_TRANSITION_STORY_GRACE_MS)
       ) {
         scene._postLootTransitionTimer = setTimeout(

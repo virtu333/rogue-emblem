@@ -15,6 +15,8 @@
 //   { kind: 'hint', unit, text, tone} presentation — a short floating label
 //   { kind: 'stone', unit }           presentation — a Revival Stone broke and refilled the bar
 //                                     (UnitHealth.damageUnitDetailed; the refill is settled)
+//   { kind: 'banner', unit }          presentation — the Unbroken Banner held the unit at 1 HP
+//                                     (UnitHealth.damageUnitDetailed; the hold is settled)
 // The scene awaits each beat (a death animation plays before the next effect); the
 // harness acts on the required beats and skips the rest. Either way the effects
 // resolve in the same order against the same state.
@@ -27,6 +29,17 @@
 //   turnNumber
 //   skillsData?                        gameData.skills (the on-kill skills' catalog)
 //   marksData?                         gameData.marks (Mark of the Ember's catalog)
+//   battleBlessings?                   the battle's earned blessings (engine/BattleBlessings.js):
+//                                      the Unbroken Banner on every blow that can fell a unit,
+//                                      the Ember Lantern after the steps (absent: neither acts)
+//
+// A unit the Unbroken Banner held in this combat (in the exchange, or by one of these effects)
+// cannot fall again in this combat: what follows can take it no lower than 1 HP. That is all it
+// is spared. Status and debuff effects (an imbue's status, Grievous, Corrosive, Intimidate, an
+// art's tier-2 status or debuff) still land, as they do after a broken Revival Stone. A death
+// trigger outside this pipeline is not covered either: a Deathburst raised by a `remove` beat
+// (the scene's, after the fall it reports) meets the banner already spent, so it can fell the
+// unit the banner held.
 //
 // Area arts also leave a credit for every victim they hit on `result.areaCredits`
 // ({ source, victim, damage, hpBefore, killed }): plain state for the owner's XP award,
@@ -42,6 +55,7 @@ import { markHoldDisturbed } from './HoldDisturbance.js';
 import { applyBattleDebuff } from './BattleStatDeltas.js';
 import { applyTimedBuffEntry, resolveTimedBuffExpiry } from './TimedWeaponArtBuffs.js';
 import { getMarkDef, markProcs } from './MarkSystem.js';
+import { LANTERN, LANTERN_NAME, lanternReady, spendBattleBlessing } from './BattleBlessings.js';
 import {
   didCombatSideLandHit,
   getPostCombatPipelineSteps,
@@ -64,6 +78,7 @@ export function* postCombatEffects(
     skillsData: world?.skillsData ?? null,
     marksData: world?.marksData ?? null,
   });
+  const held = bannerHeldUnits(result, attacker, defender);
   for (const step of steps) {
     const sourceUnit = step.sourceSide === 'defender' ? defender : attacker;
     const targetUnit = step.targetSide
@@ -73,11 +88,62 @@ export function* postCombatEffects(
       : step.sourceSide === 'defender'
         ? attacker
         : defender;
-    yield* postCombatStep(step, { attacker, defender, result, sourceUnit, targetUnit }, world);
+    yield* postCombatStep(
+      step,
+      { attacker, defender, result, sourceUnit, targetUnit, held },
+      world,
+    );
+  }
+  yield* earnedOnKill({ attacker, defender, result }, world);
+}
+
+/** The units the Unbroken Banner held in the exchange itself (Combat's `bannerHeld`). */
+function bannerHeldUnits(result, attacker, defender) {
+  const held = new Set();
+  if (result?.bannerHeld?.attacker && attacker) held.add(attacker);
+  if (result?.bannerHeld?.defender && defender) held.add(defender);
+  return held;
+}
+
+/** A blow's floor: a unit the banner already held in this combat falls no further. */
+function heldFloor(unit, floor, held) {
+  return held?.has(unit) ? Math.max(1, floor) : floor;
+}
+
+/**
+ * Ember Lantern (an earned blessing, engine/BattleBlessings.js): the army's first kill of the
+ * battle heals the killer, through UnitHealth (so Wounded blocks it). The kill is this combat's,
+ * read as on-kill skills read it (`killedInCombat`: the primary down, a counter-kill, or one of
+ * the side's own area/line/ram strikes felling a victim), after every step. Only a living
+ * player unit lights it; an NPC ally's or a foe's kill never does. It is spent by that kill
+ * even when it heals nothing (full HP, Wounded): a muted line says so.
+ */
+function* earnedOnKill({ attacker, defender, result }, world) {
+  const state = world?.battleBlessings;
+  if (!lanternReady(state)) return;
+  for (const [unit, other] of [
+    [attacker, defender],
+    [defender, attacker],
+  ]) {
+    if (!unit || unit.faction !== 'player' || !(unit.currentHP > 0)) continue;
+    if (!killedInCombat(unit, other, result)) continue;
+    spendBattleBlessing(state, LANTERN);
+    const healed = healUnit(unit, state.firstKillHeal);
+    if (healed > 0) {
+      yield { kind: 'hp', unit };
+      yield { kind: 'hint', unit, text: `${LANTERN_NAME} +${healed}`, tone: 'heal' };
+    } else {
+      yield { kind: 'hint', unit, text: `${LANTERN_NAME} +0`, tone: 'muted' };
+    }
+    return;
   }
 }
 
-function* postCombatStep(step, { attacker, defender, result, sourceUnit, targetUnit }, world) {
+function* postCombatStep(
+  step,
+  { attacker, defender, result, sourceUnit, targetUnit, held },
+  world,
+) {
   switch (step.type) {
     case 'affix':
       yield* onAttackAffixes(sourceUnit, targetUnit, result.events, step.sourceSide, world);
@@ -99,7 +165,7 @@ function* postCombatStep(step, { attacker, defender, result, sourceUnit, targetU
       break;
     case 'tier2_damage':
       if (!targetUnit || targetUnit.currentHP <= 0) break;
-      yield* damageOverTime(targetUnit, step.amount, step.nonLethal ? 1 : 0);
+      yield* damageOverTime(targetUnit, step.amount, step.nonLethal ? 1 : 0, world, held);
       break;
     case 'tier2_debuff':
       if (!targetUnit || targetUnit.currentHP <= 0) break;
@@ -134,7 +200,7 @@ function* postCombatStep(step, { attacker, defender, result, sourceUnit, targetU
     }
     case 'art_miss_self_damage':
       if (!targetUnit || targetUnit.currentHP <= 0) break;
-      yield* damageOverTime(targetUnit, step.amount, step.nonLethal === false ? 0 : 1);
+      yield* damageOverTime(targetUnit, step.amount, step.nonLethal === false ? 0 : 1, world, held);
       break;
     case 'art_kill_buff':
       if (!sourceUnit || sourceUnit.currentHP <= 0) break;
@@ -161,13 +227,13 @@ function* postCombatStep(step, { attacker, defender, result, sourceUnit, targetU
       yield* skillOnKill(step, sourceUnit, targetUnit, result, world);
       break;
     case 'tier2_move':
-      yield* postCombatMove(sourceUnit, targetUnit, step, world, result);
+      yield* postCombatMove(sourceUnit, targetUnit, step, world, result, held);
       break;
     case 'tier2_set_hp':
       yield* setHp(step, sourceUnit, targetUnit);
       break;
     case 'area_damage':
-      yield* areaDamage(step, sourceUnit, targetUnit, world, result);
+      yield* areaDamage(step, sourceUnit, targetUnit, world, result, held);
       break;
     case 'ally_heal':
       yield* allyHeal(step, sourceUnit, world);
@@ -259,13 +325,22 @@ function* onKillSpeed(skill, unit) {
   yield { kind: 'hint', unit, text: `${skill.name} +${gain} SPD`, tone: 'buff' };
 }
 
-function* damageOverTime(unit, amount, floor) {
-  const { lost: actual, stoneBroken } = damageUnitDetailed(unit, amount, { floor });
+function* damageOverTime(unit, amount, floor, world, held) {
+  const {
+    lost: actual,
+    stoneBroken,
+    bannerHeld,
+  } = damageUnitDetailed(unit, amount, {
+    floor: heldFloor(unit, floor, held),
+    blessings: world?.battleBlessings ?? null,
+  });
+  if (bannerHeld) held?.add(unit);
   if (actual > 0) {
     yield { kind: 'hp', unit };
     yield { kind: 'poison', unit, amount: actual };
     if (stoneBroken) yield { kind: 'stone', unit };
   }
+  if (bannerHeld) yield { kind: 'banner', unit };
 }
 
 /** On-hit affixes of the side that landed a hit (poison never kills; a stat debuff; Wounded). */
@@ -284,9 +359,13 @@ function* onAttackAffixes(attacker, defender, events, sourceSide, world) {
   const affixResult = getAttackAffixes(attacker, world.affixes);
 
   if (affixResult.poisonDamage > 0 && defender.currentHP > 0) {
-    damageUnit(defender, affixResult.poisonDamage, { floor: 1 });
-    yield { kind: 'hp', unit: defender };
-    yield { kind: 'poison', unit: defender, amount: affixResult.poisonDamage };
+    // Floor 1: the number shown is what the bar lost (none on a unit at 1 HP, as one the
+    // Unbroken Banner just held; 2 on a unit at 3 HP), never the affix's whole amount.
+    const lost = damageUnit(defender, affixResult.poisonDamage, { floor: 1 });
+    if (lost > 0) {
+      yield { kind: 'hp', unit: defender };
+      yield { kind: 'poison', unit: defender, amount: lost };
+    }
   }
 
   if (affixResult.debuffStat && defender.currentHP > 0) {
@@ -332,7 +411,7 @@ function* divineChargeHeal(step, attacker, defender, world) {
     yield { kind: 'hint', unit: healTarget, text: `+${actualHeal} HP`, tone: 'heal' };
 }
 
-function* postCombatMove(sourceUnit, targetUnit, step, world, result) {
+function* postCombatMove(sourceUnit, targetUnit, step, world, result, held = null) {
   if (!sourceUnit) return;
   if (step.mode === 'pushAreaVictims') {
     yield* pushAreaVictims(sourceUnit, targetUnit, step, world);
@@ -374,7 +453,8 @@ function* postCombatMove(sourceUnit, targetUnit, step, world, result) {
     units.push(assignment.unit);
   }
   if (units.length > 0) yield { kind: 'moved', units, ...(slides.length > 0 ? { slides } : {}) };
-  if (moveResult.collision) yield* collide(step, sourceUnit, targetUnit, moveResult, world, result);
+  if (moveResult.collision)
+    yield* collide(step, sourceUnit, targetUnit, moveResult, world, result, held);
 }
 
 /**
@@ -419,7 +499,7 @@ function* pushAreaVictims(sourceUnit, primary, step, world) {
  * falls. The target is the combat's primary, so its owner removes it (and pays its XP);
  * the obstacle is an area victim: it falls here and leaves a credit.
  */
-function* collide(step, sourceUnit, targetUnit, moveResult, world, result) {
+function* collide(step, sourceUnit, targetUnit, moveResult, world, result, held = null) {
   const amount = Math.max(0, Math.trunc(Number(step.collisionDamage) || 0));
   if (amount <= 0) return;
   const obstacle = moveResult.collision.obstacle;
@@ -429,12 +509,22 @@ function* collide(step, sourceUnit, targetUnit, moveResult, world, result) {
   const dealt = new Map();
   for (const unit of struck) {
     const hpBefore = unit.currentHP;
-    const { lost: actual, stoneBroken } = damageUnitDetailed(unit, amount);
+    const {
+      lost: actual,
+      stoneBroken,
+      bannerHeld,
+    } = damageUnitDetailed(unit, amount, {
+      floor: heldFloor(unit, 0, held),
+      blessings: world?.battleBlessings ?? null,
+    });
     dealt.set(unit, { hpBefore, actual });
-    if (actual <= 0) continue;
-    yield { kind: 'hp', unit };
-    yield { kind: 'hint', unit, text: `Crash -${actual}`, tone: 'splash' };
-    if (stoneBroken) yield { kind: 'stone', unit };
+    if (bannerHeld) held?.add(unit);
+    if (actual > 0) {
+      yield { kind: 'hp', unit };
+      yield { kind: 'hint', unit, text: `Crash -${actual}`, tone: 'splash' };
+      if (stoneBroken) yield { kind: 'stone', unit };
+    }
+    if (bannerHeld) yield { kind: 'banner', unit };
   }
   if (hostile && dealt.get(obstacle)?.actual > 0) {
     if (result)
@@ -496,7 +586,7 @@ function* setHp(step, sourceUnit, targetUnit) {
  * death's own effects (a Deathburst) can never change another victim's blow, and the
  * preview, which is the first phase, is exact. Each victim hit leaves one credit.
  */
-export function* areaDamage(step, sourceUnit, primary, world, result = null) {
+export function* areaDamage(step, sourceUnit, primary, world, result = null, held = new Set()) {
   if (!sourceUnit || !step?.area) return;
   if (step.requiresLiveSource !== false && sourceUnit.currentHP <= 0) return;
   const plan = planAreaBlows({
@@ -516,20 +606,33 @@ export function* areaDamage(step, sourceUnit, primary, world, result = null) {
   const dealt = new Map(plan.map(({ unit }) => [unit, { hpBefore: unit.currentHP, damage: 0 }]));
 
   // A victim whose Revival Stone broke is struck no more by this art: one bar per blow
-  // sequence, as a broken stone ends a combat's exchange.
+  // sequence, as a broken stone ends a combat's exchange. So is one the Unbroken Banner held.
   const brokeBar = new Set();
   for (let blow = 0; blow < blows; blow++) {
     for (const { unit, damage } of plan) {
       if (unit.currentHP <= 0 || damage <= 0 || brokeBar.has(unit)) continue;
-      const { lost: actual, stoneBroken } = damageUnitDetailed(unit, damage, { floor });
-      if (actual <= 0) continue;
-      dealt.get(unit).damage += actual;
-      yield { kind: 'hp', unit };
-      yield { kind: 'hint', unit, text: `${label} -${actual}`, tone };
-      if (stoneBroken) {
+      const {
+        lost: actual,
+        stoneBroken,
+        bannerHeld,
+      } = damageUnitDetailed(unit, damage, {
+        floor: heldFloor(unit, floor, held),
+        blessings: world?.battleBlessings ?? null,
+      });
+      if (bannerHeld) {
+        held?.add(unit);
         brokeBar.add(unit);
-        yield { kind: 'stone', unit };
       }
+      if (actual > 0) {
+        dealt.get(unit).damage += actual;
+        yield { kind: 'hp', unit };
+        yield { kind: 'hint', unit, text: `${label} -${actual}`, tone };
+        if (stoneBroken) {
+          brokeBar.add(unit);
+          yield { kind: 'stone', unit };
+        }
+      }
+      if (bannerHeld) yield { kind: 'banner', unit };
     }
   }
 

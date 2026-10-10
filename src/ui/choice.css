@@ -715,7 +715,8 @@
 
 /* Arrival menus: cards fill the body; the footer holds details + confirm. */
 .ch-arrival .re-menu-body,
-.ch-arena .re-menu-body {
+.ch-arena .re-menu-body,
+.ch-earned-pick .re-menu-body {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1057,6 +1058,43 @@
 }
 .ch-card:is([aria-pressed='true'], .is-chosen) .ch-sun {
   animation: ch-corona 3.6s ease-in-out infinite;
+}
+/* An earned blessing (no tier): a gold rim, the sun's double ring, and a star burning in it
+   where a numeral would be. The star is a clipped shape (choiceCards.blessingTarotCard), not a
+   glyph: the sun's face, Cinzel, has none. It is sized from the sun, so it reads on every sun
+   (34px on a short phone, 32px in a painting's corner, 96px on a desktop). */
+.ch-tarot[data-tier='earned'] {
+  --ch-tier: var(--ce-gold-5);
+}
+.ch-tarot[data-tier='earned'] .ch-sun {
+  box-shadow:
+    0 0 0 1px var(--ce-gold-6),
+    0 0 0 3px var(--ce-ink-0),
+    0 0 0 4px var(--ch-tier),
+    0 0 0 6px var(--ce-ink-0),
+    0 0 0 7px var(--ce-gold-3),
+    0 0 16px 4px var(--ch-glow-soft);
+}
+.ch-tarot[data-tier='earned'] .ch-numeral {
+  filter: drop-shadow(0 0 3px var(--ch-glow)) drop-shadow(0 1px 0 var(--ce-ink-0));
+}
+.ch-star {
+  display: block;
+  width: 56%;
+  height: 56%;
+  background: linear-gradient(180deg, var(--ce-gold-6), var(--ce-gold-5) 45%, var(--ce-gold-4));
+  clip-path: polygon(
+    50% 2%,
+    61.8% 36.8%,
+    98.5% 37.4%,
+    69.1% 59.4%,
+    79.4% 94.6%,
+    50% 73.6%,
+    20.6% 94.6%,
+    30.9% 59.4%,
+    1.5% 37.4%,
+    38.2% 36.8%
+  );
 }
 .ch-tarot-name {
   display: block;
@@ -1402,6 +1440,11 @@
 
 /* Desktop: rewards, tarot and banners take the room like the recruits do. */
 @media (min-width: 1000px) and (min-height: 600px) {
+  /* The earned pick is a dialog (MenuSurface modal): room for two tall tarot cards. */
+  .re-compact-menu.ch-earned-pick {
+    max-width: 780px;
+    max-height: min(660px, 100%);
+  }
   .mu-screen.ch-reward-screen {
     padding-inline: max(24px, calc((100vw - 1180px) / 2));
   }
