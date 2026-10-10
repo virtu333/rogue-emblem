@@ -38,12 +38,16 @@ afterEach(() => {
 });
 
 function makeDriver(options = {}) {
-  const { seed = SEED, ...rest } = options;
+  const { seed = SEED, claims = {}, ...rest } = options;
   rng.setState(seed);
+  // No shrine pick by default: a seed's random blessing or gift (a Sealed Reliquary granting
+  // Cutpurse's Luck, say) must not leak into a forced scenario. A scenario that needs the shrine
+  // or a card asks for it (`claims`, `grantBlessings`).
   const driver = new ClaimingRunDriver(gameData, {
     rng,
     runOptions: { runSeed: seed, difficultyId: 'normal', autoSelectBlessing: false },
     ...rest,
+    claims: { startOffer: 'none', gift: false, ...claims },
   });
   driver.init();
   return driver;
@@ -113,7 +117,7 @@ describe('the shrine', () => {
   it('takes the gift when the random pick lands on it (a seed whose shrine offers one is found)', () => {
     let taken = null;
     for (let seed = 1; seed <= 120 && !taken; seed++) {
-      const driver = makeDriver({ seed });
+      const driver = makeDriver({ seed, claims: { startOffer: 'random', gift: true } });
       if (count(driver, 'giftsTaken') > 0) taken = driver;
     }
     expect(taken, 'a seed in 1..120 whose random shrine pick is the gift').not.toBeNull();
