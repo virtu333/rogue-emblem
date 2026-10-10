@@ -67,6 +67,20 @@ export function deriveNodeBattleSeed(runSeed, nodeKey) {
   return h >>> 0;
 }
 
+/**
+ * The seed a run's battle stream (BattleRng: Math.random during a battle) opens on at a FRESH
+ * start (BattleScene.installBattleRng): one per run and node, the act named beside the node's id.
+ * So no two battles of a run open on the same draws (hit, crit, skill, AI and growth rolls), and
+ * the same node of the same run opens on the same ones whenever it is entered afresh: a re-entry
+ * after Continue from Map or the prologue's restart replays its first entry's stream, as the
+ * entry-time RNG refund promises. Its own key, so the stream never repeats the draws the node's
+ * fallback map seed (`deriveNodeBattleSeed(runSeed, nodeId)`) generates the map with. A resume
+ * never reads it: the checkpoint holds the stream's seed and cursor.
+ */
+export function deriveBattleStreamSeed(runSeed, { act = null, nodeId = null } = {}) {
+  return deriveNodeBattleSeed(runSeed, `battle-stream:${act ?? ''}:${nodeId ?? ''}`);
+}
+
 /** The seed a battle's map is generated from: its params' `battleSeed`, else the derived one. */
 export function battleGenerationSeed(params, { runSeed = 0, nodeId = null } = {}) {
   if (Number.isFinite(params?.battleSeed)) return params.battleSeed;
