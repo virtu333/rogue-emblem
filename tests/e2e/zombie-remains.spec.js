@@ -122,15 +122,19 @@ test.describe('landscape phone: the rail', () => {
       )
       .toEqual([2, 'player', 'PLAYER_IDLE', ['2']]);
 
-    // Smash: a rail command, then the pile.
+    // Smash: a rail command, then the pile from the rail's list (as Heal lists allies).
     p = await tilePoint(page, edric.col, edric.row);
     await page.touchscreen.tap(p.x, p.y);
     await hud.getByRole('button', { name: 'Smash', exact: true }).tap();
     await expect
       .poll(async () => (await remainsState(page)).state)
       .toBe('SELECTING_REMAINS_TARGET');
-    p = await tilePoint(page, spot.col, spot.row);
-    await page.touchscreen.tap(p.x, p.y);
+    const piles = hud.getByRole('group', { name: 'Remains to smash' });
+    await expect(piles.getByRole('button')).toHaveCount(1);
+    const pile = piles.getByRole('button', { name: /^Zombie remains/ });
+    await expect(pile.locator('.mb-item-summary')).toHaveText('rises in 2 enemy phases');
+    await page.screenshot({ path: 'test-results/zombie-remains-smash-rail.png' });
+    await pile.tap();
     await expect.poll(async () => (await remainsState(page)).records).toEqual([]);
     now = await remainsState(page);
     expect(now.shown).toEqual([]);

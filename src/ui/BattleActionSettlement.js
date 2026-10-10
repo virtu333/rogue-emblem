@@ -18,6 +18,9 @@ export async function settleAndPresent(
     onInvalid,
     clearHighlights = true,
     continuation,
+    // The action can end the battle (the last remains of a Rout): once it is drawn,
+    // the battle's end is checked before the unit's action finishes (no Canto then).
+    endsBattle = false,
     session = battleSession(scene),
   },
 ) {
@@ -93,6 +96,7 @@ export async function settleAndPresent(
     await presentQueuedProgress(scene, null, { session });
     if (!isCurrentBattleSession(scene, session)) return false;
     scene._pendingActionCompletion = null;
+    if (endsBattle && scene.checkBattleEnd?.()) return true;
     await scene.finishUnitAction(unit, {
       session,
       ...(finish.skipCanto === true ? { skipCanto: true } : {}),

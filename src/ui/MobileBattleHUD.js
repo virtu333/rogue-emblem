@@ -81,7 +81,7 @@ const PLAY_STATES = new Set([
 const HINTS = {
   PLAYER_IDLE: 'Tap a unit to begin. Pinch to zoom the map.',
   SELECTING_HEAL_TARGET: 'Choose an ally here or on the map. Back returns without using the staff.',
-  SELECTING_REMAINS_TARGET: 'Tap the highlighted remains to smash them. Back to go back.',
+  SELECTING_REMAINS_TARGET: 'Choose remains here or on the map. Back to go back.',
   SELECTING_AREA_CENTER: 'Tap a lit tile to aim; tap it again or Fire to cast. Back to go back.',
   UNIT_MOVING: 'Moving…',
   UNIT_SELECTED: 'Tap a highlighted tile to move.',
@@ -973,6 +973,9 @@ export class MobileBattleHUD {
             sceneHealPreview(s, t)?.text,
           ])
         : null,
+      state === 'SELECTING_REMAINS_TARGET'
+        ? (s._remainsCtrl?.targets || []).map((t) => [t.col, t.row, t.turnsRemaining])
+        : null,
       formation ? s._formation.version : null,
       formation ? Boolean(s.dangerZone?.visible) : null,
       state === 'SELECTING_STAFF_TILE' ? s.staffRelocateAlly?.name : null,
@@ -1303,6 +1306,7 @@ export class MobileBattleHUD {
       );
     if (state === 'SELECTING_TARGET') this.appendTargetList();
     if (state === 'SELECTING_HEAL_TARGET') this.appendHealTargetList();
+    if (state === 'SELECTING_REMAINS_TARGET') this.appendRemainsTargetList();
     if (state === 'SELECTING_AREA_CENTER') this.appendAreaTargeting();
     if (isUnitMenuState(state) && this.menu) {
       const menu = this.menu;
@@ -1452,6 +1456,22 @@ export class MobileBattleHUD {
             : `HP ${preview.from}/${preview.max} → ${preview.to}/${preview.max} (+${preview.amount})`,
         ),
       );
+      list.append(button);
+    }
+    this.body.append(list);
+  }
+
+  /** Smash: each pile in reach as a row (ZombieRemainsController.targetRows), as Heal's list. */
+  appendRemainsTargetList() {
+    const s = this.scene;
+    const remains = s._remainsCtrl;
+    if (!s.selectedUnit || !remains) return;
+    const list = el('div', 'mb-actions mb-targets mb-remains-targets');
+    list.setAttribute('role', 'group');
+    list.setAttribute('aria-label', 'Remains to smash');
+    for (const row of remains.targetRows(s.selectedUnit)) {
+      const button = this.button(row.label, () => remains.choose(row.target));
+      button.append(el('small', 'mb-item-summary', row.detail));
       list.append(button);
     }
     this.body.append(list);
