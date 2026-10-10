@@ -1,6 +1,7 @@
 // The blessing report's statistics (sim/lib/BlessingReport.js): the family-wise cutoff follows
-// the number of comparisons actually made, family-wise flags need a real sample, and an earned
-// card's takers and decliners are compared on one clock.
+// the number of comparisons actually made, family-wise flags need a real sample, an earned
+// card's takers and decliners are compared on one clock, and a card one source hands out alone is
+// compared within that source.
 import { describe, it, expect } from 'vitest';
 import { loadGameData } from '../testData.js';
 import {
@@ -90,5 +91,56 @@ describe('earnedCardRows: takers and decliners share one clock', () => {
     expect(row.sources.act_boss).toBe(3);
     // Every counted run reads its battles from index 2: same window, so no difference here.
     expect(row.diffs.koBattleRate.delta).toBeCloseTo(0, 9);
+  });
+});
+
+describe('earnedCardRows: a card one source hands out alone', () => {
+  const gameData = loadGameData();
+  const battle = (kos) => ({ commanderKOs: kos, unitDeaths: 0, stalled: false, rewinds: 0 });
+  const log = Array.from({ length: 10 }, (_, i) => battle(i < 5 ? 1 : 0));
+  const offer = (id, source, taken) => ({ id, source, key: source, battleIndex: 2, act: 3, taken });
+  const run = (offers) => ({
+    difficulty: 'normal',
+    battleLog: log,
+    gold: 0,
+    heldAtEnd: [],
+    offers,
+  });
+
+  it('stays on its source when a few runs pass it in a sanctum pair', () => {
+    // Hollow Hourglass is an eclipsed elite's drop; it also turns up, rarely, in a sanctum pair.
+    // Two runs passing it there must not turn the elite drops into takers compared with them.
+    const results = [
+      run([offer('hollow_hourglass', 'eclipsed_elite', true)]),
+      run([offer('hollow_hourglass', 'eclipsed_elite', true)]),
+      run([offer('hollow_hourglass', 'eclipsed_elite', true)]),
+      run([offer('second_dawn', 'eclipsed_elite', true)]),
+      run([offer('second_dawn', 'eclipsed_elite', true)]),
+      run([offer('hollow_hourglass', 'sanctum', false)]),
+      run([offer('hollow_hourglass', 'sanctum', false)]),
+    ];
+    const row = earnedCardRows(results, gameData).find((r) => r.id === 'hollow_hourglass');
+    expect(row.basis).toBe('source');
+    expect(row.taken).toBe(3);
+    expect(row.offeredRuns).toBe(3);
+    // Against the runs whose first elite card was another one; the sanctum runs are left out.
+    expect(row.diffs.koBattleRate.nA).toBe(3);
+    expect(row.diffs.koBattleRate.nB).toBe(2);
+  });
+
+  it('is compared within its pairs when the pairs hand it out more', () => {
+    const results = [
+      run([offer('hollow_hourglass', 'sanctum', true)]),
+      run([offer('hollow_hourglass', 'sanctum', true)]),
+      run([offer('hollow_hourglass', 'sanctum', false)]),
+      run([offer('hollow_hourglass', 'sanctum', false)]),
+      run([offer('hollow_hourglass', 'eclipsed_elite', true)]),
+      run([offer('second_dawn', 'eclipsed_elite', true)]),
+    ];
+    const row = earnedCardRows(results, gameData).find((r) => r.id === 'hollow_hourglass');
+    expect(row.basis).toBe('pair');
+    // Two pair takers and the elite's taker against the two that passed it in a pair.
+    expect(row.diffs.koBattleRate.nA).toBe(3);
+    expect(row.diffs.koBattleRate.nB).toBe(2);
   });
 });

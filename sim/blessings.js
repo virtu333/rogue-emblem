@@ -187,7 +187,8 @@ function cardTableRows(rows, { earned = false, zFamily = Infinity } = {}) {
       taken: row.taken,
     };
     if (earned) {
-      out['took later'] = row.laterTakers;
+      // A later take is judged against the pair's first offer; other bases have no such clock.
+      out['took later'] = row.basis === 'pair' ? row.laterTakers : '-';
       out.granted = row.granted;
       out['compared with'] =
         row.basis === 'source' ? 'source peers' : row.basis === 'none' ? '-' : 'the other card';
@@ -308,7 +309,7 @@ function report(allRuns, gameData, { seconds = null } = {}) {
     '',
     '### Earned cards',
     '',
-    "Took it at its first offer − passed it at its first offer (a run that passed it and took it at a later offer counts with those who passed it: `took later`), over the run's battles from that first offer on; a card its source offers alone (an eclipsed elite's drop, the Colosseum's) is compared at each run's first offer from that source (this card first against another card first). `granted`: given by an event (no choice, not compared).",
+    "Took it at its first offer − passed it at its first offer (a run that passed it and took it at a later offer counts with those who passed it: `took later`), over the run's battles from that first offer on; a card its source offers alone (an eclipsed elite's drop, the Colosseum's) is compared at each run's first offer from that source (this card first against another card first), whenever that source hands it out more often than pairs do (its few pair offers are then left out). `granted`: given by an event (no choice, not compared).",
     '',
     mdTable(earnedCols, earnedTable),
     '',

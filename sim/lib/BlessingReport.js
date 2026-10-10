@@ -314,9 +314,9 @@ export function startCardRows(results, gameData, { rungs = null } = {}) {
  * exercise rate, and the outcome differences over the battles from the card's first offer on
  * (takers and decliners alike: a run is a taker if it took the card AT that first offer, and a
  * run that passed it there and took it later is a decliner, counted in `laterTakers`):
- * against the runs offered it that took the other card (`basis` 'pair'), or, for a card its source
- * offers alone, against the runs that source offered another card ('source'). Event grants (no
- * choice: the card is given) are counted, not compared ('none').
+ * against the runs offered it that took the other card (`basis` 'pair'), or, for a card a source
+ * offers alone more often than pairs offer it, against the runs that source offered another card
+ * ('source'). Event grants (no choice: the card is given) are counted, not compared ('none').
  */
 export function earnedCardRows(results, gameData, { rungs = null } = {}) {
   const catalog = cardCatalog(gameData);
@@ -353,9 +353,17 @@ export function earnedCardRows(results, gameData, { rungs = null } = {}) {
     // each run's FIRST offer from that source: the runs whose first card was this one against the
     // runs whose first card was another (the card is drawn on the source's own seeded stream, so
     // which card a run is shown first does not depend on how it plays), from that offer on.
+    // The basis is the source that hands the card out most: an eclipsed elite's card also turns
+    // up, rarely, in a sanctum's pair, and a couple of runs passing it there must not turn
+    // hundreds of elite drops into "takers" compared with those few decliners. Those few pair
+    // offers are then left out of the comparison.
     let basis = firstOffer.size ? 'pair' : 'none';
     const single = SINGLE_CARD_SOURCES.filter((kind) => sources[kind]);
-    if (single.length && Object.values(groups).every((g) => g.other.length < 2)) {
+    const singleTakes = single.reduce((n, kind) => n + sources[kind], 0);
+    const pairTakes = Object.entries(sources)
+      .filter(([kind]) => !SINGLE_CARD_SOURCES.includes(kind))
+      .reduce((n, [, count]) => n + count, 0);
+    if (single.length && singleTakes > pairTakes) {
       basis = 'source';
       for (const key of Object.keys(groups)) delete groups[key];
       firstOffer.clear();
