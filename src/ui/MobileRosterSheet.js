@@ -32,6 +32,7 @@ import {
   WEAPON_ARTS_HELP,
 } from './helpTopics.js';
 import { attachInfo, holdTip } from './infoAffordance.js';
+import { decorateDisclosure } from './disclosure.js';
 import { getForgeDisplayInfo } from '../engine/ForgeSystem.js';
 import { isWorn, wearCount, wearLine } from '../engine/WeaponWear.js';
 import { composeWeaponName, itemDisplayName, stripItemNameSuffix } from '../utils/itemNames.js';
@@ -506,7 +507,11 @@ export class MobileRosterSheet {
     body.scrollTop = oldScroll;
     nav.scrollLeft = oldStrip;
     if (portraitListLayout()) revealInStrip(nav, nav.querySelector('[aria-pressed="true"]'));
-    if (focusKey)
+    const focusAfter = this._focusAfterRender;
+    this._focusAfterRender = null;
+    if (focusAfter && this.root.querySelector(focusAfter))
+      this.root.querySelector(focusAfter).focus({ preventScroll: true });
+    else if (focusKey)
       (this.root.querySelector(`[data-focus-key="${focusKey}"]`) || this.root).focus({
         preventScroll: true,
       });
@@ -665,9 +670,12 @@ export class MobileRosterSheet {
     }
     if (unit.growths && unit.faction !== 'enemy') this.body.append(growthsCard(unit.growths));
   }
-  // Deeds & Epithets: the titles this unit earned, the title first, then newest, with the
-  // run's tallies and its Oath. Between battles the player picks the title the unit goes
-  // by and, before promotion, which deed's Oath it will swear (saved at once).
+  // Deeds & Epithets: the title this unit goes by in full, its other deeds folded
+  // under one line until the player opens them, the run's tallies and its Oath (the
+  // one it will swear shown, the rest folded the same way). Between battles the player
+  // picks the title the unit goes by and, before promotion, which deed's Oath it will
+  // swear (saved at once). The folds stay as the player left them while this sheet is
+  // open (across units and re-renders) and start closed on the next opening.
   deeds(unit) {
     const list = deedsForDisplay(unit, this.gameData.deeds);
     const heading = el('h3', list.length ? `Deeds · ${list.length}` : 'Deeds');
@@ -675,58 +683,31 @@ export class MobileRosterSheet {
     if (list.length) this.explain(heading, 'deeds', 'Deeds', DEEDS_HELP);
     const tally = deedTallyText(unit);
     if (tally) this.body.append(el('p', `This march: ${tally}`, 'mr-deed-tally'));
-    const skillText = (id) => {
-      const skill = this.gameData.skills?.find((s) => s.id === id);
-      return `${skill?.name || id}${skill?.description ? ` — ${skill.description}` : ''}`;
-    };
     // Choices are run state: only the manage view (between battles) makes them.
     const manage = Boolean(this.run?.roster?.includes(unit));
-    const choose = (change, done) => {
+    const choose = (change, done, after = null) => {
       if (!change()) return;
+      after?.();
       this.render(`${done}${this.persistNow()}`);
     };
-    const sworn = unit.deeds?.oath;
-    if (sworn?.skillId)
-      this.card(
-        `${sworn.name || 'Oath'} · sworn${benchedSkillsOf(unit).includes(sworn.skillId) ? ' · on the bench' : ''}`,
-        skillText(sworn.skillId),
-      );
-    else if (unit.tier !== 'promoted') {
-      const options = promotionOathCandidates(unit, this.gameData.deeds, this.gameData.skills);
-      if (options.length === 1)
-        this.card(`${options[0].name} · sworn at promotion`, skillText(options[0].skillId));
-      else if (options.length > 1) {
-        // One Oath per unit: the player picks which deed it swears on.
-        const card = this.card(
-          'Oath at promotion',
-          'Choose the deed this unit swears on. Only one Oath, ever.',
-        );
-        card.classList.add('mr-oath-choice');
-        // A stable order (greatest first); the one it will swear is marked.
-        for (const option of oathOptionsInOrder(options)) {
-          const chosen = option.deedId === options[0].deedId;
-          const b = manage
-            ? this.button(`${option.name} · ${option.skillName}`, () =>
-                choose(
-                  () => pledgeOath(unit, option.deedId),
-                  `${unit.name} will swear ${option.name}.`,
-                ),
-              )
-            : el('p', `${option.name} · ${option.skillName}`);
-          b.classList.add('mr-oath-option');
-          if (manage) b.setAttribute('aria-pressed', String(chosen));
-          else if (chosen) b.classList.add('is-chosen');
-          if (option.skillDescription) b.title = option.skillDescription;
-          card.append(b);
-        }
-        card.append(el('p', skillText(options[0].skillId), 'mr-deed-meta'));
-      }
-    }
+    const folds = (this.deedFolds ||= { deeds: false, oath: false });
+    const fold = (key, label, count, preview, focusClass) => {
+      const toggle = this.button(label, () => {
+        folds[key] = !folds[key];
+        this.render();
+      });
+      toggle.classList.add(focusClass);
+      return decorateDisclosure(toggle, { label, count, preview, expanded: folds[key] });
+    };
     if (!list.length) {
+      this.deedOath(unit, { manage, choose, folds, fold });
       this.card('No deeds yet', 'Titles come from what a unit does in battle, not from a list.');
       return;
     }
     const chosenTitle = unit.deeds?.chosenTitle ?? null;
+    const title = list.find((deed) => deed.isTitle) || null;
+    const titleCard = title ? this.deedCard(title, { manage, choose, unit }) : null;
+    if (titleCard) this.body.append(titleCard);
     if (manage) {
       const mode = el(
         'p',
@@ -752,26 +733,111 @@ export class MobileRosterSheet {
             choose(() => chooseTitle(unit, TITLE_NONE), `${unit.name} goes by name alone.`),
           ),
         );
-      this.body.append(mode);
+      // With a title, how it was picked rides its card; with none, the line stands alone.
+      (titleCard || this.body).append(mode);
     }
-    for (const deed of list) {
-      const card = el('article', null, `mr-card mr-deed${deed.isTitle ? ' is-title' : ''}`);
-      const head = el('h4', deed.name);
-      if (deed.isTitle) head.append(el('small', 'Title'));
-      card.append(head, el('p', deed.epithet, 're-epithet'));
-      if (deed.lore) card.append(el('p', deed.lore, 'mr-deed-lore'));
-      const at = deed.awardedAt || {};
-      const meta = [actLabel(at.act), Number.isFinite(at.battle) ? `Battle ${at.battle}` : '']
-        .filter(Boolean)
-        .join(' · ');
-      if (meta) card.append(el('p', meta, 'mr-deed-meta'));
-      if (manage && !deed.isTitle)
-        card.append(
-          this.button('Use as title', () =>
-            choose(() => chooseTitle(unit, deed.id), `${unit.name} now goes by ${deed.epithet}.`),
-          ),
-        );
-      this.body.append(card);
+    // The rest, folded: one line with their titles until the player opens it.
+    const rest = list.filter((deed) => deed !== title);
+    if (rest.length) {
+      const group = el('div', null, 'mr-deed-fold');
+      group.append(
+        fold(
+          'deeds',
+          title ? 'Other deeds' : 'Deeds earned',
+          rest.length,
+          rest.map((deed) => deed.epithet).join(' · '),
+          'mr-deed-toggle',
+        ),
+      );
+      if (folds.deeds)
+        for (const deed of rest) group.append(this.deedCard(deed, { manage, choose, unit }));
+      this.body.append(group);
+    }
+    this.deedOath(unit, { manage, choose, folds, fold });
+  }
+  /** One earned deed: its name, title, lore and when; "Use as title" between battles. */
+  deedCard(deed, { manage, choose, unit }) {
+    const card = el('article', null, `mr-card mr-deed${deed.isTitle ? ' is-title' : ''}`);
+    const head = el('h4', deed.name);
+    if (deed.isTitle) head.append(el('small', 'Title'));
+    card.append(head, el('p', deed.epithet, 're-epithet'));
+    if (deed.lore) card.append(el('p', deed.lore, 'mr-deed-lore'));
+    const at = deed.awardedAt || {};
+    const meta = [actLabel(at.act), Number.isFinite(at.battle) ? `Battle ${at.battle}` : '']
+      .filter(Boolean)
+      .join(' · ');
+    if (meta) card.append(el('p', meta, 'mr-deed-meta'));
+    if (manage && !deed.isTitle)
+      card.append(
+        this.button('Use as title', () =>
+          choose(() => chooseTitle(unit, deed.id), `${unit.name} now goes by ${deed.epithet}.`),
+        ),
+      );
+    return card;
+  }
+  /**
+   * The unit's Oath: sworn, the one it will swear, or (with several open) the one it
+   * will swear in full and the others folded behind "Change Oath". Picking one pledges
+   * it and closes the fold, like a select, with focus back on the toggle.
+   */
+  deedOath(unit, { manage, choose, folds, fold }) {
+    const skillText = (id) => {
+      const skill = this.gameData.skills?.find((s) => s.id === id);
+      return `${skill?.name || id}${skill?.description ? ` — ${skill.description}` : ''}`;
+    };
+    const sworn = unit.deeds?.oath;
+    if (sworn?.skillId) {
+      this.card(
+        `${sworn.name || 'Oath'} · sworn${benchedSkillsOf(unit).includes(sworn.skillId) ? ' · on the bench' : ''}`,
+        skillText(sworn.skillId),
+      );
+      return;
+    }
+    if (unit.tier === 'promoted') return;
+    const options = promotionOathCandidates(unit, this.gameData.deeds, this.gameData.skills);
+    if (options.length === 1) {
+      this.card(`${options[0].name} · sworn at promotion`, skillText(options[0].skillId));
+      return;
+    }
+    if (options.length < 2) return;
+    // One Oath per unit: the player picks which deed it swears on.
+    const card = this.card('Oath at promotion');
+    card.classList.add('mr-oath-choice');
+    card.append(
+      el('p', `${options[0].name} · ${options[0].skillName}`, 'mr-oath-current'),
+      el('p', skillText(options[0].skillId), 'mr-deed-meta'),
+      fold(
+        'oath',
+        manage ? 'Change Oath' : 'Other Oaths',
+        options.length - 1,
+        '',
+        'mr-oath-toggle',
+      ),
+    );
+    if (!folds.oath) return;
+    card.append(
+      el('p', 'Choose the deed this unit swears on. Only one Oath, ever.', 'mr-oath-help'),
+    );
+    // A stable order (greatest first); the one it will swear is marked.
+    for (const option of oathOptionsInOrder(options)) {
+      const chosen = option.deedId === options[0].deedId;
+      const b = manage
+        ? this.button(`${option.name} · ${option.skillName}`, () =>
+            choose(
+              () => pledgeOath(unit, option.deedId),
+              `${unit.name} will swear ${option.name}.`,
+              () => {
+                folds.oath = false;
+                this._focusAfterRender = '.mr-oath-toggle';
+              },
+            ),
+          )
+        : el('p', `${option.name} · ${option.skillName}`);
+      b.classList.add('mr-oath-option');
+      if (manage) b.setAttribute('aria-pressed', String(chosen));
+      else if (chosen) b.classList.add('is-chosen');
+      if (option.skillDescription) b.title = option.skillDescription;
+      card.append(b);
     }
   }
   /**

@@ -13,6 +13,7 @@ import { promotionPathContent, rankChipText, statChipText } from './growthConten
 import { projectedSpriteUnit, spriteElement, unitSpriteImage } from './growthSprites.js';
 import { ceremonyPortrait } from './ceremonyDom.js';
 import { skillGlyph } from './growthGlyphs.js';
+import { decorateDisclosure } from './disclosure.js';
 import { oathOptionsInOrder, pledgeOath, promotionOathCandidates } from '../engine/DeedSystem.js';
 
 function portraitImg(scene, unit, className) {
@@ -188,7 +189,8 @@ export class PromotionPathChooser {
    * With more than one Oath open on the selected path, the player picks which deed the
    * unit swears on (one Oath, ever): the choice is the unit's pledge, so every path
    * card shows it. A path whose class already teaches the pledged Oath's skill swears
-   * the next one instead, and says so.
+   * the next one instead, and says so. The choice is folded to one line (the Oath it
+   * will swear) until the player opens it: the path cards keep the room.
    */
   oathChoice() {
     const content = this.selected ? this.contents.get(this.selected) : null;
@@ -212,26 +214,51 @@ export class PromotionPathChooser {
     const group = element('div', null, 'gr-oath-choice');
     group.setAttribute('role', 'group');
     group.setAttribute('aria-label', 'Oath to swear');
+    group.classList.toggle('is-open', Boolean(this.oathOpen));
     group.append(element('span', 'Swear an Oath · one, ever', 'gr-oath-kicker'));
+    // Folded, the Oath it will swear is the one line (every path card names it too);
+    // the toggle opens the others.
+    const sworn = options.find((option) => option.deedId === swears) || options[0];
+    const toggle = button(
+      null,
+      () => {
+        if (this.busy) return;
+        this.oathOpen = !this.oathOpen;
+        this.render();
+        this.surface.body.querySelector('.gr-oath-toggle')?.focus({ preventScroll: true });
+      },
+      're-btn gr-oath-toggle',
+    );
+    decorateDisclosure(toggle, {
+      label: this.oathOpen ? 'Hide Oaths' : `${sworn.name} · ${sworn.skillName}`,
+      expanded: Boolean(this.oathOpen),
+    });
+    if (!this.oathOpen) toggle.append(element('span', 'Change', 're-disclosure-action'));
+    group.append(toggle);
+    if (!this.oathOpen) return group;
+    const list = element('div', null, 'gr-oath-options');
     for (const option of options) {
       const chosen = option.deedId === swears;
       const pick = button(
         `${option.name} · ${option.skillName}`,
         () => {
-          if (this.busy || chosen) return;
-          pledgeOath(this.unit, option.deedId);
-          this.preview();
+          if (this.busy) return;
+          if (!chosen) {
+            pledgeOath(this.unit, option.deedId);
+            this.preview();
+          }
+          // A pick closes the list, like a select, and hands focus back to the toggle.
+          this.oathOpen = false;
           this.render();
-          this.surface.body.querySelector('.gr-oath-choice [aria-pressed="true"]')?.focus({
-            preventScroll: true,
-          });
+          this.surface.body.querySelector('.gr-oath-toggle')?.focus({ preventScroll: true });
         },
         're-btn gr-oath-option',
       );
       pick.setAttribute('aria-pressed', String(chosen));
       if (option.skillDescription) pick.title = option.skillDescription;
-      group.append(pick);
+      list.append(pick);
     }
+    group.append(list);
     return group;
   }
 
