@@ -41,7 +41,10 @@ the music in marketing.
 VPO3 is fetched in its SFZ edition (3.2.1.1) from
 [studiorack/virtual-playing-orchestra](https://github.com/studiorack/virtual-playing-orchestra):
 the repository the VPO site links to now ships only DecentSampler presets. Same programs,
-samples and licence.
+samples and licence. That repository is an unofficial mirror, not Paul Battersby's own
+release: it names no version and has other branches, so `tools/music/fetch_libraries.sh`
+pins the clone to one commit (`9ab3329bb136834d33dcabb734b76053d5606b83`) and the music is
+rendered from exactly that.
 
 VPO3's own solo violin is not used: its source recording's licence is unclear and may be
 non-commercial. `tools/music/engine/palette.py` lists every candidate the sound lab tried.
