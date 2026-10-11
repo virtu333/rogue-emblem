@@ -1,5 +1,5 @@
 import { test, expect, devices } from '@playwright/test';
-import { waitForScene } from './helpers.js';
+import { waitForBattleState, waitForScene } from './helpers.js';
 import {
   PORTRAIT_PHONES,
   attachSlot,
@@ -15,6 +15,7 @@ import {
 async function winWithRerolls(page, rerolls, url) {
   await page.goto(url);
   await waitForScene(page, 'Battle');
+  await waitForBattleState(page, 'PLAYER_IDLE');
   await page.evaluate((n) => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     s.registry.set('activeSlot', 1);
