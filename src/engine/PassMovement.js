@@ -11,7 +11,7 @@
 // Enemies never get Pass: the option is only ever true for a player unit, and the AI's
 // movement code (AIController, ThreatForecast.enemyThreatTiles) never asks for it.
 import { hasEffectiveSkill } from './EffectiveSkills.js';
-import { passesThrough } from './Grid.js';
+import { walksThrough } from './Grid.js';
 import { PASS_SKILL_ID } from '../utils/constants.js';
 
 export { PASS_SKILL_ID };
@@ -30,9 +30,11 @@ export function movementOptionsFor(unit) {
 }
 
 /**
- * For FogAmbush.ambushStop: does `unit` walk through this hidden unit? (Only a foe, and only
- * with Pass; a hidden NPC still stops the walk, as it always did.)
+ * For FogAmbush.ambushStop: does `unit` walk through this hidden unit? A foe only with
+ * Pass; the Merchant Caravan for any player unit, as a seen one (Grid.walksThrough); any
+ * other hidden NPC still stops the walk, as it always did.
  */
 export function passesHiddenUnit(unit, hidden) {
-  return hasPass(unit) && passesThrough(hidden, unit.faction);
+  if (!unit || !hidden || hidden.faction === unit.faction) return false;
+  return walksThrough(hidden, unit.faction, hasPass(unit));
 }

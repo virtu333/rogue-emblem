@@ -93,6 +93,19 @@ export function passesThrough(occupant, moverFaction) {
   return occupant?.faction === 'enemy' && moverFaction !== 'enemy';
 }
 
+/**
+ * Does the mover walk through this occupant's tile (never stopping on it)? Its own side,
+ * the Merchant Caravan for a player unit (a unit-position entry with `isCaravan`: the
+ * merchant never walls the army in; foes and other NPCs still stop at it), and with Pass
+ * a foe (passesThrough).
+ */
+export function walksThrough(occupant, moverFaction, pass = false) {
+  if (!occupant) return false;
+  if (occupant.faction === moverFaction) return true;
+  if (occupant.isCaravan === true && moverFaction === 'player') return true;
+  return pass && passesThrough(occupant, moverFaction);
+}
+
 export function getEntryDirection(path) {
   if (!Array.isArray(path) || path.length < 2) return null;
   const prev = path[path.length - 2];
@@ -342,15 +355,12 @@ export function computeMovementRange(
       if (unitPositions) {
         const occupant = unitPositions.get(key);
         if (occupant) {
-          if (
-            occupant.faction !== moverFaction &&
-            !(pass && passesThrough(occupant, moverFaction))
-          ) {
+          if (!walksThrough(occupant, moverFaction, pass)) {
             // Enemy on tile — can't move through (unless the mover has Pass)
             continue;
           }
-          // Ally on tile (or a foe a Pass unit walks through) — can traverse but mark as
-          // occupied (filter below)
+          // Ally on tile (the merchant for a player unit, or a foe a Pass unit walks
+          // through) — can traverse but mark as occupied (filter below)
         }
       }
 
@@ -397,17 +407,14 @@ export function computeMovementRange(
     }
   }
 
-  // Mark ally-occupied tiles (and, with Pass, foe-occupied ones) as non-stoppable (can
-  // pass through but not stop on). We keep them in the map so parent chains stay intact
-  // for path reconstruction.
+  // Mark ally-occupied tiles (and the merchant's, and with Pass foe-occupied ones) as
+  // non-stoppable (can pass through but not stop on). We keep them in the map so parent
+  // chains stay intact for path reconstruction.
   if (unitPositions && moverFaction) {
     for (const [key, entry] of reachable) {
       if (key === `${startCol},${startRow}`) continue; // own tile is fine
       const occupant = unitPositions.get(key);
-      if (
-        occupant &&
-        (occupant.faction === moverFaction || (pass && passesThrough(occupant, moverFaction)))
-      ) {
+      if (walksThrough(occupant, moverFaction, pass)) {
         entry.stoppable = false;
       }
     }
@@ -512,11 +519,7 @@ export function computePath(
   const blocks = (col, row) => {
     if (!unitPositions) return false;
     const occupant = unitPositions.get(`${col},${row}`);
-    return Boolean(
-      occupant &&
-      occupant.faction !== moverFaction &&
-      !(pass && passesThrough(occupant, moverFaction)),
-    );
+    return Boolean(occupant && !walksThrough(occupant, moverFaction, pass));
   };
 
   if (
