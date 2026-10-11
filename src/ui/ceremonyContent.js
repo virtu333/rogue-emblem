@@ -395,7 +395,11 @@ export function reduceBossBar(state, event) {
         lostFrom = Math.max(state.lostFrom, state.hp);
       }
       const stonesMax = Math.max(0, Math.trunc(Number(boss.stonesMax) || 0));
-      const stones = Math.min(stonesMax, Math.max(0, Math.trunc(Number(boss.stones) || 0)));
+      // Fog holds the stones with the HP: a stone broken out of sight is not told.
+      const stones =
+        same && event.concealed
+          ? (state.stones ?? 0)
+          : Math.min(stonesMax, Math.max(0, Math.trunc(Number(boss.stones) || 0)));
       const next = {
         visible: true,
         felled: false,
@@ -449,7 +453,6 @@ export function bossBarView(state) {
     felled: state.felled,
     stones: state.stones ?? 0,
     stonesMax: state.stonesMax ?? 0,
-    // "Stones 2/2" for the off-map readers (the rail and the objective plate).
     // The full reading off the map: the bar it is on plus one per stone ("Health bars 2/3").
     stonesText:
       (state.stonesMax ?? 0) > 0 ? `Health bars ${state.stones + 1}/${state.stonesMax + 1}` : '',

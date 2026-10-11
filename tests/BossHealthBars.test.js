@@ -10,6 +10,7 @@ vi.mock('../src/ui/serviceSave.js', () => ({ saveServiceRun: vi.fn(() => '') }))
 
 import { healthBars, healthBarsBadge, revivalStonesLine } from '../src/engine/RevivalStones.js';
 import { BossPresenceController } from '../src/ui/BossPresenceController.js';
+import { bossBarView, createBossBarState, reduceBossBar } from '../src/ui/ceremonyContent.js';
 import { MobileRosterSheet } from '../src/ui/MobileRosterSheet.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { createRecruitUnit } from '../src/engine/UnitManager.js';
@@ -148,6 +149,19 @@ describe("the map's boss bar", () => {
       expect(nextBarLayers(scene.made[0])).toHaveLength(0);
       presence.destroy();
     }
+  });
+});
+
+describe('the off-map boss line in fog', () => {
+  it('holds the stones last seen, as it holds the HP', () => {
+    const boss = (hp, stones) => ({ key: 'b1', name: 'W', hp, max: 40, stones, stonesMax: 2 });
+    let s = reduceBossBar(createBossBarState(), { type: 'sync', boss: boss(30, 2) });
+    // A stone breaks out of sight (an NPC ally, the ballista): the line keeps 3/3.
+    s = reduceBossBar(s, { type: 'sync', boss: boss(40, 1), concealed: true });
+    expect(bossBarView(s)).toMatchObject({ hpText: '30 / 40', stonesText: 'Health bars 3/3' });
+    // Seen again: the live reading.
+    s = reduceBossBar(s, { type: 'sync', boss: boss(40, 1) });
+    expect(bossBarView(s)).toMatchObject({ hpText: '40 / 40', stonesText: 'Health bars 2/3' });
   });
 });
 
