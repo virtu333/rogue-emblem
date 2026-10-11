@@ -11,7 +11,7 @@ Raw generations live in `References/` (gitignored); only the treated, display-si
 | --- | --- | --- | --- |
 | Event medal + Dark Omen (frames 9 and 10, 96 px) | `assets/sprites/nodes/event-nodes.png` | 192x96, 3.1 KB | `src/ui/NodeArt.js` (CSS sprite), `RouteGraph.js` `FRAMES.event`, `nodeFrame()` |
 | Canvas-fallback medal `node_event` | `assets/sprites/nodes/node_event.png` | 48x48, 0.7 KB | `BootScene` node icons, `NodeMapScene` `node_${type}` |
-| 22 event vignettes (ten Phase 1, twelve Phase 2D) | `assets/ui/moments/events/<eventId>.png` | 640x200, 12-27 KB each | `src/ui/eventBand.js` from `EventMenu.js`, lazy; manifest `src/ui/momentArtManifest.json` `events` |
+| 25 event vignettes (ten Phase 1, twelve Phase 2D, three Act V) | `assets/ui/moments/events/<eventId>.png` | 640x200, 12-27 KB each | `src/ui/eventBand.js` from `EventMenu.js`, lazy; manifest `src/ui/momentArtManifest.json` `events` |
 
 Both asset trees (`assets/` and `public/assets/`) hold identical bytes. Nothing is loaded at boot
 except the 48 px canvas fallback; the vignettes are fetched when the event page opens.
@@ -139,3 +139,19 @@ with the band simulation (the 640x200 file beside its 640x150 page band with the
 
 Sheets: `vignettes-all.png` is the family check (the ten Phase 1 pictures, then the twelve new,
 labels in gold), `vignettes-2d-takes.png` every take, `event-pages-2d.png` the pages.
+
+## Act V vignettes (the Descent's three events)
+
+`came_this_far`, `last_lantern` and `seers_last_page` (docs/specs/act-v-descent.md §7), the stair
+below the capital. Same pipeline and house prompt (`EVENT`), `gemini-3-pro-image` with
+`--no-fallback`, subjects composed from each event's intro. The house prompt says "roadside", but
+these are underground, so each subject says so (stair, vault, no sky). The texts speak of carved
+names, a scratched hood and a notebook, and the house rule is no writing: every inscription is drawn
+as marks only (`prompts.mjs` `EVENTS`, retakes in `EVENT_RETAKES`). Raws are in
+`References/items-art/moments/event/` (gitignored); sizes follow the others (640x200, 14-22 KB).
+
+| Event | Pick (crop top / bottom) | Why, and what was rejected |
+| --- | --- | --- |
+| came_this_far | t7 (21% / 5.3%) | A small hooded figure kneeling at a candle before a wall scored with rows of tally strokes, the last row stopping short; warm pool of light, the stair going down into dark on the left. Rejected: t1-t4 (the wall came out as pseudo-script: glyph lines, runes, near-legible text, against the no-writing rule), retakes asked for "tally strokes, no letterforms": t5 (green and red patches, curved tower wall), t6 (strong, but the sky and a cliff drop make it outdoor; runner-up), t8 (dim, small figure). |
+| last_lantern | t6 (20% / 6.3%) | Spiral stone stair, a hooded iron lantern set square on a step with a blank scrap under it, gold light on the walls, a violet ring far below, left third black. Rejected: t1 (a sunset sky and a flat black mass, reads as outdoors), t2 (engraved line-art treatment and mossy colour, off house style), t3 (a green handrail, modern, and a seated figure), t4 (three silhouetted walkers, a second story; the best of the first take), retakes (enclosed stair, no people): t5 (runner-up, lantern on a ledge rather than a step, left of centre), t7 / t8 (mossy green-blue vault, lantern in a corner). |
+| seers_last_page | t2 (10% / 16.3%) | Slanted reading desk with several open notebooks and stacks of copies, a candle, quill and ink, the stair turning away into violet dark on the left. Rejected: t1 (green wall cast), t3 (brown, a single desk and a toppled stool, no stack of copies), t4 (open cliff and sky, a fire in the distance). Notebook pages carry only small, unreadable lines. |
