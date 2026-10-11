@@ -32,6 +32,8 @@ import {
   describeOwedContract,
 } from '../engine/Contracts.js';
 import { contractChipModel, owedContractChipModel } from './eventMenuModel.js';
+import { riteChipModel } from './riteModel.js';
+import { riteNoteContent } from './RiteView.js';
 
 const ECLIPSE_TOAST_MS = 4200;
 // How long an event's change to the route (a new road, a redrawn place) stays ringed.
@@ -301,8 +303,9 @@ export class NodeMapMenu {
   }
 
   /**
-   * The burden chips (Burdens.describeBurdens): "Ill Omen · 2 left", "Debt · 450 G", and the
-   * open contract's ("Contract · Under par", Contracts.describeContract). A tap or Enter shows
+   * The burden chips (Burdens.describeBurdens): "Ill Omen · 2 left", "Debt · 450 G", the open
+   * contract's ("Contract · Under par", Contracts.describeContract) and, in the Descent, the
+   * Rite's ("The Rite · 7 words · Spoken", riteModel.js; it leads the row). A tap or Enter shows
    * the chip's line and what is left under the row (hover and long-press read its title). Null
    * when the run carries none.
    */
@@ -316,37 +319,67 @@ export class NodeMapMenu {
     // An open contract, or one earned and not yet delivered (its chip reads "Reward waiting").
     const contract =
       contractChipModel(describeContract(rm)) || owedContractChipModel(describeOwedContract(rm));
-    const chipsData = contract
-      ? [...burdens, { ...contract, name: contract.label, note: contract.terms }]
-      : burdens;
+    const rite = riteChipModel(rm);
+    const chipsData = [
+      ...(rite
+        ? [
+            {
+              ...rite,
+              name: rite.label,
+              note: rite.terms,
+              noteContent: () => riteNoteContent(rite),
+            },
+          ]
+        : []),
+      ...burdens,
+      ...(contract ? [{ ...contract, name: contract.label, note: contract.terms }] : []),
+    ];
     if (!chipsData.length) {
       this._burdenOpen = null;
       return null;
     }
     const row = element('div', null, 're-loom-burdens');
     row.setAttribute('role', 'group');
-    row.setAttribute('aria-label', contract ? 'Burdens and contract' : 'Burdens');
-    const note = element('p', null, 're-burden-note');
+    row.setAttribute(
+      'aria-label',
+      rite
+        ? burdens.length || contract
+          ? 'The Rite, burdens and contract'
+          : 'The Rite'
+        : contract
+          ? 'Burdens and contract'
+          : 'Burdens',
+    );
+    const note = element('div', null, 're-burden-note');
     note.setAttribute('role', 'status');
     note.hidden = true;
     const chips = [];
+    // The Rite's note lies over the loom: a tap on it closes it, as the chip does.
+    note.addEventListener('click', () => {
+      const rite = chipsData.find((b) => b.id === 'rite');
+      if (rite && this._burdenOpen === 'rite') show(rite);
+    });
     const show = (chipData) => {
       const open = this._burdenOpen === chipData.id ? null : chipData.id;
       this._burdenOpen = open;
       for (const [chip, b] of chips) chip.setAttribute('aria-expanded', String(b.id === open));
       note.hidden = !open;
-      note.textContent = open ? chipData.note : '';
+      // The Rite's note is a small list (the tier, each boss, the sources); the rest say a line.
+      if (open && chipData.noteContent) note.replaceChildren(chipData.noteContent());
+      else note.textContent = open ? chipData.note : '';
       note.classList.toggle('is-contract', open === 'contract');
+      note.classList.toggle('is-rite', open === 'rite');
     };
     for (const chipData of chipsData) {
       const isContract = chipData.id === 'contract';
+      const isRite = chipData.id === 'rite';
       const chip = button(
         null,
         // A settlement that waits opens its page (Claim / Roster / Give up); a contract in force
         // and a burden only say their line.
         () =>
           chipData.owed ? this.scene.handleContractSettlement?.({ manual: true }) : show(chipData),
-        isContract ? 're-burden re-contract' : 're-burden',
+        isContract ? 're-burden re-contract' : isRite ? 're-burden re-rite' : 're-burden',
       );
       chip.dataset.burden = chipData.id;
       if (chipData.owed) {

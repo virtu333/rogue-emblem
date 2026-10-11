@@ -349,6 +349,115 @@ describe('the markers', () => {
   });
 });
 
+describe('the markers and the fog', () => {
+  /** A scene whose graphics record the primitives drawn (colour setters left out). */
+  function recording(scene) {
+    const made = [];
+    const COLOUR = new Set(['lineStyle', 'fillStyle', 'setDepth', 'setAlpha']);
+    scene.add = {
+      graphics: () => {
+        const g = { calls: [], destroyed: false };
+        const proxy = new Proxy(g, {
+          get: (t, p) =>
+            p in t
+              ? t[p]
+              : p === 'destroy'
+                ? () => (t.destroyed = true)
+                : () => {
+                    if (!COLOUR.has(p)) t.calls.push(p);
+                    return proxy;
+                  },
+          set: (t, p, v) => ((t[p] = v), true),
+        });
+        made.push(proxy);
+        return proxy;
+      },
+    };
+    scene.tweens = { add: vi.fn(), killTweensOf: vi.fn() };
+    scene._reduceMotion = () => true;
+    return made;
+  }
+  const tiles = (made) => made.map((g) => g.name).sort();
+
+  it('a marker is drawn only on a tile the fog shows: a sigil in the dark names no hidden Voice', () => {
+    // Failure: every sigil is drawn from turn 1, and a Voice stands on its sigil, so the board
+    // points at the unseen foes.
+    const probe = sceneOf();
+    const sigil = tileOf(probe.b, 'sigils', 'sigil_calling');
+    const circle = tileOf(probe.b, 'circles', 'circle_waking');
+    const { scene } = sceneOf({
+      visible: [`${sigil.col},${sigil.row}`, `${circle.col},${circle.row}`],
+    });
+    const made = recording(scene);
+    const ctrl = new VigilController(scene).create();
+    expect(tiles(made)).toEqual(['vigil-circle-open', 'vigil-sigil-lit']);
+    expect(ctrl.shown.sigils.map((s) => s.id)).toEqual(['sigil_calling']);
+    expect(ctrl.shown.circles.map((c) => c.id)).toEqual(['circle_waking']);
+    // The model still says what every marker is (a test, a tooltip), and which the fog shows.
+    expect(ctrl.markerStates().sigils.map((s) => s.seen)).toEqual([true, false, false, false]);
+    // Fully hidden: nothing at all.
+    const dark = sceneOf({ visible: ['0,10'] }).scene;
+    const none = recording(dark);
+    new VigilController(dark).create();
+    expect(none).toHaveLength(0);
+    // The sight moves: the board is redrawn for what is now seen.
+    dark.grid.isVisible = (c, r) => c === sigil.col && r === sigil.row;
+    const ctrl2 = new VigilController(dark);
+    ctrl2.sync();
+    expect(none).toHaveLength(1);
+    expect(none[0].name).toBe('vigil-sigil-lit');
+  });
+
+  it("under Seer's Eye the fogged foes show, so every marker does; the same board without it shows none", () => {
+    const { scene } = sceneOf({ visible: ['0,10'] });
+    const without = recording(scene);
+    new VigilController(scene).create();
+    expect(without).toHaveLength(0);
+    markFoesShown(scene.grid, { foesShown: true });
+    const withEye = recording(scene);
+    new VigilController(scene).create();
+    expect(withEye).toHaveLength(8);
+  });
+
+  it('a fallen Voice’s sigil and closed circle stay out of the dark too', () => {
+    const { scene, b } = sceneOf({ visible: ['0,10'] });
+    voiceOf(scene.enemyUnits, 'voice_binding').currentHP = 0;
+    const made = recording(scene);
+    new VigilController(scene).create();
+    expect(made).toHaveLength(0);
+    const sigil = tileOf(b, 'sigils', 'sigil_binding');
+    scene.grid.isVisible = (c, r) => c === sigil.col && r === sigil.row;
+    new VigilController(scene).create();
+    expect(tiles(made)).toEqual(['vigil-sigil-silent']);
+  });
+
+  it('every state has a shape of its own, so no state is told from another by colour alone', () => {
+    // Failure: lit and empty sigils (or open, blocked and closed circles) draw the same figure
+    // in different hues, which a colour-blind player cannot tell apart.
+    const { scene, b } = sceneOf();
+    voiceOf(scene.enemyUnits, 'voice_binding').col += 1; // empty
+    voiceOf(scene.enemyUnits, 'voice_feeding').currentHP = 0; // silent; its circle closed
+    const covered = tileOf(b, 'circles', 'circle_calling');
+    Object.assign(scene.playerUnits[0], { col: covered.col, row: covered.row });
+    const made = recording(scene);
+    const ctrl = new VigilController(scene).create();
+    const shapeOf = (name) => made.find((g) => g.name === name)?.calls.join('>');
+    const sigilShapes = ['lit', 'dim', 'silent'].map((s) => shapeOf(`vigil-sigil-${s}`));
+    const circleShapes = ['open', 'covered', 'closed'].map((s) => shapeOf(`vigil-circle-${s}`));
+    for (const shapes of [sigilShapes, circleShapes]) {
+      expect(shapes.every(Boolean)).toBe(true);
+      expect(new Set(shapes).size).toBe(shapes.length);
+    }
+    // A sigil is not a circle: the two families never share a figure.
+    expect(new Set([...sigilShapes, ...circleShapes]).size).toBe(6);
+    // The Waking's sigil adds its inner diamond to the lit one's figure.
+    const lit = made.filter((g) => g.name === 'vigil-sigil-lit');
+    const waking = ctrl.shown.sigils.findIndex((s) => s.id === 'sigil_waking');
+    expect(waking).toBeGreaterThanOrEqual(0);
+    expect(new Set(lit.map((g) => g.calls.join('>'))).size).toBe(2);
+  });
+});
+
 describe('saves and resume', () => {
   it('a checkpoint carries the count, validates, and its resume never replays the phase', async () => {
     const { scene } = sceneOf();
