@@ -2277,6 +2277,216 @@
         }
       ]
     },
+    "act4_to_finalBoss_lieutenant": {
+      "base": [
+        {
+          "speaker": "Sera",
+          "portrait": "portrait_lord_sera",
+          "line": "The emperor is defeated. The ritual is broken... mostly."
+        },
+        {
+          "speaker": "Sera",
+          "portrait": "portrait_lord_sera",
+          "line": "Something beneath the capital still turns over. Sleeping, but not for long."
+        },
+        {
+          "speaker": "Sera",
+          "portrait": "portrait_lord_sera",
+          "line": "His sight is back against mine. The lieutenant went down to where the rite is spoken."
+        }
+      ],
+      "variants": [
+        {
+          "when": {
+            "commander": "Edric"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The emperor is defeated. The ritual is broken... mostly."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Something beneath the capital still turns over. Sleeping, but not for long."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "His sight is back against mine. The lieutenant went down to where the rite is spoken."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Then we go down together. I will count everyone twice before the stair."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Kira"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The emperor is defeated. The ritual is broken... mostly."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Something beneath the capital still turns over. Sleeping, but not for long."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "His sight is back against mine. The lieutenant went down to where the rite is spoken."
+            },
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "He has gone to the back rank. A piece that runs out of board has one move left."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Voss"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The emperor is defeated. The ritual is broken... mostly."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Something beneath the capital still turns over. Sleeping, but not for long."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "His sight is back against mine. The lieutenant went down to where the rite is spoken."
+            },
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "Down, then. Another page in the ledger. I will carry the lantern and keep the count."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Sera"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The emperor is defeated. The ritual is broken... mostly."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Something beneath the capital still turns over. Sleeping, but not for long."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "His sight is back against mine. The lieutenant went down to where the rite is spoken."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I know his sight better than my own. Follow my voice down, and he cannot turn you."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Rowan"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The emperor is defeated. The ritual is broken... mostly."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Something beneath the capital still turns over. Sleeping, but not for long."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "His sight is back against mine. The lieutenant went down to where the rite is spoken."
+            },
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "Down a dark stair? The mount will sulk. My luck, I mean my skill, will carry us."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Astrid"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The emperor is defeated. The ritual is broken... mostly."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Something beneath the capital still turns over. Sleeping, but not for long."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "His sight is back against mine. The lieutenant went down to where the rite is spoken."
+            },
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "No sky down there. I will learn the dark the way I learned the wind."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Cael"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The emperor is defeated. The ritual is broken... mostly."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Something beneath the capital still turns over. Sleeping, but not for long."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "His sight is back against mine. The lieutenant went down to where the rite is spoken."
+            },
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "A stair has one way up. I will stand on it, and nothing comes back past me."
+            }
+          ]
+        }
+      ]
+    },
     "finalBoss_to_secretAct": {
       "base": [
         {
@@ -4975,6 +5185,23 @@
           },
           {
             "when": {
+              "roadThroughEmperor": true
+            },
+            "entries": [
+              {
+                "speaker": "The Lieutenant",
+                "portrait": "portrait_boss_the_lieutenant",
+                "line": "His Majesty is ash. The rite goes on without him. It always could."
+              },
+              {
+                "speaker": "The Lieutenant",
+                "portrait": "portrait_boss_the_lieutenant",
+                "line": "I have seen every future you could reach. In all of them, you fall."
+              }
+            ]
+          },
+          {
+            "when": {
               "bossSlainBefore": true
             },
             "entries": [
@@ -5005,6 +5232,18 @@
                 "speaker": "The Lieutenant",
                 "portrait": "portrait_boss_the_lieutenant",
                 "line": "This is where your line broke last time. I watched it twice: once here, once in the glass."
+              }
+            ]
+          },
+          {
+            "when": {
+              "roadThroughEmperor": true
+            },
+            "entries": [
+              {
+                "speaker": "The Lieutenant",
+                "portrait": "portrait_boss_the_lieutenant",
+                "line": "You cut deeper than the visions promised. No one is left to spare me. Enough."
               }
             ]
           },
@@ -5258,6 +5497,57 @@
                     "line": "Early's fine. Better early than too late for anyone."
                   }
                 ]
+              },
+              {
+                "when": {
+                  "roadThroughEmperor": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "The Lieutenant",
+                    "portrait": "portrait_boss_the_lieutenant",
+                    "line": "His Majesty is ash. The rite goes on without him. It always could."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then we end the rite too. Everyone who came this far is still behind me."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "roadThroughEmperor": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "The Lieutenant",
+                    "portrait": "portrait_boss_the_lieutenant",
+                    "line": "You broke the throne above, and the stone below never noticed. It was never his."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then we go down and make it notice. Together, and I will count every one of us."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "roadThroughEmperor": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "The Lieutenant",
+                    "portrait": "portrait_boss_the_lieutenant",
+                    "line": "The emperor traded the future for a promise. I am only here to see it kept."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "It will not be kept. Not on this stair, not while we are still standing."
+                  }
+                ]
               }
             ]
           }
@@ -5281,6 +5571,18 @@
                 "speaker": "The Lieutenant",
                 "portrait": "portrait_boss_the_lieutenant",
                 "line": "I ended you once... I saw it so plainly... why can't I see... what comes after this..."
+              }
+            ]
+          },
+          {
+            "when": {
+              "roadThroughEmperor": true
+            },
+            "entries": [
+              {
+                "speaker": "The Lieutenant",
+                "portrait": "portrait_boss_the_lieutenant",
+                "line": "You found the one path I could not block. His Majesty is ash. His work is not."
               }
             ]
           },
@@ -5319,6 +5621,35 @@
             "speaker": "Sera",
             "portrait": "portrait_lord_sera",
             "line": "He's gone. For the first time since this began, no other sight presses against mine."
+          }
+        ],
+        "variants": [
+          {
+            "when": {
+              "finale": "lieutenant"
+            },
+            "entries": [
+              {
+                "speaker": "The Lieutenant",
+                "portrait": "portrait_boss_the_lieutenant",
+                "line": "Hello, Sera. Don't look for me on this field. I stand where none of your roads can reach."
+              },
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "You always did prefer the far side of the glass. Afraid of what my light would show up close?"
+              },
+              {
+                "speaker": "The Lieutenant",
+                "portrait": "portrait_boss_the_lieutenant",
+                "line": "I have watched you win this fight a hundred ways. It changes nothing. His Majesty's work is nearly done."
+              },
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "He has gone below, out of my sight for now. I can feel where. We will meet there."
+              }
+            ]
           }
         ]
       }
@@ -6903,7 +7234,8 @@
       "variants": [
         {
           "when": {
-            "firstClear": true
+            "firstClear": true,
+            "roadThroughEmperor": false
           },
           "entries": [
             {
@@ -6925,6 +7257,224 @@
               "speaker": "Sera",
               "portrait": "portrait_lord_sera",
               "line": "Past the fens, ash still drifts up from the capital. There is a harder road, and it runs to the Emperor's door."
+            }
+          ]
+        },
+        {
+          "when": {
+            "roadThroughEmperor": true,
+            "commander": "Edric"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant has fallen, and the emperor before him. The visions are quiet at last."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Master and seer are gone, and still something below turns over. It is not finished."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Everyone is here. That is the whole victory. Tomorrow we ask what the dark wants."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "This was the lit road. There is a darker one, and the thing below waits at its end."
+            }
+          ]
+        },
+        {
+          "when": {
+            "roadThroughEmperor": true,
+            "commander": "Kira"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant has fallen, and the emperor before him. The visions are quiet at last."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Master and seer are gone, and still something below turns over. It is not finished."
+            },
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "Both their kings are off the board and the game goes on. Good. I hate endings."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "This was the lit road. There is a darker one, and the thing below waits at its end."
+            }
+          ]
+        },
+        {
+          "when": {
+            "roadThroughEmperor": true,
+            "commander": "Voss"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant has fallen, and the emperor before him. The visions are quiet at last."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Master and seer are gone, and still something below turns over. It is not finished."
+            },
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "Master and seer, both in the ground. Still standing. The ledger is not closed."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "This was the lit road. There is a darker one, and the thing below waits at its end."
+            }
+          ]
+        },
+        {
+          "when": {
+            "roadThroughEmperor": true,
+            "commander": "Sera"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant has fallen, and the emperor before him. The visions are quiet at last."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Master and seer are gone, and still something below turns over. It is not finished."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I will keep listening to the deep. It is quieter, and that is what worries me."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "This was the lit road. There is a darker one, and the thing below waits at its end."
+            }
+          ]
+        },
+        {
+          "when": {
+            "roadThroughEmperor": true,
+            "commander": "Rowan"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant has fallen, and the emperor before him. The visions are quiet at last."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Master and seer are gone, and still something below turns over. It is not finished."
+            },
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "Two big wins in a row. Skill, obviously. Let the dark deal with that."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "This was the lit road. There is a darker one, and the thing below waits at its end."
+            }
+          ]
+        },
+        {
+          "when": {
+            "roadThroughEmperor": true,
+            "commander": "Astrid"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant has fallen, and the emperor before him. The visions are quiet at last."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Master and seer are gone, and still something below turns over. It is not finished."
+            },
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "From above the capital is ash and quiet. Something down there is looking up."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "This was the lit road. There is a darker one, and the thing below waits at its end."
+            }
+          ]
+        },
+        {
+          "when": {
+            "roadThroughEmperor": true,
+            "commander": "Cael"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant has fallen, and the emperor before him. The visions are quiet at last."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Master and seer are gone, and still something below turns over. It is not finished."
+            },
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "Two walls fell today, theirs. Whatever comes next finds ours already built."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "This was the lit road. There is a darker one, and the thing below waits at its end."
+            }
+          ]
+        },
+        {
+          "when": {
+            "roadThroughEmperor": true
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant has fallen, and the emperor before him. The visions are quiet at last."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Master and seer are gone, and still something below turns over. It is not finished."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "This was the lit road. There is a darker one, and the thing below waits at its end."
             }
           ]
         },

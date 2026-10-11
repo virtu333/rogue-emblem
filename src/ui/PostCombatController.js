@@ -19,7 +19,11 @@ import {
 import { recordBattleParticipation, isMastered, getMasteryPerk } from '../engine/MasterySystem.js';
 import { deedsFor } from './DeedController.js';
 import { GrowthCeremonyController, growthCeremonies } from './GrowthCeremonyController.js';
-import { buildNarrativeContext, selectDialogueEntries } from '../engine/NarrativeDirector.js';
+import {
+  buildNarrativeContext,
+  finaleOf,
+  selectDialogueEntries,
+} from '../engine/NarrativeDirector.js';
 import { getRating, calculateBonusGold } from '../engine/TurnBonusCalculator.js';
 import { GOLD_BATTLE_BONUS, ELITE_MAX_PICKS } from '../utils/constants.js';
 import { UI_DEPTHS } from '../utils/uiDepths.js';
@@ -318,6 +322,7 @@ export class PostCombatController {
                 runManager: scene.runManager,
                 bossName,
                 battleParams: scene.battleParams,
+                gameData: scene.gameData,
               }),
             );
             // The prologue counts nothing on the slot (§8): its boss is never recorded.
@@ -480,10 +485,13 @@ export class PostCombatController {
           // map, not on the finished one.
           scene._persistBattleRunState?.(null, { session: session });
           const toAct = scene.runManager.currentAct;
-          const transKey = getActTransitionKey(fromAct, toAct);
+          const transKey = getActTransitionKey(fromAct, toAct, {
+            finale: finaleOf(scene.runManager, scene.gameData),
+          });
           const narrative = buildNarrativeContext({
             meta: scene.registry.get('meta'),
             runManager: scene.runManager,
+            gameData: scene.gameData,
           });
           const entries = [transKey, ...getActTransitionFollowUps(transKey)].flatMap(
             (key) =>

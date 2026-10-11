@@ -192,6 +192,25 @@ describe('dev startup helpers', () => {
     expect(registry.get('devToolsEnabled')).toBe(true);
   });
 
+  it('the victory review routes show each road: First Light, Dusk, a saved Dusk, Nightfall', () => {
+    // Failure: `route=emperor` still means Dusk and so shows the Lieutenant's ending, leaving the
+    // Emperor's ending (which saved four-act Dusk runs still end on) with no way to review it.
+    const gameData = loadGameData();
+    const road = (route) => {
+      const config = parseDevStartupConfig(`?devScene=victory&route=${route}&seed=3`, {
+        devMode: true,
+      });
+      const { data } = buildDevStartupRoute(gameData, createRegistry(), config);
+      expect(data.result).toBe('victory');
+      return { difficultyId: data.runManager.difficultyId, acts: data.runManager.actSequence };
+    };
+    const to = ['act1', 'act2', 'act3'];
+    expect(road('lieutenant')).toEqual({ difficultyId: 'normal', acts: [...to, 'finalBoss'] });
+    expect(road('dusk')).toEqual({ difficultyId: 'dusk', acts: [...to, 'act4', 'finalBoss'] });
+    expect(road('emperor')).toEqual({ difficultyId: 'dusk', acts: [...to, 'act4'] });
+    expect(road('entity')).toEqual({ difficultyId: 'hard', acts: [...to, 'act4', 'finalBoss'] });
+  });
+
   it('builds battle smoke route with node and roster payload', () => {
     const gameData = loadGameData();
     const registry = createRegistry();

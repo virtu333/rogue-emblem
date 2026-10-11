@@ -146,6 +146,8 @@ describe('buildNarrativeContext', () => {
       prologue: 'none',
       bossRole: 'none',
       riteBand: 'none',
+      roadThroughEmperor: false,
+      finale: null,
     });
   });
 
@@ -191,6 +193,8 @@ describe('buildNarrativeContext', () => {
       prologue: 'none',
       bossRole: 'none',
       riteBand: 'none',
+      roadThroughEmperor: false,
+      finale: null,
     });
   });
 
@@ -216,6 +220,7 @@ describe('KNOWN_WHEN_KEYS', () => {
       'commanderHasEpithet',
       'currentDefeatWasBoss',
       'difficulty',
+      'finale',
       'firstClear',
       'lastRunAct',
       'lastRunDefeatedByKnown',
@@ -225,6 +230,7 @@ describe('KNOWN_WHEN_KEYS', () => {
       'partner',
       'prologue',
       'riteBand',
+      'roadThroughEmperor',
     ]);
   });
 });

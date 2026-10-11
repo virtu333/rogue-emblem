@@ -400,10 +400,13 @@ describe("Lottery Loot: one loot card from the next act's table", () => {
     expect(rewardDrawParams(rm, { nodeId: 'x' }).lotteryActId).toBeUndefined();
   });
 
-  it("draws from the next act in the run's sequence, and the last act from its own table", () => {
+  it("draws from the next act in the run's sequence, and an act whose next is gold-only from its own", () => {
     const rm = hold(startRun(), 'lottery_loot');
     expect(lotteryActFor(rm)).toBe('act2');
-    while (rm.actIndex < rm.actSequence.length - 1) rm.advanceAct();
+    // The act before the final boss's: its next act pays only gold (no lottery there), so the
+    // card comes from the act's own table. A Dusk run's is Act IV now.
+    while (rm.actIndex < rm.actSequence.length - 2) rm.advanceAct();
+    expect(rm.actSequence[rm.actIndex + 1]).toBe('finalBoss');
     expect(lotteryActFor(rm)).toBe(rm.currentAct);
   });
 
@@ -507,9 +510,9 @@ describe("Lottery Loot: one loot card from the next act's table", () => {
       "Lottery: from the next act's spoils",
     );
     expect(lotteryCardLine({ lottery: { actId: 'act4', nextAct: false } })).toBe('');
-    // A Dusk Act IV card is its own act's: no line says "next act".
+    // A Dusk Act IV card is its own act's (Act V pays only gold): no line says "next act".
     const rm = hold(startRun({ difficultyId: 'dusk' }), 'lottery_loot');
-    while (rm.actIndex < rm.actSequence.length - 1) rm.advanceAct();
+    while (rm.currentAct !== 'act4') rm.advanceAct();
     installSeed(3);
     const card = rollBattleRewardChoices(rm, data, drawFor(rm)).find((c) => c.lottery);
     expect(card.lottery).toEqual({ actId: 'act4', nextAct: false });
