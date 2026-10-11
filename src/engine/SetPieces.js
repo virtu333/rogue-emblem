@@ -13,7 +13,8 @@
 //                   minRung?, minAct?, id?, name?, target? }
 //   boss slot     { col, row, boss: true, aiMode?, weapon? }
 //   wave          { turn, spawns[]: { col, row, classes, level?, aiMode?, minRung?, minAct? } }
-//   vigil         { sigils: [{ id, col, row, target }], circles: [{ id, col, row, voice }] }
+//   vigil         { sigils: [{ id, col, row, target, waking? }], circles: [{ id, col, row, voice }],
+//                   maxCalled?, maxPerCircle? }
 //
 // Set pieces v2 (docs/specs/act-v-descent.md §9.2), for battle, elite and boss nodes as well as
 // events:
@@ -31,7 +32,9 @@
 //   (SiegeArtillery.POST_AI_MODE).
 // - A seize set piece has exactly one Throne, the boss slot on it, and no captain.
 // - `vigil` (the Vigil's sigils and summoning circles, placed with the mirror) is written into
-//   the config for the Vigil mechanic; nothing reads it yet.
+//   the config for the Vigil mechanic (engine/Vigil.js): a sigil's `waking: true` (at most one)
+//   is the Waking's, whose word counts double; `maxCalled` / `maxPerCircle` cap the Hollowed
+//   its circles call (Vigil.js holds the defaults). MapGenerator adds the battle's `levelRange`.
 //
 // `classes` is a list of class names, or a table keyed by act whose entry holds from its act up
 // ({ act1: [...], act3: [...] }: Act II reads act1's list). A set piece honours each rung's
@@ -334,12 +337,15 @@ export function buildSetPieceBattle({
           id: s.id,
           target: s.target,
           ...place(s),
+          ...(s.waking === true ? { waking: true } : {}),
         })),
         circles: (variant.vigil.circles || []).map((c) => ({
           id: c.id,
           voice: c.voice,
           ...place(c),
         })),
+        ...(isInt(variant.vigil.maxCalled) ? { maxCalled: variant.vigil.maxCalled } : {}),
+        ...(isInt(variant.vigil.maxPerCircle) ? { maxPerCircle: variant.vigil.maxPerCircle } : {}),
       }
     : null;
 
@@ -856,6 +862,9 @@ export function validateSetPiecesConfig(config, data = {}) {
   return { valid: errors.length === 0, errors };
 }
 
+/** The keys a variant's `vigil` may carry. */
+const VIGIL_KEYS = Object.freeze(['sigils', 'circles', 'maxCalled', 'maxPerCircle']);
+
 /**
  * A variant's Vigil (docs/specs/act-v-descent.md §3.1): each sigil stands under its target (a
  * `target: true` slot), each circle names a target as its voice and is a free, Infantry-standable
@@ -873,7 +882,11 @@ function checkVigil(
     return;
   }
   for (const key of Object.keys(vigil))
-    if (key !== 'sigils' && key !== 'circles') err(at, `unknown key "${key}"`);
+    if (!VIGIL_KEYS.includes(key)) err(at, `unknown key "${key}"`);
+  // The caps (Vigil.js reads them; a missing one takes its default there).
+  for (const key of ['maxCalled', 'maxPerCircle'])
+    if (vigil[key] !== undefined && !(isInt(vigil[key]) && vigil[key] >= 1 && vigil[key] <= 32))
+      err(at, `${key} must be a whole number from 1 to 32`);
   const ids = new Set();
   const tiles = new Set();
   const claimId = (where, id) => {
@@ -893,6 +906,8 @@ function checkVigil(
       continue;
     }
     claimId(sw, sigil.id);
+    if (sigil.waking !== undefined && typeof sigil.waking !== 'boolean')
+      err(sw, 'waking must be true or false');
     if (!inBounds(sigil)) {
       err(sw, `tile (${sigil.col},${sigil.row}) is out of bounds`);
       continue;
@@ -905,6 +920,8 @@ function checkVigil(
     else if (tileKey(target) !== tileKey(sigil))
       err(sw, `its target "${sigil.target}" must stand on it (${tileKey(sigil)})`);
   }
+  if (Array.isArray(sigils) && sigils.filter((sigil) => sigil?.waking === true).length > 1)
+    err(at, 'at most one sigil is the Waking (waking: true)');
   for (const [i, circle] of (Array.isArray(circles) ? circles : []).entries()) {
     const cw = `${at}.circles[${i}]`;
     if (!isObject(circle)) {

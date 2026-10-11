@@ -199,7 +199,8 @@ import {
 import { selectEnemyWeaponArt } from '../../src/engine/EnemyArtScoring.js';
 import { deriveNodeBattleSeed } from '../../src/engine/BattleScout.js';
 import { bindEnemyAreaArt } from '../../src/engine/EnemyAreaArts.js';
-import { settleArtilleryStances } from '../../src/engine/SiegeArtillery.js';
+import { applyPostSpawn, settleArtilleryStances } from '../../src/engine/SiegeArtillery.js';
+import { createVigilState, vigilPhaseStep } from '../../src/engine/Vigil.js';
 import { applyDueHybridOverrides } from '../../src/engine/TerrainPhases.js';
 import {
   buildRisenUnit,
@@ -303,6 +304,8 @@ export class HeadlessBattle {
     // Zombie remains (engine/ZombieRemains.js), the records BattleScene keeps.
     this._zombieTombstones = [];
     this.remainsTargets = [];
+    // The Vigil's words and calls (engine/Vigil.js): null on a map without one.
+    this._vigilState = null;
   }
 
   // Initialize battle — mirrors BattleScene.beginBattle. `options.battleConfig` plays a
@@ -365,6 +368,8 @@ export class HeadlessBattle {
     this.villageRewardItems = [];
     this._zombieTombstones = [];
     this.remainsTargets = [];
+    // As BattleScene: a Vigil map counts its words and calls from a fresh state.
+    this._vigilState = bc.vigil ? createVigilState() : null;
     // The run's earned blessings that act in battle, as BattleScene reads them at a fresh
     // start (engine/BattleBlessings.js): from the run when one is attached, else from the
     // numbers a sim hands in `battleParams.battleBlessings`.
@@ -1050,6 +1055,8 @@ export class HeadlessBattle {
 
     if (spawn.areaArt) bindEnemyAreaArt(enemy, spawn.areaArt, this.gameData.weaponArts?.arts);
     if (spawn.aiMode) enemy.aiMode = spawn.aiMode;
+    // An authored post remembers its tile, to walk back when moved off it (SiegeArtillery).
+    applyPostSpawn(enemy, spawn);
     // A garrison holder keeps its post until its pack wakes (HoldActivation).
     applyHoldSpawn(enemy, spawn);
     if (
@@ -2330,6 +2337,38 @@ export class HeadlessBattle {
     }
   }
 
+  /**
+   * Mirrors VigilController.processPhase (no banner, no markers): the Voices on their sigils
+   * speak, then each open circle calls a Hollowed, from the keyed stream (engine/Vigil.js).
+   * The words are counted in `_vigilState.words`, committed to the run's Rite only at victory.
+   */
+  _processVigil() {
+    const vigil = this.battleConfig?.vigil;
+    if (!vigil) return;
+    const step = vigilPhaseStep({
+      vigil,
+      state: this._vigilState,
+      enemyUnits: this.enemyUnits,
+      playerUnits: this.playerUnits,
+      npcUnits: this.npcUnits,
+      cols: this.battleConfig.cols,
+      rows: this.battleConfig.rows,
+      isOccupied: (c, r) => Boolean(this.getUnitAt(c, r)),
+      moveCostAt: (c, r, moveType) => this.grid.getTerrainAt(c, r)?.moveCost?.[moveType],
+      turn: this.turnManager?.turnNumber ?? 1,
+      seed: this._getReinforcementSeed(),
+      riteAtEntry: this.battleParams?.riteAtEntry ?? 0,
+      classes: this.gameData.classes,
+      weapons: this.gameData.weapons,
+      difficultyConfig: this._getEnemyDifficultyConfig(),
+    });
+    this._vigilState = step.state;
+    for (const { unit } of step.summons) {
+      registerBattleEntity(this, unit);
+      this.enemyUnits.push(unit);
+    }
+  }
+
   /** Faction-aware ally pool for Divine Charge heals (enemy→enemy, player→player, npc→player+npc) */
   _getDivineChargeAllies(caster) {
     if (caster.faction === 'enemy') return this.enemyUnits;
@@ -2388,6 +2427,7 @@ export class HeadlessBattle {
       this._processTurnStartEffects(this.enemyUnits);
       this._processZombieRevival();
       this._processNecromancy();
+      this._processVigil();
       if (this.battleState === HEADLESS_STATES.BATTLE_END) return;
       this._applyDueHybridOverridesForTurn(this.turnManager?.turnNumber || 0);
       this.currentEnemyPhaseAiStats = this._createEnemyPhaseAiStats();

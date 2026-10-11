@@ -19,7 +19,7 @@ import {
   skillGateLevels,
 } from './UnitManager.js';
 import { calculateSharedXp, getXpShareRatio, getXpShareRecipients } from './XpShare.js';
-import { isRaisedUnit } from './Necromancy.js';
+import { isConjuredUnit } from './ConjuredUnits.js';
 import { xpGainSegments, xpGained, xpSnapshot } from './XpProgress.js';
 
 /**
@@ -76,11 +76,12 @@ export function combatXpAwards({
 }) {
   if (!unit || opponent?._noXP) return [];
   // Surviving an attacker whose wave pays nothing earns nothing either (no farming a
-  // spent reinforcement ladder, docs/specs/dusk-pressure.md). Nor does surviving a Skeleton:
-  // it pays a quarter of a kill's XP, and a Necromancer raises them without end, so the
-  // survival minimum would be a trickle that never stops (docs/specs/phase3.md 3I).
+  // spent reinforcement ladder, docs/specs/dusk-pressure.md). Nor does surviving a conjured
+  // unit (a Skeleton, a called Hollowed: ConjuredUnits.js): it pays a share of a kill's XP and
+  // comes back phase after phase, so the survival minimum would be a trickle that never stops
+  // (docs/specs/phase3.md 3I, docs/specs/act-v-descent.md §5.2).
   const survivalXp =
-    survivedAttack && unit.currentHP > 0 && rewardMultiplier > 0 && !isRaisedUnit(opponent)
+    survivedAttack && unit.currentHP > 0 && rewardMultiplier > 0 && !isConjuredUnit(opponent)
       ? XP_DEFEND_SURVIVE
       : 0;
   let baseXp = calculateCombatXP(unit, opponent, opponentDied, { underdogCap });
