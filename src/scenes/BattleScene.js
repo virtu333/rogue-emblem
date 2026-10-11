@@ -2415,6 +2415,18 @@ export class BattleScene extends Phaser.Scene {
           if (!isCurrentBattleSession(this, session)) return;
           console.warn('[BattleScene] boss pre-battle dialogue failed:', err);
         }
+      } else if (this.battleConfig?.vigil && this.runManager) {
+        // The Vigil has no boss card: its Voices speak as the army comes in, once a run.
+        try {
+          await this._showStoryDialogueOnce(
+            'vigil_entry',
+            (this._battleBeats ||= new BattleBeatsController(this)).getVigilEntryEntries(),
+          );
+          if (!isCurrentBattleSession(this, session)) return;
+        } catch (err) {
+          if (!isCurrentBattleSession(this, session)) return;
+          console.warn('[BattleScene] vigil entry dialogue failed:', err);
+        }
       }
 
       // Start the battle (or pick a suspended one back up mid-turn)

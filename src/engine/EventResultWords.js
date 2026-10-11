@@ -92,14 +92,14 @@ function riteLine(record) {
   const n = num(record.delta);
   const words = Math.max(0, num(record.words));
   const band = typeof record.band === 'string' && record.band ? record.band : null;
-  const detail = `The rite stands at ${words} ${plural(words, 'word')}${
+  const detail = `The Rite stands at ${words} ${plural(words, 'word')}${
     band ? ` · ${band[0].toUpperCase()}${band.slice(1)}` : ''
   }.`;
   if (!n)
-    return num(record.requested) ? { tone: 'plain', text: 'The rite: unchanged', detail } : null;
+    return num(record.requested) ? { tone: 'plain', text: 'The Rite: unchanged', detail } : null;
   return {
     tone: n < 0 ? 'good' : 'bad',
-    text: `The rite: ${signed(n)} ${plural(Math.abs(n), 'word')}`,
+    text: `The Rite: ${signed(n)} ${plural(Math.abs(n), 'word')}`,
     detail,
   };
 }
