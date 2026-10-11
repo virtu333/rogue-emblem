@@ -607,7 +607,8 @@
   margin-bottom: auto;
 }
 .sp-card.is-empty .sp-primary.re-btn--primary,
-.sp-card.is-corrupt .sp-primary.re-btn--primary {
+.sp-card.is-corrupt .sp-primary.re-btn--primary,
+.sp-card.is-newer .sp-primary.re-btn--primary {
   background: var(--re-shade-deep);
   background-color: var(--re-shade-deep);
   border-color: var(--re-line);

@@ -10,6 +10,9 @@ import { findSetPiece, setPieceIdOfConfig } from '../engine/SetPieces.js';
 import { actCardContent, actRegion, ACT_GRADE_KEYS, romanNumeral } from './ceremonyContent.js';
 import { portraitIdForUnit } from './portraitArt.js';
 
+/** A run this client cannot load (SlotManager `needsNewerClient`, engine/RunFormat.js). */
+export const NEEDS_NEWER_CLIENT_TEXT = 'This run needs a newer version of the game.';
+
 /** Milestone seals in the order they are earned; the ladder's three show only once lit. */
 export const SLOT_SEALS = Object.freeze([
   { id: 'beatAct1', label: 'Act I cleared' },
@@ -185,6 +188,18 @@ export function slotCardModel(slot, summary, { gameData = {}, now = Date.now(), 
     primary: { ariaLabel: `Select Slot ${slot}` },
   };
   if (conflict) common.note = 'Cloud and device differ — choose which to keep.';
+
+  if (summary.needsNewerClient) {
+    return {
+      ...common,
+      state: 'newer',
+      grade: 'unlit',
+      actKicker: 'Run in progress',
+      title: 'Update needed',
+      status: NEEDS_NEWER_CLIENT_TEXT,
+      primary: { ...common.primary, label: conflict ? 'Choose version' : 'Options' },
+    };
+  }
 
   if (summary.runCorrupt) {
     return {

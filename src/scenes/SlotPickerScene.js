@@ -7,6 +7,7 @@ import {
 import { hasDOMHost } from '../utils/domUI.js';
 import { showSlotRecovery } from '../ui/SlotRecoveryDialog.js';
 import { slotMenu, slotDialog } from '../ui/RunFlowMenus.js';
+import { NEEDS_NEWER_CLIENT_TEXT } from '../ui/slotCardModel.js';
 import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 // SlotPickerScene — Save slot selection screen
 
@@ -73,7 +74,7 @@ export class SlotPickerScene extends Phaser.Scene {
         const summary = getSlotSummary(slot);
         // Only a slot still in the state Title offered; otherwise the list stays up.
         const ready = resume
-          ? summary?.hasActiveRun && !summary.runCorrupt
+          ? summary?.hasActiveRun && !summary.runCorrupt && !summary.needsNewerClient
           : hasMetaProgression(summary);
         if (ready && !summary?.recoveryRequired) void this.selectSlot(slot, summary);
       });
@@ -405,6 +406,9 @@ export class SlotPickerScene extends Phaser.Scene {
       if (summary.runCorrupt) {
         runStatus = 'Save data corrupted';
         statusColor = UI_PALETTE.bad;
+      } else if (summary.needsNewerClient) {
+        runStatus = 'Update needed';
+        statusColor = UI_PALETTE.bad;
       } else if (summary.hasActiveRun) {
         runStatus = `Act ${summary.actReached} in progress`;
         statusColor = UI_PALETTE.good;
@@ -524,7 +528,7 @@ export class SlotPickerScene extends Phaser.Scene {
     );
   }
 
-  async selectSlot(slot, summary) {
+  async selectSlot(slot, summary, options = {}) {
     if (this.isTransitioning) return;
     const currentSummary = getSlotSummary(slot);
     const conflict = getCloudSaveConflict(slot);
@@ -540,6 +544,13 @@ export class SlotPickerScene extends Phaser.Scene {
     // Re-read before constructing default metadata, including stale Title shortcuts.
     if (currentSummary?.recoveryRequired || summary?.recoveryRequired) {
       showSlotRecovery(this, slot);
+      return;
+    }
+    // A run this client cannot load (engine/RunFormat.js): never Continue; a new run here
+    // replaces it only once the player agrees.
+    const replaceNewerRun = options?.replaceNewerRun === true;
+    if (currentSummary?.needsNewerClient && !replaceNewerRun) {
+      this._showNeedsNewerClient(slot);
       return;
     }
     // A fresh slot is offered the prologue (or the skip) before anything is staged or
@@ -568,7 +579,15 @@ export class SlotPickerScene extends Phaser.Scene {
       // Every route retries a BLOCKED start: a tap inside the router's post-start
       // cooldown (the picker is barely 350 ms old) was silently dropped otherwise.
       // An empty slot (summary null) begins a new chronicle via the first-run path.
-      if (summary?.hasActiveRun) {
+      if (replaceNewerRun) {
+        // The newer run stays on disk until a new run here is saved over it.
+        transitioned = await transitionToScene(
+          this,
+          'HomeBase',
+          { gameData: this.gameData },
+          { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
+        );
+      } else if (summary?.hasActiveRun) {
         // Resume active run directly
         const rm = loadRun(this.gameData, slot);
         if (rm?.endRunRewards) {
@@ -740,6 +759,41 @@ export class SlotPickerScene extends Phaser.Scene {
       PROLOGUE_OFFER.body,
       playFirst ? actions : [actions[1], actions[0]],
     );
+  }
+
+  /**
+   * A slot whose run needs a newer version of the game (SlotManager `needsNewerClient`):
+   * it cannot be continued here. Back is the default; Home Base is offered only behind
+   * the warning that the next run begun there replaces the saved one.
+   */
+  _showNeedsNewerClient(slot) {
+    const confirmReplace = () => {
+      this.nativeDialog?.destroy();
+      this.nativeDialog = slotDialog(
+        this,
+        'Replace this run?',
+        `Beginning a new run in Slot ${slot} replaces the saved run for good. Update the game to keep playing it instead.`,
+        [
+          ['Back', () => this.requestCancel({ allowExit: false }), true],
+          [
+            'Enter Home Base',
+            () => {
+              this.nativeDialog?.destroy();
+              this.nativeDialog = null;
+              if (this.slotMenu) this.slotMenu.root.inert = false;
+              void this.selectSlot(slot, getSlotSummary(slot), { replaceNewerRun: true });
+            },
+          ],
+        ],
+      );
+    };
+    if (!hasDOMHost()) return;
+    this.nativeDialog?.destroy();
+    if (this.slotMenu) this.slotMenu.root.inert = true;
+    this.nativeDialog = slotDialog(this, 'Update needed', NEEDS_NEWER_CLIENT_TEXT, [
+      ['Back', () => this.requestCancel({ allowExit: false }), true],
+      ['Start over here', confirmReplace],
+    ]);
   }
 
   /**
