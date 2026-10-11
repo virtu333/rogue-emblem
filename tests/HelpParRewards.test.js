@@ -93,7 +93,8 @@ describe('More Info: Par Rewards', () => {
     const lp = turnBonus.latePressure;
     expect([lp.bossEnrageOverPar, lp.bossEnrageTurn, lp.bossEnrageMinOverPar]).toEqual([2, 12, 1]);
     const text = lines.join(' ').replace(/\s+/g, ' ');
-    expect(text).toContain('A boss enrages at par +2 (turn 12');
-    expect(text).toContain('at the latest, never before par +1).');
+    expect(text).toContain(
+      'A boss enrages at par +2, or turn 12 if sooner, but never before par +1.',
+    );
   });
 });
