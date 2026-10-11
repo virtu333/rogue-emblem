@@ -8,6 +8,8 @@ export function compactBattleObjective(text = 'Battle') {
   if (escape) return `Escape · Lords ${escape[1]}`;
   if (/^Seize: Defeat boss/.test(first)) return 'Seize · Defeat the boss';
   if (/^Seize: Capture throne/.test(first)) return 'Seize · Capture throne';
+  // A defeat map's strip is already compact: "Defeat · the Voices (2/4)" (BattleObjectives.statusView).
+  if (/^Defeat · /.test(first)) return first;
   // "Rout: 1 enemy remaining" → "Rout · 1 enemy remains" (verb agrees with the count).
   const remaining = first.match(/^(.*?)(\d+) (\S+) remaining$/);
   if (remaining) {

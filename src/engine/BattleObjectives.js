@@ -12,7 +12,7 @@
 //   '@boss' (every living `isBoss` enemy);
 // - `need` (default: every target) is how many targets must fall;
 // - `label` is the strip's name for the targets ("the Voices"); without one a single target is
-//   named, several are "the targets".
+//   named, several are "N targets".
 // The legacy `objective` string beside it is the kind's family (`legacyObjectiveKind`: defeat is
 // `rout`), so a client without this module plays the map as a rout: kill everything, winnable.
 //
@@ -209,23 +209,45 @@ function refName(ref, field) {
   const spawn =
     ref === BOSS_REF ? spawns.find((s) => s?.isBoss) : spawns.find((s) => s?.authoredId === ref);
   if (spawn?.name) return spawn.name;
+  if (ref === BOSS_REF && field.bossName) return field.bossName;
   return ref === BOSS_REF ? 'the boss' : 'the target';
 }
 
 /**
+ * The name a primary's targets go by on the strip: its `label`, else the one target's name,
+ * else a count ("3 targets", "2 of 3 targets" when only some must fall). '@boss' with several
+ * bosses standing is "the bosses", never one of them by name.
+ */
+function targetsLabel(objective, status, field) {
+  if (objective.label) return objective.label;
+  if (status.total === 1) {
+    const ref = objective.targets[0];
+    if (ref === BOSS_REF && unitsForRef(ref, field.enemyUnits).length > 1) return 'the bosses';
+    return refName(ref, field);
+  }
+  return status.need === status.total
+    ? `${status.total} targets`
+    : `${status.need} of ${status.total} targets`;
+}
+
+/**
  * The strip's words for each primary (03 §11): "Defeat · Varro", "Defeat · the Voices (2/4)",
- * and the goal sentence "Defeat Varro. The rest need not fall." The broader word pass (the
- * strip, help, deploy banner, felled band, fog) reads this model.
+ * and the goal sentence "Defeat Varro. The rest need not fall."; the broader word pass (the
+ * strip, help, deploy banner, felled band, loom) reads this model.
+ *
+ * Fog: the view is words and counts only. A ref and a name, never a tile or a unit: a target the
+ * player cannot see gives nothing the objective does not already say (its name, if the objective
+ * names it; how many remain). The map's markers, when they come, take their anchors from the
+ * caller's PlayerKnowledge, never from here.
  * @param {object} objectives a model (objectivesOf)
- * @param {{ enemyUnits?: object[], spawns?: object[] }} field `spawns`: the config's enemy
- *   spawns, which name a target that has already fallen
+ * @param {{ enemyUnits?: object[], spawns?: object[], bossName?: string }} field `spawns`: the
+ *   config's enemy spawns, which name a target that has already fallen; `bossName`: what
+ *   '@boss' is called when no spawn says
  */
 export function statusView(objectives, field = {}) {
   const primary = (objectives?.primary || []).map((objective) => {
     const status = primaryStatus(objective, field);
-    const label =
-      objective.label ||
-      (status.total === 1 ? refName(objective.targets[0], field) : 'the targets');
+    const label = targetsLabel(objective, status, field);
     const progress = status.total > 1 ? { done: status.slain, total: status.need } : null;
     const count = progress ? ` (${Math.min(progress.done, progress.total)}/${progress.total})` : '';
     return {
@@ -233,12 +255,64 @@ export function statusView(objectives, field = {}) {
       kind: objective.kind,
       verb: 'Defeat',
       label,
+      // What the group is called when a count goes before it ("2 Voices remain"): its label, or
+      // "the targets" for a group the objective does not name.
+      noun: objective.label || (status.total === 1 ? label : 'the targets'),
       compact: `Defeat · ${label}${count}`,
       text: `Defeat ${label}. The rest need not fall.`,
       progress,
       tone: status.done ? 'good' : 'open',
+      left: Math.max(0, status.need - status.slain),
       remaining: status.remaining.map((entry) => entry.ref),
     };
   });
   return { primary };
+}
+
+/** Whether `unit` is a target of any primary (its authored id is a ref, or it is a boss for '@boss'). */
+export function isObjectiveTarget(config, unit) {
+  const objectives = objectivesOf(config);
+  if (!objectives || !unit || unit.faction === 'player' || unit.faction === 'npc') return false;
+  return objectives.primary.some((objective) =>
+    objective.targets.some((ref) =>
+      ref === BOSS_REF ? unit.isBoss === true : unit.authoredId === ref,
+    ),
+  );
+}
+
+/**
+ * The living units a defeat map still needs felled: every unit of each open primary's remaining
+ * targets, in display order. The agents' priority list (empty on a map with no model, or once the
+ * objectives are met). Reads the field as the rule does, so it sees every foe (an agent is not
+ * the player and plays no fog).
+ * @returns {object[]}
+ */
+export function objectiveTargetUnits(config, field = {}) {
+  const objectives = objectivesOf(config);
+  if (!objectives) return [];
+  const out = [];
+  for (const objective of objectives.primary) {
+    if (primaryStatus(objective, field).done) continue;
+    for (const entry of remainingTargets(objective, field))
+      for (const unit of entry.units) if (!out.includes(unit)) out.push(unit);
+  }
+  return out;
+}
+
+/** The goal sentences of a battle's config ("Defeat Varro. The rest need not fall."), or null. */
+export function objectiveGoalSentences(config, field = {}) {
+  const objectives = objectivesOf(config);
+  return objectives ? statusView(objectives, field).primary.map((p) => p.text) : null;
+}
+
+/**
+ * What the felled band reads on a defeat map: how many targets still stand and what they are
+ * called ({ left, label } for the first open primary), or null when none stands or the map has
+ * no model.
+ */
+export function felledObjectiveView(config, field = {}) {
+  const objectives = objectivesOf(config);
+  if (!objectives) return null;
+  const open = statusView(objectives, field).primary.find((p) => p.left > 0);
+  return open ? { left: open.left, label: open.noun } : null;
 }

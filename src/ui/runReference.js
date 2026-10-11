@@ -47,6 +47,7 @@ export function runReferenceEntries() {
       'Battle objectives',
       'Route',
       'Rout: defeat all enemies. Seize: defeat the boss and take the throne with a Lord.',
+      'Defeat: fell the named targets; the rest of the foes need not fall.',
       'Escape: bring your Lords to the marked exits; other survivors retreat safely.',
       'Read the objective before moving. Winning does not always require defeating every enemy.',
     ],

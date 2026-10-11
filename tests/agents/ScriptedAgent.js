@@ -1,6 +1,7 @@
 // ScriptedAgent — Priority-based tactical policy (deterministic, no extra randomness).
 
 import { getCombatForecast, gridDistance } from '../../src/engine/Combat.js';
+import { objectiveTargetUnits } from '../../src/engine/BattleObjectives.js';
 
 export class ScriptedAgent {
   constructor(driver) {
@@ -19,6 +20,11 @@ export class ScriptedAgent {
       (a) => a.type === 'choose_action' && a.payload.label === 'Escape',
     );
     if (escape) return escape;
+
+    // Priority 1b: a defeat map's targets are the win condition (boss-like priority): strike one
+    // before anything else in reach, the weakest first. The guards need not fall.
+    const targetStrikes = this._findTargetStrikes(legalActions);
+    if (targetStrikes.length > 0) return targetStrikes[0];
 
     // Priority 2: Attack that kills (forecast HP <= 0)
     const kills = this._findKillTargets(legalActions);
@@ -175,7 +181,7 @@ export class ScriptedAgent {
         if (!unit) return { action: a, score: Infinity };
 
         let minDist = Infinity;
-        for (const e of b.enemyUnits) {
+        for (const e of this._objectiveFoes()) {
           const d = gridDistance(unit.col, unit.row, e.col, e.row);
           if (d < minDist) minDist = d;
         }
@@ -198,6 +204,31 @@ export class ScriptedAgent {
 
     // Absolute fallback
     return legalActions[0];
+  }
+
+  /**
+   * The foes the walk heads for: a defeat map's remaining targets (BattleObjectives), else every
+   * enemy standing. The agent plays no fog, so a hidden target is still its mark.
+   */
+  _objectiveFoes() {
+    const b = this.driver.battle;
+    const field = b.objectiveField?.() ?? { enemyUnits: b.enemyUnits };
+    const targets = objectiveTargetUnits(b.battleConfig, field);
+    return targets.length > 0 ? targets : b.enemyUnits;
+  }
+
+  /** The attacks on a defeat map's targets among the legal actions, weakest target first. */
+  _findTargetStrikes(legalActions) {
+    const b = this.driver.battle;
+    const field = b.objectiveField?.() ?? { enemyUnits: b.enemyUnits };
+    const targets = objectiveTargetUnits(b.battleConfig, field);
+    if (targets.length === 0) return [];
+    return legalActions
+      .filter((a) => a.type === 'choose_target')
+      .map((a) => ({ action: a, unit: this._findUnit(a.payload.targetName, 'enemy') }))
+      .filter(({ unit }) => unit && targets.includes(unit))
+      .sort((x, y) => x.unit.currentHP - y.unit.currentHP)
+      .map(({ action }) => action);
   }
 
   _findKillTargets(legalActions) {
@@ -233,7 +264,8 @@ export class ScriptedAgent {
     let nearest = null;
     let minDist = Infinity;
     // With no foe left standing, a Rout waits on Zombie remains: head for them.
-    const targets = b.enemyUnits.length ? b.enemyUnits : b._zombieTombstones || [];
+    const foes = this._objectiveFoes();
+    const targets = foes.length ? foes : b._zombieTombstones || [];
     for (const e of targets) {
       const d = gridDistance(unit.col, unit.row, e.col, e.row);
       if (d < minDist) {

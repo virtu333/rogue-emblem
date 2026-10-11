@@ -159,7 +159,7 @@ describe('statusView: the strip words', () => {
     });
     const unlabelled = { version: 1, primary: [{ ...voices.primary[0], label: undefined }] };
     expect(statusView(unlabelled, { enemyUnits: [] }).primary[0].compact).toBe(
-      'Defeat · the targets (3/3)',
+      'Defeat · 3 targets (3/3)',
     );
   });
 });
