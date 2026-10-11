@@ -930,6 +930,9 @@ export class NodeMapScene extends Phaser.Scene {
       this.shopOverlay ||
       this.churchOverlay ||
       this.eventOverlay ||
+      this._earnedPick ||
+      this._pendingRewards ||
+      this._bossRecruitResume ||
       this.rosterOverlay?.visible ||
       this.pauseOverlay?.visible ||
       this.settingsOverlay?.visible
@@ -937,7 +940,12 @@ export class NodeMapScene extends Phaser.Scene {
       return false;
     }
 
-    const pending = this.runManager?.getPendingCaravanShop?.();
+    const rm = this.runManager;
+    // The battle's own rewards come first, as before a freed village's shop: left open by
+    // "View map" or a reload, they are claimed before the caravan trades (the rewards'
+    // onComplete reaches checkActComplete, which opens the shop then).
+    if (!rm || rm.pendingBattleReward || rm.pendingBossRecruit || rm.pendingThirdLord) return false;
+    const pending = rm.getPendingCaravanShop?.();
     if (!pending) return false;
 
     if (typeof this.handleShop !== 'function') return false;
