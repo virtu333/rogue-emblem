@@ -20,9 +20,9 @@ const data = loadGameData();
 const allEventIds = data.events.events.map((e) => e.id);
 // Events that wait for a painting (docs/specs/event-art.md: "Phase 2 events as they land"). Art
 // never gates play: an event with no painting wears the plain band. The twelve Phase 2D events
-// all have theirs now; a future event goes on this list until its painting ships, and comes off it
-// in the commit that ships the painting.
-const PAINTING_PENDING = ['came_this_far', 'last_lantern', 'seers_last_page'];
+// and the Descent's three all have theirs now; a future event goes on this list until its
+// painting ships, and comes off it in the commit that ships the painting.
+const PAINTING_PENDING = [];
 const eventIds = allEventIds.filter((id) => !PAINTING_PENDING.includes(id));
 const sha = (buf) => createHash('sha256').update(buf).digest('hex').slice(0, 8);
 const read = (dir, f) => fs.readFileSync(path.join(dir, f));
@@ -75,7 +75,9 @@ describe('event vignettes ship for every event', () => {
       for (let i = 0; i < png.rgba.length; i += 4 * 17) {
         seen.add((png.rgba[i] << 16) | (png.rgba[i + 1] << 8) | png.rgba[i + 2]);
       }
-      expect(seen.size, id).toBeGreaterThan(12);
+      // A flat fill or a blank has one to three; a warm, near-monochrome picture (the tally wall)
+      // quantizes to 12, so the bar sits well under that and well above a fill.
+      expect(seen.size, id).toBeGreaterThan(8);
     }
   });
 });
