@@ -1,9 +1,10 @@
 # Large maps and map variety
 
-Status: proposal, revision 6 (2026-10-10). Takes in the notes of specs 01–05, a cross-review
-of the whole set, a review finding on the old-client guard and the owner's decisions of
-2026-10-10 (§6: the desktop view, the minimap, the rung ladder). Specs only: no game code or
-data changes yet.
+Status: proposal, revision 7 (2026-10-11). Takes in the notes of specs 01–05, a cross-review
+of the whole set, a review finding on the old-client guard, the owner's decisions of
+2026-10-10 (§6: the desktop view, the minimap, the rung ladder) and the event set pieces
+that shipped first (#282, `04` §16). Phase 0 is on `main` (#254–#259); the rest is
+proposal.
 Branch `claude/large-maps-specs`.
 
 This folder plans bigger, more ambitious battle maps: more kinds of maps, more than one
@@ -266,7 +267,8 @@ when it holds **any** mechanic these specs add, not only a set piece (`04` §12.
 - The format is **derived from capabilities**, each detected in the node map, the locked
   configs, the battle checkpoint and the run fields: `encounters` (groups beyond today's
   hold packs), `parModel`, `objectives` (non-legacy objectives and phases), `gateTerrain`,
-  `bossKit` (kits and signatures), `arena`, `setPiece`. All map to format 2. A First Light
+  `bossKit` (kits and signatures), `arena`, `setPiece` (assembled set pieces only: the
+  shipped event set pieces are tolerated, `04` §16.5). All map to format 2. A First Light
   boss kit is held although First Light has no set piece.
 - A client too old to play it refuses to load it, and writes nothing.
 - Its run save stays local-only through the prologue's existing hold-back,
@@ -289,7 +291,9 @@ keeps meaning the prologue.
 - **Elite nodes** (mid-act seize and escape, today's `isElite`): a chance per node, at most
   two per act, from the elite set pieces (Two Towers, Hunting Party, Rival Band).
 - **No two set-piece nodes are joined by an edge.**
-- **Never on First Light** (owner decision): its row of the table is all zeros.
+- **Never on First Light** (owner decision): its row of the table is all zeros. This covers
+  the large route maps and assembled event pieces; an event's small authored set piece
+  (#282, the Toll-House) plays on every rung its event reaches (`04` §16.4).
 - **Dusk: standard size only** (owner decision, 2026-10-10): ordinary, elite and event set
   pieces of 20x12 or less (The Mill Ford, Two Towers, Rival Band, Caravan Under Siege, The
   Burning Village), never a boss set piece. Dusk's entry carries `maxSize: [20, 12]` and a
@@ -298,7 +302,9 @@ keeps meaning the prologue.
   needs an entry, including `dusk`.
 - **Placement is a keyed pass after node-map generation**, on hashes of the run seed and
   node id. It never draws on the node-map stream (`04` §6).
-- **Event battles:** events may name a set piece (The Burning Village, Caravan Under Siege).
+- **Event battles:** events already name small authored set pieces (the Toll Bridge's two,
+  #282). Large assembled ones (The Burning Village, Caravan Under Siege) join through the
+  same `battle.setPiece` hook (`04` §16.4).
 - **Act III and Act IV boss nodes:** boss set pieces join the boss template pool beside the
   hybrid arenas, never instead of them (owner decision 4): Long Road to the Keep and the
   Dueling Halls in Act III, The Emperor's Parade and the Battery in Act IV (`05` §8).
@@ -330,7 +336,7 @@ Each phase is shippable alone and leaves the game better even if the next never 
 
 | Phase | What | Depends on |
 |---|---|---|
-| 0 | **Fixes worth doing anyway** (`02` §2): enrage never before par + 1 (`max(par+1, min(12, par+2))`); the confirmed hybrid-arena wall/wave bug; an exact binary-heap A* and an exact branch-and-bound recovery fallback; no 300 ms pause, tween or checkpoint for enemy actions the player cannot see or that do nothing, pause scaled by battle speed; prune locked configs at `advanceAct`; two bugs found by `01` (desktop [N] scrolls the HUD away, `01` §1.5.1; the enemy heal banner names a hidden target, `01` §1.5.2) | — |
+| 0 | **Done** (#254–#259). **Fixes worth doing anyway** (`02` §2): enrage never before par + 1 (`max(par+1, min(12, par+2))`); the confirmed hybrid-arena wall/wave bug; an exact binary-heap A* and an exact branch-and-bound recovery fallback; no 300 ms pause, tween or checkpoint for enemy actions the player cannot see or that do nothing, pause scaled by battle speed; prune locked configs at `advanceAct`; two bugs found by `01` (desktop [N] scrolls the HUD away, `01` §1.5.1; the enemy heal banner names a hidden target, `01` §1.5.2) | — |
 | 0g | **Run-format guard** (`04` PR A0, §12.1): the capability list and its detection in the node map, locked configs, checkpoint and run fields; the `requiresClient` / `requiresCapabilities` marker; the loader refusal and slot card; `CLOUD_SAFE_RUN_FORMAT` and the widened `isLocalOnlyRunSave`. Writes no capability itself | — |
 | 1 | **Camera and navigation** (`01`): desktop camera; enemy-phase follow; objective markers and off-screen pointers; jump controls; Recenter in portrait; danger overlay and fog hardening | — |
 | 2 | **Encounter groups** (`02`): groups, wake triggers, contact-relative waves, and the par model `groups-v1` in its own PR. Pickets and sleeping pods on today's rout maps stay owner-gated until `sim/pacing.js` shows par holds (`02` §1.5, §9) | 0 (enrage, dead air); **0g** for PRs 2.3, 2.4, 2.6 and the first writer of `groups-v1` |
@@ -493,10 +499,16 @@ switches are separate, so a change in difficulty can be traced to one of them.
      kit. Test 23's fixture moves from Act I to a First Light Act II boss (the Archmage's
      signature-only kit), since Act I has no kit.
    - `05` Q1, Q5 and Q10 are answered by this ladder (`05` §9.5, §13).
+   - **Event set pieces** (#282) are outside the ladder's set-piece columns: small authored
+     maps an event's text names, on every rung the event reaches, First Light included
+     (the Toll-House decision of 2026-10-10). Assembled event pieces follow the ordinary
+     column (`04` §16.4, Q11).
 
 Each spec ends with its own open questions.
 
-**Next.** Phase 0 is being implemented as small, separately reviewed PRs from `main`.
+**Next.** Phase 0 shipped (#254–#259). The event set pieces shipped first on their own
+track (#282); `04` §16 folds them into this format. Next: the run-format guard (0g),
+then `02`'s 2.0 and 2.1.
 
 ## Changelog
 

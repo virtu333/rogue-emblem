@@ -471,7 +471,7 @@ by distance rules alone, after `assignHolders` and the guard roll (`MapGenerator
 | seize, escape (Dusk+) | today's hold packs become `dormant` groups `hold:<pack>`, wake `[danger, hurt]`, `onWake: hunt`. Everything else stays ungrouped (awake). Behaviour identical to today (§3.6) |
 | seize, escape (First Light) | none (guards as today) |
 | rout (rung's `encounterPlan.rout`, owner-gated, §9 Q2) | **picket**: the `ceil(picketShare × n)` (≥ 2) non-boss spawns nearest the player-spawn centroid, awake. **Pods**: the rest, as connected components within `podRadius` (3); components smaller than `minPod` (2) join the nearest pod within 5, else the picket. Each pod `dormant`, wake `[danger, hurt]` plus `groupWoken` from every pod within `chain` (6) tiles, delay 1. Same exclusions as holders (siege carrier, hazard tile, Necromancer stays in its role). The village's bandit wave and the ladder are unchanged |
-| any | a template with `"encounters": false`, a recruit node's guardian, and the prologue (authored `holdPack`, read by the adapter) get nothing new |
+| any | a template with `"encounters": false`, a recruit node's guardian, the prologue (authored `holdPack`, read by the adapter) and the shipped event set pieces (authored `hold` packs, `04` §16.3) get nothing new |
 
 Patrols, columns and `guard` posts are for authored maps (`04`) and a later procedural pass: a patrol
 needs named waypoints that mean something on the map, which procedural templates do not
@@ -484,11 +484,17 @@ have.
   `encounterStateFromUnits` derives their state on restore (dormant iff a living member
   has `aiMode: 'hold'`; `checkedTurn` = the members' `holdCheckedTurn`). Unit fields stay
   as they are: they are save data.
+- **An authored wake turn** (`holdWakeTurn`, the event set pieces' `wake: N`, `04` §16.3):
+  the adapter gives that `hold:<pack>` group an absolute `{ kind: 'turn', turn: N, delay: 0 }`
+  wake (reason `turn`, checked after `disturbed` and before `fallen` and `threat`, as
+  `HoldActivation` does). PR 2.1 ships this one `turn` form for it; it is legacy-equivalent
+  for the guard (`04` §16.5).
 - **New configs** write both `encounterGroups` and the unit-level hold fields (`aiMode`,
   `holdPack`, `holdPackSize`), so a build without the module (rollback) still plays them.
 - **Parity, then deletion.** PR 2.1 runs the new engine and `wakeHolders` side by side in
   tests over a golden record (every wake reason, turn and pack, across the
-  `Determinism.test.js` scenarios plus 40 seeded Dusk+ seize/escape battles), must match
+  `Determinism.test.js` scenarios plus 40 seeded Dusk+ seize/escape battles and the two
+  shipped event set pieces on every rung their events reach), must match
   exactly, then deletes `wakeHolders` and the harness's private copies. `onHoldersWoke`
   keeps its shape for the prologue (`PrologueController.onHoldersWoke`).
 
@@ -860,7 +866,7 @@ kind's PR in `03`; `04` only runs the agents.
 | 0d | §2.5 `afterUnit` beat, hidden-move skip, no-op checkpoint skip, Shift hold key, e2e timing spec. **On the critical path for the first set piece** | presentation only; fewer timeline rows | 1.5 days |
 | 0e | §2.6 prune at `advanceAct` | smaller saves | 0.25 day |
 | 2.0 | metrics and the agent's seek mode in `sim/pacing.js` (§7; kind-specific agent reads ship with `03`'s kind PRs); baseline report in this spec | none | 1 day |
-| 2.1 | `EncounterGroups.js` + `EncounterTriggers.js` with `danger`/`hurt`, legacy adapter, `encounterState` persistence and validator, golden parity, `wakeHolders` deleted; initially awake groups' `onWake` written onto spawns (§3.3) | none | 2.5 days |
+| 2.1 | `EncounterGroups.js` + `EncounterTriggers.js` with `danger`/`hurt` and the absolute `turn` an authored `holdWakeTurn` needs (§3.6), legacy adapter, `encounterState` persistence and validator, golden parity, `wakeHolders` deleted; initially awake groups' `onWake` written onto spawns (§3.3) | none | 2.5 days |
 | 2.2a | `groupWoken`, `tile` (with `by: { group }`), `turn` `parOffset` (and legacy `turn`), the check's order (§3.4) for these, warn bands, `dormant` sources in ThreatForecast and the always-on outlines (§3.8), the inspect line, `guide_holding`, history words for wakes | none until data uses it; `guide_holding` and the outlines appear on today's Dusk+ hold packs | 1.5 days |
 | 2.2b | `sight`, `objective` hook, contact with `afterContact` and `latest`, `afterPhase`, the phase slot calling `03`'s `checkPhase` (a no-op until `03` PR 4), HUD model, history words for a phase switch | none until data uses it | 1.5 days |
 | 2.3 | `triggeredWaves`, sides, keyed stream, ledger, contract v2 exclusion, history words for arrivals | new configs only: procedural waves avoid the player by 3 | 2 days |
@@ -1003,3 +1009,9 @@ use `03`'s words (`done` / `failed`).
 - The owner's rung ladder (README §6, 2026-10-10) answers §9 Q3: First Light meets no set
   piece and no boss court at all (its kits are signature-only); courts start at Dusk. Q2 no
   longer offers First Light pods "in set pieces", which it never gets.
+
+## Revision 6 changelog (2026-10-11)
+
+- The event set pieces shipped first (#282, `04` §16). Their authored `hold` packs are
+  `hold:<pack>` groups; their `wake: N` (`holdWakeTurn`) becomes an absolute `turn` wake with
+  `delay: 0` in PR 2.1's adapter (§3.6, §8), and the golden parity record includes them.
