@@ -8,6 +8,9 @@
 //     still open, a covered circle unmarked), ignore reduced motion, or redraw every frame
 //   - a checkpoint loses the count, carries a malformed one past validation, or a resume replays
 //     the phase step
+//   - a drawing that fails cuts a call short (a Hollowed left off the roster, which the turn guard
+//     never calls again), changes an identity, a count, the history or the battle stream, or stops
+//     the enemy phase; a Voice's fall interrupted by a marker that fails to draw
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('phaser', () => ({
@@ -26,6 +29,7 @@ import { serializeBattleUnit } from '../src/engine/BattleUnitState.js';
 import { registerBattleEntity, resetBattleIdentities } from '../src/engine/BattleEntityIdentity.js';
 import { markFoesShown } from '../src/engine/BattleInformation.js';
 import { createVigilState } from '../src/engine/Vigil.js';
+import { createBattleRng } from '../src/engine/BattleRng.js';
 import { withDevSetPiece } from '../src/utils/devSetPieceFixtures.js';
 import { GameDriver } from './harness/GameDriver.js';
 import { installSeed, restoreMathRandom } from '../sim/lib/SeededRNG.js';
@@ -509,5 +513,126 @@ describe('the Voices are named targets, never bosses', () => {
     await scene.processVigil();
     for (const id of VOICES) expect(voiceOf(scene.enemyUnits, id).isBoss).toBeFalsy();
     expect(called(scene.enemyUnits).every((u) => !u.isBoss && !u.authoredId)).toBe(true);
+  });
+});
+
+describe('rendering never changes the call (as HealthPresentationInvariance)', () => {
+  const RNG_SEED = 11;
+
+  /**
+   * One Vigil phase in full view under fog (every presentation path runs: the fog pass, both
+   * banners, each rising), with the history recording and the battle stream installed.
+   * `breakIt(scene)` makes some of the drawing throw. Resolves to what the phase left behind.
+   */
+  async function phase(breakIt = () => {}) {
+    const { scene } = sceneOf();
+    scene.runManager = { battleInProgress: {} };
+    Object.assign(scene.grid, { fogEnabled: true, isVisible: () => true });
+    breakIt(scene);
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const before = Math.random;
+    scene._battleRng = createBattleRng(RNG_SEED);
+    Math.random = scene._battleRng;
+    let error = null;
+    try {
+      await scene.processVigil();
+    } catch (err) {
+      error = err;
+    } finally {
+      Math.random = before;
+    }
+    return {
+      scene,
+      error,
+      outcome: {
+        enemies: scene.enemyUnits.map(sameItems),
+        vigilState: structuredClone(scene._vigilState),
+        history: structuredClone(scene._historyBeats || []),
+        nextEntityId: scene._nextBattleEntityId,
+        rng: scene._battleRng.getState(),
+        dangerZoneStale: scene.dangerZoneStale,
+      },
+    };
+  }
+
+  /**
+   * A unit as saved, every field, ids, tiles and levels included. An item's uid carries the
+   * process-wide item counter, which each fixture's harness build moves on: only its own part
+   * is compared.
+   */
+  const sameItems = (unit) =>
+    JSON.parse(
+      JSON.stringify(serializeBattleUnit(unit), (key, value) =>
+        key === 'uid' && typeof value === 'string' ? value.replace(/^itm_\d+_/, 'itm_') : value,
+      ),
+    );
+
+  /** addUnitGraphic that throws (before it registers anything) on the calls `fails` picks. */
+  const graphicFails = (fails) => (scene) => {
+    let n = 0;
+    scene.addUnitGraphic = vi.fn((unit) => {
+      n += 1;
+      if (fails(n)) throw new Error('graphic failed');
+      registerBattleEntity(scene, unit);
+    });
+  };
+
+  it('a graphic failing on the first summon, or on every one: the same units, counts, history and stream', async () => {
+    const drawn = await phase();
+    const firstFails = await phase(graphicFails((n) => n === 1));
+    const allFail = await phase(graphicFails(() => true));
+
+    // The normal phase, from the fixture's known board: four Hollowed, five words, a record each.
+    expect(drawn.error).toBeNull();
+    const summoned = called(drawn.scene.enemyUnits);
+    expect(summoned).toHaveLength(4);
+    expect(drawn.outcome.vigilState).toMatchObject({ words: 5, summoned: 4, lastProcessedTurn: 1 });
+    expect(new Set(summoned.map((u) => u.battleEntityId)).size).toBe(4);
+    expect(drawn.outcome.history.filter((b) => b.type === 'called').map((b) => b.targetId)).toEqual(
+      summoned.map((u) => u.battleEntityId),
+    );
+    // Nothing in the phase draws from the battle stream.
+    expect(drawn.outcome.rng).toEqual(createBattleRng(RNG_SEED).getState());
+
+    for (const broken of [firstFails, allFail]) {
+      expect(broken.outcome).toEqual(drawn.outcome);
+      expect(broken.error).toBeNull(); // the enemy phase goes on
+      expect(broken.scene.addUnitGraphic).toHaveBeenCalledTimes(4); // each summon was tried
+      expect(banners(broken.scene)).toEqual([VIGIL_BANNERS.words, VIGIL_BANNERS.call]);
+    }
+    expect(firstFails.scene._combatFx.raise).toHaveBeenCalledTimes(4);
+  });
+
+  it('every piece of the drawing failing at once: the same outcome, and the phase still resolves', async () => {
+    const drawn = await phase();
+    const broken = await phase((scene) => {
+      graphicFails(() => true)(scene);
+      const boom = () => {
+        throw new Error('render');
+      };
+      scene.showBriefBanner = vi.fn(async () => boom());
+      scene._combatFx = { raise: vi.fn(boom) };
+      scene.updateEnemyVisibility = vi.fn(boom);
+      scene.updateObjectiveText = vi.fn(boom);
+      scene._pinnedThreats = { invalidate: vi.fn(boom) };
+      scene.grid.gridToPixel = boom; // the markers
+    });
+    expect(broken.outcome).toEqual(drawn.outcome);
+    expect(broken.error).toBeNull();
+    expect(broken.scene.updateEnemyVisibility).toHaveBeenCalled();
+    expect(broken.scene.updateObjectiveText).toHaveBeenCalled();
+  });
+
+  it("a Voice's fall whose markers fail to draw still finishes, with its banner", async () => {
+    const { scene } = sceneOf();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    scene.grid.gridToPixel = () => {
+      throw new Error('render');
+    };
+    const voice = voiceOf(scene.enemyUnits, 'voice_binding');
+    await expect(scene.removeUnit(voice, { killer: scene.playerUnits[0] })).resolves.not.toThrow();
+    expect(voiceOf(scene.enemyUnits, 'voice_binding')).toBeUndefined();
+    expect(banners(scene)).toContain(VIGIL_BANNERS.silenced);
+    expect(scene.dangerZoneStale).toBe(true); // removeUnit ran past the Voice's step
   });
 });

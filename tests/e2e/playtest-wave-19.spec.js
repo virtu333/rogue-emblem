@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForScene } from './helpers.js';
+import { waitForBattleState, waitForScene } from './helpers.js';
 test.use({ viewport: { width: 844, height: 390 } });
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() =>
@@ -14,6 +14,7 @@ test('rewards allow inventory management and direct accessory equip', async ({ p
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1&battleLab=1');
   await waitForScene(page, 'Battle');
+  await waitForBattleState(page, 'PLAYER_IDLE');
   await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     s.registry.set('activeSlot', 1);
