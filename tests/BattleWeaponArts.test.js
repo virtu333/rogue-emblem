@@ -2021,6 +2021,29 @@ describe('BattleScene weapon art helpers', () => {
     expect(sceneAttacker.currentHP).toBe(headlessAttacker.currentHP);
   });
 
+  // Review of #344: a dash held short by a unit the fog hid shows that unit (a contact for
+  // the phase, "Blocked"), as a walk's ambush does; one the player already saw says nothing.
+  it('a dash contact beat reveals only the blocker the fog hid', async () => {
+    const reveals = [];
+    const hints = [];
+    const scene = new BattleScene();
+    scene.grid = {
+      fogEnabled: true,
+      isVisible: (col, row) => col === 4 && row === 2, // the seen foe's tile only
+      revealContact: (tiles) => reveals.push(...tiles),
+      gridToPixel: (col, row) => ({ x: col, y: row }),
+    };
+    scene.showMinorHintAt = (x, y, text) => hints.push({ x, y, text });
+    const seen = { name: 'Seen', faction: 'enemy', col: 4, row: 2, currentHP: 10 };
+    const hidden = { name: 'Hidden', faction: 'enemy', col: 5, row: 2, currentHP: 10 };
+    await BattleScene.prototype._playPostCombatBeat.call(scene, {
+      kind: 'contact',
+      units: [seen, hidden],
+    });
+    expect(reveals).toEqual([{ col: 5, row: 2 }]);
+    expect(hints).toEqual([{ x: 5, y: 2, text: 'Blocked' }]);
+  });
+
   it('applies Galeforce Assault set-to-5 without a step, preserving ally buff parity', async () => {
     const gameData = loadGameData();
     const art = gameData.weaponArts.arts.find((entry) => entry.id === 'legend_galeforce_assault');

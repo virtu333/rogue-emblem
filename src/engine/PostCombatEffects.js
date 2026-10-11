@@ -429,6 +429,11 @@ function* postCombatMove(sourceUnit, targetUnit, step, world, result, held = nul
     getTerrainAt: world.getTerrainAt,
     isImmovable: (unit) => isDisplacementImmune(unit, world.affixes),
   });
+  // A dash held short by units on the line past its landing: the scene shows each one the fog
+  // hid and says the run was blocked (a walk's ambush rule). It reads the real board, so this
+  // comes after the commit, before the user moves.
+  if (step.mode === 'dash' && moveResult.blockers?.length)
+    yield { kind: 'contact', units: moveResult.blockers };
   if (!moveResult.ok) {
     const pinned = moveResult.reason === 'rooted' || moveResult.reason === 'immovable';
     if (step.mode === 'ram' && pinned && targetUnit?.currentHP > 0)

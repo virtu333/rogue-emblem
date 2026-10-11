@@ -499,12 +499,30 @@ export function resolvePostCombatMove({
       if (!isInBounds(col, row, cols, rows) || solid(col, row)) break;
       candidates.push({ col, row });
     }
+    // A unit on a tile farther than the landing held the run short of it: `blockers`, the
+    // nearest of those first, so the scene can show one the fog hid (as a walk's ambush).
+    const occupantOf = ({ col, row }) => {
+      const unit = getUnitAt(col, row);
+      return unit && unit !== sourceUnit && !(unit.currentHP <= 0) ? unit : null;
+    };
+    const blockersPast = (index) => [
+      ...new Set(
+        candidates
+          .slice(index + 1)
+          .map(occupantOf)
+          .filter(Boolean),
+      ),
+    ];
     for (let i = candidates.length - 1; i >= 0; i--) {
       const { col, row } = candidates[i];
       if (canOccupyTile(sourceUnit, col, row, cols, rows, getMoveCost, getUnitAt))
-        return { ok: true, assignments: [{ unit: sourceUnit, col, row }] };
+        return {
+          ok: true,
+          assignments: [{ unit: sourceUnit, col, row }],
+          blockers: blockersPast(i),
+        };
     }
-    return { ok: false, reason: 'blocked' };
+    return { ok: false, reason: 'blocked', blockers: blockersPast(-1) };
   }
 
   const targetAlive = targetUnit?.currentHP > 0;

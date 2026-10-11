@@ -8710,7 +8710,9 @@ export class BattleScene extends Phaser.Scene {
     for (const beat of beats) {
       if (!isCurrentBattleSession(this, session)) return;
       if (beat.kind === 'banner') this._noteBannerHold(beat.unit);
-      if (beat.kind === 'remove' || beat.kind === 'moved') {
+      // State beats (a removal, a move, a fog contact) are never skipped by a presentation
+      // failure; the rest are drawing only.
+      if (beat.kind === 'remove' || beat.kind === 'moved' || beat.kind === 'contact') {
         await this._playPostCombatBeat(beat);
       } else {
         await safeBattlePresentation(
@@ -8767,6 +8769,22 @@ export class BattleScene extends Phaser.Scene {
         this.showMinorHintAt(pos.x, pos.y, beat.text, POST_COMBAT_HINT_COLORS[beat.tone]);
         break;
       }
+      case 'contact':
+        // A dash held short by a unit the fog hid: shown for the rest of the phase and named,
+        // as a walk's ambush (_resolveAmbush). A unit the player already saw says nothing.
+        for (const blocker of beat.units || []) {
+          if (canInspectUnit(this.grid, blocker)) continue;
+          this.grid.revealContact?.(getFootprint(blocker));
+          safeBattlePresentation(
+            'dash blocked',
+            () => {
+              const pos = this.grid.gridToPixel(blocker.col, blocker.row);
+              this.showMinorHintAt(pos.x, pos.y, 'Blocked', UI_PALETTE.bad);
+            },
+            { scene: this },
+          );
+        }
+        break;
       default:
         break;
     }

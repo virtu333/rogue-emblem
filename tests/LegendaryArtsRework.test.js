@@ -12,7 +12,11 @@ import { describe, expect, it } from 'vitest';
 import { loadGameData } from './testData.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { resolveCombat } from '../src/engine/Combat.js';
-import { getWeaponArtCombatMods } from '../src/engine/WeaponArtSystem.js';
+import {
+  getWeaponArtBindings,
+  getWeaponArtCombatMods,
+  normalizeWeaponArtBinding,
+} from '../src/engine/WeaponArtSystem.js';
 import { postCombatEffects } from '../src/engine/PostCombatEffects.js';
 import { resolvePostCombatMove } from '../src/engine/WeaponArtPostCombat.js';
 import { previewAreaArt, areaForecastLines } from '../src/engine/AreaPreview.js';
@@ -148,6 +152,32 @@ describe("Oathblade's dash: where it lands", () => {
   });
 });
 
+describe('a dash held short says by whom (review of #344)', () => {
+  it('the units past the landing that held the run come back, nearest first', () => {
+    const a = unit('A', 'player', 1, 4);
+    const t = unit('T', 'enemy', 2, 4);
+    const f3 = unit('F3', 'enemy', 4, 4);
+    const past = unit('Past', 'enemy', 5, 4);
+    const r = dash(a, t, [a, t, f3, past]);
+    expect(landing(r)).toEqual([3, 4]);
+    expect(r.blockers).toEqual([f3, past]);
+    // A free run past the line names nobody.
+    expect(dash(a, t, [a, t]).blockers).toEqual([]);
+  });
+
+  it('PostCombatEffects yields a contact beat before the move, naming the blocker', () => {
+    const a = unit('A', 'player', 1, 4, { STR: 20, SKL: 30 }, { weapon: weapon('Oathblade') });
+    const t = unit('T', 'enemy', 2, 4, { HP: 80 }, { weapon: weapon('Iron Axe') });
+    const hidden = unit('Hidden', 'enemy', 5, 4, { HP: 80 }, { weapon: weapon('Iron Axe') });
+    const { beats } = strike(a, t, [a, t, hidden], { random: () => 0.5 });
+    const contact = beats.findIndex((b) => b.kind === 'contact');
+    const moved = beats.findIndex((b) => b.kind === 'moved' && b.units.includes(a));
+    expect(beats[contact].units).toEqual([hidden]);
+    expect(contact).toBeLessThan(moved);
+    expect([a.col, a.row]).toEqual([4, 4]);
+  });
+});
+
 describe('Phantom Rush end to end', () => {
   it('strikes the target, the line takes 75% blows, then the user lands past it', () => {
     // Oathblade: Mt 15, Crit 20. Art: Atk +4, Hit +10, Crit +10. STR 20 vs an axe user:
@@ -240,12 +270,20 @@ describe('saves from before the rework (LegendaryRelicMigration)', () => {
     special: 'Attacks twice consecutively',
     ...extra,
   });
+  // As a save holds it: the arrays and the single-art aliases normalizeWeaponArtBinding keeps.
   const oldHermit = (extra = {}) => ({
     ...weapon("Hermit's Bow"),
     weaponArtIds: ['legend_starfall_volley'],
     weaponArtSources: ['innate'],
+    weaponArtId: 'legend_starfall_volley',
+    weaponArtSource: 'innate',
     ...extra,
   });
+  /** The arts a loaded copy ends with: the load's own normalize over the current catalog. */
+  const loadedArts = (item, artIds = data.weaponArts.arts.map((a) => a.id)) => {
+    normalizeWeaponArtBinding(item, { validArtIds: new Set(artIds) });
+    return getWeaponArtBindings(item);
+  };
 
   it('an old Oathblade takes the new Mt and Crit as deltas, so a forge step is kept', () => {
     // A +1 forge on Might: 9 + 1 = 10 saved; 10 + 6 = 16 after.
@@ -283,6 +321,71 @@ describe('saves from before the rework (LegendaryRelicMigration)', () => {
     expect(bow.weaponArtIds).toEqual(['legend_hermit_fan', 'bow_curved_shot']);
     expect(bow.weaponArtSources).toEqual(['innate', 'scroll']);
     expect(migrateSavedLegendaryRelics({ bow })).toBe(0);
+  });
+
+  it("the old art's single-art alias is rewritten too, so a load never brings it back", () => {
+    // Review of #344: the alias weaponArtId still named Starfall Volley, and the load's
+    // normalize re-added it as a second, locked binding beside Fan Shot.
+    const bow = oldHermit();
+    migrateSavedLegendaryRelics({ bow });
+    expect(loadedArts(bow)).toEqual([{ id: 'legend_hermit_fan', source: 'innate' }]);
+    // An older item holding the art only in the alias (no arrays) is found and fixed alike.
+    const aliasOnly = oldHermit();
+    delete aliasOnly.weaponArtIds;
+    delete aliasOnly.weaponArtSources;
+    expect(migrateSavedLegendaryRelics({ aliasOnly })).toBe(1);
+    expect(loadedArts(aliasOnly)).toEqual([{ id: 'legend_hermit_fan', source: 'innate' }]);
+  });
+
+  it('a bow an older build saved (its load drops the Fan Shot it does not know) gets it back', () => {
+    // Review of #344: an older or cached client's load keeps only the ids its catalog has.
+    const olderCatalog = data.weaponArts.arts
+      .map((a) => a.id)
+      .filter((id) => id !== 'legend_hermit_fan');
+    const bow = oldHermit({
+      weaponArtIds: ['legend_starfall_volley', 'bow_curved_shot'],
+      weaponArtSources: ['innate', 'scroll'],
+    });
+    migrateSavedLegendaryRelics({ bow });
+    // The older build loads and saves: the bow keeps only its scroll art.
+    expect(loadedArts(bow, olderCatalog)).toEqual([{ id: 'bow_curved_shot', source: 'scroll' }]);
+    // Back on this build: Fan Shot returns as the innate art, the scroll art kept.
+    expect(migrateSavedLegendaryRelics({ bow })).toBe(1);
+    expect(loadedArts(bow)).toEqual([
+      { id: 'legend_hermit_fan', source: 'innate' },
+      { id: 'bow_curved_shot', source: 'scroll' },
+    ]);
+    // With no art left at all, the same.
+    const bare = weapon("Hermit's Bow");
+    expect(loadedArts(bare, olderCatalog)).toEqual([]);
+    expect(migrateSavedLegendaryRelics({ bare })).toBe(1);
+    expect(loadedArts(bare)).toEqual([{ id: 'legend_hermit_fan', source: 'innate' }]);
+    expect(migrateSavedLegendaryRelics({ bare })).toBe(0);
+  });
+
+  it('a bow whose innate slot the player filled with a scroll is left alone, as is a record', () => {
+    const full = weapon("Hermit's Bow");
+    full.weaponArtIds = ['bow_curved_shot', 'bow_deadeye', 'bow_heavy_draw'];
+    full.weaponArtSources = ['scroll', 'scroll', 'scroll'];
+    expect(migrateSavedLegendaryRelics({ full })).toBe(0);
+    expect(full.weaponArtIds).toEqual(['bow_curved_shot', 'bow_deadeye', 'bow_heavy_draw']);
+    // A bare { name, type } (no stats) elsewhere in a save is not a weapon item.
+    const record = { name: "Hermit's Bow", type: 'Bow' };
+    expect(migrateSavedLegendaryRelics({ record })).toBe(0);
+    expect(record).toEqual({ name: "Hermit's Bow", type: 'Bow' });
+  });
+
+  it('a whole save round trip ends with Fan Shot alone on every copy', () => {
+    const rm = new RunManager(data);
+    rm.startRun();
+    const saved = JSON.parse(JSON.stringify(rm.toJSON()));
+    saved.convoy = { weapons: [oldHermit({ uid: 'itm_bow' })], consumables: [] };
+    const restored = RunManager.fromJSON(saved, data);
+    const bow = restored.convoy.weapons.find((w) => w.uid === 'itm_bow');
+    expect(getWeaponArtBindings(bow)).toEqual([{ id: 'legend_hermit_fan', source: 'innate' }]);
+    const again = RunManager.fromJSON(JSON.parse(JSON.stringify(restored.toJSON())), data);
+    const bow2 = again.convoy.weapons.find((w) => w.uid === 'itm_bow');
+    expect(getWeaponArtBindings(bow2)).toEqual([{ id: 'legend_hermit_fan', source: 'innate' }]);
   });
 
   it('RunManager.fromJSON walks the battle checkpoint and pending rewards too', () => {
