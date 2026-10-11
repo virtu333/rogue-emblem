@@ -107,15 +107,15 @@ describe('the chip’s words', () => {
   it('names what the tier does to each boss still ahead, the boss said once', () => {
     const broken = riteChipModel(descentRun('hard', 2));
     expect(broken.effects.map((e) => [e.target, e.name, e.rest])).toEqual([
-      ['lieutenant', 'The Lieutenant', "'s escort loses its 2 strongest members"],
+      ['lieutenant', 'The Lieutenant', "'s 2 strongest guards are gone from his side"],
       ['entity', 'The Entity', "'s splash strikes 1 tile fewer"],
     ]);
     const answered = riteChipModel(descentRun('hard', 14));
     expect(answered.effects[0].rest).toBe(
-      ' carries 1 more Revival Stone. 2 Hollowed join him on turn 4',
+      ' gains 1 Revival Stone: 1 more health bar. 2 Hollowed join him on turn 4',
     );
     expect(answered.effects[1].rest).toBe(
-      "'s splash strikes 1 tile more. Each of its waves brings 2 Hollowed",
+      "'s splash strikes 1 tile more. Each of the Entity's waves brings 2 more Hollowed",
     );
     // Spoken changes nothing: a line that never names the boss gets him and a colon.
     const spoken = riteChipModel(descentRun('hard', 6));
@@ -233,7 +233,7 @@ describe('the chip on the route map', () => {
     expect(lines.map((li) => li.dataset.riteTarget)).toEqual(['lieutenant', 'entity']);
     expect(lines[0].querySelector('strong').textContent).toBe('The Lieutenant');
     expect(lines[0].textContent).toBe(
-      'The Lieutenant carries 1 more Revival Stone. 2 Hollowed join him on turn 4',
+      'The Lieutenant gains 1 Revival Stone: 1 more health bar. 2 Hollowed join him on turn 4',
     );
     expect(note.querySelector('.re-rite-from').textContent).toBe('From: The Eclipse +14');
     // The title (hover, long press) holds the whole of it.
@@ -284,7 +284,7 @@ describe('the boss node’s preview', () => {
       bandLabel: 'Broken',
       wordsText: '2 words',
       note: 'Read when the battle begins.',
-      lines: ["The Lieutenant's escort loses its 2 strongest members"],
+      lines: ["The Lieutenant's 2 strongest guards are gone from his side"],
     });
     expect(riteNodeModel(rm, nodeOf(rm, 'entity'))).toMatchObject({
       target: 'entity',
@@ -310,7 +310,7 @@ describe('the boss node’s preview', () => {
     const own = (run) => run.gameData.difficulty.modes.normal.revivalStones.lieutenant || 0;
     expect(boss.revivalStones).toBe(own(rm) + 1);
     expect(locked.lines).toEqual([
-      'The Lieutenant carries 1 more Revival Stone',
+      'The Lieutenant gains 1 Revival Stone: 1 more health bar',
       `${wave.spawns.length} Hollowed join him on turn ${wave.turn}`,
     ]);
     // The words fall to Broken afterwards: the locked battle is still the one that is previewed.
@@ -331,7 +331,9 @@ describe('the boss node’s preview', () => {
     expect(lost).toBeGreaterThan(0);
     rm.lockBattleConfig(node.id, config);
     expect(riteNodeModel(rm, node).lines).toEqual([
-      `The Lieutenant's escort loses its ${lost} strongest members`,
+      lost === 1
+        ? "The Lieutenant's strongest guard is gone from his side"
+        : `The Lieutenant's ${lost} strongest guards are gone from his side`,
     ]);
     // A map locked with no record of the Rite (nothing could be placed) is no change.
     const rm2 = descentRun('hard', 1);
@@ -351,9 +353,9 @@ describe('the boss node’s preview', () => {
         waves: [{ turn: 3, count: 1 }],
       }),
     ).toEqual([
-      "The Lieutenant's escort loses its 1 strongest member",
-      'The Lieutenant carries 2 more Revival Stones',
-      '1 Hollowed join him on turn 3',
+      "The Lieutenant's strongest guard is gone from his side",
+      'The Lieutenant gains 2 Revival Stones: 2 more health bars',
+      '1 Hollowed joins him on turn 3',
     ]);
     expect(
       lockedRiteLines({
@@ -364,7 +366,10 @@ describe('the boss node’s preview', () => {
           { turn: 6, count: 2 },
         ],
       }),
-    ).toEqual(["The Entity's splash strikes 1 tile fewer", 'Each of its waves brings 2 Hollowed']);
+    ).toEqual([
+      "The Entity's splash strikes 1 tile fewer",
+      "Each of the Entity's waves brings 2 more Hollowed",
+    ]);
     expect(
       lockedRiteLines({
         target: 'entity',
@@ -373,7 +378,7 @@ describe('the boss node’s preview', () => {
           { turn: 6, count: 1 },
         ],
       }),
-    ).toEqual(['Its waves bring 2, 1 Hollowed']);
+    ).toEqual(["The Entity's waves bring 2, 1 more Hollowed"]);
     // A wave that placed none is not a wave.
     expect(lockedRiteLines({ target: 'entity', waves: [{ turn: 3, count: 0 }] })).toEqual([
       'No change',
@@ -405,7 +410,7 @@ describe('the loom card', () => {
       'The Rite · Answered · 14 words',
     );
     expect(block.querySelector('.re-loom-rite-lines').children.map((li) => li.textContent)).toEqual(
-      ['The Lieutenant carries 1 more Revival Stone', '2 Hollowed join him on turn 4'],
+      ['The Lieutenant gains 1 Revival Stone: 1 more health bar', '2 Hollowed join him on turn 4'],
     );
     expect(block.querySelector('.re-loom-rite-note').textContent).toBe(
       'Read when the battle begins.',
