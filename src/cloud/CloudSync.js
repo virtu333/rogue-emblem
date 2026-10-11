@@ -1,6 +1,12 @@
 import { mergeRunRecords } from '../engine/RunRecords.js';
 import { lordsMetOfMetaSave, mergeLordNames } from '../engine/LordsMet.js';
 import {
+  discoveriesOfMetaSave,
+  mergeDiscoveries,
+  withDiscoveryKeys,
+  withoutDiscoveryKeys,
+} from '../engine/CompendiumDiscovery.js';
+import {
   normalizePrologueState,
   reconcilePickedPrologue,
 } from '../engine/MetaProgressionManager.js';
@@ -344,6 +350,11 @@ function applyMetaSlots(metaData, skipped = new Set()) {
     // Lords met on either copy stay met (a union, like the run records).
     const localLords = lordsMetOfMetaSave(localSlot);
     const lordsMet = mergeLordNames(localLords, lordsMetOfMetaSave(cloudSlot));
+    // So do the items and skills the Compendium has filled in.
+    const localSeen = discoveriesOfMetaSave(localSlot);
+    const seen = mergeDiscoveries(localSeen, discoveriesOfMetaSave(cloudSlot));
+    const seenGrew =
+      seen.items.length > localSeen.items.length || seen.skills.length > localSeen.skills.length;
     // The prologue on either copy: the further state, the chapters and lessons unioned;
     // the grant's receipt only from the payload whose economy is kept (a completion the
     // other copy brought is paid into it once: reconcilePickedPrologue).
@@ -360,6 +371,7 @@ function applyMetaSlots(metaData, skipped = new Set()) {
       !shouldKeepLocal ||
       JSON.stringify(records) !== JSON.stringify(localSlot?.runRecords || []) ||
       lordsMet.length > localLords.length ||
+      seenGrew ||
       prologueChanged
     ) {
       try {
@@ -374,6 +386,7 @@ function applyMetaSlots(metaData, skipped = new Set()) {
           JSON.stringify({
             ...merged,
             lordsMet,
+            purchasedUpgrades: withDiscoveryKeys(merged.purchasedUpgrades, seen),
             ...(prologue ? { prologue } : {}),
             ...(reconciled?.economy ?? {}),
           }),
@@ -1023,8 +1036,8 @@ function isFreshLocalBlockedError(err) {
 function isFreshMetaPayload(metaSlot) {
   if (!isCloudSlotPayload(metaSlot)) return true;
   if ((Number(metaSlot.runsCompleted) || 0) > 0) return false;
-  if (metaSlot.purchasedUpgrades && Object.keys(metaSlot.purchasedUpgrades).length > 0)
-    return false;
+  // Discoveries (CompendiumDiscovery.js) ride in purchasedUpgrades but buy nothing.
+  if (Object.keys(withoutDiscoveryKeys(metaSlot.purchasedUpgrades)).length > 0) return false;
   if (Array.isArray(metaSlot.milestones) && metaSlot.milestones.length > 0) return false;
   const valor = Number(metaSlot.totalValor ?? metaSlot.totalRenown) || 0;
   const supply = Number(metaSlot.totalSupply ?? metaSlot.totalRenown) || 0;

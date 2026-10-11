@@ -5,6 +5,7 @@
 // blessing never faded away), selection semantics, input (touch, keyboard),
 // reduced motion and the hand-off to the join ceremony.
 import { test, expect } from '@playwright/test';
+import { waitForBattleState } from './helpers.js';
 
 // Boot can be slow on a busy machine: wait for the scene generously (this is
 // a readiness wait, not an assertion about the screens).
@@ -253,6 +254,7 @@ test('battle rewards: rarity-framed cards with art, for whom, and an elite secon
 }, info) => {
   await settings(page);
   await battle(page);
+  await waitForBattleState(page, 'PLAYER_IDLE');
   await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     s.isElite = true;
@@ -464,6 +466,7 @@ for (const { width, height, touch, preview } of [
         `/?devScene=battle&preset=battle_smoke&seed=42&battleLab=1${preview ? '&mobilePreview=1' : ''}`,
       );
       await waitForScene(page, 'Battle');
+      await waitForBattleState(page, 'PLAYER_IDLE');
       const recruit = await openBossRecruit(page);
       await expectDraftInView(page, recruit, '.ch-card');
       await expect(recruit.getByRole('button', { name: 'Recruit', exact: true })).toBeInViewport();
