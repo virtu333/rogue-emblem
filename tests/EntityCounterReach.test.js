@@ -6,9 +6,11 @@ import { BattleScene } from '../src/scenes/BattleScene.js';
 import {
   enemyThreatTiles,
   computeDangerTiles,
+  moverReachSignature,
   threatsOnTile,
   threatSummaryText,
   threatSummaryTone,
+  threatWorldSignature,
 } from '../src/engine/ThreatForecast.js';
 import {
   entityCounterOnlyDistances,
@@ -336,6 +338,75 @@ describe('Threat Sight: the band under a mover', () => {
     expect(far).toMatchObject({ count: 0, counter: [] });
     expect(threatSummaryText(far)).toBe('No foe can reach');
     expect(threatSummaryTone(far)).toBe('clear');
+  });
+});
+
+describe('Threat Sight: the memo key carries what the mover can reach with', () => {
+  const archer = (extra = {}) => ({
+    name: 'Archer',
+    faction: 'player',
+    col: 10,
+    row: 6,
+    currentHP: 18,
+    weapon: weapon('Iron Sword'),
+    inventory: [weapon('Iron Sword')],
+    ...extra,
+  });
+
+  it('a Trade or Equip that changes the mover reach changes the signature, and the answer', () => {
+    const g = plainGrid(13, 13);
+    const entity = entityAt(5, 5);
+    const mover = archer();
+    const units = [mover, entity];
+    const ctx = ctxFor(g, units);
+    const sword = threatWorldSignature(ctx, units);
+    expect(threatsOnTile(ctx, 10, 6, { mover }).counter).toEqual([]);
+    // A Longbow comes into the bag and into the hand; the unit has not moved.
+    const bow = weapon('Longbow');
+    mover.inventory.push(bow);
+    mover.weapon = bow;
+    const armed = threatWorldSignature(ctx, units);
+    expect(armed).not.toBe(sword);
+    expect(threatsOnTile(ctx, 10, 6, { mover }).counter).toEqual([entity]);
+    // It trades the bow away again: back to the first signature, back to the first answer.
+    mover.inventory = [mover.inventory[0]];
+    mover.weapon = mover.inventory[0];
+    expect(threatWorldSignature(ctx, units)).toBe(sword);
+    expect(threatsOnTile(ctx, 10, 6, { mover }).counter).toEqual([]);
+  });
+
+  it('keys on reach, not on which weapon is in hand or how the bag is ordered', () => {
+    const bow = weapon('Longbow');
+    const sword = weapon('Iron Sword');
+    const lance = weapon('Iron Lance');
+    const a = archer({ weapon: sword, inventory: [sword, bow] });
+    const b = archer({ weapon: bow, inventory: [bow, sword] });
+    expect(moverReachSignature(a)).toBe(moverReachSignature(b));
+    // Another weapon of the same reach adds nothing; a staff and a scroll are not combat weapons.
+    const c = archer({ weapon: sword, inventory: [sword, lance, bow] });
+    expect(moverReachSignature(c)).toBe(moverReachSignature(a));
+    const staff = { name: 'Heal', type: 'Staff', range: '1-3' };
+    const scroll = { name: 'Some Scroll', type: 'Scroll', range: '1-3' };
+    const d = archer({ weapon: sword, inventory: [sword, staff, scroll] });
+    expect(moverReachSignature(d)).toBe(moverReachSignature(archer()));
+    expect(moverReachSignature(a)).not.toBe(moverReachSignature(archer()));
+    // An unarmed unit is a signature of its own, not an error.
+    expect(moverReachSignature(archer({ weapon: null, inventory: [] }))).toBe('');
+  });
+
+  it('only a living player unit adds its reach: a foe and a fallen ally do not', () => {
+    const g = plainGrid(13, 13);
+    const ctx = ctxFor(g, []);
+    const mover = archer();
+    const foeUnit = ordinary(2, 2);
+    const base = threatWorldSignature(ctx, [mover, foeUnit]);
+    foeUnit.inventory = [weapon('Longbow')];
+    expect(threatWorldSignature(ctx, [mover, foeUnit])).toBe(base);
+    // A fallen ally can never be the mover: its bag is not read.
+    const fallen = archer({ currentHP: 0 });
+    const withFallen = threatWorldSignature(ctx, [mover, fallen]);
+    fallen.inventory.push(weapon('Longbow'));
+    expect(threatWorldSignature(ctx, [mover, fallen])).toBe(withFallen);
   });
 });
 

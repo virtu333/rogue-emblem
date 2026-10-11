@@ -246,12 +246,32 @@ function withinBareReach(enemy, col, row) {
   return Math.abs(enemy.col - col) + Math.abs(enemy.row - row) <= mov + reach;
 }
 
+/** The combat weapons `mover` carries (equipped or in its bag): what "can hit from here" reads. */
+function moverCombatWeapons(mover) {
+  return [mover?.weapon, ...(mover?.inventory || [])].filter(
+    (w) => w && !isStaff(w) && w.type !== 'Scroll',
+  );
+}
+
 /** Can `mover` (null: anyone) hit `entity` from (col, row) with a combat weapon it carries? */
 function moverReaches(mover, entity, col, row) {
   if (!mover) return true;
   const distance = entityDistanceTo(entity, col, row);
-  const weapons = [mover.weapon, ...(mover.inventory || [])];
-  return weapons.some((w) => w && !isStaff(w) && w.type !== 'Scroll' && isInRange(w, distance));
+  return moverCombatWeapons(mover).some((w) => isInRange(w, distance));
+}
+
+/**
+ * What `threatsOnTile` reads from the mover beyond its tile: the reaches of the combat weapons
+ * it carries (the Entity's "counters from here" note). A Trade or an Equip that changes them
+ * changes this, though the unit never moved; the order of the bag does not.
+ */
+export function moverReachSignature(mover) {
+  const reaches = new Set();
+  for (const w of moverCombatWeapons(mover)) {
+    const { min, max } = parseRange(w.range);
+    reaches.add(`${min}-${max}`);
+  }
+  return [...reaches].sort().join(',');
 }
 
 /**
@@ -305,9 +325,9 @@ export function threatsOnTile(ctx, col, row, { mover = null } = {}) {
 
 /**
  * A cheap fingerprint of everything threatsOnTile reads, so a cache can tell when
- * a remembered answer went stale (moves, deaths, roots, fog, weapons, staff uses,
- * and terrain: Grid.setTerrainAt bumps `terrainRevision` for Break, temporary
- * terrain and its expiry, villages and snapshot restores).
+ * a remembered answer went stale (moves, deaths, roots, fog, weapons, staff uses, the
+ * mover's own weapon reaches, and terrain: Grid.setTerrainAt bumps `terrainRevision` for
+ * Break, temporary terrain and its expiry, villages and snapshot restores).
  */
 export function threatWorldSignature(ctx, units = []) {
   const { grid } = ctx;
@@ -316,6 +336,9 @@ export function threatWorldSignature(ctx, units = []) {
     if (!u) continue;
     const alive = u.currentHP > 0 && !u._removing;
     let part = `${u.faction}:${u.col},${u.row}:${alive ? 1 : 0}`;
+    // A player unit may be the mover: its weapons' reaches decide whether a foe that cannot
+    // strike a tile still counters a blow from it.
+    if (u.faction === 'player' && alive) part += `:W${moverReachSignature(u)}`;
     if (u.faction !== 'player' && alive) {
       const visible = isThreatSourceVisible(grid, u) ? 1 : 0;
       const staff = statusStaffThreat(u);
