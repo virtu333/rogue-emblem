@@ -560,6 +560,25 @@ describe('what the court says (dialogue.json vigil, engine/VigilWords.js)', () =
     expect(calls[0].who).toMatch(/^circle:/);
   });
 
+  it('no line floats while a notice band of the phase is still on screen', async () => {
+    // On an upright phone the turned ring puts a Voice high on the board, under the band.
+    const { scene } = speaking();
+    const events = [];
+    scene.showBriefBanner = vi.fn(async (message) => {
+      events.push(`band:${message}`);
+      await Promise.resolve();
+      events.push('band:end');
+    });
+    scene._battleBeats.speakOver = vi.fn((unit) => events.push(`line:${unit.authoredId}`));
+    await scene.processVigil();
+    const bands = events.filter((e) => e.startsWith('band:') && e !== 'band:end');
+    expect(bands).toHaveLength(2);
+    expect(events.filter((e) => e.startsWith('line:')).length).toBeGreaterThan(1);
+    expect(events.findIndex((e) => e.startsWith('line:'))).toBeGreaterThan(
+      events.lastIndexOf('band:end'),
+    );
+  });
+
   it('the next phase walks on through each verse, and the roll call answers in turn', async () => {
     const { scene } = speaking();
     await scene.processVigil();
