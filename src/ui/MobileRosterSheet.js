@@ -1,5 +1,9 @@
 import { staffRunOptions } from '../engine/StaffBlessings.js';
-import { REVIVAL_STONE_DESCRIPTION, revivalStonesLine } from '../engine/RevivalStones.js';
+import {
+  REVIVAL_STONE_DESCRIPTION,
+  healthBarsBadge,
+  revivalStonesLine,
+} from '../engine/RevivalStones.js';
 import { skipsClassProgression } from '../engine/SpecialCharacterPolicy.js';
 import { rosterDeploySlots } from '../engine/BattleDeployCount.js';
 import { saveServiceRun } from './serviceSave.js';
@@ -470,12 +474,14 @@ export class MobileRosterSheet {
         summary.append(line);
         queueMicrotask(() => fitText(line, { min: 11 }));
       }
-      summary.append(
-        el(
-          'p',
-          `Lv ${getDisplayLevel(unit)} ${unit.className} · ${unit.tier === 'promoted' ? 'Promoted' : 'Base'} · HP ${unit.currentHP}/${unit.stats.HP}`,
-        ),
+      const facts = el(
+        'p',
+        `Lv ${getDisplayLevel(unit)} ${unit.className} · ${unit.tier === 'promoted' ? 'Promoted' : 'Base'} · HP ${unit.currentHP}/${unit.stats.HP}`,
       );
+      // A boss with Revival Stones: how many health bars it has left, beside its HP.
+      const barsBadge = healthBarsBadge(unit);
+      if (barsBadge) facts.append(' ', el('span', barsBadge, 'mb-hp-bars'));
+      summary.append(facts);
       summary.append(createHealthBar(unit));
       // EXP under the HP bar; enemies and NPCs have none (createXpRow returns null).
       const xpRow = createXpRow(unit, this.xpOptions());

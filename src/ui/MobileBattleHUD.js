@@ -53,6 +53,7 @@ import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { battleItemBrief, battleItemSummary, ITEM_ACTION_NOTE } from './battleItemSummary.js';
 import { BattlefieldLab, battlefieldLabEnabled } from './BattlefieldLab.js';
 import { createHealthBar } from './healthBar.js';
+import { healthBarsBadge } from '../engine/RevivalStones.js';
 import { textureImageSource } from './textureImageSource.js';
 import { hasInputFocus, pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
@@ -138,6 +139,15 @@ function el(tag, className, text) {
   if (className) node.className = className;
   if (text != null) node.textContent = String(text);
   return node;
+}
+
+/**
+ * "×3" after a stoned boss's HP line: the health bars it has left (engine/RevivalStones.js).
+ * Nothing for a unit with one bar left or none to begin with.
+ */
+function appendHealthBarsBadge(line, unit) {
+  const badge = healthBarsBadge(unit);
+  if (badge) line.append(' ', el('span', 'mb-hp-bars', badge));
 }
 
 /**
@@ -666,6 +676,7 @@ export class MobileBattleHUD {
             : ` → ${hpAfter}`,
         ),
       );
+    appendHealthBarsBadge(hp, unit);
     who.append(hp);
     side.append(
       createHealthBar(
@@ -1059,7 +1070,9 @@ export class MobileBattleHUD {
       this.summary.append(
         el('div', 'mb-detail', `${unit.className} · ${unit.weapon?.name || 'Unarmed'}`),
       );
-      this.summary.append(el('span', 'mb-hp', `${unit.currentHP}/${unit.stats.HP} HP`));
+      const hpLine = el('span', 'mb-hp', `${unit.currentHP}/${unit.stats.HP} HP`);
+      appendHealthBarsBadge(hpLine, unit);
+      this.summary.append(hpLine);
       // The Entity's two reaches: its blows stop short of where its weapons answer.
       const reach = entityReachInfo(unit);
       if (reach) this.summary.append(el('p', 'mb-gear', reach.text));

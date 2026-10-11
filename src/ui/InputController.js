@@ -18,6 +18,7 @@ import {
 } from '../engine/StatusConditionSystem.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
 import { xpBarFacts } from './xpBar.js';
+import { healthBarsBadge } from '../engine/RevivalStones.js';
 import {
   TOOLTIP_LONG_PRESS_MS,
   TOOLTIP_LONG_PRESS_MOVE_THRESHOLD,
@@ -144,7 +145,8 @@ export class InputController {
     if (hoveredVisible) {
       const lvl = getDisplayLevel(hovered);
       const cls = hovered.className || '';
-      info += `\n${hovered.name} Lv${lvl} ${cls} | HP ${hovered.currentHP}/${hovered.stats.HP}`;
+      const barsBadge = healthBarsBadge(hovered);
+      info += `\n${hovered.name} Lv${lvl} ${cls} | HP ${hovered.currentHP}/${hovered.stats.HP}${barsBadge ? ` ${barsBadge}` : ''}`;
       if (hovered.weapon) info += ` | ${hovered.weapon.name}`;
       const reach = entityReachInfo(hovered);
       if (reach) info += `\n${reach.text}`;

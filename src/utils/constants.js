@@ -450,6 +450,12 @@ export const RECRUIT_SKILL_POOL = [
 export const STARTING_ACCESSORY_TIERS = [null, 'Goddess Icon', 'Speed Ring', "Veteran's Crest"];
 export const STARTING_STAFF_TIERS = ['Heal', 'Mend', 'Recover'];
 
+/** Sera's starting staves at a Healer's Art tier: Heal always, plus the tier's staff. */
+export function startingStaffNames(tier) {
+  const upgrade = tier > 0 ? STARTING_STAFF_TIERS[tier] : null;
+  return upgrade ? [STARTING_STAFF_TIERS[0], upgrade] : [STARTING_STAFF_TIERS[0]];
+}
+
 // Biome weights per act (used by template selection)
 // Templates without a biome field are treated as 'grassland'.
 export const ACT_BIOME_WEIGHTS = {

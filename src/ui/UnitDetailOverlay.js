@@ -1,6 +1,10 @@
 import { staffRunOptions } from '../engine/StaffBlessings.js';
 import { affixSummaryText } from '../engine/AffixForecast.js';
-import { REVIVAL_STONE_DESCRIPTION, revivalStonesLine } from '../engine/RevivalStones.js';
+import {
+  REVIVAL_STONE_DESCRIPTION,
+  healthBarsBadge,
+  revivalStonesLine,
+} from '../engine/RevivalStones.js';
 import { skipsClassProgression } from '../engine/SpecialCharacterPolicy.js';
 import { canInspectUnit, carriedItemInfo, statusStaffInfo } from '../engine/BattleInformation.js';
 import { entityReachInfo } from '../engine/EntityReach.js';
@@ -338,7 +342,17 @@ export class UnitDetailOverlay {
       .setOrigin(0, 0)
       .setDepth(DEPTH_TEXT);
     this._unitObjects.push(barBg, barFill);
-    this._unitText(lx + barW + 6, y, `${unit.currentHP}/${unit.stats.HP}`, STAT_COLORS.HP, '10px');
+    const hpText = this._unitText(
+      lx + barW + 6,
+      y,
+      `${unit.currentHP}/${unit.stats.HP}`,
+      STAT_COLORS.HP,
+      '10px',
+    );
+    // A boss with Revival Stones: how many health bars it has left, beside its HP.
+    const barsBadge = healthBarsBadge(unit);
+    if (barsBadge)
+      this._unitText(hpText.x + hpText.width + 4, y, barsBadge, UI_PALETTE.info, '10px');
     y += 18;
     // EXP under the HP bar, as the DOM profile draws it (player units only).
     if (unit.faction === 'player' && unit.xp !== undefined) {
@@ -382,7 +396,7 @@ export class UnitDetailOverlay {
       const text = this._unitText(lx, y, stonesLine, UI_PALETTE.info, '9px');
       fitCanvasText(text, OVERLAY_W - 24);
       this._wireTooltipTarget(text, () =>
-        this._showSkillTooltip(text, `Revival Stones: ${REVIVAL_STONE_DESCRIPTION}`),
+        this._showSkillTooltip(text, `Health bars: ${REVIVAL_STONE_DESCRIPTION}`),
       );
       y += 14;
     }
