@@ -898,6 +898,72 @@ kind's PR in `03`; `04` only runs the agents.
 | An awake-at-start count is wrong | hand configs for each rule-2 case (deploy tile inside a holder's zone, `afterContact: 0`, `parOffset` with a short par, a cascade via `groupWoken`, a patrol in reach by turn 2) |
 | An outline lies | the dashed outline's tiles equal the tiles the `danger` wake reads, in paired worlds that differ by a hidden unit |
 
+### 7.1 Baseline and as built (PR 2.0)
+
+**As built.**
+- `sim/lib/TacticianAgent.js` takes `seek: 'push' | 'bait'`. A sleeper is a holder (`aiMode
+  'hold'`) or the rout-hold prototype (`_hold`); the target is the nearest sleeping group (by
+  `groupIdOf`), and seek acts only while no awake foe reaches the squad. The push scores its
+  Wait tiles by awake danger and distance to the group's posts; the bait keeps the squad at the
+  zone's edge (the group's reach plus weapon range) and lets one non-commander that would
+  survive step inside each turn. A recruit to reach still pulls the lords first. `PushAgent`
+  (always advancing) now lives beside it.
+- `sim/lib/PacingMetrics.js` attaches to a `HeadlessBattle` and records the §7 metrics:
+  contact turn (a non-clock wake, a hostile exchange, or a player unit in a seen awake foe's
+  Danger), each starting foe's first attack decision, groups woken and why, stuck-AI decisions
+  and AI time per enemy phase (the check plus every decision).
+- `sim/pacing.js` (`npm run sim:pacing`) reports them per rung × objective × policy, plays
+  several policies on the same seeds (`--policy turtle,push`) with the paired gap, and keeps
+  the old agent behind `--seek 0`.
+- `tests/sim/PacingSeek.test.js`: on a board whose every foe is one sleeping pack, both seek
+  modes wake it on turn 1 where the careful player waits to turn 3 or later; the push walks
+  closer to the posts than the plain push; a bait wakes it with one unit inside the zone; the
+  metrics count the battle as played.
+- Fixed on the way: `TacticianAgent` imported `plantsAmongPositions`, which `SiegeArtillery`
+  stopped exporting in #297 (artillery always holds its post now). Node refused the module, so
+  `node sim/pacing.js` crashed; vitest read the import as undefined.
+
+**Baseline** (48 paired seeds per rung, edge `act1:2,act2:6,act3:10,act4:12`, the build of
+PR 2.1; seek on unless marked; turns are means, S/C are rating shares, "forced" counts battles
+won by the action budget and left out of the rows):
+
+| Rung | Policy | Rout turns / S% | Seize turns / S% / C% | Run shadow | Forced | Contact p50 | First attack p25/50/75 | Engaged | Groups woken per seize | AI ms p95 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| First Light | turtle | 4.5 / 77 | 10.1 / 43 / 14 | 8.7 | 18 | T2 | T2/T3/T3 | 58% | 0 | 2.6 |
+| First Light | push | 3.8 / 89 | 7.4 / 82 / 8 | 3.3 | 21 | T2 | T2/T2/T3 | 59% | 0 | 2.5 |
+| Dusk | turtle | 6.3 / 43 | 8.3 / 31 / 12 | 35.9 | 6 | T2 | T2/T2/T3 | 64% | 1.1 | 3.6 |
+| Dusk | push | 4.9 / 69 | 5.6 / 56 / 0 | 7.6 | 5 | T1 | T2/T2/T3 | 63% | 1.1 | 3.3 |
+| Nightfall | turtle | 7.7 / 34 | 9.7 / 28 / 26 | 59.1 | 59 | T2 | T2/T2/T3 | 68% | 1.3 | 3.4 |
+| Nightfall | push | 6.1 / 57 | 7.5 / 46 / 9 | 27.1 | 53 | T1 | T2/T2/T3 | 68% | 1.2 | 3.2 |
+| Black Sun | turtle | 11.6 / 12 | 13.0 / 3 / 56 | 96.7 | 70 | T2 | T2/T3/T4 | 75% | 1.3 | 3.5 |
+| Black Sun | push | 9.7 / 28 | 11.1 / 11 / 41 | 85.8 | 63 | T2 | T2/T2/T3 | 74% | 1.3 | 3.2 |
+
+Seek on against `--seek 0`, same seeds (turtle; the push moves by less than the noise):
+
+| Rung | Seize turns | Seize S% / C% | Run shadow | Forced |
+|---|---|---|---|---|
+| Dusk | 8.5 → 8.3 | 25 / 14 → 31 / 12 | 37.0 → 35.9 | 3 → 6 |
+| Nightfall | 10.7 → 9.7 | 19 / 32 → 28 / 26 | 62.4 → 59.1 | 59 → 59 |
+| Black Sun | 14.0 → 13.0 | 2 / 64 → 3 / 56 | 95.9 → 96.7 | 64 → 70 |
+
+What it says:
+- **Today's maps have little to seek.** Contact is T1–T2 at the median on every rung and no
+  battle goes without it; rout maps have no sleepers, so seek changes only seize maps, where
+  it takes the turtle about a turn off (the packs it used to wait out). The rout pods of 2.6
+  are where seek matters, and §1.5's 53 Dusk turtle stalls are the number to re-measure then.
+- **The paired gap holds** (turtle − push run shadow: First Light 5.4, Dusk 28.2, Nightfall
+  32.0, Black Sun 10.9, compressed at the top by Totality's ceiling). §1.5's Dusk turtle
+  shadow (55.3) has drifted down to 36–37 since that scratch run, seek or not: re-baseline
+  from this table, not §1.5's.
+- **Forced battles on Nightfall and Black Sun** (about one seize battle a run, both policies,
+  seek on or off) are the harness agents failing to close some boss seize maps within the
+  action budget, not something seek introduced. Look at them before 2.5's calibration reads
+  seize turns.
+- **AI time** is 2.5–6 ms p95 per enemy phase in Node on a desktop core, well inside the
+  50 ms phone budget even allowing a 5–8x slower device; the escape rows are the highest
+  (pursuit waves).
+- First Light wakes no groups: it has no hold packs (`holdShare` is Dusk+).
+
 ## 8. PR breakdown
 
 | PR | Content | Behaviour change | Effort |
