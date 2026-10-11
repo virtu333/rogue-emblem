@@ -287,9 +287,16 @@ export const BALANCE_REVISIONS = Object.freeze([
   },
   {
     revision: 3, // 2026-10-08 balance: cheaper loot-chance upgrades, Steel Arms, Legends Awaken
-    // (Quick Feet, Lord Swiftness, their flat tracks and Deadly Arsenal II rose in price
-    // the same day: a rise owes nobody anything, so it is not listed.)
+    // Quick Feet, Lord Swiftness, their flat tracks and Deadly Arsenal II rose the same day.
+    // A rise credits nothing; it is listed (since revision 5) so a tier bought before it
+    // records the price it was paid (`legacyTierCosts`): its refund, and revision 5's cut
+    // of the growth tracks, start from that price, never the risen one.
     from: {
+      recruit_spd_growth: [65, 85, 130, 175, 260],
+      lord_spd_growth: [105, 150, 260, 365, 570],
+      recruit_spd_flat: [150, 365, 760],
+      lord_spd_flat: [250, 695, 1460],
+      weapon_tier_silver: [600],
       steel_arms: [800],
       legendary_lord_chance: [300, 600],
       trade_contacts: [150, 250],
@@ -299,6 +306,11 @@ export const BALANCE_REVISIONS = Object.freeze([
       heros_call: [150, 300, 500],
     },
     to: {
+      recruit_spd_growth: [75, 100, 150, 200, 300],
+      lord_spd_growth: [120, 175, 300, 420, 655],
+      recruit_spd_flat: [175, 420, 875],
+      lord_spd_flat: [290, 800, 1680],
+      weapon_tier_silver: [1000],
       steel_arms: [500],
       legendary_lord_chance: [150, 300],
       trade_contacts: [60, 100],
@@ -318,6 +330,47 @@ export const BALANCE_REVISIONS = Object.freeze([
     },
     to: {
       branching_threads: [100, 200, 300, 350],
+    },
+  },
+  {
+    revision: 5, // 2026-10-11 growth tracks: +3% a tier (was +5%), about 25% cheaper
+    // A tier bought before revision 3's Swiftness/Quick Feet rise is credited from what it
+    // cost then (its `legacyTierCosts` record), not from the risen price listed here.
+    from: {
+      recruit_hp_growth: [35, 40, 60, 85, 125],
+      recruit_str_growth: [45, 60, 90, 120, 180],
+      recruit_mag_growth: [35, 40, 45, 60, 90],
+      recruit_def_growth: [55, 75, 115, 155, 225],
+      recruit_spd_growth: [75, 100, 150, 200, 300],
+      recruit_skl_growth: [35, 40, 45, 60, 90],
+      recruit_res_growth: [35, 40, 50, 70, 100],
+      recruit_lck_growth: [35, 40, 45, 55, 80],
+      lord_hp_growth: [50, 70, 125, 175, 275],
+      lord_str_growth: [70, 105, 180, 255, 400],
+      lord_mag_growth: [50, 55, 90, 125, 200],
+      lord_def_growth: [90, 130, 230, 320, 495],
+      lord_spd_growth: [120, 175, 300, 420, 655],
+      lord_skl_growth: [50, 55, 90, 125, 200],
+      lord_res_growth: [50, 60, 100, 145, 225],
+      lord_lck_growth: [50, 55, 80, 110, 175],
+    },
+    to: {
+      recruit_hp_growth: [25, 30, 45, 65, 95],
+      recruit_str_growth: [35, 45, 70, 90, 135],
+      recruit_mag_growth: [25, 30, 35, 45, 70],
+      recruit_def_growth: [40, 55, 85, 115, 170],
+      recruit_spd_growth: [55, 75, 110, 150, 225],
+      recruit_skl_growth: [25, 30, 35, 45, 70],
+      recruit_res_growth: [25, 30, 40, 50, 75],
+      recruit_lck_growth: [25, 30, 35, 40, 60],
+      lord_hp_growth: [40, 50, 95, 130, 205],
+      lord_str_growth: [50, 80, 135, 190, 300],
+      lord_mag_growth: [40, 45, 70, 95, 150],
+      lord_def_growth: [70, 100, 170, 240, 370],
+      lord_spd_growth: [90, 130, 225, 315, 490],
+      lord_skl_growth: [40, 45, 70, 95, 150],
+      lord_res_growth: [40, 45, 75, 110, 170],
+      lord_lck_growth: [40, 45, 60, 80, 130],
     },
   },
 ]);
@@ -541,12 +594,17 @@ export class MetaProgressionManager {
   /**
    * A price rise owes nobody anything, but a tier bought at the old price must refund what
    * it cost: remember the old price of each tier in `tiersOf(id)` ([first, last], 1-based)
-   * for every revision newer than `savedRevision` (never over a price already recorded).
+   * for every revision newer than `savedRevision`, up to `throughRevision` (never over a
+   * price already recorded).
    */
-  _recordLegacyTierCosts(savedRevision, tiersOf = (id) => [1, this.getUpgradeLevel(id)]) {
+  _recordLegacyTierCosts(
+    savedRevision,
+    tiersOf = (id) => [1, this.getUpgradeLevel(id)],
+    throughRevision = Infinity,
+  ) {
     const settled = Math.max(0, Math.floor(Number(savedRevision) || 0));
     for (const { revision, from, to } of BALANCE_REVISIONS) {
-      if (revision <= settled) continue;
+      if (revision <= settled || revision > throughRevision) continue;
       for (const [id, oldCosts] of Object.entries(from)) {
         const [first, last] = tiersOf(id);
         for (let tier = Math.max(1, first); tier <= Math.min(last, oldCosts.length); tier++) {
@@ -558,17 +616,29 @@ export class MetaProgressionManager {
     }
   }
 
-  /** Credit every balance revision newer than the save's (see BALANCE_REVISIONS). */
+  /**
+   * Credit every balance revision newer than the save's (see BALANCE_REVISIONS), in order:
+   * a rise records what each owned tier was paid (`_recordLegacyTierCosts`); a cut credits
+   * what the tier was paid (that record, else the revision's old price) minus the new price,
+   * and a tier the cut brings down to (or below) what it was paid is no longer a legacy tier.
+   */
   _creditBalanceRevisionsSince(savedRevision) {
-    this._recordLegacyTierCosts(savedRevision);
     const settled = Math.max(0, Math.floor(Number(savedRevision) || 0));
     for (const { revision, from, to } of BALANCE_REVISIONS) {
       if (revision <= settled) continue;
+      this._recordLegacyTierCosts(revision - 1, undefined, revision);
       for (const [id, oldCosts] of Object.entries(from)) {
         const newCosts = to[id] || [];
         let credit = 0;
         for (let i = 0; i < Math.min(this.getUpgradeLevel(id), oldCosts.length); i++) {
-          credit += Math.max(0, oldCosts[i] - (Number(newCosts[i]) || 0));
+          const now = Number(newCosts[i]) || 0;
+          const legacy = Number(this.legacyTierCosts[id]?.[i + 1]);
+          const paid = Number.isFinite(legacy) && legacy > 0 ? legacy : oldCosts[i];
+          credit += Math.max(0, paid - now);
+          if (Number.isFinite(legacy) && legacy >= now) {
+            delete this.legacyTierCosts[id][i + 1];
+            if (Object.keys(this.legacyTierCosts[id]).length === 0) delete this.legacyTierCosts[id];
+          }
         }
         if (credit <= 0) continue;
         if (this.getCurrencyForUpgrade(id) === 'valor') this.totalValor += credit;

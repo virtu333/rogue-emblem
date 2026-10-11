@@ -1740,6 +1740,8 @@ marked `unmet: "???"` are a voice not yet met (`endingLinesFor`).
 3. **The Home Base grant is small:** one cheap upgrade of each currency. Lord upgrades start
    at 50 Valor and recruit upgrades at 35 Supply, so the grant is 50 Valor and 35 Supply (it was
    60 and 40 until the owner's retune of 2026-10-07, which also lowered First Light's run earnings).
+   The growth tracks' 2026-10-11 price cut (balance revision 5) brought the cheapest tiers to 40
+   Valor and 25 Supply; the grant stayed 50 and 35, still one cheap upgrade of each, never two.
 4. **The row-2 fork stays** (Market or Chapel). It is the prologue's only real route choice, and
    whichever service the player skips gets a first-visit note in Act 1.
 5. **Tamsin keeps her name** as a faint loop echo, unless the user asks otherwise.
