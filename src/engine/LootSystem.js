@@ -26,6 +26,7 @@ import { getWeaponArtAllowedTypes } from './WeaponArtSystem.js';
 import { getImbueStoneItems } from './ImbueSystem.js';
 import { isSignatureWeapon } from './SignatureWeapons.js';
 import { bindAccessorySkill } from './AccessorySkills.js';
+import { legendaryExclusions } from './LegendaryOwnership.js';
 
 const META_INNATE_TIERS = new Set(['Iron', 'Steel', 'Silver']);
 // Tiers an act tunes in lootTables.json `artTiers` (base art chance, scroll slots).
@@ -254,7 +255,13 @@ function buildWeaponUpgradePools(allWeapons, rosterTypes = null) {
   return poolsByType;
 }
 
-function boostWeaponQuality(baseWeapon, allWeapons, qualityBonusPercent, bonusPoolsByType) {
+function boostWeaponQuality(
+  baseWeapon,
+  allWeapons,
+  qualityBonusPercent,
+  bonusPoolsByType,
+  excludeNames = null,
+) {
   if (!baseWeapon || qualityBonusPercent <= 0) return baseWeapon;
 
   const baseType = typeof baseWeapon.type === 'string' ? baseWeapon.type : null;
@@ -270,7 +277,9 @@ function boostWeaponQuality(baseWeapon, allWeapons, qualityBonusPercent, bonusPo
 
   while (currentTierIndex < LOOT_WEAPON_TIER_UPGRADE_ORDER.length - 1) {
     const nextTier = LOOT_WEAPON_TIER_UPGRADE_ORDER[currentTierIndex + 1];
-    const nextPool = typeBuckets.get(nextTier) || [];
+    let nextPool = typeBuckets.get(nextTier) || [];
+    // A legendary the run already has is not an upgrade target: the roll lands on another of the tier.
+    if (excludeNames?.size) nextPool = nextPool.filter((entry) => !excludeNames.has(entry));
     if (nextPool.length === 0) break;
     if (Math.random() * 100 >= bonus) break;
 
@@ -983,6 +992,8 @@ export function generateLootChoices(
   const qualityBonusPercent = normalizeLootNumber(lootWeaponQualityBonus);
   const { pools, weights } = buildLootTablesFromAct(table, allWeapons, consumables);
   const options = generateOptions || {};
+  // Legendaries the run already owns (engine/LegendaryOwnership.js): never offered again.
+  const ownedLegendaries = legendaryExclusions(options.excludeLegendaryNames, allWeapons);
   const rosterTypes = roster ? getRosterWeaponTypes(roster) : null;
   pools.weaponArtScroll = [
     ...pools.weaponArtScroll,
@@ -1050,7 +1061,7 @@ export function generateLootChoices(
     // few attempts, so a small pool could fall back to a gold card while an
     // unused item remained (two items left: all nine retries repeat 0.2% of
     // the time).
-    pool = pool.filter((entry) => !usedNames.has(entry));
+    pool = pool.filter((entry) => !usedNames.has(entry) && !ownedLegendaries.has(entry));
     if (!pool.length) continue;
     let name = pool[Math.floor(Math.random() * pool.length)];
     if (category === 'weapon' && qualityBonusPercent > 0) {
@@ -1062,6 +1073,7 @@ export function generateLootChoices(
         allWeapons,
         qualityBonusPercent,
         qualityPoolsByType,
+        ownedLegendaries,
       );
       if (upgradedWeapon) name = upgradedWeapon.name;
     }
@@ -1139,6 +1151,7 @@ export function generateShopInventory(
     table.artTiers?.innateChance,
   );
 
+  const ownedLegendaries = legendaryExclusions(generateOptions?.excludeLegendaryNames, allWeapons);
   const recentNames = new Set(generateOptions?.recentItemNames || []);
   const preferFresh = (pool) => {
     const fresh = pool.filter((name) => !recentNames.has(name));
@@ -1168,7 +1181,7 @@ export function generateShopInventory(
   const filteredForge = normalizeLootArray(pools.forge);
 
   const addByName = (name, forcedType = null) => {
-    if (usedNames.has(name)) return false;
+    if (usedNames.has(name) || ownedLegendaries.has(name)) return false;
     const item = findItem(name, allWeapons, consumables, allAccessories);
     if (!item) return false;
     if (item.price <= 0) return false;
@@ -1266,7 +1279,9 @@ export function generateShopInventory(
       .filter((item) => item.price > 0)
       .map((item) => item.name),
   );
-  const fillPool = combinedPool.filter((name) => sellableNames.has(name));
+  const fillPool = combinedPool.filter(
+    (name) => sellableNames.has(name) && !ownedLegendaries.has(name),
+  );
   const maxAttempts = itemCount * 5;
   let attempts = 0;
 

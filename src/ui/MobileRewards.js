@@ -44,6 +44,7 @@ import { rewardRerollButtonState } from './rewardRerollButton.js';
 import { itemIcon, itemHero } from './itemIcons.js';
 import { itemKeywordRow } from './itemKeywordChips.js';
 import { itemKeywords, itemBaseLineFor } from '../engine/ItemKeywords.js';
+import { lotteryCardLine } from '../engine/LotteryLoot.js';
 const node = (tag, text, cls = '') => {
   const el = document.createElement(tag);
   el.className = cls;
@@ -280,6 +281,10 @@ export class MobileRewards {
       const said = new Set();
       if (keys && itemBaseLineFor(c.item) !== null) said.add(c.item.type);
       if (c.item && itemKeywords(c.item).length) said.add(c.item.special);
+      // Lottery Loot: this card came from the next act's spoils (engine/LotteryLoot.js); a card
+      // from the act's own table says nothing.
+      const lottery = lotteryCardLine(c);
+      if (lottery) lines.append(node('p', lottery, 'ch-lottery'));
       for (const line of text)
         if (line.trim() && !said.has(line.trim())) lines.append(node('p', line));
       plate.append(top, node('strong', label(c), 'ch-reward-name'));
@@ -296,7 +301,7 @@ export class MobileRewards {
       if (claimed) b.append(node('span', 'Claimed', 'ch-stamp'));
       b.setAttribute(
         'aria-label',
-        [label(c), presentation.label, whom?.who, whom?.detail, claimed ? 'Claimed' : '']
+        [label(c), presentation.label, lottery, whom?.who, whom?.detail, claimed ? 'Claimed' : '']
           .filter(Boolean)
           .join(' · '),
       );
@@ -497,14 +502,19 @@ export class MobileRewards {
    * `{ unit, extendedLevelingEnabled }` draws that unit's EXP bar under its line, at
    * its final value (Team XP: docs/specs/exp-bars.md §2.6; a list, not a moment).
    */
-  showNotice(title, lines, onContinue, { bars = null } = {}) {
-    this.notice = { title, lines, onContinue, bars };
+  /**
+   * A notice over the rewards (Team XP). `rerolls[i]` (optional) is line i's Branching
+   * Threads Reroll (ui/LevelUpRerollController.js): `state()` for the button, `run()` to
+   * commit one, returning `{ ok, line }` (the line rewritten for the new gains) or a message.
+   */
+  showNotice(title, lines, onContinue, { bars = null, rerolls = null } = {}) {
+    this.notice = { title, lines: [...lines], onContinue, bars, rerolls, message: '' };
     if (this.visible) this.render();
     else this.open();
     this.root?.querySelector('[data-focus="notice-continue"]')?.focus();
   }
   renderNotice() {
-    const { title, lines, bars } = this.notice;
+    const { title, lines, bars, rerolls, message } = this.notice;
     this.renderedStep = null;
     this.root.replaceChildren();
     this.root.classList.remove('ch-reward-screen');
@@ -521,14 +531,47 @@ export class MobileRewards {
         row.classList.add('reward-notice-xp');
         item.append(row);
       }
+      // Branching Threads: this unit's level, rolled again (the shared count on every line).
+      const shown = rerolls?.[i]?.state?.() || { hidden: true };
+      if (!shown.hidden) {
+        const reroll = this.button(shown.label, () => this.rerollNoticeLine(i));
+        reroll.className = 'ch-reroll reward-notice-reroll';
+        reroll.dataset.focus = `notice-reroll-${i}`;
+        reroll.title = shown.reason;
+        reroll.disabled = shown.disabled;
+        item.append(reroll);
+      }
       list.append(item);
     });
     const actions = node('div', null, 'mu-actions');
+    if (message) {
+      const status = node('p', message, 'mu-help reward-notice-status');
+      status.setAttribute('role', 'status');
+      actions.append(status);
+    }
     const go = this.button('Continue', () => this.closeNotice());
     go.className = 'mu-buy';
     go.dataset.focus = 'notice-continue';
     actions.append(go);
     this.root.append(header, list, actions);
+  }
+  /** Reroll line i's level (the controller commits and saves; a failure changes nothing). */
+  rerollNoticeLine(i) {
+    const notice = this.notice;
+    const reroll = notice?.rerolls?.[i];
+    if (!reroll || this.busy) return;
+    const out = reroll.run();
+    if (this.notice !== notice) return;
+    if (out?.ok) {
+      if (out.line) notice.lines[i] = out.line;
+      notice.message = 'New gains rolled.';
+      this.scene.registry?.get?.('audio')?.playSFX('sfx_confirm');
+    } else notice.message = out?.message || 'Could not reroll: nothing changed.';
+    this.render();
+    const again = this.root.querySelector(`[data-focus="notice-reroll-${i}"]:not(:disabled)`);
+    (again || this.root.querySelector('[data-focus="notice-continue"]'))?.focus({
+      preventScroll: true,
+    });
   }
   closeNotice() {
     const notice = this.notice;
@@ -668,6 +711,7 @@ export class MobileRewards {
       const compareOptions = {
         arts: this.scene.gameData?.weaponArts?.arts || [],
         imbues: this.scene.gameData?.imbues,
+        run,
       };
       this.pushStep({
         title: item.name,

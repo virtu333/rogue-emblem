@@ -3,8 +3,8 @@
 import { rollHit } from './HitRoll.js';
 import { TERRAIN } from '../utils/constants.js';
 
-const BALLISTA_MIGHT = 10;
-const BALLISTA_HIT = 85;
+export const BALLISTA_MIGHT = 10;
+export const BALLISTA_HIT = 85;
 // A ballista's reach grows with the act (playtest 2026-09-28): 3 in Act II, 4 in Act
 // III, 5 from Act IV on (ballistas never stand in Act I). Each ballista carries its
 // range in the locked battle config; one saved without it keeps the old 5.

@@ -1,8 +1,12 @@
 import { resolveHeal } from '../engine/Combat.js';
+import { staffRunOptions } from '../engine/StaffBlessings.js';
 import { isCureStaff, isHealStaff } from '../engine/StatusConditionSystem.js';
 import { STATUS_CONDITIONS } from '../utils/constants.js';
 
-/** Pure preview, with the same output and missing-HP cap as staff resolution. */
+/**
+ * Pure preview, with the same output and missing-HP cap as staff resolution. `opts`: the
+ * healer's StaffBlessings.staffRunOptions (the heal multiplier, Saint's Reliquary's heal).
+ */
 export function healTargetPreview(staff, healer, target, opts = {}) {
   if (!staff || !healer || !target) return null;
   const from = target.currentHP;
@@ -24,8 +28,11 @@ export function healTargetPreview(staff, healer, target, opts = {}) {
 }
 
 export function sceneHealPreview(scene, target) {
-  return healTargetPreview(scene.selectedUnit?.weapon, scene.selectedUnit, target, {
-    healingMultiplier:
-      scene.runManager?.blessingRuntimeModifiers?.healingEffectivenessMultiplier ?? 1,
-  });
+  const healer = scene.selectedUnit;
+  return healTargetPreview(
+    healer?.weapon,
+    healer,
+    target,
+    staffRunOptions(scene.runManager, healer),
+  );
 }

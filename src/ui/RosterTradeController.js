@@ -5,10 +5,17 @@
 // pickers reuse the same trade layer; cross-cutting seams are invoked via the
 // overlay's delegating wrappers so tests can intercept them as before.
 
+import { staffRunOptions } from '../engine/StaffBlessings.js';
 import { LORE_TEXT_COLOR } from '../utils/constants.js';
 import { hasProficiency, canEquip, inventoryDisplayOrder } from '../engine/UnitManager.js';
 import { applyTrade, planTrade, unitHolder } from '../engine/ItemTrade.js';
-import { getStaffRemainingUses, getStaffMaxUses, parseRange } from '../engine/Combat.js';
+import {
+  getEffectiveStaffRange,
+  getStaffHealBase,
+  getStaffRemainingUses,
+  getStaffMaxUses,
+  parseRange,
+} from '../engine/Combat.js';
 import { getConsumableDescription } from '../utils/consumableText.js';
 import { hasWeaponArt } from './WeaponArtVisibility.js';
 import {
@@ -117,12 +124,17 @@ export class RosterTradeController {
 
     // Line 2: Stats
     if (item.type === 'Staff') {
-      const rem = ownerUnit ? getStaffRemainingUses(item, ownerUnit) : '?';
-      const max = ownerUnit ? getStaffMaxUses(item, ownerUnit) : '?';
-      const healBase = item.healBase != null ? `Heal: MAG+${item.healBase}` : '';
+      const staffOptions = staffRunOptions(overlay.runManager, ownerUnit);
+      const rem = ownerUnit ? getStaffRemainingUses(item, ownerUnit, staffOptions) : '?';
+      const max = ownerUnit ? getStaffMaxUses(item, ownerUnit, staffOptions) : '?';
+      // The run's heal and reach count (Saint's Reliquary), as in battle.
+      const healBase =
+        item.healBase != null ? `Heal: MAG+${getStaffHealBase(item, staffOptions)}` : '';
       addText(paneX, line2Y, `${healBase}  Uses: ${rem}/${max}`, UI_PALETTE.muted);
       if (item.range) {
-        const rng = parseRange(item.range);
+        const rng = ownerUnit
+          ? getEffectiveStaffRange(item, ownerUnit, staffOptions)
+          : parseRange(item.range);
         const rngStr = rng.min === rng.max ? `${rng.max}` : `${rng.min}-${rng.max}`;
         addText(paneX + 240, line2Y, `Rng ${rngStr}`, UI_PALETTE.muted);
       }
@@ -370,8 +382,9 @@ export class RosterTradeController {
             segments.push({ text: '*', color: rowColor });
           }
           if (item.type === 'Staff') {
-            const rem = getStaffRemainingUses(item, unit);
-            const max = getStaffMaxUses(item, unit);
+            const staffOptions = staffRunOptions(overlay.runManager, unit);
+            const rem = getStaffRemainingUses(item, unit, staffOptions);
+            const max = getStaffMaxUses(item, unit, staffOptions);
             segments.push({ text: ` (${rem}/${max})`, color: rowColor });
           }
 

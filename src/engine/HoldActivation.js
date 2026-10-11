@@ -10,7 +10,9 @@
 //      red zone is the wake zone. A holder hidden in fog never wakes this way;
 //   2. was hurt, hexed (any status) or moved (marked when it happens, HoldDisturbance.js),
 //      or a packmate fell;
-//   3. sees the boss enrage (turn pressure).
+//   3. sees the boss enrage (turn pressure);
+//   4. reaches its wake turn (`holdWakeTurn`, an authored set piece's pack: the enemy phase of
+//      that turn, so a cautious army cannot wait the pack out for good).
 // Anti-turtle aggression never wakes a holder: otherwise a turtle would only have to wait.
 // MapGenerator writes the holders into the battle config, so a locked map, a resume or a
 // Vision rewind keeps them. AIController checks the wake rules at the top of every enemy
@@ -54,7 +56,7 @@ export function holdShareFor(holdShare, objective) {
 function holdCandidates({ spawns, objective, thronePos, escapeTiles, playerSpawns, mapLayout }) {
   // A siege-tome carrier (Breachbolt) never holds: its Danger zone covers most of the
   // map, so it would wake its pack on turn 1 once seen. It has its own stance instead:
-  // artillery, planted while a player unit is in siege range (SiegeArtillery.js).
+  // artillery, which holds its post and fires from it (SiegeArtillery.js).
   // Nor does a unit on lava or acid: the ground hurts it every turn on its own.
   const onHazard = (s) => isHazardTerrainIndex(mapLayout?.[s.row]?.[s.col]);
   const eligible = (spawns || []).filter(
@@ -183,6 +185,9 @@ export function applyHoldSpawn(enemy, spawn) {
   enemy.holdPack = Number.isInteger(spawn.holdPack) ? spawn.holdPack : 0;
   if (Number.isInteger(spawn.holdPackSize)) enemy.holdPackSize = spawn.holdPackSize;
   enemy.holdPost = { col: enemy.col, row: enemy.row };
+  if (Number.isInteger(spawn.holdWakeTurn) && spawn.holdWakeTurn > 0) {
+    enemy.holdWakeTurn = spawn.holdWakeTurn;
+  }
   return enemy;
 }
 
@@ -217,7 +222,7 @@ function threatened(unit, threatContext, positions, targets) {
 
 /**
  * Wake the packs whose members meet a wake rule (mutates them: aiMode cleared, `holdWoke`
- * records why). Call at the top of an enemy phase, with its turn number: the holders
+ * records why: 'turn' for the authored wake turn). Call at the top of an enemy phase, with its turn number: the holders
  * still holding afterwards record it (`holdCheckedTurn`, saved with the unit), so a
  * phase resumed from a checkpoint never checks again. By then enemies that already moved
  * may have opened new stop tiles, and a second check would break the exact restore.
@@ -251,6 +256,13 @@ export function wakeHolders({
   for (const unit of holders) {
     if (packReason.has(unit.holdPack)) continue;
     let reason = bossEnraged ? 'enrage' : disturbed(unit);
+    // Its authored wake turn has come (any member's: a pack shares one).
+    if (!reason && checked) {
+      const wakeAt = holders.find(
+        (h) => h.holdPack === unit.holdPack && Number.isInteger(h.holdWakeTurn),
+      )?.holdWakeTurn;
+      if (wakeAt !== undefined && turn >= wakeAt) reason = 'turn';
+    }
     // A member is gone (killed, even from outside every zone): the rest wake.
     if (!reason && living.get(unit.holdPack) < unit.holdPackSize) reason = 'fallen';
     if (!reason) {

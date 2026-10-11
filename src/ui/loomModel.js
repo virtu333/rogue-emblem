@@ -8,6 +8,7 @@
 
 import { fallCountdownText } from './eclipseContent.js';
 import { chosenLine } from '../engine/RuinsCommands.js';
+import { isSanctum } from '../engine/SanctumPass.js';
 
 export const LOOM_LANES = 5;
 
@@ -388,6 +389,19 @@ const ECLIPSED_TEXT = {
 // A fallen event that kept its story: the same road, a darker face (price and prize both higher).
 const DARK_OMEN_TEXT =
   'The dark took this road, but the story stayed. It wears a darker face now: a harsher price, a richer prize.';
+// The Old Sanctum (engine/SanctumPass.js): a church whose vow offers an earned blessing, and
+// what it says once that is settled (ChurchVow.sanctumStatus).
+export const SANCTUM_TEXT = 'An old sanctum: its vow offers an earned blessing.';
+export const SANCTUM_TAKEN_TEXT = 'An old sanctum: its vow gave you an earned blessing.';
+export const SANCTUM_SPENT_TEXT = 'An old sanctum: its vow is made. The earned blessing stays.';
+export const SANCTUM_EMPTY_TEXT = 'An old sanctum: no earned blessing is left on its altar.';
+const SANCTUM_LINES = {
+  unopened: SANCTUM_TEXT,
+  open: SANCTUM_TEXT,
+  taken: SANCTUM_TAKEN_TEXT,
+  spent: SANCTUM_SPENT_TEXT,
+  none: SANCTUM_EMPTY_TEXT,
+};
 const SERVICE = {
   shop: 'Buy, sell and forge equipment.',
   church: 'Heal, revive allies and promote units.',
@@ -402,6 +416,7 @@ export function loomShortLabel(node) {
   // A Dark Omen is a fallen event that kept its story (EclipseSystem.eclipseNode).
   if (node?.darkOmen === true) return 'OMEN';
   if (node?.eclipse) return 'ECLIPSED';
+  if (isSanctum(node)) return 'SANCTUM';
   const elite = BATTLE_TYPES.has(node?.type) && node?.battleParams?.isElite;
   return elite ? 'ELITE' : KIND[node?.type] || String(node?.type || '').toUpperCase();
 }
@@ -512,6 +527,7 @@ export function describeLoomNode(
     recruitMods = null,
     ruinsChoice = null,
     eventChoice = null,
+    sanctumStatus = null,
   } = {},
 ) {
   if (!node) return null;
@@ -597,6 +613,7 @@ export function describeLoomNode(
                 ? `You chose: ${eventChoice}`
                 : // An authored node (the prologue's) says what it holds itself.
                   (typeof node.preview === 'string' && node.preview) ||
+                  (isSanctum(node) ? SANCTUM_LINES[sanctumStatus] || SANCTUM_TEXT : null) ||
                   SERVICE[node.type] ||
                   objective?.[1] ||
                   '';
@@ -631,10 +648,22 @@ export function describeLoomNode(
     };
   else stateLine = { tone: 'cut', text: 'A frayed thread · out of reach' };
 
-  const warning =
+  const countdown =
     !eclipsed && eclipse?.near && Number.isFinite(eclipse.remaining) && state !== 'cut'
       ? fallCountdownText(eclipse.remaining)
       : null;
+  // Omen Reader: a foretold knot says where it stands in the falls to come, and a knot that falls
+  // together with others (one threshold, one fall) says so.
+  const omenShared = Math.max(0, Math.trunc(Number(eclipse?.omenShared) || 0));
+  const omenWith =
+    omenShared === 0 ? '' : omenShared === 1 ? ', with one other' : `, with ${omenShared} others`;
+  const omen =
+    !eclipsed && eclipse?.foretold === true && state !== 'done'
+      ? eclipse.omenRank === 1
+        ? `Omen: the dark takes this knot next${omenWith}.`
+        : `Omen: the dark takes this knot soon after the next${omenWith}.`
+      : null;
+  const warning = [countdown, omen].filter(Boolean).join(' ') || null;
 
   return {
     kind: darkOmen
@@ -643,7 +672,9 @@ export function describeLoomNode(
         ? 'ECLIPSED'
         : elite
           ? 'ELITE'
-          : KIND[node.type] || String(node.type || '').toUpperCase(),
+          : isSanctum(node)
+            ? 'OLD SANCTUM'
+            : KIND[node.type] || String(node.type || '').toUpperCase(),
     elite,
     eclipsed,
     warning,
@@ -659,6 +690,94 @@ export function describeLoomNode(
     flavor,
     stateLine,
   };
+}
+
+/** Who scouts a route preview, by the scout's rung (engine/BattleScout.js). */
+export const SCOUT_TITLES = Object.freeze({ foes: "Seer's Eye", carriers: "Thief's Lantern" });
+
+/** The node states whose card shows a scout: a battle still ahead (never the current, cut or done). */
+export const SCOUTED_LOOM_STATES = Object.freeze(['live', 'future']);
+
+/**
+ * Seer's Eye's line for what arrives after the starting foes (BattleScout.reinforcementsOf), or
+ * null for none.
+ * @param {{ waves?: number, endless?: boolean }|null} reinforcements
+ */
+export function scoutReinforcementLine(reinforcements) {
+  if (!reinforcements) return null;
+  const waves = Math.max(0, Math.trunc(Number(reinforcements.waves) || 0));
+  if (reinforcements.endless === true)
+    return waves > 0
+      ? `More arrive: ${waves} ${waves === 1 ? 'wave' : 'waves'}, and pursuers keep coming.`
+      : 'More arrive: pursuers keep coming.';
+  if (waves <= 0) return null;
+  return `More arrive: ${waves} ${waves === 1 ? 'wave' : 'waves'} of reinforcements.`;
+}
+
+/**
+ * A scouted battle (BattleScout.scoutBattle) as the inspect card's panel: a title (the earned
+ * blessing that scouts it), the note that says what the list assumes ("Scouted for 4 in the
+ * field", or the set map's "The foes that wait here"), and the foes, alike ones counted together:
+ * the boss first (by its name: "Boss · Warchief, Fighter Lv 7"), then by class and level. Seer's
+ * Eye lists every foe with its affixes and what it carries, and what arrives later (`more`);
+ * Thief's Lantern only the foes that carry something. Pure; null without a scout. `affixNames`
+ * maps an affix id to its name (an unknown id shows as itself).
+ * @returns {{ title: string, note: string, rows: Array<{ text: string, detail: string,
+ *   count: number, boss: boolean, carries: string|null }>, empty: string|null,
+ *   more: string|null, label: string }|null}
+ */
+export function describeBattleScout(scout, { affixNames = {} } = {}) {
+  if (!scout || !Array.isArray(scout.foes)) return null;
+  const title = SCOUT_TITLES[scout.level] || SCOUT_TITLES.foes;
+  const count = Math.max(0, Math.trunc(Number(scout.deployCount) || 0));
+  const note = scout.locked
+    ? 'The map is set: these foes wait here.'
+    : `Scouted for ${count} in the field.`;
+  const groups = new Map();
+  for (const foe of scout.foes) {
+    const affixes = (foe.affixes || []).map((id) => affixNames[id] || id);
+    const key = [
+      foe.isBoss,
+      foe.name || '',
+      foe.className,
+      foe.level,
+      affixes.join(','),
+      foe.carries || '',
+    ].join('|');
+    const group = groups.get(key);
+    if (group) group.count += 1;
+    else groups.set(key, { foe, affixes, count: 1 });
+  }
+  const detailOf = ({ foe, affixes }) =>
+    [affixes.join(', '), foe.carries ? `carries ${foe.carries}` : ''].filter(Boolean).join(' · ');
+  const rows = [...groups.values()]
+    .sort(
+      (a, b) =>
+        Number(b.foe.isBoss) - Number(a.foe.isBoss) ||
+        String(a.foe.className).localeCompare(String(b.foe.className)) ||
+        a.foe.level - b.foe.level ||
+        detailOf(a).localeCompare(detailOf(b)),
+    )
+    .map((group) => {
+      const { foe, count: n } = group;
+      const who = foe.isBoss
+        ? `Boss · ${foe.name ? `${foe.name}, ` : ''}${foe.className}`
+        : foe.className;
+      return {
+        text: `${who} Lv ${foe.level}${n > 1 ? ` ×${n}` : ''}`,
+        detail: detailOf(group),
+        count: n,
+        boss: foe.isBoss === true,
+        carries: foe.carries || null,
+      };
+    });
+  const empty = rows.length
+    ? null
+    : scout.level === 'carriers'
+      ? 'No foe here carries anything.'
+      : 'No foes wait here.';
+  const more = scout.level === 'carriers' ? null : scoutReinforcementLine(scout.reinforcements);
+  return { title, note, rows, empty, more, label: `${title} · ${note}` };
 }
 
 /**

@@ -25,6 +25,7 @@ import {
   getEffectiveStaffRange,
   gridDistance,
 } from '../engine/Combat.js';
+import { staffRunOptions } from '../engine/StaffBlessings.js';
 import {
   equipWeapon,
   canEquip,
@@ -43,6 +44,7 @@ import { staffAllyCandidates } from '../engine/RecruitNpc.js';
 import { canInspectUnit, seenTileOccupant } from '../engine/BattleInformation.js';
 import { showContextualHint } from './HintDisplay.js';
 import { CombatFxController } from './CombatFxController.js';
+import { restUnitAppearance, restUnitTint } from './UnitRestAppearance.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 import { EQUIPPED_MARKER } from './equippedBadge.js';
 
@@ -94,17 +96,19 @@ export class HealController {
     else normalizeEquippedFirst(unit);
   }
 
-  /** Resolver options for player staff heals (run blessing heal multiplier). */
-  getHealOptions() {
-    return {
-      healingMultiplier:
-        this.scene.runManager?.blessingRuntimeModifiers?.healingEffectivenessMultiplier ?? 1,
-    };
+  /**
+   * The run's staff options for `unit` (StaffBlessings): Saint's Reserve's uses, Saint's
+   * Reliquary's heal and reach, and the shrine's heal multiplier. Every count, heal and reach
+   * below reads them, so the menu, the targets, the preview and the heal agree.
+   */
+  staffOptions(unit) {
+    return staffRunOptions(this.scene.runManager, unit);
   }
 
   getUsableStaves(unit) {
+    const options = this.staffOptions(unit);
     return inventoryDisplayOrder(unit).filter(
-      (w) => w.type === 'Staff' && canEquip(unit, w) && getStaffRemainingUses(w, unit) > 0,
+      (w) => w.type === 'Staff' && canEquip(unit, w) && getStaffRemainingUses(w, unit, options) > 0,
     );
   }
 
@@ -134,11 +138,12 @@ export class HealController {
         scene.playerUnits,
         scene.grid,
         seenTileOccupant(scene.grid, (c, r) => scene.getUnitAt(c, r)),
+        this.staffOptions(unit),
       );
     }
-    const range = getEffectiveStaffRange(staff, unit);
+    const healOpts = this.staffOptions(unit);
+    const range = getEffectiveStaffRange(staff, unit, healOpts);
     const origin = from || unit;
-    const healOpts = this.getHealOptions();
     const targets = [];
     // Heal and cure staves mend green units too (recruit NPCs, the merchant
     // caravan), listed after the army.
@@ -158,7 +163,7 @@ export class HealController {
    * staff, an ally with a status. Fog hides an NPC the army cannot see, so a
    * long-range staff (or a coaching note) never reveals one by offering it.
    */
-  wouldMend(unit, staff, ally, healOpts = this.getHealOptions()) {
+  wouldMend(unit, staff, ally, healOpts = this.staffOptions(unit)) {
     if (!ally || ally === unit) return false; // Can't staff self
     if (ally.currentHP <= 0 || ally._removing) return false;
     if (!canInspectUnit(this.scene.grid, ally)) return false;
@@ -244,9 +249,9 @@ export class HealController {
       const itemY = menuPos.y + 6 + i * itemHeight + itemHeight / 2;
       const itemX = menuPos.x + 8;
       const marker = staff === unit.weapon ? EQUIPPED_MARKER : '  ';
-      const rem = getStaffRemainingUses(staff, unit);
-      const max = getStaffMaxUses(staff, unit);
-      const rng = getEffectiveStaffRange(staff, unit);
+      const rem = getStaffRemainingUses(staff, unit, this.staffOptions(unit));
+      const max = getStaffMaxUses(staff, unit, this.staffOptions(unit));
+      const rng = getEffectiveStaffRange(staff, unit, this.staffOptions(unit));
       const label = `${marker}${staff.name}\n   ${rem}/${max} uses  Rng ${rng.min}-${rng.max}`;
       const defaultColor = staff === unit.weapon ? UI_PALETTE.accentText : UI_PALETTE.text;
 
@@ -316,6 +321,7 @@ export class HealController {
       ally,
       scene.grid,
       seenTileOccupant(scene.grid, (c, r) => scene.getUnitAt(c, r)),
+      this.staffOptions(caster),
     );
     if (tiles.length === 0) return; // phase-1 filter should prevent this
     scene.staffRelocateAlly = ally;
@@ -354,6 +360,7 @@ export class HealController {
           healer,
           targets: [ally],
           usable: this.findHealTargets(healer, staff),
+          staffOptions: this.staffOptions(healer),
           dest,
           destinations: getRelocationDestinations(
             staff,
@@ -361,6 +368,7 @@ export class HealController {
             ally,
             scene.grid,
             seenTileOccupant(scene.grid, (c, r) => scene.getUnitAt(c, r)),
+            this.staffOptions(healer),
           ),
         }),
       settle: () => {
@@ -484,7 +492,13 @@ export class HealController {
         selected = all ? usable.filter((target) => targets?.includes(target)) : targets;
         return (
           (!all || staff?.healAll) &&
-          validateStaffAction({ staff, healer, targets: selected, usable })
+          validateStaffAction({
+            staff,
+            healer,
+            targets: selected,
+            usable,
+            staffOptions: this.staffOptions(healer),
+          })
         );
       },
       settle: () => {
@@ -497,7 +511,7 @@ export class HealController {
           staff,
           healer,
           targets: selected,
-          healOpts: this.getHealOptions(),
+          healOpts: this.staffOptions(healer),
           traits: scene.gameData?.traits,
           turn: scene.turnManager?.turnNumber,
           phase: scene.turnManager?.currentPhase,
@@ -516,8 +530,9 @@ export class HealController {
             () => scene._removeAllConditionIcons(facts.target),
             { scene },
           );
-          if (!facts.target.hasActed)
-            safeBattlePresentation('staff undim', () => scene.undimUnit(facts.target), { scene });
+          safeBattlePresentation('staff undim', () => restUnitAppearance(scene, facts.target), {
+            scene,
+          });
           await safeBattlePresentation('staff cure', () => this.animateCure(facts.target, healer), {
             scene,
           });
@@ -588,7 +603,8 @@ export class HealController {
 
     await scene._awaitSceneDelay(reduced ? 120 : 250, { label: 'animate_cure_tint_clear' });
     if (!isCurrentBattleSession(scene, session)) return;
-    if (target.graphic?.clearTint) target.graphic.clearTint();
+    // The look the target's state asks for now: an ally that had already acted stays spent.
+    restUnitTint(target);
     await scene._awaitSceneDelay(reduced ? 100 : 250, { label: 'animate_cure_tail' });
     if (!isCurrentBattleSession(scene, session)) return;
   }
@@ -630,7 +646,8 @@ export class HealController {
 
     await scene._awaitSceneDelay(reduced ? 120 : 250, { label: 'animate_heal_tint_clear' });
     if (!isCurrentBattleSession(scene, session)) return;
-    if (target.graphic?.clearTint) target.graphic.clearTint();
+    // The look the target's state asks for now: an ally that had already acted stays spent.
+    restUnitTint(target);
     await scene._awaitSceneDelay(reduced ? 100 : 250, { label: 'animate_heal_tail' });
     if (!isCurrentBattleSession(scene, session)) return;
   }

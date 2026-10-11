@@ -1,6 +1,10 @@
 import { validateBlessingsConfig } from './BlessingEngine.js';
 import { validateDifficultyConfig } from './DifficultyEngine.js';
-import { reinforcementTurnOffsetsFrom, validateMapTemplatesConfig } from './MapTemplateEngine.js';
+import {
+  maxReinforcementDelayFrom,
+  reinforcementTurnOffsetsFrom,
+  validateMapTemplatesConfig,
+} from './MapTemplateEngine.js';
 
 // DataLoader — fetches and parses game data JSON files
 
@@ -67,6 +71,7 @@ export class DataLoader {
       prologue,
       events,
       marks,
+      setPieces,
     ] = await Promise.all([
       this.loadJSON('data/terrain.json'),
       this.loadJSON('data/lords.json'),
@@ -103,6 +108,9 @@ export class DataLoader {
       this.loadOptionalJSON('data/events.json'),
       // Recruit Marks (docs/specs/phase3.md 3C). Optional: a build without it rolls none.
       this.loadOptionalJSON('data/marks.json'),
+      // Event set pieces (docs/specs/event-set-pieces.md). Optional: without it an event's
+      // fight is an ordinary rout. Validated by `npm run validate:data`.
+      this.loadOptionalJSON('data/setPieces.json'),
     ]);
     this.terrain = terrain;
     this.lords = lords;
@@ -133,6 +141,7 @@ export class DataLoader {
     this.prologue = prologue;
     this.events = events;
     this.marks = marks;
+    this.setPieces = setPieces;
     if (this.blessings) {
       const validation = validateBlessingsConfig(this.blessings);
       if (!validation.valid) {
@@ -141,6 +150,8 @@ export class DataLoader {
     }
     const mapTemplateValidation = validateMapTemplatesConfig(this.mapTemplates, {
       reinforcementTurnOffsets: reinforcementTurnOffsetsFrom(this.difficulty),
+      // Hollow Hourglass: a wave can come a turn later than its rung schedules it.
+      maxReinforcementDelay: maxReinforcementDelayFrom(this.blessings),
     });
     if (!mapTemplateValidation.valid) {
       throw new Error(`Invalid map templates data: ${mapTemplateValidation.errors.join('; ')}`);
@@ -179,6 +190,7 @@ export class DataLoader {
       prologue,
       events,
       marks,
+      setPieces,
     };
   }
 

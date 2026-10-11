@@ -15,6 +15,7 @@ import { XP_BASE_DANCE } from '../utils/constants.js';
 import { UI_HEX, UI_PALETTE } from '../utils/uiStyles.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { growthCeremonies } from './GrowthCeremonyController.js';
+import { restUnitAppearance } from './UnitRestAppearance.js';
 
 function isActor(scene, unit) {
   return !!unit && scene.playerUnits.includes(unit) && unit.currentHP > 0 && !unit.hasActed;
@@ -24,7 +25,7 @@ function isActor(scene, unit) {
  * acted lifts, with a heal chime, a buff glint and a sparkle. Dance and Goddess Dance share it.
  */
 export function presentRefreshSparkle(scene, ally) {
-  safeBattlePresentation('dance refresh graphic', () => scene.undimUnit(ally), { scene });
+  safeBattlePresentation('dance refresh graphic', () => restUnitAppearance(scene, ally), { scene });
   safeBattlePresentation(
     'dance sparkle',
     () => {
@@ -204,6 +205,7 @@ export class MovementActionController {
           battleRecruits: scene._battleRecruits,
           runManager: scene.runManager,
           turn: scene.turnManager?.turnNumber,
+          battleBlessings: scene._battleBlessings || null,
         });
         scene._battleRecruits = result.battleRecruits;
         observeHistoryAction(scene, 'recruited', lord, npc);

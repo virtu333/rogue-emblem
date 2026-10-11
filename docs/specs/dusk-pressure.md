@@ -97,14 +97,14 @@ use: on its own scale, the ladder hurts weak play more than strong play.
 
 ## 2. Changes
 
-### 2a. Rout reinforcement ladder (Dusk and Nightfall, one PR)
+### 2a. Rout reinforcement ladder (Dusk, Nightfall and Black Sun)
 
-A finite schedule of waves starts early and comes every 2 turns, each wave larger and
-higher-level. Clearing the field cancels the waves still pending (the victory rule is
+A finite schedule of waves starts on turn 4 (Black Sun Acts II–IV: turn 3) and comes
+every 4 turns on Dusk and every 3 on Nightfall and Black Sun, each wave larger and
+higher-level (retuned 2026-10-10; it used to come every 2 turns). Clearing the field cancels the waves still pending (the victory rule is
 unchanged). A fast clear sees few waves; a turtle sees them all.
 
-**Data.** `routLadder` per mode in `difficulty.json`: `null` on First Light and on
-Black Sun (see 2d). Each act lists its waves as `{ turn, count: [min, max], levels?,
+**Data.** `routLadder` per mode in `difficulty.json`: `null` on First Light. Each act lists its waves as `{ turn, count: [min, max], levels?,
 promoted? }`. `turn` is the enemy phase whose end brings the arrival. Counts are
 absolute: no `enemyCountBonus`, no turn offset, no jitter. `xp` is the per-wave reward
 multiplier (0 past the list), and gold uses the same value. A template opts out with
@@ -112,8 +112,9 @@ multiplier (0 past the list), and gold uses the same value. A template opts out 
 
 | Rung | Act I | Act II | Act III | Act IV (+ final) | `xp` | Promoted |
 |---|---|---|---|---|---|---|
-| Dusk | T4 1, T6 1–2 | T4 1–2, T6 2 (+1), T8 2–3 (+1) | T4 2, T6 2 (+1), T8 2–3 (+1), T10 2–3 (+2) | T4 2, T6 2–3 (+1), T8 2–3 (+1), T10 3 (+2) | .75 .5 .25 .1 | never |
-| Nightfall | T4 1–2, T7 1–2 (+1) | T3 1–2, T5 2 (+1), T7 2–3 (+1), T9 2–3 (+2) | T3 2, T5 2–3 (+1), T7 2–3 (+1), T9 3 (+2) | same as III | .75 .5 .25 .1 | 4th wave, Act III+ |
+| Dusk | T4 1, T8 1–2 | T4 1–2, T8 2 (+1), T12 2 (+1) | T4 2, T8 2 (+1), T12 2 (+2) | T4 2, T8 2–3 (+1), T12 2–3 (+2) (no final) | .75 .5 .25 .1 | never |
+| Nightfall | T4 1–2, T7 1–2 (+1) | T4 1–2, T7 2 (+1), T10 2–3 (+1) | T4 2, T7 2–3 (+1), T10 3 (+2) | same as III | .75 .5 .25 .1 | last wave, Act III+ |
+| Black Sun | T4 1–2, T7 2 (+1) | T3 2, T6 2–3 (+1), T9 2–3 (+1) | T3 2, T6 2–3 (+1), T9 3 (+1), T12 3 (+2) | T3 2–3, T6 3 (+1), T9 3 (+1), T12 3 (+2) | .75 .5 .25 .1 | last wave, Act III+ |
 
 - **Nightfall Act I retune (2026-10-04).** A playtest found Nightfall Act I rout maps too
   heavy: the first map fielded 6 enemies against 2 lords, then sent 4–6 reinforcements
@@ -349,6 +350,23 @@ within MOV + 10 it walked toward the nearest player unit.
   board after its planned move (planted: struck only from the post) and every foe with
   its next strike weapon (a spent Breachbolt gives way to its fallback).
 
+**Post-holding casters (owner, supersedes the stance, fallback and Danger bullets above
+where they differ).** Siege casters and status-staff casters never walk. Every enemy
+whose next strike weapon is a siege tome with shots left, or that carries a Sleep or
+Silence Staff with a use left, holds its post for the whole phase whatever the player
+does (`holdsPost`; the stance is `planted: true` for every such unit and no longer reads
+the board). Artillery fires at the best target 3-10 away or waits; a staff caster casts
+at the best unit in staff reach, else strikes with its weapon from the post, else waits
+(`AIController._decideAction` takes movement range 0). Danger, Threat Sight and the
+inspected reach draw the reach from the post (siege ring; staff ring plus weapon reach),
+never a walk. Shots or staff uses spent: the unit is an ordinary caster again and
+advances. A staff caster with nothing in reach ends on `post_hold` (no chase, no wall
+breaking). Village bandits (`seek_tile`) keep their own orders, and so does a siege
+carrier, which is never a holder. **Exception:** a staff caster can still be chosen as a
+hold-pack member; when its pack wakes it keeps holding its post rather than hunting
+(the Danger zone drawn while it held is larger than its real reach, so this is safe for the
+player). A holder that has not woken (`hold`) waits as before.
+
 **Frequency (PR 4).** `statusStaffConfig` and `siegeWeaponConfig` with
 `perBattle: true` give, per act, the chance that a battle has one, rolled only when an
 eligible caster is on the map (Mage, Sage, Bishop for staves; Sage, Warlock, Dark
@@ -419,13 +437,86 @@ Given an eligible caster, the share matches the rung's chance (Nightfall Act IV 
     seize do not move. Par gold per run, push: Dusk 23.6k → 22.4k, Nightfall 23.0k →
     21.6k, Black Sun 17.8k → 17.1k (accepted). Final shadow, push: Dusk 16.8 → 20.6,
     Nightfall 32.8 → 37.3, Black Sun 74 → 75; First Light turtle 0.8 → 4.7.
-- **Black Sun:** keeps its current template waves and only loses the per-wave par bump
+- **Black Sun:** (rout superseded 2026-10-10: Black Sun rout maps run the ladder, see
+  "Reinforcement pacing retune" below; seize and escape keep the rest of this.) Keeps
+  its current template waves and only loses the per-wave par bump
   (they become par-neutral like the ladder): `templateWavesRaisePar: false` marks the
   procedural waves of every Black Sun map (`reinforcements.wavesRaisePar`). Scripted
   waves (village bandits, boss keeps) still add one. Shadow push 31.5 → 55.4 ± 2.6, turtle
   47.3 → 73.5 ± 2.3 (Umbral or worse in 44 of 48 runs). The calibrated army is
   Dusk-strength, so the real Black Sun numbers will be lower. Re-run with a Black Sun
   calibration before release.
+
+- **Reinforcement pacing retune (2026-10-10; its schedule is superseded by the wave
+  spacing retune below, its measurements of the template waves stand).** A playtest said rout fights drag on because
+  waves arrive too fast on some maps. Measured with the real generator and scheduler (40
+  seeds per cell, mean arrivals over a whole battle, rout):
+
+  | Rung | Act II | Act III | Act IV | By turn 4 (Act III) |
+  |---|---|---|---|---|
+  | Dusk before / after | 6.0 / 6.0 | 9.1 / 8.0 | 10.0 / 8.5 | 2.0 / 2.0 |
+  | Nightfall (unchanged) | 8.5 | 10.0 | 10.0 | 2.0 |
+  | Black Sun before / after | 16.3 / 10.4 | 15.8 / 11.5 | 18.8 / 11.5 | 5.8 / 2.5 |
+
+  Black Sun was the outlier: its template waves took a -3 turn offset and +2 on every
+  wave's count, so it fielded nearly twice Nightfall's arrivals and four or five of them
+  by turn 4 (on a 10-12 enemy opening force). Dusk's Acts III-IV matched Nightfall's total.
+  - **Black Sun gets a ladder** (Acts II-IV and the final boss; Act I has no rout waves on
+    that rung, as before). It replaces the template waves on rout maps only: finite, one
+    edge per wave, never within 3 tiles of a player, par-neutral and telegraphed like the
+    other rungs. Four waves on T3/5/7/9, a little over Nightfall's total (10.4 / 11.5 / 11.5
+    against 8.5 / 10 / 10), the fourth wave promoted from Act III. Seize and escape keep
+    their template waves and `templateWavesRaisePar: false`. A Black Sun run saved before
+    this keeps its template waves (the run's saved modifiers carry no ladder).
+  - **Dusk Acts III-IV trimmed** one or two arrivals (8.0 and 8.5 in all), so the rungs
+    climb in order: Dusk < Nightfall < Black Sun in every act.
+  - The reverse decision of 2d's "Black Sun keeps its waves" (owner 2026-10-01) now that
+    the waves are measured; restoring it is the one `routLadder: null` in difficulty.json.
+  - `tests/RoutLadder.test.js` holds the three tables and the rung order.
+
+- **Wave spacing retune (2026-10-10, owner).** Waves every 2 turns still landed through
+  most of a ~10-turn par. Now: Dusk every 4 turns from T4 (Act I T4/T8), Nightfall and
+  Black Sun every 3 from T4 (Black Sun Acts II–IV from T3, larger waves). Nightfall drops
+  to three waves from Act II (the last promoted from Act III); Black Sun gains Act I waves
+  (T4 1–2, T7 2), which it never had (the template waves it kept were gated to Act II+).
+  The §2a table is the current schedule. Mean arrivals, whole battle / up to T10 (about a
+  rout par):
+
+  | Rung | Act I | Act II | Act III | Act IV |
+  |---|---|---|---|---|
+  | Dusk | 2.5 / 2.5 | 5.5 / 3.5 | 6.0 / 4.0 | 7.0 / 4.5 |
+  | Nightfall | 3.0 / 3.0 | 6.0 / 6.0 | 7.5 / 7.5 | 7.5 / 7.5 |
+  | Black Sun | 3.5 / 3.5 | 7.0 / 7.0 | 10.5 / 7.5 | 11.5 / 8.5 |
+
+  Both figures climb Dusk < Nightfall < Black Sun in every act, except that up to T10
+  Black Sun Act III equals Nightfall (it arrives a turn earlier and adds a promoted
+  fourth wave). Runs in progress keep
+  the table they started with (`RunManager.fromJSON` restores the saved
+  `difficultyModifiers`), on every rung: a Dusk or Nightfall run saved before keeps the
+  2-turn ladder, a Black Sun one its template waves. The summary line on the difficulty
+  screen reads the spacing from the data ("every 4 turns" / "every 3 turns").
+
+  `sim/pacing.js` (now also reporting p90 turns, arrivals and would-be KOs by turn 4,
+  battle gold and levels gained), calibrated edge, the same 16 seeds per cell, rout
+  battles, main → this table. The harness protects every unit, so every run is won;
+  would-be KOs stand in for casualties.
+
+  | Rung, policy | Turns mean / p90 | Arrivals (by T4) | KOs per battle (by T4) | Final shadow | Battle gold per run | Levels per run |
+  |---|---|---|---|---|---|---|
+  | Dusk turtle | 7.4 / 13 → 6.1 / 9 | 3.5 (1.4) → 1.7 (1.4) | 1.2 (0.7) → 1.2 (0.7) | 60 → 33 | 45.6k → 44.9k | 100 → 97 |
+  | Dusk push | 5.3 / 10 → 4.8 / 7 | 1.8 (1.0) → 1.1 (1.0) | 0.5 (0.4) → 0.5 (0.4) | 13 → 6 | 40.3k → 40.9k | 101 → 99 |
+  | Nightfall turtle | 9.2 / 14 → 7.4 / 12 | 5.6 (1.9) → 2.6 (1.6) | 2.4 (1.0) → 1.8 (1.0) | 79 → 54 | 51.7k → 48.2k | 103 → 102 |
+  | Nightfall push | 7.2 / 12 → 6.2 / 10 | 3.9 (1.8) → 1.8 (1.3) | 1.7 (1.0) → 1.6 (1.0) | 38 → 23 | 46.3k → 44.5k | 103 → 102 |
+  | Black Sun turtle | 11.2 / 17 → 11.7 / 17 | 9.9 (5.0) → 5.3 (2.3) | 9.8 (2.2) → 9.7 (2.1) | 95 → 95 | 71.5k → 60.2k | 106 → 101 |
+  | Black Sun push | 9.8 / 16 → 9.8 / 16 | 8.9 (4.8) → 4.5 (2.3) | 8.2 (2.5) → 7.8 (2.2) | 81 → 78 | 66.8k → 53.7k | 102 → 101 |
+
+  Dusk and Nightfall fights end sooner with a shorter tail and no more early pressure
+  than before (the T4 wave is unchanged). On Black Sun the early arrivals halve, but
+  turns and would-be KOs barely move: the harness army (Dusk-calibrated) is beaten by the
+  opening force on that rung either way, so these rows bound the change, not its feel.
+  Black Sun loses 16–20% of battle gold per run and 1–5% of levels. Black Sun seize maps
+  still take the template waves (about 18 arrivals if a fight runs to T11; 8–10 per
+  battle in the sims, against Nightfall's 4–5) and are untouched here.
 
 ## 3. Risks, targets, tests, rollout
 
@@ -496,7 +587,8 @@ stack, or rebase onto it.
 - **Rout hold share:** 0% for now. Ship the ladder alone and re-measure.
 - **Deeds:** count the kill, but exclude zero-reward units from `maxKillLevelGap` and the
   terrain/weapon tallies. Stop survival-XP farming as well.
-- **Black Sun:** keep its waves and drop the par bump.
+- **Black Sun:** keep its waves and drop the par bump. (Rout reversed 2026-10-10: the
+  ladder, see 2d's retune note.)
 - **Dusk staves:** Silence only, from Act III.
 - **Breachbolt:** player 3, enemy 5.
 - **Map sizes:** keep.

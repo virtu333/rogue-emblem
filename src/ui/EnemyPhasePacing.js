@@ -29,7 +29,11 @@ import { enemyPhaseSpeed, speedDuration } from '../utils/combatTiming.js';
 export const ENEMY_BEAT_MS = 300;
 export const ENEMY_BEAT_LABEL = 'enemy_between_units';
 
-/** Can the player see this tile now? With fog off every tile is seen. */
+/**
+ * Can the player see this tile now (the ground: a wall broken there)? With fog off every tile is
+ * seen. A unit's step is never read here: BattleInformation.isUnitSeenAt is the rule for a body
+ * (Seer's Eye shows every foe's).
+ */
 export function isTileSeen(grid, col, row) {
   if (!grid?.fogEnabled) return true;
   return grid.isVisible?.(col, row) === true;

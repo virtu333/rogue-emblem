@@ -1,10 +1,18 @@
-import { element } from './MenuSurface.js';
+import { button, element } from './MenuSurface.js';
 import { createNodeArt } from './NodeArt.js';
 import { nodeFrame } from './RouteGraph.js';
-import { describeLoomNode, describeRecruitPreview, loomHeader } from './loomModel.js';
+import {
+  SCOUTED_LOOM_STATES,
+  describeBattleScout,
+  describeLoomNode,
+  describeRecruitPreview,
+  loomHeader,
+} from './loomModel.js';
+import { scoutBattle } from '../engine/BattleScout.js';
 import { traitLines, markLine } from './traitContent.js';
 import { ruinsChoice } from '../engine/RuinsCommands.js';
 import { eventView } from '../engine/EventCommands.js';
+import { sanctumStatus } from '../engine/ChurchVow.js';
 import { contractRewardOwedAt } from '../engine/Contracts.js';
 import { crestElement } from './crestArt.js';
 import { regionName } from './placeDisplay.js';
@@ -166,6 +174,64 @@ function recruitBlock(view) {
 }
 
 /**
+ * Thief's Lantern and Seer's Eye show the foes the scout found (describeBattleScout), as a titled list.
+ * Read-only text: no control, nothing to focus.
+ */
+function scoutBlock(view) {
+  const block = element('section', null, 're-loom-scout');
+  block.setAttribute('aria-label', view.label);
+  const head = element('p', null, 're-loom-scout-head');
+  head.append(element('strong', view.title), document.createTextNode(` · ${view.note}`));
+  block.append(head);
+  if (view.rows.length) {
+    const list = element('ul', null, 're-loom-scout-list');
+    for (const row of view.rows) {
+      const item = element('li', null, row.boss ? 'is-boss' : '');
+      item.append(element('span', row.text, 're-loom-scout-foe'));
+      if (row.detail) item.append(element('span', ` · ${row.detail}`, 're-loom-scout-detail'));
+      list.append(item);
+    }
+    block.append(list);
+  } else if (view.empty) block.append(element('p', view.empty, 're-loom-scout-empty'));
+  if (view.more) block.append(element('p', view.more, 're-loom-scout-more'));
+  return block;
+}
+
+/** The scout's view of `node` for the card, or null (none held, not a battle, a failed build). */
+function scoutView(rm, node, gameData) {
+  try {
+    const scout = rm ? scoutBattle(rm, node) : null;
+    if (!scout) return null;
+    const affixNames = Object.fromEntries(
+      (gameData?.affixes?.affixes || []).map((a) => [a.id, a.name]),
+    );
+    return describeBattleScout(scout, { affixNames });
+  } catch (err) {
+    console.warn('[Loom] scout failed:', err);
+    return null;
+  }
+}
+
+/**
+ * Open Roll: the node's other candidate, and the button that meets them instead
+ * (`onSwap`: the route map's swap, which saves and redraws the card).
+ */
+function recruitAlternateBlock(view, onSwap) {
+  const block = element('section', null, 're-loom-recruit-alt');
+  block.setAttribute('aria-label', `Open Roll: ${view.name} also answers the call`);
+  block.dataset.recruitAlternate = view.name;
+  const line = element('p', null, 're-loom-recruit-alt-line');
+  line.append(
+    document.createTextNode('Open Roll · also waiting: '),
+    element('strong', view.name),
+    document.createTextNode(` · ${view.className} · Lv ${view.level}`),
+  );
+  const swap = button(`Meet ${view.name} instead`, onSwap, 're-btn re-loom-recruit-swap');
+  block.append(line, swap);
+  return block;
+}
+
+/**
  * Fill `card` with the inspect view of `node`.
  * @param {HTMLElement} card
  * @param {object} node
@@ -217,6 +283,8 @@ export function renderLoomCard(card, node, ctx = {}) {
     recruit,
     recruitMods: rm?.getRecruitNodeBattleMods?.(node) || null,
     ruinsChoice: node.type === 'ruins' && rm ? ruinsChoice(rm, node.id) : null,
+    // The Old Sanctum's line follows its vow (offered, taken, spent, nothing left).
+    sanctumStatus: node.type === 'church' && rm ? sanctumStatus(rm, node.id) : null,
     // A visited event keeps the line of what was chosen there.
     eventChoice:
       node.type === 'event' && rm && (!node.eclipse || node.darkOmen === true)
@@ -265,7 +333,29 @@ export function renderLoomCard(card, node, ctx = {}) {
     }
     card.append(tags);
   }
+  // Thief's Lantern and Seer's Eye show the foes waiting at a battle still ahead (a live or
+  // future node, an eclipsed battle too: its foes are as real as any), never where the party
+  // stands, a road cut off or a node already walked.
+  const scout = SCOUTED_LOOM_STATES.includes(state) ? scoutView(rm, node, gameData) : null;
+  if (scout) card.append(scoutBlock(scout));
   if (info.recruit) card.append(recruitBlock(info.recruit));
+  // Open Roll: the other candidate, swappable until the encounter is set (travel only: the
+  // read-only Campaign Map passes no onSwapRecruit). A lord roll makes both candidates the same
+  // lord (the node's unit stream decides it), so then there is nothing to choose.
+  const alternate =
+    info.recruit && !info.recruit.isLord && typeof ctx.onSwapRecruit === 'function'
+      ? rm?.getRecruitAlternate?.(node.id) || null
+      : null;
+  if (alternate) {
+    let altView = null;
+    try {
+      altView = describeRecruitPreview(rm.getRecruitNodeUnit(node, { preview: alternate }), {});
+    } catch (err) {
+      console.warn('[Loom] recruit alternate failed:', err);
+    }
+    if (altView && !altView.isLord)
+      card.append(recruitAlternateBlock(altView, () => ctx.onSwapRecruit(node.id)));
+  }
   if (text && !info.recruit) card.append(text);
   if (info.warning) card.append(element('p', info.warning, 're-loom-eclipse-warn'));
   if (info.flavor) card.append(element('p', `“${info.flavor}”`, 're-loom-flavor'));

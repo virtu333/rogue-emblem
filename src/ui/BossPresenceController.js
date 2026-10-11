@@ -25,6 +25,7 @@ import { UI_HEX } from '../utils/uiStyles.js';
 import { getBossEnrageTurn } from '../engine/TurnBonusCalculator.js';
 import { isEntity } from '../engine/EntitySystem.js';
 import { revivalStoneCount } from '../engine/RevivalStones.js';
+import { canInspectUnit } from '../engine/BattleInformation.js';
 import {
   bossBarView,
   bossPressureStatus,
@@ -116,12 +117,8 @@ export class BossPresenceController {
     const boss = this._bossUnit();
     this.boss = boss;
     const grid = scene.grid;
-    const concealed = Boolean(
-      boss &&
-      grid?.fogEnabled &&
-      typeof grid.isVisible === 'function' &&
-      !grid.isVisible(boss.col, boss.row),
-    );
+    // The fog's one rule (canInspectUnit): Seer's Eye never conceals the boss.
+    const concealed = Boolean(boss && !canInspectUnit(grid, boss));
     const enraged = Boolean(boss && scene.antiTurtleState?.turnEnrageActive);
     const threshold = getBossEnrageTurn(scene.turnPar, scene.turnBonusConfig);
     const status = boss

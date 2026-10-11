@@ -13,7 +13,10 @@
 //   skills      a lord's personal skill, an enemy-only class's innate, or an unknown id in a
 //               learnSkill pool
 //   blessings   a blessing tier (an effect's or `requires.blessingTier`) with no
-//               mid-run-safe blessing (EventSystem.SAFE_BLESSING_BOON_TYPES)
+//               mid-run-safe blessing (EventSystem.SAFE_BLESSING_BOON_TYPES); an `earnedBlessing`
+//               effect or `requires.earnedAvailable` naming anything but an earned blessing an
+//               event can give (its `sources` include `event`); a choice's own (strict)
+//               `earnedBlessing` whose choice does not require `earnedAvailable` of that card
 //   targets     an unsatisfiable filter (no class can match it), a `to: target` /
 //               `scope: target` effect or a target-reading check on a choice with no `target`
 //   {fallen}    the token (or a fallenSkill / layToRest effect) in an event that does not
@@ -79,6 +82,7 @@ import { CONTRACT_EFFECT_TYPES, CONTRACT_GOALS } from './Contracts.js';
 import { joinClassBlock } from './EventJoin.js';
 import { REDRAW_TYPES } from './RouteEdit.js';
 import { TELL_WHEN_KEYS } from './EventTells.js';
+import { findSetPiece } from './SetPieces.js';
 import {
   BURDEN_IDS,
   HUNTED_COUNT_MAX,
@@ -87,6 +91,7 @@ import {
   WOUND_STATS,
 } from './Burdens.js';
 import { DIFFICULTY_IDS } from './DifficultyEngine.js';
+import { earnedSourcesOf } from './EarnedBlessings.js';
 import { ENEMY_ONLY_CLASS_NAMES, parseWeaponProficiencies } from './UnitManager.js';
 import {
   BASE_CLASS_LEVEL_CAP,
@@ -357,6 +362,19 @@ export function validateEventsConfig(config, data = {}) {
   const safeTiers = new Set(
     (data.blessings?.blessings || []).filter(isSafeEventBlessing).map((b) => b.tier),
   );
+  // Earned blessings an event may hand out: earned, won from events (docs/specs/blessings-v3.md §6).
+  const eventEarnedIds = new Set(
+    (data.blessings?.blessings || [])
+      .filter((b) => earnedSourcesOf(b).some((s) => s.kind === 'event'))
+      .map((b) => b.id),
+  );
+  const needsEventEarned = (where, id) => {
+    if (typeof id !== 'string' || !eventEarnedIds.has(id))
+      err(
+        where,
+        `"${id}" is not an earned blessing an event can give (sources must include event)`,
+      );
+  };
   const needsTier = (where, tier) => {
     if (!isInt(tier) || tier < 1 || tier > 4) err(where, `blessing tier "${tier}" must be 1-4`);
     else if (!safeTiers.has(tier))
@@ -396,6 +414,8 @@ export function validateEventsConfig(config, data = {}) {
         if (value !== true) err(where, '`requires.roadAhead` must be true');
       } else if (key === 'blessingTier') {
         needsTier(where, value);
+      } else if (key === 'earnedAvailable') {
+        needsEventEarned(where, value);
       } else if (key === 'roster') {
         if (!isObject(value)) err(where, '`requires.roster` must be an object');
         else
@@ -642,7 +662,20 @@ export function validateEventsConfig(config, data = {}) {
       case 'blessing':
         needsTier(where, effect.tier);
         break;
+      case 'earnedBlessing':
+        needsEventEarned(where, effect.id);
+        // A choice's own grant is strict (held, it is refused and the choice fails): the choice
+        // must be greyed while the card cannot be given. The spoils after a fight are lenient
+        // (skipped with a note), so they need no requirement.
+        if (phase !== 'a' && choice?.requires?.earnedAvailable !== effect.id)
+          err(where, `earnedBlessing needs the choice to require earnedAvailable "${effect.id}"`);
+        break;
       case 'burden':
+        // A burden with no countdown of its own is a twisted blessing's price only (a church can
+        // never lift one: Burdens.isTwistBurden).
+        for (const key of ['permanent', 'actsAhead', 'untilAct'])
+          if (effect.params?.[key] !== undefined)
+            err(where, `burden.${key} is a twisted blessing's price only`);
         if (!BURDEN_IDS.includes(effect.id)) err(where, `unknown burden "${effect.id}"`);
         else if (effect.id === 'debt') {
           if (effect.params?.owed === undefined) err(where, 'debt needs params.owed');
@@ -748,6 +781,17 @@ export function validateEventsConfig(config, data = {}) {
             )
               err(where, 'battle.recruit.name must be 1-20 characters');
           }
+        }
+        // A set piece (docs/specs/event-set-pieces.md): a known id, and never beside a green
+        // recruit (a set piece seats no NPC yet). Its acts and rung gates are checked by
+        // SetPieces.validateSetPiecesConfig, which reads every event that names one.
+        if (effect.setPiece !== undefined) {
+          if (typeof effect.setPiece !== 'string' || !effect.setPiece)
+            err(where, 'battle.setPiece must be a set piece id');
+          else if (data.setPieces && !findSetPiece(data.setPieces, effect.setPiece))
+            err(where, `battle.setPiece: unknown set piece "${effect.setPiece}"`);
+          if (effect.recruit !== undefined)
+            err(where, 'battle.setPiece cannot seat a recruit (no authored NPC tile yet)');
         }
         if (typeof effect.victoryText !== 'string' || !effect.victoryText)
           err(where, 'battle needs a victoryText');
@@ -1123,7 +1167,9 @@ export function validateEventsConfig(config, data = {}) {
             !choiceMayOpenContract(choice) &&
             !(choice.effects || []).some((e) => e?.type === 'consume') &&
             !outcomes.some((o) =>
-              (o?.effects || []).some((e) => ['blessing', 'consume'].includes(e?.type)),
+              (o?.effects || []).some((e) =>
+                ['blessing', 'earnedBlessing', 'consume'].includes(e?.type),
+              ),
             );
           if (unconditional) {
             hasFreeChoice = true;

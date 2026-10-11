@@ -4,15 +4,78 @@ import { ACID_DAMAGE_PERCENT, STATUS_CONDITIONS } from '../utils/constants.js';
 import { ACID_DAMAGE_TURNS } from './TerrainHazards.js';
 import { isRecruitNpc } from './RecruitNpc.js';
 import { goldPouchValue } from './GoldPouch.js';
+import { BALLISTA_HIT, BALLISTA_MIGHT, getBallistaRange } from './BallistaEngine.js';
 
 // All inspection entry points use the same information boundary as map graphics.
 // A recruit waiting on the map is always in view: the army knows who it came for
-// (its banner already stood above the fog; now the recruit does too).
+// (its banner already stood above the fog; now the recruit does too). Under Seer's Eye
+// (an earned blessing: `grid.foesShown`, markFoesShown) the fog never hides a foe either:
+// every enemy is drawn, inspectable and known to the previews (PlayerKnowledge), while the
+// terrain stays fogged and the enemy AI's view never changes.
+//
+// ONE RULE for "does the player see this unit": `isUnitSeenAt` (a unit's body at a tile, for a
+// walk, a path or a saved fog) and `canInspectUnit` (where it stands, plus the waiting recruit).
+// Every presentation and preview reader goes through them, never a tile's sight alone and never
+// `grid.foesShown` by hand (tests/SeersEyeReaders.test.js holds src/ui and src/scenes to it), so
+// Seer's Eye cannot be honoured by one reader and forgotten by the next.
+
+/**
+ * Does the fog show this tile of `unit`'s body? Always without fog, for the player's own and,
+ * under Seer's Eye, for a foe; else the tile's own sight (a grid with no sight rule hides nothing).
+ */
+export function isUnitTileSeen(grid, unit, col, row) {
+  if (!grid?.fogEnabled || unit?.faction === 'player') return true;
+  if (unit?.faction === 'enemy' && grid.foesShown === true) return true;
+  return typeof grid.isVisible !== 'function' || Boolean(grid.isVisible(col, row));
+}
+
+/**
+ * Would the player see `unit` standing at (col, row) (default: where it stands)? Any tile of its
+ * body seen (an Entity's 3×3 footprint, anchored there), by isUnitTileSeen.
+ */
+export function isUnitSeenAt(grid, unit, col = unit?.col, row = unit?.row) {
+  if (!unit) return false;
+  const body = isEntity(unit) ? getFootprint({ ...unit, col, row }) : [{ col, row }];
+  return body.some((t) => isUnitTileSeen(grid, unit, t.col, t.row));
+}
+
+/** Can the player inspect `unit` (and does every preview know it)? isUnitSeenAt, or a waiting recruit. */
 export function canInspectUnit(grid, unit) {
   if (!unit) return false;
-  if (unit.faction === 'player' || !grid?.fogEnabled) return true;
-  if (unit.faction === 'npc' && isRecruitNpc(unit)) return true;
-  return (isEntity(unit) ? getFootprint(unit) : [unit]).some((t) => grid.isVisible(t.col, t.row));
+  if (unit.faction === 'npc' && grid?.fogEnabled && isRecruitNpc(unit)) return true;
+  return isUnitSeenAt(grid, unit);
+}
+
+/**
+ * True when this map's fog hides foes: fog on, and no Seer's Eye. (The fog's teaching hint reads
+ * it: under the Eye the fog hides only the land.)
+ */
+export function fogHidesFoes(grid) {
+  return Boolean(grid?.fogEnabled) && grid.foesShown !== true;
+}
+
+/**
+ * A saved fog (a battle snapshot's `{ visible }`, or null for none) as a grid the rule above
+ * reads: what the player saw at that moment. Seer's Eye is the live grid's (it holds for the whole
+ * battle).
+ */
+export function savedFogView(fog, grid = null) {
+  const visible = new Set(Array.isArray(fog?.visible) ? fog.visible : []);
+  return {
+    fogEnabled: Boolean(fog),
+    foesShown: grid?.foesShown === true,
+    isVisible: (col, row) => visible.has(`${col},${row}`),
+  };
+}
+/**
+ * Seer's Eye on a battle's grid: `battleParams.foesShown` (RunManager.getBattleParams, saved with
+ * the battle) sets `grid.foesShown`, which isUnitTileSeen reads. BattleScene and the headless
+ * harness both call this right after building the grid, a fresh start and a resume alike.
+ */
+export function markFoesShown(grid, battleParams) {
+  if (!grid) return false;
+  grid.foesShown = battleParams?.foesShown === true;
+  return grid.foesShown;
 }
 /**
  * `getUnitAt` for choosing a destination tile (Blink, Warp/Rescue): a tile the fog
@@ -62,6 +125,12 @@ export function statusDescriptions(unit) {
     return `${name} · ${early ? 'up to ' : ''}${duration} turn${duration === 1 ? '' : 's'}. ${effect}${early ? ' May recover at turn start.' : ''}`;
   });
 }
+/**
+ * A foe's status staff (Sleep / Silence) as an item line: it rides `unit.statusStaff`, beside
+ * the weapon and outside `inventory`, so every place that lists a foe's items reads it here
+ * ("Silence Staff · Range 3-7 · 1/2 uses", "Sleep Staff · Range 3-5 · spent"). Callers show it
+ * only for a unit the player may inspect (`statusStaffPipShown` is the one rule for the map).
+ */
 export function statusStaffInfo(unit) {
   const staff = unit?.statusStaff;
   if (!staff || !(staff.uses > 0)) return null;
@@ -70,8 +139,12 @@ export function statusStaffInfo(unit) {
     staff,
     uses,
     ...parseStaffRange(staff.range),
-    text: `${staff.name} · Range ${staff.range} · ${uses}/${staff.uses} uses`,
+    text: `${staff.name} · Range ${staff.range} · ${uses > 0 ? `${uses}/${staff.uses} uses` : 'spent'}`,
   };
+}
+/** Does the map draw the staff pip over this unit? A staff with uses left, while in view. */
+export function statusStaffPipShown(grid, unit) {
+  return (statusStaffInfo(unit)?.uses || 0) > 0 && unit.currentHP > 0 && canInspectUnit(grid, unit);
 }
 export function statusStaffThreat(unit) {
   const info = statusStaffInfo(unit);
@@ -102,4 +175,38 @@ export function carriedItemInfo(unit) {
 /** Does the map draw the sack pip over this unit? Only while the unit itself is in view. */
 export function carrierPipShown(grid, unit) {
   return Boolean(carriedItemInfo(unit)) && unit.currentHP > 0 && canInspectUnit(grid, unit);
+}
+
+/**
+ * The ballista the player can see on a tile, or null: the fog hides a ballista's tile like any
+ * other (the Danger overlay and Threat Sight read enemy ballistas the same way).
+ */
+export function visibleBallistaAt(grid, ballistas, col, row) {
+  const ballista = (ballistas || []).find((b) => b.col === col && b.row === row);
+  if (!ballista) return null;
+  if (grid?.fogEnabled && typeof grid.isVisible === 'function' && !grid.isVisible(col, row))
+    return null;
+  return ballista;
+}
+
+/**
+ * What a ballista does, read from BallistaEngine and the battle's own rules, as short lines for
+ * the tile info: who holds it, its reach, its blow, and when it fires (BattleScene
+ * processBallistaFire: a player's ballista as the player turn begins, an enemy's as the enemy
+ * phase begins, each at the nearest unit of the other side in range, lowest HP on a tie). A
+ * ballista is a map object, never crewed or unmanned: it belongs to the foe until a unit
+ * standing on it uses Capture.
+ */
+export function ballistaInfo(ballista) {
+  if (!ballista) return null;
+  const yours = ballista.owner === 'player';
+  return {
+    title: `${yours ? 'Your' : 'Enemy'} ballista · Range 1-${getBallistaRange(ballista)}`,
+    lines: [
+      `Mt ${BALLISTA_MIGHT} vs RES · Hit ${BALLISTA_HIT} · no counter`,
+      yours
+        ? 'Fires at the nearest foe each player turn.'
+        : 'Fires at your nearest unit each enemy phase.',
+    ],
+  };
 }

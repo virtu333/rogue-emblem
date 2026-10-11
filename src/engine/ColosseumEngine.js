@@ -27,6 +27,7 @@ import {
 import { applyRecruitJoinBonus } from './RecruitScaling.js';
 import { applyRecruitLevelBonus } from './RecruitJoinLevel.js';
 import { isNecromancyClass } from './Necromancy.js';
+import { arenaFeeMultiplierOf, arenaVisitBonusOf } from './EarnedBoons.js';
 
 /** Apply class abilities to new mercenaries and older persisted boards. */
 export function grantMercenaryClassSkills(unit, classesData, skillsData) {
@@ -166,21 +167,57 @@ export function generateChallenger(
 }
 
 /**
+ * The gold a bout of `tier` costs to enter for `run`: the tier's fee, halved by the Mercenary
+ * Ledger (an earned blessing: `arena_terms`). The one reading of the fee: the tier list, the
+ * forecast, the payment and the reward all ask it, so the fee shown is the fee paid and the fee
+ * a win hands back. Without a run (a sim), the tier's own fee.
+ * @param {Object} tier - tier config
+ * @param {Object|null} [run] - RunManager
+ * @returns {number}
+ */
+export function arenaEntryFee(tier, run = null) {
+  const fee = Math.max(0, Math.trunc(Number(tier?.entryFee) || 0));
+  const share = run ? arenaFeeMultiplierOf(run) : 1;
+  return share === 1 ? fee : Math.max(0, Math.round(fee * share));
+}
+
+/**
+ * Bouts a colosseum visit allows for `run`: the rung's cap (getMaxFightsPerVisit) plus the
+ * Mercenary Ledger's extra bout. Read live, so a Ledger taken mid-visit opens its bout at once.
+ * @param {number} maxVisitBouts - getMaxFightsPerVisit
+ * @param {Object|null} [run] - RunManager
+ * @returns {number}
+ */
+export function arenaVisitCap(maxVisitBouts, run = null) {
+  if (!Number.isFinite(maxVisitBouts)) return maxVisitBouts;
+  return maxVisitBouts + (run ? arenaVisitBonusOf(run) : 0);
+}
+
+/**
  * Calculate arena reward for a fight outcome.
  * @param {Object} tier - tier config
  * @param {'win'|'lose'|'draw'|'yield'} outcome
  * @param {number} baseXP - XP from calculateCombatXP
  * @param {number} levelsGainedThisVisit - levels gained so far at this colosseum
  * @param {Object} colosseumData
+ * @param {{ entryFee?: number }} [options] - `entryFee`: the fee actually paid for this bout
+ *   (arenaEntryFee; the tier's own fee when absent), which a loss or a yield forfeits
  * @returns {{ goldDelta: number, xpGained: number }}
  */
-export function calculateArenaReward(tier, outcome, baseXP, levelsGainedThisVisit, colosseumData) {
+export function calculateArenaReward(
+  tier,
+  outcome,
+  baseXP,
+  levelsGainedThisVisit,
+  colosseumData,
+  { entryFee = tier?.entryFee } = {},
+) {
   const drAfterLevels = colosseumData?.arena?.diminishingReturnsAfterLevels ?? 2;
   const drFactor = colosseumData?.arena?.diminishingReturnsFactor ?? 0.5;
 
-  // A loss and a yield both forfeit the entry fee and earn nothing.
+  // A loss and a yield both forfeit the entry fee paid and earn nothing.
   if (outcome === 'lose' || outcome === 'yield') {
-    return { goldDelta: -tier.entryFee, xpGained: 0 };
+    return { goldDelta: -Math.max(0, Number(entryFee) || 0), xpGained: 0 };
   }
   // A draw (the bout reached its round cap) still trains the fighter; visit limits
   // and diminishing returns apply.

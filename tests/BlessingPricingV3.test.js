@@ -256,7 +256,7 @@ describe('each price does what it says', () => {
     const stats = new Set();
     for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
       const rm = run({ seed });
-      holdAt(rm, 'nomad_pact', 'commander_injury');
+      holdAt(rm, 'nomad_pact', ['commander_injury', 'act1_hit_down']);
       const wound = rm.burdens.find((b) => b.id === 'wounded');
       const commander = findCommander(rm.roster);
       expect(wound).toMatchObject({ unitUid: commander.unitUid, value: -2 });
@@ -264,7 +264,7 @@ describe('each price does what it says', () => {
       stats.add(wound.stat);
       // Same seed, same stat.
       const again = run({ seed });
-      holdAt(again, 'nomad_pact', 'commander_injury');
+      holdAt(again, 'nomad_pact', ['commander_injury', 'act1_hit_down']);
       expect(again.burdens.find((b) => b.id === 'wounded').stat).toBe(wound.stat);
     }
     expect(stats.size).toBeGreaterThan(1);

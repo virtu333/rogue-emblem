@@ -4,9 +4,9 @@
 // An enemy threatens a tile when, next enemy phase, it can stop on some tile of its
 // movement range (movement + terrain costs + blocking units + roots) from which the
 // tile is inside its weapon range. Entities are stationary and strike from their
-// footprint; enemy-owned ballistas are independent sources. A siege caster planted by
-// a player unit in its siege range (SiegeArtillery.js) does not move, so it strikes
-// from its post. Status staves are a
+// footprint; enemy-owned ballistas are independent sources. A siege caster or a
+// status-staff caster with shots or uses left holds its post (SiegeArtillery.js), so it
+// strikes from there. Status staves are a
 // separate, non-damage threat. Only enemies the player can currently see count:
 // fog-hidden units are never evaluated, so nothing here can reveal them.
 //
@@ -29,7 +29,7 @@ import { willRemainRootedNextPhase } from './StatusConditionSystem.js';
 import { getBallistaDangerTiles } from './BallistaEngine.js';
 import { ENTITY_PRIMARY_ATTACK_RANGE } from '../utils/constants.js';
 import { getPerBattleRemainingUses, isStaff, nextStrikeWeapon, parseRange } from './Combat.js';
-import { plantsAmongPositions } from './SiegeArtillery.js';
+import { artilleryWeapon, holdsPost } from './SiegeArtillery.js';
 import { movementOptionsFor } from './PassMovement.js';
 
 const tileKey = (col, row) => `${col},${row}`;
@@ -49,12 +49,9 @@ function strikingWeapon(unit) {
 /** Living and visible to the player (fog + inspection rules). */
 export function isThreatSourceVisible(grid, enemy) {
   if (!enemy || enemy.currentHP <= 0 || enemy._removing) return false;
-  if (!canInspectUnit(grid, enemy)) return false;
-  if (grid?.fogEnabled) {
-    const tiles = isEntity(enemy) ? getFootprint(enemy) : [enemy];
-    if (!tiles.some((t) => grid.isVisible(t.col, t.row))) return false;
-  }
-  return true;
+  // canInspectUnit is the fog's whole rule for a foe: a tile of its body seen (an Entity's
+  // footprint), or every foe under Seer's Eye.
+  return canInspectUnit(grid, enemy);
 }
 
 /**
@@ -77,8 +74,8 @@ export function enemyThreatTiles(ctx, enemy, positions = ctx.positions()) {
   }
   // No movement while it stays rooted (willRemainRootedNextPhase, not isRooted: a root
   // expiring at the enemy's next phase start must not understate its threat range), nor
-  // while a player unit stands in its siege range (planted artillery, SiegeArtillery.js).
-  const planted = plantsAmongPositions(enemy, positions);
+  // while it holds its post (siege artillery and status-staff casters, SiegeArtillery.js).
+  const planted = holdsPost(enemy);
   const moveRange = grid.getMovementRange(
     enemy.col,
     enemy.row,
@@ -88,8 +85,8 @@ export function enemyThreatTiles(ctx, enemy, positions = ctx.positions()) {
     enemy.faction,
     ctx.costModifier ? ctx.costModifier(enemy) : 0,
   );
-  // Planted artillery only fires (AIController._decideArtilleryAction): no staff.
-  const staff = planted ? null : statusStaffThreat(enemy);
+  // Artillery only fires (AIController._decideArtilleryAction): no staff.
+  const staff = artilleryWeapon(enemy) ? null : statusStaffThreat(enemy);
   const weapon = strikingWeapon(enemy);
   for (const [key, entry] of moveRange) {
     if (entry?.stoppable === false) continue;

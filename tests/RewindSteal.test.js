@@ -277,3 +277,49 @@ describe('a stolen item can never exist twice or vanish', () => {
     expect(new Set(rows).size).toBe(rows.length);
   });
 });
+
+// Cutpurse's Luck (blessings-v3 §5): a player thief's speed check is waived. The waiver reaches
+// Steal through the two contexts the scene builds (the Ability menu's and the targeting's), so
+// the row that says "Too slow" and the tiles a tap can act on must agree.
+describe("Cutpurse's Luck through the scene's own Steal contexts", () => {
+  const slowThief = (f) => {
+    f.thief.stats = { ...f.thief.stats, SPD: 1 };
+    f.brigand.stats = { ...f.brigand.stats, SPD: 30 };
+  };
+  const holdCutpurse = (run) => {
+    run.activeBlessings = [{ id: 'cutpurses_luck', rolledCost: null }];
+    run._runStartBlessingsApplied = false;
+    run.applyRunStartBlessingEffects();
+  };
+  const stealOf = (f) => {
+    const skill = f.scene.gameData.skills.find((entry) => entry.id === 'steal');
+    const entry = f.scene._abilityController
+      ._getAbilityEntries(f.thief)
+      .find((e) => e.skill.id === 'steal');
+    const targets = f.scene._abilityController._targeting().find(f.thief, skill);
+    return { skill, entry, targets };
+  };
+
+  it('a slow thief holding the card finds the fast carrier, in the menu and in the targeting', async () => {
+    const f = fixture();
+    slowThief(f);
+    holdCutpurse(f.run);
+    const { skill, entry, targets } = stealOf(f);
+    expect(entry.hasTargets).toBe(true);
+    expect(entry.stealReason).toBeNull();
+    expect(targets.map((t) => t.unit)).toEqual([f.brigand]);
+    expect(await f.scene._abilityController._targeting().execute(f.thief, skill, targets[0])).toBe(
+      true,
+    );
+    expect(placesOf(UID, f.scene, f.run)).toEqual(['Thief.bag']);
+  });
+
+  it('without the card the same thief is too slow in both, and nothing is a target', () => {
+    const f = fixture();
+    slowThief(f);
+    const { entry, targets } = stealOf(f);
+    expect(entry.hasTargets).toBe(false);
+    expect(entry.stealReason).toBe('too_slow');
+    expect(targets).toEqual([]);
+  });
+});

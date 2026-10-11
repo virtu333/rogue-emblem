@@ -21,6 +21,7 @@
         "forecast-input-contract.spec.js",
         "contextual-help.spec.js",
         "formation.spec.js",
+        "formation-roster.spec.js",
         "journey-contracts.spec.js",
         "battle-timeline.spec.js",
         "save-retry.spec.js",
@@ -86,11 +87,14 @@
         "ceremony-ghost-click.spec.js",
         "third-lord-reload.spec.js",
         "portrait-rail.spec.js",
+        "portrait-formation-inspect.spec.js",
         "portrait-screens.spec.js",
         "portrait-journey.spec.js",
         "portrait-rotation.spec.js",
         "portrait-remains.spec.js",
-        "portrait-prologue.spec.js"
+        "portrait-prologue.spec.js",
+        "portrait-seers-eye.spec.js",
+        "portrait-start-gift.spec.js"
       ],
       "shards": 6
     },
@@ -161,6 +165,7 @@
       "specs": [
         "battle-entry-music.spec.js",
         "choice-screens.spec.js",
+        "church-twin-chapel.spec.js",
         "deeds.spec.js",
         "earned-blessing-pick.spec.js",
         "eclipse.spec.js",
@@ -175,8 +180,11 @@
         "local-play.spec.js",
         "loom-route.spec.js",
         "native-rewards.spec.js",
+        "old-sanctum.spec.js",
+        "open-roll.spec.js",
         "reward-reload.spec.js",
         "reward-reroll.spec.js",
+        "levelup-reroll.spec.js",
         "rewards-desktop.spec.js",
         "run-recovery.spec.js",
         "ruins-choice.spec.js",
@@ -184,7 +192,12 @@
         "service-audit.spec.js",
         "slot-picker.spec.js",
         "strategy-layer.spec.js",
-        "traits-v2.spec.js"
+        "traits-v2.spec.js",
+        "seers-eye-preview.spec.js",
+        "colosseum-earned-offer.spec.js",
+        "earned-twist.spec.js",
+        "start-gift.spec.js",
+        "village-ambush.spec.js"
       ]
     },
     {

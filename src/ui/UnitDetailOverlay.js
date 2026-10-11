@@ -1,7 +1,8 @@
+import { staffRunOptions } from '../engine/StaffBlessings.js';
 import { affixSummaryText } from '../engine/AffixForecast.js';
 import { REVIVAL_STONE_DESCRIPTION, revivalStonesLine } from '../engine/RevivalStones.js';
 import { skipsClassProgression } from '../engine/SpecialCharacterPolicy.js';
-import { canInspectUnit, carriedItemInfo } from '../engine/BattleInformation.js';
+import { canInspectUnit, carriedItemInfo, statusStaffInfo } from '../engine/BattleInformation.js';
 import { formatPerkMods } from './rosterDisplay.js';
 import {
   UI_PALETTE,
@@ -42,7 +43,7 @@ import {
   getMasteryPerk,
 } from '../engine/MasterySystem.js';
 import { traitLines, markLine } from './traitContent.js';
-import { isStatusStaff, parseStaffRange } from '../engine/StatusConditionSystem.js';
+import { isStatusStaff } from '../engine/StatusConditionSystem.js';
 import { getImbueDisplayInfo, isImbued } from '../engine/ImbueSystem.js';
 import {
   TOOLTIP_HOVER_DELAY_MS,
@@ -777,9 +778,10 @@ export class UnitDetailOverlay {
             this._showWeaponTooltip(item, tooltipAnchor),
           );
         if (item.type === 'Staff') {
-          const rem = getStaffRemainingUses(item, unit);
-          const max = getStaffMaxUses(item, unit);
-          const rng = getEffectiveStaffRange(item, unit);
+          const staffOptions = staffRunOptions(this.scene?.runManager, unit);
+          const rem = getStaffRemainingUses(item, unit, staffOptions);
+          const max = getStaffMaxUses(item, unit, staffOptions);
+          const rng = getEffectiveStaffRange(item, unit, staffOptions);
           const rngStr = rng.min === rng.max ? `Rng${rng.max}` : `Rng${rng.min}-${rng.max}`;
           this._tabTextSegments(
             contentX,
@@ -836,17 +838,17 @@ export class UnitDetailOverlay {
       }
     }
 
-    // Status Staff (enemy-only)
-    if (unit.statusStaff && isStatusStaff(unit.statusStaff)) {
-      const staff = unit.statusStaff;
-      const rng = parseStaffRange(staff.range);
-      const rngStr = rng ? `Rng${rng.min}-${rng.max}` : '';
-      const uses = (staff.uses || 0) - (staff._usesSpent || 0);
+    // Status staff (enemy-only): it rides beside the weapon, outside the inventory, so it
+    // is listed here as an item (statusStaffInfo, the one reading every surface shares).
+    const staffInfo = isStatusStaff(unit.statusStaff) ? statusStaffInfo(unit) : null;
+    if (staffInfo) {
+      const rngStr = `Rng${staffInfo.min}-${staffInfo.max}`;
+      const usesStr = staffInfo.uses > 0 ? `${staffInfo.uses}/${staffInfo.staff.uses}` : 'spent';
       this._tabText(
         lx,
         y,
-        ` ${staff.name} (${uses}/${staff.uses}) ${rngStr}`,
-        UI_PALETTE.bad,
+        ` ${staffInfo.staff.name} (${usesStr}) ${rngStr}`,
+        staffInfo.uses > 0 ? UI_PALETTE.bad : UI_PALETTE.lineStrong,
         '9px',
       );
       y += 12;

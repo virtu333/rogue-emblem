@@ -28,6 +28,7 @@ import {
 } from '../src/ui/EnemyPhasePacing.js';
 import { BattleSuspendController } from '../src/ui/BattleSuspendController.js';
 import { serializeBattleUnit } from '../src/engine/BattleUnitState.js';
+import { markFoesShown } from '../src/engine/BattleInformation.js';
 import { setUnitHP } from '../src/engine/UnitHealth.js';
 import { loadRun } from '../src/engine/RunManager.js';
 import { RunDriver, JourneyStorage } from './harness/RunDriver.js';
@@ -614,6 +615,37 @@ describe.each(['fixed-v1', 'legacy-v1'])('an enemy phase under %s', (policy) => 
       expect(checkpoint.phase, `save ${index}`).toBe(index === 0 ? 'player' : 'enemy');
       expect(endState(resumed), `resume from save ${index}`).toEqual(live);
     }
+  });
+});
+
+describe("animateEnemyMove under Seer's Eye: a foe's walk through the fog is drawn in full", () => {
+  // Paired worlds: the same fog (the party sees none of the walk); only the Eye differs.
+  // Failure: the walk reads each tile's sight alone, so a foe the Eye draws on the map jumps to
+  // its end unseen, and the history keeps no walk and no name.
+  const path = Array.from({ length: 6 }, (_, i) => ({ col: i, row: 0 }));
+  const walk = async (eye) => {
+    const { scene, unit, tweens } = moveScene({ fog: true, seen: new Set() });
+    markFoesShown(scene.grid, eye ? { foesShown: true } : {});
+    const result = await scene.animateEnemyMove(unit, path);
+    return { result, tweens, beats: scene._historyBeats || [], unit };
+  };
+
+  it('every step is tweened and the walk is the history’s, under its name', async () => {
+    const eye = await walk(true);
+    expect(eye.tweens).toHaveLength(5);
+    expect(eye.result).toEqual({ seen: true });
+    expect(eye.beats).toEqual([
+      expect.objectContaining({ actorId: 'e1', label: 'Raider moved.', path }),
+    ]);
+    expect({ col: eye.unit.col, row: eye.unit.row }).toEqual({ col: 5, row: 0 });
+  });
+
+  it('without the Eye the same walk is one hidden jump (unchanged)', async () => {
+    const plain = await walk(false);
+    expect(plain.tweens).toEqual([]);
+    expect(plain.result).toEqual({ seen: false });
+    expect(plain.beats).toEqual([]);
+    expect({ col: plain.unit.col, row: plain.unit.row }).toEqual({ col: 5, row: 0 });
   });
 });
 

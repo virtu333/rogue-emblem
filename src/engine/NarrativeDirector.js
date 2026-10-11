@@ -12,7 +12,10 @@
 // one line plays, picked by the save's run count (pickPoolEntry) so a pool is
 // walked without repeats. A pool entry may have its own `when`; it plays only
 // when that holds, and such contextual lines take every other run while any
-// apply. The variant is skipped when no entry in its pool applies.
+// apply. The variant is skipped when no entry in its pool applies. A pool entry
+// may be an `exchange` (a short list of entries: a boss's line and the
+// commander's answer) instead of one `line`; it is picked, remembered and played
+// as one, so an answer always follows the line it answers.
 //
 // Line text may use the {lastFoe} token, which resolves to the boss that
 // ended the previous run. It is substituted here, before adaptDialogueEntries
@@ -40,6 +43,8 @@ export const KNOWN_WHEN_KEYS = new Set([
   'currentDefeatWasBoss',
   'bossSlainBefore',
   'bossKilledYouBefore',
+  // This save has fought the boss to an end before: slain it or fallen to it.
+  'bossMetBefore',
   'firstClear',
   'commanderHasEpithet',
   'partner',
@@ -166,6 +171,9 @@ export function evaluateWhen(when, ctx) {
         case 'bossKilledYouBefore':
           if (ctx.bossKilledYouCount > 0 !== value) return false;
           break;
+        case 'bossMetBefore':
+          if (ctx.bossSlainCount + ctx.bossKilledYouCount > 0 !== value) return false;
+          break;
         case 'firstClear':
           if (ctx.firstClear !== value) return false;
           break;
@@ -214,19 +222,43 @@ export function narrativeLineKey(line) {
   return `l${lineHash(String(line)).toString(36)}`;
 }
 
+/** A pool exchange: a non-empty list of entries that each have a line. */
+function isExchange(value) {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every((e) => e && typeof e === 'object' && typeof e.line === 'string')
+  );
+}
+
+/** A playable pool entry: one line, or an exchange. */
+function isPoolItem(e) {
+  return Boolean(
+    e && typeof e === 'object' && (typeof e.line === 'string' || isExchange(e.exchange)),
+  );
+}
+
+/** The text a pool entry is ordered and remembered by: its line, or every line of its exchange. */
+function poolItemText(e) {
+  return typeof e.line === 'string' ? e.line : e.exchange.map((x) => x.line).join('\n');
+}
+
 /**
  * The line of `lines` played longest ago on this save (never played first), ties
  * broken by a fixed shuffled order. So a set walks every line before any repeats,
  * however the set changes from run to run (a partner, a loss, the difficulty).
  */
 function leastRecent(lines, played) {
-  const order = [...lines].sort(
-    (a, b) => lineHash(String(a.line)) - lineHash(String(b.line)) || (a.line < b.line ? -1 : 1),
-  );
+  const order = lines
+    .map((entry) => ({ entry, text: poolItemText(entry) }))
+    .sort(
+      (a, b) =>
+        lineHash(a.text) - lineHash(b.text) || (a.text < b.text ? -1 : a.text > b.text ? 1 : 0),
+    );
   let best = null;
   let bestAt = Infinity;
-  for (const entry of order) {
-    const at = played.lastIndexOf(narrativeLineKey(entry.line));
+  for (const { entry, text } of order) {
+    const at = played.lastIndexOf(narrativeLineKey(text));
     if (at < bestAt) {
       best = entry;
       bestAt = at;
@@ -246,7 +278,7 @@ function leastRecent(lines, played) {
  */
 export function pickPoolEntry(pool, ctx) {
   if (!Array.isArray(pool)) return null;
-  const valid = pool.filter((e) => e && typeof e === 'object' && typeof e.line === 'string');
+  const valid = pool.filter(isPoolItem);
   const contextual = valid.filter((e) => e.when && evaluateWhen(e.when, ctx));
   const general = valid.filter((e) => !e.when);
   const run = Number.isFinite(ctx?.runsStarted) ? Math.max(0, Math.floor(ctx.runsStarted)) : 0;
@@ -257,7 +289,13 @@ export function pickPoolEntry(pool, ctx) {
   else if (general.length) picked = leastRecent(general, played);
   if (!picked) return null;
   const { when: _when, ...entry } = picked;
-  return { ...entry, lineKey: narrativeLineKey(picked.line) };
+  return { ...entry, lineKey: narrativeLineKey(poolItemText(picked)) };
+}
+
+/** The entries a picked pool entry plays: itself, or its exchange with the key on its first line. */
+function poolEntryLines(entry) {
+  if (!Array.isArray(entry.exchange)) return [entry];
+  return entry.exchange.map((line, i) => (i === 0 ? { ...line, lineKey: entry.lineKey } : line));
 }
 
 /**
@@ -276,7 +314,7 @@ export function selectDialogueEntries(sectionValue, ctx) {
       if (Array.isArray(variant.pool)) {
         if (!evaluateWhen(variant.when, ctx)) continue;
         const entry = pickPoolEntry(variant.pool, ctx);
-        if (entry) return applyNarrativeTokens([entry], ctx);
+        if (entry) return applyNarrativeTokens(poolEntryLines(entry), ctx);
         continue;
       }
       if (!Array.isArray(variant.entries) || variant.entries.length === 0) continue;

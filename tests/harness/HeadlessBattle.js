@@ -6,6 +6,15 @@ import {
 } from '../../src/engine/RoutObjective.js';
 import { settleRecruitJoin } from '../../src/engine/BattleRecruits.js';
 import { settleStaffHeal } from '../../src/engine/StaffSettlement.js';
+import { staffRunOptions } from '../../src/engine/StaffBlessings.js';
+import { STEAL_ABILITY_KIND, settleSteal } from '../../src/engine/Steal.js';
+import { stealRunOptions } from '../../src/engine/ShrineBoons.js';
+import {
+  canUseAbility,
+  findStealTargets,
+  getActionAbilities,
+  markUsed,
+} from '../../src/engine/ActionAbilitySystem.js';
 // HeadlessBattle — Synchronous battle state machine for headless testing.
 // Mirrors BattleScene's MVP subset (7 states) using real engine functions.
 
@@ -42,7 +51,7 @@ import {
   findRecruitNpc,
   staffAllyCandidates,
 } from '../../src/engine/RecruitNpc.js';
-import { canInspectUnit } from '../../src/engine/BattleInformation.js';
+import { canInspectUnit, isUnitSeenAt, markFoesShown } from '../../src/engine/BattleInformation.js';
 import {
   resolveCombat,
   resolveHeal,
@@ -122,6 +131,7 @@ import {
 import { calculateKillReward } from '../../src/engine/LootSystem.js';
 import {
   calculatePar,
+  battleParMapParams,
   getLatePressureState,
   getParXpMultiplier,
 } from '../../src/engine/TurnBonusCalculator.js';
@@ -159,6 +169,7 @@ import {
   blessingTurnStartEffects,
 } from '../../src/engine/BattleBlessings.js';
 import { applyBlessingCombatMods, stampTurnAnchors } from '../../src/engine/BlessingCombatMods.js';
+import { applyFogOpening } from '../../src/engine/FogOpening.js';
 import { resetFortHealStreak, settleTerrainHeal } from '../../src/engine/TerrainHealing.js';
 import { postCombatEffects, runPostCombatEffectsSync } from '../../src/engine/PostCombatEffects.js';
 import {
@@ -185,6 +196,7 @@ import {
   scaledXp,
 } from '../../src/engine/BattleXp.js';
 import { selectEnemyWeaponArt } from '../../src/engine/EnemyArtScoring.js';
+import { deriveNodeBattleSeed } from '../../src/engine/BattleScout.js';
 import { bindEnemyAreaArt } from '../../src/engine/EnemyAreaArts.js';
 import { settleArtilleryStances } from '../../src/engine/SiegeArtillery.js';
 import { applyDueHybridOverrides } from '../../src/engine/TerrainPhases.js';
@@ -205,6 +217,8 @@ export const HEADLESS_STATES = {
   SELECTING_TARGET: 'SELECTING_TARGET',
   SELECTING_HEAL_TARGET: 'SELECTING_HEAL_TARGET',
   SELECTING_REMAINS_TARGET: 'SELECTING_REMAINS_TARGET',
+  // Steal's target (opt-in: `options.steal`, see the constructor).
+  SELECTING_STEAL_TARGET: 'SELECTING_STEAL_TARGET',
   ENEMY_PHASE: 'ENEMY_PHASE',
   BATTLE_END: 'BATTLE_END',
 };
@@ -234,6 +248,9 @@ export class HeadlessBattle {
    *   `getRecruitNodeUnit`); without it the battle builds one from its own params.
    *   `runManager`: the run the battle belongs to, present from `init()` (its blessings, the
    *   Vulnerary recipe and the run-level battle effects); without it the battle is standalone.
+   *   `steal`: offer Steal (a Thief's `steal_item` ability) in the action menu, as
+   *   AbilityTargetingController does. Off by default, so the stock agents' legal actions (and
+   *   every default sim) are what they were; the blessing sims' claiming policies turn it on.
    */
   constructor(gameData, battleParams, roster = null, options = {}) {
     this.gameData = gameData;
@@ -274,6 +291,10 @@ export class HeadlessBattle {
     this.lastHybridOverrideResult = null;
     this._combatRollSession = null;
     this.runManager = options?.runManager ?? null;
+    this.stealEnabled = options?.steal === true;
+    // What Steal took this battle: { thief, carrier, item, destination, speedWaived }.
+    this.steals = [];
+    this.stealTargets = [];
     this._battleBlessings = null;
     this._reinforcementsPendingThisTurn = false;
     this._villageState = null;
@@ -305,6 +326,7 @@ export class HeadlessBattle {
       affixes: this.gameData.affixes,
       difficulty: this.gameData.difficulty,
       lootTables: this.gameData.lootTables,
+      setPieces: this.gameData.setPieces,
     });
   }
 
@@ -318,6 +340,8 @@ export class HeadlessBattle {
       bc.mapLayout,
       Boolean(this.battleParams.fogEnabled),
     );
+    // Seer's Eye, as BattleScene: fog never hides a foe (canInspectUnit reads the grid's flag).
+    markFoesShown(this.grid, this.battleParams);
 
     this.playerUnits = [];
     this.enemyUnits = [];
@@ -438,7 +462,8 @@ export class HeadlessBattle {
     for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
       unit._phoenixBroochUsed = false;
     }
-    // The Wounded burden's stat delta, as BattleScene applies it at a fresh start.
+    // The battle-start stat deltas (a Lingering Injury, Cavalier's Hour), as BattleScene applies
+    // them at a fresh start; a Talk recruit takes its own in settleRecruitJoin, as in the scene.
     applyBattleStartDebuffs(this.playerUnits, this.battleParams?.battleDebuffs);
 
     // Anti-turtle clock (engine/TurnPressure.js), as BattleScene: measured once the
@@ -450,18 +475,11 @@ export class HeadlessBattle {
     this.turnPar =
       this.gameData.turnBonus && !bc.hidePar
         ? calculatePar(
-            {
-              cols: bc.cols,
-              rows: bc.rows,
+            battleParMapParams(bc, {
               enemyCount: this.enemyUnits.length,
-              objective: bc.objective,
-              mapLayout: bc.mapLayout,
               terrainData: this.gameData.terrain,
-              parBonus: bc.parBonus || 0,
-              parInflation: bc.parInflation,
-              parOffset: bc.parOffset,
-              parFloor: bc.parFloor,
-            },
+              battleParams: this.battleParams,
+            }),
             this.gameData.turnBonus,
             this.battleParams?.difficultyId,
           )
@@ -488,6 +506,9 @@ export class HeadlessBattle {
     this.aiController.setHoldContext(() => this._playerThreatContext());
     // Override delay for synchronous execution
     this.aiController._delay = () => Promise.resolve();
+
+    // Lantern of the Road, as BattleScene at a fresh start: the opening reveal (FogOpening.js).
+    applyFogOpening(this.grid, this.playerUnits, this.battleParams?.fogOpeningRadius);
 
     // Start battle
     this.turnManager.startBattle();
@@ -597,6 +618,10 @@ export class HeadlessBattle {
       }
     }
 
+    // Steal (opt-in): a Thief beside a carrier it can rob (engine/Steal.js).
+    if (this.stealEnabled && this._findStealTargets(unit).length > 0)
+      actions.push({ label: 'Steal', supported: true });
+
     // Deferred actions (listed but unsupported in MVP)
     const equippable = unit.inventory.filter(
       (item) => item.type !== 'Consumable' && canEquip(unit, item),
@@ -663,6 +688,13 @@ export class HeadlessBattle {
         this._executeTalk(this.selectedUnit, target);
         break;
       }
+      case 'Steal': {
+        if (!this.stealEnabled) throw new Error('Steal is not enabled in this battle');
+        this.stealTargets = this._findStealTargets(this.selectedUnit).map((t) => t.unit);
+        if (this.stealTargets.length === 0) throw new Error('No steal targets');
+        this.battleState = HEADLESS_STATES.SELECTING_STEAL_TARGET;
+        break;
+      }
       default: {
         const actions = this.getAvailableActions();
         const action = actions.find((a) => a.label === label);
@@ -688,6 +720,46 @@ export class HeadlessBattle {
     // Ensure equipped weapon can reach target
     this._ensureValidWeaponForTarget(this.selectedUnit, target);
     this._executeCombat(this.selectedUnit, target);
+  }
+
+  /**
+   * Steal from an adjacent carrier, as AbilityTargetingController.execute: the finder validates
+   * the target again, the per-map counter is marked when the ability has one, and settleSteal
+   * moves the item in one atomic step (the thief's bag, else the run's convoy). Ends the action.
+   */
+  chooseStealTarget(targetName) {
+    if (this.battleState !== HEADLESS_STATES.SELECTING_STEAL_TARGET) {
+      throw new Error(`Cannot choose steal target in state: ${this.battleState}`);
+    }
+    const thief = this.selectedUnit;
+    const legal = this._findStealTargets(thief);
+    const target =
+      targetName && typeof targetName === 'object'
+        ? legal.find((t) => t.unit === targetName)
+        : legal.find((t) => t.unit.name === targetName);
+    if (!target) throw new Error(`Not a steal target: ${targetName?.name ?? targetName}`);
+    const skill = this._stealSkill(thief);
+    if (Number(skill.actionAbility.perMapLimit) > 0) markUsed(thief, skill.id);
+    // Whether the run's waiver (Cutpurse's Luck, Thief's Lantern) decided it: read before the
+    // item moves (the carrier's speed does not change with it).
+    const speedWaived =
+      stealRunOptions(this.runManager, thief).ignoreSpeed === true &&
+      findStealTargets(thief, skill.actionAbility, {
+        ...this._stealContext(thief),
+        ignoreSpeed: false,
+      }).every((t) => t.unit !== target.unit);
+    const facts = settleSteal(thief, target.unit, { run: this.runManager });
+    if (!facts) throw new Error('Steal refused after its target was validated');
+    this.steals.push({
+      thief: thief.name,
+      carrier: target.unit.name,
+      item: facts.item.name,
+      destination: facts.destination,
+      speedWaived,
+      turn: this.turnManager?.turnNumber || 0,
+    });
+    this.stealTargets = [];
+    this._finishUnitAction(thief);
   }
 
   chooseHealTarget(targetName) {
@@ -744,9 +816,11 @@ export class HeadlessBattle {
       case HEADLESS_STATES.SELECTING_TARGET:
       case HEADLESS_STATES.SELECTING_HEAL_TARGET:
       case HEADLESS_STATES.SELECTING_REMAINS_TARGET:
+      case HEADLESS_STATES.SELECTING_STEAL_TARGET:
         this.attackTargets = [];
         this.healTargets = [];
         this.remainsTargets = [];
+        this.stealTargets = [];
         this.battleState = HEADLESS_STATES.UNIT_ACTION_MENU;
         break;
       default:
@@ -802,16 +876,12 @@ export class HeadlessBattle {
     return enemyDifficultyConfigFromParams(this.battleParams);
   }
 
+  /** BattleScene.deriveBattleSeed's rule, through the one function (engine/BattleScout.js). */
   _deriveBattleSeed() {
-    const runSeed = Number(this.battleParams?.runSeed || 0) >>> 0;
-    const nodePart = String(this.battleParams?.nodeId || this.battleParams?.act || 'battle');
-    let hash = 2166136261 >>> 0;
-    const input = `${runSeed}:${nodePart}`;
-    for (let i = 0; i < input.length; i++) {
-      hash ^= input.charCodeAt(i);
-      hash = Math.imul(hash, 16777619);
-    }
-    return hash >>> 0;
+    return deriveNodeBattleSeed(
+      this.battleParams?.runSeed,
+      this.battleParams?.nodeId || this.battleParams?.act || 'battle',
+    );
   }
 
   _getReinforcementSeed() {
@@ -848,7 +918,7 @@ export class HeadlessBattle {
   }
 
   _getEnemyXpMultiplier(unit) {
-    return enemyXpMultiplier(unit);
+    return enemyXpMultiplier(unit, this.battleParams?.specialXpMultiplier);
   }
 
   /**
@@ -872,6 +942,7 @@ export class HeadlessBattle {
       ).xpMultiplier,
       recruitXpBonus: Number(this.battleParams?.metaEffects?.recruitXpBonus) || 0,
       allies: this.playerUnits,
+      underdogCap: this.battleParams?.xpUnderdogCap,
       ...extra,
     });
     for (const award of awards) this._grantScaledXP(award.unit, award.baseXp);
@@ -1104,6 +1175,8 @@ export class HeadlessBattle {
       this._refreshFogVisibility();
       this.battleState = HEADLESS_STATES.PLAYER_IDLE;
     } else if (phase === 'enemy') {
+      // As BattleScene: a contact (the Lantern's opening reveal) lasts its player phase only.
+      if (this.grid?.clearContacts?.()) this._refreshFogVisibility();
       this._advanceTurnPressure(turn);
       processConditionRecovery(this.enemyUnits);
       this.grid.tickTemporaryTerrains?.();
@@ -1306,10 +1379,9 @@ export class HeadlessBattle {
     if (combatWeapons.length === 0) return targets;
     const enemies = unit.faction === 'player' ? this.enemyUnits : this.playerUnits;
     for (const enemy of enemies) {
-      const seen = isEntity(enemy)
-        ? getFootprint(enemy).some((t) => this.grid.isVisible(t.col, t.row))
-        : this.grid.isVisible(enemy.col, enemy.row);
-      if (this.grid.fogEnabled && unit.faction === 'player' && !seen) continue;
+      // As BattleScene.findAttackTargets: a foe the player can see (canInspectUnit).
+      if (this.grid.fogEnabled && unit.faction === 'player' && !canInspectUnit(this.grid, enemy))
+        continue;
       const dist = combatDistance(unit, enemy);
       if (
         combatWeapons.some((w) => {
@@ -1328,8 +1400,8 @@ export class HeadlessBattle {
     if (!hasStaff(unit)) return [];
     const staff = this._getActiveHealStaff(unit);
     if (!staff) return [];
-    const range = getEffectiveStaffRange(staff, unit);
-    const healOpts = this._healOptions();
+    const healOpts = this._healOptions(unit);
+    const range = getEffectiveStaffRange(staff, unit, healOpts);
     const targets = [];
     // Mirrors HealController: the army first, then living NPC allies (recruits,
     // the merchant caravan) the army can see.
@@ -1346,6 +1418,31 @@ export class HeadlessBattle {
       }
     }
     return targets;
+  }
+
+  /** The unit's Steal skill (an action ability of kind `steal_item`) it can use now, or null. */
+  _stealSkill(unit) {
+    const skill = getActionAbilities(unit, this.gameData.skills || []).find(
+      (s) => s.actionAbility?.kind === STEAL_ABILITY_KIND,
+    );
+    return skill && canUseAbility(unit, skill).ok ? skill : null;
+  }
+
+  /** As AbilityTargetingController._context for Steal: the seen foes, the convoy, the waiver. */
+  _stealContext(unit) {
+    return {
+      enemies: this.enemyUnits.filter((foe) => canInspectUnit(this.grid, foe)),
+      canAddToConvoy: (item) => Boolean(this.runManager?.canAddToConvoy?.(item)),
+      ...stealRunOptions(this.runManager, unit),
+    };
+  }
+
+  /** Legal Steal targets ([{ unit, item, destination }]); [] when Steal is off or unknown. */
+  _findStealTargets(unit) {
+    if (!this.stealEnabled || unit?.faction !== 'player') return [];
+    const skill = this._stealSkill(unit);
+    if (!skill) return [];
+    return findStealTargets(unit, skill.actionAbility, this._stealContext(unit));
   }
 
   _findTalkTarget(unit) {
@@ -1976,11 +2073,9 @@ export class HeadlessBattle {
     return true;
   }
 
-  _healOptions() {
-    return {
-      healingMultiplier:
-        this.runManager?.blessingRuntimeModifiers?.healingEffectivenessMultiplier ?? 1,
-    };
+  /** As HealController.staffOptions: the run's staff options for `unit` (StaffBlessings). */
+  _healOptions(unit) {
+    return staffRunOptions(this.runManager, unit);
   }
 
   _executeHeal(healer, target) {
@@ -1990,7 +2085,7 @@ export class HeadlessBattle {
       staff,
       healer,
       targets: [target],
-      healOpts: this._healOptions(),
+      healOpts: this._healOptions(healer),
       traits: this.gameData?.traits,
       turn: this.turnManager.turnNumber,
       phase: this.turnManager.currentPhase,
@@ -2011,12 +2106,14 @@ export class HeadlessBattle {
     // Warp/Rescue relocation staves are a player-flow-only utility; the
     // harness AI never relocates, so exclude them from its heal-staff pool
     // (otherwise a looted relocate staff would be "used" as a 0-base heal).
+    // Saint's Reserve's uses come from the run, as the scene reads them (StaffBlessings).
+    const options = staffRunOptions(this.runManager, unit);
     return unit.inventory.filter(
       (w) =>
         w.type === 'Staff' &&
         !w.relocate &&
-        getStaffMaxUses(w, unit) > 0 &&
-        getStaffRemainingUses(w, unit) > 0,
+        getStaffMaxUses(w, unit, options) > 0 &&
+        getStaffRemainingUses(w, unit, options) > 0,
     );
   }
 
@@ -2041,6 +2138,7 @@ export class HeadlessBattle {
       battleRecruits: this._battleRecruits,
       runManager: this.runManager,
       turn: this.turnManager?.turnNumber,
+      battleBlessings: this._battleBlessings || null,
     });
     if (!joined) throw new Error(`Invalid Talk recruit: ${npc?.name || 'missing target'}`);
     this._battleRecruits = joined.battleRecruits;
@@ -2155,7 +2253,8 @@ export class HeadlessBattle {
       this._applyKillRewards(unit, killer);
       if (leavesRemains(unit, killer)) {
         const tile = { col: unit.col, row: unit.row };
-        const seen = this.grid?.isVisible ? this.grid.isVisible(tile.col, tile.row) : true;
+        // As ZombieRemainsController.onEnemyFell: a fall the player saw (the one fog rule).
+        const seen = isUnitSeenAt(this.grid, unit, tile.col, tile.row);
         this._zombieTombstones = [...this._zombieTombstones, createRemains(unit, tile, { seen })];
       }
       // As BattleScene.removeUnit: a Necromancer's Skeletons crumble with it (no killer:
@@ -2256,11 +2355,10 @@ export class HeadlessBattle {
 
   async _processEnemyPhase() {
     this._reinforcementsPendingThisTurn = true;
-    // As BattleScene.onPhaseChange('enemy'): siege casters take their stance from the
-    // board the player left, before the phase-start hazards (SiegeArtillery).
+    // As BattleScene.onPhaseChange('enemy'): siege and staff casters take their
+    // post-holding stance before the phase-start hazards (SiegeArtillery).
     settleArtilleryStances({
       enemyUnits: this.enemyUnits,
-      playerUnits: this.playerUnits,
       turn: this.turnManager?.turnNumber ?? null,
     });
     try {

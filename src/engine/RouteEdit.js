@@ -17,7 +17,7 @@
 //
 // A node is NEVER redrawn when it is the start, the boss, the Ruins, completed, the current
 // node, encounter-locked, already fallen to the Eclipse, a recruit, the arena, an event, an
-// ambush village, or holds a saved battle config. (addRoad touches only the current node's
+// ambush village, the Old Sanctum, or holds a saved battle config. (addRoad touches only the current node's
 // edge list.)
 //
 // Plan, then apply (EventEffects): `planRouteEdit` is pure and returns what would change
@@ -261,6 +261,8 @@ export function roadCandidates(nodeMap, fromId) {
 export function isRedrawable(run, node) {
   if (!node || !REDRAWABLE_TYPES.includes(node.type)) return false;
   if (node.isAmbush || node.eventBattle) return false;
+  // The Old Sanctum (engine/SanctumPass.js) holds the act's earned blessing: never redrawn.
+  if (node.sanctum === true) return false;
   if (run?.battleConfigsByNodeId?.[node.id]) return false;
   return (
     nodeFallExemption(node, {

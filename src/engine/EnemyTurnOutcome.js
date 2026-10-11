@@ -3,7 +3,7 @@
 // AIController._processOneEnemy acts on exactly these decision fields: `path` (a move
 // of two tiles or more), `healTarget`, `statusStaffTarget`, `target` (an attack) and
 // `breakTile`. A decision with none of them (hold, asleep, guard_hold, healer_hold,
-// artillery_hold, boss_hold_throne, no_viable_target, no_reachable_move without a break,
+// artillery_hold, post_hold, boss_hold_throne, no_viable_target, no_reachable_move without a break,
 // an Entity with nobody in range) resolves nothing: the unit only ends its turn.
 //
 // Why such a turn needs no suspend checkpoint of its own (docs/specs/large-maps/

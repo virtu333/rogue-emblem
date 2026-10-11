@@ -5,6 +5,8 @@ import { showMinorHint } from './HintDisplay.js';
 import { trackSceneTimer, clearTrackedSceneTimer } from '../utils/sceneTimers.js';
 import { saveServiceRun } from './serviceSave.js';
 import { UI_PALETTE } from '../utils/uiStyles.js';
+import { openSanctum, sanctumLedgerKey } from '../engine/EarnedBlessings.js';
+import { payChurchTithe } from '../engine/ChurchTithe.js';
 
 export class ChurchController {
   constructor(scene) {
@@ -20,7 +22,25 @@ export class ChurchController {
       ? 0
       : scene.runManager.getChurchPromotionCount(node.id);
     scene._currentChurchNodeId = node.id;
+    // A church's door (never the Ruins'): the Old Sanctum rolls its pair the first time it opens
+    // and the Tithe Box pays once a church (engine/EarnedBlessings.js, engine/ChurchTithe.js).
+    // Both are saved now, so a reload shows the same pair and never pays twice.
+    this.entryStatus = ruinsMode ? '' : this._enterChurch(node);
     scene.showChurchOverlay(node, { ruinsMode });
+  }
+
+  /** The church's door: the sanctum's pair and the tithe, saved. Returns a status line or ''. */
+  _enterChurch(node) {
+    const scene = this.scene;
+    const run = scene.runManager;
+    const sanctumBefore = run.earnedBlessingPicks?.[sanctumLedgerKey(node.id)];
+    const sanctum = openSanctum(run, node.id);
+    const tithe = payChurchTithe(run, node.id);
+    if ((sanctum && sanctum !== sanctumBefore) || tithe.paid) {
+      const warning = saveServiceRun(scene);
+      if (warning) showMinorHint(scene, warning.trim());
+    }
+    return tithe.message;
   }
 
   handleRuins(node) {

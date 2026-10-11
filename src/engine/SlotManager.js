@@ -39,6 +39,11 @@ export const getSlotQuarantineKey = (slot) => `${META_KEY_PREFIX}${slot}_quarant
 export const getSlotPairJournalKey = (slot) => `${META_KEY_PREFIX}${slot}_pair_journal`;
 export const getSlotRecoveryOwnerKey = (slot) => `${META_KEY_PREFIX}${slot}_recovery_owner`;
 export const getSlotCloudPendingKey = (slot) => `${META_KEY_PREFIX}${slot}_cloud_pending`;
+/**
+ * The seed of the run the slot's shrine offered but has not begun (utils/pendingRunSeed.js):
+ * device-local, never synced or archived; deleteSlot clears it.
+ */
+export const getSlotPendingSeedKey = (slot) => `${META_KEY_PREFIX}${slot}_pendingSeed`;
 export const UNKNOWN_SLOT_RECOVERY_OWNER = Symbol('unknown-slot-recovery-owner');
 
 function parseRecoveryOwner(raw) {
@@ -357,6 +362,7 @@ export function deleteSlot(slot) {
     localStorage.removeItem(`emblem_rogue_slot_${slot}_cloud_conflict`);
     localStorage.removeItem(getSlotRecoveryOwnerKey(slot));
     localStorage.removeItem(getSlotCloudPendingKey(slot));
+    localStorage.removeItem(getSlotPendingSeedKey(slot));
   } catch (err) {
     console.warn('[SlotManager] deleteSlot failed:', err?.message || err);
   }

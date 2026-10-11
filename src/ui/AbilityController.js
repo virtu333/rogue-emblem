@@ -37,6 +37,7 @@ import {
   stealStatus,
 } from '../engine/ActionAbilitySystem.js';
 import { STEAL_ABILITY_KIND, stealReasonLabel } from '../engine/Steal.js';
+import { stealRunOptions } from '../engine/ShrineBoons.js';
 import { AbilityTargetingController } from './AbilityTargetingController.js';
 import { WarpStrikeController, knownTileOccupant } from './WarpStrikeController.js';
 import { presentRefreshSparkle } from './MovementActionController.js';
@@ -116,6 +117,8 @@ export class AbilityController {
         affixes: scene.gameData?.affixes,
         skillsData,
         canAddToConvoy: (item) => Boolean(scene.runManager?.canAddToConvoy?.(item)),
+        // Cutpurse's Luck: a player thief's speed check is waived (ShrineBoons.stealRunOptions).
+        ...stealRunOptions(scene.runManager, unit),
       };
       const hasTargets = abilityHasTargets(unit, skill, ctx);
       // Steal says why it is greyed beside a carrier: "Too slow", "Bag and convoy full".

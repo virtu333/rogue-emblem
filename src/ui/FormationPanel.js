@@ -6,6 +6,9 @@ import { isUnarmed } from '../engine/UnitManager.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 
+export const DANGER_STATUS_LEGEND =
+  'Purple outline: a foe’s status staff (Sleep, Silence) can reach.';
+
 function el(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -41,6 +44,11 @@ export function renderFormationPanel(container, formation, makeButton, { withSta
   const count = el('p', 'fm-count', `${placed} / ${n} placed`);
   count.setAttribute('role', 'status');
   container.append(count);
+  // Danger's purple outline (status-staff reach) is otherwise unexplained on this screen.
+  // Danger's overlay, or a single foe's look (its focus edge), may carry it.
+  const statusEdge = (zone) => zone?.visible && zone.tiles?.some((tile) => tile.statusThreat);
+  if (statusEdge(s.dangerZone) || statusEdge(s._inputController?._idleThreat))
+    container.append(el('p', 'fm-legend', DANGER_STATUS_LEGEND));
   if (formation.lesson) container.append(el('p', 'fm-notice', formation.lesson));
   if (formation.notice) container.append(el('p', 'fm-notice', formation.notice));
 
@@ -56,6 +64,13 @@ export function renderFormationPanel(container, formation, makeButton, { withSta
     if (bench.length)
       tools.append(makeButton('Auto-place', () => formation.autoPlace(), 'fm-auto'));
     if (placed > 0) tools.append(makeButton('Clear', () => formation.clearAll(), 'fm-clearall'));
+    // Gear, items, accessories and skills without leaving for the route map.
+    if (formation.canOpenRoster?.()) {
+      const roster = makeButton('Roster', () => formation.openRoster(), 'fm-roster');
+      roster.setAttribute('aria-label', 'Roster: equip, trade and set skills');
+      roster.title = 'Equip, trade and set skills, then come back here';
+      tools.append(roster);
+    }
   }
   if (tools.childElementCount) container.append(tools);
   if (bench.length) {

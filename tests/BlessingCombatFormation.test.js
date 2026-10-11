@@ -461,9 +461,9 @@ describe('parsers and the validator', () => {
 
   it('the shipped cards validate', () => {
     expect(validateBlessingsConfig(data.blessings).errors).toEqual([]);
-    // The last two offered cards (the earned blessings, which are never offered, follow them).
-    const ids = data.blessings.blessings.filter((b) => b.earned !== true).map((b) => b.id);
-    expect(ids.slice(-2)).toEqual(['phalanx_rite', 'duelists_creed']);
+    const ids = data.blessings.blessings.map((b) => b.id);
+    // Appended after the older cards (the rest of §5, then the earned blessings, follow them).
+    expect(ids.slice(26, 28)).toEqual(['phalanx_rite', 'duelists_creed']);
   });
 
   it('the validator refuses a Phalanx Rite that would do nothing', () => {

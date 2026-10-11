@@ -20,6 +20,10 @@ import { parseLordStatArc } from './LordStatArc.js';
 import { parseBattleGoldGamble } from './BattleGoldGamble.js';
 import { playerWeaponArtBoonErrors } from './WeaponArtSystem.js';
 import { adjacentAllyDefBonusErrors, isolatedCombatBonusErrors } from './FormationBlessings.js';
+import { EARNED_BOON_TYPES, earnedBoonErrors } from './EarnedBoons.js';
+import { shrineBoonErrors } from './ShrineBoons.js';
+import { TWISTED_BOON_TYPES, TWISTED_TWIST_TYPES, twistedEffectErrors } from './TwistedBoons.js';
+import { BURDEN_IDS, TWIST_BURDEN_IDS } from './Burdens.js';
 import { ACT_SEQUENCE } from '../utils/constants.js';
 
 export const BLESSINGS_CONTRACT_VERSION = 3;
@@ -31,8 +35,131 @@ const REQUIRED_TOP_LEVEL_KEYS = ['version', 'blessings', 'costPools'];
 const REQUIRED_BLESSING_KEYS = ['id', 'name', 'description', 'boons', 'costs'];
 // Fields an earned blessing may not carry: it is free and has no tier.
 const EARNED_FORBIDDEN_KEYS = ['tier', 'prices', 'pact', 'intrinsicPrice'];
+// Fields only an earned blessing may carry (docs/specs/blessings-v3.md §6.3): where it is won,
+// the twist a twisted one is taken with, and what the run must have for it to be offered.
+const EARNED_ONLY_KEYS = ['sources', 'twist', 'requires'];
+
+/**
+ * Where an earned blessing can be won (`sources[].kind`): an act boss's pick, an eclipsed elite's
+ * spoils, the Old Sanctum's vow, the Colosseum and an event's outcome.
+ */
+export const EARNED_SOURCE_KINDS = Object.freeze([
+  'act_boss',
+  'eclipsed_elite',
+  'sanctum',
+  'colosseum',
+  'event',
+]);
+// The acts a source's `acts` may name (the final boss's act has no pick).
+const EARNED_SOURCE_ACTS = ['act1', 'act2', 'act3', 'act4'];
+/** The keys an earned blessing's `requires` may hold: `eclipse` (the run's Eclipse is on). */
+export const EARNED_REQUIRES_KEYS = Object.freeze(['eclipse']);
+/**
+ * The effect types a twist may carry: a small explicit list, never "every price". A twist is
+ * taken mid-run (an act boss's pick), so a price fixed to an act (`act_stat_delta_all_units`,
+ * `act_deploy_cap_delta`, `act_hit_bonus` and `disable_personal_skills_until_act` name the act
+ * they bite in, usually one already past) is no twist; these act on the run from the take on.
+ * PR D3 adds the twisted cards' own types (engine/TwistedBoons.js): the Eclipse's faster gain and
+ * the ban on Master Seals. A twist's burden may have no countdown of its own (`permanent`, or a
+ * Hunted's `actsAhead`): only a twist may, and no church lifts one (Burdens.isCleansable).
+ */
+export const TWIST_EFFECT_TYPES = Object.freeze([
+  'burden',
+  'eclipse_shadow_delta',
+  'vision_delta',
+  'xp_multiplier_delta',
+  'shop_price_discount',
+  'forge_cost_multiplier',
+  ...TWISTED_TWIST_TYPES,
+]);
+/** The burden params only a twist may carry: a span with no countdown (Burdens.isTwistBurden). */
+const TWIST_SPAN_KEYS = Object.freeze(['permanent', 'actsAhead', 'untilAct']);
+
+/**
+ * Why a burden effect's span params are not usable (appends to `errors`). In a twist (`twist`
+ * true): `permanent: true` on an Ill Omen or a Hunted, or a Hunted's `actsAhead` (a positive
+ * whole number of acts), never both; `untilAct` is the record's own field, never data. Anywhere
+ * else none of them: a burden with no countdown is a twist's price only.
+ */
+function validateBurdenSpan(effect, path, errors, { twist = false } = {}) {
+  if (effect?.type !== 'burden' || !isObject(effect.params)) return;
+  const params = effect.params;
+  const spans = TWIST_SPAN_KEYS.filter((key) => params[key] !== undefined);
+  if (!twist) {
+    for (const key of spans)
+      errors.push(`${path}.params.${key}: a burden with no countdown is a twist's price only`);
+    return;
+  }
+  if (!BURDEN_IDS.includes(params.id)) errors.push(`${path}.params.id must name a burden`);
+  if (params.untilAct !== undefined)
+    errors.push(`${path}.params.untilAct is set when the twist is taken (use actsAhead)`);
+  if (params.permanent !== undefined && params.permanent !== true)
+    errors.push(`${path}.params.permanent must be true when given`);
+  if (params.permanent !== undefined && params.actsAhead !== undefined)
+    errors.push(`${path}.params: permanent or actsAhead, not both`);
+  if (
+    (params.permanent !== undefined || params.actsAhead !== undefined) &&
+    !TWIST_BURDEN_IDS.includes(params.id)
+  )
+    errors.push(`${path}.params: only ${TWIST_BURDEN_IDS.join(' or ')} may outlast its battles`);
+  if (params.actsAhead !== undefined) {
+    if (params.id !== 'hunted') errors.push(`${path}.params.actsAhead is a Hunted's only`);
+    if (!(Number.isInteger(params.actsAhead) && params.actsAhead > 0 && params.actsAhead <= 3))
+      errors.push(`${path}.params.actsAhead must be a whole number from 1 to 3`);
+  }
+  if (spans.length && params.battles !== undefined)
+    errors.push(`${path}.params.battles: a burden with no countdown names no battles`);
+}
 const REQUIRED_EFFECT_KEYS = ['type', 'params'];
 const REQUIRED_COST_POOL_KEYS = ['2', '3', '4'];
+
+/**
+ * Gifts with a catch (docs/specs/blessings-v3.md §7; engine/StartGifts.js): what a gift's
+ * `grant.kind` may be, and the effect types its `catch` may carry. A catch bites from the run's
+ * start (a gift is taken before the first node), so a price fixed to Act 1 is real; plus
+ * `eclipse_fall_now`, the one catch only a gift has. Never a Debt: a gift is not a loan.
+ */
+export const GIFT_GRANT_KINDS = Object.freeze([
+  'blessing',
+  'accessories',
+  'scrolls',
+  'weapon',
+  'whetstones',
+]);
+export const GIFT_CATCH_EFFECT_TYPES = Object.freeze([
+  'burden',
+  'eclipse_shadow_delta',
+  'eclipse_fall_now',
+  'vision_delta',
+  'act_stat_delta_all_units',
+  'act_hit_bonus',
+  'act_deploy_cap_delta',
+  'xp_multiplier_delta',
+  'shop_price_discount',
+  'forge_cost_multiplier',
+]);
+/**
+ * Which way each catch effect must point to cost something (a positive Vision delta is a
+ * boon, not a catch): -1 means the value must be below 0, +1 above it. `burden` and
+ * `eclipse_fall_now` are costs by kind.
+ */
+export const GIFT_CATCH_SIGNS = Object.freeze({
+  vision_delta: -1,
+  eclipse_shadow_delta: 1,
+  act_stat_delta_all_units: -1,
+  act_hit_bonus: -1,
+  act_deploy_cap_delta: -1,
+  xp_multiplier_delta: -1,
+  shop_price_discount: -1,
+  forge_cost_multiplier: 1,
+});
+/** The weapon tiers a `weapon` gift may name: priced tiers (a Legend costs 0, never handed out). */
+export const GIFT_WEAPON_TIERS = Object.freeze(['Iron', 'Steel', 'Silver', 'Rare']);
+// The burdens a catch may name (never Debt).
+const GIFT_CATCH_BURDENS = ['ill_omen', 'hunted', 'sworn_enemy', 'wounded'];
+// A catch that darkens the Eclipse costs nothing with it off: the gift must require it on.
+const GIFT_ECLIPSE_EFFECTS = ['eclipse_shadow_delta', 'eclipse_fall_now'];
+const GIFT_TEXT_LIMITS = { description: 90, lore: 85 };
 
 function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -57,7 +184,7 @@ export function createSeededRng(seed) {
   };
 }
 
-// Boons whose only param is a positive integer `value` (the earned blessings' effects).
+// Boons whose only param is a positive integer `value` (the first earned blessings' effects).
 const EARNED_BOON_VALUE_TYPES = new Set([
   'battle_last_stand',
   'act_start_vision_delta',
@@ -94,11 +221,26 @@ function validateBoonParams(effect, path, errors) {
     const value = effect.params?.value;
     if (!Number.isInteger(value) || value <= 0)
       errors.push(`${path}.params.value must be a positive integer (${effect.type})`);
+  } else if (
+    TWISTED_BOON_TYPES.includes(effect.type) ||
+    TWISTED_TWIST_TYPES.includes(effect.type)
+  ) {
+    // engine/TwistedBoons.js (PR D3): the parser its handler and the save's sanitizer read.
+    for (const message of twistedEffectErrors(effect))
+      errors.push(`${path}.${message} (${effect.type})`);
+  } else if (EARNED_BOON_TYPES.includes(effect.type)) {
+    // engine/EarnedBoons.js: the parser its handler and the save's sanitizer read.
+    for (const message of earnedBoonErrors(effect))
+      errors.push(`${path}.${message} (${effect.type})`);
   } else if (effect.type === 'adjacent_ally_def_bonus') {
     for (const message of adjacentAllyDefBonusErrors(effect.params))
       errors.push(`${path}.${message}`);
   } else if (effect.type === 'isolated_combat_bonus') {
     for (const message of isolatedCombatBonusErrors(effect.params))
+      errors.push(`${path}.${message}`);
+  } else {
+    // The rest of the §5 starting blessings (engine/ShrineBoons.js): null for any other type.
+    for (const message of shrineBoonErrors(effect.type, effect.params) || [])
       errors.push(`${path}.${message}`);
   }
 }
@@ -177,6 +319,11 @@ export function validateBlessingsConfig(config, options = {}) {
       errors.push(`${path}.tier must be one of 1,2,3,4`);
     }
     if (!earned && blessing.tier === 1) hasTier1 = true;
+    if (earned) validateEarnedFields(blessing, path, errors);
+    else
+      for (const key of EARNED_ONLY_KEYS)
+        if (blessing[key] !== undefined)
+          errors.push(`${path}.${key} is only allowed on an earned blessing`);
     if (typeof blessing.description !== 'string' || blessing.description.trim() === '') {
       errors.push(`${path}.description must be a non-empty string`);
     }
@@ -217,6 +364,8 @@ export function validateBlessingsConfig(config, options = {}) {
             if (typeof effect.type !== 'string' || effect.type.trim() === '')
               errors.push(`${effectPath}.type must be a non-empty string`);
             if (!isObject(effect.params)) errors.push(`${effectPath}.params must be an object`);
+            // A pact is a shrine price: no burden without a countdown (a twist's only).
+            else validateBurdenSpan(effect, effectPath, errors);
           });
         }
       }
@@ -255,6 +404,11 @@ export function validateBlessingsConfig(config, options = {}) {
   }
 
   if (config.version === 3) validateV3Pricing(config, errors);
+  // Gifts read the v3 price catalog (their catches name its prices).
+  if (config.gifts !== undefined) {
+    if (config.version !== 3) errors.push('gifts needs contract v3 (a catch names catalog prices)');
+    else validateGifts(config, errors);
+  }
 
   if (isObject(config.costPools)) {
     for (const tierKey of REQUIRED_COST_POOL_KEYS) {
@@ -290,6 +444,9 @@ export function validateBlessingsConfig(config, options = {}) {
           }
           if (!isObject(effect.params)) {
             errors.push(`${effectPath}.params must be an object`);
+          } else {
+            // A v2 rolled cost is a shrine price: no burden without a countdown.
+            validateBurdenSpan(effect, effectPath, errors);
           }
         });
       });
@@ -297,6 +454,262 @@ export function validateBlessingsConfig(config, options = {}) {
   }
 
   return { valid: errors.length === 0, errors, warnings };
+}
+
+const positiveInt = (value) => Number.isInteger(value) && value > 0;
+
+/** A gift's grant params by kind (StartGifts.js reads them). Appends to `errors`. */
+function validateGiftGrant(config, gift, path, errors) {
+  const grant = gift.grant;
+  if (!isObject(grant) || !GIFT_GRANT_KINDS.includes(grant.kind)) {
+    errors.push(`${path}.grant.kind must be one of ${GIFT_GRANT_KINDS.join(', ')}`);
+    return;
+  }
+  const at = `${path}.grant`;
+  if (grant.kind === 'blessing') {
+    if (![1, 2, 3, 4].includes(grant.tier)) errors.push(`${at}.tier must be 1-4`);
+    // A pact card is only ever handed out with its pact waived; nothing else has one to waive.
+    if (grant.tier === 4 && grant.waivePact !== true)
+      errors.push(`${at}.waivePact must be true for tier 4 (a pact card is never granted with it)`);
+    if (grant.tier !== 4 && grant.waivePact !== undefined)
+      errors.push(`${at}.waivePact is only for tier 4`);
+    // An empty pool (every card of the tier at weight 0, as fixtures do) is not an error: the
+    // gift is simply never offered then (StartGifts.isGiftEligible).
+  } else if (grant.kind === 'accessories') {
+    if (!positiveInt(grant.count) || grant.count > 3) errors.push(`${at}.count must be 1-3`);
+    if (!Number.isInteger(grant.tierOffset) || grant.tierOffset < 0 || grant.tierOffset > 3)
+      errors.push(`${at}.tierOffset must be an integer 0-3`);
+    if (
+      !(typeof grant.skillChance === 'number' && grant.skillChance >= 0 && grant.skillChance <= 1)
+    )
+      errors.push(`${at}.skillChance must be a number in [0, 1]`);
+  } else if (grant.kind === 'scrolls') {
+    const arts = grant.artScrolls ?? 0;
+    const skills = grant.skillScrolls ?? 0;
+    if (!Number.isInteger(arts) || arts < 0 || !Number.isInteger(skills) || skills < 0)
+      errors.push(`${at}.artScrolls and skillScrolls must be whole numbers`);
+    else if (arts + skills <= 0) errors.push(`${at} must hand out at least one scroll`);
+    // The arts a day-one gift hands out unlock by this act (StartGifts.giftArtScrollPool).
+    if (arts > 0 && !EARNED_SOURCE_ACTS.includes(grant.artScrollAct))
+      errors.push(`${at}.artScrollAct must be one of ${EARNED_SOURCE_ACTS.join(', ')}`);
+    if (skills > 0 && !EARNED_SOURCE_ACTS.includes(grant.skillScrollAct))
+      errors.push(`${at}.skillScrollAct must be one of ${EARNED_SOURCE_ACTS.join(', ')}`);
+  } else if (grant.kind === 'weapon') {
+    if (!GIFT_WEAPON_TIERS.includes(grant.tier))
+      errors.push(`${at}.tier must be one of ${GIFT_WEAPON_TIERS.join(', ')}`);
+    if (grant.imbue !== undefined && typeof grant.imbue !== 'boolean')
+      errors.push(`${at}.imbue must be a boolean`);
+  } else if (grant.kind === 'whetstones') {
+    if (!positiveInt(grant.count) || grant.count > 5) errors.push(`${at}.count must be 1-5`);
+  }
+}
+
+/** A gift's catch: a label, and catalog `prices` or its own `effects`. Appends to `errors`. */
+function validateGiftCatch(config, gift, path, errors) {
+  const source = gift.catch;
+  const at = `${path}.catch`;
+  if (!isObject(source)) {
+    errors.push(`${at} must be an object`);
+    return;
+  }
+  if (typeof source.label !== 'string' || !source.label.trim())
+    errors.push(`${at}.label must be a non-empty string`);
+  const hasPrices = source.prices !== undefined;
+  const hasEffects = source.effects !== undefined;
+  if (hasPrices === hasEffects) {
+    errors.push(`${at} must name exactly one of prices or effects`);
+    return;
+  }
+  const effects = [];
+  if (hasPrices) {
+    if (!Array.isArray(source.prices) || source.prices.length === 0) {
+      errors.push(`${at}.prices must be a non-empty array`);
+      return;
+    }
+    const label = typeof source.label === 'string' ? source.label.toLowerCase() : '';
+    for (const id of source.prices) {
+      const entry = config.priceCatalog?.[id];
+      if (!isObject(entry) || !Array.isArray(entry.effects)) {
+        errors.push(`${at}.prices names "${id}", which the priceCatalog does not hold`);
+        continue;
+      }
+      if (String(entry.label).includes('{owed}'))
+        errors.push(`${at}.prices "${id}" is a Debt: a gift is never a loan`);
+      // The card's label says what the catalog price is: it names each price's own label.
+      else if (label && !label.includes(String(entry.label).trim().toLowerCase()))
+        errors.push(`${at}.label does not name the price "${id}" ("${entry.label}")`);
+      effects.push(...entry.effects);
+    }
+  } else if (!Array.isArray(source.effects) || source.effects.length === 0) {
+    errors.push(`${at}.effects must be a non-empty array`);
+    return;
+  } else effects.push(...source.effects);
+  effects.forEach((effect, i) => {
+    const ep = `${at}.effects[${i}]`;
+    if (!isObject(effect) || !isObject(effect.params)) {
+      errors.push(`${ep} must be { type, params }`);
+      return;
+    }
+    if (!GIFT_CATCH_EFFECT_TYPES.includes(effect.type))
+      errors.push(`${ep}.type "${effect.type}" is not a catch (GIFT_CATCH_EFFECT_TYPES)`);
+    if (effect.type === 'burden' && !GIFT_CATCH_BURDENS.includes(effect.params.id))
+      errors.push(`${ep}: a catch's burden is one of ${GIFT_CATCH_BURDENS.join(', ')}`);
+    if (effect.type === 'eclipse_fall_now' && !positiveInt(effect.params.count))
+      errors.push(`${ep}.params.count must be a positive integer`);
+    const sign = GIFT_CATCH_SIGNS[effect.type];
+    const value = Number(effect.params.value);
+    if (sign && !(Number.isFinite(value) && Math.sign(value) === sign))
+      errors.push(
+        `${ep}.params.value must be ${sign < 0 ? 'below' : 'above'} 0: a ${effect.type} catch must cost something`,
+      );
+    if (GIFT_ECLIPSE_EFFECTS.includes(effect.type) && gift.requires?.eclipse !== true)
+      errors.push(`${path}.requires.eclipse must be true for a catch of ${effect.type}`);
+  });
+}
+
+/**
+ * The `gifts` block (docs/specs/blessings-v3.md §7): `{ offer: { fromRunsStarted, chance }, list }`.
+ * Each gift has a unique id, a name, a description (at most 90 characters) and a lore line (at
+ * most 85, not the description), an icon, a weight, its `grant` and its `catch`, and may carry
+ * `requires` ({ eclipse }) and `replaces`. A gift is never a blessing: its name and id may only
+ * match a blessing's when it `replaces` that blessing and the blessing is out of the offer
+ * (weight 0: the cut Armory Stash). Appends to `errors`.
+ */
+function validateGifts(config, errors) {
+  const gifts = config.gifts;
+  if (!isObject(gifts)) {
+    errors.push('gifts must be an object');
+    return;
+  }
+  const offer = gifts.offer;
+  if (
+    !isObject(offer) ||
+    !Number.isInteger(offer.fromRunsStarted) ||
+    offer.fromRunsStarted < 0 ||
+    !(typeof offer.chance === 'number' && offer.chance >= 0 && offer.chance <= 1)
+  )
+    errors.push('gifts.offer must be { fromRunsStarted: integer >= 0, chance: [0, 1] }');
+  if (!Array.isArray(gifts.list)) {
+    errors.push('gifts.list must be an array');
+    return;
+  }
+  const blessings = (config.blessings || []).filter(isObject);
+  const byName = new Map(blessings.map((b) => [String(b.name).trim().toLowerCase(), b]));
+  const byId = new Map(blessings.map((b) => [b.id, b]));
+  const ids = new Set();
+  gifts.list.forEach((gift, idx) => {
+    const path = `gifts.list[${idx}]`;
+    if (!isObject(gift)) {
+      errors.push(`${path} must be an object`);
+      return;
+    }
+    if (typeof gift.id !== 'string' || !gift.id.trim()) errors.push(`${path}.id must be a string`);
+    else if (ids.has(gift.id)) errors.push(`${path}.id duplicate: ${gift.id}`);
+    else ids.add(gift.id);
+    for (const key of ['name', 'description', 'lore', 'icon'])
+      if (typeof gift[key] !== 'string' || !gift[key].trim())
+        errors.push(`${path}.${key} must be a non-empty string`);
+    for (const [key, max] of Object.entries(GIFT_TEXT_LIMITS))
+      if (typeof gift[key] === 'string' && gift[key].length > max)
+        errors.push(`${path}.${key} is longer than ${max} characters`);
+    if (typeof gift.lore === 'string' && gift.lore.trim() === String(gift.description).trim())
+      errors.push(`${path}.lore must say something the description does not`);
+    if (!(typeof gift.weight === 'number' && gift.weight >= 0))
+      errors.push(`${path}.weight must be a number >= 0`);
+    if (gift.requires !== undefined) {
+      if (!isObject(gift.requires)) errors.push(`${path}.requires must be an object`);
+      else
+        for (const [key, value] of Object.entries(gift.requires))
+          if (!EARNED_REQUIRES_KEYS.includes(key) || typeof value !== 'boolean')
+            errors.push(`${path}.requires.${key} is not a gift requirement`);
+    }
+    // A gift is never a blessing: it may share a blessing's name or id only by replacing it.
+    const replaced = gift.replaces !== undefined ? byId.get(gift.replaces) : null;
+    if (gift.replaces !== undefined) {
+      if (!replaced) errors.push(`${path}.replaces names "${gift.replaces}", no blessing`);
+      else if (Number(replaced.weight ?? 1) > 0)
+        errors.push(`${path}.replaces "${gift.replaces}", which is still offered (weight > 0)`);
+    }
+    const twin = byName.get(String(gift.name).trim().toLowerCase());
+    if (twin && twin !== replaced)
+      errors.push(`${path}.name "${gift.name}" is a blessing's name (replaces it? say so)`);
+    const idTwin = byId.get(gift.id);
+    if (idTwin && idTwin !== replaced)
+      errors.push(`${path}.id "${gift.id}" is a blessing's id (replaces it? say so)`);
+    validateGiftGrant(config, gift, path, errors);
+    validateGiftCatch(config, gift, path, errors);
+  });
+}
+
+/**
+ * An earned row's own fields (docs/specs/blessings-v3.md §6.3): `sources` names where it is won
+ * (required, at least one; a kind from EARNED_SOURCE_KINDS, `acts` a list of acts for a pick that
+ * belongs to some acts only); `twist` is the price a twisted card is taken with ({ label,
+ * effects }, its effects of TWIST_EFFECT_TYPES), only on a card an act boss alone offers; `requires`
+ * holds only EARNED_REQUIRES_KEYS. Appends to `errors`.
+ */
+function validateEarnedFields(blessing, path, errors) {
+  const sources = blessing.sources;
+  if (!Array.isArray(sources) || sources.length === 0) {
+    errors.push(`${path}.sources must name where the earned blessing is won (at least one)`);
+  } else {
+    const kinds = new Set();
+    sources.forEach((source, i) => {
+      const where = `${path}.sources[${i}]`;
+      if (!isObject(source)) {
+        errors.push(`${where} must be { kind, acts? }`);
+        return;
+      }
+      if (!EARNED_SOURCE_KINDS.includes(source.kind))
+        errors.push(`${where}.kind must be one of ${EARNED_SOURCE_KINDS.join(', ')}`);
+      else if (kinds.has(source.kind)) errors.push(`${where}.kind "${source.kind}" is named twice`);
+      kinds.add(source.kind);
+      if (
+        source.acts !== undefined &&
+        (!Array.isArray(source.acts) ||
+          source.acts.length === 0 ||
+          source.acts.some((act) => !EARNED_SOURCE_ACTS.includes(act)))
+      )
+        errors.push(`${where}.acts must list acts from ${EARNED_SOURCE_ACTS.join(', ')}`);
+      for (const key of Object.keys(source))
+        if (key !== 'kind' && key !== 'acts') errors.push(`${where}.${key} is not a source field`);
+    });
+    if (blessing.twist !== undefined && (kinds.size !== 1 || !kinds.has('act_boss')))
+      errors.push(`${path}.twist: a twisted blessing is offered by an act boss only`);
+  }
+  if (blessing.twist !== undefined) {
+    const twist = blessing.twist;
+    if (!isObject(twist) || typeof twist.label !== 'string' || twist.label.trim() === '') {
+      errors.push(`${path}.twist must be { label, effects }`);
+    } else if (!Array.isArray(twist.effects) || twist.effects.length === 0) {
+      errors.push(`${path}.twist.effects must be a non-empty array`);
+    } else {
+      twist.effects.forEach((effect, i) => {
+        const where = `${path}.twist.effects[${i}]`;
+        if (!isObject(effect) || typeof effect.type !== 'string' || !isObject(effect.params))
+          errors.push(`${where} must be { type, params }`);
+        else if (!TWIST_EFFECT_TYPES.includes(effect.type))
+          errors.push(
+            `${where}.type "${effect.type}" is not a twist effect (one of ${TWIST_EFFECT_TYPES.join(', ')})`,
+          );
+        else {
+          // The twist's own params, read as its handler reads them.
+          validateBurdenSpan(effect, where, errors, { twist: true });
+          validateBoonParams(effect, where, errors);
+        }
+      });
+    }
+  }
+  if (blessing.requires !== undefined) {
+    if (!isObject(blessing.requires)) errors.push(`${path}.requires must be an object`);
+    else
+      for (const [key, value] of Object.entries(blessing.requires)) {
+        if (!EARNED_REQUIRES_KEYS.includes(key))
+          errors.push(`${path}.requires.${key} is not a known requirement`);
+        else if (typeof value !== 'boolean')
+          errors.push(`${path}.requires.${key} must be true or false`);
+      }
+  }
 }
 
 function priceOptionIds(option) {
@@ -335,6 +748,7 @@ function validateV3Pricing(config, errors) {
     entry.effects.forEach((effect, i) => {
       if (!isObject(effect) || typeof effect.type !== 'string' || !isObject(effect.params))
         errors.push(`${path}.effects[${i}] must be { type, params }`);
+      else validateBurdenSpan(effect, `${path}.effects[${i}]`, errors);
     });
   }
   const bands = config.tierBands;

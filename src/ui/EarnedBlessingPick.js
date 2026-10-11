@@ -1,11 +1,13 @@
-// EarnedBlessingPick — the act boss's earned-blessing pick (docs/specs/blessings-v3.md §6.4).
+// EarnedBlessingPick — an owed earned-blessing pick (docs/specs/blessings-v3.md §6.4): the act
+// boss's two cards, or an eclipsed elite's one.
 //
-// Two earned blessings as tarot cards (choiceCards.blessingTarotCard, the shrine's own card):
-// choose one and Take it, or Skip (a confirmation: "Leave them"). The pick was rolled at the
-// victory commit (engine/EarnedBlessings.js); this screen only shows the owed entry and calls
-// the engine's take/skip, then the host's save, then `onDone`. Two hosts share it: the battle
-// scene after a boss's rewards (PostCombatController.transitionAfterBattle) and the route map
-// after a reload (NodeMapScene.checkActComplete / _maybeOpenEarnedPick).
+// The earned blessings as tarot cards (choiceCards.blessingTarotCard, the shrine's own card):
+// choose one and Take it, or Skip (a confirmation: "Leave them" / "Leave it"). The pick was
+// rolled at the victory commit (engine/EarnedBlessings.js); this screen only shows the owed entry
+// and calls the engine's take/skip by the entry's ledger key (`ledgerKeyOf`), then the host's
+// save, then `onDone`. Two hosts share it: the battle scene after a boss's rewards
+// (PostCombatController.transitionAfterBattle) and the route map after a reload or an elite's
+// victory (NodeMapScene.checkActComplete / _maybeOpenEarnedPick).
 //
 // Input: Escape, a controller's Cancel and the header's Skip all open the same confirmation (a
 // stray Escape never leaves them silently); Pause is swallowed (nothing behind it may open).
@@ -24,12 +26,13 @@ import {
   EARNED_PICK_SKIP,
   EARNED_PICK_TAKE,
   EARNED_PICK_TITLE,
-  EARNED_SKIP_CONFIRM,
   earnedPickFooter,
   earnedPickModel,
+  earnedSkipConfirm,
 } from './earnedBlessingPickModel.js';
 import {
   earnedPickOwed,
+  ledgerKeyOf,
   skipEarnedBlessing,
   takeEarnedBlessing,
 } from '../engine/EarnedBlessings.js';
@@ -133,7 +136,7 @@ export class EarnedBlessingPick {
     this.busy = true;
     for (const b of this.surface.root.querySelectorAll('button')) b.disabled = true;
     const blessingId = this.chosen;
-    const result = takeEarnedBlessing(this.run, this.entry.actId, blessingId);
+    const result = takeEarnedBlessing(this.run, ledgerKeyOf(this.entry), blessingId);
     if (!result.ok) {
       // Refused (nothing changed): the menu comes back whole, the header's Skip too, and focus
       // returns to it, so a refused take never leaves a menu nothing can leave.
@@ -155,18 +158,19 @@ export class EarnedBlessingPick {
   askSkip() {
     if (this.busy || this.closed || this.confirm) return;
     let left = false;
+    const words = earnedSkipConfirm(this.model.cards.length);
     this.confirm = new ChoicePicker({
       scene: this.scene,
-      title: EARNED_SKIP_CONFIRM.title,
+      title: words.title,
       choices: [this.entry],
-      label: () => EARNED_SKIP_CONFIRM.heading,
-      describe: () => EARNED_SKIP_CONFIRM.text,
+      label: () => words.heading,
+      describe: () => words.text,
       confirmation: true,
-      confirmLabel: EARNED_SKIP_CONFIRM.confirmLabel,
-      closeLabel: EARNED_SKIP_CONFIRM.closeLabel,
+      confirmLabel: words.confirmLabel,
+      closeLabel: words.closeLabel,
       apply: () => {
         if (this.busy || this.closed) return { ok: false, reason: 'Already chosen.' };
-        const result = skipEarnedBlessing(this.run, this.entry.actId);
+        const result = skipEarnedBlessing(this.run, ledgerKeyOf(this.entry));
         if (!result.ok) return result;
         left = true;
         this.busy = true;

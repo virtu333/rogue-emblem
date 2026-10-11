@@ -214,6 +214,9 @@ export class PortraitBattleController {
 
   check() {
     if (this.ended || this.switching) return false;
+    // The formation's Roster is open: the battle was left (no flag to switch from) and
+    // closing it re-opens the scene, which takes the phone's orientation then.
+    if (this.scene._formationRoster) return false;
     const mismatch = this.mismatch();
     if (!mismatch) {
       this.pending = false;

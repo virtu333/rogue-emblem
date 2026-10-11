@@ -26,10 +26,13 @@ import { isGoldPouch, makeGoldPouch } from './GoldPouch.js';
 export const CARRY_ACTS = Object.freeze(['act1', 'act2', 'act3', 'act4', 'finalBoss']);
 export const SKELETON_CLASS_NAME = 'Skeleton';
 
-/** The roll stream for a garrison: same spawns, act and rung, same rolls. */
-export function carryStream({ spawns, act, difficultyId, templateId }) {
+/**
+ * The roll stream for a garrison: same spawns, act and rung, same rolls. `pass` > 0 is a further
+ * pass's own stream (Cutpurse's Luck), so the first pass's rolls never move.
+ */
+export function carryStream({ spawns, act, difficultyId, templateId, pass = 0 }) {
   const key = [
-    'enemy-carry',
+    pass > 0 ? `enemy-carry#${pass}` : 'enemy-carry',
     act,
     difficultyId || 'normal',
     templateId || '',
@@ -90,20 +93,40 @@ function drawCarried(rand, pool, table) {
  * `carries` (and `carryValue`), one roll per slot at the act's chance, stopping at the
  * first miss. A config without `perBattle`, an act with no chance or no pool, or a garrison
  * with nothing eligible, assigns nothing and draws nothing.
+ *
+ * `passes` (Cutpurse's Luck: `battleParams.carryPasses`) runs the whole roll that many times,
+ * each further pass on its own stream over the spawns still empty-handed, so the first pass is
+ * exactly the roll without the blessing and the expected carriers double (two passes).
  * @returns {{ carriers: number }}
  */
 export function assignEnemyCarry(
   spawns,
-  { act, difficultyId, templateId, carryConfig = null, lootTables = null } = {},
+  { act, difficultyId, templateId, carryConfig = null, lootTables = null, passes = 1 } = {},
 ) {
   const out = { carriers: 0 };
-  if (!isPerBattleGearConfig(carryConfig)) return out;
+  const count = Math.max(1, Math.min(4, Math.trunc(Number(passes) || 1)));
+  for (let pass = 0; pass < count; pass++)
+    out.carriers += carryPass(spawns, {
+      act,
+      difficultyId,
+      templateId,
+      carryConfig,
+      lootTables,
+      pass,
+    });
+  return out;
+}
+
+/** One pass of `assignEnemyCarry`: the number of carriers it added. */
+function carryPass(spawns, { act, difficultyId, templateId, carryConfig, lootTables, pass }) {
+  let carriers = 0;
+  if (!isPerBattleGearConfig(carryConfig)) return carriers;
   const chance = gearChanceFor(carryConfig, act);
   const max = Math.max(0, Math.trunc(Number(carryConfig.maxPerBattle) || 0));
   const pool = carryPoolFor(lootTables, act);
   const eligible = (spawns || []).filter((s) => isCarrierEligible(s) && !s.carries);
-  if (chance <= 0 || max <= 0 || pool.length === 0 || eligible.length === 0) return out;
-  const rand = carryStream({ spawns, act, difficultyId, templateId });
+  if (chance <= 0 || max <= 0 || pool.length === 0 || eligible.length === 0) return carriers;
+  const rand = carryStream({ spawns, act, difficultyId, templateId, pass });
   const free = [...eligible];
   for (let slot = 0; slot < max && free.length > 0; slot++) {
     if (!(rand() < chance)) break;
@@ -112,9 +135,9 @@ export function assignEnemyCarry(
     if (!carried) continue;
     spawn.carries = carried.name;
     if (carried.value !== undefined) spawn.carryValue = carried.value;
-    out.carriers++;
+    carriers++;
   }
-  return out;
+  return carriers;
 }
 
 /**

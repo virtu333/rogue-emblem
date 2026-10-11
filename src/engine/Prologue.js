@@ -208,6 +208,7 @@
 //   clearCoach: true                    the coach goal (one without a gate) is done
 // The ids are resolved by the scene (PrologueController); this module only matches.
 
+import { parseAuthoredMap } from './AuthoredMap.js';
 import { LOOT_GOLD_TEAM_XP, NODE_TYPES, TERRAIN, XP_STAT_NAMES } from '../utils/constants.js';
 import { TRAIT_RULES_VERSION } from './TraitSystem.js';
 import { usesMagic, isStaff } from './Combat.js';
@@ -404,52 +405,8 @@ const isPlainObject = (v) => Boolean(v) && typeof v === 'object' && !Array.isArr
 
 // --- Map ---------------------------------------------------------------------------
 
-/**
- * Parse a chapter's ASCII map against terrain.json. Never throws.
- * @returns {{ mapLayout: number[][]|null, cols: number, rows: number, errors: string[] }}
- */
-export function parsePrologueMap(map, terrainData) {
-  const errors = [];
-  const rowsIn = map?.rows;
-  const legend = map?.legend;
-  if (!Array.isArray(rowsIn) || rowsIn.length === 0) {
-    return { mapLayout: null, cols: 0, rows: 0, errors: ['map.rows must be a non-empty array'] };
-  }
-  if (!legend || typeof legend !== 'object' || Array.isArray(legend)) {
-    return { mapLayout: null, cols: 0, rows: 0, errors: ['map.legend must be an object'] };
-  }
-  const indexOf = {};
-  for (const [char, name] of Object.entries(legend)) {
-    if (!/^\S$/.test(char)) errors.push(`map.legend key "${char}" must be one character`);
-    const index = (terrainData || []).findIndex((t) => t?.name === name);
-    if (index < 0) errors.push(`map.legend "${char}" names unknown terrain "${name}"`);
-    else indexOf[char] = index;
-  }
-  const tokens = rowsIn.map((row) => (typeof row === 'string' ? row.trim().split(/\s+/) : null));
-  const cols = tokens[0]?.length || 0;
-  const mapLayout = [];
-  tokens.forEach((line, r) => {
-    if (!line) {
-      errors.push(`map row ${r} must be a string`);
-      return;
-    }
-    if (line.length !== cols) {
-      errors.push(
-        `map row ${r} has ${line.length} tiles, expected ${cols} (rows must be rectangular)`,
-      );
-    }
-    mapLayout.push(
-      line.map((char, c) => {
-        if (!(char in indexOf)) {
-          if (!(char in legend)) errors.push(`map tile (${c},${r}) "${char}" is not in the legend`);
-          return -1;
-        }
-        return indexOf[char];
-      }),
-    );
-  });
-  return { mapLayout: errors.length ? null : mapLayout, cols, rows: rowsIn.length, errors };
-}
+/** A chapter's ASCII map (engine/AuthoredMap.js, the grammar set pieces share). */
+export const parsePrologueMap = parseAuthoredMap;
 
 function throneTiles(mapLayout) {
   const out = [];
@@ -878,10 +835,11 @@ function beatMatches(beat, event) {
 }
 
 // A beat that says something: a blocking note, a line, or a non-blocking tip. One
-// concept per decision (oneNote) counts all three.
-const readsAloud = (beat) =>
+// concept per decision (oneNote) counts all three, but only those `heard` lets through
+// (the Guidance setting hides some).
+const readsAloud = (beat, heard) =>
   (Array.isArray(beat?.do) ? beat.do : []).some(
-    (a) => a && ('note' in a || 'tip' in a || 'dialogue' in a),
+    (a) => a && ('note' in a || 'tip' in a || 'dialogue' in a) && heard(a),
   );
 
 /**
@@ -890,14 +848,21 @@ const readsAloud = (beat) =>
  * with its beat id. A `once` beat fires at most once: the returned state records it.
  * With `oneNote` (every forecastOpened event: one concept per forecast), only the first
  * matching beat that shows a note or a line fires; later note beats are neither run
- * nor spent, so they wait for a later event they match.
+ * nor spent, so they wait for a later event they match. `heard(action)` says whether a
+ * note, line or tip will show (default: all do); a beat whose speech nobody will hear
+ * still fires but never takes the one slot.
  * @param {object} chapter
  * @param {{ type: string }} event - see the module header for each trigger's fields
  * @param {{ fired?: string[] }} [state]
- * @param {{ oneNote?: boolean }} [options]
+ * @param {{ oneNote?: boolean, heard?: (action: object) => boolean }} [options]
  * @returns {{ actions: object[], fired: string[], state: { fired: string[] } }}
  */
-export function prologueBeatsFor(chapter, event, state = {}, { oneNote = false } = {}) {
+export function prologueBeatsFor(
+  chapter,
+  event,
+  state = {},
+  { oneNote = false, heard = () => true } = {},
+) {
   const done = new Set(Array.isArray(state?.fired) ? state.fired : []);
   const actions = [];
   const fired = [];
@@ -906,7 +871,7 @@ export function prologueBeatsFor(chapter, event, state = {}, { oneNote = false }
     for (const beat of Array.isArray(chapter?.beats) ? chapter.beats : []) {
       if (!beat || (beat.once && done.has(beat.id))) continue;
       if (!beatMatches(beat, event)) continue;
-      const speaks = readsAloud(beat);
+      const speaks = readsAloud(beat, heard);
       if (oneNote && speaks && spoke) continue;
       if (speaks) spoke = true;
       fired.push(beat.id);

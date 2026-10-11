@@ -2,12 +2,15 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import Ajv from 'ajv';
 import {
+  maxReinforcementDelayFrom,
   reinforcementTurnOffsetsFrom,
   validateMapTemplatesConfig,
 } from '../src/engine/MapTemplateEngine.js';
 import { validatePrologueConfig } from '../src/engine/Prologue.js';
 import { validateBlessingsConfig } from '../src/engine/BlessingEngine.js';
 import { validateEventsConfig } from '../src/engine/EventValidation.js';
+import { validateSetPiecesConfig } from '../src/engine/SetPieces.js';
+import { validateRepeatableUpgrades } from '../src/engine/RepeatableUpgrades.js';
 import { validateCrossReferences } from './validateCrossReferences.js';
 
 const DATA_DIR = path.resolve('data');
@@ -65,6 +68,10 @@ const mtResult = validateMapTemplatesConfig(mapTemplatesData, {
   reinforcementTurnOffsets: reinforcementTurnOffsetsFrom(
     JSON.parse(readFileSync(path.join(DATA_DIR, 'difficulty.json'), 'utf-8')),
   ),
+  // Hollow Hourglass: a wave can come a turn later than its rung schedules it.
+  maxReinforcementDelay: maxReinforcementDelayFrom(
+    JSON.parse(readFileSync(path.join(DATA_DIR, 'blessings.json'), 'utf-8')),
+  ),
 });
 if (mtResult.valid) {
   console.log('  OK  mapTemplates.json (engine validator)');
@@ -100,6 +107,16 @@ if (prologueResult.valid) {
   failed = true;
 }
 
+// Repeatable Home Base upgrades (tiers past the list: engine/RepeatableUpgrades.js)
+const repeatableErrors = validateRepeatableUpgrades(readData('metaUpgrades.json'));
+if (repeatableErrors.length === 0) {
+  console.log('  OK  metaUpgrades.json repeatable tiers (engine validator)');
+} else {
+  console.error('FAIL  metaUpgrades.json repeatable tiers (engine validator)');
+  for (const err of repeatableErrors) console.error(`      ${err}`);
+  failed = true;
+}
+
 // Validate the blessings catalog (engine validator: shape, v3 pricing, and the params of the
 // boons whose handler would otherwise skip a malformed set and ship a card that does nothing)
 const blessingsResult = validateBlessingsConfig(readData('blessings.json'));
@@ -125,12 +142,32 @@ const eventsResult = validateEventsConfig(readData('events.json'), {
   traits: readData('traits.json'),
   recruits: readData('recruits.json'),
   accessories: readData('accessories.json'),
+  setPieces: readData('setPieces.json'),
 });
 if (eventsResult.valid) {
   console.log('  OK  events.json (engine validator)');
 } else {
   console.error('FAIL  events.json (engine validator)');
   for (const err of eventsResult.errors) {
+    console.error(`      ${err}`);
+  }
+  failed = true;
+}
+
+// Validate the event set pieces (engine validator: maps, spawns, slots, waves, and the
+// events that name them, at every act and rung those events reach)
+const setPiecesResult = validateSetPiecesConfig(readData('setPieces.json'), {
+  terrain: readData('terrain.json'),
+  classes: readData('classes.json'),
+  weapons: readData('weapons.json'),
+  difficulty: readData('difficulty.json'),
+  events: readData('events.json'),
+});
+if (setPiecesResult.valid) {
+  console.log('  OK  setPieces.json (engine validator)');
+} else {
+  console.error('FAIL  setPieces.json (engine validator)');
+  for (const err of setPiecesResult.errors) {
     console.error(`      ${err}`);
   }
   failed = true;

@@ -15,7 +15,28 @@ import { loadGameData } from './testData.js';
 
 const data = loadGameData();
 const catalog = data.blessings;
-const EARNED_IDS = ['unbroken_banner', 'second_dawn', 'ember_lantern', 'captains_whistle'];
+// Every earned row: PR C's four, PR D1's six, PR D2's five, then PR D3's four twisted cards.
+const EARNED_IDS = [
+  'unbroken_banner',
+  'second_dawn',
+  'ember_lantern',
+  'captains_whistle',
+  'standard_of_the_sun',
+  'hollow_hourglass',
+  'chronicle',
+  'tithe_box',
+  'lantern_of_the_road',
+  'crest_of_the_road',
+  'saints_reliquary',
+  'mercenary_ledger',
+  'smiths_covenant',
+  'thiefs_lantern',
+  'seers_eye',
+  'darkened_dawn',
+  'blood_covenant',
+  'kingmakers_oath',
+  'hollow_sun_favor',
+];
 const earnedRows = () => catalog.blessings.filter((b) => b.earned === true);
 
 function errorsOf(patch) {
@@ -26,10 +47,11 @@ function errorsOf(patch) {
 const row = (copy, id) => copy.blessings.find((b) => b.id === id);
 
 describe('the shipped earned rows', () => {
-  it('four earned blessings sit at the end of the list, after every offered card', () => {
+  it('the earned blessings sit at the end of the list, after every offered card', () => {
     const list = catalog.blessings;
-    expect(list.slice(-4).map((b) => b.id)).toEqual(EARNED_IDS);
-    expect(list.slice(0, -4).some(isEarnedBlessing)).toBe(false);
+    const n = EARNED_IDS.length;
+    expect(list.slice(-n).map((b) => b.id)).toEqual(EARNED_IDS);
+    expect(list.slice(0, -n).some(isEarnedBlessing)).toBe(false);
     expect(validateBlessingsConfig(catalog).errors).toEqual([]);
   });
 
@@ -51,7 +73,13 @@ describe('the shipped earned rows', () => {
   });
 
   it('the pick odds sit in the data: two cards, 1 / 0.85 / 0.7 by earned blessings held', () => {
-    expect(catalog.earnedOffer).toEqual({ actBoss: 2, weightByHeld: [1, 0.85, 0.7] });
+    // PR D1 adds the eclipsed elite's flat third (D-4) and the Old Sanctum's stamp chance (D-5).
+    expect(catalog.earnedOffer).toEqual({
+      actBoss: 2,
+      weightByHeld: [1, 0.85, 0.7],
+      eclipsedEliteChance: 0.3333,
+      sanctum: { chance: 0.5 },
+    });
   });
 });
 
@@ -204,7 +232,8 @@ describe('offers never include an earned blessing', () => {
     function v2Catalog() {
       const c = structuredClone(catalog);
       c.version = 2;
-      for (const key of ['priceCatalog', 'tierBands', 'debtScale']) delete c[key];
+      // The start gifts (v3 only: their catches name catalog prices) go with the price catalog.
+      for (const key of ['priceCatalog', 'tierBands', 'debtScale', 'gifts']) delete c[key];
       c.blessings = c.blessings.filter((b) => !b.intrinsicPrice);
       for (const b of c.blessings) delete b.prices;
       return c;
@@ -226,6 +255,8 @@ describe('offers never include an earned blessing', () => {
       for (const b of ordinary.blessings)
         if (b.earned) {
           delete b.earned;
+          // An earned row's own fields (an ordinary row may carry none of them).
+          for (const key of ['sources', 'twist', 'requires']) delete b[key];
           b.tier = 1;
         }
       expect(offersEarned(ordinary).length).toBeGreaterThan(20);

@@ -353,6 +353,10 @@
           "minimum": 1,
           "maximum": 4
         },
+        "earnedAvailable": {
+          "type": "string",
+          "minLength": 1
+        },
         "counterAtLeast": {
           "type": "object",
           "properties": {
@@ -560,7 +564,8 @@
             "routeEdit",
             "forge",
             "wear",
-            "mend"
+            "mend",
+            "earnedBlessing"
           ]
         }
       },

@@ -270,6 +270,8 @@ export function resolveBattleReinforcements({
     classMoveType,
     difficultyId: battleParams?.difficultyId || fallbackDifficultyId,
     difficultyTurnOffset: Math.trunc(Number(battleParams?.reinforcementTurnOffset) || 0),
+    // Hollow Hourglass (RunManager.getBattleParams): every wave a turn later.
+    turnDelay: Math.max(0, Math.trunc(Number(battleParams?.reinforcementDelay) || 0)),
     enemyCountBonus: Math.trunc(Number(battleParams?.enemyCountBonus) || 0),
     activeEnemyCount: enemyUnits.length,
     playerTiles: occupiedUnitTiles(playerUnits),
@@ -297,14 +299,18 @@ export function enemyRewardMultiplier(unit) {
 }
 
 /**
- * The XP multiplier for fighting an enemy: its reward, × the boss/elite bonus. A raised
+ * The XP multiplier for fighting an enemy: its reward, × the boss/elite bonus (the rung's
+ * `specialXpMultiplier`, default `XP_SPECIAL_ENEMY_MULTIPLIER`). A raised
  * unit pays a quarter (it pays no gold, so its reward multiplier cannot stand in).
  */
-export function enemyXpMultiplier(unit) {
+export function enemyXpMultiplier(unit, specialMultiplier = XP_SPECIAL_ENEMY_MULTIPLIER) {
   if (isRaisedUnit(unit)) return RAISED_XP_MULTIPLIER;
   const rewardMultiplier = enemyRewardMultiplier(unit);
   if (!(unit?.isBoss || unit?.isElite)) return rewardMultiplier;
-  return rewardMultiplier * XP_SPECIAL_ENEMY_MULTIPLIER;
+  const special = Number.isFinite(specialMultiplier)
+    ? Math.max(0, specialMultiplier)
+    : XP_SPECIAL_ENEMY_MULTIPLIER;
+  return rewardMultiplier * special;
 }
 
 /**

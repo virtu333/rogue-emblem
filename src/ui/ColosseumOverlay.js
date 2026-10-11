@@ -7,18 +7,32 @@ import { xpSnapshot } from '../engine/XpProgress.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import { levelUpDisplayResults } from './progressionDisplay.js';
 import { saveServiceRun } from './serviceSave.js';
+import { runLevelUpReroll } from './LevelUpRerollController.js';
 import { relinkWeapon } from '../engine/RunManager.js';
 import { UI_PALETTE } from '../utils/uiStyles.js';
+import { EarnedBlessingPick } from './EarnedBlessingPick.js';
+import {
+  COLOSSEUM_LEDGER_KEY,
+  colosseumOfferDue,
+  earnedPickOwed,
+  prepareColosseumOffer,
+} from '../engine/EarnedBlessings.js';
 // ColosseumOverlay.js — Overlay UI for the Colosseum node (Arena + Mercenary Board)
 // ArenaMenu owns rendering/input; this controller owns gameplay and visit persistence.
+// The Colosseum's earned blessing (docs/specs/blessings-v3.md §6.7, D-8): the first win in a gold
+// or platinum bout rolls its offer with the bout's own save (_settleFight); the colosseum's menu
+// opens it (_showMenu: EarnedBlessingPick, saved by the service save), and the route map opens it
+// if it is still owed when the party leaves.
 
 import {
   generateChallenger,
   calculateArenaReward,
   calculateArenaXP,
   arenaEntryBlock,
+  arenaEntryFee,
   arenaVisitBouts,
   arenaVisitBoutsLeft,
+  arenaVisitCap,
   getMaxFights,
   getMaxFightsPerVisit,
   getArenaDistance,
@@ -89,17 +103,29 @@ export class ColosseumOverlay {
     const colosseumData = this.gameData.colosseum;
     this._colosseumData = colosseumData;
     this._maxFights = getMaxFights(this._getDifficultyId(), colosseumData);
-    this._maxVisitBouts = getMaxFightsPerVisit(this._getDifficultyId(), colosseumData);
+    // The rung's cap; the Mercenary Ledger's extra bout is read live (_maxVisitBouts).
+    this._rungVisitBouts = getMaxFightsPerVisit(this._getDifficultyId(), colosseumData);
 
     this._shutdown = () => this.hide();
     this.scene.events?.once?.('shutdown', this._shutdown);
     this._showMenu();
   }
 
+  /**
+   * Bouts this visit allows: the rung's cap plus the Mercenary Ledger's (ColosseumEngine
+   * arenaVisitCap), read every time, so a Ledger taken mid-visit opens its bout at once.
+   */
+  get _maxVisitBouts() {
+    return arenaVisitCap(this._rungVisitBouts, this.runManager);
+  }
+
   /** Close the overlay visually (ESC path). Does NOT invoke the leave callback. */
   hide() {
     if (!this.visible) return;
     this.visible = false;
+    // An open earned pick closes with it, still owed (the route map offers it again).
+    this._earnedPick?.destroy();
+    this._earnedPick = null;
     this._sheet?.destroy();
     this._sheet = null;
     this._clearScreen();
@@ -162,7 +188,41 @@ export class ColosseumOverlay {
 
   _showMenu() {
     this._clearScreen();
+    if (this._openOwedEarnedPick()) return;
     this.nativeMenu = ArenaMenu.menu(this);
+  }
+
+  /**
+   * The Colosseum's earned pick, still owed (rolled by a gold or platinum win): opened in place of
+   * the menu, which comes back once it is taken or left (saved first). False when none is owed or
+   * it could not be shown (the menu then shows; the route map offers it after the visit).
+   */
+  _openOwedEarnedPick() {
+    if (this._earnedPick) return true;
+    const entry = earnedPickOwed(this.runManager, { keys: [COLOSSEUM_LEDGER_KEY] });
+    if (!entry) return false;
+    const pick = new EarnedBlessingPick(this.scene, {
+      run: this.runManager,
+      entry,
+      save: () => {
+        this._saveWarning = saveServiceRun(this.scene);
+      },
+      onDone: () => {
+        if (this._earnedPick !== pick) return;
+        this._earnedPick = null;
+        if (this.visible) this._showMenu();
+      },
+    });
+    this._earnedPick = pick;
+    let opened = false;
+    try {
+      opened = pick.create();
+    } catch (err) {
+      console.warn('[ColosseumOverlay] earned pick failed to open:', err);
+      pick.destroy();
+    }
+    if (!opened) this._earnedPick = null;
+    return opened;
   }
 
   _showUnitSelect() {
@@ -275,15 +335,16 @@ export class ColosseumOverlay {
     const tier = this._selectedTier;
 
     if (!this._canAffordTier(tier)) {
-      this._showTierSelect(`Not enough gold to enter (${tier.entryFee}G required).`);
+      this._showTierSelect(`Not enough gold to enter (${this._entryFee(tier)}G required).`);
       return;
     }
     if (this._entryBlock(unit)) return;
     // The entry fee is paid as the bout starts: a win returns it with the prize, a
-    // draw returns it, a loss or a yield keeps it. Leaving mid-bout is a yield.
-    const fee = Math.max(0, tier.entryFee || 0);
+    // draw returns it, a loss or a yield keeps it. Leaving mid-bout is a yield. The fee is
+    // the run's (the Mercenary Ledger halves it), and the bout keeps what it paid.
+    const fee = this._entryFee(tier);
     if (fee > 0 && this.runManager.spendGold(fee) === false) {
-      this._showTierSelect(`Not enough gold to enter (${tier.entryFee}G required).`);
+      this._showTierSelect(`Not enough gold to enter (${fee}G required).`);
       return;
     }
     // No battle start runs before an arena bout: settle a stale accessory debt here.
@@ -418,13 +479,23 @@ export class ColosseumOverlay {
     const baseXP = calculateArenaXP(unit, challenger, outcome === 'win');
     const levelsGained = this._levelsGainedThisVisit[unit.name] || 0;
 
-    const reward = calculateArenaReward(tier, outcome, baseXP, levelsGained, colosseumData);
+    // The fee this bout paid (the Ledger's half fee, if held when it started) is what a loss
+    // forfeits and a win or a draw hands back.
+    const feePaid = this._bout?.feePaid || 0;
+    const reward = calculateArenaReward(tier, outcome, baseXP, levelsGained, colosseumData, {
+      entryFee: this._bout ? feePaid : undefined,
+    });
 
     // Apply gold. The fee was paid as the bout started (_executeFight): the payout
     // is the net result plus that fee (a win: prize and fee; a draw: the fee back;
     // a loss or a yield: nothing). `reward.goldDelta` stays the bout's net result.
-    const payout = reward.goldDelta + (this._bout?.feePaid || 0);
+    const payout = reward.goldDelta + feePaid;
     if (payout > 0) this.runManager.awardGold(payout);
+
+    // The Colosseum's earned blessing (D-8): the first gold or platinum win rolls its offer, saved
+    // with this bout (_persistVisit below); the menu opens it.
+    if (colosseumOfferDue(this.runManager, { tier: tier?.name, outcome }))
+      prepareColosseumOffer(this.runManager, this._node?.id ?? null);
 
     // Apply XP and track level-ups
     let levelUpInfo = null;
@@ -434,7 +505,10 @@ export class ColosseumOverlay {
       const extendedLevelingEnabled =
         this.runManager?.getDifficultyModifier?.('extendedLevelingEnabled', false) || false;
       const before = xpSnapshot(unit, { extendedLevelingEnabled });
-      const xpResult = gainExperience(unit, reward.xpGained, { extendedLevelingEnabled });
+      const xpResult = gainExperience(unit, reward.xpGained, {
+        extendedLevelingEnabled,
+        guard: unit.faction === 'player',
+      });
       // The result card's EXP bar (plain values; null when nothing counted: the cap).
       xpRecord = xpGaugeRecord(unit, {
         before,
@@ -480,7 +554,9 @@ export class ColosseumOverlay {
     settled.filled = true;
     this.nativeMenu = ArenaMenu.result(this, outcome, tier, reward, levelUpInfo, xpRecord);
     const view = this.nativeMenu?.xpView || null;
-    const cards = growth ? () => this._playArenaLevelUps(growth, levelUpInfo) : null;
+    const cards = growth
+      ? () => this._playArenaLevelUps(growth, levelUpInfo, { outcome, tier })
+      : null;
     if (!view || !xpRecord) {
       cards?.();
       return;
@@ -507,15 +583,32 @@ export class ColosseumOverlay {
     }
   }
 
-  /** The fight's level-up cards, over the result card that stays open under them. */
-  async _playArenaLevelUps(growth, levelUpInfo) {
+  /**
+   * The fight's level-up cards, over the result card that stays open under them. Each card
+   * offers Branching Threads' Reroll: the level's gains rolled again and saved with the
+   * visit's own run save; the result card is redrawn after the cards if one was rerolled.
+   */
+  async _playArenaLevelUps(growth, levelUpInfo, { outcome = null, tier = null } = {}) {
     const unit = this._selectedUnit;
     const learned = (levelUpInfo.learnedSkills || []).map(
       (id) => this.gameData.skills?.find((sk) => sk.id === id)?.name || id,
     );
     const results = levelUpDisplayResults(unit.stats, levelUpInfo.ups);
+    let rerolled = false;
     for (let i = 0; i < results.length; i++) {
       if (!this.visible || growth.destroyed) break;
+      // The record is the level's own (its gains object is the one levelUpInfo.ups holds),
+      // so the result card reads the new gains too.
+      const reroll = runLevelUpReroll({
+        run: this.runManager,
+        unit,
+        record: results[i],
+        displays: results.slice(i),
+        persist: () => saveServiceRun(this.scene) === '',
+        onRerolled: () => {
+          rerolled = true;
+        },
+      });
       await growth.showLevelUp({
         unit,
         result: results[i],
@@ -523,9 +616,11 @@ export class ColosseumOverlay {
         frame: 'screen',
         cue: true,
         depth: DOM_UI_DEPTHS.RITE,
+        reroll,
       });
     }
-    this.nativeMenu?.focus?.();
+    if (rerolled && this.visible && outcome) this._showResult(outcome, tier);
+    else this.nativeMenu?.focus?.();
   }
 
   _showMercBrowse() {
@@ -652,8 +747,13 @@ export class ColosseumOverlay {
   // Helpers
   // ────────────────────────────────────────
 
+  /** The gold a bout of `tier` costs this run (ColosseumEngine.arenaEntryFee: the Ledger halves it). */
+  _entryFee(tier) {
+    return arenaEntryFee(tier, this.runManager);
+  }
+
   _canAffordTier(tier) {
-    return Boolean(tier) && this.runManager.gold >= (tier.entryFee || 0);
+    return Boolean(tier) && this.runManager.gold >= this._entryFee(tier);
   }
 
   /** Bouts fought at this visit by everyone (the sum of the saved per-unit counts). */

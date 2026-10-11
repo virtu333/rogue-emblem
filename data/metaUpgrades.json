@@ -1335,15 +1335,21 @@
   {
     "id": "branching_threads",
     "name": "Branching Threads",
-    "description": "Reroll a battle's loot choices before your first pick",
+    "description": "Reroll battle loot or a level-up's gains. Tiers past 4 keep selling.",
     "category": "economy",
     "maxLevel": 4,
     "costs": [
       100,
       200,
-      250,
-      250
+      300,
+      350
     ],
+    "repeatable": {
+      "cost": 400,
+      "effect": {
+        "rewardRerolls": 1
+      }
+    },
     "effects": [
       {
         "rewardRerolls": 1

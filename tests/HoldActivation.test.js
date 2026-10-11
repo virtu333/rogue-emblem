@@ -866,3 +866,59 @@ describe('locked maps, saves and par', () => {
     expect(calculatePar({ ...map, parOffset: undefined }, data.turnBonus, 'hard')).toBe(base);
   });
 });
+
+describe('a pack with a wake turn', () => {
+  const wakeAt = (turn, wakeTurn = 4) => {
+    const f = field();
+    for (const e of f.enemies) e.holdWakeTurn = wakeTurn;
+    // The hero stays far out of every zone: only the clock can wake the pack.
+    const run = () =>
+      wakeHolders({
+        enemyUnits: f.enemies,
+        playerUnits: [f.hero],
+        threatContext: f.ctxFor([f.hero]),
+        turn,
+      });
+    return { f, run };
+  };
+
+  it('sleeps until the enemy phase of its turn, then the whole pack wakes for "turn"', () => {
+    for (const turn of [1, 2, 3]) expect(wakeAt(turn).run(), `turn ${turn}`).toEqual([]);
+    const woken = wakeAt(4).run();
+    expect(woken.map((w) => [w.unit.name, w.reason])).toEqual([
+      ['A', 'turn'],
+      ['B', 'turn'],
+    ]);
+    expect(woken.every((w) => w.unit.aiMode === undefined && w.unit.holdWoke === 'turn')).toBe(
+      true,
+    );
+  });
+
+  it('holds past the turn when the check is not run with a turn (a resumed phase), and a later turn wakes too', () => {
+    const none = wakeAt(null, 4);
+    expect(none.run()).toEqual([]);
+    expect(wakeAt(7, 4).run()).toHaveLength(2);
+  });
+
+  it('a pack with no wake turn still holds on any turn', () => {
+    const f = field();
+    const woken = wakeHolders({
+      enemyUnits: f.enemies,
+      playerUnits: [f.hero],
+      threatContext: f.ctxFor([f.hero]),
+      turn: 40,
+    });
+    expect(woken).toEqual([]);
+  });
+
+  it("applyHoldSpawn carries the spawn's wake turn onto the unit", () => {
+    const unit = applyHoldSpawn(
+      { col: 1, row: 1 },
+      { aiMode: 'hold', holdPack: 0, holdPackSize: 2, holdWakeTurn: 4 },
+    );
+    expect(unit.holdWakeTurn).toBe(4);
+    expect(applyHoldSpawn({ col: 1, row: 1 }, { aiMode: 'hold', holdPack: 0 }).holdWakeTurn).toBe(
+      undefined,
+    );
+  });
+});

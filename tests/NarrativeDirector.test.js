@@ -205,6 +205,7 @@ describe('KNOWN_WHEN_KEYS', () => {
   it('exports the supported condition vocabulary', () => {
     expect([...KNOWN_WHEN_KEYS].sort()).toEqual([
       'bossKilledYouBefore',
+      'bossMetBefore',
       'bossSlainBefore',
       'commander',
       'commanderHasEpithet',
@@ -343,5 +344,115 @@ describe('pools: one line per run, walked without repeats', () => {
     expect(buildNarrativeContext({ meta: { getRunsStarted: () => 12 } }).runsStarted).toBe(12);
     expect(buildNarrativeContext({ meta: { runsStarted: 3 } }).runsStarted).toBe(3);
     expect(buildNarrativeContext().runsStarted).toBe(0);
+  });
+});
+
+describe('bossMetBefore', () => {
+  const met = (slain, killedYou) => ({
+    ...CTX,
+    bossSlainCount: slain,
+    bossKilledYouCount: killedYou,
+  });
+
+  it('holds once the save has slain the boss or fallen to it, either way', () => {
+    expect(evaluateWhen({ bossMetBefore: true }, met(0, 0))).toBe(false);
+    expect(evaluateWhen({ bossMetBefore: false }, met(0, 0))).toBe(true);
+    expect(evaluateWhen({ bossMetBefore: true }, met(1, 0))).toBe(true);
+    expect(evaluateWhen({ bossMetBefore: true }, met(0, 1))).toBe(true);
+    expect(evaluateWhen({ bossMetBefore: false }, met(3, 2))).toBe(false);
+  });
+
+  it('reads the counts the save keeps for that boss', () => {
+    const meta = (slain, killed) => ({
+      getBossSlainCount: (name) => (name === 'Warchief' ? slain : 0),
+      getDefeatedByCount: (name) => (name === 'Warchief' ? killed : 0),
+    });
+    const ctxFor = (m, bossName = 'Warchief') => buildNarrativeContext({ meta: m, bossName });
+    expect(evaluateWhen({ bossMetBefore: true }, ctxFor(meta(0, 0)))).toBe(false);
+    expect(evaluateWhen({ bossMetBefore: true }, ctxFor(meta(0, 1)))).toBe(true);
+    expect(evaluateWhen({ bossMetBefore: true }, ctxFor(meta(1, 0)))).toBe(true);
+    // Another boss's history is not this one's.
+    expect(evaluateWhen({ bossMetBefore: true }, ctxFor(meta(4, 4), 'Archmage'))).toBe(false);
+  });
+});
+
+describe('pool exchanges: a line and its answer, played as one', () => {
+  const boss = (text) => ({ speaker: 'Warchief', portrait: 'portrait_boss_warchief', line: text });
+  const edric = (text) => ({ speaker: 'Edric', portrait: 'portrait_lord_edric', line: text });
+  const exchange = (i, when) => ({
+    ...(when ? { when } : {}),
+    exchange: [boss(`taunt ${i}`), edric(`answer ${i}`)],
+  });
+  const section = (pool) => ({
+    base: [boss('base taunt')],
+    variants: [{ when: { commander: 'Edric', bossMetBefore: true }, pool }],
+  });
+  const ctx = (runsStarted, extra = {}) => ({
+    ...CTX,
+    commander: 'Edric',
+    difficulty: 'normal',
+    bossSlainCount: 1,
+    bossKilledYouCount: 0,
+    runsStarted,
+    linesPlayed: [],
+    ...extra,
+  });
+
+  it('plays the whole exchange in order, the key on its first line only', () => {
+    const [first, second, ...rest] = selectDialogueEntries(section([exchange(0)]), ctx(1));
+    expect(rest).toEqual([]);
+    expect(first).toEqual({ ...boss('taunt 0'), lineKey: narrativeLineKey('taunt 0\nanswer 0') });
+    expect(second).toEqual(edric('answer 0'));
+  });
+
+  it("never pairs a taunt with another taunt's answer, and walks every exchange before a repeat", () => {
+    const pool = Array.from({ length: 5 }, (_, i) => exchange(i));
+    const played = [];
+    const picks = [];
+    for (let run = 1; run <= 10; run++) {
+      const entries = selectDialogueEntries(section(pool), ctx(run, { linesPlayed: [...played] }));
+      const [taunt, answer] = entries;
+      expect(answer.line).toBe(taunt.line.replace('taunt', 'answer'));
+      picks.push(taunt.line);
+      played.push(taunt.lineKey);
+    }
+    expect(new Set(picks.slice(0, 5)).size).toBe(5);
+    expect(picks.slice(5)).toEqual(picks.slice(0, 5));
+  });
+
+  it('two exchanges that share a taunt are remembered apart', () => {
+    const a = { exchange: [boss('same taunt'), edric('first answer')] };
+    const b = { exchange: [boss('same taunt'), edric('second answer')] };
+    const firstPick = pickPoolEntry([a, b], ctx(1));
+    const secondPick = pickPoolEntry([a, b], ctx(3, { linesPlayed: [firstPick.lineKey] }));
+    expect(secondPick.exchange[1].line).not.toBe(firstPick.exchange[1].line);
+  });
+
+  it('a contextual exchange (the rung) takes its turn with the general ones', () => {
+    const pool = [exchange(0), exchange(1), exchange('black', { difficulty: 'lunatic' })];
+    const onBlackSun = (run) =>
+      selectDialogueEntries(section(pool), ctx(run, { difficulty: 'lunatic' }))[0].line;
+    expect(onBlackSun(2)).toBe('taunt black');
+    expect(onBlackSun(3)).not.toBe('taunt black');
+    // Off that rung it never plays.
+    for (let run = 1; run <= 6; run++) {
+      expect(selectDialogueEntries(section(pool), ctx(run))[0].line).not.toBe('taunt black');
+    }
+  });
+
+  it('a first meeting, or another commander, falls through to the base', () => {
+    const pool = [exchange(0)];
+    expect(selectDialogueEntries(section(pool), ctx(1, { bossSlainCount: 0 }))).toEqual([
+      boss('base taunt'),
+    ]);
+    expect(selectDialogueEntries(section(pool), ctx(1, { commander: 'Kira' }))).toEqual([
+      boss('base taunt'),
+    ]);
+  });
+
+  it('skips a malformed exchange without throwing', () => {
+    const bad = [{ exchange: [] }, { exchange: [{ speaker: 'Edric' }] }, { exchange: 'nope' }];
+    expect(selectDialogueEntries(section(bad), ctx(1))).toEqual([boss('base taunt')]);
+    expect(selectDialogueEntries(section([...bad, exchange(7)]), ctx(1))[0].line).toBe('taunt 7');
   });
 });

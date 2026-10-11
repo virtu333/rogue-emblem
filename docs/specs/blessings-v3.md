@@ -159,7 +159,7 @@ table, the row says so:
 | Shops +15% | 1.5 | new |
 | +20% forge costs | 1.5 | works since §2 |
 | Staff healing −20% | 1 | |
-| Lingering Injury on the commander | 3 | existing burden; drafted at 1, repriced to a tier III price after the strategy sim (commander KO 71.5% vs 57.7% with no price, about All growths −5) |
+| Lingering Injury on the commander | 2 | existing burden; drafted at 1, priced 3 after a strategy sim (commander KO 71.5% vs 57.7% with no price) whose battles never took a battle's stat deltas back, so the injury's −2 stayed on the commander for good. Re-priced to 2 once the sim cleared them (PR D4): commander KO 45.3% vs 39.3% with no price (First Light, 30 runs a row), next to Hunted 2 (2 pt, 45.8%) and well under −2 DEF Act 1 (3 pt, 51.8%). **The numbers before that fix are not comparable with these.** Nomad's Pact and Focused Curriculum, whose 3-point candidate it was alone, now pair it with −8 Hit Act 1 (2.5) |
 | −1 DEF Act 1 / −8 Hit Act 1 / recruits −1 level / arts +2 HP | 0.5 | garnish only: never a II-IV card's whole price |
 
 **Gold prices become Debt.** Debt is an existing burden: a fixed sum owed, half of each
@@ -247,9 +247,12 @@ a trap.
   of offers (0.35 gave 40%).
 - **Mid-run grants** (church vow, Twin Altar) stay boons-only and are limited to tier I
   and the "shape" cards (§5.1), so a church never hands out a IV's boon without its pact.
-- Fix the free re-roll: the offered run's seed is kept in the game registry for each save
-  slot (`{ [slot]: seed }`) until that slot's run begins, so backing out, or opening another
-  slot's shrine in between, shows the same offer (a page reload still draws afresh).
+- Fix the free re-roll: the offered run's seed is kept for each save slot until that slot's
+  run begins, so backing out, opening another slot's shrine in between, or reloading the page
+  shows the same offer (and the same gift, §7.1). As built (PR D5): the slot's localStorage key
+  `emblem_rogue_slot_<n>_pendingSeed` holds `{ seed, runsStarted }` (`utils/pendingRunSeed.js`;
+  the game registry holds it when storage refuses), read as none once the save's run count has
+  moved (a run began since), cleared when the run begins and when the slot is deleted.
 
 ## 4. The current 23
 
@@ -331,18 +334,18 @@ where it acts in battle, a read in the combat-mod builder (`BattleScene` and
 
 | Blessing | Effect | Hook | Tier | Prices |
 |---|---|---|---|---|
-| Late Bloom | every unit +1 to all stats at each act cleared | `advanceAct`; new | III | Debt III / −1 DEF Act 1 + Ill Omen |
+| Late Bloom | every unit +1 in its two strongest growths at each act cleared (re-tuned from +1 to every stat but Move: see as built); **Built** | `act_clear_army_stats` `{ value: 1, stats: 2 }`: an act-start grant (`kind: 'army_stats'`) | III | Debt III / Ill Omen + −1 DEF + −8 Hit Act 1 |
 | Slow Fuse | starting lords −1 to HP and the seven combat stats (never Move) in Act 1, +1 from Act 2 (built at +1, not +2: +2 to eight stats per lord for the rest of the run is far above a tier II bet; `lord_stat_arc` params are data) | `lord_stat_arc`, `engine/LordStatArc.js`: a dip reverted at the act's end and a rise at the next act's start | II | intrinsic (2 pt): the Act 1 dip is the price |
-| Dawn Tithe | +100 gold per turn under par at each victory | turn bonus; new | II | +8 shadow / staff healing −20% |
+| Dawn Tithe | +100 gold per turn under par at each victory; **Built** | `under_par_gold`, paid with the turn bonus | II | +8 shadow / staff healing −20% |
 
 ### 5.2 Build-arounds
 
 | Blessing | Effect | Hook | Tier | Prices |
 |---|---|---|---|---|
-| Lone Banner | deploy cap −1; every deployed unit +25% XP | deploy delta (exists) + conditional XP; new | III | none: the cap is the price |
+| Lone Banner | deploy cap −1; every unit +25% XP from battles; **Built** | `deploy_cap_delta` + `xp_multiplier_delta` (both exist) | III | intrinsic (3 pt): the cap is the price |
 | Phalanx Rite | +2 DEF per ally on a cardinal neighbour tile (never a diagonal), up to +3 (so +2 with one, +3 with two or more; was +1 per ally); **Built** | `adjacent_ally_def_bonus`: `SkillSystem.countAdjacentAllies` (the accessory condition `adjacent_ally`'s rule), read in `BlessingCombatMods` | III | Debt III / Sworn Enemy + −8 Hit Act 1 |
 | Duelist's Creed | +15 avoid, +10 crit while no ally is within 2 tiles (Manhattan); **Built** | `isolated_combat_bonus`: `SkillSystem.hasAllyWithin` (the accessory condition `no_ally_within_2`'s rule), read in `BlessingCombatMods` | III | Debt III / Hunted 2 + −1 DEF Act 1 (was: −1 deploy Act 1; see as built) |
-| Cavalier's Hour | mounted units +1 MOV; infantry +1 DEF | move types in classes.json; new | III | Debt III / Sworn Enemy + garnish |
+| Cavalier's Hour | mounted units +1 MOV; foot soldiers (Infantry) +1 DEF; Armored nothing; **Built** | `move_type_battle_stats`: battle-start deltas | III | Debt III / Sworn Enemy + −8 Hit Act 1 |
 
 **As built (the formation cards).** Both are player-faction combat bonuses read in
 `BlessingCombatMods.blessingCombatModsFor` (the one place a blessing reaches a combat's mods),
@@ -382,13 +385,13 @@ reading). Held as `blessingRuntimeModifiers.adjacentAllyDefBonuses` / `isolatedC
 | Blessing | Effect | Hook | Tier | Prices |
 |---|---|---|---|---|
 | Bloodless Art | player units' weapon arts −1 HP (floor 1) and +1 use per map (only arts that have a limit); foes get nothing | `player_weapon_art_boon`: `WeaponArtSystem.weaponArtRunOptions` / `getEffectiveWeaponArtHpCost` / `getEffectiveWeaponArtMapLimit`, read by `canUseWeaponArt` and the menus | II | staff healing −20% / Debt II |
-| Saint's Reserve | every staff +1 use per battle | staff use table | II | Debt II / Ill Omen |
-| Cutpurse's Luck | twice as many carriers; Steal skips its speed check | `carryConfig`, `Steal.js` | III | Hunted 2 / Sworn Enemy |
-| Open Roll | recruit nodes offer two candidates | `RecruitNodeSystem` | III | recruits −1 level + Debt II / Debt III |
-| Watcher's Grace | +1 Vision on every boss map | Vision grant at battle start | II | +8 shadow / Debt II |
-| Patient Dawn | +2 par turns on every map | `TurnBonusCalculator` offset | III | Act 1 −1 deploy / Ill Omen + Debt II |
-| Twin Chapel | churches offer two vows per visit | `ChurchVow` | II | Debt II |
-| Omen Reader | the Eclipse's next fall shows two nodes early; falls spare recruit nodes | `EclipseSystem` thresholds | II | +8 shadow |
+| Saint's Reserve | every staff +1 use per battle; **Built** | `staff_uses_bonus`: `StaffBlessings.staffRunOptions` | II | Debt II / Ill Omen |
+| Cutpurse's Luck | twice as many carriers; Steal skips its speed check; **Built** | `carrier_luck`: a second carry pass, `Steal` `ignoreSpeed` | III | Hunted 2 + −8 Hit Act 1 / Sworn Enemy + −1 DEF Act 1 |
+| Open Roll | recruit nodes offer two candidates; **Built** | `recruit_alternate`: `RecruitNodeSystem.ensureRecruitAlternates` | III | recruits −1 level + Debt II / Debt III |
+| Watcher's Grace | +1 Vision on every boss map, unspent it fades; **Built** | `boss_battle_vision`: `beginBattleInProgress` / `completeBattle` | II | +8 shadow / Debt II |
+| Patient Dawn | +2 par turns on every map; **Built** | `par_turn_delta`: `battleParams.blessingParTurns` | III | Act 1 −1 deploy + Ill Omen / Ill Omen + Debt II |
+| Twin Chapel | each church accepts two different vows; **Built** | `church_extra_vows`: `ChurchVow` | II | Debt II |
+| Omen Reader | the route map marks the next two falls; falls spare recruit nodes; **Built** | `eclipse_omen`: `EclipseSystem` `spareTypes` / `foretold` | II | +8 shadow |
 
 Cut in review: **Veteran's Road** (recruits join at the commander's level −1). A recruit node
 already sets the level from the army: the floor of the average effective level of its
@@ -405,7 +408,138 @@ and exists, but the route map needs a new interaction to pick the road.
 | Blessing | Effect | Hook | Tier | Prices |
 |---|---|---|---|---|
 | Gambler's Toss (was Gambler's Coin: an accessory has that name) | each victory's battle gold is doubled or cut to a third on an even toss, seeded by run and node (expected +17%; even double-or-halve, +25%, out-earned Merchant Bane in the strategy sim) | `battle_gold_gamble`, `engine/BattleGoldGamble.js`, in `completeBattle` after the elite, Merchant Bane and rung multipliers and before a Debt garnishes | III | intrinsic (3 pt): the variance is the price; never granted by an event |
-| Lottery Loot | one loot card per battle comes from the next act's table | `LootSystem` tier offset (exists for event accessories) | III | Debt III / Sworn Enemy |
+| Lottery Loot | one loot card per battle comes from the next act's table; **Built** | `next_act_loot_card`: `engine/LotteryLoot.js` | III | Debt III / Sworn Enemy + −8 Hit Act 1 |
+
+**As built (the rest of §5, PR D4).** Twelve cards, one module for their boons
+(`engine/ShrineBoons.js`: params, run state, load defaults; the validator and the handler read
+the params the same way, so a malformed card is refused rather than shipped doing nothing, and
+the totals held are capped the same on take and on load: Dawn Tithe 500 gold a turn, Saint's
+Reserve +3 uses, Watcher's Grace +3 charges, Patient Dawn +5 turns).
+Prices are re-paired where the brief's pair fell outside the tier band (Late Bloom's Ill Omen
+pair takes the two Act 1 garnishes, Cavalier's Hour, Cutpurse's Luck and Lottery Loot take an
+Act 1 garnish beside their burden, Patient Dawn's −1 deploy takes an Ill Omen). Every boon but
+Lone Banner's (an intrinsic price) is on the event allow-list; none is tier I, so no church altar
+offers one. Each icon reuses an existing cell (`BLESSING_ICON_REUSE`); every card waits for a
+painting (`PAINTING_PENDING`).
+
+- **Late Bloom** pays as each later act begins (`_payActStartGrants`, after the act's rest), to
+  the roster and the fallen (a revived ally has kept pace); never on the take; `paidActs` is
+  saved, so a reload never pays twice. Each unit gains +1 in its two highest growths
+  (`ShrineBoons.lateBloomStats`: the unit's own `growths`, else its class's, the middle of each
+  range, a promoted class through its base plus its `growthBonuses`; a tie goes to the earlier
+  stat in HP, STR, MAG, SKL, SPD, DEF, RES, LCK; never Move; no randomness). A living unit's HP
+  gain raises its current HP through `UnitHealth.setUnitHP`; the fallen gain none (a revival sets
+  it). A grant saved without its `stats` count (only before the re-tune) reads as all eight.
+  **Re-tune (review, decided).** As first built (+1 to every stat but Move) the strategy sim put
+  it far above tier III (Δsquad A3 +76 against single digits for the other tier III cards, the
+  best commander KO of the set), and it contradicted §5.1's Slow Fuse reasoning (+1 to eight stats
+  for every unit for the rest of the run is not a tier II-III bet). Re-tuned to the two strongest growths
+  (`{ value: 1, stats: 2 }`). `sim:strategy --section blessings --only
+  late_bloom,iron_oath,merchant_bane --seeds 12 --difficulty dusk`, each against its own base row:
+  as first built Δsquad A3 +76, Δlords A3 +64, commander KO 40.3% (base 57.2%); re-tuned Δsquad
+  A3 +30, Δlords A3 +16, commander KO 53.9% (base 57.4%), between Iron Oath (45.7%) and no
+  blessing, as the target asked. Its squad gain is still the largest of the three (Iron Oath +9,
+  Merchant Bane +11), so it remains the strongest growth card of tier III.
+- **Dawn Tithe** pays with the turn bonus in `prepareBattleRewards`, after the victory commit, so
+  a Debt never garnishes it, and counts turns under the map's OWN par (Patient Dawn's turns taken
+  off: holding both never pays for stretched turns). Nothing on a battle without par. The reward
+  header names it ("Dawn Tithe: +N gold"). The strategy sim pays no turn gold, so it cannot see it.
+- **Lone Banner** is two existing boons behind an intrinsic price ("Deploy one fewer unit in every
+  battle", 3 points); `resolveDeployLimits` never takes the cap below an act's minimum, and a
+  recruit node's join level averages the squad that rule fields
+  (`RecruitNodeSystem.resolveRecruitNodeLevel`), so Lone Banner with Act 1's deploy price on top
+  (−2 in all) still averages Act 1's three.
+- **Cavalier's Hour** writes uid-keyed deltas into `battleParams.battleDebuffs` by each unit's move
+  type at battle time (Cavalry and Flying +1 MOV, Infantry +1 DEF, Armored nothing; the card says
+  "foot soldiers +1 DEF (not Armored)"), beside a Lingering Injury's delta, applied once
+  at a fresh start by `BattleStatDeltas.applyBattleStartDebuffs` in the scene and the harness and
+  taken back with every battle delta. A recruit who joins mid-battle (Talk: a recruit node's, an
+  event's `battle.recruit`) is a mounted unit or a foot soldier too, so it takes its own as it
+  joins, by the same rule (`ShrineBoons.unitMoveTypeBattleDeltas`, which the start reads per roster
+  unit): `BattleRecruits.settleRecruitJoin`, the one join both the scene's Talk and the harness's
+  call, gives the recruit its run identity first and then applies `engine/BattleJoinBoons.js`
+  (`applyBattleJoinBoons`), as battle deltas (`_battleDeltas`), so the victory's
+  `clearBattleScopedDeltas` takes them back and the roster unit keeps its own stats. Each landed
+  battle-start source is recorded on the unit (`_battleDeltaSources`, dropped with the deltas and
+  by `serializeUnit`), so a unit already carrying Cavalier's Hour is never given it twice. A
+  suspend keeps both on the checkpoint's units and a resume joins nobody again; a Vision rewind to
+  before the Talk puts the recruit back without them, and the Talk again gives them once. A
+  Lingering Injury is one named unit's and never a joiner's (`tests/BattleJoinBoons.test.js`).
+- **A joiner and the act's stat cards** (`act_stat_delta_all_units`: Rally Cry, the "−1 / −2 DEF to
+  all units in Act 1" prices, Armory Stash's catch). They are permanent stats until the act ends,
+  not battle deltas, so a joiner takes them through `RunManager.grantRecruitBlessingConsumables`
+  (`_applyActStatDeltasToRecruit`) and the tracker lists its uid for the act's end. Whether the
+  unit holds one is read from the unit (`recruitBlessingGrants` gains
+  `actStatDeltaGrantKey(tracker, index)`), never from the tracker alone: the tracker is run state
+  a battle checkpoint does not hold, so after a Vision rewind to before a Talk it still lists the
+  recruit's uid while the recruit stands without the delta, and the Talk again must give it once
+  (or the act's end would take back what it never had). A uid the tracker lists for a unit already
+  in the roster or the fallen is held. A tracker from before holders were tracked reverts the
+  whole roster at the act's end, so a joiner takes it too.
+- **Saint's Reserve**: `engine/StaffBlessings.staffRunOptions(run, unit)` gives a PLAYER unit's
+  staves `bonusUses`; `Combat.getStaffMaxUses` / `getStaffRemainingUses` take it, and so does
+  `StaffSettlement.validateStaffAction` (`staffOptions`). Every caller (the battle menu, the heal,
+  the roster and unit sheets, trade panes, the reward card, the shop comparison, the harness)
+  passes it (`tests/StaffBlessingBoundary.test.js`); the enemy AI never does.
+- **Cutpurse's Luck** sets `battleParams.carryPasses` (2): `EnemyCarry.assignEnemyCarry` runs the
+  carry roll again on its own stream over the spawns still empty-handed, so the first pass is the
+  roll without the card and the expected carriers double (a pass at 0.3 with one slot each gives
+  0.6 a battle). Each pass has its own `maxPerBattle`, so a battle can hold twice as many
+  carriers. It is written into the map at generation, so a locked map keeps its carriers.
+  A player thief's Steal skips the speed check (`ShrineBoons.stealRunOptions` → Steal's
+  `ignoreSpeed`); room is still checked, and a foe thief never gains it.
+- **Open Roll**: every open recruit node gains `node.recruitAlternate`, drawn on its own stream
+  (`recruit-preview-alt:`) and preferring another class; its name is promised like the preview's.
+  The loom card shows the second candidate and a "Meet X instead" button
+  (`RunManager.swapRecruitCandidate`, saved at once) until the encounter is set; the node's unit
+  stream builds whichever candidate the player meets. A node whose lord roll hits shows no choice
+  (both candidates would be the same lord).
+- **Watcher's Grace** grants its charge in `beginBattleInProgress` AFTER the entry snapshot (so
+  Continue from Map takes it back) on every boss node (the final boss and the Entity included),
+  recorded as `battleInProgress.bossVisionGranted`; the victory takes back what the battle's
+  rewinds did not spend. The scene calls it at a fresh start only, so a resume never grants twice.
+  A battle that never reached its first checkpoint (a refresh or Save & Exit on the boss card, or a
+  `beginBattle` that threw) gives the grant back: `fromJSON` restores the flag's entry Vision when
+  it drops a checkpoint-less flag that granted one, and `beginBattleInProgress` does the same for
+  a checkpoint-less flag still in memory, so neither path can farm charges.
+- **Patient Dawn**: `battleParams.blessingParTurns`, added last by `calculatePar` (after the seize
+  floor), through `TurnBonusCalculator.battleParMapParams`, the one builder BattleScene and the
+  harness share. The boss enrage turn, the Eclipse's shadow and a contract's "under par" read the
+  raised par; a chapter without par has none. So the enrage can land past turn 12 (intended): a
+  map whose own par is 10 has par 12, and the enrage floor (`bossEnrageMinOverPar`, one turn past
+  par) puts the enrage on turn 13.
+- **Twin Chapel**: `churchVowByNodeId[node]` is a string for one vow (every save before) and the
+  list of distinct vows once a second is made; a vow already made stays open (promotions), the
+  same vow never counts twice, and a third is refused. The church names both vows made, and its
+  vow line counts the vows from `extraChurchVows` ("two different vows per church"). The altar
+  stays open after a promotion or a cleansing (`ChurchMenu.renderBlessings` hides it only once the
+  blessing vow is made).
+- **Omen Reader**: `nodeFallExemption` takes `spareTypes` (recruit), threaded through
+  `applyEclipse` (in play and on load) and `buildEclipseView`; the view marks the next two falls
+  among nodes that can fall now `foretold`. A fall is every node at one threshold (they fall
+  together), so ranks are distinct thresholds, lowest first: every node at a marked threshold takes
+  its rank (`omenRank`) and `omenShared` (how many fall with it), and marking stops once two ranks
+  are filled (review: about a fifth of maps tie the two lowest nodes, and a quarter leave an
+  unmarked node on #2's threshold). The route map rings them with their number, and the card says
+  "Omen: the dark takes this knot next" (", with one other" for a tie). With the Eclipse off (no
+  run today) the card and its price would do nothing yet could be offered: a TODO for D3's
+  `requires`.
+- **Lottery Loot**: the battle's own draw is made first, unchanged (the same cards before the
+  last, the same Math.random cursor); then its last card is drawn from the next act's table under
+  a seeded stream `lottery-loot:${seed}:${node}:${round}` (round n for the n-th Branching Threads
+  reroll). A table with no positive non-gold weight is never drawn (the final boss's pays only
+  gold): the act then draws its own table (First Light Act III, Nightfall and Black Sun Act IV,
+  Dusk's last act), and a gold-only act has no lottery. When every attempt repeats a card already
+  on offer, the battle's own card stays. `draw.lotteryActId` is saved with the reward, so a reroll
+  draws from the same table. Authored (prologue) loot is untouched. A card from the next act reads
+  "Lottery: from the next act's spoils"; one from the act's own table says nothing
+  (`LotteryLoot.lotteryCardLine`).
+- **Known limitation: an older build re-saving a newer save.** Two new save shapes are dropped by
+  a build from before this PR when it loads and re-saves the run: a Late Bloom act-start grant
+  (`kind: 'army_stats'`; the old grant sanitiser keeps only gold and items, so the card stops
+  paying) and a church's list of vows (Twin Chapel; the old reader keeps a string vow only, so the
+  church's vows are forgotten). Nothing else is lost; a run is only affected when a player moves a
+  save back to an older client (a cached tab, or the cloud copy read by one).
 
 ## 6. Earned blessings
 
@@ -579,9 +713,305 @@ checkpoint and the Vision rewind):
   do not.
 - **Captain's Whistle.** A turn-1 timed MOV buff from the turn-start pipeline (decision D8). It
   keeps the strongest per stat, so it does not stack with Mark of the Road, and a resumed turn 1
-  keeps it without applying it again.
+  keeps it without applying it again. "Every unit has +1 Move on turn 1": a recruit who joins on
+  turn 1 (Talk) takes the same keyed buff as it joins (`engine/BattleJoinBoons.js`), ending with
+  the army's as turn 1's enemy phase starts; a join on a later turn takes nothing.
 - **Second Dawn.** A `{ kind: 'vision' }` act-start grant: +1 Vision at every act start while held,
   never on the take.
+
+### 6.5 As built: the other sources and six more cards (PR D1)
+
+PR D1 ships the eclipsed elite's drop, the Old Sanctum, an event's grant and six pure cards:
+Standard of the Sun, Hollow Hourglass, Chronicle, Tithe Box, Lantern of the Road and Crest of the
+Road. The twisted cards, the Colosseum's card, the rest of §6.1 and the start gifts come later.
+
+**Sources are data.** Every earned row names `sources: [{ kind, acts? }]` (kinds `act_boss`,
+`eclipsed_elite`, `sanctum`, `colosseum`, `event`; `acts` limits a source to some acts), and may
+carry a `twist` (`{ label, effects }`, a twisted card's price, offered by an act boss only) and
+`requires` (`{ eclipse }`). The validator refuses an earned row without sources and these fields
+on any other row. A twist's effects come from a small explicit list (`BlessingEngine.TWIST_EFFECT_TYPES`:
+a burden, shadow, Vision, XP, shop and forge prices), never a price fixed to an act
+(`act_stat_delta_all_units`, `act_deploy_cap_delta`, `act_hit_bonus`,
+`disable_personal_skills_until_act`: a twist is taken mid-run); D3 extends the list with its own
+types. Whether a twist's burden can be lifted by the Cleanse vow is D3's decision (§6.6: never). PR C's cards were re-sourced: Second Dawn is an eclipsed elite's (as §6.1's table
+says), Unbroken Banner, Ember Lantern and Captain's Whistle stay act bosses'. Standard of the Sun is
+Act I's boss's and Chronicle Act II's, so an act boss's pair for a given seed differs from PR C's.
+
+**One ledger, keyed** (`engine/EarnedBlessings.js`, version 2). An act boss keeps its act key and
+PR C's entry shape; the others file under `elite:<node>`, `sanctum:<node>`, `event:<node>` and
+`colosseum`. Take and skip go by ledger key (`ledgerKeyOf`). `open` is the sanctum's status: never
+owed, so the route map never asks about a sanctum the party walked past. Each source draws from
+`earnedPoolFor(run, kind)` (earned, weight above 0, unheld, `excludes` either way, `requires` met,
+won from that kind and act), on its own stream keyed by the run seed and the source's node, so no
+other stream moves. A pair holds at most one twisted card (D-3). The PR C odds (1 / 0.85 / 0.7)
+stay on the act boss only. An owed or open offer never shows a card the run holds: when a card
+joins the run (a take, an event's grant) it leaves every other owed or open offer, and one left
+empty is `none` (`pruneHeldOffers`; a load does the same). The Colosseum's offer files `none` when
+no card is left, so it is never rolled again.
+
+**The eclipsed elite's drop** (D-4, D-7). At the victory commit of a battle node the Eclipse took
+(`node.battleParams.isEclipsed`; never a Dark Omen's event fight, an ordinary elite or the
+prologue), `completeBattle` rolls a flat third (`earnedOffer.eclipsedEliteChance` 0.3333) for one
+pure `eclipsed_elite` card (Second Dawn, Hollow Hourglass, Lantern of the Road), on
+`earned-elite:<seed>:<node>` (the chance draw always spent). Owed, or `none`. It is offered by the
+route map host PR C built (`NodeMapScene._maybeOpenEarnedPick`): on arrival from the battle, after
+the loot screen (its `onComplete` now ends with the pick), an event's spoils and a contract reward,
+before the caravan; a page that held the map closing on it (a contract's Continue) opens it too.
+A node tap opens it instead of travelling on. The menu shows one card ("Won
+from an eclipsed elite. Take it, or leave it."; Skip asks "Leave it?"). No new BattleScene flow.
+A save from before PR D1 gets no drop for an elite already won.
+
+**The Old Sanctum** (D-5, D-6). From the run's second act each act's map may hold one:
+`RunManager.advanceAct` calls `_stampSanctum` right after Pilgrim's Road's shops
+(`engine/SanctumPass.js`): two draws on `sanctum:<seed>:<act>` (the chance, `earnedOffer.sanctum.chance`
+0.5, always spent; then one of the act's unfinished, un-eclipsed churches sorted by id). The node
+gains `sanctum: true` and the map `sanctumRolled: true`; never on load (an old save gets one from
+its next act), never in Act I, the run's last act (the final boss's act, or Dusk's Act IV: the
+act boss's pick follows the same rule) or the prologue. Pilgrim's Road never turns it into a shop
+and a route edit (the Cartographer, A Bad Map) never redraws it (`RouteEdit.isRedrawable`; a
+rebuilt node drops the flag); the Eclipse may take it like any church (then it is a battle). The route map calls it
+"Old sanctum" (label SANCTUM in gilt, the inspect line "An old sanctum: its vow offers an earned
+blessing.", which follows it once settled: "its vow gave you an earned blessing", "its vow is
+made", "no earned blessing is left on its altar"; `ChurchVow.sanctumStatus`). When its door first opens (`ChurchController.handleChurch`) `openSanctum` rolls its
+pair on `earned-sanctum:<seed>:<node>`: up to two `sanctum` cards, filled from the pure act-boss and
+eclipsed-elite cards, saved at once. The menu is titled "Old Sanctum"; its blessing section reads
+"Earned blessing · Free" and lists the pair (`Name · description · Earned`) **in place of** the tier
+I offers, behind the same confirmation; the take is the church's vow (`ChurchVow.takeSanctumBlessing`).
+Leaving keeps the pair open; re-entering shows it again; after the take the altar "has already
+blessed you". With nothing left to offer the entry is `none` and the tier I offers return.
+
+**The Tithe Box** pays 200 gold the first time the party enters each church of an act
+(`engine/ChurchTithe.js`, `run.churchTitheByNodeId`, saved, reset in `advanceAct`), never the Ruins.
+Taken at a sanctum it pays that church at once. The church's status line says so.
+
+**An event's grant** (D-9). The effect `earnedBlessing { id }` grants a named earned card whose
+sources include `event` (`EarnedBlessings.grantEarnedBlessing`, a `taken` entry under
+`event:<node>`, the node's key when the caller names none); strict in a choice ("You already
+carry it."), skipped with a note in a won fight's spoils. The requirement `earnedAvailable: <id>`
+greys a choice once the card is held; the validator requires it on a choice whose own outcome
+grants a card. A grant rolled back with its step (a later step failing) leaves no ledger entry,
+so Try again grants it. Old Faces'
+`ride` gains Crest of the Road in its spoils. The result line is "Earned blessing: Crest of the
+Road". The Wandering Smith's covenant and the Collectors' lantern wait for their cards (PR D2,
+§6.7).
+
+**The six cards.**
+
+| Card | Source | Boon | Where it acts |
+|---|---|---|---|
+| Standard of the Sun | Act I boss | `commander_aura { radius: 2, hitBonus: 5, avoidBonus: 5 }` | `BlessingCombatMods` (scene and harness): a player unit within 2 tiles (Manhattan) of the living commander (the unit flagged `isCommander`; one who escaped takes the banner along), never the commander, an NPC or a foe |
+| Hollow Hourglass | eclipsed elite | `reinforcement_delay { value: 1 }` | `battleParams.reinforcementDelay` (saved with the battle): every wave, template, scripted, pursuit, ladder and Hunted, a turn later, added after the turn-1 clamp (a wave Black Sun pulls to turn 1 comes on turn 2); the ladder's line names the new turn; the template validator reads the delay against the hybrid arenas' walls |
+| Chronicle | Act II boss | `xp_per_act_cleared { value: 0.05 }` | `getXpMultiplierDelta` adds 5% × `actIndex` (the acts cleared); never the arena |
+| Tithe Box | Old Sanctum | `church_entry_gold { value: 200 }` | `payChurchTithe`, once a church |
+| Lantern of the Road | eclipsed elite | `fog_opening_reveal { radius: 4 }` | `battleParams.fogOpeningRadius`: at a fresh fog battle's start, `engine/FogOpening.js` reveals radius 4 around each unit as a contact (turn 1 only, saved with the fog, never applied again on a resume) |
+| Crest of the Road | event (Old Faces) | `recruit_mark_chance { value: 1 }` | `getEffectiveMetaEffects().markChance`, read by every recruit source (recruit node, event join, boss recruit, mercenary, Vanguard Cadre); the Mark stream keeps its two draws |
+
+Each new boon type has a handler (`engine/EarnedBoons.js`), a validator rule, the handler-coverage
+walk and no place on the event-safe list. The sims never take an earned card (D-25): they skip owed
+picks after every node, and their event policies leave a choice that grants one alone unless
+`eventPolicy: 'earned'`.
+
+### 6.6 As built: the twisted cards (PR D3)
+
+PR D3 ships §6.2's four twisted cards. Each is an act boss's card only (`sources: [{ kind:
+'act_boss' }]`, weight 0.6, so a twisted card shows up in a pair a little less often than a pure
+one), at most one to a pair (D-3, PR D1's rule), and taken knowingly: its `twist` (`{ label,
+effects }`) is applied after its boons (`addBlessingMidRun`'s `price`, kind `twist`) and held as
+its price, so the pause list reads "Twist: ..." and a load never charges it again. The pick's
+footer explains the twist's words too (Hunted, Ill Omen, shadow), with the twist's own numbers for
+a burden that does not count down (`BlessingTerms` reads the price's effects).
+
+| Card | Boon | Twist |
+|---|---|---|
+| Darkened Dawn (§6.2's "Second Dawn (dark)") | `vision_delta { 1 }` now and `act_start_vision_delta { 1 }` (a `vision` act-start grant from the next act) | `eclipse_shadow_delta { 8 }` and `eclipse_gain_multiplier_delta { 0.25 }` |
+| Blood Covenant | `army_stat_bonus { 1 }` | `burden { id: 'ill_omen', permanent: true, extraShadow: 1 }` |
+| Kingmaker's Oath | `kingmaker_promotion { bonus: 2, stats: 2 }` | `master_seals_forbidden {}` |
+| Hollow Sun's Favor (tag `gold`) | `battle_gold_multiplier_delta { 0.5 }` and `loot_gold_multiplier_delta { 0.5 }` | `burden { id: 'hunted', actsAhead: 1, wave: { turn: 3, count: [2, 2], xpMultiplier: 0.5 } }` |
+
+The new effect types live in `engine/TwistedBoons.js` (one parser per type for the validator, the
+handler and the save's sanitizer; a malformed set is refused by `npm run validate:data` and skipped
+as `invalid_<type>_params`; none is on the event-safe list). `TWIST_EFFECT_TYPES` gains the two twist
+types.
+
+- **Darkened Dawn** `excludes: ['second_dawn']` (either way: neither is offered while the other is
+  held, and an owed or open offer already drawn drops the one the other shuts: `takeableOffered`
+  and `pruneHeldOffers`, after every take and on load) and `requires: { eclipse: true }` (with the Eclipse off its twist costs nothing). Each
+  victory's shadow gain (`computeShadowGain`, after its per-battle cap) grows by the share in exact
+  quarters: `extra = floor((gain × quarters + carry) / 4)`, the remainder carried
+  (`blessingRuntimeModifiers.eclipseGainDelta`, `eclipseGainCarry` 0-3, saved and written at every
+  commit, 0 included, so a remainder spent is never paid twice), so four victories of 1 gather 5. `TwistedBoons.scaledShadowGain` is the one reading: the HUD's
+  `projectShadowGain` and the victory's `_commitBattleShadow` both call `_scaledShadowGain`, so the
+  projection is the commit. An Ill Omen's shadow is added after, unscaled. The commit record names
+  the card's share (`blessingShadow`). The +8 shifts the act's start too (as every
+  `eclipse_shadow_delta`), so nothing falls on the take.
+- **Blood Covenant** `requires: { eclipse: true }`. +1 to every stat but Move (`XP_STAT_NAMES`), once
+  per unit (`unit.recruitBlessingGrants` gains `blood_covenant:army_stat_bonus`): the roster and the
+  fallen at the take, every later joiner through `grantRecruitBlessingConsumables` (recruit nodes,
+  event joins, boss recruits, mercenaries, a Talk recruit, the third lord), and a revival checks
+  again (`_grantHeldArmyStatBonuses`). A living unit's HP gain raises its current HP through
+  `UnitHealth.setUnitHP`; a fallen unit's does not (a revival sets it). The key makes a reload, a
+  second call and a revival a no-op. Its Ill Omen is `permanent`: +1 shadow every victory, never
+  counted down. An event's Ill Omen (the Twin Altar's dark face: +2 for the rung's battles), or a
+  shrine price's, taken before or after it, is held in the same record as its `event` part (see
+  "A twist's burden and a passing one" below).
+- **Kingmaker's Oath**: `ChurchCommands.churchPromoteCost(unit, run)` is 0 while held (the church
+  heading reads "Promote · Free (Kingmaker's Oath)"); after `promoteUnit`, `promoteAtChurch` adds
+  +2 to the two stats with the highest values in the target class's canonical
+  `promotionBonuses` (a lord's own bonuses only when the class has none), ties in the order HP, STR,
+  MAG, SKL, SPD, DEF, RES, LCK, never Move or a stat the class does not raise (D-13). The promotion
+  is still the church's vow. Its twist: `TwistedBoons.classChangeItemBlock(run, item)` refuses a
+  Master Seal (a `promote` consumable) on every path: the roster sheet's bag and convoy cards
+  (`RosterCommands.rosterClassChangeBlock`, which `applyRosterClassChange` and the desktop overlay
+  read), the battle's Promote command and item menu (`BattleScene.getPromotionConsumable`; the row
+  names the ban) and the promotion itself (`PromotionController._executePromotion`, for a seal
+  handed in directly). The reclass seals (Infantry Seal, Mounted Seal) are never caught.
+  `tests/MasterSealBanBoundary.test.js` lists every file that reads a `promote` consumable with its
+  gate; `RosterCommands.rosterClassChangeBlock` reads the run's ban before a special character's
+  own refusal. Shops still sell Master Seals and loot still offers them (the twist is taken
+  knowingly; filtering them from a draw would move the loot stream), marked: the shop's buy row and
+  the loot card read "Can't be used: Kingmaker's Oath" (`TwistedBoons.classChangeItemTag`, from
+  `classChangeItemBlock`). The church's path chooser and the rite show the +2 the altar adds:
+  `promotionPathContent(unit, cls, gameData, { churchRun })` applies `applyKingmakerBonus` to its
+  projection exactly as `promoteAtChurch` does (ChurchMenu hands the run to the chooser and to the
+  rite's content; a Master Seal's or a battle's path passes none).
+- **Hollow Sun's Favor**: +50% battle gold (`getBattleGoldMultiplier`, additive with the other gold
+  boons, before a Debt garnishes) and +50% on gold loot cards: `rewardDrawParams` saves
+  `lootGoldMultiplier` in the reward's `draw` (absent without the card, so every other draw and
+  every older record is unchanged), and `rollBattleRewardChoices` applies it after the late-pressure
+  multiplier, so a Branching Threads reroll pays the same and a card rolled before the take is not
+  raised. Its Hunted runs "through the next act" (D-11): `actsAhead: 1` resolves at the take to
+  `untilAct = actSequence[actIndex + 2]` (taken at Act I's boss: all of Act II, ending as Act III
+  begins), or `permanent` when the run has no such act. It never counts down; `advanceAct` (and a
+  load, once the act sequence is final) ends it as its act begins (`Burdens.expireActBurdens`). An
+  event's Hunted meeting it is the record's `event` part (below). The chips read "Never ends" and
+  "Until Act III" (the act card's own names, `utils/actNames.js` `actLabel`: "Until Final Act",
+  "until the Final Act begins"); merged, "Never ends; +2 for 3 more battles" and "Until Act III;
+  2 more battles". The held list reads the live record: once the act has begun it says the hunt has
+  ended.
+
+**A twist's burden and a passing one (review fix).** One record per burden id still holds, in two
+parts. The **twist part** is the record's own fields: `permanent` or `untilAct`, the twist's own
+`extraShadow` or `wave`, and `battles: 0`; never cleansable. The **event part** is `event`:
+`{ battles, extraShadow }` for an Ill Omen, `{ battles, wave }` for a Hunted, the countdown's own
+values (an event's, or a shrine price's), counted down exactly as it would be alone (every victory
+for an omen; a victory in a battle that carried the wave for a hunt) and dropped when spent; a
+countdown taken again refreshes it by the countdown's own rule. While the event part lasts the
+record acts with the larger of the two: an omen's shadow per victory is `max(twist, event)`
+(`Burdens.illOmenShadowOf`, which `burdenEffectsOnVictory` and the HUD projection read), a hunt's
+wave the bigger one (`huntedWaveFor`, `largerHuntedWave`: more foes at most, then at least, then
+the earlier turn). After it, only the twist's values. Both orders of taking them make the same
+record (`addBurden` puts a held countdown into `event` when the twist arrives, and an arriving
+countdown into `event` when the twist is held). A Hollow Sun span that ends with the event part
+still counting leaves it a plain record. The sanitizer reads the part back; a spent or malformed
+part is dropped, a plain record never carries one, and a save without one reads as before. The
+event's result line, the chips and the pick say both parts: the result reads the merged record
+("never ends: +1 shadow each victory, +2 for 3 more battles while a passing omen lasts ..."), and
+the earned pick's terms say what the twist merges with when the run already carries the countdown
+("You carry a passing Ill Omen (+2, 3 more battles): it keeps its own count, and until it ends each
+victory takes the larger."). An event choice never shows its burden before it is made (its outcomes
+are hidden, docs/specs/event-nodes.md), so the twist-first order is told by the result line.
+
+**The cleansing decision (owner-level, decided in D3): a twist's burden is never cleansable.** A
+twist is the price of a strong earned card, taken knowingly; a free church vow lifting it would
+make the card free. One rule, `Burdens.isCleansable`: a burden that never ends or ends with an act
+(`isTwistBurden`: `permanent` or `untilAct`) is refused like Debt; the church's Cleanse is not
+offered for it, its refusal says "A twisted blessing's price: no altar lifts it.", and the church
+menu lists it greyed whenever the run holds one, even when nothing else can be lifted. Only a twist
+may write those fields: the validator refuses `permanent` / `actsAhead` / `untilAct` on a shrine
+price (a v3 catalog price, a v2 rolled cost, an object pact) or an event's burden. An event's own
+Hunted or Ill Omen stays cleansable, alone or as a twist record's event part: Cleanse
+(`Burdens.cleanseBurden`) lifts that part only, exactly as it would lift it alone, and the twist's
+part stays (the church's row names the part it lifts, "Ill Omen · 3 left", beside the greyed
+"Ill Omen · Never ends").
+
+The sims never take an earned pick, so `sim:fullrun:pr` is unchanged.
+
+### 6.7 As built: the rest of the pure cards (PR D2)
+
+PR D2 ships the five remaining pure cards of §6.1, the Colosseum's source and the two event edits
+D1 left waiting. Each card's boon has a parser, a handler and a load default in
+`engine/EarnedBoons.js` (validator rule, `invalid_<type>_params` skip, handler-coverage walk, never
+on the event-safe list), like D1's.
+
+| Card | Source | Boons | Where it acts |
+|---|---|---|---|
+| Saint's Reliquary | Old Sanctum | `staff_heal_range_bonus { heal: 5, range: 1 }` | `StaffBlessings.staffRunOptions(run, unit)` (a player unit's only): `healBonus` is added to the staff's output before the heal multiplier (Combat.calculateStaffHealOutput), `rangeBonus` to its longest reach (getEffectiveStaffRange), a Warp's radius and a Rescue's pull included; uses unchanged |
+| Mercenary Ledger | Colosseum | `arena_terms { feeMultiplier: 0.5, visitBouts: 1 }` | `ColosseumEngine.arenaEntryFee(tier, run)` (the fee the tiers and the forecast show, the bout pays, a win or a draw hands back and a loss forfeits) and `arenaVisitCap` (read live: a Ledger taken mid-visit opens its bout at once) |
+| Smith's Covenant | event: the Wandering Smith's `covenant` | `shop_first_forge_free { value: 1 }` + `weapons_never_wear { value: 1 }` | Smith's Mark's free forge (two cards, two free forges); `EventEffects.planWear` is empty, so a `wear`'s fallback stands in (the botched temper: "the sparks find the hand") |
+| Thief's Lantern | event: the Collectors' `fight` spoils | `route_scout { level: 'carriers' }` + `carrier_luck { stealIgnoresSpeed: true }` | the route preview lists the foes that carry items; a player thief's Steal skips its speed check (Cutpurse's Luck's waiver, `stealRunOptions`; never a foe's) |
+| Seer's Eye | eclipsed elite | `route_scout { level: 'foes' }` + `foes_shown { value: 1 }` | the route preview lists every foe with its affixes and what it carries; fog never hides a foe on its maps |
+
+**Decisions as built.**
+- **Smith's Covenant covers every weapon.** A forged weapon already never wears
+  (`WeaponWear.wearBlock`), so "forged weapons never take wear" would do nothing: the boon keeps
+  every weapon the army carries from an event's wear. An item granted already worn stays as it is.
+- **The Colosseum's offer** (D-8): the run's first win in a gold or platinum bout
+  (`EarnedBlessings.colosseumOfferDue`; gold opens in Act II) rolls `prepareColosseumOffer` inside
+  the bout's settlement, so the offer is in the bout's own save; once a run (taken, skipped or
+  empty, never rolled again; never the prologue). The colosseum's menu opens the one-card pick
+  (`ColosseumOverlay._openOwedEarnedPick`, the same `EarnedBlessingPick`, saved by the service
+  save) in place of its menu, which comes back after Take or Leave it. A pick still owed when the
+  party leaves (or an Escape closed the colosseum) is the route map's, like an elite's drop.
+- **The Wandering Smith's covenant** costs `{ base: 150, perAct: 100 }` gold, sits before Leave and
+  requires `earnedAvailable: smiths_covenant`. Outcomes roll per choice (`choiceSeedKey`), so the
+  new choice moves no other choice's outcome; the sims never take it (D-25).
+- **The Collectors' fight** appends `earnedBlessing: thiefs_lantern` to its `afterVictory` (a held
+  card is skipped with a note; the strongbox still pays).
+
+**Seer's Eye in battle.** `RunManager.getBattleParams` writes `battleParams.foesShown` while the
+card is held (saved with the battle, so a resume keeps it); BattleScene and the harness call
+`BattleInformation.markFoesShown(grid, battleParams)` as they build the grid. **One rule** then
+answers "does the player see this unit" for every presentation and preview reader:
+`BattleInformation.isUnitTileSeen(grid, unit, col, row)` (a tile of its body: no fog, the player's
+own, a foe under the Eye, else the tile's sight), `isUnitSeenAt(grid, unit, col?, row?)` (its body
+standing there, an Entity's 3×3 footprint) and `canInspectUnit` (where it stands, plus the waiting
+recruit). Nothing else reads `grid.foesShown`, and no reader in `src/ui` or `src/scenes` decides a
+unit's visibility from a tile's sight alone (`tests/SeersEyeReaders.test.js` holds both, with an
+allowlist of tile reads that are never a foe's: terrain, the ballista, the prologue, the caravan's
+last tile, zombie remains as ground). So the Eye reaches, with the same words: the sprites
+(`updateEnemyVisibility`), attack targets, inspection, PlayerKnowledge's previews (Danger, the blue
+range, Threat Sight), the fog ambush (a shown foe never ambushes), the heal and staff banners, the
+enemy's walk (drawn in full: `animateEnemyMove` asks `isUnitSeenAt` at each step), the boss bar
+(never concealed), the history and the timeline (names, walks, and the history viewer's board:
+`battleTimelinePreview` reads the saved fog through `savedFogView` with the live grid's Eye), the
+Necromancer's raise and crumble, a Zombie's remains (a fall in the fog is a fall the player saw:
+its pile keeps its marker and countdown, and its rise has its banner) and an area art's aim (a
+fogged body tile counts). The fog's teaching hint waits for a map whose fog hides foes
+(`fogHidesFoes`), so a later run without the Eye still learns it. The terrain stays fogged, a
+green caravan stays hidden, and the enemy AI never reads the fog. Each reader has a paired test
+(the same fogged foe, the Eye on and off): without the Eye every reader behaves as before.
+
+**The route preview's scout** (D-21, `engine/BattleScout.js`). For a battle, boss or recruit node
+still ahead (a `live` or `future` node on the loom, never where the party stands, a cut road or a
+walked node), while Thief's Lantern or Seer's Eye is held, the route map's card shows a panel:
+the scout's name, what it assumed ("Scouted for N in the field.", or "The map is set: these foes
+wait here." for a locked node) and the foes, alike ones (class, level, affixes, what they carry)
+counted together, the boss first by its name ("Boss · Warchief, Fighter Lv 7"; the Entity's name
+is never told), then by class and level (the Lantern: the carriers alone, no affixes). The Eye
+also says what arrives later: "More arrive: N waves of reinforcements." (the map's template,
+scripted, ladder and Hunted waves, `reinforcementsOf`), or that pursuers keep coming on an escape
+map; the turns are not told (jitter and the rung's offsets make them the battle's). It **never
+locks the node**: a locked node is exempt from
+the Eclipse's falls (`nodeFallExemption` 'locked'), so locking what it showed would change the
+Eclipse for every holder. A node not yet locked is generated as the battle will generate it:
+`getBattleParams(node)` (copied: the params share the run's used-name ledger, which a recruit
+battle's generation writes to), `applyGenerationFields` (the deploy count and the boss flag),
+`battleGenerationSeed` and `generateSeededBattle` (Math.random is a stream of the battle's seed for
+the generation only, and is put back even on a throw), the same four calls BattleScene.beginBattle
+makes. The deploy count is the deploy screen's (the roster up to the act's cap and bonus, never
+past a lock's spawns; the act's limits are `BattleDeployCount.deployLimitsForParams`, which the
+scene reads too). The result is cached in memory by everything the map is generated from (never
+saved). A locked node is read as stored. What can differ from the fight is only its inputs: fewer
+units deployed than assumed, or the run changing before arrival (the Eclipse's phase, a burden).
+The scout writes nothing to the run: getBattleParams's battle-entry preparation of the roster
+(duplicate names repaired and tracked, uids, portrait variants) runs on a view of the run whose
+roster, fallen and used-name ledger are copies (`scoutParams`), so the params are the battle's own
+and the live roster is untouched.
+
+**Smaller fixes in review.** The roster's trade pane says a staff's "MAG+N" and range with the
+Reliquary counted (`Combat.getStaffHealBase`, the rule the heal itself reads, and
+`getEffectiveStaffRange`); the colosseum's "Requires N gold." names the Ledger's fee; the
+Wandering Smith's intro offers his three jobs ("One job a customer").
 
 ## 7. Gifts with a catch (run start)
 
@@ -596,9 +1026,81 @@ is random in what it gives and clear about what it takes.
 | Sealed Reliquary | a random tier III blessing, no price | −1 Vision until Act 2 |
 | Fallen Hoard | two random accessories from the next act's table (one may carry a skill) | Hunted for the next 3 battles |
 | Stranger's Scroll | two random weapon-art scrolls and a random skill scroll | Lingering Injury on the commander for 5 battles |
-| Marked Blade | a Silver weapon with a random imbue for the commander | Sworn Enemy on the Act I boss |
+| Marked Blade | a Silver weapon with a random imbue for the commander | Sworn Enemy on the Act 1 boss |
 | Pilgrim's Wager | a random tier IV blessing, its pact waived | +15 shadow now; one Act 1 node falls at once |
 | Armory Stash | three random whetstones in the convoy | −2 DEF all units, Act 1 |
+
+### 7.1 As built (PR D5)
+
+**Data.** The gifts are a top-level `gifts` block in `data/blessings.json`, never rows of `blessings[]`:
+a gift is never a held blessing and takes no icon cell (each borrows an atlas icon for its card:
+`generic-blessing`, `generic-accessory`, `generic-art-scroll`, `silver-sword`,
+`gamblers-coin`, `blessing-armory_stash`; a gift wears another blessing's own cell only when it
+`replaces` that blessing). `offer: { fromRunsStarted: 1, chance: 0.5 }`
+(the owner's call on open question 2: about half the runs, from the save's second). Each gift has a
+`grant` and a `catch` (`{ label, prices | effects }`); the validator (`BlessingEngine.validateGifts`)
+holds text to 90/85 characters, refuses a Debt catch (a gift is not a loan), requires the Eclipse for a
+catch of shadow or a fall, holds each catch effect to its costly sign (`GIFT_CATCH_SIGNS`: a positive
+Vision delta is a boon), a `prices` catch's label to the catalog labels it names, a weapon grant's tier
+to `GIFT_WEAPON_TIERS` and a scrolls grant to its `artScrollAct`, and lets a gift share a blessing's name only when it `replaces` a blessing
+out of the offer (the Armory Stash, whose tier IV card stays at weight 0 with no migration: open
+question 4).
+
+| Gift | As built | Catch as built |
+|---|---|---|
+| Sealed Reliquary | a random tier III card (never earned, never one whose boon is its price: Gambler's Toss, Lone Banner; weight above 0, unheld), held with no price but the catch | −1 Vision charge now (`vision_down`) |
+| Fallen Hoard | two different accessories from the next act's table (`accessoryPoolFor(run, 1)`); the first that can bear a skill (a legendary never does, so a legendary first pick passes it on) binds one at 50% on the gift's stream (`bindAccessorySkill`'s `chance`), the other never | Hunted for the next 3 battles |
+| Stranger's Scroll | two different weapon-art scrolls the lords can learn, of arts that unlock by Act II (`grant.artScrollAct`; the `starting_scroll` handler with `maxUnlockAct` and `distinct`), and one Act II skill scroll, to the team scrolls | Lingering Injury on the commander for 5 battles (the stat from the run seed) |
+| Marked Blade | a Silver weapon of the commander's best proficiency (Mastery first; never a staff or a personal weapon), with a random imbue, in their bag (else the convoy) | Sworn Enemy on the Act 1 boss (it ends at the first boss victory) |
+| Pilgrim's Wager | a random tier IV card, its pact waived (`addBlessingMidRun`'s `waivePact`) | +15 shadow; one Act 1 node falls now (any node the Eclipse could take: never the start, the boss or the Ruins; a recruit node can fall, as it can to the Eclipse), made by `eclipseNode` with `RunManager._eclipseNodeContext()`, the Eclipse's own terms; offered only with the Eclipse on |
+| Armory Stash | three whetstone forges on the lords' combat weapons (the `starting_whetstones` handler: whetstones never enter a bag or the convoy) | −2 DEF to all units in Act 1 |
+
+**Streams.** `startRun({ runsStarted })` rolls the offer: one draw on `gift-offer:<seed>` (always
+spent), then a weighted pick on `gift-pick:<seed>` among the gifts this run can take (its `requires`, a
+grant that hands something out, a catch that costs something: no Reliquary without a Vision charge, no
+Wager with the Eclipse off). What a gift holds is rolled at the take on `gift:<seed>:<id>`, inside a
+seeded `Math.random` swap (the handlers it reuses draw on their own keys, hashed from the run seed and
+`gift:<id>`). The shrine's blessing offer, the node map, the roster and `Math.random` are the same for
+a seed whether or not a gift is offered or taken. The prologue, the sims and the dev routes start runs
+with no count, so they are never offered one.
+
+**The take.** `RunManager.chooseStartGift(id)` (`engine/StartGifts.js`) is planned first: the
+eligibility check runs again before anything is chosen (something to draw, room for it: a weapon's bag
+or convoy slot; a blessing gift's every card addable with its catch as the price,
+`RunManager.canAddBlessingMidRun`; a catch that costs something; nodes left to fall), so a refusal
+leaves the run exactly as it was. It then takes no blessing (the selection is recorded as skipped,
+with a `gift` history event), applies the grant and the catch once and saves `run.startGift`
+(`{ id, granted, catchLabel, fell? }`). A grant that still comes up empty past the plan returns
+`{ ok: false, reason: 'grant_failed', dirty: true }` and records no gift; the shrine rolls any failed
+or throwing take back (`_rollbackBlessingCommit`: the run rebuilt from the slot's seed, the same
+cards and gift offered again). It is refused once anything was chosen at the shrine (a saved
+selection record included), and asking again for the gift taken changes nothing. A load reads
+`startGift` and applies nothing. A blessing gift holds its catch as the card's price (kind `gift`:
+the held list reads "Catch: ..."); any other gift leads the pause list with its own entry ("Fallen
+Hoard · Gift": "Gave: ..." and its catch beneath with the catch's live state read from the burden
+record, "Hunted: 2 battles left", then "Hunted: ended"; the terms on a tap). Analytics count a gift run
+as a gift (`runsWithGift`, per-gift offers, picks and outcomes), never as a skipped blessing, and a
+card a gift handed out as that card's `giftGrants`, never a pick. A burden catch (the Fallen Hoard's
+Hunted, Stranger's Scroll's Lingering Injury, Marked Blade's Sworn Enemy) is an ordinary burden, as an
+event's: a twisted card's Hunted taken later (§6.6) merges with it as the record's `event` part, counted
+down and lifted by Cleanse exactly as it would be alone, and the pause entry reads that part (the
+twist's own span is the twisted card's).
+
+**The shrine.** The gift is the fourth card, after the blessings and before No blessing (still the last
+choice): the shrine's tarot card with `data-tier="gift"`, the dark's violet rim, its icon in the Hollow
+Sun and its foot named "Catch". The footer always says what the chosen gift gives ("Gives: ..."), then
+spells out the catch's terms (a Lingering Injury's sentence reads the catch's own five battles; a count
+belongs to its own clause, never the next price after a "·"); a blessing's boon is said there too while
+its card clips its lines (`RunSetupMenu.watchLeadBoon`). On a short landscape phone (568×320, `max-height:
+340px`) four cards take a compact layout (choice.css: the sun beside the name, the boon a row that keeps
+two lines and scrolls, the cost inside the card); three cards keep theirs. The canvas fallback (no DOM
+host) compacts four cards the same way so they fit above Skip. Touch, the arrows and a controller reach
+it like any card. Backing out or reloading keeps the slot's pending seed (§3.2), so the same gift
+returns; a failed start rebuilds a fresh run (the gift is offered again, nothing it gave remains) and
+the save counts the run only once it begins. A dev-routes-only `?runSeed=` (`devRoutesEnabled`, as
+`?devScene=`) fixes the offered run for the browser specs (`start-gift.spec.js`, run-flow, with a
+568×320 case; `portrait-start-gift.spec.js`, portrait: on 375×667 every chosen or focused card is whole
+in view).
 
 ## 8. Data and engine changes
 
@@ -673,15 +1175,17 @@ growth, XP and gold cards it can see.
 4. Earned blessings: the `earned` flag, the act-boss pick, and four pure ones (Unbroken
    Banner, Second Dawn, Ember Lantern, Captain's Whistle). Built (§6.4).
 5. The special church, the twisted earned blessings, the gifts with a catch, and the rest of
-   §5.
+   §5. Built: the rest of §5 (PR D4), the Old Sanctum and six earned cards (PR D1, §6.5), the
+   twisted cards (PR D3, §6.6), the rest of the pure cards and the Colosseum's source (PR D2,
+   §6.7), the gifts with a catch (PR D5, §7.1).
 
 ## Open questions
 
 1. Debt amounts (§3.1): playtest the tier II amount (Dusk 1,300, about 5 battles of half
    your gold). Is it felt in Act 1?
 2. Gifts with a catch: offered every run from the second, or only sometimes (a ~50% chance
-   per run)?
+   per run)? Decided: about half the runs, from the second (§7.1).
 3. Should earned blessings ever be offered in a shop, as Slay the Spire's shop relics are, or
    only won?
 4. Cut cards (Armory Stash): keep the id at weight 0 forever, or retire it through a
-   `RETIRED_BLESSINGS` migration like `RETIRED_UPGRADES`?
+   `RETIRED_BLESSINGS` migration like `RETIRED_UPGRADES`? Decided: weight 0 forever, no migration (§7.1).

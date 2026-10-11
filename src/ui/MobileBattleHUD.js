@@ -35,11 +35,13 @@ import {
   formatDamageStrikes,
 } from './forecastDisplay.js';
 import {
+  ballistaInfo,
   canInspectUnit,
   statusDescriptions,
   statusStaffInfo,
   carriedItemInfo,
   terrainRuleLines,
+  visibleBallistaAt,
 } from '../engine/BattleInformation.js';
 import { bindCancelablePress } from '../utils/cancelablePress.js';
 import { isUnitMenuState, canUseDanger, isObjectiveCommand } from './battleMenuModel.js';
@@ -81,7 +83,7 @@ const PLAY_STATES = new Set([
 const HINTS = {
   PLAYER_IDLE: 'Tap a unit to begin. Pinch to zoom the map.',
   SELECTING_HEAL_TARGET: 'Choose an ally here or on the map. Back returns without using the staff.',
-  SELECTING_REMAINS_TARGET: 'Tap the highlighted remains to smash them. Back to go back.',
+  SELECTING_REMAINS_TARGET: 'Choose remains here or on the map. Back to go back.',
   SELECTING_AREA_CENTER: 'Tap a lit tile to aim; tap it again or Fire to cast. Back to go back.',
   UNIT_MOVING: 'Moving…',
   UNIT_SELECTED: 'Tap a highlighted tile to move.',
@@ -135,6 +137,17 @@ function el(tag, className, text) {
   if (className) node.className = className;
   if (text != null) node.textContent = String(text);
   return node;
+}
+
+/**
+ * The unit card's line for a foe's status staff, or null. The staff is gear beside the
+ * weapon, outside the inventory, so the card names it ("Silence Staff · Range 3-7 · 1/2
+ * uses"; "· spent" once used up): the caster behind the Danger zone's violet outline can be
+ * found by tapping it. The card shows only a unit the player may inspect.
+ */
+export function statusStaffGearLine(unit) {
+  const text = statusStaffInfo(unit)?.text;
+  return text ? el('p', 'mb-gear', text) : null;
 }
 
 /**
@@ -962,6 +975,9 @@ export class MobileBattleHUD {
             sceneHealPreview(s, t)?.text,
           ])
         : null,
+      state === 'SELECTING_REMAINS_TARGET'
+        ? (s._remainsCtrl?.targets || []).map((t) => [t.col, t.row, t.turnsRemaining])
+        : null,
       formation ? s._formation.version : null,
       formation ? Boolean(s.dangerZone?.visible) : null,
       state === 'SELECTING_STAFF_TILE' ? s.staffRelocateAlly?.name : null,
@@ -1035,6 +1051,8 @@ export class MobileBattleHUD {
         el('div', 'mb-detail', `${unit.className} · ${unit.weapon?.name || 'Unarmed'}`),
       );
       this.summary.append(el('span', 'mb-hp', `${unit.currentHP}/${unit.stats.HP} HP`));
+      const staffLine = statusStaffGearLine(unit);
+      if (staffLine) this.summary.append(staffLine);
       const conditions = statusDescriptions(unit);
       if (conditions.length) this.summary.append(el('p', 'mb-status', conditions.join(' · ')));
     } else {
@@ -1048,9 +1066,10 @@ export class MobileBattleHUD {
     if (focus) {
       const terrain = s.grid.getTerrainAt(focus.col, focus.row);
       if (terrain) {
-        const visibleUnit = s.grid.isVisible(focus.col, focus.row)
-          ? s.getUnitAt(focus.col, focus.row)
-          : null;
+        // The unit the player can see there (canInspectUnit: the fog's one rule, which
+        // Seer's Eye opens for every foe).
+        const occupant = s.getUnitAt(focus.col, focus.row);
+        const visibleUnit = occupant && canInspectUnit(s.grid, occupant) ? occupant : null;
         const moveType = s.selectedUnit?.moveType || visibleUnit?.moveType || 'Infantry';
         const cost = terrain.moveCost?.[moveType];
         const bonus = (value) =>
@@ -1072,6 +1091,11 @@ export class MobileBattleHUD {
           ? s._zombieRemains?.().infoLine(focus.col, focus.row)
           : null;
         if (remains) card.append(el('span', 'mb-remains', remains));
+        // A ballista the player can see on this tile: its holder, reach, blow and when it fires.
+        const ballista = ballistaInfo(visibleBallistaAt(s.grid, s.ballistas, focus.col, focus.row));
+        if (ballista)
+          for (const line of [ballista.title, ...ballista.lines])
+            card.append(el('span', 'mb-ballista', line));
         if (terrainRuleLines(terrain).length) {
           const help = this.button(
             'Terrain details ⓘ',
@@ -1143,7 +1167,14 @@ export class MobileBattleHUD {
     this.body.replaceChildren();
 
     if (formation) {
-      this.summary.replaceChildren();
+      // A foe being inspected (a tap on it) keeps its summary in the header, as on a turn;
+      // otherwise the header's "units ready" line says nothing before turn 1.
+      if (!unit) this.summary.replaceChildren();
+      else {
+        const inspection = el('div', 'mb-command-grid');
+        inspection.append(this.button('View unit', () => s.openUnitDetailOverlay()));
+        this.body.append(inspection);
+      }
       renderFormationPanel(
         this.body,
         s._formation,
@@ -1187,8 +1218,6 @@ export class MobileBattleHUD {
       detailContent.append(
         el('p', '', '5 ranges pinned. Pinning another enemy replaces the oldest.'),
       );
-    const staffInfo = statusStaffInfo(unit);
-    if (staffInfo) detailContent.append(el('p', '', staffInfo.text));
     const carrying = carriedItemInfo(unit);
     if (carrying) detailContent.append(el('p', '', carrying.text));
     detailContent.append(el('pre', '', info || 'Tap a tile to inspect terrain.'));
@@ -1291,6 +1320,7 @@ export class MobileBattleHUD {
       );
     if (state === 'SELECTING_TARGET') this.appendTargetList();
     if (state === 'SELECTING_HEAL_TARGET') this.appendHealTargetList();
+    if (state === 'SELECTING_REMAINS_TARGET') this.appendRemainsTargetList();
     if (state === 'SELECTING_AREA_CENTER') this.appendAreaTargeting();
     if (isUnitMenuState(state) && this.menu) {
       const menu = this.menu;
@@ -1445,6 +1475,22 @@ export class MobileBattleHUD {
     this.body.append(list);
   }
 
+  /** Smash: each pile in reach as a row (ZombieRemainsController.targetRows), as Heal's list. */
+  appendRemainsTargetList() {
+    const s = this.scene;
+    const remains = s._remainsCtrl;
+    if (!s.selectedUnit || !remains) return;
+    const list = el('div', 'mb-actions mb-targets mb-remains-targets');
+    list.setAttribute('role', 'group');
+    list.setAttribute('aria-label', 'Remains to smash');
+    for (const row of remains.targetRows(s.selectedUnit)) {
+      const button = this.button(row.label, () => remains.choose(row.target));
+      button.append(el('small', 'mb-item-summary', row.detail));
+      list.append(button);
+    }
+    this.body.append(list);
+  }
+
   targetListKey() {
     const s = this.scene;
     return [
@@ -1562,7 +1608,9 @@ export class MobileBattleHUD {
       item.label.startsWith(EQUIPPED_MARKER);
     // Weapon and item rows show a one-line brief; a long press opens the row's
     // full stats and effect in place (and closes it again).
-    const detail = item.description ? '' : battleItemSummary(item.item, menu.unit);
+    const detail = item.description
+      ? ''
+      : battleItemSummary(item.item, menu.unit, { run: s.runManager });
     const expanded = Boolean(detail) && this.expandedItem === item.item;
     const button = this.button(
       equippedRow ? item.label.slice(EQUIPPED_MARKER.length) : item.label,
@@ -1606,7 +1654,7 @@ export class MobileBattleHUD {
       button.setAttribute('aria-label', item.label);
       button.setAttribute('aria-description', item.note);
     } else if (detail) {
-      const brief = battleItemBrief(item.item, menu.unit);
+      const brief = battleItemBrief(item.item, menu.unit, { run: s.runManager });
       button.append(el('small', 'mb-item-summary', expanded ? detail : brief));
       // Screen readers always hear every stat and the effect.
       button.setAttribute('aria-description', detail);

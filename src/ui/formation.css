@@ -17,6 +17,13 @@
   font: 12px/1.35 var(--re-body);
   color: var(--re-warn);
 }
+.fm-legend {
+  margin: 4px 0 0;
+  padding: 2px 8px;
+  border-left: 2px solid var(--re-line-strong);
+  font: 12px/1.35 var(--re-body);
+  color: var(--re-muted);
+}
 .fm-bench {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
@@ -117,6 +124,13 @@
 .fm-details {
   width: 100%;
   margin-bottom: 8px;
+}
+/* A placed unit's Details and Gear & skills share one row, the same height. */
+.fm-unit-actions {
+  margin: 0 0 8px;
+}
+.fm-unit-actions > .fm-details {
+  margin-bottom: 0;
 }
 .fm-picker-head {
   margin: 0 0 6px;

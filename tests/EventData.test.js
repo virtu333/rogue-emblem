@@ -160,8 +160,11 @@ describe('the shipped events.json', () => {
       'disable_personal_skills_until_act',
     ])
       expect(SAFE_BLESSING_BOON_TYPES, type).not.toContain(type);
-    // Every listed type is one the run's blessing code actually handles.
-    const source = readFileSync(path.join(root, 'src/engine/RunManager.js'), 'utf-8');
+    // Every listed type is one the run's blessing code actually handles (RunManager, or the
+    // §5 boons' module it hands them to).
+    const source = ['src/engine/RunManager.js', 'src/engine/ShrineBoons.js']
+      .map((file) => readFileSync(path.join(root, file), 'utf-8'))
+      .join('\n');
     for (const type of SAFE_BLESSING_BOON_TYPES) expect(source, type).toContain(`'${type}'`);
   });
 });

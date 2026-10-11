@@ -661,8 +661,12 @@ export const UPGRADE_ICON_REUSE = Object.freeze({
  * mobile texture budget in tests/ItemIcons.test.js). A new blessing without a picture of its
  * own adds a line here instead of a cell: Gambler's Toss wears the Gambler's Coin, Slow Fuse
  * the Scout's Blessing banner, Bloodless Art the Blood Gem, Phalanx Rite the Phalanx Band and
- * Duelist's Creed the Duelist's Glove. The target must be an icon with a cell of its own. An
- * earned blessing (no tier) takes the Legend rim.
+ * Duelist's Creed the Duelist's Glove. An earned blessing (no tier) takes the Legend rim. The rest
+ * of §5 (PR D4): Late Bloom the herb, Dawn Tithe the Coin of Fate, Lone Banner the deploy-limit
+ * banner, Cavalier's Hour the Mounted Seal, Saint's Reserve the staff upgrade, Cutpurse's Luck the
+ * Steal Scroll, Open Roll the extra-recruit pool, Watcher's Grace the Talisman, Patient Dawn the
+ * Soothing Stone, Twin Chapel the Angelic Robe, Omen Reader the Warding Charm and Lottery Loot the
+ * loot-quality chest. The target must be an icon with a cell of its own.
  */
 export const BLESSING_ICON_REUSE = Object.freeze({
   gamblers_toss: 'gamblers-coin',
@@ -678,6 +682,45 @@ export const BLESSING_ICON_REUSE = Object.freeze({
   second_dawn: 'upgrade-vision_charges_2',
   ember_lantern: 'phoenix-brooch',
   captains_whistle: 'upgrade-heros_call',
+  late_bloom: 'herb',
+  dawn_tithe: 'blessing-coin_of_fate',
+  lone_banner: 'upgrade-deploy_limit',
+  cavaliers_hour: 'mounted-seal',
+  saints_reserve: 'upgrade-staff_upgrade',
+  cutpurses_luck: 'steal-scroll',
+  open_roll: 'upgrade-extra_starting_unit_pool',
+  watchers_grace: 'talisman',
+  patient_dawn: 'soothing-stone',
+  twin_chapel: 'angelic-robe',
+  omen_reader: 'warding-charm',
+  lottery_loot: 'upgrade-loot_quality',
+  // PR D1's earned blessings (the atlas is full): a standard's crest, an hourglass-pale moon, a
+  // studied book, a strongbox for the tithe (Starting Gold's chest: no blessing or item wears
+  // it), a road light and a veteran's crest. Lantern of the Road keeps Pilgrim's Road's shell
+  // (the pilgrim's road it lights): the atlas's one lantern is already worn by Scout Blessing and
+  // Slow Fuse, and Ember Lantern was moved off it for that reason.
+  standard_of_the_sun: 'vanguard-crest',
+  hollow_hourglass: 'moontide-amulet',
+  chronicle: 'upgrade-studied_training',
+  tithe_box: 'upgrade-starting_gold',
+  lantern_of_the_road: 'blessing-pilgrim_coin',
+  crest_of_the_road: 'veterans-crest',
+  // PR D2's earned blessings (the atlas is full): Saint's Reliquary the Goddess Icon (a relic of
+  // healers), Mercenary Ledger the trade-contacts ledger, Smith's Covenant the weapon forge,
+  // Thief's Lantern the Hunter's Cloak (a thief's hooded cloak; the atlas's one lantern is
+  // already worn twice) and Seer's Eye the Delphi Shield (the seer's eye on its boss).
+  saints_reliquary: 'goddess-icon',
+  mercenary_ledger: 'upgrade-trade_contacts',
+  smiths_covenant: 'upgrade-weapon_forge',
+  thiefs_lantern: 'hunters-cloak',
+  seers_eye: 'delphi-shield',
+  // PR D3's twisted earned blessings (the atlas is full): a darkened sun (the third Vision cell,
+  // beside Second Dawn's second), a blood shard, an heir's crown, and a gilt medallion for the
+  // dark sun's coin.
+  darkened_dawn: 'upgrade-vision_charges_3',
+  blood_covenant: 'vampires-bloodshard',
+  kingmakers_oath: 'upgrade-legendary_heir',
+  hollow_sun_favor: 'diamond-medallion',
 });
 
 /**

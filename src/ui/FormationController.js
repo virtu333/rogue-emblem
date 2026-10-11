@@ -13,6 +13,8 @@ import { PROLOGUE_FORMATION_LINE } from '../data/prologueContent.js';
 // on Start, when `commit()` puts every unit on its chosen tile. Nothing is saved
 // before turn 1 (the first suspend checkpoint is taken at the first player phase),
 // so leaving mid-placement simply returns to the route map.
+// The Roster opened here (FormationRoster.js) leaves the battle the same way and
+// enters it again on close, carrying who deploys and where they stood.
 import {
   autoFill,
   clearAll,
@@ -30,6 +32,12 @@ import {
   unitOnTile,
 } from '../engine/FormationPlacement.js';
 import { FormationPicker } from './FormationPicker.js';
+import { unitIdentityKey } from '../engine/UnitIdentity.js';
+import {
+  canOpenFormationRoster,
+  openFormationRoster,
+  restorePlacement,
+} from './FormationRoster.js';
 import { FormationDock, renderFormationPanel } from './FormationPanel.js';
 import { MenuSurface, button as menuButton } from './MenuSurface.js';
 import {
@@ -41,6 +49,7 @@ import { unitReach } from '../engine/ThreatForecast.js';
 import { isRooted } from '../engine/StatusConditionSystem.js';
 import { UI_HEX } from '../utils/uiStyles.js';
 import { ATTACK_RANGE_ALPHA, ATTACK_RANGE_COLOR, TILE_SIZE } from '../utils/constants.js';
+import { restUnitTint } from './UnitRestAppearance.js';
 import './formation.css';
 
 export const FORMATION_STATE = 'DEPLOY_POSITIONING';
@@ -137,6 +146,7 @@ export class FormationController {
     this.ready = false;
     this.heldUnit = null;
     this.selectedTile = null;
+    this.clearInspection();
     if (s.battleState === FORMATION_STATE) s.battleState = 'PLAYER_IDLE';
     if (s.grid?.fogEnabled) {
       s.grid.updateFogOfWar(s.playerUnits);
@@ -184,7 +194,28 @@ export class FormationController {
     s.selectedUnit = null;
     this.active = true;
     s.battleState = FORMATION_STATE;
-    this.drawMarkers();
+    // Back from the Roster (FormationRoster.js): everyone stands where they stood, if
+    // they still may (a reclassed unit can lose its tile and waits).
+    const memory = s._formationReturn;
+    const restored = memory
+      ? restorePlacement(this, memory, (u, t) => {
+          if (this.issue(u, t)) return false;
+          this.formation = placeUnit(this.formation, u, t);
+          return true;
+        })
+      : 0;
+    if (restored) this.syncField();
+    else this.drawMarkers();
+    // A unit the Roster changed so it may no longer stand on its tile waits, and is named.
+    const waiting = (memory?.placed || [])
+      .map((entry) => this.units.findIndex((unit) => unitIdentityKey(unit) === entry.key))
+      .filter((u) => u !== -1 && this.formation.at[u] === null)
+      .map((u) => this.units[u].name);
+    if (waiting.length)
+      this.flash(
+        `Roster saved. ${waiting.join(', ')} ${waiting.length === 1 ? 'waits: it' : 'wait: they'} can't stand on that tile now.`,
+      );
+    else if (memory?.changed) this.flash('Roster saved. Your formation is as you left it.');
     this.refreshFog();
     this.frameCamera();
     this.touch();
@@ -313,9 +344,12 @@ export class FormationController {
     if (!this.ready) return;
     const s = this.scene;
     const t = this.tileIndexAt(gp.col, gp.row);
+    // Picking up, placing or choosing a tile ends a look at a foe's reach.
+    if (t !== -1) this.clearInspection();
     if (t === -1) {
       if (this.selectedTile !== null) this.selectTile(null);
-      // Off the formation: enemies and terrain inspect as on a normal turn, and a
+      // Off the formation: enemies and terrain inspect as on a normal turn (a foe's
+      // move and attack range included, InputController.showsInspectedReach), and a
       // unit in hand stays there (check a threat, then set it down).
       s._inputController?.handleIdleClick?.(gp);
       return;
@@ -345,6 +379,20 @@ export class FormationController {
     this.openPicker(t);
   }
 
+  /**
+   * Drop the foe being inspected (panel and the range it drew). Placement changes the
+   * board the range was read from, and a unit picked up or set down ends the look.
+   */
+  clearInspection() {
+    if (this.hasInspection()) this.scene.clearInspectionVisuals?.();
+  }
+
+  /** Is a foe's panel or a ballista's range up (what Back and Esc close first)? */
+  hasInspection() {
+    const s = this.scene;
+    return Boolean(s.inspectionPanel?.visible || s._inputController?._ballistaRangeShown);
+  }
+
   selectTile(t) {
     this.selectedTile = t;
     this.drawMarkers();
@@ -358,6 +406,7 @@ export class FormationController {
    */
   holdUnit(unit) {
     if (!this.ready) return;
+    this.clearInspection();
     const from = this.heldTile();
     const u = this.unitIndex(unit);
     if (from !== null && this.heldUnit !== unit && this.formation.at[u] === null) {
@@ -430,6 +479,8 @@ export class FormationController {
         this.clear(t);
       },
       onDetails: () => this.showDetails(u),
+      // Gear, items and skills for this unit, when the Roster is offered here.
+      onRoster: canOpenFormationRoster(this.scene) ? () => this.openRoster(u) : null,
       // Closing the menu keeps the unit in hand; Back again sets it down.
       onClose: () => {
         this.picker = null;
@@ -455,6 +506,16 @@ export class FormationController {
       rosterIndex: placed.indexOf(unit),
     });
     s.refreshEndTurnControl?.();
+  }
+
+  /** The Roster, on unit u when given (FormationRoster.js). */
+  openRoster(u = -1) {
+    return openFormationRoster(this.scene, this.units[u] || null);
+  }
+
+  /** Whether the Roster can be opened from this screen now. */
+  canOpenRoster() {
+    return canOpenFormationRoster(this.scene);
   }
 
   assign(u, t) {
@@ -643,6 +704,7 @@ export class FormationController {
   /** Show each placed unit on its tile; keep benched units hidden. */
   syncField() {
     const s = this.scene;
+    this.clearInspection();
     s.playerUnits.length = 0;
     for (const [u, unit] of this.units.entries()) {
       const t = this.formation.at[u];
@@ -754,7 +816,7 @@ export class FormationController {
   tintHeld() {
     const unit = this.heldTile() === null ? null : this.heldUnit;
     if (this.tinted === unit) return;
-    this.tinted?.graphic?.clearTint?.();
+    restUnitTint(this.tinted);
     this.tinted = unit;
     unit?.graphic?.setTint?.(0xaaaaff);
   }
@@ -762,7 +824,7 @@ export class FormationController {
   clearMarkers() {
     for (const marker of this.markers) marker?.destroy?.();
     this.markers = [];
-    this.tinted?.graphic?.clearTint?.();
+    restUnitTint(this.tinted);
     this.tinted = null;
   }
 

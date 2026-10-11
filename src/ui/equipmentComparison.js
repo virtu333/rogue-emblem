@@ -1,3 +1,4 @@
+import { staffRunOptions } from '../engine/StaffBlessings.js';
 import { getStaticCombatStats, getStaffMaxUses } from '../engine/Combat.js';
 import { itemKeywords } from '../engine/ItemKeywords.js';
 import { getImbueDisplayInfo } from '../engine/ImbueSystem.js';
@@ -85,8 +86,9 @@ export function weaponComparisonParts(unit, item, before = unit?.weapon, options
 
 export function equipmentComparison(unit, item, before = unit?.weapon, options = {}) {
   if (!unit || !item) return '';
+  // A staff's uses for this unit, with the run's blessing uses (`options.run`: Saint's Reserve).
   if (item.type === 'Staff')
-    return `${getStaffMaxUses(item, unit)} uses per map for ${unit.name} · Uses refresh each battle`;
+    return `${getStaffMaxUses(item, unit, staffRunOptions(options.run, unit))} uses per map for ${unit.name} · Uses refresh each battle`;
   if (item.might == null) return '';
   return `If equipped: ${weaponComparisonParts(unit, item, before, options).join(' · ')}`;
 }

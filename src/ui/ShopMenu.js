@@ -41,6 +41,7 @@ import { getSellPrice } from '../engine/LootSystem.js';
 import { itemDisplayName } from '../utils/itemNames.js';
 import { canEquip } from '../engine/UnitManager.js';
 import { getImbueDisplayInfo } from '../engine/ImbueSystem.js';
+import { classChangeItemTag } from '../engine/TwistedBoons.js';
 import { itemUsageShort, itemUsageText } from '../engine/ItemUsage.js';
 import {
   SHOP_REROLL_COST,
@@ -80,7 +81,8 @@ export class ShopMenu {
   /** Catalogs the equip comparison names arts and imbues from. */
   compareOptions() {
     const data = this.scene.gameData || {};
-    return { arts: data.weaponArts?.arts || [], imbues: data.imbues };
+    // `run`: a staff's uses for a unit count the run's blessing uses (Saint's Reserve).
+    return { arts: data.weaponArts?.arts || [], imbues: data.imbues, run: this.run || null };
   }
   open() {
     if (this.surface || this.destroyed) return;
@@ -232,7 +234,10 @@ export class ShopMenu {
       const selling = this.scene.activeShopTab === 'sell';
       const buying = this.scene.activeShopTab === 'buy';
       const sub = buying
-        ? [row.item.type, itemKeywordText(row.item)].filter(Boolean).join(' · ')
+        ? // A Master Seal under Kingmaker's Oath is sold, marked (TwistedBoons.classChangeItemTag).
+          [row.item.type, itemKeywordText(row.item), classChangeItemTag(this.run, row.item)]
+            .filter(Boolean)
+            .join(' · ')
         : selling
           ? // How much it has been used: "Edric · +875 G · 14 strikes".
             [row.owner, `+${getSellPrice(row.item)} G`, itemUsageShort(row.item)]

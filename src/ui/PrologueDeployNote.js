@@ -5,13 +5,15 @@
 // lesson was about his kills). The chapter's deploy rule
 // names the note (data/prologue.json `deploy.note`; copy in prologueContent). In the
 // prologue run it shows once per slot (it marks the in-run deploy hint it stands in
-// for); a replay shows it each time. The PrologueController, created once the battle
+// for); a replay shows it each time. Guidance Off shows none. The PrologueController, created once the battle
 // begins, adds those hint ids to the lessons it records (`scene._prologueDeployTaught`).
 
 import { prologueChapterOf, isStandaloneScriptedBattle } from '../engine/ScriptedBattle.js';
 import { prologueDeployRule } from '../engine/Prologue.js';
 import { NOTE_HINT_IDS, prologueNoteText } from '../data/prologueContent.js';
 import { showImportantHint } from './HintDisplay.js';
+import { guidanceLevelOf } from './guidanceGate.js';
+import { prologueGuidanceAllows } from '../engine/Guidance.js';
 
 /**
  * Show the deploy note for this battle's chapter, once. Resolves when read (null when
@@ -23,6 +25,8 @@ export function showPrologueDeployNote(scene, limits = {}) {
   const chapter = prologueChapterOf(scene?.battleParams, scene?.gameData);
   const rule = prologueDeployRule(chapter);
   if (!rule?.note || scene._prologueDeployNoteShown) return null;
+  // Guidance Off: no field notes, this one included (nothing is marked read).
+  if (!prologueGuidanceAllows(guidanceLevelOf(scene), 'note')) return null;
   const ids = NOTE_HINT_IDS[rule.note] || [];
   const inRun = !isStandaloneScriptedBattle(scene.battleParams, scene.runManager);
   const hints = scene.registry?.get?.('hints');

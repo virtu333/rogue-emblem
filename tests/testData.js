@@ -40,5 +40,6 @@ export function loadGameData() {
     prologue: loadJSON('prologue.json'),
     events: loadJSON('events.json'),
     marks: loadJSON('marks.json'),
+    setPieces: loadJSON('setPieces.json'),
   };
 }

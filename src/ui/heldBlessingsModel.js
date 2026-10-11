@@ -4,6 +4,7 @@
 import { buildBlessingIndex } from '../engine/BlessingEngine.js';
 import { blessingTerms } from '../engine/BlessingTerms.js';
 import { blessingPriceKind } from './choiceContent.js';
+import { startGiftEntry } from '../engine/StartGifts.js';
 
 const TIER_NUMERALS = ['', 'I', 'II', 'III', 'IV', 'V'];
 
@@ -21,24 +22,44 @@ function catalogIndex(run) {
  * `{ id, label, tier, earned, line, price, priceKind, terms }` (`tier` reads 'Earned' for an
  * earned blessing). `price` is the label of what the
  * blessing cost when it was taken (its rolled cost, or its pact) and `priceKind` is 'Cost',
- * 'Price' (an intrinsic price: the boon carries it) or 'Pact'; both are null for a free blessing (tier I, a church's vow, an event's gift).
+ * 'Price' (an intrinsic price: the boon carries it), 'Pact', 'Twist' (a twisted earned card's
+ * twist) or 'Catch' (a start gift's catch); both are null for a free blessing (tier I, a church's
+ * vow, an event's gift).
  * `terms` explains the price's words (BlessingTerms). An id the catalog no longer has is left
  * out. Empty when the run holds none.
+ * A start gift that handed out no blessing (engine/StartGifts.js) leads the list as its own
+ * entry: `tier: 'Gift'`, `gift: true`, its catch as a 'Catch' (one that handed out a blessing is
+ * that blessing's entry, its catch the price).
  * @param {object} run - RunManager
  * @returns {Array<{ id: string, label: string, tier: string, line: string,
- *   price: string|null, priceKind: 'Cost'|'Price'|'Pact'|null }>}
+ *   price: string|null, priceKind: 'Cost'|'Price'|'Pact'|'Twist'|'Catch'|null }>}
  */
 export function heldBlessingEntries(run) {
   const index = catalogIndex(run);
   const seen = new Set();
   const entries = [];
+  const gift = startGiftEntry(run);
+  if (gift)
+    entries.push({
+      ...gift,
+      // The terms explain the catch's own words (its live state is beside it in the price).
+      terms: gift.catchLabel
+        ? blessingTerms([gift.catchLabel], {
+            burdens: run?.gameData?.events?.burdens,
+            difficultyId: run?.difficultyId,
+          })
+        : [],
+    });
   for (const entry of run?.activeBlessings || []) {
     const id = typeof entry === 'string' ? entry : entry?.id;
     if (typeof id !== 'string' || seen.has(id)) continue;
     const blessing = index.get(id);
     if (!blessing) continue;
     seen.add(id);
-    const label = entry?.midRun ? null : entry?.rolledCost?.label || null;
+    // A mid-run blessing shows no price, but the one its grant applied: a twisted earned card's
+    // twist ("Twist: ..."), a start gift's catch ("Catch: ...").
+    const midRunPrice = ['twist', 'gift'].includes(entry?.rolledCost?.kind);
+    const label = entry?.midRun && !midRunPrice ? null : entry?.rolledCost?.label || null;
     // A v3 price says it was the pact; a v2 save names its pact by the pact's own label.
     const isPact =
       !!label &&
@@ -67,6 +88,11 @@ export function heldBlessingEntries(run) {
             burdens: run?.gameData?.events?.burdens,
             difficultyId: run?.difficultyId,
             pact: isPact,
+            effects: entry?.rolledCost?.effects || null,
+            // The twist's burden as it stands now (a passing countdown beside it; a hunt whose
+            // act has begun has ended).
+            held: run?.burdens || null,
+            taken: true,
           })
         : [],
     });

@@ -179,7 +179,7 @@
   {
     "id": "adept",
     "name": "Adept",
-    "description": "SPD% chance for an extra follow-up strike at full damage (once per combat)",
+    "description": "SPD% chance for an extra follow-up strike at full damage",
     "trigger": "on-attack",
     "activation": "SPD"
   },
@@ -225,7 +225,7 @@
   {
     "id": "death_blow",
     "name": "Death Blow",
-    "description": "+6 STR when initiating combat",
+    "description": "+6 ATK when initiating combat",
     "trigger": "on-combat-start",
     "condition": "initiating",
     "effects": {
@@ -555,11 +555,11 @@
   {
     "id": "fiendish_blow",
     "name": "Fiendish Blow",
-    "description": "+4 ATK when initiating combat",
+    "description": "+5 ATK when initiating combat",
     "trigger": "on-combat-start",
     "condition": "initiating",
     "effects": {
-      "atkBonus": 4
+      "atkBonus": 5
     },
     "classInnate": "Dark Knight"
   },

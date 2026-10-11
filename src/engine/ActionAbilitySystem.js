@@ -577,8 +577,8 @@ export function settleWarpStrike(unit, skill, plan, { occupantAt = null } = {}) 
 
 /**
  * The adjacent foes `unit` can rob right now: each carries an item, the thief is at least as
- * fast, and there is room (the thief's bag, then the convoy through `ctx.canAddToConvoy`).
- * `ctx.enemies` is what the player may know (seen foes), so a hidden carrier never shows.
+ * fast (or `ctx.ignoreSpeed`: Cutpurse's Luck), and there is room (the thief's bag, then the
+ * convoy through `ctx.canAddToConvoy`). `ctx.enemies` is what the player may know (seen foes), so a hidden carrier never shows.
  * @returns {Array<{ unit: object, item: object, destination: 'bag'|'convoy', dc: number,
  *   dr: number }>}
  */
@@ -593,7 +593,7 @@ export function findStealTargets(unit, ability, ctx = {}) {
  * @returns {{ targets: object[], reason: 'too_slow'|'full'|null }}
  */
 export function stealStatus(unit, ability, ctx = {}) {
-  const { enemies, canAddToConvoy } = ctx;
+  const { enemies, canAddToConvoy, ignoreSpeed = false } = ctx;
   const out = { targets: [], reason: null };
   if (!liveUnit(unit) || !Array.isArray(enemies)) return out;
   const blocked = [];
@@ -602,7 +602,7 @@ export function stealStatus(unit, ability, ctx = {}) {
     if (!foe || foe === unit) continue;
     const item = carriedItemOf(foe);
     if (!item) continue;
-    const why = stealBlockReason(unit, foe, { canAddToConvoy });
+    const why = stealBlockReason(unit, foe, { canAddToConvoy, ignoreSpeed });
     if (why) {
       blocked.push(why);
       continue;

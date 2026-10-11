@@ -7,7 +7,8 @@
 //   destination is a free tile adjacent to the caster.
 // - Warp: the ally target is always adjacent (distance 1); `range`
 //   (+ `rangeBonuses`) is the DESTINATION radius around the caster.
-// Both reuse getEffectiveStaffRange unmodified for the MAG scaling.
+// Both reuse getEffectiveStaffRange for the MAG scaling, with the caller's staff options
+// (StaffBlessings.staffRunOptions: Saint's Reliquary's reach) passed through unchanged.
 // Destination legality is always judged by the moved ALLY's moveType.
 
 import { getEffectiveStaffRange, gridDistance } from './Combat.js';
@@ -68,12 +69,13 @@ export function getRelocationTiles(
  * Legal destination tiles for relocating `ally` with `staff` cast by `caster`.
  * Rescue: free tiles adjacent to the caster. Warp: full passable-unoccupied
  * diamond of the staff's effective radius around the caster. Occupied tiles
- * (including the ally's own tile) are never returned.
+ * (including the ally's own tile) are never returned. `staffOptions`: the caster's
+ * StaffBlessings.staffRunOptions (a Warp's radius takes its reach).
  */
-export function getRelocationDestinations(staff, caster, ally, grid, getUnitAt) {
+export function getRelocationDestinations(staff, caster, ally, grid, getUnitAt, staffOptions = {}) {
   const kind = getRelocateKind(staff);
   if (!kind) return [];
-  const radius = kind === 'rescue' ? 1 : getEffectiveStaffRange(staff, caster).max;
+  const radius = kind === 'rescue' ? 1 : getEffectiveStaffRange(staff, caster, staffOptions).max;
   return getRelocationTiles(grid, getUnitAt, caster.col, caster.row, radius, ally.moveType);
 }
 
@@ -84,11 +86,19 @@ export function getRelocationDestinations(staff, caster, ally, grid, getUnitAt) 
  * Warp: living adjacent allies.
  * Both: never the caster, and only allies with at least one legal destination.
  * NPC (green) units are excluded by construction — pass player units only.
+ * `staffOptions`: the caster's StaffBlessings.staffRunOptions (a Rescue's reach).
  */
-export function findRelocateTargets(staff, caster, playerUnits, grid, getUnitAt) {
+export function findRelocateTargets(
+  staff,
+  caster,
+  playerUnits,
+  grid,
+  getUnitAt,
+  staffOptions = {},
+) {
   const kind = getRelocateKind(staff);
   if (!kind) return [];
-  const range = getEffectiveStaffRange(staff, caster);
+  const range = getEffectiveStaffRange(staff, caster, staffOptions);
   const targets = [];
   for (const ally of playerUnits || []) {
     if (ally === caster) continue; // never self
@@ -100,7 +110,8 @@ export function findRelocateTargets(staff, caster, playerUnits, grid, getUnitAt)
     } else if (dist !== 1) {
       continue; // warp sends an ADJACENT ally
     }
-    if (getRelocationDestinations(staff, caster, ally, grid, getUnitAt).length === 0) continue;
+    if (getRelocationDestinations(staff, caster, ally, grid, getUnitAt, staffOptions).length === 0)
+      continue;
     targets.push(ally);
   }
   return targets;

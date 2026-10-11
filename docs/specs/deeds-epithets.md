@@ -165,7 +165,13 @@ which its remaining charges already say); the roster's item card shows the detai
 The displayed title is `deeds.epithet`, recomputed by `pickEpithet(earned, chosenTitle)`:
 the player's pick (`chooseTitle`: an earned deed's id, or `TITLE_NONE`) wins, else the
 highest prestige. Between battles the roster's Deeds section offers "Use as title",
-"No title" and "Greatest deed"; each choice saves at once. A saved choice naming a deed
+"No title" and "Greatest deed"; each choice saves at once. The section shows the title in
+full and folds every other deed under one line ("Other deeds · 4", naming their titles;
+"Deeds earned" when the unit goes by name alone) until the player opens it
+(`ui/disclosure.js`: a button with `aria-expanded`, the folded list not rendered at all, so
+keyboard and pad never land on a hidden control). Folds stay as left while the sheet is
+open, across units and choices, and start closed on the next opening (playtest
+2026-10-10). A saved choice naming a deed
 the unit no longer has is dropped on load.
 
 ## Oaths (promotion)
@@ -177,7 +183,9 @@ Deeds section or the path chooser), else the highest-prestige earned deed (ties:
 recent), whose Oath skill the unit does not already know (class innates count) teaches
 that skill, once per run. The chooser lists the Oaths open on the selected path
 (`content.oathOptions`); a path whose class already has the pledged skill swears the next
-one and says so. The
+one and says so. In both the roster and the chooser the Oath it will swear is shown and
+the others are folded behind a toggle ("Change Oath" / the Oath's own name); a pick
+pledges, closes the list like a select, and returns focus to the toggle. The
 path chooser card and the rite project it through the same function
 (`promotionPathContent` → `content.oath`, a sealed `oath` beat in ember). At the skill cap
 the Oath waits (`deeds.waitingOath`): the promotion says so, and the roster's Deeds panel

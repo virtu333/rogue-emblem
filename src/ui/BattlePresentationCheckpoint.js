@@ -5,11 +5,13 @@ import { revealSettledVision } from './BattleActionCompletion.js';
 import { findBattleEntity, isBattleEntityId } from '../engine/BattleEntityIdentity.js';
 import { readActionContinuation } from '../engine/ActionContinuation.js';
 import { LevelUpPopup } from './LevelUpPopup.js';
+import { battleLevelUpReroll } from './LevelUpRerollController.js';
 import { gridDistance } from '../engine/Combat.js';
 import { levelUpKind } from './growthContent.js';
 import { safeBattlePresentation } from './safeBattlePresentation.js';
 import { xpGaugeFor } from './XpGaugeController.js';
 import { progressSteps } from './xpGaugeModel.js';
+import { restUnitAppearance } from './UnitRestAppearance.js';
 
 // Save fields are untrusted; the one definition of the shape lives in the engine.
 export { readActionContinuation };
@@ -106,7 +108,7 @@ export async function presentQueuedProgress(scene, continuation = null, { sessio
     }
     for (const card of step.cards) {
       if (!isCurrentBattleSession(scene, session)) return;
-      await presentLevelUpCard(scene, card, { session });
+      await presentLevelUpCard(scene, card, { session, cards });
     }
   }
 }
@@ -133,9 +135,12 @@ function presentXpGauge(scene, record, { session }) {
   })();
 }
 
-async function presentLevelUpCard(scene, { unitName, unitId, levelUp, learnedNames }, { session }) {
+async function presentLevelUpCard(scene, card, { session, cards = [] }) {
+  const { unitName, unitId, levelUp, learnedNames } = card;
   const unit = findBattleEntity(scene, { unitId, unitName }, ['playerUnits']);
   if (!unit) return;
+  // Branching Threads: the card's Reroll, committed over this boundary's checkpoint.
+  const reroll = battleLevelUpReroll(scene, card, { session, cards });
   safeBattlePresentation('level-up sound', () => scene._playLevelUpSfx(levelUpKind(levelUp)), {
     scene,
   });
@@ -143,7 +148,7 @@ async function presentLevelUpCard(scene, { unitName, unitId, levelUp, learnedNam
   try {
     await safeBattlePresentation(
       'level-up popup',
-      () => new LevelUpPopup(scene, unit, levelUp, false, learnedNames).show(),
+      () => new LevelUpPopup(scene, unit, levelUp, false, learnedNames, null, { reroll }).show(),
       { scene },
     );
   } finally {
@@ -248,7 +253,7 @@ export function completeResolvedAction(scene, continuation, { session } = {}) {
       ally.hasMoved = false;
       ally._movementCommitted = false;
       ally._movementSpent = 0;
-      safeBattlePresentation('Gambit tint', () => ally.graphic?.clearTint?.(), { scene });
+      safeBattlePresentation('Gambit tint', () => restUnitAppearance(scene, ally), { scene });
     }
   } else if (galeforce) {
     observeHistoryAction(scene, 'refreshed', unit, unit, 'Galeforce');
@@ -256,7 +261,7 @@ export function completeResolvedAction(scene, continuation, { session } = {}) {
     unit.hasMoved = false;
     unit._movementCommitted = false;
     unit._movementSpent = 0;
-    safeBattlePresentation('Galeforce tint', () => unit.graphic?.clearTint?.(), { scene });
+    safeBattlePresentation('Galeforce tint', () => restUnitAppearance(scene, unit), { scene });
   } else if (unit) {
     scene.finishUnitAction(unit, {
       session,

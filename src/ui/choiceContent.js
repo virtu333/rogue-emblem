@@ -8,6 +8,7 @@
 // cue computed from the roster, a reward's "for whom", a blessing's boon and
 // cost. Presentation only: it never mutates a unit, a reward or the run, never
 // reads Math.random, and every engine helper it calls is a read.
+import { staffRunOptions } from '../engine/StaffBlessings.js';
 import { rankRequirementText } from './rosterDisplay.js';
 import { traitLines, markLine } from './traitContent.js';
 import { epithetText } from '../engine/DeedTitles.js';
@@ -15,6 +16,8 @@ import { lentSkillLine } from '../engine/AccessorySkillNames.js';
 import { getDisplayLevel, canEquip } from '../engine/UnitManager.js';
 import { getStaticCombatStats, getStaffMaxUses } from '../engine/Combat.js';
 import { rewardWeaponEligible } from '../engine/LootRewardCommands.js';
+import { weaponComparisonRows } from './equipmentComparison.js';
+import { classChangeItemTag } from '../engine/TwistedBoons.js';
 
 /** Stats compared on a candidate card, in reading order (HP sits in the identity). */
 export const CHOICE_STATS = Object.freeze(['STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK']);
@@ -253,6 +256,31 @@ function attackOf(unit, weapon) {
   }
 }
 
+// Beside attack, what else the weapon changes against the one the unit holds: attack
+// speed, hit and crit as signed changes, a new range in full (weaponComparisonRows, the
+// shop's and the roster's comparison). Arts and effects are on the card already; an
+// unarmed unit gets attack alone.
+const SIDE_LABELS = { as: 'AS', hit: 'Hit', crit: 'Crit' };
+function sideChanges(unit, item) {
+  // Unarmed: hit and crit from nothing say nothing; "Atk 0 → 13" is the answer.
+  if (!unit?.weapon) return [];
+  let rows = [];
+  try {
+    rows = weaponComparisonRows(unit, item, unit.weapon);
+  } catch {
+    return [];
+  }
+  const parts = [];
+  for (const row of rows) {
+    if (SIDE_LABELS[row.id] && row.delta)
+      parts.push(
+        `${SIDE_LABELS[row.id]}\u00a0${row.delta > 0 ? '+' : '\u2212'}${Math.abs(row.delta)}`,
+      );
+    else if (row.id === 'range') parts.push(`Range\u00a0${row.from}\u00a0→\u00a0${row.to}`);
+  }
+  return parts;
+}
+
 /**
  * "For whom" for a reward: { who, detail, tone } lines a card can show.
  * Weapons name the wielder who gains the most attack (and how many can
@@ -300,6 +328,10 @@ export function rewardForWhom(choice, run) {
       : { who: 'No weapon can take it', detail: 'Nothing carried qualifies', tone: 'bad' };
   }
   if (item.type === 'Consumable') {
+    // A Master Seal while Kingmaker's Oath forbids it: offered as ever (the loot stream never
+    // moves), marked so the card says it can't be used.
+    const banned = classChangeItemTag(run, item);
+    if (banned) return { who: banned, detail: 'Promote at a church instead', tone: 'bad' };
     if (item.effect === 'statBoost') {
       // No recipient advice: a high growth rate is no reason to take a flat bonus
       // now. The recipient step shows each unit's stat before → after instead.
@@ -333,7 +365,7 @@ export function rewardForWhom(choice, run) {
         u,
         uses: (() => {
           try {
-            return getStaffMaxUses(item, u);
+            return getStaffMaxUses(item, u, staffRunOptions(run, u));
           } catch {
             return 0;
           }
@@ -360,7 +392,7 @@ export function rewardForWhom(choice, run) {
   if (!best) return { who: count, detail: '', tone: 'muted' };
   return {
     who: `For ${best.u.name}`,
-    detail: `Atk ${best.now} → ${best.next} · ${count}`,
+    detail: [`Atk ${best.now} → ${best.next}`, ...sideChanges(best.u, item), count].join(' · '),
     tone: best.delta > 0 ? 'good' : best.delta < 0 ? 'bad' : 'muted',
     unit: best.u.name,
     delta: best.delta,
@@ -373,12 +405,15 @@ export const TIER_NUMERALS = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V']);
 
 /**
  * What a blessing's price is called: a tier IV blessing's fixed 'Pact', a blessing whose own
- * boon carries the cost (Slow Fuse's dip) a 'Price', anything else a rolled 'Cost'. Reads an
- * offer (catalog fields + `rolledCost`) or a held entry's stored `rolledCost`.
- * @param {object|null} blessing - an offer, or `{ rolledCost, intrinsicPrice?, pact? }`
- * @returns {'Pact'|'Price'|'Cost'}
+ * boon carries the cost (Slow Fuse's dip) a 'Price', a twisted earned blessing's 'Twist', a start
+ * gift's 'Catch', anything else a rolled 'Cost'. Reads an offer (catalog fields + `rolledCost`)
+ * or a held entry's stored `rolledCost`.
+ * @param {object|null} blessing - an offer, or `{ rolledCost, intrinsicPrice?, pact?, twist? }`
+ * @returns {'Pact'|'Price'|'Twist'|'Catch'|'Cost'}
  */
 export function blessingPriceKind(blessing) {
+  if (blessing?.twist || blessing?.rolledCost?.kind === 'twist') return 'Twist';
+  if (blessing?.rolledCost?.kind === 'gift') return 'Catch';
   if (blessing?.pact || blessing?.rolledCost?.kind === 'pact') return 'Pact';
   if (blessing?.intrinsicPrice || blessing?.rolledCost?.kind === 'intrinsic') return 'Price';
   return 'Cost';
@@ -393,7 +428,9 @@ export function blessingCardContent(blessing) {
   if (!blessing) return null;
   const earned = blessing.earned === true;
   const tier = earned ? 0 : Math.max(0, Math.min(5, Math.trunc(num(blessing.tier))));
-  const priceLabel = blessing.rolledCost?.label ?? blessing.intrinsicPrice?.label;
+  // A twisted earned card shows its twist where a shrine card shows its price.
+  const priceLabel =
+    blessing.rolledCost?.label ?? blessing.intrinsicPrice?.label ?? blessing.twist?.label;
   const cost = typeof priceLabel === 'string' && priceLabel.trim() ? priceLabel.trim() : '';
   return {
     id: blessing.id || null,
@@ -411,6 +448,32 @@ export function blessingCardContent(blessing) {
     pact: Boolean(blessing.pact),
     costLabel: blessingPriceKind(blessing),
     lore: typeof blessing.lore === 'string' ? blessing.lore : '',
+  };
+}
+
+/**
+ * A start gift as the shrine's fourth card (docs/specs/blessings-v3.md §7; engine/StartGifts.js):
+ * no tier (it reads "Gift" and its sun holds the gift's icon, `mark: 'icon'`), the boon is what it
+ * gives and its foot is the catch, named a 'Catch'.
+ */
+export function giftCardContent(gift) {
+  if (!gift) return null;
+  const cost = typeof gift.catch?.label === 'string' ? gift.catch.label.trim() : '';
+  return {
+    id: gift.id || null,
+    name: String(gift.name || ''),
+    tier: 'gift',
+    earned: false,
+    gift: true,
+    numeral: '',
+    mark: 'icon',
+    icon: typeof gift.icon === 'string' ? gift.icon : null,
+    tierLabel: 'Gift',
+    boon: String(gift.description || ''),
+    cost,
+    pact: false,
+    costLabel: 'Catch',
+    lore: typeof gift.lore === 'string' ? gift.lore : '',
   };
 }
 

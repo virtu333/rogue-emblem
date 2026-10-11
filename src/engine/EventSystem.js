@@ -36,6 +36,7 @@ import { isWorn } from './WeaponWear.js';
 import { canForge, canForgeStat } from './ForgeSystem.js';
 import { roadCandidates } from './RouteEdit.js';
 import { unitUidOf } from './UnitIdentity.js';
+import { earnedGrantBlock } from './EarnedBlessings.js';
 import { NODE_TYPES } from '../utils/constants.js';
 
 export const EVENT_ACTS = Object.freeze(['act1', 'act2', 'act3', 'act4']);
@@ -62,6 +63,7 @@ export const REQUIRES_KEYS = Object.freeze([
   'flagAct',
   'notContract',
   'roadAhead',
+  'earnedAvailable',
 ]);
 
 /** The first page of every event (its top-level `intro` and `choices`). */
@@ -493,6 +495,20 @@ export const SAFE_BLESSING_BOON_TYPES = Object.freeze([
   'starting_consumable_all',
   // Bloodless Art: a player-only art discount and extra use, free of any price in the boon.
   'player_weapon_art_boon',
+  // The rest of the §5 starting blessings (engine/ShrineBoons.js): none carries its price in the
+  // boon, so each is a plain gift mid-run. (Lone Banner is two existing boons, one of them the
+  // deploy cap, behind an intrinsic price: it is never safe.)
+  'act_clear_army_stats',
+  'under_par_gold',
+  'move_type_battle_stats',
+  'staff_uses_bonus',
+  'carrier_luck',
+  'recruit_alternate',
+  'boss_battle_vision',
+  'par_turn_delta',
+  'church_extra_vows',
+  'eclipse_omen',
+  'next_act_loot_card',
 ]);
 
 /**
@@ -606,6 +622,10 @@ export function evaluateRequires(run, requires, ctx = {}) {
     } else if (key === 'blessingTier') {
       if (availableEventBlessings(run, need).length === 0)
         return fail('There is nothing left to give you.');
+    } else if (key === 'earnedAvailable') {
+      // The named earned blessing could still be won here (EarnedBlessings.earnedGrantBlock).
+      const line = earnedGrantBlock(run, need, { source: 'event' });
+      if (line) return fail(line);
     } else {
       return fail('Unavailable.');
     }

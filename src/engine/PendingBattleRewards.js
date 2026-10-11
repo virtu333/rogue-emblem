@@ -1,8 +1,13 @@
 import { generateLootChoices, calculateSkipLootBonus } from './LootSystem.js';
+import { ownedLegendaryNames } from './LegendaryOwnership.js';
 import { getRating, calculateBonusGold } from './TurnBonusCalculator.js';
 import { buildPrologueLootChoices } from './Prologue.js';
 import { isPrologueRun } from './ScriptedBattle.js';
+import { rerollsGranted, rerollsLeft, rerollsSpent } from './RerollPool.js';
 import { gambleSummary } from './BattleGoldGamble.js';
+import { applyLotteryCards, lotteryDrawParams } from './LotteryLoot.js';
+import { dawnTitheGold, shrineBoonsOf } from './ShrineBoons.js';
+import { lootGoldMultiplierOf } from './TwistedBoons.js';
 import {
   LOOT_CHOICES,
   ELITE_LOOT_CHOICES,
@@ -28,6 +33,11 @@ export function rewardDrawParams(run, ctx) {
       ? structuredClone(meta.lootCategoryWeightBonuses)
       : null,
     goldMultiplier: Number.isFinite(pressure) ? pressure : 1,
+    // Hollow Sun's Favor: what gold loot cards are worth (engine/TwistedBoons.js); absent without
+    // it, so an unblessed draw (and every record saved before) is exactly as it was.
+    ...(lootGoldMultiplierOf(run) !== 1 ? { lootGoldMultiplier: lootGoldMultiplierOf(run) } : {}),
+    // Lottery Loot: which table its card comes from (engine/LotteryLoot.js); absent without it.
+    ...(lotteryDrawParams(run, { nodeId: ctx.nodeId || run.currentNodeId }) || {}),
   };
 }
 
@@ -35,10 +45,11 @@ export function rewardDrawParams(run, ctx) {
  * Roll a battle's random item choices: the one draw the first offer and every reroll
  * share, so they cannot drift. Uses Math.random (as it always has); the Vulnerary bundle
  * and the late-pressure gold multiplier apply here. Accessory skills and weapon-art
- * spawns ride generateLootChoices itself.
+ * spawns ride generateLootChoices itself. Lottery Loot's card replaces the last one after the
+ * battle's own draw, on its own stream (`round`: 0 for the first offer, n for the n-th reroll).
  */
-export function rollBattleRewardChoices(run, data, draw) {
-  const choices = generateLootChoices(
+export function rollBattleRewardChoices(run, data, draw, { round = 0 } = {}) {
+  const drawn = generateLootChoices(
     draw.actId || run.currentAct,
     data.lootTables,
     data.weapons,
@@ -55,15 +66,25 @@ export function rollBattleRewardChoices(run, data, draw) {
     {
       lootCategoryWeightBonuses: draw.lootCategoryWeightBonuses || undefined,
       imbues: data.imbues || null,
+      excludeLegendaryNames: [...ownedLegendaryNames(run)],
     },
   );
+  const choices = applyLotteryCards(run, data, draw, drawn, { round });
   // A rolled Vulnerary reward is a small bundle (LOOT_VULNERARY_BUNDLE items).
   for (const choice of choices)
     if (choice.item?.name === 'Vulnerary') choice.quantity = LOOT_VULNERARY_BUNDLE;
   const pressure = Number.isFinite(draw.goldMultiplier) ? draw.goldMultiplier : 1;
+  // Hollow Sun's Favor, read from the draw (never the run), so a reroll pays what the first offer
+  // would have, and a card rolled before the take is not raised by it.
+  const favor =
+    Number.isFinite(draw.lootGoldMultiplier) && draw.lootGoldMultiplier > 0
+      ? draw.lootGoldMultiplier
+      : 1;
   for (const choice of choices)
-    if (choice.type === 'gold')
+    if (choice.type === 'gold') {
       choice.goldAmount = Math.max(0, Math.floor((choice.goldAmount || 0) * pressure));
+      if (favor !== 1) choice.goldAmount = Math.floor(choice.goldAmount * favor);
+    }
   return JSON.parse(JSON.stringify(choices));
 }
 
@@ -84,6 +105,19 @@ export function prepareBattleRewards(run, data, ctx) {
         0,
         Math.floor(calculateBonusGold(result, run.currentAct, ctx.turnBonusConfig) * pressure),
       ),
+    );
+  }
+  // Dawn Tithe: gold for each turn under the map's own par (Patient Dawn's turns taken off),
+  // paid here with the turn bonus, so a Debt never garnishes it. Never on a chapter without par.
+  let titheGold = 0;
+  if (ctx.turnPar != null && ctx.turnBonusConfig && !isPrologueRun(run)) {
+    titheGold = run.awardGold(
+      dawnTitheGold({
+        perTurn: shrineBoonsOf(run).underParGoldPerTurn,
+        turnPar: ctx.turnPar,
+        parTurnDelta: ctx.blessingParTurns,
+        turnNumber: ctx.turnNumber,
+      }),
     );
   }
   const authored = Array.isArray(ctx.authoredLoot);
@@ -113,7 +147,7 @@ export function prepareBattleRewards(run, data, ctx) {
     // The skip pays from the gold the battle earned, never from the choices, so a reroll
     // leaves it as it is.
     skipGold: Math.floor(calculateSkipLootBonus(total) * GOLD_LOOT_REWARD_MULTIPLIER),
-    summary: `Battle and completion: ${ctx.battleCompletionAwardedGold ?? total - turnGold} gold${turnGold ? ` · Turn ${rating}: +${turnGold} gold` : ''}${tossNote}`,
+    summary: `Battle and completion: ${ctx.battleCompletionAwardedGold ?? total - turnGold} gold${turnGold ? ` · Turn ${rating}: +${turnGold} gold` : ''}${titheGold ? ` · Dawn Tithe: +${titheGold} gold` : ''}${tossNote}`,
     draft: { selected: 0, path: [] },
     // How the choices were drawn (Branching Threads rerolls with the same); null for
     // authored loot, which can never be rerolled.
@@ -134,25 +168,16 @@ export function finishRewardClaim(run, index) {
 }
 
 // ── Branching Threads: battle-reward rerolls ────────────────────────────
+// The pool is shared with level-up rerolls (engine/RerollPool.js; engine/LevelUpReroll.js).
 
-/**
- * Rerolls this run was granted (the Home Base upgrade, snapshotted into the run's meta
- * effects at its start). The prologue run applies no meta effects and has none.
- */
-export function rewardRerollsGranted(run) {
-  if (!run || isPrologueRun(run)) return 0;
-  return Math.max(0, Math.trunc(Number(run.metaEffects?.rewardRerolls) || 0));
-}
+/** Rerolls this run was granted (the prologue has none). */
+export const rewardRerollsGranted = rerollsGranted;
 
-/** Rerolls spent this run (saved as `run.rewardRerollsSpent`; older saves read 0). */
-export function rewardRerollsSpent(run) {
-  return Math.max(0, Math.trunc(Number(run?.rewardRerollsSpent) || 0));
-}
+/** Rerolls spent this run, on rewards or level-ups (`run.rewardRerollsSpent`). */
+export const rewardRerollsSpent = rerollsSpent;
 
 /** Rerolls left this run. */
-export function rewardRerollsLeft(run) {
-  return Math.max(0, rewardRerollsGranted(run) - rewardRerollsSpent(run));
-}
+export const rewardRerollsLeft = rerollsLeft;
 
 export const REWARD_REROLL_BLOCKS = Object.freeze({
   none: 'none', // no Branching Threads this run
@@ -205,7 +230,9 @@ export function rerollBattleReward(run, data, { persist = null } = {}) {
     rerolls: record.rerolls,
     spent: run.rewardRerollsSpent,
   };
-  const choices = rollBattleRewardChoices(run, data, record.draw);
+  // Each reroll draws Lottery Loot's card on the next round of its stream.
+  const round = Math.max(0, Math.trunc(Number(record.rerolls) || 0)) + 1;
+  const choices = rollBattleRewardChoices(run, data, record.draw, { round });
   record.choices = choices;
   record.draft = { selected: 0, path: [] };
   // The new cards turn face up as they arrive; a reload shows them face up.

@@ -6,6 +6,7 @@ import { getForgeCost } from '../src/engine/ForgeSystem.js';
 import { AMBUSH_SHOP_DISCOUNT } from '../src/utils/constants.js';
 import { showMinorHint } from '../src/ui/HintDisplay.js';
 import { chooseRuinsPath } from '../src/engine/RuinsCommands.js';
+import { twistPriceOf } from '../src/engine/EarnedBlessings.js';
 let d;
 beforeEach(async () => {
   const storage = new JourneyStorage();
@@ -371,4 +372,38 @@ it('the last weapon of a type is a muted note in the sell pane; the last weapon 
   expect(notes(bow)).toEqual([['Leaves Edric without a bow.', 'muted']]);
   edric.inventory = [sword];
   expect(notes(sword)).toEqual([['Leaves Edric unarmed.', 'warn']]);
+});
+
+// Review (blessings v3 D3): under Kingmaker's Oath a Master Seal is still sold (the twist is
+// taken knowingly) but its row says it can't be used; a reclass seal reads as ever.
+it("a Master Seal's buy row says it can't be used while Kingmaker's Oath is held", () => {
+  const menu = d.shop.nativeMenu;
+  const template = (name) => structuredClone(d.data.consumables.find((c) => c.name === name));
+  const entries = ['Master Seal', 'Infantry Seal'].map((name) => ({
+    type: 'consumable',
+    item: template(name),
+    price: 100,
+  }));
+  d.scene.shopBuyItems = entries;
+  // A row's words: its own text and its children's (the fake nodes keep them apart).
+  const deepText = (n) =>
+    typeof n === 'string'
+      ? n
+      : [n?.textContent || '', ...(n?.children || []).map(deepText)].join('');
+  const rowText = (name) =>
+    deepText(
+      d
+        .buttons()
+        .find((b) => String(b.className).includes('shop-row') && deepText(b).includes(name)),
+    );
+  menu.render();
+  expect(rowText('Master Seal')).not.toContain("Can't be used");
+  const card = d.data.blessings.blessings.find((b) => b.id === 'kingmakers_oath');
+  expect(
+    d.run.addBlessingMidRun('kingmakers_oath', { earned: true, price: twistPriceOf(card) }),
+  ).toBe(true);
+  menu.render();
+  expect(rowText('Master Seal')).toContain("Can't be used: Kingmaker's Oath");
+  expect(rowText('Infantry Seal')).not.toContain("Can't be used");
+  expect(d.scene.shopBuyItems).toEqual(entries);
 });

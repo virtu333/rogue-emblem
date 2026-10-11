@@ -132,6 +132,8 @@ const STATIC_HELP_TABS = [
         lines: [
           { text: 'Enemy Mages/Sages/Bishops may carry', color: CYAN },
           { text: 'status staves on higher difficulties.' },
+          { text: 'Danger shows their staff reach as a', color: GRAY },
+          { text: 'purple outline: Sleep or Silence.', color: GRAY },
           { text: '' },
           { text: 'Countermeasures:', color: GOLD },
           { text: '  Herb - cures all conditions (2 uses)' },
@@ -579,7 +581,7 @@ const STATIC_HELP_TABS = [
       },
       {
         title: 'Battle Stakes & Rewards',
-        tags: ['loot', 'rewards', 'reroll', 'branching threads'],
+        tags: ['loot', 'rewards', 'reroll', 'branching threads', 'level up'],
         lines: [
           { text: 'If your commander falls, the run', color: RED },
           { text: 'ends immediately. Other units can fall', color: RED },
@@ -588,8 +590,10 @@ const STATIC_HELP_TABS = [
           { text: 'Par: target turns for better clear rewards.', color: CYAN },
           { text: '' },
           { text: 'Branching Threads (Home Base, Supply):', color: GOLD },
-          { text: '  Reroll a battle’s loot choices before' },
-          { text: '  your first pick, a few times per run.' },
+          { text: '  Rerolls per run, one pool for both:' },
+          { text: '  a battle’s loot choices before your' },
+          { text: '  first pick, or a level-up’s gains once' },
+          { text: '  revealed. The new roll stands.' },
         ],
       },
       {
@@ -876,7 +880,7 @@ export const HOW_TO_PLAY_PAGES = [
         mobileText: 'Tap Danger to toggle the danger zone',
         color: GRAY,
       },
-      { text: '(shows all enemy threat ranges).', color: GRAY },
+      { text: '(enemy ranges. Purple edge: status staff)', color: GRAY },
     ],
   },
   {

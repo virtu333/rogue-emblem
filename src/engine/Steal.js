@@ -7,6 +7,8 @@
 //      gear. One Steal per carrier, because there is one item.
 //   2. Speed: the thief's attack speed (Combat.calculateEffectiveSpeed, the equipped weapon's
 //      weight counted) must be at least the foe's. Equal is allowed; one slower is "Too slow".
+//      A run's Cutpurse's Luck waives it for a player thief (`ignoreSpeed`, from
+//      ShrineBoons.stealRunOptions; never for a foe).
 //   3. Room, checked before anything moves: the thief's own bag first, then the convoy. With
 //      neither, Steal is refused ("Bag and convoy full") and nothing changes.
 //
@@ -21,6 +23,7 @@
 import { calculateEffectiveSpeed } from './Combat.js';
 import { CONSUMABLE_MAX, INVENTORY_MAX } from '../utils/constants.js';
 import { ensureItemUid } from '../utils/itemUid.js';
+import { stealRunOptions } from './ShrineBoons.js';
 
 export const STEAL_ABILITY_KIND = 'steal_item';
 
@@ -47,8 +50,12 @@ export function stealSpeed(unit) {
   return calculateEffectiveSpeed(unit, unit?.weapon ?? null);
 }
 
-/** True when the thief is at least as fast as the foe (the FE rule: equal is allowed). */
-export function isFastEnoughToSteal(thief, carrier) {
+/**
+ * True when the thief is at least as fast as the foe (the FE rule: equal is allowed), or when
+ * the speed check is waived (`ignoreSpeed`: Cutpurse's Luck, a player thief only).
+ */
+export function isFastEnoughToSteal(thief, carrier, { ignoreSpeed = false } = {}) {
+  if (ignoreSpeed === true) return true;
   return stealSpeed(thief) >= stealSpeed(carrier);
 }
 
@@ -75,13 +82,15 @@ export function stealDestination(thief, item, { canAddToConvoy = null } = {}) {
 
 /**
  * Why `thief` cannot steal from `carrier` right now, or null when it can. Speed is the first
- * word (a foe too quick to rob is "Too slow" however full the bag), then room.
+ * word (a foe too quick to rob is "Too slow" however full the bag), then room. `ctx`:
+ * `{ canAddToConvoy, ignoreSpeed }`.
  * @returns {'no_item'|'too_slow'|'full'|null}
  */
 export function stealBlockReason(thief, carrier, ctx = {}) {
   const item = carriedItemOf(carrier);
   if (!item) return STEAL_REASONS.noItem;
-  if (!isFastEnoughToSteal(thief, carrier)) return STEAL_REASONS.tooSlow;
+  if (!isFastEnoughToSteal(thief, carrier, { ignoreSpeed: ctx.ignoreSpeed === true }))
+    return STEAL_REASONS.tooSlow;
   if (!stealDestination(thief, item, ctx)) return STEAL_REASONS.full;
   return null;
 }
@@ -108,7 +117,8 @@ export function settleSteal(thief, carrier, { run = null } = {}) {
   const item = carriedItemOf(carrier);
   if (!item) return null;
   const canAddToConvoy = run?.canAddToConvoy ? (candidate) => run.canAddToConvoy(candidate) : null;
-  if (stealBlockReason(thief, carrier, { canAddToConvoy })) return null;
+  const { ignoreSpeed = false } = stealRunOptions(run, thief);
+  if (stealBlockReason(thief, carrier, { canAddToConvoy, ignoreSpeed })) return null;
   const destination = stealDestination(thief, item, { canAddToConvoy });
   // The uid is assigned before the item can reach the convoy, so the convoy's copy shares it
   // (a rewind that removes the copy removes exactly this item).

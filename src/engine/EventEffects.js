@@ -31,6 +31,11 @@
 //                                                 -> { kind:'vision', value }
 //   blessing    { tier }                        a seeded mid-run-safe boon blessing the run lacks
 //                                                 -> { kind:'blessing', id, name, description, tier }
+//   earnedBlessing { id }                       a named earned blessing won from an event
+//                                                 (EarnedBlessings.grantEarnedBlessing: the ledger
+//                                                 records it under `event:<node>`); held already ->
+//                                                 an error, or skipped with a note in the spoils
+//                                                 -> { kind:'earnedBlessing', id, name, description }
 //   burden      { id, params }                  Burdens.js
 //                                                 -> { kind:'burden', id, label, line, detail }
 //   flag        { key, value }                  storyFlags
@@ -85,7 +90,8 @@ import { applyForge, canForgeStat } from './ForgeSystem.js';
 import { RECRUIT_PREVIEW_VERSION } from './RecruitNodeSystem.js';
 import { ensureItemUid } from '../utils/itemUid.js';
 import { commitShadow, actShadowOf, withEclipseSeed } from './EclipseSystem.js';
-import { convertNodeToRoutBattle } from './NodeMapGenerator.js';
+import { convertNodeToRoutBattle, convertNodeToSetPieceBattle } from './NodeMapGenerator.js';
+import { findSetPiece } from './SetPieces.js';
 import { WOUND_STATS, addBurden, burdenDefFor, describeBurden } from './Burdens.js';
 import { describeContract, normalizeContract, contractBound } from './Contracts.js';
 import { planJoin, applyJoin, pickJoinSelf } from './EventJoin.js';
@@ -93,6 +99,8 @@ import { planRouteEdit, applyRouteEdit } from './RouteEdit.js';
 import { accessoryDisplayName, bindAccessorySkill, hasAccessorySkill } from './AccessorySkills.js';
 import { CONSUMABLE_MAX, INVENTORY_MAX, NODE_TYPES } from '../utils/constants.js';
 import { unitUidOf } from './UnitIdentity.js';
+import { earnedGrantBlock, eventLedgerKey, grantEarnedBlessing } from './EarnedBlessings.js';
+import { weaponsNeverWearOf } from './EarnedBoons.js';
 import {
   START_PAGE,
   choiceCost,
@@ -136,6 +144,7 @@ export const EVENT_EFFECT_TYPES = Object.freeze([
   'forge',
   'wear',
   'mend',
+  'earnedBlessing',
 ]);
 
 /** Effect types that must name a chosen unit (`to: 'target'` / `scope: 'target'`). */
@@ -256,6 +265,7 @@ export function createLedger(run) {
     contract: false,
     routeEdit: false,
     weapons: new Set(),
+    earned: new Set(),
   };
 }
 
@@ -275,6 +285,7 @@ export function cloneLedger(ledger) {
     contract: ledger.contract,
     routeEdit: ledger.routeEdit,
     weapons: new Set(ledger.weapons),
+    earned: new Set(ledger.earned || []),
   };
 }
 
@@ -556,6 +567,22 @@ function planBlessing(ctx, effect, index, ledger, lenient) {
   return { step: { type: 'blessing', blessing } };
 }
 
+/**
+ * An earned blessing won from the event (docs/specs/blessings-v3.md §6.3): the named card, if the
+ * run can still take it here (EarnedBlessings.earnedGrantBlock: an earned card won from events,
+ * not held, the node's grant not yet given). A choice's grant fails with the reason; the spoils
+ * after a won fight skip it with a note (a won battle never loses its other rewards).
+ */
+function planEarnedBlessing(ctx, effect, index, ledger, lenient) {
+  const key = eventLedgerKey(ctx.nodeId);
+  const reason = ledger.earned?.has(effect.id)
+    ? 'You already carry it.'
+    : earnedGrantBlock(ctx.run, effect.id, { source: 'event', key });
+  if (reason) return lenient ? skipNote('earnedBlessing', reason) : { error: reason };
+  ledger.earned?.add(effect.id);
+  return { step: { type: 'earnedBlessing', id: effect.id, key } };
+}
+
 function planBurden(ctx, effect, index) {
   const def = burdenDefFor(ctx.catalog, effect.id, ctx.run.difficultyId);
   if (!def) return { error: `Unknown burden "${effect.id}".` };
@@ -678,6 +705,7 @@ function planBattle(ctx, effect, index, ledger) {
       afterVictory: structuredClone(effect.afterVictory || []),
       elite: effect.elite === true,
       recruit,
+      ...(typeof effect.setPiece === 'string' ? { setPiece: effect.setPiece } : {}),
     },
   };
 }
@@ -710,6 +738,10 @@ function planForge(ctx, effect, index, ledger) {
 function planWear(ctx, effect, index, ledger) {
   const unit = ctx.target;
   if (!unit) return { error: 'No one to work for.' };
+  // Smith's Covenant (an earned blessing): the army's weapons never take wear, so the outcome's
+  // fallback stands in for it (a `wear` always names one), on whatever weapon was meant.
+  if (weaponsNeverWearOf(ctx.run))
+    return { empty: true, reason: "The smith's covenant holds: the steel will not mark." };
   const weapon = carriedWeapon(unit);
   const stats = weapon && !ledger.weapons.has(weapon) ? wearableStats(weapon) : [];
   if (stats.length === 0) return { empty: true, reason: 'Their weapon cannot wear.' };
@@ -880,6 +912,9 @@ export function planEffects(
       case 'mend':
         planned = planMend(ctx, effect, index, ledger);
         break;
+      case 'earnedBlessing':
+        planned = planEarnedBlessing(ctx, effect, index, ledger, lenient);
+        break;
       default:
         planned = { error: `Unknown effect "${effect?.type}".` };
     }
@@ -891,7 +926,7 @@ export function planEffects(
       return { ok: false, empty: true, reason: planned.reason || 'Nothing to learn.' };
     }
     if (planned.error) {
-      if (lenient && ['item', 'blessing'].includes(effect.type)) {
+      if (lenient && ['item', 'blessing', 'earnedBlessing'].includes(effect.type)) {
         steps.push(skipNote(effect.type, planned.error).step);
         continue;
       }
@@ -1071,22 +1106,24 @@ function applyItem(ctx, step) {
 function applyBattle(ctx, step) {
   const { run, node } = ctx;
   const type = node.type;
+  const actId = run.nodeMap?.actId || run.currentAct;
+  const options = {
+    fogChanceBonus: run.getDifficultyModifier?.('fogChanceBonus', 0) || 0,
+    halfFogChance: run.difficultyId === 'normal',
+    extraParams: {
+      isEventBattle: true,
+      eventEnemyLevelBonus: step.enemyLevelBonus,
+      ...(step.elite ? { isElite: true } : {}),
+      ...(step.recruit ? { isRecruitBattle: true } : {}),
+    },
+  };
+  // A set piece (docs/specs/event-set-pieces.md) is the fight the text tells; without one (or
+  // with an id this build does not know) the fight is an ordinary rout.
+  const setPiece = step.setPiece ? findSetPiece(run.gameData?.setPieces, step.setPiece) : null;
   withEclipseSeed(`event-battle:${runSeedOf(run)}:${ctx.nodeId}`, () =>
-    convertNodeToRoutBattle(
-      node,
-      run.nodeMap?.actId || run.currentAct,
-      run.gameData?.mapTemplates,
-      {
-        fogChanceBonus: run.getDifficultyModifier?.('fogChanceBonus', 0) || 0,
-        halfFogChance: run.difficultyId === 'normal',
-        extraParams: {
-          isEventBattle: true,
-          eventEnemyLevelBonus: step.enemyLevelBonus,
-          ...(step.elite ? { isElite: true } : {}),
-          ...(step.recruit ? { isRecruitBattle: true } : {}),
-        },
-      },
-    ),
+    setPiece
+      ? convertNodeToSetPieceBattle(node, actId, setPiece, options)
+      : convertNodeToRoutBattle(node, actId, run.gameData?.mapTemplates, options),
   );
   // The node stays an event node; only its battle params and the marker change.
   node.type = type;
@@ -1142,6 +1179,22 @@ export function applyStep(ctx, step) {
         },
       ];
     }
+    case 'earnedBlessing': {
+      const granted = grantEarnedBlessing(run, step.id, {
+        source: 'event',
+        key: step.key,
+        nodeId: ctx.nodeId || null,
+      });
+      if (!granted.ok) throw new Error(granted.reason);
+      return [
+        {
+          kind: 'earnedBlessing',
+          id: step.id,
+          name: granted.blessing.name,
+          description: granted.blessing.description,
+        },
+      ];
+    }
     case 'burden': {
       const added = addBurden(run, step.id, step.params, ctx.catalog);
       if (!added.ok) throw new Error(added.reason);
@@ -1154,9 +1207,12 @@ export function applyStep(ctx, step) {
           kind: 'burden',
           id: step.id,
           label: def.label || step.id,
-          line: def.line || '',
+          // A twist's endless omen never "passes": its own line, not the catalog's.
+          line: words.line || def.line || '',
           detail:
-            step.id === 'ill_omen'
+            // A twist's omen already held takes this one as its passing part: the merged
+            // record's words say both (never ends; +N for M more battles).
+            step.id === 'ill_omen' && !b.permanent
               ? `${b.battles} battles, +${b.extraShadow} shadow each`
               : step.id === 'debt'
                 ? `${b.owed} G owed`
@@ -1262,6 +1318,7 @@ export const RUN_FIELDS = Object.freeze([
   'activeBlessings',
   'blessingHistory',
   'blessingRuntimeModifiers',
+  'earnedBlessingPicks',
   'storyFlags',
   'burdens',
   'accessories',

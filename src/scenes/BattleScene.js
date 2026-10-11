@@ -31,6 +31,7 @@ import { safeBattlePresentation } from '../ui/safeBattlePresentation.js';
 import { presentTeleporterWarp } from '../ui/WarpPresentation.js';
 import { hasBattleDefeat } from '../engine/BattleDefeat.js';
 import { applyBlessingCombatMods, stampTurnAnchors } from '../engine/BlessingCombatMods.js';
+import { applyFogOpening } from '../engine/FogOpening.js';
 import {
   isRoutComplete,
   isRoutFieldClear,
@@ -43,7 +44,6 @@ import {
   EnemyPhasePacing,
   enemyHealBanner,
   enemyStepDuration,
-  isTileSeen,
   planEnemyMoveSteps,
   seenUnitName,
   skipsIdleCheckpoint,
@@ -56,7 +56,11 @@ import {
 import {
   canInspectUnit,
   carriedItemInfo,
+  fogHidesFoes,
+  isUnitSeenAt,
+  markFoesShown,
   seenTileOccupant,
+  statusStaffInfo,
   statusStaffThreat,
 } from '../engine/BattleInformation.js';
 import { fogMoveCut } from '../engine/FogAmbush.js';
@@ -101,6 +105,7 @@ import {
   applyBattleStartDebuffs,
   clearBattleScopedDeltas,
 } from '../engine/BattleStatDeltas.js';
+import { staffRunOptions } from '../engine/StaffBlessings.js';
 import {
   applyCombatHP,
   applyStrikeHP,
@@ -121,7 +126,7 @@ import {
   measureTurnPressure,
 } from '../engine/TurnPressure.js';
 import { applyDevScenario } from '../utils/devScenarios.js';
-import { battleContrastEnabled, contrastSpriteKey } from '../ui/BattleContrast.js';
+import { contrastSpriteKey } from '../ui/BattleContrast.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { BattleTradeMenu } from '../ui/BattleTradeMenu.js';
 import { battleTradeController } from '../ui/BattleTradeController.js';
@@ -138,7 +143,13 @@ import { AtmosphereController } from '../ui/AtmosphereController.js';
 import { DesktopBattleHud } from '../ui/DesktopBattleHud.js';
 import { EclipseHudController } from '../ui/EclipseHudController.js';
 import { ContractHudController } from '../ui/ContractHudController.js';
-import { createFactionRing, setFactionRingActed, RING_OFFSET_Y } from '../ui/FactionRings.js';
+import { createFactionRing, RING_OFFSET_Y } from '../ui/FactionRings.js';
+import {
+  applyActedLook,
+  applyReadyLook,
+  restUnitAppearance,
+  restUnitTint,
+} from '../ui/UnitRestAppearance.js';
 import { createBattlefieldLabFixture } from '../utils/battlefieldLabFixture.js';
 import { inputHint } from '../utils/inputHint.js';
 // BattleScene -- Phase 3: multi-unit tactical combat with unit system
@@ -244,7 +255,6 @@ import {
   CONSUMABLE_MAX,
   LOOT_CHOICES,
   ELITE_LOOT_CHOICES,
-  DEPLOY_LIMITS,
   TERRAIN,
   LAVA_CRACK_DAMAGE,
   GOLD_LOOT_REWARD_MULTIPLIER,
@@ -261,6 +271,14 @@ import {
   UI_HEX,
 } from '../utils/uiStyles.js';
 import { generateBattle, reconcileRecruitSpawnTile } from '../engine/MapGenerator.js';
+import {
+  applyGenerationFields,
+  battleGenerationSeed,
+  deriveNodeBattleSeed,
+  generateSeededBattle,
+  openingBattleStreamSeed,
+  PINNED_BATTLE_STREAM_KEY,
+} from '../engine/BattleScout.js';
 import {
   computeAcidDamage,
   computeLavaCrackHp,
@@ -298,6 +316,7 @@ import {
 } from '../engine/LootSystem.js';
 import {
   calculatePar,
+  battleParMapParams,
   getRating,
   getLatePressureState,
   getBossEnrageTurn,
@@ -320,7 +339,11 @@ import { bindShiftHoldBattleSpeed } from '../ui/HoldBattleSpeed.js';
 import { generateBossRecruitCandidates } from '../engine/BossRecruitSystem.js';
 import { stampCommanderFlag } from '../engine/Commander.js';
 import { buildRecruitNodeUnit, spawnTilesForDeployment } from '../engine/RecruitNodeSystem.js';
-import { battleDeployCount, resolveDeployLimits } from '../engine/BattleDeployCount.js';
+import {
+  battleDeployCount,
+  deployLimitsForParams,
+  resolveDeployLimits,
+} from '../engine/BattleDeployCount.js';
 import {
   adaptDialogueEntries,
   adaptDialogueLine,
@@ -387,6 +410,7 @@ import { RecruitBeaconController } from '../ui/RecruitBeaconController.js';
 import { SMASH_TARGET_STATE, ZombieRemainsController } from '../ui/ZombieRemainsController.js';
 import { NecromancyController } from '../ui/NecromancyController.js';
 import { isNecromancer } from '../engine/Necromancy.js';
+import { classChangeItemBlock } from '../engine/TwistedBoons.js';
 import { HealController } from '../ui/HealController.js';
 import { InputController } from '../ui/InputController.js';
 import { LootFlowController } from '../ui/LootFlowController.js';
@@ -413,6 +437,7 @@ import { AbilityController } from '../ui/AbilityController.js';
 import { AREA_CENTER_STATE, AreaTargetingController } from '../ui/AreaTargetingController.js';
 import { GridCursorController } from '../ui/GridCursorController.js';
 import { FormationController, FORMATION_STATE } from '../ui/FormationController.js';
+import { deployedFromMemory, openFormationRoster } from '../ui/FormationRoster.js';
 import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { CombatFxController } from '../ui/CombatFxController.js';
 import { CombatChoreography } from '../ui/CombatChoreography.js';
@@ -499,7 +524,7 @@ export function resetUnitForBattle(unit) {
   }
 }
 
-function resetPlayerUnitsForTurn(scene, turn) {
+export function resetPlayerUnitsForTurn(scene, turn) {
   for (const u of scene.playerUnits) {
     u.hasMoved = false;
     u._movementCommitted = false;
@@ -514,6 +539,9 @@ function resetPlayerUnitsForTurn(scene, turn) {
     resetWeaponArtTurnUsage(u, { turnNumber: turn });
     scene.undimUnit(u);
   }
+  // Foes dimmed as they acted are ready again once their phase ends
+  // (TurnManager.endEnemyPhase): the look follows that state.
+  for (const e of scene.enemyUnits || []) restUnitAppearance(scene, e);
 }
 
 export class BattleScene extends Phaser.Scene {
@@ -550,6 +578,11 @@ export class BattleScene extends Phaser.Scene {
     this._resumeCheckpoint = data.resumeCheckpoint || null;
     // Re-opened in the other orientation (portrait battles), not a player resume.
     this._presentationSwitch = data.presentationSwitch === true;
+    // Back from the Roster opened on the formation screen (FormationRoster.js): who
+    // deploys and where they stood, so the screen opens as the player left it.
+    this._formationReturn = data.formationReturn || null;
+    this._formationRoster = null;
+    this._keepMusicOnShutdown = false;
     this._portraitBattle = null;
     this._fatalResumeParked = false;
     this._battleSuspendController = null;
@@ -649,8 +682,8 @@ export class BattleScene extends Phaser.Scene {
     this._registerSceneShutdownCleanup();
     this._setupGamepadInput();
 
-    // Determine deploy limits for this act (+ meta upgrade bonus)
-    const act = this.battleParams.act || 'act1';
+    // Determine deploy limits for this act (+ meta upgrade bonus): the act's limits are
+    // deployLimitsForParams, the rule the route map's scout reads too.
     // A re-entered battle keeps its locked map, so it deploys no more units than that
     // map has spawns (resolveDeployLimits). A prologue chapter with a deploy rule (P4)
     // fields one unit per authored spawn and at least its own minimum, in the run and
@@ -665,16 +698,23 @@ export class BattleScene extends Phaser.Scene {
           lockedTo: null,
         }
       : resolveDeployLimits({
-          base: DEPLOY_LIMITS[act] || DEPLOY_LIMITS.act1,
+          base: deployLimitsForParams(this.battleParams),
           deployBonus: this.runManager?.getDeployBonus?.() || 0,
           lockedSpawnCount: isStandaloneScriptedBattle(this.battleParams, this.runManager)
             ? null
             : this.runManager?.getLockedSpawnCount?.(this.nodeId),
         });
 
+    // Back from the formation's Roster: the same army again, without asking twice.
+    const returning =
+      !this._resumeCheckpoint && this.roster
+        ? deployedFromMemory(this.roster, this._formationReturn, limits)
+        : null;
     if (this._resumeCheckpoint) {
       // Resuming a suspended battle -- units come from the checkpoint
       this.beginBattle(null);
+    } else if (returning) {
+      this.beginBattle(returning);
     } else if (!this.roster) {
       // Standalone mode -- no deploy screen
       this.beginBattle(null);
@@ -710,7 +750,12 @@ export class BattleScene extends Phaser.Scene {
     const audio = this.registry.get('audio');
     // Turning the phone re-opens the battle from its checkpoint; the re-opened scene
     // asks for the same track, which then plays on from where it was.
-    if (audio && !this._portraitBattle?.switching) audio.releaseMusic(this, 0);
+    // Back from the formation's Roster re-opens it the same way.
+    if (audio && !this._portraitBattle?.switching && !this._keepMusicOnShutdown)
+      audio.releaseMusic(this, 0);
+    this._keepMusicOnShutdown = false;
+    this._formationRoster?.sheet?.destroy?.();
+    this._formationRoster = null;
     this._musicCtrl?.destroy();
     this._musicCtrl = null;
     this._formation?.destroy();
@@ -1558,8 +1603,9 @@ export class BattleScene extends Phaser.Scene {
         resuming: Boolean(this._resumeCheckpoint),
         recorded: this.battleParams?.deployCount,
       });
-      this.battleParams.deployCount = deployCount;
-      this.battleParams.isBoss = !!this.isBoss;
+      // The fields the map is generated with, through the one helper the route map's scout
+      // (engine/BattleScout.js, Seer's Eye) reads too.
+      applyGenerationFields(this.battleParams, { deployCount, isBoss: this.isBoss });
 
       // Generate or reuse locked encounter for this node. The prologue run's chapters
       // are pre-locked at startPrologue (the same authored config every entry); a
@@ -1573,12 +1619,13 @@ export class BattleScene extends Phaser.Scene {
       } else if (prologueChapter) {
         this.battleConfig = buildPrologueBattleConfig(prologueChapter, this.gameData.terrain);
       } else {
-        const battleSeed = Number.isFinite(this.battleParams?.battleSeed)
-          ? this.battleParams.battleSeed
-          : this.deriveBattleSeed();
-        this.battleConfig = this.withBattleSeed(battleSeed, () =>
-          generateBattle(this.battleParams, this.gameData),
-        );
+        // Generated as the scout generates it (BattleScout: the same seed, the same call), so a
+        // route preview and the battle are one map at the same inputs.
+        const battleSeed = battleGenerationSeed(this.battleParams, {
+          runSeed: this.runManager?.runSeed,
+          nodeId: this.nodeId,
+        });
+        this.battleConfig = generateSeededBattle(this.battleParams, this.gameData, battleSeed);
         this.runManager?.lockBattleConfig?.(this.nodeId, this.battleConfig);
       }
       if (
@@ -1620,6 +1667,8 @@ export class BattleScene extends Phaser.Scene {
         bc.biome || null,
         boardPresentation,
       );
+      // Seer's Eye: fog never hides a foe on this map (canInspectUnit reads the grid's flag).
+      markFoesShown(this.grid, this.battleParams);
       this._portraitBattle.create();
       this._battlefieldTerrain?.destroy();
       this._battlefieldTerrain = paintBattlefieldTerrain(this, this.grid);
@@ -1827,8 +1876,10 @@ export class BattleScene extends Phaser.Scene {
         for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
           unit._phoenixBroochUsed = false;
         }
-        // The Lingering Injury burden (id `wounded`, engine/Burdens.js): it is a battle stat delta applied once,
-        // here, so the first forecast already shows it. A resume's units carry it already.
+        // The Lingering Injury burden (id `wounded`, engine/Burdens.js) and Cavalier's Hour (by move
+        // type, engine/ShrineBoons.js): battle stat deltas applied once, here, so the first forecast
+        // already shows them. A resume's units carry them already; a Talk recruit takes its own as
+        // it joins (BattleRecruits.settleRecruitJoin -> engine/BattleJoinBoons.js).
         applyBattleStartDebuffs(this.playerUnits, this.battleParams?.battleDebuffs);
       }
 
@@ -1857,18 +1908,12 @@ export class BattleScene extends Phaser.Scene {
       this.turnPar = null;
       this.turnBonusConfig = this.gameData.turnBonus;
       if (this.turnBonusConfig && this.battleConfig && !this.battleConfig.hidePar) {
-        const mapParams = {
-          cols: this.battleConfig.cols,
-          rows: this.battleConfig.rows,
+        // One builder with the harness (Patient Dawn's turns ride battleParams).
+        const mapParams = battleParMapParams(this.battleConfig, {
           enemyCount: this.enemyUnits.length,
-          objective: this.battleConfig.objective,
-          mapLayout: this.battleConfig.mapLayout,
           terrainData: this.gameData.terrain,
-          parBonus: this.battleConfig.parBonus || 0,
-          parInflation: this.battleConfig.parInflation,
-          parOffset: this.battleConfig.parOffset,
-          parFloor: this.battleConfig.parFloor,
-        };
+          battleParams: this.battleParams,
+        });
         this.turnPar = calculatePar(
           mapParams,
           this.turnBonusConfig,
@@ -2253,8 +2298,10 @@ export class BattleScene extends Phaser.Scene {
           .setDepth(100));
         this._pinToScreen(fogLabel);
 
+        // Under Seer's Eye the fog hides no foe, so the hint's lesson waits for a map where it
+        // does (unseen, it still teaches a later run).
         const hints = this.registry.get('hints');
-        if (hints && !hints.hasSeen('battle_fog')) {
+        if (hints && fogHidesFoes(this.grid) && !hints.hasSeen('battle_fog')) {
           showContextualHint(
             this,
             'battle_fog',
@@ -2365,6 +2412,12 @@ export class BattleScene extends Phaser.Scene {
         }
         // Dev/preview review setups only (devStartup sets battleParams.devScenario).
         if (this.battleParams?.devScenario) applyDevScenario(this);
+        // Lantern of the Road: a fresh fog battle opens revealed around the army where it stands
+        // (engine/FogOpening.js, shared with the harness); a resume's fog is the checkpoint's.
+        if (applyFogOpening(this.grid, this.playerUnits, this.battleParams?.fogOpeningRadius)) {
+          this.grid.updateFogOfWar(this.playerUnits);
+          this.updateEnemyVisibility();
+        }
         this._bossPresence?.sync();
         this.turnManager.startBattle();
       }
@@ -2424,15 +2477,10 @@ export class BattleScene extends Phaser.Scene {
   }
 
   deriveBattleSeed() {
-    const runSeed = Number(this.runManager?.runSeed || 0) >>> 0;
-    const nodePart = String(this.nodeId || this.battleParams?.act || 'battle');
-    let h = 2166136261 >>> 0;
-    const input = `${runSeed}:${nodePart}`;
-    for (let i = 0; i < input.length; i++) {
-      h ^= input.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    return h >>> 0;
+    return deriveNodeBattleSeed(
+      this.runManager?.runSeed,
+      this.nodeId || this.battleParams?.act || 'battle',
+    );
   }
 
   isStoryInputLocked() {
@@ -2455,6 +2503,8 @@ export class BattleScene extends Phaser.Scene {
     this._bossPresence = new BossPresenceController(this).create();
     // Resume: the bar is raised silently once the checkpoint is fully restored.
     if (this._resumeCheckpoint) return;
+    // Back from the formation's Roster: the card was shown when the battle was entered.
+    if (this._formationReturn) return;
     if (!this.isBoss || !this._bossName || !this.runManager) return;
     try {
       await this._getCeremonies().showBossIntro({
@@ -2506,6 +2556,10 @@ export class BattleScene extends Phaser.Scene {
     if (this.runManager.hasShownDialogue(dialogueKey)) return;
     if (!Array.isArray(entries) || entries.length <= 0) return;
     this.runManager.markDialogueShown(dialogueKey);
+    // A pooled line (a boss rematch exchange) rotates by what this save has heard,
+    // so it is remembered as it is shown, never again on a resume.
+    const lineKeys = entries.map((e) => e?.lineKey).filter(Boolean);
+    if (lineKeys.length) this.registry?.get?.('meta')?.recordLinesPlayed?.(lineKeys);
     await this._showStorySequence(entries, { ...options, key: dialogueKey });
     if (!isCurrentBattleSession(this, session)) return;
   }
@@ -2535,10 +2589,18 @@ export class BattleScene extends Phaser.Scene {
   }
 
   installBattleRng() {
-    const fallbackSeed = this.deriveBattleSeed();
-    const currentSeed = Number.isFinite(this.runManager?.rngSeed)
-      ? this.runManager.rngSeed >>> 0
-      : fallbackSeed >>> 0;
+    // The one rule is engine/BattleScout.js openingBattleStreamSeed: a fresh battle of a
+    // standard run opens on its own node's stream (written to the run before
+    // beginBattleInProgress records `rngSeedAtEntry`); a resume and the prologue run keep the
+    // run's seed.
+    const currentSeed = openingBattleStreamSeed({
+      runManager: this.runManager,
+      resume: Boolean(this._resumeCheckpoint),
+      pinned: this.registry?.get?.(PINNED_BATTLE_STREAM_KEY) === true,
+      act: this.battleParams?.act ?? this.runManager?.currentAct ?? null,
+      nodeId: this.nodeId,
+      fallbackSeed: this.deriveBattleSeed(),
+    });
     if (this.runManager) this.runManager.rngSeed = currentSeed;
     this.visionBaseSeed = currentSeed;
     const prevRandom = Math.random;
@@ -2610,7 +2672,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   getEnemyXpMultiplier(enemyUnit) {
-    return enemyXpMultiplier(enemyUnit);
+    return enemyXpMultiplier(enemyUnit, this.battleParams?.specialXpMultiplier);
   }
 
   buildReinforcementSpawnSpec(scheduledSpawn, spawnOrdinal = 0) {
@@ -3290,14 +3352,17 @@ export class BattleScene extends Phaser.Scene {
       unit.affixPips.forEach((p) => p.destroy());
     }
     unit.affixPips = [];
-    // Pip row, left to right: Revival Stone gems (a boss), affix pips, then the sack of a
-    // carrier (EnemyCarry.js: the item a Thief's Steal would take). A boss never carries, so
-    // the gems and the sack never share a unit; the count below still sums all three so the
-    // row stays centred whichever mix a unit wears. Each hides with its unit in fog.
+    // Pip row, left to right: Revival Stone gems (a boss), affix pips, the sack of a
+    // carrier (EnemyCarry.js: the item a Thief's Steal would take), then the violet staff
+    // pip of a status-staff caster with uses left (a spent staff takes its pip away). A boss
+    // never carries, so the gems and the sack never share a unit; the count below still sums
+    // them all so the row stays centred whichever mix a unit wears. Each hides with its unit
+    // in fog.
     const affixIds = Array.isArray(unit.affixes) ? unit.affixes : [];
     const stones = revivalStoneCount(unit).remaining;
     const carries = Boolean(carriedItemInfo(unit));
-    const count = affixIds.length + stones + (carries ? 1 : 0);
+    const staff = (statusStaffInfo(unit)?.uses || 0) > 0;
+    const count = affixIds.length + stones + (carries ? 1 : 0) + (staff ? 1 : 0);
     if (count === 0) return;
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
@@ -3337,6 +3402,15 @@ export class BattleScene extends Phaser.Scene {
         .setDepth(14)
         .setVisible(canInspectUnit(this.grid, unit));
       unit.affixPips.push(sack);
+      startX += pipSize + gap;
+    }
+    if (staff) {
+      const staffPip = this.add
+        .rectangle(startX, pipY, pipSize - 1, pipSize + 2, UI_HEX.threatStatus)
+        .setStrokeStyle(1, 0x000000)
+        .setDepth(14)
+        .setVisible(inView);
+      unit.affixPips.push(staffPip);
     }
   }
 
@@ -3420,26 +3494,13 @@ export class BattleScene extends Phaser.Scene {
     this._removeAllConditionIcons(unit);
   }
 
+  /** The acted look (ui/UnitRestAppearance.js); a flash's end goes through restUnitTint. */
   dimUnit(unit) {
-    if (unit.graphic && unit.graphic.setTint) {
-      unit.graphic.setTint(battleContrastEnabled() ? 0xb8b8b8 : UI_HEX.lineStrong);
-    }
-    if (unit.label) unit.label.setAlpha(0.5);
-    setFactionRingActed(unit.factionIndicator, true);
-    if (unit.affixPips) {
-      unit.affixPips.forEach((p) => p.setAlpha(0.5));
-    }
+    applyActedLook(unit);
   }
 
   undimUnit(unit) {
-    if (unit.graphic && unit.graphic.clearTint) {
-      unit.graphic.clearTint();
-    }
-    if (unit.label) unit.label.setAlpha(1);
-    setFactionRingActed(unit.factionIndicator, false);
-    if (unit.affixPips) {
-      unit.affixPips.forEach((p) => p.setAlpha(1));
-    }
+    applyReadyLook(unit);
   }
 
   // --- Position tracking ---
@@ -4018,7 +4079,7 @@ export class BattleScene extends Phaser.Scene {
       // Placement: close the detail view or inspection first, then the tile choice;
       // with nothing to back out of, Back opens the formation menu.
       if (this.unitDetailOverlay?.visible) this.unitDetailOverlay.hide();
-      else if (this.inspectionPanel?.visible) this.clearInspectionVisuals();
+      else if (this._formation.hasInspection()) this.clearInspectionVisuals();
       else if (!this._formation.cancel() && allowPause) this._formation.openMenu();
       this.refreshEndTurnControl();
       return true;
@@ -4343,6 +4404,11 @@ export class BattleScene extends Phaser.Scene {
 
   _onRosterClick() {
     if (this.isStoryInputLocked()) return;
+    // Placement: the Roster to manage gear and items (FormationRoster.js), when offered.
+    if (this.battleState === FORMATION_STATE) {
+      openFormationRoster(this);
+      return;
+    }
     const rosterStates = [
       'PLAYER_IDLE',
       'UNIT_SELECTED',
@@ -4434,7 +4500,7 @@ export class BattleScene extends Phaser.Scene {
     this.grid.clearHighlights();
     this.grid.clearAttackHighlights();
     this.grid.clearPath();
-    if (this.selectedUnit?.graphic?.clearTint) this.selectedUnit.graphic.clearTint();
+    if (this.selectedUnit) restUnitTint(this.selectedUnit);
     this.selectedUnit = null;
     if (this.inspectionPanel?.visible) this.inspectionPanel.hide();
 
@@ -4780,9 +4846,7 @@ export class BattleScene extends Phaser.Scene {
 
   deselectUnit() {
     this._inputController?.clearPlanningInspection();
-    if (this.selectedUnit && this.selectedUnit.graphic?.clearTint) {
-      this.selectedUnit.graphic.clearTint();
-    }
+    if (this.selectedUnit) restUnitTint(this.selectedUnit);
     this.selectedUnit = null;
     this._clearCombatRollSession();
     this._clearSelectedWeaponArt();
@@ -5060,7 +5124,7 @@ export class BattleScene extends Phaser.Scene {
       unit._movementSpent = ambush.cost;
 
       this.grid.clearHighlights();
-      if (unit.graphic.clearTint) unit.graphic.clearTint();
+      restUnitTint(unit);
 
       // Safety net: if a tween completion callback is dropped, finalize movement anyway.
       // This must be armed before starting animation setup to avoid hard locks on throws.
@@ -5120,13 +5184,10 @@ export class BattleScene extends Phaser.Scene {
     const enemies = unit.faction === 'player' ? this.enemyUnits : this.playerUnits;
     // Check all combat weapons in inventory for range (with skill bonuses)
     for (const enemy of enemies) {
-      // In fog mode, player can only target visible enemies
-      if (this.grid.fogEnabled && unit.faction === 'player') {
-        const fogVis = isEntity(enemy)
-          ? getFootprint(enemy).some((t) => this.grid.isVisible(t.col, t.row))
-          : this.grid.isVisible(enemy.col, enemy.row);
-        if (!fogVis) continue;
-      }
+      // In fog mode, player can only target enemies it can see (canInspectUnit: an Entity's
+      // footprint, Seer's Eye's shown foes)
+      if (this.grid.fogEnabled && unit.faction === 'player' && !canInspectUnit(this.grid, enemy))
+        continue;
       const dist = combatDistance(unit, enemy);
       if (
         combatWeapons.some((w) => {
@@ -6291,8 +6352,9 @@ export class BattleScene extends Phaser.Scene {
     // Silence blocks staff healing
     if (!silenced && preferredHealOption) {
       const preferred = preferredHealOption.staff;
-      const rem = getStaffRemainingUses(preferred, unit);
-      const max = getStaffMaxUses(preferred, unit);
+      const staffOptions = staffRunOptions(this.runManager, unit);
+      const rem = getStaffRemainingUses(preferred, unit, staffOptions);
+      const max = getStaffMaxUses(preferred, unit, staffOptions);
       // Warp/Rescue staves relocate instead of healing — label generically.
       const verb = preferred.relocate ? 'Staff' : 'Heal';
       command('staff', `${verb} (${rem}/${max})`, staff);
@@ -6602,11 +6664,16 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * The Master Seal this unit can promote with now, or null: none carried, or the run's
+   * Kingmaker's Oath forbids them (TwistedBoons.classChangeItemBlock: the Promote command and the
+   * item menu both read this).
+   */
   getPromotionConsumable(unit) {
     if (!unit?.consumables?.length) return null;
-    return (
-      unit.consumables.find((item) => item?.effect === 'promote' && (item.uses ?? 0) > 0) || null
-    );
+    const seal =
+      unit.consumables.find((item) => item?.effect === 'promote' && (item.uses ?? 0) > 0) || null;
+    return seal && !classChangeItemBlock(this.runManager, seal) ? seal : null;
   }
 
   getReclassConsumable(unit) {
@@ -7108,7 +7175,9 @@ export class BattleScene extends Phaser.Scene {
                 : isCure && !canUseCure
                   ? 'No conditions to cure'
                   : isPromote && !canUsePromote
-                    ? refusal || 'Promotion unavailable'
+                    ? classChangeItemBlock(this.runManager, item) ||
+                      refusal ||
+                      'Promotion unavailable'
                     : isReclass && !canUseReclass
                       ? refusal || 'No available reclass'
                       : item.effect === 'gold'
@@ -7201,7 +7270,7 @@ export class BattleScene extends Phaser.Scene {
         this,
         ix,
         iy + 8,
-        row.description || battleItemBrief(row.item, unit),
+        row.description || battleItemBrief(row.item, unit, { run: this.runManager }),
         {
           fontFamily: 'Arial',
           fontSize: '10px',
@@ -7285,8 +7354,9 @@ export class BattleScene extends Phaser.Scene {
             () => this._removeAllConditionIcons(target),
             { scene: this },
           );
-          if (!target.hasActed)
-            safeBattlePresentation('item undim', () => this.undimUnit(target), { scene: this });
+          safeBattlePresentation('item undim', () => restUnitAppearance(this, target), {
+            scene: this,
+          });
         }
         safeBattlePresentation('item HP', () => this.updateHPBar(target), { scene: this });
         const message =
@@ -8888,10 +8958,11 @@ export class BattleScene extends Phaser.Scene {
     // The Unbroken Banner held the target at 1 HP on this blow (settled: UnbrokenBannerController).
     if (event.bannerHeld) this._bannerHoldFx().playHold(target);
 
-    // Sleep: wake on damage -- remove Zzz icon and un-dim immediately
+    // Sleep: wake on damage -- remove the Zzz icon; the look follows the woken unit's state
+    // (a player unit hit in the enemy phase has acted and stays spent until its turn).
     if (event.wokeFromSleep) {
       this._removeConditionIcon(target, 'sleep');
-      this.undimUnit(target);
+      restUnitAppearance(this, target);
     }
 
     if (event.heal > 0 && event.strikerHealTo !== undefined) {
@@ -9019,6 +9090,7 @@ export class BattleScene extends Phaser.Scene {
       // Training Doctrine meta upgrade: non-lord units earn bonus combat XP.
       recruitXpBonus: Number(this.runManager?.metaEffects?.recruitXpBonus) || 0,
       allies: this.playerUnits || [],
+      underdogCap: this.battleParams?.xpUnderdogCap,
     });
     for (const award of awards) {
       // The scene may have shut down while a level-up popup was showing.
@@ -9231,9 +9303,7 @@ export class BattleScene extends Phaser.Scene {
     }
     if (
       this.runManager?.battleInProgress &&
-      (unit.faction === 'player' ||
-        !this.grid?.fogEnabled ||
-        this.grid.isVisible?.(unit.col, unit.row))
+      (unit.faction === 'player' || !this.grid?.fogEnabled || canInspectUnit(this.grid, unit))
     )
       this._timelineFacts = [...(this._timelineFacts || []), `${unit.name} fell.`];
     if (killer) observeHistoryAction(this, 'defeated', killer, unit);
@@ -9765,9 +9835,9 @@ export class BattleScene extends Phaser.Scene {
       // A contact (Grid.revealContact) lasts the player phase it was made in: the foes move now.
       if (this.grid?.clearContacts?.()) revealSettledVision(this);
       this._prologue?.onPhaseStart('enemy', turn);
-      // Siege casters take their stance from the board the player left, before any
-      // phase-start blow (hazards, ballistas) can empty a ring Danger drew (SiegeArtillery).
-      settleArtilleryStances({ enemyUnits: this.enemyUnits, playerUnits: this.playerUnits, turn });
+      // Siege and staff casters take their post-holding stance before any phase-start
+      // blow (hazards, ballistas) can change what they carry (SiegeArtillery).
+      settleArtilleryStances({ enemyUnits: this.enemyUnits, turn });
       // A fresh enemy phase (including one replayed after a Vision rewind)
       // has not applied its reinforcements yet.
       this._enemyPhaseReinforcedTurn = null;
@@ -10239,9 +10309,9 @@ export class BattleScene extends Phaser.Scene {
         if (isSleeping(unit)) {
           removeCondition(unit, 'sleep');
           this._removeConditionIcon(unit, 'sleep');
-          // Un-dim only units that can still act — keep the acted-grey on
-          // units that already moved this phase (same pattern as cures).
-          if (!unit.hasActed) this.undimUnit(unit);
+          // Awake, the unit takes the look its state asks for: a unit that has
+          // already acted keeps the acted grey (same rule as cures).
+          restUnitAppearance(this, unit);
           if (shown)
             await this.showBriefBanner(`${unit.name} woke up from lava damage!`, UI_PALETTE.warn);
           if (!isCurrentBattleSession(this, session)) return;
@@ -10280,8 +10350,6 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async showTerrainDamage(unit, damage) {
-    const wasTinted = Boolean(unit.graphic?.isTinted);
-    const previousTint = unit.graphic?.tintTopLeft;
     if (unit.graphic?.setTint) unit.graphic.setTint(0xff4400);
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
@@ -10304,17 +10372,13 @@ export class BattleScene extends Phaser.Scene {
     });
 
     await this._awaitSceneDelay(120, { label: 'terrain_damage_tint_clear' });
-    if (unit.graphic) {
-      if (wasTinted && unit.graphic.setTint && previousTint != null)
-        unit.graphic.setTint(previousTint);
-      else if (unit.graphic.clearTint) unit.graphic.clearTint();
-    }
+    // Back to the look the unit's state asks for now (it may have been dimmed, woken or
+    // refreshed while the flash played), never to a tint remembered before it.
+    restUnitTint(unit);
     await this._awaitSceneDelay(60, { label: 'terrain_damage_tail' });
   }
 
   async showAcidDamage(unit, damage) {
-    const wasTinted = Boolean(unit.graphic?.isTinted);
-    const previousTint = unit.graphic?.tintTopLeft;
     if (unit.graphic?.setTint) unit.graphic.setTint(0x88cc44);
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
@@ -10337,11 +10401,9 @@ export class BattleScene extends Phaser.Scene {
     });
 
     await this._awaitSceneDelay(120, { label: 'acid_damage_tint_clear' });
-    if (unit.graphic) {
-      if (wasTinted && unit.graphic.setTint && previousTint != null)
-        unit.graphic.setTint(previousTint);
-      else if (unit.graphic.clearTint) unit.graphic.clearTint();
-    }
+    // Back to the look the unit's state asks for now (it may have been dimmed, woken or
+    // refreshed while the flash played), never to a tint remembered before it.
+    restUnitTint(unit);
     await this._awaitSceneDelay(60, { label: 'acid_damage_tail' });
   }
 
@@ -10661,7 +10723,11 @@ export class BattleScene extends Phaser.Scene {
     // both of its tiles, and the sprite is shown only on a tile the player sees. A walk
     // the player sees none of is one position update below. A lone seen tile the walk
     // only clips is held for one step's time, so the unit is drawn there.
-    const plan = planEnemyMoveSteps(finalPath, (col, row) => isTileSeen(this.grid, col, row));
+    // A step is seen where the player would see this foe stand (isUnitSeenAt: Seer's Eye shows
+    // its whole walk).
+    const plan = planEnemyMoveSteps(finalPath, (col, row) =>
+      isUnitSeenAt(this.grid, enemy, col, row),
+    );
     const fog = this.grid.fogEnabled === true;
     const isSlideStep = (stepIndex) =>
       effective.slideSegments.some(
@@ -10728,6 +10794,16 @@ export class BattleScene extends Phaser.Scene {
       { miss: !result.hit },
     );
     spendStaffUse(staff);
+    // The use is spent whatever the roll: a staff left empty takes its pip off the caster's
+    // row and its violet reach out of a shown Danger zone now, a miss included.
+    safeBattlePresentation(
+      'staff spent',
+      () => {
+        this.updateAffixPips(enemy);
+        this.refreshVisibleDangerZone?.();
+      },
+      { scene: this },
+    );
     // The banners name only units the player can see (PlayerKnowledge).
     const casterName = seenUnitName(this.grid, enemy, 'An unseen enemy');
     const targetName = seenUnitName(this.grid, target, 'An unseen unit');
@@ -11217,6 +11293,7 @@ export class BattleScene extends Phaser.Scene {
       this.turnManager?.currentPhase === 'enemy' && this._ladderResolvedTurn === turn;
     return routLadderStatus(this.battleConfig?.reinforcements, {
       resolvedThroughTurn: resolvedNow ? turn : turn - 1,
+      turnDelay: this.battleParams?.reinforcementDelay,
     });
   }
 
@@ -11314,12 +11391,9 @@ export class BattleScene extends Phaser.Scene {
       safeBattlePresentation(
         'enemy visibility',
         () => {
-          let vis;
-          if (isEntity(enemy)) {
-            vis = getFootprint(enemy).some((t) => this.grid.isVisible(t.col, t.row));
-          } else {
-            vis = this.grid.isVisible(enemy.col, enemy.row);
-          }
+          // canInspectUnit: an Entity shows when any tile of its body is seen, and Seer's Eye
+          // shows every foe through the fog.
+          const vis = canInspectUnit(this.grid, enemy);
           if (enemy.graphic) enemy.graphic.setVisible(vis);
           if (enemy.label) enemy.label.setVisible(vis);
           if (enemy.factionIndicator) enemy.factionIndicator.setVisible(vis);

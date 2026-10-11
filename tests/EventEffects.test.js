@@ -742,13 +742,20 @@ describe('blessing', () => {
       picked.add(chooseEventOption(run, node.id, 'go').results[0].id);
     }
     // Tier III since blessings v3: every one is safe mid-run (no pact, no deploy cap).
-    // Phalanx Rite and Duelist's Creed read the board, not a price, so they are safe too.
+    // Phalanx Rite and Duelist's Creed read the board, not a price, so they are safe too, and so
+    // are the rest of §5's tier IIIs but Lone Banner (its cost is in the card: an intrinsic price).
     expect([...picked].sort()).toEqual([
+      'cavaliers_hour',
+      'cutpurses_luck',
       'duelists_creed',
       'focused_curriculum',
       'iron_oath',
+      'late_bloom',
+      'lottery_loot',
       'merchant_bane',
       'nomad_pact',
+      'open_roll',
+      'patient_dawn',
       'phalanx_rite',
       'war_veteran',
     ]);

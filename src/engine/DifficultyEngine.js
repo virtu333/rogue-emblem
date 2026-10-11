@@ -95,6 +95,8 @@ export const DIFFICULTY_REQUIRED_KEYS = [
   'lootQualityShift',
   'deployLimitBonus',
   'xpMultiplier',
+  'specialXpMultiplier',
+  'xpUnderdogCap',
   'fogChanceBonus',
   'villageAmbushChance',
   'reinforcementTurnOffset',
@@ -135,6 +137,9 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   lootQualityShift: 0,
   deployLimitBonus: 0,
   xpMultiplier: 1,
+  // Boss and elite kills pay this much more XP; a stronger foe adds at most `xpUnderdogCap` levels.
+  specialXpMultiplier: 1.3,
+  xpUnderdogCap: 6,
   fogChanceBonus: 0,
   villageAmbushChance: 0,
   reinforcementTurnOffset: 0,
@@ -178,6 +183,16 @@ export function recruitAffixesAllowed(params, difficultyData) {
   return !excluded.includes(params.act || 'act1');
 }
 
+/** The shortest and longest turn gap between a rung's ladder waves, or null without a ladder. */
+function routLadderGaps(routLadder) {
+  const gaps = [];
+  for (const rows of Object.values(routLadder?.acts || {})) {
+    const turns = (Array.isArray(rows) ? rows : []).map((r) => r?.turn).filter(Number.isFinite);
+    for (let i = 1; i < turns.length; i++) gaps.push(turns[i] - turns[i - 1]);
+  }
+  return gaps.length > 0 ? [Math.min(...gaps), Math.max(...gaps)] : null;
+}
+
 /**
  * Compare a difficulty mode against DIFFICULTY_DEFAULTS and return human-readable
  * modifier summary lines. Normal mode (matching defaults) returns an empty array.
@@ -214,6 +229,16 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
   }
   if (mode.xpMultiplier !== (defaults.xpMultiplier ?? 1) && mode.xpMultiplier < 1) {
     lines.push(`${Math.round(mode.xpMultiplier * 100)}% XP earned`);
+  }
+  if (mode.specialXpMultiplier < (defaults.specialXpMultiplier ?? 1.3)) {
+    lines.push(
+      mode.specialXpMultiplier > 1
+        ? `Boss and elite XP bonus +${Math.round((mode.specialXpMultiplier - 1) * 100)}%`
+        : 'No boss or elite XP bonus',
+    );
+  }
+  if (mode.xpUnderdogCap < (defaults.xpUnderdogCap ?? 6)) {
+    lines.push(`Stronger foes add at most +${mode.xpUnderdogCap} levels to XP`);
   }
   if (mode.fogChanceBonus > (defaults.fogChanceBonus || 0)) {
     lines.push(`+${Math.round(mode.fogChanceBonus * 100)}% fog chance`);
@@ -254,8 +279,10 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
   if (Number.isFinite(mode.growthBonusMultiplier) && mode.growthBonusMultiplier < 1) {
     lines.push(`Growth bonuses ×${mode.growthBonusMultiplier}`);
   }
-  if (mode.routLadder?.acts && Object.keys(mode.routLadder.acts).length > 0) {
-    lines.push('Rout maps: reinforcement waves every 2 turns');
+  const ladderGaps = routLadderGaps(mode.routLadder);
+  if (ladderGaps) {
+    const [lo, hi] = ladderGaps;
+    lines.push(`Rout maps: reinforcement waves every ${lo === hi ? lo : `${lo}–${hi}`} turns`);
   }
   if (mode.holdShare && Object.values(mode.holdShare).some((n) => n > 0)) {
     lines.push('Part of each seize and escape garrison holds its ground until disturbed');
@@ -367,6 +394,19 @@ export function validateDifficultyConfig(config) {
         mode.recruitAffixExcludedActs.some((act) => !ENEMY_ACT_GATE_ORDER.includes(act)))
     ) {
       errors.push(`modes.${difficultyId}.recruitAffixExcludedActs must be an array of act ids`);
+    }
+
+    if (
+      mode.specialXpMultiplier !== undefined &&
+      !(Number.isFinite(mode.specialXpMultiplier) && mode.specialXpMultiplier >= 1)
+    ) {
+      errors.push(`modes.${difficultyId}.specialXpMultiplier must be a number >= 1`);
+    }
+    if (
+      mode.xpUnderdogCap !== undefined &&
+      (!Number.isInteger(mode.xpUnderdogCap) || mode.xpUnderdogCap < 0)
+    ) {
+      errors.push(`modes.${difficultyId}.xpUnderdogCap must be a non-negative integer`);
     }
 
     for (const key of DIFFICULTY_REQUIRED_KEYS) {

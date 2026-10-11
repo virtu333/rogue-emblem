@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'fs';
 import {
   REINFORCEMENT_CONTRACT_VERSION,
+  maxReinforcementDelayFrom,
   validateMapTemplatesConfig,
 } from '../src/engine/MapTemplateEngine.js';
 
 const mapTemplates = JSON.parse(readFileSync('data/mapTemplates.json', 'utf8'));
+const blessingsData = JSON.parse(readFileSync('data/blessings.json', 'utf8'));
 const terrainData = JSON.parse(readFileSync('data/terrain.json', 'utf8'));
 const terrainNames = new Set(terrainData.map((t) => t.name));
 const ACT4_HYBRID_BASE_TEMPLATE_ID = 'act4_boss_intent_bastion';
@@ -465,6 +467,40 @@ describe('MapTemplateEngine', () => {
         reinforcementTurnOffsets: { normal: 0, dusk: 0, hard: 1, lunatic: 0 },
       });
       expect(conflicts(withGlobal)[0]).toContain('turn 3 (hard)');
+    });
+
+    it("reads a blessing's reinforcement delay (Hollow Hourglass): a wave a turn before the wall arrives on it", () => {
+      // Failure: the validator ignores the delay, so with the Hourglass a wave scheduled the
+      // turn before its wall rises arrives on the walled tile and is blocked (no fallback tile).
+      const before = bastion({ overrideTurn: 3, waveTurn: 2, offsets: flat });
+      expect(validateMapTemplatesConfig(before).valid).toBe(true);
+      const delayed = validateMapTemplatesConfig(before, { maxReinforcementDelay: 1 });
+      expect(conflicts(delayed)).toHaveLength(1);
+      expect(conflicts(delayed)[0]).toContain('resolves on turn 3');
+      expect(conflicts(delayed)[0]).toContain('reinforcement delay of 1');
+      // Two turns ahead of its wall it still lands before it.
+      const early = bastion({ overrideTurn: 3, waveTurn: 1, offsets: flat });
+      expect(validateMapTemplatesConfig(early, { maxReinforcementDelay: 1 }).valid).toBe(true);
+      // The figure is the most delay a run can hold: every reinforcement_delay boon, summed (the
+      // cards are unique, so a run may hold them all).
+      expect(maxReinforcementDelayFrom(blessingsData)).toBe(1);
+      const two = structuredClone(blessingsData);
+      two.blessings.push({
+        ...structuredClone(two.blessings.find((b) => b.id === 'hollow_hourglass')),
+        id: 'second_glass',
+      });
+      expect(maxReinforcementDelayFrom(two)).toBe(2);
+      expect(maxReinforcementDelayFrom(null)).toBe(0);
+      // The shipped templates hold with the shipped delay, and both loaders pass it.
+      expect(
+        validateMapTemplatesConfig(mapTemplates, {
+          maxReinforcementDelay: maxReinforcementDelayFrom(blessingsData),
+        }).valid,
+      ).toBe(true);
+      for (const file of ['src/engine/DataLoader.js', 'tools/validateSchemas.js'])
+        expect(readFileSync(file, 'utf8'), file).toMatch(
+          /maxReinforcementDelay: maxReinforcementDelayFrom\(/,
+        );
     });
   });
 

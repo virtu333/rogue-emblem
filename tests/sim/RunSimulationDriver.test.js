@@ -315,3 +315,41 @@ describe('RunSimulationDriver', () => {
     expect(driver.runManager.rest).toHaveBeenCalledWith(node.id);
   });
 });
+
+describe('RunSimulationDriver deploys what the deploy screen shows', () => {
+  async function fielded({ act, deployCap }) {
+    installSeed(31);
+    try {
+      let battleDriver = null;
+      const driver = new RunSimulationDriver(loadGameData(), {
+        runOptions: { runSeed: 31, difficultyId: 'normal', autoSelectBlessing: false },
+        maxBattleActions: 0,
+        battleAgentFactory: (b) => {
+          battleDriver = b;
+          return { chooseAction: () => null };
+        },
+      });
+      driver.init();
+      const run = driver.runManager;
+      // A roster larger than any deploy limit, so only the limits can be what bounds the field.
+      while (run.roster.length < 10) {
+        const clone = structuredClone(run.roster[0]);
+        clone.name = `Extra ${run.roster.length}`;
+        delete clone.uid;
+        run.roster.push(clone);
+      }
+      run.actIndex = run.actSequence.indexOf(act);
+      const node = run.nodeMap.nodes.find((n) => n.type === NODE_TYPES.BATTLE && n.row >= 2);
+      node.battleParams = { ...node.battleParams, act, ...(deployCap ? { deployCap } : {}) };
+      await driver._runBattleNode(node);
+      return battleDriver.battle.playerUnits.length;
+    } finally {
+      restoreMathRandom();
+    }
+  }
+
+  it("keeps an event set piece's deploy cap (a cap of 5 fields 5 in Act III, not 7)", async () => {
+    expect(await fielded({ act: 'act3' })).toBe(7);
+    expect(await fielded({ act: 'act3', deployCap: 5 })).toBe(5);
+  });
+});

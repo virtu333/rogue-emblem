@@ -821,7 +821,7 @@ describe('sources that never roll', () => {
     expect(recruit.accessory.price).toBe(basePrices.get(recruit.accessory.name));
   });
 
-  it('only loot, shops and event grants call the binder', () => {
+  it('only loot, shops, event grants and the start gift call the binder', () => {
     const callers = [];
     const walk = (dir) => {
       for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -836,6 +836,8 @@ describe('sources that never roll', () => {
       'src/engine/AccessorySkills.js',
       'src/engine/EventEffects.js',
       'src/engine/LootSystem.js',
+      // The Fallen Hoard's first accessory (docs/specs/blessings-v3.md §7), at the gift's own odds.
+      'src/engine/StartGifts.js',
     ]);
   });
 });

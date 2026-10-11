@@ -465,6 +465,14 @@ export class NodeMapMenu {
       shopOpen,
       isFirstBattle: (node) => available.has(node.id),
       eclipse: this.eclipseView,
+      // Open Roll: meet the node's other candidate (saved at once; the card is redrawn and the
+      // button keeps the focus, now offering the first candidate back).
+      onSwapRecruit: (nodeId) => {
+        if (!rm.swapRecruitCandidate?.(nodeId)?.ok) return;
+        s.persistRunSave?.();
+        this._renderSelection();
+        this.detail?.querySelector('.re-loom-recruit-swap')?.focus({ preventScroll: true });
+      },
     });
     if (rm.pendingBattleReward)
       appendLoomCardNote(

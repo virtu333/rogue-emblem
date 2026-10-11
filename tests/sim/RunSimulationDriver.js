@@ -2,6 +2,7 @@
 
 import { RunManager, getReviveCost } from '../../src/engine/RunManager.js';
 import { generateShopInventory } from '../../src/engine/LootSystem.js';
+import { ownedLegendaryNames } from '../../src/engine/LegendaryOwnership.js';
 import {
   canPromote,
   promoteUnit,
@@ -13,7 +14,6 @@ import { churchPromoteCost } from '../../src/engine/ChurchCommands.js';
 import { clearBattleScopedDeltas } from '../../src/engine/BattleStatDeltas.js';
 import {
   CHURCH_PROMOTE_COST_RECRUIT,
-  DEPLOY_LIMITS,
   NODE_TYPES,
   AMBUSH_SHOP_DISCOUNT,
 } from '../../src/utils/constants.js';
@@ -28,6 +28,7 @@ import {
   skipOwedEarnedPick,
 } from './RunPolicies.js';
 import { arriveAtEvent, completeEventBattle, leaveEvent } from '../../src/engine/EventCommands.js';
+import { deployLimitsForParams, resolveDeployLimits } from '../../src/engine/BattleDeployCount.js';
 import { isRecruitBattleNode } from '../../src/engine/RecruitNodeSystem.js';
 
 function keyForUnit(unit) {
@@ -49,7 +50,8 @@ export class RunSimulationDriver {
       // reviveCost removed — now computed per-unit via getReviveCost()
       invincibility: false,
       // Events (docs/specs/event-nodes.md §11): by default the first available choice that
-      // does not start a battle; `eventPolicy: 'fight'` takes a choice that may.
+      // does not start a battle; `eventPolicy: 'fight'` takes a choice that may. Neither takes
+      // a choice that can grant an earned blessing (D-25); `'earned'` fights and takes those too.
       eventPolicy: 'default',
       battleAgentFactory: (driver) => new ScriptedAgent(driver),
       ...options,
@@ -143,6 +145,9 @@ export class RunSimulationDriver {
       }
 
       this.trace.push({ ...nodeEvent, ...nodeResult });
+      // An eclipsed elite's drop is owed after its victory (the route map would offer it): the
+      // scripted player leaves it, as it leaves an act boss's pick (D-25, RunPolicies).
+      skipOwedEarnedPick(this.runManager);
 
       if (nodeResult.result === 'defeat' || nodeResult.result === 'timeout') {
         this.runManager.failRun();
@@ -200,12 +205,13 @@ export class RunSimulationDriver {
     battleParams.fallenUnits = Array.isArray(this.runManager.fallenUnits)
       ? structuredClone(this.runManager.fallenUnits)
       : [];
-    const deployLimits = DEPLOY_LIMITS[this.runManager.currentAct] || { min: 1, max: 4 };
-    const deployBonus = this.runManager.getDeployBonus();
-    const deployMax = Math.max(
-      1,
-      Math.min(this.runManager.roster.length, deployLimits.max + deployBonus),
-    );
+    // The deploy screen's rule (BattleScene.create): the act's limits, an event set piece's cap and
+    // the deploy bonus, through the functions the game reads (never a copy of them).
+    const deployLimits = resolveDeployLimits({
+      base: deployLimitsForParams(battleParams),
+      deployBonus: this.runManager.getDeployBonus(),
+    });
+    const deployMax = Math.max(1, Math.min(this.runManager.roster.length, deployLimits.max));
     const deployCount = Math.max(deployLimits.min, deployMax);
     battleParams.deployCount = Math.min(deployCount, this.runManager.roster.length);
     // Deeds stamp the battle they were earned in (HeadlessBattle commits at victory).
@@ -360,6 +366,7 @@ export class RunSimulationDriver {
         {
           itemCountBonus: shopItemDelta,
           shopCureGating: this.runManager.difficultyModifiers?.shopCureGating,
+          excludeLegendaryNames: [...ownedLegendaryNames(this.runManager)],
         },
       ),
       { ambushDiscount: node?.isAmbush === true },
@@ -476,7 +483,13 @@ export class RunSimulationDriver {
       return { result: 'event_skipped', reason: 'no_event' };
     }
     // One choice per page (a multi-page event walks its pages), until it ends or a fight starts.
-    const steps = playEventChoices(rm, node.id, { fight: this.options.eventPolicy === 'fight' });
+    // 'earned' fights too and also takes a choice that grants an earned blessing (D-25: the
+    // default and 'fight' policies leave those alone, so a sim measures no earned blessing).
+    const policy = this.options.eventPolicy;
+    const steps = playEventChoices(rm, node.id, {
+      fight: policy === 'fight' || policy === 'earned',
+      earned: policy === 'earned',
+    });
     const last = steps.at(-1);
     if (!last?.chosen?.ok) {
       // Cannot happen on a playable event; leave the node rather than stall the run.

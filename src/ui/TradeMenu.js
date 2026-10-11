@@ -38,7 +38,7 @@ function toHolder(subject, engine) {
 }
 
 /** The short line under an item's name. */
-export function tradeItemBrief(item, unit) {
+export function tradeItemBrief(item, unit, { run = null } = {}) {
   if (!item) return '';
   if (item.type === 'Accessory')
     return [
@@ -53,7 +53,7 @@ export function tradeItemBrief(item, unit) {
   // A staff's range and uses grow with its wielder's MAG: in the convoy (no wielder)
   // it shows its base range only (battleItemBrief needs a unit for a staff).
   if (item.type === 'Staff' && !unit?.stats) return `Staff · Rng ${item.range ?? 1}`;
-  if (item.type === 'Staff' || item.type === 'Scroll') return battleItemBrief(item, unit);
+  if (item.type === 'Staff' || item.type === 'Scroll') return battleItemBrief(item, unit, { run });
   return [
     `${item.type} · Mt ${item.might ?? 0} · Hit ${item.hit ?? 0} · Wt ${item.weight ?? 0}`,
     itemKeywordText(item),
@@ -310,7 +310,9 @@ export class TradeMenu {
       const name = element('strong', itemDisplayName(row.item));
       if (row.equipped) name.append(equippedBadgeElement((tag) => element(tag)));
       el.append(itemIcon(row.item, { size: 32 }), name);
-      const brief = tradeItemBrief(row.item, holderUnit(row.slot.holder));
+      const brief = tradeItemBrief(row.item, holderUnit(row.slot.holder), {
+        run: this.scene?.runManager || null,
+      });
       if (brief) el.append(line(brief, 'tm-brief'));
     }
     if (row.warnings.length) el.append(line(row.warnings.join(' · '), 'tm-warn'));

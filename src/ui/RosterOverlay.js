@@ -1,3 +1,4 @@
+import { staffRunOptions } from '../engine/StaffBlessings.js';
 import {
   specialCharacterRefusalText,
   speakSpecialCharacterRefusal,
@@ -5,6 +6,7 @@ import {
 import { unitUidOf } from '../engine/UnitIdentity.js';
 import { teachRosterScroll } from '../engine/RosterTransfers.js';
 import { applyRosterClassChange } from '../engine/RosterCommands.js';
+import { classChangeItemBlock } from '../engine/TwistedBoons.js';
 import {
   UI_PALETTE,
   UI_HEX,
@@ -1350,8 +1352,9 @@ export class RosterOverlay {
         const hasArt = hasWeaponArt(item, this.gameData?.weaponArts?.arts || []);
         const artMarkerSegments = hasArt ? [{ text: '*', color: lineColor }] : [];
         if (item.type === 'Staff') {
-          const rem = getStaffRemainingUses(item, unit);
-          const max = getStaffMaxUses(item, unit);
+          const staffOptions = staffRunOptions(this.runManager, unit);
+          const rem = getStaffRemainingUses(item, unit, staffOptions);
+          const max = getStaffMaxUses(item, unit, staffOptions);
           const rng = parseRange(item.range);
           const rngStr = rng.min === rng.max ? `Rng${rng.max}` : `Rng${rng.min}-${rng.max}`;
           const line = this._textSegments(
@@ -1477,10 +1480,12 @@ export class RosterOverlay {
         } else if (item.effect === 'gold') {
           this._actionBtn(btnX, y, '[Use]', () => this._useGoldPouch(unit, item));
         } else if (item.effect === 'promote') {
+          // Kingmaker's Oath: no [Use] for a Master Seal (applyRosterClassChange refuses it too).
           if (
-            specialCharacterRefusalText(this.gameData, unit, 'promote') ||
-            (canPromote(unit) &&
-              resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords))
+            !classChangeItemBlock(this.runManager, item) &&
+            (specialCharacterRefusalText(this.gameData, unit, 'promote') ||
+              (canPromote(unit) &&
+                resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords)))
           ) {
             this._actionBtn(btnX, y, '[Use]', () => this._usePromote(unit, item));
           }
@@ -1856,7 +1861,9 @@ export class RosterOverlay {
     if (this._promotionChoosing) return;
     this._promotionChoosing = true;
     try {
-      const refusal = speakSpecialCharacterRefusal(this.gameData, unit, 'promote', this.runManager);
+      const refusal =
+        classChangeItemBlock(this.runManager, item) ||
+        speakSpecialCharacterRefusal(this.gameData, unit, 'promote', this.runManager);
       if (refusal) {
         this._showBanner(refusal, UI_PALETTE.bad);
         return;

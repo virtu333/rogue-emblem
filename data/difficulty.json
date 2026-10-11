@@ -30,6 +30,8 @@
       "lootQualityShift": 0,
       "deployLimitBonus": 0,
       "xpMultiplier": 1,
+      "specialXpMultiplier": 1.3,
+      "xpUnderdogCap": 6,
       "fogChanceBonus": 0,
       "villageAmbushChance": 0.1,
       "reinforcementTurnOffset": 0,
@@ -109,6 +111,8 @@
       "lootQualityShift": 0,
       "deployLimitBonus": 0,
       "xpMultiplier": 0.9,
+      "specialXpMultiplier": 1.2,
+      "xpUnderdogCap": 6,
       "fogChanceBonus": 0.08,
       "villageAmbushChance": 0.15,
       "reinforcementTurnOffset": 0,
@@ -136,24 +140,22 @@
         "acts": {
           "act1": [
             { "turn": 4, "count": [1, 1] },
-            { "turn": 6, "count": [1, 2] }
+            { "turn": 8, "count": [1, 2] }
           ],
           "act2": [
             { "turn": 4, "count": [1, 2] },
-            { "turn": 6, "count": [2, 2], "levels": 1 },
-            { "turn": 8, "count": [2, 3], "levels": 1 }
+            { "turn": 8, "count": [2, 2], "levels": 1 },
+            { "turn": 12, "count": [2, 2], "levels": 1 }
           ],
           "act3": [
             { "turn": 4, "count": [2, 2] },
-            { "turn": 6, "count": [2, 2], "levels": 1 },
-            { "turn": 8, "count": [2, 3], "levels": 1 },
-            { "turn": 10, "count": [2, 3], "levels": 2 }
+            { "turn": 8, "count": [2, 2], "levels": 1 },
+            { "turn": 12, "count": [2, 2], "levels": 2 }
           ],
           "act4": [
             { "turn": 4, "count": [2, 2] },
-            { "turn": 6, "count": [2, 3], "levels": 1 },
             { "turn": 8, "count": [2, 3], "levels": 1 },
-            { "turn": 10, "count": [3, 3], "levels": 2 }
+            { "turn": 12, "count": [2, 3], "levels": 2 }
           ]
         }
       },
@@ -220,6 +222,8 @@
       "lootQualityShift": 0,
       "deployLimitBonus": 0,
       "xpMultiplier": 0.8,
+      "specialXpMultiplier": 1.1,
+      "xpUnderdogCap": 4,
       "fogChanceBonus": 0.15,
       "villageAmbushChance": 0.2,
       "reinforcementTurnOffset": 0,
@@ -254,28 +258,24 @@
             { "turn": 7, "count": [1, 2], "levels": 1 }
           ],
           "act2": [
-            { "turn": 3, "count": [1, 2] },
-            { "turn": 5, "count": [2, 2], "levels": 1 },
-            { "turn": 7, "count": [2, 3], "levels": 1 },
-            { "turn": 9, "count": [2, 3], "levels": 2 }
+            { "turn": 4, "count": [1, 2] },
+            { "turn": 7, "count": [2, 2], "levels": 1 },
+            { "turn": 10, "count": [2, 3], "levels": 1 }
           ],
           "act3": [
-            { "turn": 3, "count": [2, 2] },
-            { "turn": 5, "count": [2, 3], "levels": 1 },
+            { "turn": 4, "count": [2, 2] },
             { "turn": 7, "count": [2, 3], "levels": 1 },
-            { "turn": 9, "count": [3, 3], "levels": 2, "promoted": true }
+            { "turn": 10, "count": [3, 3], "levels": 2, "promoted": true }
           ],
           "act4": [
-            { "turn": 3, "count": [2, 2] },
-            { "turn": 5, "count": [2, 3], "levels": 1 },
+            { "turn": 4, "count": [2, 2] },
             { "turn": 7, "count": [2, 3], "levels": 1 },
-            { "turn": 9, "count": [3, 3], "levels": 2, "promoted": true }
+            { "turn": 10, "count": [3, 3], "levels": 2, "promoted": true }
           ],
           "finalBoss": [
-            { "turn": 3, "count": [2, 2] },
-            { "turn": 5, "count": [2, 3], "levels": 1 },
+            { "turn": 4, "count": [2, 2] },
             { "turn": 7, "count": [2, 3], "levels": 1 },
-            { "turn": 9, "count": [3, 3], "levels": 2, "promoted": true }
+            { "turn": 10, "count": [3, 3], "levels": 2, "promoted": true }
           ]
         }
       },
@@ -329,6 +329,8 @@
       "lootQualityShift": 0,
       "deployLimitBonus": 0,
       "xpMultiplier": 0.7,
+      "specialXpMultiplier": 1.0,
+      "xpUnderdogCap": 4,
       "fogChanceBonus": 0.25,
       "villageAmbushChance": 0.25,
       "reinforcementTurnOffset": 0,
@@ -363,7 +365,40 @@
       },
       "parInflation": 3,
       "templateWavesRaisePar": false,
-      "routLadder": null,
+      "routLadder": {
+        "xp": [0.75, 0.5, 0.25, 0.1],
+        "minPlayerDistance": 3,
+        "minFlankTiles": 4,
+        "acts": {
+          "act1": [
+            { "turn": 4, "count": [1, 2] },
+            { "turn": 7, "count": [2, 2], "levels": 1 }
+          ],
+          "act2": [
+            { "turn": 3, "count": [2, 2] },
+            { "turn": 6, "count": [2, 3], "levels": 1 },
+            { "turn": 9, "count": [2, 3], "levels": 1 }
+          ],
+          "act3": [
+            { "turn": 3, "count": [2, 2] },
+            { "turn": 6, "count": [2, 3], "levels": 1 },
+            { "turn": 9, "count": [3, 3], "levels": 1 },
+            { "turn": 12, "count": [3, 3], "levels": 2, "promoted": true }
+          ],
+          "act4": [
+            { "turn": 3, "count": [2, 3] },
+            { "turn": 6, "count": [3, 3], "levels": 1 },
+            { "turn": 9, "count": [3, 3], "levels": 1 },
+            { "turn": 12, "count": [3, 3], "levels": 2, "promoted": true }
+          ],
+          "finalBoss": [
+            { "turn": 3, "count": [2, 3] },
+            { "turn": 6, "count": [3, 3], "levels": 1 },
+            { "turn": 9, "count": [3, 3], "levels": 1 },
+            { "turn": 12, "count": [3, 3], "levels": 2, "promoted": true }
+          ]
+        }
+      },
       "holdShare": { "seize": 0.55, "escape": 0.5 },
       "revivalStones": { "actBoss": 1, "emperor": 2, "lieutenant": 0, "eliteCaptain": 1 },
       "objectiveParOffset": { "seize": -4, "escape": -1, "rout": { "act4": -1 } },

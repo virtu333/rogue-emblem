@@ -45,6 +45,7 @@ import { captureBattleState } from './BattleCheckpointAdapter.js';
 import { applyGridFogState } from './fogState.js';
 import { RETRYABLE_SAVE_REASONS } from '../engine/SavePersistenceStatus.js';
 import { UI_PALETTE } from '../utils/uiStyles.js';
+import { restUnitAppearance } from './UnitRestAppearance.js';
 
 export const serializeSuspendUnit = serializeBattleUnit;
 
@@ -201,6 +202,70 @@ export class BattleSuspendController {
     }
   }
 
+  /**
+   * Write the live state over the current checkpoint, in place: same index, same RNG seed
+   * and cursor, no timeline row. For a change made at a checkpointed boundary that must be
+   * durable before the flow goes on and must not move the battle's stream (a level-up
+   * reroll while its card is up, ui/LevelUpRerollController.js): a new capture would reseed
+   * (or bump the index every later reseed hashes), so every later roll would change.
+   * A failed write puts the previous checkpoint back and leaves any pending retry as it
+   * was: the caller rolls its change back, so nothing is left unsaved by it.
+   * @returns {{ ok: boolean, reason?: string }}
+   */
+  rewriteCheckpoint({ session = this.session } = {}) {
+    const scene = this.scene;
+    if (!isCurrentBattleSession(scene, session) || session !== this.session)
+      return { ok: false, reason: 'stale_session' };
+    const rm = scene.runManager;
+    const previous = rm?.battleInProgress?.checkpoint;
+    if (!previous) return { ok: false, reason: 'no_checkpoint' };
+    if (
+      scene.battleState === 'BATTLE_END' ||
+      scene._fatalDecision ||
+      scene._fatalCapturePending ||
+      scene._defeatDecision ||
+      previous.recoveryKind === 'fatal_pending'
+    )
+      return { ok: false, reason: 'unstable_boundary' };
+    const flag = rm.battleInProgress;
+    try {
+      const checkpoint = {
+        ...previous,
+        ...this._buildCheckpoint(previous.checkpointIndex, previous.rngSeed),
+      };
+      rm.setBattleCheckpoint(checkpoint);
+      const candidate = rm.toJSON ? rm.toJSON() : null;
+      let persisted = scene._persistBattleRunState?.(candidate, { session }) || {
+        ok: false,
+        reason: 'missing_persistence',
+      };
+      if (persisted.reason === 'quota' && candidate && flag.timeline) {
+        persisted = persistWithTimelineFallback(
+          candidate,
+          (value) => scene._persistBattleRunState(value, { session }),
+          persisted,
+        );
+        if (persisted.ok) {
+          rm.battleInProgress = persisted.candidate.battleInProgress;
+          scene._battleTimeline = rm.battleInProgress.timeline;
+          scene._timelineCurrentEntryId = rm.battleInProgress.timelineCurrentEntryId;
+        }
+      }
+      // A dev route without a slot has nothing durable to disagree with.
+      if (persisted.ok || persisted.reason === 'missing_slot') {
+        this._retryCheckpoint = rm.battleInProgress.checkpoint;
+        this.dropRetryCandidate();
+        return { ok: true };
+      }
+      if (rm.battleInProgress === flag) rm.setBattleCheckpoint(previous);
+      return { ok: false, reason: persisted.reason || 'write_error' };
+    } catch (err) {
+      console.warn('[BattleSuspend] checkpoint rewrite failed:', err?.message || err);
+      if (rm.battleInProgress === flag) rm.setBattleCheckpoint(previous);
+      return { ok: false, reason: 'capture_error' };
+    }
+  }
+
   // A storage retry never recaptures, appends history, or reseeds RNG.
   retryCheckpoint({ session } = {}) {
     const scene = this.scene;
@@ -312,9 +377,9 @@ export class BattleSuspendController {
       registerBattleEntity(scene, unit);
       return unit;
     });
-    for (const unit of scene.playerUnits) {
-      if (unit.hasActed || isSleeping(unit)) scene.dimUnit(unit);
-    }
+    // An enemy-phase checkpoint holds foes that have already acted this phase: they rest
+    // dimmed, as they were before the refresh, while the rest of the phase plays out.
+    for (const unit of [...scene.playerUnits, ...scene.enemyUnits]) restUnitAppearance(scene, unit);
     scene.nonDeployedUnits = structuredClone(checkpoint.nonDeployedUnits || []);
     for (const unit of scene.nonDeployedUnits) {
       normalizeSpecialCharacter(unit, scene.gameData?.specialChars);
@@ -330,6 +395,8 @@ export class BattleSuspendController {
       if (Array.isArray(domain.accessories))
         scene.runManager.accessories = structuredClone(domain.accessories);
       if (Number.isFinite(domain.gold) && domain.gold >= 0) scene.runManager.gold = domain.gold;
+      if (Number.isInteger(domain.rewardRerollsSpent) && domain.rewardRerollsSpent >= 0)
+        scene.runManager.rewardRerollsSpent = domain.rewardRerollsSpent;
     }
     scene.ballistas = (checkpoint.ballistas || []).map((b) => ({ ...b }));
     scene._zombieTombstones = structuredClone(checkpoint.zombieTombstones || []);

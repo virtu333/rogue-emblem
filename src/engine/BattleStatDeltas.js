@@ -19,9 +19,28 @@ export function applyBattleDebuff(unit, stat, value) {
   if (stat === 'MOV') unit.mov = unit.stats.MOV;
 }
 
+/**
+ * The battle-start sources (`battleParams.battleDebuffs[].source`: 'wounded', 'cavaliers_hour')
+ * whose deltas `unit` carries this battle. Kept beside `_battleDeltas` and dropped with them, so a
+ * checkpoint keeps it and a unit never takes one source's deltas twice in a battle
+ * (engine/BattleJoinBoons.js reads it for a mid-battle joiner).
+ * @returns {string[]}
+ */
+export function battleDeltaSourcesOf(unit) {
+  return Array.isArray(unit?._battleDeltaSources) ? unit._battleDeltaSources : [];
+}
+
+function markBattleDeltaSource(unit, source) {
+  if (typeof source !== 'string' || !source) return;
+  const sources = battleDeltaSourcesOf(unit);
+  if (!sources.includes(source)) unit._battleDeltaSources = [...sources, source];
+}
+
 /** Take back every battle-scoped change on `unit`. */
 export function revertBattleStatDeltas(unit) {
-  if (!unit?._battleDeltas) return;
+  if (!unit || typeof unit !== 'object') return;
+  delete unit._battleDeltaSources;
+  if (!unit._battleDeltas) return;
   if (unit.stats && typeof unit.stats === 'object') {
     for (const [stat, delta] of Object.entries(unit._battleDeltas)) {
       if (!Number.isFinite(delta) || delta === 0) continue;
@@ -45,7 +64,9 @@ export function clearBattleScopedDeltas(units) {
  * the uid, as a battle delta, so it is taken back with every other one when the battle ends
  * and previews, forecasts and the headless harness all read the same stats. A unit that is not
  * in this battle (benched, fallen) takes nothing. Call once per fresh start, never on a resume
- * (a checkpoint's units already carry it).
+ * (a checkpoint's units already carry it). Each landed source is recorded on the unit
+ * (`battleDeltaSourcesOf`). A unit that joins mid-battle takes the army-wide ones through
+ * engine/BattleJoinBoons.js, which calls this with its own list.
  * @returns {Array<{ unit: object, stat: string, applied: number, source: string|null }>}
  */
 export function applyBattleStartDebuffs(units, debuffs) {
@@ -59,6 +80,7 @@ export function applyBattleStartDebuffs(units, debuffs) {
     if (!unit?.stats || !Number.isFinite(unit.stats[debuff.stat])) continue;
     const before = unit.stats[debuff.stat];
     applyBattleDebuff(unit, debuff.stat, value);
+    markBattleDeltaSource(unit, debuff.source);
     landed.push({
       unit,
       stat: debuff.stat,
