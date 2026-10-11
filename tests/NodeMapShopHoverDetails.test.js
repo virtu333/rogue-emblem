@@ -125,7 +125,7 @@ describe('Shop item detail formatting', () => {
       {
         id: 'adept',
         name: 'Adept',
-        description: 'SPD% chance for an extra follow-up strike at full damage (once per combat)',
+        description: 'SPD% chance for an extra follow-up strike at full damage',
       },
     ];
     const text = NodeMapScene.prototype._getShopItemDetailText.call(
