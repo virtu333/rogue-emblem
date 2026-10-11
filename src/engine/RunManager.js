@@ -4585,7 +4585,6 @@ export class RunManager {
     const actModifier = (key, fallback) =>
       this.getBattleDifficultyModifier(key, battleAct, fallback);
     battleParams.enemyStatBonus = actModifier('enemyStatBonus', 0);
-    battleParams.classStatBonuses = this.getDifficultyModifier('classStatBonuses', {});
     battleParams.enemyCountBonus = actModifier('enemyCountBonus', 0);
     battleParams.enemyLevelBonus =
       actModifier('enemyLevelBonus', 0) + this.getBlessingEnemyLevelDelta(battleAct);

@@ -417,12 +417,11 @@ function parseEnemyDifficultyConfig(difficultyConfig = 1.0) {
   const enemyEquipTierShift = isConfigObject
     ? Math.trunc(Number(difficultyConfig.enemyEquipTierShift ?? 0))
     : 0;
-  const classStatBonuses = isConfigObject ? difficultyConfig.classStatBonuses : null;
   const rawSkillChanceBonus = isConfigObject ? Number(difficultyConfig.skillChanceBonus ?? 0) : 0;
   const skillChanceBonus = Number.isFinite(rawSkillChanceBonus)
     ? Math.max(0, rawSkillChanceBonus)
     : 0;
-  return { difficultyMod, enemyStatBonus, enemyEquipTierShift, classStatBonuses, skillChanceBonus };
+  return { difficultyMod, enemyStatBonus, enemyEquipTierShift, skillChanceBonus };
 }
 
 /**
@@ -433,7 +432,6 @@ export function enemyDifficultyConfigFromParams(battleParams = {}) {
   return {
     multiplier: battleParams.difficultyMod || 1.0,
     enemyStatBonus: Math.trunc(battleParams.enemyStatBonus || 0),
-    classStatBonuses: battleParams.classStatBonuses || {},
     enemyEquipTierShift: Math.trunc(battleParams.enemyEquipTierShift || 0),
     // difficulty.json `enemySkillChance`: added to the act's combat-skill chance.
     skillChanceBonus: Number(battleParams.enemySkillChance) || 0,
@@ -442,11 +440,7 @@ export function enemyDifficultyConfigFromParams(battleParams = {}) {
 
 export function applyEnemyDifficultyModifiers(unit, difficultyConfig = 1.0) {
   if (!unit) return unit;
-  const { difficultyMod, enemyStatBonus, classStatBonuses } =
-    parseEnemyDifficultyConfig(difficultyConfig);
-  const classBonus = Number(classStatBonuses?.[unit.className] ?? 0);
-  const flatBonus =
-    enemyStatBonus + (Number.isFinite(classBonus) ? Math.max(0, Math.trunc(classBonus)) : 0);
+  const { difficultyMod, enemyStatBonus } = parseEnemyDifficultyConfig(difficultyConfig);
 
   // Apply multiplier first for backward compatibility with harness fixtures.
   if (Number.isFinite(difficultyMod) && difficultyMod !== 1.0) {
@@ -457,9 +451,9 @@ export function applyEnemyDifficultyModifiers(unit, difficultyConfig = 1.0) {
   }
 
   // Apply flat difficulty stat bonus (HP gets double value).
-  if (flatBonus !== 0) {
+  if (enemyStatBonus !== 0) {
     for (const stat of XP_STAT_NAMES) {
-      const delta = stat === 'HP' ? flatBonus * 2 : flatBonus;
+      const delta = stat === 'HP' ? enemyStatBonus * 2 : enemyStatBonus;
       unit.stats[stat] = (unit.stats[stat] || 0) + delta;
     }
     unit.currentHP = unit.stats.HP;

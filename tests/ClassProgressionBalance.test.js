@@ -5,16 +5,9 @@ import {
   createEnemyUnit,
   createPromotedEnemyUnit,
   checkLevelUpSkills,
-  applyEnemyDifficultyModifiers,
   getClassInnateSkills,
   promoteUnit,
 } from '../src/engine/UnitManager.js';
-import {
-  resolveDifficultyMode,
-  validateDifficultyConfig,
-  generateModifierSummary,
-} from '../src/engine/DifficultyEngine.js';
-import difficulty from '../data/difficulty.json';
 const data = loadGameData();
 const cls = (name) => data.classes.find((c) => c.name === name);
 const recruit = (name, weapons = data.weapons) =>
@@ -151,33 +144,6 @@ describe('recruit and enemy class balance', () => {
       ),
     ).not.toThrow();
     expect(recruit('Archer').inventory.some((w) => w.name === 'Longbow')).toBe(true);
-  });
-  it.each(['normal', 'hard', 'lunatic'])(
-    '%s applies only the configured class bonus and never MOV',
-    (mode) => {
-      const config = resolveDifficultyMode(difficulty, mode).modifiers;
-      const delta = config.classStatBonuses.Fighter || 0;
-      const unit = {
-        className: 'Fighter',
-        stats: { HP: 20, STR: 5, MAG: 1, SKL: 4, SPD: 4, DEF: 3, RES: 2, LCK: 2, MOV: 5 },
-        currentHP: 20,
-      };
-      const control = structuredClone(unit);
-      control.className = 'Mage';
-      applyEnemyDifficultyModifiers(unit, config);
-      applyEnemyDifficultyModifiers(control, config);
-      expect(unit.stats.HP - control.stats.HP).toBe(delta * 2);
-      expect(unit.stats.STR - control.stats.STR).toBe(delta);
-      expect(unit.stats.MOV).toBe(5);
-      expect(unit.currentHP).toBe(unit.stats.HP);
-    },
-  );
-  it('validates and explains per-class difficulty bonuses', () => {
-    expect(validateDifficultyConfig(difficulty).valid).toBe(true);
-    expect(generateModifierSummary(difficulty.modes.hard)).toContain('Enemy Fighter stats +1');
-    const invalid = structuredClone(difficulty);
-    invalid.modes.normal.classStatBonuses = { Fighter: -1 };
-    expect(validateDifficultyConfig(invalid).valid).toBe(false);
   });
   it('trims Dancer offense while preserving its survival growths', () => {
     const ranges = cls('Dancer').growthRanges;
