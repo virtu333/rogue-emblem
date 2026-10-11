@@ -76,16 +76,16 @@ describe('boss and elite bonus', () => {
 
 describe('rung data', () => {
   const modes = data.difficulty.modes;
-  it('eases the bonus and the cap up the ladder', () => {
+  it('eases the bonus up the ladder and keeps the cap at 6', () => {
     expect(
       ['normal', 'dusk', 'hard', 'lunatic'].map((id) => modes[id].specialXpMultiplier),
     ).toEqual([1.3, 1.2, 1.1, 1.0]);
     expect(['normal', 'dusk', 'hard', 'lunatic'].map((id) => modes[id].xpUnderdogCap)).toEqual([
-      6, 6, 4, 4,
+      6, 6, 6, 6,
     ]);
   });
 
-  it('a Nightfall promoted L1 earns 52 XP from an Act III boss, First Light 91', () => {
+  it('a Nightfall promoted L1 earns 61 XP from an Act III boss, First Light 91', () => {
     const kill = (id) => {
       const m = modes[id];
       const base = combatXpAwards({
@@ -97,7 +97,7 @@ describe('rung data', () => {
       })[0].baseXp;
       return scaledXp(base, { xpMultiplier: m.xpMultiplier });
     };
-    expect(kill('hard')).toBe(52); // floor(60 * 1.1) = 66; floor(66 * 0.8) = 52
+    expect(kill('hard')).toBe(61); // floor(70 * 1.1) = 77; floor(77 * 0.8) = 61
     expect(kill('normal')).toBe(91); // 70 * 1.3
   });
 
@@ -107,7 +107,7 @@ describe('rung data', () => {
     const node = rm.nodeMap.nodes.find((n) => n.type === 'battle' && n.battleParams);
     const params = rm.getBattleParams(node);
     expect(params.specialXpMultiplier).toBe(1.1);
-    expect(params.xpUnderdogCap).toBe(4);
+    expect(params.xpUnderdogCap).toBe(6);
     delete rm.difficultyModifiers.specialXpMultiplier;
     delete rm.difficultyModifiers.xpUnderdogCap;
     const old = rm.getBattleParams(node);
