@@ -277,7 +277,7 @@ Over 80 seeds the first metric is 1.02 (old driver) against 1.19 (this branch): 
 on a high draw, not on a regime change. Threshold note for the PR (`npm run check:threshold-pr-notes`):
 
 - attribution command: `npm run sim:fullrun:triage` (`node tests/sim/fullrun-slice-triage.js`);
-- first_bad_sha: this branch's commit;
+- first_bad_sha: `6310af4f` (this branch's commit);
 - parent_sha: `20261ba3`;
 - failing metrics: `act1_pressure_normal avg_units_lost=1.67 > 1.25`, `progression_invincible avg_gold=17627.33 > 17500`;
 - touched files: `tests/sim/RunSimulationDriver.js`, `tests/sim/ClaimingRunDriver.js`,
