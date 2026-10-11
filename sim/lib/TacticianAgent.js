@@ -39,9 +39,10 @@ import {
 import { hitProbability } from '../../src/engine/HitRoll.js';
 import { getCombatWeapons } from '../../src/engine/UnitManager.js';
 import { enemyThreatTiles, positionsWithMoverAt } from '../../src/engine/ThreatForecast.js';
-import { artilleryWeapon, plantsAmongPositions } from '../../src/engine/SiegeArtillery.js';
+import { artilleryWeapon } from '../../src/engine/SiegeArtillery.js';
 import { distanceFieldToAdjacent } from './RescueAgent.js';
 import { movementOptionsFor } from '../../src/engine/PassMovement.js';
+import { groupIdOf } from '../../src/engine/EncounterGroups.js';
 
 const key = (c, r) => `${c},${r}`;
 
@@ -61,6 +62,13 @@ export class TacticianAgent {
     this.plan = null;
     this.lastContactTurn = 1;
     this._fields = new Map();
+    this.seek = options.seek === 'push' || options.seek === 'bait' ? options.seek : null;
+    this._baitTurn = null;
+  }
+
+  /** A foe that waits to be woken: a holder, or sim/pacing.js's rout-hold prototype. */
+  _sleeping(enemy) {
+    return enemy?.aiMode === 'hold' || enemy?._hold === true;
   }
 
   get b() {
@@ -150,8 +158,8 @@ export class TacticianAgent {
   _threats() {
     const b = this.b;
     const out = [];
-    // The Danger overlay's view (BattleScene.threatContext), for siege artillery: whether
-    // it plants depends on where the planning unit ends its move (SiegeArtillery).
+    // The Danger overlay's view (BattleScene.threatContext), for siege artillery: what it
+    // strikes depends on where the planning unit ends its move (SiegeArtillery).
     let ctx = null;
     let positions = null;
     for (const e of b.enemyUnits) {
@@ -177,13 +185,12 @@ export class TacticianAgent {
 
   /**
    * Siege artillery, with `unit` moved to `tile`: null when it cannot strike the tile
-   * (ThreatForecast.enemyThreatTiles, as Danger with the move previewed), its post when
-   * it plants there, else undefined (it moves: search its reach as for any foe).
+   * (ThreatForecast.enemyThreatTiles, as Danger with the move previewed), else its post:
+   * artillery with shots left never walks (SiegeArtillery.holdsPost, since #297).
    */
   _artilleryStrike(t, unit, tile) {
     const positions = positionsWithMoverAt(t.positions, unit, tile.col, tile.row);
     if (!enemyThreatTiles(t.ctx, t.e, positions).damage.has(key(tile.col, tile.row))) return null;
-    if (!plantsAmongPositions(t.e, positions)) return undefined;
     return { d: gridDistance(t.e.col, t.e.row, tile.col, tile.row), p: { c: t.e.col, r: t.e.row } };
   }
 
@@ -273,15 +280,62 @@ export class TacticianAgent {
     const contact = b.playerUnits.some((u) => this._danger(u, u, threats).attackers > 0);
     if (contact) this.lastContactTurn = turn;
     const advance = turn - this.lastContactTurn >= 2;
+    const seek = this._seekPlan(threats, turn);
     let best = null;
     for (const u of units) {
-      const plan = this._planFor(u, threats, advance);
+      const plan = this._planFor(u, threats, advance, seek);
       if (plan && (!best || plan.score > best.score)) best = plan;
     }
+    if (best?.bait) this._baitTurn = turn;
     return best;
   }
 
-  _planFor(u, threats, advance) {
+  /**
+   * Seek mode's target this turn, or null: the nearest sleeping group (its living members, by
+   * group id; a prototype holder is its own group) when no awake foe can reach the squad.
+   * `zone` is where its members would strike once woken.
+   */
+  _seekPlan(threats, turn) {
+    if (!this.seek) return null;
+    const b = this.b;
+    const sleepers = b.enemyUnits.filter((e) => e.currentHP > 0 && this._sleeping(e));
+    if (!sleepers.length) return null;
+    const awake = threats.filter((t) => !this._sleeping(t.e));
+    if (b.playerUnits.some((u) => this._danger(u, u, awake).attackers > 0)) return null;
+    const near = (e) =>
+      Math.min(...b.playerUnits.map((u) => gridDistance(u.col, u.row, e.col, e.row)));
+    const first = [...sleepers].sort((a, c) => near(a) - near(c) || a.col - c.col || a.row - c.row)[0]; // prettier-ignore
+    const id = groupIdOf(first);
+    const members = id ? sleepers.filter((e) => groupIdOf(e) === id) : [first];
+    const zone = new Set();
+    for (const t of threats) {
+      if (!members.includes(t.e)) continue;
+      for (const p of t.reach) {
+        for (let dc = -t.range.max; dc <= t.range.max; dc++) {
+          const span = t.range.max - Math.abs(dc);
+          for (let dr = -span; dr <= span; dr++) {
+            if (Math.abs(dc) + Math.abs(dr) < t.range.min) continue;
+            zone.add(key(p.c + dc, p.r + dr));
+          }
+        }
+      }
+    }
+    const zoneTiles = [...zone].map((k) => k.split(',').map(Number));
+    return {
+      members,
+      zone,
+      zoneDist: (tile) =>
+        zone.has(key(tile.col, tile.row))
+          ? 0
+          : Math.min(99, ...zoneTiles.map(([c, r]) => gridDistance(c, r, tile.col, tile.row))),
+      postDist: (tile) =>
+        Math.min(...members.map((e) => gridDistance(e.col, e.row, tile.col, tile.row))),
+      canBait: this._baitTurn !== turn,
+      awake,
+    };
+  }
+
+  _planFor(u, threats, advance, seek = null) {
     const b = this.b;
     const tiles = this._reach(u);
     const hpNow = u.currentHP;
@@ -376,6 +430,13 @@ export class TacticianAgent {
       // Hold / advance.
       const danger = this._danger(u, tile, threats);
       const lethal = this._lethal(u, danger, hpNow);
+      if (seek) {
+        const plan = this._seekWait(u, tile, terrain, seek, danger, lethal, lethalWeight, allies);
+        // A recruit to reach still comes first, as below.
+        if (npc) plan.score -= 2.5 * (npcField.get(key(tile.col, tile.row)) ?? 30);
+        consider(plan);
+        continue;
+      }
       const allyDist = allies.length
         ? Math.min(...allies.map((a) => gridDistance(tile.col, tile.row, a.col, a.row)))
         : 0;
@@ -391,5 +452,48 @@ export class TacticianAgent {
       consider({ unit: u, tile, action: 'Wait', target: null, score: score - 4 });
     }
     return best;
+  }
+
+  /**
+   * Seek mode's hold-or-advance score for `unit` on `tile` (see the header). A push weighs
+   * only the awake foes' danger; a bait keeps the squad at the zone's edge and lets one unit a
+   * turn that would survive the group step inside.
+   */
+  _seekWait(unit, tile, terrain, seek, danger, lethal, lethalWeight, allies) {
+    const allyDist = allies.length
+      ? Math.min(...allies.map((a) => gridDistance(tile.col, tile.row, a.col, a.row)))
+      : 0;
+    const base =
+      -0.4 * Math.max(0, allyDist - 2) +
+      (Number(terrain?.avoidBonus) || 0) * 0.02 +
+      (Number(terrain?.defBonus) || 0) * 0.3 -
+      (lethal ? lethalWeight : 0) -
+      4;
+    if (this.seek === 'push') {
+      const awake = this._danger(unit, tile, seek.awake);
+      return {
+        unit,
+        tile,
+        action: 'Wait',
+        target: null,
+        score: base - 0.6 * awake.total - 1.5 * seek.postDist(tile),
+      };
+    }
+    const inZone = seek.zone.has(key(tile.col, tile.row));
+    const bait = inZone && seek.canBait && !lethal && !unit.isCommander;
+    const score =
+      base -
+      (bait ? 0.3 : 0.6) * danger.total -
+      1.5 * seek.zoneDist(tile) -
+      (inZone && !bait ? 6 : 0) +
+      (bait ? 6 : 0);
+    return { unit, tile, action: 'Wait', target: null, score, bait };
+  }
+}
+
+/** The push policy: always advancing (sim/pacing.js `--policy push`), seek mode passed through. */
+export class PushAgent extends TacticianAgent {
+  _planFor(u, threats, _advance, seek = null) {
+    return super._planFor(u, threats, true, seek);
   }
 }

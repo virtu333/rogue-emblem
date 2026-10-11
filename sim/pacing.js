@@ -5,8 +5,8 @@
 // reports turns against par, rating shares, waves that actually arrived, would-be KOs
 // and the run's shadow.
 //
-//   node sim/pacing.js [--difficulty dusk] [--policy turtle|push|scripted] [--seeds 12]
-//                      [--seed 1] [--maxActions 2600] [--csv]
+//   node sim/pacing.js [--difficulty dusk] [--policy turtle|push|scripted|turtle,push]
+//                      [--seeds 12] [--seed 1] [--maxActions 2600] [--seek 1] [--csv]
 //
 // Policies:
 //   turtle   TacticianAgent as shipped: bait-and-punish, holds the safest tile near the
@@ -16,7 +16,16 @@
 //   scripted the harness ScriptedAgent (charges one unit at a time; a slow, reckless player).
 // Both Tactician policies play seize maps against the boss (TacticianAgent `objectives`;
 // --seizeAgent 0 restores the ScriptedAgent fallback) and fall back to ScriptedAgent on
-// escape maps, so escape rows measure the map, not the style.
+// escape maps, so escape rows measure the map, not the style. Both go looking for sleeping
+// groups when no awake foe can reach them (TacticianAgent `seek`: the push walks onto the
+// nearest group's posts, the turtle walks to its zone's edge and baits it; --seek 0 plays
+// them as before seek mode). Several policies (`--policy turtle,push`) play the same seeds,
+// and the report adds the paired turtle − push gap per run.
+//
+// Encounter metrics (docs/specs/large-maps/02-encounters-and-pacing.md §7,
+// sim/lib/PacingMetrics.js) ride every battle record: contact turn, each enemy's first
+// attack, the share engaged, groups woken and why, stuck-AI decisions and AI time per enemy
+// phase.
 //
 // Player units are protected (HP floors at 1, as in sim:strategy's protected runs) so
 // every run reaches the end; "KOs" counts the hits that would have killed a unit, the
@@ -27,13 +36,14 @@ import { loadGameData } from '../tests/testData.js';
 import { installSeed, restoreMathRandom } from './lib/SeededRNG.js';
 import { RunSimulationDriver } from '../tests/sim/RunSimulationDriver.js';
 import { ScriptedAgent } from '../tests/agents/ScriptedAgent.js';
-import { TacticianAgent } from './lib/TacticianAgent.js';
+import { PushAgent, TacticianAgent } from './lib/TacticianAgent.js';
 import { calculatePar, getRating } from '../src/engine/TurnBonusCalculator.js';
 import { writeFileSync } from 'node:fs';
 import { computeShadowGain, eclipsePhase } from '../src/engine/EclipseSystem.js';
 import { parseArgs, printTable, printHeader, toCSV } from './lib/TableFormatter.js';
 import { promoteUnit, resolvePromotionTargets } from '../src/engine/UnitManager.js';
 import { gridDistance, parseRange } from '../src/engine/Combat.js';
+import { attachPacingMetrics, summarizePacingMetrics } from './lib/PacingMetrics.js';
 
 const opts = parseArgs({
   difficulty: 'dusk',
@@ -49,6 +59,7 @@ const opts = parseArgs({
   noHold: 0, // 1 = no seize/escape holders (difficulty.json holdShare off for the rung)
   seizeOffset: '', // override difficulty.json objectiveParOffset.seize for the rung
   seizeAgent: 1, // 0 = seize maps fall back to ScriptedAgent (the pre-PR 3 sims)
+  seek: 1, // 0 = the Tactician policies never go looking for sleeping groups (before PR 2.0)
   parMult: '', // override turnBonus.difficultyParMultiplier[difficulty]
   inflation: '', // override difficulty.json parInflation for the rung
   out: '', // write every battle record as JSON lines (re-rate offline under other pars)
@@ -157,17 +168,13 @@ const levelScore = (u) => (u?.tier === 'promoted' ? 20 : 0) + (u?.level || 1) + 
 /** Level scores by name for the army that walks into a battle (joiners are not counted). */
 const levelsByName = (roster) => new Map((roster || []).map((u) => [u.name, levelScore(u)]));
 
-class PushAgent extends TacticianAgent {
-  _planFor(u, threats) {
-    return super._planFor(u, threats, true);
-  }
-}
-
-function makeAgent(driver) {
-  if (opts.policy === 'scripted') return new ScriptedAgent(driver);
+function makeAgent(driver, policy) {
+  if (policy === 'scripted') return new ScriptedAgent(driver);
   const objectives = Number(opts.seizeAgent) !== 0;
-  if (opts.policy === 'push') return new PushAgent(driver, { rescue: true, objectives });
-  return new TacticianAgent(driver, { rescue: true, objectives });
+  const seek = Number(opts.seek) !== 0;
+  if (policy === 'push')
+    return new PushAgent(driver, { rescue: true, objectives, seek: seek ? 'push' : null });
+  return new TacticianAgent(driver, { rescue: true, objectives, seek: seek ? 'bait' : null });
 }
 
 class PacingDriver extends RunSimulationDriver {
@@ -253,6 +260,7 @@ class PacingDriver extends RunSimulationDriver {
     record.holders = installHold(battle, Number(opts.holdRout) || 0);
     if (record.ladder) record.hasWaves = true;
     this._current = record;
+    this._metrics = attachPacingMetrics(battle);
     const originalRemove = battle._removeUnit.bind(battle);
     battle._removeUnit = (unit) => {
       if (unit?.faction === 'player') {
@@ -300,6 +308,8 @@ class PacingDriver extends RunSimulationDriver {
         data.eclipse,
       );
       r.isBoss = node.type === 'boss';
+      if (this._metrics) Object.assign(r, summarizePacingMetrics(this._metrics));
+      this._metrics = null;
       this.battles.push(r);
       this._current = null;
     }
@@ -359,14 +369,43 @@ function summarize(label, battles) {
     'KOs<=T4': r1(mean(battles.map((b) => b.kosByT4 || 0))),
     'gold/btl': Math.round(mean(battles.map((b) => b.gold || 0))),
     'lvls/btl': r1(mean(battles.map((b) => b.levels || 0))),
+    ...encounterColumns(battles),
   };
+}
+
+/** The encounter metrics' columns (sim/lib/PacingMetrics.js). */
+function encounterColumns(battles) {
+  const contact = battles.map((b) => b.contactTurn).filter((t) => Number.isFinite(t));
+  const firstAttacks = battles.flatMap((b) => b.firstAttackTurns || []);
+  const started = battles.reduce((s, b) => s + (b.startEnemies || 0), 0);
+  const phaseMs = battles.flatMap((b) => b.aiMs || []);
+  return {
+    'contact p50': median(contact),
+    'noContact%': pct(battles.length - contact.length, battles.length),
+    'atk p25': quantile(firstAttacks, 0.25),
+    'atk p50': median(firstAttacks),
+    'atk p75': quantile(firstAttacks, 0.75),
+    'engaged%': pct(firstAttacks.length, started),
+    'woken/btl': r1(mean(battles.map((b) => b.groupsWoken || 0))),
+    'noMove/btl': r1(mean(battles.map((b) => b.noReachableMove || 0))),
+    'recov/btl': r1(mean(battles.map((b) => b.recoveryFallback || 0))),
+    'aiMs p95': r1(quantile(phaseMs, 0.95)),
+  };
+}
+
+/** Why groups woke, summed over the battles. */
+function wakeMix(battles) {
+  const mix = {};
+  for (const b of battles)
+    for (const [reason, n] of Object.entries(b.wakeReasons || {})) mix[reason] = (mix[reason] || 0) + n; // prettier-ignore
+  return mix;
 }
 
 function clean(battles) {
   return battles.filter((b) => !b.forced);
 }
 
-async function main() {
+async function playPolicy(policy) {
   const runs = [];
   const all = [];
   for (let seed = opts.seed; seed < opts.seed + opts.seeds; seed++) {
@@ -377,7 +416,7 @@ async function main() {
       driver = new PacingDriver(data, {
         runOptions: { runSeed: seed, difficultyId: opts.difficulty, autoSelectBlessing: false },
         maxBattleActions: opts.maxActions,
-        battleAgentFactory: (d) => makeAgent(d),
+        battleAgentFactory: (d) => makeAgent(d, policy),
       });
       result = await driver.run();
     } finally {
@@ -402,36 +441,26 @@ async function main() {
     if (!opts.csv) {
       const last = runs.at(-1);
       console.error(
-        `seed ${seed}: ${last.result} battles ${last.battles} turns ${last.turns} shadow ${last.shadow} (${last.phase}) KOs ${last.kos}`,
+        `${policy} seed ${seed}: ${last.result} battles ${last.battles} turns ${last.turns} shadow ${last.shadow} (${last.phase}) KOs ${last.kos}`,
       );
     }
   }
+  return { policy, runs, all };
+}
 
-  if (opts.out) {
-    writeFileSync(
-      opts.out,
-      all
-        .map((b) => JSON.stringify({ difficulty: opts.difficulty, policy: opts.policy, ...b }))
-        .join('\n') + '\n',
-    );
-  }
-  if (opts.csv) {
-    const rows = all.map((b) => ({ difficulty: opts.difficulty, policy: opts.policy, ...b }));
-    toCSV(Object.keys(rows[0] || {}), rows);
-    return;
-  }
-
+function report({ policy, runs, all }) {
   const knobs = [
     Number(opts.holdRout) ? `holdRout ${opts.holdRout}` : '',
     opts.parMult !== '' ? `parMult ${opts.parMult}` : '',
     opts.inflation !== '' ? `inflation ${opts.inflation}` : '',
     String(opts.edge) !== '0' ? `edge ${opts.edge}` : '',
     Number(opts.legacy) ? 'legacy pacing (no ladder)' : '',
+    Number(opts.seek) === 0 ? 'no seek' : '',
   ]
     .filter(Boolean)
     .join(', ');
   printHeader(
-    `Pacing — ${opts.difficulty}, policy ${opts.policy}, ${opts.seeds} runs${knobs ? ` (${knobs})` : ''}`,
+    `Pacing — ${opts.difficulty}, policy ${policy}, ${opts.seeds} runs${knobs ? ` (${knobs})` : ''}`,
   );
   const forced = all.filter((b) => b.forced).length;
   const played = clean(all);
@@ -466,6 +495,53 @@ async function main() {
       `(Pale ${netShadows.filter((x) => x < 25).length}, Waning ${netShadows.filter((x) => x >= 25 && x < 50).length}, ` +
       `Umbral ${netShadows.filter((x) => x >= 50 && x < 75).length}, Totality+ ${netShadows.filter((x) => x >= 75).length})`,
   );
+  console.log(`Groups woken, by reason (all battles): ${JSON.stringify(wakeMix(all))}`);
+}
+
+/** The paired turtle − push gap: the same seeds, run by run. */
+function pairedGap(byPolicy) {
+  const turtle = byPolicy.find((p) => p.policy === 'turtle');
+  const push = byPolicy.find((p) => p.policy === 'push');
+  if (!turtle || !push) return;
+  const pushBySeed = new Map(push.runs.map((r) => [r.seed, r]));
+  const pairs = turtle.runs.filter((r) => pushBySeed.has(r.seed));
+  const gap = (field) => r1(mean(pairs.map((r) => r[field] - pushBySeed.get(r.seed)[field])));
+  const objective = (obj) => {
+    const t = clean(turtle.all).filter((b) => b.objective === obj);
+    const p = clean(push.all).filter((b) => b.objective === obj);
+    return t.length && p.length ? r1(mean(t.map((b) => b.turns)) - mean(p.map((b) => b.turns))) : '-'; // prettier-ignore
+  };
+  console.log(
+    `\nPaired turtle − push (${pairs.length} seeds): run shadow ${gap('shadow')}, turns/run ${gap('turns')}, ` +
+      `forced battles ${turtle.all.length - clean(turtle.all).length} vs ${push.all.length - clean(push.all).length}; ` +
+      `turns/battle rout ${objective('rout')}, seize ${objective('seize')}, escape ${objective('escape')}`,
+  );
+}
+
+async function main() {
+  const policies = String(opts.policy).split(',').map((p) => p.trim()).filter(Boolean); // prettier-ignore
+  const byPolicy = [];
+  for (const policy of policies) byPolicy.push(await playPolicy(policy));
+
+  if (opts.out) {
+    writeFileSync(
+      opts.out,
+      byPolicy
+        .flatMap(({ policy, all }) =>
+          all.map((b) => JSON.stringify({ difficulty: opts.difficulty, policy, ...b })),
+        ) // prettier-ignore
+        .join('\n') + '\n',
+    );
+  }
+  if (opts.csv) {
+    const rows = byPolicy.flatMap(({ policy, all }) =>
+      all.map((b) => ({ difficulty: opts.difficulty, policy, ...b })),
+    );
+    toCSV(Object.keys(rows[0] || {}), rows);
+    return;
+  }
+  for (const result of byPolicy) report(result);
+  pairedGap(byPolicy);
 }
 
 main().catch((err) => {
