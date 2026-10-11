@@ -30,7 +30,7 @@ import {
   buildBanditScriptedWave,
 } from './VillageSystem.js';
 import { createScopedLogger } from '../utils/logger.js';
-import { buildRoutLadder } from './RoutLadder.js';
+import { buildRoutLadder, fogRoutFrontOnly, routLadderEdges } from './RoutLadder.js';
 import { assignHolders, holdShareFor } from './HoldActivation.js';
 import { revivalStoneKind, revivalStonesFor } from './RevivalStones.js';
 import { mapExtraNecromancer } from './Necromancy.js';
@@ -506,6 +506,14 @@ export function generateBattleLayout(params, deps) {
     playerSpawns,
     enemySpawns,
   });
+  // A fogged rout map sends every procedural wave (ladder, template, Hunted) from the front,
+  // the edge opposite the player's deployment: no flank arrivals out of the dark.
+  if (objective === 'rout' && params.fogEnabled === true && reinforcementConfig.reinforcements) {
+    reinforcementConfig.reinforcements = fogRoutFrontOnly(
+      reinforcementConfig.reinforcements,
+      ladder?.front || routLadderEdges({ playerSpawns, enemySpawns, cols }).front,
+    );
+  }
 
   const battleConfig = {
     mapLayout,

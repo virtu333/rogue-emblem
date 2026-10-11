@@ -149,6 +149,13 @@ multiplier (0 past the list), and gold uses the same value. A template opts out 
     then flank A, flank B and so on (which flank is A is hashed from the spawns). A flank
     with fewer than 4 usable tiles (chokepoint) passes its waves to the other flank, then
     to the front.
+  - **Fog of war.** A fogged rout map has no flank waves: every procedural wave (the
+    ladder's, a template's, the Hunted burden's) comes from the front, the edge opposite
+    the player's deployment (`RoutLadder.fogRoutFrontOnly`, applied by `MapGenerator` when
+    `battleParams.fogEnabled`, so a locked map keeps it). Arrivals the player cannot see
+    landing beside their line read as a trap. Wave turns, counts and rewards are unchanged;
+    scripted waves (a village's bandits) keep their tiles. Seize and escape maps are
+    untouched.
   - **Spread.** Arrivals are drawn along that edge on the turn's seeded stream, as
     simulated. Clustering them round one anchor was measured in PR 2: it lowers the push's
     shadow (Nightfall 36 → 27, Dusk 11 → 9), so it is held back as a lever.
