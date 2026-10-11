@@ -1942,7 +1942,7 @@
   {
     "id": "staff_upgrade",
     "name": "Healer's Art",
-    "description": "Sera starts with a better staff",
+    "description": "Sera starts with a second, stronger staff beside Heal",
     "category": "starting_equipment",
     "maxLevel": 2,
     "costs": [
