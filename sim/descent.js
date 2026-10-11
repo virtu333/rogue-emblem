@@ -3,7 +3,7 @@
 //
 //   npm run sim:descent -- [--trials N] [--seed S] [--difficulty all|normal,dusk,hard,lunatic]
 //                          [--workers W] [--meta none|endgame] [--fork keyed|battle|event]
-//                          [--phase all|capture|act5] [--arms legacy,descent]
+//                          [--phase all|capture|act5] [--arms legacy,descent] [--stones lieutenant=N]
 //                          [--out runs.jsonl] [--from a.jsonl,...] [--md report.md]
 //
 // The route ships dark (`descent.json` `enabled: false`); this sim switches it on for its own
@@ -18,6 +18,8 @@
 //      `legacy` (the data as shipped: the Ruins and the finale, the two-node act) and `descent`
 //      (the route switched on). So the two arms differ only in the act (common random numbers),
 //      and the comparison is paired run by run.
+// An Act V replay plays under the checkout's Revival Stones table, not the one a capture
+// snapshotted at its run's start; `--stones lieutenant=1` lays a count over it (a before/after).
 // `--phase capture` writes the entry states only (`--out`); `--phase act5 --from captures`
 // plays the act from saved entry states (with whatever data the checkout holds: the tuning
 // loop), so a retune never replays Acts I-IV.
@@ -37,7 +39,8 @@ import { installStatefulSeed, restoreStatefulRandom } from './lib/StatefulRNG.js
 import { ClaimingRunDriver } from '../tests/sim/ClaimingRunDriver.js';
 import { buildRunMetaEffects } from '../tests/sim/fullrun-runner.js';
 import { RunManager } from '../src/engine/RunManager.js';
-import { DIFFICULTY_IDS } from '../src/engine/DifficultyEngine.js';
+import { DIFFICULTY_IDS, resolveDifficultyMode } from '../src/engine/DifficultyEngine.js';
+import { REVIVAL_STONE_KINDS } from '../src/engine/RevivalStones.js';
 import { riteBand } from '../src/engine/Rite.js';
 import { NODE_TYPES } from '../src/utils/constants.js';
 import { parseArgs, printHeader, printTable } from './lib/TableFormatter.js';
@@ -68,12 +71,13 @@ const opts = parseArgs({
   from: null,
   md: null,
   shard: null,
+  stones: null,
 });
 
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain && opts.help) {
   console.log(
-    'Usage: npm run sim:descent -- [--trials N] [--seed S] [--difficulty all|normal,...] [--workers W] [--meta none|endgame] [--fork keyed|battle|event] [--phase all|capture|act5] [--out f.jsonl] [--from a.jsonl,...] [--md report.md]',
+    'Usage: npm run sim:descent -- [--trials N] [--seed S] [--difficulty all|normal,...] [--workers W] [--meta none|endgame] [--fork keyed|battle|event] [--phase all|capture|act5] [--stones lieutenant=N] [--out f.jsonl] [--from a.jsonl,...] [--md report.md]',
   );
   process.exit(0);
 }
@@ -214,8 +218,34 @@ export async function captureEntry(gameData, { rung, seed, meta = 'none' }) {
   }
 }
 
+/** `--stones lieutenant=1,emperor=2` as `{ lieutenant: 1, emperor: 2 }`; unknown kinds throw. */
+export function parseStoneOverride(text) {
+  const out = {};
+  for (const part of String(text || '')
+    .split(',')
+    .filter(Boolean)) {
+    const [kind, count] = part.split('=').map((x) => x.trim());
+    const n = Number(count);
+    if (!REVIVAL_STONE_KINDS.includes(kind) || !Number.isInteger(n) || n < 0)
+      throw new Error(`--stones: "${part}" is not <kind>=<count> (kinds: ${REVIVAL_STONE_KINDS})`);
+    out[kind] = n;
+  }
+  return out;
+}
+
+/**
+ * The Revival Stones table an Act V replay plays under: the checkout's data for the rung, with
+ * `override` laid over it. A run snapshots the table at its start (`difficultyModifiers`), so a
+ * capture made before a stone retune would otherwise replay Act V under the old count and the
+ * tuning loop would measure nothing.
+ */
+export function revivalStonesForReplay(gameData, rung, override = {}) {
+  const table = resolveDifficultyMode(gameData.difficulty, rung).modifiers.revivalStones;
+  return { ...table, ...override };
+}
+
 /** The final act from a saved entry state, on one arm. */
-export async function playActV(gameData, capture, arm) {
+export async function playActV(gameData, capture, arm, { stones = opts.stones } = {}) {
   const data = ARM_DATA[arm](gameData);
   const rng = installStatefulSeed(0);
   rng.setState(capture.rngState);
@@ -230,6 +260,11 @@ export async function playActV(gameData, capture, arm) {
       }),
     );
     const rm = RunManager.fromJSON(structuredClone(capture.run), data);
+    const override = typeof stones === 'string' ? parseStoneOverride(stones) : stones || {};
+    rm.difficultyModifiers = {
+      ...rm.difficultyModifiers,
+      revivalStones: revivalStonesForReplay(gameData, capture.difficulty, override),
+    };
     driver.runManager = rm;
     rm.advanceAct();
     driver.metrics.actsAdvanced++;
@@ -243,6 +278,7 @@ export async function playActV(gameData, capture, arm) {
       difficulty: capture.difficulty,
       seed: capture.seed,
       meta: capture.meta,
+      stones: rm.difficultyModifiers.revivalStones,
       result: result.result,
       routeId: rm.nodeMap?.descent?.routeId ?? null,
       riteStart,

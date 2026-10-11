@@ -6,7 +6,14 @@ import { describe, it, expect } from 'vitest';
 import { loadGameData } from '../testData.js';
 import { RunManager } from '../../src/engine/RunManager.js';
 import { installStatefulSeed, restoreStatefulRandom } from '../../sim/lib/StatefulRNG.js';
-import { descentGameData, noLandingGameData, permadeathView, playActV } from '../../sim/descent.js';
+import {
+  descentGameData,
+  noLandingGameData,
+  parseStoneOverride,
+  permadeathView,
+  playActV,
+  revivalStonesForReplay,
+} from '../../sim/descent.js';
 
 const data = loadGameData();
 
@@ -90,5 +97,32 @@ describe('sim:descent pairs the two Act Vs on one entry state', () => {
     expect(fell.fought.length).toBe(2);
     expect(permadeathView(record([{ commanderKOs: 0, stalled: true }, won])).cleared).toBe(false);
     expect(permadeathView(record([won], 'timeout')).cleared).toBe(false);
+  });
+
+  it('an Act V replay plays the checkout’s stone table, not the capture’s snapshot', async () => {
+    // Failure: a capture made before a stone retune carries the old count in its run, so every
+    // retune is replayed under the old number and the report measures nothing.
+    const capture = entryCapture('hard', 43);
+    capture.run.difficultyModifiers.revivalStones = {
+      actBoss: 1,
+      emperor: 1,
+      lieutenant: 0,
+      eliteCaptain: 0,
+    };
+    const shipped = data.difficulty.modes.hard.revivalStones;
+    expect(shipped.lieutenant).toBeGreaterThan(0);
+    const played = await playActV(data, capture, 'descent', { stones: null });
+    expect(played.stones).toEqual(shipped);
+    const over = await playActV(data, capture, 'descent', { stones: 'lieutenant=1' });
+    expect(over.stones).toEqual({ ...shipped, lieutenant: 1 });
+    expect(revivalStonesForReplay(data, 'hard', { lieutenant: 1 }).emperor).toBe(shipped.emperor);
+  });
+
+  it('reads --stones as kind=count pairs and refuses a stranger', () => {
+    expect(parseStoneOverride('lieutenant=1')).toEqual({ lieutenant: 1 });
+    expect(parseStoneOverride('lieutenant=2,emperor=0')).toEqual({ lieutenant: 2, emperor: 0 });
+    expect(parseStoneOverride('')).toEqual({});
+    expect(() => parseStoneOverride('entity=1')).toThrow(/--stones/);
+    expect(() => parseStoneOverride('lieutenant=x')).toThrow(/--stones/);
   });
 });

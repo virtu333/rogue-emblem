@@ -343,3 +343,27 @@ describe('DifficultySelectScene wheel handler', () => {
     expect(scene._draw).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('DifficultySelectScene modifier cards', () => {
+  it('list the stone bosses the rung’s road meets: no Lieutenant on Nightfall while the Descent is dark', () => {
+    const build = (data) => {
+      const scene = Object.create(DifficultySelectScene.prototype);
+      scene.init({ gameData: data });
+      scene.meta = null;
+      return scene._buildModes();
+    };
+    const stones = (modes, id) =>
+      modes
+        .find((m) => m.id === id)
+        .summary.filter((l) => l.startsWith('Revival Stones'))
+        .join();
+    const dark = build(gameData);
+    for (const id of ['hard', 'lunatic']) expect(stones(dark, id)).not.toContain('Lieutenant');
+    expect(stones(dark, 'dusk')).toContain('the Lieutenant 1');
+    const lit = build({
+      ...gameData,
+      descent: { ...structuredClone(gameData.descent), enabled: true },
+    });
+    for (const id of ['hard', 'lunatic']) expect(stones(lit, id)).toContain('the Lieutenant 2');
+  });
+});
