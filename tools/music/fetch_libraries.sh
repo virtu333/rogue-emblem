@@ -29,7 +29,14 @@ clone sfzinstruments/karoryfer.emilyguitar karoryfer.emilyguitar
 clone sfzinstruments/SplendidGrandPiano SplendidGrandPiano
 # the house palette (engine/palette.py; credits in docs/music-credits.md)
 clone peastman/sso SSO4
-clone eodowd/VirtualPlayingOrchestra VPO3
+# VPO3 (Paul Battersby, 3.2.1.1): its SFZ edition. The repository the site links to
+# (eodowd/VirtualPlayingOrchestra) now ships only DecentSampler presets; studiorack keeps
+# the SFZ release (same programs, samples and licence.htm, GPL-3 programs with the sample
+# licences in docs/music-credits.md).
+clone studiorack/virtual-playing-orchestra VPO3
+for f in Brass/french-horn-SEC-PERF.sfz Brass/trumpet-SEC-PERF.sfz Brass/trombone-SEC-PERF.sfz; do
+  [ -f "VPO3/$f" ] || { echo "VPO3 is missing $f: not the SFZ edition" >&2; exit 1; }
+done
 # VCSL: the sfz branch carries the programs beside the samples. The house palette
 # plays one of its instruments (the colosseum's frame drum), so only that is fetched.
 if [ ! -d VCSL ]; then
