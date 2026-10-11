@@ -661,6 +661,17 @@ async function openReference(page, action) {
 for (const vp of PORTRAIT_PHONES.slice(0, 2)) {
   test.describe(`compendium upright ${sizeOf(vp)}`, () => {
     test.use(upright(vp));
+    // A save that has met the Rapier and Iron Sword: the Compendium shows unmet entries as "???".
+    test.beforeEach(async ({ page }) => {
+      await page.addInitScript(() => {
+        localStorage.setItem(
+          'emblem_rogue_slot_3_meta',
+          JSON.stringify({
+            purchasedUpgrades: { '__seen_item:Iron Sword': 0, '__seen_item:Rapier': 0 },
+          }),
+        );
+      });
+    });
 
     test('search, one category strip and one filter strip leave the list most of the screen', async ({
       page,

@@ -62,6 +62,7 @@ import { heldBlessingEntries } from '../ui/heldBlessingsModel.js';
 import { ShopController } from '../ui/ShopController.js';
 import { adaptDialogueEntries } from '../engine/DialogueCast.js';
 import { recordRunLordsMet } from '../engine/LordsMet.js';
+import { recordRunDiscoveries } from '../engine/CompendiumDiscovery.js';
 import { buildNarrativeContext, selectDialogueEntries } from '../engine/NarrativeDirector.js';
 import { NodeMapCursorController } from '../ui/NodeMapCursorController.js';
 import { InputAction } from '../utils/InputActions.js';
@@ -1281,6 +1282,7 @@ export class NodeMapScene extends Phaser.Scene {
       cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
       slot,
     );
+    recordRunDiscoveries(this.registry.get('meta'), this.runManager);
     if (!result.ok) {
       showMinorHint(
         this,
