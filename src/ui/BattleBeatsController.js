@@ -234,7 +234,6 @@ export class BattleBeatsController {
     return this._rally.skip();
   }
 
-
   /**
    * A line said over a unit on the field (or over `tile`, for one that has just left it), with
    * the speaker's name on a tab: the rally's lines, and the Vigil's Voices and called Hollowed
