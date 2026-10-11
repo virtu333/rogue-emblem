@@ -8,9 +8,11 @@
 //   sync           every frame (BattleScene.update): the sigil and circle markers re-derived
 //                  from the board, redrawn only when what they show changes
 //
-// Rendering never changes game state: the step's result is applied to the roster and the state
-// first, in one go, and only then presented; nothing here writes HP. Nothing here draws from
-// Math.random (the call has its own keyed stream).
+// Rendering never changes game state: the step's result (the state, the roster with each called
+// unit's battle identity, the history's records) is applied first, in one go, and only then
+// presented, every piece of the drawing inside safeBattlePresentation, so a failed graphic, banner
+// or marker can neither cut a call short nor stop the enemy phase. Nothing here writes HP.
+// Nothing here draws from Math.random (the call has its own keyed stream).
 //
 // The fog (the one rule, BattleInformation.canInspectUnit / isUnitSeenAt):
 //   - "The Voices speak." plays once a phase, only when a speaking Voice is seen;
@@ -31,6 +33,7 @@ import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { CombatFxController } from './CombatFxController.js';
 import { safeBattlePresentation } from './safeBattlePresentation.js';
 import { vigilBoardView, vigilPhaseStep, voiceUnit } from '../engine/Vigil.js';
+import { registerBattleEntity } from '../engine/BattleEntityIdentity.js';
 import { enemyDifficultyConfigFromParams } from '../engine/UnitManager.js';
 import { canInspectUnit, isUnitSeenAt } from '../engine/BattleInformation.js';
 import { TILE_SIZE } from '../utils/constants.js';
@@ -109,21 +112,32 @@ export class VigilController {
     };
   }
 
-  /** Cheap per-frame reconciliation with the board and the fog. */
+  /**
+   * Cheap per-frame reconciliation with the board and the fog. Presentation only, and contained:
+   * a marker that fails to draw never reaches its caller (the frame, a Voice's fall, the phase
+   * step), and is tried again on the next call.
+   */
   sync() {
     const scene = this.scene;
     if (!scene?.grid || !this.vigil) return;
-    const states = this.markerStates();
-    const key = [...states.sigils, ...states.circles]
-      .map((m) => `${m.id}:${m.col},${m.row}:${m.state}`)
-      .join(';');
-    if (key === this._key) return;
-    this._key = key;
-    this._clear();
-    for (const circle of states.circles) this._drawCircle(circle);
-    for (const sigil of states.sigils) this._drawSigil(sigil);
-    // Pinned-UI camera filters need to learn about new world objects.
-    scene._cameraFilterDirty = true;
+    safeBattlePresentation(
+      'vigil markers',
+      () => {
+        const states = this.markerStates();
+        const key = [...states.sigils, ...states.circles]
+          .map((m) => `${m.id}:${m.col},${m.row}:${m.state}`)
+          .join(';');
+        if (key === this._key) return;
+        this._key = null; // set only once drawn, so a failed draw is retried
+        this._clear();
+        for (const circle of states.circles) this._drawCircle(circle);
+        for (const sigil of states.sigils) this._drawSigil(sigil);
+        this._key = key;
+        // Pinned-UI camera filters need to learn about new world objects.
+        scene._cameraFilterDirty = true;
+      },
+      { scene },
+    );
   }
 
   /** Enemy-phase start: the words, then the calls (engine/Vigil.js). */
@@ -153,17 +167,28 @@ export class VigilController {
     });
     if (step.skipped) return;
 
-    // The state and the roster first, in one go; presentation follows and can fail harmlessly.
+    // The domain first, in one go and before anything is drawn: the state, every called Hollowed
+    // on the roster with its battle identity (as the harness's _processVigil), and the history's
+    // record of each call. A drawing that fails below costs only that drawing: never a Hollowed
+    // left off the roster (the turn guard would never call it again) nor the enemy phase.
     scene._vigilState = step.state;
-    for (const { unit, voiceId } of step.summons) {
+    for (const { unit } of step.summons) {
+      registerBattleEntity(scene, unit);
       scene.enemyUnits.push(unit);
-      scene.addUnitGraphic(unit);
-      observeHistoryAction(scene, 'called', voiceUnit(voiceId, scene.enemyUnits), unit);
     }
+    for (const { unit, voiceId } of step.summons)
+      observeHistoryAction(scene, 'called', voiceUnit(voiceId, scene.enemyUnits), unit);
+    if (step.summons.length > 0) scene.dangerZoneStale = true;
+
+    // Then the presentation, each piece in its own boundary.
+    for (const { unit } of step.summons)
+      safeBattlePresentation('vigil summon', () => scene.addUnitGraphic(unit), { scene });
     if (step.summons.length > 0) {
-      if (scene.grid?.fogEnabled) scene.updateEnemyVisibility?.();
-      scene.dangerZoneStale = true;
-      scene._pinnedThreats?.invalidate?.();
+      if (scene.grid?.fogEnabled)
+        safeBattlePresentation('vigil fog', () => scene.updateEnemyVisibility?.(), { scene });
+      safeBattlePresentation('vigil threats', () => scene._pinnedThreats?.invalidate?.(), {
+        scene,
+      });
     }
     this.sync();
 
@@ -185,13 +210,19 @@ export class VigilController {
         async () => {
           await scene.showBriefBanner?.(VIGIL_BANNERS.call, UI_PALETTE.rarityEpic);
           if (!isCurrentBattleSession(scene, session)) return;
-          await Promise.all(seen.map((unit) => this._fx()?.raise?.(unit)));
+          // Each rising in its own boundary: one that fails (a Hollowed whose graphic never
+          // drew) never cuts the others short.
+          await Promise.all(
+            seen.map((unit) =>
+              safeBattlePresentation('vigil rise', () => this._fx()?.raise?.(unit), { scene }),
+            ),
+          );
         },
         { scene },
       );
       if (!isCurrentBattleSession(scene, session)) return;
     }
-    scene.updateObjectiveText?.();
+    safeBattlePresentation('vigil objective', () => scene.updateObjectiveText?.(), { scene });
   }
 
   /** A Voice fell at `tile` (already off the roster): its circle is closed for good. */
