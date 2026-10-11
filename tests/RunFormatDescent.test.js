@@ -117,9 +117,13 @@ describe('each stage of a Descent run is refused by an older client', () => {
 
   it('a Rite that has taken words', () => {
     const run = pastVigilRun(descentData);
-    expect(run.rite.words).toBe(4);
+    // The Rite the run entered with, the Column won under par, then the Vigil's 4 words: each
+    // number read from the data (descent.json `rite`), so a retune moves no assertion here.
+    const entry = descentEntryRun(descentData).rite.words;
+    const words = Math.max(0, entry + descentData.descent.rite.underPar.column) + 4;
+    expect(run.rite.words).toBe(words);
     const saved = run.toJSON();
-    expect(saved.rite.words).toBe(4);
+    expect(saved.rite.words).toBe(words);
     expect(saved.requiresCapabilities).toContain('rite');
     expect(olderClientBlock(saved)?.missing).toContain('rite');
   });
