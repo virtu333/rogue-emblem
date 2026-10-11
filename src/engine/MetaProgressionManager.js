@@ -1,5 +1,11 @@
 import { isDifficultyId } from './DifficultyEngine.js';
 import { DEFAULT_MARK_CHANCE } from './MarkSystem.js';
+import {
+  settledBalanceRevision,
+  withBalanceRevisionMarker,
+  withoutBalanceRevisionMarker,
+  BALANCE_REVISION_MARKER,
+} from './BalanceRevisionMarker.js';
 import { mergeSeenDialogueKeys } from '../utils/seenDialogue.js';
 import { mergeRunRecords, runRecordsUnderPressure } from './RunRecords.js';
 import { isQuotaExceededError, setItemFreeingSpace } from './SaveSpace.js';
@@ -534,7 +540,8 @@ export class MetaProgressionManager {
             this.totalSupply = Math.max(0, Math.floor(saved.totalSupply));
         }
 
-        if (saved.purchasedUpgrades) this.purchasedUpgrades = { ...saved.purchasedUpgrades };
+        if (saved.purchasedUpgrades)
+          this.purchasedUpgrades = withoutBalanceRevisionMarker(saved.purchasedUpgrades);
         this._migrateLegacyWeaponArtUpgradeState();
         this._migrateLegacyDeadlyArsenalUpgradeState(saved);
         if (typeof saved.runsCompleted === 'number') this.runsCompleted = saved.runsCompleted;
@@ -562,7 +569,9 @@ export class MetaProgressionManager {
           this.solRefundBasis = 400;
         this.retiredUpgradeRefunds = normalizeRetiredUpgradeRefunds(saved.retiredUpgradeRefunds);
         this.legacyTierCosts = normalizeLegacyTierCosts(saved.legacyTierCosts);
-        this._creditBalanceRevisionsSince(saved.balanceRevision);
+        // An older build re-saves its own balanceRevision; the copy in purchasedUpgrades
+        // keeps a credit from being paid twice (BalanceRevisionMarker.js).
+        this._creditBalanceRevisionsSince(settledBalanceRevision(saved));
         this._settleRetiredUpgrades();
         // The next normal save persists credits and markers atomically without making
         // a read-only load appear newer than a pending cloud merge.
@@ -1696,12 +1705,13 @@ export class MetaProgressionManager {
       for (const id of Object.keys(from)) ownedBefore[id] = this.getUpgradeLevel(id);
     if (disk.purchasedUpgrades && typeof disk.purchasedUpgrades === 'object') {
       for (const [id, level] of Object.entries(disk.purchasedUpgrades)) {
+        if (id === BALANCE_REVISION_MARKER) continue;
         const diskLevel = Number(level) || 0;
         const localLevel = Number(this.purchasedUpgrades[id]) || 0;
         this.purchasedUpgrades[id] = Math.max(localLevel, diskLevel);
       }
     }
-    this._recordLegacyTierCosts(disk.balanceRevision, (id) => {
+    this._recordLegacyTierCosts(settledBalanceRevision(disk), (id) => {
       const part = (key) => Math.max(0, Math.floor(Number(disk.purchasedUpgrades?.[key]) || 0));
       return [(ownedBefore[id] || 0) + 1, part(id) + part(repeatTiersKey(id))];
     });
@@ -1871,7 +1881,7 @@ export class MetaProgressionManager {
       solRefundBasis: this.solRefundBasis,
       totalValor: this.totalValor,
       totalSupply: this.totalSupply,
-      purchasedUpgrades: this.purchasedUpgrades,
+      purchasedUpgrades: withBalanceRevisionMarker(this.purchasedUpgrades, this.balanceRevision),
       retiredUpgradeRefunds: this.retiredUpgradeRefunds,
       legacyTierCosts: this.legacyTierCosts,
       runsCompleted: this.runsCompleted,

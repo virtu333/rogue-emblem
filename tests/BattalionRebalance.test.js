@@ -203,7 +203,11 @@ describe('Expanded Ranks retired (the roster has no cap)', () => {
 
     m._save();
     const saved = disk();
-    expect(saved.purchasedUpgrades).toEqual({ recruit_skill: 1 });
+    // The settled revision rides along (BalanceRevisionMarker.js); roster_cap is gone.
+    expect(saved.purchasedUpgrades).toEqual({
+      recruit_skill: 1,
+      __balance_revision: CURRENT_BALANCE_REVISION,
+    });
     expect(saved.retiredUpgradeRefunds).toEqual({ roster_cap: 1 });
     expect(saved.totalSupply).toBe(275);
     expect(load().totalSupply).toBe(275);
@@ -227,7 +231,10 @@ describe('Expanded Ranks retired (the roster has no cap)', () => {
     });
     m.addSupply(5); // saves: adopts the disk copy by max-merge first
     const saved = disk();
-    expect(saved.purchasedUpgrades).toEqual({ recruit_xp: 1 });
+    expect(saved.purchasedUpgrades).toEqual({
+      recruit_xp: 1,
+      __balance_revision: CURRENT_BALANCE_REVISION,
+    });
     expect(saved.retiredUpgradeRefunds).toEqual({ roster_cap: 1 });
     // max(275, 150) + 5; no second 175.
     expect(saved.totalSupply).toBe(280);
@@ -357,5 +364,65 @@ describe('Growth tracks at +3% a tier, about 25% off (balance revision 5)', () =
       expect(cut, id).toBeGreaterThanOrEqual(0.2);
       expect(cut, id).toBeLessThanOrEqual(0.3);
     }
+  });
+});
+
+describe('the settled revision survives a save by an older build (BalanceRevisionMarker)', () => {
+  // What a build from before revision 5 does to the save: it loads purchasedUpgrades whole,
+  // credits nothing it does not know, and writes its own CURRENT_BALANCE_REVISION (4).
+  const olderBuildResaves = () => {
+    store[KEY] = JSON.stringify({ ...disk(), balanceRevision: 4, savedAt: disk().savedAt + 1 });
+  };
+
+  it('credits revision 5 once across a round trip through an older client', () => {
+    seed({
+      balanceRevision: 4,
+      totalValor: 0,
+      totalSupply: 0,
+      savedAt: 5000,
+      purchasedUpgrades: { lord_str_growth: 3, recruit_hp_growth: 2 },
+    });
+    const m = load();
+    expect([m.totalValor, m.totalSupply]).toEqual([90, 20]);
+    m._save();
+    expect(disk().purchasedUpgrades.__balance_revision).toBe(CURRENT_BALANCE_REVISION);
+    olderBuildResaves();
+    const again = load();
+    expect([again.totalValor, again.totalSupply]).toEqual([90, 20]);
+    expect(again.purchasedUpgrades).toEqual({ lord_str_growth: 3, recruit_hp_growth: 2 });
+    again._save();
+    olderBuildResaves();
+    expect([load().totalValor, load().totalSupply]).toEqual([90, 20]);
+  });
+
+  it('a save the older build wrote before ever meeting revision 5 is still credited', () => {
+    seed({
+      balanceRevision: 4,
+      totalValor: 0,
+      savedAt: 5000,
+      purchasedUpgrades: { lord_str_growth: 1, __balance_revision: 4 },
+    });
+    expect(load().totalValor).toBe(20);
+  });
+
+  it('no purchases, no marker: an empty save still reads as fresh', () => {
+    const m = load();
+    m._save();
+    expect(disk().purchasedUpgrades).toEqual({});
+  });
+
+  it('adopting a newer disk copy keeps the marker out of the upgrade levels', () => {
+    const m = load();
+    m.purchasedUpgrades.recruit_hp_growth = 1;
+    m._save();
+    store[KEY] = JSON.stringify({
+      ...disk(),
+      balanceRevision: 4,
+      savedAt: disk().savedAt + 10,
+      purchasedUpgrades: { recruit_hp_growth: 2, __balance_revision: 5 },
+    });
+    m._save();
+    expect(m.purchasedUpgrades).toEqual({ recruit_hp_growth: 2 });
+    expect(disk().purchasedUpgrades).toEqual({ recruit_hp_growth: 2, __balance_revision: 5 });
   });
 });
