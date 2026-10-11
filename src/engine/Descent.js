@@ -615,8 +615,18 @@ function validateSetPieceNode(nw, spec, { err, data, servedRungs }) {
     if (data.setPieces) err(nw, `unknown set piece "${spec.setPiece}"`);
     return;
   }
+  // The node's seat, as its battle params will carry it: a boss node names its boss (the gate's
+  // Lieutenant, the finale), so a boss slot there never seats the Entity unnamed.
+  const seat = {
+    ...(spec.type === NODE_TYPES.BOSS && typeof spec.boss === 'string'
+      ? { bossName: spec.boss }
+      : {}),
+    ...(spec.type === NODE_TYPES.BOSS ? { isBoss: true } : {}),
+    ...(spec.elite === true ? { isElite: true } : {}),
+  };
   for (const rung of servedRungs)
-    for (const message of validateSetPieceAt(piece, DESCENT_ACT_ID, rung, data)) err(nw, message);
+    for (const message of validateSetPieceAt(piece, DESCENT_ACT_ID, rung, data, seat))
+      err(nw, message);
   if (spec.objective === undefined) return;
   if (!DESCENT_SET_PIECE_OBJECTIVES.includes(spec.objective)) {
     err(nw, `objective must be one of ${DESCENT_SET_PIECE_OBJECTIVES.join(', ')}`);

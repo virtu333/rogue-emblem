@@ -542,7 +542,7 @@ for (const vp of PORTRAIT_PHONES) {
           };
         });
       });
-      expect(effects.map((e) => e.text)).toEqual(['Current: None', 'Next: +5%']);
+      expect(effects.map((e) => e.text)).toEqual(['Current: None', 'Next: +3%']);
       expect(
         effects.every((e) => e.whole),
         'Current and Next in view',
@@ -661,6 +661,17 @@ async function openReference(page, action) {
 for (const vp of PORTRAIT_PHONES.slice(0, 2)) {
   test.describe(`compendium upright ${sizeOf(vp)}`, () => {
     test.use(upright(vp));
+    // A save that has met the Rapier and Iron Sword: the Compendium shows unmet entries as "???".
+    test.beforeEach(async ({ page }) => {
+      await page.addInitScript(() => {
+        localStorage.setItem(
+          'emblem_rogue_slot_3_meta',
+          JSON.stringify({
+            purchasedUpgrades: { '__seen_item:Iron Sword': 0, '__seen_item:Rapier': 0 },
+          }),
+        );
+      });
+    });
 
     test('search, one category strip and one filter strip leave the list most of the screen', async ({
       page,
@@ -1232,7 +1243,7 @@ test.describe('landscape 844x390: upgrade detail as before', () => {
   test('two effect lines, the 64px icon, and the stamp layout', async ({ page }) => {
     const menu = await openUpgrades(page);
     await expectPortraitUi(page, false);
-    await expect(menu.locator('.mu-effects')).toHaveText('Current: None\nNext: +5%', {
+    await expect(menu.locator('.mu-effects')).toHaveText('Current: None\nNext: +3%', {
       useInnerText: true,
     });
     const icon = await menu.locator('.mu-head .ia-icon').boundingBox();

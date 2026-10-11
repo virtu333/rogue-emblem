@@ -20,6 +20,8 @@ import {
   validateSetPieceAt,
   validateSetPiecesConfig,
 } from '../src/engine/SetPieces.js';
+import { validateEventsConfig } from '../src/engine/EventValidation.js';
+import { DIFFICULTY_IDS } from '../src/engine/DifficultyEngine.js';
 import { generateSeededBattle } from '../src/engine/BattleScout.js';
 import { validateBattleConfig } from '../src/engine/MapGenerator.js';
 import { convertNodeToSetPieceBattle } from '../src/engine/NodeMapGenerator.js';
@@ -427,13 +429,128 @@ describe('validateSetPiecesConfig: v2 keys', () => {
   });
 
   it('validateSetPieceAt: one (set piece, act, rung) for a route validator', () => {
-    expect(validateSetPieceAt(GATE_FIXTURE, 'finalBoss', 'hard', deps)).toEqual([]);
+    const pinned = { bossName: 'The Lieutenant' };
+    expect(validateSetPieceAt(GATE_FIXTURE, 'finalBoss', 'hard', deps, pinned)).toEqual([]);
     expect(validateSetPieceAt(GATE_FIXTURE, 'act2', 'hard', deps).join('\n')).toMatch(
       /fixture_gate is not fought in act2/,
     );
     // A boss slot needs a boss to seat in the act.
     expect(validateSetPieceAt(GATE_FIXTURE, 'postAct', 'hard', deps).join('\n')).toMatch(
       /boss slot has no boss to seat in postAct/,
+    );
+  });
+});
+
+// The review of #317: a boss slot is the battle's seat, so it must never seat the Entity (one
+// tile holds no 3x3 form, gear or finale), and no event may fight it (a mid-act fight would seat
+// the act's real boss, stones and all).
+describe('the boss slot: never the Entity, never an event', () => {
+  const deps = {
+    terrain: base.terrain,
+    classes: base.classes,
+    weapons: base.weapons,
+    difficulty: base.difficulty,
+    enemies: base.enemies,
+  };
+  // The rungs whose draw for Act V's seat may be the Entity, read off enemies.json.
+  const entityRungs = DIFFICULTY_IDS.filter((rung) =>
+    base.enemies.bosses.finalBoss.some(
+      (b) => b.isEntity === true && (!b.difficultyFilter || b.difficultyFilter.includes(rung)),
+    ),
+  );
+  const ENTITY = /its boss slot could seat the Entity in finalBoss on (\w+)/;
+
+  it('an unpinned seat in Act V is refused exactly where the draw could be the Entity', () => {
+    expect(entityRungs).toEqual(['hard', 'lunatic']);
+    for (const rung of DIFFICULTY_IDS) {
+      const errors = validateSetPieceAt(GATE_FIXTURE, 'finalBoss', rung, deps).join('\n');
+      if (entityRungs.includes(rung)) expect(errors, rung).toMatch(ENTITY);
+      else expect(errors, rung).toBe('');
+    }
+    // An elite node's seat falls back to the act's bosses (Act V has no captains): refused too.
+    expect(
+      validateSetPieceAt(GATE_FIXTURE, 'finalBoss', 'hard', deps, { isElite: true }).join('\n'),
+    ).toMatch(ENTITY);
+  });
+
+  it('a name pins the seat: another boss passes on every rung, the Entity never does', () => {
+    for (const rung of DIFFICULTY_IDS) {
+      expect(
+        validateSetPieceAt(GATE_FIXTURE, 'finalBoss', rung, deps, { bossName: 'The Lieutenant' }),
+        rung,
+      ).toEqual([]);
+      expect(
+        validateSetPieceAt(GATE_FIXTURE, 'finalBoss', rung, deps, {
+          bossName: 'The Entity',
+        }).join('\n'),
+        rung,
+      ).toMatch(ENTITY);
+    }
+    // A name the act does not have seats the draw's pick (SeatedBoss), so it pins nothing.
+    expect(
+      validateSetPieceAt(GATE_FIXTURE, 'finalBoss', 'hard', deps, { bossName: 'Nobody' }).join(
+        '\n',
+      ),
+    ).toMatch(ENTITY);
+  });
+
+  it("the set piece's own acts leave the seat to its node; an event reaching Act V is refused", () => {
+    const validate = (events) =>
+      validateSetPiecesConfig({ setPieces: [GATE_FIXTURE] }, { ...deps, events }).errors.join('\n');
+    expect(validate({ events: [] })).toBe('');
+    const events = {
+      events: [
+        {
+          id: 'e',
+          acts: ['finalBoss'],
+          choices: [{ outcomes: [{ effects: [{ type: 'battle', setPiece: 'fixture_gate' }] }] }],
+        },
+      ],
+    };
+    const errors = validate(events);
+    expect(errors).toMatch(/could seat the Entity in finalBoss on hard/);
+    expect(errors).toMatch(/could seat the Entity in finalBoss on lunatic/);
+    expect(errors).not.toMatch(/on (normal|dusk)/);
+  });
+
+  // The shipped events, every battle that names a set piece (the Toll Bridge's) pointed at `id`.
+  const eventsNaming = (id) => {
+    const events = structuredClone(base.events);
+    let named = 0;
+    const walk = (node) => {
+      if (Array.isArray(node)) return node.forEach(walk);
+      if (!node || typeof node !== 'object') return;
+      if (node.type === 'battle' && node.setPiece !== undefined) {
+        node.setPiece = id;
+        named++;
+      }
+      Object.values(node).forEach(walk);
+    };
+    walk(events);
+    expect(named).toBeGreaterThan(0);
+    return events;
+  };
+  const tollBridgeNaming = (id, gameData = data) =>
+    validateEventsConfig(eventsNaming(id), gameData).errors.join('\n');
+  const BOSS_SLOT = /battle\.setPiece "(\w+)" has a boss slot/;
+
+  it('an event battle naming a set piece with a boss slot is refused', () => {
+    expect(tollBridgeNaming('toll_house')).toBe('');
+    expect(tollBridgeNaming('fixture_vigil')).toBe('');
+    expect(tollBridgeNaming('fixture_throne')).toMatch(BOSS_SLOT);
+    expect(tollBridgeNaming('fixture_gate')).toMatch(BOSS_SLOT);
+  });
+
+  it('a boss slot in any variant counts, not only the first', () => {
+    const split = structuredClone(DEFEAT_FIXTURE);
+    split.id = 'fixture_split';
+    split.variants.push({
+      ...structuredClone(split.variants[0]),
+      id: 'b',
+      enemies: [...structuredClone(split.variants[0].enemies), { col: 7, row: 6, boss: true }],
+    });
+    expect(tollBridgeNaming('fixture_split', withSetPieces(base, split))).toMatch(
+      /battle\.setPiece "fixture_split" has a boss slot/,
     );
   });
 });
