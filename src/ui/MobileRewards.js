@@ -258,6 +258,9 @@ export class MobileRewards {
       const available = this.controller.isRewardAvailable(i);
       const claimed = !available && Boolean(this.controller.claimed?.has?.(i));
       const b = this.button(null, () => {
+        // A tap that lands while a sheet is open over the cards (the end of the hold
+        // that opened it) never selects.
+        if (this.child) return;
         this.selected = i;
         this.saveDraft();
         this.render();
