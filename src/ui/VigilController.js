@@ -274,7 +274,9 @@ export class VigilController {
       this.seesUnit(voiceUnit(word.voiceId, scene.enemyUnits)),
     );
     if (heardWords.length > 0) {
-      this._sayWords(heardWords, spokenBefore);
+      safeBattlePresentation('vigil voices', () => this._sayWords(heardWords, spokenBefore), {
+        scene,
+      });
       await safeBattlePresentation(
         'vigil words',
         () => scene.showBriefBanner?.(VIGIL_BANNERS.words, UI_PALETTE.mark),
@@ -287,7 +289,11 @@ export class VigilController {
       // The first seen answers the roll, by how many the circles had called before it.
       const first = step.summons.findIndex((s) => s.unit === seen[0]);
       const ordinal = step.state.summoned - step.summons.length + first;
-      this._say(seen[0], vigilCallLine(this.words, ordinal), { delayMs: 0 });
+      safeBattlePresentation(
+        'vigil call line',
+        () => this._say(seen[0], vigilCallLine(this.words, ordinal), { delayMs: 0 }),
+        { scene },
+      );
       await safeBattlePresentation(
         'vigil call',
         async () => {
@@ -331,7 +337,11 @@ export class VigilController {
     const line = vigilSilencedLine(this.words, unit?.authoredId);
     if (!line) return;
     if (voicesFallen(scene.battleConfig?.vigil, scene.enemyUnits) > 1) {
-      this._beats()?.speakOver(unit, line, { foe: true, tile });
+      safeBattlePresentation(
+        'vigil last line',
+        () => this._beats()?.speakOver(unit, line, { foe: true, tile }),
+        { scene },
+      );
       return;
     }
     if (!scene.dialogueOverlay) return;

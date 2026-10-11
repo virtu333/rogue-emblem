@@ -797,10 +797,17 @@ describe('rendering never changes the call (as HealthPresentationInvariance)', (
       scene.updateEnemyVisibility = vi.fn(boom);
       scene.updateObjectiveText = vi.fn(boom);
       scene._pinnedThreats = { invalidate: vi.fn(boom) };
+      // The court's words and the roll call (with the lines to say), and the boxes they float in.
+      const dialogue = JSON.parse(
+        readFileSync(new URL('../data/dialogue.json', import.meta.url), 'utf8'),
+      );
+      scene.gameData = { ...scene.gameData, dialogue };
+      scene._battleBeats = { speakOver: vi.fn(boom) };
       scene.grid.gridToPixel = boom; // the markers
     });
     expect(broken.outcome).toEqual(drawn.outcome);
     expect(broken.error).toBeNull();
+    expect(broken.scene._battleBeats.speakOver).toHaveBeenCalled();
     expect(broken.scene.updateEnemyVisibility).toHaveBeenCalled();
     expect(broken.scene.updateObjectiveText).toHaveBeenCalled();
   });
