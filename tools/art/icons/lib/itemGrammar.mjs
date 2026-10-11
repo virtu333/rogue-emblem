@@ -655,6 +655,17 @@ export const UPGRADE_ICON_REUSE = Object.freeze({
 });
 
 /**
+ * Weapons drawn with another icon's cell: weapon name -> the icon id whose picture it shares.
+ * The weapon keeps its own id, the weapon socket and its tier rim; only the art is reused,
+ * because the atlas is full (360 cells, the mobile texture budget in tests/ItemIcons.test.js).
+ * Enemy-only gear the player never holds takes the picture of its sibling: the Circle Adept's
+ * Greycord wears Gravesong's dark cover (the enemy-only tomes).
+ */
+export const WEAPON_ICON_REUSE = Object.freeze({
+  Greycord: 'gravesong',
+});
+
+/**
  * Blessings drawn with another icon's cell: blessing id -> the icon id whose picture it
  * shares. Like UPGRADE_ICON_REUSE the blessing keeps its own id, socket (the pennant) and
  * rim (its tier numeral); only the art is reused, because the atlas is full (360 cells, the

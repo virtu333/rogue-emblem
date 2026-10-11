@@ -399,6 +399,24 @@ export const ENEMY_ONLY_CLASSES = [
       ],
     },
   ],
+  // Act V "The Descent" (docs/specs/act-v-descent.md §5). The Circle Adept is the mage rig (the
+  // tome held to the chest): its ash-grey surplice is its own cloth, only the squared crimson
+  // mantle and stole are the faction area. The Hollowed is the levy soldier's rig (a lance held
+  // slack): the crimson coat is the faction area, the slack ash-grey face and hands stay as drawn.
+  ['circle_adept', 'circle-adept', 'mage', { main: 'red', hair: null, eyes: false }],
+  [
+    'hollowed',
+    'hollowed',
+    'infantry',
+    {
+      main: 'red',
+      hair: null,
+      eyes: false,
+      // the spear's one-pixel shaft is painted leather brown; read as wood it survives the
+      // reduction whole instead of breaking into dashes below the hand
+      rects: [{ slot: 'wood', box: [0.78, 0, 1, 1], from: ['leather'] }],
+    },
+  ],
 ];
 
 // Later player passes for figures the class table would otherwise read from `S`.
@@ -905,6 +923,8 @@ const POSE_BY_CLASS = {
   revenant: 'sword',
   necromancer: 'tome',
   skeleton: 'sword',
+  circle_adept: 'tome',
+  hollowed: 'lance',
   dragon: 'breath',
   dragon_lord: 'breath',
 };

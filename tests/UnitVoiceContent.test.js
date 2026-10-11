@@ -41,6 +41,8 @@ const ENEMY_ONLY = new Set([
   'Dragon Lord',
   'Necromancer',
   'Skeleton',
+  'Circle Adept',
+  'Hollowed',
   'Entity',
 ]);
 const recruitClasses = gameData.classes
