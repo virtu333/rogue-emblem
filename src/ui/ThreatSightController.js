@@ -204,6 +204,8 @@ export class ThreatSightController {
       ...result.damage.map((unit) => ({ unit, kind: 'damage' })),
       ...result.ballistas.map((unit) => ({ unit, kind: 'damage', ballista: true })),
       ...result.status.map((unit) => ({ unit, kind: 'status' })),
+      // The Entity cannot strike this tile but would answer a blow from it: a fainter thread, no eye.
+      ...(result.counter || []).map((unit) => ({ unit, kind: 'counter' })),
     ];
     const drawnKey = `${current.col},${current.row}|${sources
       .map((src) => `${idOf(src.unit)}:${src.kind}:${src.unit.col},${src.unit.row}`)
@@ -229,13 +231,19 @@ export class ThreatSightController {
       this._drawLine(g, from, target, kind);
     });
     for (const { unit, kind } of sources) {
+      if (kind === 'counter') continue;
       const from = this.sourcePoint(unit);
       this._placeSigil(from, kind, reduce);
     }
   }
 
   _drawLine(g, from, to, kind) {
-    const edge = kind === 'status' ? UI_HEX.threatStatus : UI_HEX.threatEdge;
+    const edge =
+      kind === 'status'
+        ? UI_HEX.threatStatus
+        : kind === 'counter'
+          ? UI_HEX.threatCounter
+          : UI_HEX.threatEdge;
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const length = Math.hypot(dx, dy);

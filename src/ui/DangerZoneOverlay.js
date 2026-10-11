@@ -7,7 +7,9 @@
 //   3. a crisp outer edge — a dark under-stroke and a bright crimson line —
 //      drawn above the move/attack ranges so the zone's border survives every
 //      terrain, act grade and night layer.
-// Status-staff reach keeps its violet outline. Variants: 'global' (the Danger
+// Status-staff reach keeps its violet outline. The Entity's counter-only band (tiles it cannot
+// strike but would answer a blow from, EntityReach.js) is a fainter pale-ember fill with a
+// dashed outer edge and no hatching, so it never reads as the strike zone beside it. Variants: 'global' (the Danger
 // toggle), 'pinned' (per-enemy pins) and 'focus' (the one enemy being inspected).
 // Presentation only: never reads RNG or game state beyond the tiles it is given.
 
@@ -18,6 +20,9 @@ import { UI_HEX } from '../utils/uiStyles.js';
 export const DANGER_FILL_ALPHA = Object.freeze([0, 0.2, 0.3, 0.4]);
 export const DANGER_HATCH_ALPHA = Object.freeze([0, 0.6, 0.72, 0.8]);
 const HATCH_SPACING = Object.freeze([0, 8, 5, 7]);
+// The counter-only band: a faint wash, and dashes along its outer edge (on / off, in pixels).
+export const DANGER_COUNTER_FILL_ALPHA = 0.18;
+const COUNTER_DASH = Object.freeze({ on: 6, off: 4 });
 
 const BAKE_MARGIN = 4; // edge strokes overhang the map border by half their width
 const NEAREST = 1; // Phaser.Textures.FilterMode.NEAREST (no Phaser import here)
@@ -28,9 +33,9 @@ export const DANGER_VARIANTS = Object.freeze({
   focus: { fill: true, hatch: false, edgeWidth: 3, fillScale: 1 },
 });
 
-/** 0 = status-only, 1, 2, 3 (three or more damage sources). */
-export function dangerTier({ count = 1, damageThreat, statusThreat } = {}) {
-  if (statusThreat && !damageThreat) return 0;
+/** 0 = status-only or counter-only, 1, 2, 3 (three or more damage sources). */
+export function dangerTier({ count = 1, damageThreat, statusThreat, counterThreat } = {}) {
+  if ((statusThreat || counterThreat) && !damageThreat) return 0;
   const n = Number(count);
   if (!Number.isFinite(n) || n <= 1) return 1;
   return n >= 3 ? 3 : 2;
@@ -52,6 +57,18 @@ export function dangerEdges(tiles) {
       edges.push({ x1: col + 1, y1: row, x2: col + 1, y2: row + 1 });
   }
   return edges;
+}
+
+const edgeKey = (e) => `${e.x1},${e.y1},${e.x2},${e.y2}`;
+
+/** The dashes along one tile edge of `size` pixels: [[from, to], ...], centred on the edge. */
+export function dashSpans(size) {
+  const { on, off } = COUNTER_DASH;
+  const count = Math.max(1, Math.floor((size + off) / (on + off)));
+  const used = count * on + (count - 1) * off;
+  const spans = [];
+  for (let i = 0, at = (size - used) / 2; i < count; i++, at += on + off) spans.push([at, at + on]);
+  return spans;
 }
 
 /**
@@ -142,8 +159,11 @@ export class DangerZoneOverlay {
     const layers = this._layers();
     const S = TILE_SIZE;
     const damage = [];
+    const counter = [];
     for (const tile of dangerTiles || []) {
       const tier = dangerTier(tile);
+      // The Entity's counter-only band: tiles no one strikes that a blow from would be answered.
+      const counterBand = Boolean(tile.counterThreat) && !tile.damageThreat;
       const fillAlpha = this.style.fill
         ? Math.min(0.6, DANGER_FILL_ALPHA[tier] * this.style.fillScale)
         : 0;
@@ -154,14 +174,22 @@ export class DangerZoneOverlay {
         tier,
         fillAlpha,
         statusThreat: Boolean(tile.statusThreat),
+        counterThreat: counterBand,
       });
       if (tier > 0) damage.push(tile);
+      if (counterBand) counter.push(tile);
       if (!layers) continue;
       const { x, y } = this.grid.gridToPixel(tile.col, tile.row);
       const x0 = x - S / 2;
       const y0 = y - S / 2;
       if (fillAlpha > 0) {
         layers.fill.fillStyle(this.color, fillAlpha);
+        layers.fill.fillRect(x0, y0, S, S);
+      } else if (counterBand && this.style.fill) {
+        layers.fill.fillStyle(
+          UI_HEX.threatCounter,
+          Math.min(0.3, DANGER_COUNTER_FILL_ALPHA * this.style.fillScale),
+        );
         layers.fill.fillRect(x0, y0, S, S);
       }
       if (this.style.hatch && tier > 0) {
@@ -174,20 +202,21 @@ export class DangerZoneOverlay {
         layers.edge.strokeRect(x0 + 2, y0 + 2, S - 4, S - 4);
       }
     }
-    if (!layers || !damage.length) {
+    if (!layers || !(damage.length || counter.length)) {
       this._bake(layers);
       return;
     }
-    // Outer edge of the damage zone: ink under-stroke, then the crimson line.
     // Edges are traced in drawn cells so a rotated (portrait) board outlines correctly.
     const cellOf = (t) => this.grid.displayCellOf?.(t.col, t.row) || { col: t.col, row: t.row };
-    const anchor = this.grid.gridToPixel(damage[0].col, damage[0].row);
-    const anchorCell = cellOf(damage[0]);
+    const first = damage[0] || counter[0];
+    const anchor = this.grid.gridToPixel(first.col, first.row);
+    const anchorCell = cellOf(first);
     const ox = anchor.x - S / 2 - anchorCell.col * S;
     const oy = anchor.y - S / 2 - anchorCell.row * S;
-    const edges = dangerEdges(damage.map(cellOf));
+    const damageEdges = dangerEdges(damage.map(cellOf));
+    // Outer edge of the damage zone: ink under-stroke, then the crimson line.
     const w = this.style.edgeWidth;
-    const stroke = (width, color, alpha) => {
+    const stroke = (edges, width, color, alpha) => {
       layers.edge.lineStyle(width, color, alpha);
       const ext = width / 2;
       for (const e of edges) {
@@ -199,8 +228,31 @@ export class DangerZoneOverlay {
         layers.edge.lineBetween(x1, y1, x2, y2);
       }
     };
-    stroke(w + 2, UI_HEX.threatInk, 0.7);
-    stroke(w, this.variant === 'focus' ? UI_HEX.parchment : UI_HEX.threatEdge, 1);
+    if (damage.length) {
+      stroke(damageEdges, w + 2, UI_HEX.threatInk, 0.7);
+      stroke(damageEdges, w, this.variant === 'focus' ? UI_HEX.parchment : UI_HEX.threatEdge, 1);
+    }
+    // The counter band's outer edge, dashed; the border it shares with the strike zone is the
+    // crimson line's already.
+    if (counter.length) {
+      const strikeEdges = new Set(damageEdges.map(edgeKey));
+      const edges = dangerEdges(counter.map(cellOf)).filter((e) => !strikeEdges.has(edgeKey(e)));
+      const dash = (e) => {
+        const x = ox + e.x1 * S;
+        const y = oy + e.y1 * S;
+        for (const [a, b] of dashSpans(S)) {
+          if (e.y1 === e.y2) layers.edge.lineBetween(x + a, y, x + b, y);
+          else layers.edge.lineBetween(x, y + a, x, y + b);
+        }
+      };
+      for (const [width, color, alpha] of [
+        [w + 1, UI_HEX.threatInk, 0.55],
+        [w, UI_HEX.threatCounter, 0.95],
+      ]) {
+        layers.edge.lineStyle(width, color, alpha);
+        edges.forEach(dash);
+      }
+    }
     this._bake(layers);
   }
 

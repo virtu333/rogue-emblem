@@ -422,6 +422,11 @@
   color: var(--re-threat-status);
   font-weight: 700;
 }
+/* Nothing can strike the tile, but the Entity would answer a blow from it. */
+.mb-terrain .mb-threat-line--counter {
+  color: var(--re-threat-counter);
+  font-weight: 700;
+}
 
 /* Put the decision numbers above steppers, with one compact row per combatant. */
 .mb-stats {

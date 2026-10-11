@@ -7,8 +7,12 @@
 // footprint; enemy-owned ballistas are independent sources. A siege caster or a
 // status-staff caster with shots or uses left holds its post (SiegeArtillery.js), so it
 // strikes from there. Status staves are a
-// separate, non-damage threat. Only enemies the player can currently see count:
-// fog-hidden units are never evaluated, so nothing here can reveal them.
+// separate, non-damage threat. The Entity alone also has a COUNTER band: tiles it can only
+// counter into (EntityReach.js: its weapons reach farther than its blows), shown beside the
+// strike zone so an attack from there is no surprise. Counter tiles are display only: the
+// AI and the hold rule read `damage` and `status`, never `counter`. Only enemies the player
+// can currently see count: fog-hidden units are never evaluated, so nothing here can reveal
+// them.
 //
 // `ctx` is a read-only view of a battle:
 //   grid                    Grid-like (cols, rows, fogEnabled, isVisible,
@@ -24,11 +28,18 @@
 //                           foes that reach a tile carry one.
 
 import { canInspectUnit, statusStaffThreat } from './BattleInformation.js';
-import { getFootprint, isEntity } from './EntitySystem.js';
+import { entityDistanceTo, getFootprint, isEntity } from './EntitySystem.js';
 import { willRemainRootedNextPhase } from './StatusConditionSystem.js';
 import { getBallistaDangerTiles } from './BallistaEngine.js';
 import { ENTITY_PRIMARY_ATTACK_RANGE } from '../utils/constants.js';
-import { getPerBattleRemainingUses, isStaff, nextStrikeWeapon, parseRange } from './Combat.js';
+import {
+  getPerBattleRemainingUses,
+  isInRange,
+  isStaff,
+  nextStrikeWeapon,
+  parseRange,
+} from './Combat.js';
+import { entityCounterOnlyTiles } from './EntityReach.js';
 import { artilleryWeapon, holdsPost } from './SiegeArtillery.js';
 import { movementOptionsFor } from './PassMovement.js';
 
@@ -56,12 +67,15 @@ export function isThreatSourceVisible(grid, enemy) {
 
 /**
  * Tiles one enemy threatens next phase, given the unit positions that block it.
- * @returns {{ damage: Set<string>, status: Set<string> }}
+ * `counter` holds the tiles where it can only answer a blow (the Entity's, EntityReach.js;
+ * empty for every other unit); it is never a threat, so the AI-facing readers ignore it.
+ * @returns {{ damage: Set<string>, status: Set<string>, counter: Set<string> }}
  */
 export function enemyThreatTiles(ctx, enemy, positions = ctx.positions()) {
   const { grid } = ctx;
   const damage = new Set();
   const status = new Set();
+  const counter = new Set();
   if (isEntity(enemy)) {
     for (const tile of getFootprint(enemy)) {
       for (const t of grid.getAttackRange(tile.col, tile.row, {
@@ -70,7 +84,8 @@ export function enemyThreatTiles(ctx, enemy, positions = ctx.positions()) {
         damage.add(tileKey(t.col, t.row));
       }
     }
-    return { damage, status };
+    for (const key of entityCounterOnlyTiles(enemy, grid.cols, grid.rows)) counter.add(key);
+    return { damage, status, counter };
   }
   // No movement while it stays rooted (willRemainRootedNextPhase, not isRooted: a root
   // expiring at the enemy's next phase start must not understate its threat range), nor
@@ -102,7 +117,7 @@ export function enemyThreatTiles(ctx, enemy, positions = ctx.positions()) {
       }
     }
   }
-  return { damage, status };
+  return { damage, status, counter };
 }
 
 /**
@@ -151,10 +166,15 @@ function visibleEnemyBallistas(ctx) {
 /**
  * The Danger overlay's tile list: [{ col, row, count, statusThreat, damageThreat }].
  * `count` is the number of distinct damage sources (each enemy once per tile).
+ * With `counter: true` (the display callers) the Entity's counter-only band joins as tiles
+ * with `count` 0, `damageThreat` false and `counterThreat` true (the flag is set on any tile in
+ * the band, and on no other); without it the list is exactly the threat (what "is a unit in
+ * danger" asks).
  */
-export function computeDangerTiles(ctx, { onlyEnemy = null } = {}) {
+export function computeDangerTiles(ctx, { onlyEnemy = null, counter = false } = {}) {
   const threatened = new Map();
   const statusThreatened = new Set();
+  const counterTiles = new Set();
   const addDamageSource = (tiles) => {
     for (const key of tiles) threatened.set(key, (threatened.get(key) || 0) + 1);
   };
@@ -162,9 +182,10 @@ export function computeDangerTiles(ctx, { onlyEnemy = null } = {}) {
   for (const enemy of onlyEnemy ? [onlyEnemy] : ctx.enemyUnits || []) {
     if (!isThreatSourceVisible(ctx.grid, enemy)) continue;
     if (!isEntity(enemy)) positions ||= ctx.positions();
-    const { damage, status } = enemyThreatTiles(ctx, enemy, positions);
+    const { damage, status, counter: counterOnly } = enemyThreatTiles(ctx, enemy, positions);
     addDamageSource(damage);
     for (const key of status) statusThreatened.add(key);
+    if (counter) for (const key of counterOnly) counterTiles.add(key);
   }
   if (!onlyEnemy) {
     for (const ballista of visibleEnemyBallistas(ctx)) {
@@ -172,16 +193,20 @@ export function computeDangerTiles(ctx, { onlyEnemy = null } = {}) {
       addDamageSource(new Set(tiles.map((t) => tileKey(t.col, t.row))));
     }
   }
-  return Array.from(new Set([...threatened.keys(), ...statusThreatened])).map((k) => {
-    const [col, row] = k.split(',').map(Number);
-    return {
-      col,
-      row,
-      count: threatened.get(k) || 0,
-      statusThreat: statusThreatened.has(k),
-      damageThreat: threatened.has(k),
-    };
-  });
+  return Array.from(new Set([...threatened.keys(), ...statusThreatened, ...counterTiles])).map(
+    (k) => {
+      const [col, row] = k.split(',').map(Number);
+      const tile = {
+        col,
+        row,
+        count: threatened.get(k) || 0,
+        statusThreat: statusThreatened.has(k),
+        damageThreat: threatened.has(k),
+      };
+      if (counterTiles.has(k)) tile.counterThreat = true;
+      return tile;
+    },
+  );
 }
 
 /** Positions with `mover` lifted from its tile and set down on (col, row). */
@@ -221,14 +246,24 @@ function withinBareReach(enemy, col, row) {
   return Math.abs(enemy.col - col) + Math.abs(enemy.row - row) <= mov + reach;
 }
 
+/** Can `mover` (null: anyone) hit `entity` from (col, row) with a combat weapon it carries? */
+function moverReaches(mover, entity, col, row) {
+  if (!mover) return true;
+  const distance = entityDistanceTo(entity, col, row);
+  const weapons = [mover.weapon, ...(mover.inventory || [])];
+  return weapons.some((w) => w && !isStaff(w) && w.type !== 'Scroll' && isInRange(w, distance));
+}
+
 /**
  * Every visible source that could strike (col, row) next enemy phase if `mover`
  * ended its move there. Enemies whose paths the move opens or closes are
  * evaluated against the moved positions, so the answer matches what the enemy
  * phase will actually see.
  *
- * @returns {{ damage: object[], status: object[], ballistas: object[], area: object[],
- *   count: number, fogged: boolean }}  `count` = damage enemies + ballistas; `area` =
+ * @returns {{ damage: object[], status: object[], counter: object[], ballistas: object[],
+ *   area: object[], count: number, fogged: boolean }}  `counter` = Entities that cannot strike
+ *   the tile but would answer a blow from it (a note, never part of `count`); `count` = damage
+ *   enemies + ballistas; `area` =
  *   the damage enemies carrying an area art; `fogged` = fog is on, so unseen enemies
  *   may add to it.
  */
@@ -236,6 +271,7 @@ export function threatsOnTile(ctx, col, row, { mover = null } = {}) {
   const key = tileKey(col, row);
   const damage = [];
   const status = [];
+  const counter = [];
   let positions = null;
   const slides = gridHasIce(ctx.grid);
   for (const enemy of ctx.enemyUnits || []) {
@@ -247,6 +283,9 @@ export function threatsOnTile(ctx, col, row, { mover = null } = {}) {
     const tiles = enemyThreatTiles(ctx, enemy, positions);
     if (tiles.damage.has(key)) damage.push(enemy);
     else if (tiles.status.has(key)) status.push(enemy);
+    // The Entity answers a blow from here, though it could not strike this tile: only worth
+    // saying to a mover with a weapon that reaches it from here.
+    else if (tiles.counter.has(key) && moverReaches(mover, enemy, col, row)) counter.push(enemy);
   }
   const ballistas = visibleEnemyBallistas(ctx).filter((ballista) =>
     getBallistaDangerTiles(ballista, ctx.grid.cols, ctx.grid.rows).some(
@@ -256,6 +295,7 @@ export function threatsOnTile(ctx, col, row, { mover = null } = {}) {
   return {
     damage,
     status,
+    counter,
     ballistas,
     area: damage.filter((enemy) => Boolean(ctx.areaArtOf?.(enemy))),
     count: damage.length + ballistas.length,
@@ -301,12 +341,14 @@ const staves = (n) => `${n} ${n === 1 ? 'staff' : 'staves'}`;
 
 /**
  * How a move preview should read: 'reached' when a foe (or ballista) can strike
- * the tile, 'status' when only status staves can reach it, else 'clear'.
+ * the tile, 'status' when only status staves can reach it, 'counter' when nothing can
+ * strike it but the Entity would answer a blow from it, else 'clear'.
  */
 export function threatSummaryTone(result) {
   if (!result) return 'clear';
   if (result.count > 0) return 'reached';
-  return result.status?.length ? 'status' : 'clear';
+  if (result.status?.length) return 'status';
+  return result.counter?.length ? 'counter' : 'clear';
 }
 
 /**
@@ -314,8 +356,9 @@ export function threatSummaryTone(result) {
  * "Only 1 staff can reach" (no foe can strike, but a status staff can), "No foe can
  * reach"; under fog, " · fog may hide more". When some of the foes that reach carry
  * an area art, " · 1 with an area art" follows the count: the blow may land on the
- * tiles around (or behind) this one too. `status` lists enemies that reach the tile
- * with a status staff only (those that can also strike are in `count`).
+ * tiles around (or behind) this one too. When the Entity cannot strike the tile but would
+ * counter a blow from it, " · The Entity counters from here" follows. `status` lists enemies
+ * that reach the tile with a status staff only (those that can also strike are in `count`).
  */
 export function threatSummaryText(result) {
   if (!result) return '';
@@ -332,6 +375,9 @@ export function threatSummaryText(result) {
   } else {
     text = 'No foe can reach';
   }
+  const counters = result.counter || [];
+  if (counters.length === 1) text += ` · ${counters[0].name || 'A foe'} counters from here`;
+  else if (counters.length) text += ` · ${counters.length} foes counter from here`;
   if (result.fogged) text += ' · fog may hide more';
   return text;
 }
