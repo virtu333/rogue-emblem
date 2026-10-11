@@ -1245,8 +1245,8 @@
     "category": "economy",
     "maxLevel": 2,
     "costs": [
-      120,
-      240
+      90,
+      180
     ],
     "effects": [
       {

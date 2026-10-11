@@ -380,6 +380,16 @@ export const BALANCE_REVISIONS = Object.freeze([
       lord_lck_growth: [40, 45, 60, 80, 130],
     },
   },
+  {
+    revision: 6, // 2026-10-11 Lucky Finds: no Legend before Act III, its Legend step at half
+    // the chance, so the upgrade costs 25% less and past buyers are credited the difference.
+    from: {
+      loot_quality: [120, 240],
+    },
+    to: {
+      loot_quality: [90, 180],
+    },
+  },
 ]);
 
 export const CURRENT_BALANCE_REVISION = BALANCE_REVISIONS[BALANCE_REVISIONS.length - 1].revision;

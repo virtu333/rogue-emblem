@@ -106,8 +106,8 @@ describe('Battalion price cut (balance revision 2)', () => {
   });
 
   it('the revision table chains and ends at the prices in metaUpgrades.json', () => {
-    expect(CURRENT_BALANCE_REVISION).toBe(5);
-    expect(BALANCE_REVISIONS.map((r) => r.revision)).toEqual([1, 2, 3, 4, 5]);
+    expect(CURRENT_BALANCE_REVISION).toBe(6);
+    expect(BALANCE_REVISIONS.map((r) => r.revision)).toEqual([1, 2, 3, 4, 5, 6]);
     const byId = new Map(data.metaUpgrades.map((u) => [u.id, u]));
     const latest = BALANCE_REVISIONS[BALANCE_REVISIONS.length - 1];
     for (const [id, costs] of Object.entries(latest.to)) {
@@ -367,6 +367,44 @@ describe('Growth tracks at +3% a tier, about 25% off (balance revision 5)', () =
   });
 });
 
+describe('Lucky Finds 25% off after its Legend step was cut (balance revision 6)', () => {
+  it('a revision-5 save is credited 120 + 240 -> 90 + 180 per tier bought, in Supply', () => {
+    seed({
+      balanceRevision: 5,
+      totalValor: 3,
+      totalSupply: 7,
+      savedAt: 5000,
+      purchasedUpgrades: { loot_quality: 2, trade_contacts: 2 },
+    });
+    const m = load();
+    expect(m.totalSupply).toBe(7 + 30 + 60);
+    expect(m.totalValor).toBe(3);
+    m._save();
+    expect(disk().balanceRevision).toBe(6);
+    expect(load().totalSupply).toBe(97);
+  });
+
+  it('a tier bought before revision 3 is credited both cuts: 150 -> 90', () => {
+    seed({
+      balanceRevision: 2,
+      totalSupply: 0,
+      savedAt: 5000,
+      purchasedUpgrades: { loot_quality: 1 },
+    });
+    expect(load().totalSupply).toBe(60);
+  });
+
+  it('a save already at revision 6 is not credited again', () => {
+    seed({
+      balanceRevision: 6,
+      totalSupply: 0,
+      savedAt: 5000,
+      purchasedUpgrades: { loot_quality: 2, __balance_revision: 6 },
+    });
+    expect(load().totalSupply).toBe(0);
+  });
+});
+
 describe('the settled revision survives a save by an older build (BalanceRevisionMarker)', () => {
   // What a build from before revision 5 does to the save: it loads purchasedUpgrades whole,
   // credits nothing it does not know, and writes its own CURRENT_BALANCE_REVISION (4).
@@ -423,6 +461,9 @@ describe('the settled revision survives a save by an older build (BalanceRevisio
     });
     m._save();
     expect(m.purchasedUpgrades).toEqual({ recruit_hp_growth: 2 });
-    expect(disk().purchasedUpgrades).toEqual({ recruit_hp_growth: 2, __balance_revision: 5 });
+    expect(disk().purchasedUpgrades).toEqual({
+      recruit_hp_growth: 2,
+      __balance_revision: CURRENT_BALANCE_REVISION,
+    });
   });
 });
