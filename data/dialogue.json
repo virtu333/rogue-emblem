@@ -1772,6 +1772,167 @@
         {
           "when": {
             "commander": "Edric",
+            "descent": true
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "There is a stair under the consecrated stones. The old kings went down it. So did he."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Whatever they've seen, they haven't seen us at full strength. Forward."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Kira",
+            "descent": true
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "There is a stair under the consecrated stones. The old kings went down it. So did he."
+            },
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "They've seen every path? Then we make a new one."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Voss",
+            "descent": true
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "There is a stair under the consecrated stones. The old kings went down it. So did he."
+            },
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "Seen my death a hundred ways, I'd wager. Not one of them stuck."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Sera",
+            "descent": true
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. Their visions press against mine — but I am done being watched."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "There is a stair under the consecrated stones. The old kings went down it. So did he."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Every future they see, I will unsee. We finish this together."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Rowan",
+            "descent": true
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "There is a stair under the consecrated stones. The old kings went down it. So did he."
+            },
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "Fate against fate. My lance likes those odds."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Astrid",
+            "descent": true
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "There is a stair under the consecrated stones. The old kings went down it. So did he."
+            },
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "No vision outruns a dive from the sun. Let's end it."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Cael",
+            "descent": true
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "There is a stair under the consecrated stones. The old kings went down it. So did he."
+            },
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "Then we knock. Shields first."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Edric",
             "minRunsCompleted": 5
           },
           "entries": [
@@ -2018,167 +2179,6 @@
               "speaker": "Cael",
               "portrait": "portrait_lord_cael",
               "line": "We brace together where the last line broke."
-            }
-          ]
-        },
-        {
-          "when": {
-            "commander": "Edric",
-            "descent": true
-          },
-          "entries": [
-            {
-              "speaker": "Sera",
-              "portrait": "portrait_lord_sera",
-              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
-            },
-            {
-              "speaker": "Sera",
-              "portrait": "portrait_lord_sera",
-              "line": "There is a stair under the consecrated stones. The old kings went down it. So did he."
-            },
-            {
-              "speaker": "Edric",
-              "portrait": "portrait_lord_edric",
-              "line": "Whatever they've seen, they haven't seen us at full strength. Forward."
-            }
-          ]
-        },
-        {
-          "when": {
-            "commander": "Kira",
-            "descent": true
-          },
-          "entries": [
-            {
-              "speaker": "Sera",
-              "portrait": "portrait_lord_sera",
-              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
-            },
-            {
-              "speaker": "Sera",
-              "portrait": "portrait_lord_sera",
-              "line": "There is a stair under the consecrated stones. The old kings went down it. So did he."
-            },
-            {
-              "speaker": "Kira",
-              "portrait": "portrait_lord_kira",
-              "line": "They've seen every path? Then we make a new one."
-            }
-          ]
-        },
-        {
-          "when": {
-            "commander": "Voss",
-            "descent": true
-          },
-          "entries": [
-            {
-              "speaker": "Sera",
-              "portrait": "portrait_lord_sera",
-              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
-            },
-            {
-              "speaker": "Sera",
-              "portrait": "portrait_lord_sera",
-              "line": "There is a stair under the consecrated stones. The old kings went down it. So did he."
-            },
-            {
-              "speaker": "Voss",
-              "portrait": "portrait_lord_voss",
-              "line": "Seen my death a hundred ways, I'd wager. Not one of them stuck."
-            }
-          ]
-        },
-        {
-          "when": {
-            "commander": "Sera",
-            "descent": true
-          },
-          "entries": [
-            {
-              "speaker": "Sera",
-              "portrait": "portrait_lord_sera",
-              "line": "The lieutenant is near. Their visions press against mine — but I am done being watched."
-            },
-            {
-              "speaker": "Sera",
-              "portrait": "portrait_lord_sera",
-              "line": "There is a stair under the consecrated stones. The old kings went down it. So did he."
-            },
-            {
-              "speaker": "Sera",
-              "portrait": "portrait_lord_sera",
-              "line": "Every future they see, I will unsee. We finish this together."
-            }
-          ]
-        },
-        {
-          "when": {
-            "commander": "Rowan",
-            "descent": true
-          },
-          "entries": [
-            {
-              "speaker": "Sera",
-              "portrait": "portrait_lord_sera",
-              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
-            },
-            {
-              "speaker": "Sera",
-              "portrait": "portrait_lord_sera",
-              "line": "There is a stair under the consecrated stones. The old kings went down it. So did he."
-            },
-            {
-              "speaker": "Rowan",
-              "portrait": "portrait_lord_rowan",
-              "line": "Fate against fate. My lance likes those odds."
-            }
-          ]
-        },
-        {
-          "when": {
-            "commander": "Astrid",
-            "descent": true
-          },
-          "entries": [
-            {
-              "speaker": "Sera",
-              "portrait": "portrait_lord_sera",
-              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
-            },
-            {
-              "speaker": "Sera",
-              "portrait": "portrait_lord_sera",
-              "line": "There is a stair under the consecrated stones. The old kings went down it. So did he."
-            },
-            {
-              "speaker": "Astrid",
-              "portrait": "portrait_lord_astrid",
-              "line": "No vision outruns a dive from the sun. Let's end it."
-            }
-          ]
-        },
-        {
-          "when": {
-            "commander": "Cael",
-            "descent": true
-          },
-          "entries": [
-            {
-              "speaker": "Sera",
-              "portrait": "portrait_lord_sera",
-              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
-            },
-            {
-              "speaker": "Sera",
-              "portrait": "portrait_lord_sera",
-              "line": "There is a stair under the consecrated stones. The old kings went down it. So did he."
-            },
-            {
-              "speaker": "Cael",
-              "portrait": "portrait_lord_cael",
-              "line": "Then we knock. Shields first."
             }
           ]
         },
@@ -2965,6 +2965,132 @@
         }
       ],
       "variants": [
+        {
+          "when": {
+            "descent": true,
+            "commander": "Edric"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "A stair under the throne room, older than the empire. The air coming up it is warm."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Warm air from below. Banner low, lanterns lit, and nobody out of sight."
+            }
+          ]
+        },
+        {
+          "when": {
+            "descent": true,
+            "commander": "Kira"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "A stair under the throne room, older than the empire. The air coming up it is warm."
+            },
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "Warm means someone keeps it so. Count the steps; we will want them back."
+            }
+          ]
+        },
+        {
+          "when": {
+            "descent": true,
+            "commander": "Voss"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "A stair under the throne room, older than the empire. The air coming up it is warm."
+            },
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "Narrow steps. Stay close enough to hear me, and keep a hand on the wall."
+            }
+          ]
+        },
+        {
+          "when": {
+            "descent": true,
+            "commander": "Sera"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "A stair under the throne room, older than the empire. The air coming up it is warm."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Warm, like a held breath. I lead by what I see here; follow my voice."
+            }
+          ]
+        },
+        {
+          "when": {
+            "descent": true,
+            "commander": "Rowan"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "A stair under the throne room, older than the empire. The air coming up it is warm."
+            },
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "Warm air, a long stair. Steady hands, one step at a time."
+            }
+          ]
+        },
+        {
+          "when": {
+            "descent": true,
+            "commander": "Astrid"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "A stair under the throne room, older than the empire. The air coming up it is warm."
+            },
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "No wind on a stair. I walk it with the line, and I watch the roof."
+            }
+          ]
+        },
+        {
+          "when": {
+            "descent": true,
+            "commander": "Cael"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "A stair under the throne room, older than the empire. The air coming up it is warm."
+            },
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "Narrow steps: shields to the front, the lantern in the middle."
+            }
+          ]
+        },
         {
           "when": {
             "descent": true

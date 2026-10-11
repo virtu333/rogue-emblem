@@ -6,13 +6,15 @@
 //                  calls a Hollowed onto the board
 //   onVoiceFell    at a Voice's fall (BattleScene.removeUnit): "A Voice falls silent.", the
 //                  `voice_silenced` cue (ui/ceremonyMusic.js, in the key of the Vigil's theme) and
-//                  the Voice's last line
+//                  the Voice's last line (the first to fall in the dialogue box, each later one
+//                  floating over its tile)
 //   sync          every frame (BattleScene.update): the sigil and circle markers re-derived
 //                  from the board, redrawn only when what they show changes
 //
 // What the court says (engine/VigilWords.js, dialogue.json `vigil`): each Voice heard speaking
 // says the next of its verse over itself, one called Hollowed seen rising answers the roll, and a
-// Voice seen falling says its last line (the dialogue box, as a commander's last words). Each
+// Voice seen falling says its last line (the first Voice to fall in the dialogue box, as a
+// commander's last words; each later one floats over its tile). Each
 // pick is a count the state already keeps, so a replayed phase says the same words.
 //
 // Rendering never changes game state: the step's result is applied to the roster and the state
@@ -45,7 +47,13 @@ import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { CombatFxController } from './CombatFxController.js';
 import { safeBattlePresentation } from './safeBattlePresentation.js';
 import { playCue } from './ceremonyMusic.js';
-import { sanitizeVigilState, vigilBoardView, vigilPhaseStep, voiceUnit } from '../engine/Vigil.js';
+import {
+  sanitizeVigilState,
+  vigilBoardView,
+  vigilPhaseStep,
+  voiceUnit,
+  voicesFallen,
+} from '../engine/Vigil.js';
 import { vigilCallLine, vigilSilencedLine, vigilSpokenWords } from '../engine/VigilWords.js';
 import { BattleBeatsController } from './BattleBeatsController.js';
 import { enemyDifficultyConfigFromParams } from '../engine/UnitManager.js';
@@ -284,9 +292,18 @@ export class VigilController {
       { scene },
     );
     if (!isCurrentBattleSession(scene, session)) return;
-    // Its last line, in the dialogue box (auto-dismissing, as a commander's last words).
+    // Its last line. The first Voice to fall gets the dialogue box (auto-dismissing, as a
+    // commander's last words); each later one says its line over the spot it fell, short and
+    // never awaited, so four falls in a turn do not stack four boxes. "First" is the roster's:
+    // no Voice had fallen before this one (voicesFallen counts it), so a resume or a rewind to
+    // before that fall chooses as it did the first time.
     const line = vigilSilencedLine(this.words, unit?.authoredId);
-    if (!line || !scene.dialogueOverlay) return;
+    if (!line) return;
+    if (voicesFallen(scene.battleConfig?.vigil, scene.enemyUnits) > 1) {
+      this._beats()?.speakOver(unit, line, { foe: true, tile });
+      return;
+    }
+    if (!scene.dialogueOverlay) return;
     await safeBattlePresentation(
       'vigil last line',
       () => scene.dialogueOverlay.show(unit.name, line, scene._getPortraitKey?.(unit) ?? null),

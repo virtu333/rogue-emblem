@@ -117,6 +117,18 @@ export function voiceUnit(voiceId, enemyUnits) {
   return (enemyUnits || []).find((u) => alive(u) && u.authoredId === voiceId) || null;
 }
 
+/**
+ * How many of this Vigil's Voices have fallen (are no longer on the field). Read from the
+ * roster alone, so a resume or a Vision rewind (which restore it) count the same: the one
+ * "which fall is this" the presentation needs. Called as a Voice leaves the roster, it counts it.
+ */
+export function voicesFallen(vigil, enemyUnits) {
+  const targets = new Set(partsOf(vigil).sigils.map((s) => s.target));
+  let fallen = 0;
+  for (const id of targets) if (!voiceUnit(id, enemyUnits)) fallen++;
+  return fallen;
+}
+
 /** Is `unit` one of this Vigil's Voices (a sigil's target)? */
 export function isVoiceOf(vigil, unit) {
   const id = unit?.authoredId;

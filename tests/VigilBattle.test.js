@@ -606,4 +606,90 @@ describe('what the court says (dialogue.json vigil, engine/VigilWords.js)', () =
     );
     expect(guard.dialogueOverlay.show).not.toHaveBeenCalled();
   });
+
+  describe('the last lines: the first Voice to fall in the dialogue box, each later one floating', () => {
+    // Failures: every fall blocks on its own box (four in a turn stack four); the later ones are
+    // dropped instead of floating; the floating line is not foe-styled or not over the spot the
+    // Voice fell; a fall in the fog speaks; "first" is remembered somewhere a resume or a rewind
+    // does not restore (a rewind to before the first fall must block on the first fall again).
+    const silenced = (id) => dialogue.vigil.voices[id].silenced;
+    const floats = (scene) =>
+      scene._battleBeats.speakOver.mock.calls
+        .filter(([unit]) => VOICES.includes(unit.authoredId))
+        .map(([unit, line, options]) => ({ who: unit.authoredId, line, options }));
+    const fell = (scene, id) =>
+      scene.removeUnit(voiceOf(scene.enemyUnits, id), { killer: scene.playerUnits[0] });
+
+    it('the first seen fall blocks and floats nothing; the second floats and blocks nothing', async () => {
+      const { scene } = speaking();
+      const binding = voiceOf(scene.enemyUnits, 'voice_binding');
+      const spot = { col: binding.col, row: binding.row };
+      await fell(scene, 'voice_binding');
+      expect(scene.dialogueOverlay.show.mock.calls).toEqual([
+        [binding.name, silenced('voice_binding'), 'portrait_of_voice_binding'],
+      ]);
+      expect(floats(scene)).toEqual([]);
+
+      const feeding = voiceOf(scene.enemyUnits, 'voice_feeding');
+      const feedingSpot = { col: feeding.col, row: feeding.row };
+      await fell(scene, 'voice_feeding');
+      // Still the one box; the second line floats, foe-styled, over the tile it fell on.
+      expect(scene.dialogueOverlay.show).toHaveBeenCalledTimes(1);
+      expect(floats(scene)).toEqual([
+        {
+          who: 'voice_feeding',
+          line: silenced('voice_feeding'),
+          options: { foe: true, tile: feedingSpot },
+        },
+      ]);
+      expect(spot).not.toEqual(feedingSpot);
+      // A third and a fourth float too.
+      await fell(scene, 'voice_calling');
+      await fell(scene, 'voice_waking');
+      expect(scene.dialogueOverlay.show).toHaveBeenCalledTimes(1);
+      expect(floats(scene).map((f) => f.who)).toEqual([
+        'voice_feeding',
+        'voice_calling',
+        'voice_waking',
+      ]);
+    });
+
+    it('a fall in the fog says nothing, blocking or floating', async () => {
+      const { scene } = speaking({ visible: ['0,10', '1,9'] });
+      await fell(scene, 'voice_binding');
+      await fell(scene, 'voice_feeding');
+      expect(scene.dialogueOverlay.show).not.toHaveBeenCalled();
+      expect(floats(scene)).toEqual([]);
+    });
+
+    it('a rewind or a resume to before the first fall blocks on the first fall again', async () => {
+      const { scene } = speaking();
+      scene.runManager = { convoy: { weapons: [], consumables: [] }, accessories: [], gold: 0 };
+      const before = JSON.parse(JSON.stringify(captureBattleState(scene, { rngSeed: 7 })));
+      await fell(scene, 'voice_binding');
+      const after = JSON.parse(JSON.stringify(captureBattleState(scene, { rngSeed: 7 })));
+      await fell(scene, 'voice_feeding');
+      expect(floats(scene).map((f) => f.who)).toEqual(['voice_feeding']);
+
+      const restored = (state) => {
+        const { scene: next } = speaking();
+        next.playerUnits = [];
+        next.enemyUnits = [];
+        next._vigilState = createVigilState();
+        next.runManager = { convoy: { weapons: [], consumables: [] }, accessories: [], gold: 0 };
+        new BattleSuspendController(next).applyUnits(state);
+        return next;
+      };
+      // Back before any fall: the first fall in sight is the box again, whoever falls.
+      const rewound = restored(before);
+      await fell(rewound, 'voice_feeding');
+      expect(rewound.dialogueOverlay.show).toHaveBeenCalledTimes(1);
+      expect(floats(rewound)).toEqual([]);
+      // Back after the first fall: the next one floats, as it did.
+      const resumed = restored(after);
+      await fell(resumed, 'voice_feeding');
+      expect(resumed.dialogueOverlay.show).not.toHaveBeenCalled();
+      expect(floats(resumed).map((f) => f.who)).toEqual(['voice_feeding']);
+    });
+  });
 });

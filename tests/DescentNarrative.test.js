@@ -125,10 +125,10 @@ describe('Act IV into the Descent on the Entity’s roads', () => {
         const said = [key, ...getActTransitionFollowUps(key)].flatMap((k) =>
           selectDialogueEntries(T[k], ctx),
         );
-        expect(said.map((e) => e.speaker)).toEqual(['Sera', 'Sera', commander, 'Sera']);
+        expect(said.map((e) => e.speaker)).toEqual(['Sera', 'Sera', commander, 'Sera', commander]);
         expect(said[1].line).toMatch(/his sight is back/i);
         expect(said[1].line).toMatch(/door/);
-        expect(said.at(-1).line).toMatch(/stair/);
+        expect(said.at(-2).line).toMatch(/stair/);
         expect(said.map((e) => e.line).join(' ')).not.toMatch(/It's here/);
       }
     }
@@ -145,7 +145,7 @@ describe('Act IV into the Descent on the Entity’s roads', () => {
     expect(lines(T.secretAct_start, ctx).join(' ')).toMatch(/It's here/);
   });
 
-  it('First Light’s Act III close gains the stair on the Descent, and keeps its memories first', () => {
+  it('First Light’s Act III close gains the stair on the Descent', () => {
     const A3 = T.act3_to_finalBoss_normal;
     const rm = intoFinalAct('normal');
     const legacy = intoFinalAct('normal', baseData);
@@ -159,10 +159,85 @@ describe('Act IV into the Descent on the Entity’s roads', () => {
       // The commander's own close, with the stair said second.
       expect(onDescent, commander).toEqual([before[0], expect.stringMatching(/stair under the consecrated stones/), ...before.slice(1)]); // prettier-ignore
       expect(lines(A3, ctxOf(legacy, { commander, ...fresh })), commander).toEqual(before);
-      // A memory of the last run still wins over the stair.
-      const remembered = lines(A3, ctxOf(rm, { commander, lastRunResult: 'defeat' }));
-      expect(remembered.join(' '), commander).not.toMatch(/stair/);
     }
+  });
+
+  it('the stair outranks a veteran’s or a defeat’s close on the Descent, and only there', () => {
+    // First match wins in a section's variants (NarrativeDirector.selectDialogueEntries), so a
+    // veteran (5 runs won) or a run after a defeat must still hear the stair when the road has one.
+    const A3 = T.act3_to_finalBoss_normal;
+    const rm = intoFinalAct('normal');
+    const legacy = intoFinalAct('normal', baseData);
+    const stair = /stair under the consecrated stones/;
+    const memories = [
+      { runsCompleted: 5, lastRunResult: 'none' },
+      { runsCompleted: 0, lastRunResult: 'defeat' },
+      { runsCompleted: 9, lastRunResult: 'defeat' },
+    ];
+    for (const commander of LORDS)
+      for (const memory of memories) {
+        const onDescent = lines(A3, ctxOf(rm, { commander, ...memory })).join(' ');
+        expect(onDescent, `${commander} ${JSON.stringify(memory)}`).toMatch(stair);
+        // The same save with the Descent off keeps the memory it always heard, never the stair.
+        const old = lines(A3, ctxOf(legacy, { commander, ...memory })).join(' ');
+        expect(old, `${commander} ${JSON.stringify(memory)} (old road)`).not.toMatch(/stair/);
+        expect(old).not.toBe(onDescent);
+      }
+  });
+
+  it('secretAct_start on the Descent: Sera on the stair, then the commander answers in their own voice', () => {
+    const rm = intoFinalAct('hard');
+    for (const commander of LORDS) {
+      const said = selectDialogueEntries(T.secretAct_start, ctxOf(rm, { commander }));
+      expect(
+        said.map((e) => e.speaker),
+        commander,
+      ).toEqual(['Sera', commander]);
+      expect(said[0].line).toMatch(/stair/);
+      expect(said[1].line.length).toBeLessThanOrEqual(90);
+      // Not the old road's reply to "This place is... wrong."
+      const old = selectDialogueEntries(
+        T.secretAct_start,
+        ctxOf(intoFinalAct('hard', baseData), { commander }),
+      );
+      expect(said[1].line).not.toBe(old.at(-1).line);
+    }
+    // A commander the data does not name still hears Sera.
+    const other = selectDialogueEntries(T.secretAct_start, ctxOf(rm, { commander: 'Nobody' }));
+    expect(other.map((e) => e.speaker)).toEqual(['Sera']);
+  });
+
+  it('no Descent, glass or Rite variant sits behind a broader variant that would answer first', () => {
+    // The reader takes the first variant whose `when` holds, so a variant naming one of these
+    // keys that an earlier variant (naming none of them) can also match is shadowed on the
+    // contexts they share: the stair must come before the veteran's close, and so on.
+    const NEW = ['descent', 'glassBroken', 'bossRole', 'riteBand', 'finale'];
+    const NUMERIC = ['minRunsCompleted', 'maxRunsStarted'];
+    const asSet = (v) => new Set(Array.isArray(v) ? v : [v]);
+    const compatible = (a, b) =>
+      Object.keys(a).every(
+        (k) => !(k in b) || NUMERIC.includes(k) || [...asSet(a[k])].some((x) => asSet(b[k]).has(x)),
+      );
+    const shadowed = [];
+    const walk = (node, path) => {
+      if (Array.isArray(node)) return node.forEach((x, i) => walk(x, `${path}[${i}]`));
+      if (!node || typeof node !== 'object') return;
+      if (Array.isArray(node.variants)) {
+        node.variants.forEach((later, j) => {
+          const named = Object.keys(later.when || {}).filter((k) => NEW.includes(k));
+          if (!named.length) return;
+          for (let i = 0; i < j; i++) {
+            const earlier = node.variants[i].when || {};
+            const lacks = named.filter((k) => !(k in earlier));
+            if (lacks.length && compatible(earlier, later.when))
+              shadowed.push(`${path} variant ${i} ${JSON.stringify(earlier)} before ${j}`);
+          }
+        });
+      }
+      for (const [k, v] of Object.entries(node)) walk(v, `${path}/${k}`);
+    };
+    walk(dialogue, '');
+    expect(shadowed).toEqual([]);
   });
 });
 
