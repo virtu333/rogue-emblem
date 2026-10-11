@@ -373,6 +373,28 @@
     "title": "Stone That Remembers",
     "tonic": "C"
   },
+  "music_battle_descent": {
+    "duration": 93.743,
+    "loopEnd": 93.142857,
+    "loopStart": 10.857143,
+    "lufs": -14.0,
+    "peakDb": -1.17,
+    "score": "battle_descent",
+    "seamDb": -58.2,
+    "title": "Ember Dusk, Below",
+    "tonic": "D"
+  },
+  "music_battle_descent_calm": {
+    "duration": 93.743,
+    "loopEnd": 93.142857,
+    "loopStart": 10.857143,
+    "lufs": -17.0,
+    "peakDb": -5.41,
+    "score": "battle_descent",
+    "seamDb": -71.3,
+    "title": "Ember Dusk, Below",
+    "tonic": "D"
+  },
   "music_battle_eclipsed": {
     "duration": 107.933,
     "loopEnd": 107.333333,
@@ -658,6 +680,28 @@
     "seamDb": -78.6,
     "title": "Rime",
     "tonic": "E"
+  },
+  "music_battle_vigil": {
+    "duration": 92.74,
+    "loopEnd": 92.14,
+    "loopStart": 12.14,
+    "lufs": -14.0,
+    "peakDb": -1.38,
+    "score": "battle_vigil",
+    "seamDb": -65.5,
+    "title": "Through the Floor",
+    "tonic": "G"
+  },
+  "music_battle_vigil_calm": {
+    "duration": 92.74,
+    "loopEnd": 92.14,
+    "loopStart": 12.14,
+    "lufs": -17.0,
+    "peakDb": -4.41,
+    "score": "battle_vigil",
+    "seamDb": -70.3,
+    "title": "Through the Floor",
+    "tonic": "G"
   },
   "music_battle_village": {
     "duration": 75.763,

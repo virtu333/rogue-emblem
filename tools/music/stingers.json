@@ -1121,5 +1121,68 @@
     "notesEnd": 2.0,
     "title": "Sealed",
     "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
+  },
+  "voice_silenced": {
+    "duration": 5.821,
+    "files": {
+      "stinger_voice_silenced_A": {
+        "duration": 5.781,
+        "lufs": -18.5,
+        "notesEnd": 5.0,
+        "peakDb": -6.79
+      },
+      "stinger_voice_silenced_B": {
+        "duration": 5.821,
+        "lufs": -18.5,
+        "notesEnd": 5.0,
+        "peakDb": -5.94
+      },
+      "stinger_voice_silenced_Bb": {
+        "duration": 5.791,
+        "lufs": -18.4,
+        "notesEnd": 5.0,
+        "peakDb": -4.55
+      },
+      "stinger_voice_silenced_C": {
+        "duration": 5.687,
+        "lufs": -18.5,
+        "notesEnd": 5.0,
+        "peakDb": -5.85
+      },
+      "stinger_voice_silenced_D": {
+        "duration": 5.753,
+        "lufs": -18.5,
+        "notesEnd": 5.0,
+        "peakDb": -6.27
+      },
+      "stinger_voice_silenced_Db": {
+        "duration": 5.668,
+        "lufs": -18.5,
+        "notesEnd": 5.0,
+        "peakDb": -5.74
+      },
+      "stinger_voice_silenced_E": {
+        "duration": 5.8,
+        "lufs": -18.5,
+        "notesEnd": 5.0,
+        "peakDb": -6.45
+      },
+      "stinger_voice_silenced_F": {
+        "duration": 5.706,
+        "lufs": -18.39,
+        "notesEnd": 5.0,
+        "peakDb": -6.81
+      },
+      "stinger_voice_silenced_G": {
+        "duration": 5.645,
+        "lufs": -18.5,
+        "notesEnd": 5.0,
+        "peakDb": -7.37
+      }
+    },
+    "keyed": true,
+    "notesEnd": 5.0,
+    "title": "A Voice Falls Silent",
+    "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
   }
 }
