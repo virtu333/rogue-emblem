@@ -62,10 +62,16 @@ test('phone settings persist independently and cut-ins remain readable across qu
         s.registry.get('settings').setEffectsQuality(quality);
         const { ProcBannerController } = await import('/src/ui/ProcBannerController.js');
         const c = new ProcBannerController(s);
-        // Hold the actual rendered strip for a screenshot, without changing its rendering.
+        // Hold the actual rendered strip until the test has measured and photographed it,
+        // without changing its rendering. The hold is released by state (releaseCutin), not
+        // by a timer that a slow runner's round trips can outlast.
         const delay = s._awaitSceneDelay;
         s._awaitSceneDelay = (ms, opts) =>
-          delay.call(s, opts?.label === 'proc_cutin_hold' ? 1200 : ms, opts);
+          opts?.label === 'proc_cutin_hold'
+            ? new Promise((resolve) => {
+                window.releaseCutin = () => resolve({ status: 'completed' });
+              })
+            : delay.call(s, ms, opts);
         window.cutinFinished = false;
         c.showCutIn({
           unit: s.playerUnits[0],
@@ -96,6 +102,7 @@ test('phone settings persist independently and cut-ins remain readable across qu
     const box = await cutIn.locator('.ce-cutin-big').boundingBox();
     expect(box.width).toBeGreaterThan(80);
     await page.screenshot({ path: info.outputPath(`cutin-${motion}-${quality}.png`) });
+    await page.evaluate(() => window.releaseCutin());
     await page.waitForFunction(() => window.cutinFinished);
     await expect(cutIn).toHaveCount(0);
   }

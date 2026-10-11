@@ -38,6 +38,9 @@ export function prepareBattleRewind(
     candidate.convoy = structuredClone(domain.convoy);
     candidate.accessories = structuredClone(domain.accessories);
     candidate.gold = domain.gold;
+    // Branching Threads: a level-up reroll after the target point is refunded with it.
+    if (Number.isInteger(domain.rewardRerollsSpent) && domain.rewardRerollsSpent >= 0)
+      candidate.rewardRerollsSpent = domain.rewardRerollsSpent;
   }
   candidate.battleInProgress.rewindRevision = (flag.rewindRevision || 0) + 1;
   candidate.battleInProgress.checkpoint = {

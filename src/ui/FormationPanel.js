@@ -64,6 +64,13 @@ export function renderFormationPanel(container, formation, makeButton, { withSta
     if (bench.length)
       tools.append(makeButton('Auto-place', () => formation.autoPlace(), 'fm-auto'));
     if (placed > 0) tools.append(makeButton('Clear', () => formation.clearAll(), 'fm-clearall'));
+    // Gear, items, accessories and skills without leaving for the route map.
+    if (formation.canOpenRoster?.()) {
+      const roster = makeButton('Roster', () => formation.openRoster(), 'fm-roster');
+      roster.setAttribute('aria-label', 'Roster: equip, trade and set skills');
+      roster.title = 'Equip, trade and set skills, then come back here';
+      tools.append(roster);
+    }
   }
   if (tools.childElementCount) container.append(tools);
   if (bench.length) {

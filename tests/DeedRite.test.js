@@ -198,6 +198,9 @@ describe('roster Deeds section', () => {
     const root = dom.doc.querySelector('.mr-sheet');
     expect(root.querySelector('.mr-unit-epithet').textContent).toBe('Bane of the Knight Commander');
     expect(root.querySelector('.mr-epithet').textContent).toBe('Bane of the Knight Commander');
+    // The title in full; the other two folded under one line until opened.
+    expect(root.querySelectorAll('.mr-deed')).toHaveLength(1);
+    root.querySelector('.mr-deed-toggle').click();
     const deeds = root.querySelectorAll('.mr-deed');
     expect(deeds).toHaveLength(3);
     expect(deeds[0].classList.contains('is-title')).toBe(true);
@@ -205,6 +208,7 @@ describe('roster Deeds section', () => {
     expect(text).toContain('This march: 3 critical hits · 1 battle');
     // Three deeds carry Oaths: the greatest swears by default; the others are options.
     expect(text).toContain('Oath at promotion');
+    root.querySelector('.mr-oath-toggle').click();
     const oaths = root.querySelectorAll('.mr-oath-option');
     expect(oaths.map((p) => p.textContent)).toEqual([
       'Oath of the Bane · Fiendish Blow',

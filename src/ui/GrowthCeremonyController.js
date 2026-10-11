@@ -217,9 +217,14 @@ export class GrowthCeremonyController {
 
   /**
    * Two-stage dismissal: `reveal()` shows the end state, `close()` ends.
-   * Resolves once closed (or when the controller is destroyed).
+   * Resolves once closed (or when the controller is destroyed). `onPress(kind)` (optional)
+   * sees each press first and returns true when it handled it (a second control on the
+   * card); `onNavigate` moves the focus between the card's controls.
    */
-  _runStaged(layer, { name, reveal, isRevealed, onClose, button }) {
+  _runStaged(
+    layer,
+    { name, reveal, isRevealed, onClose, button, onPress = null, onNavigate = null },
+  ) {
     return new Promise((resolve) => {
       let done = false;
       const settle = () => {
@@ -234,7 +239,8 @@ export class GrowthCeremonyController {
       const unbindSkip = bindCeremonySkip(
         this.scene,
         layer.root,
-        () => {
+        (kind) => {
+          if (onPress?.(kind) === true) return;
           if (!isRevealed()) {
             reveal();
             return;
@@ -245,7 +251,7 @@ export class GrowthCeremonyController {
           settle();
           void onClose();
         },
-        { name },
+        { name, onNavigate },
       );
       const unbind = () => {
         this._unbinders.delete(unbind);
@@ -376,6 +382,12 @@ export class GrowthCeremonyController {
    * plays the level-up music for the card's kind (battle level-ups get
    * theirs from the scene, so they leave it off). `depth` raises the card over a menu
    * that stays open under it (the arena's result card hands off to it).
+   *
+   * `reroll` (optional, Branching Threads: ui/LevelUpRerollController.js) adds a Reroll
+   * button once the gains are revealed: `state()` says what it shows, `run()` commits one
+   * reroll and returns `{ ok, result }` (the level's record, now with the new gains) or
+   * `{ ok: false, message }`. A reroll replays the reveal for the new gains. A press on the
+   * card still continues; only the button (or a confirm while it has the focus) rerolls.
    */
   async showLevelUp({
     unit,
@@ -385,11 +397,12 @@ export class GrowthCeremonyController {
     handle = null,
     cue = false,
     depth = null,
+    reroll = null,
   }) {
     if (!unit || !result || this.destroyed || !canRenderCeremony()) return false;
-    const content = levelUpContent(unit, result, learnedNames, this.voice());
+    let content = levelUpContent(unit, result, learnedNames, this.voice());
     const timing = growthTiming('level', this.prefs());
-    const schedule = levelSchedule(content, timing);
+    let schedule = levelSchedule(content, timing);
     const layer = this._open({
       frame,
       className: `gr-level-layer gr-level-layer--${content.kind}`,
@@ -399,48 +412,134 @@ export class GrowthCeremonyController {
     });
     if (!layer) return false;
     const root = layer.root;
-    root.style.setProperty('--gr-pips-at', ms(schedule.pipsAt));
-    root.style.setProperty('--gr-pip', ms(timing.pip));
-    root.style.setProperty('--gr-beat-at', ms(schedule.beatAt));
-    root.style.setProperty('--gr-seals-at', ms(schedule.sealsAt));
-    root.style.setProperty('--gr-seal', ms(timing.seal));
-    const view = buildLevelCard(this.scene, unit, content, layer);
-    root.append(el('div', 'gr-veil gr-veil--soft'), view.card);
+    const setSchedule = () => {
+      root.style.setProperty('--gr-pips-at', ms(schedule.pipsAt));
+      root.style.setProperty('--gr-pip', ms(timing.pip));
+      root.style.setProperty('--gr-beat-at', ms(schedule.beatAt));
+      root.style.setProperty('--gr-seals-at', ms(schedule.sealsAt));
+      root.style.setProperty('--gr-seal', ms(timing.seal));
+    };
+    setSchedule();
+    let view = null;
+    let revealed = false;
+    let pass = null; // token: an earlier reveal's timers do nothing once a reroll restarts it
+    let rolling = false;
+    const render = () => {
+      const next = buildLevelCard(this.scene, unit, content, layer, { reroll: Boolean(reroll) });
+      if (view?.card?.parentNode === root) {
+        root.insertBefore(next.card, view.card);
+        view.card.remove();
+      } else root.append(next.card);
+      view = next;
+      if (view.reroll) {
+        // The button is its own control: its press never reaches the layer (which continues).
+        view.reroll.addEventListener('pointerdown', (event) => event.stopPropagation());
+        // Pointer clicks only: a key or the pad reaches it through onPress (a keyboard
+        // click has detail 0), so one press never rerolls twice.
+        view.reroll.addEventListener('click', (event) => {
+          if (event.detail > 0) doReroll();
+        });
+      }
+    };
+    root.append(el('div', 'gr-veil gr-veil--soft'));
+    render();
     // Every line reads in full on a short phone frame: the card compacts.
-    layer.addFitter(() => fitLevelCard(view.card));
+    layer.addFitter(() => view && fitLevelCard(view.card));
     const releaseInput = this._holdSceneInput();
     if (cue)
       void this._cue(levelUpCue(content.kind), {
         fallbackSfx: 'sfx_levelup',
         waitMs: LEVEL_UP_CUE_WAIT_MS,
       });
-    let revealed = !timing.animate;
+    const rerollState = () => (reroll ? reroll.state?.() || { hidden: true } : { hidden: true });
+    // Shown once the gains are revealed (hidden while they reveal, and without rerolls).
+    const syncReroll = () => {
+      const button = view?.reroll;
+      if (!button) return;
+      const state = revealed ? rerollState() : { hidden: true };
+      const wasHidden = button.hidden;
+      button.hidden = Boolean(state.hidden);
+      if (!state.hidden) {
+        setLabel(button, state.label);
+        button.disabled = Boolean(state.disabled);
+        button.title = state.reason || '';
+      }
+      if (wasHidden !== button.hidden) layer.applyFrame?.();
+    };
     const finishReveal = () => {
       revealed = true;
       root.classList.add('is-done');
       setLabel(view.button, 'Continue');
-      view.status.textContent = 'Gains revealed. Continue when ready.';
+      view.status.textContent = view.rerolled
+        ? 'New gains rolled. Continue when ready.'
+        : 'Gains revealed. Continue when ready.';
+      syncReroll();
     };
     const reveal = () => {
       if (revealed) return;
       root.classList.add('is-static');
       finishReveal();
     };
-    if (revealed) finishReveal();
-    else {
+    const startReveal = () => {
+      const token = (pass = {});
+      revealed = !timing.animate;
+      if (revealed) {
+        finishReveal();
+        return;
+      }
+      syncReroll();
       setLabel(view.button, 'Reveal gains');
       let i = 0;
       for (const row of content.rows) {
         if (!row.gain) continue;
         const at = schedule.pipsAt + i++ * timing.pip;
         void this._clock.wait(at).then((r) => {
-          if (r === 'elapsed' && !revealed) this._audio('sfx_cursor');
+          if (r === 'elapsed' && !revealed && pass === token) this._audio('sfx_cursor');
         });
       }
       void this._clock.wait(schedule.done).then((r) => {
-        if (r === 'elapsed' && !revealed) finishReveal();
+        if (r === 'elapsed' && !revealed && pass === token) finishReveal();
       });
-    }
+    };
+    // Branching Threads: the caller commits (and saves) the reroll; the card replays the
+    // reveal for the gains it hands back. Nothing here touches the unit.
+    const doReroll = () => {
+      if (rolling || !revealed || !reroll || layer.destroyed) return;
+      const state = rerollState();
+      if (state.hidden || state.disabled) return;
+      rolling = true;
+      let outcome;
+      try {
+        outcome = reroll.run();
+      } catch {
+        outcome = { ok: false };
+      } finally {
+        rolling = false;
+      }
+      if (layer.destroyed) return;
+      if (!outcome?.ok) {
+        view.status.textContent = outcome?.message || 'Could not reroll: nothing changed.';
+        syncReroll();
+        return;
+      }
+      result = outcome.result || result;
+      content = levelUpContent(unit, result, learnedNames, this.voice());
+      schedule = levelSchedule(content, timing);
+      setSchedule();
+      for (const kind of ['normal', 'perfect', 'blank'])
+        root.classList.toggle(`gr-level-layer--${kind}`, kind === content.kind);
+      root.classList.remove('is-done');
+      if (timing.animate) root.classList.remove('is-static');
+      render();
+      view.rerolled = true;
+      layer.applyFrame?.();
+      this._audio('sfx_confirm');
+      startReveal();
+      const target =
+        revealed && !view.reroll?.hidden && !view.reroll?.disabled ? view.reroll : view.button;
+      target?.focus?.({ preventScroll: true });
+    };
+    startReveal();
     if (handle) {
       handle.cancel = () => {
         layer.destroy();
@@ -448,6 +547,8 @@ export class GrowthCeremonyController {
         for (const settle of [...this._settlers]) if (settle.layer === layer) settle();
       };
     }
+    const rerollFocused = () =>
+      Boolean(view?.reroll) && globalThis.document?.activeElement === view.reroll;
     try {
       await this._runStaged(layer, {
         name: 'Level up',
@@ -455,6 +556,20 @@ export class GrowthCeremonyController {
         isRevealed: () => revealed,
         onClose: () => this._close(layer, timing.animate ? 140 : 0),
         button: view.button,
+        // Enter / Space / the pad's confirm on the focused Reroll rerolls; Esc and Back
+        // still continue, and a tap on the card (not the button) continues as ever.
+        onPress: (kind) => {
+          if (kind !== 'confirm' || !revealed || !rerollFocused()) return false;
+          doReroll();
+          return true;
+        },
+        // Arrows and the d-pad move the focus between Continue and Reroll.
+        onNavigate: () => {
+          const choices = [view.button, view.reroll].filter((b) => b && !b.hidden && !b.disabled);
+          if (choices.length < 2) return;
+          const at = choices.indexOf(globalThis.document?.activeElement);
+          choices[(at + 1) % choices.length].focus({ preventScroll: true });
+        },
       });
     } finally {
       if (cue) this._stopCues();
@@ -884,7 +999,7 @@ function levelPortrait(scene, unit, layer) {
   return portraitImage(scene, unit, 'gr-level-portrait');
 }
 
-export function buildLevelCard(scene, unit, content, layer = null) {
+export function buildLevelCard(scene, unit, content, layer = null, { reroll = false } = {}) {
   const card = el('div', `gr-level gr-level--${content.kind}`);
   const portrait = levelPortrait(scene, unit, layer);
   if (portrait) card.append(portrait);
@@ -960,10 +1075,20 @@ export function buildLevelCard(scene, unit, content, layer = null) {
   status.setAttribute('role', 'status');
   const button = el('button', 'gr-continue re-btn re-btn--primary', 'Continue');
   button.type = 'button';
-  foot.append(status, button);
+  // Branching Threads' Reroll (showLevelUp shows it once the gains are revealed).
+  let rerollButton = null;
+  const actions = el('div', 'gr-level-actions');
+  if (reroll) {
+    rerollButton = el('button', 'gr-reroll re-btn', 'Reroll');
+    rerollButton.type = 'button';
+    rerollButton.hidden = true;
+    actions.append(rerollButton);
+  }
+  actions.append(button);
+  foot.append(status, actions);
   main.append(foot);
   card.append(main);
-  return { card, button, status };
+  return { card, button, status, reroll: rerollButton };
 }
 
 /** A custom property's length in px on `node` (0 when unset). */

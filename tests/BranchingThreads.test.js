@@ -1,5 +1,6 @@
 // Branching Threads (Home Base, economy/Supply): N rerolls per run of a battle's loot
-// choices, before the first pick. The engine rule is engine/PendingBattleRewards.js
+// choices, before the first pick (the pool is shared with level-up rerolls:
+// tests/LevelUpReroll.test.js). The engine rule is engine/PendingBattleRewards.js
 // (rollBattleRewardChoices shared by the first draw and every reroll; rerollBattleReward
 // the atomic commit), the count spent rides the run save (`rewardRerollsSpent`), and the
 // reward screen's button is ui/rewardRerollButton.js through PendingRewardController.
@@ -117,10 +118,11 @@ function onlyCategories(categories, mutate = null) {
 }
 
 describe('the upgrade', () => {
-  it('is Branching Threads: economy (Supply), 4 tiers at 100/200/250/250, no milestone', () => {
+  it('is Branching Threads: economy (Supply), 4 tiers at 100/200/300/350 then 400 forever', () => {
     const u = data.metaUpgrades.find((x) => x.id === 'branching_threads');
     expect(u).toMatchObject({ name: 'Branching Threads', category: 'economy', maxLevel: 4 });
-    expect(u.costs).toEqual([100, 200, 250, 250]);
+    expect(u.costs).toEqual([100, 200, 300, 350]);
+    expect(u.repeatable).toEqual({ cost: 400, effect: { rewardRerolls: 1 } });
     expect(u.requires).toBeUndefined();
     expect(metaWith(0).getCurrencyForUpgrade('branching_threads')).toBe('supply');
   });

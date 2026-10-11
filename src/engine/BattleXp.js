@@ -154,7 +154,11 @@ export function scaledXp(
  */
 export function applyXpGain(unit, xp, { classes = [], extendedLevelingEnabled = false } = {}) {
   const before = xpSnapshot(unit, { extendedLevelingEnabled });
-  const result = gainExperience(unit, xp, { extendedLevelingEnabled });
+  // The streak guard is a player unit's (UnitManager.levelUp).
+  const result = gainExperience(unit, xp, {
+    extendedLevelingEnabled,
+    guard: unit?.faction === 'player',
+  });
   const after = xpSnapshot(unit, { extendedLevelingEnabled });
   const statsAfterGain = { ...unit.stats };
   const reachedLevels = new Set((result.levelUps || []).map((lv) => lv.newLevel));

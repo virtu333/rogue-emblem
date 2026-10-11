@@ -70,6 +70,14 @@ export class GameDriver {
         actions.push({ type: 'cancel', payload: {} });
         break;
       }
+      case HEADLESS_STATES.SELECTING_STEAL_TARGET: {
+        // Only reachable with Steal turned on (HeadlessBattle `options.steal`).
+        for (const t of this.battle.stealTargets) {
+          actions.push({ type: 'choose_target', payload: { targetName: t.name } });
+        }
+        actions.push({ type: 'cancel', payload: {} });
+        break;
+      }
       case HEADLESS_STATES.SELECTING_REMAINS_TARGET: {
         for (const t of this.battle.remainsTargets) {
           actions.push({ type: 'choose_remains', payload: { col: t.col, row: t.row } });
@@ -105,6 +113,8 @@ export class GameDriver {
           this.battle.chooseAttackTarget(action.payload.targetName);
         } else if (this.battle.battleState === HEADLESS_STATES.SELECTING_HEAL_TARGET) {
           this.battle.chooseHealTarget(action.payload.targetName);
+        } else if (this.battle.battleState === HEADLESS_STATES.SELECTING_STEAL_TARGET) {
+          this.battle.chooseStealTarget(action.payload.targetName);
         } else {
           throw new Error(`choose_target called in invalid state: ${this.battle.battleState}`);
         }

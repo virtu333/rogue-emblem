@@ -7,7 +7,10 @@ import {
   getSkillDisplayNames,
   withIndefiniteArticle,
   benchedSkillsNote,
+  addToInventory,
+  equipIfUnarmed,
 } from './UnitManager.js';
+import { getClassChangeWeaponGrants } from './RosterCommands.js';
 import { getReviveCost } from './RunManager.js';
 import { applyPromotionOath, oathBenchedNote } from './DeedSystem.js';
 import { CHURCH_PROMOTE_COST_LORD, CHURCH_PROMOTE_COST_RECRUIT } from '../utils/constants.js';
@@ -53,15 +56,28 @@ export function promoteAtChurch(run, unit, nodeId, target, gameData) {
   if (!canonical || !bonuses) return { ok: false, reason: 'Promotion unavailable.' };
   const cost = churchPromoteCost(unit, run);
   if (cost > 0 && !run.spendGold(cost)) return { ok: false, reason: 'Not enough gold.' };
+  const oldTypes = new Set(unit.proficiencies.map((p) => p.type));
   const result = promoteUnit(unit, canonical, bonuses, gameData.skills);
   // Kingmaker's Oath: the altar adds to the stats the class's own promotion favours (its
   // canonical bonuses, a lord's too; never Move).
   const crowned = applyKingmakerBonus(run, unit, canonical.promotionBonuses || bonuses);
   // A deed's Oath is sworn at the altar too.
   const oath = applyPromotionOath(unit, gameData);
+  // The rite promises the Iron weapon of each newly wielded type (and a lord's promotion
+  // weapon), as a Master Seal's promotion hands it over.
+  const granted = [];
+  const ungranted = [];
+  for (const weapon of getClassChangeWeaponGrants(unit, oldTypes, gameData, true)) {
+    if (addToInventory(unit, weapon)) {
+      equipIfUnarmed(unit, unit.inventory.at(-1));
+      granted.push(weapon.name);
+    } else ungranted.push(weapon.name);
+  }
   run.setChurchPromotionCount(nodeId, run.getChurchPromotionCount(nodeId) + 1);
   commitChurchVow(run, nodeId, 'promote');
   const dropped = getSkillDisplayNames(result?.droppedSkills || [], gameData.skills);
+  const gifts = granted.length ? ` Received ${granted.join(', ')}.` : '';
+  const full = ungranted.length ? ` Bag full: ${ungranted.join(', ')} could not be granted.` : '';
   const waits = oath?.benched ? ` ${oathBenchedNote(unit, oath)}` : '';
   const kingmaker = crowned.length
     ? ` Kingmaker's Oath: ${crowned.map((c) => `+${c.value} ${c.stat}`).join(', ')}.`
@@ -70,7 +86,7 @@ export function promoteAtChurch(run, unit, nodeId, target, gameData) {
     ok: true,
     oath,
     kingmaker: crowned,
-    message: `${unit.name} promoted to ${canonical.name}.${kingmaker}${oath?.learned ? ` ${oath.name}: learned ${oath.skillName}.` : ''}${dropped.length ? ` ${benchedSkillsNote(dropped)}` : ''}${waits}`,
+    message: `${unit.name} promoted to ${canonical.name}.${kingmaker}${oath?.learned ? ` ${oath.name}: learned ${oath.skillName}.` : ''}${gifts}${full}${dropped.length ? ` ${benchedSkillsNote(dropped)}` : ''}${waits}`,
   };
 }
 /**

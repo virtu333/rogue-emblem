@@ -25,6 +25,7 @@ import {
 import {
   PORTRAIT_VARIANTS,
   displayedPerson,
+  isFemaleOnlyClass,
   variantPortraitId,
 } from '../src/engine/PortraitVariants.js';
 import { projectedSpriteUnit } from '../src/ui/growthSprites.js';
@@ -184,6 +185,8 @@ describe('the person survives promotion, previews, reclass and recruitment', () 
     let checked = 0;
     for (const base of data.classes.filter((c) => c.tier === 'base' && c.promotesTo)) {
       for (const person of table.classes[base.name] || []) {
+        // A man never wears a female-only class (tests/PortraitVariants.test.js).
+        if (isFemaleOnlyClass(base.name) && table.identities[person].gender !== 'f') continue;
         for (const to of [base.promotesTo].flat()) {
           const unit = recruit(base.name, person);
           expect(spriteOf(unit).person.id).toBe(person);
@@ -192,7 +195,11 @@ describe('the person survives promotion, previews, reclass and recruitment', () 
           const shown = personOfPortrait(to, variantPortraitId(unit));
           expect(spriteOf(unit).person.id, `${person} ${base.name} -> ${to}`).toBe(shown);
           // inside the line the portrait is the same person too
-          if (table.identities[person].renders[to]) expect(shown).toBe(person);
+          const fits = !isFemaleOnlyClass(to) || table.identities[person].gender === 'f';
+          if (table.identities[person].renders[to] && fits) expect(shown).toBe(person);
+          // a man promoted into a female-only class shows a woman instead
+          else if (table.identities[person].renders[to])
+            expect(table.identities[shown].gender).toBe('f');
           checked++;
         }
       }

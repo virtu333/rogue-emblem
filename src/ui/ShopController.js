@@ -11,6 +11,7 @@ import {
   AMBUSH_SHOP_DISCOUNT,
   CARAVAN_SHOP_ITEM_COUNT_RANGE,
 } from '../utils/constants.js';
+import { ownedLegendaryNames } from '../engine/LegendaryOwnership.js';
 import { generateShopInventory } from '../engine/LootSystem.js';
 import { buildPrologueShopStock } from '../engine/Prologue.js';
 import { isPrologueRun } from '../engine/ScriptedBattle.js';
@@ -84,6 +85,7 @@ export class ShopController {
         rm.getWeaponArtSpawnConfig(),
         {
           itemCountBonus: shopItemDelta,
+          excludeLegendaryNames: [...ownedLegendaryNames(rm)],
           recentItemNames: caravan
             ? []
             : Object.values(rm.shopStateByNodeId || {}).flatMap((state) =>
@@ -298,6 +300,7 @@ export class ShopController {
         scene.runManager.getWeaponArtSpawnConfig(),
         {
           shopCureGating: scene.runManager.difficultyModifiers?.shopCureGating,
+          excludeLegendaryNames: [...ownedLegendaryNames(scene.runManager)],
         },
       );
       let priced = scene.applyDifficultyShopPricing(generated);

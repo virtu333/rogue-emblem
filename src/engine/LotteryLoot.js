@@ -11,6 +11,7 @@
 // one. Authored loot (the prologue's) has no draw and is never touched. Pure but for the swap.
 
 import { generateLootChoices } from './LootSystem.js';
+import { ownedLegendaryNames } from './LegendaryOwnership.js';
 import { withEclipseSeed } from './EclipseSystem.js';
 import { isPrologueRun } from './ScriptedBattle.js';
 import { shrineBoonsOf } from './ShrineBoons.js';
@@ -101,6 +102,7 @@ export function applyLotteryCards(run, data, draw, choices, { round = 0 } = {}) 
           {
             lootCategoryWeightBonuses: draw.lootCategoryWeightBonuses || undefined,
             imbues: data.imbues || null,
+            excludeLegendaryNames: [...ownedLegendaryNames(run)],
           },
         )[0] || null,
     );

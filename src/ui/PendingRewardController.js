@@ -5,7 +5,8 @@ import {
   rerollBattleReward,
   rewardRerollStatus,
 } from '../engine/PendingBattleRewards.js';
-import { awardTeamXp, teamXpLines } from '../engine/TeamXp.js';
+import { awardTeamXp, teamXpGains, teamXpLines } from '../engine/TeamXp.js';
+import { runLevelUpReroll } from './LevelUpRerollController.js';
 import { saveServiceRun } from './serviceSave.js';
 
 // One native reward flow shared by battle completion and campaign re-entry.
@@ -84,9 +85,41 @@ export class PendingRewardController {
     if (result.ok) this.choices = this.record.choices;
     return result;
   }
+  /**
+   * Branching Threads on a Team XP line: reroll that unit's level (the last, should one gain
+   * have given two), saved with the reward screen's own run save. A failed save rolls the
+   * unit and the count back (engine/LevelUpReroll.js), so memory is again the last save:
+   * the screen stays open and says nothing changed.
+   */
+  teamXpReroll(entry) {
+    const record = entry?.levelUps?.at(-1);
+    if (!record) return null;
+    const handle = runLevelUpReroll({
+      run: this.host.runManager,
+      unit: entry.unit,
+      record,
+      persist: () => {
+        const prior = this.saveError;
+        if (this.persist()) return true;
+        this.saveError = prior;
+        return false;
+      },
+    });
+    if (!handle) return null;
+    return {
+      state: handle.state,
+      run: () => {
+        const out = handle.run();
+        if (!out.ok) return out;
+        entry.gains = teamXpGains(entry.levelUps);
+        return { ...out, line: teamXpLines([entry], this.host.gameData.skills)[0] };
+      },
+    };
+  }
   activateReward(index) {
     let notice = [];
     let bars = null;
+    let rerolls = null;
     const result = this.applyNativeReward(index, () => {
       const run = this.host.runManager,
         choice = this.choices[index];
@@ -99,6 +132,7 @@ export class PendingRewardController {
         });
         notice = teamXpLines(report, this.host.gameData.skills);
         bars = report.map((entry) => ({ unit: entry.unit, extendedLevelingEnabled }));
+        rerolls = report.map((entry) => this.teamXpReroll(entry));
       } else if (choice.type === 'accessory')
         (run.accessories ||= []).push(structuredClone(choice.item));
       else if (choice.item?.type === 'Scroll')
@@ -113,7 +147,7 @@ export class PendingRewardController {
     }
     // Team XP names who levelled and which class skill came (or found no free slot).
     if (notice.length)
-      this.mobileRewards.showNotice('Team XP', notice, () => this.finish(), { bars });
+      this.mobileRewards.showNotice('Team XP', notice, () => this.finish(), { bars, rerolls });
     else this.finish();
   }
   finish() {

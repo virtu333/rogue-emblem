@@ -134,7 +134,11 @@ describe('BattleScene loot meta wiring', () => {
     expect(generateLootChoicesMock).toHaveBeenCalledTimes(1);
     const args = generateLootChoicesMock.mock.calls[0];
     expect(args[5]).toBe(10);
-    expect(args[13]).toEqual({ lootCategoryWeightBonuses, imbues: null });
+    expect(args[13]).toEqual({
+      lootCategoryWeightBonuses,
+      imbues: null,
+      excludeLegendaryNames: [],
+    });
   });
 
   it('defaults arg #6 to 0 when meta lootWeaponQualityBonus is absent', () => {

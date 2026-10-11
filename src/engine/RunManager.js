@@ -72,6 +72,7 @@ import {
 import { applyForge, canForge, canForgeStat, deforgeWeapon } from './ForgeSystem.js';
 import { signatureWeaponFor } from './SignatureWeapons.js';
 import { generateRandomLegendary } from './LootSystem.js';
+import { sanitizeLegendaryGrants } from './LegendaryOwnership.js';
 import { getActiveSlot, getRunClockFloorKey, getRunKey, MAX_SLOTS } from './SlotManager.js';
 import { isQuotaExceededError, setItemFreeingSpace } from './SaveSpace.js';
 import { markStartup } from '../utils/startupTelemetry.js';
@@ -712,6 +713,7 @@ function applyBattleEntryRevert(run, flag) {
     run.visionChargesRemaining = patch.visionChargesRemaining;
   if (patch.visionCount !== undefined) run.visionCount = patch.visionCount;
   if (patch.rngSeed !== undefined) run.rngSeed = patch.rngSeed;
+  if (patch.rewardRerollsSpent !== undefined) run.rewardRerollsSpent = patch.rewardRerollsSpent;
   if (patch.prologueVisionGranted !== undefined)
     run.prologueVisionGranted = patch.prologueVisionGranted;
   if (patch.removeConvoyUid) run.removeFromConvoyByUid(patch.removeConvoyUid);
@@ -811,6 +813,7 @@ export class RunManager {
     this.pendingBattleReward = null;
     // Branching Threads: battle-reward rerolls spent this run (granted: metaEffects.rewardRerolls).
     this.rewardRerollsSpent = 0;
+    this.legendaryGrants = [];
     this.pendingBossRecruit = null;
     this.pendingThirdLord = null;
     this.reachedFirstActBoss = false;
@@ -976,6 +979,7 @@ export class RunManager {
     this.pendingCaravanShop = null;
     this.pendingBattleReward = null;
     this.rewardRerollsSpent = 0;
+    this.legendaryGrants = [];
     this.pendingBossRecruit = null;
     this.pendingThirdLord = null;
     this.reachedFirstActBoss = false;
@@ -1061,6 +1065,7 @@ export class RunManager {
     this.pendingCaravanShop = null;
     this.pendingBattleReward = null;
     this.rewardRerollsSpent = 0;
+    this.legendaryGrants = [];
     this.pendingBossRecruit = null;
     this.pendingThirdLord = null;
     this.reachedFirstActBoss = false;
@@ -5135,6 +5140,8 @@ export class RunManager {
         : null,
       visionCountAtEntry: Number.isFinite(this.visionCount) ? this.visionCount : null,
       rngSeedAtEntry: Number.isFinite(this.rngSeed) ? this.rngSeed : null,
+      // Branching Threads: a level-up reroll spent in the battle is refunded by Continue from Map.
+      rewardRerollsSpentAtEntry: Math.max(0, Math.trunc(Number(this.rewardRerollsSpent) || 0)),
       // The prologue's Vision grant reverts with the battle (a restart re-teaches it).
       ...(isPrologueRun(this)
         ? { prologueVisionGrantedAtEntry: this.prologueVisionGranted === true }
@@ -6190,6 +6197,7 @@ export class RunManager {
       pendingCaravanShop: this.pendingCaravanShop || null,
       pendingBattleReward: this.pendingBattleReward || null,
       rewardRerollsSpent: Math.max(0, Math.trunc(Number(this.rewardRerollsSpent) || 0)),
+      legendaryGrants: sanitizeLegendaryGrants(this.legendaryGrants),
       pendingBossRecruit: this.pendingBossRecruit || null,
       pendingThirdLord: this.pendingThirdLord || null,
       reachedFirstActBoss: this.reachedFirstActBoss === true,
@@ -6884,6 +6892,8 @@ export class RunManager {
         : null;
     // Saves from before Branching Threads have spent none.
     rm.rewardRerollsSpent = Math.max(0, Math.trunc(Number(saved.rewardRerollsSpent) || 0));
+    // Saves from before the ledger have none (what the army holds still counts).
+    rm.legendaryGrants = sanitizeLegendaryGrants(saved.legendaryGrants);
     rm.pendingBossRecruit = restorePendingBossRecruit(saved.pendingBossRecruit, {
       actId: rm.currentAct,
       hasPendingReward: Boolean(rm.pendingBattleReward),
@@ -7267,6 +7277,8 @@ export function battleEntryRevertPatch(flag) {
     patch.visionChargesRemaining = flag.visionChargesAtEntry;
   if (Number.isFinite(flag.visionCountAtEntry)) patch.visionCount = flag.visionCountAtEntry;
   if (Number.isFinite(flag.rngSeedAtEntry)) patch.rngSeed = flag.rngSeedAtEntry;
+  if (Number.isInteger(flag.rewardRerollsSpentAtEntry) && flag.rewardRerollsSpentAtEntry >= 0)
+    patch.rewardRerollsSpent = flag.rewardRerollsSpentAtEntry;
   if (typeof flag.prologueVisionGrantedAtEntry === 'boolean')
     patch.prologueVisionGranted = flag.prologueVisionGrantedAtEntry;
   return patch;
@@ -7299,6 +7311,8 @@ export function clearBattleInProgressInSave(onSave, slotNumber) {
       parsed.visionChargesRemaining = patch.visionChargesRemaining;
     if (patch.visionCount !== undefined) parsed.visionCount = patch.visionCount;
     if (patch.rngSeed !== undefined) parsed.rngSeed = patch.rngSeed;
+    if (patch.rewardRerollsSpent !== undefined)
+      parsed.rewardRerollsSpent = patch.rewardRerollsSpent;
     if (patch.prologueVisionGranted !== undefined)
       parsed.prologueVisionGranted = patch.prologueVisionGranted;
     if (patch.removeConvoyUid && parsed.convoy && typeof parsed.convoy === 'object') {

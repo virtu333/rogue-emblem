@@ -6,6 +6,7 @@ import { itemIcon } from './itemIcons.js';
 import { prefersStill } from './itemMoments.js';
 import { portraitListLayout, watchPortraitListLayout } from './portraitListLayout.js';
 import { CATEGORY_CURRENCY } from '../utils/constants.js';
+import { isRepeatableUpgrade } from '../engine/RepeatableUpgrades.js';
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
 const roman = (n) => ROMAN[n] || String(n);
 const categories = [
@@ -216,14 +217,25 @@ export class MobileUpgradeMenu {
               : `${m.getNextCost(item.id)} ${currencyName(m.getCurrencyForUpgrade(item.id))}`,
         ),
       );
+      // A repeatable upgrade (RepeatableUpgrades.js) has no last tier: "Tier 6", its listed
+      // gems all lit and the tiers past them counted beside.
+      const repeatable = isRepeatableUpgrade(item);
       const pips = node('span', 'mu-pips' + (maxed ? ' maxed' : ''));
-      pips.setAttribute('aria-label', `Tier ${level} of ${item.maxLevel}`);
+      pips.setAttribute(
+        'aria-label',
+        repeatable ? `Tier ${level}` : `Tier ${level} of ${item.maxLevel}`,
+      );
       for (let i = 0; i < item.maxLevel; i++) {
         const pip = node('i', i < level ? 'filled' : '');
         // The purchase moment: the gem just bought ignites.
         if (this.justBought?.id === item.id && i === level - 1) pip.classList.add('ignite');
         pip.setAttribute('aria-hidden', 'true');
         pips.append(pip);
+      }
+      if (repeatable && level > item.maxLevel) {
+        const more = node('b', 'mu-pips-more', `+${level - item.maxLevel}`);
+        more.setAttribute('aria-hidden', 'true');
+        pips.append(more);
       }
       const note = node(
         'small',
@@ -232,7 +244,9 @@ export class MobileUpgradeMenu {
           ? 'Tap for requirements'
           : needs.length
             ? `Needs ${needs.join(', ')}`
-            : `Tier ${level} / ${item.maxLevel}`,
+            : repeatable
+              ? `Tier ${level}`
+              : `Tier ${level} / ${item.maxLevel}`,
       );
       if (needs.length) note.title = note.textContent;
       b.append(pips, note);
