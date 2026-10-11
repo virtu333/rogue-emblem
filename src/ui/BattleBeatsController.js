@@ -20,11 +20,12 @@ import { createSeededRng } from '../engine/BlessingEngine.js';
  *    A rematch may instead play one exchange from preBattleExchange (a pool
  *    walked across runs: the boss's line and the commander's answer together).
  *  - entityRally: when the Entity's finale answers (see BattleMusicController),
- *    the army says its lines over its own units, one every two bars from the
- *    finale's first downbeat (engine/FinaleRally.js, dialogue.json
- *    finaleRally): the commander opens, the lords answer each other, the
- *    strongest recruits join in, Sera closes. Never blocks input: the music
- *    keeps time, the words ride on it.
+ *    the army says its lines, one every two bars from the finale's first
+ *    downbeat (engine/FinaleRally.js, dialogue.json finaleRally): the
+ *    commander opens, the lords answer each other, the strongest recruits
+ *    join in, Sera closes. Each line is a portrait card on the map's edge with
+ *    a Skip button, its speaker marked on the board (EntityRallyController).
+ *    Never blocks input: the music keeps time, the words ride on it.
  */
 
 import {
@@ -35,12 +36,13 @@ import {
 import { adaptDialogueEntries } from '../engine/DialogueCast.js';
 import { composeFinaleRally, heraldHeard } from '../engine/FinaleRally.js';
 import { isEntity } from '../engine/EntitySystem.js';
+import EntityRallyController from './EntityRallyController.js';
 
 const QUIP_DEPTH = 501; // Screen-pinned above battlefield effects.
 const QUIP_OFFSET_Y = -58; // clear of proc chips (-26/-44) and damage numbers (-16 -> -32)
 const QUIP_COOLDOWN_MS = 10000; // shared across ALL quips so exchanges never chain
 const QUIP_CHANCE = 0.2;
-const RALLY_HOLD_MS = 2600;
+const RALLY_HOLD_MS = 2600; // the no-DOM fallback's floating line
 const RALLY_FADE_MS = 600;
 
 export class BattleBeatsController {
@@ -51,7 +53,7 @@ export class BattleBeatsController {
     this._lastSpecialQuipAt = -Infinity;
     this._lowHealthSpoken = new Set();
     this._live = new Set(); // quip texts still on screen (for destroy())
-    this._rallyTimers = [];
+    this._rally = null; // EntityRallyController: the cards (and the no-DOM floating lines)
     this._rallied = false;
   }
 
@@ -60,8 +62,8 @@ export class BattleBeatsController {
       if (obj?.scene) obj.destroy();
     }
     this._live.clear();
-    for (const t of this._rallyTimers) clearTimeout(t);
-    this._rallyTimers = [];
+    this._rally?.destroy();
+    this._rally = null;
   }
 
   _ctx(bossName = null) {
@@ -154,6 +156,7 @@ export class BattleBeatsController {
    * The Entity's finale answers: the army speaks, the first line on the
    * finale's downbeat (`leadMs` from now), then one every `barMs * 2`. Once
    * per battle. Returns the composed rally ([{ unit, speaker, line }]).
+   * Skipping it (the card's button, Cancel) drops what is left of it for the battle.
    */
   entityRally({ leadMs = 0, barMs = 1765 } = {}) {
     const scene = this.scene;
@@ -183,22 +186,30 @@ export class BattleBeatsController {
     } catch (_) {
       rally = [];
     }
-    const step = Math.max(1000, 2 * (Number(barMs) || 1765));
-    rally.forEach(({ unit, line }, i) => {
-      const timer = setTimeout(
-        () => {
-          this._rallyTimers = this._rallyTimers.filter((t) => t !== timer);
-          // a unit that falls before its line leaves it unsaid
-          if (!(unit.currentHP > 0)) return;
-          this._showRallyText(unit, line);
-        },
-        Math.max(0, Number(leadMs) || 0) + i * step,
-      );
-      this._rallyTimers.push(timer);
-    });
+    if (rally.length) {
+      this._rally = new EntityRallyController(scene, {
+        fallback: (unit, line) => this._showRallyText(unit, line),
+      });
+      this._rally.start(rally, { leadMs, barMs });
+    }
     return rally;
   }
 
+  /** A rally card is on screen: Cancel would dismiss it. */
+  rallyActive() {
+    return Boolean(this._rally?.cardVisible);
+  }
+
+  /**
+   * Cancel reaches the rally card only when the battle has nothing else to close
+   * (`somethingToClose`, from BattleScene.requestCancel); returns whether it took the press.
+   */
+  skipRallyOnCancel(somethingToClose) {
+    if (!this._rally?.yieldsCancel(somethingToClose)) return false;
+    return this._rally.skip();
+  }
+
+  /** The no-DOM fallback: the line as floating text over its speaker. */
   _showRallyText(unit, line) {
     const scene = this.scene;
     try {
