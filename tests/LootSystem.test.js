@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { loadGameData } from './testData.js';
+import { validateCrossReferences } from '../tools/validateCrossReferences.js';
 import {
   calculateKillGold,
   calculateKillReward,
@@ -656,6 +657,23 @@ describe('LootSystem', () => {
         for (const item of drawMany(actId, { trials: 600 })) seen.add(item.name);
       }
       expect([...seen].filter((name) => unlisted.includes(name))).toEqual([]);
+    });
+  });
+
+  describe('enemy-only weapons in the loot tables', () => {
+    it('the cross-reference check refuses one in any pool, boss rewards and carry pool included', () => {
+      expect(validateCrossReferences(gameData).errors).toEqual([]);
+      const cases = [
+        (t) => t.act3.legendaryWeapon.push('Eldritch Grasp'),
+        (t) => t.act1.bossRewards.weapons.push('Twisting Vortex'),
+        (t) => t.act2.carryPool.push({ item: 'Gravesong', weight: 1 }),
+      ];
+      for (const plant of cases) {
+        const lootTables = structuredClone(gameData.lootTables);
+        plant(lootTables);
+        const { errors } = validateCrossReferences({ ...gameData, lootTables });
+        expect(errors.some((e) => e.includes('enemy-only weapon'))).toBe(true);
+      }
     });
   });
 
