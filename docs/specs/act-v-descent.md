@@ -181,7 +181,7 @@ never a reinforcement template unless named, traced sprites before data can spaw
 The court circle's ritualists: robed, hooded, a tome bound in grey cord.
 - Promoted tier, `Tomes (M)`; a dark class (Dark Knight's tome line). Carries an enemy-only tome
   (*name in the content PR*, price 0, in no loot table, validated like Gravesong).
-- AI `guard` by default; a Voice is `hold` on its sigil (it returns to it when moved).
+- AI `guard` by default; a Voice is `post` on its sigil (below).
 - Lore (≤160, drafted in the content PR): the found-text voice of the court circle's own rolls.
 - A Voice stands on its sigil and strikes from it (AI `post`: movement 0). A Voice the player moves
   off its sigil (Shove, Smite, a push art) walks back to it (`seek_tile`) and speaks again only
@@ -449,21 +449,21 @@ A node with `type: 'boss'`, `bossRole: 'gate'` and an id other than `bossNodeId`
 
 ### 9.8 Saves, cloud and old clients
 
-An older client cannot play a Descent run: an unentered `defeat` node falls back and throws, a
-locked `defeat` config can never be won, a Nightfall gate draws the Entity, and `run.rite` is
-lost on its next save. So:
-- **`engine/RunFormat.js`**: `requiredRunFormat(saved)` detects `descent` (`nodeMap.descent` or a
-  non-null `rite`), `objectives` (any objective outside rout/seize/escape in a node, a locked
-  config or a checkpoint) and `vigil` (a `vigil` config or `vigilState` in a checkpoint or rewind
-  snapshot). `toJSON` writes `requiresClient: 2` and `requiresCapabilities`, ratcheted from what
-  `fromJSON` loaded. A client that lacks a capability refuses the run (`RunFormatError`) and the
-  slot card says it needs a newer version.
-- **CloudSync**: `isLocalOnlyRunSave` also holds back a run above `CLOUD_SAFE_RUN_FORMAT` (1)
-  (`reason: 'format_local'`), and the sign-out backup names it. The stale pre-Act V cloud row is
-  retired by the same `runRecordId`, so another device cannot resume the old Act IV copy.
-- Act I–IV runs (Dusk with `finalBoss` in its list included) stay format 1: an old client plays
-  Dusk's Act V as the legacy Ruins → Lieutenant, which is coherent. A run stays on its device from
-  Act V entry until the owner raises `CLOUD_SAFE_RUN_FORMAT` once old app builds have aged out.
+No run-format guard (owner decision, 2026-10-11). An older client cannot play a Descent run (an
+unentered `defeat` node falls back and throws, a locked `defeat` config can never be won, a
+Nightfall gate draws the Entity, `run.rite` is lost on its next save), but no older client can
+reach one today:
+- the iOS and Android apps are local-only: their builds leave `VITE_CLOUD_ENABLED` unset, so
+  `supabaseClient.js` creates no client and a cloud run never reaches an app build (checked on the
+  TestFlight build of 2026-10-10);
+- the web game loads the new build on reload. The remaining gap, a tab left open across a deploy,
+  is the one every save-format change already carries.
+
+Saved runs still need care inside one client: `fromJSON` never rebuilds a map, so a save already
+in Act V keeps its 2-node map, `run.rite` reads null on an old save, and every new reader handles
+both (§9.1). **Revisit this section if the apps are ever built cloud-enabled**: a run-format check
+(`requiredRunFormat` over the saved payload, refused by a client that lacks a capability, held back
+from the cloud above a safe format) would then be needed before the Descent reaches players.
 
 ## 10. Narrative
 
@@ -518,13 +518,12 @@ reviewed before the PR opens.
 
 | # | PR | Needs | Implementer | Scope |
 |---|---|---|---|---|
-| 1 | Run-format guard | — | Opus | §9.8. Must be released before 7 is switched on |
 | 2 | Set pieces v2 + the `defeat` rule | — | Opus | §9.2, §9.4 rule readers; draw-parity test for a named boss |
 | 3 | Circle Adept and Hollowed | — | Sonnet | §5: data, enemy-only plumbing (split `isNecromancyClass` into a never-copied predicate), sprites and portraits |
 | 4 | The Entity's splash as a pure step | — | Opus | §9.5 last item; harness parity, threshold notes |
 | 5 | Dusk goes on to the Lieutenant | — | Sonnet | §9.7 data and transition/vision rules, with the legacy 2-node Act V; tests that pin Dusk's act list |
 | 6 | `defeat` words and agents | 2 | Sonnet | §9.4 word readers, `ScriptedAgent` / `TacticianAgent` targeting |
-| 7 | The Descent route and the gate boss | 1, 2 | Opus | §9.1, §9.3, §9.6 pools, Eclipse and Pilgrim's Road exemptions; ships dark |
+| 7 | The Descent route and the gate boss | 2 | Opus | §9.1, §9.3, §9.6 pools, Eclipse and Pilgrim's Road exemptions; ships dark |
 | 8 | The Vigil mechanic | 2, 3 | Opus | §9.5 Vigil step, controller, harness, conjured units |
 | 9 | The Rite | 4, 7, 8 | Opus | §9.5 state and modifiers, the `rite` effect, `when` keys, `riteView` |
 | 10 | Content and switch-on | 3, 5, 9 | Sonnet + Opus review | the four set pieces, the routes, the events and vignettes, dialogue (§10), loot, CLAUDE.md; `enabled: true` |
@@ -532,7 +531,7 @@ reviewed before the PR opens.
 | 12 | Sims and tuning | 10 | Opus | §11; the sim driver's `applyGenerationFields` parity; slice re-baselines |
 | 13 | Music | — | Sonnet | the Descent and the Vigil themes (§8), any time after the pipeline is set up |
 
-Wave 1 (1, 2, 3, 4, 5, 13) runs in parallel; wave 2 (6, 7, 8); wave 3 (9, 10, 11, 12).
+Wave 1 (2, 3, 4, 5, 13) runs in parallel; wave 2 (6, 7, 8); wave 3 (9, 10, 11, 12).
 
 ## 13. Not in this spec
 
