@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
-import { waitForScene } from './helpers.js';
+import { waitForBattleState, waitForScene } from './helpers.js';
 test('desktop rewards use native menus and keep Escape inside the choice', async ({ page }) => {
   await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&battleLab=1');
   await waitForScene(page, 'Battle');
+  await waitForBattleState(page, 'PLAYER_IDLE');
   await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').onVictory());
   const dialog = page.getByRole('dialog', { name: 'Battle rewards', exact: true });
   await expect(dialog).toBeVisible();
@@ -18,6 +19,7 @@ test('Escape after claiming rewards never opens Settings on the finishing battle
 }) => {
   await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&battleLab=1');
   await waitForScene(page, 'Battle');
+  await waitForBattleState(page, 'PLAYER_IDLE');
   await page.evaluate(() => {
     // Log every Settings dialog that ever appears, even for a frame.
     window.__settingsSeen = [];
@@ -64,6 +66,7 @@ test('a skip worth less than a gold card on offer is quieted until that card is 
 }) => {
   await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&battleLab=1');
   await waitForScene(page, 'Battle');
+  await waitForBattleState(page, 'PLAYER_IDLE');
   await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').onVictory());
   const dialog = page.getByRole('dialog', { name: 'Battle rewards', exact: true });
   await expect(dialog).toBeVisible();

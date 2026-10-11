@@ -9,6 +9,7 @@ import {
   mergeDiscoveries,
 } from './CompendiumDiscovery.js';
 import { isPrologueRun } from './ScriptedBattle.js';
+import { withoutBalanceRevisionMarker } from './BalanceRevisionMarker.js';
 
 export const MAX_SLOTS = 3;
 // MetaProgressionManager.PROLOGUE_STATES, read raw here (the summary never loads a manager).
@@ -276,7 +277,7 @@ export function getSlotSummary(slot, storage = globalThis.localStorage) {
     // Home base upgrade levels bought (metaUpgrades), summed across upgrades.
     upgradesOwned: Object.values(
       meta.purchasedUpgrades && typeof meta.purchasedUpgrades === 'object'
-        ? meta.purchasedUpgrades
+        ? withoutBalanceRevisionMarker(meta.purchasedUpgrades)
         : {},
     ).reduce((sum, level) => sum + Math.max(0, Math.trunc(Number(level) || 0)), 0),
     // When this slot's progression last saved (MetaProgressionManager `savedAt`).
