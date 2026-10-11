@@ -104,7 +104,10 @@ describe('advanced starting-skill unlocks', () => {
     // (-300), Trade Contacts 60/100 (-240), Lucky Finds / Studied Training / Trinket
     // Collector 120/240 (-270), Hero's Call 120/240/400 (-190): +290.
     // 2026-10-08: Branching Threads (100 + 200 + 250 + 250): +800.
-    expect(total).toBe(47610 + 650 + 290 + 800);
+    // 2026-10-10: Branching Threads' listed tiers 100/200/300/350 (+150). Its repeatable
+    // tiers past the list (400 Supply each, forever: RepeatableUpgrades.js) are not summed:
+    // there is no ceiling to sum, and they buy only one more reroll a run each.
+    expect(total).toBe(47610 + 650 + 290 + 800 + 150);
     expect(total / 53428).toBeLessThan(1.03);
     expect(sumCosts(priced.filter(isMagLckTrack))).toBe(4080);
   });

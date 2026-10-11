@@ -3,13 +3,14 @@
 // rail names them, and Smash works from the rail. Landscape and desktop:
 // zombie-remains.spec.js. Failure modes:
 //   - the pile drawn in the unturned cell (it would sit on another tile upright)
-//   - the rail's tile card or Smash missing upright
+//   - the rail's tile card, Smash or its list of piles missing upright
 //   - the count not following the enemy phases, or the last Smash not winning the Rout
 import { test, expect } from '@playwright/test';
 import { waitForScene } from './helpers.js';
 import {
   PORTRAIT_PHONES,
   expectPortraitUi,
+  expectSingleLine,
   phone as phoneContext,
   quietSettings,
 } from './portraitHelpers.js';
@@ -123,11 +124,16 @@ test('upright: fell the Zombie, the pile counts down on its turned tile, Smash w
     )
     .toEqual([2, 'player', 'PLAYER_IDLE', ['2']]);
 
-  // Smash from the rail; the last remains win the Rout.
+  // Smash from the rail, the pile picked from the rail's list; the last remains win the Rout.
   await tap(page, edric.col, edric.row);
   await hud.getByRole('button', { name: 'Smash', exact: true }).tap();
   await expect.poll(async () => (await board(page)).state).toBe('SELECTING_REMAINS_TARGET');
-  await tap(page, spot.col, spot.row);
+  const piles = hud.getByRole('group', { name: 'Remains to smash' });
+  const pile = piles.getByRole('button', { name: /^Zombie remains/ });
+  await expect(pile.locator('.mb-item-summary')).toHaveText('rises in 2 enemy phases');
+  await expectSingleLine(piles.locator('.mb-item-summary'));
+  await page.screenshot({ path: 'test-results/zombie-remains-portrait-smash.png' });
+  await pile.tap();
   await expect.poll(async () => (await board(page)).records).toEqual([]);
   expect((await board(page)).countdowns).toEqual([]);
   await expect.poll(async () => (await board(page)).state).toBe('BATTLE_END');

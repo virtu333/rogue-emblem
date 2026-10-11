@@ -471,41 +471,69 @@ export function swallowTrailingClick(
  * The ceremony owns the overlay and input-focus stacks while it
  * shows, so the rail's Back and the pad's B route here and nothing reaches
  * the scene underneath. Returns an unbind function (idempotent).
+ *
+ * `onSkip(kind)` is told what pressed: 'press' (a tap or click on the layer), 'confirm'
+ * (Enter, Space, the pad's confirm) or 'cancel' (Esc, Back, the pad's back or Start), so a
+ * card with a second control can act on a confirm while that control has the focus.
+ * `onNavigate({ dx, dy })` (optional) takes the arrow keys and the pad's d-pad, to move the
+ * focus between a card's controls; without it they are ignored, as before.
  */
-export function bindCeremonySkip(scene, root, onSkip, { name = 'Ceremony', guardMs = 180 } = {}) {
+export function bindCeremonySkip(
+  scene,
+  root,
+  onSkip,
+  { name = 'Ceremony', guardMs = 180, onNavigate = null } = {},
+) {
   const owner = { ceremony: name };
   const now = () => globalThis.performance?.now?.() ?? Date.now();
   const openedAt = now();
   let bound = true;
-  const trigger = () => {
+  const trigger = (kind) => {
     if (!bound || now() - openedAt < guardMs) return false;
-    onSkip();
+    onSkip(kind);
     return true;
   };
   const stop = (event) => event.stopPropagation();
   const press = (event) => {
     event.stopPropagation();
     if (event.button !== undefined && event.button !== 0) return;
-    if (trigger()) swallowTrailingClick(event);
+    if (trigger('press')) swallowTrailingClick(event);
   };
   for (const type of DOM_INPUT_EVENTS) root.addEventListener(type, stop);
   root.addEventListener('pointerdown', press);
+  const ARROWS = {
+    ArrowLeft: { dx: -1, dy: 0 },
+    ArrowRight: { dx: 1, dy: 0 },
+    ArrowUp: { dx: 0, dy: -1 },
+    ArrowDown: { dx: 0, dy: 1 },
+  };
   const onKey = (event) => {
     if (!hasInputFocus(owner)) return;
+    if (onNavigate && ARROWS[event.key]) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (bound) onNavigate(ARROWS[event.key]);
+      return;
+    }
     if (ignoreRepeatedActivation(event)) return;
     if (!['Enter', ' ', 'Escape'].includes(event.key)) return;
     event.preventDefault();
     event.stopPropagation();
-    trigger();
+    trigger(event.key === 'Escape' ? 'cancel' : 'confirm');
   };
   globalThis.addEventListener?.('keydown', onKey, true);
-  pushInputScope(owner, (action) => {
-    if ([InputAction.CONFIRM, InputAction.CANCEL, InputAction.PAUSE].includes(action)) trigger();
+  pushInputScope(owner, (action, payload) => {
+    if (action === InputAction.NAVIGATE) {
+      if (bound && onNavigate && (payload?.dx || payload?.dy)) onNavigate(payload);
+      return;
+    }
+    if (action === InputAction.CONFIRM) trigger('confirm');
+    else if ([InputAction.CANCEL, InputAction.PAUSE].includes(action)) trigger('cancel');
   });
   const token = pushOverlay(scene, {
     name,
     onCancel: () => {
-      trigger();
+      trigger('cancel');
       return true;
     },
   });

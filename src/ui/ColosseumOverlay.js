@@ -7,6 +7,7 @@ import { xpSnapshot } from '../engine/XpProgress.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import { levelUpDisplayResults } from './progressionDisplay.js';
 import { saveServiceRun } from './serviceSave.js';
+import { runLevelUpReroll } from './LevelUpRerollController.js';
 import { relinkWeapon } from '../engine/RunManager.js';
 import { UI_PALETTE } from '../utils/uiStyles.js';
 import { EarnedBlessingPick } from './EarnedBlessingPick.js';
@@ -504,7 +505,10 @@ export class ColosseumOverlay {
       const extendedLevelingEnabled =
         this.runManager?.getDifficultyModifier?.('extendedLevelingEnabled', false) || false;
       const before = xpSnapshot(unit, { extendedLevelingEnabled });
-      const xpResult = gainExperience(unit, reward.xpGained, { extendedLevelingEnabled });
+      const xpResult = gainExperience(unit, reward.xpGained, {
+        extendedLevelingEnabled,
+        guard: unit.faction === 'player',
+      });
       // The result card's EXP bar (plain values; null when nothing counted: the cap).
       xpRecord = xpGaugeRecord(unit, {
         before,
@@ -550,7 +554,9 @@ export class ColosseumOverlay {
     settled.filled = true;
     this.nativeMenu = ArenaMenu.result(this, outcome, tier, reward, levelUpInfo, xpRecord);
     const view = this.nativeMenu?.xpView || null;
-    const cards = growth ? () => this._playArenaLevelUps(growth, levelUpInfo) : null;
+    const cards = growth
+      ? () => this._playArenaLevelUps(growth, levelUpInfo, { outcome, tier })
+      : null;
     if (!view || !xpRecord) {
       cards?.();
       return;
@@ -577,15 +583,32 @@ export class ColosseumOverlay {
     }
   }
 
-  /** The fight's level-up cards, over the result card that stays open under them. */
-  async _playArenaLevelUps(growth, levelUpInfo) {
+  /**
+   * The fight's level-up cards, over the result card that stays open under them. Each card
+   * offers Branching Threads' Reroll: the level's gains rolled again and saved with the
+   * visit's own run save; the result card is redrawn after the cards if one was rerolled.
+   */
+  async _playArenaLevelUps(growth, levelUpInfo, { outcome = null, tier = null } = {}) {
     const unit = this._selectedUnit;
     const learned = (levelUpInfo.learnedSkills || []).map(
       (id) => this.gameData.skills?.find((sk) => sk.id === id)?.name || id,
     );
     const results = levelUpDisplayResults(unit.stats, levelUpInfo.ups);
+    let rerolled = false;
     for (let i = 0; i < results.length; i++) {
       if (!this.visible || growth.destroyed) break;
+      // The record is the level's own (its gains object is the one levelUpInfo.ups holds),
+      // so the result card reads the new gains too.
+      const reroll = runLevelUpReroll({
+        run: this.runManager,
+        unit,
+        record: results[i],
+        displays: results.slice(i),
+        persist: () => saveServiceRun(this.scene) === '',
+        onRerolled: () => {
+          rerolled = true;
+        },
+      });
       await growth.showLevelUp({
         unit,
         result: results[i],
@@ -593,9 +616,11 @@ export class ColosseumOverlay {
         frame: 'screen',
         cue: true,
         depth: DOM_UI_DEPTHS.RITE,
+        reroll,
       });
     }
-    this.nativeMenu?.focus?.();
+    if (rerolled && this.visible && outcome) this._showResult(outcome, tier);
+    else this.nativeMenu?.focus?.();
   }
 
   _showMercBrowse() {

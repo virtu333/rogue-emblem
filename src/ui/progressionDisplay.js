@@ -22,3 +22,18 @@ export function progressionRows(unit, result, promotion = false) {
     return { stat, gain, before: stats[stat] - gain, after: stats[stat], at: (index + 1) * 120 };
   });
 }
+
+/**
+ * A level's gains were rerolled (engine/LevelUpReroll.js): move the stats each display record
+ * counts from (`displayStats`, levelUpDisplayResults) by the difference. Pass this card's
+ * record and every later card of the same unit (they count from it). Display only.
+ */
+export function shiftDisplayStats(results, previous, gains) {
+  for (const result of results || []) {
+    const stats = result?.displayStats;
+    if (!stats) continue;
+    for (const stat of XP_STAT_NAMES)
+      if (Number.isFinite(stats[stat]))
+        stats[stat] += (Number(gains?.[stat]) || 0) - (Number(previous?.[stat]) || 0);
+  }
+}

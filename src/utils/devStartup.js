@@ -10,6 +10,7 @@ import { findCommander } from '../engine/Commander.js';
 import { MetaProgressionManager } from '../engine/MetaProgressionManager.js';
 import { RunManager } from '../engine/RunManager.js';
 import { NODE_TYPES } from './constants.js';
+import { PINNED_BATTLE_STREAM_KEY } from '../engine/BattleScout.js';
 import { addBurden } from '../engine/Burdens.js';
 import { normalizeContract } from '../engine/Contracts.js';
 import { DEV_EVENT_FIXTURES } from './devEventFixtures.js';
@@ -635,6 +636,9 @@ export function buildDevStartupRoute(gameData, registry, config) {
   if (!gameData || !registry || !config?.enabled) return null;
 
   registry.set('devToolsEnabled', Boolean(config.devTools));
+  // A `?devScene=` review route's battles keep the run seed's one stream (BattleScout.js
+  // openingBattleStreamSeed `pinned`): its fixtures and browser specs are tuned on it.
+  registry.set(PINNED_BATTLE_STREAM_KEY, true);
   if (config.qaStep) registry.set('qaStep', config.qaStep);
   const baseData = { gameData };
   if (config.sceneKey === 'Title') {

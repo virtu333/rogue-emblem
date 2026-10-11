@@ -14,6 +14,12 @@
 // the roster (or the recently fallen) already wears. A name that reads as a
 // man or a woman (data/recruits.json name pools) gets a matching face.
 // Lords and bosses keep their own portraits and never get a variant.
+//
+// Female-only classes (table.femaleOnlyClasses: the base Pegasus Knight; its
+// Falcon Knight and Wyvern Lord promotions have men too) always show a woman, for
+// recruits, hires and enemies: the name's gender, a stored person or an enemy
+// face of the other gender never overrides it. A stored person is never rewritten
+// (it comes back if the unit leaves the class); displayedPerson does the mapping.
 import table from '../data/portraitVariants.json' with { type: 'json' };
 
 export const PORTRAIT_VARIANTS = table;
@@ -39,6 +45,23 @@ const seedOf = (seed) => (Number.isFinite(Number(seed)) ? Number(seed) >>> 0 : 0
 /** Lords and bosses keep their own portraits. */
 export function wearsOwnPortrait(unit) {
   return Boolean(unit?.isLord || unit?.isBoss || unit?.specialCharId);
+}
+
+/** True for a class only women fill (Pegasus Knight, Falcon Knight). */
+export function isFemaleOnlyClass(className) {
+  return (table.femaleOnlyClasses || []).includes(className);
+}
+
+/** 'm' | 'f' | null: the unit's stored person's gender, else its name's. */
+export function unitGender(unit) {
+  const person = unit?.portraitVariant;
+  if (isPortraitPerson(person)) return table.identities[person].gender || null;
+  return nameGender(unit?.name);
+}
+
+/** Whether this person may wear this class (female-only classes take women only). */
+function personFitsClass(person, className) {
+  return !isFemaleOnlyClass(className) || table.identities[person]?.gender === 'f';
 }
 
 /** 'm' | 'f' | null for a recruit name ("Bram 2" reads as "Bram"). */
@@ -74,7 +97,7 @@ function orderPeople(pool, key) {
 export function choosePortraitPerson({ name, className, seed, taken = [], avoid = [] }) {
   let pool = portraitPeopleForClass(className);
   if (!pool.length) return null;
-  const gender = nameGender(name);
+  const gender = isFemaleOnlyClass(className) ? 'f' : nameGender(name);
   if (gender) {
     const matching = pool.filter((p) => table.identities[p].gender === gender);
     if (matching.length) pool = matching;
@@ -91,13 +114,21 @@ export function choosePortraitPerson({ name, className, seed, taken = [], avoid 
 
 /** Enemy face id for a class from a stable spawn key (null when the class has one face). */
 export function chooseEnemyFace(className, key) {
-  const pool = table.enemy[className] || [];
+  const pool = enemyFacesFor(className);
   if (pool.length < 2) return pool[0] || null;
   return pool[stableHash(`enemy|${key}|${className}`) % pool.length];
 }
 
+/** An enemy class's faces; the female-only classes keep only the women's. */
+function enemyFacesFor(className) {
+  const faces = table.enemy[className] || [];
+  if (!isFemaleOnlyClass(className)) return faces;
+  const women = faces.filter((id) => table.enemyGender?.[id] === 'f');
+  return women.length ? women : faces;
+}
+
 function isEnemyFace(unit, value) {
-  return typeof value === 'string' && (table.enemy[unit?.className] || []).includes(value);
+  return typeof value === 'string' && enemyFacesFor(unit?.className).includes(value);
 }
 
 const peopleOf = (units, except) =>
@@ -152,7 +183,9 @@ export function assignPortraitVariants(units, context = {}) {
 /**
  * Legacy saves: units from before portrait variety get a stable,
  * de-duplicated person on load. Roster order decides ties, so loading the
- * same save twice gives the same faces; units that have one keep it.
+ * same save twice gives the same faces; units that have one keep it, even a
+ * man now in a female-only class: the stored person is never rewritten (it comes
+ * back if he leaves the line), displayedPerson maps it to a woman.
  */
 export function backfillPortraitVariants(roster = [], { fallen = [], seed } = {}) {
   const all = [...(roster || []), ...(fallen || [])];
@@ -181,11 +214,14 @@ export function displayedPerson(unit) {
     ? unit.portraitVariant
     : choosePortraitPerson({ name: unit.name, className: unit.className, seed: 0 });
   if (!person) return null;
-  if (table.identities[person].renders[unit.className]) return person;
-  // Reclassed into another line: a stable counterpart of the same gender.
+  if (table.identities[person].renders[unit.className] && personFitsClass(person, unit.className))
+    return person;
+  // Reclassed into another line (or into a female-only class as a man): a stable
+  // counterpart of the same gender, a woman where the class takes only women.
   const pool = portraitPeopleForClass(unit.className);
   if (!pool.length) return null;
-  const same = pool.filter((p) => table.identities[p].gender === table.identities[person].gender);
+  const gender = isFemaleOnlyClass(unit.className) ? 'f' : table.identities[person].gender;
+  const same = pool.filter((p) => table.identities[p].gender === gender);
   const pick = (same.length ? same : pool)[stableHash(person) % (same.length || pool.length)];
   return table.identities[pick].renders[unit.className] ? pick : null;
 }

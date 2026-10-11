@@ -188,6 +188,7 @@ import {
   scaledXp,
 } from '../../src/engine/BattleXp.js';
 import { selectEnemyWeaponArt } from '../../src/engine/EnemyArtScoring.js';
+import { deriveNodeBattleSeed } from '../../src/engine/BattleScout.js';
 import { bindEnemyAreaArt } from '../../src/engine/EnemyAreaArts.js';
 import { settleArtilleryStances } from '../../src/engine/SiegeArtillery.js';
 import { applyDueHybridOverrides } from '../../src/engine/TerrainPhases.js';
@@ -805,16 +806,12 @@ export class HeadlessBattle {
     return enemyDifficultyConfigFromParams(this.battleParams);
   }
 
+  /** BattleScene.deriveBattleSeed's rule, through the one function (engine/BattleScout.js). */
   _deriveBattleSeed() {
-    const runSeed = Number(this.battleParams?.runSeed || 0) >>> 0;
-    const nodePart = String(this.battleParams?.nodeId || this.battleParams?.act || 'battle');
-    let hash = 2166136261 >>> 0;
-    const input = `${runSeed}:${nodePart}`;
-    for (let i = 0; i < input.length; i++) {
-      hash ^= input.charCodeAt(i);
-      hash = Math.imul(hash, 16777619);
-    }
-    return hash >>> 0;
+    return deriveNodeBattleSeed(
+      this.battleParams?.runSeed,
+      this.battleParams?.nodeId || this.battleParams?.act || 'battle',
+    );
   }
 
   _getReinforcementSeed() {

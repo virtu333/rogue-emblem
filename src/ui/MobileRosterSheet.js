@@ -223,8 +223,10 @@ export class MobileRosterSheet {
     terrainForUnit = null,
     persist = null,
     tips = true,
+    closeLabel = 'Close',
   }) {
     Object.assign(this, {
+      closeLabel,
       tips,
       persist,
       scene,
@@ -370,7 +372,7 @@ export class MobileRosterSheet {
       title.append(cap);
     }
     head.append(title);
-    head.append(this.button('Close', this.onClose));
+    head.append(this.button(this.closeLabel, this.onClose));
     this.root.append(head);
     const layout = el('div', null, 'mr-layout');
     const nav = el('nav', null, 'mr-units');
@@ -917,7 +919,14 @@ export class MobileRosterSheet {
           `${art?.name || id} · ${weapon.name}`,
           `${formatWeaponArtEffects(art)} · ${weaponArtCostText(unit, art, weaponArtRunOptions(this.scene.runManager))}`,
         );
-        if (art && this.scene.sys?.settings?.key === 'Battle' && this.scene.turnManager) {
+        // A battle's own units read their art's state now; the run's (managed) units, the
+        // Roster opened before turn 1 included, read the between-battles view.
+        if (
+          art &&
+          !manage &&
+          this.scene.sys?.settings?.key === 'Battle' &&
+          this.scene.turnManager
+        ) {
           const check = canUseWeaponArt(unit, weapon, art, {
             turnNumber: this.scene.turnManager?.turnNumber,
             isInitiating: true,

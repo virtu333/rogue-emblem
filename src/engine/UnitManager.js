@@ -34,6 +34,7 @@ import {
   reapplyTraitGrowthMods,
 } from './TraitSystem.js';
 import { rollMark } from './MarkSystem.js';
+import { isFemaleOnlyClass, unitGender } from './PortraitVariants.js';
 
 // --- Weapon proficiency parsing ---
 
@@ -1078,28 +1079,68 @@ export function grantSecondaryWeapons(unit, allWeapons, weaponTier) {
 // --- Leveling ---
 
 /**
- * Roll a level-up: each stat has growth% chance to gain +1.
+ * Roll a level-up: each stat has growth% chance to gain +1. Exactly one `rng()` draw per
+ * stat (8), whatever else applies, so the stream a level-up draws from moves the same.
  * Guarantees at least 1 stat gain (uses highest growth as fallback).
  * Returns { gains: {HP:1, STR:0, ...}, newLevel } or null if at cap.
+ *
+ * `guard` (a player unit's level from play: battle XP, Team XP, the arena; gainExperience
+ * passes it) adds the streak guard, from the same 8 draws:
+ *   - every roll failed: the gain goes to the closest miss (the failed stat with growth > 0
+ *     whose draw came nearest its growth; ties in XP_STAT_NAMES order) instead of the highest
+ *     growth (levelUpFallbackStat stays the last resort when no stat has growth > 0);
+ *   - the unit's previous level gave exactly one stat (`unit.lastLevelUpThin`) and this one
+ *     has fewer than two: +1 to the closest miss among the stats still at 0.
+ * A guarded result also carries `guard: true` and `thinBefore` (the flag it was rolled
+ * with), so a reroll (engine/LevelUpReroll.js) rolls it again by the same rule. The caller
+ * sets the flag from the final gains (gainExperience); levelUp never writes the unit.
  */
-export function levelUp(unit, rng = Math.random) {
+export function levelUp(unit, rng = Math.random, { guard = false } = {}) {
   const cap = unit.tier === 'promoted' ? PROMOTED_CLASS_LEVEL_CAP : BASE_CLASS_LEVEL_CAP;
   if (unit.level >= cap) return null;
 
   const gains = {};
+  const misses = {};
   let totalGains = 0;
 
   for (const stat of XP_STAT_NAMES) {
     const growth = unit.growths[stat] || 0;
-    const gained = rng() * 100 < growth ? 1 : 0;
+    const draw = rng() * 100;
+    const gained = draw < growth ? 1 : 0;
     gains[stat] = gained;
     totalGains += gained;
+    if (!gained && growth > 0) misses[stat] = draw - growth;
   }
 
   // Guarantee at least 1 stat gain
-  if (totalGains === 0) gains[levelUpFallbackStat(unit.growths)] = 1;
+  if (totalGains === 0)
+    gains[(guard && closestMissStat(misses, gains)) || levelUpFallbackStat(unit.growths)] = 1;
 
-  return { gains, newLevel: unit.level + 1 };
+  if (!guard) return { gains, newLevel: unit.level + 1 };
+  const thinBefore = unit.lastLevelUpThin === true;
+  if (thinBefore && statsGained(gains) < 2) {
+    const extra = closestMissStat(misses, gains);
+    if (extra) gains[extra] = 1;
+  }
+  return { gains, newLevel: unit.level + 1, guard: true, thinBefore };
+}
+
+/** How many stats a level's gains raised. */
+export function statsGained(gains = {}) {
+  return XP_STAT_NAMES.filter((stat) => (Number(gains[stat]) || 0) > 0).length;
+}
+
+/**
+ * The failed stat (still at 0 in `gains`) whose draw came nearest its growth: the smallest
+ * `draw*100 - growth` in `misses`, ties in XP_STAT_NAMES order. null when there is none.
+ */
+export function closestMissStat(misses, gains = {}) {
+  let best = null;
+  for (const stat of XP_STAT_NAMES) {
+    if (!(stat in misses) || (Number(gains[stat]) || 0) > 0) continue;
+    if (best === null || misses[stat] < misses[best]) best = stat;
+  }
+  return best;
 }
 
 /**
@@ -1121,15 +1162,17 @@ export function levelUpFallbackStat(growths = {}) {
 /**
  * Roll an extended level-up for promoted units past the level cap.
  * Grants exactly +1 to a random stat (uniform from XP_STAT_NAMES).
- * Does NOT use growth rates — purely random.
+ * Does NOT use growth rates — purely random. `rng` (default Math.random, the battle's
+ * stream in battle) draws the stat: a level-up reroll passes its own keyed stream
+ * (engine/LevelUpReroll.js), so it rolls by this same rule without moving Math.random.
  * Returns { gains, newLevel, extendedLevel, isExtended: true }.
  */
-export function extendedLevelUp(unit) {
+export function extendedLevelUp(unit, rng = Math.random) {
   const gains = {};
   for (const stat of XP_STAT_NAMES) {
     gains[stat] = 0;
   }
-  const pick = XP_STAT_NAMES[Math.floor(Math.random() * XP_STAT_NAMES.length)];
+  const pick = XP_STAT_NAMES[Math.floor(rng() * XP_STAT_NAMES.length)];
   gains[pick] = 1;
 
   return {
@@ -1177,6 +1220,9 @@ export function gainExperience(unit, xpAmount, options = {}) {
   const cap = unit.tier === 'promoted' ? PROMOTED_CLASS_LEVEL_CAP : BASE_CLASS_LEVEL_CAP;
   const levelUps = [];
   const extendedEnabled = options.extendedLevelingEnabled === true && unit.tier === 'promoted';
+  // The streak guard (levelUp): a player unit's levels from play only (battle XP, Team XP,
+  // the arena pass `guard`); join levels, enemies and mercenaries roll as ever.
+  const guard = options.guard === true;
 
   // Don't gain XP at level cap (unless extended leveling is enabled for promoted units)
   if (unit.level >= cap && !extendedEnabled) return { levelUps };
@@ -1186,7 +1232,7 @@ export function gainExperience(unit, xpAmount, options = {}) {
   while (unit.xp >= XP_PER_LEVEL) {
     unit.xp -= XP_PER_LEVEL;
     // Try normal level-up first
-    const result = levelUp(unit);
+    const result = levelUp(unit, Math.random, { guard });
     if (!result) {
       // At cap — use extended level-up if enabled
       if (extendedEnabled) {
@@ -1200,6 +1246,8 @@ export function gainExperience(unit, xpAmount, options = {}) {
       break;
     }
     applyLevelUpGains(unit, result);
+    // The guard reads this at the unit's next level (extended levels neither read nor set it).
+    if (guard) unit.lastLevelUpThin = statsGained(result.gains) === 1;
     levelUps.push(result);
   }
 
@@ -1479,7 +1527,8 @@ export function canReclass(unit) {
 /**
  * Get valid reclass target classes for a unit given a seal subEffect.
  * Returns array of class data objects from classesData.
- * Filters: same tier, matching moveType for seal, excludes current class, excludes lord/Dancer/Bard.
+ * Filters: same tier, matching moveType for seal, excludes current class, excludes lord/Dancer/Bard,
+ * and the women-only Pegasus Knight for a man.
  */
 export function getReclassTargets(unit, classesData, sealSubEffect) {
   if (!canReclass(unit) || !classesData || !sealSubEffect) return [];
@@ -1491,7 +1540,8 @@ export function getReclassTargets(unit, classesData, sealSubEffect) {
       allowedMoves.has(c.moveType) &&
       c.name !== unit.className &&
       !RECLASS_EXCLUDED_CLASSES.has(c.name) &&
-      !RECLASS_TARGET_EXCLUDED_CLASSES.has(c.name),
+      !RECLASS_TARGET_EXCLUDED_CLASSES.has(c.name) &&
+      !(isFemaleOnlyClass(c.name) && unitGender(unit) === 'm'),
   );
 }
 
