@@ -184,7 +184,7 @@ const VALID_TIER2_MOVE_MODES = new Map(
   ]),
 );
 const VALID_TIER2_DEBUFF_STATS = new Set(['STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK', 'MOV']);
-const VALID_AREA_SHAPES = new Set(['radius', 'line', 'around_attacker']);
+const VALID_AREA_SHAPES = new Set(['radius', 'line', 'around_attacker', 'cone', 'arc']);
 const VALID_TARGETING = new Set(['normal_attack', 'chosen_center']);
 // Conditions weapon arts may inflict (must exist in STATUS_CONDITIONS)
 const VALID_ART_STATUS_IDS = new Set(['root', 'silence', 'sleep', 'acid']);
@@ -272,13 +272,30 @@ function normalizeAreaCenterRange(value) {
   return max >= Math.max(1, min) ? { min, max } : null;
 }
 
+/** A cone's rows: `[{ width (odd, >= 1), multiplier (> 0) }]`, or null if any is malformed. */
+function normalizeAreaRows(rows) {
+  if (!Array.isArray(rows) || rows.length < 1) return null;
+  const out = [];
+  for (const row of rows) {
+    const width = Math.trunc(toFiniteNumber(row?.width, 0));
+    const multiplier = toFiniteNumber(row?.multiplier, 0);
+    if (width < 1 || width % 2 !== 1 || !(multiplier > 0)) return null;
+    out.push({ width, multiplier });
+  }
+  return out;
+}
+
 /**
  * An art's `area` block (docs/specs/aoe-weapon-arts.md §3.1), normalized, or null when it
  * has none or it is malformed:
- *   { shape: 'radius'|'line'|'around_attacker', radius, length, pick: 'all'|'lowest_hp_pct',
- *     maxTargets, damage: { kind: 'scaled', multiplier } | { kind: 'fixed', amount },
+ *   { shape: 'radius'|'line'|'around_attacker'|'cone'|'arc', radius, length, rows, width,
+ *     leap, pick: 'all'|'lowest_hp_pct', maxTargets,
+ *     damage: { kind: 'scaled', multiplier } | { kind: 'fixed', amount },
  *     strikes: 'once'|'each_landed', nonLethal, centerRange, drainPercent }
- * `drainPercent` heals the user that share of the damage its blows deal.
+ * `drainPercent` heals the user that share of the damage its blows deal. A `cone` has
+ * `rows` (each `{ width, multiplier }`, docs/specs/legendary-arts-rework.md §1), an `arc` a
+ * `width` (steps each way round the target's ring, §2); `leap` (§5) makes a chosen-center
+ * art's center the tile its user lands on before an `around_attacker` blast.
  */
 export function normalizeWeaponArtArea(area) {
   if (!area || typeof area !== 'object' || Array.isArray(area)) return null;
@@ -286,7 +303,12 @@ export function normalizeWeaponArtArea(area) {
   if (!shape || !VALID_AREA_SHAPES.has(shape)) return null;
   const radius = Math.max(0, Math.trunc(toFiniteNumber(area.radius, 0)));
   const length = Math.max(0, Math.trunc(toFiniteNumber(area.length, 0)));
-  if (shape === 'line' ? length < 1 : radius < 1) return null;
+  const rows = shape === 'cone' ? normalizeAreaRows(area.rows) : null;
+  const width = shape === 'arc' ? Math.max(0, Math.trunc(toFiniteNumber(area.width, 0))) : 0;
+  if (shape === 'line' && length < 1) return null;
+  if (shape === 'cone' && !rows) return null;
+  if (shape === 'arc' && width < 1) return null;
+  if ((shape === 'radius' || shape === 'around_attacker') && radius < 1) return null;
 
   const rawDamage = area.damage && typeof area.damage === 'object' ? area.damage : {};
   const kind = toNonEmptyString(rawDamage.kind)?.toLowerCase();
@@ -312,6 +334,9 @@ export function normalizeWeaponArtArea(area) {
     nonLethal: area.nonLethal === true,
     centerRange: normalizeAreaCenterRange(area.centerRange),
     drainPercent: Math.max(0, toFiniteNumber(area.drainPercent, 0)),
+    ...(rows ? { rows } : {}),
+    ...(width ? { width } : {}),
+    ...(area.leap === true && shape === 'around_attacker' ? { leap: true } : {}),
   };
 }
 
@@ -412,7 +437,7 @@ export function getWeaponArtMissEffects(art) {
 
 /**
  * What the art does when its user's combat kills the opponent: a timed self-buff
- * (Annihilate) and a kill-move (Oathstorm's Galeforce: `{ refresh: true }`, the user
+ * (`killBuff`) and a kill-move (Oathstorm's Galeforce: `{ refresh: true }`, the user
  * may move and act again).
  */
 export function getWeaponArtKillEffects(art) {

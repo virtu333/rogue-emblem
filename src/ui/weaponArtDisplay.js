@@ -49,6 +49,13 @@ export function weaponArtAreaRow(area, targeting = 'normal_attack') {
     (area.drainPercent > 0
       ? `; heals you ${Math.round(area.drainPercent * 100)}% of the area damage`
       : '');
+  if (targeting === 'chosen_center' && area.leap) {
+    const range = area.centerRange;
+    return {
+      label: 'Leap',
+      text: `jump to a free tile ${range.min}-${range.max} away, over units: ${blow} to each enemy next to where you land${cannotKill}; no counter`,
+    };
+  }
   if (targeting === 'chosen_center') {
     const range = area.centerRange;
     const reach =
@@ -62,6 +69,20 @@ export function weaponArtAreaRow(area, targeting = 'normal_attack') {
     return {
       label: 'Area',
       text: `${blow} to each enemy up to ${tiles(area.length)} behind the target${area.strikes === 'each_landed' ? ', per hit' : ''}${cannotKill}`,
+    };
+  if (area.shape === 'cone') {
+    const rowText = area.rows
+      .map(
+        (row, i) =>
+          `${row.width} tiles ${i === 0 ? 'behind it' : 'past those'} take ${Math.round(row.multiplier * (area.damage.multiplier || 1) * 100)}%`,
+      )
+      .join(', ');
+    return { label: 'Area', text: `the blow spreads behind the target: ${rowText}${cannotKill}` };
+  }
+  if (area.shape === 'arc')
+    return {
+      label: 'Area',
+      text: `${blow} to each enemy up to ${tiles(area.width)} either side of the target, as far from you as it is${cannotKill}`,
     };
   if (area.shape === 'around_attacker')
     return {

@@ -54,9 +54,27 @@
           "area": {
             "type": "object",
             "properties": {
-              "shape": { "type": "string", "enum": ["radius", "line", "around_attacker"] },
+              "shape": {
+                "type": "string",
+                "enum": ["radius", "line", "around_attacker", "cone", "arc"]
+              },
               "radius": { "type": "integer", "minimum": 1 },
               "length": { "type": "integer", "minimum": 1 },
+              "rows": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "width": { "type": "integer", "minimum": 1 },
+                    "multiplier": { "type": "number", "exclusiveMinimum": 0 }
+                  },
+                  "required": ["width", "multiplier"],
+                  "additionalProperties": false
+                }
+              },
+              "width": { "type": "integer", "minimum": 1 },
+              "leap": { "type": "boolean" },
               "pick": { "type": "string", "enum": ["all", "lowest_hp_pct"] },
               "maxTargets": { "type": "integer", "minimum": 1 },
               "damage": {

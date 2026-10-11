@@ -201,13 +201,97 @@ describe('Lines', () => {
   });
 });
 
+describe("Ruin's Cataclysm: the cone (docs/specs/legendary-arts-rework.md §1)", () => {
+  it('the row behind the target takes 75% of the art blow, the next 50%, each against its own DEF', () => {
+    // Ruin: Mt 14. Art: Atk +5. STR 20. Axe beats a lance: +1 damage.
+    // Blow on a DEF 4 victim: 20 + 14 + 5 + 1 - 4 = 36; × 0.75 = 27 (row 1), × 0.5 = 18 (row 2).
+    const ruin = weapon('Ruin');
+    const a = unit(
+      'Hero',
+      'player',
+      1,
+      3,
+      { STR: 20, SKL: 20 },
+      { weapon: ruin, weaponRank: 'Mast' },
+    );
+    const t = unit('Target', 'enemy', 2, 3, { HP: 80, DEF: 4 }, { weapon: weapon('Iron Lance') });
+    const near = unit('Near', 'enemy', 3, 2, { HP: 80, DEF: 4 }, { weapon: weapon('Iron Lance') });
+    const far = unit('Far', 'enemy', 4, 4, { HP: 80, DEF: 4 }, { weapon: weapon('Iron Lance') });
+    const wide = unit('Wide', 'enemy', 4, 5, { HP: 80, DEF: 4 }, { weapon: weapon('Iron Lance') });
+    const units = [a, t, near, far, wide];
+    strike(a, t, 'legend_annihilate', units);
+    expect(near.currentHP).toBe(80 - 27);
+    expect(far.currentHP).toBe(80 - 18);
+    expect(wide.currentHP).toBe(80); // two rows off the axis: outside the 3-wide cone
+  });
+
+  it('the planner (preview and AI) reads the same per-row share', () => {
+    const ruin = weapon('Ruin');
+    const a = unit('Hero', 'player', 1, 3, { STR: 20 }, { weapon: ruin, weaponRank: 'Mast' });
+    const t = unit('Target', 'enemy', 2, 3, { DEF: 4 }, { weapon: weapon('Iron Lance') });
+    const near = unit('Near', 'enemy', 3, 3, { DEF: 4 }, { weapon: weapon('Iron Lance') });
+    const far = unit('Far', 'enemy', 4, 3, { DEF: 4 }, { weapon: weapon('Iron Lance') });
+    const plan = planAreaBlows({
+      source: a,
+      primary: t,
+      area: { shape: 'cone', rows: [{ width: 3, multiplier: 0.75 }, { width: 3, multiplier: 0.5 }], damage: { kind: 'scaled', multiplier: 1 } }, // prettier-ignore
+      units: [t, near, far],
+      world: worldOf([a, t, near, far]),
+      strikeMods: getWeaponArtCombatMods(art('legend_annihilate')),
+    });
+    expect(plan.map((p) => [p.unit.name, p.damage])).toEqual([
+      ['Near', 27],
+      ['Far', 18],
+    ]);
+  });
+});
+
+describe("Hermit's Bow's Fan Shot: the arc (legendary-arts-rework §2)", () => {
+  it('the two foes beside the target on its ring take 70% blows; one off the ring takes none', () => {
+    // Hermit's Bow Mt 11, STR 15. Art: no Atk bonus. The bow's +4 STR when alone is a
+    // skill-context mod, and this combat is resolved without one (as every test here).
+    // Blow on DEF 2: 15 + 11 - 2 = 24; × 0.7 = 16.
+    const bow = weapon("Hermit's Bow");
+    const a = unit(
+      'Hermit',
+      'player',
+      4,
+      4,
+      { STR: 15, SKL: 20 },
+      { weapon: bow, weaponRank: 'Mast' },
+    );
+    const t = unit('Target', 'enemy', 4, 6, { HP: 60, DEF: 2 }, { weapon: weapon('Iron Lance') });
+    const left = unit('Left', 'enemy', 3, 5, { HP: 60, DEF: 2 }, { weapon: weapon('Iron Lance') });
+    const right = unit(
+      'Right',
+      'enemy',
+      5,
+      5,
+      { HP: 60, DEF: 2 },
+      { weapon: weapon('Iron Lance') },
+    );
+    const behind = unit(
+      'Behind',
+      'enemy',
+      4,
+      7,
+      { HP: 60, DEF: 2 },
+      { weapon: weapon('Iron Lance') },
+    );
+    strike(a, t, 'legend_hermit_fan', [a, t, left, right, behind]);
+    expect(left.currentHP).toBe(60 - 16);
+    expect(right.currentHP).toBe(60 - 16);
+    expect(behind.currentHP).toBe(60);
+  });
+});
+
 describe('Validators', () => {
   it('refuse the retired splash and pierce keys and a chosen-center art the AI could hold', () => {
     const arts = structuredClone(data.weaponArts);
     const quake = arts.arts.find((a) => a.id === 'magic_burning_quake');
     quake.effects = { aoeSplash: { radius: 1 } };
-    const doom = arts.arts.find((a) => a.id === 'legend_doom_thrust');
-    doom.effects.afterCombat.push({ type: 'pierce_through', target: 'defender' });
+    const rush = arts.arts.find((a) => a.id === 'axe_rushing_blow');
+    rush.effects.afterCombat.push({ type: 'pierce_through', target: 'defender' });
     const bolt = arts.arts.find((a) => a.id === 'legend_cataclysm_bolt');
     bolt.targeting = 'chosen_center';
     bolt.allowedFactions = ['player', 'enemy'];
@@ -215,7 +299,7 @@ describe('Validators', () => {
     expect(errors.some((e) => e.includes('magic_burning_quake') && e.includes('aoeSplash'))).toBe(
       true,
     );
-    expect(errors.some((e) => e.includes('legend_doom_thrust') && e.includes('pierce'))).toBe(true);
+    expect(errors.some((e) => e.includes('axe_rushing_blow') && e.includes('pierce'))).toBe(true);
     expect(
       errors.some((e) => e.includes('legend_cataclysm_bolt') && e.includes('centerRange')),
     ).toBe(true);
@@ -223,5 +307,20 @@ describe('Validators', () => {
       errors.some((e) => e.includes('legend_cataclysm_bolt') && e.includes('player only')),
     ).toBe(true);
     expect(validateCrossReferences(data).errors).toEqual([]);
+  });
+
+  it('refuse a cone without odd rows, an arc without a width and a leap that is not aimed', () => {
+    const arts = structuredClone(data.weaponArts);
+    const byId = (id) => arts.arts.find((a) => a.id === id);
+    byId('legend_annihilate').area.rows = [{ width: 2, multiplier: 0.75 }];
+    delete byId('legend_hermit_fan').area.width;
+    const cleave = byId('axe_sweeping_cleave');
+    cleave.area.leap = true; // a normal attack's around-attacker area cannot leap
+    const { errors } = validateCrossReferences({ ...data, weaponArts: arts });
+    expect(errors.some((e) => e.includes('legend_annihilate') && e.includes('odd width'))).toBe(
+      true,
+    );
+    expect(errors.some((e) => e.includes('legend_hermit_fan') && e.includes('width'))).toBe(true);
+    expect(errors.some((e) => e.includes('axe_sweeping_cleave') && e.includes('leap'))).toBe(true);
   });
 });

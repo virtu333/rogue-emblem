@@ -331,10 +331,23 @@ export function validateCrossReferences(datasets = null) {
     if (!area) continue;
     if (area.shape === 'line' && !(area.length >= 1))
       errors.push(`${where}.area is a line without a length`);
-    if (area.shape !== 'line' && !(area.radius >= 1)) errors.push(`${where}.area needs a radius`);
+    if (area.shape === 'cone') {
+      const rows = Array.isArray(area.rows) ? area.rows : [];
+      if (!rows.length || rows.some((r) => !(Number.isInteger(r?.width) && r.width % 2 === 1)))
+        errors.push(`${where}.area is a cone: it needs rows, each an odd width`);
+    }
+    if (area.shape === 'arc' && !(area.width >= 1))
+      errors.push(`${where}.area is an arc without a width`);
+    if (['radius', 'around_attacker'].includes(area.shape) && !(area.radius >= 1))
+      errors.push(`${where}.area needs a radius`);
+    // A cone or an arc is shaped by the target (legendary-arts-rework §1-2).
+    if (['cone', 'arc'].includes(area.shape) && chosenCenter)
+      errors.push(`${where}.area ${area.shape} reads the target: it can't be chosen_center`);
+    if (area.leap !== undefined && (!chosenCenter || area.shape !== 'around_attacker'))
+      errors.push(`${where}.area.leap needs a chosen_center around_attacker area`);
     if (chosenCenter) {
-      if (area.shape !== 'radius')
-        errors.push(`${where} is chosen_center: its area must be a radius`);
+      if (area.shape !== 'radius' && !(area.leap === true && area.shape === 'around_attacker'))
+        errors.push(`${where} is chosen_center: its area must be a radius (or a leap)`);
       if (area.centerRange === undefined)
         errors.push(`${where} is chosen_center without centerRange`);
       const factions = toStringArray(art.allowedFactions);

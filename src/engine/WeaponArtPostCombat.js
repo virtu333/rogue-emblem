@@ -314,7 +314,8 @@ export function getPostCombatPipelineSteps({
     });
   }
 
-  // Annihilate: timed self-buff if the art user's combat killed the opponent.
+  // A kill-buff art (Annihilate's old body; no catalog art has one since
+  // legendary-arts-rework): timed self-buff if the art user's combat killed the opponent.
   // Death is checked at application time (after earlier steps resolve).
   for (const side of SIDE_ORDER) {
     if (!hitBySide[side]) continue;

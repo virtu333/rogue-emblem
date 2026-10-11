@@ -375,8 +375,9 @@ describe('the Compendium', () => {
     expect(starfall.lines).toEqual(
       expect.arrayContaining([
         'Weapon art: Starfall Volley',
-        'Cost: 5 HP · 3 per battle · 1 per turn',
-        'Effect: +5 Attack · +20 Hit · +15 Crit',
+        'Cost: 7 HP · 2 per battle · 1 per turn',
+        'Effect: +3 Attack',
+        'Aim: pick any tile 3-7 tiles away: a 60% blow to each enemy within 1 tile of it; no counter',
         'Needs: Bow · Master rank',
       ]),
     );
@@ -392,15 +393,13 @@ describe('the Compendium', () => {
   });
 
   it("a legendary art names the weapons that carry it, once they're found", () => {
-    const art = (seen) =>
+    const art = (seen, name = 'Starfall Volley') =>
       compendiumEntries(overlay(seen), tab('weaponArts'), 0, 'weaponArts').find(
-        (e) => e.name === 'Starfall Volley',
+        (e) => e.name === name,
       );
-    expect(art({ items: ['Starfall'] }).lines).toContain(
-      'Carried by: Starfall, a weapon not found yet',
-    );
-    expect(art({ all: true }).lines).toContain("Carried by: Starfall, Hermit's Bow");
-    expect(art({}).lines).toContain('Carried by: 2 weapons not found yet');
+    expect(art({ items: ['Starfall'] }).lines).toContain('Carried by: Starfall');
+    expect(art({}).lines).toContain('Carried by: a weapon not found yet');
+    expect(art({ all: true }, 'Fan Shot').lines).toContain("Carried by: Hermit's Bow");
   });
 
   it('search never finds an entry not met, and finds it once met', () => {
