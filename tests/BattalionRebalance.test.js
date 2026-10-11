@@ -207,6 +207,7 @@ describe('Expanded Ranks retired (the roster has no cap)', () => {
     expect(saved.purchasedUpgrades).toEqual({
       recruit_skill: 1,
       __balance_revision: CURRENT_BALANCE_REVISION,
+      __balance_settled: CURRENT_BALANCE_REVISION,
     });
     expect(saved.retiredUpgradeRefunds).toEqual({ roster_cap: 1 });
     expect(saved.totalSupply).toBe(275);
@@ -234,6 +235,7 @@ describe('Expanded Ranks retired (the roster has no cap)', () => {
     expect(saved.purchasedUpgrades).toEqual({
       recruit_xp: 1,
       __balance_revision: CURRENT_BALANCE_REVISION,
+      __balance_settled: CURRENT_BALANCE_REVISION,
     });
     expect(saved.retiredUpgradeRefunds).toEqual({ roster_cap: 1 });
     // max(275, 150) + 5; no second 175.
@@ -464,6 +466,74 @@ describe('the settled revision survives a save by an older build (BalanceRevisio
     expect(disk().purchasedUpgrades).toEqual({
       recruit_hp_growth: 2,
       __balance_revision: CURRENT_BALANCE_REVISION,
+      __balance_settled: CURRENT_BALANCE_REVISION,
+    });
+  });
+
+  it('adopting a disk copy with only the second marker keeps it out of the upgrade levels', () => {
+    const m = load();
+    m.purchasedUpgrades.loot_quality = 1;
+    m._save();
+    store[KEY] = JSON.stringify({
+      ...disk(),
+      balanceRevision: 5,
+      savedAt: disk().savedAt + 10,
+      purchasedUpgrades: { loot_quality: 2, __balance_revision: 5, __balance_settled: 6 },
+    });
+    m._save();
+    expect(m.purchasedUpgrades).toEqual({ loot_quality: 2 });
+    expect(disk().balanceRevision).toBe(CURRENT_BALANCE_REVISION);
+  });
+});
+
+describe('a revision-5 build between two loads (it knows __balance_revision)', () => {
+  // What the revision-5 build (#312) does to the save: it strips `__balance_revision` on load,
+  // keeps every other key of purchasedUpgrades, and writes its own revision (5) to both the
+  // top-level field and `__balance_revision`.
+  const revision5BuildResaves = () => {
+    const saved = disk();
+    const { __balance_revision: _stripped, ...kept } = saved.purchasedUpgrades;
+    store[KEY] = JSON.stringify({
+      ...saved,
+      balanceRevision: 5,
+      savedAt: saved.savedAt + 1,
+      purchasedUpgrades: { ...kept, __balance_revision: 5 },
+    });
+  };
+
+  it('credits revision 6 once however many round trips it makes', () => {
+    seed({
+      balanceRevision: 5,
+      totalSupply: 0,
+      savedAt: 5000,
+      purchasedUpgrades: { loot_quality: 2, __balance_revision: 5 },
+    });
+    const supply = [];
+    for (let trip = 0; trip < 3; trip++) {
+      const m = load();
+      supply.push(m.totalSupply);
+      m._save();
+      revision5BuildResaves();
+    }
+    expect(supply).toEqual([90, 90, 90]);
+    expect(disk().purchasedUpgrades.__balance_settled).toBe(6);
+  });
+
+  it('never writes a revision below the one the save was settled at', () => {
+    seed({
+      balanceRevision: 9,
+      totalSupply: 0,
+      savedAt: 5000,
+      purchasedUpgrades: { loot_quality: 2, __balance_revision: 9, __balance_settled: 9 },
+    });
+    const m = load();
+    expect(m.totalSupply).toBe(0);
+    m._save();
+    expect(disk().balanceRevision).toBe(9);
+    expect(disk().purchasedUpgrades).toEqual({
+      loot_quality: 2,
+      __balance_revision: 9,
+      __balance_settled: 9,
     });
   });
 });
