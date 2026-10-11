@@ -122,3 +122,41 @@ test('unaffordable, maxed and milestone-locked upgrades explain their state', as
   const buy = await page.locator('.mu-buy').boundingBox();
   expect(buy.y + buy.height).toBeLessThanOrEqual(375);
 });
+test('Branching Threads repeats past its listed tiers: Tier 6, 400 a tier, refund 400', async ({
+  page,
+}, info) => {
+  await boot(page);
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('HomeBase');
+    s.meta.totalSupply = 2000;
+    s.meta.purchasedUpgrades.branching_threads = 4;
+    s.meta._save();
+    s.mobileUpgrades.render();
+  });
+  await page.getByRole('button', { name: 'Economy', exact: true }).tap();
+  const row = page.locator('[data-upgrade="branching_threads"]');
+  await row.tap();
+  // Tier 4 of the list is not the last tier: no MAX, no "/ 4", the next tier on sale.
+  await expect(row).toContainText('Tier 4');
+  await expect(row).not.toContainText('/ 4');
+  await expect(row).toContainText('400 Supply');
+  await expect(page.locator('.mu-effects')).toContainText(
+    'Next: 5 rerolls per run: battle rewards or level-ups',
+  );
+  await page.getByRole('button', { name: 'Buy · 400 Supply', exact: true }).tap();
+  await page.getByRole('button', { name: 'Buy · 400 Supply', exact: true }).tap();
+  await expect(row).toContainText('Tier 6');
+  await expect(row.locator('.mu-pips-more')).toHaveText('+2');
+  await expect(page.locator('.mu-currency.active')).toContainText('1200');
+  await expect(page.locator('.mu-effects')).toContainText('Current: 6 rerolls per run');
+  await page.screenshot({ path: info.outputPath('branching-threads-tier6.png') });
+  await page.getByRole('button', { name: 'Refund one tier', exact: true }).tap();
+  await expect(page.locator('.mu-refund-info')).toContainText('Return 400 Supply, less 20 fee');
+  await page.getByRole('button', { name: 'Confirm refund' }).tap();
+  await expect(row).toContainText('Tier 5');
+  await expect(page.locator('.mu-currency.active')).toContainText('1580');
+  const saved = await page.evaluate(() =>
+    window.__emblemRogueGame.scene.getScene('HomeBase').meta.getActiveEffects(),
+  );
+  expect(saved.rewardRerolls).toBe(5);
+});

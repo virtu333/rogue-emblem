@@ -1,5 +1,6 @@
 import { captureBattleWorldState } from '../engine/BattleSnapshotState.js';
 import { serializeBattleUnit } from '../engine/BattleUnitState.js';
+import { rerollsSpent as battleRerollsSpent } from '../engine/RerollPool.js';
 
 // Read-only scene adapter. No RNG, ID allocation, writes or history embedding.
 export function captureBattleState(scene, { checkpointIndex = 0, rngSeed = 0 } = {}) {
@@ -48,6 +49,9 @@ export function captureBattleState(scene, { checkpointIndex = 0, rngSeed = 0 } =
           convoy: scene.runManager.convoy || { weapons: [], consumables: [] },
           accessories: scene.runManager.accessories || [],
           gold: scene.runManager.gold ?? 0,
+          // Branching Threads: rerolls spent (a level-up reroll spends one mid-battle), so
+          // a resume keeps the charge and a rewind past the level-up refunds it.
+          rewardRerollsSpent: battleRerollsSpent(scene.runManager),
         }
       : null,
   });

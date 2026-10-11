@@ -9,7 +9,7 @@ import { join } from 'node:path';
 const ROOTS = ['src/scenes', 'src/ui'];
 // Engine files that apply HP changes to the run on the player's behalf and so must not
 // bypass UnitHealth either (the engine as a whole is not scanned: many modules own HP rules).
-const ENGINE_FILES = ['src/engine/EventEffects.js'];
+const ENGINE_FILES = ['src/engine/EventEffects.js', 'src/engine/LevelUpReroll.js'];
 const WRITE = /\bcurrentHP\s*(?:[-+*/]?=(?!=)|\+\+|--)/;
 
 // Each allowed write, by file and the text of its line, with why it is not play.
