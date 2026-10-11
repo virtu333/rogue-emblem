@@ -5,7 +5,7 @@ import { inputHint } from '../utils/inputHint.js';
 // HelpOverlay — Tabbed reference dictionary accessible from Pause menu
 // 8 tabs with paginated content. Depth 860-862.
 
-import { HELP_TABS } from '../data/helpContent.js';
+import { helpTabsFor } from '../data/helpContent.js';
 import { consumeEscEvent } from '../utils/escPriority.js';
 import { pushOverlay, removeOverlay, isTopOverlay } from '../utils/overlayStack.js';
 import { BoundingFocusController } from './BoundingFocusController.js';
@@ -17,9 +17,11 @@ const DEPTH_PANEL = 861;
 const DEPTH_UI = 862;
 
 export class HelpOverlay {
-  constructor(scene, onClose) {
+  constructor(scene, onClose, gameData = scene?.gameData) {
     this.scene = scene;
     this.onClose = onClose;
+    // The pages this player is shown (a Descent-only page waits for the Descent to be on).
+    this.tabs = helpTabsFor(gameData);
     this.objects = [];
     this.visible = false;
     this.activeTabIndex = 0;
@@ -49,14 +51,14 @@ export class HelpOverlay {
       this.domMenu = new ReferenceMenu(
         this.scene,
         'Help',
-        HELP_TABS,
+        this.tabs,
         (tab) =>
-          HELP_TABS[tab].pages.map((page) => ({
+          this.tabs[tab].pages.map((page) => ({
             name: inputHint(this.scene, page.title, page.mobileTitle ?? page.title),
             lines: page.lines.map((line) =>
               inputHint(this.scene, line.text, line.mobileText ?? line.text),
             ),
-            tags: [...(HELP_TABS[tab].tags || []), ...(page.tags || [])],
+            tags: [...(this.tabs[tab].tags || []), ...(page.tags || [])],
           })),
         () => this.hide(),
         { searchAllTabs: true },
@@ -127,7 +129,7 @@ export class HelpOverlay {
   }
 
   _mobilePrevAction() {
-    const tabs = HELP_TABS;
+    const tabs = this.tabs;
     if (this.currentPage > 0) {
       this.currentPage--;
       this._draw();
@@ -139,7 +141,7 @@ export class HelpOverlay {
   }
 
   _mobileNextAction() {
-    const tabs = HELP_TABS;
+    const tabs = this.tabs;
     const activeTab = tabs[this.activeTabIndex];
     if (this.currentPage < activeTab.pages.length - 1) {
       this.currentPage++;
@@ -164,8 +166,8 @@ export class HelpOverlay {
 
   _buildSearchIndex() {
     this.searchIndex = [];
-    for (let tabIndex = 0; tabIndex < HELP_TABS.length; tabIndex++) {
-      const tab = HELP_TABS[tabIndex];
+    for (let tabIndex = 0; tabIndex < this.tabs.length; tabIndex++) {
+      const tab = this.tabs[tabIndex];
       const tabTags = Array.isArray(tab?.tags) ? tab.tags : [];
       const pages = Array.isArray(tab?.pages) ? tab.pages : [];
       for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
@@ -397,7 +399,7 @@ export class HelpOverlay {
     // Tab bar
     const tabY = top + 62;
     const tabStartX = left + 15;
-    const tabs = HELP_TABS;
+    const tabs = this.tabs;
     const tabGap = (panelW - 30) / tabs.length;
 
     for (let i = 0; i < tabs.length; i++) {
@@ -641,7 +643,7 @@ export class HelpOverlay {
 
   // Cycle tabs with wraparound; reset to the tab's first page.
   _cycleTab(dir) {
-    const n = HELP_TABS.length;
+    const n = this.tabs.length;
     if (n <= 1) return;
     this.activeTabIndex = (this.activeTabIndex + dir + n) % n;
     this.currentPage = 0;
@@ -650,7 +652,7 @@ export class HelpOverlay {
 
   // Step pages within the active tab, clamped at the ends.
   _cyclePage(dir) {
-    const pageCount = HELP_TABS[this.activeTabIndex]?.pages?.length || 1;
+    const pageCount = this.tabs[this.activeTabIndex]?.pages?.length || 1;
     const next = Math.max(0, Math.min(pageCount - 1, this.currentPage + dir));
     if (next === this.currentPage) return;
     this.currentPage = next;

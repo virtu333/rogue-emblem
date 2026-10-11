@@ -172,9 +172,14 @@ export class PauseOverlay {
     this._addButton(cx, btnY, 'More Info', () => {
       if (this.helpOverlay?.visible) return;
       this._hideConfirm();
-      this.helpOverlay = new HelpOverlay(this.scene, () => {
-        this.helpOverlay = null;
-      });
+      this.helpOverlay = new HelpOverlay(
+        this.scene,
+        () => {
+          this.helpOverlay = null;
+        },
+        // The route map's pause passes no gameData of its own; its scene has the run's.
+        this.gameData ?? this.scene?.gameData,
+      );
       this.helpOverlay.show();
     });
     btnY += 40;

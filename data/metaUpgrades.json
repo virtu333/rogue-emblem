@@ -1241,12 +1241,12 @@
   {
     "id": "loot_quality",
     "name": "Lucky Finds",
-    "description": "Higher chance for upgraded weapon drops",
+    "description": "Higher chance for upgraded weapon drops. Into a Legend: Act III on, at half the chance.",
     "category": "economy",
     "maxLevel": 2,
     "costs": [
-      120,
-      240
+      90,
+      180
     ],
     "effects": [
       {
