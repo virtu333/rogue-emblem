@@ -1545,6 +1545,8 @@ Then **Two Towers** (PR D, about 12 more days with `03` PR 1, PR 1b and `02` PRs
     Light" is read as the large route maps and assembled event pieces; the small authored
     event pieces stay on every rung, as decided for the Toll-House on 2026-10-10.
     **Recommendation:** keep that reading; say so if the ladder was meant to cover them too.
+    **Decided (owner, 2026-10-11): keep that reading.** Small authored event pieces stay on
+    every rung; only the large route maps and assembled event pieces skip First Light.
 
 ## 16. Event set pieces (shipped) and this format
 
