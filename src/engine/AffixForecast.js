@@ -1,6 +1,7 @@
 // Read-only consequences of an exchange. No combat rolls, mutations or UI dependencies.
 import { CRIT_MULTIPLIER } from '../utils/constants.js';
 import { isStatusImmune } from './StatusConditionSystem.js';
+import { combatDistance } from './EntitySystem.js';
 
 // A side whose first strike has a Hit of its own (Keen Eye) can land even when later strikes can't.
 const canHit = (info) => info?.attackCount > 0 && (info.firstHit ?? info.hit) > 0;
@@ -80,8 +81,10 @@ export function affixForecastNotes(
             [opponent, ...visibleUnits].some((other) => {
               if (other === unit || (other.currentHP ?? other.stats?.HP ?? 0) <= 0) return false;
               const positioned = [unit.col, unit.row, other.col, other.row].every(Number.isFinite);
+              // The Deathburst's own reach (AffixSystem.deathburstVictims): the Entity at
+              // its nearest body tile.
               const distance = positioned
-                ? Math.abs(unit.col - other.col) + Math.abs(unit.row - other.row)
+                ? combatDistance(unit, other)
                 : other === opponent
                   ? forecast.display?.distance
                   : Infinity;

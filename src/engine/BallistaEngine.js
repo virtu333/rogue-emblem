@@ -2,6 +2,7 @@
 
 import { rollHit } from './HitRoll.js';
 import { TERRAIN } from '../utils/constants.js';
+import { combatDistance } from './EntitySystem.js';
 
 export const BALLISTA_MIGHT = 10;
 export const BALLISTA_HIT = 85;
@@ -84,7 +85,8 @@ export function selectBallistaTarget(ballista, targets) {
 
   for (const unit of targets) {
     if (unit.currentHP <= 0) continue;
-    const dist = Math.abs(unit.col - ballista.col) + Math.abs(unit.row - ballista.row);
+    // The Entity is in reach at its nearest body tile (combatDistance).
+    const dist = combatDistance(ballista, unit);
     if (dist < 1 || dist > range) continue;
     if (dist < bestDist || (dist === bestDist && unit.currentHP < bestHP)) {
       best = unit;

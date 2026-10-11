@@ -4,7 +4,7 @@
 // bound skill.
 // All functions take skillsData (from skills.json) for metadata lookup.
 
-import { gridDistance, getConditionalWeaponBonuses, usesMagic } from './Combat.js';
+import { getConditionalWeaponBonuses, usesMagic } from './Combat.js';
 import { getAffixCombatMods } from './AffixSystem.js';
 import { isSilenced } from './StatusConditionSystem.js';
 import { getMasteryCombatMods } from './MasterySystem.js';
@@ -12,6 +12,7 @@ import { getTraitCombatMods } from './TraitSystem.js';
 import { setUnitHP } from './UnitHealth.js';
 import { effectiveSkills, hasEffectiveSkill } from './EffectiveSkills.js';
 import { getUnitMarkFor, markActivation, markProcs, roadBuffEntry } from './MarkSystem.js';
+import { combatDistance } from './EntitySystem.js';
 
 // The seven flat combat-mod keys shared by mastery perks and trait combatMods.
 const MOD_KEYS = [
@@ -65,7 +66,8 @@ function isWithinSkillRange(source, target, skill) {
   const minRange = Number(skill?.rangeMin ?? 0);
   if (!Number.isFinite(maxRange) || !Number.isFinite(minRange)) return false;
   if (maxRange < 0 || minRange < 0 || maxRange < minRange) return false;
-  const dist = gridDistance(source.col, source.row, target.col, target.row);
+  // The Entity is reached at its nearest body tile, as combat measures it.
+  const dist = combatDistance(source, target);
   return dist >= minRange && dist <= maxRange;
 }
 
@@ -90,14 +92,15 @@ function isLivingOnMap(unit) {
  * How many living allies of `unit` stand on a cardinal neighbour tile (distance 1: never a
  * diagonal). `allies` is the unit's own side; the unit itself, the fallen and anyone off the
  * map are not counted. The one adjacency rule the `adjacent_ally` accessory condition and
- * Phalanx Rite share.
+ * Phalanx Rite share. Distances here and in every condition below are combatDistance's: the
+ * Entity stands beside every tile its 3x3 body touches, not only its top-left one.
  */
 export function countAdjacentAllies(unit, allies) {
   if (!unit || !Array.isArray(allies)) return 0;
   let count = 0;
   for (const ally of allies) {
     if (ally === unit || !isLivingOnMap(ally)) continue;
-    if (gridDistance(unit.col, unit.row, ally.col, ally.row) === 1) count += 1;
+    if (combatDistance(unit, ally) === 1) count += 1;
   }
   return count;
 }
@@ -110,10 +113,7 @@ export function countAdjacentAllies(unit, allies) {
 export function hasAllyWithin(unit, allies, radius) {
   if (!unit || !Array.isArray(allies)) return false;
   return allies.some(
-    (ally) =>
-      ally !== unit &&
-      isLivingOnMap(ally) &&
-      gridDistance(unit.col, unit.row, ally.col, ally.row) <= radius,
+    (ally) => ally !== unit && isLivingOnMap(ally) && combatDistance(unit, ally) <= radius,
   );
 }
 
@@ -190,10 +190,7 @@ function isAccessoryConditionMet(condition, unit, opponent, allies, enemies, ter
   if (condition === 'no_ally_within_2') return !hasAllyWithin(unit, allies, 2);
   if (condition === 'enemies_nearby_2plus') {
     const nearby = enemies.filter(
-      (enemy) =>
-        enemy !== unit &&
-        isLivingOnMap(enemy) &&
-        gridDistance(unit.col, unit.row, enemy.col, enemy.row) <= 2,
+      (enemy) => enemy !== unit && isLivingOnMap(enemy) && combatDistance(unit, enemy) <= 2,
     ).length;
     return nearby >= 2;
   }
@@ -208,8 +205,7 @@ function isAccessoryConditionMet(condition, unit, opponent, allies, enemies, ter
     );
     return !others.some(
       (candidate) =>
-        gridDistance(unit.col, unit.row, candidate.col, candidate.row) <= 2 ||
-        gridDistance(opponent.col, opponent.row, candidate.col, candidate.row) <= 2,
+        combatDistance(unit, candidate) <= 2 || combatDistance(opponent, candidate) <= 2,
     );
   }
   return true;
@@ -320,9 +316,7 @@ export function getSkillCombatMods(
       // Check passive conditions
       let passiveCondMet = true;
       if (skill.condition === 'no_adjacent_ally') {
-        passiveCondMet = !allies.some(
-          (a) => a !== unit && gridDistance(unit.col, unit.row, a.col, a.row) === 1,
-        );
+        passiveCondMet = !allies.some((a) => a !== unit && combatDistance(unit, a) === 1);
       }
       if (passiveCondMet) {
         if (skill.effects.critScalesWithMissingHP) {
@@ -348,9 +342,7 @@ export function getSkillCombatMods(
       if (skill.condition === 'below50') condMet = isBelow50(unit);
       if (skill.condition === 'below25') condMet = isBelow25(unit);
       if (skill.condition === 'adjacent_ally') {
-        condMet = allies.some(
-          (a) => a !== unit && gridDistance(unit.col, unit.row, a.col, a.row) === 1,
-        );
+        condMet = allies.some((a) => a !== unit && combatDistance(unit, a) === 1);
       }
       if (skill.condition === 'initiating') condMet = isInitiating;
       if (skill.condition === 'defending') condMet = !isInitiating;
@@ -384,10 +376,7 @@ export function getSkillCombatMods(
         }
         if (skill.id === 'spell_harmony') {
           const adjacentPlayerAllies = allies.filter(
-            (a) =>
-              a !== unit &&
-              a.faction === 'player' &&
-              gridDistance(unit.col, unit.row, a.col, a.row) === 1,
+            (a) => a !== unit && a.faction === 'player' && combatDistance(unit, a) === 1,
           ).length;
           if (adjacentPlayerAllies > 0) {
             mods.atkBonus += adjacentPlayerAllies * 2;
@@ -730,7 +719,7 @@ export function getTurnStartEffects(units, skillsData, marksData = null, turn = 
 
           for (const ally of units) {
             if (ally === unit || ally.currentHP <= 0) continue;
-            const dist = gridDistance(unit.col, unit.row, ally.col, ally.row);
+            const dist = combatDistance(unit, ally);
             if (dist <= (skill.range || 1) && ally.currentHP < ally.stats.HP) {
               const actualHeal = Math.min(healAmount, ally.stats.HP - ally.currentHP);
               effects.push({

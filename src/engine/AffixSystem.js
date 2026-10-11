@@ -4,6 +4,7 @@
 import { gridDistance, thornsReflectDamage } from './Combat.js';
 import { applyCondition } from './StatusConditionSystem.js';
 import { markHoldDisturbed } from './HoldDisturbance.js';
+import { combatDistance } from './EntitySystem.js';
 export { affixForecastNotes } from './AffixForecast.js';
 
 function getAffix(affixId, affixData) {
@@ -57,7 +58,8 @@ export function getAffixCombatMods(unit, opponent, allAllies, affixData, terrain
       const affix = getAffix(aid, affixData);
       if (!affix || affix.trigger !== 'passive-aura') continue;
 
-      const dist = gridDistance(unit.col, unit.row, ally.col, ally.row);
+      // The Entity gives and takes an aura at its nearest body tile (combatDistance).
+      const dist = combatDistance(unit, ally);
       if (dist <= (affix.range || 0) && affix.effects) {
         if (affix.effects.atkBonus) mods.atkBonus += affix.effects.atkBonus;
         if (!mods.activated.some((entry) => entry.id === affix.id))
@@ -257,6 +259,18 @@ export function getOnDeathAffixes(unit, affixData) {
     }
   }
   return effects;
+}
+
+/**
+ * The units a Deathburst (an `aoe_damage` on-death effect) bursting at `tile` reaches: every
+ * unit with a tile within `range`, in `units` order. Measured by combatDistance, so the
+ * Entity is caught beside any tile of its 3x3 body, not only its top-left one. Who is still
+ * standing to take the blow is the caller's to check as it applies each one.
+ */
+export function deathburstVictims(tile, units, range = 1) {
+  if (!tile || !Array.isArray(units)) return [];
+  const origin = { col: tile.col, row: tile.row };
+  return units.filter((other) => other && combatDistance(origin, other) <= range);
 }
 
 /**
