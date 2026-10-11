@@ -18,7 +18,7 @@
 //   grid                    Grid-like (cols, rows, fogEnabled, isVisible,
 //                           getMovementRange, getAttackRange)
 //   enemyUnits, ballistas   live arrays
-//   positions()             Map "col,row" -> { faction } of every living unit the
+//   positions()             Map "col,row" -> { faction, isCaravan? } of every living unit the
 //                           player knows of (PlayerKnowledge.js): a hidden unit
 //                           blocking a visible enemy's stop would give itself away
 //   costModifier(unit)      terrain-cost reduction for a unit (skills)

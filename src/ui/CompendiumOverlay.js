@@ -9,12 +9,19 @@ import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 import { consumeEscEvent } from '../utils/escPriority.js';
 import { LORE_TEXT_COLOR } from '../utils/constants.js';
 import {
+  discoveriesAcrossSlots,
   earnedDeedIdsAcrossSlots,
   hasAnySlotMilestone,
   metLordNamesAcrossSlots,
 } from '../engine/SlotManager.js';
 import { metLords } from '../engine/LordsMet.js';
+import {
+  discoveriesInRun,
+  discoveryView,
+  mergeDiscoveries,
+} from '../engine/CompendiumDiscovery.js';
 import { deedReferenceEntries } from './deedReference.js';
+import { LOCKED_LINE, LOCKED_NAME, lockedSummary } from './compendiumLocked.js';
 import { pushOverlay, removeOverlay, isTopOverlay } from '../utils/overlayStack.js';
 import { formatUses, getConsumableDescription } from '../utils/consumableText.js';
 import { getImbueStoneItems } from '../engine/ImbueSystem.js';
@@ -52,6 +59,9 @@ export const TAB_DEFS = [
   { label: 'Run', key: 'run', filters: ['All', 'Resources', 'Route', 'Rewards'] },
   { label: 'Deeds', key: 'deeds', filters: null },
 ];
+
+// Tabs whose entries fill in as the save meets them (engine/CompendiumDiscovery.js).
+const DISCOVERY_TABS = new Set(['weapons', 'items', 'skills']);
 
 const SKILL_FILTER_MAP = {
   Passive: 'passive',
@@ -130,6 +140,8 @@ export class CompendiumOverlay {
     this._foesItems = null;
     this._deedsItems = null;
     this._lordsItems = null;
+    // What this save has met (items and skills), read once per show().
+    this._discovery = null;
 
     // Gamepad/keyboard focus: a ring on the active tab. The overlay pushes one
     // input-focus scope (LIFO) on show and pops it on hide, so the pad drives it on
@@ -147,6 +159,7 @@ export class CompendiumOverlay {
       this._foesItems = null;
       this._deedsItems = null;
       this._lordsItems = null;
+      this._discovery = null;
       this.domMenu = new ReferenceMenu(
         this.scene,
         'Compendium',
@@ -165,6 +178,7 @@ export class CompendiumOverlay {
     this._foesItems = null;
     this._deedsItems = null;
     this._lordsItems = null;
+    this._discovery = null;
     this._buildSearchIndex();
     this._draw();
     this._setupFocus();
@@ -260,6 +274,41 @@ export class CompendiumOverlay {
       return;
     }
     this.hide();
+  }
+
+  /**
+   * What this save has met: every slot's lists and runs, the open save's lists and the
+   * run in play (so what was met a moment ago shows at once). Memoized per show().
+   */
+  _discoveryView() {
+    if (this._discovery) return this._discovery;
+    const meta = this.scene?.registry?.get?.('meta');
+    const found = mergeDiscoveries(
+      discoveriesAcrossSlots(),
+      { items: meta?.itemsSeen, skills: meta?.skillsSeen },
+      discoveriesInRun(this.scene?.runManager),
+    );
+    this._discovery = discoveryView(found);
+    return this._discovery;
+  }
+
+  _tabKeyFor(tabIndex) {
+    return TAB_DEFS[tabIndex]?.key ?? null;
+  }
+
+  /** Is this entry of the tab `key` still "???" (not yet met on any save)? */
+  _isLocked(key, item) {
+    if (!DISCOVERY_TABS.has(key) || !item) return false;
+    const view = this._discoveryView();
+    return key === 'skills' ? !view.isSkillSeen(item) : !view.isItemSeen(item);
+  }
+
+  /** "12 of 40 found": the tab's entries met so far. */
+  _foundCountLine(tabIndex) {
+    const key = TAB_DEFS[tabIndex]?.key;
+    const items = this._getItemsForTab(tabIndex);
+    const found = items.filter((item) => !this._isLocked(key, item)).length;
+    return `${found} of ${items.length} found.`;
   }
 
   _itemsPerPage() {
@@ -386,6 +435,8 @@ export class CompendiumOverlay {
         // Classes already index under the Class tab — skip their Foes-tab copies
         // so a class-name search jumps there instead of bouncing to the bestiary.
         if (TAB_DEFS[tabIndex].key === 'foes' && item._kind === 'class') continue;
+        // An entry not yet met is never found by its name or its text.
+        if (this._isLocked(TAB_DEFS[tabIndex].key, item)) continue;
         const parts = [
           item.name || '',
           item.description || '',
@@ -847,6 +898,10 @@ export class CompendiumOverlay {
     for (let i = 0; i < items.length; i++) {
       const y = startY + i * itemGap;
       const item = items[i];
+      if (this._isLocked(def.key, item)) {
+        this._renderLocked(item, y, left, rightX, def.key);
+        continue;
+      }
       switch (def.key) {
         case 'run':
         case 'stats':
@@ -918,6 +973,14 @@ export class CompendiumOverlay {
       this._text(rightX, y + 14, `${item.price || 0}g`, UI_PALETTE.muted, 1);
     }
     this._renderLoreLine(item, y + 28, left);
+  }
+
+  /** An entry not yet met: its place in the list and its kind, nothing more. */
+  _renderLocked(item, y, left, rightX, key) {
+    this._text(left + 25, y, LOCKED_NAME, UI_PALETTE.muted);
+    const kind = lockedSummary(key, item);
+    if (kind) this._text(rightX, y, kind, UI_PALETTE.muted, 1);
+    this._text(left + 25, y + 14, LOCKED_LINE, UI_PALETTE.muted);
   }
 
   _renderSkill(item, y, left, rightX) {
