@@ -38,19 +38,31 @@ const LOOT_WEAPON_TIER_INDEX = new Map(
 );
 
 /**
- * Weapon quality progression tuning (chained per-tier chance).
- * Bonus is interpreted as: chance per upgrade step to jump one tier up.
+ * Weapon quality progression tuning (Lucky Finds, `lootWeaponQualityBonus`): each step is a
+ * chance to lift the drop one tier, chained. Three limits hold the chain:
+ * - a step into Legend is taken only where the act's own table drops legendaries (its
+ *   `legendaryWeapon` weight is above 0: Act III on), so no Act I or Act II drop is upgraded into
+ *   one (Lottery Loot's card follows the table it draws from). Where the gate stops the chain
+ *   the Legend roll is not taken, so an Act I or II draw spends fewer Math.random calls than it
+ *   did before the gate: loot draws carry no replay contract across versions (a reroll draws
+ *   afresh from the saved parameters), so nothing depends on the old count;
+ * - a step into Legend rolls at LEGEND_STEP_BONUS_SHARE of the bonus;
+ * - a step lands only on a weapon some loot table lists (never an enemy's own weapon:
+ *   the Entity's, the Necromancer's Gravesong; nor Hatchet or Jian, which no table drops).
  *
- * Lv1 = 10%:
- * - Iron -> 90.00% Iron, 9.00% Steel, 0.90% Silver, 0.09% Legend
- * - Steel -> 90.00% Steel, 9.00% Silver, 0.90% Legend
+ * Lv1 = 10% (5% into Legend):
+ * - Iron -> 90.00% Iron, 9.00% Steel, 0.95% Silver, 0.05% Legend
+ * - Steel -> 90.00% Steel, 9.50% Silver, 0.50% Legend
+ * - Silver -> 95.00% Silver, 5.00% Legend
+ *
+ * Lv2 = 20% (10% into Legend):
+ * - Iron -> 80.00% Iron, 16.00% Steel, 3.60% Silver, 0.40% Legend
+ * - Steel -> 80.00% Steel, 18.00% Silver, 2.00% Legend
  * - Silver -> 90.00% Silver, 10.00% Legend
  *
- * Lv2 = 20%:
- * - Iron -> 80.00% Iron, 18.00% Steel, 1.80% Silver, 0.80% Legend
- * - Steel -> 80.00% Steel, 16.00% Silver, 4.00% Legend
- * - Silver -> 80.00% Silver, 20.00% Legend
+ * Where Legend is out of reach the chain stops at Silver (Steel -> 80% Steel, 20% Silver).
  */
+const LEGEND_STEP_BONUS_SHARE = 0.5;
 
 /**
  * Calculate gold earned from killing an enemy.
@@ -235,7 +247,26 @@ function normalizeSpawnTier(value) {
   return null;
 }
 
-function buildWeaponUpgradePools(allWeapons, rosterTypes = null) {
+// The pools of an act's table (and its boss rewards) that hold weapons.
+const WEAPON_POOL_KEYS = ['weapon', 'weapons', 'legendaryWeapon', 'rare'];
+
+/** Every weapon any act's loot table can drop, boss rewards included (the upgrade's landing set). */
+function lootTableWeaponNames(lootTables) {
+  const names = new Set();
+  const addPools = (table) => {
+    if (!table || typeof table !== 'object') return;
+    for (const key of WEAPON_POOL_KEYS)
+      for (const name of normalizeLootArray(table[key]))
+        if (typeof name === 'string') names.add(name);
+  };
+  for (const table of Object.values(lootTables || {})) {
+    addPools(table);
+    addPools(table?.bossRewards);
+  }
+  return names;
+}
+
+function buildWeaponUpgradePools(allWeapons, rosterTypes = null, droppableNames = null) {
   const poolsByType = new Map();
   for (const weapon of allWeapons) {
     const name = typeof weapon?.name === 'string' ? weapon.name : null;
@@ -243,6 +274,8 @@ function buildWeaponUpgradePools(allWeapons, rosterTypes = null) {
     const tier = typeof weapon?.tier === 'string' ? weapon.tier : null;
     if (!name || !type || !LOOT_WEAPON_TIER_INDEX.has(tier)) continue;
     if (rosterTypes && !rosterTypes.has(type)) continue;
+    // Only a weapon loot can drop: never an enemy's own (the Entity's, Gravesong).
+    if (droppableNames && !droppableNames.has(name)) continue;
     // A lord's personal weapon is never a drop, upgraded or not.
     if (isSignatureWeapon(weapon)) continue;
 
@@ -261,6 +294,7 @@ function boostWeaponQuality(
   qualityBonusPercent,
   bonusPoolsByType,
   excludeNames = null,
+  { legendAllowed = true } = {},
 ) {
   if (!baseWeapon || qualityBonusPercent <= 0) return baseWeapon;
 
@@ -277,11 +311,13 @@ function boostWeaponQuality(
 
   while (currentTierIndex < LOOT_WEAPON_TIER_UPGRADE_ORDER.length - 1) {
     const nextTier = LOOT_WEAPON_TIER_UPGRADE_ORDER[currentTierIndex + 1];
+    if (nextTier === 'Legend' && !legendAllowed) break;
     let nextPool = typeBuckets.get(nextTier) || [];
     // A legendary the run already has is not an upgrade target: the roll lands on another of the tier.
     if (excludeNames?.size) nextPool = nextPool.filter((entry) => !excludeNames.has(entry));
     if (nextPool.length === 0) break;
-    if (Math.random() * 100 >= bonus) break;
+    const stepBonus = nextTier === 'Legend' ? bonus * LEGEND_STEP_BONUS_SHARE : bonus;
+    if (Math.random() * 100 >= stepBonus) break;
 
     const nextName = nextPool[Math.floor(Math.random() * nextPool.length)];
     const nextWeapon = allWeapons.find((w) => w.name === nextName);
@@ -1024,7 +1060,17 @@ export function generateLootChoices(
   const maxAttempts = count * 5;
   let attempts = 0;
 
-  const qualityPoolsByType = buildWeaponUpgradePools(allWeapons, rosterTypes);
+  const qualityPoolsByType = buildWeaponUpgradePools(
+    allWeapons,
+    rosterTypes,
+    lootTableWeaponNames(lootTables),
+  );
+  // A quality upgrade reaches Legend only where the act itself drops legendaries (a boss's
+  // reward table is read through its act's own table: Act I's boss stays out).
+  const legendAllowed =
+    normalizeLootNumber(
+      buildLootTablesFromAct(baseTable, allWeapons, consumables).weights.legendaryWeapon,
+    ) > 0;
 
   while (choices.length < count && attempts < maxAttempts) {
     attempts++;
@@ -1074,6 +1120,7 @@ export function generateLootChoices(
         qualityBonusPercent,
         qualityPoolsByType,
         ownedLegendaries,
+        { legendAllowed },
       );
       if (upgradedWeapon) name = upgradedWeapon.name;
     }

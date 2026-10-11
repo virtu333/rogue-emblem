@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
+  CURRENT_BALANCE_REVISION,
   MetaProgressionManager,
   calculateCurrencies,
 } from '../src/engine/MetaProgressionManager.js';
@@ -42,6 +43,7 @@ describe('MetaProgressionManager', () => {
 
   it('loads saved dual-currency state from localStorage', () => {
     store['emblem_rogue_meta_save'] = JSON.stringify({
+      balanceRevision: CURRENT_BALANCE_REVISION,
       totalValor: 300,
       totalSupply: 500,
       purchasedUpgrades: { recruit_hp_growth: 3 },
@@ -54,6 +56,7 @@ describe('MetaProgressionManager', () => {
 
   it('migrates old totalRenown to both currencies', () => {
     store['emblem_rogue_meta_save'] = JSON.stringify({
+      balanceRevision: CURRENT_BALANCE_REVISION,
       totalRenown: 500,
       purchasedUpgrades: { recruit_hp_growth: 2 },
     });
@@ -228,8 +231,8 @@ describe('MetaProgressionManager', () => {
     meta.purchasedUpgrades.recruit_hp_growth = 1;
     meta.purchasedUpgrades.recruit_str_growth = 3;
     const effects = meta.getActiveEffects();
-    expect(effects.growthBonuses.HP).toBe(5);
-    expect(effects.growthBonuses.STR).toBe(15);
+    expect(effects.growthBonuses.HP).toBe(3);
+    expect(effects.growthBonuses.STR).toBe(9);
     // No flat stat bonuses from growth upgrades
     expect(effects.statBonuses.HP).toBeUndefined();
     expect(effects.statBonuses.STR).toBeUndefined();
@@ -248,10 +251,10 @@ describe('MetaProgressionManager', () => {
 
   it('getActiveEffects aggregates split growth + flat upgrades correctly', () => {
     const meta = new MetaProgressionManager(upgradesData);
-    meta.purchasedUpgrades.recruit_hp_growth = 4; // +20% growth
+    meta.purchasedUpgrades.recruit_hp_growth = 4; // +12% growth
     meta.purchasedUpgrades.recruit_hp_flat = 3; // +10 HP
     const effects = meta.getActiveEffects();
-    expect(effects.growthBonuses.HP).toBe(20);
+    expect(effects.growthBonuses.HP).toBe(12);
     expect(effects.statBonuses.HP).toBe(10);
   });
 
@@ -260,8 +263,8 @@ describe('MetaProgressionManager', () => {
     meta.purchasedUpgrades.lord_hp_growth = 2;
     meta.purchasedUpgrades.lord_str_growth = 1;
     const effects = meta.getActiveEffects();
-    expect(effects.lordGrowthBonuses.HP).toBe(10);
-    expect(effects.lordGrowthBonuses.STR).toBe(5);
+    expect(effects.lordGrowthBonuses.HP).toBe(6);
+    expect(effects.lordGrowthBonuses.STR).toBe(3);
     expect(effects.lordStatBonuses.HP).toBeUndefined();
   });
 
@@ -280,9 +283,9 @@ describe('MetaProgressionManager', () => {
     meta.purchasedUpgrades.lord_skl_growth = 2;
     meta.purchasedUpgrades.lord_res_growth = 2;
     const effects = meta.getActiveEffects();
-    expect(effects.lordGrowthBonuses.SPD).toBe(15);
-    expect(effects.lordGrowthBonuses.SKL).toBe(10);
-    expect(effects.lordGrowthBonuses.RES).toBe(10);
+    expect(effects.lordGrowthBonuses.SPD).toBe(9);
+    expect(effects.lordGrowthBonuses.SKL).toBe(6);
+    expect(effects.lordGrowthBonuses.RES).toBe(6);
   });
 
   it('getActiveEffects supports lord SPD, SKL, and RES flat upgrades', () => {

@@ -116,7 +116,7 @@ import { applyEnemySpawnGear, applySpawnLoadout } from '../../src/engine/EnemySp
 import { applyHoldSpawn } from '../../src/engine/HoldActivation.js';
 import { registerBattleEntity } from '../../src/engine/BattleEntityIdentity.js';
 import { crumbleFor, isNecromancer, raiseFor, raisers } from '../../src/engine/Necromancy.js';
-import { createPlayerKnowledge } from '../../src/engine/PlayerKnowledge.js';
+import { createPlayerKnowledge, unitPositionEntry } from '../../src/engine/PlayerKnowledge.js';
 import {
   spendAreaStrikeShot,
   spendCombatShots,
@@ -1374,7 +1374,7 @@ export class HeadlessBattle {
     const map = new Map();
     for (const u of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
       for (const t of isEntity(u) ? getFootprint(u) : [u])
-        map.set(`${t.col},${t.row}`, { faction: u.faction });
+        map.set(`${t.col},${t.row}`, unitPositionEntry(u));
     }
     return map;
   }

@@ -6,6 +6,9 @@ import { itemBaseLine, isCombatWeapon } from '../engine/ItemKeywords.js';
 import { itemHero, itemIcon } from './itemIcons.js';
 import { portraitListLayout, watchPortraitListLayout } from './portraitListLayout.js';
 import { trackScrollEdges } from './scrollEdgeCue.js';
+import { resolveWeaponArtIds } from './WeaponArtVisibility.js';
+import { weaponArtDetailLines } from './weaponArtDisplay.js';
+import { LOCKED_LINE, LOCKED_NAME, lockedSummary } from './compendiumLocked.js';
 
 // A shared readable list/detail browser. Providers retain filtering/unlock rules.
 //
@@ -243,7 +246,7 @@ export class ReferenceMenu {
           this.selected = i;
           this.render();
         },
-        entry.art ? 're-btn re-row re-row--item' : 're-btn re-row',
+        `${entry.art ? 're-btn re-row re-row--item' : 're-btn re-row'}${entry.locked ? ' is-locked' : ''}`,
       );
       b.dataset.focus = `entry-${i}`;
       b.setAttribute('aria-pressed', String(i === this.selected));
@@ -254,6 +257,7 @@ export class ReferenceMenu {
     });
     const selected = entries[this.selected];
     if (selected) {
+      if (selected.locked) detail.classList.add('is-locked');
       // Items and blessings lead with their picture, as in the shop; the text wraps beside it.
       if (selected.art)
         detail.append(
@@ -356,12 +360,49 @@ export function reflowLines(lines) {
 // Tabs whose entries are things the game draws as items (their icon and picture).
 const ART_TABS = { weapons: 'item', items: 'item', blessings: 'blessing' };
 
+/** Each art a catalog weapon carries of its own, by art id: its weapons (memoized). */
+function artCarriers(controller, arts) {
+  if (controller._artCarriers) return controller._artCarriers;
+  const byArt = new Map();
+  for (const weapon of controller.gameData?.weapons || [])
+    for (const id of resolveWeaponArtIds(weapon, arts)) {
+      if (!byArt.has(id)) byArt.set(id, []);
+      byArt.get(id).push(weapon);
+    }
+  controller._artCarriers = byArt;
+  return byArt;
+}
+
+/** "Carried by: Starfall, Hermit's Bow" for a legendary's art; unmet weapons stay unnamed. */
+function artCarrierLines(controller, view, art, arts) {
+  const carriers = artCarriers(controller, arts).get(art.id) || [];
+  if (!carriers.length) return [];
+  const met = carriers.filter((weapon) => !view._isLocked?.('weapons', weapon));
+  const unmet = carriers.length - met.length;
+  const names = met.map((weapon) => weapon.name);
+  if (unmet) names.push(unmet === 1 ? 'a weapon not found yet' : `${unmet} weapons not found yet`);
+  return [`Carried by: ${names.join(', ')}`];
+}
+
 export function compendiumEntries(controller, tab, filter, tabKey = null) {
   const artKind = ART_TABS[tabKey] || null;
   const view = Object.create(controller);
   view.activeTabIndex = tab;
   view.activeFilterIndex = filter;
+  const key = tabKey ?? controller._tabKeyFor?.(tab) ?? null;
+  const arts = controller.gameData?.weaponArts?.arts || [];
+  let foundLine = null;
   return view._getFilteredItems().map((item) => {
+    // Not met yet: a "???" row in its place, so the collection's size shows.
+    if (key && view._isLocked?.(key, item))
+      return {
+        name: LOCKED_NAME,
+        summary: lockedSummary(key, item),
+        lines: [LOCKED_LINE, (foundLine ??= view._foundCountLine(tab))],
+        // Its kind's generic icon (a bow, a ring), never the thing itself.
+        art: artKind ? { subject: { name: '', type: item.type }, kind: artKind } : null,
+        locked: true,
+      };
     const art = artKind ? { subject: item, kind: artKind } : null;
     if (item.referenceLines)
       return { name: item.name, summary: item.type, lines: item.referenceLines, art };
@@ -374,6 +415,15 @@ export function compendiumEntries(controller, tab, filter, tabKey = null) {
     };
     view._wrapLore = (text) => (text ? [text] : []);
     view._renderItems([item], 0, 0, 560);
+    // A weapon's own arts (the legendaries'), read as the shop and rewards read them.
+    if (key === 'weapons')
+      for (const id of resolveWeaponArtIds(item, arts)) {
+        const weaponArt = arts.find((entry) => entry.id === id);
+        if (weaponArt)
+          lines.push(`Weapon art: ${weaponArt.name}`, ...weaponArtDetailLines(weaponArt));
+      }
+    // A legendary's art names the weapons that carry it, once they have been met.
+    if (key === 'weaponArts') lines.push(...artCarrierLines(controller, view, item, arts));
     if ((controller.gameData.lords || []).includes(item)) {
       for (const trait of controller.gameData.traits || []) {
         if (trait.lordName === item.name && trait.rarity === 'legendary')

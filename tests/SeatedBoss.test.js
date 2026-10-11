@@ -8,9 +8,15 @@
 //     Nightfall, the gate), or the name is looked up among an elite node's captains;
 //   - the level drops the rung's boss level bonus, or an elite captain takes it twice;
 //   - Revival Stones land on the Entity, or miss the Lieutenant's kind;
-//   - an empty seat still spends a draw.
+//   - an empty seat still spends a draw;
+//   - the seats a validator reads (possibleSeats) drift from the ones the draw can pick, so a
+//     check of who could sit passes a seat the battle then fills differently.
 import { describe, expect, it, vi } from 'vitest';
-import { resolveSeatedBoss, seatedBossCandidates } from '../src/engine/SeatedBoss.js';
+import {
+  possibleSeats,
+  resolveSeatedBoss,
+  seatedBossCandidates,
+} from '../src/engine/SeatedBoss.js';
 import { generateSeededBattle } from '../src/engine/BattleScout.js';
 import { loadGameData } from './testData.js';
 
@@ -90,6 +96,38 @@ describe('resolveSeatedBoss', () => {
     expect(seat.stones).toBe(1);
     // A base captain sits at the top of the range plus the act's offset (2).
     expect(seat.level).toBe(9 + 2);
+  });
+});
+
+describe('possibleSeats: every boss the draw (or the name) can seat, and no other', () => {
+  const deps = { enemies: data.enemies, classes: data.classes, levelRange: [6, 9] };
+  // The names resolveSeatedBoss seats across a sweep of draws.
+  const drawn = (params) => {
+    const names = new Set();
+    for (let i = 0; i < 100; i++)
+      names.add(resolveSeatedBoss(params, { ...deps, random: () => i / 100 }).name);
+    return [...names].sort();
+  };
+  const seats = (params) => possibleSeats(params, deps).map((b) => b.name).sort(); // prettier-ignore
+
+  it.each([
+    ['Act V on First Light', { act: 'finalBoss', difficultyId: 'normal' }],
+    ['Act V on Nightfall', { act: 'finalBoss', difficultyId: 'hard' }],
+    ['Act V named on Black Sun', { act: 'finalBoss', difficultyId: 'lunatic', bossName: 'The Lieutenant' }], // prettier-ignore
+    ['Act V named the Entity on Dusk', { act: 'finalBoss', difficultyId: 'dusk', bossName: 'The Entity' }], // prettier-ignore
+    ['an Act II boss node', { act: 'act2', difficultyId: 'hard', isBoss: true }],
+    ['an Act II elite node', { act: 'act2', difficultyId: 'hard', isElite: true }],
+    ['an Act V elite node (no captains)', { act: 'finalBoss', difficultyId: 'hard', isElite: true }], // prettier-ignore
+  ])('%s', (_label, params) => {
+    expect(seats(params)).toEqual(drawn(params));
+  });
+
+  it('a name the act does not have pins nothing (the draw seats)', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const params = { act: 'finalBoss', difficultyId: 'hard', bossName: 'Nobody' };
+    expect(seats(params)).toEqual(drawn(params));
+    expect(seats(params)).toEqual(['The Entity']);
+    warn.mockRestore();
   });
 });
 
