@@ -194,7 +194,7 @@ export function isReadableMetaShape(meta) {
     if (meta[key] != null && (typeof meta[key] !== 'object' || Array.isArray(meta[key])))
       return false;
   }
-  for (const key of ['milestones', 'runRecords', 'lordsMet', 'deeds', 'itemsSeen', 'skillsSeen']) {
+  for (const key of ['milestones', 'runRecords', 'lordsMet', 'deeds']) {
     if (meta[key] != null && !Array.isArray(meta[key])) return false;
   }
   return true;

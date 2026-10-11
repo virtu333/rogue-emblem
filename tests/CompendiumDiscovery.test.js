@@ -16,13 +16,21 @@ import {
   discoveriesInRun,
   discoveriesOfFoes,
   discoveriesOfMetaSave,
+  discoveriesInUpgrades,
   discoveryView,
+  itemCatalogNames,
   mergeSeen,
   recordFoesEncountered,
   recordRunDiscoveries,
+  withDiscoveryKeys,
 } from '../src/engine/CompendiumDiscovery.js';
 import { MetaProgressionManager } from '../src/engine/MetaProgressionManager.js';
-import { discoveriesAcrossSlots, getMetaKey, getRunKey } from '../src/engine/SlotManager.js';
+import {
+  discoveriesAcrossSlots,
+  getMetaKey,
+  getRunKey,
+  getSlotSummary,
+} from '../src/engine/SlotManager.js';
 import { CompendiumOverlay, TAB_DEFS } from '../src/ui/CompendiumOverlay.js';
 import { compendiumEntries } from '../src/ui/ReferenceMenu.js';
 import { LOCKED_NAME } from '../src/ui/compendiumLocked.js';
@@ -53,6 +61,11 @@ const gameData = loadGameData();
 const META_1 = getMetaKey(1);
 const weapon = (name) => structuredClone(gameData.weapons.find((w) => w.name === name));
 const tab = (key) => TAB_DEFS.findIndex((t) => t.key === key);
+/** A raw meta save that has met these (as the current build writes it). */
+const seenSave = (found, extra = {}) => ({
+  ...extra,
+  purchasedUpgrades: withDiscoveryKeys(extra.purchasedUpgrades, found),
+});
 
 beforeEach(() => {
   for (const key of Object.keys(store)) delete store[key];
@@ -147,10 +160,11 @@ describe('what a run shows as met', () => {
       items: ['Power Ring', 'Rapier', 'Vulnerary'],
       skills: ['miracle', 'sol'],
     });
-    // A save that has the lists is never re-derived from its records.
-    expect(discoveriesOfMetaSave({ ...saved, itemsSeen: ['Starfall'] })).toEqual({
-      items: ['Starfall'],
-      skills: [],
+    // A save's keys are always unioned with its records (a copy that lost keys keeps
+    // what its records show).
+    expect(discoveriesOfMetaSave(seenSave({ items: ['Starfall'] }, saved))).toEqual({
+      items: ['Power Ring', 'Rapier', 'Starfall', 'Vulnerary'],
+      skills: ['miracle', 'sol'],
     });
   });
 
@@ -184,6 +198,79 @@ describe('MetaProgressionManager discoveries', () => {
     expect(meta.itemsSeen).toEqual(['Heal', 'Rapier']);
   });
 
+  it('an older build (fixed field list, max-merged upgrades) carries the discoveries through', () => {
+    const level = 2;
+    store[META_1] = JSON.stringify({ savedAt: 5, purchasedUpgrades: { recruit_hp_growth: level } });
+    const meta = new MetaProgressionManager(gameData.metaUpgrades, META_1);
+    meta.recordDiscoveries({ items: ['Starfall'], skills: ['sol'] });
+    // What a build from before the lists does to a save: copy `purchasedUpgrades` whole,
+    // max-merge it with a newer disk copy key by key, and write only the fields it knows
+    // (its own `_save`'s list, as on main before PR #331).
+    const OLDER_BUILD_FIELDS = [
+      'balanceRevision',
+      'solRefundBasis',
+      'totalValor',
+      'totalSupply',
+      'purchasedUpgrades',
+      'retiredUpgradeRefunds',
+      'legacyTierCosts',
+      'runsCompleted',
+      'runsStarted',
+      'lastDifficulty',
+      'skillAssignments',
+      'lordSelection',
+      'milestones',
+      'storyFlags',
+      'runRecords',
+      'settledRunIds',
+      'seenDialogueKeys',
+      'deedsEarned',
+      'lordsMet',
+      'hintState',
+      'prologue',
+      'savedAt',
+    ];
+    const loaded = JSON.parse(store[META_1]);
+    const upgrades = { ...loaded.purchasedUpgrades };
+    for (const [id, value] of Object.entries(loaded.purchasedUpgrades))
+      upgrades[id] = Math.max(Number(upgrades[id]) || 0, Number(value) || 0);
+    const olderSave = Object.fromEntries(
+      OLDER_BUILD_FIELDS.map((key) => [key, key === 'purchasedUpgrades' ? upgrades : loaded[key]]),
+    );
+    store[META_1] = JSON.stringify(olderSave);
+    const reloaded = new MetaProgressionManager(gameData.metaUpgrades, META_1);
+    expect(reloaded.hasSeenItem('Starfall')).toBe(true);
+    expect(reloaded.hasSeenSkill('sol')).toBe(true);
+    // In memory the upgrades are upgrades only; the tier and the slot card's count are
+    // what was bought.
+    expect(reloaded.purchasedUpgrades).toEqual({ recruit_hp_growth: level });
+    expect(reloaded.getUpgradeLevel('recruit_hp_growth')).toBe(level);
+    expect(getSlotSummary(1).upgradesOwned).toBe(level);
+  });
+
+  it('an old save backfills renamed and imbued items under their catalog names', () => {
+    store[META_1] = JSON.stringify({
+      runRecords: [{ roster: [{ name: 'Edric', weapon: 'Killing Edge +2', items: ['Bolting'] }] }],
+    });
+    store[getRunKey(1)] = JSON.stringify({
+      roster: [
+        {
+          name: 'Sera',
+          weapon: {
+            name: 'Vampiric Wo Dao +1',
+            _baseName: 'Vampiric Wo Dao',
+            _imbueId: 'vampiric',
+          },
+        },
+      ],
+    });
+    const meta = new MetaProgressionManager(gameData.metaUpgrades, META_1);
+    expect(meta.itemsSeen).toEqual(['Breachbolt', 'Jian', 'Keen Sword']);
+    expect(itemCatalogNames({ name: 'Cruel Iron Sword', _imbueId: 'keen' })).toEqual([
+      'Iron Sword',
+    ]);
+  });
+
   it('a stale manager adopting a newer disk save unions both lists', () => {
     const stale = new MetaProgressionManager(gameData.metaUpgrades, META_1);
     stale.recordDiscoveries({ items: ['Rapier'] });
@@ -191,8 +278,10 @@ describe('MetaProgressionManager discoveries', () => {
     other.recordDiscoveries({ items: ['Starfall'] });
     stale.recordDiscoveries({ skills: ['luna'] });
     const disk = JSON.parse(store[META_1]);
-    expect(disk.itemsSeen).toEqual(['Rapier', 'Starfall']);
-    expect(disk.skillsSeen).toEqual(['luna']);
+    expect(discoveriesInUpgrades(disk.purchasedUpgrades)).toEqual({
+      items: ['Rapier', 'Starfall'],
+      skills: ['luna'],
+    });
   });
 
   it('the hooks record a run and a foe, and do nothing without a meta', () => {
@@ -222,7 +311,7 @@ describe('MetaProgressionManager discoveries', () => {
 
 describe('discoveriesAcrossSlots', () => {
   it('unions every slot: its lists or backfill, and its run', () => {
-    store[getMetaKey(1)] = JSON.stringify({ itemsSeen: ['Starfall'], skillsSeen: ['sol'] });
+    store[getMetaKey(1)] = JSON.stringify(seenSave({ items: ['Starfall'], skills: ['sol'] }));
     store[getMetaKey(2)] = JSON.stringify({ runRecords: [{ roster: [{ weapon: 'Rapier' }] }] });
     store[getRunKey(3)] = JSON.stringify({ roster: [{ skills: ['luna'] }] });
     expect(discoveriesAcrossSlots()).toEqual({
@@ -328,7 +417,7 @@ describe('the Compendium', () => {
       return view.searchResults.filter((r) => r.tabIndex === tab('weapons')).length;
     };
     expect(searchFor('Starfall')).toBe(0);
-    store[getMetaKey(1)] = JSON.stringify({ itemsSeen: ['Starfall'] });
+    store[getMetaKey(1)] = JSON.stringify(seenSave({ items: ['Starfall'] }));
     expect(searchFor('Starfall')).toBeGreaterThan(0);
     // The open save's lists and the run in play count before anything is written.
     delete store[getMetaKey(1)];

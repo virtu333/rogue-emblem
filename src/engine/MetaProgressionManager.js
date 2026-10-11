@@ -36,7 +36,10 @@ import {
 import {
   discoveriesInRun,
   discoveriesOfMetaSave,
+  isDiscoveryKey,
   mergeDiscoveries,
+  withDiscoveryKeys,
+  withoutDiscoveryKeys,
 } from './CompendiumDiscovery.js';
 
 const DEFAULT_LORD_SELECTION = Object.freeze({
@@ -490,7 +493,10 @@ export class MetaProgressionManager {
             this.totalSupply = Math.max(0, Math.floor(saved.totalSupply));
         }
 
-        if (saved.purchasedUpgrades) this.purchasedUpgrades = { ...saved.purchasedUpgrades };
+        // Discoveries ride inside the saved map (CompendiumDiscovery.js); in memory they
+        // are their own lists.
+        if (saved.purchasedUpgrades)
+          this.purchasedUpgrades = withoutDiscoveryKeys(saved.purchasedUpgrades);
         this._migrateLegacyWeaponArtUpgradeState();
         this._migrateLegacyDeadlyArsenalUpgradeState(saved);
         if (typeof saved.runsCompleted === 'number') this.runsCompleted = saved.runsCompleted;
@@ -528,20 +534,13 @@ export class MetaProgressionManager {
     }
     // Saves from before the list backfill it from their records; lords in the slot's
     // in-progress run have joined, so they always count.
-    this.lordsMet = mergeLordNames(lordsMetOfMetaSave(savedMeta), this._lordsInSavedRun());
-    // Saves from before the lists backfill them from their records; what the slot's
+    const savedRun = this._readSavedRun();
+    this.lordsMet = mergeLordNames(lordsMetOfMetaSave(savedMeta), lordNamesInRun(savedRun));
+    // Discoveries: the save's keys unioned with its records' backfill; what the slot's
     // in-progress run holds has been met, so it always counts.
-    const seen = mergeDiscoveries(
-      discoveriesOfMetaSave(savedMeta),
-      discoveriesInRun(this._readSavedRun()),
-    );
+    const seen = mergeDiscoveries(discoveriesOfMetaSave(savedMeta), discoveriesInRun(savedRun));
     this.itemsSeen = seen.items;
     this.skillsSeen = seen.skills;
-  }
-
-  /** Lords in the run saved beside this meta (its slot's run save), if any. */
-  _lordsInSavedRun() {
-    return lordNamesInRun(this._readSavedRun());
   }
 
   /** The run saved beside this meta (its slot's run save), or null. */
@@ -1677,6 +1676,7 @@ export class MetaProgressionManager {
       for (const id of Object.keys(from)) ownedBefore[id] = this.getUpgradeLevel(id);
     if (disk.purchasedUpgrades && typeof disk.purchasedUpgrades === 'object') {
       for (const [id, level] of Object.entries(disk.purchasedUpgrades)) {
+        if (isDiscoveryKey(id)) continue; // unioned below, with the lists
         const diskLevel = Number(level) || 0;
         const localLevel = Number(this.purchasedUpgrades[id]) || 0;
         this.purchasedUpgrades[id] = Math.max(localLevel, diskLevel);
@@ -1860,7 +1860,10 @@ export class MetaProgressionManager {
       solRefundBasis: this.solRefundBasis,
       totalValor: this.totalValor,
       totalSupply: this.totalSupply,
-      purchasedUpgrades: this.purchasedUpgrades,
+      purchasedUpgrades: withDiscoveryKeys(this.purchasedUpgrades, {
+        items: this.itemsSeen,
+        skills: this.skillsSeen,
+      }),
       retiredUpgradeRefunds: this.retiredUpgradeRefunds,
       legacyTierCosts: this.legacyTierCosts,
       runsCompleted: this.runsCompleted,
@@ -1875,8 +1878,6 @@ export class MetaProgressionManager {
       seenDialogueKeys: this.seenDialogueKeys,
       deedsEarned: this.deedsEarned,
       lordsMet: this.lordsMet,
-      itemsSeen: this.itemsSeen,
-      skillsSeen: this.skillsSeen,
       hintState: this.hintState,
       prologue: normalizePrologueState(this.prologue),
       savedAt: this.savedAt,

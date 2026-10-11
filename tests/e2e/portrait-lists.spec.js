@@ -473,7 +473,7 @@ for (const viewport of PORTRAIT_VIEWPORTS) {
       await page.addInitScript(() => {
         localStorage.setItem(
           'emblem_rogue_slot_3_meta',
-          JSON.stringify({ itemsSeen: ['Silver Sword'] }),
+          JSON.stringify({ purchasedUpgrades: { '__seen_item:Silver Sword': 0 } }),
         );
       });
       await openTitleReference(page, 'compendium');

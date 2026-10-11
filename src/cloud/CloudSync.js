@@ -1,6 +1,11 @@
 import { mergeRunRecords } from '../engine/RunRecords.js';
 import { lordsMetOfMetaSave, mergeLordNames } from '../engine/LordsMet.js';
-import { discoveriesOfMetaSave, mergeDiscoveries } from '../engine/CompendiumDiscovery.js';
+import {
+  discoveriesOfMetaSave,
+  mergeDiscoveries,
+  withDiscoveryKeys,
+  withoutDiscoveryKeys,
+} from '../engine/CompendiumDiscovery.js';
 import {
   normalizePrologueState,
   reconcilePickedPrologue,
@@ -381,8 +386,7 @@ function applyMetaSlots(metaData, skipped = new Set()) {
           JSON.stringify({
             ...merged,
             lordsMet,
-            itemsSeen: seen.items,
-            skillsSeen: seen.skills,
+            purchasedUpgrades: withDiscoveryKeys(merged.purchasedUpgrades, seen),
             ...(prologue ? { prologue } : {}),
             ...(reconciled?.economy ?? {}),
           }),
@@ -1032,8 +1036,8 @@ function isFreshLocalBlockedError(err) {
 function isFreshMetaPayload(metaSlot) {
   if (!isCloudSlotPayload(metaSlot)) return true;
   if ((Number(metaSlot.runsCompleted) || 0) > 0) return false;
-  if (metaSlot.purchasedUpgrades && Object.keys(metaSlot.purchasedUpgrades).length > 0)
-    return false;
+  // Discoveries (CompendiumDiscovery.js) ride in purchasedUpgrades but buy nothing.
+  if (Object.keys(withoutDiscoveryKeys(metaSlot.purchasedUpgrades)).length > 0) return false;
   if (Array.isArray(metaSlot.milestones) && metaSlot.milestones.length > 0) return false;
   const valor = Number(metaSlot.totalValor ?? metaSlot.totalRenown) || 0;
   const supply = Number(metaSlot.totalSupply ?? metaSlot.totalRenown) || 0;

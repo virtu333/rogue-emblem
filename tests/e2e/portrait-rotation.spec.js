@@ -486,7 +486,10 @@ test('the Compendium keeps its tab, filter and entry through a turn and back', a
   await quietSettings(page);
   // A save that has met Luna: the Compendium shows unmet skills as "???".
   await page.addInitScript(() => {
-    localStorage.setItem('emblem_rogue_slot_3_meta', JSON.stringify({ skillsSeen: ['luna'] }));
+    localStorage.setItem(
+      'emblem_rogue_slot_3_meta',
+      JSON.stringify({ purchasedUpgrades: { '__seen_skill:luna': 0 } }),
+    );
   });
   await page.goto('/');
   await waitForGame(page);

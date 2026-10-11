@@ -6,11 +6,23 @@
 // convoy, the accessory and scroll stores, a unit's skills) or used against the army
 // (a foe's weapon and skills in an exchange, a foe's status staff). Items are kept by
 // their catalog name (a forge's "+N", a wear's "-N" and an imbue's adjective are run
-// state, not identity), skills by id. MetaProgressionManager keeps the two lists
-// (`itemsSeen`, `skillsSeen`); this module holds the rules it, the cross-slot reader
-// (SlotManager) and the cloud merge share.
+// state, not identity; an old save's pre-rename name counts as its new one), skills by
+// id. MetaProgressionManager keeps the two lists (`itemsSeen`, `skillsSeen`) in memory;
+// this module holds the rules it, the cross-slot reader (SlotManager) and the cloud
+// merge share.
+//
+// Saved, the lists live inside `purchasedUpgrades` as one key per entry
+// (`__seen_item:<name>` / `__seen_skill:<id>`, value 0), never as fields of their own.
+// A build from before them (a lagging app, a stale tab) writes a fixed list of meta
+// fields and would drop new ones on every save and push that copy to the cloud; it
+// copies `purchasedUpgrades` whole on load, keeps its unknown keys when it saves or
+// max-merges it, and reads only the ids its own data lists (the balance-revision marker
+// rides there for the same reason). A value of 0 adds nothing to any older build's
+// "upgrades owned" sum. Every load also unions the backfill from the save's records,
+// so a copy that lost keys can only lose what nothing else remembers.
 
-import { stripItemNameSuffix, weaponCatalogNames } from '../utils/itemNames.js';
+import { stripItemNameSuffix } from '../utils/itemNames.js';
+import { ITEM_RENAMES } from './ItemNameMigration.js';
 import { boundSkillOf } from './EffectiveSkills.js';
 
 const MAX_ENTRY_LENGTH = 80;
@@ -42,11 +54,63 @@ export function mergeDiscoveries(...records) {
   };
 }
 
-/** The catalog names an item instance answers to. */
+/**
+ * The catalog name an item instance answers to: its base name without a forge's "+N" or
+ * a wear's "-N", without an imbue's adjective (one word: "Vampiric Iron Sword"), and
+ * renamed when the naming pass renamed it (ItemNameMigration's ITEM_RENAMES: an old
+ * victory record or an unmigrated run save still says "Killing Edge").
+ */
 export function itemCatalogNames(item) {
   if (!item || typeof item !== 'object') return [];
-  // A forged or worn name ("Iron Sword +2") is never a catalog name; its base is.
-  return weaponCatalogNames(item).filter((name) => name === stripItemNameSuffix(name));
+  const names = new Set();
+  for (const raw of [item._baseName, item.name]) {
+    if (typeof raw !== 'string' || !raw.trim()) continue;
+    let name = stripItemNameSuffix(raw.trim());
+    if (item._imbueId) name = name.replace(/^\S+\s+/, '');
+    if (!name) continue;
+    names.add(Object.hasOwn(ITEM_RENAMES, name) ? ITEM_RENAMES[name] : name);
+  }
+  return [...names];
+}
+
+/** Where each list is kept inside a saved `purchasedUpgrades` (see the header). */
+export const SEEN_ITEM_KEY = '__seen_item:';
+export const SEEN_SKILL_KEY = '__seen_skill:';
+
+/** Is this `purchasedUpgrades` key a discovery rather than an upgrade id? */
+export function isDiscoveryKey(key) {
+  return (
+    typeof key === 'string' && (key.startsWith(SEEN_ITEM_KEY) || key.startsWith(SEEN_SKILL_KEY))
+  );
+}
+
+/** The discoveries a saved `purchasedUpgrades` carries. */
+export function discoveriesInUpgrades(purchasedUpgrades) {
+  if (!purchasedUpgrades || typeof purchasedUpgrades !== 'object') return emptyDiscoveries();
+  const items = [];
+  const skills = [];
+  for (const key of Object.keys(purchasedUpgrades)) {
+    if (key.startsWith(SEEN_ITEM_KEY)) items.push(key.slice(SEEN_ITEM_KEY.length));
+    else if (key.startsWith(SEEN_SKILL_KEY)) skills.push(key.slice(SEEN_SKILL_KEY.length));
+  }
+  return { items: mergeSeen(items), skills: mergeSeen(skills) };
+}
+
+/** `purchasedUpgrades` without its discovery keys (the in-memory shape). */
+export function withoutDiscoveryKeys(purchasedUpgrades) {
+  const upgrades = {};
+  if (!purchasedUpgrades || typeof purchasedUpgrades !== 'object') return upgrades;
+  for (const [key, value] of Object.entries(purchasedUpgrades))
+    if (!isDiscoveryKey(key)) upgrades[key] = value;
+  return upgrades;
+}
+
+/** `purchasedUpgrades` as saved: the upgrades, then one key (value 0) per discovery. */
+export function withDiscoveryKeys(purchasedUpgrades, found) {
+  const saved = withoutDiscoveryKeys(purchasedUpgrades);
+  for (const name of mergeSeen(found?.items)) saved[SEEN_ITEM_KEY + name] = 0;
+  for (const id of mergeSeen(found?.skills)) saved[SEEN_SKILL_KEY + id] = 0;
+  return saved;
 }
 
 /** Collects items and the skills they name (a scroll's lesson, a ring's bound skill). */
@@ -138,7 +202,11 @@ export function discoveriesFromMetaSave(saved) {
   for (const record of Array.isArray(saved.runRecords) ? saved.runRecords : [])
     for (const unit of Array.isArray(record?.roster) ? record.roster : []) {
       if (!unit || typeof unit !== 'object') continue;
-      for (const name of [unit.weapon, unit.accessory, ...(unit.items || [])])
+      for (const name of [
+        unit.weapon,
+        unit.accessory,
+        ...(Array.isArray(unit.items) ? unit.items : []),
+      ])
         if (validEntry(name)) c.addItem({ name });
       for (const id of Array.isArray(unit.skills) ? unit.skills : []) c.addSkill(id);
     }
@@ -149,11 +217,16 @@ export function discoveriesFromMetaSave(saved) {
   return c.result();
 }
 
-/** A meta save's discoveries: its lists when it has them, else the backfill. */
+/**
+ * A meta save's discoveries: the keys in its `purchasedUpgrades`, always unioned with the
+ * backfill from its records (a copy an older build or a lost write left without keys
+ * still knows what its records show).
+ */
 export function discoveriesOfMetaSave(saved) {
-  if (Array.isArray(saved?.itemsSeen) || Array.isArray(saved?.skillsSeen))
-    return { items: mergeSeen(saved.itemsSeen), skills: mergeSeen(saved.skillsSeen) };
-  return discoveriesFromMetaSave(saved);
+  return mergeDiscoveries(
+    discoveriesInUpgrades(saved?.purchasedUpgrades),
+    discoveriesFromMetaSave(saved),
+  );
 }
 
 function record(meta, found) {

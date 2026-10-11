@@ -666,7 +666,9 @@ for (const vp of PORTRAIT_PHONES.slice(0, 2)) {
       await page.addInitScript(() => {
         localStorage.setItem(
           'emblem_rogue_slot_3_meta',
-          JSON.stringify({ itemsSeen: ['Iron Sword', 'Rapier'] }),
+          JSON.stringify({
+            purchasedUpgrades: { '__seen_item:Iron Sword': 0, '__seen_item:Rapier': 0 },
+          }),
         );
       });
     });

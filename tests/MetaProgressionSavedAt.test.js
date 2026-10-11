@@ -84,7 +84,8 @@ describe('MetaProgressionManager savedAt hardening', () => {
     // is absorbed by the restored balance — losing 20 supply beats losing 4000.
     expect(saved.totalSupply).toBe(4000);
     expect(saved.runsCompleted).toBe(40);
-    expect(saved.purchasedUpgrades).toEqual({ hp_boost: 3 });
+    // The skill assigned is also met (the Compendium's key rides beside the upgrade).
+    expect(saved.purchasedUpgrades).toEqual({ hp_boost: 3, '__seen_skill:sol': 0 });
     expect(saved.skillAssignments).toEqual({ Edric: ['sol'] });
     expect(new Set(saved.milestones)).toEqual(new Set(['beatAct1', 'beatAct2', 'beatAct3']));
     expect(saved.savedAt).toBeGreaterThan(healed.savedAt);
