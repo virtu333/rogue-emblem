@@ -585,9 +585,17 @@ describe('what the player is shown', () => {
       stonesMax: 2,
     });
     let s = reduceBossBar(createBossBarState(), { type: 'sync', boss: snapshot(2) });
-    expect(bossBarView(s)).toMatchObject({ stones: 2, stonesMax: 2, stonesText: 'Stones 2/2' });
+    expect(bossBarView(s)).toMatchObject({
+      stones: 2,
+      stonesMax: 2,
+      stonesText: 'Health bars 3/3',
+    });
     s = reduceBossBar(s, { type: 'sync', boss: snapshot(1) });
-    expect(bossBarView(s)).toMatchObject({ stones: 1, stonesMax: 2, stonesText: 'Stones 1/2' });
+    expect(bossBarView(s)).toMatchObject({
+      stones: 1,
+      stonesMax: 2,
+      stonesText: 'Health bars 2/3',
+    });
   });
 
   it('a refill is a rise, not a "just lost" chunk', () => {
@@ -608,12 +616,12 @@ describe('what the player is shown', () => {
     expect(bossBarView(s)).toMatchObject({ stones: 0, stonesMax: 0, stonesText: '' });
   });
 
-  it('the unit detail line reads remaining stones, and nothing once none are left', () => {
-    expect(revivalStonesLine(boss({ stones: 2 }))).toBe('Revival Stones: 2');
+  it('the unit detail line reads health bars left of all, and stays once every stone broke', () => {
+    expect(revivalStonesLine(boss({ stones: 2 }))).toBe('Health bars: 3 of 3');
     expect(revivalStonesLine(boss({ stones: 0 }))).toBe('');
     const spent = boss({ stones: 2 });
     spent.revivalStones = 0;
-    expect(revivalStonesLine(spent)).toBe('');
+    expect(revivalStonesLine(spent)).toBe('Health bars: 1 of 3');
     expect(revivalStoneCount(spent)).toEqual({ remaining: 0, max: 2 });
   });
 });

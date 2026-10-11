@@ -450,6 +450,8 @@ export function bossBarView(state) {
     stones: state.stones ?? 0,
     stonesMax: state.stonesMax ?? 0,
     // "Stones 2/2" for the off-map readers (the rail and the objective plate).
-    stonesText: (state.stonesMax ?? 0) > 0 ? `Stones ${state.stones}/${state.stonesMax}` : '',
+    // The full reading off the map: the bar it is on plus one per stone ("Health bars 2/3").
+    stonesText:
+      (state.stonesMax ?? 0) > 0 ? `Health bars ${state.stones + 1}/${state.stonesMax + 1}` : '',
   };
 }

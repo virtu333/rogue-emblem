@@ -11,8 +11,9 @@
 // the phone rail's Battle details and the desktop objective plate show it.
 //
 // A boss that carries Revival Stones shows a gem for each one it still holds at the bar's
-// right end (spent stones are hollow), and a broken stone refills the bar over REFILL_MS
-// (`playRefill`: the strike's own beat; the state is already settled).
+// right end (spent stones are hollow), the next bar shows through the part of this one it
+// has lost, and a broken stone refills the bar over REFILL_MS (`playRefill`: the strike's
+// own beat; the state is already settled).
 //
 // It only ever *reads* battle state. Damage/heal arrive through
 // BattleScene.updateHPBar → onUnitHp(); resume and rewind call
@@ -41,6 +42,7 @@ export const BOSS_BAR_REFILL_MS = 400;
 // Above unit HP bars (12/13) and affix pips (14); below labels/HUD.
 export const BOSS_BAR_DEPTH = 14.5;
 const BAR_H = 4; // fill height (ordinary bars are 3)
+const NEXT_BAR_ALPHA = 0.55; // the bar beneath, shown through the drained part
 
 export class BossPresenceController {
   constructor(scene) {
@@ -266,6 +268,12 @@ export class BossPresenceController {
     // A broken stone's refill shows the fill climbing from empty (and no gold chunk behind it).
     const refilling = this._refillShown !== null;
     const fillPct = refilling ? v.fillPct * this._refillShown : v.fillPct;
+    // The next health bar shows through what this one has lost while a stone is left, so a
+    // boss with more than one bar reads as one even before its gems are noticed.
+    if (v.stones > 0) {
+      g.fillStyle(UI_HEX.info, NEXT_BAR_ALPHA);
+      g.fillRect(-half, top, w, BAR_H);
+    }
     // Gold "just lost" chunk under the crimson fill.
     const lost = refilling ? fillPct : Math.max(fillPct, this._lostShown);
     if (lost > fillPct) {
