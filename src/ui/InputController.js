@@ -9,7 +9,7 @@ import {
 import { computeEffectivePath } from '../engine/Grid.js';
 import { movementOptionsFor } from '../engine/PassMovement.js';
 import { unitReach } from '../engine/ThreatForecast.js';
-import { plantsAmongPositions } from '../engine/SiegeArtillery.js';
+import { holdsPost } from '../engine/SiegeArtillery.js';
 import { getBallistaDangerTiles, isBallistaTile } from '../engine/BallistaEngine.js';
 import {
   isSleeping,
@@ -1102,8 +1102,8 @@ export class InputController {
       const rootedForPreview =
         unit.faction === 'player' ? isRooted(unit) : willRemainRootedNextPhase(unit);
       const asleepPlayer = unit.faction === 'player' && isSleeping(unit);
-      // Planted siege artillery fires from its post (the Danger overlay's reach too).
-      const planted = unit.faction === 'enemy' && plantsAmongPositions(unit, positions);
+      // Siege artillery and staff casters act from their post (the Danger overlay's reach too).
+      const planted = unit.faction === 'enemy' && holdsPost(unit);
       const mov =
         rootedForPreview || asleepPlayer || planted ? 0 : (unit.mov ?? unit.stats?.MOV ?? 0);
       const { moveRange, attackTiles } = unitReach(scene.grid, unit, {

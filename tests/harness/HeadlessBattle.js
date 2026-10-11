@@ -2353,11 +2353,10 @@ export class HeadlessBattle {
 
   async _processEnemyPhase() {
     this._reinforcementsPendingThisTurn = true;
-    // As BattleScene.onPhaseChange('enemy'): siege casters take their stance from the
-    // board the player left, before the phase-start hazards (SiegeArtillery).
+    // As BattleScene.onPhaseChange('enemy'): siege and staff casters take their
+    // post-holding stance before the phase-start hazards (SiegeArtillery).
     settleArtilleryStances({
       enemyUnits: this.enemyUnits,
-      playerUnits: this.playerUnits,
       turn: this.turnManager?.turnNumber ?? null,
     });
     try {

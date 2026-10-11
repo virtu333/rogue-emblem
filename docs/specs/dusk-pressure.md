@@ -350,6 +350,23 @@ within MOV + 10 it walked toward the nearest player unit.
   board after its planned move (planted: struck only from the post) and every foe with
   its next strike weapon (a spent Breachbolt gives way to its fallback).
 
+**Post-holding casters (owner, supersedes the stance, fallback and Danger bullets above
+where they differ).** Siege casters and status-staff casters never walk. Every enemy
+whose next strike weapon is a siege tome with shots left, or that carries a Sleep or
+Silence Staff with a use left, holds its post for the whole phase whatever the player
+does (`holdsPost`; the stance is `planted: true` for every such unit and no longer reads
+the board). Artillery fires at the best target 3-10 away or waits; a staff caster casts
+at the best unit in staff reach, else strikes with its weapon from the post, else waits
+(`AIController._decideAction` takes movement range 0). Danger, Threat Sight and the
+inspected reach draw the reach from the post (siege ring; staff ring plus weapon reach),
+never a walk. Shots or staff uses spent: the unit is an ordinary caster again and
+advances. A staff caster with nothing in reach ends on `post_hold` (no chase, no wall
+breaking). Village bandits (`seek_tile`) keep their own orders, and so does a siege
+carrier, which is never a holder. **Exception:** a staff caster can still be chosen as a
+hold-pack member; when its pack wakes it keeps holding its post rather than hunting
+(the Danger zone drawn while it held is larger than its real reach, so this is safe for the
+player). A holder that has not woken (`hold`) waits as before.
+
 **Frequency (PR 4).** `statusStaffConfig` and `siegeWeaponConfig` with
 `perBattle: true` give, per act, the chance that a battle has one, rolled only when an
 eligible caster is on the map (Mage, Sage, Bishop for staves; Sage, Warlock, Dark

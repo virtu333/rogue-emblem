@@ -279,7 +279,7 @@ describe('enemy siege gear and fallback', () => {
           .filter((t) => t.damageThreat)
           .map((t) => Math.abs(t.col - 20) + Math.abs(t.row - 20)),
       );
-    expect(far(computeDangerTiles(ctx))).toBe(5 + 10); // MOV 5 + Breachbolt 10
+    expect(far(computeDangerTiles(ctx))).toBe(10); // it holds its post: Breachbolt 10 from there
     sage.weapon._usesSpent = ENEMY_SHOTS;
     expect(far(computeDangerTiles(ctx))).toBe(5 + 2); // MOV 5 + Fire 2
   });

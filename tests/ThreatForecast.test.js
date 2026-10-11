@@ -188,7 +188,8 @@ describe('ThreatForecast — one computation for Danger and threat sight', () =>
 
   it('separates status-staff reach from damage and counts ballistas', () => {
     const g = grid(['..........', '..........', '..........']);
-    const staffer = foe(8, 1, {
+    // A staff caster holds its post: it reaches only what its staff reaches from where it stands.
+    const staffer = foe(4, 1, {
       weapon: null,
       statusStaff: { name: 'Sleep', type: 'Staff', range: '1-3', uses: 3, statusEffect: 'sleep' },
     });
@@ -266,7 +267,8 @@ describe('ThreatForecast — one computation for Danger and threat sight', () =>
   });
 
   it('never calls a tile safe when a status staff can reach it', () => {
-    const staffer = foe(8, 1, { weapon: null });
+    // A staff caster holds its post: it reaches only what its staff reaches from where it stands.
+    const staffer = foe(4, 1, { weapon: null });
     const read = (count, staves, fogged = false) => {
       const result = { count, status: Array(staves).fill(staffer), fogged };
       return { text: threatSummaryText(result), tone: threatSummaryTone(result) };
@@ -290,7 +292,8 @@ describe('ThreatForecast — one computation for Danger and threat sight', () =>
 
   it('a status-staff-only tile from the real computation reads as reachable by a staff', () => {
     const g = grid(['..........', '..........', '..........']);
-    const staffer = foe(8, 1, {
+    // A staff caster holds its post: it reaches only what its staff reaches from where it stands.
+    const staffer = foe(4, 1, {
       weapon: null,
       statusStaff: { name: 'Sleep', type: 'Staff', range: '1-3', uses: 3, statusEffect: 'sleep' },
     });
