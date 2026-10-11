@@ -203,7 +203,8 @@
         "colosseum-earned-offer.spec.js",
         "earned-twist.spec.js",
         "start-gift.spec.js",
-        "village-ambush.spec.js"
+        "village-ambush.spec.js",
+        "descent-rite.spec.js"
       ]
     },
     {

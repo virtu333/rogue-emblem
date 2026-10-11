@@ -1,8 +1,8 @@
 // ObjectivePreview.js - the objective of a battle that has no config yet (docs/specs/act-v-descent.md
 // §9.4). The deploy screen (it opens before the map is built), the route map's node card and
 // tooltip read a node's battleParams, whose `objective` is only the legacy family ('rout' for a
-// defeat map). A node that names a set piece with an objectives model is read from the set piece's
-// data instead, so the words match what the battle will show. Pure: no Phaser, no RNG.
+// defeat map). A node that carries an objectives model, or names a set piece that does, is read
+// from it instead, so the words match what the battle will show. Pure: no Phaser, no RNG.
 //
 // What it knows is what the data says before any foe is placed: the target slots' names, and the
 // boss slot's (the gate names its boss in the params, `bossName`). Never a tile, never a class or
@@ -43,7 +43,9 @@ function previewUnits(setPiece) {
  */
 export function previewObjectives(params, setPieces) {
   const piece = findSetPiece(setPieces, params?.setPiece);
-  const objectives = objectivesOf(piece);
+  // A node's own model (the Descent's gate fights the Glass as a defeat of its boss) is the one
+  // the battle plays, over its set piece's.
+  const objectives = objectivesOf(params) || objectivesOf(piece);
   if (!objectives) return null;
   const units = previewUnits(piece);
   const bossName = typeof params?.bossName === 'string' ? params.bossName : undefined;

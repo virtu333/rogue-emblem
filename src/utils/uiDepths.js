@@ -59,6 +59,7 @@ export const DOM_UI_DEPTHS = {
   FORMATION: 45, // Desktop formation dock (placement before turn 1); under menus.
   TITLE: 390, // Title key art, lockup and menu (below every menu and dialogue)
   ROUTE: 400,
+  ROUTE_NOTE: 410, // A note lying over the route map's loom (the Descent's Rite chip); inside the route's own layer.
   LAUNCH: 920,
   UPGRADE: 950,
   XP_GAUGE: 960, // Battle EXP gauge over the map; under the level-up card it hands off to.

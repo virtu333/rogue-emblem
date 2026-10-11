@@ -15,6 +15,7 @@ import { addBurden } from '../engine/Burdens.js';
 import { normalizeContract } from '../engine/Contracts.js';
 import { DEV_EVENT_FIXTURES } from './devEventFixtures.js';
 import { withDevSetPiece } from './devSetPieceFixtures.js';
+import { applyDevDescent, withDevDescent } from './devDescentFixtures.js';
 import { findSetPiece, setPieceDeployCap } from '../engine/SetPieces.js';
 
 const DEV_META_STORAGE_KEY = 'emblem_rogue_dev_meta';
@@ -329,6 +330,8 @@ function createRunPreset(gameData, meta, config) {
   // Any other review route (a battle, the route map) may carry the contract too: `&contract=` on
   // `?devScene=battle&preset=battle_smoke` is a battle the contract will settle on.
   else addReviewContract(runManager, config.contract);
+  // `&descent=1`: the run goes on into Act V (devDescentFixtures.js).
+  if (config.descent) applyDevDescent(runManager, config);
 
   return runManager;
 }
@@ -625,6 +628,13 @@ export function parseDevStartupConfig(search, options = {}) {
     ...(params.get('units') ? { units: params.get('units') } : {}),
     // `&setPiece=<id>` on the battle route: that event set piece (docs/specs/event-set-pieces.md).
     ...(params.get('setPiece') ? { setPiece: params.get('setPiece') } : {}),
+    // Act V review (devDescentFixtures.js): `&descent=1` switches the Descent on for this page and
+    // enters Act V; `&rite=N` sets the Rite's words, `&descentRow=N` walks the route to row N.
+    ...(parseBool(params.get('descent')) ? { descent: true } : {}),
+    ...(parseSeed(params.get('rite')) != null ? { riteWords: parseSeed(params.get('rite')) } : {}),
+    ...(parseSeed(params.get('descentRow')) != null
+      ? { descentRow: parseSeed(params.get('descentRow')) }
+      : {}),
     qaStep: qaConfig?.step || null,
     qaDescription: qaConfig?.description || null,
     nodeType:
@@ -645,9 +655,11 @@ export function buildDevStartupRoute(sourceGameData, registry, config) {
   if (!sourceGameData || !registry || !config?.enabled) return null;
   // `&setPiece=dev_vigil`: a review-only set piece (utils/devSetPieceFixtures.js) joins this
   // page's game data; any other id leaves it as loaded.
-  const gameData = config.setPiece
+  const withPiece = config.setPiece
     ? withDevSetPiece(sourceGameData, config.setPiece)
     : sourceGameData;
+  // `&descent=1`: the Descent is on for this page's data only (devDescentFixtures.js).
+  const gameData = config.descent ? withDevDescent(withPiece) : withPiece;
 
   registry.set('devToolsEnabled', Boolean(config.devTools));
   // A `?devScene=` review route's battles keep the run seed's one stream (BattleScout.js
