@@ -218,7 +218,13 @@ function actOverrideSummary(mode) {
     add('enemyCountBase', (n) => `enemies scale as if you field at least ${n} units`);
     add('enemySkillChance', (n) => `+${Math.round(n * 100)}% enemy skill chance`);
     add('enemyPoisonChance', (n) => `+${Math.round(n * 100)}% enemy poison chance`);
-    if (parts.length > 0) lines.push(`${actLabel(act) || act} eases in: ${parts.join(', ')}`);
+    if (parts.length === 0) continue;
+    // "eases in" only when every override is below the rung's own value.
+    const eases = Object.keys(over).every((key) => {
+      const value = actOverrideFor(mode, key, act);
+      return value === undefined || !(value > mode[key]);
+    });
+    lines.push(`${actLabel(act) || act}${eases ? ' eases in' : ''}: ${parts.join(', ')}`);
   }
   return lines;
 }
@@ -270,6 +276,8 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
   if (mode.enemyCountBase > (defaults.enemyCountBase || 0)) {
     lines.push(`Enemies scale as if you field at least ${mode.enemyCountBase} units`);
   }
+  // Right under the enemy lines it qualifies, so "Enemy stats +2" never reads as Act I's.
+  lines.push(...actOverrideSummary(mode));
   if (mode.enemySkillChance > (defaults.enemySkillChance || 0)) {
     lines.push(`+${Math.round(mode.enemySkillChance * 100)}% enemy skill chance`);
   }
@@ -382,7 +390,6 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
       lines.push(`Siege magic from Act ${actNum}+ (max ${cfg.maxPerBattle}/battle)`);
     }
   }
-  lines.push(...actOverrideSummary(mode));
   return lines;
 }
 
