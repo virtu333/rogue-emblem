@@ -84,7 +84,7 @@ export function installSessionStorageFallback(target = globalThis) {
 export const isSessionOnly = (target = globalThis) => target.__emblemRogueSessionOnly === true;
 
 export const SESSION_ONLY_NOTICE =
-  "Browser storage is blocked, so your progress won't be saved after you close this tab.";
+  "Browser storage is blocked, so your progress won't be saved if you reload or close this tab.";
 
 /** A small dismissible note at the bottom-left, gone on its own after a while; once per page. */
 export const SESSION_ONLY_NOTICE_MS = 20000;

@@ -24,7 +24,7 @@ test.describe('storage blocked', () => {
 
     const notice = page.locator('#session-only-notice');
     await expect(notice).toBeVisible();
-    await expect(notice).toContainText("won't be saved");
+    await expect(notice).toContainText("won't be saved if you reload or close");
 
     // The notice never intercepts a tap meant for the game; only its close button takes one.
     await expect(notice).toHaveCSS('pointer-events', 'none');
