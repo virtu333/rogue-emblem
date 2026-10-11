@@ -12,6 +12,7 @@ import { loadGameData } from './testData.js';
 import { MobileRosterSheet } from '../src/ui/MobileRosterSheet.js';
 import { BattleTradeMenu } from '../src/ui/BattleTradeMenu.js';
 import { compendiumEntries } from '../src/ui/ReferenceMenu.js';
+import { discoveryView } from '../src/engine/CompendiumDiscovery.js';
 import { CompendiumOverlay, TAB_DEFS } from '../src/ui/CompendiumOverlay.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { createRecruitUnit } from '../src/engine/UnitManager.js';
@@ -180,6 +181,8 @@ describe('compendium', () => {
     const overlay = Object.create(CompendiumOverlay.prototype);
     overlay.gameData = gameData;
     overlay.searchQuery = '';
+    // Every entry met: these read what a found entry shows (locked rows: CompendiumDiscovery).
+    overlay._discovery = discoveryView({ all: true });
     return overlay;
   };
   const tab = (key) => TAB_DEFS.findIndex((t) => t.key === key);
