@@ -134,6 +134,9 @@ describe('roster sheet saves each change as it applies', () => {
       expect(b, label).toBeTruthy();
       b.click();
     };
+    // The other deeds and Oaths are folded; opening a fold saves nothing.
+    sheet.root.querySelector('.mr-deed-toggle').click();
+    expect(saveServiceRun).not.toHaveBeenCalled();
     press('Use as title');
     expect(unitEpithet(fighter).text).toBe('the Keen Edge');
     expect(saveServiceRun).toHaveBeenCalledTimes(1);
@@ -141,6 +144,7 @@ describe('roster sheet saves each change as it applies', () => {
     expect(unitEpithet(fighter)).toBeNull();
     press('Greatest deed');
     expect(unitEpithet(fighter).text).toBe('Who Held the Bridge');
+    sheet.root.querySelector('.mr-oath-toggle').click();
     press('Oath of the Edge · Critical +15');
     expect(fighter.deeds.pledge).toBe('keen_edge');
     expect(saveServiceRun).toHaveBeenCalledTimes(4);

@@ -1345,6 +1345,39 @@
   flex: 1 1 auto;
   min-height: var(--re-tap, 44px);
 }
+/* The kicker and the toggle share one row (folded, the toggle names the Oath it will
+   swear); open, the Oaths wrap on the rows below. */
+.gr-oath-choice .gr-oath-kicker {
+  flex: none;
+}
+.gr-oath-choice.is-open .re-btn.gr-oath-toggle {
+  flex: 0 1 auto;
+}
+.gr-oath-options {
+  flex: 1 0 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.re-btn.gr-oath-toggle {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: var(--re-tap, 44px);
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.gr-oath-toggle .re-disclosure-label {
+  overflow-wrap: anywhere;
+}
+.gr-oath-toggle .re-disclosure-action {
+  flex: none;
+  font: var(--re-pf-8, 8px) / 1.4 var(--re-pixel);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--re-accent-text);
+}
 .re-btn.gr-oath-option[aria-pressed='true'] {
   border-color: var(--re-focus);
   background: var(--re-selected);

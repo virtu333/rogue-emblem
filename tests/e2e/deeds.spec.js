@@ -154,6 +154,10 @@ for (const [label, device] of [
           })),
       ).toEqual({ fits: true, ellipsis: false });
       await expect(sheet.locator('.mr-summary .mr-epithet')).toHaveText('Bane of the Iron Captain');
+      // The title in full; the other deed folded under one line until opened.
+      await expect(sheet.locator('.mr-deed')).toHaveCount(1);
+      await expect(sheet.locator('.mr-deed-toggle')).toContainText('the Keen Edge');
+      await sheet.locator('.mr-deed-toggle').click();
       await expect(sheet.locator('.mr-deed')).toHaveCount(2);
       await sheet.locator('.mr-deed').first().scrollIntoViewIfNeeded();
       await page.screenshot({ path: info.outputPath(`deed-roster-${label}.png`) });
@@ -450,15 +454,24 @@ test.describe('player choices (phone 390×844)', () => {
     // A Duelist can learn either Oath (a Swordmaster already has Critical +15).
     await chooser.getByRole('button', { name: 'Select Duelist', exact: true }).click();
     const oaths = chooser.getByRole('group', { name: 'Oath to swear', exact: true });
-    await expect(oaths.getByRole('button')).toHaveText([
+    // Folded to the Oath it will swear; the toggle opens the others (here by keyboard).
+    const toggle = oaths.locator('.gr-oath-toggle');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(toggle).toContainText('Oath of the Bridge · Pavise');
+    await expect(oaths.locator('.gr-oath-option')).toHaveCount(0);
+    await toggle.focus();
+    await page.keyboard.press('Enter');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(oaths.locator('.gr-oath-option')).toHaveText([
       'Oath of the Bridge · Pavise',
       'Oath of the Edge · Critical +15',
     ]);
-    await expect(oaths.getByRole('button').first()).toHaveAttribute('aria-pressed', 'true');
+    await expect(oaths.locator('.gr-oath-option').first()).toHaveAttribute('aria-pressed', 'true');
     await oaths.getByRole('button', { name: 'Oath of the Edge · Critical +15' }).click();
-    await expect(
-      oaths.getByRole('button', { name: 'Oath of the Edge · Critical +15' }),
-    ).toHaveAttribute('aria-pressed', 'true');
+    // A pick folds the list and hands focus back to the toggle, which names the new Oath.
+    await expect(oaths.locator('.gr-oath-option')).toHaveCount(0);
+    await expect(toggle).toContainText('Oath of the Edge · Critical +15');
+    await expect(toggle).toBeFocused();
     await expect(chooser.locator('.gr-path[data-path="Duelist"] .gr-path-oath')).toContainText(
       'Oath of the Edge',
     );
