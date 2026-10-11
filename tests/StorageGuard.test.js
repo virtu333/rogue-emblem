@@ -25,10 +25,7 @@ describe('storage guard', () => {
   it('replaces getters that throw with a working in-memory store', () => {
     const target = blockedTarget();
     expect(() => target.localStorage).toThrow();
-    expect(installSessionStorageFallback(target).sort()).toEqual([
-      'localStorage',
-      'sessionStorage',
-    ]);
+    expect(installSessionStorageFallback(target)).toEqual(['localStorage']);
     target.localStorage.setItem('a', 1);
     expect(target.localStorage.getItem('a')).toBe('1');
     expect(target.localStorage.getItem('missing')).toBeNull();
@@ -39,12 +36,10 @@ describe('storage guard', () => {
     expect(target.__emblemRogueSessionOnly).toBe(true);
   });
 
-  it('keeps what was written for the session and keeps the stores apart', () => {
+  it('leaves a refused sessionStorage refused, so the stale-chunk reload stays off', () => {
     const target = blockedTarget();
     installSessionStorageFallback(target);
-    target.localStorage.setItem('k', 'v');
-    expect(target.localStorage.getItem('k')).toBe('v');
-    expect(target.sessionStorage.getItem('k')).toBeNull();
+    expect(() => target.sessionStorage).toThrow();
   });
 
   it('leaves working storage alone', () => {

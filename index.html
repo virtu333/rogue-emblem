@@ -442,9 +442,10 @@
         font-family: 'Press Start 2P', monospace;
         font-size: 8px;
         line-height: 1.6;
-        pointer-events: auto;
+        pointer-events: none; /* never sits between a tap and the game's buttons */
       }
       .session-only-notice button {
+        pointer-events: auto;
         background: #12111f;
         color: #cccccc;
         border: 2px solid #3a3660;

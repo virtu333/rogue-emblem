@@ -26,14 +26,33 @@ test.describe('storage blocked', () => {
     await expect(notice).toBeVisible();
     await expect(notice).toContainText("won't be saved");
 
+    // The notice never intercepts a tap meant for the game; only its close button takes one.
+    await expect(notice).toHaveCSS('pointer-events', 'none');
+    await expect(notice.getByRole('button')).toHaveCSS('pointer-events', 'auto');
+
     // Writes work for the session and the notice can be dismissed.
     const roundTrip = await page.evaluate(() => {
       localStorage.setItem('probe', 'ok');
       return localStorage.getItem('probe');
     });
     expect(roundTrip).toBe('ok');
+    // Past the Title: starting a game reads the slots and still works.
+    await page.keyboard.press('Enter');
+    await waitForScene(page, 'Battle');
+
     await notice.getByRole('button').click();
     await expect(notice).toHaveCount(0);
+
+    // sessionStorage stays refused, so a stale-chunk error can never reload the run away.
+    expect(
+      await page.evaluate(() => {
+        try {
+          return window.sessionStorage ? 'works' : 'missing';
+        } catch {
+          return 'refused';
+        }
+      }),
+    ).toBe('refused');
 
     expect(errors.filter((e) => /SecurityError|insecure/i.test(String(e)))).toEqual([]);
   });

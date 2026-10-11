@@ -3,14 +3,18 @@
 // With site data blocked, merely reading `window.localStorage` (or `sessionStorage`) throws a
 // SecurityError, and the save layers' `storage = globalThis.localStorage` defaults threw before
 // their own try/catch could run, so the Title screen came up blank. This module is the first
-// import of main.js: it probes each store once and, for one that refuses, installs an in-memory
+// import of main.js: it probes localStorage once and, if it refuses, installs an in-memory
 // Storage in its place. Every later read (saves, settings, the Supabase session) then works for
 // the life of the tab, and nothing outlives it. `showSessionOnlyNotice` tells the player.
+//
+// sessionStorage is deliberately left alone: its one reader (sceneLoader's stale-chunk reload)
+// treats a refusal as "do not reload", while an in-memory one would reset its once-per-session
+// counter on every reload and wipe the run.
 //
 // A store that is merely full or read-only (a getter that works, a setItem that throws) is left
 // alone: the save layers already handle that, with their own retry prompts.
 
-const STORES = ['localStorage', 'sessionStorage'];
+const STORES = ['localStorage'];
 
 /** The Storage interface over a Map, so callers cannot tell it from the real one. */
 export class MemoryStorage {
@@ -52,7 +56,7 @@ function storeRefuses(target, name) {
 }
 
 /**
- * Replace each refused store on `target` with a MemoryStorage. Returns the names replaced
+ * Replace a refused store on `target` with a MemoryStorage. Returns the names replaced
  * (empty when storage works). Safe to call twice: a replaced store reads fine the second time.
  */
 export function installSessionStorageFallback(target = globalThis) {
