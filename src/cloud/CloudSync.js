@@ -10,6 +10,7 @@ import { stampPendingCloudPair } from '../engine/CloudPendingRecovery.js';
 import { nativeCapacitor, getNativeSaveMirror } from '../utils/nativeSaveMirror.js';
 import { preserveCloudConflict } from '../engine/CloudSaveConflict.js';
 import { isPrologueRun } from '../engine/ScriptedBattle.js';
+import { effectiveRunFormat } from '../engine/RunFormat.js';
 // CloudSync.js — Fire-and-forget cloud save/load via Supabase
 // All methods catch errors and console.warn — never throw.
 // Stores per-slot data as { "1": {...}, "2": {...}, "3": {...} } in a single Supabase row.
@@ -573,50 +574,75 @@ async function updateSlotInTable(userId, table, slot, liveSlotData, options = {}
 }
 
 /**
- * The prologue's run save (RunManager mode 'prologue') stays on the device that plays
- * it. A client from before the prologue reads run_saves without knowing `mode` and
- * would open that save as a standard run on the prologue's seven-node authored map,
- * so it never reaches the cloud: the prologue is short, the slot's meta (pushed as
- * usual) records it 'in_progress', and a device without the run save offers it again
- * (PrologueRouting.routeForSlot). Logout's backup leaves it out the same way and
- * reports it (`localOnly`), so sign-out asks before it discards one.
+ * Runs an older client could open from the cloud: format 1, what every client before the
+ * run-format guard reads (docs/specs/large-maps/04-set-pieces.md §12.1 step 5). Raised to 2
+ * once a client carrying the guard is the oldest in use; until then a run that holds a
+ * capability stays on its device.
  */
-export function isLocalOnlyRunSave(run) {
-  return isCloudSlotPayload(run) && isPrologueRun(run);
+export const CLOUD_SAFE_RUN_FORMAT = 1;
+
+/** A run save in a newer format than any client may read from the cloud. The format is
+ * recomputed from the payload as well as read from its marker, so neither a missing marker
+ * nor a config pruned since (the marker's ratchet) releases a run. */
+function isNewFormatRunSave(run) {
+  return effectiveRunFormat(run) > CLOUD_SAFE_RUN_FORMAT;
 }
 
-// Slots whose cloud row has been checked for a prologue run save this session.
-const retiredPrologueRows = new Set();
+/**
+ * Run saves that stay on the device that plays them. The prologue's (RunManager mode
+ * 'prologue'): a client from before the prologue reads run_saves without knowing `mode`
+ * and would open that save as a standard run on the prologue's seven-node authored map,
+ * so it never reaches the cloud: the prologue is short, the slot's meta (pushed as usual)
+ * records it 'in_progress', and a device without the run save offers it again
+ * (PrologueRouting.routeForSlot). And a run newer than CLOUD_SAFE_RUN_FORMAT, which a
+ * client from before the run-format guard would misplay. Logout's backup leaves both out
+ * the same way and reports them (`localOnly`), so sign-out asks before it discards one.
+ */
+export function isLocalOnlyRunSave(run) {
+  return isCloudSlotPayload(run) && (isPrologueRun(run) || isNewFormatRunSave(run));
+}
+
+/** Why a local-only run save stays on the device. */
+function localOnlyKind(run) {
+  return isPrologueRun(run) ? 'prologue' : 'newFormat';
+}
+
+function localOnlyReason(run) {
+  return isPrologueRun(run) ? 'prologue_local' : 'format_local';
+}
+
+// Slots whose cloud row has been checked for a local-only run save this session.
+const retiredLocalOnlyRows = new Set();
 
 /**
- * Remove a prologue run save an earlier build pushed to this slot's cloud row. The delete
- * holds only while the row is itself a prologue run, so a standard run in the row
+ * Remove a local-only run save an earlier build pushed to this slot's cloud row. The delete
+ * holds only while the row is itself a local-only run, so a cloud-safe run in the row
  * (another device's) is never touched. Checked once a session per slot only when the
- * check completes (the row deleted, or found holding no prologue run); a check that
+ * check completes (the row deleted, or found holding no local-only run); a check that
  * failed (offline, a refused write, an error) is forgotten and runs again on the slot's
- * next prologue push.
+ * next local-only push.
  */
-function retireCloudPrologueRun(userId, slot) {
+function retireCloudLocalOnlyRun(userId, slot) {
   const signature = `${userId}:${slot}`;
-  if (retiredPrologueRows.has(signature)) return;
-  retiredPrologueRows.add(signature);
+  if (retiredLocalOnlyRows.has(signature)) return;
+  retiredLocalOnlyRows.add(signature);
   void updateSlotInTable(userId, TABLES.run, slot, null, { expected: isLocalOnlyRunSave }).then(
     (done) => {
-      if (done !== true) retiredPrologueRows.delete(signature);
+      if (done !== true) retiredLocalOnlyRows.delete(signature);
     },
   );
 }
 
 /**
  * The cloud side of "Use this device save": the chosen local run replaces the cloud's.
- * A local-only run (the prologue's) is never pushed, so the cloud run it was chosen
+ * A local-only run (the prologue's, or a newer format's) is never pushed, so the cloud run it was chosen
  * over is deleted instead (only while the row still holds that run), or the next
  * fetch would find it newer and ask again.
  */
 export function pushChosenLocalRun(userId, slot, run, replacedCloudRun) {
   if (!isLocalOnlyRunSave(run)) return pushRunSave(userId, slot, run);
   if (replacedCloudRun != null) return deleteRunSave(userId, slot, replacedCloudRun);
-  return { queued: false, reason: 'prologue_local' };
+  return { queued: false, reason: localOnlyReason(run) };
 }
 
 const protectedBackupReported = new Set();
@@ -637,8 +663,8 @@ export function pushRunSave(userId, slot, runData) {
   }
   if (!supabase || !userId) return { queued: false, reason: 'offline' };
   if (isLocalOnlyRunSave(runData)) {
-    retireCloudPrologueRun(userId, slot);
-    return { queued: false, reason: 'prologue_local' };
+    retireCloudLocalOnlyRun(userId, slot);
+    return { queued: false, reason: localOnlyReason(runData) };
   }
   getCloudSyncStatus(); // A resolved recovery gate no longer pauses new backups.
   updateSlotInTable(userId, TABLES.run, slot, runData);
@@ -838,8 +864,9 @@ export function pushAllLocalSlots(userId) {
 /**
  * The saves logout would discard that no backup can carry: each slot logout clears
  * (SlotManager.isSlotKeptAtLogout is false) whose run save stays on the device
- * (isLocalOnlyRunSave: the prologue's). A slot logout keeps is not listed.
- * @returns {Array<{ slot: number, kind: 'prologue' }>}
+ * (isLocalOnlyRunSave: the prologue's, or a run newer than CLOUD_SAFE_RUN_FORMAT). A slot
+ * logout keeps is not listed.
+ * @returns {Array<{ slot: number, kind: 'prologue' | 'newFormat' }>}
  */
 export function listLocalOnlySaves() {
   const saves = [];
@@ -847,7 +874,7 @@ export function listLocalOnlySaves() {
     try {
       if (isSlotKeptAtLogout(slot)) continue;
       const run = readLocalJSON(getRunKey(slot));
-      if (isLocalOnlyRunSave(run)) saves.push({ slot, kind: 'prologue' });
+      if (isLocalOnlyRunSave(run)) saves.push({ slot, kind: localOnlyKind(run) });
     } catch {
       /* an unreadable slot is kept at logout, not discarded */
     }
@@ -861,7 +888,7 @@ export function listLocalOnlySaves() {
  * one) was durably written. `localOnly`: the saves logout would still discard
  * (listLocalOnlySaves), read after the batch; `ok` never vouches for them, so the
  * caller asks before discarding any (TitleScene._handleLogout).
- * @returns {Promise<{ ok: boolean, localOnly: Array<{ slot: number, kind: 'prologue' }> }>}
+ * @returns {Promise<{ ok: boolean, localOnly: Array<{ slot: number, kind: 'prologue' | 'newFormat' }> }>}
  */
 export async function backupAllLocalSlots(userId, options = {}) {
   const ok = await backupLocalSlotBatch(userId, options).catch(() => false);
@@ -894,7 +921,7 @@ async function backupLocalSlotBatch(
         if (raw == null) continue;
         const value = JSON.parse(raw);
         if (!isCloudSlotPayload(value)) return false;
-        // The prologue's run save is never backed up (isLocalOnlyRunSave); the caller
+        // A local-only run save is never backed up (isLocalOnlyRunSave); the caller
         // learns of it from `localOnly`, never from a confirmed batch.
         if (table === TABLES.run && isLocalOnlyRunSave(value)) continue;
         batch.push({ slot, table, value, key, raw });
@@ -931,7 +958,7 @@ export async function __flushCloudSyncQueuesForTests() {
 
 export function __resetCloudSyncQueuesForTests() {
   updateQueues.clear();
-  retiredPrologueRows.clear();
+  retiredLocalOnlyRows.clear();
   pendingRecoveryQueues.clear();
   pendingRecoveryWrites.clear();
   remoteNewerWarnedSignatures.clear();
