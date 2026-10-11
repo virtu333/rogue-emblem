@@ -46,6 +46,7 @@ export function presentationFailureProxy(
         return visual;
       },
       circle: () => visual,
+      ellipse: () => visual,
       image: () => visual,
       rectangle: () => visual,
       graphics: () => visual,
@@ -79,6 +80,7 @@ export function presentationFailureProxy(
       'playStrikeSound',
       'finishStrike',
       'deathFade',
+      'raise',
       'playOverlay',
       'playStatus',
       'playHeal',
