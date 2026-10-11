@@ -56,6 +56,7 @@ import { ChurchController } from '../ui/ChurchController.js';
 import { EventController, eventPageOwed } from '../ui/EventController.js';
 import { ContractSettlementController } from '../ui/ContractSettlementController.js';
 import { contractRewardOwedAt } from '../engine/Contracts.js';
+import { paramsObjectiveKind } from '../engine/ObjectivePreview.js';
 import { eventSpoilsOwed, getPendingEventSettlement } from '../engine/EventCommands.js';
 import { pauseBurdenEntries } from '../ui/eventMenuModel.js';
 import { heldBlessingEntries } from '../ui/heldBlessingsModel.js';
@@ -1938,8 +1939,12 @@ export class NodeMapScene extends Phaser.Scene {
   showNodeTooltip(node, pos) {
     this.hideNodeTooltip();
     let label;
+    // A set piece's defeat map is not the rout its params' legacy string says (ObjectivePreview).
+    const kind = node.battleParams
+      ? paramsObjectiveKind(node.battleParams, this.gameData?.setPieces)
+      : null;
     if (node.type === NODE_TYPES.BOSS) {
-      label = 'Boss Battle (Seize)';
+      label = `Boss Battle (${kind === 'defeat' ? 'Defeat' : 'Seize'})`;
     } else if (node.type === NODE_TYPES.CHURCH) {
       label = 'Church — Heal, revive fallen, promote';
     } else if (node.type === NODE_TYPES.RUINS) {
@@ -1955,10 +1960,10 @@ export class NodeMapScene extends Phaser.Scene {
         ? 'Dark Omen \u2014 The dark has twisted what waits here'
         : 'Event \u2014 Something waits on the road';
     } else if (node.battleParams?.isElite) {
-      const eliteObj = node.battleParams?.objective === 'escape' ? 'Escape' : 'Seize';
+      const eliteObj = { escape: 'Escape', defeat: 'Defeat' }[kind] || 'Seize';
       label = `Elite Battle (${eliteObj}) — Harder fight, better loot`;
     } else {
-      const obj = node.battleParams?.objective || 'rout';
+      const obj = kind || 'rout';
       label = `Battle (${obj})`;
     }
     // An event whose choice started a fight shows as an event; it is locked when its

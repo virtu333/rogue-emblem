@@ -10,6 +10,7 @@ import { inputHint } from '../utils/inputHint.js';
  */
 import { getDisplayLevel, isUnarmed } from '../engine/UnitManager.js';
 import { findCommander } from '../engine/Commander.js';
+import { previewObjectives } from '../engine/ObjectivePreview.js';
 import { RosterOverlay } from '../ui/RosterOverlay.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { showImportantHint } from '../ui/HintDisplay.js';
@@ -131,9 +132,16 @@ export class DeployScreenOverlay {
 
     // Objective banner -- escape maps reward fast movers, so the player needs
     // to know the objective before picking who deploys.
-    const objective = scene.battleParams?.objective;
+    // The deploy screen opens before the map exists: a defeat set piece's kind and targets come
+    // from its data (ObjectivePreview), the legacy string being only its family (rout).
+    const preview = previewObjectives(scene.battleParams, this.gameData?.setPieces);
+    const objective = preview?.kind ?? scene.battleParams?.objective;
     if (objective) {
       const OBJECTIVE_BANNERS = {
+        defeat: {
+          text: preview?.view.primary.map((p) => p.text).join(' ') || 'Defeat the targets.',
+          color: UI_PALETTE.warn,
+        },
         rout: { text: 'ROUT: Defeat all enemies', color: UI_PALETTE.muted },
         seize: {
           text: 'SEIZE: Defeat the boss, then capture the throne with a Lord',
