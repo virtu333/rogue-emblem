@@ -62,6 +62,7 @@ import { heldBlessingEntries } from '../ui/heldBlessingsModel.js';
 import { ShopController } from '../ui/ShopController.js';
 import { adaptDialogueEntries } from '../engine/DialogueCast.js';
 import { recordRunLordsMet } from '../engine/LordsMet.js';
+import { recordRunDiscoveries } from '../engine/CompendiumDiscovery.js';
 import { buildNarrativeContext, selectDialogueEntries } from '../engine/NarrativeDirector.js';
 import { NodeMapCursorController } from '../ui/NodeMapCursorController.js';
 import { InputAction } from '../utils/InputActions.js';
@@ -929,6 +930,9 @@ export class NodeMapScene extends Phaser.Scene {
       this.shopOverlay ||
       this.churchOverlay ||
       this.eventOverlay ||
+      this._earnedPick ||
+      this._pendingRewards ||
+      this._bossRecruitResume ||
       this.rosterOverlay?.visible ||
       this.pauseOverlay?.visible ||
       this.settingsOverlay?.visible
@@ -936,7 +940,22 @@ export class NodeMapScene extends Phaser.Scene {
       return false;
     }
 
-    const pending = this.runManager?.getPendingCaravanShop?.();
+    const rm = this.runManager;
+    // The battle's own rewards come first, as before a freed village's shop: left open by
+    // "View map" or a reload, they are claimed before the caravan trades (the rewards'
+    // onComplete reaches checkActComplete, which opens the shop then).
+    if (!rm || rm.pendingBattleReward || rm.pendingBossRecruit || rm.pendingThirdLord) return false;
+    // The route map's order is events, the contract, the pick, then the caravan: a contract
+    // reward owed at this node or an event's own page is read first (their Continue reaches
+    // checkActComplete, which opens the caravan then), as the earned pick's gate reads it.
+    const current = rm.nodeMap?.nodes?.find((entry) => entry?.id === rm.currentNodeId);
+    if (current && contractRewardOwedAt(rm, current)) return false;
+    if (
+      getPendingEventSettlement(rm) ||
+      (current?.type === NODE_TYPES.EVENT && current.completed && eventPageOwed(rm, current.id))
+    )
+      return false;
+    const pending = rm.getPendingCaravanShop?.();
     if (!pending) return false;
 
     if (typeof this.handleShop !== 'function') return false;
@@ -1281,6 +1300,7 @@ export class NodeMapScene extends Phaser.Scene {
       cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
       slot,
     );
+    recordRunDiscoveries(this.registry.get('meta'), this.runManager);
     if (!result.ok) {
       showMinorHint(
         this,

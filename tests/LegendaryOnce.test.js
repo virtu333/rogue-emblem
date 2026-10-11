@@ -35,13 +35,17 @@ const roster = [
   },
 ];
 
-function lootNames(excluded, seed, { bonus = 0, act = 'act3', trials = 150 } = {}) {
+function lootNames(
+  excluded,
+  seed,
+  { bonus = 0, act = 'act3', trials = 150, tables = data.lootTables } = {},
+) {
   seedRandom(seed);
   const seen = [];
   for (let i = 0; i < trials; i++) {
     const choices = generateLootChoices(
       act,
-      data.lootTables,
+      tables,
       data.weapons,
       consumables,
       4,
@@ -74,13 +78,16 @@ describe('a legendary is granted once a run', () => {
   });
 
   it('quality upgrades never land on an owned legendary', () => {
-    const open = lootNames([], 3, { bonus: 100, act: 'act2' }).filter(
-      (i) => i.tier === 'Legend' && i.type !== 'Staff',
-    );
+    // Act II's own pools hold no legendary, so every Legend seen is an upgrade. Its table drops
+    // none, so the upgrade would stop at Silver: an empty legendary category with a weight opens it.
+    const tables = structuredClone(data.lootTables);
+    tables.act2.weights.legendaryWeapon = 1;
+    const opts = { bonus: 100, act: 'act2', tables };
+    const open = lootNames([], 3, opts).filter((i) => i.tier === 'Legend' && i.type !== 'Staff');
     expect(open.length).toBeGreaterThan(0);
-    const allOwned = lootNames(legendNames, 3, { bonus: 100, act: 'act2' });
+    const allOwned = lootNames(legendNames, 3, opts);
     expect(allOwned.filter((i) => i.tier === 'Legend' && i.type !== 'Staff')).toHaveLength(0);
-    const one = lootNames(['Ragnarok'], 3, { bonus: 100, act: 'act2' });
+    const one = lootNames(['Ragnarok'], 3, opts);
     expect(one.some((i) => i.name === 'Ragnarok')).toBe(false);
   });
 

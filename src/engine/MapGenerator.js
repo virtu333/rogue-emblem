@@ -30,7 +30,7 @@ import {
   buildBanditScriptedWave,
 } from './VillageSystem.js';
 import { createScopedLogger } from '../utils/logger.js';
-import { buildRoutLadder } from './RoutLadder.js';
+import { buildRoutLadder, fogRoutFrontOnly, routLadderEdges } from './RoutLadder.js';
 import { assignHolders, holdShareFor } from './HoldActivation.js';
 import { revivalStoneKind, revivalStonesFor } from './RevivalStones.js';
 import { mapExtraNecromancer } from './Necromancy.js';
@@ -506,6 +506,7 @@ export function generateBattleLayout(params, deps) {
     playerSpawns,
     enemySpawns,
   });
+  applyFogRoutFront(reinforcementConfig, params, objective, { playerSpawns, enemySpawns, cols });
 
   const battleConfig = {
     mapLayout,
@@ -599,6 +600,7 @@ function generateSetPieceLayout(params, deps) {
     playerSpawns,
     enemySpawns,
   });
+  applyFogRoutFront(reinforcementConfig, params, objective, { playerSpawns, enemySpawns, cols });
   return {
     mapLayout,
     cols,
@@ -693,6 +695,27 @@ function dressEnemySpawns(enemySpawns, { params, deps, act, templateId }) {
     random: () => Math.random(),
   });
   return enemySpawns;
+}
+
+/**
+ * A fogged rout map (a set piece's too) sends every procedural wave (ladder, template, Hunted)
+ * from the front, the edge opposite the player's deployment: no flank arrivals out of the dark
+ * (RoutLadder.fogRoutFrontOnly). Run after finishReinforcements, so the Hunted wave is covered.
+ * Draws nothing.
+ */
+function applyFogRoutFront(
+  reinforcementConfig,
+  params,
+  objective,
+  { playerSpawns, enemySpawns, cols },
+) {
+  if (objective !== 'rout' || params.fogEnabled !== true || !reinforcementConfig.reinforcements)
+    return;
+  const r = reinforcementConfig.reinforcements;
+  reinforcementConfig.reinforcements = fogRoutFrontOnly(
+    r,
+    r.ladder?.front || routLadderEdges({ playerSpawns, enemySpawns, cols }).front,
+  );
 }
 
 /**
