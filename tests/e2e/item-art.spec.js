@@ -2,7 +2,7 @@
 // icons from the atlases, painted heroes in detail panes, service vignettes (desktop
 // band / phone backdrop), the upgrade purchase moment, and no legacy icon textures.
 import { test, expect } from '@playwright/test';
-import { waitForGame, waitForScene, collectErrors } from './helpers.js';
+import { waitForBattleState, waitForGame, waitForScene, collectErrors } from './helpers.js';
 
 const VIEWS = [
   { name: 'phone', width: 844, height: 390, query: '&mobilePreview=1', desktop: false },
@@ -212,6 +212,7 @@ for (const view of VIEWS) {
       const errors = collectErrors(page);
       await page.goto(`/?devScene=battle&preset=battle_smoke&seed=42&battleLab=1${view.query}`);
       await waitForScene(page, 'Battle');
+      await waitForBattleState(page, 'PLAYER_IDLE');
       await page.evaluate(() => {
         const s = window.__emblemRogueGame.scene.getScene('Battle');
         const d = s.gameData;
