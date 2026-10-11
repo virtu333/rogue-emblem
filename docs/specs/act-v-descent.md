@@ -6,7 +6,7 @@ special events, and the court circle's summoning broken on the way. The Lieutena
 every rung that reaches the act.
 
 Status: design agreed with the owner on 2026-10-11 (structure, the Vigil, the Rite carrying into
-the finale, no Echoes yet). Numbers marked *tune* are starting values for the sims (§11).
+the finale, no Echoes yet); engine plan from a read of `main` at 1c4bb64. Numbers marked *tune* are starting values for the sims (§11).
 
 ## 1. Today
 
@@ -81,9 +81,11 @@ between; the sims decide whether it stays (§11).
    at the finale.
 4. **Heals as today.** HP persists between nodes; the Ruins is the act's rest. `advanceAct` heals
    on entry as it does for every act.
-5. **The Eclipse.** The start (the Stair), the Vigil, the Lieutenant, the Ruins and the finale are
-   exempt from falls. The fork's battle may fall (an eclipsed elite, as anywhere) and its event
-   may become a Dark Omen when the event has a `dark` face. The Landing is exempt.
+5. **The Eclipse.** Every Descent node is exempt from falls except the Mortuary Column, which may
+   fall to an eclipsed elite as anywhere (`fallable: true` in the route data). The fork's event is
+   not fallable: the Eclipse already speaks through the Rite's starting value (§4).
+6. **No service conversions.** Pilgrim's Road, the start gift's `eclipse_fall_now` and any other
+   pass that rewrites nodes skip authored Descent nodes.
 
 ## 3. The court circle and the summoning
 
@@ -181,6 +183,9 @@ The court circle's ritualists: robed, hooded, a tome bound in grey cord.
   (*name in the content PR*, price 0, in no loot table, validated like Gravesong).
 - AI `guard` by default; a Voice is `hold` on its sigil (it returns to it when moved).
 - Lore (≤160, drafted in the content PR): the found-text voice of the court circle's own rolls.
+- A Voice stands on its sigil and strikes from it (AI `post`: movement 0). A Voice the player moves
+  off its sigil (Shove, Smite, a push art) walks back to it (`seek_tile`) and speaks again only
+  once it stands there.
 
 ### 5.2 Hollowed
 
@@ -188,8 +193,9 @@ Imperial soldiers the rite has emptied: the uniform still on, the person gone ou
 of the event set pieces planned them as Eclipse-touched; here the summoning makes them.
 - Base tier, Infantry, `Lances/Swords (P)`, low growths, no skills.
 - **They grow with the rite.** A Hollowed's level is the battle's adjusted range plus
-  `floor(words / 4)` (*tune*), read when it is built (a called Hollowed reads the battle's live
-  count). Rewards: XP ×0.5, gold 0, no carry, no deed record (like a raised Skeleton).
+  `min(4, floor(words / 4))` (*tune*), read when it is built (a called Hollowed reads the Rite at
+  battle entry plus the words spoken so far in that battle). Called Hollowed act on the phase they
+  appear, as raised Skeletons do. Rewards: XP ×0.5, gold 0, no carry, no deed record (like a raised Skeleton).
 - Built on a keyed stream (`keyedBattleRandom(battleSeed, 'called:<circle>:<turn>')`), never the
   battle stream, so a call never moves it and a resume or rewind replays it.
 
@@ -205,9 +211,11 @@ of the event set pieces planned them as Eclipse-touched; here the summoning make
 
 ### 6.1 Rules
 
-- `difficultyFilter` → every rung that reaches Act V. He is no longer drawn from
-  `bosses.finalBoss`: the route names him (the finale on First Light and Dusk, the gate on
-  Nightfall and Black Sun), and the Entity is named by the route too.
+- The route seats him **by name** (`battleParams.bossName`): the finale on First Light and Dusk,
+  the gate on Nightfall and Black Sun. His `difficultyFilter` keeps its meaning, "the finale
+  pick" (`normal`, `dusk`), and is not widened: the legacy random boss pick and
+  `victoryEndingKey` both read it, and a Nightfall save already in Act V on the old 2-node map
+  must keep drawing the Entity.
 - **The Glass** (`the_glass`, his set piece): a long hall of standing mirrors (Pillars), a dais at
   the far end with a Throne. Seize on the finale (as today); on the gate, **defeat him** (the
   objective kind of §9.4 with one name) so the door opens when he falls.
@@ -219,7 +227,8 @@ of the event set pieces planned them as Eclipse-touched; here the summoning make
 A boss fight that does not end the act: boss card, boss theme, half-health and defeat lines,
 enrage, Revival Stones. What follows the victory:
 - **+1 Vision charge** ("The glass breaks. Sera's sight comes back whole."), the act-boss rule
-  applied to the gate.
+  applied to the gate: an explicit grant, since every existing grant keys on `bossNodeId`. No
+  Eclipse boss relief.
 - No earned-blessing pick (the act's last boss never offers one; neither does the gate).
 - No boss recruit, no third lord, no `advanceAct`; the route map opens on the Ruins.
 
@@ -264,16 +273,197 @@ content PR, under the lore style guide):
 
 ## 9. Engine
 
-*Filled in from the engine plan.*
+File:line references are to `main` at 1c4bb64 and will drift; read the code before trusting them.
 
 ### 9.1 The authored route
+
+- **`data/descent.json`** (new; loaded in `DataLoader` beside `setPieces`, validated in
+  `npm run validate:data`, synced to `public/data`):
+
+  ```
+  { version: 1, enabled: true,
+    routeByRung: { normal: "lieutenant", dusk: "lieutenant", hard: "entity", lunatic: "entity" },
+    routes: { <id>: { finale: "lieutenant" | "entity",
+       levelOffset: [lo, hi],     // over ACT_LEVEL_SCALING of the act before finalBoss
+       rows: [ { nodes: [ NodeSpec | { oneOf: [NodeSpec...], weights?: [...] } ] } ] } },
+    rite: { startByPhase: {...}, bands: [...], mods: {...}, perWordLevel, levelCap } }
+  ```
+
+  NodeSpec: `{ key, type: battle|event|ruins|boss, setPiece?, templateId?, objective?, elite?,
+  eventPool?, boss?, bossRole?: gate|finale, riteTarget?, fallable?, title?, preview?, bossLine? }`.
+- **`engine/Descent.js`** (pure; modelled on `Prologue.buildPrologueNodeMap`):
+  `buildDescentNodeMap(config, { runSeed, difficultyId, actSequence, gameData })` returns the
+  `generateNodeMap` shape plus `nodeMap.descent = { v: 1, routeId, finale }`.
+  - Node ids `finalBoss_<row>_<col>` (ids are parsed elsewhere and key the battle stream).
+    Columns: one node → 2; two → 1 and 3; at most three per row. Edges: full fan when either row
+    has one node; otherwise explicit, checked with `edgeCrosses`.
+  - **No `Math.random`, no node-map stream.** Each node's `battleSeed` is
+    `keyedBattleRandom(runSeed, 'descent-node:<id>')` (as `prologueNodeBattleSeed`); a `oneOf`
+    picks on `descent-row:<seed>:<route>:<row>:<i>`. The builder is not wrapped in
+    `_withNodeMapSeed`.
+  - Set-piece nodes go through `convertNodeToSetPieceBattle`, extended to take the keyed seed
+    instead of its `rollBattleSeed()` draw and to skip the fog roll when the set piece forces fog.
+  - The Entity finale is `{ type: 'boss', templateId: 'eldritch_sanctum', objective: 'seize',
+    boss: 'The Entity', bossRole: 'finale' }` with no `levelRange`, so its escorts use the pool
+    range exactly as today.
+  - Every node is stamped `authored: 'descent'`.
+- **Validation** (`validateDescentConfig`): every rung whose `actsIncluded` has `finalBoss` maps
+  to a route; the route's finale agrees with that rung's `difficultyFilter` pick; row 0 and the
+  last row have one node and the last is the finale boss; every node is reachable both ways;
+  every set piece, template, boss and event pool resolves; set pieces validate at `finalBoss` for
+  each rung the route serves; an always-eligible event exists in each named pool.
+- **RunManager.** One `_buildActNodeMap()` replaces the two `generateNodeMap` call sites
+  (`startRun`, `advanceAct`): the Descent when `!isPrologueRun && act === 'finalBoss' && descent
+  enabled && a route exists for the rung`, else today's call unchanged. `ACT_CONFIG.finalBoss.rows`
+  stays 2 and `generateNodeMap('finalBoss')` stays the legacy path, so the tests that pin the
+  2-node act keep passing and describe the fallback. `fromJSON` never rebuilds a map: a save
+  already in Act V keeps its 2-node map, and every new reader handles a `finalBoss` map without
+  `descent` and `run.rite === null`. Dev routes take `bossNodeId`, never the first `BOSS` node.
+
 ### 9.2 Set pieces on any node
+
+- `SetPieces.js`: `SET_PIECE_OBJECTIVES = ['rout', 'seize', 'defeat']`; the act ids gain
+  `finalBoss` (and `postAct`). New slot keys: `boss: true` (seats the battle's boss, at most one,
+  always in play, keeps its two slot draws), `name` (a named unit that is not a boss),
+  `target: true` (counts for `defeat`; needs a name; always in play; never `hold`),
+  `aiMode: 'post'`. Variant-level `vigil: { sigils: [{id,col,row,target}], circles:
+  [{id,col,row,voice}] }`, placed through `place()` so a mirror flips them.
+- Validator: seize needs exactly one Throne with the `boss` slot on it and no `captain`; defeat
+  needs at least one target; each sigil has its target slot on it; circles are standable for
+  Infantry and reachable; Descent references are walked beside event references. Map size: the
+  cap rises to 16×14 for `finalBoss` set pieces only (the Glass replaces a 16×14 arena).
+- `MapGenerator.generateSetPieceLayout`: `thronePos` from the authored Throne (`throneTiles`
+  moves from `Prologue.js` into `AuthoredMap.js`); `finishReinforcements` gets
+  `isBoss: params.isBoss === true`, so no Hunted wave lands on a boss map. The boss slot and the
+  template path both go through one `resolveSeatedBoss(params, deps)`: `params.bossName` looks the
+  boss up in `enemies.bosses[act]` by name, bypassing the filter but **still consuming the legacy
+  pick's single draw** (so a named Entity config is byte-identical to today's); level
+  `bossDef.level + bossLevelBonus`; stones from `revivalStoneKind` plus the Rite's (§9.5), never
+  on the Entity. The config gains `objectiveTargets` and `vigil`. An unknown set piece's
+  fallback maps any non-template objective to `rout`.
+- `EnemySpawnGear.applySpawnLoadout` (scene and harness share it) sets `enemy.name` from
+  `spawn.name` for named non-boss units. `AIController`: mode `post` is movement range 0, striking
+  from the tile, built as `holdsPost` is so scene and harness agree.
+- Voices are never `isBoss` (no boss stats, no boss gold, no boss bar). `elites.finalBoss` gains
+  entries so `eliteCaptains` never falls back to `bosses.finalBoss`.
+
 ### 9.3 The gate boss
+
+A node with `type: 'boss'`, `bossRole: 'gate'` and an id other than `bossNodeId`.
+
+| Reader | Today's result for the gate | Change |
+|---|---|---|
+| `isActComplete` / `isRunComplete` | read `bossNodeId`: not ended | none |
+| `handleBattle` `isBoss: node.type === BOSS`, `BattleScout`, `firstRunFastPath` | boss card, music by boss name, pre-battle lines, boss bar | none |
+| `getBattleParams` `bossBattle` | no Hunted; Sworn affix applies | none |
+| `completeBattle` boss node | ends Sworn Enemy; boss gold ×1.5 | none |
+| `_commitBattleShadow`, `isActBossVictory` | no relief, no Vision, no earned pick | **explicit +1 Vision** for the gate (§6.2) |
+| `PostCombatController` boss victory → boss recruit | finalBoss has no recruit | **gate branch**: loot and the third lord as the elite path |
+| Defeat lines, `recordBossSlain` | as any boss | role variants (§9.7) |
+| `RouteGraph`, `NodeMapScene` final-boss art | keyed on `act === 'finalBoss'` | read `bossRole` |
+| `EclipseSystem.nodeFallExemption` | exempt (authored, §9.1) | none |
+
 ### 9.4 The defeat-named objective
+
+- **`engine/DefeatObjective.js`** (pure; named after `03-objectives` §5.4 so a later
+  `BattleObjectives` can absorb it): `objectiveTargetsOf(config)`, `remainingTargets`,
+  `isDefeatComplete` (no living enemy whose `authoredId` is a target), `defeatObjectiveLabel`.
+- Rule readers: `BattleScene.checkBattleEnd` (a branch after rout), `HeadlessBattle._checkBattleEnd`,
+  `tests/harness/Invariants.js`, `ScriptedAgent` and `sim/lib/TacticianAgent.js` (targets take
+  boss priority, or the Vigil times out while the circles call). `isRoutFieldClear` stays
+  rout-only, so waves keep coming on a defeat map.
+- Par: `turnBonus.json` gains `defeat` in `objectiveBasePar` / `objectiveAdjustments` (without it
+  `calculatePar` returns null); `DifficultyEngine`'s `objectiveParOffset` whitelist gains it.
+- Words: `updateObjectiveText`, `battleSidebarDisplay.compactBattleObjective`, `helpTopics`
+  `OBJECTIVE_GOALS`, `DeployScreenOverlay` `OBJECTIVE_BANNERS`, `PartyMenus`, `ceremonyContent`
+  `OBJECTIVE_WORDS` and the felled band ("2 Voices remain"), `loomModel`, the node tooltip.
+
 ### 9.5 The Rite and the Vigil mechanic
+
+- **State.** `run.rite = { v: 1, words, start, log: [{ source: 'eclipse'|'vigil'|'event'|'battle',
+  delta, nodeId?, eventId? }] } | null`, in **`engine/Rite.js`** (pure: `createRite`,
+  `riteStartFromEclipse`, `applyRiteDelta`, `riteBand`, `riteModsFor(run, node)`, `sanitizeRite`,
+  `riteView`). Created in `advanceAct` only when the Descent is built, after `beginActShadow` and
+  before `applyEclipseNow`, from the global meter's phase (0 with the Eclipse off). Saved in
+  `toJSON` / `fromJSON`; old saves read null.
+- **Settled once, at victory.** The battle never writes `run.rite`. The Vigil's victory commits
+  `options.riteWords` in `completeBattle`, gated on the locked config carrying `vigil`;
+  `completeBattle` refuses a node already done, so nothing double-counts, and a suspend, a Vision
+  rewind or Continue from Map needs nothing extra.
+- **The Vigil step.** **`engine/Vigil.js`** (pure, modelled on `Necromancy.js`):
+  `vigilPhaseStep({ vigil, state, enemyUnits, playerUnits, isOccupied, moveCostAt, turn, seed,
+  riteAtEntry, ... })` → `{ words: [voiceIds], summons: [{ circleId, tile, unit }] }`. Words: each
+  living target on its sigil (the Waking ×2 while the others live); no draw. Summons: each circle
+  whose Voice lives and that no player unit covers calls a Hollowed onto the circle or its first
+  free passable neighbour (`riseTile` order), built on
+  `keyedBattleRandom(seed, 'summon:<circle>:<turn>:<n>')`; caps per circle and per battle;
+  `_summonedBy: 'circle:<id>'`; a `lastProcessedTurn` guard.
+- **State in the battle.** `vigilState = { words, summoned, lastProcessedTurn }` rides
+  `captureBattleWorldState` / `restoreBattleWorldState`, so the suspend checkpoint and the Vision
+  snapshot both carry it (with field validation in `BattleStateSnapshot`). An enemy-phase resume
+  skips the turn-start pipeline, so the step never replays.
+- **Scene and harness.** `ui/VigilController.js` (create/destroy: sigil and circle markers,
+  banners, fog-aware through `canInspectUnit`) is driven from the enemy turn-start pipeline right
+  after `processNecromancy`; the harness calls `_processVigil()` right after `_processNecromancy()`.
+- **Conjured units.** One `isConjuredUnit` predicate (raised or summoned) for gold 0, the XP
+  multiplier, no survival XP, no deed, no carry, never a reinforcement template.
+- **Finale modifiers.** `getBattleParams` adds `riteMods` (keys only when non-empty) and
+  `riteAtEntry` for a `riteTarget` node or the Vigil. `MapGenerator` writes them into the locked
+  config at generation: boss stones through `resolveSeatedBoss`; a `riteWave` (a `scriptedWaves`
+  entry of Hollowed, placed like `HuntedWave.withHuntedWave` but allowed on boss maps);
+  `entitySplashCount` (`ENTITY_SPLASH_COUNT` ± 1, clamped 0..4). The locked config holds them, so
+  resume, rewind and the scout agree. `rollSplashTiles` takes the same draws whatever the count.
+  The validator refuses any mod that touches the Entity's HP, puts stones on it, or reaches the
+  hinge, the hum or the rally.
+- **The Entity's splash** moves out of `BattleScene._applyEntitySplash` into a pure
+  `EntitySystem` step the scene drives with presentation and the harness without (the harness
+  never splashed: `05` §1.3 item 8). Harness finale results will move: `test:harness:pr` and
+  threshold notes.
+
 ### 9.6 Act V events
+
+- `EVENT_ACTS` stays act1–4 as the default; validation accepts `finalBoss`. An event may carry
+  `pool: 'descent'`; `eventBlock` refuses a pooled event at a node with another or no
+  `eventPool`, and an unpooled event at a node that names one. `pickEvent` and `hasDarkOmen`
+  inherit it. With nothing eligible, the existing fallback event stands in (the validator makes
+  that unreachable).
+- New effect **`rite: { delta }`**: plan and apply cases in `EventEffects`, a no-op record when
+  `run.rite` is null, a preview phrase ("The rite: −1 word"), a `describeResult` line. Valid only
+  in pooled `finalBoss` events; no `routeEdit`, `contract` or `join` in Descent events. The sims'
+  event policy handles it.
+
 ### 9.7 The ladder, the Lieutenant, the endings
+
+- `difficulty.json`: `dusk.actsIncluded += finalBoss` (new runs; saved runs keep their act list)
+  and the `road` text. Side effects to accept and document: Dusk's Act IV can now hold an Old
+  Sanctum, and the Emperor now owes an earned-blessing pick on Dusk (the act boss of a non-final
+  act). CLAUDE.md lines that say "Dusk ends at the Emperor" / "Dusk act1-3" change.
+- `getActTransitionKey(from, to, { finale })`: Act IV → `finalBoss` plays a new
+  `act4_to_finalBoss_lieutenant` on a Lieutenant road, today's `finalBoss_to_secretAct` on an
+  Entity road.
+- The Act III vision plays when the run includes Act IV (not when `victoryEndingKey` is the
+  Lieutenant's, which Dusk now is).
+- `victoryEndingKey` is unchanged (Dusk already resolves to `victory_lieutenant`).
+- `NarrativeDirector` `KNOWN_WHEN_KEYS` gains `bossRole` (`gate` | `finale`, from
+  `battleParams.bossRole`), `roadThroughEmperor` (the run includes Act IV) and `riteBand`.
+
 ### 9.8 Saves, cloud and old clients
+
+An older client cannot play a Descent run: an unentered `defeat` node falls back and throws, a
+locked `defeat` config can never be won, a Nightfall gate draws the Entity, and `run.rite` is
+lost on its next save. So:
+- **`engine/RunFormat.js`**: `requiredRunFormat(saved)` detects `descent` (`nodeMap.descent` or a
+  non-null `rite`), `objectives` (any objective outside rout/seize/escape in a node, a locked
+  config or a checkpoint) and `vigil` (a `vigil` config or `vigilState` in a checkpoint or rewind
+  snapshot). `toJSON` writes `requiresClient: 2` and `requiresCapabilities`, ratcheted from what
+  `fromJSON` loaded. A client that lacks a capability refuses the run (`RunFormatError`) and the
+  slot card says it needs a newer version.
+- **CloudSync**: `isLocalOnlyRunSave` also holds back a run above `CLOUD_SAFE_RUN_FORMAT` (1)
+  (`reason: 'format_local'`), and the sign-out backup names it. The stale pre-Act V cloud row is
+  retired by the same `runRecordId`, so another device cannot resume the old Act IV copy.
+- Act I–IV runs (Dusk with `finalBoss` in its list included) stay format 1: an old client plays
+  Dusk's Act V as the legacy Ruins → Lieutenant, which is coherent. A run stays on its device from
+  Act V entry until the owner raises `CLOUD_SAFE_RUN_FORMAT` once old app builds have aged out.
 
 ## 10. Narrative
 
@@ -321,7 +511,28 @@ line follows `docs/lore-style-guide.md` (≤90 characters, one line, lords in th
 
 ## 12. Delivery
 
-*PR breakdown filled in from the engine plan.*
+Each PR goes to `main` on its own, green on the CI gates. The Descent ships dark (`descent.json`
+`enabled: false`) until the content PR switches it on. Implementer column: who builds it (an Opus
+agent for cross-cutting engine work, a Sonnet agent for scoped data, content and words), always
+reviewed before the PR opens.
+
+| # | PR | Needs | Implementer | Scope |
+|---|---|---|---|---|
+| 1 | Run-format guard | — | Opus | §9.8. Must be released before 7 is switched on |
+| 2 | Set pieces v2 + the `defeat` rule | — | Opus | §9.2, §9.4 rule readers; draw-parity test for a named boss |
+| 3 | Circle Adept and Hollowed | — | Sonnet | §5: data, enemy-only plumbing (split `isNecromancyClass` into a never-copied predicate), sprites and portraits |
+| 4 | The Entity's splash as a pure step | — | Opus | §9.5 last item; harness parity, threshold notes |
+| 5 | Dusk goes on to the Lieutenant | — | Sonnet | §9.7 data and transition/vision rules, with the legacy 2-node Act V; tests that pin Dusk's act list |
+| 6 | `defeat` words and agents | 2 | Sonnet | §9.4 word readers, `ScriptedAgent` / `TacticianAgent` targeting |
+| 7 | The Descent route and the gate boss | 1, 2 | Opus | §9.1, §9.3, §9.6 pools, Eclipse and Pilgrim's Road exemptions; ships dark |
+| 8 | The Vigil mechanic | 2, 3 | Opus | §9.5 Vigil step, controller, harness, conjured units |
+| 9 | The Rite | 4, 7, 8 | Opus | §9.5 state and modifiers, the `rite` effect, `when` keys, `riteView` |
+| 10 | Content and switch-on | 3, 5, 9 | Sonnet + Opus review | the four set pieces, the routes, the events and vignettes, dialogue (§10), loot, CLAUDE.md; `enabled: true` |
+| 11 | UI polish | 9 | Sonnet | the Rite chip, the finale preview, markers, phone and portrait checks, an e2e spec in a lane |
+| 12 | Sims and tuning | 10 | Opus | §11; the sim driver's `applyGenerationFields` parity; slice re-baselines |
+| 13 | Music | — | Sonnet | the Descent and the Vigil themes (§8), any time after the pipeline is set up |
+
+Wave 1 (1, 2, 3, 4, 5, 13) runs in parallel; wave 2 (6, 7, 8); wave 3 (9, 10, 11, 12).
 
 ## 13. Not in this spec
 
