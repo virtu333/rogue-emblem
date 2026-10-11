@@ -467,10 +467,14 @@ describe('the boss slot: never the Entity, never an event', () => {
       if (entityRungs.includes(rung)) expect(errors, rung).toMatch(ENTITY);
       else expect(errors, rung).toBe('');
     }
-    // An elite node's seat falls back to the act's bosses (Act V has no captains): refused too.
-    expect(
-      validateSetPieceAt(GATE_FIXTURE, 'finalBoss', 'hard', deps, { isElite: true }).join('\n'),
-    ).toMatch(ENTITY);
+    // An elite node's seat draws the act's captains, and falls back to its bosses only when the
+    // act has none: refused exactly when that fallback could be the Entity.
+    const eliteErrors = validateSetPieceAt(GATE_FIXTURE, 'finalBoss', 'hard', deps, {
+      isElite: true,
+    }).join('\n');
+    const actHasCaptains = (base.enemies.elites?.finalBoss || []).length > 0;
+    if (actHasCaptains) expect(eliteErrors).toBe('');
+    else expect(eliteErrors).toMatch(ENTITY);
   });
 
   it('a name pins the seat: another boss passes on every rung, the Entity never does', () => {
