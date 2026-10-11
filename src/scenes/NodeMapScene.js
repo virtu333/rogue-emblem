@@ -945,6 +945,16 @@ export class NodeMapScene extends Phaser.Scene {
     // "View map" or a reload, they are claimed before the caravan trades (the rewards'
     // onComplete reaches checkActComplete, which opens the shop then).
     if (!rm || rm.pendingBattleReward || rm.pendingBossRecruit || rm.pendingThirdLord) return false;
+    // The route map's order is events, the contract, the pick, then the caravan: a contract
+    // reward owed at this node or an event's own page is read first (their Continue reaches
+    // checkActComplete, which opens the caravan then), as the earned pick's gate reads it.
+    const current = rm.nodeMap?.nodes?.find((entry) => entry?.id === rm.currentNodeId);
+    if (current && contractRewardOwedAt(rm, current)) return false;
+    if (
+      getPendingEventSettlement(rm) ||
+      (current?.type === NODE_TYPES.EVENT && current.completed && eventPageOwed(rm, current.id))
+    )
+      return false;
     const pending = rm.getPendingCaravanShop?.();
     if (!pending) return false;
 
