@@ -468,6 +468,7 @@ import { consumeEscEvent, isEscConsumed } from '../utils/escPriority.js';
 import { hasOpenOverlay, routeCancel } from '../utils/overlayStack.js';
 import { InputAction } from '../utils/InputActions.js';
 import { pauseBurdenEntries } from '../ui/eventMenuModel.js';
+import { liveRiteOptions } from '../ui/riteModel.js';
 import { heldBlessingEntries } from '../ui/heldBlessingsModel.js';
 import { pushInputScope, popInputScope, hasInputFocus } from '../utils/inputFocus.js';
 import {
@@ -4727,7 +4728,7 @@ export class BattleScene extends Phaser.Scene {
     const backToMap =
       placing && this._formation?.canReturnToMap() ? () => this._formation.returnToMap() : null;
     this.pauseOverlay = new PauseOverlay(this, {
-      burdens: pauseBurdenEntries(this.runManager, this.gameData?.events),
+      burdens: pauseBurdenEntries(this.runManager, this.gameData?.events, this.liveRiteOptions()),
       blessings: heldBlessingEntries(this.runManager),
       onAbandonWarning: abandonPayout
         ? `Abandon this run?\nKeep ${abandonPayout.valor} Valor and ${abandonPayout.supply} Supply. This run and its gold, items and route progress will end.`
@@ -11365,6 +11366,15 @@ export class BattleScene extends Phaser.Scene {
   getLadderObjectiveLine() {
     const rotation = this.grid?.board?.rotation || 'none';
     return routLadderObjectiveLine(this.getLadderStatus(), (edge) => displayEdge(edge, rotation));
+  }
+
+  /**
+   * The Rite's options for what the pause list says in this battle: the words a Vigil has had
+   * spoken so far count, against the Rite as the battle began (riteModel.riteChipModel `live`).
+   * Read only: the run's Rite changes at the victory commit.
+   */
+  liveRiteOptions() {
+    return liveRiteOptions(this._vigilState, this.battleParams);
   }
 
   /** Where the rout ladder stands (null without one); see getLadderObjectiveLine. */

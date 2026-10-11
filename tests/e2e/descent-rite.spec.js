@@ -15,7 +15,14 @@
 import { test, expect } from '@playwright/test';
 import { waitForGame, waitForScene, collectErrors } from './helpers.js';
 import { expectNoSidewaysScroll } from './portraitHelpers.js';
-import { ANSWERED, IN_ANSWERED, IN_SPOKEN, openRoute, selectNode } from './riteHelpers.js';
+import {
+  ANSWERED,
+  COLUMN_UNDER_PAR,
+  IN_ANSWERED,
+  IN_SPOKEN,
+  openRoute,
+  selectNode,
+} from './riteHelpers.js';
 
 const cardText = (route) => route.locator('.re-loom-card .re-loom-rite');
 
@@ -124,6 +131,21 @@ test('a locked battle previews its locked map, not the tier the words stand at n
   });
   await expect(route.locator('.re-burden.re-rite .re-burden-short')).toHaveText('0 words · Broken');
   await expect(cardText(route).locator('.re-loom-rite-lines li')).toHaveText(locked);
+});
+
+test('the Column and the Vigil say what the Rite owes before the fight', async ({ page }) => {
+  // Nothing walked yet: the Column and the Vigil are both ahead (a won node carries no note).
+  const route = await openRoute(page, { row: 0 });
+  const note = route.locator('.re-loom-card .re-loom-rite-note-line');
+  await selectNode(page, 'column');
+  const loss = Math.abs(COLUMN_UNDER_PAR);
+  await expect(note).toHaveText(
+    `Win at or under par: the Rite loses ${loss} word${loss === 1 ? '' : 's'}.`,
+  );
+  await selectNode(page, 'vigil');
+  await expect(note).toHaveText('Stand on a circle to stop its summons. Its Voice still speaks.');
+  await selectNode(page, 'stair');
+  await expect(note).toHaveCount(0);
 });
 
 test('an ordinary run has no Rite chip and no Rite block', async ({ page }) => {

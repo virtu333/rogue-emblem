@@ -12,25 +12,49 @@
 //   6. a preview promises what the battle will not keep: once the map is locked the card must say
 //      what the LOCKED config holds (not the tier the words stand at now), and "No change" when
 //      the locked map holds nothing;
-//   7. the chip opens, closes, and stays open through a redraw; a tap on the note closes it.
+//   7. the chip opens, closes, and stays open through a redraw; a tap on the note closes it;
+//   8. a wave named for a turn the battle's scheduler does not release it on (Hollow Hourglass
+//      moves every wave a turn later), open or locked;
+//   9. the words shown in a live Vigil are the entry's, not the words being spoken, a rewind keeps
+//      the spoken count it restored, or the words are paid in twice once the battle is won;
+//  10. the Mortuary Column's par payoff is a literal, not the data's, or the Vigil's circle note
+//      is missing from the Vigil only.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+vi.mock('phaser', () => ({
+  default: {
+    Scene: class {},
+    Math: { Clamp: (val, min, max) => Math.max(min, Math.min(max, val)) },
+  },
+}));
+
 import { installFakeDom } from './helpers/fakeDom.js';
 import { _resetInputFocus } from '../src/utils/inputFocus.js';
 import { loadGameData } from './testData.js';
 import { RunManager } from '../src/engine/RunManager.js';
+import { BattleScene } from '../src/scenes/BattleScene.js';
 import { createRite } from '../src/engine/Rite.js';
 import { addBurden } from '../src/engine/Burdens.js';
 import { applyGenerationFields, generateSeededBattle } from '../src/engine/BattleScout.js';
+import { resolveBattleReinforcements } from '../src/engine/ReinforcementSpawns.js';
+import { riteWordsShown } from '../src/engine/Rite.js';
+import { createVigilState } from '../src/engine/Vigil.js';
+import {
+  captureBattleWorldState,
+  restoreBattleWorldState,
+} from '../src/engine/BattleSnapshotState.js';
 import { NodeMapMenu } from '../src/ui/NodeMapMenu.js';
 import { renderLoomCard } from '../src/ui/LoomPanels.js';
 import { pauseBurdenList } from '../src/ui/MobilePauseMenu.js';
 import { pauseBurdenEntries } from '../src/ui/eventMenuModel.js';
 import {
   effectParts,
+  VIGIL_CIRCLE_NOTE,
+  liveRiteOptions,
   lockedRiteLines,
   riteBurdenEntry,
   riteChipModel,
   riteNodeModel,
+  riteNodeNotes,
   riteSourceTotals,
 } from '../src/ui/riteModel.js';
 import { newRun } from './eventKit.js';
@@ -456,5 +480,209 @@ describe('the loom card', () => {
     const text = block.textContent;
     expect(text).toContain('splash strikes 1 tile more');
     expect(text).not.toMatch(/HP|Stone|hinge|rally/i);
+  });
+});
+
+describe('the Lieutenant’s wave turn, with the Hollow Hourglass', () => {
+  const holdHourglass = (rm, turns = 1) => {
+    rm.blessingRuntimeModifiers = { ...rm.blessingRuntimeModifiers, reinforcementDelay: turns };
+  };
+  /** The turn the battle's real scheduler releases the Rite's wave on (null: never in 12). */
+  function releaseTurn(rm, node, config) {
+    const battleParams = rm.getBattleParams(node);
+    const index = config.reinforcements.scriptedWaves.findIndex((w) => w.rite);
+    for (let turn = 1; turn <= 12; turn++) {
+      const out = resolveBattleReinforcements({
+        turn,
+        seed: battleParams.battleSeed,
+        battleConfig: config,
+        battleParams,
+        gameData: rm.gameData,
+        fallbackDifficultyId: rm.difficultyId,
+      });
+      if (out.dueWaves.some((w) => w.waveType === 'scripted' && w.waveIndex === index)) return turn;
+    }
+    return null;
+  }
+  const waveLine = (lines) => lines.find((l) => /Hollowed join him on turn/.test(l));
+  const turnIn = (line) => Number(/turn (\d+)$/.exec(line)[1]);
+
+  it('the open preview names the turn the scheduler will release the wave on, with and without', () => {
+    const plain = descentRun('normal', IN_ANSWERED);
+    const node = nodeOf(plain, 'lieutenant');
+    const base = releaseTurn(plain, node, generated(plain, node));
+    expect(turnIn(waveLine(riteNodeModel(plain, node).lines))).toBe(base);
+
+    const held = descentRun('normal', IN_ANSWERED);
+    holdHourglass(held);
+    const heldNode = nodeOf(held, 'lieutenant');
+    const delayed = releaseTurn(held, heldNode, generated(held, heldNode));
+    expect(delayed).toBe(base + 1);
+    expect(turnIn(waveLine(riteNodeModel(held, heldNode).lines))).toBe(delayed);
+    // The chip's note and terms say the same turn.
+    const effect = riteChipModel(held).effects.find((e) => e.target === 'lieutenant');
+    expect(turnIn(waveLine(effect.lines))).toBe(delayed);
+  });
+
+  it('the locked preview names it too, and follows the delay the battle will apply', () => {
+    const rm = descentRun('normal', IN_ANSWERED);
+    const node = nodeOf(rm, 'lieutenant');
+    const config = generated(rm, node);
+    rm.lockBattleConfig(node.id, config);
+    const base = releaseTurn(rm, node, config);
+    expect(riteNodeModel(rm, node).state).toBe('locked');
+    expect(turnIn(waveLine(riteNodeModel(rm, node).lines))).toBe(base);
+    // The Hourglass is taken after the map was locked: the battle's params carry it at entry.
+    holdHourglass(rm, 2);
+    expect(releaseTurn(rm, node, config)).toBe(base + 2);
+    expect(turnIn(waveLine(riteNodeModel(rm, node).lines))).toBe(base + 2);
+  });
+
+  it('the Entity’s lines name no turn, so the delay changes none of them', () => {
+    const rm = descentRun('hard', IN_ANSWERED);
+    const before = riteNodeModel(rm, nodeOf(rm, 'entity')).lines;
+    holdHourglass(rm);
+    expect(riteNodeModel(rm, nodeOf(rm, 'entity')).lines).toEqual(before);
+  });
+});
+
+describe('the words shown in a live Vigil', () => {
+  const vigil = (words) => ({ ...createVigilState(), words });
+
+  it('are the Rite at the battle’s start plus the words spoken, and write nothing', () => {
+    const rm = descentRun('hard', IN_SPOKEN);
+    const spoken = ANSWERED - IN_SPOKEN;
+    const live = liveRiteOptions(vigil(spoken), { riteAtEntry: IN_SPOKEN });
+    expect(riteWordsShown(rm, vigil(spoken), { atEntry: IN_SPOKEN })).toBe(IN_SPOKEN + spoken);
+    const entry = pauseBurdenEntries(rm, rm.gameData.events, live)[0];
+    // The tier and the way up follow the live count, the pause entry and the chip alike.
+    expect(entry.short).toBe(`${ANSWERED} words · Answered`);
+    expect(entry.text).toContain('The highest tier.');
+    expect(entry.text).toContain(`From: The Eclipse +${IN_SPOKEN} · The Vigil +${spoken}`);
+    const chip = riteChipModel(rm, live);
+    expect(chip).toMatchObject({ band: 'answered', words: ANSWERED });
+    // The run's own Rite is untouched: it changes at the victory commit only.
+    expect(rm.rite.words).toBe(IN_SPOKEN);
+    expect(rm.rite.log).toHaveLength(1);
+  });
+
+  it('are the run’s own outside a battle, and with nothing spoken yet', () => {
+    const rm = descentRun('hard', IN_SPOKEN);
+    expect(pauseBurdenEntries(rm, rm.gameData.events)[0].short).toBe(`${IN_SPOKEN} words · Spoken`);
+    const none = liveRiteOptions(null, { riteAtEntry: IN_SPOKEN });
+    expect(pauseBurdenEntries(rm, rm.gameData.events, none)[0].short).toBe(
+      `${IN_SPOKEN} words · Spoken`,
+    );
+    expect(riteWordsShown(rm, vigil(0), { atEntry: IN_SPOKEN })).toBe(IN_SPOKEN);
+    expect(riteWordsShown({ rite: null }, vigil(3))).toBeNull();
+    expect(riteBurdenEntry({ rite: null }, liveRiteOptions(vigil(3), {}))).toBeNull();
+  });
+
+  it('are not paid twice once the victory commit has put them in the run’s Rite', () => {
+    const rm = descentRun('hard', IN_SPOKEN);
+    const spoken = 3;
+    // The commit (RunManager.completeBattle) moved the Rite on; the scene still holds its state.
+    rm.rite = { ...rm.rite, words: IN_SPOKEN + spoken };
+    const live = liveRiteOptions(vigil(spoken), { riteAtEntry: IN_SPOKEN });
+    expect(pauseBurdenEntries(rm, rm.gameData.events, live)[0].short).toBe(
+      `${IN_SPOKEN + spoken} words · ${riteChipModel(rm).bandLabel}`,
+    );
+  });
+
+  it('are what the battle scene hands the pause list: its own state and its entry words', () => {
+    const rm = descentRun('hard', IN_SPOKEN);
+    const scene = {
+      _vigilState: vigil(ANSWERED - IN_SPOKEN),
+      battleParams: { riteAtEntry: IN_SPOKEN },
+    };
+    const options = BattleScene.prototype.liveRiteOptions.call(scene);
+    expect(pauseBurdenEntries(rm, rm.gameData.events, options)[0].short).toBe(
+      `${ANSWERED} words · Answered`,
+    );
+    // A map with no Vigil has no state to read.
+    const quiet = BattleScene.prototype.liveRiteOptions.call({
+      _vigilState: null,
+      battleParams: {},
+    });
+    expect(pauseBurdenEntries(rm, rm.gameData.events, quiet)[0].short).toBe(
+      `${IN_SPOKEN} words · Spoken`,
+    );
+  });
+
+  it('after a rewind show the rewound count, not the spoken one', () => {
+    const rm = descentRun('hard', IN_SPOKEN);
+    const scene = {
+      playerUnits: [],
+      enemyUnits: [],
+      npcUnits: [],
+      grid: null,
+      runManager: rm,
+      gameData: rm.gameData,
+      battleParams: { riteAtEntry: IN_SPOKEN },
+      _vigilState: vigil(1),
+    };
+    const snapshot = JSON.parse(JSON.stringify(captureBattleWorldState(scene)));
+    scene._vigilState = vigil(1 + 3);
+    const shown = () =>
+      pauseBurdenEntries(
+        rm,
+        rm.gameData.events,
+        liveRiteOptions(scene._vigilState, scene.battleParams),
+      )[0].short;
+    expect(shown()).toContain(`${IN_SPOKEN + 4} words`);
+    restoreBattleWorldState(scene, snapshot);
+    expect(scene._vigilState.words).toBe(1);
+    expect(shown()).toContain(`${IN_SPOKEN + 1} words`);
+  });
+});
+
+describe('the notes under a route node', () => {
+  it('the Mortuary Column says what a win at or under par does, from the data', () => {
+    const rm = descentRun('normal', IN_SPOKEN);
+    const column = nodeOf(rm, 'column');
+    const delta = rm.gameData.descent.rite.underPar.column;
+    expect(delta).toBeLessThan(0);
+    const word = Math.abs(delta) === 1 ? 'word' : 'words';
+    expect(riteNodeNotes(rm, column)).toEqual([
+      `Win at or under par: the Rite loses ${Math.abs(delta)} ${word}.`,
+    ]);
+    // A changed number is read, not remembered: a gain and a bigger loss word themselves.
+    rm.gameData = {
+      ...rm.gameData,
+      descent: {
+        ...rm.gameData.descent,
+        rite: { ...rm.gameData.descent.rite, underPar: { column: 2 } },
+      },
+    };
+    expect(riteNodeNotes(rm, column)).toEqual(['Win at or under par: the Rite gains 2 words.']);
+    rm.gameData.descent.rite.underPar = { column: -2 };
+    expect(riteNodeNotes(rm, column)).toEqual(['Win at or under par: the Rite loses 2 words.']);
+    // Won already, no Rite, or another node: nothing.
+    expect(riteNodeNotes(rm, { ...column, completed: true })).toEqual([]);
+    expect(riteNodeNotes(newRun(), column)).toEqual([]);
+    expect(riteNodeNotes(rm, nodeOf(rm, 'stair'))).toEqual([]);
+  });
+
+  it('the Vigil says a circle stops its summons, not its Voice’s words; no other node does', () => {
+    const rm = descentRun('normal', IN_SPOKEN);
+    const vigilNode = nodeOf(rm, 'vigil');
+    expect(riteNodeNotes(rm, vigilNode)).toEqual([VIGIL_CIRCLE_NOTE]);
+    expect(VIGIL_CIRCLE_NOTE.length).toBeLessThan(90);
+    for (const key of ['stair', 'column', 'lieutenant'])
+      expect(riteNodeNotes(rm, nodeOf(rm, key))).not.toContain(VIGIL_CIRCLE_NOTE);
+  });
+
+  it('the loom card carries them under the node’s text', () => {
+    const rm = descentRun('normal', IN_SPOKEN);
+    const card = document.createElement('section');
+    renderLoomCard(card, nodeOf(rm, 'column'), {
+      model: { nodeState: () => 'live', steps: new Map() },
+      actId: rm.currentAct,
+      gameData: rm.gameData,
+      runManager: rm,
+      isFirstBattle: () => false,
+    });
+    const notes = card.querySelectorAll('.re-loom-rite-note-line').map((p) => p.textContent);
+    expect(notes).toEqual(riteNodeNotes(rm, nodeOf(rm, 'column')));
   });
 });

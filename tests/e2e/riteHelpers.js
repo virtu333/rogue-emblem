@@ -6,10 +6,12 @@ import { readFileSync } from 'node:fs';
 import { expect } from '@playwright/test';
 import { waitForGame, waitForScene } from './helpers.js';
 
-export const ROUTE =
-  '?devScene=nodemap&preset=fresh&descent=1&difficulty=hard&descentRow=4&seed=42';
+export const ROUTE = '?devScene=nodemap&preset=fresh&descent=1&difficulty=hard&seed=42';
 
-const bands = JSON.parse(readFileSync('data/descent.json', 'utf8')).rite.bands;
+const rite = JSON.parse(readFileSync('data/descent.json', 'utf8')).rite;
+const bands = rite.bands;
+/** The words a win at or under par takes off the Rite at the Mortuary Column (negative: a loss). */
+export const COLUMN_UNDER_PAR = rite.underPar.column;
 const bandMin = (id) => bands.find((b) => b.id === id).min;
 export const SPOKEN = bandMin('spoken');
 export const ANSWERED = bandMin('answered');
@@ -17,8 +19,14 @@ export const ANSWERED = bandMin('answered');
 export const IN_SPOKEN = SPOKEN + 2;
 export const IN_ANSWERED = ANSWERED + 2;
 
-export async function openRoute(page, { rite = IN_SPOKEN, query = '', mobile = false } = {}) {
-  await page.goto(`/${ROUTE}&rite=${rite}${query}${mobile ? '&mobilePreview=1' : ''}`);
+/** `row`: the party has walked rows 0..row-1 of the Descent (devDescentFixtures), so `row` is next. */
+export async function openRoute(
+  page,
+  { rite = IN_SPOKEN, row = 4, query = '', mobile = false } = {},
+) {
+  await page.goto(
+    `/${ROUTE}&descentRow=${row}&rite=${rite}${query}${mobile ? '&mobilePreview=1' : ''}`,
+  );
   await waitForGame(page);
   await waitForScene(page, 'NodeMap');
   const skip = page.getByRole('button', { name: 'Skip conversation', exact: true });
