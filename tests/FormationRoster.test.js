@@ -9,7 +9,12 @@
 //   the field), or loses who deployed, or the tiles they stood on;
 // - a reclassed unit is put back on a tile it may no longer stand on;
 // - the Roster is offered after turn 1 began, or in a scripted battle;
-// - the re-entered battle asks the deploy question again or replays the boss card.
+// - the re-entered battle asks the deploy question again or replays the boss card;
+// - the device refuses the save that leaves the battle and the sheet opens anyway, over
+//   a run that says "on the map" while the save still says "in battle" (or the run is
+//   left half-reverted: the battle's RNG or Vision refunded with the battle going on);
+// - the refusal is silent, or offers no way to try again;
+// - the re-entered battle's save is refused and the formation still says "Roster saved".
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
 
@@ -53,6 +58,7 @@ vi.mock('../src/utils/SceneRouter.js', async (importOriginal) => {
   };
 });
 
+import { EventEmitter } from 'node:events';
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { FormationController, FORMATION_STATE } from '../src/ui/FormationController.js';
 import {
@@ -61,9 +67,11 @@ import {
   formationMemory,
   openFormationRoster,
   restorePlacement,
+  ROSTER_SAVE_REFUSED_COPY,
 } from '../src/ui/FormationRoster.js';
 import { renderFormationPanel } from '../src/ui/FormationPanel.js';
 import { RunManager } from '../src/engine/RunManager.js';
+import { getRunKey } from '../src/engine/SlotManager.js';
 import { createUnit, equipAccessory } from '../src/engine/UnitManager.js';
 import { Grid } from '../src/engine/Grid.js';
 import { unitIdentityKey } from '../src/engine/UnitIdentity.js';
@@ -108,6 +116,7 @@ function formationScene({ rm, nodeId }) {
     input: { enabled: true },
     _persistBattleRunState: vi.fn(() => {
       scene._savedFlag = rm.battleInProgress;
+      return { ok: true };
     }),
     clearInspectionVisuals: vi.fn(),
     refreshEndTurnControl: vi.fn(),
@@ -596,5 +605,274 @@ describe('FormationRoster: turning the phone while the Roster is open', () => {
     expect(c.check()).toBe(false);
     expect(c._lock).not.toHaveBeenCalled();
     expect(c.locked).toBe(false);
+  });
+});
+
+/** localStorage that can refuse writes, as a full or locked-down device does. */
+class RefusingStorage {
+  constructor() {
+    this.map = new Map();
+    this.refuse = null; // null | 'quota' | 'write_error'
+  }
+  get length() {
+    return this.map.size;
+  }
+  key(i) {
+    return [...this.map.keys()][i] ?? null;
+  }
+  getItem(k) {
+    return this.map.has(k) ? this.map.get(k) : null;
+  }
+  setItem(k, v) {
+    if (this.refuse) {
+      const error = new Error('refused');
+      if (this.refuse === 'quota') error.name = 'QuotaExceededError';
+      throw error;
+    }
+    this.map.set(k, String(v));
+  }
+  removeItem(k) {
+    this.map.delete(k);
+  }
+  clear() {
+    this.map.clear();
+  }
+}
+
+describe('FormationRoster: the device refuses the save', () => {
+  let storage;
+  beforeEach(() => {
+    storage = new RefusingStorage();
+    vi.stubGlobal('localStorage', storage);
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  /** The stored run save of slot 1, as a reload reads it. */
+  const stored = () => JSON.parse(storage.getItem(getRunKey(1)));
+
+  /**
+   * A run in its first battle with a real save behind it: slot 1 holds the battle flag,
+   * written at entry; the battle's RNG install and a Watcher's Grace charge have moved
+   * the run on since (both are what Continue from Map refunds).
+   */
+  function savedScene() {
+    storage.refuse = null;
+    const entered = enteredRun();
+    const { rm } = entered;
+    rm.visionChargesRemaining = 1;
+    rm.rngSeed = 1234;
+    rm.beginBattleInProgress(entered.nodeId, { battleParams: { act: 'act1' } });
+    rm.rngSeed = 999;
+    rm.visionChargesRemaining = 2; // the boss map's grace, granted after the entry snapshot
+    rm.battleInProgress.bossVisionGranted = 1;
+    const built = formationScene(entered);
+    const { scene } = built;
+    scene.registry = { get: (key) => (key === 'activeSlot' ? 1 : null) };
+    scene.events = new EventEmitter();
+    scene._persistBattleRunState = BattleScene.prototype._persistBattleRunState;
+    expect(scene._persistBattleRunState(null, { session: 1 }).ok).toBe(true); // the entry save
+    expect(stored().battleInProgress).not.toBeNull();
+    return { ...entered, ...built };
+  }
+
+  it('keeps the sheet shut and the run in the battle the save still holds', () => {
+    // Failure: the sheet opened over a run reverted to the map while the save still said
+    // "in battle" (the battle's RNG and the grace charge refunded with the battle on).
+    for (const reason of ['quota', 'write_error']) {
+      const { rm, scene, formation, units } = savedScene();
+      const flag = rm.battleInProgress;
+      const convoy = rm.convoy;
+      const run = JSON.stringify(rm.toJSON());
+      const save = storage.getItem(getRunKey(1));
+      storage.refuse = reason;
+      sheets.length = 0;
+
+      expect(openFormationRoster(scene, units[1]), reason).toBe(false);
+      expect(sheets, reason).toHaveLength(0);
+      // In memory: the battle, exactly as before (the same flag and convoy objects).
+      expect(rm.battleInProgress).toBe(flag);
+      expect(rm.convoy).toBe(convoy);
+      expect(rm.rngSeed).toBe(999);
+      expect(rm.visionChargesRemaining).toBe(2);
+      expect(JSON.stringify(rm.toJSON())).toBe(run);
+      // On the device: untouched, and it agrees with memory.
+      expect(storage.getItem(getRunKey(1))).toBe(save);
+      expect(stored().battleInProgress.nodeId).toBe(flag.nodeId);
+      // Placement goes on, and the player is told.
+      expect(formation.ready).toBe(true);
+      expect(scene._formationRoster).toBeFalsy();
+      expect(formation.notice).toBe(ROSTER_SAVE_REFUSED_COPY.notice);
+    }
+  });
+
+  it('a route with no slot has nothing to keep: the Roster opens', () => {
+    const { rm, scene } = savedScene();
+    scene.registry = { get: () => null };
+    storage.refuse = 'quota';
+    expect(openFormationRoster(scene)).toBe(true);
+    expect(sheets).toHaveLength(1);
+    expect(rm.battleInProgress).toBeNull();
+  });
+
+  describe('the prompt', () => {
+    let dom;
+    beforeEach(() => {
+      dom = installFakeDom(vi);
+    });
+
+    // The fake DOM reads tags and classes, not attributes: find them by dataset.
+    const prompt = () =>
+      [...dom.doc.querySelectorAll('section')].find((el) => el.dataset.rosterSave === 'refused') ||
+      null;
+    const action = (name) =>
+      [...(prompt()?.querySelectorAll('button') || [])].find(
+        (b) => b.dataset.rosterSaveAction === name,
+      ) || null;
+    const text = () => prompt()?.textContent || '';
+
+    it('says why, that nothing changed, and offers Retry and Back over the formation', () => {
+      const { scene, formation } = savedScene();
+      storage.refuse = 'quota';
+      openFormationRoster(scene);
+      expect(prompt()).toBeTruthy();
+      expect(text()).toContain("This device's storage is full.");
+      expect(text()).toContain(ROSTER_SAVE_REFUSED_COPY.unchanged);
+      expect(text()).toContain('Free space on this device, then Retry.');
+      expect(action('retry')).toBeTruthy();
+      expect(action('back')).toBeTruthy();
+      // While it is up, no Roster under it; Back returns to placement and offers it again.
+      expect(canOpenFormationRoster(scene)).toBe(false);
+      action('back').click();
+      expect(prompt()).toBeNull();
+      expect(formation.menu).toBeNull();
+      expect(canOpenFormationRoster(scene)).toBe(true);
+      expect(sheets).toHaveLength(0);
+    });
+
+    it('Retry tries the save again: still refused it says so, accepted the Roster opens', () => {
+      const { rm, scene, units } = savedScene();
+      storage.refuse = 'write_error';
+      openFormationRoster(scene, units[1]);
+      expect(text()).toContain('This device refused the save.');
+      expect(text()).not.toContain('Free space');
+      action('retry').click();
+      expect(sheets).toHaveLength(0);
+      expect(text()).toContain('Still not saved. Tries: 1');
+      expect(rm.battleInProgress).not.toBeNull();
+
+      storage.refuse = null;
+      action('retry').click();
+      expect(prompt()).toBeNull();
+      expect(sheets).toHaveLength(1);
+      expect(rm.roster[sheets[0].opts.index].unitUid).toBe(units[1].unitUid);
+      // Now the save says "on the map", as memory does.
+      expect(rm.battleInProgress).toBeNull();
+      expect(stored().battleInProgress).toBeNull();
+      expect(stored().rngSeed).toBe(1234);
+    });
+  });
+
+  it('the return says "Roster saved" only when the re-entered battle was saved', () => {
+    // Failure: the re-entered battle's entry save was refused and the formation still said
+    // "Roster saved" though a close now loses the edit.
+    const units = [
+      { unitUid: 'ru1', name: 'ru1', faction: 'player', moveType: 'Infantry', stats: { MOV: 4 } },
+    ];
+    const memory = { deployed: ['ru1'], placed: [{ key: 'ru1', col: 0, row: 0 }], changed: true };
+    const notice = (entrySave) => {
+      const scene = {
+        _battleSession: 1,
+        gameData,
+        battleParams: { act: 'act1', objective: 'rout' },
+        battleConfig: { playerSpawns: [{ col: 0, row: 0 }], formationSpares: [] },
+        playerUnits: units.map((u) => Object.assign({ ...u }, { col: 0, row: 0 })),
+        enemyUnits: [],
+        npcUnits: [],
+        updateUnitPosition: vi.fn(),
+        _formationReturn: memory,
+        _battleEntrySave: entrySave,
+      };
+      const map = [[PLAIN, PLAIN]];
+      const stub = () => {
+        const o = { setDepth: () => o, setStrokeStyle: () => o, setAlpha: () => o };
+        o.setOrigin = () => o;
+        o.destroy = () => {};
+        return o;
+      };
+      scene.add = { rectangle: stub, text: stub };
+      scene.grid = new Grid(
+        {
+          cameras: { main: { width: 640, height: 480 } },
+          add: { rectangle: stub, image: stub, text: stub, container: stub },
+          textures: { exists: () => false },
+        },
+        2,
+        1,
+        gameData.terrain,
+        map,
+        false,
+      );
+      const f = new FormationController(scene);
+      f.lift();
+      clearTimeout(f._noticeTimer);
+      return f.notice;
+    };
+    expect(notice({ ok: true })).toBe('Roster saved. Your formation is as you left it.');
+    expect(notice({ ok: false, reason: 'missing_slot' })).toMatch(/^Roster saved/);
+    expect(notice({ ok: false, reason: 'quota' })).toBe(ROSTER_SAVE_REFUSED_COPY.unsaved);
+    expect(notice({ ok: false, reason: 'write_error' })).not.toMatch(/Roster saved/);
+  });
+});
+
+describe('RunManager.revertBattleInProgressToEntryUndoable', () => {
+  it('puts back every field the revert wrote, so the run is the battle it was', () => {
+    // Failure: a field the entry revert writes (RNG, Vision, rerolls, the convoy, gold...)
+    // was left reverted after a refused save, so the battle went on with refunded values.
+    const { rm, nodeId } = enteredRun();
+    rm.visionChargesRemaining = 1;
+    rm.visionCount = 0;
+    rm.rewardRerollsSpent = 0;
+    rm.prologueVisionGranted = false;
+    rm.beginBattleInProgress(nodeId, { battleParams: { act: 'act1' } });
+    rm.battleInProgress.prologueVisionGrantedAtEntry = false;
+    // The battle moves every one of them on.
+    rm.rngSeed = 777;
+    rm.visionChargesRemaining = 3;
+    rm.visionCount = 2;
+    rm.rewardRerollsSpent = 1;
+    rm.prologueVisionGranted = true;
+    rm.gold += 250;
+    rm.convoy = { weapons: [], consumables: [{ name: 'Vulnerary', uid: 'itm_mid' }] };
+    rm.accessories = [{ name: 'Power Ring', uid: 'itm_ring' }];
+    const before = JSON.stringify(rm.toJSON());
+    const flag = rm.battleInProgress;
+
+    const undo = rm.revertBattleInProgressToEntryUndoable();
+    expect(typeof undo).toBe('function');
+    expect(rm.battleInProgress).toBeNull();
+    expect(rm.rngSeed).toBe(999); // the entry's, recorded when the battle began
+    expect(rm.visionChargesRemaining).toBe(1);
+    undo();
+    expect(rm.battleInProgress).toBe(flag);
+    expect(JSON.stringify(rm.toJSON())).toBe(before);
+  });
+
+  it('undoes a legacy convoy scrub from a copy, and does nothing with no battle', () => {
+    const { rm } = enteredRun();
+    rm.battleInProgress.entryBattleState = null; // a pre-v2 flag
+    rm.battleInProgress.checkpoint = { villageState: { rewardItemUid: 'itm_village' } };
+    rm.convoy.consumables.push({ name: 'Vulnerary', uid: 'itm_village' });
+    const before = JSON.stringify(rm.toJSON());
+    const undo = rm.revertBattleInProgressToEntryUndoable();
+    expect(rm.convoy.consumables.some((i) => i.uid === 'itm_village')).toBe(false);
+    undo();
+    expect(JSON.stringify(rm.toJSON())).toBe(before);
+
+    rm.battleInProgress = null;
+    expect(rm.revertBattleInProgressToEntryUndoable()).toBeNull();
   });
 });

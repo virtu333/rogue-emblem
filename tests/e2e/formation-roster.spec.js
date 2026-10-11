@@ -140,3 +140,74 @@ test('desktop: the dock offers Roster; O opens it, Escape comes back to placemen
   await expect(page.getByRole('region', { name: 'Formation' })).not.toContainText('Roster saved');
   expect(errors).toEqual([]);
 });
+
+test('desktop: a refused save keeps the Roster shut, Retry opens it, the return says so', async ({
+  page,
+}) => {
+  // The leave-battle save is the Roster's ticket: refused, the run stays in the battle the
+  // save holds and the player is told; the re-entered battle's refused save is said too.
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await ready(page, DESKTOP);
+  const stored = () =>
+    page.evaluate(() => JSON.parse(localStorage.getItem('emblem_rogue_slot_1_run')));
+  const refuse = (on) =>
+    page.evaluate((value) => {
+      window.__frFail = value;
+    }, on);
+  // A slot behind the battle (saved at entry), then a device that refuses the run save.
+  await battle(
+    page,
+    `s.registry.set('activeSlot', 1);
+     if (!s._persistBattleRunState(null, { session: s._battleSession }).ok) throw new Error('entry save');
+     window.__frWrite = Storage.prototype.setItem;
+     Storage.prototype.setItem = function (key, value) {
+       if (window.__frFail && /^emblem_rogue_slot_\\d+_run/.test(key))
+         throw new DOMException('Injected quota', 'QuotaExceededError');
+       return window.__frWrite.call(this, key, value);
+     };`,
+  );
+  const dock = page.getByRole('region', { name: 'Formation' });
+  await dock.getByRole('button', { name: 'Auto-place', exact: true }).click();
+  const before = await snapshot(page);
+  await refuse(true);
+
+  await page.keyboard.press('o');
+  const prompt = page.locator('[data-roster-save="refused"]');
+  await expect(prompt).toBeVisible();
+  await expect(prompt).toContainText("This device's storage is full.");
+  await expect(prompt).toContainText('Nothing changed. Placement is as it was.');
+  const sheet = page.getByRole('dialog', { name: 'Manage roster', exact: true });
+  await expect(sheet).toHaveCount(0);
+  expect((await snapshot(page)).flag).toBe(true);
+  expect((await stored()).battleInProgress).not.toBeNull();
+  // Retry, still refused, says so; Back returns to placement with nothing moved.
+  await expect(page.locator('[data-roster-save-action="retry"]')).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(prompt).toContainText('Still not saved. Tries: 1');
+  await expect(sheet).toHaveCount(0);
+  await page.locator('[data-roster-save-action="back"]').click();
+  await expect(prompt).toHaveCount(0);
+  const after = await snapshot(page);
+  expect(after.session).toBe(before.session);
+  expect(after.tiles).toEqual(before.tiles);
+  expect(after.flag).toBe(true);
+
+  // The device accepts again: the Roster opens and the save says "on the map".
+  await refuse(false);
+  await page.keyboard.press('o');
+  await expect(sheet).toBeVisible();
+  expect((await stored()).battleInProgress).toBeNull();
+  await sheet.getByRole('button', { name: 'Equipment', exact: true }).click();
+  await sheet.getByRole('button', { name: 'Store', exact: true }).last().click();
+  // Refused again as the battle re-opens: the formation must not say "Roster saved".
+  await refuse(true);
+  await page.keyboard.press('Escape');
+  await expect(sheet).toHaveCount(0);
+  await reopened(page, before.session);
+  await expect(dock).toContainText('Battle not saved');
+  await expect(dock).not.toContainText('Roster saved');
+  await refuse(false);
+  expect(errors).toEqual([]);
+});

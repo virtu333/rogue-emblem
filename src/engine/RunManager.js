@@ -5225,6 +5225,28 @@ export class RunManager {
   }
 
   /**
+   * revertBattleInProgressToEntry with the way back, for a caller that leaves the battle only
+   * if the save of it lands (the formation's Roster): returns a function that puts every
+   * field the revert wrote back as it was, or null when nothing was reverted. Each key of
+   * the revert's patch names the run field it writes, so a field added there is covered here;
+   * the revert replaces those objects (never edits them), so the same objects come back,
+   * except a legacy convoy scrub, which edits the convoy in place and is undone from a copy.
+   */
+  revertBattleInProgressToEntryUndoable() {
+    const flag = this.battleInProgress;
+    if (!flag || typeof flag !== 'object') return null;
+    const patch = battleEntryRevertPatch(flag);
+    const before = ['battleInProgress', ...Object.keys(patch)]
+      .filter((key) => key !== 'removeConvoyUid')
+      .map((key) => [key, this[key]]);
+    if (patch.removeConvoyUid) before.push(['convoy', structuredClone(this.convoy)]);
+    if (!this.revertBattleInProgressToEntry()) return null;
+    return () => {
+      for (const [key, value] of before) this[key] = value;
+    };
+  }
+
+  /**
    * The prologue's restart ("Not this thread", §9): a named unit fell, so the chapter
    * starts again from its entry. The same revert as Continue from Map, but a fatal
    * checkpoint is no bar: the prologue never settles a defeat, and the standard run's
