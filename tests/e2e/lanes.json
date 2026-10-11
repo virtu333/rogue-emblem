@@ -4,7 +4,12 @@
     {
       "name": "smoke",
       "description": "Boot, scene transitions and one overlay: the fastest signal that the game starts",
-      "specs": ["boot.spec.js", "scene-transitions.spec.js", "accessory-ui.spec.js"]
+      "specs": [
+        "boot.spec.js",
+        "scene-transitions.spec.js",
+        "accessory-ui.spec.js",
+        "storage-blocked.spec.js"
+      ]
     },
     {
       "name": "contracts",
