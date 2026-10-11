@@ -2067,41 +2067,38 @@
       "id": "legend_doom_thrust",
       "name": "Doom Thrust",
       "weaponType": "Lance",
+      "allowedTypes": [
+        "Lance"
+      ],
       "tierAffinity": "Legendary",
       "unlockAct": "act3",
       "requiredRank": "Mast",
       "hpCost": 8,
       "perTurnLimit": 1,
       "perMapLimit": 2,
-      "targeting": "normal_attack",
+      "targeting": "chosen_center",
       "area": {
-        "shape": "line",
-        "length": 1,
+        "shape": "around_attacker",
+        "radius": 1,
+        "leap": true,
+        "centerRange": {
+          "min": 1,
+          "max": 2
+        },
         "damage": {
           "kind": "scaled",
-          "multiplier": 1
-        },
-        "strikes": "each_landed"
+          "multiplier": 0.8
+        }
       },
-      "description": "Doomblade runs one foe through and shoves it back.",
+      "description": "Doomblade vaults its bearer into the thick of them, point first.",
       "allowedFactions": [
         "player"
       ],
       "legendaryWeaponIds": [
         "Doomblade"
       ],
-      "effects": {
-        "afterCombat": [
-          {
-            "type": "move",
-            "mode": "push",
-            "distance": 1
-          }
-        ]
-      },
       "combatMods": {
-        "atkBonus": 8,
-        "hitBonus": 15,
+        "atkBonus": 6,
         "activated": [
           {
             "id": "weapon_art",

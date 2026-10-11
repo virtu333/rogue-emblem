@@ -9,6 +9,7 @@ vi.mock('phaser', () => ({
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { HeadlessBattle } from './harness/HeadlessBattle.js';
 import { loadGameData } from './testData.js';
+import { LEGACY_DOOM_THRUST } from './helpers/legacyArts.js';
 import { calculateKillGold } from '../src/engine/LootSystem.js';
 
 function makeArt(overrides = {}) {
@@ -1833,9 +1834,10 @@ describe('BattleScene weapon art helpers', () => {
 
   // Doomblade 12 + STR 12 + the art's +8 − Behind's DEF 5 = 27 drops Behind (5 HP)
   // before the push moves Front into its tile.
-  it('applies Doom Thrust pierce-before-push ordering with scene/headless parity', async () => {
+  // The old Doom Thrust (a line, then a push), kept as a fixture since it became the leap.
+  it('applies a pierce-before-push art (the old Doom Thrust) with scene/headless parity', async () => {
     const gameData = loadGameData();
-    const art = gameData.weaponArts.arts.find((entry) => entry.id === 'legend_doom_thrust');
+    const art = LEGACY_DOOM_THRUST;
     const sceneAttacker = {
       name: 'Doom User',
       faction: 'player',

@@ -39,9 +39,9 @@ describe('Tier 2 weapon arts', () => {
       legend_storm_blade: {
         postCombatMove: [{ mode: 'retreat', distance: 1 }],
       },
+      // The leap now (docs/specs/legendary-arts-rework.md §5): no after-combat move.
       legend_doom_thrust: {
-        line: { length: 1, strikes: 'each_landed' },
-        postCombatMove: [{ mode: 'push', distance: 1 }],
+        noMove: true,
       },
     };
 

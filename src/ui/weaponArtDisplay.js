@@ -40,10 +40,11 @@ const STATUS_MEANING = {
  * strike against each victim (its DEF or RES): it always lands and never crits.
  */
 export function weaponArtAreaRow(area, targeting = 'normal_attack') {
+  const percent = Math.round(area.damage.multiplier * 100);
+  // "an 80%", "an 11%", "an 18%": the article follows the spoken number.
+  const article = /^(8\d*|11|18)$/.test(String(percent)) ? 'an' : 'a';
   const blow =
-    area.damage.kind === 'fixed'
-      ? `${area.damage.amount} damage`
-      : `a ${Math.round(area.damage.multiplier * 100)}% blow`;
+    area.damage.kind === 'fixed' ? `${area.damage.amount} damage` : `${article} ${percent}% blow`;
   const cannotKill =
     (area.nonLethal ? ' (cannot kill)' : '') +
     (area.drainPercent > 0

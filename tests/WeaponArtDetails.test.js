@@ -26,8 +26,12 @@ it('explains area amounts, radius, lines and target picks', () => {
   expect(details('Piercing Charge')).toContain(
     'Area: a 100% blow to each enemy up to 1 tile behind the target, per hit',
   );
-  // Doom Thrust pierces at range 2 but its push needs it to stand next to the target.
-  expect(details('Doom Thrust')).toContain('push the target back 1 tile (only when next to it)');
+  // A push needs its user next to the target (Overrun).
+  expect(details('Overrun')).toContain('push the target back 1 tile (only when next to it)');
+  // Doomblade's leap (docs/specs/legendary-arts-rework.md §5).
+  expect(details('Doom Thrust')).toContain(
+    'Leap: jump to a free tile 1-2 away, over units: an 80% blow to each enemy next to where you land; no counter',
+  );
 });
 it('explains ally buffs, exclusions and duration', () => {
   // The user is left out unless the data says includeSelf.

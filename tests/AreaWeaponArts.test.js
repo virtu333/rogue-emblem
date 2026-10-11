@@ -4,6 +4,7 @@
 // stats quoted inline.
 import { describe, expect, it } from 'vitest';
 import { loadGameData } from './testData.js';
+import { LEGACY_DOOM_THRUST } from './helpers/legacyArts.js';
 import { resolveCombat } from '../src/engine/Combat.js';
 import { getWeaponArtCombatMods } from '../src/engine/WeaponArtSystem.js';
 import { postCombatEffects } from '../src/engine/PostCombatEffects.js';
@@ -12,7 +13,7 @@ import { validateCrossReferences } from '../tools/validateCrossReferences.js';
 
 const data = loadGameData();
 const weapon = (name) => structuredClone(data.weapons.find((w) => w.name === name));
-const art = (id) => data.weaponArts.arts.find((a) => a.id === id);
+const art = (id) => [...data.weaponArts.arts, LEGACY_DOOM_THRUST].find((a) => a.id === id);
 const forest = data.terrain.find((t) => t.name === 'Forest');
 
 const unit = (name, faction, col, row, stats = {}, extra = {}) => ({
@@ -187,13 +188,13 @@ describe('Splash v2: each victim takes its own blow', () => {
 
 describe('Lines', () => {
   it('a line never touches a foe between the attacker and its target', () => {
-    // Doomblade 1-2: a range-2 thrust over a foe standing in between.
+    // Doomblade 1-2 with the old Doom Thrust (a line art): a range-2 thrust over a foe between.
     const lancer = unit('Lancer', 'player', 0, 1, { STR: 12 }, { weapon: weapon('Doomblade') });
     const between = unit('Between', 'enemy', 1, 1, { DEF: 5 });
     const target = unit('Target', 'enemy', 2, 1, { DEF: 5, LCK: 30 });
     const behind = unit('Behind', 'enemy', 3, 1, { DEF: 5 });
     const units = [lancer, between, target, behind];
-    strike(lancer, target, 'legend_doom_thrust', units);
+    strike(lancer, target, 'fixture_doom_thrust', units);
     // Doomblade 12 + STR 12 + the art's +8 − DEF 5 = 27, on the target and once behind.
     expect([between.currentHP, target.currentHP, behind.currentHP]).toEqual([40, 13, 13]);
     // Its push needs adjacency, so at range 2 the target stays where it is.
