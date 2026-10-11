@@ -27,6 +27,7 @@ import { promotionPathContent, projectUnit } from './growthContent.js';
 import { growthCeremonies } from './GrowthCeremonyController.js';
 import { applyPromotionOath, promotionOathCandidates } from '../engine/DeedSystem.js';
 import { classChangeItemBlock } from '../engine/TwistedBoons.js';
+import { getClassChangeWeaponGrants } from '../engine/RosterCommands.js';
 
 export class PromotionController {
   constructor(scene) {
@@ -160,11 +161,10 @@ export class PromotionController {
 
     scene.battleState = 'COMBAT_RESOLVING'; // block input during promotion
 
-    let promotionBonuses, promotionWeapons;
+    let promotionBonuses;
 
     if (lordData) {
       promotionBonuses = lordData.promotionBonuses;
-      promotionWeapons = lordData.promotionWeapons;
     } else {
       promotionBonuses = promotedClassData.promotionBonuses;
     }
@@ -209,37 +209,12 @@ export class PromotionController {
     if (seal.uses <= 0) removeFromConsumables(unit, seal);
     markSealConsumed();
 
-    // Grant Iron weapons for any new weapon proficiencies gained
-    if (promotionWeapons) {
-      // Lords get specific promotion weapons (e.g. "Lances (P)")
-      const newType = promotionWeapons.match(/(\w+)/)?.[1];
-      const typeMap = {
-        Swords: 'Sword',
-        Lances: 'Lance',
-        Axes: 'Axe',
-        Bows: 'Bow',
-        Tomes: 'Tome',
-        Staves: 'Staff',
-        Light: 'Light',
-      };
-      const wpnType = typeMap[newType] || newType;
-      const newWeapon = scene.gameData.weapons.find((w) => w.type === wpnType && w.tier === 'Iron');
-      if (newWeapon && !unit.inventory.some((w) => w.name === newWeapon.name)) {
-        // A unit left with nothing equipped takes up the granted weapon.
-        if (addToInventory(unit, newWeapon)) equipIfUnarmed(unit, unit.inventory.at(-1));
-      }
-    } else {
-      // Non-Lord: grant Iron weapon for each newly gained proficiency type
-      for (const prof of unit.proficiencies) {
-        if (oldTypes.has(prof.type)) continue;
-        const tier = 'Iron';
-        const newWeapon = scene.gameData.weapons.find(
-          (w) => w.type === prof.type && w.tier === tier,
-        );
-        if (newWeapon && !unit.inventory.some((w) => w.name === newWeapon.name)) {
-          if (addToInventory(unit, newWeapon)) equipIfUnarmed(unit, unit.inventory.at(-1));
-        }
-      }
+    // Grant the Iron weapon of each newly wielded type.
+    const ungranted = [];
+    for (const newWeapon of getClassChangeWeaponGrants(unit, oldTypes, scene.gameData)) {
+      // A unit left with nothing equipped takes up the granted weapon.
+      if (addToInventory(unit, newWeapon)) equipIfUnarmed(unit, unit.inventory.at(-1));
+      else ungranted.push(newWeapon.name);
     }
 
     try {
@@ -303,6 +278,15 @@ export class PromotionController {
       // (the rite lists them in its closing note)
       if (droppedNotice && !riteShown) await scene.showBriefBanner(droppedNotice, UI_PALETTE.bad);
       if (!isCurrentBattleSession(scene, session)) return true;
+      // A full bag drops the starter weapon: say so (never silent). The rite is DOM-only,
+      // so this shows after it, over the map.
+      if (ungranted.length) {
+        await scene.showBriefBanner(
+          `Bag full: ${ungranted.join(', ')} could not be granted.`,
+          UI_PALETTE.bad,
+        );
+        if (!isCurrentBattleSession(scene, session)) return true;
+      }
     } catch (error) {
       if (isCurrentBattleSession(scene, session))
         console.warn('[PromotionController] presentation failed:', error);

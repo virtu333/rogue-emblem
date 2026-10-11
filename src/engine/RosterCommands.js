@@ -16,6 +16,7 @@ import {
 import { applyPromotionOath, oathBenchedNote } from './DeedSystem.js';
 import { consumableSource, spendConsumableUse } from './RosterInventory.js';
 import { classChangeItemBlock } from './TwistedBoons.js';
+import { stripItemNameSuffix } from '../utils/itemNames.js';
 
 export function rosterClassChangeBlock(run, unit, item, gameData) {
   if (!run?.roster?.includes(unit)) return 'Unit is no longer in the roster.';
@@ -54,26 +55,13 @@ export function applyRosterClassChange(run, unit, item, target, gameData) {
     : reclass(run, unit, item, canonical, gameData);
 }
 // Shared with previews: return catalog entries only, without creating UIDs or
-// consuming RNG. Preserve the existing lord-specific starter-weapon rule.
-export function getClassChangeWeaponGrants(unit, oldTypes, gameData, promotion = false) {
-  const lordWeapons =
-    promotion && gameData.lords.find((l) => l.name === unit.name)?.promotionWeapons;
-  let types;
-  if (lordWeapons) {
-    const type = lordWeapons.match(/(\w+)/)?.[1];
-    const labels = {
-      Swords: 'Sword',
-      Lances: 'Lance',
-      Axes: 'Axe',
-      Bows: 'Bow',
-      Tomes: 'Tome',
-      Staves: 'Staff',
-      Light: 'Light',
-    };
-    types = [labels[type] || type];
-  } else types = unit.proficiencies.filter((p) => !oldTypes.has(p.type)).map((p) => p.type);
-  const names = new Set(unit.inventory.map((w) => w.name));
-  return types
+// consuming RNG. One rule for promotion, reclass and a lord's promotion alike: the
+// Iron weapon of each weapon type the class change newly opens, never one for a type
+// already wielded (a lord's `promotionWeapons` also lists types the class already had).
+export function getClassChangeWeaponGrants(unit, oldTypes, gameData) {
+  const types = unit.proficiencies.filter((p) => !oldTypes.has(p.type)).map((p) => p.type);
+  const names = new Set(unit.inventory.map((w) => stripItemNameSuffix(w.name)));
+  return [...new Set(types)]
     .map((type) => gameData.weapons.find((w) => w.type === type && w.tier === 'Iron'))
     .filter((w) => {
       if (!w || names.has(w.name)) return false;
@@ -103,7 +91,7 @@ function promote(run, unit, item, promotedClassData, gameData) {
   if (oath?.learned) notices.push(`${oath.name}: learned ${oath.skillName}.`);
   if (oath?.benched) notices.push(oathBenchedNote(unit, oath));
 
-  for (const newWeapon of getClassChangeWeaponGrants(unit, oldTypes, gameData, true)) {
+  for (const newWeapon of getClassChangeWeaponGrants(unit, oldTypes, gameData)) {
     if (!addToInventory(unit, newWeapon))
       notices.push(`Bag full: ${newWeapon.name} could not be granted.`);
   }
