@@ -322,7 +322,8 @@ File:line references are to `main` at 1c4bb64 and will drift; read the code befo
 
 ### 9.2 Set pieces on any node
 
-- `SetPieces.js`: `SET_PIECE_OBJECTIVES = ['rout', 'seize', 'defeat']`; the act ids gain
+- `SetPieces.js`: a set piece may name `objectives` (the large-maps model, §9.4) beside its
+  legacy `objective` (`rout` | `seize`); the act ids gain
   `finalBoss` (and `postAct`). New slot keys: `boss: true` (seats the battle's boss, at most one,
   always in play, keeps its two slot draws), `name` (a named unit that is not a boss),
   `target: true` (counts for `defeat`; needs a name; always in play; never `hold`),
@@ -363,20 +364,38 @@ A node with `type: 'boss'`, `bossRole: 'gate'` and an id other than `bossNodeId`
 | `RouteGraph`, `NodeMapScene` final-boss art | keyed on `act === 'finalBoss'` | read `bossRole` |
 | `EclipseSystem.nodeFallExemption` | exempt (authored, §9.1) | none |
 
-### 9.4 The defeat-named objective
+### 9.4 The defeat objective (the large-maps model, its first kind)
 
-- **`engine/DefeatObjective.js`** (pure; named after `03-objectives` §5.4 so a later
-  `BattleObjectives` can absorb it): `objectiveTargetsOf(config)`, `remainingTargets`,
-  `isDefeatComplete` (no living enemy whose `authoredId` is a target), `defeatObjectiveLabel`.
-- Rule readers: `BattleScene.checkBattleEnd` (a branch after rout), `HeadlessBattle._checkBattleEnd`,
-  `tests/harness/Invariants.js`, `ScriptedAgent` and `sim/lib/TacticianAgent.js` (targets take
-  boss priority, or the Vigil times out while the circles call). `isRoutFieldClear` stays
-  rout-only, so waves keep coming on a defeat map.
-- Par: `turnBonus.json` gains `defeat` in `objectiveBasePar` / `objectiveAdjustments` (without it
-  `calculatePar` returns null); `DifficultyEngine`'s `objectiveParOffset` whitelist gains it.
-- Words: `updateObjectiveText`, `battleSidebarDisplay.compactBattleObjective`, `helpTopics`
+The large-maps specs (`docs/specs/large-maps/03-objectives.md`, with #304's §16 reconciling them
+with the shipped set pieces) define the objective model this uses; the Descent builds its first
+kind, `defeat` (`03` §5.4), and nothing else of it. One format, never two:
+- **Config.** `objectives: { version: 1, primary: [{ id, kind: 'defeat', targets: [ref],
+  need? }] }` beside the legacy `objective` string, which stays `rout` (`03` §3.3: defeat is in
+  the rout family). A ref is a spawn's `authoredId` or `'@boss'` (every living `isBoss` enemy).
+  The Vigil: four Voices. The gate: `['@boss']` (the Lieutenant).
+- **`engine/BattleObjectives.js`** (pure, no RNG, `03` §4's module and its names): for now
+  `objectivesOf(config)` (the config's model, or none for a legacy map), `evaluateObjectives`
+  returning `{ outcome: 'victory' | null }` for `defeat`, `remainingTargets`, and the strip's
+  `statusView` words. The large-maps PR 1 extends this module (phases, `objectiveState`, the
+  derived legacy model); it must not fork it.
+- **Rule readers.** `BattleScene.checkBattleEnd` and `HeadlessBattle._checkBattleEnd` ask the
+  module first when the config carries `objectives`, else the legacy rules as today;
+  `tests/harness/Invariants.js`; `ScriptedAgent` and `sim/lib/TacticianAgent.js` (targets take
+  boss priority, or the Vigil times out while the circles call). `isRoutFieldClear` stays as it
+  is, so waves keep coming on a defeat map. A target's Revival Stones hold as usual.
+- **Degrades safely.** A client without the model reads `objective: 'rout'` and plays the map as
+  a rout (kill everything), which is winnable; this is why the legacy string is `rout`.
+- **Par.** `turnBonus.json` gains `defeat` (`03` §5.4: base 4, adjustment 1); par reads the
+  primary kind when the config carries `objectives`.
+- **Words.** "Defeat · the Voices (2/4)" on the strip, "Defeat {name}. The rest need not fall."
+  in the help and deploy banners, victory word SLAIN (`03` §5.4's wording table):
+  `updateObjectiveText`, `battleSidebarDisplay.compactBattleObjective`, `helpTopics`
   `OBJECTIVE_GOALS`, `DeployScreenOverlay` `OBJECTIVE_BANNERS`, `PartyMenus`, `ceremonyContent`
   `OBJECTIVE_WORDS` and the felled band ("2 Voices remain"), `loomModel`, the node tooltip.
+- **Authored pieces on authored nodes.** #304 §16.4 places authored (`variants`) set pieces only
+  through events, and assembled ones on route slots. The Descent is a third, explicit placement:
+  an authored route names authored set pieces on its own nodes (§9.1). It is never §6.2's rolled
+  placement and never counts toward its limits; #304's spec should say so when it merges.
 
 ### 9.5 The Rite and the Vigil mechanic
 
@@ -450,7 +469,8 @@ A node with `type: 'boss'`, `bossRole: 'gate'` and an id other than `bossNodeId`
 ### 9.8 Saves, cloud and old clients
 
 No run-format guard (owner decision, 2026-10-11). An older client cannot play a Descent run (an
-unentered `defeat` node falls back and throws, a locked `defeat` config can never be won, a
+unentered Descent node's set piece falls back to a template it may not have, the Vigil plays as a
+plain rout, a
 Nightfall gate draws the Entity, `run.rite` is lost on its next save), but no older client can
 reach one today:
 - the iOS and Android apps are local-only: their builds leave `VITE_CLOUD_ENABLED` unset, so
@@ -464,6 +484,10 @@ in Act V keeps its 2-node map, `run.rite` reads null on an old save, and every n
 both (§9.1). **Revisit this section if the apps are ever built cloud-enabled**: a run-format check
 (`requiredRunFormat` over the saved payload, refused by a client that lacks a capability, held back
 from the cloud above a safe format) would then be needed before the Descent reaches players.
+The large-maps workstream is building that guard anyway (#305, its PR A0). If it lands first, the
+Descent registers what it writes (`nodeMap.descent`, `run.rite`, `objectives`, `vigil`,
+`vigilState`) in its `CLIENT_CAPABILITIES` and its saved-key census, and depends on nothing else
+of it.
 
 ## 10. Narrative
 
@@ -518,7 +542,7 @@ reviewed before the PR opens.
 
 | # | PR | Needs | Implementer | Scope |
 |---|---|---|---|---|
-| 2 | Set pieces v2 + the `defeat` rule | — | Opus | §9.2, §9.4 rule readers; draw-parity test for a named boss |
+| 2 | Set pieces v2 + the `defeat` objective | — | Opus | §9.2, §9.4 module and rule readers; draw-parity test for a named boss |
 | 3 | Circle Adept and Hollowed | — | Sonnet | §5: data, enemy-only plumbing (split `isNecromancyClass` into a never-copied predicate), sprites and portraits |
 | 4 | The Entity's splash as a pure step | — | Opus | §9.5 last item; harness parity, threshold notes |
 | 5 | Dusk goes on to the Lieutenant | — | Sonnet | §9.7 data and transition/vision rules, with the legacy 2-node Act V; tests that pin Dusk's act list |
