@@ -25,6 +25,7 @@ import {
 } from '../utils/tooltipTiming.js';
 import { UI_HEX } from '../utils/uiStyles.js';
 import { combatDistance, getFootprintKeys } from '../engine/EntitySystem.js';
+import { entityReachInfo } from '../engine/EntityReach.js';
 import { chooseAttackTile } from '../engine/AttackOptions.js';
 import { openMenuCommand } from './battleMenuModel.js';
 import { restUnitTint } from './UnitRestAppearance.js';
@@ -147,6 +148,8 @@ export class InputController {
       const barsBadge = healthBarsBadge(hovered);
       info += `\n${hovered.name} Lv${lvl} ${cls} | HP ${hovered.currentHP}/${hovered.stats.HP}${barsBadge ? ` ${barsBadge}` : ''}`;
       if (hovered.weapon) info += ` | ${hovered.weapon.name}`;
+      const reach = entityReachInfo(hovered);
+      if (reach) info += `\n${reach.text}`;
       if (hovered.faction === 'player' && hovered.xp !== undefined) {
         // As the profile's EXP bar reads it: n/XP_PER_LEVEL, or MAX at the level cap.
         const extendedLevelingEnabled =

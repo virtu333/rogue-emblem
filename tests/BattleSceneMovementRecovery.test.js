@@ -622,7 +622,11 @@ describe('BattleScene movement recovery', () => {
     scene.unitPositions = new Map();
 
     const result = BattleScene.prototype.calculateDangerZone.call(scene);
-    const keys = new Set(result.map((t) => `${t.col},${t.row}`));
+    // The strike zone: the tiles that are damage threats (the counter band is separate).
+    const keys = new Set(result.filter((t) => t.damageThreat).map((t) => `${t.col},${t.row}`));
+    const counterKeys = new Set(
+      result.filter((t) => t.counterThreat).map((t) => `${t.col},${t.row}`),
+    );
 
     // Entity body: (3,3)-(5,5). ENTITY_PRIMARY_ATTACK_RANGE = 2.
     // Max threatened distance from any body tile = 2.
@@ -630,6 +634,8 @@ describe('BattleScene movement recovery', () => {
     expect(keys.has('1,3')).toBe(true);
     // (0,3) is 3 away from body tile (3,3) — should NOT be in (range capped at 2).
     expect(keys.has('0,3')).toBe(false);
+    // ...but its 1-4 weapon counters there: the band shows it (3 and 4 away, not 5).
+    expect(counterKeys.has('0,3')).toBe(true);
 
     // getAttackRange called with range '1-2', NOT '1-4'
     for (const call of scene.grid.getAttackRange.mock.calls) {

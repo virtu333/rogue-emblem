@@ -11476,7 +11476,8 @@ export class BattleScene extends Phaser.Scene {
 
   /** True when a living player unit stands inside the visible enemy threat range. */
   _anyPlayerInDanger() {
-    const tiles = this.calculateDangerZone();
+    // The Entity's counter-only band is not danger: nothing strikes there.
+    const tiles = this.calculateDangerZone(null, { counter: false });
     if (!tiles?.length) return false;
     const threatened = new Set(tiles.map((t) => `${t.col},${t.row}`));
     return (this.playerUnits || []).some(
@@ -11499,8 +11500,9 @@ export class BattleScene extends Phaser.Scene {
     };
   }
 
-  calculateDangerZone(onlyEnemy = null) {
-    return computeDangerTiles(this.threatContext(), { onlyEnemy });
+  /** The Danger tiles; `counter` adds the Entity's counter-only band for the overlays that draw it. */
+  calculateDangerZone(onlyEnemy = null, { counter = true } = {}) {
+    return computeDangerTiles(this.threatContext(), { onlyEnemy, counter });
   }
 
   /** Hide/show enemy and NPC graphics based on fog visibility. */

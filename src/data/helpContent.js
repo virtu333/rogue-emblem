@@ -112,6 +112,22 @@ const STATIC_HELP_TABS = [
         ],
       },
       {
+        title: "The Entity's Reach",
+        lines: [
+          { text: 'Its blows reach 2 tiles from its body.', color: GOLD },
+          { text: 'Its weapons answer from 4.', color: RED },
+          { text: '' },
+          { text: 'Strike it from 3 or 4 tiles away', color: GRAY },
+          { text: '(a bow, a tome) and it still counters.', color: GRAY },
+          { text: 'The forecast says so before you', color: GRAY },
+          { text: 'confirm.', color: GRAY },
+          { text: '' },
+          { text: 'Danger draws its blows as the red', color: GRAY },
+          { text: 'zone and its counter as a fainter,', color: GRAY },
+          { text: 'dashed band just beyond it.', color: GRAY },
+        ],
+      },
+      {
         title: 'Status Conditions',
         lines: [
           { text: 'Sleep (Nightfall/Black Sun only):', color: GOLD },
