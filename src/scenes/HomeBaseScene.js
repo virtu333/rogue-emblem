@@ -1155,8 +1155,8 @@ export class HomeBaseScene extends Phaser.Scene {
       const seraSelected =
         !selection.commander || selection.commander === 'Sera' || selection.partner === 'Sera';
       return seraSelected
-        ? "Sera's starting staff"
-        : "Sera's starting staff (inactive: Sera not selected)";
+        ? "Sera's second staff"
+        : "Sera's second staff (inactive: Sera not selected)";
     }
     if (effect.commanderChoiceTier !== undefined) return 'Choose your starting lords (Skills tab)';
     if (weaponArtUnlockText) return weaponArtUnlockText;

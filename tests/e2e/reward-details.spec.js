@@ -2,7 +2,7 @@
 // from a press and hold on touch, a right-click, the Details button and the pad's L2,
 // and reading it never selects or claims the reward.
 import { test, expect } from '@playwright/test';
-import { installSimPad, padTap, waitForScene } from './helpers.js';
+import { installSimPad, padTap, waitForBattleState, waitForScene } from './helpers.js';
 
 const VIEWS = [
   { name: 'phone', width: 844, height: 390, query: '&mobilePreview=1', touch: true },
@@ -13,6 +13,12 @@ const VIEWS = [
 async function openRewards(page, query) {
   await page.goto(`/?devScene=battle&preset=battle_smoke&seed=42&battleLab=1${query}`);
   await waitForScene(page, 'Battle');
+  // Win only once the opening turn has resolved, as a player can. The scene is up
+  // well before that: its turn-start pipeline (banner, effects) still runs, and a
+  // victory declared over it shares every frame with it. The victory band waits on
+  // the scene clock, which runs slow on slow frames, so on a loaded runner the
+  // rewards then missed the 5 s budget (upright, the heavier board, most often).
+  await waitForBattleState(page, 'PLAYER_IDLE');
   await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').onVictory());
   const dialog = page.getByRole('dialog', { name: 'Battle rewards', exact: true });
   await expect(dialog).toBeVisible();

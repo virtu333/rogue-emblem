@@ -690,3 +690,9 @@
 .re-row--item > .re-row-meta {
   grid-column: 3;
 }
+/* A Compendium entry not found yet: its kind's generic icon, dimmed. */
+.re-row.is-locked > .ia-icon,
+.re-reference-detail.is-locked .re-reference-art {
+  opacity: 0.45;
+  filter: grayscale(1);
+}

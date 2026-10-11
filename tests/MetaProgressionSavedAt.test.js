@@ -5,7 +5,10 @@
 //   max-merge instead of being clobbered by a stale in-memory manager
 
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest';
-import { MetaProgressionManager } from '../src/engine/MetaProgressionManager.js';
+import {
+  CURRENT_BALANCE_REVISION,
+  MetaProgressionManager,
+} from '../src/engine/MetaProgressionManager.js';
 import upgradesData from '../data/metaUpgrades.json';
 
 const store = {};
@@ -84,7 +87,14 @@ describe('MetaProgressionManager savedAt hardening', () => {
     // is absorbed by the restored balance — losing 20 supply beats losing 4000.
     expect(saved.totalSupply).toBe(4000);
     expect(saved.runsCompleted).toBe(40);
-    expect(saved.purchasedUpgrades).toEqual({ hp_boost: 3 });
+    // The settled revision rides inside purchasedUpgrades (BalanceRevisionMarker.js), and
+    // the skill assigned is met (the Compendium's key rides beside the upgrade).
+    expect(saved.purchasedUpgrades).toEqual({
+      hp_boost: 3,
+      '__seen_skill:sol': 0,
+      __balance_revision: CURRENT_BALANCE_REVISION,
+      __balance_settled: CURRENT_BALANCE_REVISION,
+    });
     expect(saved.skillAssignments).toEqual({ Edric: ['sol'] });
     expect(new Set(saved.milestones)).toEqual(new Set(['beatAct1', 'beatAct2', 'beatAct3']));
     expect(saved.savedAt).toBeGreaterThan(healed.savedAt);
