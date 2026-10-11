@@ -59,21 +59,39 @@ function slotList(slots) {
   return `Slots ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }
 
-/**
- * What sign-out says about the saves it discards that no backup carries
- * (CloudSync.listLocalOnlySaves: an unfinished prologue's run save stays on the
- * device). Empty for none.
- * @param {Array<{ slot: number }>} localOnly
- */
-export function localOnlyDiscardText(localOnly) {
-  const slots = [...new Set((localOnly || []).map((save) => save?.slot))]
+function slotsOf(saves) {
+  return [...new Set(saves.map((save) => save?.slot))]
     .filter((slot) => Number.isInteger(slot))
     .sort((a, b) => a - b);
-  if (!slots.length) return '';
-  const one = slots.length === 1;
-  return one
-    ? `Your unfinished prologue on ${slotList(slots)} stays on this device and can't be backed up. Signing out discards it; it starts again from the beginning.`
-    : `Your unfinished prologues on ${slotList(slots)} stay on this device and can't be backed up. Signing out discards them; they start again from the beginning.`;
+}
+
+/**
+ * What sign-out says about the saves it discards that no backup carries
+ * (CloudSync.listLocalOnlySaves: an unfinished prologue's run save, `kind: 'prologue'`,
+ * and a run newer than the cloud may hold yet, `kind: 'newFormat'`, stay on the
+ * device). An entry with no kind is a prologue's. Empty for none.
+ * @param {Array<{ slot: number, kind?: 'prologue' | 'newFormat' }>} localOnly
+ */
+export function localOnlyDiscardText(localOnly) {
+  const saves = Array.isArray(localOnly) ? localOnly : [];
+  const runs = slotsOf(saves.filter((save) => save?.kind === 'newFormat'));
+  const prologues = slotsOf(saves.filter((save) => save?.kind !== 'newFormat'));
+  const lines = [];
+  if (prologues.length) {
+    lines.push(
+      prologues.length === 1
+        ? `Your unfinished prologue on ${slotList(prologues)} stays on this device and can't be backed up. Signing out discards it; it starts again from the beginning.`
+        : `Your unfinished prologues on ${slotList(prologues)} stay on this device and can't be backed up. Signing out discards them; they start again from the beginning.`,
+    );
+  }
+  if (runs.length) {
+    lines.push(
+      runs.length === 1
+        ? `Your run in progress on ${slotList(runs)} stays on this device and can't be backed up yet. Signing out discards it.`
+        : `Your runs in progress on ${slotList(runs)} stay on this device and can't be backed up yet. Signing out discards them.`,
+    );
+  }
+  return lines.join(' ');
 }
 
 function readFlag(key) {
@@ -804,7 +822,7 @@ export class TitleScene extends Phaser.Scene {
     const menu = this._openTitleMenu(PROLOGUE_TITLE_MENU.title);
     const unfinished =
       Array.from({ length: MAX_SLOTS }, (_, index) => getSlotSummary(index + 1)).find(
-        (s) => s?.hasActiveRun && s.prologueRun && !s.runCorrupt,
+        (s) => s?.hasActiveRun && s.prologueRun && !s.runCorrupt && !s.needsNewerClient,
       ) || null;
     const nextSlot = getNextAvailableSlot();
     menu.body.append(element('p', PROLOGUE_TITLE_MENU.body));

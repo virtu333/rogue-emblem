@@ -242,6 +242,12 @@ import {
   rollStartGiftOffer,
   sanitizeStartGift,
 } from './StartGifts.js';
+import {
+  RunFormatError,
+  runFormatBlock,
+  runFormatMarker,
+  sanitizeCapabilityIds,
+} from './RunFormat.js';
 
 // Phaser-specific fields that must be stripped for serialization
 const PHASER_FIELDS = UNIT_PRESENTATION_FIELDS;
@@ -764,6 +770,10 @@ export class RunManager {
     // Which blessing-boon rules this run's saved numbers follow (BlessingBoonMigration.js):
     // a new run is current, fromJSON reads the save's own.
     this.blessingBoonRevision = BLESSING_BOON_REVISION;
+    // The run-format guard's ratchet (engine/RunFormat.js): every capability id this run has
+    // ever written. toJSON writes it united with what the run holds now, so a pruned config
+    // never lets a run fall back to format 1 and reach an older client mid-life.
+    this.requiredCapabilityFloor = [];
     this._runStartBlessingsApplied = false;
     this.runSeed = null;
     this.narrativeSeen = {};
@@ -991,6 +1001,7 @@ export class RunManager {
     this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
     this.earnedBlessingPicks = {};
     this.blessingBoonRevision = BLESSING_BOON_REVISION; // a new run follows the current rules
+    this.requiredCapabilityFloor = [];
     this.battleConfigsByNodeId = {};
     this.ensureRecruitPreviews();
     this.shopStateByNodeId = {};
@@ -1077,6 +1088,7 @@ export class RunManager {
     this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
     this.earnedBlessingPicks = {};
     this.blessingBoonRevision = BLESSING_BOON_REVISION; // a new run follows the current rules
+    this.requiredCapabilityFloor = [];
     this.battleConfigsByNodeId = {};
     for (const node of this.nodeMap.nodes) {
       const chapter = this.getPrologueChapter(node.id);
@@ -6129,6 +6141,20 @@ export class RunManager {
 
   /** Serialize run state to a plain object for localStorage. */
   toJSON() {
+    const saved = this._serializeRun();
+    // The prologue stays local-only by its mode (CloudSync.isLocalOnlyRunSave) and carries no
+    // marker. Any other run is marked from what it holds and every id it ever held.
+    if (this.mode === PROLOGUE_RUN_MODE) return saved;
+    const marker = runFormatMarker(saved, this.requiredCapabilityFloor);
+    if (marker.requiresCapabilities) {
+      this.requiredCapabilityFloor = [...marker.requiresCapabilities];
+      saved.requiresClient = marker.requiresClient;
+      saved.requiresCapabilities = [...marker.requiresCapabilities];
+    }
+    return saved;
+  }
+
+  _serializeRun() {
     return {
       version: 1,
       mode: this.mode === PROLOGUE_RUN_MODE ? PROLOGUE_RUN_MODE : STANDARD_RUN_MODE,
@@ -6467,6 +6493,10 @@ export class RunManager {
 
   /** Restore a RunManager from saved data. */
   static fromJSON(saved, gameData) {
+    // A run this client cannot play (engine/RunFormat.js) is refused before any migration
+    // touches it, whatever door it came through: loadRun checks first and writes nothing.
+    const formatBlock = runFormatBlock(saved);
+    if (formatBlock) throw new RunFormatError(formatBlock);
     // Items renamed since this save was written get their new names everywhere in
     // it (units, convoy, shops, rewards, battle checkpoint and rewind timeline).
     migrateSavedItemNames(saved, gameData);
@@ -6475,6 +6505,7 @@ export class RunManager {
     // Per-battle weapons (Breachbolt) take the catalog's shot counts (same places).
     migrateSavedPerBattleWeapons(saved, gameData);
     const rm = new RunManager(gameData, saved.metaEffects || null);
+    rm.requiredCapabilityFloor = sanitizeCapabilityIds(saved.requiresCapabilities);
     // Saves from before the prologue carry no mode: they are standard runs.
     rm.mode = saved.mode === PROLOGUE_RUN_MODE ? PROLOGUE_RUN_MODE : STANDARD_RUN_MODE;
     if (rm.mode === PROLOGUE_RUN_MODE) {
@@ -7355,6 +7386,15 @@ export function loadRun(gameData, slotNumber) {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
     const saved = JSON.parse(raw);
+    // A run that needs a newer client is left exactly as stored (engine/RunFormat.js).
+    const formatBlock = runFormatBlock(saved);
+    if (formatBlock) {
+      console.warn(
+        `[RunManager] slot ${slotNumber ?? '(legacy)'} needs a newer client:`,
+        formatBlock.missing.join(', ') || `format ${formatBlock.format}`,
+      );
+      return null;
+    }
     return RunManager.fromJSON(saved, gameData);
   } catch (err) {
     console.error(

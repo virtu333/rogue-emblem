@@ -1329,6 +1329,44 @@ and the run's top level as **inert**, **legacy-equivalent** or owned by a capabi
 boss kit. It must require the newer client and be held back by the cloud hold-back, with no
 `setPiece` anywhere in it.
 
+### 12.2 As built (PR A0)
+
+What the guard's PR settled where §12.1 left a choice. It writes no capability.
+
+- **`engine/RunFormat.js`** holds the table, the detectors, `requiredRunFormat`,
+  `storedRunFormat`, `effectiveRunFormat` (the larger of the two), `runFormatBlock`,
+  `runFormatMarker`, `RunFormatError` and `RUN_FORMAT_FIELDS`. `CLIENT_CAPABILITIES` is empty.
+- **The cloud predicate reads both sides.** Step 5's formula, as built:
+  `isCloudSlotPayload(run) && (isPrologueRun(run) || effectiveRunFormat(run) > CLOUD_SAFE_RUN_FORMAT)`.
+  With the derived side alone, a ratcheted run whose configs were pruned (test 26) would read
+  format 1 and be pushed. The stored side can only add.
+- **The registry.** `RUN_FORMAT_FIELDS` has five places: `battleParams`, `battleConfig`,
+  `enemySpawn`, `checkpoint` (the top level of a checkpoint, a Vision snapshot or a timeline
+  destination) and `run`. Each key maps to `inert`, `legacy`, `marker` (`requiresClient`,
+  `requiresCapabilities`) or one or more capability ids. It lists only keys these specs add,
+  plus #282's (as `legacy`). The keys that existed before the guard are a frozen baseline in
+  `tests/harness/RunFormatRegistry.test.js`, not in the game code. The baseline never grows: a
+  new key goes into the registry. Unit fields beyond a spawn's are not in the census; the
+  detectors read the five unit fields named in §12.1's table.
+- **The corpus** (`tests/helpers/runFormatCorpus.js`): 50 seeds per rung through every act,
+  each battle node's params and generated map, every event set piece on every rung and act,
+  and one real suspend checkpoint (the journey harness's capture). There are no data switches
+  yet; each writer's PR turns its own on in the corpus.
+- **The timeline scan is memoised** by stored record (and, for a patch, its keyframe and patch
+  objects): `BattleTimeline` replaces records, never edits one, so a save after every action
+  rescans only new rows (about 18 ms cold and 0.3 ms warm for 300 patches on a desktop).
+- **The slot.** The summary's `needsNewerClient` gives the card state `newer` ("Update
+  needed", "This run needs a newer version of the game.", action Options). Selecting it offers
+  Back or Start over here; the second asks again ("Replace this run?") and then opens Home
+  Base with the save still on disk. The save is replaced only when a new run there saves over
+  it. Resume and the Prologue menu's Continue never pick such a slot.
+- **Sign-out** names a `newFormat` save as "Your run in progress on Slot N stays on this device
+  and can't be backed up yet. Signing out discards it." A prologue's line is unchanged.
+- **Test 23 is planted** in the shapes §12.1 and `05` §7.2/§9.5 name until `05` K1 compiles a
+  real kit (`tests/RunFormat.test.js`). Tests 19, 25, 26 and the detection half of 27 are in the
+  same file; the cloud half of 19 and 23 is `tests/CloudSyncFormatLocal.test.js`; the ratchet
+  across a load runs on a simulated newer client (`tests/RunFormatNewerClient.test.js`).
+
 ## 13. Tests
 
 Realistic failures first; each is one test, and each is shown to fail once by planting its bug.

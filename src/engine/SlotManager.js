@@ -4,6 +4,7 @@
 import { HintManager } from './HintManager.js';
 import { ALWAYS_MET_LORD_NAMES, lordNamesInRun, lordsMetOfMetaSave } from './LordsMet.js';
 import { isPrologueRun } from './ScriptedBattle.js';
+import { runFormatBlock } from './RunFormat.js';
 
 export const MAX_SLOTS = 3;
 // MetaProgressionManager.PROLOGUE_STATES, read raw here (the summary never loads a manager).
@@ -307,6 +308,9 @@ export function getSlotSummary(slot, storage = globalThis.localStorage) {
       summary.actReached = (run.actIndex || 0) + 1;
       // The prologue's run (RunManager mode 'prologue'): its cards and Resume say so.
       summary.prologueRun = isPrologueRun(run);
+      // A run this client cannot load (engine/RunFormat.js): the card says so, Continue is
+      // not offered, and the stored save is never written by this client.
+      summary.needsNewerClient = runFormatBlock(run) !== null;
       summary.savedAt = Number.isFinite(run.savedAt) ? run.savedAt : null;
       const node = run.nodeMap?.nodes?.find((entry) => entry.id === run.currentNodeId);
       summary.rosterNames = (run.roster || []).slice(0, 3).map((unit) => unit.name);
