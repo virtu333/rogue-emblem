@@ -465,6 +465,9 @@ export function collectEdgeSpawnCandidates({
 // blessing's delay (Hollow Hourglass, `turnDelay`) moves them: every wave a turn later.
 const LADDER_DEFAULT_MIN_PLAYER_DISTANCE = 3;
 const LADDER_DEFAULT_NPC_DISTANCE = 1;
+// How far a front-only ladder may relax its player exclusion when the front is crowded: tiles
+// within 1 of a player unit stay reserved, so an arrival never lands next to one.
+export const LADDER_FRONT_ONLY_MIN_PLAYER_DISTANCE = 1;
 
 function getDueLadderWaves({ turn, reinforcements, turnDelay = 0 } = {}) {
   const currentTurn = normalizeInteger(turn, 0);
@@ -755,24 +758,22 @@ export function scheduleReinforcementsForTurn({
   if (dueLadderWaves.length > 0) {
     const ladder = reinforcements.ladder;
     const front = EDGE_SET.has(ladder.front) ? ladder.front : null;
-    const reserved = new Set([
-      ...tilesWithin(
-        playerTiles,
-        Number.isFinite(ladder.minPlayerDistance)
-          ? ladder.minPlayerDistance
-          : LADDER_DEFAULT_MIN_PLAYER_DISTANCE,
-      ),
-      ...tilesWithin(
-        npcTiles,
-        Number.isFinite(ladder.npcDistance) ? ladder.npcDistance : LADDER_DEFAULT_NPC_DISTANCE,
-      ),
-    ]);
+    const minPlayerDistance = Number.isFinite(ladder.minPlayerDistance)
+      ? ladder.minPlayerDistance
+      : LADDER_DEFAULT_MIN_PLAYER_DISTANCE;
+    const npcReserved = tilesWithin(
+      npcTiles,
+      Number.isFinite(ladder.npcDistance) ? ladder.npcDistance : LADDER_DEFAULT_NPC_DISTANCE,
+    );
+    const reservedAt = (playerDistance) =>
+      new Set([...tilesWithin(playerTiles, playerDistance), ...npcReserved]);
+    const reserved = reservedAt(minPlayerDistance);
     // A promoted wave's arrival copies a class from the act's promoted pool, so its tile
     // must suit those move types as well.
     const promotedTypes = [
       ...new Set([...normalizeMoveTypes(moveTypes, moveType), ...(promotedMoveTypes || [])]),
     ].sort();
-    const candidatesOn = (edge, promoted) =>
+    const candidatesOn = (edge, promoted, exclude = reserved) =>
       collectEdgeSpawnCandidates({
         edge,
         mapLayout,
@@ -780,7 +781,7 @@ export function scheduleReinforcementsForTurn({
         occupied: new Set([...baseOccupied, ...spawnedKeys]),
         moveType,
         moveTypes: promoted ? promotedTypes : moveTypes,
-      }).filter((tile) => !reserved.has(toTileKey(tile.col, tile.row)));
+      }).filter((tile) => !exclude.has(toTileKey(tile.col, tile.row)));
 
     for (const due of dueLadderWaves) {
       const edge = EDGE_SET.has(due.wave?.edge) ? due.wave.edge : front;
@@ -792,9 +793,26 @@ export function scheduleReinforcementsForTurn({
       let usedEdge = edge;
       if (usedEdge && front && usedEdge !== front && candidatesOn(usedEdge, promoted).length === 0)
         usedEdge = front;
+      // A front-only ladder (a fogged rout map, RoutLadder.fogRoutFrontOnly) has no flank to
+      // fall back to: when player units stand near every free front tile, an arrival comes
+      // closer to them on that edge instead (the exclusion relaxed a tile at a time, down to
+      // the tiles next to a player unit, which stay reserved) rather than being lost.
+      const poolFor = () => {
+        if (!usedEdge) return [];
+        let pool = candidatesOn(usedEdge, promoted);
+        if (ladder.frontOnly !== true) return pool;
+        for (
+          let d = minPlayerDistance - 1;
+          pool.length === 0 && d >= LADDER_FRONT_ONLY_MIN_PLAYER_DISTANCE;
+          d--
+        ) {
+          pool = candidatesOn(usedEdge, promoted, reservedAt(d));
+        }
+        return pool;
+      };
       let spawnedCount = 0;
       for (let i = 0; i < requestedCount; i++) {
-        const pool = usedEdge ? candidatesOn(usedEdge, promoted) : [];
+        const pool = poolFor();
         if (pool.length === 0) {
           blockedSpawns++;
           continue;
