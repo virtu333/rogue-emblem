@@ -26,7 +26,7 @@ import {
   STARTING_GOLD,
   MAX_SKILLS,
   STARTING_ACCESSORY_TIERS,
-  STARTING_STAFF_TIERS,
+  startingStaffNames,
   DEADLY_ARSENAL_SIGNATURE_WEAPONS,
   ELITE_GOLD_MULTIPLIER,
   XP_STAT_NAMES,
@@ -88,6 +88,7 @@ import {
   usesPriceCatalog,
 } from './BlessingEngine.js';
 import {
+  actOverrideFor,
   resolveDifficultyMode,
   DIFFICULTY_DEFAULTS,
   ENEMY_ACT_GATE_ORDER,
@@ -4117,11 +4118,12 @@ export class RunManager {
       if (!unit.proficiencies.some((p) => p.type === 'Staff')) {
         unit.proficiencies.push({ type: 'Staff', rank: 'Prof' });
       }
-      // Sera's staff — tier upgrade
+      // Sera always carries Heal; Healer's Art adds its tier's staff beside it.
       const staffTier = me?.startingStaffTier || 0;
-      const staffName = STARTING_STAFF_TIERS[staffTier] || 'Heal';
-      const staff = weapons.find((w) => w.name === staffName);
-      if (staff) addToInventory(unit, staff);
+      for (const staffName of startingStaffNames(staffTier)) {
+        const staff = weapons.find((w) => w.name === staffName);
+        if (staff) addToInventory(unit, staff);
+      }
     }
 
     // Traits stack after meta bonuses, and after Sera gains her Staff proficiency.
@@ -4568,18 +4570,22 @@ export class RunManager {
     battleParams.fogEnabled = !isFirstBattle && Boolean(node.fogEnabled);
     battleParams.firstBattleFightersOnly = isFirstBattle;
     battleParams.excludeOpeningCavaliers = restrictOpeningCavaliers(this);
-    battleParams.enemyStatBonus = this.getDifficultyModifier('enemyStatBonus', 0);
+    // The rung's enemy modifiers for this battle's act (an act override, Black Sun's Act I,
+    // in place of the rung's own value).
+    const battleAct = battleParams.act || this.currentAct;
+    const actModifier = (key, fallback) =>
+      this.getBattleDifficultyModifier(key, battleAct, fallback);
+    battleParams.enemyStatBonus = actModifier('enemyStatBonus', 0);
     battleParams.classStatBonuses = this.getDifficultyModifier('classStatBonuses', {});
-    battleParams.enemyCountBonus = this.getDifficultyModifier('enemyCountBonus', 0);
+    battleParams.enemyCountBonus = actModifier('enemyCountBonus', 0);
     battleParams.enemyLevelBonus =
-      this.getDifficultyModifier('enemyLevelBonus', 0) +
-      this.getBlessingEnemyLevelDelta(battleParams.act || this.currentAct);
+      actModifier('enemyLevelBonus', 0) + this.getBlessingEnemyLevelDelta(battleAct);
     // An event's fight (engine/EventEffects.js `battle`) may be harder by the effect's levels.
     if (Number.isFinite(battleParams.eventEnemyLevelBonus))
       battleParams.enemyLevelBonus += Math.trunc(battleParams.eventEnemyLevelBonus);
-    battleParams.bossLevelBonus = this.getDifficultyModifier('bossLevelBonus', 0);
-    battleParams.enemySkillChance = this.getDifficultyModifier('enemySkillChance', 0);
-    battleParams.enemyCountBase = this.getDifficultyModifier('enemyCountBase', 0);
+    battleParams.bossLevelBonus = actModifier('bossLevelBonus', 0);
+    battleParams.enemySkillChance = actModifier('enemySkillChance', 0);
+    battleParams.enemyCountBase = actModifier('enemyCountBase', 0);
     battleParams.recruitEnemyCountBonus = this.getDifficultyModifier('recruitEnemyCountBonus', 0);
     battleParams.act1EnemyCountDeployCap = this.getDifficultyModifier('act1EnemyCountDeployCap', 3);
     battleParams.enemyEquipTierShift = this.getDifficultyModifier('enemyEquipTierShift', 0);
@@ -4590,7 +4596,7 @@ export class RunManager {
     );
     battleParams.xpUnderdogCap = this.getDifficultyModifier('xpUnderdogCap', XP_UNDERDOG_CAP);
     battleParams.goldMultiplier = this.getDifficultyModifier('goldMultiplier', 1);
-    battleParams.enemyPoisonChance = this.getDifficultyModifier('enemyPoisonChance', 0);
+    battleParams.enemyPoisonChance = actModifier('enemyPoisonChance', 0);
     battleParams.reinforcementTurnOffset = this.getDifficultyModifier('reinforcementTurnOffset', 0);
     // Hollow Hourglass: every wave a turn later (ReinforcementSpawns reads it for the scene and the
     // harness alike); Lantern of the Road: a fog map's opening reveal (engine/FogOpening.js).
@@ -6003,6 +6009,16 @@ export class RunManager {
     if (typeof fallback === 'boolean') return typeof value === 'boolean' ? value : fallback;
     if (Array.isArray(fallback)) return Array.isArray(value) ? value : fallback;
     return Number.isFinite(value) ? value : fallback;
+  }
+
+  /**
+   * A battle's difficulty modifier in `act`: the rung's `actOverrides` value for that act when
+   * it sets one (DifficultyEngine.actOverrideFor), else the rung's own. A run saved before a
+   * rung had overrides keeps the values it started with.
+   */
+  getBattleDifficultyModifier(key, act, fallback = 0) {
+    const override = actOverrideFor(this.difficultyModifiers, key, act);
+    return override !== undefined ? override : this.getDifficultyModifier(key, fallback);
   }
 
   _getGrowthBonusMultiplier() {
