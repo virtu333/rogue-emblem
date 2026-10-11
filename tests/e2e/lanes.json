@@ -59,7 +59,8 @@
         "ceremonies.spec.js",
         "zombie-remains.spec.js",
         "xp-gauge.spec.js",
-        "entity-rally.spec.js"
+        "entity-rally.spec.js",
+        "entity-finale-acceptance.spec.js"
       ]
     },
     {
