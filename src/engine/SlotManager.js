@@ -3,6 +3,11 @@
 
 import { HintManager } from './HintManager.js';
 import { ALWAYS_MET_LORD_NAMES, lordNamesInRun, lordsMetOfMetaSave } from './LordsMet.js';
+import {
+  discoveriesInRun,
+  discoveriesOfMetaSave,
+  mergeDiscoveries,
+} from './CompendiumDiscovery.js';
 import { isPrologueRun } from './ScriptedBattle.js';
 import { withoutBalanceRevisionMarker } from './BalanceRevisionMarker.js';
 import { runFormatBlock } from './RunFormat.js';
@@ -486,6 +491,26 @@ export function metLordNamesAcrossSlots() {
     }
   }
   return names;
+}
+
+/**
+ * Items and skills met in any slot (1-3): each save's lists (or their backfill for saves
+ * from before them) plus what its run holds. Read cross-slot like the lords met, so the
+ * Title-screen Compendium matches in-run.
+ * @returns {{ items: string[], skills: string[] }}
+ */
+export function discoveriesAcrossSlots() {
+  const found = [];
+  for (let i = 1; i <= MAX_SLOTS; i++) {
+    try {
+      const meta = JSON.parse(localStorage.getItem(getMetaKey(i)) || 'null');
+      if (meta) found.push(discoveriesOfMetaSave(meta));
+      found.push(discoveriesInRun(JSON.parse(localStorage.getItem(getRunKey(i)) || 'null')));
+    } catch (_) {
+      /* an unreadable slot adds nothing */
+    }
+  }
+  return mergeDiscoveries(...found);
 }
 
 /** Tag retained recovery evidence before sign-out; never reassign an existing owner. */

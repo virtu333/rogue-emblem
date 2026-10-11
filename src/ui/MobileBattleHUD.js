@@ -162,14 +162,6 @@ export function statusStaffGearLine(unit) {
 }
 
 /**
- * The terrain card's move preview: how many visible foes could strike this tile next
- * phase. Crimson when one can; violet (the status eyes' colour) when only status
- * staves can, so that tile never looks safe; plain otherwise. Each " · " clause is
- * its own unbreakable span with a plain space between, so a narrow card wraps
- * between clauses ("… can reach" / "· fog may hide more"), never inside one; the
- * line's text stays exactly threatSummaryText.
- */
-/**
  * The rail's objective button: the label it shows and the details it opens. The kind a battle is
  * played as (a defeat map's legacy string is rout) and its own goal sentence come from the
  * scene, never from the legacy string alone.
@@ -188,6 +180,14 @@ export function objectiveRail(s) {
   };
 }
 
+/**
+ * The terrain card's move preview: how many visible foes could strike this tile next
+ * phase. Crimson when one can; violet (the status eyes' colour) when only status
+ * staves can, so that tile never looks safe; plain otherwise. Each " · " clause is
+ * its own unbreakable span with a plain space between, so a narrow card wraps
+ * between clauses ("… can reach" / "· fog may hide more"), never inside one; the
+ * line's text stays exactly threatSummaryText.
+ */
 export function threatPreviewLine(result) {
   const tone = threatSummaryTone(result);
   const line = el(

@@ -48,6 +48,7 @@ import { actLevelScaling, convertNodeToSetPieceBattle, edgeCrosses } from './Nod
 import { findSetPiece, validateSetPieceAt, validateSetPiecesConfig } from './SetPieces.js';
 import { BOSS_REF } from './BattleObjectives.js';
 import { riteTargetOfBoss, validateRiteConfig } from './Rite.js';
+import { isDescentEnabled } from './DescentSwitch.js';
 
 /** The act the Descent is (ids are save data: the act stays `finalBoss`). */
 export const DESCENT_ACT_ID = 'finalBoss';
@@ -120,11 +121,12 @@ const isInt = (v) => Number.isInteger(v);
 // ── Which route ─────────────────────────────────────────────────────────
 
 /**
- * The route a run on this rung takes, or null: the config is switched on (`enabled: true`) and
- * names a route for the rung that it holds.
+ * The route a run on this rung takes, or null: the config is switched on (`enabled: true`, read
+ * through DescentSwitch.isDescentEnabled, the flag's one reader) and names a route for the rung
+ * that it holds.
  */
 export function descentRouteIdFor(config, difficultyId) {
-  if (!isObject(config) || config.enabled !== true) return null;
+  if (!isObject(config) || !isDescentEnabled({ descent: config })) return null;
   const id = config.routeByRung?.[difficultyId];
   return typeof id === 'string' && isObject(config.routes?.[id]) ? id : null;
 }
@@ -624,8 +626,18 @@ function validateSetPieceNode(nw, spec, { err, data, servedRungs }) {
     if (data.setPieces) err(nw, `unknown set piece "${spec.setPiece}"`);
     return;
   }
+  // The node's seat, as its battle params will carry it: a boss node names its boss (the gate's
+  // Lieutenant, the finale), so a boss slot there never seats the Entity unnamed.
+  const seat = {
+    ...(spec.type === NODE_TYPES.BOSS && typeof spec.boss === 'string'
+      ? { bossName: spec.boss }
+      : {}),
+    ...(spec.type === NODE_TYPES.BOSS ? { isBoss: true } : {}),
+    ...(spec.elite === true ? { isElite: true } : {}),
+  };
   for (const rung of servedRungs)
-    for (const message of validateSetPieceAt(piece, DESCENT_ACT_ID, rung, data)) err(nw, message);
+    for (const message of validateSetPieceAt(piece, DESCENT_ACT_ID, rung, data, seat))
+      err(nw, message);
   if (spec.objective === undefined) return;
   if (!DESCENT_SET_PIECE_OBJECTIVES.includes(spec.objective)) {
     err(nw, `objective must be one of ${DESCENT_SET_PIECE_OBJECTIVES.join(', ')}`);

@@ -4,7 +4,7 @@ import {
   settledBalanceRevision,
   withBalanceRevisionMarker,
   withoutBalanceRevisionMarker,
-  BALANCE_REVISION_MARKER,
+  isBalanceRevisionMarker,
 } from './BalanceRevisionMarker.js';
 import { mergeSeenDialogueKeys } from '../utils/seenDialogue.js';
 import { mergeRunRecords, runRecordsUnderPressure } from './RunRecords.js';
@@ -39,6 +39,14 @@ import {
   lordsMetOfMetaSave,
   mergeLordNames,
 } from './LordsMet.js';
+import {
+  discoveriesInRun,
+  discoveriesOfMetaSave,
+  isDiscoveryKey,
+  mergeDiscoveries,
+  withDiscoveryKeys,
+  withoutDiscoveryKeys,
+} from './CompendiumDiscovery.js';
 
 const DEFAULT_LORD_SELECTION = Object.freeze({
   commander: DEFAULT_STARTING_LORD_NAMES[0],
@@ -380,6 +388,16 @@ export const BALANCE_REVISIONS = Object.freeze([
       lord_lck_growth: [40, 45, 60, 80, 130],
     },
   },
+  {
+    revision: 6, // 2026-10-11 Lucky Finds: no Legend before Act III, its Legend step at half
+    // the chance, so the upgrade costs 25% less and past buyers are credited the difference.
+    from: {
+      loot_quality: [120, 240],
+    },
+    to: {
+      loot_quality: [90, 180],
+    },
+  },
 ]);
 
 export const CURRENT_BALANCE_REVISION = BALANCE_REVISIONS[BALANCE_REVISIONS.length - 1].revision;
@@ -510,6 +528,10 @@ export class MetaProgressionManager {
     // Lords who have joined an army on this save; the home base and Compendium show only
     // these (Edric and Sera always).
     this.lordsMet = [...ALWAYS_MET_LORD_NAMES];
+    // Items (catalog names) and skills (ids) this save has met: the Compendium fills in
+    // these and shows the rest as "???" (engine/CompendiumDiscovery.js).
+    this.itemsSeen = [];
+    this.skillsSeen = [];
     this.hintState = null;
     this.skillAssignments = {}; // { "Edric": ["sol", "vantage"], "Sera": ["miracle"] }
     this.lordSelection = { ...DEFAULT_LORD_SELECTION }; // commander-choice picks, persisted
@@ -541,8 +563,12 @@ export class MetaProgressionManager {
             this.totalSupply = Math.max(0, Math.floor(saved.totalSupply));
         }
 
+        // Discoveries and the balance-revision marker ride inside the saved map
+        // (CompendiumDiscovery.js, BalanceRevisionMarker.js); in memory it holds upgrades.
         if (saved.purchasedUpgrades)
-          this.purchasedUpgrades = withoutBalanceRevisionMarker(saved.purchasedUpgrades);
+          this.purchasedUpgrades = withoutDiscoveryKeys(
+            withoutBalanceRevisionMarker(saved.purchasedUpgrades),
+          );
         this._migrateLegacyWeaponArtUpgradeState();
         this._migrateLegacyDeadlyArsenalUpgradeState(saved);
         if (typeof saved.runsCompleted === 'number') this.runsCompleted = saved.runsCompleted;
@@ -573,6 +599,9 @@ export class MetaProgressionManager {
         // An older build re-saves its own balanceRevision; the copy in purchasedUpgrades
         // keeps a credit from being paid twice (BalanceRevisionMarker.js).
         this._creditBalanceRevisionsSince(settledBalanceRevision(saved));
+        // A save a newer build settled keeps its revision: writing ours would let that
+        // build credit its own revisions again.
+        this.balanceRevision = Math.max(CURRENT_BALANCE_REVISION, settledBalanceRevision(saved));
         this._settleRetiredUpgrades();
         // The next normal save persists credits and markers atomically without making
         // a read-only load appear newer than a pending cloud merge.
@@ -582,22 +611,28 @@ export class MetaProgressionManager {
     }
     // Saves from before the list backfill it from their records; lords in the slot's
     // in-progress run have joined, so they always count.
-    this.lordsMet = mergeLordNames(lordsMetOfMetaSave(savedMeta), this._lordsInSavedRun());
+    const savedRun = this._readSavedRun();
+    this.lordsMet = mergeLordNames(lordsMetOfMetaSave(savedMeta), lordNamesInRun(savedRun));
+    // Discoveries: the save's keys unioned with its records' backfill; what the slot's
+    // in-progress run holds has been met, so it always counts.
+    const seen = mergeDiscoveries(discoveriesOfMetaSave(savedMeta), discoveriesInRun(savedRun));
+    this.itemsSeen = seen.items;
+    this.skillsSeen = seen.skills;
   }
 
-  /** Lords in the run saved beside this meta (its slot's run save), if any. */
-  _lordsInSavedRun() {
+  /** The run saved beside this meta (its slot's run save), or null. */
+  _readSavedRun() {
     const slot = /^emblem_rogue_slot_(\d+)_meta$/.exec(this.storageKey)?.[1];
     const runKey = slot
       ? `emblem_rogue_slot_${slot}_run`
       : this.storageKey === DEFAULT_STORAGE_KEY
         ? 'emblem_rogue_run_save'
         : null;
-    if (!runKey) return [];
+    if (!runKey) return null;
     try {
-      return lordNamesInRun(JSON.parse(localStorage.getItem(runKey) || 'null'));
+      return JSON.parse(localStorage.getItem(runKey) || 'null');
     } catch (_) {
-      return [];
+      return null;
     }
   }
 
@@ -998,6 +1033,33 @@ export class MetaProgressionManager {
     const merged = mergeLordNames(this.lordsMet, names);
     if (merged.length === this.lordsMet.length) return false;
     this.lordsMet = merged;
+    this._save();
+    return true;
+  }
+
+  /** Has this save met the item (by catalog name) / skill (by id)? */
+  hasSeenItem(name) {
+    return this.itemsSeen.includes(name);
+  }
+
+  hasSeenSkill(id) {
+    return this.skillsSeen.includes(id);
+  }
+
+  /**
+   * Remember items and skills the save has met (`{ items, skills }`; idempotent, saves
+   * only when one is new).
+   * @returns {boolean} whether anything was new
+   */
+  recordDiscoveries(found) {
+    const merged = mergeDiscoveries({ items: this.itemsSeen, skills: this.skillsSeen }, found);
+    if (
+      merged.items.length === this.itemsSeen.length &&
+      merged.skills.length === this.skillsSeen.length
+    )
+      return false;
+    this.itemsSeen = merged.items;
+    this.skillsSeen = merged.skills;
     this._save();
     return true;
   }
@@ -1648,6 +1710,8 @@ export class MetaProgressionManager {
     this.skillAssignments = {};
     this.lordSelection = { ...DEFAULT_LORD_SELECTION };
     this.lordsMet = [...ALWAYS_MET_LORD_NAMES];
+    this.itemsSeen = [];
+    this.skillsSeen = [];
     this.milestones = new Set();
     this.storyFlags = defaultStoryFlags();
     this.prologue = defaultPrologueState();
@@ -1706,12 +1770,14 @@ export class MetaProgressionManager {
       for (const id of Object.keys(from)) ownedBefore[id] = this.getUpgradeLevel(id);
     if (disk.purchasedUpgrades && typeof disk.purchasedUpgrades === 'object') {
       for (const [id, level] of Object.entries(disk.purchasedUpgrades)) {
-        if (id === BALANCE_REVISION_MARKER) continue;
+        // The markers are read on their own; discoveries are unioned below, with the lists.
+        if (isBalanceRevisionMarker(id) || isDiscoveryKey(id)) continue;
         const diskLevel = Number(level) || 0;
         const localLevel = Number(this.purchasedUpgrades[id]) || 0;
         this.purchasedUpgrades[id] = Math.max(localLevel, diskLevel);
       }
     }
+    this.balanceRevision = Math.max(this.balanceRevision, settledBalanceRevision(disk));
     this._recordLegacyTierCosts(settledBalanceRevision(disk), (id) => {
       const part = (key) => Math.max(0, Math.floor(Number(disk.purchasedUpgrades?.[key]) || 0));
       return [(ownedBefore[id] || 0) + 1, part(id) + part(repeatTiersKey(id))];
@@ -1759,6 +1825,12 @@ export class MetaProgressionManager {
     );
     this.deedsEarned = mergeDeedIds(this.deedsEarned, disk.deedsEarned);
     this.lordsMet = mergeLordNames(this.lordsMet, lordsMetOfMetaSave(disk));
+    const seen = mergeDiscoveries(
+      { items: this.itemsSeen, skills: this.skillsSeen },
+      discoveriesOfMetaSave(disk),
+    );
+    this.itemsSeen = seen.items;
+    this.skillsSeen = seen.skills;
     if (disk.storyFlags && typeof disk.storyFlags === 'object') {
       const diskFlags = normalizeStoryFlags(disk.storyFlags);
       // Counters are monotonic, so per-name max can only over-remember —
@@ -1860,6 +1932,8 @@ export class MetaProgressionManager {
       seenDialogueKeys: this.seenDialogueKeys,
       deedsEarned: this.deedsEarned,
       lordsMet: this.lordsMet,
+      itemsSeen: this.itemsSeen,
+      skillsSeen: this.skillsSeen,
       hintState: this.hintState,
       prologue: this.prologue,
       savedAt: this.savedAt,
@@ -1882,7 +1956,13 @@ export class MetaProgressionManager {
       solRefundBasis: this.solRefundBasis,
       totalValor: this.totalValor,
       totalSupply: this.totalSupply,
-      purchasedUpgrades: withBalanceRevisionMarker(this.purchasedUpgrades, this.balanceRevision),
+      purchasedUpgrades: withBalanceRevisionMarker(
+        withDiscoveryKeys(this.purchasedUpgrades, {
+          items: this.itemsSeen,
+          skills: this.skillsSeen,
+        }),
+        this.balanceRevision,
+      ),
       retiredUpgradeRefunds: this.retiredUpgradeRefunds,
       legacyTierCosts: this.legacyTierCosts,
       runsCompleted: this.runsCompleted,
