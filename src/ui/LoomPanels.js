@@ -18,7 +18,7 @@ import { crestElement } from './crestArt.js';
 import { regionName } from './placeDisplay.js';
 import { ACT_CONFIG, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS } from '../utils/constants.js';
 import { portraitListLayout } from './portraitListLayout.js';
-import { riteNodeModel } from './riteModel.js';
+import { riteNodeModel, riteNodeNotes } from './riteModel.js';
 import { riteCardBlock } from './RiteView.js';
 
 // DOM pieces shared by node travel and the read-only Campaign Map: the act header
@@ -366,6 +366,10 @@ export function renderLoomCard(card, node, ctx = {}) {
       card.append(recruitAlternateBlock(altView, () => ctx.onSwapRecruit(node.id)));
   }
   if (text && !info.recruit) card.append(text);
+  // What the Rite's rules owe this node (the Column's par payoff, the Vigil's circles).
+  if (rm)
+    for (const note of riteNodeNotes(rm, node))
+      card.append(element('p', note, 're-loom-text re-loom-rite-note-line'));
   if (info.warning) card.append(element('p', info.warning, 're-loom-eclipse-warn'));
   if (info.flavor) card.append(element('p', `“${info.flavor}”`, 're-loom-flavor'));
   card.append(

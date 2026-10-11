@@ -9,7 +9,15 @@
 // begins; once the map is locked it is what the locked config recorded it did
 // (`battleConfig.riteMods`, RiteBattleMods.js), which is the battle that will be fought.
 
-import { riteBandLabel, riteModLines, riteTargetOf, riteView } from '../engine/Rite.js';
+import {
+  riteBandLabel,
+  riteConfigOf,
+  riteModLines,
+  riteTargetOf,
+  riteView,
+  riteWaveTurnFor,
+  riteWordsShown,
+} from '../engine/Rite.js';
 
 /** The bosses a tier speaks to, as the player names them. */
 export const RITE_TARGET_NAMES = Object.freeze({
@@ -72,6 +80,10 @@ export function riteSourceTotals(log) {
  * The route map's Rite chip and what its tap opens, or null with no Rite (every run that is not
  * in the Descent).
  * @param {object} run RunManager
+ * @param {{ live?: { vigilState?: object|null, riteAtEntry?: number } }} [opts] `live` is a battle
+ *   in progress (BattleScene.liveRiteOptions): the words shown are the Rite's plus the Vigil's
+ *   spoken so far (Rite.riteWordsShown), the tier and the way up follow that count, and the run's
+ *   Rite is not written. The route map has no battle, so it passes none.
  * @returns {{ id: 'rite', label: string, short: string, chip: string, words: number,
  *   band: string, bandLabel: string, progress: string, effects: { target: string, name: string,
  *   rest: string, lines: string[] }[], sources: { source: string, name: string, delta: number }[],
@@ -79,15 +91,20 @@ export function riteSourceTotals(log) {
  *   `short` is the chip's figure ("7 words · Spoken"), `progress` the words to the next tier,
  *   `terms` the whole of it as one text (the pause list, a chip's title).
  */
-export function riteChipModel(run) {
-  const view = riteView(run);
+export function riteChipModel(run, { live = null } = {}) {
+  const words = riteWordsShown(run, live?.vigilState, { atEntry: live?.riteAtEntry });
+  const view = riteView(run, { words });
   if (!view) return null;
+  // Words spoken in the live Vigil are the Vigil's, in "From" as in the count.
+  const spoken = words - (run.rite?.words ?? words);
   const short = view.chip.replace(/^The Rite:\s*/, '');
   const progress = view.next
     ? `${plural(Math.max(0, view.next.at - view.words), 'more word')} to ${view.next.label} (${view.next.at}).`
     : 'The highest tier.';
   const effects = pendingEffects(run, view.effects).map((e) => effectParts(e.target, e.lines));
-  const sources = riteSourceTotals(view.log);
+  const sources = riteSourceTotals(
+    spoken > 0 ? [...view.log, { source: 'vigil', delta: spoken }] : view.log,
+  );
   const fromLine = sources.length
     ? `From: ${sources.map((s) => `${s.name} ${signed(s.delta)}`).join(' · ')}`
     : '';
@@ -110,9 +127,20 @@ export function riteChipModel(run) {
   };
 }
 
+/**
+ * riteChipModel's options for a battle in progress: the Vigil's words so far count against the
+ * Rite as the battle began (`battleParams.riteAtEntry`). The one place a battle's state meets the
+ * chip, so the pause list and any other reader in a battle build it the same way.
+ * @param {object|null} vigilState the battle's vigilState (null: no Vigil on this map)
+ * @param {object|null} battleParams
+ */
+export function liveRiteOptions(vigilState, battleParams) {
+  return { live: { vigilState: vigilState || null, riteAtEntry: battleParams?.riteAtEntry } };
+}
+
 /** The pause list's entry for the Rite ({ id, label, short, text }), or null. */
-export function riteBurdenEntry(run) {
-  const chip = riteChipModel(run);
+export function riteBurdenEntry(run, opts) {
+  const chip = riteChipModel(run, opts);
   return chip ? { id: 'rite', label: chip.label, short: chip.short, text: chip.terms } : null;
 }
 
@@ -123,7 +151,7 @@ export function riteBurdenEntry(run) {
  * generated map holds, which is what the battle will do). No record (the tier asked nothing of
  * this boss, or nothing could be placed) is "No change".
  */
-export function lockedRiteLines(record) {
+export function lockedRiteLines(record, { turnOf = null } = {}) {
   if (!record || typeof record !== 'object' || !record.target) return ['No change'];
   const { target } = record;
   const lines = riteModLines(
@@ -138,7 +166,9 @@ export function lockedRiteLines(record) {
   if (waves.length) {
     const counts = waves.map((w) => w.count);
     if (target === 'lieutenant')
-      lines.push(...riteModLines({ waveHollowed: counts[0], waveTurn: waves[0].turn }, target));
+      lines.push(
+        ...riteModLines({ waveHollowed: counts[0], waveTurn: waves[0].turn }, target, { turnOf }),
+      );
     else if (counts.every((c) => c === counts[0]))
       lines.push(...riteModLines({ waveHollowed: counts[0] }, target));
     else lines.push(`The Entity's waves bring ${counts.join(', ')} more Hollowed`);
@@ -171,6 +201,39 @@ export function riteNodeModel(run, node) {
     wordsText: plural(view.words, 'word'),
     state: locked ? 'locked' : 'open',
     note: locked ? 'Set for this battle.' : 'Read when the battle begins.',
-    lines: locked ? lockedRiteLines(record) : effect.lines,
+    lines: locked
+      ? lockedRiteLines(record, {
+          // The wave is due as the locked map's scheduler will place it, with the delay the
+          // battle applies when it begins (the run's Hollow Hourglass, read live like its params).
+          turnOf: (turn) => riteWaveTurnFor(run, turn, { reinforcements: locked.reinforcements }),
+        })
+      : effect.lines,
   };
+}
+
+// ── Notes under a route node's text ──────────────────────────────────────
+
+/** The Vigil's rule the player can act on before the fight: standing on a circle stops its summons, never its Voice's words. */
+export const VIGIL_CIRCLE_NOTE = 'Stand on a circle to stop its summons. Its Voice still speaks.';
+
+/**
+ * The lines the Rite's rules owe the player under a Descent route node's text, or []:
+ *  - the Mortuary Column (a node `rite.underPar` names): what winning at or under par does to
+ *    the Rite, read from the data;
+ *  - the Vigil: that standing on a summoning circle stops its summons but not its Voice's words.
+ * Nothing without a Rite, and nothing on a node already won.
+ * @param {object} run RunManager
+ * @param {object} node a route node
+ * @returns {string[]}
+ */
+export function riteNodeNotes(run, node) {
+  if (!run?.rite || !node || node.completed) return [];
+  const notes = [];
+  const delta = Math.trunc(Number(riteConfigOf(run).underPar?.[node.descentKey]) || 0);
+  if (delta)
+    notes.push(
+      `Win at or under par: the Rite ${delta < 0 ? 'loses' : 'gains'} ${plural(Math.abs(delta), 'word')}.`,
+    );
+  if (node.battleParams?.setPiece === 'the_vigil') notes.push(VIGIL_CIRCLE_NOTE);
+  return notes;
 }

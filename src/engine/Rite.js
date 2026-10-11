@@ -27,6 +27,8 @@
 // refuses anything else, and the writers ignore it.
 
 import { HOLLOWED_LEVEL_CAP, HOLLOWED_PER_WORD_LEVEL, hollowedLevelBonus } from './Vigil.js';
+import { reinforcementDelayOf } from './EarnedBoons.js';
+import { scriptedWaveTurn } from './ReinforcementScheduler.js';
 
 export const RITE_VERSION = 1;
 /** Where a word comes from (§9.5): the Eclipse at entry, the Vigil, an event, a battle's par. */
@@ -249,12 +251,52 @@ export function riteUnderParDelta(config, node, { turnCount, turnPar } = {}) {
   return delta;
 }
 
+/**
+ * The words the run's Rite shows while a Vigil battle is live: the Rite at the battle's start
+ * plus the words spoken so far (`vigilState.words`, engine/Vigil.js). `run.rite` itself changes
+ * only at the victory commit, so this is a reading, never a write. Once the commit has paid the
+ * words in, the run's Rite has left its entry value (`atEntry`, battleParams.riteAtEntry) and
+ * the spoken words are not added a second time. Null with no Rite.
+ * @param {object} run
+ * @param {object|null} [vigilState] the battle's vigilState (null outside a Vigil battle)
+ * @param {{ atEntry?: number }} [opts]
+ */
+export function riteWordsShown(run, vigilState = null, { atEntry } = {}) {
+  const rite = sanitizeRite(run?.rite);
+  if (!rite) return null;
+  const spoken = whole(vigilState?.words);
+  if (!spoken) return rite.words;
+  if (Number.isFinite(atEntry) && rite.words !== whole(atEntry)) return rite.words;
+  return rite.words + spoken;
+}
+
 // ── Words for the UI ─────────────────────────────────────────────────────
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-/** One plain line per mod, in a fixed order (what a tier does to that boss). */
-export function riteModLines(mods, target) {
+/**
+ * The turn a Rite wave written for `baseTurn` arrives on in the battle `run` will fight: the
+ * scheduler's own rule for a scripted wave (ReinforcementScheduler.scriptedWaveTurn), with the
+ * rung's offset and Hollow Hourglass's delay from the run (the params RunManager.getBattleParams
+ * builds), and the locked map's own reinforcements block when there is one.
+ */
+export function riteWaveTurnFor(run, baseTurn, { reinforcements = null } = {}) {
+  return scriptedWaveTurn({
+    baseTurn,
+    reinforcements,
+    difficultyId: run?.difficultyId || 'normal',
+    difficultyTurnOffset:
+      Math.trunc(Number(run?.getDifficultyModifier?.('reinforcementTurnOffset', 0))) || 0,
+    turnDelay: reinforcementDelayOf(run),
+  });
+}
+
+/**
+ * One plain line per mod, in a fixed order (what a tier does to that boss). `turnOf` maps the
+ * Lieutenant's wave turn as written to the turn it arrives (riteWaveTurnFor); without it the
+ * written turn stands.
+ */
+export function riteModLines(mods, target, { turnOf = null } = {}) {
   const m = sanitizeRiteMods(mods, target);
   const lines = [];
   if (target === 'lieutenant') {
@@ -270,7 +312,7 @@ export function riteModLines(mods, target) {
       );
     if (m.waveHollowed)
       lines.push(
-        `${plural(m.waveHollowed, 'Hollowed', 'Hollowed')} ${m.waveHollowed === 1 ? 'joins' : 'join'} him on turn ${m.waveTurn || RITE_WAVE_TURN}`,
+        `${plural(m.waveHollowed, 'Hollowed', 'Hollowed')} ${m.waveHollowed === 1 ? 'joins' : 'join'} him on turn ${turnOf ? turnOf(m.waveTurn || RITE_WAVE_TURN) : m.waveTurn || RITE_WAVE_TURN}`,
       );
   } else if (target === 'entity') {
     if (m.splashDelta)
@@ -293,10 +335,13 @@ export function riteModLines(mods, target) {
  *   next: { band: string, label: string, at: number }|null,
  *   effects: { target: string, lines: string[] }[], log: object[] }|null}
  */
-export function riteView(run, { node = null } = {}) {
+export function riteView(run, { node = null, words = null } = {}) {
   const rite = sanitizeRite(run?.rite);
   if (!rite) return null;
+  // `words` is the count to read (riteWordsShown: the Rite plus a live Vigil's), else the Rite's.
+  if (Number.isFinite(words)) rite.words = whole(words);
   const config = riteConfigOf(run);
+  const turnOf = (turn) => riteWaveTurnFor(run, turn);
   const band = riteBand(rite.words, config);
   const index = config.bands.findIndex((b) => b.id === band);
   const nextBand = config.bands[index + 1] || null;
@@ -318,7 +363,7 @@ export function riteView(run, { node = null } = {}) {
       ? { band: nextBand.id, label: riteBandLabel(nextBand.id), at: whole(nextBand.min) }
       : null,
     effects: targets.map((target) => {
-      const lines = riteModLines(config.mods?.[band]?.[target], target);
+      const lines = riteModLines(config.mods?.[band]?.[target], target, { turnOf });
       return { target, lines: lines.length ? lines : ['No change'] };
     }),
     log: rite.log.map((entry) => ({ ...entry })),

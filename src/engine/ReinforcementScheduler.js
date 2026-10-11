@@ -380,6 +380,27 @@ export function getDueRepeatingReinforcementWaves({
   return due;
 }
 
+/**
+ * The turn a scripted wave (fixed tiles, written into the battle config) arrives: its turn plus
+ * the rung's and the template's offsets, never before turn 1, then `turnDelay` later (Hollow
+ * Hourglass, after the clamp: see resolveScheduledTurn). The one rule the scheduler uses for a
+ * scripted wave and the UI uses to name the turn a wave is due ("join him on turn 5").
+ * @param {object} p
+ * @param {number} p.baseTurn the wave's own turn, as authored
+ * @param {object|null} [p.reinforcements] the config's block (its template offset, if any)
+ */
+export function scriptedWaveTurn({
+  baseTurn,
+  reinforcements = null,
+  difficultyId = 'normal',
+  difficultyTurnOffset = 0,
+  turnDelay = 0,
+} = {}) {
+  const totalOffset =
+    normalizeInteger(difficultyTurnOffset, 0) + getTemplateTurnOffset(reinforcements, difficultyId);
+  return Math.max(1, normalizeInteger(baseTurn, 0) + totalOffset) + delayOf(turnDelay);
+}
+
 function getDueScriptedReinforcementWaves({
   turn,
   reinforcements,
@@ -391,10 +412,6 @@ function getDueScriptedReinforcementWaves({
   if (currentTurn <= 0 || !reinforcements || !Array.isArray(reinforcements.scriptedWaves))
     return [];
 
-  const globalOffset = normalizeInteger(difficultyTurnOffset, 0);
-  const templateOffset = getTemplateTurnOffset(reinforcements, difficultyId);
-  const totalOffset = globalOffset + templateOffset;
-
   const due = [];
   for (
     let scriptedWaveIndex = 0;
@@ -404,8 +421,13 @@ function getDueScriptedReinforcementWaves({
     const scriptedWave = reinforcements.scriptedWaves[scriptedWaveIndex];
     const baseTurn = normalizeInteger(scriptedWave?.turn, 0);
     if (baseTurn <= 0) continue;
-    // The delay after the clamp (see resolveScheduledTurn).
-    const scheduledTurn = Math.max(1, baseTurn + totalOffset) + delayOf(turnDelay);
+    const scheduledTurn = scriptedWaveTurn({
+      baseTurn,
+      reinforcements,
+      difficultyId,
+      difficultyTurnOffset,
+      turnDelay,
+    });
     if (scheduledTurn !== currentTurn) continue;
     due.push({
       waveType: 'scripted',

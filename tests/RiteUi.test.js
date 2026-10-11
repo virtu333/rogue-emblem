@@ -12,25 +12,49 @@
 //   6. a preview promises what the battle will not keep: once the map is locked the card must say
 //      what the LOCKED config holds (not the tier the words stand at now), and "No change" when
 //      the locked map holds nothing;
-//   7. the chip opens, closes, and stays open through a redraw; a tap on the note closes it.
+//   7. the chip opens, closes, and stays open through a redraw; a tap on the note closes it;
+//   8. a wave named for a turn the battle's scheduler does not release it on (Hollow Hourglass
+//      moves every wave a turn later), open or locked;
+//   9. the words shown in a live Vigil are the entry's, not the words being spoken, a rewind keeps
+//      the spoken count it restored, or the words are paid in twice once the battle is won;
+//  10. the Mortuary Column's par payoff is a literal, not the data's, or the Vigil's circle note
+//      is missing from the Vigil only.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+vi.mock('phaser', () => ({
+  default: {
+    Scene: class {},
+    Math: { Clamp: (val, min, max) => Math.max(min, Math.min(max, val)) },
+  },
+}));
+
 import { installFakeDom } from './helpers/fakeDom.js';
 import { _resetInputFocus } from '../src/utils/inputFocus.js';
 import { loadGameData } from './testData.js';
 import { RunManager } from '../src/engine/RunManager.js';
+import { BattleScene } from '../src/scenes/BattleScene.js';
 import { createRite } from '../src/engine/Rite.js';
 import { addBurden } from '../src/engine/Burdens.js';
 import { applyGenerationFields, generateSeededBattle } from '../src/engine/BattleScout.js';
+import { resolveBattleReinforcements } from '../src/engine/ReinforcementSpawns.js';
+import { riteWordsShown } from '../src/engine/Rite.js';
+import { createVigilState } from '../src/engine/Vigil.js';
+import {
+  captureBattleWorldState,
+  restoreBattleWorldState,
+} from '../src/engine/BattleSnapshotState.js';
 import { NodeMapMenu } from '../src/ui/NodeMapMenu.js';
 import { renderLoomCard } from '../src/ui/LoomPanels.js';
 import { pauseBurdenList } from '../src/ui/MobilePauseMenu.js';
 import { pauseBurdenEntries } from '../src/ui/eventMenuModel.js';
 import {
   effectParts,
+  VIGIL_CIRCLE_NOTE,
+  liveRiteOptions,
   lockedRiteLines,
   riteBurdenEntry,
   riteChipModel,
   riteNodeModel,
+  riteNodeNotes,
   riteSourceTotals,
 } from '../src/ui/riteModel.js';
 import { newRun } from './eventKit.js';
@@ -40,6 +64,20 @@ const descentData = () => ({
   ...baseData,
   descent: { ...structuredClone(baseData.descent), enabled: true },
 });
+
+// The tier thresholds are the data's (`descent.json` rite.bands), read here, never typed: the
+// numbers are tuned apart from these surfaces. Each word count below sits relative to a band's
+// own `min`, so it holds for any bands that keep the order Broken < Spoken < Answered with a
+// Spoken band at least three words wide.
+const RITE_BANDS = baseData.descent.rite.bands;
+const bandMin = (id) => RITE_BANDS.find((b) => b.id === id).min;
+const SPOKEN = bandMin('spoken');
+const ANSWERED = bandMin('answered');
+const IN_SPOKEN = SPOKEN + 2; // well inside Spoken
+const IN_ANSWERED = ANSWERED + 2; // well inside Answered
+/** The chip's way-up phrase: "<n> more word(s) to <tier> (<min>)." */
+const toTier = (words, tier, min) =>
+  `${min - words} more word${min - words === 1 ? '' : 's'} to ${tier} (${min}).`;
 
 /** A run standing in the Descent (`difficulty` picks the road) with the Rite at `words`. */
 function descentRun(difficultyId, words, runSeed = 13) {
@@ -82,24 +120,26 @@ describe('the chip’s words', () => {
   });
 
   it('says the words and the tier the run holds, and the words to the next tier', () => {
-    const spoken = riteChipModel(descentRun('normal', 7));
+    const spoken = riteChipModel(descentRun('normal', IN_SPOKEN));
     expect(spoken).toMatchObject({
       id: 'rite',
       label: 'The Rite',
-      short: '7 words · Spoken',
-      chip: 'The Rite: 7 words · Spoken',
+      short: `${IN_SPOKEN} words · Spoken`,
+      chip: `The Rite: ${IN_SPOKEN} words · Spoken`,
       band: 'spoken',
-      // Derived from the spec's table: Answered opens at 12, so 5 more.
-      progress: '5 more words to Answered (12).',
+      // Derived from the band's own threshold: the words still missing to Answered.
+      progress: `${ANSWERED - IN_SPOKEN} more words to Answered (${ANSWERED}).`,
     });
-    expect(riteChipModel(descentRun('normal', 11)).progress).toBe('1 more word to Answered (12).');
-    expect(riteChipModel(descentRun('normal', 12))).toMatchObject({
-      short: '12 words · Answered',
+    expect(riteChipModel(descentRun('normal', ANSWERED - 1)).progress).toBe(
+      `1 more word to Answered (${ANSWERED}).`,
+    );
+    expect(riteChipModel(descentRun('normal', ANSWERED))).toMatchObject({
+      short: `${ANSWERED} words · Answered`,
       progress: 'The highest tier.',
     });
     expect(riteChipModel(descentRun('normal', 0))).toMatchObject({
       short: '0 words · Broken',
-      progress: '5 more words to Spoken (5).',
+      progress: `${SPOKEN} more words to Spoken (${SPOKEN}).`,
     });
     expect(riteChipModel(descentRun('normal', 1)).short).toBe('1 word · Broken');
   });
@@ -110,7 +150,7 @@ describe('the chip’s words', () => {
       ['lieutenant', 'The Lieutenant', "'s 2 strongest guards are gone from his side"],
       ['entity', 'The Entity', "'s splash strikes 1 tile fewer"],
     ]);
-    const answered = riteChipModel(descentRun('hard', 14));
+    const answered = riteChipModel(descentRun('hard', IN_ANSWERED));
     expect(answered.effects[0].rest).toBe(
       ' gains 1 Revival Stone: 1 more health bar. 2 Hollowed join him on turn 4',
     );
@@ -118,7 +158,7 @@ describe('the chip’s words', () => {
       "'s splash strikes 1 tile more. Each of the Entity's waves brings 2 more Hollowed",
     );
     // Spoken changes nothing: a line that never names the boss gets him and a colon.
-    const spoken = riteChipModel(descentRun('hard', 6));
+    const spoken = riteChipModel(descentRun('hard', SPOKEN + 1));
     expect(spoken.effects.map((e) => `${e.name}${e.rest}`)).toEqual([
       'The Lieutenant: No change',
       'The Entity: No change',
@@ -128,15 +168,15 @@ describe('the chip’s words', () => {
       rest: ': No change',
     });
     expect(spoken.terms).toBe(
-      'Spoken. 6 more words to Answered (12). The Lieutenant: No change. The Entity: No change. From: The Eclipse +6.',
+      `Spoken. ${toTier(SPOKEN + 1, 'Answered', ANSWERED)} The Lieutenant: No change. The Entity: No change. From: The Eclipse +${SPOKEN + 1}.`,
     );
   });
 
   it('a Lieutenant road lists the Lieutenant only; the Entity road drops him once his gate fell', () => {
-    expect(riteChipModel(descentRun('normal', 14)).effects.map((e) => e.target)).toEqual([
+    expect(riteChipModel(descentRun('normal', IN_ANSWERED)).effects.map((e) => e.target)).toEqual([
       'lieutenant',
     ]);
-    const rm = descentRun('hard', 14);
+    const rm = descentRun('hard', IN_ANSWERED);
     expect(riteChipModel(rm).effects.map((e) => e.target)).toEqual(['lieutenant', 'entity']);
     nodeOf(rm, 'gate').completed = true;
     expect(riteChipModel(rm).effects.map((e) => e.target)).toEqual(['entity']);
@@ -144,7 +184,7 @@ describe('the chip’s words', () => {
     nodeOf(rm, 'entity').completed = true;
     const done = riteChipModel(rm);
     expect(done.effects).toEqual([]);
-    expect(done.terms).toBe('Answered. The highest tier. From: The Eclipse +14.');
+    expect(done.terms).toBe(`Answered. The highest tier. From: The Eclipse +${IN_ANSWERED}.`);
   });
 
   it('says where the words came from, net by source, in the log’s order, never a zero', () => {
@@ -177,17 +217,20 @@ describe('the chip’s words', () => {
 
 describe('the pause list', () => {
   it('leads with the Rite and keeps every burden after it', () => {
-    const rm = descentRun('hard', 7);
+    const rm = descentRun('hard', IN_SPOKEN);
     expect(addBurden(rm, 'debt', { owed: 450 }).ok).toBe(true);
     const entries = pauseBurdenEntries(rm, rm.gameData.events);
     expect(entries.map((e) => e.id)).toEqual(['rite', 'debt']);
-    expect(entries[0]).toMatchObject({ label: 'The Rite', short: '7 words · Spoken' });
-    expect(entries[0].text).toContain('5 more words to Answered (12).');
+    expect(entries[0]).toMatchObject({
+      label: 'The Rite',
+      short: `${IN_SPOKEN} words · Spoken`,
+    });
+    expect(entries[0].text).toContain(toTier(IN_SPOKEN, 'Answered', ANSWERED));
     const list = pauseBurdenList(entries);
     expect(list.getAttribute('aria-label')).toBe('The Rite, burdens');
     const items = list.querySelectorAll('li');
     expect(items[0].className).toBe('is-rite');
-    expect(items[0].textContent).toContain('The Rite · 7 words · Spoken');
+    expect(items[0].textContent).toContain(`The Rite · ${IN_SPOKEN} words · Spoken`);
     expect(items[1].textContent).toContain('Debt');
     // Alone it is the whole list, named so.
     expect(pauseBurdenList([entries[0]]).getAttribute('aria-label')).toBe('The Rite');
@@ -202,11 +245,13 @@ describe('the chip on the route map', () => {
 
   it('an ordinary run has no row; a Descent run has the Rite chip, first, before a burden', () => {
     expect(rowFor(newRun())).toBeNull();
-    const rm = descentRun('hard', 9);
+    const rm = descentRun('hard', IN_SPOKEN);
     const alone = rowFor(rm);
     expect(alone.getAttribute('aria-label')).toBe('The Rite');
     expect(alone.querySelectorAll('.re-burden').map((c) => c.dataset.burden)).toEqual(['rite']);
-    expect(alone.querySelector('.re-burden').textContent).toBe('The Rite9 words · Spoken');
+    expect(alone.querySelector('.re-burden').textContent).toBe(
+      `The Rite${IN_SPOKEN} words · Spoken`,
+    );
     expect(addBurden(rm, 'debt', { owed: 450 }).ok).toBe(true);
     const row = rowFor(rm);
     expect(row.getAttribute('aria-label')).toBe('The Rite, burdens and contract');
@@ -217,7 +262,7 @@ describe('the chip on the route map', () => {
   });
 
   it('a tap opens the note (the tier, the way up, each boss, the sources), a second closes it', () => {
-    const rm = descentRun('hard', 14);
+    const rm = descentRun('hard', IN_ANSWERED);
     const row = rowFor(rm);
     const chip = row.querySelector('.re-rite');
     const note = row.querySelector('.re-burden-note');
@@ -235,7 +280,9 @@ describe('the chip on the route map', () => {
     expect(lines[0].textContent).toBe(
       'The Lieutenant gains 1 Revival Stone: 1 more health bar. 2 Hollowed join him on turn 4',
     );
-    expect(note.querySelector('.re-rite-from').textContent).toBe('From: The Eclipse +14');
+    expect(note.querySelector('.re-rite-from').textContent).toBe(
+      `From: The Eclipse +${IN_ANSWERED}`,
+    );
     // The title (hover, long press) holds the whole of it.
     expect(chip.title).toContain('The Rite: Answered. The highest tier.');
     chip.onclick();
@@ -293,7 +340,7 @@ describe('the boss node’s preview', () => {
   });
 
   it('once locked it says what the locked config holds, not the tier the words stand at now', () => {
-    const rm = descentRun('normal', 20);
+    const rm = descentRun('normal', IN_ANSWERED + 6);
     const node = nodeOf(rm, 'lieutenant');
     // The map was locked at Answered ...
     const config = generated(rm, node);
@@ -400,14 +447,14 @@ describe('the loom card', () => {
   };
 
   it('a boss node carries the Rite block beside its boss line; nothing else does', () => {
-    const rm = descentRun('hard', 14);
+    const rm = descentRun('hard', IN_ANSWERED);
     const card = render(rm, nodeOf(rm, 'gate'));
     const block = card.querySelector('.re-loom-rite');
     expect(block).not.toBeNull();
     expect(block.dataset.rite).toBe('open');
     expect(block.dataset.riteTarget).toBe('lieutenant');
     expect(block.querySelector('.re-loom-rite-head').textContent).toBe(
-      'The Rite · Answered · 14 words',
+      `The Rite · Answered · ${IN_ANSWERED} words`,
     );
     expect(block.querySelector('.re-loom-rite-lines').children.map((li) => li.textContent)).toEqual(
       ['The Lieutenant gains 1 Revival Stone: 1 more health bar', '2 Hollowed join him on turn 4'],
@@ -428,7 +475,7 @@ describe('the loom card', () => {
   });
 
   it('a locked boss node says so', () => {
-    const rm = descentRun('hard', 14);
+    const rm = descentRun('hard', IN_ANSWERED);
     const node = nodeOf(rm, 'entity');
     rm.lockBattleConfig(node.id, generated(rm, node));
     const block = render(rm, node).querySelector('.re-loom-rite');
@@ -438,5 +485,209 @@ describe('the loom card', () => {
     const text = block.textContent;
     expect(text).toContain('splash strikes 1 tile more');
     expect(text).not.toMatch(/HP|Stone|hinge|rally/i);
+  });
+});
+
+describe('the Lieutenant’s wave turn, with the Hollow Hourglass', () => {
+  const holdHourglass = (rm, turns = 1) => {
+    rm.blessingRuntimeModifiers = { ...rm.blessingRuntimeModifiers, reinforcementDelay: turns };
+  };
+  /** The turn the battle's real scheduler releases the Rite's wave on (null: never in 12). */
+  function releaseTurn(rm, node, config) {
+    const battleParams = rm.getBattleParams(node);
+    const index = config.reinforcements.scriptedWaves.findIndex((w) => w.rite);
+    for (let turn = 1; turn <= 12; turn++) {
+      const out = resolveBattleReinforcements({
+        turn,
+        seed: battleParams.battleSeed,
+        battleConfig: config,
+        battleParams,
+        gameData: rm.gameData,
+        fallbackDifficultyId: rm.difficultyId,
+      });
+      if (out.dueWaves.some((w) => w.waveType === 'scripted' && w.waveIndex === index)) return turn;
+    }
+    return null;
+  }
+  const waveLine = (lines) => lines.find((l) => / joins? him on turn/.test(l));
+  const turnIn = (line) => Number(/turn (\d+)$/.exec(line)[1]);
+
+  it('the open preview names the turn the scheduler will release the wave on, with and without', () => {
+    const plain = descentRun('normal', IN_ANSWERED);
+    const node = nodeOf(plain, 'lieutenant');
+    const base = releaseTurn(plain, node, generated(plain, node));
+    expect(turnIn(waveLine(riteNodeModel(plain, node).lines))).toBe(base);
+
+    const held = descentRun('normal', IN_ANSWERED);
+    holdHourglass(held);
+    const heldNode = nodeOf(held, 'lieutenant');
+    const delayed = releaseTurn(held, heldNode, generated(held, heldNode));
+    expect(delayed).toBe(base + 1);
+    expect(turnIn(waveLine(riteNodeModel(held, heldNode).lines))).toBe(delayed);
+    // The chip's note and terms say the same turn.
+    const effect = riteChipModel(held).effects.find((e) => e.target === 'lieutenant');
+    expect(turnIn(waveLine(effect.lines))).toBe(delayed);
+  });
+
+  it('the locked preview names it too, and follows the delay the battle will apply', () => {
+    const rm = descentRun('normal', IN_ANSWERED);
+    const node = nodeOf(rm, 'lieutenant');
+    const config = generated(rm, node);
+    rm.lockBattleConfig(node.id, config);
+    const base = releaseTurn(rm, node, config);
+    expect(riteNodeModel(rm, node).state).toBe('locked');
+    expect(turnIn(waveLine(riteNodeModel(rm, node).lines))).toBe(base);
+    // The Hourglass is taken after the map was locked: the battle's params carry it at entry.
+    holdHourglass(rm, 2);
+    expect(releaseTurn(rm, node, config)).toBe(base + 2);
+    expect(turnIn(waveLine(riteNodeModel(rm, node).lines))).toBe(base + 2);
+  });
+
+  it('the Entity’s lines name no turn, so the delay changes none of them', () => {
+    const rm = descentRun('hard', IN_ANSWERED);
+    const before = riteNodeModel(rm, nodeOf(rm, 'entity')).lines;
+    holdHourglass(rm);
+    expect(riteNodeModel(rm, nodeOf(rm, 'entity')).lines).toEqual(before);
+  });
+});
+
+describe('the words shown in a live Vigil', () => {
+  const vigil = (words) => ({ ...createVigilState(), words });
+
+  it('are the Rite at the battle’s start plus the words spoken, and write nothing', () => {
+    const rm = descentRun('hard', IN_SPOKEN);
+    const spoken = ANSWERED - IN_SPOKEN;
+    const live = liveRiteOptions(vigil(spoken), { riteAtEntry: IN_SPOKEN });
+    expect(riteWordsShown(rm, vigil(spoken), { atEntry: IN_SPOKEN })).toBe(IN_SPOKEN + spoken);
+    const entry = pauseBurdenEntries(rm, rm.gameData.events, live)[0];
+    // The tier and the way up follow the live count, the pause entry and the chip alike.
+    expect(entry.short).toBe(`${ANSWERED} words · Answered`);
+    expect(entry.text).toContain('The highest tier.');
+    expect(entry.text).toContain(`From: The Eclipse +${IN_SPOKEN} · The Vigil +${spoken}`);
+    const chip = riteChipModel(rm, live);
+    expect(chip).toMatchObject({ band: 'answered', words: ANSWERED });
+    // The run's own Rite is untouched: it changes at the victory commit only.
+    expect(rm.rite.words).toBe(IN_SPOKEN);
+    expect(rm.rite.log).toHaveLength(1);
+  });
+
+  it('are the run’s own outside a battle, and with nothing spoken yet', () => {
+    const rm = descentRun('hard', IN_SPOKEN);
+    expect(pauseBurdenEntries(rm, rm.gameData.events)[0].short).toBe(`${IN_SPOKEN} words · Spoken`);
+    const none = liveRiteOptions(null, { riteAtEntry: IN_SPOKEN });
+    expect(pauseBurdenEntries(rm, rm.gameData.events, none)[0].short).toBe(
+      `${IN_SPOKEN} words · Spoken`,
+    );
+    expect(riteWordsShown(rm, vigil(0), { atEntry: IN_SPOKEN })).toBe(IN_SPOKEN);
+    expect(riteWordsShown({ rite: null }, vigil(3))).toBeNull();
+    expect(riteBurdenEntry({ rite: null }, liveRiteOptions(vigil(3), {}))).toBeNull();
+  });
+
+  it('are not paid twice once the victory commit has put them in the run’s Rite', () => {
+    const rm = descentRun('hard', IN_SPOKEN);
+    const spoken = 3;
+    // The commit (RunManager.completeBattle) moved the Rite on; the scene still holds its state.
+    rm.rite = { ...rm.rite, words: IN_SPOKEN + spoken };
+    const live = liveRiteOptions(vigil(spoken), { riteAtEntry: IN_SPOKEN });
+    expect(pauseBurdenEntries(rm, rm.gameData.events, live)[0].short).toBe(
+      `${IN_SPOKEN + spoken} words · ${riteChipModel(rm).bandLabel}`,
+    );
+  });
+
+  it('are what the battle scene hands the pause list: its own state and its entry words', () => {
+    const rm = descentRun('hard', IN_SPOKEN);
+    const scene = {
+      _vigilState: vigil(ANSWERED - IN_SPOKEN),
+      battleParams: { riteAtEntry: IN_SPOKEN },
+    };
+    const options = BattleScene.prototype.liveRiteOptions.call(scene);
+    expect(pauseBurdenEntries(rm, rm.gameData.events, options)[0].short).toBe(
+      `${ANSWERED} words · Answered`,
+    );
+    // A map with no Vigil has no state to read.
+    const quiet = BattleScene.prototype.liveRiteOptions.call({
+      _vigilState: null,
+      battleParams: {},
+    });
+    expect(pauseBurdenEntries(rm, rm.gameData.events, quiet)[0].short).toBe(
+      `${IN_SPOKEN} words · Spoken`,
+    );
+  });
+
+  it('after a rewind show the rewound count, not the spoken one', () => {
+    const rm = descentRun('hard', IN_SPOKEN);
+    const scene = {
+      playerUnits: [],
+      enemyUnits: [],
+      npcUnits: [],
+      grid: null,
+      runManager: rm,
+      gameData: rm.gameData,
+      battleParams: { riteAtEntry: IN_SPOKEN },
+      _vigilState: vigil(1),
+    };
+    const snapshot = JSON.parse(JSON.stringify(captureBattleWorldState(scene)));
+    scene._vigilState = vigil(1 + 3);
+    const shown = () =>
+      pauseBurdenEntries(
+        rm,
+        rm.gameData.events,
+        liveRiteOptions(scene._vigilState, scene.battleParams),
+      )[0].short;
+    expect(shown()).toContain(`${IN_SPOKEN + 4} words`);
+    restoreBattleWorldState(scene, snapshot);
+    expect(scene._vigilState.words).toBe(1);
+    expect(shown()).toContain(`${IN_SPOKEN + 1} words`);
+  });
+});
+
+describe('the notes under a route node', () => {
+  it('the Mortuary Column says what a win at or under par does, from the data', () => {
+    const rm = descentRun('normal', IN_SPOKEN);
+    const column = nodeOf(rm, 'column');
+    const delta = rm.gameData.descent.rite.underPar.column;
+    expect(delta).toBeLessThan(0);
+    const word = Math.abs(delta) === 1 ? 'word' : 'words';
+    expect(riteNodeNotes(rm, column)).toEqual([
+      `Win at or under par: the Rite loses ${Math.abs(delta)} ${word}.`,
+    ]);
+    // A changed number is read, not remembered: a gain and a bigger loss word themselves.
+    rm.gameData = {
+      ...rm.gameData,
+      descent: {
+        ...rm.gameData.descent,
+        rite: { ...rm.gameData.descent.rite, underPar: { column: 2 } },
+      },
+    };
+    expect(riteNodeNotes(rm, column)).toEqual(['Win at or under par: the Rite gains 2 words.']);
+    rm.gameData.descent.rite.underPar = { column: -2 };
+    expect(riteNodeNotes(rm, column)).toEqual(['Win at or under par: the Rite loses 2 words.']);
+    // Won already, no Rite, or another node: nothing.
+    expect(riteNodeNotes(rm, { ...column, completed: true })).toEqual([]);
+    expect(riteNodeNotes(newRun(), column)).toEqual([]);
+    expect(riteNodeNotes(rm, nodeOf(rm, 'stair'))).toEqual([]);
+  });
+
+  it('the Vigil says a circle stops its summons, not its Voice’s words; no other node does', () => {
+    const rm = descentRun('normal', IN_SPOKEN);
+    const vigilNode = nodeOf(rm, 'vigil');
+    expect(riteNodeNotes(rm, vigilNode)).toEqual([VIGIL_CIRCLE_NOTE]);
+    expect(VIGIL_CIRCLE_NOTE.length).toBeLessThan(90);
+    for (const key of ['stair', 'column', 'lieutenant'])
+      expect(riteNodeNotes(rm, nodeOf(rm, key))).not.toContain(VIGIL_CIRCLE_NOTE);
+  });
+
+  it('the loom card carries them under the node’s text', () => {
+    const rm = descentRun('normal', IN_SPOKEN);
+    const card = document.createElement('section');
+    renderLoomCard(card, nodeOf(rm, 'column'), {
+      model: { nodeState: () => 'live', steps: new Map() },
+      actId: rm.currentAct,
+      gameData: rm.gameData,
+      runManager: rm,
+      isFirstBattle: () => false,
+    });
+    const notes = card.querySelectorAll('.re-loom-rite-note-line').map((p) => p.textContent);
+    expect(notes).toEqual(riteNodeNotes(rm, nodeOf(rm, 'column')));
   });
 });

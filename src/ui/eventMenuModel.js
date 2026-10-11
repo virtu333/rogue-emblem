@@ -307,13 +307,14 @@ export function owedContractChipModel(owed) {
  * and in the Descent the Rite first.
  * @param {object} run - RunManager
  * @param {object} [catalog] - the events catalog (burden definitions)
+ * @param {object} [riteOpts] - riteChipModel's options: `live`, a battle in progress
  */
-export function pauseBurdenEntries(run, catalog = null) {
+export function pauseBurdenEntries(run, catalog = null, riteOpts = undefined) {
   const burdens = describeBurdens(run, catalog);
   const contract =
     contractChipModel(describeContract(run)) || owedContractChipModel(describeOwedContract(run));
   // The Descent's Rite (riteModel.js) leads the list: a state of the act, not a price of an event.
-  const rite = riteBurdenEntry(run);
+  const rite = riteBurdenEntry(run, riteOpts);
   return [
     ...(rite ? [rite] : []),
     ...burdens,
