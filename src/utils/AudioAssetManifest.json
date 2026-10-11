@@ -1,5 +1,5 @@
 {
-  "revision": "b4dba124fefb91f11301eb1d7c9274096d56082e4a3ee9bd706f23f0580d905e",
+  "revision": "3c932444489c5718f9b8fdb0386d0c491b8760ee6963de425fb1e973565daabf",
   "entries": {
     "music_battle_act1": {
       "url": "assets/audio/versioned/music/music_battle_act1-23150bcd27b5efe1e43dbfbd97cb631e96cf859162b45e3693170f2548a8f7c7.mp3",
@@ -171,6 +171,16 @@
       "sha256": "202beefc112c94dc98e3191e88371b21587655f983cd55a0643f22d4c1409a57",
       "timeline": "6ad2fe018a82886622d6dc67d641b198b2d26b0557bf5c16908283a404e8d4da"
     },
+    "music_battle_descent": {
+      "url": "assets/audio/versioned/music/music_battle_descent-93c0d26444a474269b6c163922362a9d593259f5d8923ccdfcde0a92ec858794.mp3",
+      "sha256": "93c0d26444a474269b6c163922362a9d593259f5d8923ccdfcde0a92ec858794",
+      "timeline": "32064e86db0bed8ba99ce4643c5a388c06c98217529a6b9277180f10bca245b3"
+    },
+    "music_battle_descent_calm": {
+      "url": "assets/audio/versioned/music/music_battle_descent_calm-1cc8c7107076fe77c7776eb8cb530405307855bd4aa37bcc1935c92012dfb122.mp3",
+      "sha256": "1cc8c7107076fe77c7776eb8cb530405307855bd4aa37bcc1935c92012dfb122",
+      "timeline": "32064e86db0bed8ba99ce4643c5a388c06c98217529a6b9277180f10bca245b3"
+    },
     "music_battle_eclipsed": {
       "url": "assets/audio/versioned/music/music_battle_eclipsed-19248dd4ba5e6ae27d9a54a9a55a5c4016c7dd06f37017728bc31023f809b7aa.mp3",
       "sha256": "19248dd4ba5e6ae27d9a54a9a55a5c4016c7dd06f37017728bc31023f809b7aa",
@@ -300,6 +310,16 @@
       "url": "assets/audio/versioned/music/music_battle_tundra_calm-7a11f39fa011ae69225def4432e5154a79a689009b36614498902ce03daf90e4.mp3",
       "sha256": "7a11f39fa011ae69225def4432e5154a79a689009b36614498902ce03daf90e4",
       "timeline": "ac596352b66b6e20af95f82e39c57b1cb793c3a38085b27e898492c075334107"
+    },
+    "music_battle_vigil": {
+      "url": "assets/audio/versioned/music/music_battle_vigil-67edaffe91a85567d1930130b9cf1c2c5fbb642384896666183bc0a629e1bbc9.mp3",
+      "sha256": "67edaffe91a85567d1930130b9cf1c2c5fbb642384896666183bc0a629e1bbc9",
+      "timeline": "7f89cfa97f215ae00888283dd51da86f617cbac2f090403eae013a04b203ade2"
+    },
+    "music_battle_vigil_calm": {
+      "url": "assets/audio/versioned/music/music_battle_vigil_calm-23102af709bd27f549906623c84106e5faa98cada46998b9d7302bbc9bbfe56a.mp3",
+      "sha256": "23102af709bd27f549906623c84106e5faa98cada46998b9d7302bbc9bbfe56a",
+      "timeline": "7f89cfa97f215ae00888283dd51da86f617cbac2f090403eae013a04b203ade2"
     },
     "music_battle_village": {
       "url": "assets/audio/versioned/music/music_battle_village-ae8245fa0790a9a4bcd4835d50147c33353401c0916e5a683952c18fb6e4fc62.mp3",
@@ -1130,6 +1150,42 @@
     "stinger_sealed_G": {
       "url": "assets/audio/versioned/stingers/stinger_sealed_G-c122be96771bd3092a2bb04128d1c6f3388c95e241065f504d5a8215cce1f21f.mp3",
       "sha256": "c122be96771bd3092a2bb04128d1c6f3388c95e241065f504d5a8215cce1f21f"
+    },
+    "stinger_voice_silenced_A": {
+      "url": "assets/audio/versioned/stingers/stinger_voice_silenced_A-c4c10e17107bd9c7c921733c227b81892d4b2b019ccd66de003193f5bb7e7206.mp3",
+      "sha256": "c4c10e17107bd9c7c921733c227b81892d4b2b019ccd66de003193f5bb7e7206"
+    },
+    "stinger_voice_silenced_B": {
+      "url": "assets/audio/versioned/stingers/stinger_voice_silenced_B-fb68960c859ddcf9d84e070bb57639c95bff06f667e27bf7f6dddb2dfc7f2b00.mp3",
+      "sha256": "fb68960c859ddcf9d84e070bb57639c95bff06f667e27bf7f6dddb2dfc7f2b00"
+    },
+    "stinger_voice_silenced_Bb": {
+      "url": "assets/audio/versioned/stingers/stinger_voice_silenced_Bb-e5c94d60a23270f851c41d8db85a2d7750d01addedf69be6a77c674be452e355.mp3",
+      "sha256": "e5c94d60a23270f851c41d8db85a2d7750d01addedf69be6a77c674be452e355"
+    },
+    "stinger_voice_silenced_C": {
+      "url": "assets/audio/versioned/stingers/stinger_voice_silenced_C-419b3f4b42f7ec771becbd9d50a5118f64ad7c76a2c0cd212c82bdc5014e9a93.mp3",
+      "sha256": "419b3f4b42f7ec771becbd9d50a5118f64ad7c76a2c0cd212c82bdc5014e9a93"
+    },
+    "stinger_voice_silenced_D": {
+      "url": "assets/audio/versioned/stingers/stinger_voice_silenced_D-86e390aa82ea85d5c0f83500b76030d755ceaea7a2784d3aa6b246c337c9ef89.mp3",
+      "sha256": "86e390aa82ea85d5c0f83500b76030d755ceaea7a2784d3aa6b246c337c9ef89"
+    },
+    "stinger_voice_silenced_Db": {
+      "url": "assets/audio/versioned/stingers/stinger_voice_silenced_Db-40a178168a632fde26af5b78be7932a47b11ee3f7d4df29246cfd438657bb2c7.mp3",
+      "sha256": "40a178168a632fde26af5b78be7932a47b11ee3f7d4df29246cfd438657bb2c7"
+    },
+    "stinger_voice_silenced_E": {
+      "url": "assets/audio/versioned/stingers/stinger_voice_silenced_E-546ab0be99c510ccd261153a1a59a27740398b940600b2bbcfaa4025adc2ee92.mp3",
+      "sha256": "546ab0be99c510ccd261153a1a59a27740398b940600b2bbcfaa4025adc2ee92"
+    },
+    "stinger_voice_silenced_F": {
+      "url": "assets/audio/versioned/stingers/stinger_voice_silenced_F-3e243f9f360ab59e77cd3e49a72a0452143ae7a6d309f6629035fe80dfe2d34a.mp3",
+      "sha256": "3e243f9f360ab59e77cd3e49a72a0452143ae7a6d309f6629035fe80dfe2d34a"
+    },
+    "stinger_voice_silenced_G": {
+      "url": "assets/audio/versioned/stingers/stinger_voice_silenced_G-7496211c65b77e47c9f517d746016f687046f3cee04b4956ce80b99c7e324001.mp3",
+      "sha256": "7496211c65b77e47c9f517d746016f687046f3cee04b4956ce80b99c7e324001"
     }
   }
 }

@@ -38,6 +38,16 @@ import {
   pendingRequiredRecruits,
   routObjectiveLabel,
 } from '../engine/RoutObjective.js';
+import {
+  evaluateObjectives,
+  felledObjectiveView,
+  isObjectiveTarget,
+  objectiveGoalSentences,
+  objectiveKindOf,
+  objectivesOf,
+  remainingObjectiveTargets,
+  statusView,
+} from '../engine/BattleObjectives.js';
 import { battleSpeed, waitDuration, waitTween } from '../utils/combatTiming.js';
 import {
   ENEMY_STEP_LABEL,
@@ -176,8 +186,7 @@ import {
   getFootprint,
   getFootprintKeys,
   combatDistance,
-  rollSplashTiles,
-  rollSplashDamage,
+  entitySplash,
   getEntityCenter,
   entityHealth,
 } from '../engine/EntitySystem.js';
@@ -258,7 +267,6 @@ import {
   TERRAIN,
   LAVA_CRACK_DAMAGE,
   GOLD_LOOT_REWARD_MULTIPLIER,
-  ENTITY_SPLASH_COUNT,
   ENTITY_FOOTPRINT,
   ENTITY_PRIMARY_ATTACK_RANGE,
 } from '../utils/constants.js';
@@ -373,7 +381,7 @@ import {
 } from '../engine/ReinforcementSpawns.js';
 import { routLadderObjectiveLine, routLadderStatus } from '../engine/RoutLadder.js';
 import { applyHoldSpawn } from '../engine/HoldActivation.js';
-import { settleArtilleryStances } from '../engine/SiegeArtillery.js';
+import { applyPostSpawn, settleArtilleryStances } from '../engine/SiegeArtillery.js';
 import {
   transitionToScene,
   transitionToSceneWithBlockedRetry,
@@ -410,6 +418,8 @@ import { RecruitBeaconController } from '../ui/RecruitBeaconController.js';
 import { SMASH_TARGET_STATE, ZombieRemainsController } from '../ui/ZombieRemainsController.js';
 import { NecromancyController } from '../ui/NecromancyController.js';
 import { isNecromancer } from '../engine/Necromancy.js';
+import { createVigilState, isVoiceOf } from '../engine/Vigil.js';
+import { VigilController } from '../ui/VigilController.js';
 import { classChangeItemBlock } from '../engine/TwistedBoons.js';
 import { HealController } from '../ui/HealController.js';
 import { InputController } from '../ui/InputController.js';
@@ -506,6 +516,11 @@ function remainsOf(scene) {
 /** The battle's Necromancer raises and crumbles (NecromancyController), made on first use. */
 function necromancyOf(scene) {
   return (scene._necromancyCtrl ||= new NecromancyController(scene));
+}
+
+/** The battle's Vigil (VigilController: its markers, words and calls), made on first use. */
+function vigilOf(scene) {
+  return (scene._vigilCtrl ||= new VigilController(scene));
 }
 
 /** Reset per-battle state on a unit at deploy time. */
@@ -875,6 +890,10 @@ export class BattleScene extends Phaser.Scene {
     if (this._necromancyCtrl) {
       this._necromancyCtrl.destroy();
       this._necromancyCtrl = null;
+    }
+    if (this._vigilCtrl) {
+      this._vigilCtrl.destroy();
+      this._vigilCtrl = null;
     }
     if (this._promotionController) {
       this._promotionController.destroy();
@@ -1683,6 +1702,9 @@ export class BattleScene extends Phaser.Scene {
       this.npcUnits = [];
       this.ballistas = (this.battleConfig?.ballistas || []).map((b) => ({ ...b }));
       this._zombieTombstones = [];
+      // The Vigil's words and calls (engine/Vigil.js): fresh here, a resume's checkpoint puts
+      // its own back (restoreBattleWorldState). PR 9's victory commit reads `.words`.
+      this._vigilState = bc.vigil ? createVigilState() : null;
 
       // Input lockout to prevent menu clicks bleeding through to map
       this._uiClickBlocked = false;
@@ -1819,6 +1841,10 @@ export class BattleScene extends Phaser.Scene {
       // battleConfig.villageTile (resume restores state from the suspend
       // checkpoint; the controller only re-renders/re-applies terrain).
       (this._villageController ||= new VillageController(this)).create();
+
+      // The Vigil's sigil and circle markers (a Vigil map only).
+      this._vigilCtrl?.destroy();
+      this._vigilCtrl = bc.vigil ? new VigilController(this).create() : null;
 
       // Spawn NPC for recruit battles. RecruitNodeSystem builds the exact recruit the
       // Loom previewed (own seeded stream, so the battle RNG is not consumed).
@@ -2388,6 +2414,18 @@ export class BattleScene extends Phaser.Scene {
           if (!isCurrentBattleSession(this, session)) return;
           console.warn('[BattleScene] boss pre-battle dialogue failed:', err);
         }
+      } else if (this.battleConfig?.vigil && this.runManager) {
+        // The Vigil has no boss card: its Voices speak as the army comes in, once a run.
+        try {
+          await this._showStoryDialogueOnce(
+            'vigil_entry',
+            (this._battleBeats ||= new BattleBeatsController(this)).getVigilEntryEntries(),
+          );
+          if (!isCurrentBattleSession(this, session)) return;
+        } catch (err) {
+          if (!isCurrentBattleSession(this, session)) return;
+          console.warn('[BattleScene] vigil entry dialogue failed:', err);
+        }
       }
 
       // Start the battle (or pick a suspended one back up mid-turn)
@@ -2762,6 +2800,8 @@ export class BattleScene extends Phaser.Scene {
 
     if (spawn.areaArt) bindEnemyAreaArt(enemy, spawn.areaArt, this.gameData.weaponArts?.arts);
     if (spawn.aiMode) enemy.aiMode = spawn.aiMode;
+    // An authored post remembers its tile, to walk back when moved off it (SiegeArtillery).
+    applyPostSpawn(enemy, spawn);
     // A garrison holder keeps its post until its pack wakes (HoldActivation).
     applyHoldSpawn(enemy, spawn);
     if (
@@ -3704,6 +3744,7 @@ export class BattleScene extends Phaser.Scene {
     this._pinnedThreats?.refresh();
     this._recruitBeacon?.sync();
     this._remainsCtrl?.sync();
+    this._vigilCtrl?.sync();
     this._mobileBattleHud?.sync();
     this._portraitBattle?.update();
     if (!this._uiCamera) return;
@@ -9430,6 +9471,11 @@ export class BattleScene extends Phaser.Scene {
         await necromancyOf(this).crumble(unit);
         if (!isCurrentBattleSession(this, session)) return;
       }
+      // A Voice of the Vigil falls silent: its circle closes for good (its called Hollowed stay).
+      if (this.battleConfig?.vigil && isVoiceOf(this.battleConfig.vigil, unit)) {
+        await vigilOf(this).onVoiceFell(unit, { col: deathCol, row: deathRow });
+        if (!isCurrentBattleSession(this, session)) return;
+      }
     }
     safeBattlePresentation('death hover', () => this._inputController?.refreshHoverInfo(), {
       scene: this,
@@ -9439,16 +9485,20 @@ export class BattleScene extends Phaser.Scene {
       scene: this,
     });
     // Boss death: the bar drains away; FOE VANQUISHED when the battle goes on
-    // (seize maps always -- the throne is still to take).
-    if (unit.isBoss && unit.faction === 'enemy') {
+    // (seize maps always -- the throne is still to take). On a defeat map a fallen target (a
+    // Voice is no boss) gets the band too, naming how many still stand.
+    const isBossFall = unit.isBoss && unit.faction === 'enemy';
+    if (isBossFall)
       safeBattlePresentation('boss death', () => this._bossPresence?.onBossDefeated(), {
         scene: this,
       });
+    if (isBossFall || isObjectiveTarget(this.battleConfig, unit)) {
       if (
         shouldShowFelled({
-          objective: this.battleConfig.objective,
+          objective: objectiveKindOf(this.battleConfig),
           remaining: this.enemyUnits.length,
           reviving: this._zombieTombstones?.length || 0,
+          remainingTargets: remainingObjectiveTargets(this.battleConfig, this.objectiveField()),
         })
       )
         safeBattlePresentation('boss defeated banner', () => this._showBossDefeatedBanner(), {
@@ -9785,7 +9835,7 @@ export class BattleScene extends Phaser.Scene {
               'battle_first_turn_hints',
               async () => {
                 if (!isSceneActiveForAsync() || this.battleState !== 'PLAYER_IDLE') return;
-                const objective = this.battleParams.objective;
+                const objective = objectiveKindOf(this.battleConfig) ?? this.battleParams.objective;
                 // A recruit battle opens without a lesson dialog: the Guidance field
                 // note (guide_recruit_on_map) names the recruit, never blocks, and
                 // honours Guidance Off. Other first-battle lessons wait for a later fight.
@@ -9801,6 +9851,12 @@ export class BattleScene extends Phaser.Scene {
                     this,
                     'battle_escape',
                     'Escape: bring your Lords to the green exits. The surviving army retreats when the last Lord leaves.',
+                  );
+                else if (objective === 'defeat')
+                  showContextualHint(
+                    this,
+                    'battle_objective_defeat',
+                    this.objectiveGoalLine() || 'Defeat the targets. The rest need not fall.',
                   );
                 else
                   showContextualHint(
@@ -9881,6 +9937,7 @@ export class BattleScene extends Phaser.Scene {
           await this.processTurnStartEffects(this.enemyUnits);
           await this.processZombieRevival();
           await this.processNecromancy();
+          await this.processVigil();
           await this.processBallistaFire(this.playerUnits, 'enemy');
           this.applyDueHybridOverridesForTurn(turn);
           await this.startEnemyPhase();
@@ -10145,6 +10202,17 @@ export class BattleScene extends Phaser.Scene {
     const session = battleSession(this);
     if (!this.enemyUnits.some(isNecromancer)) return;
     await necromancyOf(this).processRaises();
+    if (!isCurrentBattleSession(this, session)) return;
+  }
+
+  /**
+   * Enemy-phase start, after the Necromancer's raise: the Voices on their sigils speak and the
+   * open circles call Hollowed (engine/Vigil.js, VigilController). A Vigil map only.
+   */
+  async processVigil() {
+    const session = battleSession(this);
+    if (!this.battleConfig?.vigil) return;
+    await vigilOf(this).processPhase();
     if (!isCurrentBattleSession(this, session)) return;
   }
 
@@ -11026,28 +11094,28 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  /** Apply Entity AoE splash -- 0-2 random tiles within Manhattan 1 of primary target */
+  /**
+   * The Entity's splash after its strike (0..entitySplashCountFor(battleConfig) tiles within
+   * Manhattan 1 of the target): the rule and the HP changes are engine/EntitySystem.js
+   * `entitySplash`, which the harness drives too; the scene presents each hit and removes a
+   * fallen victim before the step reads the next tile.
+   */
   async _applyEntitySplash(entity, primaryTarget) {
     const session = battleSession(this);
-    const tiles = rollSplashTiles(
-      primaryTarget.col,
-      primaryTarget.row,
-      entity,
-      this.grid.cols,
-      this.grid.rows,
-      ENTITY_SPLASH_COUNT,
-    );
-    for (const tile of tiles) {
-      const victim = this.getUnitAt(tile.col, tile.row);
-      if (!victim || victim === primaryTarget || victim.currentHP <= 0) continue;
-      if (victim.faction === 'enemy') continue; // Don't splash allies
-      const dmg = rollSplashDamage();
-      const { bannerHeld } = damageUnitDetailed(victim, dmg, { blessings: this._battleBlessings });
+    const steps = entitySplash(entity, primaryTarget, {
+      cols: this.grid.cols,
+      rows: this.grid.rows,
+      getUnitAt: (col, row) => this.getUnitAt(col, row),
+      battleBlessings: this._battleBlessings,
+      battleConfig: this.battleConfig,
+    });
+    for (const { victim, tile, damage, stoneBroken, bannerHeld } of steps) {
       if (bannerHeld) this._noteBannerHold(victim);
       await safeBattlePresentation(
         'Entity splash',
         async () => {
           this.updateHPBar(victim);
+          if (stoneBroken) this._stoneBreakFx().playBreak(victim);
           if (bannerHeld) this._bannerHoldFx().playHold(victim);
           const pos = this.grid.gridToPixel(tile.col, tile.row);
           (this._combatFx ||= new CombatFxController(this)).playOverlay(
@@ -11055,7 +11123,7 @@ export class BattleScene extends Phaser.Scene {
             pos.x,
             pos.y,
           );
-          this.showMinorHintAt(pos.x, pos.y, `Splash -${dmg}`, UI_PALETTE.rarityEpic);
+          this.showMinorHintAt(pos.x, pos.y, `Splash -${damage}`, UI_PALETTE.rarityEpic);
           await this._awaitSceneDelay(200, { label: 'entity_splash_tick' });
         },
         { scene: this },
@@ -11133,11 +11201,14 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _showBossDefeatedBanner() {
-    const objective = this.battleConfig?.objective;
+    const objective = objectiveKindOf(this.battleConfig);
+    // A defeat map's band says how many targets still stand ("2 Voices remain").
+    const targets = felledObjectiveView(this.battleConfig, this.objectiveField());
     const felled = hasDOMHost()
       ? this._getCeremonies().showBossFelled({
           objective,
           remaining: this.enemyUnits?.length || 0,
+          ...(targets ? { targetsLeft: targets.left, targetsLabel: targets.label } : {}),
         })
       : null;
     if (felled) {
@@ -11227,6 +11298,15 @@ export class BattleScene extends Phaser.Scene {
       this.onDefeat();
       return true;
     }
+    // A map with an objectives model (BattleObjectives.js: a defeat map) asks it, never the
+    // legacy string; its victory waits for the enemy phase's end as a rout's does.
+    const objectives = objectivesOf(this.battleConfig);
+    if (objectives) {
+      if (evaluateObjectives(objectives, this.objectiveField()).outcome !== 'victory') return false;
+      if (this._reinforcementsPendingThisTurn) return false;
+      this.onVictory();
+      return true;
+    }
     // Rout: all enemies dead (and every required recruit in the army) = victory.
     // In the enemy phase it waits for the phase's end, where a clear field cancels the
     // turn's wave (applyReinforcementsForTurn), so victory then follows.
@@ -11267,6 +11347,19 @@ export class BattleScene extends Phaser.Scene {
     };
   }
 
+  /**
+   * What the objectives model reads (BattleObjectives.js): the units on the field, and the
+   * config's spawns, which name a target that has fallen. The harness builds the same field.
+   */
+  objectiveField() {
+    return {
+      enemyUnits: this.enemyUnits || [],
+      playerUnits: this.playerUnits || [],
+      escapedUnits: this.escapedUnits || [],
+      spawns: this.battleConfig?.enemySpawns || [],
+    };
+  }
+
   /** A rout with no enemy standing or rising: no more waves come (RoutObjective). */
   isRoutFieldClear() {
     return isRoutFieldClear({
@@ -11302,6 +11395,11 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
+  /** The goal sentence of an objectives-model map ("Defeat the Voices. The rest need not fall."), else null. */
+  objectiveGoalLine() {
+    return objectiveGoalSentences(this.battleConfig, this.objectiveField())?.join(' ') || null;
+  }
+
   updateObjectiveText() {
     if (!this.objectiveText) return;
     let label;
@@ -11318,6 +11416,14 @@ export class BattleScene extends Phaser.Scene {
     } else if (this.battleConfig.objective === 'escape' && this._escapeController) {
       label = this._escapeController.getObjectiveLabel();
       color = UI_PALETTE.good; // green -- run for the exit
+    } else if (objectivesOf(this.battleConfig)) {
+      // A map with an objectives model: its strip, one line per primary ("Defeat · the Voices
+      // (2/4)"), never the rout's enemy count. Words and counts only (BattleObjectives.statusView).
+      const view = statusView(objectivesOf(this.battleConfig), this.objectiveField());
+      label = view.primary.map((p) => p.compact).join('\n');
+      if (view.primary.every((p) => p.tone === 'good')) color = UI_PALETTE.good;
+      const ladderLine = this.getLadderObjectiveLine();
+      if (ladderLine) label += `\n${ladderLine}`;
     } else {
       label = routObjectiveLabel({
         remaining: this.enemyUnits.length,

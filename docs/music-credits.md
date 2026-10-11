@@ -38,6 +38,11 @@ the music in marketing.
 | [Karoryfer Emilyguitar](https://github.com/sfzinstruments/karoryfer.emilyguitar) | Karoryfer Samples (D. Smolken) | CC0 | electric guitar (clean DI samples through the engine's own amp, `engine/guitar.py`): Under the Broken Sun |
 | [Splendid Grand Piano](https://github.com/sfzinstruments/SplendidGrandPiano) | AKAI (via sfzinstruments) | public domain | piano |
 
+VPO3 is fetched in its SFZ edition (3.2.1.1) from
+[studiorack/virtual-playing-orchestra](https://github.com/studiorack/virtual-playing-orchestra):
+the repository the VPO site links to now ships only DecentSampler presets. Same programs,
+samples and licence.
+
 VPO3's own solo violin is not used: its source recording's licence is unclear and may be
 non-commercial. `tools/music/engine/palette.py` lists every candidate the sound lab tried.
 The notes above describe only what the house palette plays.

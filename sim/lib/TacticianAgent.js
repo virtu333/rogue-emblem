@@ -22,7 +22,10 @@
 // boss instead of the nearest foe (a push walks straight at it; a careful player edges
 // forward until something can reach it, then holds and punishes, which pulls a
 // garrison's holders out to it), and once the boss falls ScriptedAgent walks a lord to
-// the throne and seizes. Deterministic: no randomness of its own.
+// the throne and seizes. On a defeat map (BattleObjectives) the remaining targets take the
+// boss's place for every objective option: attacks on them score higher and the squad advances
+// on them from turn one (a target on a post never comes, and a summoning circle keeps contact
+// alive, so waiting for either times out). Deterministic: no randomness of its own.
 
 import { ScriptedAgent } from '../../tests/agents/ScriptedAgent.js';
 import {
@@ -42,6 +45,7 @@ import { enemyThreatTiles, positionsWithMoverAt } from '../../src/engine/ThreatF
 import { holdsPost } from '../../src/engine/SiegeArtillery.js';
 import { distanceFieldToAdjacent } from './RescueAgent.js';
 import { movementOptionsFor } from '../../src/engine/PassMovement.js';
+import { objectiveTargetUnits } from '../../src/engine/BattleObjectives.js';
 
 const key = (c, r) => `${c},${r}`;
 
@@ -125,6 +129,24 @@ export class TacticianAgent {
       return t || byType('choose_target')[0];
     }
     return legal.find((a) => a.type === 'end_turn') || legal[0];
+  }
+
+  /** A defeat map's targets still standing (BattleObjectives), else none. */
+  _defeatTargets() {
+    const b = this.b;
+    return objectiveTargetUnits(
+      b.battleConfig,
+      b.objectiveField?.() ?? { enemyUnits: b.enemyUnits },
+    );
+  }
+
+  /**
+   * Whether the squad closes on the foe this turn rather than holding: after two turns with no
+   * contact, and from turn one on a defeat map (its targets stand on posts and its circles keep
+   * calling, so waiting for contact or for quiet never ends).
+   */
+  _advancing(turn) {
+    return turn - this.lastContactTurn >= 2 || this._defeatTargets().length > 0;
   }
 
   /** The living seize boss, or null. */
@@ -271,7 +293,7 @@ export class TacticianAgent {
     // Contact: any foe can reach any of our units this coming enemy phase.
     const contact = b.playerUnits.some((u) => this._danger(u, u, threats).attackers > 0);
     if (contact) this.lastContactTurn = turn;
-    const advance = turn - this.lastContactTurn >= 2;
+    const advance = this._advancing(turn);
     let best = null;
     for (const u of units) {
       const plan = this._planFor(u, threats, advance);
@@ -293,14 +315,25 @@ export class TacticianAgent {
     // Path cost round walls (a castle keep), not straight-line tiles.
     const boss = this.objectives && b.battleConfig?.objective === 'seize' ? this._boss() : null;
     const bossField = boss ? this._field(boss, u.moveType) : null;
+    // A defeat map's remaining targets, on the same footing as the boss (path cost, not tiles).
+    const marks = boss ? [] : this._defeatTargets();
+    const markFields = marks.map((m) => this._field(m, u.moveType));
     const nearestEnemyDist = (tile) =>
       boss
         ? (bossField.get(key(tile.col, tile.row)) ??
           20 + gridDistance(tile.col, tile.row, boss.col, boss.row))
-        : Math.min(
-            Infinity,
-            ...b.enemyUnits.map((e) => gridDistance(tile.col, tile.row, e.col, e.row)),
-          );
+        : marks.length
+          ? Math.min(
+              ...marks.map(
+                (m, i) =>
+                  markFields[i].get(key(tile.col, tile.row)) ??
+                  20 + gridDistance(tile.col, tile.row, m.col, m.row),
+              ),
+            )
+          : Math.min(
+              Infinity,
+              ...b.enemyUnits.map((e) => gridDistance(tile.col, tile.row, e.col, e.row)),
+            );
     let best = null;
     const consider = (plan) => {
       if (!best || plan.score > best.score) best = plan;
@@ -346,7 +379,8 @@ export class TacticianAgent {
         const score =
           dealt +
           25 * killP +
-          (e.isBoss ? 3 : 0) -
+          (e.isBoss ? 3 : 0) +
+          (marks.includes(e) ? 6 : 0) -
           1.1 * taken -
           0.6 * danger.total -
           (lethal ? lethalWeight : 0) +

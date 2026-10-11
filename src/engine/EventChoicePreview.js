@@ -143,6 +143,14 @@ export function effectPreview(effect, ctx) {
       const value = num(effect.value);
       return value ? say(`${signed(value)} Vision`) : say('');
     }
+    case 'rite': {
+      // The court circle's words (engine/Rite.js), named as the route map's chip names them:
+      // "The Rite: −1 word", "The Rite: +2 words".
+      const delta = num(effect.delta);
+      return delta
+        ? say(`The Rite: ${signed(delta)} ${Math.abs(delta) === 1 ? 'word' : 'words'}`)
+        : say('');
+    }
     case 'blessing': {
       const tier = romanNumeral(effect.tier);
       return say(`A random ${tier ? `Tier ${tier} ` : ''}blessing`);

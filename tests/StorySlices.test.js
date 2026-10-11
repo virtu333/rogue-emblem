@@ -78,17 +78,19 @@ describe('story slice selection contracts', () => {
     expect(JSON.stringify([...early, ...late])).not.toContain('{lastFoe}');
     expect(selectDialogueEntries(data.runComplete.defeat, ctx(name))).toBeTruthy();
   });
-  it.each(['act3_to_act4', 'finalBoss_to_secretAct', 'secretAct_start'])(
-    '%s renders all seven commander replies through the cast adapter',
-    (key) => {
-      for (const name of commanders) {
-        const lines = selectDialogueEntries(data.actTransitions[key], ctx(name));
-        const adapted = adaptDialogueEntries(lines, [name, name === 'Sera' ? 'Edric' : 'Sera']);
-        expect(adapted.at(-1).speaker).toBe(name);
-        expect(adapted.at(-1).line).toBeTruthy();
-      }
-    },
-  );
+  it.each([
+    'act3_to_act4',
+    'act4_to_finalBoss_lieutenant',
+    'finalBoss_to_secretAct',
+    'secretAct_start',
+  ])('%s renders all seven commander replies through the cast adapter', (key) => {
+    for (const name of commanders) {
+      const lines = selectDialogueEntries(data.actTransitions[key], ctx(name));
+      const adapted = adaptDialogueEntries(lines, [name, name === 'Sera' ? 'Edric' : 'Sera']);
+      expect(adapted.at(-1).speaker).toBe(name);
+      expect(adapted.at(-1).line).toBeTruthy();
+    }
+  });
   it('every boss supplies a reply for every commander', () => {
     // The prologue's own boss (Varro) only ever meets Edric: his reply is in his preBattle.
     const prologueBoss = JSON.parse(readFileSync('data/prologue.json', 'utf8')).boss?.name;
@@ -115,6 +117,9 @@ describe('story slice selection contracts', () => {
           'bossMetBefore',
           'firstClear',
           'commanderHasEpithet',
+          'roadThroughEmperor',
+          'descent',
+          'glassBroken',
         ]);
         for (const [key, condition] of Object.entries(value.when)) {
           expect(KNOWN_WHEN_KEYS.has(key), key).toBe(true);
@@ -134,6 +139,10 @@ describe('story slice selection contracts', () => {
             if (key === 'difficulty')
               expect(['normal', 'dusk', 'hard', 'lunatic']).toContain(condition);
             if (key === 'lastRunResult') expect(['none', 'victory', 'defeat']).toContain(condition);
+            if (key === 'finale') expect(['lieutenant', 'entity', 'emperor']).toContain(condition);
+            if (key === 'bossRole') expect(['gate', 'finale', 'none']).toContain(condition);
+            if (key === 'riteBand')
+              expect(['broken', 'spoken', 'answered', 'none']).toContain(condition);
           }
         }
       }
@@ -141,6 +150,166 @@ describe('story slice selection contracts', () => {
       for (const child of Object.values(value)) walk(child);
     };
     walk(data);
+  });
+});
+
+describe('Dusk goes on to the Lieutenant: the words', () => {
+  const dusk = { roadThroughEmperor: true, finale: 'lieutenant' };
+  const firstLight = { roadThroughEmperor: false, finale: 'lieutenant' };
+  const lieutenant = data.bossEncounters['The Lieutenant'];
+  const textOf = (entries) => entries.map((e) => e.line).join('\n');
+  // Every memory a save can bring to the meeting.
+  const memories = [
+    {},
+    { bossKilledYouCount: 1 },
+    { bossSlainCount: 1 },
+    { bossKilledYouCount: 1, bossSlainCount: 1 },
+  ];
+
+  it('the ending names both losses and no longer points at the Emperor', () => {
+    // Failure: Dusk's ending still says the harder road "runs to the Emperor's door", who is dead.
+    for (const name of commanders) {
+      for (const firstClear of [false, true]) {
+        const lines = selectDialogueEntries(
+          data.runComplete.victory_lieutenant,
+          ctx(name, { ...dusk, firstClear, runsCompleted: 9 }),
+        );
+        const text = textOf(lines);
+        expect(text, name).not.toMatch(/Emperor's door/);
+        expect(text, name).toMatch(/emperor/);
+        expect(text, name).toMatch(/lieutenant/);
+        expect(text, name).toMatch(/Master and seer/);
+        expect(text, name).toMatch(/darker one/);
+        // The commander answers between Sera's lines (the cast adapter keeps the speaker).
+        expect(
+          lines.map((e) => e.speaker),
+          name,
+        ).toContain(name);
+        // It points at the harder road without naming the rung.
+        expect(text, name).not.toMatch(/Nightfall|Black Sun/);
+      }
+    }
+  });
+
+  it('First Light keeps its ending word for word, tease included', () => {
+    // Failure: the Dusk variants win on a road that never passed the Emperor.
+    for (const name of commanders)
+      for (const road of [firstLight, {}]) {
+        const lines = selectDialogueEntries(
+          data.runComplete.victory_lieutenant,
+          ctx(name, { ...road, runsCompleted: 9 }),
+        );
+        expect(textOf(lines), name).toMatch(/Emperor's door/);
+        expect(textOf(lines), name).not.toMatch(/Master and seer/);
+      }
+    const first = selectDialogueEntries(
+      data.runComplete.victory_lieutenant,
+      ctx('Edric', { ...firstLight, firstClear: true }),
+    );
+    expect(textOf(first)).toMatch(/army can finally breathe/);
+  });
+
+  it('on Dusk his master is ash: no line of his claims the work is done by a living master', () => {
+    // Failure: "My master's work is already done" plays on a road where the Emperor fell an act ago.
+    for (const memory of memories)
+      for (const section of ['preBattle', 'halfHealth', 'defeat']) {
+        const lines = selectDialogueEntries(
+          lieutenant[section],
+          ctx('Edric', { ...dusk, ...memory }),
+        );
+        expect(textOf(lines), `${section} ${JSON.stringify(memory)}`).not.toMatch(
+          /master's work is already done|master, the pattern/i,
+        );
+      }
+    const defeat = selectDialogueEntries(lieutenant.defeat, ctx('Edric', dusk));
+    expect(defeat.at(-1).line).toMatch(/His Majesty is ash\. His work is not\./);
+    const first = selectDialogueEntries(lieutenant.preBattle, ctx('Edric', dusk));
+    expect(textOf(first)).toMatch(/His Majesty is ash/);
+    // His memories of having killed this army are still his: that meeting beats the road's.
+    expect(
+      textOf(
+        selectDialogueEntries(lieutenant.defeat, ctx('Edric', { ...dusk, bossKilledYouCount: 1 })),
+      ),
+    ).toMatch(/I ended you once/);
+  });
+
+  it('First Light keeps his lines: the master still lives there', () => {
+    // Failure: the Dusk variants replace First Light's plain meeting, half-health and defeat.
+    const defeat = selectDialogueEntries(lieutenant.defeat, ctx('Edric', firstLight));
+    expect(textOf(defeat)).toMatch(/My master's work is already done/);
+    expect(selectDialogueEntries(lieutenant.defeat, ctx('Edric', {}))).toEqual(defeat);
+    expect(textOf(selectDialogueEntries(lieutenant.preBattle, ctx('Edric', firstLight)))).toMatch(
+      /I've seen every future you could reach/,
+    );
+    expect(
+      textOf(selectDialogueEntries(lieutenant.preBattle, ctx('Edric', firstLight))),
+    ).not.toMatch(/His Majesty/);
+  });
+
+  it('his Dusk opening still says "every future", the line the commanders answer', () => {
+    // Failure: Kira answers "Every future?" to a Lieutenant who no longer said it.
+    const opening = selectDialogueEntries(lieutenant.preBattle, ctx('Kira', dusk));
+    expect(textOf(opening)).toMatch(/every future/);
+    expect(selectDialogueEntries(lieutenant.preBattleReply, ctx('Kira', dusk))[0].line).toMatch(
+      /^Every future\?/,
+    );
+  });
+
+  it('the new transition closes Act IV on the emperor and sends the army down after the seer', () => {
+    // Failure: the Act IV close is lost (nothing ends at the Emperor now), or the descent reads as
+    // the Entity's waking.
+    for (const name of commanders) {
+      const lines = selectDialogueEntries(
+        data.actTransitions.act4_to_finalBoss_lieutenant,
+        ctx(name),
+      );
+      const text = textOf(lines);
+      expect(text, name).toMatch(/emperor is defeated/);
+      expect(text, name).toMatch(/turns over/);
+      expect(text, name).toMatch(/His sight is back against mine/);
+      expect(text, name).toMatch(/went down to where the rite is spoken/);
+      expect(lines.at(-1).speaker, name).toBe(name);
+    }
+    expect(
+      textOf(selectDialogueEntries(data.actTransitions.act4_to_finalBoss_lieutenant, {})),
+    ).toMatch(/emperor is defeated/);
+  });
+
+  it('victory_emperor stays intact for the saves that still end at him', () => {
+    expect(data.runComplete.victory_emperor.base[0].line).toMatch(/The emperor is defeated\./);
+    expect(data.runComplete.victory_emperor.variants).toHaveLength(7);
+  });
+
+  it('every line these roads add is one short line with no double quotes', () => {
+    // Failure: a new line breaks the lore style guide's spoken-line limits (90 characters).
+    const added = [];
+    const collect = (entries) => {
+      for (const e of entries) added.push(e.line);
+    };
+    const road = (when) =>
+      Object.keys(when || {}).some((key) => key === 'roadThroughEmperor' || key === 'finale');
+    for (const variant of data.actTransitions.act4_to_finalBoss_lieutenant.variants)
+      collect(variant.entries);
+    collect(data.actTransitions.act4_to_finalBoss_lieutenant.base);
+    // The vision's variant repeats the base's first three lines: only its last is new.
+    collect(lieutenant.vision.variants[0].entries.slice(3));
+    for (const section of [
+      lieutenant.preBattle,
+      lieutenant.halfHealth,
+      lieutenant.defeat,
+      data.runComplete.victory_lieutenant,
+    ])
+      for (const variant of section.variants)
+        if (road(variant.when) && variant.when.roadThroughEmperor !== false)
+          collect(variant.entries);
+    for (const poolVariant of lieutenant.preBattleExchange.variants)
+      for (const entry of poolVariant.pool)
+        if (road(entry.when)) for (const line of entry.exchange) added.push(line.line);
+    expect(added.length).toBeGreaterThanOrEqual(30);
+    for (const line of added) {
+      expect(line.length, line).toBeLessThanOrEqual(90);
+      expect(line).not.toMatch(/["\n]/);
+    }
   });
 });
 

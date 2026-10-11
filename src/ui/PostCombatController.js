@@ -19,7 +19,11 @@ import {
 import { recordBattleParticipation, isMastered, getMasteryPerk } from '../engine/MasterySystem.js';
 import { deedsFor } from './DeedController.js';
 import { GrowthCeremonyController, growthCeremonies } from './GrowthCeremonyController.js';
-import { buildNarrativeContext, selectDialogueEntries } from '../engine/NarrativeDirector.js';
+import {
+  buildNarrativeContext,
+  finaleOf,
+  selectDialogueEntries,
+} from '../engine/NarrativeDirector.js';
 import { getRating, calculateBonusGold } from '../engine/TurnBonusCalculator.js';
 import { GOLD_BATTLE_BONUS, ELITE_MAX_PICKS } from '../utils/constants.js';
 import { UI_DEPTHS } from '../utils/uiDepths.js';
@@ -47,6 +51,8 @@ import { settlementLines } from '../engine/Burdens.js';
 import { gambleLines } from '../engine/BattleGoldGamble.js';
 import { earnedPickOwed } from '../engine/EarnedBlessings.js';
 import { contractRewardOwedAt } from '../engine/Contracts.js';
+import { objectiveKindOf } from '../engine/BattleObjectives.js';
+import { isGateBossParams } from '../engine/Descent.js';
 import { presentEarnedBlessingPick } from './EarnedBlessingPick.js';
 import { EARNED_PICK_SAVE_FAILED } from './earnedBlessingPickModel.js';
 import { showMinorHint } from './HintDisplay.js';
@@ -200,6 +206,8 @@ export class PostCombatController {
           ),
           // What the fallen did before they fell (DeedController.commitFallen).
           fallenBattleRecords: scene._fallenBattleRecords,
+          // The Vigil's words (engine/Vigil.js vigilState), committed to the run's Rite here.
+          riteWords: scene._vigilState?.words ?? 0,
         },
       );
       // A lord recruited in this battle (a recruit node's Talk) has now joined.
@@ -228,8 +236,10 @@ export class PostCombatController {
         prepareBattleRewards(scene.runManager, scene.gameData, this.rewardContext());
         // The boss recruit draft is rolled and saved with the reward, so a
         // reload before the choice offers the same candidates. The prologue's
-        // chapters are never bosses to recruit from (§8).
-        if (scene.isBoss && !prologueRun) prepareBossRecruit(scene.runManager, scene.gameData);
+        // chapters are never bosses to recruit from (§8), nor is the Descent's gate
+        // (act-v-descent §6.2: no boss recruit; the run goes on to the Ruins).
+        if (scene.isBoss && !prologueRun && !isGateBossParams(scene.battleParams))
+          prepareBossRecruit(scene.runManager, scene.gameData);
         // So is the third lord's arrival when this victory brings it due. After a
         // boss recruit it is rolled once that choice is made (the pick changes who
         // is left to arrive); a boss with no recruit to offer has no choice to wait for.
@@ -307,7 +317,13 @@ export class PostCombatController {
             // at this point, so the flag can never be a phantom.
             const entries = selectDialogueEntries(
               scene.gameData?.dialogue?.bossEncounters?.[bossName]?.defeat,
-              buildNarrativeContext({ meta, runManager: scene.runManager, bossName }),
+              buildNarrativeContext({
+                meta,
+                runManager: scene.runManager,
+                bossName,
+                battleParams: scene.battleParams,
+                gameData: scene.gameData,
+              }),
             );
             // The prologue counts nothing on the slot (§8): its boss is never recorded.
             if (!prologueRun) meta?.recordBossSlain?.(bossName);
@@ -335,9 +351,12 @@ export class PostCombatController {
           // Final boss: award turn-bonus gold silently, skip loot screen
           scene._awardTurnBonusGold();
           scene.transitionAfterBattle();
-        } else if (scene.isBoss) {
+        } else if (scene.isBoss && !isGateBossParams(scene.battleParams)) {
           scene.showBossRecruitScreen();
         } else {
+          // An ordinary battle, an elite, or the Descent's gate boss (act-v-descent §9.3: its
+          // loot and the third lord as an elite's, no recruit, no act advance; the route map
+          // opens on the Ruins after the loot).
           // Elite victory flavor
           if (scene.isElite) {
             try {
@@ -466,10 +485,13 @@ export class PostCombatController {
           // map, not on the finished one.
           scene._persistBattleRunState?.(null, { session: session });
           const toAct = scene.runManager.currentAct;
-          const transKey = getActTransitionKey(fromAct, toAct);
+          const transKey = getActTransitionKey(fromAct, toAct, {
+            finale: finaleOf(scene.runManager, scene.gameData),
+          });
           const narrative = buildNarrativeContext({
             meta: scene.registry.get('meta'),
             runManager: scene.runManager,
+            gameData: scene.gameData,
           });
           const entries = [transKey, ...getActTransitionFollowUps(transKey)].flatMap(
             (key) =>
@@ -829,7 +851,8 @@ export class PostCombatController {
       rating = null;
     }
     return {
-      objective: s.battleConfig?.objective,
+      // The kind the battle was played as: a defeat map's word is SLAIN, never ROUTED.
+      objective: objectiveKindOf(s.battleConfig),
       turn,
       par: Number.isFinite(s.turnPar) ? s.turnPar : null,
       rating,

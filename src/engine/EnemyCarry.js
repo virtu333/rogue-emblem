@@ -5,10 +5,11 @@
 // carrier; with `maxPerBattle` above 1 each further carrier takes another roll at the same
 // chance, and the first miss ends the rolls (the same shape as CasterGear.js). A carrier is
 // any ordinary field enemy: never an act boss or an elite captain (`isBoss`), the Entity,
-// an authored spawn (the prologue's), or a Skeleton. Skeletons are raised mid-battle and
-// are never in a garrison, so they are never rolled, and `isCarrierEligible` still refuses
-// one so that a future path that hands a raised unit a spawn cannot mint loot from it
-// (Necromancy.buildRaisedSkeleton: a raise is repeatable, so it must stay worth nothing).
+// an authored spawn (the prologue's), or a Skeleton, Hollowed or Circle Adept. Skeletons are
+// raised mid-battle and are never in a garrison, so they are never rolled, and
+// `isCarrierEligible` still refuses one so that a future path that hands a raised unit a spawn
+// cannot mint loot from it (Necromancy.buildRaisedSkeleton: a raise is repeatable, so it must
+// stay worth nothing).
 //
 // What it carries is drawn from the act's `carryPool` in lootTables.json (weighted
 // entries: a named item, or a draw from the act's `statBooster` list). The roll writes
@@ -22,9 +23,20 @@
 // the only way to the item and the economy stays predictable.
 import { fnv1a, gearChanceFor, isPerBattleGearConfig, mulberry32 } from './CasterGear.js';
 import { isGoldPouch, makeGoldPouch } from './GoldPouch.js';
+import { isConjuredUnit } from './ConjuredUnits.js';
 
 export const CARRY_ACTS = Object.freeze(['act1', 'act2', 'act3', 'act4', 'finalBoss']);
 export const SKELETON_CLASS_NAME = 'Skeleton';
+/**
+ * Enemy-only classes that never carry: the Skeleton (raised), and Act V's Hollowed (a called
+ * Hollowed repeats, so it must stay worth nothing) and Circle Adept (a Voice is a named objective
+ * foe; no theft route runs through the rite's own).
+ */
+export const NEVER_CARRIES_CLASS_NAMES = Object.freeze([
+  SKELETON_CLASS_NAME,
+  'Hollowed',
+  'Circle Adept',
+]);
 
 /**
  * The roll stream for a garrison: same spawns, act and rung, same rolls. `pass` > 0 is a further
@@ -43,14 +55,16 @@ export function carryStream({ spawns, act, difficultyId, templateId, pass = 0 })
 
 /**
  * Can this spawn (or unit) carry an item? Never a boss or elite captain, the Entity, an
- * authored spawn, a Skeleton or a raised or zero-XP unit (docs/specs/phase3.md 3G).
+ * authored spawn, a Skeleton, a Hollowed, a Circle Adept or a conjured or zero-XP unit
+ * (docs/specs/phase3.md 3G, docs/specs/act-v-descent.md §5).
  */
 export function isCarrierEligible(spawn) {
   if (!spawn || typeof spawn !== 'object') return false;
   if (spawn.isBoss || spawn.isEntity || spawn._noXP) return false;
   if (typeof spawn.authoredId === 'string' && spawn.authoredId) return false;
-  if (typeof spawn._raisedBy === 'string' && spawn._raisedBy) return false;
-  return spawn.className !== SKELETON_CLASS_NAME;
+  // Raised or called (ConjuredUnits.js): a conjured unit repeats, so it never carries.
+  if (isConjuredUnit(spawn)) return false;
+  return !NEVER_CARRIES_CLASS_NAMES.includes(spawn.className);
 }
 
 /** The act's weighted carry pool as entries with a positive weight (never null). */

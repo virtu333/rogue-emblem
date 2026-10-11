@@ -370,6 +370,9 @@ export const DIFFICULTY_GATED_CLASSES = new Set([
   'Dragon Lord',
   'Necromancer',
   'Skeleton',
+  // Act V (docs/specs/act-v-descent.md §5): set pieces and the Vigil's summons only
+  'Circle Adept',
+  'Hollowed',
 ]);
 export const ZOMBIE_CLASSES = new Set(['Zombie', 'Revenant']);
 // A Necromancer raises at most this many Skeletons in a battle, in all (engine/Necromancy.js):
@@ -380,6 +383,7 @@ export const DARK_CLASSES = new Set([
   'Dark Knight',
   'Warlock',
   'Necromancer',
+  'Circle Adept',
   'Zombie',
   'Revenant',
   'Dragon',
@@ -478,6 +482,7 @@ export const ENTITY_FOOTPRINT = { width: 3, height: 3 };
 export const ENTITY_CRIT_RATE_MULT = 0.5;
 export const ENTITY_CRIT_DMG_MULT = 1.5;
 export const ENTITY_SPLASH_COUNT = 2;
+export const ENTITY_SPLASH_COUNT_MAX = 4; // the orthogonal neighbours a splash can reach
 export const ENTITY_SPLASH_DAMAGE = [5, 10];
 export const ENTITY_PRIMARY_ATTACK_RANGE = 2;
 export const ENTITY_WEAPON_NAMES = ['Eldritch Grasp', 'Twisting Vortex'];

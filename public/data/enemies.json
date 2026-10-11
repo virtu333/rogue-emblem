@@ -299,6 +299,12 @@
       { "className": "Hero", "name": "Oathbreaker" },
       { "className": "Sage", "name": "Ash Magus" },
       { "className": "Assassin", "name": "Ritual Blade" }
+    ],
+    "finalBoss": [
+      { "className": "Dark Knight", "name": "Warden of the Stair" },
+      { "className": "Sage", "name": "Circle Magus" },
+      { "className": "Swordmaster", "name": "Glass Duelist" },
+      { "className": "General", "name": "Tomb Guard" }
     ]
   },
   "eliteAreaArts": {

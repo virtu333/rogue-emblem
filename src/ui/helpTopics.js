@@ -202,19 +202,23 @@ export function convoyHelp({ weapons, consumables }) {
 const OBJECTIVE_GOALS = {
   rout: 'Defeat every enemy on the map.',
   seize: 'Defeat the boss, then move a Lord onto the throne and choose Seize.',
+  // The kind alone; a battle that names its targets passes the sentence (BattleObjectives.statusView).
+  defeat: 'Defeat the targets. The rest need not fall.',
 };
 
 /**
  * The rail's objective button. `text` is the scene's multi-line objective label;
- * `objective` is the battle's objective id (rout / seize / escape).
+ * `objective` is the battle's objective id (rout / seize / escape / defeat); `goal` is the
+ * goal sentence the battle itself words ("Defeat the Voices. The rest need not fall."), which
+ * takes the kind's stock one's place.
  */
-export function objectiveHelp(text, bossLine = '', objective = '') {
+export function objectiveHelp(text, bossLine = '', objective = '', goal = '') {
   const lines = String(text || '')
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean);
-  const goal = OBJECTIVE_GOALS[objective];
-  const points = [...(goal ? [goal] : []), ...lines.slice(1)];
+  const goalLine = goal || OBJECTIVE_GOALS[objective];
+  const points = [...(goalLine ? [goalLine] : []), ...lines.slice(1)];
   return [
     lines[0] ? { lead: lines[0] } : null,
     points.length ? { points } : null,

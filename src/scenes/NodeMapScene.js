@@ -4,6 +4,7 @@ import { resumeBossRecruit } from '../ui/BossRecruitResume.js';
 import { resumeLordArrival } from '../ui/LordArrivalResume.js';
 import { EarnedBlessingPick } from '../ui/EarnedBlessingPick.js';
 import { saveServiceRun } from '../ui/serviceSave.js';
+import { descentFlavorLines } from '../ui/loomModel.js';
 import {
   actBossPickDue,
   earnedPickOwed,
@@ -56,6 +57,7 @@ import { ChurchController } from '../ui/ChurchController.js';
 import { EventController, eventPageOwed } from '../ui/EventController.js';
 import { ContractSettlementController } from '../ui/ContractSettlementController.js';
 import { contractRewardOwedAt } from '../engine/Contracts.js';
+import { paramsObjectiveKind } from '../engine/ObjectivePreview.js';
 import { eventSpoilsOwed, getPendingEventSettlement } from '../engine/EventCommands.js';
 import { pauseBurdenEntries } from '../ui/eventMenuModel.js';
 import { heldBlessingEntries } from '../ui/heldBlessingsModel.js';
@@ -84,6 +86,7 @@ import { unarmedDeparture } from '../engine/PrologueDeparture.js';
 import { confirmPrologueDeparture } from '../ui/PrologueDepartureWarning.js';
 import { canShowRunNote, markNoteSeen } from '../ui/guidanceGate.js';
 import { guidanceText } from '../engine/Guidance.js';
+import { isFinaleBossNode } from '../engine/Descent.js';
 
 // Maps runManager.currentAct → the meta milestone recorded on node-map entry,
 // which the Compendium Foes tab reads to gate each act's boss.
@@ -1686,10 +1689,8 @@ export class NodeMapScene extends Phaser.Scene {
       if (isEliteNode) {
         spriteKey = 'node_elite';
       }
-      if (node.type === NODE_TYPES.BOSS) {
-        const actId = this.runManager.nodeMap.actId;
-        if (actId === 'finalBoss') spriteKey = 'node_boss_final';
-      }
+      // The run's last fight wears the final boss's sprite (the Descent's gate boss does not).
+      if (isFinaleBossNode(node, this.runManager.nodeMap.actId)) spriteKey = 'node_boss_final';
       const weatheredFrames = {
         node_battle: 0,
         node_rest: 1,
@@ -1959,8 +1960,12 @@ export class NodeMapScene extends Phaser.Scene {
   showNodeTooltip(node, pos) {
     this.hideNodeTooltip();
     let label;
+    // A set piece's defeat map is not the rout its params' legacy string says (ObjectivePreview).
+    const kind = node.battleParams
+      ? paramsObjectiveKind(node.battleParams, this.gameData?.setPieces)
+      : null;
     if (node.type === NODE_TYPES.BOSS) {
-      label = 'Boss Battle (Seize)';
+      label = `Boss Battle (${kind === 'defeat' ? 'Defeat' : 'Seize'})`;
     } else if (node.type === NODE_TYPES.CHURCH) {
       label = 'Church — Heal, revive fallen, promote';
     } else if (node.type === NODE_TYPES.RUINS) {
@@ -1976,10 +1981,10 @@ export class NodeMapScene extends Phaser.Scene {
         ? 'Dark Omen \u2014 The dark has twisted what waits here'
         : 'Event \u2014 Something waits on the road';
     } else if (node.battleParams?.isElite) {
-      const eliteObj = node.battleParams?.objective === 'escape' ? 'Escape' : 'Seize';
+      const eliteObj = { escape: 'Escape', defeat: 'Defeat' }[kind] || 'Seize';
       label = `Elite Battle (${eliteObj}) — Harder fight, better loot`;
     } else {
-      const obj = node.battleParams?.objective || 'rout';
+      const obj = kind || 'rout';
       label = `Battle (${obj})`;
     }
     // An event whose choice started a fight shows as an event; it is locked when its
@@ -2525,13 +2530,16 @@ export class NodeMapScene extends Phaser.Scene {
             : node.type === NODE_TYPES.EVENT && node.eventBattle !== true
               ? 'event'
               : 'battle';
-      const pool = this.gameData?.dialogue?.nodeFlavor?.[typeKey];
-      if (!pool) return;
+      const flavor = this.gameData?.dialogue?.nodeFlavor;
       const act = this.runManager?.currentAct || 'act1';
-      const lines = pool[act] || pool['act3'];
+      // A Descent node speaks with its own lines (the stair, the Vigil, the gate).
+      const own = node.eclipse ? null : descentFlavorLines(flavor, node);
+      const pool = flavor?.[typeKey];
+      if (!own && !pool) return;
+      const lines = own || pool[act] || pool['act3'];
       if (!Array.isArray(lines) || lines.length === 0) return;
-      const line =
-        this.runManager?.pickNarrativeLine?.(lines, `node:${act}:${typeKey}`) || lines[0];
+      const poolKey = own ? `node:descent:${node.descentKey}` : `node:${act}:${typeKey}`;
+      const line = this.runManager?.pickNarrativeLine?.(lines, poolKey) || lines[0];
       this.showShopBanner(line, UI_PALETTE.muted);
     } catch (_) {
       /* best-effort flavor */

@@ -39,7 +39,13 @@ import { unitUidOf } from './UnitIdentity.js';
 import { earnedGrantBlock } from './EarnedBlessings.js';
 import { NODE_TYPES } from '../utils/constants.js';
 
+/** The acts an event is met in when it names none. */
 export const EVENT_ACTS = Object.freeze(['act1', 'act2', 'act3', 'act4']);
+/**
+ * The acts an event may name: the four, and the Descent (`finalBoss`), whose events are pooled
+ * (`pool`) and drawn only at the route's event nodes that name that pool (act-v-descent §9.6).
+ */
+export const EVENT_ACT_IDS = Object.freeze([...EVENT_ACTS, 'finalBoss']);
 export const FALLBACK_EVENT_ID = 'quiet_road';
 
 /** The `requires` keys the engine knows (plus the free-text `reason`). */
@@ -707,13 +713,19 @@ export function seenEventIds(run) {
   return ids;
 }
 
+/** An event's pool (`pool`), or a node's (`eventPool`): null when it names none. */
+const poolOf = (value) => (typeof value === 'string' && value ? value : null);
+
 /**
- * Whether an event may be picked now: acts, `requires`, not seen before when once-per-run,
- * positive weight. The fallback is never eligible by weight.
+ * Whether an event may be picked now: positive weight, the node's pool, acts, `requires`, not
+ * seen before when once-per-run. The fallback is never eligible by weight. Pools hold both ways
+ * (act-v-descent §9.6): a pooled event is met only at a node that names its pool, and a node
+ * that names a pool meets only that pool's events (the Descent's event nodes).
  */
 export function eventBlock(run, event, node, catalog, seen = seenEventIds(run)) {
   if (!event || event.fallback === true) return 'fallback';
   if (!(Number(event.weight) > 0)) return 'weight';
+  if (poolOf(event.pool) !== poolOf(node?.eventPool)) return 'pool';
   const acts = Array.isArray(event.acts) && event.acts.length ? event.acts : EVENT_ACTS;
   if (!acts.includes(run?.currentAct)) return 'act';
   if (event.oncePerRun !== false && seen.has(event.id)) return 'seen';

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Portraits for units that are not a recruit class: the caravan Merchant (an NPC the engine
-// builds outside the unit factories) and the enemy-only Necromancer and Skeleton. Like
+// builds outside the unit factories) and the enemy-only Necromancer, Skeleton, Circle Adept and Hollowed. Like
 // gen-legacy-base.mjs these are 128 px legacy-style portraits (assets/portraits/<id>.png)
 // that the PC-98 build (tools/art/pc98) treats as the unit's default id. They are single
 // portraits (no variants, like the Zombie and Revenant): there is one Merchant design, a
@@ -69,6 +69,38 @@ export const EXTRA = {
       'assets/portraits/enemy_revenant.png',
       'assets/portraits/enemy_zombie.png',
       `${SHEETS}/skeleton.png`,
+    ],
+  },
+  // Act V "The Descent" (docs/specs/act-v-descent.md §5): single portraits like the Necromancer.
+  enemy_circle_adept: {
+    prompt:
+      `${STYLE} The character: an enemy Circle Adept, a ritualist of the Empire's court circle: a composed, ` +
+      'ceremonial figure, calm and unhurried, not a grave-priest. A deep ash-grey hood, the lower half of the face ' +
+      'covered by a plain grey cloth veil so that only the shadowed, steady, tired eyes of a living middle-aged ' +
+      'person show. Outfit: an ash-grey wool surplice with a stiff squared crimson lacquer mantle and high crimson ' +
+      'collar, bone-white cuffs, and a thick closed book held against the chest, wrapped many times in grey cord ' +
+      'with knotted ends and tassels. Cold and still, a formal officiant. No skull, no glowing eyes, no magic ' +
+      'particles. The third reference image is the class map sprite: follow its costume. Palette: ash grey, ' +
+      'crimson, bone white.',
+    refs: [
+      'assets/portraits/enemy_mage.png',
+      'assets/portraits/enemy_sage.png',
+      `${SHEETS}/circle-adept.png`,
+    ],
+  },
+  enemy_hollowed: {
+    prompt:
+      `${STYLE} The character: an enemy Hollowed, an imperial levy soldier the rite has emptied out: the uniform ` +
+      'is still on and the person has gone out of it. A kettle helmet sitting a little crooked over a mail ' +
+      'aventail, a crimson padded coat hanging open with loose straps, and a pale ash-grey slack face: blank, dark, ' +
+      'empty eyes with no pupils and no glow, a slightly open mouth, a head tilted a little to one side. It must ' +
+      'read as a living-looking man with nobody home: NOT a skull, NOT a skeleton, NOT green rotting flesh (the ' +
+      'Zombie), no wounds, no gore. The third reference image is the class map sprite: follow it. Palette: ash ' +
+      'grey, crimson, steel.',
+    refs: [
+      'assets/portraits/enemy_soldier.png',
+      'assets/portraits/enemy_zombie.png',
+      `${SHEETS}/hollowed.png`,
     ],
   },
 };

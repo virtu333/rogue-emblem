@@ -9,6 +9,7 @@
 import { fallCountdownText } from './eclipseContent.js';
 import { chosenLine } from '../engine/RuinsCommands.js';
 import { isSanctum } from '../engine/SanctumPass.js';
+import { previewObjectives } from '../engine/ObjectivePreview.js';
 
 export const LOOM_LANES = 5;
 
@@ -375,6 +376,8 @@ const OBJECTIVE = {
   rout: ['ROUT', 'Defeat all enemies on the map.'],
   seize: ['SEIZE', 'Take the throne once its guard falls.'],
   escape: ['ESCAPE', 'Get every lord to an escape square. Pursuers never stop.'],
+  // A set piece's defeat map: the node names its targets when its data does (previewObjectives).
+  defeat: ['DEFEAT', 'Defeat the targets. The rest need not fall.'],
 };
 const BATTLE_TYPES = new Set(['battle', 'boss', 'recruit']);
 // What the dark did to each kind of place (the inspect card's body line).
@@ -431,8 +434,21 @@ function templateLookup(mapTemplates, id) {
   return null;
 }
 
+/**
+ * A Descent node's own flavour lines (dialogue.json `nodeFlavor.descent.<descentKey>`), or null:
+ * the authored route's nodes speak for themselves (the stair, the Vigil, the gate), never in the
+ * act's general voice. Read by the loom card and the route map's arrival banner alike.
+ */
+export function descentFlavorLines(nodeFlavor, node) {
+  const key = typeof node?.descentKey === 'string' ? node.descentKey : null;
+  const lines = key ? nodeFlavor?.descent?.[key] : null;
+  return Array.isArray(lines) && lines.length ? lines : null;
+}
+
 function flavorPool(node, dialogue, actId) {
   const nf = dialogue?.nodeFlavor || {};
+  const own = descentFlavorLines(nf, node);
+  if (own) return own;
   const pick = (pool) => (pool ? pool[actId] || pool.act3 || null : null);
   if (node.type === 'shop') return dialogue?.shopFlavor?.[actId] || null;
   if (node.type === 'boss') return pick(nf.boss);
@@ -515,6 +531,7 @@ export function describeLoomNode(
     steps = null,
     actId = 'act1',
     mapTemplates = null,
+    setPieces = null,
     dialogue = null,
     enemyLevelBonus = 0,
     firstBattle = false,
@@ -540,8 +557,18 @@ export function describeLoomNode(
   // battleParams (a village that turns out to be an ambush) and must stay a village.
   const params = BATTLE_TYPES.has(node.type) ? node.battleParams || null : null;
   const elite = !!params?.isElite;
-  const objectiveId = params?.objective || (node.type === 'boss' ? 'seize' : null);
-  const objective = objectiveId ? OBJECTIVE[objectiveId] || [objectiveId.toUpperCase(), ''] : null;
+  // A node that names a set piece with an objectives model plays as its first kind (defeat), not
+  // as the legacy family its params carry (rout), and its card names the targets.
+  const preview = params ? previewObjectives(params, setPieces) : null;
+  const objectiveId = preview?.kind || params?.objective || (node.type === 'boss' ? 'seize' : null);
+  const objective = preview
+    ? [
+        OBJECTIVE[preview.kind]?.[0] ?? preview.kind.toUpperCase(),
+        preview.view.primary.map((p) => p.text).join(' '),
+      ]
+    : objectiveId
+      ? OBJECTIVE[objectiveId] || [objectiveId.toUpperCase(), '']
+      : null;
   const template = params
     ? templateLookup(mapTemplates, node.templateId || params.templateId)
     : null;

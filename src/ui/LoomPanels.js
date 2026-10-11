@@ -18,6 +18,8 @@ import { crestElement } from './crestArt.js';
 import { regionName } from './placeDisplay.js';
 import { ACT_CONFIG, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS } from '../utils/constants.js';
 import { portraitListLayout } from './portraitListLayout.js';
+import { riteNodeModel } from './riteModel.js';
+import { riteCardBlock } from './RiteView.js';
 
 // DOM pieces shared by node travel and the read-only Campaign Map: the act header
 // (Cinzel title + pixel subline) and the inspect card for the selected knot.
@@ -266,6 +268,7 @@ export function renderLoomCard(card, node, ctx = {}) {
     steps: model.steps.get(node.id) ?? null,
     actId,
     mapTemplates: gameData?.mapTemplates,
+    setPieces: gameData?.setPieces,
     dialogue: gameData?.dialogue,
     // Difficulty offset plus the Eclipse's phase / eclipsed-node levels (what
     // RunManager.getBattleParams will actually pass to the battle).
@@ -316,6 +319,10 @@ export function renderLoomCard(card, node, ctx = {}) {
   card.append(head);
   // The boss this node holds (the prologue's gate): who, and how far his weapon reaches.
   if (info.boss) card.append(element('p', `Boss · ${info.boss}`, 're-loom-text re-loom-boss'));
+  // The Descent's boss nodes (the gate, the finale): what the Rite's tier does to this fight,
+  // beside the boss it speaks to.
+  const rite = rm ? riteNodeModel(rm, node) : null;
+  if (rite) card.append(riteCardBlock(rite));
   // A recruit card leads with the Talk instruction: the recruit block is tall and the
   // card scrolls without a cue, so on a phone the instruction would sit below the fold.
   const text = info.text ? element('p', info.text, 're-loom-text') : null;

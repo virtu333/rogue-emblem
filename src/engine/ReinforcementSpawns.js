@@ -12,7 +12,8 @@ import { filterClassPoolByDifficulty, XP_SPECIAL_ENEMY_MULTIPLIER } from '../uti
 import { affixesAllowedForClass } from './AffixEngine.js';
 import { earlyEnemyAllowed } from './EarlyEnemyRules.js';
 import { getFootprint, isEntity } from './EntitySystem.js';
-import { RAISED_XP_MULTIPLIER, isRaisedUnit, isNecromancyClass } from './Necromancy.js';
+import { isNecromancyClass, isNeverCopiedClass } from './Necromancy.js';
+import { conjuredXpMultiplier, isConjuredUnit } from './ConjuredUnits.js';
 import { reinforcementMoveTypes, scheduleReinforcementsForTurn } from './ReinforcementScheduler.js';
 
 /** Level an arrival takes when the map has no non-boss spawn to copy. */
@@ -46,9 +47,10 @@ function allowedActClasses(names, { battleParams, gameData }) {
   }).filter(
     (className) =>
       typeof className === 'string' &&
-      // An arrival is never a Necromancer or a Skeleton: they come from the Necromancer's
-      // own raise, one Necromancer per battle (Necromancy.js).
-      !isNecromancyClass(className) &&
+      // An arrival is never a Necromancer, a Skeleton, a Circle Adept or a Hollowed: the
+      // first two come from the Necromancer's own raise (one per battle), the last two from
+      // an Act V set piece's own slots and summons (Necromancy.js `isNeverCopiedClass`).
+      !isNeverCopiedClass(className) &&
       earlyEnemyAllowed(className, battleParams) &&
       (gameData?.classes || []).some((c) => c.name === className),
   );
@@ -68,7 +70,7 @@ export function buildReinforcementTemplatePool({ battleConfig, battleParams, gam
       !spawn ||
       spawn.isBoss ||
       typeof spawn.className !== 'string' ||
-      isNecromancyClass(spawn.className) ||
+      isNeverCopiedClass(spawn.className) ||
       !earlyEnemyAllowed(spawn.className, battleParams)
     )
       continue;
@@ -151,6 +153,9 @@ export function buildReinforcementSpawnSpec({
 }) {
   if (!scheduledSpawn) return null;
   const fallbackLevel = enemySpawnFallbackLevel(battleConfig, battleParams?.act);
+  // A scripted wave may NAME a Hollowed or a Circle Adept (an Act V set piece's own wave); only
+  // the raising classes are refused, since a Necromancer is one per battle and a Skeleton
+  // exists only through its raise.
   const classOverride =
     typeof scheduledSpawn.className === 'string' &&
     !isNecromancyClass(scheduledSpawn.className) &&
@@ -286,11 +291,12 @@ export function normalizeEnemyRewardMultiplier(value) {
 }
 
 /**
- * Gold multiplier an enemy carries: 0 for a unit a Necromancer raised, else its wave's, or
- * 1 for a map spawn. (The XP it pays is enemyXpMultiplier.)
+ * Gold multiplier an enemy carries: 0 for a conjured unit (a Necromancer's Skeleton, a circle's
+ * Hollowed: ConjuredUnits.js), else its wave's, or 1 for a map spawn. (The XP it pays is
+ * enemyXpMultiplier.)
  */
 export function enemyRewardMultiplier(unit) {
-  if (isRaisedUnit(unit)) return 0;
+  if (isConjuredUnit(unit)) return 0;
   if (!unit?._isReinforcement) return 1;
   const rewardMultiplier = Number.isFinite(unit._reinforcementRewardMultiplier)
     ? unit._reinforcementRewardMultiplier
@@ -300,11 +306,13 @@ export function enemyRewardMultiplier(unit) {
 
 /**
  * The XP multiplier for fighting an enemy: its reward, × the boss/elite bonus (the rung's
- * `specialXpMultiplier`, default `XP_SPECIAL_ENEMY_MULTIPLIER`). A raised
- * unit pays a quarter (it pays no gold, so its reward multiplier cannot stand in).
+ * `specialXpMultiplier`, default `XP_SPECIAL_ENEMY_MULTIPLIER`). A conjured unit pays its own
+ * share (a raised Skeleton a quarter, a called Hollowed half; it pays no gold, so its reward
+ * multiplier cannot stand in, and no elite bonus).
  */
 export function enemyXpMultiplier(unit, specialMultiplier = XP_SPECIAL_ENEMY_MULTIPLIER) {
-  if (isRaisedUnit(unit)) return RAISED_XP_MULTIPLIER;
+  const conjured = conjuredXpMultiplier(unit);
+  if (conjured !== null) return conjured;
   const rewardMultiplier = enemyRewardMultiplier(unit);
   if (!(unit?.isBoss || unit?.isElite)) return rewardMultiplier;
   const special = Number.isFinite(specialMultiplier)
@@ -314,13 +322,13 @@ export function enemyXpMultiplier(unit, specialMultiplier = XP_SPECIAL_ENEMY_MUL
 }
 
 /**
- * An arrival whose wave pays nothing (a late ladder wave, a pursuit wave at 0), or a unit
- * a Necromancer raised. Killing it still counts as a kill, but it feeds no deed record.
- * (A raised unit still pays its quarter XP, and an arrival whose wave pays nothing pays no
+ * An arrival whose wave pays nothing (a late ladder wave, a pursuit wave at 0), or a conjured
+ * unit (raised or called). Killing it still counts as a kill, but it feeds no deed record.
+ * (A conjured unit still pays its share of XP, and an arrival whose wave pays nothing pays no
  * survival XP.)
  */
 export function isZeroRewardUnit(unit) {
-  if (isRaisedUnit(unit)) return true;
+  if (isConjuredUnit(unit)) return true;
   return Boolean(unit?._isReinforcement) && enemyRewardMultiplier(unit) <= 0;
 }
 

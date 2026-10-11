@@ -26,6 +26,7 @@
 
 import { buildBlessingIndex, createSeededRng, isEarnedBlessing } from './BlessingEngine.js';
 import { eclipseHash, eclipseNode, nodeFallExemption, withEclipseSeed } from './EclipseSystem.js';
+import { isAuthoredNode } from './Descent.js';
 import { accessoryPoolFor, accessoryTableActFor } from './EventEffects.js';
 import { bindAccessorySkill, canRollAccessorySkill } from './AccessorySkills.js';
 import { accessorySkillOf, boundSkillName } from './AccessorySkillNames.js';
@@ -215,12 +216,17 @@ export function giftSkillScrollPool(run, act) {
     .sort((a, b) => (a.name < b.name ? -1 : 1));
 }
 
-/** The nodes a gift's catch may let the dark take now: any the Eclipse itself could take. */
+/**
+ * The nodes a gift's catch may let the dark take now: any the Eclipse itself could take, but
+ * never a node an authored route placed (the Descent's fallable Mortuary Column included:
+ * act-v-descent §2.3 rule 6).
+ */
 export function giftFallableNodes(run) {
   const nodeMap = run?.nodeMap;
   return (Array.isArray(nodeMap?.nodes) ? nodeMap.nodes : [])
     .filter(
       (node) =>
+        !isAuthoredNode(node) &&
         nodeFallExemption(node, {
           nodeMap,
           currentNodeId: run.currentNodeId,

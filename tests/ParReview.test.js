@@ -222,7 +222,7 @@ describe('validation', () => {
     expect(errors).toMatch(/dusk\.objectiveParOffset\.rout\.act9 is not an act id/);
     expect(errors).toMatch(/dusk\.objectiveParOffset\.rout\.act4 must be an integer/);
     expect(errors).toMatch(
-      /dusk\.objectiveParOffset\.siege is not a rout\/seize\/escape objective/,
+      /dusk\.objectiveParOffset\.siege is not a rout\/seize\/escape\/defeat objective/,
     );
     expect(errors).toMatch(/hard\.objectiveParOffset\.escape must be an integer/);
     expect(errors).toMatch(/lunatic\.holdShare\.rout is not a seize\/escape objective/);

@@ -149,6 +149,7 @@
 
 /* ───────── Burdens: an event's lasting price, one chip each (NodeMapMenu._burdenRow) ───────── */
 .re-loom-burdens {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -222,6 +223,73 @@
 }
 .re-burden-note.is-contract {
   border-left-color: var(--re-gilt);
+}
+
+/* The Descent's Rite (riteModel.js): a state of the act, not a price. The court circle's violet,
+   and a drawn ring before the name, so the chip is told apart by shape and word, never by hue. */
+.re-burden.re-rite {
+  border-color: var(--re-mark);
+  background: var(--re-sunken);
+}
+.re-burden.re-rite[aria-expanded='true'] {
+  border-color: var(--re-parchment);
+  background: var(--re-selected);
+}
+.re-rite .re-burden-name {
+  color: var(--re-mark);
+}
+.re-rite .re-burden-name::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  vertical-align: 0;
+}
+.re-burden-note.is-rite {
+  border-left-color: var(--re-mark);
+  /* The Rite's note is a short list, taller than a burden's line: it lies over the top of the
+     loom rather than pushing the map and its card down (a tap on it, or on the chip, closes it). */
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: max-content;
+  max-width: min(100%, 460px);
+  box-sizing: border-box;
+  z-index: var(--re-depth-route_note);
+  max-height: 50vh;
+  overflow-y: auto;
+  background: var(--re-panel);
+  box-shadow:
+    0 0 0 1px var(--re-line-soft),
+    0 8px 18px var(--re-shade-deep);
+  cursor: pointer;
+}
+.re-rite-body {
+  display: grid;
+  gap: 4px;
+}
+.re-rite-body p,
+.re-rite-body ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+.re-rite-progress strong {
+  color: var(--re-mark);
+}
+.re-rite-effects li {
+  margin: 0 0 2px;
+}
+.re-rite-effects strong {
+  color: var(--re-text);
+  font-weight: 700;
+}
+.re-rite-from {
+  color: var(--re-muted);
 }
 
 /* A road an event drew, or a place it changed: ringed on the loom for a few seconds. */
@@ -1092,6 +1160,43 @@
   font: 10.5px/1.3 var(--re-body);
   color: var(--re-muted);
   overflow-wrap: anywhere;
+}
+
+/* The Rite's tier on a boss node's card (RiteView riteCardBlock): the scout block's shape, in the
+   chant's violet; its last line says whether the battle is already fixed. */
+.re-loom-rite {
+  margin: 6px 0 0;
+  padding: 6px 8px;
+  border-radius: 3px;
+  background: var(--re-panel);
+  box-shadow: inset 0 0 0 1px var(--re-line-soft);
+  border-left: 3px solid var(--re-mark);
+}
+.re-loom-screen .re-loom-rite-head {
+  margin: 0;
+  font: 10.5px/1.3 var(--re-body);
+  color: var(--re-muted);
+  overflow-wrap: anywhere;
+}
+.re-loom-rite-head strong {
+  font-weight: 700;
+  color: var(--re-mark);
+}
+.re-loom-rite-lines {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.re-loom-rite-lines li {
+  margin: 2px 0 0;
+  font: 10.5px/1.3 var(--re-body);
+  color: var(--re-parchment);
+  overflow-wrap: anywhere;
+}
+.re-loom-screen .re-loom-rite-note {
+  margin: 4px 0 0;
+  font: 10.5px/1.3 var(--re-body);
+  color: var(--re-muted);
 }
 
 /* ───────── Campaign Map (in-battle, read-only) ───────── */

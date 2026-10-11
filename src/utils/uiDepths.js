@@ -6,7 +6,7 @@
 export const UI_DEPTHS = {
   // Battle scene layers
   GRID_BASE: 0,
-  OBJECTIVE_TILE: 7, // Above movement/path overlays; below unit sprites.
+  OBJECTIVE_TILE: 7, // Above movement/path overlays; below unit sprites (EXIT, the Vigil's marks).
   OBJECTIVE_LABEL: 15, // Readable even when a unit occupies an exit.
   TERRAIN_HIGHLIGHTS: 10,
   AREA_PREVIEW: 12, // An area art's footprint and victim rings (AreaPreviewController).
@@ -59,6 +59,7 @@ export const DOM_UI_DEPTHS = {
   FORMATION: 45, // Desktop formation dock (placement before turn 1); under menus.
   TITLE: 390, // Title key art, lockup and menu (below every menu and dialogue)
   ROUTE: 400,
+  ROUTE_NOTE: 410, // A note lying over the route map's loom (the Descent's Rite chip); inside the route's own layer.
   LAUNCH: 920,
   UPGRADE: 950,
   XP_GAUGE: 960, // Battle EXP gauge over the map; under the level-up card it hands off to.

@@ -7,6 +7,7 @@ import {
   heraldHeard,
 } from '../src/engine/FinaleRally.js';
 import { TEMPERAMENT_IDS } from '../src/engine/UnitVoice.js';
+import { BattleBeatsController } from '../src/ui/BattleBeatsController.js';
 
 const dialogue = JSON.parse(fs.readFileSync('data/dialogue.json', 'utf8'));
 const lordsData = JSON.parse(fs.readFileSync('data/lords.json', 'utf8'));
@@ -56,7 +57,15 @@ describe('finale rally lines (dialogue.json finaleRally)', () => {
       for (const [to, line] of Object.entries(p.reply)) {
         expect(line.includes(to), `${name} replies to ${to} by name`).toBe(true);
       }
-      for (const cat of ['memory', 'wounded', 'fallen', 'herald']) {
+      for (const cat of [
+        'memory',
+        'wounded',
+        'fallen',
+        'herald',
+        'glass',
+        'riteBroken',
+        'riteAnswered',
+      ]) {
         expect(p[cat].length, `${name}.${cat}`).toBeGreaterThanOrEqual(2);
       }
     }
@@ -303,5 +312,123 @@ describe('the Herald of the Hollow Sun in the rally (events.json hollow_herald)'
     expect(heraldHeard({}, 'lunatic')).toBe(false);
     expect(heraldHeard({ heard_herald: true }, 'lunatic')).toBe(true); // a plain value from an old save
     expect(heraldHeard(undefined, 'lunatic')).toBe(false);
+  });
+});
+
+describe('the Descent in the rally: the glass broken at the gate, the Rite’s tier', () => {
+  // Failures: the glass or the Rite is never said (no speaker given it), said twice, said over
+  // a memory the run is owed (the fallen), or the rally runs past seven lines; Spoken (the tier
+  // that changes nothing) gets a line; a rally without the Descent changes at all.
+  const army = () => [
+    lord('Edric'),
+    lord('Kira'),
+    lord('Voss'),
+    lord('Rowan'),
+    lord('Astrid'),
+    lord('Cael'),
+    lord('Sera'),
+    recruit('Anna', 14),
+    recruit('Bram', 18),
+  ];
+  const rally = (units, opts) =>
+    composeFinaleRally({ units, pool: POOL, voice: VOICE, commander: 'Edric', ...opts });
+  const count = (r, cat) => r.filter((x) => x.category === cat).length;
+  const riteLines = (band) =>
+    new Set(Object.values(POOL.lords).flatMap((p) => p[band === 'broken' ? 'riteBroken' : 'riteAnswered'])); // prettier-ignore
+
+  it('no glass and no tier: exactly the rally it was before, for every seed', () => {
+    for (let seed = 0; seed < 40; seed++) {
+      const before = rally(army(), { seed, memory: true, fallen: ['Lia'] });
+      const after = rally(army(), { seed, memory: true, fallen: ['Lia'], glass: false, riteBand: null }); // prettier-ignore
+      expect(after).toEqual(before);
+      expect(rally(army(), { seed, riteBand: 'spoken' })).toEqual(rally(army(), { seed }));
+    }
+  });
+
+  it('with lords answering: the glass and the tier are each said once, never instead of the fallen', () => {
+    for (let seed = 0; seed < 60; seed++) {
+      for (const band of ['broken', 'answered']) {
+        const r = rally(army(), {
+          seed,
+          glass: true,
+          riteBand: band,
+          fallen: ['Lia'],
+          memory: true,
+        });
+        expect(r.length).toBeLessThanOrEqual(RALLY_MAX_LINES);
+        expect(count(r, 'fallen'), `seed ${seed}`).toBe(1);
+        expect(count(r, 'memory'), `seed ${seed}`).toBe(1);
+        expect(count(r, 'glass'), `seed ${seed}`).toBe(1);
+        expect(count(r, 'rite'), `seed ${seed}`).toBe(1);
+        const rite = r.find((x) => x.category === 'rite');
+        expect(riteLines(band).has(rite.line)).toBe(true);
+        expect(POOL.lords[rite.speaker][band === 'broken' ? 'riteBroken' : 'riteAnswered']).toContain(rite.line); // prettier-ignore
+        const glass = r.find((x) => x.category === 'glass');
+        expect(POOL.lords[glass.speaker].glass).toContain(glass.line);
+        expect(glass.speaker).not.toBe(rite.speaker);
+      }
+    }
+  });
+
+  it('with no lord left to answer, Sera closes on the Rite; the glass waits for a speaker', () => {
+    for (let seed = 0; seed < 30; seed++) {
+      const r = rally([lord('Edric'), lord('Sera')], { seed, glass: true, riteBand: 'answered' });
+      expect(r.map((x) => x.speaker)).toEqual(['Edric', 'Sera']);
+      expect(r[1].category).toBe('rite');
+      expect(POOL.lords.Sera.riteAnswered).toContain(r[1].line);
+      expect(count(r, 'glass')).toBe(0);
+    }
+    // Without Sera and with nobody answering, the tier goes unsaid rather than displacing the open.
+    const alone = rally([lord('Edric')], { seed: 3, glass: true, riteBand: 'broken' });
+    expect(alone.map((x) => x.category)).toEqual(['open']);
+  });
+
+  it('BattleBeatsController hands the rally the run’s glass and the battle’s tier', () => {
+    // Failure: the scene never passes them, so the lines are dead data.
+    const rallied = [];
+    const speakers = (glass, riteBand) => {
+      const units = [lord('Edric'), lord('Kira'), lord('Sera')];
+      const entity = { faction: 'enemy', isEntity: true, isBoss: true, currentHP: 50, stats: { HP: 100 } }; // prettier-ignore
+      return { units, entity, glass, riteBand };
+    };
+    for (const [glass, riteBand] of [
+      [true, 'answered'],
+      [false, 'spoken'],
+    ]) {
+      const { units, entity } = speakers(glass, riteBand);
+      const nodes = glass
+        ? [{ id: 'g', type: 'boss', completed: true, battleParams: { bossRole: 'gate' } }]
+        : [];
+      const scene = {
+        playerUnits: units,
+        enemyUnits: [entity],
+        gameData: { dialogue },
+        battleParams: { bossRole: 'finale', riteBand },
+        registry: { get: () => null },
+        runManager: {
+          runSeed: 11,
+          difficultyId: 'hard',
+          roster: units,
+          fallenUnits: [],
+          storyFlags: {},
+          actSequence: ['act1', 'act2', 'act3', 'act4', 'finalBoss'],
+          nodeMap: {
+            descent: { v: 1, routeId: 'entity', finale: 'entity' },
+            bossNodeId: 'e',
+            nodes,
+          },
+          getStartingLordNames: () => ['Edric', 'Kira'],
+        },
+      };
+      const beats = new BattleBeatsController(scene, () => 0);
+      beats._showRallyText = () => {};
+      const r = beats.entityRally({ leadMs: 0 });
+      beats.destroy();
+      rallied.push(r.map((x) => x.category));
+    }
+    expect(rallied[0]).toContain('glass');
+    expect(rallied[0]).toContain('rite');
+    expect(rallied[1]).not.toContain('glass');
+    expect(rallied[1]).not.toContain('rite');
   });
 });

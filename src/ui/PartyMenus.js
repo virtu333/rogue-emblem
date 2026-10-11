@@ -5,6 +5,7 @@ import { unitPortrait, withUnitFace } from './unitPortrait.js';
 import { getDisplayLevel, inventoryDisplayOrder } from '../engine/UnitManager.js';
 import { findCommander } from '../engine/Commander.js';
 import { isStandaloneScriptedBattle } from '../engine/ScriptedBattle.js';
+import { previewObjectives } from '../engine/ObjectivePreview.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
 import { getStaticCombatStats } from '../engine/Combat.js';
 import { lentSkillLine } from '../engine/AccessorySkillNames.js';
@@ -216,6 +217,22 @@ export function showArrivalMenu(
   surface.body.querySelector('.ch-card[aria-pressed="true"]')?.focus({ preventScroll: true });
 }
 
+/**
+ * The deploy menu's objective words. The menu opens before the map exists, so a defeat set
+ * piece's kind and targets come from its data (ObjectivePreview), the params' legacy string being
+ * only its family; any kind without words here reads as the rout it started as.
+ */
+export function deployObjectiveLine(battleParams, setPieces) {
+  const preview = previewObjectives(battleParams, setPieces);
+  const words = {
+    rout: 'Rout: defeat all enemies',
+    seize: 'Seize: defeat the boss, then capture the throne with a Lord',
+    escape: 'Escape: only Lords must exit; others retreat safely',
+    defeat: preview?.view.primary.map((p) => p.text).join(' '),
+  };
+  return words[preview?.kind ?? battleParams?.objective] || words.rout;
+}
+
 export function showDeploymentMenu(owner, roster, limits, onConfirm, initialNames) {
   const { scene, gameData, runManager } = owner;
   let commander = findCommander(roster);
@@ -274,6 +291,7 @@ export function showDeploymentMenu(owner, roster, limits, onConfirm, initialName
   if (runManager) surface.header.append(rosterButton);
   const status = element('p');
   status.setAttribute('role', 'status');
+  const objectiveLine = deployObjectiveLine(scene.battleParams, gameData?.setPieces);
   const list = element('div', null, 're-scroll re-party-list');
   const confirm = button(
     'Deploy',
@@ -288,7 +306,7 @@ export function showDeploymentMenu(owner, roster, limits, onConfirm, initialName
   );
   const render = () => {
     list.replaceChildren();
-    status.textContent = `${selected.size} / ${limits.max} selected · Minimum ${limits.min} · ${{ rout: 'Rout: defeat all enemies', seize: 'Seize: defeat the boss, then capture the throne with a Lord', escape: 'Escape: only Lords must exit; others retreat safely' }[scene.battleParams?.objective] || 'Rout: defeat all enemies'}${limits.lockedTo ? ` · This battle's field was set for ${limits.lockedTo} units when you first entered it` : ''}`;
+    status.textContent = `${selected.size} / ${limits.max} selected · Minimum ${limits.min} · ${objectiveLine}${limits.lockedTo ? ` · This battle's field was set for ${limits.lockedTo} units when you first entered it` : ''}`;
     confirm.disabled = selected.size < limits.min || selected.size > limits.max;
     for (const unit of roster) {
       const row = unitRow(
