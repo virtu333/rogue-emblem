@@ -32,6 +32,7 @@ import {
   fetchAllToLocalStorage,
 } from '../src/cloud/CloudSync.js';
 import {
+  CURRENT_BALANCE_REVISION,
   MetaProgressionManager,
   reconcilePickedPrologue,
 } from '../src/engine/MetaProgressionManager.js';
@@ -43,7 +44,8 @@ import prologueData from '../data/prologue.json';
 // Derived from the data, not from the code under test.
 const GRANT = { valor: prologueData.grant.valor, supply: prologueData.grant.supply };
 const KEY = getMetaKey(1);
-// recruit_hp_growth's first tier: 35 Supply (metaUpgrades.json, the recruit_stats tab).
+// recruit_hp_growth's first tier at the current prices (metaUpgrades.json, the recruit_stats
+// tab); the payloads are settled at the current balance revision, so no price cut credits it.
 const HP_TIER_1 = upgradesData.find((u) => u.id === 'recruit_hp_growth').costs[0];
 
 /** A meta payload: `own` is what its lineage earned apart from the grant. */
@@ -53,7 +55,7 @@ function payload({ savedAt, state, paid = state === 'complete', own = [0, 0], sp
   const supply = own[1] + grant[1] - (spent ? HP_TIER_1 : 0);
   return {
     savedAt,
-    balanceRevision: 2,
+    balanceRevision: CURRENT_BALANCE_REVISION,
     totalValor: valor,
     totalSupply: supply,
     purchasedUpgrades: spent ? { recruit_hp_growth: 1 } : {},
