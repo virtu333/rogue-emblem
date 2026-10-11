@@ -24,7 +24,7 @@
 //                           foes that reach a tile carry one.
 
 import { canInspectUnit, statusStaffThreat } from './BattleInformation.js';
-import { getFootprint, isEntity } from './EntitySystem.js';
+import { entityDistanceTo, getFootprint, isEntity } from './EntitySystem.js';
 import { willRemainRootedNextPhase } from './StatusConditionSystem.js';
 import { getBallistaDangerTiles } from './BallistaEngine.js';
 import { ENTITY_PRIMARY_ATTACK_RANGE } from '../utils/constants.js';
@@ -124,7 +124,18 @@ export function unitReach(grid, unit, { mov = 0, positions = null, costModifier 
   );
   const attack = new Set();
   const weapon = strikingWeapon(unit);
-  if (weapon) {
+  if (weapon && isEntity(unit)) {
+    // The Entity never steps and fights from its whole body: a tile is in its reach when the
+    // combat distance (entityDistanceTo, the nearest body tile) is in its weapon's range, as
+    // combat measures it. The body itself is never a target tile.
+    const { min, max } = parseRange(weapon.range);
+    for (const tile of getFootprint(unit)) {
+      for (const t of grid.getAttackRange(tile.col, tile.row, weapon)) {
+        const d = entityDistanceTo(unit, t.col, t.row);
+        if (d >= min && d <= max) attack.add(tileKey(t.col, t.row));
+      }
+    }
+  } else if (weapon) {
     for (const [key, entry] of moveRange) {
       if (entry?.stoppable === false) continue;
       const [mc, mr] = key.split(',').map(Number);
