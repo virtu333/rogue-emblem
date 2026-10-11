@@ -2538,21 +2538,41 @@ describe('RunManager', () => {
       expect(edric.accessory.name).toBe("Veteran's Crest");
     });
 
-    it('staff_upgrade gives Sera Mend at tier 1', () => {
-      const metaEffects = { startingStaffTier: 1 };
-      const rmMeta = new RunManager(gameData, metaEffects);
+    const seraStaves = (rmMeta) =>
+      rmMeta.roster
+        .find((u) => u.name === 'Sera')
+        .inventory.filter((w) => w.type === 'Staff')
+        .map((w) => w.name);
+
+    it('Sera starts with Heal alone without staff_upgrade', () => {
+      const rmMeta = new RunManager(gameData, {});
       rmMeta.startRun();
-      const sera = rmMeta.roster[1];
-      expect(sera.inventory.some((w) => w.name === 'Mend')).toBe(true);
-      expect(sera.inventory.some((w) => w.name === 'Heal')).toBe(false);
+      expect(seraStaves(rmMeta)).toEqual(['Heal']);
     });
 
-    it('staff_upgrade gives Sera Recover at tier 2', () => {
-      const metaEffects = { startingStaffTier: 2 };
-      const rmMeta = new RunManager(gameData, metaEffects);
+    it('staff_upgrade gives Sera Mend beside Heal at tier 1', () => {
+      const rmMeta = new RunManager(gameData, { startingStaffTier: 1 });
       rmMeta.startRun();
-      const sera = rmMeta.roster[1];
-      expect(sera.inventory.some((w) => w.name === 'Recover')).toBe(true);
+      expect(seraStaves(rmMeta)).toEqual(['Heal', 'Mend']);
+    });
+
+    it('staff_upgrade gives Sera Recover beside Heal at tier 2', () => {
+      const rmMeta = new RunManager(gameData, { startingStaffTier: 2 });
+      rmMeta.startRun();
+      expect(seraStaves(rmMeta)).toEqual(['Heal', 'Recover']);
+    });
+
+    it('staff_upgrade keeps both staves and every arsenal weapon for commander Sera', () => {
+      const rmMeta = new RunManager(gameData, {
+        startingStaffTier: 1,
+        startingLords: { commander: 'Sera', partner: 'Edric' },
+        deadlyArsenalTier: 3,
+        artAdept: 1,
+      });
+      rmMeta.startRun();
+      const sera = rmMeta.roster.find((u) => u.name === 'Sera');
+      expect(seraStaves(rmMeta)).toEqual(['Heal', 'Mend']);
+      expect(sera.inventory.some((w) => w.signatureOf === 'Sera')).toBe(true);
     });
 
     it('startingReclassSeal adds one Infantry Seal to convoy at run start', () => {

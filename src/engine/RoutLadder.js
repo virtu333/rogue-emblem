@@ -131,6 +131,39 @@ export function buildRoutLadder({
 }
 
 /**
+ * A fog-of-war rout map's reinforcements: every procedural arrival comes from the front (the
+ * edge behind the enemy army, opposite the player's deployment), never a flank, because an
+ * arrival the player cannot see landing beside their line reads as a trap, not a threat.
+ * A new object (the input is untouched): the ladder's waves, the template's waves and spawn
+ * edges, repeating waves and the Hunted wave all name the front only. Scripted waves
+ * (authored tiles, a village's bandits) keep their placements. Nothing here draws, so the
+ * generation stream is unchanged; the scheduler still takes one edge draw per arrival.
+ */
+export function fogRoutFrontOnly(reinforcements, front) {
+  if (!reinforcements || typeof reinforcements !== 'object' || !front) return reinforcements;
+  const r = { ...reinforcements };
+  const onlyFront = (wave) =>
+    wave && typeof wave === 'object' && Array.isArray(wave.edges)
+      ? { ...wave, edges: [front] }
+      : wave;
+  if (Array.isArray(r.spawnEdges)) r.spawnEdges = [front];
+  if (Array.isArray(r.waves)) r.waves = r.waves.map(onlyFront);
+  if (Array.isArray(r.repeatingWaves)) r.repeatingWaves = r.repeatingWaves.map(onlyFront);
+  if (r.hunted && typeof r.hunted === 'object') r.hunted = onlyFront(r.hunted);
+  if (r.ladder && typeof r.ladder === 'object' && Array.isArray(r.ladder.waves)) {
+    r.ladder = {
+      ...r.ladder,
+      front,
+      frontOnly: true,
+      waves: r.ladder.waves.map((wave) =>
+        wave && typeof wave === 'object' ? { ...wave, edge: front } : wave,
+      ),
+    };
+  }
+  return r;
+}
+
+/**
  * Where the ladder stands: waves resolved (arrived or blocked) and the next one due.
  * `resolvedThroughTurn` is the last turn whose arrivals have been resolved: the turn
  * before the current one, or the current one once its enemy phase brought them.
