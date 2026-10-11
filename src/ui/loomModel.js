@@ -434,8 +434,21 @@ function templateLookup(mapTemplates, id) {
   return null;
 }
 
+/**
+ * A Descent node's own flavour lines (dialogue.json `nodeFlavor.descent.<descentKey>`), or null:
+ * the authored route's nodes speak for themselves (the stair, the Vigil, the gate), never in the
+ * act's general voice. Read by the loom card and the route map's arrival banner alike.
+ */
+export function descentFlavorLines(nodeFlavor, node) {
+  const key = typeof node?.descentKey === 'string' ? node.descentKey : null;
+  const lines = key ? nodeFlavor?.descent?.[key] : null;
+  return Array.isArray(lines) && lines.length ? lines : null;
+}
+
 function flavorPool(node, dialogue, actId) {
   const nf = dialogue?.nodeFlavor || {};
+  const own = descentFlavorLines(nf, node);
+  if (own) return own;
   const pick = (pool) => (pool ? pool[actId] || pool.act3 || null : null);
   if (node.type === 'shop') return dialogue?.shopFlavor?.[actId] || null;
   if (node.type === 'boss') return pick(nf.boss);

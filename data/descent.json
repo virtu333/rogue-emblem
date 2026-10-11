@@ -31,7 +31,7 @@
               "setPiece": "mortuary_column",
               "fallable": true,
               "title": "The Mortuary Column",
-              "preview": "Rout the keepers of the long colonnade. The dark can still take this road."
+              "preview": "Rout the keepers of the long colonnade; a quick win costs the Rite. The dark can still take this road."
             },
             {
               "key": "side_stair",
@@ -51,7 +51,7 @@
               "elite": true,
               "riteTarget": true,
               "title": "The Vigil",
-              "preview": "Silence the four Voices of the court circle. Their guards need not fall."
+              "preview": "Silence the four Voices of the court circle; their guards need not fall. Stand on a summoning circle to stop its call."
             }
           ]
         },
@@ -98,7 +98,7 @@
               "setPiece": "mortuary_column",
               "fallable": true,
               "title": "The Mortuary Column",
-              "preview": "Rout the keepers of the long colonnade. The dark can still take this road."
+              "preview": "Rout the keepers of the long colonnade; a quick win costs the Rite. The dark can still take this road."
             },
             {
               "key": "side_stair",
@@ -118,7 +118,7 @@
               "elite": true,
               "riteTarget": true,
               "title": "The Vigil",
-              "preview": "Silence the four Voices of the court circle. Their guards need not fall."
+              "preview": "Silence the four Voices of the court circle; their guards need not fall. Stand on a summoning circle to stop its call."
             }
           ]
         },

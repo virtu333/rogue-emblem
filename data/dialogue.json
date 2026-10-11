@@ -2023,6 +2023,167 @@
         },
         {
           "when": {
+            "commander": "Edric",
+            "descent": true
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "There is a stair under the consecrated stones. The old kings went down it. So did he."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Whatever they've seen, they haven't seen us at full strength. Forward."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Kira",
+            "descent": true
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "There is a stair under the consecrated stones. The old kings went down it. So did he."
+            },
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "They've seen every path? Then we make a new one."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Voss",
+            "descent": true
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "There is a stair under the consecrated stones. The old kings went down it. So did he."
+            },
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "Seen my death a hundred ways, I'd wager. Not one of them stuck."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Sera",
+            "descent": true
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. Their visions press against mine — but I am done being watched."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "There is a stair under the consecrated stones. The old kings went down it. So did he."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Every future they see, I will unsee. We finish this together."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Rowan",
+            "descent": true
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "There is a stair under the consecrated stones. The old kings went down it. So did he."
+            },
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "Fate against fate. My lance likes those odds."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Astrid",
+            "descent": true
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "There is a stair under the consecrated stones. The old kings went down it. So did he."
+            },
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "No vision outruns a dive from the sun. Let's end it."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Cael",
+            "descent": true
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "There is a stair under the consecrated stones. The old kings went down it. So did he."
+            },
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "Then we knock. Shields first."
+            }
+          ]
+        },
+        {
+          "when": {
             "commander": "Edric"
           },
           "entries": [
@@ -2498,6 +2659,184 @@
       "variants": [
         {
           "when": {
+            "descent": true,
+            "commander": "Edric"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The ground is shaking. The rite fed it too much, and it is waking. We go down. Now."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "And his sight is back against mine. The lieutenant went below to hold its door."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Then we go down together. Ropes, lanterns, and nobody alone at the back."
+            }
+          ]
+        },
+        {
+          "when": {
+            "descent": true,
+            "commander": "Kira"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The ground is shaking. The rite fed it too much, and it is waking. We go down. Now."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "And his sight is back against mine. The lieutenant went below to hold its door."
+            },
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "He took the last square on the board. Good. Now I know where he stands."
+            }
+          ]
+        },
+        {
+          "when": {
+            "descent": true,
+            "commander": "Voss"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The ground is shaking. The rite fed it too much, and it is waking. We go down. Now."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "And his sight is back against mine. The lieutenant went below to hold its door."
+            },
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "A stair, and a man guarding a door at the bottom. Done that before. Lantern's mine."
+            }
+          ]
+        },
+        {
+          "when": {
+            "descent": true,
+            "commander": "Sera"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The ground is shaking. The rite fed it too much, and it is waking. We go down. Now."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "And his sight is back against mine. The lieutenant went below to hold its door."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "His sight on mine again. Good. This time I know exactly where he waits."
+            }
+          ]
+        },
+        {
+          "when": {
+            "descent": true,
+            "commander": "Rowan"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The ground is shaking. The rite fed it too much, and it is waking. We go down. Now."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "And his sight is back against mine. The lieutenant went below to hold its door."
+            },
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "A stair, a door, a seer. The mount stays up here. My luck comes down."
+            }
+          ]
+        },
+        {
+          "when": {
+            "descent": true,
+            "commander": "Astrid"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The ground is shaking. The rite fed it too much, and it is waking. We go down. Now."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "And his sight is back against mine. The lieutenant went below to hold its door."
+            },
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "No wind under the capital. I'll walk. Someone hand me a lantern."
+            }
+          ]
+        },
+        {
+          "when": {
+            "descent": true,
+            "commander": "Cael"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The ground is shaking. The rite fed it too much, and it is waking. We go down. Now."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "And his sight is back against mine. The lieutenant went below to hold its door."
+            },
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "A door with a man in front of it. I'll be the man in front of him."
+            }
+          ]
+        },
+        {
+          "when": {
+            "descent": true
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The ground is shaking. The rite fed it too much, and it is waking. We go down. Now."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "And his sight is back against mine. The lieutenant went below to hold its door."
+            }
+          ]
+        },
+        {
+          "when": {
             "commander": "Edric"
           },
           "entries": [
@@ -2626,6 +2965,18 @@
         }
       ],
       "variants": [
+        {
+          "when": {
+            "descent": true
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "A stair under the throne room, older than the empire. The air coming up it is warm."
+            }
+          ]
+        },
         {
           "when": {
             "commander": "Edric"
@@ -5173,6 +5524,49 @@
         "variants": [
           {
             "when": {
+              "bossKilledYouBefore": true,
+              "bossRole": "gate"
+            },
+            "entries": [
+              {
+                "speaker": "The Lieutenant",
+                "portrait": "portrait_boss_the_lieutenant",
+                "line": "You again, at my door. I have closed it on you before. I can close it twice."
+              }
+            ]
+          },
+          {
+            "when": {
+              "bossSlainBefore": true,
+              "bossRole": "gate"
+            },
+            "entries": [
+              {
+                "speaker": "The Lieutenant",
+                "portrait": "portrait_boss_the_lieutenant",
+                "line": "You have killed me in other weaves. Here I need only hold a door. Try me."
+              }
+            ]
+          },
+          {
+            "when": {
+              "bossRole": "gate"
+            },
+            "entries": [
+              {
+                "speaker": "The Lieutenant",
+                "portrait": "portrait_boss_the_lieutenant",
+                "line": "I watched His Majesty fall from the far side of the glass. I did not look away."
+              },
+              {
+                "speaker": "The Lieutenant",
+                "portrait": "portrait_boss_the_lieutenant",
+                "line": "Behind me is the door, and behind the door it waits. Neither opens for you."
+              }
+            ]
+          },
+          {
+            "when": {
               "bossKilledYouBefore": true
             },
             "entries": [
@@ -5225,6 +5619,31 @@
         "variants": [
           {
             "when": {
+              "bossKilledYouBefore": true,
+              "bossRole": "gate"
+            },
+            "entries": [
+              {
+                "speaker": "The Lieutenant",
+                "portrait": "portrait_boss_the_lieutenant",
+                "line": "This is where your line broke last time. The door stayed shut. So did I."
+              }
+            ]
+          },
+          {
+            "when": {
+              "bossRole": "gate"
+            },
+            "entries": [
+              {
+                "speaker": "The Lieutenant",
+                "portrait": "portrait_boss_the_lieutenant",
+                "line": "Enough. If the glass breaks, it breaks. The door stays shut behind me."
+              }
+            ]
+          },
+          {
+            "when": {
               "bossKilledYouBefore": true
             },
             "entries": [
@@ -5263,6 +5682,97 @@
       },
       "preBattleReply": {
         "variants": [
+          {
+            "when": {
+              "bossRole": "gate",
+              "commander": "Edric"
+            },
+            "entries": [
+              {
+                "speaker": "Edric",
+                "portrait": "portrait_lord_edric",
+                "line": "Everyone behind me is going through that door. You can stand aside."
+              }
+            ]
+          },
+          {
+            "when": {
+              "bossRole": "gate",
+              "commander": "Kira"
+            },
+            "entries": [
+              {
+                "speaker": "Kira",
+                "portrait": "portrait_lord_kira",
+                "line": "A door is only a square you haven't taken yet. Move."
+              }
+            ]
+          },
+          {
+            "when": {
+              "bossRole": "gate",
+              "commander": "Voss"
+            },
+            "entries": [
+              {
+                "speaker": "Voss",
+                "portrait": "portrait_lord_voss",
+                "line": "Doors I know. Kick it in, count who's still standing. Still me."
+              }
+            ]
+          },
+          {
+            "when": {
+              "bossRole": "gate",
+              "commander": "Sera"
+            },
+            "entries": [
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "You ran ahead of my sight to hold a door. I see you now. Clearly."
+              }
+            ]
+          },
+          {
+            "when": {
+              "bossRole": "gate",
+              "commander": "Rowan"
+            },
+            "entries": [
+              {
+                "speaker": "Rowan",
+                "portrait": "portrait_lord_rowan",
+                "line": "A locked door? I'll knock. With a lance."
+              }
+            ]
+          },
+          {
+            "when": {
+              "bossRole": "gate",
+              "commander": "Astrid"
+            },
+            "entries": [
+              {
+                "speaker": "Astrid",
+                "portrait": "portrait_lord_astrid",
+                "line": "You came underground to guard a door. Bad trade. I can still reach you."
+              }
+            ]
+          },
+          {
+            "when": {
+              "bossRole": "gate",
+              "commander": "Cael"
+            },
+            "entries": [
+              {
+                "speaker": "Cael",
+                "portrait": "portrait_lord_cael",
+                "line": "You're a door's worth of wall. I'm more. Let's see whose holds."
+              }
+            ]
+          },
           {
             "when": {
               "commander": "Edric"
@@ -5351,6 +5861,190 @@
       },
       "preBattleExchange": {
         "variants": [
+          {
+            "when": {
+              "bossRole": "gate",
+              "commander": "Edric",
+              "bossMetBefore": true
+            },
+            "pool": [
+              {
+                "exchange": [
+                  {
+                    "speaker": "The Lieutenant",
+                    "portrait": "portrait_boss_the_lieutenant",
+                    "line": "I watched His Majesty burn from the far side of the glass. I took notes."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then take one more. We're going through, and we're going together."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "The Lieutenant",
+                    "portrait": "portrait_boss_the_lieutenant",
+                    "line": "There is one door left between you and it. I am the door."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then I'm sorry for you. Everyone here walks through it, or nobody does."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "The Lieutenant",
+                    "portrait": "portrait_boss_the_lieutenant",
+                    "line": "Your seer felt me go below. I let her. I wanted you to find this hall."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "We found it. Everyone who started down the stair is standing in it."
+                  }
+                ]
+              },
+              {
+                "exchange": [
+                  {
+                    "speaker": "The Lieutenant",
+                    "portrait": "portrait_boss_the_lieutenant",
+                    "line": "It is awake already. All I keep from you is the sight of it."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then keep it a moment longer. I want to count everyone first."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossKilledYouBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "The Lieutenant",
+                    "portrait": "portrait_boss_the_lieutenant",
+                    "line": "I stopped you at this door once. The glass still shows your banner on the floor."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "It's off the floor today. Banner up, everyone. Eyes on me."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossKilledYouBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "The Lieutenant",
+                    "portrait": "portrait_boss_the_lieutenant",
+                    "line": "Last time you never saw the door. You saw me, and then nothing."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "I remember the nothing. This time I'd like everyone to see the door."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossSlainBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "The Lieutenant",
+                    "portrait": "portrait_boss_the_lieutenant",
+                    "line": "You have broken this glass before. It grows back. I grow back with it."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then we break it again. As often as it takes, and all of us each time."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossSlainBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "The Lieutenant",
+                    "portrait": "portrait_boss_the_lieutenant",
+                    "line": "In every weave where you pass me, it waits just beyond. You know that."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "We know. That's why we stay together. Step aside."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossKilledYouBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "The Lieutenant",
+                    "portrait": "portrait_boss_the_lieutenant",
+                    "line": "You again, at my door. I have closed it on you before. I can close it twice."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then you know how this goes. We keep coming, and nobody stays on the floor."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "bossSlainBefore": true
+                },
+                "exchange": [
+                  {
+                    "speaker": "The Lieutenant",
+                    "portrait": "portrait_boss_the_lieutenant",
+                    "line": "You have killed me in other weaves. Here I need only hold a door. Try me."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "We didn't come to kill you twice. We came to get everyone through."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "difficulty": "lunatic"
+                },
+                "exchange": [
+                  {
+                    "speaker": "The Lieutenant",
+                    "portrait": "portrait_boss_the_lieutenant",
+                    "line": "Under a black sun the door hardly needs me. I hold it out of spite."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Spite's honest, at least. Hold it, then. We'll take it off its hinges."
+                  }
+                ]
+              }
+            ]
+          },
           {
             "when": {
               "commander": "Edric",
@@ -5564,6 +6258,44 @@
         "variants": [
           {
             "when": {
+              "bossKilledYouBefore": true,
+              "bossRole": "gate"
+            },
+            "entries": [
+              {
+                "speaker": "The Lieutenant",
+                "portrait": "portrait_boss_the_lieutenant",
+                "line": "I closed this road on you once... and now I open it. Go down, then."
+              }
+            ]
+          },
+          {
+            "when": {
+              "bossSlainBefore": true,
+              "bossRole": "gate"
+            },
+            "entries": [
+              {
+                "speaker": "The Lieutenant",
+                "portrait": "portrait_boss_the_lieutenant",
+                "line": "Again... you always find the door. You never ask what is behind it."
+              }
+            ]
+          },
+          {
+            "when": {
+              "bossRole": "gate"
+            },
+            "entries": [
+              {
+                "speaker": "The Lieutenant",
+                "portrait": "portrait_boss_the_lieutenant",
+                "line": "Go down, then. It is awake, and it remembers you."
+              }
+            ]
+          },
+          {
+            "when": {
               "bossKilledYouBefore": true
             },
             "entries": [
@@ -5648,6 +6380,34 @@
                 "speaker": "Sera",
                 "portrait": "portrait_lord_sera",
                 "line": "He has gone below, out of my sight for now. I can feel where. We will meet there."
+              }
+            ]
+          },
+          {
+            "when": {
+              "finale": "entity",
+              "descent": true
+            },
+            "entries": [
+              {
+                "speaker": "The Lieutenant",
+                "portrait": "portrait_boss_the_lieutenant",
+                "line": "Hello, Sera. Don't look for me on this field. I stand where none of your roads can reach."
+              },
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "You always did prefer the far side of the glass. Afraid of what my light shows up close?"
+              },
+              {
+                "speaker": "The Lieutenant",
+                "portrait": "portrait_boss_the_lieutenant",
+                "line": "Win here. Let His Majesty fall, if you can. I will be below, at the one door that matters."
+              },
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "He's gone below, past the edge of my sight. To a door. He means to hold it against us."
               }
             ]
           }
@@ -6048,6 +6808,40 @@
         "variants": [
           {
             "when": {
+              "riteBand": "answered"
+            },
+            "entries": [
+              {
+                "speaker": null,
+                "portrait": null,
+                "line": "..."
+              },
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "They spoke nearly every word. It is wide awake, and it heard us coming."
+              }
+            ]
+          },
+          {
+            "when": {
+              "riteBand": "broken"
+            },
+            "entries": [
+              {
+                "speaker": null,
+                "portrait": null,
+                "line": "..."
+              },
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "Their rite never finished. It woke on half a summons. Strike before it gathers."
+              }
+            ]
+          },
+          {
+            "when": {
               "bossKilledYouBefore": true
             },
             "entries": [
@@ -6352,6 +7146,50 @@
                     "speaker": "Edric",
                     "portrait": "portrait_lord_edric",
                     "line": "No sun left above us. Then we light the way for each other. Forward."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "riteBand": "answered"
+                },
+                "exchange": [
+                  {
+                    "speaker": null,
+                    "portrait": null,
+                    "line": "..."
+                  },
+                  {
+                    "speaker": "Sera",
+                    "portrait": "portrait_lord_sera",
+                    "line": "They spoke nearly every word. It is wide awake, and it heard us coming."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Then it heard us coming down every step. Good. Let it count us."
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "riteBand": "broken"
+                },
+                "exchange": [
+                  {
+                    "speaker": null,
+                    "portrait": null,
+                    "line": "..."
+                  },
+                  {
+                    "speaker": "Sera",
+                    "portrait": "portrait_lord_sera",
+                    "line": "Their rite never finished. It woke on half a summons. Strike before it gathers."
+                  },
+                  {
+                    "speaker": "Edric",
+                    "portrait": "portrait_lord_edric",
+                    "line": "Half a summons is still a summons. Together, now, before it finds its feet."
                   }
                 ]
               }
@@ -7936,6 +8774,167 @@
       "variants": [
         {
           "when": {
+            "glassBroken": true,
+            "commander": "Edric"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "It's going back to sleep. The cycle is broken. For the first time... I can't see what comes next. And that's beautiful."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The glass broke and the door opened, and now this. His sight is gone from mine for good."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "I counted twice. Everyone who can stand is standing. That's the only future I need to see."
+            }
+          ]
+        },
+        {
+          "when": {
+            "glassBroken": true,
+            "commander": "Kira"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "It's going back to sleep. The cycle is broken. For the first time... I can't see what comes next. And that's beautiful."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The glass broke and the door opened, and now this. His sight is gone from mine for good."
+            },
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "An unwritten board. No endgame in sight. Finally, a game that doesn't have to end."
+            }
+          ]
+        },
+        {
+          "when": {
+            "glassBroken": true,
+            "commander": "Voss"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "It's going back to sleep. The cycle is broken. For the first time... I can't see what comes next. And that's beautiful."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The glass broke and the door opened, and now this. His sight is gone from mine for good."
+            },
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "Nothing new in the ledger tonight. I'll close it for a while. Not forever. A while."
+            }
+          ]
+        },
+        {
+          "when": {
+            "glassBroken": true,
+            "commander": "Sera"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "It's going back to sleep. The cycle is broken. For the first time... I can't see what comes next. And that's beautiful."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The glass broke and the door opened, and now this. His sight is gone from mine for good."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "No thread in my hands. Just all of you. I think that's what I was weaving toward the whole time."
+            }
+          ]
+        },
+        {
+          "when": {
+            "glassBroken": true,
+            "commander": "Rowan"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "It's going back to sleep. The cycle is broken. For the first time... I can't see what comes next. And that's beautiful."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The glass broke and the door opened, and now this. His sight is gone from mine for good."
+            },
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "Can't see what comes next? Perfect. Then nobody can call it luck."
+            }
+          ]
+        },
+        {
+          "when": {
+            "glassBroken": true,
+            "commander": "Astrid"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "It's going back to sleep. The cycle is broken. For the first time... I can't see what comes next. And that's beautiful."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The glass broke and the door opened, and now this. His sight is gone from mine for good."
+            },
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "The wind's moving again. I'm going up. Nothing to see but sky, for once."
+            }
+          ]
+        },
+        {
+          "when": {
+            "glassBroken": true,
+            "commander": "Cael"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "It's going back to sleep. The cycle is broken. For the first time... I can't see what comes next. And that's beautiful."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The glass broke and the door opened, and now this. His sight is gone from mine for good."
+            },
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "Then I'll stand here a while longer. Somebody should, in case it snores."
+            }
+          ]
+        },
+        {
+          "when": {
             "commander": "Edric"
           },
           "entries": [
@@ -9449,6 +10448,58 @@
         "A bell rings from a tower that fell last winter.",
         "Torches burn at a crossing. Nobody tends them.",
         "A sealed carriage, the horses long gone, the door ajar."
+      ],
+      "finalBoss": [
+        "A side passage off the stair, its torches lit by nobody.",
+        "Something was left on this landing for whoever came next.",
+        "'Do we stop?' 'We look. Then we decide.'"
+      ]
+    },
+    "descent": {
+      "stair": [
+        "Torch brackets every tenth step down. The lowest ones were never lit.",
+        "Every tenth step is worn hollow. Every tenth step, someone stopped to rest.",
+        "'How far down?' 'Far enough that the torches stop arguing with the dark.'",
+        "Carved into the stair, very old: WE CAME THIS FAR ALSO."
+      ],
+      "column": [
+        "Niches floor to vault, either side. All of them full. All of them labelled.",
+        "A clerk's chalk on a pillar: COUNT AGAIN. Under it, in another hand: WHY.",
+        "The dust here lies in lines, as if swept by somebody marching."
+      ],
+      "side_stair": [
+        "A narrower stair off the main flight. Somebody wanted this one forgotten.",
+        "Soot on the ceiling in a line. Someone came this way with a light.",
+        "A landing, a draught, and a smell of old paper."
+      ],
+      "vigil": [
+        "The stair hums under your boots, in time with something being said.",
+        "'Can you hear that?' 'Since the stair. I hoped it was only me.'",
+        "Scratched by the door: KEEP THE CIRCLES COVERED. Under it: AND THE MOUTHS SHUT."
+      ],
+      "landing": [
+        "One last landing. The steps below it are newer, and cut in a hurry.",
+        "A bench on the landing, worn smooth. Somebody sat here a long time, deciding.",
+        "Cold air from below, and under it a smell like hot glass."
+      ],
+      "ruins": [
+        "A fallen chapel on the stair, its altar still level. A place to breathe.",
+        "Old bedrolls, rotted flat. Someone rested here once, and went on down."
+      ],
+      "gate": [
+        "A long hall of mirrors, each of them a little late.",
+        "The glass shows the army arriving a moment before it does.",
+        "Past the mirrors a door, shut, and a man standing in front of it."
+      ],
+      "lieutenant": [
+        "A long hall of mirrors, and at its end a seat nobody was meant to sit in.",
+        "Every mirror shows the hall empty. The hall is not empty.",
+        "'He's waiting for us.' 'He has been since before we left.'"
+      ],
+      "entity": [
+        "Below the capital the stone is warm, and the warmth has a pulse.",
+        "Carved above the last door: WHAT SLEEPS HERE WAS NOT MEANT TO BE FED.",
+        "The air down here doesn't move. Something under it does."
       ]
     }
   },
@@ -11888,6 +12939,18 @@
         "fallen": [
           "{fallen} should be here for this. Then we fight for two.",
           "I promised {fallen} I'd see this through. I keep my promises."
+        ],
+        "glass": [
+          "We broke his glass to get here. Everyone came through it. Everyone stays together.",
+          "The door's behind us now. I counted everyone through it. I'll count you out again."
+        ],
+        "riteBroken": [
+          "They never finished their words. It's only half awake. Let's not give it the rest.",
+          "Their rite fell apart on the stair. That was us. Let's finish what we started."
+        ],
+        "riteAnswered": [
+          "It heard every word they said. Then let it hear this: we are not leaving anyone.",
+          "Fully called and wide awake. Fine. So are we, and there are more of us."
         ]
       },
       "Kira": {
@@ -11926,6 +12989,18 @@
         "fallen": [
           "{fallen} would have loved this position. I'll play it for them.",
           "We're missing a piece. {fallen}. We win this one for them."
+        ],
+        "glass": [
+          "The glass is broken and the door is open. Last row of the board. Mate is here.",
+          "His glass was a good defence. We went through it anyway. Same plan here."
+        ],
+        "riteBroken": [
+          "Their spell is half a move. A half move is a blunder. Punish it.",
+          "They never finished the opening. Now it plays without its best pieces."
+        ],
+        "riteAnswered": [
+          "It had every move it wanted before we sat down. Good. Now it's overconfident.",
+          "Full strength, fully awake. A real opponent at last. Don't waste my plan."
         ]
       },
       "Voss": {
@@ -11964,6 +13039,18 @@
         "fallen": [
           "{fallen}'s page is still open. Let's make it mean something.",
           "{fallen} held for us. We hold now."
+        ],
+        "glass": [
+          "Glass on the floor upstairs. One more line in the ledger. Let's not add ours.",
+          "Broke his mirrors on the way down. Still standing. Let's keep it that way."
+        ],
+        "riteBroken": [
+          "Half a rite. Half awake. Half the trouble. Still trouble. Move.",
+          "Their words never landed. Good. I'm tired of listening to mages."
+        ],
+        "riteAnswered": [
+          "They finished their song. Now it's awake and loud. So am I.",
+          "Every word of it said. Fine. The ledger has room. Not for us."
         ]
       },
       "Sera": {
@@ -12008,6 +13095,18 @@
         "fallen": [
           "{fallen} is in the thread too. I can feel them. Fight on!",
           "I couldn't save {fallen} in this weave. Let's make it count."
+        ],
+        "glass": [
+          "His glass is broken. For the first time there is one sight down here. Mine.",
+          "I felt the glass break. Nothing stands between my sight and it now. Follow me."
+        ],
+        "riteBroken": [
+          "We broke their rite on the way down. It came up thin. Hold the thread, now!",
+          "Their last word was never spoken. It wakes half-made. End it, together!"
+        ],
+        "riteAnswered": [
+          "They gave it every word, and still it fears this thread. Hold it. Now!",
+          "It heard the whole rite. It has never heard us. All of you, together!"
         ]
       },
       "Rowan": {
@@ -12046,6 +13145,18 @@
         "fallen": [
           "{fallen} would have loved this charge. Ride for them!",
           "This one's for {fallen}. Luck has nothing to do with it."
+        ],
+        "glass": [
+          "Smashed a hall of mirrors on the way in. Seven years' bad luck. Lucky it's all skill.",
+          "That glass showed me my best side, twice. Shame we broke it. Onward!"
+        ],
+        "riteBroken": [
+          "Their spell fizzled on the stair. My skill, obviously. Let's go!",
+          "Half awake? I've ridden half awake. Never lost a race. Charge!"
+        ],
+        "riteAnswered": [
+          "Fully awake, fully angry. Perfect. More target for the lance.",
+          "It heard the whole rite? Then it heard my mount's opinion too. Forward!"
         ]
       },
       "Astrid": {
@@ -12084,6 +13195,18 @@
         "fallen": [
           "{fallen} should see this from up here. I'll look for them.",
           "One less voice on the wind. {fallen}. We fly for them."
+        ],
+        "glass": [
+          "Mirrors on the way down, all broken. No sky here. Doesn't matter. I can see it.",
+          "Broke his glass. The air moved after. First time down here. Go."
+        ],
+        "riteBroken": [
+          "Their words fell short. It's slow. I'm not.",
+          "Half called, half awake. I've hunted worse in a crosswind. Now."
+        ],
+        "riteAnswered": [
+          "Wide awake. Good. A sleeping target was never a fair fight.",
+          "It heard all of it. It hasn't heard my lance yet. Up and in."
         ]
       },
       "Cael": {
@@ -12122,6 +13245,18 @@
         "fallen": [
           "{fallen} stood with me. I'll stand for both of us.",
           "I couldn't cover {fallen}. I'll cover everyone else."
+        ],
+        "glass": [
+          "We came through his glass. Glass breaks. Walls don't. Remember that.",
+          "The door's open behind us. I'll stand in it. Nothing gets past twice."
+        ],
+        "riteBroken": [
+          "Their rite fell short. It's half here. I'm all here.",
+          "It woke before they were done. Bad timing. Mine's fine."
+        ],
+        "riteAnswered": [
+          "All their words said. Doesn't matter. Walls don't listen.",
+          "Wide awake and fully called. Good. Something worth standing in front of."
         ]
       }
     },
@@ -12398,5 +13533,214 @@
         "Old hands. Short work."
       ]
     }
+  },
+  "vigil": {
+    "entry": {
+      "base": [
+        {
+          "speaker": "Voice of the Calling",
+          "portrait": "portrait_enemy_circle_adept",
+          "line": "Visitors on the stair. Do not stop the verse. Nothing stops the verse."
+        },
+        {
+          "speaker": "Voice of the Feeding",
+          "portrait": "portrait_enemy_circle_adept",
+          "line": "They have brought more of the living. The stone will be grateful."
+        },
+        {
+          "speaker": "Voice of the Waking",
+          "portrait": "portrait_enemy_circle_adept",
+          "line": "While the others keep their verses, mine is spoken twice. Let them come."
+        }
+      ],
+      "variants": [
+        {
+          "when": {
+            "riteBand": "broken"
+          },
+          "entries": [
+            {
+              "speaker": "Voice of the Calling",
+              "portrait": "portrait_enemy_circle_adept",
+              "line": "The verse has gone thin. Someone above us has been unsaying it."
+            },
+            {
+              "speaker": "Voice of the Binding",
+              "portrait": "portrait_enemy_circle_adept",
+              "line": "Then we begin again, from the first word. Hold your places."
+            },
+            {
+              "speaker": "Voice of the Waking",
+              "portrait": "portrait_enemy_circle_adept",
+              "line": "While the others keep their verses, mine is spoken twice. Let them come."
+            }
+          ]
+        },
+        {
+          "when": {
+            "riteBand": "answered"
+          },
+          "entries": [
+            {
+              "speaker": "Voice of the Calling",
+              "portrait": "portrait_enemy_circle_adept",
+              "line": "It has heard nearly all of it. Visitors now? Too late, and welcome."
+            },
+            {
+              "speaker": "Voice of the Feeding",
+              "portrait": "portrait_enemy_circle_adept",
+              "line": "Bring them closer. It is hungry, and it is listening."
+            },
+            {
+              "speaker": "Voice of the Waking",
+              "portrait": "portrait_enemy_circle_adept",
+              "line": "While the others keep their verses, mine is spoken twice. Let them come."
+            }
+          ]
+        }
+      ]
+    },
+    "entryReply": {
+      "variants": [
+        {
+          "when": {
+            "commander": "Edric"
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Four of them on four marks. Break the ring, and nobody wanders off alone."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Kira"
+          },
+          "entries": [
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "Four pieces that cannot move. Take the one that counts twice first."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Voss"
+          },
+          "entries": [
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "Mages chanting in a hole. Shut them up and the hole's just a hole."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Sera"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Every word they speak falls through the floor. Stop their mouths before one lands."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Rowan"
+          },
+          "entries": [
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "Four singers and no audience. We'll be the hecklers."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Astrid"
+          },
+          "entries": [
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "No sky, four voices, one ring. Fine. Over the guards, not through them."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Cael"
+          },
+          "entries": [
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "Let them chant. I'll stand on their circles. Nothing comes up under me."
+            }
+          ]
+        }
+      ]
+    },
+    "voices": {
+      "voice_calling": {
+        "words": [
+          "Come down.",
+          "Come to the stone.",
+          "We have made room.",
+          "Your name is ready.",
+          "Come down to us.",
+          "Nothing else is asked."
+        ],
+        "silenced": "No one calls it now. Good. In nine years it never once called back."
+      },
+      "voice_binding": {
+        "words": [
+          "Hold.",
+          "Be held.",
+          "Bound at the wrist.",
+          "Bound at the name.",
+          "Lie still and listen.",
+          "Hold, and hold."
+        ],
+        "silenced": "Unbound, it will not come. Not tame. Perhaps not at all."
+      },
+      "voice_feeding": {
+        "words": [
+          "Eat.",
+          "The stone is laid.",
+          "Take the soldiers.",
+          "Take the roll.",
+          "Take what we brought.",
+          "There is more."
+        ],
+        "silenced": "The dead were mine to give. Now they are only dead."
+      },
+      "voice_waking": {
+        "words": [
+          "Wake.",
+          "Open.",
+          "Wake, and remember.",
+          "Open your eye.",
+          "The last word.",
+          "Wake now."
+        ],
+        "silenced": "The last word dies in my mouth. Let it. It was never kind."
+      }
+    },
+    "call": [
+      "Present.",
+      "Here.",
+      "Present, sir.",
+      "Answering the roll.",
+      "Here, sir.",
+      "Present. As ordered."
+    ]
   }
 }

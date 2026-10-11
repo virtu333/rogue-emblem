@@ -80,7 +80,7 @@ describe('planning and applying', () => {
     );
     expect(run.rite.words).toBe(0);
     expect(record).toMatchObject({ kind: 'rite', delta: 0, requested: -3, words: 0 });
-    expect(describeResult(record).text).toBe('The rite: unchanged');
+    expect(describeResult(record).text).toBe('The Rite: unchanged');
   });
 
   it('a run with no Rite keeps none, and the page says nothing', () => {
@@ -119,7 +119,7 @@ describe('planning and applying', () => {
       nodeId: node.id,
       eventId: 'last_lantern',
     });
-    expect(chosen.results.map((r) => describeResult(r)?.text)).toContain('The rite: −1 word');
+    expect(chosen.results.map((r) => describeResult(r)?.text)).toContain('The Rite: −1 word');
   });
 
   it('the Seers’ Last Page: finished by a staff-bearer (−3), burned (−1 and a Lingering Injury)', () => {
@@ -151,9 +151,9 @@ describe('planning and applying', () => {
 describe('the words', () => {
   it('the preview names the change, signed, singular or plural', () => {
     const ctx = { run: descentRun(), event: eventById('last_lantern'), state: {} };
-    expect(effectPreview({ type: 'rite', delta: -1 }, ctx).text).toBe('The rite: −1 word');
-    expect(effectPreview({ type: 'rite', delta: 2 }, ctx).text).toBe('The rite: +2 words');
-    expect(effectPreview({ type: 'rite', delta: -3 }, ctx).text).toBe('The rite: −3 words');
+    expect(effectPreview({ type: 'rite', delta: -1 }, ctx).text).toBe('The Rite: −1 word');
+    expect(effectPreview({ type: 'rite', delta: 2 }, ctx).text).toBe('The Rite: +2 words');
+    expect(effectPreview({ type: 'rite', delta: -3 }, ctx).text).toBe('The Rite: −3 words');
   });
 
   it('the result line: fewer words are good news, more are bad, with where it stands', () => {
@@ -161,15 +161,15 @@ describe('the words', () => {
       describeResult({ kind: 'rite', delta: -1, requested: -1, words: 4, band: 'broken' }),
     ).toEqual({
       tone: 'good',
-      text: 'The rite: −1 word',
-      detail: 'The rite stands at 4 words · Broken.',
+      text: 'The Rite: −1 word',
+      detail: 'The Rite stands at 4 words · Broken.',
     });
     expect(
       describeResult({ kind: 'rite', delta: 2, requested: 2, words: 13, band: 'answered' }),
     ).toEqual({
       tone: 'bad',
-      text: 'The rite: +2 words',
-      detail: 'The rite stands at 13 words · Answered.',
+      text: 'The Rite: +2 words',
+      detail: 'The Rite stands at 13 words · Answered.',
     });
   });
 });

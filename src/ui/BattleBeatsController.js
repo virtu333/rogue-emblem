@@ -96,6 +96,22 @@ export class BattleBeatsController {
   }
 
   /**
+   * The Vigil's battle-entry beat (no boss card, so no boss lines): the Voices speak as the army
+   * comes in (dialogue.json `vigil.entry`, by the Rite's tier at entry), then the commander
+   * answers (`vigil.entryReply`). Only on a map whose config carries `vigil`, in a run.
+   */
+  getVigilEntryEntries() {
+    const scene = this.scene;
+    if (!scene.battleConfig?.vigil || !scene.runManager) return [];
+    const pool = scene.gameData?.dialogue?.vigil;
+    if (!pool) return [];
+    const ctx = this._ctx(null);
+    const voices = selectDialogueEntries(pool.entry, ctx) || [];
+    if (voices.length === 0) return [];
+    return [...voices, ...(selectDialogueEntries(pool.entryReply, ctx) || [])];
+  }
+
+  /**
    * The Lieutenant, seen once in an Act III boss battle on every road with an Act IV after it
    * (Dusk, Nightfall, Black Sun; never First Light, which meets him straight after Act III):
    * Sera's rival appears to her as a vision, so the road knows who he is before Act IV says he
@@ -185,6 +201,9 @@ export class BattleBeatsController {
         herald: heraldHeard(rm?.storyFlags, rm?.difficultyId),
         fallen,
         hurt: !entity || maxHP <= 0 || entity.currentHP < maxHP,
+        // The Descent: the gate's glass broken on the way down, the Rite's tier at this battle.
+        glass: ctx.glassBroken === true,
+        riteBand: ctx.riteBand !== 'none' ? ctx.riteBand : null,
       });
     } catch (_) {
       rally = [];
@@ -205,10 +224,25 @@ export class BattleBeatsController {
     return rally;
   }
 
-  _showRallyText(unit, line) {
+  /**
+   * A line said over a unit on the field (or over `tile`, for one that has just left it), with
+   * the speaker's name on a tab: the rally's lines, and the Vigil's Voices and called Hollowed
+   * (VigilController). Never blocks; a line that cannot be drawn is simply not shown.
+   * @param {object} unit the speaker (its `name` heads the line)
+   * @param {string} line
+   * @param {{ tile?: { col: number, row: number }, foe?: boolean, holdMs?: number }} [options]
+   *   `foe`: an enemy's words (the threat-red tab and ink, not the army's gold)
+   */
+  speakOver(unit, line, options = {}) {
+    if (!unit || typeof line !== 'string' || !line.trim()) return;
+    this._showRallyText(unit, line, options);
+  }
+
+  _showRallyText(unit, line, { tile = null, foe = false, holdMs = RALLY_HOLD_MS } = {}) {
     const scene = this.scene;
     try {
-      const pos = scene.grid?.gridToPixel?.(unit.col, unit.row);
+      const at = tile || unit;
+      const pos = scene.grid?.gridToPixel?.(at.col, at.row);
       if (!pos) return;
       const screen = scene._worldToScreen?.(pos.x, pos.y) || pos;
       const cam = scene.cameras?.main;
@@ -219,9 +253,9 @@ export class BattleBeatsController {
         fontSize: '14px',
         align: 'center',
         wordWrap: { width: Math.max(96, Math.min(250, width - 24)) },
-        color: '#fff4d6',
+        color: foe ? '#ffe0dc' : '#fff4d6',
         fontStyle: 'bold',
-        backgroundColor: '#140f08e6',
+        backgroundColor: foe ? '#1a0808e6' : '#140f08e6',
         padding: { x: 8, y: 5 },
       })
         .setOrigin(0.5)
@@ -231,8 +265,8 @@ export class BattleBeatsController {
       const name = presentationText(scene, 0, 0, unit.name, {
         fontFamily: "'Press Start 2P', monospace",
         fontSize: '8px',
-        color: '#1a1206',
-        backgroundColor: '#e8b64c',
+        color: foe ? '#fff4f2' : '#1a1206',
+        backgroundColor: foe ? '#a8322a' : '#e8b64c',
         padding: { x: 5, y: 3 },
       })
         .setOrigin(0.5, 1)
@@ -253,7 +287,7 @@ export class BattleBeatsController {
       scene.tweens.add({
         targets: [text, name],
         alpha: 0,
-        delay: RALLY_HOLD_MS,
+        delay: holdMs,
         duration: RALLY_FADE_MS,
         onComplete: () => {
           for (const obj of [text, name]) {

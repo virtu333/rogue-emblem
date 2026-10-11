@@ -144,10 +144,11 @@ export function effectPreview(effect, ctx) {
       return value ? say(`${signed(value)} Vision`) : say('');
     }
     case 'rite': {
-      // The court circle's words (engine/Rite.js): "The rite: −1 word", "The rite: +2 words".
+      // The court circle's words (engine/Rite.js), named as the route map's chip names them:
+      // "The Rite: −1 word", "The Rite: +2 words".
       const delta = num(effect.delta);
       return delta
-        ? say(`The rite: ${signed(delta)} ${Math.abs(delta) === 1 ? 'word' : 'words'}`)
+        ? say(`The Rite: ${signed(delta)} ${Math.abs(delta) === 1 ? 'word' : 'words'}`)
         : say('');
     }
     case 'blessing': {
