@@ -1539,6 +1539,8 @@ Then **Two Towers** (PR D, about 12 more days with `03` PR 1, PR 1b and `02` PRs
     #282's own fallback. **Recommendation:** tolerate it (the runs crossed devices unguarded
     in #282's release already, and holding them would make every Toll Bridge run local-only
     until the lift). The alternative counts `holdWakeTurn` under `encounters`.
+    **Decided (owner, 2026-10-11): keep syncing.** The guard stays as built: `holdWakeTurn`
+    is legacy and Toll Bridge runs stay format-1.
 11. **First Light and event set pieces** (§16.4). The rung ladder's "no set pieces on First
     Light" is read as the large route maps and assembled event pieces; the small authored
     event pieces stay on every rung, as decided for the Toll-House on 2026-10-10.
@@ -1676,7 +1678,7 @@ piece is not a capability:
   `afterContact`, `afterPhase`) still counts.
 - The runs already crossed devices unguarded in the release that carried #282, and holding
   them now would put every Toll Bridge run on the guard's ratchet (local-only for its whole
-  life until the lift) for a degraded wake. Open question 10 asks the owner to confirm.
+  life until the lift) for a degraded wake. The owner confirmed this on 2026-10-11 (open question 10).
 
 So detection reads only what an assembled placement writes, and never needs the catalogue
 to tell the shapes apart:
