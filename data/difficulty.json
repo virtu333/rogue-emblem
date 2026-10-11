@@ -225,7 +225,7 @@
       "deployLimitBonus": 0,
       "xpMultiplier": 0.8,
       "specialXpMultiplier": 1.1,
-      "xpUnderdogCap": 4,
+      "xpUnderdogCap": 6,
       "fogChanceBonus": 0.15,
       "villageAmbushChance": 0.2,
       "reinforcementTurnOffset": 0,
@@ -332,7 +332,7 @@
       "deployLimitBonus": 0,
       "xpMultiplier": 0.7,
       "specialXpMultiplier": 1.0,
-      "xpUnderdogCap": 4,
+      "xpUnderdogCap": 6,
       "fogChanceBonus": 0.25,
       "villageAmbushChance": 0.25,
       "reinforcementTurnOffset": 0,
@@ -405,7 +405,10 @@
       "revivalStones": { "actBoss": 1, "emperor": 2, "lieutenant": 0, "eliteCaptain": 1 },
       "objectiveParOffset": { "seize": -4, "escape": -1, "rout": { "act4": -1 } },
       "enemyClassEarliestAct": { "Necromancer": "act3", "Circle Adept": "finalBoss", "Hollowed": "finalBoss" },
-      "recruitAffixExcludedActs": []
+      "recruitAffixExcludedActs": [],
+      "actOverrides": {
+        "act1": { "enemyStatBonus": 1, "enemyCountBase": 5, "enemyCountBonus": 1 }
+      }
     }
   }
 }
