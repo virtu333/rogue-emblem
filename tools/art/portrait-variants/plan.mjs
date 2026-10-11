@@ -12,6 +12,7 @@ import {
   ENEMY_CLASSES,
   ENEMY_LOOKS,
   NAME_GENDERS,
+  FEMALE_ONLY_CLASSES,
 } from './catalog.mjs';
 
 export const slug = (name) => String(name).toLowerCase().replace(/ /g, '_');
@@ -91,10 +92,14 @@ export function buildPlan(existingIds = new Set()) {
 
   // Enemies: face a remasters enemy_<class>, b-d are new.
   const enemy = {};
+  const enemyGender = {};
   ENEMY_CLASSES.forEach((className, i) => {
     const s = slug(className);
     const baseId = `enemy_${s}`;
     const ids = [baseId];
+    // Face a remasters the legacy portrait: drawn as a woman for the female-only classes.
+    const femaleOnly = FEMALE_ONLY_CLASSES.includes(className);
+    if (femaleOnly) enemyGender[baseId] = 'f';
     jobs.push({
       id: baseId,
       side: 'enemy',
@@ -112,6 +117,7 @@ export function buildPlan(existingIds = new Set()) {
       const look = ENEMY_LOOKS[(i * 5 + k * 4) % ENEMY_LOOKS.length];
       const id = `${baseId}__${letter}`;
       ids.push(id);
+      if (femaleOnly) enemyGender[id] = look.g;
       jobs.push({
         id,
         side: 'enemy',
@@ -146,6 +152,8 @@ export function buildPlan(existingIds = new Set()) {
       identities,
       classes,
       enemy,
+      femaleOnlyClasses: [...FEMALE_ONLY_CLASSES],
+      enemyGender,
       names: sortedNames,
     },
   };
