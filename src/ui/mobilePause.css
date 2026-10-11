@@ -215,3 +215,10 @@
 .mp-burdens li.is-contract strong {
   color: var(--re-accent-text);
 }
+/* The Descent's Rite rides it too, in the violet of the court circle's chant. */
+.mp-burdens li.is-rite {
+  border-left-color: var(--re-mark);
+}
+.mp-burdens li.is-rite strong {
+  color: var(--re-mark);
+}
