@@ -31,7 +31,7 @@
               "setPiece": "mortuary_column",
               "fallable": true,
               "title": "The Mortuary Column",
-              "preview": "Rout the keepers of the long colonnade; a quick win costs the Rite. The dark can still take this road."
+              "preview": "Rout the keepers of the long colonnade. The dark can still take this road."
             },
             {
               "key": "side_stair",
@@ -98,7 +98,7 @@
               "setPiece": "mortuary_column",
               "fallable": true,
               "title": "The Mortuary Column",
-              "preview": "Rout the keepers of the long colonnade; a quick win costs the Rite. The dark can still take this road."
+              "preview": "Rout the keepers of the long colonnade. The dark can still take this road."
             },
             {
               "key": "side_stair",
