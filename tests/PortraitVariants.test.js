@@ -8,6 +8,8 @@ import {
   assignPortraitVariants,
   backfillPortraitVariants,
   choosePortraitPerson,
+  displayedPerson,
+  isFemaleOnlyClass,
   chooseEnemyFace,
   nameGender,
   portraitPeopleForClass,
@@ -270,12 +272,80 @@ describe('promotion and reclass', () => {
     expect(src).toMatch(/portraitVariant: unit\.portraitVariant/);
   });
 
-  it('maps a reclassed unit to a stable counterpart of the same gender', () => {
-    const u = unitOf('Cavalier', 'Helena', { portraitVariant: 'fighter_d' });
-    const a = portraitIdForUnit(u, data);
-    expect(a).toBe(portraitIdForUnit({ ...u }, data));
-    const wearer = Object.values(table.identities).find((p) => p.renders.Cavalier === a);
-    expect(wearer.gender).toBe(person('fighter_d').gender);
+  it("a reclass across lines keeps the unit's own face (a Hero sealed into a Swordmaster)", () => {
+    const hero = unitOf('Hero', 'Gaspar', { portraitVariant: 'mercenary_b', tier: 'promoted' });
+    const before = portraitIdForUnit(hero, data);
+    expect(before).toBe(person('mercenary_b').renders.Hero);
+    hero.className = 'Swordmaster';
+    expect(portraitIdForUnit(hero, data)).toBe(before);
+    expect(variantPortraitId(hero)).toBe(before);
+    expect(hero.portraitVariant).toBe('mercenary_b');
+    // back into the line: the drawing for that class again
+    hero.className = 'Mercenary';
+    expect(variantPortraitId(hero)).toBe(person('mercenary_b').renders.Mercenary);
+  });
+
+  it("the kept face matches the unit's tier, base or promoted", () => {
+    const merc = unitOf('Mercenary', 'Kestrel', { portraitVariant: 'mercenary_a' });
+    merc.className = 'Myrmidon';
+    expect(variantPortraitId(merc)).toBe(person('mercenary_a').renders.Mercenary);
+    const hero = unitOf('Hero', 'Gaspar', { portraitVariant: 'mercenary_a' });
+    hero.className = 'Duelist';
+    expect(variantPortraitId(hero)).toBe(person('mercenary_a').renders.Hero);
+  });
+
+  it('a promoted unit sealed out of its line keeps the drawing of the class it held', async () => {
+    const { reclassUnit } = await import('../src/engine/UnitManager.js');
+    const cases = [
+      ['Berserker', 'Swordmaster', 'fighter_a'],
+      ['Dark Knight', 'Duelist', 'cavalier_a'],
+      ['Bishop', 'Sage', 'cleric_b'],
+    ];
+    for (const [from, to, id] of cases) {
+      const base = classData(classData(from).promotesFrom);
+      const u = createUnit(base, 10, data.weapons, { name: 'Ren' });
+      promoteUnit(u, classData(from), classData(from).promotionBonuses || {}, data.skills);
+      u.portraitVariant = id;
+      const held = person(id).renders[from];
+      expect(portraitIdForUnit(u, data)).toBe(held);
+      reclassUnit(u, classData(to), classData(from), data.classes, data.skills);
+      expect(u.className).toBe(to);
+      expect(variantPortraitId(u), `${from} sealed to ${to}`).toBe(held);
+      // back into a drawn class: the class's own drawing, the memory cleared
+      reclassUnit(u, classData(from), classData(to), data.classes, data.skills);
+      expect(u.portraitFaceClass).toBeUndefined();
+      expect(variantPortraitId(u)).toBe(held);
+    }
+  });
+
+  it('every person keeps the same face across every other class line', () => {
+    const faces = new Set();
+    for (const [id, p] of Object.entries(table.identities)) {
+      for (const cls of Object.keys(table.classes)) {
+        if (isFemaleOnlyClass(cls) && p.gender !== 'f') continue;
+        const u = unitOf(cls, 'Ren', { portraitVariant: id });
+        const shown = variantPortraitId(u);
+        expect(Object.values(p.renders), `${id} as ${cls}`).toContain(shown);
+        faces.add(shown);
+      }
+    }
+    expect(faces.size).toBeGreaterThan(0);
+  });
+
+  it('a man in a female-only class still shows a woman', () => {
+    const u = unitOf('Pegasus Knight', 'Evin', { portraitVariant: 'mercenary_b' });
+    const shown = variantPortraitId(u);
+    const wearer = Object.values(table.identities).find(
+      (p) => p.renders['Pegasus Knight'] === shown,
+    );
+    expect(wearer.gender).toBe('f');
+  });
+
+  it('the map sprite person stays the class-line counterpart (sprites exist only per line)', () => {
+    const hero = unitOf('Swordmaster', 'Gaspar', { portraitVariant: 'mercenary_b' });
+    const sprite = displayedPerson(hero);
+    expect(person(sprite).renders.Swordmaster).toBeTruthy();
+    expect(person(sprite).gender).toBe(person('mercenary_b').gender);
   });
 });
 

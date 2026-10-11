@@ -35,7 +35,7 @@ import {
   reapplyTraitGrowthMods,
 } from './TraitSystem.js';
 import { rollMark } from './MarkSystem.js';
-import { isFemaleOnlyClass, unitGender } from './PortraitVariants.js';
+import { isFemaleOnlyClass, noteReclassFace, unitGender } from './PortraitVariants.js';
 
 // --- Weapon proficiency parsing ---
 
@@ -1698,6 +1698,7 @@ export function reclassUnit(
   }
 
   // --- Class identity ---
+  noteReclassFace(unit, unit.className, newClassData.name);
   unit.className = newClassData.name;
   normalizeUnitClassState(unit, newClassData);
   unit.mov = unit.stats.MOV;
