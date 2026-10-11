@@ -29,7 +29,8 @@
 
 import { RunManager } from '../../src/engine/RunManager.js';
 import { clearBattleScopedDeltas } from '../../src/engine/BattleStatDeltas.js';
-import { DEPLOY_LIMITS, GOLD_BATTLE_BONUS, NODE_TYPES } from '../../src/utils/constants.js';
+import { GOLD_BATTLE_BONUS, NODE_TYPES } from '../../src/utils/constants.js';
+import { deployLimitsForParams, resolveDeployLimits } from '../../src/engine/BattleDeployCount.js';
 import { getLatePressureState } from '../../src/engine/TurnBonusCalculator.js';
 import { isRecruitBattleNode } from '../../src/engine/RecruitNodeSystem.js';
 import { prepareBossRecruit, resolveBossRecruit } from '../../src/engine/PendingBossRecruit.js';
@@ -48,10 +49,11 @@ import {
 } from '../../src/engine/ContractSettlement.js';
 import { earnedLedgerEntry, twistPriceOf } from '../../src/engine/EarnedBlessings.js';
 import { isSanctum } from '../../src/engine/SanctumPass.js';
+import { isGateBossParams } from '../../src/engine/Descent.js';
 import { GameDriver } from '../harness/GameDriver.js';
 import { HEADLESS_STATES } from '../harness/HeadlessBattle.js';
 import { ClaimingAgent } from '../../sim/lib/ClaimingAgent.js';
-import { RunSimulationDriver } from './RunSimulationDriver.js';
+import { RunSimulationDriver, battleConfigForNode } from './RunSimulationDriver.js';
 import { chooseDeployRoster, skipOwedEarnedPick } from './RunPolicies.js';
 import {
   chooseRecruitCandidate,
@@ -295,7 +297,7 @@ export class ClaimingRunDriver extends RunSimulationDriver {
         if (!this._releaseHeldNode(current)) return this._buildResult('stuck');
         continue;
       }
-      const node = chooseClaimNode(available, this.claims);
+      const node = this._chooseNode(available);
       this.metrics.nodesVisited++;
       const entry = {
         i: this.trace.length,
@@ -321,12 +323,24 @@ export class ClaimingRunDriver extends RunSimulationDriver {
       if (rm.isActComplete()) {
         this.metrics.eclipseShadowByAct[rm.currentAct] = rm.eclipse?.shadow ?? 0;
         if (rm.isRunComplete()) return this._buildResult('victory');
+        // `stopBeforeAct`: hand the run back just before it enters that act (a sim branches the
+        // act from one entry state: sim/descent.js).
+        if (
+          this.options.stopBeforeAct &&
+          rm.actSequence?.[rm.actIndex + 1] === this.options.stopBeforeAct
+        )
+          return this._buildResult('paused');
         rm.advanceAct();
         this.metrics.actsAdvanced++;
         this._afterAct();
       }
     }
     return this._buildResult('timeout');
+  }
+
+  /** The node this player travels to (a sim may route otherwise: sim/descent.js's fork). */
+  _chooseNode(available) {
+    return chooseClaimNode(available, this.claims);
   }
 
   _buildResult(result) {
@@ -451,8 +465,13 @@ export class ClaimingRunDriver extends RunSimulationDriver {
       rm.getDifficultyModifier?.('extendedLevelingEnabled', false) === true;
     params.blessingXpDelta = rm.getXpMultiplierDelta?.() || 0;
     params.fallenUnits = structuredClone(rm.fallenUnits || []);
-    const limits = DEPLOY_LIMITS[rm.currentAct] || { min: 1, max: 4 };
-    const deployMax = Math.max(1, Math.min(rm.roster.length, limits.max + rm.getDeployBonus()));
+    // The deploy screen's rule (the stock driver's): the act's limits, a set piece's cap and the
+    // deploy bonus, through the functions the game reads.
+    const limits = resolveDeployLimits({
+      base: deployLimitsForParams(params),
+      deployBonus: rm.getDeployBonus(),
+    });
+    const deployMax = Math.max(1, Math.min(rm.roster.length, limits.max));
     params.deployCount = Math.min(Math.max(limits.min, deployMax), rm.roster.length);
     params.battleNumber = (rm.completedBattles || 0) + 1;
     return params;
@@ -475,13 +494,18 @@ export class ClaimingRunDriver extends RunSimulationDriver {
     const deployed = chooseDeployRoster(fullRoster, params.deployCount);
     const deployedKeys = new Set(deployed.map(keyForUnit));
     const isBoss = node.type === NODE_TYPES.BOSS || params.isBoss === true;
+    // The map the game would generate for this node, locked to it (every replay plays it).
+    const config = battleConfigForNode(rm, node, params, {
+      deployCount: deployed.length,
+      gameData: this.gameData,
+    });
     const heldAtStart = ids(rm);
     rm.beginBattleInProgress(node.id, {
       isBoss,
       isElite: params.isElite === true,
       battleParams: params,
     });
-    const played = await this._playBattle(node, params, deployed, isBoss);
+    const played = await this._playBattle(node, params, deployed, isBoss, config);
     const { driver, falls, rewinds, stalled } = played;
     const battle = driver.battle;
     const turns = Math.min(this.turnCap + 1, battle.turnManager?.turnNumber || 0);
@@ -568,7 +592,14 @@ export class ClaimingRunDriver extends RunSimulationDriver {
       this._noteReward(reward);
     }
     // The boss's recruit, then the third lord (PostCombatController's order).
-    if (applied && this.claims.bossRecruit && isBoss && !rm.isRunComplete()) {
+    // Never the Descent's gate (PostCombatController: the elite path, no boss recruit).
+    if (
+      applied &&
+      this.claims.bossRecruit &&
+      isBoss &&
+      !isGateBossParams(params) &&
+      !rm.isRunComplete()
+    ) {
       const candidates = prepareBossRecruit(rm, this.gameData) || [];
       const pick = [...candidates]
         .filter((c) => c?.unit)
@@ -607,6 +638,22 @@ export class ClaimingRunDriver extends RunSimulationDriver {
       steals: steals.length,
       gold: battleGold,
       held: heldAtStart,
+      // The Descent (docs/sim-reports/act-v-descent.md): which node, the Rite it was fought at,
+      // and the Vigil's count (words spoken, Hollowed called, Voices still standing).
+      nodeId: node.id,
+      descentKey: node.descentKey ?? null,
+      deployed: deployed.length,
+      riteAtEntry: Number.isFinite(params.riteAtEntry) ? params.riteAtEntry : null,
+      riteBand: params.riteBand ?? null,
+      vigil: battle._vigilState
+        ? {
+            words: battle._vigilState.words,
+            summoned: battle._vigilState.summoned,
+            voicesStanding: (battle.battleConfig?.vigil?.sigils || []).filter((sigil) =>
+              battle.enemyUnits.some((u) => u.authoredId === sigil.target && u.currentHP > 0),
+            ).length,
+          }
+        : null,
     });
     return { result: 'victory', turns, commanderKOs, unitDeaths, rewinds: rewinds.length };
   }
@@ -643,12 +690,13 @@ export class ClaimingRunDriver extends RunSimulationDriver {
    * Play one battle to its end with the Vision policy: returns the final GameDriver and what
    * happened in the branch that stands (falls, rewinds made, stall).
    */
-  async _playBattle(node, params, deployed, isBoss) {
+  async _playBattle(node, params, deployed, isBoss, config) {
     const rm = this.runManager;
     const entry = {
       rng: this.rng ? this.rng.getState() : null,
       units: structuredClone(deployed),
       params: structuredClone(params),
+      config: structuredClone(config),
       domain: structuredClone({
         convoy: rm.convoy,
         accessories: rm.accessories,
@@ -744,7 +792,7 @@ export class ClaimingRunDriver extends RunSimulationDriver {
           : undefined,
       },
     );
-    driver.init();
+    driver.init({ battleConfig: entry.config });
     const battle = driver.battle;
     const falls = [];
     const counts = {

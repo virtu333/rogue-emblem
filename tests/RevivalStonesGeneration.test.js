@@ -27,9 +27,9 @@ const RUNGS = ['normal', 'dusk', 'hard', 'lunatic'];
 // The spec's table (docs/specs/phase3.md "Who has stones"), written out by hand.
 const EXPECTED = {
   normal: { actBoss: 0, emperor: 0, lieutenant: 0, eliteCaptain: 0 },
-  dusk: { actBoss: 0, emperor: 1, lieutenant: 0, eliteCaptain: 0 },
-  hard: { actBoss: 1, emperor: 1, lieutenant: 0, eliteCaptain: 0 },
-  lunatic: { actBoss: 1, emperor: 2, lieutenant: 0, eliteCaptain: 1 },
+  dusk: { actBoss: 0, emperor: 1, lieutenant: 1, eliteCaptain: 0 },
+  hard: { actBoss: 1, emperor: 1, lieutenant: 1, eliteCaptain: 0 },
+  lunatic: { actBoss: 1, emperor: 2, lieutenant: 1, eliteCaptain: 1 },
 };
 
 // Distinct numbers, so a mapping mix-up between kinds shows.
@@ -87,9 +87,11 @@ describe('difficulty.json revivalStones', () => {
         l.startsWith('Revival Stones'),
       );
     expect(lines('normal')).toEqual([]);
-    expect(lines('dusk')).toEqual(['Revival Stones (a boss refills when felled): the Emperor 1']);
+    expect(lines('dusk')).toEqual([
+      'Revival Stones (a boss refills when felled): the Emperor 1, the Lieutenant 1',
+    ]);
     expect(lines('lunatic')).toEqual([
-      'Revival Stones (a boss refills when felled): act bosses 1, the Emperor 2, elite captains 1',
+      'Revival Stones (a boss refills when felled): act bosses 1, the Emperor 2, the Lieutenant 1, elite captains 1',
     ]);
   });
 
