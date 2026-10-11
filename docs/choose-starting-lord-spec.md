@@ -60,7 +60,7 @@ The investigation below found the change is very tractable: the third-lord syste
 |---|---|---|---|
 | Deadly Arsenal I/II | `deadlyArsenalTier` | Replaces Edric's Steel Sword with Rapier; tier 2 adds Silver Sword (`RunManager.js:2181-2205`) | Sword-only, Edric-only |
 | Battle Trinket | `startingAccessoryTier` | Accessory equipped on Edric (`RunManager.js:2342-2348`) | Edric-only |
-| Healer's Art | `startingStaffTier` | Upgrades Sera's staff (`RunManager.js:2303-2307`) | Sera-only |
+| Healer's Art | `startingStaffTier` | Adds a second staff beside Sera's Heal (`RunManager._buildStartingLord`) | Sera-only |
 | Honed Blades | `startingWeaponForge` | Forges both lords' weapons | Generic ✓ |
 | Iron/Steel Arms + Art Adept | `ironArms`/`steelArms`/`artAdept` | Weapon-art spawns on starting weapons — already pooled **per weapon type and tier** (`RunManager.js:1948-2002`) | Generic ✓ |
 | Field Supplies | `extraVulnerary` | Extra Vulnerary on Edric | Trivial |
