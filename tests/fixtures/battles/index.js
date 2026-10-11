@@ -17,7 +17,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * Build a roster from fixture roster spec + gameData.
  * Returns array of units, or null if roster spec is null (use fallback lords).
  */
-function buildRoster(rosterSpec, gameData) {
+export function buildRoster(rosterSpec, gameData) {
   if (!rosterSpec) return null;
 
   const units = [];
