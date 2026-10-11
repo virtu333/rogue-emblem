@@ -484,6 +484,13 @@ test('Home Base keeps its tab and Begin Run through a turn and back', async ({ p
 test('the Compendium keeps its tab, filter and entry through a turn and back', async ({ page }) => {
   const errors = pageErrors(page);
   await quietSettings(page);
+  // A save that has met Luna: the Compendium shows unmet skills as "???".
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'emblem_rogue_slot_3_meta',
+      JSON.stringify({ purchasedUpgrades: { '__seen_skill:luna': 0 } }),
+    );
+  });
   await page.goto('/');
   await waitForGame(page);
   await activeScene(page, 'Title');

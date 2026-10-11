@@ -109,7 +109,8 @@ describe('advanced starting-skill unlocks', () => {
     // there is no ceiling to sum, and they buy only one more reroll a run each.
     // 2026-10-11: the growth tracks about 25% off (balance revision 5): -2140 here,
     // and the MAG/LCK growth tracks 4080 -> 3715.
-    expect(total).toBe(47610 + 650 + 290 + 800 + 150 - 2140);
+    // 2026-10-11: Lucky Finds 90/180 (balance revision 6): -90.
+    expect(total).toBe(47610 + 650 + 290 + 800 + 150 - 2140 - 90);
     expect(total / 53428).toBeLessThan(1.03);
     expect(sumCosts(priced.filter(isMagLckTrack))).toBe(3715);
   });

@@ -149,6 +149,25 @@ describe('fresh local meta overwrite guard', () => {
     );
   });
 
+  it('discoveries alone never make a meta meaningful (they buy nothing)', async () => {
+    const metaApi = makeSlotTableApi({ slotMap: { 1: MEANINGFUL_META } });
+    mocked.fromMock.mockImplementation((table) =>
+      table === 'meta_progression' ? metaApi : makeSlotTableApi(),
+    );
+    // A device that only started a run: its Compendium has met the starting kit.
+    pushMeta('user-1', 1, {
+      totalValor: 0,
+      totalSupply: 0,
+      runsCompleted: 0,
+      purchasedUpgrades: { '__seen_item:Rapier': 0, '__seen_skill:sol': 0 },
+      milestones: [],
+      savedAt: 999999,
+    });
+    await __flushCloudSyncQueuesForTests();
+    expect(metaApi.state.updateCalls).toBe(0);
+    expect(metaApi.state.row?.data?.['1']).toEqual(MEANINGFUL_META);
+  });
+
   it('allows a fresh local meta to overwrite an equally fresh remote slot', async () => {
     const freshRemote = { totalValor: 0, totalSupply: 0, runsCompleted: 0, savedAt: 100 };
     const metaApi = makeSlotTableApi({ slotMap: { 1: freshRemote } });
