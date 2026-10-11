@@ -58,6 +58,7 @@ export class PinnedThreatController {
           count: (previous?.count || 0) + tile.count,
           damageThreat: previous?.damageThreat || tile.damageThreat,
           statusThreat: previous?.statusThreat || tile.statusThreat,
+          counterThreat: previous?.counterThreat || tile.counterThreat,
         });
       }
     }

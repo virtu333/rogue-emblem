@@ -16,6 +16,7 @@ import {
   statusStaffInfo,
   carriedItemInfo,
 } from '../engine/BattleInformation.js';
+import { entityReachInfo } from '../engine/EntityReach.js';
 import { classChangePreview } from './classChangeDisplay.js';
 import {
   formatWeaponArtEffects,
@@ -559,6 +560,8 @@ export class MobileRosterSheet {
         'Conditions',
         `${conditions.join('\n')}\nDurations count down when this unit’s side starts its turn.`,
       );
+    const reach = entityReachInfo(unit);
+    if (reach) this.card('Reach', reach.text);
     const statusStaff = statusStaffInfo(unit);
     if (statusStaff) this.card('Status staff', statusStaff.text);
     const carrying = carriedItemInfo(unit);

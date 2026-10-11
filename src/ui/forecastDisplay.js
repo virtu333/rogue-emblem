@@ -4,6 +4,7 @@ import { formatPerkMods } from './rosterDisplay.js';
 import { hitProbability } from '../engine/HitRoll.js';
 import { forecastRawDamage, forecastStrikeGroups } from '../engine/Combat.js';
 import { BANNER_NAME } from '../engine/BattleBlessings.js';
+import { entityCounterNote } from '../engine/EntityReach.js';
 
 /**
  * A strike's real chance to land, as a whole percent. Hit is rolled as the
@@ -187,6 +188,9 @@ export function forecastNotes(forecast, attacking, attackerHP, weapons = null) {
     notes.push(
       `Cannot counter · ${forecast.display?.counterReason || 'No valid response at this range'}`,
     );
+  } else {
+    // The Entity answers from beyond the reach it strikes at: say so before Confirm.
+    notes.push(entityCounterNote(forecast));
   }
   return notes.filter(Boolean);
 }

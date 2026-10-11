@@ -44,6 +44,7 @@ import {
   terrainRuleLines,
   visibleBallistaAt,
 } from '../engine/BattleInformation.js';
+import { entityReachInfo } from '../engine/EntityReach.js';
 import { bindCancelablePress } from '../utils/cancelablePress.js';
 import { isUnitMenuState, canUseDanger, isObjectiveCommand } from './battleMenuModel.js';
 import { formatWeaponArtEffects, weaponArtUsesText } from './weaponArtDisplay.js';
@@ -964,7 +965,15 @@ export class MobileBattleHUD {
     const key = JSON.stringify([
       upright,
       sideStatus.map((part) => part.text),
-      threat ? [threat.col, threat.row, threat.result?.count, threat.result?.status?.length] : null,
+      threat
+        ? [
+            threat.col,
+            threat.row,
+            threat.result?.count,
+            threat.result?.status?.length,
+            threat.result?.counter?.length,
+          ]
+        : null,
       state,
       turn,
       remaining,
@@ -1075,6 +1084,9 @@ export class MobileBattleHUD {
       const hpLine = el('span', 'mb-hp', `${unit.currentHP}/${unit.stats.HP} HP`);
       appendHealthBarsBadge(hpLine, unit);
       this.summary.append(hpLine);
+      // The Entity's two reaches: its blows stop short of where its weapons answer.
+      const reach = entityReachInfo(unit);
+      if (reach) this.summary.append(el('p', 'mb-gear', reach.text));
       const staffLine = statusStaffGearLine(unit);
       if (staffLine) this.summary.append(staffLine);
       const conditions = statusDescriptions(unit);
@@ -1238,6 +1250,10 @@ export class MobileBattleHUD {
     if (contractLine) detailContent.append(el('p', 'mb-contract-detail', contractLine.title));
     if (s.dangerZone?.visible)
       detailContent.append(el('p', '', 'Darker: more enemies · Purple outline: status staff'));
+    if (s.dangerZone?.tiles?.some((t) => t.counterThreat))
+      detailContent.append(
+        el('p', '', 'Dashed band: the Entity cannot strike there, but it counters a blow from it'),
+      );
     if (s.pinnedThreatEnemies?.size >= 5)
       detailContent.append(
         el('p', '', '5 ranges pinned. Pinning another enemy replaces the oldest.'),
