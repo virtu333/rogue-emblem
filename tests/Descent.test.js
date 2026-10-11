@@ -18,6 +18,7 @@ import { applyGenerationFields, generateSeededBattle } from '../src/engine/Battl
 import { validateBattleConfig } from '../src/engine/MapGenerator.js';
 import { rewardDrawParams } from '../src/engine/PendingBattleRewards.js';
 import { nodeFrame } from '../src/ui/RouteGraph.js';
+import { isDescentEnabled } from '../src/engine/DescentSwitch.js';
 
 const baseData = loadGameData();
 
@@ -399,6 +400,17 @@ describe('the switch and the fallback (§9.1 RunManager)', () => {
     const dangling = descentData(true, { routeByRung: { hard: 'nowhere' } });
     expect(finalActMap(dangling)).toEqual(none);
     expect(descentRouteIdFor(dangling.descent, 'hard')).toBeNull();
+  });
+
+  it('the route reads the switch exactly as DescentSwitch does (one reader of the flag)', () => {
+    // A truthy flag that is not `true` (a hand-edited 'yes' or 1) must leave the route dark
+    // just as it leaves Help and the Compendium dark; the two readers never disagree.
+    for (const enabled of [true, false, 'yes', 1, 'true', null, undefined]) {
+      const descent = { ...structuredClone(baseData.descent), enabled };
+      const routed = descentRouteIdFor(descent, 'hard') !== null;
+      expect(routed, String(enabled)).toBe(isDescentEnabled({ descent }));
+      expect(routed, String(enabled)).toBe(enabled === true);
+    }
   });
 
   it('Acts I–IV never take the Descent, switched on or not', () => {
