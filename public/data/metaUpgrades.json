@@ -1241,7 +1241,7 @@
   {
     "id": "loot_quality",
     "name": "Lucky Finds",
-    "description": "Higher chance for upgraded weapon drops. Legendaries only from Act III.",
+    "description": "Higher chance for upgraded weapon drops. Into a Legend: Act III on, at half the chance.",
     "category": "economy",
     "maxLevel": 2,
     "costs": [

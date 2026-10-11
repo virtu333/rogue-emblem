@@ -41,10 +41,14 @@ const LOOT_WEAPON_TIER_INDEX = new Map(
  * Weapon quality progression tuning (Lucky Finds, `lootWeaponQualityBonus`): each step is a
  * chance to lift the drop one tier, chained. Three limits hold the chain:
  * - a step into Legend is taken only where the act's own table drops legendaries (its
- *   `legendaryWeapon` weight is above 0: Act III on), so Act I and Act II never see one;
+ *   `legendaryWeapon` weight is above 0: Act III on), so no Act I or Act II drop is upgraded into
+ *   one (Lottery Loot's card follows the table it draws from). Where the gate stops the chain
+ *   the Legend roll is not taken, so an Act I or II draw spends fewer Math.random calls than it
+ *   did before the gate: loot draws carry no replay contract across versions (a reroll draws
+ *   afresh from the saved parameters), so nothing depends on the old count;
  * - a step into Legend rolls at LEGEND_STEP_BONUS_SHARE of the bonus;
  * - a step lands only on a weapon some loot table lists (never an enemy's own weapon:
- *   the Entity's, the Necromancer's Gravesong).
+ *   the Entity's, the Necromancer's Gravesong; nor Hatchet or Jian, which no table drops).
  *
  * Lv1 = 10% (5% into Legend):
  * - Iron -> 90.00% Iron, 9.00% Steel, 0.95% Silver, 0.05% Legend
@@ -243,15 +247,22 @@ function normalizeSpawnTier(value) {
   return null;
 }
 
-/** Every name any loot table lists, in any act or category (the upgrade's landing set). */
-function lootTableNames(lootTables) {
+// The pools of an act's table (and its boss rewards) that hold weapons.
+const WEAPON_POOL_KEYS = ['weapon', 'weapons', 'legendaryWeapon', 'rare'];
+
+/** Every weapon any act's loot table can drop, boss rewards included (the upgrade's landing set). */
+function lootTableWeaponNames(lootTables) {
   const names = new Set();
-  const walk = (value) => {
-    if (typeof value === 'string') names.add(value);
-    else if (Array.isArray(value)) value.forEach(walk);
-    else if (value && typeof value === 'object') Object.values(value).forEach(walk);
+  const addPools = (table) => {
+    if (!table || typeof table !== 'object') return;
+    for (const key of WEAPON_POOL_KEYS)
+      for (const name of normalizeLootArray(table[key]))
+        if (typeof name === 'string') names.add(name);
   };
-  walk(lootTables);
+  for (const table of Object.values(lootTables || {})) {
+    addPools(table);
+    addPools(table?.bossRewards);
+  }
   return names;
 }
 
@@ -1052,7 +1063,7 @@ export function generateLootChoices(
   const qualityPoolsByType = buildWeaponUpgradePools(
     allWeapons,
     rosterTypes,
-    lootTableNames(lootTables),
+    lootTableWeaponNames(lootTables),
   );
   // A quality upgrade reaches Legend only where the act itself drops legendaries (a boss's
   // reward table is read through its act's own table: Act I's boss stays out).
