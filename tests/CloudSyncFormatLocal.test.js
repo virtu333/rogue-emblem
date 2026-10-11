@@ -2,9 +2,10 @@
 // step 5, tests 19 and 23): a client from before the run-format guard cannot honour its marker,
 // so while such clients may still be in use a run that holds a capability stays on its device,
 // by the prologue's own predicate (CloudSync.isLocalOnlyRunSave, CLOUD_SAFE_RUN_FORMAT 1): never
-// pushed, a stale cloud copy of it retired (only while the row is itself such a run), left out
-// of logout's backup and named `newFormat`, and never pushed as the chosen side of a conflict.
-// The slot's meta still syncs. The prologue keeps its own kind and reason.
+// pushed, a stale cloud copy of it retired (a row that is itself such a run, or the same run's
+// older-format copy: same `runRecordId`), left out of logout's backup and named `newFormat`,
+// never pushed as the chosen side of a conflict, and never replaced at login by its own
+// older-format copy. The slot's meta still syncs. The prologue keeps its own kind and reason.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getMetaKey, getRunKey } from '../src/engine/SlotManager.js';
 
@@ -29,12 +30,15 @@ import {
   __resetCloudSyncQueuesForTests,
   __resetCloudSyncStatusForTests,
   backupAllLocalSlots,
+  fetchAllToLocalStorage,
   isLocalOnlyRunSave,
   listLocalOnlySaves,
   pushAllLocalSlots,
   pushChosenLocalRun,
   pushRunSave,
+  shouldPreferLocalRun,
 } from '../src/cloud/CloudSync.js';
+import { cloudConflictKey } from '../src/engine/CloudSaveConflict.js';
 
 /** One user's row of a slot table, held in memory with its revision. */
 function table(initial = null) {
@@ -200,5 +204,122 @@ describe('a run newer than the cloud may hold stays on the device', () => {
     pushAllLocalSlots('u');
     await __flushCloudSyncQueuesForTests();
     expect(runs.row).toBeNull();
+  });
+});
+
+// A Descent run turns local-only partway through (RunManager._buildActNodeMap raises its floor
+// as it builds the route), so the cloud still holds the same run's last cloud-safe save. Left
+// there, another device can load it and play on (a fork), and its newer savedAt would win the
+// next login here (a rollback).
+describe('a run that turns local-only takes its own older cloud copy with it', () => {
+  // The same run before and after route entry: one runRecordId, format 1 then 2.
+  const actFour = (extra = {}) =>
+    standardRun({ runRecordId: 'descent-run', actIndex: 3, savedAt: 600, ...extra });
+  const descent = (extra = {}) =>
+    actFour({ requiresClient: 2, requiresCapabilities: ['descent'], actIndex: 4, savedAt: 700, ...extra }); // prettier-ignore
+  const offline = () => ({
+    ...runs.api,
+    select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: new Error('offline') }) }) }), // prettier-ignore
+  });
+
+  it('the first local-only push retires the same run, whatever its savedAt, once a session', async () => {
+    expect(isLocalOnlyRunSave(actFour())).toBe(false);
+    expect(isLocalOnlyRunSave(descent())).toBe(true);
+    // Another device played the forked copy on: newer than this device's save.
+    cloud({ run: { 1: actFour({ savedAt: 900 }), 2: standardRun() } });
+    expect(pushRunSave('u', 1, descent())).toEqual({ queued: false, reason: 'format_local' });
+    await __flushCloudSyncQueuesForTests();
+    expect(runs.row.data).toEqual({ 2: standardRun() });
+    const { reads, writes } = runs;
+    pushRunSave('u', 1, descent({ savedAt: 800 }));
+    await __flushCloudSyncQueuesForTests();
+    expect([runs.reads, runs.writes]).toEqual([reads, writes]);
+  });
+
+  it('another run in the row is kept, and checked once a session', async () => {
+    const other = standardRun({ runRecordId: 'other-run', savedAt: 900 });
+    cloud({ run: { 1: other } });
+    pushRunSave('u', 1, descent());
+    await __flushCloudSyncQueuesForTests();
+    expect(runs.row.data).toEqual({ 1: other });
+    const { reads, writes } = runs;
+    pushRunSave('u', 1, descent({ savedAt: 800 }));
+    await __flushCloudSyncQueuesForTests();
+    expect([runs.reads, runs.writes]).toEqual([reads, writes]);
+  });
+
+  it('a row with no runRecordId is never taken for the same run, even beside a save with none', async () => {
+    const { runRecordId: _id, ...legacy } = actFour({ savedAt: 900 });
+    cloud({ run: { 1: legacy } });
+    pushRunSave('u', 1, descent());
+    await __flushCloudSyncQueuesForTests();
+    expect(runs.row.data).toEqual({ 1: legacy });
+
+    __resetCloudSyncQueuesForTests();
+    cloud({ run: { 1: legacy } });
+    const { runRecordId: _local, ...unnamed } = descent();
+    pushRunSave('u', 1, unnamed);
+    await __flushCloudSyncQueuesForTests();
+    expect(runs.row.data).toEqual({ 1: legacy });
+  });
+
+  it('a retire that failed offline is tried again on the next save', async () => {
+    cloud({ run: { 1: actFour() } });
+    const failing = offline();
+    mocked.from.mockImplementation((name) => (name === 'run_saves' ? failing : metas.api));
+    pushRunSave('u', 1, descent());
+    await __flushCloudSyncQueuesForTests();
+    expect(runs.row.data).toEqual({ 1: actFour() });
+    mocked.from.mockImplementation((name) => (name === 'run_saves' ? runs.api : metas.api));
+    pushRunSave('u', 1, descent({ savedAt: 800 }));
+    await __flushCloudSyncQueuesForTests();
+    expect(runs.row).toBeNull();
+  });
+
+  it('a later run in the slot is checked on its own, in the same session', async () => {
+    const other = standardRun({ runRecordId: 'other-run', savedAt: 900 });
+    cloud({ run: { 1: other } });
+    pushRunSave('u', 1, kitRun()); // checked: another run, kept
+    await __flushCloudSyncQueuesForTests();
+    expect(runs.row.data).toEqual({ 1: other });
+    // The next run in the slot syncs as format 1, then enters the Descent.
+    pushRunSave('u', 1, actFour({ savedAt: 1000 }));
+    await __flushCloudSyncQueuesForTests();
+    expect(runs.row.data).toEqual({ 1: actFour({ savedAt: 1000 }) });
+    pushRunSave('u', 1, descent({ savedAt: 1100 }));
+    await __flushCloudSyncQueuesForTests();
+    expect(runs.row).toBeNull();
+  });
+
+  it('a later login with a stale copy of the same run keeps the local save, then retires the copy', async () => {
+    // Its retire never reached the cloud (offline), and another device saved the copy since.
+    const stale = actFour({ savedAt: 900 });
+    expect(shouldPreferLocalRun(descent(), stale)).toBe(true);
+    // Another run, or the same run's local-only copy, still goes by savedAt.
+    expect(shouldPreferLocalRun(descent(), standardRun({ savedAt: 900 }))).toBe(false);
+    expect(shouldPreferLocalRun(descent(), descent({ savedAt: 900 }))).toBe(false);
+    const { runRecordId: _id, ...legacy } = stale;
+    expect(shouldPreferLocalRun(descent(), legacy)).toBe(false);
+
+    cloud({ run: { 1: stale }, meta: { 1: meta } });
+    store.set(getRunKey(1), JSON.stringify(descent()));
+    store.set(getMetaKey(1), JSON.stringify(meta));
+    await fetchAllToLocalStorage('u', { timeoutMs: 50 });
+    expect(JSON.parse(store.get(getRunKey(1)))).toEqual(descent());
+    expect(store.has(cloudConflictKey(1))).toBe(false);
+    await __flushCloudSyncQueuesForTests();
+    expect(runs.row).toBeNull();
+  });
+
+  it('a later login with another, newer run still offers the cloud one as before', async () => {
+    const other = standardRun({ runRecordId: 'other-run', savedAt: 900 });
+    cloud({ run: { 1: other }, meta: { 1: meta } });
+    store.set(getRunKey(1), JSON.stringify(descent()));
+    store.set(getMetaKey(1), JSON.stringify(meta));
+    await fetchAllToLocalStorage('u', { timeoutMs: 50 });
+    expect(JSON.parse(store.get(getRunKey(1)))).toEqual(other);
+    expect(JSON.parse(store.get(cloudConflictKey(1))).localRun).toEqual(descent());
+    await __flushCloudSyncQueuesForTests();
+    expect(runs.row.data).toEqual({ 1: other });
   });
 });

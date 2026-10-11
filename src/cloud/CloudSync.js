@@ -277,7 +277,7 @@ async function applyPendingCloudSlots(userId, runData, metaData, fetchSession) {
   }
 }
 
-function applyRunSlots(runData, metaData, reservedAtStart = new Set()) {
+function applyRunSlots(userId, runData, metaData, reservedAtStart = new Set()) {
   const runSlots = migrateCloudData(runData);
   const metaSlots = migrateCloudData(metaData);
   const skipped = new Set();
@@ -316,6 +316,14 @@ function applyRunSlots(runData, metaData, reservedAtStart = new Set()) {
     }
 
     const shouldKeepLocal = shouldPreferLocalRun(localState.value, cloudSlot, i);
+    // A local-only run kept over its own older-format copy: that copy's retire never landed
+    // (offline, or another device saved it since). Retire it now, not at the next save.
+    if (
+      shouldKeepLocal &&
+      isLocalOnlyRunSave(localState.value) &&
+      isOlderCopyOfRun(cloudSlot, localState.value)
+    )
+      retireCloudLocalOnlyRun(userId, i, localState.value);
     if (!shouldKeepLocal) {
       if (!preserveCloudConflict(i, localState.value, cloudSlot, metaSlots[String(i)] ?? null)) {
         skipped.add(i);
@@ -464,7 +472,7 @@ export async function fetchAllToLocalStorage(userId, options = {}) {
     // another device's run with this device's progression. Settings are independent.
     if (metaRes.status === 'fulfilled') {
       await applyPendingCloudSlots(userId, runRes.value, metaRes.value, fetchSession);
-      skippedRunSlots = applyRunSlots(runRes.value, metaRes.value, reservedAtStart);
+      skippedRunSlots = applyRunSlots(userId, runRes.value, metaRes.value, reservedAtStart);
     }
   } else {
     console.warn('CloudSync fetch run_saves:', runRes.reason);
@@ -624,26 +632,46 @@ function localOnlyReason(run) {
   return isPrologueRun(run) ? 'prologue_local' : 'format_local';
 }
 
-// Slots whose cloud row has been checked for a local-only run save this session.
+/** A run save's own id (RunManager.runRecordId), or null when it has none to match by. */
+function runIdOf(run) {
+  const id = isCloudSlotPayload(run) ? run.runRecordId : null;
+  return typeof id === 'string' && id ? id : null;
+}
+
+/**
+ * The cloud row holds an older-format copy of this local-only run: the same runRecordId, and
+ * a payload any client may open. A Descent run turns local-only partway through
+ * (RunManager._buildActNodeMap raises its floor at route entry), so the cloud still holds its
+ * last cloud-safe save; another device could load that copy and play on. A row or a save with
+ * no id never matches: an id-less row is an older build's run, and nothing in it can prove it
+ * is this one (a seed is not an identity), so it is left to the conflict choice at login.
+ */
+function isOlderCopyOfRun(remote, run) {
+  const id = runIdOf(run);
+  return id !== null && runIdOf(remote) === id && !isLocalOnlyRunSave(remote);
+}
+
+// Slot and run pairs whose cloud row has been checked for a copy to retire this session.
 const retiredLocalOnlyRows = new Set();
 
 /**
- * Remove a local-only run save an earlier build pushed to this slot's cloud row. The delete
- * holds only while the row is itself a local-only run, so a cloud-safe run in the row
- * (another device's) is never touched. Checked once a session per slot only when the
- * check completes (the row deleted, or found holding no local-only run); a check that
- * failed (offline, a refused write, an error) is forgotten and runs again on the slot's
- * next local-only push.
+ * Remove what the cloud must not hold for a local-only run save in this slot: a local-only run
+ * an earlier build pushed, or this run's own older-format copy (isOlderCopyOfRun). Any other
+ * run in the row (another device's, or one without an id) is never touched: the conflict
+ * choice at login handles it, as for any two runs in one slot. Checked once a session per slot
+ * and run, only when the check completes (the row deleted, or found holding neither); a check
+ * that failed (offline, a refused write, an error) is forgotten and runs again on the slot's
+ * next local-only push. The delete waits in the run table's write queue, so a cloud-safe save
+ * of the same run queued before it lands first and is then retired.
  */
-function retireCloudLocalOnlyRun(userId, slot) {
-  const signature = `${userId}:${slot}`;
+function retireCloudLocalOnlyRun(userId, slot, run) {
+  const signature = `${userId}:${slot}:${runIdOf(run) ?? ''}`;
   if (retiredLocalOnlyRows.has(signature)) return;
   retiredLocalOnlyRows.add(signature);
-  void updateSlotInTable(userId, TABLES.run, slot, null, { expected: isLocalOnlyRunSave }).then(
-    (done) => {
-      if (done !== true) retiredLocalOnlyRows.delete(signature);
-    },
-  );
+  const expected = (remote) => isLocalOnlyRunSave(remote) || isOlderCopyOfRun(remote, run);
+  void updateSlotInTable(userId, TABLES.run, slot, null, { expected }).then((done) => {
+    if (done !== true) retiredLocalOnlyRows.delete(signature);
+  });
 }
 
 /**
@@ -676,7 +704,7 @@ export function pushRunSave(userId, slot, runData) {
   }
   if (!supabase || !userId) return { queued: false, reason: 'offline' };
   if (isLocalOnlyRunSave(runData)) {
-    retireCloudLocalOnlyRun(userId, slot);
+    retireCloudLocalOnlyRun(userId, slot, runData);
     return { queued: false, reason: localOnlyReason(runData) };
   }
   getCloudSyncStatus(); // A resolved recovery gate no longer pauses new backups.
@@ -1373,11 +1401,15 @@ async function writeSlotWithAuthRefresh(
 }
 
 // Deterministic run winner policy:
+// - a local-only run beats its own older-format copy (isOlderCopyOfRun), whatever the
+//   timestamps: that copy is a stale save, or a fork another device played on from it, and
+//   taking it would roll the run back or play on what an older client can open
 // - both valid timestamps => local wins ties and newer values
 // - only one valid timestamp => valid side wins
 // - neither valid => cloud wins
 export function shouldPreferLocalRun(localSlot, cloudSlot, slot = null) {
   if (!localSlot || !cloudSlot) return false;
+  if (isLocalOnlyRunSave(localSlot) && isOlderCopyOfRun(cloudSlot, localSlot)) return true;
   const localTs = getSavedAt(localSlot);
   const cloudTs = getSavedAt(cloudSlot);
   const localValid = Number.isFinite(localTs);
