@@ -47,7 +47,20 @@ import { reconcileRecruitSpawnTile, sanitizeEscapeTilePassability } from './MapG
 import { calculateCurrencies } from './MetaProgressionManager.js';
 import { lordNamesInRun } from './LordsMet.js';
 import { generateNodeMap } from './NodeMapGenerator.js';
-import { buildDescentNodeMap, descentRouteIdFor, isGateBossNode } from './Descent.js';
+import { buildDescentNodeMap, descentRouteIdFor, isDescentMap, isGateBossNode } from './Descent.js';
+import {
+  RITE_MAX_WORDS_PER_COMMIT,
+  applyRiteDelta,
+  createRite,
+  riteBand,
+  riteConfigOf,
+  riteLevelRuleOf,
+  riteModsFor,
+  riteStartFromEclipse,
+  riteUnderParDelta,
+  sanitizeRite,
+} from './Rite.js';
+import { findSetPiece } from './SetPieces.js';
 import {
   createLordUnit,
   createRecruitUnit,
@@ -176,6 +189,7 @@ import {
   createEclipseState,
   eclipseBattleMods,
   eclipseHash,
+  eclipsePhase,
   isEclipseActive,
   kindleResult,
   normalizeEclipseState,
@@ -848,6 +862,9 @@ export class RunManager {
     // boss relief and church Kindle. See EclipseSystem.js / docs/specs/eclipse.md.
     this.eclipse = createEclipseState();
     this.lastEclipseCommit = null;
+    // The Rite (engine/Rite.js): the court circle's words, from the Descent's entry (null on
+    // every other act and old save). Saved; changed only at a victory's commit and by an event.
+    this.rite = null;
   }
 
   /** A fresh run's event state: nothing chosen, no flags, no burdens, no one laid to rest. */
@@ -949,6 +966,7 @@ export class RunManager {
     this.applyDifficultySelection(difficultyId);
     this.eclipse = createEclipseState({ enabled: eclipseEnabled !== false });
     this.lastEclipseCommit = null;
+    this.rite = null;
     this.usedRecruitNames = {};
     this.lastDeployment = [];
     this.legendaryLordChance = legendaryLordChanceFor(this.metaEffects?.legendaryLordChanceBonus);
@@ -1032,6 +1050,7 @@ export class RunManager {
     this.actIndex = 0;
     this.eclipse = createEclipseState({ enabled: false });
     this.lastEclipseCommit = null;
+    this.rite = null;
     this.usedRecruitNames = {};
     this.lastDeployment = [];
     this.legendaryLordChance = 0;
@@ -4706,6 +4725,20 @@ export class RunManager {
     const debuffs = [...battleDebuffsFor(this), ...moveTypeBattleDeltas(this)];
     if (debuffs.length) battleParams.battleDebuffs = debuffs;
     else delete battleParams.battleDebuffs;
+    // The Rite (engine/Rite.js), only in the Descent (a run without one keeps its params as they
+    // were): the words at entry (a summoning circle's Hollowed read them), the tier, the Vigil's
+    // Hollowed level rule, and on a boss of the route the tier's mods, which MapGenerator writes
+    // into the locked map (RiteBattleMods.js). Keys only when they say something.
+    for (const key of ['riteAtEntry', 'riteBand', 'riteLevel', 'riteMods'])
+      delete battleParams[key];
+    const rite = sanitizeRite(this.rite);
+    if (rite) {
+      battleParams.riteAtEntry = rite.words;
+      battleParams.riteBand = riteBand(rite.words, riteConfigOf(this));
+      battleParams.riteLevel = riteLevelRuleOf(this);
+      const riteMods = riteModsFor(this, node);
+      if (Object.keys(riteMods).length) battleParams.riteMods = riteMods;
+    }
     return battleParams;
   }
 
@@ -5293,6 +5326,9 @@ export class RunManager {
       },
     });
     const eclipseCommit = this._commitBattleShadow(node, options, settlement.extraShadow);
+    // The Rite's words from this battle (the Vigil's, a node's par), committed here and nowhere
+    // else, once: the node is open (checked above), so a battle won twice counts nothing twice.
+    this._commitBattleRite(node, lockedConfig, options);
 
     this._sanitizeUnitPools();
     this.ensureUnitUids();
@@ -5432,6 +5468,46 @@ export class RunManager {
     if (eclipseCommit) eclipseCommit.fell = this.applyEclipseNow().map((n) => n.id);
     this.lastEclipseCommit = eclipseCommit;
     return true;
+  }
+
+  // ── The Rite ───────────────────────────────────────────────────────────
+
+  /** The Rite's words at the Descent's entry: the Eclipse's global phase (0 with it off). */
+  _riteStart() {
+    const config = this.getEclipseConfig();
+    const active = this.isEclipseActive();
+    return riteStartFromEclipse(
+      { active, phaseId: active ? eclipsePhase(this.eclipse?.shadow, config).id : null },
+      riteConfigOf(this),
+    );
+  }
+
+  /**
+   * A victory's words (act-v-descent §4): the Vigil's (`options.riteWords`, the battle's
+   * vigilState count) when the locked map carries a vigil (no locked map: the headless sims, when
+   * the node's set piece has one), and a node's change at or under par (`rite.underPar`, keyed by
+   * the node's descentKey: the Mortuary Column). No Rite (not the Descent, an old save): nothing.
+   * @returns {object[]} the log entries this commit added
+   */
+  _commitBattleRite(node, lockedConfig, options = {}) {
+    const before = sanitizeRite(this.rite);
+    if (!before) return [];
+    let rite = before;
+    const fightsVigil = lockedConfig
+      ? Boolean(lockedConfig.vigil)
+      : (findSetPiece(this.gameData?.setPieces, node?.battleParams?.setPiece)?.variants || []).some(
+          (variant) => Boolean(variant?.vigil),
+        );
+    const words = Math.min(
+      RITE_MAX_WORDS_PER_COMMIT,
+      Math.max(0, Math.trunc(Number(options.riteWords) || 0)),
+    );
+    if (fightsVigil && words > 0)
+      rite = applyRiteDelta(rite, words, { source: 'vigil', nodeId: node.id });
+    const underPar = riteUnderParDelta(riteConfigOf(this), node, options);
+    if (underPar) rite = applyRiteDelta(rite, underPar, { source: 'battle', nodeId: node.id });
+    this.rite = rite;
+    return rite.log.slice(before.log.length);
   }
 
   // ── The Eclipse ────────────────────────────────────────────────────────
@@ -5811,6 +5887,9 @@ export class RunManager {
     // Every act opens on a fresh land: act pressure restarts at 0 (the global meter,
     // after any boss relief, carries on).
     this.eclipse = beginActShadow(this.eclipse);
+    // The Rite (engine/Rite.js): it begins as the Descent does, from the Eclipse's global phase
+    // as the army goes down (before any fall below), and exists on no other act's map.
+    this.rite = isDescentMap(this.nodeMap) ? createRite({ start: this._riteStart() }) : null;
     const unlockedNow = this._syncActWeaponArtUnlocksForCurrentAct();
     const displacedSkills = this._lastRestorationDisplacements || {};
     this._lastRestorationDisplacements = null;
@@ -6250,6 +6329,7 @@ export class RunManager {
       battleInProgress: this.battleInProgress || null,
       lastBattleReport: this.lastBattleReport || null,
       eclipse: this.eclipse || createEclipseState(),
+      rite: sanitizeRite(this.rite),
       itemNamesRevision: ITEM_NAMES_REVISION,
       blessingBoonRevision: this.blessingBoonRevision,
     };
@@ -7076,6 +7156,8 @@ export class RunManager {
     // re-applied idempotently; a consistent save changes nothing. The battle being
     // fought (if any) is exempt like the current node.
     rm.eclipse = normalizeEclipseState(saved.eclipse, rm.getEclipseConfig());
+    // The Rite (engine/Rite.js): a save from before it, or off the Descent, has none.
+    rm.rite = sanitizeRite(saved.rite);
     // The same fall as in play (applyEclipseNow), Dark Omen included.
     rm.applyEclipseNow({
       activeNodeId:

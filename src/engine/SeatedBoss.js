@@ -14,8 +14,8 @@
 //   spends the draw, so a config that names the boss the draw would have picked is byte-identical
 //   to one that does not. A name the act does not have falls back to the draw's pick.
 // Level: the definition's level plus the rung's `bossLevelBonus` (an elite captain's level is
-// already scaled to the node and takes none). Stones: RevivalStones' kind for the seat (the
-// Entity never carries one).
+// already scaled to the node and takes none). Stones: RevivalStones' kind for the seat, plus the
+// Rite's (`params.riteMods.revivalStones`, act-v-descent §4); the Entity never carries one.
 
 import { captainLevelFor } from './SetPieces.js';
 import { earlyEnemyAllowed } from './EarlyEnemyRules.js';
@@ -92,10 +92,15 @@ export function resolveSeatedBoss(params = {}, deps = {}) {
   const bossLevelBonus = isEliteCaptain
     ? 0
     : Math.max(0, Math.trunc(Number(params.bossLevelBonus) || 0));
-  const stones = revivalStonesFor(
-    params.revivalStones,
-    revivalStoneKind({ bossDef, act, isEliteCaptain }),
-  );
+  // The Rite's Answered tier (params.riteMods, Rite.riteModsFor: the Lieutenant's only) adds its
+  // stones to the rung's. Never on the Entity, never on an elite captain.
+  const riteStones =
+    bossDef.isEntity === true || isEliteCaptain
+      ? 0
+      : Math.max(0, Math.min(3, Math.trunc(Number(params.riteMods?.revivalStones) || 0)));
+  const stones =
+    revivalStonesFor(params.revivalStones, revivalStoneKind({ bossDef, act, isEliteCaptain })) +
+    riteStones;
   return {
     bossDef,
     className: bossDef.className,

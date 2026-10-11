@@ -120,9 +120,10 @@ export const MUSIC = {
   // Act V, the Descent (docs/specs/act-v-descent.md §8): the Old Kings' Stair, the
   // Mortuary Column and the Landing play `battle` ("Ember Dusk, Below"); the Vigil's
   // mini-boss plays `vigil` ("Through the Floor"; no boss card, no boss theme). Both
-  // are adaptive (MUSIC_LAYERS). Not wired into BattleMusicSelection yet: the route
-  // PR picks them from here. The stinger for a Voice that falls is the keyed cue
-  // `voice_silenced` (musicStingers.js), played with audio.playStinger.
+  // are adaptive (MUSIC_LAYERS). BattleMusicSelection picks them (a map with a vigil,
+  // then any other Act V battle; bosses keep their themes). The stinger for a Voice that
+  // falls is the keyed cue `voice_silenced` (musicStingers.js), played by
+  // VigilController.onVoiceFell through ui/ceremonyMusic.js.
   descent: {
     battle: 'music_battle_descent',
     vigil: 'music_battle_vigil',

@@ -375,7 +375,7 @@
             {
               "col": 7,
               "row": 4,
-              "classes": ["Sage"],
+              "classes": ["Circle Adept"],
               "id": "voice_calling",
               "name": "Voice of the Calling",
               "target": true,
@@ -384,7 +384,7 @@
             {
               "col": 9,
               "row": 6,
-              "classes": ["Sage"],
+              "classes": ["Circle Adept"],
               "id": "voice_binding",
               "name": "Voice of the Binding",
               "target": true,
@@ -393,7 +393,7 @@
             {
               "col": 7,
               "row": 8,
-              "classes": ["Sage"],
+              "classes": ["Circle Adept"],
               "id": "voice_feeding",
               "name": "Voice of the Feeding",
               "target": true,
@@ -402,7 +402,7 @@
             {
               "col": 5,
               "row": 6,
-              "classes": ["Sage"],
+              "classes": ["Circle Adept"],
               "id": "voice_waking",
               "name": "Voice of the Waking",
               "target": true,
@@ -436,7 +436,7 @@
               { "id": "sigil_calling", "col": 7, "row": 4, "target": "voice_calling" },
               { "id": "sigil_binding", "col": 9, "row": 6, "target": "voice_binding" },
               { "id": "sigil_feeding", "col": 7, "row": 8, "target": "voice_feeding" },
-              { "id": "sigil_waking", "col": 5, "row": 6, "target": "voice_waking" }
+              { "id": "sigil_waking", "col": 5, "row": 6, "target": "voice_waking", "waking": true }
             ],
             "circles": [
               { "id": "circle_calling", "col": 12, "row": 1, "voice": "voice_calling" },

@@ -491,6 +491,7 @@ describe('every effect has words', () => {
       wear: { type: 'wear' },
       mend: { type: 'mend' },
       earnedBlessing: { type: 'earnedBlessing', id: 'smiths_covenant' },
+      rite: { type: 'rite', delta: -1 },
     };
     for (const type of EVENT_EFFECT_TYPES) {
       if (type === 'flag') continue;

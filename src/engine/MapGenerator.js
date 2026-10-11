@@ -19,6 +19,7 @@ import {
 } from '../utils/constants.js';
 import { assignAffixesToEnemySpawns, assignSwornAffix } from './AffixEngine.js';
 import { withHuntedWave } from './HuntedWave.js';
+import { applyRiteBattleMods } from './RiteBattleMods.js';
 import { createSeededRng } from './ReinforcementScheduler.js';
 import { assignEnemyAreaArts } from './EnemyAreaArts.js';
 import { pickCaravanSpawnTile } from './CaravanSystem.js';
@@ -503,6 +504,20 @@ export function generateBattleLayout(params, deps) {
     playerSpawns,
     enemySpawns,
   });
+  // The Rite's tier on a finale (RiteBattleMods.js): after every draw, so the map is the same.
+  const rite = applyRiteBattleMods({
+    params,
+    enemySpawns,
+    reinforcementConfig,
+    mapLayout,
+    cols,
+    rows,
+    playerSpawns,
+    terrain,
+    classes,
+    levelRange: adjustedLevelRange,
+  });
+  enemySpawns = rite.enemySpawns;
 
   const battleConfig = {
     mapLayout,
@@ -539,6 +554,7 @@ export function generateBattleLayout(params, deps) {
     toxicTiles,
     ...reinforcementConfig,
     ...hybridConfig,
+    ...rite.extra,
   };
 
   // Debug-only output assertion. Never throws (a throw during BattleScene.create
@@ -619,7 +635,7 @@ function generateSetPieceLayout(params, deps) {
   const thronePos = nodeObjectives ? null : built.thronePos;
   const objectives = nodeObjectives || built.objectives;
   const templateId = `${SET_PIECE_TEMPLATE_PREFIX}${setPiece.id}`;
-  const enemySpawns = dressEnemySpawns(built.enemySpawns, { params, deps, act, templateId });
+  const dressed = dressEnemySpawns(built.enemySpawns, { params, deps, act, templateId });
   const reinforcementConfig = built.reinforcements ? structuredClone(built.reinforcements) : {};
   // No Hunted wave on a boss node's map, as on a template's.
   finishReinforcements(reinforcementConfig, params, {
@@ -627,8 +643,29 @@ function generateSetPieceLayout(params, deps) {
     cols,
     rows,
     playerSpawns,
-    enemySpawns,
+    enemySpawns: dressed,
   });
+  // The Rite's tier on a finale or gate (RiteBattleMods.js): after every draw, so the map is the
+  // same; a defeat objective's named targets never leave it.
+  const rite = applyRiteBattleMods({
+    params,
+    enemySpawns: dressed,
+    reinforcementConfig,
+    mapLayout,
+    cols,
+    rows,
+    playerSpawns,
+    terrain: deps.terrain || [],
+    classes: deps.classes || [],
+    levelRange,
+    objectiveTargets: (objectives?.primary || []).flatMap((p) =>
+      Array.isArray(p?.targets) ? p.targets : [],
+    ),
+  });
+  const enemySpawns = rite.enemySpawns;
+  // The Hollowed level rule of the run's Rite (descent.json `rite`, getBattleParams'
+  // `riteLevel`), locked into the vigil with the map; without it the Vigil's defaults stand.
+  const riteLevel = lockedVigilLevelRule(params.riteLevel);
   // Par reads the objectives model's first kind when the set piece names one (defeat).
   const parObjective = objectives ? objectives.primary[0].kind : objective;
   return {
@@ -641,7 +678,9 @@ function generateSetPieceLayout(params, deps) {
     // The Vigil's sigils and circles, placed with the mirror, and the battle's adjusted level
     // range its called Hollowed roll in (engine/Vigil.js): locked with the map, so the scene,
     // the harness, a resume and a rewind all build the same Hollowed.
-    ...(built.vigil ? { vigil: { ...built.vigil, levelRange: [...levelRange] } } : {}),
+    ...(built.vigil
+      ? { vigil: { ...built.vigil, levelRange: [...levelRange], ...riteLevel } }
+      : {}),
     biome: setPiece.biome ?? null,
     playerSpawns,
     enemySpawns,
@@ -667,7 +706,18 @@ function generateSetPieceLayout(params, deps) {
     }),
     toxicTiles: 0,
     ...reinforcementConfig,
+    ...rite.extra,
   };
+}
+
+/** A locked vigil's Hollowed level rule from params' `riteLevel`, or nothing (the defaults). */
+function lockedVigilLevelRule(rule) {
+  if (!rule || typeof rule !== 'object') return {};
+  const out = {};
+  if (Number.isInteger(rule.perWordLevel) && rule.perWordLevel > 0)
+    out.perWordLevel = rule.perWordLevel;
+  if (Number.isInteger(rule.levelCap) && rule.levelCap >= 0) out.levelCap = rule.levelCap;
+  return out;
 }
 
 /**

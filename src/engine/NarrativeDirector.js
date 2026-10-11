@@ -22,6 +22,7 @@
 // (DialogueCast), which only handles {commander} and passes other text through.
 
 import { unitDisplayName, unitEpithet } from './DeedTitles.js';
+import { riteBand, riteConfigOf, sanitizeRite } from './Rite.js';
 
 const LAST_FOE_TOKEN = '{lastFoe}';
 const LAST_FOE_FALLBACK = 'the enemy';
@@ -52,6 +53,11 @@ export const KNOWN_WHEN_KEYS = new Set([
   // progress reads as 'none'; a real run cannot start while it runs). A value may be
   // one state or a list of states (any of them).
   'prologue',
+  // Act V (act-v-descent §9.7): the boss's role on the Descent's route ('gate' | 'finale' |
+  // 'none', from battleParams.bossRole) and the Rite's tier ('broken' | 'spoken' | 'answered' |
+  // 'none': the battle's tier at entry, else the run's; engine/Rite.js). One value or a list.
+  'bossRole',
+  'riteBand',
 ]);
 
 /** True when `value` (one value or a list) admits `actual`. */
@@ -63,9 +69,16 @@ function matchesOneOf(value, actual) {
  * Snapshot the narrative state needed for variant selection. Every source is
  * optional: tutorial/standalone battles have no meta, headless tests may pass
  * nothing at all — defaults select base entries.
- * @param {{ meta?: object|null, runManager?: object|null, bossName?: string|null }} sources
+ * @param {{ meta?: object|null, runManager?: object|null, bossName?: string|null,
+ *   battleParams?: object|null }} sources `battleParams`: the battle being fought (its bossRole and
+ *   the Rite's tier at its entry)
  */
-export function buildNarrativeContext({ meta = null, runManager = null, bossName = null } = {}) {
+export function buildNarrativeContext({
+  meta = null,
+  runManager = null,
+  bossName = null,
+  battleParams = null,
+} = {}) {
   let commander = null;
   let partner = null;
   try {
@@ -116,7 +129,21 @@ export function buildNarrativeContext({ meta = null, runManager = null, bossName
     firstClear: runManager?.endRunRewards?.firstClear === true,
     linesPlayed: Array.isArray(flags?.linesPlayed) ? [...flags.linesPlayed] : [],
     prologue: prologueStateOf(meta),
+    bossRole: ['gate', 'finale'].includes(battleParams?.bossRole) ? battleParams.bossRole : 'none',
+    riteBand: riteBandOf(runManager, battleParams),
   };
+}
+
+/** The Rite's tier as a `when` value: the battle's at entry, else the run's, else 'none'. */
+function riteBandOf(runManager, battleParams) {
+  try {
+    if (typeof battleParams?.riteBand === 'string' && battleParams.riteBand)
+      return battleParams.riteBand;
+    const rite = sanitizeRite(runManager?.rite);
+    return rite ? riteBand(rite.words, riteConfigOf(runManager)) || 'none' : 'none';
+  } catch {
+    return 'none';
+  }
 }
 
 /** The save's prologue as a `when` value: 'complete' | 'skipped' | 'none'. */
@@ -185,6 +212,12 @@ export function evaluateWhen(when, ctx) {
           break;
         case 'prologue':
           if (!matchesOneOf(value, ctx.prologue ?? 'none')) return false;
+          break;
+        case 'bossRole':
+          if (!matchesOneOf(value, ctx.bossRole ?? 'none')) return false;
+          break;
+        case 'riteBand':
+          if (!matchesOneOf(value, ctx.riteBand ?? 'none')) return false;
           break;
         default:
           return false; // unknown condition key: variant never matches

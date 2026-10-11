@@ -41,6 +41,7 @@ export const RESULT_CHIPS = Object.freeze({
   wear: 'WEAR',
   mend: 'MEND',
   earnedBlessing: 'EARNED',
+  rite: 'RITE',
 });
 
 /**

@@ -18,7 +18,7 @@ vi.mock('phaser', () => ({
 }));
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
-import { VigilController, VIGIL_BANNERS } from '../src/ui/VigilController.js';
+import { VigilController, VIGIL_BANNERS, VOICE_SILENCED_CUE } from '../src/ui/VigilController.js';
 import { BattleSuspendController } from '../src/ui/BattleSuspendController.js';
 import { captureBattleState } from '../src/ui/BattleCheckpointAdapter.js';
 import { validateBattleState } from '../src/engine/BattleStateSnapshot.js';
@@ -227,6 +227,37 @@ describe('the fog keeps its secret', () => {
       },
     );
     expect(banners(guard)).not.toContain(VIGIL_BANNERS.silenced);
+  });
+
+  it('a seen Voice’s fall plays the voice_silenced cue; a fogged one and a guard’s are silent', async () => {
+    // Failure: the cue never plays (the stinger the music PR made goes unheard), or it plays for
+    // a fall in the fog (sound leaking what the board hides) or for any foe's fall.
+    const withAudio = (scene) => {
+      const audio = { playStinger: vi.fn(async () => null), playSFX: vi.fn() };
+      scene.registry = { get: (key) => (key === 'audio' ? audio : null) };
+      return audio;
+    };
+    const cues = (audio) => audio.playStinger.mock.calls.map((c) => c[0]);
+    const seenFall = sceneOf().scene;
+    const seenAudio = withAudio(seenFall);
+    await seenFall.removeUnit(voiceOf(seenFall.enemyUnits, 'voice_binding'), {
+      killer: seenFall.playerUnits[0],
+    });
+    expect(cues(seenAudio)).toEqual([VOICE_SILENCED_CUE]);
+    expect(VOICE_SILENCED_CUE).toBe('voice_silenced');
+
+    const fogged = sceneOf({ visible: ['0,10', '1,9'] }).scene;
+    const foggedAudio = withAudio(fogged);
+    await fogged.removeUnit(voiceOf(fogged.enemyUnits, 'voice_binding'), {});
+    expect(cues(foggedAudio)).not.toContain(VOICE_SILENCED_CUE);
+
+    const guard = sceneOf().scene;
+    const guardAudio = withAudio(guard);
+    await guard.removeUnit(
+      guard.enemyUnits.find((u) => u.className === 'Dark Knight'),
+      { killer: guard.playerUnits[0] },
+    );
+    expect(cues(guardAudio)).not.toContain(VOICE_SILENCED_CUE);
   });
 });
 

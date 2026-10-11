@@ -4,8 +4,9 @@
 //   processPhase   at each enemy-phase start, right after the Necromancer's raise: the Voices
 //                  on their sigils speak (counted in scene._vigilState), then each open circle
 //                  calls a Hollowed onto the board
-//   onVoiceFell    at a Voice's fall (BattleScene.removeUnit): "A Voice falls silent."
-//   sync           every frame (BattleScene.update): the sigil and circle markers re-derived
+//   onVoiceFell    at a Voice's fall (BattleScene.removeUnit): "A Voice falls silent." and the
+//                  `voice_silenced` cue (ui/ceremonyMusic.js, in the key of the Vigil's theme)
+//   sync          every frame (BattleScene.update): the sigil and circle markers re-derived
 //                  from the board, redrawn only when what they show changes
 //
 // Rendering never changes game state: the step's result is applied to the roster and the state
@@ -30,6 +31,7 @@ import { battleSession, isCurrentBattleSession } from './BattleSession.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { CombatFxController } from './CombatFxController.js';
 import { safeBattlePresentation } from './safeBattlePresentation.js';
+import { playCue } from './ceremonyMusic.js';
 import { vigilBoardView, vigilPhaseStep, voiceUnit } from '../engine/Vigil.js';
 import { enemyDifficultyConfigFromParams } from '../engine/UnitManager.js';
 import { canInspectUnit, isUnitSeenAt } from '../engine/BattleInformation.js';
@@ -42,6 +44,9 @@ export const VIGIL_BANNERS = Object.freeze({
   call: 'The circle calls.',
   silenced: 'A Voice falls silent.',
 });
+
+/** The stinger a seen Voice's fall plays (musicStingers.js; act-v-descent §8). */
+export const VOICE_SILENCED_CUE = 'voice_silenced';
 
 export class VigilController {
   constructor(scene) {
@@ -201,6 +206,8 @@ export class VigilController {
     const session = battleSession(scene);
     this.sync();
     if (!isUnitSeenAt(scene.grid, unit, tile.col, tile.row)) return;
+    // The cue is heard only for a fall the player saw (as the banner): sound tells no secrets.
+    void playCue(scene, VOICE_SILENCED_CUE, { duck: 0.3 });
     await safeBattlePresentation(
       'vigil silenced',
       () => scene.showBriefBanner?.(VIGIL_BANNERS.silenced, UI_PALETTE.muted),

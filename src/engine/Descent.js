@@ -9,7 +9,7 @@
 //   NodeSpec { key, type: battle | event | ruins | boss, setPiece? | templateId?, objective?,
 //              elite?, eventPool?, boss?, bossRole?: gate | finale, riteTarget?, fallable?,
 //              title?, preview?, bossLine?, edges? }
-//   rite   the Rite's numbers (§4): read by the Rite's own PR, only checked here.
+//   rite   the Rite's numbers (§4): engine/Rite.js reads and validates them.
 //
 // The route the run takes: `routeByRung[difficultyId]`, only while `enabled` and only in the
 // final act of a standard run (RunManager._buildActNodeMap; anything else builds today's map).
@@ -47,6 +47,7 @@ import { DIFFICULTY_IDS } from './DifficultyEngine.js';
 import { actLevelScaling, convertNodeToSetPieceBattle, edgeCrosses } from './NodeMapGenerator.js';
 import { findSetPiece, validateSetPieceAt, validateSetPiecesConfig } from './SetPieces.js';
 import { BOSS_REF } from './BattleObjectives.js';
+import { riteTargetOfBoss, validateRiteConfig } from './Rite.js';
 
 /** The act the Descent is (ids are save data: the act stays `finalBoss`). */
 export const DESCENT_ACT_ID = 'finalBoss';
@@ -380,11 +381,8 @@ function buildNode(spec, { id, row, col, runSeed, levelRange, bosses, gameData }
 
 // ── Validation ──────────────────────────────────────────────────────────
 
-/** Which finale a boss definition is (`DESCENT_FINALES`), or null. */
-function finaleKindOf(def) {
-  if (def?.isEntity === true) return 'entity';
-  return def?.name === 'The Lieutenant' ? 'lieutenant' : null;
-}
+/** Which finale a boss definition is (`DESCENT_FINALES`), or null: the Rite's own reading. */
+const finaleKindOf = riteTargetOfBoss;
 
 /**
  * Validate data/descent.json against the game data (`npm run validate:data`; tests plant one
@@ -407,7 +405,7 @@ function finaleKindOf(def) {
  * - event pools: a pool with too few events every run can meet there (no requirement, a
  *   positive weight, the Descent among its acts) to fill every event node of that pool on one
  *   path, unless one of them is not once per run;
- * - the `rite` block's shape (its numbers are read by the Rite's own PR).
+ * - the `rite` block (Rite.validateRiteConfig).
  * @param {object} config
  * @param {{ difficulty?, enemies?, setPieces?, mapTemplates?, events?, eclipse?, terrain?,
  *   classes?, weapons? }} data
@@ -480,7 +478,18 @@ export function validateDescentConfig(config, data = {}) {
     validateRoute(rw, route, { err, data, bosses, servedRungs, routeId });
   }
 
-  validateRiteBlock(config.rite, { err, eclipse: data.eclipse });
+  // The Rite's numbers (engine/Rite.js): its `underPar` keys name a battle node of some route.
+  const battleKeys = new Set(
+    Object.values(routes || {}).flatMap((route) =>
+      (Array.isArray(route?.rows) ? route.rows : []).flatMap((row) =>
+        (Array.isArray(row?.nodes) ? row.nodes : [])
+          .flatMap(slotSpecs)
+          .filter((spec) => isObject(spec) && spec.type === NODE_TYPES.BATTLE)
+          .map((spec) => spec.key),
+      ),
+    ),
+  );
+  validateRiteConfig(config.rite, { err, eclipse: data.eclipse, battleKeys });
   return { valid: errors.length === 0, errors };
 }
 
@@ -753,63 +762,4 @@ function validatePools(rw, rows, pools, { err, events }) {
       `event pool "${pool}" has ${open.length} event(s) every run can meet; a path can hold ${needed} (or make one not once per run)`,
     );
   }
-}
-
-/** The `rite` block's shape (§4, §9.5): the Rite's PR reads the numbers. */
-function validateRiteBlock(rite, { err, eclipse }) {
-  if (rite === undefined) return;
-  if (!isObject(rite)) {
-    err('rite', 'must be an object');
-    return;
-  }
-  for (const key of Object.keys(rite))
-    if (!['startByPhase', 'bands', 'mods', 'perWordLevel', 'levelCap'].includes(key))
-      err('rite', `unknown key "${key}"`);
-  const phases = (eclipse?.phases || []).map((p) => p?.id).filter(Boolean);
-  const start = rite.startByPhase;
-  if (!isObject(start)) err('rite.startByPhase', 'must map Eclipse phases to words');
-  else {
-    for (const [phase, n] of Object.entries(start)) {
-      if (phases.length && !phases.includes(phase))
-        err('rite.startByPhase', `"${phase}" is not a phase`);
-      if (!(isInt(n) && n >= 0)) err(`rite.startByPhase.${phase}`, 'must be a whole number >= 0');
-    }
-    for (const phase of phases)
-      if (start[phase] === undefined) err('rite.startByPhase', `names no words for "${phase}"`);
-  }
-  const bands = Array.isArray(rite.bands) ? rite.bands : null;
-  const bandIds = new Set();
-  if (!bands || bands.length === 0) err('rite.bands', 'must list the tiers');
-  else {
-    let expected = 0;
-    bands.forEach((band, i) => {
-      const bw = `rite.bands[${i}]`;
-      if (!isObject(band) || typeof band.id !== 'string' || !ID.test(band.id)) {
-        err(bw, 'must be { id, min, max? }');
-        return;
-      }
-      if (bandIds.has(band.id)) err(bw, `id "${band.id}" is used twice`);
-      bandIds.add(band.id);
-      if (band.min !== expected)
-        err(bw, `min must be ${expected} (the tiers are contiguous from 0)`);
-      const isLastBand = i === bands.length - 1;
-      if (isLastBand) {
-        if (band.max !== undefined) err(bw, 'the last tier is open (no max)');
-      } else if (!(isInt(band.max) && band.max >= band.min))
-        err(bw, 'max must be a whole number >= min');
-      else expected = band.max + 1;
-    });
-  }
-  if (rite.mods !== undefined) {
-    if (!isObject(rite.mods)) err('rite.mods', 'must be keyed by tier');
-    else
-      for (const [band, mod] of Object.entries(rite.mods)) {
-        if (!bandIds.has(band)) err('rite.mods', `"${band}" is not a tier`);
-        if (!isObject(mod)) err(`rite.mods.${band}`, 'must be an object');
-      }
-  }
-  if (!(isInt(rite.perWordLevel) && rite.perWordLevel > 0))
-    err('rite.perWordLevel', 'must be a whole number > 0');
-  if (!(isInt(rite.levelCap) && rite.levelCap >= 0))
-    err('rite.levelCap', 'must be a whole number >= 0');
 }

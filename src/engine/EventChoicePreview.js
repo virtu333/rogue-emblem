@@ -143,6 +143,13 @@ export function effectPreview(effect, ctx) {
       const value = num(effect.value);
       return value ? say(`${signed(value)} Vision`) : say('');
     }
+    case 'rite': {
+      // The court circle's words (engine/Rite.js): "The rite: −1 word", "The rite: +2 words".
+      const delta = num(effect.delta);
+      return delta
+        ? say(`The rite: ${signed(delta)} ${Math.abs(delta) === 1 ? 'word' : 'words'}`)
+        : say('');
+    }
     case 'blessing': {
       const tier = romanNumeral(effect.tier);
       return say(`A random ${tier ? `Tier ${tier} ` : ''}blessing`);

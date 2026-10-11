@@ -153,6 +153,21 @@ export function choiceGrantsEarned(event, choiceId, pageId = 'start') {
   );
 }
 
+/**
+ * How far the choice moves the Rite for sure (engine/Rite.js; the Descent's events): the
+ * smallest lowering every outcome makes (each outcome's `rite` deltas summed, the choice's own
+ * added), 0 when some outcome leaves it or raises it.
+ */
+export function choiceRiteDelta(event, choiceId, pageId = 'start') {
+  const choice = findChoice(event, choiceId, pageId);
+  const sum = (effects) =>
+    (effects || []).reduce((n, e) => n + (e?.type === 'rite' ? Math.trunc(e.delta) || 0 : 0), 0);
+  const outcomes = choice?.outcomes || [];
+  if (outcomes.length === 0) return 0;
+  const worst = Math.max(...outcomes.map((o) => sum(choice.effects) + sum(o.effects)));
+  return worst < 0 ? worst : 0;
+}
+
 /** True when any outcome of the choice leads on to another page of the event. */
 export function choiceLeadsOn(event, choiceId, pageId = 'start') {
   const choice = findChoice(event, choiceId, pageId);
@@ -165,7 +180,9 @@ export function choiceLeadsOn(event, choiceId, pageId = 'start') {
  * choice that may start one. On a multi-page event the policy stops going deeper when a
  * counter is low (one left or fewer): it then prefers a choice that ends the event. A choice
  * that can grant an earned blessing is left alone (the sims measure none, D-25) unless
- * `earned: true`; when it is the only choice open, it is still taken (never a stall).
+ * `earned: true`; when it is the only choice open, it is still taken (never a stall). In the
+ * Descent a choice sure to lower the Rite is preferred, the surest first (a player quiets the
+ * circle when it can: choiceRiteDelta); no other event has one, so no other pick moves.
  * @returns {{ choiceId: string, targetUid: string|null, mayFight: boolean, leadsOn: boolean }|null}
  */
 export function chooseEventPlan(run, nodeId, { fight = false, earned = false } = {}) {
@@ -180,12 +197,19 @@ export function chooseEventPlan(run, nodeId, { fight = false, earned = false } =
     choice,
     mayFight: choiceMayFight(event, choice.id, view.page),
     leadsOn: choiceLeadsOn(event, choice.id, view.page),
+    rite: choiceRiteDelta(event, choice.id, view.page),
   }));
   if (open.length === 0) return null;
   const low = (view.counters || []).some((counter) => counter.value <= 1);
   const wanted = (entry) => (fight ? entry.mayFight : !entry.mayFight);
+  const quieting = open
+    .filter((entry) => wanted(entry) && entry.rite < 0)
+    .sort((a, b) => a.rite - b.rite)[0];
   const pick =
-    (low && open.find((entry) => wanted(entry) && !entry.leadsOn)) || open.find(wanted) || open[0];
+    (low && open.find((entry) => wanted(entry) && !entry.leadsOn)) ||
+    quieting ||
+    open.find(wanted) ||
+    open[0];
   const target = pick.choice.target?.candidates.find((c) => c.ok) || null;
   return {
     choiceId: pick.choice.id,

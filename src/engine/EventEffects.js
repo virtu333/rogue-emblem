@@ -71,6 +71,10 @@
 //   mend        {}                              every wear step on every weapon the target carries is
 //                                                repaired (WeaponWear.repairWeapon; the gold is the choice's)
 //                                                -> { kind:'mend', unit, steps, weapons:[{ from, to, steps }] }
+//   rite        { delta }                       the Rite's words (Rite.js), ±1 to ±3, floor 0; only in
+//                                                 a pooled Descent event; a run with no Rite (off the
+//                                                 Descent, an old save) records a change of nothing
+//                                                 -> { kind:'rite', delta, requested, words|null, band|null }
 //   routeEdit   { op: 'addRoad' } | { op: 'redraw', toType }  the route map (RouteEdit.js)
 //                                                 -> { kind:'route', op:'addRoad', from, to, row, col, type }
 //                                                  | { kind:'route', op:'redraw', node, row, col, fromType, type }
@@ -101,6 +105,7 @@ import { CONSUMABLE_MAX, INVENTORY_MAX, NODE_TYPES } from '../utils/constants.js
 import { unitUidOf } from './UnitIdentity.js';
 import { earnedGrantBlock, eventLedgerKey, grantEarnedBlessing } from './EarnedBlessings.js';
 import { weaponsNeverWearOf } from './EarnedBoons.js';
+import { applyRiteDelta, riteBand, riteConfigOf, sanitizeRite } from './Rite.js';
 import {
   START_PAGE,
   choiceCost,
@@ -145,6 +150,7 @@ export const EVENT_EFFECT_TYPES = Object.freeze([
   'wear',
   'mend',
   'earnedBlessing',
+  'rite',
 ]);
 
 /** Effect types that must name a chosen unit (`to: 'target'` / `scope: 'target'`). */
@@ -915,6 +921,9 @@ export function planEffects(
       case 'earnedBlessing':
         planned = planEarnedBlessing(ctx, effect, index, ledger, lenient);
         break;
+      case 'rite':
+        planned = { step: { type: 'rite', requested: Math.trunc(Number(effect.delta) || 0) } };
+        break;
       default:
         planned = { error: `Unknown effect "${effect?.type}".` };
     }
@@ -1279,6 +1288,27 @@ export function applyStep(ctx, step) {
       run.contract = step.contract;
       return [{ kind: 'contract', ...describeContract(run) }];
     }
+    case 'rite': {
+      // No Rite (off the Descent, an old save): the words fall through the floor, as the cold
+      // open says. The record says nothing changed.
+      const before = sanitizeRite(run.rite);
+      if (!before)
+        return [{ kind: 'rite', delta: 0, requested: step.requested, words: null, band: null }];
+      run.rite = applyRiteDelta(before, step.requested, {
+        source: 'event',
+        nodeId: ctx.nodeId || undefined,
+        eventId: ctx.event?.id,
+      });
+      return [
+        {
+          kind: 'rite',
+          delta: run.rite.words - before.words,
+          requested: step.requested,
+          words: run.rite.words,
+          band: riteBand(run.rite.words, riteConfigOf(run)),
+        },
+      ];
+    }
     case 'routeEdit':
       return [
         applyRouteEdit(
@@ -1328,6 +1358,7 @@ export const RUN_FIELDS = Object.freeze([
   'contractOwed',
   'usedRecruitNames',
   'nextUnitUid',
+  'rite',
 ]);
 
 /** A deep copy of the fields in RUN_FIELDS. */

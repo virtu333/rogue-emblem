@@ -144,6 +144,8 @@ describe('buildNarrativeContext', () => {
       firstClear: false,
       linesPlayed: [],
       prologue: 'none',
+      bossRole: 'none',
+      riteBand: 'none',
     });
   });
 
@@ -187,6 +189,8 @@ describe('buildNarrativeContext', () => {
       firstClear: true,
       linesPlayed: [],
       prologue: 'none',
+      bossRole: 'none',
+      riteBand: 'none',
     });
   });
 
@@ -206,6 +210,7 @@ describe('KNOWN_WHEN_KEYS', () => {
     expect([...KNOWN_WHEN_KEYS].sort()).toEqual([
       'bossKilledYouBefore',
       'bossMetBefore',
+      'bossRole',
       'bossSlainBefore',
       'commander',
       'commanderHasEpithet',
@@ -219,6 +224,7 @@ describe('KNOWN_WHEN_KEYS', () => {
       'minRunsCompleted',
       'partner',
       'prologue',
+      'riteBand',
     ]);
   });
 });

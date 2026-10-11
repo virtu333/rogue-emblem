@@ -83,6 +83,27 @@ function goldLine(record) {
     : null;
 }
 
+/**
+ * The Rite's words (engine/Rite.js): fewer is good. A change the floor took to nothing is
+ * "unchanged"; a run with no Rite (words null) says nothing.
+ */
+function riteLine(record) {
+  if (record.words === null || record.words === undefined) return null;
+  const n = num(record.delta);
+  const words = Math.max(0, num(record.words));
+  const band = typeof record.band === 'string' && record.band ? record.band : null;
+  const detail = `The rite stands at ${words} ${plural(words, 'word')}${
+    band ? ` · ${band[0].toUpperCase()}${band.slice(1)}` : ''
+  }.`;
+  if (!n)
+    return num(record.requested) ? { tone: 'plain', text: 'The rite: unchanged', detail } : null;
+  return {
+    tone: n < 0 ? 'good' : 'bad',
+    text: `The rite: ${signed(n)} ${plural(Math.abs(n), 'word')}`,
+    detail,
+  };
+}
+
 function shadowLine(record) {
   // The meter and the act's own pressure can differ at the cap; say whichever moved.
   const n = num(record.value) || num(record.actValue);
@@ -298,6 +319,8 @@ export function describeResult(record, { gameData = null } = {}) {
       const n = num(record.value);
       return n ? { tone: n > 0 ? 'good' : 'bad', text: `Vision ${signed(n)}` } : null;
     }
+    case 'rite':
+      return riteLine(record);
     case 'blessing':
       return {
         tone: 'good',

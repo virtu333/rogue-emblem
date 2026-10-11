@@ -202,6 +202,8 @@ export class PostCombatController {
           ),
           // What the fallen did before they fell (DeedController.commitFallen).
           fallenBattleRecords: scene._fallenBattleRecords,
+          // The Vigil's words (engine/Vigil.js vigilState), committed to the run's Rite here.
+          riteWords: scene._vigilState?.words ?? 0,
         },
       );
       // A lord recruited in this battle (a recruit node's Talk) has now joined.
@@ -311,7 +313,12 @@ export class PostCombatController {
             // at this point, so the flag can never be a phantom.
             const entries = selectDialogueEntries(
               scene.gameData?.dialogue?.bossEncounters?.[bossName]?.defeat,
-              buildNarrativeContext({ meta, runManager: scene.runManager, bossName }),
+              buildNarrativeContext({
+                meta,
+                runManager: scene.runManager,
+                bossName,
+                battleParams: scene.battleParams,
+              }),
             );
             // The prologue counts nothing on the slot (§8): its boss is never recorded.
             if (!prologueRun) meta?.recordBossSlain?.(bossName);

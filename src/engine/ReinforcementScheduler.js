@@ -105,6 +105,21 @@ function isExcludedTerrain(terrain, mapLayout, col, row) {
   return REINFORCEMENT_EXCLUDED_TERRAIN.has(terrain?.[mapLayout?.[row]?.[col]]?.name);
 }
 
+/**
+ * Whether an authored arrival could stand on (col, row): in bounds, passable for `moveType`, not
+ * on the terrain arrivals avoid (REINFORCEMENT_EXCLUDED_TERRAIN). The Rite's waves pick their
+ * tiles with it (RiteBattleMods.js).
+ */
+export function isArrivalTileOpen(terrain, mapLayout, col, row, moveType = 'Infantry') {
+  const rows = Array.isArray(mapLayout) ? mapLayout.length : 0;
+  const cols = rows > 0 && Array.isArray(mapLayout[0]) ? mapLayout[0].length : 0;
+  return (
+    isInBounds(col, row, cols, rows) &&
+    !isExcludedTerrain(terrain, mapLayout, col, row) &&
+    isPassable(terrain, mapLayout, col, row, moveType)
+  );
+}
+
 function normalizeMoveTypes(moveTypes, moveType) {
   const list = Array.isArray(moveTypes) ? moveTypes.filter((m) => typeof m === 'string') : [];
   return list.length ? list : [moveType || 'Infantry'];
@@ -636,6 +651,9 @@ export function scheduleReinforcementsForTurn({
         };
       }
       if (Array.isArray(rawSpawn.affixes)) scriptedSpawn.affixes = [...rawSpawn.affixes];
+      // A wave that is a price rather than a puzzle (the Rite's Hollowed: RiteBattleMods.js)
+      // says so, and its arrivals never raise par.
+      if (due.wave?.parNeutral === true) scriptedSpawn.parNeutral = true;
       spawns.push(scriptedSpawn);
       spawnedKeys.add(key);
       spawnedCount++;
