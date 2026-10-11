@@ -14,6 +14,7 @@ import { PINNED_BATTLE_STREAM_KEY } from '../engine/BattleScout.js';
 import { addBurden } from '../engine/Burdens.js';
 import { normalizeContract } from '../engine/Contracts.js';
 import { DEV_EVENT_FIXTURES } from './devEventFixtures.js';
+import { withDevSetPiece } from './devSetPieceFixtures.js';
 import { findSetPiece, setPieceDeployCap } from '../engine/SetPieces.js';
 
 const DEV_META_STORAGE_KEY = 'emblem_rogue_dev_meta';
@@ -636,8 +637,13 @@ export function parseDevStartupConfig(search, options = {}) {
   };
 }
 
-export function buildDevStartupRoute(gameData, registry, config) {
-  if (!gameData || !registry || !config?.enabled) return null;
+export function buildDevStartupRoute(sourceGameData, registry, config) {
+  if (!sourceGameData || !registry || !config?.enabled) return null;
+  // `&setPiece=dev_vigil`: a review-only set piece (utils/devSetPieceFixtures.js) joins this
+  // page's game data; any other id leaves it as loaded.
+  const gameData = config.setPiece
+    ? withDevSetPiece(sourceGameData, config.setPiece)
+    : sourceGameData;
 
   registry.set('devToolsEnabled', Boolean(config.devTools));
   // A `?devScene=` review route's battles keep the run seed's one stream (BattleScout.js

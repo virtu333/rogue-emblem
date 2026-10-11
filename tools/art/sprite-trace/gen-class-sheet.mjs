@@ -65,6 +65,47 @@ export const CLASS_SHEETS = {
       'skin, NO flesh, NO hair, NO armour plates, NO hooded cloak, NO green-grey colour (that is the Zombie). ' +
       'A loose-jointed forward shamble, lighter and more angular than the Zombie, so it is a different silhouette.',
   },
+  // Enemy-only, Act V "The Descent" (docs/specs/act-v-descent.md §5): the court circle's
+  // ritualist and the soldier its rite has emptied.
+  'Circle Adept': {
+    id: 'circle-adept',
+    tier: 'promoted',
+    move: 'Infantry',
+    weapon: 'Tomes (M)',
+    single: true,
+    refs: ['zombie', 'sage'],
+    design:
+      "ONE enemy only. A ritualist of the Empire's court circle: CEREMONIAL, composed and upright, not funereal " +
+      '(it is not the dark-violet grave-priest Necromancer). A long layered court surplice of ASH-GREY wool with ' +
+      'clearly lighter grey highlights on the shoulders and fold edges (never near-black), a stiff squared CRIMSON ' +
+      'lacquer mantle across the shoulders with a high collar and a narrow crimson stole down the front, a deep ' +
+      'hood in the same grey with the lower face covered by a plain grey cloth veil so only shadowed eyes show ' +
+      '(a living person, not a skull), and plain sleeves with bone-white cuffs. A thick closed TOME is held ' +
+      'against the chest in both hands, tightly bound in GREY CORD wound many times round it with long knotted ' +
+      'cord ends and tassels hanging below. It stands straight and still in a calm formal stance, feet together, ' +
+      'a hem that just clears the ground. A compact upright silhouette, clearly different from the Necromancer: ' +
+      'grey and crimson, formal, squared shoulders. No staff, no skulls, no glowing runes, no particles, no ' +
+      'objects on the ground.',
+  },
+  Hollowed: {
+    id: 'hollowed',
+    tier: 'base',
+    move: 'Infantry',
+    weapon: 'Lances (P), Swords (P)',
+    single: true,
+    refs: ['revenant', 'soldier'],
+    design:
+      'ONE enemy only. An imperial levy SOLDIER the rite has emptied out: the uniform is still on and the person ' +
+      "has gone out of it. The same kit as the Empire's foot soldier (kettle helmet with a mail aventail, " +
+      'CRIMSON padded coat, mail skirt, belt and pouches, grey boots) but worn wrong: the helmet sits a little ' +
+      'crooked, the coat hangs open and unbuttoned, the straps trail loose. The face under the brim is pale ash-grey ' +
+      'and slack, with blank hollow eyes (plain dark empty eye sockets, no glow, no pupils) and a slightly open ' +
+      'mouth: a living-looking man with nobody home, NOT a skull, NOT a skeleton, NOT rotting green flesh (that is ' +
+      'the Zombie). A SLACK stance: shoulders sagging, head tilted, one hand loosely curled round a long SPEAR held ' +
+      "UPRIGHT and VERTICAL beside the body with its butt on the ground, exactly like the foot soldier's spear in " +
+      'the soldier reference (a straight vertical shaft, narrow silhouette), the other arm hanging limp at the ' +
+      'side. No shield. No gore, no wounds, no particles.',
+  },
   Soldier: {
     id: 'soldier',
     tier: 'base',

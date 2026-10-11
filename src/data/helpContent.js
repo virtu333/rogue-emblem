@@ -634,6 +634,19 @@ const STATIC_HELP_TABS = [
         ],
       },
       {
+        title: 'The Court Circle',
+        tags: ['circle adept', 'hollowed', 'court circle', 'rite', 'voice', 'act v'],
+        lines: [
+          { text: 'Circle Adepts speak the rite:', color: GOLD },
+          { text: '  warded against magic, soft to steel.' },
+          { text: '  They strike from a post and hold it.' },
+          { text: '' },
+          { text: 'The Hollowed are soldiers it emptied:', color: CYAN },
+          { text: '  slow and dull, with no skills at all.' },
+          { text: '  Neither ever carries an item.', color: GRAY },
+        ],
+      },
+      {
         title: 'The Eclipse',
         lines: [
           { text: 'Battle time darkens the Hollow Sun.', color: GOLD },

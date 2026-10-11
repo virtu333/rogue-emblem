@@ -638,8 +638,10 @@ function generateSetPieceLayout(params, deps) {
     objective,
     // The objectives model (BattleObjectives.js), locked with the map; `objective` is its family.
     ...(objectives ? { objectives } : {}),
-    // The Vigil's sigils and circles, placed with the mirror (read by the Vigil mechanic).
-    ...(built.vigil ? { vigil: built.vigil } : {}),
+    // The Vigil's sigils and circles, placed with the mirror, and the battle's adjusted level
+    // range its called Hollowed roll in (engine/Vigil.js): locked with the map, so the scene,
+    // the harness, a resume and a rewind all build the same Hollowed.
+    ...(built.vigil ? { vigil: { ...built.vigil, levelRange: [...levelRange] } } : {}),
     biome: setPiece.biome ?? null,
     playerSpawns,
     enemySpawns,

@@ -6,7 +6,7 @@
 export const UI_DEPTHS = {
   // Battle scene layers
   GRID_BASE: 0,
-  OBJECTIVE_TILE: 7, // Above movement/path overlays; below unit sprites.
+  OBJECTIVE_TILE: 7, // Above movement/path overlays; below unit sprites (EXIT, the Vigil's marks).
   OBJECTIVE_LABEL: 15, // Readable even when a unit occupies an exit.
   TERRAIN_HIGHLIGHTS: 10,
   AREA_PREVIEW: 12, // An area art's footprint and victim rings (AreaPreviewController).
