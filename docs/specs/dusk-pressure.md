@@ -359,7 +359,12 @@ at the best unit in staff reach, else strikes with its weapon from the post, els
 (`AIController._decideAction` takes movement range 0). Danger, Threat Sight and the
 inspected reach draw the reach from the post (siege ring; staff ring plus weapon reach),
 never a walk. Shots or staff uses spent: the unit is an ordinary caster again and
-advances. Holders (`hold`) and village bandits (`seek_tile`) keep their own orders.
+advances. A staff caster with nothing in reach ends on `post_hold` (no chase, no wall
+breaking). Village bandits (`seek_tile`) keep their own orders, and so does a siege
+carrier, which is never a holder. **Exception:** a staff caster can still be chosen as a
+hold-pack member; when its pack wakes it keeps holding its post rather than hunting
+(the Danger zone drawn while it held is larger than its real reach, so this is safe for the
+player). A holder that has not woken (`hold`) waits as before.
 
 **Frequency (PR 4).** `statusStaffConfig` and `siegeWeaponConfig` with
 `perBattle: true` give, per act, the chance that a battle has one, rolled only when an

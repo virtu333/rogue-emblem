@@ -662,6 +662,16 @@ export class AIController {
       });
     }
 
+    // A post-holder with nothing in reach waits where it stands: no chase, no wall to break
+    // (SiegeArtillery.holdsPost; siege artillery has its own `artillery_hold`).
+    if (holdsPost)
+      return this._finalizeDecision(enemy, {
+        path: null,
+        target: null,
+        reason: 'post_hold',
+        detail: { post: { col: enemy.col, row: enemy.row } },
+      });
+
     // Boss on seize: don't chase if no attack available - stay on throne
     if (isBossOnSeize) {
       aiLog.debug('Boss staying on throne - no targets in range');

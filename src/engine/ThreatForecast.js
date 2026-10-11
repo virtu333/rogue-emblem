@@ -4,9 +4,9 @@
 // An enemy threatens a tile when, next enemy phase, it can stop on some tile of its
 // movement range (movement + terrain costs + blocking units + roots) from which the
 // tile is inside its weapon range. Entities are stationary and strike from their
-// footprint; enemy-owned ballistas are independent sources. A siege caster planted by
-// a player unit in its siege range (SiegeArtillery.js) does not move, so it strikes
-// from its post. Status staves are a
+// footprint; enemy-owned ballistas are independent sources. A siege caster or a
+// status-staff caster with shots or uses left holds its post (SiegeArtillery.js), so it
+// strikes from there. Status staves are a
 // separate, non-damage threat. Only enemies the player can currently see count:
 // fog-hidden units are never evaluated, so nothing here can reveal them.
 //

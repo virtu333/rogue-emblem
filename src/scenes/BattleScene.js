@@ -9803,8 +9803,8 @@ export class BattleScene extends Phaser.Scene {
       // A contact (Grid.revealContact) lasts the player phase it was made in: the foes move now.
       if (this.grid?.clearContacts?.()) revealSettledVision(this);
       this._prologue?.onPhaseStart('enemy', turn);
-      // Siege casters take their stance from the board the player left, before any
-      // phase-start blow (hazards, ballistas) can empty a ring Danger drew (SiegeArtillery).
+      // Siege and staff casters take their post-holding stance before any phase-start
+      // blow (hazards, ballistas) can change what they carry (SiegeArtillery).
       settleArtilleryStances({ enemyUnits: this.enemyUnits, turn });
       // A fresh enemy phase (including one replayed after a Vision rewind)
       // has not applied its reinforcements yet.

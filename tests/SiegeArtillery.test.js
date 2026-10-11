@@ -607,6 +607,15 @@ describe('a status-staff caster with a use left holds its post', () => {
     expect({ col: caster.col, row: caster.row }).toEqual({ col: 12, row: 12 });
   });
 
+  it('waiting ends on post_hold: no chase, no no-path streak, no wall to break', async () => {
+    const grid = makeGrid(25, 25);
+    const caster = mage(12, 12);
+    const target = foe('Target', 12, 1);
+    const { decisions } = await run(grid, caster, [target]);
+    expect(decisions.get(caster).reason).toBe('post_hold');
+    expect(caster._aiNoMoveStreak).toBe(0);
+  });
+
   it('strikes with its weapon from the post when a unit stands in weapon reach', async () => {
     const grid = makeGrid(25, 25);
     const caster = mage(12, 12);
