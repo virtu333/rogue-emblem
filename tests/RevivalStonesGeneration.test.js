@@ -3,12 +3,9 @@
 // the unit by the shared spawn gear, never on the Entity, and 0 for anything older.
 import { describe, expect, it } from 'vitest';
 import { generateBattle } from '../src/engine/MapGenerator.js';
-import {
-  generateModifierSummary,
-  resolveDifficultyMode,
-  validateDifficultyConfig,
-} from '../src/engine/DifficultyEngine.js';
+import { resolveDifficultyMode, validateDifficultyConfig } from '../src/engine/DifficultyEngine.js';
 import { RunManager } from '../src/engine/RunManager.js';
+import { rungModifierSummary, stoneKindsOnRoad } from '../src/engine/RevivalStoneRoad.js';
 import { applyEnemySpawnGear } from '../src/engine/EnemySpawnGear.js';
 import {
   REVIVAL_STONE_KINDS,
@@ -27,9 +24,9 @@ const RUNGS = ['normal', 'dusk', 'hard', 'lunatic'];
 // The spec's table (docs/specs/phase3.md "Who has stones"), written out by hand.
 const EXPECTED = {
   normal: { actBoss: 0, emperor: 0, lieutenant: 0, eliteCaptain: 0 },
-  dusk: { actBoss: 0, emperor: 1, lieutenant: 0, eliteCaptain: 0 },
-  hard: { actBoss: 1, emperor: 1, lieutenant: 0, eliteCaptain: 0 },
-  lunatic: { actBoss: 1, emperor: 2, lieutenant: 0, eliteCaptain: 1 },
+  dusk: { actBoss: 0, emperor: 1, lieutenant: 1, eliteCaptain: 0 },
+  hard: { actBoss: 1, emperor: 1, lieutenant: 2, eliteCaptain: 0 },
+  lunatic: { actBoss: 1, emperor: 2, lieutenant: 2, eliteCaptain: 1 },
 };
 
 // Distinct numbers, so a mapping mix-up between kinds shows.
@@ -81,16 +78,57 @@ describe('difficulty.json revivalStones', () => {
     );
   });
 
-  it('the difficulty screen says what a rung’s bosses carry, and says nothing on First Light', () => {
-    const lines = (id) =>
-      generateModifierSummary(resolveDifficultyMode(data.difficulty, id).modifiers).filter((l) =>
-        l.startsWith('Revival Stones'),
-      );
+  it('the difficulty screen lists the stone bosses a rung’s road meets, and nothing on First Light', () => {
+    const lines = (id, gameData = data) =>
+      rungModifierSummary(gameData, id).filter((l) => l.startsWith('Revival Stones'));
     expect(lines('normal')).toEqual([]);
-    expect(lines('dusk')).toEqual(['Revival Stones (a boss refills when felled): the Emperor 1']);
+    // Dusk's road ends at the Lieutenant, so he is listed.
+    expect(lines('dusk')).toEqual([
+      'Revival Stones (a boss refills when felled): the Emperor 1, the Lieutenant 1',
+    ]);
+    // The Descent ships dark: Nightfall and Black Sun end at the Entity, who is never stoned,
+    // so their stone lines name no Lieutenant even though the table holds his 2 for the gate.
+    expect(lines('hard')).toEqual([
+      'Revival Stones (a boss refills when felled): act bosses 1, the Emperor 1',
+    ]);
     expect(lines('lunatic')).toEqual([
       'Revival Stones (a boss refills when felled): act bosses 1, the Emperor 2, elite captains 1',
     ]);
+    // Switched on (a copy of the data), the gate puts him on the hard rungs' road.
+    const lit = { ...data, descent: { ...structuredClone(data.descent), enabled: true } };
+    expect(lines('hard', lit)).toEqual([
+      'Revival Stones (a boss refills when felled): act bosses 1, the Emperor 1, the Lieutenant 2',
+    ]);
+    expect(lines('lunatic', lit)).toEqual([
+      'Revival Stones (a boss refills when felled): act bosses 1, the Emperor 2, the Lieutenant 2, elite captains 1',
+    ]);
+    // The Descent's routes for First Light and Dusk still seat him; First Light holds no stones.
+    expect(lines('dusk', lit)).toEqual(lines('dusk'));
+    expect(lines('normal', lit)).toEqual([]);
+  });
+
+  it('the summary reads the road, not a rung list: no last act, or a route without him, drops him', () => {
+    const road = (over) => ({
+      difficultyId: 'dusk',
+      actsIncluded: ['act1', 'act2', 'act3', 'act4', 'finalBoss'],
+      enemies: data.enemies,
+      descent: data.descent,
+      ...over,
+    });
+    expect(stoneKindsOnRoad(road())).toEqual(['actBoss', 'emperor', 'lieutenant', 'eliteCaptain']);
+    expect(stoneKindsOnRoad(road({ actsIncluded: ['act1', 'act2', 'act3', 'act4'] }))).toEqual([
+      'actBoss',
+      'emperor',
+      'eliteCaptain',
+    ]);
+    // A lit route that names no Lieutenant (the Entity's alone) ends the rung without him.
+    const entityOnly = structuredClone(data.descent);
+    entityOnly.enabled = true;
+    entityOnly.routeByRung.dusk = 'entity';
+    entityOnly.routes.entity.rows = entityOnly.routes.entity.rows.map((row) => ({
+      nodes: row.nodes.filter((n) => n.boss !== 'The Lieutenant'),
+    }));
+    expect(stoneKindsOnRoad(road({ descent: entityOnly }))).not.toContain('lieutenant');
   });
 
   it('the battle params carry the rung’s table, and a run saved before them carries none', () => {
