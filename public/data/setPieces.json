@@ -8,6 +8,7 @@
       "biome": null,
       "fog": true,
       "deploy": { "max": 5 },
+      "parBonus": 2,
       "variants": [
         {
           "id": "near_bank",
@@ -137,6 +138,7 @@
       "objective": "rout",
       "biome": null,
       "deploy": { "max": 6 },
+      "parBonus": 2,
       "variants": [
         {
           "id": "stockade",
