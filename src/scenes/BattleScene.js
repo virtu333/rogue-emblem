@@ -1019,7 +1019,11 @@ export class BattleScene extends Phaser.Scene {
         if (inMenu) this._menuFocus?.activate();
         else if (!battleOver) this._gridCursor?.confirm();
         break;
+      // B (and Android Back) is a Cancel; Start backs out the same way but is never one, so it
+      // leaves the Entity rally's card up (BattleScene.requestCancel's `cancelAction`).
       case InputAction.CANCEL:
+        routeCancel(this, { cancelAction: true });
+        break;
       case InputAction.PAUSE:
         routeCancel(this);
         break;
@@ -1453,7 +1457,7 @@ export class BattleScene extends Phaser.Scene {
         // ESC while open; its own handler closes it top-down.
         if (hasOpenOverlay(this)) return;
         if (this.isStoryInputLocked()) return;
-        const handled = this.requestCancel();
+        const handled = this.requestCancel({ cancelAction: true });
         if (handled) consumeEscEvent(this, event);
       },
       rewindAndLootRoster: () => {
@@ -2109,7 +2113,7 @@ export class BattleScene extends Phaser.Scene {
       this.rosterButton = makeButton(hw, '[O] Roster', () => this._onRosterClick());
       this.endTurnButton = makeButton(hw + 140, '[E] End Turn', () => this.forceEndTurn());
       this.cancelButton = makeButton(this.cameras.main.width - 72, '[X] Cancel', () =>
-        this.requestCancel({ allowPause: false }),
+        this.requestCancel({ allowPause: false, cancelAction: true }),
       );
       if (this.isMobileInput) {
         this.inspectButton = makeButton(72, '[Inspect: OFF]', () => this.toggleInspectMode());
@@ -2192,7 +2196,7 @@ export class BattleScene extends Phaser.Scene {
         this._mobileHandlers = {
           cancel: () => {
             if (this.isStoryInputLocked()) return;
-            this.requestCancel({ allowPause: false });
+            this.requestCancel({ allowPause: false, cancelAction: true });
           },
           menu: () => {
             if (this.isStoryInputLocked()) return;
@@ -4104,7 +4108,14 @@ export class BattleScene extends Phaser.Scene {
     return false;
   }
 
-  requestCancel({ allowPause = true } = {}) {
+  /**
+   * Back out of whatever is open, else (with `allowPause`) open the pause menu.
+   * `cancelAction` marks the press as an explicit Cancel (Esc, the input bus's Cancel: the pad's
+   * B and Android Back, the phone's and the desktop's Back/Cancel buttons). Only such a press may
+   * dismiss the Entity rally's card; a right-click inspect, an off-map tap or the Menu button
+   * reaches this function too and leaves the card up.
+   */
+  requestCancel({ allowPause = true, cancelAction = false } = {}) {
     if (this.isStoryInputLocked()) return true;
     if (this._isPrologueGateActive()) {
       if (this.pauseOverlay?.visible) {
@@ -4117,6 +4128,13 @@ export class BattleScene extends Phaser.Scene {
       }
       return true;
     }
+    // The Entity rally's card takes an explicit Cancel only when nothing else has something to
+    // close: a menu, forecast, selection, overlay or panel keeps its Back, and Pause waits one press.
+    if (
+      cancelAction &&
+      this._battleBeats?.skipRallyOnCancel?.(this.canRequestCancel({ allowPause: false }))
+    )
+      return true;
     if (!this.canRequestCancel({ allowPause })) return false;
     if (this.battleState === FORMATION_STATE && this._formation?.ready) {
       // Placement: close the detail view or inspection first, then the tile choice;
