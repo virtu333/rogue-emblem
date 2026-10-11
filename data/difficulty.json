@@ -403,7 +403,10 @@
       "revivalStones": { "actBoss": 1, "emperor": 2, "lieutenant": 0, "eliteCaptain": 1 },
       "objectiveParOffset": { "seize": -4, "escape": -1, "rout": { "act4": -1 } },
       "enemyClassEarliestAct": { "Necromancer": "act3" },
-      "recruitAffixExcludedActs": []
+      "recruitAffixExcludedActs": [],
+      "actOverrides": {
+        "act1": { "enemyStatBonus": 1, "enemyCountBase": 5, "enemyCountBonus": 1 }
+      }
     }
   }
 }
