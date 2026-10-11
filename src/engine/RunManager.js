@@ -26,7 +26,7 @@ import {
   STARTING_GOLD,
   MAX_SKILLS,
   STARTING_ACCESSORY_TIERS,
-  STARTING_STAFF_TIERS,
+  startingStaffNames,
   DEADLY_ARSENAL_SIGNATURE_WEAPONS,
   ELITE_GOLD_MULTIPLIER,
   XP_STAT_NAMES,
@@ -4126,11 +4126,12 @@ export class RunManager {
       if (!unit.proficiencies.some((p) => p.type === 'Staff')) {
         unit.proficiencies.push({ type: 'Staff', rank: 'Prof' });
       }
-      // Sera's staff — tier upgrade
+      // Sera always carries Heal; Healer's Art adds its tier's staff beside it.
       const staffTier = me?.startingStaffTier || 0;
-      const staffName = STARTING_STAFF_TIERS[staffTier] || 'Heal';
-      const staff = weapons.find((w) => w.name === staffName);
-      if (staff) addToInventory(unit, staff);
+      for (const staffName of startingStaffNames(staffTier)) {
+        const staff = weapons.find((w) => w.name === staffName);
+        if (staff) addToInventory(unit, staff);
+      }
     }
 
     // Traits stack after meta bonuses, and after Sera gains her Staff proficiency.
