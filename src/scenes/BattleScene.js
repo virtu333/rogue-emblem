@@ -4116,6 +4116,10 @@ export class BattleScene extends Phaser.Scene {
       }
       return true;
     }
+    // The Entity rally's card takes Cancel only when nothing else has something to close: a
+    // menu, forecast, selection, overlay or panel keeps its Back, and Pause waits one press.
+    if (this._battleBeats?.skipRallyOnCancel?.(this.canRequestCancel({ allowPause: false })))
+      return true;
     if (!this.canRequestCancel({ allowPause })) return false;
     if (this.battleState === FORMATION_STATE && this._formation?.ready) {
       // Placement: close the detail view or inspection first, then the tile choice;

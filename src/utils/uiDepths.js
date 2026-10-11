@@ -63,6 +63,7 @@ export const DOM_UI_DEPTHS = {
   LAUNCH: 920,
   UPGRADE: 950,
   XP_GAUGE: 960, // Battle EXP gauge over the map; under the level-up card it hands off to.
+  RALLY: 970, // The Entity rally's speaker card (click-through but for Skip); under every ceremony.
   CEREMONY: 980, // Bands, cards and cut-ins; dialogue, forecasts and menus sit above.
   FORECAST: 1000,
   PAUSE: 1100,

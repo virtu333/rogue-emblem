@@ -58,7 +58,8 @@
         "threat-pins.spec.js",
         "ceremonies.spec.js",
         "zombie-remains.spec.js",
-        "xp-gauge.spec.js"
+        "xp-gauge.spec.js",
+        "entity-rally.spec.js"
       ]
     },
     {
