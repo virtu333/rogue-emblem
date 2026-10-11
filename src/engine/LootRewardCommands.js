@@ -15,6 +15,7 @@ import {
   getImbueList,
   applyImbue,
 } from './ImbueSystem.js';
+import { isDuplicateLegendary, recordLegendaryGrant } from './LegendaryOwnership.js';
 import { INVENTORY_MAX, CONSUMABLE_MAX } from '../utils/constants.js';
 
 export const REWARD_FORGE_STATS = [
@@ -31,6 +32,8 @@ export function rewardWeaponEligible(item, weapon) {
       : canForgeStat(weapon, item.forgeStat);
 }
 export function rewardTargetBlock(run, item, target) {
+  // A card rolled before this run took its first copy (or by an older build).
+  if (isDuplicateLegendary(run, item)) return 'Already owned this run.';
   if (target === 'convoy') return run.canAddToConvoy?.(item) ? '' : 'Convoy full';
   if (!run.roster?.includes(target)) return 'Unit is no longer in the roster.';
   if (item.type === 'Consumable' && item.effect === 'statBoost') return '';
@@ -46,7 +49,11 @@ export function rewardTargetBlock(run, item, target) {
 export function applyRewardTarget(run, item, target) {
   const reason = rewardTargetBlock(run, item, target);
   if (reason) return { ok: false, reason };
-  if (target === 'convoy') return { ok: !!run.addToConvoy(item), reason: 'Convoy full' };
+  if (target === 'convoy') {
+    const ok = !!run.addToConvoy(item);
+    if (ok) recordLegendaryGrant(run, item);
+    return { ok, reason: 'Convoy full' };
+  }
   if (item.type === 'Consumable' && item.effect === 'statBoost') {
     applyStatBoost(target, item);
     return { ok: true };
@@ -57,6 +64,7 @@ export function applyRewardTarget(run, item, target) {
       : addToInventory(target, { ...item });
   // An unarmed recipient equips a usable weapon it is given (as a trade or Withdraw does).
   if (ok && item.type !== 'Consumable') equipIfUnarmed(target, target.inventory.at(-1));
+  if (ok) recordLegendaryGrant(run, item);
   return { ok: !!ok, reason: ok ? '' : 'Bag full' };
 }
 export function applyRewardForge(run, gameData, item, unit, weapon, selection) {

@@ -1,4 +1,5 @@
 import { generateLootChoices, calculateSkipLootBonus } from './LootSystem.js';
+import { ownedLegendaryNames } from './LegendaryOwnership.js';
 import { getRating, calculateBonusGold } from './TurnBonusCalculator.js';
 import { buildPrologueLootChoices } from './Prologue.js';
 import { isPrologueRun } from './ScriptedBattle.js';
@@ -65,6 +66,7 @@ export function rollBattleRewardChoices(run, data, draw, { round = 0 } = {}) {
     {
       lootCategoryWeightBonuses: draw.lootCategoryWeightBonuses || undefined,
       imbues: data.imbues || null,
+      excludeLegendaryNames: [...ownedLegendaryNames(run)],
     },
   );
   const choices = applyLotteryCards(run, data, draw, drawn, { round });
