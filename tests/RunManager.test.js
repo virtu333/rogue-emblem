@@ -2563,16 +2563,22 @@ describe('RunManager', () => {
     });
 
     it('staff_upgrade keeps both staves and every arsenal weapon for commander Sera', () => {
-      const rmMeta = new RunManager(gameData, {
-        startingStaffTier: 1,
-        startingLords: { commander: 'Sera', partner: 'Edric' },
-        deadlyArsenalTier: 3,
-        artAdept: 1,
-      });
-      rmMeta.startRun();
-      const sera = rmMeta.roster.find((u) => u.name === 'Sera');
-      expect(seraStaves(rmMeta)).toEqual(['Heal', 'Mend']);
-      expect(sera.inventory.some((w) => w.signatureOf === 'Sera')).toBe(true);
+      const loadout = (startingStaffTier) => {
+        const rmMeta = new RunManager(gameData, {
+          startingStaffTier,
+          startingLords: { commander: 'Sera', partner: 'Edric' },
+          deadlyArsenalTier: 3,
+          artAdept: 1,
+        });
+        rmMeta.startRun();
+        return rmMeta.roster.find((u) => u.name === 'Sera').inventory.map((w) => w.name);
+      };
+      const without = loadout(0);
+      const withMend = loadout(1);
+      // Every weapon the upgrade-free loadout carries is still there, plus Mend, at the bag cap.
+      expect(withMend).toHaveLength(5);
+      expect(withMend.filter((name) => name !== 'Mend')).toEqual(without);
+      expect(withMend).toContain('Mend');
     });
 
     it('startingReclassSeal adds one Infantry Seal to convoy at run start', () => {

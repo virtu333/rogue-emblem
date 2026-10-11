@@ -4,6 +4,7 @@ import { DIFFICULTY_IDS } from '../src/engine/DifficultyEngine.js';
 import { getWeaponArtTier2Effects } from '../src/engine/WeaponArtSystem.js';
 import { validateAccessorySkillData } from '../src/engine/AccessorySkills.js';
 import { validateCarryPools } from '../src/engine/EnemyCarry.js';
+import { ENTITY_WEAPON_NAMES } from '../src/utils/constants.js';
 
 const DATA_DIR = path.resolve('data');
 
@@ -242,17 +243,22 @@ export function validateCrossReferences(datasets = null) {
         `classes.json:${cls.name}.enemyWeapon "${weapon.name}" is a ${weapon.type}, which ${cls.name} cannot wield`,
       );
   }
-  for (const [actId, table] of Object.entries(lootTables || {})) {
-    for (const [poolKey, pool] of Object.entries(table || {})) {
-      for (const entry of Array.isArray(pool) ? pool : []) {
-        const itemName = typeof entry === 'string' ? entry : entry?.name;
-        if (enemyWeaponNames.has(itemName))
-          errors.push(
-            `lootTables.json:${actId}.${poolKey} lists enemy-only weapon "${itemName}" (it never drops or sells)`,
-          );
-      }
+  // The Entity's own weapons are enemy-only too.
+  for (const name of ENTITY_WEAPON_NAMES) enemyWeaponNames.add(name);
+  // Every pool of every act, boss rewards and the carry pool included.
+  const walkLootPools = (value, where) => {
+    if (typeof value === 'string') {
+      if (enemyWeaponNames.has(value))
+        errors.push(
+          `lootTables.json:${where} lists enemy-only weapon "${value}" (it never drops or sells)`,
+        );
+    } else if (Array.isArray(value)) {
+      for (const entry of value) walkLootPools(entry?.item ?? entry?.name ?? entry, where);
+    } else if (value && typeof value === 'object') {
+      for (const [key, inner] of Object.entries(value)) walkLootPools(inner, `${where}.${key}`);
     }
-  }
+  };
+  for (const [actId, table] of Object.entries(lootTables || {})) walkLootPools(table, actId);
 
   for (const actId of ['act1', 'act2', 'act3', 'act4']) {
     for (const className of Array.isArray(recruits?.[actId]?.classPool)

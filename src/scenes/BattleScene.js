@@ -468,6 +468,7 @@ import { consumeEscEvent, isEscConsumed } from '../utils/escPriority.js';
 import { hasOpenOverlay, routeCancel } from '../utils/overlayStack.js';
 import { InputAction } from '../utils/InputActions.js';
 import { pauseBurdenEntries } from '../ui/eventMenuModel.js';
+import { recordFoesEncountered, recordRunDiscoveries } from '../engine/CompendiumDiscovery.js';
 import { heldBlessingEntries } from '../ui/heldBlessingsModel.js';
 import { pushInputScope, popInputScope, hasInputFocus } from '../utils/inputFocus.js';
 import {
@@ -8184,6 +8185,8 @@ export class BattleScene extends Phaser.Scene {
    */
   async _runCombatResolution(attacker, defender, ctx) {
     const session = battleSession(this);
+    // A foe's weapon and skills in an exchange are met (the Compendium fills them in).
+    recordFoesEncountered(this.registry?.get?.('meta'), [attacker, defender]);
     safeBattlePresentation('combat music', () => this._musicCtrl?.onCombat(), { scene: this });
     const previous = this._combatSpeedSnapshot;
     this._combatSpeedSnapshot = battleSpeed(this);
@@ -9236,6 +9239,7 @@ export class BattleScene extends Phaser.Scene {
         slot,
         { candidate },
       );
+      recordRunDiscoveries(this.registry?.get?.('meta'), this.runManager);
       if (result.ok) {
         this._saveFailureReported = false;
         this._saveRetry?.onDurableWrite({ session });
@@ -10804,6 +10808,7 @@ export class BattleScene extends Phaser.Scene {
     const session = battleSession(this);
     const staff = enemy.statusStaff;
     if (!staff) return;
+    recordFoesEncountered(this.registry?.get?.('meta'), [{ ...enemy, weapon: staff }]);
     const result = resolveStatusStaff(staff, enemy, target);
     observeHistoryAction(
       this,
