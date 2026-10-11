@@ -48,6 +48,7 @@ import { actLevelScaling, convertNodeToSetPieceBattle, edgeCrosses } from './Nod
 import { findSetPiece, validateSetPieceAt, validateSetPiecesConfig } from './SetPieces.js';
 import { BOSS_REF } from './BattleObjectives.js';
 import { riteTargetOfBoss, validateRiteConfig } from './Rite.js';
+import { isDescentEnabled } from './DescentSwitch.js';
 
 /** The act the Descent is (ids are save data: the act stays `finalBoss`). */
 export const DESCENT_ACT_ID = 'finalBoss';
@@ -120,11 +121,12 @@ const isInt = (v) => Number.isInteger(v);
 // ── Which route ─────────────────────────────────────────────────────────
 
 /**
- * The route a run on this rung takes, or null: the config is switched on (`enabled: true`) and
- * names a route for the rung that it holds.
+ * The route a run on this rung takes, or null: the config is switched on (`enabled: true`, read
+ * through DescentSwitch.isDescentEnabled, the flag's one reader) and names a route for the rung
+ * that it holds.
  */
 export function descentRouteIdFor(config, difficultyId) {
-  if (!isObject(config) || config.enabled !== true) return null;
+  if (!isObject(config) || !isDescentEnabled({ descent: config })) return null;
   const id = config.routeByRung?.[difficultyId];
   return typeof id === 'string' && isObject(config.routes?.[id]) ? id : null;
 }
