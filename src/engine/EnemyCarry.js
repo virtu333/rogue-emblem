@@ -5,10 +5,11 @@
 // carrier; with `maxPerBattle` above 1 each further carrier takes another roll at the same
 // chance, and the first miss ends the rolls (the same shape as CasterGear.js). A carrier is
 // any ordinary field enemy: never an act boss or an elite captain (`isBoss`), the Entity,
-// an authored spawn (the prologue's), or a Skeleton, Hollowed or Circle Adept. Skeletons are raised mid-battle and
-// are never in a garrison, so they are never rolled, and `isCarrierEligible` still refuses
-// one so that a future path that hands a raised unit a spawn cannot mint loot from it
-// (Necromancy.buildRaisedSkeleton: a raise is repeatable, so it must stay worth nothing).
+// an authored spawn (the prologue's), or a Skeleton, Hollowed or Circle Adept. Skeletons are
+// raised mid-battle and are never in a garrison, so they are never rolled, and
+// `isCarrierEligible` still refuses one so that a future path that hands a raised unit a spawn
+// cannot mint loot from it (Necromancy.buildRaisedSkeleton: a raise is repeatable, so it must
+// stay worth nothing).
 //
 // What it carries is drawn from the act's `carryPool` in lootTables.json (weighted
 // entries: a named item, or a draw from the act's `statBooster` list). The roll writes
