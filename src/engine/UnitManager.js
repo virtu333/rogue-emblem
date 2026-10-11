@@ -1222,9 +1222,7 @@ export function getXpEffectiveLevel(unit) {
 }
 
 export function calculateCombatXP(attacker, defender, defenderDied, { underdogCap } = {}) {
-  const cap = Number.isFinite(Number(underdogCap))
-    ? Math.max(0, Number(underdogCap))
-    : XP_UNDERDOG_CAP;
+  const cap = Number.isFinite(underdogCap) ? Math.max(0, underdogCap) : XP_UNDERDOG_CAP;
   const atkLevel = getXpEffectiveLevel(attacker);
   const defLevel = getXpEffectiveLevel(defender);
   const advantage = atkLevel - defLevel; // positive when attacker is higher

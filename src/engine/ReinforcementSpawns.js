@@ -307,8 +307,8 @@ export function enemyXpMultiplier(unit, specialMultiplier = XP_SPECIAL_ENEMY_MUL
   if (isRaisedUnit(unit)) return RAISED_XP_MULTIPLIER;
   const rewardMultiplier = enemyRewardMultiplier(unit);
   if (!(unit?.isBoss || unit?.isElite)) return rewardMultiplier;
-  const special = Number.isFinite(Number(specialMultiplier))
-    ? Math.max(0, Number(specialMultiplier))
+  const special = Number.isFinite(specialMultiplier)
+    ? Math.max(0, specialMultiplier)
     : XP_SPECIAL_ENEMY_MULTIPLIER;
   return rewardMultiplier * special;
 }

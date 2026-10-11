@@ -95,6 +95,8 @@ export const DIFFICULTY_REQUIRED_KEYS = [
   'lootQualityShift',
   'deployLimitBonus',
   'xpMultiplier',
+  'specialXpMultiplier',
+  'xpUnderdogCap',
   'fogChanceBonus',
   'villageAmbushChance',
   'reinforcementTurnOffset',
@@ -229,7 +231,14 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
     lines.push(`${Math.round(mode.xpMultiplier * 100)}% XP earned`);
   }
   if (mode.specialXpMultiplier < (defaults.specialXpMultiplier ?? 1.3)) {
-    lines.push(`Boss and elite XP bonus ${Math.round((mode.specialXpMultiplier - 1) * 100)}%`);
+    lines.push(
+      mode.specialXpMultiplier > 1
+        ? `Boss and elite XP bonus +${Math.round((mode.specialXpMultiplier - 1) * 100)}%`
+        : 'No boss or elite XP bonus',
+    );
+  }
+  if (mode.xpUnderdogCap < (defaults.xpUnderdogCap ?? 6)) {
+    lines.push(`Stronger foes add at most +${mode.xpUnderdogCap} levels to XP`);
   }
   if (mode.fogChanceBonus > (defaults.fogChanceBonus || 0)) {
     lines.push(`+${Math.round(mode.fogChanceBonus * 100)}% fog chance`);

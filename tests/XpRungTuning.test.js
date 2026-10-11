@@ -7,6 +7,9 @@ import { combatXpAwards, actionXpAwards, scaledXp } from '../src/engine/BattleXp
 import { calculateCombatXP } from '../src/engine/UnitManager.js';
 import { calculateSharedXp } from '../src/engine/XpShare.js';
 import { enemyXpMultiplier } from '../src/engine/ReinforcementSpawns.js';
+import { BattleScene } from '../src/scenes/BattleScene.js';
+import { HeadlessBattle } from './harness/HeadlessBattle.js';
+import { validateDifficultyConfig } from '../src/engine/DifficultyEngine.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { loadGameData } from './testData.js';
 
@@ -110,5 +113,72 @@ describe('rung data', () => {
     const old = rm.getBattleParams(node);
     expect(old.specialXpMultiplier).toBe(1.3);
     expect(old.xpUnderdogCap).toBe(6);
+  });
+});
+
+describe('validation', () => {
+  it('real difficulty data passes, and a rung missing either key is refused', () => {
+    expect(validateDifficultyConfig(data.difficulty).errors).toEqual([]);
+    for (const key of ['specialXpMultiplier', 'xpUnderdogCap']) {
+      const broken = structuredClone(data.difficulty);
+      delete broken.modes.hard[key];
+      expect(validateDifficultyConfig(broken).errors).toContain(
+        `modes.hard missing required key: ${key}`,
+      );
+    }
+  });
+
+  it('refuses a bonus below 1 and a fractional cap', () => {
+    const broken = structuredClone(data.difficulty);
+    broken.modes.hard.specialXpMultiplier = 0.9;
+    broken.modes.hard.xpUnderdogCap = 2.5;
+    const errors = validateDifficultyConfig(broken).errors.join('\n');
+    expect(errors).toContain('specialXpMultiplier must be a number >= 1');
+    expect(errors).toContain('xpUnderdogCap must be a non-negative integer');
+  });
+
+  it('a null or empty value falls back to the old rule instead of reading as 0', () => {
+    expect(enemyXpMultiplier(boss, null)).toBeCloseTo(1.3);
+    expect(enemyXpMultiplier(boss, '')).toBeCloseTo(1.3);
+    expect(calculateCombatXP(player, boss, true, { underdogCap: null })).toBe(70);
+  });
+});
+
+describe('the scene and the harness read the rung from battleParams', () => {
+  // Promoted L1 killing the Act III boss: 60 base at cap 4, x1.1 -> floor(66).
+  const params = { specialXpMultiplier: 1.1, xpUnderdogCap: 4 };
+
+  it('BattleScene.awardXP pays the rung’s bonus and cap', async () => {
+    const scene = new BattleScene();
+    scene.awardScaledXP = vi.fn(async () => {});
+    scene.battleParams = params;
+    await BattleScene.prototype.awardXP.call(scene, player, boss, true);
+    expect(scene.awardScaledXP).toHaveBeenCalledWith(player, 66);
+  });
+
+  it('BattleScene.awardXP without the params pays the old 70 x 1.3', async () => {
+    const scene = new BattleScene();
+    scene.awardScaledXP = vi.fn(async () => {});
+    await BattleScene.prototype.awardXP.call(scene, player, boss, true);
+    expect(scene.awardScaledXP).toHaveBeenCalledWith(player, 91);
+  });
+
+  it('the headless harness awards the same', () => {
+    const battle = Object.create(HeadlessBattle.prototype);
+    const granted = [];
+    Object.assign(battle, {
+      gameData: { ...data, deeds: null },
+      turnManager: { turnNumber: 1 },
+      turnPar: 8,
+      battleParams: params,
+      playerUnits: [],
+      _grantScaledXP: (unit, xp) => granted.push([unit, xp]),
+    });
+    battle._awardCombatXP(player, boss, true, null, null);
+    expect(granted).toEqual([[player, 66]]);
+    battle.battleParams = {};
+    granted.length = 0;
+    battle._awardCombatXP(player, boss, true, null, null);
+    expect(granted).toEqual([[player, 91]]);
   });
 });
