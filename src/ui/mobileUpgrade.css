@@ -183,6 +183,11 @@
   background: var(--re-accent);
   box-shadow: 0 0 0 1px var(--re-accent-text);
 }
+/* A repeatable upgrade's tiers past its listed gems ("+2"). */
+.mu-pips .mu-pips-more {
+  font: 700 10px / 1 var(--re-body);
+  color: var(--re-info);
+}
 .mu-pips .ignite {
   background: var(--re-accent-text);
   box-shadow:
@@ -491,6 +496,16 @@ html.mobile-preview .mu-screen {
 .mu-screen .reward-notice .reward-notice-xp {
   display: flex;
   margin-top: 2px;
+}
+/* Branching Threads: a levelled unit's Reroll, under its line. */
+.mu-screen .reward-notice .reward-notice-reroll {
+  display: block;
+  margin-top: 4px;
+}
+.mu-screen .reward-notice-status {
+  flex: 1 1 auto;
+  margin: 0;
+  align-self: center;
 }
 
 .reward-tools {

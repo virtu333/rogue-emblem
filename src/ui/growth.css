@@ -916,6 +916,24 @@
   padding: 0 calc(16px * var(--ce-scale));
   font: 700 calc(14px * var(--ce-scale)) / 1 var(--re-body);
 }
+/* Branching Threads: Reroll beside Continue once the gains are revealed. */
+.gr-level-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: calc(8px * var(--ce-scale));
+}
+.gr-level-foot .gr-reroll {
+  flex: none;
+  min-height: var(--re-tap, 44px);
+  min-width: var(--re-tap, 44px);
+  padding: 0 calc(12px * var(--ce-scale));
+  font: 700 calc(12px * var(--ce-scale)) / 1 var(--re-body);
+  white-space: nowrap;
+}
+.gr-level-foot .gr-reroll[hidden] {
+  display: none;
+}
 
 /* ─────────────────────────────────────────────── Joins your army */
 .gr-join-layer {

@@ -274,7 +274,9 @@ export function validateBattleState(state) {
         !nonnegative(domain.gold) ||
         !items(domain.accessories) ||
         !items(domain.convoy?.weapons) ||
-        !items(domain.convoy?.consumables)
+        !items(domain.convoy?.consumables) ||
+        (domain.rewardRerollsSpent !== undefined &&
+          !(Number.isInteger(domain.rewardRerollsSpent) && domain.rewardRerollsSpent >= 0))
       )
         return false;
     }

@@ -9,6 +9,7 @@ import {
 import { validatePrologueConfig } from '../src/engine/Prologue.js';
 import { validateBlessingsConfig } from '../src/engine/BlessingEngine.js';
 import { validateEventsConfig } from '../src/engine/EventValidation.js';
+import { validateRepeatableUpgrades } from '../src/engine/RepeatableUpgrades.js';
 import { validateCrossReferences } from './validateCrossReferences.js';
 
 const DATA_DIR = path.resolve('data');
@@ -102,6 +103,16 @@ if (prologueResult.valid) {
   for (const err of prologueResult.errors) {
     console.error(`      ${err}`);
   }
+  failed = true;
+}
+
+// Repeatable Home Base upgrades (tiers past the list: engine/RepeatableUpgrades.js)
+const repeatableErrors = validateRepeatableUpgrades(readData('metaUpgrades.json'));
+if (repeatableErrors.length === 0) {
+  console.log('  OK  metaUpgrades.json repeatable tiers (engine validator)');
+} else {
+  console.error('FAIL  metaUpgrades.json repeatable tiers (engine validator)');
+  for (const err of repeatableErrors) console.error(`      ${err}`);
   failed = true;
 }
 

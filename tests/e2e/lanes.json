@@ -184,6 +184,7 @@
         "open-roll.spec.js",
         "reward-reload.spec.js",
         "reward-reroll.spec.js",
+        "levelup-reroll.spec.js",
         "rewards-desktop.spec.js",
         "run-recovery.spec.js",
         "ruins-choice.spec.js",

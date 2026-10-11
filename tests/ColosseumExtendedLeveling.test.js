@@ -230,6 +230,8 @@ describe('Colosseum extended leveling (mock-driven)', () => {
     // Verify gainExperience was called with extendedLevelingEnabled flag
     expect(gainExperienceMock).toHaveBeenCalledWith(unit, expect.any(Number), {
       extendedLevelingEnabled: true,
+      // A player unit's arena levels take the streak guard (UnitManager.levelUp).
+      guard: true,
     });
   });
 
@@ -269,6 +271,8 @@ describe('Colosseum extended leveling (mock-driven)', () => {
     // Verify gainExperience was called with extendedLevelingEnabled flag
     expect(gainExperienceMock).toHaveBeenCalledWith(unit, expect.any(Number), {
       extendedLevelingEnabled: true,
+      // A player unit's arena levels take the streak guard (UnitManager.levelUp).
+      guard: true,
     });
   });
 });
