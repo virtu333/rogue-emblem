@@ -340,8 +340,9 @@ export const BALANCE_REVISIONS = Object.freeze([
   },
   {
     revision: 5, // 2026-10-11 growth tracks: +3% a tier (was +5%), about 25% cheaper
-    // A tier bought before revision 3's Swiftness/Quick Feet rise is credited from what it
-    // cost then (its `legacyTierCosts` record), not from the risen price listed here.
+    // A tier bought before revision 3's Swiftness/Quick Feet rise, in a save still below
+    // revision 3, is credited from what it cost then (its `legacyTierCosts` record). A save
+    // already past revision 3 kept no record of that price, so it is credited from the risen one.
     from: {
       recruit_hp_growth: [35, 40, 60, 85, 125],
       recruit_str_growth: [45, 60, 90, 120, 180],

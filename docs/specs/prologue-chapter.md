@@ -1737,8 +1737,8 @@ marked `unmet: "???"` are a voice not yet met (`endingLinesFor`).
 1. **Loop, not carry-over** (§3).
 2. **The prologue is the default.** Every fresh slot offers it, highlighted. It is never forced,
    and it can be skipped at the start or mid-way.
-3. **The Home Base grant is small:** one cheap upgrade of each currency. Lord upgrades start
-   at 50 Valor and recruit upgrades at 35 Supply, so the grant is 50 Valor and 35 Supply (it was
+3. **The Home Base grant is small:** one cheap upgrade of each currency. When this was set, lord
+   upgrades started at 50 Valor and recruit upgrades at 35 Supply, so the grant is 50 Valor and 35 Supply (it was
    60 and 40 until the owner's retune of 2026-10-07, which also lowered First Light's run earnings).
    The growth tracks' 2026-10-11 price cut (balance revision 5) brought the cheapest tiers to 40
    Valor and 25 Supply; the grant stayed 50 and 35, still one cheap upgrade of each, never two.
