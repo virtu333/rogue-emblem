@@ -178,10 +178,9 @@ function normalizeDamageMultiplier(value) {
 
 // Lower-cased token -> the mode as the pipeline spells it (every mode but one is all lower case).
 const VALID_TIER2_MOVE_MODES = new Map(
-  ['advance', 'retreat', 'swap', 'push', 'through', 'ram', 'pushAreaVictims'].map((mode) => [
-    mode.toLowerCase(),
-    mode,
-  ]),
+  ['advance', 'retreat', 'swap', 'push', 'through', 'ram', 'dash', 'pushAreaVictims'].map(
+    (mode) => [mode.toLowerCase(), mode],
+  ),
 );
 const VALID_TIER2_DEBUFF_STATS = new Set(['STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK', 'MOV']);
 const VALID_AREA_SHAPES = new Set(['radius', 'line', 'around_attacker', 'cone', 'arc']);

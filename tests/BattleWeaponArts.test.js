@@ -1933,7 +1933,9 @@ describe('BattleScene weapon art helpers', () => {
     expect(sceneDefender.row).toBe(headlessDefender.row);
   });
 
-  it('applies Phantom Rush retreat without a post-combat HP penalty with scene/headless parity', async () => {
+  // Phantom Rush is Oathblade's dash (docs/specs/legendary-arts-rework.md §4): from (2,2) past a
+  // standing target at (3,2), the run's farthest free tile is (6,2), 4 tiles on.
+  it('applies Phantom Rush dash without a post-combat HP penalty with scene/headless parity', async () => {
     const gameData = loadGameData();
     const art = gameData.weaponArts.arts.find((entry) => entry.id === 'legend_phantom_rush');
     const sceneAttacker = {
@@ -2009,7 +2011,7 @@ describe('BattleScene weapon art helpers', () => {
       defenderWeaponArt: null,
     });
 
-    expect(sceneAttacker.col).toBe(1);
+    expect(sceneAttacker.col).toBe(6);
     expect(sceneAttacker.row).toBe(2);
     expect(sceneAttacker.currentHP).toBe(14);
     expect(sceneAttacker.col).toBe(headlessAttacker.col);

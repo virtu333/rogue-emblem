@@ -8,6 +8,7 @@
 //   heals      "+8" on each ally a heal reaches
 //   push       a line to where a ram leaves its target, and a crash mark; Override's
 //              line to where it drives each foe back
+//   dash       a line to where Oathblade's dash lands, and that tile ringed
 //
 // Tiles are placed with grid.gridToPixel, so a portrait board's turn is already applied.
 // Phaser construction runs under the presentation RNG: drawing never moves the battle's.
@@ -66,6 +67,14 @@ export class AreaPreviewController {
         const to = scene.grid.gridToPixel(entry.to.col, entry.to.row);
         g.lineStyle(3, UI_HEX.accentText, 0.9);
         g.lineBetween(from.x, from.y, to.x, to.y);
+      }
+      // Oathblade's dash: a line from the user to where it lands, and the landing ringed.
+      if (preview.dash?.to) {
+        const from = scene.grid.gridToPixel(preview.dash.from.col, preview.dash.from.row);
+        const to = scene.grid.gridToPixel(preview.dash.to.col, preview.dash.to.row);
+        g.lineStyle(3, UI_HEX.accentText, 0.9);
+        g.lineBetween(from.x, from.y, to.x, to.y);
+        g.strokeRect(to.x - half + 2, to.y - half + 2, TILE_SIZE - 4, TILE_SIZE - 4);
       }
       if (preview.push && !preview.push.braced) {
         const target = preview.target || null;

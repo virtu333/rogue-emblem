@@ -439,13 +439,14 @@ function* postCombatMove(sourceUnit, targetUnit, step, world, result, held = nul
   const slides = [];
   for (const assignment of moveResult.assignments) {
     const moved = assignment.unit.col !== assignment.col || assignment.unit.row !== assignment.row;
-    // A pushed unit that slid on Ice: the tiles it crossed, for the scene to draw.
-    if (moved && assignment.slid)
+    // A pushed unit that slid on Ice: the tiles it crossed, for the scene to draw. A dash
+    // (Oathblade) is drawn the same way, as one run through the line.
+    if (moved && (assignment.slid || step.mode === 'dash'))
       slides.push({
         unit: assignment.unit,
         from: { col: assignment.unit.col, row: assignment.unit.row },
         to: { col: assignment.col, row: assignment.row },
-        path: assignment.path,
+        ...(assignment.slid ? { path: assignment.path } : {}),
       });
     assignment.unit.col = assignment.col;
     assignment.unit.row = assignment.row;

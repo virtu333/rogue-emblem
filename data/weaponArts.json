@@ -1796,7 +1796,16 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Oathblade's phantom cuts, then a step back into shadow.",
+      "area": {
+        "shape": "line",
+        "length": 2,
+        "damage": {
+          "kind": "scaled",
+          "multiplier": 0.75
+        },
+        "strikes": "once"
+      },
+      "description": "Oathblade runs the line through: a lunge no rank can hold.",
       "allowedFactions": [
         "player"
       ],
@@ -1807,17 +1816,13 @@
         "afterCombat": [
           {
             "type": "move",
-            "mode": "retreat",
-            "distance": 1
+            "mode": "dash",
+            "distance": 3
           }
         ]
       },
       "combatMods": {
-        "multiHit": {
-          "count": 3,
-          "damageMultiplier": 0.6
-        },
-        "atkBonus": 8,
+        "atkBonus": 4,
         "hitBonus": 10,
         "critBonus": 10,
         "activated": [
@@ -1826,7 +1831,8 @@
             "name": "Phantom Rush"
           }
         ]
-      }
+      },
+      "noFollowUp": true
     },
     {
       "id": "legend_piercing_charge",

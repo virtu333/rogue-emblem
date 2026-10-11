@@ -132,12 +132,12 @@
     "type": "Sword",
     "tier": "Legend",
     "rankRequired": "Mast",
-    "might": 9,
+    "might": 15,
     "hit": 85,
-    "crit": 0,
+    "crit": 20,
     "weight": 8,
     "range": "1",
-    "special": "Attacks twice consecutively",
+    "special": "",
     "weaponArtIds": [
       "legend_phantom_rush"
     ],

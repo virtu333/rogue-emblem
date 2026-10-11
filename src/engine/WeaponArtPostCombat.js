@@ -23,7 +23,7 @@ const TIER2_EFFECT_ORDER = [
   'postCombatMove',
   'setHp',
 ];
-const VALID_MOVE_MODES = new Set(['advance', 'retreat', 'swap', 'push', 'through', 'ram']);
+const VALID_MOVE_MODES = new Set(['advance', 'retreat', 'swap', 'push', 'through', 'ram', 'dash']);
 
 function getOpposingSide(side) {
   return side === 'attacker' ? 'defender' : 'attacker';
@@ -484,6 +484,27 @@ export function resolvePostCombatMove({
   // Anchored (and anything else the caller pins) is never displaced by another unit.
   if (movesTarget && targetUnit && isImmovable?.(targetUnit)) {
     return { ok: false, reason: 'immovable' };
+  }
+
+  if (normalizedMode === 'dash') {
+    // Oathblade's lunge (docs/specs/legendary-arts-rework.md §4): the user runs on through the
+    // line it struck, `distance` tiles from the target's on, and lands on the farthest tile it
+    // can stand on, of the one just past them back to the target's own (free only if it fell).
+    // Units on the way are passed; a wall ends the run before it. Its own move: no Ice slide.
+    const solid = (col, row) => !Number.isFinite(getMoveCost(col, row, 'Flying'));
+    const candidates = [];
+    for (let k = 1; k <= stepDistance + 1; k++) {
+      const col = sourceUnit.col + direction.dc * k;
+      const row = sourceUnit.row + direction.dr * k;
+      if (!isInBounds(col, row, cols, rows) || solid(col, row)) break;
+      candidates.push({ col, row });
+    }
+    for (let i = candidates.length - 1; i >= 0; i--) {
+      const { col, row } = candidates[i];
+      if (canOccupyTile(sourceUnit, col, row, cols, rows, getMoveCost, getUnitAt))
+        return { ok: true, assignments: [{ unit: sourceUnit, col, row }] };
+    }
+    return { ok: false, reason: 'blocked' };
   }
 
   const targetAlive = targetUnit?.currentHP > 0;

@@ -4,6 +4,7 @@ import { validateBattleState } from './BattleStateSnapshot.js';
 import { migrateSavedItemNames, ITEM_NAMES_REVISION } from './ItemNameMigration.js';
 import { migrateSavedGamblerCoins } from './AccessoryCatalogMigration.js';
 import { migrateSavedPerBattleWeapons } from './WeaponCatalogMigration.js';
+import { migrateSavedLegendaryRelics } from './LegendaryRelicMigration.js';
 import { hydrateBattleTimeline } from './BattleTimeline.js';
 import { pickFresh } from '../utils/pickFresh.js';
 import { applyRevivalCatchUp } from './RevivalCatchUp.js';
@@ -6495,6 +6496,8 @@ export class RunManager {
     migrateSavedGamblerCoins(saved, gameData);
     // Per-battle weapons (Breachbolt) take the catalog's shot counts (same places).
     migrateSavedPerBattleWeapons(saved, gameData);
+    // Legendaries saved before the rework take its changes (Oathblade, Hermit's Bow).
+    migrateSavedLegendaryRelics(saved);
     const rm = new RunManager(gameData, saved.metaEffects || null);
     // Saves from before the prologue carry no mode: they are standard runs.
     rm.mode = saved.mode === PROLOGUE_RUN_MODE ? PROLOGUE_RUN_MODE : STANDARD_RUN_MODE;

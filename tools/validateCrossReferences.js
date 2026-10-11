@@ -325,6 +325,12 @@ export function validateCrossReferences(datasets = null) {
       (art?.area?.shape !== 'line' || art?.targeting === 'chosen_center')
     )
       errors.push(`${where} has a pushAreaVictims move: it needs a normal-attack line area`);
+    // A dash runs on from the target it struck (legendary-arts-rework §4): a normal attack.
+    if (
+      (art?.effects?.afterCombat || []).some((e) => e?.type === 'move' && e?.mode === 'dash') &&
+      art?.targeting === 'chosen_center'
+    )
+      errors.push(`${where} has a dash move: it needs a normal attack`);
     const area = art?.area;
     const chosenCenter = art?.targeting === 'chosen_center';
     if (chosenCenter && !area) errors.push(`${where} is chosen_center but has no area`);
