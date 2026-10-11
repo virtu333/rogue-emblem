@@ -10,6 +10,7 @@ import { validatePrologueConfig } from '../src/engine/Prologue.js';
 import { validateBlessingsConfig } from '../src/engine/BlessingEngine.js';
 import { validateEventsConfig } from '../src/engine/EventValidation.js';
 import { validateSetPiecesConfig } from '../src/engine/SetPieces.js';
+import { validateDescentConfig } from '../src/engine/Descent.js';
 import { validateRepeatableUpgrades } from '../src/engine/RepeatableUpgrades.js';
 import { validateCrossReferences } from './validateCrossReferences.js';
 
@@ -169,6 +170,29 @@ if (setPiecesResult.valid) {
 } else {
   console.error('FAIL  setPieces.json (engine validator)');
   for (const err of setPiecesResult.errors) {
+    console.error(`      ${err}`);
+  }
+  failed = true;
+}
+
+// Validate Act V's authored route (engine validator: routes per rung, rows, edges, the set pieces
+// and templates it names at every rung it serves, its event pools, the Rite's numbers)
+const descentResult = validateDescentConfig(readData('descent.json'), {
+  difficulty: readData('difficulty.json'),
+  enemies: readData('enemies.json'),
+  setPieces: readData('setPieces.json'),
+  mapTemplates: readData('mapTemplates.json'),
+  events: readData('events.json'),
+  eclipse: readData('eclipse.json'),
+  terrain: readData('terrain.json'),
+  classes: readData('classes.json'),
+  weapons: readData('weapons.json'),
+});
+if (descentResult.valid) {
+  console.log('  OK  descent.json (engine validator)');
+} else {
+  console.error('FAIL  descent.json (engine validator)');
+  for (const err of descentResult.errors) {
     console.error(`      ${err}`);
   }
   failed = true;

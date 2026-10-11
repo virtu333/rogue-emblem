@@ -8,6 +8,7 @@ import { gambleSummary } from './BattleGoldGamble.js';
 import { applyLotteryCards, lotteryDrawParams } from './LotteryLoot.js';
 import { dawnTitheGold, shrineBoonsOf } from './ShrineBoons.js';
 import { lootGoldMultiplierOf } from './TwistedBoons.js';
+import { lootActFor } from './Descent.js';
 import {
   LOOT_CHOICES,
   ELITE_LOOT_CHOICES,
@@ -25,7 +26,9 @@ export function rewardDrawParams(run, ctx) {
   const meta = ctx.metaEffects || null;
   const pressure = Number(ctx.victoryPressureState?.goldMultiplier ?? 1);
   return {
-    actId: run.currentAct,
+    // The tables the draw reads: the act's own, but in the Descent the act before it
+    // (lootTables.finalBoss pays gold only; act-v-descent §2.3 rule 3).
+    actId: lootActFor(run),
     isElite: ctx.isElite === true,
     isBoss: ctx.isBoss === true,
     lootWeaponQualityBonus: meta?.lootWeaponQualityBonus ?? meta?.lootWeaponWeightBonus ?? 0,

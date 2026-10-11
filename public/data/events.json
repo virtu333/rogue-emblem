@@ -2987,6 +2987,69 @@
       ]
     },
     {
+      "id": "came_this_far",
+      "title": "We Came This Far Also",
+      "acts": ["finalBoss"],
+      "pool": "descent",
+      "weight": 1,
+      "oncePerRun": false,
+      "intro": "Cut deep into the landing wall: WE CAME THIS FAR ALSO. Under it, names, row on row, in hands and letters older than the empire. The last row stops halfway across.",
+      "choices": [
+        {
+          "id": "carve",
+          "label": "Carve your own",
+          "outcomes": [
+            {
+              "id": "carved",
+              "weight": 100,
+              "text": "It takes longer than it should, and nobody hurries anyone. The army gets up from the wall rested, as if the names had kept the watch.",
+              "effects": [
+                {
+                  "type": "hp",
+                  "mode": "heal",
+                  "percent": 20,
+                  "scope": "all"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "read",
+          "label": "Read the names",
+          "outcomes": [
+            {
+              "id": "read",
+              "weight": 100,
+              "text": "One name is almost yours, spelled the way a stranger would. You stay too long with it, and come away seeing a little further.",
+              "effects": [
+                {
+                  "type": "vision",
+                  "value": 1
+                },
+                {
+                  "type": "shadow",
+                  "value": 2
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "walk_on",
+          "label": "Walk on",
+          "outcomes": [
+            {
+              "id": "walked",
+              "weight": 100,
+              "text": "You leave the wall to whoever comes down next.",
+              "effects": []
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "quiet_road",
       "title": "A Quiet Road",
       "weight": 0,

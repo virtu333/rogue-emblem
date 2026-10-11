@@ -48,6 +48,7 @@ import { gambleLines } from '../engine/BattleGoldGamble.js';
 import { earnedPickOwed } from '../engine/EarnedBlessings.js';
 import { contractRewardOwedAt } from '../engine/Contracts.js';
 import { objectiveKindOf } from '../engine/BattleObjectives.js';
+import { isGateBossParams } from '../engine/Descent.js';
 import { presentEarnedBlessingPick } from './EarnedBlessingPick.js';
 import { EARNED_PICK_SAVE_FAILED } from './earnedBlessingPickModel.js';
 import { showMinorHint } from './HintDisplay.js';
@@ -229,8 +230,10 @@ export class PostCombatController {
         prepareBattleRewards(scene.runManager, scene.gameData, this.rewardContext());
         // The boss recruit draft is rolled and saved with the reward, so a
         // reload before the choice offers the same candidates. The prologue's
-        // chapters are never bosses to recruit from (§8).
-        if (scene.isBoss && !prologueRun) prepareBossRecruit(scene.runManager, scene.gameData);
+        // chapters are never bosses to recruit from (§8), nor is the Descent's gate
+        // (act-v-descent §6.2: no boss recruit; the run goes on to the Ruins).
+        if (scene.isBoss && !prologueRun && !isGateBossParams(scene.battleParams))
+          prepareBossRecruit(scene.runManager, scene.gameData);
         // So is the third lord's arrival when this victory brings it due. After a
         // boss recruit it is rolled once that choice is made (the pick changes who
         // is left to arrive); a boss with no recruit to offer has no choice to wait for.
@@ -336,9 +339,12 @@ export class PostCombatController {
           // Final boss: award turn-bonus gold silently, skip loot screen
           scene._awardTurnBonusGold();
           scene.transitionAfterBattle();
-        } else if (scene.isBoss) {
+        } else if (scene.isBoss && !isGateBossParams(scene.battleParams)) {
           scene.showBossRecruitScreen();
         } else {
+          // An ordinary battle, an elite, or the Descent's gate boss (act-v-descent §9.3: its
+          // loot and the third lord as an elite's, no recruit, no act advance; the route map
+          // opens on the Ruins after the loot).
           // Elite victory flavor
           if (scene.isElite) {
             try {

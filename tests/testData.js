@@ -41,5 +41,6 @@ export function loadGameData() {
     events: loadJSON('events.json'),
     marks: loadJSON('marks.json'),
     setPieces: loadJSON('setPieces.json'),
+    descent: loadJSON('descent.json'),
   };
 }

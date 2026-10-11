@@ -201,6 +201,312 @@
           ]
         }
       ]
+    },
+    {
+      "id": "old_kings_stair",
+      "title": "The Old Kings' Stair",
+      "lore": "Cut into the top step: THE KINGS WENT DOWN HERE. Nobody cut whether they came back up.",
+      "objective": "rout",
+      "acts": ["finalBoss"],
+      "biome": null,
+      "fog": false,
+      "deploy": { "max": 8 },
+      "variants": [
+        {
+          "id": "first_flight",
+          "mirror": true,
+          "map": {
+            "legend": { ".": "Floor", "#": "Wall", "P": "Pillar", "T": "Fort" },
+            "rows": [
+              "# # . . . # # # # . . . # #",
+              ". . . . . . P . . . . . . .",
+              ". . P . . . . . . P . . T .",
+              ". . . . # # . . # # . . . .",
+              ". . . . # # . . # # . . . .",
+              ". . . . . . . . . . . P . .",
+              ". . P . . . P . . . . . . .",
+              ". . . . # # . . # # . T . .",
+              ". . . . # # . . # # . . . .",
+              "# # . . . . . . . . . . # #"
+            ]
+          },
+          "playerSpawns": [
+            { "col": 0, "row": 2 },
+            { "col": 1, "row": 2 },
+            { "col": 0, "row": 3 },
+            { "col": 1, "row": 3 },
+            { "col": 0, "row": 1 },
+            { "col": 1, "row": 1 },
+            { "col": 0, "row": 4 },
+            { "col": 1, "row": 4 }
+          ],
+          "enemies": [
+            { "col": 7, "row": 1, "classes": ["Wyvern Lord"] },
+            { "col": 11, "row": 1, "classes": ["Hero", "Swordmaster"] },
+            { "col": 12, "row": 2, "classes": ["Sniper"] },
+            { "col": 10, "row": 3, "classes": ["General"] },
+            { "col": 11, "row": 5, "classes": ["Warrior", "Hero"] },
+            { "col": 10, "row": 6, "classes": ["Sage"] },
+            { "col": 11, "row": 7, "classes": ["Paladin"] },
+            { "col": 12, "row": 8, "classes": ["Swordmaster"] },
+            { "col": 7, "row": 8, "classes": ["General", "Warrior"] },
+            { "col": 13, "row": 4, "classes": ["Sage"], "minRung": "hard" },
+            { "col": 13, "row": 6, "classes": ["Hero"], "minRung": "lunatic" }
+          ],
+          "waves": [
+            {
+              "turn": 3,
+              "spawns": [
+                { "col": 11, "row": 9, "classes": ["Warrior"] },
+                { "col": 10, "row": 9, "classes": ["Sniper"], "minRung": "dusk" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mortuary_column",
+      "title": "The Mortuary Column",
+      "lore": "Nailed by the door: 'Interred, 4,112. Removed, none. Removed without leave: see over.'",
+      "objective": "rout",
+      "acts": ["finalBoss"],
+      "biome": null,
+      "fog": false,
+      "deploy": { "max": 8 },
+      "variants": [
+        {
+          "id": "colonnade",
+          "mirror": true,
+          "map": {
+            "legend": { ".": "Floor", "#": "Wall", "P": "Pillar", "T": "Fort" },
+            "rows": [
+              "# . # . # . # . # . # . # #",
+              ". . . . . . . . . . . . . .",
+              ". . P . . P . . P . . P . .",
+              ". . . . . . . . . . . . . .",
+              ". . . . . . . . . . . . T .",
+              ". . . . . . . . . . . . . .",
+              ". . P . . P . . P . . P . .",
+              ". . . . . . . . . . . . . .",
+              "# . # . # . # . # . # . # #"
+            ]
+          },
+          "playerSpawns": [
+            { "col": 0, "row": 4 },
+            { "col": 0, "row": 3 },
+            { "col": 0, "row": 5 },
+            { "col": 1, "row": 4 },
+            { "col": 1, "row": 3 },
+            { "col": 1, "row": 5 },
+            { "col": 0, "row": 2 },
+            { "col": 0, "row": 6 }
+          ],
+          "enemies": [
+            { "col": 12, "row": 4, "classes": ["Necromancer"], "minRung": "dusk" },
+            { "col": 13, "row": 4, "classes": ["Bishop"] },
+            { "col": 7, "row": 0, "classes": ["General"] },
+            { "col": 11, "row": 0, "classes": ["Sniper"] },
+            { "col": 9, "row": 8, "classes": ["Swordmaster"] },
+            { "col": 11, "row": 8, "classes": ["Hero"] },
+            { "col": 8, "row": 3, "classes": ["Paladin"] },
+            { "col": 8, "row": 5, "classes": ["Warrior"] },
+            { "col": 10, "row": 2, "classes": ["Sage"] },
+            { "col": 6, "row": 4, "classes": ["Hero", "Swordmaster"] },
+            { "col": 13, "row": 1, "classes": ["Wyvern Lord"], "minRung": "hard" },
+            { "col": 13, "row": 7, "classes": ["Sniper"], "minRung": "lunatic" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "the_vigil",
+      "title": "The Vigil",
+      "lore": "Four voices, one ring, no pause for breath. Whatever they are saying, the floor is listening.",
+      "objective": "rout",
+      "objectives": {
+        "version": 1,
+        "primary": [
+          {
+            "id": "voices",
+            "kind": "defeat",
+            "targets": ["voice_calling", "voice_binding", "voice_feeding", "voice_waking"],
+            "label": "the Voices"
+          }
+        ]
+      },
+      "acts": ["finalBoss"],
+      "biome": null,
+      "fog": false,
+      "deploy": { "max": 8 },
+      "variants": [
+        {
+          "id": "ring_hall",
+          "mirror": true,
+          "map": {
+            "legend": { ".": "Floor", "#": "Wall", "P": "Pillar" },
+            "rows": [
+              "# # # # # # . . . # # # # # #",
+              "# # . . . . . . . . . . . # #",
+              "# . . P . . . . . . . P . . #",
+              "# . . . . # # . # # . . . . #",
+              ". . . . # . . . . . # . . . .",
+              ". . . . # . . . . . # . . . .",
+              ". . P . . . . . . . . . P . .",
+              ". . . . # . . . . . # . . . .",
+              ". . . . # . . . . . # . . . .",
+              "# . . . . # # . # # . . . . #",
+              "# . . P . . . . . . . P . . #",
+              "# # . . . . . . . . . . . # #",
+              "# # # # # # . . . # # # # # #"
+            ]
+          },
+          "playerSpawns": [
+            { "col": 0, "row": 6 },
+            { "col": 1, "row": 6 },
+            { "col": 0, "row": 5 },
+            { "col": 0, "row": 7 },
+            { "col": 1, "row": 5 },
+            { "col": 1, "row": 7 },
+            { "col": 0, "row": 4 },
+            { "col": 0, "row": 8 }
+          ],
+          "enemies": [
+            {
+              "col": 7,
+              "row": 4,
+              "classes": ["Sage"],
+              "id": "voice_calling",
+              "name": "Voice of the Calling",
+              "target": true,
+              "aiMode": "post"
+            },
+            {
+              "col": 9,
+              "row": 6,
+              "classes": ["Sage"],
+              "id": "voice_binding",
+              "name": "Voice of the Binding",
+              "target": true,
+              "aiMode": "post"
+            },
+            {
+              "col": 7,
+              "row": 8,
+              "classes": ["Sage"],
+              "id": "voice_feeding",
+              "name": "Voice of the Feeding",
+              "target": true,
+              "aiMode": "post"
+            },
+            {
+              "col": 5,
+              "row": 6,
+              "classes": ["Sage"],
+              "id": "voice_waking",
+              "name": "Voice of the Waking",
+              "target": true,
+              "aiMode": "post"
+            },
+            {
+              "col": 7,
+              "row": 6,
+              "classes": ["Dark Knight"],
+              "captain": { "name": "Warden of the Rite" },
+              "aiMode": "guard"
+            },
+            { "col": 11, "row": 3, "classes": ["Assassin"], "name": "Ritual Blade", "hold": 1 },
+            { "col": 11, "row": 9, "classes": ["Assassin"], "name": "Ritual Blade", "hold": 1 },
+            { "col": 12, "row": 2, "classes": ["Sniper"] },
+            { "col": 12, "row": 10, "classes": ["Hero"] },
+            { "col": 6, "row": 1, "classes": ["Wyvern Lord"] },
+            { "col": 8, "row": 11, "classes": ["General"] },
+            { "col": 13, "row": 4, "classes": ["Swordmaster"], "minRung": "dusk" },
+            { "col": 13, "row": 8, "classes": ["Warrior"], "minRung": "hard" },
+            {
+              "col": 13,
+              "row": 6,
+              "classes": ["Sage"],
+              "name": "Ash Magus",
+              "minRung": "lunatic"
+            }
+          ],
+          "vigil": {
+            "sigils": [
+              { "id": "sigil_calling", "col": 7, "row": 4, "target": "voice_calling" },
+              { "id": "sigil_binding", "col": 9, "row": 6, "target": "voice_binding" },
+              { "id": "sigil_feeding", "col": 7, "row": 8, "target": "voice_feeding" },
+              { "id": "sigil_waking", "col": 5, "row": 6, "target": "voice_waking" }
+            ],
+            "circles": [
+              { "id": "circle_calling", "col": 12, "row": 1, "voice": "voice_calling" },
+              { "id": "circle_binding", "col": 12, "row": 11, "voice": "voice_binding" },
+              { "id": "circle_feeding", "col": 2, "row": 11, "voice": "voice_feeding" },
+              { "id": "circle_waking", "col": 2, "row": 1, "voice": "voice_waking" }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "the_glass",
+      "title": "The Glass",
+      "lore": "Mirrors stand the length of the hall, each a little late to show you what you just did.",
+      "objective": "seize",
+      "acts": ["finalBoss"],
+      "biome": null,
+      "fog": false,
+      "deploy": { "max": 8 },
+      "variants": [
+        {
+          "id": "long_hall",
+          "mirror": true,
+          "map": {
+            "legend": { ".": "Floor", "#": "Wall", "P": "Pillar", "T": "Throne" },
+            "rows": [
+              "# # # # # # # # # # # # # # # #",
+              "# . . . P . . . P . . . P . . #",
+              ". . . . . . . . . . . . . . . #",
+              ". . P . . . P . . . P . . # . #",
+              ". . . . . . . . . . . . . # . #",
+              ". . . . P . . . P . . . . . . #",
+              ". . . . . . . . . . . . . . T #",
+              ". . . . . . . . . . . . . . . #",
+              ". . . . P . . . P . . . . . . #",
+              ". . . . . . . . . . . . . # . #",
+              ". . P . . . P . . . P . . # . #",
+              ". . . . . . . . . . . . . . . #",
+              "# . . . P . . . P . . . P . . #",
+              "# # # # # # # # # # # # # # # #"
+            ]
+          },
+          "playerSpawns": [
+            { "col": 0, "row": 6 },
+            { "col": 1, "row": 6 },
+            { "col": 0, "row": 5 },
+            { "col": 0, "row": 7 },
+            { "col": 1, "row": 5 },
+            { "col": 1, "row": 7 },
+            { "col": 0, "row": 4 },
+            { "col": 0, "row": 8 }
+          ],
+          "enemies": [
+            { "col": 14, "row": 6, "boss": true, "aiMode": "guard" },
+            { "col": 13, "row": 2, "classes": ["Sniper"] },
+            { "col": 13, "row": 11, "classes": ["Sniper"] },
+            { "col": 12, "row": 5, "classes": ["General"] },
+            { "col": 12, "row": 7, "classes": ["Paladin"] },
+            { "col": 10, "row": 4, "classes": ["Sage"] },
+            { "col": 10, "row": 8, "classes": ["Sage"] },
+            { "col": 9, "row": 2, "classes": ["Hero"] },
+            { "col": 9, "row": 11, "classes": ["Swordmaster"] },
+            { "col": 7, "row": 6, "classes": ["Warrior"] },
+            { "col": 11, "row": 6, "classes": ["Hero"], "minRung": "dusk" },
+            { "col": 6, "row": 3, "classes": ["Wyvern Lord"], "minRung": "hard" },
+            { "col": 6, "row": 10, "classes": ["Swordmaster"], "minRung": "lunatic" }
+          ]
+        }
+      ]
     }
   ]
 }

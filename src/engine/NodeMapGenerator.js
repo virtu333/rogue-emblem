@@ -25,6 +25,15 @@ const ACT_LEVEL_SCALING = {
 };
 
 /**
+ * An act's per-row enemy level ranges ({ <row>: [lo, hi], default }), or null for an act that
+ * has none (its pool's range applies). The Descent's route reads the act before it from here.
+ */
+export function actLevelScaling(actId) {
+  const scaling = ACT_LEVEL_SCALING[actId];
+  return scaling ? structuredClone(scaling) : null;
+}
+
+/**
  * Generate a branching node map for one act.
  * Nodes are placed on a fixed column grid (0 to NUM_COLUMNS-1).
  * Edges only connect to same or adjacent columns (±1), preventing visual crossings.

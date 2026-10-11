@@ -83,6 +83,7 @@ import { unarmedDeparture } from '../engine/PrologueDeparture.js';
 import { confirmPrologueDeparture } from '../ui/PrologueDepartureWarning.js';
 import { canShowRunNote, markNoteSeen } from '../ui/guidanceGate.js';
 import { guidanceText } from '../engine/Guidance.js';
+import { isFinaleBossNode } from '../engine/Descent.js';
 
 // Maps runManager.currentAct → the meta milestone recorded on node-map entry,
 // which the Compendium Foes tab reads to gate each act's boss.
@@ -1666,10 +1667,8 @@ export class NodeMapScene extends Phaser.Scene {
       if (isEliteNode) {
         spriteKey = 'node_elite';
       }
-      if (node.type === NODE_TYPES.BOSS) {
-        const actId = this.runManager.nodeMap.actId;
-        if (actId === 'finalBoss') spriteKey = 'node_boss_final';
-      }
+      // The run's last fight wears the final boss's sprite (the Descent's gate boss does not).
+      if (isFinaleBossNode(node, this.runManager.nodeMap.actId)) spriteKey = 'node_boss_final';
       const weatheredFrames = {
         node_battle: 0,
         node_rest: 1,
