@@ -59,6 +59,13 @@
   font-size: 13px;
   color: var(--re-text);
 }
+/* ×3 after a boss's HP: the health bars it has left (Revival Stones). The roster sheet's
+   unit card uses it too. */
+.mb-hp-bars {
+  color: var(--re-info);
+  font-weight: 700;
+  white-space: nowrap;
+}
 .mb-body {
   flex: 1;
   overflow-y: auto;
