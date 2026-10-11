@@ -74,7 +74,7 @@ import {
 import { applyForge, canForge, canForgeStat, deforgeWeapon } from './ForgeSystem.js';
 import { signatureWeaponFor } from './SignatureWeapons.js';
 import { generateRandomLegendary } from './LootSystem.js';
-import { sanitizeLegendaryGrants } from './LegendaryOwnership.js';
+import { sanitizeLegendaryGrants, adoptHeldLegendaries } from './LegendaryOwnership.js';
 import { getActiveSlot, getRunClockFloorKey, getRunKey, MAX_SLOTS } from './SlotManager.js';
 import { isQuotaExceededError, setItemFreeingSpace } from './SaveSpace.js';
 import { markStartup } from '../utils/startupTelemetry.js';
@@ -6901,6 +6901,7 @@ export class RunManager {
     rm.rewardRerollsSpent = Math.max(0, Math.trunc(Number(saved.rewardRerollsSpent) || 0));
     // Saves from before the ledger have none (what the army holds still counts).
     rm.legendaryGrants = sanitizeLegendaryGrants(saved.legendaryGrants);
+    adoptHeldLegendaries(rm);
     rm.pendingBossRecruit = restorePendingBossRecruit(saved.pendingBossRecruit, {
       actId: rm.currentAct,
       hasPendingReward: Boolean(rm.pendingBattleReward),
