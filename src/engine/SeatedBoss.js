@@ -55,6 +55,38 @@ export function seatedBossCandidates(params, { enemies, classes = [], levelRange
   return list.filter((boss) => earlyEnemyAllowed(boss.className, params));
 }
 
+/** The candidates the rung's `difficultyFilter` leaves (all of them when it would leave none). */
+function rungCandidates(candidates, difficultyId) {
+  if (!difficultyId) return candidates;
+  const filtered = candidates.filter(
+    (b) => !b.difficultyFilter || b.difficultyFilter.includes(difficultyId),
+  );
+  return filtered.length > 0 ? filtered : candidates;
+}
+
+/** The boss `params.bossName` names in `bosses.<act>` (past both filters), or null. */
+function namedBoss(params, enemies) {
+  if (typeof params?.bossName !== 'string' || !params.bossName) return null;
+  const act = params.act || 'act1';
+  return (enemies?.bosses?.[act] || []).find((b) => b?.name === params.bossName) || null;
+}
+
+/**
+ * Every definition the seat may hold for these params, whatever the draw: the boss `bossName`
+ * names, or (no name, or one the act does not have) every candidate the rung's filter leaves.
+ * What a validator reads to ask who could sit (SetPieces.validateSetPieceAt: never the Entity on
+ * one tile); resolveSeatedBoss picks from the same list.
+ * @param {object} params battle params ({ act, difficultyId, bossName?, isElite?, isBoss?,
+ *   excludeOpeningCavaliers? })
+ * @param {{ enemies: object, classes?: object[], levelRange?: number[] }} deps
+ * @returns {object[]}
+ */
+export function possibleSeats(params = {}, deps = {}) {
+  const named = namedBoss(params, deps.enemies);
+  if (named) return [named];
+  return rungCandidates(seatedBossCandidates(params, deps), params.difficultyId || null);
+}
+
 /**
  * Pick the boss a battle seats.
  * @param {object} params battle params: { act, difficultyId, bossName?, bossLevelBonus?,
@@ -72,17 +104,11 @@ export function resolveSeatedBoss(params = {}, deps = {}) {
     ? deps.candidates
     : seatedBossCandidates(params, deps);
   if (!candidates.length) return null;
-  const difficultyId = params.difficultyId || null;
-  if (difficultyId) {
-    const filtered = candidates.filter(
-      (b) => !b.difficultyFilter || b.difficultyFilter.includes(difficultyId),
-    );
-    if (filtered.length > 0) candidates = filtered;
-  }
+  candidates = rungCandidates(candidates, params.difficultyId || null);
   let bossDef = candidates[Math.floor(random() * candidates.length)];
   const isEliteCaptain = seatsEliteCaptain(params);
   if (typeof params.bossName === 'string' && params.bossName) {
-    const named = (deps.enemies?.bosses?.[act] || []).find((b) => b?.name === params.bossName);
+    const named = namedBoss(params, deps.enemies);
     if (named) bossDef = named;
     else console.warn(`[SeatedBoss] no boss "${params.bossName}" in ${act}; seating the draw's`);
   }

@@ -24,7 +24,9 @@
 //   `finalBoss` may be up to 16x14. Without it, the events that name it say where it is fought.
 // - A `boss: true` slot seats the battle's boss (SeatedBoss.resolveSeatedBoss, handed in as
 //   `seatBoss`): at most one, always in play, its class, name, level and stones the seat's. It
-//   keeps its two slot draws, and the class draw is the seat's one draw.
+//   keeps its two slot draws, and the class draw is the seat's one draw. It is fought only on a
+//   node that seats a boss (no event names it: EventValidation), and never seats the Entity
+//   (validateSetPieceAt: where the Entity is a candidate the node must pin `bossName`).
 // - `id` gives a slot's unit an `authoredId` (what refs name); `name` names a unit that is not
 //   a boss; `target: true` marks a unit a `defeat` objective counts (it needs an id and a name,
 //   is always in play and never holds); `aiMode: 'post'` strikes from its tile and never walks
@@ -56,6 +58,8 @@ import {
 import { REINFORCEMENT_CONTRACT_VERSION } from './MapTemplateEngine.js';
 import { HOLD_AI_MODE } from './HoldDisturbance.js';
 import { BOSS_REF, legacyObjectiveKind, objectivesShapeErrors } from './BattleObjectives.js';
+// SeatedBoss imports captainLevelFor from here; each side reads the other only inside functions.
+import { possibleSeats } from './SeatedBoss.js';
 
 /** A set piece's config carries `templateId: 'setpiece:<id>'` (never a mapTemplates id). */
 export const SET_PIECE_TEMPLATE_PREFIX = 'setpiece:';
@@ -124,6 +128,13 @@ export function setPieceList(data) {
 export function findSetPiece(data, id) {
   if (typeof id !== 'string' || !id) return null;
   return setPieceList(data).find((p) => p?.id === id) || null;
+}
+
+/** Whether any variant of a set piece has a `boss: true` slot (it seats the battle's boss). */
+export function hasBossSlot(piece) {
+  return (Array.isArray(piece?.variants) ? piece.variants : []).some(
+    (variant) => Array.isArray(variant?.enemies) && variant.enemies.some((s) => s?.boss === true),
+  );
 }
 
 /** The set piece id a battle config was built from, or null for any other map. */
@@ -423,13 +434,23 @@ export function setPieceRefs(eventsConfig) {
  * piece allows, each variant fields at least one foe, every slot in play has classes in that act
  * and none breaks the rung's class gate (`enemyClassEarliestAct`), and a boss slot has a boss to
  * seat (enemies.json `bosses.<act>`, when `data.enemies` is given).
+ *
+ * A boss slot never seats the Entity: a single tile holds none of its 3x3 form, gear or finale.
+ * `seat` is the fighting node's say in who sits (SeatedBoss.possibleSeats reads it as battle
+ * params): `bossName` pins a boss, `isElite` / `isBoss` the node's kind (unset: either kind). Any
+ * definition the seat could hold at this act and rung that is the Entity is refused, so a node
+ * that fights the piece where the Entity is a candidate (finalBoss on Nightfall and Black Sun)
+ * must pin another boss by name. An event never pins (`{}`, the default). `null` is the set
+ * piece's own `acts` check: no node fights it there, and the node that names it is checked with
+ * its own seat.
  * @param {object} piece  a data/setPieces.json entry
  * @param {string} act
  * @param {string} rung   a difficulty id
- * @param {{ difficulty?: object, enemies?: object }} data
+ * @param {{ difficulty?: object, enemies?: object, classes?: object[] }} data
+ * @param {{ bossName?: string, isElite?: boolean, isBoss?: boolean }|null} [seat]
  * @returns {string[]}
  */
-export function validateSetPieceAt(piece, act, rung, data = {}) {
+export function validateSetPieceAt(piece, act, rung, data = {}, seat = {}) {
   const errors = [];
   const id = piece?.id;
   if (Array.isArray(piece?.acts) && piece.acts.length > 0 && !piece.acts.includes(act))
@@ -449,6 +470,11 @@ export function validateSetPieceAt(piece, act, rung, data = {}) {
       if (slot?.boss === true) {
         if (data.enemies && !(data.enemies.bosses?.[act]?.length > 0))
           errors.push(`${id}/${variant.id}: its boss slot has no boss to seat in ${act}`);
+        else if (data.enemies && seat !== null && seatCouldBeEntity(act, rung, data, seat))
+          errors.push(
+            `${id}/${variant.id}: its boss slot could seat the Entity in ${act} on ${rung}; ` +
+              'a node that fights it there must name another boss (bossName)',
+          );
         continue;
       }
       const list = classesForAct(slot?.classes, act);
@@ -464,6 +490,17 @@ export function validateSetPieceAt(piece, act, rung, data = {}) {
     }
   }
   return errors;
+}
+
+/** Whether a boss seat at this act and rung could hold the Entity (see validateSetPieceAt). */
+function seatCouldBeEntity(act, rung, data, seat) {
+  const kinds = typeof seat.isElite === 'boolean' ? [seat.isElite] : [false, true];
+  return kinds.some((isElite) =>
+    possibleSeats(
+      { act, difficultyId: rung, bossName: seat.bossName, isElite, isBoss: seat.isBoss === true },
+      { enemies: data.enemies, classes: data.classes || [] },
+    ).some((boss) => boss?.isEntity === true),
+  );
 }
 
 /**
@@ -830,15 +867,17 @@ export function validateSetPiecesConfig(config, data = {}) {
       }
     }
 
-    // A set piece that says where it is fought: every act it names, on every rung.
+    // A set piece that says where it is fought: every act it names, on every rung. No node
+    // fights it here, so its boss seat is left to the node that names it (seat null).
     if (Array.isArray(piece.acts))
       for (const act of piece.acts.filter((a) => ACT_IDS.includes(a)))
         for (const rung of DIFFICULTY_IDS)
-          for (const message of validateSetPieceAt(piece, act, rung, data)) err(pw, message);
+          for (const message of validateSetPieceAt(piece, act, rung, data, null)) err(pw, message);
   }
 
   // The events that name set pieces: a real id, and at every act and rung the event reaches,
-  // each variant fields at least one foe and every slot in play keeps the rung's class gates.
+  // each variant fields at least one foe and every slot in play keeps the rung's class gates
+  // (an event never pins a boss; EventValidation refuses an event naming a boss slot at all).
   for (const ref of setPieceRefs(data.events)) {
     const where = `events: ${ref.where}`;
     const piece = findSetPiece(config, ref.setPiece);
