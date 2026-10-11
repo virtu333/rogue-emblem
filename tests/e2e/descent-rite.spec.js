@@ -1,6 +1,6 @@
 // The Rite on Act V's route map and the Vigil's markers, through the real UI
 // (docs/specs/act-v-descent.md §4, §8). The Descent ships dark; the review route
-// `?devScene=nodemap&preset=fresh&descent=1&difficulty=hard&rite=7&descentRow=4` (src/utils/
+// `?devScene=nodemap&preset=fresh&descent=1&difficulty=hard&rite=<words>&descentRow=4` (src/utils/
 // devDescentFixtures.js, dev routes only) switches it on for that page and walks the army to the
 // Lieutenant's gate.
 //
@@ -9,41 +9,13 @@
 //   2. the chip's note cannot be opened or closed, or reads the wrong tier or bosses;
 //   3. the gate's (and the finale's) loom card shows no Rite block, or one for another tier;
 //   4. a locked battle's card promises the tier the words stand at instead of its locked map;
-//   5. any of it overflows the page sideways or is clipped, at a desktop, a landscape phone and
-//      an upright phone;
+//   5. any of it overflows the page sideways or is clipped, at a desktop and a landscape phone
+//      (the upright phone is portrait-descent-rite.spec.js);
 //   6. the Vigil's markers are not drawn, or are not drawn per state (lit / empty / silent).
 import { test, expect } from '@playwright/test';
 import { waitForGame, waitForScene, collectErrors } from './helpers.js';
-import {
-  expectNoSidewaysScroll,
-  expectPortraitUi,
-  phone,
-  quietSettings,
-} from './portraitHelpers.js';
-
-const ROUTE = '?devScene=nodemap&preset=fresh&descent=1&difficulty=hard&descentRow=4&seed=42';
-
-async function openRoute(page, { rite = 7, query = '', mobile = false } = {}) {
-  await page.goto(`/${ROUTE}&rite=${rite}${query}${mobile ? '&mobilePreview=1' : ''}`);
-  await waitForGame(page);
-  await waitForScene(page, 'NodeMap');
-  const skip = page.getByRole('button', { name: 'Skip conversation', exact: true });
-  await skip.waitFor({ state: 'visible' });
-  await skip.click();
-  const route = page.locator('.re-node-map');
-  await expect(route).toBeVisible();
-  await expect(route.locator('.re-node.is-live').first()).toBeVisible();
-  return route;
-}
-
-/** The node of the Descent's route with this key, selected in the loom (the real selection). */
-const selectNode = (page, key) =>
-  page.evaluate((key) => {
-    const scene = window.__emblemRogueGame.scene.getScene('NodeMap');
-    const node = scene.runManager.nodeMap.nodes.find((n) => n.descentKey === key);
-    scene.nodeView._select(node.id);
-    return node.id;
-  }, key);
+import { expectNoSidewaysScroll } from './portraitHelpers.js';
+import { ANSWERED, IN_ANSWERED, IN_SPOKEN, openRoute, selectNode } from './riteHelpers.js';
 
 const cardText = (route) => route.locator('.re-loom-card .re-loom-rite');
 
@@ -58,10 +30,10 @@ for (const size of [
       page,
     }) => {
       const errors = collectErrors(page);
-      const route = await openRoute(page, { rite: 7, mobile: size.mobile });
+      const route = await openRoute(page, { rite: IN_SPOKEN, mobile: size.mobile });
       const chip = route.locator('.re-burden.re-rite');
       await expect(chip.locator('.re-burden-name')).toHaveText('The Rite');
-      await expect(chip.locator('.re-burden-short')).toHaveText('7 words · Spoken');
+      await expect(chip.locator('.re-burden-short')).toHaveText(`${IN_SPOKEN} words · Spoken`);
       await expect(chip).toHaveAttribute('aria-expanded', 'false');
       const note = route.locator('.re-burden-note');
       await expect(note).toBeHidden();
@@ -70,14 +42,14 @@ for (const size of [
       await expect(chip).toHaveAttribute('aria-expanded', 'true');
       await expect(note).toBeVisible();
       await expect(note.locator('.re-rite-progress')).toHaveText(
-        'Spoken · 5 more words to Answered (12).',
+        `Spoken · ${ANSWERED - IN_SPOKEN} more words to Answered (${ANSWERED}).`,
       );
       // The Entity's road: the Lieutenant's gate, then the Entity; Spoken changes neither.
       await expect(note.locator('[data-rite-target]')).toHaveText([
         'The Lieutenant: No change',
         'The Entity: No change',
       ]);
-      await expect(note.locator('.re-rite-from')).toHaveText('From: The Eclipse +7');
+      await expect(note.locator('.re-rite-from')).toHaveText(`From: The Eclipse +${IN_SPOKEN}`);
       // The note lies over the loom: the page does not move for it.
       await expectNoSidewaysScroll(page);
       await note.click();
@@ -87,13 +59,15 @@ for (const size of [
     });
 
     test('the gate and the finale preview what the tier does to that boss', async ({ page }) => {
-      const route = await openRoute(page, { rite: 14, mobile: size.mobile });
+      const route = await openRoute(page, { rite: IN_ANSWERED, mobile: size.mobile });
       // The gate is where the party stands next; Answered gives the Lieutenant a stone and a wave.
       await selectNode(page, 'gate');
       const gate = cardText(route);
       await expect(gate).toHaveAttribute('data-rite', 'open');
       await expect(gate).toHaveAttribute('data-rite-target', 'lieutenant');
-      await expect(gate.locator('.re-loom-rite-head')).toHaveText('The Rite · Answered · 14 words');
+      await expect(gate.locator('.re-loom-rite-head')).toHaveText(
+        `The Rite · Answered · ${IN_ANSWERED} words`,
+      );
       await expect(gate.locator('.re-loom-rite-lines li')).toHaveText([
         'The Lieutenant carries 1 more Revival Stone',
         '2 Hollowed join him on turn 4',
@@ -119,7 +93,7 @@ for (const size of [
 test('a locked battle previews its locked map, not the tier the words stand at now', async ({
   page,
 }) => {
-  const route = await openRoute(page, { rite: 14 });
+  const route = await openRoute(page, { rite: IN_ANSWERED });
   // The map is locked at Answered, as the battle's own generation locks it ...
   await page.evaluate(async () => {
     const scene = window.__emblemRogueGame.scene.getScene('NodeMap');
@@ -167,38 +141,6 @@ test('an ordinary run has no Rite chip and no Rite block', async ({ page }) => {
     () => window.__emblemRogueGame.scene.getScene('NodeMap').runManager.rite,
   );
   expect(hasRite).toBeNull();
-});
-
-test.describe('an upright phone', () => {
-  test.use(phone({ width: 390, height: 844 }));
-
-  test('the chip, its note and the card’s Rite block fit the screen', async ({ page }) => {
-    await quietSettings(page);
-    await page.addInitScript(() => {
-      localStorage.setItem('emblem_rogue_portrait_battles', 'on');
-      document.addEventListener('DOMContentLoaded', () => {
-        document.documentElement.classList.add('portrait-ui');
-        const style = document.createElement('style');
-        style.textContent = '#rotate-prompt{display:none!important}';
-        document.head.append(style);
-      });
-    });
-    const route = await openRoute(page, { rite: 14 });
-    await expectPortraitUi(page);
-    const chip = route.locator('.re-burden.re-rite');
-    await expect(chip.locator('.re-burden-short')).toHaveText('14 words · Answered');
-    await chip.tap();
-    await expect(route.locator('.re-burden-note')).toBeVisible();
-    await expectNoSidewaysScroll(page);
-    // Inside the viewport, whole.
-    const box = await route.locator('.re-burden-note').boundingBox();
-    expect(box.x).toBeGreaterThanOrEqual(0);
-    expect(box.x + box.width).toBeLessThanOrEqual(390 + 0.5);
-    await chip.tap();
-    await selectNode(page, 'gate');
-    await expect(cardText(route)).toBeVisible();
-    await expectNoSidewaysScroll(page);
-  });
 });
 
 test.describe('the Vigil’s markers', () => {
