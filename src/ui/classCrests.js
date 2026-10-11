@@ -102,6 +102,10 @@ export const CLASS_CREST_SPECS = Object.freeze({
   // undead's; the Skeleton carries every sword-arm of the levy and no school at all.
   Skeleton: c('skeleton', 'base', 'sword', { secondary: ['lance', 'bow'], mark: 'crack' }),
   Necromancer: c('mage', 'promoted', 'tome', { mark: 'crack' }),
+  // Act V: the court circle's Adept is the mage's tome under the circle (the ring); the
+  // Hollowed is the levy's spear and sword, cracked like the other things a rite has used.
+  'Circle Adept': c('mage', 'promoted', 'tome', { mark: 'ring' }),
+  Hollowed: c('soldier', 'base', 'lance', { secondary: ['sword'], mark: 'crack' }),
   Dragon: c('dragon', 'base', 'breath', { mount: 'wyvern' }),
   'Dragon Lord': c('dragon', 'promoted', 'breath', { twin: true, mount: 'wyvern' }),
   Entity: c('entity', 'boss', 'eclipse', { mark: 'ring' }),

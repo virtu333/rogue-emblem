@@ -234,7 +234,10 @@ describe('where each rung meets a Necromancer', () => {
   it('the gate is data: Black Sun lists Act III, Dusk and Nightfall Act IV', () => {
     const earliest = (rung) =>
       resolveDifficultyMode(data.difficulty, rung).modifiers.enemyClassEarliestAct;
-    expect(earliest('normal')).toEqual({});
+    // First Light never meets the gated pools at all; its table holds only Act V's classes,
+    // which set pieces may field there (no pool lists them) and that the set piece validator reads.
+    expect(Object.keys(earliest('normal')).sort()).toEqual(['Circle Adept', 'Hollowed']);
+    expect(earliest('normal').Necromancer).toBeUndefined();
     expect(earliest('dusk').Necromancer).toBe('act4');
     expect(earliest('hard').Necromancer).toBe('act4');
     expect(earliest('lunatic').Necromancer).toBe('act3');

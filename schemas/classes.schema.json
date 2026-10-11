@@ -102,6 +102,10 @@
         "moveType": { "$ref": "#/$defs/moveType" },
         "weaponProficiencies": { "type": "string" },
         "role": { "type": "string" },
+        "noEnemySkills": {
+          "type": "boolean",
+          "description": "An enemy of this class never learns a skill (no innate, no rolled combat skill): the Hollowed."
+        },
         "growthRanges": { "$ref": "#/$defs/growthRanges" },
         "masteryPerk": { "$ref": "#/$defs/masteryPerk" },
         "promotesTo": {

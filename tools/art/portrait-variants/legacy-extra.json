@@ -27,5 +27,27 @@
     "take": 2,
     "model": "pro",
     "generator": "gen-legacy-extra.mjs"
+  },
+  "enemy_circle_adept": {
+    "prompt": "A 128 by 128 pixel art character portrait for a dark-fantasy tactics RPG, drawn exactly in the style of the first two reference images (the same game): crisp square pixels, a dark outline, three-tone cel shading lit from the upper left, a head-and-shoulders bust in three-quarter view facing right, the shoulders filling the bottom edge, on a flat dark navy (#1b1d33) background. One character, no text, no frame, no glow. The character: an enemy Circle Adept, a ritualist of the Empire's court circle: a composed, ceremonial figure, calm and unhurried, not a grave-priest. A deep ash-grey hood, the lower half of the face covered by a plain grey cloth veil so that only the shadowed, steady, tired eyes of a living middle-aged person show. Outfit: an ash-grey wool surplice with a stiff squared crimson lacquer mantle and high crimson collar, bone-white cuffs, and a thick closed book held against the chest, wrapped many times in grey cord with knotted ends and tassels. Cold and still, a formal officiant. No skull, no glowing eyes, no magic particles. The third reference image is the class map sprite: follow its costume. Palette: ash grey, crimson, bone white.",
+    "refs": [
+      "assets/portraits/enemy_mage.png",
+      "assets/portraits/enemy_sage.png",
+      "docs/art/class-sprite-review-2026-09-22/sheets/circle-adept.png"
+    ],
+    "take": 3,
+    "model": "pro",
+    "generator": "gen-legacy-extra.mjs"
+  },
+  "enemy_hollowed": {
+    "prompt": "A 128 by 128 pixel art character portrait for a dark-fantasy tactics RPG, drawn exactly in the style of the first two reference images (the same game): crisp square pixels, a dark outline, three-tone cel shading lit from the upper left, a head-and-shoulders bust in three-quarter view facing right, the shoulders filling the bottom edge, on a flat dark navy (#1b1d33) background. One character, no text, no frame, no glow. The character: an enemy Hollowed, an imperial levy soldier the rite has emptied out: the uniform is still on and the person has gone out of it. A kettle helmet sitting a little crooked over a mail aventail, a crimson padded coat hanging open with loose straps, and a pale ash-grey slack face: blank, dark, empty eyes with no pupils and no glow, a slightly open mouth, a head tilted a little to one side. It must read as a living-looking man with nobody home: NOT a skull, NOT a skeleton, NOT green rotting flesh (the Zombie), no wounds, no gore. The third reference image is the class map sprite: follow it. Palette: ash grey, crimson, steel.",
+    "refs": [
+      "assets/portraits/enemy_soldier.png",
+      "assets/portraits/enemy_zombie.png",
+      "docs/art/class-sprite-review-2026-09-22/sheets/hollowed.png"
+    ],
+    "take": 1,
+    "model": "pro",
+    "generator": "gen-legacy-extra.mjs"
   }
 }
