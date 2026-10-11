@@ -1,6 +1,7 @@
 // DifficultyEngine.js - Wave 8 difficulty validation and lookup helpers.
 
 import { REVIVAL_STONE_KINDS, hasRevivalStones } from './RevivalStones.js';
+import { actLabel } from '../utils/actNames.js';
 
 export const DIFFICULTY_CONTRACT_VERSION = 1;
 
@@ -170,7 +171,58 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   // Act id -> first node row that may hold a village ({ act1: 3 }: none in an act's first
   // three rows; null / a missing act: any row). Applied when a node map is generated.
   villageMinRow: null,
+  // Battle modifiers by act ({ act1: { enemyStatBonus: 1, enemyCountBase: 5 } }, null: none):
+  // a battle in that act reads these in place of the rung's own (`ACT_OVERRIDE_KEYS`).
+  actOverrides: null,
 });
+
+/**
+ * The battle modifiers a rung may set per act (`actOverrides`), and the kind of value each
+ * takes: 'count' a non-negative whole number, 'chance' a number from 0 to 1. Black Sun eases
+ * its Act I with them; every other act reads the rung's own values.
+ */
+export const ACT_OVERRIDE_KEYS = Object.freeze({
+  enemyStatBonus: 'count',
+  enemyCountBonus: 'count',
+  enemyLevelBonus: 'count',
+  bossLevelBonus: 'count',
+  enemyCountBase: 'count',
+  enemySkillChance: 'chance',
+  enemyPoisonChance: 'chance',
+});
+
+/**
+ * A rung's `actOverrides` value for `key` in `act`, or undefined when the rung sets none
+ * (the battle then reads the rung's own value). `modifiers` is a run's snapshot or a mode.
+ */
+export function actOverrideFor(modifiers, key, act) {
+  if (!Object.hasOwn(ACT_OVERRIDE_KEYS, key)) return undefined;
+  const value = modifiers?.actOverrides?.[act]?.[key];
+  return Number.isFinite(value) ? value : undefined;
+}
+
+/** "Act I: enemy stats +1, +1 extra enemy per map" lines for a rung's act overrides. */
+function actOverrideSummary(mode) {
+  const lines = [];
+  for (const act of ENEMY_ACT_GATE_ORDER) {
+    const over = mode?.actOverrides?.[act];
+    if (!isObject(over)) continue;
+    const parts = [];
+    const add = (key, text) => {
+      const value = actOverrideFor(mode, key, act);
+      if (value !== undefined && value !== mode[key]) parts.push(text(value));
+    };
+    add('enemyStatBonus', (n) => `enemy stats +${n}`);
+    add('enemyLevelBonus', (n) => `enemy levels +${n}`);
+    add('bossLevelBonus', (n) => `boss levels +${n}`);
+    add('enemyCountBonus', (n) => `+${n} extra ${n === 1 ? 'enemy' : 'enemies'} per map`);
+    add('enemyCountBase', (n) => `enemies scale as if you field at least ${n} units`);
+    add('enemySkillChance', (n) => `+${Math.round(n * 100)}% enemy skill chance`);
+    add('enemyPoisonChance', (n) => `+${Math.round(n * 100)}% enemy poison chance`);
+    if (parts.length > 0) lines.push(`${actLabel(act) || act} eases in: ${parts.join(', ')}`);
+  }
+  return lines;
+}
 
 const recruitAffixExclusions = (config, id) =>
   config?.modes?.[id]?.recruitAffixExcludedActs ??
@@ -331,6 +383,7 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
       lines.push(`Siege magic from Act ${actNum}+ (max ${cfg.maxPerBattle}/battle)`);
     }
   }
+  lines.push(...actOverrideSummary(mode));
   return lines;
 }
 
@@ -380,6 +433,29 @@ export function validateDifficultyConfig(config) {
         ))
     ) {
       errors.push(`modes.${difficultyId}.enemyClassEarliestAct must map classes to act ids`);
+    }
+
+    if (mode.actOverrides !== undefined && mode.actOverrides !== null) {
+      const where = `modes.${difficultyId}.actOverrides`;
+      if (!isObject(mode.actOverrides)) errors.push(`${where} must be an object of act ids`);
+      else {
+        for (const [act, over] of Object.entries(mode.actOverrides)) {
+          if (!ENEMY_ACT_GATE_ORDER.includes(act)) errors.push(`${where}.${act} is not an act id`);
+          if (!isObject(over)) {
+            errors.push(`${where}.${act} must be an object`);
+            continue;
+          }
+          for (const [key, value] of Object.entries(over)) {
+            const kind = ACT_OVERRIDE_KEYS[key];
+            if (!kind)
+              errors.push(`${where}.${act}.${key} is not a battle modifier an act can set`);
+            else if (kind === 'count' && !(Number.isInteger(value) && value >= 0))
+              errors.push(`${where}.${act}.${key} must be a non-negative integer`);
+            else if (kind === 'chance' && !(isFiniteNumber(value) && value >= 0 && value <= 1))
+              errors.push(`${where}.${act}.${key} must be a number from 0 to 1`);
+          }
+        }
+      }
     }
 
     if (
