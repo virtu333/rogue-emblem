@@ -326,6 +326,11 @@ export class VigilController {
     const scene = this.scene;
     if (!scene) return;
     const session = battleSession(scene);
+    // Which fall this is, read now, as the Voice leaves the roster and before anything awaits:
+    // only Voices already off the roster count (voicesFallen), never one an area art has also
+    // dropped to 0 HP and removeUnit has yet to take, so of two felled by one strike the first
+    // removed is the first fall.
+    const fallen = voicesFallen(scene.battleConfig?.vigil, scene.enemyUnits);
     this.sync();
     if (!isUnitSeenAt(scene.grid, unit, tile.col, tile.row)) return;
     // The cue is heard only for a fall the player saw (as the banner): sound tells no secrets.
@@ -339,11 +344,11 @@ export class VigilController {
     // Its last line. The first Voice to fall gets the dialogue box (auto-dismissing, as a
     // commander's last words); each later one says its line over the spot it fell, short and
     // never awaited, so four falls in a turn do not stack four boxes. "First" is the roster's:
-    // no Voice had fallen before this one (voicesFallen counts it), so a resume or a rewind to
+    // no Voice had left it before this one (voicesFallen counts it), so a resume or a rewind to
     // before that fall chooses as it did the first time.
     const line = vigilSilencedLine(this.words, unit?.authoredId);
     if (!line) return;
-    if (voicesFallen(scene.battleConfig?.vigil, scene.enemyUnits) > 1) {
+    if (fallen > 1) {
       safeBattlePresentation(
         'vigil last line',
         () => this._beats()?.speakOver(unit, line, { foe: true, tile }),

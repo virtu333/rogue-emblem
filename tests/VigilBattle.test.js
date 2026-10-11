@@ -30,6 +30,8 @@ import { serializeBattleUnit } from '../src/engine/BattleUnitState.js';
 import { registerBattleEntity, resetBattleIdentities } from '../src/engine/BattleEntityIdentity.js';
 import { markFoesShown } from '../src/engine/BattleInformation.js';
 import { createVigilState } from '../src/engine/Vigil.js';
+import { areaDamage } from '../src/engine/PostCombatEffects.js';
+import { getWeaponArtArea } from '../src/engine/WeaponArtSystem.js';
 import { createBattleRng } from '../src/engine/BattleRng.js';
 import { withDevSetPiece } from '../src/utils/devSetPieceFixtures.js';
 import { GameDriver } from './harness/GameDriver.js';
@@ -675,6 +677,62 @@ describe('what the court says (dialogue.json vigil, engine/VigilWords.js)', () =
         'voice_calling',
         'voice_waking',
       ]);
+    });
+
+    it('one area art that fells two Voices at once: the first removed gets the box, the other floats', async () => {
+      // Cataclysm (weaponArts.json: radius 2, a fixed 5 a blow) on the guard at the ring's heart
+      // reaches all four sigils, each 2 tiles off. Two Voices at 4 HP drop together: both are at
+      // 0 HP before the first is removed (the area's blows land first, then each falls in area
+      // order through removeUnit), so a count that read 0 HP as fallen saw "2" at the first fall
+      // and floated both lines, opening no box. A rewind to before the strike chooses the same.
+      const art = data.weaponArts.arts.find((a) => a.name === 'Cataclysm');
+      const doomed = ['voice_binding', 'voice_feeding'];
+      const strike = async (scene) => {
+        const guard = scene.enemyUnits.find((u) => u.className === 'Dark Knight');
+        const hero = scene.playerUnits[0];
+        const removed = [];
+        const remove = scene.removeUnit.bind(scene);
+        scene.removeUnit = (unit, options) => {
+          if (unit.authoredId) removed.push(unit.authoredId);
+          return remove(unit, options);
+        };
+        const step = { area: getWeaponArtArea(art), blows: 1 };
+        await scene._playPostCombatBeats(
+          areaDamage(step, hero, guard, scene._postCombatWorld(), {}),
+        );
+        return removed;
+      };
+      const setUp = (scene, b) => {
+        scene.grid.getMoveCost = (c, r, moveType) => b.grid.getMoveCost(c, r, moveType);
+        scene.showMinorHintAt = vi.fn();
+        scene.runManager = { convoy: { weapons: [], consumables: [] }, accessories: [], gold: 0 };
+      };
+      const { scene, b } = speaking();
+      setUp(scene, b);
+      const guard = scene.enemyUnits.find((u) => u.className === 'Dark Knight');
+      Object.assign(scene.playerUnits[0], { col: guard.col + 1, row: guard.row });
+      for (const id of doomed) voiceOf(scene.enemyUnits, id).currentHP = 4;
+      const before = JSON.parse(JSON.stringify(captureBattleState(scene, { rngSeed: 7 })));
+
+      const expectOneBoxOneFloat = (target, removed) => {
+        expect([...removed].sort()).toEqual([...doomed].sort());
+        expect(target.enemyUnits.filter((u) => doomed.includes(u.authoredId))).toEqual([]);
+        const [first, second] = removed;
+        expect(target.dialogueOverlay.show).toHaveBeenCalledTimes(1);
+        expect(target.dialogueOverlay.show.mock.calls[0][1]).toBe(silenced(first));
+        expect(target.dialogueOverlay.show.mock.calls[0][2]).toBe(`portrait_of_${first}`);
+        expect(floats(target).map((f) => [f.who, f.line])).toEqual([[second, silenced(second)]]);
+      };
+      expectOneBoxOneFloat(scene, await strike(scene));
+
+      // A rewind to before the strike: the same strike, the same choice.
+      const { scene: rewound, b: rb } = speaking();
+      setUp(rewound, rb);
+      rewound.playerUnits = [];
+      rewound.enemyUnits = [];
+      new BattleSuspendController(rewound).applyUnits(before);
+      expect(doomed.map((id) => voiceOf(rewound.enemyUnits, id).currentHP)).toEqual([4, 4]);
+      expectOneBoxOneFloat(rewound, await strike(rewound));
     });
 
     it('a fall in the fog says nothing, blocking or floating', async () => {

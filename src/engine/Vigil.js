@@ -121,11 +121,15 @@ export function voiceUnit(voiceId, enemyUnits) {
  * How many of this Vigil's Voices have fallen (are no longer on the field). Read from the
  * roster alone, so a resume or a Vision rewind (which restore it) count the same: the one
  * "which fall is this" the presentation needs. Called as a Voice leaves the roster, it counts it.
+ * A Voice counts once it is off the roster, never at 0 HP (array presence, the objective's own
+ * test, BattleObjectives): an area art that drops two Voices at once leaves both at 0 HP before
+ * removeUnit takes the first, and that first fall must still count as one.
  */
 export function voicesFallen(vigil, enemyUnits) {
   const targets = new Set(partsOf(vigil).sigils.map((s) => s.target));
+  const onField = new Set((enemyUnits || []).filter(Boolean).map((u) => u.authoredId));
   let fallen = 0;
-  for (const id of targets) if (!voiceUnit(id, enemyUnits)) fallen++;
+  for (const id of targets) if (!onField.has(id)) fallen++;
   return fallen;
 }
 
