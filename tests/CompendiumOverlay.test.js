@@ -41,6 +41,11 @@ function seedSlotMilestones(slot, milestones) {
   lsStore[`emblem_rogue_slot_${slot}_meta`] = JSON.stringify({ milestones });
 }
 
+/** A save that has met these items / skills (the Compendium fills them in). */
+function seedSeen(lists, slot = 2) {
+  lsStore[`emblem_rogue_slot_${slot}_meta`] = JSON.stringify(lists);
+}
+
 function unlockAllActs(slot = 1) {
   seedSlotMilestones(slot, ALL_ACT_MILESTONES);
 }
@@ -653,6 +658,7 @@ describe('CompendiumOverlay', () => {
     });
 
     it('search jump resets filter to "All" and page to 0', () => {
+      seedSeen({ itemsSeen: ['Iron Sword'] });
       const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
       overlay.show();
       // Set a non-default filter first
@@ -667,6 +673,7 @@ describe('CompendiumOverlay', () => {
     });
 
     it('jumped item is within rendered page range', () => {
+      seedSeen({ itemsSeen: ['Iron Sword'] });
       const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
       overlay.show();
       overlay.searchInputActive = true;

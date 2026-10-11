@@ -420,6 +420,43 @@ describe('CloudSync run merge guard', () => {
     expect(adopted.lordsMet).toEqual(['Edric', 'Rowan', 'Sera', 'Voss']);
   });
 
+  it('keeps the Compendium discoveries of either copy when one copy wins (union)', async () => {
+    const key = getMetaKey(1);
+    // Local is newer and kept; the cloud copy met an item and a skill local has not.
+    store[key] = JSON.stringify({ savedAt: 200, itemsSeen: ['Iron Sword'], skillsSeen: ['sol'] });
+    mockCloudBootstrap({
+      metaData: { 1: { savedAt: 100, itemsSeen: ['Starfall'], skillsSeen: ['luna'] } },
+    });
+    await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+    let kept = JSON.parse(store[key]);
+    expect(kept.itemsSeen).toEqual(['Iron Sword', 'Starfall']);
+    expect(kept.skillsSeen).toEqual(['luna', 'sol']);
+
+    // The cloud copy is newer and wins; local's discoveries (backfilled from an older
+    // save's victory record) stay.
+    store[key] = JSON.stringify({
+      savedAt: 100,
+      runRecords: [
+        {
+          v: 2,
+          id: 'old-win',
+          endedAt: 50,
+          difficulty: 'normal',
+          roster: [
+            { name: 'Edric', className: 'Lord', level: 9, weapon: 'Rapier', skills: ['vantage'] },
+          ],
+          fallen: [],
+        },
+      ],
+    });
+    mockCloudBootstrap({ metaData: { 1: { savedAt: 300, itemsSeen: ['Vulnerary'] } } });
+    await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+    kept = JSON.parse(store[key]);
+    expect(kept.savedAt).toBe(300);
+    expect(kept.itemsSeen).toEqual(['Rapier', 'Vulnerary']);
+    expect(kept.skillsSeen).toEqual(['vantage']);
+  });
+
   it('merges the prologue record on either copy (further state; the grant with the kept economy)', async () => {
     const key = getMetaKey(1);
     const done = { state: 'complete', grantPaid: true, chaptersCompleted: ['p1_banner_at_dawn', 'p4_quarry_gate'], practised: ['seize'] }; // prettier-ignore

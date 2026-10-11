@@ -469,6 +469,13 @@ for (const viewport of PORTRAIT_VIEWPORTS) {
     });
 
     test('compendium: list, then a full-width entry with Back', async ({ page }) => {
+      // A save that has met the Silver Sword (unmet entries read "???").
+      await page.addInitScript(() => {
+        localStorage.setItem(
+          'emblem_rogue_slot_3_meta',
+          JSON.stringify({ itemsSeen: ['Silver Sword'] }),
+        );
+      });
       await openTitleReference(page, 'compendium');
       const dialog = page.getByRole('dialog', { name: 'Compendium', exact: true });
       await expect(dialog).toBeVisible();

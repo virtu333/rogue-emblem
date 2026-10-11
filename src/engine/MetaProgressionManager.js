@@ -33,6 +33,11 @@ import {
   lordsMetOfMetaSave,
   mergeLordNames,
 } from './LordsMet.js';
+import {
+  discoveriesInRun,
+  discoveriesOfMetaSave,
+  mergeDiscoveries,
+} from './CompendiumDiscovery.js';
 
 const DEFAULT_LORD_SELECTION = Object.freeze({
   commander: DEFAULT_STARTING_LORD_NAMES[0],
@@ -450,6 +455,10 @@ export class MetaProgressionManager {
     // Lords who have joined an army on this save; the home base and Compendium show only
     // these (Edric and Sera always).
     this.lordsMet = [...ALWAYS_MET_LORD_NAMES];
+    // Items (catalog names) and skills (ids) this save has met: the Compendium fills in
+    // these and shows the rest as "???" (engine/CompendiumDiscovery.js).
+    this.itemsSeen = [];
+    this.skillsSeen = [];
     this.hintState = null;
     this.skillAssignments = {}; // { "Edric": ["sol", "vantage"], "Sera": ["miracle"] }
     this.lordSelection = { ...DEFAULT_LORD_SELECTION }; // commander-choice picks, persisted
@@ -520,21 +529,34 @@ export class MetaProgressionManager {
     // Saves from before the list backfill it from their records; lords in the slot's
     // in-progress run have joined, so they always count.
     this.lordsMet = mergeLordNames(lordsMetOfMetaSave(savedMeta), this._lordsInSavedRun());
+    // Saves from before the lists backfill them from their records; what the slot's
+    // in-progress run holds has been met, so it always counts.
+    const seen = mergeDiscoveries(
+      discoveriesOfMetaSave(savedMeta),
+      discoveriesInRun(this._readSavedRun()),
+    );
+    this.itemsSeen = seen.items;
+    this.skillsSeen = seen.skills;
   }
 
   /** Lords in the run saved beside this meta (its slot's run save), if any. */
   _lordsInSavedRun() {
+    return lordNamesInRun(this._readSavedRun());
+  }
+
+  /** The run saved beside this meta (its slot's run save), or null. */
+  _readSavedRun() {
     const slot = /^emblem_rogue_slot_(\d+)_meta$/.exec(this.storageKey)?.[1];
     const runKey = slot
       ? `emblem_rogue_slot_${slot}_run`
       : this.storageKey === DEFAULT_STORAGE_KEY
         ? 'emblem_rogue_run_save'
         : null;
-    if (!runKey) return [];
+    if (!runKey) return null;
     try {
-      return lordNamesInRun(JSON.parse(localStorage.getItem(runKey) || 'null'));
+      return JSON.parse(localStorage.getItem(runKey) || 'null');
     } catch (_) {
-      return [];
+      return null;
     }
   }
 
@@ -918,6 +940,33 @@ export class MetaProgressionManager {
     const merged = mergeLordNames(this.lordsMet, names);
     if (merged.length === this.lordsMet.length) return false;
     this.lordsMet = merged;
+    this._save();
+    return true;
+  }
+
+  /** Has this save met the item (by catalog name) / skill (by id)? */
+  hasSeenItem(name) {
+    return this.itemsSeen.includes(name);
+  }
+
+  hasSeenSkill(id) {
+    return this.skillsSeen.includes(id);
+  }
+
+  /**
+   * Remember items and skills the save has met (`{ items, skills }`; idempotent, saves
+   * only when one is new).
+   * @returns {boolean} whether anything was new
+   */
+  recordDiscoveries(found) {
+    const merged = mergeDiscoveries({ items: this.itemsSeen, skills: this.skillsSeen }, found);
+    if (
+      merged.items.length === this.itemsSeen.length &&
+      merged.skills.length === this.skillsSeen.length
+    )
+      return false;
+    this.itemsSeen = merged.items;
+    this.skillsSeen = merged.skills;
     this._save();
     return true;
   }
@@ -1568,6 +1617,8 @@ export class MetaProgressionManager {
     this.skillAssignments = {};
     this.lordSelection = { ...DEFAULT_LORD_SELECTION };
     this.lordsMet = [...ALWAYS_MET_LORD_NAMES];
+    this.itemsSeen = [];
+    this.skillsSeen = [];
     this.milestones = new Set();
     this.storyFlags = defaultStoryFlags();
     this.prologue = defaultPrologueState();
@@ -1678,6 +1729,12 @@ export class MetaProgressionManager {
     );
     this.deedsEarned = mergeDeedIds(this.deedsEarned, disk.deedsEarned);
     this.lordsMet = mergeLordNames(this.lordsMet, lordsMetOfMetaSave(disk));
+    const seen = mergeDiscoveries(
+      { items: this.itemsSeen, skills: this.skillsSeen },
+      discoveriesOfMetaSave(disk),
+    );
+    this.itemsSeen = seen.items;
+    this.skillsSeen = seen.skills;
     if (disk.storyFlags && typeof disk.storyFlags === 'object') {
       const diskFlags = normalizeStoryFlags(disk.storyFlags);
       // Counters are monotonic, so per-name max can only over-remember —
@@ -1779,6 +1836,8 @@ export class MetaProgressionManager {
       seenDialogueKeys: this.seenDialogueKeys,
       deedsEarned: this.deedsEarned,
       lordsMet: this.lordsMet,
+      itemsSeen: this.itemsSeen,
+      skillsSeen: this.skillsSeen,
       hintState: this.hintState,
       prologue: this.prologue,
       savedAt: this.savedAt,
@@ -1816,6 +1875,8 @@ export class MetaProgressionManager {
       seenDialogueKeys: this.seenDialogueKeys,
       deedsEarned: this.deedsEarned,
       lordsMet: this.lordsMet,
+      itemsSeen: this.itemsSeen,
+      skillsSeen: this.skillsSeen,
       hintState: this.hintState,
       prologue: normalizePrologueState(this.prologue),
       savedAt: this.savedAt,
