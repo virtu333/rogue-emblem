@@ -2,6 +2,12 @@ import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 import { routeMobileAction } from '../utils/overlayStack.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { MobileHomeBase } from '../ui/MobileHomeBase.js';
+import {
+  isRepeatableUpgrade,
+  upgradeEffectAtLevel,
+  upgradeMaxedAt,
+  upgradeTierCost,
+} from '../engine/RepeatableUpgrades.js';
 import { inputHint } from '../utils/inputHint.js';
 // HomeBaseScene — Meta-progression upgrade shop with tabbed UI
 
@@ -922,12 +928,16 @@ export class HomeBaseScene extends Phaser.Scene {
           const isNext = tierIndex === level;
           const status = owned ? ' (Owned)' : isNext ? ' (Next)' : '';
           const effect = this._formatEffectValue(upgrade.effects[tierIndex]);
-          const cost = upgrade.costs?.[tierIndex];
+          const cost = upgradeTierCost(upgrade, tierNum);
           const currency = this.meta.getCurrencyForUpgrade(upgrade.id);
           const suffix = currency === 'valor' ? 'V' : 'S';
           const costLine =
             cost != null ? (owned ? `Paid: ${cost}${suffix}` : `Cost: ${cost}${suffix}`) : '';
-          const lines = [`Tier ${tierNum}/${maxLevel}${status}`, effect, costLine].filter(Boolean);
+          // A repeatable upgrade has no last tier: its listed tiers read without "/ max".
+          const tierLabel = isRepeatableUpgrade(upgrade)
+            ? `Tier ${tierNum}`
+            : `Tier ${tierNum}/${maxLevel}`;
+          const lines = [`${tierLabel}${status}`, effect, costLine].filter(Boolean);
           const tipText = lines.join('\n');
 
           const tipH = lines.length * 12 + 8; // ~12px per line + padding
@@ -982,7 +992,7 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.extraVulnerary !== undefined) return `+${effect.extraVulnerary}`;
     if (effect.vulneraryUses !== undefined) return `${effect.vulneraryUses} uses`;
     if (effect.rewardRerolls !== undefined)
-      return `${effect.rewardRerolls} reward ${effect.rewardRerolls === 1 ? 'reroll' : 'rerolls'} per run`;
+      return `${effect.rewardRerolls} ${effect.rewardRerolls === 1 ? 'reroll' : 'rerolls'} per run: battle rewards or level-ups`;
     if (effect.lootWeaponQualityBonus !== undefined) return `+${effect.lootWeaponQualityBonus}%`;
     if (effect.lootWeaponWeightBonus !== undefined) return `+${effect.lootWeaponWeightBonus}%`;
     if (effect.lootCategoryWeightBonuses !== undefined) {
@@ -1050,10 +1060,11 @@ export class HomeBaseScene extends Phaser.Scene {
   }
 
   _getValueTexts(upgrade, level) {
+    // A repeatable upgrade's tiers past its list continue it (RepeatableUpgrades.js).
     const format = (tier) =>
-      this._formatEffectValue(upgrade.effects?.[tier - 1] || {}) || `Tier ${tier}`;
+      this._formatEffectValue(upgradeEffectAtLevel(upgrade, tier) || {}) || `Tier ${tier}`;
     const current = level > 0 ? format(level) : null;
-    const next = level < upgrade.maxLevel ? format(level + 1) : null;
+    const next = !upgradeMaxedAt(upgrade, level) ? format(level + 1) : null;
     return { current, next };
   }
 
@@ -1113,7 +1124,7 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.battleGoldMultiplier !== undefined) return 'Battle gold bonus';
     if (effect.extraVulnerary !== undefined) return 'Starting Vulnerary';
     if (effect.vulneraryUses !== undefined) return 'Uses per Vulnerary';
-    if (effect.rewardRerolls !== undefined) return 'Reroll battle loot before the first pick';
+    if (effect.rewardRerolls !== undefined) return 'Reroll battle loot or a level-up';
     if (effect.lootCategoryWeightBonuses !== undefined) {
       const desc = this._getLootCategoryBonusesDesc(effect.lootCategoryWeightBonuses);
       if (desc) return desc;

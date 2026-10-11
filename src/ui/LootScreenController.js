@@ -12,6 +12,7 @@ import { inputHint } from '../utils/inputHint.js';
  * Static methods handle sub-picker rendering and pure text helpers.
  * All flow methods (finalizeLootPick, cleanupLootScreen, etc.) stay on BattleScene.
  */
+import { ownedLegendaryNames } from '../engine/LegendaryOwnership.js';
 import { generateLootChoices, calculateSkipLootBonus } from '../engine/LootSystem.js';
 import {
   addToInventory,
@@ -207,7 +208,11 @@ export class LootScreenController {
       null,
       ctx.isElite,
       runManager.getWeaponArtSpawnConfig(),
-      { lootCategoryWeightBonuses: metaLootBonuses, imbues: gameData.imbues || null },
+      {
+        lootCategoryWeightBonuses: metaLootBonuses,
+        imbues: gameData.imbues || null,
+        excludeLegendaryNames: [...ownedLegendaryNames(runManager)],
+      },
     );
 
     // Skip bonus gold

@@ -58,6 +58,8 @@ export const XP_BASE_DANCE = 20;
 export const XP_BASE_HEAL = 20;
 export const XP_SPECIAL_ENEMY_MULTIPLIER = 1.3;
 export const XP_LEVEL_DIFF_SCALE = 5;
+// Most levels a stronger foe can add to an underdog's XP (difficulty.json `xpUnderdogCap` per rung).
+export const XP_UNDERDOG_CAP = 6;
 export const XP_LEVEL_DIFF_STEEP = 8; // Steep XP penalty per level for advantage 4-6
 export const XP_MIN = 1;
 // A player unit that is attacked and survives earns at least this much combat XP

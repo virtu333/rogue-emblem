@@ -141,6 +141,9 @@ describe('the promotion chooser asks which Oath', () => {
       gameData: data,
     });
     const options = () => dom.doc.querySelectorAll('.gr-oath-option');
+    // Folded to the Oath it will swear until the player opens the picker.
+    expect(options()).toHaveLength(0);
+    dom.doc.querySelector('.gr-oath-toggle').click();
     expect(options().map((b) => b.textContent)).toEqual([
       'Oath of the Bridge · Pavise',
       'Oath of the Edge · Critical +15',
@@ -148,7 +151,9 @@ describe('the promotion chooser asks which Oath', () => {
     expect(options()[0].getAttribute('aria-pressed')).toBe('true');
     options()[1].click();
     expect(unit.deeds.pledge).toBe('keen_edge');
-    // The order stays put; the pressed one moves.
+    // The pick folds the picker; reopened, the order stays put and the pressed one moves.
+    expect(options()).toHaveLength(0);
+    dom.doc.querySelector('.gr-oath-toggle').click();
     expect(options().map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'true']);
     const cards = dom.doc.querySelectorAll('.gr-path-oath');
     expect(cards).toHaveLength(targets.length);
@@ -182,6 +187,7 @@ describe('the promotion chooser asks which Oath', () => {
     chooser.selected = targets.find((c) => c.name === 'Duelist');
     chooser.render();
     expect(dom.doc.querySelector('.gr-oath-note')).toBeNull();
+    dom.doc.querySelector('.gr-oath-toggle').click();
     const pressed = dom.doc
       .querySelectorAll('.gr-oath-option')
       .filter((b) => b.getAttribute('aria-pressed') === 'true');

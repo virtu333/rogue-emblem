@@ -184,6 +184,7 @@
         "open-roll.spec.js",
         "reward-reload.spec.js",
         "reward-reroll.spec.js",
+        "levelup-reroll.spec.js",
         "rewards-desktop.spec.js",
         "run-recovery.spec.js",
         "ruins-choice.spec.js",
@@ -195,7 +196,8 @@
         "seers-eye-preview.spec.js",
         "colosseum-earned-offer.spec.js",
         "earned-twist.spec.js",
-        "start-gift.spec.js"
+        "start-gift.spec.js",
+        "village-ambush.spec.js"
       ]
     },
     {

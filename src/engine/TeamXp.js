@@ -6,16 +6,21 @@ import { gainExperience, checkLevelUpSkills, skillGateLevels } from './UnitManag
 
 /**
  * Give xpAmount to every unit in the roster and teach any class skill now due.
- * @returns {Array<{ unit, fromLevel, toLevel, gains, learned: string[], blocked: string[] }>}
+ * @returns {Array<{ unit, fromLevel, toLevel, gains, levelUps: object[], learned: string[],
+ *   blocked: string[] }>}
  *   one entry per unit that levelled up or learned a skill (skill ids, in the order
- *   learned/refused).
+ *   learned/refused); `levelUps` are the level-up records themselves (a Branching Threads
+ *   reroll rewrites one in place: recount `gains` with teamXpGains).
  */
 export function awardTeamXp(roster, xpAmount, classesData = [], options = {}) {
   const report = [];
   if (!xpAmount) return report;
   for (const unit of roster || []) {
     const fromLevel = unit.level;
-    const { levelUps } = gainExperience(unit, xpAmount, options);
+    const { levelUps } = gainExperience(unit, xpAmount, {
+      ...options,
+      guard: unit?.faction === 'player',
+    });
     const dropped = [];
     const learned = checkLevelUpSkills(unit, classesData, dropped);
     if (!levelUps.length && !learned.length) continue;
@@ -23,19 +28,25 @@ export function awardTeamXp(roster, xpAmount, classesData = [], options = {}) {
     // (one that was already refused earlier is retried silently).
     const reached = new Set(levelUps.map((lv) => lv.newLevel));
     const gates = skillGateLevels(unit, classesData);
-    const gains = {};
-    for (const lv of levelUps)
-      for (const [stat, n] of Object.entries(lv.gains || {})) gains[stat] = (gains[stat] || 0) + n;
     report.push({
       unit,
       fromLevel,
       toLevel: unit.level,
-      gains,
+      gains: teamXpGains(levelUps),
+      levelUps,
       learned,
       blocked: dropped.filter((id) => reached.has(gates.get(id))),
     });
   }
   return report;
+}
+
+/** The stats a unit's Team XP levels gave, summed over its level-up records. */
+export function teamXpGains(levelUps) {
+  const gains = {};
+  for (const lv of levelUps || [])
+    for (const [stat, n] of Object.entries(lv.gains || {})) gains[stat] = (gains[stat] || 0) + n;
+  return gains;
 }
 
 /** One line per unit, e.g. "Kira: Lv 9 → 10 (+1 HP, +1 SPD). Learned Vantage." */

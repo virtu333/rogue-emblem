@@ -276,6 +276,8 @@ import {
   battleGenerationSeed,
   deriveNodeBattleSeed,
   generateSeededBattle,
+  openingBattleStreamSeed,
+  PINNED_BATTLE_STREAM_KEY,
 } from '../engine/BattleScout.js';
 import {
   computeAcidDamage,
@@ -2587,10 +2589,18 @@ export class BattleScene extends Phaser.Scene {
   }
 
   installBattleRng() {
-    const fallbackSeed = this.deriveBattleSeed();
-    const currentSeed = Number.isFinite(this.runManager?.rngSeed)
-      ? this.runManager.rngSeed >>> 0
-      : fallbackSeed >>> 0;
+    // The one rule is engine/BattleScout.js openingBattleStreamSeed: a fresh battle of a
+    // standard run opens on its own node's stream (written to the run before
+    // beginBattleInProgress records `rngSeedAtEntry`); a resume and the prologue run keep the
+    // run's seed.
+    const currentSeed = openingBattleStreamSeed({
+      runManager: this.runManager,
+      resume: Boolean(this._resumeCheckpoint),
+      pinned: this.registry?.get?.(PINNED_BATTLE_STREAM_KEY) === true,
+      act: this.battleParams?.act ?? this.runManager?.currentAct ?? null,
+      nodeId: this.nodeId,
+      fallbackSeed: this.deriveBattleSeed(),
+    });
     if (this.runManager) this.runManager.rngSeed = currentSeed;
     this.visionBaseSeed = currentSeed;
     const prevRandom = Math.random;
@@ -2662,7 +2672,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   getEnemyXpMultiplier(enemyUnit) {
-    return enemyXpMultiplier(enemyUnit);
+    return enemyXpMultiplier(enemyUnit, this.battleParams?.specialXpMultiplier);
   }
 
   buildReinforcementSpawnSpec(scheduledSpawn, spawnOrdinal = 0) {
@@ -9080,6 +9090,7 @@ export class BattleScene extends Phaser.Scene {
       // Training Doctrine meta upgrade: non-lord units earn bonus combat XP.
       recruitXpBonus: Number(this.runManager?.metaEffects?.recruitXpBonus) || 0,
       allies: this.playerUnits || [],
+      underdogCap: this.battleParams?.xpUnderdogCap,
     });
     for (const award of awards) {
       // The scene may have shut down while a level-up popup was showing.
@@ -9824,9 +9835,9 @@ export class BattleScene extends Phaser.Scene {
       // A contact (Grid.revealContact) lasts the player phase it was made in: the foes move now.
       if (this.grid?.clearContacts?.()) revealSettledVision(this);
       this._prologue?.onPhaseStart('enemy', turn);
-      // Siege casters take their stance from the board the player left, before any
-      // phase-start blow (hazards, ballistas) can empty a ring Danger drew (SiegeArtillery).
-      settleArtilleryStances({ enemyUnits: this.enemyUnits, playerUnits: this.playerUnits, turn });
+      // Siege and staff casters take their post-holding stance before any phase-start
+      // blow (hazards, ballistas) can change what they carry (SiegeArtillery).
+      settleArtilleryStances({ enemyUnits: this.enemyUnits, turn });
       // A fresh enemy phase (including one replayed after a Vision rewind)
       // has not applied its reinforcements yet.
       this._enemyPhaseReinforcedTurn = null;

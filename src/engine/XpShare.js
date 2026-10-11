@@ -50,10 +50,17 @@ export function getXpShareRecipients(holder, allies) {
  * multiplier (enemy reward/turn-pressure/chip-damage scaling — whatever the
  * caller applied to the holder's own base XP). Floors at 1.
  */
-export function calculateSharedXp(ally, opponent, opponentDied, ratio, multiplier = 1) {
+export function calculateSharedXp(
+  ally,
+  opponent,
+  opponentDied,
+  ratio,
+  multiplier = 1,
+  { underdogCap } = {},
+) {
   const shareRatio = Number(ratio);
   if (!Number.isFinite(shareRatio) || shareRatio <= 0) return 0;
   const contextMultiplier = Number.isFinite(Number(multiplier)) ? Number(multiplier) : 1;
-  const baseXp = calculateCombatXP(ally, opponent, opponentDied);
+  const baseXp = calculateCombatXP(ally, opponent, opponentDied, { underdogCap });
   return Math.max(1, Math.floor(baseXp * shareRatio * contextMultiplier));
 }

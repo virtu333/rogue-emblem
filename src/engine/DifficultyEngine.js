@@ -95,6 +95,8 @@ export const DIFFICULTY_REQUIRED_KEYS = [
   'lootQualityShift',
   'deployLimitBonus',
   'xpMultiplier',
+  'specialXpMultiplier',
+  'xpUnderdogCap',
   'fogChanceBonus',
   'villageAmbushChance',
   'reinforcementTurnOffset',
@@ -135,6 +137,9 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   lootQualityShift: 0,
   deployLimitBonus: 0,
   xpMultiplier: 1,
+  // Boss and elite kills pay this much more XP; a stronger foe adds at most `xpUnderdogCap` levels.
+  specialXpMultiplier: 1.3,
+  xpUnderdogCap: 6,
   fogChanceBonus: 0,
   villageAmbushChance: 0,
   reinforcementTurnOffset: 0,
@@ -224,6 +229,16 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
   }
   if (mode.xpMultiplier !== (defaults.xpMultiplier ?? 1) && mode.xpMultiplier < 1) {
     lines.push(`${Math.round(mode.xpMultiplier * 100)}% XP earned`);
+  }
+  if (mode.specialXpMultiplier < (defaults.specialXpMultiplier ?? 1.3)) {
+    lines.push(
+      mode.specialXpMultiplier > 1
+        ? `Boss and elite XP bonus +${Math.round((mode.specialXpMultiplier - 1) * 100)}%`
+        : 'No boss or elite XP bonus',
+    );
+  }
+  if (mode.xpUnderdogCap < (defaults.xpUnderdogCap ?? 6)) {
+    lines.push(`Stronger foes add at most +${mode.xpUnderdogCap} levels to XP`);
   }
   if (mode.fogChanceBonus > (defaults.fogChanceBonus || 0)) {
     lines.push(`+${Math.round(mode.fogChanceBonus * 100)}% fog chance`);
@@ -379,6 +394,19 @@ export function validateDifficultyConfig(config) {
         mode.recruitAffixExcludedActs.some((act) => !ENEMY_ACT_GATE_ORDER.includes(act)))
     ) {
       errors.push(`modes.${difficultyId}.recruitAffixExcludedActs must be an array of act ids`);
+    }
+
+    if (
+      mode.specialXpMultiplier !== undefined &&
+      !(Number.isFinite(mode.specialXpMultiplier) && mode.specialXpMultiplier >= 1)
+    ) {
+      errors.push(`modes.${difficultyId}.specialXpMultiplier must be a number >= 1`);
+    }
+    if (
+      mode.xpUnderdogCap !== undefined &&
+      (!Number.isInteger(mode.xpUnderdogCap) || mode.xpUnderdogCap < 0)
+    ) {
+      errors.push(`modes.${difficultyId}.xpUnderdogCap must be a non-negative integer`);
     }
 
     for (const key of DIFFICULTY_REQUIRED_KEYS) {

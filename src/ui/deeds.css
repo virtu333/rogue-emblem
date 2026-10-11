@@ -467,6 +467,83 @@
   box-shadow: inset 3px 0 var(--re-accent);
 }
 
+/* The folds (ui/disclosure.js): a unit's other deeds and the Oaths open to it stay
+   one line until the player opens them. The whole row is the button. */
+.re-disclosure {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  text-align: left;
+}
+.re-disclosure-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.re-disclosure-chevron {
+  flex: none;
+  display: inline-block;
+  color: var(--re-accent-text);
+  transition: transform 120ms ease-out;
+}
+.re-disclosure[aria-expanded='true'] .re-disclosure-chevron {
+  transform: rotate(90deg);
+}
+.re-disclosure-label {
+  min-width: 0;
+  font-weight: 600;
+}
+.re-disclosure-count {
+  flex: none;
+  min-width: 1.6em;
+  padding: 0 5px;
+  border: 1px solid var(--re-line);
+  border-radius: 2px;
+  font-size: 12px;
+  text-align: center;
+  color: var(--re-muted);
+}
+/* Two lines at most: the open list says it in full. */
+.re-disclosure-preview {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  padding-left: calc(1ch + 8px);
+  font: italic 500 12px / 1.35 var(--re-body);
+  color: var(--re-accent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .re-disclosure-chevron {
+    transition: none;
+  }
+}
+.mr-deed-fold {
+  margin: 0 0 10px;
+}
+.mr-sheet button.mr-deed-toggle {
+  width: 100%;
+  margin: 0;
+  background: var(--re-panel-raised);
+}
+.mr-deed-fold .mr-card.mr-deed {
+  margin: 6px 0 0 12px;
+}
+.mr-deed-mode {
+  margin: 0 0 10px;
+}
+.mr-card.mr-oath-choice .mr-oath-current {
+  margin: 2px 0;
+  color: var(--re-accent-text);
+  font-weight: 600;
+}
+.mr-card.mr-oath-choice .mr-oath-help {
+  margin: 8px 0 2px;
+}
+
 /* ─────────────────────────────────────────────── Deeds of the March */
 .re-deeds-march {
   margin: 10px 0;
