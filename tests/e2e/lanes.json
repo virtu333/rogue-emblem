@@ -100,7 +100,8 @@
         "portrait-prologue.spec.js",
         "portrait-seers-eye.spec.js",
         "portrait-start-gift.spec.js",
-        "portrait-descent-rite.spec.js"
+        "portrait-descent-rite.spec.js",
+        "portrait-descent-acceptance.spec.js"
       ],
       "shards": 6
     },
