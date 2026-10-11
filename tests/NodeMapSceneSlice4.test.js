@@ -1297,6 +1297,39 @@ describe('NodeMapScene Slice 4', () => {
     });
   });
 
+  it('the Merchant Caravan waits for its battle rewards, then opens', () => {
+    const scene = {
+      isSceneReady: true,
+      runManager: {
+        pendingBattleReward: { nodeId: 'battle-3' },
+        pendingBossRecruit: null,
+        pendingThirdLord: null,
+        getPendingCaravanShop: vi.fn(() => ({ actId: 'act2' })),
+      },
+      handleShop: vi.fn(),
+    };
+    const open = () => NodeMapScene.prototype._maybeOpenPendingCaravanShop.call(scene);
+
+    // Rewards still owed (a reload, or "View map" on the loot screen): nothing opens.
+    expect(open()).toBe(false);
+    scene.runManager.pendingBattleReward = null;
+    scene.runManager.pendingThirdLord = { name: 'Kira' };
+    expect(open()).toBe(false);
+    scene.runManager.pendingThirdLord = null;
+    scene.runManager.pendingBossRecruit = { candidates: [] };
+    expect(open()).toBe(false);
+    scene.runManager.pendingBossRecruit = null;
+    // Nor over a page already open: an earned pick, the route map's rewards, a recruit resume.
+    for (const key of ['_earnedPick', '_pendingRewards', '_bossRecruitResume']) {
+      scene[key] = {};
+      expect(open()).toBe(false);
+      scene[key] = null;
+    }
+    expect(scene.handleShop).not.toHaveBeenCalled();
+    expect(open()).toBe(true);
+    expect(scene.handleShop).toHaveBeenCalledWith(null, { caravan: true, caravanActId: 'act2' });
+  });
+
   it('onNodeClick derives pendingAmbush from pending-node state, not isAmbush flag', () => {
     const node = { id: 'shop-1', type: NODE_TYPES.SHOP, isAmbush: true, ambushCleared: true };
     const scene = {
