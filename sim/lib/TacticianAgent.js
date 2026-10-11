@@ -42,7 +42,7 @@ import {
 import { hitProbability } from '../../src/engine/HitRoll.js';
 import { getCombatWeapons } from '../../src/engine/UnitManager.js';
 import { enemyThreatTiles, positionsWithMoverAt } from '../../src/engine/ThreatForecast.js';
-import { artilleryWeapon, plantsAmongPositions } from '../../src/engine/SiegeArtillery.js';
+import { holdsPost } from '../../src/engine/SiegeArtillery.js';
 import { distanceFieldToAdjacent } from './RescueAgent.js';
 import { movementOptionsFor } from '../../src/engine/PassMovement.js';
 import { objectiveTargetUnits } from '../../src/engine/BattleObjectives.js';
@@ -172,8 +172,8 @@ export class TacticianAgent {
   _threats() {
     const b = this.b;
     const out = [];
-    // The Danger overlay's view (BattleScene.threatContext), for siege artillery: whether
-    // it plants depends on where the planning unit ends its move (SiegeArtillery).
+    // The Danger overlay's view (BattleScene.threatContext), for a foe that holds its post
+    // (siege artillery, a status-staff caster: SiegeArtillery): it strikes from where it stands.
     let ctx = null;
     let positions = null;
     for (const e of b.enemyUnits) {
@@ -187,7 +187,7 @@ export class TacticianAgent {
         reach.push({ c, r });
       }
       const threat = { e, weapon, reach, range: parseRange(weapon.range) };
-      if (artilleryWeapon(e)) {
+      if (holdsPost(e)) {
         ctx ||= b._playerThreatContext();
         positions ||= ctx.positions();
         Object.assign(threat, { artillery: true, ctx, positions });
@@ -198,14 +198,13 @@ export class TacticianAgent {
   }
 
   /**
-   * Siege artillery, with `unit` moved to `tile`: null when it cannot strike the tile
-   * (ThreatForecast.enemyThreatTiles, as Danger with the move previewed), its post when
-   * it plants there, else undefined (it moves: search its reach as for any foe).
+   * A foe that holds its post, with `unit` moved to `tile`: null when it cannot strike the
+   * tile (ThreatForecast.enemyThreatTiles, as Danger with the move previewed), else its post
+   * (it never walks while it holds it: SiegeArtillery.holdsPost).
    */
   _artilleryStrike(t, unit, tile) {
     const positions = positionsWithMoverAt(t.positions, unit, tile.col, tile.row);
     if (!enemyThreatTiles(t.ctx, t.e, positions).damage.has(key(tile.col, tile.row))) return null;
-    if (!plantsAmongPositions(t.e, positions)) return undefined;
     return { d: gridDistance(t.e.col, t.e.row, tile.col, tile.row), p: { c: t.e.col, r: t.e.row } };
   }
 
