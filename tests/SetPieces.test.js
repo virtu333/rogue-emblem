@@ -180,11 +180,30 @@ describe('buildSetPieceBattle: draws, classes and levels', () => {
     });
   });
 
-  it('a promoted captain takes the promotion base level off, as an elite captain does', () => {
-    expect(captainLevelFor('act1', 6, false)).toBe(6);
-    expect(captainLevelFor('act3', 16, false)).toBe(18);
-    expect(captainLevelFor('act3', 16, true)).toBe(8);
-    expect(captainLevelFor('act3', 3, true)).toBe(1);
+  it('a captain stands at the range top plus the act’s offset, a spawn level for every tier', () => {
+    expect(captainLevelFor('act1', 6)).toBe(6);
+    expect(captainLevelFor('act3', 16)).toBe(18);
+    expect(captainLevelFor('act3', 0)).toBe(3);
+    // A promoted class is read on the same scale (createPromotedEnemyUnit: the whole level), so
+    // its tier takes nothing off (the old rule took 10, which left a captain under its escort).
+    const setPiece = structuredClone(FIXTURE);
+    setPiece.variants[0].enemies[1].classes = { act1: ['Fighter'], act3: ['General'] };
+    const built = buildSetPieceBattle({
+      setPiece,
+      act: 'act3',
+      levelRange: [3, 6],
+      deployCount: 2,
+      classes: data.classes,
+      terrain: data.terrain,
+      random: scripted([
+        0.9, 0.6, 0.0, 0.1, 0.99, 0.3, 0.3, 0.2, 0.5, 0.4, 0.4, 0.0, 0.0, 0.5, 0.5,
+      ]),
+    });
+    expect(data.classes.find((c) => c.name === 'General').tier).toBe('promoted');
+    expect(built.enemySpawns.find((s) => s.isBoss)).toMatchObject({
+      className: 'General',
+      level: 8,
+    });
   });
 
   it('the mirror flips the map and every unit with it', () => {
