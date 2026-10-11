@@ -102,6 +102,10 @@
         "moveType": { "$ref": "#/$defs/moveType" },
         "weaponProficiencies": { "type": "string" },
         "role": { "type": "string" },
+        "descentOnly": {
+          "type": "boolean",
+          "description": "Act V's alone (engine/DescentSwitch.js): Help and the Compendium leave it out while the Descent is off."
+        },
         "noEnemySkills": {
           "type": "boolean",
           "description": "An enemy of this class never learns a skill (no innate, no rolled combat skill): the Hollowed."
@@ -142,6 +146,10 @@
         "enemyWeapon": {
           "type": "string",
           "description": "An enemy-only weapon (weapons.json, price 0, in no loot table) this class carries in place of the tier pick."
+        },
+        "descentOnly": {
+          "type": "boolean",
+          "description": "Act V's alone (engine/DescentSwitch.js): Help and the Compendium leave it out while the Descent is off."
         },
         "roleChange": {
           "type": "string",

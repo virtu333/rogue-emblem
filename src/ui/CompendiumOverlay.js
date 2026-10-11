@@ -9,15 +9,23 @@ import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 import { consumeEscEvent } from '../utils/escPriority.js';
 import { LORE_TEXT_COLOR } from '../utils/constants.js';
 import {
+  discoveriesAcrossSlots,
   earnedDeedIdsAcrossSlots,
   hasAnySlotMilestone,
   metLordNamesAcrossSlots,
 } from '../engine/SlotManager.js';
 import { metLords } from '../engine/LordsMet.js';
+import {
+  discoveriesInRun,
+  discoveryView,
+  mergeDiscoveries,
+} from '../engine/CompendiumDiscovery.js';
 import { deedReferenceEntries } from './deedReference.js';
+import { LOCKED_LINE, LOCKED_NAME, lockedSummary } from './compendiumLocked.js';
 import { pushOverlay, removeOverlay, isTopOverlay } from '../utils/overlayStack.js';
 import { formatUses, getConsumableDescription } from '../utils/consumableText.js';
 import { getImbueStoneItems } from '../engine/ImbueSystem.js';
+import { isDescentEnabled, isDescentOnly } from '../engine/DescentSwitch.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
 import { BoundingFocusController } from './BoundingFocusController.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
@@ -52,6 +60,9 @@ export const TAB_DEFS = [
   { label: 'Run', key: 'run', filters: ['All', 'Resources', 'Route', 'Rewards'] },
   { label: 'Deeds', key: 'deeds', filters: null },
 ];
+
+// Tabs whose entries fill in as the save meets them (engine/CompendiumDiscovery.js).
+const DISCOVERY_TABS = new Set(['weapons', 'items', 'skills']);
 
 const SKILL_FILTER_MAP = {
   Passive: 'passive',
@@ -130,6 +141,8 @@ export class CompendiumOverlay {
     this._foesItems = null;
     this._deedsItems = null;
     this._lordsItems = null;
+    // What this save has met (items and skills), read once per show().
+    this._discovery = null;
 
     // Gamepad/keyboard focus: a ring on the active tab. The overlay pushes one
     // input-focus scope (LIFO) on show and pops it on hide, so the pad drives it on
@@ -147,6 +160,7 @@ export class CompendiumOverlay {
       this._foesItems = null;
       this._deedsItems = null;
       this._lordsItems = null;
+      this._discovery = null;
       this.domMenu = new ReferenceMenu(
         this.scene,
         'Compendium',
@@ -165,6 +179,7 @@ export class CompendiumOverlay {
     this._foesItems = null;
     this._deedsItems = null;
     this._lordsItems = null;
+    this._discovery = null;
     this._buildSearchIndex();
     this._draw();
     this._setupFocus();
@@ -262,6 +277,41 @@ export class CompendiumOverlay {
     this.hide();
   }
 
+  /**
+   * What this save has met: every slot's lists and runs, the open save's lists and the
+   * run in play (so what was met a moment ago shows at once). Memoized per show().
+   */
+  _discoveryView() {
+    if (this._discovery) return this._discovery;
+    const meta = this.scene?.registry?.get?.('meta');
+    const found = mergeDiscoveries(
+      discoveriesAcrossSlots(),
+      { items: meta?.itemsSeen, skills: meta?.skillsSeen },
+      discoveriesInRun(this.scene?.runManager),
+    );
+    this._discovery = discoveryView(found);
+    return this._discovery;
+  }
+
+  _tabKeyFor(tabIndex) {
+    return TAB_DEFS[tabIndex]?.key ?? null;
+  }
+
+  /** Is this entry of the tab `key` still "???" (not yet met on any save)? */
+  _isLocked(key, item) {
+    if (!DISCOVERY_TABS.has(key) || !item) return false;
+    const view = this._discoveryView();
+    return key === 'skills' ? !view.isSkillSeen(item) : !view.isItemSeen(item);
+  }
+
+  /** "12 of 40 found": the tab's entries met so far. */
+  _foundCountLine(tabIndex) {
+    const key = TAB_DEFS[tabIndex]?.key;
+    const items = this._getItemsForTab(tabIndex);
+    const found = items.filter((item) => !this._isLocked(key, item)).length;
+    return `${found} of ${items.length} found.`;
+  }
+
   _itemsPerPage() {
     return PER_PAGE_BY_KEY[TAB_DEFS[this.activeTabIndex].key] ?? ITEMS_PER_PAGE;
   }
@@ -277,13 +327,13 @@ export class CompendiumOverlay {
       case 'stats':
         return statReferenceEntries(gd);
       case 'weapons':
-        return gd.weapons || [];
+        return (gd.weapons || []).filter((w) => this._descentEntryShown('weapons', w));
       case 'skills':
         return gd.skills || [];
       case 'weaponArts':
         return gd.weaponArts?.arts || [];
       case 'classes':
-        return gd.classes || [];
+        return this._shownClasses();
       case 'items':
         return [
           ...(gd.consumables || []),
@@ -310,6 +360,25 @@ export class CompendiumOverlay {
     }
   }
 
+  /**
+   * Is a Descent-only entry (engine/DescentSwitch.js) listed? Not while the Descent is dark,
+   * unless this save has already met it: a weapon, once its name is in the discovery view;
+   * a class, once its own `enemyWeapon` (the Circle Adept's Greycord) is. A class with no
+   * weapon of its own has no record of being met and stays out.
+   */
+  _descentEntryShown(key, item) {
+    if (!isDescentOnly(item) || isDescentEnabled(this.gameData)) return true;
+    const view = this._discoveryView();
+    if (key === 'weapons') return view.isItemSeen(item);
+    const weapon = (this.gameData?.weapons || []).find((w) => w.name === item.enemyWeapon);
+    return Boolean(weapon) && view.isItemSeen(weapon);
+  }
+
+  /** The Class tab's (and the bestiary's class half) entries. */
+  _shownClasses() {
+    return (this.gameData?.classes || []).filter((c) => this._descentEntryShown('classes', c));
+  }
+
   // Bestiary entries: all named bosses (act-labelled) followed by every class.
   // Memoized so item identities stay stable across redraws and the search index.
   _getFoesItems() {
@@ -332,7 +401,7 @@ export class CompendiumOverlay {
         bosses.push({ ...boss, _kind: 'boss', _actLabel: actLabel });
       }
     }
-    const classes = (gd?.classes || []).map((c) => ({ ...c, _kind: 'class' }));
+    const classes = this._shownClasses().map((c) => ({ ...c, _kind: 'class' }));
     this._foesItems = [...bosses, ...classes];
     return this._foesItems;
   }
@@ -386,6 +455,8 @@ export class CompendiumOverlay {
         // Classes already index under the Class tab — skip their Foes-tab copies
         // so a class-name search jumps there instead of bouncing to the bestiary.
         if (TAB_DEFS[tabIndex].key === 'foes' && item._kind === 'class') continue;
+        // An entry not yet met is never found by its name or its text.
+        if (this._isLocked(TAB_DEFS[tabIndex].key, item)) continue;
         const parts = [
           item.name || '',
           item.description || '',
@@ -847,6 +918,10 @@ export class CompendiumOverlay {
     for (let i = 0; i < items.length; i++) {
       const y = startY + i * itemGap;
       const item = items[i];
+      if (this._isLocked(def.key, item)) {
+        this._renderLocked(item, y, left, rightX, def.key);
+        continue;
+      }
       switch (def.key) {
         case 'run':
         case 'stats':
@@ -918,6 +993,14 @@ export class CompendiumOverlay {
       this._text(rightX, y + 14, `${item.price || 0}g`, UI_PALETTE.muted, 1);
     }
     this._renderLoreLine(item, y + 28, left);
+  }
+
+  /** An entry not yet met: its place in the list and its kind, nothing more. */
+  _renderLocked(item, y, left, rightX, key) {
+    this._text(left + 25, y, LOCKED_NAME, UI_PALETTE.muted);
+    const kind = lockedSummary(key, item);
+    if (kind) this._text(rightX, y, kind, UI_PALETTE.muted, 1);
+    this._text(left + 25, y + 14, LOCKED_LINE, UI_PALETTE.muted);
   }
 
   _renderSkill(item, y, left, rightX) {

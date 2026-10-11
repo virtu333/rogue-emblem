@@ -1,5 +1,5 @@
 import { test, expect, devices } from '@playwright/test';
-import { waitForScene } from './helpers.js';
+import { waitForBattleState, waitForScene } from './helpers.js';
 test.use({ ...devices['iPhone SE'], viewport: { width: 667, height: 375 } });
 
 // Since #79 the reward screen saves its draft (the steps chosen so far) with the
@@ -11,6 +11,7 @@ test('reload mid-forge keeps the completed battle and the unclaimed reward with 
 }) => {
   await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1&battleLab=1');
   await waitForScene(page, 'Battle');
+  await waitForBattleState(page, 'PLAYER_IDLE');
   await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     s.registry.set('activeSlot', 1);
