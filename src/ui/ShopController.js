@@ -240,6 +240,10 @@ export class ShopController {
       scene.runManager.markNodeComplete(node.id);
       this._persistVisit();
       scene.checkActComplete();
+      // A contract reward the freed village's battle earned and could not deliver waits behind
+      // its shop (where the bags can be emptied to make room), as it waits behind an event's page.
+      // Not over an earned pick checkActComplete has just opened (the pick comes back here).
+      if (!scene._earnedPick) scene._maybeOpenPendingContractSettlement?.();
     }
   }
 
