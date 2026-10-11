@@ -15,7 +15,7 @@ import { CONSUMABLE_MAX, INVENTORY_MAX, MAX_SKILLS, XP_STAT_NAMES } from '../uti
 //               accessory, skills (ids), deeds (ids, title first)
 //   fallen[]: identity + tally + fellAt {act, battle}
 // Identity: name, className, level, isLord, specialCharId, tier, portraitVariant,
-// epithet, epithetForm. Detail is kept on the newest DETAILED_RUN_RECORDS of a slot;
+// portraitFaceClass (the class a reclassed unit's face is drawn in), epithet, epithetForm. Detail is kept on the newest DETAILED_RUN_RECORDS of a slot;
 // older records are trimmed to identity + tally (deterministic and idempotent).
 
 export const RUN_RECORD_VERSION = 2;
@@ -115,6 +115,10 @@ function cleanIdentity(u) {
     ...(u.tier === 'promoted' ? { tier: 'promoted' } : {}),
     ...(typeof u.portraitVariant === 'string' && /^[a-z0-9_]{1,64}$/.test(u.portraitVariant)
       ? { portraitVariant: u.portraitVariant }
+      : {}),
+    // The class a unit sealed out of its person's line still wears the face of.
+    ...(typeof u.portraitFaceClass === 'string' && /^[A-Za-z' -]{1,40}$/.test(u.portraitFaceClass)
+      ? { portraitFaceClass: u.portraitFaceClass }
       : {}),
   };
 }
@@ -276,6 +280,7 @@ function unitIdentity(unit) {
     specialCharId: unit.specialCharId,
     tier: unit.tier,
     portraitVariant: unit.portraitVariant, // the face the unit wore (portrait variety)
+    portraitFaceClass: unit.portraitFaceClass, // set after a reclass across lines
     ...(epithet ? { epithet: epithet.text, epithetForm: epithet.form } : {}),
   };
 }

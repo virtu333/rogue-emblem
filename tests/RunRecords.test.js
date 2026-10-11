@@ -2,12 +2,16 @@ import { beforeEach, describe, it, expect, vi } from 'vitest';
 import {
   MAX_RECORD_FALLEN,
   fallenForRecord,
+  fallenRecord,
   mergeRunRecords,
+  survivorRecord,
   runRecordsUnderPressure,
 } from '../src/engine/RunRecords.js';
 import { MetaProgressionManager } from '../src/engine/MetaProgressionManager.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { getMetaKey } from '../src/engine/SlotManager.js';
+import { createUnit, promoteUnit, reclassUnit } from '../src/engine/UnitManager.js';
+import { PORTRAIT_VARIANTS, variantPortraitId } from '../src/engine/PortraitVariants.js';
 import { loadGameData } from './testData.js';
 import { mergeRunRecordsV1 } from './fixtures/runRecordsV1.js';
 import {
@@ -573,5 +577,55 @@ describe('victory records content', () => {
       'Eclipse: Umbral · 58 shadow',
       'Seed: unknown',
     ]);
+  });
+});
+
+// ── A reclassed unit's face survives the record ───────────────────────────────
+
+describe('a record keeps the face a reclassed unit wore', () => {
+  const classOf = (name) => data.classes.find((c) => c.name === name);
+  function berserkerSealedToSwordmaster() {
+    const u = createUnit(classOf('Fighter'), 10, data.weapons, { name: 'Ren' });
+    promoteUnit(u, classOf('Berserker'), classOf('Berserker').promotionBonuses || {}, data.skills);
+    u.portraitVariant = 'fighter_a';
+    reclassUnit(u, classOf('Swordmaster'), classOf('Berserker'), data.classes, data.skills);
+    return u;
+  }
+  const berserkerFace = PORTRAIT_VARIANTS.identities.fighter_a.renders.Berserker;
+
+  it('the unit, its survivor record and the merged record resolve to the same drawing', () => {
+    const u = berserkerSealedToSwordmaster();
+    expect(u.portraitFaceClass).toBe('Berserker');
+    expect(variantPortraitId(u)).toBe(berserkerFace);
+    const merged = mergeRunRecords([{ ...record('face-1'), v: 2, roster: [survivorRecord(u)] }]);
+    const entry = merged[0].roster[0];
+    expect(entry.portraitFaceClass).toBe('Berserker');
+    expect(variantPortraitId(entry)).toBe(berserkerFace);
+    // and through a JSON save/load of the merged list
+    const reloaded = mergeRunRecords(JSON.parse(JSON.stringify(merged)));
+    expect(variantPortraitId(reloaded[0].roster[0])).toBe(berserkerFace);
+  });
+
+  it('a fallen unit keeps it too', () => {
+    const u = berserkerSealedToSwordmaster();
+    const merged = mergeRunRecords([{ ...record('face-2'), v: 2, fallen: [fallenRecord(u)] }]);
+    expect(variantPortraitId(merged[0].fallen[0])).toBe(berserkerFace);
+  });
+
+  it('a unit that was never reclassed gains no field, and junk is dropped', () => {
+    const plain = createUnit(classOf('Fighter'), 3, data.weapons, { name: 'Bram' });
+    plain.portraitVariant = 'fighter_b';
+    expect(survivorRecord(plain)).not.toHaveProperty('portraitFaceClass', 'x');
+    const merged = mergeRunRecords([
+      {
+        ...record('face-3'),
+        v: 2,
+        roster: [
+          { ...survivorRecord(plain), portraitFaceClass: '<script>' },
+          { ...survivorRecord(plain), name: 'Two', portraitFaceClass: 42 },
+        ],
+      },
+    ]);
+    for (const entry of merged[0].roster) expect(entry).not.toHaveProperty('portraitFaceClass');
   });
 });
