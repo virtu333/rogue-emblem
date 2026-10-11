@@ -1,6 +1,7 @@
 # Legendary arts rework (and ability slots)
 
-Status: spec, 2026-10-11. Owner decisions in this file are binding. Builds on
+Status: built, 2026-10-11 (slices 1-6 on `claude/elegant-gates-5j5ocs`). Owner decisions in
+this file are binding. Builds on
 `docs/specs/aoe-weapon-arts.md` (area arts, chosen-center strikes, the area pipeline) and
 `docs/specs/phase3.md` 3E (Blink Strike's warp seam).
 
@@ -163,11 +164,30 @@ three abilities benches the overflow once on load, locked skills kept first.
 
 ## 8. Slices
 
-1. Ability slots (done).
+1. Ability slots (built).
 2. `cone` and `arc` shapes with per-tile multipliers; Ruin, Tidebreaker, Hermit's Bow data;
-   display rows; tests.
-3. Starfall's volley (data, display, tests).
-4. `dash` move; Oathblade data; relic migration; tests.
+   display rows; tests (built).
+3. Starfall's volley (data, display, tests) (built).
+4. `dash` move; Oathblade data; relic migration; tests (built).
 5. Leap (`area.leap`): engine centers, AreaTargetingController landing flow, preview,
-   resume, the fog failure; tests and a browser spec.
-6. Help, CHANGELOG, reference regen, the balance test counts.
+   resume, the fog failure; tests (built).
+6. Browser spec (`tests/e2e/legendary-arts.spec.js`, battle-input lane), CHANGELOG, the
+   balance test counts (built).
+
+## 9. As built
+
+- The relic update recognises an old copy by content (Oathblade's "Attacks twice", Starfall
+  Volley innate on a Hermit's Bow), never by a stamp: a copy made after the rework never
+  matches, so no load applies the deltas twice, and a save written back by an older build is
+  fixed on its next load.
+- The dash's landing is previewed in the forecast ("Dash if it hits: N tiles on") and drawn as
+  a line to a ringed tile; a foe the preview says falls frees its tile. As every art with an
+  after-combat effect, Phantom Rush's forecast hides the HP estimate (the fail-closed
+  `weaponArtProjectionSafe` rule).
+- The leap's settle step is `AreaStrike.settleLeap`, called by the scene and the harness. Its
+  prompt reads "Leap: Doom Thrust"; the cursor cycles the landings beside seen foes.
+- The kill-buff mechanism (Annihilate's old body) and the old Doom Thrust (line, then push)
+  have no catalog art now; their tests run on fixtures (`tests/helpers/legacyArts.js`, the
+  kill-buff fixture in `WeaponArtsDeferredClosure.test.js`).
+- Not run locally: `test:sim`, `test:harness` (the AreaStrike harness tests are in the unit
+  run), the sim full-run slices. CI runs them.
