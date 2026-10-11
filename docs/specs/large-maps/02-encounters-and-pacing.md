@@ -599,6 +599,48 @@ array order. Sleeping members are processed as no-ops, with no beat and no check
 (§2.5). Grouping keeps a pod's moves together for the enemy-phase camera (`01`). Legacy
 configs keep array order, so their decisions match the golden record.
 
+### 3.10 As built (PR 2.1)
+
+- **Modules.** `engine/EncounterGroups.js` (groups, state, the check, the validators) and
+  `engine/EncounterTriggers.js` (`danger`, `hurt`, the absolute `turn`, `wakeTriggerErrors`).
+  `AIController.processEnemyPhase` calls `checkEncounters` where it called `wakeHolders`; the
+  scene and the harness hand it the same source (`encounterSourceFor(host)`: the config's and
+  the derived groups, and `host.encounterState`). `HoldActivation.wakeHolders` is deleted;
+  `assignHolders`, `applyHoldSpawn` and `isHolding` stay.
+- **Reason order.** Boss enrage first, then each member of a group in battle order, each
+  member's triggers in slot order: `hurt` (its disturbance), the absolute `turn`, `hurt` (a
+  member fell), `danger`. The first that holds names the reason. This is today's per-member
+  order, so a pack wakes for the same reason it did (`hold`'s record words stay on the unit:
+  `holdWoke` is `threat`, `fallen`, `hurt`, `status`, `moved`, `turn` or `enrage`); the group's
+  record names the trigger kind (`danger`, `hurt`, `turn`, `enrage`).
+- **State** is the subset this PR writes: `{ version: 1, checkedTurn, groups: { <id>: { state,
+  wokeTurn, reason, size } }, fired: {} }`. `contactTurn`, `hostileExchangeTurn` and
+  `objectiveEvents` arrive with the PRs that write them (2.2b). `size` is the pack's
+  `holdPackSize`, else the config group's member count. The unit-level marks stay
+  (`holdCheckedTurn`, `holdDisturbed`, `holdWoke`): an older client resuming the checkpoint
+  reads them.
+- **Generation.** Dusk+ seize/escape packs are written as `hold:<pack>` groups (`danger`,
+  `hurt`, `onWake: hunt`) with `encounterVersion: 1` and each holder's `encounterGroupId`, only
+  on a map that has holders. Set pieces and the prologue write none: their packs are derived
+  at battle time. `tests/EncounterGenerationIdentity.test.js` holds 200 maps per objective
+  (four rungs, four acts) to digests frozen before the PR, encounter fields stripped.
+- **Validation.** `encounterGroupErrors(config)` (ids, members, the spawns agreeing,
+  `dormant`/`awake` only, `hunt` or a start-written `seek` with an anchor on the map, wake
+  kinds this build evaluates at delay 0: an absolute `turn` must say `delay: 0`, since the
+  default for `turn` is 1). `isValidEncounterState(state, enemyUnits)` in
+  `validateBattleState` (§6's checks; members agree with their group's state, a fallen member
+  aside).
+- **Not yet.** The `HoldDisturbance` guard still reads `aiMode: 'hold'` (no dormant member
+  without a hold exists until a writer adds one); §3.9's group order (legacy configs keep array
+  order, and every config is legacy so far); bands, outlines and the inspect line (2.2a).
+- **Parity.** `tests/harness/EncounterParity.test.js`: a golden record (every wake's turn,
+  unit, tile, pack and reason, and each battle's result, action count, initial hash and
+  periodic snapshots) from the build before, over the `Determinism.test.js` scenarios, 40
+  Dusk+ seize/escape battles played by the TacticianAgent, 12 more charged by the
+  ScriptedAgent, and both shipped set pieces on every rung in Acts I–III. Every reason
+  appears in it but `status` and `moved`; `tests/EncounterGroups.test.js` fuzzes 600
+  boards against a frozen copy of `wakeHolders` and reaches all seven.
+
 ## 4. Waves timed by triggers
 
 `battleConfig.reinforcements` gains `triggeredWaves` (written at generation; old configs

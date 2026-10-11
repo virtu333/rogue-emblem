@@ -32,6 +32,7 @@ import {
 import { createScopedLogger } from '../utils/logger.js';
 import { buildRoutLadder } from './RoutLadder.js';
 import { assignHolders, holdShareFor } from './HoldActivation.js';
+import { ENCOUNTER_VERSION, writeHoldEncounterGroups } from './EncounterGroups.js';
 import { revivalStoneKind, revivalStonesFor } from './RevivalStones.js';
 import { mapExtraNecromancer } from './Necromancy.js';
 import { seizeParFloor } from './SeizeParFloor.js';
@@ -507,6 +508,10 @@ export function generateBattleLayout(params, deps) {
     enemySpawns,
   });
 
+  // The hold packs as encounter groups (EncounterGroups.js, spec 02 §3.6), beside the unit-level
+  // hold fields a build without groups still plays. Draws nothing.
+  const encounterGroups = writeHoldEncounterGroups(enemySpawns);
+
   const battleConfig = {
     mapLayout,
     cols,
@@ -542,6 +547,7 @@ export function generateBattleLayout(params, deps) {
     toxicTiles,
     ...reinforcementConfig,
     ...hybridConfig,
+    ...(encounterGroups.length ? { encounterVersion: ENCOUNTER_VERSION, encounterGroups } : {}),
   };
 
   // Debug-only output assertion. Never throws (a throw during BattleScene.create

@@ -21,7 +21,7 @@
 // Player units are protected (HP floors at 1, as in sim:strategy's protected runs) so
 // every run reaches the end; "KOs" counts the hits that would have killed a unit, the
 // price of the style. The harness runs the same anti-turtle clock, boss enrage and
-// hold wake rules as the battle (engine/TurnPressure.js, engine/HoldActivation.js).
+// hold wake rules as the battle (engine/TurnPressure.js, engine/EncounterGroups.js).
 
 import { loadGameData } from '../tests/testData.js';
 import { installSeed, restoreMathRandom } from './lib/SeededRNG.js';

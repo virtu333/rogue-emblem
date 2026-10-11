@@ -37,10 +37,10 @@ function paramsFor(objective, seed) {
 }
 
 function withoutEncounterFields(config) {
-  const { encounterVersion, encounterGroups, ...rest } = config;
+  const { encounterVersion: _version, encounterGroups: _groups, ...rest } = config;
   return {
     ...rest,
-    enemySpawns: (rest.enemySpawns || []).map(({ encounterGroupId, ...spawn }) => spawn),
+    enemySpawns: (rest.enemySpawns || []).map(({ encounterGroupId: _group, ...spawn }) => spawn),
   };
 }
 

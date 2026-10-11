@@ -11,17 +11,13 @@
 //   - a resume, a locked map or an old save changes who holds; arrivals copy a hold;
 //   - the seize par offset is not locked with the map.
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { wakeCheck } from './helpers/encounterCheck.js';
 
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
 
 import { generateBattle } from '../src/engine/MapGenerator.js';
 import { resolveDifficultyMode, validateDifficultyConfig } from '../src/engine/DifficultyEngine.js';
-import {
-  applyHoldSpawn,
-  assignHolders,
-  HOLD_PACK_RADIUS,
-  wakeHolders,
-} from '../src/engine/HoldActivation.js';
+import { applyHoldSpawn, assignHolders, HOLD_PACK_RADIUS } from '../src/engine/HoldActivation.js';
 import { computeDangerTiles } from '../src/engine/ThreatForecast.js';
 import { createPlayerKnowledge } from '../src/engine/PlayerKnowledge.js';
 import { AIController } from '../src/engine/AIController.js';
@@ -192,10 +188,18 @@ describe('who holds', () => {
           ).toBe(false);
           if (oldGuards) replacedGuards++;
           const strip = (spawns) =>
-            spawns.map(({ aiMode, holdPack: _pack, holdPackSize: _size, ...rest }) => ({
-              ...rest,
-              aiMode: aiMode === 'hold' || aiMode === 'guard' ? undefined : aiMode,
-            }));
+            spawns.map(
+              ({
+                aiMode,
+                holdPack: _pack,
+                holdPackSize: _size,
+                encounterGroupId: _group,
+                ...rest
+              }) => ({
+                ...rest,
+                aiMode: aiMode === 'hold' || aiMode === 'guard' ? undefined : aiMode,
+              }),
+            );
           expect(strip(now.enemySpawns), label).toEqual(strip(old.enemySpawns));
         }
       }
@@ -289,7 +293,7 @@ describe('who holds', () => {
     await BattleScene.prototype._processAcidTicks.call(scene, [acid]);
     expect(acid.currentHP).toBeLessThan(20);
     expect([lava.holdDisturbed, acid.holdDisturbed]).toEqual([undefined, undefined]);
-    expect(wakeHolders({ enemyUnits: [lava, acid], playerUnits: [] })).toEqual([]);
+    expect(wakeCheck({ enemyUnits: [lava, acid], playerUnits: [] })).toEqual([]);
     damageUnit(lava, 1); // a blow still counts
     expect(lava.holdDisturbed).toBe('hurt');
   });
@@ -360,7 +364,7 @@ function field({ fog = false, width = 14, height = 7 } = {}) {
   };
   const wake = (playerUnits, opts = {}) => {
     if (fog) grid.updateFogOfWar(playerUnits);
-    return wakeHolders({
+    return wakeCheck({
       enemyUnits: enemies,
       playerUnits,
       threatContext: ctxFor(playerUnits, opts.extra || []),
@@ -438,7 +442,7 @@ describe('when a pack wakes', () => {
       f.grid.visibleSet.delete('8,3');
       const npc = { name: 'Npc', faction: 'npc', isCaravan, col: 8, row: 3, currentHP: 15, stats: { HP: 15 } }; // prettier-ignore
       const knowledge = createPlayerKnowledge({ grid: f.grid, units: [f.hero, ...f.enemies, npc] });
-      const woken = wakeHolders({
+      const woken = wakeCheck({
         enemyUnits: f.enemies,
         playerUnits: [f.hero],
         npcUnits: [npc],
@@ -464,7 +468,7 @@ describe('when a pack wakes', () => {
     f.grid.visibleSet.delete('7,3');
     const hero = { ...f.hero, col: 6, row: 3 };
     const knowledge = createPlayerKnowledge({ grid: f.grid, units: [hero, ...f.enemies, hidden] });
-    const woken = wakeHolders({
+    const woken = wakeCheck({
       enemyUnits: f.enemies,
       playerUnits: [hero],
       threatContext: {
@@ -873,7 +877,7 @@ describe('a pack with a wake turn', () => {
     for (const e of f.enemies) e.holdWakeTurn = wakeTurn;
     // The hero stays far out of every zone: only the clock can wake the pack.
     const run = () =>
-      wakeHolders({
+      wakeCheck({
         enemyUnits: f.enemies,
         playerUnits: [f.hero],
         threatContext: f.ctxFor([f.hero]),
@@ -902,7 +906,7 @@ describe('a pack with a wake turn', () => {
 
   it('a pack with no wake turn still holds on any turn', () => {
     const f = field();
-    const woken = wakeHolders({
+    const woken = wakeCheck({
       enemyUnits: f.enemies,
       playerUnits: [f.hero],
       threatContext: f.ctxFor([f.hero]),

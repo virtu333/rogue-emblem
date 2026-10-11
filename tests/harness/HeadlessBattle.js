@@ -113,6 +113,7 @@ import {
 } from '../../src/engine/StatusConditionSystem.js';
 import { applyEnemySpawnGear, applySpawnLoadout } from '../../src/engine/EnemySpawnGear.js';
 import { applyHoldSpawn } from '../../src/engine/HoldActivation.js';
+import { applyEncounterSpawn, encounterSourceFor } from '../../src/engine/EncounterGroups.js';
 import { registerBattleEntity } from '../../src/engine/BattleEntityIdentity.js';
 import { crumbleFor, isNecromancer, raiseFor, raisers } from '../../src/engine/Necromancy.js';
 import { createPlayerKnowledge } from '../../src/engine/PlayerKnowledge.js';
@@ -289,6 +290,7 @@ export class HeadlessBattle {
     this.appliedHybridOverrideTurns = new Set();
     this.pendingHybridOverrideTiles = [];
     this.lastHybridOverrideResult = null;
+    this.encounterState = null; // as BattleScene (EncounterGroups)
     this._combatRollSession = null;
     this.runManager = options?.runManager ?? null;
     this.stealEnabled = options?.steal === true;
@@ -358,6 +360,7 @@ export class HeadlessBattle {
     this.appliedHybridOverrideTurns = new Set();
     this.pendingHybridOverrideTiles = [];
     this.lastHybridOverrideResult = null;
+    this.encounterState = null; // as BattleScene (EncounterGroups)
     this._combatRollSession = null;
     this._reinforcementsPendingThisTurn = false;
     this._villageState = bc.villageTile ? createVillageState(bc.villageTile) : null;
@@ -504,6 +507,7 @@ export class HeadlessBattle {
     });
     // As BattleScene: holders wake on the Danger tiles of the board the player knows.
     this.aiController.setHoldContext(() => this._playerThreatContext());
+    this.aiController.setEncounterSource(encounterSourceFor(this));
     // Override delay for synchronous execution
     this.aiController._delay = () => Promise.resolve();
 
@@ -1051,6 +1055,7 @@ export class HeadlessBattle {
     if (spawn.aiMode) enemy.aiMode = spawn.aiMode;
     // A garrison holder keeps its post until its pack wakes (HoldActivation).
     applyHoldSpawn(enemy, spawn);
+    applyEncounterSpawn(enemy, spawn);
     if (
       spawn.aiTargetTile &&
       Number.isFinite(spawn.aiTargetTile.col) &&

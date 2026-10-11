@@ -36,7 +36,8 @@ import { ENTITY_PRIMARY_ATTACK_RANGE } from '../utils/constants.js';
 import { isAcidTerrainIndex } from './TerrainHazards.js';
 import { createScopedLogger } from '../utils/logger.js';
 import { setUnitHP } from './UnitHealth.js';
-import { HOLD_AI_MODE, wakeHolders } from './HoldActivation.js';
+import { HOLD_AI_MODE } from './HoldActivation.js';
+import { battleEncounterGroups, checkEncounters } from './EncounterGroups.js';
 import { artilleryWeapon, isArtilleryPlanted, settleArtilleryStances } from './SiegeArtillery.js';
 
 const DEBUG_AI = false;
@@ -73,6 +74,7 @@ export class AIController {
     this.aggressiveMode = false;
     this.bossEnraged = false;
     this.holdContext = null;
+    this.encounterSource = null;
   }
 
   setAggressiveMode(enabled) {
@@ -94,6 +96,16 @@ export class AIController {
   }
 
   /**
+   * Where the encounter check finds the battle's groups and its saved state: a function
+   * returning `{ groups, state }` (EncounterGroups; the state is the battle's own object, which
+   * the check updates in place). Without one, the groups are the hold packs among the enemies
+   * and the state is read from them at each check.
+   */
+  setEncounterSource(provider) {
+    this.encounterSource = typeof provider === 'function' ? provider : null;
+  }
+
+  /**
    * Process all enemy units one at a time.
    * @param {Array} enemyUnits
    * @param {Array} playerUnits
@@ -104,15 +116,18 @@ export class AIController {
    * @returns {Promise<void>}
    */
   async processEnemyPhase(enemyUnits, playerUnits, npcUnits, callbacks) {
-    // Holders whose pack meets a wake rule hunt from this phase on (HoldActivation).
-    // Anti-turtle aggression is not one of the rules.
-    const woken = wakeHolders({
+    // The encounter check (EncounterGroups): a sleeping group that meets a wake trigger hunts
+    // from this phase on. Anti-turtle aggression is not one of the triggers.
+    const source = this.encounterSource?.() || null;
+    const { woken } = checkEncounters({
+      groups: source?.groups || battleEncounterGroups(null, enemyUnits),
+      state: source?.state || null,
       enemyUnits,
       playerUnits,
       npcUnits,
       threatContext: this.holdContext?.() || null,
       bossEnraged: this.bossEnraged,
-      // Once per turn: a phase resumed from a checkpoint skips it (HoldActivation).
+      // Once per turn: a phase resumed from a checkpoint skips it.
       turn: callbacks.turnNumber ?? null,
     });
     if (woken.length) await callbacks.onHoldersWoke?.(woken);
@@ -304,7 +319,7 @@ export class AIController {
     this._equipUsableWeapon(enemy);
     const forceLowestHpTargeting = this._hasAiOverride(enemy, 'target_lowest_hp');
     let returnToPost = false;
-    // A holder stands its post until its pack wakes (HoldActivation), whatever the
+    // A holder stands its post until its group wakes (EncounterGroups), whatever the
     // anti-turtle clock says.
     if (enemy.aiMode === HOLD_AI_MODE)
       return this._finalizeDecision(enemy, { path: null, target: null, reason: 'hold' });
