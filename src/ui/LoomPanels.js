@@ -270,7 +270,9 @@ export function renderLoomCard(card, node, ctx = {}) {
     // Difficulty offset plus the Eclipse's phase / eclipsed-node levels (what
     // RunManager.getBattleParams will actually pass to the battle).
     enemyLevelBonus:
-      (rm?.getDifficultyModifier?.('enemyLevelBonus', 0) ?? 0) +
+      (rm?.getBattleDifficultyModifier?.('enemyLevelBonus', actId, 0) ??
+        rm?.getDifficultyModifier?.('enemyLevelBonus', 0) ??
+        0) +
       (rm?.getEclipseLevelBonus?.(node) ?? 0) +
       (rm?.getBlessingEnemyLevelDelta?.(actId) ?? 0),
     // Fog never applies to a run's first battle (RunManager.getBattleParams).
