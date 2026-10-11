@@ -1280,6 +1280,16 @@ describe('NodeMapScene Slice 4', () => {
     expect(scene.handleShop).not.toHaveBeenCalled();
 
     scene.runManager.pendingThirdLord = null;
+    scene.runManager.pendingBossRecruit = { candidates: [] };
+    expect(open()).toBe(false);
+    scene.runManager.pendingBossRecruit = null;
+    // Nor over a page already open: an earned pick, the route map's rewards, a recruit resume.
+    for (const key of ['_earnedPick', '_pendingRewards', '_bossRecruitResume']) {
+      scene[key] = {};
+      expect(open()).toBe(false);
+      scene[key] = null;
+    }
+    expect(scene.handleShop).not.toHaveBeenCalled();
     expect(open()).toBe(true);
     expect(scene.handleShop).toHaveBeenCalledWith(node, {
       ambushDiscount: true,
@@ -1447,6 +1457,44 @@ describe('NodeMapScene Slice 4', () => {
     NodeMapScene.prototype.leaveShopNode.call(mismatched.scene);
     expect(mismatched.clearAmbushPendingNode).not.toHaveBeenCalled();
     expect(mismatched.scene.runManager.markNodeComplete).toHaveBeenCalledWith('shop-1');
+  });
+
+  it('leaving the freed village opens a contract reward owed there, never over an earned pick', () => {
+    const createScene = ({ pickOpens }) => {
+      const scene = {
+        shopOverlay: [makeDisplayObject()],
+        _shopNode: { id: 'shop-1' },
+        registry: { get: vi.fn(() => null) },
+        closeShopOverlay: vi.fn(() => {
+          scene.shopOverlay = null;
+          scene._shopNode = null;
+        }),
+        runManager: {
+          currentAct: 'act1',
+          markNodeComplete: vi.fn(),
+          getAmbushPendingNode: vi.fn(() => ({ id: 'shop-1' })),
+          clearAmbushPendingNode: vi.fn(),
+        },
+        // checkActComplete may open an owed earned pick (it then comes back here).
+        checkActComplete: vi.fn(() => {
+          if (pickOpens) scene._earnedPick = {};
+        }),
+        _maybeOpenPendingContractSettlement: vi.fn(() => true),
+        _clearPendingAmbushForNode: NodeMapScene.prototype._clearPendingAmbushForNode,
+      };
+      return scene;
+    };
+
+    const plain = createScene({ pickOpens: false });
+    NodeMapScene.prototype.leaveShopNode.call(plain);
+    expect(plain._maybeOpenPendingContractSettlement).toHaveBeenCalledTimes(1);
+    expect(plain.checkActComplete.mock.invocationCallOrder[0]).toBeLessThan(
+      plain._maybeOpenPendingContractSettlement.mock.invocationCallOrder[0],
+    );
+
+    const withPick = createScene({ pickOpens: true });
+    NodeMapScene.prototype.leaveShopNode.call(withPick);
+    expect(withPick._maybeOpenPendingContractSettlement).not.toHaveBeenCalled();
   });
 
   it('leaving a ruins shop saves stock and returns to the hub without completing the node', () => {

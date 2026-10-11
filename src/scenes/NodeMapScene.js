@@ -708,6 +708,9 @@ export class NodeMapScene extends Phaser.Scene {
       this.shopOverlay ||
       this.churchOverlay ||
       this.eventOverlay ||
+      this._earnedPick ||
+      this._pendingRewards ||
+      this._bossRecruitResume ||
       this.rosterOverlay?.visible ||
       this.pauseOverlay?.visible ||
       this.settingsOverlay?.visible
