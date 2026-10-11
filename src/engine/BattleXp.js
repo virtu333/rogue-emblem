@@ -58,6 +58,7 @@ export function combatHpLost(result, side, hpAtStart) {
  * @param {number} p.pressureXpMultiplier late-pressure decay past turn par
  * @param {number} p.recruitXpBonus   Training Doctrine (non-lords only)
  * @param {object[]} p.allies         the player army (Mentor's Band recipients)
+ * @param {number} [p.underdogCap]    the rung's cap on the level bonus for a stronger foe
  * @returns {{ unit: object, baseXp: number, share: boolean }[]}
  */
 export function combatXpAwards({
@@ -71,6 +72,7 @@ export function combatXpAwards({
   pressureXpMultiplier = 1,
   recruitXpBonus = 0,
   allies = [],
+  underdogCap,
 }) {
   if (!unit || opponent?._noXP) return [];
   // Surviving an attacker whose wave pays nothing earns nothing either (no farming a
@@ -81,7 +83,7 @@ export function combatXpAwards({
     survivedAttack && unit.currentHP > 0 && rewardMultiplier > 0 && !isRaisedUnit(opponent)
       ? XP_DEFEND_SURVIVE
       : 0;
-  let baseXp = calculateCombatXP(unit, opponent, opponentDied);
+  let baseXp = calculateCombatXP(unit, opponent, opponentDied, { underdogCap });
   let damageRatio = 1;
   if (!opponentDied && Number.isFinite(damageDealt) && Number.isFinite(opponentHpAtStart)) {
     const safeDamage = Math.max(0, Math.trunc(damageDealt));
@@ -111,6 +113,7 @@ export function combatXpAwards({
         opponentDied,
         ratio,
         damageRatio * rewardMultiplier * pressureXpMultiplier,
+        { underdogCap },
       );
       if (sharedXp > 0) awards.push({ unit: ally, baseXp: sharedXp, share: true });
     }
@@ -200,12 +203,12 @@ function areaXpRates(areaXp) {
  * (the holder, or a Mentor's Band recipient). `perCredit` carries the victim's reward
  * multiplier, turn pressure and Training Doctrine.
  */
-function creditXp(earner, credit, rates, perCredit) {
+function creditXp(earner, credit, rates, perCredit, underdogCap) {
   const victim = credit?.victim;
   const damage = Math.max(0, Math.trunc(Number(credit?.damage) || 0));
   if (!victim || victim._noXP || damage <= 0) return 0;
   const killed = credit.killed === true;
-  let base = calculateCombatXP(earner, victim, killed);
+  let base = calculateCombatXP(earner, victim, killed, { underdogCap });
   if (!killed) base *= Math.min(1, damage / Math.max(1, Math.trunc(Number(credit.hpBefore) || 0)));
   return base * (killed ? rates.killRate : rates.hitRate) * perCredit(victim);
 }
@@ -241,7 +244,8 @@ export function actionXpAwards({
   // With no credits this is exactly combatXpAwards, whatever the opponent (even none).
   if (!primary.opponent && rest.length > 0) {
     // The credit worth the most at the primary rate becomes the primary (first wins ties).
-    const worth = (c) => creditXp(unit, c, { hitRate: 1, killRate: 1 }, rewardMultiplierOf);
+    const worth = (c) =>
+      creditXp(unit, c, { hitRate: 1, killRate: 1 }, rewardMultiplierOf, primary.underdogCap);
     const best = rest.reduce((a, b) => (worth(b) > worth(a) ? b : a));
     rest = rest.filter((c) => c !== best);
     primaryInputs = {
@@ -276,13 +280,19 @@ export function actionXpAwards({
       ? getXpShareRecipients(unit, primary.allies || []).filter((ally) => ally.currentHP > 0)
       : [];
 
-  const own = rest.reduce((sum, c) => sum + creditXp(unit, c, rates, perCreditFor(unit)), 0);
+  const own = rest.reduce(
+    (sum, c) => sum + creditXp(unit, c, rates, perCreditFor(unit), primary.underdogCap),
+    0,
+  );
   add(unit, false, capped(own));
   for (const ally of recipients) {
     // A share uses the recipient's own formula and the holder's context (as Mentor's
     // Band does for the primary: no Training Doctrine of the recipient's own).
     const holderContext = (victim) => rewardMultiplierOf(victim) * pressure;
-    const share = rest.reduce((sum, c) => sum + creditXp(ally, c, rates, holderContext), 0);
+    const share = rest.reduce(
+      (sum, c) => sum + creditXp(ally, c, rates, holderContext, primary.underdogCap),
+      0,
+    );
     add(ally, true, capped(share * ratio));
   }
   return awards;

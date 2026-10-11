@@ -299,14 +299,18 @@ export function enemyRewardMultiplier(unit) {
 }
 
 /**
- * The XP multiplier for fighting an enemy: its reward, × the boss/elite bonus. A raised
+ * The XP multiplier for fighting an enemy: its reward, × the boss/elite bonus (the rung's
+ * `specialXpMultiplier`, default `XP_SPECIAL_ENEMY_MULTIPLIER`). A raised
  * unit pays a quarter (it pays no gold, so its reward multiplier cannot stand in).
  */
-export function enemyXpMultiplier(unit) {
+export function enemyXpMultiplier(unit, specialMultiplier = XP_SPECIAL_ENEMY_MULTIPLIER) {
   if (isRaisedUnit(unit)) return RAISED_XP_MULTIPLIER;
   const rewardMultiplier = enemyRewardMultiplier(unit);
   if (!(unit?.isBoss || unit?.isElite)) return rewardMultiplier;
-  return rewardMultiplier * XP_SPECIAL_ENEMY_MULTIPLIER;
+  const special = Number.isFinite(specialMultiplier)
+    ? Math.max(0, specialMultiplier)
+    : XP_SPECIAL_ENEMY_MULTIPLIER;
+  return rewardMultiplier * special;
 }
 
 /**
