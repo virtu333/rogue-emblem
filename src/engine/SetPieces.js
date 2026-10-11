@@ -62,9 +62,11 @@ const SLOT_KEYS = new Set([
 ]);
 const WAVE_SPAWN_KEYS = new Set(['col', 'row', 'classes', 'level', 'aiMode', 'minRung', 'minAct']);
 
-// Elite captains (and set-piece captains) sit above the act's range by this many levels.
-const CAPTAIN_LEVEL_OFFSET = { act1: 0 };
-const CAPTAIN_DEFAULT_OFFSET = 2;
+// Elite captains (and set-piece captains) sit above the act's range by this many levels: none
+// in Act I, two in Act II, one from Act III on (Act IV, postAct, the finale), where the captain
+// is a promoted class and a promoted level already outweighs a base one.
+const CAPTAIN_LEVEL_OFFSET = { act1: 0, act2: 2 };
+const CAPTAIN_DEFAULT_OFFSET = 1;
 
 /** A hold pack's latest authored wake turn. */
 const MAX_WAKE_TURN = 12;

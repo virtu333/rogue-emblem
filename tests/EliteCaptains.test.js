@@ -4,12 +4,16 @@
 //
 // Captain levels (the second describe): a captain's level is a spawn level like every foe's,
 // which createPromotedEnemyUnit reads as the whole level (the base class to 12, the rest past
-// promotion). Ways this goes wrong:
+// promotion), at the top of the node's rung-adjusted range plus the act's offset: Act I none,
+// Act II two, one from Act III on (the owner's call, 2026-10-11: a promoted captain at +2 made
+// some Act III elites harder than the act's boss). Ways this goes wrong:
 //   - a promoted captain's level is read on the recruits' scale (less 10 promotion levels), so it
 //     spawns under its own escort (an Act III node topping out at 14 fielded a base-level-6 unit
 //     promoted with no promoted levels, against fillers of 10-14);
 //   - a fix that overshoots (12 or 10 added for the tier) puts the captain over the act's boss;
-//   - a fix that touches base classes moves the Act I and II captains, which were right.
+//   - a fix that touches base classes moves the Act I and II captains, which were right;
+//   - the offset is one table for every act after Act I (Act III and on back at +2), or the
+//     finale and postAct fall to some other default.
 import { describe, expect, it } from 'vitest';
 import { generateBattle, eliteCaptains } from '../src/engine/MapGenerator.js';
 import { generateNodeMap } from '../src/engine/NodeMapGenerator.js';
@@ -39,6 +43,10 @@ function seize(params, seed = 7) {
 }
 const throneHolder = (config) => config.enemySpawns.find((e) => e.isBoss);
 
+// The levels a captain stands above its node's range top, act by act (the owner's table, written
+// out here rather than read from SetPieces).
+const CAPTAIN_OFFSET = { act1: 0, act2: 2, act3: 1, act4: 1, postAct: 1, finalBoss: 1 };
+
 describe('elite captains', () => {
   it('every captain names a real class and never an act boss', () => {
     for (const [act, list] of Object.entries(data.enemies.elites)) {
@@ -56,8 +64,8 @@ describe('elite captains', () => {
       const holder = throneHolder(config);
       const captain = data.enemies.elites.act3.find((e) => e.name === holder.name);
       expect(captain, holder.name).toBeTruthy();
-      // Top of range (13) + 2, a spawn level on the one scale every foe uses, whatever the tier.
-      expect(holder.level).toBe(15);
+      // Top of range (13) + 1, a spawn level on the one scale every foe uses, whatever the tier.
+      expect(holder.level).toBe(14);
     }
   });
 
@@ -72,15 +80,26 @@ describe('elite captains', () => {
       }
   });
 
-  it('levels: Act I captains stand at the top of the node’s range; base classes +2 later', () => {
-    const act1 = eliteCaptains(data.enemies, 'act1', [2, 3], data.classes);
-    expect(act1.every((c) => c.level === 3)).toBe(true);
-    const act2 = eliteCaptains(data.enemies, 'act2', [5, 8], data.classes);
-    expect(act2.every((c) => c.level === 10)).toBe(true);
+  it('levels: the node’s range top in Act I, +2 in Act II, +1 from Act III on', () => {
+    const act1 = eliteCaptains(data.enemies, 'act1', [2, 3]);
+    expect(act1.map((c) => c.level)).toEqual(act1.map(() => 3));
+    const act2 = eliteCaptains(data.enemies, 'act2', [5, 8]);
+    expect(act2.map((c) => c.level)).toEqual(act2.map(() => 10));
     // A promoted captain takes nothing off for its tier: Act III's list is all promoted.
-    const act3 = eliteCaptains(data.enemies, 'act3', [10, 14], data.classes);
+    const act3 = eliteCaptains(data.enemies, 'act3', [10, 14]);
     expect(act3.map((c) => classTier(c.className))).toEqual(act3.map(() => 'promoted'));
-    expect(act3.every((c) => c.level === 16)).toBe(true);
+    expect(act3.map((c) => c.level)).toEqual(act3.map(() => 15));
+    const act4 = eliteCaptains(data.enemies, 'act4', [14, 17]);
+    expect(act4.map((c) => c.level)).toEqual(act4.map(() => 18));
+    const postAct = eliteCaptains(data.enemies, 'postAct', [16, 19]);
+    expect(postAct.length).toBeGreaterThan(0);
+    expect(postAct.map((c) => c.level)).toEqual(postAct.map(() => 20));
+    // Every act that lists captains, against the table above.
+    for (const act of Object.keys(data.enemies.elites)) {
+      expect(CAPTAIN_OFFSET[act], act).toBeDefined();
+      for (const c of eliteCaptains(data.enemies, act, [4, 9]))
+        expect(c.level, `${act} ${c.name}`).toBe(9 + CAPTAIN_OFFSET[act]);
+    }
     // An act without captains keeps the boss list (old data, other campaigns).
     expect(eliteCaptains({ bosses: { act9: [{ name: 'X' }] } }, 'act9', [1, 2])).toEqual([
       { name: 'X' },
@@ -188,8 +207,9 @@ describe('elite captain levels: one spawn-level scale for every tier', () => {
             const top = levelRange[1] + modifiers(difficultyId).enemyLevelBonus;
             const { config, holder } = captainAt(act, levelRange, difficultyId, seed);
             expect(classTier(holder.className), where).toBe('promoted');
-            // The rule as written: the top of the node's (rung-adjusted) range plus two.
-            expect(holder.level, where).toBe(top + 2);
+            // The rule as written: the top of the node's (rung-adjusted) range plus one.
+            expect(holder.level, where).toBe(top + CAPTAIN_OFFSET[act]);
+            expect(CAPTAIN_OFFSET[act], where).toBe(1);
             // No foe on the map spawns above the captain who holds it.
             for (const spawn of config.enemySpawns)
               expect(spawn.level, `${where} ${spawn.className}`).toBeLessThanOrEqual(holder.level);
@@ -234,14 +254,12 @@ describe('elite captain levels: one spawn-level scale for every tier', () => {
   });
 
   it('a base-class captain is unchanged: the top of its node’s range (Act I), plus two (Act II)', () => {
-    for (const [act, offset] of [
-      ['act1', 0],
-      ['act2', 2],
-    ])
+    for (const act of ['act1', 'act2'])
       for (const levelRange of eliteSeizeRanges(act))
         for (const difficultyId of DIFFICULTY_IDS) {
           const where = `${act} [${levelRange}] ${difficultyId}`;
           const top = levelRange[1] + modifiers(difficultyId).enemyLevelBonus;
+          const offset = CAPTAIN_OFFSET[act];
           const { holder } = captainAt(act, levelRange, difficultyId);
           expect(classTier(holder.className), where).toBe('base');
           expect(holder.level, where).toBe(top + offset);
@@ -262,9 +280,10 @@ describe('elite captain levels: one spawn-level scale for every tier', () => {
     for (let seed = 1; seed <= 8; seed++) {
       const late = generateSeededBattle(params('act3', [10, 14]), data, seed);
       const revenant = late.enemySpawns.find((s) => s.isBoss);
-      expect(revenant).toMatchObject({ className: 'Revenant', level: 16 });
+      // Range top 14 + 1 (Act III's offset).
+      expect(revenant).toMatchObject({ className: 'Revenant', level: 15 });
       expect(classTier('Revenant')).toBe('promoted');
-      for (const spawn of late.enemySpawns) expect(spawn.level).toBeLessThanOrEqual(16);
+      for (const spawn of late.enemySpawns) expect(spawn.level).toBeLessThanOrEqual(15);
       const early = generateSeededBattle(params('act1', [2, 3]), data, seed);
       expect(early.enemySpawns.find((s) => s.isBoss)).toMatchObject({
         className: 'Zombie',

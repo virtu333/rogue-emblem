@@ -109,10 +109,11 @@ promises and what the fight actually is.
 - **Levels.** A filler slot takes `lo + floor(r × (hi − lo + 1)) + level`, the generator's
   filler rule. `[lo, hi]` is the battle's adjusted range (`levelRange` or the pool's range,
   plus `enemyLevelBonus`). A captain takes the elite captain's rule (`captainLevelFor`: `hi` +
-  the act's captain offset) + `level`. Every slot's level is a spawn level on the one scale
-  every foe uses, promoted classes included (`createPromotedEnemyUnit`: the base class to 12,
-  the rest past promotion), so nothing is taken off a promoted captain. The captain's rung
-  bonus is the elite captain's: none beyond the range.
+  the act's captain offset: Act I 0, Act II 2, 1 from Act III on) + `level`. Every slot's
+  level is a spawn level on the one scale every foe uses, promoted classes included
+  (`createPromotedEnemyUnit`: the base class to 12, the rest past promotion), so nothing is
+  taken off a promoted captain. The captain's rung bonus is the elite captain's: none beyond
+  the range.
 - **Captains.** `isBoss: true` with the name. The scene adds `BOSS_STAT_BONUS` and the captain
   never carries items, as an elite captain doesn't. A captain is not an act boss: no boss
   node, no Sworn Enemy, no boss recruit and no earned pick. A Zombie captain leaves no
