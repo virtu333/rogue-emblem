@@ -13,6 +13,7 @@ import { skillScrollText, weaponArtScrollText } from './weaponArtDisplay.js';
 import { getWeaponArtTooltipLines } from './WeaponArtVisibility.js';
 import { itemBaseLine } from '../engine/ItemKeywords.js';
 import { canEquip } from '../engine/UnitManager.js';
+import { classChangeItemTag } from '../engine/TwistedBoons.js';
 import { getForgeDisplayInfo } from '../engine/ForgeSystem.js';
 import { isWorn, wearDisplay } from '../engine/WeaponWear.js';
 import {
@@ -99,6 +100,7 @@ export function itemDetailText(entry, gameData = {}, arts = gameData?.weaponArts
  * @param {object} [options.compareOptions]  equipmentComparison options
  * @param {string} [options.detailText]  what it does; defaults to itemDetailText
  * @param {string} [options.name]  the heading; defaults to the item's display name
+ * @param {boolean} [options.showName]  false when the container's own title names it
  * @param {string} [options.usage]  how much this very item has been used
  * @param {(title: string, blocks: any[]) => void} [options.openHelp]
  * @param {boolean} [options.expanded]  open the weapon arts and the comparison (a sheet
@@ -114,6 +116,7 @@ export function appendItemDetail(
     compareOptions = {},
     detailText,
     name,
+    showName = true,
     usage = '',
     openHelp,
     expanded = false,
@@ -126,11 +129,14 @@ export function appendItemDetail(
   // What it is ("Silver Lance", "Legend Sword"), then its rules as tags.
   const kicker = itemBaseLine(item) || [item.tier, item.type].filter(Boolean).join(' · ');
   if (kicker) title.append(el('p', kicker, 'shop-kicker'));
-  title.append(el('h3', name || itemDisplayName(item, gameData?.skills)));
+  if (showName) title.append(el('h3', name || itemDisplayName(item, gameData?.skills)));
   const keys = itemKeywordRow(item, { baseLine: false, make: (tag) => el(tag) });
   if (keys) title.append(keys);
   const requirement = shopRequirementLabel(item);
   if (requirement) title.append(el('p', requirement, 'shop-meta'));
+  // A Master Seal under Kingmaker's Oath: sold and dropped, but it can't be used.
+  const banned = run ? classChangeItemTag(run, item) : '';
+  if (banned) title.append(el('p', banned, 'shop-meta'));
   head.append(itemHero(item, { size: 96 }), title);
   copy.append(head);
   const text = detailText ?? itemDetailText({ item }, gameData);

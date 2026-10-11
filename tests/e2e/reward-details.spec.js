@@ -2,7 +2,7 @@
 // from a press and hold on touch, a right-click, the Details button and the pad's L2,
 // and reading it never selects or claims the reward.
 import { test, expect } from '@playwright/test';
-import { waitForScene } from './helpers.js';
+import { installSimPad, padTap, waitForScene } from './helpers.js';
 
 const VIEWS = [
   { name: 'phone', width: 844, height: 390, query: '&mobilePreview=1', touch: true },
@@ -73,6 +73,25 @@ for (const view of VIEWS) {
       await expect(sheet).toHaveCount(0);
       await expect(dialog).toBeVisible();
       await expect(details).toBeFocused();
+      expect(await claimState(page)).toBe(before);
+    });
+
+    test('L2 reads the card under the pad cursor, not the chosen one', async ({ page }) => {
+      const dialog = await openRewards(page, `${view.query}&gamepadSim=1`);
+      await installSimPad(page);
+      const before = await claimState(page);
+      // Card 0 is chosen; the cursor moves to card 1 (focus, as the D-pad does).
+      await dialog.locator('[data-focus="reward-1"]').focus();
+      await padTap(page, 6);
+      const sheet = page.getByRole('dialog', { name: "Hermit's Bow", exact: true });
+      await expect(sheet).toBeVisible();
+      await padTap(page, 1);
+      await expect(sheet).toHaveCount(0);
+      await expect(dialog).toBeVisible();
+      await expect(dialog.locator('[data-focus="reward-1"]')).toHaveAttribute(
+        'aria-pressed',
+        'false',
+      );
       expect(await claimState(page)).toBe(before);
     });
 

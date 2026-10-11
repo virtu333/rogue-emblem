@@ -122,8 +122,8 @@ export class MobileRewards {
     for (const obj of this.controller.lootGroup) obj.setVisible(false);
     pushInputScope(this, (action, payload) => {
       if (action === InputAction.PAUSE) this.openReference('Menu');
-      // L2 reads the chosen reward in full (the pad's long press).
-      if (action === InputAction.INSPECT) this.openDetails(this.selected);
+      // L2 reads the card under the cursor in full (the pad's long press).
+      if (action === InputAction.INSPECT) this.openDetails(this.focusedRewardIndex());
       if (action === InputAction.CANCEL) this.back();
       if (action === InputAction.NAVIGATE) this.moveFocus(payload?.dy || payload?.dx || 1);
       if (action === InputAction.CONFIRM && this.root.contains(document.activeElement))
@@ -432,7 +432,20 @@ export class MobileRewards {
     }
   }
   canOpenDetails() {
-    return this.visible && !this.busy && !this.child && !this.notice && !this.steps.length;
+    return (
+      this.visible &&
+      !this.busy &&
+      !this.child &&
+      !this.notice &&
+      !this.steps.length &&
+      !this.controller.saveError
+    );
+  }
+  /** The reward card that has the focus (the pad's cursor), else the chosen one. */
+  focusedRewardIndex() {
+    const card = document.activeElement?.closest?.('.reward-card');
+    const match = this.root?.contains(card) && /^reward-(\d+)$/.exec(card.dataset.focus || '');
+    return match ? Number(match[1]) : this.selected;
   }
   /**
    * A reward's item in full, as the shop shows it: its numbers, special, story, weapon
@@ -443,6 +456,8 @@ export class MobileRewards {
     if (!this.canOpenDetails()) return false;
     const choice = this.choices[index];
     if (!choice?.item) return false;
+    // Reading a card turns the spoils face up first: never a sheet over a face-down card.
+    this.reveal?.skip();
     const scene = this.scene;
     const gameData = scene.gameData || {};
     const name = `${itemDisplayName(choice.item, gameData.skills)}${choice.quantity > 1 ? ` ×${choice.quantity}` : ''}`;
@@ -455,6 +470,8 @@ export class MobileRewards {
       run: scene.runManager || null,
       compareOptions: { arts: gameData.weaponArts?.arts || [], imbues: gameData.imbues },
       name,
+      // The dialog's title already names it.
+      showName: false,
       expanded: true,
       // The shared rules open over the sheet, and close back onto it.
       openHelp: (title, blocks) => {
@@ -470,11 +487,19 @@ export class MobileRewards {
         );
       },
     });
-    this.child = new ContextHelp(this.overlayScene, this.root, name, [copy], () => {
-      help.sheet?.destroy();
+    const sheet = new ContextHelp(this.overlayScene, this.root, name, [copy], () => {
       this.child = null;
     });
-    this.child.surface.root.classList.add('reward-detail');
+    // However the sheet goes (Close, Back, or the rewards hiding under it), the rules
+    // opened over it go with it.
+    const destroySheet = sheet.destroy.bind(sheet);
+    sheet.destroy = () => {
+      help.sheet?.destroy();
+      help.sheet = null;
+      destroySheet();
+    };
+    sheet.surface.root.classList.add('reward-detail');
+    this.child = sheet;
     return true;
   }
   /**
