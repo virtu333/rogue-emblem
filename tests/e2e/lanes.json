@@ -194,7 +194,8 @@
         "seers-eye-preview.spec.js",
         "colosseum-earned-offer.spec.js",
         "earned-twist.spec.js",
-        "start-gift.spec.js"
+        "start-gift.spec.js",
+        "village-ambush.spec.js"
       ]
     },
     {
