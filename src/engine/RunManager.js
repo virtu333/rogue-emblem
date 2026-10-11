@@ -259,6 +259,7 @@ import {
   sanitizeStartGift,
 } from './StartGifts.js';
 import {
+  DESCENT_CAPABILITY,
   RunFormatError,
   runFormatBlock,
   runFormatMarker,
@@ -1001,6 +1002,8 @@ export class RunManager {
     this.visionChargesRemaining = this.getBaseVisionCharges();
     this.visionCount = 0;
     this.randomLegendary = generateRandomLegendary(this.gameData.weapons);
+    // A new run starts with no floor, before its first map can raise one (_buildActNodeMap).
+    this.requiredCapabilityFloor = [];
     this.nodeMap = this._buildActNodeMap();
     this.currentNodeId = null;
     this.pendingAmbushNodeId = null;
@@ -1017,7 +1020,6 @@ export class RunManager {
     this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
     this.earnedBlessingPicks = {};
     this.blessingBoonRevision = BLESSING_BOON_REVISION; // a new run follows the current rules
-    this.requiredCapabilityFloor = [];
     this.battleConfigsByNodeId = {};
     this.ensureRecruitPreviews();
     this.shopStateByNodeId = {};
@@ -5812,18 +5814,26 @@ export class RunManager {
    * route (engine/Descent.js: its own keyed streams, never the node-map seed); otherwise the
    * generator under the node-map seed, exactly as before. A route that cannot be built (data
    * the validator would refuse) falls back to the generator rather than stopping the run.
+   * Building the Descent holds the run to the `descent` capability from that moment
+   * (engine/RunFormat.js: its floor, written by every later save whatever happens after), so a
+   * client that cannot play the route refuses every save from route entry on.
    */
   _buildActNodeMap() {
     const routeId = this._descentRouteId();
     if (routeId) {
       try {
-        return buildDescentNodeMap(this.gameData.descent, {
+        const nodeMap = buildDescentNodeMap(this.gameData.descent, {
           runSeed: this.runSeed,
           difficultyId: this.difficultyId,
           actSequence: this.actSequence,
           gameData: this.gameData,
           routeId,
         });
+        this.requiredCapabilityFloor = sanitizeCapabilityIds([
+          ...(this.requiredCapabilityFloor || []),
+          DESCENT_CAPABILITY,
+        ]);
+        return nodeMap;
       } catch (err) {
         console.error('[RunManager] the Descent route could not be built; generating', err);
       }
