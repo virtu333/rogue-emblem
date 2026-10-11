@@ -4,7 +4,7 @@ import {
   settledBalanceRevision,
   withBalanceRevisionMarker,
   withoutBalanceRevisionMarker,
-  BALANCE_REVISION_MARKER,
+  isBalanceRevisionMarker,
 } from './BalanceRevisionMarker.js';
 import { mergeSeenDialogueKeys } from '../utils/seenDialogue.js';
 import { mergeRunRecords, runRecordsUnderPressure } from './RunRecords.js';
@@ -388,6 +388,16 @@ export const BALANCE_REVISIONS = Object.freeze([
       lord_lck_growth: [40, 45, 60, 80, 130],
     },
   },
+  {
+    revision: 6, // 2026-10-11 Lucky Finds: no Legend before Act III, its Legend step at half
+    // the chance, so the upgrade costs 25% less and past buyers are credited the difference.
+    from: {
+      loot_quality: [120, 240],
+    },
+    to: {
+      loot_quality: [90, 180],
+    },
+  },
 ]);
 
 export const CURRENT_BALANCE_REVISION = BALANCE_REVISIONS[BALANCE_REVISIONS.length - 1].revision;
@@ -589,6 +599,9 @@ export class MetaProgressionManager {
         // An older build re-saves its own balanceRevision; the copy in purchasedUpgrades
         // keeps a credit from being paid twice (BalanceRevisionMarker.js).
         this._creditBalanceRevisionsSince(settledBalanceRevision(saved));
+        // A save a newer build settled keeps its revision: writing ours would let that
+        // build credit its own revisions again.
+        this.balanceRevision = Math.max(CURRENT_BALANCE_REVISION, settledBalanceRevision(saved));
         this._settleRetiredUpgrades();
         // The next normal save persists credits and markers atomically without making
         // a read-only load appear newer than a pending cloud merge.
@@ -1757,13 +1770,14 @@ export class MetaProgressionManager {
       for (const id of Object.keys(from)) ownedBefore[id] = this.getUpgradeLevel(id);
     if (disk.purchasedUpgrades && typeof disk.purchasedUpgrades === 'object') {
       for (const [id, level] of Object.entries(disk.purchasedUpgrades)) {
-        // The marker is read on its own; discoveries are unioned below, with the lists.
-        if (id === BALANCE_REVISION_MARKER || isDiscoveryKey(id)) continue;
+        // The markers are read on their own; discoveries are unioned below, with the lists.
+        if (isBalanceRevisionMarker(id) || isDiscoveryKey(id)) continue;
         const diskLevel = Number(level) || 0;
         const localLevel = Number(this.purchasedUpgrades[id]) || 0;
         this.purchasedUpgrades[id] = Math.max(localLevel, diskLevel);
       }
     }
+    this.balanceRevision = Math.max(this.balanceRevision, settledBalanceRevision(disk));
     this._recordLegacyTierCosts(settledBalanceRevision(disk), (id) => {
       const part = (key) => Math.max(0, Math.floor(Number(disk.purchasedUpgrades?.[key]) || 0));
       return [(ownedBefore[id] || 0) + 1, part(id) + part(repeatTiersKey(id))];

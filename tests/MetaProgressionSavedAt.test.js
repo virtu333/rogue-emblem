@@ -93,6 +93,7 @@ describe('MetaProgressionManager savedAt hardening', () => {
       hp_boost: 3,
       '__seen_skill:sol': 0,
       __balance_revision: CURRENT_BALANCE_REVISION,
+      __balance_settled: CURRENT_BALANCE_REVISION,
     });
     expect(saved.skillAssignments).toEqual({ Edric: ['sol'] });
     expect(new Set(saved.milestones)).toEqual(new Set(['beatAct1', 'beatAct2', 'beatAct3']));
