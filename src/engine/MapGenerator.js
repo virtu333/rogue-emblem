@@ -15,7 +15,6 @@ import {
   TOXIC_COVERAGE_BY_ACT,
   ENTITY_FOOTPRINT,
   filterClassPoolByDifficulty,
-  RECRUIT_PROMOTION_BASE_LEVEL,
   DEFAULT_ENEMY_PROMOTED_SHARE,
 } from '../utils/constants.js';
 import { assignAffixesToEnemySpawns, assignSwornAffix } from './AffixEngine.js';
@@ -40,6 +39,12 @@ import { assignCasterGear, isPerBattleGearConfig } from './CasterGear.js';
 import { assignEnemyCarry } from './EnemyCarry.js';
 import { buildReinforcementTemplatePool } from './ReinforcementSpawns.js';
 import { reinforcementMoveTypes } from './ReinforcementScheduler.js';
+import {
+  SET_PIECE_TEMPLATE_PREFIX,
+  buildSetPieceBattle,
+  captainLevelFor,
+  findSetPiece,
+} from './SetPieces.js';
 
 const DEBUG_MAP_GEN = false;
 const mapGenLog = createScopedLogger('MapGen', { debug: DEBUG_MAP_GEN });
@@ -70,6 +75,13 @@ export function generateBattle(params, deps) {
 
 /** One layout, no caravan retry (generateBattle wraps it). */
 export function generateBattleLayout(params, deps) {
+  // An event's set piece (engine/SetPieces.js): an authored map in place of a template's.
+  if (params?.setPiece) {
+    if (findSetPiece(deps.setPieces, params.setPiece)) return generateSetPieceLayout(params, deps);
+    // A save that names a set piece this build lacks (a newer client's) fights an ordinary map
+    // rather than failing the battle's start.
+    console.warn(`[MapGenerator] unknown set piece "${params.setPiece}"; using a template map`);
+  }
   const {
     act = 'act1',
     objective = 'rout',
@@ -86,8 +98,6 @@ export function generateBattleLayout(params, deps) {
     enemyPoisonChance = 0,
     statusStaffConfig = null,
     siegeWeaponConfig = null,
-    carryConfig = null,
-    carryPasses = 1,
     isAmbush = false,
     enemyLevelBonus = 0,
     enemyCountBase = 0,
@@ -262,52 +272,7 @@ export function generateBattleLayout(params, deps) {
       isEliteCaptain: params.isElite === true && !isBoss && objective === 'seize',
     },
   );
-  // Per-battle staves and siege tomes (CasterGear.js, its own stream: no Math.random).
-  assignCasterGear(enemySpawns, {
-    act,
-    difficultyId: params.difficultyId,
-    templateId: template?.id,
-    statusStaffConfig,
-    siegeWeaponConfig,
-  });
-  // Carried items (EnemyCarry.js, its own stream: no Math.random). A Thief's Steal takes one.
-  assignEnemyCarry(enemySpawns, {
-    act,
-    difficultyId: params.difficultyId,
-    templateId: template?.id,
-    carryConfig,
-    lootTables: deps.lootTables,
-    // Cutpurse's Luck: a second pass on its own stream (the first is the rung's own roll).
-    passes: carryPasses,
-  });
-  enemySpawns = assignAffixesToEnemySpawns(enemySpawns, {
-    allowAffixes:
-      params.allowEnemyAffixes !== false && recruitAffixesAllowed(params, deps.difficulty),
-    affixConfig: deps.affixes,
-    difficultyId: params.difficultyId || 'normal',
-    act,
-    eclipse: params.eclipseAffix || null,
-  });
-  // The Sworn Enemy burden (engine/Burdens.js): the act boss carries one more tier-1 affix.
-  // Its own seeded stream (`params.swornEnemy.seed`), so Math.random is never touched.
-  if (params.swornEnemy) {
-    enemySpawns = assignSwornAffix(enemySpawns, {
-      affixConfig: deps.affixes,
-      difficultyId: params.difficultyId || 'normal',
-      random: createSeededRng(Number(params.swornEnemy.seed) >>> 0),
-    });
-  }
-  // Elite battles from Act III at Nightfall+: one or two enemies carry an area art
-  // (EnemyAreaArts.js, enemies.json eliteAreaArts). Draws from the battle seed only
-  // when the battle qualifies.
-  enemySpawns = assignEnemyAreaArts(enemySpawns, {
-    isElite: params.isElite === true,
-    act,
-    difficultyId: params.difficultyId,
-    classes,
-    config: enemies.eliteAreaArts || null,
-    random: () => Math.random(),
-  });
+  enemySpawns = dressEnemySpawns(enemySpawns, { params, deps, act, templateId: template?.id });
 
   // 7. NPC spawn for recruit battles
   let npcSpawn = null;
@@ -534,24 +499,13 @@ export function generateBattleLayout(params, deps) {
       ladder,
     };
   }
-  // The Hunted burden (engine/Burdens.js, HuntedWave.js): one extra wave on its turn at the
-  // map's reinforcement edge, written here so a locked map keeps it. Never a boss map. No
-  // draw: the arrivals are rolled by the scheduler from the battle's own seed.
-  if (params.huntedWave && !isBoss) {
-    reinforcementConfig.reinforcements = withHuntedWave(
-      reinforcementConfig.reinforcements,
-      params.huntedWave,
-      { cols, rows, playerSpawns, enemySpawns },
-    );
-  }
-  // Black Sun: the template's procedural waves (seize and escape; rout runs the ladder)
-  // keep coming but no longer raise par.
-  if (
-    params.templateWavesRaisePar === false &&
-    reinforcementConfig.reinforcements?.waves?.length > 0
-  ) {
-    reinforcementConfig.reinforcements.wavesRaisePar = false;
-  }
+  finishReinforcements(reinforcementConfig, params, {
+    isBoss,
+    cols,
+    rows,
+    playerSpawns,
+    enemySpawns,
+  });
 
   const battleConfig = {
     mapLayout,
@@ -605,6 +559,168 @@ export function generateBattleLayout(params, deps) {
   }
 
   return battleConfig;
+}
+
+/**
+ * A set piece's battle (docs/specs/event-set-pieces.md): the authored map, spawns, slots and
+ * waves (engine/SetPieces.js) in place of the template steps, then the steps every map takes
+ * (dressEnemySpawns, finishReinforcements, the par fields). Draws come from Math.random, which
+ * generateSeededBattle has made the battle seed's stream. The caller has checked the id is known
+ * (an unknown one falls back to the template path; `npm run validate:data` refuses one in data).
+ */
+function generateSetPieceLayout(params, deps) {
+  const act = params.act || 'act1';
+  const setPiece = findSetPiece(deps.setPieces, params.setPiece);
+  const objective = setPiece.objective || 'rout';
+  const enemyLevelBonus = Math.trunc(Number(params.enemyLevelBonus) || 0);
+  const baseLevelRange = params.levelRange || deps.enemies?.pools?.[act]?.levelRange || [1, 1];
+  const levelRange = [
+    Math.max(1, baseLevelRange[0] + enemyLevelBonus),
+    Math.max(1, baseLevelRange[1] + enemyLevelBonus),
+  ];
+  const built = buildSetPieceBattle({
+    setPiece,
+    act,
+    difficultyId: params.difficultyId || 'normal',
+    levelRange,
+    deployCount: params.deployCount || DEPLOY_LIMITS[act]?.max || 4,
+    classes: deps.classes || [],
+    terrain: deps.terrain || [],
+    random: () => Math.random(),
+  });
+  const { mapLayout, cols, rows, playerSpawns } = built;
+  const templateId = `${SET_PIECE_TEMPLATE_PREFIX}${setPiece.id}`;
+  const enemySpawns = dressEnemySpawns(built.enemySpawns, { params, deps, act, templateId });
+  const reinforcementConfig = built.reinforcements ? structuredClone(built.reinforcements) : {};
+  finishReinforcements(reinforcementConfig, params, {
+    isBoss: false,
+    cols,
+    rows,
+    playerSpawns,
+    enemySpawns,
+  });
+  return {
+    mapLayout,
+    cols,
+    rows,
+    objective,
+    biome: setPiece.biome ?? null,
+    playerSpawns,
+    enemySpawns,
+    npcSpawn: null,
+    thronePos: null,
+    // The authored spawns past the deploy count: Formation offers these, never a draw.
+    formationSpares: built.formationSpares,
+    templateId,
+    setPieceId: setPiece.id,
+    setPieceVariant: built.variantId,
+    mirrored: built.mirrored,
+    parBonus: Number.isInteger(setPiece.parBonus) ? Math.max(0, setPiece.parBonus) : 0,
+    ...(Number.isFinite(params.parInflation)
+      ? { parInflation: Math.max(0, Math.trunc(params.parInflation)) }
+      : {}),
+    ...parOffsetConfig(params, objective, {
+      mapLayout,
+      cols,
+      rows,
+      terrainData: deps.terrain,
+      playerSpawns,
+      thronePos: null,
+    }),
+    toxicTiles: 0,
+    ...reinforcementConfig,
+  };
+}
+
+/**
+ * What every generated map's foes get once they are placed, in this order (each step keeps
+ * its own stream: caster gear and carry are keyed, affixes and area arts read Math.random):
+ * per-battle staves and siege tomes, carried items, affixes, the Sworn Enemy's affix and elite
+ * area arts. The template path and the set-piece path both call it, so neither can drift.
+ */
+function dressEnemySpawns(enemySpawns, { params, deps, act, templateId }) {
+  const {
+    statusStaffConfig = null,
+    siegeWeaponConfig = null,
+    carryConfig = null,
+    carryPasses = 1,
+  } = params;
+  const classes = deps.classes;
+  // Per-battle staves and siege tomes (CasterGear.js, its own stream: no Math.random).
+  assignCasterGear(enemySpawns, {
+    act,
+    difficultyId: params.difficultyId,
+    templateId,
+    statusStaffConfig,
+    siegeWeaponConfig,
+  });
+  // Carried items (EnemyCarry.js, its own stream: no Math.random). A Thief's Steal takes one.
+  assignEnemyCarry(enemySpawns, {
+    act,
+    difficultyId: params.difficultyId,
+    templateId,
+    carryConfig,
+    lootTables: deps.lootTables,
+    // Cutpurse's Luck: a second pass on its own stream (the first is the rung's own roll).
+    passes: carryPasses,
+  });
+  enemySpawns = assignAffixesToEnemySpawns(enemySpawns, {
+    allowAffixes:
+      params.allowEnemyAffixes !== false && recruitAffixesAllowed(params, deps.difficulty),
+    affixConfig: deps.affixes,
+    difficultyId: params.difficultyId || 'normal',
+    act,
+    eclipse: params.eclipseAffix || null,
+  });
+  // The Sworn Enemy burden (engine/Burdens.js): the act boss carries one more tier-1 affix.
+  // Its own seeded stream (`params.swornEnemy.seed`), so Math.random is never touched.
+  if (params.swornEnemy) {
+    enemySpawns = assignSwornAffix(enemySpawns, {
+      affixConfig: deps.affixes,
+      difficultyId: params.difficultyId || 'normal',
+      random: createSeededRng(Number(params.swornEnemy.seed) >>> 0),
+    });
+  }
+  // Elite battles from Act III at Nightfall+: one or two enemies carry an area art
+  // (EnemyAreaArts.js, enemies.json eliteAreaArts). Draws from the battle seed only
+  // when the battle qualifies.
+  enemySpawns = assignEnemyAreaArts(enemySpawns, {
+    isElite: params.isElite === true,
+    act,
+    difficultyId: params.difficultyId,
+    classes,
+    config: deps.enemies?.eliteAreaArts || null,
+    random: () => Math.random(),
+  });
+  return enemySpawns;
+}
+
+/**
+ * The reinforcement steps every generated map takes last (mutates `reinforcementConfig`): the
+ * Hunted burden's wave and Black Sun's par-neutral template waves.
+ */
+function finishReinforcements(
+  reinforcementConfig,
+  params,
+  { isBoss, cols, rows, playerSpawns, enemySpawns },
+) {
+  // The Hunted burden (engine/Burdens.js, HuntedWave.js): one extra wave on its turn at the
+  // map's reinforcement edge, written here so a locked map keeps it. Never a boss map. No
+  // draw: the arrivals are rolled by the scheduler from the battle's own seed.
+  if (params.huntedWave && !isBoss) {
+    reinforcementConfig.reinforcements = withHuntedWave(
+      reinforcementConfig.reinforcements,
+      params.huntedWave,
+      { cols, rows, playerSpawns, enemySpawns },
+    );
+  }
+  // Black Sun: the template's procedural waves keep coming but no longer raise par.
+  if (
+    params.templateWavesRaisePar === false &&
+    reinforcementConfig.reinforcements?.waves?.length > 0
+  ) {
+    reinforcementConfig.reinforcements.wavesRaisePar = false;
+  }
 }
 
 // --- Map size selection ---
@@ -683,17 +799,12 @@ function filterByBiome(pool, biome) {
 // the top of its enemy level range plus two (Act I: plus none), a promoted class
 // that many levels past promotion. They still hold the throne as the map's boss
 // (isBoss: boss bonus, bar, AI), with no boss card or lines (those need scene.isBoss).
-const ELITE_CAPTAIN_LEVEL_OFFSET = { act1: 0 };
-const ELITE_CAPTAIN_DEFAULT_OFFSET = 2;
-
 export function eliteCaptains(enemies, act, levelRange, classes = []) {
   const list = enemies?.elites?.[act];
   if (!Array.isArray(list) || !list.length) return enemies?.bosses?.[act] || [];
-  const top = Math.max(1, Math.trunc(Number(levelRange?.[1]) || 1));
-  const offset = ELITE_CAPTAIN_LEVEL_OFFSET[act] ?? ELITE_CAPTAIN_DEFAULT_OFFSET;
   return list.map((entry) => {
     const promoted = classes.find((c) => c.name === entry.className)?.tier === 'promoted';
-    const level = Math.max(1, top + offset - (promoted ? RECRUIT_PROMOTION_BASE_LEVEL : 0));
+    const level = captainLevelFor(act, levelRange?.[1], promoted);
     return { className: entry.className, name: entry.name, level };
   });
 }

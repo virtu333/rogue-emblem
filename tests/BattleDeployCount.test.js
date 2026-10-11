@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   battleDeployCount,
+  deployLimitsForParams,
   resolveDeployLimits,
   rosterDeploySlots,
 } from '../src/engine/BattleDeployCount.js';
@@ -99,7 +100,12 @@ describe('rosterDeploySlots', () => {
   });
 
   it("is the current act's max (Act I 4, Act II 5, Act III 7, Act IV 8)", () => {
-    expect(rosterDeploySlots(run({ act: 'act1' }))).toEqual({ slots: 4, bonus: 0, units: 6 });
+    expect(rosterDeploySlots(run({ act: 'act1' }))).toEqual({
+      slots: 4,
+      bonus: 0,
+      units: 6,
+      capped: false,
+    });
     expect(rosterDeploySlots(run({ act: 'act2' })).slots).toBe(5);
     expect(rosterDeploySlots(run({ act: 'act3' })).slots).toBe(7);
     expect(rosterDeploySlots(run({ act: 'act4' })).slots).toBe(8);
@@ -123,5 +129,57 @@ describe('rosterDeploySlots', () => {
   it('is null with no run and in the prologue, whose chapters author their deploys', () => {
     expect(rosterDeploySlots(null)).toBeNull();
     expect(rosterDeploySlots(run({ mode: 'prologue' }))).toBeNull();
+  });
+});
+
+describe('rosterDeploySlots at a set piece fight', () => {
+  // The party is held at an event node whose chosen fight is a set piece with its own deploy cap.
+  const held = ({ act = 'act3', bonus = 0, cap = 5, completed = false } = {}) => ({
+    mode: 'standard',
+    currentAct: act,
+    getDeployBonus: () => bonus,
+    roster: roster(8),
+    nodeMap: {
+      nodes: [
+        { id: 'n1', type: 'battle', battleParams: {} },
+        {
+          id: 'n2',
+          type: 'event',
+          eventBattle: true,
+          completed,
+          battleParams: { setPiece: 'toll_house', deployCap: cap },
+        },
+      ],
+    },
+  });
+
+  it("holds the set piece's cap under the act's max and says so", () => {
+    expect(rosterDeploySlots(held())).toEqual({ slots: 5, bonus: 0, units: 8, capped: true });
+  });
+
+  it('the cap holds after the deploy bonus, which then shows only what still opens a slot', () => {
+    expect(rosterDeploySlots(held({ act: 'act3', bonus: 2 }))).toMatchObject({
+      slots: 5,
+      bonus: 0,
+      capped: true,
+    });
+  });
+
+  it('is the same max the deploy screen resolves for that battle', () => {
+    for (const act of ['act1', 'act2', 'act3'])
+      expect(rosterDeploySlots(held({ act, bonus: 1 })).slots).toBe(
+        resolveDeployLimits({
+          base: deployLimitsForParams({ act, deployCap: 5 }),
+          deployBonus: 1,
+        }).max,
+      );
+  });
+
+  it('a cap above the act max changes nothing, and a finished fight no longer caps', () => {
+    expect(rosterDeploySlots(held({ act: 'act1', cap: 6 }))).toMatchObject({
+      slots: 4,
+      capped: false,
+    });
+    expect(rosterDeploySlots(held({ completed: true })).slots).toBe(7);
   });
 });

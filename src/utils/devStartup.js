@@ -14,6 +14,7 @@ import { PINNED_BATTLE_STREAM_KEY } from '../engine/BattleScout.js';
 import { addBurden } from '../engine/Burdens.js';
 import { normalizeContract } from '../engine/Contracts.js';
 import { DEV_EVENT_FIXTURES } from './devEventFixtures.js';
+import { findSetPiece, setPieceDeployCap } from '../engine/SetPieces.js';
 
 const DEV_META_STORAGE_KEY = 'emblem_rogue_dev_meta';
 const DEV_SCENE_ALIASES = {
@@ -613,6 +614,8 @@ export function parseDevStartupConfig(search, options = {}) {
     ...(parsePositiveInt(params.get('par')) ? { devPar: parsePositiveInt(params.get('par')) } : {}),
     ...(parseBool(params.get('omen')) ? { omen: true } : {}),
     ...(params.get('units') ? { units: params.get('units') } : {}),
+    // `&setPiece=<id>` on the battle route: that event set piece (docs/specs/event-set-pieces.md).
+    ...(params.get('setPiece') ? { setPiece: params.get('setPiece') } : {}),
     qaStep: qaConfig?.step || null,
     qaDescription: qaConfig?.description || null,
     nodeType:
@@ -690,13 +693,16 @@ export function buildDevStartupRoute(gameData, registry, config) {
     };
   }
 
+  // The set-piece review fights in Act N with `&act=N` (that act's map; never back).
+  if (config.setPiece && config.eventAct) {
+    const last = runManager.actSequence.length - 1;
+    while (runManager.actIndex < Math.min(config.eventAct - 1, last)) runManager.advanceAct();
+  }
   const battleNode = pickBattleNode(runManager, config.nodeType);
-  const battleParams = battleNode
-    ? runManager.getBattleParams(battleNode)
-    : {
-        act: runManager.currentAct || 'act1',
-        objective: 'rout',
-      };
+  const battleParams = (battleNode && runManager.getBattleParams(battleNode)) || {
+    act: runManager.currentAct || 'act1',
+    objective: 'rout',
+  };
   // The fog review: a foggy battle with an enemy hidden on Edric's road (devScenarios.js).
   if (config.preset === 'fog_ambush') {
     battleParams.fogEnabled = true;
@@ -706,6 +712,19 @@ export function buildDevStartupRoute(gameData, registry, config) {
   if (config.devPar && !battleParams.devScenario) {
     battleParams.devScenario = 'short_par';
     battleParams.devPar = config.devPar;
+  }
+  // The set-piece review (`&setPiece=toll_house`): the battle is built as an event's fight builds
+  // it (NodeMapGenerator.convertNodeToSetPieceBattle): its id, objective, deploy cap and forced fog.
+  const setPiece = config.setPiece ? findSetPiece(gameData.setPieces, config.setPiece) : null;
+  if (setPiece) {
+    battleParams.setPiece = setPiece.id;
+    battleParams.objective = setPiece.objective || 'rout';
+    battleParams.isEventBattle = true;
+    battleParams.firstBattleFightersOnly = false;
+    const cap = setPieceDeployCap(setPiece);
+    if (cap) battleParams.deployCap = cap;
+    if (typeof setPiece.fog === 'boolean') battleParams.fogEnabled = setPiece.fog;
+    delete battleParams.templateId;
   }
   // The remains review: a Rout down to one weak Zombie beside Edric (devScenarios.js).
   if (config.preset === 'zombie_remains') {

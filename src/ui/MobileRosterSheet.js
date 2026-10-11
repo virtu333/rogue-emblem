@@ -367,7 +367,9 @@ export class MobileRosterSheet {
     if (deploy) {
       const cap = el('span', `Deploy up to ${deploy.slots}`, 'mr-deploy-cap');
       const bonus = deploy.bonus > 0 ? `, ${deploy.bonus} of them from upgrades and blessings` : '';
-      cap.title = `Battles this act field up to ${deploy.slots} units${bonus}.`;
+      cap.title = deploy.capped
+        ? `This fight fields up to ${deploy.slots} units${bonus}.`
+        : `Battles this act field up to ${deploy.slots} units${bonus}.`;
       title.append(cap);
     }
     head.append(title);

@@ -370,3 +370,37 @@ describe('phone review routes (deploy previews)', () => {
     expect(registry.get('activeSlot')).toBeNull();
   });
 });
+
+describe('the set-piece review route', () => {
+  const battleRoute = (query) =>
+    buildDevStartupRoute(
+      loadGameData(),
+      createRegistry(),
+      parseDevStartupConfig(`?devScene=battle&preset=battle_smoke&seed=7&${query}`, {
+        devMode: true,
+      }),
+    );
+
+  it('builds the battle as an event fight would: id, objective, cap and forced fog', () => {
+    const r = battleRoute('setPiece=toll_house');
+    expect(r.key).toBe('Battle');
+    expect(r.data.battleParams).toMatchObject({
+      setPiece: 'toll_house',
+      objective: 'rout',
+      deployCap: 5,
+      fogEnabled: true,
+      isEventBattle: true,
+      firstBattleFightersOnly: false,
+    });
+    expect(r.data.battleParams.templateId).toBeUndefined();
+  });
+
+  it('fights in a later act with &act=, and ignores an unknown id', () => {
+    expect(battleRoute('setPiece=toll_crossing&act=3').data.battleParams).toMatchObject({
+      act: 'act3',
+      setPiece: 'toll_crossing',
+      deployCap: 6,
+    });
+    expect(battleRoute('setPiece=nowhere').data.battleParams.setPiece).toBeUndefined();
+  });
+});

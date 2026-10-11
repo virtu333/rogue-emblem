@@ -9,6 +9,7 @@ import {
 import { validatePrologueConfig } from '../src/engine/Prologue.js';
 import { validateBlessingsConfig } from '../src/engine/BlessingEngine.js';
 import { validateEventsConfig } from '../src/engine/EventValidation.js';
+import { validateSetPiecesConfig } from '../src/engine/SetPieces.js';
 import { validateRepeatableUpgrades } from '../src/engine/RepeatableUpgrades.js';
 import { validateCrossReferences } from './validateCrossReferences.js';
 
@@ -141,12 +142,32 @@ const eventsResult = validateEventsConfig(readData('events.json'), {
   traits: readData('traits.json'),
   recruits: readData('recruits.json'),
   accessories: readData('accessories.json'),
+  setPieces: readData('setPieces.json'),
 });
 if (eventsResult.valid) {
   console.log('  OK  events.json (engine validator)');
 } else {
   console.error('FAIL  events.json (engine validator)');
   for (const err of eventsResult.errors) {
+    console.error(`      ${err}`);
+  }
+  failed = true;
+}
+
+// Validate the event set pieces (engine validator: maps, spawns, slots, waves, and the
+// events that name them, at every act and rung those events reach)
+const setPiecesResult = validateSetPiecesConfig(readData('setPieces.json'), {
+  terrain: readData('terrain.json'),
+  classes: readData('classes.json'),
+  weapons: readData('weapons.json'),
+  difficulty: readData('difficulty.json'),
+  events: readData('events.json'),
+});
+if (setPiecesResult.valid) {
+  console.log('  OK  setPieces.json (engine validator)');
+} else {
+  console.error('FAIL  setPieces.json (engine validator)');
+  for (const err of setPiecesResult.errors) {
     console.error(`      ${err}`);
   }
   failed = true;

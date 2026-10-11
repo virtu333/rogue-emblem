@@ -90,7 +90,8 @@ import { applyForge, canForgeStat } from './ForgeSystem.js';
 import { RECRUIT_PREVIEW_VERSION } from './RecruitNodeSystem.js';
 import { ensureItemUid } from '../utils/itemUid.js';
 import { commitShadow, actShadowOf, withEclipseSeed } from './EclipseSystem.js';
-import { convertNodeToRoutBattle } from './NodeMapGenerator.js';
+import { convertNodeToRoutBattle, convertNodeToSetPieceBattle } from './NodeMapGenerator.js';
+import { findSetPiece } from './SetPieces.js';
 import { WOUND_STATS, addBurden, burdenDefFor, describeBurden } from './Burdens.js';
 import { describeContract, normalizeContract, contractBound } from './Contracts.js';
 import { planJoin, applyJoin, pickJoinSelf } from './EventJoin.js';
@@ -704,6 +705,7 @@ function planBattle(ctx, effect, index, ledger) {
       afterVictory: structuredClone(effect.afterVictory || []),
       elite: effect.elite === true,
       recruit,
+      ...(typeof effect.setPiece === 'string' ? { setPiece: effect.setPiece } : {}),
     },
   };
 }
@@ -1104,22 +1106,24 @@ function applyItem(ctx, step) {
 function applyBattle(ctx, step) {
   const { run, node } = ctx;
   const type = node.type;
+  const actId = run.nodeMap?.actId || run.currentAct;
+  const options = {
+    fogChanceBonus: run.getDifficultyModifier?.('fogChanceBonus', 0) || 0,
+    halfFogChance: run.difficultyId === 'normal',
+    extraParams: {
+      isEventBattle: true,
+      eventEnemyLevelBonus: step.enemyLevelBonus,
+      ...(step.elite ? { isElite: true } : {}),
+      ...(step.recruit ? { isRecruitBattle: true } : {}),
+    },
+  };
+  // A set piece (docs/specs/event-set-pieces.md) is the fight the text tells; without one (or
+  // with an id this build does not know) the fight is an ordinary rout.
+  const setPiece = step.setPiece ? findSetPiece(run.gameData?.setPieces, step.setPiece) : null;
   withEclipseSeed(`event-battle:${runSeedOf(run)}:${ctx.nodeId}`, () =>
-    convertNodeToRoutBattle(
-      node,
-      run.nodeMap?.actId || run.currentAct,
-      run.gameData?.mapTemplates,
-      {
-        fogChanceBonus: run.getDifficultyModifier?.('fogChanceBonus', 0) || 0,
-        halfFogChance: run.difficultyId === 'normal',
-        extraParams: {
-          isEventBattle: true,
-          eventEnemyLevelBonus: step.enemyLevelBonus,
-          ...(step.elite ? { isElite: true } : {}),
-          ...(step.recruit ? { isRecruitBattle: true } : {}),
-        },
-      },
-    ),
+    setPiece
+      ? convertNodeToSetPieceBattle(node, actId, setPiece, options)
+      : convertNodeToRoutBattle(node, actId, run.gameData?.mapTemplates, options),
   );
   // The node stays an event node; only its battle params and the marker change.
   node.type = type;

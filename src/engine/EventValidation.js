@@ -82,6 +82,7 @@ import { CONTRACT_EFFECT_TYPES, CONTRACT_GOALS } from './Contracts.js';
 import { joinClassBlock } from './EventJoin.js';
 import { REDRAW_TYPES } from './RouteEdit.js';
 import { TELL_WHEN_KEYS } from './EventTells.js';
+import { findSetPiece } from './SetPieces.js';
 import {
   BURDEN_IDS,
   HUNTED_COUNT_MAX,
@@ -780,6 +781,17 @@ export function validateEventsConfig(config, data = {}) {
             )
               err(where, 'battle.recruit.name must be 1-20 characters');
           }
+        }
+        // A set piece (docs/specs/event-set-pieces.md): a known id, and never beside a green
+        // recruit (a set piece seats no NPC yet). Its acts and rung gates are checked by
+        // SetPieces.validateSetPiecesConfig, which reads every event that names one.
+        if (effect.setPiece !== undefined) {
+          if (typeof effect.setPiece !== 'string' || !effect.setPiece)
+            err(where, 'battle.setPiece must be a set piece id');
+          else if (data.setPieces && !findSetPiece(data.setPieces, effect.setPiece))
+            err(where, `battle.setPiece: unknown set piece "${effect.setPiece}"`);
+          if (effect.recruit !== undefined)
+            err(where, 'battle.setPiece cannot seat a recruit (no authored NPC tile yet)');
         }
         if (typeof effect.victoryText !== 'string' || !effect.victoryText)
           err(where, 'battle needs a victoryText');

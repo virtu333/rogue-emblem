@@ -326,6 +326,7 @@ export class HeadlessBattle {
       affixes: this.gameData.affixes,
       difficulty: this.gameData.difficulty,
       lootTables: this.gameData.lootTables,
+      setPieces: this.gameData.setPieces,
     });
   }
 
