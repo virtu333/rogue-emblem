@@ -17,6 +17,7 @@ import { getEffectivenessMultiplier, calculateEffectiveSpeed } from '../engine/C
 import { isForged } from '../engine/ForgeSystem.js';
 import { isWorn } from '../engine/WeaponWear.js';
 import { hasEffectiveSkill } from '../engine/EffectiveSkills.js';
+import { healthBarsBadge } from '../engine/RevivalStones.js';
 import { portraitCanvasFrame } from './portraitArt.js';
 
 /**
@@ -334,6 +335,19 @@ export class ForecastOverlay {
       }),
     ).setDepth(textDepth);
     this.displayObjects.push(hpVal);
+    // A boss with Revival Stones: how many health bars it has left, beside its HP.
+    const barsBadge = healthBarsBadge(unit);
+    if (barsBadge) {
+      const bars = applyTextResolution(
+        scene.add.text(hpVal.x + hpVal.width + 3, y, barsBadge, {
+          fontFamily: 'Arial',
+          fontSize: '10px',
+          fontStyle: 'bold',
+          color: UI_PALETTE.info,
+        }),
+      ).setDepth(textDepth);
+      this.displayObjects.push(bars);
+    }
 
     // HP bar
     const barX = x + 80;
