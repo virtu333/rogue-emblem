@@ -70,7 +70,10 @@ export function settleArtilleryStances({ enemyUnits = [], turn = null } = {}) {
       delete enemy.artilleryStance;
       continue;
     }
-    if (checked && enemy.artilleryStance?.turn === turn) continue;
+    // A stance saved by the old rule (`planted: false`, a caster that walked) is not kept
+    // on resume: every post-holder is planted now, so it is taken again.
+    if (checked && enemy.artilleryStance?.turn === turn && enemy.artilleryStance.planted === true)
+      continue;
     enemy.artilleryStance = { turn: checked ? turn : null, planted: true };
   }
 }
