@@ -1256,6 +1256,37 @@ describe('NodeMapScene Slice 4', () => {
     }
   });
 
+  it('the freed village waits for its battle rewards, then opens', () => {
+    const node = { id: 'shop-1', type: NODE_TYPES.SHOP, isAmbush: true, ambushCleared: true };
+    const scene = {
+      isSceneReady: true,
+      runManager: {
+        currentNodeId: 'shop-1',
+        nodeMap: { nodes: [node] },
+        pendingBattleReward: { nodeId: 'shop-1' },
+        pendingBossRecruit: null,
+        pendingThirdLord: null,
+        getAmbushPendingNode: vi.fn(() => node),
+      },
+      handleShop: vi.fn(),
+    };
+    const open = () => NodeMapScene.prototype._maybeOpenPendingAmbushShop.call(scene);
+
+    // Rewards still owed (a reload, or "View map" on the loot screen): nothing opens.
+    expect(open()).toBe(false);
+    scene.runManager.pendingBattleReward = null;
+    scene.runManager.pendingThirdLord = { name: 'Kira' };
+    expect(open()).toBe(false);
+    expect(scene.handleShop).not.toHaveBeenCalled();
+
+    scene.runManager.pendingThirdLord = null;
+    expect(open()).toBe(true);
+    expect(scene.handleShop).toHaveBeenCalledWith(node, {
+      ambushDiscount: true,
+      pendingAmbush: true,
+    });
+  });
+
   it('onNodeClick derives pendingAmbush from pending-node state, not isAmbush flag', () => {
     const node = { id: 'shop-1', type: NODE_TYPES.SHOP, isAmbush: true, ambushCleared: true };
     const scene = {

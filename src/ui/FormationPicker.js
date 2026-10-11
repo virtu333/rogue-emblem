@@ -18,7 +18,7 @@ export class FormationPicker {
     scene,
     formation,
     tileIndex,
-    { subject = null, onPick, onClear, onDetails, onClose },
+    { subject = null, onPick, onClear, onDetails, onRoster = null, onClose },
   ) {
     Object.assign(this, { scene, formation, tileIndex, onPick, onClear, onClose });
     const tile = formation.tiles[tileIndex];
@@ -44,8 +44,11 @@ export class FormationPicker {
       );
     }
     const occupant = unitOnTile(formation.formation, tileIndex);
+    // A placed unit's own actions: read its details, or manage its gear, items and
+    // skills (the Roster, opened on this unit).
+    const actions = element('div', null, 'fm-tools fm-unit-actions');
     if (held && onDetails)
-      body.append(
+      actions.append(
         button(
           'Details',
           () => {
@@ -55,6 +58,18 @@ export class FormationPicker {
           're-btn fm-details',
         ),
       );
+    if (held && onRoster)
+      actions.append(
+        button(
+          'Gear & skills',
+          () => {
+            this.close();
+            onRoster();
+          },
+          're-btn fm-roster-unit',
+        ),
+      );
+    if (actions.childElementCount) body.append(actions);
     if (held) body.append(element('p', `Swap ${held.name} with`, 'fm-picker-head'));
     const list = element('div', null, 're-choice-list fm-picker-list');
     // Waiting units first, then those already on the field (a pick swaps them).

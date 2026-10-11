@@ -3,8 +3,9 @@
 // The engine decides everything; these tests hold the page to what it must show and do.
 //
 // Ways this can fail, a test (or a group) each:
-//   1. the page leaks what a choice brings (an outcome's words, an odd or a percentage) before
-//      the choice is made, or hides a choice's price or the reason it is greyed;
+//   1. the page leaks which result a choice brings (an outcome's words, an odd or a chance)
+//      before the choice is made, or hides a choice's price or the reason it is greyed (what a
+//      choice CAN do is shown: tests/EventChoicePreview.test.js);
 //   2. a greyed choice can still be pressed, or its reason differs from the engine's;
 //   3. a choice that needs a unit offers units who cannot do it as pickable, shows no faces, or
 //      applies without the chosen unit;
@@ -91,7 +92,7 @@ describe('the choosing page', () => {
     expect(d.menu.closeButton.textContent).toBe('Close');
   });
 
-  it('never shows an outcome, an odd or a percentage before the choice (every event)', () => {
+  it("never shows which outcome is coming or a check's chance; a gamble's odds are its leads (every event)", () => {
     for (const event of baseData.events.events) {
       const run = newRun({ gold: 2000 });
       addUnit(run, 'Cleric', { name: 'Mara' });
@@ -102,7 +103,15 @@ describe('the choosing page', () => {
       const text = d.text();
       for (const secret of secretsOf(event))
         expect(text, `${event.id}: ${secret}`).not.toContain(secret);
-      expect(text, event.id).not.toMatch(/\d+\s?%|odds|chance|probab/i);
+      // The first-event tip says the odds are shown; nothing else on the page talks of chance.
+      const page = text.replace(/ with the odds when it is a gamble\./, '.');
+      expect(page, event.id).not.toMatch(/odds|chance|probab/i);
+      // A percentage is a share of max HP or of a victory's gold, or the lead of one outcome
+      // of a gamble ("70%:"); never a check's chance.
+      for (const [percent] of text.matchAll(/\d+\s?%[^|]{0,24}/g))
+        expect(percent, `${event.id}: ${percent}`).toMatch(
+          /^\d+%:\s*$|% of (max HP|each victory's gold)/,
+        );
       d.controller.destroy();
     }
   });

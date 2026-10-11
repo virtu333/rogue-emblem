@@ -22,6 +22,7 @@ import { classifyBattleBoundary } from './BattleCheckpointAdapter.js';
 import { presentationText } from '../utils/presentationText.js';
 import { captureBattleState } from './BattleCheckpointAdapter.js';
 import { prepareBattleRewind, persistBattleRewind } from '../engine/BattleRewindTransaction.js';
+import { rerollsSpent as rewardRerollsSpent } from '../engine/RerollPool.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 import { stageFateDecision } from './FateDecisionStage.js';
@@ -133,6 +134,7 @@ export class VisionRewindController {
                   convoy: this.runManager.convoy || { weapons: [], consumables: [] },
                   accessories: this.runManager.accessories || [],
                   gold: this.runManager.gold || 0,
+                  rewardRerollsSpent: rewardRerollsSpent(this.runManager),
                 })
               : null,
             nextEntityId: scene._nextBattleEntityId || 1,
@@ -309,6 +311,9 @@ export class VisionRewindController {
       scene.runManager.convoy = structuredClone(domain.convoy);
       scene.runManager.accessories = structuredClone(domain.accessories);
       scene.runManager.gold = domain.gold;
+      // A level-up reroll after this point is taken back with its charge.
+      if (Number.isInteger(domain.rewardRerollsSpent) && domain.rewardRerollsSpent >= 0)
+        scene.runManager.rewardRerollsSpent = domain.rewardRerollsSpent;
       scene._villageState = structuredClone(scene.visionSnapshot.villageState);
       scene._villageController?._destroyMarkers?.();
       if (scene._villageState?.status === 'intact') scene._villageController?._renderMarker?.();

@@ -67,6 +67,46 @@ export function deriveNodeBattleSeed(runSeed, nodeKey) {
   return h >>> 0;
 }
 
+/**
+ * The seed a run's battle stream (BattleRng: Math.random during a battle) opens on at a FRESH
+ * start (BattleScene.installBattleRng): one per run and node, the act named beside the node's id.
+ * So no two battles of a run open on the same draws (hit, crit, skill, AI and growth rolls), and
+ * the same node of the same run opens on the same ones whenever it is entered afresh: a re-entry
+ * after Continue from Map or the prologue's restart replays its first entry's stream, as the
+ * entry-time RNG refund promises. Its own key, so the stream never repeats the draws the node's
+ * fallback map seed (`deriveNodeBattleSeed(runSeed, nodeId)`) generates the map with. A resume
+ * never reads it: the checkpoint holds the stream's seed and cursor.
+ */
+export function deriveBattleStreamSeed(runSeed, { act = null, nodeId = null } = {}) {
+  return deriveNodeBattleSeed(runSeed, `battle-stream:${act ?? ''}:${nodeId ?? ''}`);
+}
+
+/**
+ * The seed a battle's stream opens on: the one rule BattleScene.installBattleRng follows.
+ * A run's FRESH battle opens on its own node's stream (`deriveBattleStreamSeed`); a resume keeps
+ * the run's saved seed (finalizeResume then restores seed and cursor); the PROLOGUE run keeps its
+ * pinned seed (`RunManager.startPrologue` sets `rngSeed` to the prologue's fixed seed, and its
+ * authored chapters, harnesses and browser specs are tuned on that one stream); a battle with no
+ * run (a standalone chapter) takes the node fallback. A dev review route (`?devScene=`, the
+ * registry's PINNED_BATTLE_STREAM_KEY, `pinned`) keeps the run seed's stream too: its fixtures
+ * and browser specs are tuned on it.
+ */
+export const PINNED_BATTLE_STREAM_KEY = 'devPinnedBattleStream';
+
+export function openingBattleStreamSeed({
+  runManager,
+  resume = false,
+  pinned = false,
+  act = null,
+  nodeId = null,
+  fallbackSeed = 0,
+}) {
+  if (runManager && !resume && !pinned && !isPrologueRun(runManager)) {
+    return deriveBattleStreamSeed(runManager.runSeed, { act, nodeId }) >>> 0;
+  }
+  return Number.isFinite(runManager?.rngSeed) ? runManager.rngSeed >>> 0 : fallbackSeed >>> 0;
+}
+
 /** The seed a battle's map is generated from: its params' `battleSeed`, else the derived one. */
 export function battleGenerationSeed(params, { runSeed = 0, nodeId = null } = {}) {
   if (Number.isFinite(params?.battleSeed)) return params.battleSeed;

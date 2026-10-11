@@ -216,9 +216,14 @@ describe('applyXpGain: results, unit state and RNG draws (pinned)', () => {
       spy.mockRestore();
     }
   }
-  const plusOneHp = (newLevel) => ({
+  // A player unit's levels are rolled with the streak guard (UnitManager.levelUp): the record
+  // says so and carries the flag it was rolled with. With only HP growing there is no other
+  // stat to miss, so a second one-stat level in a row stays one stat.
+  const plusOneHp = (newLevel, thinBefore = false) => ({
     gains: { HP: 1, STR: 0, MAG: 0, SKL: 0, SPD: 0, DEF: 0, RES: 0, LCK: 0 },
     newLevel,
+    guard: true,
+    thinBefore,
   });
   const state = (u) => ({
     level: u.level,
@@ -258,12 +263,13 @@ describe('applyXpGain: results, unit state and RNG draws (pinned)', () => {
       currentHP: 22,
       skills: [],
     });
-    expect(out.result).toEqual({ levelUps: [plusOneHp(6), plusOneHp(7)] });
+    expect(out.result).toEqual({ levelUps: [plusOneHp(6), plusOneHp(7, true)] });
     expect(out.statsAfterGain).toEqual(statsOf(22));
     expect(out.levelUps).toEqual([
       { levelUp: plusOneHp(6), learnedIds: [], blockedIds: [] },
-      { levelUp: plusOneHp(7), learnedIds: [], blockedIds: [] },
+      { levelUp: plusOneHp(7, true), learnedIds: [], blockedIds: [] },
     ]);
+    expect(u.lastLevelUpThin).toBe(true);
   });
 
   it('reaching level 10 teaches the class skill after the stat snapshot', () => {

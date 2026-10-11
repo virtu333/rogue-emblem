@@ -104,8 +104,8 @@ describe('Battalion price cut (balance revision 2)', () => {
   });
 
   it('the revision table chains and ends at the prices in metaUpgrades.json', () => {
-    expect(CURRENT_BALANCE_REVISION).toBe(3);
-    expect(BALANCE_REVISIONS.map((r) => r.revision)).toEqual([1, 2, 3]);
+    expect(CURRENT_BALANCE_REVISION).toBe(4);
+    expect(BALANCE_REVISIONS.map((r) => r.revision)).toEqual([1, 2, 3, 4]);
     const byId = new Map(data.metaUpgrades.map((u) => [u.id, u]));
     const latest = BALANCE_REVISIONS[BALANCE_REVISIONS.length - 1];
     for (const [id, costs] of Object.entries(latest.to)) {
@@ -144,7 +144,7 @@ describe('October price changes (balance revision 3)', () => {
     expect(m.totalValor).toBe(750);
     expect(m.totalSupply).toBe(270);
     m._save();
-    expect(disk().balanceRevision).toBe(3);
+    expect(disk().balanceRevision).toBe(CURRENT_BALANCE_REVISION);
     expect(load().totalValor).toBe(750);
   });
 

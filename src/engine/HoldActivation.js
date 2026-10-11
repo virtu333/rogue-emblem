@@ -54,7 +54,7 @@ export function holdShareFor(holdShare, objective) {
 function holdCandidates({ spawns, objective, thronePos, escapeTiles, playerSpawns, mapLayout }) {
   // A siege-tome carrier (Breachbolt) never holds: its Danger zone covers most of the
   // map, so it would wake its pack on turn 1 once seen. It has its own stance instead:
-  // artillery, planted while a player unit is in siege range (SiegeArtillery.js).
+  // artillery, which holds its post and fires from it (SiegeArtillery.js).
   // Nor does a unit on lava or acid: the ground hurts it every turn on its own.
   const onHazard = (s) => isHazardTerrainIndex(mapLayout?.[s.row]?.[s.col]);
   const eligible = (spawns || []).filter(

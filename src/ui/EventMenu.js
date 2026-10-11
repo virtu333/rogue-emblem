@@ -7,11 +7,12 @@
 // Pages (eventView().phase):
 //   choosing  kicker, title, the event's counters ("Torches 2/3"), the steps taken so far
 //             (the one just taken in full, the older ones behind a toggle), the page's intro,
-//             one large button per choice (label, hint, cost seal, the reason when greyed, and
-//             under it the roster tells: a unit's face and line). A choice opens a
-//             confirmation (a unit picker with faces for a choice that needs a target);
-//             nothing is shown of what it brings. A multi-page event comes back here, on its
-//             next page, after each step that has one.
+//             one large button per choice (label, hint, what it can do, cost seal, the reason
+//             when greyed, and under it the roster tells: a unit's face and line). A choice
+//             opens a confirmation (a unit picker with faces for a choice that needs a target).
+//             What it can do is every result it may have on this rung (EventChoicePreview):
+//             never which one the seed holds, never the odds. A multi-page event comes back
+//             here, on its next page, after each step that has one.
 //   outcome   what happened: the outcome text, one line per result (chip, text, detail);
 //             Continue, or only Fight while a battle is owed.
 //   victory   the fight was won: the spoils' text and result lines; Continue.
@@ -42,6 +43,8 @@ import {
   eventConfirmLabel,
   eventCostSeal,
   eventCounterModel,
+  eventPreviewLines,
+  eventPreviewText,
   eventResultLines,
   eventTargetLine,
   eventTellModel,
@@ -255,6 +258,8 @@ export class EventMenu {
       const main = el('span', null, 'ev-choice-main');
       main.append(el('strong', choice.label, 'ev-choice-label'));
       if (choice.hint) main.append(el('small', choice.hint, 'ev-choice-hint'));
+      const preview = this.previewFor(choice);
+      if (preview) main.append(preview);
       if (choice.block) main.append(el('small', choice.block, 'ev-choice-block'));
       b.append(main);
       const seal = eventCostSeal(choice.cost);
@@ -271,6 +276,26 @@ export class EventMenu {
     }
     body.append(list);
     body.append(this.tools());
+  }
+
+  /**
+   * What a choice can do (EventChoicePreview, through the view): one row per result it may have,
+   * led by its chance ("70%") or its word ("Pass", "Fail", "Test"), with a blessing's, a burden's or a
+   * contract's terms in small type under it. Spans, not a list: it sits inside the button.
+   */
+  previewFor(choice) {
+    const lines = eventPreviewLines(choice.preview);
+    if (!lines.length) return null;
+    const box = el('span', null, 'ev-preview');
+    box.dataset.preview = choice.id;
+    for (const line of lines) {
+      const row = el('span', null, `ev-preview-line${line.lead ? ` is-${line.kind}` : ''}`);
+      if (line.lead) row.append(el('span', `${line.lead}:`, 'ev-preview-lead'));
+      row.append(el('span', line.text, 'ev-preview-text'));
+      box.append(row);
+      for (const detail of line.details) box.append(el('span', detail, 'ev-preview-detail'));
+    }
+    return box;
   }
 
   /** The roster tells under a choice: each a unit's face and what it says (never a number). */
@@ -323,6 +348,7 @@ export class EventMenu {
       describe: (c) =>
         [
           c.hint,
+          eventPreviewText(c.preview),
           eventCostSeal(c.cost) ? `It costs ${eventCostSeal(c.cost)}.` : '',
           'This cannot be undone.',
         ]

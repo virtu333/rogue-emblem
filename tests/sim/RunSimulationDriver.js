@@ -2,6 +2,7 @@
 
 import { RunManager, getReviveCost } from '../../src/engine/RunManager.js';
 import { generateShopInventory } from '../../src/engine/LootSystem.js';
+import { ownedLegendaryNames } from '../../src/engine/LegendaryOwnership.js';
 import {
   canPromote,
   promoteUnit,
@@ -364,6 +365,7 @@ export class RunSimulationDriver {
         {
           itemCountBonus: shopItemDelta,
           shopCureGating: this.runManager.difficultyModifiers?.shopCureGating,
+          excludeLegendaryNames: [...ownedLegendaryNames(this.runManager)],
         },
       ),
       { ambushDiscount: node?.isAmbush === true },

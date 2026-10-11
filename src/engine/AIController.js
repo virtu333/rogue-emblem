@@ -37,7 +37,7 @@ import { isAcidTerrainIndex } from './TerrainHazards.js';
 import { createScopedLogger } from '../utils/logger.js';
 import { setUnitHP } from './UnitHealth.js';
 import { HOLD_AI_MODE, wakeHolders } from './HoldActivation.js';
-import { isArtilleryPlanted, settleArtilleryStances } from './SiegeArtillery.js';
+import { artilleryWeapon, isArtilleryPlanted, settleArtilleryStances } from './SiegeArtillery.js';
 
 const DEBUG_AI = false;
 const aiLog = createScopedLogger('AI', { debug: DEBUG_AI });
@@ -122,7 +122,6 @@ export class AIController {
     // covers a caller that did not (a unit that has none for this turn).
     settleArtilleryStances({
       enemyUnits,
-      playerUnits,
       turn: callbacks.turnNumber ?? null,
     });
 
@@ -309,9 +308,12 @@ export class AIController {
     // anti-turtle clock says.
     if (enemy.aiMode === HOLD_AI_MODE)
       return this._finalizeDecision(enemy, { path: null, target: null, reason: 'hold' });
-    // Artillery planted this phase (SiegeArtillery): it fires from its post at the best
-    // target in siege range, or waits there; it never walks, whatever its orders.
-    if (isArtilleryPlanted(enemy)) return this._decideArtilleryAction(enemy, playerUnits, npcUnits);
+    // Post-holders (SiegeArtillery): siege artillery fires from its post at the best
+    // target in siege range, or waits there; a status-staff caster casts or strikes from
+    // its post below (movement range 0). Neither walks, whatever its orders.
+    const holdsPost = isArtilleryPlanted(enemy);
+    if (holdsPost && artilleryWeapon(enemy))
+      return this._decideArtilleryAction(enemy, playerUnits, npcUnits);
     if (enemy.aiMode === 'guard') {
       enemy.guardPost ||= { col: enemy.col, row: enemy.row };
       const nearestDist = Math.min(
@@ -339,7 +341,7 @@ export class AIController {
     const moveRange = this.grid.getMovementRange(
       enemy.col,
       enemy.row,
-      isRooted(enemy) ? 0 : enemy.mov,
+      isRooted(enemy) || holdsPost ? 0 : enemy.mov,
       enemy.moveType,
       unitPositions,
       enemy.faction,
@@ -659,6 +661,16 @@ export class AIController {
         },
       });
     }
+
+    // A post-holder with nothing in reach waits where it stands: no chase, no wall to break
+    // (SiegeArtillery.holdsPost; siege artillery has its own `artillery_hold`).
+    if (holdsPost)
+      return this._finalizeDecision(enemy, {
+        path: null,
+        target: null,
+        reason: 'post_hold',
+        detail: { post: { col: enemy.col, row: enemy.row } },
+      });
 
     // Boss on seize: don't chase if no attack available - stay on throne
     if (isBossOnSeize) {

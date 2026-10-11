@@ -33,6 +33,19 @@
           "minProperties": 1
         }
       },
+      "repeatable": {
+        "type": "object",
+        "properties": {
+          "cost": { "type": "integer", "minimum": 1 },
+          "effect": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": { "type": "number" }
+          }
+        },
+        "required": ["cost", "effect"],
+        "additionalProperties": false
+      },
       "requires": {
         "type": "object",
         "properties": {

@@ -408,7 +408,10 @@ describe('tells under a choice', () => {
     const d = stand(thief, [['Thief', 'Mira']]);
     const text = d.text();
     expect(text).not.toContain('A cache.');
-    expect(text).not.toMatch(/\d+\s?%|odds|chance|probab/i);
+    // The first-event tip says the odds are shown; a tell adds no number of its own.
+    expect(text.replace(/ with the odds when it is a gamble\./, '.')).not.toMatch(
+      /\d+\s?%|odds|chance|probab/i,
+    );
   });
 });
 

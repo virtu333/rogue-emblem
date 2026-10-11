@@ -715,7 +715,12 @@ export class NodeMapScene extends Phaser.Scene {
       return false;
     }
 
-    const pendingNode = this.runManager?.getAmbushPendingNode?.();
+    const rm = this.runManager;
+    // The battle's own rewards come first (its loot choices, a boss recruit, a lord's
+    // arrival): left open by "View map" or a reload, they are claimed before the freed
+    // village trades (PendingRewardController's onComplete opens it then).
+    if (!rm || rm.pendingBattleReward || rm.pendingBossRecruit || rm.pendingThirdLord) return false;
+    const pendingNode = rm.getAmbushPendingNode?.();
     if (!pendingNode?.id) return false;
 
     const node = this.runManager?.nodeMap?.nodes?.find((entry) => entry?.id === pendingNode.id);
@@ -2067,10 +2072,12 @@ export class NodeMapScene extends Phaser.Scene {
       onComplete: () => {
         this._pendingRewards = null;
         this.checkActComplete();
-        // An event battle's spoils come after its loot choices, then a contract reward owed,
-        // then an earned pick still owed (an eclipsed elite's drop; single-flight, so an act
-        // boss's pick checkActComplete already opened is not opened twice).
+        // A freed village's shop opens after its battle's loot choices; an event battle's
+        // spoils come after its loot choices, then a contract reward owed, then an earned
+        // pick still owed (an eclipsed elite's drop; single-flight, so an act boss's pick
+        // checkActComplete already opened is not opened twice).
         if (
+          !this._maybeOpenPendingAmbushShop?.() &&
           !this._maybeOpenPendingEventSettlement?.() &&
           !this._maybeOpenPendingContractSettlement?.()
         )
