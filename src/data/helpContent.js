@@ -4,6 +4,7 @@
 
 import { GENERATED_HELP_TABS } from './generated/mechanicsHelp.js';
 import { GAME_TITLE } from '../utils/gameIdentity.js';
+import { isDescentEnabled, isDescentOnly } from '../engine/DescentSwitch.js';
 import { CHURCH_PROMOTE_COST_LORD, CHURCH_PROMOTE_COST_RECRUIT } from '../utils/constants.js';
 
 const GOLD = '#ffdd44';
@@ -678,6 +679,7 @@ const STATIC_HELP_TABS = [
       },
       {
         title: 'The Court Circle',
+        descentOnly: true,
         tags: ['circle adept', 'hollowed', 'court circle', 'rite', 'voice', 'act v'],
         lines: [
           { text: 'Circle Adepts speak the rite:', color: GOLD },
@@ -891,6 +893,19 @@ const STATIC_HELP_TABS = [
 ];
 
 export const HELP_TABS = [...STATIC_HELP_TABS, ...GENERATED_HELP_TABS];
+
+/**
+ * The tabs a player is shown: a page marked `descentOnly` (the Court Circle) appears only
+ * once the Descent is switched on in `gameData` (engine/DescentSwitch.js). `HELP_TABS`
+ * stays the whole catalog.
+ */
+export function helpTabsFor(gameData) {
+  if (isDescentEnabled(gameData)) return HELP_TABS;
+  return HELP_TABS.map((tab) => ({
+    ...tab,
+    pages: (tab.pages || []).filter((page) => !isDescentOnly(page)),
+  }));
+}
 
 export const HOW_TO_PLAY_PAGES = [
   {

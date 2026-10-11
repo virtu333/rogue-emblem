@@ -57,7 +57,9 @@ Object.defineProperty(globalThis, 'localStorage', {
   writable: true,
 });
 
-const gameData = loadGameData();
+// These tests count every catalog entry, so they read the Descent as on (a dark build lists
+// fewer: tests/DescentReferenceGating.test.js).
+const gameData = { ...loadGameData(), descent: { enabled: true } };
 const META_1 = getMetaKey(1);
 const weapon = (name) => structuredClone(gameData.weapons.find((w) => w.name === name));
 const tab = (key) => TAB_DEFS.findIndex((t) => t.key === key);

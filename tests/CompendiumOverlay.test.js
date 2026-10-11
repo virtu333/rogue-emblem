@@ -10,7 +10,9 @@ import { PauseOverlay } from '../src/ui/PauseOverlay.js';
 import { getImbueStoneItems } from '../src/engine/ImbueSystem.js';
 import { loadGameData } from './testData.js';
 
-const gameData = loadGameData();
+// These tests count every catalog entry, so they read the Descent as on (a dark build lists
+// fewer: tests/DescentReferenceGating.test.js).
+const gameData = { ...loadGameData(), descent: { enabled: true } };
 
 // Foes-tab boss gating reads act-reached milestones across all save slots via
 // hasAnySlotMilestone → localStorage. Mock it so tests can seed unlock state.
