@@ -141,6 +141,28 @@ describe('music library', () => {
     }
   });
 
+  it('the Act V themes are adaptive battle themes of the length the others are, and are cued', () => {
+    const themes = Object.values(MUSIC.descent);
+    expect(themes).toHaveLength(2);
+    const battleLoops = Object.entries(MUSIC_LOOPS)
+      .filter(([k]) => /^music_battle_/.test(k) && !k.endsWith('_calm'))
+      .map(([, v]) => v.loopEnd - v.loopStart);
+    const shortest = Math.min(...battleLoops);
+    const longest = Math.max(...battleLoops);
+    for (const key of themes) {
+      // field themes are two mixes on one timeline (the layers test checks the timelines)
+      expect(MUSIC_LAYERS[key]?.calm, `${key} has a calm mix`).toBe(`${key}_calm`);
+      const loop = getMusicLoop(key);
+      expect(loop.loopEnd - loop.loopStart, key).toBeGreaterThanOrEqual(shortest);
+      expect(loop.loopEnd - loop.loopStart, key).toBeLessThanOrEqual(longest);
+    }
+    // the Vigil's cue for a fallen Voice sounds in the key the Vigil is in
+    const cue = MUSIC_STINGERS.voice_silenced;
+    expect(cue?.keyed).toBe(true);
+    expect(cue.tonics).toContain(getMusicLoop(MUSIC.descent.vigil).tonic);
+    expect(cue.tonics).toContain(getMusicLoop(MUSIC.descent.battle).tonic);
+  });
+
   it("place themes name biomes the map templates use; situations are the selector's", () => {
     const templates = JSON.parse(readFileSync(join(ROOT, 'data', 'mapTemplates.json'), 'utf8'));
     const biomes = new Set(

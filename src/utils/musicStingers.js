@@ -104,4 +104,10 @@ export const MUSIC_STINGERS = {
     notesEnd: 2.0,
     duration: 4.2,
   },
+  voice_silenced: {
+    keyed: true,
+    tonics: ['C', 'Db', 'D', 'E', 'F', 'G', 'A', 'Bb', 'B'],
+    notesEnd: 5.0,
+    duration: 5.892,
+  },
 };
