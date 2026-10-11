@@ -25,12 +25,15 @@ C-sharp under the F-sharp). The voices never cadence. Under the chant:
 The pitch of the chant never rises past its first note again in the call
 (A): it climbs, falls back and ends on the supertonic over the dominant
 pedal, the question the rite does not answer. The climb (B) goes to the
-leading tone and stops; the voices cut; a downlifter drops two octaves
-through two bars of nothing but a low D (the words falling through the
-floor) and the loop turns. In C the circle tightens: the climb is sung in
+leading tone and stops; the voices cut; the tam-tam is scraped and the bass
+drum rubbed, and the leading tone's fall is a semitone, into two bars of
+nothing but a low F (the words falling through the floor; F to G is a step
+from below, never V-i), until the rite's own 2+2 tail on the floor tom leads
+the next call in. In C the circle tightens: the climb is sung in
 quarters over a bass that rises a semitone every two bars (G, A-flat, A,
 B-flat) and the climb with it, each cell ending on its own leading tone,
-never on its tonic; B-flat's A, the last, is the note the next strain
+never on its tonic, each tier louder and with one more voice of the band
+(horns, trombones, the violins, the ostinato in sixteenths); B-flat's A, the last, is the note the next strain
 begins a semitone above.
 
 Form (bars): intro 1-4 (one Voice, a drone) | A 5-12 (the call, sparse) |
@@ -82,17 +85,26 @@ RING_FILL = {'kick': 'x.x.x.x.x.x.x.x.', 'snare': '....X.......xxXX', 'hat': 'x.
              'tom_mid': '..........x.x.x.'}
 
 
+# the Voices forward: less low-mid, more presence, so the chant reads over the drums
+VOICE_EQ = [('peak', 300, 1.0, -2.5), ('peak', 2600, 1.0, 3.0)]
+
+
+def voice(b, i):
+    t, inst, role = VOICES[i]
+    return b.part(f'v{i + 1}', inst, layer='full', role=role, humanize_ms=14, vel_jitter=0.06,
+                  eq=VOICE_EQ)
+
+
 def voices(b, bar, text, dyn):
     """The four Voices on one line, in parallel."""
     for i, (t, inst, role) in enumerate(VOICES):
-        p = b.part(f'v{i + 1}', inst, layer='full', role=role, humanize_ms=14, vel_jitter=0.06)
-        p.at(bar).play(f'@{dyn} ' + text, transpose=t)
+        voice(b, i).at(bar).play(f'@{dyn} ' + text, transpose=t)
 
 
 def build():
     s = Score('battle_vigil', tonic='G', bpm=120, intro_bars=4, loop_bars=40,
               title='Through the Floor', seed=709)
-    s.reverb = dict(rt60=3.6, predelay_ms=34, wet_db=0.4, damp=0.55)
+    s.reverb = dict(rt60=3.6, predelay_ms=34, wet_db=0.0, damp=0.55)
     s.master = dict(lufs=-14.0, glue_ratio=1.5)
     b = Battle(s, calm_lufs=-17.0, full_lufs=-14.0)
     b.section('intro', INTRO, chart('Gm:16')).section('A1', A1, CH_A).section('B1', B1, CH_B)
@@ -105,12 +117,13 @@ def build():
     voices(b, A2, CHANT_A, 'f')
     voices(b, B2, CHANT_B, 'f')
     # C: the circle tightens. The cell is a semitone higher each time (the
-    # fourth below, the octaves, follow it); eight bars, four cells
+    # fourth below, the octaves, follow it); eight bars, four cells, each louder,
+    # and each tier adds a voice of the band (horns, then trombones, then the
+    # violins an octave above; the last also doubles the ostinato's speed)
+    C_DYN = ('mf', 'f', 'f', 'ff')
     for k in range(4):
         for i, (t, inst, role) in enumerate(VOICES):
-            p = b.part(f'v{i + 1}', inst, layer='full', role=role, humanize_ms=14,
-                       vel_jitter=0.06)
-            p.at(C + 2 * k).play('@f ' + CELL, transpose=t + k)
+            voice(b, i).at(C + 2 * k).play(f'@{C_DYN[k]} ' + CELL, transpose=t + k)
     # calm: one Voice, the line alone
     one = b.part('c_voice', 'choir', layer='calm', role='lead', humanize_ms=14, vel_jitter=0.06)
     one.at(INTRO + 2).play('@mp Bb3h C4h | D4h Eb4h |')
@@ -136,8 +149,8 @@ def build():
     for bar, text in ((A2, CHANT_A), (B2, CHANT_B)):
         cvn.at(bar).play('%sus @mf ' + text, transpose=12)
     cvn.at(B1 + 4).play('%sus @mf F#5w~ | F#5h rh |', transpose=12)
-    for k in range(4):
-        cvn.at(C + 2 * k).play('@f ' + CELL, transpose=k + 12)
+    for k in (2, 3):
+        cvn.at(C + 2 * k).play(f'@{C_DYN[k]} ' + CELL, transpose=k + 12)
     cvn.expr((B1 + 4, 0.6), (B1 + 5.4, 1.0), (A2, 0.9), (B2 + 4, 0.8), (B2 + 5.4, 1.0))
 
     # ================================================================ drones and the falling ostinato
@@ -154,12 +167,13 @@ def build():
         bass(pv, bar, CH_B[:5], 'w', 'b', floor=36, vel=0.68, art='sus')
         bass(psub, bar, CH_B[:5], 'w', 'b', floor=26, vel=0.6)
         # (D5:8 is the fifth chord: written above for 17-18 only)
-    # the hole: a low D and nothing else (the downlifter falls through it)
+    # the hole: the leading tone has fallen a semitone, through the floor: a low F and
+    # nothing else (F to G is a step from below, never V-i: the name stays unsung)
     hole = b.part('hole_cb', 'basses', role='low', art='soft', calm_db=0)
     holev = b.part('hole_vc', 'celli', role='low', art='soft', calm_db=0)
     for bar in (B1, B2):
-        hole.at(bar + 6).play('@p D1w | D1w |')
-        holev.at(bar + 6).play('@pp D2w | D2w |')
+        hole.at(bar + 6).play('@p F1w | F1w |')
+        holev.at(bar + 6).play('@pp F2w | F2w |')
     # intro: the drone alone
     icb = b.part('i_cb', 'basses', role='low', art='trem', calm_db=0)
     icb.at(INTRO).play('@p G1w~ | G1w~ | G1w~ | G1w |')
@@ -184,9 +198,11 @@ def build():
     # (the violins take the cell an octave and a half above, from the second call)
     ostinato(ovn, A2, CH_A, 'e e e', '2 1 0', lo=64, hi=79, vel=0.5)
     ostinato(ovn, B2, CH_B[:5], 'e e e', '2 1 0', lo=64, hi=79, vel=0.52)
-    # C: in sixteenths now, the cell still three notes long
-    ostinato(ova, C, CH_C, 's s s', '2 1 0', lo=55, hi=72, vel=0.56)
-    ostinato(ovn, C, CH_C, 's s s', '2 1 0', lo=64, hi=82, vel=0.56)
+    # C: the cell still three notes long, in eighths, then (the last tier) sixteenths
+    ostinato(ova, C, CH_C[:3], 'e e e', '2 1 0', lo=55, hi=72, vel=0.56)
+    ostinato(ovn, C + 2, CH_C[1:3], 'e e e', '2 1 0', lo=64, hi=82, vel=0.54)
+    ostinato(ova, C + 6, CH_C[3:], 's s s', '2 1 0', lo=55, hi=72, vel=0.6)
+    ostinato(ovn, C + 6, CH_C[3:], 's s s', '2 1 0', lo=64, hi=82, vel=0.6)
     ostinato(ovc, C, CH_C, 'e e e', '2 1 0', lo=43, hi=58, vel=0.6)
 
     # ================================================================ brass and the band
@@ -197,11 +213,12 @@ def build():
         hn.at(bar).play(f'@{dyn} ' + text, transpose=-12)
         tb = b.part('tbn_line', 'trombones', layer='full', role='section', gain=-3)
         tb.at(bar).play(f'@{dyn} ' + text, transpose=-24)
-    for k in range(4):
+    for k in range(1, 4):
         hn = b.part('hn_line', 'horns')
-        hn.at(C + 2 * k).play('@f ' + CELL, transpose=k - 12)
-        tb = b.part('tbn_line', 'trombones')
-        tb.at(C + 2 * k).play('@f ' + CELL, transpose=k - 24)
+        hn.at(C + 2 * k).play(f'@{C_DYN[k]} ' + CELL, transpose=k - 12)
+        if k >= 2:
+            tb = b.part('tbn_line', 'trombones')
+            tb.at(C + 2 * k).play(f'@{C_DYN[k]} ' + CELL, transpose=k - 24)
     ebs = b.part('ebass', 'rbass', layer='full', role='bass', duck='kit_kick')
     for bar, ch in ((A2, CH_A), (C, CH_C)):
         bass(ebs, bar, ch, 'e e e e e e e e', 'b b b b b b b b', floor=29, vel=0.74,
@@ -218,20 +235,28 @@ def build():
     for k, root in enumerate(('G2', 'Ab2', 'A2', 'Bb2')):
         timp.at(C + 2 * k).play('%default @f ' + root + 'q rq ' + root + 'e ' + root + 'e rq | '
                                 + root + 'q rq rh |')
+    # the last tier's second bar rolls into the second climb
+    tr = b.part('timp_c', 'timpani', role='timp', calm_db=-8)
+    tr.at(C + 7).play('%roll @f rh D3h |')
+    tr.expr((C + 7.5, 0.4), (C + 7.97, 1.0))
     ti = b.part('timp_i', 'timpani', role='timp', calm_db=-8)
     ti.at(INTRO).play('%roll @p G2w~ | G2w |')
     ti.expr((INTRO, 0.25), (INTRO + 1.95, 1.0))
     ti.at(INTRO + 2).play('%default @mf G2q rq G2q rq | G2q rq D2q D2q |')
 
     # ================================================================ the fall
-    # the climb's last note held and cut at beat 3 of its second bar; then a
-    # downlifter dropping two octaves (the words falling) and a low D
+    # the climb's last note held and cut at beat 3 of its second bar: there the
+    # tam-tam is scraped and the bass drum rubbed (the floor giving way), and the
+    # low F takes the hole. In the hole's last bar the rite's own 2+2 (its tail)
+    # comes back on the floor tom and the log drum, the pickup into the next call
+    # (the scrape and the rub are levelled apart: the rub is only the floor under it)
+    scr = b.part('fall_scrape', 'orch_perc', role='accent', calm_db=-3, pan=0.0, gain=2)
+    rub = b.part('fall_rub', 'orch_perc', role='accent', calm_db=-4, pan=0.0, gain=-5)
+    tail = b.part('fall_log', 'orch_perc', role='accent', calm_db=-3)
     for bar in (B1, B2):
-        fall = b.part('fall', 'downlifter', layer='full', role='fx', gain=2)
-        fall.at(bar + 5.5).note(s.bar(bar + 5.5), 'D5', 6.0, vel=0.8)
-    for bar in (B1, B2):
-        boom = b.part('boom', 'boom', layer='full', role='accent', gain=0)
-        boom.at(bar + 7).note(s.bar(bar + 7), 'D1', 4.0, vel=0.85)
+        drums(scr, bar + 5.5, {'gong_scrape': 'X'}, vel=0.85)
+        drums(rub, bar + 5.5, {'bd_rub': 'x'}, vel=0.7)
+        drums(tail, bar + 7, {'log_lo': '............x.x.'}, vel=0.6)
 
     # ================================================================ percussion
     perc = b.part('perc', 'orch_perc', role='accent', calm_db=-6)
@@ -260,13 +285,14 @@ def build():
         kit.play(A1 + i, RITE_FILL if i % 4 == 3 else RITE_TOM, vel=0.62)
     for i in range(6):
         kit.play(B1 + i, RITE_FILL if i % 4 == 3 else RITE_TOM, vel=0.62 + 0.03 * i)
-    kit.play(B1 + 6, {'kick': 'x...............'}, vel=0.5)   # the floor takes the rest
+    kit.play(B1 + 7, {'tom_lo': '............x.x.'}, vel=0.66)  # the rite's tail, the pickup
     for i in range(8):
         kit.play(A2 + i, RITE_BAND_FILL if i % 4 == 3 else RITE_BAND, vel=0.74)
     for i in range(8):
         kit.play(C + i, RING_FILL if i % 2 == 1 else RING, vel=0.78 + 0.01 * i)
     for i in range(6):
         kit.play(B2 + i, RITE_BAND_FILL if i % 4 == 3 else RITE_BAND, vel=0.78 + 0.02 * i)
+    kit.play(B2 + 7, {'tom_lo': '............x.x.'}, vel=0.66)
     for bar in (A2, C, B2):
         kit.play(bar, {'crash': 'X'})
 
@@ -278,7 +304,7 @@ def build():
         ostinato(hp, bar, ch, 'e e e', '2 1 0', lo=60, hi=79, vel=0.5)
     ostinato(hp, C, CH_C, 'e e e', '2 1 0', lo=60, hi=79, vel=0.52)
     # and a triangle, far off, on the rite's own pulse
-    ctri = b.part('c_tri', 'orch_perc', layer='calm', role='accent', gain=2, pan=0.35)
+    ctri = b.part('c_tri', 'orch_perc', layer='calm', role='accent', gain=-7, pan=0.35)
     for bar in list(range(A1, B1 + 6)) + list(range(A2, B2 + 6)):
         drums(ctri, bar, {'tri': RITE}, vel=0.32)
     cfl = b.part('c_flute', 'flute', layer='calm', role='lead2', gain=-3)

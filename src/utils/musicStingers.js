@@ -108,6 +108,6 @@ export const MUSIC_STINGERS = {
     keyed: true,
     tonics: ['C', 'Db', 'D', 'E', 'F', 'G', 'A', 'Bb', 'B'],
     notesEnd: 5.0,
-    duration: 5.821,
+    duration: 5.892,
   },
 };

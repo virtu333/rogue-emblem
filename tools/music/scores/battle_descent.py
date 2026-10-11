@@ -17,9 +17,11 @@ drift) with its reach taken out, and the mechanism is the stair:
   * THE REACH IS MISSING. The tune's high held A (Ember Dusk's bar-two
     climax) is a rest, and the same note sounds three octaves down, low
     strings (and in the second telling tuba and trombones) on beat 1 of bar
-    two: the climb has fallen through the stair. Nothing above the staff
-    answers it. (The intro's retrograde Thread, A E D A, lands on that low A
-    before the stair begins.)
+    two: the climb has fallen through the stair. On the beat where the A5
+    would have sounded a harp runs down the VI chord from that A to the low
+    one, so the hole is heard as a fall, not a missing note. Nothing above the
+    staff answers it. (The intro's retrograde Thread, A E D A, lands on that
+    low A before the stair begins.)
   * COLD AND SPARSE. In the first telling the tune is violins, celesta and
     oboe over bare fifths (a third-less tremolo), a kit that plays only
     footfalls (three toms stepping down the bar, a kick on the landing) and
@@ -30,7 +32,9 @@ drift) with its reach taken out, and the mechanism is the stair:
 Leitmotifs: the Thread (the tune; its fragments over the ground), the Hollow
 Sun (B: the climb F-G-A-B-flat-C-sharp that stops short, over a D pedal that
 leaves the bass for the last three bars, so the C-sharp is the third of an A
-that never goes home). No Empire drill, no choir sings the tune.
+that never goes home: in the hole, bar 36, the bass falls to C, the stair's
+own last chord, which steps up onto the second telling's D as every landing
+does; never V-i). No Empire drill, no choir sings the tune.
 
 Form (bars): intro 1-4 | A1 5-20 (the four landings, sparse) | X 21-28 (the
 lament ground D C B-flat A twice, the Thread in fragments over a driving
@@ -69,6 +73,11 @@ CLIMB = 'F5w | G5w | A5w | Bb5w | C#6w~ | C#6w~ | C#6h rh | rw |'
 
 STEP = -3                         # each landing a minor third lower
 LAND = chart('Dm Bbmaj7 C A')     # Ember Dusk's i VI VII V
+# the calm bed's chart: bar two's first two beats (the tune rests) stand on the
+# fallen reach, voiced as the third of F, so its low strings join the low A instead
+# of holding B-flat a semitone above it (exposed in the calm mix, the full mix's
+# VI-over-its-seventh reads as a wrong bass note)
+LAND_CALM = chart('Dm F/A:2 Bb:2 C A')
 
 
 def shift(ch, n):
@@ -82,17 +91,18 @@ def shift(ch, n):
     return out
 
 
-def stair(n=4):
+def stair(n=4, land=LAND):
     """The four landings' chart, one after another."""
     out = []
     for i in range(n):
-        out += shift(LAND, STEP * i)
+        out += shift(land, STEP * i)
     return out
 
 
 CH_A = stair()
+CH_A_CALM = stair(land=LAND_CALM)
 CH_X = chart('Dm C Bb A Dm C Bb A')
-CH_B = chart('Dm Gm/D Dm Bb/D A7:4 A7:4 A7:4 A7:4', default_beats=4.0)
+CH_B = chart('Dm Gm/D Dm Bb/D A7:4 A7:4 A7:4 C:4', default_beats=4.0)
 CH_INTRO = chart('Dm:4 Dm:4 Dm:4 Dm:4')
 
 INTRO, A1, X, B, A2 = 1, 5, 21, 29, 37
@@ -181,17 +191,36 @@ def build():
         hn.at(bar).play('@mf ' + TUNE_BR, transpose=t - 12)
 
     # the reach, fallen: the low strings, and in the second telling brass too
-    rvc = b.part('reach_vc', 'celli', role='low', art='sus', calm_db=-2)
-    rcb = b.part('reach_cb', 'basses', role='low', art='sus', calm_db=-2)
+    rvc = b.part('reach_vc', 'celli', role='low', art='sus', calm_db=-2, gain=3)
+    rcb = b.part('reach_cb', 'basses', role='low', art='sus', calm_db=-2, gain=3)
     rtb = b.part('reach_tbn', 'trombones', layer='full', role='section', gain=-1)
     rtu = b.part('reach_tuba', 'tuba', layer='full', role='low')
     for bars, brass in ((lands, False), (lands2, True)):
         for bar, t in bars:
-            low_note(rvc, bar + 1, 'A2', 2.0, t, 36, 0.82)
-            low_note(rcb, bar + 1, 'A1', 2.0, t, 24, 0.82)
+            low_note(rvc, bar + 1, 'A2', 2.0, t, 36, 0.9)
+            low_note(rcb, bar + 1, 'A1', 2.0, t, 27, 0.9)
             if brass:
                 low_note(rtb, bar + 1, 'A2', 2.0, t, 34, 0.8)
                 low_note(rtu, bar + 1, 'A1', 2.0, t, 28, 0.8)
+    # the fall itself: on the beat where the A5 would have sounded, a harp runs down
+    # from that A to the low A that took its place (through A F C, the F the calm bed
+    # holds there, so no note a semitone from the A rings into the landing), and the
+    # hole is heard as a fall through the stair, not as a missing note (louder in the
+    # calm mix, where the tune is barest)
+    fhp = b.part('fall_hp', 'harp', role='accent', calm_db=3)
+    for bars in (lands, lands2):
+        for bar0, t in bars:
+            top = parse_pitch('A5') + t
+            low = at_or_above('A2', t, 36)
+            pcs = {(pc + t) % 12 for pc in (9, 0, 5)}          # A C F, moved
+            run = [p for p in range(top, low - 1, -1) if p % 12 in pcs]
+            step = 1.0 / (len(run) - 1)
+            # (damped at the landing: only the low note rings, so the chord's root
+            # never sounds a semitone above it)
+            for k, p in enumerate(run):
+                last = k == len(run) - 1
+                fhp.note(s.bar(bar0) + 3.0 + k * step, p, 1.5 if last else 1.0 - k * step,
+                         vel=0.5 + 0.3 * k / (len(run) - 1))
     # the landings' roots, tolled (as Ashfall tolls them)
     bells = b.part('bells', 'bells', role='accent', calm_db=-3)
     for bars in (lands, lands2):
@@ -226,7 +255,7 @@ def build():
     cb = b.part('cb', 'basses', role='low', art='spic', calm_db=-3)
     vc = b.part('vc', 'celli', layer='full', role='ostinato', art='spic')
     ebs = b.part('ebass', 'rbass', layer='full', role='bass', duck='kit_kick')
-    sub = b.part('sub', 'sub', layer='full', role='sub')
+    sub = b.part('sub', 'sub', layer='full', role='sub', gain=-2)
     # (the first telling is sparse: bass quarters alone, the celli's eighths from the second
     # landing, the bass guitar from the fourth. On the second bar's first two beats the floor
     # is gone: the reach is alone)
@@ -321,13 +350,17 @@ def build():
     tb.at(B).play('%default @mf D2q rq rh | D2q rq rh | D2q rq rh | D2q rq rh |')
     tb.at(B + 4).play('%roll @f A2w | A2w | A2h rh |')
     tb.expr((B, 0.7), (B + 4, 0.7), (B + 6, 1.0), (B + 6.4, 0.3))
-    # the hole at bar 36: a low A and the sub, nothing else. (Written into the
-    # bass, tremolo violas and horns of the last bar; the loop's seam sits
-    # after the second telling, not here.)
+    # the hole at bar 36: the C-sharp falls to C, low, and nothing else. C is the stair's
+    # own last chord (each landing's V steps up a second onto the next), so the second
+    # telling begins by the stair's step, never by V-i: the Hollow Sun stays unresolved.
+    # A timpani roll and the toms' footfalls on the last beat lead back in
     hole = b.part('hole', 'basses', role='low', art='soft', calm_db=0)
-    hole.at(B + 7).play('@p A1w |')
+    hole.at(B + 7).play('@p C2w |')
     hole_vc = b.part('hole_vc', 'celli', role='low', art='soft', calm_db=0)
-    hole_vc.at(B + 7).play('@pp A2w |')
+    hole_vc.at(B + 7).play('@pp C3w |')
+    th_ = b.part('timp_h', 'timpani', role='timp', calm_db=-6)
+    th_.at(B + 7).play('%roll @mp rh C3h |')
+    th_.expr((B + 7.5, 0.3), (B + 7.97, 1.0))
 
     # ================================================================ the second telling's weight
     # oohs, far, on the fifths of each landing (voices begin here)
@@ -363,6 +396,8 @@ def build():
     kit.play(INTRO + 3, STAIR_FILL, vel=0.76, ramp=0.4)
     for i in range(16):
         kit.play(A1 + i, STAIR_FILL if i % 4 == 3 else STAIR, vel=0.7)
+        if i >= 4:
+            kit.play(A1 + i, {'hat': 'o.x.o.x.o.x.o.x.'}, vel=0.56)
     for i in range(8):
         kit.play(X + i, DRIVE_FILL if i % 4 == 3 else DRIVE, vel=0.76)
     for i in range(4):
@@ -374,7 +409,9 @@ def build():
              ramp=0.5)
     kit.play(B + 6, {'kick': 'x...x...x...x...', 'snare': 'xxxxxxxxxxxxxxxx'}, vel=0.88,
              ramp=0.6)
-    # (bars 35's last beats and 36 are the hole: no kit)
+    # (bar 35's last beats and 36 are the hole: no kit until the footfalls on its last beat)
+    kit.play(B + 7, {'tom_hi': '............x...', 'tom_mid': '.............x..',
+                     'tom_lo': '..............xX'}, vel=0.64)
     for i in range(16):
         kit.play(A2 + i, STAIR2_FILL if i % 4 == 3 else STAIR2, vel=0.76)
     for bar in (A1, X, A2, A2 + 8):
@@ -382,9 +419,16 @@ def build():
     kit.play(B + 4, {'crash': 'X'})
 
     # ================================================================ calm bed
-    b.calm_bed('A1', piano='0 2 0 2', pad_n=2)
+    b.section('A1c', A1, CH_A_CALM).section('A2c', A2, CH_A_CALM)
+    b.calm_bed('A1c', piano='0 2 0 2', pad_n=2)
     b.calm_bed('X', piano='0 2 0 2', pad_n=2)
-    b.calm_bed('A2', piano='0 2 0 2', pad_n=2)
+    b.calm_bed('A2c', piano='0 2 0 2', pad_n=2)
+    # under the climb the calm mix keeps its heartbeat and a soft pad (no low strings:
+    # the pedal is shared)
+    for bar in range(B, B + 7):
+        b.calm_kit.play(bar, {'kick': 'x.......x.......'}, vel=0.42)
+    cpad = b.part('c_pad', 'violas', layer='calm', role='pad', art='soft')
+    pad(cpad, B, CH_B[:7], n=2, lo=53, hi=69, vel=0.42, art='soft')
     bpn = b.part('c_pno', 'grand', layer='calm', role='keys')
     arp(bpn, B, CH_B[:6], '0 2 0 2', step=1.0, lo=48, hi=75, vel=0.46, accent_every=2,
         accent=0.08)
