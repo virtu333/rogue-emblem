@@ -3,7 +3,7 @@
 //
 // Pass is a passive: the unit moves through enemy units but can never stop on one. The
 // rule itself lives in Grid.js (computeMovementRange and computePath take `{ pass }`;
-// `passesThrough` says whom it walks through); this module is only the question "does this
+// `walksThrough` says whom any unit walks through, `passesThrough` the foes Pass adds); this module is only the question "does this
 // unit have it?", asked in one place so the scene, the previews, the headless harness and the
 // sims all pass the same options. It reads EffectiveSkills, so a Pass lent by an accessory
 // works exactly as a learned one.

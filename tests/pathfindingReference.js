@@ -4,6 +4,13 @@
 // (tests/GridPathfindingIdentity.test.js, tests/harness/RecoveryFallbackIdentity.test.js).
 // Never import this from src/.
 import { passesThrough } from '../src/engine/Grid.js';
+
+// The occupancy rule, kept here independently of Grid.walksThrough: own side, the Merchant
+// Caravan for a player mover, and with Pass a foe.
+const crosses = (occupant, moverFaction, pass) =>
+  occupant.faction === moverFaction ||
+  (occupant.isCaravan === true && moverFaction === 'player') ||
+  (pass && passesThrough(occupant, moverFaction));
 import { resolveIceSlide, iceSlideStop } from '../src/engine/IceMovement.js';
 import { gridDistance } from '../src/engine/Combat.js';
 
@@ -74,12 +81,7 @@ export function referenceComputePath(
       const nKey = `${nc},${nr}`;
       if (unitPositions) {
         const occupant = unitPositions.get(nKey);
-        if (
-          occupant &&
-          occupant.faction !== moverFaction &&
-          !(pass && passesThrough(occupant, moverFaction))
-        )
-          continue;
+        if (occupant && !crosses(occupant, moverFaction, pass)) continue;
       }
 
       const tentativeG = current.g + moveCost;
@@ -149,10 +151,7 @@ export function referenceComputeMovementRange(
       if (unitPositions) {
         const occupant = unitPositions.get(key);
         if (occupant) {
-          if (
-            occupant.faction !== moverFaction &&
-            !(pass && passesThrough(occupant, moverFaction))
-          ) {
+          if (!crosses(occupant, moverFaction, pass)) {
             continue;
           }
         }
@@ -201,10 +200,7 @@ export function referenceComputeMovementRange(
     for (const [key, entry] of reachable) {
       if (key === `${startCol},${startRow}`) continue;
       const occupant = unitPositions.get(key);
-      if (
-        occupant &&
-        (occupant.faction === moverFaction || (pass && passesThrough(occupant, moverFaction)))
-      ) {
+      if (occupant && crosses(occupant, moverFaction, pass)) {
         entry.stoppable = false;
       }
     }
