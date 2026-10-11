@@ -173,7 +173,7 @@ Dev routes run on Netlify deploy previews (`VITE_DEV_ROUTES`); append these to t
   - Bramwell's Oath of the Bridge waits in Deeds (give up a skill, or Keep my skills twice).
   - Corwin (five skills, Master Seal) promotes into the waiting note.
   - Edric wears a Seraph Robe at 1 HP with an Elixir and a Vulnerary: take the robe off, heal, put it back.
-- **Endings:** `/?devScene=victory&route=lieutenant` (First Light), `route=emperor` (Dusk), `route=entity` (Nightfall).
+- **Endings:** `/?devScene=victory&route=lieutenant` (First Light), `route=dusk` (Dusk), `route=emperor` (a Dusk run saved before it went on to the Lieutenant), `route=entity` (Nightfall).
 
 ## Phone review round (Dave, 2026-09-28)
 

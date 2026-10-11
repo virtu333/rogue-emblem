@@ -32,11 +32,14 @@ const DEV_SCENE_ALIASES = {
   // Review route: the run-complete screen for a won run (`&route=` picks the ending).
   victory: 'RunComplete',
 };
-// `&route=` for devScene=victory: where the won run ended, and on which rung.
+// `&route=` for devScene=victory: where the won run ended, and on which rung. Dusk's road runs
+// on past the Emperor to the Lieutenant (`dusk`); `emperor` is a Dusk run saved before that,
+// which still ends at him (its own act list, as a loaded save keeps it).
 const DEV_VICTORY_ROUTES = {
-  lieutenant: 'normal',
-  emperor: 'dusk',
-  entity: 'hard',
+  lieutenant: { difficultyId: 'normal' },
+  dusk: { difficultyId: 'dusk' },
+  emperor: { difficultyId: 'dusk', acts: ['act1', 'act2', 'act3', 'act4'] },
+  entity: { difficultyId: 'hard' },
 };
 const DEV_PRESETS = new Set([
   'fresh',
@@ -500,12 +503,13 @@ function addRosterChecks(runManager, gameData) {
 
 /** A won run for the run-complete review: the ending follows `route`'s road. */
 function createVictoryRun(gameData, meta, config) {
-  const difficultyId = DEV_VICTORY_ROUTES[config.route] || 'normal';
+  const road = DEV_VICTORY_ROUTES[config.route] || DEV_VICTORY_ROUTES.lieutenant;
   const runManager = new RunManager(gameData, meta?.getActiveEffects?.() || null);
   runManager.startRun({
     runSeed: Number.isFinite(config.seed) ? config.seed : 1,
-    difficultyId,
+    difficultyId: road.difficultyId,
   });
+  if (road.acts) runManager.actSequence = [...road.acts];
   runManager.actIndex = runManager.actSequence.length - 1;
   runManager.completedBattles = 20;
   runManager.status = 'victory';

@@ -117,10 +117,23 @@ describe('who is owed a pick', () => {
     },
   );
 
-  it('the rungs end where they should: First Light at the Lieutenant, Dusk at the Emperor', () => {
+  it('the rungs end where they should: First Light and Dusk at the Lieutenant, the top two at the Entity', () => {
     expect(freshRun(1, 'normal').actSequence).toEqual(['act1', 'act2', 'act3', 'finalBoss']);
-    expect(freshRun(1, 'dusk').actSequence).toEqual(['act1', 'act2', 'act3', 'act4']);
+    expect(freshRun(1, 'dusk').actSequence).toEqual(['act1', 'act2', 'act3', 'act4', 'finalBoss']);
     expect(freshRun(1, 'hard').actSequence.at(-1)).toBe('finalBoss');
+  });
+
+  it("Dusk's Emperor (Act IV) owes a pick now, unless the run was saved with four acts", () => {
+    // Failure: the due-rule keys on the rung (or on act4) instead of the run's own last act, so
+    // Dusk's Emperor offers none after the road goes on, or an old four-act Dusk run's Emperor,
+    // which ends the run, offers a card nobody can use.
+    const rm = freshRun(5, 'dusk');
+    rm.actIndex = 3;
+    expect(rm.currentAct).toBe('act4');
+    const emperor = bossOf(rm);
+    expect(actBossPickDue(rm, emperor)).toBe(true);
+    rm.actSequence = rm.actSequence.slice(0, 4); // a run saved before Dusk went on
+    expect(actBossPickDue(rm, emperor)).toBe(false);
   });
 
   it('the prologue never owes one, whatever its last node is', () => {

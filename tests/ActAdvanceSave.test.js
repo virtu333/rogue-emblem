@@ -1,6 +1,7 @@
 // The act boss falls, the run advances to the next act, and only then do the act
 // card and story play (they wait on the player). A reload in that window must
 // resume on the NEXT act's map, not on the finished one.
+import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
 vi.mock('../src/utils/SceneRouter.js', async (importOriginal) => ({
@@ -13,6 +14,9 @@ import { earnedPickOwed, skipEarnedBlessing } from '../src/engine/EarnedBlessing
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
+const dialogue = JSON.parse(
+  readFileSync(new URL('../data/dialogue.json', import.meta.url), 'utf8'),
+);
 
 function winAct(rm) {
   for (let guard = 0; guard < 60 && !rm.isActComplete(); guard++) {
@@ -65,4 +69,72 @@ describe('act boss victory: the act advance is saved before the act card and sto
     expect(resumed.battleInProgress).toBeNull(); // a map save, not a battle checkpoint
     expect(resumed.pendingBattleReward).toBeFalsy();
   });
+});
+
+describe('the Act IV to Act V transition follows where the road ends', () => {
+  // Failure: the Emperor's fall plays the Entity's "the ground is waking" descent on a road that
+  // ends at the Lieutenant (Dusk), or a Nightfall / Black Sun run loses the descent it has always
+  // had, because the key is chosen without the run's finale.
+  async function transitionAfterEmperor(difficultyId, commander = 'Edric') {
+    const rm = new RunManager(gameData);
+    rm.startRun({ runSeed: 42, difficultyId });
+    rm.getStartingLordNames = () => [commander, commander === 'Sera' ? 'Edric' : 'Sera'];
+    while (rm.currentAct !== 'act4') {
+      winAct(rm);
+      rm.advanceAct();
+    }
+    winAct(rm);
+    expect(rm.isActComplete()).toBe(true);
+    expect(rm.isRunComplete()).toBe(false);
+    const shown = [];
+    const scene = {
+      _battleSession: 1,
+      runManager: rm,
+      gameData: { ...gameData, dialogue },
+      isElite: false,
+      battleState: 'BATTLE_END',
+      nodeId: rm.nodeMap.bossNodeId,
+      registry: { get: () => null },
+      reportLootError: vi.fn(),
+      forceTransitionAfterBattle: vi.fn(),
+      _persistBattleRunState: () => ({ ok: true }),
+      _showStoryDialogueOnce: vi.fn(async (key, entries) => {
+        shown.push({ key, lines: (entries || []).map((e) => e.line) });
+      }),
+    };
+    await new PostCombatController(scene).transitionAfterBattle();
+    expect(rm.currentAct).toBe('finalBoss');
+    return shown;
+  }
+
+  it('Dusk goes down to the Lieutenant: the Act IV close, then the descent to him alone', async () => {
+    const shown = await transitionAfterEmperor('dusk');
+    expect(shown.map((s) => s.key)).toEqual(['act4_to_finalBoss_lieutenant']);
+    const text = shown[0].lines.join('\n');
+    expect(text).toMatch(/emperor is defeated/);
+    expect(text).toMatch(/lieutenant went down/);
+    // Not the Entity's descent: no waking ground, and its arrival scene does not follow.
+    expect(text).not.toMatch(/ground is shaking|Time doesn't pass/);
+  });
+
+  it("Dusk plays its commander's own line last, whoever leads", async () => {
+    const shown = await transitionAfterEmperor('dusk', 'Cael');
+    const cael = dialogue.actTransitions.act4_to_finalBoss_lieutenant.variants.find(
+      (v) => v.when.commander === 'Cael',
+    );
+    expect(shown[0].lines.at(-1)).toBe(cael.entries.at(-1).line);
+  });
+
+  it.each(['hard', 'lunatic'])(
+    "%s keeps the Entity's descent exactly: the ground wakes, then the arrival",
+    async (difficultyId) => {
+      const shown = await transitionAfterEmperor(difficultyId);
+      expect(shown.map((s) => s.key)).toEqual(['finalBoss_to_secretAct']);
+      const act = dialogue.actTransitions;
+      const lines = (section) => section.variants.find((v) => v.when.commander === 'Edric').entries;
+      expect(shown[0].lines).toEqual(
+        [...lines(act.finalBoss_to_secretAct), ...lines(act.secretAct_start)].map((e) => e.line),
+      );
+    },
+  );
 });

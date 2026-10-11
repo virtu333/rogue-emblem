@@ -144,6 +144,8 @@ describe('buildNarrativeContext', () => {
       firstClear: false,
       linesPlayed: [],
       prologue: 'none',
+      roadThroughEmperor: false,
+      finale: null,
     });
   });
 
@@ -187,6 +189,8 @@ describe('buildNarrativeContext', () => {
       firstClear: true,
       linesPlayed: [],
       prologue: 'none',
+      roadThroughEmperor: false,
+      finale: null,
     });
   });
 
@@ -211,6 +215,7 @@ describe('KNOWN_WHEN_KEYS', () => {
       'commanderHasEpithet',
       'currentDefeatWasBoss',
       'difficulty',
+      'finale',
       'firstClear',
       'lastRunAct',
       'lastRunDefeatedByKnown',
@@ -219,6 +224,7 @@ describe('KNOWN_WHEN_KEYS', () => {
       'minRunsCompleted',
       'partner',
       'prologue',
+      'roadThroughEmperor',
     ]);
   });
 });

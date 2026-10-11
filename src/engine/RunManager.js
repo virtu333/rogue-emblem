@@ -291,10 +291,16 @@ function sanitizeActSequence(sequence, fallback = ACT_SEQUENCE) {
   return [...fallback.filter((actId) => KNOWN_ACT_IDS.has(actId))];
 }
 
-export function getActTransitionKey(fromAct, toAct) {
+/**
+ * The story scene an act advance plays. `finale` is where the run's road ends
+ * (NarrativeDirector.finaleOf): after the Emperor falls, a road that ends at the Lieutenant
+ * (Dusk) goes down to him; any other road (the Entity's, or one that does not say) is the
+ * ground waking, the descent to the Entity.
+ */
+export function getActTransitionKey(fromAct, toAct, { finale = null } = {}) {
   if (fromAct === 'act3' && toAct === 'finalBoss') return 'act3_to_finalBoss_normal';
-  // After the Emperor falls, the ground wakes: the descent to the Entity.
-  if (fromAct === 'act4' && toAct === 'finalBoss') return 'finalBoss_to_secretAct';
+  if (fromAct === 'act4' && toAct === 'finalBoss')
+    return finale === 'lieutenant' ? 'act4_to_finalBoss_lieutenant' : 'finalBoss_to_secretAct';
   return `${fromAct}_to_${toAct}`;
 }
 
