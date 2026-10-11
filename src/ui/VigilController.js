@@ -273,10 +273,11 @@ export class VigilController {
     const heardWords = step.words.filter((word) =>
       this.seesUnit(voiceUnit(word.voiceId, scene.enemyUnits)),
     );
+    const seen = step.summons.map((s) => s.unit).filter((unit) => this.seesUnit(unit));
+    // The notice bands first, then the court's lines: a line floats above its speaker, and a
+    // Voice standing high on the board (an upright phone turns the ring) would put its line and
+    // its name under a band still on screen.
     if (heardWords.length > 0) {
-      safeBattlePresentation('vigil voices', () => this._sayWords(heardWords, spokenBefore), {
-        scene,
-      });
       await safeBattlePresentation(
         'vigil words',
         () => scene.showBriefBanner?.(VIGIL_BANNERS.words, UI_PALETTE.mark),
@@ -284,16 +285,7 @@ export class VigilController {
       );
       if (!isCurrentBattleSession(scene, session)) return;
     }
-    const seen = step.summons.map((s) => s.unit).filter((unit) => this.seesUnit(unit));
     if (seen.length > 0) {
-      // The first seen answers the roll, by how many the circles had called before it.
-      const first = step.summons.findIndex((s) => s.unit === seen[0]);
-      const ordinal = step.state.summoned - step.summons.length + first;
-      safeBattlePresentation(
-        'vigil call line',
-        () => this._say(seen[0], vigilCallLine(this.words, ordinal), { delayMs: 0 }),
-        { scene },
-      );
       await safeBattlePresentation(
         'vigil call',
         async () => {
@@ -310,6 +302,21 @@ export class VigilController {
         { scene },
       );
       if (!isCurrentBattleSession(scene, session)) return;
+    }
+    if (heardWords.length > 0) {
+      safeBattlePresentation('vigil voices', () => this._sayWords(heardWords, spokenBefore), {
+        scene,
+      });
+    }
+    if (seen.length > 0) {
+      // The first seen answers the roll, by how many the circles had called before it.
+      const first = step.summons.findIndex((s) => s.unit === seen[0]);
+      const ordinal = step.state.summoned - step.summons.length + first;
+      safeBattlePresentation(
+        'vigil call line',
+        () => this._say(seen[0], vigilCallLine(this.words, ordinal), { delayMs: 0 }),
+        { scene },
+      );
     }
     safeBattlePresentation('vigil objective', () => scene.updateObjectiveText?.(), { scene });
   }
