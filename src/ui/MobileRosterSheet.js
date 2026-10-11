@@ -56,7 +56,17 @@ import {
 import { traitLines, markLine } from './traitContent.js';
 import { calculateAvoid } from '../engine/Combat.js';
 import { rosterArtBlock, bindRosterArt } from '../engine/RosterArtCommands.js';
-import { CONSUMABLE_MAX, INVENTORY_MAX, MAX_SKILLS } from '../utils/constants.js';
+import { CONSUMABLE_MAX, INVENTORY_MAX, MAX_ABILITIES, MAX_SKILLS } from '../utils/constants.js';
+import {
+  ABILITY_SLOT,
+  SKILL_SLOT,
+  allSlotsPhrase,
+  benchArrivalPhrase,
+  equippedOfKind,
+  slotCapOf,
+  slotKindOf,
+  slotsFullFor,
+} from '../engine/SkillSlots.js';
 import { teachScrollBlock, teachRosterScroll } from '../engine/RosterTransfers.js';
 import {
   CONVOY_HOLDER,
@@ -125,6 +135,7 @@ import {
   equipSkill,
   lockedSkillIds,
   markBenchSeen,
+  swapCandidatesFor,
   unseenBenchedSkills,
 } from '../engine/SkillLoadout.js';
 import { actLabel } from './ceremonyContent.js';
@@ -874,7 +885,7 @@ export class MobileRosterSheet {
       el('h4', `New on ${unit.name}'s bench: ${names.join(', ')}`),
       el(
         'p',
-        `It arrived with all ${MAX_SKILLS} skill slots full, so it waits on the bench. Swap it in on Skills.`,
+        `It arrived with ${benchArrivalPhrase(fresh, this.gameData.skills)} full, so it waits on the bench. Swap it in on Skills.`,
       ),
     );
     // Told once per save; it stays up for as long as this sheet is open.
@@ -885,7 +896,7 @@ export class MobileRosterSheet {
       box.append(
         el(
           'p',
-          'New: a unit keeps every skill it learns. Only five go into battle; the rest wait on its bench, and you can swap them between battles. Personal and class skills can’t be benched.',
+          `New: a unit keeps every skill it learns. ${MAX_SKILLS} skills and ${MAX_ABILITIES} abilities go into battle; the rest wait on its bench, and you can swap them between battles. Personal and class skills can’t be benched.`,
           'mr-callout-lesson',
         ),
       );
@@ -912,7 +923,7 @@ export class MobileRosterSheet {
    */
   swapInSkill(unit, id) {
     if (this.picker || this.destroyed) return;
-    if ((unit.skills?.length || 0) < MAX_SKILLS) {
+    if (!slotsFullFor(unit, id, this.gameData.skills)) {
       const reason = equipSkill(unit, id, null, this.gameData);
       this.render(reason || `${this.skillName(id)} equipped.${this.persistNow()}`);
       return;
@@ -922,7 +933,8 @@ export class MobileRosterSheet {
     this.picker = new ChoicePicker({
       scene: this.scene,
       title: `Equip ${this.skillName(id)} in place of`,
-      choices: [...unit.skills],
+      // Only one of its own kind makes room: a skill a skill slot, an ability an ability slot.
+      choices: swapCandidatesFor(unit, id, this.gameData),
       closeLabel: 'Cancel',
       label: (out) => this.skillName(out),
       describe: (out) => this.skillLine(out),
@@ -945,23 +957,41 @@ export class MobileRosterSheet {
     // Loadout choices are run state: only the manage view (between battles) makes them.
     const manage = Boolean(this.run?.roster?.includes(unit));
     const locked = lockedSkillIds(unit, this.gameData);
-    this.body.append(el('h3', `Equipped · ${unit.skills?.length || 0}/${MAX_SKILLS}`));
-    for (const id of unit.skills || []) {
-      const c = this.card(this.skillName(id), this.skillLine(id));
-      if (!manage) continue;
-      if (locked.has(id))
-        c.append(el('small', benchSkillBlock(unit, id, this.gameData), 'mr-skill-locked'));
-      else
-        c.append(
-          this.button('Bench', () =>
-            this.render(
-              benchSkill(unit, id, this.gameData) ||
-                `${this.skillName(id)} to the bench.${this.persistNow()}`,
-            ),
-          ),
+    // Skills and abilities fill separate slots (SkillSlots.js): one heading each, both always
+    // shown with their counts so the free slots read at a glance.
+    for (const kind of [SKILL_SLOT, ABILITY_SLOT]) {
+      const ids = equippedOfKind(unit, kind, this.gameData.skills);
+      const title = kind === ABILITY_SLOT ? 'Abilities' : 'Skills';
+      this.body.append(
+        el(
+          'h3',
+          `${title} · ${ids.length}/${slotCapOf(kind)}`,
+          kind === ABILITY_SLOT ? 'mr-section' : undefined,
+        ),
+      );
+      if (!ids.length)
+        this.card(
+          kind === ABILITY_SLOT ? 'No abilities' : 'No skills',
+          kind === ABILITY_SLOT
+            ? 'Abilities are actions a unit takes in battle: Shove, Dance, Steal, Blink and the like.'
+            : 'No skills equipped yet.',
         );
+      for (const id of ids) {
+        const c = this.card(this.skillName(id), this.skillLine(id));
+        if (!manage) continue;
+        if (locked.has(id))
+          c.append(el('small', benchSkillBlock(unit, id, this.gameData), 'mr-skill-locked'));
+        else
+          c.append(
+            this.button('Bench', () =>
+              this.render(
+                benchSkill(unit, id, this.gameData) ||
+                  `${this.skillName(id)} to the bench.${this.persistNow()}`,
+              ),
+            ),
+          );
+      }
     }
-    if (!(unit.skills || []).length) this.card('Skills', 'No skills learned yet.');
     // An accessory's skill is lent, not learned: it is not in the equipped count above, cannot
     // be benched, and leaves with the ring.
     const lent = lentSkillLine(unit, this.gameData.skills);
@@ -975,7 +1005,7 @@ export class MobileRosterSheet {
       if (!bench.length)
         this.card(
           'Bench is empty',
-          `Skills learned with all ${MAX_SKILLS} slots full wait here, never lost. Bench a skill to make room for another.`,
+          'Skills learned with their slots full wait here, never lost. Bench a skill to make room for another.',
         );
     }
     for (const id of bench) {
@@ -985,7 +1015,7 @@ export class MobileRosterSheet {
         c.querySelector('h4')?.append(el('small', 'New', 'mr-new-tag'));
       }
       if (!manage) continue;
-      const full = (unit.skills?.length || 0) >= MAX_SKILLS;
+      const full = slotsFullFor(unit, id, this.gameData.skills);
       c.append(this.button(full ? 'Swap in…' : 'Equip', () => this.swapInSkill(unit, id)));
     }
     const artsHeading = el('h3', 'Weapon arts', 'mr-section');
@@ -1328,7 +1358,7 @@ export class MobileRosterSheet {
           const skillName =
             this.gameData.skills.find((s) => s.id === scroll.skillId)?.name || scroll.skillId;
           this.render(
-            `${unit.name} learned ${skillName}${result.benched ? ` (on the bench: all ${MAX_SKILLS} slots are full)` : ''}.${this.persistNow()}`,
+            `${unit.name} learned ${skillName}${result.benched ? ` (on the bench: ${allSlotsPhrase(slotKindOf(scroll.skillId, this.gameData.skills))} are full)` : ''}.${this.persistNow()}`,
           );
           growthCeremonies(this.scene)?.showSealed({
             title: `${unit.name} learned ${skillName}`,
@@ -1338,7 +1368,11 @@ export class MobileRosterSheet {
         }
         return result;
       },
-      (unit) => `${unit.className} · ${unit.skills.length}/${MAX_SKILLS} skills`,
+      (unit) => {
+        const kind = slotKindOf(scroll.skillId, this.gameData.skills);
+        const count = equippedOfKind(unit, kind, this.gameData.skills).length;
+        return `${unit.className} · ${count}/${slotCapOf(kind)} ${kind === ABILITY_SLOT ? 'abilities' : 'skills'}`;
+      },
     );
   }
   /**

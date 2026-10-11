@@ -23,7 +23,8 @@ import { MobileRosterSheet, canShowMobileRoster } from './MobileRosterSheet.js';
 // Tabbed display: Stats tab (stats, proficiencies, growths, terrain) | Gear tab (inventory, consumables, accessory, skills)
 // Optional roster cycling via UP/DOWN arrows when opened with roster context
 
-import { XP_STAT_NAMES, MAX_SKILLS } from '../utils/constants.js';
+import { XP_STAT_NAMES } from '../utils/constants.js';
+import { equippedGroups } from '../engine/SkillSlots.js';
 import {
   getStaticCombatStats,
   calculateAvoid,
@@ -915,12 +916,19 @@ export class UnitDetailOverlay {
     }
 
     // Skills
-    if (unit.skills && unit.skills.length > 0) {
+    // Skills and abilities fill separate slots (SkillSlots.js): one heading each.
+    for (const group of equippedGroups(unit, this.gameData?.skills)) {
       this._tabSep(lx, y);
       y += 12;
-      this._tabText(lx, y, `Skills (${unit.skills.length}/${MAX_SKILLS}):`, UI_PALETTE.info, '9px');
+      this._tabText(
+        lx,
+        y,
+        `${group.title} (${group.ids.length}/${group.cap}):`,
+        UI_PALETTE.info,
+        '9px',
+      );
       y += 13;
-      for (const sid of unit.skills) {
+      for (const sid of group.ids) {
         const skillData = this.gameData?.skills?.find((s) => s.id === sid);
         const name = skillData ? skillData.name : sid.replace(/_/g, ' ');
         const skillText = this._tabText(lx + 8, y, name, UI_PALETTE.info, '9px');

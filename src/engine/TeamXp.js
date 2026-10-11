@@ -1,8 +1,9 @@
 // Team XP: a battle reward's "+N XP All" given to the whole roster at once, away
 // from the battlefield's level-up cards. Pure: returns what happened to each unit so
 // the reward screen can say it (levels, class skills learned, and a class skill that
-// came due with all five slots full and went to the bench).
+// came due with its slots full and went to the bench).
 import { gainExperience, checkLevelUpSkills, skillGateLevels } from './UnitManager.js';
+import { allSlotsPhrase, slotKindOf } from './SkillSlots.js';
 
 /**
  * Give xpAmount to every unit in the roster and teach any class skill now due.
@@ -63,7 +64,8 @@ export function teamXpLines(report, skillsData = []) {
     if (gains) line += ` (${gains})`;
     if (gains || entry.toLevel !== entry.fromLevel) line += '.';
     if (entry.learned.length) line += ` Learned ${entry.learned.map(name).join(', ')}.`;
-    for (const id of entry.blocked) line += ` ${name(id)} is on the bench (all 5 slots are full).`;
+    for (const id of entry.blocked)
+      line += ` ${name(id)} is on the bench (${allSlotsPhrase(slotKindOf(id))} are full).`;
     return line;
   });
 }
