@@ -124,6 +124,21 @@ describe('Black Sun Act I', () => {
     for (const id of ['normal', 'dusk', 'hard'])
       expect(generateModifierSummary(data.difficulty.modes[id]).join('\n')).not.toMatch(/eases in/);
   });
+
+  it('sits right under the enemy lines it qualifies', () => {
+    const lines = generateModifierSummary(data.difficulty.modes.lunatic);
+    const actOne = lines.findIndex((l) => l.startsWith('Act I eases in'));
+    expect(lines[actOne - 1]).toBe('Enemies scale as if you field at least 6 units');
+    expect(actOne).toBeGreaterThan(lines.indexOf('Enemy stats +2'));
+  });
+
+  it('never says "eases in" for an override that raises a value', () => {
+    const mode = {
+      ...data.difficulty.modes.lunatic,
+      actOverrides: { act2: { enemyStatBonus: 3 } },
+    };
+    expect(generateModifierSummary(mode)).toContain('Act II: enemy stats +3');
+  });
 });
 
 describe('actOverrideFor', () => {

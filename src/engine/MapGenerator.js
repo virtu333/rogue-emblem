@@ -31,7 +31,7 @@ import {
   buildBanditScriptedWave,
 } from './VillageSystem.js';
 import { createScopedLogger } from '../utils/logger.js';
-import { buildRoutLadder } from './RoutLadder.js';
+import { buildRoutLadder, fogRoutFrontOnly, routLadderEdges } from './RoutLadder.js';
 import { assignHolders, holdShareFor } from './HoldActivation.js';
 import { eliteCaptains, resolveSeatedBoss, seatedBossCandidates } from './SeatedBoss.js';
 import { BOSS_REF, legacyObjectiveKind, objectivesShapeErrors } from './BattleObjectives.js';
@@ -504,6 +504,7 @@ export function generateBattleLayout(params, deps) {
     playerSpawns,
     enemySpawns,
   });
+  applyFogRoutFront(reinforcementConfig, params, objective, { playerSpawns, enemySpawns, cols });
   // The Rite's tier on a finale (RiteBattleMods.js): after every draw, so the map is the same.
   const rite = applyRiteBattleMods({
     params,
@@ -645,6 +646,11 @@ function generateSetPieceLayout(params, deps) {
     playerSpawns,
     enemySpawns: dressed,
   });
+  applyFogRoutFront(reinforcementConfig, params, objective, {
+    playerSpawns,
+    enemySpawns: dressed,
+    cols,
+  });
   // The Rite's tier on a finale or gate (RiteBattleMods.js): after every draw, so the map is the
   // same; a defeat objective's named targets never leave it.
   const rite = applyRiteBattleMods({
@@ -781,6 +787,27 @@ function dressEnemySpawns(enemySpawns, { params, deps, act, templateId }) {
     random: () => Math.random(),
   });
   return enemySpawns;
+}
+
+/**
+ * A fogged rout map (a set piece's too) sends every procedural wave (ladder, template, Hunted)
+ * from the front, the edge opposite the player's deployment: no flank arrivals out of the dark
+ * (RoutLadder.fogRoutFrontOnly). Run after finishReinforcements, so the Hunted wave is covered.
+ * Draws nothing.
+ */
+function applyFogRoutFront(
+  reinforcementConfig,
+  params,
+  objective,
+  { playerSpawns, enemySpawns, cols },
+) {
+  if (objective !== 'rout' || params.fogEnabled !== true || !reinforcementConfig.reinforcements)
+    return;
+  const r = reinforcementConfig.reinforcements;
+  reinforcementConfig.reinforcements = fogRoutFrontOnly(
+    r,
+    r.ladder?.front || routLadderEdges({ playerSpawns, enemySpawns, cols }).front,
+  );
 }
 
 /**
