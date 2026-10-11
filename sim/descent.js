@@ -46,6 +46,7 @@ import { NODE_TYPES } from '../src/utils/constants.js';
 import { parseArgs, printHeader, printTable } from './lib/TableFormatter.js';
 import { policyHash } from '../tests/sim/ClaimingPolicies.js';
 import { wilson } from './lib/BlessingReport.js';
+import { captureCellKey, indexCaptures, pairTrials } from './lib/DescentTrials.js';
 
 const RUNG_LABELS = {
   normal: 'First Light',
@@ -57,6 +58,19 @@ const RUNG_SEED_OFFSET = { normal: 0, dusk: 100000, hard: 200000, lunatic: 30000
 // `nolanding`: the Descent without the Nightfall/Black Sun route's Landing row (spec §2.2: the
 // sims decide whether it stays); on a route without one it is the Descent itself.
 export const ARMS = Object.freeze(['legacy', 'descent', 'nolanding']);
+// The player every record was played by (sim/lib/DescentTrials.js: part of a trial's identity).
+export const AGENT = 'claiming';
+
+const rulesets = new WeakMap();
+/**
+ * The game data a record was played under, as a short hash (part of a trial's identity): two
+ * replays of one capture under different data are different trials.
+ */
+export function rulesetOf(gameData) {
+  if (!rulesets.has(gameData))
+    rulesets.set(gameData, policyHash(JSON.stringify(gameData)).toString(16).padStart(8, '0'));
+  return rulesets.get(gameData);
+}
 
 const opts = parseArgs({
   trials: 10,
@@ -134,10 +148,10 @@ export class DescentDriver extends ClaimingRunDriver {
   }
 }
 
-function driverOptions(gameData, { rung, seed, rng, meta }) {
+function driverOptions(gameData, { rung, seed, rng, meta, fork = opts.fork }) {
   return {
     rng,
-    fork: opts.fork,
+    fork,
     metaEffects: buildRunMetaEffects({ metaPreset: meta }, gameData),
     runOptions: { runSeed: seed, difficultyId: rung, autoSelectBlessing: false },
   };
@@ -172,6 +186,8 @@ export async function captureEntry(gameData, { rung, seed, meta = 'none' }) {
       difficulty: rung,
       seed,
       meta,
+      agent: AGENT,
+      ruleset: rulesetOf(gameData),
       result: result.result,
       pre: {
         battles: driver.battleLog.length,
@@ -245,7 +261,12 @@ export function revivalStonesForReplay(gameData, rung, override = {}) {
 }
 
 /** The final act from a saved entry state, on one arm. */
-export async function playActV(gameData, capture, arm, { stones = opts.stones } = {}) {
+export async function playActV(
+  gameData,
+  capture,
+  arm,
+  { stones = opts.stones, fork = opts.fork } = {},
+) {
   const data = ARM_DATA[arm](gameData);
   const rng = installStatefulSeed(0);
   rng.setState(capture.rngState);
@@ -257,6 +278,7 @@ export async function playActV(gameData, capture, arm, { stones = opts.stones } 
         seed: capture.seed,
         rng,
         meta: capture.meta,
+        fork,
       }),
     );
     const rm = RunManager.fromJSON(structuredClone(capture.run), data);
@@ -277,7 +299,11 @@ export async function playActV(gameData, capture, arm, { stones = opts.stones } 
       arm,
       difficulty: capture.difficulty,
       seed: capture.seed,
+      // The trial's identity (sim/lib/DescentTrials.js): the arms of one trial share all of it.
       meta: capture.meta,
+      fork,
+      agent: AGENT,
+      ruleset: rulesetOf(gameData),
       stones: rm.difficultyModifiers.revivalStones,
       result: result.result,
       routeId: rm.nodeMap?.descent?.routeId ?? null,
@@ -336,6 +362,8 @@ async function playShard(shard, outFile) {
         kind: 'error',
         difficulty: job.difficulty,
         seed: job.seed,
+        meta: job.meta,
+        arm: job.arm ?? null,
         error: String(error?.stack || error),
       };
     }
@@ -344,13 +372,15 @@ async function playShard(shard, outFile) {
     const captures = readLines(fromFiles()).filter(
       (c) => c.kind === 'capture' && c.run && rungs.includes(c.difficulty),
     );
+    // Two captures of one run would replay it twice under one identity: refuse before playing.
+    indexCaptures(captures);
     for (const capture of captures.filter((_, i) => i % n === k))
       for (const arm of arms)
-        write(await tryRecord(capture, () => playActV(gameData, capture, arm)));
+        write(await tryRecord({ ...capture, arm }, () => playActV(gameData, capture, arm)));
     return;
   }
   for (const job of jobs().filter((_, i) => i % n === k)) {
-    const capture = await tryRecord({ difficulty: job.rung, seed: job.seed }, () =>
+    const capture = await tryRecord({ difficulty: job.rung, seed: job.seed, meta: opts.meta }, () =>
       captureEntry(gameData, { rung: job.rung, seed: job.seed, meta: opts.meta }),
     );
     if (opts.phase === 'capture') {
@@ -362,7 +392,11 @@ async function playShard(shard, outFile) {
     write(summary);
     if (!run) continue;
     for (const arm of arms)
-      write(await tryRecord(capture, () => playActV(gameData, { ...capture, run, rngState }, arm)));
+      write(
+        await tryRecord({ ...capture, arm }, () =>
+          playActV(gameData, { ...capture, run, rngState }, arm),
+        ),
+      );
   }
 }
 
@@ -447,8 +481,49 @@ export function permadeathView(record) {
   return { fought, cleared: record.result === 'victory', lostAt: null };
 }
 
+/**
+ * How a battle ended for the launch decision: `win`, `commander` (a commander fall no rewind took
+ * back: the run is over) or `stall` (the turn cap with no such fall: the agent's limit).
+ */
+export function battleOutcome(b) {
+  if (b.commanderKOs > 0) return 'commander';
+  return b.stalled ? 'stall' : 'win';
+}
+
+/**
+ * How an arm's Act V ended under permadeath: its first lost battle's outcome, else `win` for a
+ * cleared act and `other` for a run that ended with neither (a driver timeout).
+ */
+export function actOutcome(record) {
+  const view = permadeathView(record);
+  if (view.lostAt) return battleOutcome(view.lostAt);
+  return view.cleared ? 'win' : 'other';
+}
+
 /** The node a battle was fought at: its Descent key, else the legacy finale. */
 const nodeKeyOf = (b) => b.descentKey || (b.boss ? 'finale (legacy)' : b.type);
+
+/**
+ * The boss a final-act boss battle seats, read from the data (null for any other battle): a
+ * Descent node's `boss` (the gate's Lieutenant marked as such), the legacy finale's from
+ * `enemies.json` `bosses.finalBoss` by rung (the Lieutenant on First Light and Dusk, the Entity
+ * above).
+ */
+export function bossFightOf(b, rung, gameData) {
+  if (b.descentKey) {
+    for (const route of Object.values(gameData.descent?.routes || {}))
+      for (const row of route.rows || [])
+        for (const n of row.nodes || [])
+          if (n.key === b.descentKey && n.boss)
+            return n.bossRole === 'gate' ? `${n.boss} (gate)` : n.boss;
+    return null;
+  }
+  if (!b.boss || b.act !== 'finalBoss') return null;
+  const seat = (gameData.enemies?.bosses?.finalBoss || []).find((x) =>
+    (x.difficultyFilter || []).includes(rung),
+  );
+  return seat?.name ?? 'finale';
+}
 
 function mdTable(columns, rows) {
   const esc = (v) => String(v ?? '-').replace(/\|/g, '\\|');
@@ -459,37 +534,119 @@ function mdTable(columns, rows) {
   ].join('\n');
 }
 
+const META_ORDER = ['none', 'quarter', 'half', 'endgame'];
+const orderIndex = (list, x) => (list.includes(x) ? list.indexOf(x) : list.length);
+
+/**
+ * The paired view of a record set: Act V records grouped by experiment cell (rung, Home Base
+ * preset, fork, agent, stones, ruleset) and paired by trial (sim/lib/DescentTrials.js), cells
+ * ordered by rung then preset and named C1, C2, ... A duplicate trial throws.
+ */
+export function pairedCells(records) {
+  const act5 = records.filter((r) => r.kind === 'act5');
+  return pairTrials(act5, ARMS)
+    .sort(
+      (a, b) =>
+        orderIndex(DIFFICULTY_IDS, a.cell.difficulty) -
+          orderIndex(DIFFICULTY_IDS, b.cell.difficulty) ||
+        orderIndex(META_ORDER, a.cell.meta) - orderIndex(META_ORDER, b.cell.meta) ||
+        a.key.localeCompare(b.key),
+    )
+    .map((group, i) => ({ ...group, id: `C${i + 1}` }));
+}
+
+/**
+ * Paired percentage-point differences (arm minus legacy) of a 0/1 measure over a cell's complete
+ * trials; empty when the cell has no legacy arm or not `arm`.
+ */
+export function pairedDiffs(group, arm, measure) {
+  if (!group.arms.includes('legacy') || !group.arms.includes(arm)) return [];
+  return group.complete.map(
+    (t) => 100 * (Number(measure(t.byArm[arm])) - Number(measure(t.byArm.legacy))),
+  );
+}
+
 export function report(records, gameData, { seconds = null } = {}) {
   const md = [];
-  const emit = (title, rows) => {
+  const emit = (title, rows, note = null) => {
     if (!rows.length) return;
-    const cols = Object.keys(rows[0]);
+    const cols = [...new Set(rows.flatMap((row) => Object.keys(row)))];
     printTable(cols, rows, { title });
-    md.push(`### ${title}`, '', mdTable(cols, rows), '');
+    if (note) console.log(note);
+    md.push(`### ${title}`, '', ...(note ? [note, ''] : []), mdTable(cols, rows), '');
   };
   const errors = records.filter((r) => r.kind === 'error');
   for (const e of errors)
-    console.log(`Failed: ${e.difficulty} seed ${e.seed}: ${e.error.split('\n')[0]}`);
+    console.log(
+      `Failed: ${e.difficulty} ${e.meta ?? ''} seed ${e.seed}${e.arm ? ` (${e.arm})` : ''}: ` +
+        `${e.error.split('\n')[0]}`,
+    );
   const captures = records.filter((r) => r.kind === 'capture');
-  const act5 = records.filter((r) => r.kind === 'act5');
-  printHeader(`Act V, the Descent — ${act5.length / 2} paired runs`);
+  // Both throw on a duplicate identity: a record is never overwritten by another one.
+  indexCaptures(captures);
+  const cells = pairedCells(records);
+  const complete = cells.reduce((n, g) => n + g.complete.length, 0);
+  printHeader(`Act V, the Descent — ${complete} paired trials in ${cells.length} cell(s)`);
   if (seconds) console.log(`Played in ${seconds.toFixed(0)} s.`);
-  const present = DIFFICULTY_IDS.filter((r) => act5.some((x) => x.difficulty === r));
   const rite = gameData.descent?.rite;
+  /** A cell's runs on one arm: its complete trials only, so every table reads one population. */
+  const runsOf = (group, arm) => group.complete.map((t) => t.byArm[arm]).filter(Boolean);
+  const head = (group) => ({
+    cell: group.id,
+    rung: RUNG_LABELS[group.cell.difficulty] || group.cell.difficulty,
+    meta: group.cell.meta,
+  });
+  const capsOf = (group) => {
+    const key = captureCellKey(group.cell);
+    return captures.filter((c) => captureCellKey(c) === key);
+  };
+  const unpairedText = (group) =>
+    Object.entries(group.unpaired)
+      .filter(([, n]) => n > 0)
+      .map(([arm, n]) => `${arm} ${n}`)
+      .join(' · ') || '0';
+
+  // The cells: every condition a record carries. Pooling cells hides a cohort behind another.
+  emit(
+    'The cells (an experiment cell is every condition but the seed; trials pair within a cell)',
+    cells.map((group) => ({
+      ...head(group),
+      fork: group.cell.fork,
+      agent: group.cell.agent,
+      stones: group.cell.stones.replace(/,/g, ' '),
+      ruleset: group.cell.ruleset,
+      arms: group.arms.join(','),
+      trials: group.trials.length,
+      'complete trials': group.complete.length,
+      'unpaired records': unpairedText(group),
+    })),
+  );
+  for (const group of cells) {
+    if (!group.pairable)
+      console.log(
+        `Cell ${group.id}: no partner arm (only ${group.arms.join(', ')}): ${unpairedText(group)} ` +
+          'record(s) unpaired. A partner played under other conditions (another stone count, ' +
+          'preset or ruleset) is another cell, never a pair.',
+      );
+    else if (group.complete.length < group.trials.length)
+      console.log(
+        `Cell ${group.id}: records with no partner arm (${unpairedText(group)}) are left out; ` +
+          `every table reads its ${group.complete.length} complete trials.`,
+      );
+  }
 
   // Entry states.
   emit(
     'The runs and their Act V entry',
-    present.map((rung) => {
-      const caps = captures.filter((c) => c.difficulty === rung);
+    cells.map((group) => {
+      const caps = capsOf(group);
       const reached = caps.filter((c) => c.result === 'paused');
-      const pairs = act5.filter((r) => r.difficulty === rung && r.arm === 'legacy');
       const e = reached.map((c) => c.entry).filter(Boolean);
       return {
-        rung: RUNG_LABELS[rung],
+        ...head(group),
         captured: caps.length,
         'reached Act V': reached.length,
-        'paired runs': pairs.length,
+        'paired trials': group.complete.length,
         'no KO in I-IV': caps.length
           ? pctCI(caps.filter((c) => c.pre?.koBattles === 0).length, caps.length)
           : '-',
@@ -501,50 +658,108 @@ export function report(records, gameData, { seconds = null } = {}) {
     }),
   );
 
-  // Clear rates, arm by arm and paired.
   // Clear rates, arm by arm and paired, read two ways: strict (a stall at the turn cap is a loss)
   // and KO-free (no commander fall anywhere in the act: a stall is the agent's limit, not a
-  // death, and a player plays on).
+  // death, and a player plays on). KO-free is not a win rate: the outcome table splits them.
   const koFree = (r) =>
     !(r.battles || []).some((b) => b.commanderKOs > 0) && r.result !== 'timeout';
   const measures = [
-    ['strict', (r) => permadeathView(r).cleared],
-    ['KO-free', koFree],
+    [
+      'Act V clear rate (strict: every battle won, no unrewound commander fall, no stall), paired by trial',
+      (r) => permadeathView(r).cleared,
+      null,
+    ],
+    [
+      'Act V KO-free rate (no unrewound commander fall anywhere in the act), paired by trial',
+      koFree,
+      'KO-free is NOT a win rate: a run stalled at the turn cap counts as not lost. ' +
+        'The outcome table below splits wins from stalls.',
+    ],
   ];
-  for (const [label, cleared] of measures)
+  const armLabel = { descent: 'Descent', nolanding: 'no Landing' };
+  for (const [title, measure, note] of measures)
     emit(
-      `Act V clear rate (${label}), legacy vs the Descent, paired by run`,
-      present.map((rung) => {
-        const of = (arm) => act5.filter((r) => r.difficulty === rung && r.arm === arm);
-        const leg = of('legacy');
-        const byArm = Object.fromEntries(
-          ARMS.map((arm) => [arm, new Map(of(arm).map((r) => [r.seed, r]))]),
-        );
-        const row = { rung: RUNG_LABELS[rung], n: leg.length };
-        row.legacy = pctCI(leg.filter(cleared).length, leg.length);
-        for (const arm of ['descent', 'nolanding']) {
-          const runs = of(arm);
-          if (!runs.length) continue;
-          const diffs = leg
-            .filter((r) => byArm[arm].has(r.seed))
-            .map((r) => 100 * (Number(cleared(byArm[arm].get(r.seed))) - Number(cleared(r))));
-          row[arm === 'descent' ? 'Descent' : 'no Landing'] = pctCI(
-            runs.filter(cleared).length,
-            runs.length,
-          );
-          row[`Δ ${arm === 'descent' ? 'Descent' : 'no Landing'} (pts)`] = diffs.length
-            ? meanCI(diffs, 1)
-            : '-';
+      title,
+      cells.map((group) => {
+        const row = { ...head(group), n: group.complete.length };
+        for (const arm of group.arms) {
+          const runs = runsOf(group, arm);
+          const label = arm === 'legacy' ? 'legacy' : armLabel[arm] || arm;
+          row[label] = pctCI(runs.filter(measure).length, runs.length);
+          if (arm === 'legacy') continue;
+          const diffs = pairedDiffs(group, arm, measure);
+          row[`Δ ${label} (pts)`] = diffs.length ? meanCI(diffs, 1) : '-';
         }
         return row;
       }),
+      note,
     );
+
+  // The launch decision's three outcomes, kept apart.
+  const OUTCOMES = [
+    ['win', 'win'],
+    ['commander', 'commander loss'],
+    ['stall', 'stall'],
+  ];
+  const anyOther = cells.some((g) =>
+    g.arms.some((arm) => runsOf(g, arm).some((r) => actOutcome(r) === 'other')),
+  );
+  emit(
+    'Act V outcome under permadeath: win / commander loss / stall, paired by trial',
+    cells.flatMap((group) =>
+      group.arms.map((arm) => {
+        const runs = runsOf(group, arm);
+        const row = { ...head(group), arm, n: runs.length };
+        for (const [id, label] of OUTCOMES)
+          row[label] = pctCI(runs.filter((r) => actOutcome(r) === id).length, runs.length);
+        if (anyOther)
+          row.other = pctCI(runs.filter((r) => actOutcome(r) === 'other').length, runs.length);
+        for (const [id, label] of OUTCOMES) {
+          const diffs = pairedDiffs(group, arm, (r) => actOutcome(r) === id);
+          row[`Δ ${label} (pts)`] = arm === 'legacy' || !diffs.length ? '-' : meanCI(diffs, 1);
+        }
+        return row;
+      }),
+    ),
+    'A commander loss is a commander fall no Vision rewind took back (the run would end there); ' +
+      'a stall is the 30-turn cap with no such fall (the agent’s limit, not a death). ' +
+      'Each run counts at its first lost battle.',
+  );
+  const bossRows = [];
+  for (const group of cells)
+    for (const arm of group.arms) {
+      const fights = new Map();
+      for (const r of runsOf(group, arm))
+        for (const b of permadeathView(r).fought) {
+          const boss = bossFightOf(b, group.cell.difficulty, gameData);
+          if (!boss) continue;
+          const key = `${nodeKeyOf(b)}|${boss}`;
+          if (!fights.has(key)) fights.set(key, { node: nodeKeyOf(b), boss, list: [] });
+          fights.get(key).list.push(b);
+        }
+      for (const { node, boss, list } of fights.values()) {
+        const row = { ...head(group), arm, node, boss, reached: list.length };
+        for (const [id, label] of OUTCOMES)
+          row[label] = pctCI(list.filter((b) => battleOutcome(b) === id).length, list.length);
+        row['turns-par (stalls)'] = meanCI(
+          list
+            .filter((b) => battleOutcome(b) === 'stall' && Number.isFinite(b.par))
+            .map((b) => b.turns - b.par),
+          1,
+        );
+        bossRows.push(row);
+      }
+    }
+  emit(
+    'The boss fights (the Lieutenant, the gate, the Entity): outcome among runs that reached them under permadeath',
+    bossRows,
+  );
 
   // Per node, both arms.
   const nodeRows = [];
-  for (const rung of present)
-    for (const arm of ARMS) {
-      const runs = act5.filter((r) => r.difficulty === rung && r.arm === arm);
+  for (const group of cells)
+    for (const arm of group.arms) {
+      const runs = runsOf(group, arm);
       const keys = [];
       for (const r of runs)
         for (const b of r.battles || []) if (!keys.includes(nodeKeyOf(b))) keys.push(nodeKeyOf(b));
@@ -555,7 +770,7 @@ export function report(records, gameData, { seconds = null } = {}) {
         );
         const won = strict.filter((b) => !battleLost(b)).length;
         nodeRows.push({
-          rung: RUNG_LABELS[rung],
+          ...head(group),
           arm,
           node: key,
           reached: strict.length,
@@ -581,38 +796,38 @@ export function report(records, gameData, { seconds = null } = {}) {
   // The fork.
   emit(
     'The fork: Mortuary Column vs the event (Descent arm)',
-    present.flatMap((rung) =>
-      ['column', 'side_stair'].map((branch) => {
-        const runs = act5.filter(
-          (r) =>
-            r.difficulty === rung &&
-            r.arm === 'descent' &&
+    cells
+      .filter((group) => group.arms.includes('descent'))
+      .flatMap((group) =>
+        ['column', 'side_stair'].map((branch) => {
+          const runs = runsOf(group, 'descent').filter((r) =>
             (r.path || []).some((p) => p.key === branch),
-        );
-        return {
-          rung: RUNG_LABELS[rung],
-          branch,
-          runs: runs.length,
-          'Act V clear': pctCI(runs.filter((r) => permadeathView(r).cleared).length, runs.length),
-          'Rite at finale (mean)': mean(runs.map((r) => r.riteFinal ?? 0)).toFixed(1),
-        };
-      }),
-    ),
+          );
+          return {
+            ...head(group),
+            branch,
+            runs: runs.length,
+            'Act V clear': pctCI(runs.filter((r) => permadeathView(r).cleared).length, runs.length),
+            'Rite at finale (mean)': mean(runs.map((r) => r.riteFinal ?? 0)).toFixed(1),
+          };
+        }),
+      ),
   );
 
   // The Rite.
+  const descentCells = cells.filter((group) => group.arms.includes('descent'));
   if (rite) {
     const bandIds = rite.bands.map((b) => b.id);
     emit(
       'The Rite: words at entry, from the Vigil, and the band the finale was fought at',
-      present.map((rung) => {
-        const runs = act5.filter((r) => r.difficulty === rung && r.arm === 'descent');
+      descentCells.map((group) => {
+        const runs = runsOf(group, 'descent');
         const finals = runs.map((r) => r.riteFinal ?? 0);
         const vigils = runs
           .map((r) => (r.battles || []).find((b) => b.descentKey === 'vigil')?.vigil)
           .filter(Boolean);
         const row = {
-          rung: RUNG_LABELS[rung],
+          ...head(group),
           n: runs.length,
           'start (mean)': mean(runs.map((r) => r.riteStart ?? 0)).toFixed(2),
           'Vigil words (median)': median(vigils.map((v) => v.words)),
@@ -629,12 +844,12 @@ export function report(records, gameData, { seconds = null } = {}) {
     );
     emit(
       'The Vigil',
-      present.map((rung) => {
-        const vig = act5
-          .filter((r) => r.difficulty === rung && r.arm === 'descent')
-          .flatMap((r) => (r.battles || []).filter((b) => b.descentKey === 'vigil'));
+      descentCells.map((group) => {
+        const vig = runsOf(group, 'descent').flatMap((r) =>
+          (r.battles || []).filter((b) => b.descentKey === 'vigil'),
+        );
         return {
-          rung: RUNG_LABELS[rung],
+          ...head(group),
           fought: vig.length,
           'words (mean)': meanCI(
             vig.map((b) => b.vigil?.words ?? 0),
@@ -658,22 +873,21 @@ export function report(records, gameData, { seconds = null } = {}) {
     );
     // The finale (and the gate) by band.
     const bandRows = [];
-    for (const rung of present)
+    for (const group of descentCells)
       for (const key of ['gate', 'lieutenant', 'entity'])
         for (const id of bandIds) {
-          const fights = act5
-            .filter((r) => r.difficulty === rung && r.arm === 'descent')
-            .flatMap((r) =>
-              permadeathView(r).fought.filter((b) => b.descentKey === key && b.riteBand === id),
-            );
+          const fights = runsOf(group, 'descent').flatMap((r) =>
+            permadeathView(r).fought.filter((b) => b.descentKey === key && b.riteBand === id),
+          );
           if (!fights.length) continue;
           bandRows.push({
-            rung: RUNG_LABELS[rung],
+            ...head(group),
             node: key,
             band: id,
             reached: fights.length,
             cleared: pctCI(fights.filter((b) => !battleLost(b)).length, fights.length),
             'no KO': pctCI(fights.filter((b) => b.commanderKOs === 0).length, fights.length),
+            stall: pctCI(fights.filter((b) => battleOutcome(b) === 'stall').length, fights.length),
             'deaths/battle': meanCI(fights.map((b) => b.unitDeaths)),
             turns: mean(fights.map((b) => b.turns)).toFixed(1),
           });
@@ -684,17 +898,18 @@ export function report(records, gameData, { seconds = null } = {}) {
   // The Landing (spec §11: keep it only if the gate's loss rate without it is above the act
   // bosses'): the gate with and without the row, against the act bosses of the same runs.
   const landingRows = [];
-  for (const rung of present) {
-    const caps = captures.filter((c) => c.difficulty === rung && c.result === 'paused');
-    const bosses = caps.flatMap((c) => c.pre?.bosses || []);
-    for (const arm of ['descent', 'nolanding']) {
-      const runs = act5.filter((r) => r.difficulty === rung && r.arm === arm);
+  for (const group of cells) {
+    const bosses = capsOf(group)
+      .filter((c) => c.result === 'paused')
+      .flatMap((c) => c.pre?.bosses || []);
+    for (const arm of ['descent', 'nolanding'].filter((a) => group.arms.includes(a))) {
+      const runs = runsOf(group, arm);
       const gates = runs.flatMap((r) =>
         permadeathView(r).fought.filter((b) => b.descentKey === 'gate'),
       );
       if (!gates.length) continue;
       landingRows.push({
-        rung: RUNG_LABELS[rung],
+        ...head(group),
         arm,
         'gate reached': gates.length,
         'gate lost': pctCI(gates.filter(battleLost).length, gates.length),
@@ -712,11 +927,11 @@ export function report(records, gameData, { seconds = null } = {}) {
   // Deaths over the whole act.
   emit(
     'Units lost over Act V (all battles fought, casual commander)',
-    present.flatMap((rung) =>
-      ARMS.filter((arm) => act5.some((r) => r.difficulty === rung && r.arm === arm)).map((arm) => {
-        const runs = act5.filter((r) => r.difficulty === rung && r.arm === arm);
+    cells.flatMap((group) =>
+      group.arms.map((arm) => {
+        const runs = runsOf(group, arm);
         return {
-          rung: RUNG_LABELS[rung],
+          ...head(group),
           arm,
           battles: mean(runs.map((r) => (r.battles || []).length)).toFixed(1),
           'deaths/run': meanCI(

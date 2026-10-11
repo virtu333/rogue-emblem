@@ -12,7 +12,8 @@ of the data with `descent.json` `enabled: true` made by the sim, never from the 
 - The Rite: shipped numbers sent 52–93% of finales in on Broken. First Light started at 0, so row-1 quieting (the Column at par, the side-stair events) was lost to the floor. Now: start +3 (Pale 3 … Hollow 9), bands 0–4 / 5–9 / 10+, Column at par −2. Nightfall reaches the Entity Broken/Spoken/Answered 28/53/19% (spec: a third/a half). Broken now needs a quick Vigil and a quieting choice.
 - The Lieutenant: 1 Revival Stone on Dusk (the Dusk Emperor also has 1) and 2 at the gate on Nightfall and Black Sun (their Emperors have 1 and 2). See "The second gate stone".
 - The Landing stays. §11's literal test says it is not needed: without it the gate is lost 12%, the act bosses 31%. But it makes Broken reachable on Nightfall (28% vs 5%) and moves no clear rate (paired −4 to +1, every CI spans 0).
-- Needs your eye: (1) the gate is still among the Descent's easiest fights with two stones (10% lost on Nightfall, 13% on Black Sun, 0% for the strong army), and an Answered Rite adds a third stone there; (2) engine issue, not touched: every promoted elite captain spawns about 10 levels low (`captainLevelFor`); the Vigil's Warden is promoted level 1 among level 3–8 guards; (3) the agent stalls most Entity fights at the turn cap, in both arms.
+- Needs your eye: (1) the gate is still among the Descent's easiest fights with two stones (10% lost on Nightfall, 13% on Black Sun, 0% for the strong army), and an Answered Rite adds a third stone there; (2) engine issue, not touched: every promoted elite captain spawns about 10 levels low (`captainLevelFor`); the Vigil's Warden is promoted level 1 among level 3–8 guards; (3) the agent stalls most Entity fights at the turn cap, in both arms. That is the agent: it won't trade into the Entity's counter (10 expected damage dealt against 22 taken). It also has a footprint bug that inflates Entity commander falls (35% → 21% when fixed, same fights). That bug is not fixed here; see "Limits".
+- **Pairing fix (review).** Arms now pair by trial identity (rung, meta, fork, agent, stones, ruleset, seed), not by seed alone, and every table is per cell. Every table in this report was built per model and re-read by the fixed code with identical numbers: no published number changes. "Win, commander loss, stall" splits the strict reading. KO-free is not a win rate: on Nightfall and Black Sun the Descent's wins are level (+3, 0), and its cost is legacy stalls turning into commander falls (+15, +25).
 - **A correction found while adding the second stone.** An Act V replay used the Revival Stones table its capture had saved at run start, not the checkout's data. So the earlier tuning replays of Nightfall (the first 150 runs), Black Sun and the Nightfall endgame model played the gate with 0 stones, not the 1 this report named; only the 80 later Nightfall captures carried 1. The sim now reads the table from the data (`--stones` lays a count over it), and every Nightfall and Black Sun table below is re-run with the gate's two stones. Dusk (its legacy and Descent finales are the Lieutenant, 1 stone in the data) re-ran to the same clear rates and Rite bands, with two node rows moving in the second digit. The shipped column and First Light never involved stones.
 
 ## What changed
@@ -41,6 +42,19 @@ Engine and sim changes (no game behaviour):
   It never takes a boss recruit at the gate (PostCombatController's rule). Its battle log records the
   Descent key, the Rite at entry and the Vigil's count.
 - `sim/descent.js` (`npm run sim:descent`). `fullrun-runner` gains the `quarter` and `half` meta presets.
+- **Pairing by trial (review fix).** The report paired the legacy and Descent arms by seed alone within
+  a rung, so a report over two cohorts that share seeds (Nightfall half and endgame meta: 200001–200100)
+  compared a legacy run with the other cohort's Descent run. Records now carry `fork`, `agent` and
+  `ruleset` beside `meta` and `stones`; arms pair by the whole identity (`sim/lib/DescentTrials.js`),
+  every table is grouped by cell, a duplicate identity throws and an unpaired record is counted.
+  `tests/sim/DescentTrials.test.js`. On a mixed input the old code read Nightfall's strict Δ as
+  +22.7 points; per cell it is +2.6 (half) and +9.0 (endgame) at one gate stone.
+  This report was not hit: each model's tables were built from its own files (no seed shared within a
+  rung and preset), and the fixed code re-reads every one to the same numbers. One input needed a
+  label: the two-stone tables pair Descent records replayed at 2 stones with legacy records replayed at
+  1. The fixed code puts those in separate cells. The gate's count cannot reach the legacy Nightfall
+  and Black Sun act (no Lieutenant in it): its records are identical at 0 and 1 stones, all 480. So the
+  re-read relabels the legacy records' stones before pairing.
 
 ## Method
 
@@ -77,7 +91,14 @@ Engine and sim changes (no game behaviour):
   - **strict**: the act is cleared only if every Act V battle is won with no unrewound commander fall
     and no stall at the 30-turn cap;
   - **KO-free**: no commander fall anywhere in the act. A stall counts as the agent's limit, not a death:
-    a player plays on.
+    a player plays on. **KO-free is not a win rate**: a run that stalled at the cap counts as not lost;
+  - **outcome**: each run at its first lost battle, as a win, a commander loss (a fall no Vision rewind
+    took back) or a stall (the cap with no such fall). See "Win, commander loss, stall".
+
+  Records pair by trial, not by seed (`sim/lib/DescentTrials.js`): rung, Home Base preset, fork, agent,
+  the Revival Stones table, the ruleset (a hash of the game data the replay played) and the seed. Every
+  table is per cell (all of those but the seed): Nightfall half and endgame share seeds 200001–200100 and
+  are two cells. A duplicate identity throws; a record with no partner arm is counted and left out.
 
   Per-node rates are among the runs that reached the node under permadeath. Intervals are 95%: Wilson
   for rates, normal for means and paired differences. The paired Δ is (Descent − legacy) per run, so the
@@ -143,6 +164,45 @@ Reading it:
   even on the Spoken band (81%). The difference is the army: three more fights' XP and loot, and the
   gate's +1 Vision. The Entity rows are fresh dice after the gate, so they move by several points between
   stone counts that cannot change them (strict +9 at one stone, +16 at two).
+
+## Win, commander loss, stall
+
+Each run read at its first lost battle (the strict reading split three ways). Same runs and stones as
+"after" above; paired Δ is Descent − legacy in points.
+
+| player model | arm | n | win | commander loss | stall | Δ win | Δ commander loss | Δ stall |
+|---|---|---|---|---|---|---|---|---|
+| Nightfall, half meta | legacy | 230 | 16% [12, 21] | 40% [34, 47] | 44% [38, 50] | | | |
+| Nightfall, half meta | Descent | 230 | 19% [14, 24] | 56% [49, 62] | 26% [20, 32] | +3.0 [-1.8, +7.9] | +15.2 [+7.6, +22.8] | -18.3 [-25.7, -10.8] |
+| Black Sun, endgame meta | legacy | 150 | 31% [24, 39] | 29% [22, 36] | 40% [33, 48] | | | |
+| Black Sun, endgame meta | Descent | 150 | 31% [24, 39] | 54% [46, 62] | 15% [10, 21] | 0.0 [-7.2, +7.2] | +25.3 [+15.8, +34.8] | -25.3 [-34.5, -16.2] |
+| Nightfall, endgame meta | legacy | 100 | 68% [58, 76] | 13% [8, 21] | 19% [13, 28] | | | |
+| Nightfall, endgame meta | Descent | 100 | 84% [76, 90] | 6% [3, 12] | 10% [6, 17] | +16.0 [+6.9, +25.1] | -7.0 [-14.5, +0.5] | -9.0 [-16.4, -1.6] |
+
+First Light and Dusk never stall in Act V (0–1%): their strict rate is their win rate (table above).
+
+The two boss fights, among the runs that reached them under permadeath:
+
+| player model | fight | reached | win | commander loss | stall |
+|---|---|---|---|---|---|
+| Nightfall, half meta | Entity (legacy finale) | 230 | 16% [12, 21] | 40% [34, 47] | 44% [38, 50] |
+| Nightfall, half meta | Lieutenant gate (Descent) | 151 | 90% [84, 94] | 10% [6, 16] | 0% [0, 2] |
+| Nightfall, half meta | Entity (Descent) | 136 | 32% [24, 40] | 28% [21, 36] | 40% [33, 49] |
+| Black Sun, endgame meta | Entity (legacy finale) | 150 | 31% [24, 39] | 29% [22, 36] | 40% [33, 48] |
+| Black Sun, endgame meta | Lieutenant gate (Descent) | 94 | 87% [79, 93] | 13% [7, 21] | 0% [0, 4] |
+| Black Sun, endgame meta | Entity (Descent) | 82 | 57% [47, 67] | 20% [12, 29] | 23% [15, 33] |
+| Nightfall, endgame meta | Entity (legacy finale) | 100 | 68% [58, 76] | 13% [8, 21] | 19% [13, 28] |
+| Nightfall, endgame meta | Lieutenant gate (Descent) | 99 | 100% [96, 100] | 0% [0, 4] | 0% [0, 4] |
+| Nightfall, endgame meta | Entity (Descent) | 99 | 85% [76, 91] | 5% [2, 11] | 10% [6, 18] |
+
+- **Mid-strength armies: the Descent trades stalls for commander losses, not wins for losses.** Wins
+  are level (+3, 0). The legacy act's stalls at the Entity become commander falls on the way down:
+  +15 points on Nightfall, +25 on Black Sun. This is the KO-free cost above read run by run (the KO-free
+  Δ, −17 / −27, also counts falls after a stall).
+- **Strong army:** +16 wins, with fewer commander losses and fewer stalls.
+- **The Entity, once reached, is no harder after the Descent.** The runs that reach it there are the
+  ones that survived four fights, so these rows are not a paired comparison.
+- A stalled Entity fight runs 20–23 turns past par: the cap, not a near miss. See "Limits" for why.
 
 ## The Rite
 
@@ -348,7 +408,28 @@ It runs on this base. It played five Dusk seeds to the end before I stopped it. 
   - The scripted claiming player is far weaker than a person, which is why the models buy Home Base.
   - Its absolute rates are not a person's; the paired differences are the evidence.
   - Its Entity fights stall at the turn cap 65–80% of the time at mid strength, in both arms. That is
-    why the KO-free measure carries the Nightfall and Black Sun conclusions.
+    why the KO-free measure carries the Nightfall and Black Sun conclusions. See "Why the Entity
+    stalls" below: it is the agent, not the fight.
+- **Why the Entity stalls.** 150 legacy Entity fights (Nightfall half meta, seeds 200001–200150),
+  instrumented, with the agent's own forecast logged at every unit's plan:
+  - **The agent refuses the trade.** A legal attack on the Entity was open in about 160 unit plans per
+    stalled fight, but it attacked the Entity 1.8 times per stalled fight; in 48 of the 67 stalls (no
+    commander fall) the Entity ended at full HP. Its own forecast of the best Entity attack averaged
+    10 expected damage dealt against 22 taken from the counter, at 30 HP. The attack score
+    (dealt − 1.1 × taken − danger) is negative, so the unit holds instead. It has no rule for wearing a
+    boss down by rotating and healing, which a person would use. The cap is not the limit: the
+    stalled fights run 20–23 turns past par with the Entity untouched.
+  - **A geometry bug, not fixed here.** `TacticianAgent` measures range to the Entity's anchor tile
+    (`gridDistance` to its top-left), not its 3×3 body (`combatDistance`, which the harness uses). It
+    sees 57% of the tiles a legal attack can be made from, and it misjudges the Entity's reach, so units
+    walk into it. With both distances read through `combatDistance` (a two-line change), the same
+    150 fights go from 20% win / 35% commander loss / 45% stall to 19% / 21% / 61%. Wins don't move;
+    falls turn into stalls.
+  - Fixing the geometry would lower every Entity commander-loss rate in both arms. The legacy arm
+    fights the Entity in every run, the Descent only in the runs that reach it, so it would likely
+    *widen* the Descent's commander-loss cost on Nightfall and Black Sun. The fix changes the shared
+    agent, so it needs its own PR and a re-run of these tables. A boss-trading rule would be a larger
+    agent change. Neither is in this branch, and no game number was changed for it.
 - **The event policy is rite-first.** Its Broken shares are an upper bound for players who take the
   heal or the Vision charge instead.
 - **Act IV yardsticks** (per-act battle counts) were recorded only for the captures made after the
