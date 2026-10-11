@@ -259,4 +259,98 @@ describe('a fogged rout map', () => {
     }
     expect(arrivals).toBeGreaterThan(100);
   });
+
+  it('still brings a crowded front wave in when player units park on the front edge', () => {
+    // Two units spaced along the front edge used to cover every tile within 3 of a player
+    // unit, and with no flank to fall back to each wave was lost. Now an arrival comes closer
+    // on the front instead, never next to a player unit.
+    const tally = (fog) => {
+      let requested = 0;
+      let spawned = 0;
+      let closest = Infinity;
+      let relaxed = 0;
+      for (const rung of ['dusk', 'hard', 'lunatic']) {
+        for (const act of ACTS) {
+          for (const seed of SEEDS) {
+            const battleParams = params(rung, act, fog ? { fogEnabled: true } : {});
+            const config = gen(battleParams, seed);
+            const ladder = config.reinforcements?.ladder;
+            if (!ladder) continue;
+            const front = ladder.front;
+            const span = front === 'left' || front === 'right' ? config.rows : config.cols;
+            const at = (k) =>
+              front === 'right'
+                ? { col: config.cols - 1, row: k }
+                : front === 'left'
+                  ? { col: 0, row: k }
+                  : front === 'top'
+                    ? { col: k, row: 0 }
+                    : { col: k, row: config.rows - 1 };
+            const parked = [at(Math.floor(span / 4)), at(Math.floor((3 * span) / 4))];
+            const templates = buildReinforcementTemplatePool({
+              battleConfig: config,
+              battleParams,
+              gameData: data,
+            });
+            for (let turn = 1; turn <= 14; turn++) {
+              const result = resolveBattleReinforcements({
+                turn,
+                seed: 900 + seed,
+                battleConfig: config,
+                battleParams,
+                gameData: data,
+                templates,
+                playerUnits: parked,
+              });
+              for (const wave of result.dueWaves) {
+                if (wave.waveType !== 'ladder') continue;
+                requested += wave.requestedCount;
+                spawned += wave.spawnedCount;
+              }
+              for (const spawn of result.spawns) {
+                if (spawn.waveType !== 'ladder') continue;
+                const d = Math.min(
+                  ...parked.map((p) => Math.abs(p.col - spawn.col) + Math.abs(p.row - spawn.row)),
+                );
+                closest = Math.min(closest, d);
+                if (d <= 3) relaxed++;
+                if (fog) expect(spawn.edge).toBe(front);
+              }
+            }
+          }
+        }
+      }
+      return { requested, spawned, closest, relaxed };
+    };
+
+    const fog = tally(true);
+    expect(fog.requested).toBeGreaterThan(200);
+    expect(fog.spawned / fog.requested).toBeGreaterThan(0.95);
+    expect(fog.closest).toBeGreaterThanOrEqual(2);
+    expect(fog.relaxed).toBeGreaterThan(0);
+
+    // A clear map keeps its flanks and its full exclusion: nothing lands within 3.
+    const clear = tally(false);
+    expect(clear.closest).toBeGreaterThanOrEqual(4);
+    expect(clear.relaxed).toBe(0);
+  });
+
+  it("sends a fogged set piece's Hunted wave from the front too", () => {
+    let checked = 0;
+    for (const rung of RUNGS) {
+      for (const seed of SEEDS) {
+        const huntedWave = { turn: 3, count: [2, 2], xpMultiplier: 0.5 };
+        const config = gen(
+          params(rung, 'act2', { setPiece: 'toll_house', fogEnabled: true, huntedWave }),
+          seed,
+        );
+        if (config.objective !== 'rout') continue;
+        checked++;
+        const front = expectedFront(config);
+        for (const edge of namedEdges(config.reinforcements))
+          expect(edge, `${rung} ${seed}`).toBe(front);
+      }
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
 });
