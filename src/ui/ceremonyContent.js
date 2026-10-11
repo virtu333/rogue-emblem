@@ -115,6 +115,8 @@ export const OBJECTIVE_WORDS = Object.freeze({
   seize: 'SEIZED',
   escape: 'ESCAPED',
   defend: 'DEFENDED',
+  // A defeat map (BattleObjectives.js): its targets fell, the rest may stand (large-maps 03 §5.4).
+  defeat: 'SLAIN',
 });
 
 export function objectiveWord(objective) {
@@ -157,8 +159,12 @@ export function felledContent({ objective, remaining = 0 }) {
   return { word: 'FOE VANQUISHED', sub };
 }
 
-/** Whether a boss death should get its own band (not when victory follows). */
-export function shouldShowFelled({ objective, remaining = 0, reviving = 0 }) {
+/**
+ * Whether a boss death should get its own band (not when victory follows). On a defeat map
+ * `remainingTargets` is the targets still standing: none left, SLAIN follows instead.
+ */
+export function shouldShowFelled({ objective, remaining = 0, reviving = 0, remainingTargets = 0 }) {
+  if (objective === 'defeat') return remainingTargets > 0;
   if (objective === 'seize') return true;
   if (objective === 'rout') return remaining > 0 || reviving > 0;
   return true;

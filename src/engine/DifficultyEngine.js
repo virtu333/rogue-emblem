@@ -543,7 +543,9 @@ function validateBattlePacing(mode, path) {
       errors.push(`${path}.${key} must be null or an object keyed by objective`);
       continue;
     }
-    const objectives = key === 'holdShare' ? ['seize', 'escape'] : ['rout', 'seize', 'escape'];
+    // A par offset may name an objectives model's kind (defeat) as well as a legacy string.
+    const objectives =
+      key === 'holdShare' ? ['seize', 'escape'] : ['rout', 'seize', 'escape', 'defeat'];
     for (const [objective, n] of Object.entries(value)) {
       const at = `${path}.${key}.${objective}`;
       if (!objectives.includes(objective))

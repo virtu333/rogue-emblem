@@ -4,6 +4,7 @@ import {
   isRoutFieldClear,
   pendingRequiredRecruits,
 } from '../../src/engine/RoutObjective.js';
+import { evaluateObjectives, objectivesOf } from '../../src/engine/BattleObjectives.js';
 import { settleRecruitJoin } from '../../src/engine/BattleRecruits.js';
 import { settleStaffHeal } from '../../src/engine/StaffSettlement.js';
 import { staffRunOptions } from '../../src/engine/StaffBlessings.js';
@@ -2147,6 +2148,16 @@ export class HeadlessBattle {
     if (routWaited) this._checkBattleEnd();
   }
 
+  /** What the objectives model reads (BattleObjectives), as BattleScene.objectiveField. */
+  objectiveField() {
+    return {
+      enemyUnits: this.enemyUnits || [],
+      playerUnits: this.playerUnits || [],
+      escapedUnits: this.escapedUnits || [],
+      spawns: this.battleConfig?.enemySpawns || [],
+    };
+  }
+
   /** What the rout's end reads (RoutObjective), as BattleScene.routObjectiveState. */
   routObjectiveState() {
     return {
@@ -2336,6 +2347,14 @@ export class HeadlessBattle {
     const fieldEmpty = this.playerUnits.length === 0 && !(this.escapedUnits?.length > 0);
     if (!commanderAlive || fieldEmpty) {
       this._onDefeat();
+      return true;
+    }
+    // As BattleScene: a map with an objectives model (a defeat map) asks BattleObjectives.
+    const objectives = objectivesOf(this.battleConfig);
+    if (objectives) {
+      if (evaluateObjectives(objectives, this.objectiveField()).outcome !== 'victory') return false;
+      if (this._reinforcementsPendingThisTurn) return false;
+      this._onVictory();
       return true;
     }
     if (this.battleConfig.objective === 'rout' && isRoutComplete(this.routObjectiveState())) {

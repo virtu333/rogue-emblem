@@ -5,6 +5,8 @@
 // Rows must be rectangular; every tile must be in the legend and every legend entry a
 // terrain.json name.
 
+import { TERRAIN } from '../utils/constants.js';
+
 /**
  * Parse an authored ASCII map against terrain.json. Never throws.
  * @returns {{ mapLayout: number[][]|null, cols: number, rows: number, errors: string[] }}
@@ -50,4 +52,20 @@ export function parseAuthoredMap(map, terrainData) {
     );
   });
   return { mapLayout: errors.length ? null : mapLayout, cols, rows: rowsIn.length, errors };
+}
+
+/**
+ * Every Throne tile of a parsed map, in reading order (row by row). A seize chapter or set piece
+ * has exactly one (their validators say so); its `thronePos` is that tile.
+ * @param {number[][]} mapLayout
+ * @returns {{ col: number, row: number }[]}
+ */
+export function throneTiles(mapLayout) {
+  const out = [];
+  (mapLayout || []).forEach((line, row) =>
+    (line || []).forEach((index, col) => {
+      if (index === TERRAIN.Throne) out.push({ col, row });
+    }),
+  );
+  return out;
 }

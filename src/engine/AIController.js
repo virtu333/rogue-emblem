@@ -37,7 +37,12 @@ import { isAcidTerrainIndex } from './TerrainHazards.js';
 import { createScopedLogger } from '../utils/logger.js';
 import { setUnitHP } from './UnitHealth.js';
 import { HOLD_AI_MODE, wakeHolders } from './HoldActivation.js';
-import { artilleryWeapon, isArtilleryPlanted, settleArtilleryStances } from './SiegeArtillery.js';
+import {
+  artilleryWeapon,
+  holdsAuthoredPost,
+  isArtilleryPlanted,
+  settleArtilleryStances,
+} from './SiegeArtillery.js';
 
 const DEBUG_AI = false;
 const aiLog = createScopedLogger('AI', { debug: DEBUG_AI });
@@ -310,10 +315,12 @@ export class AIController {
       return this._finalizeDecision(enemy, { path: null, target: null, reason: 'hold' });
     // Post-holders (SiegeArtillery): siege artillery fires from its post at the best
     // target in siege range, or waits there; a status-staff caster casts or strikes from
-    // its post below (movement range 0). Neither walks, whatever its orders.
-    const holdsPost = isArtilleryPlanted(enemy);
-    if (holdsPost && artilleryWeapon(enemy))
+    // its post below (movement range 0). Neither walks, whatever its orders. An authored
+    // post (`aiMode: 'post'`, a set piece's slot) strikes from its tile the same way.
+    const planted = isArtilleryPlanted(enemy);
+    if (planted && artilleryWeapon(enemy))
       return this._decideArtilleryAction(enemy, playerUnits, npcUnits);
+    const holdsPost = planted || holdsAuthoredPost(enemy);
     if (enemy.aiMode === 'guard') {
       enemy.guardPost ||= { col: enemy.col, row: enemy.row };
       const nearestDist = Math.min(

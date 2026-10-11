@@ -15,6 +15,11 @@
 //
 // Holders (HoldActivation) and village bandits (`seek_tile`) keep their own orders.
 // The Entity has its own AI.
+//
+// An authored post (`aiMode: 'post'`, a set piece's slot: docs/specs/act-v-descent.md §9.2)
+// holds the same way for good: it strikes from its tile whatever it carries and never walks
+// (AIController's movement range 0, the Danger overlay's reach from the tile). It needs no
+// stance: the mode itself is the order, read the same by BattleScene and the harness.
 
 import { hasPerBattleUsesLeft, isStaff, nextStrikeWeapon } from './Combat.js';
 import { isEntity } from './EntitySystem.js';
@@ -49,8 +54,24 @@ export function readyStatusStaff(unit) {
   return staff && staff.uses > 0 && (staff._usesSpent || 0) < staff.uses ? staff : null;
 }
 
-/** True when the unit never walks: siege artillery with shots left, or a staff caster with a use left. */
+/** The AI mode of a unit authored to hold its tile (a set piece slot's `aiMode: 'post'`). */
+export const POST_AI_MODE = 'post';
+
+/** True when the unit is an authored post: it strikes from its tile and never walks. */
+export function holdsAuthoredPost(unit) {
+  return unit?.aiMode === POST_AI_MODE && !isEntity(unit);
+}
+
+/**
+ * True when the unit never walks: siege artillery with shots left, a staff caster with a use
+ * left, or an authored post.
+ */
 export function holdsPost(unit) {
+  return castsFromPost(unit) || holdsAuthoredPost(unit);
+}
+
+/** A caster that holds its post this phase: siege artillery or a staff caster (the stance). */
+function castsFromPost(unit) {
   return Boolean(artilleryWeapon(unit) || readyStatusStaff(unit));
 }
 
@@ -66,7 +87,7 @@ export function settleArtilleryStances({ enemyUnits = [], turn = null } = {}) {
   const checked = Number.isInteger(turn);
   for (const enemy of enemyUnits || []) {
     if (!isLive(enemy)) continue;
-    if (!holdsPost(enemy)) {
+    if (!castsFromPost(enemy)) {
       delete enemy.artilleryStance;
       continue;
     }
@@ -80,5 +101,5 @@ export function settleArtilleryStances({ enemyUnits = [], turn = null } = {}) {
 
 /** True when the unit holds its post this phase (stance taken, and still a caster that holds). */
 export function isArtilleryPlanted(unit) {
-  return unit?.artilleryStance?.planted === true && holdsPost(unit);
+  return unit?.artilleryStance?.planted === true && castsFromPost(unit);
 }

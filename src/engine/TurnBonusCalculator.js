@@ -1,6 +1,7 @@
 // TurnBonusCalculator.js — Pure functions for turn-based rating and bonus gold.
 // No Phaser deps.
 import { GOLD_PAR_BONUS_MULTIPLIER } from '../utils/constants.js';
+import { objectiveKindOf } from './BattleObjectives.js';
 
 /**
  * Calculate the par (target turn count) for a battle map.
@@ -18,6 +19,9 @@ import { GOLD_PAR_BONUS_MULTIPLIER } from '../utils/constants.js';
  *   blessingParTurns: Patient Dawn's turns (battleParams.blessingParTurns), added last, after
  *   the floor: the run's blessing, never the map's, so a locked map re-entered after taking it
  *   gets them too.
+ *   legacyObjective: the config's legacy string when `objective` is an objectives model's kind
+ *   (battleParMapParams); par falls back to it when turnBonus.json lists no entry for the kind
+ *   (large-maps 03 §5.9's parKind).
  * @param {object} config - turnBonus.json data
  * @param {string|null} [difficultyId=null] - difficulty mode id for par scaling
  * @returns {number|null} integer par, or null if objective has no basePar entry
@@ -35,12 +39,15 @@ export function calculatePar(mapParams, config, difficultyId = null) {
     parOffset = 0,
     parFloor = null,
     blessingParTurns = 0,
+    legacyObjective = null,
   } = mapParams;
 
-  const basePar = config.objectiveBasePar[objective];
+  const parKind =
+    config.objectiveBasePar[objective] == null && legacyObjective ? legacyObjective : objective;
+  const basePar = config.objectiveBasePar[parKind];
   if (basePar == null) return null;
 
-  const adjustment = config.objectiveAdjustments[objective] || 0;
+  const adjustment = config.objectiveAdjustments[parKind] || 0;
   const area = cols * rows;
   const areaPenalty = area * config.areaPenaltyPerTile;
   const linearPenalty = enemyCount * (config.enemyWeight ?? 0.6);
@@ -101,11 +108,14 @@ export function calculatePar(mapParams, config, difficultyId = null) {
  */
 export function battleParMapParams(battleConfig, { enemyCount, terrainData, battleParams } = {}) {
   const bc = battleConfig || {};
+  // A map with an objectives model (BattleObjectives.js) is par'd as its first kind (defeat).
+  const objective = objectiveKindOf(bc);
   return {
     cols: bc.cols,
     rows: bc.rows,
     enemyCount,
-    objective: bc.objective,
+    objective,
+    ...(objective !== bc.objective ? { legacyObjective: bc.objective } : {}),
     mapLayout: bc.mapLayout,
     terrainData,
     parBonus: bc.parBonus || 0,

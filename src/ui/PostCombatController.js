@@ -47,6 +47,7 @@ import { settlementLines } from '../engine/Burdens.js';
 import { gambleLines } from '../engine/BattleGoldGamble.js';
 import { earnedPickOwed } from '../engine/EarnedBlessings.js';
 import { contractRewardOwedAt } from '../engine/Contracts.js';
+import { objectiveKindOf } from '../engine/BattleObjectives.js';
 import { presentEarnedBlessingPick } from './EarnedBlessingPick.js';
 import { EARNED_PICK_SAVE_FAILED } from './earnedBlessingPickModel.js';
 import { showMinorHint } from './HintDisplay.js';
@@ -829,7 +830,8 @@ export class PostCombatController {
       rating = null;
     }
     return {
-      objective: s.battleConfig?.objective,
+      // The kind the battle was played as: a defeat map's word is SLAIN, never ROUTED.
+      objective: objectiveKindOf(s.battleConfig),
       turn,
       par: Number.isFinite(s.turnPar) ? s.turnPar : null,
       rating,

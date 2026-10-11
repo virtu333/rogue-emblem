@@ -32,22 +32,21 @@ import {
 import { createScopedLogger } from '../utils/logger.js';
 import { buildRoutLadder } from './RoutLadder.js';
 import { assignHolders, holdShareFor } from './HoldActivation.js';
-import { revivalStoneKind, revivalStonesFor } from './RevivalStones.js';
+import { eliteCaptains, resolveSeatedBoss, seatedBossCandidates } from './SeatedBoss.js';
+import { BOSS_REF, legacyObjectiveKind, objectivesShapeErrors } from './BattleObjectives.js';
 import { mapExtraNecromancer } from './Necromancy.js';
 import { seizeParFloor } from './SeizeParFloor.js';
 import { assignCasterGear, isPerBattleGearConfig } from './CasterGear.js';
 import { assignEnemyCarry } from './EnemyCarry.js';
 import { buildReinforcementTemplatePool } from './ReinforcementSpawns.js';
 import { reinforcementMoveTypes } from './ReinforcementScheduler.js';
-import {
-  SET_PIECE_TEMPLATE_PREFIX,
-  buildSetPieceBattle,
-  captainLevelFor,
-  findSetPiece,
-} from './SetPieces.js';
+import { SET_PIECE_TEMPLATE_PREFIX, buildSetPieceBattle, findSetPiece } from './SetPieces.js';
 
 const DEBUG_MAP_GEN = false;
 const mapGenLog = createScopedLogger('MapGen', { debug: DEBUG_MAP_GEN });
+
+/** The objectives the map templates are drawn for (mapTemplates.json's keys). */
+const TEMPLATE_OBJECTIVES = Object.freeze(['rout', 'seize', 'escape']);
 
 /** Extra layouts a caravan node may draw when the merchant finds no tile on the first. */
 export const CARAVAN_PLACEMENT_ATTEMPTS = 8;
@@ -79,8 +78,9 @@ export function generateBattleLayout(params, deps) {
   if (params?.setPiece) {
     if (findSetPiece(deps.setPieces, params.setPiece)) return generateSetPieceLayout(params, deps);
     // A save that names a set piece this build lacks (a newer client's) fights an ordinary map
-    // rather than failing the battle's start.
+    // rather than failing the battle's start, on an objective the templates have (else a rout).
     console.warn(`[MapGenerator] unknown set piece "${params.setPiece}"; using a template map`);
+    if (!TEMPLATE_OBJECTIVES.includes(params.objective)) params = { ...params, objective: 'rout' };
   }
   const {
     act = 'act1',
@@ -251,10 +251,8 @@ export function generateBattleLayout(params, deps) {
     act,
     {
       ...enemies.bosses,
-      [act]: (params.isElite === true && !isBoss && objective === 'seize'
-        ? eliteCaptains(enemies, act, adjustedLevelRange, classes)
-        : enemies.bosses[act] || []
-      ).filter((boss) => earlyEnemyAllowed(boss.className, params)),
+      // The seat's candidates (SeatedBoss.js): the act's bosses, or an elite node's captains.
+      [act]: seatedBossCandidates(params, { enemies, classes, levelRange: adjustedLevelRange }),
     },
     thronePos,
     adjustedLevelRange,
@@ -264,12 +262,11 @@ export function generateBattleLayout(params, deps) {
       statusStaffConfig,
       siegeWeaponConfig,
       difficultyId: params.difficultyId,
-      // Elite captains already scale with the act's (rung-adjusted) level range.
-      bossLevelBonus: params.isElite === true && !isBoss ? 0 : params.bossLevelBonus,
-      // Revival Stones (difficulty.json `revivalStones`, RevivalStones.js): the boss spawn
-      // carries its count, so a locked map keeps it. Elite captains are their own kind.
-      revivalStones: params.revivalStones,
-      isEliteCaptain: params.isElite === true && !isBoss && objective === 'seize',
+      // The boss seat (SeatedBoss.resolveSeatedBoss): level with the rung's bonus (none for an
+      // elite captain), Revival Stones by kind (difficulty.json `revivalStones`, written on the
+      // spawn so a locked map keeps them), and `bossName` seating a boss by name.
+      seatParams: params,
+      enemies,
     },
   );
   enemySpawns = dressEnemySpawns(enemySpawns, { params, deps, act, templateId: template?.id });
@@ -587,28 +584,55 @@ function generateSetPieceLayout(params, deps) {
     classes: deps.classes || [],
     terrain: deps.terrain || [],
     random: () => Math.random(),
+    // A `boss: true` slot seats the battle's boss by the template path's own rule, from the
+    // slot's class draw (SeatedBoss.js). The Entity keeps no 3x3 form on a single tile.
+    seatBoss: (roll) => {
+      const seat = resolveSeatedBoss(params, {
+        enemies: deps.enemies,
+        classes: deps.classes || [],
+        levelRange,
+        random: () => roll,
+      });
+      if (!seat) return null;
+      if (seat.isEntity)
+        console.warn(`[MapGenerator] set piece "${setPiece.id}" seats the Entity on one tile`);
+      return {
+        className: seat.className,
+        level: seat.level,
+        name: seat.name,
+        isBoss: true,
+        ...(seat.stones > 0 ? { revivalStones: seat.stones } : {}),
+      };
+    },
   });
-  const { mapLayout, cols, rows, playerSpawns } = built;
+  const { mapLayout, cols, rows, playerSpawns, thronePos } = built;
   const templateId = `${SET_PIECE_TEMPLATE_PREFIX}${setPiece.id}`;
   const enemySpawns = dressEnemySpawns(built.enemySpawns, { params, deps, act, templateId });
   const reinforcementConfig = built.reinforcements ? structuredClone(built.reinforcements) : {};
+  // No Hunted wave on a boss node's map, as on a template's.
   finishReinforcements(reinforcementConfig, params, {
-    isBoss: false,
+    isBoss: params.isBoss === true,
     cols,
     rows,
     playerSpawns,
     enemySpawns,
   });
+  // Par reads the objectives model's first kind when the set piece names one (defeat).
+  const parObjective = built.objectives ? built.objectives.primary[0].kind : objective;
   return {
     mapLayout,
     cols,
     rows,
     objective,
+    // The objectives model (BattleObjectives.js), locked with the map; `objective` is its family.
+    ...(built.objectives ? { objectives: built.objectives } : {}),
+    // The Vigil's sigils and circles, placed with the mirror (read by the Vigil mechanic).
+    ...(built.vigil ? { vigil: built.vigil } : {}),
     biome: setPiece.biome ?? null,
     playerSpawns,
     enemySpawns,
     npcSpawn: null,
-    thronePos: null,
+    thronePos,
     // The authored spawns past the deploy count: Formation offers these, never a draw.
     formationSpares: built.formationSpares,
     templateId,
@@ -619,13 +643,13 @@ function generateSetPieceLayout(params, deps) {
     ...(Number.isFinite(params.parInflation)
       ? { parInflation: Math.max(0, Math.trunc(params.parInflation)) }
       : {}),
-    ...parOffsetConfig(params, objective, {
+    ...parOffsetConfig(params, parObjective, {
       mapLayout,
       cols,
       rows,
       terrainData: deps.terrain,
       playerSpawns,
-      thronePos: null,
+      thronePos,
     }),
     toxicTiles: 0,
     ...reinforcementConfig,
@@ -793,21 +817,8 @@ function filterByBiome(pool, biome) {
   return biomeMatches.length > 0 ? biomeMatches : pool;
 }
 
-// Elite seize battles hold a captain, not the act's boss (playtest 2026-09-28: a
-// mid-act elite fielded Act III's Blade Lord at L17, and the same boss could wait at
-// the act's end). Captains come from enemies.elites.<act> and are scaled to the node:
-// the top of its enemy level range plus two (Act I: plus none), a promoted class
-// that many levels past promotion. They still hold the throne as the map's boss
-// (isBoss: boss bonus, bar, AI), with no boss card or lines (those need scene.isBoss).
-export function eliteCaptains(enemies, act, levelRange, classes = []) {
-  const list = enemies?.elites?.[act];
-  if (!Array.isArray(list) || !list.length) return enemies?.bosses?.[act] || [];
-  return list.map((entry) => {
-    const promoted = classes.find((c) => c.name === entry.className)?.tier === 'promoted';
-    const level = captainLevelFor(act, levelRange?.[1], promoted);
-    return { className: entry.className, name: entry.name, level };
-  });
-}
+// Elite captains (enemies.elites.<act>) moved to SeatedBoss.js with the rest of the seat's rule.
+export { eliteCaptains };
 
 export function pickTemplate(objective, mapTemplates, act = null, options = {}) {
   const { isBoss = false, biome = null } = options;
@@ -2105,23 +2116,13 @@ function generateEnemies(
 
   // For Seize: place boss first
   if (objective === 'seize' && bossData[act]?.length > 0) {
-    // Filter by difficulty if difficultyFilter is present on boss defs
-    const difficultyId = extraOptions.difficultyId || null;
-    let candidates = bossData[act];
-    if (difficultyId) {
-      const filtered = candidates.filter(
-        (b) => !b.difficultyFilter || b.difficultyFilter.includes(difficultyId),
-      );
-      if (filtered.length > 0) candidates = filtered;
-    }
-    const bossDef = candidates[Math.floor(Math.random() * candidates.length)];
-    // The rung's boss level bonus (difficulty.json `bossLevelBonus`): boss levels are
-    // otherwise fixed by their definitions and ignore `enemyLevelBonus`.
-    const bossLevelBonus = Math.max(0, Math.trunc(Number(extraOptions.bossLevelBonus) || 0));
-    const stones = revivalStonesFor(
-      extraOptions.revivalStones,
-      revivalStoneKind({ bossDef, act, isEliteCaptain: extraOptions.isEliteCaptain === true }),
+    // One draw (SeatedBoss.resolveSeatedBoss): the rung's difficultyFilter, `bossName`, the
+    // boss level bonus and the Revival Stones are its rules.
+    const seat = resolveSeatedBoss(
+      { ...(extraOptions.seatParams || {}), act, difficultyId: extraOptions.difficultyId },
+      { candidates: bossData[act], enemies: extraOptions.enemies, random: () => Math.random() },
     );
+    const { bossDef, stones } = seat;
 
     // Entity boss: place at entitySpawn coords if template provides them
     const entityFootprintInBounds =
@@ -2155,7 +2156,7 @@ function generateEnemies(
       }
       spawns.push({
         className: bossDef.className,
-        level: bossDef.level + bossLevelBonus,
+        level: seat.level,
         col: ec,
         row: er,
         isBoss: true,
@@ -2181,7 +2182,7 @@ function generateEnemies(
         usedPositions.add(`${bossPos.col},${bossPos.row}`);
         spawns.push({
           className: bossDef.className,
-          level: bossDef.level + bossLevelBonus,
+          level: seat.level,
           col: bossPos.col,
           row: bossPos.row,
           isBoss: true,
@@ -3798,6 +3799,26 @@ export function validateBattleConfig(config, deps, options = {}) {
             violations.push(`escape tile (${tile.col},${tile.row}) impassable for ${mt}`);
           }
         }
+      }
+    }
+
+    // --- An objectives model (BattleObjectives.js): playable, its family the legacy string,
+    // and every target ref a spawn on the map ---
+    if (config.objectives !== undefined) {
+      const shape = objectivesShapeErrors(config.objectives);
+      for (const message of shape) violations.push(message);
+      if (shape.length === 0) {
+        const legacy = legacyObjectiveKind(config.objectives);
+        if (objective !== legacy)
+          violations.push(`objective "${objective}" is not its objectives' family "${legacy}"`);
+        for (const primary of config.objectives.primary)
+          for (const ref of primary.targets || []) {
+            const found =
+              ref === BOSS_REF
+                ? enemySpawns.some((e) => e.isBoss)
+                : enemySpawns.some((e) => e.authoredId === ref);
+            if (!found) violations.push(`objective "${primary.id}" target "${ref}" has no spawn`);
+          }
       }
     }
 
