@@ -136,11 +136,11 @@ describe('the Descent per rung (§2.1, §2.2)', () => {
 
   it('set-piece battles fight the act before at the route offset, with no fog roll', () => {
     // First Light's act before is Act III (late rows 11-15), everyone else's Act IV (14-17);
-    // the shipped route adds [1, 1].
+    // the shipped routes add [2, 2] (First Light, Dusk: tuned by sim:descent) and [1, 1].
     const normal = runIntoFinalAct('normal');
     const hard = runIntoFinalAct('hard');
     const stair = (rm) => rm.nodeMap.nodes.find((n) => n.descentKey === 'stair');
-    expect(stair(normal).battleParams.levelRange).toEqual([12, 16]);
+    expect(stair(normal).battleParams.levelRange).toEqual([13, 17]);
     expect(stair(hard).battleParams.levelRange).toEqual([15, 18]);
     for (const rm of [normal, hard])
       for (const node of rm.nodeMap.nodes) expect(node.fogEnabled, node.id).toBeUndefined();

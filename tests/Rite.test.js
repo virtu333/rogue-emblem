@@ -213,7 +213,7 @@ describe('riteView (the chip and the finale preview)', () => {
     ]);
     const spoken = riteView(runWith(5, { finale: 'lieutenant' }));
     expect(spoken.chip).toBe('The Rite: 5 words · Spoken');
-    expect(spoken.next).toEqual({ band: 'answered', label: 'Answered', at: 12 });
+    expect(spoken.next).toEqual({ band: 'answered', label: 'Answered', at: 10 });
     expect(spoken.effects).toEqual([{ target: 'lieutenant', lines: ['No change'] }]);
     const broken = riteView(runWith(1), { node: ENTITY });
     expect(broken.chip).toBe('The Rite: 1 word · Broken');
