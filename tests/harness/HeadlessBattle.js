@@ -123,7 +123,12 @@ import {
   swapSpentWeapons,
 } from '../../src/engine/PerBattleWeapons.js';
 import { canAttackWithWeapon, getAttackWeapons } from '../../src/engine/AttackOptions.js';
-import { combatDistance, getFootprint, isEntity } from '../../src/engine/EntitySystem.js';
+import {
+  combatDistance,
+  getFootprint,
+  isEntity,
+  runEntitySplashSync,
+} from '../../src/engine/EntitySystem.js';
 import {
   advanceTurnPressure,
   createTurnPressureState,
@@ -2601,10 +2606,32 @@ export class HeadlessBattle {
 
     if (defender.currentHP <= 0) this._removeUnit(defender, { killer: attacker });
     if (attacker.currentHP <= 0) this._removeUnit(attacker, { killer: defender });
+    // As BattleScene.executeEnemyCombat: the Entity's splash after the strike's casualties.
+    if (isEntity(attacker) && attacker.currentHP > 0) this._applyEntitySplash(attacker, defender);
     swapSpentWeapons([attacker, defender]); // after kill credit, as BattleScene
 
     this._checkBattleEnd();
     this._clearCombatRollSession();
+  }
+
+  /**
+   * As BattleScene._applyEntitySplash, without presentation: the one rule
+   * (engine/EntitySystem.js entitySplash) on the battle stream, each fallen victim removed
+   * with the Entity's kill credit before the next tile. Returns the step's record.
+   */
+  _applyEntitySplash(entity, primaryTarget) {
+    return runEntitySplashSync(
+      entity,
+      primaryTarget,
+      {
+        cols: this.grid.cols,
+        rows: this.grid.rows,
+        getUnitAt: (col, row) => this.getUnitAt(col, row),
+        battleBlessings: this._battleBlessings,
+        battleConfig: this.battleConfig,
+      },
+      { remove: (victim, options) => this._removeUnit(victim, options) },
+    );
   }
 
   applyBattleDebuff(unit, stat, value) {

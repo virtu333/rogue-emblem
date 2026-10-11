@@ -79,12 +79,18 @@ describe('every lethal damageUnit call hands the banner its chance', () => {
     const lethal = calls.filter((c) => /\bblessings:/.test(c.args));
     const where = new Set(lethal.map((c) => c.file));
     expect(where).toEqual(
-      new Set(['src/engine/PostCombatEffects.js', 'src/scenes/BattleScene.js']),
+      new Set([
+        'src/engine/EntitySystem.js',
+        'src/engine/PostCombatEffects.js',
+        'src/scenes/BattleScene.js',
+      ]),
     );
-    // Deathburst, the ballista and the Entity's splash in the scene; the area blows, the ram's
-    // crash and the after-combat blow in the post-combat pipeline.
-    expect(lethal.filter((c) => c.file === 'src/scenes/BattleScene.js')).toHaveLength(3);
+    // Deathburst and the ballista in the scene; the area blows, the ram's crash and the
+    // after-combat blow in the post-combat pipeline; the Entity's splash in its engine step
+    // (which the scene and the harness both drive).
+    expect(lethal.filter((c) => c.file === 'src/scenes/BattleScene.js')).toHaveLength(2);
     expect(lethal.filter((c) => c.file === 'src/engine/PostCombatEffects.js')).toHaveLength(3);
+    expect(lethal.filter((c) => c.file === 'src/engine/EntitySystem.js')).toHaveLength(1);
   });
 
   it('the rule catches the forms a call takes', () => {

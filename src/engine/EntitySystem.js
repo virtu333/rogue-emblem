@@ -1,7 +1,13 @@
 // EntitySystem.js — Multi-tile Entity boss helpers (pure, no Phaser deps)
 
-import { ENTITY_FOOTPRINT, ENTITY_SPLASH_DAMAGE } from '../utils/constants.js';
+import {
+  ENTITY_FOOTPRINT,
+  ENTITY_SPLASH_COUNT,
+  ENTITY_SPLASH_COUNT_MAX,
+  ENTITY_SPLASH_DAMAGE,
+} from '../utils/constants.js';
 import { gridDistance } from './Combat.js';
+import { damageUnitDetailed } from './UnitHealth.js';
 
 /** Check if a unit is an Entity (multi-tile boss) */
 export function isEntity(unit) {
@@ -61,7 +67,11 @@ export function pickBestWeapon(entity, target, calcDamageFn) {
 
 /** Roll 0–splashCount random tiles within Manhattan 1 of the primary target,
  *  excluding the target tile itself and Entity body tiles.
- *  Returns array of {col, row}. */
+ *  Returns array of {col, row}.
+ *  Draws: one per shuffle swap (candidates − 1, none for fewer than two candidates), then one
+ *  for the count, whatever `splashCount` is (0 included): the count only maps that last draw
+ *  onto 0..min(splashCount, candidates), so a different count changes which tiles are struck
+ *  (and so how many damage draws follow), never how many draws the tiles take. */
 export function rollSplashTiles(primaryCol, primaryRow, entity, cols, rows, splashCount, rng) {
   const random = rng || Math.random;
   const bodyKeys = new Set(getFootprintKeys(entity));
@@ -95,6 +105,85 @@ export function rollSplashDamage(rng) {
   const random = rng || Math.random;
   const [min, max] = ENTITY_SPLASH_DAMAGE;
   return min + Math.floor(random() * (max - min + 1));
+}
+
+/**
+ * How many tiles the Entity's splash may strike in this battle: the locked config's
+ * `entitySplashCount` (written at generation; the Rite's tier moves it by one) or
+ * ENTITY_SPLASH_COUNT, a whole number clamped to 0..ENTITY_SPLASH_COUNT_MAX (the four
+ * orthogonal neighbours). Anything but a finite number reads as the default.
+ */
+export function entitySplashCountFor(config) {
+  const raw = config?.entitySplashCount;
+  if (!Number.isFinite(raw)) return ENTITY_SPLASH_COUNT;
+  return Math.max(0, Math.min(ENTITY_SPLASH_COUNT_MAX, Math.trunc(raw)));
+}
+
+/**
+ * The Entity's splash after its strike on `primaryTarget` (the rule BattleScene drives with
+ * presentation and the harness drives without). Rolls the tiles (rollSplashTiles, with
+ * entitySplashCountFor(world.battleConfig)), then, tile by tile, strikes the living non-enemy
+ * unit standing there (never the primary target) for rollSplashDamage through
+ * UnitHealth.damageUnitDetailed (no hit roll, no Miracle): a Revival Stone refills a bar and
+ * the Unbroken Banner holds a player unit at 1 (`world.battleBlessings`).
+ *
+ * A generator: each hit is yielded after its HP change and before the next tile is read, so
+ * the caller presents it and removes a fallen victim (killer: the Entity) first, and every
+ * draw (the battle stream, `world.rng` or Math.random read at each draw) interleaves with
+ * the caller's exactly as the scene's inline loop did. Yields
+ *   { kind: 'splash', victim, tile: { col, row }, damage, lost, stoneBroken, bannerHeld, fell }
+ * and returns the plain record { count, tiles, hits }.
+ *
+ * world: { cols, rows, getUnitAt(col, row), battleBlessings, battleConfig, rng? }
+ */
+export function* entitySplash(entity, primaryTarget, world) {
+  const count = entitySplashCountFor(world.battleConfig);
+  const tiles = rollSplashTiles(
+    primaryTarget.col,
+    primaryTarget.row,
+    entity,
+    world.cols,
+    world.rows,
+    count,
+    world.rng,
+  );
+  const hits = [];
+  for (const tile of tiles) {
+    const victim = world.getUnitAt(tile.col, tile.row);
+    if (!victim || victim === primaryTarget || victim.currentHP <= 0) continue;
+    if (victim.faction === 'enemy') continue; // Don't splash allies
+    const damage = rollSplashDamage(world.rng);
+    const { lost, stoneBroken, bannerHeld } = damageUnitDetailed(victim, damage, {
+      blessings: world.battleBlessings,
+    });
+    const hit = {
+      kind: 'splash',
+      victim,
+      tile: { col: tile.col, row: tile.row },
+      damage,
+      lost,
+      stoneBroken: Boolean(stoneBroken),
+      bannerHeld: Boolean(bannerHeld),
+      fell: victim.currentHP <= 0,
+    };
+    hits.push(hit);
+    yield hit;
+  }
+  return { count, tiles: tiles.map((t) => ({ col: t.col, row: t.row })), hits };
+}
+
+/**
+ * Drive the splash without presentation (the harness): a fallen victim is removed through
+ * `remove(victim, { killer: entity })` before the next tile, as the scene does. Returns the
+ * step's record.
+ */
+export function runEntitySplashSync(entity, primaryTarget, world, { remove } = {}) {
+  const steps = entitySplash(entity, primaryTarget, world);
+  for (;;) {
+    const { value, done } = steps.next();
+    if (done) return value;
+    if (value.victim.currentHP <= 0) remove?.(value.victim, { killer: entity });
+  }
 }
 
 /**
