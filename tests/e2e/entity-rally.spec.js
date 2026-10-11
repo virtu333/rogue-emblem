@@ -5,6 +5,9 @@
 //   - Skip below a 44 px target, or its press reaching the board (selecting the unit beneath it)
 //   - the card taking the board's taps, or pausing the battle: the player keeps playing under it
 //   - Cancel taken from an open unit selection, or not dismissing the card when nothing else is open
+//   - an input that is not a Cancel dismissing the card (BattleScene.requestCancel serves those too):
+//     a right-click on a foe (which must open its inspection), a tap off the map, the phone's Menu
+//     (which must open Pause) or the pad's Start
 //   - a card that stays once skipped, or a line that comes back on a later beat
 // The music is not in play: the spec drives the rally from the finale's callback
 // (BattleMusicController's `onFinale`), with the bar shortened so the beats come quickly.
@@ -74,6 +77,48 @@ async function startRally(page, { bar = 1000 } = {}) {
     { bar, longLine: LONG_LINE },
   );
 }
+
+// A real point on the canvas, off the board's tiles, with nothing interactive under it: a tap there
+// is the off-map tap that InputController.onClick reads as a backing-out requestCancel.
+function offMapPoint(page) {
+  return page.evaluate(() => {
+    const b = window.__emblemRogueGame.scene.getScene('Battle');
+    const canvas = b.game.canvas;
+    const rect = canvas.getBoundingClientRect();
+    for (let y = rect.top + 4; y < rect.bottom - 4; y += 6) {
+      for (let x = rect.left + 4; x < rect.right - 4; x += 6) {
+        if (document.elementFromPoint(x, y) !== canvas) continue;
+        const gx = ((x - rect.left) * b.scale.width) / rect.width;
+        const gy = ((y - rect.top) * b.scale.height) / rect.height;
+        const world = b._screenToWorld(gx, gy);
+        if (!world || b.grid.pixelToGrid(world.x, world.y)) continue;
+        if (b._isPointerOverInteractive({ x: gx, y: gy })) continue;
+        return { x, y };
+      }
+    }
+    return null;
+  });
+}
+
+// Every requestCancel the scene receives from now on, with its options.
+async function recordCancels(page) {
+  await page.evaluate(() => {
+    const s = window.__rallyScene;
+    s.__cancels = [];
+    const orig = s.requestCancel.bind(s);
+    s.requestCancel = (opts) => {
+      s.__cancels.push(opts ?? null);
+      return orig(opts);
+    };
+  });
+}
+
+const rallyState = (page) =>
+  page.evaluate(() => ({
+    skipped: window.__rallyScene._entityRally.skipped,
+    timers: window.__rallyScene._entityRally._timers.length,
+    paused: Boolean(window.__rallyScene.pauseOverlay?.visible),
+  }));
 
 for (const [name, use, touch] of VIEWPORTS) {
   test.describe(name, () => {
@@ -272,6 +317,76 @@ for (const [name, use, touch] of VIEWPORTS) {
       );
       await battleIdle(page);
     });
+
+    test('a tap off the map is not a Cancel: the card stays', async ({ page }) => {
+      await startRally(page, { bar: 60_000 });
+      await expect(card(page)).toBeVisible();
+      await recordCancels(page);
+      // off the board: the press reaches the scene as a backing-out requestCancel, and that is all
+      const off = await offMapPoint(page);
+      expect(off, 'an off-map point on the canvas').not.toBeNull();
+      if (touch) await page.touchscreen.tap(off.x, off.y);
+      else await page.mouse.click(off.x, off.y);
+      await expect
+        .poll(() => page.evaluate(() => window.__rallyScene.__cancels))
+        .toEqual([{ allowPause: false }]);
+      await expect(card(page)).toBeVisible();
+      expect(await rallyState(page)).toEqual({ skipped: false, timers: 2, paused: false });
+      expect(await page.evaluate(() => window.__rallyScene.battleState)).toBe('PLAYER_IDLE');
+    });
+
+    test('a right-click on a foe is not a Cancel: the card stays and the foe is inspected', async ({
+      page,
+    }) => {
+      test.skip(touch, 'a phone has no right button (its long-press inspect never backs out)');
+      await startRally(page, { bar: 60_000 });
+      await expect(card(page)).toBeVisible();
+      const foe = await page.evaluate(() => {
+        const f = window.__rallyScene.enemyUnits.find((u) => u.currentHP > 0);
+        return { col: f.col, row: f.row, id: f.battleEntityId };
+      });
+      const p = await tileOnScreen(page, foe.col, foe.row);
+      await page.mouse.click(p.x, p.y, { button: 'right' });
+      await expect
+        .poll(() =>
+          page.evaluate(() => {
+            const panel = window.__rallyScene.inspectionPanel;
+            return panel?.visible ? panel._unit?.battleEntityId : null;
+          }),
+        )
+        .toBe(foe.id);
+      await expect(card(page)).toBeVisible();
+      expect(await rallyState(page)).toEqual({ skipped: false, timers: 2, paused: false });
+    });
+
+    test("the phone's Menu opens Pause and the rally carries on under it; after Resume, Back skips", async ({
+      page,
+    }) => {
+      test.skip(!touch, 'the Menu button is the phone rail');
+      await startRally(page, { bar: 60_000 });
+      await expect(card(page)).toBeVisible();
+      await page.getByRole('button', { name: 'Menu', exact: true }).tap();
+      await expect
+        .poll(() => rallyState(page))
+        .toEqual({ skipped: false, timers: 2, paused: true });
+      // the card is still on show, under the pause menu (which takes the press there)
+      await expect(page.locator('.rc-card')).toHaveCount(1);
+      const covered = await page.evaluate(() => {
+        const r = document.querySelector('.rc-card').getBoundingClientRect();
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return !hit?.closest('.rc-card');
+      });
+      expect(covered, 'the pause menu sits over the card').toBe(true);
+      // Resume, and the card is still there; now Back (a Cancel, nothing else open) skips it
+      await page.getByRole('button', { name: 'Resume', exact: true }).tap();
+      await expect
+        .poll(() => rallyState(page))
+        .toEqual({ skipped: false, timers: 2, paused: false });
+      await expect(card(page)).toBeVisible();
+      await page.getByRole('button', { name: 'Back', exact: true }).tap();
+      await expect(page.locator('.rc-card')).toHaveCount(0);
+      expect(await rallyState(page)).toEqual({ skipped: true, timers: 0, paused: false });
+    });
   });
 }
 
@@ -299,5 +414,22 @@ test.describe('the pad and the real finale callback', () => {
       0,
     );
     await expect(page.locator('.rc-card')).toHaveCount(0);
+  });
+
+  test('Start opens Pause and leaves the card; B closes Pause, then B skips', async ({ page }) => {
+    await quietSettings(page, { guidance: 'off' });
+    await openDevBattle(page, { preset: 'combat_actions', slot: null, query: '&gamepadSim=1' });
+    await installSimPad(page);
+    await startRally(page, { bar: 60_000 });
+    await expect(card(page)).toBeVisible();
+    await padTap(page, 9); // Start
+    await expect.poll(() => rallyState(page)).toEqual({ skipped: false, timers: 2, paused: true });
+    await expect(page.locator('.rc-card')).toHaveCount(1);
+    await padTap(page, 1); // B: the pause menu has something to close, so it closes
+    await expect.poll(() => rallyState(page)).toEqual({ skipped: false, timers: 2, paused: false });
+    await expect(card(page)).toBeVisible();
+    await padTap(page, 1); // B again: nothing else open, the card's
+    await expect(page.locator('.rc-card')).toHaveCount(0);
+    expect(await rallyState(page)).toEqual({ skipped: true, timers: 0, paused: false });
   });
 });

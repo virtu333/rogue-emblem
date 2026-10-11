@@ -3,8 +3,8 @@
 //
 // One card for the whole rally; each beat swaps what it shows. Everything but the Skip button is
 // click-through, so the battle stays playable under it and a tap on the card never reaches the
-// board. It takes no input scope and no overlay-stack entry: Cancel reaches it through the scene's
-// requestCancel (EntityRallyController). Reduced motion (and Instant effects) cut instead of fade.
+// board. It takes no input scope and no overlay-stack entry: an explicit Cancel reaches it through
+// the scene's requestCancel (`cancelAction`, EntityRallyController). Reduced motion (and Instant effects) cut instead of fade.
 //
 // Presentation only: no game state, no RNG.
 

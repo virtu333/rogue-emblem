@@ -4,9 +4,10 @@
 // call), then one every two bars (rallySchedule). Each card holds until the next beat, and the
 // last one fades. The speaker's unit is marked on the board as each card lands (the locator's
 // gold brackets), so the player sees who is talking. The battle is never paused and no input scope
-// is taken: the card is click-through but for its Skip button, and Cancel (Esc, the pad's B,
-// Android Back) reaches it through BattleScene.requestCancel only when nothing else in the battle
-// has something to close (`yieldsCancel`).
+// is taken: the card is click-through but for its Skip button, and an explicit Cancel (Esc, the
+// pad's B, Android Back, the phone's Back: `cancelAction`) reaches it through
+// BattleScene.requestCancel only when nothing else in the battle has something to close
+// (`yieldsCancel`). A right-click inspect, an off-map tap or the Menu button never does.
 //
 // A line is skipped if its speaker has fallen by its beat; a card ends the moment its speaker falls
 // or the battle ends. Skipping (the button or Cancel) drops every line still to come and every

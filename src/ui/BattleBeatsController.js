@@ -201,8 +201,9 @@ export class BattleBeatsController {
   }
 
   /**
-   * Cancel reaches the rally card only when the battle has nothing else to close
-   * (`somethingToClose`, from BattleScene.requestCancel); returns whether it took the press.
+   * An explicit Cancel reaches the rally card only when the battle has nothing else to close
+   * (`somethingToClose`, from BattleScene.requestCancel, which calls this only for a press with
+   * `cancelAction`); returns whether it took the press.
    */
   skipRallyOnCancel(somethingToClose) {
     if (!this._rally?.yieldsCancel(somethingToClose)) return false;
