@@ -386,7 +386,7 @@ If the player picks Voss or Kira instead of Sera:
 
 Lord-specific meta upgrades (Lord Growth, Lord Flat Stats, Lord Starting Equipment) apply to **both deployed lords.** This is intentional — the player is investing in "lords" as a category, not a specific lord.
 
-Starting equipment upgrades that reference specific lords by name (e.g., "Healer's Art — Sera starts with a better staff") only apply when that lord is in the party.
+Starting equipment upgrades that reference specific lords by name (e.g., "Healer's Art — Sera starts with a second staff beside Heal") only apply when that lord is in the party.
 
 ---
 

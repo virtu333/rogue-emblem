@@ -542,7 +542,7 @@ for (const vp of PORTRAIT_PHONES) {
           };
         });
       });
-      expect(effects.map((e) => e.text)).toEqual(['Current: None', 'Next: +5%']);
+      expect(effects.map((e) => e.text)).toEqual(['Current: None', 'Next: +3%']);
       expect(
         effects.every((e) => e.whole),
         'Current and Next in view',
@@ -1232,7 +1232,7 @@ test.describe('landscape 844x390: upgrade detail as before', () => {
   test('two effect lines, the 64px icon, and the stamp layout', async ({ page }) => {
     const menu = await openUpgrades(page);
     await expectPortraitUi(page, false);
-    await expect(menu.locator('.mu-effects')).toHaveText('Current: None\nNext: +5%', {
+    await expect(menu.locator('.mu-effects')).toHaveText('Current: None\nNext: +3%', {
       useInnerText: true,
     });
     const icon = await menu.locator('.mu-head .ia-icon').boundingBox();

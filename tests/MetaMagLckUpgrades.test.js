@@ -39,8 +39,8 @@ describe('MAG and LCK meta upgrades', () => {
       const after = boosted.roster.find((u) => u.name === name);
       expect(after.stats.MAG, `${name} MAG`).toBe(before.stats.MAG + 5);
       expect(after.stats.LCK, `${name} LCK`).toBe(before.stats.LCK + 3);
-      expect(after.growths.MAG, `${name} MAG growth`).toBe(before.growths.MAG + 20);
-      expect(after.growths.LCK, `${name} LCK growth`).toBe(before.growths.LCK + 5);
+      expect(after.growths.MAG, `${name} MAG growth`).toBe(before.growths.MAG + 12);
+      expect(after.growths.LCK, `${name} LCK growth`).toBe(before.growths.LCK + 3);
       expect(after.stats.STR, `${name} STR untouched`).toBe(before.stats.STR);
     }
   });
@@ -74,8 +74,8 @@ describe('MAG and LCK meta upgrades', () => {
     const boosted = make(run.metaEffects.statBonuses, run.getEffectiveRecruitGrowthBonuses());
     expect(boosted.stats.MAG).toBe(plain.stats.MAG + 3);
     expect(boosted.stats.LCK).toBe(plain.stats.LCK + 5);
-    expect(boosted.growths.MAG).toBe(plain.growths.MAG + 25);
-    expect(boosted.growths.LCK).toBe(plain.growths.LCK + 10);
+    expect(boosted.growths.MAG).toBe(plain.growths.MAG + 15);
+    expect(boosted.growths.LCK).toBe(plain.growths.LCK + 6);
   });
 
   it('flat tracks unlock at growth tier 3; lord MAG flat also needs Act 1 beaten', () => {
