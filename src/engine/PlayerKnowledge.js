@@ -17,6 +17,14 @@ const isLive = (u) => Boolean(u) && !u._removing && u.currentHP > 0;
 const tilesOf = (u) => (isEntity(u) ? getFootprint(u) : [u]);
 
 /**
+ * The entry a unit-position map holds for a unit: its faction, plus the Merchant
+ * Caravan's mark, which a player unit walks through (Grid.walksThrough).
+ */
+export function unitPositionEntry(unit) {
+  return unit?.isCaravan ? { faction: unit.faction, isCaravan: true } : { faction: unit?.faction };
+}
+
+/**
  * @param {{ grid: object, units: object[], revealed?: object[] }} world
  *   grid: fogEnabled + isVisible; units: every unit on the board (any faction);
  *   revealed: units a marker shows through the fog.
@@ -31,11 +39,11 @@ export function createPlayerKnowledge({ grid, units = [], revealed = [] }) {
     isKnown,
     /** Live units the player knows of. */
     units: known,
-    /** Map "col,row" -> { faction } of every known unit (Grid.getMovementRange). */
+    /** Map "col,row" -> { faction, isCaravan? } of every known unit (Grid.getMovementRange). */
     positions() {
       const map = new Map();
       for (const u of known) {
-        for (const t of tilesOf(u)) map.set(tileKey(t.col, t.row), { faction: u.faction });
+        for (const t of tilesOf(u)) map.set(tileKey(t.col, t.row), unitPositionEntry(u));
       }
       return map;
     },

@@ -660,7 +660,8 @@
     "weight": 5,
     "range": "1-2",
     "special": "+2 RES when equipped",
-    "price": 0
+    "price": 0,
+    "descentOnly": true
   },
   {
     "name": "Firstwind",

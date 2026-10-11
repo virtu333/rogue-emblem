@@ -21,7 +21,7 @@ test('real purchase, refund fee, selection, scroll and saved reload', async ({ p
   );
   const row = page.locator('[data-upgrade="recruit_hp_growth"]');
   await row.tap();
-  await expect(page.locator('.mu-effects')).toContainText('Next: +5%');
+  await expect(page.locator('.mu-effects')).toContainText('Next: +3%');
   await page.getByRole('button', { name: `Buy · ${cost} Supply`, exact: true }).tap();
   await expect(row).toHaveAttribute('aria-pressed', 'true');
   await expect(row).toContainText('Tier 1 / 5');

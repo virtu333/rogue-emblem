@@ -1741,6 +1741,7 @@
     "weaponProficiencies": "Tomes (M)",
     "roleChange": "Keeps a verse of the rite, strikes from its post",
     "enemyWeapon": "Greycord",
+    "descentOnly": true,
     "description": "A court-circle ritualist who holds one verse of the rite and does not leave it. Warded against magic; soft against steel."
   },
   {
@@ -1773,6 +1774,7 @@
     "promotesTo": [],
     "role": "emptied levy",
     "noEnemySkills": true,
+    "descentOnly": true,
     "description": "An imperial soldier the rite has emptied: the uniform still marches. It grows stronger with every word the circle speaks."
   },
   {
