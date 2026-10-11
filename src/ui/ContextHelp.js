@@ -10,10 +10,14 @@ import './contextHelp.css';
  *   { title?: 'text', points: [...] }        a bulleted section; a point is 'text' or
  *                                            { term, text } (term shown as a keyword)
  *   { tip: 'text' }                          a footnote (where to look next)
+ *   a DOM node                               shown as it is (an item's detail)
  */
+const isNode = (block) => typeof Node === 'function' && block instanceof Node;
+
 export function helpBlockText(block) {
   if (block == null) return '';
   if (typeof block === 'string') return block;
+  if (isNode(block)) return block.textContent || '';
   if (block.lead) return block.lead;
   if (block.tip) return block.tip;
   if (block.stats) return block.stats.map((s) => `${s.label} ${s.value}`).join(' · ');
@@ -78,6 +82,7 @@ export function helpPreviewContent(blocks, { budget } = {}) {
 
 function renderBlock(block) {
   if (typeof block === 'string') return element('p', block, 'ch-text');
+  if (isNode(block)) return block;
   if (block.lead) return element('p', block.lead, 'ch-lead');
   if (block.tip) {
     const tip = element('p', null, 'ch-tip');

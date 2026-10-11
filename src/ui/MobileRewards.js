@@ -5,6 +5,7 @@ import { appendItemArtDetails } from './ItemArtDetails.js';
 import { formatPerkMods, MASTERY_HELP } from './rosterDisplay.js';
 import { ContextHelp, helpPreview } from './ContextHelp.js';
 import { attachInfo, bindHold } from './infoAffordance.js';
+import { appendItemDetail } from './itemDetailView.js';
 import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import {
@@ -121,6 +122,8 @@ export class MobileRewards {
     for (const obj of this.controller.lootGroup) obj.setVisible(false);
     pushInputScope(this, (action, payload) => {
       if (action === InputAction.PAUSE) this.openReference('Menu');
+      // L2 reads the chosen reward in full (the pad's long press).
+      if (action === InputAction.INSPECT) this.openDetails(this.selected);
       if (action === InputAction.CANCEL) this.back();
       if (action === InputAction.NAVIGATE) this.moveFocus(payload?.dy || payload?.dx || 1);
       if (action === InputAction.CONFIRM && this.root.contains(document.activeElement))
@@ -307,6 +310,16 @@ export class MobileRewards {
       );
       b.setAttribute('aria-pressed', String(this.selected === i));
       b.disabled = !available;
+      // Press and hold (touch, pen) or right-click reads the item in full. The hold
+      // swallows the tap it ends, and a card tap only selects: neither claims a reward.
+      if (c.item) {
+        bindHold(b, () => this.openDetails(i), { enabled: () => this.canOpenDetails() });
+        b.addEventListener('contextmenu', (event) => {
+          if (event.pointerType === 'touch' || event.pointerType === 'pen') return;
+          event.preventDefault();
+          this.openDetails(i);
+        });
+      }
       row.append(b);
     });
     const c = all[this.selected];
@@ -378,6 +391,16 @@ export class MobileRewards {
       reroll.disabled = rerollState.disabled;
       actions.append(reroll);
     }
+    // The chosen item's whole sheet (arts, special, who can use it): the visible way in
+    // for mouse, keyboard and pad, beside the hold on touch.
+    if (c?.item) {
+      const details = this.button('Details', () => this.openDetails(this.selected));
+      details.dataset.focus = 'details';
+      details.className = 'ch-details';
+      details.setAttribute('aria-label', `Details: ${label(c)}`);
+      details.title = 'Press and hold a card, or right-click it, for its details';
+      actions.append(details);
+    }
     const claim = this.button(c.type === 'skip' ? 'Take gold' : 'Choose reward', () => {
       if (!this.controller.isRewardAvailable(this.selected)) return;
       if (c.type === 'skip' || c.type === 'gold' || c.item?.type === 'Scroll') {
@@ -404,6 +427,52 @@ export class MobileRewards {
       this.replayReveal = false;
       this.playReveal(row, all);
     }
+  }
+  canOpenDetails() {
+    return this.visible && !this.busy && !this.child && !this.notice && !this.steps.length;
+  }
+  /**
+   * A reward's item in full, as the shop shows it: its numbers, special, story, weapon
+   * arts (open) and who in the army could use it. Reading never selects or claims it;
+   * Close (Back, Escape) returns to the cards with the focus where it was.
+   */
+  openDetails(index) {
+    if (!this.canOpenDetails()) return false;
+    const choice = this.choices[index];
+    if (!choice?.item) return false;
+    const scene = this.scene;
+    const gameData = scene.gameData || {};
+    const name = `${itemDisplayName(choice.item, gameData.skills)}${choice.quantity > 1 ? ` ×${choice.quantity}` : ''}`;
+    const copy = node('div', null, 'shop-copy item-detail-sheet');
+    copy.dataset.rewardIndex = String(index);
+    const help = { sheet: null };
+    appendItemDetail(copy, choice.item, {
+      gameData,
+      roster: scene.runManager?.roster || [],
+      run: scene.runManager || null,
+      compareOptions: { arts: gameData.weaponArts?.arts || [], imbues: gameData.imbues },
+      name,
+      expanded: true,
+      // The shared rules open over the sheet, and close back onto it.
+      openHelp: (title, blocks) => {
+        if (help.sheet || !this.child?.surface) return;
+        help.sheet = new ContextHelp(
+          this.overlayScene,
+          this.child.surface.root,
+          title,
+          blocks,
+          () => {
+            help.sheet = null;
+          },
+        );
+      },
+    });
+    this.child = new ContextHelp(this.overlayScene, this.root, name, [copy], () => {
+      help.sheet?.destroy();
+      this.child = null;
+    });
+    this.child.surface.root.classList.add('reward-detail');
+    return true;
   }
   /**
    * Branching Threads: draw the whole set of choices again (the controller saves the new

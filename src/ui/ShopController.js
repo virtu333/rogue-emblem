@@ -1,6 +1,6 @@
-import { skillScrollText, weaponArtScrollText } from './weaponArtDisplay.js';
 // Shop lifecycle and stock management. ShopMenu owns rendering and input.
 import { ShopMenu } from './ShopMenu.js';
+import { itemDetailText } from './itemDetailView.js';
 import { saveServiceRun } from './serviceSave.js';
 import {
   SHOP_REROLL_COST,
@@ -18,12 +18,8 @@ import { PROLOGUE_SERVICE_LINES } from '../data/prologueContent.js';
 import { canShowRunNote, markNoteSeen } from './guidanceGate.js';
 import { guidanceText } from '../engine/Guidance.js';
 import { ruinsServiceBlock } from '../engine/RuinsCommands.js';
-import { isImbueStone, getImbueStoneDetailText } from '../engine/ImbueSystem.js';
 import { MUSIC, getMusicKey, pickTrack } from '../utils/musicConfig.js';
 import { showImportantHint, showMinorHint } from './HintDisplay.js';
-import { formatAccessoryDetail } from '../utils/accessoryText.js';
-import { formatUses, getConsumableDescription } from '../utils/consumableText.js';
-import { getWeaponArtTooltipLines } from './WeaponArtVisibility.js';
 import { UI_PALETTE } from '../utils/uiStyles.js';
 function getWeaponArtCatalogForScene(scene) {
   return scene?._getWeaponArtCatalog?.() || scene?.gameData?.weaponArts?.arts || [];
@@ -248,57 +244,7 @@ export class ShopController {
 
   _getShopItemDetailText(entry) {
     const scene = this.scene;
-    const item = entry?.item || {};
-    const entryType = entry?.type || item.type;
-
-    if (entryType === 'accessory' || item.type === 'Accessory') {
-      return (
-        formatAccessoryDetail(item, { fallback: 'Accessory', skills: scene.gameData?.skills }) ||
-        'Accessory'
-      );
-    }
-
-    if (entryType === 'consumable' || item.type === 'Consumable') {
-      const description = getConsumableDescription(item);
-      if (description) {
-        const usesText = formatUses(item);
-        return usesText ? `${description} (${usesText})` : description;
-      }
-      return item.special || 'Consumable';
-    }
-
-    if (item.teachesWeaponArtId)
-      return weaponArtScrollText(item, scene.gameData?.weaponArts?.arts || []);
-
-    if (entryType === 'scroll' || item.type === 'Scroll')
-      return skillScrollText(item, scene.gameData?.skills || []);
-
-    if (item.type === 'Whetstone') {
-      if (isImbueStone(item)) {
-        return getImbueStoneDetailText(item, scene.gameData?.imbues) || 'Imbue a weapon';
-      }
-      if (item.forgeStat === 'choice') return 'Forge: choose a stat boost';
-      if (item.forgeStat === 'might') return 'Forge: +1 Mt';
-      if (item.forgeStat === 'crit') return 'Forge: +5 Crit';
-      if (item.forgeStat === 'hit') return 'Forge: +5 Hit';
-      if (item.forgeStat === 'weight') return 'Forge: -1 Wt';
-      return 'Forge item';
-    }
-
-    const mt = Number.isFinite(Number(item.might)) ? Number(item.might) : 0;
-    const hit = Number.isFinite(Number(item.hit)) ? Number(item.hit) : 0;
-    const crt = Number.isFinite(Number(item.crit)) ? Number(item.crit) : 0;
-    const wt = Number.isFinite(Number(item.weight)) ? Number(item.weight) : 0;
-    const rng = item.range ?? '1';
-    const artCatalog = getWeaponArtCatalogForScene(scene);
-
-    const lines = [];
-    if (item.type) lines.push(item.type);
-    lines.push(`Mt: ${mt}   Hit: ${hit}   Crt: ${crt}`);
-    lines.push(`Wt: ${wt}   Rng: ${rng}`);
-    if (item.special) lines.push(`Special: ${item.special}`);
-    lines.push(...getWeaponArtTooltipLines(item, artCatalog));
-    return lines.join('\n');
+    return itemDetailText(entry, scene.gameData, getWeaponArtCatalogForScene(scene));
   }
 
   _saveShopState() {

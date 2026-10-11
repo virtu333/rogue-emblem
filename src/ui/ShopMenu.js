@@ -1,10 +1,9 @@
-import { shopRequirementLabel, forgeImpactSuffix, repairImpactSuffix } from './itemDecisionText.js';
+import { forgeImpactSuffix, repairImpactSuffix } from './itemDecisionText.js';
 import { equipmentComparison } from './equipmentComparison.js';
-import { appendItemArtDetails } from './ItemArtDetails.js';
+import { appendItemDetail } from './itemDetailView.js';
 import { ContextHelp } from './ContextHelp.js';
 import { equippedBadgeElement } from './equippedBadge.js';
-import { itemKeywordRow, itemKeywordText } from './itemKeywordChips.js';
-import { itemBaseLine } from '../engine/ItemKeywords.js';
+import { itemKeywordText } from './itemKeywordChips.js';
 import { saveServiceRun } from './serviceSave.js';
 import { MenuSurface, element as el, button } from './MenuSurface.js';
 import { ChoicePicker } from './ChoicePicker.js';
@@ -31,16 +30,10 @@ import {
   repairShopWeapon,
 } from '../engine/ShopCommands.js';
 import { isWorn, wearCount, wearDisplay } from '../engine/WeaponWear.js';
-import {
-  canForge,
-  forgeStatBlock,
-  getForgeDisplayInfo,
-  getStatForgeCount,
-} from '../engine/ForgeSystem.js';
+import { canForge, forgeStatBlock, getStatForgeCount } from '../engine/ForgeSystem.js';
 import { getSellPrice } from '../engine/LootSystem.js';
 import { itemDisplayName } from '../utils/itemNames.js';
 import { canEquip } from '../engine/UnitManager.js';
-import { getImbueDisplayInfo } from '../engine/ImbueSystem.js';
 import { classChangeItemTag } from '../engine/TwistedBoons.js';
 import { itemUsageShort, itemUsageText } from '../engine/ItemUsage.js';
 import {
@@ -53,20 +46,13 @@ import {
   RUINS_SHOP_MARKUP,
 } from '../utils/constants.js';
 import { InputAction } from '../utils/InputActions.js';
-import { itemIcon, itemHero } from './itemIcons.js';
+import { itemIcon } from './itemIcons.js';
 import {
   applyServiceVignette,
   serviceVignetteFor,
   prefersStill,
   vignetteMotes,
 } from './itemMoments.js';
-
-/** "Worn 2/3 · Dulled −1 Might · Bent −5 Hit": the wear, by name, on a shop card. */
-function wearDisplayText(weapon) {
-  const { count, max, steps } = wearDisplay(weapon);
-  const named = steps.map((step) => `${step.label} ${step.effect}`);
-  return [`Worn ${count}/${max}`, ...named].join(' \u00b7 ');
-}
 
 export class ShopMenu {
   constructor(controller) {
@@ -326,67 +312,17 @@ export class ShopMenu {
   details(container, row) {
     const { item } = row;
     const copy = el('div', null, 'shop-copy re-scroll');
-    // The item, large: its painting (or pixel icon at 2x) beside the name and its kind.
-    const head = el('div', null, 'shop-hero');
-    const title = el('div', null, 'shop-hero-title');
-    // What it is ("Silver Lance", "Legend Sword"), then its rules as tags.
-    const kicker = itemBaseLine(item) || [item.tier, item.type].filter(Boolean).join(' · ');
-    if (kicker) title.append(el('p', kicker, 'shop-kicker'));
-    title.append(el('h3', this.shown(item)));
-    const keys = itemKeywordRow(item, { baseLine: false, make: (tag) => el(tag) });
-    if (keys) title.append(keys);
-    const requirement = shopRequirementLabel(item);
-    if (requirement) title.append(el('p', requirement, 'shop-meta'));
-    head.append(itemHero(item, { size: 96 }), title);
-    copy.append(head);
-    const detailText = this.controller._getShopItemDetailText(row.entry || { item });
-    // What it does reads beside the picture, so a phone shows it without scrolling.
-    title.append(
-      el(
-        'p',
-        // The kicker already names the type; drop it from the numbers' first line.
-        detailText
-          .replace(new RegExp(`^${item.type}\\n`), '')
-          .replace(/\bMt:/g, 'Might:')
-          .replace(/\bCrt:/g, 'Crit:')
-          .replace(/\bWt:/g, 'Weight:')
-          .replace(/\bRng:/g, 'Range:'),
-        'shop-mechanics',
-      ),
-    );
-    // How much this very item has been used, beside its numbers (a sale decides on it).
-    const usage = this.scene.activeShopTab === 'buy' ? '' : itemUsageText(item);
-    if (usage) title.append(el('p', usage, 'shop-usage'));
-    if (item.lore) copy.append(el('p', item.lore, 'shop-lore'));
-    appendItemArtDetails(copy, item, this.scene.gameData.weaponArts?.arts || [], {
+    appendItemDetail(copy, item, {
+      gameData: this.scene.gameData,
+      roster: this.run.roster,
+      run: this.run,
+      compareOptions: this.compareOptions(),
+      detailText: this.controller._getShopItemDetailText(row.entry || { item }),
+      name: this.shown(item),
+      // How much this very item has been used, beside its numbers (a sale decides on it).
+      usage: this.scene.activeShopTab === 'buy' ? '' : itemUsageText(item),
       openHelp: (title, blocks) => this.openHelp(title, blocks),
     });
-    if (item.might != null || item.type === 'Staff') {
-      const comparisons = el('details');
-      comparisons.append(el('summary', 'Compare with your roster'));
-      for (const unit of this.run.roster.filter((u) => canEquip(u, item)))
-        comparisons.append(
-          el(
-            'p',
-            `${unit.name}: ${equipmentComparison(unit, item, unit.weapon, this.compareOptions())}`,
-          ),
-        );
-      copy.append(comparisons);
-    }
-    const forge = getForgeDisplayInfo(item);
-    if (forge.level)
-      copy.append(
-        el(
-          'p',
-          `Forge ${forge.level} · ${Object.entries(forge.bonuses)
-            .filter(([, v]) => v)
-            .map(([k, v]) => `${v > 0 ? '+' : ''}${v} ${k}`)
-            .join(' · ')}`,
-        ),
-      );
-    if (isWorn(item)) copy.append(el('p', wearDisplayText(item), 'shop-wear'));
-    const imbue = getImbueDisplayInfo(item, this.scene.gameData.imbues);
-    if (imbue) copy.append(el('p', `${imbue.name}: ${imbue.description}`));
     const action = el('div', null, 'shop-commit');
     const tab = this.scene.activeShopTab;
     let reason = '';
