@@ -91,11 +91,17 @@ describe('the shipped grant (prologue spec §12: one cheap upgrade of each)', ()
         .map((u) => (u.costs || [u.cost])[0]),
     );
 
-  it('is exactly the cheapest Valor upgrade and the cheapest Supply upgrade: 50 and 35', () => {
+  it('buys the cheapest Valor upgrade and the cheapest Supply upgrade, never two of either', () => {
     const valor = cheapest(['lord_bonuses', 'starting_equipment', 'starting_skills']);
     const supply = cheapest(['recruit_stats', 'economy', 'capacity']);
-    expect([valor, supply]).toEqual([50, 35]);
-    expect(prologueData.grant).toEqual({ valor, supply });
+    // 2026-10-11: the growth tracks' first tiers fell to 40 Valor / 25 Supply (balance
+    // revision 5); the grant kept its 50 / 35.
+    expect([valor, supply]).toEqual([40, 25]);
+    expect(prologueData.grant).toEqual({ valor: 50, supply: 35 });
+    expect(prologueData.grant.valor).toBeGreaterThanOrEqual(valor);
+    expect(prologueData.grant.supply).toBeGreaterThanOrEqual(supply);
+    expect(prologueData.grant.valor).toBeLessThan(2 * valor);
+    expect(prologueData.grant.supply).toBeLessThan(2 * supply);
   });
 });
 

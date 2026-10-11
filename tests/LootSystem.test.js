@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { loadGameData } from './testData.js';
+import { validateCrossReferences } from '../tools/validateCrossReferences.js';
 import {
   calculateKillGold,
   calculateKillReward,
@@ -441,7 +442,9 @@ describe('LootSystem', () => {
     });
 
     it('upgrades loot weapon tiers with quality bonus', () => {
-      const customTables = {
+      // The real tables are the landing set; act1 here is a one-weapon table.
+      const steelOnly = (legendaryWeight) => ({
+        ...gameData.lootTables,
         act1: {
           weapons: ['Steel Axe'],
           healing: [],
@@ -452,22 +455,32 @@ describe('LootSystem', () => {
           legendaryWeapon: [],
           accessories: [],
           forge: [],
-          weights: { weapon: 100, gold: 0 },
+          weights: { weapon: 100, legendaryWeapon: legendaryWeight, gold: 0 },
           goldRange: [1, 1],
         },
+      });
+      const draw = (tables) => {
+        const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+        try {
+          return generateLootChoices(
+            'act1',
+            tables,
+            gameData.weapons,
+            gameData.consumables,
+            1,
+            100,
+          );
+        } finally {
+          randomSpy.mockRestore();
+        }
       };
-      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
-      const choices = generateLootChoices(
-        'act1',
-        customTables,
-        gameData.weapons,
-        gameData.consumables,
-        1,
-        100,
-      );
-      randomSpy.mockRestore();
-      expect(choices[0].type).toBe('weapon');
-      expect(choices[0].item.tier).toBe('Legend');
+      const open = draw(steelOnly(1));
+      expect(open[0].type).toBe('weapon');
+      expect(open[0].item.tier).toBe('Legend');
+      // An act whose table drops no legendary stops the climb at Silver.
+      const closed = draw(steelOnly(0));
+      expect(closed[0].type).toBe('weapon');
+      expect(closed[0].item.tier).toBe('Silver');
     });
 
     it('upgrades one quality tier with 10% quality bonus when roll succeeds', () => {
@@ -499,6 +512,7 @@ describe('LootSystem', () => {
         .spyOn(Math, 'random')
         .mockImplementation(() => randomValues[randomIndex++] ?? 0);
 
+      customTables.act2 = { weapons: ['Steel Axe', 'Silver Axe'], legendaryWeapon: ['Legend Axe'] };
       const choices = generateLootChoices('act1', customTables, customWeapons, [], 1, 10);
 
       randomSpy.mockRestore();
@@ -529,6 +543,9 @@ describe('LootSystem', () => {
         },
       };
 
+      customTables.act1.weights.legendaryWeapon = 1;
+      customTables.act2 = { weapons: ['Steel Axe', 'Silver Axe'], legendaryWeapon: ['Legend Axe'] };
+      // The step into Legend rolls at half the bonus: 0.05 * 100 = 5 < 10.
       const randomValues = [0.5, 0.5, 0.05, 0.5, 0.05, 0.5, 0.05, 0.5];
       let randomIndex = 0;
       const randomSpy = vi
@@ -540,6 +557,123 @@ describe('LootSystem', () => {
       randomSpy.mockRestore();
       expect(choices[0].type).toBe('weapon');
       expect(choices[0].item.tier).toBe('Legend');
+    });
+  });
+
+  describe('loot quality upgrade limits', () => {
+    const allTypes = [
+      {
+        proficiencies: ['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light', 'Staff'].map((type) => ({
+          type,
+          rank: 'Mast',
+        })),
+      },
+    ];
+    const seeded = (seed, fn) => {
+      let state = seed;
+      const spy = vi.spyOn(Math, 'random').mockImplementation(() => {
+        state = (state * 16807) % 2147483647;
+        return (state - 1) / 2147483646;
+      });
+      try {
+        return fn();
+      } finally {
+        spy.mockRestore();
+      }
+    };
+    const drawMany = (actId, { isBoss = false, trials = 1500, bonus = 100 } = {}) =>
+      seeded(11, () => {
+        const items = [];
+        for (let i = 0; i < trials; i++) {
+          const choices = generateLootChoices(
+            actId,
+            gameData.lootTables,
+            gameData.weapons,
+            gameData.consumables,
+            3,
+            bonus,
+            gameData.accessories,
+            gameData.whetstones,
+            allTypes,
+            isBoss,
+          );
+          for (const c of choices) if (c.item) items.push(c.item);
+        }
+        return items;
+      });
+
+    it('never lifts a drop into Legend in Act I or Act II, boss rewards included', () => {
+      for (const actId of ['act1', 'act2']) {
+        for (const isBoss of [false, true]) {
+          const items = drawMany(actId, { isBoss });
+          // The upgrade did run: Silver reached from the act's Steel drops.
+          expect(items.some((i) => i.tier === 'Silver')).toBe(true);
+          expect(items.filter((i) => i.tier === 'Legend').map((i) => i.name)).toEqual([]);
+        }
+      }
+    });
+
+    it('still lifts drops into Legend from Act III', () => {
+      const legends = drawMany('act3', { trials: 400 }).filter(
+        (i) => i.tier === 'Legend' && !gameData.lootTables.act3.weapons.includes(i.name),
+      );
+      expect(legends.length).toBeGreaterThan(0);
+    });
+
+    it('rolls the step into Legend at half the bonus', () => {
+      const silverOnly = {
+        ...gameData.lootTables,
+        act3: {
+          ...gameData.lootTables.act3,
+          weapons: ['Silver Axe'],
+          weights: { weapon: 100, legendaryWeapon: 1, gold: 0 },
+        },
+      };
+      // Draws: category, pick, then the Legend step's roll (and the Legend pick if it passes).
+      const draw = (stepRoll) => {
+        const values = [0, 0, stepRoll, 0];
+        let index = 0;
+        const spy = vi.spyOn(Math, 'random').mockImplementation(() => values[index++] ?? 0);
+        try {
+          return generateLootChoices('act3', silverOnly, gameData.weapons, [], 1, 20)[0].item;
+        } finally {
+          spy.mockRestore();
+        }
+      };
+      expect(draw(0.09).tier).toBe('Legend'); // 9 < 20 * 0.5
+      expect(draw(0.15).tier).toBe('Silver'); // 15 >= 10, though under the full 20
+    });
+
+    it("never lands on a weapon no loot table lists (the Entity's, Gravesong)", () => {
+      const listed = new Set(JSON.stringify(gameData.lootTables).match(/"[^"]+"/g));
+      const unlisted = gameData.weapons
+        .filter((w) => !listed.has(`"${w.name}"`))
+        .map((w) => w.name);
+      expect(unlisted).toEqual(
+        expect.arrayContaining(['Eldritch Grasp', 'Twisting Vortex', 'Gravesong']),
+      );
+      const seen = new Set();
+      for (const actId of ['act1', 'act2', 'act3', 'act4']) {
+        for (const item of drawMany(actId, { trials: 600 })) seen.add(item.name);
+      }
+      expect([...seen].filter((name) => unlisted.includes(name))).toEqual([]);
+    });
+  });
+
+  describe('enemy-only weapons in the loot tables', () => {
+    it('the cross-reference check refuses one in any pool, boss rewards and carry pool included', () => {
+      expect(validateCrossReferences(gameData).errors).toEqual([]);
+      const cases = [
+        (t) => t.act3.legendaryWeapon.push('Eldritch Grasp'),
+        (t) => t.act1.bossRewards.weapons.push('Twisting Vortex'),
+        (t) => t.act2.carryPool.push({ item: 'Gravesong', weight: 1 }),
+      ];
+      for (const plant of cases) {
+        const lootTables = structuredClone(gameData.lootTables);
+        plant(lootTables);
+        const { errors } = validateCrossReferences({ ...gameData, lootTables });
+        expect(errors.some((e) => e.includes('enemy-only weapon'))).toBe(true);
+      }
     });
   });
 

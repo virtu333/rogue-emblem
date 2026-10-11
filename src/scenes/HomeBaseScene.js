@@ -19,7 +19,7 @@ import {
   DOUBLE_ATTACK_SPD_THRESHOLD,
   MAX_STARTING_SKILLS,
   STARTING_ACCESSORY_TIERS,
-  STARTING_STAFF_TIERS,
+  startingStaffNames,
   CATEGORY_CURRENCY,
   REFUND_FEE,
   SAFE_BOTTOM_Y,
@@ -1035,7 +1035,7 @@ export class HomeBaseScene extends Phaser.Scene {
         `Tier ${effect.startingAccessoryTier}`
       );
     if (effect.startingStaffTier !== undefined)
-      return STARTING_STAFF_TIERS[effect.startingStaffTier] || `Tier ${effect.startingStaffTier}`;
+      return startingStaffNames(effect.startingStaffTier).join(' + ');
     if (effect.startingReclassSeal !== undefined)
       return `+${effect.startingReclassSeal} Infantry Seal`;
     if (effect.ironArms !== undefined || effect.steelArms !== undefined) return 'Enabled';
@@ -1155,8 +1155,8 @@ export class HomeBaseScene extends Phaser.Scene {
       const seraSelected =
         !selection.commander || selection.commander === 'Sera' || selection.partner === 'Sera';
       return seraSelected
-        ? "Sera's starting staff"
-        : "Sera's starting staff (inactive: Sera not selected)";
+        ? "Sera's second staff"
+        : "Sera's second staff (inactive: Sera not selected)";
     }
     if (effect.commanderChoiceTier !== undefined) return 'Choose your starting lords (Skills tab)';
     if (weaponArtUnlockText) return weaponArtUnlockText;

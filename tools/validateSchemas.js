@@ -11,6 +11,7 @@ import { validateBlessingsConfig } from '../src/engine/BlessingEngine.js';
 import { validateEventsConfig } from '../src/engine/EventValidation.js';
 import { validateSetPiecesConfig } from '../src/engine/SetPieces.js';
 import { validateRepeatableUpgrades } from '../src/engine/RepeatableUpgrades.js';
+import { validateDifficultyConfig } from '../src/engine/DifficultyEngine.js';
 import { validateCrossReferences } from './validateCrossReferences.js';
 
 const DATA_DIR = path.resolve('data');
@@ -149,6 +150,19 @@ if (eventsResult.valid) {
 } else {
   console.error('FAIL  events.json (engine validator)');
   for (const err of eventsResult.errors) {
+    console.error(`      ${err}`);
+  }
+  failed = true;
+}
+
+// Validate the difficulty ladder (engine validator: required keys, revival stones, act
+// overrides and the rest of DifficultyEngine's contract)
+const difficultyResult = validateDifficultyConfig(readData('difficulty.json'));
+if (difficultyResult.valid) {
+  console.log('  OK  difficulty.json (engine validator)');
+} else {
+  console.error('FAIL  difficulty.json (engine validator)');
+  for (const err of difficultyResult.errors) {
     console.error(`      ${err}`);
   }
   failed = true;

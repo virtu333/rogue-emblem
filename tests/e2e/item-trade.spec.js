@@ -9,7 +9,7 @@
 // to slot 0; an accessory swap unequips both, then equips crosswise (unequipping
 // keeps missing HP, equipping adds the HP bonus to current HP).
 import { test, expect } from '@playwright/test';
-import { waitForScene, installSimPad, padTap } from './helpers.js';
+import { waitForBattleState, waitForScene, installSimPad, padTap } from './helpers.js';
 
 const VIEWPORTS = [
   { name: 'desktop-1280x800', width: 1280, height: 800, phone: false },
@@ -473,6 +473,7 @@ for (const vp of VIEWPORTS) {
     test('rewards Roster: trade saves through the rewards persist', async ({ page }, info) => {
       await boot(page, vp, '/?devScene=battle&preset=battle_smoke&seed=42&battleLab=1');
       await waitForScene(page, 'Battle');
+      await waitForBattleState(page, 'PLAYER_IDLE');
       await page.evaluate(() => {
         const s = window.__emblemRogueGame.scene.getScene('Battle');
         s.registry.set('activeSlot', 1);

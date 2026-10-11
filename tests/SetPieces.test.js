@@ -23,6 +23,7 @@ import {
 import { generateSeededBattle } from '../src/engine/BattleScout.js';
 import { validateBattleConfig } from '../src/engine/MapGenerator.js';
 import { HOLD_AI_MODE } from '../src/engine/HoldDisturbance.js';
+import { battleParMapParams, calculatePar } from '../src/engine/TurnBonusCalculator.js';
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
@@ -309,6 +310,22 @@ describe('the generator on shipped set pieces', () => {
     }
     expect(affixed).toBeGreaterThan(0);
     expect(carried).toBeGreaterThan(0);
+  });
+
+  it('both Toll Bridge set pieces give two more turns of par on every rung', () => {
+    for (const id of ['toll_house', 'toll_crossing'])
+      for (const difficultyId of ['normal', 'dusk', 'hard', 'lunatic']) {
+        const config = generateSeededBattle(params(id, { difficultyId }), data, 5);
+        expect(config.parBonus).toBe(2);
+        const mapParams = battleParMapParams(config, {
+          enemyCount: config.enemySpawns.length,
+          terrainData: data.terrain,
+        });
+        expect(mapParams.parBonus).toBe(2);
+        expect(calculatePar(mapParams, data.turnBonus, difficultyId)).toBe(
+          calculatePar({ ...mapParams, parBonus: 0 }, data.turnBonus, difficultyId) + 2,
+        );
+      }
   });
 
   it('the event level bonus raises every slot, the captain included', () => {
