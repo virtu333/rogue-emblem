@@ -311,6 +311,49 @@ describe('a run that turns local-only takes its own older cloud copy with it', (
     expect(runs.row).toBeNull();
   });
 
+  // Device A retired the copy; device B, holding an earlier save of the run, pushes it back.
+  // A's next fetch sees the copy again: that observation must reach the cloud, not the cache.
+  const loginWith = async () => {
+    store.set(getRunKey(1), JSON.stringify(descent()));
+    store.set(getMetaKey(1), JSON.stringify(meta));
+    await fetchAllToLocalStorage('u', { timeoutMs: 50 });
+    await __flushCloudSyncQueuesForTests();
+  };
+
+  it('a copy put back after its retire is retired again at the next fetch, in the same session', async () => {
+    cloud({ run: { 1: actFour() }, meta: { 1: meta } });
+    pushRunSave('u', 1, descent());
+    await __flushCloudSyncQueuesForTests();
+    expect(runs.row).toBeNull();
+    runs.row = { data: { 1: actFour({ savedAt: 650 }) }, updated_at: 'rev-b' };
+    await loginWith();
+    expect(JSON.parse(store.get(getRunKey(1)))).toEqual(descent());
+    expect(runs.row).toBeNull();
+    // Routine saves after it stay off the network.
+    const { reads, writes } = runs;
+    pushRunSave('u', 1, descent({ savedAt: 800 }));
+    pushRunSave('u', 1, descent({ savedAt: 900 }));
+    await __flushCloudSyncQueuesForTests();
+    expect([runs.reads, runs.writes]).toEqual([reads, writes]);
+  });
+
+  it('another run, or an id-less one, put back after a retire is still kept at the next fetch', async () => {
+    cloud({ run: { 1: actFour() }, meta: { 1: meta } });
+    pushRunSave('u', 1, descent());
+    await __flushCloudSyncQueuesForTests();
+    expect(runs.row).toBeNull();
+    const other = standardRun({ runRecordId: 'other-run', savedAt: 500 });
+    runs.row = { data: { 1: other }, updated_at: 'rev-b' };
+    await loginWith();
+    expect(JSON.parse(store.get(getRunKey(1)))).toEqual(descent());
+    expect(runs.row.data).toEqual({ 1: other });
+
+    const { runRecordId: _id, ...legacy } = actFour({ savedAt: 500 });
+    runs.row = { data: { 1: legacy }, updated_at: 'rev-c' };
+    await loginWith();
+    expect(runs.row.data).toEqual({ 1: legacy });
+  });
+
   it('a later login with another, newer run still offers the cloud one as before', async () => {
     const other = standardRun({ runRecordId: 'other-run', savedAt: 900 });
     cloud({ run: { 1: other }, meta: { 1: meta } });
