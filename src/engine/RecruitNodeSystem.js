@@ -339,7 +339,16 @@ function levelBy(unit, count) {
  * class the map generator seats and the unit the battle spawns can never disagree.
  */
 function planRecruitNodeSpawn(
-  { preview, act, roster, fallenUnits, gameData, metaEffects, startingLordNames },
+  {
+    preview,
+    act,
+    roster,
+    fallenUnits,
+    gameData,
+    metaEffects,
+    startingLordNames,
+    claimedLordNames = [],
+  },
   rng,
 ) {
   const classes = gameData.classes || [];
@@ -358,7 +367,12 @@ function planRecruitNodeSpawn(
   const promoteRoll = rng();
   const available = getAvailableLords(roster, gameData.lords || [], fallenUnits, startingLordNames);
   if (available.length > 0 && lordRoll < lordChance) {
-    const lordDef = available[Math.floor(lordPick * available.length)];
+    // A lord another pending recruit node of the act already shows is left to it, so two
+    // Loom cards never promise the same lord; with no other lord free, the full list.
+    const claimed = new Set(Array.isArray(claimedLordNames) ? claimedLordNames : []);
+    const open = available.filter((l) => !claimed.has(l.name));
+    const pool = open.length > 0 ? open : available;
+    const lordDef = pool[Math.floor(lordPick * pool.length)];
     const lordClassData = classes.find((c) => c.name === lordDef.class);
     if (lordClassData) {
       const poolClass = getRecruitPoolEntries(gameData.recruits, act, classes)
@@ -420,6 +434,7 @@ export function resolveRecruitNodeSpawnClass(opts = {}) {
     gameData = {},
     metaEffects = null,
     startingLordNames,
+    claimedLordNames = [],
     rng: rngOverride = null,
   } = opts;
   if (!isValidPreview(preview)) return null;
@@ -428,7 +443,16 @@ export function resolveRecruitNodeSpawnClass(opts = {}) {
       ? rngOverride
       : createSeededRng(recruitHash(`recruit-unit:${seedBase(runSeed)}:${nodeId}`));
   const plan = planRecruitNodeSpawn(
-    { preview, act, roster, fallenUnits, gameData, metaEffects, startingLordNames },
+    {
+      preview,
+      act,
+      roster,
+      fallenUnits,
+      gameData,
+      metaEffects,
+      startingLordNames,
+      claimedLordNames,
+    },
     rng,
   );
   if (!plan) return null;
@@ -437,6 +461,7 @@ export function resolveRecruitNodeSpawnClass(opts = {}) {
     className: plan.className,
     moveType: classData?.moveType || 'Infantry',
     isLord: plan.isLord,
+    lordName: plan.isLord ? plan.lordDef.name : null,
   };
 }
 
@@ -454,6 +479,7 @@ export function resolveRecruitNodeSpawnClass(opts = {}) {
  * @param {object} opts.gameData    { classes, weapons, skills, traits, lords, recruits, enemies, accessories, consumables }
  * @param {object} [opts.metaEffects] effective meta effects (RunManager.getEffectiveMetaEffects)
  * @param {Array<string>} [opts.startingLordNames]
+ * @param {Array<string>} [opts.claimedLordNames] lords earlier pending recruit nodes show
  * @param {number} [opts.recruitLevelBonus]
  * @param {number} [opts.deployBonus]
  * @param {boolean} [opts.seasoned=true]
@@ -471,6 +497,7 @@ export function buildRecruitNodeUnit(opts = {}) {
     gameData = {},
     metaEffects = null,
     startingLordNames,
+    claimedLordNames = [],
     recruitLevelBonus = 0,
     deployBonus = 0,
     seasoned = true,
@@ -492,7 +519,16 @@ export function buildRecruitNodeUnit(opts = {}) {
       const { dynamicPromotionLevel, promotedLevelTarget, failBaseLevelCap } =
         resolveRecruitScalingTargets(roster);
       const plan = planRecruitNodeSpawn(
-        { preview, act, roster, fallenUnits, gameData, metaEffects, startingLordNames },
+        {
+          preview,
+          act,
+          roster,
+          fallenUnits,
+          gameData,
+          metaEffects,
+          startingLordNames,
+          claimedLordNames,
+        },
         rng,
       );
       if (!plan) return null;

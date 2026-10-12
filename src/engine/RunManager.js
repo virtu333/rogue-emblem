@@ -4603,9 +4603,50 @@ export class RunManager {
       fallenUnits: everFallenUnits(this),
       metaEffects: this.getEffectiveMetaEffects(),
       startingLordNames: this.getStartingLordNames(),
+      claimedLordNames: this.getClaimedRecruitLordNames(node),
       recruitLevelBonus: this.getRecruitLevelBonus(),
       deployBonus: this.getDeployBonus(),
     };
+  }
+
+  /**
+   * The lords that the act's pending recruit nodes ahead of `node` (by row, then
+   * column) show on their Loom cards. A node rolling a lord leaves these to them, so no
+   * two cards promise the same lord. Each earlier node is read with the claims of the
+   * nodes before it, so the walk is one fixed order and every card agrees with its
+   * battle. Only a 'recruit' node rolls a lord; any other node claims nothing.
+   * @param {object} node
+   * @returns {Array<string>}
+   */
+  getClaimedRecruitLordNames(node) {
+    const nodes = Array.isArray(this.nodeMap?.nodes) ? this.nodeMap.nodes : [];
+    const self = nodes.find((n) => n.id === node?.id);
+    if (self?.type !== 'recruit') return [];
+    const order = (a, b) =>
+      (a.row ?? 0) - (b.row ?? 0) ||
+      (a.col ?? 0) - (b.col ?? 0) ||
+      String(a.id).localeCompare(String(b.id));
+    const claimed = [];
+    const base = {
+      runSeed: this.runSeed,
+      roster: this.roster,
+      fallenUnits: everFallenUnits(this),
+      gameData: this.gameData,
+      metaEffects: this.getEffectiveMetaEffects(),
+      startingLordNames: this.getStartingLordNames(),
+    };
+    for (const other of nodes.filter((n) => n.type === 'recruit' && !n.completed).sort(order)) {
+      if (order(other, self) >= 0) break;
+      const lordName = resolveRecruitNodeSpawnClass({
+        ...base,
+        preview: other.recruitPreview,
+        nodeId: other.id,
+        act: other.battleParams?.act || this.currentAct,
+        claimedLordNames: claimed,
+      })?.lordName;
+      if (lordName) claimed.push(lordName);
+    }
+    return claimed;
   }
 
   /** Get battleParams for a battle node. */

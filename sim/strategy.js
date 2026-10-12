@@ -74,6 +74,7 @@ function recruitParams(rm, node) {
     recruitRunSeed: ctx.runSeed,
     recruitRoster: structuredClone(ctx.roster),
     startingLordNames: ctx.startingLordNames,
+    recruitClaimedLords: ctx.claimedLordNames,
     recruitLevelBonus: ctx.recruitLevelBonus,
     deployBonus: ctx.deployBonus,
   };
