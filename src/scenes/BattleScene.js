@@ -582,6 +582,7 @@ export class BattleScene extends Phaser.Scene {
     // Back from the Roster opened on the formation screen (FormationRoster.js): who
     // deploys and where they stood, so the screen opens as the player left it.
     this._formationReturn = data.formationReturn || null;
+    this._battleEntrySave = null;
     this._formationRoster = null;
     this._keepMusicOnShutdown = false;
     this._portraitBattle = null;
@@ -999,7 +1000,11 @@ export class BattleScene extends Phaser.Scene {
         if (inMenu) this._menuFocus?.activate();
         else if (!battleOver) this._gridCursor?.confirm();
         break;
+      // B (and Android Back) is a Cancel; Start backs out the same way but is never one, so it
+      // leaves the Entity rally's card up (BattleScene.requestCancel's `cancelAction`).
       case InputAction.CANCEL:
+        routeCancel(this, { cancelAction: true });
+        break;
       case InputAction.PAUSE:
         routeCancel(this);
         break;
@@ -1433,7 +1438,7 @@ export class BattleScene extends Phaser.Scene {
         // ESC while open; its own handler closes it top-down.
         if (hasOpenOverlay(this)) return;
         if (this.isStoryInputLocked()) return;
-        const handled = this.requestCancel();
+        const handled = this.requestCancel({ cancelAction: true });
         if (handled) consumeEscEvent(this, event);
       },
       rewindAndLootRoster: () => {
@@ -1723,7 +1728,8 @@ export class BattleScene extends Phaser.Scene {
           isBoss: this.isBoss,
           isElite: this.isElite,
         });
-        this._persistBattleRunState?.(null, { session: session });
+        // Kept for the formation's word on a return from its Roster (FormationRoster.js).
+        this._battleEntrySave = this._persistBattleRunState?.(null, { session: session });
       }
 
       // Create player units. A prologue chapter's authored roster (built by the title)
@@ -2082,7 +2088,7 @@ export class BattleScene extends Phaser.Scene {
       this.rosterButton = makeButton(hw, '[O] Roster', () => this._onRosterClick());
       this.endTurnButton = makeButton(hw + 140, '[E] End Turn', () => this.forceEndTurn());
       this.cancelButton = makeButton(this.cameras.main.width - 72, '[X] Cancel', () =>
-        this.requestCancel({ allowPause: false }),
+        this.requestCancel({ allowPause: false, cancelAction: true }),
       );
       if (this.isMobileInput) {
         this.inspectButton = makeButton(72, '[Inspect: OFF]', () => this.toggleInspectMode());
@@ -2165,7 +2171,7 @@ export class BattleScene extends Phaser.Scene {
         this._mobileHandlers = {
           cancel: () => {
             if (this.isStoryInputLocked()) return;
-            this.requestCancel({ allowPause: false });
+            this.requestCancel({ allowPause: false, cancelAction: true });
           },
           menu: () => {
             if (this.isStoryInputLocked()) return;
@@ -2776,8 +2782,11 @@ export class BattleScene extends Phaser.Scene {
 
     if (options.reinforcementMeta) stampReinforcementMeta(enemy, options.reinforcementMeta);
 
+    // On the battle (roster and battle entity id) whether or not its sprite draws: a wave's
+    // arrival that fails to draw must never stop the arrivals after it.
     this.enemyUnits.push(enemy);
-    this.addUnitGraphic(enemy);
+    registerBattleEntity(this, enemy);
+    safeBattlePresentation('enemy unit graphic', () => this.addUnitGraphic(enemy), { scene: this });
     return enemy;
   }
 
@@ -2815,7 +2824,9 @@ export class BattleScene extends Phaser.Scene {
     // this enemy phase, even when every tile it wanted was blocked.
     if (this.battleConfig?.reinforcements?.ladder) {
       this._ladderResolvedTurn = Math.trunc(Number(turn) || 0);
-      this.updateObjectiveText();
+      safeBattlePresentation('ladder objective', () => this.updateObjectiveText(), {
+        scene: this,
+      });
     }
     if (!Array.isArray(schedule.spawns) || schedule.spawns.length === 0)
       return { ...schedule, spawned: 0 };
@@ -2840,19 +2851,32 @@ export class BattleScene extends Phaser.Scene {
 
     if (spawned > 0) {
       this.dangerZoneStale = true;
-      this._pinnedThreats?.invalidate();
-      if (this.grid.fogEnabled) this.updateEnemyVisibility();
-      this.updateObjectiveText();
-      // One crimson band names the arrivals (bandits race the village);
-      // visible arrival tiles are marked (ReinforcementPresenter).
-      (this._reinforcements ||= new ReinforcementPresenter(this)).present(spawnedUnits, {
-        bandits: banditSpawned,
-      });
-
       // +1 par per wave that actually instantiated enemies, except waves that are the
       // clock itself (repeating pursuit, ladder): ReinforcementScheduler.waveRaisesPar.
+      // State before drawing, as every arrival above: the harness raises par the same way.
       const parRaise = parRaiseForArrivals(arrived);
       if (Number.isFinite(this.turnPar) && parRaise > 0) this.turnPar += parRaise;
+
+      safeBattlePresentation('arrival pinned threats', () => this._pinnedThreats?.invalidate(), {
+        scene: this,
+      });
+      if (this.grid.fogEnabled)
+        safeBattlePresentation('arrival fog visibility', () => this.updateEnemyVisibility(), {
+          scene: this,
+        });
+      safeBattlePresentation('arrival objective', () => this.updateObjectiveText(), {
+        scene: this,
+      });
+      // One crimson band names the arrivals (bandits race the village);
+      // visible arrival tiles are marked (ReinforcementPresenter).
+      safeBattlePresentation(
+        'arrival band',
+        () =>
+          (this._reinforcements ||= new ReinforcementPresenter(this)).present(spawnedUnits, {
+            bandits: banditSpawned,
+          }),
+        { scene: this },
+      );
     }
 
     return { ...schedule, spawned };
@@ -4062,7 +4086,14 @@ export class BattleScene extends Phaser.Scene {
     return false;
   }
 
-  requestCancel({ allowPause = true } = {}) {
+  /**
+   * Back out of whatever is open, else (with `allowPause`) open the pause menu.
+   * `cancelAction` marks the press as an explicit Cancel (Esc, the input bus's Cancel: the pad's
+   * B and Android Back, the phone's and the desktop's Back/Cancel buttons). Only such a press may
+   * dismiss the Entity rally's card; a right-click inspect, an off-map tap or the Menu button
+   * reaches this function too and leaves the card up.
+   */
+  requestCancel({ allowPause = true, cancelAction = false } = {}) {
     if (this.isStoryInputLocked()) return true;
     if (this._isPrologueGateActive()) {
       if (this.pauseOverlay?.visible) {
@@ -4075,6 +4106,13 @@ export class BattleScene extends Phaser.Scene {
       }
       return true;
     }
+    // The Entity rally's card takes an explicit Cancel only when nothing else has something to
+    // close: a menu, forecast, selection, overlay or panel keeps its Back, and Pause waits one press.
+    if (
+      cancelAction &&
+      this._battleBeats?.skipRallyOnCancel?.(this.canRequestCancel({ allowPause: false }))
+    )
+      return true;
     if (!this.canRequestCancel({ allowPause })) return false;
     if (this.battleState === FORMATION_STATE && this._formation?.ready) {
       // Placement: close the detail view or inspection first, then the tile choice;

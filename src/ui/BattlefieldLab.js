@@ -99,7 +99,9 @@ export class BattlefieldLab {
     this.tools.append(
       tool('overview', 'Overview', () => this.scene.resetBattleCameraView()),
       tool('recenter', 'Recenter', () => this.recenter()),
-      tool('back', 'Back', () => this.scene.requestCancel({ allowPause: false })),
+      tool('back', 'Back', () =>
+        this.scene.requestCancel({ allowPause: false, cancelAction: true }),
+      ),
       tool('menu', 'Menu', () => this.scene.game.events.emit('mobile:menu')),
     );
     hud.root.append(this.tools);

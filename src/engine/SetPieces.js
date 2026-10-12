@@ -27,7 +27,7 @@
 
 import { parseAuthoredMap } from './AuthoredMap.js';
 import { DIFFICULTY_IDS, ENEMY_ACT_GATE_ORDER, isDifficultyAtLeast } from './DifficultyEngine.js';
-import { RECRUIT_PROMOTION_BASE_LEVEL, isActAtOrAfter } from '../utils/constants.js';
+import { isActAtOrAfter } from '../utils/constants.js';
 import { REINFORCEMENT_CONTRACT_VERSION } from './MapTemplateEngine.js';
 import { HOLD_AI_MODE } from './HoldDisturbance.js';
 
@@ -62,9 +62,11 @@ const SLOT_KEYS = new Set([
 ]);
 const WAVE_SPAWN_KEYS = new Set(['col', 'row', 'classes', 'level', 'aiMode', 'minRung', 'minAct']);
 
-// Elite captains (and set-piece captains) sit above the act's range by this many levels.
-const CAPTAIN_LEVEL_OFFSET = { act1: 0 };
-const CAPTAIN_DEFAULT_OFFSET = 2;
+// Elite captains (and set-piece captains) sit above the act's range by this many levels: none
+// in Act I, two in Act II, one from Act III on (Act IV, postAct, the finale), where the captain
+// is a promoted class and a promoted level already outweighs a base one.
+const CAPTAIN_LEVEL_OFFSET = { act1: 0, act2: 2 };
+const CAPTAIN_DEFAULT_OFFSET = 1;
 
 /** A hold pack's latest authored wake turn. */
 const MAX_WAKE_TURN = 12;
@@ -122,13 +124,17 @@ export function slotInPlay(slot, { act = 'act1', difficultyId = 'normal' } = {})
 }
 
 /**
- * A captain's level: the top of the battle's range plus the act's captain offset, less the
- * promotion base level for a promoted class (MapGenerator's elite captain rule). Never below 1.
+ * A captain's level (MapGenerator's elite captain rule): the top of the battle's range plus the
+ * act's captain offset. Never below 1. It is a spawn level like every other foe's, on one scale
+ * whatever the class's tier: createPromotedEnemyUnit reads it as the whole level (the base class
+ * to ENEMY_PROMOTION_BASE_LEVEL, the rest past promotion), as it reads a promoted filler's and an
+ * act boss's, so a promoted captain takes nothing off (it once took the recruits' promotion base
+ * off, which left an Act III captain about ten levels under its own escort).
  */
-export function captainLevelFor(act, top, promoted = false) {
+export function captainLevelFor(act, top) {
   const offset = CAPTAIN_LEVEL_OFFSET[act] ?? CAPTAIN_DEFAULT_OFFSET;
   const base = Math.max(1, Math.trunc(Number(top) || 1));
-  return Math.max(1, base + offset - (promoted ? RECRUIT_PROMOTION_BASE_LEVEL : 0));
+  return base + offset;
 }
 
 function pickFrom(list, roll) {
@@ -148,9 +154,8 @@ function resolveSlot(slot, ctx) {
   if (!className) return null;
   const [lo, hi] = ctx.levelRange;
   const offset = isInt(slot.level) ? slot.level : 0;
-  const promoted = ctx.classes.find((c) => c?.name === className)?.tier === 'promoted';
   const rolled = slot.captain
-    ? captainLevelFor(ctx.act, hi, promoted)
+    ? captainLevelFor(ctx.act, hi)
     : lo + Math.floor(levelRoll * (hi - lo + 1));
   return {
     className,

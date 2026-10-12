@@ -201,7 +201,7 @@ describe('the scene raises like the harness: at the phase start, from the keyed 
       weapons: data.weapons,
       seed: 4242,
       turn: 3,
-      difficultyConfig: { multiplier: 1, enemyStatBonus: 0, classStatBonuses: {}, skillChanceBonus: 0 }, // prettier-ignore
+      difficultyConfig: { multiplier: 1, enemyStatBonus: 0, skillChanceBonus: 0 },
     });
     expect(direct.unit.weapon).toEqual(sk.weapon);
     expect(direct.unit.stats).toEqual(sk.stats);

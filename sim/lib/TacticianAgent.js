@@ -23,6 +23,11 @@
 // forward until something can reach it, then holds and punishes, which pulls a
 // garrison's holders out to it), and once the boss falls ScriptedAgent walks a lord to
 // the throne and seizes. Deterministic: no randomness of its own.
+//
+// A multi-tile foe (the Entity's 3×3 body, anchored at its top-left tile) is measured as the
+// battle measures it: attack tiles, the counter's distance and every distance an advance
+// weighs read EntitySystem.combatDistance (any body tile), and its own strike is the Danger
+// overlay's rule (ThreatForecast.enemyThreatTiles: range 2 from the body, never a step).
 
 import { ScriptedAgent } from '../../tests/agents/ScriptedAgent.js';
 import {
@@ -42,6 +47,7 @@ import { enemyThreatTiles, positionsWithMoverAt } from '../../src/engine/ThreatF
 import { holdsPost } from '../../src/engine/SiegeArtillery.js';
 import { distanceFieldToAdjacent } from './RescueAgent.js';
 import { movementOptionsFor } from '../../src/engine/PassMovement.js';
+import { combatDistance, isEntity } from '../../src/engine/EntitySystem.js';
 
 const key = (c, r) => `${c},${r}`;
 
@@ -158,17 +164,24 @@ export class TacticianAgent {
       // The weapon it strikes with next: a spent Breachbolt gives way to its fallback.
       const weapon = nextStrikeWeapon(e);
       if (!weapon || isStaff(weapon) || e.currentHP <= 0) continue;
-      const reach = [];
+      const threat = { e, weapon, reach: [], range: parseRange(weapon.range) };
+      if (isEntity(e)) {
+        // The Entity never steps: it strikes from its body (enemyThreatTiles), and the tiles it
+        // reaches do not depend on where anyone stands, so they are read once.
+        ctx ||= b._playerThreatContext();
+        Object.assign(threat, { planted: true, strikes: enemyThreatTiles(ctx, e).damage });
+        out.push(threat);
+        continue;
+      }
       for (const [k, entry] of this._enemyReach(e)) {
         if (entry?.stoppable === false) continue;
         const [c, r] = k.split(',').map(Number);
-        reach.push({ c, r });
+        threat.reach.push({ c, r });
       }
-      const threat = { e, weapon, reach, range: parseRange(weapon.range) };
       if (holdsPost(e)) {
         ctx ||= b._playerThreatContext();
         positions ||= ctx.positions();
-        Object.assign(threat, { artillery: true, ctx, positions });
+        Object.assign(threat, { planted: true, ctx, positions });
       }
       out.push(threat);
     }
@@ -176,14 +189,18 @@ export class TacticianAgent {
   }
 
   /**
-   * A foe that holds its post, with `unit` moved to `tile`: null when it cannot strike the
-   * tile (ThreatForecast.enemyThreatTiles, as Danger with the move previewed), else its post
-   * (it never walks while it holds it: SiegeArtillery.holdsPost).
+   * A foe that strikes from where it stands (one that holds its post, or the Entity), with
+   * `unit` moved to `tile`: null when it cannot strike the tile (ThreatForecast.enemyThreatTiles,
+   * as Danger with the move previewed), else the strike's distance (from any tile of its body:
+   * combatDistance) and its post (it never walks while it holds it: SiegeArtillery.holdsPost).
    */
-  _artilleryStrike(t, unit, tile) {
-    const positions = positionsWithMoverAt(t.positions, unit, tile.col, tile.row);
-    if (!enemyThreatTiles(t.ctx, t.e, positions).damage.has(key(tile.col, tile.row))) return null;
-    return { d: gridDistance(t.e.col, t.e.row, tile.col, tile.row), p: { c: t.e.col, r: t.e.row } };
+  _plantedStrike(t, unit, tile) {
+    const strikes =
+      t.strikes ||
+      enemyThreatTiles(t.ctx, t.e, positionsWithMoverAt(t.positions, unit, tile.col, tile.row))
+        .damage;
+    if (!strikes.has(key(tile.col, tile.row))) return null;
+    return { d: combatDistance(t.e, tile), p: { c: t.e.col, r: t.e.row } };
   }
 
   /** Expected damage foes could deal to `unit` standing on `tile` next enemy phase. */
@@ -198,11 +215,12 @@ export class TacticianAgent {
     const defTerrain = b.grid.getTerrainAt(tile.col, tile.row);
     for (const t of threats) {
       if (t.e === exclude) continue;
-      let best = t.artillery ? this._artilleryStrike(t, unit, tile) : undefined;
+      let best = t.planted ? this._plantedStrike(t, unit, tile) : undefined;
       if (best === null) continue;
       for (const p of best ? [] : t.reach) {
         if (occupied.has(key(p.c, p.r))) continue;
         if (p.c === tile.col && p.r === tile.row) continue;
+        // A walker is one tile (the Entity, the one multi-tile unit, is planted above).
         const d = gridDistance(p.c, p.r, tile.col, tile.row);
         if (d < t.range.min || d > t.range.max) continue;
         best = { d, p };
@@ -295,12 +313,8 @@ export class TacticianAgent {
     const bossField = boss ? this._field(boss, u.moveType) : null;
     const nearestEnemyDist = (tile) =>
       boss
-        ? (bossField.get(key(tile.col, tile.row)) ??
-          20 + gridDistance(tile.col, tile.row, boss.col, boss.row))
-        : Math.min(
-            Infinity,
-            ...b.enemyUnits.map((e) => gridDistance(tile.col, tile.row, e.col, e.row)),
-          );
+        ? (bossField.get(key(tile.col, tile.row)) ?? 20 + combatDistance(tile, boss))
+        : Math.min(Infinity, ...b.enemyUnits.map((e) => combatDistance(tile, e)));
     let best = null;
     const consider = (plan) => {
       if (!best || plan.score > best.score) best = plan;
@@ -321,7 +335,9 @@ export class TacticianAgent {
       }
       // Attacks.
       for (const e of b.enemyUnits) {
-        const d = gridDistance(tile.col, tile.row, e.col, e.row);
+        // The battle's distance (HeadlessBattle._findAttackTargets, resolveCombat): an
+        // Entity is reached from beside any tile of its body, and counters from there.
+        const d = combatDistance(tile, e);
         const w = weapons.find((wp) => {
           const { min, max } = parseRange(wp.range);
           return d >= min && d <= max;
@@ -351,7 +367,7 @@ export class TacticianAgent {
           0.6 * danger.total -
           (lethal ? lethalWeight : 0) +
           (npc ? -0.8 * (npcField.get(key(tile.col, tile.row)) ?? 20) : 0);
-        consider({ unit: u, tile, action: 'Attack', target: e, score });
+        consider({ unit: u, tile, action: 'Attack', target: e, score, d, dealt, taken });
       }
       // Heals.
       const staff = b._getActiveHealStaff?.(u);

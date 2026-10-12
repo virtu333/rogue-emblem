@@ -31,6 +31,8 @@ import {
   tickRemains,
 } from '../engine/ZombieRemains.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
+import { registerBattleEntity } from '../engine/BattleEntityIdentity.js';
+import { safeBattlePresentation } from './safeBattlePresentation.js';
 import { settleAndPresent } from './BattleActionSettlement.js';
 import { isUnitSeenAt } from '../engine/BattleInformation.js';
 import { RemainsMarkerController } from './RemainsMarkerController.js';
@@ -239,17 +241,28 @@ export class ZombieRemainsController {
       });
       if (!tile) continue; // no room to rise: the remains crumble
       const unit = buildRisenUnit(record, tile);
+      // The rise is state, whole, before anything is drawn (as the harness raises it): on
+      // the roster with its battle entity id and its history beat. The records due this phase
+      // are already ticked out, so a sprite or banner that throws must never stop the rest.
       scene.enemyUnits.push(unit);
-      scene.addUnitGraphic(unit);
-      if (scene.grid?.fogEnabled) scene.updateEnemyVisibility?.();
+      registerBattleEntity(scene, unit);
       observeHistoryAction(scene, 'revived', unit);
+      safeBattlePresentation('risen unit graphic', () => scene.addUnitGraphic(unit), { scene });
+      if (scene.grid?.fogEnabled)
+        safeBattlePresentation('rise fog visibility', () => scene.updateEnemyVisibility?.(), {
+          scene,
+        });
       // Seen rising only where the player sees it stand (isUnitSeenAt: Seer's Eye shows it).
       if (isUnitSeenAt(scene.grid, unit))
-        await scene.showBriefBanner(`${unit.className} has risen!`, UI_PALETTE.rarityEpic);
+        await safeBattlePresentation(
+          'rise banner',
+          () => scene.showBriefBanner(`${unit.className} has risen!`, UI_PALETTE.rarityEpic),
+          { scene },
+        );
       if (!isCurrentBattleSession(scene, session)) return;
     }
-    this.markers.sync();
-    scene.updateObjectiveText?.();
+    safeBattlePresentation('remains markers', () => this.markers.sync(), { scene });
+    safeBattlePresentation('rise objective', () => scene.updateObjectiveText?.(), { scene });
     if (rising.length > 0) scene.checkBattleEnd();
   }
 }

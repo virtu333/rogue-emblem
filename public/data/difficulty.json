@@ -49,7 +49,6 @@
       "recruitEnemyCountBonus": 1,
       "recruitAffixCount": 1,
       "act1EnemyCountDeployCap": 3,
-      "classStatBonuses": {},
       "parInflation": 1,
       "templateWavesRaisePar": true,
       "routLadder": null,
@@ -130,7 +129,6 @@
       "recruitEnemyCountBonus": 1,
       "recruitAffixCount": 1,
       "act1EnemyCountDeployCap": 3,
-      "classStatBonuses": {},
       "parInflation": 2,
       "templateWavesRaisePar": true,
       "routLadder": {
@@ -242,10 +240,6 @@
       "recruitEnemyCountBonus": 2,
       "recruitAffixCount": 1,
       "act1EnemyCountDeployCap": 0,
-      "classStatBonuses": {
-        "Fighter": 1,
-        "Archer": 1
-      },
       "parInflation": 3,
       "templateWavesRaisePar": true,
       "routLadder": {
@@ -359,10 +353,6 @@
       "recruitEnemyCountBonus": 2,
       "recruitAffixCount": 1,
       "act1EnemyCountDeployCap": 0,
-      "classStatBonuses": {
-        "Fighter": 2,
-        "Archer": 2
-      },
       "parInflation": 3,
       "templateWavesRaisePar": false,
       "routLadder": {
