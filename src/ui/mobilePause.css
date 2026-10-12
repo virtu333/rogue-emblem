@@ -215,3 +215,22 @@
 .mp-burdens li.is-contract strong {
   color: var(--re-accent-text);
 }
+/* Upright, the panel scrolls as one when its contents cannot fit (after the lists' own rules,
+   so the cap below wins). A list squeezed to fit could end shorter than its own entry (the
+   Rite's highest tier on a 375x667 phone), and no scroll would ever show that entry whole.
+   Each list keeps its rows, capped well above any one entry and scrolling past that; the
+   actions keep their full height; the panel scrolls over what is left. */
+@media (orientation: portrait) {
+  .mp-panel {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .mp-burdens,
+  .mp-blessings {
+    flex-shrink: 0;
+    max-height: 30vh;
+  }
+  .mp-actions {
+    flex-shrink: 0;
+  }
+}
