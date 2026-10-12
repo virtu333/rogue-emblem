@@ -6,8 +6,9 @@
 // player knows it, engine/AreaPreview.js).
 //
 // The rules:
-//   - The attacker must stand cardinally next to the primary (as every art push does); from
-//     range the line still strikes but nothing moves. The push runs along that axis.
+//   - The attacker must stand cardinally next to the primary (as every art push does; for the
+//     Entity, next to the body tile it strikes, AreaShapes.areaImpactTile); from range the
+//     line still strikes but nothing moves. The push runs along that axis.
 //   - Who is pushed: the primary (if it stands) and each live foe on the line's tiles
 //     (AreaDamage.areaVictims: the same units the line's blows reach). A foe the blows
 //     felled is not on the board any more, so it is never pushed. The primary is one unit
@@ -20,6 +21,7 @@
 //     (ForcedMovement.displacementBlockReason). They still block the tile behind them.
 
 import { areaVictims } from './AreaDamage.js';
+import { areaImpactTile } from './AreaShapes.js';
 import { getFootprint } from './EntitySystem.js';
 import { displacementBlockReason, traceForcedMove } from './ForcedMovement.js';
 
@@ -64,8 +66,11 @@ export function planAreaPush({
 }) {
   const plan = { direction: null, entries: [] };
   if (!source || !primary || !area || typeof getUnitAt !== 'function') return plan;
-  const dc = primary.col - source.col;
-  const dr = primary.row - source.row;
+  // The struck tile, not the Entity's anchor: beside any edge of its body the push (and the
+  // line) runs along that axis, and the Entity itself braces (displacementBlockReason).
+  const impact = areaImpactTile(source, primary);
+  const dc = impact.col - source.col;
+  const dr = impact.row - source.row;
   if (Math.abs(dc) + Math.abs(dr) !== 1) return plan;
   plan.direction = { dc, dr };
 

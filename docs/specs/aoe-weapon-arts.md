@@ -106,6 +106,10 @@ on a hidden unit.
   target (a range-2 shot) is not touched.
 - **`unitsOnTiles` excludes by identity,** not by tile. The Entity's other footprint tiles
   can't bring the excluded primary back in.
+- **A shape struck at the Entity starts from the struck body tile** (`areaImpactTile`: the
+  body tile nearest the attacker, its col/row clamped into the 3x3), never the top-left
+  anchor. A corner's diagonal (range 2+) strikes the corner: a diagonal facing, so no line
+  or cone, as for any diagonal target. Chosen-center shapes aim at a tile and are unchanged.
 - **Factions come from `world.hostilesOf`.** For a player that is the enemy roster only
   (`_getTier5HostileUnitsFor` `:8607-8611`), so area arts never hit `npcUnits`.
 
