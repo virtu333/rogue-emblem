@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+### Ability Slots and Five Legendary Arts Reworked (Oct 11, 2026)
+
+- **Abilities have slots of their own.** A unit equips up to 5 skills and, apart from them, up
+  to 3 abilities: the skills it uses as its action (Shove, Pull, Dance, Steal, Blink, Blink
+  Strike, Smite, Transfuse, Rally Cry, Healing Circle, Ensnare, Great Sacrifice, Goddess
+  Dance). A Thief's Steal or a Dancer's Dance no longer takes one of the five. Roster → Skills
+  shows both counts, and swapping makes room only with one of the same kind. A unit from an
+  older save that had more than 3 abilities equipped keeps the extras on its bench.
+- **Doomblade · Doom Thrust** is now a leap: pick a free tile within 2 (over units), land
+  there, and every foe beside the landing takes an 80% blow that always lands and is never
+  countered. A unit hidden in fog on the landing stops the leap (the use is spent).
+- **Oathblade** no longer attacks twice; it hits harder (15 Might, 20 Crit). **Phantom Rush**
+  is now a lunge: strike the foe beside you, a 75% blow to foes on the next 2 tiles of the
+  line, then dash on through and land just past them (or on the farthest free tile short of
+  that).
+- **Ruin · Cataclysm** (was Annihilate) smashes through its target: the 3 tiles behind take
+  75% of the blow, the 3 past those 50%. **Tidebreaker**'s art keeps its effect and is now
+  named **Annihilate**.
+- **Starfall · Starfall Volley** comes down on any tile 3 to 7 away: it and the 4 tiles beside
+  it take a 60% blow that always lands and is never countered. **Hermit's Bow** gets its own
+  art, **Fan Shot**: the shot also hits the two tiles beside the target that are as far from
+  you as it is (70%).
+- These change every copy you own, in runs already under way. An Oathblade or Hermit's Bow
+  from an older save is updated on load (a forge on it is kept).
+
 ### Three New Ability Skills and Pass (Oct 7, 2026)
 
 - **Great Sacrifice** (Scroll, Act III–IV loot; once per battle): pay up to 10 HP (never your

@@ -20,7 +20,8 @@ import { MobileRosterSheet, canShowMobileRoster } from './MobileRosterSheet.js';
 // RosterOverlay.js — Node map roster management (view stats, equip, trade, accessories)
 // Follows PauseOverlay/SettingsOverlay pattern with this.objects[].
 
-import { XP_STAT_NAMES, MAX_SKILLS, INVENTORY_MAX, CONSUMABLE_MAX } from '../utils/constants.js';
+import { XP_STAT_NAMES, INVENTORY_MAX, CONSUMABLE_MAX } from '../utils/constants.js';
+import { equippedGroups } from '../engine/SkillSlots.js';
 import {
   equipWeapon,
   addToInventory,
@@ -1566,17 +1567,18 @@ export class RosterOverlay {
     }
 
     // Skills
-    if (unit.skills && unit.skills.length > 0) {
+    // Skills and abilities fill separate slots (SkillSlots.js): one heading each.
+    for (const group of equippedGroups(unit, this.gameData.skills)) {
       y += 4;
       this._text(
         x,
         y,
-        `\u2500\u2500 Skills (${unit.skills.length}/${MAX_SKILLS}) \u2500\u2500`,
+        `\u2500\u2500 ${group.title} (${group.ids.length}/${group.cap}) \u2500\u2500`,
         UI_PALETTE.muted,
         '10px',
       );
       y += 14;
-      for (const sid of unit.skills) {
+      for (const sid of group.ids) {
         const skillData = this.gameData.skills?.find((s) => s.id === sid);
         const name = skillData ? skillData.name : sid.replace(/_/g, ' ');
         const skillText = this._text(x + 8, y, name, UI_PALETTE.info, '9px');

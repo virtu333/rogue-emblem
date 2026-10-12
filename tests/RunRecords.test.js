@@ -90,7 +90,7 @@ const dirtyV2 = () => ({
       weapon: `  ${LONG}  `,
       items: ['Elfire', '', 7, null, 'Vulnerary', 'A', 'B', 'C', 'D', 'E', 'F'],
       accessory: 'Speed Ring',
-      skills: ['charisma', 'Bad Id', 'charisma', 'vantage', 'a', 'b', 'c', 'd'],
+      skills: ['charisma', 'Bad Id', 'charisma', 'vantage', 'a', 'b', 'c', 'd', 'e', 'f', 'g'],
       deeds: ['bossbane', 'x', 'y', 'z', 'w', 'v', 'u', 'BAD'],
       junk: { nested: true },
     },
@@ -118,7 +118,7 @@ describe('victory records v2', () => {
       weapon: 'X'.repeat(80),
       items: ['Elfire', 'Vulnerary', 'A', 'B', 'C', 'D', 'E'], // 7 = 4 more weapons + 3 supplies
       accessory: 'Speed Ring',
-      skills: ['charisma', 'vantage', 'a', 'b', 'c'], // MAX_SKILLS, ids only, no repeats
+      skills: ['charisma', 'vantage', 'a', 'b', 'c', 'd', 'e', 'f'], // MAX_SKILLS + MAX_ABILITIES, ids only, no repeats
       deeds: ['bossbane', 'x', 'y', 'z', 'w', 'v'],
     });
     expect(clean.fallen).toEqual([

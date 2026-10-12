@@ -12,14 +12,26 @@ it('explains area amounts, radius, lines and target picks', () => {
   expect(details('Radiant Burst')).toContain(
     'Area: a 75% blow to the most wounded other enemy within 1 tile of the target',
   );
-  expect(details('Cataclysm')).toContain(
+  // Tidebreaker's flat splash, renamed Annihilate (docs/specs/legendary-arts-rework.md §0).
+  expect(details('Annihilate')).toContain(
     'Area: 5 damage to each other enemy within 2 tiles of the target',
+  );
+  // Ruin's cone and Hermit's Bow's fan (legendary-arts-rework §1-2).
+  expect(details('Cataclysm')).toContain(
+    'Area: the blow spreads behind the target: 3 tiles behind it take 75%, 3 tiles past those take 50%',
+  );
+  expect(details('Fan Shot')).toContain(
+    'Area: a 70% blow to each enemy up to 1 tile either side of the target, as far from you as it is',
   );
   expect(details('Piercing Charge')).toContain(
     'Area: a 100% blow to each enemy up to 1 tile behind the target, per hit',
   );
-  // Doom Thrust pierces at range 2 but its push needs it to stand next to the target.
-  expect(details('Doom Thrust')).toContain('push the target back 1 tile (only when next to it)');
+  // A push needs its user next to the target (Overrun).
+  expect(details('Overrun')).toContain('push the target back 1 tile (only when next to it)');
+  // Doomblade's leap (docs/specs/legendary-arts-rework.md §5).
+  expect(details('Doom Thrust')).toContain(
+    'Leap: jump to a free tile 1-2 away, over units: an 80% blow to each enemy next to where you land; no counter',
+  );
 });
 it('explains ally buffs, exclusions and duration', () => {
   // The user is left out unless the data says includeSelf.
@@ -32,7 +44,6 @@ it('exposes drawbacks, debuffs and movement', () => {
   expect(details('Galeforce Assault')).toContain('After combat: your HP becomes 5, hit or miss');
   expect(details('Seal Speed')).toContain('On hit: target SPD -4 for the battle');
   expect(details('Hit and Run')).toContain('On hit: step back 1 tile');
-  expect(details('Annihilate')).toContain('On kill: you get +4 STR, +4 SPD for 1 phase');
   expect(details('Silence Strike')).toContain('silence the target for 2 phases');
 });
 it('every art reads as a sheet: Cost, Needs and one flavour line with no numbers', () => {

@@ -39,7 +39,7 @@ import { teachRosterScroll } from '../src/engine/RosterTransfers.js';
 import { MobileRosterSheet } from '../src/ui/MobileRosterSheet.js';
 import { saveServiceRun } from '../src/ui/serviceSave.js';
 import { _resetInputFocus } from '../src/utils/inputFocus.js';
-import { MAX_SKILLS } from '../src/utils/constants.js';
+import { MAX_ABILITIES, MAX_SKILLS } from '../src/utils/constants.js';
 
 const data = loadGameData();
 data.dialogue = JSON.parse(readFileSync(new URL('../data/dialogue.json', import.meta.url)));
@@ -274,7 +274,8 @@ describe('the bench in the roster', () => {
 
   it('Skills lists equipped and benched skills; Swap in… trades places and saves', async () => {
     const { sheet, unit, buttons, press } = open({ tab: 'skills' });
-    expect(sheet.root.textContent).toContain(`Equipped · ${MAX_SKILLS}/${MAX_SKILLS}`);
+    expect(sheet.root.textContent).toContain(`Skills · ${MAX_SKILLS}/${MAX_SKILLS}`);
+    expect(sheet.root.textContent).toContain(`Abilities · 0/${MAX_ABILITIES}`);
     expect(sheet.root.textContent).toContain(`Bench · ${unit.benchedSkills.length}`);
     // Locked skills say so instead of offering Bench.
     const locked = [...lockedSkillIds(unit, data)].filter((id) => unit.skills.includes(id));

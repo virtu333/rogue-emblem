@@ -1,7 +1,13 @@
 import { specialCharacterDefinition } from './SpecialCharacterPolicy.js';
 import { isDifficultyId } from './DifficultyEngine.js';
 import { DEED_FORMS, unitEpithet } from './DeedTitles.js';
-import { CONSUMABLE_MAX, INVENTORY_MAX, MAX_SKILLS, XP_STAT_NAMES } from '../utils/constants.js';
+import {
+  CONSUMABLE_MAX,
+  INVENTORY_MAX,
+  MAX_ABILITIES,
+  MAX_SKILLS,
+  XP_STAT_NAMES,
+} from '../utils/constants.js';
 
 // Victory records ("Records" on the title screen): display snapshots of won runs,
 // never live units or inventory objects. Stored whole in each slot's meta save and its
@@ -136,7 +142,7 @@ function cleanSurvivor(u, v2) {
   if (items.length) out.items = items;
   const accessory = cleanText(u.accessory);
   if (accessory) out.accessory = accessory;
-  const skills = cleanIds(u.skills, MAX_SKILLS);
+  const skills = cleanIds(u.skills, MAX_SKILLS + MAX_ABILITIES);
   if (skills.length) out.skills = skills;
   const deeds = cleanIds(u.deeds, MAX_RECORD_DEEDS);
   if (deeds.length) out.deeds = deeds;

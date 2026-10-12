@@ -5,7 +5,7 @@
 // no randomness (the battle RNG is Math.random during combat — nothing here
 // may touch it). Previews project a *copy* of the unit through the real
 // promoteUnit, so the rite shows exactly what the engine applies.
-import { XP_STAT_NAMES, MAX_SKILLS, INVENTORY_MAX } from '../utils/constants.js';
+import { XP_STAT_NAMES, INVENTORY_MAX } from '../utils/constants.js';
 import {
   promoteUnit,
   getClassInnateSkills,

@@ -40,15 +40,23 @@ const STATUS_MEANING = {
  * strike against each victim (its DEF or RES): it always lands and never crits.
  */
 export function weaponArtAreaRow(area, targeting = 'normal_attack') {
+  const percent = Math.round(area.damage.multiplier * 100);
+  // "an 80%", "an 11%", "an 18%": the article follows the spoken number.
+  const article = /^(8\d*|11|18)$/.test(String(percent)) ? 'an' : 'a';
   const blow =
-    area.damage.kind === 'fixed'
-      ? `${area.damage.amount} damage`
-      : `a ${Math.round(area.damage.multiplier * 100)}% blow`;
+    area.damage.kind === 'fixed' ? `${area.damage.amount} damage` : `${article} ${percent}% blow`;
   const cannotKill =
     (area.nonLethal ? ' (cannot kill)' : '') +
     (area.drainPercent > 0
       ? `; heals you ${Math.round(area.drainPercent * 100)}% of the area damage`
       : '');
+  if (targeting === 'chosen_center' && area.leap) {
+    const range = area.centerRange;
+    return {
+      label: 'Leap',
+      text: `jump to a free tile ${range.min}-${range.max} away, over units: ${blow} to each enemy next to where you land${cannotKill}; no counter`,
+    };
+  }
   if (targeting === 'chosen_center') {
     const range = area.centerRange;
     const reach =
@@ -62,6 +70,20 @@ export function weaponArtAreaRow(area, targeting = 'normal_attack') {
     return {
       label: 'Area',
       text: `${blow} to each enemy up to ${tiles(area.length)} behind the target${area.strikes === 'each_landed' ? ', per hit' : ''}${cannotKill}`,
+    };
+  if (area.shape === 'cone') {
+    const rowText = area.rows
+      .map(
+        (row, i) =>
+          `${row.width} tiles ${i === 0 ? 'behind it' : 'past those'} take ${Math.round(row.multiplier * (area.damage.multiplier || 1) * 100)}%`,
+      )
+      .join(', ');
+    return { label: 'Area', text: `the blow spreads behind the target: ${rowText}${cannotKill}` };
+  }
+  if (area.shape === 'arc')
+    return {
+      label: 'Area',
+      text: `${blow} to each enemy up to ${tiles(area.width)} either side of the target, as far from you as it is${cannotKill}`,
     };
   if (area.shape === 'around_attacker')
     return {
@@ -111,6 +133,7 @@ export function weaponArtEffectRows(art) {
         swap: 'swap places with the target',
         push: `push the target back ${tiles(e.distance)} (only when next to it)`,
         through: `pass ${tiles(e.distance)} through the target`,
+        dash: `dash on through the target and the ${tiles(e.distance - 1)} behind it, landing as far as ${tiles(e.distance)} past it (only when next to it)`,
         pushAreaVictims: `push the target and each foe the line hit back ${tiles(e.distance)} (only when next to the target)`,
         ram: `ram the target back up to ${tiles(e.distance)} (only when next to it); if blocked, it and any foe it hits take ${e.collisionDamage}`,
       }[e.mode] || `move (${e.mode})`,

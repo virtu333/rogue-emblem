@@ -36,7 +36,7 @@
 
 import { getXpEffectiveLevel, learnSkill } from './UnitManager.js';
 import { bumpItemUsage } from './ItemUsage.js';
-import { MAX_SKILLS } from '../utils/constants.js';
+import { allSlotsPhrase, slotKindOf } from './SkillSlots.js';
 import { DEED_FORMS, titledName, unitEpithet } from './DeedTitles.js';
 import { isZeroRewardUnit } from './ReinforcementSpawns.js';
 
@@ -994,5 +994,5 @@ export function applyPromotionOath(unit, gameData = {}) {
 /** The line a promotion shows when its Oath is sworn onto the bench (slots full). */
 export function oathBenchedNote(unit, oath) {
   const who = typeof unit?.name === 'string' && unit.name ? unit.name : 'this unit';
-  return `${oath?.name || 'The Oath'}: ${oath?.skillName || 'its skill'} is on ${who}'s bench (all ${MAX_SKILLS} skill slots are full). Swap it in from Skills.`;
+  return `${oath?.name || 'The Oath'}: ${oath?.skillName || 'its skill'} is on ${who}'s bench (${allSlotsPhrase(slotKindOf(oath?.skillId))} are full). Swap it in from Skills.`;
 }
