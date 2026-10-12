@@ -5,7 +5,11 @@ import { migrateSavedItemNames, ITEM_NAMES_REVISION } from './ItemNameMigration.
 import { migrateSavedGamblerCoins } from './AccessoryCatalogMigration.js';
 import { migrateSavedPerBattleWeapons } from './WeaponCatalogMigration.js';
 import { migrateSavedLegendaryRelics } from './LegendaryRelicMigration.js';
-import { hydrateBattleTimeline } from './BattleTimeline.js';
+import {
+  hydrateBattleTimeline,
+  expandTimelinePatches,
+  collapseTimelinePatches,
+} from './BattleTimeline.js';
 import { pickFresh } from '../utils/pickFresh.js';
 import { applyRevivalCatchUp } from './RevivalCatchUp.js';
 import { migrateUnitTraits, rollAndApplyLordTrait } from './TraitSystem.js';
@@ -6705,6 +6709,20 @@ export class RunManager {
     // touches it, whatever door it came through: loadRun checks first and writes nothing.
     const formatBlock = runFormatBlock(saved);
     if (formatBlock) throw new RunFormatError(formatBlock);
+    // The whole-save migrations below walk full states. A rewind destination stored as a
+    // patch is a diff against its keyframe as it was saved, so it is decoded first and
+    // stored as a patch again against the migrated keyframe afterwards: a migrated keyframe
+    // under an old patch would carry a changed field to whatever the patch moved there.
+    // (The last battle's report is a timeline too.)
+    const expandedTimelines = [
+      [saved.battleInProgress, 'timeline'],
+      [saved, 'lastBattleReport'],
+    ].flatMap(([holder, key]) => {
+      const expanded = holder ? expandTimelinePatches(holder[key]) : null;
+      if (!expanded) return [];
+      holder[key] = expanded.payload;
+      return [[holder, key, expanded.expanded]];
+    });
     // Items renamed since this save was written get their new names everywhere in
     // it (units, convoy, shops, rewards, battle checkpoint and rewind timeline).
     migrateSavedItemNames(saved, gameData);
@@ -6714,6 +6732,8 @@ export class RunManager {
     migrateSavedPerBattleWeapons(saved, gameData);
     // Legendaries saved before the rework take its changes (Oathblade, Hermit's Bow).
     migrateSavedLegendaryRelics(saved);
+    for (const [holder, key, expanded] of expandedTimelines)
+      collapseTimelinePatches(holder[key], expanded);
     const rm = new RunManager(gameData, saved.metaEffects || null);
     rm.requiredCapabilityFloor = sanitizeCapabilityIds(saved.requiresCapabilities);
     // Saves from before the prologue carry no mode: they are standard runs.

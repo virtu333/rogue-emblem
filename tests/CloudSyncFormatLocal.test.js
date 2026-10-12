@@ -169,6 +169,26 @@ describe('a run newer than the cloud may hold stays on the device', () => {
     expect(runs.row.data).toEqual({ 1: standardRun({ savedAt: 900 }) });
   });
 
+  // A later client that may back this format up writes rows this client calls local-only.
+  // Only this run's own copy is ever retired, never another run's or an id-less one.
+  it("never retires another run's newer-format row, or an id-less one", async () => {
+    cloud({ run: { 1: markedRun({ savedAt: 900 }), 2: kitRun({ runRecordId: undefined }) } });
+    pushRunSave('u', 1, kitRun({ savedAt: 950 }));
+    pushRunSave('u', 2, kitRun({ savedAt: 950 }));
+    await __flushCloudSyncQueuesForTests();
+    expect(runs.row.data).toEqual({
+      1: markedRun({ savedAt: 900 }),
+      2: kitRun({ runRecordId: undefined }),
+    });
+  });
+
+  it("keeps this run's newer-format row when it is newer than this save", async () => {
+    cloud({ run: { 1: kitRun({ savedAt: 900 }) } });
+    pushRunSave('u', 1, kitRun({ savedAt: 800 }));
+    await __flushCloudSyncQueuesForTests();
+    expect(runs.row.data).toEqual({ 1: kitRun({ savedAt: 900 }) });
+  });
+
   it('"Use this device save" deletes the cloud run it was chosen over instead of pushing', async () => {
     const replaced = standardRun({ savedAt: 900 });
     cloud({ run: { 1: replaced } });
