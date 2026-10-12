@@ -21,6 +21,7 @@ import { audioAssetUrl } from '../utils/audioAssets.js';
 import { ESSENTIAL_SFX, COMBAT_SFX } from '../utils/sfxConfig.js';
 import { AudioManager } from '../utils/AudioManager.js';
 import { SettingsManager } from '../utils/SettingsManager.js';
+import { bindHapticSettings } from '../utils/haptics.js';
 import { cloudState } from '../main.js';
 import { pushSettings } from '../cloud/CloudSync.js';
 import { migrateOldSaves } from '../engine/SlotManager.js';
@@ -569,6 +570,7 @@ export class BootScene extends Phaser.Scene {
 
     const settings = new SettingsManager();
     this.registry.set('settings', settings);
+    bindHapticSettings(settings);
     this.registry.set('startupFlags', this._startupFlags);
     this.registry.set('deferredAssets', this._deferredAssets);
 

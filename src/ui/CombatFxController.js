@@ -17,7 +17,8 @@
  * (lungeForward, playImpact, playProcOverlays, deathFade, ...) keep their contracts.
  *
  * Rules every primitive follows:
- *   - Presentation only; never Math.random (seeded fxRandom), never battle state.
+ *   - Presentation only; never Math.random (seeded fxRandom), never battle state. The one
+ *     camera effect, shake(), is the seeded ScreenShakeController, never Phaser's shake.
  *   - Honors battleSpeed (combatDuration/combatTween), reduced motion (no displacement,
  *     static frames), effects quality (low = no overlays) and Instant (no added waits).
  *   - Units always return to their home tile at scale 1, untinted, on their idle frame.
@@ -46,6 +47,7 @@ import {
 } from '../art/combatFx/strikePlan.js';
 import { buildDissolve, paintDissolve, pickMotes } from '../art/combatFx/deathDissolve.js';
 import { FxMotePool } from './FxMotePool.js';
+import { ScreenShakeController } from './ScreenShakeController.js';
 import { restUnitTint } from './UnitRestAppearance.js';
 
 const LUNGE_PX = STRIKE_TIMING.lungePx.melee;
@@ -122,6 +124,7 @@ export class CombatFxController {
     this._tinted = new Map(); // graphic -> unit this strike tinted (flash, struck crimson)
     this._dissolves = new Map(); // unit -> { key, graphic }
     this._zoomCamera = null;
+    this._screenShake = null;
     this._lastSoundAt = new Map();
     this.motes = null;
     this._travelState = { u: 0 };
@@ -257,6 +260,7 @@ export class CombatFxController {
       for (const tween of this.scene.tweens?.getTweensOf?.(g) || []) tween.stop?.();
     }
     this.finishStrike();
+    this._screenShake?.reset();
     for (const sprite of this._lingering) sprite.destroy?.();
     this._lingering.clear();
     this.motes?.releaseAll();
@@ -272,6 +276,8 @@ export class CombatFxController {
     this._sprites.clear();
     this.motes?.destroy();
     this.motes = null;
+    this._screenShake?.destroy();
+    this._screenShake = null;
     this._stopPoseGuard();
   }
 
@@ -658,13 +664,27 @@ export class CombatFxController {
   }
 
   /**
-   * Crit punch-up: a scale pop on the striker. No camera shake: Phaser's shake draws
-   * Math.random every frame, which is the battle RNG during combat, and a shake whose
-   * length depends on playback speed would change the next combat's rolls. The crit's
-   * weight comes from the hit-stop, the ink vignette and the shock ring instead.
+   * A short camera shake for a heavy blow ('crit' | 'boss' | 'crash' | 'splash' | 'stone',
+   * see art/combatFx/screenShake.js). Not Phaser's camera.shake: that draws Math.random
+   * every frame, which is the battle RNG during combat, and a shake whose length followed
+   * playback speed would change the next combat's rolls. This one plays offsets precomputed
+   * from its own seeded generator, only moves the world camera's render matrix (never its
+   * scroll, so nothing needs restoring), and is off with Reduce motion (see
+   * ScreenShakeController). Fire-and-forget.
+   */
+  shake(kind) {
+    if (this._reduced() || !this._live()) return false;
+    return (this._screenShake ||= new ScreenShakeController(this.scene)).shake(kind);
+  }
+
+  /**
+   * Crit punch-up: a scale pop on the striker and a small camera shake. The crit's weight
+   * also comes from the hit-stop, the ink vignette and the shock ring. The shake is the
+   * seeded shake() above, never Phaser's, which would draw the battle RNG every frame.
    */
   critImpact(striker) {
     if (this._reduced()) return;
+    this.shake('crit');
     const g = striker?.graphic;
     if (!g || g._fxHomeScaleX === undefined) return;
     this._motion({

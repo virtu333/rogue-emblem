@@ -10,6 +10,7 @@ import {
   showPortraitBattleSetting,
 } from '../utils/portraitBattle.js';
 import { trackScrollEdges } from './scrollEdgeCue.js';
+import { haptic, hapticsSupported } from '../utils/haptics.js';
 export class SettingsMenu {
   constructor(scene, onClose) {
     this.surface = new MenuSurface(scene, 'Settings', onClose, { modal: true });
@@ -132,6 +133,19 @@ export class SettingsMenu {
       'Low simplifies visual effects. Dialogue and combat information remain visible.',
       ['Low', 'High'],
     );
+    // Only on a device that can vibrate (the Capacitor haptics plugin, or a touch browser
+    // with navigator.vibrate): elsewhere the switch would do nothing.
+    if (hapticsSupported()) {
+      toggle(
+        'Vibration',
+        () => settings.getVibration?.() !== false,
+        (value) => {
+          settings.setVibration?.(value);
+          if (value) haptic('medium');
+        },
+        'Short pulses for blows, kills, level-ups and cursor steps. Off silences them.',
+      );
+    }
     // Atmosphere: the battlefield's act mood (grade, vignette, night darkness). Shows the
     // effective mode; while untouched it follows the device default.
     const atmosphereLabels = { full: 'Full', reduced: 'Reduced', off: 'Off' };
