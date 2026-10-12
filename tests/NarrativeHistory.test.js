@@ -149,6 +149,19 @@ describe('history conditions and tokens', () => {
     );
   });
 
+  it('{fallen} never names the commander (the run-end screen speaks after the commander fell)', () => {
+    const runManager = {
+      getStartingLordNames: () => ['Edric', 'Sera'],
+      fallenUnits: [{ name: 'Galvin' }, { name: 'Edric', isCommander: true }],
+    };
+    const ctx = buildNarrativeContext({ runManager });
+    expect(ctx.fallenName).toBe('Galvin');
+    const alone = buildNarrativeContext({
+      runManager: { ...runManager, fallenUnits: [{ name: 'Edric', isCommander: true }] },
+    });
+    expect(evaluateWhen({ fallenThisRun: true }, alone)).toBe(false);
+  });
+
   it('lastRunLordFell and {lastFallenLord} read the last finished run', () => {
     const ctx = buildNarrativeContext({
       meta: metaWith({ lastRun: { result: 'defeat', lordsFell: ['Voss'] } }),
