@@ -192,14 +192,48 @@ describe('the Lieutenant’s vision', () => {
     const lastLine = (entries) => entries.at(-1).line;
 
     it('Nightfall, Black Sun and a saved Emperor road keep the base lines word for word', () => {
-      // Failure: the new closing line leaks onto roads where he has not withdrawn below (the
-      // Descent PR changes the Entity roads when he joins their route, not this one).
+      // Failure: a closing line that sends him below leaks onto roads where he never comes: with
+      // the Descent off, the Entity's roads never meet him (no gate), and neither does a saved
+      // road that ends at the Emperor.
       for (const [acts, rung] of [
         [['act1', 'act2', 'act3', 'act4', 'finalBoss'], 'hard'],
         [['act1', 'act2', 'act3', 'act4', 'finalBoss'], 'lunatic'],
         [['act1', 'act2', 'act3', 'act4'], 'dusk'],
       ])
         expect(play(acts, rung), `${rung} ${acts.length} acts`).toEqual(baseVision);
+    });
+
+    it('with the Descent on, the Entity’s roads hear him promise the door he will hold below', () => {
+      // Failure: Nightfall and Black Sun, which now meet him at the gate, still hear "He's gone.
+      // No other sight presses against mine" (his end), or Dusk's line; or the Descent's lines
+      // play on a road the Descent does not take (a run already in its two-node final act).
+      const descent = JSON.parse(
+        readFileSync(new URL('../data/descent.json', import.meta.url), 'utf8'),
+      );
+      const on = { ...descent, enabled: true };
+      const playOn = (acts, rung, runExtra = {}) => {
+        const s = scene('act3', acts, rung);
+        s.gameData = { dialogue: real, enemies, descent: on };
+        Object.assign(s.runManager, runExtra);
+        return beats(s).getLieutenantVisionEntries();
+      };
+      const five = ['act1', 'act2', 'act3', 'act4', 'finalBoss'];
+      const entity = real.bossEncounters['The Lieutenant'].vision.variants.find(
+        (v) => v.when.finale === 'entity',
+      );
+      expect(entity.when).toEqual({ finale: 'entity', descent: true });
+      for (const rung of ['hard', 'lunatic']) {
+        const said = playOn(five, rung);
+        expect(said, rung).toEqual(entity.entries);
+        expect(lastLine(said)).toMatch(/below/);
+        expect(lastLine(said)).toMatch(/door/);
+        expect(JSON.stringify(said)).not.toMatch(/no other sight/);
+      }
+      // Dusk keeps its own line with the Descent on, and a saved Emperor road the base.
+      expect(lastLine(playOn(five, 'dusk'))).toMatch(/for now/);
+      expect(playOn(['act1', 'act2', 'act3', 'act4'], 'dusk')).toEqual(baseVision);
+      // A prologue run never takes the Descent.
+      expect(playOn(five, 'hard', { mode: 'prologue' })).toEqual(baseVision);
     });
 
     it('Dusk, which meets him again below, hears Sera say he has gone below, out of her sight for now', () => {

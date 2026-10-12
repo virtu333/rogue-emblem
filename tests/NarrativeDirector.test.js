@@ -148,6 +148,8 @@ describe('buildNarrativeContext', () => {
       riteBand: 'none',
       roadThroughEmperor: false,
       finale: null,
+      descent: false,
+      glassBroken: false,
     });
   });
 
@@ -195,6 +197,8 @@ describe('buildNarrativeContext', () => {
       riteBand: 'none',
       roadThroughEmperor: false,
       finale: null,
+      descent: false,
+      glassBroken: false,
     });
   });
 
@@ -219,9 +223,11 @@ describe('KNOWN_WHEN_KEYS', () => {
       'commander',
       'commanderHasEpithet',
       'currentDefeatWasBoss',
+      'descent',
       'difficulty',
       'finale',
       'firstClear',
+      'glassBroken',
       'lastRunAct',
       'lastRunDefeatedByKnown',
       'lastRunResult',

@@ -204,12 +204,12 @@ describe('riteView (the chip and the finale preview)', () => {
     });
     expect(view.effects.map((e) => e.target)).toEqual(['lieutenant', 'entity']);
     expect(view.effects[0].lines).toEqual([
-      'The Lieutenant carries 1 more Revival Stone',
+      'The Lieutenant gains 1 Revival Stone: 1 more health bar',
       '2 Hollowed join him on turn 4',
     ]);
     expect(view.effects[1].lines).toEqual([
       "The Entity's splash strikes 1 tile more",
-      'Each of its waves brings 2 Hollowed',
+      "Each of the Entity's waves brings 2 more Hollowed",
     ]);
     const spoken = riteView(runWith(5, { finale: 'lieutenant' }));
     expect(spoken.chip).toBe('The Rite: 5 words · Spoken');

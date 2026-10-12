@@ -12,6 +12,7 @@
 //     never calls again), changes an identity, a count, the history or the battle stream, or stops
 //     the enemy phase; a Voice's fall interrupted by a marker that fails to draw
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 
 vi.mock('phaser', () => ({
   default: {
@@ -29,6 +30,8 @@ import { serializeBattleUnit } from '../src/engine/BattleUnitState.js';
 import { registerBattleEntity, resetBattleIdentities } from '../src/engine/BattleEntityIdentity.js';
 import { markFoesShown } from '../src/engine/BattleInformation.js';
 import { createVigilState } from '../src/engine/Vigil.js';
+import { areaDamage } from '../src/engine/PostCombatEffects.js';
+import { getWeaponArtArea } from '../src/engine/WeaponArtSystem.js';
 import { createBattleRng } from '../src/engine/BattleRng.js';
 import { withDevSetPiece } from '../src/utils/devSetPieceFixtures.js';
 import { GameDriver } from './harness/GameDriver.js';
@@ -516,6 +519,262 @@ describe('the Voices are named targets, never bosses', () => {
   });
 });
 
+describe('what the court says (dialogue.json vigil, engine/VigilWords.js)', () => {
+  // Failures: a Voice in the fog is heard (a word floats over a hidden unit); the words restart
+  // or skip instead of walking each Voice's verse by the counts the battle keeps (so a resume
+  // or a rewind would say other words); the Waking says one word where it spoke two; the roll
+  // call never answers, or answers over a Hollowed the player cannot see; a Voice's last line
+  // plays for a fall in the fog or for a guard's.
+  const dialogue = JSON.parse(
+    readFileSync(new URL('../data/dialogue.json', import.meta.url), 'utf8'),
+  );
+  const verse = (id) => dialogue.vigil.voices[id].words;
+  /** A scene that records what is said: floating lines and the dialogue box. */
+  function speaking(opts) {
+    const made = sceneOf(opts);
+    const { scene } = made;
+    scene.gameData = { ...scene.gameData, dialogue };
+    scene._battleBeats = { speakOver: vi.fn(), onKill: vi.fn(), onAllyFall: vi.fn() };
+    scene.dialogueOverlay = { show: vi.fn(async () => {}) };
+    scene._getPortraitKey = (unit) => `portrait_of_${unit.authoredId || unit.className}`;
+    return made;
+  }
+  const said = (scene) =>
+    scene._battleBeats.speakOver.mock.calls.map(([unit, line, options]) => ({
+      who: unit.authoredId || unit._summonedBy,
+      line,
+      foe: options?.foe === true,
+    }));
+
+  it('in full view, each Voice says the start of its verse, the Waking two words, and the roll is answered once', async () => {
+    const { scene } = speaking();
+    await scene.processVigil();
+    const words = said(scene).filter((s) => VOICES.includes(s.who));
+    expect(new Set(words.map((w) => w.who))).toEqual(new Set(VOICES));
+    for (const w of words) {
+      expect(w.foe).toBe(true);
+      const own = verse(w.who);
+      expect(w.line).toBe(w.who === 'voice_waking' ? `${own[0]} ${own[1]}` : own[0]);
+    }
+    const calls = said(scene).filter((s) => !VOICES.includes(s.who));
+    expect(calls).toHaveLength(1);
+    expect(calls[0].line).toBe(dialogue.vigil.call[0]);
+    expect(calls[0].who).toMatch(/^circle:/);
+  });
+
+  it('no line floats while a notice band of the phase is still on screen', async () => {
+    // On an upright phone the turned ring puts a Voice high on the board, under the band.
+    const { scene } = speaking();
+    const events = [];
+    scene.showBriefBanner = vi.fn(async (message) => {
+      events.push(`band:${message}`);
+      await Promise.resolve();
+      events.push('band:end');
+    });
+    scene._battleBeats.speakOver = vi.fn((unit) => events.push(`line:${unit.authoredId}`));
+    await scene.processVigil();
+    const bands = events.filter((e) => e.startsWith('band:') && e !== 'band:end');
+    expect(bands).toHaveLength(2);
+    expect(events.filter((e) => e.startsWith('line:')).length).toBeGreaterThan(1);
+    expect(events.findIndex((e) => e.startsWith('line:'))).toBeGreaterThan(
+      events.lastIndexOf('band:end'),
+    );
+  });
+
+  it('the next phase walks on through each verse, and the roll call answers in turn', async () => {
+    const { scene } = speaking();
+    await scene.processVigil();
+    scene._battleBeats.speakOver.mockClear();
+    scene.turnManager.turnNumber = 2;
+    await scene.processVigil();
+    const byVoice = Object.fromEntries(said(scene).map((s) => [s.who, s.line]));
+    expect(byVoice.voice_calling).toBe(verse('voice_calling')[1]);
+    expect(byVoice.voice_waking).toBe(`${verse('voice_waking')[2]} ${verse('voice_waking')[3]}`);
+    // Four were called on turn 1, so the first called on turn 2 answers fifth.
+    const call = said(scene).find((s) => !VOICES.includes(s.who));
+    expect(call.line).toBe(dialogue.vigil.call[4 % dialogue.vigil.call.length]);
+  });
+
+  it('in the fog only a seen Voice is heard, and no unseen Hollowed answers', async () => {
+    const b = harness();
+    const waking = tileOf(b, 'sigils', 'sigil_waking');
+    const { scene } = speaking({ visible: [`${waking.col},${waking.row}`] });
+    await scene.processVigil();
+    expect(said(scene)).toEqual([
+      {
+        who: 'voice_waking',
+        line: `${verse('voice_waking')[0]} ${verse('voice_waking')[1]}`,
+        foe: true,
+      },
+    ]);
+    const dark = speaking({ visible: ['0,10', '1,9'] }).scene;
+    await dark.processVigil();
+    expect(dark._battleBeats.speakOver).not.toHaveBeenCalled();
+  });
+
+  it('a seen Voice falls with its last line in the dialogue box; a fogged one and a guard say nothing', async () => {
+    const seen = speaking().scene;
+    const binding = voiceOf(seen.enemyUnits, 'voice_binding');
+    await seen.removeUnit(binding, { killer: seen.playerUnits[0] });
+    expect(seen.dialogueOverlay.show.mock.calls).toEqual([
+      [binding.name, dialogue.vigil.voices.voice_binding.silenced, 'portrait_of_voice_binding'],
+    ]);
+
+    const fogged = speaking({ visible: ['0,10', '1,9'] }).scene;
+    await fogged.removeUnit(voiceOf(fogged.enemyUnits, 'voice_binding'), {});
+    expect(fogged.dialogueOverlay.show).not.toHaveBeenCalled();
+
+    const guard = speaking().scene;
+    await guard.removeUnit(
+      guard.enemyUnits.find((u) => u.className === 'Dark Knight'),
+      { killer: guard.playerUnits[0] },
+    );
+    expect(guard.dialogueOverlay.show).not.toHaveBeenCalled();
+  });
+
+  describe('the last lines: the first Voice to fall in the dialogue box, each later one floating', () => {
+    // Failures: every fall blocks on its own box (four in a turn stack four); the later ones are
+    // dropped instead of floating; the floating line is not foe-styled or not over the spot the
+    // Voice fell; a fall in the fog speaks; "first" is remembered somewhere a resume or a rewind
+    // does not restore (a rewind to before the first fall must block on the first fall again).
+    const silenced = (id) => dialogue.vigil.voices[id].silenced;
+    const floats = (scene) =>
+      scene._battleBeats.speakOver.mock.calls
+        .filter(([unit]) => VOICES.includes(unit.authoredId))
+        .map(([unit, line, options]) => ({ who: unit.authoredId, line, options }));
+    const fell = (scene, id) =>
+      scene.removeUnit(voiceOf(scene.enemyUnits, id), { killer: scene.playerUnits[0] });
+
+    it('the first seen fall blocks and floats nothing; the second floats and blocks nothing', async () => {
+      const { scene } = speaking();
+      const binding = voiceOf(scene.enemyUnits, 'voice_binding');
+      const spot = { col: binding.col, row: binding.row };
+      await fell(scene, 'voice_binding');
+      expect(scene.dialogueOverlay.show.mock.calls).toEqual([
+        [binding.name, silenced('voice_binding'), 'portrait_of_voice_binding'],
+      ]);
+      expect(floats(scene)).toEqual([]);
+
+      const feeding = voiceOf(scene.enemyUnits, 'voice_feeding');
+      const feedingSpot = { col: feeding.col, row: feeding.row };
+      await fell(scene, 'voice_feeding');
+      // Still the one box; the second line floats, foe-styled, over the tile it fell on.
+      expect(scene.dialogueOverlay.show).toHaveBeenCalledTimes(1);
+      expect(floats(scene)).toEqual([
+        {
+          who: 'voice_feeding',
+          line: silenced('voice_feeding'),
+          options: { foe: true, tile: feedingSpot },
+        },
+      ]);
+      expect(spot).not.toEqual(feedingSpot);
+      // A third and a fourth float too.
+      await fell(scene, 'voice_calling');
+      await fell(scene, 'voice_waking');
+      expect(scene.dialogueOverlay.show).toHaveBeenCalledTimes(1);
+      expect(floats(scene).map((f) => f.who)).toEqual([
+        'voice_feeding',
+        'voice_calling',
+        'voice_waking',
+      ]);
+    });
+
+    it('one area art that fells two Voices at once: the first removed gets the box, the other floats', async () => {
+      // Cataclysm (weaponArts.json: radius 2, a fixed 5 a blow) on the guard at the ring's heart
+      // reaches all four sigils, each 2 tiles off. Two Voices at 4 HP drop together: both are at
+      // 0 HP before the first is removed (the area's blows land first, then each falls in area
+      // order through removeUnit), so a count that read 0 HP as fallen saw "2" at the first fall
+      // and floated both lines, opening no box. A rewind to before the strike chooses the same.
+      const art = data.weaponArts.arts.find((a) => a.name === 'Cataclysm');
+      const doomed = ['voice_binding', 'voice_feeding'];
+      const strike = async (scene) => {
+        const guard = scene.enemyUnits.find((u) => u.className === 'Dark Knight');
+        const hero = scene.playerUnits[0];
+        const removed = [];
+        const remove = scene.removeUnit.bind(scene);
+        scene.removeUnit = (unit, options) => {
+          if (unit.authoredId) removed.push(unit.authoredId);
+          return remove(unit, options);
+        };
+        const step = { area: getWeaponArtArea(art), blows: 1 };
+        await scene._playPostCombatBeats(
+          areaDamage(step, hero, guard, scene._postCombatWorld(), {}),
+        );
+        return removed;
+      };
+      const setUp = (scene, b) => {
+        scene.grid.getMoveCost = (c, r, moveType) => b.grid.getMoveCost(c, r, moveType);
+        scene.showMinorHintAt = vi.fn();
+        scene.runManager = { convoy: { weapons: [], consumables: [] }, accessories: [], gold: 0 };
+      };
+      const { scene, b } = speaking();
+      setUp(scene, b);
+      const guard = scene.enemyUnits.find((u) => u.className === 'Dark Knight');
+      Object.assign(scene.playerUnits[0], { col: guard.col + 1, row: guard.row });
+      for (const id of doomed) voiceOf(scene.enemyUnits, id).currentHP = 4;
+      const before = JSON.parse(JSON.stringify(captureBattleState(scene, { rngSeed: 7 })));
+
+      const expectOneBoxOneFloat = (target, removed) => {
+        expect([...removed].sort()).toEqual([...doomed].sort());
+        expect(target.enemyUnits.filter((u) => doomed.includes(u.authoredId))).toEqual([]);
+        const [first, second] = removed;
+        expect(target.dialogueOverlay.show).toHaveBeenCalledTimes(1);
+        expect(target.dialogueOverlay.show.mock.calls[0][1]).toBe(silenced(first));
+        expect(target.dialogueOverlay.show.mock.calls[0][2]).toBe(`portrait_of_${first}`);
+        expect(floats(target).map((f) => [f.who, f.line])).toEqual([[second, silenced(second)]]);
+      };
+      expectOneBoxOneFloat(scene, await strike(scene));
+
+      // A rewind to before the strike: the same strike, the same choice.
+      const { scene: rewound, b: rb } = speaking();
+      setUp(rewound, rb);
+      rewound.playerUnits = [];
+      rewound.enemyUnits = [];
+      new BattleSuspendController(rewound).applyUnits(before);
+      expect(doomed.map((id) => voiceOf(rewound.enemyUnits, id).currentHP)).toEqual([4, 4]);
+      expectOneBoxOneFloat(rewound, await strike(rewound));
+    });
+
+    it('a fall in the fog says nothing, blocking or floating', async () => {
+      const { scene } = speaking({ visible: ['0,10', '1,9'] });
+      await fell(scene, 'voice_binding');
+      await fell(scene, 'voice_feeding');
+      expect(scene.dialogueOverlay.show).not.toHaveBeenCalled();
+      expect(floats(scene)).toEqual([]);
+    });
+
+    it('a rewind or a resume to before the first fall blocks on the first fall again', async () => {
+      const { scene } = speaking();
+      scene.runManager = { convoy: { weapons: [], consumables: [] }, accessories: [], gold: 0 };
+      const before = JSON.parse(JSON.stringify(captureBattleState(scene, { rngSeed: 7 })));
+      await fell(scene, 'voice_binding');
+      const after = JSON.parse(JSON.stringify(captureBattleState(scene, { rngSeed: 7 })));
+      await fell(scene, 'voice_feeding');
+      expect(floats(scene).map((f) => f.who)).toEqual(['voice_feeding']);
+
+      const restored = (state) => {
+        const { scene: next } = speaking();
+        next.playerUnits = [];
+        next.enemyUnits = [];
+        next._vigilState = createVigilState();
+        next.runManager = { convoy: { weapons: [], consumables: [] }, accessories: [], gold: 0 };
+        new BattleSuspendController(next).applyUnits(state);
+        return next;
+      };
+      // Back before any fall: the first fall in sight is the box again, whoever falls.
+      const rewound = restored(before);
+      await fell(rewound, 'voice_feeding');
+      expect(rewound.dialogueOverlay.show).toHaveBeenCalledTimes(1);
+      expect(floats(rewound)).toEqual([]);
+      // Back after the first fall: the next one floats, as it did.
+      const resumed = restored(after);
+      await fell(resumed, 'voice_feeding');
+      expect(resumed.dialogueOverlay.show).not.toHaveBeenCalled();
+      expect(floats(resumed).map((f) => f.who)).toEqual(['voice_feeding']);
+    });
+  });
+});
+
 describe('rendering never changes the call (as HealthPresentationInvariance)', () => {
   const RNG_SEED = 11;
 
@@ -615,10 +874,17 @@ describe('rendering never changes the call (as HealthPresentationInvariance)', (
       scene.updateEnemyVisibility = vi.fn(boom);
       scene.updateObjectiveText = vi.fn(boom);
       scene._pinnedThreats = { invalidate: vi.fn(boom) };
+      // The court's words and the roll call (with the lines to say), and the boxes they float in.
+      const dialogue = JSON.parse(
+        readFileSync(new URL('../data/dialogue.json', import.meta.url), 'utf8'),
+      );
+      scene.gameData = { ...scene.gameData, dialogue };
+      scene._battleBeats = { speakOver: vi.fn(boom) };
       scene.grid.gridToPixel = boom; // the markers
     });
     expect(broken.outcome).toEqual(drawn.outcome);
     expect(broken.error).toBeNull();
+    expect(broken.scene._battleBeats.speakOver).toHaveBeenCalled();
     expect(broken.scene.updateEnemyVisibility).toHaveBeenCalled();
     expect(broken.scene.updateObjectiveText).toHaveBeenCalled();
   });

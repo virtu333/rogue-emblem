@@ -24,6 +24,7 @@ import {
   summonKey,
   vigilBoardView,
   vigilPhaseStep,
+  voicesFallen,
   wordsSpoken,
 } from '../src/engine/Vigil.js';
 import {
@@ -414,6 +415,27 @@ describe('the step', () => {
     expect(isVoiceOf(VIGIL, units[0])).toBe(true);
     expect(isVoiceOf(VIGIL, { authoredId: 'guard' })).toBe(false);
     expect(isVoiceOf(VIGIL, {})).toBe(false);
+  });
+});
+
+describe('voicesFallen: which fall is this', () => {
+  // Failure: a Voice still on the roster at 0 HP (an area art drops two at once; removeUnit takes
+  // them one at a time) counts as fallen, so the first fall reads as the second and the dialogue
+  // box is never shown. Only a Voice off the roster has fallen, as the objective counts.
+  it('counts a Voice once it is off the roster, never at 0 HP', () => {
+    const units = voices();
+    expect(voicesFallen(VIGIL, units)).toBe(0);
+    units[0].currentHP = 0;
+    units[1].currentHP = 0;
+    units[1]._removing = true;
+    expect(voicesFallen(VIGIL, units)).toBe(0);
+    const firstOff = units.filter((u) => u !== units[1]);
+    expect(voicesFallen(VIGIL, firstOff)).toBe(1);
+    expect(voicesFallen(VIGIL, firstOff.slice(1))).toBe(2);
+    expect(voicesFallen(VIGIL, [])).toBe(4);
+    // A guard leaving never counts: the four Voices stand with or without it.
+    expect(voicesFallen(VIGIL, [...voices(), { authoredId: 'guard' }])).toBe(0);
+    expect(voicesFallen(VIGIL, voices())).toBe(0);
   });
 });
 

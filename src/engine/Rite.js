@@ -301,12 +301,18 @@ export function riteModLines(mods, target, { turnOf = null } = {}) {
   const lines = [];
   if (target === 'lieutenant') {
     if (m.escortDrop)
-      lines.push(`The Lieutenant's escort loses its ${plural(m.escortDrop, 'strongest member')}`);
+      lines.push(
+        m.escortDrop === 1
+          ? "The Lieutenant's strongest guard is gone from his side"
+          : `The Lieutenant's ${m.escortDrop} strongest guards are gone from his side`,
+      );
     if (m.revivalStones)
-      lines.push(`The Lieutenant carries ${plural(m.revivalStones, 'more Revival Stone')}`);
+      lines.push(
+        `The Lieutenant gains ${plural(m.revivalStones, 'Revival Stone')}: ${plural(m.revivalStones, 'more health bar')}`,
+      );
     if (m.waveHollowed)
       lines.push(
-        `${plural(m.waveHollowed, 'Hollowed', 'Hollowed')} join him on turn ${turnOf ? turnOf(m.waveTurn || RITE_WAVE_TURN) : m.waveTurn || RITE_WAVE_TURN}`,
+        `${plural(m.waveHollowed, 'Hollowed', 'Hollowed')} ${m.waveHollowed === 1 ? 'joins' : 'join'} him on turn ${turnOf ? turnOf(m.waveTurn || RITE_WAVE_TURN) : m.waveTurn || RITE_WAVE_TURN}`,
       );
   } else if (target === 'entity') {
     if (m.splashDelta)
@@ -314,7 +320,9 @@ export function riteModLines(mods, target, { turnOf = null } = {}) {
         `The Entity's splash strikes ${plural(Math.abs(m.splashDelta), 'tile')} ${m.splashDelta > 0 ? 'more' : 'fewer'}`,
       );
     if (m.waveHollowed)
-      lines.push(`Each of its waves brings ${plural(m.waveHollowed, 'Hollowed', 'Hollowed')}`);
+      lines.push(
+        `Each of the Entity's waves brings ${plural(m.waveHollowed, 'more Hollowed', 'more Hollowed')}`,
+      );
   }
   return lines;
 }

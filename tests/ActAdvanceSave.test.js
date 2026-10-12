@@ -131,7 +131,9 @@ describe('the Act IV to Act V transition follows where the road ends', () => {
       const shown = await transitionAfterEmperor(difficultyId);
       expect(shown.map((s) => s.key)).toEqual(['finalBoss_to_secretAct']);
       const act = dialogue.actTransitions;
-      const lines = (section) => section.variants.find((v) => v.when.commander === 'Edric').entries;
+      // The Descent is off here: Edric's lines from before it (its variants name `descent`).
+      const lines = (section) =>
+        section.variants.find((v) => v.when.commander === 'Edric' && !v.when.descent).entries;
       expect(shown[0].lines).toEqual(
         [...lines(act.finalBoss_to_secretAct), ...lines(act.secretAct_start)].map((e) => e.line),
       );

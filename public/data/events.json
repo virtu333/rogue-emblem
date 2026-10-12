@@ -3042,7 +3042,7 @@
             {
               "id": "walked",
               "weight": 100,
-              "text": "You leave the wall to whoever comes down next.",
+              "text": "You leave the wall as you found it, with room at the bottom.",
               "effects": []
             }
           ]

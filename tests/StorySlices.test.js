@@ -118,6 +118,8 @@ describe('story slice selection contracts', () => {
           'firstClear',
           'commanderHasEpithet',
           'roadThroughEmperor',
+          'descent',
+          'glassBroken',
         ]);
         for (const [key, condition] of Object.entries(value.when)) {
           expect(KNOWN_WHEN_KEYS.has(key), key).toBe(true);
@@ -138,6 +140,9 @@ describe('story slice selection contracts', () => {
               expect(['normal', 'dusk', 'hard', 'lunatic']).toContain(condition);
             if (key === 'lastRunResult') expect(['none', 'victory', 'defeat']).toContain(condition);
             if (key === 'finale') expect(['lieutenant', 'entity', 'emperor']).toContain(condition);
+            if (key === 'bossRole') expect(['gate', 'finale', 'none']).toContain(condition);
+            if (key === 'riteBand')
+              expect(['broken', 'spoken', 'answered', 'none']).toContain(condition);
           }
         }
       }

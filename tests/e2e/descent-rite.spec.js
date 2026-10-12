@@ -76,7 +76,7 @@ for (const size of [
         `The Rite · Answered · ${IN_ANSWERED} words`,
       );
       await expect(gate.locator('.re-loom-rite-lines li')).toHaveText([
-        'The Lieutenant carries 1 more Revival Stone',
+        'The Lieutenant gains 1 Revival Stone: 1 more health bar',
         '2 Hollowed join him on turn 4',
       ]);
       await expect(gate.locator('.re-loom-rite-note')).toHaveText('Read when the battle begins.');
@@ -86,7 +86,7 @@ for (const size of [
       await expect(entity).toHaveAttribute('data-rite-target', 'entity');
       await expect(entity.locator('.re-loom-rite-lines li')).toHaveText([
         "The Entity's splash strikes 1 tile more",
-        'Each of its waves brings 2 Hollowed',
+        "Each of the Entity's waves brings 2 more Hollowed",
       ]);
       await expect(entity).not.toContainText(/HP|Stone|hinge|rally/i);
       // A fight that is not a boss the Rite reads has no block.
@@ -120,7 +120,7 @@ test('a locked battle previews its locked map, not the tier the words stand at n
   await expect(gate).toHaveAttribute('data-rite', 'locked');
   await expect(gate.locator('.re-loom-rite-note')).toHaveText('Set for this battle.');
   const locked = await gate.locator('.re-loom-rite-lines li').allTextContents();
-  expect(locked[0]).toBe('The Lieutenant carries 1 more Revival Stone');
+  expect(locked[0]).toBe('The Lieutenant gains 1 Revival Stone: 1 more health bar');
   expect(locked[1]).toMatch(/^\d+ Hollowed join him on turn 4$/);
   // ... and the words fall to Broken afterwards: the chip follows them, the locked card does not.
   await page.evaluate(() => {
