@@ -41,8 +41,10 @@ export const RECRUIT_PROMOTION_BASE_LEVEL = 10;
 export const BOSS_RECRUIT_PROMOTED_PENALTY = 0;
 export const ENEMY_PROMOTION_BASE_LEVEL = 12;
 
-// Skill cap per unit
+// Equipped skill caps per unit (engine/SkillSlots.js): MAX_SKILLS skills and, apart from
+// them, MAX_ABILITIES abilities (`trigger: "action"` skills: Shove, Dance, Steal, Blink...).
 export const MAX_SKILLS = 5;
+export const MAX_ABILITIES = 3;
 
 // Class mastery: battles fought in a class family to earn its perk.
 // Traits can shift the effective threshold (masteryBattlesDelta), floored at

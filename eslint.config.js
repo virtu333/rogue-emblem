@@ -37,6 +37,7 @@ export default [
       'src/engine/SpecialCharacters.js',
       'src/engine/SpecialCharacterPolicy.js',
       'src/engine/CantoRule.js',
+      'src/engine/SkillSlots.js',
       'src/utils/audioAssets.js',
     ],
     languageOptions: { ecmaVersion: 2025 },

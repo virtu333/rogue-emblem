@@ -42,8 +42,9 @@ const isHostile = (a, b) => {
  * @param {number} [p.blows]      how many blows a per-hit area lands (the forecast's hits)
  * @param {number} [p.dealt]      the damage the forecast says the target takes (for heals)
  * @returns {{ tiles: object[], victims: object[], heals: object[], push: object|null,
- *   pushes: object[] } | null} `push` is a ram's landing; `pushes` Override's: one entry per
- *   foe it drives back, farthest first (AreaPush.planAreaPush: from, to, moved, reason)
+ *   pushes: object[], dash?: object } | null} `push` is a ram's landing; `pushes` Override's:
+ *   one entry per foe it drives back, farthest first (AreaPush.planAreaPush: from, to, moved,
+ *   reason); `dash` Oathblade's landing (`{ from, to }`, `to` null with a `reason` if none)
  */
 export function previewAreaArt({
   attacker,
@@ -125,6 +126,33 @@ export function previewAreaArt({
     out.pushes = plan.entries;
   }
 
+  // Oathblade's dash: where the user lands, over the units the player knows. A foe the
+  // preview says falls (the line's, or the target) no longer holds its tile.
+  const dash = (getWeaponArtTier2Effects(art).postCombatMove || []).find((m) => m.mode === 'dash');
+  if (dash && target && targeting === 'normal_attack') {
+    const felled = new Set(out.victims.filter((v) => v.kills).map((v) => v.unit));
+    if (dealt >= target.currentHP && revivalStoneCount(target).remaining <= 0) felled.add(target);
+    const knownAt = (col, row) =>
+      known.find(
+        (u) => !felled.has(u) && getFootprint(u).some((t) => t.col === col && t.row === row),
+      ) || null;
+    const move = resolvePostCombatMove({
+      sourceUnit: attacker,
+      targetUnit: target,
+      mode: 'dash',
+      distance: dash.distance,
+      cols: world.cols,
+      rows: world.rows,
+      getMoveCost: world.getMoveCost,
+      getUnitAt: knownAt,
+      getTerrainAt: world.getTerrainAt,
+    });
+    out.dash = move.ok
+      ? { from: { col: attacker.col, row: attacker.row }, to: { ...move.assignments[0] } }
+      : { from: { col: attacker.col, row: attacker.row }, to: null, reason: move.reason };
+    if (out.dash.to) out.dash.to = { col: out.dash.to.col, row: out.dash.to.row };
+  }
+
   const ram = (getWeaponArtTier2Effects(art).postCombatMove || []).find((m) => m.mode === 'ram');
   if (ram && target) {
     const knownAt = (col, row) => known.find((u) => u.col === col && u.row === row) || null;
@@ -170,7 +198,7 @@ export function previewAreaArt({
 export function areaForecastLines(preview, { max = 3, onHit = true } = {}) {
   if (!preview) return [];
   const lines = [];
-  const { victims = [], heals = [], push = null, pushes = [] } = preview;
+  const { victims = [], heals = [], push = null, pushes = [], dash = null } = preview;
   if (victims.length > 0) {
     const kos = victims.filter((v) => v.kills).length;
     const count = `${victims.length} ${victims.length === 1 ? 'foe' : 'foes'}${kos ? `, ${kos} KO` : ''}`;
@@ -190,6 +218,18 @@ export function areaForecastLines(preview, { max = 3, onHit = true } = {}) {
   }
   const braced = pushes.filter((p) => p.reason && p.reason !== 'blocked');
   if (braced.length > 0) lines.push(`Braced: ${braced.map((p) => p.unit.name).join(', ')}`);
+  if (dash) {
+    const steps = dash.to
+      ? Math.abs(dash.to.col - dash.from.col) + Math.abs(dash.to.row - dash.from.row)
+      : 0;
+    lines.push(
+      dash.to
+        ? `${onHit ? 'Dash if it hits' : 'Dash'}: ${steps} ${steps === 1 ? 'tile' : 'tiles'} on`
+        : dash.reason === 'rooted'
+          ? 'Dash: rooted, you stay'
+          : 'Dash: no room, you stay',
+    );
+  }
   if (push?.braced) lines.push('Push: the target braces');
   else if (push?.crash)
     lines.push(

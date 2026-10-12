@@ -181,6 +181,8 @@ import {
   areaStrikeEffects,
   canStartAreaStrike,
   isAreaStrikeCenter,
+  isLeapArt,
+  settleLeap,
 } from '../../src/engine/AreaStrike.js';
 import {
   applyTimedBuffEntry,
@@ -2057,6 +2059,9 @@ export class HeadlessBattle {
     recordWeaponArtUse(unit, art, { turnNumber: this.turnManager?.turnNumber });
     this._applyRecoilGuardAfterArtUse(unit, art);
     this._checkPhoenixBrooch(unit);
+    // A leap lands first (AreaStrike.settleLeap, as BattleScene): a unit on the landing fails
+    // it, and no blow lands (areaStrikeEffects strikes from the landing only).
+    if (isLeapArt(art)) settleLeap(unit, center, world.getUnitAt);
 
     const result = {};
     runPostCombatEffectsSync(areaStrikeEffects({ unit, art, center, world }, result), {

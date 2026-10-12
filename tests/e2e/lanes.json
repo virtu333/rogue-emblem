@@ -125,6 +125,7 @@
         "gamepad-battle.spec.js",
         "gamepad-menus.spec.js",
         "goddess-dance.spec.js",
+        "legendary-arts.spec.js",
         "ice-slide.spec.js",
         "input-boundary-audit.spec.js",
         "unit-first-tap.spec.js",

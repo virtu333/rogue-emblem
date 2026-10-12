@@ -67,7 +67,7 @@ for (const view of VIEWS) {
       await expect(sheet.locator('details.item-art-details[open] > summary')).toHaveText(
         'Weapon art: Starfall Volley',
       );
-      await expect(sheet).toContainText('Cost 5 HP');
+      await expect(sheet).toContainText('Cost 7 HP');
       await expect(sheet).toContainText('Special: Extended range');
       await expect(sheet).toContainText('No one in your army can wield it yet.');
       await expect(sheet).toContainText('Strung the night the stars came down');
@@ -119,7 +119,7 @@ for (const view of VIEWS) {
         await card.dispatchEvent('pointerup', pointer);
         await card.dispatchEvent('click', at);
         await expect(sheet).toContainText('+4 STR, +4 SPD if no adjacent allies');
-        await expect(sheet).toContainText('Weapon art: Starfall Volley');
+        await expect(sheet).toContainText('Weapon art: Fan Shot');
         await sheet.getByRole('button', { name: 'Close', exact: true }).tap();
         await expect(sheet).toHaveCount(0);
         await expect(other).toHaveAttribute('aria-pressed', 'false');
