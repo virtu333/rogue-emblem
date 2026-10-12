@@ -42,10 +42,13 @@ import {
   midVigilRun,
   pastVigilRun,
   startedRun,
+  withDescentOff,
   withDescentOn,
 } from './helpers/descentRunFormatFixtures.js';
 
-const gameData = loadGameData();
+// The older client's data: from before the Descent, so it is switched off there (the shipped
+// file has it on); its final act is the old 2-node map.
+const gameData = withDescentOff(loadGameData());
 const descentData = withDescentOn(gameData);
 
 const store = new Map();

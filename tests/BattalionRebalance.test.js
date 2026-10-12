@@ -8,6 +8,7 @@ import {
   BALANCE_REVISIONS,
   CURRENT_BALANCE_REVISION,
 } from '../src/engine/MetaProgressionManager.js';
+import { REFUND_FEE } from '../src/utils/constants.js';
 
 const data = loadGameData();
 const KEY = 'emblem_rogue_slot_1_meta';
@@ -106,8 +107,8 @@ describe('Battalion price cut (balance revision 2)', () => {
   });
 
   it('the revision table chains and ends at the prices in metaUpgrades.json', () => {
-    expect(CURRENT_BALANCE_REVISION).toBe(6);
-    expect(BALANCE_REVISIONS.map((r) => r.revision)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(CURRENT_BALANCE_REVISION).toBe(7);
+    expect(BALANCE_REVISIONS.map((r) => r.revision)).toEqual([1, 2, 3, 4, 5, 6, 7]);
     const byId = new Map(data.metaUpgrades.map((u) => [u.id, u]));
     const latest = BALANCE_REVISIONS[BALANCE_REVISIONS.length - 1];
     for (const [id, costs] of Object.entries(latest.to)) {
@@ -382,7 +383,7 @@ describe('Lucky Finds 25% off after its Legend step was cut (balance revision 6)
     expect(m.totalSupply).toBe(7 + 30 + 60);
     expect(m.totalValor).toBe(3);
     m._save();
-    expect(disk().balanceRevision).toBe(6);
+    expect(disk().balanceRevision).toBe(CURRENT_BALANCE_REVISION);
     expect(load().totalSupply).toBe(97);
   });
 
@@ -404,6 +405,48 @@ describe('Lucky Finds 25% off after its Legend step was cut (balance revision 6)
       purchasedUpgrades: { loot_quality: 2, __balance_revision: 6 },
     });
     expect(load().totalSupply).toBe(0);
+  });
+});
+
+describe('starting-skill price rises (balance revision 7)', () => {
+  it('credits nothing and records what each owned unlock was paid', () => {
+    seed({
+      balanceRevision: 6,
+      totalValor: 5,
+      savedAt: 5000,
+      purchasedUpgrades: { unlock_vantage: 1, unlock_adept: 1, unlock_guard: 1 },
+    });
+    const m = load();
+    expect(m.totalValor).toBe(5);
+    expect(m.legacyTierCosts.unlock_vantage).toEqual({ 1: 300 });
+    expect(m.legacyTierCosts.unlock_adept).toEqual({ 1: 300 });
+    expect(m.legacyTierCosts.unlock_guard).toEqual({ 1: 175 });
+  });
+
+  it('Pavise, Aegis and Renewal no longer wait on beating the game', () => {
+    seed({ balanceRevision: 7, totalValor: 0, savedAt: 5000, purchasedUpgrades: {} });
+    const m = load();
+    for (const id of ['unlock_pavise', 'unlock_aegis', 'unlock_renewal'])
+      expect(m.meetsPrerequisites(id), id).toBe(true);
+  });
+
+  it('a Vantage bought at 300 refunds 300, one bought now 600 (less the fee)', () => {
+    seed({
+      balanceRevision: 6,
+      totalValor: 50,
+      savedAt: 5000,
+      purchasedUpgrades: { unlock_vantage: 1 },
+    });
+    const old = load();
+    expect(old.refundUpgrade('unlock_vantage').success).toBe(true);
+    expect(old.totalValor).toBe(50 - REFUND_FEE + 300);
+
+    seed({ balanceRevision: 7, totalValor: 650, savedAt: 5000, purchasedUpgrades: {} });
+    const fresh = load();
+    expect(fresh.purchaseUpgrade('unlock_vantage')).toBe(true);
+    expect(fresh.totalValor).toBe(50);
+    expect(fresh.refundUpgrade('unlock_vantage').success).toBe(true);
+    expect(fresh.totalValor).toBe(50 - REFUND_FEE + 600);
   });
 });
 
@@ -516,7 +559,7 @@ describe('a revision-5 build between two loads (it knows __balance_revision)', (
       revision5BuildResaves();
     }
     expect(supply).toEqual([90, 90, 90]);
-    expect(disk().purchasedUpgrades.__balance_settled).toBe(6);
+    expect(disk().purchasedUpgrades.__balance_settled).toBe(CURRENT_BALANCE_REVISION);
   });
 
   it('never writes a revision below the one the save was settled at', () => {

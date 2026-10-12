@@ -390,21 +390,43 @@ function applyNarrativeTokens(entries, ctx) {
   // No title: fall back to the {commander} token (DialogueCast resolves it).
   const titled = ctx?.commanderTitled || ctx?.commander || '{commander}';
   const fallen = ctx?.fallenName || FALLEN_FALLBACK;
-  const lords = Array.isArray(ctx?.lastRunLordsFell) ? ctx.lastRunLordsFell : [];
-  const lastLord = lords[lords.length - 1] || FALLEN_FALLBACK;
   const tokens = [
     [LAST_FOE_TOKEN, foe],
     [EPITHET_TOKEN, titled],
     [FALLEN_TOKEN, fallen],
-    [LAST_FALLEN_LORD_TOKEN, lastLord],
   ];
   return entries.map((entry) => {
     if (!entry || typeof entry !== 'object' || typeof entry.line !== 'string') return entry;
-    if (!tokens.some(([token]) => entry.line.includes(token))) return entry;
+    const lords = lastRunLordsFellFor(ctx, entry.speaker);
+    const all = [...tokens, [LAST_FALLEN_LORD_TOKEN, lords[lords.length - 1] || FALLEN_FALLBACK]];
+    if (!all.some(([token]) => entry.line.includes(token))) return entry;
     let line = entry.line;
-    for (const [token, value] of tokens) line = line.split(token).join(value);
+    for (const [token, value] of all) line = line.split(token).join(value);
     return { ...entry, line };
   });
+}
+
+/** The lords who fell last run that `speaker` can name: never the speaker themself. */
+function lastRunLordsFellFor(ctx, speaker) {
+  const lords = Array.isArray(ctx?.lastRunLordsFell) ? ctx.lastRunLordsFell : [];
+  return lords.filter((name) => name !== speaker);
+}
+
+/**
+ * The context a pool item's `when` is read in: a line naming {lastFallenLord} counts
+ * only the lords its speaker can name, so Sera never mourns herself.
+ */
+function itemContext(item, ctx) {
+  const lines = Array.isArray(item.exchange) ? item.exchange : [item];
+  const speakers = lines
+    .filter((e) => typeof e?.line === 'string' && e.line.includes(LAST_FALLEN_LORD_TOKEN))
+    .map((e) => e.speaker);
+  if (!speakers.length) return ctx;
+  const lords = speakers.reduce(
+    (left, speaker) => lastRunLordsFellFor({ lastRunLordsFell: left }, speaker),
+    ctx?.lastRunLordsFell || [],
+  );
+  return { ...ctx, lastRunLordsFell: lords };
 }
 
 /** A pool exchange: a non-empty list of entries that each have a line. */
@@ -464,7 +486,7 @@ function leastRecent(lines, played) {
 export function pickPoolEntry(pool, ctx) {
   if (!Array.isArray(pool)) return null;
   const valid = pool.filter(isPoolItem);
-  const contextual = valid.filter((e) => e.when && evaluateWhen(e.when, ctx));
+  const contextual = valid.filter((e) => e.when && evaluateWhen(e.when, itemContext(e, ctx)));
   const general = valid.filter((e) => !e.when);
   const run = Number.isFinite(ctx?.runsStarted) ? Math.max(0, Math.floor(ctx.runsStarted)) : 0;
   const played = Array.isArray(ctx?.linesPlayed) ? ctx.linesPlayed : [];

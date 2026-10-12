@@ -303,7 +303,7 @@
             {
               "speaker": "Sera",
               "portrait": "portrait_lord_sera",
-              "line": "I have the thread in my hands again. Some of it is frayed. Some of it holds."
+              "line": "We are back at the start. Some of what we learned is bruised. Some of it holds."
             },
             {
               "speaker": "Sera",
@@ -343,12 +343,12 @@
             {
               "speaker": "Sera",
               "portrait": "portrait_lord_sera",
-              "line": "There is a thread that does not break. I only have to find whose hand it belongs in."
+              "line": "There is a road that does not end in ruin. I only have to find the turn that leads to it."
             },
             {
               "speaker": "Sera",
               "portrait": "portrait_lord_sera",
-              "line": "I watched {lastFoe} cut the last thread. This time I have chosen a different one.",
+              "line": "I watched {lastFoe} end the last road. I have not forgotten how it stood.",
               "when": {
                 "lastRunDefeatedByKnown": true
               }
@@ -364,7 +364,7 @@
             {
               "speaker": "Sera",
               "portrait": "portrait_lord_sera",
-              "line": "Fall after fall, and still you come back. I could not ask for a better knot to tie to.",
+              "line": "Fall after fall, and still you come back. I could not ask for a steadier hand beside me.",
               "when": {
                 "minLossStreak": 3
               }
@@ -380,7 +380,7 @@
             {
               "speaker": "Sera",
               "portrait": "portrait_lord_sera",
-              "line": "Again. I know how it looks, {commander}. The thread is still in my hand, and it is still holding.",
+              "line": "Again. I know how it looks, {commander}. I am still here, and so are you.",
               "when": {
                 "minLossStreak": 3
               }
@@ -388,7 +388,7 @@
             {
               "speaker": "Sera",
               "portrait": "portrait_lord_sera",
-              "line": "{lastFallenLord} fell on that road. I felt the thread go slack. We will not let it slacken today.",
+              "line": "{lastFallenLord} fell on that road. I felt it like a cold hand. Not today.",
               "when": {
                 "lastRunLordFell": true
               }
@@ -396,7 +396,7 @@
             {
               "speaker": "Sera",
               "portrait": "portrait_lord_sera",
-              "line": "I saw {lastFallenLord} go down. This time I will watch that strand more closely.",
+              "line": "I saw {lastFallenLord} go down. This time I keep closer watch.",
               "when": {
                 "lastRunLordFell": true
               }
@@ -420,7 +420,7 @@
             {
               "speaker": "Sera",
               "portrait": "portrait_lord_sera",
-              "line": "This thread is spun thicker, or thinner, than the last. I will know by the first fork.",
+              "line": "This road is not the one we walked last. I will know how it differs by the first fork.",
               "when": {
                 "rungChanged": true
               }
@@ -495,7 +495,7 @@
             {
               "speaker": "Sera",
               "portrait": "portrait_lord_sera",
-              "line": "The loom gave us a good thread. I want to see what else it is tied to."
+              "line": "That ending was a good one. I want to see what else it was tied to."
             },
             {
               "speaker": "Sera",
@@ -505,7 +505,7 @@
             {
               "speaker": "Sera",
               "portrait": "portrait_lord_sera",
-              "line": "You brought them home. Now I must ask you to bring them out again."
+              "line": "You came back from that road. Now I must ask you to walk out again."
             },
             {
               "speaker": "Sera",

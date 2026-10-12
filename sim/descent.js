@@ -6,8 +6,8 @@
 //                          [--phase all|capture|act5] [--arms legacy,descent] [--stones lieutenant=N]
 //                          [--out runs.jsonl] [--from a.jsonl,...] [--md report.md]
 //
-// The route ships dark (`descent.json` `enabled: false`); this sim switches it on for its own
-// copy of the data (`enabled: true` on a clone), never in the file.
+// Each arm sets the route's switch on its own copy of the data (`enabled` on a clone: off for
+// `legacy`, on for `descent`), never in the file, so the arms hold whatever the file ships.
 //
 // Each trial is one run, played in two parts:
 //   1. CAPTURE. Acts I-IV (First Light: I-III) with the claiming player (tests/sim/
@@ -15,7 +15,7 @@
 //      the advance into the final act (`stopBeforeAct`). The run (RunManager.toJSON) and the
 //      battle stream's state are kept: the act's entry state.
 //   2. ACT V, twice from that one entry state, with the stream put back to the same point:
-//      `legacy` (the data as shipped: the Ruins and the finale, the two-node act) and `descent`
+//      `legacy` (the route switched off: the Ruins and the finale, the two-node act) and `descent`
 //      (the route switched on). So the two arms differ only in the act (common random numbers),
 //      and the comparison is paired run by run.
 // An Act V replay plays under the checkout's Revival Stones table, not the one a capture
@@ -110,9 +110,14 @@ const arms = String(opts.arms)
   .map((s) => s.trim())
   .filter((a) => ARMS.includes(a));
 
-/** The data with the Descent switched on (a copy: the file's `enabled: false` is never touched). */
+/** The data with the Descent switched on (a copy: the file's `enabled` is never touched). */
 export function descentGameData(gameData) {
   return { ...gameData, descent: { ...structuredClone(gameData.descent), enabled: true } };
+}
+
+/** The data with the Descent switched off: the legacy two-node act (a copy, as above). */
+export function legacyGameData(gameData) {
+  return { ...gameData, descent: { ...structuredClone(gameData.descent), enabled: false } };
 }
 
 /** The Descent on, with every route's Landing row taken out (a copy). */
@@ -123,7 +128,7 @@ export function noLandingGameData(gameData) {
   return data;
 }
 
-const ARM_DATA = { legacy: (d) => d, descent: descentGameData, nolanding: noLandingGameData };
+const ARM_DATA = { legacy: legacyGameData, descent: descentGameData, nolanding: noLandingGameData };
 
 /**
  * The claiming player with the Descent's fork routed by policy: `keyed` (half the runs take the

@@ -9,7 +9,8 @@
 // The corpus: real runs on every rung through every act (seeded), every battle node's params and
 // generated map, every event set piece on every rung and act, and real suspend checkpoints (one
 // written mid-Vigil). Data switches, each writer's PR turning its own on here: the Descent
-// (data/descent.json `enabled`, shipped off), so every rung walks its route through Act V.
+// (data/descent.json `enabled`, set on a copy whatever the file ships), so every rung walks its
+// route through Act V.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import './JourneyTestSetup.js';
 import { loadGameData } from '../testData.js';

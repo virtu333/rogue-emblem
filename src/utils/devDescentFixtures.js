@@ -1,6 +1,6 @@
 // Review route for Act V, the Descent (docs/specs/act-v-descent.md): `?devScene=nodemap&
-// preset=fresh&descent=1[&difficulty=hard][&rite=7][&descentRow=4][&seed=42]`. The Descent ships
-// dark (data/descent.json `enabled: false`); this switches it on for THIS PAGE'S game data only,
+// preset=fresh&descent=1[&difficulty=hard][&rite=7][&descentRow=4][&seed=42]`. This switches the
+// Descent on (data/descent.json `enabled`, whatever it says) for THIS PAGE'S game data only,
 // reachable through devStartup's dev routes (the dev server and deploy previews, never the
 // production site). A real run never reads this file, and `data/descent.json` is never changed.
 //

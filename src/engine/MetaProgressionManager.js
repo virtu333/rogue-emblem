@@ -431,6 +431,21 @@ export const BALANCE_REVISIONS = Object.freeze([
       loot_quality: [90, 180],
     },
   },
+  {
+    revision: 7, // 2026-10-12 starting skills: Vantage 300 -> 600, Adept 300 -> 450, Guard
+    // 175 -> 300 (its bonus +3 -> +2). Rises credit nobody; listed so a tier bought before
+    // them refunds what it was paid (`legacyTierCosts`).
+    from: {
+      unlock_vantage: [300],
+      unlock_adept: [300],
+      unlock_guard: [175],
+    },
+    to: {
+      unlock_vantage: [600],
+      unlock_adept: [450],
+      unlock_guard: [300],
+    },
+  },
 ]);
 
 export const CURRENT_BALANCE_REVISION = BALANCE_REVISIONS[BALANCE_REVISIONS.length - 1].revision;

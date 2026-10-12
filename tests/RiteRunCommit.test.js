@@ -61,7 +61,11 @@ describe('the Rite begins with the Descent', () => {
     expect(rm.rite).toBeNull();
     rm.advanceAct();
     expect(rm.rite).toBeNull();
-    const old = new RunManager(baseData); // descent.json ships switched off
+    // The Descent switched off (a copy: descent.json ships on): today's 2-node final act.
+    const old = new RunManager({
+      ...baseData,
+      descent: { ...structuredClone(baseData.descent), enabled: false },
+    });
     old.startRun({ runSeed: 5, difficultyId: 'hard', applyBlessingsAtStart: false });
     old.actIndex = old.actSequence.indexOf('finalBoss') - 1;
     old.advanceAct();

@@ -8,9 +8,13 @@ import {
 } from '../src/engine/NarrativeDirector.js';
 import { compactNarrativeSeen, pickFresh } from '../src/utils/pickFresh.js';
 import { narrativeLineKey } from '../src/utils/lineKey.js';
+import { readFileSync } from 'node:fs';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
+const dialogue = JSON.parse(
+  readFileSync(new URL('../data/dialogue.json', import.meta.url), 'utf8'),
+);
 const store = {};
 vi.stubGlobal('localStorage', {
   getItem: (key) => store[key] ?? null,
@@ -171,6 +175,45 @@ describe('history conditions and tokens', () => {
     expect(entry.line).toBe('Voss.');
     const none = buildNarrativeContext({ meta: metaWith({ lastRun: { result: 'defeat' } }) });
     expect(evaluateWhen({ lastRunLordFell: false }, none)).toBe(true);
+  });
+
+  it('a lord never names themself as last run’s fallen lord (Sera speaks run start)', () => {
+    const section = dialogue.actTransitions.runStart;
+    const speakerLines = [];
+    const walk = (value) => {
+      if (Array.isArray(value)) return value.forEach(walk);
+      if (!value || typeof value !== 'object') return;
+      if (typeof value.line === 'string' && value.line.includes('{lastFallenLord}'))
+        speakerLines.push(value);
+      Object.values(value).forEach(walk);
+    };
+    walk(dialogue);
+    expect(speakerLines.length).toBeGreaterThan(0);
+    const onlySera = metaWith({ lastRun: { result: 'defeat', lordsFell: ['Sera'] } });
+    const seraAndKira = metaWith({ lastRun: { result: 'defeat', lordsFell: ['Kira', 'Sera'] } });
+    for (let runsStarted = 0; runsStarted < 40; runsStarted++) {
+      for (const meta of [onlySera, seraAndKira]) {
+        const ctx = {
+          ...buildNarrativeContext({
+            meta,
+            runManager: { getStartingLordNames: () => ['Edric', 'Sera'] },
+          }),
+          runsStarted,
+        };
+        for (const entry of selectDialogueEntries(section, ctx) || []) {
+          if (entry.speaker === 'Sera') expect(entry.line).not.toMatch(/\bSera\b/);
+        }
+      }
+    }
+    // Sera alone fell: her lastRunLordFell lines do not apply; with Kira too, she names Kira.
+    const item = { speaker: 'Sera', line: 'I saw {lastFallenLord} go down.' };
+    const [named] = selectDialogueEntries([item], buildNarrativeContext({ meta: seraAndKira }));
+    expect(named.line).toBe('I saw Kira go down.');
+    const pool = { variants: [{ when: {}, pool: [{ ...item, when: { lastRunLordFell: true } }] }] };
+    expect(selectDialogueEntries(pool, buildNarrativeContext({ meta: onlySera }))).toBeNull();
+    expect(selectDialogueEntries(pool, buildNarrativeContext({ meta: seraAndKira }))[0].line).toBe(
+      'I saw Kira go down.',
+    );
   });
 
   it('rungChanged is true only when a last run exists on another difficulty', () => {
