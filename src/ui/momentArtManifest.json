@@ -59,6 +59,9 @@
     "old_faces": { "v": "6924efab", "model": "gemini-3-pro-image" },
     "deserters_revenge": { "v": "2a89fc90", "model": "gemini-3-pro-image" },
     "collectors": { "v": "35708ba0", "model": "gemini-3-pro-image" },
-    "bad_map": { "v": "50bfe325", "model": "gemini-3-pro-image" }
+    "bad_map": { "v": "50bfe325", "model": "gemini-3-pro-image" },
+    "came_this_far": { "v": "25ebf73a", "model": "gemini-3-pro-image" },
+    "last_lantern": { "v": "c7b7302d", "model": "gemini-3-pro-image" },
+    "seers_last_page": { "v": "d8b9dc91", "model": "gemini-3-pro-image" }
   }
 }
