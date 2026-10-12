@@ -10,7 +10,6 @@
 
 import { areaBounds, planAreaBlows } from './AreaDamage.js';
 import { areaTilesFor } from './AreaShapes.js';
-import { gridDistance } from './Combat.js';
 import {
   getWeaponArtArea,
   getWeaponArtTargeting,
@@ -20,7 +19,7 @@ import {
 import { resolvePostCombatMove } from './WeaponArtPostCombat.js';
 import { isDisplacementImmune } from './AffixSystem.js';
 import { planAreaPush } from './AreaPush.js';
-import { getFootprint } from './EntitySystem.js';
+import { combatDistance, getFootprint } from './EntitySystem.js';
 import { revivalStoneCount } from './RevivalStones.js';
 
 const isHostile = (a, b) => {
@@ -97,7 +96,7 @@ export function previewAreaArt({
     const amount = Math.floor((Math.max(0, dealt) * allyHeal.percentOfDamage) / 100);
     out.heals = known
       .filter((u) => u !== attacker && u.faction === attacker.faction)
-      .filter((u) => gridDistance(attacker.col, attacker.row, u.col, u.row) <= allyHeal.radius)
+      .filter((u) => combatDistance(attacker, u) <= allyHeal.radius)
       .map((unit) => ({
         unit,
         amount: Math.max(0, Math.min(amount, (unit.stats?.HP ?? unit.currentHP) - unit.currentHP)),

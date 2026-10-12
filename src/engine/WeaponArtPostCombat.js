@@ -9,7 +9,7 @@ import {
 } from './WeaponArtSystem.js';
 import { mergeCombatMods } from './Combat.js';
 import { isRooted } from './StatusConditionSystem.js';
-import { isEntity } from './EntitySystem.js';
+import { getFootprint, isEntity } from './EntitySystem.js';
 import { traceForcedMove } from './ForcedMovement.js';
 import { effectiveSkills } from './EffectiveSkills.js';
 import { getUnitMarkFor } from './MarkSystem.js';
@@ -391,12 +391,19 @@ function isInBounds(col, row, cols, rows) {
   return col >= 0 && col < cols && row >= 0 && row < rows;
 }
 
+/**
+ * The target's tile beside the user (`col`, `row`) and the step from the user onto it
+ * (`dc`, `dr`), or null when no tile of the target is a cardinal neighbour. The Entity is
+ * beside the user at whichever body tile touches it (outside a 3x3 body only one can).
+ */
 function isCardinalAdjacent(sourceUnit, targetUnit) {
   if (!sourceUnit || !targetUnit) return null;
-  const dc = targetUnit.col - sourceUnit.col;
-  const dr = targetUnit.row - sourceUnit.row;
-  if (Math.abs(dc) + Math.abs(dr) !== 1) return null;
-  return { dc, dr };
+  for (const tile of getFootprint(targetUnit)) {
+    const dc = tile.col - sourceUnit.col;
+    const dr = tile.row - sourceUnit.row;
+    if (Math.abs(dc) + Math.abs(dr) === 1) return { dc, dr, col: tile.col, row: tile.row };
+  }
+  return null;
 }
 
 function canOccupyTile(
@@ -484,6 +491,8 @@ export function resolvePostCombatMove({
   if (movesTarget && targetUnit && isImmovable?.(targetUnit)) {
     return { ok: false, reason: 'immovable' };
   }
+  // The Entity's footprint never moves: no swap, push or ram displaces it.
+  if (movesTarget && isEntity(targetUnit)) return { ok: false, reason: 'immovable' };
 
   const targetAlive = targetUnit?.currentHP > 0;
   const targetStillAtExpectedTile =
@@ -596,12 +605,11 @@ export function resolvePostCombatMove({
   });
 
   if (normalizedMode === 'ram') {
-    // The Entity's footprint never moves. Otherwise the target is driven up to
-    // `distance` tiles, then slides on if that put it on Ice; the push stops before the
-    // edge, impassable ground or a living unit, and stopping short of the distance is a
-    // collision (with that unit, or with nothing for a wall). A slide held after the
-    // push's distance was spent is no collision: only the push was stopped.
-    if (isEntity(targetUnit)) return { ok: false, reason: 'immovable' };
+    // The target is driven up to `distance` tiles (never the Entity: see above), then
+    // slides on if that put it on Ice; the push stops before the edge, impassable ground
+    // or a living unit, and stopping short of the distance is a collision (with that unit,
+    // or with nothing for a wall). A slide held after the push's distance was spent is no
+    // collision: only the push was stopped.
     const move = forcedMove();
     const collision = move.stoppedShort
       ? { obstacle: move.stop === 'unit' && typeof move.blocker === 'object' ? move.blocker : null }
@@ -620,10 +628,11 @@ export function resolvePostCombatMove({
     return { ok: true, assignments: [forcedAssignment(move)] };
   }
 
+  // Through: past the target's tile beside the user (the Entity's body blocks the way).
   const dest = traceLinearDestination({
     unit: sourceUnit,
-    startCol: targetUnit.col,
-    startRow: targetUnit.row,
+    startCol: direction.col,
+    startRow: direction.row,
     dc: direction.dc,
     dr: direction.dr,
     distance: stepDistance,

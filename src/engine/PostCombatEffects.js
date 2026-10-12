@@ -24,7 +24,8 @@
 // `world` is the battle as these effects see it:
 //   affixes                         gameData.affixes
 //   cols, rows, getMoveCost(col, row, moveType), getUnitAt(col, row)
-//   hostilesOf(unit), alliesOf(unit)   (area victims; Divine Charge / buff allies)
+//   hostilesOf(unit), alliesOf(unit)   (area victims; Divine Charge / buff allies, reached by
+//                                       combatDistance: the Entity at its nearest body tile)
 //   getTerrainAt?(col, row)            (an area victim's terrain DEF; none when absent)
 //   turnNumber
 //   skillsData?                        gameData.skills (the on-kill skills' catalog)
@@ -48,7 +49,7 @@
 import { applyGrievousStatus, getAttackAffixes, isDisplacementImmune } from './AffixSystem.js';
 import { planAreaBlows } from './AreaDamage.js';
 import { planAreaPush } from './AreaPush.js';
-import { gridDistance } from './Combat.js';
+import { combatDistance } from './EntitySystem.js';
 import { applyCondition, isSilenced } from './StatusConditionSystem.js';
 import { damageUnit, damageUnitDetailed, healUnit, setUnitHP } from './UnitHealth.js';
 import { markHoldDisturbed } from './HoldDisturbance.js';
@@ -400,7 +401,7 @@ function* divineChargeHeal(step, attacker, defender, world) {
         u.currentHP > 0 &&
         u.currentHP < u.stats.HP &&
         u !== caster &&
-        gridDistance(caster.col, caster.row, u.col, u.row) <= step.range,
+        combatDistance(caster, u) <= step.range,
     );
   if (allies.length === 0) return;
   allies.sort((a, b) => a.currentHP / a.stats.HP - b.currentHP / b.stats.HP);
@@ -551,10 +552,10 @@ function* allyHeal(step, sourceUnit, world) {
   const allies = world
     .alliesOf(sourceUnit)
     .filter((ally) => ally && ally !== sourceUnit && ally.currentHP > 0)
-    .filter((ally) => gridDistance(sourceUnit.col, sourceUnit.row, ally.col, ally.row) <= radius)
+    .filter((ally) => combatDistance(sourceUnit, ally) <= radius)
     .sort((a, b) => {
-      const da = gridDistance(sourceUnit.col, sourceUnit.row, a.col, a.row);
-      const db = gridDistance(sourceUnit.col, sourceUnit.row, b.col, b.row);
+      const da = combatDistance(sourceUnit, a);
+      const db = combatDistance(sourceUnit, b);
       if (da !== db) return da - db;
       if (a.row !== b.row) return a.row - b.row;
       return a.col - b.col;
@@ -704,7 +705,7 @@ export function* allyBuff(step, sourceUnit, world) {
     .alliesOf(sourceUnit)
     .filter((ally) => ally && ally.currentHP > 0)
     .filter((ally) => includeSelf || ally !== sourceUnit)
-    .filter((ally) => gridDistance(sourceUnit.col, sourceUnit.row, ally.col, ally.row) <= range);
+    .filter((ally) => combatDistance(sourceUnit, ally) <= range);
   if (allies.length <= 0) return;
 
   const { expiryPhase, expiryTurn } = resolveTimedBuffExpiry(

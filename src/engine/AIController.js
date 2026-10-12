@@ -458,12 +458,8 @@ export class AIController {
               ally.currentHP >= ally.stats.HP * 0.75
             )
               continue;
-            const distance = gridDistance(
-              candidate.finalTile.col,
-              candidate.finalTile.row,
-              ally.col,
-              ally.row,
-            );
+            // The Entity is healed at its nearest body tile, as applyHealDecision checks.
+            const distance = combatDistance(candidate.finalTile, ally);
             if (distance < range.min || distance > range.max) continue;
             const result = resolveHeal(staff, enemy, ally);
             const score = result.healAmount + (ally.isBoss ? 3 : 0);
@@ -1293,7 +1289,7 @@ export class AIController {
     )
       return null;
     const range = getEffectiveStaffRange(staff, healer);
-    const distance = gridDistance(healer.col, healer.row, target.col, target.row);
+    const distance = combatDistance(healer, target);
     if (distance < range.min || distance > range.max || target.currentHP >= target.stats.HP)
       return null;
     const result = resolveHeal(staff, healer, target);

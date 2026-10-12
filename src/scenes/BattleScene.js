@@ -221,6 +221,7 @@ import { findDanceRefreshTargets } from '../engine/ActionAbilitySystem.js';
 import {
   getTurnStartAffixes,
   getOnDeathAffixes,
+  deathburstVictims,
   getAttackAffixes,
   rollDefenseAffixes,
   settleTeleporterWarp,
@@ -9510,8 +9511,11 @@ export class BattleScene extends Phaser.Scene {
     try {
       for (const effect of deathEffects) {
         if (effect.type !== 'aoe_damage') continue;
-        const victims = [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits].filter(
-          (other) => gridDistance(deathCol, deathRow, other.col, other.row) <= (effect.range || 1),
+        // The Entity is caught beside any tile of its body (AffixSystem.deathburstVictims).
+        const victims = deathburstVictims(
+          { col: deathCol, row: deathRow },
+          [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits],
+          effect.range || 1,
         );
         for (const victim of victims) {
           if (victim.currentHP <= 0) continue;

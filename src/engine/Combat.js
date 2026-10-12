@@ -17,7 +17,7 @@ import { affixForecastNotes } from './AffixForecast.js';
 import { rollHit } from './HitRoll.js';
 import { rollDefenseAffixes } from './AffixSystem.js';
 import { isSleeping, isSilenced, isWounded, removeCondition } from './StatusConditionSystem.js';
-import { isEntity } from './EntitySystem.js';
+import { combatDistance, isEntity } from './EntitySystem.js';
 import { effectiveSkills } from './EffectiveSkills.js';
 import { absorbLethal } from './UnitHealth.js';
 import { bannerReadyFor } from './BattleBlessings.js';
@@ -371,9 +371,7 @@ export function getConditionalWeaponBonuses(weapon, unit, allAllies) {
   if (!special || !special.toLowerCase().includes('if no adjacent allies')) return result;
 
   const allies = Array.isArray(allAllies) ? allAllies : [];
-  const hasAdjacentAlly = allies.some(
-    (a) => a !== unit && gridDistance(unit.col, unit.row, a.col, a.row) === 1,
-  );
+  const hasAdjacentAlly = allies.some((a) => a !== unit && combatDistance(unit, a) === 1);
   if (hasAdjacentAlly) return result;
 
   const ifIdx = special.toLowerCase().indexOf('if');
