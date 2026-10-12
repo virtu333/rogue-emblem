@@ -24,6 +24,9 @@ import { riteCardBlock } from './RiteView.js';
 // DOM pieces shared by node travel and the read-only Campaign Map: the act header
 // (Cinzel title + pixel subline) and the inspect card for the selected knot.
 
+/** The final act's name on the loom while its map is the Descent's route. */
+export const DESCENT_ACT_NAME = 'The Descent';
+
 /** Act header block: "ACT I · BORDER MARCHES" in Cinzel, "BORDER SKIRMISHES · ROW 2 OF 8". */
 export function createLoomHeading({
   actId,
@@ -33,10 +36,12 @@ export function createLoomHeading({
   prefix = '',
   act = null,
   title: titleOverride = null,
+  nodeMap = null,
 }) {
   const info = loomHeader({
     actIndex,
-    actName: ACT_CONFIG[actId]?.name || '',
+    // The Descent's authored route is a whole act, not one "Final Battle".
+    actName: nodeMap?.descent ? DESCENT_ACT_NAME : ACT_CONFIG[actId]?.name || '',
     region: regionName(actId),
     rows,
     frontierRow,
