@@ -350,6 +350,20 @@ describe('signing out with an unfinished prologue', () => {
 });
 
 describe('localOnlyDiscardText', () => {
+  it('sign-out names a run in progress, not a prologue', () => {
+    expect(localOnlyDiscardText([{ slot: 1, kind: 'newFormat' }])).toBe(
+      "Your run in progress on Slot 1 stays on this device and can't be backed up yet. Signing out discards it.",
+    );
+    const both = localOnlyDiscardText([
+      { slot: 3, kind: 'newFormat' },
+      { slot: 1, kind: 'newFormat' },
+      { slot: 2, kind: 'prologue' },
+    ]);
+    expect(both).toContain('unfinished prologue on Slot 2 stays');
+    expect(both).toContain('runs in progress on Slots 1 and 3 stay');
+    expect(localOnlyDiscardText([{ slot: 2 }])).toContain('unfinished prologue on Slot 2');
+  });
+
   it('names each slot, once, in order', () => {
     expect(localOnlyDiscardText([])).toBe('');
     expect(localOnlyDiscardText([{ slot: 3 }])).toContain('unfinished prologue on Slot 3 stays');

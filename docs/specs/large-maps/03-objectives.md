@@ -1,7 +1,8 @@
 # 03 — Objectives v2: primary objectives, phases, bonus objectives
 
-Status: proposal, revision 4 (2026-10-09). Takes in the cross-review of the spec set and
-`05`'s notes (phases that keep the primary, `until` lists, bonus extensions, Vision).
+Status: proposal, revision 5 (2026-10-10). Takes in the cross-review of the spec set,
+`05`'s notes (phases that keep the primary, `until` lists, bonus extensions, Vision) and the
+owner's rung ladder of 2026-10-10 (README §6: no kit bonus in Act I or on First Light).
 Spec only: no game code or data changes.
 Branch `claude/large-maps-specs`. Part of the large-maps set ([README](README.md));
 roadmap Phase 3. It uses the README's shared names (`battleConfig.objectives`, the trigger
@@ -691,8 +692,9 @@ enemy-unit boundaries, not on every HP write, so a heal later in the same action
   one, since the village and the caravan exclude each other (`VillageSystem.js:46`).
 - Set pieces (04) declare theirs. Ordinary procedural maps keep only the derived village
   and caravan in v2 (open question 5). **Boss nodes are the exception** (`05` §6): every
-  boss map, procedural or v1 arena, may carry one bonus from its boss kit, beside a derived
-  village or caravan, within the cap of two.
+  boss map from Act II on Dusk and up, procedural or v1 arena, may carry one bonus from its
+  boss kit, beside a derived village or caravan, within the cap of two. Act I's bosses and
+  every First Light boss carry none (`05` §9.5, decided 2026-10-10).
 - None on a scripted battle, as villages and caravans already never appear there.
 - **A bonus never fights the primary.** Victory is taken on the action that completes the
   last phase (§4), so a bonus the player can reach only after that action asks them to
@@ -734,7 +736,7 @@ strip shows exactly what will be paid. The validator refuses any key outside thi
 | `gold: n` | `run.awardGold(n)` after burdens. Not multiplied, not garnished (as a contract reward), so "+300 G" means 300 | never |
 | `item: {…whole item}` | locked as a whole item object (names are identity; the `ItemNameMigration` walk must cover `battleConfigsByNodeId[*].objectives`, with a test), drawn at generation on `keyedBattleRandom(battleSeed, 'bonus:<id>')` from the act's loot pools; into the convoy | no room: paid as its sale value (`price × SHOP_SELL_RATIO`) and said so ("No room for Elixir: sold, +150 G"). No owed record and no hold on the party |
 | `forge: true` | one free forge step (`applyForge`) on the equipped weapon of the unit in `by`, the stat on `keyedBattleRandom(battleSeed, 'bonus-forge:<id>')` | not forgeable, or that unit has gone: `forgeFallbackGold[act]` |
-| `vision: 1` | +1 Vision charge, Act III+, at most once per act (`run.bonusVisionActs`, saved), on any Act III+ set-piece or boss-map bonus (owner decision, 2026-10-09; `05` §6) | the act already holds a paid bonus charge: the generator does not offer it (the reward choice below takes its other side), and the commit checks again and pays the `fallback` reward locked beside it, said so. Never on First Light: its boss maps carry kit bonuses (`05` §9.5) but are never offered Vision (validated). Never on the finale, after which nothing is spent |
+| `vision: 1` | +1 Vision charge, Act III+, at most once per act (`run.bonusVisionActs`, saved), on any Act III+ set-piece or boss-map bonus (owner decision, 2026-10-09; `05` §6) | the act already holds a paid bonus charge: the generator does not offer it (the reward choice below takes its other side), and the commit checks again and pays the `fallback` reward locked beside it, said so. Never on First Light: its boss maps carry no kit bonus at all (`05` §9.5: a First Light kit is its signature alone, decided 2026-10-10), and no other First Light bonus is offered Vision (validated). Never on the finale, after which nothing is spent |
 | `feat: true` | nothing: the victory band names it ("Feat: Unbloodied") and the run's records keep it (`bonusFeats`) | only on the finale (`05` §6), where nothing a reward pays outlives the battle; a finale bonus is always a feat (validated) |
 
 - **A reward choice resolved at generation** (`05` §6): `objectives.json`
@@ -1207,3 +1209,9 @@ Takes in the cross-review of the spec set.
 - **Old clients (review finding, P1).** `objectives` and `gateTerrain` are capabilities of the
   run-format guard (`04` §12.1); §14 names the PRs that depend on `04` PR A0, and says a derived
   or mirroring `objectiveState` is legacy-equivalent and not held.
+
+## Revision 5 changelog (2026-10-10)
+
+- The owner's rung ladder and the strict First Light reading (README §6, 2026-10-10; `05`
+  §9.5): kit bonuses on boss maps are Act II and later, Dusk and up; First Light boss maps
+  and Act I carry none (§7.2, §7.4's `vision` row).

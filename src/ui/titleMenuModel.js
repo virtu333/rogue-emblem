@@ -75,14 +75,17 @@ export function buildTitleMenu({
 }
 
 /**
- * The active, uncorrupted run Resume opens: the only one, or with several the most
+ * The active, uncorrupted run this client can load that Resume opens: the only one, or with several the most
  * recently saved (then `latestOf` counts them). Null when there is none, or when no
  * single run is known to be newest (a legacy save without a time, or a tie).
  */
 export function pickResumeSlot(slotSummaries = []) {
   if (slotSummaries.some((slot) => slot?.recoveryRequired || slot?.runCorrupt))
     return { requiresSelection: true };
-  const active = slotSummaries.filter((slot) => slot?.hasActiveRun && !slot.runCorrupt);
+  // A run this client cannot load (needsNewerClient) is never Resume's.
+  const active = slotSummaries.filter(
+    (slot) => slot?.hasActiveRun && !slot.runCorrupt && !slot.needsNewerClient,
+  );
   if (active.length === 1) return active[0];
   const newest = newestBy(active, (slot) => slot.savedAt);
   return newest ? { ...newest, latestOf: active.length } : null;
