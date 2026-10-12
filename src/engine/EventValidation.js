@@ -82,7 +82,7 @@ import { CONTRACT_EFFECT_TYPES, CONTRACT_GOALS } from './Contracts.js';
 import { joinClassBlock } from './EventJoin.js';
 import { REDRAW_TYPES } from './RouteEdit.js';
 import { TELL_WHEN_KEYS } from './EventTells.js';
-import { findSetPiece } from './SetPieces.js';
+import { findSetPiece, hasBossSlot } from './SetPieces.js';
 import {
   BURDEN_IDS,
   HUNTED_COUNT_MAX,
@@ -782,14 +782,26 @@ export function validateEventsConfig(config, data = {}) {
               err(where, 'battle.recruit.name must be 1-20 characters');
           }
         }
-        // A set piece (docs/specs/event-set-pieces.md): a known id, and never beside a green
-        // recruit (a set piece seats no NPC yet). Its acts and rung gates are checked by
+        // A set piece (docs/specs/event-set-pieces.md): a known id, never beside a green
+        // recruit (a set piece seats no NPC yet), and never one with a `boss: true` slot (that
+        // slot seats the act's boss, stones and all: a boss or elite node's fight, not a
+        // mid-act event's). Its acts and rung gates are checked by
         // SetPieces.validateSetPiecesConfig, which reads every event that names one.
         if (effect.setPiece !== undefined) {
+          const piece =
+            typeof effect.setPiece === 'string' && data.setPieces
+              ? findSetPiece(data.setPieces, effect.setPiece)
+              : null;
           if (typeof effect.setPiece !== 'string' || !effect.setPiece)
             err(where, 'battle.setPiece must be a set piece id');
-          else if (data.setPieces && !findSetPiece(data.setPieces, effect.setPiece))
+          else if (data.setPieces && !piece)
             err(where, `battle.setPiece: unknown set piece "${effect.setPiece}"`);
+          else if (piece && hasBossSlot(piece))
+            err(
+              where,
+              `battle.setPiece "${effect.setPiece}" has a boss slot (it seats the act's boss): ` +
+                'fought on a boss or elite node, never in an event',
+            );
           if (effect.recruit !== undefined)
             err(where, 'battle.setPiece cannot seat a recruit (no authored NPC tile yet)');
         }

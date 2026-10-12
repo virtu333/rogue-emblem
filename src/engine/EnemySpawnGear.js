@@ -14,10 +14,10 @@
 // * Nightfall and up: secondary weapons for multi-proficiency enemies without special gear;
 // * a boss spawn that names Revival Stones (`spawn.revivalStones`, RevivalStones.js).
 //
-// applySpawnLoadout then applies what an authored spawn (data/prologue.json) fixes by
-// hand: its weapon, its skills, its authored id and any stats it fixes (P4's Captain
-// Varro). Generated spawns carry none of these,
-// so for them it does nothing.
+// applySpawnLoadout then applies what an authored spawn (data/prologue.json, a set piece's
+// slot) fixes by hand: its weapon, its skills, its authored id, its name and any stats it
+// fixes (P4's Captain Varro). Generated spawns carry none of these, so for them it does
+// nothing.
 import { isStaff } from './Combat.js';
 import { canEquip, grantSecondaryWeapons } from './UnitManager.js';
 import { ensureItemUid } from '../utils/itemUid.js';
@@ -116,7 +116,10 @@ export function applyEnemySpawnGear(
  *   weapon draws no extra Math.random and the battle's stream is unchanged.
  * - `spawn.skills` (an array of skill ids): exactly those skills, replacing class-innate
  *   and rolled ones; `[]` means none. Ids unknown to `skills` (when given) are dropped.
- * - `spawn.authoredId`: copied to `enemy.authoredId` (prologue beats name enemies by it).
+ * - `spawn.authoredId`: copied to `enemy.authoredId` (prologue beats name enemies by it; a
+ *   `defeat` objective's refs, BattleObjectives.js).
+ * - `spawn.name`: the unit's name, for a named unit that is not a boss as for a boss (a set
+ *   piece slot's `name`: the Vigil's Voices).
  * - `spawn.stats` ({ <stat>: integer }): those stats replace what the class, level and
  *   a boss's bonus gave (any other stat stays). HP refills to the new maximum and MOV
  *   moves the unit's `mov`. Unknown stats and non-integers are ignored.
@@ -132,6 +135,7 @@ export function applySpawnLoadout(enemy, spawn, { weapons = [], skills = null } 
   if (typeof spawn.authoredId === 'string' && spawn.authoredId) {
     enemy.authoredId = spawn.authoredId;
   }
+  if (typeof spawn.name === 'string' && spawn.name.trim()) enemy.name = spawn.name;
   if (typeof spawn.weapon === 'string' && spawn.weapon) {
     const data = (weapons || []).find((w) => w?.name === spawn.weapon);
     if (!data) {

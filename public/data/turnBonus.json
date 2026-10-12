@@ -20,12 +20,14 @@
   "objectiveBasePar": {
     "rout": 2,
     "seize": 4,
-    "escape": 4
+    "escape": 4,
+    "defeat": 4
   },
   "objectiveAdjustments": {
     "rout": 0,
     "seize": 1,
-    "escape": 1
+    "escape": 1,
+    "defeat": 1
   },
   "brackets": [
     {

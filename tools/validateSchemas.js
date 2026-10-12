@@ -168,14 +168,15 @@ if (difficultyResult.valid) {
   failed = true;
 }
 
-// Validate the event set pieces (engine validator: maps, spawns, slots, waves, and the
-// events that name them, at every act and rung those events reach)
+// Validate the set pieces (engine validator: maps, spawns, slots, waves, objectives, the Vigil,
+// and the events that name them or the acts they name, at every act and rung they reach)
 const setPiecesResult = validateSetPiecesConfig(readData('setPieces.json'), {
   terrain: readData('terrain.json'),
   classes: readData('classes.json'),
   weapons: readData('weapons.json'),
   difficulty: readData('difficulty.json'),
   events: readData('events.json'),
+  enemies: readData('enemies.json'),
 });
 if (setPiecesResult.valid) {
   console.log('  OK  setPieces.json (engine validator)');

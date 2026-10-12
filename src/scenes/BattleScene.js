@@ -38,6 +38,12 @@ import {
   pendingRequiredRecruits,
   routObjectiveLabel,
 } from '../engine/RoutObjective.js';
+import {
+  evaluateObjectives,
+  objectiveKindOf,
+  objectivesOf,
+  remainingObjectiveTargets,
+} from '../engine/BattleObjectives.js';
 import { battleSpeed, waitDuration, waitTween } from '../utils/combatTiming.js';
 import {
   ENEMY_STEP_LABEL,
@@ -9483,9 +9489,10 @@ export class BattleScene extends Phaser.Scene {
       });
       if (
         shouldShowFelled({
-          objective: this.battleConfig.objective,
+          objective: objectiveKindOf(this.battleConfig),
           remaining: this.enemyUnits.length,
           reviving: this._zombieTombstones?.length || 0,
+          remainingTargets: remainingObjectiveTargets(this.battleConfig, this.objectiveField()),
         })
       )
         safeBattlePresentation('boss defeated banner', () => this._showBossDefeatedBanner(), {
@@ -11267,6 +11274,15 @@ export class BattleScene extends Phaser.Scene {
       this.onDefeat();
       return true;
     }
+    // A map with an objectives model (BattleObjectives.js: a defeat map) asks it, never the
+    // legacy string; its victory waits for the enemy phase's end as a rout's does.
+    const objectives = objectivesOf(this.battleConfig);
+    if (objectives) {
+      if (evaluateObjectives(objectives, this.objectiveField()).outcome !== 'victory') return false;
+      if (this._reinforcementsPendingThisTurn) return false;
+      this.onVictory();
+      return true;
+    }
     // Rout: all enemies dead (and every required recruit in the army) = victory.
     // In the enemy phase it waits for the phase's end, where a clear field cancels the
     // turn's wave (applyReinforcementsForTurn), so victory then follows.
@@ -11304,6 +11320,19 @@ export class BattleScene extends Phaser.Scene {
       }),
       playerUnits: this.playerUnits || [],
       escapedUnits: this.escapedUnits || [],
+    };
+  }
+
+  /**
+   * What the objectives model reads (BattleObjectives.js): the units on the field, and the
+   * config's spawns, which name a target that has fallen. The harness builds the same field.
+   */
+  objectiveField() {
+    return {
+      enemyUnits: this.enemyUnits || [],
+      playerUnits: this.playerUnits || [],
+      escapedUnits: this.escapedUnits || [],
+      spawns: this.battleConfig?.enemySpawns || [],
     };
   }
 
