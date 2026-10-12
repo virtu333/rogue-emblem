@@ -22,7 +22,7 @@ const allEventIds = data.events.events.map((e) => e.id);
 // never gates play: an event with no painting wears the plain band. The twelve Phase 2D events
 // all have theirs now; a future event goes on this list until its painting ships, and comes off it
 // in the commit that ships the painting.
-const PAINTING_PENDING = [];
+const PAINTING_PENDING = ['came_this_far'];
 const eventIds = allEventIds.filter((id) => !PAINTING_PENDING.includes(id));
 const sha = (buf) => createHash('sha256').update(buf).digest('hex').slice(0, 8);
 const read = (dir, f) => fs.readFileSync(path.join(dir, f));

@@ -63,7 +63,8 @@ describe('More Info: Par & Turn Ratings', () => {
       ['mire_crossing', 2],
     ]);
     const pieces = load('setPieces.json').setPieces;
-    expect(pieces.map((p) => [p.id, p.parBonus])).toEqual([
+    // Only the set pieces that add par turns (the Descent's add none).
+    expect(pieces.filter((p) => p.parBonus).map((p) => [p.id, p.parBonus])).toEqual([
       ['toll_house', 2],
       ['toll_crossing', 2],
     ]);

@@ -21,6 +21,7 @@
 import { NODE_TYPES } from '../utils/constants.js';
 import { createSeededRng } from './BlessingEngine.js';
 import { eclipseHash } from './EclipseSystem.js';
+import { isAuthoredNode } from './Descent.js';
 
 /**
  * The ids of every node the party can still walk to from `fromId` (forward along `edges`,
@@ -77,7 +78,9 @@ export function extraShopCandidates(nodeMap, { fromRow = 0, currentNodeId = null
         !node.eclipse &&
         node.darkOmen !== true &&
         // The Old Sanctum (engine/SanctumPass.js) is never turned into a shop.
-        node.sanctum !== true,
+        node.sanctum !== true &&
+        // Nor is a node an authored route placed (the Descent's, act-v-descent §2.3 rule 6).
+        !isAuthoredNode(node),
     )
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
