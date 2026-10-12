@@ -9,7 +9,7 @@
 // target of a combat can reach the 5× cap).
 
 import { strikeDamage } from './Combat.js';
-import { areaTilesFor, unitsOnTiles } from './AreaShapes.js';
+import { areaTilesFor, unitEntriesOnTiles } from './AreaShapes.js';
 import { timedBuffCombatMods } from './TimedWeaponArtBuffs.js';
 
 /** Weapon/art effectiveness an area blow can reach (owner decision 2026-10-01). */
@@ -32,10 +32,21 @@ export function areaBounds(world) {
  * One blow of `area` from `source` on `victim` (before any HP floor), struck with
  * `weapon` (the art's weapon; the equipped one when not given).
  */
-export function areaBlowDamage(source, victim, area, strikeMods, world, weapon = source?.weapon) {
+export function areaBlowDamage(
+  source,
+  victim,
+  area,
+  strikeMods,
+  world,
+  weapon = source?.weapon,
+  tileMultiplier = 1,
+) {
   const damage = area?.damage;
   if (!damage || !source || !victim) return 0;
-  if (damage.kind === 'fixed') return Math.max(0, Math.trunc(damage.amount) || 0);
+  // A tile's own share (a cone's rows): applied after the art-wide multiplier.
+  const share = Number.isFinite(tileMultiplier) && tileMultiplier >= 0 ? tileMultiplier : 1;
+  if (damage.kind === 'fixed')
+    return Math.max(0, Math.floor((Math.trunc(damage.amount) || 0) * share));
   const buffs = timedBuffCombatMods(victim);
   const terrain = world?.getTerrainAt?.(victim.col, victim.row) ?? null;
   let blow = strikeDamage(
@@ -52,7 +63,7 @@ export function areaBlowDamage(source, victim, area, strikeMods, world, weapon =
   const multiHit = strikeMods?.multiHit;
   if (blow > 0 && multiHit?.damageMultiplier > 0 && multiHit.damageMultiplier < 1)
     blow = Math.max(1, Math.floor(blow * multiHit.damageMultiplier));
-  return Math.max(0, Math.floor(blow * (Number(damage.multiplier) || 0)));
+  return Math.max(0, Math.floor(blow * (Number(damage.multiplier) || 0) * share));
 }
 
 function lowestHpPctFirst(a, b) {
@@ -70,13 +81,25 @@ function lowestHpPctFirst(a, b) {
  * nowhere else (the blows and Override's push both ask).
  */
 export function areaVictims({ source, primary = null, center = null, area, units = [], world }) {
+  return areaVictimEntries({ source, primary, center, area, units, world }).map((e) => e.unit);
+}
+
+/** areaVictims with the tile that reached each one (`{ unit, tile }`). */
+export function areaVictimEntries({
+  source,
+  primary = null,
+  center = null,
+  area,
+  units = [],
+  world,
+}) {
   if (!source || !area) return [];
   const tiles = areaTilesFor(
     area,
     { attacker: source, target: primary, center },
     areaBounds(world),
   );
-  return unitsOnTiles(tiles, (units || []).filter(isLive), { exclude: [primary, source] });
+  return unitEntriesOnTiles(tiles, (units || []).filter(isLive), { exclude: [primary, source] });
 }
 
 /**
@@ -104,11 +127,20 @@ export function planAreaBlows({
   weapon = null,
 }) {
   if (!source || !area) return [];
-  let victims = areaVictims({ source, primary, center, area, units, world });
-  if (area.pick === 'lowest_hp_pct') victims = [...victims].sort(lowestHpPctFirst);
-  if (area.maxTargets > 0) victims = victims.slice(0, area.maxTargets);
-  return victims.map((unit) => ({
+  let entries = areaVictimEntries({ source, primary, center, area, units, world });
+  if (area.pick === 'lowest_hp_pct')
+    entries = [...entries].sort((a, b) => lowestHpPctFirst(a.unit, b.unit));
+  if (area.maxTargets > 0) entries = entries.slice(0, area.maxTargets);
+  return entries.map(({ unit, tile }) => ({
     unit,
-    damage: areaBlowDamage(source, unit, area, strikeMods, world, weapon || source.weapon),
+    damage: areaBlowDamage(
+      source,
+      unit,
+      area,
+      strikeMods,
+      world,
+      weapon || source.weapon,
+      Number.isFinite(tile?.multiplier) ? tile.multiplier : 1,
+    ),
   }));
 }

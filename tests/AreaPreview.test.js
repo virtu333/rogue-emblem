@@ -4,6 +4,7 @@
 // Numbers are worked by hand from catalog stats quoted inline.
 import { describe, expect, it } from 'vitest';
 import { loadGameData } from './testData.js';
+import { LEGACY_DOOM_THRUST } from './helpers/legacyArts.js';
 import { areaForecastLines, previewAreaArt } from '../src/engine/AreaPreview.js';
 import { combatStrikeMods } from '../src/engine/Combat.js';
 import { getWeaponArtCombatMods } from '../src/engine/WeaponArtSystem.js';
@@ -15,7 +16,7 @@ import { forecastNotes } from '../src/ui/forecastDisplay.js';
 
 const data = loadGameData();
 const weapon = (name) => structuredClone(data.weapons.find((w) => w.name === name));
-const art = (id) => data.weaponArts.arts.find((a) => a.id === id);
+const art = (id) => [...data.weaponArts.arts, LEGACY_DOOM_THRUST].find((a) => a.id === id);
 
 const unit = (name, faction, col, row, stats = {}, extra = {}) => ({
   name,
@@ -281,7 +282,7 @@ describe('a hidden unit never changes the preview', () => {
       if (withHidden) units.push(unit('Lurker', 'enemy', 2, 1));
       return preview({
         attacker: lancer,
-        artId: 'legend_doom_thrust',
+        artId: 'fixture_doom_thrust', // the old Doom Thrust: a line at range 2
         target,
         units,
         fogged: ['2,1'],

@@ -1338,7 +1338,7 @@ export function getCombatForecast(
   const atkMultiHit = atkMods?.multiHit || null;
   const defMultiHit = defMods?.multiHit || null;
 
-  // Annihilate: either side's art neutralizes the weapon triangle for the whole combat
+  // `ignoreWeaponTriangle`: either side's art neutralizes the weapon triangle for the whole combat
   const fIgnoreTriangle = Boolean(atkMods?.ignoreWeaponTriangle || defMods?.ignoreWeaponTriangle);
   const atkTriangle =
     defWeapon && !fIgnoreTriangle
@@ -2005,7 +2005,7 @@ export function resolveCombat(
     : 0;
 
   // Pre-compute all the static combat values (with skill mods applied)
-  // Annihilate: either side's art neutralizes the weapon triangle for the whole combat
+  // `ignoreWeaponTriangle`: either side's art neutralizes the weapon triangle for the whole combat
   const ignoreTriangle = Boolean(atkMods?.ignoreWeaponTriangle || defMods?.ignoreWeaponTriangle);
   const atkTriangle =
     defWeapon && !ignoreTriangle

@@ -253,7 +253,7 @@ export const GENERATED_MECHANICS_REFERENCE = {
       "type": "Sword",
       "rankRequired": "Mast",
       "range": "1",
-      "special": "Attacks twice consecutively"
+      "special": ""
     },
     {
       "name": "Ragnarok",
