@@ -137,6 +137,16 @@ test('the fourth card is the gift: reached by keys, taken once, its catch kept t
   await gift.tap();
   await expect(gift).toHaveAttribute('aria-pressed', 'true');
   await shrine.getByRole('button', { name: 'Confirm', exact: true }).tap();
+  // The gift opens before the run begins: what the Hoard held, by name.
+  const reveal = page.getByRole('dialog', { name: 'Fallen Hoard', exact: true });
+  await expect(reveal).toBeVisible();
+  const held = await page.evaluate(() =>
+    window.__emblemRogueGame.scene
+      .getScene('BlessingSelect')
+      .runManager.accessories.map((a) => a.name),
+  );
+  for (const name of held) await expect(reveal.locator('.ch-footer-lead')).toContainText(name);
+  await reveal.getByRole('button', { name: 'Begin the run', exact: true }).tap();
   await waitForScene(page, 'NodeMap');
   const run = await routeRun(page);
   expect(run.gift).toBe('fallen_hoard');
@@ -171,6 +181,32 @@ test('the fourth card is the gift: reached by keys, taken once, its catch kept t
   await expect(list).toBeVisible();
   await expect(list.locator('li > strong').first()).toHaveText('Fallen Hoard · Gift');
   await expect(list).toContainText('Catch: Hunted for the next 3 battles');
+  expect(errors).toEqual([]);
+});
+
+test('the Sealed Reliquary shows the blessing it held before the run begins', async ({ page }) => {
+  // tests/StartGifts.test.js pins seed 3 -> the Sealed Reliquary.
+  const errors = pageErrors(page);
+  const shrine = await openShrine(page, 3);
+  const gift = shrine.locator('.ch-tarot[data-tier="gift"]');
+  await expect(gift.locator('.ch-tarot-name')).toHaveText('Sealed Reliquary');
+  await gift.tap();
+  await shrine.getByRole('button', { name: 'Confirm', exact: true }).tap();
+  const reveal = page.getByRole('dialog', { name: 'Sealed Reliquary', exact: true });
+  await expect(reveal).toBeVisible();
+  const held = await page.evaluate(() => {
+    const rm = window.__emblemRogueGame.scene.getScene('BlessingSelect').runManager;
+    const id = rm.activeBlessings[0]?.id;
+    return { id, name: rm.gameData.blessings.blessings.find((b) => b.id === id)?.name };
+  });
+  const card = reveal.locator('.ch-tarot');
+  await expect(card).toHaveAttribute('data-blessing', held.id);
+  await expect(card.locator('.ch-tarot-name')).toHaveText(held.name);
+  await expect(card.locator('.ch-cost')).toContainText('-1 Vision charge now');
+  // The run has not begun behind it; Begin begins it.
+  expect(await page.evaluate(() => window.__sceneState?.activeScene)).toBe('BlessingSelect');
+  await reveal.getByRole('button', { name: 'Begin the run', exact: true }).tap();
+  await waitForScene(page, 'NodeMap');
   expect(errors).toEqual([]);
 });
 
