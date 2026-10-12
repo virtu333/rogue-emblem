@@ -1,36 +1,52 @@
 # Act V, the Descent: sims and tuning
 
-Report of `npm run sim:descent` (2026-10-11) on `claude/descent-tuning`, based on
-`claude/descent-integration` at `20261ba3`. The route ships dark: every number here comes from a copy
-of the data with `descent.json` `enabled: true` made by the sim, never from the file.
+Report of `npm run sim:descent`, **re-run 2026-10-12 after #342 (elite captain levels)** on
+`claude/descent-retune-warden`, based on `claude/release-candidate` at `f4cc3de6` (main plus the Act V
+stack). Same protocol, cohorts, seeds and trial counts as the first run; every table below is the
+re-run. The route ships dark: every number here comes from a copy of the data with `descent.json`
+`enabled: true` made by the sim, never from the file.
+
+**Provenance of the old numbers.** The first run (2026-10-11, PR #337, `claude/descent-tuning` on
+`claude/descent-integration` at `20261ba3`) tuned the Rite, the Lieutenant route and the gate's stones
+while every promoted elite captain spawned about 10 levels low. Its key numbers are kept in short
+"Published" notes beside each table. Between the two bases more than #342 changed: Acts III and IV's
+elite captains (#342, so the armies arrive weaker), the growth upgrades (#312: +3% a tier, so a Home Base
+preset buys less), the agent's Entity geometry (#347) and the Entity's footprint and counter rules
+(#349, #321). The differences below are this base against the published report, not #342 alone; the
+Vigil's Warden is measured on its own in "The Warden".
 
 ## For the owner (summary)
 
 - 830 runs played Acts I–IV once; Act V then ran twice from each entry state (old two-node act, Descent), same dice, compared run by run. Players buy part of Home Base: without it the scripted player reaches Act V with 2 units.
-- Nightfall/Black Sun, mid-strength army: the Descent costs 17 / 27 points of "no commander fall in Act V" (with the gate's second stone). Four more fights at about Act IV's per-fight risk explain it. Counting stalls as losses, clear rate is unchanged (+3 / 0). Strong armies gain 7–16 points (XP, loot, the gate's Vision).
-- First Light: the shipped Descent was easier than the old act (+13 for a weak army). The Lieutenant route is now one level up: −3 (CI −11..+5). Strong First Light and Dusk armies clear both versions 97–99% of the time.
-- The Rite: shipped numbers sent 52–93% of finales in on Broken. First Light started at 0, so row-1 quieting (the Column at par, the side-stair events) was lost to the floor. Now: start +3 (Pale 3 … Hollow 9), bands 0–4 / 5–9 / 10+, Column at par −2. Nightfall reaches the Entity Broken/Spoken/Answered 28/53/19% (spec: a third/a half). Broken now needs a quick Vigil and a quieting choice.
-- The Lieutenant: 1 Revival Stone on Dusk (the Dusk Emperor also has 1) and 2 at the gate on Nightfall and Black Sun (their Emperors have 1 and 2). See "The second gate stone".
-- The Landing stays. §11's literal test says it is not needed: without it the gate is lost 12%, the act bosses 31%. But it makes Broken reachable on Nightfall (28% vs 5%) and moves no clear rate (paired −4 to +1, every CI spans 0).
-- Needs your eye: (1) the gate is still among the Descent's easiest fights with two stones (10% lost on Nightfall, 13% on Black Sun, 0% for the strong army), and an Answered Rite adds a third stone there; (2) engine issue, not touched: every promoted elite captain spawns about 10 levels low (`captainLevelFor`); the Vigil's Warden is promoted level 1 among level 3–8 guards; (3) the agent stalls most Entity fights at the turn cap, in both arms. That is the agent: it won't trade into the Entity's counter (10 expected damage dealt against 22 taken). It also has a footprint bug that inflates Entity commander falls (35% → 21% when fixed, same fights). That bug is not fixed here; see "Limits".
-- **Pairing fix (review).** Arms now pair by trial identity (rung, meta, fork, agent, stones, ruleset, seed), not by seed alone, and every table is per cell. Every table in this report was built per model and re-read by the fixed code with identical numbers: no published number changes. "Win, commander loss, stall" splits the strict reading. KO-free is not a win rate: on Nightfall and Black Sun the Descent's wins are level (+3, 0), and its cost is legacy stalls turning into commander falls (+15, +25).
-- **A correction found while adding the second stone.** An Act V replay used the Revival Stones table its capture had saved at run start, not the checkout's data. So the earlier tuning replays of Nightfall (the first 150 runs), Black Sun and the Nightfall endgame model played the gate with 0 stones, not the 1 this report named; only the 80 later Nightfall captures carried 1. The sim now reads the table from the data (`--stones` lays a count over it), and every Nightfall and Black Sun table below is re-run with the gate's two stones. Dusk (its legacy and Descent finales are the Lieutenant, 1 stone in the data) re-ran to the same clear rates and Rite bands, with two node rows moving in the second digit. The shipped column and First Light never involved stones.
+- **The armies arrive weaker and darker on this base.** Nightfall half meta: roster 4.8 (was 7.0), shadow 86 (was 74), and 46% of Act IV battles have a commander fall (was 29%). Black Sun: roster 4.3 (was 6.5). The strong models barely moved.
+- **The Warden does not move the Vigil above First Light.** The same entry states with the Warden at his old level: Vigil clear Δ −2.4 (Nightfall), +1.1 (Black Sun), −1.5 (Dusk), every CI spanning 0. On First Light he costs the weak army 18 points of Vigil clears (CI −31..−5) and 6 points of Act V (CI −11..−1). He is at the elite rule the spec names him for; no Warden number changed.
+- **One number changed: `rite.bands` Broken 0–5 / Spoken 6–9 / Answered 10+ (was 0–4 / 5–9 / 10+).** On this base the Nightfall half model reached the Entity Broken/Spoken/Answered 13/63/24% (published 28/53/19, spec: a third / a half); the Broken share fell outside the published interval. With the new edge: 22/53/24 (Broken CI 15–32). Moving the edges to Broken 0–6 / Spoken 7–10 would hit a third (33/51/16 offline) but make Broken the default for every other model (First Light strong 63%, Dusk 60%, Nightfall strong 78%), the problem #337's retune fixed. The +1 edge keeps the strong models where #337 left them (Nightfall strong 59%, published 58%).
+- Nightfall/Black Sun, mid-strength army: the Descent costs 23 / 22 points of "no commander fall in Act V" (published 17 / 27). Wins are level (strict +1.7 / +4.0); legacy stalls become commander falls (+20 / +21). Strong Nightfall armies win 14 points more often (published 16).
+- **First Light weak: the Descent is now 9 points harder than the old act** (11% against 20%, CI −15..−3; published −3, CI −11..+5). The Warden explains about 6 points of it. Lowering the Lieutenant route's filler half a level (`levelOffset` [1, 2]) was tried and not kept: +5 for this model, −4 for Dusk, both inside noise. Strong First Light (+2) and Dusk (−4.7, CI −10..+1) are unchanged within noise.
+- The Landing stays (gate lost 14% with it, 17% without, act bosses 30%; Broken at the Entity 22% with it, 12% without).
+- Needs your eye: (1) whether First Light's weak model should be at parity (the lever is the Warden's slot level, a design call, see "The Warden"); (2) the gate is still among the easiest fights (lost 14% Nightfall, 13% Black Sun, 1% strong); (3) Entity fights still stall at the cap: Nightfall 47% (legacy) and 56% (Descent), Black Sun 35% and 23% (the agent's limit, "Limits").
 
 ## What changed
 
 | Number | Before | After | Why (numbers below) |
 |---|---|---|---|
-| `descent.json` `rite.startByPhase` | Pale 0, Waning 1, Umbral 2, Totality 4, Hollow 6 | 3, 4, 5, 7, 9 | a lowering before the Vigil was lost to the floor (First Light always started at 0) |
-| `rite.bands` | Broken 0–4, Spoken 5–11, Answered 12+ | 0–4, 5–9, 10+ | Broken was the default (52–93% of finales); now Nightfall's split is the spec's |
-| `rite.underPar.column` | −1 | −2 | makes the fork a Rite decision (the Column ≈ the Seers' finish, above the Lantern) |
-| `routes.lieutenant.levelOffset` | [1, 1] | [2, 2] | the First Light / Dusk Descent was easier than the old act for weak and strong armies |
-| `difficulty.json` `revivalStones.lieutenant` | Dusk 0, Nightfall 0, Black Sun 0 | Dusk 1, Nightfall 2, Black Sun 2 | the Dusk finale had no stone while the Dusk Emperor (1), one act earlier, has one; the gate was as weightless as an elite. The second gate stone is the owner's call: "The second gate stone" |
-| `routes.entity.levelOffset` | [1, 1] | [1, 1] (tested [0, 0]) | one level changes Nightfall's cost by 2 points and Black Sun's by 4: the cost is the number of fights, not their levels |
+| `rite.bands` (this re-run) | Broken 0–4, Spoken 5–9, Answered 10+ | 0–5, 6–9, 10+ | after #342 Nightfall's Broken share at the Entity fell to 13% (published 28%); the smallest edge move back inside noise without Broken becoming the strong models' default |
+| `routes.lieutenant.levelOffset` (this re-run) | [2, 2] | [2, 2] (tested [1, 2]) | the First Light weak gap: +5 for that model, −4 for Dusk, both inside noise; not kept |
+| Warden of the Rite level (this re-run) | the elite rule (#342) | unchanged | paired: no effect above First Light; see "The Warden" |
+| `descent.json` `rite.startByPhase` (#337) | Pale 0, Waning 1, Umbral 2, Totality 4, Hollow 6 | 3, 4, 5, 7, 9 | a lowering before the Vigil was lost to the floor (First Light always started at 0) |
+| `rite.bands` (#337) | Broken 0–4, Spoken 5–11, Answered 12+ | 0–4, 5–9, 10+ | Broken was the default (52–93% of finales); the re-run moved it again (first row) |
+| `rite.underPar.column` (#337) | −1 | −2 | makes the fork a Rite decision (the Column ≈ the Seers' finish, above the Lantern) |
+| `routes.lieutenant.levelOffset` (#337) | [1, 1] | [2, 2] | the First Light / Dusk Descent was easier than the old act for weak and strong armies |
+| `difficulty.json` `revivalStones.lieutenant` (#337) | Dusk 0, Nightfall 0, Black Sun 0 | Dusk 1, Nightfall 2, Black Sun 2 | the Dusk finale had no stone while the Dusk Emperor (1), one act earlier, has one; the gate was as weightless as an elite. The second gate stone is the owner's call: "The second gate stone" |
+| `routes.entity.levelOffset` (#337) | [1, 1] | [1, 1] (tested [0, 0]) | one level changes Nightfall's cost by 2 points and Black Sun's by 4: the cost is the number of fights, not their levels |
 | `rite.perWordLevel` / `levelCap` (Hollowed) | 4 / 4 | 4 / 4 | the Vigil's clear rate did not move when the +3 start added about one Hollowed level |
-| Voice / Circle Adept levels | slot offset 0 | 0 | Voices are meant to be silenced fast; the Vigil is 88–100% for armies that arrive able |
+| Voice / Circle Adept levels | slot offset 0 | 0 | Voices are meant to be silenced fast; the Vigil is 87–99% for armies that arrive able |
 | The Landing row | kept | kept | see "The Landing" |
 
-Engine and sim changes (no game behaviour):
+The re-run changes no engine or sim code. Two unit tests that typed the band edges (`tests/Rite.test.js`,
+`tests/DescentValidation.test.js`) now read them from `descent.json`, as `tests/RiteUi.test.js` does.
+
+Engine and sim changes made by #337 (no game behaviour):
 - **Sim map parity.** The full-run drivers let the harness generate each map from the sim's own
   `Math.random` and never passed `isBoss`, so a boss map got a non-boss par and Hunted rule. The
   claiming driver also ignored a set piece's deploy cap. Now `RunSimulationDriver.battleConfigForNode`
@@ -42,19 +58,12 @@ Engine and sim changes (no game behaviour):
   It never takes a boss recruit at the gate (PostCombatController's rule). Its battle log records the
   Descent key, the Rite at entry and the Vigil's count.
 - `sim/descent.js` (`npm run sim:descent`). `fullrun-runner` gains the `quarter` and `half` meta presets.
-- **Pairing by trial (review fix).** The report paired the legacy and Descent arms by seed alone within
-  a rung, so a report over two cohorts that share seeds (Nightfall half and endgame meta: 200001–200100)
-  compared a legacy run with the other cohort's Descent run. Records now carry `fork`, `agent` and
-  `ruleset` beside `meta` and `stones`; arms pair by the whole identity (`sim/lib/DescentTrials.js`),
-  every table is grouped by cell, a duplicate identity throws and an unpaired record is counted.
-  `tests/sim/DescentTrials.test.js`. On a mixed input the old code read Nightfall's strict Δ as
-  +22.7 points; per cell it is +2.6 (half) and +9.0 (endgame) at one gate stone.
-  This report was not hit: each model's tables were built from its own files (no seed shared within a
-  rung and preset), and the fixed code re-reads every one to the same numbers. One input needed a
-  label: the two-stone tables pair Descent records replayed at 2 stones with legacy records replayed at
-  1. The fixed code puts those in separate cells. The gate's count cannot reach the legacy Nightfall
-  and Black Sun act (no Lieutenant in it): its records are identical at 0 and 1 stones, all 480. So the
-  re-read relabels the legacy records' stones before pairing.
+- **Pairing by trial (review fix).** Records carry `fork`, `agent` and `ruleset` beside `meta` and
+  `stones`; arms pair by the whole identity (`sim/lib/DescentTrials.js`), every table is grouped by
+  cell, a duplicate identity throws and an unpaired record is counted. `tests/sim/DescentTrials.test.js`.
+- **A correction found while adding the second stone.** An Act V replay used the Revival Stones table
+  its capture had saved at run start, not the checkout's data. The sim now reads the table from the
+  data (`--stones` lays a count over it).
 
 ## Method
 
@@ -68,13 +77,11 @@ Engine and sim changes (no game behaviour):
   - on Nightfall and Black Sun, also `nolanding` (the route minus the Landing row).
 
   Acts I–IV are identical across the arms (common random numbers). `--phase act5` replays Act V from
-  saved entry states, so each retune cost about 20 minutes, not hours. The replay plays the Revival
-  Stones table of the checkout's data (a run snapshots its table at its start; `--stones lieutenant=1`
-  lays a count over it).
-- **Player models.** Without Home Base the scripted player arrives at Act V with a median roster of 2
-  (150 First Light runs: median roster 2, shadow 65), which says nothing about the act. So each run buys
-  a share of every Home Base upgrade's levels (`--meta quarter|half|endgame`). A player reaches the
-  higher rungs only after buying some.
+  saved entry states, so a retune never replays Acts I–IV. The replay plays the Revival Stones table of
+  the checkout's data (`--stones lieutenant=1` lays a count over it).
+- **Player models.** Without Home Base the scripted player arrives at Act V with a median roster of 2,
+  which says nothing about the act. So each run buys a share of every Home Base upgrade's levels
+  (`--meta quarter|half|endgame`). A player reaches the higher rungs only after buying some.
 
   | Model | Rung, Home Base | Seeds |
   |---|---|---|
@@ -85,7 +92,6 @@ Engine and sim changes (no game behaviour):
   | Black Sun | Black Sun, endgame | 300001–300150 |
   | Nightfall strong | Nightfall, endgame | 200001–200100 |
 
-  At a quarter, Dusk and above collapse to 2 units as well. Black Sun at half collapses too (roster 3).
 - **Measures.** The casual commander lets every run reach its end. The report reads a run with
   permadeath:
   - **strict**: the act is cleared only if every Act V battle is won with no unrewound commander fall
@@ -97,8 +103,8 @@ Engine and sim changes (no game behaviour):
 
   Records pair by trial, not by seed (`sim/lib/DescentTrials.js`): rung, Home Base preset, fork, agent,
   the Revival Stones table, the ruleset (a hash of the game data the replay played) and the seed. Every
-  table is per cell (all of those but the seed): Nightfall half and endgame share seeds 200001–200100 and
-  are two cells. A duplicate identity throws; a record with no partner arm is counted and left out.
+  table is per cell (all of those but the seed). A duplicate identity throws; a record with no partner
+  arm is counted and left out. All 830 trials paired; no record failed.
 
   Per-node rates are among the runs that reached the node under permadeath. Intervals are 95%: Wilson
   for rates, normal for means and paired differences. The paired Δ is (Descent − legacy) per run, so the
@@ -113,146 +119,189 @@ Engine and sim changes (no game behaviour):
   ```
   `--stones` replays the Act V under a different stone count; without it the replay reads the data.
 
-  A capture takes 2–6 s per run and each Act V arm about 1 s, on two workers.
+  The re-run's wall time on a 4-core machine shared with other sessions (load 4–10): the 830 captures
+  took 45 minutes (two queues of two workers); each full set of Act V replays 25–40 minutes (four
+  single-worker queues); the Warden check and the two candidate retunes another 50 minutes. About two
+  hours in all. Skipped: the one-stone gate replay of "The second gate stone" (its numbers are #337's).
 
 ## The runs at Act V entry
 
-| player model | captured | roster | avg level | promoted | Vision | shadow | Act IV battles with a commander fall |
+| player model | captured | roster | avg level | promoted | Vision | shadow | last act before V: battles with a commander fall |
 |---|---|---|---|---|---|---|---|
-| First Light, quarter meta | 100 | 7.4 | 11.7 | 2.9 | 1.07 | 33 | 29% [25, 33] (Act III) |
-| First Light, half meta | 100 | 11.3 | 7.9 | 5.5 | 2.74 | 7 | not recorded |
-| Dusk, half meta | 150 | 12.1 | 10.9 | 7.5 | 1.53 | 36 | not recorded |
-| Nightfall, half meta | 230 | 7.0 | 13.6 | 3.7 | 1.18 | 74 | 29% [25, 33] |
-| Black Sun, endgame meta | 150 | 6.5 | 13.2 | 3.8 | 1.13 | 81 | not recorded |
-| Nightfall, endgame meta | 100 | 13.4 | 10.1 | 8.4 | 2.82 | 32 | not recorded |
+| First Light, quarter meta | 100 | 6.1 | 12.2 | 2.4 | 1.11 | 39 | 37% [33, 40] (Act III) |
+| First Light, half meta | 100 | 11.1 | 7.9 | 5.5 | 2.34 | 8 | 4% [3, 6] (Act III) |
+| Dusk, half meta | 150 | 9.9 | 12.0 | 6.0 | 1.31 | 49 | 10% [8, 12] |
+| Nightfall, half meta | 230 | 4.8 | 14.1 | 2.4 | 1.12 | 86 | 46% [44, 48] |
+| Black Sun, endgame meta | 150 | 4.3 | 13.0 | 2.6 | 1.07 | 90 | 56% [53, 59] |
+| Nightfall, endgame meta | 100 | 12.7 | 10.9 | 7.9 | 1.88 | 42 | 2% [1, 3] |
+
+Every capture reached Act V. Published (pre-#342), roster / shadow: First Light quarter 7.4 / 33, half
+11.3 / 7, Dusk 12.1 / 36, Nightfall half 7.0 / 74 (Act IV commander-fall battles 29%), Black Sun 6.5 / 81,
+Nightfall endgame 13.4 / 32. The mid-strength models lost two units and gained about a tenth of the
+Eclipse; the strong models are where they were.
 
 ## Clear rates: the old act against the Descent, before and after the retune
 
-"Before" is the Descent with the shipped numbers; "after" is the Descent with the numbers in this branch
-(the gate's two stones on Nightfall and Black Sun, Dusk's one). The legacy column is the old act, which
-none of the retune touches (the Dusk stone is in both arms).
+"Before" is the Descent with #337's numbers on this base; "after" is the Descent with this branch's
+bands. The legacy column is the old act, which the bands never touch. The bands only change the gate's
+and the finale's mods, so before and after differ only in the runs that reach a boss on a moved edge.
 
 | player model | n | legacy | Descent before | Δ before (pts) | Descent after | Δ after (pts) |
 |---|---|---|---|---|---|---|
 | **strict** | | | | | | |
-| First Light, quarter meta | 100 | 25% [18, 34] | 38% [29, 48] | +13.0 [+3.5, +22.5] | 22% [15, 31] | -3.0 [-11.1, +5.1] |
-| First Light, half meta | 100 | 94% [88, 97] | 98% [93, 99] | +4.0 [-1.5, +9.5] | 98% [93, 99] | +4.0 [-1.5, +9.5] |
-| Dusk, half meta | 150 | 97% [92, 99] | 99% [95, 100] | +2.0 [-0.9, +4.9] | 97% [93, 99] | +0.7 [-2.3, +3.6] |
-| Nightfall, half meta | 230 | 16% [12, 21] | 19% [14, 24] | +3.0 [-2.0, +8.1] | 19% [14, 24] | +3.0 [-1.8, +7.9] |
-| Black Sun, endgame meta | 150 | 31% [24, 39] | 28% [21, 36] | -3.3 [-10.4, +3.7] | 31% [24, 39] | 0.0 [-7.2, +7.2] |
-| Nightfall, endgame meta | 100 | 68% [58, 76] | 82% [73, 88] | +14.0 [+3.9, +24.1] | 84% [76, 90] | +16.0 [+6.9, +25.1] |
+| First Light, quarter meta | 100 | 20% [13, 29] | 10% [6, 17] | -10.0 [-16.5, -3.5] | 11% [6, 19] | -9.0 [-15.3, -2.7] |
+| First Light, half meta | 100 | 93% [86, 97] | 94% [88, 97] | +1.0 [-6.1, +8.1] | 95% [89, 98] | +2.0 [-4.8, +8.8] |
+| Dusk, half meta | 150 | 84% [77, 89] | 79% [72, 85] | -4.7 [-10.3, +1.0] | 79% [72, 85] | -4.7 [-10.3, +1.0] |
+| Nightfall, half meta | 230 | 11% [7, 16] | 14% [10, 19] | +3.0 [-0.9, +6.9] | 13% [9, 18] | +1.7 [-2.1, +5.6] |
+| Black Sun, endgame meta | 150 | 19% [13, 26] | 22% [16, 29] | +3.3 [-3.5, +10.1] | 23% [17, 30] | +4.0 [-2.7, +10.7] |
+| Nightfall, endgame meta | 100 | 58% [48, 67] | 72% [63, 80] | +14.0 [+4.8, +23.2] | 72% [63, 80] | +14.0 [+4.8, +23.2] |
 | **KO-free** | | | | | | |
-| First Light, quarter meta | 100 | 25% [18, 34] | 38% [29, 48] | +13.0 [+3.5, +22.5] | 22% [15, 31] | -3.0 [-11.1, +5.1] |
-| First Light, half meta | 100 | 94% [88, 97] | 98% [93, 99] | +4.0 [-1.5, +9.5] | 98% [93, 99] | +4.0 [-1.5, +9.5] |
-| Dusk, half meta | 150 | 97% [92, 99] | 99% [95, 100] | +2.0 [-0.9, +4.9] | 97% [93, 99] | +0.7 [-2.3, +3.6] |
-| Nightfall, half meta | 230 | 60% [53, 66] | 47% [41, 53] | -12.6 [-20.7, -4.5] | 43% [36, 49] | -17.0 [-24.4, -9.5] |
-| Black Sun, endgame meta | 150 | 71% [64, 78] | 47% [40, 55] | -24.0 [-32.8, -15.2] | 45% [37, 53] | -26.7 [-36.1, -17.3] |
-| Nightfall, endgame meta | 100 | 87% [79, 92] | 95% [89, 98] | +8.0 [+0.8, +15.2] | 94% [88, 97] | +7.0 [-0.5, +14.5] |
+| First Light, quarter meta | 100 | 20% [13, 29] | 10% [6, 17] | -10.0 [-16.5, -3.5] | 11% [6, 19] | -9.0 [-15.3, -2.7] |
+| First Light, half meta | 100 | 93% [86, 97] | 94% [88, 97] | +1.0 [-6.1, +8.1] | 95% [89, 98] | +2.0 [-4.8, +8.8] |
+| Dusk, half meta | 150 | 84% [77, 89] | 79% [72, 85] | -4.7 [-10.3, +1.0] | 79% [72, 85] | -4.7 [-10.3, +1.0] |
+| Nightfall, half meta | 230 | 58% [52, 64] | 36% [30, 42] | -22.6 [-29.6, -15.7] | 36% [30, 42] | -22.6 [-29.6, -15.7] |
+| Black Sun, endgame meta | 150 | 54% [46, 62] | 31% [24, 39] | -22.7 [-31.4, -13.9] | 32% [25, 40] | -22.0 [-30.7, -13.3] |
+| Nightfall, endgame meta | 100 | 90% [83, 94] | 91% [84, 95] | +1.0 [-6.1, +8.1] | 91% [84, 95] | +1.0 [-6.1, +8.1] |
+
+Published (pre-#342, after #337's retune), legacy / Descent / Δ strict: First Light quarter 25 / 22 / −3.0,
+half 94 / 98 / +4.0, Dusk 97 / 97 / +0.7, Nightfall half 16 / 19 / +3.0, Black Sun 31 / 31 / 0.0,
+Nightfall endgame 68 / 84 / +16.0; KO-free Δ Nightfall half −17.0, Black Sun −26.7, Nightfall endgame +7.0.
 
 Reading it:
-- **First Light.** The old finale (the Lieutenant on `eldritch_sanctum`: 12 foes at 13–18 plus 3 wave
-  spawns) is harder than the shipped Glass (8 escorts at Act III's late range plus one). Weak armies
-  cleared the shipped Descent 13 points *more* often than the old act. After the +1 level, they clear it
-  3 points less often. Strong armies clear either version.
-- **Dusk.** It saturates at this strength; the stone and the level leave it at the legacy rate (+0.7).
-- **Nightfall and Black Sun (mid-strength).** Both arms stall at the Entity in 65–80% of fights
-  (`turns − par` about +17), so the strict rate tells little. The KO-free rate is the cost: −17 and −27
-  points with the gate's second stone (−13 and −23 with one; the difference is inside the intervals). There are 4.5 more battles, each with a 7–21% chance of a lost battle (next table). In the
-  same models a plain Act IV battle has a commander fall 29% of the time, so no single Descent fight is
-  out of line. The cost is the number of fights.
-- **Nightfall strong.** +7 KO-free, +16 strict. The Entity is easier after the Descent (85% against 68%)
-  even on the Spoken band (81%). The difference is the army: three more fights' XP and loot, and the
-  gate's +1 Vision. The Entity rows are fresh dice after the gate, so they move by several points between
-  stone counts that cannot change them (strict +9 at one stone, +16 at two).
+- **First Light weak.** Both arms are harder (legacy 20%, was 25%), the Descent more so: −9 points, the
+  interval clear of 0. The Vigil costs most (41% cleared, was 61%), and the Warden is most of that
+  ("The Warden"). The Lieutenant route at `levelOffset` [1, 2] gave +5 here and −4 on Dusk (paired against
+  this branch, both CIs spanning 0), so no level was moved.
+- **First Light strong and Dusk.** Inside noise of parity. Dusk no longer saturates (legacy 84%, was 97%).
+- **Nightfall and Black Sun (mid-strength).** Wins are level; the KO-free cost is −23 and −22 points (the
+  published −17 and −27 lie inside these intervals). There are 4.5 more battles, each with
+  an 11–42% chance of a lost battle (per node table); the same models' Act IV battles have a commander fall
+  46% and 56% of the time, so no single Descent fight is out of line.
+- **Nightfall strong.** +14 strict, +1 KO-free: the Entity is easier after the Descent (75% against 58%),
+  the army having three more fights' XP and loot and the gate's +1 Vision.
 
 ## Win, commander loss, stall
 
-Each run read at its first lost battle (the strict reading split three ways). Same runs and stones as
-"after" above; paired Δ is Descent − legacy in points.
+Each run read at its first lost battle (the strict reading split three ways). Same runs as "after"
+above; paired Δ is Descent − legacy in points.
 
 | player model | arm | n | win | commander loss | stall | Δ win | Δ commander loss | Δ stall |
 |---|---|---|---|---|---|---|---|---|
-| Nightfall, half meta | legacy | 230 | 16% [12, 21] | 40% [34, 47] | 44% [38, 50] | | | |
-| Nightfall, half meta | Descent | 230 | 19% [14, 24] | 56% [49, 62] | 26% [20, 32] | +3.0 [-1.8, +7.9] | +15.2 [+7.6, +22.8] | -18.3 [-25.7, -10.8] |
-| Black Sun, endgame meta | legacy | 150 | 31% [24, 39] | 29% [22, 36] | 40% [33, 48] | | | |
-| Black Sun, endgame meta | Descent | 150 | 31% [24, 39] | 54% [46, 62] | 15% [10, 21] | 0.0 [-7.2, +7.2] | +25.3 [+15.8, +34.8] | -25.3 [-34.5, -16.2] |
-| Nightfall, endgame meta | legacy | 100 | 68% [58, 76] | 13% [8, 21] | 19% [13, 28] | | | |
-| Nightfall, endgame meta | Descent | 100 | 84% [76, 90] | 6% [3, 12] | 10% [6, 17] | +16.0 [+6.9, +25.1] | -7.0 [-14.5, +0.5] | -9.0 [-16.4, -1.6] |
+| Nightfall, half meta | legacy | 230 | 11% [7, 16] | 42% [36, 48] | 47% [41, 54] | | | |
+| Nightfall, half meta | Descent | 230 | 13% [9, 18] | 62% [55, 68] | 26% [20, 32] | +1.7 [-2.1, +5.6] | +20.0 [+12.9, +27.1] | -21.7 [-29.1, -14.3] |
+| Black Sun, endgame meta | legacy | 150 | 19% [13, 26] | 46% [38, 54] | 35% [28, 43] | | | |
+| Black Sun, endgame meta | Descent | 150 | 23% [17, 30] | 67% [59, 74] | 11% [7, 17] | +4.0 [-2.7, +10.7] | +20.7 [+11.9, +29.4] | -24.7 [-32.9, -16.4] |
+| Nightfall, endgame meta | legacy | 100 | 58% [48, 67] | 10% [6, 17] | 32% [24, 42] | | | |
+| Nightfall, endgame meta | Descent | 100 | 72% [63, 80] | 9% [5, 16] | 19% [13, 28] | +14.0 [+4.8, +23.2] | -1.0 [-8.1, +6.1] | -13.0 [-20.7, -5.3] |
 
-First Light and Dusk never stall in Act V (0–1%): their strict rate is their win rate (table above).
+First Light and Dusk almost never stall in Act V (0–2%): their strict rate is their win rate (table above).
+Published Δ commander loss: Nightfall half +15.2, Black Sun +25.3, Nightfall endgame −7.0.
 
 The two boss fights, among the runs that reached them under permadeath:
 
 | player model | fight | reached | win | commander loss | stall |
 |---|---|---|---|---|---|
-| Nightfall, half meta | Entity (legacy finale) | 230 | 16% [12, 21] | 40% [34, 47] | 44% [38, 50] |
-| Nightfall, half meta | Lieutenant gate (Descent) | 151 | 90% [84, 94] | 10% [6, 16] | 0% [0, 2] |
-| Nightfall, half meta | Entity (Descent) | 136 | 32% [24, 40] | 28% [21, 36] | 40% [33, 49] |
-| Black Sun, endgame meta | Entity (legacy finale) | 150 | 31% [24, 39] | 29% [22, 36] | 40% [33, 48] |
-| Black Sun, endgame meta | Lieutenant gate (Descent) | 94 | 87% [79, 93] | 13% [7, 21] | 0% [0, 4] |
-| Black Sun, endgame meta | Entity (Descent) | 82 | 57% [47, 67] | 20% [12, 29] | 23% [15, 33] |
-| Nightfall, endgame meta | Entity (legacy finale) | 100 | 68% [58, 76] | 13% [8, 21] | 19% [13, 28] |
-| Nightfall, endgame meta | Lieutenant gate (Descent) | 99 | 100% [96, 100] | 0% [0, 4] | 0% [0, 4] |
-| Nightfall, endgame meta | Entity (Descent) | 99 | 85% [76, 91] | 5% [2, 11] | 10% [6, 18] |
+| Nightfall, half meta | Entity (legacy finale) | 230 | 11% [7, 16] | 42% [36, 48] | 47% [41, 54] |
+| Nightfall, half meta | Lieutenant gate (Descent) | 109 | 86% [79, 91] | 14% [9, 21] | 0% [0, 3] |
+| Nightfall, half meta | Entity (Descent) | 94 | 31% [22, 41] | 13% [7, 21] | 56% [46, 66] |
+| Black Sun, endgame meta | Entity (legacy finale) | 150 | 19% [13, 26] | 46% [38, 54] | 35% [28, 43] |
+| Black Sun, endgame meta | Lieutenant gate (Descent) | 69 | 87% [77, 93] | 13% [7, 23] | 0% [0, 5] |
+| Black Sun, endgame meta | Entity (Descent) | 60 | 57% [44, 68] | 20% [12, 32] | 23% [14, 35] |
+| Nightfall, endgame meta | Entity (legacy finale) | 100 | 58% [48, 67] | 10% [6, 17] | 32% [24, 42] |
+| Nightfall, endgame meta | Lieutenant gate (Descent) | 97 | 99% [94, 100] | 1% [0, 6] | 0% [0, 4] |
+| Nightfall, endgame meta | Entity (Descent) | 96 | 75% [65, 83] | 5% [2, 12] | 20% [13, 29] |
 
 - **Mid-strength armies: the Descent trades stalls for commander losses, not wins for losses.** Wins
-  are level (+3, 0). The legacy act's stalls at the Entity become commander falls on the way down:
-  +15 points on Nightfall, +25 on Black Sun. This is the KO-free cost above read run by run (the KO-free
-  Δ, −17 / −27, also counts falls after a stall).
-- **Strong army:** +16 wins, with fewer commander losses and fewer stalls.
+  are level (+1.7, +4.0). The legacy act's stalls at the Entity become commander falls on the way down:
+  +20 points on Nightfall, +21 on Black Sun.
+- **Strong army:** +14 wins, with fewer stalls.
 - **The Entity, once reached, is no harder after the Descent.** The runs that reach it there are the
   ones that survived four fights, so these rows are not a paired comparison.
 - A stalled Entity fight runs 20–23 turns past par: the cap, not a near miss. See "Limits" for why.
+- Published: gate cleared 90% / 87% / 100%, Entity (Descent) 32% / 57% / 85%.
 
 ## The Rite
 
 The words at the finale (Lieutenant or Entity) among the runs that reached it under permadeath, with each
-version's own bands:
+version's own bands. "Before" is #337's bands (0–4 / 5–9 / 10+) on this base, "after" this branch's
+(0–5 / 6–9 / 10+).
 
-| player model | finale reached | before: Broken / Spoken / Answered | after: Broken / Spoken / Answered |
-|---|---|---|---|
-| First Light, quarter meta | 28 | 14% / 70% / 16% | 4% / 71% / 25% |
-| First Light, half meta | 99 | 75% / 24% / 1% | 35% / 64% / 1% |
-| Dusk, half meta | 147 | 76% / 24% / 0% | 18% / 79% / 3% |
-| Nightfall, half meta | 136 | 57% / 41% / 1% | 28% / 53% / 19% |
-| Black Sun, endgame meta | 82 | 52% / 47% / 1% | 11% / 71% / 18% |
-| Nightfall, endgame meta | 99 | 93% / 7% / 0% | 58% / 42% / 0% |
+| player model | finale reached | published (pre-#342): Broken / Spoken / Answered | before | after |
+|---|---|---|---|---|
+| First Light, quarter meta | 14 | 4% / 71% / 25% (28 reached) | 7% / 57% / 36% | 14% / 50% / 36% |
+| First Light, half meta | 95 | 35% / 64% / 1% | 29% / 67% / 3% | 49% / 47% / 3% |
+| Dusk, half meta | 124 | 18% / 79% / 3% | 21% / 67% / 12% | 42% / 46% / 12% |
+| Nightfall, half meta | 94 | 28% / 53% / 19% (136 reached) | 13% / 63% / 24% | 22% / 53% / 24% |
+| Black Sun, endgame meta | 60 | 11% / 71% / 18% (82 reached) | 5% / 62% / 33% | 12% / 55% / 33% |
+| Nightfall, endgame meta | 96 | 58% / 42% / 0% | 41% / 58% / 1% | 59% / 40% / 1% |
 
-- The spec's §11 target for Nightfall, about a third Broken and half Spoken, is now met (28 / 53 / 19).
-- Broken takes a quick Vigil (median 4 words, IQR 3–6) plus a quieting choice: the Column at par (−2),
-  the Seers' finish (−3, needs a staff) or the Lantern left burning (−1). On the side-stair branch the
-  Landing's event is a second chance.
-- **The floor finding.** With Pale at 0, every row-1 lowering on First Light was logged as `requested`
-  and lost: the Column and side-stair events gave 0 words in all 100 First Light runs. The +3 start keeps
-  them; with a start of at least 3, no lowering before the Vigil can reach the floor.
-- Answered comes from a slow Vigil. It is rare for strong armies and common for the weak First Light
-  model (25%), whose Vigil runs a median 6 words, IQR 5–11.
+- **The target.** Spec §11: about a third of Nightfall runs reach the Entity on Broken, half on Spoken.
+  #337 met it at 28 / 53 / 19. On this base, #337's bands gave 13% Broken (CI 7–21): outside the published
+  interval (21–36) and far from a third. The +1 edge gives 22 / 53 / 24 (Broken CI 15–32).
+- **Why the Broken share fell.** Not the Vigil: among the runs that reach it the Vigil is as quick as
+  before (median 5 words, was 4) and the Warden moves nothing ("The Warden"). The runs start darker: at the
+  Entity half the Nightfall runs entered Act V in Totality (start 7) and another third in Umbral (5); from 7,
+  Broken needs a Vigil of about two words. Lowering Totality's start to 5 or 6 moves Broken by a point
+  (offline), because the Broken runs are the Umbral starts.
+- **Why not further.** Broken 0–6 / Spoken 7–10 hits the target (33 / 51 / 16, offline over the same runs)
+  and sends 63% of First Light strong, 60% of Dusk and 78% of Nightfall strong finales in on Broken. The
+  Column at −3 alone gives Nightfall 17% Broken; with the +1 edge 26%, but Nightfall strong 70% and Dusk
+  53%: two numbers moved for four points.
+- Broken still takes a quick Vigil plus a quieting choice: the Column at par (−2), the Seers' finish
+  (−3, needs a staff) or the Lantern left burning (−1). On the side-stair branch the Landing's event is a
+  second chance. With a start of at least 3, no lowering before the Vigil can reach the floor.
+- Answered comes from a slow Vigil. It is common for the weak models (First Light quarter 36%, Black Sun
+  33%), whose Vigils run long.
 
-The Vigil (final numbers; the strict-reached Vigils):
+The Vigil (the strict-reached Vigils; the bands do not touch it, so before and after are the same):
 
 | player model | Vigils fought (strict) | words, median (IQR) | Hollowed called, mean | cleared | stalled | Rite start, mean |
 |---|---|---|---|---|---|---|
-| First Light, quarter | 46 | 6 (5–11) | 6.2 | 61% [46, 74] | 2% [0, 11] | 3.83 |
-| First Light, half | 99 | 4 (3–4) | 3.9 | 100% [96, 100] | 0% [0, 4] | 3.00 |
-| Dusk, half | 149 | 4 (3–4) | 3.8 | 99% [95, 100] | 0% [0, 3] | 4.03 |
-| Nightfall, half | 170 | 4 (3–6) | 4.6 | 89% [83, 93] | 2% [1, 5] | 5.95 |
-| Black Sun, endgame | 107 | 4 (3–5) | 4.4 | 88% [80, 93] | 0% [0, 3] | 6.25 |
-| Nightfall, endgame | 100 | 4 (3–4) | 3.5 | 99% [95, 100] | 0% [0, 4] | 3.82 |
+| First Light, quarter | 34 | 12 (6–25) | 7.0 | 41% [26, 58] | 6% [2, 19] | 3.94 |
+| First Light, half | 99 | 4 (3–5) | 4.5 | 96% [90, 98] | 0% [0, 4] | 3.02 |
+| Dusk, half | 132 | 4 (3–5) | 4.1 | 94% [88, 97] | 0% [0, 3] | 4.51 |
+| Nightfall, half | 125 | 5 (4–6) | 5.0 | 87% [80, 92] | 4% [2, 9] | 6.19 |
+| Black Sun, endgame | 89 | 5 (4–12) | 5.4 | 78% [68, 85] | 2% [1, 8] | 6.66 |
+| Nightfall, endgame | 98 | 4 (3–4) | 3.6 | 99% [94, 100] | 0% [0, 4] | 4.28 |
+
+Published cleared: 61% / 100% / 99% / 89% / 88% / 99% (words median 6 / 4 / 4 / 4 / 4 / 4).
+
+### The Warden
+
+The Warden of the Rite (Dark Knight, `guard`, the inner ring) is the only promoted captain in the
+Descent's set pieces (the gate's Lieutenant is a seated boss at his route's level). #342 put him at the
+elite rule, the battle's range top plus one, about ten levels above where he stood. To measure him alone,
+every capture replayed the Descent with his slot at `level: -10` (his pre-#342 level) in a scratch copy of
+the data, paired against this base (same entry states, same stream):
+
+| player model | Vigil cleared, Warden now / old | Vigil cleared, paired Δ (pts) | Act V strict, paired Δ (pts) |
+|---|---|---|---|
+| First Light, quarter meta | 41% / 59% | -17.6 [-30.7, -4.6] (34) | -6.0 [-10.7, -1.3] |
+| First Light, half meta | 96% / 100% | -4.0 [-7.9, -0.1] (99) | -4.0 [-8.8, +0.8] |
+| Dusk, half meta | 94% / 95% | -1.5 [-5.2, +2.1] (132) | +0.7 [-4.1, +5.4] |
+| Nightfall, half meta | 87% / 90% | -2.4 [-8.5, +3.7] (125) | +1.7 [-2.4, +5.9] |
+| Black Sun, endgame meta | 78% / 76% | +1.1 [-6.9, +9.1] (89) | -2.0 [-6.7, +2.7] |
+
+- He bites only on First Light, where a weak army meets him at the centre of the ring. From Dusk up the
+  guards and the Voices decide the Vigil; Nightfall's Rite at the Entity is 12 / 66 / 22 with the old
+  Warden against 13 / 63 / 24 now.
+- The spec names him "the captain, guarding the inner ring": the elite rule is his intended level. A slot
+  `level` below it would be a design choice for First Light, not a bug fix, so it is left to the owner.
 
 The finale by band (Nightfall, half meta). These rows are observational: a band is the result of a run's
 earlier play, not a random draw, so Broken runs are not the same population as Answered ones.
 
 | node | band | reached | cleared (strict) | no commander fall | deaths/battle |
 |---|---|---|---|---|---|
-| gate | Broken | 39 | 97% [87, 100] | 97% [87, 100] | 0.21 |
-| gate | Spoken | 78 | 92% [84, 96] | 92% [84, 96] | 0.44 |
-| gate | Answered | 34 | 76% [60, 88] | 76% [60, 88] | 0.71 |
-| Entity | Broken | 38 | 32% [19, 47] | 71% [55, 83] | 1.87 |
-| Entity | Spoken | 72 | 39% [28, 50] | 75% [64, 84] | 1.93 |
-| Entity | Answered | 26 | 12% [4, 29] | 65% [46, 81] | 3.31 |
+| gate | Broken | 21 | 100% [85, 100] | 100% [85, 100] | 0.33 |
+| gate | Spoken | 53 | 94% [85, 98] | 94% [85, 98] | 0.57 |
+| gate | Answered | 35 | 66% [49, 79] | 66% [49, 79] | 0.60 |
+| Entity | Broken | 21 | 19% [8, 40] | 81% [60, 92] | 0.95 |
+| Entity | Spoken | 50 | 36% [24, 50] | 90% [79, 96] | 1.24 |
+| Entity | Answered | 23 | 30% [16, 51] | 87% [68, 95] | 1.74 |
 
 The Answered gate (+1 stone on top of the rung's two, so three, and a turn-4 wave of 2 Hollowed) is the
-one band effect large enough to see (76% against 92–97%). The Entity's band rows are dominated by stalls.
+one band effect large enough to see (66% against 94–100%). The Entity's band rows are dominated by stalls.
 
 ## Per node (final numbers)
 
@@ -262,76 +311,78 @@ deaths and `turns − par` are over every battle fought there, including those f
 
 | player model | node | reached | cleared | no commander fall | stall | deaths/battle | turns − par |
 |---|---|---|---|---|---|---|---|
-| First Light, quarter meta (legacy) | old finale | 100 | 25% [18, 34] | 25% [18, 34] | 19% [13, 28] | 4.54 | +7.2 |
-| First Light, quarter meta (descent) | stair | 100 | 57% [47, 66] | 58% [48, 67] | 18% [12, 27] | 2.74 | +3.8 |
-| First Light, quarter meta (descent) | column | 31 | 65% [47, 79] | 49% [36, 63] | 16% [9, 29] | 1.14 | +4.0 |
-| First Light, quarter meta (descent) | vigil | 46 | 61% [46, 74] | 39% [30, 49] | 6% [3, 12] | 0.76 | -2.2 |
-| First Light, quarter meta (descent) | lieutenant | 28 | 79% [60, 90] | 35% [26, 45] | 8% [4, 15] | 2.79 | +6.9 |
-| First Light, half meta (legacy) | old finale | 100 | 94% [88, 97] | 94% [88, 97] | 0% [0, 4] | 0.55 | -3.0 |
-| First Light, half meta (descent) | stair | 100 | 99% [95, 100] | 99% [95, 100] | 0% [0, 4] | 0.14 | -3.9 |
-| First Light, half meta (descent) | column | 48 | 100% [93, 100] | 100% [93, 100] | 0% [0, 7] | 0.31 | -4.0 |
-| First Light, half meta (descent) | vigil | 99 | 100% [96, 100] | 100% [96, 100] | 0% [0, 4] | 0.04 | -8.4 |
-| First Light, half meta (descent) | lieutenant | 99 | 99% [94, 100] | 99% [95, 100] | 0% [0, 4] | 0.16 | -3.2 |
-| Dusk, half meta (legacy) | old finale | 150 | 97% [92, 99] | 97% [92, 99] | 0% [0, 2] | 0.39 | -1.0 |
-| Dusk, half meta (descent) | stair | 150 | 99% [96, 100] | 99% [96, 100] | 0% [0, 2] | 0.09 | -3.9 |
-| Dusk, half meta (descent) | column | 75 | 100% [95, 100] | 100% [95, 100] | 0% [0, 5] | 0.12 | -3.4 |
-| Dusk, half meta (descent) | vigil | 149 | 99% [95, 100] | 98% [94, 99] | 0% [0, 2] | 0.07 | -8.5 |
-| Dusk, half meta (descent) | lieutenant | 147 | 99% [96, 100] | 98% [94, 99] | 0% [0, 2] | 0.23 | -1.1 |
-| Nightfall, half meta (legacy) | old finale | 230 | 16% [12, 21] | 60% [53, 66] | 81% [75, 85] | 1.91 | +17.4 |
-| Nightfall, half meta (descent) | stair | 230 | 79% [73, 84] | 80% [74, 85] | 7% [4, 10] | 0.56 | -1.1 |
-| Nightfall, half meta (descent) | column | 89 | 87% [78, 92] | 70% [61, 77] | 9% [5, 15] | 0.46 | +0.3 |
-| Nightfall, half meta (descent) | vigil | 170 | 89% [83, 93] | 73% [67, 79] | 5% [3, 8] | 0.25 | -5.2 |
-| Nightfall, half meta (descent) | gate | 151 | 90% [84, 94] | 63% [57, 69] | 2% [1, 4] | 0.38 | -1.0 |
-| Nightfall, half meta (descent) | entity | 136 | 32% [24, 40] | 58% [52, 64] | 75% [69, 80] | 2.54 | +16.4 |
-| Black Sun, endgame meta (legacy) | old finale | 150 | 31% [24, 39] | 71% [64, 78] | 66% [58, 73] | 1.57 | +17.7 |
-| Black Sun, endgame meta (descent) | stair | 150 | 77% [70, 83] | 79% [71, 84] | 5% [3, 10] | 0.54 | -0.8 |
-| Black Sun, endgame meta (descent) | column | 58 | 84% [73, 92] | 75% [64, 83] | 7% [3, 15] | 0.47 | +0.6 |
-| Black Sun, endgame meta (descent) | vigil | 107 | 88% [80, 93] | 70% [62, 77] | 7% [4, 13] | 0.17 | -4.6 |
-| Black Sun, endgame meta (descent) | gate | 94 | 87% [79, 93] | 60% [52, 67] | 1% [0, 4] | 0.38 | -1.2 |
-| Black Sun, endgame meta (descent) | entity | 82 | 57% [47, 67] | 62% [54, 69] | 59% [51, 66] | 2.04 | +16.3 |
-| Nightfall, endgame meta (legacy) | old finale | 100 | 68% [58, 76] | 87% [79, 92] | 27% [19, 36] | 0.89 | +7.2 |
-| Nightfall, endgame meta (descent) | stair | 100 | 100% [96, 100] | 100% [96, 100] | 0% [0, 4] | 0.02 | -4.9 |
-| Nightfall, endgame meta (descent) | column | 49 | 100% [93, 100] | 100% [93, 100] | 0% [0, 7] | 0.06 | -4.5 |
-| Nightfall, endgame meta (descent) | vigil | 100 | 99% [95, 100] | 99% [95, 100] | 0% [0, 4] | 0.02 | -8.7 |
-| Nightfall, endgame meta (descent) | gate | 99 | 100% [96, 100] | 100% [96, 100] | 0% [0, 4] | 0.03 | -6.6 |
-| Nightfall, endgame meta (descent) | entity | 99 | 85% [76, 91] | 95% [89, 98] | 15% [9, 23] | 0.71 | +4.0 |
+| First Light, quarter meta (legacy) | old finale | 100 | 20% [13, 29] | 20% [13, 29] | 21% [14, 30] | 4.33 | +8.5 |
+| First Light, quarter meta (descent) | stair | 100 | 45% [36, 55] | 45% [36, 55] | 22% [15, 31] | 2.75 | +5.2 |
+| First Light, quarter meta (descent) | column | 21 | 48% [28, 68] | 24% [15, 38] | 29% [18, 42] | 1.16 | +7.5 |
+| First Light, quarter meta (descent) | vigil | 34 | 41% [26, 58] | 21% [14, 30] | 13% [8, 21] | 0.58 | +2.1 |
+| First Light, quarter meta (descent) | lieutenant | 14 | 79% [52, 92] | 22% [15, 31] | 8% [4, 15] | 2.73 | +8.7 |
+| First Light, half meta (legacy) | old finale | 100 | 93% [86, 97] | 93% [86, 97] | 0% [0, 4] | 1.07 | -1.7 |
+| First Light, half meta (descent) | stair | 100 | 99% [95, 100] | 99% [95, 100] | 0% [0, 4] | 0.30 | -3.6 |
+| First Light, half meta (descent) | column | 48 | 100% [93, 100] | 100% [93, 100] | 0% [0, 7] | 0.37 | -3.9 |
+| First Light, half meta (descent) | vigil | 99 | 96% [90, 98] | 96% [90, 98] | 0% [0, 4] | 0.24 | -7.9 |
+| First Light, half meta (descent) | lieutenant | 95 | 100% [96, 100] | 100% [96, 100] | 0% [0, 4] | 0.26 | -2.5 |
+| Dusk, half meta (legacy) | old finale | 150 | 84% [77, 89] | 84% [77, 89] | 1% [0, 5] | 0.91 | +0.9 |
+| Dusk, half meta (descent) | stair | 150 | 91% [85, 94] | 91% [86, 95] | 1% [0, 4] | 0.35 | -2.7 |
+| Dusk, half meta (descent) | column | 70 | 94% [86, 98] | 92% [84, 96] | 1% [0, 7] | 0.23 | -1.9 |
+| Dusk, half meta (descent) | vigil | 132 | 94% [88, 97] | 84% [77, 89] | 2% [1, 6] | 0.26 | -6.8 |
+| Dusk, half meta (descent) | lieutenant | 124 | 96% [91, 98] | 87% [81, 92] | 0% [0, 2] | 0.69 | +0.9 |
+| Nightfall, half meta (legacy) | old finale | 230 | 11% [7, 16] | 58% [52, 64] | 87% [82, 90] | 1.30 | +17.8 |
+| Nightfall, half meta (descent) | stair | 230 | 58% [52, 64] | 60% [54, 66] | 15% [11, 20] | 0.67 | +1.9 |
+| Nightfall, half meta (descent) | column | 66 | 86% [76, 93] | 54% [45, 63] | 17% [12, 25] | 0.41 | +3.8 |
+| Nightfall, half meta (descent) | vigil | 125 | 87% [80, 92] | 54% [48, 61] | 11% [8, 16] | 0.26 | -1.9 |
+| Nightfall, half meta (descent) | gate | 109 | 86% [79, 91] | 43% [37, 50] | 3% [1, 6] | 0.27 | +1.5 |
+| Nightfall, half meta (descent) | entity | 94 | 31% [22, 41] | 55% [49, 62] | 83% [78, 87] | 2.13 | +17.1 |
+| Black Sun, endgame meta (legacy) | old finale | 150 | 19% [13, 26] | 54% [46, 62] | 77% [70, 83] | 1.25 | +19.2 |
+| Black Sun, endgame meta (descent) | stair | 150 | 63% [55, 70] | 63% [55, 71] | 14% [9, 20] | 0.67 | +2.5 |
+| Black Sun, endgame meta (descent) | column | 46 | 89% [77, 95] | 56% [45, 67] | 13% [7, 23] | 0.31 | +3.5 |
+| Black Sun, endgame meta (descent) | vigil | 89 | 78% [68, 85] | 51% [43, 59] | 10% [6, 16] | 0.14 | -1.8 |
+| Black Sun, endgame meta (descent) | gate | 69 | 87% [77, 93] | 45% [37, 53] | 1% [0, 5] | 0.25 | +2.1 |
+| Black Sun, endgame meta (descent) | entity | 60 | 57% [44, 68] | 45% [38, 53] | 72% [64, 79] | 2.41 | +18.1 |
+| Nightfall, endgame meta (legacy) | old finale | 100 | 58% [48, 67] | 90% [83, 94] | 34% [25, 44] | 0.76 | +7.8 |
+| Nightfall, endgame meta (descent) | stair | 100 | 100% [96, 100] | 100% [96, 100] | 0% [0, 4] | 0.07 | -4.7 |
+| Nightfall, endgame meta (descent) | column | 49 | 96% [86, 99] | 96% [86, 99] | 0% [0, 7] | 0.18 | -4.1 |
+| Nightfall, endgame meta (descent) | vigil | 98 | 99% [94, 100] | 97% [92, 99] | 0% [0, 4] | 0.08 | -8.5 |
+| Nightfall, endgame meta (descent) | gate | 97 | 99% [94, 100] | 97% [92, 99] | 0% [0, 4] | 0.12 | -6.0 |
+| Nightfall, endgame meta (descent) | entity | 96 | 75% [65, 83] | 93% [86, 97] | 23% [16, 32] | 0.62 | +5.1 |
 
-Before the retune, the First Light weak model's nodes were: Stair 75%, Column 78%, Vigil 64%,
-Lieutenant 88%. The +1 level costs most at the Stair (75% → 57%). For every other model the nodes are
-within a point or two of the shipped numbers, except the gate, which is 5 and 7 points lower than the
-shipped gate on Nightfall and Black Sun (95% and 94% with no stone, 90% and 87% with two). The Entity
-rows are fresh dice after the gate: they differ between stone counts by chance.
+Published "cleared" (Stair / Vigil / gate or Lieutenant / Entity): First Light quarter 57 / 61 / 79,
+half 99 / 100 / 99, Dusk 99 / 99 / 99, Nightfall half 79 / 89 / 90 / 32, Black Sun 77 / 88 / 87 / 57,
+Nightfall endgame 100 / 99 / 100 / 85. The mid-strength models lose most at the Stair (the first fight,
+21 and 14 points lower): the army that arrives is smaller.
 
 ## The Landing
 
 Spec §11: keep it only if the gate's loss rate without it is above the act bosses'.
 
-| player model | gate lost, with Landing | gate lost, without | Act V KO-free, with | without | paired Δ (pts) | Broken at finale, with / without | act bosses lost (Acts III–IV, same model) |
+| player model | gate lost, with Landing | gate lost, without | Act V KO-free, with | without | paired Δ (pts) | Broken at finale, with / without | act bosses lost (Acts I–IV, same model) |
 |---|---|---|---|---|---|---|---|
-| Nightfall, half meta | 10% [6, 16] | 12% [8, 18] | 43% [36, 49] | 46% [40, 53] | -3.5 [-9.4, +2.4] | 28% / 5% | 31% [24, 38] |
-| Black Sun, endgame meta | 13% [7, 21] | 11% [6, 18] | 45% [37, 53] | 49% [41, 57] | -4.0 [-11.4, +3.4] | 11% / 4% | 31% [26, 37] |
-| Nightfall, endgame meta | 0% [0, 4] | 0% [0, 4] | 94% [88, 97] | 93% [86, 97] | +1.0 [-4.2, +6.2] | 58% / 25% | 2% [1, 4] |
+| Nightfall, half meta | 14% [9, 21] | 17% [11, 25] | 36% [30, 42] | 34% [28, 40] | +1.7 [-2.6, +6.1] | 22% / 12% | 30% [27, 33] |
+| Black Sun, endgame meta | 13% [7, 23] | 19% [11, 30] | 32% [25, 40] | 34% [27, 42] | -2.0 [-7.7, +3.7] | 12% / 5% | 32% [29, 36] |
+| Nightfall, endgame meta | 1% [0, 6] | 0% [0, 4] | 91% [84, 95] | 96% [90, 98] | -5.0 [-9.3, -0.7] | 59% / 38% | 3% [2, 5] |
 
-- **By the literal test, the Landing is not needed for the gate.** Without it, the gate is lost 12%
-  (Nightfall) and 11% (Black Sun), well below the act bosses' 31%.
-- **It stays.** It moves no clear rate (paired Δ −4 to +1 points, every CI spanning 0). On Nightfall
-  and Black Sun it is the act's last Rite choice, made after the Vigil's words are known; without it,
-  Broken nearly vanishes there (28% → 5%, 11% → 4%).
-- If it were cut, the bands would need retuning to keep the §11 target.
+- **By the literal test, the Landing is not needed for the gate.** Without it, the gate is lost 17%
+  (Nightfall) and 19% (Black Sun), below the act bosses' 30–32%.
+- **It stays.** It moves no mid-strength clear rate (paired Δ +2 and −2, both CIs spanning 0; the strong
+  army's −5 is a draw at the Entity, fresh dice after the gate). On Nightfall and Black Sun it is the act's
+  last Rite choice, made after the Vigil's words are known; without it Broken falls to 12% and 5%.
+- Published: gate lost 10% / 13% / 0% with, 12% / 11% / 0% without; Broken with / without 28 / 5, 11 / 4,
+  58 / 25.
 
 ## The gate and the Lieutenant's stones
 
-- **Dusk (1, was 0).** The Dusk finale had no stone while the Dusk Emperor, one act earlier, has 1.
-  At half meta the legacy finale is cleared 97% of the time and the Descent 99% before the stone and
-  97% after (Δ +0.7 against the old act), so the stone matters to weaker armies.
-- **The gate (2 on Nightfall and Black Sun, was 0, then 1).** Nightfall's Emperor carries 1 and Black
-  Sun's 2, so the gate now stands above Nightfall's Emperor and level with Black Sun's.
-  - It stays among the Descent's easier battles: cleared 90% on Nightfall and 87% on Black Sun
-    (95% and 94% with no stone), against 79–88% for the Stair and the Vigil and 31% for the act bosses.
+- **Dusk (1).** The Dusk finale carries one stone, as the Dusk Emperor one act earlier. At half meta the
+  Descent's Lieutenant is cleared 96% of the time by the runs that reach him (the legacy finale 84%).
+- **The gate (2 on Nightfall and Black Sun).** Nightfall's Emperor carries 1 and Black Sun's 2, so the
+  gate stands above Nightfall's Emperor and level with Black Sun's.
+  - It stays among the Descent's easier battles: cleared 86% on Nightfall and 87% on Black Sun, against
+    58–89% for the Stair, the Column and the Vigil and 30–32% for the act bosses.
   - The defeat objective lets an army go straight for him, so a stone costs little: see "The second
     gate stone" for what the second one cost.
 
 ## The second gate stone
+
+Not re-run: these are #337's numbers (pre-#342 entry states). The comparison is the gate fight itself,
+which #342 does not reach; the gate's loss rates on this base are in the tables above.
 
 The owner approved a second Revival Stone for the Lieutenant at the gate (`revivalStones.lieutenant`
 1 → 2 on Nightfall and Black Sun; Dusk stays 1, First Light 0). The kind reaches only him: the gate is
@@ -339,10 +390,9 @@ the one boss node that names the Lieutenant on those rungs (the legacy finale se
 stone table never touches), and the elite captain and Entity rows read their own entries.
 
 The same entry states played Act V with the gate at one stone and at two (`--stones lieutenant=1`
-against the data's 2), the Descent arm and the no-Landing arm. Seeds are those of the models above
-(Nightfall half 200001–200150 and 205001–205080, Black Sun endgame 300001–300150, Nightfall endgame
-200001–200100). Everything before the gate plays identically in both versions (same stream, same maps),
-so the gate fight itself is a clean paired comparison; every battle after it gets fresh dice.
+against the data's 2), the Descent arm and the no-Landing arm. Everything before the gate plays
+identically in both versions (same stream, same maps), so the gate fight itself is a clean paired
+comparison; every battle after it gets fresh dice.
 
 | player model | n | gate lost, 1 stone | gate lost, 2 stones | gate commander falls, paired Δ (pts) | gate turns, Δ | gate deaths/battle |
 |---|---|---|---|---|---|---|
@@ -359,47 +409,29 @@ so the gate fight itself is a clean paired comparison; every battle after it get
 | Black Sun, endgame meta | 150 | 31% [24, 38] | 31% [24, 39] | +0.7 [-5.6, +7.0] | 45% [38, 53] | 45% [37, 53] | -0.7 [-7.5, +6.1] |
 | Nightfall, endgame meta | 100 | 77% [68, 84] | 84% [76, 90] | +7.0 [-1.5, +15.5] | 95% [89, 98] | 94% [88, 97] | -1.0 [-6.2, +4.2] |
 
-For reference, the numbers this report carried before the correction (the replay played 0 stones for
-most of these runs): gate cleared 93% / 89% / 100%; Act V strict 20% / 29% / 79%; KO-free 47% / 49% / 95%.
-
 - **The stone costs about one turn and 0–2 points of gate commander falls.** The cleanest reading is the
   gate fight itself: +2.2 points on Nightfall (CI +0.3..+4.1), +0.7 on Black Sun, none for the strong army.
-- **Act V moves inside its noise.** Nightfall's KO-free rate is 5 points lower (CI −10.7..+0.3), more
-  than the gate's +2.2 falls explain; the rest is the Entity played on different dice. Nightfall
-  endgame's strict +7 is the same kind of draw (the Entity's clear rate there is 78% → 85%, a stone
-  at the gate cannot have made the Entity easier). Neither is evidence for or against the stone.
-- **The gate remains one of the easier fights.** Lost 10% (Nightfall) and 13% (Black Sun) against 31% for
-  the act bosses, and 0% for the strong army.
-- **An Answered Rite makes it three stones** (the rung's two and the Rite's one): that gate is cleared
-  76% of the time on Nightfall (34 fights; 92–97% on the other bands).
+- **Act V moves inside its noise.** Neither Act V difference is evidence for or against the stone.
+- **An Answered Rite makes it three stones** (the rung's two and the Rite's one): on this base that gate
+  is cleared 66% of the time on Nightfall (35 fights; 94–100% on the other bands).
 
 ## Harness and sim baselines
 
-The parity fix changes which maps the sims play, so two strict slices of `npm run sim:fullrun:pr`
-moved past their bounds. No data change in this branch reaches these slices: they are Act I or legacy
-Act V on First Light, and First Light keeps no stones.
+From #337 (its parity fix changed which maps the sims play, so two strict slices of
+`npm run sim:fullrun:pr` moved past their bounds; no data change reached them):
 
-| slice | metric | before (old driver) | after (this branch) | threshold |
+| slice | metric | before (old driver) | after (#337) | threshold |
 |---|---|---|---|---|
 | `act1_pressure_normal` | `avg_units_lost` | 0.75 | 1.67 | 1.25 → 1.80 |
 | `progression_invincible` | `avg_gold` | 12994 | 17627 | 17500 → 19500 |
 
-Over 80 seeds the first metric is 1.02 (old driver) against 1.19 (this branch): the 12-seed slice landed
-on a high draw, not on a regime change. Threshold note for the PR (`npm run check:threshold-pr-notes`):
-
-- attribution command: `npm run sim:fullrun:triage` (`node tests/sim/fullrun-slice-triage.js`);
-- first_bad_sha: `6310af4f` (this branch's commit);
-- parent_sha: `20261ba3`;
-- failing metrics: `act1_pressure_normal avg_units_lost=1.67 > 1.25`, `progression_invincible avg_gold=17627.33 > 17500`;
-- touched files: `tests/sim/RunSimulationDriver.js`, `tests/sim/ClaimingRunDriver.js`,
-  `tests/harness/GameDriver.js`, `sim/strategy.js`.
-
-`npm run test:harness:pr` (fuzz scenarios) is unchanged: 50 runs, 0 failures.
+Over 80 seeds the first metric is 1.02 (old driver) against 1.19: the 12-seed slice landed on a high draw,
+not on a regime change. The re-run's bands change reaches no `sim:fullrun:pr` slice (the Descent ships
+dark, and no slice turns it on).
 
 ## `sim/pacing.js`
 
-It runs on this base. It played five Dusk seeds to the end before I stopped it. The removed
-`plantsAmongPositions` import was fixed on main by #306 (`796c55e7`), which is in this base. Draft PR #316
+It runs on #337's base: it played five Dusk seeds to the end before it was stopped. Draft PR #316
 (claude/encounter-pacing) is reworking the pacing sims; nothing here touches them.
 
 ## Limits
@@ -407,38 +439,20 @@ It runs on this base. It played five Dusk seeds to the end before I stopped it. 
 - **The player is an agent.**
   - The scripted claiming player is far weaker than a person, which is why the models buy Home Base.
   - Its absolute rates are not a person's; the paired differences are the evidence.
-  - Its Entity fights stall at the turn cap 65–80% of the time at mid strength, in both arms. That is
-    why the KO-free measure carries the Nightfall and Black Sun conclusions. See "Why the Entity
-    stalls" below: it is the agent, not the fight.
-- **Why the Entity stalls.** 150 legacy Entity fights (Nightfall half meta, seeds 200001–200150),
-  instrumented, with the agent's own forecast logged at every unit's plan:
-  - **The agent refuses the trade.** A legal attack on the Entity was open in about 160 unit plans per
-    stalled fight, but it attacked the Entity 1.8 times per stalled fight; in 48 of the 67 stalls (no
-    commander fall) the Entity ended at full HP. Its own forecast of the best Entity attack averaged
-    10 expected damage dealt against 22 taken from the counter, at 30 HP. The attack score
-    (dealt − 1.1 × taken − danger) is negative, so the unit holds instead. It has no rule for wearing a
-    boss down by rotating and healing, which a person would use. The cap is not the limit: the
-    stalled fights run 20–23 turns past par with the Entity untouched.
-  - **A geometry bug, not fixed here.** `TacticianAgent` measures range to the Entity's anchor tile
-    (`gridDistance` to its top-left), not its 3×3 body (`combatDistance`, which the harness uses). It
-    sees 57% of the tiles a legal attack can be made from, and it misjudges the Entity's reach, so units
-    walk into it. With both distances read through `combatDistance` (a two-line change), the same
-    150 fights go from 20% win / 35% commander loss / 45% stall to 19% / 21% / 61%. Wins don't move;
-    falls turn into stalls.
-  - Fixing the geometry would lower every Entity commander-loss rate in both arms. The legacy arm
-    fights the Entity in every run, the Descent only in the runs that reach it, so it would likely
-    *widen* the Descent's commander-loss cost on Nightfall and Black Sun. The fix changes the shared
-    agent, so it needs its own PR and a re-run of these tables. A boss-trading rule would be a larger
-    agent change. Neither is in this branch, and no game number was changed for it.
+  - Its Entity fights stall at the turn cap in a quarter to a half of mid-strength fights, in both arms.
+    That is why the KO-free measure carries the Nightfall and Black Sun conclusions.
+- **Why the Entity stalls** (#337's instrumented read, pre-#342 states): the agent refuses the trade. Its
+  own forecast of the best Entity attack averaged 10 expected damage dealt against 22 taken from the
+  counter, so the attack score is negative and the unit holds. It has no rule for wearing a boss down by
+  rotating and healing, which a person would use.
+- **The geometry fix is in this base.** #337 found that `TacticianAgent` measured range to the Entity's
+  anchor tile, not its 3×3 body, and predicted that the fix would turn Entity commander falls into stalls.
+  #347 made that fix; on this base the legacy Entity's commander-loss share is 42% / 46% (Nightfall half,
+  Black Sun), and Descent-reached Entity fights 13% / 20%, with stalls 56% and 23%.
 - **The event policy is rite-first.** Its Broken shares are an upper bound for players who take the
   heal or the Vision charge instead.
-- **Act IV yardsticks** (per-act battle counts) were recorded only for the captures made after the
-  field was added: Nightfall half (second set) and First Light quarter. The act-boss rates come from
-  every capture.
-- **Elite captain levels** (not tuned):
-  - `SetPieces.captainLevelFor` subtracts 10 for a promoted class, and `createPromotedEnemyUnit`
-    treats the spawn level as an effective level (10 + promoted levels).
-  - The two together put every promoted elite captain in Acts III–V about 10 levels below the escorts
-    around it. The Vigil's Warden of the Rite is promoted level 1 among level 3–8 guards.
-  - The fix is an engine rule with a game-wide reach, so it belongs in its own PR. Patching the Warden
-    with a +10 slot offset would hide the bug.
+- **The model drifted under the targets.** The Nightfall half model's army is two units smaller than when
+  the bands were first tuned (#342's Act III–IV captains, #312's cheaper, smaller growth upgrades). The
+  bands were moved one word to hold the §11 target for this model; if the model is re-anchored (a larger
+  Home Base share for Nightfall), the bands should be read again.
+- **Elite captain levels** (#342, in this base): the Warden stands at the elite rule; see "The Warden".
