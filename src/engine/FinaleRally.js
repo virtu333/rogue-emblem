@@ -11,10 +11,17 @@
 //                         `hollow_herald`, flag `heard_herald`); the caller plays it on Black Sun
 //   lords.<Lord>.wounded  the speaker is below half HP
 //   lords.<Lord>.fallen   someone fell earlier this run ({fallen})
+//   lords.<Lord>.glass    the run broke the Lieutenant's glass on the way down (the Descent's
+//                         gate, Nightfall and Black Sun: NarrativeDirector.glassBrokenOf)
+//   lords.<Lord>.riteBroken / riteAnswered
+//                         the Rite stood at that tier when the army came down (engine/Rite.js;
+//                         Spoken, the tier that changes nothing, has no line of its own)
 //
 // When the run has lost someone, one answering lord always speaks for them;
 // when the save remembers the Entity, another carries the memory; when the run heard the
-// Herald, a third (when one is left) carries that.
+// Herald, a third (when one is left) carries that; then the glass, then the Rite's tier. The
+// Rite, a state of this run, is never lost for want of a speaker: with no answering lord left,
+// the closer (Sera) carries it, so her rite lines close a rally as well as they answer one.
 //   lords.Sera.close      Sera, whose sight the Thread is, speaks last
 //   recruits.<temperament> up to two recruits (the strongest) join in ({leader})
 //
@@ -60,6 +67,14 @@ export function heraldHeard(storyFlags, difficultyId) {
   return (
     Boolean(flagValue(storyFlags, 'heard_herald')) && isDifficultyAtLeast(difficultyId, 'lunatic')
   );
+}
+
+/** The rally's key for a Rite tier's lines (no line for a tier that changes nothing). */
+const RITE_LINE_KEYS = Object.freeze({ broken: 'riteBroken', answered: 'riteAnswered' });
+
+/** The pool key the Rite's tier speaks from, or null (no Rite, or Spoken). */
+export function riteLineKey(riteBand) {
+  return (typeof riteBand === 'string' && RITE_LINE_KEYS[riteBand]) || null;
 }
 
 const alive = (u) => u?.faction === 'player' && Number(u.currentHP) > 0;
@@ -108,6 +123,8 @@ export function finaleRallySpeakers(units, { pool = null, commander = null } = {
  * @param {boolean} [opts.herald]    the run listened to the Herald (the caller decides the rung)
  * @param {string[]} [opts.fallen]   names of units lost earlier this run (lords first)
  * @param {boolean} [opts.hurt]      the Entity has been wounded
+ * @param {boolean} [opts.glass]     the run broke the Lieutenant's glass at the gate
+ * @param {string|null} [opts.riteBand] the Rite's tier ('broken' | 'spoken' | 'answered'), or null
  */
 export function composeFinaleRally({
   units,
@@ -119,6 +136,8 @@ export function composeFinaleRally({
   herald = false,
   fallen = [],
   hurt = true,
+  glass = false,
+  riteBand = null,
 } = {}) {
   const lordsPool = pool?.lords || {};
   const speakers = finaleRallySpeakers(units, { pool, commander });
@@ -145,6 +164,17 @@ export function composeFinaleRally({
         'herald',
       )
     : null;
+  const free = (u) => u !== forFallen && u !== forMemory && u !== forHerald;
+  const forGlass = glass ? pickOne(answering.filter(free), 'glass') : null;
+  const riteKey = riteLineKey(riteBand);
+  const closer = speakers.find((x) => x.role === 'close')?.unit || null;
+  const speaksRite = (u) => Boolean(u) && usable(lordsPool[u.name]?.[riteKey], { hurt }).length > 0;
+  const forRite = riteKey
+    ? pickOne(
+        answering.filter((u) => free(u) && u !== forGlass && speaksRite(u)),
+        'rite',
+      ) || (speaksRite(closer) ? closer : null)
+    : null;
   const out = [];
   let prev = null;
   for (const { unit, role } of speakers) {
@@ -170,10 +200,13 @@ export function composeFinaleRally({
       const lp = lordsPool[name] || {};
       const opt = (list) => usable(list, { hurt });
       if (role === 'open') choose('open', opt(lp.open));
+      // the speaker given the Rite is never also given another memory (or is the closer)
+      if (unit === forRite) choose('rite', opt(lp[riteKey]));
       if (role === 'close') choose('close', opt(lp.close));
       if (unit === forFallen) choose('fallen', opt(lp.fallen));
       if (unit === forMemory) choose('memory', opt(lp.memory));
       if (unit === forHerald) choose('herald', opt(lp.herald));
+      if (unit === forGlass) choose('glass', opt(lp.glass));
       // answer whoever just spoke, most of the time
       const reply = prev?.isLord ? lp.reply?.[prev.name] : null;
       if (role === 'lord' && reply && chance(key('reply'), 67)) choose('reply', opt([reply]));

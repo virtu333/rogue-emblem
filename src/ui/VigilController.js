@@ -4,10 +4,18 @@
 //   processPhase   at each enemy-phase start, right after the Necromancer's raise: the Voices
 //                  on their sigils speak (counted in scene._vigilState), then each open circle
 //                  calls a Hollowed onto the board
-//   onVoiceFell    at a Voice's fall (BattleScene.removeUnit): "A Voice falls silent." and the
-//                  `voice_silenced` cue (ui/ceremonyMusic.js, in the key of the Vigil's theme)
+//   onVoiceFell    at a Voice's fall (BattleScene.removeUnit): "A Voice falls silent.", the
+//                  `voice_silenced` cue (ui/ceremonyMusic.js, in the key of the Vigil's theme) and
+//                  the Voice's last line (the first to fall in the dialogue box, each later one
+//                  floating over its tile)
 //   sync          every frame (BattleScene.update): the sigil and circle markers re-derived
 //                  from the board, redrawn only when what they show changes
+//
+// What the court says (engine/VigilWords.js, dialogue.json `vigil`): each Voice heard speaking
+// says the next of its verse over itself, one called Hollowed seen rising answers the roll, and a
+// Voice seen falling says its last line (the first Voice to fall in the dialogue box, as a
+// commander's last words; each later one floats over its tile). Each
+// pick is a count the state already keeps, so a replayed phase says the same words.
 //
 // Rendering never changes game state: the step's result (the state, the roster with each called
 // unit's battle identity, the history's records) is applied first, in one go, and only then
@@ -19,7 +27,8 @@
 //   - "The Voices speak." plays once a phase, only when a speaking Voice is seen;
 //   - "The circle calls." plays once a phase, only when a called Hollowed is seen (with the
 //     rising effect on each one seen); a Hollowed called in fog stays hidden like any enemy;
-//   - "A Voice falls silent." plays only for a fall the player saw;
+//   - "A Voice falls silent." and the Voice's last line play only for a fall the player saw;
+//   - a word floats only over a Voice the player sees, the roll call only over a seen Hollowed;
 //   - a marker is drawn only on a tile the player sees (isUnitTileSeen: Seer's Eye shows them
 //     all): a Voice stands on its sigil from the first turn, so a sigil drawn in the fog would
 //     name where an unseen foe is. On a seen tile a sigil is lit while its Voice stands on it
@@ -40,8 +49,16 @@ import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { CombatFxController } from './CombatFxController.js';
 import { safeBattlePresentation } from './safeBattlePresentation.js';
 import { playCue } from './ceremonyMusic.js';
-import { vigilBoardView, vigilPhaseStep, voiceUnit } from '../engine/Vigil.js';
+import {
+  sanitizeVigilState,
+  vigilBoardView,
+  vigilPhaseStep,
+  voiceUnit,
+  voicesFallen,
+} from '../engine/Vigil.js';
 import { registerBattleEntity } from '../engine/BattleEntityIdentity.js';
+import { vigilCallLine, vigilSilencedLine, vigilSpokenWords } from '../engine/VigilWords.js';
+import { BattleBeatsController } from './BattleBeatsController.js';
 import { enemyDifficultyConfigFromParams } from '../engine/UnitManager.js';
 import { canInspectUnit, isUnitSeenAt, isUnitTileSeen } from '../engine/BattleInformation.js';
 import { TILE_SIZE } from '../utils/constants.js';
@@ -75,6 +92,11 @@ export const VIGIL_BANNERS = Object.freeze({
 /** The stinger a seen Voice's fall plays (musicStingers.js; act-v-descent §8). */
 export const VOICE_SILENCED_CUE = 'voice_silenced';
 
+/** The Voices' words come one after another, so four over one ring stay readable. */
+const WORD_STAGGER_MS = 350;
+/** How long a word or the roll call stays up (shorter than the rally's lines: a phase moves on). */
+const WORD_HOLD_MS = 1800;
+
 export class VigilController {
   constructor(scene) {
     this.scene = scene;
@@ -102,6 +124,17 @@ export class VigilController {
   /** Is this unit in the player's view? The fog's one rule (canInspectUnit: Seer's Eye shows it). */
   seesUnit(unit) {
     return canInspectUnit(this.scene?.grid, unit);
+  }
+
+  /** What the court says (dialogue.json `vigil`), or null. */
+  get words() {
+    return this.scene?.gameData?.dialogue?.vigil || null;
+  }
+
+  /** The scene's floating lines (BattleBeatsController.speakOver), made on first use. */
+  _beats() {
+    const scene = this.scene;
+    return scene ? (scene._battleBeats ||= new BattleBeatsController(scene)) : null;
   }
 
   /** The scene's combat effects (made on first use, as removeUnit makes them). */
@@ -191,6 +224,7 @@ export class VigilController {
     if (!scene || !vigil) return;
     const session = battleSession(scene);
     if (!isCurrentBattleSession(scene, session)) return;
+    const spokenBefore = sanitizeVigilState(scene._vigilState).byVoice;
     const step = vigilPhaseStep({
       vigil,
       state: scene._vigilState,
@@ -236,10 +270,14 @@ export class VigilController {
     }
     this.sync();
 
-    const heard = step.words.some((word) =>
+    const heardWords = step.words.filter((word) =>
       this.seesUnit(voiceUnit(word.voiceId, scene.enemyUnits)),
     );
-    if (heard) {
+    const seen = step.summons.map((s) => s.unit).filter((unit) => this.seesUnit(unit));
+    // The notice bands first, then the court's lines: a line floats above its speaker, and a
+    // Voice standing high on the board (an upright phone turns the ring) would put its line and
+    // its name under a band still on screen.
+    if (heardWords.length > 0) {
       await safeBattlePresentation(
         'vigil words',
         () => scene.showBriefBanner?.(VIGIL_BANNERS.words, UI_PALETTE.mark),
@@ -247,7 +285,6 @@ export class VigilController {
       );
       if (!isCurrentBattleSession(scene, session)) return;
     }
-    const seen = step.summons.map((s) => s.unit).filter((unit) => this.seesUnit(unit));
     if (seen.length > 0) {
       await safeBattlePresentation(
         'vigil call',
@@ -266,6 +303,21 @@ export class VigilController {
       );
       if (!isCurrentBattleSession(scene, session)) return;
     }
+    if (heardWords.length > 0) {
+      safeBattlePresentation('vigil voices', () => this._sayWords(heardWords, spokenBefore), {
+        scene,
+      });
+    }
+    if (seen.length > 0) {
+      // The first seen answers the roll, by how many the circles had called before it.
+      const first = step.summons.findIndex((s) => s.unit === seen[0]);
+      const ordinal = step.state.summoned - step.summons.length + first;
+      safeBattlePresentation(
+        'vigil call line',
+        () => this._say(seen[0], vigilCallLine(this.words, ordinal), { delayMs: 0 }),
+        { scene },
+      );
+    }
     safeBattlePresentation('vigil objective', () => scene.updateObjectiveText?.(), { scene });
   }
 
@@ -274,6 +326,11 @@ export class VigilController {
     const scene = this.scene;
     if (!scene) return;
     const session = battleSession(scene);
+    // Which fall this is, read now, as the Voice leaves the roster and before anything awaits:
+    // only Voices already off the roster count (voicesFallen), never one an area art has also
+    // dropped to 0 HP and removeUnit has yet to take, so of two felled by one strike the first
+    // removed is the first fall.
+    const fallen = voicesFallen(scene.battleConfig?.vigil, scene.enemyUnits);
     this.sync();
     if (!isUnitSeenAt(scene.grid, unit, tile.col, tile.row)) return;
     // The cue is heard only for a fall the player saw (as the banner): sound tells no secrets.
@@ -284,6 +341,46 @@ export class VigilController {
       { scene },
     );
     if (!isCurrentBattleSession(scene, session)) return;
+    // Its last line. The first Voice to fall gets the dialogue box (auto-dismissing, as a
+    // commander's last words); each later one says its line over the spot it fell, short and
+    // never awaited, so four falls in a turn do not stack four boxes. "First" is the roster's:
+    // no Voice had left it before this one (voicesFallen counts it), so a resume or a rewind to
+    // before that fall chooses as it did the first time.
+    const line = vigilSilencedLine(this.words, unit?.authoredId);
+    if (!line) return;
+    if (fallen > 1) {
+      safeBattlePresentation(
+        'vigil last line',
+        () => this._beats()?.speakOver(unit, line, { foe: true, tile }),
+        { scene },
+      );
+      return;
+    }
+    if (!scene.dialogueOverlay) return;
+    await safeBattlePresentation(
+      'vigil last line',
+      () => scene.dialogueOverlay.show(unit.name, line, scene._getPortraitKey?.(unit) ?? null),
+      { scene },
+    );
+  }
+
+  /** Each heard Voice says what it spoke this phase over itself, one after another. */
+  _sayWords(words, spokenBefore) {
+    const said = vigilSpokenWords(words, spokenBefore, this.words);
+    said.forEach(({ voiceId, text }, i) => {
+      this._say(voiceUnit(voiceId, this.scene?.enemyUnits), text, { delayMs: i * WORD_STAGGER_MS });
+    });
+  }
+
+  /** One short line over a foe; presentation only, never awaited. */
+  _say(unit, text, { delayMs = 0 } = {}) {
+    if (!unit || !text) return;
+    const speak = () => {
+      if (!this.scene) return;
+      this._beats()?.speakOver(unit, text, { foe: true, holdMs: WORD_HOLD_MS });
+    };
+    if (delayMs > 0 && this.scene?.time?.delayedCall) this.scene.time.delayedCall(delayMs, speak);
+    else speak();
   }
 
   _reduced() {

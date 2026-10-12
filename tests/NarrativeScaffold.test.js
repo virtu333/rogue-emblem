@@ -981,6 +981,29 @@ describe('Node flavor (Surface 1)', () => {
     expect(scene.showShopBanner).toHaveBeenCalledWith('fallback line', '#a89d9f');
   });
 
+  it('a Descent node speaks with its own lines on the road (nodeFlavor.descent), an eclipsed one with its type', () => {
+    // Failure: the stair or the gate borrows the act's general lines (the Entity's "the source
+    // of everything" over the Lieutenant's hall), or a fallen Mortuary Column keeps its own.
+    const scene = makeScene('finalBoss', {
+      nodeFlavor: {
+        battle: { finalBoss: ['general line'] },
+        boss: { finalBoss: ['boss line'] },
+        descent: { gate: ['the hall of mirrors'] },
+      },
+    });
+    scene.runManager.pickNarrativeLine = vi.fn((lines) => lines[0]);
+    scene._showNodeFlavor({ type: 'boss', descentKey: 'gate' });
+    expect(scene.showShopBanner).toHaveBeenLastCalledWith('the hall of mirrors', '#a89d9f');
+    expect(scene.runManager.pickNarrativeLine).toHaveBeenLastCalledWith(
+      ['the hall of mirrors'],
+      'node:descent:gate',
+    );
+    scene._showNodeFlavor({ type: 'boss', descentKey: 'nowhere' });
+    expect(scene.showShopBanner).toHaveBeenLastCalledWith('boss line', '#a89d9f');
+    scene._showNodeFlavor({ type: 'boss', descentKey: 'gate', eclipse: { label: 'Eclipsed' } });
+    expect(scene.showShopBanner).toHaveBeenLastCalledWith('boss line', '#a89d9f');
+  });
+
   it('uses elite pool for elite nodes', () => {
     const scene = makeScene('act1', {
       nodeFlavor: {

@@ -4,6 +4,7 @@ import { resumeBossRecruit } from '../ui/BossRecruitResume.js';
 import { resumeLordArrival } from '../ui/LordArrivalResume.js';
 import { EarnedBlessingPick } from '../ui/EarnedBlessingPick.js';
 import { saveServiceRun } from '../ui/serviceSave.js';
+import { descentFlavorLines } from '../ui/loomModel.js';
 import {
   actBossPickDue,
   earnedPickOwed,
@@ -2529,13 +2530,16 @@ export class NodeMapScene extends Phaser.Scene {
             : node.type === NODE_TYPES.EVENT && node.eventBattle !== true
               ? 'event'
               : 'battle';
-      const pool = this.gameData?.dialogue?.nodeFlavor?.[typeKey];
-      if (!pool) return;
+      const flavor = this.gameData?.dialogue?.nodeFlavor;
       const act = this.runManager?.currentAct || 'act1';
-      const lines = pool[act] || pool['act3'];
+      // A Descent node speaks with its own lines (the stair, the Vigil, the gate).
+      const own = node.eclipse ? null : descentFlavorLines(flavor, node);
+      const pool = flavor?.[typeKey];
+      if (!own && !pool) return;
+      const lines = own || pool[act] || pool['act3'];
       if (!Array.isArray(lines) || lines.length === 0) return;
-      const line =
-        this.runManager?.pickNarrativeLine?.(lines, `node:${act}:${typeKey}`) || lines[0];
+      const poolKey = own ? `node:descent:${node.descentKey}` : `node:${act}:${typeKey}`;
+      const line = this.runManager?.pickNarrativeLine?.(lines, poolKey) || lines[0];
       this.showShopBanner(line, UI_PALETTE.muted);
     } catch (_) {
       /* best-effort flavor */

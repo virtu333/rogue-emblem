@@ -171,7 +171,7 @@ export function lockedRiteLines(record, { turnOf = null } = {}) {
       );
     else if (counts.every((c) => c === counts[0]))
       lines.push(...riteModLines({ waveHollowed: counts[0] }, target));
-    else lines.push(`Its waves bring ${counts.join(', ')} Hollowed`);
+    else lines.push(`The Entity's waves bring ${counts.join(', ')} more Hollowed`);
   }
   return lines.length ? lines : ['No change'];
 }
