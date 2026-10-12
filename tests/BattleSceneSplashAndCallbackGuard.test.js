@@ -4,13 +4,10 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 // Hoisted mocks (must precede vi.mock calls)
 // ---------------------------------------------------------------------------
 
-const { showImportantHintMock, showMinorHintMock, rollSplashTilesMock, rollSplashDamageMock } =
-  vi.hoisted(() => ({
-    showImportantHintMock: vi.fn(async () => {}),
-    showMinorHintMock: vi.fn(() => Promise.resolve()),
-    rollSplashTilesMock: vi.fn(() => []),
-    rollSplashDamageMock: vi.fn(() => 10),
-  }));
+const { showImportantHintMock, showMinorHintMock } = vi.hoisted(() => ({
+  showImportantHintMock: vi.fn(async () => {}),
+  showMinorHintMock: vi.fn(() => Promise.resolve()),
+}));
 
 vi.mock('phaser', () => ({
   default: {
@@ -24,23 +21,15 @@ vi.mock('../src/ui/HintDisplay.js', () => ({
   showMinorHint: showMinorHintMock,
 }));
 
-// Partial mock: keep real exports, override only rollSplashTiles/rollSplashDamage
-vi.mock('../src/engine/EntitySystem.js', async () => {
-  const actual = await vi.importActual('../src/engine/EntitySystem.js');
-  return {
-    ...actual,
-    rollSplashTiles: rollSplashTilesMock,
-    rollSplashDamage: rollSplashDamageMock,
-  };
-});
-
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { PrologueController } from '../src/ui/PrologueController.js';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
 
+const originalRandom = Math.random;
 afterEach(() => {
+  Math.random = originalRandom;
   vi.clearAllMocks();
 });
 
@@ -69,8 +58,8 @@ function makeUnit(name, col, row, faction = 'player') {
 
 /**
  * Build a minimal scene mock for _applyEntitySplash.
- * rollSplashTiles and rollSplashDamage are mocked at module level;
- * getUnitAt routes tile coords -> victim units.
+ * The splash's rule runs for real (engine/EntitySystem.js entitySplash) on a stubbed
+ * Math.random; getUnitAt routes tile coords -> victim units.
  */
 function makeSplashScene({ victims }) {
   const scene = new BattleScene();
@@ -191,37 +180,30 @@ function makeTutorialScene({ isActive, turn = 1 }) {
 
 // ---------------------------------------------------------------------------
 // Fix 1: Entity splash bail-out on battle end
-// Calls real BattleScene.prototype._applyEntitySplash via module-level mock
-// of rollSplashTiles/rollSplashDamage.
+// Calls real BattleScene.prototype._applyEntitySplash with the battle stream stubbed at
+// 0.99: no shuffle swap and the full count, so the splash strikes the target's north then
+// west neighbour for 5 + floor(0.99 * 6) = 10 each.
 // ---------------------------------------------------------------------------
 
 describe('_applyEntitySplash resolves before terminal decision', () => {
   it('resolves every splash victim before the caller checks commander death', async () => {
-    const edric = makeUnit('Edric', 4, 5);
+    const edric = makeUnit('Edric', 6, 5); // the target's north neighbour
     edric.currentHP = 1; // will die from splash
-    const ally = makeUnit('Ally', 5, 5);
+    const ally = makeUnit('Ally', 5, 6); // the target's west neighbour
     ally.currentHP = 10;
 
     const entity = {
       isEntity: true,
-      col: 3,
-      row: 4,
+      col: 0,
+      row: 0,
       faction: 'enemy',
       currentHP: 100,
       stats: { HP: 100 },
-      _entityData: { width: 2, height: 2 },
     };
-    const primaryTarget = makeUnit('Primary', 3, 5);
+    const primaryTarget = makeUnit('Primary', 6, 6);
 
     const scene = makeSplashScene({ victims: [edric, ally] });
-
-    // Return Edric's tile first, then Ally's tile
-    rollSplashTilesMock.mockReturnValue([
-      { col: edric.col, row: edric.row },
-      { col: ally.col, row: ally.row },
-    ]);
-    // Splash damage = 10 (enough to kill 1 HP Edric)
-    rollSplashDamageMock.mockReturnValue(10);
+    Math.random = () => 0.99;
 
     // Call the REAL production method
     await BattleScene.prototype._applyEntitySplash.call(scene, entity, primaryTarget);

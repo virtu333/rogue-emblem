@@ -176,8 +176,7 @@ import {
   getFootprint,
   getFootprintKeys,
   combatDistance,
-  rollSplashTiles,
-  rollSplashDamage,
+  entitySplash,
   getEntityCenter,
   entityHealth,
 } from '../engine/EntitySystem.js';
@@ -259,7 +258,6 @@ import {
   TERRAIN,
   LAVA_CRACK_DAMAGE,
   GOLD_LOOT_REWARD_MULTIPLIER,
-  ENTITY_SPLASH_COUNT,
   ENTITY_FOOTPRINT,
   ENTITY_PRIMARY_ATTACK_RANGE,
 } from '../utils/constants.js';
@@ -11086,28 +11084,28 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  /** Apply Entity AoE splash -- 0-2 random tiles within Manhattan 1 of primary target */
+  /**
+   * The Entity's splash after its strike (0..entitySplashCountFor(battleConfig) tiles within
+   * Manhattan 1 of the target): the rule and the HP changes are engine/EntitySystem.js
+   * `entitySplash`, which the harness drives too; the scene presents each hit and removes a
+   * fallen victim before the step reads the next tile.
+   */
   async _applyEntitySplash(entity, primaryTarget) {
     const session = battleSession(this);
-    const tiles = rollSplashTiles(
-      primaryTarget.col,
-      primaryTarget.row,
-      entity,
-      this.grid.cols,
-      this.grid.rows,
-      ENTITY_SPLASH_COUNT,
-    );
-    for (const tile of tiles) {
-      const victim = this.getUnitAt(tile.col, tile.row);
-      if (!victim || victim === primaryTarget || victim.currentHP <= 0) continue;
-      if (victim.faction === 'enemy') continue; // Don't splash allies
-      const dmg = rollSplashDamage();
-      const { bannerHeld } = damageUnitDetailed(victim, dmg, { blessings: this._battleBlessings });
+    const steps = entitySplash(entity, primaryTarget, {
+      cols: this.grid.cols,
+      rows: this.grid.rows,
+      getUnitAt: (col, row) => this.getUnitAt(col, row),
+      battleBlessings: this._battleBlessings,
+      battleConfig: this.battleConfig,
+    });
+    for (const { victim, tile, damage, stoneBroken, bannerHeld } of steps) {
       if (bannerHeld) this._noteBannerHold(victim);
       await safeBattlePresentation(
         'Entity splash',
         async () => {
           this.updateHPBar(victim);
+          if (stoneBroken) this._stoneBreakFx().playBreak(victim);
           if (bannerHeld) this._bannerHoldFx().playHold(victim);
           const pos = this.grid.gridToPixel(tile.col, tile.row);
           (this._combatFx ||= new CombatFxController(this)).playOverlay(
@@ -11115,7 +11113,7 @@ export class BattleScene extends Phaser.Scene {
             pos.x,
             pos.y,
           );
-          this.showMinorHintAt(pos.x, pos.y, `Splash -${dmg}`, UI_PALETTE.rarityEpic);
+          this.showMinorHintAt(pos.x, pos.y, `Splash -${damage}`, UI_PALETTE.rarityEpic);
           await this._awaitSceneDelay(200, { label: 'entity_splash_tick' });
         },
         { scene: this },
