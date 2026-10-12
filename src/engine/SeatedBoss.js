@@ -24,15 +24,15 @@ import { revivalStoneKind, revivalStonesFor } from './RevivalStones.js';
 // Elite seize battles hold a captain, not the act's boss (playtest 2026-09-28: a
 // mid-act elite fielded Act III's Blade Lord at L17, and the same boss could wait at
 // the act's end). Captains come from enemies.elites.<act> and are scaled to the node:
-// the top of its enemy level range plus two (Act I: plus none), a promoted class
-// that many levels past promotion. They still hold the throne as the map's boss
-// (isBoss: boss bonus, bar, AI), with no boss card or lines (those need scene.isBoss).
-export function eliteCaptains(enemies, act, levelRange, classes = []) {
+// the top of its enemy level range plus the act's captain offset (Act I +0, Act II +2,
+// +1 from Act III on; SetPieces.captainLevelFor), a spawn level on one scale whatever the
+// class's tier. They still hold the throne as the map's boss (isBoss: boss bonus, bar,
+// AI), with no boss card or lines (those need scene.isBoss).
+export function eliteCaptains(enemies, act, levelRange) {
   const list = enemies?.elites?.[act];
   if (!Array.isArray(list) || !list.length) return enemies?.bosses?.[act] || [];
   return list.map((entry) => {
-    const promoted = classes.find((c) => c.name === entry.className)?.tier === 'promoted';
-    const level = captainLevelFor(act, levelRange?.[1], promoted);
+    const level = captainLevelFor(act, levelRange?.[1]);
     return { className: entry.className, name: entry.name, level };
   });
 }
@@ -45,12 +45,12 @@ export function seatsEliteCaptain(params) {
 /**
  * The boss definitions the seat's draw picks from, before the rung's filter (see the header).
  * @param {object} params battle params ({ act, isElite, isBoss, excludeOpeningCavaliers })
- * @param {{ enemies: object, classes?: object[], levelRange?: number[] }} deps
+ * @param {{ enemies: object, levelRange?: number[] }} deps
  */
-export function seatedBossCandidates(params, { enemies, classes = [], levelRange } = {}) {
+export function seatedBossCandidates(params, { enemies, levelRange } = {}) {
   const act = params?.act || 'act1';
   const list = seatsEliteCaptain(params)
-    ? eliteCaptains(enemies, act, levelRange, classes)
+    ? eliteCaptains(enemies, act, levelRange)
     : enemies?.bosses?.[act] || [];
   return list.filter((boss) => earlyEnemyAllowed(boss.className, params));
 }
@@ -78,7 +78,7 @@ function namedBoss(params, enemies) {
  * one tile); resolveSeatedBoss picks from the same list.
  * @param {object} params battle params ({ act, difficultyId, bossName?, isElite?, isBoss?,
  *   excludeOpeningCavaliers? })
- * @param {{ enemies: object, classes?: object[], levelRange?: number[] }} deps
+ * @param {{ enemies: object, levelRange?: number[] }} deps
  * @returns {object[]}
  */
 export function possibleSeats(params = {}, deps = {}) {
@@ -91,7 +91,7 @@ export function possibleSeats(params = {}, deps = {}) {
  * Pick the boss a battle seats.
  * @param {object} params battle params: { act, difficultyId, bossName?, bossLevelBonus?,
  *   revivalStones?, isElite?, isBoss?, excludeOpeningCavaliers? }
- * @param {{ enemies: object, classes?: object[], levelRange?: number[], random?: () => number,
+ * @param {{ enemies: object, levelRange?: number[], random?: () => number,
  *   candidates?: object[] }} deps `candidates` overrides seatedBossCandidates (the template path
  *   hands in the list it already built)
  * @returns {{ bossDef: object, className: string, name: string, level: number, stones: number,
