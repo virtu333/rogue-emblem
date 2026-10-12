@@ -1148,6 +1148,22 @@ describe('gifts of items, skills and forging', () => {
     expect(new Set(record.details.granted).size).toBe(count);
   });
 
+  it('starting_scroll: hands the pool both ends of its act window', () => {
+    const rm = freshRun();
+    const calls = [];
+    const pool = rm.startingArtScrollPool.bind(rm);
+    rm.startingArtScrollPool = (...args) => {
+      calls.push(args);
+      return pool(...args);
+    };
+    applyOne(rm, 'starting_scroll', { count: 1, maxUnlockAct: 'act2', minUnlockAct: 'act2' });
+    applyOne(rm, 'starting_scroll', { count: 1 });
+    expect(calls).toEqual([
+      ['act2', 'act2'],
+      [undefined, undefined],
+    ]);
+  });
+
   it('starting_scroll: a 0 count, no scroll catalog or no valid scroll is skipped', () => {
     expect(applyOne(freshRun(), 'starting_scroll', { count: 0 }).details).toEqual({
       skipped: true,

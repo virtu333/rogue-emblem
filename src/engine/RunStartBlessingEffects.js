@@ -599,7 +599,10 @@ function applyStartingScroll(run, blessingId, effect) {
     });
     return;
   }
-  const validScrolls = run.startingArtScrollPool(effect.params.maxUnlockAct);
+  const validScrolls = run.startingArtScrollPool(
+    effect.params.maxUnlockAct,
+    effect.params.minUnlockAct,
+  );
   if (validScrolls.length <= 0) {
     run._recordBlessingEvent('run_start', blessingId, effect, {
       skipped: true,
