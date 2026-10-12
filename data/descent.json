@@ -184,10 +184,11 @@
       },
       "spoken": {},
       "answered": {
-        "lieutenant": { "revivalStones": 1, "waveHollowed": 2 },
+        "lieutenant": { "revivalStones": 1, "waveHollowed": 2, "waveTurn": 4 },
         "entity": { "splashDelta": 1, "waveHollowed": 2 }
       }
     },
+    "underPar": { "column": -1 },
     "perWordLevel": 4,
     "levelCap": 4
   }

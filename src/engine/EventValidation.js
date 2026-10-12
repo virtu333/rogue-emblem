@@ -60,6 +60,7 @@
 //   pools       an event in `finalBoss` with no `pool`; a pooled event whose `acts` are not exactly
 //               ["finalBoss"], a malformed pool id, the fallback pooled, a routeEdit, contract or
 //               join anywhere in a pooled event (the Descent's road is authored and ends the run)
+//   rite        a `rite` effect outside a pooled finalBoss event, or a delta that is not ±1 to ±3
 
 import {
   BEST_STAT_CHOICES,
@@ -665,6 +666,19 @@ export function validateEventsConfig(config, data = {}) {
       case 'vision':
         if (!isInt(effect.value) || effect.value === 0)
           err(where, 'vision.value must be a non-zero whole number');
+        break;
+      case 'rite':
+        // The court circle's words (engine/Rite.js): only the Descent has a Rite, so only a
+        // pooled Descent event may move it.
+        if (!(isInt(effect.delta) && effect.delta !== 0 && Math.abs(effect.delta) <= 3))
+          err(where, 'rite.delta must be a whole number from -3 to 3, not 0');
+        if (
+          event.pool === undefined ||
+          !Array.isArray(event.acts) ||
+          event.acts.length !== 1 ||
+          event.acts[0] !== 'finalBoss'
+        )
+          err(where, 'a rite effect belongs to a pooled Descent (finalBoss) event only');
         break;
       case 'blessing':
         needsTier(where, effect.tier);

@@ -540,6 +540,8 @@ export class ClaimingRunDriver extends RunSimulationDriver {
       turnCount: turns,
       turnPar: Number.isFinite(battle.turnPar) ? battle.turnPar : null,
       completionGoldOverride: completionGoldAward,
+      // The Vigil's words, committed to the run's Rite (engine/Rite.js) as the scene does.
+      riteWords: battle._vigilState?.words ?? 0,
     });
     this.metrics.eclipseFalls += rm.lastEclipseCommit?.fell?.length || 0;
     const contract = applied ? rm.lastContractSettlement : null;

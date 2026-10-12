@@ -246,9 +246,9 @@ stays out of Bleached Rite's act; the fugue sings, so it waits for Act III; Out 
 Empire's patrol, and Acts III and IV, a third and nearly half of whose battles are in fog, need
 both fog themes.
 
-Act V's two themes, Ember Dusk, Below (the Stair, the Column, the Landing) and Through the
-Floor (the Vigil), are built and registered (`MUSIC.descent`) and are not yet picked by the
-selector.
+Act V's two themes come before every rule above but the boss's: a map holding the Vigil plays
+Through the Floor, and every other battle of the Descent (the Stair, the Column, an event's
+fight) plays Ember Dusk, Below (`MUSIC.descent`); a seen Voice's fall plays `voice_silenced`.
 
 Picks are hashed from the run seed, never rolled, so a resumed battle plays what it played.
 The act pool (and an act's pair of situation themes) is walked in a per-run order indexed by

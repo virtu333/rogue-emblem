@@ -71,6 +71,7 @@ export class BattleBeatsController {
     return buildNarrativeContext({
       meta: scene.registry?.get?.('meta') || null,
       runManager: scene.runManager || null,
+      battleParams: scene.battleParams || null,
       bossName,
       gameData: scene.gameData || null,
     });

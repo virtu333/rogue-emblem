@@ -139,16 +139,24 @@ describe('passes that rewrite nodes skip the route (§2.3 rule 6)', () => {
 describe('event pools (§9.6)', () => {
   const pooled = baseData.events.events.find((e) => e.id === 'came_this_far');
 
-  it('the route’s event nodes meet the pool’s event, the Landing too (it never runs out)', () => {
-    const rm = runIntoFinalAct();
-    const side = nodeOf(rm, 'side_stair');
-    const landing = nodeOf(rm, 'landing');
-    expect(pickEvent(rm, side, rm.gameData.events).id).toBe('came_this_far');
-    expect(arriveAtEvent(rm, side.id)).toBeTruthy();
-    expect(rm.eventStateByNodeId[side.id].eventId).toBe('came_this_far');
-    // Met once already: still eligible (not once per run), so the Landing is no fallback.
-    expect(eventBlock(rm, pooled, landing, rm.gameData.events)).toBe('');
-    expect(pickEvent(rm, landing, rm.gameData.events).id).toBe('came_this_far');
+  it('the route’s event nodes meet the pool’s events, the Landing too (it never runs out)', () => {
+    const poolIds = baseData.events.events.filter((e) => e.pool === 'descent').map((e) => e.id);
+    expect(poolIds.sort()).toEqual(['came_this_far', 'last_lantern', 'seers_last_page']);
+    for (const seed of [11, 12, 13, 14, 15, 16]) {
+      const rm = runIntoFinalAct('hard', { runSeed: seed });
+      const side = nodeOf(rm, 'side_stair');
+      const landing = nodeOf(rm, 'landing');
+      expect(poolIds).toContain(pickEvent(rm, side, rm.gameData.events).id);
+      expect(arriveAtEvent(rm, side.id)).toBeTruthy();
+      const met = rm.eventStateByNodeId[side.id].eventId;
+      expect(poolIds).toContain(met);
+      // Met once already: came_this_far stays eligible (not once per run), so the Landing never
+      // falls back, whatever the fork met.
+      expect(eventBlock(rm, pooled, landing, rm.gameData.events)).toBe('');
+      const next = pickEvent(rm, landing, rm.gameData.events).id;
+      expect(poolIds).toContain(next);
+      if (met !== 'came_this_far') expect(next).not.toBe(met);
+    }
   });
 
   it('an unpooled event is never met at a pooled node, even one that names the Descent', () => {
@@ -184,7 +192,7 @@ describe('event pools (§9.6)', () => {
 
   it('a pooled node with nothing eligible falls back to the fallback event (never a stray)', () => {
     const events = structuredClone(baseData.events);
-    events.events.find((e) => e.id === 'came_this_far').weight = 0;
+    for (const event of events.events.filter((e) => e.pool === 'descent')) event.weight = 0;
     const rm = runIntoFinalAct('hard', { data: descentData({ events }) });
     expect(pickEvent(rm, nodeOf(rm, 'side_stair'), events).id).toBe(FALLBACK_EVENT_ID);
   });

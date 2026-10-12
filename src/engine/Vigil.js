@@ -28,9 +28,10 @@
 //   - THE LEVEL. A Hollowed rolls in the battle's adjusted range (the filler rule) and adds
 //     min(levelCap, floor((riteAtEntry + words) / perWordLevel)), where `words` counts this
 //     battle's words so far, this phase's included (the Voices speak before the circles call).
-//     `riteAtEntry` is the run's Rite at the battle's start (battleParams.riteAtEntry, the Rite
-//     PR's; 0 until then). The per-word rule's numbers are the Rite's (descent.json `rite`
-//     when it lands, written into the locked vigil at generation); the defaults stand in.
+//     `riteAtEntry` is the run's Rite at the battle's start (battleParams.riteAtEntry, from
+//     RunManager.getBattleParams; 0 with no Rite). The per-word rule's numbers are the Rite's
+//     (descent.json `rite`, written into the locked vigil at generation from
+//     battleParams.riteLevel); without them the defaults stand in.
 //     A Hollowed is a base class: never above BASE_CLASS_LEVEL_CAP.
 //   - THE CALLED. `_summonedBy: 'circle:<id>'` (ConjuredUnits.isSummonedUnit): gold 0, half the
 //     XP, no survival XP, no deed record, no carry. It has not acted, so it acts in that same
@@ -45,7 +46,7 @@
 // turn-start pipeline anyway, and a pipeline that ran twice for a turn speaks and calls once.
 // A rewind restores the earlier state with the earlier units, so the phase replays exactly.
 // The words are only counted here; the run's Rite takes them at the victory commit
-// (RunManager.completeBattle `riteWords`, the Rite PR), never from a battle in progress.
+// (RunManager.completeBattle `riteWords`, engine/Rite.js), never from a battle in progress.
 
 import { BASE_CLASS_LEVEL_CAP } from '../utils/constants.js';
 import { keyedBattleRandom } from './BattleRng.js';

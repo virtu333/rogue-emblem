@@ -304,6 +304,9 @@ describe('event pools', () => {
     const events = structuredClone(data.events);
     // Once per run, the Entity road's two pooled nodes (the fork and the Landing) need two.
     events.events.find((e) => e.id === 'came_this_far').oncePerRun = true;
+    events.events = events.events.filter(
+      (e) => !['last_lantern', 'seers_last_page'].includes(e.id),
+    );
     plant(
       () => ({ events }),
       'event pool "descent" has 1 event(s) every run can meet; a path can hold 2',
@@ -323,7 +326,8 @@ describe('event pools', () => {
 
   it('refuses a pool whose events all carry a requirement, or name no such pool', () => {
     const events = structuredClone(data.events);
-    events.events.find((e) => e.id === 'came_this_far').requires = { minRow: 1 };
+    for (const event of events.events.filter((e) => e.pool === 'descent'))
+      event.requires = { minRow: 1 };
     plant(() => ({ events }), 'event pool "descent" has 0 event(s)');
     plant(
       (c) => (lieutenant(c).rows[1].nodes[1].eventPool = 'elsewhere'),
