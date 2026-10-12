@@ -24,7 +24,7 @@
 // continuation that level-ups save and completeResolvedAction finishes. Every step is
 // behind the battle session the action started in.
 //
-// A leap (Doomblade's Doom Thrust, docs/specs/legendary-arts-rework.md §5) aims the tile its
+// A leap (Doomblade's Lionheart Thrust, docs/specs/legendary-arts-rework.md §5) aims the tile its
 // user lands on: the choices are the tiles the player knows are free (a fogged tile counts as
 // taken, as Blink Strike's), the preview strikes from there, and the cursor cycles the
 // landings beside seen foes. After the intent and the cost, the leap is settled on the real

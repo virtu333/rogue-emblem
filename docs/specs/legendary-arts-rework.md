@@ -13,7 +13,7 @@ this file are binding. Builds on
    art **Phantom Rush** becomes the **dash** (it overlapped Storm Blade).
 3. **Ruin**'s art becomes the **cone smash** and is named **Cataclysm**. **Tidebreaker**'s art
    (flat 5 to everything within 2) keeps its behaviour and is renamed **Annihilate**.
-4. **Doomblade**'s **Doom Thrust** becomes the **leap** (it overlapped Skewer / Piercing
+4. **Doomblade**'s **Doom Thrust** becomes the **leap** (renamed **Lionheart Thrust**, 2026-10-12) (it overlapped Skewer / Piercing
    Charge), name kept.
 5. **Starfall** and **Hermit's Bow** stop sharing Starfall Volley. Starfall's **Starfall
    Volley** becomes a **falling-star volley** aimed at a tile far away; Hermit's Bow gets a
@@ -111,7 +111,7 @@ The ordinary attack on the adjacent foe, then a line, then the user dashes throu
 - **Numbers.** Oathblade: Mt 9 → 15, Crit 0 → 20, Hit 85, Wt 8, special none ("Attacks twice"
   dropped). Art: HP 8, map 2, turn 1, Atk +4, Hit +10, Crit +10, `noFollowUp`.
 
-## 5. The leap: Doomblade's Doom Thrust (`legend_doom_thrust`)
+## 5. The leap: Doomblade's Lionheart Thrust (`legend_doom_thrust`)
 
 A chosen-center art whose center is where the user lands.
 
@@ -185,7 +185,7 @@ three abilities benches the overflow once on load, locked skills kept first.
   after-combat effect, Phantom Rush's forecast hides the HP estimate (the fail-closed
   `weaponArtProjectionSafe` rule).
 - The leap's settle step is `AreaStrike.settleLeap`, called by the scene and the harness. Its
-  prompt reads "Leap: Doom Thrust"; the cursor cycles the landings beside seen foes.
+  prompt reads "Leap: Lionheart Thrust"; the cursor cycles the landings beside seen foes.
 - The kill-buff mechanism (Annihilate's old body) and the old Doom Thrust (line, then push)
   have no catalog art now; their tests run on fixtures (`tests/helpers/legacyArts.js`, the
   kill-buff fixture in `WeaponArtsDeferredClosure.test.js`).

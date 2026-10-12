@@ -198,7 +198,7 @@ describe('a chosen-center strike through the harness', () => {
   });
 });
 
-// Doomblade's Doom Thrust, the leap (docs/specs/legendary-arts-rework.md §5): the catalog art.
+// Doomblade's Lionheart Thrust, the leap (docs/specs/legendary-arts-rework.md §5): the catalog art.
 describe('a leap: the center is where the user lands', () => {
   const doomThrust = data.weaponArts.arts.find((a) => a.id === 'legend_doom_thrust');
   const lancer = (col = 2, row = 3, stats = {}) => {

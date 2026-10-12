@@ -2065,7 +2065,7 @@
     },
     {
       "id": "legend_doom_thrust",
-      "name": "Doom Thrust",
+      "name": "Lionheart Thrust",
       "weaponType": "Lance",
       "allowedTypes": [
         "Lance"
@@ -2102,7 +2102,7 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Doom Thrust"
+            "name": "Lionheart Thrust"
           }
         ]
       },

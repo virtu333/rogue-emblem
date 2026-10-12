@@ -828,7 +828,7 @@ describe('the aiming state is registered wherever the Blink tile state is', () =
   });
 });
 
-// Doomblade's Doom Thrust, the leap (docs/specs/legendary-arts-rework.md §5), in the scene.
+// Doomblade's Lionheart Thrust, the leap (docs/specs/legendary-arts-rework.md §5), in the scene.
 // Lancer STR 20 with Doomblade (12 might), the art's Atk +6: on DEF 5 a blow is 33, × 0.8 =
 // 26 (a lance on a lance: no triangle). The art costs 8 HP.
 describe('the leap', () => {
@@ -881,7 +881,7 @@ describe('the leap', () => {
     const { scene, area } = battle([user, east, south, away]);
     area.begin(user, user.weapon, doomThrust);
     area.lock({ col: 4, row: 5 });
-    expect(area.promptLines().fire).toBe('Leap: Doom Thrust');
+    expect(area.promptLines().fire).toBe('Leap: Lionheart Thrust');
     area.lock({ col: 4, row: 5 });
     await settle(scene);
     expect([user.col, user.row]).toEqual([4, 5]);

@@ -29,7 +29,7 @@ it('explains area amounts, radius, lines and target picks', () => {
   // A push needs its user next to the target (Overrun).
   expect(details('Overrun')).toContain('push the target back 1 tile (only when next to it)');
   // Doomblade's leap (docs/specs/legendary-arts-rework.md §5).
-  expect(details('Doom Thrust')).toContain(
+  expect(details('Lionheart Thrust')).toContain(
     'Leap: jump to a free tile 1-2 away, over units: an 80% blow to each enemy next to where you land; no counter',
   );
 });
