@@ -1,10 +1,11 @@
 // The run-start blessing effects, replayed against a fixture written from the code BEFORE the
-// handler table (origin/main at 236856d1, the old if-chain in RunManager). Every case is an
-// effect (or a short scenario) applied to a fresh seeded run; its fingerprint hashes the state it
-// changed (the `toJSON` diff, random ids normalized), the items it granted, the blessing event
-// history (as a run-start and as a mid-run grant), and the RNG (draws taken, the next value, the
-// restored `Math.random`). tools/blessingEffectFingerprints.mjs holds the cases and writes the
-// fixture; the header comment there says how to run it against any ref.
+// handler table (origin/main at eb7cf00a: the old if-chain in RunManager, #370's minUnlockAct
+// included). Every case is an effect (or a short scenario) applied to a fresh seeded run; its
+// fingerprint hashes the state it changed (the `toJSON` diff, random ids normalized), the items
+// it granted, the blessing event history (as a run-start and as a mid-run grant), and the RNG
+// (draws taken, the next value, the restored `Math.random`). tools/blessingEffectFingerprints.mjs
+// holds the cases and writes the fixture; the header comment there says how to run it against
+// any ref.
 //
 // Ways this can fail, a test each:
 //   1. a handler's behaviour drifts (a state write, an item, a history record, a draw) - the
@@ -61,7 +62,7 @@ describe('run-start blessing effects match the pre-table fingerprints', () => {
     expect(fixture.caseCount).toBe(Object.keys(fixture.cases).length);
     expect(fixture.caseCount).toBeGreaterThanOrEqual(700);
     // The fixture was written from the code before the table, not from this branch.
-    expect(fixture.generatedFrom).toMatch(/^236856d1/);
+    expect(fixture.generatedFrom).toMatch(/^eb7cf00a/);
   });
 
   describe('is sensitive to a change in one handler', () => {

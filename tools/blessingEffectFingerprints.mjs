@@ -22,7 +22,7 @@
 //                                                                (a `git worktree add <dir> <ref>`; needs its node_modules)
 //   node tools/blessingEffectFingerprints.mjs --check            compare this checkout with the fixture
 // The cases live here, so the same cases run against any `--root`. The committed fixture was written
-// with `--root` set to the base of the refactor (236856d1, the old if-chain) and replays in
+// with `--root` set to the base of the refactor (eb7cf00a, the old if-chain) and replays in
 // tests/BlessingEffectFingerprints.test.js. After a deliberate behaviour change, regenerate it
 // with `--write` and say why in the PR.
 

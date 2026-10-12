@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "236856d17d006218e4cdd74ead551d6cd2c96c20",
+  "generatedFrom": "eb7cf00ac351381691df4155054771dd96b1aef8",
   "dataHash": "599a9ad74b0555c5",
   "caseCount": 747,
   "cases": {
@@ -505,7 +505,7 @@
     "starting_scroll {\"count\":2,\"maxUnlockAct\":\"act2\"}": "efd7cf3c8b632caa | changed blessingHistory, scrolls; events starting_scroll; items 2; draws 0",
     "starting_scroll {\"count\":3,\"maxUnlockAct\":\"act2\",\"distinct\":true}": "195b0eb08fae4a93 | changed blessingHistory, scrolls; events starting_scroll; items 3; draws 0",
     "starting_scroll {\"count\":5,\"maxUnlockAct\":\"act1\",\"distinct\":true}": "4ef763de88d1bd13 | changed blessingHistory, scrolls (+6 paths); events starting_scroll; items 5; draws 0",
-    "starting_scroll {\"count\":3,\"minUnlockAct\":\"act2\",\"maxUnlockAct\":\"act2\",\"distinct\":true}": "f3f8aecac59085bc | changed blessingHistory, scrolls; events starting_scroll; items 3; draws 0",
+    "starting_scroll {\"count\":3,\"minUnlockAct\":\"act2\",\"maxUnlockAct\":\"act2\",\"distinct\":true}": "2db601029d1da3a1 | changed blessingHistory, scrolls; events starting_scroll; items 3; draws 0",
     "starting_scroll {\"count\":0}": "bd0549751158d8b5 | changed blessingHistory; events starting_scroll:invalid_starting_scroll_count; draws 0",
     "starting_scroll with no scroll catalog": "80016495a582fd3b | changed blessingHistory; events starting_scroll:missing_scroll_catalog; draws 0",
     "starting_scroll with a null scroll bag": "32c3b15bb273d7ce | changed blessingHistory, scrolls; events starting_scroll; items 1; draws 0",
