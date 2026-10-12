@@ -680,12 +680,16 @@ describe('what the court says (dialogue.json vigil, engine/VigilWords.js)', () =
     });
 
     it('one area art that fells two Voices at once: the first removed gets the box, the other floats', async () => {
-      // Cataclysm (weaponArts.json: radius 2, a fixed 5 a blow) on the guard at the ring's heart
-      // reaches all four sigils, each 2 tiles off. Two Voices at 4 HP drop together: both are at
+      // A radius-2 area art dealing a fixed 5 a blow (a fixture, so a retuned legendary art
+      // never moves this test) on the guard at the ring's heart reaches all four sigils, each
+      // 2 tiles off. Two Voices at 4 HP drop together: both are at
       // 0 HP before the first is removed (the area's blows land first, then each falls in area
       // order through removeUnit), so a count that read 0 HP as fallen saw "2" at the first fall
       // and floated both lines, opening no box. A rewind to before the strike chooses the same.
-      const art = data.weaponArts.arts.find((a) => a.name === 'Cataclysm');
+      const art = {
+        name: 'Fixture Splash',
+        area: { shape: 'radius', radius: 2, damage: { kind: 'fixed', amount: 5 }, strikes: 'once' },
+      };
       const doomed = ['voice_binding', 'voice_feeding'];
       const strike = async (scene) => {
         const guard = scene.enemyUnits.find((u) => u.className === 'Dark Knight');
