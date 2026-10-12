@@ -14,6 +14,7 @@ import {
 import { STINGER_PRELOAD, getMusicLayers, getMusicLoop } from './musicConfig.js';
 import { MUSIC_STINGERS } from './musicStingers.js';
 import { STINGER_FADE_MS, StingerPlayer } from './StingerPlayer.js';
+import { SOFT_SFX, SOFT_SFX_YIELD_MS, resolveSfxKey } from './sfxConfig.js';
 
 // A cue not decoded yet may take this long to decode before its fallback plays
 // (from prefetched bytes it takes a fraction of this; see prefetchStingers).
@@ -1177,11 +1178,44 @@ export class AudioManager {
     }
   }
 
-  /** Play a one-shot sound effect. */
+  /**
+   * Play a one-shot sound effect. A cue whose file is not loaded plays its fallback
+   * (sfxConfig SFX_FALLBACKS) or nothing; a soft cue (a menu's whoosh) waits for the
+   * press's other sounds and gives way to them. Sound only: no game state, no RNG.
+   */
   playSFX(key, volume) {
+    const cue = resolveSfxKey(key, (k) => this.sound.game.cache.audio.has(k));
+    if (!cue) return;
     const vol = (volume ?? 1.0) * this._curve(this.sfxVolume);
-    if (!this.sound.game.cache.audio.has(key)) return;
-    this.sound.play(key, { volume: vol });
+    if (SOFT_SFX.includes(cue)) {
+      this._requestSoftSFX(cue, vol);
+      return;
+    }
+    this._lastSfxAt = this._sfxNow();
+    this.sound.play(cue, { volume: vol });
+  }
+
+  _sfxNow() {
+    return globalThis.performance?.now?.() ?? Date.now();
+  }
+
+  /** A soft cue: the press's highest ranked one plays, unless another sound had the press. */
+  _requestSoftSFX(key, volume) {
+    if (this._softSfx) {
+      if (SOFT_SFX.indexOf(key) < SOFT_SFX.indexOf(this._softSfx.key))
+        Object.assign(this._softSfx, { key, volume });
+      return;
+    }
+    this._softSfx = { key, volume, at: this._sfxNow() };
+    queueMicrotask(() => {
+      const pending = this._softSfx;
+      this._softSfx = null;
+      if (!pending) return;
+      if ((this._lastSfxAt ?? -Infinity) >= pending.at - SOFT_SFX_YIELD_MS) return;
+      if (!this.sound.game.cache.audio.has(pending.key)) return;
+      this._lastSfxAt = this._sfxNow();
+      this.sound.play(pending.key, { volume: pending.volume });
+    });
   }
 
   setMusicVolume(level) {

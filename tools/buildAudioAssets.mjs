@@ -16,7 +16,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { MUSIC_LOOPS } from '../src/utils/musicLoops.js';
 import { MUSIC, MUSIC_LAYERS, ENTITY_FINALE } from '../src/utils/musicConfig.js';
 import { MUSIC_STINGERS } from '../src/utils/musicStingers.js';
-import { ESSENTIAL_SFX, COMBAT_SFX } from '../src/utils/sfxConfig.js';
+import { ALL_SFX } from '../src/utils/sfxConfig.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
@@ -38,7 +38,7 @@ export function validateAudioCatalog(entries) {
     else if (value && typeof value === 'object') Object.values(value).forEach(collect);
   };
   collect(MUSIC);
-  for (const key of [...ESSENTIAL_SFX, ...COMBAT_SFX]) requireKey(key);
+  for (const key of ALL_SFX) requireKey(key);
   for (const key of Object.keys(MUSIC_LOOPS)) {
     requireKey(key);
     const loop = MUSIC_LOOPS[key];

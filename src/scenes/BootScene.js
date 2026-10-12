@@ -18,7 +18,7 @@ import { loadGameFont } from '../utils/loadGameFont.js';
 import Phaser from 'phaser';
 import { DataLoader } from '../engine/DataLoader.js';
 import { audioAssetUrl } from '../utils/audioAssets.js';
-import { ESSENTIAL_SFX, COMBAT_SFX } from '../utils/sfxConfig.js';
+import { ESSENTIAL_SFX, COMBAT_SFX, UI_SFX } from '../utils/sfxConfig.js';
 import { AudioManager } from '../utils/AudioManager.js';
 import { SettingsManager } from '../utils/SettingsManager.js';
 import { cloudState } from '../main.js';
@@ -443,7 +443,8 @@ export class BootScene extends Phaser.Scene {
       'assets/sprites/fx/fx_atlas.json',
     );
 
-    // SFX (18 effects)
+    // SFX (utils/sfxConfig.js): the essentials now, combat now or after the title,
+    // menu and service cues always after the title (the warm-up; each falls back until then).
     for (const key of ESSENTIAL_SFX) {
       this.load.audio(key, [audioAssetUrl(key)]);
     }
@@ -461,6 +462,10 @@ export class BootScene extends Phaser.Scene {
       for (const key of COMBAT_SFX) {
         this.load.audio(key, [audioAssetUrl(key)]);
       }
+    }
+    this._deferredAssetGroups.push('ui_sfx');
+    for (const key of UI_SFX) {
+      this._deferredAssets.push({ type: 'audio', key, src: [audioAssetUrl(key)], group: 'ui_sfx' });
     }
   }
 

@@ -6,7 +6,10 @@
 //   * the unit's map bar fills back from empty over REFILL_MS (its boss bar likewise,
 //     BossPresenceController.playRefill);
 //   * the stone's pip (BattleScene.updateAffixPips draws one beside the affix pips) goes;
-//   * "The stone breaks." floats over the unit, with the `sealed` cue (sfx_heal without it).
+//   * "The stone breaks." floats over the unit: the stone shatters (sfx_shatter, at the
+//     sound-effect volume) and the `sealed` cue rings over it in the music's key. The
+//     shatter is the break's own sound, so the cue needs no fallback of its own (the
+//     shatter's fallback while its file is not loaded is sfx_heal, the cue's old one).
 // Motion-reduced play shows the end state at once. Presentation only: no RNG, no saves, no
 // unit state; a failure here never touches the battle.
 
@@ -41,7 +44,8 @@ export default class RevivalStoneController {
       if (unit.isBoss) scene._bossPresence?.playRefill?.();
       const pos = scene.grid?.gridToPixel?.(unit.col, unit.row);
       if (pos) scene.showMinorHintAt?.(pos.x, pos.y - 24, STONE_BREAK_LINE, UI_PALETTE.info);
-      void playCue(scene, 'sealed', { fallbackSfx: 'sfx_heal', duck: 0.4, waitMs: 250 });
+      scene.registry?.get?.('audio')?.playSFX?.('sfx_shatter');
+      void playCue(scene, 'sealed', { duck: 0.4, waitMs: 250 });
     } catch (err) {
       console.warn('[RevivalStoneController] break presentation failed:', err);
     }

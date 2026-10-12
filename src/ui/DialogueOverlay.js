@@ -255,7 +255,9 @@ export class DialogueOverlay {
   _showDOM(name, line, portraitKey, autoAdvance, { allowSkip, onSkip }) {
     return new Promise((resolve) => {
       this._pendingResolve = resolve;
-      this.surface = new MenuSurface(this.scene, name || 'Story', () => this.hide(true));
+      this.surface = new MenuSurface(this.scene, name || 'Story', () => this.hide(true), {
+        sound: false,
+      });
       this.surface.root.className = 're re-screen re-dialogue';
       this.surface.root.style.setProperty('--re-z', DOM_UI_DEPTHS.DIALOGUE);
       this.surface.root.replaceChildren();
