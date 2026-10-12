@@ -4,6 +4,7 @@ import { hasDOMHost } from '../utils/domUI.js';
 import { TILE_SIZE, FACTION_COLORS, ENTITY_FOOTPRINT } from '../utils/constants.js';
 import { UI_HEX } from '../utils/uiStyles.js';
 import { isEntity, getEntityCenter } from '../engine/EntitySystem.js';
+import { canInspectUnit } from '../engine/BattleInformation.js';
 
 // A unit that joins mid-battle (a reinforcement, a raised Skeleton, a risen Zombie, a Vigil's
 // Hollowed) is on the roster before it is drawn, so a sprite that fails to draw costs only the
@@ -13,10 +14,32 @@ import { isEntity, getEntityCenter } from '../engine/EntitySystem.js';
 // the marker cannot be drawn, the unit is noted, and at the next player turn's checkpoint the
 // battle asks for a reload (Resume Battle draws it again) rather than let the player go on
 // against a unit they cannot see. A resume and a Vision rewind redraw their roster through here
-// too, and ask the same once the restored state is saved.
+// too, and ask the same once the restored state is saved. The reload is offered only over a save
+// that holds the battle as it stands: when the checkpoint could not be written, the save-retry
+// flow keeps its say and the offer waits for the next write that lands (`noteDurableSave`).
+// Whatever is drawn here takes the fog's verdict at once, so a redraw never shows a hidden foe.
 
 const PARTS = ['graphic', 'label', 'factionIndicator', 'hpBar', 'affixPips'];
 const undrawn = new WeakMap(); // scene -> Set of units with nothing drawn
+const reloadOffers = new WeakMap(); // scene -> 'awaiting' (a durable save) | 'offered'
+
+/** Show or hide every drawn part of a unit (the fog's one switch for a unit's presentation). */
+export function setUnitPartsVisible(unit, visible) {
+  if (unit.graphic) unit.graphic.setVisible(visible);
+  if (unit.label) unit.label.setVisible(visible);
+  if (unit.factionIndicator) unit.factionIndicator.setVisible(visible);
+  if (unit.hpBar) {
+    unit.hpBar.bg.setVisible(visible);
+    unit.hpBar.fill.setVisible(visible);
+  }
+  if (unit.affixPips) unit.affixPips.forEach((pip) => pip.setVisible(visible));
+}
+
+/** A foe or NPC just drawn under fog shows only if the army can see it (`canInspectUnit`). */
+function applyFog(scene, unit) {
+  if (!scene.grid?.fogEnabled || unit.faction === 'player') return;
+  setUnitPartsVisible(unit, canInspectUnit(scene.grid, unit));
+}
 
 /** Run `draw` with every object `scene.add` makes recorded in `created`. */
 function tracked(scene, created, draw) {
@@ -92,6 +115,7 @@ export function drawArrivalGraphic(scene, unit, label = 'unit graphic') {
   }
   if (!failure) {
     undrawn.get(scene)?.delete(unit);
+    safeBattlePresentation(`${label} fog`, () => applyFog(scene, unit), { scene });
     return 'sprite';
   }
   safeBattlePresentation(
@@ -110,6 +134,7 @@ export function drawArrivalGraphic(scene, unit, label = 'unit graphic') {
   );
   if (marked === true) {
     undrawn.get(scene)?.delete(unit);
+    safeBattlePresentation(`${label} marker fog`, () => applyFog(scene, unit), { scene });
     return 'marker';
   }
   discard(unit, markerParts);
@@ -124,22 +149,39 @@ const onBoard = (scene, unit) =>
   [scene.playerUnits, scene.enemyUnits, scene.npcUnits].some((list) => list?.includes(unit));
 
 /**
- * At a player turn's checkpoint (the battle is durable here): try once more to draw each unit
- * still undrawn on the board; if any stays invisible, ask for a reload. Returns the units still
- * undrawn.
+ * At a durable boundary (a player turn's checkpoint, a resume, a rewind): try once more to draw
+ * each unit still undrawn on the board; if any stays invisible, ask for a reload, but only when
+ * `saved` says the battle as it stands is on disk. Without that save the offer waits for the next
+ * write that lands (`noteDurableSave`), so a reload never goes back to an older checkpoint than
+ * it promises. Returns the units still undrawn.
  */
-export function guardUndrawnUnits(scene) {
+export function guardUndrawnUnits(scene, { saved = false } = {}) {
   const pending = undrawn.get(scene);
-  if (!pending?.size) return [];
-  for (const unit of [...pending]) {
+  for (const unit of [...(pending || [])]) {
     if (!onBoard(scene, unit) || unit.graphic) pending.delete(unit);
     else if (drawArrivalGraphic(scene, unit, 'undrawn unit graphic') !== 'none')
       pending.delete(unit);
   }
-  const still = [...pending];
-  if (still.length)
+  const still = [...(pending || [])];
+  if (reloadOffers.get(scene) === 'offered') return still;
+  if (!still.length) reloadOffers.delete(scene);
+  else if (!saved) reloadOffers.set(scene, 'awaiting');
+  else {
+    reloadOffers.set(scene, 'offered');
+    scene.events?.once?.('shutdown', () => reloadOffers.delete(scene));
     safeBattlePresentation('undrawn unit reload prompt', () => showReloadPrompt(scene), { scene });
+  }
   return still;
+}
+
+/** A checkpoint write landed: a reload offer that waited for one can be made now. */
+export function noteDurableSave(scene) {
+  if (reloadOffers.get(scene) === 'awaiting') guardUndrawnUnits(scene, { saved: true });
+}
+
+/** 'none', 'awaiting' (a unit is undrawn and no save holds the battle yet) or 'offered'. */
+export function reloadOffer(scene) {
+  return reloadOffers.get(scene) || 'none';
 }
 
 function showReloadPrompt(scene) {
@@ -148,7 +190,7 @@ function showReloadPrompt(scene) {
   surface.header.querySelector('button')?.remove();
   const status = element(
     'p',
-    'A unit on the battlefield could not be drawn. Reload to resume this battle from the start of this turn.',
+    'A unit on the battlefield could not be drawn. Reload to resume this battle from its last save.',
   );
   status.setAttribute('role', 'status');
   surface.body.append(

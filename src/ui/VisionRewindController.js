@@ -1052,7 +1052,7 @@ export class VisionRewindController {
         // The restored board is exactly the target point.
         if (applied) scene._rewindFingerprint = rewindFingerprint(scene);
         // Saved before it was rebuilt: a unit nothing could draw asks for a reload.
-        if (applied) guardUndrawnUnits(scene);
+        if (applied) guardUndrawnUnits(scene, { saved: true });
         // A prologue chapter watches the replayed move (the rewind exercise).
         if (applied) void scene._prologue?.onRewound?.();
         return applied;
