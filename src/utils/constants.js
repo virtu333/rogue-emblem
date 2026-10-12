@@ -372,6 +372,9 @@ export const DIFFICULTY_GATED_CLASSES = new Set([
   'Dragon Lord',
   'Necromancer',
   'Skeleton',
+  // Act V (docs/specs/act-v-descent.md §5): set pieces and the Vigil's summons only
+  'Circle Adept',
+  'Hollowed',
 ]);
 export const ZOMBIE_CLASSES = new Set(['Zombie', 'Revenant']);
 // A Necromancer raises at most this many Skeletons in a battle, in all (engine/Necromancy.js):
@@ -382,6 +385,7 @@ export const DARK_CLASSES = new Set([
   'Dark Knight',
   'Warlock',
   'Necromancer',
+  'Circle Adept',
   'Zombie',
   'Revenant',
   'Dragon',

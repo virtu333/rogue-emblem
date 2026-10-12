@@ -466,6 +466,9 @@ export function applyEnemyDifficultyModifiers(unit, difficultyConfig = 1.0) {
 
 function assignEnemySkills(unit, classData, level, skillsData, act, difficultyConfig = 1.0) {
   if (!skillsData) return;
+  // A class with `noEnemySkills` (the Hollowed: the person has gone out of the uniform) never
+  // learns one, innate or rolled; the roll below draws nothing for it.
+  if (classData.noEnemySkills === true) return;
 
   // Promoted enemies get class innate skills.
   if (classData.tier === 'promoted') {
@@ -1494,8 +1497,8 @@ const RECLASS_EXCLUDED_CLASSES = new Set([
   'Bard',
 ]);
 
-// Enemy-only lines (undead, dragons, the Necromancer and its Skeletons): never a seal target
-// (a unit already in one may still reclass out).
+// Enemy-only lines (undead, dragons, the Necromancer and its Skeletons, the court circle's
+// Adepts and the Hollowed): never a seal target (a unit already in one may still reclass out).
 const RECLASS_TARGET_EXCLUDED_CLASSES = new Set([
   'Zombie',
   'Revenant',
@@ -1503,6 +1506,8 @@ const RECLASS_TARGET_EXCLUDED_CLASSES = new Set([
   'Dragon Lord',
   'Necromancer',
   'Skeleton',
+  'Circle Adept',
+  'Hollowed',
 ]);
 // The same lines, named for callers that need to know a class (or a skill innate to it) is
 // enemy-only (events never teach those skills).

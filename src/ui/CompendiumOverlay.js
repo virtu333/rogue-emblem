@@ -25,6 +25,7 @@ import { LOCKED_LINE, LOCKED_NAME, lockedSummary } from './compendiumLocked.js';
 import { pushOverlay, removeOverlay, isTopOverlay } from '../utils/overlayStack.js';
 import { formatUses, getConsumableDescription } from '../utils/consumableText.js';
 import { getImbueStoneItems } from '../engine/ImbueSystem.js';
+import { isDescentEnabled, isDescentOnly } from '../engine/DescentSwitch.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
 import { BoundingFocusController } from './BoundingFocusController.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
@@ -326,13 +327,13 @@ export class CompendiumOverlay {
       case 'stats':
         return statReferenceEntries(gd);
       case 'weapons':
-        return gd.weapons || [];
+        return (gd.weapons || []).filter((w) => this._descentEntryShown('weapons', w));
       case 'skills':
         return gd.skills || [];
       case 'weaponArts':
         return gd.weaponArts?.arts || [];
       case 'classes':
-        return gd.classes || [];
+        return this._shownClasses();
       case 'items':
         return [
           ...(gd.consumables || []),
@@ -359,6 +360,25 @@ export class CompendiumOverlay {
     }
   }
 
+  /**
+   * Is a Descent-only entry (engine/DescentSwitch.js) listed? Not while the Descent is dark,
+   * unless this save has already met it: a weapon, once its name is in the discovery view;
+   * a class, once its own `enemyWeapon` (the Circle Adept's Greycord) is. A class with no
+   * weapon of its own has no record of being met and stays out.
+   */
+  _descentEntryShown(key, item) {
+    if (!isDescentOnly(item) || isDescentEnabled(this.gameData)) return true;
+    const view = this._discoveryView();
+    if (key === 'weapons') return view.isItemSeen(item);
+    const weapon = (this.gameData?.weapons || []).find((w) => w.name === item.enemyWeapon);
+    return Boolean(weapon) && view.isItemSeen(weapon);
+  }
+
+  /** The Class tab's (and the bestiary's class half) entries. */
+  _shownClasses() {
+    return (this.gameData?.classes || []).filter((c) => this._descentEntryShown('classes', c));
+  }
+
   // Bestiary entries: all named bosses (act-labelled) followed by every class.
   // Memoized so item identities stay stable across redraws and the search index.
   _getFoesItems() {
@@ -381,7 +401,7 @@ export class CompendiumOverlay {
         bosses.push({ ...boss, _kind: 'boss', _actLabel: actLabel });
       }
     }
-    const classes = (gd?.classes || []).map((c) => ({ ...c, _kind: 'class' }));
+    const classes = this._shownClasses().map((c) => ({ ...c, _kind: 'class' }));
     this._foesItems = [...bosses, ...classes];
     return this._foesItems;
   }

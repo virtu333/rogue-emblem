@@ -26,7 +26,7 @@ import {
 } from './UnitManager.js';
 import { applyRecruitJoinBonus } from './RecruitScaling.js';
 import { applyRecruitLevelBonus } from './RecruitJoinLevel.js';
-import { isNecromancyClass } from './Necromancy.js';
+import { isNeverCopiedClass } from './Necromancy.js';
 import { arenaFeeMultiplierOf, arenaVisitBonusOf } from './EarnedBoons.js';
 
 /** Apply class abilities to new mercenaries and older persisted boards. */
@@ -93,7 +93,7 @@ export function generateChallenger(
   classPool = filterClassPoolByDifficulty(classPool, difficultyMode, {
     act: actId,
     difficulty: difficultyData,
-  }).filter((name) => !isNecromancyClass(name)); // a bout has no Skeletons to raise
+  }).filter((name) => !isNeverCopiedClass(name)); // a bout has no raise, no sigil and no rite
   if (classPool.length === 0) throw new Error(`Empty class pool for act: ${actId}`);
 
   const className = classPool[Math.floor(rng() * classPool.length)];

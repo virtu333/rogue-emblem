@@ -1717,6 +1717,67 @@
     "description": "Holds its post and raises Skeletons from the dead, two at a time. Fell it and they crumble."
   },
   {
+    "name": "Circle Adept",
+    "lore": "Duty roster, Third Hour: one voice to a verse, no voice relieved. The roster does not say what the verse is holding up.",
+    "tier": "promoted",
+    "promotesFrom": "Mage",
+    "promotionBonuses": {
+      "HP": 4,
+      "STR": 0,
+      "MAG": 4,
+      "SKL": 2,
+      "SPD": 1,
+      "DEF": 1,
+      "RES": 4,
+      "LCK": 0,
+      "MOV": 0
+    },
+    "growthBonuses": {
+      "HP": 5,
+      "MAG": 5,
+      "RES": 5
+    },
+    "moveType": "Infantry",
+    "weaponProficiencies": "Tomes (M)",
+    "roleChange": "Keeps a verse of the rite, strikes from its post",
+    "enemyWeapon": "Greycord",
+    "descentOnly": true,
+    "description": "A court-circle ritualist who holds one verse of the rite and does not leave it. Warded against magic; soft against steel."
+  },
+  {
+    "name": "Hollowed",
+    "lore": "Roll call, last entry: 'Present.' Every name answered, in the same voice, at the same moment. None of them was asked.",
+    "tier": "base",
+    "baseStats": {
+      "HP": 20,
+      "STR": 6,
+      "MAG": 0,
+      "SKL": 2,
+      "SPD": 3,
+      "DEF": 5,
+      "RES": 0,
+      "LCK": 0,
+      "MOV": 4
+    },
+    "growthRanges": {
+      "HP": "50-60",
+      "STR": "35-45",
+      "MAG": "0-0",
+      "SKL": "10-20",
+      "SPD": "15-25",
+      "DEF": "25-35",
+      "RES": "0-5",
+      "LCK": "0-0"
+    },
+    "moveType": "Infantry",
+    "weaponProficiencies": "Lances (P), Swords (P)",
+    "promotesTo": [],
+    "role": "emptied levy",
+    "noEnemySkills": true,
+    "descentOnly": true,
+    "description": "An imperial soldier the rite has emptied: the uniform still marches. It grows stronger with every word the circle speaks."
+  },
+  {
     "name": "Entity",
     "lore": "The thing beneath the stillness. The liturgy has no name for it, only for the shape the world takes when it turns over in its sleep.",
     "tier": "boss",

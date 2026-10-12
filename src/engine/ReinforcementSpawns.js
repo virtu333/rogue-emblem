@@ -12,7 +12,12 @@ import { filterClassPoolByDifficulty, XP_SPECIAL_ENEMY_MULTIPLIER } from '../uti
 import { affixesAllowedForClass } from './AffixEngine.js';
 import { earlyEnemyAllowed } from './EarlyEnemyRules.js';
 import { getFootprint, isEntity } from './EntitySystem.js';
-import { RAISED_XP_MULTIPLIER, isRaisedUnit, isNecromancyClass } from './Necromancy.js';
+import {
+  RAISED_XP_MULTIPLIER,
+  isRaisedUnit,
+  isNecromancyClass,
+  isNeverCopiedClass,
+} from './Necromancy.js';
 import { reinforcementMoveTypes, scheduleReinforcementsForTurn } from './ReinforcementScheduler.js';
 
 /** Level an arrival takes when the map has no non-boss spawn to copy. */
@@ -46,9 +51,10 @@ function allowedActClasses(names, { battleParams, gameData }) {
   }).filter(
     (className) =>
       typeof className === 'string' &&
-      // An arrival is never a Necromancer or a Skeleton: they come from the Necromancer's
-      // own raise, one Necromancer per battle (Necromancy.js).
-      !isNecromancyClass(className) &&
+      // An arrival is never a Necromancer, a Skeleton, a Circle Adept or a Hollowed: the
+      // first two come from the Necromancer's own raise (one per battle), the last two from
+      // an Act V set piece's own slots and summons (Necromancy.js `isNeverCopiedClass`).
+      !isNeverCopiedClass(className) &&
       earlyEnemyAllowed(className, battleParams) &&
       (gameData?.classes || []).some((c) => c.name === className),
   );
@@ -68,7 +74,7 @@ export function buildReinforcementTemplatePool({ battleConfig, battleParams, gam
       !spawn ||
       spawn.isBoss ||
       typeof spawn.className !== 'string' ||
-      isNecromancyClass(spawn.className) ||
+      isNeverCopiedClass(spawn.className) ||
       !earlyEnemyAllowed(spawn.className, battleParams)
     )
       continue;
@@ -151,6 +157,9 @@ export function buildReinforcementSpawnSpec({
 }) {
   if (!scheduledSpawn) return null;
   const fallbackLevel = enemySpawnFallbackLevel(battleConfig, battleParams?.act);
+  // A scripted wave may NAME a Hollowed or a Circle Adept (an Act V set piece's own wave); only
+  // the raising classes are refused, since a Necromancer is one per battle and a Skeleton
+  // exists only through its raise.
   const classOverride =
     typeof scheduledSpawn.className === 'string' &&
     !isNecromancyClass(scheduledSpawn.className) &&

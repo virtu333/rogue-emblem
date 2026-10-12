@@ -229,7 +229,7 @@ function resolveSlot(slot, ctx) {
 /** The AI a spawn takes when the slot names none (MapGenerator's filler defaults). */
 function defaultAiMode(className) {
   if (className === 'Cleric') return 'heal';
-  if (className === 'Necromancer') return 'guard';
+  if (className === 'Necromancer' || className === 'Circle Adept') return 'guard';
   return undefined;
 }
 

@@ -4,6 +4,7 @@ import { DIFFICULTY_IDS } from '../src/engine/DifficultyEngine.js';
 import { getWeaponArtTier2Effects } from '../src/engine/WeaponArtSystem.js';
 import { validateAccessorySkillData } from '../src/engine/AccessorySkills.js';
 import { validateCarryPools } from '../src/engine/EnemyCarry.js';
+import { ENEMY_ONLY_CLASS_NAMES } from '../src/engine/UnitManager.js';
 import { ENTITY_WEAPON_NAMES } from '../src/utils/constants.js';
 
 const DATA_DIR = path.resolve('data');
@@ -266,6 +267,13 @@ export function validateCrossReferences(datasets = null) {
       : []) {
       if (!classNames.has(className)) {
         errors.push(`recruits.json:${actId}.classPool references unknown class "${className}"`);
+      }
+      // A recruit (and a Colosseum mercenary, which draws from these pools) is a class a
+      // player unit can hold: never an enemy-only one (Necromancer, Circle Adept, ...).
+      if (ENEMY_ONLY_CLASS_NAMES.has(className)) {
+        errors.push(
+          `recruits.json:${actId}.classPool lists enemy-only class "${className}" (it can never be recruited)`,
+        );
       }
     }
   }

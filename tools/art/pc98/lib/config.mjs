@@ -98,6 +98,9 @@ const UNLIGHT = new Set([
   // Phase 3 (3I): the Necromancer and the Skeletons it raises
   'enemy_necromancer',
   'enemy_skeleton',
+  // Act V (the Descent): the soldier the rite has emptied; the Circle Adept who speaks it is a
+  // living officiant and keeps the imperial (blood) plate
+  'enemy_hollowed',
 ]);
 
 /** Default backdrop faction for a portrait id (overridable in config). */
