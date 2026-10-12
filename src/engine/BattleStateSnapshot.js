@@ -184,6 +184,23 @@ function validRestoreFields(state, width, height) {
     return false;
   if (!optional(state, 'appliedHybridOverrideTurns', (v) => list(v, (turn) => integer(turn, 1))))
     return false;
+  // The Vigil's counts (engine/Vigil.js): whole numbers, and id-keyed maps of whole numbers.
+  const idCounts = (map) =>
+    record(map) &&
+    Object.keys(map).length <= 32 &&
+    Object.entries(map).every(([id, n]) => id.length > 0 && id.length <= 64 && integer(n));
+  if (
+    !optional(
+      state,
+      'vigilState',
+      (vigil) =>
+        record(vigil) &&
+        ['words', 'summoned', 'lastProcessedTurn'].every((key) => integer(vigil[key])) &&
+        idCounts(vigil.byVoice) &&
+        idCounts(vigil.byCircle),
+    )
+  )
+    return false;
   for (const key of ['playerDeathsThisBattle', 'goldEarned', 'checkpointIndex'])
     if (!optional(state, key, integer)) return false;
   for (const key of ['latePressureWarningShown', 'caravanExited'])

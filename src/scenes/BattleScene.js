@@ -382,7 +382,7 @@ import {
 } from '../engine/ReinforcementSpawns.js';
 import { routLadderObjectiveLine, routLadderStatus } from '../engine/RoutLadder.js';
 import { applyHoldSpawn } from '../engine/HoldActivation.js';
-import { settleArtilleryStances } from '../engine/SiegeArtillery.js';
+import { applyPostSpawn, settleArtilleryStances } from '../engine/SiegeArtillery.js';
 import {
   transitionToScene,
   transitionToSceneWithBlockedRetry,
@@ -419,6 +419,8 @@ import { RecruitBeaconController } from '../ui/RecruitBeaconController.js';
 import { SMASH_TARGET_STATE, ZombieRemainsController } from '../ui/ZombieRemainsController.js';
 import { NecromancyController } from '../ui/NecromancyController.js';
 import { isNecromancer } from '../engine/Necromancy.js';
+import { createVigilState, isVoiceOf } from '../engine/Vigil.js';
+import { VigilController } from '../ui/VigilController.js';
 import { classChangeItemBlock } from '../engine/TwistedBoons.js';
 import { HealController } from '../ui/HealController.js';
 import { InputController } from '../ui/InputController.js';
@@ -515,6 +517,11 @@ function remainsOf(scene) {
 /** The battle's Necromancer raises and crumbles (NecromancyController), made on first use. */
 function necromancyOf(scene) {
   return (scene._necromancyCtrl ||= new NecromancyController(scene));
+}
+
+/** The battle's Vigil (VigilController: its markers, words and calls), made on first use. */
+function vigilOf(scene) {
+  return (scene._vigilCtrl ||= new VigilController(scene));
 }
 
 /** Reset per-battle state on a unit at deploy time. */
@@ -885,6 +892,10 @@ export class BattleScene extends Phaser.Scene {
     if (this._necromancyCtrl) {
       this._necromancyCtrl.destroy();
       this._necromancyCtrl = null;
+    }
+    if (this._vigilCtrl) {
+      this._vigilCtrl.destroy();
+      this._vigilCtrl = null;
     }
     if (this._promotionController) {
       this._promotionController.destroy();
@@ -1697,6 +1708,9 @@ export class BattleScene extends Phaser.Scene {
       this.npcUnits = [];
       this.ballistas = (this.battleConfig?.ballistas || []).map((b) => ({ ...b }));
       this._zombieTombstones = [];
+      // The Vigil's words and calls (engine/Vigil.js): fresh here, a resume's checkpoint puts
+      // its own back (restoreBattleWorldState). PR 9's victory commit reads `.words`.
+      this._vigilState = bc.vigil ? createVigilState() : null;
 
       // Input lockout to prevent menu clicks bleeding through to map
       this._uiClickBlocked = false;
@@ -1834,6 +1848,10 @@ export class BattleScene extends Phaser.Scene {
       // battleConfig.villageTile (resume restores state from the suspend
       // checkpoint; the controller only re-renders/re-applies terrain).
       (this._villageController ||= new VillageController(this)).create();
+
+      // The Vigil's sigil and circle markers (a Vigil map only).
+      this._vigilCtrl?.destroy();
+      this._vigilCtrl = bc.vigil ? new VigilController(this).create() : null;
 
       // Spawn NPC for recruit battles. RecruitNodeSystem builds the exact recruit the
       // Loom previewed (own seeded stream, so the battle RNG is not consumed).
@@ -2777,6 +2795,8 @@ export class BattleScene extends Phaser.Scene {
 
     if (spawn.areaArt) bindEnemyAreaArt(enemy, spawn.areaArt, this.gameData.weaponArts?.arts);
     if (spawn.aiMode) enemy.aiMode = spawn.aiMode;
+    // An authored post remembers its tile, to walk back when moved off it (SiegeArtillery).
+    applyPostSpawn(enemy, spawn);
     // A garrison holder keeps its post until its pack wakes (HoldActivation).
     applyHoldSpawn(enemy, spawn);
     if (
@@ -3737,6 +3757,7 @@ export class BattleScene extends Phaser.Scene {
     this._pinnedThreats?.refresh();
     this._recruitBeacon?.sync();
     this._remainsCtrl?.sync();
+    this._vigilCtrl?.sync();
     this._mobileBattleHud?.sync();
     this._portraitBattle?.update();
     if (!this._uiCamera) return;
@@ -9477,6 +9498,11 @@ export class BattleScene extends Phaser.Scene {
         await necromancyOf(this).crumble(unit);
         if (!isCurrentBattleSession(this, session)) return;
       }
+      // A Voice of the Vigil falls silent: its circle closes for good (its called Hollowed stay).
+      if (this.battleConfig?.vigil && isVoiceOf(this.battleConfig.vigil, unit)) {
+        await vigilOf(this).onVoiceFell(unit, { col: deathCol, row: deathRow });
+        if (!isCurrentBattleSession(this, session)) return;
+      }
     }
     safeBattlePresentation('death hover', () => this._inputController?.refreshHoverInfo(), {
       scene: this,
@@ -9941,6 +9967,7 @@ export class BattleScene extends Phaser.Scene {
           await this.processTurnStartEffects(this.enemyUnits);
           await this.processZombieRevival();
           await this.processNecromancy();
+          await this.processVigil();
           await this.processBallistaFire(this.playerUnits, 'enemy');
           this.applyDueHybridOverridesForTurn(turn);
           await this.startEnemyPhase();
@@ -10205,6 +10232,17 @@ export class BattleScene extends Phaser.Scene {
     const session = battleSession(this);
     if (!this.enemyUnits.some(isNecromancer)) return;
     await necromancyOf(this).processRaises();
+    if (!isCurrentBattleSession(this, session)) return;
+  }
+
+  /**
+   * Enemy-phase start, after the Necromancer's raise: the Voices on their sigils speak and the
+   * open circles call Hollowed (engine/Vigil.js, VigilController). A Vigil map only.
+   */
+  async processVigil() {
+    const session = battleSession(this);
+    if (!this.battleConfig?.vigil) return;
+    await vigilOf(this).processPhase();
     if (!isCurrentBattleSession(this, session)) return;
   }
 
