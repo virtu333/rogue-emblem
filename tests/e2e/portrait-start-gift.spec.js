@@ -108,6 +108,14 @@ test('375x667: four cards with the gift, each chosen card whole in view, the gif
   const confirm = shrine.getByRole('button', { name: 'Confirm', exact: true });
   await expectTappable(confirm);
   await confirm.tap();
+  // The gift opens before the run begins: its card whole on the upright phone, Begin tappable.
+  const reveal = page.getByRole('dialog', { name: 'Fallen Hoard', exact: true });
+  await expect(reveal).toBeVisible();
+  await expectWhole(reveal.locator('.ch-tarot'), 'the revealed gift whole in view');
+  await expectNoSidewaysScroll(page, '[aria-label="Fallen Hoard"]');
+  const begin = reveal.getByRole('button', { name: 'Begin the run', exact: true });
+  await expectTappable(begin);
+  await begin.tap();
   await waitForScene(page, 'NodeMap');
   expect(
     await page.evaluate(

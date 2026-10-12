@@ -8,6 +8,8 @@ import { MUSIC } from '../utils/musicConfig.js';
 import { RunManager, clearSavedRun } from '../engine/RunManager.js';
 import { deleteRunSave } from '../cloud/CloudSync.js';
 import { recordBlessingSelection } from '../utils/blessingAnalytics.js';
+import { presentGiftReveal } from '../ui/GiftReveal.js';
+import { giftRevealModel } from '../ui/giftRevealModel.js';
 import { blessingPriceKind } from '../ui/choiceContent.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { InputAction } from '../utils/InputActions.js';
@@ -189,6 +191,7 @@ export class BlessingSelectScene extends Phaser.Scene {
   _confirm() {
     if (this.isTransitioning) return;
 
+    let giftTaken = false;
     if (!this._blessingCommitted) {
       // The gift is taken in place of a blessing (StartGifts.chooseStartGift: no blessing is
       // chosen, the gift's grant and catch apply once). A failed transition rebuilds the run.
@@ -211,6 +214,7 @@ export class BlessingSelectScene extends Phaser.Scene {
           this._rollbackBlessingCommit();
           return;
         }
+        giftTaken = true;
       } else if (!this.runManager.chooseBlessing(blessingId)) return;
       this._blessingCommitted = true;
       const telemetry = this.runManager.blessingSelectionTelemetry;
@@ -230,6 +234,20 @@ export class BlessingSelectScene extends Phaser.Scene {
     this.isTransitioning = true;
     const audio = this.registry.get('audio');
     if (audio) audio.playSFX('sfx_confirm');
+    // A gift's contents are rolled at the take (the Sealed Reliquary's blessing, the Hoard's
+    // accessories): show what it held before the run begins. The run is already committed, so
+    // the reveal's only way out is Begin; without a DOM the run begins at once.
+    const reveal = giftTaken ? presentGiftReveal(this, giftRevealModel(this.runManager)) : null;
+    if (reveal) {
+      reveal.then(() => this._beginRun());
+      return;
+    }
+    this._beginRun();
+  }
+
+  /** Hand the committed run to the route map (the confirm's second half). */
+  _beginRun() {
+    this.isTransitioning = true;
     transitionToScene(
       this,
       'NodeMap',
