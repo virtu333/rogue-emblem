@@ -156,16 +156,28 @@ function ensureArtifact(result) {
 }
 
 /**
+ * Meta presets: the share of each upgrade's levels bought (rounded to the nearest level).
+ * `endgame` is every upgrade maxed; `half` and `quarter` stand for a player part of the way
+ * there (sim/descent.js reads the higher rungs with them: a player reaches Nightfall with Home
+ * Base bought, never with none).
+ */
+export const META_PRESET_SHARES = Object.freeze({ quarter: 0.25, half: 0.5, endgame: 1 });
+
+/**
  * Build run metaEffects for the simulation.
  * --meta-preset endgame: every upgrade maxed via the real
  * MetaProgressionManager (the loadout an actual commander-choice purchaser
- * has). --commander/--partner override the starting pair on top.
+ * has); half / quarter buy that share of each upgrade's levels.
+ * --commander/--partner override the starting pair on top.
  */
 export function buildRunMetaEffects(opts, gameData) {
   let preset = null;
   if (opts.metaPreset && opts.metaPreset !== 'none') {
-    if (opts.metaPreset !== 'endgame') {
-      throw new Error(`Unknown --meta-preset "${opts.metaPreset}". Expected none|endgame.`);
+    const share = META_PRESET_SHARES[opts.metaPreset];
+    if (!share) {
+      throw new Error(
+        `Unknown --meta-preset "${opts.metaPreset}". Expected none|${Object.keys(META_PRESET_SHARES).join('|')}.`,
+      );
     }
     const meta = new MetaProgressionManager(gameData.metaUpgrades, '__sim_meta_preset__');
     for (const milestone of [
@@ -179,7 +191,8 @@ export function buildRunMetaEffects(opts, gameData) {
       meta.milestones.add(milestone);
     }
     for (const upgrade of gameData.metaUpgrades) {
-      meta.purchasedUpgrades[upgrade.id] = upgrade.maxLevel;
+      const level = Math.round(upgrade.maxLevel * share);
+      if (level > 0) meta.purchasedUpgrades[upgrade.id] = level;
     }
     preset = meta.getActiveEffects({ weaponArtCatalog: gameData.weaponArts?.arts || [] });
   }

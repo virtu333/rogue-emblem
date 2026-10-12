@@ -7,11 +7,8 @@ import { inputHint } from '../utils/inputHint.js';
 import Phaser from 'phaser';
 import { MUSIC } from '../utils/musicConfig.js';
 import { resolveStartingLordDefs } from '../engine/Commander.js';
-import {
-  DIFFICULTY_IDS,
-  difficultyLockReason,
-  generateModifierSummary,
-} from '../engine/DifficultyEngine.js';
+import { DIFFICULTY_IDS, difficultyLockReason } from '../engine/DifficultyEngine.js';
+import { rungModifierSummary } from '../engine/RevivalStoneRoad.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { hasAnySlotMilestone } from '../engine/SlotManager.js';
 import { InputAction } from '../utils/InputActions.js';
@@ -130,7 +127,7 @@ export class DifficultySelectScene extends Phaser.Scene {
       const mode = config[id] || {};
       const label = mode.label || id.charAt(0).toUpperCase() + id.slice(1);
       const color = mode.color || UI_PALETTE.muted;
-      const summary = generateModifierSummary(mode);
+      const summary = rungModifierSummary(this.gameData, id);
       const lockReason = difficultyLockReason(id, has);
       const locked = Boolean(lockReason);
       const road = typeof mode.road === 'string' ? mode.road : '';
