@@ -320,6 +320,9 @@ export class ClaimingRunDriver extends RunSimulationDriver {
       this.trace.push({ ...entry, ...result });
       if (result.result === 'timeout') return this._buildResult('timeout');
       this._afterNode();
+      // `stopWhen(driver)`: hand the run back mid-act once it holds (sim/descent.js `--until`:
+      // a tuning loop that only needs the act up to one node).
+      if (this.options.stopWhen?.(this)) return this._buildResult('paused');
       if (rm.isActComplete()) {
         this.metrics.eclipseShadowByAct[rm.currentAct] = rm.eclipse?.shadow ?? 0;
         if (rm.isRunComplete()) return this._buildResult('victory');
