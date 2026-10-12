@@ -2,7 +2,8 @@
 // can meet nothing of Act V, so Help and the Compendium must not teach or list it: the
 // Court Circle page, the Circle Adept, the Hollowed and Greycord's "???" slot. With the
 // Descent on they all appear; a save that has already met one keeps it. The flag is read
-// through engine/DescentSwitch.js only.
+// through engine/DescentSwitch.js only. The shipped file has it on, so the dark data here
+// is built by the test itself.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { HELP_TABS, helpTabsFor } from '../src/data/helpContent.js';
 import { HelpOverlay } from '../src/ui/HelpOverlay.js';
@@ -36,7 +37,8 @@ beforeEach(() => {
 });
 
 const base = loadGameData();
-const dark = base; // this tree ships no descent.json: dark by absence
+// Dark by absence: the game data with no descent.json at all (this tree ships it, switched on).
+const { descent: _shippedDescent, ...dark } = base;
 const darkByFlag = { ...base, descent: { enabled: false } };
 const lit = { ...base, descent: { enabled: true } };
 
@@ -65,6 +67,7 @@ describe('the data tags', () => {
   });
 
   it('the switch reads only an explicit true', () => {
+    expect(isDescentEnabled(base)).toBe(true); // the shipped data.descent.json is on
     expect(isDescentEnabled(dark)).toBe(false);
     expect(isDescentEnabled(darkByFlag)).toBe(false);
     expect(isDescentEnabled({ ...base, descent: { enabled: 'yes' } })).toBe(false);

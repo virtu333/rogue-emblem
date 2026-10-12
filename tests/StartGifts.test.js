@@ -136,7 +136,7 @@ describe('the offer', () => {
     }
     expect(offered / N).toBeGreaterThan(0.46);
     expect(offered / N).toBeLessThan(0.54);
-  });
+  }, 30_000); // over a thousand seeds: about 4 s alone, past 5 s under a full suite's load
 
   it('is the same for the same seed, so backing out of the shrine cannot reroll it', () => {
     // Failure: the gift is drawn on Math.random or Date.now, so returning to the shrine (which
@@ -663,7 +663,7 @@ describe('the six gifts', () => {
     expect(validateBlessingsConfig(bad.blessings).errors).toContainEqual(
       expect.stringContaining('artScrollAct'),
     );
-  });
+  }, 30_000); // over a thousand seeds: about 4 s alone, past 5 s under a full suite's load
 
   it("Marked Blade: a Silver weapon of the commander's best proficiency, imbued, in their bag; Sworn Enemy", () => {
     // Failure: a weapon the commander cannot wield, a staff or a lord's personal weapon, no imbue,

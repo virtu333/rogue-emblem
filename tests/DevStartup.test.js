@@ -451,11 +451,14 @@ describe('the Act V review route (&descent=1)', () => {
     expect(rm.getAvailableNodes().map((n) => n.descentKey)).toEqual(['gate']);
   });
 
-  it('switches the Descent on for this page only: the loaded data keeps it dark', () => {
-    const source = loadGameData();
-    expect(source.descent.enabled).toBe(false);
+  it('switches the Descent on for this page only: the loaded data is never changed', () => {
+    // The shipped data has it on; a copy switched off proves the route lights only its own.
+    expect(loadGameData().descent.enabled).toBe(true);
+    const loaded = loadGameData();
+    const source = { ...loaded, descent: { ...structuredClone(loaded.descent), enabled: false } };
     const { built } = route('descent=1&seed=42', source);
     expect(built.data.gameData.descent.enabled).toBe(true);
+    expect(built.data.gameData.descent).not.toBe(source.descent);
     expect(source.descent.enabled).toBe(false);
     // Another review option rides along (a contract opened on the Descent's route).
     expect(

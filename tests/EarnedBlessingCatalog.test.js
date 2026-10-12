@@ -205,7 +205,7 @@ describe('offers never include an earned blessing', () => {
         }
       }
     }
-  });
+  }, 30_000); // over a thousand seeds: about 4 s alone, past 5 s under a full suite's load
 
   it('a four-card draw and a draw without the free card skip them too', () => {
     for (let seed = 1; seed <= 300; seed++) {

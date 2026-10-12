@@ -39,10 +39,13 @@ import {
   midVigilRun,
   pastVigilRun,
   startedRun,
+  withDescentOff,
   withDescentOn,
 } from './helpers/descentRunFormatFixtures.js';
 
-const gameData = loadGameData();
+// The plain build these rows set against the Descent: the same data with it switched off (the
+// shipped file has it on), so the old 2-node final act is built here on purpose.
+const gameData = withDescentOff(loadGameData());
 const descentData = withDescentOn(gameData);
 
 const store = new Map();

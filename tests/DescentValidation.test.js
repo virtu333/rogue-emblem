@@ -20,10 +20,10 @@ function plant(mutate, needle, overrides = {}) {
 }
 
 describe('the shipped descent.json', () => {
-  it('passes, and ships switched off', () => {
+  it('passes, and ships switched on', () => {
     const result = validate(structuredClone(data.descent));
     expect(result.errors).toEqual([]);
-    expect(data.descent.enabled).toBe(false);
+    expect(data.descent.enabled).toBe(true);
   });
 
   it('passes with Dusk reaching the Descent (as #315 makes it)', () => {

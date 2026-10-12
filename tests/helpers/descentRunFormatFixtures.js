@@ -1,7 +1,7 @@
 // descentRunFormatFixtures.js - Descent runs at the moments an older client must refuse them
 // (engine/RunFormat.js, the Descent's ids): route entry, a Rite that has taken words, a battle
 // checkpoint mid-Vigil and the gate's battle in progress. Real RunManager runs with
-// data/descent.json switched on (it ships off), walked by the victory commit the scene calls;
+// data/descent.json switched on (as it ships), walked by the victory commit the scene calls;
 // each battle's map is generated and locked as the scene's entry does. Pure but for Math.random,
 // which each run borrows seeded.
 
@@ -10,9 +10,17 @@ import { applyGenerationFields, generateSeededBattle } from '../../src/engine/Ba
 import { createSeededRng } from '../../src/engine/BlessingEngine.js';
 import { createVigilState } from '../../src/engine/Vigil.js';
 
-/** The game data with the Descent switched on (the data file keeps it off). */
+/** The game data with the Descent switched on (a copy; whatever the data file says). */
 export function withDescentOn(gameData) {
   return { ...gameData, descent: { ...structuredClone(gameData.descent), enabled: true } };
+}
+
+/**
+ * The game data with the Descent switched off (a copy; the data file ships it on): the build
+ * before the Descent, whose final act is the old 2-node map.
+ */
+export function withDescentOff(gameData) {
+  return { ...gameData, descent: { ...structuredClone(gameData.descent), enabled: false } };
 }
 
 export function withSeededRandom(seed, fn) {

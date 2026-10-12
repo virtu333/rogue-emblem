@@ -44,6 +44,11 @@ const descentOn = () => ({
   ...baseData,
   descent: { ...structuredClone(baseData.descent), enabled: true },
 });
+// The Descent switched off (the shipped file has it on): the old two-node final act.
+const descentOff = () => ({
+  ...baseData,
+  descent: { ...structuredClone(baseData.descent), enabled: false },
+});
 
 /** A run entering its final act (built as the Descent when `data` has it on). */
 function intoFinalAct(difficultyId, data = descentOn(), runSeed = 9) {
@@ -79,12 +84,12 @@ describe('the road keys: descent and glassBroken', () => {
     ahead.startRun({ runSeed: 4, difficultyId: 'hard' });
     expect(ahead.currentAct).toBe('act1');
     expect(descentRoadOf(ahead, ahead.gameData)).toBe(true);
-    const off = new RunManager(baseData);
+    const off = new RunManager(descentOff());
     off.startRun({ runSeed: 4, difficultyId: 'hard' });
-    expect(baseData.descent.enabled).toBe(false);
+    expect(off.gameData.descent.enabled).toBe(false);
     expect(descentRoadOf(off, off.gameData)).toBe(false);
     // In the final act on today's two-node map, the config being on now changes nothing.
-    const legacy = intoFinalAct('hard', baseData);
+    const legacy = intoFinalAct('hard', descentOff());
     expect(legacy.nodeMap.descent).toBeUndefined();
     expect(descentRoadOf(legacy, descentOn())).toBe(false);
     // A road with no final act, the prologue, nothing at all.
@@ -135,7 +140,7 @@ describe('Act IV into the Descent on the Entity’s roads', () => {
   });
 
   it('without it (the config off, the old two-node act): the lines it always had', () => {
-    const rm = intoFinalAct('hard', baseData);
+    const rm = intoFinalAct('hard', descentOff());
     const ctx = ctxOf(rm, { commander: 'Edric' });
     expect(ctx.descent).toBe(false);
     const edric = T.finalBoss_to_secretAct.variants.find(
@@ -148,7 +153,7 @@ describe('Act IV into the Descent on the Entity’s roads', () => {
   it('First Light’s Act III close gains the stair on the Descent', () => {
     const A3 = T.act3_to_finalBoss_normal;
     const rm = intoFinalAct('normal');
-    const legacy = intoFinalAct('normal', baseData);
+    const legacy = intoFinalAct('normal', descentOff());
     const fresh = { runsCompleted: 0, lastRunResult: 'none' };
     for (const commander of LORDS) {
       const plain = A3.variants.find(
@@ -167,7 +172,7 @@ describe('Act IV into the Descent on the Entity’s roads', () => {
     // veteran (5 runs won) or a run after a defeat must still hear the stair when the road has one.
     const A3 = T.act3_to_finalBoss_normal;
     const rm = intoFinalAct('normal');
-    const legacy = intoFinalAct('normal', baseData);
+    const legacy = intoFinalAct('normal', descentOff());
     const stair = /stair under the consecrated stones/;
     const memories = [
       { runsCompleted: 5, lastRunResult: 'none' },
@@ -198,7 +203,7 @@ describe('Act IV into the Descent on the Entity’s roads', () => {
       // Not the old road's reply to "This place is... wrong."
       const old = selectDialogueEntries(
         T.secretAct_start,
-        ctxOf(intoFinalAct('hard', baseData), { commander }),
+        ctxOf(intoFinalAct('hard', descentOff()), { commander }),
       );
       expect(said[1].line).not.toBe(old.at(-1).line);
     }

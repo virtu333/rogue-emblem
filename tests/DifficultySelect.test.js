@@ -357,7 +357,10 @@ describe('DifficultySelectScene modifier cards', () => {
         .find((m) => m.id === id)
         .summary.filter((l) => l.startsWith('Revival Stones'))
         .join();
-    const dark = build(gameData);
+    const dark = build({
+      ...gameData,
+      descent: { ...structuredClone(gameData.descent), enabled: false },
+    });
     for (const id of ['hard', 'lunatic']) expect(stones(dark, id)).not.toContain('Lieutenant');
     expect(stones(dark, 'dusk')).toContain('the Lieutenant 1');
     const lit = build({
@@ -365,5 +368,8 @@ describe('DifficultySelectScene modifier cards', () => {
       descent: { ...structuredClone(gameData.descent), enabled: true },
     });
     for (const id of ['hard', 'lunatic']) expect(stones(lit, id)).toContain('the Lieutenant 2');
+    // The shipped data has the Descent on: the screen a player sees is the lit one.
+    const shipped = build(gameData);
+    for (const id of ['hard', 'lunatic', 'dusk']) expect(stones(shipped, id)).toBe(stones(lit, id));
   });
 });

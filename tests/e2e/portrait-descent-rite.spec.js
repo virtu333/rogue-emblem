@@ -1,7 +1,7 @@
 // The Rite on an upright phone (docs/specs/act-v-descent.md §4, §8; docs/portrait-battles.md): the
 // chip beside the route map's burden chips, its note, and the gate card's Rite block, on a 390x844
-// phone in the real portrait shell. The Descent ships dark; the review route
-// (src/utils/devDescentFixtures.js, dev routes only) switches it on for the page.
+// phone in the real portrait shell. The review route (src/utils/devDescentFixtures.js, dev routes
+// only) switches the Descent on for the page, whatever the data ships.
 //
 // Ways this can fail, a test each:
 //   1. the chip or its note overflows the page sideways or leaves the screen upright;
