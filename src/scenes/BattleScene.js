@@ -382,6 +382,7 @@ import {
 } from '../engine/ReinforcementSpawns.js';
 import { routLadderObjectiveLine, routLadderStatus } from '../engine/RoutLadder.js';
 import { applyHoldSpawn } from '../engine/HoldActivation.js';
+import { applyEncounterSpawn, encounterSourceFor } from '../engine/EncounterGroups.js';
 import { applyPostSpawn, settleArtilleryStances } from '../engine/SiegeArtillery.js';
 import {
   transitionToScene,
@@ -635,6 +636,9 @@ export class BattleScene extends Phaser.Scene {
     this.appliedHybridOverrideTurns = new Set();
     this.pendingHybridOverrideTiles = [];
     this.lastHybridOverrideResult = null;
+    // What the battle's encounter groups are doing (EncounterGroups), read from the units at
+    // the first check unless a checkpoint or snapshot brings it back.
+    this.encounterState = null;
     // A prologue chapter's teaching (PrologueController), created with the HUD.
     this._prologue = null;
     // This battle's deploy screen confirmation (create), read once by PrologueController.
@@ -2011,6 +2015,7 @@ export class BattleScene extends Phaser.Scene {
       });
       // Holders wake on the Danger overlay's tiles: the board as the player knows it.
       this.aiController.setHoldContext?.(() => this.threatContext());
+      this.aiController.setEncounterSource?.(encounterSourceFor(this));
 
       // Cursor highlight
       this.cursorHighlight = this.add
@@ -2812,6 +2817,7 @@ export class BattleScene extends Phaser.Scene {
     applyPostSpawn(enemy, spawn);
     // A garrison holder keeps its post until its pack wakes (HoldActivation).
     applyHoldSpawn(enemy, spawn);
+    applyEncounterSpawn(enemy, spawn);
     if (
       spawn.aiTargetTile &&
       Number.isFinite(spawn.aiTargetTile.col) &&
@@ -10708,7 +10714,7 @@ export class BattleScene extends Phaser.Scene {
             isCurrent: () => !phaseSuperseded() && !this.visionDialog,
             // The hold wake check runs once per turn, so a resumed phase skips it.
             turnNumber: this.turnManager.turnNumber,
-            // A garrison pack the player can see leaves its post (HoldActivation).
+            // A garrison pack the player can see leaves its post (EncounterGroups).
             onHoldersWoke: async (woken) => {
               if (this.visionDialog || phaseSuperseded()) return;
               const seen = woken.filter(({ unit }) => canInspectUnit(this.grid, unit));

@@ -33,6 +33,7 @@ import {
 import { createScopedLogger } from '../utils/logger.js';
 import { buildRoutLadder, fogRoutFrontOnly, routLadderEdges } from './RoutLadder.js';
 import { assignHolders, holdShareFor } from './HoldActivation.js';
+import { ENCOUNTER_VERSION, writeHoldEncounterGroups } from './EncounterGroups.js';
 import { eliteCaptains, resolveSeatedBoss, seatedBossCandidates } from './SeatedBoss.js';
 import { BOSS_REF, legacyObjectiveKind, objectivesShapeErrors } from './BattleObjectives.js';
 import { mapExtraNecromancer } from './Necromancy.js';
@@ -520,6 +521,10 @@ export function generateBattleLayout(params, deps) {
   });
   enemySpawns = rite.enemySpawns;
 
+  // The hold packs as encounter groups (EncounterGroups.js, spec 02 §3.6), beside the unit-level
+  // hold fields a build without groups still plays. Draws nothing.
+  const encounterGroups = writeHoldEncounterGroups(enemySpawns);
+
   const battleConfig = {
     mapLayout,
     cols,
@@ -556,6 +561,7 @@ export function generateBattleLayout(params, deps) {
     ...reinforcementConfig,
     ...hybridConfig,
     ...rite.extra,
+    ...(encounterGroups.length ? { encounterVersion: ENCOUNTER_VERSION, encounterGroups } : {}),
   };
 
   // Debug-only output assertion. Never throws (a throw during BattleScene.create

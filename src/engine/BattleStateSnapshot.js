@@ -1,6 +1,7 @@
 import { isBattleRngState } from './BattleRng.js';
 import { BATTLE_UNIT_GROUPS, isBattleEntityId } from './BattleEntityIdentity.js';
 import { readActionContinuation } from './ActionContinuation.js';
+import { isValidEncounterState } from './EncounterGroups.js';
 
 export const BATTLE_STATE_VERSION = 2;
 export const MAX_BATTLE_STATE_BYTES = 2 * 1024 * 1024;
@@ -284,6 +285,8 @@ export function validateBattleState(state) {
       }
     }
     if (!validRestoreFields(state, width, state.mapLayout.length)) return false;
+    if (!optional(state, 'encounterState', (v) => isValidEncounterState(v, state.enemyUnits)))
+      return false;
     if (state.runBattleState !== null) {
       const domain = state.runBattleState;
       if (

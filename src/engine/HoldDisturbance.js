@@ -5,7 +5,7 @@
 // A holder is disturbed when it takes damage, takes a status or is moved. The mark is
 // written when that happens, never inferred later from HP or conditions: by the time the
 // enemy phase checks, a fort, Renewal or Regenerator may have healed the wound, and
-// status recovery may have cleared the hex. HoldActivation.wakeHolders reads the mark.
+// status recovery may have cleared the hex. The encounter check (EncounterTriggers `hurt`) reads the mark.
 
 export const HOLD_AI_MODE = 'hold';
 

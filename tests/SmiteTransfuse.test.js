@@ -4,6 +4,7 @@
 // them; HP moves only through UnitHealth). Positions and HP in the expectations are
 // worked out by hand from the rules in the task, never by calling the code under test.
 import { describe, it, expect } from 'vitest';
+import { wakeCheck } from './helpers/encounterCheck.js';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import Ajv from 'ajv';
@@ -23,7 +24,6 @@ import {
   transfuseAmount,
 } from '../src/engine/ActionAbilitySystem.js';
 import { HOLD_AI_MODE, markHoldDisturbed } from '../src/engine/HoldDisturbance.js';
-import { wakeHolders } from '../src/engine/HoldActivation.js';
 import { createEnemyUnit } from '../src/engine/UnitManager.js';
 
 const gameData = loadGameData();
@@ -372,13 +372,13 @@ describe('Smite: settling the push', () => {
     const holder = foe('Holder', 6, 5, { aiMode: HOLD_AI_MODE, holdPack: 3, holdPackSize: 2 });
     const mate = foe('Mate', 9, 9, { aiMode: HOLD_AI_MODE, holdPack: 3, holdPackSize: 2 });
     // Quiet first: nothing has disturbed them and nobody threatens them.
-    expect(
-      wakeHolders({ enemyUnits: [holder, mate], playerUnits: [unit('Caster', 5, 5)] }),
-    ).toEqual([]);
+    expect(wakeCheck({ enemyUnits: [holder, mate], playerUnits: [unit('Caster', 5, 5)] })).toEqual(
+      [],
+    );
     const [entry] = smite({ foes: [holder] });
     settleSmite(entry);
     expect(holder.holdDisturbed).toBe('moved');
-    const woken = wakeHolders({
+    const woken = wakeCheck({
       enemyUnits: [holder, mate],
       playerUnits: [unit('Caster', 5, 5)],
     });

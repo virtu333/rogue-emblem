@@ -31,6 +31,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import './harness/JourneyTestSetup.js';
 import { AIController } from '../src/engine/AIController.js';
+import { encounterSourceFor } from '../src/engine/EncounterGroups.js';
 import { TurnManager } from '../src/engine/TurnManager.js';
 import { BattleSuspendController } from '../src/ui/BattleSuspendController.js';
 import { serializeBattleUnit } from '../src/engine/BattleUnitState.js';
@@ -162,6 +163,8 @@ function lifecycleScene(run) {
   tm.init(scene.playerUnits, scene.enemyUnits, scene.npcUnits, 'rout');
   scene.turnManager = tm;
   scene.aiController = new AIController(scene.grid, data, { objective: 'rout' });
+  // As BattleScene.create: the encounter check reads and keeps the scene's state.
+  scene.aiController.setEncounterSource(encounterSourceFor(scene));
   return scene;
 }
 

@@ -4,6 +4,7 @@ import { normalizeBattleRecruits, reconcileRecruitIdentities } from './BattleRec
 import { normalizeFallenBattleRecords } from './DeedSystem.js';
 import { restoreBattleBlessings, snapshotBattleBlessings } from './BattleBlessings.js';
 import { normalizePendingTerrainTiles } from './TerrainPhases.js';
+import { captureEncounterState, cloneEncounterState } from './EncounterGroups.js';
 import { sanitizeVigilState } from './Vigil.js';
 // Shared world-state contract for Vision and suspend. Unit arrays are restored
 // in snapshot order; references into that table survive JSON and duplicate names.
@@ -25,6 +26,9 @@ export function captureBattleWorldState(scene) {
     // Hybrid arena tiles a unit kept from walling, retried next enemy phase (TerrainPhases).
     pendingHybridOverrideTiles: normalizePendingTerrainTiles(scene.pendingHybridOverrideTiles),
     latePressureWarningShown: scene._latePressureWarningShown === true,
+    // What the encounter groups are doing (EncounterGroups, spec 02 §6): with the units, so a
+    // resume and a rewind wake nothing twice and miss nothing.
+    encounterState: captureEncounterState(scene),
     // Mid-battle recruits as they joined: the fallen record for a recruit who
     // dies before the battle ends (see BattleRecruits.js).
     battleRecruits: normalizeBattleRecruits(scene._battleRecruits),
@@ -88,6 +92,8 @@ export function restoreBattleWorldState(scene, snapshot) {
   // again. A snapshot from before the field spent nothing.
   if (scene._battleBlessings)
     restoreBattleBlessings(scene._battleBlessings, snapshot.battleBlessingsSpent);
+  // An older snapshot saved none: the next check reads it from the restored units.
+  scene.encounterState = cloneEncounterState(snapshot.encounterState);
   // The Vigil's state comes back with the units it called (a snapshot without one leaves the
   // battle's own: a map with no Vigil has none to restore).
   if (snapshot.vigilState !== undefined)
