@@ -9,9 +9,10 @@
 // the second picks one of the act's churches that are not complete and not taken by the Eclipse,
 // sorted by id. The node gains `sanctum: true` and the map `sanctumRolled: true`, so a second
 // call (or a reload) never stamps another. Never in the first act, the run's last act (whatever
-// act that is: the final boss's, or Dusk's Act IV; the act boss's pick follows the same rule) or
-// the prologue (the caller's check), and never on load: a save from before sanctums gets one from
-// its next act. A sanctum can still fall to the Eclipse like any church (it is then a battle).
+// act that is: the final boss's, or Act IV on a Dusk run saved before Dusk went on to the
+// Lieutenant; the act boss's pick follows the same rule) or the prologue (the caller's check),
+// and never on load: a save from before sanctums gets one from its next act. A sanctum can still
+// fall to the Eclipse like any church (it is then a battle).
 
 import { NODE_TYPES } from '../utils/constants.js';
 import { createSeededRng } from './BlessingEngine.js';

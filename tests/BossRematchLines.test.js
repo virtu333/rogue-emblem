@@ -36,6 +36,13 @@ function rungsFor(name) {
   );
 }
 
+/** True when the rung's road passes the Emperor (Act IV), so `roadThroughEmperor` holds on it. */
+const passesEmperor = (rung) => difficulty.modes[rung].actsIncluded.includes('act4');
+
+/** An exchange meant for this rung: it names the rung, or the road past the Emperor and the rung's road goes there. */
+const isForRung = (e, rung) =>
+  e.when?.difficulty === rung || (e.when?.roadThroughEmperor === true && passesEmperor(rung));
+
 function rematchPool(boss) {
   const variants = boss.preBattleExchange?.variants || [];
   return variants.find((v) => v.when?.commander === 'Edric' && v.when?.bossMetBefore === true)
@@ -104,12 +111,16 @@ describe('the rematch exchanges in dialogue.json', () => {
       for (const e of pool) {
         expect(keys(e).length, name).toBeLessThanOrEqual(1);
         if (e.when?.difficulty) expect(rungsFor(name), name).toContain(e.when.difficulty);
+        if (e.when?.roadThroughEmperor)
+          expect(rungsFor(name).some(passesEmperor), `${name}: no rung passes the Emperor`).toBe(
+            true,
+          );
       }
       const rungs = rungsFor(name);
       const harder = rungs.filter((r) => r !== 'normal');
       for (const rung of harder.length ? harder : rungs) {
         expect(
-          pool.some((e) => e.when?.difficulty === rung),
+          pool.some((e) => isForRung(e, rung)),
           `${name} has no exchange for ${rung}`,
         ).toBe(true);
       }
@@ -160,14 +171,23 @@ describe('a save that keeps meeting a boss', () => {
       const text = (e) => e.exchange.map((x) => x.line).join('|');
       const general = pool.filter((e) => !e.when).map(text);
       const contextual = pool
-        .filter((e) => e.when && (!e.when.difficulty || e.when.difficulty === rung))
+        .filter(
+          (e) =>
+            e.when &&
+            (!e.when.difficulty || e.when.difficulty === rung) &&
+            (e.when.roadThroughEmperor === undefined || passesEmperor(rung)),
+        )
         .map(text);
       const played = [];
       const heard = { general: [], contextual: [] };
       for (let run = 1; run <= 2 * Math.max(general.length, contextual.length); run++) {
         const entries = selectDialogueEntries(
           boss.preBattleExchange,
-          ctx(name, run, { difficulty: rung, linesPlayed: [...played] }),
+          ctx(name, run, {
+            difficulty: rung,
+            roadThroughEmperor: passesEmperor(rung),
+            linesPlayed: [...played],
+          }),
         );
         expect(entries.at(-1).speaker).toBe('Edric');
         heard[run % 2 === 0 ? 'contextual' : 'general'].push(entries.map((e) => e.line).join('|'));
@@ -187,6 +207,38 @@ describe('a save that keeps meeting a boss', () => {
         ctx('Iron Captain', run, { difficulty: 'hard' }),
       );
       expect(first.line).not.toBe(blackSun.exchange[0].line);
+    }
+  });
+
+  it('the Lieutenant’s emperor-is-ash exchanges play on a road past the Emperor and never on First Light’s', () => {
+    // Failure: a rematch on Dusk opens on First Light's "his work is done" register (or the
+    // reverse: First Light's Lieutenant mourns an emperor who still lives).
+    const boss = dialogue.bossEncounters['The Lieutenant'];
+    const dusk = rematchPool(boss).filter((e) => e.when?.roadThroughEmperor === true);
+    expect(dusk.length).toBeGreaterThanOrEqual(3);
+    const duskLines = new Set(dusk.map((e) => e.exchange[0].line));
+    // Each road walks its own save: the lines it has heard are remembered, as a played run does.
+    const walk = (road) => {
+      const played = [];
+      const heard = new Set();
+      for (let run = 2; run <= 24; run += 2) {
+        const entries = selectDialogueEntries(
+          boss.preBattleExchange,
+          ctx('The Lieutenant', run, { ...road, linesPlayed: [...played] }),
+        );
+        heard.add(entries[0].line);
+        played.push(entries[0].lineKey);
+      }
+      return heard;
+    };
+    // Even runs take the contextual set: the memories and, on Dusk, the exchanges above.
+    const heard = {
+      dusk: walk({ difficulty: 'dusk', roadThroughEmperor: true }),
+      firstLight: walk({ difficulty: 'normal', roadThroughEmperor: false }),
+    };
+    for (const line of duskLines) {
+      expect(heard.dusk.has(line), line).toBe(true);
+      expect(heard.firstLight.has(line), line).toBe(false);
     }
   });
 });
