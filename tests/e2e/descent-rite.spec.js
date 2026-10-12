@@ -1,8 +1,8 @@
 // The Rite on Act V's route map and the Vigil's markers, through the real UI
-// (docs/specs/act-v-descent.md §4, §8). The Descent ships dark; the review route
+// (docs/specs/act-v-descent.md §4, §8). The review route
 // `?devScene=nodemap&preset=fresh&descent=1&difficulty=hard&rite=<words>&descentRow=4` (src/utils/
-// devDescentFixtures.js, dev routes only) switches it on for that page and walks the army to the
-// Lieutenant's gate.
+// devDescentFixtures.js, dev routes only) switches the Descent on for that page (whatever the data
+// ships) and walks the army to the Lieutenant's gate.
 //
 // Ways this can fail, a test each:
 //   1. the Rite chip is missing, wrong, or shows on an ordinary run;

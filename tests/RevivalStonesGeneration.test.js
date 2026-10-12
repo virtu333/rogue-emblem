@@ -79,14 +79,16 @@ describe('difficulty.json revivalStones', () => {
   });
 
   it('the difficulty screen lists the stone bosses a rung’s road meets, and nothing on First Light', () => {
-    const lines = (id, gameData = data) =>
+    // The Descent switched off (a copy: the shipped data has it on).
+    const dark = { ...data, descent: { ...structuredClone(data.descent), enabled: false } };
+    const lines = (id, gameData = dark) =>
       rungModifierSummary(gameData, id).filter((l) => l.startsWith('Revival Stones'));
     expect(lines('normal')).toEqual([]);
     // Dusk's road ends at the Lieutenant, so he is listed.
     expect(lines('dusk')).toEqual([
       'Revival Stones (a boss refills when felled): the Emperor 1, the Lieutenant 1',
     ]);
-    // The Descent ships dark: Nightfall and Black Sun end at the Entity, who is never stoned,
+    // The Descent dark: Nightfall and Black Sun end at the Entity, who is never stoned,
     // so their stone lines name no Lieutenant even though the table holds his 2 for the gate.
     expect(lines('hard')).toEqual([
       'Revival Stones (a boss refills when felled): act bosses 1, the Emperor 1',
@@ -105,6 +107,9 @@ describe('difficulty.json revivalStones', () => {
     // The Descent's routes for First Light and Dusk still seat him; First Light holds no stones.
     expect(lines('dusk', lit)).toEqual(lines('dusk'));
     expect(lines('normal', lit)).toEqual([]);
+    // As shipped (the Descent on), every rung reads as the lit copy does.
+    for (const id of ['normal', 'dusk', 'hard', 'lunatic'])
+      expect(lines(id, data), id).toEqual(lines(id, lit));
   });
 
   it('the summary reads the road, not a rung list: no last act, or a route without him, drops him', () => {

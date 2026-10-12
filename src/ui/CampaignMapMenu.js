@@ -78,6 +78,7 @@ export class CampaignMapMenu {
       actIndex: Math.max(0, ACT_SEQUENCE.indexOf(c.actId)),
       rows: model.rows,
       frontierRow: model.frontierRow,
+      nodeMap: c.nodeMap,
       prefix: 'Campaign map',
     });
     // The act title replaces the plain header text (the dialog keeps its

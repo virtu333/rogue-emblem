@@ -72,7 +72,7 @@ Engine and sim changes made by #337 (no game behaviour):
   advance into `finalBoss` (`stopBeforeAct`). The run (`RunManager.toJSON`) and the battle stream's state
   are saved.
 - **Act V, paired.** From each entry state, with the stream put back to the same point:
-  - `legacy`: the data as shipped (the Ruins and the finale);
+  - `legacy`: the route switched off on a copy of the data (the Ruins and the finale);
   - `descent`: the route switched on;
   - on Nightfall and Black Sun, also `nolanding` (the route minus the Landing row).
 

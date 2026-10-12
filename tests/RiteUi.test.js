@@ -43,7 +43,7 @@ import {
   restoreBattleWorldState,
 } from '../src/engine/BattleSnapshotState.js';
 import { NodeMapMenu } from '../src/ui/NodeMapMenu.js';
-import { renderLoomCard } from '../src/ui/LoomPanels.js';
+import { renderLoomCard, createLoomHeading } from '../src/ui/LoomPanels.js';
 import { pauseBurdenList } from '../src/ui/MobilePauseMenu.js';
 import { pauseBurdenEntries } from '../src/ui/eventMenuModel.js';
 import {
@@ -234,6 +234,37 @@ describe('the pause list', () => {
     expect(items[1].textContent).toContain('Debt');
     // Alone it is the whole list, named so.
     expect(pauseBurdenList([entries[0]]).getAttribute('aria-label')).toBe('The Rite');
+  });
+});
+
+describe('the route map’s header', () => {
+  const heading = (rm) =>
+    createLoomHeading({
+      actId: rm.currentAct,
+      actIndex: rm.actIndex,
+      rows: Math.max(...rm.nodeMap.nodes.map((n) => n.row)) + 1,
+      frontierRow: -1,
+      nodeMap: rm.nodeMap,
+    });
+
+  it('names the Descent’s route The Descent, never one Final Battle', () => {
+    const rm = descentRun('hard', IN_SPOKEN);
+    const sub = heading(rm).querySelector('.re-loom-sub').textContent;
+    expect(sub).toContain('THE DESCENT');
+    expect(sub).toContain('ROW 1 OF');
+    expect(sub).not.toContain('FINAL BATTLE');
+  });
+
+  it('the old two-node final act keeps its own name', () => {
+    const off = { ...baseData, descent: { ...structuredClone(baseData.descent), enabled: false } };
+    const rm = new RunManager(off);
+    rm.startRun({ runSeed: 13, difficultyId: 'hard', applyBlessingsAtStart: false });
+    rm.actIndex = rm.actSequence.indexOf('finalBoss') - 1;
+    rm.advanceAct();
+    expect(rm.nodeMap.descent).toBeUndefined();
+    const sub = heading(rm).querySelector('.re-loom-sub').textContent;
+    expect(sub).toContain('FINAL BATTLE');
+    expect(sub).not.toContain('THE DESCENT');
   });
 });
 
