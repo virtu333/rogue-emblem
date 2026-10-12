@@ -151,7 +151,10 @@ export function buildNarrativeContext({
   const resolvedBossName = typeof bossName === 'string' && bossName.trim() ? bossName.trim() : null;
   let fallenName = null;
   try {
-    const fallen = everFallenUnits(runManager).filter((u) => typeof u?.name === 'string' && u.name);
+    // The commander is never "{fallen}": the run-end screen speaks after the commander fell.
+    const fallen = everFallenUnits(runManager).filter(
+      (u) => typeof u?.name === 'string' && u.name && !u.isCommander && u.name !== commander,
+    );
     if (fallen.length) fallenName = fallen[fallen.length - 1].name;
   } catch (_) {
     /* nobody lost */

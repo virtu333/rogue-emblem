@@ -338,10 +338,14 @@ describe('Narrative data', () => {
     }
 
     // Run-start seer vision reacts to how the last run ended.
+    // A pool variant carries its contextual items in `pool`; the known-foe line is one of them.
     const runStartVariants = dialogue.actTransitions?.runStart?.variants || [];
     expect(
       runStartVariants.some(
-        (v) => v?.when?.lastRunResult === 'defeat' && v?.when?.lastRunDefeatedByKnown === true,
+        (v) =>
+          v?.when?.lastRunResult === 'defeat' &&
+          (v?.when?.lastRunDefeatedByKnown === true ||
+            (v.pool || []).some((item) => item?.when?.lastRunDefeatedByKnown === true)),
       ),
     ).toBe(true);
     expect(runStartVariants.some((v) => v?.when?.lastRunResult === 'defeat')).toBe(true);
