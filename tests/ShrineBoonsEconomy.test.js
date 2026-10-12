@@ -71,7 +71,11 @@ describe('Late Bloom: every unit +1 in its two strongest growths as each act end
   });
 
   it("pays +1 in each unit's two highest growths, never Move, to the roster and the fallen", () => {
+    // Seeded: the roster's growth rolls draw on Math.random, and about one stream in a hundred
+    // leaves no unit with HP among its two strongest growths (the HP check below needs one).
+    installSeed(3);
     const plain = startRun();
+    installSeed(3);
     const bloom = hold(startRun(), 'late_bloom');
     // The fallen keep pace too (a revived ally is not left behind): move one unit to the fallen.
     for (const rm of [plain, bloom]) rm.fallenUnits.push(rm.roster.pop());
