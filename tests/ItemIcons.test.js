@@ -140,13 +140,18 @@ describe('item icon atlases are deterministic', () => {
         .sort((a, b) => a[1][0] - b[1][0])
         .map(([id]) => id),
     );
-    // A reused picture (itemGrammar UPGRADE_ICON_REUSE / BLESSING_ICON_REUSE) takes no cell
-    // of its own: it sits on the cell of the icon it shares, with its own socket (its own
-    // kind's pennant) and rim.
+    // A reused picture (itemGrammar WEAPON_ICON_REUSE / UPGRADE_ICON_REUSE /
+    // BLESSING_ICON_REUSE) takes no cell of its own: it sits on the cell of the icon it
+    // shares, with its own socket (its own kind's plaque or pennant) and rim.
     expect(built.aliases.map((a) => [a.id, a.of])).toEqual(Object.entries(reused));
     for (const [id, of] of Object.entries(reused)) {
       expect(manifest.icons[id][0], id).toBe(manifest.icons[of][0]);
-      expect(manifest.sockets[manifest.icons[id][1]], id).toBe(id.split('-')[0]);
+      const socket = id.startsWith('blessing-')
+        ? 'blessing'
+        : id.startsWith('upgrade-')
+          ? 'upgrade'
+          : 'weapon';
+      expect(manifest.sockets[manifest.icons[id][1]], id).toBe(socket);
     }
     for (const size of SIZES) {
       const a = built.atlases[size];

@@ -14,6 +14,8 @@ import { PINNED_BATTLE_STREAM_KEY } from '../engine/BattleScout.js';
 import { addBurden } from '../engine/Burdens.js';
 import { normalizeContract } from '../engine/Contracts.js';
 import { DEV_EVENT_FIXTURES } from './devEventFixtures.js';
+import { withDevSetPiece } from './devSetPieceFixtures.js';
+import { applyDevDescent, withDevDescent } from './devDescentFixtures.js';
 import { findSetPiece, setPieceDeployCap } from '../engine/SetPieces.js';
 
 const DEV_META_STORAGE_KEY = 'emblem_rogue_dev_meta';
@@ -32,11 +34,14 @@ const DEV_SCENE_ALIASES = {
   // Review route: the run-complete screen for a won run (`&route=` picks the ending).
   victory: 'RunComplete',
 };
-// `&route=` for devScene=victory: where the won run ended, and on which rung.
+// `&route=` for devScene=victory: where the won run ended, and on which rung. Dusk's road runs
+// on past the Emperor to the Lieutenant (`dusk`); `emperor` is a Dusk run saved before that,
+// which still ends at him (its own act list, as a loaded save keeps it).
 const DEV_VICTORY_ROUTES = {
-  lieutenant: 'normal',
-  emperor: 'dusk',
-  entity: 'hard',
+  lieutenant: { difficultyId: 'normal' },
+  dusk: { difficultyId: 'dusk' },
+  emperor: { difficultyId: 'dusk', acts: ['act1', 'act2', 'act3', 'act4'] },
+  entity: { difficultyId: 'hard' },
 };
 const DEV_PRESETS = new Set([
   'fresh',
@@ -325,6 +330,8 @@ function createRunPreset(gameData, meta, config) {
   // Any other review route (a battle, the route map) may carry the contract too: `&contract=` on
   // `?devScene=battle&preset=battle_smoke` is a battle the contract will settle on.
   else addReviewContract(runManager, config.contract);
+  // `&descent=1`: the run goes on into Act V (devDescentFixtures.js).
+  if (config.descent) applyDevDescent(runManager, config);
 
   return runManager;
 }
@@ -500,12 +507,13 @@ function addRosterChecks(runManager, gameData) {
 
 /** A won run for the run-complete review: the ending follows `route`'s road. */
 function createVictoryRun(gameData, meta, config) {
-  const difficultyId = DEV_VICTORY_ROUTES[config.route] || 'normal';
+  const road = DEV_VICTORY_ROUTES[config.route] || DEV_VICTORY_ROUTES.lieutenant;
   const runManager = new RunManager(gameData, meta?.getActiveEffects?.() || null);
   runManager.startRun({
     runSeed: Number.isFinite(config.seed) ? config.seed : 1,
-    difficultyId,
+    difficultyId: road.difficultyId,
   });
+  if (road.acts) runManager.actSequence = [...road.acts];
   runManager.actIndex = runManager.actSequence.length - 1;
   runManager.completedBattles = 20;
   runManager.status = 'victory';
@@ -513,9 +521,13 @@ function createVictoryRun(gameData, meta, config) {
 }
 
 function pickBattleNode(runManager, nodeType = null) {
-  // Review routes: devNode=boss enters the current act's boss battle directly.
+  // Review routes: devNode=boss enters the current act's boss battle directly: the map's own
+  // boss node (the Descent's finale, never its gate, which is the first boss node on its map).
   if (nodeType === NODE_TYPES.BOSS) {
-    const boss = (runManager.nodeMap?.nodes || []).find((node) => node?.type === NODE_TYPES.BOSS);
+    const nodes = runManager.nodeMap?.nodes || [];
+    const boss =
+      nodes.find((node) => node?.id === runManager.nodeMap?.bossNodeId) ||
+      nodes.find((node) => node?.type === NODE_TYPES.BOSS);
     if (boss) return boss;
   }
   // devNode=recruit: the act's first recruit knot (the Loom preview's own battle).
@@ -616,6 +628,13 @@ export function parseDevStartupConfig(search, options = {}) {
     ...(params.get('units') ? { units: params.get('units') } : {}),
     // `&setPiece=<id>` on the battle route: that event set piece (docs/specs/event-set-pieces.md).
     ...(params.get('setPiece') ? { setPiece: params.get('setPiece') } : {}),
+    // Act V review (devDescentFixtures.js): `&descent=1` switches the Descent on for this page and
+    // enters Act V; `&rite=N` sets the Rite's words, `&descentRow=N` walks the route to row N.
+    ...(parseBool(params.get('descent')) ? { descent: true } : {}),
+    ...(parseSeed(params.get('rite')) != null ? { riteWords: parseSeed(params.get('rite')) } : {}),
+    ...(parseSeed(params.get('descentRow')) != null
+      ? { descentRow: parseSeed(params.get('descentRow')) }
+      : {}),
     qaStep: qaConfig?.step || null,
     qaDescription: qaConfig?.description || null,
     nodeType:
@@ -632,8 +651,15 @@ export function parseDevStartupConfig(search, options = {}) {
   };
 }
 
-export function buildDevStartupRoute(gameData, registry, config) {
-  if (!gameData || !registry || !config?.enabled) return null;
+export function buildDevStartupRoute(sourceGameData, registry, config) {
+  if (!sourceGameData || !registry || !config?.enabled) return null;
+  // `&setPiece=dev_vigil`: a review-only set piece (utils/devSetPieceFixtures.js) joins this
+  // page's game data; any other id leaves it as loaded.
+  const withPiece = config.setPiece
+    ? withDevSetPiece(sourceGameData, config.setPiece)
+    : sourceGameData;
+  // `&descent=1`: the Descent is on for this page's data only (devDescentFixtures.js).
+  const gameData = config.descent ? withDevDescent(withPiece) : withPiece;
 
   registry.set('devToolsEnabled', Boolean(config.devTools));
   // A `?devScene=` review route's battles keep the run seed's one stream (BattleScout.js

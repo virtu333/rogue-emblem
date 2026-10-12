@@ -282,13 +282,24 @@ describe('Player planning ignores hidden units (blue range, path preview)', () =
     expect(keys(cut.path)).toEqual(['0,0', '1,0', '2,0']);
   });
 
-  it('a move into a fog-hidden NPC stops before it, as a block rather than an ambush', () => {
+  it('a move through a fog-hidden merchant walks on; one ending on it stops before it, as a block', () => {
     const grid = makeGrid(['......'], new Set(['3,0']));
     const unit = hero(0, 0);
     const npc = caravan(3, 0);
     const scene = battle(grid, { players: [unit], npcs: [npc] });
-    const path = [0, 1, 2, 3, 4].map((col) => ({ col, row: 0 }));
-    const cut = scene._ambushCut(unit, { effectivePath: path, movementCost: 4, slideSegments: [] });
+    // A player unit walks through the merchant (Grid.walksThrough), seen or not.
+    const through = [0, 1, 2, 3, 4].map((col) => ({ col, row: 0 }));
+    const walked = scene._ambushCut(unit, {
+      effectivePath: through,
+      movementCost: 4,
+      slideSegments: [],
+    });
+    expect(walked.ambusher).toBe(null);
+    expect(keys(walked.path)).toEqual(['0,0', '1,0', '2,0', '3,0', '4,0']);
+    expect(walked.cost).toBe(4);
+    // It can never stand there: a move ending on the merchant stops short.
+    const path = [0, 1, 2, 3].map((col) => ({ col, row: 0 }));
+    const cut = scene._ambushCut(unit, { effectivePath: path, movementCost: 3, slideSegments: [] });
     expect(cut.ambusher).toBe(npc);
     expect(keys(cut.path)).toEqual(['0,0', '1,0', '2,0']);
     expect(cut.cost).toBe(2);

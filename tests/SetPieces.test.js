@@ -23,6 +23,7 @@ import {
 import { generateSeededBattle } from '../src/engine/BattleScout.js';
 import { validateBattleConfig } from '../src/engine/MapGenerator.js';
 import { HOLD_AI_MODE } from '../src/engine/HoldDisturbance.js';
+import { battleParMapParams, calculatePar } from '../src/engine/TurnBonusCalculator.js';
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
@@ -167,8 +168,8 @@ describe('buildSetPieceBattle: draws, classes and levels', () => {
     expect(classesForAct({ act1: ['Fighter'], act3: ['Knight'] }, 'act4')).toEqual(['Knight']);
     expect(classesForAct({ act3: ['Knight'] }, 'act1')).toBeNull();
     const act3 = buildFixture({ act: 'act3', random: scripted(UNMIRRORED) });
-    // The captain's Act III class, two above the range's top (the elite captain's offset).
-    expect(act3.enemySpawns[1]).toMatchObject({ className: 'Knight', level: 8, isBoss: true });
+    // The captain's Act III class, one above the range's top (the elite captain's offset).
+    expect(act3.enemySpawns[1]).toMatchObject({ className: 'Knight', level: 7, isBoss: true });
     // The Act III wave spawn now comes: 3 + floor(0.5 * 4) = 5.
     expect(act3.reinforcements.reinforcements.scriptedWaves[0].spawns).toHaveLength(2);
     expect(act3.reinforcements.reinforcements.scriptedWaves[0].spawns[1]).toEqual({
@@ -179,11 +180,42 @@ describe('buildSetPieceBattle: draws, classes and levels', () => {
     });
   });
 
-  it('a promoted captain takes the promotion base level off, as an elite captain does', () => {
-    expect(captainLevelFor('act1', 6, false)).toBe(6);
-    expect(captainLevelFor('act3', 16, false)).toBe(18);
-    expect(captainLevelFor('act3', 16, true)).toBe(8);
-    expect(captainLevelFor('act3', 3, true)).toBe(1);
+  it('a captain stands at the range top plus the act’s offset, a spawn level for every tier', () => {
+    // The offsets: Act I none, Act II two, one from Act III on (the finale and postAct included).
+    for (const [act, expected] of [
+      ['act1', 6],
+      ['act2', 8],
+      ['act3', 7],
+      ['act4', 7],
+      ['postAct', 7],
+      ['finalBoss', 7],
+    ])
+      expect(captainLevelFor(act, 6), act).toBe(expected);
+    expect(captainLevelFor('act3', 16)).toBe(17);
+    // A missing top reads as 1.
+    expect(captainLevelFor('act3', 0)).toBe(2);
+    expect(captainLevelFor('act2', undefined)).toBe(3);
+    // A promoted class is read on the same scale (createPromotedEnemyUnit: the whole level), so
+    // its tier takes nothing off (the old rule took 10, which left a captain under its escort).
+    const setPiece = structuredClone(FIXTURE);
+    setPiece.variants[0].enemies[1].classes = { act1: ['Fighter'], act3: ['General'] };
+    const built = buildSetPieceBattle({
+      setPiece,
+      act: 'act3',
+      levelRange: [3, 6],
+      deployCount: 2,
+      classes: data.classes,
+      terrain: data.terrain,
+      random: scripted([
+        0.9, 0.6, 0.0, 0.1, 0.99, 0.3, 0.3, 0.2, 0.5, 0.4, 0.4, 0.0, 0.0, 0.5, 0.5,
+      ]),
+    });
+    expect(data.classes.find((c) => c.name === 'General').tier).toBe('promoted');
+    // Range top 6 + 1 (Act III's offset), nothing off for the promoted tier.
+    expect(built.enemySpawns.find((s) => s.isBoss)).toMatchObject({
+      className: 'General',
+      level: 7,
+    });
   });
 
   it('the mirror flips the map and every unit with it', () => {
@@ -309,6 +341,22 @@ describe('the generator on shipped set pieces', () => {
     }
     expect(affixed).toBeGreaterThan(0);
     expect(carried).toBeGreaterThan(0);
+  });
+
+  it('both Toll Bridge set pieces give two more turns of par on every rung', () => {
+    for (const id of ['toll_house', 'toll_crossing'])
+      for (const difficultyId of ['normal', 'dusk', 'hard', 'lunatic']) {
+        const config = generateSeededBattle(params(id, { difficultyId }), data, 5);
+        expect(config.parBonus).toBe(2);
+        const mapParams = battleParMapParams(config, {
+          enemyCount: config.enemySpawns.length,
+          terrainData: data.terrain,
+        });
+        expect(mapParams.parBonus).toBe(2);
+        expect(calculatePar(mapParams, data.turnBonus, difficultyId)).toBe(
+          calculatePar({ ...mapParams, parBonus: 0 }, data.turnBonus, difficultyId) + 2,
+        );
+      }
   });
 
   it('the event level bonus raises every slot, the captain included', () => {

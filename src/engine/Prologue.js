@@ -208,7 +208,7 @@
 //   clearCoach: true                    the coach goal (one without a gate) is done
 // The ids are resolved by the scene (PrologueController); this module only matches.
 
-import { parseAuthoredMap } from './AuthoredMap.js';
+import { parseAuthoredMap, throneTiles } from './AuthoredMap.js';
 import { LOOT_GOLD_TEAM_XP, NODE_TYPES, TERRAIN, XP_STAT_NAMES } from '../utils/constants.js';
 import { TRAIT_RULES_VERSION } from './TraitSystem.js';
 import { usesMagic, isStaff } from './Combat.js';
@@ -407,16 +407,6 @@ const isPlainObject = (v) => Boolean(v) && typeof v === 'object' && !Array.isArr
 
 /** A chapter's ASCII map (engine/AuthoredMap.js, the grammar set pieces share). */
 export const parsePrologueMap = parseAuthoredMap;
-
-function throneTiles(mapLayout) {
-  const out = [];
-  mapLayout.forEach((line, row) =>
-    line.forEach((index, col) => {
-      if (index === TERRAIN.Throne) out.push({ col, row });
-    }),
-  );
-  return out;
-}
 
 /**
  * The battle config a chapter fights on: the shape `generateBattle` returns, so it can

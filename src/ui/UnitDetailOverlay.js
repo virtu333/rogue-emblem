@@ -1,8 +1,13 @@
 import { staffRunOptions } from '../engine/StaffBlessings.js';
 import { affixSummaryText } from '../engine/AffixForecast.js';
-import { REVIVAL_STONE_DESCRIPTION, revivalStonesLine } from '../engine/RevivalStones.js';
+import {
+  REVIVAL_STONE_DESCRIPTION,
+  healthBarsBadge,
+  revivalStonesLine,
+} from '../engine/RevivalStones.js';
 import { skipsClassProgression } from '../engine/SpecialCharacterPolicy.js';
 import { canInspectUnit, carriedItemInfo, statusStaffInfo } from '../engine/BattleInformation.js';
+import { entityReachInfo } from '../engine/EntityReach.js';
 import { formatPerkMods } from './rosterDisplay.js';
 import {
   UI_PALETTE,
@@ -19,7 +24,8 @@ import { MobileRosterSheet, canShowMobileRoster } from './MobileRosterSheet.js';
 // Tabbed display: Stats tab (stats, proficiencies, growths, terrain) | Gear tab (inventory, consumables, accessory, skills)
 // Optional roster cycling via UP/DOWN arrows when opened with roster context
 
-import { XP_STAT_NAMES, MAX_SKILLS } from '../utils/constants.js';
+import { XP_STAT_NAMES } from '../utils/constants.js';
+import { equippedGroups } from '../engine/SkillSlots.js';
 import {
   getStaticCombatStats,
   calculateAvoid,
@@ -337,7 +343,17 @@ export class UnitDetailOverlay {
       .setOrigin(0, 0)
       .setDepth(DEPTH_TEXT);
     this._unitObjects.push(barBg, barFill);
-    this._unitText(lx + barW + 6, y, `${unit.currentHP}/${unit.stats.HP}`, STAT_COLORS.HP, '10px');
+    const hpText = this._unitText(
+      lx + barW + 6,
+      y,
+      `${unit.currentHP}/${unit.stats.HP}`,
+      STAT_COLORS.HP,
+      '10px',
+    );
+    // A boss with Revival Stones: how many health bars it has left, beside its HP.
+    const barsBadge = healthBarsBadge(unit);
+    if (barsBadge)
+      this._unitText(hpText.x + hpText.width + 4, y, barsBadge, UI_PALETTE.info, '10px');
     y += 18;
     // EXP under the HP bar, as the DOM profile draws it (player units only).
     if (unit.faction === 'player' && unit.xp !== undefined) {
@@ -369,12 +385,19 @@ export class UnitDetailOverlay {
         );
       y += 14;
     }
+    // The Entity's two reaches (its weapons say 1-4; its blows stop at 2).
+    const reachInfo = entityReachInfo(unit);
+    if (reachInfo) {
+      const text = this._unitText(lx, y, reachInfo.text, UI_PALETTE.info, '9px');
+      fitCanvasText(text, OVERLAY_W - 24);
+      y += 14;
+    }
     const stonesLine = revivalStonesLine(unit);
     if (stonesLine) {
       const text = this._unitText(lx, y, stonesLine, UI_PALETTE.info, '9px');
       fitCanvasText(text, OVERLAY_W - 24);
       this._wireTooltipTarget(text, () =>
-        this._showSkillTooltip(text, `Revival Stones: ${REVIVAL_STONE_DESCRIPTION}`),
+        this._showSkillTooltip(text, `Health bars: ${REVIVAL_STONE_DESCRIPTION}`),
       );
       y += 14;
     }
@@ -901,12 +924,19 @@ export class UnitDetailOverlay {
     }
 
     // Skills
-    if (unit.skills && unit.skills.length > 0) {
+    // Skills and abilities fill separate slots (SkillSlots.js): one heading each.
+    for (const group of equippedGroups(unit, this.gameData?.skills)) {
       this._tabSep(lx, y);
       y += 12;
-      this._tabText(lx, y, `Skills (${unit.skills.length}/${MAX_SKILLS}):`, UI_PALETTE.info, '9px');
+      this._tabText(
+        lx,
+        y,
+        `${group.title} (${group.ids.length}/${group.cap}):`,
+        UI_PALETTE.info,
+        '9px',
+      );
       y += 13;
-      for (const sid of unit.skills) {
+      for (const sid of group.ids) {
         const skillData = this.gameData?.skills?.find((s) => s.id === sid);
         const name = skillData ? skillData.name : sid.replace(/_/g, ' ');
         const skillText = this._tabText(lx + 8, y, name, UI_PALETTE.info, '9px');

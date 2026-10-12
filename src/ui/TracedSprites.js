@@ -38,8 +38,9 @@ export const classKey = (name) =>
 export const personSpriteKey = (cls, person) => `${classKey(cls)}-${person}`;
 
 /**
- * A generic player-side unit's sprite: the person its portrait shows
- * (PortraitVariants.displayedPerson: the stored person, the preview fallback, or the
+ * A generic player-side unit's sprite: the person its portrait shows inside the person's
+ * own line (after a cross-line reclass the portrait keeps its own face and the sprite is a
+ * same-gender counterpart) (PortraitVariants.displayedPerson: the stored person, the preview fallback, or the
  * reclass counterpart), in its class. Falls back to the class's own sprite (enemy-only
  * creatures a reclass seal can reach), then to any baked person of the class.
  */

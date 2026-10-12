@@ -161,12 +161,14 @@ describe('WeaponArt visibility helpers', () => {
   });
 });
 
-it('Phantom Rush summary exposes reduced strike damage without a post-combat HP penalty', async () => {
+it('Phantom Rush summary names the line and the dash, without a post-combat HP penalty', async () => {
   const { loadGameData } = await import('./testData.js');
   const art = loadGameData().weaponArts.arts.find((a) => a.id === 'legend_phantom_rush');
   const summary = summarizeWeaponArtEffect(art);
-  expect(summary).toContain('3 strikes at 60% damage each');
-  expect(summary).toContain('On hit: step back 1 tile');
+  expect(summary).toContain('a 75% blow to each enemy up to 2 tiles behind the target');
+  expect(summary).toContain(
+    'On hit: dash on through the target and the 2 tiles behind it, landing as far as 3 tiles past it',
+  );
   expect(summary).not.toContain('HP becomes');
   expect(art.hpCost).toBe(8);
 });

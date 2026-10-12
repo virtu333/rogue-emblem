@@ -115,6 +115,8 @@ export const OBJECTIVE_WORDS = Object.freeze({
   seize: 'SEIZED',
   escape: 'ESCAPED',
   defend: 'DEFENDED',
+  // A defeat map (BattleObjectives.js): its targets fell, the rest may stand (large-maps 03 §5.4).
+  defeat: 'SLAIN',
 });
 
 export function objectiveWord(objective) {
@@ -148,17 +150,41 @@ export function defeatContent({ commanderName } = {}) {
   };
 }
 
-export function felledContent({ objective, remaining = 0 }) {
+/**
+ * The targets a defeat map still needs, as the felled band says them: "2 Voices remain", "1 Voice
+ * remains" (a label "the Voices" loses its article; a regular plural gives its singular, any other
+ * label reads "1 of the Wardens of Glass remains"). Nothing for none left.
+ */
+export function targetsRemainText({ left = 0, label = '' } = {}) {
+  const n = Math.max(0, Math.trunc(Number(left) || 0));
+  const name = String(label || 'targets').trim();
+  if (n < 1) return '';
+  const bare = name.replace(/^the\s+/i, '');
+  if (n > 1) return `${n} ${bare} remain`;
+  let singular = null;
+  if (/ies$/i.test(bare)) singular = `${bare.slice(0, -3)}y`;
+  else if (/(ss|x|ch|sh)es$/i.test(bare)) singular = bare.slice(0, -2);
+  else if (/[^su]s$/i.test(bare)) singular = bare.slice(0, -1);
+  return singular ? `1 ${singular} remains` : `1 of ${name} remains`;
+}
+
+export function felledContent({ objective, remaining = 0, targetsLeft = 0, targetsLabel = '' }) {
   let sub = '';
   if (objective === 'seize') sub = 'Seize the throne with a Lord';
   else if (objective === 'escape') sub = 'Make for the exit';
   else if (objective === 'rout' && remaining > 0)
     sub = `${remaining} ${remaining === 1 ? 'foe remains' : 'foes remain'}`;
+  else if (objective === 'defeat')
+    sub = targetsRemainText({ left: targetsLeft, label: targetsLabel });
   return { word: 'FOE VANQUISHED', sub };
 }
 
-/** Whether a boss death should get its own band (not when victory follows). */
-export function shouldShowFelled({ objective, remaining = 0, reviving = 0 }) {
+/**
+ * Whether a boss death should get its own band (not when victory follows). On a defeat map
+ * `remainingTargets` is the targets still standing: none left, SLAIN follows instead.
+ */
+export function shouldShowFelled({ objective, remaining = 0, reviving = 0, remainingTargets = 0 }) {
+  if (objective === 'defeat') return remainingTargets > 0;
   if (objective === 'seize') return true;
   if (objective === 'rout') return remaining > 0 || reviving > 0;
   return true;
@@ -395,7 +421,11 @@ export function reduceBossBar(state, event) {
         lostFrom = Math.max(state.lostFrom, state.hp);
       }
       const stonesMax = Math.max(0, Math.trunc(Number(boss.stonesMax) || 0));
-      const stones = Math.min(stonesMax, Math.max(0, Math.trunc(Number(boss.stones) || 0)));
+      // Fog holds the stones with the HP: a stone broken out of sight is not told.
+      const stones =
+        same && event.concealed
+          ? (state.stones ?? 0)
+          : Math.min(stonesMax, Math.max(0, Math.trunc(Number(boss.stones) || 0)));
       const next = {
         visible: true,
         felled: false,
@@ -449,7 +479,8 @@ export function bossBarView(state) {
     felled: state.felled,
     stones: state.stones ?? 0,
     stonesMax: state.stonesMax ?? 0,
-    // "Stones 2/2" for the off-map readers (the rail and the objective plate).
-    stonesText: (state.stonesMax ?? 0) > 0 ? `Stones ${state.stones}/${state.stonesMax}` : '',
+    // The full reading off the map: the bar it is on plus one per stone ("Health bars 2/3").
+    stonesText:
+      (state.stonesMax ?? 0) > 0 ? `Health bars ${state.stones + 1}/${state.stonesMax + 1}` : '',
   };
 }

@@ -4,6 +4,7 @@ import { validateBattleState } from './BattleStateSnapshot.js';
 import { migrateSavedItemNames, ITEM_NAMES_REVISION } from './ItemNameMigration.js';
 import { migrateSavedGamblerCoins } from './AccessoryCatalogMigration.js';
 import { migrateSavedPerBattleWeapons } from './WeaponCatalogMigration.js';
+import { migrateSavedLegendaryRelics } from './LegendaryRelicMigration.js';
 import { hydrateBattleTimeline } from './BattleTimeline.js';
 import { pickFresh } from '../utils/pickFresh.js';
 import { applyRevivalCatchUp } from './RevivalCatchUp.js';
@@ -14,7 +15,8 @@ import {
   normalizeUnitDeeds,
 } from './DeedSystem.js';
 import { RUN_RECORD_VERSION, fallenForRecord, fallenRecord, survivorRecord } from './RunRecords.js';
-import { migrateWaitingOath } from './SkillLoadout.js';
+import { migrateWaitingOath, settleSlotOverflow } from './SkillLoadout.js';
+import { slotKindOf, slotsFullFor } from './SkillSlots.js';
 import { normalizeDeploymentNames } from './DeploymentSelection.js';
 import { restrictOpeningCavaliers } from './EarlyEnemyRules.js';
 // RunManager.js — Pure class: run state (roster, node map, act progression, unit serialization)
@@ -24,9 +26,8 @@ import {
   ACT_SEQUENCE,
   ACT_CONFIG,
   STARTING_GOLD,
-  MAX_SKILLS,
   STARTING_ACCESSORY_TIERS,
-  STARTING_STAFF_TIERS,
+  startingStaffNames,
   DEADLY_ARSENAL_SIGNATURE_WEAPONS,
   ELITE_GOLD_MULTIPLIER,
   XP_STAT_NAMES,
@@ -47,6 +48,20 @@ import { reconcileRecruitSpawnTile, sanitizeEscapeTilePassability } from './MapG
 import { calculateCurrencies } from './MetaProgressionManager.js';
 import { lordNamesInRun } from './LordsMet.js';
 import { generateNodeMap } from './NodeMapGenerator.js';
+import { buildDescentNodeMap, descentRouteIdFor, isDescentMap, isGateBossNode } from './Descent.js';
+import {
+  RITE_MAX_WORDS_PER_COMMIT,
+  applyRiteDelta,
+  createRite,
+  riteBand,
+  riteConfigOf,
+  riteLevelRuleOf,
+  riteModsFor,
+  riteStartFromEclipse,
+  riteUnderParDelta,
+  sanitizeRite,
+} from './Rite.js';
+import { findSetPiece } from './SetPieces.js';
 import {
   createLordUnit,
   createRecruitUnit,
@@ -74,7 +89,7 @@ import {
 import { applyForge, canForge, canForgeStat, deforgeWeapon } from './ForgeSystem.js';
 import { signatureWeaponFor } from './SignatureWeapons.js';
 import { generateRandomLegendary } from './LootSystem.js';
-import { sanitizeLegendaryGrants } from './LegendaryOwnership.js';
+import { sanitizeLegendaryGrants, adoptHeldLegendaries } from './LegendaryOwnership.js';
 import { getActiveSlot, getRunClockFloorKey, getRunKey, MAX_SLOTS } from './SlotManager.js';
 import { isQuotaExceededError, setItemFreeingSpace } from './SaveSpace.js';
 import { markStartup } from '../utils/startupTelemetry.js';
@@ -87,6 +102,7 @@ import {
   usesPriceCatalog,
 } from './BlessingEngine.js';
 import {
+  actOverrideFor,
   resolveDifficultyMode,
   DIFFICULTY_DEFAULTS,
   ENEMY_ACT_GATE_ORDER,
@@ -175,6 +191,7 @@ import {
   createEclipseState,
   eclipseBattleMods,
   eclipseHash,
+  eclipsePhase,
   isEclipseActive,
   kindleResult,
   normalizeEclipseState,
@@ -243,6 +260,7 @@ import {
   sanitizeStartGift,
 } from './StartGifts.js';
 import {
+  DESCENT_CAPABILITY,
   RunFormatError,
   runFormatBlock,
   runFormatMarker,
@@ -297,10 +315,16 @@ function sanitizeActSequence(sequence, fallback = ACT_SEQUENCE) {
   return [...fallback.filter((actId) => KNOWN_ACT_IDS.has(actId))];
 }
 
-export function getActTransitionKey(fromAct, toAct) {
+/**
+ * The story scene an act advance plays. `finale` is where the run's road ends
+ * (NarrativeDirector.finaleOf): after the Emperor falls, a road that ends at the Lieutenant
+ * (Dusk) goes down to him; any other road (the Entity's, or one that does not say) is the
+ * ground waking, the descent to the Entity.
+ */
+export function getActTransitionKey(fromAct, toAct, { finale = null } = {}) {
   if (fromAct === 'act3' && toAct === 'finalBoss') return 'act3_to_finalBoss_normal';
-  // After the Emperor falls, the ground wakes: the descent to the Entity.
-  if (fromAct === 'act4' && toAct === 'finalBoss') return 'finalBoss_to_secretAct';
+  if (fromAct === 'act4' && toAct === 'finalBoss')
+    return finale === 'lieutenant' ? 'act4_to_finalBoss_lieutenant' : 'finalBoss_to_secretAct';
   return `${fromAct}_to_${toAct}`;
 }
 
@@ -857,6 +881,9 @@ export class RunManager {
     // boss relief and church Kindle. See EclipseSystem.js / docs/specs/eclipse.md.
     this.eclipse = createEclipseState();
     this.lastEclipseCommit = null;
+    // The Rite (engine/Rite.js): the court circle's words, from the Descent's entry (null on
+    // every other act and old save). Saved; changed only at a victory's commit and by an event.
+    this.rite = null;
   }
 
   /** A fresh run's event state: nothing chosen, no flags, no burdens, no one laid to rest. */
@@ -958,6 +985,7 @@ export class RunManager {
     this.applyDifficultySelection(difficultyId);
     this.eclipse = createEclipseState({ enabled: eclipseEnabled !== false });
     this.lastEclipseCommit = null;
+    this.rite = null;
     this.usedRecruitNames = {};
     this.lastDeployment = [];
     this.legendaryLordChance = legendaryLordChanceFor(this.metaEffects?.legendaryLordChanceBonus);
@@ -975,17 +1003,9 @@ export class RunManager {
     this.visionChargesRemaining = this.getBaseVisionCharges();
     this.visionCount = 0;
     this.randomLegendary = generateRandomLegendary(this.gameData.weapons);
-    this.nodeMap = this._withNodeMapSeed(() =>
-      generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
-        fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
-        halfFogChance: this.difficultyId === 'normal',
-        villageAmbushChance: this.getDifficultyModifier('villageAmbushChance', 0),
-        // an object — read directly (getDifficultyModifier coerces objects)
-        villageMinRow: this.difficultyModifiers?.villageMinRow ?? null,
-        colosseumConfig: this.gameData.colosseum?.nodeGeneration ?? null,
-        caravanChanceBonus: this.metaEffects?.caravanChanceBonus || 0,
-      }),
-    );
+    // A new run starts with no floor, before its first map can raise one (_buildActNodeMap).
+    this.requiredCapabilityFloor = [];
+    this.nodeMap = this._buildActNodeMap();
     this.currentNodeId = null;
     this.pendingAmbushNodeId = null;
     this.pendingCaravanShop = null;
@@ -1001,7 +1021,6 @@ export class RunManager {
     this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
     this.earnedBlessingPicks = {};
     this.blessingBoonRevision = BLESSING_BOON_REVISION; // a new run follows the current rules
-    this.requiredCapabilityFloor = [];
     this.battleConfigsByNodeId = {};
     this.ensureRecruitPreviews();
     this.shopStateByNodeId = {};
@@ -1052,6 +1071,7 @@ export class RunManager {
     this.actIndex = 0;
     this.eclipse = createEclipseState({ enabled: false });
     this.lastEclipseCommit = null;
+    this.rite = null;
     this.usedRecruitNames = {};
     this.lastDeployment = [];
     this.legendaryLordChance = 0;
@@ -1873,11 +1893,14 @@ export class RunManager {
           continue;
         }
 
-        // First pass: displace non-personal, non-innate skill
+        // First pass: displace non-personal, non-innate skill of the same kind (a skill
+        // only frees a skill slot, an ability an ability slot: SkillSlots.js)
+        const kind = slotKindOf(skillId, this.gameData?.skills);
+        const sameKind = (sid) => slotKindOf(sid, this.gameData?.skills) === kind;
         let restoredWithDisplacement = false;
         for (let i = unit.skills.length - 1; i >= 0; i--) {
           const sid = unit.skills[i];
-          if (!personalSkillIds.has(sid) && !unitInnateIds.has(sid)) {
+          if (sameKind(sid) && !personalSkillIds.has(sid) && !unitInnateIds.has(sid)) {
             const displaced = unit.skills.splice(i, 1)[0];
             unit.skills.push(skillId);
             unit.benchedSkills = [...benchedSkillsOf(unit), displaced]; // kept, not lost
@@ -1891,7 +1914,7 @@ export class RunManager {
         if (!restoredWithDisplacement) {
           for (let i = unit.skills.length - 1; i >= 0; i--) {
             const sid = unit.skills[i];
-            if (!personalSkillIds.has(sid)) {
+            if (sameKind(sid) && !personalSkillIds.has(sid)) {
               const displaced = unit.skills.splice(i, 1)[0];
               unit.skills.push(skillId);
               unit.benchedSkills = [...benchedSkillsOf(unit), displaced]; // kept, not lost
@@ -2407,8 +2430,10 @@ export class RunManager {
       for (const unit of targets) {
         if (!Array.isArray(unit.skills)) unit.skills = [];
         for (let i = 0; i < count; i++) {
-          if (unit.skills.length >= MAX_SKILLS) break;
-          const candidates = skillPool.filter((skillId) => !unit.skills.includes(skillId));
+          const candidates = skillPool.filter(
+            (skillId) =>
+              !unit.skills.includes(skillId) && !slotsFullFor(unit, skillId, this.gameData?.skills),
+          );
           if (candidates.length <= 0) break;
           const picked = this._pickDeterministicBlessingItem(
             candidates,
@@ -4138,11 +4163,12 @@ export class RunManager {
       if (!unit.proficiencies.some((p) => p.type === 'Staff')) {
         unit.proficiencies.push({ type: 'Staff', rank: 'Prof' });
       }
-      // Sera's staff — tier upgrade
+      // Sera always carries Heal; Healer's Art adds its tier's staff beside it.
       const staffTier = me?.startingStaffTier || 0;
-      const staffName = STARTING_STAFF_TIERS[staffTier] || 'Heal';
-      const staff = weapons.find((w) => w.name === staffName);
-      if (staff) addToInventory(unit, staff);
+      for (const staffName of startingStaffNames(staffTier)) {
+        const staff = weapons.find((w) => w.name === staffName);
+        if (staff) addToInventory(unit, staff);
+      }
     }
 
     // Traits stack after meta bonuses, and after Sera gains her Staff proficiency.
@@ -4353,7 +4379,7 @@ export class RunManager {
     for (const unit of startingLordUnits) {
       const assigned = skillAssignments[unit.name] || [];
       for (const skillId of assigned) {
-        if (!unit.skills.includes(skillId) && unit.skills.length < MAX_SKILLS) {
+        if (!unit.skills.includes(skillId) && !slotsFullFor(unit, skillId, this.gameData?.skills)) {
           unit.skills.push(skillId);
         }
       }
@@ -4589,18 +4615,21 @@ export class RunManager {
     battleParams.fogEnabled = !isFirstBattle && Boolean(node.fogEnabled);
     battleParams.firstBattleFightersOnly = isFirstBattle;
     battleParams.excludeOpeningCavaliers = restrictOpeningCavaliers(this);
-    battleParams.enemyStatBonus = this.getDifficultyModifier('enemyStatBonus', 0);
-    battleParams.classStatBonuses = this.getDifficultyModifier('classStatBonuses', {});
-    battleParams.enemyCountBonus = this.getDifficultyModifier('enemyCountBonus', 0);
+    // The rung's enemy modifiers for this battle's act (an act override, Black Sun's Act I,
+    // in place of the rung's own value).
+    const battleAct = battleParams.act || this.currentAct;
+    const actModifier = (key, fallback) =>
+      this.getBattleDifficultyModifier(key, battleAct, fallback);
+    battleParams.enemyStatBonus = actModifier('enemyStatBonus', 0);
+    battleParams.enemyCountBonus = actModifier('enemyCountBonus', 0);
     battleParams.enemyLevelBonus =
-      this.getDifficultyModifier('enemyLevelBonus', 0) +
-      this.getBlessingEnemyLevelDelta(battleParams.act || this.currentAct);
+      actModifier('enemyLevelBonus', 0) + this.getBlessingEnemyLevelDelta(battleAct);
     // An event's fight (engine/EventEffects.js `battle`) may be harder by the effect's levels.
     if (Number.isFinite(battleParams.eventEnemyLevelBonus))
       battleParams.enemyLevelBonus += Math.trunc(battleParams.eventEnemyLevelBonus);
-    battleParams.bossLevelBonus = this.getDifficultyModifier('bossLevelBonus', 0);
-    battleParams.enemySkillChance = this.getDifficultyModifier('enemySkillChance', 0);
-    battleParams.enemyCountBase = this.getDifficultyModifier('enemyCountBase', 0);
+    battleParams.bossLevelBonus = actModifier('bossLevelBonus', 0);
+    battleParams.enemySkillChance = actModifier('enemySkillChance', 0);
+    battleParams.enemyCountBase = actModifier('enemyCountBase', 0);
     battleParams.recruitEnemyCountBonus = this.getDifficultyModifier('recruitEnemyCountBonus', 0);
     battleParams.act1EnemyCountDeployCap = this.getDifficultyModifier('act1EnemyCountDeployCap', 3);
     battleParams.enemyEquipTierShift = this.getDifficultyModifier('enemyEquipTierShift', 0);
@@ -4611,7 +4640,7 @@ export class RunManager {
     );
     battleParams.xpUnderdogCap = this.getDifficultyModifier('xpUnderdogCap', XP_UNDERDOG_CAP);
     battleParams.goldMultiplier = this.getDifficultyModifier('goldMultiplier', 1);
-    battleParams.enemyPoisonChance = this.getDifficultyModifier('enemyPoisonChance', 0);
+    battleParams.enemyPoisonChance = actModifier('enemyPoisonChance', 0);
     battleParams.reinforcementTurnOffset = this.getDifficultyModifier('reinforcementTurnOffset', 0);
     // Hollow Hourglass: every wave a turn later (ReinforcementSpawns reads it for the scene and the
     // harness alike); Lantern of the Road: a fog map's opening reveal (engine/FogOpening.js).
@@ -4727,6 +4756,20 @@ export class RunManager {
     const debuffs = [...battleDebuffsFor(this), ...moveTypeBattleDeltas(this)];
     if (debuffs.length) battleParams.battleDebuffs = debuffs;
     else delete battleParams.battleDebuffs;
+    // The Rite (engine/Rite.js), only in the Descent (a run without one keeps its params as they
+    // were): the words at entry (a summoning circle's Hollowed read them), the tier, the Vigil's
+    // Hollowed level rule, and on a boss of the route the tier's mods, which MapGenerator writes
+    // into the locked map (RiteBattleMods.js). Keys only when they say something.
+    for (const key of ['riteAtEntry', 'riteBand', 'riteLevel', 'riteMods'])
+      delete battleParams[key];
+    const rite = sanitizeRite(this.rite);
+    if (rite) {
+      battleParams.riteAtEntry = rite.words;
+      battleParams.riteBand = riteBand(rite.words, riteConfigOf(this));
+      battleParams.riteLevel = riteLevelRuleOf(this);
+      const riteMods = riteModsFor(this, node);
+      if (Object.keys(riteMods).length) battleParams.riteMods = riteMods;
+    }
     return battleParams;
   }
 
@@ -5231,6 +5274,28 @@ export class RunManager {
   }
 
   /**
+   * revertBattleInProgressToEntry with the way back, for a caller that leaves the battle only
+   * if the save of it lands (the formation's Roster): returns a function that puts every
+   * field the revert wrote back as it was, or null when nothing was reverted. Each key of
+   * the revert's patch names the run field it writes, so a field added there is covered here;
+   * the revert replaces those objects (never edits them), so the same objects come back,
+   * except a legacy convoy scrub, which edits the convoy in place and is undone from a copy.
+   */
+  revertBattleInProgressToEntryUndoable() {
+    const flag = this.battleInProgress;
+    if (!flag || typeof flag !== 'object') return null;
+    const patch = battleEntryRevertPatch(flag);
+    const before = ['battleInProgress', ...Object.keys(patch)]
+      .filter((key) => key !== 'removeConvoyUid')
+      .map((key) => [key, this[key]]);
+    if (patch.removeConvoyUid) before.push(['convoy', structuredClone(this.convoy)]);
+    if (!this.revertBattleInProgressToEntry()) return null;
+    return () => {
+      for (const [key, value] of before) this[key] = value;
+    };
+  }
+
+  /**
    * The prologue's restart ("Not this thread", §9): a named unit fell, so the chapter
    * starts again from its entry. The same revert as Continue from Map, but a fatal
    * checkpoint is no bar: the prologue never settles a defeat, and the standard run's
@@ -5314,6 +5379,9 @@ export class RunManager {
       },
     });
     const eclipseCommit = this._commitBattleShadow(node, options, settlement.extraShadow);
+    // The Rite's words from this battle (the Vigil's, a node's par), committed here and nowhere
+    // else, once: the node is open (checked above), so a battle won twice counts nothing twice.
+    this._commitBattleRite(node, lockedConfig, options);
 
     this._sanitizeUnitPools();
     this.ensureUnitUids();
@@ -5419,7 +5487,11 @@ export class RunManager {
       this.nodeMap?.actId === 'act3' ||
       this.nodeMap?.actId === 'act4';
     // The prologue's last chapter grants no Vision (§8): P3's exercise is its only charge.
-    if (isRewardBossNode && isRewardAct && !isPrologueRun(this)) {
+    // The Descent's gate boss (act-v-descent §6.2) grants the act boss's +1 too, explicitly: it
+    // is never the map's bossNodeId, which every other grant keys on. Once, as any: this commit
+    // refuses a node already done, and a battle reverted before its victory never reaches it.
+    const isGateVictory = isGateBossNode(this, node) && !isPrologueRun(this);
+    if ((isRewardBossNode && isRewardAct && !isPrologueRun(this)) || isGateVictory) {
       const currentVision = Number.isFinite(this.visionChargesRemaining)
         ? Math.max(0, Math.trunc(this.visionChargesRemaining))
         : 0;
@@ -5449,6 +5521,46 @@ export class RunManager {
     if (eclipseCommit) eclipseCommit.fell = this.applyEclipseNow().map((n) => n.id);
     this.lastEclipseCommit = eclipseCommit;
     return true;
+  }
+
+  // ── The Rite ───────────────────────────────────────────────────────────
+
+  /** The Rite's words at the Descent's entry: the Eclipse's global phase (0 with it off). */
+  _riteStart() {
+    const config = this.getEclipseConfig();
+    const active = this.isEclipseActive();
+    return riteStartFromEclipse(
+      { active, phaseId: active ? eclipsePhase(this.eclipse?.shadow, config).id : null },
+      riteConfigOf(this),
+    );
+  }
+
+  /**
+   * A victory's words (act-v-descent §4): the Vigil's (`options.riteWords`, the battle's
+   * vigilState count) when the locked map carries a vigil (no locked map: the headless sims, when
+   * the node's set piece has one), and a node's change at or under par (`rite.underPar`, keyed by
+   * the node's descentKey: the Mortuary Column). No Rite (not the Descent, an old save): nothing.
+   * @returns {object[]} the log entries this commit added
+   */
+  _commitBattleRite(node, lockedConfig, options = {}) {
+    const before = sanitizeRite(this.rite);
+    if (!before) return [];
+    let rite = before;
+    const fightsVigil = lockedConfig
+      ? Boolean(lockedConfig.vigil)
+      : (findSetPiece(this.gameData?.setPieces, node?.battleParams?.setPiece)?.variants || []).some(
+          (variant) => Boolean(variant?.vigil),
+        );
+    const words = Math.min(
+      RITE_MAX_WORDS_PER_COMMIT,
+      Math.max(0, Math.trunc(Number(options.riteWords) || 0)),
+    );
+    if (fightsVigil && words > 0)
+      rite = applyRiteDelta(rite, words, { source: 'vigil', nodeId: node.id });
+    const underPar = riteUnderParDelta(riteConfigOf(this), node, options);
+    if (underPar) rite = applyRiteDelta(rite, underPar, { source: 'battle', nodeId: node.id });
+    this.rite = rite;
+    return rite.log.slice(before.log.length);
   }
 
   // ── The Eclipse ────────────────────────────────────────────────────────
@@ -5723,6 +5835,56 @@ export class RunManager {
   }
 
   /**
+   * The current act's route map (startRun and advanceAct; a load never rebuilds one, so a save
+   * already in an act keeps the map it was given). In the final act of a standard run, while
+   * data/descent.json is switched on and names a route for the rung, the Descent's authored
+   * route (engine/Descent.js: its own keyed streams, never the node-map seed); otherwise the
+   * generator under the node-map seed, exactly as before. A route that cannot be built (data
+   * the validator would refuse) falls back to the generator rather than stopping the run.
+   * Building the Descent holds the run to the `descent` capability from that moment
+   * (engine/RunFormat.js: its floor, written by every later save whatever happens after), so a
+   * client that cannot play the route refuses every save from route entry on.
+   */
+  _buildActNodeMap() {
+    const routeId = this._descentRouteId();
+    if (routeId) {
+      try {
+        const nodeMap = buildDescentNodeMap(this.gameData.descent, {
+          runSeed: this.runSeed,
+          difficultyId: this.difficultyId,
+          actSequence: this.actSequence,
+          gameData: this.gameData,
+          routeId,
+        });
+        this.requiredCapabilityFloor = sanitizeCapabilityIds([
+          ...(this.requiredCapabilityFloor || []),
+          DESCENT_CAPABILITY,
+        ]);
+        return nodeMap;
+      } catch (err) {
+        console.error('[RunManager] the Descent route could not be built; generating', err);
+      }
+    }
+    return this._withNodeMapSeed(() =>
+      generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
+        fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
+        halfFogChance: this.difficultyId === 'normal',
+        villageAmbushChance: this.getDifficultyModifier('villageAmbushChance', 0),
+        // an object — read directly (getDifficultyModifier coerces objects)
+        villageMinRow: this.difficultyModifiers?.villageMinRow ?? null,
+        colosseumConfig: this.gameData.colosseum?.nodeGeneration ?? null,
+        caravanChanceBonus: this.metaEffects?.caravanChanceBonus || 0,
+      }),
+    );
+  }
+
+  /** The Descent route this act takes (Descent.descentRouteIdFor), or null for any other map. */
+  _descentRouteId() {
+    if (isPrologueRun(this) || this.currentAct !== 'finalBoss') return null;
+    return descentRouteIdFor(this.gameData?.descent, this.difficultyId);
+  }
+
+  /**
    * Run node-map generation under a seeded Math.random derived from runSeed + the
    * current act, so a given (runSeed, act) always yields the same graph.
    * NodeMapGenerator uses ambient Math.random; this scopes it with the same
@@ -5766,17 +5928,7 @@ export class RunManager {
     applyArcsOnActEntry(this);
     // The act boss has fallen: the army rests before the next act and starts it whole.
     for (const unit of this.roster) if (unit?.stats) healUnitFully(unit);
-    this.nodeMap = this._withNodeMapSeed(() =>
-      generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
-        fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
-        halfFogChance: this.difficultyId === 'normal',
-        villageAmbushChance: this.getDifficultyModifier('villageAmbushChance', 0),
-        // an object — read directly (getDifficultyModifier coerces objects)
-        villageMinRow: this.difficultyModifiers?.villageMinRow ?? null,
-        colosseumConfig: this.gameData.colosseum?.nodeGeneration ?? null,
-        caravanChanceBonus: this.metaEffects?.caravanChanceBonus || 0,
-      }),
-    );
+    this.nodeMap = this._buildActNodeMap();
     // Pilgrim's Road: the new map gains its extra shop before anything else reads it.
     this._stampExtraShops();
     // The Old Sanctum (engine/SanctumPass.js): its own stream, after the shops.
@@ -5796,6 +5948,9 @@ export class RunManager {
     // Every act opens on a fresh land: act pressure restarts at 0 (the global meter,
     // after any boss relief, carries on).
     this.eclipse = beginActShadow(this.eclipse);
+    // The Rite (engine/Rite.js): it begins as the Descent does, from the Eclipse's global phase
+    // as the army goes down (before any fall below), and exists on no other act's map.
+    this.rite = isDescentMap(this.nodeMap) ? createRite({ start: this._riteStart() }) : null;
     const unlockedNow = this._syncActWeaponArtUnlocksForCurrentAct();
     const displacedSkills = this._lastRestorationDisplacements || {};
     this._lastRestorationDisplacements = null;
@@ -5988,6 +6143,16 @@ export class RunManager {
     if (typeof fallback === 'boolean') return typeof value === 'boolean' ? value : fallback;
     if (Array.isArray(fallback)) return Array.isArray(value) ? value : fallback;
     return Number.isFinite(value) ? value : fallback;
+  }
+
+  /**
+   * A battle's difficulty modifier in `act`: the rung's `actOverrides` value for that act when
+   * it sets one (DifficultyEngine.actOverrideFor), else the rung's own. A run saved before a
+   * rung had overrides keeps the values it started with.
+   */
+  getBattleDifficultyModifier(key, act, fallback = 0) {
+    const override = actOverrideFor(this.difficultyModifiers, key, act);
+    return override !== undefined ? override : this.getDifficultyModifier(key, fallback);
   }
 
   _getGrowthBonusMultiplier() {
@@ -6249,6 +6414,7 @@ export class RunManager {
       battleInProgress: this.battleInProgress || null,
       lastBattleReport: this.lastBattleReport || null,
       eclipse: this.eclipse || createEclipseState(),
+      rite: sanitizeRite(this.rite),
       itemNamesRevision: ITEM_NAMES_REVISION,
       blessingBoonRevision: this.blessingBoonRevision,
     };
@@ -6504,6 +6670,8 @@ export class RunManager {
     migrateSavedGamblerCoins(saved, gameData);
     // Per-battle weapons (Breachbolt) take the catalog's shot counts (same places).
     migrateSavedPerBattleWeapons(saved, gameData);
+    // Legendaries saved before the rework take its changes (Oathblade, Hermit's Bow).
+    migrateSavedLegendaryRelics(saved);
     const rm = new RunManager(gameData, saved.metaEffects || null);
     rm.requiredCapabilityFloor = sanitizeCapabilityIds(saved.requiresCapabilities);
     // Saves from before the prologue carry no mode: they are standard runs.
@@ -6932,6 +7100,7 @@ export class RunManager {
     rm.rewardRerollsSpent = Math.max(0, Math.trunc(Number(saved.rewardRerollsSpent) || 0));
     // Saves from before the ledger have none (what the army holds still counts).
     rm.legendaryGrants = sanitizeLegendaryGrants(saved.legendaryGrants);
+    adoptHeldLegendaries(rm);
     rm.pendingBossRecruit = restorePendingBossRecruit(saved.pendingBossRecruit, {
       actId: rm.currentAct,
       hasPendingReward: Boolean(rm.pendingBattleReward),
@@ -7048,6 +7217,9 @@ export class RunManager {
     // Before the bench, an Oath at the cap waited for a free slot: it is sworn now.
     rm.roster.forEach(migrateWaitingOath);
     rm.fallenUnits.forEach(migrateWaitingOath);
+    // Before abilities had slots of their own, a unit could equip up to five: whatever now
+    // overflows a pool waits on the bench (SkillSlots.js), locked skills kept first.
+    for (const unit of [...rm.roster, ...rm.fallenUnits]) settleSlotOverflow(unit, rm.gameData);
 
     // Stamp missing item UIDs from legacy saves before relinking/equipment migration.
     rm.roster.forEach(stampUnitItemUids);
@@ -7079,6 +7251,8 @@ export class RunManager {
     // re-applied idempotently; a consistent save changes nothing. The battle being
     // fought (if any) is exempt like the current node.
     rm.eclipse = normalizeEclipseState(saved.eclipse, rm.getEclipseConfig());
+    // The Rite (engine/Rite.js): a save from before it, or off the Descent, has none.
+    rm.rite = sanitizeRite(saved.rite);
     // The same fall as in play (applyEclipseNow), Dark Omen included.
     rm.applyEclipseNow({
       activeNodeId:

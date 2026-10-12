@@ -2987,6 +2987,69 @@
       ]
     },
     {
+      "id": "came_this_far",
+      "title": "We Came This Far Also",
+      "acts": ["finalBoss"],
+      "pool": "descent",
+      "weight": 1,
+      "oncePerRun": false,
+      "intro": "Cut deep into the landing wall: WE CAME THIS FAR ALSO. Under it, names, row on row, in hands and letters older than the empire. The last row stops halfway across.",
+      "choices": [
+        {
+          "id": "carve",
+          "label": "Carve your own",
+          "outcomes": [
+            {
+              "id": "carved",
+              "weight": 100,
+              "text": "It takes longer than it should, and nobody hurries anyone. The army gets up from the wall rested, as if the names had kept the watch.",
+              "effects": [
+                {
+                  "type": "hp",
+                  "mode": "heal",
+                  "percent": 20,
+                  "scope": "all"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "read",
+          "label": "Read the names",
+          "outcomes": [
+            {
+              "id": "read",
+              "weight": 100,
+              "text": "One name is almost yours, spelled the way a stranger would. You stay too long with it, and come away seeing a little further.",
+              "effects": [
+                {
+                  "type": "vision",
+                  "value": 1
+                },
+                {
+                  "type": "shadow",
+                  "value": 2
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "walk_on",
+          "label": "Walk on",
+          "outcomes": [
+            {
+              "id": "walked",
+              "weight": 100,
+              "text": "You leave the wall as you found it, with room at the bottom.",
+              "effects": []
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "quiet_road",
       "title": "A Quiet Road",
       "weight": 0,
@@ -3065,6 +3128,149 @@
                 {
                   "type": "shadow",
                   "value": -1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "last_lantern",
+      "title": "The Last Lantern",
+      "acts": [
+        "finalBoss"
+      ],
+      "pool": "descent",
+      "weight": 1,
+      "intro": "A lantern on the stair, still lit, set square in the middle of a step. Scratched into its hood: IF I AM NOT BACK BY THIRD BELL, LEAVE IT BURNING. Nobody down here has heard a bell in a long time.",
+      "choices": [
+        {
+          "id": "carry",
+          "label": "Carry it down",
+          "outcomes": [
+            {
+              "id": "carried",
+              "weight": 100,
+              "text": "It throws more light than a lantern that size has any right to. The army rests a while inside its circle before going on.",
+              "effects": [
+                {
+                  "type": "hp",
+                  "mode": "heal",
+                  "percent": 25,
+                  "scope": "all"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "leave",
+          "label": "Leave it burning",
+          "outcomes": [
+            {
+              "id": "left",
+              "weight": 100,
+              "text": "You set it back square on the step for whoever comes down next. Somewhere below, a chanting voice loses its place.",
+              "effects": [
+                {
+                  "type": "rite",
+                  "delta": -1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "read",
+          "label": "Read the scout's last page",
+          "outcomes": [
+            {
+              "id": "read",
+              "weight": 100,
+              "text": "Pinned under the lantern: a ring hall drawn in four strokes, four marks around the middle, and under it, pressed hard: DO NOT LET THEM FINISH.",
+              "effects": [
+                {
+                  "type": "vision",
+                  "value": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "seers_last_page",
+      "title": "The Seers' Last Page",
+      "acts": [
+        "finalBoss"
+      ],
+      "pool": "descent",
+      "weight": 1,
+      "intro": "A reading desk at the turn of the stair, stacked with copies of one notebook in a dozen hands. Every copy stops on the same line, at the same word: AND WHEN THE LAST WORD IS SPOKEN, THE",
+      "choices": [
+        {
+          "id": "finish",
+          "label": "Finish the sentence",
+          "hint": "It wants someone who knows how the old prayers end.",
+          "requires": {
+            "roster": {
+              "staff": true
+            }
+          },
+          "outcomes": [
+            {
+              "id": "finished",
+              "weight": 100,
+              "text": "Your healer reads it aloud and ends it the way the liturgy ends. Far below, a chant stumbles, starts again and does not find its place.",
+              "effects": [
+                {
+                  "type": "rite",
+                  "delta": -3
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "burn",
+          "label": "Burn the copies",
+          "outcomes": [
+            {
+              "id": "burned",
+              "weight": 100,
+              "text": "The paper goes up fast and the smoke goes down the stair, the wrong way. Someone breathes in more of it than they meant to.",
+              "effects": [
+                {
+                  "type": "rite",
+                  "delta": -1
+                },
+                {
+                  "type": "burden",
+                  "id": "wounded",
+                  "params": {
+                    "scope": "randomUnit",
+                    "stat": "random"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "keep",
+          "label": "Keep a copy",
+          "outcomes": [
+            {
+              "id": "kept",
+              "weight": 100,
+              "text": "The cleanest copy is bound like a light tome, and it is one. Whatever the seers were writing, they wrote it on something that could fight back.",
+              "effects": [
+                {
+                  "type": "item",
+                  "name": "Crownlight",
+                  "to": "auto"
                 }
               ]
             }

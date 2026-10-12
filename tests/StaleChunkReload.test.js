@@ -118,6 +118,19 @@ describe('tryStaleChunkReload', () => {
     expect(globalThis.location.reload).toHaveBeenCalledTimes(1);
   });
 
+  it('never reloads a session-only run (its memory would be wiped)', () => {
+    globalThis.__emblemRogueSessionOnly = true;
+    try {
+      const result = tryStaleChunkReload(
+        new TypeError('Failed to fetch dynamically imported module'),
+      );
+      expect(result).toBe(false);
+      expect(globalThis.location.reload).not.toHaveBeenCalled();
+    } finally {
+      delete globalThis.__emblemRogueSessionOnly;
+    }
+  });
+
   it('does not reload if already reloaded once this session', () => {
     mockStorage['__er_chunk_reload'] = '1';
 

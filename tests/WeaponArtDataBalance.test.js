@@ -53,7 +53,7 @@ describe('weapon arts data guards', () => {
 
     // Every other Mast art is legendary-only and distribution remains stable.
     const mastArts = arts.filter((art) => art?.requiredRank === 'Mast');
-    expect(mastArts.length).toBe(17);
+    expect(mastArts.length).toBe(18);
     for (const art of mastArts.filter((a) => a.id !== 'lance_override')) {
       expect(Array.isArray(art?.legendaryWeaponIds)).toBe(true);
       expect(art.legendaryWeaponIds.length).toBeGreaterThan(0);

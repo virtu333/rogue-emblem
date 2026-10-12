@@ -5,7 +5,7 @@
 // no randomness (the battle RNG is Math.random during combat — nothing here
 // may touch it). Previews project a *copy* of the unit through the real
 // promoteUnit, so the rite shows exactly what the engine applies.
-import { XP_STAT_NAMES, MAX_SKILLS } from '../utils/constants.js';
+import { XP_STAT_NAMES, INVENTORY_MAX } from '../utils/constants.js';
 import {
   promoteUnit,
   getClassInnateSkills,
@@ -146,6 +146,7 @@ export function promotionRoleLine(unit, cls, ranks = [], classes = []) {
  *   skills: {id, name, description}[],           learned on promotion
  *   dropped: string[],                           innates lost to the skill cap
  *   grants: string[],                            starter weapons granted
+ *   grantsShort: string[],                       of those, the ones a full bag cannot take
  *   role: string,
  * }}
  * @param {{ churchRun?: object|null }} [options] - `churchRun`: the run whose church performs the
@@ -203,9 +204,12 @@ export function promotionPathContent(unit, cls, gameData = {}, { churchRun = nul
       }
     : null;
   let grants;
+  let grantsShort = [];
   try {
     const oldTypes = new Set((unit.proficiencies || []).map((p) => p.type));
-    grants = getClassChangeWeaponGrants(projected, oldTypes, gameData, true).map((w) => w.name);
+    grants = getClassChangeWeaponGrants(projected, oldTypes, gameData).map((w) => w.name);
+    // A full bag takes the first grants in order; the rest are lost (promotion still happens).
+    grantsShort = grants.slice(Math.max(0, INVENTORY_MAX - (unit.inventory || []).length));
   } catch {
     grants = [];
   }
@@ -232,6 +236,7 @@ export function promotionPathContent(unit, cls, gameData = {}, { churchRun = nul
     skills,
     dropped,
     grants,
+    grantsShort,
     oath,
     oathOptions,
     role: promotionRoleLine(unit, cls, ranks, gameData.classes) || cls.description || '',

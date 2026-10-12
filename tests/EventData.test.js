@@ -50,7 +50,7 @@ describe('the shipped events.json', () => {
     expect(result.valid).toBe(true);
   });
 
-  it('holds the ten Phase 1 events, the twelve Phase 2D events and the fallback', () => {
+  it('holds the ten Phase 1 events, the twelve Phase 2D events, the Descent’s and the fallback', () => {
     const phase1 = [
       'abandoned_armory',
       'deserters_fire',
@@ -78,7 +78,11 @@ describe('the shipped events.json', () => {
       'turncoat',
       'wandering_smith',
     ];
-    expect(data.events.events.map((e) => e.id).sort()).toEqual([...phase1, ...phase2d].sort());
+    // The Descent's pooled events (docs/specs/act-v-descent.md §7), met only in Act V.
+    const descent = ['came_this_far', 'last_lantern', 'seers_last_page'];
+    expect(data.events.events.map((e) => e.id).sort()).toEqual(
+      [...phase1, ...phase2d, ...descent].sort(),
+    );
   });
 
   it('passes the AJV schema', () => {

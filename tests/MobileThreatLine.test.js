@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
-import { threatPreviewLine } from '../src/ui/MobileBattleHUD.js';
+import { objectiveRail, threatPreviewLine } from '../src/ui/MobileBattleHUD.js';
 
 /** Enough of a DOM element for the rail: class, dataset, children (nodes or text). */
 function fakeElement(tag) {
@@ -87,5 +87,26 @@ describe('rail threat line', () => {
     expect(safe).toBe('var(--re-muted)');
     expect(status).toBeTruthy();
     expect(status).not.toBe(safe);
+  });
+});
+
+describe('MobileBattleHUD doc comments', () => {
+  const source = readFileSync(new URL('../src/ui/MobileBattleHUD.js', import.meta.url), 'utf8');
+  // The doc comment that ends directly above `export function name(`, or null when another
+  // function's or statement's text sits between them.
+  const docOf = (name) => {
+    const at = source.indexOf(`export function ${name}(`);
+    expect(at, name).toBeGreaterThan(-1);
+    const end = source.lastIndexOf('*/', at);
+    if (source.slice(end + 2, at).trim() !== '') return null;
+    return source.slice(source.lastIndexOf('/**', end), end);
+  };
+
+  it("each function carries its own: objectiveRail is not wedged under the threat line's", () => {
+    expect(objectiveRail).toBeTypeOf('function');
+    expect(docOf('objectiveRail')).toMatch(/objective button/);
+    expect(docOf('objectiveRail')).not.toMatch(/move preview/);
+    expect(docOf('threatPreviewLine')).toMatch(/terrain card's move preview/);
+    expect(docOf('threatPreviewLine')).not.toMatch(/objective button/);
   });
 });

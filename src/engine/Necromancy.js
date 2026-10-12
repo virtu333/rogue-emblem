@@ -19,18 +19,21 @@
 //     battle's `Math.random`: a raise leaves the battle stream where it was, and a resume
 //     or rewind that replays the phase raises the same Skeleton. `_raisedBy` links it to
 //     its Necromancer's `battleEntityId`, which survives saves and rewinds.
-//   - REWARDS. One predicate, `isRaisedUnit`, read by ReinforcementSpawns: no gold, a
-//     quarter of the XP, no deed record.
+//   - REWARDS. `isRaisedUnit` (engine/ConjuredUnits.js, re-exported here), read through
+//     `isConjuredUnit` by ReinforcementSpawns, BattleXp and EnemyCarry: no gold, a quarter of
+//     the XP, no survival XP, no deed record, never a carrier.
 //   - CRUMBLING. When a Necromancer falls, `crumbleFor` takes its own Skeletons off the
 //     board with no killer: no gold, no XP. It runs before the battle-end check, so a rout
 //     completes when the Necromancer was the last living foe.
 //
 // Raised units are ordinary enemies otherwise (serialization, rewind and the rout rule are
 // untouched). Reinforcement templates never copy a Necromancer or a Skeleton
-// (`isNecromancyClass`).
+// (`isNecromancyClass`: the raising rules) nor any class in `isNeverCopiedClass`, which also
+// holds Act V's Circle Adept and Hollowed.
 
 import { NECROMANCER_RAISE_CAP } from '../utils/constants.js';
 import { keyedBattleRandom } from './BattleRng.js';
+import { RAISED_XP_MULTIPLIER, isRaisedUnit } from './ConjuredUnits.js';
 import { riseTile } from './ZombieRemains.js';
 import {
   applyEnemyDifficultyModifiers,
@@ -48,31 +51,46 @@ export const MAX_SKELETONS_PER_NECROMANCER = 2;
 export const MAX_RAISES_PER_NECROMANCER = NECROMANCER_RAISE_CAP;
 /** A Skeleton's level is its Necromancer's less this (never below 1). */
 export const SKELETON_LEVEL_OFFSET = 4;
-/** A raised unit pays this share of the XP its level would (gold: none). */
-export const RAISED_XP_MULTIPLIER = 0.25;
+/** A raised unit pays this share of the XP its level would (gold: none; ConjuredUnits.js). */
+export { RAISED_XP_MULTIPLIER, isRaisedUnit };
 
 /**
- * The classes that exist only through a Necromancer on the map. No reinforcement wave,
- * ladder wave, arrival template or arena entrant may become one: a Necromancer is placed by
- * the map generator (one per battle) and a Skeleton only by a raise.
+ * The classes that exist only through a Necromancer on the map: a Necromancer is placed by
+ * the map generator (one per battle) and a Skeleton only by a raise, so no scripted wave may
+ * name one either.
  */
 const NECROMANCY_CLASSES = new Set([NECROMANCER_CLASS, SKELETON_CLASS]);
 
-/** True for the Necromancer and the Skeleton (never copied by an arrival or an arena bout). */
+/** True for the Necromancer and the Skeleton: the classes the raising rules (above) are about. */
 export function isNecromancyClass(className) {
   return NECROMANCY_CLASSES.has(className);
 }
 
-export function isNecromancer(unit) {
-  return unit?.className === NECROMANCER_CLASS;
-}
+export const CIRCLE_ADEPT_CLASS = 'Circle Adept';
+export const HOLLOWED_CLASS = 'Hollowed';
 
 /**
- * A unit a Necromancer raised (its `_raisedBy` names the Necromancer's battleEntityId).
- * The one predicate for the raised unit's rewards: gold 0, XP x0.25, no deed record.
+ * The enemy-only classes no copying path may produce: an arrival's template pool (a map
+ * spawn copied, the act pool, a promoted ladder wave) and an arena entrant. The Necromancer
+ * and Skeleton exist through the raise, the Circle Adept and the Hollowed through an authored
+ * Act V set piece and its summoning (docs/specs/act-v-descent.md §5). A scripted wave that NAMES
+ * a class is not a copy (`isNecromancyClass` alone keeps the raising classes out of those), so
+ * a set piece's own waves may field Hollowed.
  */
-export function isRaisedUnit(unit) {
-  return typeof unit?._raisedBy === 'string' && unit._raisedBy.length > 0;
+const NEVER_COPIED_CLASSES = new Set([
+  NECROMANCER_CLASS,
+  SKELETON_CLASS,
+  CIRCLE_ADEPT_CLASS,
+  HOLLOWED_CLASS,
+]);
+
+/** True for a class an arrival template or an arena bout may never copy or draw. */
+export function isNeverCopiedClass(className) {
+  return NEVER_COPIED_CLASSES.has(className);
+}
+
+export function isNecromancer(unit) {
+  return unit?.className === NECROMANCER_CLASS;
 }
 
 /** How many Skeletons `necromancer` has raised so far this battle (saved on the unit). */
@@ -144,8 +162,8 @@ export function raiseKey(necromancer, turn, ordinal) {
   return `raise:${necromancer.battleEntityId}:${Math.max(1, Math.trunc(Number(turn) || 1))}:${ordinal}`;
 }
 
-/** The plain Iron weapon of a type (no special: never a Javelin or Hand Axe). */
-const ironWeaponOfType = (weapons, type) =>
+/** The plain Iron weapon of a type (no special: never a Javelin or Hand Axe). Vigil.js too. */
+export const ironWeaponOfType = (weapons, type) =>
   (weapons || []).find((w) => w?.type === type && w.tier === 'Iron' && !w.special) || null;
 
 /**

@@ -5,12 +5,38 @@
 // generateSeededBattle).
 //
 // data/setPieces.json
-//   setPieces[]   { id, title, lore, objective, biome?, fog?, deploy: { max }, parBonus?,
-//                   variants[] }
-//   variant       { id, mirror?, map (AuthoredMap grammar), playerSpawns[], enemies[], waves? }
+//   setPieces[]   { id, title, lore, objective, objectives?, acts?, biome?, fog?, deploy: { max },
+//                   parBonus?, variants[] }
+//   variant       { id, mirror?, map (AuthoredMap grammar), playerSpawns[], enemies[], waves?,
+//                   vigil? }
 //   enemy slot    { col, row, classes, level?, captain?: { name }, aiMode?, hold?, weapon?,
-//                   minRung?, minAct? }
+//                   minRung?, minAct?, id?, name?, target? }
+//   boss slot     { col, row, boss: true, aiMode?, weapon? }
 //   wave          { turn, spawns[]: { col, row, classes, level?, aiMode?, minRung?, minAct? } }
+//   vigil         { sigils: [{ id, col, row, target, waking? }], circles: [{ id, col, row, voice }],
+//                   maxCalled?, maxPerCircle? }
+//
+// Set pieces v2 (docs/specs/act-v-descent.md §9.2), for battle, elite and boss nodes as well as
+// events:
+// - `objective` is the legacy string (`rout` | `seize`); `objectives` is the large-maps model
+//   (engine/BattleObjectives.js; its `defeat` kind), written into the config as is, with
+//   `objective` its family (`rout`). Its target refs are slot `id`s or '@boss'.
+// - `acts` (optional) lists the acts the set piece is fought in; a set piece fought only in
+//   `finalBoss` may be up to 16x14. Without it, the events that name it say where it is fought.
+// - A `boss: true` slot seats the battle's boss (SeatedBoss.resolveSeatedBoss, handed in as
+//   `seatBoss`): at most one, always in play, its class, name, level and stones the seat's. It
+//   keeps its two slot draws, and the class draw is the seat's one draw. It is fought only on a
+//   node that seats a boss (no event names it: EventValidation), and never seats the Entity
+//   (validateSetPieceAt: where the Entity is a candidate the node must pin `bossName`).
+// - `id` gives a slot's unit an `authoredId` (what refs name); `name` names a unit that is not
+//   a boss; `target: true` marks a unit a `defeat` objective counts (it needs an id and a name,
+//   is always in play and never holds); `aiMode: 'post'` strikes from its tile and never walks
+//   (SiegeArtillery.POST_AI_MODE).
+// - A seize set piece has exactly one Throne, the boss slot on it, and no captain.
+// - `vigil` (the Vigil's sigils and summoning circles, placed with the mirror) is written into
+//   the config for the Vigil mechanic (engine/Vigil.js): a sigil's `waking: true` (at most one)
+//   is the Waking's, whose word counts double; `maxCalled` / `maxPerCircle` cap the Hollowed
+//   its circles call (Vigil.js holds the defaults). MapGenerator adds the battle's `levelRange`.
 //
 // `classes` is a list of class names, or a table keyed by act whose entry holds from its act up
 // ({ act1: [...], act3: [...] }: Act II reads act1's list). A set piece honours each rung's
@@ -25,16 +51,19 @@
 // (MapGenerator's filler rule); a captain takes `captainLevelFor` (the elite captain's rule) +
 // `level`. Never below 1.
 
-import { parseAuthoredMap } from './AuthoredMap.js';
+import { parseAuthoredMap, throneTiles } from './AuthoredMap.js';
 import { DIFFICULTY_IDS, ENEMY_ACT_GATE_ORDER, isDifficultyAtLeast } from './DifficultyEngine.js';
-import { RECRUIT_PROMOTION_BASE_LEVEL, isActAtOrAfter } from '../utils/constants.js';
+import { ZOMBIE_CLASSES, isActAtOrAfter } from '../utils/constants.js';
 import { REINFORCEMENT_CONTRACT_VERSION } from './MapTemplateEngine.js';
 import { HOLD_AI_MODE } from './HoldDisturbance.js';
+import { BOSS_REF, legacyObjectiveKind, objectivesShapeErrors } from './BattleObjectives.js';
+// SeatedBoss imports captainLevelFor from here; each side reads the other only inside functions.
+import { possibleSeats } from './SeatedBoss.js';
 
 /** A set piece's config carries `templateId: 'setpiece:<id>'` (never a mapTemplates id). */
 export const SET_PIECE_TEMPLATE_PREFIX = 'setpiece:';
-/** Objectives a set piece may name (Phase A: rout). */
-export const SET_PIECE_OBJECTIVES = Object.freeze(['rout']);
+/** Legacy objectives a set piece may name (`objectives` adds the model's kinds beside it). */
+export const SET_PIECE_OBJECTIVES = Object.freeze(['rout', 'seize']);
 /** Authored map bounds, in tiles. */
 export const SET_PIECE_MAP_BOUNDS = Object.freeze({
   minCols: 6,
@@ -42,11 +71,19 @@ export const SET_PIECE_MAP_BOUNDS = Object.freeze({
   maxCols: 16,
   maxRows: 12,
 });
+/** A set piece fought only in `finalBoss` may be deeper (the Glass replaces a 16x14 arena). */
+export const SET_PIECE_FINAL_MAP_BOUNDS = Object.freeze({ ...SET_PIECE_MAP_BOUNDS, maxRows: 14 });
 /** Text limits: the place line on the battle card. */
 export const SET_PIECE_TEXT_LIMITS = Object.freeze({ title: 30, lore: 140 });
+/** A named unit's name (a captain's, a slot's `name`). */
+const UNIT_NAME_MAX = 24;
 /** Move types a player spawn must suit (fliers stand anywhere). */
 const PLAYER_SPAWN_MOVE_TYPES = ['Infantry', 'Armored', 'Cavalry'];
-const ACT_IDS = ['act1', 'act2', 'act3', 'act4'];
+/** Acts a set piece may be fought in (and its class tables and `minAct` gates may name). */
+export const SET_PIECE_ACTS = ENEMY_ACT_GATE_ORDER;
+const ACT_IDS = SET_PIECE_ACTS;
+/** The acts an event reaches when it names none (EventSystem's default). */
+const EVENT_ACT_IDS = ['act1', 'act2', 'act3', 'act4'];
 const SLOT_KEYS = new Set([
   'col',
   'row',
@@ -59,12 +96,22 @@ const SLOT_KEYS = new Set([
   'weapon',
   'minRung',
   'minAct',
+  'id',
+  'name',
+  'target',
+  'boss',
 ]);
+/** What a boss slot may say: its tile, orders and weapon. The seat decides the rest. */
+const BOSS_SLOT_KEYS = new Set(['col', 'row', 'boss', 'aiMode', 'weapon']);
+/** Slot, sigil and circle ids. */
+const AUTHORED_ID = /^[a-z][a-z0-9_]{0,23}$/;
 const WAVE_SPAWN_KEYS = new Set(['col', 'row', 'classes', 'level', 'aiMode', 'minRung', 'minAct']);
 
-// Elite captains (and set-piece captains) sit above the act's range by this many levels.
-const CAPTAIN_LEVEL_OFFSET = { act1: 0 };
-const CAPTAIN_DEFAULT_OFFSET = 2;
+// Elite captains (and set-piece captains) sit above the act's range by this many levels: none
+// in Act I, two in Act II, one from Act III on (Act IV, postAct, the finale), where the captain
+// is a promoted class and a promoted level already outweighs a base one.
+const CAPTAIN_LEVEL_OFFSET = { act1: 0, act2: 2 };
+const CAPTAIN_DEFAULT_OFFSET = 1;
 
 /** A hold pack's latest authored wake turn. */
 const MAX_WAKE_TURN = 12;
@@ -84,12 +131,27 @@ export function findSetPiece(data, id) {
   return setPieceList(data).find((p) => p?.id === id) || null;
 }
 
+/** Whether any variant of a set piece has a `boss: true` slot (it seats the battle's boss). */
+export function hasBossSlot(piece) {
+  return (Array.isArray(piece?.variants) ? piece.variants : []).some(
+    (variant) => Array.isArray(variant?.enemies) && variant.enemies.some((s) => s?.boss === true),
+  );
+}
+
 /** The set piece id a battle config was built from, or null for any other map. */
 export function setPieceIdOfConfig(config) {
   const id = config?.templateId;
   return typeof id === 'string' && id.startsWith(SET_PIECE_TEMPLATE_PREFIX)
     ? id.slice(SET_PIECE_TEMPLATE_PREFIX.length)
     : null;
+}
+
+/** The map bounds a set piece's variants must keep (deeper when it is fought only in Act V). */
+export function setPieceMapBounds(setPiece) {
+  const acts = setPiece?.acts;
+  return Array.isArray(acts) && acts.length > 0 && acts.every((act) => act === 'finalBoss')
+    ? SET_PIECE_FINAL_MAP_BOUNDS
+    : SET_PIECE_MAP_BOUNDS;
 }
 
 /** The deploy screen's cap a set piece sets (its `deploy.max`), or null. */
@@ -122,13 +184,17 @@ export function slotInPlay(slot, { act = 'act1', difficultyId = 'normal' } = {})
 }
 
 /**
- * A captain's level: the top of the battle's range plus the act's captain offset, less the
- * promotion base level for a promoted class (MapGenerator's elite captain rule). Never below 1.
+ * A captain's level (MapGenerator's elite captain rule): the top of the battle's range plus the
+ * act's captain offset. Never below 1. It is a spawn level like every other foe's, on one scale
+ * whatever the class's tier: createPromotedEnemyUnit reads it as the whole level (the base class
+ * to ENEMY_PROMOTION_BASE_LEVEL, the rest past promotion), as it reads a promoted filler's and an
+ * act boss's, so a promoted captain takes nothing off (it once took the recruits' promotion base
+ * off, which left an Act III captain about ten levels under its own escort).
  */
-export function captainLevelFor(act, top, promoted = false) {
+export function captainLevelFor(act, top) {
   const offset = CAPTAIN_LEVEL_OFFSET[act] ?? CAPTAIN_DEFAULT_OFFSET;
   const base = Math.max(1, Math.trunc(Number(top) || 1));
-  return Math.max(1, base + offset - (promoted ? RECRUIT_PROMOTION_BASE_LEVEL : 0));
+  return base + offset;
 }
 
 function pickFrom(list, roll) {
@@ -143,14 +209,18 @@ function pickFrom(list, roll) {
 function resolveSlot(slot, ctx) {
   const classRoll = ctx.random();
   const levelRoll = ctx.random();
+  // The boss seat: its class draw is the seat's one draw (SeatedBoss.resolveSeatedBoss).
+  if (slot.boss === true) {
+    const seated = typeof ctx.seatBoss === 'function' ? ctx.seatBoss(classRoll) : null;
+    return seated ? { ...seated, ...ctx.place(slot) } : null;
+  }
   if (!slotInPlay(slot, ctx)) return null;
   const className = pickFrom(classesForAct(slot.classes, ctx.act), classRoll);
   if (!className) return null;
   const [lo, hi] = ctx.levelRange;
   const offset = isInt(slot.level) ? slot.level : 0;
-  const promoted = ctx.classes.find((c) => c?.name === className)?.tier === 'promoted';
   const rolled = slot.captain
-    ? captainLevelFor(ctx.act, hi, promoted)
+    ? captainLevelFor(ctx.act, hi)
     : lo + Math.floor(levelRoll * (hi - lo + 1));
   return {
     className,
@@ -162,7 +232,7 @@ function resolveSlot(slot, ctx) {
 /** The AI a spawn takes when the slot names none (MapGenerator's filler defaults). */
 function defaultAiMode(className) {
   if (className === 'Cleric') return 'heal';
-  if (className === 'Necromancer') return 'guard';
+  if (className === 'Necromancer' || className === 'Circle Adept') return 'guard';
   return undefined;
 }
 
@@ -177,9 +247,13 @@ function defaultAiMode(className) {
  * @param {object[]} options.classes     classes.json
  * @param {object[]} options.terrain     terrain.json
  * @param {() => number} options.random
+ * @param {(roll: number) => object|null} [options.seatBoss]  the boss slot's spawn fields
+ *   ({ className, level, name, isBoss, revivalStones? }) from the seat's one draw; without it a
+ *   boss slot seats nobody
  * @returns {{ variantId: string, mirrored: boolean, mapLayout: number[][], cols: number,
  *   rows: number, playerSpawns: object[], formationSpares: object[], enemySpawns: object[],
- *   reinforcements: object|null }}
+ *   reinforcements: object|null, thronePos: object|null, objectives: object|null,
+ *   vigil: object|null }}
  */
 export function buildSetPieceBattle({
   setPiece,
@@ -190,6 +264,7 @@ export function buildSetPieceBattle({
   classes = [],
   terrain = [],
   random = Math.random,
+  seatBoss = null,
 }) {
   const variants = Array.isArray(setPiece?.variants) ? setPiece.variants : [];
   if (variants.length === 0) throw new Error(`Set piece "${setPiece?.id}" has no variants`);
@@ -211,7 +286,7 @@ export function buildSetPieceBattle({
   const place = (t) => ({ col: mirrored ? cols - 1 - t.col : t.col, row: t.row });
   const lo = Math.max(1, Math.trunc(Number(levelRange?.[0]) || 1));
   const hi = Math.max(lo, Math.trunc(Number(levelRange?.[1]) || lo));
-  const ctx = { act, difficultyId, levelRange: [lo, hi], classes, place, random };
+  const ctx = { act, difficultyId, levelRange: [lo, hi], classes, place, random, seatBoss };
 
   const spawnTiles = (variant.playerSpawns || []).map(place);
   const count = Math.max(1, Math.min(spawnTiles.length, Math.trunc(Number(deployCount) || 1)));
@@ -222,8 +297,11 @@ export function buildSetPieceBattle({
   for (const slot of variant.enemies || []) {
     const resolved = resolveSlot(slot, ctx);
     if (!resolved) continue;
-    const spawn = { ...resolved, isBoss: Boolean(slot.captain) };
+    const spawn = { ...resolved, isBoss: Boolean(slot.captain) || slot.boss === true };
     if (slot.captain && typeof slot.captain.name === 'string') spawn.name = slot.captain.name;
+    else if (typeof slot.name === 'string' && slot.name && slot.boss !== true)
+      spawn.name = slot.name;
+    if (typeof slot.id === 'string' && slot.id) spawn.authoredId = slot.id;
     if (typeof slot.weapon === 'string') spawn.weapon = slot.weapon;
     if (isInt(slot.hold)) {
       spawn.aiMode = HOLD_AI_MODE;
@@ -262,6 +340,27 @@ export function buildSetPieceBattle({
         }
       : null;
 
+  // A seize set piece's throne: its one Throne tile, mirrored with the map.
+  const thronePos = setPiece.objective === 'seize' ? throneTiles(mapLayout)[0] || null : null;
+  const objectives = isObject(setPiece.objectives) ? structuredClone(setPiece.objectives) : null;
+  const vigil = isObject(variant.vigil)
+    ? {
+        sigils: (variant.vigil.sigils || []).map((s) => ({
+          id: s.id,
+          target: s.target,
+          ...place(s),
+          ...(s.waking === true ? { waking: true } : {}),
+        })),
+        circles: (variant.vigil.circles || []).map((c) => ({
+          id: c.id,
+          voice: c.voice,
+          ...place(c),
+        })),
+        ...(isInt(variant.vigil.maxCalled) ? { maxCalled: variant.vigil.maxCalled } : {}),
+        ...(isInt(variant.vigil.maxPerCircle) ? { maxPerCircle: variant.vigil.maxPerCircle } : {}),
+      }
+    : null;
+
   return {
     variantId: variant.id,
     mirrored,
@@ -272,6 +371,9 @@ export function buildSetPieceBattle({
     formationSpares,
     enemySpawns,
     reinforcements,
+    thronePos,
+    objectives,
+    vigil,
   };
 }
 
@@ -333,9 +435,88 @@ export function setPieceRefs(eventsConfig) {
 }
 
 /**
+ * What breaks a set piece at one act and rung, as messages (none: it can be fought there). The
+ * events that name a set piece and a set piece's own `acts` run it, and a route that names set
+ * pieces (the Descent's validator) calls it per (set piece, act, rung): the act is one the set
+ * piece allows, each variant fields at least one foe, every slot in play has classes in that act
+ * and none breaks the rung's class gate (`enemyClassEarliestAct`), and a boss slot has a boss to
+ * seat (enemies.json `bosses.<act>`, when `data.enemies` is given).
+ *
+ * A boss slot never seats the Entity: a single tile holds none of its 3x3 form, gear or finale.
+ * `seat` is the fighting node's say in who sits (SeatedBoss.possibleSeats reads it as battle
+ * params): `bossName` pins a boss, `isElite` / `isBoss` the node's kind (unset: either kind). Any
+ * definition the seat could hold at this act and rung that is the Entity is refused, so a node
+ * that fights the piece where the Entity is a candidate (finalBoss on Nightfall and Black Sun)
+ * must pin another boss by name. An event never pins (`{}`, the default). `null` is the set
+ * piece's own `acts` check: no node fights it there, and the node that names it is checked with
+ * its own seat.
+ * @param {object} piece  a data/setPieces.json entry
+ * @param {string} act
+ * @param {string} rung   a difficulty id
+ * @param {{ difficulty?: object, enemies?: object, classes?: object[] }} data
+ * @param {{ bossName?: string, isElite?: boolean, isBoss?: boolean }|null} [seat]
+ * @returns {string[]}
+ */
+export function validateSetPieceAt(piece, act, rung, data = {}, seat = {}) {
+  const errors = [];
+  const id = piece?.id;
+  if (Array.isArray(piece?.acts) && piece.acts.length > 0 && !piece.acts.includes(act))
+    errors.push(`${id} is not fought in ${act} (its acts: ${piece.acts.join(', ')})`);
+  const earliestByClass = data.difficulty?.modes?.[rung]?.enemyClassEarliestAct || {};
+  for (const variant of Array.isArray(piece?.variants) ? piece.variants : []) {
+    const all = [
+      ...(variant.enemies || []).map((slot) => ({ slot, wave: false })),
+      ...(variant.waves || []).flatMap((w) =>
+        (w.spawns || []).map((slot) => ({ slot, wave: true })),
+      ),
+    ];
+    const inPlay = all.filter(({ slot }) => slotInPlay(slot, { act, difficultyId: rung }));
+    if (!inPlay.some(({ wave }) => !wave))
+      errors.push(`${id}/${variant.id} fields no foe in ${act} on ${rung}`);
+    for (const { slot } of inPlay) {
+      if (slot?.boss === true) {
+        if (data.enemies && !(data.enemies.bosses?.[act]?.length > 0))
+          errors.push(`${id}/${variant.id}: its boss slot has no boss to seat in ${act}`);
+        else if (data.enemies && seat !== null && seatCouldBeEntity(act, rung, data, seat))
+          errors.push(
+            `${id}/${variant.id}: its boss slot could seat the Entity in ${act} on ${rung}; ` +
+              'a node that fights it there must name another boss (bossName)',
+          );
+        continue;
+      }
+      const list = classesForAct(slot?.classes, act);
+      if (!list) {
+        errors.push(`${id}/${variant.id}: a slot has no classes in ${act}`);
+        continue;
+      }
+      for (const name of list) {
+        const earliest = earliestByClass[name];
+        if (earliest && !isActAtOrAfter(act, earliest))
+          errors.push(`${id}/${variant.id}: ${name} in ${act} breaks ${rung}'s gate (${earliest})`);
+      }
+    }
+  }
+  return errors;
+}
+
+/** Whether a boss seat at this act and rung could hold the Entity (see validateSetPieceAt). */
+function seatCouldBeEntity(act, rung, data, seat) {
+  const kinds = typeof seat.isElite === 'boolean' ? [seat.isElite] : [false, true];
+  return kinds.some((isElite) =>
+    possibleSeats(
+      { act, difficultyId: rung, bossName: seat.bossName, isElite, isBoss: seat.isBoss === true },
+      { enemies: data.enemies, classes: data.classes || [] },
+    ).some((boss) => boss?.isEntity === true),
+  );
+}
+
+/**
  * Validate data/setPieces.json against the game data (and the events that name set pieces).
+ * Every set piece is checked whether or not anything names it; one that declares `acts` is also
+ * checked at each of its acts and every rung (validateSetPieceAt), as an event's set piece is at
+ * the acts the event reaches.
  * @param {object} config  data/setPieces.json
- * @param {{ terrain, classes, weapons, difficulty, events }} data
+ * @param {{ terrain, classes, weapons, difficulty, events, enemies? }} data
  * @returns {{ valid: boolean, errors: string[] }}
  */
 export function validateSetPiecesConfig(config, data = {}) {
@@ -347,9 +528,6 @@ export function validateSetPiecesConfig(config, data = {}) {
   const classes = data.classes || [];
   const classByName = new Map(classes.map((c) => [c?.name, c]));
   const weaponNames = new Set((data.weapons || []).map((w) => w?.name));
-  const earliestByRung = Object.fromEntries(
-    DIFFICULTY_IDS.map((id) => [id, data.difficulty?.modes?.[id]?.enemyClassEarliestAct || {}]),
-  );
   const ids = new Set();
 
   const checkClasses = (where, classesField) => {
@@ -385,17 +563,20 @@ export function validateSetPiecesConfig(config, data = {}) {
       err(where, 'aiMode must be a string');
   };
 
-  /** Tiles a class list's move types can all stand on. */
-  const moveTypesOf = (classesField) => {
+  /** Every class name a slot's classes field can roll. */
+  const classNamesOf = (classesField) => {
     const lists = Array.isArray(classesField)
       ? [classesField]
       : isObject(classesField)
         ? Object.values(classesField)
         : [];
+    return lists.flatMap((list) => (Array.isArray(list) ? list : []));
+  };
+  /** Tiles a class list's move types can all stand on. */
+  const moveTypesOf = (classesField) => {
     const types = new Set();
-    for (const list of lists)
-      for (const name of Array.isArray(list) ? list : [])
-        types.add(classByName.get(name)?.moveType || 'Infantry');
+    for (const name of classNamesOf(classesField))
+      types.add(classByName.get(name)?.moveType || 'Infantry');
     return [...types];
   };
 
@@ -418,6 +599,29 @@ export function validateSetPiecesConfig(config, data = {}) {
     }
     if (!SET_PIECE_OBJECTIVES.includes(piece.objective))
       err(pw, `objective must be one of ${SET_PIECE_OBJECTIVES.join(', ')}`);
+    // The objectives model (BattleObjectives.js): its shape, and the legacy string its family.
+    const objectives = piece.objectives === undefined ? null : piece.objectives;
+    const defeatRefs = new Set();
+    if (objectives !== null) {
+      const shape = objectivesShapeErrors(objectives);
+      for (const message of shape) err(pw, message);
+      if (shape.length === 0) {
+        const legacy = legacyObjectiveKind(objectives);
+        if (piece.objective !== legacy)
+          err(pw, `objective must be "${legacy}", the family of its objectives' first kind`);
+        for (const objective of objectives.primary)
+          if (objective.kind === 'defeat') for (const ref of objective.targets) defeatRefs.add(ref);
+      }
+    }
+    if (piece.acts !== undefined) {
+      if (!Array.isArray(piece.acts) || piece.acts.length === 0)
+        err(pw, 'acts must be a non-empty list of act ids');
+      else {
+        for (const act of piece.acts)
+          if (!ACT_IDS.includes(act)) err(pw, `acts: "${act}" is not an act`);
+        if (new Set(piece.acts).size !== piece.acts.length) err(pw, 'acts names an act twice');
+      }
+    }
     if (piece.fog !== undefined && typeof piece.fog !== 'boolean')
       err(pw, 'fog must be true or false (omit it to keep the event roll)');
     if (piece.biome !== undefined && piece.biome !== null && typeof piece.biome !== 'string')
@@ -429,6 +633,7 @@ export function validateSetPiecesConfig(config, data = {}) {
     const variants = Array.isArray(piece.variants) ? piece.variants : [];
     if (variants.length === 0 || variants.length > 3) err(pw, 'needs 1 to 3 variants');
     const variantIds = new Set();
+    const bounds = setPieceMapBounds(piece);
 
     for (const [vi, variant] of variants.entries()) {
       const vw = `${pw}.variants[${vi}]`;
@@ -443,7 +648,7 @@ export function validateSetPiecesConfig(config, data = {}) {
         continue;
       }
       const { mapLayout, cols, rows } = parsed;
-      const b = SET_PIECE_MAP_BOUNDS;
+      const b = bounds;
       if (cols < b.minCols || rows < b.minRows || cols > b.maxCols || rows > b.maxRows)
         err(
           vw,
@@ -493,6 +698,9 @@ export function validateSetPiecesConfig(config, data = {}) {
       const enemies = Array.isArray(variant.enemies) ? variant.enemies : [];
       if (enemies.length === 0) err(vw, 'needs at least one enemy slot');
       let captains = 0;
+      const bossSlots = [];
+      const slotIds = new Map();
+      const targetSlots = new Map();
       const packWake = new Map();
       for (const [ei, slot] of enemies.entries()) {
         const ew = `${vw}.enemies[${ei}]`;
@@ -500,10 +708,59 @@ export function validateSetPiecesConfig(config, data = {}) {
           err(ew, 'must be an object');
           continue;
         }
+        if (slot.boss !== undefined && slot.boss !== true) err(ew, 'boss must be true or absent');
+        // A boss slot names its tile, orders and weapon; the seat (SeatedBoss.js) is the rest.
+        if (slot.boss === true) {
+          bossSlots.push(slot);
+          for (const key of Object.keys(slot))
+            if (!BOSS_SLOT_KEYS.has(key))
+              err(ew, `a boss slot takes no "${key}" (the seat decides)`);
+          if (slot.aiMode !== undefined && typeof slot.aiMode !== 'string')
+            err(ew, 'aiMode must be a string');
+          if (slot.weapon !== undefined && !weaponNames.has(slot.weapon))
+            err(ew, `unknown weapon "${slot.weapon}"`);
+          if (!claim(ew, slot)) continue;
+          // The seat may be any boss: every walking move type must stand there.
+          for (const moveType of PLAYER_SPAWN_MOVE_TYPES)
+            if (!standable(terrain, mapLayout, slot, moveType))
+              err(ew, `a ${moveType} boss cannot stand on (${tileKey(slot)})`);
+          if (!reachable(slot))
+            err(ew, `(${tileKey(slot)}) cannot be reached from the player spawns`);
+          continue;
+        }
         for (const key of Object.keys(slot))
           if (!SLOT_KEYS.has(key)) err(ew, `unknown key "${key}"`);
         checkClasses(ew, slot.classes);
         checkGates(ew, slot);
+        if (slot.id !== undefined) {
+          if (typeof slot.id !== 'string' || !AUTHORED_ID.test(slot.id))
+            err(ew, 'id must be lower_snake_case, at most 24 characters');
+          else if (slotIds.has(slot.id)) err(ew, `id "${slot.id}" is used twice`);
+          else slotIds.set(slot.id, slot);
+        }
+        if (slot.name !== undefined) {
+          if (typeof slot.name !== 'string' || !slot.name.trim()) err(ew, 'name must be a string');
+          else if (slot.name.length > UNIT_NAME_MAX)
+            err(ew, `name is over ${UNIT_NAME_MAX} characters`);
+          if (slot.captain !== undefined) err(ew, 'a captain is named by captain.name');
+        }
+        if (slot.target !== undefined) {
+          if (slot.target !== true) err(ew, 'target must be true or absent');
+          else {
+            if (typeof slot.id !== 'string')
+              err(ew, 'a target needs an id (the ref that names it)');
+            else targetSlots.set(slot.id, slot);
+            if (typeof slot.name !== 'string') err(ew, 'a target needs a name');
+            if (slot.minRung !== undefined || slot.minAct !== undefined)
+              err(ew, 'a target is always in play (no minRung or minAct)');
+            if (slot.hold !== undefined) err(ew, 'a target never holds in a pack');
+            if (slot.captain !== undefined)
+              err(ew, `a captain is not a target (name it with "${BOSS_REF}")`);
+            // A fallen Zombie rises as a nameless one: a target must stay down when it falls.
+            for (const name of classNamesOf(slot.classes))
+              if (ZOMBIE_CLASSES.has(name)) err(ew, `a target cannot be a ${name} (it would rise)`);
+          }
+        }
         if (slot.captain !== undefined) {
           captains++;
           if (
@@ -512,7 +769,8 @@ export function validateSetPiecesConfig(config, data = {}) {
             !slot.captain.name.trim()
           )
             err(ew, 'captain must be { name }');
-          else if (slot.captain.name.length > 24) err(ew, 'captain.name is over 24 characters');
+          else if (slot.captain.name.length > UNIT_NAME_MAX)
+            err(ew, `captain.name is over ${UNIT_NAME_MAX} characters`);
           if (slot.minRung !== undefined || slot.minAct !== undefined)
             err(ew, 'a captain is always in play (no minRung or minAct)');
           if (slot.hold !== undefined) err(ew, 'a captain never holds in a pack');
@@ -541,9 +799,43 @@ export function validateSetPiecesConfig(config, data = {}) {
           err(ew, `(${tileKey(slot)}) cannot be reached from the player spawns`);
       }
       if (captains > 1) err(vw, 'has more than one captain');
+      if (bossSlots.length > 1) err(vw, 'has more than one boss slot');
+      if (bossSlots.length > 0 && captains > 0)
+        err(vw, 'has a boss slot and a captain (one boss per map)');
       // A pack wakes as one: every member names the same wake turn, or none does.
       for (const [pack, turns] of packWake)
         if (turns.size > 1) err(vw, `hold pack ${pack} must share one wake turn`);
+
+      // Seize: one Throne, the seated boss on it, no captain (the boss holds the seat).
+      if (piece.objective === 'seize') {
+        const thrones = throneTiles(mapLayout);
+        if (thrones.length !== 1)
+          err(vw, `a seize map needs exactly one Throne (has ${thrones.length})`);
+        if (bossSlots.length !== 1) err(vw, 'a seize map needs a boss slot');
+        else if (thrones.length === 1 && tileKey(bossSlots[0]) !== tileKey(thrones[0]))
+          err(vw, `the boss slot must stand on the Throne (${tileKey(thrones[0])})`);
+        if (captains > 0) err(vw, 'a seize map has no captain (its boss slot holds the throne)');
+      }
+      // Defeat targets: every ref resolves in this variant, and every target counts somewhere.
+      for (const ref of defeatRefs) {
+        if (ref === BOSS_REF) {
+          if (bossSlots.length === 0 && captains === 0)
+            err(vw, `"${BOSS_REF}" is a target but no boss slot or captain stands here`);
+        } else if (!targetSlots.has(ref))
+          err(vw, `target "${ref}" names no slot with that id and target: true`);
+      }
+      for (const id of targetSlots.keys())
+        if (!defeatRefs.has(id)) err(vw, `target "${id}" counts for no defeat objective`);
+
+      checkVigil(vw, variant.vigil, {
+        err,
+        inBounds,
+        reach,
+        terrain,
+        mapLayout,
+        targetSlots,
+        unitTiles: new Set(taken.keys()),
+      });
 
       const waves = variant.waves === undefined ? [] : variant.waves;
       if (!Array.isArray(waves)) err(vw, 'waves must be a list');
@@ -581,10 +873,18 @@ export function validateSetPiecesConfig(config, data = {}) {
         }
       }
     }
+
+    // A set piece that says where it is fought: every act it names, on every rung. No node
+    // fights it here, so its boss seat is left to the node that names it (seat null).
+    if (Array.isArray(piece.acts))
+      for (const act of piece.acts.filter((a) => ACT_IDS.includes(a)))
+        for (const rung of DIFFICULTY_IDS)
+          for (const message of validateSetPieceAt(piece, act, rung, data, null)) err(pw, message);
   }
 
   // The events that name set pieces: a real id, and at every act and rung the event reaches,
-  // each variant fields at least one foe and every slot in play keeps the rung's class gates.
+  // each variant fields at least one foe and every slot in play keeps the rung's class gates
+  // (an event never pins a boss; EventValidation refuses an event naming a boss slot at all).
   for (const ref of setPieceRefs(data.events)) {
     const where = `events: ${ref.where}`;
     const piece = findSetPiece(config, ref.setPiece);
@@ -592,37 +892,95 @@ export function validateSetPiecesConfig(config, data = {}) {
       err(where, `unknown set piece "${ref.setPiece}"`);
       continue;
     }
-    const acts = Array.isArray(ref.event?.acts) && ref.event.acts.length ? ref.event.acts : ACT_IDS;
-    for (const variant of piece.variants || []) {
-      const all = [
-        ...(variant.enemies || []).map((slot) => ({ slot, wave: false })),
-        ...(variant.waves || []).flatMap((w) =>
-          (w.spawns || []).map((slot) => ({ slot, wave: true })),
-        ),
-      ];
-      for (const act of acts)
-        for (const rung of DIFFICULTY_IDS) {
-          const inPlay = all.filter(({ slot }) => slotInPlay(slot, { act, difficultyId: rung }));
-          if (!inPlay.some(({ wave }) => !wave))
-            err(where, `${piece.id}/${variant.id} fields no foe in ${act} on ${rung}`);
-          for (const { slot } of inPlay) {
-            const list = classesForAct(slot.classes, act);
-            if (!list) {
-              err(where, `${piece.id}/${variant.id}: a slot has no classes in ${act}`);
-              continue;
-            }
-            for (const name of list) {
-              const earliest = earliestByRung[rung]?.[name];
-              if (earliest && !isActAtOrAfter(act, earliest))
-                err(
-                  where,
-                  `${piece.id}/${variant.id}: ${name} in ${act} breaks ${rung}'s gate (${earliest})`,
-                );
-            }
-          }
-        }
-    }
+    const eventActs =
+      Array.isArray(ref.event?.acts) && ref.event.acts.length ? ref.event.acts : EVENT_ACT_IDS;
+    for (const act of eventActs)
+      for (const rung of DIFFICULTY_IDS)
+        for (const message of validateSetPieceAt(piece, act, rung, data)) err(where, message);
   }
 
   return { valid: errors.length === 0, errors };
+}
+
+/** The keys a variant's `vigil` may carry. */
+const VIGIL_KEYS = Object.freeze(['sigils', 'circles', 'maxCalled', 'maxPerCircle']);
+
+/**
+ * A variant's Vigil (docs/specs/act-v-descent.md §3.1): each sigil stands under its target (a
+ * `target: true` slot), each circle names a target as its voice and is a free, Infantry-standable
+ * tile the army can reach (a unit may stand on it to block it). Ids are unique.
+ */
+function checkVigil(
+  vw,
+  vigil,
+  { err, inBounds, reach, terrain, mapLayout, targetSlots, unitTiles },
+) {
+  if (vigil === undefined) return;
+  const at = `${vw}.vigil`;
+  if (!isObject(vigil)) {
+    err(at, 'must be { sigils, circles }');
+    return;
+  }
+  for (const key of Object.keys(vigil))
+    if (!VIGIL_KEYS.includes(key)) err(at, `unknown key "${key}"`);
+  // The caps (Vigil.js reads them; a missing one takes its default there).
+  for (const key of ['maxCalled', 'maxPerCircle'])
+    if (vigil[key] !== undefined && !(isInt(vigil[key]) && vigil[key] >= 1 && vigil[key] <= 32))
+      err(at, `${key} must be a whole number from 1 to 32`);
+  const ids = new Set();
+  const tiles = new Set();
+  const claimId = (where, id) => {
+    if (typeof id !== 'string' || !AUTHORED_ID.test(id))
+      err(where, 'id must be lower_snake_case, at most 24 characters');
+    else if (ids.has(id)) err(where, `id "${id}" is used twice`);
+    else ids.add(id);
+  };
+  const sigils = vigil.sigils === undefined ? [] : vigil.sigils;
+  const circles = vigil.circles === undefined ? [] : vigil.circles;
+  if (!Array.isArray(sigils)) err(at, 'sigils must be a list');
+  if (!Array.isArray(circles)) err(at, 'circles must be a list');
+  for (const [i, sigil] of (Array.isArray(sigils) ? sigils : []).entries()) {
+    const sw = `${at}.sigils[${i}]`;
+    if (!isObject(sigil)) {
+      err(sw, 'must be an object');
+      continue;
+    }
+    claimId(sw, sigil.id);
+    if (sigil.waking !== undefined && typeof sigil.waking !== 'boolean')
+      err(sw, 'waking must be true or false');
+    if (!inBounds(sigil)) {
+      err(sw, `tile (${sigil.col},${sigil.row}) is out of bounds`);
+      continue;
+    }
+    if (tiles.has(tileKey(sigil)))
+      err(sw, `tile (${tileKey(sigil)}) holds another sigil or circle`);
+    tiles.add(tileKey(sigil));
+    const target = targetSlots.get(sigil.target);
+    if (!target) err(sw, `target "${sigil.target}" names no slot with that id and target: true`);
+    else if (tileKey(target) !== tileKey(sigil))
+      err(sw, `its target "${sigil.target}" must stand on it (${tileKey(sigil)})`);
+  }
+  if (Array.isArray(sigils) && sigils.filter((sigil) => sigil?.waking === true).length > 1)
+    err(at, 'at most one sigil is the Waking (waking: true)');
+  for (const [i, circle] of (Array.isArray(circles) ? circles : []).entries()) {
+    const cw = `${at}.circles[${i}]`;
+    if (!isObject(circle)) {
+      err(cw, 'must be an object');
+      continue;
+    }
+    claimId(cw, circle.id);
+    if (!targetSlots.has(circle.voice))
+      err(cw, `voice "${circle.voice}" names no slot with that id and target: true`);
+    if (!inBounds(circle)) {
+      err(cw, `tile (${circle.col},${circle.row}) is out of bounds`);
+      continue;
+    }
+    const key = tileKey(circle);
+    if (tiles.has(key)) err(cw, `tile (${key}) holds another sigil or circle`);
+    tiles.add(key);
+    if (unitTiles.has(key)) err(cw, `tile (${key}) is a spawn: a circle starts empty`);
+    if (!standable(terrain, mapLayout, circle, 'Infantry'))
+      err(cw, `an Infantry unit cannot stand on (${key})`);
+    else if (!reach.has(key)) err(cw, `(${key}) cannot be reached from the player spawns`);
+  }
 }

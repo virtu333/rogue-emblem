@@ -18,7 +18,9 @@ function firstFrameName(texture) {
 
 /**
  * A unit-shaped copy with another class (the promoted sprite preview). It keeps the
- * unit's person (portraitVariant), so the preview is the same person the portrait and
+ * unit's person (portraitVariant), so the preview is the same person the portrait shows
+ * inside the person's own line (after a cross-line reclass the portrait keeps its own
+ * face and the sprite is a same-gender counterpart: PortraitVariants.facePerson) and
  * the promoted unit show (TracedSprites.tracedKeyFor resolves both through
  * PortraitVariants.displayedPerson).
  */

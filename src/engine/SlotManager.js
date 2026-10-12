@@ -3,7 +3,13 @@
 
 import { HintManager } from './HintManager.js';
 import { ALWAYS_MET_LORD_NAMES, lordNamesInRun, lordsMetOfMetaSave } from './LordsMet.js';
+import {
+  discoveriesInRun,
+  discoveriesOfMetaSave,
+  mergeDiscoveries,
+} from './CompendiumDiscovery.js';
 import { isPrologueRun } from './ScriptedBattle.js';
+import { withoutBalanceRevisionMarker } from './BalanceRevisionMarker.js';
 import { runFormatBlock } from './RunFormat.js';
 
 export const MAX_SLOTS = 3;
@@ -272,7 +278,7 @@ export function getSlotSummary(slot, storage = globalThis.localStorage) {
     // Home base upgrade levels bought (metaUpgrades), summed across upgrades.
     upgradesOwned: Object.values(
       meta.purchasedUpgrades && typeof meta.purchasedUpgrades === 'object'
-        ? meta.purchasedUpgrades
+        ? withoutBalanceRevisionMarker(meta.purchasedUpgrades)
         : {},
     ).reduce((sum, level) => sum + Math.max(0, Math.trunc(Number(level) || 0)), 0),
     // When this slot's progression last saved (MetaProgressionManager `savedAt`).
@@ -485,6 +491,26 @@ export function metLordNamesAcrossSlots() {
     }
   }
   return names;
+}
+
+/**
+ * Items and skills met in any slot (1-3): each save's lists (or their backfill for saves
+ * from before them) plus what its run holds. Read cross-slot like the lords met, so the
+ * Title-screen Compendium matches in-run.
+ * @returns {{ items: string[], skills: string[] }}
+ */
+export function discoveriesAcrossSlots() {
+  const found = [];
+  for (let i = 1; i <= MAX_SLOTS; i++) {
+    try {
+      const meta = JSON.parse(localStorage.getItem(getMetaKey(i)) || 'null');
+      if (meta) found.push(discoveriesOfMetaSave(meta));
+      found.push(discoveriesInRun(JSON.parse(localStorage.getItem(getRunKey(i)) || 'null')));
+    } catch (_) {
+      /* an unreadable slot adds nothing */
+    }
+  }
+  return mergeDiscoveries(...found);
 }
 
 /** Tag retained recovery evidence before sign-out; never reassign an existing owner. */

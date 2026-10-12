@@ -37,6 +37,8 @@ import {
   canOpenFormationRoster,
   openFormationRoster,
   restorePlacement,
+  rosterReturnSaved,
+  ROSTER_SAVE_REFUSED_COPY,
 } from './FormationRoster.js';
 import { FormationDock, renderFormationPanel } from './FormationPanel.js';
 import { MenuSurface, button as menuButton } from './MenuSurface.js';
@@ -211,11 +213,15 @@ export class FormationController {
       .map((entry) => this.units.findIndex((unit) => unitIdentityKey(unit) === entry.key))
       .filter((u) => u !== -1 && this.formation.at[u] === null)
       .map((u) => this.units[u].name);
+    // "Roster saved" only when the re-entered battle's save landed: it holds every edit.
+    const saved = rosterReturnSaved(s._battleEntrySave);
+    const said = saved ? 'Roster saved.' : ROSTER_SAVE_REFUSED_COPY.unsaved;
     if (waiting.length)
       this.flash(
-        `Roster saved. ${waiting.join(', ')} ${waiting.length === 1 ? 'waits: it' : 'wait: they'} can't stand on that tile now.`,
+        `${said} ${waiting.join(', ')} ${waiting.length === 1 ? 'waits: it' : 'wait: they'} can't stand on that tile now.`,
       );
-    else if (memory?.changed) this.flash('Roster saved. Your formation is as you left it.');
+    else if (memory?.changed)
+      this.flash(saved ? 'Roster saved. Your formation is as you left it.' : said);
     this.refreshFog();
     this.frameCamera();
     this.touch();

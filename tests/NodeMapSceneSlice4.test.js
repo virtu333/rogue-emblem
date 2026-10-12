@@ -1280,11 +1280,76 @@ describe('NodeMapScene Slice 4', () => {
     expect(scene.handleShop).not.toHaveBeenCalled();
 
     scene.runManager.pendingThirdLord = null;
+    scene.runManager.pendingBossRecruit = { candidates: [] };
+    expect(open()).toBe(false);
+    scene.runManager.pendingBossRecruit = null;
+    // Nor over a page already open: an earned pick, the route map's rewards, a recruit resume.
+    for (const key of ['_earnedPick', '_pendingRewards', '_bossRecruitResume']) {
+      scene[key] = {};
+      expect(open()).toBe(false);
+      scene[key] = null;
+    }
+    expect(scene.handleShop).not.toHaveBeenCalled();
     expect(open()).toBe(true);
     expect(scene.handleShop).toHaveBeenCalledWith(node, {
       ambushDiscount: true,
       pendingAmbush: true,
     });
+  });
+
+  it('the Merchant Caravan waits for its battle rewards, then opens', () => {
+    const scene = {
+      isSceneReady: true,
+      runManager: {
+        pendingBattleReward: { nodeId: 'battle-3' },
+        pendingBossRecruit: null,
+        pendingThirdLord: null,
+        getPendingCaravanShop: vi.fn(() => ({ actId: 'act2' })),
+      },
+      handleShop: vi.fn(),
+    };
+    const open = () => NodeMapScene.prototype._maybeOpenPendingCaravanShop.call(scene);
+
+    // Rewards still owed (a reload, or "View map" on the loot screen): nothing opens.
+    expect(open()).toBe(false);
+    scene.runManager.pendingBattleReward = null;
+    scene.runManager.pendingThirdLord = { name: 'Kira' };
+    expect(open()).toBe(false);
+    scene.runManager.pendingThirdLord = null;
+    scene.runManager.pendingBossRecruit = { candidates: [] };
+    expect(open()).toBe(false);
+    scene.runManager.pendingBossRecruit = null;
+    // Nor over a page already open: an earned pick, the route map's rewards, a recruit resume.
+    for (const key of ['_earnedPick', '_pendingRewards', '_bossRecruitResume']) {
+      scene[key] = {};
+      expect(open()).toBe(false);
+      scene[key] = null;
+    }
+    expect(scene.handleShop).not.toHaveBeenCalled();
+    // Nor before a contract reward owed at this node, or an event's own page (the map's order).
+    const current = { id: 'battle-3', type: NODE_TYPES.BATTLE, completed: true };
+    scene.runManager.currentNodeId = 'battle-3';
+    scene.runManager.currentAct = 'act2';
+    scene.runManager.nodeMap = { nodes: [current] };
+    scene.runManager.contractOwed = {
+      battleNodeId: 'battle-3',
+      contractNodeId: 'event-1',
+      goal: 'underPar',
+      kept: true,
+      act: 'act2',
+      effects: [{ type: 'gold', value: 100 }],
+      blocked: 'no_room',
+    };
+    expect(open()).toBe(false);
+    scene.runManager.contractOwed = null;
+    const event = { id: 'event-2', type: NODE_TYPES.EVENT, completed: true };
+    scene.runManager.nodeMap.nodes.push(event);
+    scene.runManager.eventStateByNodeId = { 'event-2': { battle: 'pending' } };
+    expect(open()).toBe(false);
+    scene.runManager.eventStateByNodeId = {};
+    expect(scene.handleShop).not.toHaveBeenCalled();
+    expect(open()).toBe(true);
+    expect(scene.handleShop).toHaveBeenCalledWith(null, { caravan: true, caravanActId: 'act2' });
   });
 
   it('onNodeClick derives pendingAmbush from pending-node state, not isAmbush flag', () => {
@@ -1447,6 +1512,44 @@ describe('NodeMapScene Slice 4', () => {
     NodeMapScene.prototype.leaveShopNode.call(mismatched.scene);
     expect(mismatched.clearAmbushPendingNode).not.toHaveBeenCalled();
     expect(mismatched.scene.runManager.markNodeComplete).toHaveBeenCalledWith('shop-1');
+  });
+
+  it('leaving the freed village opens a contract reward owed there, never over an earned pick', () => {
+    const createScene = ({ pickOpens }) => {
+      const scene = {
+        shopOverlay: [makeDisplayObject()],
+        _shopNode: { id: 'shop-1' },
+        registry: { get: vi.fn(() => null) },
+        closeShopOverlay: vi.fn(() => {
+          scene.shopOverlay = null;
+          scene._shopNode = null;
+        }),
+        runManager: {
+          currentAct: 'act1',
+          markNodeComplete: vi.fn(),
+          getAmbushPendingNode: vi.fn(() => ({ id: 'shop-1' })),
+          clearAmbushPendingNode: vi.fn(),
+        },
+        // checkActComplete may open an owed earned pick (it then comes back here).
+        checkActComplete: vi.fn(() => {
+          if (pickOpens) scene._earnedPick = {};
+        }),
+        _maybeOpenPendingContractSettlement: vi.fn(() => true),
+        _clearPendingAmbushForNode: NodeMapScene.prototype._clearPendingAmbushForNode,
+      };
+      return scene;
+    };
+
+    const plain = createScene({ pickOpens: false });
+    NodeMapScene.prototype.leaveShopNode.call(plain);
+    expect(plain._maybeOpenPendingContractSettlement).toHaveBeenCalledTimes(1);
+    expect(plain.checkActComplete.mock.invocationCallOrder[0]).toBeLessThan(
+      plain._maybeOpenPendingContractSettlement.mock.invocationCallOrder[0],
+    );
+
+    const withPick = createScene({ pickOpens: true });
+    NodeMapScene.prototype.leaveShopNode.call(withPick);
+    expect(withPick._maybeOpenPendingContractSettlement).not.toHaveBeenCalled();
   });
 
   it('leaving a ruins shop saves stock and returns to the hub without completing the node', () => {

@@ -265,6 +265,8 @@ export function isLikelyStaleChunkError(err) {
  */
 export function tryStaleChunkReload(err) {
   if (!isLikelyStaleChunkError(err)) return false;
+  // Session-only play (storageGuard.js) keeps the run in memory: a reload would wipe it.
+  if (globalThis.__emblemRogueSessionOnly === true) return false;
   try {
     const count = parseInt(globalThis.sessionStorage?.getItem(CHUNK_RELOAD_KEY) || '0', 10);
     if (count >= 1) return false; // Already reloaded once this session

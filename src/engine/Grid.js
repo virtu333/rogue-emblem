@@ -93,6 +93,19 @@ export function passesThrough(occupant, moverFaction) {
   return occupant?.faction === 'enemy' && moverFaction !== 'enemy';
 }
 
+/**
+ * Does the mover walk through this occupant's tile (never stopping on it)? Its own side,
+ * the Merchant Caravan for a player unit (a unit-position entry with `isCaravan`: the
+ * merchant never walls the army in; foes and other NPCs still stop at it), and with Pass
+ * a foe (passesThrough).
+ */
+export function walksThrough(occupant, moverFaction, pass = false) {
+  if (!occupant) return false;
+  if (occupant.faction === moverFaction) return true;
+  if (occupant.isCaravan === true && moverFaction === 'player') return true;
+  return pass && passesThrough(occupant, moverFaction);
+}
+
 export function getEntryDirection(path) {
   if (!Array.isArray(path) || path.length < 2) return null;
   const prev = path[path.length - 2];
@@ -271,12 +284,14 @@ export function computeEffectivePath(
  * @param {number} startRow
  * @param {number} mov - movement points
  * @param {string} moveType - e.g. "Infantry", "Cavalry"
- * @param {Map} [unitPositions] - Map of "col,row" -> { faction } for occupied tiles
+ * @param {Map} [unitPositions] - Map of "col,row" -> { faction, isCaravan? } for occupied
+ *   tiles (PlayerKnowledge.unitPositionEntry)
  * @param {string} [moverFaction] - faction of the moving unit
  * @param {number} [costModifier]
  * @param {{ pass?: boolean }} [options] - `pass`: the mover has Pass (passesThrough): it
- *   walks through enemy units and may not stop on one, the rule an ally's tile already
- *   follows. An occupied tile still ends an ice slide.
+ *   walks through enemy units and may not stop on one, the rule an ally's tile (and, for a
+ *   player unit, the merchant's) already follows (walksThrough). An occupied tile still
+ *   ends an ice slide.
  * @returns {Map} "col,row" -> { cost, parent, slidePath?, slideStop?, stoppable? }
  */
 export function computeMovementRange(
@@ -342,15 +357,12 @@ export function computeMovementRange(
       if (unitPositions) {
         const occupant = unitPositions.get(key);
         if (occupant) {
-          if (
-            occupant.faction !== moverFaction &&
-            !(pass && passesThrough(occupant, moverFaction))
-          ) {
+          if (!walksThrough(occupant, moverFaction, pass)) {
             // Enemy on tile — can't move through (unless the mover has Pass)
             continue;
           }
-          // Ally on tile (or a foe a Pass unit walks through) — can traverse but mark as
-          // occupied (filter below)
+          // Ally on tile (the merchant for a player unit, or a foe a Pass unit walks
+          // through) — can traverse but mark as occupied (filter below)
         }
       }
 
@@ -397,17 +409,14 @@ export function computeMovementRange(
     }
   }
 
-  // Mark ally-occupied tiles (and, with Pass, foe-occupied ones) as non-stoppable (can
-  // pass through but not stop on). We keep them in the map so parent chains stay intact
-  // for path reconstruction.
+  // Mark ally-occupied tiles (and the merchant's, and with Pass foe-occupied ones) as
+  // non-stoppable (can pass through but not stop on). We keep them in the map so parent
+  // chains stay intact for path reconstruction.
   if (unitPositions && moverFaction) {
     for (const [key, entry] of reachable) {
       if (key === `${startCol},${startRow}`) continue; // own tile is fine
       const occupant = unitPositions.get(key);
-      if (
-        occupant &&
-        (occupant.faction === moverFaction || (pass && passesThrough(occupant, moverFaction)))
-      ) {
+      if (walksThrough(occupant, moverFaction, pass)) {
         entry.stoppable = false;
       }
     }
@@ -475,8 +484,8 @@ export function reconstructRangePath(reachable, startCol, startRow, goalCol, goa
  * A* from (startCol,startRow) to (goalCol,goalRow). Shared by the scene's Grid and the
  * headless harness's grid (anything with cols, rows and getMoveCost, whose cost is
  * Infinity off an integer tile), so the two never drift. Enemy-occupied tiles block,
- * allies' tiles do not; with `options.pass` (Pass) a foe's tile is walked through too
- * (computeMovementRange's rule).
+ * allies' tiles (and the merchant's, for a player unit) do not; with `options.pass` (Pass)
+ * a foe's tile is walked through too (walksThrough, computeMovementRange's rule).
  *
  * The path is exactly the one the former sorted-array search returned, ties included
  * (tests/GridPathfindingIdentity.test.js runs the two side by side):
@@ -508,15 +517,11 @@ export function computePath(
   const cols = grid.cols;
   const rows = grid.rows;
   const heuristic = (c, r) => Math.abs(c - goalCol) + Math.abs(r - goalRow);
-  // Enemy-occupied tiles block (the mover passes through allies, and through foes with Pass).
+  // Occupied tiles block unless the mover walks through them (walksThrough).
   const blocks = (col, row) => {
     if (!unitPositions) return false;
     const occupant = unitPositions.get(`${col},${row}`);
-    return Boolean(
-      occupant &&
-      occupant.faction !== moverFaction &&
-      !(pass && passesThrough(occupant, moverFaction)),
-    );
+    return Boolean(occupant && !walksThrough(occupant, moverFaction, pass));
   };
 
   if (

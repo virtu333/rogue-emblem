@@ -15,6 +15,7 @@ import { battlePlace } from './placeDisplay.js';
 import { bindHoldBattleSpeed, canHoldBattleSpeed } from './HoldBattleSpeed.js';
 import { syncPrologueForecastLayout } from './prologueForecastLayout.js';
 import { isScriptedBattle } from '../engine/ScriptedBattle.js';
+import { objectiveKindOf } from '../engine/BattleObjectives.js';
 import { hasEffectiveSkill } from '../engine/EffectiveSkills.js';
 import {
   showContextualHint,
@@ -43,6 +44,7 @@ import {
   terrainRuleLines,
   visibleBallistaAt,
 } from '../engine/BattleInformation.js';
+import { entityReachInfo } from '../engine/EntityReach.js';
 import { bindCancelablePress } from '../utils/cancelablePress.js';
 import { isUnitMenuState, canUseDanger, isObjectiveCommand } from './battleMenuModel.js';
 import { formatWeaponArtEffects, weaponArtUsesText } from './weaponArtDisplay.js';
@@ -52,6 +54,7 @@ import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { battleItemBrief, battleItemSummary, ITEM_ACTION_NOTE } from './battleItemSummary.js';
 import { BattlefieldLab, battlefieldLabEnabled } from './BattlefieldLab.js';
 import { createHealthBar } from './healthBar.js';
+import { healthBarsBadge } from '../engine/RevivalStones.js';
 import { textureImageSource } from './textureImageSource.js';
 import { hasInputFocus, pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
@@ -140,6 +143,15 @@ function el(tag, className, text) {
 }
 
 /**
+ * "×3" after a stoned boss's HP line: the health bars it has left (engine/RevivalStones.js).
+ * Nothing for a unit with one bar left or none to begin with.
+ */
+function appendHealthBarsBadge(line, unit) {
+  const badge = healthBarsBadge(unit);
+  if (badge) line.append(' ', el('span', 'mb-hp-bars', badge));
+}
+
+/**
  * The unit card's line for a foe's status staff, or null. The staff is gear beside the
  * weapon, outside the inventory, so the card names it ("Silence Staff · Range 3-7 · 1/2
  * uses"; "· spent" once used up): the caster behind the Danger zone's violet outline can be
@@ -148,6 +160,25 @@ function el(tag, className, text) {
 export function statusStaffGearLine(unit) {
   const text = statusStaffInfo(unit)?.text;
   return text ? el('p', 'mb-gear', text) : null;
+}
+
+/**
+ * The rail's objective button: the label it shows and the details it opens. The kind a battle is
+ * played as (a defeat map's legacy string is rout) and its own goal sentence come from the
+ * scene, never from the legacy string alone.
+ */
+export function objectiveRail(s) {
+  const text = s.objectiveText?.text || objectiveKindOf(s.battleConfig) || 'Battle';
+  return {
+    compact: compactBattleObjective(text),
+    help: () =>
+      objectiveHelp(
+        text,
+        s._bossPresence?.summaryLine?.(),
+        objectiveKindOf(s.battleConfig),
+        s.objectiveGoalLine?.() || '',
+      ),
+  };
 }
 
 /**
@@ -311,7 +342,7 @@ export class MobileBattleHUD {
       if (event.key === 'Escape') {
         event.preventDefault();
         event.stopPropagation();
-        this.scene.requestCancel();
+        this.scene.requestCancel({ cancelAction: true });
         return;
       }
       if (!this.menu || !isUnitMenuState(this.scene.battleState)) return;
@@ -512,7 +543,9 @@ export class MobileBattleHUD {
       );
     panel.append(sides);
     const footer = el('div', 'mb-forecast-footer');
-    const cancel = this.button('Cancel', () => this.scene.requestCancel({ allowPause: false }));
+    const cancel = this.button('Cancel', () =>
+      this.scene.requestCancel({ allowPause: false, cancelAction: true }),
+    );
     cancel.dataset.forecastRole = 'cancel';
     const confirm = this.button(
       'Confirm attack',
@@ -540,7 +573,7 @@ export class MobileBattleHUD {
       event.stopPropagation();
       if (event.key === 'Escape') {
         event.preventDefault();
-        if (this.available()) this.scene.requestCancel({ allowPause: false });
+        if (this.available()) this.scene.requestCancel({ allowPause: false, cancelAction: true });
       } else if (
         (event.key === 'ArrowLeft' || event.key === 'ArrowRight') &&
         config.validWeapons.length > 1 &&
@@ -599,7 +632,10 @@ export class MobileBattleHUD {
         else if (action === InputAction.CONFIRM && panel.contains(document.activeElement))
           document.activeElement.click();
         else if ([InputAction.CANCEL, InputAction.PAUSE].includes(action))
-          this.scene.requestCancel({ allowPause: false });
+          this.scene.requestCancel({
+            allowPause: false,
+            cancelAction: action === InputAction.CANCEL,
+          });
         else if (action === InputAction.PREV_UNIT) this.scene._cycleForecastWeapon(-1);
         else if (action === InputAction.NEXT_UNIT) this.scene._cycleForecastWeapon(1);
       },
@@ -665,6 +701,7 @@ export class MobileBattleHUD {
             : ` → ${hpAfter}`,
         ),
       );
+    appendHealthBarsBadge(hp, unit);
     who.append(hp);
     side.append(
       createHealthBar(
@@ -933,7 +970,15 @@ export class MobileBattleHUD {
     const key = JSON.stringify([
       upright,
       sideStatus.map((part) => part.text),
-      threat ? [threat.col, threat.row, threat.result?.count, threat.result?.status?.length] : null,
+      threat
+        ? [
+            threat.col,
+            threat.row,
+            threat.result?.count,
+            threat.result?.status?.length,
+            threat.result?.counter?.length,
+          ]
+        : null,
       state,
       turn,
       remaining,
@@ -1005,29 +1050,20 @@ export class MobileBattleHUD {
     this.contractSlot.replaceChildren(...(contract ? [this.contractLine(contract)] : []));
     this.phase.append(counters);
     this.objective.replaceChildren();
-    const objectiveText = s.objectiveText?.text || s.battleConfig?.objective || 'Battle';
+    const rail = objectiveRail(s);
     const objective = this.button(
-      compactBattleObjective(objectiveText),
+      rail.compact,
       () => {
-        this.help = new ContextHelp(
-          s,
-          this.root,
-          'Battle objective',
-          objectiveHelp(objectiveText, s._bossPresence?.summaryLine?.(), s.battleConfig?.objective),
-          () => {
-            this.help = null;
-            this.lastSnapshot = '';
-            this.sync();
-            this.objective.querySelector('button')?.focus({ preventScroll: true });
-          },
-        );
+        this.help = new ContextHelp(s, this.root, 'Battle objective', rail.help(), () => {
+          this.help = null;
+          this.lastSnapshot = '';
+          this.sync();
+          this.objective.querySelector('button')?.focus({ preventScroll: true });
+        });
       },
       'mb-objective',
     );
-    objective.setAttribute(
-      'aria-label',
-      `Objective details: ${compactBattleObjective(objectiveText)}`,
-    );
+    objective.setAttribute('aria-label', `Objective details: ${rail.compact}`);
     objective.append(el('span', 'mb-info-cue', 'ⓘ'));
     this.objective.append(objective);
     if (sideStatus.length) {
@@ -1050,7 +1086,12 @@ export class MobileBattleHUD {
       this.summary.append(
         el('div', 'mb-detail', `${unit.className} · ${unit.weapon?.name || 'Unarmed'}`),
       );
-      this.summary.append(el('span', 'mb-hp', `${unit.currentHP}/${unit.stats.HP} HP`));
+      const hpLine = el('span', 'mb-hp', `${unit.currentHP}/${unit.stats.HP} HP`);
+      appendHealthBarsBadge(hpLine, unit);
+      this.summary.append(hpLine);
+      // The Entity's two reaches: its blows stop short of where its weapons answer.
+      const reach = entityReachInfo(unit);
+      if (reach) this.summary.append(el('p', 'mb-gear', reach.text));
       const staffLine = statusStaffGearLine(unit);
       if (staffLine) this.summary.append(staffLine);
       const conditions = statusDescriptions(unit);
@@ -1214,6 +1255,10 @@ export class MobileBattleHUD {
     if (contractLine) detailContent.append(el('p', 'mb-contract-detail', contractLine.title));
     if (s.dangerZone?.visible)
       detailContent.append(el('p', '', 'Darker: more enemies · Purple outline: status staff'));
+    if (s.dangerZone?.tiles?.some((t) => t.counterThreat))
+      detailContent.append(
+        el('p', '', 'Dashed band: the Entity cannot strike there, but it counters a blow from it'),
+      );
     if (s.pinnedThreatEnemies?.size >= 5)
       detailContent.append(
         el('p', '', '5 ranges pinned. Pinning another enemy replaces the oldest.'),
@@ -1432,7 +1477,7 @@ export class MobileBattleHUD {
         if (s.battleState !== 'UNIT_SELECTED' || s.selectedUnit !== selected) return;
         // One press deselects, even while an enemy is being inspected.
         s._inputController?.clearPlanningInspection?.();
-        s.requestCancel({ allowPause: false });
+        s.requestCancel({ allowPause: false, cancelAction: true });
       },
       'mb-cancel-selection',
     );

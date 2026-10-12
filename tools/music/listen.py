@@ -4,7 +4,9 @@
 The composer's second pair of ears: renders are uploaded through the Gemini
 Files API and reviewed by an audio-capable model. Retries across models on
 upstream errors. Needs network access to generativelanguage.googleapis.com
-(an API key via GOOGLE_API_KEY, or a proxy that injects one).
+(an API key via GOOGLE_API_KEY, or a proxy that injects one). The answer is
+streamed (server-sent events), so a long review through a proxy that drops
+idle connections still arrives; --no-stream asks for it in one response.
 
   python3 tools/music/listen.py a.mp3 b.mp3 --prompt "Compare these."
 """
@@ -53,12 +55,32 @@ def upload(path):
     return info['uri'], mt
 
 
+def _stream(model, body):
+    """streamGenerateContent over SSE, joined into one generateContent-shaped reply."""
+    r = _req(f'{API}/v1beta/models/{model}:streamGenerateContent?alt=sse', data=body,
+             headers={'Content-Type': 'application/json'})
+    text = []
+    for raw in r:
+        line = raw.decode('utf-8', 'replace').strip()
+        if not line.startswith('data:'):
+            continue
+        chunk = json.loads(line[5:])
+        for c in chunk.get('candidates', []):
+            for p in c.get('content', {}).get('parts', []):
+                if 'text' in p and not p.get('thought'):
+                    text.append(p['text'])
+    if not text:
+        raise RuntimeError('empty streamed reply')
+    return {'candidates': [{'content': {'parts': [{'text': ''.join(text)}]}}]}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('files', nargs='+')
     ap.add_argument('--prompt', required=True)
     ap.add_argument('--model')
     ap.add_argument('--inline', action='store_true')
+    ap.add_argument('--no-stream', action='store_true')
     a = ap.parse_args()
     parts = []
     for f in a.files:
@@ -85,8 +107,11 @@ def main():
     for attempt in range(9):
         model = models[min(attempt // 3, len(models) - 1)]
         try:
-            d = json.loads(_req(f'{API}/v1beta/models/{model}:generateContent', data=body,
-                                headers={'Content-Type': 'application/json'}).read())
+            if a.no_stream:
+                d = json.loads(_req(f'{API}/v1beta/models/{model}:generateContent', data=body,
+                                    headers={'Content-Type': 'application/json'}).read())
+            else:
+                d = _stream(model, body)
             break
         except urllib.error.HTTPError as e:
             print('HTTP', e.code, model, e.read().decode()[:200], file=sys.stderr)

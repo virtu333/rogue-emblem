@@ -92,11 +92,79 @@ export function lineTiles(from, through, length, bounds) {
 }
 
 /**
- * The units standing on any of `tiles` (an Entity counts when any tile of its footprint
- * does), each once, in the order of the first tile that reaches it. `exclude` removes
- * units by identity, so another tile of the excluded unit's footprint cannot bring it back.
+ * Rows of tiles behind `through` on the `from` → `through` axis (Ruin's Cataclysm, legendary-
+ * arts-rework §1): `rows[i]` is `width` tiles wide (centered on the axis), `i + 1` tiles past
+ * the target, and each tile carries that row's `multiplier`. Only a row or column gives a
+ * cone. A solid tile blocks itself and every tile behind it in its own file; units never
+ * block. Ordered by row, then across the row in board order.
  */
-export function unitsOnTiles(tiles, units, { exclude = [] } = {}) {
+export function coneTiles(from, through, rows, bounds) {
+  if (!from || !through || !Array.isArray(rows)) return [];
+  const dc = Math.sign(through.col - from.col);
+  const dr = Math.sign(through.row - from.row);
+  if ((dc === 0) === (dr === 0)) return [];
+  const blocked = new Set(); // lateral offsets whose file met a wall
+  const tiles = [];
+  rows.forEach((row, i) => {
+    const depth = i + 1;
+    const half = Math.max(0, Math.trunc(((Number(row?.width) || 1) - 1) / 2));
+    const out = [];
+    for (let lateral = -half; lateral <= half; lateral++) {
+      // The lateral axis is perpendicular to the facing: columns for a vertical cone.
+      const col = through.col + dc * depth + (dc === 0 ? lateral : 0);
+      const rowIndex = through.row + dr * depth + (dr === 0 ? lateral : 0);
+      if (blocked.has(lateral)) continue;
+      if (!inBounds(col, rowIndex, bounds)) continue;
+      if (bounds?.isSolid?.(col, rowIndex)) {
+        blocked.add(lateral);
+        continue;
+      }
+      out.push({ col, row: rowIndex, multiplier: Number(row?.multiplier) || 0 });
+    }
+    out.sort((a, b) => a.row - b.row || a.col - b.col);
+    tiles.push(...out);
+  });
+  return tiles;
+}
+
+/**
+ * The tiles beside `target` on its distance ring from `origin` (Hermit's Bow's fan,
+ * legendary-arts-rework §2): every tile at the target's Manhattan distance from the origin
+ * within `width` steps round that ring, the target excluded, nearest step first. Defined for
+ * every target, so a fan never needs a facing.
+ */
+export function arcTiles(origin, target, width, bounds) {
+  if (!origin || !target) return [];
+  const d = Math.abs(target.col - origin.col) + Math.abs(target.row - origin.row);
+  const steps = Math.max(0, Math.trunc(Number(width) || 0));
+  if (d < 1 || steps < 1) return [];
+  // The ring as a cycle of 4d tiles, walked clockwise from due north.
+  const ring = [];
+  for (let k = 0; k < 4 * d; k++) {
+    const side = Math.floor(k / d);
+    const t = k % d;
+    const [dc, drow] =
+      side === 0 ? [t, -d + t] : side === 1 ? [d - t, t] : side === 2 ? [-t, d - t] : [-d + t, -t];
+    ring.push({ col: origin.col + dc, row: origin.row + drow });
+  }
+  const at = ring.findIndex((t) => t.col === target.col && t.row === target.row);
+  if (at === -1) return [];
+  const tiles = [];
+  for (let step = 1; step <= Math.min(steps, Math.floor((ring.length - 1) / 2)); step++) {
+    const pair = [ring[(at - step + ring.length) % ring.length], ring[(at + step) % ring.length]]
+      .filter((t) => inBounds(t.col, t.row, bounds))
+      .sort((a, b) => a.row - b.row || a.col - b.col);
+    tiles.push(...pair);
+  }
+  return tiles;
+}
+
+/**
+ * The units standing on any of `tiles`, each with the first of those tiles that reaches it
+ * (`{ unit, tile }`): unitsOnTiles' rule, keeping the tile so a per-tile multiplier (a cone's
+ * rows) can be read.
+ */
+export function unitEntriesOnTiles(tiles, units, { exclude = [] } = {}) {
   const excluded = new Set((Array.isArray(exclude) ? exclude : [exclude]).filter(Boolean));
   const order = new Map();
   (tiles || []).forEach((t, i) => {
@@ -114,7 +182,16 @@ export function unitsOnTiles(tiles, units, { exclude = [] } = {}) {
     if (first !== Infinity) hits.push({ unit, first });
   }
   hits.sort((a, b) => a.first - b.first);
-  return hits.map((h) => h.unit);
+  return hits.map((h) => ({ unit: h.unit, tile: tiles[h.first] }));
+}
+
+/**
+ * The units standing on any of `tiles` (an Entity counts when any tile of its footprint
+ * does), each once, in the order of the first tile that reaches it. `exclude` removes
+ * units by identity, so another tile of the excluded unit's footprint cannot bring it back.
+ */
+export function unitsOnTiles(tiles, units, { exclude = [] } = {}) {
+  return unitEntriesOnTiles(tiles, units, { exclude }).map((entry) => entry.unit);
 }
 
 /**
@@ -122,6 +199,8 @@ export function unitsOnTiles(tiles, units, { exclude = [] } = {}) {
  *   radius           around the target (normal_attack) or the chosen center
  *   line             `length` tiles past the target, away from the attacker
  *   around_attacker  around the attacker, its own tile excluded
+ *   cone             `rows` behind the target, away from the attacker (per-row multiplier)
+ *   arc              `width` tiles each way round the target's ring from the attacker
  */
 export function areaTilesFor(area, { attacker = null, target = null, center = null }, bounds) {
   if (!area) return [];
@@ -134,6 +213,10 @@ export function areaTilesFor(area, { attacker = null, target = null, center = nu
       return attacker && target ? lineTiles(attacker, target, area.length, bounds) : [];
     case 'around_attacker':
       return attacker ? aroundTiles(attacker, area.radius, bounds) : [];
+    case 'cone':
+      return attacker && target ? coneTiles(attacker, target, area.rows, bounds) : [];
+    case 'arc':
+      return attacker && target ? arcTiles(attacker, target, area.width, bounds) : [];
     default:
       return [];
   }

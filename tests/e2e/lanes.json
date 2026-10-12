@@ -4,7 +4,12 @@
     {
       "name": "smoke",
       "description": "Boot, scene transitions and one overlay: the fastest signal that the game starts",
-      "specs": ["boot.spec.js", "scene-transitions.spec.js", "accessory-ui.spec.js"]
+      "specs": [
+        "boot.spec.js",
+        "scene-transitions.spec.js",
+        "accessory-ui.spec.js",
+        "storage-blocked.spec.js"
+      ]
     },
     {
       "name": "contracts",
@@ -53,7 +58,8 @@
         "threat-pins.spec.js",
         "ceremonies.spec.js",
         "zombie-remains.spec.js",
-        "xp-gauge.spec.js"
+        "xp-gauge.spec.js",
+        "entity-rally.spec.js"
       ]
     },
     {
@@ -89,12 +95,15 @@
         "portrait-rail.spec.js",
         "portrait-formation-inspect.spec.js",
         "portrait-screens.spec.js",
+        "portrait-pause.spec.js",
         "portrait-journey.spec.js",
         "portrait-rotation.spec.js",
         "portrait-remains.spec.js",
         "portrait-prologue.spec.js",
         "portrait-seers-eye.spec.js",
-        "portrait-start-gift.spec.js"
+        "portrait-start-gift.spec.js",
+        "portrait-descent-rite.spec.js",
+        "portrait-descent-acceptance.spec.js"
       ],
       "shards": 6
     },
@@ -118,6 +127,7 @@
         "gamepad-battle.spec.js",
         "gamepad-menus.spec.js",
         "goddess-dance.spec.js",
+        "legendary-arts.spec.js",
         "ice-slide.spec.js",
         "input-boundary-audit.spec.js",
         "unit-first-tap.spec.js",
@@ -182,6 +192,7 @@
         "native-rewards.spec.js",
         "old-sanctum.spec.js",
         "open-roll.spec.js",
+        "reward-details.spec.js",
         "reward-reload.spec.js",
         "reward-reroll.spec.js",
         "levelup-reroll.spec.js",
@@ -197,7 +208,8 @@
         "colosseum-earned-offer.spec.js",
         "earned-twist.spec.js",
         "start-gift.spec.js",
-        "village-ambush.spec.js"
+        "village-ambush.spec.js",
+        "descent-rite.spec.js"
       ]
     },
     {

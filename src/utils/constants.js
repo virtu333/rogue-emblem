@@ -41,8 +41,10 @@ export const RECRUIT_PROMOTION_BASE_LEVEL = 10;
 export const BOSS_RECRUIT_PROMOTED_PENALTY = 0;
 export const ENEMY_PROMOTION_BASE_LEVEL = 12;
 
-// Skill cap per unit
+// Equipped skill caps per unit (engine/SkillSlots.js): MAX_SKILLS skills and, apart from
+// them, MAX_ABILITIES abilities (`trigger: "action"` skills: Shove, Dance, Steal, Blink...).
 export const MAX_SKILLS = 5;
+export const MAX_ABILITIES = 3;
 
 // Class mastery: battles fought in a class family to earn its perk.
 // Traits can shift the effective threshold (masteryBattlesDelta), floored at
@@ -370,6 +372,9 @@ export const DIFFICULTY_GATED_CLASSES = new Set([
   'Dragon Lord',
   'Necromancer',
   'Skeleton',
+  // Act V (docs/specs/act-v-descent.md §5): set pieces and the Vigil's summons only
+  'Circle Adept',
+  'Hollowed',
 ]);
 export const ZOMBIE_CLASSES = new Set(['Zombie', 'Revenant']);
 // A Necromancer raises at most this many Skeletons in a battle, in all (engine/Necromancy.js):
@@ -380,6 +385,7 @@ export const DARK_CLASSES = new Set([
   'Dark Knight',
   'Warlock',
   'Necromancer',
+  'Circle Adept',
   'Zombie',
   'Revenant',
   'Dragon',
@@ -450,6 +456,12 @@ export const RECRUIT_SKILL_POOL = [
 export const STARTING_ACCESSORY_TIERS = [null, 'Goddess Icon', 'Speed Ring', "Veteran's Crest"];
 export const STARTING_STAFF_TIERS = ['Heal', 'Mend', 'Recover'];
 
+/** Sera's starting staves at a Healer's Art tier: Heal always, plus the tier's staff. */
+export function startingStaffNames(tier) {
+  const upgrade = tier > 0 ? STARTING_STAFF_TIERS[tier] : null;
+  return upgrade ? [STARTING_STAFF_TIERS[0], upgrade] : [STARTING_STAFF_TIERS[0]];
+}
+
 // Biome weights per act (used by template selection)
 // Templates without a biome field are treated as 'grassland'.
 export const ACT_BIOME_WEIGHTS = {
@@ -472,6 +484,7 @@ export const ENTITY_FOOTPRINT = { width: 3, height: 3 };
 export const ENTITY_CRIT_RATE_MULT = 0.5;
 export const ENTITY_CRIT_DMG_MULT = 1.5;
 export const ENTITY_SPLASH_COUNT = 2;
+export const ENTITY_SPLASH_COUNT_MAX = 4; // the orthogonal neighbours a splash can reach
 export const ENTITY_SPLASH_DAMAGE = [5, 10];
 export const ENTITY_PRIMARY_ATTACK_RANGE = 2;
 export const ENTITY_WEAPON_NAMES = ['Eldritch Grasp', 'Twisting Vortex'];

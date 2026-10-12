@@ -386,6 +386,26 @@ describe('the stance is taken once, at the top of the phase', () => {
     expect(stance(mage(12, 12, { currentHP: 0 }))).toBeNull(); // fallen
   });
 
+  it('a save from the old rule (planted: false, same turn) is migrated to planted on resume', async () => {
+    const grid = makeGrid(25, 25);
+    for (const make of [() => sage(12, 22), () => mage(12, 22)]) {
+      const caster = make();
+      // Fixture: what the old code serialised mid enemy phase for a caster that would walk.
+      const saved = JSON.parse(JSON.stringify(serializeBattleUnit(caster)));
+      saved.artilleryStance = { turn: 3, planted: false };
+      Object.assign(caster, { artilleryStance: saved.artilleryStance });
+      const target = foe('Target', 12, 8); // out of every reach from the post
+      const { decisions } = await enemyPhase(controller(grid), {
+        enemies: [caster],
+        players: [target],
+        turn: 3,
+      });
+      expect(caster.artilleryStance).toEqual({ turn: 3, planted: true });
+      expect({ col: caster.col, row: caster.row }).toEqual({ col: 12, row: 22 });
+      expect(['artillery_hold', 'post_hold']).toContain(decisions.get(caster).reason);
+    }
+  });
+
   it('a phase resumed from a checkpoint keeps the stance; the next turn takes it again', async () => {
     const grid = makeGrid(25, 25);
     const caster = sage(12, 12);

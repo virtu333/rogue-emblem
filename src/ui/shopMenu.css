@@ -152,6 +152,15 @@
   -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 16px), transparent);
   mask-image: linear-gradient(180deg, #000 calc(100% - 16px), transparent);
 }
+/* Battle rewards' item sheet (MobileRewards.openDetails): the same detail, read in the
+   help dialog, whose body scrolls it. */
+.re-help .shop-copy.item-detail-sheet {
+  flex: none;
+  overflow: visible;
+  padding: 0;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
 .shop-copy h3 {
   font-size: 19px;
   line-height: 1.25;

@@ -17,8 +17,8 @@
 //
 // A node is NEVER redrawn when it is the start, the boss, the Ruins, completed, the current
 // node, encounter-locked, already fallen to the Eclipse, a recruit, the arena, an event, an
-// ambush village, the Old Sanctum, or holds a saved battle config. (addRoad touches only the current node's
-// edge list.)
+// ambush village, the Old Sanctum, an authored route's (the Descent's), or holds a saved battle
+// config. (addRoad touches only the current node's edge list, and never an authored map's.)
 //
 // Plan, then apply (EventEffects): `planRouteEdit` is pure and returns what would change
 // (or { empty: true } when nothing qualifies: the outcome's `fallback` plays);
@@ -29,6 +29,7 @@
 
 import { NODE_TYPES } from '../utils/constants.js';
 import { nodeFallExemption, withEclipseSeed } from './EclipseSystem.js';
+import { isAuthoredNode } from './Descent.js';
 import {
   edgeCrosses,
   rebuildNodeAs,
@@ -231,7 +232,8 @@ export function checkNodeMapValidity(nodeMap) {
 export function roadCandidates(nodeMap, fromId) {
   const byId = indexOf(nodeMap);
   const from = byId.get(fromId);
-  if (!from) return [];
+  // An authored route (the Descent's) keeps the roads its data drew.
+  if (!from || isAuthoredNode(from)) return [];
   const rowNodes = (row) => nodesOf(nodeMap).filter((node) => node.row === row);
   const current = rowNodes(from.row);
   const next = rowNodes(from.row + 1);
@@ -261,6 +263,8 @@ export function roadCandidates(nodeMap, fromId) {
 export function isRedrawable(run, node) {
   if (!node || !REDRAWABLE_TYPES.includes(node.type)) return false;
   if (node.isAmbush || node.eventBattle) return false;
+  // An authored route's node (the Descent's) is the route's own: never redrawn.
+  if (isAuthoredNode(node)) return false;
   // The Old Sanctum (engine/SanctumPass.js) holds the act's earned blessing: never redrawn.
   if (node.sanctum === true) return false;
   if (run?.battleConfigsByNodeId?.[node.id]) return false;

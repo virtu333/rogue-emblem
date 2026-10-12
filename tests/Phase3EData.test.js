@@ -181,7 +181,7 @@ describe('how a unit comes to have them', () => {
     expect(dancer.skills).toContain('goddess_dance');
   });
 
-  it('a promoted Dancer from an old save gets it on load; at the skill cap it waits on the bench', () => {
+  it('a promoted Dancer from an old save gets it on load; at the ability cap it waits on the bench', () => {
     const bard = makeUnit('Dancer');
     promoteUnit(bard, cls('Bard'), cls('Bard').promotionBonuses, data.skills);
     bard.level = 7;
@@ -192,10 +192,19 @@ describe('how a unit comes to have them', () => {
     const full = makeUnit('Dancer');
     promoteUnit(full, cls('Bard'), cls('Bard').promotionBonuses, data.skills);
     full.level = 7;
+    // Goddess Dance is an ability: five full skill slots leave its own slot free.
     full.skills = Array.from({ length: MAX_SKILLS }, (_, i) => `held-${i}`);
+    full.skills.push('dance');
     migrated(full);
-    expect(full.skills).not.toContain('goddess_dance');
-    expect(full.benchedSkills).toContain('goddess_dance');
+    expect(full.skills).toContain('goddess_dance');
+
+    const crowded = makeUnit('Dancer');
+    promoteUnit(crowded, cls('Bard'), cls('Bard').promotionBonuses, data.skills);
+    crowded.level = 7;
+    crowded.skills = ['dance', 'shove', 'pull']; // all three ability slots
+    migrated(crowded);
+    expect(crowded.skills).not.toContain('goddess_dance');
+    expect(crowded.benchedSkills).toContain('goddess_dance');
   });
 
   it('a Trickster has Pass and Darting Blow on promotion', () => {

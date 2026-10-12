@@ -23,7 +23,6 @@ import { settleMoves } from './ActionMovement.js';
 import { damageUnit, healUnit } from './UnitHealth.js';
 import { allyBuff } from './PostCombatEffects.js';
 import { applyCondition, isSilenced, isWounded } from './StatusConditionSystem.js';
-import { gridDistance } from './Combat.js';
 import { combatDistance, getFootprintKeys, isEntity } from './EntitySystem.js';
 import { displacementBlockReason, traceForcedMove } from './ForcedMovement.js';
 import { effectiveSkills, hasEffectiveSkill } from './EffectiveSkills.js';
@@ -158,12 +157,11 @@ export function collectAffected(unit, ability, units) {
   if (!unit || !ability || typeof ability !== 'object' || !Array.isArray(units)) return [];
   const radius = Math.max(0, Math.trunc(Number(ability.radius) || 0));
   const includeSelf = ability.includeSelf === true;
+  // The Entity is within the radius when any tile of its body is (combatDistance).
   return units
     .filter((candidate) => candidate && candidate.currentHP > 0)
     .filter((candidate) => (candidate === unit ? includeSelf : true))
-    .filter(
-      (candidate) => gridDistance(unit.col, unit.row, candidate.col, candidate.row) <= radius,
-    );
+    .filter((candidate) => combatDistance(unit, candidate) <= radius);
 }
 
 /**

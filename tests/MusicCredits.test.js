@@ -41,6 +41,21 @@ describe('music credits', () => {
     expect(inGame).toContain('CC BY-SA 4.0');
   });
 
+  it('says the VPO3 clone is an unofficial mirror, pinned to one commit', () => {
+    // The in-game page and the doc agree that it is a mirror ...
+    expect(inGame).toContain('unofficial mirror');
+    expect(doc).toContain('unofficial mirror');
+    // ... and the fetch script clones that mirror at the commit the doc names, never at HEAD.
+    const script = readFileSync(join(MUSIC, 'fetch_libraries.sh'), 'utf8');
+    const pinned = script.match(/^VPO3_COMMIT=([0-9a-f]{40})$/m);
+    expect(pinned, 'fetch_libraries.sh pins VPO3_COMMIT to a full SHA').toBeTruthy();
+    expect(doc).toContain(pinned[1]);
+    expect(script).toMatch(
+      /^clone_at studiorack\/virtual-playing-orchestra VPO3 "\$VPO3_COMMIT"$/m,
+    );
+    expect(script).not.toMatch(/^clone studiorack\//m);
+  });
+
   it('credits every library the shipped music plays', () => {
     const picks = shippedCandidates();
     expect(picks.length).toBeGreaterThan(0);
