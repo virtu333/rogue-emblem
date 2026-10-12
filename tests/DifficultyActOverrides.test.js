@@ -1,6 +1,7 @@
 // Per-act difficulty overrides (difficulty.json `actOverrides`): Black Sun eases its Act I
 // (enemy stats +1 in place of +2, enemies scaled as if you field 5 in place of 6, +1 extra
-// enemy in place of +2) and leaves every later act and every other rung as it was.
+// enemy in place of +2), Nightfall its Act I (no enemy stat bonus in place of +1), and every
+// later act and every other rung stays as it was.
 import { describe, expect, it } from 'vitest';
 import {
   ACT_OVERRIDE_KEYS,
@@ -13,6 +14,8 @@ import { RunManager } from '../src/engine/RunManager.js';
 import { generateBattle } from '../src/engine/MapGenerator.js';
 import { installSeed, restoreMathRandom } from '../sim/lib/SeededRNG.js';
 import { loadGameData } from './testData.js';
+import { battleConfigForNode } from './sim/RunSimulationDriver.js';
+import { GameDriver } from './harness/GameDriver.js';
 
 const data = loadGameData();
 const node = (act, row = 2) => ({
@@ -91,7 +94,7 @@ describe('Black Sun Act I', () => {
   });
 
   it('leaves the other rungs’ battles exactly as the rung sets them', () => {
-    for (const id of ['normal', 'dusk', 'hard']) {
+    for (const id of ['normal', 'dusk']) {
       const mode = data.difficulty.modes[id];
       expect(mode.actOverrides ?? null).toBeNull();
       const params = run(id).getBattleParams(node('act1'));
@@ -121,7 +124,7 @@ describe('Black Sun Act I', () => {
     expect(lines).toContain(
       'Act I eases in: enemy stats +1, +1 extra enemy per map, enemies scale as if you field at least 5 units',
     );
-    for (const id of ['normal', 'dusk', 'hard'])
+    for (const id of ['normal', 'dusk'])
       expect(generateModifierSummary(data.difficulty.modes[id]).join('\n')).not.toMatch(/eases in/);
   });
 
@@ -138,6 +141,67 @@ describe('Black Sun Act I', () => {
       actOverrides: { act2: { enemyStatBonus: 3 } },
     };
     expect(generateModifierSummary(mode)).toContain('Act II: enemy stats +3');
+  });
+});
+
+describe('Nightfall Act I', () => {
+  it('reaches the battle with no enemy stat bonus, and Act II onward with the rung’s own', () => {
+    const rm = run('hard');
+    const rung = {
+      enemyCountBonus: 1,
+      enemyCountBase: 4,
+      enemyLevelBonus: 1,
+      bossLevelBonus: 3,
+      enemySkillChance: 0.2,
+      enemyPoisonChance: 0.08,
+    };
+    expect(leversOf(rm.getBattleParams(node('act1')))).toEqual({ ...rung, enemyStatBonus: 0 });
+    for (const act of ['act2', 'act3', 'act4', 'finalBoss'])
+      expect(leversOf(rm.getBattleParams(node(act)))).toEqual({ ...rung, enemyStatBonus: 1 });
+  });
+
+  it('is still at least as hard as Dusk’s Act I on every lever', () => {
+    const night = leversOf(run('hard').getBattleParams(node('act1')));
+    const dusk = leversOf(run('dusk').getBattleParams(node('act1')));
+    for (const key of LEVERS) expect(night[key]).toBeGreaterThanOrEqual(dusk[key]);
+  });
+
+  // The point of the override: the first map's Fighters (level 2, Iron Axe, into Edric's Iron
+  // Sword: STR + 7 - DEF 5 - 1) hit for 9 or 10, so none reaches Edric's 20 HP in two hits
+  // unless it rolled STR 9 (it hit for 10 or 11 with the +1, so every one did).
+  it('takes the first map’s Fighters from STR 9-10 to 8-9', () => {
+    const strengths = new Set();
+    for (let seed = 1; seed <= 40; seed++) {
+      const rm = new RunManager(data);
+      rm.startRun({ difficultyId: 'hard', runSeed: seed });
+      const first = rm.getAvailableNodes().find((n) => n.type === 'battle');
+      const params = rm.getBattleParams(first);
+      const roster = rm.getRoster();
+      // The map and units the player meets: BattleScene's generation, then the harness's units.
+      const battleConfig = battleConfigForNode(rm, first, params, {
+        deployCount: roster.length,
+        gameData: data,
+      });
+      const driver = new GameDriver(data, params, structuredClone(roster));
+      driver.init({ battleConfig });
+      const foes = driver.battle.enemyUnits;
+      expect(foes.every((u) => u.className === 'Fighter' && u.level === 2)).toBe(true);
+      for (const foe of foes) strengths.add(foe.stats.STR);
+    }
+    expect([...strengths].sort()).toEqual([8, 9]);
+  });
+
+  it('says so on the difficulty card', () => {
+    const lines = generateModifierSummary(data.difficulty.modes.hard);
+    expect(lines).toContain('Enemy stats +1');
+    expect(lines).toContain('Act I eases in: no enemy stat bonus');
+  });
+
+  it('a run saved before the override keeps the Act I it started with', () => {
+    const saved = JSON.parse(JSON.stringify(run('hard').toJSON()));
+    delete saved.difficultyModifiers.actOverrides;
+    const restored = RunManager.fromJSON(saved, data);
+    expect(restored.getBattleParams(node('act1')).enemyStatBonus).toBe(1);
   });
 });
 

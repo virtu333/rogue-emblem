@@ -283,7 +283,10 @@
       "revivalStones": { "actBoss": 1, "emperor": 1, "lieutenant": 2, "eliteCaptain": 0 },
       "objectiveParOffset": { "seize": -4, "escape": -2, "rout": { "act4": -2 } },
       "enemyClassEarliestAct": { "Necromancer": "act4", "Circle Adept": "finalBoss", "Hollowed": "finalBoss" },
-      "recruitAffixExcludedActs": []
+      "recruitAffixExcludedActs": [],
+      "actOverrides": {
+        "act1": { "enemyStatBonus": 0 }
+      }
     },
     "lunatic": {
       "label": "Black Sun",
