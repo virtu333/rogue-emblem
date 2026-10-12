@@ -208,6 +208,25 @@ export const EVENTS = {
     'drawn lines of crossing roads, tidy and with crossings marked by small ink crosses and ' +
     'arrows pointing the wrong ways, no words or letters at all, a long empty road in each ' +
     'direction, one road ending at a dark cliff edge, a faint warm lantern glow',
+  // Act V, the Descent (docs/specs/act-v-descent.md §7): the three events of the stair below the
+  // capital. Underground, so the road is a stair; every inscription is drawn as marks only.
+  came_this_far:
+    'the landing of an ancient stone stair deep below the capital: a great rough wall of dark ' +
+    'stone cut with row on row of tiny carved name-marks in many different hands, an untidy ' +
+    'field of scratches that cannot be read, the last row stopping halfway across; a single ' +
+    'small candle burning on the floor at the foot of the wall, one small hooded figure seen from ' +
+    'behind studying it, worn steps going down into violet dark on the left',
+  last_lantern:
+    'a narrow ancient stone stair descending into violet-black darkness, a single hooded iron ' +
+    'lantern still lit and set square in the middle of one step, its gold light pooling on the ' +
+    'worn stone, a small scrap of blank paper pinned under it; the stair continues down into ' +
+    'unlight on the left, a faint far-off ring of violet glow at the very bottom; nobody in ' +
+    'sight, still and quiet',
+  seers_last_page:
+    'a slanted wooden reading desk at the turn of a stone stair underground, stacked with many ' +
+    'identical open notebooks, their pages covered in small unreadable scribbles, a quill, an ' +
+    'ink bottle and one guttering candle, a stool pushed back, the stair turning away behind it ' +
+    'into violet dark; nobody in sight; no legible writing at all',
 };
 
 /**
@@ -242,6 +261,25 @@ export const EVENT_RETAKES = {
       'on a roadside stone milestone and picking his teeth with a nail, a blank paper pinned to the ' +
       'milestone beside him with no writing on it, a few free-company soldiers resting by a cold ' +
       'campfire in the distance, a dusk road',
+  },
+  came_this_far: {
+    from: 5,
+    subject:
+      'the landing of an ancient stone stair deep underground: a great rough wall of dark stone ' +
+      'scored from floor to ceiling with hundreds of short vertical scratches and tally strokes in ' +
+      'uneven rows, crude cut marks only, no letterforms, no glyphs, no characters, no runes and no ' +
+      'script of any kind, the last row stopping halfway across; a single small candle burning on ' +
+      'the floor at the foot of the wall, one small hooded figure seen from behind kneeling before ' +
+      'it, the left third of the picture dark worn steps going down into violet dark',
+  },
+  last_lantern: {
+    from: 5,
+    subject:
+      'inside a vaulted stone stairwell deep underground, a solid stone ceiling and walls close ' +
+      'around, no sky and no outdoor landscape anywhere, no people, no handrail: a narrow ancient ' +
+      'stair turning down into violet-black dark, one hooded iron lantern still lit and set square ' +
+      'in the middle of a step with its gold light pooling on the worn stone, a small blank scrap ' +
+      'of paper under it, and far below a faint ring of violet glow; the left third dark and empty',
   },
   hollow_herald: [
     {
