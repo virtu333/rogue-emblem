@@ -1,5 +1,5 @@
-// Acceptance, scenario 6: the Descent upright on a phone (docs/portrait-battles.md; the Descent
-// ships dark, the review routes switch it on for the page). On the two smallest upright phones,
+// Acceptance, scenario 6: the Descent upright on a phone (docs/portrait-battles.md; the review
+// routes switch the Descent on for the page, whatever the data ships). On the two smallest upright phones,
 // in the real portrait shell:
 //   - the route map: the Rite chip, its note and a boss card's Rite block, the Vigil's circle note;
 //   - the Vigil's battle: every sigil and circle marker on the board, uncovered by the rail or any

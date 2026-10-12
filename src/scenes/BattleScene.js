@@ -232,13 +232,12 @@ import { movementOptionsFor, passesHiddenUnit } from '../engine/PassMovement.js'
 import { findDanceRefreshTargets } from '../engine/ActionAbilitySystem.js';
 import {
   getTurnStartAffixes,
-  getOnDeathAffixes,
-  deathburstVictims,
   getAttackAffixes,
   rollDefenseAffixes,
   settleTeleporterWarp,
   getAffixMovBonus,
 } from '../engine/AffixSystem.js';
+import { deathburst, deathburstEffects } from '../engine/Deathburst.js';
 import { shouldAllowUndoMove } from '../engine/TradeFlow.js';
 import { completeBattleAction, revealSettledVision } from '../ui/BattleActionCompletion.js';
 import {
@@ -9570,54 +9569,55 @@ export class BattleScene extends Phaser.Scene {
       if (!isCurrentBattleSession(this, session)) return;
     }
 
-    const deathEffects = getOnDeathAffixes(unit, this.gameData.affixes);
-    const hasAoEDeathEffect = deathEffects.some((effect) => effect?.type === 'aoe_damage');
+    // Deathburst: the rule and the HP changes are engine/Deathburst.js, which the harness
+    // drives too; the scene presents each blow and removes a fallen victim before the next.
+    const hasAoEDeathEffect = deathburstEffects(unit, this.gameData.affixes).length > 0;
     if (hasAoEDeathEffect) {
       this._deathAffixChainDepth = (this._deathAffixChainDepth || 0) + 1;
     }
     try {
-      for (const effect of deathEffects) {
-        if (effect.type !== 'aoe_damage') continue;
-        // The Entity is caught beside any tile of its body (AffixSystem.deathburstVictims).
-        const victims = deathburstVictims(
-          { col: deathCol, row: deathRow },
-          [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits],
-          effect.range || 1,
-        );
-        for (const victim of victims) {
-          if (victim.currentHP <= 0) continue;
-          const { stoneBroken, bannerHeld } = damageUnitDetailed(victim, effect.amount, {
-            blessings: this._battleBlessings,
-          });
-          if (bannerHeld) this._noteBannerHold(victim);
-          safeBattlePresentation(
-            'Deathburst',
-            () => {
-              this.updateHPBar(victim);
-              if (stoneBroken) this._stoneBreakFx().playBreak(victim);
-              if (bannerHeld) this._bannerHoldFx().playHold(victim);
-              const pos = this.grid.gridToPixel(victim.col, victim.row);
-              floatCombatNumber(this, {
-                kind: 'deathburst',
-                value: effect.amount,
-                x: pos.x,
-                y: pos.y - 16,
-                reducedMotion: this._reduceMotion(),
-              });
-            },
+      const steps = deathburst(
+        unit,
+        { col: deathCol, row: deathRow },
+        {
+          affixes: this.gameData.affixes,
+          units: () => [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits],
+          battleBlessings: this._battleBlessings,
+        },
+      );
+      for (const step of steps) {
+        if (step.kind === 'burst') {
+          await safeBattlePresentation(
+            'Deathburst delay',
+            () => this._awaitSceneDelay(150, { label: 'death_affix_chain_tick' }),
             { scene: this },
           );
-          if (victim.currentHP <= 0) {
-            await this.removeUnit(victim, { killer: unit });
-            if (!isCurrentBattleSession(this, session)) return;
-          }
+          if (!isCurrentBattleSession(this, session)) return;
+          continue;
         }
-        await safeBattlePresentation(
-          'Deathburst delay',
-          () => this._awaitSceneDelay(150, { label: 'death_affix_chain_tick' }),
+        const { victim, damage, stoneBroken, bannerHeld } = step;
+        if (bannerHeld) this._noteBannerHold(victim);
+        safeBattlePresentation(
+          'Deathburst',
+          () => {
+            this.updateHPBar(victim);
+            if (stoneBroken) this._stoneBreakFx().playBreak(victim);
+            if (bannerHeld) this._bannerHoldFx().playHold(victim);
+            const pos = this.grid.gridToPixel(victim.col, victim.row);
+            floatCombatNumber(this, {
+              kind: 'deathburst',
+              value: damage,
+              x: pos.x,
+              y: pos.y - 16,
+              reducedMotion: this._reduceMotion(),
+            });
+          },
           { scene: this },
         );
-        if (!isCurrentBattleSession(this, session)) return;
+        if (victim.currentHP <= 0) {
+          await this.removeUnit(victim, { killer: unit });
+          if (!isCurrentBattleSession(this, session)) return;
+        }
       }
     } finally {
       if (isCurrentBattleSession(this, session)) {

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "enabled": false,
+  "enabled": true,
   "routeByRung": {
     "normal": "lieutenant",
     "dusk": "lieutenant",

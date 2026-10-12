@@ -193,12 +193,12 @@
   {
     "id": "guard",
     "name": "Guard",
-    "description": "+3 DEF/RES when adjacent to an ally",
+    "description": "+2 DEF/RES when adjacent to an ally",
     "trigger": "on-combat-start",
     "condition": "adjacent_ally",
     "effects": {
-      "defBonus": 3,
-      "resBonus": 3
+      "defBonus": 2,
+      "resBonus": 2
     }
   },
   {

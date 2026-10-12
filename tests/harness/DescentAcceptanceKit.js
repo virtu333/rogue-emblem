@@ -1,6 +1,6 @@
 // Shared set-up for the Descent acceptance tests (tests/harness/DescentAcceptance*.test.js and
-// tests/DescentAcceptance*.test.js): a real Descent run switched on for the test (data/descent.json
-// stays dark), its nodes won as the scene's victory commit wins them, and a node's battle played
+// tests/DescentAcceptance*.test.js): a real Descent run switched on for the test (on its own copy,
+// whatever data/descent.json ships), its nodes won as the scene's victory commit wins them, and a node's battle played
 // in the harness on the map the game generates and locks for it (BattleScene.beginBattle's calls,
 // through the sims' battleConfigForNode). Nothing here wins a battle for a test: a battle ends
 // only when its objective is met by the harness's own rules.
@@ -15,7 +15,7 @@ import { battleConfigForNode } from '../sim/RunSimulationDriver.js';
 
 export const baseData = loadGameData();
 
-/** The game's data with the Descent switched on (a copy: the shared data stays dark). */
+/** The game's data with the Descent switched on (a copy: the shared data is never touched). */
 export const descentData = () => ({
   ...baseData,
   descent: { ...structuredClone(baseData.descent), enabled: true },

@@ -215,7 +215,7 @@ describe('accessory and skill conditions count the Entity by its body', () => {
     expect(mods(crest, foe, [crest, boss], [foe]).atkBonus).toBe(0);
 
     const guard = unit('Guard', 'enemy', BESIDE_BR.col, BESIDE_BR.row, 20, { skills: ['guard'] });
-    expect(mods(guard, foe, [guard, boss], [foe]).defBonus).toBe(3);
+    expect(mods(guard, foe, [guard, boss], [foe]).defBonus).toBe(2);
     const flier = unit('Flier', 'enemy', BESIDE_BR.col, BESIDE_BR.row, 20, { skills: ['skyward'] });
     expect(mods(flier, foe, [flier], [foe]).avoidBonus).toBe(15);
     expect(mods(flier, foe, [flier, boss], [foe]).avoidBonus).toBe(0);
