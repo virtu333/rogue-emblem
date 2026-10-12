@@ -285,8 +285,15 @@ export function startTracedIdle(scene) {
         if (!g?.texture?.key?.startsWith(TRACED_PREFIX) || !g.setFrame) continue;
         // a unit mid-attack is left alone: an attack frame is showing, or the combat
         // choreography holds a pose on it (CombatFxController.setPose sets `_fxPose` for
-        // the whole strike, including the beat before it paints the pose frame)
-        if (g._fxPose || ATTACK_FRAMES.includes(g.frame?.name) || g.data?.get?.('tracedPose'))
+        // the whole strike, including the beat before it paints the pose frame); so is a
+        // unit on the march, whose frames the walk cycle runs (WalkCycleController sets
+        // `_walkCycle` for the move and puts the rest frame back when it ends)
+        if (
+          g._fxPose ||
+          g._walkCycle ||
+          ATTACK_FRAMES.includes(g.frame?.name) ||
+          g.data?.get?.('tracedPose')
+        )
           continue;
         const frame = still ? IDLE_FRAMES[0] : idleFrameAt(scene.time.now, (u.col || 0) % 4);
         if (g.frame?.name !== frame) g.setFrame(frame, false, false);
