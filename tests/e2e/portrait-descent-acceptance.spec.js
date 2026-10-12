@@ -5,7 +5,9 @@
 //   - the Vigil's battle: every sigil and circle marker on the board, uncovered by the rail or any
 //     control; the court's words floating over their Voices in a real enemy phase, inside the
 //     board and clear of the rail; the first Voice's last line in the dialogue box, whole, with
-//     its Continue control tappable; the pause list's Rite entry (the words so far, live), whole.
+//     its Continue control tappable; the pause list's Rite entry (the words so far, live), whole;
+//   - the pause list at its fullest (the highest tier's entry beside an open contract): every
+//     entry and every action whole, however the device's fonts set them.
 // Ways this can fail: something sideways-scrolls the page, a box leaves the viewport or the safe
 // area, a label is clipped, a marker or a floating line sits under the rail, or a control drops
 // below 44 px. Screenshots go to $ACCEPTANCE_SHOTS when set (else the test's output folder).
@@ -39,6 +41,8 @@ const shot = (page, name) =>
   });
 
 const VIGIL_QUERY = `&setPiece=the_vigil&act=5&difficulty=hard&descent=1&rite=${IN_SPOKEN}`;
+// The pause list's worst case: the Rite's highest tier (its longest entry) and an open contract.
+const FULLEST_PAUSE_QUERY = `&setPiece=the_vigil&act=5&difficulty=hard&descent=1&rite=${IN_ANSWERED}&contract=underPar`;
 
 /** Every marker the Vigil draws, with where its tile lands on the page and what is on top there. */
 const markerSpots = (page) =>
@@ -354,6 +358,57 @@ for (const vp of PORTRAIT_PHONES.slice(0, 2)) {
         .toEqual(['closed', 'silent']);
       for (const s of await markerSpots(page)) expect(s.onTop, `${s.id} uncovered`).toBe(true);
       await shot(page, `vigil-voice-silenced-${size}`);
+      expect(errors).toEqual([]);
+    });
+
+    // A panel a few pixels too tall for the phone once squeezed its lists to fit, and a list
+    // could end shorter than its own entry: no scroll then showed that entry whole (CI's fonts
+    // set the Rite's highest tier 3 px taller than the list left for it). Upright, the panel
+    // scrolls instead: every list at least as tall as its tallest entry, the actions unsqueezed.
+    test('the Pause list at its fullest: every entry and every action whole', async ({ page }) => {
+      const errors = pageErrors(page);
+      await quietSettings(page);
+      await openDevBattle(page, { slot: null, query: FULLEST_PAUSE_QUERY });
+      await expectPortraitUi(page);
+      await emulateSafeArea(page);
+      const entry = page.locator('.re-dialogue');
+      await entry.getByRole('button', { name: 'Skip conversation', exact: true }).tap();
+      await expect(entry).toBeHidden();
+
+      await battleRail(page).getByRole('button', { name: 'Menu', exact: true }).tap();
+      const pause = page.getByRole('dialog', { name: 'Paused' });
+      await expect(pause).toBeVisible();
+      const rows = pause.locator('.mp-burdens li');
+      await expect(rows).toHaveCount(2);
+      await expect(pause.locator('.mp-burdens li.is-rite strong')).toContainText('Answered');
+      await expect(pause.locator('.mp-burdens li.is-contract')).toHaveCount(1);
+      const fit = await pause.evaluate((panel) => {
+        const list = panel.querySelector('.mp-burdens');
+        const actions = panel.querySelector('.mp-actions');
+        return {
+          listHeight: list.clientHeight,
+          tallestEntry: Math.max(
+            ...[...list.children].map((li) => li.getBoundingClientRect().height),
+          ),
+          actionsScroll: actions.scrollHeight - actions.clientHeight,
+        };
+      });
+      expect(fit.listHeight, 'the list is never shorter than an entry').toBeGreaterThanOrEqual(
+        fit.tallestEntry - 0.5,
+      );
+      expect(fit.actionsScroll, 'the actions keep their full height').toBeLessThanOrEqual(1);
+      for (const row of await rows.all()) {
+        await row.scrollIntoViewIfNeeded();
+        await expectWholeInViewport(row);
+      }
+      expect(await clippedText(page, '.mp-burdens')).toEqual([]);
+      for (const button of await pause.locator('.mp-actions button').all())
+        await expectTappable(button);
+      await expectInsideSafeArea(page, '.mp-panel', NOTCH_PORTRAIT);
+      await expectNoSidewaysScroll(page);
+      await shot(page, `pause-fullest-${size}`);
+      await pause.getByRole('button', { name: 'Resume', exact: true }).tap();
+      await expect(pause).toBeHidden();
       expect(errors).toEqual([]);
     });
   });
