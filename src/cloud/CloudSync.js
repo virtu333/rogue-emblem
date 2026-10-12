@@ -323,7 +323,7 @@ function applyRunSlots(userId, runData, metaData, reservedAtStart = new Set()) {
       isLocalOnlyRunSave(localState.value) &&
       isOlderCopyOfRun(cloudSlot, localState.value)
     )
-      retireCloudLocalOnlyRun(userId, i, localState.value);
+      retireCloudLocalOnlyRun(userId, i, localState.value, { observed: true });
     if (!shouldKeepLocal) {
       if (!preserveCloudConflict(i, localState.value, cloudSlot, metaSlots[String(i)] ?? null)) {
         skipped.add(i);
@@ -658,19 +658,23 @@ const retiredLocalOnlyRows = new Set();
  * Remove what the cloud must not hold for a local-only run save in this slot: a local-only run
  * an earlier build pushed, or this run's own older-format copy (isOlderCopyOfRun). Any other
  * run in the row (another device's, or one without an id) is never touched: the conflict
- * choice at login handles it, as for any two runs in one slot. Checked once a session per slot
- * and run, only when the check completes (the row deleted, or found holding neither); a check
- * that failed (offline, a refused write, an error) is forgotten and runs again on the slot's
- * next local-only push. The delete waits in the run table's write queue, so a cloud-safe save
- * of the same run queued before it lands first and is then retired.
+ * choice at login handles it, as for any two runs in one slot. A routine push checks once a
+ * session per slot and run, only when the check completes (the row deleted, or found holding
+ * neither); a check that failed (offline, a refused write, an error) is forgotten and runs
+ * again on the slot's next local-only push. A fetch that saw such a copy in the row
+ * (`observed`) always checks again: another device may have saved the copy back since this
+ * session retired it. The delete waits in the run table's write queue, so a cloud-safe save of
+ * the same run queued before it lands first and is then retired; the last check to settle
+ * decides the cache.
  */
-function retireCloudLocalOnlyRun(userId, slot, run) {
+function retireCloudLocalOnlyRun(userId, slot, run, { observed = false } = {}) {
   const signature = `${userId}:${slot}:${runIdOf(run) ?? ''}`;
-  if (retiredLocalOnlyRows.has(signature)) return;
+  if (!observed && retiredLocalOnlyRows.has(signature)) return;
   retiredLocalOnlyRows.add(signature);
   const expected = (remote) => isLocalOnlyRunSave(remote) || isOlderCopyOfRun(remote, run);
   void updateSlotInTable(userId, TABLES.run, slot, null, { expected }).then((done) => {
-    if (done !== true) retiredLocalOnlyRows.delete(signature);
+    if (done === true) retiredLocalOnlyRows.add(signature);
+    else retiredLocalOnlyRows.delete(signature);
   });
 }
 
