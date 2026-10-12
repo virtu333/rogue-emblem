@@ -10,7 +10,7 @@
   "routes": {
     "lieutenant": {
       "finale": "lieutenant",
-      "levelOffset": [1, 1],
+      "levelOffset": [2, 2],
       "rows": [
         {
           "nodes": [
@@ -171,11 +171,11 @@
     }
   },
   "rite": {
-    "startByPhase": { "pale": 0, "waning": 1, "umbral": 2, "totality": 4, "hollow": 6 },
+    "startByPhase": { "pale": 3, "waning": 4, "umbral": 5, "totality": 7, "hollow": 9 },
     "bands": [
       { "id": "broken", "min": 0, "max": 4 },
-      { "id": "spoken", "min": 5, "max": 11 },
-      { "id": "answered", "min": 12 }
+      { "id": "spoken", "min": 5, "max": 9 },
+      { "id": "answered", "min": 10 }
     ],
     "mods": {
       "broken": {
@@ -188,7 +188,7 @@
         "entity": { "splashDelta": 1, "waveHollowed": 2 }
       }
     },
-    "underPar": { "column": -1 },
+    "underPar": { "column": -2 },
     "perWordLevel": 4,
     "levelCap": 4
   }

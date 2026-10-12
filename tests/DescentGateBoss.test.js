@@ -8,7 +8,11 @@ import { addBurden, isSwornEnemy } from '../src/engine/Burdens.js';
 import { actBossPickDue, isActBossVictory } from '../src/engine/EarnedBlessings.js';
 import { prepareBossRecruit } from '../src/engine/PendingBossRecruit.js';
 import { isGateBossNode, isGateBossParams } from '../src/engine/Descent.js';
-import { applyGenerationFields } from '../src/engine/BattleScout.js';
+import {
+  applyGenerationFields,
+  battleGenerationSeed,
+  generateSeededBattle,
+} from '../src/engine/BattleScout.js';
 
 const baseData = loadGameData();
 const descentData = () => ({
@@ -214,4 +218,35 @@ describe('the gate is a boss battle to the battle’s readers (§9.3)', () => {
     });
     expect(params).toMatchObject({ isBoss: true, bossName: 'The Lieutenant', bossRole: 'gate' });
   });
+});
+
+describe('the gate’s Revival Stones', () => {
+  // The rung's `lieutenant` entry reaches the Lieutenant and nobody else on this road: the
+  // Entity is never stoned, and the Vigil's captain is no boss, so no lieutenant stone sits there.
+  for (const difficultyId of ['hard', 'lunatic']) {
+    it(`${difficultyId}: the gate’s Lieutenant carries 2; the Entity and the Vigil carry none`, () => {
+      expect(baseData.difficulty.modes[difficultyId].revivalStones.lieutenant).toBe(2);
+      const rm = runIntoFinalAct(difficultyId, 9);
+      const built = (key) => {
+        const node = nodeOf(rm, key);
+        const params = applyGenerationFields(rm.getBattleParams(node), {
+          deployCount: 8,
+          isBoss: node.type === 'boss',
+        });
+        const seed = battleGenerationSeed(params, { runSeed: rm.runSeed, nodeId: node.id });
+        return generateSeededBattle(params, rm.gameData, seed);
+      };
+      const gate = built('gate');
+      const lieutenant = gate.enemySpawns.find((s) => s.isBoss);
+      expect(lieutenant.name).toBe('The Lieutenant');
+      expect(lieutenant.revivalStones).toBe(2);
+      expect(gate.enemySpawns.filter((s) => s.revivalStones > 0)).toHaveLength(1);
+
+      const entity = built('entity').enemySpawns.find((s) => s.isEntity);
+      expect(entity).toBeDefined();
+      expect('revivalStones' in entity).toBe(false);
+
+      expect(built('vigil').enemySpawns.filter((s) => s.revivalStones > 0)).toEqual([]);
+    });
+  }
 });

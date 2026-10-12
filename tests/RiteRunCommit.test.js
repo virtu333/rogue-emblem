@@ -86,19 +86,21 @@ describe('a battle’s words commit at its victory, once', () => {
 
   it('a battle whose locked map has no vigil commits no words, whatever it is handed', () => {
     const rm = runIntoDescent();
+    const start = rm.rite.words;
     const stair = nodeOf(rm, 'stair');
     expect(lockMap(rm, stair).vigil).toBeUndefined();
     rm.completeBattle(rm.getRoster(), stair.id, 0, { riteWords: 6 });
-    expect(rm.rite.words).toBe(0);
+    expect(rm.rite.words).toBe(start);
     expect(rm.rite.log).toHaveLength(1);
   });
 
   it('without a locked map (the headless sims) the node’s set piece decides', () => {
     const rm = runIntoDescent();
+    const start = rm.rite.words;
     rm.completeBattle(rm.getRoster(), nodeOf(rm, 'stair').id, 0, { riteWords: 6 });
-    expect(rm.rite.words).toBe(0);
+    expect(rm.rite.words).toBe(start);
     rm.completeBattle(rm.getRoster(), nodeOf(rm, 'vigil').id, 0, { riteWords: 6 });
-    expect(rm.rite.words).toBe(6);
+    expect(rm.rite.words).toBe(start + 6);
   });
 
   it('the Mortuary Column lowers it won at or under par, never over', () => {

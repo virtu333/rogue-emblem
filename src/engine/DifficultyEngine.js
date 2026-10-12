@@ -254,8 +254,14 @@ function routLadderGaps(routLadder) {
 /**
  * Compare a difficulty mode against DIFFICULTY_DEFAULTS and return human-readable
  * modifier summary lines. Normal mode (matching defaults) returns an empty array.
+ * `stoneKinds` limits the Revival Stones line to the kinds the rung's road meets
+ * (RevivalStoneRoad.stoneKindsOnRoad); omitted, every kind with a count is listed.
  */
-export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
+export function generateModifierSummary(
+  mode,
+  defaults = DIFFICULTY_DEFAULTS,
+  { stoneKinds = null } = {},
+) {
   if (!mode || typeof mode !== 'object') return [];
   const lines = [];
   if (mode.enemyStatBonus > (defaults.enemyStatBonus || 0)) {
@@ -374,10 +380,11 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
       lieutenant: 'the Lieutenant',
       eliteCaptain: 'elite captains',
     };
-    const parts = REVIVAL_STONE_KINDS.filter((kind) => stones[kind] > 0).map(
-      (kind) => `${label[kind]} ${stones[kind]}`,
-    );
-    lines.push(`Revival Stones (a boss refills when felled): ${parts.join(', ')}`);
+    const parts = REVIVAL_STONE_KINDS.filter(
+      (kind) => stones[kind] > 0 && (!stoneKinds || stoneKinds.includes(kind)),
+    ).map((kind) => `${label[kind]} ${stones[kind]}`);
+    if (parts.length > 0)
+      lines.push(`Revival Stones (a boss refills when felled): ${parts.join(', ')}`);
   }
   if (mode.siegeWeaponConfig) {
     const cfg = mode.siegeWeaponConfig;

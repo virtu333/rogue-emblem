@@ -28,7 +28,7 @@
 import { loadGameData } from '../tests/testData.js';
 import { resolvePriceOption } from '../src/engine/BlessingEngine.js';
 import { installSeed, restoreMathRandom } from './lib/SeededRNG.js';
-import { RunSimulationDriver } from '../tests/sim/RunSimulationDriver.js';
+import { RunSimulationDriver, battleConfigForNode } from '../tests/sim/RunSimulationDriver.js';
 import { GameDriver } from '../tests/harness/GameDriver.js';
 import { ScriptedAgent } from '../tests/agents/ScriptedAgent.js';
 import { RescueAgent, distanceFieldToAdjacent } from './lib/RescueAgent.js';
@@ -550,13 +550,18 @@ class ProtectedDriver extends RunSimulationDriver {
     // The run's blessings reach a combat only through the battle's run (Keen Eye, Hold the Line,
     // Phalanx Rite, Duelist's Creed, the act Hit price); a battle without it measures none. It is
     // handed in at construction so it is present from init() on.
+    // The map the game would generate for this node (BattleScene.beginBattle's rule).
+    const battleConfig = battleConfigForNode(rm, node, params, {
+      deployCount: deployed.length,
+      gameData: this.gameData,
+    });
     const driver = new GameDriver(
       this.gameData,
       params,
       deployed.map((u) => structuredClone(u)),
       { runManager: rm },
     );
-    driver.init();
+    driver.init({ battleConfig });
     const battle = driver.battle;
     const benched = [];
     const original = battle._removeUnit.bind(battle);
