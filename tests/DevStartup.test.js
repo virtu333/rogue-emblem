@@ -423,3 +423,49 @@ describe('the set-piece review route', () => {
     expect(battleRoute('setPiece=nowhere').data.battleParams.setPiece).toBeUndefined();
   });
 });
+
+describe('the Act V review route (&descent=1)', () => {
+  const route = (query, source = loadGameData()) => {
+    const config = parseDevStartupConfig(`?devScene=nodemap&preset=fresh&${query}`, {
+      devMode: true,
+    });
+    return { config, source, built: buildDevStartupRoute(source, createRegistry(), config) };
+  };
+
+  it('is dev routes only: production reads no config at all, whatever the query says', () => {
+    expect(
+      parseDevStartupConfig('?devScene=nodemap&descent=1&rite=7', { devMode: false }),
+    ).toBeNull();
+  });
+
+  it('enters Act V on its Descent route with the Rite and progress it was asked for', () => {
+    const { config, built } = route('descent=1&difficulty=hard&rite=7&descentRow=4&seed=42');
+    expect(config).toMatchObject({ descent: true, riteWords: 7, descentRow: 4 });
+    const rm = built.data.runManager;
+    expect(rm.currentAct).toBe('finalBoss');
+    expect(rm.nodeMap.descent).toMatchObject({ routeId: 'entity', finale: 'entity' });
+    expect(rm.rite.words).toBe(7);
+    // Rows 0..3 are walked (one node each on the road), row 4 (the gate) is next.
+    const walked = rm.nodeMap.nodes.filter((n) => n.completed).map((n) => n.row);
+    expect(walked.sort()).toEqual([0, 1, 2, 3]);
+    expect(rm.getAvailableNodes().map((n) => n.descentKey)).toEqual(['gate']);
+  });
+
+  it('switches the Descent on for this page only: the loaded data keeps it dark', () => {
+    const source = loadGameData();
+    expect(source.descent.enabled).toBe(false);
+    const { built } = route('descent=1&seed=42', source);
+    expect(built.data.gameData.descent.enabled).toBe(true);
+    expect(source.descent.enabled).toBe(false);
+    // Another review option rides along (a contract opened on the Descent's route).
+    expect(
+      route('descent=1&seed=42&contract=noLosses').built.data.runManager.contract,
+    ).toMatchObject({
+      goal: 'noLosses',
+    });
+    // Without the flag the review route is today's Act I run.
+    const plain = route('seed=42').built.data.runManager;
+    expect(plain.currentAct).toBe('act1');
+    expect(plain.rite).toBeNull();
+  });
+});

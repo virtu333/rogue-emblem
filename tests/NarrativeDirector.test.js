@@ -144,10 +144,10 @@ describe('buildNarrativeContext', () => {
       firstClear: false,
       linesPlayed: [],
       prologue: 'none',
-      roadThroughEmperor: false,
-      finale: null,
       bossRole: 'none',
       riteBand: 'none',
+      roadThroughEmperor: false,
+      finale: null,
     });
   });
 
@@ -191,10 +191,10 @@ describe('buildNarrativeContext', () => {
       firstClear: true,
       linesPlayed: [],
       prologue: 'none',
-      roadThroughEmperor: false,
-      finale: null,
       bossRole: 'none',
       riteBand: 'none',
+      roadThroughEmperor: false,
+      finale: null,
     });
   });
 

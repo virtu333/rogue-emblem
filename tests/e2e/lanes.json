@@ -101,7 +101,8 @@
         "portrait-remains.spec.js",
         "portrait-prologue.spec.js",
         "portrait-seers-eye.spec.js",
-        "portrait-start-gift.spec.js"
+        "portrait-start-gift.spec.js",
+        "portrait-descent-rite.spec.js"
       ],
       "shards": 6
     },
@@ -206,7 +207,8 @@
         "colosseum-earned-offer.spec.js",
         "earned-twist.spec.js",
         "start-gift.spec.js",
-        "village-ambush.spec.js"
+        "village-ambush.spec.js",
+        "descent-rite.spec.js"
       ]
     },
     {
