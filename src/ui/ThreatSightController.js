@@ -14,9 +14,9 @@
 // presentation RNG and nothing here draws randomness.
 //
 // Cost: a cheap key is compared each frame; the threat query runs only when the
-// focus tile, selection, turn, battle state or terrain changes, and is memoized
-// per tile against a world signature (units, ballistas and the grid's terrain
-// revision). Graphics are redrawn only when the answer changes.
+// focus tile, selection, turn, battle state, terrain or the mover's weapon reach changes,
+// and is memoized per tile against a world signature (units, ballistas and the grid's
+// terrain revision). Graphics are redrawn only when the answer changes.
 // The eye's bob is a stepped transform tween (static under Reduce Motion).
 
 import { TILE_SIZE } from '../utils/constants.js';
@@ -24,6 +24,7 @@ import { UI_HEX } from '../utils/uiStyles.js';
 import { withPresentationRandom } from '../utils/presentationRandom.js';
 import { getFootprint, isEntity } from '../engine/EntitySystem.js';
 import {
+  moverReachSignature,
   threatsOnTile,
   threatSummaryText,
   threatWorldSignature,
@@ -155,6 +156,9 @@ export class ThreatSightController {
           s.turnManager?.turnNumber ?? 0,
           s.grid?.fogEnabled ? (s.grid.visibleSet?.size ?? 0) : 0,
           s.grid?.terrainRevision ?? 0,
+          // An Equip or Trade that changes the mover's reach leaves it on its tile, but
+          // "counters from here" reads it: the line is asked again.
+          moverReachSignature(focus.unit),
         ].join('|')
       : '';
     if (!force && key === this._key) return;
@@ -204,6 +208,8 @@ export class ThreatSightController {
       ...result.damage.map((unit) => ({ unit, kind: 'damage' })),
       ...result.ballistas.map((unit) => ({ unit, kind: 'damage', ballista: true })),
       ...result.status.map((unit) => ({ unit, kind: 'status' })),
+      // The Entity cannot strike this tile but would answer a blow from it: a fainter thread, no eye.
+      ...(result.counter || []).map((unit) => ({ unit, kind: 'counter' })),
     ];
     const drawnKey = `${current.col},${current.row}|${sources
       .map((src) => `${idOf(src.unit)}:${src.kind}:${src.unit.col},${src.unit.row}`)
@@ -229,13 +235,19 @@ export class ThreatSightController {
       this._drawLine(g, from, target, kind);
     });
     for (const { unit, kind } of sources) {
+      if (kind === 'counter') continue;
       const from = this.sourcePoint(unit);
       this._placeSigil(from, kind, reduce);
     }
   }
 
   _drawLine(g, from, to, kind) {
-    const edge = kind === 'status' ? UI_HEX.threatStatus : UI_HEX.threatEdge;
+    const edge =
+      kind === 'status'
+        ? UI_HEX.threatStatus
+        : kind === 'counter'
+          ? UI_HEX.threatCounter
+          : UI_HEX.threatEdge;
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const length = Math.hypot(dx, dy);
