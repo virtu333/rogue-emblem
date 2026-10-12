@@ -30,9 +30,9 @@ Vigil's Warden is measured on its own in "The Warden".
 ## Follow-up on main (2026-10-12, after #363)
 
 Played on `main` at `2fd28474` (the Descent on) plus this PR's sim options, with fresh captures (same
-protocol, cohorts and seeds as above). The headless harness has no Deathburst yet (#366 adds it): every
-number here, before and after, plays without it, so the paired differences hold and the absolute rates
-read a little easy wherever a Deathburst foe stands.
+protocol, cohorts and seeds as above). Most numbers were played before #366 put Deathburst in the
+headless harness; the gate proposal was re-run on main with it (below), and the paired differences hold
+either way.
 
 ### First Light weak after the Warden's −2 (#359)
 
@@ -93,6 +93,10 @@ pairs run by run.
 
   The act costs about 5–7 points of KO-free play; strict wins move inside noise (on Nightfall the gate
   takes runs that would have stalled at the Entity anyway).
+- **With Deathburst (#366, main after the merge).** Fresh captures, both arms played to the end.
+  Nightfall half is unchanged to the run (no Deathburst foe decided a fight: gate 17% → 30%, Δ +12.8
+  [+3.8, +21.8]; Act V KO-free Δ −5.2). Black Sun endgame: gate 10% → 23% (61 reached), Δ +13.1
+  [+3.4, +22.8]; Act V win 21% → 21%, Δ −0.7 [−5.0, +3.7]; KO-free 33% → 29%, Δ −4.0 [−9.2, +1.2].
 - **First Light and Dusk.** The new slots never spawn there, but their two draws each are still taken
   (SetPieces' rule), so the finale's later draws (affixes, carried items) fall differently: a reroll,
   not a change in strength. Played to the end from the same entry states: First Light half meta
@@ -579,6 +583,6 @@ It runs on #337's base: it played five Dusk seeds to the end before it was stopp
   bands were moved one word to hold the §11 target for this model; if the model is re-anchored (a larger
   Home Base share for Nightfall), the bands should be read again.
 - **Elite captain levels** (#342, in this base): the Warden stands at the elite rule; see "The Warden".
-- **No Deathburst in the harness** until #366: a sim kill beside a Deathburst foe leaves the attacker
-  untouched. Every arm plays without it, so the paired differences stand; absolute survival reads a
-  little high wherever an affixed foe carries it.
+- **No Deathburst in the harness** before #366: a sim kill beside a Deathburst foe left the attacker
+  untouched. Every number above "Follow-up on main" (and most in it) plays without it; every arm does,
+  so the paired differences stand. The gate proposal's re-run with it moved nothing beyond noise.
