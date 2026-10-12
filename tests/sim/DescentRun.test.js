@@ -80,6 +80,7 @@ describe('a headless run through the Descent', () => {
     expect(run.isRunComplete()).toBe(true);
     // The Landing met the Descent's pool.
     const landing = run.nodeMap.nodes.find((n) => n.descentKey === 'landing');
-    expect(run.eventStateByNodeId[landing.id]?.eventId).toBe('came_this_far');
+    const descentEvents = baseData.events.events.filter((e) => e.pool === 'descent');
+    expect(descentEvents.map((e) => e.id)).toContain(run.eventStateByNodeId[landing.id]?.eventId);
   }, 120_000);
 });

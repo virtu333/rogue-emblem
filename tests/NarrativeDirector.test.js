@@ -146,6 +146,8 @@ describe('buildNarrativeContext', () => {
       prologue: 'none',
       roadThroughEmperor: false,
       finale: null,
+      bossRole: 'none',
+      riteBand: 'none',
     });
   });
 
@@ -191,6 +193,8 @@ describe('buildNarrativeContext', () => {
       prologue: 'none',
       roadThroughEmperor: false,
       finale: null,
+      bossRole: 'none',
+      riteBand: 'none',
     });
   });
 
@@ -210,6 +214,7 @@ describe('KNOWN_WHEN_KEYS', () => {
     expect([...KNOWN_WHEN_KEYS].sort()).toEqual([
       'bossKilledYouBefore',
       'bossMetBefore',
+      'bossRole',
       'bossSlainBefore',
       'commander',
       'commanderHasEpithet',
@@ -224,6 +229,7 @@ describe('KNOWN_WHEN_KEYS', () => {
       'minRunsCompleted',
       'partner',
       'prologue',
+      'riteBand',
       'roadThroughEmperor',
     ]);
   });

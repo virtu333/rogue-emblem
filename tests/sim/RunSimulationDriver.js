@@ -181,6 +181,8 @@ export class RunSimulationDriver {
       gold: this.runManager.gold,
       rosterSize: this.runManager.roster.length,
       fallenCount: this.runManager.fallenUnits.length,
+      // The Rite's words at the end (null off the Descent): sims report the finale's tier.
+      riteWords: this.runManager.rite?.words ?? null,
       metrics: { ...this.metrics },
       trace: [...this.trace],
     };
@@ -319,6 +321,8 @@ export class RunSimulationDriver {
     const applied = this.runManager.completeBattle(merged, node.id, driver.battle.goldEarned || 0, {
       turnCount: driver.battle.turnManager?.turnNumber || 0,
       turnPar: Number.isFinite(driver.battle.turnPar) ? driver.battle.turnPar : null,
+      // The Vigil's words, committed to the run's Rite (engine/Rite.js) as the scene does.
+      riteWords: driver.battle._vigilState?.words ?? 0,
     });
     this.metrics.eclipseFalls += this.runManager.lastEclipseCommit?.fell?.length || 0;
     // A contract settles with the victory (engine/ContractSettlement.js): count how it went.

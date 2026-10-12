@@ -2,6 +2,8 @@
 //
 // A battle's music answers the most specific thing true of it:
 //   1. a boss plays its theme (the antagonists' own, else the act's)
+//   1b. the Descent (Act V, act-v-descent §8): a map holding the Vigil plays the Vigil's theme
+//      (`descent.vigil`), every other battle of the act the Descent's (`descent.battle`)
 //   2. an escape map plays a pursuit theme
 //   3. a node the Eclipse has taken, a village under attack, a recruit to
 //      rescue, an elite company: each has its own theme
@@ -107,13 +109,17 @@ export function battleMusicContext({ battleParams, battleConfig, runSeed, isElit
     isFog: params.fogEnabled === true,
     isRecruitBattle: params.isRecruitBattle === true,
     isEclipsed: params.isEclipsed === true,
+    // Act V (the Descent): every battle there is one of its own; the Vigil's map says so.
+    isDescent: (params.act || 'act1') === 'finalBoss',
+    isVigil: Boolean(battleConfig?.vigil),
   };
 }
 
 /**
  * The music key for a non-boss battle (bosses are chosen by the caller).
  * @param {object} ctx from battleMusicContext
- * @param {{ battle: object, escape?: *, battleBiome?: object, battleSituation?: object }} table
+ * @param {{ battle: object, escape?: *, battleBiome?: object, battleSituation?: object,
+ *   descent?: { battle?: string, vigil?: string } }} table
  *   escape, place and situation entries are a key, a pool, or a table of either by act
  * @returns {{ key: string|null, reason: string }}
  */
@@ -124,6 +130,11 @@ export function selectBattleMusic(ctx, table) {
   const seed = `${c.seed ?? 0}|${c.nodeKey ?? ''}`;
   const theme = (name) => resolveTheme(situation[name], c, name, seed);
 
+  // The Descent's own: the Vigil first (its map carries the vigil wherever it is fought), then
+  // every other battle of Act V. Bosses never reach here (the caller plays their theme).
+  if (c.isVigil && table?.descent?.vigil) return { key: table.descent.vigil, reason: 'vigil' };
+  if (c.isDescent && table?.descent?.battle)
+    return { key: table.descent.battle, reason: 'descent' };
   const escape = c.objective === 'escape' ? resolveTheme(table?.escape, c, 'escape', seed) : null;
   if (escape) return { key: escape, reason: 'escape' };
   if (c.isEclipsed && theme('eclipsed')) return { key: theme('eclipsed'), reason: 'eclipsed' };
