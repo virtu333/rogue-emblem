@@ -94,6 +94,7 @@
         "portrait-rail.spec.js",
         "portrait-formation-inspect.spec.js",
         "portrait-screens.spec.js",
+        "portrait-pause.spec.js",
         "portrait-journey.spec.js",
         "portrait-rotation.spec.js",
         "portrait-remains.spec.js",
