@@ -38,12 +38,14 @@ import { detectMobileRuntime } from '../utils/runtimeFlags.js';
 import { UI_DEPTHS } from '../utils/uiDepths.js';
 import { withPresentationRandom } from '../utils/presentationRandom.js';
 import { safeBattlePresentation } from './safeBattlePresentation.js';
+import { devRoutesEnabled } from '../utils/devStartup.js';
 
 const TEXTURE_PREFIX = 'weather_';
 const SHAPE_SIZES = Object.freeze({ streak: [1, 12], dot: [2, 2], soft: [4, 4] });
 
+// Dev routes only (as `?devScene=` is: dev builds and deploy previews).
 function devWeather() {
-  if (!import.meta.env?.DEV) return null;
+  if (!devRoutesEnabled()) return null;
   const value = new URLSearchParams(globalThis.location?.search || '').get('weather');
   return WEATHER_KINDS.includes(value) ? value : null;
 }
