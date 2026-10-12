@@ -12,7 +12,8 @@ import { isEntity, getEntityCenter } from '../engine/EntitySystem.js';
 // faction's colour with its HP bar, which the fog, moves and death treat as any sprite. If even
 // the marker cannot be drawn, the unit is noted, and at the next player turn's checkpoint the
 // battle asks for a reload (Resume Battle draws it again) rather than let the player go on
-// against a unit they cannot see.
+// against a unit they cannot see. A resume and a Vision rewind redraw their roster through here
+// too, and ask the same once the restored state is saved.
 
 const PARTS = ['graphic', 'label', 'factionIndicator', 'hpBar', 'affixPips'];
 const undrawn = new WeakMap(); // scene -> Set of units with nothing drawn

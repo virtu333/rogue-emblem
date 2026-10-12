@@ -19,6 +19,7 @@ import { BattleScene } from '../src/scenes/BattleScene.js';
 import { AIController } from '../src/engine/AIController.js';
 import { TurnManager } from '../src/engine/TurnManager.js';
 import { BattleSuspendController } from '../src/ui/BattleSuspendController.js';
+import { VisionRewindController } from '../src/ui/VisionRewindController.js';
 import { TERRAIN } from '../src/utils/constants.js';
 import { HeadlessGrid } from './harness/HeadlessGrid.js';
 import { journeyBattleScene } from './harness/JourneyBattleScene.js';
@@ -890,5 +891,165 @@ describe('an arrival nothing can draw', () => {
     const before = renderer.made.length;
     guardUndrawnUnits(scene);
     expect(renderer.made.length).toBe(before); // never drawn for a unit that is gone
+  });
+});
+
+// ── Resume and Vision rewind redraw every unit ─────────────────────────────────
+// A resume (BattleSuspendController.applyUnits) and a rewind (VisionRewindController) rebuild the
+// whole roster and draw each unit. Realistic ways this breaks: one sprite throwing aborts the
+// restore halfway (the units after it never come back, the rest of the resume or rewind never
+// runs), a half-built sprite is left, or a unit nothing can draw is played against anyway.
+
+const CHECKPOINT_UNITS = (() => {
+  Math.random = createBattleRng(23);
+  try {
+    return {
+      playerUnits: [
+        serializeBattleUnit({ ...structuredClone(ROSTER.edric), battleEntityId: 'u1' }),
+      ],
+      enemyUnits: [
+        serializeBattleUnit({ ...fighter(2, 2), battleEntityId: 'u2' }),
+        serializeBattleUnit({ ...fighter(3, 2), battleEntityId: 'u3' }),
+      ],
+      npcUnits: [],
+      nextEntityId: 4,
+    };
+  } finally {
+    Math.random = originalRandom;
+  }
+})();
+
+/** Each unit on the board is drawn whole, and nothing a failed sprite made is left. */
+function expectAllDrawn(scene, drawnBy) {
+  for (const unit of [...scene.playerUnits, ...scene.enemyUnits]) {
+    const parts = partsOf(unit);
+    expect(unit.graphic?.destroyed, `${unit.name}: graphic`).toBe(false);
+    expect(unit.hpBar?.fill?.destroyed, `${unit.name}: HP bar`).toBe(false);
+    for (const part of parts) expect(part.destroyed).toBe(false);
+    const owned = new Set(parts);
+    for (const object of drawnBy.get(unit) || [])
+      if (!owned.has(object)) expect(object.destroyed, `leaked ${object.kind}`).toBe(true);
+  }
+}
+
+const attemptsOf = (drawnBy, scene) => {
+  const counts = new Map();
+  const draw = scene.addUnitGraphic;
+  scene.addUnitGraphic = function (unit) {
+    counts.set(unit.battleEntityId, (counts.get(unit.battleEntityId) || 0) + 1);
+    return draw.call(this, unit);
+  };
+  return counts;
+};
+
+describe('a resume whose sprites fail to draw', () => {
+  const resumeScene = () => {
+    const fixture = drawnFixture({ enemies: [] });
+    fixture.scene.playerUnits = [];
+    Object.assign(fixture.scene, {
+      reseedBattleRng: vi.fn(),
+      updateVisionHud: vi.fn(),
+      refreshEndTurnControl: vi.fn(),
+      getTurnPressureSummary: () => '',
+      turnManager: { currentPhase: 'player', turnNumber: TURN },
+    });
+    return fixture;
+  };
+  const checkpoint = () => ({
+    ...structuredClone(CHECKPOINT_UNITS),
+    phase: 'player',
+    turnNumber: TURN,
+    rngSeed: SEED,
+  });
+
+  it('brings every unit back drawn, whichever drawing call fails', () => {
+    const { scene: probe, renderer: probeRenderer } = resumeScene();
+    new BattleSuspendController(probe).applyUnits(checkpoint());
+    const calls = probeRenderer.made.length;
+    for (let nth = 1; nth <= calls; nth++) {
+      const { scene, renderer, drawnBy } = resumeScene();
+      renderer.failNext(nth);
+      new BattleSuspendController(scene).applyUnits(checkpoint());
+      expect(
+        scene.enemyUnits.map((u) => u.battleEntityId),
+        `call ${nth}`,
+      ).toEqual(['u2', 'u3']);
+      expect(scene.playerUnits.map((u) => u.battleEntityId)).toEqual(['u1']);
+      expectAllDrawn(scene, drawnBy);
+    }
+  });
+
+  it('nothing drawable: the resume completes and tries each unit again before play', () => {
+    const { scene, renderer, drawnBy } = resumeScene();
+    const attempts = attemptsOf(drawnBy, scene);
+    renderer.failAll();
+    const controller = new BattleSuspendController(scene);
+    const cp = checkpoint();
+    controller.applyUnits(cp);
+    controller.finalizeResume(cp);
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+    expect([...attempts.entries()]).toEqual([
+      ['u1', 2],
+      ['u2', 2],
+      ['u3', 2],
+    ]);
+    for (const unit of [...scene.playerUnits, ...scene.enemyUnits]) expect(unit.graphic).toBeNull();
+  });
+});
+
+describe('a Vision rewind whose sprites fail to draw', () => {
+  const rewindScene = () => {
+    const fixture = drawnFixture({ enemies: [ROSTER.foe, { ...ROSTER.foe, col: 3, row: 2 }] });
+    const { scene } = fixture;
+    Object.assign(scene, {
+      battleState: 'PLAYER_IDLE',
+      turnManager: { currentPhase: 'player', turnNumber: TURN, endPlayerPhase: vi.fn() },
+      cameras: { main: { width: 640, height: 480, centerX: 320, centerY: 240 } },
+      hideForecast: vi.fn(),
+      hideActionMenu: vi.fn(),
+      cleanupTradeUI: vi.fn(),
+      reseedBattleRng: vi.fn(),
+      refreshEndTurnControl: vi.fn(),
+      updateTopLeftHudLayout: vi.fn(),
+      isStoryInputLocked: () => false,
+      getBestLordThroneDistance: () => 5,
+      getTurnPressureSummary: () => '',
+      aiController: { setAggressiveMode: vi.fn() },
+      antiTurtleState: {},
+      ballistas: [],
+      _captureSuspendCheckpoint: vi.fn(),
+    });
+    Object.assign(scene.grid, { clearHighlights() {}, clearPath() {} });
+    const vision = new VisionRewindController(scene, null);
+    scene._visionController = vision;
+    vision.captureSnapshot();
+    vision.playRewindEffect = () => {};
+    return fixture;
+  };
+
+  it('restores every unit drawn, whichever drawing call fails', () => {
+    const { scene: probe, renderer: probeRenderer } = rewindScene();
+    const before = probeRenderer.made.length;
+    expect(probe.applyVisionSnapshot()).toBe(true);
+    const calls = probeRenderer.made.length - before;
+    expect(calls).toBeGreaterThan(3);
+    for (let nth = 1; nth <= calls; nth++) {
+      const { scene, renderer, drawnBy } = rewindScene();
+      renderer.failNext(nth);
+      expect(scene.applyVisionSnapshot(), `call ${nth}`).toBe(true);
+      expect(scene.enemyUnits).toHaveLength(2);
+      expect(scene.playerUnits).toHaveLength(1);
+      expectAllDrawn(scene, drawnBy);
+    }
+  });
+
+  it('nothing drawable: the rewind completes and tries each unit again once it is saved', () => {
+    const { scene, renderer, drawnBy } = rewindScene();
+    const attempts = attemptsOf(drawnBy, scene);
+    renderer.failAll();
+    expect(scene.applyVisionSnapshot()).toBe(true);
+    expect(scene._captureSuspendCheckpoint).toHaveBeenCalled();
+    expect(attempts.size).toBe(3);
+    for (const count of attempts.values()) expect(count).toBe(2);
   });
 });

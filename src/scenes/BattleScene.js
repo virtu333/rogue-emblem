@@ -3021,6 +3021,7 @@ export class BattleScene extends Phaser.Scene {
     // Re-checkpoint the rewound state so a refresh resumes at the restored
     // turn start (with the Vision charge spend locked in alongside it).
     if (applied) this._captureSuspendCheckpoint?.({ session: session });
+    if (applied) guardUndrawnUnits(this); // a unit nothing could draw asks for a reload
     return applied;
   }
 
