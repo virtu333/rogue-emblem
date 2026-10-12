@@ -241,7 +241,7 @@ export class NodeMapScene extends Phaser.Scene {
       void audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this);
     }
     // Picks up the deferred assets if the title was left before they had loaded.
-    startDeferredAssetWarmup(this);
+    startDeferredAssetWarmup(this, { resumeOnly: true });
 
     this._bindInputHandlers();
     // Gamepad: a cursor over the available nodes, registered on the input-focus

@@ -1,6 +1,7 @@
 // The deferred-asset warm-up (utils/assetWarmup.js) runs on the loader of the scene that
 // started it, and Phaser drops that loader's queue when the scene shuts down. A scene left
 // early hands the warm-up back, and the next scene that asks loads only what is missing.
+// Only the title starts one; the route map, Home Base and a battle resume one handed back.
 import { describe, it, expect, vi } from 'vitest';
 import { startDeferredAssetWarmup } from '../src/utils/assetWarmup.js';
 
@@ -65,15 +66,44 @@ describe('startDeferredAssetWarmup', () => {
     expect(registry.get('deferredAssetWarmupStarted')).toBe(false);
 
     const battle = makeScene(registry, audioCache);
-    startDeferredAssetWarmup(battle, { batchSize: 2 });
+    startDeferredAssetWarmup(battle, { batchSize: 2, resumeOnly: true });
     expect(battle.queued).toEqual(['b', 'c']);
     battle.finishBatch(['b', 'c']);
     expect(registry.get('deferredAssetWarmupDone')).toBe(true);
     // Done is done: a later scene starts nothing.
     battle.shutDown();
     const map = makeScene(registry, audioCache);
-    startDeferredAssetWarmup(map);
+    startDeferredAssetWarmup(map, { resumeOnly: true });
     expect(map.queued).toEqual([]);
+  });
+
+  it('a scene reached without the title (a dev route) starts no warm-up of its own', () => {
+    const registry = makeRegistry({ deferredAssets: [asset('a')] });
+    const battle = makeScene(registry, new Set());
+    startDeferredAssetWarmup(battle, { resumeOnly: true });
+    expect(battle.queued).toEqual([]);
+    expect(registry.get('deferredAssetWarmupStarted')).toBeFalsy();
+  });
+
+  it('a warm-up resumed and finished is not handed on again', () => {
+    const audioCache = new Set();
+    const registry = makeRegistry({ deferredAssets: [asset('a'), asset('b')] });
+    const title = makeScene(registry, audioCache);
+    startDeferredAssetWarmup(title, { batchSize: 1 });
+    title.shutDown();
+    const map = makeScene(registry, audioCache);
+    startDeferredAssetWarmup(map, { batchSize: 1, resumeOnly: true });
+    expect(map.queued).toEqual(['a']);
+    // The map leaves too: the battle after it picks the rest up.
+    map.shutDown();
+    const battle = makeScene(registry, audioCache);
+    startDeferredAssetWarmup(battle, { batchSize: 2, resumeOnly: true });
+    expect(battle.queued).toEqual(['a', 'b']);
+    battle.finishBatch(['a', 'b']);
+    battle.finishBatch([]);
+    expect(registry.get('deferredAssetWarmupDone')).toBe(true);
+    battle.shutDown();
+    expect(registry.get('deferredAssetWarmupHandedBack')).toBe(false);
   });
 
   it('runs once at a time: a second scene asking while one is warming up starts nothing', () => {

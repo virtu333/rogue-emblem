@@ -29,10 +29,13 @@ function queueAsset(scene, asset) {
 // The warm-up runs on the loader of the scene that started it, and Phaser drops a
 // loader's queue when its scene shuts down. So a scene that leaves before the warm-up is
 // done hands it back (the flag clears) and the next scene that asks picks up what is
-// still missing: Title, the route map, Home Base and a battle all ask.
+// still missing. Title starts it; the route map, Home Base and a battle pass
+// `resumeOnly` and pick up only a warm-up handed back, so a dev route that skips the
+// title loads nothing behind the page it opened.
 export function startDeferredAssetWarmup(scene, options = {}) {
   if (typeof scene?.registry?.get !== 'function') return;
   if (scene.registry.get('deferredAssetWarmupStarted')) return;
+  if (options.resumeOnly && !scene.registry.get('deferredAssetWarmupHandedBack')) return;
   const deferred = scene.registry.get('deferredAssets');
   if (!Array.isArray(deferred) || deferred.length === 0) return;
 
@@ -40,6 +43,7 @@ export function startDeferredAssetWarmup(scene, options = {}) {
   const delayMs = Number.isFinite(options.delayMs) ? options.delayMs : 200;
   let active = true;
   scene.registry.set('deferredAssetWarmupStarted', true);
+  scene.registry.set('deferredAssetWarmupHandedBack', false);
   markStartup('deferred_asset_warmup_start', { total: deferred.length, batchSize });
 
   const runBatch = () => {
@@ -75,6 +79,7 @@ export function startDeferredAssetWarmup(scene, options = {}) {
     active = false;
     if (!scene.registry.get('deferredAssetWarmupDone')) {
       scene.registry.set('deferredAssetWarmupStarted', false);
+      scene.registry.set('deferredAssetWarmupHandedBack', true);
       markStartup('deferred_asset_warmup_handed_back');
     }
   });

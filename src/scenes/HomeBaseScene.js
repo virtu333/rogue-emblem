@@ -184,7 +184,7 @@ export class HomeBaseScene extends Phaser.Scene {
     const audio = this.registry.get('audio');
     if (audio) audio.playMusic(MUSIC.homeBase, this);
     // Picks up the deferred assets if the title was left before they had loaded.
-    startDeferredAssetWarmup(this);
+    startDeferredAssetWarmup(this, { resumeOnly: true });
 
     if (this._corruptRunDetected) {
       showMinorHint(this, 'Save data could not be loaded. Starting fresh for this slot.');

@@ -2319,9 +2319,11 @@ export class BattleScene extends Phaser.Scene {
         // After a turn of the phone the track plays on: ease its calm/full level.
         intensityFadeMs: this._presentationSwitch ? 600 : 0,
       });
-      // The deferred assets (a dev route never passes the title; a quick tap past it
-      // hands the warm-up on), after the battle's music has had the line to itself.
-      this.time?.delayedCall?.(BATTLE_WARMUP_DELAY_MS, () => startDeferredAssetWarmup(this));
+      // A warm-up the title handed on (a quick tap past it), after the battle's music has
+      // had the line to itself.
+      this.time?.delayedCall?.(BATTLE_WARMUP_DELAY_MS, () =>
+        startDeferredAssetWarmup(this, { resumeOnly: true }),
+      );
 
       // Initial fog of war update
       if (this.grid.fogEnabled) {
