@@ -208,7 +208,7 @@ export class AbilityController {
         id: 'back',
         label: 'Back',
         color: UI_PALETTE.text,
-        invoke: () => scene.requestCancel({ allowPause: false }),
+        invoke: () => scene.requestCancel({ allowPause: false, cancelAction: true }),
       }),
     ];
 

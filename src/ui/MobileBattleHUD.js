@@ -321,7 +321,7 @@ export class MobileBattleHUD {
       if (event.key === 'Escape') {
         event.preventDefault();
         event.stopPropagation();
-        this.scene.requestCancel();
+        this.scene.requestCancel({ cancelAction: true });
         return;
       }
       if (!this.menu || !isUnitMenuState(this.scene.battleState)) return;
@@ -522,7 +522,9 @@ export class MobileBattleHUD {
       );
     panel.append(sides);
     const footer = el('div', 'mb-forecast-footer');
-    const cancel = this.button('Cancel', () => this.scene.requestCancel({ allowPause: false }));
+    const cancel = this.button('Cancel', () =>
+      this.scene.requestCancel({ allowPause: false, cancelAction: true }),
+    );
     cancel.dataset.forecastRole = 'cancel';
     const confirm = this.button(
       'Confirm attack',
@@ -550,7 +552,7 @@ export class MobileBattleHUD {
       event.stopPropagation();
       if (event.key === 'Escape') {
         event.preventDefault();
-        if (this.available()) this.scene.requestCancel({ allowPause: false });
+        if (this.available()) this.scene.requestCancel({ allowPause: false, cancelAction: true });
       } else if (
         (event.key === 'ArrowLeft' || event.key === 'ArrowRight') &&
         config.validWeapons.length > 1 &&
@@ -609,7 +611,10 @@ export class MobileBattleHUD {
         else if (action === InputAction.CONFIRM && panel.contains(document.activeElement))
           document.activeElement.click();
         else if ([InputAction.CANCEL, InputAction.PAUSE].includes(action))
-          this.scene.requestCancel({ allowPause: false });
+          this.scene.requestCancel({
+            allowPause: false,
+            cancelAction: action === InputAction.CANCEL,
+          });
         else if (action === InputAction.PREV_UNIT) this.scene._cycleForecastWeapon(-1);
         else if (action === InputAction.NEXT_UNIT) this.scene._cycleForecastWeapon(1);
       },
@@ -1445,7 +1450,7 @@ export class MobileBattleHUD {
         if (s.battleState !== 'UNIT_SELECTED' || s.selectedUnit !== selected) return;
         // One press deselects, even while an enemy is being inspected.
         s._inputController?.clearPlanningInspection?.();
-        s.requestCancel({ allowPause: false });
+        s.requestCancel({ allowPause: false, cancelAction: true });
       },
       'mb-cancel-selection',
     );
