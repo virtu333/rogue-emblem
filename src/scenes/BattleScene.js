@@ -582,6 +582,7 @@ export class BattleScene extends Phaser.Scene {
     // Back from the Roster opened on the formation screen (FormationRoster.js): who
     // deploys and where they stood, so the screen opens as the player left it.
     this._formationReturn = data.formationReturn || null;
+    this._battleEntrySave = null;
     this._formationRoster = null;
     this._keepMusicOnShutdown = false;
     this._portraitBattle = null;
@@ -1723,7 +1724,8 @@ export class BattleScene extends Phaser.Scene {
           isBoss: this.isBoss,
           isElite: this.isElite,
         });
-        this._persistBattleRunState?.(null, { session: session });
+        // Kept for the formation's word on a return from its Roster (FormationRoster.js).
+        this._battleEntrySave = this._persistBattleRunState?.(null, { session: session });
       }
 
       // Create player units. A prologue chapter's authored roster (built by the title)
