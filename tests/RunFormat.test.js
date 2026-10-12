@@ -4,8 +4,8 @@
 // Tests 19, 23, 25, 26 and the detection half of 27 (§13). The cloud hold-back is
 // CloudSyncFormatLocal.test.js; the key census is harness/RunFormatRegistry.test.js.
 //
-// No writer exists yet (each lands with its own spec's PR), so the mechanics below are planted by
-// hand in the shapes the specs name. Test 23's boss-kit fixture is planted the same way until
+// No large-maps writer exists yet (each lands with its own spec's PR), so the mechanics below are
+// planted by hand in the shapes the specs name. Test 23's boss-kit fixture is planted the same way until
 // 05 K1 compiles a real kit; its states and the fields each one holds follow 05 §7.2 / §9.5.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadGameData } from './testData.js';
@@ -69,7 +69,7 @@ const battleNode = (run) => run.nodeMap.nodes.find((n) => n.type === 'battle' &&
 const ids = (saved) => requiredRunFormat(saved).capabilities;
 
 describe('the capability table', () => {
-  it('every capability needs format 2, and this build plays none of them', () => {
+  it('every capability needs format 2, and this build plays only the Descent’s', () => {
     expect(RUN_FORMAT).toBe(2);
     expect(LEGACY_RUN_FORMAT).toBe(1);
     expect(CAPABILITY_IDS).toEqual([
@@ -80,10 +80,15 @@ describe('the capability table', () => {
       'bossKit',
       'arena',
       'setPiece',
+      'descent',
+      'rite',
+      'vigil',
+      'defeatObjective',
     ]);
     for (const id of CAPABILITY_IDS) expect(RUN_CAPABILITIES[id]).toBe(2);
-    // No writer has shipped: a client never writes what it can't read (test 24).
-    expect(CLIENT_CAPABILITIES).toEqual([]);
+    // The Descent's writers have shipped (dark); no large-maps writer has. A client never writes
+    // what it can't read (test 24). RunFormatDescent.test.js holds the Descent's ids.
+    expect(CLIENT_CAPABILITIES).toEqual(['descent', 'rite', 'vigil', 'defeatObjective']);
   });
 
   it('every registry entry is a capability id or one of the named classes', () => {

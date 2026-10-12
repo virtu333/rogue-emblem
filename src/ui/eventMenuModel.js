@@ -14,6 +14,7 @@ import { describeBurdens } from '../engine/Burdens.js';
 import { describeContract, describeOwedContract } from '../engine/Contracts.js';
 import { describeResult, num, plural, sentence, wornText } from '../engine/EventResultWords.js';
 import { choicePreviewText } from '../engine/EventChoicePreview.js';
+import { riteBurdenEntry } from './riteModel.js';
 
 // The words of a result record live in the engine (EventResultWords), shared with the
 // contract's victory band; these two are re-exported for the pages that already import them.
@@ -41,6 +42,7 @@ export const RESULT_CHIPS = Object.freeze({
   wear: 'WEAR',
   mend: 'MEND',
   earnedBlessing: 'EARNED',
+  rite: 'RITE',
 });
 
 /**
@@ -301,18 +303,23 @@ export function owedContractChipModel(owed) {
 
 /**
  * The pause menu's list of what weighs on the run: every burden (Burdens.describeBurdens) and the
- * open contract, each { id, label, short, line?, detail?, text? } (`text` replaces `line detail.`).
+ * open contract, each { id, label, short, line?, detail?, text? } (`text` replaces `line detail.`),
+ * and in the Descent the Rite first.
  * @param {object} run - RunManager
  * @param {object} [catalog] - the events catalog (burden definitions)
+ * @param {object} [riteOpts] - riteChipModel's options: `live`, a battle in progress
  */
-export function pauseBurdenEntries(run, catalog = null) {
+export function pauseBurdenEntries(run, catalog = null, riteOpts = undefined) {
   const burdens = describeBurdens(run, catalog);
   const contract =
     contractChipModel(describeContract(run)) || owedContractChipModel(describeOwedContract(run));
-  return contract
-    ? [
-        ...burdens,
-        { id: 'contract', label: contract.label, short: contract.short, text: contract.terms },
-      ]
-    : burdens;
+  // The Descent's Rite (riteModel.js) leads the list: a state of the act, not a price of an event.
+  const rite = riteBurdenEntry(run, riteOpts);
+  return [
+    ...(rite ? [rite] : []),
+    ...burdens,
+    ...(contract
+      ? [{ id: 'contract', label: contract.label, short: contract.short, text: contract.terms }]
+      : []),
+  ];
 }

@@ -56,6 +56,11 @@
 //               a wound a small negative; a `wounded` effect with no scope or stat
 //   dark        a `dark` block (the Dark Omen face: { intro, choices, pages? }) that is not an object,
 //               has an unknown key, or fails the plain face's rules (soft-locks included)
+// Act V (docs/specs/act-v-descent.md §9.6):
+//   pools       an event in `finalBoss` with no `pool`; a pooled event whose `acts` are not exactly
+//               ["finalBoss"], a malformed pool id, the fallback pooled, a routeEdit, contract or
+//               join anywhere in a pooled event (the Descent's road is authored and ends the run)
+//   rite        a `rite` effect outside a pooled finalBoss event, or a delta that is not ±1 to ±3
 
 import {
   BEST_STAT_CHOICES,
@@ -66,6 +71,7 @@ import {
 } from './EventEffects.js';
 import {
   EVENT_ACTS,
+  EVENT_ACT_IDS,
   FILTER_KEYS,
   FLAG_ACT_KEYWORDS,
   REQUIRES_KEYS,
@@ -82,7 +88,7 @@ import { CONTRACT_EFFECT_TYPES, CONTRACT_GOALS } from './Contracts.js';
 import { joinClassBlock } from './EventJoin.js';
 import { REDRAW_TYPES } from './RouteEdit.js';
 import { TELL_WHEN_KEYS } from './EventTells.js';
-import { findSetPiece } from './SetPieces.js';
+import { findSetPiece, hasBossSlot } from './SetPieces.js';
 import {
   BURDEN_IDS,
   HUNTED_COUNT_MAX,
@@ -110,6 +116,8 @@ export const EVENT_TEXT_LIMITS = Object.freeze({
 });
 
 const HP_SCOPES = ['target', 'all', 'commander', 'randomUnit'];
+/** Effects a pooled (Descent) event may not hold (checkPool). */
+const POOLED_EVENT_BANNED_EFFECTS = Object.freeze(['routeEdit', 'contract', 'join']);
 const ITEM_DESTINATIONS = ['target', 'auto', 'convoy'];
 /** What a wound may name: a stat, `random` (seeded) or `attack` (the unit's STR or MAG). */
 const WOUND_STAT_CHOICES = [...WOUND_STATS, 'random', 'attack'];
@@ -398,8 +406,8 @@ export function validateEventsConfig(config, data = {}) {
         continue;
       }
       if (key === 'acts') {
-        if (!Array.isArray(value) || value.some((a) => !EVENT_ACTS.includes(a)))
-          err(where, '`requires.acts` must list act1-act4');
+        if (!Array.isArray(value) || value.some((a) => !EVENT_ACT_IDS.includes(a)))
+          err(where, '`requires.acts` must list act1-act4 or finalBoss');
       } else if (key === 'difficultyAtLeast' || key === 'difficultyAtMost') {
         if (!DIFFICULTY_IDS.includes(value)) err(where, `unknown rung "${value}" in ${key}`);
       } else if (key === 'phaseAtLeast' || key === 'phaseAtMost') {
@@ -433,7 +441,7 @@ export function validateEventsConfig(config, data = {}) {
         if (typeof value !== 'string' || !value)
           err(where, `\`requires.${key}\` must be a flag key`);
       } else if (key === 'flagAct') {
-        if (!FLAG_ACT_KEYWORDS.includes(value) && !EVENT_ACTS.includes(value))
+        if (!FLAG_ACT_KEYWORDS.includes(value) && !EVENT_ACT_IDS.includes(value))
           err(where, `\`requires.flagAct\` must be ${FLAG_ACT_KEYWORDS.join(', ')} or an act id`);
         if (requires.flag === undefined) err(where, '`requires.flagAct` needs `requires.flag`');
       } else if (key === 'counterAtLeast') {
@@ -659,6 +667,19 @@ export function validateEventsConfig(config, data = {}) {
         if (!isInt(effect.value) || effect.value === 0)
           err(where, 'vision.value must be a non-zero whole number');
         break;
+      case 'rite':
+        // The court circle's words (engine/Rite.js): only the Descent has a Rite, so only a
+        // pooled Descent event may move it.
+        if (!(isInt(effect.delta) && effect.delta !== 0 && Math.abs(effect.delta) <= 3))
+          err(where, 'rite.delta must be a whole number from -3 to 3, not 0');
+        if (
+          event.pool === undefined ||
+          !Array.isArray(event.acts) ||
+          event.acts.length !== 1 ||
+          event.acts[0] !== 'finalBoss'
+        )
+          err(where, 'a rite effect belongs to a pooled Descent (finalBoss) event only');
+        break;
       case 'blessing':
         needsTier(where, effect.tier);
         break;
@@ -782,14 +803,26 @@ export function validateEventsConfig(config, data = {}) {
               err(where, 'battle.recruit.name must be 1-20 characters');
           }
         }
-        // A set piece (docs/specs/event-set-pieces.md): a known id, and never beside a green
-        // recruit (a set piece seats no NPC yet). Its acts and rung gates are checked by
+        // A set piece (docs/specs/event-set-pieces.md): a known id, never beside a green
+        // recruit (a set piece seats no NPC yet), and never one with a `boss: true` slot (that
+        // slot seats the act's boss, stones and all: a boss or elite node's fight, not a
+        // mid-act event's). Its acts and rung gates are checked by
         // SetPieces.validateSetPiecesConfig, which reads every event that names one.
         if (effect.setPiece !== undefined) {
+          const piece =
+            typeof effect.setPiece === 'string' && data.setPieces
+              ? findSetPiece(data.setPieces, effect.setPiece)
+              : null;
           if (typeof effect.setPiece !== 'string' || !effect.setPiece)
             err(where, 'battle.setPiece must be a set piece id');
-          else if (data.setPieces && !findSetPiece(data.setPieces, effect.setPiece))
+          else if (data.setPieces && !piece)
             err(where, `battle.setPiece: unknown set piece "${effect.setPiece}"`);
+          else if (piece && hasBossSlot(piece))
+            err(
+              where,
+              `battle.setPiece "${effect.setPiece}" has a boss slot (it seats the act's boss): ` +
+                'fought on a boss or elite node, never in an event',
+            );
           if (effect.recruit !== undefined)
             err(where, 'battle.setPiece cannot seat a recruit (no authored NPC tile yet)');
         }
@@ -893,6 +926,39 @@ export function validateEventsConfig(config, data = {}) {
     }
   };
 
+  /**
+   * Pools (act-v-descent §9.6): the Descent's events are pooled and met only there, so an event
+   * names `finalBoss` exactly when it names a pool, and then no other act (an unpooled event in
+   * the Descent, or a pooled one elsewhere, could never be drawn). A pooled event changes no
+   * route (`routeEdit`), opens no contract and brings no one to join: the act's road is
+   * authored and the run ends at its finale.
+   */
+  function checkPool(ew, event) {
+    const acts = Array.isArray(event.acts) ? event.acts : [];
+    if (event.pool === undefined) {
+      if (acts.includes('finalBoss'))
+        err(ew, 'an event in finalBoss (the Descent) names its `pool`');
+      return;
+    }
+    if (typeof event.pool !== 'string' || !ID_PATTERN.test(event.pool))
+      err(ew, '`pool` must be lower_snake_case');
+    if (acts.length !== 1 || acts[0] !== 'finalBoss')
+      err(ew, 'a pooled event is met only in the Descent: `acts` must be ["finalBoss"]');
+    if (event.fallback === true) err(ew, 'the fallback event is never pooled');
+    const banned = new Set();
+    const walk = (value) => {
+      if (Array.isArray(value)) value.forEach(walk);
+      else if (isObject(value)) {
+        if (POOLED_EVENT_BANNED_EFFECTS.includes(value.type)) banned.add(value.type);
+        Object.values(value).forEach(walk);
+      }
+    };
+    walk(event.choices);
+    walk(event.pages);
+    walk(event.dark);
+    for (const type of banned) err(ew, `a pooled (Descent) event cannot hold a ${type} effect`);
+  }
+
   const textCheck = (where, text, limit, label) => {
     if (typeof text !== 'string' || !text.trim()) return err(where, `${label} is missing`);
     if (text.length > limit) err(where, `${label} is ${text.length} characters (limit ${limit})`);
@@ -920,9 +986,10 @@ export function validateEventsConfig(config, data = {}) {
       event.acts !== undefined &&
       (!Array.isArray(event.acts) ||
         event.acts.length === 0 ||
-        event.acts.some((a) => !EVENT_ACTS.includes(a)))
+        event.acts.some((a) => !EVENT_ACT_IDS.includes(a)))
     )
-      err(ew, '`acts` must list act1-act4');
+      err(ew, '`acts` must list act1-act4 or finalBoss');
+    checkPool(ew, event);
     if (event.oncePerRun !== undefined && typeof event.oncePerRun !== 'boolean')
       err(ew, 'oncePerRun must be true or false');
     checkRequires(ew, event.requires, event, true);

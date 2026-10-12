@@ -118,12 +118,14 @@ export function cancelTopOverlay(scene, event = null) {
  * scene's normal requestCancel() chain. This mirrors the keyboard ESC handler's
  * intent (overlay owns "back" while open) without relying on per-overlay keydown
  * listeners, so one press closes exactly one overlay. Returns true if handled.
+ * `options`, when given, is handed to requestCancel (BattleScene's `cancelAction`).
  */
-export function routeCancel(scene) {
+export function routeCancel(scene, options = undefined) {
   if (!scene || typeof scene !== 'object') return false;
   if (typeof scene.isStoryInputLocked === 'function' && scene.isStoryInputLocked()) return false;
   if (hasOpenOverlay(scene)) return cancelTopOverlay(scene);
-  return typeof scene.requestCancel === 'function' ? Boolean(scene.requestCancel()) : false;
+  if (typeof scene.requestCancel !== 'function') return false;
+  return Boolean(options === undefined ? scene.requestCancel() : scene.requestCancel(options));
 }
 
 /** Drop every entry for the scene (scene teardown). */

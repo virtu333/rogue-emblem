@@ -1,7 +1,13 @@
 import { specialCharacterDefinition } from './SpecialCharacterPolicy.js';
 import { isDifficultyId } from './DifficultyEngine.js';
 import { DEED_FORMS, unitEpithet } from './DeedTitles.js';
-import { CONSUMABLE_MAX, INVENTORY_MAX, MAX_SKILLS, XP_STAT_NAMES } from '../utils/constants.js';
+import {
+  CONSUMABLE_MAX,
+  INVENTORY_MAX,
+  MAX_ABILITIES,
+  MAX_SKILLS,
+  XP_STAT_NAMES,
+} from '../utils/constants.js';
 
 // Victory records ("Records" on the title screen): display snapshots of won runs,
 // never live units or inventory objects. Stored whole in each slot's meta save and its
@@ -15,7 +21,7 @@ import { CONSUMABLE_MAX, INVENTORY_MAX, MAX_SKILLS, XP_STAT_NAMES } from '../uti
 //               accessory, skills (ids), deeds (ids, title first)
 //   fallen[]: identity + tally + fellAt {act, battle}
 // Identity: name, className, level, isLord, specialCharId, tier, portraitVariant,
-// epithet, epithetForm. Detail is kept on the newest DETAILED_RUN_RECORDS of a slot;
+// portraitFaceClass (the class a reclassed unit's face is drawn in), epithet, epithetForm. Detail is kept on the newest DETAILED_RUN_RECORDS of a slot;
 // older records are trimmed to identity + tally (deterministic and idempotent).
 
 export const RUN_RECORD_VERSION = 2;
@@ -116,6 +122,10 @@ function cleanIdentity(u) {
     ...(typeof u.portraitVariant === 'string' && /^[a-z0-9_]{1,64}$/.test(u.portraitVariant)
       ? { portraitVariant: u.portraitVariant }
       : {}),
+    // The class a unit sealed out of its person's line still wears the face of.
+    ...(typeof u.portraitFaceClass === 'string' && /^[A-Za-z' -]{1,40}$/.test(u.portraitFaceClass)
+      ? { portraitFaceClass: u.portraitFaceClass }
+      : {}),
   };
 }
 
@@ -132,7 +142,7 @@ function cleanSurvivor(u, v2) {
   if (items.length) out.items = items;
   const accessory = cleanText(u.accessory);
   if (accessory) out.accessory = accessory;
-  const skills = cleanIds(u.skills, MAX_SKILLS);
+  const skills = cleanIds(u.skills, MAX_SKILLS + MAX_ABILITIES);
   if (skills.length) out.skills = skills;
   const deeds = cleanIds(u.deeds, MAX_RECORD_DEEDS);
   if (deeds.length) out.deeds = deeds;
@@ -276,6 +286,7 @@ function unitIdentity(unit) {
     specialCharId: unit.specialCharId,
     tier: unit.tier,
     portraitVariant: unit.portraitVariant, // the face the unit wore (portrait variety)
+    portraitFaceClass: unit.portraitFaceClass, // set after a reclass across lines
     ...(epithet ? { epithet: epithet.text, epithetForm: epithet.form } : {}),
   };
 }

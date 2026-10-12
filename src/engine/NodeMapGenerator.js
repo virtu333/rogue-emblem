@@ -25,6 +25,15 @@ const ACT_LEVEL_SCALING = {
 };
 
 /**
+ * An act's per-row enemy level ranges ({ <row>: [lo, hi], default }), or null for an act that
+ * has none (its pool's range applies). The Descent's route reads the act before it from here.
+ */
+export function actLevelScaling(actId) {
+  const scaling = ACT_LEVEL_SCALING[actId];
+  return scaling ? structuredClone(scaling) : null;
+}
+
+/**
  * Generate a branching node map for one act.
  * Nodes are placed on a fixed column grid (0 to NUM_COLUMNS-1).
  * Edges only connect to same or adjacent columns (±1), preventing visual crossings.
@@ -346,25 +355,35 @@ function rollNodeFog(node, fogChance, { fogChanceBonus = 0, halfFogChance = fals
 }
 
 /**
- * Give an event node its set piece's battle params in place (docs/specs/event-set-pieces.md):
- * battle seed, per-row level range, the set piece's id, objective and deploy cap, and fog (the
- * set piece's when it forces it, else one roll at the act's chance). No template or biome
- * draw: the map is the set piece's, built at battle entry from the battle seed.
+ * Give a node its set piece's battle params in place (docs/specs/event-set-pieces.md): battle
+ * seed, per-row level range, the set piece's id, objective and deploy cap, and fog (the set
+ * piece's when it forces it, else one roll at the act's chance). No template or biome draw: the
+ * map is the set piece's, built at battle entry from the battle seed.
+ *
+ * An event calls it with no seed or fog options: two Math.random draws (the seed, then fog), or
+ * one when the set piece forces fog. An authored route (the Descent, act-v-descent.md §9.1) that
+ * must not touch Math.random hands in its own keyed `battleSeed` (no seed draw) and, for a set
+ * piece that forces no fog, `fog` (no fog draw): then nothing is drawn. The set piece's forced
+ * fog always wins.
  * @param {object} node - mutated: battleParams, fogEnabled (templateId removed)
  * @param {string} actId
  * @param {object} setPiece - a data/setPieces.json entry
- * @param {{ fogChanceBonus?: number, halfFogChance?: boolean, extraParams?: object }} [options]
+ * @param {{ fogChanceBonus?: number, halfFogChance?: boolean, extraParams?: object,
+ *   battleSeed?: number, fog?: boolean }} [options]
  * @returns {object} the node
  */
 export function convertNodeToSetPieceBattle(node, actId, setPiece, options = {}) {
   const extraParams =
     options.extraParams && typeof options.extraParams === 'object' ? options.extraParams : {};
   const cap = Number.isInteger(setPiece?.deploy?.max) ? setPiece.deploy.max : null;
+  const battleSeed = Number.isInteger(options.battleSeed)
+    ? options.battleSeed >>> 0
+    : rollBattleSeed();
   node.battleParams = {
     act: actId,
     objective: setPiece.objective || 'rout',
     row: node.row,
-    battleSeed: rollBattleSeed(),
+    battleSeed,
     setPiece: setPiece.id,
     ...(cap ? { deployCap: cap } : {}),
     ...extraParams,
@@ -374,9 +393,10 @@ export function convertNodeToSetPieceBattle(node, actId, setPiece, options = {})
     node.battleParams.levelRange = scaling[node.row] || scaling.default;
   }
   delete node.templateId;
-  if (typeof setPiece.fog === 'boolean') {
+  const fixedFog = typeof setPiece.fog === 'boolean' ? setPiece.fog : options.fog;
+  if (typeof fixedFog === 'boolean') {
     delete node.fogEnabled;
-    if (setPiece.fog) node.fogEnabled = true;
+    if (fixedFog) node.fogEnabled = true;
   } else {
     rollNodeFog(node, FOG_CHANCE_BY_ACT[actId] || 0, {
       fogChanceBonus: Number.isFinite(options.fogChanceBonus) ? options.fogChanceBonus : 0,

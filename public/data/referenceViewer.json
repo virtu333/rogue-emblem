@@ -16,7 +16,7 @@
     "rankRequirements": [
       {
         "rank": "Prof",
-        "totalWeapons": 157,
+        "totalWeapons": 158,
         "legendaryWeapons": 0
       },
       {
@@ -132,7 +132,7 @@
       "type": "Sword",
       "rankRequired": "Mast",
       "range": "1",
-      "special": "Attacks twice consecutively"
+      "special": ""
     },
     {
       "name": "Ragnarok",

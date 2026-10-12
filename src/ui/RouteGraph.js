@@ -12,6 +12,7 @@ import {
 } from './loomModel.js';
 import { drawLoomFx, drawLoomWeave, loomFxAnimates } from '../art/loom/loomThreads.js';
 import { isSanctum } from '../engine/SanctumPass.js';
+import { isFinaleBossNode } from '../engine/Descent.js';
 
 // Shared route renderer for node travel (NodeMapMenu) and the read-only in-battle
 // Campaign Map: "the Loom" (docs/art-direction/board/loom). DOM buttons keep focus,
@@ -58,11 +59,8 @@ export function nodeFrame(node, act) {
   // battle like any other: it reads elite, below.
   if (was === 'event' && node.darkOmen === true) return EVENT_DARK_ART_FRAME;
   if (was && was !== 'battle' && was !== 'event' && FRAMES[was] != null) return FRAMES[was];
-  return node.type === 'boss' && act === 'finalBoss'
-    ? 8
-    : isEliteBattle(node)
-      ? 7
-      : (FRAMES[node.type] ?? 0);
+  // The final boss's frame is the run's last fight: the Descent's gate boss is an act boss's.
+  return isFinaleBossNode(node, act) ? 8 : isEliteBattle(node) ? 7 : (FRAMES[node.type] ?? 0);
 }
 export function nodeLabel(node) {
   if (isEclipsed(node)) return node.eclipse.label || 'Eclipsed battle';

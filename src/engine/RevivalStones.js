@@ -70,12 +70,31 @@ export function applyRevivalStones(unit, spawn) {
 
 /** What a stone does, for the unit detail's tooltip and card. */
 export const REVIVAL_STONE_DESCRIPTION =
-  'A blow that would fell this unit breaks a stone instead and refills its HP. The blow ends the exchange.';
+  'Each Revival Stone is one more health bar. A blow that would fell this unit breaks a stone instead and refills its HP; the blow ends the exchange.';
 
-/** "Revival Stones: 2" for the unit detail, or '' for a unit with none left. */
+/**
+ * A stoned unit's health bars: the one it is on plus one per stone it still holds, out of
+ * one plus the stones it began with. Null for a unit that never carried a stone.
+ */
+export function healthBars(unit) {
+  const { remaining, max } = revivalStoneCount(unit);
+  if (max <= 0) return null;
+  return { left: remaining + 1, total: max + 1 };
+}
+
+/** "×3" beside a stoned unit's HP while it has more than one bar left; '' otherwise. */
+export function healthBarsBadge(unit) {
+  const bars = healthBars(unit);
+  return bars && bars.left > 1 ? `\u00d7${bars.left}` : '';
+}
+
+/**
+ * "Health bars: 2 of 3" for the unit detail, or '' for a unit that never carried a stone.
+ * It stays once every stone is broken ("1 of 3"), so the last bar reads as the last.
+ */
 export function revivalStonesLine(unit) {
-  const { remaining } = revivalStoneCount(unit);
-  return remaining > 0 ? `Revival Stones: ${remaining}` : '';
+  const bars = healthBars(unit);
+  return bars ? `Health bars: ${bars.left} of ${bars.total}` : '';
 }
 
 /** Remaining and total stones for a unit (the pips and the forecast read this). */

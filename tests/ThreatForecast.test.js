@@ -10,6 +10,7 @@ import {
   threatSummaryTone,
   positionsWithMoverAt,
   isThreatSourceVisible,
+  unitReach,
 } from '../src/engine/ThreatForecast.js';
 import { applyCondition } from '../src/engine/StatusConditionSystem.js';
 import { loadGameData } from './testData.js';
@@ -210,6 +211,35 @@ describe('ThreatForecast — one computation for Danger and threat sight', () =>
     const spy = vi.spyOn(g, 'getMovementRange');
     expect(threatsOnTile(ctx, 3, 1).damage).toEqual([entity]);
     expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("an inspected Entity's reach is its weapon's range from its whole body", () => {
+    // The fringe the idle inspection draws (InputController via unitReach). Entity anchored
+    // at (3,3): body cols 3-5, rows 3-5; its weapons reach 1-4 and it counters from any body
+    // tile (combatDistance), so the fringe is every tile 1-4 from the body, the body excluded.
+    const g = grid(Array.from({ length: 12 }, () => '............'));
+    const entity = foe(3, 3, {
+      isEntity: true,
+      mov: 0,
+      stats: { MOV: 0, HP: 120 },
+      weapon: { name: 'Eldritch Grasp', type: 'Sword', range: '1-4' },
+    });
+    const { attackTiles } = unitReach(g, entity, {
+      mov: 0,
+      positions: ctxFor(g, [entity]).positions(),
+    });
+    // Counted by hand: distance from (c, r) to the 3×3 square.
+    const toBody = (c, r) => Math.max(0, 3 - c, c - 5) + Math.max(0, 3 - r, r - 5);
+    const want = [];
+    for (let r = 0; r < 12; r++)
+      for (let c = 0; c < 12; c++)
+        if (toBody(c, r) >= 1 && toBody(c, r) <= 4) want.push(`${c},${r}`);
+    const got = attackTiles.map((t) => `${t.col},${t.row}`);
+    expect(new Set(got).size).toBe(got.length);
+    expect(got.sort()).toEqual(want.sort());
+    // Four right of the bottom-right body tile (5,5): 8 from the anchor, still in reach.
+    expect(got).toContain('9,5');
+    expect(got).not.toContain('4,4'); // the body
   });
 
   it('never draws from Math.random', () => {

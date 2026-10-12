@@ -10,7 +10,9 @@ import { PauseOverlay } from '../src/ui/PauseOverlay.js';
 import { getImbueStoneItems } from '../src/engine/ImbueSystem.js';
 import { loadGameData } from './testData.js';
 
-const gameData = loadGameData();
+// These tests count every catalog entry, so they read the Descent as on (a dark build lists
+// fewer: tests/DescentReferenceGating.test.js).
+const gameData = { ...loadGameData(), descent: { enabled: true } };
 
 // Foes-tab boss gating reads act-reached milestones across all save slots via
 // hasAnySlotMilestone → localStorage. Mock it so tests can seed unlock state.
@@ -39,6 +41,15 @@ const ALL_ACT_MILESTONES = [
 
 function seedSlotMilestones(slot, milestones) {
   lsStore[`emblem_rogue_slot_${slot}_meta`] = JSON.stringify({ milestones });
+}
+
+/** A save that has met these items / skills (the Compendium fills them in). */
+function seedSeen({ itemsSeen = [], skillsSeen = [] }, slot = 2) {
+  // As the current build saves discoveries: keys in purchasedUpgrades (CompendiumDiscovery.js).
+  const purchasedUpgrades = {};
+  for (const name of itemsSeen) purchasedUpgrades[`__seen_item:${name}`] = 0;
+  for (const id of skillsSeen) purchasedUpgrades[`__seen_skill:${id}`] = 0;
+  lsStore[`emblem_rogue_slot_${slot}_meta`] = JSON.stringify({ purchasedUpgrades });
 }
 
 function unlockAllActs(slot = 1) {
@@ -653,6 +664,7 @@ describe('CompendiumOverlay', () => {
     });
 
     it('search jump resets filter to "All" and page to 0', () => {
+      seedSeen({ itemsSeen: ['Iron Sword'] });
       const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
       overlay.show();
       // Set a non-default filter first
@@ -667,6 +679,7 @@ describe('CompendiumOverlay', () => {
     });
 
     it('jumped item is within rendered page range', () => {
+      seedSeen({ itemsSeen: ['Iron Sword'] });
       const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
       overlay.show();
       overlay.searchInputActive = true;

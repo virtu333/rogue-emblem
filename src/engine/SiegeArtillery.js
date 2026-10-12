@@ -15,6 +15,16 @@
 //
 // Holders (HoldActivation) and village bandits (`seek_tile`) keep their own orders.
 // The Entity has its own AI.
+//
+// An authored post (`aiMode: 'post'`, a set piece's slot: docs/specs/act-v-descent.md §9.2)
+// holds the same way for good: it strikes from its tile whatever it carries and never walks
+// (AIController's movement range 0, the Danger overlay's reach from the tile). It needs no
+// stance: the mode itself is the order, read the same by BattleScene and the harness.
+// Its post is the tile it spawned on (`postTile`, stamped by `applyPostSpawn` in BattleScene and
+// the harness alike). Moved off it (a Shove, a Smite, a push art, a forced slide), it walks back
+// (AIController's post return, which reuses the `seek_tile` walk with the post as the goal) and
+// holds again once it stands there; off its post it holds nothing, so Danger draws its walk.
+// A Vigil Voice is such a post: it speaks only on its sigil (engine/Vigil.js).
 
 import { hasPerBattleUsesLeft, isStaff, nextStrikeWeapon } from './Combat.js';
 import { isEntity } from './EntitySystem.js';
@@ -49,8 +59,47 @@ export function readyStatusStaff(unit) {
   return staff && staff.uses > 0 && (staff._usesSpent || 0) < staff.uses ? staff : null;
 }
 
-/** True when the unit never walks: siege artillery with shots left, or a staff caster with a use left. */
+/** The AI mode of a unit authored to hold its tile (a set piece slot's `aiMode: 'post'`). */
+export const POST_AI_MODE = 'post';
+
+const isTile = (t) => Boolean(t) && Number.isInteger(t.col) && Number.isInteger(t.row);
+
+/** An authored post moved off its tile: it walks back rather than holding (the header). */
+export function isOffAuthoredPost(unit) {
+  if (unit?.aiMode !== POST_AI_MODE || isEntity(unit) || !isTile(unit.postTile)) return false;
+  return unit.postTile.col !== unit.col || unit.postTile.row !== unit.row;
+}
+
+/**
+ * True when the unit is an authored post standing on it: it strikes from its tile and never
+ * walks. (A post with no stamped tile, from before `postTile`, holds wherever it stands.)
+ */
+export function holdsAuthoredPost(unit) {
+  return unit?.aiMode === POST_AI_MODE && !isEntity(unit) && !isOffAuthoredPost(unit);
+}
+
+/**
+ * Stamp an authored post's tile on the unit as it spawns (BattleScene.addEnemyFromSpawn and the
+ * harness's `_addEnemyFromSpawn`, after `aiMode`): where it walks back to when moved. Saved
+ * with the unit, so a suspend or a rewind keeps it. Any other unit is left alone.
+ */
+export function applyPostSpawn(enemy, spawn) {
+  if (enemy?.aiMode !== POST_AI_MODE || !isTile(spawn)) return;
+  enemy.postTile = { col: spawn.col, row: spawn.row };
+}
+
+/**
+ * True when the unit never walks: siege artillery with shots left, a staff caster with a use
+ * left, or an authored post on its tile. An authored post moved off its tile walks back,
+ * whatever it carries.
+ */
 export function holdsPost(unit) {
+  if (isOffAuthoredPost(unit)) return false;
+  return castsFromPost(unit) || holdsAuthoredPost(unit);
+}
+
+/** A caster that holds its post this phase: siege artillery or a staff caster (the stance). */
+function castsFromPost(unit) {
   return Boolean(artilleryWeapon(unit) || readyStatusStaff(unit));
 }
 
@@ -66,16 +115,19 @@ export function settleArtilleryStances({ enemyUnits = [], turn = null } = {}) {
   const checked = Number.isInteger(turn);
   for (const enemy of enemyUnits || []) {
     if (!isLive(enemy)) continue;
-    if (!holdsPost(enemy)) {
+    if (!castsFromPost(enemy)) {
       delete enemy.artilleryStance;
       continue;
     }
-    if (checked && enemy.artilleryStance?.turn === turn) continue;
+    // A stance saved by the old rule (`planted: false`, a caster that walked) is not kept
+    // on resume: every post-holder is planted now, so it is taken again.
+    if (checked && enemy.artilleryStance?.turn === turn && enemy.artilleryStance.planted === true)
+      continue;
     enemy.artilleryStance = { turn: checked ? turn : null, planted: true };
   }
 }
 
 /** True when the unit holds its post this phase (stance taken, and still a caster that holds). */
 export function isArtilleryPlanted(unit) {
-  return unit?.artilleryStance?.planted === true && holdsPost(unit);
+  return unit?.artilleryStance?.planted === true && castsFromPost(unit);
 }

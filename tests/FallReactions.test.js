@@ -1,6 +1,7 @@
 // Deaths on the field are answered (playtest 2026-09-28: nobody reacted to an ally's
 // death, and the commander's fall ended the run in silence), and the roads that
-// never fight the Lieutenant meet him once, as a vision, in an Act III boss battle.
+// pass through Act IV meet the Lieutenant once, as a vision, in an Act III boss battle.
+import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
 import { BattleBeatsController } from '../src/ui/BattleBeatsController.js';
@@ -145,18 +146,23 @@ describe('the Lieutenant’s vision', () => {
   });
   const beats = (s) => new BattleBeatsController(s, () => 0);
 
-  it('plays in an Act III boss battle on roads that never meet him', () => {
-    expect(
-      beats(scene('act3', ['act1', 'act2', 'act3', 'act4'], 'dusk')).getLieutenantVisionEntries(),
-    ).toHaveLength(1);
-    expect(
-      beats(
-        scene('act3', ['act1', 'act2', 'act3', 'act4', 'finalBoss']),
-      ).getLieutenantVisionEntries(),
-    ).toHaveLength(1);
+  it('plays in an Act III boss battle on every road with an Act IV after it', () => {
+    // Failure: the rule reads where the road ends (it did: "the Lieutenant is not the finale"),
+    // so Dusk, which now ends at him, loses the vision that introduces him.
+    const roads = {
+      'Dusk saved before it went on (ends at the Emperor)': [
+        ['act1', 'act2', 'act3', 'act4'],
+        'dusk',
+      ],
+      'Dusk now (ends at the Lieutenant)': [['act1', 'act2', 'act3', 'act4', 'finalBoss'], 'dusk'],
+      Nightfall: [['act1', 'act2', 'act3', 'act4', 'finalBoss'], 'hard'],
+      'Black Sun': [['act1', 'act2', 'act3', 'act4', 'finalBoss'], 'lunatic'],
+    };
+    for (const [road, [acts, rung]] of Object.entries(roads))
+      expect(beats(scene('act3', acts, rung)).getLieutenantVisionEntries(), road).toHaveLength(1);
   });
 
-  it('never on First Light (it ends at him), outside Act III, or in a non-boss battle', () => {
+  it('never on First Light (it meets him straight after Act III), outside Act III, or in a non-boss battle', () => {
     expect(
       beats(
         scene('act3', ['act1', 'act2', 'act3', 'finalBoss'], 'normal'),
@@ -168,6 +174,79 @@ describe('the Lieutenant’s vision', () => {
     const plain = scene('act3', ['act1', 'act2', 'act3', 'act4'], 'dusk');
     plain.isBoss = false;
     expect(beats(plain).getLieutenantVisionEntries()).toEqual([]);
+  });
+
+  describe('in the real dialogue', () => {
+    const real = JSON.parse(
+      readFileSync(new URL('../data/dialogue.json', import.meta.url), 'utf8'),
+    );
+    const enemies = JSON.parse(
+      readFileSync(new URL('../data/enemies.json', import.meta.url), 'utf8'),
+    );
+    const play = (acts, difficultyId) => {
+      const s = scene('act3', acts, difficultyId);
+      s.gameData = { dialogue: real, enemies };
+      return beats(s).getLieutenantVisionEntries();
+    };
+    const baseVision = real.bossEncounters['The Lieutenant'].vision.base;
+    const lastLine = (entries) => entries.at(-1).line;
+
+    it('Nightfall, Black Sun and a saved Emperor road keep the base lines word for word', () => {
+      // Failure: a closing line that sends him below leaks onto roads where he never comes: with
+      // the Descent off, the Entity's roads never meet him (no gate), and neither does a saved
+      // road that ends at the Emperor.
+      for (const [acts, rung] of [
+        [['act1', 'act2', 'act3', 'act4', 'finalBoss'], 'hard'],
+        [['act1', 'act2', 'act3', 'act4', 'finalBoss'], 'lunatic'],
+        [['act1', 'act2', 'act3', 'act4'], 'dusk'],
+      ])
+        expect(play(acts, rung), `${rung} ${acts.length} acts`).toEqual(baseVision);
+    });
+
+    it('with the Descent on, the Entity’s roads hear him promise the door he will hold below', () => {
+      // Failure: Nightfall and Black Sun, which now meet him at the gate, still hear "He's gone.
+      // No other sight presses against mine" (his end), or Dusk's line; or the Descent's lines
+      // play on a road the Descent does not take (a run already in its two-node final act).
+      const descent = JSON.parse(
+        readFileSync(new URL('../data/descent.json', import.meta.url), 'utf8'),
+      );
+      const on = { ...descent, enabled: true };
+      const playOn = (acts, rung, runExtra = {}) => {
+        const s = scene('act3', acts, rung);
+        s.gameData = { dialogue: real, enemies, descent: on };
+        Object.assign(s.runManager, runExtra);
+        return beats(s).getLieutenantVisionEntries();
+      };
+      const five = ['act1', 'act2', 'act3', 'act4', 'finalBoss'];
+      const entity = real.bossEncounters['The Lieutenant'].vision.variants.find(
+        (v) => v.when.finale === 'entity',
+      );
+      expect(entity.when).toEqual({ finale: 'entity', descent: true });
+      for (const rung of ['hard', 'lunatic']) {
+        const said = playOn(five, rung);
+        expect(said, rung).toEqual(entity.entries);
+        expect(lastLine(said)).toMatch(/below/);
+        expect(lastLine(said)).toMatch(/door/);
+        expect(JSON.stringify(said)).not.toMatch(/no other sight/);
+      }
+      // Dusk keeps its own line with the Descent on, and a saved Emperor road the base.
+      expect(lastLine(playOn(five, 'dusk'))).toMatch(/for now/);
+      expect(playOn(['act1', 'act2', 'act3', 'act4'], 'dusk')).toEqual(baseVision);
+      // A prologue run never takes the Descent.
+      expect(playOn(five, 'hard', { mode: 'prologue' })).toEqual(baseVision);
+    });
+
+    it('Dusk, which meets him again below, hears Sera say he has gone below, out of her sight for now', () => {
+      // Failure: Dusk plays "He's gone. No other sight presses against mine", which the Lieutenant
+      // road contradicts (Act IV's descent has her feel his sight press against hers again).
+      const dusk = play(['act1', 'act2', 'act3', 'act4', 'finalBoss'], 'dusk');
+      expect(dusk.slice(0, 3)).toEqual(baseVision.slice(0, 3));
+      expect(lastLine(dusk)).not.toBe(lastLine(baseVision));
+      expect(lastLine(dusk)).toMatch(/below/);
+      expect(lastLine(dusk)).toMatch(/for now/);
+      expect(dusk.at(-1).speaker).toBe('Sera');
+      expect(JSON.stringify(dusk)).not.toMatch(/no other sight/);
+    });
   });
 });
 

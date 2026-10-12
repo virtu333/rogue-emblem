@@ -9,6 +9,7 @@
 
 import { ScriptedAgent } from '../../tests/agents/ScriptedAgent.js';
 import { gridDistance } from '../../src/engine/Combat.js';
+import { getFootprint, getFootprintKeys } from '../../src/engine/EntitySystem.js';
 
 const DIRS = [
   [0, -1],
@@ -17,18 +18,26 @@ const DIRS = [
   [1, 0],
 ];
 
-/** Movement-cost distance field from every tile adjacent to `target` (Dijkstra). */
+/**
+ * Movement-cost distance field from every tile adjacent to `target` (Dijkstra). A multi-tile
+ * target (the Entity) is its whole body (EntitySystem.getFootprint): every tile beside any body
+ * tile is a goal, and the body is never a road.
+ */
 export function distanceFieldToAdjacent(grid, target, moveType) {
   const key = (c, r) => `${c},${r}`;
+  const body = new Set(getFootprintKeys(target));
   const dist = new Map();
   const queue = [];
-  for (const [dc, dr] of DIRS) {
-    const c = target.col + dc;
-    const r = target.row + dr;
-    if (c < 0 || r < 0 || c >= grid.cols || r >= grid.rows) continue;
-    if (!Number.isFinite(grid.getMoveCost(c, r, moveType))) continue;
-    dist.set(key(c, r), 0);
-    queue.push({ c, r, d: 0 });
+  for (const tile of getFootprint(target)) {
+    for (const [dc, dr] of DIRS) {
+      const c = tile.col + dc;
+      const r = tile.row + dr;
+      if (c < 0 || r < 0 || c >= grid.cols || r >= grid.rows) continue;
+      if (body.has(key(c, r)) || dist.has(key(c, r))) continue;
+      if (!Number.isFinite(grid.getMoveCost(c, r, moveType))) continue;
+      dist.set(key(c, r), 0);
+      queue.push({ c, r, d: 0 });
+    }
   }
   while (queue.length) {
     queue.sort((a, b) => a.d - b.d);
@@ -40,7 +49,7 @@ export function distanceFieldToAdjacent(grid, target, moveType) {
       const nc = cur.c + dc;
       const nr = cur.r + dr;
       if (nc < 0 || nr < 0 || nc >= grid.cols || nr >= grid.rows) continue;
-      if (nc === target.col && nr === target.row) continue;
+      if (body.has(key(nc, nr))) continue;
       if (!Number.isFinite(grid.getMoveCost(nc, nr, moveType))) continue;
       const nd = cur.d + enterCost;
       if (nd < (dist.get(key(nc, nr)) ?? Infinity)) {

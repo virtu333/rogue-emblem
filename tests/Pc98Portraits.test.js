@@ -425,6 +425,20 @@ describe('PC-98 portrait runtime', () => {
     }
   });
 
+  it('the enemy-only Circle Adept and Hollowed (Act V) have single portraits: imperial and unlight plates', () => {
+    const plates = { 'Circle Adept': 'blood', Hollowed: 'unlight' };
+    for (const [className, plate] of Object.entries(plates)) {
+      const id = `enemy_${className.toLowerCase().replace(/ /g, '_')}`;
+      const unit = { name: className, className, faction: 'enemy', tier: 'base' };
+      expect(portraitIdForUnit(unit, gameData)).toBe(id);
+      expect(PC98_MANIFEST.portraits[id].faction).toBe(plate);
+      expect(PC98_MANIFEST.portraits[id].variant).toBeUndefined();
+      expect(portraitFaction(unit, id)).toBe(plate);
+      expect(existsSync(`assets/portraits/pc98/baked/${id}.png`)).toBe(true);
+      expect(existsSync(`assets/portraits/${id}.png`)).toBe(true);
+    }
+  });
+
   it('canvas draws the atlas frame when loaded, else the texture', () => {
     const textures = new Set(['portrait_enemy_mage', 'pc98-portraits-40']);
     const scene = {

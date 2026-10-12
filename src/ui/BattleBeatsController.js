@@ -20,27 +20,29 @@ import { createSeededRng } from '../engine/BlessingEngine.js';
  *    A rematch may instead play one exchange from preBattleExchange (a pool
  *    walked across runs: the boss's line and the commander's answer together).
  *  - entityRally: when the Entity's finale answers (see BattleMusicController),
- *    the army says its lines over its own units, one every two bars from the
- *    finale's first downbeat (engine/FinaleRally.js, dialogue.json
- *    finaleRally): the commander opens, the lords answer each other, the
- *    strongest recruits join in, Sera closes. Never blocks input: the music
- *    keeps time, the words ride on it.
+ *    the army says its lines, one every two bars from the finale's first
+ *    downbeat (engine/FinaleRally.js, dialogue.json finaleRally): the
+ *    commander opens, the lords answer each other, the strongest recruits
+ *    join in, Sera closes. Each line is a portrait card on the map's edge with
+ *    a Skip button, its speaker marked on the board (EntityRallyController).
+ *    Never blocks input: the music keeps time, the words ride on it.
  */
 
 import {
   buildNarrativeContext,
+  roadIncludesAct4,
   selectDialogueEntries,
-  victoryEndingKey,
 } from '../engine/NarrativeDirector.js';
 import { adaptDialogueEntries } from '../engine/DialogueCast.js';
 import { composeFinaleRally, heraldHeard } from '../engine/FinaleRally.js';
 import { isEntity } from '../engine/EntitySystem.js';
+import EntityRallyController from './EntityRallyController.js';
 
 const QUIP_DEPTH = 501; // Screen-pinned above battlefield effects.
 const QUIP_OFFSET_Y = -58; // clear of proc chips (-26/-44) and damage numbers (-16 -> -32)
 const QUIP_COOLDOWN_MS = 10000; // shared across ALL quips so exchanges never chain
 const QUIP_CHANCE = 0.2;
-const RALLY_HOLD_MS = 2600;
+const RALLY_HOLD_MS = 2600; // the no-DOM fallback's floating line
 const RALLY_FADE_MS = 600;
 
 export class BattleBeatsController {
@@ -51,7 +53,7 @@ export class BattleBeatsController {
     this._lastSpecialQuipAt = -Infinity;
     this._lowHealthSpoken = new Set();
     this._live = new Set(); // quip texts still on screen (for destroy())
-    this._rallyTimers = [];
+    this._rally = null; // EntityRallyController: the cards (and the no-DOM floating lines)
     this._rallied = false;
   }
 
@@ -60,8 +62,8 @@ export class BattleBeatsController {
       if (obj?.scene) obj.destroy();
     }
     this._live.clear();
-    for (const t of this._rallyTimers) clearTimeout(t);
-    this._rallyTimers = [];
+    this._rally?.destroy();
+    this._rally = null;
   }
 
   _ctx(bossName = null) {
@@ -69,7 +71,9 @@ export class BattleBeatsController {
     return buildNarrativeContext({
       meta: scene.registry?.get?.('meta') || null,
       runManager: scene.runManager || null,
+      battleParams: scene.battleParams || null,
       bossName,
+      gameData: scene.gameData || null,
     });
   }
 
@@ -94,14 +98,34 @@ export class BattleBeatsController {
   }
 
   /**
-   * The Lieutenant, seen once in an Act III boss battle on every road that never
-   * fights him (all but First Light, which ends at him): Sera's rival appears to her
-   * as a vision, so the road knows who he is and why Act IV says he is gone.
+   * The Vigil's battle-entry beat (no boss card, so no boss lines): the Voices speak as the army
+   * comes in (dialogue.json `vigil.entry`, by the Rite's tier at entry), then the commander
+   * answers (`vigil.entryReply`). Only on a map whose config carries `vigil`, in a run.
+   */
+  getVigilEntryEntries() {
+    const scene = this.scene;
+    if (!scene.battleConfig?.vigil || !scene.runManager) return [];
+    const pool = scene.gameData?.dialogue?.vigil;
+    if (!pool) return [];
+    const ctx = this._ctx(null);
+    const voices = selectDialogueEntries(pool.entry, ctx) || [];
+    if (voices.length === 0) return [];
+    return [...voices, ...(selectDialogueEntries(pool.entryReply, ctx) || [])];
+  }
+
+  /**
+   * The Lieutenant, seen once in an Act III boss battle on every road with an Act IV after it
+   * (Dusk, Nightfall, Black Sun; never First Light, which meets him straight after Act III):
+   * Sera's rival appears to her as a vision, so the road knows who he is before Act IV says he
+   * has gone below. The rule is the road's own act list, not where it ends: Dusk now ends at
+   * him, and the vision is still what introduces him there. A road that ends at him has its
+   * own closing line (`when: { finale: 'lieutenant' }`: he withdrew below, out of her sight
+   * for now); the Entity's roads keep the base lines.
    */
   getLieutenantVisionEntries() {
     const scene = this.scene;
     if (!scene.isBoss || scene.battleParams?.act !== 'act3' || !scene.runManager) return [];
-    if (victoryEndingKey(scene.runManager, scene.gameData) === 'victory_lieutenant') return [];
+    if (!roadIncludesAct4(scene.runManager)) return [];
     const vision = scene.gameData?.dialogue?.bossEncounters?.['The Lieutenant']?.vision;
     return selectDialogueEntries(vision, this._ctx('The Lieutenant')) || [];
   }
@@ -154,6 +178,7 @@ export class BattleBeatsController {
    * The Entity's finale answers: the army speaks, the first line on the
    * finale's downbeat (`leadMs` from now), then one every `barMs * 2`. Once
    * per battle. Returns the composed rally ([{ unit, speaker, line }]).
+   * Skipping it (the card's button, Cancel) drops what is left of it for the battle.
    */
   entityRally({ leadMs = 0, barMs = 1765 } = {}) {
     const scene = this.scene;
@@ -179,30 +204,57 @@ export class BattleBeatsController {
         herald: heraldHeard(rm?.storyFlags, rm?.difficultyId),
         fallen,
         hurt: !entity || maxHP <= 0 || entity.currentHP < maxHP,
+        // The Descent: the gate's glass broken on the way down, the Rite's tier at this battle.
+        glass: ctx.glassBroken === true,
+        riteBand: ctx.riteBand !== 'none' ? ctx.riteBand : null,
       });
     } catch (_) {
       rally = [];
     }
-    const step = Math.max(1000, 2 * (Number(barMs) || 1765));
-    rally.forEach(({ unit, line }, i) => {
-      const timer = setTimeout(
-        () => {
-          this._rallyTimers = this._rallyTimers.filter((t) => t !== timer);
-          // a unit that falls before its line leaves it unsaid
-          if (!(unit.currentHP > 0)) return;
-          this._showRallyText(unit, line);
-        },
-        Math.max(0, Number(leadMs) || 0) + i * step,
-      );
-      this._rallyTimers.push(timer);
-    });
+    if (rally.length) {
+      this._rally = new EntityRallyController(scene, {
+        fallback: (unit, line) => this._showRallyText(unit, line),
+      });
+      this._rally.start(rally, { leadMs, barMs });
+    }
     return rally;
   }
 
-  _showRallyText(unit, line) {
+  /** A rally card is on screen: Cancel would dismiss it. */
+  rallyActive() {
+    return Boolean(this._rally?.cardVisible);
+  }
+
+  /**
+   * An explicit Cancel reaches the rally card only when the battle has nothing else to close
+   * (`somethingToClose`, from BattleScene.requestCancel, which calls this only for a press with
+   * `cancelAction`); returns whether it took the press.
+   */
+  skipRallyOnCancel(somethingToClose) {
+    if (!this._rally?.yieldsCancel(somethingToClose)) return false;
+    return this._rally.skip();
+  }
+
+  /**
+   * A line said over a unit on the field (or over `tile`, for one that has just left it), with
+   * the speaker's name on a tab: the Vigil's Voices and called Hollowed (VigilController). Never
+   * blocks; a line that cannot be drawn is simply not shown.
+   * @param {object} unit the speaker (its `name` heads the line)
+   * @param {string} line
+   * @param {{ tile?: { col: number, row: number }, foe?: boolean, holdMs?: number }} [options]
+   *   `foe`: an enemy's words (the threat-red tab and ink, not the army's gold)
+   */
+  speakOver(unit, line, options = {}) {
+    if (!unit || typeof line !== 'string' || !line.trim()) return;
+    this._showRallyText(unit, line, options);
+  }
+
+  /** The line as floating text over its speaker: speakOver's, and the rally's no-DOM fallback. */
+  _showRallyText(unit, line, { tile = null, foe = false, holdMs = RALLY_HOLD_MS } = {}) {
     const scene = this.scene;
     try {
-      const pos = scene.grid?.gridToPixel?.(unit.col, unit.row);
+      const at = tile || unit;
+      const pos = scene.grid?.gridToPixel?.(at.col, at.row);
       if (!pos) return;
       const screen = scene._worldToScreen?.(pos.x, pos.y) || pos;
       const cam = scene.cameras?.main;
@@ -213,9 +265,9 @@ export class BattleBeatsController {
         fontSize: '14px',
         align: 'center',
         wordWrap: { width: Math.max(96, Math.min(250, width - 24)) },
-        color: '#fff4d6',
+        color: foe ? '#ffe0dc' : '#fff4d6',
         fontStyle: 'bold',
-        backgroundColor: '#140f08e6',
+        backgroundColor: foe ? '#1a0808e6' : '#140f08e6',
         padding: { x: 8, y: 5 },
       })
         .setOrigin(0.5)
@@ -225,8 +277,8 @@ export class BattleBeatsController {
       const name = presentationText(scene, 0, 0, unit.name, {
         fontFamily: "'Press Start 2P', monospace",
         fontSize: '8px',
-        color: '#1a1206',
-        backgroundColor: '#e8b64c',
+        color: foe ? '#fff4f2' : '#1a1206',
+        backgroundColor: foe ? '#a8322a' : '#e8b64c',
         padding: { x: 5, y: 3 },
       })
         .setOrigin(0.5, 1)
@@ -247,7 +299,7 @@ export class BattleBeatsController {
       scene.tweens.add({
         targets: [text, name],
         alpha: 0,
-        delay: RALLY_HOLD_MS,
+        delay: holdMs,
         duration: RALLY_FADE_MS,
         onComplete: () => {
           for (const obj of [text, name]) {

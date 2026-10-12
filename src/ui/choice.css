@@ -985,9 +985,10 @@
   flex: none;
   min-width: 150px;
 }
-/* Branching Threads' Reroll beside the claim: its label never wraps. Kept below the
-   portrait footer's button rule in specificity, so upright it fills its row like the rest. */
-.ch-rewards-footer .ch-reroll {
+/* Branching Threads' Reroll and the chosen item's Details beside the claim: their labels
+   never wrap. Kept below the portrait footer's button rule in specificity, so upright
+   they fill their row like the rest. */
+.ch-rewards-footer :is(.ch-reroll, .ch-details) {
   flex: none;
   white-space: nowrap;
 }

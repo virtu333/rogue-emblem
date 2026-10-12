@@ -38,7 +38,13 @@ import { createScopedLogger } from '../utils/logger.js';
 import { setUnitHP } from './UnitHealth.js';
 import { HOLD_AI_MODE } from './HoldActivation.js';
 import { battleEncounterGroups, checkEncounters } from './EncounterGroups.js';
-import { artilleryWeapon, isArtilleryPlanted, settleArtilleryStances } from './SiegeArtillery.js';
+import {
+  artilleryWeapon,
+  holdsAuthoredPost,
+  isArtilleryPlanted,
+  isOffAuthoredPost,
+  settleArtilleryStances,
+} from './SiegeArtillery.js';
 
 const DEBUG_AI = false;
 const aiLog = createScopedLogger('AI', { debug: DEBUG_AI });
@@ -325,10 +331,14 @@ export class AIController {
       return this._finalizeDecision(enemy, { path: null, target: null, reason: 'hold' });
     // Post-holders (SiegeArtillery): siege artillery fires from its post at the best
     // target in siege range, or waits there; a status-staff caster casts or strikes from
-    // its post below (movement range 0). Neither walks, whatever its orders.
-    const holdsPost = isArtilleryPlanted(enemy);
-    if (holdsPost && artilleryWeapon(enemy))
+    // its post below (movement range 0). Neither walks, whatever its orders. An authored
+    // post (`aiMode: 'post'`, a set piece's slot) strikes from its tile the same way; moved
+    // off its tile it walks back first, whatever it carries (`offPost`, below).
+    const offPost = isOffAuthoredPost(enemy);
+    const planted = !offPost && isArtilleryPlanted(enemy);
+    if (planted && artilleryWeapon(enemy))
       return this._decideArtilleryAction(enemy, playerUnits, npcUnits);
+    const holdsPost = planted || holdsAuthoredPost(enemy);
     if (enemy.aiMode === 'guard') {
       enemy.guardPost ||= { col: enemy.col, row: enemy.row };
       const nearestDist = Math.min(
@@ -436,6 +446,25 @@ export class AIController {
       });
     }
 
+    // --- An authored post moved off its tile (a Vigil Voice shoved off its sigil) ---
+    // It walks back by the tile-seeking walk with its post as the goal: onto the post when it
+    // can end there this turn, else along the best path toward it; it strikes a unit standing
+    // on the post, or opportunistically from where it lands, and never chases. Back on its
+    // post it holds again (movement range 0). Scene and harness share this decision.
+    if (offPost) {
+      const walk = this._decideSeekTileAction(
+        enemy,
+        candidates,
+        candidatePlans,
+        unitPositions,
+        moveRange,
+        playerUnits,
+        npcUnits,
+        { goal: enemy.postTile, reasonPrefix: 'post_return' },
+      );
+      return this._finalizeDecision(enemy, walk);
+    }
+
     // --- Tile-seeking AI (village bandits) ---
     // Carries its own decision pipeline: bandits beeline for aiTargetTile and
     // never chase player units. Placed after the acid filter so candidates and
@@ -473,12 +502,8 @@ export class AIController {
               ally.currentHP >= ally.stats.HP * 0.75
             )
               continue;
-            const distance = gridDistance(
-              candidate.finalTile.col,
-              candidate.finalTile.row,
-              ally.col,
-              ally.row,
-            );
+            // The Entity is healed at its nearest body tile, as applyHealDecision checks.
+            const distance = combatDistance(candidate.finalTile, ally);
             if (distance < range.min || distance > range.max) continue;
             const result = resolveHeal(staff, enemy, ally);
             const score = result.healAmount + (ally.isBoss ? 3 : 0);
@@ -834,7 +859,8 @@ export class AIController {
    * village). The unit does not chase player units. If a player/NPC unit
    * occupies the target tile, attack the blocker when reachable; otherwise
    * advance along the best path and take at most one opportunistic attack
-   * from the landing tile (no deviation from the route).
+   * from the landing tile (no deviation from the route). An authored post walking back
+   * to its tile passes `{ goal: postTile, reasonPrefix: 'post_return' }`.
    */
   _decideSeekTileAction(
     enemy,
@@ -844,8 +870,8 @@ export class AIController {
     moveRange,
     playerUnits,
     npcUnits,
+    { goal = enemy.aiTargetTile, reasonPrefix = 'seek_tile' } = {},
   ) {
-    const goal = enemy.aiTargetTile;
     const attackable = [...(playerUnits || []), ...(npcUnits || [])].filter(
       (u) => u && u.currentHP > 0 && !u._removing,
     );
@@ -873,7 +899,7 @@ export class AIController {
         return {
           path: best.path,
           target: blocker,
-          reason: 'seek_tile_attack_blocker',
+          reason: `${reasonPrefix}_attack_blocker`,
           detail: { goal: { ...goal }, targetName: blocker.name || null },
         };
       }
@@ -953,7 +979,7 @@ export class AIController {
     return {
       path,
       target,
-      reason: path ? 'seek_tile_advance' : 'seek_tile_hold',
+      reason: path ? `${reasonPrefix}_advance` : `${reasonPrefix}_hold`,
       detail: {
         goal: { ...goal },
         destination: path ? { col: finalTile.col, row: finalTile.row } : null,
@@ -1308,7 +1334,7 @@ export class AIController {
     )
       return null;
     const range = getEffectiveStaffRange(staff, healer);
-    const distance = gridDistance(healer.col, healer.row, target.col, target.row);
+    const distance = combatDistance(healer, target);
     if (distance < range.min || distance > range.max || target.currentHP >= target.stats.HP)
       return null;
     const result = resolveHeal(staff, healer, target);

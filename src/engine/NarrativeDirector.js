@@ -22,6 +22,9 @@
 // (DialogueCast), which only handles {commander} and passes other text through.
 
 import { unitDisplayName, unitEpithet } from './DeedTitles.js';
+import { riteBand, riteConfigOf, sanitizeRite } from './Rite.js';
+import { descentRouteIdFor, isDescentMap, isGateBossNode } from './Descent.js';
+import { isPrologueRun } from './ScriptedBattle.js';
 
 const LAST_FOE_TOKEN = '{lastFoe}';
 const LAST_FOE_FALLBACK = 'the enemy';
@@ -52,6 +55,25 @@ export const KNOWN_WHEN_KEYS = new Set([
   // progress reads as 'none'; a real run cannot start while it runs). A value may be
   // one state or a list of states (any of them).
   'prologue',
+  // Act V (act-v-descent §9.7): the boss's role on the Descent's route ('gate' | 'finale' |
+  // 'none', from battleParams.bossRole) and the Rite's tier ('broken' | 'spoken' | 'answered' |
+  // 'none': the battle's tier at entry, else the run's; engine/Rite.js). One value or a list.
+  'bossRole',
+  'riteBand',
+  // The road goes through Act IV, so the Emperor is dead when the army meets what is past him
+  // (Dusk, Nightfall, Black Sun; never First Light).
+  'roadThroughEmperor',
+  // Where the road ends: 'lieutenant' | 'entity' | 'emperor' (a run saved before the ladder).
+  // One value or a list of them.
+  'finale',
+  // The run's road goes down the Descent (Act V's authored route, engine/Descent.js): its final
+  // act is the Descent's map, or, before the run reaches it, will be built as one (the config is
+  // on and names a route for the rung). False on today's two-node final act (the Descent off,
+  // or a save already in Act V before it), and on a road with no final act.
+  'descent',
+  // The Lieutenant's gate on this run's Descent has been won (Nightfall, Black Sun): the glass
+  // broke and the door below is open.
+  'glassBroken',
 ]);
 
 /** True when `value` (one value or a list) admits `actual`. */
@@ -63,9 +85,18 @@ function matchesOneOf(value, actual) {
  * Snapshot the narrative state needed for variant selection. Every source is
  * optional: tutorial/standalone battles have no meta, headless tests may pass
  * nothing at all — defaults select base entries.
- * @param {{ meta?: object|null, runManager?: object|null, bossName?: string|null }} sources
+ * @param {{ meta?: object|null, runManager?: object|null, bossName?: string|null,
+ *   battleParams?: object|null, gameData?: object|null }} sources `battleParams`: the battle
+ *   being fought (its bossRole and the Rite's tier at its entry); `gameData` (else the run's
+ *   own) names the finale's boss.
  */
-export function buildNarrativeContext({ meta = null, runManager = null, bossName = null } = {}) {
+export function buildNarrativeContext({
+  meta = null,
+  runManager = null,
+  bossName = null,
+  battleParams = null,
+  gameData = null,
+} = {}) {
   let commander = null;
   let partner = null;
   try {
@@ -116,7 +147,68 @@ export function buildNarrativeContext({ meta = null, runManager = null, bossName
     firstClear: runManager?.endRunRewards?.firstClear === true,
     linesPlayed: Array.isArray(flags?.linesPlayed) ? [...flags.linesPlayed] : [],
     prologue: prologueStateOf(meta),
+    bossRole: ['gate', 'finale'].includes(battleParams?.bossRole) ? battleParams.bossRole : 'none',
+    riteBand: riteBandOf(runManager, battleParams),
+    roadThroughEmperor: roadIncludesAct4(runManager),
+    finale: finaleOf(runManager, gameData ?? runManager?.gameData),
+    descent: descentRoadOf(runManager, gameData ?? runManager?.gameData),
+    glassBroken: glassBrokenOf(runManager),
   };
+}
+
+/** True when the run's current act map is the Descent's authored route. */
+function onDescent(runManager) {
+  try {
+    return isDescentMap(runManager?.nodeMap);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * True when the run's road goes down the Descent: it stands on the Descent's map, or it has not
+ * reached its final act yet and RunManager._buildActNodeMap will build that act as the Descent
+ * (a standard run whose acts include `finalBoss`, the config on with a route for the rung). A
+ * run already in its final act on today's two-node map is not on it, whatever the config says.
+ */
+export function descentRoadOf(runManager, gameData) {
+  try {
+    if (onDescent(runManager)) return true;
+    if (!runManager || isPrologueRun(runManager)) return false;
+    const acts = runManager.actSequence;
+    if (!Array.isArray(acts) || !acts.includes('finalBoss')) return false;
+    if (runManager.currentAct === 'finalBoss') return false;
+    return descentRouteIdFor(gameData?.descent, runManager.difficultyId) !== null;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * True when this run's Descent holds a won gate: the Lieutenant fought at the door (Nightfall,
+ * Black Sun) has fallen, so the glass is broken. Never on a route without a gate, and never
+ * before the gate's victory is committed (its node is completed in `completeBattle`).
+ */
+export function glassBrokenOf(runManager) {
+  try {
+    if (!onDescent(runManager)) return false;
+    const nodes = Array.isArray(runManager.nodeMap.nodes) ? runManager.nodeMap.nodes : [];
+    return nodes.some((node) => node?.completed === true && isGateBossNode(runManager, node));
+  } catch {
+    return false;
+  }
+}
+
+/** The Rite's tier as a `when` value: the battle's at entry, else the run's, else 'none'. */
+function riteBandOf(runManager, battleParams) {
+  try {
+    if (typeof battleParams?.riteBand === 'string' && battleParams.riteBand)
+      return battleParams.riteBand;
+    const rite = sanitizeRite(runManager?.rite);
+    return rite ? riteBand(rite.words, riteConfigOf(runManager)) || 'none' : 'none';
+  } catch {
+    return 'none';
+  }
 }
 
 /** The save's prologue as a `when` value: 'complete' | 'skipped' | 'none'. */
@@ -185,6 +277,24 @@ export function evaluateWhen(when, ctx) {
           break;
         case 'prologue':
           if (!matchesOneOf(value, ctx.prologue ?? 'none')) return false;
+          break;
+        case 'bossRole':
+          if (!matchesOneOf(value, ctx.bossRole ?? 'none')) return false;
+          break;
+        case 'riteBand':
+          if (!matchesOneOf(value, ctx.riteBand ?? 'none')) return false;
+          break;
+        case 'roadThroughEmperor':
+          if ((ctx.roadThroughEmperor === true) !== value) return false;
+          break;
+        case 'finale':
+          if (!matchesOneOf(value, ctx.finale ?? null)) return false;
+          break;
+        case 'descent':
+          if ((ctx.descent === true) !== value) return false;
+          break;
+        case 'glassBroken':
+          if ((ctx.glassBroken === true) !== value) return false;
           break;
         default:
           return false; // unknown condition key: variant never matches
@@ -325,6 +435,28 @@ export function selectDialogueEntries(sectionValue, ctx) {
   } catch (_) {
     return null;
   }
+}
+
+/** True when the run's own act list includes Act IV: the Emperor stands on this road. */
+export function roadIncludesAct4(runManager) {
+  return Array.isArray(runManager?.actSequence) && runManager.actSequence.includes('act4');
+}
+
+/**
+ * Where the run's road ends, read from its own act list like `victoryEndingKey`:
+ * 'lieutenant' | 'entity' | 'emperor', or null without a run, or when the road goes on to
+ * the final act and the catalog that names its boss is not at hand (unknown, never guessed).
+ */
+export function finaleOf(runManager, gameData) {
+  const acts = runManager?.actSequence;
+  if (!Array.isArray(acts) || acts.length === 0) return null;
+  if (acts.at(-1) === 'finalBoss' && !Array.isArray(gameData?.enemies?.bosses?.finalBoss))
+    return null;
+  return {
+    victory_lieutenant: 'lieutenant',
+    victory_emperor: 'emperor',
+    victory_entity: 'entity',
+  }[victoryEndingKey(runManager, gameData)];
 }
 
 /**

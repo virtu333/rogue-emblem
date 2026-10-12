@@ -17,6 +17,7 @@
 import { isDifficultyAtLeast } from './DifficultyEngine.js';
 import { createSeededRng } from './BlessingEngine.js';
 import { convertNodeToRoutBattle } from './NodeMapGenerator.js';
+import { isAuthoredNode } from './Descent.js';
 
 // 2: `actShadow` (act pressure) is its own field. Version-1 saves derive it on load.
 export const ECLIPSE_STATE_VERSION = 2;
@@ -266,7 +267,9 @@ function mapRows(nodeMap) {
 
 /**
  * Why a node can never fall right now (null when it can).
- * start / boss / ruins / completed / current / locked / eclipsed / type / spared
+ * start / boss / ruins / authored / completed / current / locked / eclipsed / type / spared
+ * `authored`: a node an authored route placed (the Descent's) falls only when its route says
+ * `fallable: true` (the Mortuary Column; act-v-descent §2.3 rule 5).
  * `spareTypes`: node types the run's Omen Reader keeps from the dark (blessings v3 §5.3).
  */
 export function nodeFallExemption(
@@ -278,6 +281,7 @@ export function nodeFallExemption(
   if (node.id === nodeMap?.startNodeId) return 'start';
   if (node.id === nodeMap?.bossNodeId || node.type === 'boss') return 'boss';
   if (node.type === 'ruins') return 'ruins';
+  if (isAuthoredNode(node) && node.fallable !== true) return 'authored';
   if (node.completed) return 'completed';
   if (node.id === currentNodeId || node.id === activeNodeId) return 'current';
   if (node.encounterLocked) return 'locked';

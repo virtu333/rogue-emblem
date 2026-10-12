@@ -89,6 +89,7 @@ export function iconEntries(data) {
 
   for (const t of WEAPON_ORDER)
     for (const w of (byType[t] || [])
+      .filter((w) => !G.WEAPON_ICON_REUSE[w.name])
       .slice()
       .sort((a, b) => (TIER_RANK[a.tier] ?? 0) - (TIER_RANK[b.tier] ?? 0)))
       add({
@@ -222,13 +223,22 @@ export function iconEntries(data) {
 }
 
 /**
- * Icons that share another icon's atlas cell (itemGrammar UPGRADE_ICON_REUSE and
- * BLESSING_ICON_REUSE): each keeps its own id, socket and rim in the manifest and points at
- * the cell of `of`. Upgrades first, then blessings, each in data order.
+ * Icons that share another icon's atlas cell (itemGrammar WEAPON_ICON_REUSE,
+ * UPGRADE_ICON_REUSE and BLESSING_ICON_REUSE): each keeps its own id, socket and rim in the
+ * manifest and points at the cell of `of`. Weapons first, then upgrades, then blessings, each
+ * in data order.
  */
 export function iconAliases(data) {
   const upgrades = data.metaUpgrades.upgrades || data.metaUpgrades;
   return [
+    ...data.weapons
+      .filter((w) => G.WEAPON_ICON_REUSE[w.name])
+      .map((w) => ({
+        id: slug(w.name),
+        of: G.WEAPON_ICON_REUSE[w.name],
+        socket: 'weapon',
+        rim: TIER_RANK[w.tier] != null ? w.tier : 'Iron',
+      })),
     ...upgrades
       .filter((u) => G.UPGRADE_ICON_REUSE[u.id])
       .map((u) => ({

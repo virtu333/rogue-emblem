@@ -21,6 +21,27 @@ clone() { # repo dir [branch]
   rm -rf "$dir/.git"
 }
 
+clone_at() { # repo dir commit: a library pinned to one commit (a shallow fetch of that SHA)
+  local repo="$1" dir="$2" commit="$3"
+  if [ -d "$dir" ]; then
+    if [ "$(cat "$dir/.fetched-commit" 2>/dev/null)" = "$commit" ]; then echo "have $dir"
+    else echo "have $dir, but not at $commit (an older fetch): delete it to fetch the pinned commit"; fi
+    return
+  fi
+  # A failed fetch must not leave a half-made directory that the next run would call "have".
+  if ! { git init -q "$dir" \
+    && git -C "$dir" remote add origin "https://github.com/$repo" \
+    && git -C "$dir" fetch -q --depth 1 origin "$commit" \
+    && git -C "$dir" checkout -q FETCH_HEAD \
+    && [ "$(git -C "$dir" rev-parse HEAD)" = "$commit" ]; }; then
+    rm -rf "$dir"
+    echo "could not fetch $repo at $commit" >&2
+    exit 1
+  fi
+  rm -rf "$dir/.git"
+  echo "$commit" > "$dir/.fetched-commit"
+}
+
 clone sgossner/VSCO-2-CE VSCO-2-CE SFZ
 clone mrbumpy409/GeneralUser-GS GeneralUser-GS
 clone sfzinstruments/virtuosity_drums virtuosity_drums
@@ -29,7 +50,18 @@ clone sfzinstruments/karoryfer.emilyguitar karoryfer.emilyguitar
 clone sfzinstruments/SplendidGrandPiano SplendidGrandPiano
 # the house palette (engine/palette.py; credits in docs/music-credits.md)
 clone peastman/sso SSO4
-clone eodowd/VirtualPlayingOrchestra VPO3
+# VPO3 (Paul Battersby, 3.2.1.1): its SFZ edition. The repository the site links to
+# (eodowd/VirtualPlayingOrchestra) now ships only DecentSampler presets; studiorack keeps
+# the SFZ release (same programs, samples and licence.htm, GPL-3 programs with the sample
+# licences in docs/music-credits.md). It is an unofficial mirror that names no version and
+# has other branches (compact, feature/flac), so the clone is pinned to the commit the music
+# was rendered from (main's head when the score was revised); a floating HEAD could swap
+# the samples under a rebuild. The full SHA is needed to fetch it.
+VPO3_COMMIT=9ab3329bb136834d33dcabb734b76053d5606b83
+clone_at studiorack/virtual-playing-orchestra VPO3 "$VPO3_COMMIT"
+for f in Brass/french-horn-SEC-PERF.sfz Brass/trumpet-SEC-PERF.sfz Brass/trombone-SEC-PERF.sfz; do
+  [ -f "VPO3/$f" ] || { echo "VPO3 is missing $f: not the SFZ edition" >&2; exit 1; }
+done
 # VCSL: the sfz branch carries the programs beside the samples. The house palette
 # plays one of its instruments (the colosseum's frame drum), so only that is fetched.
 if [ ! -d VCSL ]; then

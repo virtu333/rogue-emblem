@@ -24,7 +24,8 @@
 // `world` is the battle as these effects see it:
 //   affixes                         gameData.affixes
 //   cols, rows, getMoveCost(col, row, moveType), getUnitAt(col, row)
-//   hostilesOf(unit), alliesOf(unit)   (area victims; Divine Charge / buff allies)
+//   hostilesOf(unit), alliesOf(unit)   (area victims; Divine Charge / buff allies, reached by
+//                                       combatDistance: the Entity at its nearest body tile)
 //   getTerrainAt?(col, row)            (an area victim's terrain DEF; none when absent)
 //   turnNumber
 //   skillsData?                        gameData.skills (the on-kill skills' catalog)
@@ -48,7 +49,7 @@
 import { applyGrievousStatus, getAttackAffixes, isDisplacementImmune } from './AffixSystem.js';
 import { planAreaBlows } from './AreaDamage.js';
 import { planAreaPush } from './AreaPush.js';
-import { gridDistance } from './Combat.js';
+import { combatDistance } from './EntitySystem.js';
 import { applyCondition, isSilenced } from './StatusConditionSystem.js';
 import { damageUnit, damageUnitDetailed, healUnit, setUnitHP } from './UnitHealth.js';
 import { markHoldDisturbed } from './HoldDisturbance.js';
@@ -400,7 +401,7 @@ function* divineChargeHeal(step, attacker, defender, world) {
         u.currentHP > 0 &&
         u.currentHP < u.stats.HP &&
         u !== caster &&
-        gridDistance(caster.col, caster.row, u.col, u.row) <= step.range,
+        combatDistance(caster, u) <= step.range,
     );
   if (allies.length === 0) return;
   allies.sort((a, b) => a.currentHP / a.stats.HP - b.currentHP / b.stats.HP);
@@ -429,6 +430,11 @@ function* postCombatMove(sourceUnit, targetUnit, step, world, result, held = nul
     getTerrainAt: world.getTerrainAt,
     isImmovable: (unit) => isDisplacementImmune(unit, world.affixes),
   });
+  // A dash held short by units on the line past its landing: the scene shows each one the fog
+  // hid and says the run was blocked (a walk's ambush rule). It reads the real board, so this
+  // comes after the commit, before the user moves.
+  if (step.mode === 'dash' && moveResult.blockers?.length)
+    yield { kind: 'contact', units: moveResult.blockers };
   if (!moveResult.ok) {
     const pinned = moveResult.reason === 'rooted' || moveResult.reason === 'immovable';
     if (step.mode === 'ram' && pinned && targetUnit?.currentHP > 0)
@@ -439,13 +445,14 @@ function* postCombatMove(sourceUnit, targetUnit, step, world, result, held = nul
   const slides = [];
   for (const assignment of moveResult.assignments) {
     const moved = assignment.unit.col !== assignment.col || assignment.unit.row !== assignment.row;
-    // A pushed unit that slid on Ice: the tiles it crossed, for the scene to draw.
-    if (moved && assignment.slid)
+    // A pushed unit that slid on Ice: the tiles it crossed, for the scene to draw. A dash
+    // (Oathblade) is drawn the same way, as one run through the line.
+    if (moved && (assignment.slid || step.mode === 'dash'))
       slides.push({
         unit: assignment.unit,
         from: { col: assignment.unit.col, row: assignment.unit.row },
         to: { col: assignment.col, row: assignment.row },
-        path: assignment.path,
+        ...(assignment.slid ? { path: assignment.path } : {}),
       });
     assignment.unit.col = assignment.col;
     assignment.unit.row = assignment.row;
@@ -551,10 +558,10 @@ function* allyHeal(step, sourceUnit, world) {
   const allies = world
     .alliesOf(sourceUnit)
     .filter((ally) => ally && ally !== sourceUnit && ally.currentHP > 0)
-    .filter((ally) => gridDistance(sourceUnit.col, sourceUnit.row, ally.col, ally.row) <= radius)
+    .filter((ally) => combatDistance(sourceUnit, ally) <= radius)
     .sort((a, b) => {
-      const da = gridDistance(sourceUnit.col, sourceUnit.row, a.col, a.row);
-      const db = gridDistance(sourceUnit.col, sourceUnit.row, b.col, b.row);
+      const da = combatDistance(sourceUnit, a);
+      const db = combatDistance(sourceUnit, b);
       if (da !== db) return da - db;
       if (a.row !== b.row) return a.row - b.row;
       return a.col - b.col;
@@ -704,7 +711,7 @@ export function* allyBuff(step, sourceUnit, world) {
     .alliesOf(sourceUnit)
     .filter((ally) => ally && ally.currentHP > 0)
     .filter((ally) => includeSelf || ally !== sourceUnit)
-    .filter((ally) => gridDistance(sourceUnit.col, sourceUnit.row, ally.col, ally.row) <= range);
+    .filter((ally) => combatDistance(sourceUnit, ally) <= range);
   if (allies.length <= 0) return;
 
   const { expiryPhase, expiryTurn } = resolveTimedBuffExpiry(

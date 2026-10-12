@@ -25,6 +25,10 @@
       "range": { "type": "string", "pattern": "^\\d+(-\\d+)?$" },
       "special": { "type": "string" },
       "price": { "type": "integer", "minimum": 0 },
+      "descentOnly": {
+        "type": "boolean",
+        "description": "Act V's alone (engine/DescentSwitch.js): the Compendium leaves it out while the Descent is off."
+      },
       "healBase": { "type": "integer" },
       "uses": { "type": "integer", "minimum": 1 },
       "perBattleUses": { "type": "boolean" },

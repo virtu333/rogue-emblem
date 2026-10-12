@@ -226,9 +226,9 @@ export class CeremonyController {
    * FOE VANQUISHED: a boss fell and the battle goes on. Non-blocking —
    * the map stays live underneath — and it leaves by itself.
    */
-  showBossFelled({ objective, remaining = 0 } = {}) {
+  showBossFelled({ objective, remaining = 0, targetsLeft = 0, targetsLabel = '' } = {}) {
     if (!canRenderCeremony() || this.destroyed) return null;
-    const content = felledContent({ objective, remaining });
+    const content = felledContent({ objective, remaining, targetsLeft, targetsLabel });
     const built = this._band({ kind: 'bossFelled', tone: 'felled', ...content });
     if (!built) return null;
     void playCue(this.scene, 'boss_felled', { duck: 0.3 });

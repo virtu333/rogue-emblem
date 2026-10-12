@@ -480,7 +480,7 @@ export function giftCardContent(gift) {
 // Presentation copy for the banners (unknown modes simply show none).
 export const DIFFICULTY_TAGLINES = Object.freeze({
   normal: 'The road as it was walked',
-  dusk: 'The road runs on to the throne',
+  dusk: 'The road runs on past the throne',
   hard: 'The empire answers in kind',
   lunatic: 'Every thread drawn taut',
 });

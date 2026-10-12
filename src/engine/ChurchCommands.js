@@ -67,7 +67,7 @@ export function promoteAtChurch(run, unit, nodeId, target, gameData) {
   // weapon), as a Master Seal's promotion hands it over.
   const granted = [];
   const ungranted = [];
-  for (const weapon of getClassChangeWeaponGrants(unit, oldTypes, gameData, true)) {
+  for (const weapon of getClassChangeWeaponGrants(unit, oldTypes, gameData)) {
     if (addToInventory(unit, weapon)) {
       equipIfUnarmed(unit, unit.inventory.at(-1));
       granted.push(weapon.name);

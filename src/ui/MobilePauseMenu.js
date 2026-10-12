@@ -4,21 +4,25 @@ import { hasInputFocus } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
 
 /**
- * The run's burdens under the pause note (Burdens.describeBurdens), and its open contract
- * (eventMenuModel `pauseBurdenEntries`): one entry each, the name and what is left over its
- * line. Null when the run carries none.
+ * The run's burdens under the pause note (Burdens.describeBurdens), its open contract and, in the
+ * Descent, the Rite (eventMenuModel `pauseBurdenEntries`): one entry each, the name and what is
+ * left over its line. Null when the run carries none.
  */
 export function pauseBurdenList(burdens) {
   if (!Array.isArray(burdens) || !burdens.length) return null;
   const list = document.createElement('ul');
   list.className = 'mp-burdens';
+  const hasRite = burdens.some((b) => b.id === 'rite');
+  const others = burdens.filter((b) => b.id !== 'rite');
+  const base = others.some((b) => b.id === 'contract') ? 'Burdens and contract' : 'Burdens';
   list.setAttribute(
     'aria-label',
-    burdens.some((b) => b.id === 'contract') ? 'Burdens and contract' : 'Burdens',
+    hasRite ? (others.length ? `The Rite, ${base.toLowerCase()}` : 'The Rite') : base,
   );
   for (const burden of burdens) {
     const item = document.createElement('li');
     if (burden.id === 'contract') item.className = 'is-contract';
+    else if (burden.id === 'rite') item.className = 'is-rite';
     const name = document.createElement('strong');
     name.textContent = `${burden.label} \u00b7 ${burden.short}`;
     const line = document.createElement('span');

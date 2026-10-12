@@ -102,6 +102,33 @@ for (const shutdown of [false, true])
     }
   });
 
+it('a full bag says which starter weapon a promotion could not grant', async () => {
+  const { seal, unit, scene, controller } = fixture();
+  const ironLance = { name: 'Iron Lance', type: 'Lance', tier: 'Iron' };
+  scene.gameData.weapons = [ironLance];
+  unit.proficiencies = [{ type: 'Sword', rank: 'Prof' }];
+  unit.inventory = [1, 2, 3, 4, 5].map((n) => ({ name: `Sword ${n}`, type: 'Sword' }));
+  mocks.resolve.mockReturnValue([{ name: 'Hero', promotionBonuses: { STR: 2 } }]);
+  mocks.promote.mockImplementationOnce(() => {
+    unit.proficiencies.push({ type: 'Lance', rank: 'Prof' });
+    return { droppedSkills: [] };
+  });
+  scene.showPromotionBanner = vi.fn(async () => {});
+  scene._playLevelUpSfx = vi.fn();
+  scene._stopLevelUpSfx = vi.fn();
+  const spy = vi.spyOn(LevelUpPopup.prototype, 'show').mockResolvedValue();
+  try {
+    expect(await controller.executePromotion(unit, seal)).toBe(true);
+  } finally {
+    spy.mockRestore();
+  }
+  expect(unit.inventory).toHaveLength(5);
+  expect(scene.showBriefBanner).toHaveBeenCalledWith(
+    'Bag full: Iron Lance could not be granted.',
+    expect.anything(),
+  );
+});
+
 it('Gaspar refuses a Master Seal through the scene flow without spending item or action', async () => {
   const { scene, seal, controller } = fixture();
   const { loadGameData } = await import('./testData.js');

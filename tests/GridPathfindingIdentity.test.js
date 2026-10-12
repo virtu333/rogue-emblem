@@ -86,7 +86,12 @@ function randomBoard(rng) {
   const unitPositions = new Map();
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      if (rng() < density) unitPositions.set(`${c},${r}`, { faction: pick(rng, FACTIONS) });
+      if (rng() >= density) continue;
+      const faction = pick(rng, FACTIONS);
+      // Half the NPCs are the Merchant Caravan (a player unit walks through it), chosen by
+      // tile parity so the boards' draws are unchanged.
+      const caravan = faction === 'npc' && (c + r) % 2 === 0;
+      unitPositions.set(`${c},${r}`, caravan ? { faction, isCaravan: true } : { faction });
     }
   }
   return { grid, unitPositions };

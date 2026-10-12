@@ -12,7 +12,16 @@
 // stands. What the player set up on the formation screen rides that restart
 // (`formationReturn`): who deploys, and where each placed unit stood. The boss card is
 // not shown twice and the battle's track plays on.
+//
+// Leaving the battle is durable or does not happen: when the device refuses that save,
+// the run is put back in the battle exactly as it was (the save still says so), the sheet
+// stays shut and the player is told, with Retry, as a Vision rewind that could not be saved
+// leaves the battle unchanged. Once open, each Roster edit is a route-map save
+// (MobileRosterSheet.persistNow says when one fails), and the re-entered battle's own
+// save decides whether the formation may say "Roster saved".
 import { MobileRosterSheet } from './MobileRosterSheet.js';
+import { MenuSurface, element, button } from './MenuSurface.js';
+import { SAVE_RETRY_COPY } from './SaveRetryController.js';
 import { battleSession, isCurrentBattleSession } from './BattleSession.js';
 import { unitIdentityKey } from '../engine/UnitIdentity.js';
 import {
@@ -97,21 +106,30 @@ export function canOpenFormationRoster(scene) {
 
 /**
  * Open the Roster over the formation, on `unit` when given (a battle copy: matched to
- * the run's unit by identity). Returns false when it isn't offered now.
+ * the run's unit by identity). Returns false when it isn't offered now, or when the save
+ * that leaves the battle was refused (the run stays in the battle and the player is told;
+ * `tries` counts the Retries made).
  */
-export function openFormationRoster(scene, unit = null) {
+export function openFormationRoster(scene, unit = null, { tries = 0 } = {}) {
   if (!canOpenFormationRoster(scene)) return false;
   const s = scene;
   const f = s._formation;
   const rm = s.runManager;
   const session = battleSession(s);
   const memory = formationMemory(f);
+  // Leave the battle as Back to map does, and only if the save says so: then closing the
+  // app with the Roster open lands on the map, and every Roster save is a map save.
+  const undo = rm.revertBattleInProgressToEntryUndoable();
+  const saved = s._persistBattleRunState?.(null, { session });
+  if (!leaveSaved(saved)) {
+    // Refused: the save still holds the battle, so the run goes back to it (the battle's
+    // RNG, Vision and flag as they were) and nothing opens over a state no save holds.
+    undo?.();
+    if (isCurrentBattleSession(s, session)) refuseRoster(s, saved, unit, tries);
+    return false;
+  }
   if (s.unitDetailOverlay?.visible) s.unitDetailOverlay.hide();
   s.clearInspectionVisuals?.();
-  // Leave the battle as Back to map does; the save now says "on the map", so closing
-  // the app with the Roster open lands there, and every Roster save is a map save.
-  rm.revertBattleInProgressToEntry();
-  s._persistBattleRunState?.(null, { session });
   const before = runFingerprint(rm);
   // Placement waits under the sheet: no taps, no dock.
   f.ready = false;
@@ -142,6 +160,83 @@ export function openFormationRoster(scene, unit = null) {
     },
   });
   return true;
+}
+
+/**
+ * Whether the save that leaves the battle landed. A route with no slot has nothing to
+ * keep (dev and review routes), as the battle's own saves treat it.
+ */
+function leaveSaved(result) {
+  return result?.ok === true || result?.reason === 'missing_slot';
+}
+
+/**
+ * Whether the formation may say "Roster saved" on the return: the re-entered battle's
+ * entry save (`scene._battleEntrySave`) holds every edit, so only a save it reports
+ * refused says otherwise (an edit whose own save failed was named in the sheet as it
+ * happened); the battle's next checkpoint then meets the refusal as any battle save does
+ * (Retry / Keep playing).
+ */
+export function rosterReturnSaved(entrySave) {
+  return !entrySave || leaveSaved(entrySave);
+}
+
+/** What the formation says when the Roster could not open: storage refused the save. */
+export const ROSTER_SAVE_REFUSED_COPY = Object.freeze({
+  title: 'Roster not opened',
+  unchanged: 'Nothing changed. Placement is as it was.',
+  back: 'Back to formation',
+  notice: 'Roster not opened: this device refused the save.',
+  unsaved: 'Battle not saved: this device refused the save.',
+});
+
+/**
+ * Tell the player the Roster could not open, over the formation (held as its menu, so
+ * placement waits and a second Roster is not offered under it): why, that nothing changed,
+ * Retry (opens the Roster once the save lands) and Back to formation. Without a page to draw
+ * on (tests, the harness) the formation's notice says it.
+ */
+function refuseRoster(s, result, unit, tries) {
+  const f = s._formation;
+  if (!f) return;
+  const host = typeof document === 'undefined' ? null : document.getElementById('game-wrapper');
+  if (!host || f.menu) {
+    f.flash(ROSTER_SAVE_REFUSED_COPY.notice);
+    return;
+  }
+  const close = () => {
+    menu.destroy();
+    if (f.menu === menu) f.menu = null;
+    f.touch();
+  };
+  const menu = new MenuSurface(s, ROSTER_SAVE_REFUSED_COPY.title, () => close(), { modal: true });
+  f.menu = menu;
+  menu.root.dataset.rosterSave = 'refused';
+  menu.header.querySelector('button')?.remove();
+  const lines = [
+    SAVE_RETRY_COPY[result?.reason] || SAVE_RETRY_COPY.write_error,
+    ROSTER_SAVE_REFUSED_COPY.unchanged,
+    ...(result?.reason === 'quota' ? [SAVE_RETRY_COPY.free] : []),
+    ...(tries > 0 ? [`Still not saved. Tries: ${tries}`] : []),
+  ];
+  for (const line of lines) menu.body.append(element('p', line));
+  const add = (label, action, callback, cls) => {
+    const b = button(label, callback, cls);
+    b.dataset.rosterSaveAction = action;
+    menu.body.append(b);
+  };
+  add(
+    'Retry',
+    'retry',
+    () => {
+      close();
+      openFormationRoster(s, unit, { tries: tries + 1 });
+    },
+    're-btn re-btn--primary',
+  );
+  add(ROSTER_SAVE_REFUSED_COPY.back, 'back', () => close());
+  f.touch();
+  menu.focusContent();
 }
 
 /**

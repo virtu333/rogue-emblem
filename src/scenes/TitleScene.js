@@ -281,9 +281,13 @@ export class TitleScene extends Phaser.Scene {
         return undefined;
       case 'moreInfo':
         if (this.helpOverlay?.visible) return undefined;
-        this.helpOverlay = new HelpOverlay(this, () => {
-          this.helpOverlay = null;
-        });
+        this.helpOverlay = new HelpOverlay(
+          this,
+          () => {
+            this.helpOverlay = null;
+          },
+          this.gameData,
+        );
         this.helpOverlay.show();
         return undefined;
       case 'records':

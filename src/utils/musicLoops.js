@@ -99,6 +99,13 @@ export const MUSIC_LOOPS = {
     duration: 95.509,
     tonic: 'C',
   },
+  music_battle_descent: { loopStart: 10.857143, loopEnd: 93.142857, duration: 93.743, tonic: 'D' },
+  music_battle_descent_calm: {
+    loopStart: 10.857143,
+    loopEnd: 93.142857,
+    duration: 93.743,
+    tonic: 'D',
+  },
   music_battle_eclipsed: {
     loopStart: 10.666667,
     loopEnd: 107.333333,
@@ -195,6 +202,8 @@ export const MUSIC_LOOPS = {
     duration: 90.314,
     tonic: 'E',
   },
+  music_battle_vigil: { loopStart: 12.14, loopEnd: 92.14, duration: 92.74, tonic: 'G' },
+  music_battle_vigil_calm: { loopStart: 12.14, loopEnd: 92.14, duration: 92.74, tonic: 'G' },
   music_battle_village: { loopStart: 8.186054, loopEnd: 75.162789, duration: 75.763, tonic: 'A' },
   music_battle_village_calm: {
     loopStart: 8.186054,

@@ -105,6 +105,21 @@ function isExcludedTerrain(terrain, mapLayout, col, row) {
   return REINFORCEMENT_EXCLUDED_TERRAIN.has(terrain?.[mapLayout?.[row]?.[col]]?.name);
 }
 
+/**
+ * Whether an authored arrival could stand on (col, row): in bounds, passable for `moveType`, not
+ * on the terrain arrivals avoid (REINFORCEMENT_EXCLUDED_TERRAIN). The Rite's waves pick their
+ * tiles with it (RiteBattleMods.js).
+ */
+export function isArrivalTileOpen(terrain, mapLayout, col, row, moveType = 'Infantry') {
+  const rows = Array.isArray(mapLayout) ? mapLayout.length : 0;
+  const cols = rows > 0 && Array.isArray(mapLayout[0]) ? mapLayout[0].length : 0;
+  return (
+    isInBounds(col, row, cols, rows) &&
+    !isExcludedTerrain(terrain, mapLayout, col, row) &&
+    isPassable(terrain, mapLayout, col, row, moveType)
+  );
+}
+
 function normalizeMoveTypes(moveTypes, moveType) {
   const list = Array.isArray(moveTypes) ? moveTypes.filter((m) => typeof m === 'string') : [];
   return list.length ? list : [moveType || 'Infantry'];
@@ -365,6 +380,27 @@ export function getDueRepeatingReinforcementWaves({
   return due;
 }
 
+/**
+ * The turn a scripted wave (fixed tiles, written into the battle config) arrives: its turn plus
+ * the rung's and the template's offsets, never before turn 1, then `turnDelay` later (Hollow
+ * Hourglass, after the clamp: see resolveScheduledTurn). The one rule the scheduler uses for a
+ * scripted wave and the UI uses to name the turn a wave is due ("join him on turn 5").
+ * @param {object} p
+ * @param {number} p.baseTurn the wave's own turn, as authored
+ * @param {object|null} [p.reinforcements] the config's block (its template offset, if any)
+ */
+export function scriptedWaveTurn({
+  baseTurn,
+  reinforcements = null,
+  difficultyId = 'normal',
+  difficultyTurnOffset = 0,
+  turnDelay = 0,
+} = {}) {
+  const totalOffset =
+    normalizeInteger(difficultyTurnOffset, 0) + getTemplateTurnOffset(reinforcements, difficultyId);
+  return Math.max(1, normalizeInteger(baseTurn, 0) + totalOffset) + delayOf(turnDelay);
+}
+
 function getDueScriptedReinforcementWaves({
   turn,
   reinforcements,
@@ -376,10 +412,6 @@ function getDueScriptedReinforcementWaves({
   if (currentTurn <= 0 || !reinforcements || !Array.isArray(reinforcements.scriptedWaves))
     return [];
 
-  const globalOffset = normalizeInteger(difficultyTurnOffset, 0);
-  const templateOffset = getTemplateTurnOffset(reinforcements, difficultyId);
-  const totalOffset = globalOffset + templateOffset;
-
   const due = [];
   for (
     let scriptedWaveIndex = 0;
@@ -389,8 +421,13 @@ function getDueScriptedReinforcementWaves({
     const scriptedWave = reinforcements.scriptedWaves[scriptedWaveIndex];
     const baseTurn = normalizeInteger(scriptedWave?.turn, 0);
     if (baseTurn <= 0) continue;
-    // The delay after the clamp (see resolveScheduledTurn).
-    const scheduledTurn = Math.max(1, baseTurn + totalOffset) + delayOf(turnDelay);
+    const scheduledTurn = scriptedWaveTurn({
+      baseTurn,
+      reinforcements,
+      difficultyId,
+      difficultyTurnOffset,
+      turnDelay,
+    });
     if (scheduledTurn !== currentTurn) continue;
     due.push({
       waveType: 'scripted',
@@ -450,6 +487,9 @@ export function collectEdgeSpawnCandidates({
 // blessing's delay (Hollow Hourglass, `turnDelay`) moves them: every wave a turn later.
 const LADDER_DEFAULT_MIN_PLAYER_DISTANCE = 3;
 const LADDER_DEFAULT_NPC_DISTANCE = 1;
+// How far a front-only ladder may relax its player exclusion when the front is crowded: tiles
+// within 1 of a player unit stay reserved, so an arrival never lands next to one.
+export const LADDER_FRONT_ONLY_MIN_PLAYER_DISTANCE = 1;
 
 function getDueLadderWaves({ turn, reinforcements, turnDelay = 0 } = {}) {
   const currentTurn = normalizeInteger(turn, 0);
@@ -636,6 +676,9 @@ export function scheduleReinforcementsForTurn({
         };
       }
       if (Array.isArray(rawSpawn.affixes)) scriptedSpawn.affixes = [...rawSpawn.affixes];
+      // A wave that is a price rather than a puzzle (the Rite's Hollowed: RiteBattleMods.js)
+      // says so, and its arrivals never raise par.
+      if (due.wave?.parNeutral === true) scriptedSpawn.parNeutral = true;
       spawns.push(scriptedSpawn);
       spawnedKeys.add(key);
       spawnedCount++;
@@ -737,24 +780,22 @@ export function scheduleReinforcementsForTurn({
   if (dueLadderWaves.length > 0) {
     const ladder = reinforcements.ladder;
     const front = EDGE_SET.has(ladder.front) ? ladder.front : null;
-    const reserved = new Set([
-      ...tilesWithin(
-        playerTiles,
-        Number.isFinite(ladder.minPlayerDistance)
-          ? ladder.minPlayerDistance
-          : LADDER_DEFAULT_MIN_PLAYER_DISTANCE,
-      ),
-      ...tilesWithin(
-        npcTiles,
-        Number.isFinite(ladder.npcDistance) ? ladder.npcDistance : LADDER_DEFAULT_NPC_DISTANCE,
-      ),
-    ]);
+    const minPlayerDistance = Number.isFinite(ladder.minPlayerDistance)
+      ? ladder.minPlayerDistance
+      : LADDER_DEFAULT_MIN_PLAYER_DISTANCE;
+    const npcReserved = tilesWithin(
+      npcTiles,
+      Number.isFinite(ladder.npcDistance) ? ladder.npcDistance : LADDER_DEFAULT_NPC_DISTANCE,
+    );
+    const reservedAt = (playerDistance) =>
+      new Set([...tilesWithin(playerTiles, playerDistance), ...npcReserved]);
+    const reserved = reservedAt(minPlayerDistance);
     // A promoted wave's arrival copies a class from the act's promoted pool, so its tile
     // must suit those move types as well.
     const promotedTypes = [
       ...new Set([...normalizeMoveTypes(moveTypes, moveType), ...(promotedMoveTypes || [])]),
     ].sort();
-    const candidatesOn = (edge, promoted) =>
+    const candidatesOn = (edge, promoted, exclude = reserved) =>
       collectEdgeSpawnCandidates({
         edge,
         mapLayout,
@@ -762,7 +803,7 @@ export function scheduleReinforcementsForTurn({
         occupied: new Set([...baseOccupied, ...spawnedKeys]),
         moveType,
         moveTypes: promoted ? promotedTypes : moveTypes,
-      }).filter((tile) => !reserved.has(toTileKey(tile.col, tile.row)));
+      }).filter((tile) => !exclude.has(toTileKey(tile.col, tile.row)));
 
     for (const due of dueLadderWaves) {
       const edge = EDGE_SET.has(due.wave?.edge) ? due.wave.edge : front;
@@ -774,9 +815,26 @@ export function scheduleReinforcementsForTurn({
       let usedEdge = edge;
       if (usedEdge && front && usedEdge !== front && candidatesOn(usedEdge, promoted).length === 0)
         usedEdge = front;
+      // A front-only ladder (a fogged rout map, RoutLadder.fogRoutFrontOnly) has no flank to
+      // fall back to: when player units stand near every free front tile, an arrival comes
+      // closer to them on that edge instead (the exclusion relaxed a tile at a time, down to
+      // the tiles next to a player unit, which stay reserved) rather than being lost.
+      const poolFor = () => {
+        if (!usedEdge) return [];
+        let pool = candidatesOn(usedEdge, promoted);
+        if (ladder.frontOnly !== true) return pool;
+        for (
+          let d = minPlayerDistance - 1;
+          pool.length === 0 && d >= LADDER_FRONT_ONLY_MIN_PLAYER_DISTANCE;
+          d--
+        ) {
+          pool = candidatesOn(usedEdge, promoted, reservedAt(d));
+        }
+        return pool;
+      };
       let spawnedCount = 0;
       for (let i = 0; i < requestedCount; i++) {
-        const pool = usedEdge ? candidatesOn(usedEdge, promoted) : [];
+        const pool = poolFor();
         if (pool.length === 0) {
           blockedSpawns++;
           continue;

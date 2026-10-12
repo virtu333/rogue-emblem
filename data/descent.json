@@ -1,0 +1,195 @@
+{
+  "version": 1,
+  "enabled": false,
+  "routeByRung": {
+    "normal": "lieutenant",
+    "dusk": "lieutenant",
+    "hard": "entity",
+    "lunatic": "entity"
+  },
+  "routes": {
+    "lieutenant": {
+      "finale": "lieutenant",
+      "levelOffset": [2, 2],
+      "rows": [
+        {
+          "nodes": [
+            {
+              "key": "stair",
+              "type": "battle",
+              "setPiece": "old_kings_stair",
+              "title": "The Old Kings' Stair",
+              "preview": "Rout every foe on the first flight. The way down opens behind them."
+            }
+          ]
+        },
+        {
+          "nodes": [
+            {
+              "key": "column",
+              "type": "battle",
+              "setPiece": "mortuary_column",
+              "fallable": true,
+              "title": "The Mortuary Column",
+              "preview": "Rout the keepers of the long colonnade. The dark can still take this road."
+            },
+            {
+              "key": "side_stair",
+              "type": "event",
+              "eventPool": "descent",
+              "title": "A Side Stair",
+              "preview": "No fight on this landing. Something here waits to be read."
+            }
+          ]
+        },
+        {
+          "nodes": [
+            {
+              "key": "vigil",
+              "type": "battle",
+              "setPiece": "the_vigil",
+              "elite": true,
+              "riteTarget": true,
+              "title": "The Vigil",
+              "preview": "Silence the four Voices of the court circle; their guards need not fall."
+            }
+          ]
+        },
+        {
+          "nodes": [{ "key": "ruins", "type": "ruins", "title": "The Ruins" }]
+        },
+        {
+          "nodes": [
+            {
+              "key": "lieutenant",
+              "type": "boss",
+              "setPiece": "the_glass",
+              "objective": "seize",
+              "boss": "The Lieutenant",
+              "bossRole": "finale",
+              "riteTarget": true,
+              "title": "The Glass",
+              "preview": "Seize the throne at the far end of the hall. The Lieutenant holds it."
+            }
+          ]
+        }
+      ]
+    },
+    "entity": {
+      "finale": "entity",
+      "levelOffset": [1, 1],
+      "rows": [
+        {
+          "nodes": [
+            {
+              "key": "stair",
+              "type": "battle",
+              "setPiece": "old_kings_stair",
+              "title": "The Old Kings' Stair",
+              "preview": "Rout every foe on the first flight. The way down opens behind them."
+            }
+          ]
+        },
+        {
+          "nodes": [
+            {
+              "key": "column",
+              "type": "battle",
+              "setPiece": "mortuary_column",
+              "fallable": true,
+              "title": "The Mortuary Column",
+              "preview": "Rout the keepers of the long colonnade. The dark can still take this road."
+            },
+            {
+              "key": "side_stair",
+              "type": "event",
+              "eventPool": "descent",
+              "title": "A Side Stair",
+              "preview": "No fight on this landing. Something here waits to be read."
+            }
+          ]
+        },
+        {
+          "nodes": [
+            {
+              "key": "vigil",
+              "type": "battle",
+              "setPiece": "the_vigil",
+              "elite": true,
+              "riteTarget": true,
+              "title": "The Vigil",
+              "preview": "Silence the four Voices of the court circle; their guards need not fall."
+            }
+          ]
+        },
+        {
+          "nodes": [
+            {
+              "key": "landing",
+              "type": "event",
+              "eventPool": "descent",
+              "title": "The Landing",
+              "preview": "A last landing before the door. Something was left here for whoever came this far."
+            }
+          ]
+        },
+        {
+          "nodes": [
+            {
+              "key": "gate",
+              "type": "boss",
+              "setPiece": "the_glass",
+              "objective": "defeat",
+              "boss": "The Lieutenant",
+              "bossRole": "gate",
+              "riteTarget": true,
+              "title": "The Glass",
+              "preview": "Defeat the Lieutenant. The door below opens when he falls."
+            }
+          ]
+        },
+        {
+          "nodes": [{ "key": "ruins", "type": "ruins", "title": "The Ruins" }]
+        },
+        {
+          "nodes": [
+            {
+              "key": "entity",
+              "type": "boss",
+              "templateId": "eldritch_sanctum",
+              "objective": "seize",
+              "boss": "The Entity",
+              "bossRole": "finale",
+              "riteTarget": true,
+              "title": "The Sanctum Below",
+              "preview": "Seize the sanctum's heart. What sleeps there is awake now.",
+              "bossLine": "The Entity"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "rite": {
+    "startByPhase": { "pale": 3, "waning": 4, "umbral": 5, "totality": 7, "hollow": 9 },
+    "bands": [
+      { "id": "broken", "min": 0, "max": 4 },
+      { "id": "spoken", "min": 5, "max": 9 },
+      { "id": "answered", "min": 10 }
+    ],
+    "mods": {
+      "broken": {
+        "lieutenant": { "escortDrop": 2 },
+        "entity": { "splashDelta": -1 }
+      },
+      "spoken": {},
+      "answered": {
+        "lieutenant": { "revivalStones": 1, "waveHollowed": 2, "waveTurn": 4 },
+        "entity": { "splashDelta": 1, "waveHollowed": 2 }
+      }
+    },
+    "underPar": { "column": -2 },
+    "perWordLevel": 4,
+    "levelCap": 4
+  }
+}

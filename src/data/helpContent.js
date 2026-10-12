@@ -4,6 +4,7 @@
 
 import { GENERATED_HELP_TABS } from './generated/mechanicsHelp.js';
 import { GAME_TITLE } from '../utils/gameIdentity.js';
+import { isDescentEnabled, isDescentOnly } from '../engine/DescentSwitch.js';
 import { CHURCH_PROMOTE_COST_LORD, CHURCH_PROMOTE_COST_RECRUIT } from '../utils/constants.js';
 
 const GOLD = '#ffdd44';
@@ -108,6 +109,22 @@ const STATIC_HELP_TABS = [
           { text: '' },
           { text: 'Bows, Tomes, Light, Breath, and Staves', color: GRAY },
           { text: 'are outside the triangle.', color: GRAY },
+        ],
+      },
+      {
+        title: "The Entity's Reach",
+        lines: [
+          { text: 'Its blows reach 2 tiles from its body.', color: GOLD },
+          { text: 'Its weapons answer from 4.', color: RED },
+          { text: '' },
+          { text: 'Strike it from 3 or 4 tiles away', color: GRAY },
+          { text: '(a bow, a tome) and it still counters.', color: GRAY },
+          { text: 'The forecast says so before you', color: GRAY },
+          { text: 'confirm.', color: GRAY },
+          { text: '' },
+          { text: 'Danger draws its blows as the red', color: GRAY },
+          { text: 'zone and its counter as a fainter,', color: GRAY },
+          { text: 'dashed band just beyond it.', color: GRAY },
         ],
       },
       {
@@ -465,9 +482,12 @@ const STATIC_HELP_TABS = [
       {
         title: 'Skill Loadout',
         lines: [
-          { text: '5 skills go into battle. A skill', color: GOLD },
-          { text: 'learned with all 5 slots full waits', color: GOLD },
-          { text: 'on the bench: swap skills between', color: GOLD },
+          { text: '5 skills and 3 abilities go into', color: GOLD },
+          { text: 'battle. Abilities are skills used as', color: GOLD },
+          { text: 'an action (Shove, Dance, Steal,', color: GOLD },
+          { text: 'Blink): they have their own slots.', color: GOLD },
+          { text: 'One learned with its slots full waits', color: GOLD },
+          { text: 'on the bench: swap them between', color: GOLD },
           { text: 'battles in Roster > Skills.', color: GOLD },
           { text: 'Personal and class skills stay equipped.', color: GRAY },
         ],
@@ -566,17 +586,19 @@ const STATIC_HELP_TABS = [
         lines: [
           { text: 'Rout:', color: RED },
           { text: '  Defeat all enemies on the map.' },
-          { text: '  Most common objective.' },
           { text: '' },
           { text: 'Seize:', color: GOLD },
           { text: '  Move your lord onto the Throne tile' },
           { text: '  after defeating the boss guarding it.' },
           { text: '' },
+          { text: 'Defeat:', color: RED },
+          { text: '  Fell the named targets. The rest' },
+          { text: '  of the foes need not fall.' },
+          { text: '' },
           { text: 'Escape:', color: GREEN },
           { text: '  Get every Lord to an escape square.' },
           { text: '  Pursuers arrive endlessly — outrun them!' },
           { text: '  Other units may exit early for gold.' },
-          { text: '' },
         ],
       },
       {
@@ -588,12 +610,55 @@ const STATIC_HELP_TABS = [
           { text: 'but the run continues.', color: RED },
           { text: '' },
           { text: 'Par: target turns for better clear rewards.', color: CYAN },
+          { text: '  See Par & Turn Ratings.' },
           { text: '' },
           { text: 'Branching Threads (Home Base, Supply):', color: GOLD },
           { text: '  Rerolls per run, one pool for both:' },
           { text: '  a battle’s loot choices before your' },
           { text: '  first pick, or a level-up’s gains once' },
           { text: '  revealed. The new roll stands.' },
+        ],
+      },
+      {
+        title: 'Par & Turn Ratings',
+        tags: ['par', 'rating', 'turns', 'exp', 'gold', 'patient dawn'],
+        lines: [
+          { text: "Par is the battle's target turn count.", color: CYAN },
+          { text: '  More foes, a bigger map and rough ground' },
+          { text: '  raise it. Seize, Escape and Defeat start' },
+          { text: '  higher; harder rungs set it tighter.' },
+          { text: '  Castles, Mire Crossing, the Toll-House' },
+          { text: '  and Toll Crossing add 1-2.' },
+          { text: '' },
+          { text: 'Rating (turns taken vs par):', color: GOLD },
+          { text: '  S  3+ turns under par · EXP x1.25' },
+          { text: '  A  par or under · EXP x1.10' },
+          { text: '  B  1-3 turns over · EXP x1.00' },
+          { text: '  C  4+ turns over · EXP x0.90' },
+          { text: '' },
+          { text: 'EXP is rated on the turn it is earned:', color: GRAY },
+          { text: 'fast early kills keep the S boost.', color: GRAY },
+        ],
+      },
+      {
+        title: 'Par Rewards',
+        tags: ['par', 'gold', 'bonus', 'rating', 'late', 'enrage', 'dawn tithe'],
+        lines: [
+          { text: 'Par gold at victory (I · II · III · IV · Final):', color: GOLD },
+          { text: '  S  375 · 750 · 1250 · 1750 · 2250' },
+          { text: '  A  225 · 450 · 750 · 1050 · 1350' },
+          { text: '  B  93 · 187 · 312 · 437 · 562' },
+          { text: '  C  nothing' },
+          { text: '' },
+          { text: 'Running long (3+ turns over par):', color: RED },
+          { text: '  EXP and all gold shrink: kills, the' },
+          { text: '  victory bonus and par gold. Every 2' },
+          { text: '  more turns cut deeper, to x0.1.' },
+          { text: '  A boss enrages at par +2, or turn 12' },
+          { text: '  if sooner, but never before par +1.' },
+          { text: '' },
+          { text: 'The Eclipse, Patient Dawn and Dawn', color: GRAY },
+          { text: 'Tithe read par too.', color: GRAY },
         ],
       },
       {
@@ -631,6 +696,20 @@ const STATIC_HELP_TABS = [
           { text: 'Fell the Necromancer and its own', color: GOLD },
           { text: 'Skeletons crumble (no gold, no EXP).', color: GOLD },
           { text: 'It holds near its post: dive for it.', color: GRAY },
+        ],
+      },
+      {
+        title: 'The Court Circle',
+        descentOnly: true,
+        tags: ['circle adept', 'hollowed', 'court circle', 'rite', 'voice', 'act v'],
+        lines: [
+          { text: 'Circle Adepts speak the rite:', color: GOLD },
+          { text: '  warded against magic, soft to steel.' },
+          { text: '  They strike from a post and hold it.' },
+          { text: '' },
+          { text: 'The Hollowed are soldiers it emptied:', color: CYAN },
+          { text: '  slow and dull, with no skills at all.' },
+          { text: '  Neither ever carries an item.', color: GRAY },
         ],
       },
       {
@@ -734,7 +813,6 @@ const STATIC_HELP_TABS = [
         lines: [
           { text: 'An original score, composed in code', color: GOLD },
           { text: 'and played by free sample libraries:' },
-          { text: '' },
           { text: 'Sonatina Symphonic Orchestra', color: CYAN },
           { text: '  Mattias Westlund & contributors' },
           { text: '  CC Sampling Plus 1.0', color: GRAY },
@@ -742,6 +820,7 @@ const STATIC_HELP_TABS = [
           { text: '  Paul Battersby, with samples by' },
           { text: '  Jeff Glatt (No Budget Orchestra)' },
           { text: '  and Mattias Westlund, CC BY-SA', color: GRAY },
+          { text: '  SFZ edition via an unofficial mirror', color: GRAY },
           { text: 'VSCO 2 CE, VCSL: Versilian Studios', color: CYAN },
           { text: 'GeneralUser GS: S. Christian Collins', color: CYAN },
           { text: 'Virtuosity Drums, Growlybass,', color: CYAN },
@@ -835,6 +914,19 @@ const STATIC_HELP_TABS = [
 ];
 
 export const HELP_TABS = [...STATIC_HELP_TABS, ...GENERATED_HELP_TABS];
+
+/**
+ * The tabs a player is shown: a page marked `descentOnly` (the Court Circle) appears only
+ * once the Descent is switched on in `gameData` (engine/DescentSwitch.js). `HELP_TABS`
+ * stays the whole catalog.
+ */
+export function helpTabsFor(gameData) {
+  if (isDescentEnabled(gameData)) return HELP_TABS;
+  return HELP_TABS.map((tab) => ({
+    ...tab,
+    pages: (tab.pages || []).filter((page) => !isDescentOnly(page)),
+  }));
+}
 
 export const HOW_TO_PLAY_PAGES = [
   {

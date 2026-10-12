@@ -20,9 +20,10 @@
 //
 // Every capability maps to format 2, the first format whose clients honour the list. A client
 // refuses an id it does not play (CLIENT_CAPABILITIES), so a later capability needs no new
-// format number. This build writes none of them: CLIENT_CAPABILITIES is empty, and the PR that
-// adds a writer adds its id there in the same change (a client never writes what it cannot
-// read; tests/RunFormatRegistry.test.js holds it).
+// format number. The PR that adds a writer adds its id there in the same change (a client never
+// writes what it cannot read; tests/harness/RunFormatRegistry.test.js holds it). This build
+// writes the Descent's four (act-v-descent; shipped dark, so a run gains them only once
+// data/descent.json is switched on, or the defeat model on an event set piece that names one).
 //
 // Detection errs toward holding: a false positive keeps one run on its device until the
 // cloud lift (CloudSync.CLOUD_SAFE_RUN_FORMAT); a miss lets an older client corrupt a run.
@@ -53,15 +54,34 @@ export const RUN_CAPABILITIES = Object.freeze({
   arena: 2,
   // Assembled set pieces (04). The shipped event set pieces are not one (04 §16.5).
   setPiece: 2,
+  // The Descent's authored Act V route (act-v-descent §2, §9.1, §9.3): `nodeMap.descent` and its
+  // stamped nodes. An older client would build template rout maps for its set pieces (no
+  // Lieutenant seated at the gate), give a boss recruit and no Vision at the gate, let the
+  // Eclipse take the Stair, the Vigil or the Landing, and pay `finalBoss`'s gold-only loot.
+  // RunManager._buildActNodeMap holds a run to it the moment it builds the route (the floor).
+  descent: 2,
+  // The Rite (§4, §9.5): `run.rite` and what it writes into battles (tiers, mods, the Hollowed
+  // level rule). An older client would drop it on load and seat every boss untiered.
+  rite: 2,
+  // The Vigil (§3.1, §5.2): a locked config's `vigil` and a checkpoint's `vigilState`. An older
+  // client would fight the Voices as plain foes: no words, no summons, the count lost on resume.
+  vigil: 2,
+  // BattleObjectives' version-1 model of `defeat` primaries (act-v-descent §9.4), on any act (a
+  // v2 set piece may name one). An older client would play the map as its legacy rout. Any other
+  // model beyond the legacy derivation is `objectives` (spec 03), which this build does not play.
+  defeatObjective: 2,
 });
 
 export const CAPABILITY_IDS = Object.freeze(Object.keys(RUN_CAPABILITIES));
 
+/** The id RunManager._buildActNodeMap holds a run to as it builds the Descent's route. */
+export const DESCENT_CAPABILITY = 'descent';
+
 /**
- * The capabilities this build plays. Empty: the guard ships before any writer, and each
- * writer's PR adds its id here.
+ * The capabilities this build plays: each writer's PR adds its id here. The guard shipped
+ * before any; the Descent added its four.
  */
-export const CLIENT_CAPABILITIES = Object.freeze([]);
+export const CLIENT_CAPABILITIES = Object.freeze(['descent', 'rite', 'vigil', 'defeatObjective']);
 
 /** The terrain index the Gate takes (03 §5.7): terrain.json holds 0..18 today. */
 export const GATE_TERRAIN_INDEX = 19;
@@ -79,14 +99,14 @@ export class RunFormatError extends Error {
 }
 
 /**
- * Every key the large-maps specs add to a saved run, by where it lives, and what it is (§12.1
- * step 8): `inert` (data no old reader looks at), `legacy` (an older client already plays it
- * right: the shipped event set pieces, §16.5), `marker` (the guard's own fields), or the
- * capability id(s) that hold a run carrying it. Detection above decides when a value really
- * holds one (a `hold:` group is legacy whatever its key). A PR that writes a new key into one of
- * these places lists it here; tests/harness/RunFormatRegistry.test.js takes a key census over
- * generated runs, maps and checkpoints and fails on a key that is neither here nor in the
- * frozen baseline of keys that existed before the guard.
+ * Every key the large-maps specs and the Descent add to a saved run, by where it lives, and
+ * what it is (§12.1 step 8): `inert` (data no old reader looks at), `legacy` (an older client
+ * already plays it right: the shipped event set pieces, §16.5), `marker` (the guard's own
+ * fields), or the capability id(s) that hold a run carrying it. Detection above decides when a
+ * value really holds one (a `hold:` group is legacy whatever its key). A PR that writes a new key
+ * into one of these places lists it here; tests/harness/RunFormatRegistry.test.js takes a key
+ * census over generated runs, maps and checkpoints and fails on a key that is neither here nor
+ * in the frozen baseline of keys that existed before the guard.
  */
 export const RUN_FORMAT_FIELDS = Object.freeze({
   // A node's battleParams (and the battle in progress's).
@@ -97,6 +117,16 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     setPieceFallback: 'setPiece',
     arenaVariant: 'arena',
     parModel: 'parModel',
+    // The Descent: a route node's boss seated by name and its role (gate | finale).
+    bossName: 'descent',
+    bossRole: 'descent',
+    // A Descent defeat node's model over its seize set piece (Descent.DEFEAT_BOSS_OBJECTIVES).
+    objectives: Object.freeze(['defeatObjective', 'objectives']),
+    // RunManager.getBattleParams, only while a Rite exists.
+    riteAtEntry: 'rite',
+    riteBand: 'rite',
+    riteLevel: 'rite',
+    riteMods: 'rite',
   }),
   // A locked battle config.
   battleConfig: Object.freeze({
@@ -107,7 +137,7 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     encounterGroups: 'encounters',
     triggeredWaves: 'encounters',
     parModel: 'parModel',
-    objectives: 'objectives',
+    objectives: Object.freeze(['defeatObjective', 'objectives']),
     npcAllies: 'objectives',
     structures: 'gateTerrain',
     bossKit: 'bossKit',
@@ -119,6 +149,10 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     anchors: 'inert',
     encounterVersion: 'inert',
     parRoute: 'inert',
+    vigil: 'vigil',
+    // What the Rite did to the map (RiteBattleMods): its record, and the Entity's splash count.
+    riteMods: 'rite',
+    entitySplashCount: 'rite',
   }),
   // A locked config's enemy spawn.
   enemySpawn: Object.freeze({
@@ -128,12 +162,15 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     clampTile: 'objectives',
     objectiveRef: 'objectives',
     bossKit: 'bossKit',
+    // A set piece slot's id: read only by a defeat target and a Voice, which hold their own.
+    authoredId: 'inert',
   }),
   // A battle checkpoint's top level (and a Vision snapshot's, a timeline destination's).
   checkpoint: Object.freeze({
     encounterState: 'encounters',
     objectiveState: 'objectives',
     bossState: 'bossKit',
+    vigilState: 'vigil',
   }),
   // The serialized run's top level.
   run: Object.freeze({
@@ -141,6 +178,19 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     requiresCapabilities: 'marker',
     bonusVisionActs: 'objectives',
     setPiecesOffered: 'setPiece',
+    rite: 'rite',
+  }),
+  // The route map's top level.
+  nodeMap: Object.freeze({
+    descent: 'descent',
+  }),
+  // A route node (any node, done or not: the route is the run's, not one battle's).
+  node: Object.freeze({
+    authored: 'descent',
+    descentKey: 'descent',
+    eventPool: 'descent',
+    fallable: 'descent',
+    riteTarget: 'descent',
   }),
 });
 
@@ -219,6 +269,34 @@ function objectivesBeyondLegacy(objectives) {
   return false;
 }
 
+// The model this build plays (BattleObjectives.js, act-v-descent §9.4): version 1, `defeat`
+// primaries and nothing else. Read here by its own keys, never through BattleObjectives'
+// validator, so a later build that teaches that module more kinds (large-maps PR 1) cannot widen
+// what `defeatObjective` means: any other written model stays `objectives`.
+const DEFEAT_MODEL_KEYS = new Set(['version', 'primary']);
+const DEFEAT_PRIMARY_KEYS = new Set(['id', 'kind', 'targets', 'need', 'label']);
+
+function isDefeatModel(objectives) {
+  if (!isRecord(objectives) || objectives.version !== 1) return false;
+  if (Object.keys(objectives).some((key) => !DEFEAT_MODEL_KEYS.has(key))) return false;
+  if (!nonEmptyArray(objectives.primary)) return false;
+  return objectives.primary.every(
+    (p) =>
+      isRecord(p) &&
+      p.kind === 'defeat' &&
+      typeof p.id === 'string' &&
+      Object.keys(p).every((key) => DEFEAT_PRIMARY_KEYS.has(key)) &&
+      nonEmptyArray(p.targets) &&
+      p.targets.every((ref) => typeof ref === 'string' && ref.length > 0),
+  );
+}
+
+/** The capability a written objectives model holds, or null for the legacy derivation's. */
+function objectivesCapability(objectives) {
+  if (isDefeatModel(objectives)) return 'defeatObjective';
+  return objectivesBeyondLegacy(objectives) ? 'objectives' : null;
+}
+
 function objectiveStateBeyondLegacy(state) {
   if (state === undefined || state === null) return false;
   if (!isRecord(state)) return true;
@@ -241,7 +319,25 @@ function unitHoldsObjective(unit) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The four places a run holds mechanics.
+// The Descent (act-v-descent): its route, the Rite's battle fields.
+
+// A route node's Descent stamps (Descent.buildNode). Title, preview and bossLine are not among
+// them: the prologue's route carried them first, and an older client shows them as meant.
+const DESCENT_NODE_KEYS = ['authored', 'descentKey', 'eventPool', 'fallable', 'riteTarget'];
+// What RunManager.getBattleParams adds while a Rite exists.
+const RITE_PARAM_KEYS = ['riteAtEntry', 'riteBand', 'riteLevel', 'riteMods'];
+
+/** The route map: the Descent's, or any node it stamped (done or not). */
+function scanRouteMap(nodeMap, found) {
+  if (!isRecord(nodeMap)) return;
+  if (present(nodeMap, 'descent')) found.add('descent');
+  for (const node of Array.isArray(nodeMap.nodes) ? nodeMap.nodes : []) {
+    if (DESCENT_NODE_KEYS.some((key) => present(node, key))) found.add('descent');
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The places a run holds mechanics.
 
 function mapLayoutHasGate(layout) {
   if (!Array.isArray(layout)) return false;
@@ -262,6 +358,10 @@ function scanNodeParams(params, found) {
   if (present(params, 'setPieceFallback')) found.add('setPiece');
   if (present(params, 'arenaVariant')) found.add('arena');
   if (present(params, 'parModel')) found.add('parModel');
+  if (present(params, 'bossName') || present(params, 'bossRole')) found.add('descent');
+  const objectives = objectivesCapability(params.objectives);
+  if (objectives) found.add(objectives);
+  if (RITE_PARAM_KEYS.some((key) => present(params, key))) found.add('rite');
 }
 
 /** A locked battle config (or one a checkpoint carries). */
@@ -274,8 +374,11 @@ function scanBattleConfig(config, found) {
   if (nonEmptyArray(config.triggeredWaves) || nonEmptyArray(config.reinforcements?.triggeredWaves))
     found.add('encounters');
   if (present(config, 'parModel')) found.add('parModel');
-  if (objectivesBeyondLegacy(config.objectives) || present(config, 'npcAllies'))
-    found.add('objectives');
+  const objectives = objectivesCapability(config.objectives);
+  if (objectives) found.add(objectives);
+  if (present(config, 'npcAllies')) found.add('objectives');
+  if (present(config, 'vigil')) found.add('vigil');
+  if (present(config, 'riteMods') || present(config, 'entitySplashCount')) found.add('rite');
   if (nonEmptyArray(config.structures)) found.add('gateTerrain');
   if (mapLayoutHasGate(config.mapLayout)) found.add('gateTerrain');
   if (present(config, 'bossKit') || present(config, 'bossSignature')) found.add('bossKit');
@@ -314,6 +417,7 @@ function scanBattleState(state, found) {
   if (hasEntries(state.bossState) || (state.bossState != null && !isRecord(state.bossState)))
     found.add('bossKit');
   if (mapLayoutHasGate(state.mapLayout)) found.add('gateTerrain');
+  if (present(state, 'vigilState')) found.add('vigil');
   for (const list of STATE_UNIT_LISTS) {
     for (const unit of Array.isArray(state[list]) ? state[list] : []) {
       if (unitHoldsEncounter(unit)) found.add('encounters');
@@ -386,6 +490,7 @@ function scanRunFields(saved, found) {
   }
   if (present(saved, 'bonusVisionActs')) found.add('objectives');
   if (nonEmptyArray(saved.setPiecesOffered)) found.add('setPiece');
+  if (present(saved, 'rite')) found.add('rite');
 }
 
 /** Capability ids sorted in the table's order (a stable marker). */
@@ -398,7 +503,8 @@ function sortCapabilities(ids) {
 
 /**
  * The format a serialized run needs, derived from the mechanics it holds (never from the
- * marker). Reads the node map's not-yet-complete nodes, the locked configs, the battle in
+ * marker). Reads the route map (the Descent's stamps), the node map's not-yet-complete nodes'
+ * params, the locked configs, the battle in
  * progress (its params, checkpoint, Vision snapshots and rewind timeline) and the run fields.
  * @param {object} saved - a serialized run (RunManager.toJSON's shape)
  * @returns {{ format: number, capabilities: string[] }}
@@ -406,6 +512,7 @@ function sortCapabilities(ids) {
 export function requiredRunFormat(saved) {
   const found = new Set();
   if (!isRecord(saved)) return { format: LEGACY_RUN_FORMAT, capabilities: [] };
+  scanRouteMap(saved.nodeMap, found);
   for (const node of Array.isArray(saved.nodeMap?.nodes) ? saved.nodeMap.nodes : []) {
     if (!isRecord(node) || node.completed === true) continue;
     scanNodeParams(node.battleParams, found);

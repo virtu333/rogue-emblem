@@ -19,7 +19,6 @@ import {
   BASE_CLASS_LEVEL_CAP,
   PROMOTED_CLASS_LEVEL_CAP,
   PROMOTION_MIN_LEVEL,
-  MAX_SKILLS,
   ENEMY_PROMOTION_BASE_LEVEL,
   ENEMY_NEVER_SKILLS,
 } from '../utils/constants.js';
@@ -35,7 +34,8 @@ import {
   reapplyTraitGrowthMods,
 } from './TraitSystem.js';
 import { rollMark } from './MarkSystem.js';
-import { isFemaleOnlyClass, unitGender } from './PortraitVariants.js';
+import { slotsFullFor } from './SkillSlots.js';
+import { isFemaleOnlyClass, noteReclassFace, unitGender } from './PortraitVariants.js';
 
 // --- Weapon proficiency parsing ---
 
@@ -162,8 +162,9 @@ export function getClassInnateSkills(className, skillsData) {
 // --- Skill learning ---
 
 // --- Skill loadout ---
-// `unit.skills` holds the equipped skills (at most MAX_SKILLS): combat and every
-// battle system read only these. `unit.benchedSkills` holds skills the unit knows but
+// `unit.skills` holds the equipped skills (at most MAX_SKILLS skills plus MAX_ABILITIES
+// abilities, counted apart: engine/SkillSlots.js): combat and every battle system read
+// only these. `unit.benchedSkills` holds skills the unit knows but
 // has not equipped. A player unit that learns a skill with every slot full keeps it on
 // the bench (playtest 2026-09-28: skills used to be lost at the cap); between battles
 // the roster swaps skills between the two (engine/SkillLoadout.js). Enemies never
@@ -181,15 +182,16 @@ export function knowsSkill(unit, skillId) {
 
 /**
  * Attempt to teach a unit a skill. Returns { learned, skillId?, reason?, benched? }.
- * At the cap a player unit keeps the skill on its bench: { learned: false, benched:
- * true, reason: 'at_cap' } (callers that report "slots full" still see at_cap), and
- * the skill is marked new (`benchedUnseen`) until the roster shows it. `bench: false`
- * refuses at the cap instead (a caller that makes room itself).
+ * The cap is the one for the skill's kind (an ability fills an ability slot, any other
+ * skill a skill slot: SkillSlots.js). At that cap a player unit keeps the skill on its
+ * bench: { learned: false, benched: true, reason: 'at_cap' } (callers that report "slots
+ * full" still see at_cap), and the skill is marked new (`benchedUnseen`) until the roster
+ * shows it. `bench: false` refuses at the cap instead (a caller that makes room itself).
  */
-export function learnSkill(unit, skillId, { bench = true } = {}) {
+export function learnSkill(unit, skillId, { bench = true, skillsData } = {}) {
   if (!Array.isArray(unit.skills)) unit.skills = [];
   if (knowsSkill(unit, skillId)) return { learned: false, reason: 'already_known' };
-  if (unit.skills.length >= MAX_SKILLS) {
+  if (slotsFullFor(unit, skillId, skillsData)) {
     if (!bench || unit.faction === 'enemy') return { learned: false, reason: 'at_cap' };
     unit.benchedSkills = [...benchedSkillsOf(unit), skillId];
     unit.benchedUnseen = [...(unit.benchedUnseen || []).filter((id) => id !== skillId), skillId];
@@ -417,12 +419,11 @@ function parseEnemyDifficultyConfig(difficultyConfig = 1.0) {
   const enemyEquipTierShift = isConfigObject
     ? Math.trunc(Number(difficultyConfig.enemyEquipTierShift ?? 0))
     : 0;
-  const classStatBonuses = isConfigObject ? difficultyConfig.classStatBonuses : null;
   const rawSkillChanceBonus = isConfigObject ? Number(difficultyConfig.skillChanceBonus ?? 0) : 0;
   const skillChanceBonus = Number.isFinite(rawSkillChanceBonus)
     ? Math.max(0, rawSkillChanceBonus)
     : 0;
-  return { difficultyMod, enemyStatBonus, enemyEquipTierShift, classStatBonuses, skillChanceBonus };
+  return { difficultyMod, enemyStatBonus, enemyEquipTierShift, skillChanceBonus };
 }
 
 /**
@@ -433,7 +434,6 @@ export function enemyDifficultyConfigFromParams(battleParams = {}) {
   return {
     multiplier: battleParams.difficultyMod || 1.0,
     enemyStatBonus: Math.trunc(battleParams.enemyStatBonus || 0),
-    classStatBonuses: battleParams.classStatBonuses || {},
     enemyEquipTierShift: Math.trunc(battleParams.enemyEquipTierShift || 0),
     // difficulty.json `enemySkillChance`: added to the act's combat-skill chance.
     skillChanceBonus: Number(battleParams.enemySkillChance) || 0,
@@ -442,11 +442,7 @@ export function enemyDifficultyConfigFromParams(battleParams = {}) {
 
 export function applyEnemyDifficultyModifiers(unit, difficultyConfig = 1.0) {
   if (!unit) return unit;
-  const { difficultyMod, enemyStatBonus, classStatBonuses } =
-    parseEnemyDifficultyConfig(difficultyConfig);
-  const classBonus = Number(classStatBonuses?.[unit.className] ?? 0);
-  const flatBonus =
-    enemyStatBonus + (Number.isFinite(classBonus) ? Math.max(0, Math.trunc(classBonus)) : 0);
+  const { difficultyMod, enemyStatBonus } = parseEnemyDifficultyConfig(difficultyConfig);
 
   // Apply multiplier first for backward compatibility with harness fixtures.
   if (Number.isFinite(difficultyMod) && difficultyMod !== 1.0) {
@@ -457,9 +453,9 @@ export function applyEnemyDifficultyModifiers(unit, difficultyConfig = 1.0) {
   }
 
   // Apply flat difficulty stat bonus (HP gets double value).
-  if (flatBonus !== 0) {
+  if (enemyStatBonus !== 0) {
     for (const stat of XP_STAT_NAMES) {
-      const delta = stat === 'HP' ? flatBonus * 2 : flatBonus;
+      const delta = stat === 'HP' ? enemyStatBonus * 2 : enemyStatBonus;
       unit.stats[stat] = (unit.stats[stat] || 0) + delta;
     }
     unit.currentHP = unit.stats.HP;
@@ -470,6 +466,9 @@ export function applyEnemyDifficultyModifiers(unit, difficultyConfig = 1.0) {
 
 function assignEnemySkills(unit, classData, level, skillsData, act, difficultyConfig = 1.0) {
   if (!skillsData) return;
+  // A class with `noEnemySkills` (the Hollowed: the person has gone out of the uniform) never
+  // learns one, innate or rolled; the roll below draws nothing for it.
+  if (classData.noEnemySkills === true) return;
 
   // Promoted enemies get class innate skills.
   if (classData.tier === 'promoted') {
@@ -1392,7 +1391,7 @@ export function resolvePromotionTargetClass(unit, classesData, lordsData = []) {
  * Optionally adds class-innate skills from skillsData.
  * Mutates unit in-place.
  * Returns { learnedSkills, droppedSkills } — droppedSkills lists class innates
- * the unit could NOT learn (MAX_SKILLS cap) so callers can tell the player
+ * the unit could NOT learn (its kind's slots full) so callers can tell the player
  * instead of losing them silently.
  */
 export function promoteUnit(unit, promotedClassData, promotionBonuses, skillsData) {
@@ -1463,11 +1462,11 @@ export function getSkillDisplayNames(skillIds, skillsData) {
 export function benchedSkillsNote(names) {
   const list = (names || []).filter(Boolean);
   if (!list.length) return '';
-  return `All ${MAX_SKILLS} skill slots full: ${list.join(', ')} kept on the bench (swap in from Skills).`;
+  return `Slots full: ${list.join(', ')} kept on the bench (swap in from Skills).`;
 }
 
 /**
- * Player-facing notice for class innates benched by the MAX_SKILLS cap during
+ * Player-facing notice for class innates benched by a full slot pool during
  * promotion. Returns null when nothing was benched.
  */
 export function formatDroppedSkillsNotice(unitName, droppedSkills, skillsData) {
@@ -1498,8 +1497,8 @@ const RECLASS_EXCLUDED_CLASSES = new Set([
   'Bard',
 ]);
 
-// Enemy-only lines (undead, dragons, the Necromancer and its Skeletons): never a seal target
-// (a unit already in one may still reclass out).
+// Enemy-only lines (undead, dragons, the Necromancer and its Skeletons, the court circle's
+// Adepts and the Hollowed): never a seal target (a unit already in one may still reclass out).
 const RECLASS_TARGET_EXCLUDED_CLASSES = new Set([
   'Zombie',
   'Revenant',
@@ -1507,6 +1506,8 @@ const RECLASS_TARGET_EXCLUDED_CLASSES = new Set([
   'Dragon Lord',
   'Necromancer',
   'Skeleton',
+  'Circle Adept',
+  'Hollowed',
 ]);
 // The same lines, named for callers that need to know a class (or a skill innate to it) is
 // enemy-only (events never teach those skills).
@@ -1698,6 +1699,7 @@ export function reclassUnit(
   }
 
   // --- Class identity ---
+  noteReclassFace(unit, unit.className, newClassData.name);
   unit.className = newClassData.name;
   normalizeUnitClassState(unit, newClassData);
   unit.mov = unit.stats.MOV;

@@ -8,6 +8,9 @@ import {
 import {
   KNOWN_WHEN_KEYS,
   buildNarrativeContext,
+  evaluateWhen,
+  finaleOf,
+  roadIncludesAct4,
   selectDialogueEntries,
 } from '../src/engine/NarrativeDirector.js';
 import { loadGameData } from './testData.js';
@@ -38,9 +41,23 @@ describe('Narrative scaffold helpers', () => {
     expect(getActTransitionKey('act2', 'act3')).toBe('act2_to_act3');
     expect(getActTransitionKey('act3', 'finalBoss')).toBe('act3_to_finalBoss_normal');
     expect(getActTransitionKey('act3', 'act4')).toBe('act3_to_act4');
-    // After the Emperor: the ground wakes and the army descends to the Entity.
+    // After the Emperor: the ground wakes and the army descends to the Entity ...
     expect(getActTransitionKey('act4', 'finalBoss')).toBe('finalBoss_to_secretAct');
+    for (const finale of ['entity', 'emperor', null, undefined])
+      expect(getActTransitionKey('act4', 'finalBoss', { finale }), String(finale)).toBe(
+        'finalBoss_to_secretAct',
+      );
     expect(getActTransitionFollowUps('finalBoss_to_secretAct')).toEqual(['secretAct_start']);
+    // ... or, on a road that ends at the Lieutenant (Dusk), down to him alone.
+    expect(getActTransitionKey('act4', 'finalBoss', { finale: 'lieutenant' })).toBe(
+      'act4_to_finalBoss_lieutenant',
+    );
+    expect(getActTransitionFollowUps('act4_to_finalBoss_lieutenant')).toEqual([]);
+    // The finale never changes any other pair.
+    expect(getActTransitionKey('act3', 'finalBoss', { finale: 'lieutenant' })).toBe(
+      'act3_to_finalBoss_normal',
+    );
+    expect(getActTransitionKey('act3', 'act4', { finale: 'lieutenant' })).toBe('act3_to_act4');
     expect(getActTransitionFollowUps('act3_to_act4')).toEqual([]);
   });
 
@@ -53,9 +70,11 @@ describe('Narrative scaffold helpers', () => {
       ['act4', 'finalBoss'],
     ];
     for (const [from, to] of pairs) {
-      const key = getActTransitionKey(from, to);
-      for (const k of [key, ...getActTransitionFollowUps(key)])
-        expect(dialogueData.actTransitions[k], k).toBeTruthy();
+      for (const finale of [null, 'lieutenant', 'entity']) {
+        const key = getActTransitionKey(from, to, { finale });
+        for (const k of [key, ...getActTransitionFollowUps(key)])
+          expect(dialogueData.actTransitions[k], k).toBeTruthy();
+      }
     }
   });
 
@@ -88,6 +107,83 @@ describe('Narrative scaffold helpers', () => {
 
     const restored = RunManager.fromJSON(json, gameData);
     expect(restored.hasShownDialogue('runStart')).toBe(true);
+  });
+});
+
+describe('the road in the narrative context (Dusk goes on to the Lieutenant)', () => {
+  const enemies = JSON.parse(fs.readFileSync('data/enemies.json', 'utf8'));
+  const ROADS = {
+    firstLight: { difficultyId: 'normal', acts: ['act1', 'act2', 'act3', 'finalBoss'] },
+    dusk: { difficultyId: 'dusk', acts: ['act1', 'act2', 'act3', 'act4', 'finalBoss'] },
+    duskSavedBefore: { difficultyId: 'dusk', acts: ['act1', 'act2', 'act3', 'act4'] },
+    nightfall: { difficultyId: 'hard', acts: ['act1', 'act2', 'act3', 'act4', 'finalBoss'] },
+    blackSun: { difficultyId: 'lunatic', acts: ['act1', 'act2', 'act3', 'act4', 'finalBoss'] },
+  };
+  const runOf = ({ difficultyId, acts }, withData = true) => ({
+    difficultyId,
+    actSequence: acts,
+    ...(withData ? { gameData: { enemies } } : {}),
+  });
+
+  it('roadThroughEmperor is the run\u2019s own act list: Act IV on the road, never First Light', () => {
+    // Failure: it reads the rung, or where the road ends, so a saved four-act Dusk run (which
+    // still passes the Emperor) or a new five-act one reads wrong.
+    const through = Object.fromEntries(
+      Object.entries(ROADS).map(([name, road]) => [
+        name,
+        buildNarrativeContext({ runManager: runOf(road) }).roadThroughEmperor,
+      ]),
+    );
+    expect(through).toEqual({
+      firstLight: false,
+      dusk: true,
+      duskSavedBefore: true,
+      nightfall: true,
+      blackSun: true,
+    });
+    expect(roadIncludesAct4(null)).toBe(false);
+    expect(buildNarrativeContext().roadThroughEmperor).toBe(false);
+    expect(buildNarrativeContext({ runManager: { difficultyId: 'dusk' } }).roadThroughEmperor).toBe(
+      false,
+    );
+  });
+
+  it('finale names where the road ends, from the act list and the rung\u2019s final boss', () => {
+    // Failure: Dusk's new road reads as the Entity's (or as the Emperor's, which ended it before),
+    // so its Lieutenant lines or its ending go to the wrong road.
+    const finale = (road) => buildNarrativeContext({ runManager: runOf(road) }).finale;
+    expect(finale(ROADS.firstLight)).toBe('lieutenant');
+    expect(finale(ROADS.dusk)).toBe('lieutenant');
+    expect(finale(ROADS.duskSavedBefore)).toBe('emperor');
+    expect(finale(ROADS.nightfall)).toBe('entity');
+    expect(finale(ROADS.blackSun)).toBe('entity');
+    // The boss catalog comes from the caller when the run holds none.
+    const bare = runOf(ROADS.nightfall, false);
+    expect(buildNarrativeContext({ runManager: bare, gameData: { enemies } }).finale).toBe(
+      'entity',
+    );
+    // Unknown is never guessed: no run, or no catalog to name the final boss.
+    expect(finaleOf(null, { enemies })).toBeNull();
+    expect(finaleOf({ actSequence: [] }, { enemies })).toBeNull();
+    expect(finaleOf(bare, undefined)).toBeNull();
+    expect(finaleOf(runOf(ROADS.duskSavedBefore, false), undefined)).toBe('emperor');
+  });
+
+  it('the new when keys match as written, and a missing context key never matches true', () => {
+    const dusk = buildNarrativeContext({ runManager: runOf(ROADS.dusk) });
+    const firstLight = buildNarrativeContext({ runManager: runOf(ROADS.firstLight) });
+    expect(KNOWN_WHEN_KEYS.has('roadThroughEmperor')).toBe(true);
+    expect(KNOWN_WHEN_KEYS.has('finale')).toBe(true);
+    expect(evaluateWhen({ roadThroughEmperor: true }, dusk)).toBe(true);
+    expect(evaluateWhen({ roadThroughEmperor: false }, dusk)).toBe(false);
+    expect(evaluateWhen({ roadThroughEmperor: true }, firstLight)).toBe(false);
+    expect(evaluateWhen({ roadThroughEmperor: false }, firstLight)).toBe(true);
+    expect(evaluateWhen({ finale: 'lieutenant' }, dusk)).toBe(true);
+    expect(evaluateWhen({ finale: ['entity', 'emperor'] }, dusk)).toBe(false);
+    expect(evaluateWhen({ finale: ['entity', 'lieutenant'] }, dusk)).toBe(true);
+    // A context from before the keys (a hand-built test one) is no road at all.
+    expect(evaluateWhen({ roadThroughEmperor: true }, { commander: 'Edric' })).toBe(false);
+    expect(evaluateWhen({ finale: 'lieutenant' }, { commander: 'Edric' })).toBe(false);
   });
 });
 
@@ -883,6 +979,29 @@ describe('Node flavor (Surface 1)', () => {
     });
     scene._showNodeFlavor({ type: 'battle' });
     expect(scene.showShopBanner).toHaveBeenCalledWith('fallback line', '#a89d9f');
+  });
+
+  it('a Descent node speaks with its own lines on the road (nodeFlavor.descent), an eclipsed one with its type', () => {
+    // Failure: the stair or the gate borrows the act's general lines (the Entity's "the source
+    // of everything" over the Lieutenant's hall), or a fallen Mortuary Column keeps its own.
+    const scene = makeScene('finalBoss', {
+      nodeFlavor: {
+        battle: { finalBoss: ['general line'] },
+        boss: { finalBoss: ['boss line'] },
+        descent: { gate: ['the hall of mirrors'] },
+      },
+    });
+    scene.runManager.pickNarrativeLine = vi.fn((lines) => lines[0]);
+    scene._showNodeFlavor({ type: 'boss', descentKey: 'gate' });
+    expect(scene.showShopBanner).toHaveBeenLastCalledWith('the hall of mirrors', '#a89d9f');
+    expect(scene.runManager.pickNarrativeLine).toHaveBeenLastCalledWith(
+      ['the hall of mirrors'],
+      'node:descent:gate',
+    );
+    scene._showNodeFlavor({ type: 'boss', descentKey: 'nowhere' });
+    expect(scene.showShopBanner).toHaveBeenLastCalledWith('boss line', '#a89d9f');
+    scene._showNodeFlavor({ type: 'boss', descentKey: 'gate', eclipse: { label: 'Eclipsed' } });
+    expect(scene.showShopBanner).toHaveBeenLastCalledWith('boss line', '#a89d9f');
   });
 
   it('uses elite pool for elite nodes', () => {

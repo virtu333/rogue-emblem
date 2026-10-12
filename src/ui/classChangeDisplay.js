@@ -8,7 +8,8 @@ import {
   getCombatWeapons,
   getSkillDisplayNames,
 } from '../engine/UnitManager.js';
-import { MAX_SKILLS, XP_STAT_NAMES, INVENTORY_MAX } from '../utils/constants.js';
+import { XP_STAT_NAMES, INVENTORY_MAX } from '../utils/constants.js';
+import { slotCountsLine } from '../engine/SkillSlots.js';
 
 // Preview a clone with deterministic rules only. Never roll growths, grant
 // item UIDs, or consume gameplay RNG merely by browsing classes.
@@ -47,7 +48,7 @@ export function classChangePreview(unit, item, target, gameData) {
   if (unit.moveType !== projected.moveType)
     lines.push(`Movement: ${unit.moveType} → ${projected.moveType}`);
   const previousTypes = new Set(unit.proficiencies.map((p) => p.type));
-  const grants = getClassChangeWeaponGrants(projected, previousTypes, gameData, promoting);
+  const grants = getClassChangeWeaponGrants(projected, previousTypes, gameData);
   let spaces = Math.max(0, INVENTORY_MAX - unit.inventory.length);
   const available = [];
   for (const weapon of grants) {
@@ -92,7 +93,7 @@ export function classChangePreview(unit, item, target, gameData) {
   }
   lines.push(
     '',
-    `Skills · ${unit.skills.length}/${MAX_SKILLS} before change · Existing skills retained`,
+    `${slotCountsLine(unit, gameData.skills)} before change · Existing skills retained`,
   );
   for (const id of result.learnedSkills || []) {
     const skill = gameData.skills.find((s) => s.id === id);

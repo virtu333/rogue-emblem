@@ -102,6 +102,7 @@ import {
   choiceGrantsEarned,
   choiceLeadsOn,
   choiceMayFight,
+  choiceRiteDelta,
   deploymentCombatValue,
 } from './RunPolicies.js';
 
@@ -738,12 +739,17 @@ export function chooseClaimEventPlan(run, nodeId) {
       earned: choiceGrantsEarned(event, choice.id, view.page),
       mayFight: choiceMayFight(event, choice.id, view.page),
       leadsOn: choiceLeadsOn(event, choice.id, view.page),
+      rite: choiceRiteDelta(event, choice.id, view.page),
     }));
   if (open.length === 0) return null;
   const low = (view.counters || []).some((counter) => counter.value <= 1);
+  // In the Descent a choice sure to lower the Rite comes next, the surest first (the stock
+  // policy's rule, RunPolicies.chooseEventPlan); no other event has one.
+  const quieting = open.filter((e) => !e.mayFight && e.rite < 0).sort((a, b) => a.rite - b.rite)[0];
   const pick =
     open.find((e) => e.earned) ||
     (low && open.find((e) => !e.mayFight && !e.leadsOn)) ||
+    quieting ||
     open.find((e) => !e.mayFight) ||
     open[0];
   const target = pick.choice.target?.candidates.find((c) => c.ok) || null;

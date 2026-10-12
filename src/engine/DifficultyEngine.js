@@ -1,6 +1,7 @@
 // DifficultyEngine.js - Wave 8 difficulty validation and lookup helpers.
 
 import { REVIVAL_STONE_KINDS, hasRevivalStones } from './RevivalStones.js';
+import { actLabel } from '../utils/actNames.js';
 
 export const DIFFICULTY_CONTRACT_VERSION = 1;
 
@@ -35,7 +36,8 @@ export function isDifficultyAtLeast(difficultyId, floor) {
 /**
  * What opens each rung: any one of its milestones. `anySlot` also counts a
  * milestone earned on another save slot. Winning on the old Hard (which ended at the
- * Emperor, as Dusk does now) recorded beatHard, so it still opens Nightfall.
+ * Emperor, as Dusk did before it went on to the Lieutenant) recorded beatHard, so it still
+ * opens Nightfall.
  */
 export const DIFFICULTY_UNLOCKS = Object.freeze({
   dusk: Object.freeze({
@@ -111,7 +113,6 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   label: 'First Light',
   color: '#95c487',
   enemyStatBonus: 0,
-  classStatBonuses: Object.freeze({}),
   // Enemy class -> the first act it may appear in on this rung (Dusk: Dragons from Act IV).
   enemyClassEarliestAct: Object.freeze({}),
   enemyCountBonus: 0,
@@ -169,7 +170,64 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   // Act id -> first node row that may hold a village ({ act1: 3 }: none in an act's first
   // three rows; null / a missing act: any row). Applied when a node map is generated.
   villageMinRow: null,
+  // Battle modifiers by act ({ act1: { enemyStatBonus: 1, enemyCountBase: 5 } }, null: none):
+  // a battle in that act reads these in place of the rung's own (`ACT_OVERRIDE_KEYS`).
+  actOverrides: null,
 });
+
+/**
+ * The battle modifiers a rung may set per act (`actOverrides`), and the kind of value each
+ * takes: 'count' a non-negative whole number, 'chance' a number from 0 to 1. Black Sun eases
+ * its Act I with them; every other act reads the rung's own values.
+ */
+export const ACT_OVERRIDE_KEYS = Object.freeze({
+  enemyStatBonus: 'count',
+  enemyCountBonus: 'count',
+  enemyLevelBonus: 'count',
+  bossLevelBonus: 'count',
+  enemyCountBase: 'count',
+  enemySkillChance: 'chance',
+  enemyPoisonChance: 'chance',
+});
+
+/**
+ * A rung's `actOverrides` value for `key` in `act`, or undefined when the rung sets none
+ * (the battle then reads the rung's own value). `modifiers` is a run's snapshot or a mode.
+ */
+export function actOverrideFor(modifiers, key, act) {
+  if (!Object.hasOwn(ACT_OVERRIDE_KEYS, key)) return undefined;
+  const value = modifiers?.actOverrides?.[act]?.[key];
+  return Number.isFinite(value) ? value : undefined;
+}
+
+/** "Act I: enemy stats +1, +1 extra enemy per map" lines for a rung's act overrides. */
+function actOverrideSummary(mode) {
+  const lines = [];
+  for (const act of ENEMY_ACT_GATE_ORDER) {
+    const over = mode?.actOverrides?.[act];
+    if (!isObject(over)) continue;
+    const parts = [];
+    const add = (key, text) => {
+      const value = actOverrideFor(mode, key, act);
+      if (value !== undefined && value !== mode[key]) parts.push(text(value));
+    };
+    add('enemyStatBonus', (n) => `enemy stats +${n}`);
+    add('enemyLevelBonus', (n) => `enemy levels +${n}`);
+    add('bossLevelBonus', (n) => `boss levels +${n}`);
+    add('enemyCountBonus', (n) => `+${n} extra ${n === 1 ? 'enemy' : 'enemies'} per map`);
+    add('enemyCountBase', (n) => `enemies scale as if you field at least ${n} units`);
+    add('enemySkillChance', (n) => `+${Math.round(n * 100)}% enemy skill chance`);
+    add('enemyPoisonChance', (n) => `+${Math.round(n * 100)}% enemy poison chance`);
+    if (parts.length === 0) continue;
+    // "eases in" only when every override is below the rung's own value.
+    const eases = Object.keys(over).every((key) => {
+      const value = actOverrideFor(mode, key, act);
+      return value === undefined || !(value > mode[key]);
+    });
+    lines.push(`${actLabel(act) || act}${eases ? ' eases in' : ''}: ${parts.join(', ')}`);
+  }
+  return lines;
+}
 
 const recruitAffixExclusions = (config, id) =>
   config?.modes?.[id]?.recruitAffixExcludedActs ??
@@ -196,15 +254,18 @@ function routLadderGaps(routLadder) {
 /**
  * Compare a difficulty mode against DIFFICULTY_DEFAULTS and return human-readable
  * modifier summary lines. Normal mode (matching defaults) returns an empty array.
+ * `stoneKinds` limits the Revival Stones line to the kinds the rung's road meets
+ * (RevivalStoneRoad.stoneKindsOnRoad); omitted, every kind with a count is listed.
  */
-export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
+export function generateModifierSummary(
+  mode,
+  defaults = DIFFICULTY_DEFAULTS,
+  { stoneKinds = null } = {},
+) {
   if (!mode || typeof mode !== 'object') return [];
   const lines = [];
   if (mode.enemyStatBonus > (defaults.enemyStatBonus || 0)) {
     lines.push(`Enemy stats +${mode.enemyStatBonus}`);
-  }
-  for (const [className, bonus] of Object.entries(mode.classStatBonuses || {})) {
-    if (Number.isFinite(bonus) && bonus > 0) lines.push(`Enemy ${className} stats +${bonus}`);
   }
   if (mode.enemyCountBonus > (defaults.enemyCountBonus || 0)) {
     lines.push(`+${mode.enemyCountBonus} extra enemies per map`);
@@ -218,6 +279,8 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
   if (mode.enemyCountBase > (defaults.enemyCountBase || 0)) {
     lines.push(`Enemies scale as if you field at least ${mode.enemyCountBase} units`);
   }
+  // Right under the enemy lines it qualifies, so "Enemy stats +2" never reads as Act I's.
+  lines.push(...actOverrideSummary(mode));
   if (mode.enemySkillChance > (defaults.enemySkillChance || 0)) {
     lines.push(`+${Math.round(mode.enemySkillChance * 100)}% enemy skill chance`);
   }
@@ -317,10 +380,11 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
       lieutenant: 'the Lieutenant',
       eliteCaptain: 'elite captains',
     };
-    const parts = REVIVAL_STONE_KINDS.filter((kind) => stones[kind] > 0).map(
-      (kind) => `${label[kind]} ${stones[kind]}`,
-    );
-    lines.push(`Revival Stones (a boss refills when felled): ${parts.join(', ')}`);
+    const parts = REVIVAL_STONE_KINDS.filter(
+      (kind) => stones[kind] > 0 && (!stoneKinds || stoneKinds.includes(kind)),
+    ).map((kind) => `${label[kind]} ${stones[kind]}`);
+    if (parts.length > 0)
+      lines.push(`Revival Stones (a boss refills when felled): ${parts.join(', ')}`);
   }
   if (mode.siegeWeaponConfig) {
     const cfg = mode.siegeWeaponConfig;
@@ -362,16 +426,6 @@ export function validateDifficultyConfig(config) {
     }
 
     if (
-      mode.classStatBonuses !== undefined &&
-      (!isObject(mode.classStatBonuses) ||
-        Object.values(mode.classStatBonuses).some((bonus) => !Number.isInteger(bonus) || bonus < 0))
-    ) {
-      errors.push(
-        `modes.${difficultyId}.classStatBonuses must map classes to non-negative integers`,
-      );
-    }
-
-    if (
       mode.enemyClassEarliestAct !== undefined &&
       (!isObject(mode.enemyClassEarliestAct) ||
         Object.values(mode.enemyClassEarliestAct).some(
@@ -379,6 +433,29 @@ export function validateDifficultyConfig(config) {
         ))
     ) {
       errors.push(`modes.${difficultyId}.enemyClassEarliestAct must map classes to act ids`);
+    }
+
+    if (mode.actOverrides !== undefined && mode.actOverrides !== null) {
+      const where = `modes.${difficultyId}.actOverrides`;
+      if (!isObject(mode.actOverrides)) errors.push(`${where} must be an object of act ids`);
+      else {
+        for (const [act, over] of Object.entries(mode.actOverrides)) {
+          if (!ENEMY_ACT_GATE_ORDER.includes(act)) errors.push(`${where}.${act} is not an act id`);
+          if (!isObject(over)) {
+            errors.push(`${where}.${act} must be an object`);
+            continue;
+          }
+          for (const [key, value] of Object.entries(over)) {
+            const kind = ACT_OVERRIDE_KEYS[key];
+            if (!kind)
+              errors.push(`${where}.${act}.${key} is not a battle modifier an act can set`);
+            else if (kind === 'count' && !(Number.isInteger(value) && value >= 0))
+              errors.push(`${where}.${act}.${key} must be a non-negative integer`);
+            else if (kind === 'chance' && !(isFiniteNumber(value) && value >= 0 && value <= 1))
+              errors.push(`${where}.${act}.${key} must be a number from 0 to 1`);
+          }
+        }
+      }
     }
 
     if (
@@ -543,7 +620,9 @@ function validateBattlePacing(mode, path) {
       errors.push(`${path}.${key} must be null or an object keyed by objective`);
       continue;
     }
-    const objectives = key === 'holdShare' ? ['seize', 'escape'] : ['rout', 'seize', 'escape'];
+    // A par offset may name an objectives model's kind (defeat) as well as a legacy string.
+    const objectives =
+      key === 'holdShare' ? ['seize', 'escape'] : ['rout', 'seize', 'escape', 'defeat'];
     for (const [objective, n] of Object.entries(value)) {
       const at = `${path}.${key}.${objective}`;
       if (!objectives.includes(objective))

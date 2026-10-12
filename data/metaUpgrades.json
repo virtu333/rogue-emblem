@@ -2,288 +2,288 @@
   {
     "id": "recruit_hp_growth",
     "name": "Hardy Recruits",
-    "description": "+5% HP growth per tier",
+    "description": "+3% HP growth per tier",
     "category": "recruit_stats",
     "maxLevel": 5,
     "costs": [
-      35,
-      40,
-      60,
-      85,
-      125
+      25,
+      30,
+      45,
+      65,
+      95
     ],
     "effects": [
       {
         "recruitGrowth": "HP",
-        "growthValue": 5
+        "growthValue": 3
       },
       {
         "recruitGrowth": "HP",
-        "growthValue": 10
+        "growthValue": 6
+      },
+      {
+        "recruitGrowth": "HP",
+        "growthValue": 9
+      },
+      {
+        "recruitGrowth": "HP",
+        "growthValue": 12
       },
       {
         "recruitGrowth": "HP",
         "growthValue": 15
-      },
-      {
-        "recruitGrowth": "HP",
-        "growthValue": 20
-      },
-      {
-        "recruitGrowth": "HP",
-        "growthValue": 25
       }
     ]
   },
   {
     "id": "recruit_str_growth",
     "name": "Strong Arms",
-    "description": "+5% STR growth per tier",
+    "description": "+3% STR growth per tier",
     "category": "recruit_stats",
     "maxLevel": 5,
     "costs": [
+      35,
       45,
-      60,
+      70,
       90,
-      120,
-      180
+      135
     ],
     "effects": [
       {
         "recruitGrowth": "STR",
-        "growthValue": 5
+        "growthValue": 3
       },
       {
         "recruitGrowth": "STR",
-        "growthValue": 10
+        "growthValue": 6
+      },
+      {
+        "recruitGrowth": "STR",
+        "growthValue": 9
+      },
+      {
+        "recruitGrowth": "STR",
+        "growthValue": 12
       },
       {
         "recruitGrowth": "STR",
         "growthValue": 15
-      },
-      {
-        "recruitGrowth": "STR",
-        "growthValue": 20
-      },
-      {
-        "recruitGrowth": "STR",
-        "growthValue": 25
       }
     ]
   },
   {
     "id": "recruit_mag_growth",
     "name": "Keen Minds",
-    "description": "+5% MAG growth per tier",
+    "description": "+3% MAG growth per tier",
     "category": "recruit_stats",
     "maxLevel": 5,
     "costs": [
+      25,
+      30,
       35,
-      40,
       45,
-      60,
-      90
+      70
     ],
     "effects": [
       {
         "recruitGrowth": "MAG",
-        "growthValue": 5
+        "growthValue": 3
       },
       {
         "recruitGrowth": "MAG",
-        "growthValue": 10
+        "growthValue": 6
+      },
+      {
+        "recruitGrowth": "MAG",
+        "growthValue": 9
+      },
+      {
+        "recruitGrowth": "MAG",
+        "growthValue": 12
       },
       {
         "recruitGrowth": "MAG",
         "growthValue": 15
-      },
-      {
-        "recruitGrowth": "MAG",
-        "growthValue": 20
-      },
-      {
-        "recruitGrowth": "MAG",
-        "growthValue": 25
       }
     ]
   },
   {
     "id": "recruit_def_growth",
     "name": "Tough Recruits",
-    "description": "+5% DEF growth per tier",
+    "description": "+3% DEF growth per tier",
     "category": "recruit_stats",
     "maxLevel": 5,
     "costs": [
+      40,
       55,
-      75,
+      85,
       115,
-      155,
-      225
+      170
     ],
     "effects": [
       {
         "recruitGrowth": "DEF",
-        "growthValue": 5
+        "growthValue": 3
       },
       {
         "recruitGrowth": "DEF",
-        "growthValue": 10
+        "growthValue": 6
+      },
+      {
+        "recruitGrowth": "DEF",
+        "growthValue": 9
+      },
+      {
+        "recruitGrowth": "DEF",
+        "growthValue": 12
       },
       {
         "recruitGrowth": "DEF",
         "growthValue": 15
-      },
-      {
-        "recruitGrowth": "DEF",
-        "growthValue": 20
-      },
-      {
-        "recruitGrowth": "DEF",
-        "growthValue": 25
       }
     ]
   },
   {
     "id": "recruit_spd_growth",
     "name": "Quick Feet",
-    "description": "+5% SPD growth per tier",
+    "description": "+3% SPD growth per tier",
     "category": "recruit_stats",
     "maxLevel": 5,
     "costs": [
+      55,
       75,
-      100,
+      110,
       150,
-      200,
-      300
+      225
     ],
     "effects": [
       {
         "recruitGrowth": "SPD",
-        "growthValue": 5
+        "growthValue": 3
       },
       {
         "recruitGrowth": "SPD",
-        "growthValue": 10
+        "growthValue": 6
+      },
+      {
+        "recruitGrowth": "SPD",
+        "growthValue": 9
+      },
+      {
+        "recruitGrowth": "SPD",
+        "growthValue": 12
       },
       {
         "recruitGrowth": "SPD",
         "growthValue": 15
-      },
-      {
-        "recruitGrowth": "SPD",
-        "growthValue": 20
-      },
-      {
-        "recruitGrowth": "SPD",
-        "growthValue": 25
       }
     ]
   },
   {
     "id": "recruit_skl_growth",
     "name": "Sharp Eye",
-    "description": "+5% SKL growth per tier",
+    "description": "+3% SKL growth per tier",
     "category": "recruit_stats",
     "maxLevel": 5,
     "costs": [
+      25,
+      30,
       35,
-      40,
       45,
-      60,
-      90
+      70
     ],
     "effects": [
       {
         "recruitGrowth": "SKL",
-        "growthValue": 5
+        "growthValue": 3
       },
       {
         "recruitGrowth": "SKL",
-        "growthValue": 10
+        "growthValue": 6
+      },
+      {
+        "recruitGrowth": "SKL",
+        "growthValue": 9
+      },
+      {
+        "recruitGrowth": "SKL",
+        "growthValue": 12
       },
       {
         "recruitGrowth": "SKL",
         "growthValue": 15
-      },
-      {
-        "recruitGrowth": "SKL",
-        "growthValue": 20
-      },
-      {
-        "recruitGrowth": "SKL",
-        "growthValue": 25
       }
     ]
   },
   {
     "id": "recruit_res_growth",
     "name": "Warded Recruits",
-    "description": "+5% RES growth per tier",
+    "description": "+3% RES growth per tier",
     "category": "recruit_stats",
     "maxLevel": 5,
     "costs": [
-      35,
+      25,
+      30,
       40,
       50,
-      70,
-      100
+      75
     ],
     "effects": [
       {
         "recruitGrowth": "RES",
-        "growthValue": 5
+        "growthValue": 3
       },
       {
         "recruitGrowth": "RES",
-        "growthValue": 10
+        "growthValue": 6
+      },
+      {
+        "recruitGrowth": "RES",
+        "growthValue": 9
+      },
+      {
+        "recruitGrowth": "RES",
+        "growthValue": 12
       },
       {
         "recruitGrowth": "RES",
         "growthValue": 15
-      },
-      {
-        "recruitGrowth": "RES",
-        "growthValue": 20
-      },
-      {
-        "recruitGrowth": "RES",
-        "growthValue": 25
       }
     ]
   },
   {
     "id": "recruit_lck_growth",
     "name": "Lucky Stars",
-    "description": "+5% LCK growth per tier",
+    "description": "+3% LCK growth per tier",
     "category": "recruit_stats",
     "maxLevel": 5,
     "costs": [
+      25,
+      30,
       35,
       40,
-      45,
-      55,
-      80
+      60
     ],
     "effects": [
       {
         "recruitGrowth": "LCK",
-        "growthValue": 5
+        "growthValue": 3
       },
       {
         "recruitGrowth": "LCK",
-        "growthValue": 10
+        "growthValue": 6
+      },
+      {
+        "recruitGrowth": "LCK",
+        "growthValue": 9
+      },
+      {
+        "recruitGrowth": "LCK",
+        "growthValue": 12
       },
       {
         "recruitGrowth": "LCK",
         "growthValue": 15
-      },
-      {
-        "recruitGrowth": "LCK",
-        "growthValue": 20
-      },
-      {
-        "recruitGrowth": "LCK",
-        "growthValue": 25
       }
     ]
   },
@@ -586,288 +586,288 @@
   {
     "id": "lord_hp_growth",
     "name": "Lord Vitality",
-    "description": "+5% HP growth per tier",
+    "description": "+3% HP growth per tier",
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
+      40,
       50,
-      70,
-      125,
-      175,
-      275
+      95,
+      130,
+      205
     ],
     "effects": [
       {
         "lordGrowth": "HP",
-        "growthValue": 5
+        "growthValue": 3
       },
       {
         "lordGrowth": "HP",
-        "growthValue": 10
+        "growthValue": 6
+      },
+      {
+        "lordGrowth": "HP",
+        "growthValue": 9
+      },
+      {
+        "lordGrowth": "HP",
+        "growthValue": 12
       },
       {
         "lordGrowth": "HP",
         "growthValue": 15
-      },
-      {
-        "lordGrowth": "HP",
-        "growthValue": 20
-      },
-      {
-        "lordGrowth": "HP",
-        "growthValue": 25
       }
     ]
   },
   {
     "id": "lord_str_growth",
     "name": "Lord Combat Training",
-    "description": "+5% STR growth per tier",
+    "description": "+3% STR growth per tier",
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      70,
-      105,
-      180,
-      255,
-      400
+      50,
+      80,
+      135,
+      190,
+      300
     ],
     "effects": [
       {
         "lordGrowth": "STR",
-        "growthValue": 5
+        "growthValue": 3
       },
       {
         "lordGrowth": "STR",
-        "growthValue": 10
+        "growthValue": 6
+      },
+      {
+        "lordGrowth": "STR",
+        "growthValue": 9
+      },
+      {
+        "lordGrowth": "STR",
+        "growthValue": 12
       },
       {
         "lordGrowth": "STR",
         "growthValue": 15
-      },
-      {
-        "lordGrowth": "STR",
-        "growthValue": 20
-      },
-      {
-        "lordGrowth": "STR",
-        "growthValue": 25
       }
     ]
   },
   {
     "id": "lord_mag_growth",
     "name": "Lord Sorcery",
-    "description": "+5% MAG growth per tier",
+    "description": "+3% MAG growth per tier",
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      50,
-      55,
-      90,
-      125,
-      200
+      40,
+      45,
+      70,
+      95,
+      150
     ],
     "effects": [
       {
         "lordGrowth": "MAG",
-        "growthValue": 5
+        "growthValue": 3
       },
       {
         "lordGrowth": "MAG",
-        "growthValue": 10
+        "growthValue": 6
+      },
+      {
+        "lordGrowth": "MAG",
+        "growthValue": 9
+      },
+      {
+        "lordGrowth": "MAG",
+        "growthValue": 12
       },
       {
         "lordGrowth": "MAG",
         "growthValue": 15
-      },
-      {
-        "lordGrowth": "MAG",
-        "growthValue": 20
-      },
-      {
-        "lordGrowth": "MAG",
-        "growthValue": 25
       }
     ]
   },
   {
     "id": "lord_def_growth",
     "name": "Lord Resilience",
-    "description": "+5% DEF growth per tier",
+    "description": "+3% DEF growth per tier",
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      90,
-      130,
-      230,
-      320,
-      495
+      70,
+      100,
+      170,
+      240,
+      370
     ],
     "effects": [
       {
         "lordGrowth": "DEF",
-        "growthValue": 5
+        "growthValue": 3
       },
       {
         "lordGrowth": "DEF",
-        "growthValue": 10
+        "growthValue": 6
+      },
+      {
+        "lordGrowth": "DEF",
+        "growthValue": 9
+      },
+      {
+        "lordGrowth": "DEF",
+        "growthValue": 12
       },
       {
         "lordGrowth": "DEF",
         "growthValue": 15
-      },
-      {
-        "lordGrowth": "DEF",
-        "growthValue": 20
-      },
-      {
-        "lordGrowth": "DEF",
-        "growthValue": 25
       }
     ]
   },
   {
     "id": "lord_spd_growth",
     "name": "Lord Swiftness",
-    "description": "+5% SPD growth per tier",
+    "description": "+3% SPD growth per tier",
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      120,
-      175,
-      300,
-      420,
-      655
+      90,
+      130,
+      225,
+      315,
+      490
     ],
     "effects": [
       {
         "lordGrowth": "SPD",
-        "growthValue": 5
+        "growthValue": 3
       },
       {
         "lordGrowth": "SPD",
-        "growthValue": 10
+        "growthValue": 6
+      },
+      {
+        "lordGrowth": "SPD",
+        "growthValue": 9
+      },
+      {
+        "lordGrowth": "SPD",
+        "growthValue": 12
       },
       {
         "lordGrowth": "SPD",
         "growthValue": 15
-      },
-      {
-        "lordGrowth": "SPD",
-        "growthValue": 20
-      },
-      {
-        "lordGrowth": "SPD",
-        "growthValue": 25
       }
     ]
   },
   {
     "id": "lord_skl_growth",
     "name": "Lord Precision",
-    "description": "+5% SKL growth per tier",
+    "description": "+3% SKL growth per tier",
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      50,
-      55,
-      90,
-      125,
-      200
+      40,
+      45,
+      70,
+      95,
+      150
     ],
     "effects": [
       {
         "lordGrowth": "SKL",
-        "growthValue": 5
+        "growthValue": 3
       },
       {
         "lordGrowth": "SKL",
-        "growthValue": 10
+        "growthValue": 6
+      },
+      {
+        "lordGrowth": "SKL",
+        "growthValue": 9
+      },
+      {
+        "lordGrowth": "SKL",
+        "growthValue": 12
       },
       {
         "lordGrowth": "SKL",
         "growthValue": 15
-      },
-      {
-        "lordGrowth": "SKL",
-        "growthValue": 20
-      },
-      {
-        "lordGrowth": "SKL",
-        "growthValue": 25
       }
     ]
   },
   {
     "id": "lord_res_growth",
     "name": "Lord Wisdom",
-    "description": "+5% RES growth per tier",
+    "description": "+3% RES growth per tier",
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      50,
-      60,
-      100,
-      145,
-      225
+      40,
+      45,
+      75,
+      110,
+      170
     ],
     "effects": [
       {
         "lordGrowth": "RES",
-        "growthValue": 5
+        "growthValue": 3
       },
       {
         "lordGrowth": "RES",
-        "growthValue": 10
+        "growthValue": 6
+      },
+      {
+        "lordGrowth": "RES",
+        "growthValue": 9
+      },
+      {
+        "lordGrowth": "RES",
+        "growthValue": 12
       },
       {
         "lordGrowth": "RES",
         "growthValue": 15
-      },
-      {
-        "lordGrowth": "RES",
-        "growthValue": 20
-      },
-      {
-        "lordGrowth": "RES",
-        "growthValue": 25
       }
     ]
   },
   {
     "id": "lord_lck_growth",
     "name": "Lord Fortune",
-    "description": "+5% LCK growth per tier",
+    "description": "+3% LCK growth per tier",
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      50,
-      55,
+      40,
+      45,
+      60,
       80,
-      110,
-      175
+      130
     ],
     "effects": [
       {
         "lordGrowth": "LCK",
-        "growthValue": 5
+        "growthValue": 3
       },
       {
         "lordGrowth": "LCK",
-        "growthValue": 10
+        "growthValue": 6
+      },
+      {
+        "lordGrowth": "LCK",
+        "growthValue": 9
+      },
+      {
+        "lordGrowth": "LCK",
+        "growthValue": 12
       },
       {
         "lordGrowth": "LCK",
         "growthValue": 15
-      },
-      {
-        "lordGrowth": "LCK",
-        "growthValue": 20
-      },
-      {
-        "lordGrowth": "LCK",
-        "growthValue": 25
       }
     ]
   },
@@ -1241,12 +1241,12 @@
   {
     "id": "loot_quality",
     "name": "Lucky Finds",
-    "description": "Higher chance for upgraded weapon drops",
+    "description": "Higher chance for upgraded weapon drops. Into a Legend: Act III on, at half the chance.",
     "category": "economy",
     "maxLevel": 2,
     "costs": [
-      120,
-      240
+      90,
+      180
     ],
     "effects": [
       {
@@ -1942,7 +1942,7 @@
   {
     "id": "staff_upgrade",
     "name": "Healer's Art",
-    "description": "Sera starts with a better staff",
+    "description": "Sera starts with a second, stronger staff beside Heal",
     "category": "starting_equipment",
     "maxLevel": 2,
     "costs": [
@@ -2006,7 +2006,7 @@
   {
     "id": "unlock_luna",
     "name": "Luna",
-    "description": "SKL% chance on hit to halve the target’s DEF or RES (rounded down). Terrain protection remains.",
+    "description": "SKL% chance on hit to halve the target\u2019s DEF or RES (rounded down). Terrain protection remains.",
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [

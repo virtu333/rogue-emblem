@@ -36,6 +36,7 @@ import { eventTriples, routesToPages, walkRoute } from './eventWalk.js';
 import { RESULT_CHIPS } from '../src/ui/eventMenuModel.js';
 import { applyWear } from '../src/engine/WeaponWear.js';
 import { pageOf } from '../src/engine/EventSystem.js';
+import { createRite } from '../src/engine/Rite.js';
 
 // The unit sheet is a DOM view; the page only opens it.
 vi.mock('../src/ui/MobileRosterSheet.js', () => ({
@@ -376,6 +377,8 @@ describe('every shipped outcome renders a clean page', () => {
     const difficulty = outcomeDef.weight === 0 ? 'lunatic' : 'normal';
     for (let seed = 1; seed <= 400; seed++) {
       const run = army(seed, difficulty);
+      // A Descent event is met with the Rite running (engine/Rite.js), so its words show.
+      if (event.pool) run.rite = createRite({ start: 6 });
       const node = arriveAs(run, eventId);
       if (!walkRoute(run, node.id, route)) continue;
       const view = eventView(run, node.id);

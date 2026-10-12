@@ -1,5 +1,5 @@
 import { test, expect, devices } from '@playwright/test';
-import { waitForScene } from './helpers.js';
+import { waitForBattleState, waitForScene } from './helpers.js';
 test.use({ ...devices['iPhone SE'], viewport: { width: 667, height: 375 } });
 
 for (const kind of ['weapon', 'forge', 'imbue', 'booster', 'consumable', 'convoy']) {
@@ -8,6 +8,7 @@ for (const kind of ['weapon', 'forge', 'imbue', 'booster', 'consumable', 'convoy
   }) => {
     await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1&battleLab=1');
     await waitForScene(page, 'Battle');
+    await waitForBattleState(page, 'PLAYER_IDLE');
     await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').onVictory());
     const dialog = page.getByRole('dialog', { name: 'Battle rewards', exact: true });
     await expect(dialog).toBeVisible();
@@ -114,6 +115,7 @@ for (const kind of ['weapon', 'forge', 'imbue', 'booster', 'consumable', 'convoy
 test('a team XP reward names who levelled before the rewards move on', async ({ page }) => {
   await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1&battleLab=1');
   await waitForScene(page, 'Battle');
+  await waitForBattleState(page, 'PLAYER_IDLE');
   await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').onVictory());
   const dialog = page.getByRole('dialog', { name: 'Battle rewards', exact: true });
   await expect(dialog).toBeVisible();

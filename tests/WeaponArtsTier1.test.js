@@ -25,8 +25,9 @@ const artById = new Map(allArts.map((a) => [a.id, a]));
 describe('Tier 1 Weapon Arts Expansion', () => {
   // 83, plus the four area arts of docs/specs/aoe-weapon-arts.md (Sweeping Cleave, Skewer,
   // Benediction, Battering Ram), plus Lunar Brace and Override (docs/specs/phase3.md 3F).
-  it('has exactly 90 arts', () => {
-    expect(allArts.length).toBe(90);
+  // Plus Hermit's Bow's Fan Shot (docs/specs/legendary-arts-rework.md §2).
+  it('has exactly 91 arts', () => {
+    expect(allArts.length).toBe(91);
   });
 
   it('all art IDs are unique', () => {
@@ -68,7 +69,7 @@ describe('Tier 1 Weapon Arts Expansion', () => {
     });
 
     it('legendary tier has correct count', () => {
-      expect(legendaryArts.length).toBe(16);
+      expect(legendaryArts.length).toBe(17);
     });
 
     it('all legendary arts have legendaryWeaponIds', () => {
@@ -261,7 +262,7 @@ describe('Tier 1 Weapon Arts Expansion', () => {
     it("Hermit's Bow is bound while Fortify remains unbound", () => {
       const doublebow = gameData.weapons.find((w) => w.name === "Hermit's Bow");
       const fortify = gameData.weapons.find((w) => w.name === 'Fortify');
-      expect(doublebow.weaponArtIds).toContain('legend_starfall_volley');
+      expect(doublebow.weaponArtIds).toEqual(['legend_hermit_fan']);
       expect(fortify.weaponArtIds).toBeUndefined();
     });
   });

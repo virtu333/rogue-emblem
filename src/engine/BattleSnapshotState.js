@@ -5,6 +5,7 @@ import { normalizeFallenBattleRecords } from './DeedSystem.js';
 import { restoreBattleBlessings, snapshotBattleBlessings } from './BattleBlessings.js';
 import { normalizePendingTerrainTiles } from './TerrainPhases.js';
 import { captureEncounterState, cloneEncounterState } from './EncounterGroups.js';
+import { sanitizeVigilState } from './Vigil.js';
 // Shared world-state contract for Vision and suspend. Unit arrays are restored
 // in snapshot order; references into that table survive JSON and duplicate names.
 const UNIT_GROUPS = ['playerUnits', 'enemyUnits', 'npcUnits'];
@@ -39,6 +40,9 @@ export function captureBattleWorldState(scene) {
     ...(scene._battleBlessings
       ? { battleBlessingsSpent: snapshotBattleBlessings(scene._battleBlessings) }
       : {}),
+    // The Vigil's words and calls so far (engine/Vigil.js): only on a Vigil map, so a battle
+    // without one saves what it did. A resume keeps the count; a rewind takes it back.
+    ...(scene._vigilState ? { vigilState: sanitizeVigilState(scene._vigilState) } : {}),
   };
 }
 
@@ -90,6 +94,10 @@ export function restoreBattleWorldState(scene, snapshot) {
     restoreBattleBlessings(scene._battleBlessings, snapshot.battleBlessingsSpent);
   // An older snapshot saved none: the next check reads it from the restored units.
   scene.encounterState = cloneEncounterState(snapshot.encounterState);
+  // The Vigil's state comes back with the units it called (a snapshot without one leaves the
+  // battle's own: a map with no Vigil has none to restore).
+  if (snapshot.vigilState !== undefined)
+    scene._vigilState = sanitizeVigilState(snapshot.vigilState);
   if ('latePressureWarningShown' in snapshot) {
     scene._latePressureWarningShown = snapshot.latePressureWarningShown === true;
   }

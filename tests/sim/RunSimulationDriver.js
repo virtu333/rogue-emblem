@@ -30,6 +30,11 @@ import {
 import { arriveAtEvent, completeEventBattle, leaveEvent } from '../../src/engine/EventCommands.js';
 import { deployLimitsForParams, resolveDeployLimits } from '../../src/engine/BattleDeployCount.js';
 import { isRecruitBattleNode } from '../../src/engine/RecruitNodeSystem.js';
+import {
+  applyGenerationFields,
+  battleGenerationSeed,
+  generateSeededBattle,
+} from '../../src/engine/BattleScout.js';
 
 function keyForUnit(unit) {
   return `${unit.name}::${unit.className}`;
@@ -37,6 +42,30 @@ function keyForUnit(unit) {
 
 function cloneUnit(unit) {
   return structuredClone(unit);
+}
+
+/**
+ * The map a node's battle is fought on, made as BattleScene.beginBattle makes it: the fields the
+ * battle adds as it begins (`applyGenerationFields`: the deploy count, and whether it is the
+ * boss's node), then the node's locked map when it has one, else a map generated from the node's
+ * own seed by the battle's own call (`battleGenerationSeed`, `generateSeededBattle`: Math.random
+ * is that seed's stream for the generation only) and locked to the node. So a sim plays the map
+ * the player would meet for the same run and node (a Descent set piece, the Vigil, a boss's par
+ * and Hunted rule), and the sim's own stream never feeds a map. Mutates `params`.
+ * @param {object} run - the RunManager
+ * @param {object} node - the node entered
+ * @param {object} params - its battle params (`run.getBattleParams(node)` and the sim's extras)
+ * @param {{ deployCount: number, gameData: object }} options
+ * @returns {object} the battle config (the run keeps its own copy of the lock)
+ */
+export function battleConfigForNode(run, node, params, { deployCount, gameData }) {
+  applyGenerationFields(params, { deployCount, isBoss: node?.type === NODE_TYPES.BOSS });
+  const locked = run.getLockedBattleConfig?.(node.id);
+  if (locked) return locked;
+  const seed = battleGenerationSeed(params, { runSeed: run.runSeed, nodeId: node.id });
+  const config = generateSeededBattle(params, gameData, seed);
+  run.lockBattleConfig?.(node.id, config);
+  return config;
 }
 
 export class RunSimulationDriver {
@@ -181,6 +210,8 @@ export class RunSimulationDriver {
       gold: this.runManager.gold,
       rosterSize: this.runManager.roster.length,
       fallenCount: this.runManager.fallenUnits.length,
+      // The Rite's words at the end (null off the Descent): sims report the finale's tier.
+      riteWords: this.runManager.rite?.words ?? null,
       metrics: { ...this.metrics },
       trace: [...this.trace],
     };
@@ -212,14 +243,20 @@ export class RunSimulationDriver {
       deployBonus: this.runManager.getDeployBonus(),
     });
     const deployMax = Math.max(1, Math.min(this.runManager.roster.length, deployLimits.max));
-    const deployCount = Math.max(deployLimits.min, deployMax);
-    battleParams.deployCount = Math.min(deployCount, this.runManager.roster.length);
+    const deployCount = Math.min(
+      Math.max(deployLimits.min, deployMax),
+      this.runManager.roster.length,
+    );
     // Deeds stamp the battle they were earned in (HeadlessBattle commits at victory).
     battleParams.battleNumber = (this.runManager.completedBattles || 0) + 1;
 
     const fullRoster = this.runManager.getRoster();
-    const deployed = chooseDeployRoster(fullRoster, battleParams.deployCount);
+    const deployed = chooseDeployRoster(fullRoster, deployCount);
     const deployedKeys = new Set(deployed.map(keyForUnit));
+    const battleConfig = battleConfigForNode(this.runManager, node, battleParams, {
+      deployCount: deployed.length,
+      gameData: this.gameData,
+    });
 
     // A recruit battle's green unit (a recruit node's, or an event's) is built by the run
     // itself, exactly as BattleScene asks it: the harness keeps no copy of that rule.
@@ -228,7 +265,7 @@ export class RunSimulationDriver {
         ? (preview) => this.runManager.getRecruitNodeUnit(node, { preview })
         : undefined,
     });
-    driver.init();
+    driver.init({ battleConfig });
     this._enableInvincibilityIfConfigured(driver);
 
     const battleAgent = this.options.battleAgentFactory(driver);
@@ -319,6 +356,8 @@ export class RunSimulationDriver {
     const applied = this.runManager.completeBattle(merged, node.id, driver.battle.goldEarned || 0, {
       turnCount: driver.battle.turnManager?.turnNumber || 0,
       turnPar: Number.isFinite(driver.battle.turnPar) ? driver.battle.turnPar : null,
+      // The Vigil's words, committed to the run's Rite (engine/Rite.js) as the scene does.
+      riteWords: driver.battle._vigilState?.words ?? 0,
     });
     this.metrics.eclipseFalls += this.runManager.lastEclipseCommit?.fell?.length || 0;
     // A contract settles with the victory (engine/ContractSettlement.js): count how it went.

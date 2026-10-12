@@ -4,6 +4,8 @@ import { DIFFICULTY_IDS } from '../src/engine/DifficultyEngine.js';
 import { getWeaponArtTier2Effects } from '../src/engine/WeaponArtSystem.js';
 import { validateAccessorySkillData } from '../src/engine/AccessorySkills.js';
 import { validateCarryPools } from '../src/engine/EnemyCarry.js';
+import { ENEMY_ONLY_CLASS_NAMES } from '../src/engine/UnitManager.js';
+import { ENTITY_WEAPON_NAMES } from '../src/utils/constants.js';
 
 const DATA_DIR = path.resolve('data');
 
@@ -242,17 +244,22 @@ export function validateCrossReferences(datasets = null) {
         `classes.json:${cls.name}.enemyWeapon "${weapon.name}" is a ${weapon.type}, which ${cls.name} cannot wield`,
       );
   }
-  for (const [actId, table] of Object.entries(lootTables || {})) {
-    for (const [poolKey, pool] of Object.entries(table || {})) {
-      for (const entry of Array.isArray(pool) ? pool : []) {
-        const itemName = typeof entry === 'string' ? entry : entry?.name;
-        if (enemyWeaponNames.has(itemName))
-          errors.push(
-            `lootTables.json:${actId}.${poolKey} lists enemy-only weapon "${itemName}" (it never drops or sells)`,
-          );
-      }
+  // The Entity's own weapons are enemy-only too.
+  for (const name of ENTITY_WEAPON_NAMES) enemyWeaponNames.add(name);
+  // Every pool of every act, boss rewards and the carry pool included.
+  const walkLootPools = (value, where) => {
+    if (typeof value === 'string') {
+      if (enemyWeaponNames.has(value))
+        errors.push(
+          `lootTables.json:${where} lists enemy-only weapon "${value}" (it never drops or sells)`,
+        );
+    } else if (Array.isArray(value)) {
+      for (const entry of value) walkLootPools(entry?.item ?? entry?.name ?? entry, where);
+    } else if (value && typeof value === 'object') {
+      for (const [key, inner] of Object.entries(value)) walkLootPools(inner, `${where}.${key}`);
     }
-  }
+  };
+  for (const [actId, table] of Object.entries(lootTables || {})) walkLootPools(table, actId);
 
   for (const actId of ['act1', 'act2', 'act3', 'act4']) {
     for (const className of Array.isArray(recruits?.[actId]?.classPool)
@@ -260,6 +267,13 @@ export function validateCrossReferences(datasets = null) {
       : []) {
       if (!classNames.has(className)) {
         errors.push(`recruits.json:${actId}.classPool references unknown class "${className}"`);
+      }
+      // A recruit (and a Colosseum mercenary, which draws from these pools) is a class a
+      // player unit can hold: never an enemy-only one (Necromancer, Circle Adept, ...).
+      if (ENEMY_ONLY_CLASS_NAMES.has(className)) {
+        errors.push(
+          `recruits.json:${actId}.classPool lists enemy-only class "${className}" (it can never be recruited)`,
+        );
       }
     }
   }
@@ -319,16 +333,35 @@ export function validateCrossReferences(datasets = null) {
       (art?.area?.shape !== 'line' || art?.targeting === 'chosen_center')
     )
       errors.push(`${where} has a pushAreaVictims move: it needs a normal-attack line area`);
+    // A dash runs on from the target it struck (legendary-arts-rework §4): a normal attack.
+    if (
+      (art?.effects?.afterCombat || []).some((e) => e?.type === 'move' && e?.mode === 'dash') &&
+      art?.targeting === 'chosen_center'
+    )
+      errors.push(`${where} has a dash move: it needs a normal attack`);
     const area = art?.area;
     const chosenCenter = art?.targeting === 'chosen_center';
     if (chosenCenter && !area) errors.push(`${where} is chosen_center but has no area`);
     if (!area) continue;
     if (area.shape === 'line' && !(area.length >= 1))
       errors.push(`${where}.area is a line without a length`);
-    if (area.shape !== 'line' && !(area.radius >= 1)) errors.push(`${where}.area needs a radius`);
+    if (area.shape === 'cone') {
+      const rows = Array.isArray(area.rows) ? area.rows : [];
+      if (!rows.length || rows.some((r) => !(Number.isInteger(r?.width) && r.width % 2 === 1)))
+        errors.push(`${where}.area is a cone: it needs rows, each an odd width`);
+    }
+    if (area.shape === 'arc' && !(area.width >= 1))
+      errors.push(`${where}.area is an arc without a width`);
+    if (['radius', 'around_attacker'].includes(area.shape) && !(area.radius >= 1))
+      errors.push(`${where}.area needs a radius`);
+    // A cone or an arc is shaped by the target (legendary-arts-rework §1-2).
+    if (['cone', 'arc'].includes(area.shape) && chosenCenter)
+      errors.push(`${where}.area ${area.shape} reads the target: it can't be chosen_center`);
+    if (area.leap !== undefined && (!chosenCenter || area.shape !== 'around_attacker'))
+      errors.push(`${where}.area.leap needs a chosen_center around_attacker area`);
     if (chosenCenter) {
-      if (area.shape !== 'radius')
-        errors.push(`${where} is chosen_center: its area must be a radius`);
+      if (area.shape !== 'radius' && !(area.leap === true && area.shape === 'around_attacker'))
+        errors.push(`${where} is chosen_center: its area must be a radius (or a leap)`);
       if (area.centerRange === undefined)
         errors.push(`${where} is chosen_center without centerRange`);
       const factions = toStringArray(art.allowedFactions);

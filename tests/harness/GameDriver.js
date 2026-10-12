@@ -12,8 +12,10 @@ export class GameDriver {
     this.stepCount = 0;
   }
 
-  init() {
-    this.battle.init();
+  // `options.battleConfig` plays that map (HeadlessBattle.init): the sims hand in the map the
+  // game would generate for the node (RunSimulationDriver.battleConfigForNode).
+  init(options = {}) {
+    this.battle.init(options);
   }
 
   listLegalActions() {

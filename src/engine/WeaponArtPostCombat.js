@@ -9,7 +9,7 @@ import {
 } from './WeaponArtSystem.js';
 import { mergeCombatMods } from './Combat.js';
 import { isRooted } from './StatusConditionSystem.js';
-import { isEntity } from './EntitySystem.js';
+import { getFootprint, isEntity } from './EntitySystem.js';
 import { traceForcedMove } from './ForcedMovement.js';
 import { effectiveSkills } from './EffectiveSkills.js';
 import { getUnitMarkFor } from './MarkSystem.js';
@@ -23,7 +23,7 @@ const TIER2_EFFECT_ORDER = [
   'postCombatMove',
   'setHp',
 ];
-const VALID_MOVE_MODES = new Set(['advance', 'retreat', 'swap', 'push', 'through', 'ram']);
+const VALID_MOVE_MODES = new Set(['advance', 'retreat', 'swap', 'push', 'through', 'ram', 'dash']);
 
 function getOpposingSide(side) {
   return side === 'attacker' ? 'defender' : 'attacker';
@@ -314,7 +314,8 @@ export function getPostCombatPipelineSteps({
     });
   }
 
-  // Annihilate: timed self-buff if the art user's combat killed the opponent.
+  // A kill-buff art (Annihilate's old body; no catalog art has one since
+  // legendary-arts-rework): timed self-buff if the art user's combat killed the opponent.
   // Death is checked at application time (after earlier steps resolve).
   for (const side of SIDE_ORDER) {
     if (!hitBySide[side]) continue;
@@ -391,12 +392,19 @@ function isInBounds(col, row, cols, rows) {
   return col >= 0 && col < cols && row >= 0 && row < rows;
 }
 
+/**
+ * The target's tile beside the user (`col`, `row`) and the step from the user onto it
+ * (`dc`, `dr`), or null when no tile of the target is a cardinal neighbour. The Entity is
+ * beside the user at whichever body tile touches it (outside a 3x3 body only one can).
+ */
 function isCardinalAdjacent(sourceUnit, targetUnit) {
   if (!sourceUnit || !targetUnit) return null;
-  const dc = targetUnit.col - sourceUnit.col;
-  const dr = targetUnit.row - sourceUnit.row;
-  if (Math.abs(dc) + Math.abs(dr) !== 1) return null;
-  return { dc, dr };
+  for (const tile of getFootprint(targetUnit)) {
+    const dc = tile.col - sourceUnit.col;
+    const dr = tile.row - sourceUnit.row;
+    if (Math.abs(dc) + Math.abs(dr) === 1) return { dc, dr, col: tile.col, row: tile.row };
+  }
+  return null;
 }
 
 function canOccupyTile(
@@ -483,6 +491,47 @@ export function resolvePostCombatMove({
   // Anchored (and anything else the caller pins) is never displaced by another unit.
   if (movesTarget && targetUnit && isImmovable?.(targetUnit)) {
     return { ok: false, reason: 'immovable' };
+  }
+  // The Entity's footprint never moves: no swap, push or ram displaces it.
+  if (movesTarget && isEntity(targetUnit)) return { ok: false, reason: 'immovable' };
+
+  if (normalizedMode === 'dash') {
+    // Oathblade's lunge (docs/specs/legendary-arts-rework.md §4): the user runs on through the
+    // line it struck, `distance` tiles from the target's on, and lands on the farthest tile it
+    // can stand on, of the one just past them back to the target's own (free only if it fell).
+    // Units on the way are passed; a wall ends the run before it. Its own move: no Ice slide.
+    const solid = (col, row) => !Number.isFinite(getMoveCost(col, row, 'Flying'));
+    const candidates = [];
+    for (let k = 1; k <= stepDistance + 1; k++) {
+      const col = sourceUnit.col + direction.dc * k;
+      const row = sourceUnit.row + direction.dr * k;
+      if (!isInBounds(col, row, cols, rows) || solid(col, row)) break;
+      candidates.push({ col, row });
+    }
+    // A unit on a tile farther than the landing held the run short of it: `blockers`, the
+    // nearest of those first, so the scene can show one the fog hid (as a walk's ambush).
+    const occupantOf = ({ col, row }) => {
+      const unit = getUnitAt(col, row);
+      return unit && unit !== sourceUnit && !(unit.currentHP <= 0) ? unit : null;
+    };
+    const blockersPast = (index) => [
+      ...new Set(
+        candidates
+          .slice(index + 1)
+          .map(occupantOf)
+          .filter(Boolean),
+      ),
+    ];
+    for (let i = candidates.length - 1; i >= 0; i--) {
+      const { col, row } = candidates[i];
+      if (canOccupyTile(sourceUnit, col, row, cols, rows, getMoveCost, getUnitAt))
+        return {
+          ok: true,
+          assignments: [{ unit: sourceUnit, col, row }],
+          blockers: blockersPast(i),
+        };
+    }
+    return { ok: false, reason: 'blocked', blockers: blockersPast(-1) };
   }
 
   const targetAlive = targetUnit?.currentHP > 0;
@@ -596,12 +645,11 @@ export function resolvePostCombatMove({
   });
 
   if (normalizedMode === 'ram') {
-    // The Entity's footprint never moves. Otherwise the target is driven up to
-    // `distance` tiles, then slides on if that put it on Ice; the push stops before the
-    // edge, impassable ground or a living unit, and stopping short of the distance is a
-    // collision (with that unit, or with nothing for a wall). A slide held after the
-    // push's distance was spent is no collision: only the push was stopped.
-    if (isEntity(targetUnit)) return { ok: false, reason: 'immovable' };
+    // The target is driven up to `distance` tiles (never the Entity: see above), then
+    // slides on if that put it on Ice; the push stops before the edge, impassable ground
+    // or a living unit, and stopping short of the distance is a collision (with that unit,
+    // or with nothing for a wall). A slide held after the push's distance was spent is no
+    // collision: only the push was stopped.
     const move = forcedMove();
     const collision = move.stoppedShort
       ? { obstacle: move.stop === 'unit' && typeof move.blocker === 'object' ? move.blocker : null }
@@ -620,10 +668,11 @@ export function resolvePostCombatMove({
     return { ok: true, assignments: [forcedAssignment(move)] };
   }
 
+  // Through: past the target's tile beside the user (the Entity's body blocks the way).
   const dest = traceLinearDestination({
     unit: sourceUnit,
-    startCol: targetUnit.col,
-    startRow: targetUnit.row,
+    startCol: direction.col,
+    startRow: direction.row,
     dc: direction.dc,
     dr: direction.dr,
     distance: stepDistance,

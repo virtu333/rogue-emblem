@@ -11,12 +11,13 @@ import {
   DARK_CLASSES,
   ENTITY_CRIT_RATE_MULT,
   ENTITY_CRIT_DMG_MULT,
+  ENTITY_PRIMARY_ATTACK_RANGE,
 } from '../utils/constants.js';
 import { affixForecastNotes } from './AffixForecast.js';
 import { rollHit } from './HitRoll.js';
 import { rollDefenseAffixes } from './AffixSystem.js';
 import { isSleeping, isSilenced, isWounded, removeCondition } from './StatusConditionSystem.js';
-import { isEntity } from './EntitySystem.js';
+import { combatDistance, isEntity } from './EntitySystem.js';
 import { effectiveSkills } from './EffectiveSkills.js';
 import { absorbLethal } from './UnitHealth.js';
 import { bannerReadyFor } from './BattleBlessings.js';
@@ -370,9 +371,7 @@ export function getConditionalWeaponBonuses(weapon, unit, allAllies) {
   if (!special || !special.toLowerCase().includes('if no adjacent allies')) return result;
 
   const allies = Array.isArray(allAllies) ? allAllies : [];
-  const hasAdjacentAlly = allies.some(
-    (a) => a !== unit && gridDistance(unit.col, unit.row, a.col, a.row) === 1,
-  );
+  const hasAdjacentAlly = allies.some((a) => a !== unit && combatDistance(unit, a) === 1);
   if (hasAdjacentAlly) return result;
 
   const ifIdx = special.toLowerCase().indexOf('if');
@@ -1339,7 +1338,7 @@ export function getCombatForecast(
   const atkMultiHit = atkMods?.multiHit || null;
   const defMultiHit = defMods?.multiHit || null;
 
-  // Annihilate: either side's art neutralizes the weapon triangle for the whole combat
+  // `ignoreWeaponTriangle`: either side's art neutralizes the weapon triangle for the whole combat
   const fIgnoreTriangle = Boolean(atkMods?.ignoreWeaponTriangle || defMods?.ignoreWeaponTriangle);
   const atkTriangle =
     defWeapon && !fIgnoreTriangle
@@ -1536,6 +1535,12 @@ export function getCombatForecast(
     display: {
       triangle: atkTriangle,
       distance,
+      // The Entity counters farther than it strikes (its weapons reach 4, its blows 2): the
+      // distance of such a counter, so the forecast can say so (EntityReach.entityCounterNote).
+      entityCounterAt:
+        defCanCounter && isEntity(defender) && distance > ENTITY_PRIMARY_ATTACK_RANGE
+          ? distance
+          : null,
       counterHasDamageProc:
         effectiveSkills(defender, { weapon: defWeapon }).some((id) =>
           COUNTER_DAMAGE_PROCS.has(id),
@@ -2000,7 +2005,7 @@ export function resolveCombat(
     : 0;
 
   // Pre-compute all the static combat values (with skill mods applied)
-  // Annihilate: either side's art neutralizes the weapon triangle for the whole combat
+  // `ignoreWeaponTriangle`: either side's art neutralizes the weapon triangle for the whole combat
   const ignoreTriangle = Boolean(atkMods?.ignoreWeaponTriangle || defMods?.ignoreWeaponTriangle);
   const atkTriangle =
     defWeapon && !ignoreTriangle
