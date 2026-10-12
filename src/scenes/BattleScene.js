@@ -1,4 +1,5 @@
 import { MovementActionController } from '../ui/MovementActionController.js';
+import { startDeferredAssetWarmup } from '../utils/assetWarmup.js';
 import { cantoRuleFor } from '../engine/CantoRule.js';
 import {
   specialCharacterRefusalText,
@@ -515,6 +516,8 @@ const POST_COMBAT_HINT_COLORS = {
   muted: UI_PALETTE.muted,
 };
 const PAUSE_TRANSITION_TIMEOUT_MS = 6000;
+// A battle starts the deferred-asset warm-up this long after its music was asked for.
+const BATTLE_WARMUP_DELAY_MS = 3000;
 
 /** The battle's Zombie remains (ZombieRemainsController), made on first use. */
 function remainsOf(scene) {
@@ -2317,6 +2320,9 @@ export class BattleScene extends Phaser.Scene {
         // After a turn of the phone the track plays on: ease its calm/full level.
         intensityFadeMs: this._presentationSwitch ? 600 : 0,
       });
+      // The deferred assets (a dev route never passes the title; a quick tap past it
+      // hands the warm-up on), after the battle's music has had the line to itself.
+      this.time?.delayedCall?.(BATTLE_WARMUP_DELAY_MS, () => startDeferredAssetWarmup(this));
 
       // Initial fog of war update
       if (this.grid.fogEnabled) {

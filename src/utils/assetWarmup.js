@@ -26,8 +26,13 @@ function queueAsset(scene, asset) {
   }
 }
 
+// The warm-up runs on the loader of the scene that started it, and Phaser drops a
+// loader's queue when its scene shuts down. So a scene that leaves before the warm-up is
+// done hands it back (the flag clears) and the next scene that asks picks up what is
+// still missing: Title, the route map, Home Base and a battle all ask.
 export function startDeferredAssetWarmup(scene, options = {}) {
-  if (!scene || scene.registry.get('deferredAssetWarmupStarted')) return;
+  if (typeof scene?.registry?.get !== 'function') return;
+  if (scene.registry.get('deferredAssetWarmupStarted')) return;
   const deferred = scene.registry.get('deferredAssets');
   if (!Array.isArray(deferred) || deferred.length === 0) return;
 
@@ -68,6 +73,10 @@ export function startDeferredAssetWarmup(scene, options = {}) {
 
   scene.events.once('shutdown', () => {
     active = false;
+    if (!scene.registry.get('deferredAssetWarmupDone')) {
+      scene.registry.set('deferredAssetWarmupStarted', false);
+      markStartup('deferred_asset_warmup_handed_back');
+    }
   });
   runBatch();
 }

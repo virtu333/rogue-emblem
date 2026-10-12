@@ -2,21 +2,27 @@
 // else nothing; the Vibration setting; the tick throttle; and no error ever reaches the caller.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// The real modules with only the platform faked: Capacitor says native or web, and the
-// registered Haptics interface hands each call to whichever plugin fake the test installed.
-// The enums (ImpactStyle, NotificationType) are the package's own.
-const native = vi.hoisted(() => ({ isNative: false, available: true, plugin: null }));
-vi.mock('@capacitor/core', async (importOriginal) => ({
-  ...(await importOriginal()),
-  Capacitor: {
-    isNativePlatform: () => native.isNative,
-    isPluginAvailable: (name) => name === 'Haptics' && native.available,
-  },
-}));
-vi.mock('@capacitor/haptics', async (importOriginal) => ({
-  ...(await importOriginal()),
-  Haptics: new Proxy({}, { get: (_, key) => native.plugin?.[key] }),
-}));
+// The native app: a fake injected bridge (`window.Capacitor`, as the iOS/Android shell
+// injects it, listing the plugins it carries) and the package's registered interface,
+// both handing each call to whichever plugin fake the test installed, noting which way
+// the call went.
+const native = { plugin: null, via: [] };
+// The package's registered interface as the app would load it, minus @capacitor/core
+// (which would rewrite this test's bridge, as it does a real one).
+const fakeInterface = {
+  Haptics: new Proxy(
+    {},
+    {
+      get: (_, key) =>
+        typeof native.plugin?.[key] === 'function'
+          ? (options) => {
+              native.via.push(`interface:${String(key)}`);
+              return native.plugin[key](options);
+            }
+          : undefined,
+    },
+  ),
+};
 import {
   HAPTIC_KINDS,
   TICK_MIN_INTERVAL_MS,
@@ -25,9 +31,15 @@ import {
   haptic,
   hapticsEnabled,
   hapticsSupported,
+  nativeHapticsImportForTests,
   resetHapticsForTests,
   setHapticsEnabled,
+  setNativeHapticsLoaderForTests,
 } from '../src/utils/haptics.js';
+import {
+  ImpactStyle,
+  NotificationType,
+} from '../node_modules/@capacitor/haptics/dist/esm/definitions.js';
 import { SettingsManager, normalizeSettings } from '../src/utils/SettingsManager.js';
 import { strikeFeedback } from '../src/ui/impactFeedback.js';
 import RevivalStoneController from '../src/ui/RevivalStoneController.js';
@@ -55,16 +67,23 @@ function capacitor() {
 }
 
 function useNative(plugin, { available = true } = {}) {
-  native.isNative = true;
-  native.available = available;
   native.plugin = plugin;
+  vi.stubGlobal('Capacitor', {
+    isNativePlatform: () => true,
+    getPlatform: () => 'ios',
+    PluginHeaders: available ? [{ name: 'Haptics' }] : [{ name: 'Filesystem' }],
+    nativePromise: (pluginName, method, options) => {
+      native.via.push(`bridge:${method}`);
+      if (pluginName !== 'Haptics') throw new Error(`unexpected plugin ${pluginName}`);
+      return plugin[method](options);
+    },
+  });
   return plugin;
 }
 
 function useWeb() {
-  native.isNative = false;
-  native.available = true;
   native.plugin = null;
+  vi.stubGlobal('Capacitor', undefined);
 }
 
 function stubVibrate(touch = 5) {
@@ -75,9 +94,11 @@ function stubVibrate(touch = 5) {
 
 beforeEach(() => {
   vi.useFakeTimers();
+  native.via.length = 0;
   useWeb();
   vi.stubGlobal('navigator', {});
   resetHapticsForTests();
+  setNativeHapticsLoaderForTests(async () => fakeInterface);
 });
 
 afterEach(() => {
@@ -136,6 +157,25 @@ describe('haptic()', () => {
     haptic('medium');
     expect(plugin.impact).not.toHaveBeenCalled();
     expect(vibrate).toHaveBeenLastCalledWith(20);
+    // Neither imported the package: importing @capacitor/core rewrites window.Capacitor,
+    // which a browser (or an app without the plugin) keeps as it is.
+    expect(nativeHapticsImportForTests()).toBeNull();
+  });
+
+  it('goes through the bridge until the registered interface lands, then through it', async () => {
+    const plugin = useNative(capacitor());
+    haptic('heavy');
+    expect(native.via).toEqual(['bridge:impact']);
+    await nativeHapticsImportForTests();
+    haptic('medium');
+    haptic('success');
+    expect(native.via).toEqual(['bridge:impact', 'interface:impact', 'interface:notification']);
+    await Promise.resolve();
+    expect(plugin.felt).toEqual([
+      `impact:${ImpactStyle.Heavy}`,
+      `impact:${ImpactStyle.Medium}`,
+      `notification:${NotificationType.Success}`,
+    ]);
   });
 
   it('falls back to short vibrate patterns without the plugin', () => {
@@ -341,5 +381,15 @@ describe('where the hooks sit', () => {
     cursor.move(1, 0);
     expect(cursor.cursorCol).toBe(2);
     expect(vibrate).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('the package', () => {
+  it('is installed, and its registered interface has the calls haptic() makes', async () => {
+    const mod = await import('@capacitor/haptics');
+    expect(typeof mod.Haptics.impact).toBe('function');
+    expect(typeof mod.Haptics.notification).toBe('function');
+    expect(mod.ImpactStyle).toEqual(ImpactStyle);
+    expect(mod.NotificationType).toEqual(NotificationType);
   });
 });

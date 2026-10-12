@@ -201,10 +201,26 @@ describe("BattleMusicController — the Entity's finale", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  it('plays the Entity theme alone and readies the finale, the hum and the hinge', () => {
+  it('plays the Entity theme alone and readies the finale, the hum and the hinge', async () => {
     const { audio, scene, ctrl } = makeEntityScene();
+    let themeStarted;
+    audio.playMusic.mockImplementationOnce(
+      (key) =>
+        new Promise((resolve) => {
+          themeStarted = () => {
+            audio.currentMusicKey = key;
+            resolve();
+          };
+        }),
+    );
     expect(startEntity(ctrl)).toBe(ENTITY_FINALE.theme);
     expect(audio.playMusic).toHaveBeenCalledWith(ENTITY_FINALE.theme, scene, 800);
+    // The finale's files wait for the theme: they would only slow its download.
+    await Promise.resolve();
+    expect(audio.preloadMusic).not.toHaveBeenCalled();
+    themeStarted();
+    await Promise.resolve();
+    await Promise.resolve();
     expect(audio.preloadMusic).toHaveBeenCalledWith(
       [ENTITY_FINALE.track, ENTITY_FINALE.hum],
       scene,
