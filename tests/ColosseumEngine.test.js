@@ -1038,6 +1038,54 @@ describe('ColosseumEngine', () => {
 it('prices Dance utility above ordinary mercenaries without extra random rolls', () => {
   const normal = getMercenaryPrice('act1', false, 'normal', colosseumData, () => 0, 'Mage');
   const dancer = getMercenaryPrice('act1', false, 'normal', colosseumData, () => 0, 'Dancer');
-  expect(normal).toBe(400);
-  expect(dancer).toBe(800);
+  expect(normal).toBe(700);
+  expect(dancer).toBe(1400);
+});
+
+// 2026-10-12 retune: Act I mercenaries cost under one battle's gold (400G on First Light, 480G
+// on Nightfall) while a rung's battle income climbs the ladder. Prices with the board's lowest
+// roll (rng 0) and highest roll (rng just under 1), derived by hand from colosseum.json.
+describe('mercenary prices by act and rung', () => {
+  const lowest = () => 0;
+  const highest = () => 0.999999;
+  const price = (act, rung, rng, promoted = false) =>
+    getMercenaryPrice(act, promoted, rung, colosseumData, rng, 'Fighter');
+
+  it('an Act I mercenary costs 700-1000G on First Light and 1050-1500G on Nightfall', () => {
+    expect([price('act1', 'normal', lowest), price('act1', 'normal', highest)]).toEqual([
+      700, 1000,
+    ]);
+    expect([price('act1', 'dusk', lowest), price('act1', 'dusk', highest)]).toEqual([875, 1250]);
+    expect([price('act1', 'hard', lowest), price('act1', 'hard', highest)]).toEqual([1050, 1500]);
+    expect([price('act1', 'lunatic', lowest), price('act1', 'lunatic', highest)]).toEqual([
+      1190, 1700,
+    ]);
+  });
+
+  it('every rung prices its mercenaries above the rung below, Dusk included', () => {
+    const rungs = ['normal', 'dusk', 'hard', 'lunatic'];
+    for (const act of ['act1', 'act2', 'act3', 'act4']) {
+      const cheapest = rungs.map((rung) => price(act, rung, lowest));
+      for (let i = 1; i < cheapest.length; i++) {
+        expect(cheapest[i]).toBeGreaterThan(cheapest[i - 1]);
+      }
+    }
+  });
+
+  it('each act raises both the cheapest and the dearest mercenary', () => {
+    const acts = ['act1', 'act2', 'act3', 'act4'];
+    for (let i = 1; i < acts.length; i++) {
+      expect(price(acts[i], 'normal', lowest)).toBeGreaterThan(
+        price(acts[i - 1], 'normal', lowest),
+      );
+      expect(price(acts[i], 'normal', highest)).toBeGreaterThan(
+        price(acts[i - 1], 'normal', highest),
+      );
+    }
+  });
+
+  it('a promoted Act III mercenary on Nightfall costs 4050-5625G', () => {
+    expect(price('act3', 'hard', lowest, true)).toBe(4050);
+    expect(price('act3', 'hard', highest, true)).toBe(5625);
+  });
 });
