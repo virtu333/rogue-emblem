@@ -37,7 +37,13 @@ export function entityDistanceTo(entity, targetCol, targetRow) {
   return minDist;
 }
 
-/** Compute combat distance — uses entityDistanceTo if either combatant is Entity */
+/**
+ * The distance between two units (or a unit and a tile): entityDistanceTo when either is the
+ * Entity, so it is measured from the nearest tile of its 3x3 body, else plain Manhattan
+ * distance. Every rule that asks how far one unit is from another reads this (attack range,
+ * auras, adjacency and within-N conditions, ally reach, Deathburst, heal range), never the
+ * Entity's top-left anchor alone.
+ */
 export function combatDistance(unit1, unit2) {
   if (isEntity(unit1)) return entityDistanceTo(unit1, unit2.col, unit2.row);
   if (isEntity(unit2)) return entityDistanceTo(unit2, unit1.col, unit1.row);
