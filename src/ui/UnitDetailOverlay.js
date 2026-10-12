@@ -7,6 +7,7 @@ import {
 } from '../engine/RevivalStones.js';
 import { skipsClassProgression } from '../engine/SpecialCharacterPolicy.js';
 import { canInspectUnit, carriedItemInfo, statusStaffInfo } from '../engine/BattleInformation.js';
+import { entityReachInfo } from '../engine/EntityReach.js';
 import { formatPerkMods } from './rosterDisplay.js';
 import {
   UI_PALETTE,
@@ -381,6 +382,13 @@ export class UnitDetailOverlay {
         this._wireTooltipTarget(text, () =>
           this._showSkillTooltip(text, `${affix.name}: ${affix.description}`),
         );
+      y += 14;
+    }
+    // The Entity's two reaches (its weapons say 1-4; its blows stop at 2).
+    const reachInfo = entityReachInfo(unit);
+    if (reachInfo) {
+      const text = this._unitText(lx, y, reachInfo.text, UI_PALETTE.info, '9px');
+      fitCanvasText(text, OVERLAY_W - 24);
       y += 14;
     }
     const stonesLine = revivalStonesLine(unit);

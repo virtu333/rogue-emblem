@@ -11,6 +11,7 @@ import {
   DARK_CLASSES,
   ENTITY_CRIT_RATE_MULT,
   ENTITY_CRIT_DMG_MULT,
+  ENTITY_PRIMARY_ATTACK_RANGE,
 } from '../utils/constants.js';
 import { affixForecastNotes } from './AffixForecast.js';
 import { rollHit } from './HitRoll.js';
@@ -1536,6 +1537,12 @@ export function getCombatForecast(
     display: {
       triangle: atkTriangle,
       distance,
+      // The Entity counters farther than it strikes (its weapons reach 4, its blows 2): the
+      // distance of such a counter, so the forecast can say so (EntityReach.entityCounterNote).
+      entityCounterAt:
+        defCanCounter && isEntity(defender) && distance > ENTITY_PRIMARY_ATTACK_RANGE
+          ? distance
+          : null,
       counterHasDamageProc:
         effectiveSkills(defender, { weapon: defWeapon }).some((id) =>
           COUNTER_DAMAGE_PROCS.has(id),

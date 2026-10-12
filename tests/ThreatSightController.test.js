@@ -297,6 +297,80 @@ describe('ThreatSightController', () => {
   });
 });
 
+describe('ThreatSightController: "counters from here" follows the mover\'s weapons', () => {
+  // The Entity (a 3x3 body at 7..9, 0..2) cannot strike (4, 1), three tiles off, but it answers
+  // a blow from there: a note only for a unit carrying a weapon that reaches 3.
+  const weapon = (name) => structuredClone(gameData.weapons.find((w) => w.name === name));
+  const entity = () => ({
+    name: 'The Entity',
+    faction: 'enemy',
+    isEntity: true,
+    col: 7,
+    row: 0,
+    currentHP: 300,
+    mov: 0,
+    stats: { MOV: 0, HP: 300 },
+    moveType: 'Infantry',
+    weapon: weapon('Eldritch Grasp'),
+    inventory: [weapon('Eldritch Grasp')],
+  });
+  const archerless = () => ({
+    ...sera(),
+    col: 4,
+    row: 1,
+    weapon: weapon('Iron Sword'),
+    inventory: [weapon('Iron Sword')],
+  });
+  const COUNTERS = 'No foe can reach · The Entity counters from here';
+
+  it('a Trade that hands the unit a bow, with no move, changes the line it is asked for', () => {
+    const player = archerless();
+    const scene = makeScene({ enemies: [entity()], player });
+    const sight = new ThreatSightController(scene).create();
+    expect(sight.describe(4, 1)).toBe('No foe can reach');
+    // The trade: a Longbow comes into the bag. Same tile, same turn, same foes.
+    player.inventory.push(weapon('Longbow'));
+    expect(sight.describe(4, 1)).toBe(COUNTERS);
+    // And the other way: it hands the bow on again.
+    player.inventory.pop();
+    expect(sight.describe(4, 1)).toBe('No foe can reach');
+  });
+
+  it('the drawn answer is asked again after a Trade or Equip that leaves the unit in place', () => {
+    const player = archerless();
+    const scene = makeScene({ enemies: [entity()], player, state: 'UNIT_ACTION_MENU' });
+    const sight = new ThreatSightController(scene).create();
+    sight.sync();
+    expect(sight.current.result.counter).toEqual([]);
+    // An Equip from the convoy: the Longbow is now the weapon in hand (and in the bag).
+    const bow = weapon('Longbow');
+    player.inventory.push(bow);
+    player.weapon = bow;
+    sight.sync(); // the per-frame tick: the same call the scene's update makes
+    expect(sight.current.result.counter).toHaveLength(1);
+    expect(sight.current.result.counter[0].isEntity).toBe(true);
+    // Trading the bow away takes the note back.
+    player.inventory = [player.inventory[0]];
+    player.weapon = player.inventory[0];
+    sight.sync();
+    expect(sight.current.result.counter).toEqual([]);
+  });
+
+  it('swapping which carried weapon is equipped does not change what it can reach', () => {
+    const player = archerless();
+    player.inventory.push(weapon('Longbow'));
+    const scene = makeScene({ enemies: [entity()], player, state: 'UNIT_ACTION_MENU' });
+    const sight = new ThreatSightController(scene).create();
+    sight.sync();
+    const first = sight.current.result;
+    expect(first.counter).toHaveLength(1);
+    player.weapon = player.inventory[1];
+    sight.sync();
+    // The same memoized answer: nothing it reads changed.
+    expect(sight.current.result).toBe(first);
+  });
+});
+
 describe('threat sigil art', () => {
   it('is an ink-outlined eye with a glow and a violet status variant', () => {
     const damage = rasterizeThreatSigil('damage');
