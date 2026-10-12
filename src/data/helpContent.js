@@ -481,9 +481,12 @@ const STATIC_HELP_TABS = [
       {
         title: 'Skill Loadout',
         lines: [
-          { text: '5 skills go into battle. A skill', color: GOLD },
-          { text: 'learned with all 5 slots full waits', color: GOLD },
-          { text: 'on the bench: swap skills between', color: GOLD },
+          { text: '5 skills and 3 abilities go into', color: GOLD },
+          { text: 'battle. Abilities are skills used as', color: GOLD },
+          { text: 'an action (Shove, Dance, Steal,', color: GOLD },
+          { text: 'Blink): they have their own slots.', color: GOLD },
+          { text: 'One learned with its slots full waits', color: GOLD },
+          { text: 'on the bench: swap them between', color: GOLD },
           { text: 'battles in Roster > Skills.', color: GOLD },
           { text: 'Personal and class skills stay equipped.', color: GRAY },
         ],

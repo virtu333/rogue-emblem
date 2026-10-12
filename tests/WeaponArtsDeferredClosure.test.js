@@ -2,6 +2,9 @@
 // Tier 3 on-hit status (Encloser/Ward Arrow/Silence Strike) and the bespoke
 // trio (All or Nothing, Annihilate, Divine Flare). See
 // docs/reports/weapon_arts_deferred_closure_spec_2026-06-11.md
+// Ruin's art (`legend_annihilate`) became the cone smash Cataclysm
+// (docs/specs/legendary-arts-rework.md §1); its old body, the only kill buff, lives on here
+// as a fixture so the mechanism stays covered.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('phaser', () => ({
@@ -99,6 +102,29 @@ function createHeadlessHarness() {
   return battle;
 }
 
+// Annihilate as it was (before legendary-arts-rework): ignores the triangle, a kill buff.
+const KILL_BUFF_ART = {
+  id: 'fixture_kill_buff',
+  name: 'Annihilate',
+  weaponType: 'Axe',
+  tierAffinity: 'Legendary',
+  unlockAct: 'act3',
+  requiredRank: 'Mast',
+  hpCost: 9,
+  perTurnLimit: 1,
+  perMapLimit: 2,
+  targeting: 'normal_attack',
+  description: 'A kill spurs you on.',
+  allowedFactions: ['player'],
+  effects: { killBuff: { durationPhases: 1, stats: { STR: 4, SPD: 4 } } },
+  combatMods: {
+    atkBonus: 16,
+    hitBonus: -10,
+    ignoreWeaponTriangle: true,
+    activated: [{ id: 'weapon_art', name: 'Annihilate' }],
+  },
+};
+
 describe('deferred closure: catalog state', () => {
   it('no art carries a _deferredMechanic placeholder anymore', () => {
     const marked = gameData.weaponArts.arts.filter((art) => '_deferredMechanic' in art);
@@ -131,8 +157,8 @@ describe('deferred closure: catalog state', () => {
     expect(getWeaponArtMissEffects(art).selfDamageOnMiss).toBe(5);
   });
 
-  it('Annihilate ignores the weapon triangle and grants a kill buff', () => {
-    const art = artById.get('legend_annihilate');
+  it('a kill-buff art (Annihilate as it was) ignores the triangle and grants a kill buff', () => {
+    const art = KILL_BUFF_ART;
     expect(getWeaponArtCombatMods(art).ignoreWeaponTriangle).toBe(true);
     expect(getWeaponArtKillEffects(art).killBuff).toEqual({
       durationPhases: 1,
@@ -336,7 +362,7 @@ describe('deferred closure: post-combat steps', () => {
   });
 
   it('emits a hit-gated kill buff step', () => {
-    const art = artById.get('legend_annihilate');
+    const art = KILL_BUFF_ART;
     const landed = getPostCombatPipelineSteps({
       attacker,
       defender,
@@ -347,7 +373,7 @@ describe('deferred closure: post-combat steps', () => {
       type: 'art_kill_buff',
       sourceSide: 'attacker',
       targetSide: 'defender',
-      artId: 'legend_annihilate',
+      artId: 'fixture_kill_buff',
       durationPhases: 1,
       stats: { STR: 4, SPD: 4 },
     });
@@ -474,7 +500,7 @@ describe('deferred closure: scene/headless parity', () => {
       defender: makeUnit({ name: 'Def', faction: 'enemy', col: 1, currentHP: 0 }),
     };
     await applyStepsBoth({
-      attackerWeaponArt: artById.get('legend_annihilate'),
+      attackerWeaponArt: KILL_BUFF_ART,
       result: killResult,
       sceneUnits,
       headlessUnits,
@@ -502,7 +528,7 @@ describe('deferred closure: scene/headless parity', () => {
       defender: makeUnit({ name: 'Def2', faction: 'enemy', col: 1, currentHP: 10 }),
     };
     await applyStepsBoth({
-      attackerWeaponArt: artById.get('legend_annihilate'),
+      attackerWeaponArt: KILL_BUFF_ART,
       result: surviveResult,
       sceneUnits: sceneUnits2,
       headlessUnits: headlessUnits2,
@@ -607,7 +633,7 @@ describe('deferred closure: UI summaries', () => {
     const allOrNothing = summarizeWeaponArtEffect(artById.get('bow_all_or_nothing'));
     expect(allOrNothing).toContain('2x damage');
     expect(allOrNothing).toContain('On miss: you lose 5 HP per missed strike');
-    const annihilate = summarizeWeaponArtEffect(artById.get('legend_annihilate'));
+    const annihilate = summarizeWeaponArtEffect(KILL_BUFF_ART);
     expect(annihilate).toContain('Ignores triangle');
     expect(annihilate).toContain('On kill: you get +4 STR, +4 SPD for 1 phase');
     const divineFlare = summarizeWeaponArtEffect(artById.get('legend_divine_flare'));

@@ -429,6 +429,11 @@ function* postCombatMove(sourceUnit, targetUnit, step, world, result, held = nul
     getTerrainAt: world.getTerrainAt,
     isImmovable: (unit) => isDisplacementImmune(unit, world.affixes),
   });
+  // A dash held short by units on the line past its landing: the scene shows each one the fog
+  // hid and says the run was blocked (a walk's ambush rule). It reads the real board, so this
+  // comes after the commit, before the user moves.
+  if (step.mode === 'dash' && moveResult.blockers?.length)
+    yield { kind: 'contact', units: moveResult.blockers };
   if (!moveResult.ok) {
     const pinned = moveResult.reason === 'rooted' || moveResult.reason === 'immovable';
     if (step.mode === 'ram' && pinned && targetUnit?.currentHP > 0)
@@ -439,13 +444,14 @@ function* postCombatMove(sourceUnit, targetUnit, step, world, result, held = nul
   const slides = [];
   for (const assignment of moveResult.assignments) {
     const moved = assignment.unit.col !== assignment.col || assignment.unit.row !== assignment.row;
-    // A pushed unit that slid on Ice: the tiles it crossed, for the scene to draw.
-    if (moved && assignment.slid)
+    // A pushed unit that slid on Ice: the tiles it crossed, for the scene to draw. A dash
+    // (Oathblade) is drawn the same way, as one run through the line.
+    if (moved && (assignment.slid || step.mode === 'dash'))
       slides.push({
         unit: assignment.unit,
         from: { col: assignment.unit.col, row: assignment.unit.row },
         to: { col: assignment.col, row: assignment.row },
-        path: assignment.path,
+        ...(assignment.slid ? { path: assignment.path } : {}),
       });
     assignment.unit.col = assignment.col;
     assignment.unit.row = assignment.row;

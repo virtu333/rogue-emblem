@@ -70,12 +70,6 @@ describe('Tier 4 weapon art data + parsing', () => {
 
   it('keeps compound legendary multiHit arts fully structured without deferred markers', () => {
     const expected = {
-      legend_phantom_rush: {
-        multiHit: { count: 3, damageMultiplier: 0.6 },
-        deferred: null,
-        atkBonus: 8,
-        hitBonus: 10,
-      },
       legend_piercing_charge: {
         multiHit: { count: 2, damageMultiplier: 0.9 },
         deferred: null,

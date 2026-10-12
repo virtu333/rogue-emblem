@@ -4,6 +4,7 @@ import { validateBattleState } from './BattleStateSnapshot.js';
 import { migrateSavedItemNames, ITEM_NAMES_REVISION } from './ItemNameMigration.js';
 import { migrateSavedGamblerCoins } from './AccessoryCatalogMigration.js';
 import { migrateSavedPerBattleWeapons } from './WeaponCatalogMigration.js';
+import { migrateSavedLegendaryRelics } from './LegendaryRelicMigration.js';
 import { hydrateBattleTimeline } from './BattleTimeline.js';
 import { pickFresh } from '../utils/pickFresh.js';
 import { applyRevivalCatchUp } from './RevivalCatchUp.js';
@@ -14,7 +15,8 @@ import {
   normalizeUnitDeeds,
 } from './DeedSystem.js';
 import { RUN_RECORD_VERSION, fallenForRecord, fallenRecord, survivorRecord } from './RunRecords.js';
-import { migrateWaitingOath } from './SkillLoadout.js';
+import { migrateWaitingOath, settleSlotOverflow } from './SkillLoadout.js';
+import { slotKindOf, slotsFullFor } from './SkillSlots.js';
 import { normalizeDeploymentNames } from './DeploymentSelection.js';
 import { restrictOpeningCavaliers } from './EarlyEnemyRules.js';
 // RunManager.js — Pure class: run state (roster, node map, act progression, unit serialization)
@@ -24,7 +26,6 @@ import {
   ACT_SEQUENCE,
   ACT_CONFIG,
   STARTING_GOLD,
-  MAX_SKILLS,
   STARTING_ACCESSORY_TIERS,
   startingStaffNames,
   DEADLY_ARSENAL_SIGNATURE_WEAPONS,
@@ -1862,11 +1863,14 @@ export class RunManager {
           continue;
         }
 
-        // First pass: displace non-personal, non-innate skill
+        // First pass: displace non-personal, non-innate skill of the same kind (a skill
+        // only frees a skill slot, an ability an ability slot: SkillSlots.js)
+        const kind = slotKindOf(skillId, this.gameData?.skills);
+        const sameKind = (sid) => slotKindOf(sid, this.gameData?.skills) === kind;
         let restoredWithDisplacement = false;
         for (let i = unit.skills.length - 1; i >= 0; i--) {
           const sid = unit.skills[i];
-          if (!personalSkillIds.has(sid) && !unitInnateIds.has(sid)) {
+          if (sameKind(sid) && !personalSkillIds.has(sid) && !unitInnateIds.has(sid)) {
             const displaced = unit.skills.splice(i, 1)[0];
             unit.skills.push(skillId);
             unit.benchedSkills = [...benchedSkillsOf(unit), displaced]; // kept, not lost
@@ -1880,7 +1884,7 @@ export class RunManager {
         if (!restoredWithDisplacement) {
           for (let i = unit.skills.length - 1; i >= 0; i--) {
             const sid = unit.skills[i];
-            if (!personalSkillIds.has(sid)) {
+            if (sameKind(sid) && !personalSkillIds.has(sid)) {
               const displaced = unit.skills.splice(i, 1)[0];
               unit.skills.push(skillId);
               unit.benchedSkills = [...benchedSkillsOf(unit), displaced]; // kept, not lost
@@ -2396,8 +2400,10 @@ export class RunManager {
       for (const unit of targets) {
         if (!Array.isArray(unit.skills)) unit.skills = [];
         for (let i = 0; i < count; i++) {
-          if (unit.skills.length >= MAX_SKILLS) break;
-          const candidates = skillPool.filter((skillId) => !unit.skills.includes(skillId));
+          const candidates = skillPool.filter(
+            (skillId) =>
+              !unit.skills.includes(skillId) && !slotsFullFor(unit, skillId, this.gameData?.skills),
+          );
           if (candidates.length <= 0) break;
           const picked = this._pickDeterministicBlessingItem(
             candidates,
@@ -4343,7 +4349,7 @@ export class RunManager {
     for (const unit of startingLordUnits) {
       const assigned = skillAssignments[unit.name] || [];
       for (const skillId of assigned) {
-        if (!unit.skills.includes(skillId) && unit.skills.length < MAX_SKILLS) {
+        if (!unit.skills.includes(skillId) && !slotsFullFor(unit, skillId, this.gameData?.skills)) {
           unit.skills.push(skillId);
         }
       }
@@ -6511,6 +6517,8 @@ export class RunManager {
     migrateSavedGamblerCoins(saved, gameData);
     // Per-battle weapons (Breachbolt) take the catalog's shot counts (same places).
     migrateSavedPerBattleWeapons(saved, gameData);
+    // Legendaries saved before the rework take its changes (Oathblade, Hermit's Bow).
+    migrateSavedLegendaryRelics(saved);
     const rm = new RunManager(gameData, saved.metaEffects || null);
     // Saves from before the prologue carry no mode: they are standard runs.
     rm.mode = saved.mode === PROLOGUE_RUN_MODE ? PROLOGUE_RUN_MODE : STANDARD_RUN_MODE;
@@ -7055,6 +7063,9 @@ export class RunManager {
     // Before the bench, an Oath at the cap waited for a free slot: it is sworn now.
     rm.roster.forEach(migrateWaitingOath);
     rm.fallenUnits.forEach(migrateWaitingOath);
+    // Before abilities had slots of their own, a unit could equip up to five: whatever now
+    // overflows a pool waits on the bench (SkillSlots.js), locked skills kept first.
+    for (const unit of [...rm.roster, ...rm.fallenUnits]) settleSlotOverflow(unit, rm.gameData);
 
     // Stamp missing item UIDs from legacy saves before relinking/equipment migration.
     rm.roster.forEach(stampUnitItemUids);
