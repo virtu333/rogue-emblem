@@ -793,7 +793,6 @@ const STATIC_HELP_TABS = [
         lines: [
           { text: 'An original score, composed in code', color: GOLD },
           { text: 'and played by free sample libraries:' },
-          { text: '' },
           { text: 'Sonatina Symphonic Orchestra', color: CYAN },
           { text: '  Mattias Westlund & contributors' },
           { text: '  CC Sampling Plus 1.0', color: GRAY },
@@ -801,6 +800,7 @@ const STATIC_HELP_TABS = [
           { text: '  Paul Battersby, with samples by' },
           { text: '  Jeff Glatt (No Budget Orchestra)' },
           { text: '  and Mattias Westlund, CC BY-SA', color: GRAY },
+          { text: '  SFZ edition via an unofficial mirror', color: GRAY },
           { text: 'VSCO 2 CE, VCSL: Versilian Studios', color: CYAN },
           { text: 'GeneralUser GS: S. Christian Collins', color: CYAN },
           { text: 'Virtuosity Drums, Growlybass,', color: CYAN },
