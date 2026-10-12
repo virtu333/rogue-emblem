@@ -25,6 +25,10 @@ import { unitDisplayName, unitEpithet } from './DeedTitles.js';
 import { riteBand, riteConfigOf, sanitizeRite } from './Rite.js';
 import { descentRouteIdFor, isDescentMap, isGateBossNode } from './Descent.js';
 import { isPrologueRun } from './ScriptedBattle.js';
+import { everFallenUnits } from './LaidToRest.js';
+import { lineHash, narrativeLineKey } from '../utils/lineKey.js';
+
+export { narrativeLineKey };
 
 const LAST_FOE_TOKEN = '{lastFoe}';
 const LAST_FOE_FALLBACK = 'the enemy';
@@ -32,6 +36,11 @@ const LAST_FOE_FALLBACK = 'the enemy';
 // Who Held the Bridge"); plain {commander} name when they have none. Gate
 // such lines on `commanderHasEpithet` so they only play once there is one.
 const EPITHET_TOKEN = '{epithet}';
+// {fallen}: the latest unit lost this run (gate on fallenThisRun). {lastFallenLord}: a lord
+// lost on the last finished run (gate on lastRunLordFell).
+const FALLEN_TOKEN = '{fallen}';
+const LAST_FALLEN_LORD_TOKEN = '{lastFallenLord}';
+const FALLEN_FALLBACK = 'them';
 
 /** Condition keys understood by evaluateWhen. Contract tests validate
  *  dialogue.json against this set so a typo in data fails CI, not gameplay. */
@@ -74,6 +83,20 @@ export const KNOWN_WHEN_KEYS = new Set([
   // The Lieutenant's gate on this run's Descent has been won (Nightfall, Black Sun): the glass
   // broke and the door below is open.
   'glassBroken',
+  // Run history (docs: dialogue gotchas in CLAUDE.md). Defeats in a row on this save; on
+  // the run-end screen the run just lost counts. A number: at least that many.
+  'minLossStreak',
+  // A unit has fallen (or been laid to rest) on this run; {fallen} names the latest.
+  'fallenThisRun',
+  // A lord fell on the save's last finished run; {lastFallenLord} names one. Meant for
+  // run start: on the run-end screen the last run is the one just ended.
+  'lastRunLordFell',
+  // This run's difficulty differs from the last finished run's (none: false). Run start.
+  'rungChanged',
+  // The furthest act this save has ever cleared (beatAct1..3 milestones): at least N.
+  'minBestActCleared',
+  // The boss of this scene has been slain at least N times on this save.
+  'minBossSlain',
 ]);
 
 /** True when `value` (one value or a list) admits `actual`. */
@@ -126,11 +149,22 @@ export function buildNarrativeContext({
     /* first run */
   }
   const resolvedBossName = typeof bossName === 'string' && bossName.trim() ? bossName.trim() : null;
+  let fallenName = null;
+  try {
+    const fallen = everFallenUnits(runManager).filter((u) => typeof u?.name === 'string' && u.name);
+    if (fallen.length) fallenName = fallen[fallen.length - 1].name;
+  } catch (_) {
+    /* nobody lost */
+  }
+  const difficulty = runManager?.difficultyId || 'normal';
+  const lastRunLordsFell = Array.isArray(lastRun?.lordsFell)
+    ? lastRun.lordsFell.filter((name) => typeof name === 'string' && name)
+    : [];
   return {
     commander,
     commanderTitled,
     partner,
-    difficulty: runManager?.difficultyId || 'normal',
+    difficulty,
     runsStarted,
     runsCompleted:
       typeof meta?.runsCompleted === 'number' && Number.isFinite(meta.runsCompleted)
@@ -153,7 +187,28 @@ export function buildNarrativeContext({
     finale: finaleOf(runManager, gameData ?? runManager?.gameData),
     descent: descentRoadOf(runManager, gameData ?? runManager?.gameData),
     glassBroken: glassBrokenOf(runManager),
+    lossStreak: Math.max(0, Math.floor(Number(flags?.lossStreak) || 0)),
+    fallenName,
+    lastRunLordsFell,
+    rungChanged:
+      Boolean(lastRun) &&
+      typeof lastRun.difficultyId === 'string' &&
+      lastRun.difficultyId !== difficulty,
+    bestActCleared: bestActClearedOf(meta),
   };
+}
+
+/** The furthest act this save has cleared, from its milestones (0 when none or no meta). */
+function bestActClearedOf(meta) {
+  try {
+    const has = (id) => meta?.hasMilestone?.(id) === true;
+    if (has('beatAct3') || has('beatGame')) return 3;
+    if (has('beatAct2')) return 2;
+    if (has('beatAct1')) return 1;
+  } catch (_) {
+    /* no milestones */
+  }
+  return 0;
 }
 
 /** True when the run's current act map is the Descent's authored route. */
@@ -296,6 +351,25 @@ export function evaluateWhen(when, ctx) {
         case 'glassBroken':
           if ((ctx.glassBroken === true) !== value) return false;
           break;
+        case 'minLossStreak':
+          if (typeof value !== 'number' || !((ctx.lossStreak ?? 0) >= value)) return false;
+          break;
+        case 'fallenThisRun':
+          if (Boolean(ctx.fallenName) !== value) return false;
+          break;
+        case 'lastRunLordFell':
+          if ((Array.isArray(ctx.lastRunLordsFell) && ctx.lastRunLordsFell.length > 0) !== value)
+            return false;
+          break;
+        case 'rungChanged':
+          if ((ctx.rungChanged === true) !== value) return false;
+          break;
+        case 'minBestActCleared':
+          if (typeof value !== 'number' || !((ctx.bestActCleared ?? 0) >= value)) return false;
+          break;
+        case 'minBossSlain':
+          if (typeof value !== 'number' || !((ctx.bossSlainCount ?? 0) >= value)) return false;
+          break;
         default:
           return false; // unknown condition key: variant never matches
       }
@@ -312,24 +386,22 @@ function applyNarrativeTokens(entries, ctx) {
   const foe = ctx?.lastRunDefeatedBy || LAST_FOE_FALLBACK;
   // No title: fall back to the {commander} token (DialogueCast resolves it).
   const titled = ctx?.commanderTitled || ctx?.commander || '{commander}';
+  const fallen = ctx?.fallenName || FALLEN_FALLBACK;
+  const lords = Array.isArray(ctx?.lastRunLordsFell) ? ctx.lastRunLordsFell : [];
+  const lastLord = lords[lords.length - 1] || FALLEN_FALLBACK;
+  const tokens = [
+    [LAST_FOE_TOKEN, foe],
+    [EPITHET_TOKEN, titled],
+    [FALLEN_TOKEN, fallen],
+    [LAST_FALLEN_LORD_TOKEN, lastLord],
+  ];
   return entries.map((entry) => {
     if (!entry || typeof entry !== 'object' || typeof entry.line !== 'string') return entry;
-    if (!entry.line.includes(LAST_FOE_TOKEN) && !entry.line.includes(EPITHET_TOKEN)) return entry;
-    const line = entry.line.split(LAST_FOE_TOKEN).join(foe).split(EPITHET_TOKEN).join(titled);
+    if (!tokens.some(([token]) => entry.line.includes(token))) return entry;
+    let line = entry.line;
+    for (const [token, value] of tokens) line = line.split(token).join(value);
     return { ...entry, line };
   });
-}
-
-/** A stable 32-bit hash (FNV-1a) for ordering pool lines. */
-function lineHash(text) {
-  let h = 2166136261;
-  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619) >>> 0;
-  return h;
-}
-
-/** The key a pool line is remembered by once played (MetaProgressionManager.linesPlayed). */
-export function narrativeLineKey(line) {
-  return `l${lineHash(String(line)).toString(36)}`;
 }
 
 /** A pool exchange: a non-empty list of entries that each have a line. */
