@@ -827,3 +827,105 @@ describe('the aiming state is registered wherever the Blink tile state is', () =
     expect(caster.currentHP).toBe(32);
   });
 });
+
+// Doomblade's Doom Thrust, the leap (docs/specs/legendary-arts-rework.md §5), in the scene.
+// Lancer STR 20 with Doomblade (12 might), the art's Atk +6: on DEF 5 a blow is 33, × 0.8 =
+// 26 (a lance on a lance: no triangle). The art costs 8 HP.
+describe('the leap', () => {
+  const doomThrust = data.weaponArts.arts.find((a) => a.id === 'legend_doom_thrust');
+  const lancer = (col = 2, row = 5) => {
+    const lance = structuredClone(data.weapons.find((w) => w.name === 'Doomblade'));
+    return sage(col, row, {
+      name: 'Lancer',
+      className: 'Paladin',
+      stats: { HP: 40, STR: 20, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 5, LCK: 5, MOV: 5 },
+      weapon: lance,
+      inventory: [lance],
+      proficiencies: [{ type: 'Lance', rank: 'Mast' }],
+    });
+  };
+  const settle = async (scene) => {
+    for (let i = 0; i < 30 && scene.battleState === 'COMBAT_RESOLVING'; i++)
+      await new Promise((r) => setTimeout(r, 0));
+  };
+
+  it('offers only tiles the player knows are free: a seen unit and a fogged tile are taken', () => {
+    const user = lancer(2, 5);
+    const seen = foe('Seen', 4, 5);
+    const hidden = foe('Hidden', 2, 3);
+    // Fog hides (2,3) and (1,4); everything else in reach is seen.
+    const fogVisible = new Set();
+    for (let c = 0; c < 12; c++) for (let r = 0; r < 12; r++) fogVisible.add(`${c},${r}`);
+    fogVisible.delete('2,3');
+    fogVisible.delete('1,4');
+    const { area } = battle([user, seen, hidden], { fogVisible });
+    expect(area.begin(user, user.weapon, doomThrust)).toBe(true);
+    const keys = area.pending.centers.map((t) => `${t.col},${t.row}`);
+    expect(keys).not.toContain('4,5'); // a seen foe
+    expect(keys).not.toContain('2,3'); // fog (the hidden foe is never consulted)
+    expect(keys).not.toContain('1,4'); // fog, empty: still not offered
+    expect(keys).not.toContain('2,5'); // its own tile
+    expect(keys).toContain('3,5');
+    // The cursor opens on a landing beside the seen foe, nearest the user: (3,5).
+    expect(area.pending.aim).toEqual({ col: 3, row: 5 });
+    const preview = area.previewAt({ col: 3, row: 5 });
+    expect(preview.victims.map((v) => [v.unit.name, v.damage])).toEqual([['Seen', 26]]);
+    expect(preview.leap).toEqual({ from: { col: 2, row: 5 }, to: { col: 3, row: 5 } });
+  });
+
+  it('fires: the user lands, every foe beside the landing takes 26, no counter', async () => {
+    const user = lancer(2, 5);
+    const east = foe('East', 5, 5);
+    const south = foe('South', 4, 6);
+    const away = foe('Away', 7, 5);
+    const { scene, area } = battle([user, east, south, away]);
+    area.begin(user, user.weapon, doomThrust);
+    area.lock({ col: 4, row: 5 });
+    expect(area.promptLines().fire).toBe('Leap: Doom Thrust');
+    area.lock({ col: 4, row: 5 });
+    await settle(scene);
+    expect([user.col, user.row]).toEqual([4, 5]);
+    expect([east.currentHP, south.currentHP, away.currentHP]).toEqual([4, 4, 30]);
+    expect(user.currentHP).toBe(32 - 8);
+    expect(user.hasActed).toBe(true);
+  });
+
+  it('a unit the fog hid on the landing fails it: the cost is spent, the user stays', async () => {
+    const user = lancer(2, 5);
+    const hidden = foe('Hidden', 4, 5);
+    const beside = foe('Beside', 5, 5);
+    // Fogged but for the user's and Beside's tiles: the landing is fogged, so the choices never
+    // offer it. Firing the intent directly stands in for a view gone stale; the real board
+    // decides.
+    const fogVisible = new Set(['2,5', '5,5']);
+    const { scene, area } = battle([user, hidden, beside], { fogVisible });
+    const reveals = [];
+    scene.grid.revealContact = (tiles) => reveals.push(...tiles);
+    expect(await area.execute(user, user.weapon, doomThrust, { col: 4, row: 5 })).toBe(true);
+    expect([user.col, user.row]).toEqual([2, 5]);
+    expect([hidden.currentHP, beside.currentHP]).toEqual([30, 30]);
+    expect(user.currentHP).toBe(32 - 8);
+    expect(user._battleWeaponArtUsage.map.legend_doom_thrust).toBe(1);
+    expect(reveals).toContainEqual({ col: 4, row: 5 });
+    expect(user.hasActed).toBe(true);
+  });
+
+  it('the intent is saved before the leap, so a resume replays it from where the user stood', async () => {
+    const saves = [];
+    const user = lancer(2, 5);
+    const ctx = battle([user, foe('East', 5, 5)]);
+    ctx.scene.runManager = { battleInProgress: {} };
+    ctx.scene._captureSuspendCheckpoint = ({ commitIntent } = {}) => {
+      if (commitIntent)
+        saves.push({ col: user.col, row: user.row, intent: ctx.scene._pendingCommittedAction });
+      return true;
+    };
+    await ctx.area.execute(user, user.weapon, doomThrust, { col: 4, row: 5 });
+    expect(saves[0]).toMatchObject({
+      col: 2,
+      row: 5,
+      intent: { kind: 'area_strike', center: { col: 4, row: 5 } },
+    });
+    expect([user.col, user.row]).toEqual([4, 5]);
+  });
+});

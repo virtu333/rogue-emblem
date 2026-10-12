@@ -1707,32 +1707,83 @@
       "id": "legend_starfall_volley",
       "name": "Starfall Volley",
       "weaponType": "Bow",
+      "allowedTypes": [
+        "Bow"
+      ],
       "tierAffinity": "Legendary",
       "unlockAct": "act3",
       "requiredRank": "Mast",
-      "hpCost": 5,
+      "hpCost": 7,
       "perTurnLimit": 1,
-      "perMapLimit": 3,
-      "targeting": "normal_attack",
-      "description": "Starfall and Hermit's Bow answer in a burst of arrows.",
+      "perMapLimit": 2,
+      "targeting": "chosen_center",
+      "area": {
+        "shape": "radius",
+        "radius": 1,
+        "centerRange": {
+          "min": 3,
+          "max": 7
+        },
+        "damage": {
+          "kind": "scaled",
+          "multiplier": 0.6
+        }
+      },
+      "description": "Loosed skyward, its arrows fall where the stars once came down.",
       "allowedFactions": [
         "player"
       ],
       "legendaryWeaponIds": [
-        "Starfall",
-        "Hermit's Bow"
+        "Starfall"
       ],
       "combatMods": {
-        "atkBonus": 5,
-        "hitBonus": 20,
-        "critBonus": 15,
+        "atkBonus": 3,
         "activated": [
           {
             "id": "weapon_art",
             "name": "Starfall Volley"
           }
         ]
-      }
+      },
+      "noFollowUp": true
+    },
+    {
+      "id": "legend_hermit_fan",
+      "name": "Fan Shot",
+      "weaponType": "Bow",
+      "tierAffinity": "Legendary",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 6,
+      "perTurnLimit": 1,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "area": {
+        "shape": "arc",
+        "width": 1,
+        "damage": {
+          "kind": "scaled",
+          "multiplier": 0.7
+        },
+        "strikes": "once"
+      },
+      "description": "Hermit's Bow fans its arrows wide: alone, it can miss no one.",
+      "allowedFactions": [
+        "player"
+      ],
+      "legendaryWeaponIds": [
+        "Hermit's Bow"
+      ],
+      "combatMods": {
+        "hitBonus": 10,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Fan Shot"
+          }
+        ]
+      },
+      "noFollowUp": true
     },
     {
       "id": "legend_phantom_rush",
@@ -1745,7 +1796,16 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Oathblade's phantom cuts, then a step back into shadow.",
+      "area": {
+        "shape": "line",
+        "length": 2,
+        "damage": {
+          "kind": "scaled",
+          "multiplier": 0.75
+        },
+        "strikes": "once"
+      },
+      "description": "Oathblade runs the line through: a lunge no rank can hold.",
       "allowedFactions": [
         "player"
       ],
@@ -1756,17 +1816,13 @@
         "afterCombat": [
           {
             "type": "move",
-            "mode": "retreat",
-            "distance": 1
+            "mode": "dash",
+            "distance": 3
           }
         ]
       },
       "combatMods": {
-        "multiHit": {
-          "count": 3,
-          "damageMultiplier": 0.6
-        },
-        "atkBonus": 8,
+        "atkBonus": 4,
         "hitBonus": 10,
         "critBonus": 10,
         "activated": [
@@ -1775,7 +1831,8 @@
             "name": "Phantom Rush"
           }
         ]
-      }
+      },
+      "noFollowUp": true
     },
     {
       "id": "legend_piercing_charge",
@@ -2010,41 +2067,38 @@
       "id": "legend_doom_thrust",
       "name": "Doom Thrust",
       "weaponType": "Lance",
+      "allowedTypes": [
+        "Lance"
+      ],
       "tierAffinity": "Legendary",
       "unlockAct": "act3",
       "requiredRank": "Mast",
       "hpCost": 8,
       "perTurnLimit": 1,
       "perMapLimit": 2,
-      "targeting": "normal_attack",
+      "targeting": "chosen_center",
       "area": {
-        "shape": "line",
-        "length": 1,
+        "shape": "around_attacker",
+        "radius": 1,
+        "leap": true,
+        "centerRange": {
+          "min": 1,
+          "max": 2
+        },
         "damage": {
           "kind": "scaled",
-          "multiplier": 1
-        },
-        "strikes": "each_landed"
+          "multiplier": 0.8
+        }
       },
-      "description": "Doomblade runs one foe through and shoves it back.",
+      "description": "Doomblade vaults its bearer into the thick of them, point first.",
       "allowedFactions": [
         "player"
       ],
       "legendaryWeaponIds": [
         "Doomblade"
       ],
-      "effects": {
-        "afterCombat": [
-          {
-            "type": "move",
-            "mode": "push",
-            "distance": 1
-          }
-        ]
-      },
       "combatMods": {
-        "atkBonus": 8,
-        "hitBonus": 15,
+        "atkBonus": 6,
         "activated": [
           {
             "id": "weapon_art",
@@ -2101,7 +2155,7 @@
     },
     {
       "id": "legend_cataclysm",
-      "name": "Cataclysm",
+      "name": "Annihilate",
       "weaponType": "Axe",
       "tierAffinity": "Legendary",
       "unlockAct": "act3",
@@ -2134,7 +2188,7 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Cataclysm"
+            "name": "Annihilate"
           }
         ]
       },
@@ -2142,7 +2196,7 @@
     },
     {
       "id": "legend_annihilate",
-      "name": "Annihilate",
+      "name": "Cataclysm",
       "weaponType": "Axe",
       "tierAffinity": "Legendary",
       "unlockAct": "act3",
@@ -2151,33 +2205,42 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Ruin cares nothing for the triangle, and a kill spurs you on.",
+      "area": {
+        "shape": "cone",
+        "rows": [
+          {
+            "width": 3,
+            "multiplier": 0.75
+          },
+          {
+            "width": 3,
+            "multiplier": 0.5
+          }
+        ],
+        "damage": {
+          "kind": "scaled",
+          "multiplier": 1
+        },
+        "strikes": "once"
+      },
+      "description": "Ruin brings the ground down behind its mark, and all who stand there.",
       "allowedFactions": [
         "player"
       ],
       "legendaryWeaponIds": [
         "Ruin"
       ],
-      "effects": {
-        "killBuff": {
-          "durationPhases": 1,
-          "stats": {
-            "STR": 4,
-            "SPD": 4
-          }
-        }
-      },
       "combatMods": {
-        "atkBonus": 16,
-        "hitBonus": -10,
-        "ignoreWeaponTriangle": true,
+        "atkBonus": 5,
+        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Annihilate"
+            "name": "Cataclysm"
           }
         ]
-      }
+      },
+      "noFollowUp": true
     },
     {
       "id": "legend_tempest",

@@ -66,7 +66,7 @@ describe('awardTeamXp', () => {
     expect(rowan.benchedSkills).toEqual([vantage]); // kept, not lost
     expect(report[0].blocked).toEqual([vantage]);
     expect(teamXpLines(report, data.skills)[0]).toContain(
-      `${vantageName} is on the bench (all 5 slots are full).`,
+      `${vantageName} is on the bench (all 5 skill slots are full).`,
     );
     // The next level-up retries it silently, as the battlefield card does.
     rowan.xp = 90;

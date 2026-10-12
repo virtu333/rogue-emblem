@@ -9,6 +9,7 @@ vi.mock('phaser', () => ({
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { HeadlessBattle } from './harness/HeadlessBattle.js';
 import { loadGameData } from './testData.js';
+import { LEGACY_DOOM_THRUST } from './helpers/legacyArts.js';
 import { calculateKillGold } from '../src/engine/LootSystem.js';
 
 function makeArt(overrides = {}) {
@@ -1833,9 +1834,10 @@ describe('BattleScene weapon art helpers', () => {
 
   // Doomblade 12 + STR 12 + the art's +8 − Behind's DEF 5 = 27 drops Behind (5 HP)
   // before the push moves Front into its tile.
-  it('applies Doom Thrust pierce-before-push ordering with scene/headless parity', async () => {
+  // The old Doom Thrust (a line, then a push), kept as a fixture since it became the leap.
+  it('applies a pierce-before-push art (the old Doom Thrust) with scene/headless parity', async () => {
     const gameData = loadGameData();
-    const art = gameData.weaponArts.arts.find((entry) => entry.id === 'legend_doom_thrust');
+    const art = LEGACY_DOOM_THRUST;
     const sceneAttacker = {
       name: 'Doom User',
       faction: 'player',
@@ -1933,7 +1935,9 @@ describe('BattleScene weapon art helpers', () => {
     expect(sceneDefender.row).toBe(headlessDefender.row);
   });
 
-  it('applies Phantom Rush retreat without a post-combat HP penalty with scene/headless parity', async () => {
+  // Phantom Rush is Oathblade's dash (docs/specs/legendary-arts-rework.md §4): from (2,2) past a
+  // standing target at (3,2), the run's farthest free tile is (6,2), 4 tiles on.
+  it('applies Phantom Rush dash without a post-combat HP penalty with scene/headless parity', async () => {
     const gameData = loadGameData();
     const art = gameData.weaponArts.arts.find((entry) => entry.id === 'legend_phantom_rush');
     const sceneAttacker = {
@@ -2009,12 +2013,35 @@ describe('BattleScene weapon art helpers', () => {
       defenderWeaponArt: null,
     });
 
-    expect(sceneAttacker.col).toBe(1);
+    expect(sceneAttacker.col).toBe(6);
     expect(sceneAttacker.row).toBe(2);
     expect(sceneAttacker.currentHP).toBe(14);
     expect(sceneAttacker.col).toBe(headlessAttacker.col);
     expect(sceneAttacker.row).toBe(headlessAttacker.row);
     expect(sceneAttacker.currentHP).toBe(headlessAttacker.currentHP);
+  });
+
+  // Review of #344: a dash held short by a unit the fog hid shows that unit (a contact for
+  // the phase, "Blocked"), as a walk's ambush does; one the player already saw says nothing.
+  it('a dash contact beat reveals only the blocker the fog hid', async () => {
+    const reveals = [];
+    const hints = [];
+    const scene = new BattleScene();
+    scene.grid = {
+      fogEnabled: true,
+      isVisible: (col, row) => col === 4 && row === 2, // the seen foe's tile only
+      revealContact: (tiles) => reveals.push(...tiles),
+      gridToPixel: (col, row) => ({ x: col, y: row }),
+    };
+    scene.showMinorHintAt = (x, y, text) => hints.push({ x, y, text });
+    const seen = { name: 'Seen', faction: 'enemy', col: 4, row: 2, currentHP: 10 };
+    const hidden = { name: 'Hidden', faction: 'enemy', col: 5, row: 2, currentHP: 10 };
+    await BattleScene.prototype._playPostCombatBeat.call(scene, {
+      kind: 'contact',
+      units: [seen, hidden],
+    });
+    expect(reveals).toEqual([{ col: 5, row: 2 }]);
+    expect(hints).toEqual([{ x: 5, y: 2, text: 'Blocked' }]);
   });
 
   it('applies Galeforce Assault set-to-5 without a step, preserving ally buff parity', async () => {

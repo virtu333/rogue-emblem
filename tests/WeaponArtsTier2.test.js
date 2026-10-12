@@ -23,8 +23,10 @@ describe('Tier 2 weapon arts', () => {
       bow_waning_shot: { afterCombatDebuff: [{ stat: 'STR', amount: -3 }] },
       bow_seal_magic: { afterCombatDebuff: [{ stat: 'MAG', amount: -4 }] },
       sword_poison_strike: { afterCombatDamage: [{ amount: 5, nonLethal: true }] },
+      // Oathblade's dash (docs/specs/legendary-arts-rework.md §4).
       legend_phantom_rush: {
-        postCombatMove: [{ mode: 'retreat', distance: 1 }],
+        line: { length: 2, strikes: 'once', damage: { kind: 'scaled', multiplier: 0.75 } },
+        postCombatMove: [{ mode: 'dash', distance: 3 }],
       },
       legend_piercing_charge: {
         line: { length: 1, strikes: 'each_landed' },
@@ -37,9 +39,9 @@ describe('Tier 2 weapon arts', () => {
       legend_storm_blade: {
         postCombatMove: [{ mode: 'retreat', distance: 1 }],
       },
+      // The leap now (docs/specs/legendary-arts-rework.md §5): no after-combat move.
       legend_doom_thrust: {
-        line: { length: 1, strikes: 'each_landed' },
-        postCombatMove: [{ mode: 'push', distance: 1 }],
+        noMove: true,
       },
     };
 
@@ -68,8 +70,8 @@ describe('Tier 2 weapon arts', () => {
       if (expectation.line) {
         expect(getWeaponArtArea(art)).toMatchObject({
           shape: 'line',
-          ...expectation.line,
           damage: { kind: 'scaled', multiplier: 1 },
+          ...expectation.line,
         });
       }
       if (expectation.setHp) {
