@@ -71,13 +71,12 @@ describe('lord trait creation', () => {
 });
 describe('advanced starting-skill unlocks', () => {
   it.each(['pavise', 'aegis', 'renewal'])(
-    'gates %s behind a victory, charges currency, persists and applies an assigned slot',
+    'sells %s without a victory, charges currency, persists and applies an assigned slot',
     (skill) => {
       const meta = new MetaProgressionManager(data.metaUpgrades, 'test-meta');
       meta.totalValor = 2000;
       meta.totalSupply = 2000;
-      expect(meta.purchaseUpgrade(`unlock_${skill}`)).toBe(false);
-      meta.milestones.add('beatGame');
+      expect(meta.hasMilestone('beatGame')).toBe(false);
       expect(meta.purchaseUpgrade(`unlock_${skill}`)).toBe(true);
       expect(meta.totalValor).toBe(1500);
       expect(meta.assignSkill('Edric', skill)).toBe(true);
@@ -110,7 +109,8 @@ describe('advanced starting-skill unlocks', () => {
     // 2026-10-11: the growth tracks about 25% off (balance revision 5): -2140 here,
     // and the MAG/LCK growth tracks 4080 -> 3715.
     // 2026-10-11: Lucky Finds 90/180 (balance revision 6): -90.
-    expect(total).toBe(47610 + 650 + 290 + 800 + 150 - 2140 - 90);
+    // 2026-10-12: Vantage 600, Adept 450, Guard 300 (balance revision 7): +575.
+    expect(total).toBe(47610 + 650 + 290 + 800 + 150 - 2140 - 90 + 575);
     expect(total / 53428).toBeLessThan(1.03);
     expect(sumCosts(priced.filter(isMagLckTrack))).toBe(3715);
   });

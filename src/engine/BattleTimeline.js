@@ -454,6 +454,61 @@ export function reviseBattleTimelineStates(history, revise) {
   return retain(next);
 }
 
+/**
+ * A raw saved timeline payload with every patch replaced by the full state it decodes to,
+ * for a whole-save migration to walk (RunManager.fromJSON). A migration rewrites the states
+ * it finds; a patch is a diff against its keyframe as it was when the patch was taken, so a
+ * migrated keyframe under an unmigrated patch decodes to a different state (an item field
+ * the migration changed is carried over to whatever item the patch moved into that slot).
+ * Returns `{ payload, expanded }` (what collapseTimelinePatches needs to store them as
+ * patches again), or null when the payload holds no patch or a patch that does not decode
+ * (hydrateBattleTimeline then refuses the payload as before). Never mutates the input.
+ */
+export function expandTimelinePatches(payload) {
+  if (!record(payload) || !record(payload.snapshots)) return null;
+  const ids = Object.keys(payload.snapshots).filter((id) => isPatchRecord(payload.snapshots[id]));
+  if (!ids.length) return null;
+  const snapshots = { ...payload.snapshots };
+  const patches = new Map();
+  const keyframes = new Map();
+  for (const id of ids) {
+    const stored = payload.snapshots[id];
+    const state = materialize(payload, id);
+    if (!state) return null;
+    const json = toJsonValue(state);
+    snapshots[id] = json;
+    patches.set(id, { base: stored.base, before: JSON.stringify(json), stored });
+    if (!keyframes.has(stored.base))
+      keyframes.set(stored.base, JSON.stringify(payload.snapshots[stored.base]));
+  }
+  // The keyframes are copied too, so a migration walking the copy never reaches the input.
+  for (const base of keyframes.keys()) snapshots[base] = clone(payload.snapshots[base]);
+  return { payload: { ...payload, snapshots }, expanded: { patches, keyframes } };
+}
+
+/**
+ * Store each expanded snapshot as a patch again, against its (possibly migrated) keyframe,
+ * in place on `payload`. A state the migration left alone over a keyframe it left alone
+ * keeps its original patch; any other is re-encoded, and stays full when no patch
+ * reproduces it.
+ */
+export function collapseTimelinePatches(payload, expanded) {
+  if (!record(payload?.snapshots) || !(expanded?.patches instanceof Map)) return payload;
+  const { patches, keyframes } = expanded;
+  for (const [id, { base, before, stored }] of patches) {
+    const state = payload.snapshots[id];
+    const baseState = payload.snapshots[base];
+    if (!record(state) || !record(baseState) || isPatchRecord(baseState)) continue;
+    if (JSON.stringify(state) === before && JSON.stringify(baseState) === keyframes.get(base)) {
+      payload.snapshots[id] = stored;
+      continue;
+    }
+    const next = encodeAgainst(baseState, toJsonValue(state));
+    if (next) payload.snapshots[id] = { base, patch: next };
+  }
+  return payload;
+}
+
 /** Stored representation of one destination ('full' | 'patch' | null) and its bytes. */
 export function describeEntrySnapshot(history, entryId) {
   const entry = history.entries.find((e) => e.id === entryId);
