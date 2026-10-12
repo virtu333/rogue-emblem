@@ -14,6 +14,12 @@ import { earnedPickOwed, skipEarnedBlessing } from '../src/engine/EarnedBlessing
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
+// The old two-node final act: the same data with the Descent switched off (the shipped file
+// has it on), so a test of the road before the Descent never rests on the shipped flag.
+const descentOffData = {
+  ...gameData,
+  descent: { ...structuredClone(gameData.descent), enabled: false },
+};
 const dialogue = JSON.parse(
   readFileSync(new URL('../data/dialogue.json', import.meta.url), 'utf8'),
 );
@@ -75,8 +81,8 @@ describe('the Act IV to Act V transition follows where the road ends', () => {
   // Failure: the Emperor's fall plays the Entity's "the ground is waking" descent on a road that
   // ends at the Lieutenant (Dusk), or a Nightfall / Black Sun run loses the descent it has always
   // had, because the key is chosen without the run's finale.
-  async function transitionAfterEmperor(difficultyId, commander = 'Edric') {
-    const rm = new RunManager(gameData);
+  async function transitionAfterEmperor(difficultyId, commander = 'Edric', data = gameData) {
+    const rm = new RunManager(data);
     rm.startRun({ runSeed: 42, difficultyId });
     rm.getStartingLordNames = () => [commander, commander === 'Sera' ? 'Edric' : 'Sera'];
     while (rm.currentAct !== 'act4') {
@@ -90,7 +96,7 @@ describe('the Act IV to Act V transition follows where the road ends', () => {
     const scene = {
       _battleSession: 1,
       runManager: rm,
-      gameData: { ...gameData, dialogue },
+      gameData: { ...data, dialogue },
       isElite: false,
       battleState: 'BATTLE_END',
       nodeId: rm.nodeMap.bossNodeId,
@@ -104,6 +110,8 @@ describe('the Act IV to Act V transition follows where the road ends', () => {
     };
     await new PostCombatController(scene).transitionAfterBattle();
     expect(rm.currentAct).toBe('finalBoss');
+    // Which final act was built: the Descent's route (its marker) or the old two-node act.
+    shown.finalActRoute = rm.nodeMap.descent?.routeId ?? null;
     return shown;
   }
 
@@ -128,12 +136,29 @@ describe('the Act IV to Act V transition follows where the road ends', () => {
   it.each(['hard', 'lunatic'])(
     "%s keeps the Entity's descent exactly: the ground wakes, then the arrival",
     async (difficultyId) => {
-      const shown = await transitionAfterEmperor(difficultyId);
+      const shown = await transitionAfterEmperor(difficultyId, 'Edric', descentOffData);
+      expect(shown.finalActRoute).toBe(null);
       expect(shown.map((s) => s.key)).toEqual(['finalBoss_to_secretAct']);
       const act = dialogue.actTransitions;
       // The Descent is off here: Edric's lines from before it (its variants name `descent`).
       const lines = (section) =>
         section.variants.find((v) => v.when.commander === 'Edric' && !v.when.descent).entries;
+      expect(shown[0].lines).toEqual(
+        [...lines(act.finalBoss_to_secretAct), ...lines(act.secretAct_start)].map((e) => e.line),
+      );
+    },
+  );
+
+  it.each(['hard', 'lunatic'])(
+    '%s with the Descent on (as shipped): the ground wakes, then Sera on the stair',
+    async (difficultyId) => {
+      const shown = await transitionAfterEmperor(difficultyId);
+      expect(shown.finalActRoute).toBe('entity');
+      expect(shown.map((s) => s.key)).toEqual(['finalBoss_to_secretAct']);
+      const act = dialogue.actTransitions;
+      const lines = (section) =>
+        section.variants.find((v) => v.when.commander === 'Edric' && v.when.descent === true)
+          .entries;
       expect(shown[0].lines).toEqual(
         [...lines(act.finalBoss_to_secretAct), ...lines(act.secretAct_start)].map((e) => e.line),
       );

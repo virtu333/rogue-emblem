@@ -86,7 +86,7 @@ describe('the capability table', () => {
       'defeatObjective',
     ]);
     for (const id of CAPABILITY_IDS) expect(RUN_CAPABILITIES[id]).toBe(2);
-    // The Descent's writers have shipped (dark); no large-maps writer has. A client never writes
+    // The Descent's writers have shipped; no large-maps writer has. A client never writes
     // what it can't read (test 24). RunFormatDescent.test.js holds the Descent's ids.
     expect(CLIENT_CAPABILITIES).toEqual(['descent', 'rite', 'vigil', 'defeatObjective']);
   });

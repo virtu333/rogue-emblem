@@ -8,6 +8,7 @@ import { RunManager } from '../../src/engine/RunManager.js';
 import { installStatefulSeed, restoreStatefulRandom } from '../../sim/lib/StatefulRNG.js';
 import {
   descentGameData,
+  legacyGameData,
   noLandingGameData,
   parseStoneOverride,
   permadeathView,
@@ -43,19 +44,30 @@ function entryCapture(difficulty, seed, { strong = true } = {}) {
 }
 
 describe('sim:descent pairs the two Act Vs on one entry state', () => {
-  it('switches the route on for its own copy, never in the data', () => {
-    // Failure: the sim flips `enabled` on the loaded data (shared by every arm and test), so the
-    // legacy arm plays the Descent too, or the shipped flag leaks on.
-    const on = descentGameData(data);
+  it('sets the route’s switch for its own copy, never in the data', () => {
+    // Failure: the sim flips `enabled` on the loaded data (shared by every arm and test), so one
+    // arm's switch leaks into the other's (the legacy arm plays the Descent too, or the reverse),
+    // or the legacy arm reads the shipped flag (on) and is no legacy act at all.
+    expect(data.descent.enabled).toBe(true); // as shipped
+    const dark = { ...data, descent: { ...structuredClone(data.descent), enabled: false } };
+    const on = descentGameData(dark);
     expect(on.descent.enabled).toBe(true);
-    expect(data.descent.enabled).toBe(false);
-    const off = noLandingGameData(data);
+    expect(dark.descent.enabled).toBe(false);
+    const legacy = legacyGameData(data);
+    expect(legacy.descent.enabled).toBe(false);
+    expect(data.descent.enabled).toBe(true);
+    const off = noLandingGameData(dark);
+    expect(off.descent.enabled).toBe(true);
+    expect(dark.descent.enabled).toBe(false);
     expect(
       data.descent.routes.entity.rows.some((r) => r.nodes.some((n) => n.key === 'landing')),
     ).toBe(true);
     expect(
       off.descent.routes.entity.rows.some((r) => r.nodes.some((n) => n.key === 'landing')),
     ).toBe(false);
+    expect(
+      dark.descent.routes.entity.rows.some((r) => r.nodes.some((n) => n.key === 'landing')),
+    ).toBe(true);
   });
 
   it('legacy plays the two-node act, the Descent its route, from the same entry', async () => {

@@ -208,6 +208,7 @@ export class NodeMapMenu {
         actIndex: rm.actIndex,
         rows: model.rows,
         frontierRow: model.frontierRow,
+        nodeMap: rm.nodeMap,
         // The prologue's route is its own road, not Act I.
         ...(isPrologueRun(rm)
           ? { act: 'Prologue', title: rm.nodeMap?.prologue?.title || 'The first thread' }
