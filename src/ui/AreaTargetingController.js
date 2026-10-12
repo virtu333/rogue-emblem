@@ -23,6 +23,13 @@
 // executeCombat: kill credit and remains read the weapon that struck), and the `combat`
 // continuation that level-ups save and completeResolvedAction finishes. Every step is
 // behind the battle session the action started in.
+//
+// A leap (Doomblade's Doom Thrust, docs/specs/legendary-arts-rework.md §5) aims the tile its
+// user lands on: the choices are the tiles the player knows are free (a fogged tile counts as
+// taken, as Blink Strike's), the preview strikes from there, and the cursor cycles the
+// landings beside seen foes. After the intent and the cost, the leap is settled on the real
+// board: a unit the fog hid on the landing fails it (the use spent, the unit stays, the
+// hidden unit shown, no blows); otherwise the user is placed there, then the blows land.
 
 import {
   areaStrikeCenters,
@@ -30,7 +37,11 @@ import {
   areaStrikeMods,
   canStartAreaStrike,
   isAreaStrikeCenter,
+  isLeapArt,
+  settleLeap,
 } from '../engine/AreaStrike.js';
+import { presentSettledMoves } from './ActionMovementPresentation.js';
+import { knownTileOccupant } from './WarpStrikeController.js';
 import { areaForecastLines, previewAreaArt } from '../engine/AreaPreview.js';
 import { canAttackWithWeapon } from '../engine/AttackOptions.js';
 import { AREA_XP_LIVE } from '../engine/BattleXp.js';
@@ -111,7 +122,12 @@ export class AreaTargetingController {
 
   /** May the menu offer this art: a weapon that can strike and a center in reach. */
   canBegin(unit, weapon, art) {
-    return canStartAreaStrike(unit, weapon, art, this._world());
+    return canStartAreaStrike(unit, weapon, art, this._world(), this._centerOptions(unit, art));
+  }
+
+  /** A leap's landings are the tiles the player knows are free; other centers are any tile. */
+  _centerOptions(unit, art) {
+    return isLeapArt(art) ? { occupiedAt: knownTileOccupant(this.scene, unit) } : {};
   }
 
   // ── Aiming ─────────────────────────────────────────────────────
@@ -122,7 +138,13 @@ export class AreaTargetingController {
     scene.hideActionMenu();
     scene.inEquipMenu = false;
     scene.battleState = AREA_CENTER_STATE;
-    const centers = areaStrikeCenters(unit, art, this._world(), weapon);
+    const centers = areaStrikeCenters(
+      unit,
+      art,
+      this._world(),
+      weapon,
+      this._centerOptions(unit, art),
+    );
     this.pending = {
       unit,
       weapon,
@@ -184,12 +206,26 @@ export class AreaTargetingController {
     // every foe whole, its fogged body tiles too).
     const byNearest = (a, b) =>
       distance(p.unit, a) - distance(p.unit, b) || a.row - b.row || a.col - b.col;
+    // A leap aims a landing beside the foe, never the foe's own tile.
+    const leap = isLeapArt(p.art);
+    const landingsBeside = (foe) =>
+      getFootprint(foe)
+        .filter((t) => isUnitTileSeen(grid, foe, t.col, t.row))
+        .flatMap((t) => [
+          { col: t.col, row: t.row - 1 },
+          { col: t.col - 1, row: t.row },
+          { col: t.col + 1, row: t.row },
+          { col: t.col, row: t.row + 1 },
+        ])
+        .filter((t) => p.keys.has(key(t)));
     return (scene._getTier5HostileUnitsFor(p.unit) || [])
       .filter((foe) => foe.currentHP > 0 && canInspectUnit(grid, foe))
       .map((foe) => {
-        const tiles = getFootprint(foe).filter(
-          (t) => p.keys.has(key(t)) && isUnitTileSeen(grid, foe, t.col, t.row),
-        );
+        const tiles = leap
+          ? landingsBeside(foe)
+          : getFootprint(foe).filter(
+              (t) => p.keys.has(key(t)) && isUnitTileSeen(grid, foe, t.col, t.row),
+            );
         return { foe, tiles, tile: tiles.slice().sort(byNearest)[0] || null };
       })
       .filter(({ tile }) => tile)
@@ -217,8 +253,11 @@ export class AreaTargetingController {
   previewAt(tile) {
     const p = this.pending;
     if (!p || !this.isCenter(tile)) return null;
-    return previewAreaArt({
-      attacker: p.unit,
+    const leap = isLeapArt(p.art);
+    // A leap strikes from its landing: the preview's user stands there (a copy: nothing moves).
+    const attacker = leap ? { ...p.unit, col: tile.col, row: tile.row } : p.unit;
+    const preview = previewAreaArt({
+      attacker,
       art: p.art,
       center: tile,
       knowledge: playerKnowledgeOf(this.scene),
@@ -226,6 +265,9 @@ export class AreaTargetingController {
       strikeMods: areaStrikeMods(p.unit, p.art, p.weapon),
       weapon: p.weapon,
     });
+    if (preview && leap)
+      preview.leap = { from: { col: p.unit.col, row: p.unit.row }, to: { ...tile } };
+    return preview;
   }
 
   _showPreview(tile) {
@@ -287,10 +329,13 @@ export class AreaTargetingController {
     const cost = getEffectiveWeaponArtHpCost(p.unit, p.art, this._costOptions());
     const preview = this.previewAt(p.locked);
     const area = areaForecastLines(preview, { onHit: false, max: 3 });
+    const leap = isLeapArt(p.art);
     return {
-      fire: `Fire ${p.art.name}`,
+      fire: leap ? `Leap: ${p.art.name}` : `Fire ${p.art.name}`,
       hp: `HP ${hp}→${Math.max(0, hp - cost)}`,
-      area: area.length ? area : ['No known foes in the blast'],
+      area: area.length
+        ? area
+        : [leap ? 'No known foes beside the landing' : 'No known foes in the blast'],
     };
   }
 
@@ -530,7 +575,9 @@ export class AreaTargetingController {
       safeBattlePresentation('area caster HP', () => scene.updateHPBar(unit), { scene });
       await scene._checkPhoenixBrooch(unit);
       if (!isCurrentBattleSession(scene, session)) return false;
-      observeHistoryAction(scene, 'called down', unit, null, art.name);
+      const leapt = isLeapArt(art) ? await this._settleLeap(unit, center, session) : null;
+      if (!isCurrentBattleSession(scene, session)) return false;
+      observeHistoryAction(scene, leapt ? 'leapt with' : 'called down', unit, null, art.name);
       const result = {};
       await scene._playPostCombatBeats(
         areaStrikeEffects(
@@ -607,6 +654,38 @@ export class AreaTargetingController {
     } finally {
       if (isCurrentBattleSession(scene, session)) scene._musicCtrl?.onCombatResolved?.();
     }
+  }
+
+  /**
+   * A leap, after its intent and cost: the real board decides whether the landing is free.
+   * Free, the user is placed there and drawn jumping; a unit the fog hid there fails the
+   * leap (the user stays, that unit is shown for the rest of the phase, no blows land).
+   * Returns 'landed' or 'blocked'.
+   */
+  async _settleLeap(unit, center, session) {
+    const scene = this.scene;
+    const { blocker, moves } = settleLeap(unit, center, (col, row) => scene.getUnitAt(col, row));
+    if (blocker) {
+      safeBattlePresentation(
+        'leap blocked',
+        () => {
+          scene.grid.revealContact?.(getFootprint(blocker));
+          const pos = scene.grid.gridToPixel(blocker.col, blocker.row);
+          scene.showMinorHintAt?.(pos.x, pos.y, 'Blocked!', UI_PALETTE.bad);
+        },
+        { scene },
+      );
+      return 'blocked';
+    }
+    scene.commitVisionSnapshotIfPending?.();
+    await presentSettledMoves(scene, moves, { session, label: 'leap', duration: 160 });
+    if (!isCurrentBattleSession(scene, session)) return 'landed';
+    safeBattlePresentation(
+      'leap movement state',
+      () => scene._refreshPostCombatMovementState([unit]),
+      { scene },
+    );
+    return 'landed';
   }
 
   /** executeCombat's recovery: report, settle the dead, consume the action. */

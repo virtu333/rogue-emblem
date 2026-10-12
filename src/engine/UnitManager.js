@@ -19,7 +19,6 @@ import {
   BASE_CLASS_LEVEL_CAP,
   PROMOTED_CLASS_LEVEL_CAP,
   PROMOTION_MIN_LEVEL,
-  MAX_SKILLS,
   ENEMY_PROMOTION_BASE_LEVEL,
   ENEMY_NEVER_SKILLS,
 } from '../utils/constants.js';
@@ -35,6 +34,7 @@ import {
   reapplyTraitGrowthMods,
 } from './TraitSystem.js';
 import { rollMark } from './MarkSystem.js';
+import { slotsFullFor } from './SkillSlots.js';
 import { isFemaleOnlyClass, noteReclassFace, unitGender } from './PortraitVariants.js';
 
 // --- Weapon proficiency parsing ---
@@ -162,8 +162,9 @@ export function getClassInnateSkills(className, skillsData) {
 // --- Skill learning ---
 
 // --- Skill loadout ---
-// `unit.skills` holds the equipped skills (at most MAX_SKILLS): combat and every
-// battle system read only these. `unit.benchedSkills` holds skills the unit knows but
+// `unit.skills` holds the equipped skills (at most MAX_SKILLS skills plus MAX_ABILITIES
+// abilities, counted apart: engine/SkillSlots.js): combat and every battle system read
+// only these. `unit.benchedSkills` holds skills the unit knows but
 // has not equipped. A player unit that learns a skill with every slot full keeps it on
 // the bench (playtest 2026-09-28: skills used to be lost at the cap); between battles
 // the roster swaps skills between the two (engine/SkillLoadout.js). Enemies never
@@ -181,15 +182,16 @@ export function knowsSkill(unit, skillId) {
 
 /**
  * Attempt to teach a unit a skill. Returns { learned, skillId?, reason?, benched? }.
- * At the cap a player unit keeps the skill on its bench: { learned: false, benched:
- * true, reason: 'at_cap' } (callers that report "slots full" still see at_cap), and
- * the skill is marked new (`benchedUnseen`) until the roster shows it. `bench: false`
- * refuses at the cap instead (a caller that makes room itself).
+ * The cap is the one for the skill's kind (an ability fills an ability slot, any other
+ * skill a skill slot: SkillSlots.js). At that cap a player unit keeps the skill on its
+ * bench: { learned: false, benched: true, reason: 'at_cap' } (callers that report "slots
+ * full" still see at_cap), and the skill is marked new (`benchedUnseen`) until the roster
+ * shows it. `bench: false` refuses at the cap instead (a caller that makes room itself).
  */
-export function learnSkill(unit, skillId, { bench = true } = {}) {
+export function learnSkill(unit, skillId, { bench = true, skillsData } = {}) {
   if (!Array.isArray(unit.skills)) unit.skills = [];
   if (knowsSkill(unit, skillId)) return { learned: false, reason: 'already_known' };
-  if (unit.skills.length >= MAX_SKILLS) {
+  if (slotsFullFor(unit, skillId, skillsData)) {
     if (!bench || unit.faction === 'enemy') return { learned: false, reason: 'at_cap' };
     unit.benchedSkills = [...benchedSkillsOf(unit), skillId];
     unit.benchedUnseen = [...(unit.benchedUnseen || []).filter((id) => id !== skillId), skillId];
@@ -1386,7 +1388,7 @@ export function resolvePromotionTargetClass(unit, classesData, lordsData = []) {
  * Optionally adds class-innate skills from skillsData.
  * Mutates unit in-place.
  * Returns { learnedSkills, droppedSkills } — droppedSkills lists class innates
- * the unit could NOT learn (MAX_SKILLS cap) so callers can tell the player
+ * the unit could NOT learn (its kind's slots full) so callers can tell the player
  * instead of losing them silently.
  */
 export function promoteUnit(unit, promotedClassData, promotionBonuses, skillsData) {
@@ -1457,11 +1459,11 @@ export function getSkillDisplayNames(skillIds, skillsData) {
 export function benchedSkillsNote(names) {
   const list = (names || []).filter(Boolean);
   if (!list.length) return '';
-  return `All ${MAX_SKILLS} skill slots full: ${list.join(', ')} kept on the bench (swap in from Skills).`;
+  return `Slots full: ${list.join(', ')} kept on the bench (swap in from Skills).`;
 }
 
 /**
- * Player-facing notice for class innates benched by the MAX_SKILLS cap during
+ * Player-facing notice for class innates benched by a full slot pool during
  * promotion. Returns null when nothing was benched.
  */
 export function formatDroppedSkillsNotice(unitName, droppedSkills, skillsData) {

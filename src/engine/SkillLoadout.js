@@ -1,7 +1,7 @@
 // SkillLoadout — which known skills a unit takes into battle (playtest 2026-09-28).
 //
-// A unit's `skills` are its equipped skills (at most MAX_SKILLS; everything in battle
-// reads only these) and `benchedSkills` the ones it knows but has set aside.
+// A unit's `skills` are its equipped skills (at most MAX_SKILLS skills and MAX_ABILITIES
+// abilities, counted apart: SkillSlots.js; everything in battle reads only these) and `benchedSkills` the ones it knows but has set aside.
 // learnSkill (UnitManager) benches a skill that arrives with every slot full, so a
 // class skill, an Oath or a scroll is never lost; between battles the roster moves
 // skills between the two lists here. Pure: no Phaser, no RNG.
@@ -15,7 +15,15 @@
 // Skills tab: the roster's notice, its unit flag and the route map's Roster pip.
 
 import { specialCharacterDefinition } from './SpecialCharacterPolicy.js';
-import { MAX_SKILLS } from '../utils/constants.js';
+import {
+  ABILITY_SLOT,
+  benchSlotOverflow,
+  equippedOfKind,
+  slotCapOf,
+  slotKindOf,
+  slotNoun,
+  slotsFullFor,
+} from './SkillSlots.js';
 import { benchedSkillsOf, getClassInnateSkills, learnSkill } from './UnitManager.js';
 import { unitBaseClassName } from './ClassLineage.js';
 
@@ -57,15 +65,41 @@ export function benchSkillBlock(unit, skillId, gameData = {}) {
 }
 
 /**
- * Why `skillId` cannot be equipped now (swapping out `replaceId` when every slot is
- * full), or ''.
+ * Why `skillId` cannot be equipped now (swapping out `replaceId` when every slot of its
+ * kind is full), or ''. Skills and abilities fill separate slots (SkillSlots.js), so a
+ * full pool only makes room by benching one of its own kind.
  */
 export function equipSkillBlock(unit, skillId, replaceId = null, gameData = {}) {
   if (!benchedSkillsOf(unit).includes(skillId)) return 'That skill is not on the bench.';
-  const full = (unit.skills?.length || 0) >= MAX_SKILLS;
+  const skillsData = gameData.skills;
+  const kind = slotKindOf(skillId, skillsData);
+  const full = slotsFullFor(unit, skillId, skillsData);
   if (!full) return replaceId == null ? '' : benchSkillBlock(unit, replaceId, gameData);
-  if (replaceId == null) return `All ${MAX_SKILLS} slots are full: choose a skill to bench.`;
+  if (replaceId == null)
+    return `All ${slotCapOf(kind)} ${slotNoun(kind)} are full: choose ${kind === ABILITY_SLOT ? 'an ability' : 'a skill'} to bench.`;
+  if (unit.skills?.includes(replaceId) && slotKindOf(replaceId, skillsData) !== kind)
+    return kind === ABILITY_SLOT
+      ? 'An ability takes an ability slot: bench an ability to make room.'
+      : 'A skill takes a skill slot: bench a skill to make room.';
   return benchSkillBlock(unit, replaceId, gameData);
+}
+
+/** The equipped entries `skillId` may replace: those of its own kind. */
+export function swapCandidatesFor(unit, skillId, gameData = {}) {
+  const kind = slotKindOf(skillId, gameData.skills);
+  return equippedOfKind(unit, kind, gameData.skills);
+}
+
+/**
+ * A save from before the split may hold more abilities than the ability slots (or, from a
+ * hand edit, more skills): the overflow goes to the bench once, locked skills kept first
+ * (SkillSlots.benchSlotOverflow). Returns the benched ids.
+ */
+export function settleSlotOverflow(unit, gameData = {}) {
+  return benchSlotOverflow(unit, {
+    locked: lockedSkillIds(unit, gameData),
+    skillsData: gameData.skills,
+  });
 }
 
 /** Move an equipped skill to the bench. Returns '' or the reason it was refused. */

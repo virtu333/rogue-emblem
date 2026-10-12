@@ -132,12 +132,12 @@
     "type": "Sword",
     "tier": "Legend",
     "rankRequired": "Mast",
-    "might": 9,
+    "might": 15,
     "hit": 85,
-    "crit": 0,
+    "crit": 20,
     "weight": 8,
     "range": "1",
-    "special": "Attacks twice consecutively",
+    "special": "",
     "weaponArtIds": [
       "legend_phantom_rush"
     ],
@@ -2070,7 +2070,7 @@
     "range": "1-2",
     "special": "+4 STR, +4 SPD if no adjacent allies",
     "weaponArtIds": [
-      "legend_starfall_volley"
+      "legend_hermit_fan"
     ],
     "weaponArtSources": [
       "innate"

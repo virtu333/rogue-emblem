@@ -67,7 +67,7 @@ describe('level-ups at the skill limit', () => {
     expect(card.levelUp.blockedSkills).toEqual(['Vantage']);
     expect(levelUpContent(unit, card.levelUp).blocked).toEqual(['Vantage']);
     expect(skillLimitNote(['Vantage'])).toBe(
-      'All 5 skill slots full: Vantage kept on the bench (swap in from Skills).',
+      'Slots full: Vantage kept on the bench (swap in from Skills).',
     );
   });
 
