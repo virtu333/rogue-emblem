@@ -651,13 +651,32 @@ function isOlderCopyOfRun(remote, run) {
   return id !== null && runIdOf(remote) === id && !isLocalOnlyRunSave(remote);
 }
 
+/**
+ * What a local-only run's push may delete from its slot's row: a prologue row (no build may
+ * hold one in the cloud, and an older client would load it as a standard run), or a copy of
+ * this same run, by runRecordId (a newer-format one only when this save is not older). A
+ * newer-format row of another run, or one with no id, is kept: a later client allowed to back
+ * that format up wrote it, and it is that run's only cloud copy (the conflict choice at login
+ * handles it).
+ */
+function isRetirableRow(remote, run) {
+  if (!isCloudSlotPayload(remote)) return false;
+  if (isPrologueRun(remote)) return true;
+  const id = runIdOf(run);
+  if (id === null || runIdOf(remote) !== id) return false;
+  // This run's copy in a format older clients open goes, whatever its savedAt (a fork, else).
+  // One only a newer client can have written goes only when this save is at least as new.
+  if (!isLocalOnlyRunSave(remote)) return true;
+  return !(Number(remote.savedAt) > Number(run.savedAt));
+}
+
 // Slot and run pairs whose cloud row has been checked for a copy to retire this session.
 const retiredLocalOnlyRows = new Set();
 
 /**
- * Remove what the cloud must not hold for a local-only run save in this slot: a local-only run
- * an earlier build pushed, or this run's own older-format copy (isOlderCopyOfRun). Any other
- * run in the row (another device's, or one without an id) is never touched: the conflict
+ * Remove what the cloud must not hold for a local-only run save in this slot: a prologue run
+ * an earlier build pushed, or a copy of this same run (isRetirableRow). Any other run in the
+ * row (another device's, in any format, or one without an id) is never touched: the conflict
  * choice at login handles it, as for any two runs in one slot. A routine push checks once a
  * session per slot and run, only when the check completes (the row deleted, or found holding
  * neither); a check that failed (offline, a refused write, an error) is forgotten and runs
@@ -671,7 +690,7 @@ function retireCloudLocalOnlyRun(userId, slot, run, { observed = false } = {}) {
   const signature = `${userId}:${slot}:${runIdOf(run) ?? ''}`;
   if (!observed && retiredLocalOnlyRows.has(signature)) return;
   retiredLocalOnlyRows.add(signature);
-  const expected = (remote) => isLocalOnlyRunSave(remote) || isOlderCopyOfRun(remote, run);
+  const expected = (remote) => isRetirableRow(remote, run);
   void updateSlotInTable(userId, TABLES.run, slot, null, { expected }).then((done) => {
     if (done === true) retiredLocalOnlyRows.add(signature);
     else retiredLocalOnlyRows.delete(signature);
