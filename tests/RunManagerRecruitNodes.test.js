@@ -147,6 +147,7 @@ describe('the recruit you see is the recruit you get', () => {
         recruitRunSeed: ctx.runSeed,
         recruitRoster: structuredClone(ctx.roster),
         startingLordNames: ctx.startingLordNames,
+        recruitClaimedLords: ctx.claimedLordNames,
         recruitLevelBonus: ctx.recruitLevelBonus,
         deployBonus: ctx.deployBonus,
         deployCount: rm.roster.length,

@@ -447,6 +447,7 @@ export class HeadlessBattle {
             gameData: this.gameData,
             metaEffects: this.battleParams?.metaEffects || null,
             startingLordNames: this.battleParams?.startingLordNames,
+            claimedLordNames: this.battleParams?.recruitClaimedLords || [],
             recruitLevelBonus: Math.trunc(Number(this.battleParams?.recruitLevelBonus) || 0),
             deployBonus: Math.trunc(Number(this.battleParams?.deployBonus) || 0),
           });
