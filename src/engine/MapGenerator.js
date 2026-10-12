@@ -569,7 +569,17 @@ export function generateBattleLayout(params, deps) {
 function generateSetPieceLayout(params, deps) {
   const act = params.act || 'act1';
   const setPiece = findSetPiece(deps.setPieces, params.setPiece);
-  const objective = setPiece.objective || 'rout';
+  // An authored route may fight a set piece for another objective than its own: the node's params
+  // then carry that objectives model, which replaces the set piece's objective and model, and the
+  // map has no throne to take (the Descent's gate fights the Glass, a seize map, as a defeat of
+  // its boss: Descent.DEFEAT_BOSS_OBJECTIVES). An event's params never carry one.
+  const nodeObjectives =
+    params.objectives !== undefined && objectivesShapeErrors(params.objectives).length === 0
+      ? structuredClone(params.objectives)
+      : null;
+  const objective = nodeObjectives
+    ? legacyObjectiveKind(nodeObjectives)
+    : setPiece.objective || 'rout';
   const enemyLevelBonus = Math.trunc(Number(params.enemyLevelBonus) || 0);
   const baseLevelRange = params.levelRange || deps.enemies?.pools?.[act]?.levelRange || [1, 1];
   const levelRange = [
@@ -606,7 +616,9 @@ function generateSetPieceLayout(params, deps) {
       };
     },
   });
-  const { mapLayout, cols, rows, playerSpawns, thronePos } = built;
+  const { mapLayout, cols, rows, playerSpawns } = built;
+  const thronePos = nodeObjectives ? null : built.thronePos;
+  const objectives = nodeObjectives || built.objectives;
   const templateId = `${SET_PIECE_TEMPLATE_PREFIX}${setPiece.id}`;
   const enemySpawns = dressEnemySpawns(built.enemySpawns, { params, deps, act, templateId });
   const reinforcementConfig = built.reinforcements ? structuredClone(built.reinforcements) : {};
@@ -620,14 +632,14 @@ function generateSetPieceLayout(params, deps) {
   });
   applyFogRoutFront(reinforcementConfig, params, objective, { playerSpawns, enemySpawns, cols });
   // Par reads the objectives model's first kind when the set piece names one (defeat).
-  const parObjective = built.objectives ? built.objectives.primary[0].kind : objective;
+  const parObjective = objectives ? objectives.primary[0].kind : objective;
   return {
     mapLayout,
     cols,
     rows,
     objective,
     // The objectives model (BattleObjectives.js), locked with the map; `objective` is its family.
-    ...(built.objectives ? { objectives: built.objectives } : {}),
+    ...(objectives ? { objectives } : {}),
     // The Vigil's sigils and circles, placed with the mirror (read by the Vigil mechanic).
     ...(built.vigil ? { vigil: built.vigil } : {}),
     biome: setPiece.biome ?? null,

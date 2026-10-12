@@ -517,9 +517,13 @@ function createVictoryRun(gameData, meta, config) {
 }
 
 function pickBattleNode(runManager, nodeType = null) {
-  // Review routes: devNode=boss enters the current act's boss battle directly.
+  // Review routes: devNode=boss enters the current act's boss battle directly: the map's own
+  // boss node (the Descent's finale, never its gate, which is the first boss node on its map).
   if (nodeType === NODE_TYPES.BOSS) {
-    const boss = (runManager.nodeMap?.nodes || []).find((node) => node?.type === NODE_TYPES.BOSS);
+    const nodes = runManager.nodeMap?.nodes || [];
+    const boss =
+      nodes.find((node) => node?.id === runManager.nodeMap?.bossNodeId) ||
+      nodes.find((node) => node?.type === NODE_TYPES.BOSS);
     if (boss) return boss;
   }
   // devNode=recruit: the act's first recruit knot (the Loom preview's own battle).

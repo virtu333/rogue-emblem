@@ -38,6 +38,8 @@ export class DataLoader {
     this.eclipse = null;
     this.prologue = null;
     this.events = null;
+    this.setPieces = null;
+    this.descent = null;
   }
 
   async loadAll() {
@@ -72,6 +74,7 @@ export class DataLoader {
       events,
       marks,
       setPieces,
+      descent,
     ] = await Promise.all([
       this.loadJSON('data/terrain.json'),
       this.loadJSON('data/lords.json'),
@@ -111,6 +114,10 @@ export class DataLoader {
       // Event set pieces (docs/specs/event-set-pieces.md). Optional: without it an event's
       // fight is an ordinary rout. Validated by `npm run validate:data`.
       this.loadOptionalJSON('data/setPieces.json'),
+      // Act V's authored route (docs/specs/act-v-descent.md §9.1). Optional: without it (or
+      // while it is switched off) the final act is today's two nodes. Validated by
+      // `npm run validate:data` (engine/Descent.validateDescentConfig).
+      this.loadOptionalJSON('data/descent.json'),
     ]);
     this.terrain = terrain;
     this.lords = lords;
@@ -142,6 +149,7 @@ export class DataLoader {
     this.events = events;
     this.marks = marks;
     this.setPieces = setPieces;
+    this.descent = descent;
     if (this.blessings) {
       const validation = validateBlessingsConfig(this.blessings);
       if (!validation.valid) {
@@ -191,6 +199,7 @@ export class DataLoader {
       events,
       marks,
       setPieces,
+      descent,
     };
   }
 

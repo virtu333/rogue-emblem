@@ -48,6 +48,7 @@ import { reconcileRecruitSpawnTile, sanitizeEscapeTilePassability } from './MapG
 import { calculateCurrencies } from './MetaProgressionManager.js';
 import { lordNamesInRun } from './LordsMet.js';
 import { generateNodeMap } from './NodeMapGenerator.js';
+import { buildDescentNodeMap, descentRouteIdFor, isGateBossNode } from './Descent.js';
 import {
   createLordUnit,
   createRecruitUnit,
@@ -973,17 +974,7 @@ export class RunManager {
     this.visionChargesRemaining = this.getBaseVisionCharges();
     this.visionCount = 0;
     this.randomLegendary = generateRandomLegendary(this.gameData.weapons);
-    this.nodeMap = this._withNodeMapSeed(() =>
-      generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
-        fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
-        halfFogChance: this.difficultyId === 'normal',
-        villageAmbushChance: this.getDifficultyModifier('villageAmbushChance', 0),
-        // an object — read directly (getDifficultyModifier coerces objects)
-        villageMinRow: this.difficultyModifiers?.villageMinRow ?? null,
-        colosseumConfig: this.gameData.colosseum?.nodeGeneration ?? null,
-        caravanChanceBonus: this.metaEffects?.caravanChanceBonus || 0,
-      }),
-    );
+    this.nodeMap = this._buildActNodeMap();
     this.currentNodeId = null;
     this.pendingAmbushNodeId = null;
     this.pendingCaravanShop = null;
@@ -5446,7 +5437,11 @@ export class RunManager {
       this.nodeMap?.actId === 'act3' ||
       this.nodeMap?.actId === 'act4';
     // The prologue's last chapter grants no Vision (§8): P3's exercise is its only charge.
-    if (isRewardBossNode && isRewardAct && !isPrologueRun(this)) {
+    // The Descent's gate boss (act-v-descent §6.2) grants the act boss's +1 too, explicitly: it
+    // is never the map's bossNodeId, which every other grant keys on. Once, as any: this commit
+    // refuses a node already done, and a battle reverted before its victory never reaches it.
+    const isGateVictory = isGateBossNode(this, node) && !isPrologueRun(this);
+    if ((isRewardBossNode && isRewardAct && !isPrologueRun(this)) || isGateVictory) {
       const currentVision = Number.isFinite(this.visionChargesRemaining)
         ? Math.max(0, Math.trunc(this.visionChargesRemaining))
         : 0;
@@ -5750,6 +5745,48 @@ export class RunManager {
   }
 
   /**
+   * The current act's route map (startRun and advanceAct; a load never rebuilds one, so a save
+   * already in an act keeps the map it was given). In the final act of a standard run, while
+   * data/descent.json is switched on and names a route for the rung, the Descent's authored
+   * route (engine/Descent.js: its own keyed streams, never the node-map seed); otherwise the
+   * generator under the node-map seed, exactly as before. A route that cannot be built (data
+   * the validator would refuse) falls back to the generator rather than stopping the run.
+   */
+  _buildActNodeMap() {
+    const routeId = this._descentRouteId();
+    if (routeId) {
+      try {
+        return buildDescentNodeMap(this.gameData.descent, {
+          runSeed: this.runSeed,
+          difficultyId: this.difficultyId,
+          actSequence: this.actSequence,
+          gameData: this.gameData,
+          routeId,
+        });
+      } catch (err) {
+        console.error('[RunManager] the Descent route could not be built; generating', err);
+      }
+    }
+    return this._withNodeMapSeed(() =>
+      generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
+        fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
+        halfFogChance: this.difficultyId === 'normal',
+        villageAmbushChance: this.getDifficultyModifier('villageAmbushChance', 0),
+        // an object — read directly (getDifficultyModifier coerces objects)
+        villageMinRow: this.difficultyModifiers?.villageMinRow ?? null,
+        colosseumConfig: this.gameData.colosseum?.nodeGeneration ?? null,
+        caravanChanceBonus: this.metaEffects?.caravanChanceBonus || 0,
+      }),
+    );
+  }
+
+  /** The Descent route this act takes (Descent.descentRouteIdFor), or null for any other map. */
+  _descentRouteId() {
+    if (isPrologueRun(this) || this.currentAct !== 'finalBoss') return null;
+    return descentRouteIdFor(this.gameData?.descent, this.difficultyId);
+  }
+
+  /**
    * Run node-map generation under a seeded Math.random derived from runSeed + the
    * current act, so a given (runSeed, act) always yields the same graph.
    * NodeMapGenerator uses ambient Math.random; this scopes it with the same
@@ -5793,17 +5830,7 @@ export class RunManager {
     applyArcsOnActEntry(this);
     // The act boss has fallen: the army rests before the next act and starts it whole.
     for (const unit of this.roster) if (unit?.stats) healUnitFully(unit);
-    this.nodeMap = this._withNodeMapSeed(() =>
-      generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
-        fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
-        halfFogChance: this.difficultyId === 'normal',
-        villageAmbushChance: this.getDifficultyModifier('villageAmbushChance', 0),
-        // an object — read directly (getDifficultyModifier coerces objects)
-        villageMinRow: this.difficultyModifiers?.villageMinRow ?? null,
-        colosseumConfig: this.gameData.colosseum?.nodeGeneration ?? null,
-        caravanChanceBonus: this.metaEffects?.caravanChanceBonus || 0,
-      }),
-    );
+    this.nodeMap = this._buildActNodeMap();
     // Pilgrim's Road: the new map gains its extra shop before anything else reads it.
     this._stampExtraShops();
     // The Old Sanctum (engine/SanctumPass.js): its own stream, after the shops.
