@@ -1,14 +1,21 @@
 // haptics — one call for a touch of feedback: haptic('tick' | 'light' | 'medium' | 'heavy' | 'success').
 //
-// Native app: the Capacitor Haptics plugin when the shell has registered it
-// (`globalThis.Capacitor.Plugins.Haptics`; @capacitor/haptics is not a dependency, so this
-// only uses it when it is there). Browser: navigator.vibrate with short patterns. Neither:
-// nothing happens. Never throws, never touches Math.random, never reads game state.
+// Native app (iOS, Android): the @capacitor/haptics plugin, through its registered
+// interface, whenever Capacitor says the platform is native and the plugin is there.
+// Browser: navigator.vibrate with short patterns (never the plugin's web shim, which throws
+// without vibrate and drops a selection tick outside selectionStart/End). Neither: nothing
+// happens. Never throws, never touches Math.random, never reads game state.
+//
+// Every native call is stateless: a tick is a light impact, never selectionChanged(),
+// which gives no feedback outside a selectionStart()/selectionEnd() pair.
 //
 // The player's switch is Settings -> Vibration (SettingsManager `vibration`, on by
 // default). bindHapticSettings(settings) keeps this module's flag in step with it, so a
 // caller never passes the setting around; the menu only shows the switch where
 // hapticsSupported() is true.
+
+import { Capacitor } from '@capacitor/core';
+import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 
 export const HAPTIC_KINDS = Object.freeze(['tick', 'light', 'medium', 'heavy', 'success']);
 
@@ -33,14 +40,24 @@ function now() {
   return Number.isFinite(t) ? t : Date.now();
 }
 
-function capacitorHaptics() {
+/** The native plugin, or null in a browser (or a native shell built without it). */
+function nativeHaptics() {
   try {
-    const plugin = globalThis.Capacitor?.Plugins?.Haptics;
-    return plugin && typeof plugin === 'object' ? plugin : null;
+    if (!Capacitor?.isNativePlatform?.()) return null;
+    if (!Capacitor.isPluginAvailable?.('Haptics')) return null;
+    return Haptics || null;
   } catch {
     return null;
   }
 }
+
+/** Native impact style per kind; a tick is the lightest impact (stateless). */
+const NATIVE_IMPACT = Object.freeze({
+  tick: ImpactStyle.Light,
+  light: ImpactStyle.Light,
+  medium: ImpactStyle.Medium,
+  heavy: ImpactStyle.Heavy,
+});
 
 function canVibrate() {
   try {
@@ -55,7 +72,7 @@ function canVibrate() {
 
 /** Can this device give haptic feedback at all (the Vibration setting is shown only if so). */
 export function hapticsSupported() {
-  return capacitorHaptics() !== null || canVibrate();
+  return nativeHaptics() !== null || canVibrate();
 }
 
 export function setHapticsEnabled(value) {
@@ -88,14 +105,11 @@ function swallow(result) {
   if (result && typeof result.catch === 'function') result.catch(() => {});
 }
 
-function viaCapacitor(plugin, kind) {
-  if (kind === 'tick') {
-    swallow(plugin.selectionChanged?.());
-  } else if (kind === 'success') {
-    swallow(plugin.notification?.({ type: 'SUCCESS' }));
+function viaNative(plugin, kind) {
+  if (kind === 'success') {
+    swallow(plugin.notification?.({ type: NotificationType.Success }));
   } else {
-    const style = { light: 'LIGHT', medium: 'MEDIUM', heavy: 'HEAVY' }[kind];
-    swallow(plugin.impact?.({ style }));
+    swallow(plugin.impact?.({ style: NATIVE_IMPACT[kind] }));
   }
 }
 
@@ -111,9 +125,9 @@ export function haptic(kind) {
       if (t - lastTickAt < TICK_MIN_INTERVAL_MS) return;
       lastTickAt = t;
     }
-    const plugin = capacitorHaptics();
+    const plugin = nativeHaptics();
     if (plugin) {
-      viaCapacitor(plugin, kind);
+      viaNative(plugin, kind);
       return;
     }
     if (canVibrate()) {

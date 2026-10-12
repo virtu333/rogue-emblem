@@ -79,7 +79,10 @@ describe('which moves are drawn as a walk', () => {
     expect(walkAllowed({ reduced: false, stepMs: 80 })).toBe(true);
     expect(walkAllowed({ reduced: false, stepMs: 40 })).toBe(true); // Fast
     expect(walkAllowed({ reduced: true, stepMs: 80 })).toBe(false);
-    expect(walkAllowed({ reduced: false, stepMs: 1 })).toBe(false); // Instant
+    expect(walkAllowed({ reduced: false, stepMs: 1 })).toBe(false); // an Instant enemy step
+    // A player's tile tween keeps 80 ms at Instant: the speed itself turns the walk off.
+    expect(walkAllowed({ reduced: false, stepMs: 80, speed: 'instant' })).toBe(false);
+    expect(walkAllowed({ reduced: false, stepMs: 80, speed: 'fast' })).toBe(true);
     expect(walkAllowed({ reduced: false, stepMs: WALK_MIN_STEP_MS - 1 })).toBe(false);
     expect(walkAllowed({ reduced: false, stepMs: NaN })).toBe(false);
     expect(walkAllowed({ reduced: false, stepMs: undefined })).toBe(true); // the Normal default

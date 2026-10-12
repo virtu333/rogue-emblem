@@ -42,11 +42,12 @@ export function walkProfile(moveType) {
 }
 
 /**
- * Does a step of `stepMs` get the walk treatment? Not under reduced motion, and not when
- * the step is too short to read (Instant).
+ * Does a step of `stepMs` get the walk treatment? Not under reduced motion, not at Instant
+ * battle speed (a player's or Canto's tile tween keeps its 80 ms at every speed, so the
+ * step's time alone cannot tell), and not when the step is too short to read.
  */
-export function walkAllowed({ reduced = false, stepMs = WALK_STEP_MS } = {}) {
-  return !reduced && Number.isFinite(stepMs) && stepMs >= WALK_MIN_STEP_MS;
+export function walkAllowed({ reduced = false, stepMs = WALK_STEP_MS, speed = 'normal' } = {}) {
+  return !reduced && speed !== 'instant' && Number.isFinite(stepMs) && stepMs >= WALK_MIN_STEP_MS;
 }
 
 /**

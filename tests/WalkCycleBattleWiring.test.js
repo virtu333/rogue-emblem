@@ -252,6 +252,38 @@ describe('moveUnit and the walk cycle', () => {
     expect(unit.graphic._walkCycle).toBeUndefined();
   });
 
+  it('at Instant speed the real move is not dressed: no hop, no cycle, no puff', () => {
+    // A player's tile tween keeps 80 ms at every speed, so the controller must read the
+    // battle speed itself. The same move at Normal is a walk (the control).
+    const during = (scene, unit) =>
+      vi.fn((cfg) => {
+        scene.walkingDuringTween.push(unit.graphic._walkCycle === true);
+        cfg.onComplete?.();
+        return {};
+      });
+    for (const speed of ['normal', 'instant']) {
+      const { scene, unit } = makeMoveScene();
+      scene.registry = {
+        get: (key) => (key === 'settings' ? { getBattleSpeed: () => speed } : null),
+      };
+      scene.walkingDuringTween = [];
+      scene.tweens.add = during(scene, unit);
+      BattleScene.prototype.moveUnit.call(scene, unit, 2, 1);
+      expect([unit.col, unit.row]).toEqual([2, 1]);
+      expect(scene.afterMove).toHaveBeenCalledWith(unit);
+      if (speed === 'normal') {
+        expect(scene.walkingDuringTween).toEqual([true]);
+        expect(scene.add.image).toHaveBeenCalled();
+      } else {
+        expect(scene.walkingDuringTween).toEqual([false]);
+        expect(scene.add.image).not.toHaveBeenCalled();
+        expect(unit.graphic.setFrame).not.toHaveBeenCalled();
+        expect(unit.graphic._walkCycle).toBeUndefined();
+        expect(unit.graphic.y).toBe(16); // no hop was added to it
+      }
+    }
+  });
+
   it('the scene frees the controller with the rest of its presentation', () => {
     const { scene, unit } = makeMoveScene();
     BattleScene.prototype.moveUnit.call(scene, unit, 2, 1);
@@ -268,89 +300,99 @@ describe('moveUnit and the walk cycle', () => {
 
 // ---- Canto ---------------------------------------------------------------------
 
+function makeCantoScene({ speed = 'normal' } = {}) {
+  const plain = terrainIndex('Plain');
+  const layout = Array.from({ length: 3 }, () => Array(12).fill(plain));
+  const scene = new BattleScene();
+  const grid = new Grid(
+    {
+      cameras: { main: { width: 640, height: 480 } },
+      add: new Proxy(
+        {},
+        { get: () => () => new Proxy({}, { get: (t, p) => (p in t ? t[p] : () => t) }) },
+      ),
+      textures: { exists: () => false },
+    },
+    12,
+    3,
+    data.terrain,
+    layout,
+    false,
+  );
+  const sword = data.weapons.find((w) => w.name === 'Iron Sword');
+  const edric = {
+    name: 'Edric',
+    battleEntityId: 'edric-1',
+    faction: 'player',
+    col: 0,
+    row: 1,
+    moveType: 'Infantry',
+    currentHP: 20,
+    hasActed: true,
+    stats: { MOV: 5, HP: 20 },
+    mov: 5,
+    _movementSpent: 1,
+    weapon: sword,
+    inventory: [sword],
+    skills: ['canto'],
+    graphic: graphicFor(),
+  };
+  Object.assign(scene, {
+    _battleSession: 1,
+    grid,
+    gameData: data,
+    playerUnits: [edric],
+    enemyUnits: [],
+    npcUnits: [],
+    battleParams: {},
+    battleState: 'UNIT_MOVING',
+    selectedUnit: edric,
+    runManager: { battleInProgress: true },
+    turnManager: { currentPhase: 'player', unitActed: vi.fn(), endPlayerPhase: vi.fn() },
+    registry: {
+      get: (key) => (key === 'settings' ? { getBattleSpeed: () => speed } : null),
+    },
+    scene: { isActive: () => true },
+    time: { delayedCall: vi.fn(() => ({})) },
+    walkingDuringTween: [],
+    tweens: {
+      add: vi.fn((cfg) => {
+        scene.walkingDuringTween.push(edric.graphic._walkCycle === true);
+        cfg.onComplete?.();
+        return {};
+      }),
+    },
+    _villageController: { handleUnitActionEnd: vi.fn(), getWaitNote: () => null },
+  });
+  scene.updateUnitPosition = vi.fn();
+  for (const name of [
+    '_drawActionMenuRows',
+    'refreshEndTurnControl',
+    'dimUnit',
+    'hideForecast',
+    'cleanupTradeUI',
+    '_clearSelectedWeaponArt',
+    '_clearCombatRollSession',
+    'commitVisionSnapshotIfPending',
+    'updateObjectiveText',
+    'refreshVisibleDangerZone',
+    '_hideMenuTooltip',
+    '_hideWeaponDetailTooltip',
+  ])
+    scene[name] = vi.fn();
+  scene.isStoryInputLocked = () => false;
+  scene._isPrologueGateActive = () => false;
+  scene.checkBattleEnd = () => false;
+  scene._captureSuspendCheckpoint = vi.fn();
+  scene._mobileBattleHud = { showMenu: vi.fn(), hideMenu: vi.fn() };
+  return { scene, edric };
+}
+
 describe('a Canto move and the walk cycle', () => {
   it('reports its steps and ends the walk on its destination before the position is written', () => {
-    const plain = terrainIndex('Plain');
-    const layout = Array.from({ length: 3 }, () => Array(12).fill(plain));
-    const scene = new BattleScene();
-    const grid = new Grid(
-      {
-        cameras: { main: { width: 640, height: 480 } },
-        add: new Proxy(
-          {},
-          { get: () => () => new Proxy({}, { get: (t, p) => (p in t ? t[p] : () => t) }) },
-        ),
-        textures: { exists: () => false },
-      },
-      12,
-      3,
-      data.terrain,
-      layout,
-      false,
-    );
-    const sword = data.weapons.find((w) => w.name === 'Iron Sword');
-    const edric = {
-      name: 'Edric',
-      battleEntityId: 'edric-1',
-      faction: 'player',
-      col: 0,
-      row: 1,
-      moveType: 'Infantry',
-      currentHP: 20,
-      hasActed: true,
-      stats: { MOV: 5, HP: 20 },
-      mov: 5,
-      _movementSpent: 1,
-      weapon: sword,
-      inventory: [sword],
-      skills: ['canto'],
-      graphic: graphicFor(),
-    };
+    const { scene, edric } = makeCantoScene();
     const walk = (scene._walkCycleCtrl = spyCtrl());
-    Object.assign(scene, {
-      _battleSession: 1,
-      grid,
-      gameData: data,
-      playerUnits: [edric],
-      enemyUnits: [],
-      npcUnits: [],
-      battleParams: {},
-      battleState: 'UNIT_MOVING',
-      selectedUnit: edric,
-      runManager: { battleInProgress: true },
-      turnManager: { currentPhase: 'player', unitActed: vi.fn(), endPlayerPhase: vi.fn() },
-      registry: { get: () => null },
-      scene: { isActive: () => true },
-      time: { delayedCall: vi.fn(() => ({})) },
-      tweens: {
-        add: vi.fn((cfg) => {
-          cfg.onComplete?.();
-          return {};
-        }),
-      },
-      _villageController: { handleUnitActionEnd: vi.fn(), getWaitNote: () => null },
-    });
     scene.updateUnitPosition = vi.fn(() => expect(walk.end).toHaveBeenCalledTimes(1));
-    for (const name of [
-      '_drawActionMenuRows',
-      'refreshEndTurnControl',
-      'dimUnit',
-      'hideForecast',
-      'cleanupTradeUI',
-      '_clearSelectedWeaponArt',
-      '_clearCombatRollSession',
-      'commitVisionSnapshotIfPending',
-      'updateObjectiveText',
-      'refreshVisibleDangerZone',
-      '_hideMenuTooltip',
-      '_hideWeaponDetailTooltip',
-    ])
-      scene[name] = vi.fn();
-    scene.isStoryInputLocked = () => false;
-    scene._isPrologueGateActive = () => false;
-    scene.checkBattleEnd = () => false;
-    scene._captureSuspendCheckpoint = vi.fn();
-    scene._mobileBattleHud = { showMenu: vi.fn(), hideMenu: vi.fn() };
     scene.startCantoMove(edric, 4);
     scene.handleCantoClick({ col: 3, row: 1 });
     expect(walk.step.mock.calls.length).toBe(3);
@@ -360,6 +402,26 @@ describe('a Canto move and the walk cycle', () => {
     }
     expect(walk.end.mock.calls).toEqual([[edric, { col: 3, row: 1 }]]);
     expect([edric.col, edric.row]).toEqual([3, 1]);
+  });
+
+  it('at Instant speed the real Canto move is not dressed; at Normal it is', () => {
+    for (const speed of ['normal', 'instant']) {
+      const { scene, edric } = makeCantoScene({ speed });
+      scene.startCantoMove(edric, 4);
+      scene.handleCantoClick({ col: 3, row: 1 });
+      expect(scene._walkCycleCtrl).toBeInstanceOf(WalkCycleController);
+      expect([edric.col, edric.row]).toEqual([3, 1]);
+      expect(scene.walkingDuringTween).toHaveLength(3);
+      if (speed === 'normal') {
+        expect(scene.walkingDuringTween).toEqual([true, true, true]);
+        expect(edric.graphic._walkCycle).toBe(false); // given back at the end
+      } else {
+        expect(scene.walkingDuringTween).toEqual([false, false, false]);
+        expect(edric.graphic.setFrame).not.toHaveBeenCalled();
+        expect(edric.graphic._walkCycle).toBeUndefined();
+      }
+      expect(scene._walkCycleCtrl.walking).toBe(0);
+    }
   });
 });
 

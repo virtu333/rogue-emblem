@@ -1,6 +1,22 @@
-// haptic(kind): the Capacitor plugin when present, else navigator.vibrate, else nothing;
-// the Vibration setting; the tick throttle; and no error ever reaches the caller.
+// haptic(kind): the @capacitor/haptics plugin on a native platform, else navigator.vibrate,
+// else nothing; the Vibration setting; the tick throttle; and no error ever reaches the caller.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+// The real modules with only the platform faked: Capacitor says native or web, and the
+// registered Haptics interface hands each call to whichever plugin fake the test installed.
+// The enums (ImpactStyle, NotificationType) are the package's own.
+const native = vi.hoisted(() => ({ isNative: false, available: true, plugin: null }));
+vi.mock('@capacitor/core', async (importOriginal) => ({
+  ...(await importOriginal()),
+  Capacitor: {
+    isNativePlatform: () => native.isNative,
+    isPluginAvailable: (name) => name === 'Haptics' && native.available,
+  },
+}));
+vi.mock('@capacitor/haptics', async (importOriginal) => ({
+  ...(await importOriginal()),
+  Haptics: new Proxy({}, { get: (_, key) => native.plugin?.[key] }),
+}));
 import {
   HAPTIC_KINDS,
   TICK_MIN_INTERVAL_MS,
@@ -17,12 +33,38 @@ import { strikeFeedback } from '../src/ui/impactFeedback.js';
 import RevivalStoneController from '../src/ui/RevivalStoneController.js';
 import { GridCursorController } from '../src/ui/GridCursorController.js';
 
+// A plugin fake that behaves as the device does: impact and notification are felt at once,
+// a selection tick only between selectionStart() and selectionEnd().
 function capacitor() {
+  const felt = [];
+  let selecting = false;
   return {
-    impact: vi.fn(() => Promise.resolve()),
-    selectionChanged: vi.fn(() => Promise.resolve()),
-    notification: vi.fn(() => Promise.resolve()),
+    felt,
+    impact: vi.fn(async (o) => felt.push(`impact:${o?.style}`)),
+    notification: vi.fn(async (o) => felt.push(`notification:${o?.type}`)),
+    selectionStart: vi.fn(async () => {
+      selecting = true;
+    }),
+    selectionChanged: vi.fn(async () => {
+      if (selecting) felt.push('selection');
+    }),
+    selectionEnd: vi.fn(async () => {
+      selecting = false;
+    }),
   };
+}
+
+function useNative(plugin, { available = true } = {}) {
+  native.isNative = true;
+  native.available = available;
+  native.plugin = plugin;
+  return plugin;
+}
+
+function useWeb() {
+  native.isNative = false;
+  native.available = true;
+  native.plugin = null;
 }
 
 function stubVibrate(touch = 5) {
@@ -33,21 +75,21 @@ function stubVibrate(touch = 5) {
 
 beforeEach(() => {
   vi.useFakeTimers();
-  vi.stubGlobal('Capacitor', undefined);
+  useWeb();
   vi.stubGlobal('navigator', {});
   resetHapticsForTests();
 });
 
 afterEach(() => {
   resetHapticsForTests();
+  useWeb();
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
 describe('haptic()', () => {
   it('uses the Capacitor plugin over navigator.vibrate, with the right style per kind', () => {
-    const plugin = capacitor();
-    vi.stubGlobal('Capacitor', { Plugins: { Haptics: plugin } });
+    const plugin = useNative(capacitor());
     const vibrate = stubVibrate();
     haptic('light');
     haptic('medium');
@@ -59,9 +101,41 @@ describe('haptic()', () => {
     ]);
     haptic('success');
     expect(plugin.notification).toHaveBeenCalledWith({ type: 'SUCCESS' });
+    vi.advanceTimersByTime(TICK_MIN_INTERVAL_MS + 1);
     haptic('tick');
-    expect(plugin.selectionChanged).toHaveBeenCalledTimes(1);
+    expect(plugin.impact).toHaveBeenLastCalledWith({ style: 'LIGHT' });
     expect(vibrate).not.toHaveBeenCalled();
+  });
+
+  it('a native tick is felt: a stateless light impact, never a selection outside its pair', async () => {
+    const plugin = useNative(capacitor());
+    haptic('tick');
+    await Promise.resolve();
+    expect(plugin.felt).toEqual(['impact:LIGHT']);
+    expect(plugin.selectionChanged).not.toHaveBeenCalled();
+    expect(plugin.selectionStart).not.toHaveBeenCalled();
+    // Every tick after the throttle is felt too, with no selection state left behind.
+    for (let i = 0; i < 3; i++) {
+      vi.advanceTimersByTime(TICK_MIN_INTERVAL_MS + 1);
+      haptic('tick');
+    }
+    await Promise.resolve();
+    expect(plugin.felt).toEqual(Array(4).fill('impact:LIGHT'));
+  });
+
+  it('falls back to vibrate on a native shell built without the plugin, and in a browser', () => {
+    const plugin = useNative(capacitor(), { available: false });
+    const vibrate = stubVibrate();
+    expect(hapticsSupported()).toBe(true);
+    haptic('heavy');
+    expect(plugin.impact).not.toHaveBeenCalled();
+    expect(vibrate).toHaveBeenCalledWith(35);
+    // A browser never uses the plugin (its web shim throws without vibrate).
+    useWeb();
+    native.plugin = plugin;
+    haptic('medium');
+    expect(plugin.impact).not.toHaveBeenCalled();
+    expect(vibrate).toHaveBeenLastCalledWith(20);
   });
 
   it('falls back to short vibrate patterns without the plugin', () => {
@@ -84,20 +158,20 @@ describe('haptic()', () => {
 
   it('swallows a throwing plugin, a rejecting plugin and a throwing vibrate', async () => {
     const rejecting = {
-      impact: vi.fn(() => Promise.reject(new Error('no motor'))),
-      selectionChanged: vi.fn(() => {
-        throw new Error('sync boom');
-      }),
+      impact: vi.fn((o) => (o.style === 'LIGHT' ? Promise.reject(new Error('no motor')) : sync())),
       notification: vi.fn(() => Promise.reject(new Error('no motor'))),
     };
-    vi.stubGlobal('Capacitor', { Plugins: { Haptics: rejecting } });
+    function sync() {
+      throw new Error('sync boom');
+    }
+    useNative(rejecting);
     expect(() => {
       haptic('heavy');
       haptic('tick');
       haptic('success');
     }).not.toThrow();
     await Promise.resolve();
-    vi.stubGlobal('Capacitor', undefined);
+    useWeb();
     vi.stubGlobal('navigator', {
       maxTouchPoints: 5,
       vibrate: () => {
@@ -106,13 +180,12 @@ describe('haptic()', () => {
     });
     expect(() => haptic('heavy')).not.toThrow();
     // A plugin missing a method is not an error either.
-    vi.stubGlobal('Capacitor', { Plugins: { Haptics: {} } });
+    useNative({});
     expect(() => haptic('light')).not.toThrow();
   });
 
   it('is silent when the setting is off, and speaks again when it is back on', () => {
-    const plugin = capacitor();
-    vi.stubGlobal('Capacitor', { Plugins: { Haptics: plugin } });
+    const plugin = useNative(capacitor());
     setHapticsEnabled(false);
     expect(hapticsEnabled()).toBe(false);
     haptic('heavy');
@@ -148,7 +221,7 @@ describe('haptic()', () => {
     expect(vibrate).not.toHaveBeenCalled();
     stubVibrate(5);
     expect(hapticsSupported()).toBe(true);
-    vi.stubGlobal('Capacitor', { Plugins: { Haptics: capacitor() } });
+    useNative(capacitor());
     vi.stubGlobal('navigator', {});
     expect(hapticsSupported()).toBe(true);
   });
@@ -182,8 +255,7 @@ describe('the Vibration setting', () => {
   });
 
   it('keeps the haptics flag in step with the settings, live and on load', () => {
-    const plugin = capacitor();
-    vi.stubGlobal('Capacitor', { Plugins: { Haptics: plugin } });
+    const plugin = useNative(capacitor());
     const sm = new SettingsManager();
     bindHapticSettings(sm);
     haptic('heavy');
@@ -202,7 +274,7 @@ describe('the Vibration setting', () => {
   });
 
   it('stops following a settings object that was replaced', () => {
-    vi.stubGlobal('Capacitor', { Plugins: { Haptics: capacitor() } });
+    useNative(capacitor());
     const first = new SettingsManager();
     bindHapticSettings(first);
     bindHapticSettings(new SettingsManager());
@@ -213,8 +285,7 @@ describe('the Vibration setting', () => {
 
 describe('where the hooks sit', () => {
   it('a strike: light for damage, heavy for a crit, nothing for a miss or no damage', () => {
-    const plugin = capacitor();
-    vi.stubGlobal('Capacitor', { Plugins: { Haptics: plugin } });
+    const plugin = useNative(capacitor());
     const scene = { shakeScreen: vi.fn() };
     strikeFeedback(scene, { miss: true, damage: 9 }, {}, {});
     strikeFeedback(scene, { damage: 0 }, {}, {});
@@ -240,8 +311,7 @@ describe('where the hooks sit', () => {
   });
 
   it('a broken Revival Stone shakes hard and pulses heavy', () => {
-    const plugin = capacitor();
-    vi.stubGlobal('Capacitor', { Plugins: { Haptics: plugin } });
+    const plugin = useNative(capacitor());
     const scene = {
       shakeScreen: vi.fn(),
       updateAffixPips: vi.fn(),

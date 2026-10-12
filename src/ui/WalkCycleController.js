@@ -20,7 +20,7 @@
  *     the move, and every entry point sits inside safeBattlePresentation, so a render
  *     error cannot stop a move;
  *   - honours reduced motion (no hop, no cycle, no puff), effects quality (low: no puff)
- *     and Instant speed (a 1 ms step is not drawn as a walk);
+ *     and Instant speed (read from the battle speed: a player tile keeps 80 ms at Instant);
  *   - the puff is drawn only on a tile the player sees (BattleInformation.isUnitSeenAt),
  *     so a hidden unit's landing is never given away;
  *   - the unit's rest frame and height are restored when the move ends, is cut short, or
@@ -115,7 +115,8 @@ export default class WalkCycleController {
       const g = unit?.graphic;
       if (!alive(g) || isEntity(unit)) return;
       let walk = this._walkers.get(unit);
-      if (!walkAllowed({ reduced: this._reduced(), stepMs: ms })) {
+      const speed = battleSpeed(this.scene);
+      if (!walkAllowed({ reduced: this._reduced(), stepMs: ms, speed })) {
         // a move that was a walk but is not drawn as one now (Instant, reduced motion)
         if (walk) this._restore(walk);
         return;
