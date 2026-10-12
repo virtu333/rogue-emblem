@@ -195,7 +195,33 @@ export function unitsOnTiles(tiles, units, { exclude = [] } = {}) {
 }
 
 /**
- * The tiles an art's normalized `area` covers.
+ * The tile of `target` that `attacker`'s strike lands on, where a target-relative shape
+ * starts: the target's own tile, or for the Entity the body tile nearest the attacker (the
+ * tile combatDistance measures to), never its top-left anchor. Clamping the attacker's
+ * column and row into the body's spans minimizes each Manhattan term on its own, so for an
+ * attacker outside the body that tile is unique and needs no tie-break: an attacker beside
+ * an edge strikes the edge tile in its row or column, one on a corner's diagonal (only
+ * from range 2 or more) strikes the corner. The facing is then attacker → that tile, so a
+ * corner's diagonal is a diagonal facing: no line and no cone, as for any diagonal target.
+ * A single-tile target comes back as itself. Geometry only: who the primary is (and so
+ * who is excluded) stays the unit's identity.
+ */
+export function areaImpactTile(attacker, target) {
+  if (!target) return null;
+  const footprint = getFootprint(target);
+  if (footprint.length <= 1 || !attacker) return target;
+  const cols = footprint.map((t) => t.col);
+  const rows = footprint.map((t) => t.row);
+  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+  return {
+    col: clamp(attacker.col, Math.min(...cols), Math.max(...cols)),
+    row: clamp(attacker.row, Math.min(...rows), Math.max(...rows)),
+  };
+}
+
+/**
+ * The tiles an art's normalized `area` covers. "The target" below is the tile the strike
+ * lands on (areaImpactTile: the Entity's nearest body tile).
  *   radius           around the target (normal_attack) or the chosen center
  *   line             `length` tiles past the target, away from the attacker
  *   around_attacker  around the attacker, its own tile excluded
@@ -204,19 +230,20 @@ export function unitsOnTiles(tiles, units, { exclude = [] } = {}) {
  */
 export function areaTilesFor(area, { attacker = null, target = null, center = null }, bounds) {
   if (!area) return [];
+  const impact = areaImpactTile(attacker, target);
   switch (area.shape) {
     case 'radius': {
-      const origin = center || target;
+      const origin = center || impact;
       return origin ? radiusTiles(origin, area.radius, bounds) : [];
     }
     case 'line':
-      return attacker && target ? lineTiles(attacker, target, area.length, bounds) : [];
+      return attacker && impact ? lineTiles(attacker, impact, area.length, bounds) : [];
     case 'around_attacker':
       return attacker ? aroundTiles(attacker, area.radius, bounds) : [];
     case 'cone':
-      return attacker && target ? coneTiles(attacker, target, area.rows, bounds) : [];
+      return attacker && impact ? coneTiles(attacker, impact, area.rows, bounds) : [];
     case 'arc':
-      return attacker && target ? arcTiles(attacker, target, area.width, bounds) : [];
+      return attacker && impact ? arcTiles(attacker, impact, area.width, bounds) : [];
     default:
       return [];
   }
