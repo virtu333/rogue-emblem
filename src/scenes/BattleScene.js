@@ -455,6 +455,7 @@ import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { CombatFxController } from '../ui/CombatFxController.js';
 import { strikeFeedback } from '../ui/impactFeedback.js';
 import { haptic } from '../utils/haptics.js';
+import WalkCycleController from '../ui/WalkCycleController.js';
 import { CombatChoreography } from '../ui/CombatChoreography.js';
 import { CeremonyController } from '../ui/CeremonyController.js';
 import { ReinforcementPresenter } from '../ui/ReinforcementPresenter.js';
@@ -850,6 +851,8 @@ export class BattleScene extends Phaser.Scene {
     this._areaTargetingController = null;
     this._combatFx?.destroy?.();
     this._combatFx = null;
+    this._walkCycleCtrl?.destroy?.();
+    this._walkCycleCtrl = null;
     this._stoneFx?.destroy?.();
     this._stoneFx = null;
     this._bannerFx?.destroy?.();
@@ -5148,6 +5151,7 @@ export class BattleScene extends Phaser.Scene {
     const failMove = (reason, error = null) => {
       if (recoveryTriggered) return;
       recoveryTriggered = true;
+      this._walkCycle().end(unit);
       this._recoverFromMovementFault(unit, {
         context: 'moveUnit',
         reason,
@@ -5160,6 +5164,7 @@ export class BattleScene extends Phaser.Scene {
     const finalizeMove = () => {
       if (finalizeTriggered || recoveryTriggered) return;
       finalizeTriggered = true;
+      this._walkCycle().end(unit, { col: finalDest.col, row: finalDest.row });
       if (finalPath.length > 1) rememberHistoryPath(this, unit, finalPath);
       unit.col = finalDest.col;
       unit.row = finalDest.row;
@@ -5188,6 +5193,7 @@ export class BattleScene extends Phaser.Scene {
           (seg) => stepIndex >= seg.startIndex && stepIndex < seg.startIndex + seg.slidePath.length,
         );
         const duration = isSlide ? 60 : 80;
+        this._walkCycle().step(unit, { ms: duration, slide: isSlide });
         this.tweens.add({
           targets,
           x: pos.x,
@@ -6008,6 +6014,7 @@ export class BattleScene extends Phaser.Scene {
     const failCantoMove = (reason, error = null) => {
       if (recoveryTriggered) return;
       recoveryTriggered = true;
+      this._walkCycle().end(unit);
       this._recoverFromMovementFault(unit, {
         context: 'handleCantoClick',
         reason,
@@ -6019,6 +6026,7 @@ export class BattleScene extends Phaser.Scene {
     const finalizeCantoMove = () => {
       if (finalizeTriggered || recoveryTriggered) return;
       finalizeTriggered = true;
+      this._walkCycle().end(unit, { col: destCol, row: destRow });
       unit.col = destCol;
       unit.row = destRow;
       try {
@@ -6062,6 +6070,7 @@ export class BattleScene extends Phaser.Scene {
           (seg) => stepIndex >= seg.startIndex && stepIndex < seg.startIndex + seg.slidePath.length,
         );
         const duration = isSlide ? 60 : 80;
+        this._walkCycle().step(unit, { ms: duration, slide: isSlide });
         this.tweens.add({
           targets,
           x: pos.x,
@@ -6365,6 +6374,11 @@ export class BattleScene extends Phaser.Scene {
 
   _effectsQuality() {
     return this.registry?.get?.('settings')?.getEffectsQuality?.() ?? 'high';
+  }
+
+  /** The walk cycle (frames, hop and landing puff of a moving unit); presentation only. */
+  _walkCycle() {
+    return (this._walkCycleCtrl ||= new WalkCycleController(this));
   }
 
   showActionMenu(unit) {
@@ -10783,41 +10797,51 @@ export class BattleScene extends Phaser.Scene {
         (seg) => stepIndex >= seg.startIndex && stepIndex < seg.startIndex + seg.slidePath.length,
       );
 
-    for (const { index: stepIndex, tween, shown, hold } of plan.steps) {
-      const pos = this.grid.gridToPixel(finalPath[stepIndex].col, finalPath[stepIndex].row);
-      if (!tween) {
-        // Hidden before it moves, shown only once it stands on a seen tile.
-        if (fog) {
-          for (const part of targets) {
-            if (!shown) part?.setVisible?.(false);
-            part?.setPosition?.(pos.x, pos.y);
-            if (shown) part?.setVisible?.(true);
+    // The walk cycle (frames, hop, landing puff) rides the steps; it puts the unit back as
+    // it was however the walk ends (a superseded phase, a rewound battle).
+    let landed = null;
+    try {
+      for (const { index: stepIndex, tween, shown, hold } of plan.steps) {
+        const pos = this.grid.gridToPixel(finalPath[stepIndex].col, finalPath[stepIndex].row);
+        if (!tween) {
+          // Hidden before it moves, shown only once it stands on a seen tile.
+          if (fog) {
+            for (const part of targets) {
+              if (!shown) part?.setVisible?.(false);
+              part?.setPosition?.(pos.x, pos.y);
+              if (shown) part?.setVisible?.(true);
+            }
           }
+          if (!(fog && hold)) continue;
+          // Seen between two hidden tiles: held here for a step's time (read at the
+          // enemy-phase speed), never tweened through the fog on either side.
+          const ms = enemyStepDuration(this, { slide: isSlideStep(stepIndex) });
+          await this._awaitSceneDelay(ms, { label: ENEMY_STEP_LABEL, scaled: true });
+          if (!isCurrentBattleSession(this, session)) return;
+          if (!this._isSceneActiveForAsync(session)) return;
+          continue;
         }
-        if (!(fog && hold)) continue;
-        // Seen between two hidden tiles: held here for a step's time (read at the
-        // enemy-phase speed), never tweened through the fog on either side.
-        const ms = enemyStepDuration(this, { slide: isSlideStep(stepIndex) });
-        await this._awaitSceneDelay(ms, { label: ENEMY_STEP_LABEL, scaled: true });
+        // Both tiles are seen: the step is drawn, with the sprite shown.
+        if (fog) for (const part of targets) part?.setVisible?.(true);
+        const duration = enemyStepDuration(this, { slide: isSlideStep(stepIndex) });
+        this._walkCycle().step(enemy, { ms: duration, slide: isSlideStep(stepIndex) });
+        await this._awaitSceneTween(
+          {
+            targets,
+            x: pos.x,
+            y: pos.y,
+            duration,
+            ease: 'Linear',
+          },
+          { label: ENEMY_STEP_LABEL, timeoutMs: duration + 700, scaled: true },
+        );
         if (!isCurrentBattleSession(this, session)) return;
         if (!this._isSceneActiveForAsync(session)) return;
-        continue;
       }
-      // Both tiles are seen: the step is drawn, with the sprite shown.
-      if (fog) for (const part of targets) part?.setVisible?.(true);
-      const duration = enemyStepDuration(this, { slide: isSlideStep(stepIndex) });
-      await this._awaitSceneTween(
-        {
-          targets,
-          x: pos.x,
-          y: pos.y,
-          duration,
-          ease: 'Linear',
-        },
-        { label: ENEMY_STEP_LABEL, timeoutMs: duration + 700, scaled: true },
-      );
-      if (!isCurrentBattleSession(this, session)) return;
-      if (!this._isSceneActiveForAsync(session)) return;
+      const last = finalPath[finalPath.length - 1];
+      landed = { col: last.col, row: last.row };
+    } finally {
+      this._walkCycle().end(enemy, landed || undefined);
     }
 
     rememberHistoryPath(this, enemy, finalPath, false);
