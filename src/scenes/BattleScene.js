@@ -28,6 +28,7 @@ import { battlePlace } from '../ui/placeDisplay.js';
 import { levelUpDisplayResults } from '../ui/progressionDisplay.js';
 import { presentationText, isolateBattleTextFactory } from '../utils/presentationText.js';
 import { safeBattlePresentation } from '../ui/safeBattlePresentation.js';
+import { drawArrivalGraphic, guardUndrawnUnits } from '../ui/arrivalGraphic.js';
 import { presentTeleporterWarp } from '../ui/WarpPresentation.js';
 import { hasBattleDefeat } from '../engine/BattleDefeat.js';
 import { applyBlessingCombatMods, stampTurnAnchors } from '../engine/BlessingCombatMods.js';
@@ -2828,7 +2829,7 @@ export class BattleScene extends Phaser.Scene {
     // arrival that fails to draw must never stop the arrivals after it.
     this.enemyUnits.push(enemy);
     registerBattleEntity(this, enemy);
-    safeBattlePresentation('enemy unit graphic', () => this.addUnitGraphic(enemy), { scene: this });
+    drawArrivalGraphic(this, enemy, 'enemy unit graphic'); // a failed sprite leaves a marker
     return enemy;
   }
 
@@ -9852,6 +9853,8 @@ export class BattleScene extends Phaser.Scene {
                 preserveRng: presentedLevelUps,
                 session: session,
               });
+              // Never play on against a unit nothing could draw: reload from this checkpoint.
+              guardUndrawnUnits(this);
             }
           } finally {
             // Errors still resolving this phase settle after the recovery below.

@@ -33,6 +33,7 @@ import {
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { registerBattleEntity } from '../engine/BattleEntityIdentity.js';
 import { safeBattlePresentation } from './safeBattlePresentation.js';
+import { drawArrivalGraphic } from './arrivalGraphic.js';
 import { settleAndPresent } from './BattleActionSettlement.js';
 import { isUnitSeenAt } from '../engine/BattleInformation.js';
 import { RemainsMarkerController } from './RemainsMarkerController.js';
@@ -247,7 +248,7 @@ export class ZombieRemainsController {
       scene.enemyUnits.push(unit);
       registerBattleEntity(scene, unit);
       observeHistoryAction(scene, 'revived', unit);
-      safeBattlePresentation('risen unit graphic', () => scene.addUnitGraphic(unit), { scene });
+      drawArrivalGraphic(scene, unit, 'risen unit graphic');
       if (scene.grid?.fogEnabled)
         safeBattlePresentation('rise fog visibility', () => scene.updateEnemyVisibility?.(), {
           scene,

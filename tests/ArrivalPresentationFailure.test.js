@@ -32,6 +32,9 @@ import { createRemains } from '../src/engine/ZombieRemains.js';
 import { skeletonsOf } from '../src/engine/Necromancy.js';
 import { HeadlessBattle } from './harness/HeadlessBattle.js';
 import { presentationFailureProxy as rendering } from './harness/PresentationFailureProxy.js';
+import { liveRenderer } from './harness/LiveRenderer.js';
+import { guardUndrawnUnits } from '../src/ui/arrivalGraphic.js';
+import { damageUnit } from '../src/engine/UnitHealth.js';
 import { loadGameData } from './testData.js';
 import { _resetUidCounter } from '../src/utils/itemUid.js';
 
@@ -523,7 +526,7 @@ function foe(name, className, col, row, extra = {}) {
 }
 
 /** End Turn on turn 3 to the next player turn's checkpoint; the end state as saved. */
-async function playEnemyPhase(drawFails) {
+async function playEnemyPhase(drawFails, { rendererDown = false } = {}) {
   storage = new JourneyStorage();
   vi.stubGlobal('localStorage', storage);
   installSeed(1234);
@@ -553,6 +556,25 @@ async function playEnemyPhase(drawFails) {
     scene.enemyUnits.push(enemy);
     scene.addUnitGraphic(enemy);
   }
+  // Every draw from here on, each arrival's sprite and stand-in alike, fails while the renderer
+  // is down; the attempts are counted per unit.
+  const attempts = new Map();
+  const drawWithCount = scene.addUnitGraphic;
+  scene.addUnitGraphic = (unit) => {
+    attempts.set(unit, (attempts.get(unit) || 0) + 1);
+    return drawWithCount(unit);
+  };
+  if (rendererDown) {
+    const add = scene.add;
+    scene.add = new Proxy(add, {
+      get: (target, key) =>
+        typeof target[key] === 'function'
+          ? () => {
+              throw new Error(`Renderer unavailable: add.${String(key)}`);
+            }
+          : target[key],
+    });
+  }
   // Two piles due to rise as the enemy phase starts.
   scene._zombieTombstones = structuredClone([
     { ...ROSTER.remains[0], col: 5, row: 8 },
@@ -575,6 +597,7 @@ async function playEnemyPhase(drawFails) {
     key === 'checkpointIndex' || key === 'savedAt' || key === 'timestamp' ? undefined : value;
   return {
     scene,
+    attempts,
     recovered: recovered.mock.calls.length,
     state: JSON.parse(
       JSON.stringify(
@@ -632,5 +655,240 @@ describe('the enemy phase whose arrivals fail to draw', () => {
       expect(broken.recovered, `${name}: the enemy phase was not cut short`).toBe(0);
       expect(broken.state, name).toEqual(clean.state);
     }
+  });
+
+  it('nothing can draw the arrivals: the next player turn tries each again at its checkpoint', async () => {
+    const clean = await playEnemyPhase(() => false);
+    const down = await playEnemyPhase(() => true, { rendererDown: true });
+    expect(down.recovered).toBe(0);
+    expect(down.state).toEqual(clean.state);
+    const arrivals = down.scene.enemyUnits.filter(
+      (u) => u._isReinforcement || u.className === 'Skeleton' || u.name === 'Fighter',
+    );
+    expect(arrivals.length).toBeGreaterThanOrEqual(PHASE_WAVE.length + 3);
+    // Once as it arrived, once more at the turn's checkpoint (still nothing: a reload is asked).
+    for (const unit of arrivals) {
+      expect(down.attempts.get(unit), unit.name).toBe(2);
+      expect(unit.graphic ?? null, unit.name).toBeNull();
+    }
+    // When every arrival draws, nothing is tried twice.
+    for (const unit of clean.scene.enemyUnits) expect(clean.attempts.get(unit) ?? 1).toBe(1);
+  });
+});
+
+// ── A sprite that fails leaves a marker ────────────────────────────────────────
+// The arrival is on the board whether or not it draws (above); here the player must still SEE
+// it. The real addUnitGraphic, updateHPBar, updateUnitPosition, updateEnemyVisibility,
+// animateEnemyMove, removeUnit and the resume's applyUnits draw over a renderer that keeps
+// what it makes (tests/harness/LiveRenderer.js). Realistic ways this breaks:
+//   - the sprite's first call throws: the unit has no graphic, an invisible foe that moves and
+//     strikes, and its walk's tween has no target
+//   - a later call throws: a half-built sprite (no HP bar, or a label left over) stays, and the
+//     objects made before the throw are leaked on the board
+//   - the stand-in ignores the fog (a hidden foe's marker shows, or a seen one stays hidden),
+//     never follows its walk or its HP, or outlives its unit's death
+//   - nothing at all can be drawn and the next player turn plays on regardless
+
+/** The parts of a unit the player sees, as addUnitGraphic and removeUnitGraphic know them. */
+const partsOf = (unit) =>
+  [unit.graphic, unit.label, unit.factionIndicator, unit.hpBar?.bg, unit.hpBar?.fill]
+    .concat(unit.affixPips || [])
+    .filter(Boolean);
+const pixel = (col, row) => ({ x: col * 32 + 16, y: row * 32 + 16 });
+
+function drawnFixture(options) {
+  const { scene } = fixture(options);
+  // Back to the scene's own drawing (fixture() fakes these for the call counts above).
+  for (const name of [
+    '_removeAllConditionIcons',
+    '_addConditionIcon',
+    'updateHPBar',
+    'removeUnitGraphic',
+    'updateUnitPosition',
+    'updateEnemyVisibility',
+    'dimUnit',
+    'undimUnit',
+  ])
+    delete scene[name];
+  const renderer = liveRenderer(scene);
+  scene.refreshVisibleDangerZone = () => {};
+  scene.updateObjectiveText = () => {};
+  scene._isSceneActiveForAsync = () => true;
+  scene.grid.mapLayout = Array.from({ length: 10 }, () => Array(10).fill(TERRAIN.Plain));
+  scene.grid.terrainData = data.terrain;
+  // A tween lands its targets where it goes; Phaser's has no answer for a missing target.
+  scene._awaitSceneTween = async ({ targets, x, y }) => {
+    for (const target of targets) {
+      if (!target) throw new TypeError('tween target missing');
+      target.setPosition(x, y);
+    }
+    return { status: 'finished' };
+  };
+  for (const unit of [...scene.playerUnits, ...scene.enemyUnits]) scene.addUnitGraphic(unit);
+  // What each call to addUnitGraphic made, thrown or not.
+  const drawnBy = new Map();
+  const draw = scene.addUnitGraphic;
+  scene.addUnitGraphic = function (unit) {
+    const start = renderer.made.length;
+    try {
+      return draw.call(this, unit);
+    } finally {
+      drawnBy.set(unit, [...(drawnBy.get(unit) || []), ...renderer.made.slice(start)]);
+    }
+  };
+  return { scene, renderer, drawnBy };
+}
+
+const ARRIVAL_KINDS = {
+  'a reinforcement': {
+    setup: { enemies: [ROSTER.foe] },
+    arrive: (scene) => {
+      scene.resolveReinforcementsForTurn = () => ({
+        turn: TURN,
+        spawns: [{ ...WAVE[0], col: 2, row: 8 }],
+        dueWaves: [{ spawnedCount: 1, requestedCount: 1 }],
+        blockedSpawns: 0,
+      });
+      scene.applyReinforcementsForTurn(TURN);
+      return scene.enemyUnits.find((u) => u._isReinforcement);
+    },
+  },
+  'a raised Skeleton': {
+    setup: { enemies: [{ ...ROSTER.necroA, col: 0, row: 5 }] },
+    arrive: async (scene) => {
+      await scene.processNecromancy();
+      return scene.enemyUnits.find((u) => u.className === 'Skeleton');
+    },
+  },
+  'a risen Zombie': {
+    setup: { enemies: [ROSTER.foe], remains: [ROSTER.remains[0]] },
+    arrive: async (scene) => {
+      await scene.processZombieRevival();
+      return scene.enemyUnits[1];
+    },
+  },
+};
+
+/** A straight walk along the unit's row to `col`. */
+const walk = (unit, col) => {
+  const step = col > unit.col ? 1 : -1;
+  const path = [{ col: unit.col, row: unit.row }];
+  for (let c = unit.col + step; c !== col + step; c += step) path.push({ col: c, row: unit.row });
+  return path;
+};
+
+/** Everything the player must see of one arrival, from its arrival to its death. */
+async function playArrival(kind, failCall) {
+  const { scene, renderer, drawnBy } = drawnFixture(kind.setup);
+  const start = renderer.made.length;
+  renderer.failNext(failCall);
+  const unit = await kind.arrive(scene);
+  const made = renderer.made.length - start;
+  const seen = (what) => {
+    const parts = partsOf(unit);
+    expect(unit.graphic, `${what}: a graphic`).toBeTruthy();
+    expect(unit.hpBar?.fill, `${what}: an HP bar`).toBeTruthy();
+    for (const part of parts) expect(part.destroyed, `${what}: ${part.kind} live`).toBe(false);
+    return parts;
+  };
+
+  // Drawn on its tile, shown (it rose in sight), and nothing of a failed sprite left behind.
+  let parts = seen('arrived');
+  expect(unit.graphic).toMatchObject(pixel(unit.col, unit.row));
+  for (const part of parts) expect(part.visible, `arrived: ${part.kind} shown`).toBe(true);
+  const owned = new Set(parts);
+  for (const object of drawnBy.get(unit) || [])
+    if (!owned.has(object)) expect(object.destroyed, `leaked ${object.kind}`).toBe(true);
+
+  // It walks in sight, into the fog (hidden), and out again (shown), its marker with it.
+  const row = unit.row;
+  await scene.animateEnemyMove(unit, walk(unit, 4));
+  expect(unit.graphic).toMatchObject(pixel(4, row));
+  await scene.animateEnemyMove(unit, walk(unit, 7));
+  for (const part of seen('in the fog')) expect(part.visible, `fog: ${part.kind}`).toBe(false);
+  await scene.animateEnemyMove(unit, walk(unit, 5));
+  parts = seen('back in sight');
+  expect(unit.graphic).toMatchObject(pixel(5, row));
+  for (const part of parts) expect(part.visible, `back: ${part.kind} shown`).toBe(true);
+
+  // Targeted where it is drawn, and hurt: the bar shows what is left.
+  expect(scene.getUnitAt(5, row)).toBe(unit);
+  damageUnit(unit, Math.floor(unit.stats.HP / 2));
+  scene.updateHPBar(unit);
+  const { bg, fill } = unit.hpBar;
+  expect(fill.width).toBeCloseTo((bg.width * unit.currentHP) / unit.stats.HP, 5);
+  expect(fill.width).toBeLessThan(bg.width);
+
+  // The checkpoint keeps the unit, never its drawing.
+  const saved = structuredClone(serializeBattleUnit(unit));
+
+  // Killed: every part goes with it.
+  parts = partsOf(unit);
+  await scene.removeUnit(unit, { killer: scene.playerUnits[0] });
+  expect(scene.enemyUnits).not.toContain(unit);
+  for (const part of parts) expect(part.destroyed, `dead: ${part.kind} gone`).toBe(true);
+
+  return { made, saved, nextEntityId: scene._nextBattleEntityId, players: scene.playerUnits };
+}
+
+describe('an arrival whose sprite fails is still drawn', () => {
+  for (const [name, kind] of Object.entries(ARRIVAL_KINDS)) {
+    it(`${name}: seen, moved, hidden, hurt and killed, whichever drawing call fails`, async () => {
+      const clean = await playArrival(kind, 0);
+      expect(clean.made).toBeGreaterThan(2);
+      for (let nth = 1; nth <= clean.made; nth++) {
+        const broken = await playArrival(kind, nth);
+        // The battle keeps the same unit whatever was drawn.
+        expect(broken.saved, `drawing call ${nth} failing`).toEqual(clean.saved);
+      }
+
+      // Resumed from the checkpoint: drawn whole, by the sprite.
+      const { scene, renderer } = drawnFixture({ enemies: [] });
+      new BattleSuspendController(scene).applyUnits({
+        playerUnits: [],
+        enemyUnits: [clean.saved],
+        npcUnits: [],
+        nextEntityId: clean.nextEntityId,
+      });
+      const [resumed] = scene.enemyUnits;
+      expect(resumed.battleEntityId).toBe(clean.saved.battleEntityId);
+      expect(resumed.graphic.destroyed).toBe(false);
+      expect(resumed.hpBar.fill.width).toBeCloseTo(
+        (resumed.hpBar.bg.width * resumed.currentHP) / resumed.stats.HP,
+        5,
+      );
+      expect(renderer.live()).toEqual(expect.arrayContaining(partsOf(resumed)));
+    });
+  }
+});
+
+describe('an arrival nothing can draw', () => {
+  it('is drawn again at the next player turn, and is still owed while the renderer fails', async () => {
+    const { scene, renderer } = drawnFixture(ARRIVAL_KINDS['a reinforcement'].setup);
+    renderer.failAll();
+    const unit = await ARRIVAL_KINDS['a reinforcement'].arrive(scene);
+    expect(scene.enemyUnits).toContain(unit); // on the board all the same
+    expect(partsOf(unit)).toEqual([]);
+    // The renderer still failing: the unit is still owed (the battle asks for a reload).
+    expect(guardUndrawnUnits(scene)).toEqual([unit]);
+    expect(partsOf(unit)).toEqual([]);
+    // Back: drawn whole, and owed no longer.
+    renderer.failAll(false);
+    expect(guardUndrawnUnits(scene)).toEqual([]);
+    expect(unit.graphic?.destroyed).toBe(false);
+    expect(unit.hpBar?.fill?.destroyed).toBe(false);
+    expect(guardUndrawnUnits(scene)).toEqual([]);
+  });
+
+  it('is forgotten once it has left the board', async () => {
+    const { scene, renderer } = drawnFixture(ARRIVAL_KINDS['a reinforcement'].setup);
+    renderer.failAll();
+    const unit = await ARRIVAL_KINDS['a reinforcement'].arrive(scene);
+    scene.enemyUnits = scene.enemyUnits.filter((u) => u !== unit);
+    expect(guardUndrawnUnits(scene)).toEqual([]);
+    renderer.failAll(false);
+    const before = renderer.made.length;
+    guardUndrawnUnits(scene);
+    expect(renderer.made.length).toBe(before); // never drawn for a unit that is gone
   });
 });
