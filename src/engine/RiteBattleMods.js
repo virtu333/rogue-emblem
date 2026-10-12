@@ -8,7 +8,9 @@
 // does something) -> MapGenerator calls applyRiteBattleMods last, on both paths (a set piece's
 // and a template's):
 //   lieutenant  escortDrop N     the N highest-level non-boss foes leave the map (ties: the
-//                                earlier spawn), never an objective target;
+//                                earlier spawn), never an objective target; a hold pack one
+//                                stood in shrinks to its survivors (`holdPackSize`), so the
+//                                drop never reads as a fall that wakes it;
 //               revivalStones N  read by SeatedBoss.resolveSeatedBoss when the seat is drawn
 //                                (never on the Entity), not here;
 //               waveHollowed N   one scripted wave of N Hollowed on turn `waveTurn` (4);
@@ -44,6 +46,7 @@ import {
 } from './ReinforcementScheduler.js';
 import { enemySideEdge } from './HuntedWave.js';
 import { getFootprint } from './EntitySystem.js';
+import { HOLD_AI_MODE } from './HoldActivation.js';
 
 const key = (col, row) => `${col},${row}`;
 const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -96,7 +99,7 @@ export function applyRiteBattleMods({
 
   if (target === 'lieutenant' && mods.escortDrop && !entity) {
     const dropped = escortToDrop(enemySpawns, mods.escortDrop, objectiveTargets);
-    spawns = enemySpawns.filter((spawn) => !dropped.has(spawn));
+    spawns = withoutDropped(enemySpawns, dropped);
     applied.escortDropped = dropped.size;
   }
   if (target === 'lieutenant' && mods.revivalStones && !entity) {
@@ -151,6 +154,30 @@ function escortToDrop(enemySpawns, count, objectiveTargets) {
       (a, b) => (Number(b.spawn.level) || 0) - (Number(a.spawn.level) || 0) || a.index - b.index,
     );
   return new Set(escort.slice(0, count).map((e) => e.spawn));
+}
+
+/**
+ * The spawns left once `dropped` leave. A hold pack wakes when it has fewer living holders than
+ * its size at spawn (HoldActivation.wakeHolders, `holdPackSize`), so a pack a dropped guard stood
+ * in is sized to its survivors (new objects: the input is not changed): the guard never stood on
+ * the map, and its packmates hold as a smaller pack (a lone survivor as a pack of one) until a
+ * wake rule of their own. Every other spawn is kept as it was.
+ */
+function withoutDropped(enemySpawns, dropped) {
+  const packOf = (spawn) => (Number.isInteger(spawn.holdPack) ? spawn.holdPack : 0);
+  const isHolder = (spawn) => spawn?.aiMode === HOLD_AI_MODE;
+  const kept = enemySpawns.filter((spawn) => !dropped.has(spawn));
+  const shrunk = new Set([...dropped].filter(isHolder).map(packOf));
+  if (shrunk.size === 0) return kept;
+  const size = new Map();
+  for (const spawn of kept)
+    if (isHolder(spawn) && shrunk.has(packOf(spawn)))
+      size.set(packOf(spawn), (size.get(packOf(spawn)) || 0) + 1);
+  return kept.map((spawn) =>
+    isHolder(spawn) && shrunk.has(packOf(spawn)) && Number.isInteger(spawn.holdPackSize)
+      ? { ...spawn, holdPackSize: size.get(packOf(spawn)) }
+      : spawn,
+  );
 }
 
 /** A wave Hollowed's level: the range's middle (rounded down) plus the Rite's bonus. */
