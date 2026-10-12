@@ -853,14 +853,16 @@
       "lore": "The seers inked every art in the reader's blood. Open one and the ink wants more.",
       "name": "Scroll Archive",
       "tier": 4,
-      "description": "Gain 2 weapon-art scrolls, drawn from arts that open by Act II.",
+      "description": "Gain 3 different weapon-art scrolls, drawn from arts that open in Act II.",
       "weight": 1,
       "boons": [
         {
           "type": "starting_scroll",
           "params": {
-            "count": 2,
-            "maxUnlockAct": "act2"
+            "count": 3,
+            "minUnlockAct": "act2",
+            "maxUnlockAct": "act2",
+            "distinct": true
           }
         }
       ],
