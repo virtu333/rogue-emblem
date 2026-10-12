@@ -677,5 +677,37 @@
     ],
     "generator": "tools/art/sprite-trace/gen-class-sheet.mjs",
     "take": 2
+  },
+  {
+    "name": "Circle Adept",
+    "tier": "promoted",
+    "weapon": "Tomes (M)",
+    "move": "Infantry",
+    "id": "circle-adept",
+    "count": 1,
+    "prompt": "Generate a CIRCLE ADEPT tactical MAP SPRITE review sheet. Exactly ONE isolated enemy sprite, centered with generous padding. Image 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Images 2 and 3 are review sheets of neighbouring creatures and classes from the same set: match their pixel scale, figure size, rendering and three-quarter pose exactly, but draw this creature's own anatomy, costume and weapon. Full body with all equipment visible, three-quarter idle view slightly from above facing right. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Enemy uses CRIMSON accents. Intended final size about 34px infantry; a big readable silhouette, no tiny ornamental noise. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the whole canvas: no floor, shadow, gradient, glow, text, label, ring or frame. Do not use magenta or pink anywhere on the figure. Class Circle Adept, tier promoted, movement Infantry, engine weapons Tomes (M). Specific design: ONE enemy only. A ritualist of the Empire's court circle: CEREMONIAL, composed and upright, not funereal (it is not the dark-violet grave-priest Necromancer). A long layered court surplice of ASH-GREY wool with clearly lighter grey highlights on the shoulders and fold edges (never near-black), a stiff squared CRIMSON lacquer mantle across the shoulders with a high collar and a narrow crimson stole down the front, a deep hood in the same grey with the lower face covered by a plain grey cloth veil so only shadowed eyes show (a living person, not a skull), and plain sleeves with bone-white cuffs. A thick closed TOME is held against the chest in both hands, tightly bound in GREY CORD wound many times round it with long knotted cord ends and tassels hanging below. It stands straight and still in a calm formal stance, feet together, a hem that just clears the ground. A compact upright silhouette, clearly different from the Necromancer: grey and crimson, formal, squared shoulders. No staff, no skulls, no glowing runes, no particles, no objects on the ground.",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "docs/art/class-sprite-review-2026-09-22/sheets/zombie.png",
+      "docs/art/class-sprite-review-2026-09-22/sheets/sage.png"
+    ],
+    "generator": "tools/art/sprite-trace/gen-class-sheet.mjs",
+    "take": 4
+  },
+  {
+    "name": "Hollowed",
+    "tier": "base",
+    "weapon": "Lances (P), Swords (P)",
+    "move": "Infantry",
+    "id": "hollowed",
+    "count": 1,
+    "prompt": "Generate a HOLLOWED tactical MAP SPRITE review sheet. Exactly ONE isolated enemy sprite, centered with generous padding. Image 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Images 2 and 3 are review sheets of neighbouring creatures and classes from the same set: match their pixel scale, figure size, rendering and three-quarter pose exactly, but draw this creature's own anatomy, costume and weapon. Full body with all equipment visible, three-quarter idle view slightly from above facing right. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Enemy uses CRIMSON accents. Intended final size about 34px infantry; a big readable silhouette, no tiny ornamental noise. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the whole canvas: no floor, shadow, gradient, glow, text, label, ring or frame. Do not use magenta or pink anywhere on the figure. Class Hollowed, tier base, movement Infantry, engine weapons Lances (P), Swords (P). Specific design: ONE enemy only. An imperial levy SOLDIER the rite has emptied out: the uniform is still on and the person has gone out of it. The same kit as the Empire's foot soldier (kettle helmet with a mail aventail, CRIMSON padded coat, mail skirt, belt and pouches, grey boots) but worn wrong: the helmet sits a little crooked, the coat hangs open and unbuttoned, the straps trail loose. The face under the brim is pale ash-grey and slack, with blank hollow eyes (plain dark empty eye sockets, no glow, no pupils) and a slightly open mouth: a living-looking man with nobody home, NOT a skull, NOT a skeleton, NOT rotting green flesh (that is the Zombie). A SLACK stance: shoulders sagging, head tilted, one hand loosely curled round a long SPEAR held UPRIGHT and VERTICAL beside the body with its butt on the ground, exactly like the foot soldier's spear in the soldier reference (a straight vertical shaft, narrow silhouette), the other arm hanging limp at the side. No shield. No gore, no wounds, no particles.",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "docs/art/class-sprite-review-2026-09-22/sheets/revenant.png",
+      "docs/art/class-sprite-review-2026-09-22/sheets/soldier.png"
+    ],
+    "generator": "tools/art/sprite-trace/gen-class-sheet.mjs",
+    "take": 2
   }
 ]

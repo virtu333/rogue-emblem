@@ -110,15 +110,22 @@ describe('traced sprite coverage (every unit the game can spawn)', () => {
   });
 });
 
-describe('enemy-only classes drawn ahead of their data (Phase 3, 3I)', () => {
-  // The Necromancer and the Skeleton ship in classes.json later; their art is baked first so
-  // the coverage tests above hold the moment the classes exist.
-  for (const className of ['Necromancer', 'Skeleton']) {
+describe('enemy-only classes (Phase 3, 3I; Act V)', () => {
+  // The Necromancer, the Skeleton and Act V's Circle Adept and Hollowed: one design each, the
+  // three keys an enemy-only class needs (the player-key table's plain key, the enemy and the
+  // corrupted enemy) and the rig the class draws on.
+  const RIG = {
+    Necromancer: 'mage',
+    Skeleton: 'infantry',
+    'Circle Adept': 'mage',
+    Hollowed: 'infantry',
+  };
+  for (const className of Object.keys(RIG)) {
     it(`${className} bakes the three keys an enemy-only class needs`, () => {
       const base = key(className);
       for (const k of [base, `enemy_${base}`, `enemy_${base}-corrupt`]) {
         expect(sprites[k], k).toBeTruthy();
-        expect(sprites[k].kind, k).toBe(base === 'necromancer' ? 'mage' : 'infantry');
+        expect(sprites[k].kind, k).toBe(RIG[className]);
       }
       const enemy = { name: className, className, faction: 'enemy' };
       expect(tracedKeyFor(enemy, sprites)).toBe(`enemy_${base}`);

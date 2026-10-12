@@ -94,6 +94,8 @@ describe('variant table', () => {
           'Dragon Lord',
           'Necromancer',
           'Skeleton',
+          'Circle Adept',
+          'Hollowed',
           'Entity',
         ].includes(c.name),
     )

@@ -333,7 +333,7 @@ export class BootScene extends Phaser.Scene {
       'generic_hunter',
       // The caravan Merchant (CaravanSystem builds it outside the class factories)
       'generic_merchant',
-      // Enemy-faction portraits (38)
+      // Enemy-faction portraits (42)
       'enemy_archer',
       'enemy_assassin',
       'enemy_battle_monk',
@@ -341,6 +341,9 @@ export class BootScene extends Phaser.Scene {
       'enemy_bishop',
       'enemy_bow_knight',
       'enemy_cavalier',
+      // enemy-only classes of Act V (the Descent): the Adept on the imperial plate, the
+      // Hollowed on the unlight plate
+      'enemy_circle_adept',
       'enemy_cleric',
       'enemy_dancer',
       'enemy_dark_knight',
@@ -353,6 +356,7 @@ export class BootScene extends Phaser.Scene {
       'enemy_general',
       'enemy_great_knight',
       'enemy_hero',
+      'enemy_hollowed',
       'enemy_hunter',
       'enemy_knight',
       'enemy_mage',

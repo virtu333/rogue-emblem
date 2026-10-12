@@ -649,6 +649,21 @@
     "price": 0
   },
   {
+    "name": "Greycord",
+    "lore": "Grey cord, one knot to a verse. The cord is longer than the book.",
+    "type": "Tome",
+    "tier": "Steel",
+    "rankRequired": "Prof",
+    "might": 8,
+    "hit": 85,
+    "crit": 0,
+    "weight": 5,
+    "range": "1-2",
+    "special": "+2 RES when equipped",
+    "price": 0,
+    "descentOnly": true
+  },
+  {
     "name": "Firstwind",
     "lore": "Wind, written down. Fliers who hear the page turn have already begun to fall.",
     "type": "Tome",
