@@ -451,6 +451,8 @@ import { FormationController, FORMATION_STATE } from '../ui/FormationController.
 import { deployedFromMemory, openFormationRoster } from '../ui/FormationRoster.js';
 import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { CombatFxController } from '../ui/CombatFxController.js';
+import { strikeFeedback } from '../ui/impactFeedback.js';
+import { haptic } from '../utils/haptics.js';
 import { CombatChoreography } from '../ui/CombatChoreography.js';
 import { CeremonyController } from '../ui/CeremonyController.js';
 import { ReinforcementPresenter } from '../ui/ReinforcementPresenter.js';
@@ -8848,6 +8850,8 @@ export class BattleScene extends Phaser.Scene {
       case 'hint': {
         const pos = this.grid.gridToPixel(unit.col, unit.row);
         this.showMinorHintAt(pos.x, pos.y, beat.text, POST_COMBAT_HINT_COLORS[beat.tone]);
+        // A ram that stopped short: the collision shakes the field (PostCombatEffects collide).
+        if (beat.impact === 'crash') this.shakeScreen('crash');
         break;
       }
       case 'contact':
@@ -8981,9 +8985,22 @@ export class BattleScene extends Phaser.Scene {
         if (audio) this._combatFx?.playStrikeSound(event.isCrit ? 'sfx_crit' : 'sfx_hit');
         if (event.isCrit)
           (this._battleBeats ||= new BattleBeatsController(this)).onCritStrike(striker);
+        strikeFeedback(this, event, striker, target);
         this._showStrikeResult(event, striker, target, reduced);
       },
     });
+  }
+
+  /**
+   * A short camera shake ('crit' | 'boss' | 'crash' | 'splash' | 'stone'): seeded, world
+   * camera only, off with Reduce motion (CombatFxController.shake). Never Phaser's shake.
+   */
+  shakeScreen(kind) {
+    return safeBattlePresentation(
+      'screen shake',
+      () => (this._combatFx ||= new CombatFxController(this)).shake(kind),
+      { scene: this },
+    );
   }
 
   /** A broken Revival Stone's presentation (RevivalStoneController), made on first use. */
@@ -9210,6 +9227,7 @@ export class BattleScene extends Phaser.Scene {
     const audio = this.registry.get('audio');
     if (!audio) return;
     this._levelUpSfxKey = 'sfx_levelup';
+    haptic('success');
     const cue = kind === 'promotion' ? 'promotion_crown' : levelUpCue(kind);
     // A cue still decoding (a new track's key) plays a beat late rather than
     // falling back to the plain sound effect.
@@ -9424,6 +9442,7 @@ export class BattleScene extends Phaser.Scene {
       async () => {
         const audio = this.registry.get('audio');
         if (audio) audio.playSFX('sfx_death');
+        haptic('medium');
         await (this._combatFx ||= new CombatFxController(this)).deathFade(unit);
       },
       { scene: this },
@@ -11184,6 +11203,7 @@ export class BattleScene extends Phaser.Scene {
             pos.x,
             pos.y,
           );
+          this.shakeScreen('splash');
           this.showMinorHintAt(pos.x, pos.y, `Splash -${damage}`, UI_PALETTE.rarityEpic);
           await this._awaitSceneDelay(200, { label: 'entity_splash_tick' });
         },

@@ -528,7 +528,7 @@ function* collide(step, sourceUnit, targetUnit, moveResult, world, result, held 
     if (bannerHeld) held?.add(unit);
     if (actual > 0) {
       yield { kind: 'hp', unit };
-      yield { kind: 'hint', unit, text: `Crash -${actual}`, tone: 'splash' };
+      yield { kind: 'hint', unit, text: `Crash -${actual}`, tone: 'splash', impact: 'crash' };
       if (stoneBroken) yield { kind: 'stone', unit };
     }
     if (bannerHeld) yield { kind: 'banner', unit };

@@ -12,6 +12,7 @@
 
 import { UI_PALETTE } from '../utils/uiStyles.js';
 import { playCue } from './ceremonyMusic.js';
+import { haptic } from '../utils/haptics.js';
 
 export const STONE_REFILL_MS = 400;
 export const STONE_BREAK_LINE = 'The stone breaks.';
@@ -42,6 +43,10 @@ export default class RevivalStoneController {
       const pos = scene.grid?.gridToPixel?.(unit.col, unit.row);
       if (pos) scene.showMinorHintAt?.(pos.x, pos.y - 24, STONE_BREAK_LINE, UI_PALETTE.info);
       void playCue(scene, 'sealed', { fallbackSfx: 'sfx_heal', duck: 0.4, waitMs: 250 });
+      // The break lands as weight: a camera shake (seeded, off with Reduce motion) and a
+      // heavy haptic. Neither reads or changes the battle.
+      scene.shakeScreen?.('stone');
+      haptic('heavy');
     } catch (err) {
       console.warn('[RevivalStoneController] break presentation failed:', err);
     }
