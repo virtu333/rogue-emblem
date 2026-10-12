@@ -132,7 +132,7 @@ export class SettingsMenu {
       'Low simplifies visual effects. Dialogue and combat information remain visible.',
       ['Low', 'High'],
     );
-    // Atmosphere: the battlefield's act mood (grade, vignette, night darkness). Shows the
+    // Atmosphere: the battlefield's act mood (grade, vignette, night darkness, weather). Shows the
     // effective mode; while untouched it follows the device default.
     const atmosphereLabels = { full: 'Full', reduced: 'Reduced', off: 'Off' };
     const atmosphereOrder = ['full', 'reduced', 'off'];
@@ -157,7 +157,7 @@ export class SettingsMenu {
       atmosphere,
       element(
         'p',
-        'Full / Reduced / Off. Light, color and night darkness on the battlefield. Reduced saves battery: no grain, lighter nights. Default: Reduced on phones, Full on desktop; Low effects quality caps it at Reduced.',
+        'Full / Reduced / Off. Light, color, night darkness and weather on the battlefield. Reduced saves battery: no grain, lighter nights, light weather. Default: Reduced on phones, Full on desktop; Low effects quality caps it at Reduced. Reduce motion stops the weather.',
         're-muted',
       ),
     );

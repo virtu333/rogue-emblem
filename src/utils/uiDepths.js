@@ -11,6 +11,9 @@ export const UI_DEPTHS = {
   TERRAIN_HIGHLIGHTS: 10,
   AREA_PREVIEW: 12, // An area art's footprint and victim rings (AreaPreviewController).
   UNITS: 50,
+  // Weather particles (WeatherController): world space over unit sprites (10..10.9) and
+  // labels (11), under combat effects (11.8+), HP bars and pips (12..14) and the cursor.
+  WEATHER: 11.5,
   AREA_PREVIEW_CHIP: 79, // Area preview numbers, just under floating damage numbers.
   DAMAGE_NUMBERS: 80,
   FOG_OVERLAY: 90,

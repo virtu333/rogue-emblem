@@ -150,6 +150,7 @@ import { startTracedIdle } from '../ui/TracedSprites.js';
 import { BATTLEFIELD_LAB_MAPS } from '../utils/battlefieldLabMaps.js';
 import { paintBattlefieldTerrain, battlefieldSpriteArtEnabled } from '../ui/BattlefieldArt.js';
 import { AtmosphereController } from '../ui/AtmosphereController.js';
+import { WeatherController } from '../ui/WeatherController.js';
 import { DesktopBattleHud } from '../ui/DesktopBattleHud.js';
 import { EclipseHudController } from '../ui/EclipseHudController.js';
 import { ContractHudController } from '../ui/ContractHudController.js';
@@ -968,6 +969,8 @@ export class BattleScene extends Phaser.Scene {
 
     this._atmosphere?.destroy();
     this._atmosphere = null;
+    this._weather?.destroy();
+    this._weather = null;
     this._desktopHud?.destroy();
     this._desktopHud = null;
     this._eclipseHud?.destroy();
@@ -2359,7 +2362,7 @@ export class BattleScene extends Phaser.Scene {
       this.updateVisionHud();
 
       // Presentation: the Eclipse projection, reliquary desktop HUD plates, then the
-      // act mood (grade + night).
+      // act mood (grade + night) and its weather.
       this._eclipseHud?.destroy();
       this._eclipseHud = new EclipseHudController(this).create();
       this._contractHud?.destroy();
@@ -2368,6 +2371,9 @@ export class BattleScene extends Phaser.Scene {
       this._desktopHud = new DesktopBattleHud(this).create();
       this._atmosphere?.destroy();
       this._atmosphere = new AtmosphereController(this).create();
+      // Weather over the map, matched to the mood (presentation only, its own RNG).
+      this._weather?.destroy();
+      this._weather = new WeatherController(this).create();
 
       // Not in a recruit battle: it would open as a dialog there (see battle_first_turn_hints).
       if (this.mobileCameraEnabled && !hasRecruitNpc(this.npcUnits)) {

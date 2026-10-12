@@ -33,6 +33,7 @@ import { rollVillageSpawn, villageObjectiveLine } from '../src/engine/VillageSys
 import { battleMusicContext } from '../src/engine/BattleMusicSelection.js';
 import { atmosphereContextFromScene } from '../src/ui/AtmosphereController.js';
 import { resolveAtmosphere, ATMOSPHERE_GRADES } from '../src/art/atmosphereConfig.js';
+import { resolveWeather } from '../src/art/weatherConfig.js';
 import { AreaTargetingController } from '../src/ui/AreaTargetingController.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { loomHeader } from '../src/ui/loomModel.js';
@@ -234,6 +235,14 @@ describe('every teaching suppression holds in both modes', () => {
         return [ctx.isScripted, mood.gradeKey, mood.grade];
       },
       [true, 'act1', { ...ATMOSPHERE_GRADES.act1 }],
+    ],
+    [
+      'no weather falls, whatever the ground',
+      (run, P = PARAMS) =>
+        resolveWeather(
+          atmosphereContextFromScene({ battleParams: P, battleConfig: { biome: 'tundra' } }),
+        ),
+      'none',
     ],
   ];
 
