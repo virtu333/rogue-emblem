@@ -10,7 +10,7 @@
   Dance). A Thief's Steal or a Dancer's Dance no longer takes one of the five. Roster → Skills
   shows both counts, and swapping makes room only with one of the same kind. A unit from an
   older save that had more than 3 abilities equipped keeps the extras on its bench.
-- **Doomblade · Doom Thrust** is now a leap: pick a free tile within 2 (over units), land
+- **Doomblade · Lionheart Thrust** (was Doom Thrust) is now a leap: pick a free tile within 2 (over units), land
   there, and every foe beside the landing takes an 80% blow that always lands and is never
   countered. A unit hidden in fog on the landing stops the leap (the use is spent).
 - **Oathblade** no longer attacks twice; it hits harder (15 Might, 20 Crit). **Phantom Rush**

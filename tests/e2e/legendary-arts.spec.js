@@ -106,7 +106,7 @@ async function openArt(page, hud, name) {
   await hud.getByRole('button', { name: new RegExp(name) }).tap();
 }
 
-test('Doomblade: Doom Thrust leaps over a foe and strikes both foes beside the landing', async ({
+test('Doomblade: Lionheart Thrust leaps over a foe and strikes both foes beside the landing', async ({
   page,
 }) => {
   const { hud, errors } = await boot(page);
@@ -119,14 +119,14 @@ test('Doomblade: Doom Thrust leaps over a foe and strikes both foes beside the l
     stats: { STR: 20 },
     place: { Utility: [4, 4], Knight: [5, 4], Fighter: [6, 3] },
   });
-  await openArt(page, hud, 'Doom Thrust');
+  await openArt(page, hud, 'Lionheart Thrust');
   await expect.poll(async () => (await board(page)).state).toBe('SELECTING_AREA_CENTER');
   // An occupied tile is no landing.
   await tapTile(page, 5, 4);
-  await expect(hud.getByRole('button', { name: /^Leap: Doom Thrust/ })).toHaveCount(0);
+  await expect(hud.getByRole('button', { name: /^Leap: Lionheart Thrust/ })).toHaveCount(0);
   await tapTile(page, 6, 4);
   await page.screenshot({ path: 'test-results/legendary-leap-prompt.png' });
-  await hud.getByRole('button', { name: /^Leap: Doom Thrust/ }).tap();
+  await hud.getByRole('button', { name: /^Leap: Lionheart Thrust/ }).tap();
   await settled(page);
   const { units } = await board(page);
   expect(units.Utility).toMatchObject({ col: 6, row: 4, hp: 50 - 8, acted: true });

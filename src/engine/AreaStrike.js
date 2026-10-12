@@ -3,7 +3,7 @@
 // no combat: no hit roll, no crit, no counter. Pure, no RNG; the scene and the harness
 // drive the same generator (presentation and the art's cost are the owner's).
 //
-// A leap (`area.leap`, Doomblade's Doom Thrust: docs/specs/legendary-arts-rework.md §5) aims
+// A leap (`area.leap`, Doomblade's Lionheart Thrust: docs/specs/legendary-arts-rework.md §5) aims
 // the tile its user lands on: a tile the user can stand on, free as far as the caller knows
 // (`occupiedAt`: the player's knowledge for the choices), over units and terrain between.
 // The user is placed there (leapBlocker reads the real board: a unit the fog hid fails the
