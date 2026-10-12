@@ -45,8 +45,8 @@ describe('data consistency workflow guards', () => {
 
     expect(guardUnlock).toBeTruthy();
     expect(guardSkill).toBeTruthy();
-    expect(guardUnlock.description).toBe('Unlocks Guard (+3 DEF/RES when adjacent to an ally)');
-    expect(guardSkill.description).toBe('+3 DEF/RES when adjacent to an ally');
+    expect(guardUnlock.description).toBe('Unlocks Guard (+2 DEF/RES when adjacent to an ally)');
+    expect(guardSkill.description).toBe('+2 DEF/RES when adjacent to an ally');
   });
 
   it('enemy-only Sunder weapons and Adder Bow are excluded from standard loot pools', () => {

@@ -2040,7 +2040,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      300
+      600
     ],
     "effects": [
       {
@@ -2070,7 +2070,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      300
+      450
     ],
     "effects": [
       {
@@ -2096,11 +2096,11 @@
   {
     "id": "unlock_guard",
     "name": "Guard",
-    "description": "Unlocks Guard (+3 DEF/RES when adjacent to an ally)",
+    "description": "Unlocks Guard (+2 DEF/RES when adjacent to an ally)",
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      175
+      300
     ],
     "effects": [
       {
@@ -2121,12 +2121,7 @@
       {
         "unlockSkill": "pavise"
       }
-    ],
-    "requires": {
-      "milestones": [
-        "beatGame"
-      ]
-    }
+    ]
   },
   {
     "id": "unlock_aegis",
@@ -2141,12 +2136,7 @@
       {
         "unlockSkill": "aegis"
       }
-    ],
-    "requires": {
-      "milestones": [
-        "beatGame"
-      ]
-    }
+    ]
   },
   {
     "id": "unlock_renewal",
@@ -2161,12 +2151,7 @@
       {
         "unlockSkill": "renewal"
       }
-    ],
-    "requires": {
-      "milestones": [
-        "beatGame"
-      ]
-    }
+    ]
   },
   {
     "id": "legendary_lord_chance",
