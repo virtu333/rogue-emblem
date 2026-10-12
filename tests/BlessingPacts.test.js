@@ -10,6 +10,7 @@ import {
   selectBlessingOptionsWithTelemetry,
   createSeededRng,
 } from '../src/engine/BlessingEngine.js';
+import { getWeaponArtAllowedTypes } from '../src/engine/WeaponArtSystem.js';
 import { loadGameData } from './testData.js';
 
 const store = {};
@@ -141,15 +142,20 @@ describe('Scroll Archive', () => {
     data.weapons.filter((w) => w.type === 'Scroll').map((w) => [w.name, w]),
   );
 
-  it('only ever grants arts that open by Act II', () => {
+  it('grants three different arts that open in Act II, never a cheap Act I one', () => {
     const seen = new Set();
     for (let seed = 1; seed <= 60; seed++) {
       const rm = freshRun(seed);
       chooseThroughShrine(rm, 'scroll_archive');
-      expect(rm.scrolls.length).toBe(2);
+      expect(rm.scrolls.length).toBe(3);
+      expect(new Set(rm.scrolls.map((scroll) => scroll.name)).size).toBe(3);
       for (const scroll of rm.scrolls) {
         const art = artById.get(scrollByName.get(scroll.name)?.teachesWeaponArtId);
-        expect(['act1', 'act2']).toContain(art?.unlockAct || 'act1');
+        expect(art?.unlockAct).toBe('act2');
+        // Every grant is a scroll some starting lord can learn.
+        const lordTypes = rm.roster.filter((u) => u.isLord).flatMap((u) => u.proficiencies || []);
+        const types = lordTypes.map((p) => p.type);
+        expect(getWeaponArtAllowedTypes(art).some((type) => types.includes(type))).toBe(true);
         seen.add(scroll.name);
       }
     }
