@@ -173,8 +173,8 @@
   "rite": {
     "startByPhase": { "pale": 3, "waning": 4, "umbral": 5, "totality": 7, "hollow": 9 },
     "bands": [
-      { "id": "broken", "min": 0, "max": 4 },
-      { "id": "spoken", "min": 5, "max": 9 },
+      { "id": "broken", "min": 0, "max": 5 },
+      { "id": "spoken", "min": 6, "max": 9 },
       { "id": "answered", "min": 10 }
     ],
     "mods": {

@@ -338,7 +338,10 @@ describe('event pools', () => {
 
 describe('the rite block (§4: numbers only, read later)', () => {
   it('refuses tiers that are not contiguous from 0, an open tier with a max, an unknown phase', () => {
-    plant((c) => (c.rite.bands[1].min = 6), 'min must be 5');
+    // The expected min is the data's (the first tier's max + 1), so a retune of the bands moves
+    // no assertion; the plant skips one word past it.
+    const contiguous = data.descent.rite.bands[0].max + 1;
+    plant((c) => (c.rite.bands[1].min = contiguous + 1), `min must be ${contiguous}`);
     plant((c) => (c.rite.bands.at(-1).max = 99), 'the last tier is open');
     plant((c) => (c.rite.startByPhase.dusk = 1), '"dusk" is not a phase');
     plant((c) => delete c.rite.startByPhase.hollow, 'names no words for "hollow"');

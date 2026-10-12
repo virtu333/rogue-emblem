@@ -104,7 +104,8 @@ describe('tiers and the start', () => {
       }
     }
     expect(riteBand(999, data.descent)).toBe(RITE.bands.at(-1).id);
-    expect(riteBand({ words: 5 }, data.descent)).toBe('spoken');
+    const spokenMin = RITE.bands.find((b) => b.id === 'spoken').min;
+    expect(riteBand({ words: spokenMin }, data.descent)).toBe('spoken');
     // No rite block: the spec's own bands.
     expect(riteBand(12, null)).toBe(DEFAULT_RITE_CONFIG.bands.at(-1).id);
   });
@@ -211,9 +212,12 @@ describe('riteView (the chip and the finale preview)', () => {
       "The Entity's splash strikes 1 tile more",
       "Each of the Entity's waves brings 2 more Hollowed",
     ]);
-    const spoken = riteView(runWith(5, { finale: 'lieutenant' }));
-    expect(spoken.chip).toBe('The Rite: 5 words · Spoken');
-    expect(spoken.next).toEqual({ band: 'answered', label: 'Answered', at: 10 });
+    // The tier edges are the data's (`descent.json` rite.bands), read here, never typed.
+    const spokenAt = RITE.bands.find((b) => b.id === 'spoken').min;
+    const answeredAt = RITE.bands.find((b) => b.id === 'answered').min;
+    const spoken = riteView(runWith(spokenAt, { finale: 'lieutenant' }));
+    expect(spoken.chip).toBe(`The Rite: ${spokenAt} words · Spoken`);
+    expect(spoken.next).toEqual({ band: 'answered', label: 'Answered', at: answeredAt });
     expect(spoken.effects).toEqual([{ target: 'lieutenant', lines: ['No change'] }]);
     const broken = riteView(runWith(1), { node: ENTITY });
     expect(broken.chip).toBe('The Rite: 1 word · Broken');
