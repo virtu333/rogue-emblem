@@ -23,6 +23,7 @@
 // the only way to the item and the economy stays predictable.
 import { fnv1a, gearChanceFor, isPerBattleGearConfig, mulberry32 } from './CasterGear.js';
 import { isGoldPouch, makeGoldPouch } from './GoldPouch.js';
+import { isConjuredUnit } from './ConjuredUnits.js';
 
 export const CARRY_ACTS = Object.freeze(['act1', 'act2', 'act3', 'act4', 'finalBoss']);
 export const SKELETON_CLASS_NAME = 'Skeleton';
@@ -54,14 +55,15 @@ export function carryStream({ spawns, act, difficultyId, templateId, pass = 0 })
 
 /**
  * Can this spawn (or unit) carry an item? Never a boss or elite captain, the Entity, an
- * authored spawn, a Skeleton, a Hollowed, a Circle Adept or a raised or zero-XP unit
+ * authored spawn, a Skeleton, a Hollowed, a Circle Adept or a conjured or zero-XP unit
  * (docs/specs/phase3.md 3G, docs/specs/act-v-descent.md §5).
  */
 export function isCarrierEligible(spawn) {
   if (!spawn || typeof spawn !== 'object') return false;
   if (spawn.isBoss || spawn.isEntity || spawn._noXP) return false;
   if (typeof spawn.authoredId === 'string' && spawn.authoredId) return false;
-  if (typeof spawn._raisedBy === 'string' && spawn._raisedBy) return false;
+  // Raised or called (ConjuredUnits.js): a conjured unit repeats, so it never carries.
+  if (isConjuredUnit(spawn)) return false;
   return !NEVER_CARRIES_CLASS_NAMES.includes(spawn.className);
 }
 

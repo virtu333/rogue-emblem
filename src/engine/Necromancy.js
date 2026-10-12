@@ -19,8 +19,9 @@
 //     battle's `Math.random`: a raise leaves the battle stream where it was, and a resume
 //     or rewind that replays the phase raises the same Skeleton. `_raisedBy` links it to
 //     its Necromancer's `battleEntityId`, which survives saves and rewinds.
-//   - REWARDS. One predicate, `isRaisedUnit`, read by ReinforcementSpawns: no gold, a
-//     quarter of the XP, no deed record.
+//   - REWARDS. `isRaisedUnit` (engine/ConjuredUnits.js, re-exported here), read through
+//     `isConjuredUnit` by ReinforcementSpawns, BattleXp and EnemyCarry: no gold, a quarter of
+//     the XP, no survival XP, no deed record, never a carrier.
 //   - CRUMBLING. When a Necromancer falls, `crumbleFor` takes its own Skeletons off the
 //     board with no killer: no gold, no XP. It runs before the battle-end check, so a rout
 //     completes when the Necromancer was the last living foe.
@@ -32,6 +33,7 @@
 
 import { NECROMANCER_RAISE_CAP } from '../utils/constants.js';
 import { keyedBattleRandom } from './BattleRng.js';
+import { RAISED_XP_MULTIPLIER, isRaisedUnit } from './ConjuredUnits.js';
 import { riseTile } from './ZombieRemains.js';
 import {
   applyEnemyDifficultyModifiers,
@@ -49,8 +51,8 @@ export const MAX_SKELETONS_PER_NECROMANCER = 2;
 export const MAX_RAISES_PER_NECROMANCER = NECROMANCER_RAISE_CAP;
 /** A Skeleton's level is its Necromancer's less this (never below 1). */
 export const SKELETON_LEVEL_OFFSET = 4;
-/** A raised unit pays this share of the XP its level would (gold: none). */
-export const RAISED_XP_MULTIPLIER = 0.25;
+/** A raised unit pays this share of the XP its level would (gold: none; ConjuredUnits.js). */
+export { RAISED_XP_MULTIPLIER, isRaisedUnit };
 
 /**
  * The classes that exist only through a Necromancer on the map: a Necromancer is placed by
@@ -89,14 +91,6 @@ export function isNeverCopiedClass(className) {
 
 export function isNecromancer(unit) {
   return unit?.className === NECROMANCER_CLASS;
-}
-
-/**
- * A unit a Necromancer raised (its `_raisedBy` names the Necromancer's battleEntityId).
- * The one predicate for the raised unit's rewards: gold 0, XP x0.25, no deed record.
- */
-export function isRaisedUnit(unit) {
-  return typeof unit?._raisedBy === 'string' && unit._raisedBy.length > 0;
 }
 
 /** How many Skeletons `necromancer` has raised so far this battle (saved on the unit). */
@@ -168,8 +162,8 @@ export function raiseKey(necromancer, turn, ordinal) {
   return `raise:${necromancer.battleEntityId}:${Math.max(1, Math.trunc(Number(turn) || 1))}:${ordinal}`;
 }
 
-/** The plain Iron weapon of a type (no special: never a Javelin or Hand Axe). */
-const ironWeaponOfType = (weapons, type) =>
+/** The plain Iron weapon of a type (no special: never a Javelin or Hand Axe). Vigil.js too. */
+export const ironWeaponOfType = (weapons, type) =>
   (weapons || []).find((w) => w?.type === type && w.tier === 'Iron' && !w.special) || null;
 
 /**
