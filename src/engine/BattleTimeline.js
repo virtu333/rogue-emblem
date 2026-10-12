@@ -422,6 +422,38 @@ export function getEntryState(history, entryId) {
   return entry ? materialize(history, entry.snapshotId) : null;
 }
 
+/**
+ * A save migration over every stored state (a loader's, never play's): `revise(state)` edits a
+ * detached full state in place and returns whether it changed it. Every state is read from the
+ * history as it was before any is revised, then a keyframe is stored revised and a patch is
+ * re-encoded against its revised keyframe (a full state when no exact patch fits), so a
+ * patched destination restores exactly the revised state. Entries, ids, revision and
+ * presentation are kept. Returns the same history when nothing changed (or a stored state
+ * cannot be read: hydration has already refused such a history), else a revised copy.
+ */
+export function reviseBattleTimelineStates(history, revise) {
+  if (!record(history?.snapshots)) return history;
+  const ids = Object.keys(history.snapshots).sort((a, b) => snapshotNumber(a) - snapshotNumber(b));
+  const states = new Map();
+  let changed = false;
+  for (const id of ids) {
+    const state = materialize(history, id);
+    if (!state) return history;
+    if (revise(state)) changed = true;
+    states.set(id, toJsonValue(state));
+  }
+  if (!changed) return history;
+  const next = clone(history);
+  for (const id of ids) {
+    const stored = history.snapshots[id];
+    const patch = isPatchRecord(stored)
+      ? encodeAgainst(states.get(stored.base), states.get(id))
+      : null;
+    next.snapshots[id] = patch ? { base: stored.base, patch } : states.get(id);
+  }
+  return retain(next);
+}
+
 /** Stored representation of one destination ('full' | 'patch' | null) and its bytes. */
 export function describeEntrySnapshot(history, entryId) {
   const entry = history.entries.find((e) => e.id === entryId);

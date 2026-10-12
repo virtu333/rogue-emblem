@@ -1,0 +1,4770 @@
+{
+  "version": 1,
+  "mode": "standard",
+  "status": "active",
+  "actIndex": 0,
+  "roster": [
+    {
+      "name": "Edric",
+      "className": "Lord",
+      "tier": "base",
+      "level": 10,
+      "xp": 0,
+      "isLord": true,
+      "personalGrowths": {
+        "HP": 3,
+        "STR": 2,
+        "MAG": 2,
+        "SKL": 2,
+        "SPD": 2,
+        "DEF": 2,
+        "RES": 2,
+        "LCK": 2
+      },
+      "growths": {
+        "HP": 62,
+        "STR": 45,
+        "MAG": 21,
+        "SKL": 52,
+        "SPD": 57,
+        "DEF": 32,
+        "RES": 20,
+        "LCK": 46
+      },
+      "proficiencies": [
+        {
+          "type": "Sword",
+          "rank": "Prof"
+        }
+      ],
+      "skills": ["charisma"],
+      "col": 0,
+      "row": 0,
+      "mov": 4,
+      "moveType": "Infantry",
+      "stats": {
+        "HP": 20,
+        "STR": 6,
+        "MAG": 2,
+        "SKL": 7,
+        "SPD": 9,
+        "DEF": 5,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 4
+      },
+      "currentHP": 1,
+      "faction": "player",
+      "weapon": {
+        "name": "Iron Sword",
+        "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+        "type": "Sword",
+        "tier": "Iron",
+        "rankRequired": "Prof",
+        "might": 5,
+        "hit": 95,
+        "crit": 0,
+        "weight": 3,
+        "range": "1",
+        "special": "",
+        "price": 500,
+        "uid": "itm_1_v5nl"
+      },
+      "inventory": [
+        {
+          "name": "Iron Sword",
+          "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+          "type": "Sword",
+          "tier": "Iron",
+          "rankRequired": "Prof",
+          "might": 5,
+          "hit": 95,
+          "crit": 0,
+          "weight": 3,
+          "range": "1",
+          "special": "",
+          "price": 500,
+          "uid": "itm_1_v5nl"
+        },
+        {
+          "name": "Steel Sword",
+          "lore": "Req.: Varen pattern. Delivered: whatever the forge had hot. Signed, under protest.",
+          "type": "Sword",
+          "tier": "Steel",
+          "rankRequired": "Prof",
+          "might": 8,
+          "hit": 85,
+          "crit": 0,
+          "weight": 5,
+          "range": "1",
+          "special": "",
+          "price": 1000,
+          "uid": "itm_2_h04f"
+        }
+      ],
+      "consumables": [
+        {
+          "name": "Vulnerary",
+          "lore": "Apply to the wound, not the mouth. Yes, we have to write that down now.",
+          "type": "Consumable",
+          "effect": "heal",
+          "value": 10,
+          "uses": 2,
+          "price": 300,
+          "uid": "itm_3_8zwf"
+        }
+      ],
+      "accessory": null,
+      "weaponRank": "Prof",
+      "affixes": [],
+      "hasMoved": false,
+      "hasActed": false,
+      "graphic": null,
+      "label": null,
+      "hpBar": null,
+      "_personalSkillL20": {
+        "skillId": "commanders_gambit",
+        "level": 20
+      },
+      "isCommander": true,
+      "traits": ["nimble"],
+      "traitRulesVersion": 2,
+      "factionIndicator": null,
+      "_conditionIcons": null,
+      "affixPips": null,
+      "_miracleUsed": false,
+      "_phoenixBroochUsed": false,
+      "unitUid": "ru1"
+    },
+    {
+      "name": "Sera",
+      "className": "Light Sage",
+      "tier": "base",
+      "level": 1,
+      "xp": 0,
+      "isLord": true,
+      "personalGrowths": {
+        "HP": 5,
+        "STR": 2,
+        "MAG": 3,
+        "SKL": 2,
+        "SPD": 2,
+        "DEF": 2,
+        "RES": 7,
+        "LCK": 4
+      },
+      "growths": {
+        "HP": 59,
+        "STR": 15,
+        "MAG": 47,
+        "SKL": 30,
+        "SPD": 39,
+        "DEF": 25,
+        "RES": 56,
+        "LCK": 39
+      },
+      "proficiencies": [
+        {
+          "type": "Light",
+          "rank": "Prof"
+        },
+        {
+          "type": "Staff",
+          "rank": "Prof"
+        }
+      ],
+      "skills": ["renewal_aura"],
+      "col": 0,
+      "row": 0,
+      "mov": 4,
+      "moveType": "Infantry",
+      "stats": {
+        "HP": 18,
+        "STR": 2,
+        "MAG": 6,
+        "SKL": 4,
+        "SPD": 5,
+        "DEF": 3,
+        "RES": 7,
+        "LCK": 6,
+        "MOV": 4
+      },
+      "currentHP": 18,
+      "faction": "player",
+      "weapon": {
+        "name": "Glimmer",
+        "lore": "The one prayer taught to soldiers, because it is short and it answers.",
+        "type": "Light",
+        "tier": "Iron",
+        "rankRequired": "Prof",
+        "might": 4,
+        "hit": 95,
+        "crit": 5,
+        "weight": 1,
+        "range": "1-2",
+        "special": "Lightest magic",
+        "price": 700,
+        "uid": "itm_4_gy4s"
+      },
+      "inventory": [
+        {
+          "name": "Glimmer",
+          "lore": "The one prayer taught to soldiers, because it is short and it answers.",
+          "type": "Light",
+          "tier": "Iron",
+          "rankRequired": "Prof",
+          "might": 4,
+          "hit": 95,
+          "crit": 5,
+          "weight": 1,
+          "range": "1-2",
+          "special": "Lightest magic",
+          "price": 700,
+          "uid": "itm_4_gy4s"
+        },
+        {
+          "name": "Heal",
+          "lore": "Hold still. It works better when you're not telling me it's only a scratch.",
+          "type": "Staff",
+          "tier": "Iron",
+          "rankRequired": "Prof",
+          "might": 0,
+          "hit": 100,
+          "crit": 0,
+          "weight": 1,
+          "range": "1",
+          "healBase": 5,
+          "uses": 3,
+          "perBattleUses": true,
+          "special": "Heals MAG + 5 HP",
+          "price": 300,
+          "uid": "itm_5_u56t"
+        }
+      ],
+      "consumables": [
+        {
+          "name": "Vulnerary",
+          "lore": "Apply to the wound, not the mouth. Yes, we have to write that down now.",
+          "type": "Consumable",
+          "effect": "heal",
+          "value": 10,
+          "uses": 2,
+          "price": 300,
+          "uid": "itm_6_1ud7"
+        }
+      ],
+      "accessory": null,
+      "weaponRank": "Prof",
+      "affixes": [],
+      "hasMoved": false,
+      "hasActed": false,
+      "graphic": null,
+      "label": null,
+      "hpBar": null,
+      "_personalSkillL20": {
+        "skillId": "flare",
+        "level": 20
+      },
+      "traits": ["overflowing_grace"],
+      "traitRulesVersion": 2,
+      "factionIndicator": null,
+      "_conditionIcons": null,
+      "affixPips": null,
+      "_miracleUsed": false,
+      "_phoenixBroochUsed": false,
+      "unitUid": "ru2"
+    },
+    {
+      "name": "Gaspar",
+      "specialCharId": "old_knight",
+      "className": "Paladin",
+      "baseClass": "Cavalier",
+      "tier": "promoted",
+      "level": 1,
+      "xp": 0,
+      "isLord": false,
+      "personalGrowths": null,
+      "growths": {
+        "HP": 20,
+        "STR": 10,
+        "MAG": 0,
+        "SKL": 15,
+        "SPD": 10,
+        "DEF": 5,
+        "RES": 5,
+        "LCK": 5
+      },
+      "proficiencies": [
+        {
+          "type": "Lance",
+          "rank": "Mast"
+        },
+        {
+          "type": "Sword",
+          "rank": "Mast"
+        }
+      ],
+      "skills": ["measured_step", "aegis"],
+      "traits": ["old_campaigner", "set_in_his_ways"],
+      "traitRulesVersion": 2,
+      "temperament": "wry",
+      "col": 0,
+      "row": 0,
+      "mov": 6,
+      "moveType": "Cavalry",
+      "stats": {
+        "HP": 18,
+        "STR": 10,
+        "MAG": 0,
+        "SKL": 12,
+        "SPD": 10,
+        "DEF": 6,
+        "RES": 2,
+        "LCK": 3,
+        "MOV": 6
+      },
+      "currentHP": 18,
+      "faction": "player",
+      "weapon": {
+        "name": "Steel Lance",
+        "lore": "Steel heads, 300. Ash shafts, 300. Heads fitted to shafts: see next quarter.",
+        "type": "Lance",
+        "tier": "Steel",
+        "rankRequired": "Prof",
+        "might": 9,
+        "hit": 75,
+        "crit": 0,
+        "weight": 8,
+        "range": "1",
+        "special": "",
+        "price": 1000,
+        "uid": "itm_7_lbng"
+      },
+      "inventory": [
+        {
+          "name": "Steel Lance",
+          "lore": "Steel heads, 300. Ash shafts, 300. Heads fitted to shafts: see next quarter.",
+          "type": "Lance",
+          "tier": "Steel",
+          "rankRequired": "Prof",
+          "might": 9,
+          "hit": 75,
+          "crit": 0,
+          "weight": 8,
+          "range": "1",
+          "special": "",
+          "price": 1000,
+          "uid": "itm_7_lbng"
+        },
+        {
+          "name": "Iron Sword",
+          "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+          "type": "Sword",
+          "tier": "Iron",
+          "rankRequired": "Prof",
+          "might": 5,
+          "hit": 95,
+          "crit": 0,
+          "weight": 3,
+          "range": "1",
+          "special": "",
+          "price": 500,
+          "uid": "itm_8_14vf"
+        }
+      ],
+      "consumables": [],
+      "affixes": [],
+      "accessory": null,
+      "hasMoved": false,
+      "hasActed": false,
+      "graphic": null,
+      "label": null,
+      "hpBar": null,
+      "specialRulesVersion": 1,
+      "weaponRank": "Mast",
+      "factionIndicator": null,
+      "_conditionIcons": null,
+      "affixPips": null,
+      "_miracleUsed": false,
+      "_phoenixBroochUsed": false,
+      "unitUid": "ru3"
+    },
+    {
+      "name": "Wren",
+      "className": "Thief",
+      "tier": "base",
+      "level": 5,
+      "xp": 0,
+      "isLord": false,
+      "personalGrowths": null,
+      "growths": {
+        "HP": 53,
+        "STR": 35,
+        "MAG": 2,
+        "SKL": 49,
+        "SPD": 66,
+        "DEF": 19,
+        "RES": 20,
+        "LCK": 53
+      },
+      "proficiencies": [
+        {
+          "type": "Sword",
+          "rank": "Prof"
+        }
+      ],
+      "skills": ["shove", "pull", "blink", "smite", "steal"],
+      "col": 0,
+      "row": 0,
+      "mov": 5,
+      "moveType": "Infantry",
+      "stats": {
+        "HP": 19,
+        "STR": 7,
+        "MAG": 0,
+        "SKL": 8,
+        "SPD": 11,
+        "DEF": 2,
+        "RES": 4,
+        "LCK": 9,
+        "MOV": 5
+      },
+      "currentHP": 19,
+      "faction": "player",
+      "weapon": {
+        "name": "Iron Sword",
+        "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+        "type": "Sword",
+        "tier": "Iron",
+        "rankRequired": "Prof",
+        "might": 5,
+        "hit": 95,
+        "crit": 0,
+        "weight": 3,
+        "range": "1",
+        "special": "",
+        "price": 500,
+        "uid": "itm_12_a8by"
+      },
+      "inventory": [
+        {
+          "name": "Iron Sword",
+          "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+          "type": "Sword",
+          "tier": "Iron",
+          "rankRequired": "Prof",
+          "might": 5,
+          "hit": 95,
+          "crit": 0,
+          "weight": 3,
+          "range": "1",
+          "special": "",
+          "price": 500,
+          "uid": "itm_12_a8by"
+        }
+      ],
+      "consumables": [],
+      "affixes": [],
+      "accessory": null,
+      "weaponRank": "Prof",
+      "hasMoved": false,
+      "hasActed": false,
+      "graphic": null,
+      "label": null,
+      "hpBar": null,
+      "unitUid": "ru4"
+    },
+    {
+      "name": "Ash",
+      "className": "Thief",
+      "tier": "base",
+      "level": 5,
+      "xp": 0,
+      "isLord": false,
+      "personalGrowths": null,
+      "growths": {
+        "HP": 59,
+        "STR": 30,
+        "MAG": 8,
+        "SKL": 49,
+        "SPD": 62,
+        "DEF": 19,
+        "RES": 22,
+        "LCK": 65
+      },
+      "proficiencies": [
+        {
+          "type": "Sword",
+          "rank": "Prof"
+        }
+      ],
+      "skills": ["shove", "pull", "blink", "smite", "steal"],
+      "col": 0,
+      "row": 0,
+      "mov": 5,
+      "moveType": "Infantry",
+      "stats": {
+        "HP": 21,
+        "STR": 4,
+        "MAG": 0,
+        "SKL": 10,
+        "SPD": 10,
+        "DEF": 3,
+        "RES": 3,
+        "LCK": 7,
+        "MOV": 5
+      },
+      "currentHP": 21,
+      "faction": "player",
+      "weapon": {
+        "name": "Iron Sword",
+        "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+        "type": "Sword",
+        "tier": "Iron",
+        "rankRequired": "Prof",
+        "might": 5,
+        "hit": 95,
+        "crit": 0,
+        "weight": 3,
+        "range": "1",
+        "special": "",
+        "price": 500,
+        "uid": "itm_13_w1p3"
+      },
+      "inventory": [
+        {
+          "name": "Iron Sword",
+          "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+          "type": "Sword",
+          "tier": "Iron",
+          "rankRequired": "Prof",
+          "might": 5,
+          "hit": 95,
+          "crit": 0,
+          "weight": 3,
+          "range": "1",
+          "special": "",
+          "price": 500,
+          "uid": "itm_13_w1p3"
+        }
+      ],
+      "consumables": [],
+      "affixes": [],
+      "accessory": null,
+      "weaponRank": "Prof",
+      "hasMoved": false,
+      "hasActed": false,
+      "graphic": null,
+      "label": null,
+      "hpBar": null,
+      "unitUid": "ru5"
+    },
+    {
+      "name": "Rook",
+      "className": "Thief",
+      "tier": "base",
+      "level": 5,
+      "xp": 0,
+      "isLord": false,
+      "personalGrowths": null,
+      "growths": {
+        "HP": 60,
+        "STR": 39,
+        "MAG": 9,
+        "SKL": 48,
+        "SPD": 64,
+        "DEF": 15,
+        "RES": 17,
+        "LCK": 50
+      },
+      "proficiencies": [
+        {
+          "type": "Sword",
+          "rank": "Prof"
+        }
+      ],
+      "skills": ["shove", "pull", "blink", "smite", "steal"],
+      "col": 0,
+      "row": 0,
+      "mov": 5,
+      "moveType": "Infantry",
+      "stats": {
+        "HP": 18,
+        "STR": 7,
+        "MAG": 0,
+        "SKL": 9,
+        "SPD": 13,
+        "DEF": 2,
+        "RES": 2,
+        "LCK": 9,
+        "MOV": 5
+      },
+      "currentHP": 18,
+      "faction": "player",
+      "weapon": {
+        "name": "Iron Sword",
+        "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+        "type": "Sword",
+        "tier": "Iron",
+        "rankRequired": "Prof",
+        "might": 5,
+        "hit": 95,
+        "crit": 0,
+        "weight": 3,
+        "range": "1",
+        "special": "",
+        "price": 500,
+        "uid": "itm_14_pee8"
+      },
+      "inventory": [
+        {
+          "name": "Iron Sword",
+          "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+          "type": "Sword",
+          "tier": "Iron",
+          "rankRequired": "Prof",
+          "might": 5,
+          "hit": 95,
+          "crit": 0,
+          "weight": 3,
+          "range": "1",
+          "special": "",
+          "price": 500,
+          "uid": "itm_14_pee8"
+        }
+      ],
+      "consumables": [],
+      "affixes": [],
+      "accessory": null,
+      "weaponRank": "Prof",
+      "hasMoved": false,
+      "hasActed": false,
+      "graphic": null,
+      "label": null,
+      "hpBar": null,
+      "unitUid": "ru6"
+    },
+    {
+      "name": "Kit",
+      "className": "Thief",
+      "tier": "base",
+      "level": 5,
+      "xp": 0,
+      "isLord": false,
+      "personalGrowths": null,
+      "growths": {
+        "HP": 61,
+        "STR": 30,
+        "MAG": 1,
+        "SKL": 50,
+        "SPD": 55,
+        "DEF": 16,
+        "RES": 17,
+        "LCK": 57
+      },
+      "proficiencies": [
+        {
+          "type": "Sword",
+          "rank": "Prof"
+        }
+      ],
+      "skills": ["shove", "pull", "blink", "smite", "steal"],
+      "col": 0,
+      "row": 0,
+      "mov": 5,
+      "moveType": "Infantry",
+      "stats": {
+        "HP": 18,
+        "STR": 4,
+        "MAG": 0,
+        "SKL": 8,
+        "SPD": 10,
+        "DEF": 3,
+        "RES": 3,
+        "LCK": 9,
+        "MOV": 5
+      },
+      "currentHP": 18,
+      "faction": "player",
+      "weapon": {
+        "name": "Iron Sword",
+        "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+        "type": "Sword",
+        "tier": "Iron",
+        "rankRequired": "Prof",
+        "might": 5,
+        "hit": 95,
+        "crit": 0,
+        "weight": 3,
+        "range": "1",
+        "special": "",
+        "price": 500,
+        "uid": "itm_15_doe0"
+      },
+      "inventory": [
+        {
+          "name": "Iron Sword",
+          "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+          "type": "Sword",
+          "tier": "Iron",
+          "rankRequired": "Prof",
+          "might": 5,
+          "hit": 95,
+          "crit": 0,
+          "weight": 3,
+          "range": "1",
+          "special": "",
+          "price": 500,
+          "uid": "itm_15_doe0"
+        }
+      ],
+      "consumables": [],
+      "affixes": [],
+      "accessory": null,
+      "weaponRank": "Prof",
+      "hasMoved": false,
+      "hasActed": false,
+      "graphic": null,
+      "label": null,
+      "hpBar": null,
+      "unitUid": "ru7"
+    }
+  ],
+  "lastDeployment": [],
+  "fallenUnits": [
+    {
+      "name": "Journey Fallen",
+      "className": "Fighter",
+      "tier": "base",
+      "level": 1,
+      "xp": 0,
+      "isLord": false,
+      "personalGrowths": null,
+      "growths": {
+        "HP": 77,
+        "STR": 68,
+        "MAG": 5,
+        "SKL": 32,
+        "SPD": 35,
+        "DEF": 29,
+        "RES": 5,
+        "LCK": 15
+      },
+      "proficiencies": [
+        {
+          "type": "Axe",
+          "rank": "Prof"
+        }
+      ],
+      "skills": [],
+      "col": 0,
+      "row": 0,
+      "mov": 4,
+      "moveType": "Infantry",
+      "stats": {
+        "HP": 22,
+        "STR": 8,
+        "MAG": 0,
+        "SKL": 3,
+        "SPD": 5,
+        "DEF": 4,
+        "RES": 1,
+        "LCK": 2,
+        "MOV": 4
+      },
+      "currentHP": 0,
+      "faction": "player",
+      "weapon": {
+        "name": "Iron Axe",
+        "lore": "Bark still on the haft. Somebody's woodpile is going to be short this winter.",
+        "type": "Axe",
+        "tier": "Iron",
+        "rankRequired": "Prof",
+        "might": 7,
+        "hit": 80,
+        "crit": 0,
+        "weight": 6,
+        "range": "1",
+        "special": "",
+        "price": 500,
+        "uid": "itm_10_k1cp"
+      },
+      "inventory": [
+        {
+          "name": "Iron Axe",
+          "lore": "Bark still on the haft. Somebody's woodpile is going to be short this winter.",
+          "type": "Axe",
+          "tier": "Iron",
+          "rankRequired": "Prof",
+          "might": 7,
+          "hit": 80,
+          "crit": 0,
+          "weight": 6,
+          "range": "1",
+          "special": "",
+          "price": 500,
+          "uid": "itm_10_k1cp"
+        },
+        {
+          "name": "Hand Axe",
+          "lore": "Hand axe, previously thrown. Some nicks. We don't ask where it landed.",
+          "type": "Axe",
+          "tier": "Iron",
+          "rankRequired": "Prof",
+          "might": 5,
+          "hit": 65,
+          "crit": 0,
+          "weight": 8,
+          "range": "1-2",
+          "special": "Throwable, lower stats",
+          "price": 700,
+          "uid": "itm_11_lhd0"
+        }
+      ],
+      "consumables": [],
+      "affixes": [],
+      "accessory": null,
+      "weaponRank": "Prof",
+      "hasMoved": false,
+      "hasActed": false,
+      "graphic": null,
+      "label": null,
+      "hpBar": null
+    }
+  ],
+  "nextUnitUid": 8,
+  "lastBattleCasualtyNotices": [],
+  "nodeMap": {
+    "actId": "act1",
+    "nodes": [
+      {
+        "id": "journey-shop",
+        "type": "shop",
+        "row": 0,
+        "col": 0,
+        "completed": false,
+        "connections": ["journey-church"]
+      },
+      {
+        "id": "journey-church",
+        "type": "church",
+        "row": 1,
+        "col": 0,
+        "completed": false,
+        "connections": ["journey-arena"]
+      },
+      {
+        "id": "journey-arena",
+        "type": "arena",
+        "row": 2,
+        "col": 0,
+        "completed": false,
+        "connections": []
+      }
+    ],
+    "startNodeId": "act1_0_2",
+    "bossNodeId": "act1_8_2"
+  },
+  "currentNodeId": null,
+  "completedBattles": 2,
+  "winStreak": 0,
+  "maxWinStreak": 0,
+  "gold": 20000,
+  "metaEffects": null,
+  "accessories": [],
+  "scrolls": [],
+  "convoy": {
+    "weapons": [],
+    "consumables": []
+  },
+  "randomLegendary": {
+    "name": "Eclipse",
+    "lore": "Silver over a steel core. Hilt rewrapped four times; the blade never needed it.",
+    "type": "Sword",
+    "tier": "Legend",
+    "rankRequired": "Prof",
+    "might": 12,
+    "hit": 95,
+    "crit": 0,
+    "weight": 3,
+    "range": "1",
+    "special": "+4 DEF when equipped",
+    "price": 0,
+    "_isRandomLegendary": true,
+    "uid": "itm_9_0z5h"
+  },
+  "activeBlessings": [],
+  "blessingHistory": [],
+  "blessingSelectionTelemetry": {
+    "seed": 42,
+    "candidatePoolIds": [
+      "steady_hands",
+      "coin_of_fate",
+      "blessed_vigor",
+      "swift_instinct",
+      "field_medic",
+      "iron_oath",
+      "scout_blessing",
+      "scholar_vow",
+      "rally_cry",
+      "war_veteran",
+      "frugal_smith",
+      "arsenal_pact",
+      "pilgrim_coin",
+      "merchant_bane",
+      "nomad_pact",
+      "terrain_mastery",
+      "quartermaster_cache",
+      "forbidden_tome",
+      "blood_forge",
+      "war_tutelage",
+      "armory_stash",
+      "scroll_archive",
+      "focused_curriculum",
+      "slow_fuse",
+      "gamblers_toss",
+      "bloodless_art",
+      "phalanx_rite",
+      "duelists_creed",
+      "late_bloom",
+      "dawn_tithe",
+      "lone_banner",
+      "cavaliers_hour",
+      "saints_reserve",
+      "cutpurses_luck",
+      "open_roll",
+      "watchers_grace",
+      "patient_dawn",
+      "twin_chapel",
+      "omen_reader",
+      "lottery_loot"
+    ],
+    "offeredIds": ["blessed_vigor", "watchers_grace", "merchant_bane"],
+    "offeredBlessings": [
+      {
+        "id": "blessed_vigor",
+        "lore": "The levy's send-off prayer: out on two feet, home on two feet.",
+        "name": "Blessed Vigor",
+        "tier": 1,
+        "description": "Your starting lords gain +4 maximum HP for this run.",
+        "weight": 1,
+        "boons": [
+          {
+            "type": "run_start_max_hp_bonus",
+            "params": {
+              "value": 4,
+              "scope": "lords"
+            }
+          }
+        ],
+        "costs": [],
+        "rolledCost": null
+      },
+      {
+        "id": "watchers_grace",
+        "name": "Watcher's Grace",
+        "tier": 2,
+        "weight": 1,
+        "description": "+1 Vision charge on every boss map. Unspent, it fades with the battle.",
+        "lore": "Someone keeps watch for the hardest fights. They will not watch for long.",
+        "boons": [
+          {
+            "type": "boss_battle_vision",
+            "params": {
+              "value": 1
+            }
+          }
+        ],
+        "prices": ["shadow_now", "debt_small"],
+        "costs": [],
+        "rolledCost": {
+          "label": "Debt: 850 gold",
+          "effects": [
+            {
+              "type": "burden",
+              "params": {
+                "id": "debt",
+                "owed": 850
+              }
+            }
+          ],
+          "points": 2,
+          "kind": "cost"
+        }
+      },
+      {
+        "id": "merchant_bane",
+        "lore": "A merchant's curse, still on sale. The priest who sells it won't meet your eye.",
+        "name": "Merchant Bane",
+        "tier": 3,
+        "description": "+15% battle gold.",
+        "weight": 1,
+        "tags": ["gold"],
+        "boons": [
+          {
+            "type": "battle_gold_multiplier_delta",
+            "params": {
+              "value": 0.15
+            }
+          }
+        ],
+        "prices": [["hunted", "act1_def_down_1"], ["sworn_enemy", "act1_hit_down"], "vision_down"],
+        "costs": [],
+        "excludes": ["frugal_smith"],
+        "rolledCost": {
+          "label": "Hunted for 2 battles · -1 DEF to all units in Act 1",
+          "effects": [
+            {
+              "type": "burden",
+              "params": {
+                "id": "hunted",
+                "battles": 2
+              }
+            },
+            {
+              "type": "act_stat_delta_all_units",
+              "params": {
+                "act": "act1",
+                "stat": "DEF",
+                "value": -1
+              }
+            }
+          ],
+          "points": 2.5,
+          "kind": "cost"
+        }
+      }
+    ],
+    "chosenIds": [],
+    "chosenBlessings": [],
+    "rejectionReasons": [],
+    "options": {
+      "count": 3,
+      "forceTier1": true,
+      "allowTier4": true
+    }
+  },
+  "startGift": null,
+  "blessingRuntimeModifiers": {
+    "battleGoldMultiplierDelta": 0,
+    "deployCapDelta": 0,
+    "actHitBonusByAct": {},
+    "actStatDeltaAllUnits": [],
+    "skipFirstShop": false,
+    "shopItemCountDelta": 0,
+    "allGrowthsDelta": 0,
+    "allGrowthsDeltas": [],
+    "targetedGrowthsDeltas": [],
+    "disablePersonalSkillsUntilAct": null,
+    "blockedPersonalSkillsByUnit": {},
+    "xpMultiplierDelta": 0,
+    "forgeCostDiscount": 0,
+    "forgeLimitDelta": 0,
+    "shopPriceDiscount": 0,
+    "recruitLevelBonus": 0,
+    "firstStrikeHitBonus": 0,
+    "stationaryCombatBonus": {
+      "defBonus": 0,
+      "avoidBonus": 0
+    },
+    "adjacentAllyDefBonuses": [],
+    "isolatedCombatBonuses": [],
+    "healingEffectivenessMultiplier": 1,
+    "weaponArtHpCostDelta": 0,
+    "playerArtHpCostDelta": 0,
+    "playerArtMapUsesBonus": 0,
+    "enemyLevelDeltas": [],
+    "deployCapDeltaByAct": {},
+    "churchReviveDisabled": false,
+    "actStartGrants": [],
+    "freeForgesPerShop": 0,
+    "extraShopsPerAct": 0,
+    "lordStatArcs": [],
+    "battleGoldGamble": null,
+    "underParGoldPerTurn": 0,
+    "moveTypeBattleStats": [],
+    "staffUsesBonus": 0,
+    "carryMultiplier": 1,
+    "stealIgnoresSpeed": false,
+    "recruitAlternates": 0,
+    "bossBattleVision": 0,
+    "parTurnDelta": 0,
+    "extraChurchVows": 0,
+    "eclipseForetell": 0,
+    "eclipseSpareTypes": [],
+    "nextActLootCards": 0,
+    "battleLastStand": 0,
+    "firstKillHeal": 0,
+    "firstTurnMovDelta": 0,
+    "commanderAuras": [],
+    "reinforcementDelay": 0,
+    "xpPerActCleared": 0,
+    "churchEntryGold": 0,
+    "fogOpeningRadius": 0,
+    "recruitMarkChance": 0,
+    "staffHealBonus": 0,
+    "staffRangeBonus": 0,
+    "arenaFeeMultiplier": 1,
+    "arenaVisitBonus": 0,
+    "weaponsNeverWear": false,
+    "routeScout": 0,
+    "foesShown": false,
+    "eclipseGainDelta": 0,
+    "eclipseGainCarry": 0,
+    "kingmakerPromotion": null,
+    "masterSealsForbidden": false,
+    "lootGoldMultiplierDelta": 0
+  },
+  "runSeed": 42,
+  "legendaryLordChance": 0.05,
+  "runRecordId": "cce129bc-513b-48ca-992c-015fc685c898",
+  "narrativeSeen": {},
+  "totalTurns": 0,
+  "rngSeed": 42,
+  "visionChargesRemaining": 3,
+  "visionCount": 0,
+  "usedRecruitNames": {
+    "Paladin": ["Gaspar"],
+    "__all__": ["Gaspar"]
+  },
+  "battleConfigsByNodeId": {},
+  "shopStateByNodeId": {},
+  "ruinsChoiceByNodeId": {},
+  "churchVowByNodeId": {},
+  "churchTitheByNodeId": {},
+  "eventStateByNodeId": {},
+  "eventLog": [],
+  "storyFlags": {},
+  "burdens": [],
+  "contract": null,
+  "contractOwed": null,
+  "laidToRest": [],
+  "earnedBlessingPicks": {},
+  "difficultyId": "normal",
+  "difficultyModifiers": {
+    "label": "First Light",
+    "color": "#95c487",
+    "enemyStatBonus": 0,
+    "enemyClassEarliestAct": {},
+    "enemyCountBonus": 0,
+    "enemyLevelBonus": 0,
+    "bossLevelBonus": 0,
+    "enemyCountBase": 0,
+    "recruitEnemyCountBonus": 1,
+    "recruitAffixCount": 1,
+    "recruitAffixExcludedActs": ["act1"],
+    "act1EnemyCountDeployCap": 3,
+    "enemyEquipTierShift": 0,
+    "enemySkillChance": 0,
+    "enemyPoisonChance": 0,
+    "enemyStatusStaffChance": 0,
+    "statusStaffConfig": null,
+    "carryConfig": {
+      "perBattle": true,
+      "act1": 0,
+      "act2": 0.15,
+      "act3": 0.2,
+      "act4": 0.25,
+      "finalBoss": 0.25,
+      "maxPerBattle": 1
+    },
+    "shopCureGating": null,
+    "goldMultiplier": 1,
+    "shopPriceMultiplier": 1,
+    "lootQualityShift": 0,
+    "deployLimitBonus": 0,
+    "xpMultiplier": 1,
+    "specialXpMultiplier": 1.3,
+    "xpUnderdogCap": 6,
+    "fogChanceBonus": 0,
+    "villageAmbushChance": 0.1,
+    "reinforcementTurnOffset": 0,
+    "currencyMultiplier": 0.8,
+    "actsIncluded": ["act1", "act2", "act3", "finalBoss"],
+    "extendedLevelingEnabled": false,
+    "churchPromotionLimit": -1,
+    "growthBonusMultiplier": 1,
+    "rewindGranularity": "action",
+    "siegeWeaponConfig": null,
+    "routLadder": null,
+    "parInflation": 1,
+    "templateWavesRaisePar": true,
+    "holdShare": null,
+    "objectiveParOffset": {
+      "escape": -2
+    },
+    "revivalStones": {
+      "actBoss": 0,
+      "emperor": 0,
+      "lieutenant": 0,
+      "eliteCaptain": 0
+    },
+    "villageMinRow": {
+      "act1": 3
+    },
+    "actOverrides": null,
+    "road": "The road: Acts I–III, then the Lieutenant."
+  },
+  "actSequence": ["act1", "act2", "act3", "finalBoss"],
+  "pendingAmbushNodeId": null,
+  "pendingEventNodeId": null,
+  "pendingCaravanShop": null,
+  "pendingBattleReward": null,
+  "rewardRerollsSpent": 0,
+  "legendaryGrants": [],
+  "pendingBossRecruit": null,
+  "pendingThirdLord": null,
+  "reachedFirstActBoss": false,
+  "activeCaravanShop": null,
+  "endRunRewards": null,
+  "metaUnlockedWeaponArts": [],
+  "actUnlockedWeaponArts": [
+    "sword_precise_cut",
+    "sword_wrath_strike",
+    "sword_dueling_blade",
+    "sword_grounder",
+    "sword_advancing_strike",
+    "lance_piercing_drive",
+    "lance_tempest_lance",
+    "lance_countering_strike",
+    "lance_hit_and_run",
+    "axe_wild_swing",
+    "axe_smash",
+    "axe_gamble",
+    "axe_helm_splitter",
+    "bow_longshot",
+    "bow_curved_shot",
+    "bow_heavy_draw",
+    "magic_focused_bolt",
+    "magic_resonance"
+  ],
+  "unlockedWeaponArts": [
+    "sword_precise_cut",
+    "sword_wrath_strike",
+    "sword_dueling_blade",
+    "sword_grounder",
+    "sword_advancing_strike",
+    "lance_piercing_drive",
+    "lance_tempest_lance",
+    "lance_countering_strike",
+    "lance_hit_and_run",
+    "axe_wild_swing",
+    "axe_smash",
+    "axe_gamble",
+    "axe_helm_splitter",
+    "bow_longshot",
+    "bow_curved_shot",
+    "bow_heavy_draw",
+    "magic_focused_bolt",
+    "magic_resonance"
+  ],
+  "shownDialogueKeys": [],
+  "defeatContext": null,
+  "runLordFalls": [],
+  "churchPromotionTracker": null,
+  "noMetaMode": false,
+  "thirdLordJoined": false,
+  "thirdLordRerolled": false,
+  "battleInProgress": {
+    "rewindPolicy": "fixed-v1",
+    "entryBattleState": {
+      "convoy": {
+        "weapons": [],
+        "consumables": []
+      },
+      "accessories": [],
+      "gold": 20000
+    },
+    "nodeId": "journey-shop",
+    "startedAt": 1791783631871,
+    "battleParams": {},
+    "isBoss": false,
+    "isElite": false,
+    "visionChargesAtEntry": 3,
+    "visionCountAtEntry": 0,
+    "rngSeedAtEntry": 42,
+    "rewardRerollsSpentAtEntry": 0,
+    "checkpoint": {
+      "version": 2,
+      "commanderEntityId": "u1",
+      "rewindPolicy": "fixed-v1",
+      "rngState": {
+        "algorithm": "mulberry32-v1",
+        "cursor": 42
+      },
+      "decisionRngState": {
+        "algorithm": "mulberry32-v1",
+        "cursor": 42
+      },
+      "phase": "player",
+      "mapLayout": [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      "temporaryTerrains": [],
+      "playerDeathsThisBattle": 0,
+      "appliedHybridOverrideTurns": [],
+      "pendingHybridOverrideTiles": [],
+      "latePressureWarningShown": false,
+      "battleRecruits": [],
+      "fallenBattleRecords": [],
+      "checkpointIndex": 5,
+      "rngSeed": 42,
+      "visionBaseSeed": 42,
+      "nextEntityId": 8,
+      "turnNumber": 1,
+      "turnPar": null,
+      "playerUnits": [
+        {
+          "name": "Edric",
+          "className": "Lord",
+          "tier": "base",
+          "level": 10,
+          "xp": 0,
+          "isLord": true,
+          "personalGrowths": {
+            "HP": 3,
+            "STR": 2,
+            "MAG": 2,
+            "SKL": 2,
+            "SPD": 2,
+            "DEF": 2,
+            "RES": 2,
+            "LCK": 2
+          },
+          "growths": {
+            "HP": 62,
+            "STR": 45,
+            "MAG": 21,
+            "SKL": 52,
+            "SPD": 57,
+            "DEF": 32,
+            "RES": 20,
+            "LCK": 46
+          },
+          "proficiencies": [
+            {
+              "type": "Sword",
+              "rank": "Prof"
+            }
+          ],
+          "skills": ["charisma"],
+          "col": 0,
+          "row": 3,
+          "mov": 4,
+          "moveType": "Infantry",
+          "stats": {
+            "HP": 20,
+            "STR": 6,
+            "MAG": 2,
+            "SKL": 7,
+            "SPD": 9,
+            "DEF": 5,
+            "RES": 3,
+            "LCK": 6,
+            "MOV": 4
+          },
+          "currentHP": 1,
+          "faction": "player",
+          "weapon": {
+            "name": "Iron Sword",
+            "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+            "type": "Sword",
+            "tier": "Iron",
+            "rankRequired": "Prof",
+            "might": 5,
+            "hit": 95,
+            "crit": 0,
+            "weight": 3,
+            "range": "1",
+            "special": "",
+            "price": 500,
+            "uid": "itm_1_v5nl"
+          },
+          "inventory": [
+            {
+              "name": "Iron Sword",
+              "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+              "type": "Sword",
+              "tier": "Iron",
+              "rankRequired": "Prof",
+              "might": 5,
+              "hit": 95,
+              "crit": 0,
+              "weight": 3,
+              "range": "1",
+              "special": "",
+              "price": 500,
+              "uid": "itm_1_v5nl"
+            },
+            {
+              "name": "Steel Sword",
+              "lore": "Req.: Varen pattern. Delivered: whatever the forge had hot. Signed, under protest.",
+              "type": "Sword",
+              "tier": "Steel",
+              "rankRequired": "Prof",
+              "might": 8,
+              "hit": 85,
+              "crit": 0,
+              "weight": 5,
+              "range": "1",
+              "special": "",
+              "price": 1000,
+              "uid": "itm_2_h04f"
+            }
+          ],
+          "consumables": [
+            {
+              "name": "Vulnerary",
+              "lore": "Apply to the wound, not the mouth. Yes, we have to write that down now.",
+              "type": "Consumable",
+              "effect": "heal",
+              "value": 10,
+              "uses": 2,
+              "price": 300,
+              "uid": "itm_3_8zwf"
+            }
+          ],
+          "accessory": null,
+          "weaponRank": "Prof",
+          "affixes": [],
+          "hasMoved": false,
+          "hasActed": false,
+          "graphic": null,
+          "label": null,
+          "hpBar": null,
+          "_personalSkillL20": {
+            "skillId": "commanders_gambit",
+            "level": 20
+          },
+          "isCommander": true,
+          "traits": ["nimble"],
+          "traitRulesVersion": 2,
+          "factionIndicator": null,
+          "_conditionIcons": null,
+          "affixPips": null,
+          "_miracleUsed": false,
+          "_phoenixBroochUsed": false,
+          "unitUid": "ru1",
+          "battleEntityId": "u1",
+          "equippedInventoryIndex": 0,
+          "_movementCommitted": false,
+          "_movementSpent": 0,
+          "_conditions": []
+        },
+        {
+          "name": "Wren",
+          "className": "Thief",
+          "tier": "base",
+          "level": 5,
+          "xp": 0,
+          "isLord": false,
+          "personalGrowths": null,
+          "growths": {
+            "HP": 53,
+            "STR": 35,
+            "MAG": 2,
+            "SKL": 49,
+            "SPD": 66,
+            "DEF": 19,
+            "RES": 20,
+            "LCK": 53
+          },
+          "proficiencies": [
+            {
+              "type": "Sword",
+              "rank": "Prof"
+            }
+          ],
+          "skills": ["shove", "pull", "blink", "smite", "steal"],
+          "col": 0,
+          "row": 1,
+          "mov": 5,
+          "moveType": "Infantry",
+          "stats": {
+            "HP": 19,
+            "STR": 7,
+            "MAG": 0,
+            "SKL": 8,
+            "SPD": 30,
+            "DEF": 2,
+            "RES": 4,
+            "LCK": 9,
+            "MOV": 5
+          },
+          "currentHP": 19,
+          "faction": "player",
+          "weapon": {
+            "name": "Iron Sword",
+            "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+            "type": "Sword",
+            "tier": "Iron",
+            "rankRequired": "Prof",
+            "might": 5,
+            "hit": 95,
+            "crit": 0,
+            "weight": 3,
+            "range": "1",
+            "special": "",
+            "price": 500,
+            "uid": "itm_12_a8by"
+          },
+          "inventory": [
+            {
+              "name": "Iron Sword",
+              "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+              "type": "Sword",
+              "tier": "Iron",
+              "rankRequired": "Prof",
+              "might": 5,
+              "hit": 95,
+              "crit": 0,
+              "weight": 3,
+              "range": "1",
+              "special": "",
+              "price": 500,
+              "uid": "itm_12_a8by"
+            }
+          ],
+          "consumables": [
+            {
+              "name": "Vulnerary",
+              "lore": "Apply to the wound, not the mouth. Yes, we have to write that down now.",
+              "type": "Consumable",
+              "effect": "heal",
+              "value": 10,
+              "uses": 2,
+              "price": 300,
+              "uid": "itm_vuln_a"
+            }
+          ],
+          "affixes": [],
+          "accessory": null,
+          "weaponRank": "Prof",
+          "hasMoved": false,
+          "hasActed": true,
+          "graphic": null,
+          "label": null,
+          "hpBar": null,
+          "unitUid": "ru4",
+          "battleEntityId": "u2",
+          "factionIndicator": null,
+          "_conditionIcons": null,
+          "affixPips": null,
+          "equippedInventoryIndex": 0,
+          "_movementCommitted": false,
+          "_movementSpent": 0,
+          "_miracleUsed": false,
+          "_phoenixBroochUsed": false,
+          "_conditions": []
+        },
+        {
+          "name": "Ash",
+          "className": "Thief",
+          "tier": "base",
+          "level": 5,
+          "xp": 0,
+          "isLord": false,
+          "personalGrowths": null,
+          "growths": {
+            "HP": 59,
+            "STR": 30,
+            "MAG": 8,
+            "SKL": 49,
+            "SPD": 62,
+            "DEF": 19,
+            "RES": 22,
+            "LCK": 65
+          },
+          "proficiencies": [
+            {
+              "type": "Sword",
+              "rank": "Prof"
+            }
+          ],
+          "skills": ["shove", "pull", "blink", "smite", "steal"],
+          "col": 0,
+          "row": 5,
+          "mov": 5,
+          "moveType": "Infantry",
+          "stats": {
+            "HP": 21,
+            "STR": 4,
+            "MAG": 0,
+            "SKL": 10,
+            "SPD": 30,
+            "DEF": 3,
+            "RES": 3,
+            "LCK": 7,
+            "MOV": 5
+          },
+          "currentHP": 21,
+          "faction": "player",
+          "weapon": {
+            "name": "Iron Sword",
+            "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+            "type": "Sword",
+            "tier": "Iron",
+            "rankRequired": "Prof",
+            "might": 5,
+            "hit": 95,
+            "crit": 0,
+            "weight": 3,
+            "range": "1",
+            "special": "",
+            "price": 500,
+            "uid": "itm_13_w1p3"
+          },
+          "inventory": [
+            {
+              "name": "Iron Sword",
+              "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+              "type": "Sword",
+              "tier": "Iron",
+              "rankRequired": "Prof",
+              "might": 5,
+              "hit": 95,
+              "crit": 0,
+              "weight": 3,
+              "range": "1",
+              "special": "",
+              "price": 500,
+              "uid": "itm_13_w1p3"
+            }
+          ],
+          "consumables": [
+            {
+              "name": "Vulnerary",
+              "lore": "Apply to the wound, not the mouth. Yes, we have to write that down now.",
+              "type": "Consumable",
+              "effect": "heal",
+              "value": 10,
+              "uses": 2,
+              "price": 300,
+              "uid": "itm_vuln_b"
+            }
+          ],
+          "affixes": [],
+          "accessory": null,
+          "weaponRank": "Prof",
+          "hasMoved": false,
+          "hasActed": true,
+          "graphic": null,
+          "label": null,
+          "hpBar": null,
+          "unitUid": "ru5",
+          "battleEntityId": "u3",
+          "factionIndicator": null,
+          "_conditionIcons": null,
+          "affixPips": null,
+          "equippedInventoryIndex": 0,
+          "_movementCommitted": false,
+          "_movementSpent": 0,
+          "_miracleUsed": false,
+          "_phoenixBroochUsed": false,
+          "_conditions": []
+        }
+      ],
+      "enemyUnits": [
+        {
+          "name": "Brigand A",
+          "className": "Light Sage",
+          "tier": "base",
+          "level": 1,
+          "xp": 0,
+          "isLord": true,
+          "personalGrowths": {
+            "HP": 5,
+            "STR": 2,
+            "MAG": 3,
+            "SKL": 2,
+            "SPD": 2,
+            "DEF": 2,
+            "RES": 7,
+            "LCK": 4
+          },
+          "growths": {
+            "HP": 59,
+            "STR": 15,
+            "MAG": 47,
+            "SKL": 30,
+            "SPD": 39,
+            "DEF": 25,
+            "RES": 56,
+            "LCK": 39
+          },
+          "proficiencies": [
+            {
+              "type": "Light",
+              "rank": "Prof"
+            },
+            {
+              "type": "Staff",
+              "rank": "Prof"
+            }
+          ],
+          "skills": ["renewal_aura"],
+          "col": 1,
+          "row": 1,
+          "mov": 4,
+          "moveType": "Infantry",
+          "stats": {
+            "HP": 18,
+            "STR": 2,
+            "MAG": 6,
+            "SKL": 4,
+            "SPD": 1,
+            "DEF": 3,
+            "RES": 7,
+            "LCK": 6,
+            "MOV": 4
+          },
+          "currentHP": 18,
+          "faction": "enemy",
+          "weapon": {
+            "name": "Glimmer",
+            "lore": "The one prayer taught to soldiers, because it is short and it answers.",
+            "type": "Light",
+            "tier": "Iron",
+            "rankRequired": "Prof",
+            "might": 4,
+            "hit": 95,
+            "crit": 5,
+            "weight": 1,
+            "range": "1-2",
+            "special": "Lightest magic",
+            "price": 700,
+            "uid": "itm_4_gy4s"
+          },
+          "inventory": [
+            {
+              "name": "Glimmer",
+              "lore": "The one prayer taught to soldiers, because it is short and it answers.",
+              "type": "Light",
+              "tier": "Iron",
+              "rankRequired": "Prof",
+              "might": 4,
+              "hit": 95,
+              "crit": 5,
+              "weight": 1,
+              "range": "1-2",
+              "special": "Lightest magic",
+              "price": 700,
+              "uid": "itm_4_gy4s"
+            },
+            {
+              "name": "Heal",
+              "lore": "Hold still. It works better when you're not telling me it's only a scratch.",
+              "type": "Staff",
+              "tier": "Iron",
+              "rankRequired": "Prof",
+              "might": 0,
+              "hit": 100,
+              "crit": 0,
+              "weight": 1,
+              "range": "1",
+              "healBase": 5,
+              "uses": 3,
+              "perBattleUses": true,
+              "special": "Heals MAG + 5 HP",
+              "price": 300,
+              "uid": "itm_5_u56t"
+            }
+          ],
+          "consumables": [
+            {
+              "name": "Vulnerary",
+              "lore": "Apply to the wound, not the mouth. Yes, we have to write that down now.",
+              "type": "Consumable",
+              "effect": "heal",
+              "value": 10,
+              "uses": 2,
+              "price": 300,
+              "uid": "itm_6_1ud7"
+            }
+          ],
+          "accessory": null,
+          "weaponRank": "Prof",
+          "affixes": [],
+          "hasMoved": false,
+          "hasActed": false,
+          "graphic": null,
+          "label": null,
+          "hpBar": null,
+          "_personalSkillL20": {
+            "skillId": "flare",
+            "level": 20
+          },
+          "traits": ["overflowing_grace"],
+          "traitRulesVersion": 2,
+          "factionIndicator": null,
+          "_conditionIcons": null,
+          "affixPips": null,
+          "_miracleUsed": false,
+          "_phoenixBroochUsed": false,
+          "unitUid": "ru2",
+          "battleEntityId": "u4",
+          "equippedInventoryIndex": 0,
+          "_movementCommitted": false,
+          "_movementSpent": 0,
+          "_conditions": []
+        },
+        {
+          "name": "Brigand B",
+          "className": "Light Sage",
+          "tier": "base",
+          "level": 1,
+          "xp": 0,
+          "isLord": true,
+          "personalGrowths": {
+            "HP": 5,
+            "STR": 2,
+            "MAG": 3,
+            "SKL": 2,
+            "SPD": 2,
+            "DEF": 2,
+            "RES": 7,
+            "LCK": 4
+          },
+          "growths": {
+            "HP": 59,
+            "STR": 15,
+            "MAG": 47,
+            "SKL": 30,
+            "SPD": 39,
+            "DEF": 25,
+            "RES": 56,
+            "LCK": 39
+          },
+          "proficiencies": [
+            {
+              "type": "Light",
+              "rank": "Prof"
+            },
+            {
+              "type": "Staff",
+              "rank": "Prof"
+            }
+          ],
+          "skills": ["renewal_aura"],
+          "col": 1,
+          "row": 5,
+          "mov": 4,
+          "moveType": "Infantry",
+          "stats": {
+            "HP": 18,
+            "STR": 2,
+            "MAG": 6,
+            "SKL": 4,
+            "SPD": 1,
+            "DEF": 3,
+            "RES": 7,
+            "LCK": 6,
+            "MOV": 4
+          },
+          "currentHP": 18,
+          "faction": "enemy",
+          "weapon": {
+            "name": "Glimmer",
+            "lore": "The one prayer taught to soldiers, because it is short and it answers.",
+            "type": "Light",
+            "tier": "Iron",
+            "rankRequired": "Prof",
+            "might": 4,
+            "hit": 95,
+            "crit": 5,
+            "weight": 1,
+            "range": "1-2",
+            "special": "Lightest magic",
+            "price": 700,
+            "uid": "itm_4_gy4s"
+          },
+          "inventory": [
+            {
+              "name": "Glimmer",
+              "lore": "The one prayer taught to soldiers, because it is short and it answers.",
+              "type": "Light",
+              "tier": "Iron",
+              "rankRequired": "Prof",
+              "might": 4,
+              "hit": 95,
+              "crit": 5,
+              "weight": 1,
+              "range": "1-2",
+              "special": "Lightest magic",
+              "price": 700,
+              "uid": "itm_4_gy4s"
+            },
+            {
+              "name": "Heal",
+              "lore": "Hold still. It works better when you're not telling me it's only a scratch.",
+              "type": "Staff",
+              "tier": "Iron",
+              "rankRequired": "Prof",
+              "might": 0,
+              "hit": 100,
+              "crit": 0,
+              "weight": 1,
+              "range": "1",
+              "healBase": 5,
+              "uses": 3,
+              "perBattleUses": true,
+              "special": "Heals MAG + 5 HP",
+              "price": 300,
+              "uid": "itm_5_u56t"
+            }
+          ],
+          "consumables": [
+            {
+              "name": "Vulnerary",
+              "lore": "Apply to the wound, not the mouth. Yes, we have to write that down now.",
+              "type": "Consumable",
+              "effect": "heal",
+              "value": 10,
+              "uses": 2,
+              "price": 300,
+              "uid": "itm_6_1ud7"
+            }
+          ],
+          "accessory": null,
+          "weaponRank": "Prof",
+          "affixes": [],
+          "hasMoved": false,
+          "hasActed": false,
+          "graphic": null,
+          "label": null,
+          "hpBar": null,
+          "_personalSkillL20": {
+            "skillId": "flare",
+            "level": 20
+          },
+          "traits": ["overflowing_grace"],
+          "traitRulesVersion": 2,
+          "factionIndicator": null,
+          "_conditionIcons": null,
+          "affixPips": null,
+          "_miracleUsed": false,
+          "_phoenixBroochUsed": false,
+          "unitUid": "ru2",
+          "battleEntityId": "u5",
+          "equippedInventoryIndex": 0,
+          "_movementCommitted": false,
+          "_movementSpent": 0,
+          "_conditions": []
+        }
+      ],
+      "npcUnits": [],
+      "escapedUnits": [
+        {
+          "name": "Kit",
+          "className": "Thief",
+          "tier": "base",
+          "level": 5,
+          "xp": 0,
+          "isLord": false,
+          "personalGrowths": null,
+          "growths": {
+            "HP": 61,
+            "STR": 30,
+            "MAG": 1,
+            "SKL": 50,
+            "SPD": 55,
+            "DEF": 16,
+            "RES": 17,
+            "LCK": 57
+          },
+          "proficiencies": [
+            {
+              "type": "Sword",
+              "rank": "Prof"
+            }
+          ],
+          "skills": ["shove", "pull", "blink", "smite", "steal"],
+          "col": 0,
+          "row": 0,
+          "mov": 5,
+          "moveType": "Infantry",
+          "stats": {
+            "HP": 18,
+            "STR": 4,
+            "MAG": 0,
+            "SKL": 8,
+            "SPD": 10,
+            "DEF": 3,
+            "RES": 3,
+            "LCK": 9,
+            "MOV": 5
+          },
+          "currentHP": 18,
+          "faction": "player",
+          "weapon": {
+            "name": "Iron Sword",
+            "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+            "type": "Sword",
+            "tier": "Iron",
+            "rankRequired": "Prof",
+            "might": 5,
+            "hit": 95,
+            "crit": 0,
+            "weight": 3,
+            "range": "1",
+            "special": "",
+            "price": 500,
+            "uid": "itm_15_doe0"
+          },
+          "inventory": [
+            {
+              "name": "Iron Sword",
+              "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+              "type": "Sword",
+              "tier": "Iron",
+              "rankRequired": "Prof",
+              "might": 5,
+              "hit": 95,
+              "crit": 0,
+              "weight": 3,
+              "range": "1",
+              "special": "",
+              "price": 500,
+              "uid": "itm_15_doe0"
+            }
+          ],
+          "consumables": [],
+          "affixes": [],
+          "accessory": null,
+          "weaponRank": "Prof",
+          "hasMoved": false,
+          "hasActed": false,
+          "graphic": null,
+          "label": null,
+          "hpBar": null,
+          "unitUid": "ru7",
+          "battleEntityId": "u7",
+          "factionIndicator": null,
+          "_conditionIcons": null,
+          "affixPips": null,
+          "equippedInventoryIndex": 0,
+          "_movementCommitted": false,
+          "_movementSpent": 0,
+          "_miracleUsed": false,
+          "_phoenixBroochUsed": false,
+          "_conditions": []
+        }
+      ],
+      "nonDeployedUnits": [
+        {
+          "name": "Rook",
+          "className": "Thief",
+          "tier": "base",
+          "level": 5,
+          "xp": 0,
+          "isLord": false,
+          "personalGrowths": null,
+          "growths": {
+            "HP": 60,
+            "STR": 39,
+            "MAG": 9,
+            "SKL": 48,
+            "SPD": 64,
+            "DEF": 15,
+            "RES": 17,
+            "LCK": 50
+          },
+          "proficiencies": [
+            {
+              "type": "Sword",
+              "rank": "Prof"
+            }
+          ],
+          "skills": ["shove", "pull", "blink", "smite", "steal"],
+          "col": 0,
+          "row": 0,
+          "mov": 5,
+          "moveType": "Infantry",
+          "stats": {
+            "HP": 18,
+            "STR": 7,
+            "MAG": 0,
+            "SKL": 9,
+            "SPD": 13,
+            "DEF": 2,
+            "RES": 2,
+            "LCK": 9,
+            "MOV": 5
+          },
+          "currentHP": 18,
+          "faction": "player",
+          "weapon": {
+            "name": "Iron Sword",
+            "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+            "type": "Sword",
+            "tier": "Iron",
+            "rankRequired": "Prof",
+            "might": 5,
+            "hit": 95,
+            "crit": 0,
+            "weight": 3,
+            "range": "1",
+            "special": "",
+            "price": 500,
+            "uid": "itm_14_pee8"
+          },
+          "inventory": [
+            {
+              "name": "Iron Sword",
+              "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+              "type": "Sword",
+              "tier": "Iron",
+              "rankRequired": "Prof",
+              "might": 5,
+              "hit": 95,
+              "crit": 0,
+              "weight": 3,
+              "range": "1",
+              "special": "",
+              "price": 500,
+              "uid": "itm_14_pee8"
+            }
+          ],
+          "consumables": [],
+          "affixes": [],
+          "accessory": null,
+          "weaponRank": "Prof",
+          "hasMoved": false,
+          "hasActed": false,
+          "graphic": null,
+          "label": null,
+          "hpBar": null,
+          "unitUid": "ru6",
+          "battleEntityId": "u6",
+          "factionIndicator": null,
+          "_conditionIcons": null,
+          "affixPips": null,
+          "equippedInventoryIndex": 0,
+          "_movementCommitted": false,
+          "_movementSpent": 0,
+          "_miracleUsed": false,
+          "_phoenixBroochUsed": false,
+          "_conditions": []
+        }
+      ],
+      "pendingActionCompletion": null,
+      "pendingCommittedAction": null,
+      "antiTurtleState": {},
+      "fog": null,
+      "ballistas": [],
+      "zombieTombstones": [],
+      "goldEarned": 0,
+      "bossName": null,
+      "caravanExited": false,
+      "villageState": null,
+      "runBattleState": {
+        "convoy": {
+          "weapons": [],
+          "consumables": []
+        },
+        "accessories": [],
+        "gold": 20000,
+        "rewardRerollsSpent": 0
+      },
+      "visionSnapshot": {
+        "version": 2,
+        "commanderEntityId": "u1",
+        "rewindPolicy": "fixed-v1",
+        "rngState": {
+          "algorithm": "mulberry32-v1",
+          "cursor": 42
+        },
+        "decisionRngState": {
+          "algorithm": "mulberry32-v1",
+          "cursor": 42
+        },
+        "phase": "player",
+        "mapLayout": [
+          [0, 0, 0, 0, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0, 0, 0, 0]
+        ],
+        "temporaryTerrains": [],
+        "playerDeathsThisBattle": 0,
+        "appliedHybridOverrideTurns": [],
+        "pendingHybridOverrideTiles": [],
+        "latePressureWarningShown": false,
+        "battleRecruits": [],
+        "fallenBattleRecords": [],
+        "checkpointIndex": 0,
+        "rngSeed": 42,
+        "visionBaseSeed": 42,
+        "nextEntityId": 8,
+        "turnNumber": 1,
+        "turnPar": null,
+        "playerUnits": [
+          {
+            "name": "Edric",
+            "className": "Lord",
+            "tier": "base",
+            "level": 10,
+            "xp": 0,
+            "isLord": true,
+            "personalGrowths": {
+              "HP": 3,
+              "STR": 2,
+              "MAG": 2,
+              "SKL": 2,
+              "SPD": 2,
+              "DEF": 2,
+              "RES": 2,
+              "LCK": 2
+            },
+            "growths": {
+              "HP": 62,
+              "STR": 45,
+              "MAG": 21,
+              "SKL": 52,
+              "SPD": 57,
+              "DEF": 32,
+              "RES": 20,
+              "LCK": 46
+            },
+            "proficiencies": [
+              {
+                "type": "Sword",
+                "rank": "Prof"
+              }
+            ],
+            "skills": ["charisma"],
+            "col": 0,
+            "row": 3,
+            "mov": 4,
+            "moveType": "Infantry",
+            "stats": {
+              "HP": 20,
+              "STR": 6,
+              "MAG": 2,
+              "SKL": 7,
+              "SPD": 9,
+              "DEF": 5,
+              "RES": 3,
+              "LCK": 6,
+              "MOV": 4
+            },
+            "currentHP": 1,
+            "faction": "player",
+            "weapon": {
+              "name": "Iron Sword",
+              "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+              "type": "Sword",
+              "tier": "Iron",
+              "rankRequired": "Prof",
+              "might": 5,
+              "hit": 95,
+              "crit": 0,
+              "weight": 3,
+              "range": "1",
+              "special": "",
+              "price": 500,
+              "uid": "itm_1_v5nl"
+            },
+            "inventory": [
+              {
+                "name": "Iron Sword",
+                "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+                "type": "Sword",
+                "tier": "Iron",
+                "rankRequired": "Prof",
+                "might": 5,
+                "hit": 95,
+                "crit": 0,
+                "weight": 3,
+                "range": "1",
+                "special": "",
+                "price": 500,
+                "uid": "itm_1_v5nl"
+              },
+              {
+                "name": "Steel Sword",
+                "lore": "Req.: Varen pattern. Delivered: whatever the forge had hot. Signed, under protest.",
+                "type": "Sword",
+                "tier": "Steel",
+                "rankRequired": "Prof",
+                "might": 8,
+                "hit": 85,
+                "crit": 0,
+                "weight": 5,
+                "range": "1",
+                "special": "",
+                "price": 1000,
+                "uid": "itm_2_h04f"
+              }
+            ],
+            "consumables": [
+              {
+                "name": "Vulnerary",
+                "lore": "Apply to the wound, not the mouth. Yes, we have to write that down now.",
+                "type": "Consumable",
+                "effect": "heal",
+                "value": 10,
+                "uses": 2,
+                "price": 300,
+                "uid": "itm_3_8zwf"
+              }
+            ],
+            "accessory": null,
+            "weaponRank": "Prof",
+            "affixes": [],
+            "hasMoved": false,
+            "hasActed": false,
+            "graphic": null,
+            "label": null,
+            "hpBar": null,
+            "_personalSkillL20": {
+              "skillId": "commanders_gambit",
+              "level": 20
+            },
+            "isCommander": true,
+            "traits": ["nimble"],
+            "traitRulesVersion": 2,
+            "factionIndicator": null,
+            "_conditionIcons": null,
+            "affixPips": null,
+            "_miracleUsed": false,
+            "_phoenixBroochUsed": false,
+            "unitUid": "ru1",
+            "battleEntityId": "u1",
+            "equippedInventoryIndex": 0,
+            "_movementCommitted": false,
+            "_movementSpent": 0,
+            "_conditions": []
+          },
+          {
+            "name": "Wren",
+            "className": "Thief",
+            "tier": "base",
+            "level": 5,
+            "xp": 0,
+            "isLord": false,
+            "personalGrowths": null,
+            "growths": {
+              "HP": 53,
+              "STR": 35,
+              "MAG": 2,
+              "SKL": 49,
+              "SPD": 66,
+              "DEF": 19,
+              "RES": 20,
+              "LCK": 53
+            },
+            "proficiencies": [
+              {
+                "type": "Sword",
+                "rank": "Prof"
+              }
+            ],
+            "skills": ["shove", "pull", "blink", "smite", "steal"],
+            "col": 0,
+            "row": 1,
+            "mov": 5,
+            "moveType": "Infantry",
+            "stats": {
+              "HP": 19,
+              "STR": 7,
+              "MAG": 0,
+              "SKL": 8,
+              "SPD": 30,
+              "DEF": 2,
+              "RES": 4,
+              "LCK": 9,
+              "MOV": 5
+            },
+            "currentHP": 19,
+            "faction": "player",
+            "weapon": {
+              "name": "Iron Sword",
+              "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+              "type": "Sword",
+              "tier": "Iron",
+              "rankRequired": "Prof",
+              "might": 5,
+              "hit": 95,
+              "crit": 0,
+              "weight": 3,
+              "range": "1",
+              "special": "",
+              "price": 500,
+              "uid": "itm_12_a8by"
+            },
+            "inventory": [
+              {
+                "name": "Iron Sword",
+                "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+                "type": "Sword",
+                "tier": "Iron",
+                "rankRequired": "Prof",
+                "might": 5,
+                "hit": 95,
+                "crit": 0,
+                "weight": 3,
+                "range": "1",
+                "special": "",
+                "price": 500,
+                "uid": "itm_12_a8by"
+              }
+            ],
+            "consumables": [],
+            "affixes": [],
+            "accessory": null,
+            "weaponRank": "Prof",
+            "hasMoved": false,
+            "hasActed": false,
+            "graphic": null,
+            "label": null,
+            "hpBar": null,
+            "unitUid": "ru4",
+            "battleEntityId": "u2",
+            "factionIndicator": null,
+            "_conditionIcons": null,
+            "affixPips": null,
+            "equippedInventoryIndex": 0,
+            "_movementCommitted": false,
+            "_movementSpent": 0,
+            "_miracleUsed": false,
+            "_phoenixBroochUsed": false,
+            "_conditions": []
+          },
+          {
+            "name": "Ash",
+            "className": "Thief",
+            "tier": "base",
+            "level": 5,
+            "xp": 0,
+            "isLord": false,
+            "personalGrowths": null,
+            "growths": {
+              "HP": 59,
+              "STR": 30,
+              "MAG": 8,
+              "SKL": 49,
+              "SPD": 62,
+              "DEF": 19,
+              "RES": 22,
+              "LCK": 65
+            },
+            "proficiencies": [
+              {
+                "type": "Sword",
+                "rank": "Prof"
+              }
+            ],
+            "skills": ["shove", "pull", "blink", "smite", "steal"],
+            "col": 0,
+            "row": 5,
+            "mov": 5,
+            "moveType": "Infantry",
+            "stats": {
+              "HP": 21,
+              "STR": 4,
+              "MAG": 0,
+              "SKL": 10,
+              "SPD": 30,
+              "DEF": 3,
+              "RES": 3,
+              "LCK": 7,
+              "MOV": 5
+            },
+            "currentHP": 21,
+            "faction": "player",
+            "weapon": {
+              "name": "Iron Sword",
+              "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+              "type": "Sword",
+              "tier": "Iron",
+              "rankRequired": "Prof",
+              "might": 5,
+              "hit": 95,
+              "crit": 0,
+              "weight": 3,
+              "range": "1",
+              "special": "",
+              "price": 500,
+              "uid": "itm_13_w1p3"
+            },
+            "inventory": [
+              {
+                "name": "Iron Sword",
+                "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+                "type": "Sword",
+                "tier": "Iron",
+                "rankRequired": "Prof",
+                "might": 5,
+                "hit": 95,
+                "crit": 0,
+                "weight": 3,
+                "range": "1",
+                "special": "",
+                "price": 500,
+                "uid": "itm_13_w1p3"
+              }
+            ],
+            "consumables": [],
+            "affixes": [],
+            "accessory": null,
+            "weaponRank": "Prof",
+            "hasMoved": false,
+            "hasActed": false,
+            "graphic": null,
+            "label": null,
+            "hpBar": null,
+            "unitUid": "ru5",
+            "battleEntityId": "u3",
+            "factionIndicator": null,
+            "_conditionIcons": null,
+            "affixPips": null,
+            "equippedInventoryIndex": 0,
+            "_movementCommitted": false,
+            "_movementSpent": 0,
+            "_miracleUsed": false,
+            "_phoenixBroochUsed": false,
+            "_conditions": []
+          }
+        ],
+        "enemyUnits": [
+          {
+            "name": "Brigand A",
+            "className": "Light Sage",
+            "tier": "base",
+            "level": 1,
+            "xp": 0,
+            "isLord": true,
+            "personalGrowths": {
+              "HP": 5,
+              "STR": 2,
+              "MAG": 3,
+              "SKL": 2,
+              "SPD": 2,
+              "DEF": 2,
+              "RES": 7,
+              "LCK": 4
+            },
+            "growths": {
+              "HP": 59,
+              "STR": 15,
+              "MAG": 47,
+              "SKL": 30,
+              "SPD": 39,
+              "DEF": 25,
+              "RES": 56,
+              "LCK": 39
+            },
+            "proficiencies": [
+              {
+                "type": "Light",
+                "rank": "Prof"
+              },
+              {
+                "type": "Staff",
+                "rank": "Prof"
+              }
+            ],
+            "skills": ["renewal_aura"],
+            "col": 1,
+            "row": 1,
+            "mov": 4,
+            "moveType": "Infantry",
+            "stats": {
+              "HP": 18,
+              "STR": 2,
+              "MAG": 6,
+              "SKL": 4,
+              "SPD": 1,
+              "DEF": 3,
+              "RES": 7,
+              "LCK": 6,
+              "MOV": 4
+            },
+            "currentHP": 18,
+            "faction": "enemy",
+            "weapon": {
+              "name": "Glimmer",
+              "lore": "The one prayer taught to soldiers, because it is short and it answers.",
+              "type": "Light",
+              "tier": "Iron",
+              "rankRequired": "Prof",
+              "might": 4,
+              "hit": 95,
+              "crit": 5,
+              "weight": 1,
+              "range": "1-2",
+              "special": "Lightest magic",
+              "price": 700,
+              "uid": "itm_4_gy4s"
+            },
+            "inventory": [
+              {
+                "name": "Glimmer",
+                "lore": "The one prayer taught to soldiers, because it is short and it answers.",
+                "type": "Light",
+                "tier": "Iron",
+                "rankRequired": "Prof",
+                "might": 4,
+                "hit": 95,
+                "crit": 5,
+                "weight": 1,
+                "range": "1-2",
+                "special": "Lightest magic",
+                "price": 700,
+                "uid": "itm_4_gy4s"
+              },
+              {
+                "name": "Heal",
+                "lore": "Hold still. It works better when you're not telling me it's only a scratch.",
+                "type": "Staff",
+                "tier": "Iron",
+                "rankRequired": "Prof",
+                "might": 0,
+                "hit": 100,
+                "crit": 0,
+                "weight": 1,
+                "range": "1",
+                "healBase": 5,
+                "uses": 3,
+                "perBattleUses": true,
+                "special": "Heals MAG + 5 HP",
+                "price": 300,
+                "uid": "itm_5_u56t"
+              }
+            ],
+            "consumables": [
+              {
+                "name": "Vulnerary",
+                "lore": "Apply to the wound, not the mouth. Yes, we have to write that down now.",
+                "type": "Consumable",
+                "effect": "heal",
+                "value": 10,
+                "uses": 2,
+                "price": 300,
+                "uid": "itm_6_1ud7"
+              }
+            ],
+            "accessory": null,
+            "weaponRank": "Prof",
+            "affixes": [],
+            "hasMoved": false,
+            "hasActed": false,
+            "graphic": null,
+            "label": null,
+            "hpBar": null,
+            "_personalSkillL20": {
+              "skillId": "flare",
+              "level": 20
+            },
+            "traits": ["overflowing_grace"],
+            "traitRulesVersion": 2,
+            "factionIndicator": null,
+            "_conditionIcons": null,
+            "affixPips": null,
+            "_miracleUsed": false,
+            "_phoenixBroochUsed": false,
+            "unitUid": "ru2",
+            "carriedItem": {
+              "name": "Vulnerary",
+              "lore": "Apply to the wound, not the mouth. Yes, we have to write that down now.",
+              "type": "Consumable",
+              "effect": "heal",
+              "value": 10,
+              "uses": 2,
+              "price": 300,
+              "uid": "itm_vuln_a"
+            },
+            "battleEntityId": "u4",
+            "equippedInventoryIndex": 0,
+            "_movementCommitted": false,
+            "_movementSpent": 0,
+            "_conditions": []
+          },
+          {
+            "name": "Brigand B",
+            "className": "Light Sage",
+            "tier": "base",
+            "level": 1,
+            "xp": 0,
+            "isLord": true,
+            "personalGrowths": {
+              "HP": 5,
+              "STR": 2,
+              "MAG": 3,
+              "SKL": 2,
+              "SPD": 2,
+              "DEF": 2,
+              "RES": 7,
+              "LCK": 4
+            },
+            "growths": {
+              "HP": 59,
+              "STR": 15,
+              "MAG": 47,
+              "SKL": 30,
+              "SPD": 39,
+              "DEF": 25,
+              "RES": 56,
+              "LCK": 39
+            },
+            "proficiencies": [
+              {
+                "type": "Light",
+                "rank": "Prof"
+              },
+              {
+                "type": "Staff",
+                "rank": "Prof"
+              }
+            ],
+            "skills": ["renewal_aura"],
+            "col": 1,
+            "row": 5,
+            "mov": 4,
+            "moveType": "Infantry",
+            "stats": {
+              "HP": 18,
+              "STR": 2,
+              "MAG": 6,
+              "SKL": 4,
+              "SPD": 1,
+              "DEF": 3,
+              "RES": 7,
+              "LCK": 6,
+              "MOV": 4
+            },
+            "currentHP": 18,
+            "faction": "enemy",
+            "weapon": {
+              "name": "Glimmer",
+              "lore": "The one prayer taught to soldiers, because it is short and it answers.",
+              "type": "Light",
+              "tier": "Iron",
+              "rankRequired": "Prof",
+              "might": 4,
+              "hit": 95,
+              "crit": 5,
+              "weight": 1,
+              "range": "1-2",
+              "special": "Lightest magic",
+              "price": 700,
+              "uid": "itm_4_gy4s"
+            },
+            "inventory": [
+              {
+                "name": "Glimmer",
+                "lore": "The one prayer taught to soldiers, because it is short and it answers.",
+                "type": "Light",
+                "tier": "Iron",
+                "rankRequired": "Prof",
+                "might": 4,
+                "hit": 95,
+                "crit": 5,
+                "weight": 1,
+                "range": "1-2",
+                "special": "Lightest magic",
+                "price": 700,
+                "uid": "itm_4_gy4s"
+              },
+              {
+                "name": "Heal",
+                "lore": "Hold still. It works better when you're not telling me it's only a scratch.",
+                "type": "Staff",
+                "tier": "Iron",
+                "rankRequired": "Prof",
+                "might": 0,
+                "hit": 100,
+                "crit": 0,
+                "weight": 1,
+                "range": "1",
+                "healBase": 5,
+                "uses": 3,
+                "perBattleUses": true,
+                "special": "Heals MAG + 5 HP",
+                "price": 300,
+                "uid": "itm_5_u56t"
+              }
+            ],
+            "consumables": [
+              {
+                "name": "Vulnerary",
+                "lore": "Apply to the wound, not the mouth. Yes, we have to write that down now.",
+                "type": "Consumable",
+                "effect": "heal",
+                "value": 10,
+                "uses": 2,
+                "price": 300,
+                "uid": "itm_6_1ud7"
+              }
+            ],
+            "accessory": null,
+            "weaponRank": "Prof",
+            "affixes": [],
+            "hasMoved": false,
+            "hasActed": false,
+            "graphic": null,
+            "label": null,
+            "hpBar": null,
+            "_personalSkillL20": {
+              "skillId": "flare",
+              "level": 20
+            },
+            "traits": ["overflowing_grace"],
+            "traitRulesVersion": 2,
+            "factionIndicator": null,
+            "_conditionIcons": null,
+            "affixPips": null,
+            "_miracleUsed": false,
+            "_phoenixBroochUsed": false,
+            "unitUid": "ru2",
+            "carriedItem": {
+              "name": "Vulnerary",
+              "lore": "Apply to the wound, not the mouth. Yes, we have to write that down now.",
+              "type": "Consumable",
+              "effect": "heal",
+              "value": 10,
+              "uses": 2,
+              "price": 300,
+              "uid": "itm_vuln_b"
+            },
+            "battleEntityId": "u5",
+            "equippedInventoryIndex": 0,
+            "_movementCommitted": false,
+            "_movementSpent": 0,
+            "_conditions": []
+          }
+        ],
+        "npcUnits": [],
+        "escapedUnits": [
+          {
+            "name": "Kit",
+            "className": "Thief",
+            "tier": "base",
+            "level": 5,
+            "xp": 0,
+            "isLord": false,
+            "personalGrowths": null,
+            "growths": {
+              "HP": 61,
+              "STR": 30,
+              "MAG": 1,
+              "SKL": 50,
+              "SPD": 55,
+              "DEF": 16,
+              "RES": 17,
+              "LCK": 57
+            },
+            "proficiencies": [
+              {
+                "type": "Sword",
+                "rank": "Prof"
+              }
+            ],
+            "skills": ["shove", "pull", "blink", "smite", "steal"],
+            "col": 0,
+            "row": 0,
+            "mov": 5,
+            "moveType": "Infantry",
+            "stats": {
+              "HP": 18,
+              "STR": 4,
+              "MAG": 0,
+              "SKL": 8,
+              "SPD": 10,
+              "DEF": 3,
+              "RES": 3,
+              "LCK": 9,
+              "MOV": 5
+            },
+            "currentHP": 18,
+            "faction": "player",
+            "weapon": {
+              "name": "Iron Sword",
+              "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+              "type": "Sword",
+              "tier": "Iron",
+              "rankRequired": "Prof",
+              "might": 5,
+              "hit": 95,
+              "crit": 0,
+              "weight": 3,
+              "range": "1",
+              "special": "",
+              "price": 500,
+              "uid": "itm_15_doe0"
+            },
+            "inventory": [
+              {
+                "name": "Iron Sword",
+                "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+                "type": "Sword",
+                "tier": "Iron",
+                "rankRequired": "Prof",
+                "might": 5,
+                "hit": 95,
+                "crit": 0,
+                "weight": 3,
+                "range": "1",
+                "special": "",
+                "price": 500,
+                "uid": "itm_15_doe0"
+              }
+            ],
+            "consumables": [],
+            "affixes": [],
+            "accessory": null,
+            "weaponRank": "Prof",
+            "hasMoved": false,
+            "hasActed": false,
+            "graphic": null,
+            "label": null,
+            "hpBar": null,
+            "unitUid": "ru7",
+            "battleEntityId": "u7",
+            "factionIndicator": null,
+            "_conditionIcons": null,
+            "affixPips": null,
+            "equippedInventoryIndex": 0,
+            "_movementCommitted": false,
+            "_movementSpent": 0,
+            "_miracleUsed": false,
+            "_phoenixBroochUsed": false,
+            "_conditions": []
+          }
+        ],
+        "nonDeployedUnits": [
+          {
+            "name": "Rook",
+            "className": "Thief",
+            "tier": "base",
+            "level": 5,
+            "xp": 0,
+            "isLord": false,
+            "personalGrowths": null,
+            "growths": {
+              "HP": 60,
+              "STR": 39,
+              "MAG": 9,
+              "SKL": 48,
+              "SPD": 64,
+              "DEF": 15,
+              "RES": 17,
+              "LCK": 50
+            },
+            "proficiencies": [
+              {
+                "type": "Sword",
+                "rank": "Prof"
+              }
+            ],
+            "skills": ["shove", "pull", "blink", "smite", "steal"],
+            "col": 0,
+            "row": 0,
+            "mov": 5,
+            "moveType": "Infantry",
+            "stats": {
+              "HP": 18,
+              "STR": 7,
+              "MAG": 0,
+              "SKL": 9,
+              "SPD": 13,
+              "DEF": 2,
+              "RES": 2,
+              "LCK": 9,
+              "MOV": 5
+            },
+            "currentHP": 18,
+            "faction": "player",
+            "weapon": {
+              "name": "Iron Sword",
+              "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+              "type": "Sword",
+              "tier": "Iron",
+              "rankRequired": "Prof",
+              "might": 5,
+              "hit": 95,
+              "crit": 0,
+              "weight": 3,
+              "range": "1",
+              "special": "",
+              "price": 500,
+              "uid": "itm_14_pee8"
+            },
+            "inventory": [
+              {
+                "name": "Iron Sword",
+                "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+                "type": "Sword",
+                "tier": "Iron",
+                "rankRequired": "Prof",
+                "might": 5,
+                "hit": 95,
+                "crit": 0,
+                "weight": 3,
+                "range": "1",
+                "special": "",
+                "price": 500,
+                "uid": "itm_14_pee8"
+              }
+            ],
+            "consumables": [],
+            "affixes": [],
+            "accessory": null,
+            "weaponRank": "Prof",
+            "hasMoved": false,
+            "hasActed": false,
+            "graphic": null,
+            "label": null,
+            "hpBar": null,
+            "unitUid": "ru6",
+            "battleEntityId": "u6",
+            "factionIndicator": null,
+            "_conditionIcons": null,
+            "affixPips": null,
+            "equippedInventoryIndex": 0,
+            "_movementCommitted": false,
+            "_movementSpent": 0,
+            "_miracleUsed": false,
+            "_phoenixBroochUsed": false,
+            "_conditions": []
+          }
+        ],
+        "pendingActionCompletion": null,
+        "pendingCommittedAction": null,
+        "antiTurtleState": {},
+        "fog": null,
+        "ballistas": [],
+        "zombieTombstones": [],
+        "goldEarned": 0,
+        "bossName": null,
+        "caravanExited": false,
+        "villageState": null,
+        "runBattleState": {
+          "convoy": {
+            "weapons": [],
+            "consumables": []
+          },
+          "accessories": [],
+          "gold": 20000,
+          "rewardRerollsSpent": 0
+        }
+      },
+      "pendingVisionSnapshot": null,
+      "prologueState": null
+    },
+    "timeline": {
+      "version": 3,
+      "policy": "fixed-v1",
+      "revision": 0,
+      "nextEntryId": 4,
+      "currentTurn": 1,
+      "earlierHistoryUnavailable": false,
+      "limits": {
+        "previousTurns": 3,
+        "maxEntries": 500,
+        "maxBytes": 524288
+      },
+      "entries": [
+        {
+          "id": 1,
+          "revision": 0,
+          "kind": "turn_start",
+          "turnNumber": 1,
+          "phase": "player",
+          "facts": ["Player turn begins."],
+          "preview": {
+            "cols": 8,
+            "rows": 8,
+            "units": [
+              {
+                "id": "u1",
+                "name": "Edric",
+                "faction": "player",
+                "col": 0,
+                "row": 3,
+                "hp": 1,
+                "maxHP": 20,
+                "level": 10,
+                "acted": false,
+                "weapon": "Iron Sword",
+                "items": ["Iron Sword", "Steel Sword", "Vulnerary (2)"],
+                "conditions": []
+              },
+              {
+                "id": "u2",
+                "name": "Wren",
+                "faction": "player",
+                "col": 0,
+                "row": 1,
+                "hp": 19,
+                "maxHP": 19,
+                "level": 5,
+                "acted": false,
+                "weapon": "Iron Sword",
+                "items": ["Iron Sword"],
+                "conditions": []
+              },
+              {
+                "id": "u3",
+                "name": "Ash",
+                "faction": "player",
+                "col": 0,
+                "row": 5,
+                "hp": 21,
+                "maxHP": 21,
+                "level": 5,
+                "acted": false,
+                "weapon": "Iron Sword",
+                "items": ["Iron Sword"],
+                "conditions": []
+              },
+              {
+                "id": "u4",
+                "name": "Brigand A",
+                "faction": "enemy",
+                "col": 1,
+                "row": 1,
+                "hp": 18,
+                "maxHP": 18,
+                "level": 1,
+                "acted": false,
+                "weapon": "Glimmer",
+                "items": ["Glimmer", "Heal (3)", "Vulnerary (2)"],
+                "conditions": []
+              },
+              {
+                "id": "u5",
+                "name": "Brigand B",
+                "faction": "enemy",
+                "col": 1,
+                "row": 5,
+                "hp": 18,
+                "maxHP": 18,
+                "level": 1,
+                "acted": false,
+                "weapon": "Glimmer",
+                "items": ["Glimmer", "Heal (3)", "Vulnerary (2)"],
+                "conditions": []
+              }
+            ],
+            "enemiesActNext": false,
+            "summary": ["Turn 1 · Player phase", "0 battle gold"],
+            "terrain": {
+              "labels": ["Plain"],
+              "cells": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            }
+          },
+          "snapshotId": "s1",
+          "destination": true
+        },
+        {
+          "id": 2,
+          "revision": 0,
+          "kind": "player_action",
+          "turnNumber": 1,
+          "phase": "player",
+          "facts": [
+            "Wren's items changed: Iron Sword, Vulnerary (2).",
+            {
+              "type": "action",
+              "actorId": "u2",
+              "actor": "Wren",
+              "verb": "steal",
+              "className": "Thief",
+              "target": "Brigand A",
+              "targetId": "u4",
+              "detail": "Vulnerary"
+            },
+            "Player action completed.",
+            "Wren finished their action.",
+            {
+              "type": "action",
+              "actorId": "u2",
+              "actor": "Wren",
+              "verb": "wait",
+              "className": "Thief"
+            }
+          ],
+          "preview": {
+            "cols": 8,
+            "rows": 8,
+            "units": [
+              {
+                "id": "u1",
+                "name": "Edric",
+                "faction": "player",
+                "col": 0,
+                "row": 3,
+                "hp": 1,
+                "maxHP": 20,
+                "level": 10,
+                "acted": false,
+                "weapon": "Iron Sword",
+                "items": ["Iron Sword", "Steel Sword", "Vulnerary (2)"],
+                "conditions": []
+              },
+              {
+                "id": "u2",
+                "name": "Wren",
+                "faction": "player",
+                "col": 0,
+                "row": 1,
+                "hp": 19,
+                "maxHP": 19,
+                "level": 5,
+                "acted": true,
+                "weapon": "Iron Sword",
+                "items": ["Iron Sword", "Vulnerary (2)"],
+                "conditions": []
+              },
+              {
+                "id": "u3",
+                "name": "Ash",
+                "faction": "player",
+                "col": 0,
+                "row": 5,
+                "hp": 21,
+                "maxHP": 21,
+                "level": 5,
+                "acted": false,
+                "weapon": "Iron Sword",
+                "items": ["Iron Sword"],
+                "conditions": []
+              },
+              {
+                "id": "u4",
+                "name": "Brigand A",
+                "faction": "enemy",
+                "col": 1,
+                "row": 1,
+                "hp": 18,
+                "maxHP": 18,
+                "level": 1,
+                "acted": false,
+                "weapon": "Glimmer",
+                "items": ["Glimmer", "Heal (3)", "Vulnerary (2)"],
+                "conditions": []
+              },
+              {
+                "id": "u5",
+                "name": "Brigand B",
+                "faction": "enemy",
+                "col": 1,
+                "row": 5,
+                "hp": 18,
+                "maxHP": 18,
+                "level": 1,
+                "acted": false,
+                "weapon": "Glimmer",
+                "items": ["Glimmer", "Heal (3)", "Vulnerary (2)"],
+                "conditions": []
+              }
+            ],
+            "enemiesActNext": false,
+            "summary": ["Turn 1 · Player phase", "0 battle gold"],
+            "terrain": {
+              "labels": ["Plain"],
+              "cells": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            }
+          },
+          "snapshotId": "s2",
+          "destination": true
+        },
+        {
+          "id": 3,
+          "revision": 0,
+          "kind": "player_action",
+          "turnNumber": 1,
+          "phase": "player",
+          "facts": [
+            "Ash's items changed: Iron Sword, Vulnerary (2).",
+            {
+              "type": "action",
+              "actorId": "u3",
+              "actor": "Ash",
+              "verb": "steal",
+              "className": "Thief",
+              "target": "Brigand B",
+              "targetId": "u5",
+              "detail": "Vulnerary"
+            },
+            "Player action completed.",
+            "Ash finished their action.",
+            {
+              "type": "action",
+              "actorId": "u3",
+              "actor": "Ash",
+              "verb": "wait",
+              "className": "Thief"
+            }
+          ],
+          "preview": {
+            "cols": 8,
+            "rows": 8,
+            "units": [
+              {
+                "id": "u1",
+                "name": "Edric",
+                "faction": "player",
+                "col": 0,
+                "row": 3,
+                "hp": 1,
+                "maxHP": 20,
+                "level": 10,
+                "acted": false,
+                "weapon": "Iron Sword",
+                "items": ["Iron Sword", "Steel Sword", "Vulnerary (2)"],
+                "conditions": []
+              },
+              {
+                "id": "u2",
+                "name": "Wren",
+                "faction": "player",
+                "col": 0,
+                "row": 1,
+                "hp": 19,
+                "maxHP": 19,
+                "level": 5,
+                "acted": true,
+                "weapon": "Iron Sword",
+                "items": ["Iron Sword", "Vulnerary (2)"],
+                "conditions": []
+              },
+              {
+                "id": "u3",
+                "name": "Ash",
+                "faction": "player",
+                "col": 0,
+                "row": 5,
+                "hp": 21,
+                "maxHP": 21,
+                "level": 5,
+                "acted": true,
+                "weapon": "Iron Sword",
+                "items": ["Iron Sword", "Vulnerary (2)"],
+                "conditions": []
+              },
+              {
+                "id": "u4",
+                "name": "Brigand A",
+                "faction": "enemy",
+                "col": 1,
+                "row": 1,
+                "hp": 18,
+                "maxHP": 18,
+                "level": 1,
+                "acted": false,
+                "weapon": "Glimmer",
+                "items": ["Glimmer", "Heal (3)", "Vulnerary (2)"],
+                "conditions": []
+              },
+              {
+                "id": "u5",
+                "name": "Brigand B",
+                "faction": "enemy",
+                "col": 1,
+                "row": 5,
+                "hp": 18,
+                "maxHP": 18,
+                "level": 1,
+                "acted": false,
+                "weapon": "Glimmer",
+                "items": ["Glimmer", "Heal (3)", "Vulnerary (2)"],
+                "conditions": []
+              }
+            ],
+            "enemiesActNext": false,
+            "summary": ["Turn 1 · Player phase", "0 battle gold"],
+            "terrain": {
+              "labels": ["Plain"],
+              "cells": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            }
+          },
+          "snapshotId": "s3",
+          "destination": true
+        }
+      ],
+      "snapshots": {
+        "s1": {
+          "version": 2,
+          "commanderEntityId": "u1",
+          "rewindPolicy": "fixed-v1",
+          "rngState": {
+            "algorithm": "mulberry32-v1",
+            "cursor": 42
+          },
+          "decisionRngState": {
+            "algorithm": "mulberry32-v1",
+            "cursor": 42
+          },
+          "phase": "player",
+          "mapLayout": [
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0]
+          ],
+          "temporaryTerrains": [],
+          "playerDeathsThisBattle": 0,
+          "appliedHybridOverrideTurns": [],
+          "pendingHybridOverrideTiles": [],
+          "latePressureWarningShown": false,
+          "battleRecruits": [],
+          "fallenBattleRecords": [],
+          "checkpointIndex": 1,
+          "rngSeed": 42,
+          "visionBaseSeed": 42,
+          "nextEntityId": 8,
+          "turnNumber": 1,
+          "turnPar": null,
+          "playerUnits": [
+            {
+              "name": "Edric",
+              "className": "Lord",
+              "tier": "base",
+              "level": 10,
+              "xp": 0,
+              "isLord": true,
+              "personalGrowths": {
+                "HP": 3,
+                "STR": 2,
+                "MAG": 2,
+                "SKL": 2,
+                "SPD": 2,
+                "DEF": 2,
+                "RES": 2,
+                "LCK": 2
+              },
+              "growths": {
+                "HP": 62,
+                "STR": 45,
+                "MAG": 21,
+                "SKL": 52,
+                "SPD": 57,
+                "DEF": 32,
+                "RES": 20,
+                "LCK": 46
+              },
+              "proficiencies": [
+                {
+                  "type": "Sword",
+                  "rank": "Prof"
+                }
+              ],
+              "skills": ["charisma"],
+              "col": 0,
+              "row": 3,
+              "mov": 4,
+              "moveType": "Infantry",
+              "stats": {
+                "HP": 20,
+                "STR": 6,
+                "MAG": 2,
+                "SKL": 7,
+                "SPD": 9,
+                "DEF": 5,
+                "RES": 3,
+                "LCK": 6,
+                "MOV": 4
+              },
+              "currentHP": 1,
+              "faction": "player",
+              "weapon": {
+                "name": "Iron Sword",
+                "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+                "type": "Sword",
+                "tier": "Iron",
+                "rankRequired": "Prof",
+                "might": 5,
+                "hit": 95,
+                "crit": 0,
+                "weight": 3,
+                "range": "1",
+                "special": "",
+                "price": 500,
+                "uid": "itm_1_v5nl"
+              },
+              "inventory": [
+                {
+                  "name": "Iron Sword",
+                  "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+                  "type": "Sword",
+                  "tier": "Iron",
+                  "rankRequired": "Prof",
+                  "might": 5,
+                  "hit": 95,
+                  "crit": 0,
+                  "weight": 3,
+                  "range": "1",
+                  "special": "",
+                  "price": 500,
+                  "uid": "itm_1_v5nl"
+                },
+                {
+                  "name": "Steel Sword",
+                  "lore": "Req.: Varen pattern. Delivered: whatever the forge had hot. Signed, under protest.",
+                  "type": "Sword",
+                  "tier": "Steel",
+                  "rankRequired": "Prof",
+                  "might": 8,
+                  "hit": 85,
+                  "crit": 0,
+                  "weight": 5,
+                  "range": "1",
+                  "special": "",
+                  "price": 1000,
+                  "uid": "itm_2_h04f"
+                }
+              ],
+              "consumables": [
+                {
+                  "name": "Vulnerary",
+                  "lore": "Apply to the wound, not the mouth. Yes, we have to write that down now.",
+                  "type": "Consumable",
+                  "effect": "heal",
+                  "value": 10,
+                  "uses": 2,
+                  "price": 300,
+                  "uid": "itm_3_8zwf"
+                }
+              ],
+              "accessory": null,
+              "weaponRank": "Prof",
+              "affixes": [],
+              "hasMoved": false,
+              "hasActed": false,
+              "graphic": null,
+              "label": null,
+              "hpBar": null,
+              "_personalSkillL20": {
+                "skillId": "commanders_gambit",
+                "level": 20
+              },
+              "isCommander": true,
+              "traits": ["nimble"],
+              "traitRulesVersion": 2,
+              "factionIndicator": null,
+              "_conditionIcons": null,
+              "affixPips": null,
+              "_miracleUsed": false,
+              "_phoenixBroochUsed": false,
+              "unitUid": "ru1",
+              "battleEntityId": "u1",
+              "equippedInventoryIndex": 0,
+              "_movementCommitted": false,
+              "_movementSpent": 0,
+              "_conditions": []
+            },
+            {
+              "name": "Wren",
+              "className": "Thief",
+              "tier": "base",
+              "level": 5,
+              "xp": 0,
+              "isLord": false,
+              "personalGrowths": null,
+              "growths": {
+                "HP": 53,
+                "STR": 35,
+                "MAG": 2,
+                "SKL": 49,
+                "SPD": 66,
+                "DEF": 19,
+                "RES": 20,
+                "LCK": 53
+              },
+              "proficiencies": [
+                {
+                  "type": "Sword",
+                  "rank": "Prof"
+                }
+              ],
+              "skills": ["shove", "pull", "blink", "smite", "steal"],
+              "col": 0,
+              "row": 1,
+              "mov": 5,
+              "moveType": "Infantry",
+              "stats": {
+                "HP": 19,
+                "STR": 7,
+                "MAG": 0,
+                "SKL": 8,
+                "SPD": 30,
+                "DEF": 2,
+                "RES": 4,
+                "LCK": 9,
+                "MOV": 5
+              },
+              "currentHP": 19,
+              "faction": "player",
+              "weapon": {
+                "name": "Iron Sword",
+                "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+                "type": "Sword",
+                "tier": "Iron",
+                "rankRequired": "Prof",
+                "might": 5,
+                "hit": 95,
+                "crit": 0,
+                "weight": 3,
+                "range": "1",
+                "special": "",
+                "price": 500,
+                "uid": "itm_12_a8by"
+              },
+              "inventory": [
+                {
+                  "name": "Iron Sword",
+                  "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+                  "type": "Sword",
+                  "tier": "Iron",
+                  "rankRequired": "Prof",
+                  "might": 5,
+                  "hit": 95,
+                  "crit": 0,
+                  "weight": 3,
+                  "range": "1",
+                  "special": "",
+                  "price": 500,
+                  "uid": "itm_12_a8by"
+                }
+              ],
+              "consumables": [],
+              "affixes": [],
+              "accessory": null,
+              "weaponRank": "Prof",
+              "hasMoved": false,
+              "hasActed": false,
+              "graphic": null,
+              "label": null,
+              "hpBar": null,
+              "unitUid": "ru4",
+              "battleEntityId": "u2",
+              "factionIndicator": null,
+              "_conditionIcons": null,
+              "affixPips": null,
+              "equippedInventoryIndex": 0,
+              "_movementCommitted": false,
+              "_movementSpent": 0,
+              "_miracleUsed": false,
+              "_phoenixBroochUsed": false,
+              "_conditions": []
+            },
+            {
+              "name": "Ash",
+              "className": "Thief",
+              "tier": "base",
+              "level": 5,
+              "xp": 0,
+              "isLord": false,
+              "personalGrowths": null,
+              "growths": {
+                "HP": 59,
+                "STR": 30,
+                "MAG": 8,
+                "SKL": 49,
+                "SPD": 62,
+                "DEF": 19,
+                "RES": 22,
+                "LCK": 65
+              },
+              "proficiencies": [
+                {
+                  "type": "Sword",
+                  "rank": "Prof"
+                }
+              ],
+              "skills": ["shove", "pull", "blink", "smite", "steal"],
+              "col": 0,
+              "row": 5,
+              "mov": 5,
+              "moveType": "Infantry",
+              "stats": {
+                "HP": 21,
+                "STR": 4,
+                "MAG": 0,
+                "SKL": 10,
+                "SPD": 30,
+                "DEF": 3,
+                "RES": 3,
+                "LCK": 7,
+                "MOV": 5
+              },
+              "currentHP": 21,
+              "faction": "player",
+              "weapon": {
+                "name": "Iron Sword",
+                "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+                "type": "Sword",
+                "tier": "Iron",
+                "rankRequired": "Prof",
+                "might": 5,
+                "hit": 95,
+                "crit": 0,
+                "weight": 3,
+                "range": "1",
+                "special": "",
+                "price": 500,
+                "uid": "itm_13_w1p3"
+              },
+              "inventory": [
+                {
+                  "name": "Iron Sword",
+                  "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+                  "type": "Sword",
+                  "tier": "Iron",
+                  "rankRequired": "Prof",
+                  "might": 5,
+                  "hit": 95,
+                  "crit": 0,
+                  "weight": 3,
+                  "range": "1",
+                  "special": "",
+                  "price": 500,
+                  "uid": "itm_13_w1p3"
+                }
+              ],
+              "consumables": [],
+              "affixes": [],
+              "accessory": null,
+              "weaponRank": "Prof",
+              "hasMoved": false,
+              "hasActed": false,
+              "graphic": null,
+              "label": null,
+              "hpBar": null,
+              "unitUid": "ru5",
+              "battleEntityId": "u3",
+              "factionIndicator": null,
+              "_conditionIcons": null,
+              "affixPips": null,
+              "equippedInventoryIndex": 0,
+              "_movementCommitted": false,
+              "_movementSpent": 0,
+              "_miracleUsed": false,
+              "_phoenixBroochUsed": false,
+              "_conditions": []
+            }
+          ],
+          "enemyUnits": [
+            {
+              "name": "Brigand A",
+              "className": "Light Sage",
+              "tier": "base",
+              "level": 1,
+              "xp": 0,
+              "isLord": true,
+              "personalGrowths": {
+                "HP": 5,
+                "STR": 2,
+                "MAG": 3,
+                "SKL": 2,
+                "SPD": 2,
+                "DEF": 2,
+                "RES": 7,
+                "LCK": 4
+              },
+              "growths": {
+                "HP": 59,
+                "STR": 15,
+                "MAG": 47,
+                "SKL": 30,
+                "SPD": 39,
+                "DEF": 25,
+                "RES": 56,
+                "LCK": 39
+              },
+              "proficiencies": [
+                {
+                  "type": "Light",
+                  "rank": "Prof"
+                },
+                {
+                  "type": "Staff",
+                  "rank": "Prof"
+                }
+              ],
+              "skills": ["renewal_aura"],
+              "col": 1,
+              "row": 1,
+              "mov": 4,
+              "moveType": "Infantry",
+              "stats": {
+                "HP": 18,
+                "STR": 2,
+                "MAG": 6,
+                "SKL": 4,
+                "SPD": 1,
+                "DEF": 3,
+                "RES": 7,
+                "LCK": 6,
+                "MOV": 4
+              },
+              "currentHP": 18,
+              "faction": "enemy",
+              "weapon": {
+                "name": "Glimmer",
+                "lore": "The one prayer taught to soldiers, because it is short and it answers.",
+                "type": "Light",
+                "tier": "Iron",
+                "rankRequired": "Prof",
+                "might": 4,
+                "hit": 95,
+                "crit": 5,
+                "weight": 1,
+                "range": "1-2",
+                "special": "Lightest magic",
+                "price": 700,
+                "uid": "itm_4_gy4s"
+              },
+              "inventory": [
+                {
+                  "name": "Glimmer",
+                  "lore": "The one prayer taught to soldiers, because it is short and it answers.",
+                  "type": "Light",
+                  "tier": "Iron",
+                  "rankRequired": "Prof",
+                  "might": 4,
+                  "hit": 95,
+                  "crit": 5,
+                  "weight": 1,
+                  "range": "1-2",
+                  "special": "Lightest magic",
+                  "price": 700,
+                  "uid": "itm_4_gy4s"
+                },
+                {
+                  "name": "Heal",
+                  "lore": "Hold still. It works better when you're not telling me it's only a scratch.",
+                  "type": "Staff",
+                  "tier": "Iron",
+                  "rankRequired": "Prof",
+                  "might": 0,
+                  "hit": 100,
+                  "crit": 0,
+                  "weight": 1,
+                  "range": "1",
+                  "healBase": 5,
+                  "uses": 3,
+                  "perBattleUses": true,
+                  "special": "Heals MAG + 5 HP",
+                  "price": 300,
+                  "uid": "itm_5_u56t"
+                }
+              ],
+              "consumables": [
+                {
+                  "name": "Vulnerary",
+                  "lore": "Apply to the wound, not the mouth. Yes, we have to write that down now.",
+                  "type": "Consumable",
+                  "effect": "heal",
+                  "value": 10,
+                  "uses": 2,
+                  "price": 300,
+                  "uid": "itm_6_1ud7"
+                }
+              ],
+              "accessory": null,
+              "weaponRank": "Prof",
+              "affixes": [],
+              "hasMoved": false,
+              "hasActed": false,
+              "graphic": null,
+              "label": null,
+              "hpBar": null,
+              "_personalSkillL20": {
+                "skillId": "flare",
+                "level": 20
+              },
+              "traits": ["overflowing_grace"],
+              "traitRulesVersion": 2,
+              "factionIndicator": null,
+              "_conditionIcons": null,
+              "affixPips": null,
+              "_miracleUsed": false,
+              "_phoenixBroochUsed": false,
+              "unitUid": "ru2",
+              "carriedItem": {
+                "name": "Vulnerary",
+                "lore": "Apply to the wound, not the mouth. Yes, we have to write that down now.",
+                "type": "Consumable",
+                "effect": "heal",
+                "value": 10,
+                "uses": 2,
+                "price": 300,
+                "uid": "itm_vuln_a"
+              },
+              "battleEntityId": "u4",
+              "equippedInventoryIndex": 0,
+              "_movementCommitted": false,
+              "_movementSpent": 0,
+              "_conditions": []
+            },
+            {
+              "name": "Brigand B",
+              "className": "Light Sage",
+              "tier": "base",
+              "level": 1,
+              "xp": 0,
+              "isLord": true,
+              "personalGrowths": {
+                "HP": 5,
+                "STR": 2,
+                "MAG": 3,
+                "SKL": 2,
+                "SPD": 2,
+                "DEF": 2,
+                "RES": 7,
+                "LCK": 4
+              },
+              "growths": {
+                "HP": 59,
+                "STR": 15,
+                "MAG": 47,
+                "SKL": 30,
+                "SPD": 39,
+                "DEF": 25,
+                "RES": 56,
+                "LCK": 39
+              },
+              "proficiencies": [
+                {
+                  "type": "Light",
+                  "rank": "Prof"
+                },
+                {
+                  "type": "Staff",
+                  "rank": "Prof"
+                }
+              ],
+              "skills": ["renewal_aura"],
+              "col": 1,
+              "row": 5,
+              "mov": 4,
+              "moveType": "Infantry",
+              "stats": {
+                "HP": 18,
+                "STR": 2,
+                "MAG": 6,
+                "SKL": 4,
+                "SPD": 1,
+                "DEF": 3,
+                "RES": 7,
+                "LCK": 6,
+                "MOV": 4
+              },
+              "currentHP": 18,
+              "faction": "enemy",
+              "weapon": {
+                "name": "Glimmer",
+                "lore": "The one prayer taught to soldiers, because it is short and it answers.",
+                "type": "Light",
+                "tier": "Iron",
+                "rankRequired": "Prof",
+                "might": 4,
+                "hit": 95,
+                "crit": 5,
+                "weight": 1,
+                "range": "1-2",
+                "special": "Lightest magic",
+                "price": 700,
+                "uid": "itm_4_gy4s"
+              },
+              "inventory": [
+                {
+                  "name": "Glimmer",
+                  "lore": "The one prayer taught to soldiers, because it is short and it answers.",
+                  "type": "Light",
+                  "tier": "Iron",
+                  "rankRequired": "Prof",
+                  "might": 4,
+                  "hit": 95,
+                  "crit": 5,
+                  "weight": 1,
+                  "range": "1-2",
+                  "special": "Lightest magic",
+                  "price": 700,
+                  "uid": "itm_4_gy4s"
+                },
+                {
+                  "name": "Heal",
+                  "lore": "Hold still. It works better when you're not telling me it's only a scratch.",
+                  "type": "Staff",
+                  "tier": "Iron",
+                  "rankRequired": "Prof",
+                  "might": 0,
+                  "hit": 100,
+                  "crit": 0,
+                  "weight": 1,
+                  "range": "1",
+                  "healBase": 5,
+                  "uses": 3,
+                  "perBattleUses": true,
+                  "special": "Heals MAG + 5 HP",
+                  "price": 300,
+                  "uid": "itm_5_u56t"
+                }
+              ],
+              "consumables": [
+                {
+                  "name": "Vulnerary",
+                  "lore": "Apply to the wound, not the mouth. Yes, we have to write that down now.",
+                  "type": "Consumable",
+                  "effect": "heal",
+                  "value": 10,
+                  "uses": 2,
+                  "price": 300,
+                  "uid": "itm_6_1ud7"
+                }
+              ],
+              "accessory": null,
+              "weaponRank": "Prof",
+              "affixes": [],
+              "hasMoved": false,
+              "hasActed": false,
+              "graphic": null,
+              "label": null,
+              "hpBar": null,
+              "_personalSkillL20": {
+                "skillId": "flare",
+                "level": 20
+              },
+              "traits": ["overflowing_grace"],
+              "traitRulesVersion": 2,
+              "factionIndicator": null,
+              "_conditionIcons": null,
+              "affixPips": null,
+              "_miracleUsed": false,
+              "_phoenixBroochUsed": false,
+              "unitUid": "ru2",
+              "carriedItem": {
+                "name": "Vulnerary",
+                "lore": "Apply to the wound, not the mouth. Yes, we have to write that down now.",
+                "type": "Consumable",
+                "effect": "heal",
+                "value": 10,
+                "uses": 2,
+                "price": 300,
+                "uid": "itm_vuln_b"
+              },
+              "battleEntityId": "u5",
+              "equippedInventoryIndex": 0,
+              "_movementCommitted": false,
+              "_movementSpent": 0,
+              "_conditions": []
+            }
+          ],
+          "npcUnits": [],
+          "escapedUnits": [
+            {
+              "name": "Kit",
+              "className": "Thief",
+              "tier": "base",
+              "level": 5,
+              "xp": 0,
+              "isLord": false,
+              "personalGrowths": null,
+              "growths": {
+                "HP": 61,
+                "STR": 30,
+                "MAG": 1,
+                "SKL": 50,
+                "SPD": 55,
+                "DEF": 16,
+                "RES": 17,
+                "LCK": 57
+              },
+              "proficiencies": [
+                {
+                  "type": "Sword",
+                  "rank": "Prof"
+                }
+              ],
+              "skills": ["shove", "pull", "blink", "smite", "steal"],
+              "col": 0,
+              "row": 0,
+              "mov": 5,
+              "moveType": "Infantry",
+              "stats": {
+                "HP": 18,
+                "STR": 4,
+                "MAG": 0,
+                "SKL": 8,
+                "SPD": 10,
+                "DEF": 3,
+                "RES": 3,
+                "LCK": 9,
+                "MOV": 5
+              },
+              "currentHP": 18,
+              "faction": "player",
+              "weapon": {
+                "name": "Iron Sword",
+                "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+                "type": "Sword",
+                "tier": "Iron",
+                "rankRequired": "Prof",
+                "might": 5,
+                "hit": 95,
+                "crit": 0,
+                "weight": 3,
+                "range": "1",
+                "special": "",
+                "price": 500,
+                "uid": "itm_15_doe0"
+              },
+              "inventory": [
+                {
+                  "name": "Iron Sword",
+                  "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+                  "type": "Sword",
+                  "tier": "Iron",
+                  "rankRequired": "Prof",
+                  "might": 5,
+                  "hit": 95,
+                  "crit": 0,
+                  "weight": 3,
+                  "range": "1",
+                  "special": "",
+                  "price": 500,
+                  "uid": "itm_15_doe0"
+                }
+              ],
+              "consumables": [],
+              "affixes": [],
+              "accessory": null,
+              "weaponRank": "Prof",
+              "hasMoved": false,
+              "hasActed": false,
+              "graphic": null,
+              "label": null,
+              "hpBar": null,
+              "unitUid": "ru7",
+              "battleEntityId": "u7",
+              "factionIndicator": null,
+              "_conditionIcons": null,
+              "affixPips": null,
+              "equippedInventoryIndex": 0,
+              "_movementCommitted": false,
+              "_movementSpent": 0,
+              "_miracleUsed": false,
+              "_phoenixBroochUsed": false,
+              "_conditions": []
+            }
+          ],
+          "nonDeployedUnits": [
+            {
+              "name": "Rook",
+              "className": "Thief",
+              "tier": "base",
+              "level": 5,
+              "xp": 0,
+              "isLord": false,
+              "personalGrowths": null,
+              "growths": {
+                "HP": 60,
+                "STR": 39,
+                "MAG": 9,
+                "SKL": 48,
+                "SPD": 64,
+                "DEF": 15,
+                "RES": 17,
+                "LCK": 50
+              },
+              "proficiencies": [
+                {
+                  "type": "Sword",
+                  "rank": "Prof"
+                }
+              ],
+              "skills": ["shove", "pull", "blink", "smite", "steal"],
+              "col": 0,
+              "row": 0,
+              "mov": 5,
+              "moveType": "Infantry",
+              "stats": {
+                "HP": 18,
+                "STR": 7,
+                "MAG": 0,
+                "SKL": 9,
+                "SPD": 13,
+                "DEF": 2,
+                "RES": 2,
+                "LCK": 9,
+                "MOV": 5
+              },
+              "currentHP": 18,
+              "faction": "player",
+              "weapon": {
+                "name": "Iron Sword",
+                "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+                "type": "Sword",
+                "tier": "Iron",
+                "rankRequired": "Prof",
+                "might": 5,
+                "hit": 95,
+                "crit": 0,
+                "weight": 3,
+                "range": "1",
+                "special": "",
+                "price": 500,
+                "uid": "itm_14_pee8"
+              },
+              "inventory": [
+                {
+                  "name": "Iron Sword",
+                  "lore": "Stamped VAREN by the guard, same as your father's. Same as his father's.",
+                  "type": "Sword",
+                  "tier": "Iron",
+                  "rankRequired": "Prof",
+                  "might": 5,
+                  "hit": 95,
+                  "crit": 0,
+                  "weight": 3,
+                  "range": "1",
+                  "special": "",
+                  "price": 500,
+                  "uid": "itm_14_pee8"
+                }
+              ],
+              "consumables": [],
+              "affixes": [],
+              "accessory": null,
+              "weaponRank": "Prof",
+              "hasMoved": false,
+              "hasActed": false,
+              "graphic": null,
+              "label": null,
+              "hpBar": null,
+              "unitUid": "ru6",
+              "battleEntityId": "u6",
+              "factionIndicator": null,
+              "_conditionIcons": null,
+              "affixPips": null,
+              "equippedInventoryIndex": 0,
+              "_movementCommitted": false,
+              "_movementSpent": 0,
+              "_miracleUsed": false,
+              "_phoenixBroochUsed": false,
+              "_conditions": []
+            }
+          ],
+          "pendingActionCompletion": null,
+          "pendingCommittedAction": null,
+          "antiTurtleState": {},
+          "fog": null,
+          "ballistas": [],
+          "zombieTombstones": [],
+          "goldEarned": 0,
+          "bossName": null,
+          "caravanExited": false,
+          "villageState": null,
+          "runBattleState": {
+            "convoy": {
+              "weapons": [],
+              "consumables": []
+            },
+            "accessories": [],
+            "gold": 20000,
+            "rewardRerollsSpent": 0
+          },
+          "prologueState": null
+        },
+        "s2": {
+          "base": "s1",
+          "patch": {
+            "o": {
+              "checkpointIndex": {
+                "$": 3
+              },
+              "playerUnits": {
+                "k": ["u1", "u2", "u3"],
+                "m": {
+                  "u2": {
+                    "o": {
+                      "consumables": {
+                        "n": 1,
+                        "i": {
+                          "0": {
+                            "$": {
+                              "name": "Vulnerary",
+                              "lore": "Apply to the wound, not the mouth. Yes, we have to write that down now.",
+                              "type": "Consumable",
+                              "effect": "heal",
+                              "value": 10,
+                              "uses": 2,
+                              "price": 300,
+                              "uid": "itm_vuln_a"
+                            }
+                          }
+                        }
+                      },
+                      "hasActed": {
+                        "$": true
+                      }
+                    }
+                  }
+                }
+              },
+              "enemyUnits": {
+                "k": ["u4", "u5"],
+                "m": {
+                  "u4": {
+                    "o": {},
+                    "x": ["carriedItem"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "s3": {
+          "base": "s1",
+          "patch": {
+            "o": {
+              "checkpointIndex": {
+                "$": 5
+              },
+              "playerUnits": {
+                "k": ["u1", "u2", "u3"],
+                "m": {
+                  "u2": {
+                    "o": {
+                      "consumables": {
+                        "n": 1,
+                        "i": {
+                          "0": {
+                            "$": {
+                              "name": "Vulnerary",
+                              "lore": "Apply to the wound, not the mouth. Yes, we have to write that down now.",
+                              "type": "Consumable",
+                              "effect": "heal",
+                              "value": 10,
+                              "uses": 2,
+                              "price": 300,
+                              "uid": "itm_vuln_a"
+                            }
+                          }
+                        }
+                      },
+                      "hasActed": {
+                        "$": true
+                      }
+                    }
+                  },
+                  "u3": {
+                    "o": {
+                      "consumables": {
+                        "n": 1,
+                        "i": {
+                          "0": {
+                            "$": {
+                              "name": "Vulnerary",
+                              "lore": "Apply to the wound, not the mouth. Yes, we have to write that down now.",
+                              "type": "Consumable",
+                              "effect": "heal",
+                              "value": 10,
+                              "uses": 2,
+                              "price": 300,
+                              "uid": "itm_vuln_b"
+                            }
+                          }
+                        }
+                      },
+                      "hasActed": {
+                        "$": true
+                      }
+                    }
+                  }
+                }
+              },
+              "enemyUnits": {
+                "k": ["u4", "u5"],
+                "m": {
+                  "u4": {
+                    "o": {},
+                    "x": ["carriedItem"]
+                  },
+                  "u5": {
+                    "o": {},
+                    "x": ["carriedItem"]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "presentation": {
+        "version": 1,
+        "nextId": 6,
+        "records": [
+          {
+            "id": 1,
+            "entryId": 1,
+            "anchorId": 1,
+            "revision": 0,
+            "generation": 0,
+            "kind": "turn_start",
+            "turnNumber": 1,
+            "phase": "player",
+            "parentId": null,
+            "actorId": null,
+            "parents": {},
+            "beats": [],
+            "facts": ["Player turn begins."],
+            "gap": true,
+            "endpointOnly": true,
+            "enemiesActNext": false,
+            "frame": {
+              "cols": 8,
+              "rows": 8,
+              "units": [
+                {
+                  "id": "u1",
+                  "name": "Edric",
+                  "faction": "player",
+                  "col": 0,
+                  "row": 3,
+                  "hp": 1,
+                  "maxHP": 20,
+                  "level": 10,
+                  "acted": false,
+                  "weapon": "Iron Sword",
+                  "items": ["Iron Sword", "Steel Sword", "Vulnerary (2)"],
+                  "conditions": [],
+                  "className": "Lord",
+                  "spriteKey": "",
+                  "size": 1,
+                  "width": 30,
+                  "height": 30,
+                  "buffs": [],
+                  "affixes": []
+                },
+                {
+                  "id": "u2",
+                  "name": "Wren",
+                  "faction": "player",
+                  "col": 0,
+                  "row": 1,
+                  "hp": 19,
+                  "maxHP": 19,
+                  "level": 5,
+                  "acted": false,
+                  "weapon": "Iron Sword",
+                  "items": ["Iron Sword"],
+                  "conditions": [],
+                  "className": "Thief",
+                  "spriteKey": "",
+                  "size": 1,
+                  "width": 30,
+                  "height": 30,
+                  "buffs": [],
+                  "affixes": []
+                },
+                {
+                  "id": "u3",
+                  "name": "Ash",
+                  "faction": "player",
+                  "col": 0,
+                  "row": 5,
+                  "hp": 21,
+                  "maxHP": 21,
+                  "level": 5,
+                  "acted": false,
+                  "weapon": "Iron Sword",
+                  "items": ["Iron Sword"],
+                  "conditions": [],
+                  "className": "Thief",
+                  "spriteKey": "",
+                  "size": 1,
+                  "width": 30,
+                  "height": 30,
+                  "buffs": [],
+                  "affixes": []
+                },
+                {
+                  "id": "u4",
+                  "name": "Brigand A",
+                  "faction": "enemy",
+                  "col": 1,
+                  "row": 1,
+                  "hp": 18,
+                  "maxHP": 18,
+                  "level": 1,
+                  "acted": false,
+                  "weapon": "Glimmer",
+                  "items": ["Glimmer", "Heal (3)", "Vulnerary (2)"],
+                  "conditions": [],
+                  "className": "Light Sage",
+                  "spriteKey": "",
+                  "size": 1,
+                  "width": 30,
+                  "height": 30,
+                  "buffs": [],
+                  "affixes": []
+                },
+                {
+                  "id": "u5",
+                  "name": "Brigand B",
+                  "faction": "enemy",
+                  "col": 1,
+                  "row": 5,
+                  "hp": 18,
+                  "maxHP": 18,
+                  "level": 1,
+                  "acted": false,
+                  "weapon": "Glimmer",
+                  "items": ["Glimmer", "Heal (3)", "Vulnerary (2)"],
+                  "conditions": [],
+                  "className": "Light Sage",
+                  "spriteKey": "",
+                  "size": 1,
+                  "width": 30,
+                  "height": 30,
+                  "buffs": [],
+                  "affixes": []
+                }
+              ],
+              "enemiesActNext": false,
+              "summary": ["Turn 1 · Player phase", "0 battle gold"],
+              "version": 2,
+              "biome": "",
+              "packing": 1,
+              "palette": [["Plain", true, "visible", []]],
+              "runs": [[64, 0]]
+            }
+          },
+          {
+            "id": 2,
+            "entryId": null,
+            "anchorId": 2,
+            "revision": 0,
+            "generation": 0,
+            "kind": "recovery",
+            "turnNumber": 1,
+            "phase": "player",
+            "parentId": 2,
+            "actorId": "u2",
+            "parents": {
+              "u2": 2
+            },
+            "beats": [
+              {
+                "type": "stole from",
+                "actorId": "u2",
+                "targetId": "u4",
+                "actorPosition": {
+                  "col": 0,
+                  "row": 1,
+                  "size": 1
+                },
+                "targetPosition": {
+                  "col": 1,
+                  "row": 1,
+                  "size": 1
+                },
+                "label": "Wren stole from Brigand A · Vulnerary."
+              }
+            ],
+            "facts": [
+              "Wren stole from Brigand A · Vulnerary.",
+              "Action resolved.",
+              "Wren's items changed: Iron Sword, Vulnerary (2)."
+            ],
+            "gap": false,
+            "endpointOnly": false,
+            "enemiesActNext": false,
+            "delta": {
+              "units": [],
+              "patches": [["u2", "items", ["Iron Sword"], ["Iron Sword", "Vulnerary (2)"]]],
+              "order": null,
+              "tiles": [],
+              "summary": [
+                ["Turn 1 · Player phase", "0 battle gold"],
+                ["Turn 1 · Player phase", "0 battle gold"]
+              ],
+              "enemiesActNext": [false, false]
+            }
+          },
+          {
+            "id": 3,
+            "entryId": 2,
+            "anchorId": 2,
+            "revision": 0,
+            "generation": 0,
+            "kind": "player_action",
+            "turnNumber": 1,
+            "phase": "player",
+            "parentId": 2,
+            "actorId": "u2",
+            "parents": {},
+            "beats": [
+              {
+                "type": "finished their action",
+                "actorId": "u2",
+                "targetId": null,
+                "actorPosition": {
+                  "col": 0,
+                  "row": 1,
+                  "size": 1
+                },
+                "targetPosition": null,
+                "label": "Wren finished their action."
+              }
+            ],
+            "facts": [
+              "Wren finished their action.",
+              "Wren's items changed: Iron Sword, Vulnerary (2).",
+              "Player action completed."
+            ],
+            "gap": false,
+            "endpointOnly": false,
+            "enemiesActNext": false,
+            "delta": {
+              "units": [],
+              "patches": [["u2", "acted", false, true]],
+              "order": null,
+              "tiles": [],
+              "summary": [
+                ["Turn 1 · Player phase", "0 battle gold"],
+                ["Turn 1 · Player phase", "0 battle gold"]
+              ],
+              "enemiesActNext": [false, false]
+            }
+          },
+          {
+            "id": 4,
+            "entryId": null,
+            "anchorId": 3,
+            "revision": 0,
+            "generation": 0,
+            "kind": "recovery",
+            "turnNumber": 1,
+            "phase": "player",
+            "parentId": 4,
+            "actorId": "u3",
+            "parents": {
+              "u3": 4
+            },
+            "beats": [
+              {
+                "type": "stole from",
+                "actorId": "u3",
+                "targetId": "u5",
+                "actorPosition": {
+                  "col": 0,
+                  "row": 5,
+                  "size": 1
+                },
+                "targetPosition": {
+                  "col": 1,
+                  "row": 5,
+                  "size": 1
+                },
+                "label": "Ash stole from Brigand B · Vulnerary."
+              }
+            ],
+            "facts": [
+              "Ash stole from Brigand B · Vulnerary.",
+              "Action resolved.",
+              "Ash's items changed: Iron Sword, Vulnerary (2)."
+            ],
+            "gap": false,
+            "endpointOnly": false,
+            "enemiesActNext": false,
+            "delta": {
+              "units": [],
+              "patches": [["u3", "items", ["Iron Sword"], ["Iron Sword", "Vulnerary (2)"]]],
+              "order": null,
+              "tiles": [],
+              "summary": [
+                ["Turn 1 · Player phase", "0 battle gold"],
+                ["Turn 1 · Player phase", "0 battle gold"]
+              ],
+              "enemiesActNext": [false, false]
+            }
+          },
+          {
+            "id": 5,
+            "entryId": 3,
+            "anchorId": 3,
+            "revision": 0,
+            "generation": 0,
+            "kind": "player_action",
+            "turnNumber": 1,
+            "phase": "player",
+            "parentId": 4,
+            "actorId": "u3",
+            "parents": {},
+            "beats": [
+              {
+                "type": "finished their action",
+                "actorId": "u3",
+                "targetId": null,
+                "actorPosition": {
+                  "col": 0,
+                  "row": 5,
+                  "size": 1
+                },
+                "targetPosition": null,
+                "label": "Ash finished their action."
+              }
+            ],
+            "facts": [
+              "Ash finished their action.",
+              "Ash's items changed: Iron Sword, Vulnerary (2).",
+              "Player action completed."
+            ],
+            "gap": false,
+            "endpointOnly": false,
+            "enemiesActNext": false,
+            "delta": {
+              "units": [],
+              "patches": [["u3", "acted", false, true]],
+              "order": null,
+              "tiles": [],
+              "summary": [
+                ["Turn 1 · Player phase", "0 battle gold"],
+                ["Turn 1 · Player phase", "0 battle gold"]
+              ],
+              "enemiesActNext": [false, false]
+            }
+          }
+        ],
+        "earlierUnavailable": false
+      },
+      "presentationNextId": 6,
+      "presentationGeneration": 0
+    },
+    "timelineCurrentEntryId": 3
+  },
+  "lastBattleReport": null,
+  "eclipse": {
+    "version": 2,
+    "shadow": 0,
+    "actStartShadow": 0,
+    "actShadow": 0,
+    "enabled": true,
+    "kindledNodeIds": []
+  },
+  "itemNamesRevision": 1,
+  "blessingBoonRevision": 1,
+  "savedAt": 1791783632045
+}

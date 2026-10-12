@@ -16,6 +16,7 @@ import {
 } from './DeedSystem.js';
 import { RUN_RECORD_VERSION, fallenForRecord, fallenRecord, survivorRecord } from './RunRecords.js';
 import { migrateWaitingOath, settleSlotOverflow } from './SkillLoadout.js';
+import { settleSavedBattleSlots } from './SavedBattleSlots.js';
 import { slotKindOf, slotsFullFor } from './SkillSlots.js';
 import { normalizeDeploymentNames } from './DeploymentSelection.js';
 import { restrictOpeningCavaliers } from './EarlyEnemyRules.js';
@@ -7312,6 +7313,9 @@ export class RunManager {
         if (checkpoint[key]?.version === 2 && !validateBattleState(checkpoint[key]))
           checkpoint[key] = null;
       }
+      // The ability-slot split, as the roster took it above: Resume Battle, a Vision rewind
+      // and Continue from Map then hand back the same loadout (engine/SavedBattleSlots.js).
+      settleSavedBattleSlots(rm.battleInProgress, rm.gameData);
       const pool = [
         ...(Array.isArray(checkpoint.playerUnits) ? checkpoint.playerUnits : []),
         ...(Array.isArray(checkpoint.escapedUnits) ? checkpoint.escapedUnits : []),
