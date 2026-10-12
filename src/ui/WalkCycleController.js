@@ -20,7 +20,7 @@
  *     the move, and every entry point sits inside safeBattlePresentation, so a render
  *     error cannot stop a move;
  *   - honours reduced motion (no hop, no cycle, no puff), effects quality (low: no puff)
- *     and Instant speed (read from the battle speed: a player tile keeps 80 ms at Instant);
+ *     and Instant speed (read from the battle speed as well as from the step's 1 ms);
  *   - the puff is drawn only on a tile the player sees (BattleInformation.isUnitSeenAt),
  *     so a hidden unit's landing is never given away;
  *   - the unit's rest frame and height are restored when the move ends, is cut short, or

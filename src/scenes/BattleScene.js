@@ -50,7 +50,12 @@ import {
   remainingObjectiveTargets,
   statusView,
 } from '../engine/BattleObjectives.js';
-import { battleSpeed, waitDuration, waitTween } from '../utils/combatTiming.js';
+import {
+  battleSpeed,
+  playerMoveStepDuration,
+  waitDuration,
+  waitTween,
+} from '../utils/combatTiming.js';
 import {
   ENEMY_STEP_LABEL,
   EnemyPhasePacing,
@@ -5200,7 +5205,7 @@ export class BattleScene extends Phaser.Scene {
         const isSlide = effective.slideSegments.some(
           (seg) => stepIndex >= seg.startIndex && stepIndex < seg.startIndex + seg.slidePath.length,
         );
-        const duration = isSlide ? 60 : 80;
+        const duration = playerMoveStepDuration(this, { slide: isSlide });
         this._walkCycle().step(unit, { ms: duration, slide: isSlide });
         this.tweens.add({
           targets,
@@ -6077,7 +6082,7 @@ export class BattleScene extends Phaser.Scene {
         const isSlide = cantoEffective.slideSegments.some(
           (seg) => stepIndex >= seg.startIndex && stepIndex < seg.startIndex + seg.slidePath.length,
         );
-        const duration = isSlide ? 60 : 80;
+        const duration = playerMoveStepDuration(this, { slide: isSlide });
         this._walkCycle().step(unit, { ms: duration, slide: isSlide });
         this.tweens.add({
           targets,

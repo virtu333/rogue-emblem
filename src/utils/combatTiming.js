@@ -80,6 +80,19 @@ export function speedDuration(speed, label, milliseconds) {
     return milliseconds;
   return speed === 'instant' ? 1 : speed === 'fast' ? milliseconds * 0.5 : milliseconds;
 }
+/** A walked tile's tween at Normal and Fast; a slide across Ice is quicker. */
+export const MOVE_STEP_MS = 80;
+export const MOVE_SLIDE_STEP_MS = 60;
+/**
+ * A player unit's walked tile (moveUnit, Canto): MOVE_STEP_MS (a slide MOVE_SLIDE_STEP_MS)
+ * at Normal and Fast, the 1 ms scheduling floor at Instant, as an enemy's step is there.
+ * Each tile stays its own tween, so the move's lifecycle (the ambush cut, the finish, the
+ * recovery from a fault) is the same at every speed: Instant resolves, never skips.
+ */
+export function playerMoveStepDuration(scene, { slide = false } = {}) {
+  if (battleSpeed(scene) === 'instant') return 1;
+  return slide ? MOVE_SLIDE_STEP_MS : MOVE_STEP_MS;
+}
 export function combatTween(scene, config) {
   const scaled = { ...config };
   for (const key of ['duration', 'delay', 'hold', 'repeatDelay']) {

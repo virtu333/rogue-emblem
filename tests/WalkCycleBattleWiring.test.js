@@ -202,6 +202,31 @@ describe('moveUnit and the walk cycle', () => {
     expect(calls.some((o) => o.slide === false && o.ms === 80)).toBe(true);
   });
 
+  it('at Instant every tile of the real move, walked or slid, is a 1 ms tween; Fast keeps the walk', () => {
+    for (const [speed, walked, slid] of [
+      ['fast', 80, 60],
+      ['instant', 1, 1],
+    ]) {
+      const { scene, unit } = makeMoveScene({ ice: true });
+      scene.registry = {
+        get: (key) => (key === 'settings' ? { getBattleSpeed: () => speed } : null),
+      };
+      const tweens = [];
+      scene.tweens.add = vi.fn((cfg) => {
+        tweens.push(cfg.duration);
+        cfg.onComplete?.();
+        return {};
+      });
+      BattleScene.prototype.moveUnit.call(scene, unit, 5, 1);
+      expect([unit.col, unit.row]).toEqual([5, 1]);
+      expect(scene.afterMove).toHaveBeenCalledWith(unit);
+      expect(tweens.length).toBeGreaterThanOrEqual(2);
+      expect(tweens).toContain(walked);
+      expect(tweens.every((ms) => ms === walked || ms === slid)).toBe(true);
+      if (speed === 'fast') expect(tweens).toContain(slid);
+    }
+  });
+
   it('a move that fails ends the walk with no tile, so no puff is drawn', () => {
     const { scene, unit } = makeMoveScene();
     const walk = (scene._walkCycleCtrl = spyCtrl());
@@ -253,11 +278,11 @@ describe('moveUnit and the walk cycle', () => {
   });
 
   it('at Instant speed the real move is not dressed: no hop, no cycle, no puff', () => {
-    // A player's tile tween keeps 80 ms at every speed, so the controller must read the
-    // battle speed itself. The same move at Normal is a walk (the control).
+    // The same move at Normal is a walk (the control).
     const during = (scene, unit) =>
       vi.fn((cfg) => {
         scene.walkingDuringTween.push(unit.graphic._walkCycle === true);
+        scene.tweenMs.push(cfg.duration);
         cfg.onComplete?.();
         return {};
       });
@@ -267,10 +292,13 @@ describe('moveUnit and the walk cycle', () => {
         get: (key) => (key === 'settings' ? { getBattleSpeed: () => speed } : null),
       };
       scene.walkingDuringTween = [];
+      scene.tweenMs = [];
       scene.tweens.add = during(scene, unit);
       BattleScene.prototype.moveUnit.call(scene, unit, 2, 1);
       expect([unit.col, unit.row]).toEqual([2, 1]);
       expect(scene.afterMove).toHaveBeenCalledWith(unit);
+      // Instant settles the tile at the 1 ms floor, as an enemy's step, through the same tween
+      expect(scene.tweenMs).toEqual([speed === 'normal' ? 80 : 1]);
       if (speed === 'normal') {
         expect(scene.walkingDuringTween).toEqual([true]);
         expect(scene.add.image).toHaveBeenCalled();
@@ -355,9 +383,11 @@ function makeCantoScene({ speed = 'normal' } = {}) {
     scene: { isActive: () => true },
     time: { delayedCall: vi.fn(() => ({})) },
     walkingDuringTween: [],
+    tweenMs: [],
     tweens: {
       add: vi.fn((cfg) => {
         scene.walkingDuringTween.push(edric.graphic._walkCycle === true);
+        scene.tweenMs.push(cfg.duration);
         cfg.onComplete?.();
         return {};
       }),
@@ -412,6 +442,7 @@ describe('a Canto move and the walk cycle', () => {
       expect(scene._walkCycleCtrl).toBeInstanceOf(WalkCycleController);
       expect([edric.col, edric.row]).toEqual([3, 1]);
       expect(scene.walkingDuringTween).toHaveLength(3);
+      expect(scene.tweenMs).toEqual(Array(3).fill(speed === 'normal' ? 80 : 1));
       if (speed === 'normal') {
         expect(scene.walkingDuringTween).toEqual([true, true, true]);
         expect(edric.graphic._walkCycle).toBe(false); // given back at the end
