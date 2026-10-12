@@ -477,6 +477,7 @@ import { pauseBurdenEntries } from '../ui/eventMenuModel.js';
 import { liveRiteOptions } from '../ui/riteModel.js';
 import { recordFoesEncountered, recordRunDiscoveries } from '../engine/CompendiumDiscovery.js';
 import { heldBlessingEntries } from '../ui/heldBlessingsModel.js';
+import { strikeContactSfx } from '../utils/sfxConfig.js';
 import { pushInputScope, popInputScope, hasInputFocus } from '../utils/inputFocus.js';
 import {
   summarizeWeaponArtEffect,
@@ -7044,6 +7045,7 @@ export class BattleScene extends Phaser.Scene {
               : UI_PALETTE.text,
           invoke: () => {
             if (!canEquipNow) return;
+            if (wpn !== unit.weapon) this.registry.get('audio')?.playSFX('sfx_equip');
             equipWeapon(unit, wpn);
             this.showActionMenu(unit);
           },
@@ -9001,9 +9003,13 @@ export class BattleScene extends Phaser.Scene {
         if (audio && !event.miss) this._combatFx?.playStrikeSound(this.getWeaponSFX(striker));
         if (!isCurrentBattleSession(this, session)) return;
       },
-      onMiss: () => this._showStrikeMiss(target, reduced),
+      onMiss: () => {
+        if (audio) this._combatFx?.playStrikeSound('sfx_miss');
+        this._showStrikeMiss(target, reduced);
+      },
       onContact: () => {
-        if (audio) this._combatFx?.playStrikeSound(event.isCrit ? 'sfx_crit' : 'sfx_hit');
+        // A blow the armour turned (0 damage) clanks instead of landing (sfxConfig).
+        if (audio) this._combatFx?.playStrikeSound(strikeContactSfx(event));
         if (event.isCrit)
           (this._battleBeats ||= new BattleBeatsController(this)).onCritStrike(striker);
         strikeFeedback(this, event, striker, target);
@@ -11162,6 +11168,8 @@ export class BattleScene extends Phaser.Scene {
     this._phaseBanner = null;
     const label = phase === 'player' ? 'Player Phase' : 'Enemy Phase';
     const color = phase === 'player' ? UI_PALETTE.info : '#ff9999';
+    // The phase's bell, with either banner (sound only: no state, no battle stream).
+    this.registry?.get?.('audio')?.playSFX('sfx_turn');
     const place =
       turn === 1 && phase === 'player'
         ? battlePlace(this.gameData, this.battleConfig, this.battleParams?.act).title

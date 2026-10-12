@@ -578,7 +578,7 @@ export class TitleScene extends Phaser.Scene {
   _showLogoutProgress(title, message) {
     if (!hasDOMHost()) return;
     this._closeTitleMenu();
-    this.nativeMenu = new MenuSurface(this, title, () => {}, { modal: true });
+    this.nativeMenu = new MenuSurface(this, title, () => {}, { modal: true, sound: false });
     this.nativeMenu.header.querySelector('button').disabled = true;
     this.nativeMenu.body.append(element('p', message));
     this.nativeMenu.root.setAttribute('aria-busy', 'true');

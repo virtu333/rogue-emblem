@@ -1444,6 +1444,7 @@ export class RosterOverlay {
 
         if (!isEquipped && canEquip(unit, item)) {
           this._actionBtn(btnX, y, '[Equip]', () => {
+            this.scene.registry.get('audio')?.playSFX('sfx_equip');
             equipWeapon(unit, item);
             this.refresh();
           });
@@ -2450,7 +2451,7 @@ export class RosterOverlay {
           const old = equipAccessory(unit, selected);
           if (old) pool.push(old);
           const audio = this.scene.registry.get('audio');
-          if (audio) audio.playSFX('sfx_confirm');
+          if (audio) audio.playSFX('sfx_equip');
           this._destroyTrade();
           this._showBanner(
             `${unit.name} equipped ${itemDisplayName(selected, this.gameData?.skills)}!`,
