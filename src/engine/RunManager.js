@@ -258,6 +258,13 @@ import {
   rollStartGiftOffer,
   sanitizeStartGift,
 } from './StartGifts.js';
+import {
+  DESCENT_CAPABILITY,
+  RunFormatError,
+  runFormatBlock,
+  runFormatMarker,
+  sanitizeCapabilityIds,
+} from './RunFormat.js';
 
 // Phaser-specific fields that must be stripped for serialization
 const PHASER_FIELDS = UNIT_PRESENTATION_FIELDS;
@@ -786,6 +793,10 @@ export class RunManager {
     // Which blessing-boon rules this run's saved numbers follow (BlessingBoonMigration.js):
     // a new run is current, fromJSON reads the save's own.
     this.blessingBoonRevision = BLESSING_BOON_REVISION;
+    // The run-format guard's ratchet (engine/RunFormat.js): every capability id this run has
+    // ever written. toJSON writes it united with what the run holds now, so a pruned config
+    // never lets a run fall back to format 1 and reach an older client mid-life.
+    this.requiredCapabilityFloor = [];
     this._runStartBlessingsApplied = false;
     this.runSeed = null;
     this.narrativeSeen = {};
@@ -991,6 +1002,8 @@ export class RunManager {
     this.visionChargesRemaining = this.getBaseVisionCharges();
     this.visionCount = 0;
     this.randomLegendary = generateRandomLegendary(this.gameData.weapons);
+    // A new run starts with no floor, before its first map can raise one (_buildActNodeMap).
+    this.requiredCapabilityFloor = [];
     this.nodeMap = this._buildActNodeMap();
     this.currentNodeId = null;
     this.pendingAmbushNodeId = null;
@@ -1094,6 +1107,7 @@ export class RunManager {
     this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
     this.earnedBlessingPicks = {};
     this.blessingBoonRevision = BLESSING_BOON_REVISION; // a new run follows the current rules
+    this.requiredCapabilityFloor = [];
     this.battleConfigsByNodeId = {};
     for (const node of this.nodeMap.nodes) {
       const chapter = this.getPrologueChapter(node.id);
@@ -5821,18 +5835,26 @@ export class RunManager {
    * route (engine/Descent.js: its own keyed streams, never the node-map seed); otherwise the
    * generator under the node-map seed, exactly as before. A route that cannot be built (data
    * the validator would refuse) falls back to the generator rather than stopping the run.
+   * Building the Descent holds the run to the `descent` capability from that moment
+   * (engine/RunFormat.js: its floor, written by every later save whatever happens after), so a
+   * client that cannot play the route refuses every save from route entry on.
    */
   _buildActNodeMap() {
     const routeId = this._descentRouteId();
     if (routeId) {
       try {
-        return buildDescentNodeMap(this.gameData.descent, {
+        const nodeMap = buildDescentNodeMap(this.gameData.descent, {
           runSeed: this.runSeed,
           difficultyId: this.difficultyId,
           actSequence: this.actSequence,
           gameData: this.gameData,
           routeId,
         });
+        this.requiredCapabilityFloor = sanitizeCapabilityIds([
+          ...(this.requiredCapabilityFloor || []),
+          DESCENT_CAPABILITY,
+        ]);
+        return nodeMap;
       } catch (err) {
         console.error('[RunManager] the Descent route could not be built; generating', err);
       }
@@ -6278,6 +6300,20 @@ export class RunManager {
 
   /** Serialize run state to a plain object for localStorage. */
   toJSON() {
+    const saved = this._serializeRun();
+    // The prologue stays local-only by its mode (CloudSync.isLocalOnlyRunSave) and carries no
+    // marker. Any other run is marked from what it holds and every id it ever held.
+    if (this.mode === PROLOGUE_RUN_MODE) return saved;
+    const marker = runFormatMarker(saved, this.requiredCapabilityFloor);
+    if (marker.requiresCapabilities) {
+      this.requiredCapabilityFloor = [...marker.requiresCapabilities];
+      saved.requiresClient = marker.requiresClient;
+      saved.requiresCapabilities = [...marker.requiresCapabilities];
+    }
+    return saved;
+  }
+
+  _serializeRun() {
     return {
       version: 1,
       mode: this.mode === PROLOGUE_RUN_MODE ? PROLOGUE_RUN_MODE : STANDARD_RUN_MODE,
@@ -6617,6 +6653,10 @@ export class RunManager {
 
   /** Restore a RunManager from saved data. */
   static fromJSON(saved, gameData) {
+    // A run this client cannot play (engine/RunFormat.js) is refused before any migration
+    // touches it, whatever door it came through: loadRun checks first and writes nothing.
+    const formatBlock = runFormatBlock(saved);
+    if (formatBlock) throw new RunFormatError(formatBlock);
     // Items renamed since this save was written get their new names everywhere in
     // it (units, convoy, shops, rewards, battle checkpoint and rewind timeline).
     migrateSavedItemNames(saved, gameData);
@@ -6625,6 +6665,7 @@ export class RunManager {
     // Per-battle weapons (Breachbolt) take the catalog's shot counts (same places).
     migrateSavedPerBattleWeapons(saved, gameData);
     const rm = new RunManager(gameData, saved.metaEffects || null);
+    rm.requiredCapabilityFloor = sanitizeCapabilityIds(saved.requiresCapabilities);
     // Saves from before the prologue carry no mode: they are standard runs.
     rm.mode = saved.mode === PROLOGUE_RUN_MODE ? PROLOGUE_RUN_MODE : STANDARD_RUN_MODE;
     if (rm.mode === PROLOGUE_RUN_MODE) {
@@ -7508,6 +7549,15 @@ export function loadRun(gameData, slotNumber) {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
     const saved = JSON.parse(raw);
+    // A run that needs a newer client is left exactly as stored (engine/RunFormat.js).
+    const formatBlock = runFormatBlock(saved);
+    if (formatBlock) {
+      console.warn(
+        `[RunManager] slot ${slotNumber ?? '(legacy)'} needs a newer client:`,
+        formatBlock.missing.join(', ') || `format ${formatBlock.format}`,
+      );
+      return null;
+    }
     return RunManager.fromJSON(saved, gameData);
   } catch (err) {
     console.error(
