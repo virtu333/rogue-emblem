@@ -2778,8 +2778,11 @@ export class BattleScene extends Phaser.Scene {
 
     if (options.reinforcementMeta) stampReinforcementMeta(enemy, options.reinforcementMeta);
 
+    // On the battle (roster and battle entity id) whether or not its sprite draws: a wave's
+    // arrival that fails to draw must never stop the arrivals after it.
     this.enemyUnits.push(enemy);
-    this.addUnitGraphic(enemy);
+    registerBattleEntity(this, enemy);
+    safeBattlePresentation('enemy unit graphic', () => this.addUnitGraphic(enemy), { scene: this });
     return enemy;
   }
 
@@ -2817,7 +2820,9 @@ export class BattleScene extends Phaser.Scene {
     // this enemy phase, even when every tile it wanted was blocked.
     if (this.battleConfig?.reinforcements?.ladder) {
       this._ladderResolvedTurn = Math.trunc(Number(turn) || 0);
-      this.updateObjectiveText();
+      safeBattlePresentation('ladder objective', () => this.updateObjectiveText(), {
+        scene: this,
+      });
     }
     if (!Array.isArray(schedule.spawns) || schedule.spawns.length === 0)
       return { ...schedule, spawned: 0 };
@@ -2842,19 +2847,32 @@ export class BattleScene extends Phaser.Scene {
 
     if (spawned > 0) {
       this.dangerZoneStale = true;
-      this._pinnedThreats?.invalidate();
-      if (this.grid.fogEnabled) this.updateEnemyVisibility();
-      this.updateObjectiveText();
-      // One crimson band names the arrivals (bandits race the village);
-      // visible arrival tiles are marked (ReinforcementPresenter).
-      (this._reinforcements ||= new ReinforcementPresenter(this)).present(spawnedUnits, {
-        bandits: banditSpawned,
-      });
-
       // +1 par per wave that actually instantiated enemies, except waves that are the
       // clock itself (repeating pursuit, ladder): ReinforcementScheduler.waveRaisesPar.
+      // State before drawing, as every arrival above: the harness raises par the same way.
       const parRaise = parRaiseForArrivals(arrived);
       if (Number.isFinite(this.turnPar) && parRaise > 0) this.turnPar += parRaise;
+
+      safeBattlePresentation('arrival pinned threats', () => this._pinnedThreats?.invalidate(), {
+        scene: this,
+      });
+      if (this.grid.fogEnabled)
+        safeBattlePresentation('arrival fog visibility', () => this.updateEnemyVisibility(), {
+          scene: this,
+        });
+      safeBattlePresentation('arrival objective', () => this.updateObjectiveText(), {
+        scene: this,
+      });
+      // One crimson band names the arrivals (bandits race the village);
+      // visible arrival tiles are marked (ReinforcementPresenter).
+      safeBattlePresentation(
+        'arrival band',
+        () =>
+          (this._reinforcements ||= new ReinforcementPresenter(this)).present(spawnedUnits, {
+            bandits: banditSpawned,
+          }),
+        { scene: this },
+      );
     }
 
     return { ...schedule, spawned };

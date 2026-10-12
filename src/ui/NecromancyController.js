@@ -13,6 +13,7 @@
 // BattleScene owns one instance (lazily made; destroyed with the scene).
 
 import { battleSession, isCurrentBattleSession } from './BattleSession.js';
+import { registerBattleEntity } from '../engine/BattleEntityIdentity.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { CombatFxController } from './CombatFxController.js';
 import { safeBattlePresentation } from './safeBattlePresentation.js';
@@ -71,12 +72,21 @@ export class NecromancyController {
       });
       if (!raised) continue; // no free tile beside it: nothing is raised
       const { unit } = raised;
+      // The raise is state, whole, before anything is drawn (as the harness raises): on the
+      // roster with its battle entity id and its history beat, so a sprite that fails to draw
+      // never costs the Skeleton, the next Necromancer's raise or the enemy phase.
       scene.enemyUnits.push(unit);
-      scene.addUnitGraphic(unit);
-      if (scene.grid?.fogEnabled) scene.updateEnemyVisibility?.();
+      registerBattleEntity(scene, unit);
       scene.dangerZoneStale = true;
-      scene._pinnedThreats?.invalidate?.();
       observeHistoryAction(scene, 'raised', necromancer, unit);
+      safeBattlePresentation('raised unit graphic', () => scene.addUnitGraphic(unit), { scene });
+      if (scene.grid?.fogEnabled)
+        safeBattlePresentation('raise fog visibility', () => scene.updateEnemyVisibility?.(), {
+          scene,
+        });
+      safeBattlePresentation('raise pinned threats', () => scene._pinnedThreats?.invalidate?.(), {
+        scene,
+      });
       // Seen rising only where the player sees: the fog keeps its secret (no banner, no
       // effect, and the hidden Skeleton stays hidden like any enemy in fog).
       if (this.seesUnit(unit)) {
@@ -94,7 +104,7 @@ export class NecromancyController {
         if (!isCurrentBattleSession(scene, session)) return;
       }
     }
-    scene.updateObjectiveText?.();
+    safeBattlePresentation('raise objective', () => scene.updateObjectiveText?.(), { scene });
   }
 
   /**
