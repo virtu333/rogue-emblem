@@ -40,9 +40,13 @@ import {
 } from '../engine/RoutObjective.js';
 import {
   evaluateObjectives,
+  felledObjectiveView,
+  isObjectiveTarget,
+  objectiveGoalSentences,
   objectiveKindOf,
   objectivesOf,
   remainingObjectiveTargets,
+  statusView,
 } from '../engine/BattleObjectives.js';
 import { battleSpeed, waitDuration, waitTween } from '../utils/combatTiming.js';
 import {
@@ -9482,11 +9486,14 @@ export class BattleScene extends Phaser.Scene {
       scene: this,
     });
     // Boss death: the bar drains away; FOE VANQUISHED when the battle goes on
-    // (seize maps always -- the throne is still to take).
-    if (unit.isBoss && unit.faction === 'enemy') {
+    // (seize maps always -- the throne is still to take). On a defeat map a fallen target (a
+    // Voice is no boss) gets the band too, naming how many still stand.
+    const isBossFall = unit.isBoss && unit.faction === 'enemy';
+    if (isBossFall)
       safeBattlePresentation('boss death', () => this._bossPresence?.onBossDefeated(), {
         scene: this,
       });
+    if (isBossFall || isObjectiveTarget(this.battleConfig, unit)) {
       if (
         shouldShowFelled({
           objective: objectiveKindOf(this.battleConfig),
@@ -9832,7 +9839,7 @@ export class BattleScene extends Phaser.Scene {
               'battle_first_turn_hints',
               async () => {
                 if (!isSceneActiveForAsync() || this.battleState !== 'PLAYER_IDLE') return;
-                const objective = this.battleParams.objective;
+                const objective = objectiveKindOf(this.battleConfig) ?? this.battleParams.objective;
                 // A recruit battle opens without a lesson dialog: the Guidance field
                 // note (guide_recruit_on_map) names the recruit, never blocks, and
                 // honours Guidance Off. Other first-battle lessons wait for a later fight.
@@ -9848,6 +9855,12 @@ export class BattleScene extends Phaser.Scene {
                     this,
                     'battle_escape',
                     'Escape: bring your Lords to the green exits. The surviving army retreats when the last Lord leaves.',
+                  );
+                else if (objective === 'defeat')
+                  showContextualHint(
+                    this,
+                    'battle_objective_defeat',
+                    this.objectiveGoalLine() || 'Defeat the targets. The rest need not fall.',
                   );
                 else
                   showContextualHint(
@@ -11180,11 +11193,14 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _showBossDefeatedBanner() {
-    const objective = this.battleConfig?.objective;
+    const objective = objectiveKindOf(this.battleConfig);
+    // A defeat map's band says how many targets still stand ("2 Voices remain").
+    const targets = felledObjectiveView(this.battleConfig, this.objectiveField());
     const felled = hasDOMHost()
       ? this._getCeremonies().showBossFelled({
           objective,
           remaining: this.enemyUnits?.length || 0,
+          ...(targets ? { targetsLeft: targets.left, targetsLabel: targets.label } : {}),
         })
       : null;
     if (felled) {
@@ -11371,6 +11387,11 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
+  /** The goal sentence of an objectives-model map ("Defeat the Voices. The rest need not fall."), else null. */
+  objectiveGoalLine() {
+    return objectiveGoalSentences(this.battleConfig, this.objectiveField())?.join(' ') || null;
+  }
+
   updateObjectiveText() {
     if (!this.objectiveText) return;
     let label;
@@ -11387,6 +11408,14 @@ export class BattleScene extends Phaser.Scene {
     } else if (this.battleConfig.objective === 'escape' && this._escapeController) {
       label = this._escapeController.getObjectiveLabel();
       color = UI_PALETTE.good; // green -- run for the exit
+    } else if (objectivesOf(this.battleConfig)) {
+      // A map with an objectives model: its strip, one line per primary ("Defeat · the Voices
+      // (2/4)"), never the rout's enemy count. Words and counts only (BattleObjectives.statusView).
+      const view = statusView(objectivesOf(this.battleConfig), this.objectiveField());
+      label = view.primary.map((p) => p.compact).join('\n');
+      if (view.primary.every((p) => p.tone === 'good')) color = UI_PALETTE.good;
+      const ladderLine = this.getLadderObjectiveLine();
+      if (ladderLine) label += `\n${ladderLine}`;
     } else {
       label = routObjectiveLabel({
         remaining: this.enemyUnits.length,

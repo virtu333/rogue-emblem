@@ -37,6 +37,21 @@ describe('More Info: Par & Turn Ratings', () => {
     expect(lines).toContain(`  C  4+ turns over · EXP x${turnBonus.parXpMultipliers.C.toFixed(2)}`);
   });
 
+  it("names every objective whose base par starts above a rout's", () => {
+    // turnBonus.json: rout 2; seize, escape and defeat 4. The guide lists the higher ones in
+    // the data's order: a new objective with a higher base must be added to the page.
+    const base = turnBonus.objectiveBasePar;
+    const higher = Object.keys(base)
+      .filter((kind) => base[kind] > base.rout)
+      .map((kind) => kind[0].toUpperCase() + kind.slice(1));
+    expect(higher).toEqual(['Seize', 'Escape', 'Defeat']);
+    const text = lines.join(' ').replace(/\s+/g, ' ');
+    const list = `${higher.slice(0, -1).join(', ')} and ${higher.at(-1)}`;
+    expect(text).toContain(`${list} start higher`);
+    // ... and the page never claims a rout starts higher.
+    expect(text).not.toMatch(/Rout[^.]*start higher/);
+  });
+
   it('names every map that adds par turns, and adds 1-2', () => {
     const templates = load('mapTemplates.json');
     const all = Object.values(templates).flat();
