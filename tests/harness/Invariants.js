@@ -1,6 +1,7 @@
 // Invariants — Post-step invariant checks + phase watchdogs.
 
 import { HEADLESS_STATES, CANTO_DISABLED } from './HeadlessBattle.js';
+import { evaluateObjectives, objectivesOf } from '../../src/engine/BattleObjectives.js';
 
 const VALID_STATES = new Set(Object.values(HEADLESS_STATES));
 
@@ -100,7 +101,16 @@ export function checkInvariants(driver, context = {}) {
   if (!['rout', 'seize', 'escape'].includes(b.battleConfig?.objective)) {
     errors.push(`objective_consistency: unsupported objective "${b.battleConfig?.objective}"`);
   }
-  if (b.result === 'victory') {
+  // A map with an objectives model (BattleObjectives.js: a defeat map) is won by its model,
+  // never by its legacy string: its targets down, the rest may stand.
+  const objectives = objectivesOf(b.battleConfig);
+  if (b.result === 'victory' && objectives) {
+    const verdict = evaluateObjectives(objectives, { enemyUnits: b.enemyUnits });
+    if (verdict.outcome !== 'victory') {
+      const standing = verdict.primary.flatMap((p) => p.remaining.map((r) => r.ref));
+      errors.push(`objective_consistency: objectives victory with targets standing (${standing})`);
+    }
+  } else if (b.result === 'victory') {
     if (b.battleConfig?.objective === 'rout' && b.enemyUnits.length > 0) {
       errors.push(`objective_consistency: rout victory but ${b.enemyUnits.length} enemies remain`);
     }
