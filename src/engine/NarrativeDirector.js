@@ -53,17 +53,17 @@ export const KNOWN_WHEN_KEYS = new Set([
   // progress reads as 'none'; a real run cannot start while it runs). A value may be
   // one state or a list of states (any of them).
   'prologue',
+  // Act V (act-v-descent §9.7): the boss's role on the Descent's route ('gate' | 'finale' |
+  // 'none', from battleParams.bossRole) and the Rite's tier ('broken' | 'spoken' | 'answered' |
+  // 'none': the battle's tier at entry, else the run's; engine/Rite.js). One value or a list.
+  'bossRole',
+  'riteBand',
   // The road goes through Act IV, so the Emperor is dead when the army meets what is past him
   // (Dusk, Nightfall, Black Sun; never First Light).
   'roadThroughEmperor',
   // Where the road ends: 'lieutenant' | 'entity' | 'emperor' (a run saved before the ladder).
   // One value or a list of them.
   'finale',
-  // Act V (act-v-descent §9.7): the boss's role on the Descent's route ('gate' | 'finale' |
-  // 'none', from battleParams.bossRole) and the Rite's tier ('broken' | 'spoken' | 'answered' |
-  // 'none': the battle's tier at entry, else the run's; engine/Rite.js). One value or a list.
-  'bossRole',
-  'riteBand',
 ]);
 
 /** True when `value` (one value or a list) admits `actual`. */
@@ -76,16 +76,16 @@ function matchesOneOf(value, actual) {
  * optional: tutorial/standalone battles have no meta, headless tests may pass
  * nothing at all — defaults select base entries.
  * @param {{ meta?: object|null, runManager?: object|null, bossName?: string|null,
- *   gameData?: object|null, battleParams?: object|null }} sources `gameData` (else the run's
- *   own) names the finale's boss; `battleParams`: the battle being fought (its bossRole and the
- *   Rite's tier at its entry)
+ *   battleParams?: object|null, gameData?: object|null }} sources `battleParams`: the battle
+ *   being fought (its bossRole and the Rite's tier at its entry); `gameData` (else the run's
+ *   own) names the finale's boss.
  */
 export function buildNarrativeContext({
   meta = null,
   runManager = null,
   bossName = null,
-  gameData = null,
   battleParams = null,
+  gameData = null,
 } = {}) {
   let commander = null;
   let partner = null;
@@ -137,10 +137,10 @@ export function buildNarrativeContext({
     firstClear: runManager?.endRunRewards?.firstClear === true,
     linesPlayed: Array.isArray(flags?.linesPlayed) ? [...flags.linesPlayed] : [],
     prologue: prologueStateOf(meta),
-    roadThroughEmperor: roadIncludesAct4(runManager),
-    finale: finaleOf(runManager, gameData ?? runManager?.gameData),
     bossRole: ['gate', 'finale'].includes(battleParams?.bossRole) ? battleParams.bossRole : 'none',
     riteBand: riteBandOf(runManager, battleParams),
+    roadThroughEmperor: roadIncludesAct4(runManager),
+    finale: finaleOf(runManager, gameData ?? runManager?.gameData),
   };
 }
 
@@ -223,17 +223,17 @@ export function evaluateWhen(when, ctx) {
         case 'prologue':
           if (!matchesOneOf(value, ctx.prologue ?? 'none')) return false;
           break;
-        case 'roadThroughEmperor':
-          if ((ctx.roadThroughEmperor === true) !== value) return false;
-          break;
-        case 'finale':
-          if (!matchesOneOf(value, ctx.finale ?? null)) return false;
-          break;
         case 'bossRole':
           if (!matchesOneOf(value, ctx.bossRole ?? 'none')) return false;
           break;
         case 'riteBand':
           if (!matchesOneOf(value, ctx.riteBand ?? 'none')) return false;
+          break;
+        case 'roadThroughEmperor':
+          if ((ctx.roadThroughEmperor === true) !== value) return false;
+          break;
+        case 'finale':
+          if (!matchesOneOf(value, ctx.finale ?? null)) return false;
           break;
         default:
           return false; // unknown condition key: variant never matches
