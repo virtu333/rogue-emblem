@@ -215,6 +215,13 @@
 .mp-burdens li.is-contract strong {
   color: var(--re-accent-text);
 }
+/* The Descent's Rite rides it too, in the violet of the court circle's chant. */
+.mp-burdens li.is-rite {
+  border-left-color: var(--re-mark);
+}
+.mp-burdens li.is-rite strong {
+  color: var(--re-mark);
+}
 /* Upright, the panel scrolls as one when its contents cannot fit (after the lists' own rules,
    so the cap below wins). A list squeezed to fit could end shorter than its own entry (the
    Rite's highest tier on a 375x667 phone), and no scroll would ever show that entry whole.
