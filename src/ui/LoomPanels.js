@@ -266,6 +266,7 @@ export function renderLoomCard(card, node, ctx = {}) {
     steps: model.steps.get(node.id) ?? null,
     actId,
     mapTemplates: gameData?.mapTemplates,
+    setPieces: gameData?.setPieces,
     dialogue: gameData?.dialogue,
     // Difficulty offset plus the Eclipse's phase / eclipsed-node levels (what
     // RunManager.getBattleParams will actually pass to the battle).

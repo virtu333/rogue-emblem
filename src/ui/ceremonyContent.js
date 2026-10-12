@@ -150,12 +150,32 @@ export function defeatContent({ commanderName } = {}) {
   };
 }
 
-export function felledContent({ objective, remaining = 0 }) {
+/**
+ * The targets a defeat map still needs, as the felled band says them: "2 Voices remain", "1 Voice
+ * remains" (a label "the Voices" loses its article; a regular plural gives its singular, any other
+ * label reads "1 of the Wardens of Glass remains"). Nothing for none left.
+ */
+export function targetsRemainText({ left = 0, label = '' } = {}) {
+  const n = Math.max(0, Math.trunc(Number(left) || 0));
+  const name = String(label || 'targets').trim();
+  if (n < 1) return '';
+  const bare = name.replace(/^the\s+/i, '');
+  if (n > 1) return `${n} ${bare} remain`;
+  let singular = null;
+  if (/ies$/i.test(bare)) singular = `${bare.slice(0, -3)}y`;
+  else if (/(ss|x|ch|sh)es$/i.test(bare)) singular = bare.slice(0, -2);
+  else if (/[^su]s$/i.test(bare)) singular = bare.slice(0, -1);
+  return singular ? `1 ${singular} remains` : `1 of ${name} remains`;
+}
+
+export function felledContent({ objective, remaining = 0, targetsLeft = 0, targetsLabel = '' }) {
   let sub = '';
   if (objective === 'seize') sub = 'Seize the throne with a Lord';
   else if (objective === 'escape') sub = 'Make for the exit';
   else if (objective === 'rout' && remaining > 0)
     sub = `${remaining} ${remaining === 1 ? 'foe remains' : 'foes remain'}`;
+  else if (objective === 'defeat')
+    sub = targetsRemainText({ left: targetsLeft, label: targetsLabel });
   return { word: 'FOE VANQUISHED', sub };
 }
 

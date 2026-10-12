@@ -15,6 +15,7 @@ import { battlePlace } from './placeDisplay.js';
 import { bindHoldBattleSpeed, canHoldBattleSpeed } from './HoldBattleSpeed.js';
 import { syncPrologueForecastLayout } from './prologueForecastLayout.js';
 import { isScriptedBattle } from '../engine/ScriptedBattle.js';
+import { objectiveKindOf } from '../engine/BattleObjectives.js';
 import { hasEffectiveSkill } from '../engine/EffectiveSkills.js';
 import {
   showContextualHint,
@@ -159,6 +160,25 @@ function appendHealthBarsBadge(line, unit) {
 export function statusStaffGearLine(unit) {
   const text = statusStaffInfo(unit)?.text;
   return text ? el('p', 'mb-gear', text) : null;
+}
+
+/**
+ * The rail's objective button: the label it shows and the details it opens. The kind a battle is
+ * played as (a defeat map's legacy string is rout) and its own goal sentence come from the
+ * scene, never from the legacy string alone.
+ */
+export function objectiveRail(s) {
+  const text = s.objectiveText?.text || objectiveKindOf(s.battleConfig) || 'Battle';
+  return {
+    compact: compactBattleObjective(text),
+    help: () =>
+      objectiveHelp(
+        text,
+        s._bossPresence?.summaryLine?.(),
+        objectiveKindOf(s.battleConfig),
+        s.objectiveGoalLine?.() || '',
+      ),
+  };
 }
 
 /**
@@ -1030,29 +1050,20 @@ export class MobileBattleHUD {
     this.contractSlot.replaceChildren(...(contract ? [this.contractLine(contract)] : []));
     this.phase.append(counters);
     this.objective.replaceChildren();
-    const objectiveText = s.objectiveText?.text || s.battleConfig?.objective || 'Battle';
+    const rail = objectiveRail(s);
     const objective = this.button(
-      compactBattleObjective(objectiveText),
+      rail.compact,
       () => {
-        this.help = new ContextHelp(
-          s,
-          this.root,
-          'Battle objective',
-          objectiveHelp(objectiveText, s._bossPresence?.summaryLine?.(), s.battleConfig?.objective),
-          () => {
-            this.help = null;
-            this.lastSnapshot = '';
-            this.sync();
-            this.objective.querySelector('button')?.focus({ preventScroll: true });
-          },
-        );
+        this.help = new ContextHelp(s, this.root, 'Battle objective', rail.help(), () => {
+          this.help = null;
+          this.lastSnapshot = '';
+          this.sync();
+          this.objective.querySelector('button')?.focus({ preventScroll: true });
+        });
       },
       'mb-objective',
     );
-    objective.setAttribute(
-      'aria-label',
-      `Objective details: ${compactBattleObjective(objectiveText)}`,
-    );
+    objective.setAttribute('aria-label', `Objective details: ${rail.compact}`);
     objective.append(el('span', 'mb-info-cue', 'ⓘ'));
     this.objective.append(objective);
     if (sideStatus.length) {
