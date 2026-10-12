@@ -319,7 +319,7 @@
 .service-card h3 {
   margin: 0 0 6px;
 }
-/* The arena forecast's odds of the bout fought to the end. */
+/* The arena forecast's odds of the bout fought to the end, in the fighter's words. */
 .service-menu .arena-odds {
   margin: 10px 0;
   color: var(--re-gold-hi);
