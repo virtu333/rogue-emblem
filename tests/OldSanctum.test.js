@@ -130,10 +130,10 @@ describe('stamping the Old Sanctum', () => {
     expect(sanctumOf(prologue)).toBeNull();
   });
 
-  it("never in the run's last act on any rung (Dusk's Act IV included), as the act boss's pick", () => {
-    // Failure: the guard names the final boss's act only, so a rung whose run ends elsewhere
-    // (Dusk ends at the Emperor, Act IV) stamps a sanctum in its last act, where an earned card
-    // has almost no road left to pay off.
+  it("never in the run's last act on any rung, as the act boss's pick", () => {
+    // Failure: the guard names the final boss's act only, so a run that ends elsewhere (a Dusk
+    // run saved before Dusk went on to the Lieutenant ends at the Emperor, Act IV) stamps a
+    // sanctum in its last act, where an earned card has almost no road left to pay off.
     const finals = {};
     for (const difficultyId of ['normal', 'dusk', 'hard', 'lunatic']) {
       let earlier = 0;
@@ -156,7 +156,7 @@ describe('stamping the Old Sanctum', () => {
     }
     expect(finals).toEqual({
       normal: 'finalBoss',
-      dusk: 'act4',
+      dusk: 'finalBoss',
       hard: 'finalBoss',
       lunatic: 'finalBoss',
     });
@@ -167,6 +167,27 @@ describe('stamping the Old Sanctum', () => {
     });
     expect(stampSanctum(map(), { runSeed: 1, actIndex: 3, actCount: 4, chance: 1 })).toBeNull();
     expect(stampSanctum(map(), { runSeed: 1, actIndex: 3, actCount: 5, chance: 1 })).toBe('c');
+  });
+
+  it("Dusk's Act IV can hold one now (Act V follows it); a Dusk run saved with four acts' cannot", () => {
+    // Failure: the guard still names Act IV on Dusk (no sanctum there on a road that goes on),
+    // or reads the live difficulty.json instead of the run's own act list (a saved four-act
+    // Dusk run, whose last act IS Act IV, stamps one where no road is left for the card).
+    const actFour = (seed, trim) => {
+      const rm = freshRun(seed, { difficultyId: 'dusk' });
+      if (trim) rm.actSequence = rm.actSequence.slice(0, 4);
+      while (rm.currentAct !== 'act4') rm.advanceAct();
+      return rm;
+    };
+    let onRoad = 0;
+    for (let seed = 1; seed <= 12; seed++) {
+      const rm = actFour(seed, false);
+      expect(rm.actSequence.at(-1)).toBe('finalBoss');
+      if (sanctumOf(rm)) onRoad++;
+      else expect(sanctumCandidates(rm.nodeMap).length, `seed ${seed}`).toBe(0);
+      expect(sanctumOf(actFour(seed, true)), `saved four-act run, seed ${seed}`).toBeNull();
+    }
+    expect(onRoad).toBeGreaterThan(0);
   });
 
   it('about half the acts that could have one do, with the shipped chance', () => {

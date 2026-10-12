@@ -36,7 +36,8 @@ export function isDifficultyAtLeast(difficultyId, floor) {
 /**
  * What opens each rung: any one of its milestones. `anySlot` also counts a
  * milestone earned on another save slot. Winning on the old Hard (which ended at the
- * Emperor, as Dusk does now) recorded beatHard, so it still opens Nightfall.
+ * Emperor, as Dusk did before it went on to the Lieutenant) recorded beatHard, so it still
+ * opens Nightfall.
  */
 export const DIFFICULTY_UNLOCKS = Object.freeze({
   dusk: Object.freeze({

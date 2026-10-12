@@ -62,7 +62,7 @@
     "dusk": {
       "label": "Dusk",
       "color": "#d8b95c",
-      "road": "The road: Acts I–IV, ending at the Emperor.",
+      "road": "The road: Acts I–IV, then the Lieutenant.",
       "enemyStatBonus": 0,
       "enemyCountBonus": 1,
       "enemyLevelBonus": 1,
@@ -79,6 +79,7 @@
         "act2": 0,
         "act3": 0.15,
         "act4": 0.2,
+        "finalBoss": 0.2,
         "maxPerBattle": 1
       },
       "siegeWeaponConfig": {
@@ -87,6 +88,7 @@
         "act2": 0,
         "act3": 0,
         "act4": 0.15,
+        "finalBoss": 0.15,
         "maxPerBattle": 1,
         "weaponName": "Breachbolt"
       },
@@ -94,7 +96,8 @@
         "act1": false,
         "act2": false,
         "act3": true,
-        "act4": true
+        "act4": true,
+        "finalBoss": true
       },
       "carryConfig": {
         "perBattle": true,
@@ -120,7 +123,8 @@
         "act1",
         "act2",
         "act3",
-        "act4"
+        "act4",
+        "finalBoss"
       ],
       "extendedLevelingEnabled": false,
       "churchPromotionLimit": 4,

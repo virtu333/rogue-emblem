@@ -236,11 +236,11 @@ function mapScene(rm) {
 
 describe('which victories owe a pick (completeBattle prepares it with the victory)', () => {
   // Failure: the final act's boss (which ends the run) offers a pick nobody can use, or an act
-  // boss before it offers none. First Light ends at the Lieutenant (finalBoss), Dusk at the
-  // Emperor (act4), Nightfall and Black Sun at the Entity (finalBoss).
+  // boss before it offers none. First Light and Dusk end at the Lieutenant (finalBoss; Dusk's
+  // Emperor, Act IV, is an act boss on the way), Nightfall and Black Sun at the Entity.
   const expected = {
     normal: ['act1', 'act2', 'act3'],
-    dusk: ['act1', 'act2', 'act3'],
+    dusk: ['act1', 'act2', 'act3', 'act4'],
     hard: ['act1', 'act2', 'act3', 'act4'],
     lunatic: ['act1', 'act2', 'act3', 'act4'],
   };
@@ -261,7 +261,7 @@ describe('which victories owe a pick (completeBattle prepares it with the victor
       if (act < rm.actSequence.length - 1) rm.advanceAct();
     }
     expect(offered).toEqual(expected[difficultyId]);
-    expect(rm.actSequence.at(-1)).toBe(difficultyId === 'dusk' ? 'act4' : 'finalBoss');
+    expect(rm.actSequence.at(-1)).toBe('finalBoss');
   });
 
   it('a non-boss battle, an elite, an event battle and a boss-typed node that is not the act boss owe none', () => {

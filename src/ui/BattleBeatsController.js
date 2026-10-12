@@ -30,8 +30,8 @@ import { createSeededRng } from '../engine/BlessingEngine.js';
 
 import {
   buildNarrativeContext,
+  roadIncludesAct4,
   selectDialogueEntries,
-  victoryEndingKey,
 } from '../engine/NarrativeDirector.js';
 import { adaptDialogueEntries } from '../engine/DialogueCast.js';
 import { composeFinaleRally, heraldHeard } from '../engine/FinaleRally.js';
@@ -72,6 +72,7 @@ export class BattleBeatsController {
       meta: scene.registry?.get?.('meta') || null,
       runManager: scene.runManager || null,
       bossName,
+      gameData: scene.gameData || null,
     });
   }
 
@@ -96,14 +97,18 @@ export class BattleBeatsController {
   }
 
   /**
-   * The Lieutenant, seen once in an Act III boss battle on every road that never
-   * fights him (all but First Light, which ends at him): Sera's rival appears to her
-   * as a vision, so the road knows who he is and why Act IV says he is gone.
+   * The Lieutenant, seen once in an Act III boss battle on every road with an Act IV after it
+   * (Dusk, Nightfall, Black Sun; never First Light, which meets him straight after Act III):
+   * Sera's rival appears to her as a vision, so the road knows who he is before Act IV says he
+   * has gone below. The rule is the road's own act list, not where it ends: Dusk now ends at
+   * him, and the vision is still what introduces him there. A road that ends at him has its
+   * own closing line (`when: { finale: 'lieutenant' }`: he withdrew below, out of her sight
+   * for now); the Entity's roads keep the base lines.
    */
   getLieutenantVisionEntries() {
     const scene = this.scene;
     if (!scene.isBoss || scene.battleParams?.act !== 'act3' || !scene.runManager) return [];
-    if (victoryEndingKey(scene.runManager, scene.gameData) === 'victory_lieutenant') return [];
+    if (!roadIncludesAct4(scene.runManager)) return [];
     const vision = scene.gameData?.dialogue?.bossEncounters?.['The Lieutenant']?.vision;
     return selectDialogueEntries(vision, this._ctx('The Lieutenant')) || [];
   }

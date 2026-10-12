@@ -52,6 +52,12 @@ export const KNOWN_WHEN_KEYS = new Set([
   // progress reads as 'none'; a real run cannot start while it runs). A value may be
   // one state or a list of states (any of them).
   'prologue',
+  // The road goes through Act IV, so the Emperor is dead when the army meets what is past him
+  // (Dusk, Nightfall, Black Sun; never First Light).
+  'roadThroughEmperor',
+  // Where the road ends: 'lieutenant' | 'entity' | 'emperor' (a run saved before the ladder).
+  // One value or a list of them.
+  'finale',
 ]);
 
 /** True when `value` (one value or a list) admits `actual`. */
@@ -63,9 +69,15 @@ function matchesOneOf(value, actual) {
  * Snapshot the narrative state needed for variant selection. Every source is
  * optional: tutorial/standalone battles have no meta, headless tests may pass
  * nothing at all — defaults select base entries.
- * @param {{ meta?: object|null, runManager?: object|null, bossName?: string|null }} sources
+ * @param {{ meta?: object|null, runManager?: object|null, bossName?: string|null,
+ *   gameData?: object|null }} sources `gameData` (else the run's own) names the finale's boss.
  */
-export function buildNarrativeContext({ meta = null, runManager = null, bossName = null } = {}) {
+export function buildNarrativeContext({
+  meta = null,
+  runManager = null,
+  bossName = null,
+  gameData = null,
+} = {}) {
   let commander = null;
   let partner = null;
   try {
@@ -116,6 +128,8 @@ export function buildNarrativeContext({ meta = null, runManager = null, bossName
     firstClear: runManager?.endRunRewards?.firstClear === true,
     linesPlayed: Array.isArray(flags?.linesPlayed) ? [...flags.linesPlayed] : [],
     prologue: prologueStateOf(meta),
+    roadThroughEmperor: roadIncludesAct4(runManager),
+    finale: finaleOf(runManager, gameData ?? runManager?.gameData),
   };
 }
 
@@ -185,6 +199,12 @@ export function evaluateWhen(when, ctx) {
           break;
         case 'prologue':
           if (!matchesOneOf(value, ctx.prologue ?? 'none')) return false;
+          break;
+        case 'roadThroughEmperor':
+          if ((ctx.roadThroughEmperor === true) !== value) return false;
+          break;
+        case 'finale':
+          if (!matchesOneOf(value, ctx.finale ?? null)) return false;
           break;
         default:
           return false; // unknown condition key: variant never matches
@@ -325,6 +345,28 @@ export function selectDialogueEntries(sectionValue, ctx) {
   } catch (_) {
     return null;
   }
+}
+
+/** True when the run's own act list includes Act IV: the Emperor stands on this road. */
+export function roadIncludesAct4(runManager) {
+  return Array.isArray(runManager?.actSequence) && runManager.actSequence.includes('act4');
+}
+
+/**
+ * Where the run's road ends, read from its own act list like `victoryEndingKey`:
+ * 'lieutenant' | 'entity' | 'emperor', or null without a run, or when the road goes on to
+ * the final act and the catalog that names its boss is not at hand (unknown, never guessed).
+ */
+export function finaleOf(runManager, gameData) {
+  const acts = runManager?.actSequence;
+  if (!Array.isArray(acts) || acts.length === 0) return null;
+  if (acts.at(-1) === 'finalBoss' && !Array.isArray(gameData?.enemies?.bosses?.finalBoss))
+    return null;
+  return {
+    victory_lieutenant: 'lieutenant',
+    victory_emperor: 'emperor',
+    victory_entity: 'entity',
+  }[victoryEndingKey(runManager, gameData)];
 }
 
 /**
