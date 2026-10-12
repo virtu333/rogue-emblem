@@ -5,6 +5,7 @@
 //                          [--workers W] [--meta none|endgame] [--fork keyed|battle|event]
 //                          [--phase all|capture|act5] [--arms legacy,descent] [--stones lieutenant=N]
 //                          [--out runs.jsonl] [--from a.jsonl,...] [--md report.md]
+//                          [--until <descentKey>] [--slots split|single]
 //
 // Each arm sets the route's switch on its own copy of the data (`enabled` on a clone: off for
 // `legacy`, on for `descent`), never in the file, so the arms hold whatever the file ships.
@@ -94,7 +95,7 @@ const opts = parseArgs({
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain && opts.help) {
   console.log(
-    'Usage: npm run sim:descent -- [--trials N] [--seed S] [--difficulty all|normal,...] [--workers W] [--meta none|endgame] [--fork keyed|battle|event] [--phase all|capture|act5] [--stones lieutenant=N] [--out f.jsonl] [--from a.jsonl,...] [--md report.md]',
+    'Usage: npm run sim:descent -- [--trials N] [--seed S] [--difficulty all|normal,...] [--workers W] [--meta none|endgame] [--fork keyed|battle|event] [--phase all|capture|act5] [--stones lieutenant=N] [--until <descentKey>] [--slots split|single] [--out f.jsonl] [--from a.jsonl,...] [--md report.md]',
   );
   process.exit(0);
 }

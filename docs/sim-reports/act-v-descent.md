@@ -24,12 +24,131 @@ Vigil's Warden is measured on its own in "The Warden".
 - Nightfall/Black Sun, mid-strength army: the Descent costs 23 / 22 points of "no commander fall in Act V" (published 17 / 27). Wins are level (strict +1.7 / +4.0); legacy stalls become commander falls (+20 / +21). Strong Nightfall armies win 14 points more often (published 16).
 - **First Light weak: the Descent is now 9 points harder than the old act** (11% against 20%, CI −15..−3; published −3, CI −11..+5). The Warden explains about 6 points of it. Lowering the Lieutenant route's filler half a level (`levelOffset` [1, 2]) was tried and not kept: +5 for this model, −4 for Dusk, both inside noise. Strong First Light (+2) and Dusk (−4.7, CI −10..+1) are unchanged within noise.
 - The Landing stays (gate lost 14% with it, 17% without, act bosses 30%; Broken at the Entity 22% with it, 12% without).
-- Needs your eye: (1) whether First Light's weak model should be at parity (the lever is the Warden's slot level, a design call, see "The Warden"); (2) the gate is still among the easiest fights (lost 14% Nightfall, 13% Black Sun, 1% strong); (3) Entity fights still stall at the cap: Nightfall 47% (legacy) and 56% (Descent), Black Sun 35% and 23% (the agent's limit, "Limits").
+- **Update (main, after #359 and #363): "Follow-up on main" below.** The Warden's −2 brings First Light weak to Δ −5.0 (CI −13..+3); a proposed Glass change makes the gate as hard as the act bosses (lost 30% / 24%); Dusk earns 6% more an hour than First Light; the 5 + 3 slot rule changes nothing the sim's player does.
+- Needs your eye: (1) whether First Light's weak model should be at parity (the lever is the Warden's slot level, a design call, see "The Warden"); (2) the gate is still among the easiest fights (lost 14% Nightfall, 13% Black Sun, 1% strong; a proposal in "Follow-up on main"); (3) Entity fights still stall at the cap: Nightfall 47% (legacy) and 56% (Descent), Black Sun 35% and 23% (the agent's limit, "Limits").
+
+## Follow-up on main (2026-10-12, after #363)
+
+Played on `main` at `2fd28474` (the Descent on) plus this PR's sim options, with fresh captures (same
+protocol, cohorts and seeds as above). The headless harness has no Deathburst yet (#366 adds it): every
+number here, before and after, plays without it, so the paired differences hold and the absolute rates
+read a little easy wherever a Deathburst foe stands.
+
+### First Light weak after the Warden's −2 (#359)
+
+The rows in "The Warden" are the elite rule. With the Warden two levels under it (the data since #359),
+the same First Light quarter-meta cohort (seeds 1–100), legacy and Descent paired:
+
+| | elite rule (#353, above) | Warden −2 (main) |
+|---|---|---|
+| Act V cleared, legacy → Descent | 20% → 11%, Δ −9.0 [−15.3, −2.7] | 21% → 16%, Δ −5.0 [−13.1, +3.1] |
+| Vigil cleared, among runs that reached it | 41% (34) | 57% (35) |
+| Vigil turns − par | +2.1 [+0.4, +3.8] | +1.4 [−0.4, +3.1] |
+| The Lieutenant cleared, among runs that reached him | 79% (14) | 80% (20) |
+| Act V commander loss / stall (Descent) | 87% / 2% | 82% / 2% |
+
+- Lowering the Warden closes about half of the weak army's gap; the Vigil is the node that moved.
+- The Descent is still about 5 points harder than the old act for this model, but the interval now spans
+  zero. The #363 comment's replay (20% → 15%, Δ −5.0 [−12.6, +2.6]) is the same result on #363's base.
+
+### The gate (Nightfall, Black Sun): a proposal
+
+The gate was among the act's easiest fights: lost 17% (Nightfall half meta, 94 reached) and 10% (Black Sun
+endgame, 59 reached) on main, against 30–32% for the act bosses of Acts I–IV. Each candidate replays
+the act up to the gate (`--until gate`) from the same entry states (Nightfall seeds 200001–200150 and
+205001–205080, Black Sun 300001–300150). Everything before the gate is identical, so the gate fight
+pairs run by run.
+
+| candidate | Nightfall gate lost | paired Δ (pts) | Black Sun gate lost | paired Δ (pts) | gate turns Δ |
+|---|---|---|---|---|---|
+| main | 17% [11, 26] | – | 10% [5, 20] | – | – |
+| a third stone (`lieutenant` 3) | 18% [11, 30] (65) | +1.5 [−1.5, +4.6] | 12% [6, 23] | +1.7 [−1.6, +5.0] | +0.6 |
+| two Generals on post beside him | 17% [10, 28] (65) | +0.0 [−8.6, +8.6] | 19% [11, 30] | +8.5 [−0.1, +17.1] | +0.2 / −0.3 |
+| those two and a turn-3 wave behind the army | 23% [16, 33] | +6.4 [−2.9, +15.7] | 12% [6, 23] | +1.7 [−5.8, +9.2] | +0.9 / +0.4 |
+| four guards at +2 (two Generals on post, two Snipers on the dais) | 21% [14, 31] | +4.3 [−3.5, +12.1] | 19% [11, 30] | +8.5 [−1.3, +18.3] | +1.1 / +0.3 |
+| **the four guards and a turn-2 flank wave (proposed)** | **30% [21, 40]** | **+12.8 [+3.8, +21.8]** | **24% [15, 36]** | **+13.6 [+2.5, +24.6]** | **+2.4 / +1.8** |
+| the proposal and a third stone | 33% [24, 43] | +16.0 [+6.4, +25.5] | 27% [17, 40] | +16.9 [+5.2, +28.7] | +3.0 / +2.4 |
+
+(65) marks the candidates replayed on the first 150 Nightfall seeds only.
+
+- **Stones do not make him hard.** The defeat objective lets the army focus him; a third stone costs
+  half a turn and 1–2 points, as the second did.
+- **What works is pressure on the army, not on him.** The guards alone or the late wave alone move it
+  inside the noise; together they double the gate's loss rate, to the act bosses' level.
+- **The proposal** (`setPieces.json` `the_glass`, every new slot `minRung: "hard"`, so First Light and
+  Dusk's finale fields none of it):
+  - a General on post on each side of him (14,5) and (14,7), and a Sniper on the dais at (14,3) and
+    (14,9), each at `level: 2` over the battle's range;
+  - a turn-2 wave from the hall's top and bottom edges at the middle: a Swordmaster and a Sniper above,
+    a Hero and a Sage below (`level: 2`), and on Black Sun a second Hero.
+- **Act V as a whole, the same runs to the end** (main → proposal, paired):
+
+  | | Nightfall half (230) | Black Sun endgame (150) |
+  |---|---|---|
+  | win | 12% → 13%, Δ +1.3 [−2.6, +5.2] | 21% → 17%, Δ −3.3 [−7.2, +0.6] |
+  | commander loss | 70% → 75%, Δ +5.2 [+0.6, +9.8] | 67% → 73%, Δ +5.3 [+0.5, +10.2] |
+  | stall | 18% → 12%, Δ −6.5 [−11.2, −1.8] | 12% → 10%, Δ −2.0 [−6.7, +2.7] |
+  | KO-free | 29% → 23%, Δ −5.2 [−9.8, −0.6] | 31% → 25%, Δ −6.7 [−11.8, −1.5] |
+  | deaths per run | 3.73 → 4.06 | 3.85 → 4.21 |
+
+  The act costs about 5–7 points of KO-free play; strict wins move inside noise (on Nightfall the gate
+  takes runs that would have stalled at the Entity anyway).
+- **First Light and Dusk.** The new slots never spawn there, but their two draws each are still taken
+  (SetPieces' rule), so the finale's later draws (affixes, carried items) fall differently: a reroll,
+  not a change in strength. Played to the end from the same entry states: First Light half meta
+  (100) Act V win 93% → 93%, Δ 0.0; Dusk half meta (150) 83% → 84%, Δ +0.7 [−1.6, +2.9].
+- **The Landing.** Spec §11 keeps the Landing only if the gate without it is lost more often than the
+  act bosses. With the proposal the gate (with the Landing) is at the act bosses' rate already; the
+  Landing's own rule was read before and is not re-run here.
+
+### Currency per minute of play (Dusk goes past the Emperor)
+
+Per run, under permadeath (a run ends at its first commander fall no rewind took back; a stall plays
+on), the end-of-run Valor and Supply `RunManager.previewEndRunRewards` would pay (acts reached, battles
+won, the victory bonus, the first-boss milestone, the rung's `currencyMultiplier`). Minutes come from
+each battle's turns and deployed units and the nodes walked, with two time models taken from the
+prologue's estimate (docs/specs/prologue-chapter.md §9): **experienced** 12 s a unit action, 15 s an
+enemy phase, 90 s a battle's deploy and rewards, 60 s a non-battle node; **first-timer** 30 s, 20 s,
+150 s, 120 s. The absolute minutes are a model; the ratios between rungs barely move between the two.
+
+| model (Home Base) | runs | win | currency per run | per win | experienced: per hour | minutes per winning run | first-timer: per hour |
+|---|---|---|---|---|---|---|---|
+| First Light (half) | 100 | 69% [59, 77] | 858 | 1243 | 236 | 241 | 107 |
+| Dusk (half) | 150 | 38% [31, 46] | 1215 | 3198 | 250 | 405 | 112 |
+| Nightfall (half) | 230 | 5% [3, 8] | 886 | 18519 | 291 | 467 | 132 |
+| Black Sun (endgame) | 150 | 1% [0, 4] | 1024 | ~150000 | 403 | 471 | 183 |
+| First Light (quarter) | 100 | 3% [1, 8] | 454 | 15147 | 197 | 281 | 91 |
+
+- **Per minute, the ladder still pays in order.** Dusk earns 6% more an hour than First Light at the
+  same Home Base (250 against 236), Nightfall 23% more, Black Sun (endgame) 71% more. Counting stalls as
+  losses changes no rate by more than 1%.
+- **Per win it does not.** A Dusk win takes 1.7 times as long as a First Light win (405 against 241
+  minutes: Act IV and the Descent) and pays 2.6 times as much; a player who measures Dusk by its wins
+  sees it as generous, by the hour as barely ahead of First Light.
+- No number changes. If Dusk should clearly out-earn First Light by the hour, the lever is Dusk's
+  `currencyMultiplier` (1.15); at this model's win rate +0.1 there is about +9% an hour.
+
+### The skill and ability slots (5 + 3) against the old single pool of 5
+
+`--slots single` plays the rule before #344: abilities count in the five skill slots
+(`SkillSlots.setSingleSlotPoolForSims`; the game never sets it). Nightfall half meta, seeds
+200001–200150, the whole run (Acts I–IV captured under each rule, then the Descent):
+
+- **The rule almost never binds for the scripted player.** 149 of 150 runs play Acts I–IV battle for
+  battle identically under both rules; Act V's outcomes are identical (win 13%, commander loss 67%,
+  stall 19%, Δ 0.0 on every row). At Act V entry a unit holds 2.8 equipped skills and abilities on
+  average; across the cohorts above, 1 unit in about 700 holds more than five, and 0.02 skills a run
+  sit on a bench.
+- So the sim cannot price the split: its player learns few skills and uses only one ability (Steal).
+  The split's value is for a person who stacks abilities (a Dancer or a Thief with scrolls), which no
+  agent here does. A useful measurement would need an agent that uses Shove, Pull, Smite, Rally Cry and
+  the rest.
 
 ## What changed
 
 | Number | Before | After | Why (numbers below) |
 |---|---|---|---|
+| `the_glass` at the gate (proposal, after this report) | 12 foes and the Lieutenant, no wave (Nightfall) | + 4 guards at +2 and a turn-2 wave of 4 (Black Sun 5), all `minRung: "hard"` | the gate was lost 17% / 10% against the act bosses' 30–32%; now 30% / 24% ("Follow-up on main") |
 | `rite.bands` (this re-run) | Broken 0–4, Spoken 5–9, Answered 10+ | 0–5, 6–9, 10+ | after #342 Nightfall's Broken share at the Entity fell to 13% (published 28%); the smallest edge move back inside noise without Broken becoming the strong models' default |
 | `routes.lieutenant.levelOffset` (this re-run) | [2, 2] | [2, 2] (tested [1, 2]) | the First Light weak gap: +5 for that model, −4 for Dusk, both inside noise; not kept |
 | Warden of the Rite level (this re-run) | the elite rule (#342) | unchanged | paired: no effect above First Light; see "The Warden" |
@@ -289,7 +408,8 @@ the data, paired against this base (same entry states, same stream):
   `level` below it would be a design choice for First Light, not a bug fix, so it is left to the owner.
 - **Owner's call (after this report):** his slot carries `level: -2` on every rung, so he stands two
   levels under the elite rule, among his guards rather than above them (First Light: promoted level 5,
-  was 7; the strongest guard is a level-6 Sniper). Not re-simmed: the rows above are the elite rule.
+  was 7; the strongest guard is a level-6 Sniper). The rows above are the elite rule; the replay with
+  the Warden at −2 is in "Follow-up on main".
 
 The finale by band (Nightfall, half meta). These rows are observational: a band is the result of a run's
 earlier play, not a random draw, so Broken runs are not the same population as Answered ones.
@@ -459,3 +579,6 @@ It runs on #337's base: it played five Dusk seeds to the end before it was stopp
   bands were moved one word to hold the §11 target for this model; if the model is re-anchored (a larger
   Home Base share for Nightfall), the bands should be read again.
 - **Elite captain levels** (#342, in this base): the Warden stands at the elite rule; see "The Warden".
+- **No Deathburst in the harness** until #366: a sim kill beside a Deathburst foe leaves the attacker
+  untouched. Every arm plays without it, so the paired differences stand; absolute survival reads a
+  little high wherever an affixed foe carries it.
