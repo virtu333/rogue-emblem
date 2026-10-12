@@ -108,7 +108,8 @@ each Voice is tethered to one smaller circle at the ring's edge.
   blocks it (and stands where the guards can reach it). Silencing a Voice closes its circle for
   good. At most `vigil.maxCalled` (*tune* 8) Hollowed are called in a battle.
 - **The guards.** The `elites.postAct` names come back: **Warden of the Rite** (Dark Knight, the
-  captain, guarding the inner ring) and **Ritual Blade** (Assassin, a hold pack that wakes when a
+  captain, guarding the inner ring; two levels under the elite rule, `level: -2`, so a thin army
+  never meets a captain far above his guards) and **Ritual Blade** (Assassin, a hold pack that wakes when a
   Voice is first hurt). The rest is the act's promoted pool. Black Sun adds **Ash Magus** (Sage)
   on the far side of the ring.
 - **No boss card, no boss music.** The Vigil has its own theme (§8) and an entry line from the

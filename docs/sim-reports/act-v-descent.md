@@ -287,6 +287,9 @@ the data, paired against this base (same entry states, same stream):
   Warden against 13 / 63 / 24 now.
 - The spec names him "the captain, guarding the inner ring": the elite rule is his intended level. A slot
   `level` below it would be a design choice for First Light, not a bug fix, so it is left to the owner.
+- **Owner's call (after this report):** his slot carries `level: -2` on every rung, so he stands two
+  levels under the elite rule, among his guards rather than above them (First Light: promoted level 5,
+  was 7; the strongest guard is a level-6 Sniper). Not re-simmed: the rows above are the elite rule.
 
 The finale by band (Nightfall, half meta). These rows are observational: a band is the result of a run's
 earlier play, not a random draw, so Broken runs are not the same population as Answered ones.

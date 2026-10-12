@@ -415,6 +415,7 @@
               "row": 6,
               "classes": ["Dark Knight"],
               "captain": { "name": "Warden of the Rite" },
+              "level": -2,
               "aiMode": "guard"
             },
             { "col": 11, "row": 3, "classes": ["Assassin"], "name": "Ritual Blade", "hold": 1 },
