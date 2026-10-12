@@ -10724,49 +10724,98 @@
         "Stay down!",
         "This ends here!",
         "That one's for all of them!",
-        "Enough! Leave my people be!"
+        "Enough! Leave my people be!",
+        "Hold the line, I've got this!",
+        "Not one step further!",
+        "For everyone behind me!",
+        "Stand aside!",
+        "Stay back from them!",
+        "I didn't want that to land. It did.",
+        "My turn to hit hard."
       ],
       "Kira": [
         "Right where I wanted you.",
         "Checkmate.",
         "Saw that coming.",
         "Forced move.",
-        "You walked right into that one."
+        "You walked right into that one.",
+        "Gambit accepted.",
+        "Three moves ahead. Found you.",
+        "Your mistake. My tempo.",
+        "I do enjoy a clean fork.",
+        "Too slow to see it.",
+        "Zugzwang, friend.",
+        "Opening, middlegame, that."
       ],
       "Voss": [
         "Still standing. You're not.",
         "Felt that one myself.",
         "Next.",
         "Old bow. Still bites.",
-        "That goes in the ledger. Your column."
+        "That goes in the ledger. Your column.",
+        "Aimed. Not lucky.",
+        "Border trick. Learned it hard.",
+        "Stay down this time.",
+        "Don't get up.",
+        "That one I felt in my knees.",
+        "Warden's welcome.",
+        "Slow is steady. This wasn't slow."
       ],
       "Sera": [
         "I saw this strike land.",
         "The threads align.",
         "Fate favors us.",
         "I've seen you fall before. Now you do.",
-        "The light cuts where the thread is thin."
+        "The light cuts where the thread is thin.",
+        "The thread frays. Here.",
+        "I knew where it would land.",
+        "Light, find your mark.",
+        "There. Where it was always going.",
+        "Hold still. It's already written.",
+        "The weave gives way.",
+        "I've seen it. Now it's done."
       ],
       "Rowan": [
         "Blessed — told you!",
         "Clean hit. Mostly skill.",
         "Fate pays up.",
         "Did everyone see that? Somebody saw that.",
-        "Blessed, yes. Aimed, also yes."
+        "Blessed, yes. Aimed, also yes.",
+        "Luck! ...Also aim.",
+        "Pure skill. Mostly.",
+        "Tell the bards. Exactly like that.",
+        "My mount saw it first.",
+        "Did I do that? I did that.",
+        "Not luck. Okay, a little luck.",
+        "Blessed lance, steady hand."
       ],
       "Astrid": [
         "Death from above!",
         "Never saw the sky coming.",
         "The wind strikes true.",
         "Straight down the wind.",
-        "You looked up too late."
+        "You looked up too late.",
+        "From the sun, straight down.",
+        "Too high to hear it coming.",
+        "Clean dive.",
+        "Gravity helped.",
+        "Wind at my back. Point forward.",
+        "Look up next time.",
+        "Dropped in. Dropped you."
       ],
       "Cael": [
         "The wall pushes BACK.",
         "Felt that? Good.",
         "Shield arm's still strong.",
         "The wall hits back. Surprise.",
-        "Shield first. Then that."
+        "Shield first. Then that.",
+        "Stone strikes.",
+        "Did the wall flinch? No.",
+        "Leaned in. Hit hard.",
+        "Ow. That was for you, not me.",
+        "Behind me, if you please.",
+        "The wall moves. Rarely. Just now.",
+        "Immovable. Not harmless."
       ]
     },
     "onKill": {
@@ -10775,49 +10824,98 @@
         "One step closer.",
         "The banner marches on.",
         "It's done. Nobody else gets hurt here.",
-        "One fewer between us and home."
+        "One fewer between us and home.",
+        "Count one. Then count us all.",
+        "Another down. We're all still here.",
+        "Go in peace.",
+        "Everyone still standing? Good.",
+        "Stand down. It's finished.",
+        "One less to worry over.",
+        "Easy now. It's done."
       ],
       "Kira": [
         "The line was always mine.",
         "Piece taken.",
         "That's the game.",
         "Off the board.",
-        "Exactly as planned. More or less."
+        "Exactly as planned. More or less.",
+        "Trade accepted. I came out ahead.",
+        "Pawn, knight, doesn't matter.",
+        "Next position, please.",
+        "Cleaner than I'd planned.",
+        "One less variable.",
+        "Tempo gained.",
+        "Resign? No? Fine."
       ],
       "Voss": [
         "Buried tougher.",
         "Still here. You're not.",
         "One more for the ledger.",
         "Down. The ground can have this one.",
-        "Not my ledger. Somebody else can write that one."
+        "Not my ledger. Somebody else can write that one.",
+        "Quiet now.",
+        "Add it up later.",
+        "Still counting.",
+        "Ground's patient. Go to it.",
+        "No ceremony. Moving on.",
+        "One less to bury of ours.",
+        "Wasn't pretty. Rarely is."
       ],
       "Sera": [
         "This thread ends here.",
         "I foresaw your fall.",
         "The vision holds.",
         "Rest. Your thread is done.",
-        "I'm sorry. There was no other path for you."
+        "I'm sorry. There was no other path for you.",
+        "Be at peace.",
+        "The pattern closes.",
+        "Forgive me.",
+        "It ends where I saw it end.",
+        "Light keep you, whatever you were.",
+        "One less thread to tangle.",
+        "Quietly, now."
       ],
       "Rowan": [
         "Fate called it.",
         "The lance decides.",
         "Skill. Definitely skill.",
         "And the crowd goes wild! The crowd is my mount.",
-        "Another one for the song. Verse nine."
+        "Another one for the song. Verse nine.",
+        "Another for my tally.",
+        "Fate and I have an understanding.",
+        "Easy. Don't clap.",
+        "Ride on. Don't look back.",
+        "My mount gets a carrot for that.",
+        "Lucky? Please. Practiced.",
+        "Notch it on the saddle."
       ],
       "Astrid": [
         "Grounded. For good.",
         "The sky keeps its word.",
         "Clear skies ahead.",
         "Nothing left below. Moving on.",
-        "Quiet down there now."
+        "Quiet down there now.",
+        "Down you go. Fitting.",
+        "Nothing up here to stop me.",
+        "One less shadow on the ground.",
+        "Back to the dirt.",
+        "Quiet below.",
+        "One fewer problem under that sky.",
+        "Hard landing. Yours."
       ],
       "Cael": [
         "You broke first.",
         "The line holds. Always.",
         "Down and staying down.",
         "Walls don't chase. They wait. You came.",
-        "You hit the wall. The wall won."
+        "You hit the wall. The wall won.",
+        "Stay where you fell.",
+        "That was the easy part.",
+        "Nobody gets past.",
+        "Hold. Held. Done.",
+        "Wall one. You nothing.",
+        "Rest. We'll be here.",
+        "Back line, you can look now."
       ]
     },
     "onAllyFall": {
@@ -10825,43 +10923,64 @@
         "No. Not {fallen}. I had you counted. I had you counted.",
         "Hold here. Someone close their eyes. Then we go on.",
         "{fallen}. I'll carry your name home. I promise.",
-        "I lost one. Everyone else, close in. Now."
+        "I lost one. Everyone else, close in. Now.",
+        "{fallen}. You were never just a number.",
+        "Not like this. Not you.",
+        "Stay with me, everyone. Please."
       ],
       "Kira": [
         "No. That was my line. I sent them there.",
         "A piece down. I'll mourn when the board's clear. Not before.",
         "{fallen} deserved a better game than this one.",
-        "Close the gap. I don't want to look at it empty."
+        "Close the gap. I don't want to look at it empty.",
+        "{fallen}, I'll finish the game for you.",
+        "I miscounted. That's mine to carry.",
+        "Not a sacrifice. A mistake. Mine."
       ],
       "Voss": [
         "{fallen}. Another line in the ledger. Too soon.",
         "Should've been me. Always figured it would be.",
         "Mark where they fell. We come back for them after.",
-        "{fallen}... still standing for you. Both of us, now."
+        "{fallen}... still standing for you. Both of us, now.",
+        "Another name for the ledger. I hate that page.",
+        "{fallen}. Rest. I've got the watch.",
+        "Count the rest. Quietly. Count them."
       ],
       "Sera": [
         "I saw a thread where {fallen} lived. Why wasn't it this one?",
         "Go gently. I'll remember you, even when the weave forgets.",
         "{fallen}... I looked too far ahead and not close enough.",
-        "One more light gone out. Hold on to each other."
+        "One more light gone out. Hold on to each other.",
+        "I should have held your thread tighter, {fallen}.",
+        "The light dims. We keep walking toward it.",
+        "I felt it snap. {fallen}, I felt it."
       ],
       "Rowan": [
         "{fallen}? Get up. Come on. That was a joke, right? Get up.",
         "Luck ran out for the wrong one today.",
         "I'll ride twice as hard. Someone has to, for them.",
-        "No song needs this verse. {fallen}, I'm sorry."
+        "No song needs this verse. {fallen}, I'm sorry.",
+        "Not funny, {fallen}. Not funny at all.",
+        "No cheering this time. None.",
+        "I'm not blessed enough for this."
       ],
       "Astrid": [
         "Lost one below. {fallen}. I saw it and couldn't reach them.",
         "From up here it looks small. It isn't.",
         "The wind's gone still. {fallen}, go easy.",
-        "Circling back. Too late. Always too late for this part."
+        "Circling back. Too late. Always too late for this part.",
+        "{fallen}. I'll circle over you a moment.",
+        "Too far above. Too far.",
+        "Quiet sky. I don't like it."
       ],
       "Cael": [
         "{fallen} was behind me. That was the whole point.",
         "I should have been standing there. Next time I will be.",
         "Close up around me. Nobody else falls on my side.",
-        "Stone doesn't weep. I'll make an exception tonight."
+        "Stone doesn't weep. I'll make an exception tonight.",
+        "I'm sorry, {fallen}. The wall had a gap.",
+        "Hold your places. Grieve after.",
+        "Behind me. All of you. Now."
       ]
     }
   },
