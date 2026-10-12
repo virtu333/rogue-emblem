@@ -129,6 +129,7 @@ import {
   isEntity,
   runEntitySplashSync,
 } from '../../src/engine/EntitySystem.js';
+import { runDeathburstSync } from '../../src/engine/Deathburst.js';
 import {
   advanceTurnPressure,
   createTurnPressureState,
@@ -2268,7 +2269,17 @@ export class HeadlessBattle {
   }
 
   _removeUnit(unit, options = {}) {
+    // As BattleScene.removeUnit: a unit already off its roster (a Deathburst felled it before
+    // the combat's owner came to remove it) is never removed, credited or burst twice.
+    const roster =
+      unit?.faction === 'player'
+        ? this.playerUnits
+        : unit?.faction === 'npc'
+          ? this.npcUnits
+          : this.enemyUnits;
+    if (!unit || !roster?.includes(unit)) return;
     const killer = options?.killer || null;
+    const deathTile = { col: unit.col, row: unit.row };
     if (this.gameData?.deeds) recordKill(unit, killer, { terrain: this._terrainName(killer) });
     if (unit.faction === 'player') {
       const idx = this.playerUnits.indexOf(unit);
@@ -2290,6 +2301,18 @@ export class HeadlessBattle {
       // no gold, no XP), before any battle-end check reads the roster.
       if (isNecromancer(unit)) crumbleFor(unit, this.enemyUnits);
     }
+    // As BattleScene.removeUnit: a Deathburst bursts last (engine/Deathburst.js), each victim
+    // it fells removed with the burster's credit before the next is struck.
+    runDeathburstSync(
+      unit,
+      deathTile,
+      {
+        affixes: this.gameData?.affixes,
+        units: () => [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits],
+        battleBlessings: this._battleBlessings,
+      },
+      { remove: (victim, opts) => this._removeUnit(victim, opts) },
+    );
   }
 
   /** Remains `unit` can Smash (the scene's rule: known, visible, open, in weapon reach). */
