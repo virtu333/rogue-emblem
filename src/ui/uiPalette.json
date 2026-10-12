@@ -23,6 +23,8 @@
   "threatInk": "#1c0609",
   "threatStatus": "#b98ee0",
   "threatCounter": "#e6a98a",
+  "terrainBurn": "#ff9150",
+  "terrainAcid": "#c9d95a",
   "mark": "#d1a3f2",
   "hpHigh": "#86b27b",
   "hpMedium": "#dca044",

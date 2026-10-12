@@ -2,6 +2,7 @@ import { battleSession, isCurrentBattleSession } from './BattleSession.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { settleAndPresent } from './BattleActionSettlement.js';
 import { safeBattlePresentation } from './safeBattlePresentation.js';
+import { floatCombatNumber } from './CombatNumberFloat.js';
 import {
   validateStaffAction,
   settleStaffHeal,
@@ -626,22 +627,12 @@ export class HealController {
       pos.y,
       healSource(source, target, scene),
     );
-    const healText = scene.add
-      .text(pos.x, pos.y - 16, `+${healAmount}`, {
-        fontFamily: 'monospace',
-        fontSize: '13px',
-        color: UI_PALETTE.good,
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-      .setDepth(300);
-
-    scene.tweens.add({
-      targets: healText,
-      y: reduced ? pos.y - 16 : pos.y - 36,
-      alpha: 0,
-      duration: 600,
-      onComplete: () => healText.destroy(),
+    floatCombatNumber(scene, {
+      kind: 'heal',
+      value: healAmount,
+      x: pos.x,
+      y: pos.y - 16,
+      reducedMotion: reduced,
     });
 
     await scene._awaitSceneDelay(reduced ? 120 : 250, { label: 'animate_heal_tint_clear' });

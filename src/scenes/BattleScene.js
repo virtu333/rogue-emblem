@@ -27,6 +27,7 @@ import { PinnedThreatController } from '../ui/PinnedThreatController.js';
 import { battlePlace } from '../ui/placeDisplay.js';
 import { levelUpDisplayResults } from '../ui/progressionDisplay.js';
 import { presentationText, isolateBattleTextFactory } from '../utils/presentationText.js';
+import { buildCombatNumber, floatCombatNumber } from '../ui/CombatNumberFloat.js';
 import { safeBattlePresentation } from '../ui/safeBattlePresentation.js';
 import { presentTeleporterWarp } from '../ui/WarpPresentation.js';
 import { hasBattleDefeat } from '../engine/BattleDefeat.js';
@@ -9008,49 +9009,24 @@ export class BattleScene extends Phaser.Scene {
   /** Floating MISS over a dodging target (strike presentation, see CombatChoreography). */
   _showStrikeMiss(target, reduced) {
     const pos = this.grid.gridToPixel(target.col, target.row);
-    const missText = presentationText(this, pos.x, pos.y - 16, 'MISS', {
-      fontFamily: 'monospace',
-      fontSize: '12px',
-      color: UI_PALETTE.muted,
-      fontStyle: 'bold',
-    })
-      .setOrigin(0.5)
-      .setDepth(300);
-    this.tweens.add({
-      targets: missText,
-      y: reduced ? pos.y - 16 : pos.y - 32,
-      alpha: 0,
-      duration: 500,
-      onComplete: () => missText.destroy(),
+    floatCombatNumber(this, {
+      kind: 'miss',
+      x: pos.x,
+      y: pos.y - 16,
+      reducedMotion: reduced,
     });
   }
 
   /** Damage number, HP bars, wake, drain heal and reflect at the moment of contact. */
   _showStrikeResult(event, striker, target, reduced) {
     const pos = this.grid.gridToPixel(target.col, target.row);
-    const dmgText = presentationText(
-      this,
-      pos.x,
-      pos.y - 16,
-      event.isCrit ? `${event.damage}!` : `${event.damage}`,
-      {
-        fontFamily: 'monospace',
-        fontSize: '13px',
-        color: event.isCrit ? UI_PALETTE.accentText : UI_PALETTE.text,
-        fontStyle: 'bold',
-        // An ink edge keeps the number legible over bright impact frames.
-        stroke: UI_PALETTE.void,
-        strokeThickness: 3,
-      },
-    )
-      .setOrigin(0.5)
-      .setDepth(300);
-    this.tweens.add({
-      targets: dmgText,
-      y: reduced ? pos.y - 16 : pos.y - 32,
-      alpha: 0,
-      duration: 600,
-      onComplete: () => dmgText.destroy(),
+    // The number's look (crit pop, "No damage" spark, reduced motion) is ui/combatNumberStyle.js.
+    floatCombatNumber(this, {
+      kind: event.isCrit ? 'crit' : 'strike',
+      value: event.damage,
+      x: pos.x,
+      y: pos.y - 16,
+      reducedMotion: reduced,
     });
 
     this.updateHPBar(target);
@@ -9073,20 +9049,12 @@ export class BattleScene extends Phaser.Scene {
     // Show what the drain actually healed (nothing at full HP).
     if (event.healed > 0) {
       const sPos = this.grid.gridToPixel(striker.col, striker.row);
-      const healText = presentationText(this, sPos.x + 12, sPos.y - 8, `+${event.healed}`, {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: UI_PALETTE.good,
-        fontStyle: 'bold',
-      })
-        .setOrigin(0.5)
-        .setDepth(300);
-      this.tweens.add({
-        targets: healText,
-        y: reduced ? sPos.y - 8 : sPos.y - 28,
-        alpha: 0,
-        duration: 600,
-        onComplete: () => healText.destroy(),
+      floatCombatNumber(this, {
+        kind: 'drain',
+        value: event.healed,
+        x: sPos.x + 12,
+        y: sPos.y - 8,
+        reducedMotion: reduced,
       });
     }
 
@@ -9097,20 +9065,12 @@ export class BattleScene extends Phaser.Scene {
     // Labelled, and only what the striker actually lost (Thorns leaves 1 HP).
     if (event.reflectTaken > 0) {
       const sPos = this.grid.gridToPixel(striker.col, striker.row);
-      const refText = presentationText(this, sPos.x, sPos.y - 16, `−${event.reflectTaken} Thorns`, {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: UI_PALETTE.bad,
-        fontStyle: 'bold',
-      })
-        .setOrigin(0.5)
-        .setDepth(300);
-      this.tweens.add({
-        targets: refText,
-        y: reduced ? sPos.y - 16 : sPos.y - 32,
-        alpha: 0,
-        duration: 600,
-        onComplete: () => refText.destroy(),
+      floatCombatNumber(this, {
+        kind: 'thorns',
+        value: event.reflectTaken,
+        x: sPos.x,
+        y: sPos.y - 16,
+        reducedMotion: reduced,
       });
     }
   }
@@ -9132,31 +9092,18 @@ export class BattleScene extends Phaser.Scene {
     if (!unit.graphic) return;
     const pos = this.grid.gridToPixel(unit.col, unit.row);
     (this._combatFx ||= new CombatFxController(this)).playStatus(pos.x, pos.y, 'poison');
-    const text = this.add
-      .text(pos.x, pos.y - 16, `Poison -${damage}`, {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: UI_PALETTE.rarityEpic,
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-      .setDepth(301);
+    const number = buildCombatNumber(this, {
+      kind: 'poison',
+      value: damage,
+      x: pos.x,
+      y: pos.y - 16,
+      reducedMotion: reduced,
+    });
     this.updateHPBar(unit);
-    await this._awaitSceneTween(
-      {
-        targets: text,
-        y: reduced ? pos.y - 16 : pos.y - 32,
-        alpha: 0,
-        duration: 600,
-        onComplete: () => {
-          text.destroy();
-        },
-      },
-      {
-        label: 'show_poison_damage',
-        onCancel: () => text.destroy(),
-      },
-    );
+    await this._awaitSceneTween(number.tween, {
+      label: 'show_poison_damage',
+      onCancel: number.destroy,
+    });
   }
 
   /**
@@ -9599,21 +9546,12 @@ export class BattleScene extends Phaser.Scene {
               if (stoneBroken) this._stoneBreakFx().playBreak(victim);
               if (bannerHeld) this._bannerHoldFx().playHold(victim);
               const pos = this.grid.gridToPixel(victim.col, victim.row);
-              const txt = this.add
-                .text(pos.x, pos.y - 16, `${effect.amount}`, {
-                  fontFamily: 'monospace',
-                  fontSize: '12px',
-                  color: UI_PALETTE.warn,
-                  fontStyle: 'bold',
-                })
-                .setOrigin(0.5)
-                .setDepth(320);
-              this.tweens.add({
-                targets: txt,
-                y: pos.y - 32,
-                alpha: 0,
-                duration: 500,
-                onComplete: () => txt.destroy(),
+              floatCombatNumber(this, {
+                kind: 'deathburst',
+                value: effect.amount,
+                x: pos.x,
+                y: pos.y - 16,
+                reducedMotion: this._reduceMotion(),
               });
             },
             { scene: this },
@@ -10174,30 +10112,17 @@ export class BattleScene extends Phaser.Scene {
             if (bannerHeld) this._bannerHoldFx().playHold(target);
             if (target.graphic) {
               const pos = this.grid.gridToPixel(target.col, target.row);
-              const txt = this.add
-                .text(pos.x, pos.y - 16, `${result.damage}`, {
-                  fontFamily: 'monospace',
-                  fontSize: '13px',
-                  color: UI_PALETTE.warn,
-                  fontStyle: 'bold',
-                })
-                .setOrigin(0.5)
-                .setDepth(301);
-              await this._awaitSceneTween(
-                {
-                  targets: txt,
-                  y: reduced ? pos.y - 16 : pos.y - 32,
-                  alpha: 0,
-                  duration: 600,
-                  onComplete: () => {
-                    txt.destroy();
-                  },
-                },
-                {
-                  label: 'ballista_hit_float',
-                  onCancel: () => txt.destroy(),
-                },
-              );
+              const number = buildCombatNumber(this, {
+                kind: 'ballista',
+                value: result.damage,
+                x: pos.x,
+                y: pos.y - 16,
+                reducedMotion: reduced,
+              });
+              await this._awaitSceneTween(number.tween, {
+                label: 'ballista_hit_float',
+                onCancel: number.destroy,
+              });
             }
           },
           { scene: this },
@@ -10217,30 +10142,16 @@ export class BattleScene extends Phaser.Scene {
           'ballista miss',
           async () => {
             const pos = this.grid.gridToPixel(target.col, target.row);
-            const txt = this.add
-              .text(pos.x, pos.y - 16, 'Miss', {
-                fontFamily: 'monospace',
-                fontSize: '11px',
-                color: UI_PALETTE.muted,
-                fontStyle: 'bold',
-              })
-              .setOrigin(0.5)
-              .setDepth(301);
-            await this._awaitSceneTween(
-              {
-                targets: txt,
-                y: reduced ? pos.y - 16 : pos.y - 32,
-                alpha: 0,
-                duration: 600,
-                onComplete: () => {
-                  txt.destroy();
-                },
-              },
-              {
-                label: 'ballista_miss_float',
-                onCancel: () => txt.destroy(),
-              },
-            );
+            const number = buildCombatNumber(this, {
+              kind: 'miss',
+              x: pos.x,
+              y: pos.y - 16,
+              reducedMotion: reduced,
+            });
+            await this._awaitSceneTween(number.tween, {
+              label: 'ballista_miss_float',
+              onCancel: number.destroy,
+            });
           },
           { scene: this },
         );
@@ -10486,22 +10397,12 @@ export class BattleScene extends Phaser.Scene {
     if (unit.graphic?.setTint) unit.graphic.setTint(0xff4400);
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
-    const text = this.add
-      .text(pos.x, pos.y - 16, `Lava -${damage}`, {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: UI_PALETTE.warn,
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-      .setDepth(320);
-
-    this.tweens.add({
-      targets: text,
-      y: pos.y - 32,
-      alpha: 0,
-      duration: 450,
-      onComplete: () => text.destroy(),
+    floatCombatNumber(this, {
+      kind: 'lava',
+      value: damage,
+      x: pos.x,
+      y: pos.y - 16,
+      reducedMotion: this._reduceMotion(),
     });
 
     await this._awaitSceneDelay(120, { label: 'terrain_damage_tint_clear' });
@@ -10515,22 +10416,12 @@ export class BattleScene extends Phaser.Scene {
     if (unit.graphic?.setTint) unit.graphic.setTint(0x88cc44);
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
-    const text = this.add
-      .text(pos.x, pos.y - 16, `Acid -${damage}`, {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: UI_PALETTE.good,
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-      .setDepth(320);
-
-    this.tweens.add({
-      targets: text,
-      y: pos.y - 32,
-      alpha: 0,
-      duration: 450,
-      onComplete: () => text.destroy(),
+    floatCombatNumber(this, {
+      kind: 'acid',
+      value: damage,
+      x: pos.x,
+      y: pos.y - 16,
+      reducedMotion: this._reduceMotion(),
     });
 
     await this._awaitSceneDelay(120, { label: 'acid_damage_tint_clear' });
@@ -11184,7 +11075,13 @@ export class BattleScene extends Phaser.Scene {
             pos.x,
             pos.y,
           );
-          this.showMinorHintAt(pos.x, pos.y, `Splash -${damage}`, UI_PALETTE.rarityEpic);
+          floatCombatNumber(this, {
+            kind: 'splash',
+            value: damage,
+            x: pos.x,
+            y: pos.y - 16,
+            reducedMotion: this._reduceMotion(),
+          });
           await this._awaitSceneDelay(200, { label: 'entity_splash_tick' });
         },
         { scene: this },
