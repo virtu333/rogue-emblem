@@ -41,8 +41,12 @@ const RAW_READ =
 const FIELD_NAMES = /\b(playerArtHpCostDelta|playerArtMapUsesBonus)\b/;
 
 // The only places allowed to name the run's fields: the helper that reads them, and the run that
-// owns and saves them.
-const OWNERS = new Set(['src/engine/WeaponArtSystem.js', 'src/engine/RunManager.js']);
+// owns and saves them (RunManager, with the table of run-start handlers that raises them).
+const OWNERS = new Set([
+  'src/engine/WeaponArtSystem.js',
+  'src/engine/RunManager.js',
+  'src/engine/RunStartBlessingEffects.js',
+]);
 
 describe('weapon-art run options come from weaponArtRunOptions', () => {
   it('no source reads the run’s weapon-art blessing fields by hand outside the helper and the run', () => {

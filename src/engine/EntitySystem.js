@@ -6,7 +6,7 @@ import {
   ENTITY_SPLASH_COUNT_MAX,
   ENTITY_SPLASH_DAMAGE,
 } from '../utils/constants.js';
-import { gridDistance } from './Combat.js';
+import { gridDistance } from './CombatGeometry.js';
 import { damageUnitDetailed } from './UnitHealth.js';
 
 /** Check if a unit is an Entity (multi-tile boss) */
