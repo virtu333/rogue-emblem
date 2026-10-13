@@ -480,6 +480,70 @@ describe('Canto budget and terrain (real Grid)', () => {
   });
 });
 
+// Half Canto (Bow Knight, Wyvern Lord; Dave, Oct 2026): Canto over half the movement
+// left, rounded down.
+describe('Half Canto in the scene', () => {
+  function halfSetup({ mov, spent, skills = ['half_canto'] }) {
+    const { scene, edric } = setup();
+    Object.assign(edric, {
+      mov,
+      stats: { ...edric.stats, MOV: mov },
+      _movementSpent: spent,
+      hasActed: false,
+      skills,
+    });
+    scene.hideActionMenu = vi.fn();
+    scene.startCantoMove = vi.fn(BattleScene.prototype.startCantoMove);
+    scene.cantoRange = null;
+    scene.battleState = 'UNIT_ACTION_MENU';
+    return { scene, edric };
+  }
+
+  it('moves half of what is left, rounded down: 8 MOV, 3 spent -> 2', () => {
+    const { scene, edric } = halfSetup({ mov: 8, spent: 3 });
+    scene.finishUnitAction(edric, { session: scene._battleSession });
+    expect(scene.startCantoMove).toHaveBeenCalledExactlyOnceWith(edric, 2);
+    expect(scene.battleState).toBe('CANTO_MOVING');
+    // The blue range is the halved one: 2 plain tiles, not 5.
+    expect(scene.cantoRange.has('2,1')).toBe(true);
+    expect(scene.cantoRange.has('3,1')).toBe(false);
+  });
+
+  it('the same after a fight (the rule is any action)', () => {
+    const { scene, edric } = halfSetup({ mov: 8, spent: 2 });
+    scene.finishUnitAction(edric, { session: scene._battleSession, afterCombat: true });
+    expect(scene.startCantoMove).toHaveBeenCalledExactlyOnceWith(edric, 3);
+  });
+
+  it('1 left halves to 0: no Canto, the action completes', () => {
+    const { scene, edric } = halfSetup({ mov: 8, spent: 7 });
+    scene.finishUnitAction(edric, { session: scene._battleSession });
+    expect(scene.startCantoMove).not.toHaveBeenCalled();
+    expect(scene.turnManager.unitActed).toHaveBeenCalledWith(edric);
+  });
+
+  it('full Canto wins over Half Canto when a unit holds both', () => {
+    const { scene, edric } = halfSetup({ mov: 8, spent: 3, skills: ['half_canto', 'canto'] });
+    scene.finishUnitAction(edric, { session: scene._battleSession });
+    expect(scene.startCantoMove).toHaveBeenCalledExactlyOnceWith(edric, 5);
+  });
+
+  it('a resolved fight tells finishUnitAction it was a fight', () => {
+    const { scene, edric } = halfSetup({ mov: 8, spent: 3 });
+    scene.finishUnitAction = vi.fn();
+    completeResolvedAction(
+      scene,
+      { kind: 'combat', unitName: edric.name },
+      { session: scene._battleSession },
+    );
+    expect(scene.finishUnitAction).toHaveBeenCalledExactlyOnceWith(edric, {
+      session: scene._battleSession,
+      skipCanto: false,
+      afterCombat: true,
+    });
+  });
+});
+
 describe('Danger during Canto', () => {
   for (const confirm of [false, true]) {
     it(`toggle/pin preserves Canto and fog before ${confirm ? 'Wait' : 'moving'}`, () => {

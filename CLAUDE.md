@@ -59,7 +59,7 @@ emblem-rogue/
 │   ├── recruits.json      # Recruit pools by act (act1-act4) + namePool
 │   ├── referenceViewer.json # Reference viewer config: formulas, weapon ranks, game version
 │   ├── setPieces.json     # Set pieces (docs/specs/event-set-pieces.md; v2 keys: act-v-descent §9.2): authored, scaled, seeded maps an event battle names (`setPiece`): the Toll-House, the Toll Crossing; the Descent's first passes (`acts: ['finalBoss']`): the Old Kings' Stair, the Mortuary Column, the Vigil (four Circle Adept Voices, the Waking's sigil `waking: true`), the Glass
-│   ├── skills.json        # 68 skills across 8 trigger types
+│   ├── skills.json        # 70 skills across 8 trigger types
 │   ├── terrain.json       # 19 terrain types (incl. Ice, Lava Crack, Floor, Pillar, Ballista, Swamp, Bog, Acidic Swamp/Bog)
 │   ├── turnBonus.json     # Turn par calculation config
 │   ├── weaponArts.json    # 91 weapon arts across 8 weapon types: HP-cost combat mods, `area` blocks (radius, line, around-attacker, cone, arc; a chosen-center `leap`), post-combat moves (incl. `dash`); the legendary rework is docs/specs/legendary-arts-rework.md
