@@ -659,10 +659,13 @@ export const UPGRADE_ICON_REUSE = Object.freeze({
  * The weapon keeps its own id, the weapon socket and its tier rim; only the art is reused,
  * because the atlas is full (360 cells, the mobile texture budget in tests/ItemIcons.test.js).
  * Enemy-only gear the player never holds takes the picture of its sibling: the Circle Adept's
- * Greycord wears Gravesong's dark cover (the enemy-only tomes).
+ * Greycord wears Gravesong's dark cover (the enemy-only tomes). A scroll keeps the scroll
+ * plaque: Hunter's Focus Scroll (the art came back from retirement) wears the Encloser
+ * Scroll's bow page.
  */
 export const WEAPON_ICON_REUSE = Object.freeze({
   Greycord: 'gravesong',
+  "Hunter's Focus Scroll": 'encloser-scroll',
 });
 
 /**
