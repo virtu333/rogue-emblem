@@ -13,6 +13,7 @@
 //   - a hold pack on a rout map never wakes, or wakes before its turn with the army away;
 //   - the same seed draws a different map, or a new map breaks validateBattleConfig;
 //   - a dense template's extra foes are lost, or break the density cap;
+//   - a group's role does not change what its foes are, or leaks into another group;
 //   - the validator lets a broken layout through.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -23,13 +24,17 @@ import { pickTemplateForNode } from '../src/engine/NodeMapGenerator.js';
 import { generateSeededBattle } from '../src/engine/BattleScout.js';
 import { validateMapTemplatesConfig } from '../src/engine/MapTemplateEngine.js';
 import {
+  GROUP_ROLES,
   MIN_HOLD_GROUP,
   TEMPLATE_GROUP_PACK_BASE,
   mirrorRectY,
   mirrorTemplateY,
   planGroupCounts,
+  planPlayerSplit,
+  interleaveSpawns,
   resolveTemplateLayout,
 } from '../src/engine/TemplateLayout.js';
+import { reachFrom } from '../src/engine/FormationPlacement.js';
 import { wakeHolders } from '../src/engine/HoldActivation.js';
 import { DEPLOY_LIMITS } from '../src/utils/constants.js';
 import { HeadlessBattle } from './harness/HeadlessBattle.js';
@@ -37,7 +42,16 @@ import { installSeed, restoreMathRandom } from '../sim/lib/SeededRNG.js';
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
-const NEW_TEMPLATES = ['corner_camp', 'three_roads', 'three_roads_keep'];
+const NEW_TEMPLATES = [
+  'corner_camp',
+  'three_roads',
+  'three_roads_keep',
+  'caught_in_the_open',
+  'two_camps',
+  'long_road',
+  'two_gates',
+  'warband',
+];
 const allTemplates = () => Object.values(data.mapTemplates).flat();
 const byId = (id) => allTemplates().find((t) => t.id === id);
 const objectiveOf = (id) =>
@@ -430,6 +444,205 @@ describe('extra foes (extraEnemies)', () => {
   });
 });
 
+describe('group roles', () => {
+  const tags = (className) => {
+    const cd = data.classes.find((c) => c.name === className);
+    const profs = (cd?.weaponProficiencies || '').split(',').map((p) => p.trim().split(' ')[0]);
+    return {
+      ranged: profs.includes('Bows') || profs.includes('Tomes') || profs.includes('Light'),
+      mounted: cd?.moveType === 'Cavalry' || cd?.moveType === 'Flying',
+      armored: cd?.moveType === 'Armored',
+    };
+  };
+  // Every slot of a template, by group, over many seeds: [group id] -> class names.
+  function classesByGroup(id, act) {
+    const out = {};
+    for (let seed = 1; seed <= 60; seed++) {
+      const config = generateSeededBattle(
+        { act, objective: objectiveOf(id), templateId: id, deployCount: 6, row: 3 },
+        data,
+        3000 + seed,
+      );
+      for (const s of config.enemySpawns.filter((sp) => sp.templateGroup))
+        (out[s.templateGroup] ||= []).push(s.className);
+    }
+    return out;
+  }
+  const share = (names, tag) => names.filter((n) => tags(n)[tag]).length / names.length;
+
+  it('a ranged group fields far more archers and mages than the groups beside it', () => {
+    const byGroup = classesByGroup('three_roads', 'act3');
+    expect(share(byGroup.road, 'ranged')).toBeGreaterThan(0.6);
+    expect(share(byGroup.main, 'ranged')).toBeLessThan(0.35);
+  });
+
+  it('a flank group rides, and a front group wears armour more than the rest', () => {
+    const open = classesByGroup('caught_in_the_open', 'act3');
+    expect(share([...(open.podTop || []), ...(open.podBottom || [])], 'mounted')).toBeGreaterThan(
+      0.6,
+    );
+    expect(share(open.main, 'mounted')).toBeLessThan(0.45);
+    const camps = classesByGroup('two_camps', 'act3');
+    expect(share(camps.camp, 'armored')).toBeGreaterThan(share(camps.raiders, 'armored') + 0.15);
+  });
+
+  it('every role names only weight tags the generator reads', () => {
+    const known = [
+      'infantry',
+      'cavalry',
+      'archer',
+      'mage',
+      'knight',
+      'armored',
+      'lance',
+      'flying',
+      'healer',
+    ];
+    for (const weights of Object.values(GROUP_ROLES))
+      for (const key of Object.keys(weights)) expect(known).toContain(key);
+  });
+});
+
+describe("a template's own size (sizeByAct)", () => {
+  it('plays each act at its size, and only that template', () => {
+    const road = byId('long_road');
+    for (const act of road.acts) {
+      for (let seed = 1; seed <= 4; seed++) {
+        const config = generateSeededBattle(
+          { act, objective: 'seize', templateId: 'long_road', deployCount: 6, row: 3 },
+          data,
+          900 + seed,
+        );
+        expect([config.cols, config.rows], `${act} seed ${seed}`).toEqual(road.sizeByAct[act]);
+        expect(config.mapLayout.length).toBe(road.sizeByAct[act][1]);
+        expect(config.mapLayout[0].length).toBe(road.sizeByAct[act][0]);
+      }
+    }
+    // The battle beside it keeps an act size from mapSizes.json.
+    const keep = generateSeededBattle(
+      { act: 'act2', objective: 'seize', templateId: 'three_roads_keep', deployCount: 6, row: 3 },
+      data,
+      901,
+    );
+    expect(SIZES).toContainEqual([keep.cols, keep.rows]);
+  });
+
+  it("takes the act's size roll first, so its layout draws are the act-sized map's", () => {
+    // The same template without sizeByAct: the act's size roll is the first draw either way, so
+    // both take the same ambush option from the same stream position.
+    const plain = structuredClone(data.mapTemplates);
+    delete plain.seize.find((t) => t.id === 'long_road').sizeByAct;
+    const plainData = { ...data, mapTemplates: plain };
+    for (let seed = 1; seed <= 12; seed++) {
+      const params = { act: 'act3', objective: 'seize', templateId: 'long_road', deployCount: 6 };
+      const sized = generateSeededBattle({ ...params, row: 3 }, data, 300 + seed);
+      const unsized = generateSeededBattle({ ...params, row: 3 }, plainData, 300 + seed);
+      expect(sized.templateChoices, `seed ${seed}`).toEqual(unsized.templateChoices);
+    }
+  });
+});
+
+describe('a split start (two playerSpawn zones)', () => {
+  it('shares the slots, the first zone the larger half, and moves what a zone cannot hold', () => {
+    expect(planPlayerSplit(6, [20, 20])).toEqual([3, 3]);
+    expect(planPlayerSplit(7, [20, 20])).toEqual([4, 3]);
+    expect(planPlayerSplit(1, [20, 20])).toEqual([1, 0]);
+    expect(planPlayerSplit(8, [2, 20])).toEqual([2, 6]);
+    expect(planPlayerSplit(8, [20, 1])).toEqual([7, 1]);
+    expect(planPlayerSplit(5, [12])).toEqual([5]);
+    expect(interleaveSpawns([['a1', 'a2', 'a3'], ['b1']])).toEqual(['a1', 'b1', 'a2', 'a3']);
+  });
+
+  it('deploys Two Gates in two groups, both on foot to the throne, the slots alternating', () => {
+    const tpl = byId('two_gates');
+    const failures = [];
+    for (const act of tpl.acts) {
+      for (let seed = 1; seed <= 10; seed++) {
+        for (const deployCount of [3, 6, 8]) {
+          const config = generateSeededBattle(
+            { act, objective: 'seize', templateId: 'two_gates', deployCount, row: 3 },
+            data,
+            1200 + seed,
+          );
+          const where = `${act} seed ${seed} deploy ${deployCount}`;
+          const { cols, rows, mirrored } = config;
+          // The zones as this battle drew them (mirrored or not), rounded as the generator rounds.
+          const rect = (r) => (mirrored ? [r[0], 1 - r[3], r[2], 1 - r[1]] : r);
+          const inZone = (s, r) => {
+            const [x1, y1, x2, y2] = rect(r);
+            return (
+              s.col >= Math.floor(x1 * cols) &&
+              s.col < Math.ceil(x2 * cols) &&
+              s.row >= Math.floor(y1 * rows) &&
+              s.row < Math.ceil(y2 * rows)
+            );
+          };
+          const [zoneA, zoneB] = tpl.zones.filter((z) => z.role === 'playerSpawn');
+          const spawns = config.playerSpawns;
+          if (spawns.length !== deployCount) failures.push(`${where}: ${spawns.length} spawns`);
+          spawns.forEach((s, i) => {
+            const want = i % 2 === 0 || i >= 2 * Math.floor(deployCount / 2) ? zoneA : zoneB;
+            if (!inZone(s, want.rect)) failures.push(`${where}: slot ${i} outside its zone`);
+          });
+          const ctx = { mapLayout: config.mapLayout, cols, rows, terrainData: data.terrain };
+          const reach = reachFrom(ctx, spawns[0], 'Infantry');
+          for (const s of spawns)
+            if (!reach.has(`${s.col},${s.row}`)) failures.push(`${where}: a group is cut off`);
+          if (!reach.has(`${config.thronePos.col},${config.thronePos.row}`))
+            failures.push(`${where}: the throne is out of reach`);
+        }
+      }
+    }
+    expect(failures).toEqual([]);
+  });
+});
+
+describe('a split start walled in', () => {
+  it('opens a way from the first group to the second', () => {
+    // The second group starts in a walled yard: only the generator's reach pass can open it.
+    const walled = {
+      id: 'walled_yard',
+      name: 'Walled Yard',
+      enabled: false,
+      zones: [
+        { rect: [0, 0, 1, 1], terrain: { Plain: 1 }, priority: 0 },
+        { rect: [0.3, 0.5, 0.75, 1], terrain: { Wall: 1 }, priority: 2 },
+        // The first group in the open; the second (written second) in the yard.
+        { rect: [0, 0, 0.2, 0.4], terrain: { Plain: 1 }, priority: 3, role: 'playerSpawn' },
+        {
+          rect: [0.4, 0.7, 0.65, 1],
+          terrain: { Plain: 1 },
+          priority: 3,
+          role: 'playerSpawn',
+        },
+        { rect: [0.8, 0, 1, 0.4], terrain: { Plain: 1 }, priority: 3, role: 'enemySpawn' },
+      ],
+      features: [],
+      anchors: [],
+    };
+    const yardData = {
+      ...data,
+      mapTemplates: { ...data.mapTemplates, rout: [...data.mapTemplates.rout, walled] },
+    };
+    for (let seed = 1; seed <= 6; seed++) {
+      const config = generateSeededBattle(
+        { act: 'act2', objective: 'rout', templateId: 'walled_yard', deployCount: 6, row: 3 },
+        yardData,
+        40 + seed,
+      );
+      const ctx = {
+        mapLayout: config.mapLayout,
+        cols: config.cols,
+        rows: config.rows,
+        terrainData: data.terrain,
+      };
+      const reach = reachFrom(ctx, config.playerSpawns[0], 'Infantry');
+      for (const s of config.playerSpawns)
+        expect(reach.has(`${s.col},${s.row}`), `seed ${seed} ${s.col},${s.row}`).toBe(true);
+    }
+  });
+});
+
 describe('the template validator', () => {
   const zone = (extra = {}) => ({ rect: [0, 0, 1, 1], terrain: { Plain: 1 }, ...extra });
   const rout = (template) => ({
@@ -493,6 +706,17 @@ describe('the template validator', () => {
     expect(errors.some((e) => e.includes('at least two options'))).toBe(true);
   });
 
+  it('refuses an unknown group role', () => {
+    const errors = errorsOf(
+      rout({
+        zones: [
+          zone({ role: 'enemySpawn', group: { id: 'a', share: 1, ai: 'chase', role: 'sniper' } }),
+        ],
+      }),
+    );
+    expect(errors.some((e) => e.includes('.role must be one of'))).toBe(true);
+  });
+
   it('refuses extra foes that are not a whole number from 1 to 4', () => {
     for (const extraEnemies of [0, 5, 1.5, '2']) {
       const errors = errorsOf(rout({ zones: [zone({ role: 'enemySpawn' })], extraEnemies }));
@@ -502,6 +726,51 @@ describe('the template validator', () => {
       ).toBe(true);
     }
     expect(errorsOf(rout({ zones: [zone({ role: 'enemySpawn' })], extraEnemies: 3 }))).toEqual([]);
+  });
+
+  it('refuses a size that would not fit the board, misses an act, or sits beside fixedSize', () => {
+    const sized = (sizeByAct, extra = {}) =>
+      errorsOf(
+        rout({
+          zones: [zone({ role: 'enemySpawn' })],
+          acts: ['act2', 'act3'],
+          sizeByAct,
+          ...extra,
+        }),
+      );
+    expect(sized({ act2: [20, 8], act3: [18, 13] })).toEqual([]);
+    for (const bad of [[21, 8], [20, 14], [9, 8], [20, 6], [20.5, 8], [20]]) {
+      expect(
+        sized({ act2: bad, act3: [20, 9] }).some((e) => e.includes('sizeByAct.act2 must be')),
+        JSON.stringify(bad),
+      ).toBe(true);
+    }
+    expect(sized({ act2: [20, 8] }).some((e) => e.includes('has no size for act3'))).toBe(true);
+    expect(
+      sized({ act2: [20, 8], act3: [20, 9], act4: [20, 9] }).some((e) =>
+        e.includes('sizeByAct.act4 names an act'),
+      ),
+    ).toBe(true);
+    expect(
+      sized({ act2: [20, 8], act3: [20, 9] }, { fixedSize: [20, 8] }).some((e) =>
+        e.includes('cannot be used with fixedSize'),
+      ),
+    ).toBe(true);
+    expect(
+      errorsOf(rout({ zones: [zone({ role: 'enemySpawn' })], sizeByAct: { act2: [20, 8] } })).some(
+        (e) => e.includes("needs the template's acts"),
+      ),
+    ).toBe(true);
+  });
+
+  it('refuses a third playerSpawn zone', () => {
+    const player = (y) => zone({ role: 'playerSpawn', rect: [0, y, 0.2, y + 0.2] });
+    const two = errorsOf(rout({ zones: [player(0.4), zone({ role: 'enemySpawn' })] }));
+    expect(two).toEqual([]);
+    const three = errorsOf(
+      rout({ zones: [player(0.4), player(0.7), zone({ role: 'enemySpawn' })] }),
+    );
+    expect(three.some((e) => e.includes('at most 2 playerSpawn zones'))).toBe(true);
   });
 
   it('refuses a mirror on an unknown axis or over absolute tiles', () => {

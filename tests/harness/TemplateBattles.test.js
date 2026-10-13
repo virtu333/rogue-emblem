@@ -1,5 +1,6 @@
 // The new procedural shapes (docs/specs/map-variety.md: Corner Camp, Three Roads, Three Roads
-// Keep) played to the end by the headless harness, beside the ordinary route battle as control.
+// Keep, Caught in the Open, Two Camps, the Long Road, Two Gates, the Warband) played to the end
+// by the headless harness, beside the ordinary route battle as control.
 //
 // Each fight is a real run's fight. A RunSimulationDriver run is played with its own policies
 // (invincible, so the army is the one a run builds by then) up to the act's first ordinary route
@@ -205,20 +206,32 @@ async function playScenario(scenario) {
   return { rows, summary };
 }
 
-// Every new shape plays from Act II. `minWinRate` is the careful policy's floor, set below the
-// control's measured rate on the same seeds.
+// Every new shape plays from Act II. The careful policy may win a shape less often than the
+// ordinary map on the same seeds, but never by more than MAX_DROP_BELOW_CONTROL: a harder shape
+// is the point, an unwinnable one is a bug. (Three seeds is a smoke check; TEMPLATE_BATTLE_SEEDS
+// adds seeds for a tuning pass.)
+const MAX_DROP_BELOW_CONTROL = 0.4;
 const CELLS = [
   {
     act: 'act2',
     difficultyId: 'normal',
     seeds: 3,
-    templates: ['corner_camp', 'three_roads', 'three_roads_keep'],
-    minWinRate: 0.3,
+    templates: [
+      'corner_camp',
+      'three_roads',
+      'three_roads_keep',
+      'caught_in_the_open',
+      'two_camps',
+      'long_road',
+      'two_gates',
+      'warband',
+    ],
   },
-  { act: 'act2', difficultyId: 'dusk', seeds: 3, templates: ['corner_camp'], minWinRate: 0.3 },
+  { act: 'act2', difficultyId: 'dusk', seeds: 3, templates: ['corner_camp'] },
 ];
 
 describe('the new map shapes in a run: every battle ends, the invariants hold, winnable', () => {
+  const controlRates = new Map();
   for (const cell of CELLS) {
     const seeds = cell.seeds + EXTRA_SEEDS;
     const controls = cell.templates.some((t) => objectiveOf(t) === 'seize')
@@ -231,6 +244,8 @@ describe('the new map shapes in a run: every battle ends, the invariants hold, w
           { timeout: 600000 },
           async () => {
             const { rows, summary } = await playScenario({ ...cell, seeds, template, policy });
+            if (template === 'ordinary')
+              controlRates.set(`${cell.act}|${cell.difficultyId}|${policy}`, summary.winRate);
             expect(rows.length).toBeGreaterThanOrEqual(Math.ceil(seeds / 2));
             for (const row of rows) {
               const where = `${template} ${cell.act} ${cell.difficultyId} ${policy} seed ${row.seed}`;
@@ -250,8 +265,11 @@ describe('the new map shapes in a run: every battle ends, the invariants hold, w
               );
               // The harness's agents lose Act II seize maps of every kind (the ordinary seize
               // control wins none on these seeds), so a seize shape only has to end cleanly.
-              if (objectiveOf(template) !== 'seize')
-                expect(summary.winRate).toBeGreaterThanOrEqual(cell.minWinRate);
+              const control = controlRates.get(`${cell.act}|${cell.difficultyId}|${policy}`);
+              if (objectiveOf(template) !== 'seize' && control !== undefined)
+                expect(summary.winRate, `ordinary map won ${control}`).toBeGreaterThanOrEqual(
+                  control - MAX_DROP_BELOW_CONTROL,
+                );
             }
           },
         );
