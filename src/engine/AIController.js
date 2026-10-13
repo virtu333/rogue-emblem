@@ -19,6 +19,7 @@ import {
   nextStrikeWeapon,
 } from './Combat.js';
 import { canEquip } from './UnitManager.js';
+import { planEnemyCanto } from './EnemyCanto.js';
 import { computeEffectivePath } from './Grid.js';
 import { getTerrainCostReduction } from './SkillSystem.js';
 import { effectiveSkills } from './EffectiveSkills.js';
@@ -178,6 +179,7 @@ export class AIController {
     const decision = this._decideAction(enemy, allEnemies, playerUnits, npcUnits);
     enemy._lastAiDecision = decision;
     callbacks.onDecision?.(enemy, decision);
+    const origin = { col: enemy.col, row: enemy.row };
 
     // Move if we have a path
     if (decision.path && decision.path.length >= 2) {
@@ -188,6 +190,17 @@ export class AIController {
     if (decision.healTarget) {
       const result = this.applyHealDecision(enemy, decision.healTarget, decision.healStaff);
       if (result) await callbacks.onHeal?.(enemy, decision.healTarget, result);
+      if (result)
+        await this._cantoStep(
+          enemy,
+          origin,
+          false,
+          allEnemies,
+          playerUnits,
+          npcUnits,
+          callbacks,
+          decision,
+        );
       await callbacks.onUnitDone(enemy, decision);
       return decision;
     }
@@ -195,6 +208,16 @@ export class AIController {
     // Status staff use (separate from normal attack)
     if (decision.statusStaffTarget) {
       await callbacks.onStatusStaff?.(enemy, decision.statusStaffTarget);
+      await this._cantoStep(
+        enemy,
+        origin,
+        false,
+        allEnemies,
+        playerUnits,
+        npcUnits,
+        callbacks,
+        decision,
+      );
       await callbacks.onUnitDone(enemy, decision);
       return decision;
     }
@@ -221,13 +244,68 @@ export class AIController {
       }
       if (targetToAttack) {
         await callbacks.onAttack(enemy, targetToAttack);
+        await this._cantoStep(
+          enemy,
+          origin,
+          true,
+          allEnemies,
+          playerUnits,
+          npcUnits,
+          callbacks,
+          decision,
+        );
       }
     } else if (decision.breakTile) {
       await callbacks.onBreak?.(enemy, decision.breakTile);
+      await this._cantoStep(
+        enemy,
+        origin,
+        false,
+        allEnemies,
+        playerUnits,
+        npcUnits,
+        callbacks,
+        decision,
+      );
     }
 
     await callbacks.onUnitDone(enemy, decision);
     return decision;
+  }
+
+  /**
+   * Canto for an enemy that acted (EnemyCanto.js): the step away, moved through the same
+   * callback as its walk, before its turn is done (so the checkpoint after it holds the
+   * tile it ends on). Recorded on the decision as `cantoPath`.
+   */
+  async _cantoStep(
+    enemy,
+    origin,
+    afterCombat,
+    allEnemies,
+    playerUnits,
+    npcUnits,
+    callbacks,
+    decision,
+  ) {
+    if (callbacks.isCurrent?.() === false) return;
+    if (!playerUnits.some((u) => u && u.currentHP > 0)) return;
+    if (!allEnemies.includes(enemy)) return;
+    const skills = this.gameData?.skills;
+    const plan = planEnemyCanto({
+      enemy,
+      origin,
+      afterCombat,
+      grid: this.grid,
+      units: [...allEnemies, ...playerUnits, ...(npcUnits || [])],
+      playerUnits,
+      npcUnits,
+      costModifier: (u) => getTerrainCostReduction(u, skills),
+      skillsData: skills,
+    });
+    if (!plan) return;
+    decision.cantoPath = plan.path;
+    await callbacks.onMoveUnit(enemy, plan.path);
   }
 
   /** Entity AI: stationary, picks best weapon, targets within ENTITY_PRIMARY_ATTACK_RANGE. */
