@@ -92,5 +92,7 @@ export function serializeUnit(unit) {
   // Deed progress commits at victory (commitBattleDeeds) or not at all.
   delete data._battleDeeds;
   delete data._slewAllies;
+  // The Unbroken Banner's stamp is the battle's: the victory commit reads it first.
+  delete data._bannerHeld;
   return data;
 }

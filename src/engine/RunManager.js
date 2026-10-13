@@ -3,7 +3,10 @@ import { createVeteranKnight } from './SpecialCharacters.js';
 import { validateBattleState } from './BattleStateSnapshot.js';
 import { migrateSavedItemNames, ITEM_NAMES_REVISION } from './ItemNameMigration.js';
 import { migrateSavedGamblerCoins } from './AccessoryCatalogMigration.js';
-import { migrateSavedPerBattleWeapons } from './WeaponCatalogMigration.js';
+import {
+  migrateSavedPerBattleWeapons,
+  migrateSavedStaffUseRules,
+} from './WeaponCatalogMigration.js';
 import { migrateSavedLegendaryRelics } from './LegendaryRelicMigration.js';
 import {
   hydrateBattleTimeline,
@@ -1481,6 +1484,27 @@ export class RunManager {
       applied: result?.ok !== false,
       ...(result?.ok === false ? { reason: result.reason } : {}),
     });
+  }
+
+  /**
+   * The Unbroken Banner's price at the victory commit: the unit it held (its new roster entry)
+   * takes a Lingering Injury through the same Burdens.addBurden an event uses (a fresh injury
+   * replaces any other, one unit at a time). The stat is drawn from the run seed and the node,
+   * never Math.random. Returns what the victory band names, or null.
+   */
+  _takeBannerWound(unit, nodeId) {
+    const uid = unitUidOf(unit);
+    if (!uid) return null;
+    const rand = this._createBlessingRng('unbroken_banner', `wound:${nodeId}`);
+    const stat = WOUND_STATS[Math.floor(rand() * WOUND_STATS.length)];
+    const result = addBurden(this, 'wounded', { unitUid: uid, unitName: unit.name, stat });
+    if (result?.ok === false || !result?.burden) return null;
+    return {
+      name: unit.name,
+      stat: result.burden.stat,
+      value: result.burden.value,
+      battles: result.burden.battles,
+    };
   }
 
   _recordBlessingEvent(stage, blessingId, effect, details = {}) {
@@ -4344,6 +4368,19 @@ export class RunManager {
       }
     }
 
+    // The Unbroken Banner's price: the survivor it held this battle carries a Lingering Injury,
+    // taken below once this victory's burdens settled. UnitHealth.absorbLethal stamps the battle
+    // unit; the scene serializes its survivors (which drops the stamp) before this commit, so it
+    // names the held unit by uid (`options.bannerHeldUid`, BattleBlessings.bannerHeldUidOf).
+    const bannerHeldUid =
+      typeof options.bannerHeldUid === 'string' && options.bannerHeldUid
+        ? options.bannerHeldUid
+        : null;
+    const bannerHeldIndex = survivingUnits.findIndex(
+      (u) =>
+        Number(u?.currentHP) > 0 &&
+        (u?._bannerHeld === true || (bannerHeldUid !== null && unitUidOf(u) === bannerHeldUid)),
+    );
     this.roster = survivingUnits.map((u) => {
       const data = serializeUnit(u);
       // Statuses (sleep, acid, Wounded…) are the battle's: they end with it, so a
@@ -4374,17 +4411,20 @@ export class RunManager {
     this.awardGold(settlement.gold);
     // A wound whose unit fell (or left) in this battle ends with it: nobody carries it on.
     this.burdens = pruneGoneWounds(settlement.burdens, this.roster);
+    const bannerWound = this._takeBannerWound(this.roster[bannerHeldIndex], nodeId);
     this.lastBattleGoldGamble = gambleRecord;
-    this.lastBurdenSettlement = settlement.record
-      ? {
-          nodeId,
-          ...settlement.record,
-          goldBefore: finalGold,
-          goldAfter: settlement.gold,
-          garnished: settlement.garnished,
-          extraShadow: settlement.extraShadow,
-        }
-      : null;
+    this.lastBurdenSettlement =
+      settlement.record || bannerWound
+        ? {
+            nodeId,
+            ...(settlement.record || {}),
+            goldBefore: finalGold,
+            goldAfter: settlement.gold,
+            garnished: settlement.garnished,
+            extraShadow: settlement.extraShadow,
+            ...(bannerWound ? { bannerWound } : {}),
+          }
+        : null;
     // An open contract settles here too (engine/ContractSettlement.js), once, for this victory
     // and no other: after the roster, gold and burdens are committed, so a reward lands on
     // the army as it now is and a penalty Debt starts with the NEXT victory. Never mid-battle,
@@ -5605,6 +5645,8 @@ export class RunManager {
     migrateSavedGamblerCoins(saved, gameData);
     // Per-battle weapons (Breachbolt) take the catalog's shot counts (same places).
     migrateSavedPerBattleWeapons(saved, gameData);
+    // Staves with a use rule of their own (the Warp Staff) take the catalog's (same places).
+    migrateSavedStaffUseRules(saved, gameData);
     // Legendaries saved before the rework take its changes (Oathblade, Hermit's Bow).
     migrateSavedLegendaryRelics(saved);
     for (const [holder, key, expanded] of expandedTimelines)

@@ -1,5 +1,11 @@
 import { test, expect, devices } from '@playwright/test';
-import { waitForGame, waitForScene, collectErrors } from './helpers.js';
+import {
+  waitForGame,
+  waitForScene,
+  collectErrors,
+  openRosterUnit,
+  closeRoster,
+} from './helpers.js';
 
 test.use({ ...devices['iPhone 13'] });
 for (const width of [667, 844]) {
@@ -57,11 +63,12 @@ for (const width of [667, 844]) {
       await expect(shop.locator('.shop-status')).toContainText('Steel Sword');
       await shop.getByRole('button', { name: 'Roster', exact: true }).tap();
       const roster = page.getByRole('dialog', { name: 'Manage roster', exact: true });
+      await openRosterUnit(roster, null, { tap: true });
       await roster.getByRole('button', { name: 'Equipment', exact: true }).tap();
       await expect(
         roster.getByRole('heading', { name: 'Steel Sword', exact: true }).first(),
       ).toBeVisible();
-      await roster.getByRole('button', { name: 'Close', exact: true }).tap();
+      await closeRoster(roster, 'Close', { tap: true });
       await shop.getByRole('button', { name: 'Forge', exact: true }).tap();
       await shop.locator('.shop-row').filter({ hasText: 'Steel Sword' }).last().tap();
       await shop.getByRole('button', { name: 'Choose forge', exact: true }).tap();

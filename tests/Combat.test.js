@@ -1378,6 +1378,34 @@ describe('Staff bonus uses', () => {
     expect(getStaffMaxUses(staff, makeHealer(20))).toBe(6); // 3 + 3
   });
 
+  // Warp Staff nerf: its own MAG steps (16, 22) in place of 8/14/20, and never more than
+  // 3 uses a battle, Saint's Reserve included. Before it, MAG 14 gave 3 and MAG 20 gave 4.
+  it('Warp Staff gains uses only at MAG 16 and 22', () => {
+    const warp = data.weapons.find((w) => w.name === 'Warp Staff');
+    expect(getStaffMaxUses(warp, makeHealer(8))).toBe(1);
+    expect(getStaffMaxUses(warp, makeHealer(14))).toBe(1);
+    expect(getStaffMaxUses(warp, makeHealer(15))).toBe(1);
+    expect(getStaffMaxUses(warp, makeHealer(16))).toBe(2);
+    expect(getStaffMaxUses(warp, makeHealer(21))).toBe(2);
+    expect(getStaffMaxUses(warp, makeHealer(22))).toBe(3);
+    expect(getStaffMaxUses(warp, makeHealer(30))).toBe(3);
+  });
+
+  it('Warp Staff never exceeds 3 uses, blessing uses included', () => {
+    const warp = data.weapons.find((w) => w.name === 'Warp Staff');
+    expect(getStaffMaxUses(warp, makeHealer(5), { bonusUses: 1 })).toBe(2);
+    expect(getStaffMaxUses(warp, makeHealer(16), { bonusUses: 1 })).toBe(3);
+    expect(getStaffMaxUses(warp, makeHealer(22), { bonusUses: 3 })).toBe(3);
+    expect(
+      getStaffRemainingUses({ ...warp, _usesSpent: 1 }, makeHealer(30), { bonusUses: 3 }),
+    ).toBe(2);
+  });
+
+  it('other staves keep the shared MAG thresholds and no cap', () => {
+    const heal = data.weapons.find((w) => w.name === 'Heal');
+    expect(getStaffMaxUses(heal, makeHealer(20), { bonusUses: 3 })).toBe(9); // 3 + 3 + 3
+  });
+
   it('getStaffRemainingUses tracks spent uses', () => {
     const staff = { ...data.weapons.find((w) => w.name === 'Heal') }; // clone
     const healer = makeHealer(5); // max 3

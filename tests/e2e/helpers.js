@@ -288,3 +288,49 @@ export async function fightArenaBout(page) {
     await round.getByRole('button', { name: 'Next round', exact: true }).tap();
   }
 }
+
+/**
+ * The Roster sheet opens on an overview (a grid of unit cards, `nav.mr-grid`) and a
+ * card opens that unit's detail (tabs, the unit strip, the summary). Open one unit's
+ * detail from the grid: the named unit's card (name or RegExp, matched on the card's
+ * label), else the first. A sheet already showing a detail is left as it is when no
+ * name is asked for, and switched to the named unit through the strip otherwise.
+ * `tap` drives touch contexts (tap) and the rest click. Waits on state.
+ * @param {import('@playwright/test').Locator} sheet the `dialog` (Manage roster / Inspect roster)
+ */
+export async function openRosterUnit(sheet, name = null, { tap = false } = {}) {
+  const act = (locator) => (tap ? locator.tap() : locator.click());
+  const grid = sheet.locator('nav.mr-grid');
+  const strip = sheet.locator('.mr-units');
+  await expect(grid.or(strip).first()).toBeVisible();
+  if (await grid.isVisible()) {
+    const cards = grid.locator('button.mr-ov-card');
+    const label = typeof name === 'string' ? new RegExp(`^${escapeRegExp(name)}\\b`) : name;
+    await act(label ? grid.getByRole('button', { name: label }).first() : cards.first());
+    await expect(strip).toBeVisible();
+    return;
+  }
+  if (name) {
+    const label = typeof name === 'string' ? new RegExp(`^${escapeRegExp(name)}\\b`) : name;
+    await act(strip.getByRole('button', { name: label }).first());
+  }
+}
+
+/**
+ * Leave a Roster sheet that has an overview: from a unit's detail "Back" returns to
+ * the grid (when the detail is showing), then the header's close button (`Close`, or
+ * the caller's label such as "Back to formation") closes it.
+ */
+export async function closeRoster(sheet, label = 'Close', { tap = false } = {}) {
+  const act = (locator) => (tap ? locator.tap() : locator.click());
+  const back = sheet.locator('button.mr-back');
+  if (await back.isVisible()) {
+    await act(back);
+    await expect(sheet.locator('nav.mr-grid')).toBeVisible();
+  }
+  await act(sheet.getByRole('button', { name: label, exact: true }));
+}
+
+function escapeRegExp(text) {
+  return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}

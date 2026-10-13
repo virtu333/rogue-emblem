@@ -1,5 +1,5 @@
 import { test, expect, devices } from '@playwright/test';
-import { finishFormation, waitForScene } from './helpers.js';
+import { finishFormation, waitForScene, openRosterUnit, closeRoster } from './helpers.js';
 
 test.use({
   ...devices['iPhone SE'],
@@ -102,6 +102,7 @@ test('reclass UI save reload deploy preserves learned skill, spent seal and usab
   });
   await page.locator('.re-node-map').getByRole('button', { name: 'Roster', exact: true }).tap();
   const roster = page.locator('.mr-sheet');
+  await openRosterUnit(roster, 'Reload Veteran', { tap: true });
   await roster.getByRole('button', { name: 'Equipment', exact: true }).tap();
   await roster.getByRole('button', { name: 'Reclass', exact: true }).tap();
   const picker = page.getByRole('dialog', { name: 'Reclass Reload Veteran', exact: true });
@@ -109,7 +110,7 @@ test('reclass UI save reload deploy preserves learned skill, spent seal and usab
   await expect(picker.locator('.re-choice-preview')).toContainText('Learn: Vantage');
   await picker.getByRole('button', { name: 'Confirm', exact: true }).tap();
   await expect(picker).toHaveCount(0);
-  await roster.getByRole('button', { name: 'Close', exact: true }).tap();
+  await closeRoster(roster, 'Close', { tap: true });
   const saved = await page.evaluate(() =>
     JSON.parse(localStorage.getItem('emblem_rogue_slot_1_run')),
   );

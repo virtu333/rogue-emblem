@@ -1,4 +1,7 @@
-import { getClassChangeWeaponGrants } from '../engine/RosterCommands.js';
+import {
+  getClassChangeWeaponGrants,
+  planClassChangeWeaponGrants,
+} from '../engine/RosterCommands.js';
 import {
   promoteUnit,
   normalizeUnitClassState,
@@ -12,8 +15,9 @@ import { XP_STAT_NAMES, INVENTORY_MAX } from '../utils/constants.js';
 import { slotCountsLine } from '../engine/SkillSlots.js';
 
 // Preview a clone with deterministic rules only. Never roll growths, grant
-// item UIDs, or consume gameplay RNG merely by browsing classes.
-export function classChangePreview(unit, item, target, gameData) {
+// item UIDs, or consume gameplay RNG merely by browsing classes. `run` is the run whose
+// convoy takes a starter weapon the bag cannot (left out, such a weapon reads as lost).
+export function classChangePreview(unit, item, target, gameData, run = null) {
   const projected = structuredClone(unit);
   const promoting = item.effect === 'promote';
   let result;
@@ -49,13 +53,16 @@ export function classChangePreview(unit, item, target, gameData) {
     lines.push(`Movement: ${unit.moveType} → ${projected.moveType}`);
   const previousTypes = new Set(unit.proficiencies.map((p) => p.type));
   const grants = getClassChangeWeaponGrants(projected, previousTypes, gameData);
-  let spaces = Math.max(0, INVENTORY_MAX - unit.inventory.length);
-  const available = [];
+  const plan = planClassChangeWeaponGrants(run, unit, grants, INVENTORY_MAX);
+  const available = plan.bag;
   for (const weapon of grants) {
-    if (spaces-- > 0) {
-      lines.push(`Starter weapon: ${weapon.name}`);
-      available.push(weapon);
-    } else lines.push(`Bag full: ${weapon.name} cannot be granted. Make room before confirming.`);
+    if (plan.bag.includes(weapon)) lines.push(`Starter weapon: ${weapon.name}`);
+    else if (plan.convoy.includes(weapon))
+      lines.push(`Bag full: ${weapon.name} goes to the convoy.`);
+    else
+      lines.push(
+        `Bag and convoy full: ${weapon.name} cannot be granted. Make room before confirming.`,
+      );
   }
   const retained = unit.weapon && canEquip(projected, unit.weapon) ? unit.weapon : null;
   const replacement =

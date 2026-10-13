@@ -16,7 +16,7 @@
 //   4. Give up is not confirmed, or is not final and saved;
 //   5. the page overflows or is clipped at 640x480 and on a landscape phone.
 import { test, expect } from '@playwright/test';
-import { collectErrors } from './helpers.js';
+import { collectErrors, openRosterUnit, closeRoster } from './helpers.js';
 import { bootEvent, expectFits, refreshFromSlot } from './eventHelpers.js';
 
 const SIZES = [
@@ -170,10 +170,10 @@ for (const size of SIZES) {
       await actions(dialog).getByRole('button', { name: 'Roster', exact: true }).click();
       const roster = page.getByRole('dialog').last();
       await expect(roster).toBeVisible();
-      await roster.getByRole('button', { name: /Edric/ }).first().click();
+      await openRosterUnit(roster, 'Edric');
       await roster.getByRole('button', { name: 'Equipment', exact: true }).click();
       await roster.getByRole('button', { name: 'Use', exact: true }).first().click();
-      await roster.getByRole('button', { name: 'Close', exact: true }).first().click();
+      await closeRoster(roster);
       await expect(dialog).toBeVisible();
       expect((await state(page, battleId)).live.elixirs).toBeGreaterThan(0);
 

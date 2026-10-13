@@ -1,5 +1,5 @@
 import { test, expect, devices } from '@playwright/test';
-import { waitForGame, waitForScene } from './helpers.js';
+import { waitForGame, waitForScene, openRosterUnit, closeRoster } from './helpers.js';
 test.use({ ...devices['iPhone 13'], viewport: { width: 667, height: 375 } });
 async function roster(page) {
   await page.goto('/?devScene=nodemap&preset=battle_smoke&seed=42');
@@ -10,6 +10,8 @@ async function roster(page) {
 }
 test('equipment and convoy use real rules and keep the selected recipient', async ({ page }) => {
   const sheet = await roster(page);
+  await expect(sheet.getByRole('button', { name: 'Equipment', exact: true })).toHaveCount(0);
+  await openRosterUnit(sheet, null, { tap: true });
   await sheet.getByRole('button', { name: 'Equipment', exact: true }).tap();
   await expect(sheet.getByText('Equipped', { exact: true }).first()).toBeVisible();
   await sheet.getByRole('button', { name: 'Convoy', exact: true }).tap();
@@ -20,7 +22,7 @@ test('equipment and convoy use real rules and keep the selected recipient', asyn
     await expect(sheet.getByRole('heading', { name: /^Shared convoy/ })).toBeVisible();
   }
   await page.screenshot({ path: 'test-results/mobile-roster-convoy.png' });
-  await sheet.getByRole('button', { name: 'Close', exact: true }).tap();
+  await closeRoster(sheet, 'Close', { tap: true });
   await expect(sheet).toHaveCount(0);
   expect(
     await page.evaluate(() => window.__emblemRogueGame.scene.getScene('NodeMap').rosterOverlay),
@@ -32,8 +34,7 @@ test('the profile’s EXP meter reads the unit’s XP, under the HP bar', async 
     const overlay = window.__emblemRogueGame.scene.getScene('NodeMap').rosterOverlay;
     const unit = overlay.runManager.roster[0];
     unit.xp = 37;
-    overlay._mobileSheet.index = 0;
-    overlay._mobileSheet.render();
+    overlay._mobileSheet.openUnit(0);
     return unit.xp;
   });
   const summary = sheet.locator('.mr-summary');
@@ -85,14 +86,23 @@ test('long roster and gear stay scrollable without covering Close', async ({ pag
     );
     overlay._mobileSheet.render();
   });
-  await sheet.getByRole('button', { name: 'Equipment', exact: true }).tap();
-  expect(await sheet.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+  // The overview scrolls under its Close, then a unit's detail keeps its own Back reachable.
   const close = sheet.getByRole('button', { name: 'Close', exact: true });
   expect((await close.boundingBox()).height).toBeGreaterThanOrEqual(44);
+  expect(await sheet.locator('.mr-overview').evaluate((e) => e.scrollHeight > e.clientHeight)).toBe(
+    true,
+  );
+  await openRosterUnit(sheet, null, { tap: true });
+  await sheet.getByRole('button', { name: 'Equipment', exact: true }).tap();
+  expect(await sheet.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+  const back = sheet.getByRole('button', { name: 'Back', exact: true });
+  expect((await back.boundingBox()).height).toBeGreaterThanOrEqual(44);
   expect(await sheet.locator('.mr-units').evaluate((e) => e.scrollHeight > e.clientHeight)).toBe(
     true,
   );
   await page.screenshot({ path: 'test-results/mobile-roster-equipment.png' });
+  await back.tap();
+  await expect(close).toBeVisible();
   await close.tap();
   await expect(sheet).toHaveCount(0);
 });
@@ -131,8 +141,7 @@ test('store and withdraw preserve the item through touch actions', async ({ page
     const unit = overlay.runManager.roster[0];
     unit.inventory = [unit.weapon];
     addToInventory(unit, { ...unit.weapon, name: 'Mobile transfer test blade' });
-    overlay._mobileSheet.index = 0;
-    overlay._mobileSheet.render();
+    overlay._mobileSheet.openUnit(0);
   });
   await sheet.getByRole('button', { name: 'Equipment', exact: true }).tap();
   // The equipped item's heading carries the "E" badge (#77), whose accessible name
@@ -163,6 +172,8 @@ test('empty roster and shutdown clean up the sheet', async ({ page }) => {
   await page.evaluate(() => {
     const o = window.__emblemRogueGame.scene.getScene('NodeMap').rosterOverlay;
     o.runManager.roster.length = 0;
+    // A roster with no units opens on the detail's empty state (no grid to show).
+    o._mobileSheet.view = 'detail';
     o._mobileSheet.render();
   });
   await expect(sheet.getByText('No units in the roster.')).toBeVisible();
@@ -200,6 +211,7 @@ test('DOM portraits remain usable after the game loader revokes its image URL', 
 
 test('roster tolerates thumb drift but rejects scroll and slide-off releases', async ({ page }) => {
   const sheet = await roster(page);
+  await openRosterUnit(sheet, null, { tap: true });
   const cards = sheet.locator('.mr-unit-card');
   await expect(cards.first()).toContainText('Lv');
   const gesture = async (pointerType, drift, cancel) =>
@@ -258,8 +270,7 @@ test('a heal in the convoy is used on the chosen unit without withdrawing it', a
       value: 10,
       uses: 1,
     });
-    overlay._mobileSheet.index = 0;
-    overlay._mobileSheet.render();
+    overlay._mobileSheet.openUnit(0);
     return unit.name;
   });
   await sheet.getByRole('button', { name: 'Convoy', exact: true }).tap();
@@ -288,10 +299,7 @@ for (const viewport of [
   }) => {
     await page.setViewportSize(viewport);
     const sheet = await roster(page);
-    await sheet
-      .getByRole('navigation', { name: 'Units' })
-      .getByRole('button', { name: /Gaspar/ })
-      .tap();
+    await openRosterUnit(sheet, 'Gaspar', { tap: true });
     await expect(sheet.getByRole('heading', { name: 'Biography', exact: true })).toBeVisible();
     await expect(
       sheet.getByRole('heading', { name: 'Special · Campaign Veteran', exact: true }),
@@ -327,8 +335,7 @@ test('Gaspar seal refusals appear on roster item cards without spending the seal
       .filter((i) => ['promote', 'reclass'].includes(i.effect))
       .slice(0, 2)
       .map((i) => ({ ...i, uses: 1 }));
-    o._mobileSheet.index = o.runManager.roster.indexOf(g);
-    o._mobileSheet.render();
+    o._mobileSheet.openUnit(o.runManager.roster.indexOf(g));
   });
   await sheet.getByRole('button', { name: 'Equipment', exact: true }).tap();
   const notices = sheet.locator('small').filter({ hasText: /^Gaspar:/ });

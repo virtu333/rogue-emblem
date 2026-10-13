@@ -102,7 +102,7 @@ for (const shutdown of [false, true])
     }
   });
 
-it('a full bag says which starter weapon a promotion could not grant', async () => {
+it('a full bag and no convoy says which starter weapon a promotion could not grant', async () => {
   const { seal, unit, scene, controller } = fixture();
   const ironLance = { name: 'Iron Lance', type: 'Lance', tier: 'Iron' };
   scene.gameData.weapons = [ironLance];
@@ -124,7 +124,41 @@ it('a full bag says which starter weapon a promotion could not grant', async () 
   }
   expect(unit.inventory).toHaveLength(5);
   expect(scene.showBriefBanner).toHaveBeenCalledWith(
-    'Bag full: Iron Lance could not be granted.',
+    'Bag and convoy full: Iron Lance could not be granted.',
+    expect.anything(),
+  );
+});
+
+it('a full bag sends the starter weapon to the run convoy, and the banner says so', async () => {
+  const { seal, unit, scene, controller } = fixture();
+  const ironLance = { name: 'Iron Lance', type: 'Lance', tier: 'Iron' };
+  scene.gameData.weapons = [ironLance];
+  const convoy = [];
+  scene.runManager = {
+    getConvoyCapacities: () => ({ weapons: 20, consumables: 20 }),
+    getConvoyCounts: () => ({ weapons: convoy.length, consumables: 0 }),
+    addToConvoy: (item) => convoy.push(structuredClone(item)) > 0,
+  };
+  unit.proficiencies = [{ type: 'Sword', rank: 'Prof' }];
+  unit.inventory = [1, 2, 3, 4, 5].map((n) => ({ name: `Sword ${n}`, type: 'Sword' }));
+  mocks.resolve.mockReturnValue([{ name: 'Hero', promotionBonuses: { STR: 2 } }]);
+  mocks.promote.mockImplementationOnce(() => {
+    unit.proficiencies.push({ type: 'Lance', rank: 'Prof' });
+    return { droppedSkills: [] };
+  });
+  scene.showPromotionBanner = vi.fn(async () => {});
+  scene._playLevelUpSfx = vi.fn();
+  scene._stopLevelUpSfx = vi.fn();
+  const spy = vi.spyOn(LevelUpPopup.prototype, 'show').mockResolvedValue();
+  try {
+    expect(await controller.executePromotion(unit, seal)).toBe(true);
+  } finally {
+    spy.mockRestore();
+  }
+  expect(unit.inventory).toHaveLength(5);
+  expect(convoy.map((w) => w.name)).toEqual(['Iron Lance']);
+  expect(scene.showBriefBanner).toHaveBeenCalledWith(
+    'Bag full: Iron Lance sent to the convoy.',
     expect.anything(),
   );
 });

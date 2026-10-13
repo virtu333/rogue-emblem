@@ -211,8 +211,8 @@ function actOverrideSummary(mode) {
       const value = actOverrideFor(mode, key, act);
       if (value !== undefined && value !== mode[key]) parts.push(text(value));
     };
-    add('enemyStatBonus', (n) => `enemy stats +${n}`);
-    add('enemyLevelBonus', (n) => `enemy levels +${n}`);
+    add('enemyStatBonus', (n) => (n === 0 ? 'no enemy stat bonus' : `enemy stats +${n}`));
+    add('enemyLevelBonus', (n) => (n === 0 ? 'no enemy level bonus' : `enemy levels +${n}`));
     add('bossLevelBonus', (n) => `boss levels +${n}`);
     add('enemyCountBonus', (n) => `+${n} extra ${n === 1 ? 'enemy' : 'enemies'} per map`);
     add('enemyCountBase', (n) => `enemies scale as if you field at least ${n} units`);

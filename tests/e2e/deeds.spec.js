@@ -3,6 +3,7 @@
 // the save), the title-card rite plays after it, and the epithet then shows
 // in the roster. Desktop 1280×800 and phone 844×390.
 import { test, expect, devices } from '@playwright/test';
+import { openRosterUnit, closeRoster } from './helpers.js';
 
 test.setTimeout(120000);
 
@@ -584,16 +585,18 @@ test.describe('player choices (phone 390×844)', () => {
     await expect(roster).toHaveClass(/\bre-attention\b/);
     await expect(roster).toHaveAttribute('aria-description', 'A new skill is on the bench');
     await roster.click();
-    await page.locator('.mr-unit-card', { hasText: 'Bramwell' }).click();
+    // The Roster opens on its overview; the card's label already names the new skill
+    // (its face shows the equipped weapon instead of tags).
+    await expect(
+      page.locator('nav.mr-grid').getByRole('button', { name: /^Bramwell.*New skill/ }),
+    ).toBeVisible();
+    await openRosterUnit(page.locator('.mr-sheet'), 'Bramwell');
     await page
       .locator('.mr-bench-callout')
       .getByRole('button', { name: 'Go to Skills', exact: true })
       .click();
     await expect(page.locator('.mr-bench-new', { hasText: 'Colossus' })).toBeVisible();
-    await page
-      .locator('.mr-sheet header')
-      .getByRole('button', { name: 'Close', exact: true })
-      .click();
+    await closeRoster(page.locator('.mr-sheet'));
     await expect(roster).not.toHaveClass(/\bre-attention\b/);
     await expect(roster).not.toHaveAttribute('aria-description', /.+/);
     expect(errors).toEqual([]);

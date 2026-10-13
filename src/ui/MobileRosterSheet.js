@@ -145,6 +145,7 @@ import { actLabel } from './ceremonyContent.js';
 import { fitText } from './ceremonyDom.js';
 import { createHealthBar } from './healthBar.js';
 import { createXpBar, createXpRow, xpBarFacts } from './xpBar.js';
+import { rosterOverviewModel } from './rosterOverviewModel.js';
 import { STAT_COLORS, UI_PALETTE } from '../utils/uiStyles.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
 import {
@@ -243,9 +244,19 @@ export class MobileRosterSheet {
     persist = null,
     tips = true,
     closeLabel = 'Close',
+    // The Roster's first page (rosterOverviewModel): every unit as a small card; a
+    // card opens that unit's detail and Back returns to it. Off for sheets opened on
+    // one unit to inspect it (battle inspection, a draft's details, the fallen).
+    overview = false,
+    startInDetail = false,
+    // Where the caller knows the formation (the formation's Roster): marks each card
+    // Deployed or Benched.
+    isDeployed = null,
   }) {
     Object.assign(this, {
       closeLabel,
+      hasOverview: Boolean(overview),
+      isDeployed,
       tips,
       persist,
       scene,
@@ -258,6 +269,7 @@ export class MobileRosterSheet {
       terrainForUnit,
     });
     this.tab = 'stats';
+    this.view = overview && !startInDetail && units?.length ? 'overview' : 'detail';
     this.previousFocus = document.activeElement;
     this.root = el('section', null, 'mr-sheet');
     this.root.style.zIndex = DOM_UI_DEPTHS.MENU;
@@ -272,7 +284,8 @@ export class MobileRosterSheet {
       e.stopPropagation();
       if (e.key === 'Escape') {
         e.preventDefault();
-        this.onClose();
+        this.back();
+        return;
       }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (['ArrowLeft', 'ArrowRight'].includes(e.key)) {
@@ -296,9 +309,13 @@ export class MobileRosterSheet {
         else this.moveWithinList(payload?.dy || 1);
       }
       if (action === InputAction.CONFIRM) this.activateFocused();
-      if ([InputAction.CANCEL, InputAction.PAUSE, InputAction.ROSTER].includes(action))
-        this.onClose();
-      if ([InputAction.PREV_UNIT, InputAction.NEXT_UNIT].includes(action) && this.units.length) {
+      if (action === InputAction.CANCEL) this.back();
+      if ([InputAction.PAUSE, InputAction.ROSTER].includes(action)) this.onClose();
+      if (
+        [InputAction.PREV_UNIT, InputAction.NEXT_UNIT].includes(action) &&
+        this.units.length &&
+        this.view === 'detail'
+      ) {
         this.index =
           (this.index + (action === InputAction.NEXT_UNIT ? 1 : -1) + this.units.length) %
           this.units.length;
@@ -311,15 +328,60 @@ export class MobileRosterSheet {
     // The prologue's roster lesson (row 2), when it is live: a goal strip, never a gate.
     this.lesson = PrologueRosterCoach.attach(this);
     this.render();
-    this.root.querySelector('.mr-tabs [aria-pressed="true"]')?.focus();
+    if (this.view === 'overview') this.focusOverviewCard();
+    else this.root.querySelector('.mr-tabs [aria-pressed="true"]')?.focus();
+  }
+  /** Open one unit's detail from the overview (its Stats first). */
+  openUnit(index) {
+    if (this.destroyed || !this.units[index]) return;
+    this.index = index;
+    this.tab = 'stats';
+    this.view = 'detail';
+    this.render();
+    this.root.querySelector('.mr-tabs [aria-pressed="true"]')?.focus({ preventScroll: true });
+  }
+  /** Back: from a unit's detail to the overview when the sheet has one, else close. */
+  back() {
+    if (this.destroyed) return;
+    if (this.view === 'detail' && this.hasOverview && this.units.length) {
+      this.view = 'overview';
+      this.render();
+      this.focusOverviewCard();
+      return;
+    }
+    this.onClose();
+  }
+  focusOverviewCard() {
+    const cards = [...this.root.querySelectorAll('button.mr-ov-card')];
+    const card = cards.find((c) => c.dataset.index === String(this.index)) || cards[0];
+    card?.focus({ preventScroll: true });
+    card?.scrollIntoView?.({ block: 'nearest' });
+  }
+  /** Arrow keys and the d-pad on the overview: move through the grid by row and column. */
+  moveInGrid(dx, dy) {
+    const cards = [...this.root.querySelectorAll('button.mr-ov-card')];
+    if (!cards.length) return;
+    const at = cards.indexOf(document.activeElement);
+    if (at < 0) {
+      this.focusOverviewCard();
+      return;
+    }
+    const top = cards[0].offsetTop;
+    const columns = Math.max(1, cards.filter((c) => c.offsetTop === top).length);
+    const step = Math.sign(dx) + Math.sign(dy) * columns;
+    const next = Math.max(0, Math.min(cards.length - 1, at + step));
+    cards[next].focus();
+    cards[next].scrollIntoView?.({ block: 'nearest' });
   }
   changeTab(delta) {
+    if (this.view === 'overview') return this.moveInGrid(delta, 0);
     const tabs = [...this.root.querySelectorAll('.mr-tabs button')];
     const index = tabs.findIndex((b) => b.getAttribute('aria-pressed') === 'true');
     tabs[(index + Math.sign(delta) + tabs.length) % tabs.length]?.click();
     this.root.querySelector('.mr-tabs [aria-pressed="true"]')?.focus();
   }
   moveWithinList(delta) {
+    if (this.view === 'overview') return this.moveInGrid(0, delta);
     const active = document.activeElement;
     const region = active?.closest('.mr-units') || this.root.querySelector('.mr-content');
     const items = this.controls().filter((el) => region?.contains(el));
@@ -354,7 +416,7 @@ export class MobileRosterSheet {
     if (reason) b.title = reason;
     bindCancelablePress(b, action, {
       enabled: () => !this.destroyed && hasInputFocus(this),
-      context: () => `${this.index}:${this.tab}`,
+      context: () => `${this.view}:${this.index}:${this.tab}`,
       threshold: (event) => (event.pointerType === 'mouse' ? 10 : DRAG_SLOP_TOUCH),
     });
     return b;
@@ -364,6 +426,8 @@ export class MobileRosterSheet {
   }
   render(message = '') {
     if (this.destroyed) return;
+    this.root.classList.toggle('is-overview', this.view === 'overview');
+    if (this.view === 'overview') return this.renderOverview(message);
     // Opening a unit's Skills (between battles) is seeing its bench: the news clears
     // before the list and pip are drawn, and saves. The tab still marks what was new.
     const shown = this.units?.[this.index];
@@ -391,7 +455,13 @@ export class MobileRosterSheet {
       title.append(cap);
     }
     head.append(title);
-    head.append(this.button(this.closeLabel, this.onClose));
+    // From the overview, the detail's way out leads back to the grid.
+    if (this.hasOverview) {
+      const back = this.button('Back', () => this.back());
+      back.classList.add('mr-back');
+      back.title = 'Back to all units';
+      head.append(back);
+    } else head.append(this.button(this.closeLabel, this.onClose));
     this.root.append(head);
     const layout = el('div', null, 'mr-layout');
     const nav = el('nav', null, 'mr-units');
@@ -539,6 +609,110 @@ export class MobileRosterSheet {
       (this.root.querySelector(`[data-focus-key="${focusKey}"]`) || this.root).focus({
         preventScroll: true,
       });
+  }
+  /** The overview: a header with the count and deploy cap, then every unit as a card. */
+  renderOverview(message = '') {
+    const oldScroll = this.root.querySelector('.mr-overview')?.scrollTop || 0;
+    this.root.replaceChildren();
+    const model = rosterOverviewModel({
+      units: this.units,
+      fallen: this.run ? this.run.fallenUnits : [],
+      run: this.run,
+      deploy: rosterDeploySlots(this.run),
+      isDeployed: this.isDeployed,
+      xpOptions: this.xpOptions(),
+    });
+    const head = el('header');
+    const title = el('div', null, 'mr-head-title');
+    title.append(el('h2', this.run ? 'Roster' : 'Units'));
+    const facts = el('span', null, 'mr-ov-facts');
+    facts.append(el('span', model.countText, 'mr-ov-count'));
+    if (model.deployText) {
+      const cap = el('span', model.deployText, 'mr-deploy-cap');
+      cap.title = model.deployTitle;
+      facts.append(cap);
+    }
+    title.append(facts);
+    head.append(title, this.button(this.closeLabel, this.onClose));
+    this.root.append(head);
+    const body = el('div', null, 'mr-overview');
+    this.body = body;
+    this.lesson?.render(body);
+    const grid = el('nav', null, 'mr-grid');
+    grid.setAttribute('aria-label', 'Units');
+    for (const card of model.cards) {
+      const b = this.button('', () => this.openUnit(card.index));
+      b.classList.add('mr-ov-card');
+      b.dataset.index = String(card.index);
+      b.setAttribute('aria-label', `${card.label}. Open details`);
+      this.overviewCardBody(b, card);
+      grid.append(b);
+    }
+    if (!model.cards.length) grid.append(el('p', 'No units in the roster.'));
+    body.append(grid);
+    if (model.fallen.length) {
+      body.append(el('h3', `Fallen · ${model.fallen.length}`, 'mr-section mr-ov-fallen-head'));
+      const lost = el('div', null, 'mr-grid mr-grid-fallen');
+      lost.setAttribute('role', 'list');
+      lost.setAttribute('aria-label', 'Fallen');
+      for (const card of model.fallen) {
+        const c = el('div', null, 'mr-ov-card is-fallen');
+        c.setAttribute('role', 'listitem');
+        c.setAttribute('aria-label', card.label);
+        this.overviewCardBody(c, card);
+        lost.append(c);
+      }
+      body.append(lost);
+    }
+    const status = (this.status ||= el('p', '', 'mr-status'));
+    status.setAttribute('aria-live', 'polite');
+    status.setAttribute('aria-atomic', 'true');
+    status.setAttribute('role', 'status');
+    body.append(status);
+    this.root.append(body);
+    queueMicrotask(() => {
+      if (!this.destroyed) status.textContent = message;
+    });
+    [...this.root.querySelectorAll('button')].forEach((b, i) => {
+      b.dataset.focusKey = String(i);
+    });
+    body.scrollTop = oldScroll;
+  }
+  /** One overview card's face, name and level, class, HP and EXP bars, and equipped weapon. */
+  overviewCardBody(card, view) {
+    // A unit with no portrait keeps the face's slot, so every card's text lines up.
+    card.append(this.portrait(view.unit, 'mr-ov-face') || el('span', null, 'mr-ov-face'));
+    const info = el('span', null, 'mr-ov-info');
+    const nameRow = el('span', null, 'mr-ov-name');
+    nameRow.append(el('strong', view.name), el('em', `Lv ${view.level}`));
+    const classLine = el('span', view.className, 'mr-ov-class');
+    classLine.title = view.className;
+    info.append(nameRow, classLine);
+    const hpRow = el('span', null, 'mr-ov-meter');
+    hpRow.append(el('span', 'HP', 'mr-ov-meter-label'));
+    hpRow.append(
+      view.fallen ? el('span', null, 're-health') : createHealthBar(view.unit),
+      el('small', `${view.hp.current}/${view.hp.max}`),
+    );
+    info.append(hpRow);
+    if (view.xp) {
+      const xpRow = el('span', null, 'mr-ov-meter is-xp');
+      const bar = createXpBar(view.unit, this.xpOptions());
+      xpRow.append(el('span', 'EXP', 'mr-ov-meter-label'));
+      if (bar) xpRow.append(bar);
+      xpRow.append(el('small', view.xp.capped ? 'MAX' : String(view.xp.xp)));
+      info.append(xpRow);
+    }
+    // The bottom line: what the unit fights with (the marks ride the card's label).
+    const weaponLine = el('span', null, `mr-ov-weapon${view.weapon.item ? '' : ' is-none'}`);
+    if (view.weapon.item) weaponLine.append(itemIcon(view.weapon.item, { size: 16, marks: false }));
+    const weaponName = el('span', view.weapon.name);
+    weaponName.title = view.weapon.name;
+    weaponLine.append(weaponName);
+    info.append(weaponLine);
+    for (const node of info.querySelectorAll('[role="meter"]'))
+      node.setAttribute('aria-hidden', 'true');
+    card.append(info);
   }
   card(title, description = '', item = null, { keys = null } = {}) {
     const c = el('article', null, 'mr-card');
@@ -1413,6 +1587,7 @@ export class MobileRosterSheet {
       title: `Promote ${unit.name}`,
       closeLabel: 'Close',
       note: `Uses 1 ${item.name || 'Master Seal'}`,
+      run: this.run,
       blocked: () => rosterClassChangeBlock(this.run, unit, item, this.gameData),
       apply: (choice) => {
         const content = promotionPathContent(unit, choice, this.gameData);
@@ -1465,7 +1640,7 @@ export class MobileRosterSheet {
       choices,
       label: (choice) => choice.name,
       describe: (choice) => choice.description || choice.roleChange || choice.role || '',
-      preview: (choice) => classChangePreview(unit, item, choice, this.gameData),
+      preview: (choice) => classChangePreview(unit, item, choice, this.gameData, this.run),
       blocked: () => rosterClassChangeBlock(this.run, unit, item, this.gameData),
       apply: (choice) => {
         const result = applyRosterClassChange(this.run, unit, item, choice, this.gameData);

@@ -1,5 +1,5 @@
 import { test, expect, devices } from '@playwright/test';
-import { waitForScene } from './helpers.js';
+import { waitForScene, openRosterUnit } from './helpers.js';
 
 test.use({ ...devices['iPhone 13'], viewport: { width: 667, height: 375 } });
 
@@ -20,6 +20,7 @@ test('mastery help preserves roster focus, scroll and data through keyboard/cont
     s._openRoster();
   });
   const roster = page.locator('.mr-sheet');
+  await openRosterUnit(roster);
   await expect(roster).toContainText('0 / 8 battles');
   await expect(roster).toContainText('Unlock:');
   await expect(roster).toContainText('Sword: Proficient');
@@ -99,6 +100,7 @@ test('help leads with the answer, shows numbers as tiles and sizes to its text',
   await page.getByRole('button', { name: 'Skip conversation', exact: true }).click();
   await page.evaluate(() => window.__emblemRogueGame.scene.getScene('NodeMap')._openRoster());
   const roster = page.locator('.mr-sheet');
+  await openRosterUnit(roster);
   const trigger = roster.getByRole('button', { name: 'About combat numbers', exact: true });
   await trigger.scrollIntoViewIfNeeded();
   // The card's one-line numbers are the tiles' numbers.

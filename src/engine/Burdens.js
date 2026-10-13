@@ -24,7 +24,10 @@
 //                                            (Heal all counts) ends it early, and so does the unit's
 //                                            fall or departure. A unit revived at the Ruins
 //                                            returns with one (`takenAt`: that node, whose own
-//                                            Heal all leaves it be; RuinsCommands.reviveAtRuins)
+//                                            Heal all leaves it be; RuinsCommands.reviveAtRuins),
+//                                            and the Unbroken Banner leaves one on the unit it
+//                                            held (RunManager._takeBannerWound, at the same
+//                                            victory commit)
 // The numbers live in data/events.json `burdens`; `onRung` holds the exact-rung overrides
 // (a burden is gentler on First Light only). They are resolved ONCE, when the burden is
 // taken, and stored on the record, so a later data change never moves a burden in flight.
@@ -909,5 +912,10 @@ export function settlementLines(settlement) {
   else if (settlement?.hunted?.event?.ended) lines.push('Hunted (the passing hunt ends)');
   if (settlement?.sworn?.ended) lines.push('Sworn Enemy falls');
   if (settlement?.wounded?.ended) lines.push(`${injuryPhrase(settlement.wounded)} mends`);
+  // The Unbroken Banner's price, taken at this commit (RunManager._takeBannerWound).
+  if (settlement?.bannerWound)
+    lines.push(
+      `${settlement.bannerWound.name || 'The held unit'}: Lingering Injury ${settlement.bannerWound.value} ${settlement.bannerWound.stat}`,
+    );
   return lines;
 }

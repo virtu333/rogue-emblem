@@ -23,6 +23,10 @@ test('desktop native roster supports keyboard and gamepad actions without stale 
   const roster = page.getByRole('dialog', { name: 'Manage roster', exact: true });
   await expect(roster).toBeVisible();
   expect(await roster.evaluate((el) => getComputedStyle(el).zIndex)).toBe('1250');
+  // The overview opens first with its first card focused; Enter opens that unit.
+  await expect(roster.locator('button.mr-ov-card').first()).toBeFocused();
+  await expect(roster.getByRole('button', { name: 'Stats', exact: true })).toHaveCount(0);
+  await page.keyboard.press('Enter');
   await expect(roster.getByRole('button', { name: 'Stats', exact: true })).toBeFocused();
   await page.keyboard.press('ArrowRight');
   await expect(roster.getByRole('button', { name: 'Skills', exact: true })).toBeFocused();
@@ -48,6 +52,9 @@ test('desktop native roster supports keyboard and gamepad actions without stale 
   ).toBe(true);
   await action('input:nextUnit');
   await expect(roster.locator('.mr-summary')).toContainText('Sera');
+  // Cancel steps back to the overview, then closes the Roster.
+  await action('input:cancel');
+  await expect(roster.locator('nav.mr-grid')).toBeVisible();
   await action('input:cancel');
   await expect(roster).toHaveCount(0);
 });

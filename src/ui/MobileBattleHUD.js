@@ -995,6 +995,7 @@ export class MobileBattleHUD {
             threat.col,
             threat.row,
             threat.result?.count,
+            threat.result?.aimed,
             threat.result?.status?.length,
             threat.result?.counter?.length,
           ]
