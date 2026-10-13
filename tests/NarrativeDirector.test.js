@@ -150,6 +150,11 @@ describe('buildNarrativeContext', () => {
       finale: null,
       descent: false,
       glassBroken: false,
+      lossStreak: 0,
+      fallenName: null,
+      lastRunLordsFell: [],
+      rungChanged: false,
+      bestActCleared: 0,
     });
   });
 
@@ -167,6 +172,7 @@ describe('buildNarrativeContext', () => {
       getStoryFlags: () => ({
         lastRun: { result: 'defeat', defeatedBy: 'Warchief' },
       }),
+      hasMilestone: () => false,
       getBossSlainCount: (name) => (name === 'Warchief' ? 3 : 0),
       getDefeatedByCount: (name) => (name === 'Warchief' ? 2 : 0),
     };
@@ -199,6 +205,11 @@ describe('buildNarrativeContext', () => {
       finale: null,
       descent: false,
       glassBroken: false,
+      lossStreak: 0,
+      fallenName: null,
+      lastRunLordsFell: [],
+      rungChanged: false,
+      bestActCleared: 0,
     });
   });
 
@@ -225,18 +236,24 @@ describe('KNOWN_WHEN_KEYS', () => {
       'currentDefeatWasBoss',
       'descent',
       'difficulty',
+      'fallenThisRun',
       'finale',
       'firstClear',
       'glassBroken',
       'lastRunAct',
       'lastRunDefeatedByKnown',
+      'lastRunLordFell',
       'lastRunResult',
       'maxRunsStarted',
+      'minBestActCleared',
+      'minBossSlain',
+      'minLossStreak',
       'minRunsCompleted',
       'partner',
       'prologue',
       'riteBand',
       'roadThroughEmperor',
+      'rungChanged',
     ]);
   });
 });
