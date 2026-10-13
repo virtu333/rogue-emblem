@@ -43,8 +43,8 @@ The full old → new table is `ITEM_RENAMES` in `src/engine/ItemNameMigration.js
 Saves store whole item objects and a name is an item's identity (weapon-art gates,
 siege lookups, icons, fx), so `RunManager.fromJSON` renames every item in an old save
 before anything reads it: units, convoy, shops, rewards, colosseum mercenaries, the
-battle checkpoint, its entry state and its rewind timeline (keyframes and patches), and
-the siege-weapon name strings. Composed names keep their parts ("Keen Killing Edge +1"
+battle checkpoint, its entry state and its rewind timeline (every destination, a patch
+decoded to its full state first), and the siege-weapon name strings. Composed names keep their parts ("Keen Killing Edge +1"
 became "Cruel Keen Sword +1"). A renamed item also takes the lore and rule text the
 catalog changed with it; stats, forge levels, imbues and uses stay. Saves written since
 carry `itemNamesRevision`, and the walk skips them. Cloud saves load through the same

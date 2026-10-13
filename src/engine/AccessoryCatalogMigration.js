@@ -13,11 +13,11 @@
 // field (uid, forge, imbue, HP debt) is never touched.
 //
 // The `gamblerCoin` flag belongs to this one accessory, so the walk keys on the flag
-// itself rather than on a name: that also reaches the pieces of a rewind patch, which
-// hold combatEffects fragments without the item's name:
-//   - a flag value or a patch leaf `{ $: true }` becomes the config (or `{ $: config }`);
-//   - a patch that removes the flag (`x: ['gamblerCoin']`) removes `gambler` too, so a
-//     migrated base coin swapped for another accessory does not keep the coin's effect.
+// itself rather than on a name. A rewind destination stored as a patch never reaches
+// the walk as a patch: RunManager.fromJSON decodes every patch to its full state first
+// and re-encodes it against the migrated keyframe afterwards
+// (BattleTimeline.expandTimelinePatches / collapseTimelinePatches), so the walk only
+// ever sees whole states.
 //
 // Idempotent and ungated by a save revision: a migrated coin has no flag left, and a
 // save written back by an older build with the flag is fixed on its next load.
@@ -47,31 +47,10 @@ export function migrateSavedGamblerCoins(saved, gameData = null) {
   const visit = (node, depth) => {
     if (!node || typeof node !== 'object' || depth > 64 || seen.has(node)) return;
     seen.add(node);
-    if (!Array.isArray(node)) {
-      if (Object.hasOwn(node, LEGACY_FLAG) && !Object.hasOwn(node, 'gambler')) {
-        const flag = node[LEGACY_FLAG];
-        const isLeaf = isRecord(flag) && Object.keys(flag).length === 1 && Object.hasOwn(flag, '$');
-        if (isLeaf && flag.$) {
-          delete node[LEGACY_FLAG];
-          node.gambler = { $: structuredClone(config) };
-          changed += 1;
-        } else if (!isLeaf && flag === true) {
-          delete node[LEGACY_FLAG];
-          node.gambler = structuredClone(config);
-          changed += 1;
-        }
-      }
-      // A patch that removes the flag from its base removes the migrated key as well.
-      if (
-        Array.isArray(node.x) &&
-        isRecord(node.o) &&
-        node.x.includes(LEGACY_FLAG) &&
-        !node.x.includes('gambler') &&
-        !Object.hasOwn(node.o, 'gambler')
-      ) {
-        node.x.push('gambler');
-        changed += 1;
-      }
+    if (!Array.isArray(node) && node[LEGACY_FLAG] === true && !Object.hasOwn(node, 'gambler')) {
+      delete node[LEGACY_FLAG];
+      node.gambler = structuredClone(config);
+      changed += 1;
     }
     for (const key of Object.keys(node)) visit(node[key], depth + 1);
   };

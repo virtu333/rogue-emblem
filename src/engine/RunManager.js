@@ -10,7 +10,7 @@ import {
   expandTimelinePatches,
   collapseTimelinePatches,
 } from './BattleTimeline.js';
-import { pickFresh } from '../utils/pickFresh.js';
+import { compactNarrativeSeen, pickFresh } from '../utils/pickFresh.js';
 import { applyRevivalCatchUp } from './RevivalCatchUp.js';
 import { migrateUnitTraits, rollAndApplyLordTrait } from './TraitSystem.js';
 import {
@@ -987,8 +987,15 @@ export class RunManager {
       // How many runs this save has started (meta), for the shrine's gift (StartGifts.js): the
       // sims and dev routes pass none, so they are never offered one.
       runsStarted = 0,
+      // The barks and flavour bags the save carried out of earlier runs
+      // (MetaProgressionManager.getNarrativeSeen), so pools keep walking across runs.
+      narrativeSeen = null,
     } = options;
     this.mode = STANDARD_RUN_MODE;
+    this.narrativeSeen =
+      narrativeSeen && typeof narrativeSeen === 'object' && !Array.isArray(narrativeSeen)
+        ? structuredClone(narrativeSeen)
+        : {};
     this.applyDifficultySelection(difficultyId);
     this.eclipse = createEclipseState({ enabled: eclipseEnabled !== false });
     this.lastEclipseCommit = null;
@@ -6335,6 +6342,7 @@ export class RunManager {
         defeatedBy: this.defeatContext?.defeatedBy || null,
         wasBossDefeat: this.defeatContext?.wasBoss === true,
         lordFalls: Array.isArray(this.runLordFalls) ? this.runLordFalls : [],
+        narrativeSeen: compactNarrativeSeen(this.narrativeSeen),
       });
     };
     if (typeof meta.applyRunPayout === 'function') {

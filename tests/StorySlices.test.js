@@ -30,22 +30,53 @@ describe('story slice selection contracts', () => {
       ).not.toEqual(firstClear.entries);
     }
   });
-  it.each(['act1_to_act2', 'act2_to_act3', 'act3_to_finalBoss_normal'])(
-    '%s prefers history over the commander fallback',
+  it.each(['act3_to_finalBoss_normal'])('%s prefers history over the commander fallback', (key) => {
+    const section = data.actTransitions[key];
+    for (const name of commanders) {
+      const plain = section.variants.find(
+        (v) => v.when.commander === name && Object.keys(v.when).length === 1,
+      );
+      expect(selectDialogueEntries(section, ctx(name))).toEqual(plain.entries);
+      const veteran = selectDialogueEntries(section, ctx(name, { runsCompleted: 5 }));
+      const defeat = selectDialogueEntries(section, ctx(name, { lastRunResult: 'defeat' }));
+      expect(veteran).not.toEqual(plain.entries);
+      expect(defeat).not.toEqual(plain.entries);
+      expect(
+        selectDialogueEntries(section, ctx(name, { runsCompleted: 5, lastRunResult: 'defeat' })),
+      ).toEqual(veteran);
+    }
+  });
+  // Act I and II close on a pool per commander (run-to-run lines): the history exchanges
+  // are contextual items, heard every other run while they apply, the rest general.
+  it.each(['act1_to_act2', 'act2_to_act3'])(
+    '%s rotates a pool per commander, history on the contextual runs',
     (key) => {
       const section = data.actTransitions[key];
+      const text = (entries) => entries.map((e) => e.line).join('\n');
       for (const name of commanders) {
-        const plain = section.variants.find(
-          (v) => v.when.commander === name && Object.keys(v.when).length === 1,
+        const variant = section.variants.find(
+          (v) => v.when.commander === name && Array.isArray(v.pool),
         );
-        expect(selectDialogueEntries(section, ctx(name))).toEqual(plain.entries);
-        const veteran = selectDialogueEntries(section, ctx(name, { runsCompleted: 5 }));
-        const defeat = selectDialogueEntries(section, ctx(name, { lastRunResult: 'defeat' }));
-        expect(veteran).not.toEqual(plain.entries);
-        expect(defeat).not.toEqual(plain.entries);
-        expect(
-          selectDialogueEntries(section, ctx(name, { runsCompleted: 5, lastRunResult: 'defeat' })),
-        ).toEqual(veteran);
+        expect(variant, name).toBeTruthy();
+        const general = variant.pool.filter((item) => !item.when).map((i) => text(i.exchange));
+        const history = (when) =>
+          variant.pool.filter(
+            (i) => i.when && Object.entries(when).every(([k, v]) => i.when[k] === v),
+          );
+        expect(general.length, name).toBeGreaterThanOrEqual(2);
+        expect(history({ minRunsCompleted: 5 }).length, name).toBeGreaterThan(0);
+        expect(history({ lastRunResult: 'defeat' }).length, name).toBeGreaterThan(0);
+        // An odd run with nothing to remember: a general exchange.
+        expect(general).toContain(
+          text(selectDialogueEntries(section, ctx(name, { runsStarted: 1 }))),
+        );
+        // An even run after a loss: a loss exchange.
+        const lost = selectDialogueEntries(
+          section,
+          ctx(name, { runsStarted: 2, lastRunResult: 'defeat' }),
+        );
+        const lossTexts = history({ lastRunResult: 'defeat' }).map((i) => text(i.exchange));
+        expect(lossTexts).toContain(text(lost));
       }
     },
   );
@@ -120,11 +151,22 @@ describe('story slice selection contracts', () => {
           'roadThroughEmperor',
           'descent',
           'glassBroken',
+          'fallenThisRun',
+          'lastRunLordFell',
+          'rungChanged',
         ]);
         for (const [key, condition] of Object.entries(value.when)) {
           expect(KNOWN_WHEN_KEYS.has(key), key).toBe(true);
           if (booleans.has(key)) expect(typeof condition, key).toBe('boolean');
-          else if (key === 'minRunsCompleted' || key === 'maxRunsStarted') {
+          else if (
+            [
+              'minRunsCompleted',
+              'maxRunsStarted',
+              'minBossSlain',
+              'minLossStreak',
+              'minBestActCleared',
+            ].includes(key)
+          ) {
             expect(Number.isInteger(condition)).toBe(true);
             expect(condition).toBeGreaterThanOrEqual(0);
           } else if (key === 'prologue') {
