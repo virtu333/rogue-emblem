@@ -6,8 +6,10 @@
 // the parsed save before anything else reads it. The walk renames every item it
 // finds anywhere in the save: the roster and convoy, shops, rewards, colosseum
 // mercenaries, and the battle checkpoint, its entry state and its rewind timeline
-// (keyframes and patches). Names are composed ("Keen Iron Sword +2": imbue
-// adjective, base, forge level or wear), and each part is renamed on its own.
+// (each destination as a whole state: fromJSON decodes rewind patches before the
+// walk and re-encodes them after, BattleTimeline.expandTimelinePatches). Names are
+// composed ("Keen Iron Sword +2": imbue adjective, base, forge level or wear), and
+// each part is renamed on its own.
 //
 // A save written after the renames carries itemNamesRevision, and the walk skips it.
 
@@ -106,10 +108,10 @@ const ITEM_TYPES = new Set([
  * - "+N" forge and "-N" wear suffixes are kept.
  * - `imbueId` (the item's `_imbueId`) marks the first word as its imbue adjective,
  *   renamed when that imbue's word changed; the rest is renamed as a base.
- * - Without it (a rewind patch leaf, a history string), a first word is taken as
- *   an old imbue adjective only when the rest is a renamed item or one of
- *   `knownBases` (current catalog names): "Keen Iron Sword" becomes "Cruel Iron
- *   Sword", while "Keen Edge" (a deed) is left alone.
+ * - Without it (a history string), a first word is taken as an old imbue
+ *   adjective only when the rest is a renamed item or one of `knownBases`
+ *   (current catalog names): "Keen Iron Sword" becomes "Cruel Iron Sword", while
+ *   "Keen Edge" (a deed) is left alone.
  */
 export function renameItemName(name, { imbueId = null, knownBases = null } = {}) {
   if (typeof name !== 'string' || !name) return name;
@@ -184,19 +186,6 @@ export function renameItemsDeep(root, gameData = null) {
           node[key] = next;
           changed += 1;
           renamedHere = true;
-        }
-      } else if (
-        NAME_KEYS.has(key) &&
-        value &&
-        typeof value === 'object' &&
-        !Array.isArray(value) &&
-        typeof value.$ === 'string'
-      ) {
-        // A rewind patch leaf: { name: { $: 'Killing Edge +1' } }.
-        const next = renameItemName(value.$, { knownBases });
-        if (next !== value.$) {
-          value.$ = next;
-          changed += 1;
         }
       } else if (value && typeof value === 'object') visit(value, depth + 1);
     }
