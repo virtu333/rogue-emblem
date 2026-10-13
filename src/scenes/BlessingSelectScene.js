@@ -142,6 +142,7 @@ export class BlessingSelectScene extends Phaser.Scene {
       // The gift with a catch is offered from the save's second run on (StartGifts.js). The
       // count only moves once a run begins, so backing out and returning offers the same gift.
       runsStarted: meta?.getRunsStarted?.() ?? 0,
+      narrativeSeen: meta?.getNarrativeSeen?.() ?? null,
     });
     if (!Number.isFinite(this._blessingRunSeed)) this._blessingRunSeed = this.runManager.runSeed;
     writePendingRunSeed(this.registry, this._blessingRunSeed, {
