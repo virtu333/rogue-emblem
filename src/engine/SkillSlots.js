@@ -33,8 +33,19 @@ export function isAbilitySkill(skillId, skillsData = defaults) {
   return abilityIds(skillsData).has(skillId);
 }
 
+// The rule before the split (#344), for a paired balance sim only (sim/descent.js `--slots
+// single`): every equipped entry, ability or not, counts in one pool of MAX_SKILLS. The game
+// never sets it.
+let singlePool = false;
+
+/** Sims only: count abilities in the skill pool (the pre-#344 rule) while `on`. */
+export function setSingleSlotPoolForSims(on) {
+  singlePool = Boolean(on);
+}
+
 /** 'ability' or 'skill': which pool a skill id is counted in. */
 export function slotKindOf(skillId, skillsData = defaults) {
+  if (singlePool) return SKILL_SLOT;
   return isAbilitySkill(skillId, skillsData) ? ABILITY_SLOT : SKILL_SLOT;
 }
 
