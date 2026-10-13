@@ -146,6 +146,22 @@ for (const viewport of PHONES) {
       )
       .toEqual({ visible: true, tiles: true, filled: true });
     await expect(danger).toHaveAttribute('aria-pressed', 'true');
+    // A second tap keeps only the zone's outer edge; a third hides it.
+    await danger.tap();
+    const outlined = hud.getByRole('button', { name: 'Danger · outline', exact: true });
+    await expect(outlined).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      await page.evaluate(() => {
+        const z = window.__emblemRogueGame.scene.getScene('Battle').dangerZone;
+        return {
+          visible: z.visible,
+          reach: z.tiles.some((t) => t.tier > 0),
+          unfilled: z.tiles.every((t) => t.fillAlpha === 0),
+        };
+      }),
+    ).toEqual({ visible: true, reach: true, unfilled: true });
+    await outlined.tap();
+    await expect(danger).toHaveAttribute('aria-pressed', 'false');
     expect(errors).toEqual([]);
     await context.close();
   });

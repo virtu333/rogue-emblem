@@ -256,7 +256,7 @@ import { xpGaugeRecord } from '../ui/xpGaugeModel.js';
 import { UnitInspectionPanel } from '../ui/UnitInspectionPanel.js';
 import { UnitDetailOverlay } from '../ui/UnitDetailOverlay.js';
 import { DialogueOverlay } from '../ui/DialogueOverlay.js';
-import { DangerZoneOverlay } from '../ui/DangerZoneOverlay.js';
+import { DangerZoneOverlay, nextDangerMode } from '../ui/DangerZoneOverlay.js';
 import { computeDangerTiles } from '../engine/ThreatForecast.js';
 import { ThreatSightController } from '../ui/ThreatSightController.js';
 import { GuidanceController } from '../ui/GuidanceController.js';
@@ -4496,14 +4496,23 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  // Each press steps Off -> Filled -> Outline -> Off (nextDangerMode); a pin outlasts the
+  // Filled -> Outline step and ends with the zone.
   _onDangerClick() {
     if (canUseDanger(this)) {
-      if (this.dangerZoneStale || !this.dangerZoneCache) {
-        this.dangerZoneCache = this.calculateDangerZone();
-        this.dangerZoneStale = false;
+      const zone = this.dangerZone;
+      const next = nextDangerMode(zone.mode ?? (zone.visible ? 'filled' : 'off'));
+      if (next === 'off') {
+        zone.hide();
+        this.keepDangerVisible = false;
+      } else {
+        if (this.dangerZoneStale || !this.dangerZoneCache) {
+          this.dangerZoneCache = this.calculateDangerZone();
+          this.dangerZoneStale = false;
+        }
+        zone.setOutline?.(next === 'outline');
+        zone.show(this.dangerZoneCache);
       }
-      this.dangerZone.toggle(this.dangerZoneCache);
-      if (!this.dangerZone.visible) this.keepDangerVisible = false;
       this._formation?.touch?.();
     }
   }
@@ -4512,6 +4521,8 @@ export class BattleScene extends Phaser.Scene {
     if (!canUseDanger(this)) return;
     this.keepDangerVisible = !this.keepDangerVisible;
     if (this.keepDangerVisible) {
+      // Pinning a hidden zone shows it filled; a shown one keeps its style.
+      if (!this.dangerZone.visible) this.dangerZone.setOutline?.(false);
       this.dangerZoneCache = this.calculateDangerZone();
       this.dangerZoneStale = false;
       this.dangerZone.show(this.dangerZoneCache);
@@ -9987,8 +9998,8 @@ export class BattleScene extends Phaser.Scene {
                   'battle_danger_zone',
                   inputHint(
                     this,
-                    'Press [D] to show enemy threat range.',
-                    'Tap Danger to show enemy threat range. Hold Danger to keep it visible while planning; tap again to hide it.',
+                    'Press [D] to show enemy threat range. Press again for just its outline.',
+                    'Tap Danger to show enemy threat range, again for just its outline, a third time to hide it. Hold Danger to keep it visible while planning.',
                   ),
                 );
               }

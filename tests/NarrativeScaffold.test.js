@@ -829,7 +829,7 @@ describe('Input gate', () => {
       battleState: 'PLAYER_IDLE',
       dangerZoneStale: false,
       dangerZoneCache: [],
-      dangerZone: { toggle: vi.fn() },
+      dangerZone: { toggle: vi.fn(), show: vi.fn(), hide: vi.fn() },
       playerUnits: [{ currentHP: 10 }],
       pauseOverlay: null,
       lootSettingsOverlay: null,
@@ -861,6 +861,8 @@ describe('Input gate', () => {
 
     BattleScene.prototype._onDangerClick.call(scene);
     expect(scene.dangerZone.toggle).not.toHaveBeenCalled();
+    expect(scene.dangerZone.show).not.toHaveBeenCalled();
+    expect(scene.dangerZone.hide).not.toHaveBeenCalled();
 
     BattleScene.prototype._onRosterClick.call(scene);
     expect(scene.unitDetailOverlay.hide).not.toHaveBeenCalled();

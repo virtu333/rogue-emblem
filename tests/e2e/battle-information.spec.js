@@ -200,6 +200,12 @@ test('Canto Danger works through mobile events, keyboard and hold, with Back and
   });
   const danger = page.getByRole('button', { name: 'Danger', exact: true });
   await expect(danger).toHaveAttribute('aria-pressed', 'true');
+  // [D] steps the zone to its outline, then hides it.
+  await page.keyboard.press('d');
+  await expect(page.getByRole('button', { name: 'Danger · outline', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await page.keyboard.press('d');
   await expect(danger).toHaveAttribute('aria-pressed', 'false');
   await page.evaluate(() => {
