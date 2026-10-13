@@ -380,8 +380,8 @@ const STATIC_HELP_TABS = [
           { text: '  Pull adjacent ally toward you while' },
           { text: '  stepping back. Both units move.' },
           { text: '' },
-          { text: 'Canto (Paladin/Falcon Knight):', color: CYAN },
-          { text: '  Use remaining movement after acting.' },
+          { text: 'Canto: move again after acting.', color: CYAN },
+          { text: '  Parting Step: half of what is left.' },
           {
             text: '  W/own tile skips; after, Wait or Back.',
             mobileText: '  Menu skips; after a move, Wait or Back.',

@@ -1,5 +1,5 @@
 import { MovementActionController } from '../ui/MovementActionController.js';
-import { cantoRuleFor } from '../engine/CantoRule.js';
+import { cantoAllowance } from '../engine/CantoRule.js';
 import {
   specialCharacterRefusalText,
   speakSpecialCharacterRefusal,
@@ -5298,7 +5298,7 @@ export class BattleScene extends Phaser.Scene {
     return targets;
   }
 
-  finishUnitAction(unit, { skipCanto = false, session } = {}) {
+  finishUnitAction(unit, { skipCanto = false, afterCombat = false, session } = {}) {
     if (!isCurrentBattleSession(this, session)) return false;
     // Level-up cards and EXP gauges still to show (gauges alone present too; only the
     // cards make the boundary a recovery).
@@ -5312,6 +5312,7 @@ export class BattleScene extends Phaser.Scene {
         unitName: unit.name,
         ...(unit.battleEntityId ? { unitId: unit.battleEntityId } : {}),
         skipCanto,
+        ...(afterCombat ? { afterCombat: true } : {}),
       };
       return presentQueuedProgress(this, continuation, { session })
         .then(() => {
@@ -5342,11 +5343,15 @@ export class BattleScene extends Phaser.Scene {
     // Check for Canto: use remaining movement after acting
     if (!skipCanto) {
       // Rooted units cannot use Canto (root may land mid-action via counter-art)
-      const hasCanto = Boolean(cantoRuleFor(unit));
       const movSpent = unit._movementSpent || 0;
-      // The same MOV the unit's move range read (selectUnit), less the terrain cost spent.
-      const remaining = (Number(unit.mov ?? unit.stats?.MOV) || 0) - movSpent;
-      if (hasCanto && remaining > 0 && unit.faction === 'player') {
+      // The same MOV the unit's move range read (selectUnit), less the terrain cost spent,
+      // scaled by the unit's Canto skill (Parting Step: half of it, rounded down).
+      const remaining = cantoAllowance(
+        unit,
+        (Number(unit.mov ?? unit.stats?.MOV) || 0) - movSpent,
+        { afterCombat },
+      );
+      if (remaining > 0 && unit.faction === 'player') {
         unit.hasActed = true;
         this.selectedUnit = unit;
         this.preMoveLoc = null;
