@@ -4,17 +4,29 @@
 import { describe, expect, it } from 'vitest';
 import { Grid } from '../src/engine/Grid.js';
 import { AIController } from '../src/engine/AIController.js';
-import { planEnemyCanto } from '../src/engine/EnemyCanto.js';
+import { enemyWalkCost, planEnemyCanto } from '../src/engine/EnemyCanto.js';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
 const T = Object.fromEntries(gameData.terrain.map((t, i) => [t.name, i]));
-const SWORD = { name: 'Iron Sword', range: '1', type: 'Sword', might: 5, hit: 90, weight: 5 };
+const SWORD = {
+  name: 'Iron Sword',
+  range: '1',
+  type: 'Sword',
+  might: 5,
+  hit: 90,
+  crit: 0,
+  weight: 5,
+};
 
 const stub = new Proxy({}, { get: (t, p) => (p in t ? t[p] : () => stub) });
 function grid(rows) {
   const layout = rows.map((r) =>
-    r.split('').map((ch) => (ch === 'L' ? T['Lava Crack'] : ch === 'F' ? T.Forest : T.Plain)),
+    r
+      .split('')
+      .map((ch) =>
+        ch === 'L' ? T['Lava Crack'] : ch === 'F' ? T.Forest : ch === 'W' ? T.Wall : T.Plain,
+      ),
   );
   return new Grid(
     {
@@ -64,10 +76,11 @@ function soldier(o = {}) {
     ...o,
   };
 }
+// The walk is measured on the same board here (nothing in these cases changes it).
 const plan = (g, enemy, players, origin, extra = {}) =>
   planEnemyCanto({
     enemy,
-    origin,
+    spent: enemyWalkCost({ enemy, origin, grid: g, units: [enemy, ...players] }),
     afterCombat: true,
     grid: g,
     units: [enemy, ...players],
@@ -162,5 +175,101 @@ describe('enemy phase', () => {
     const { e, edric, moves } = await runPhase([]);
     expect(moves).toHaveLength(1);
     expect(Math.abs(e.col - edric.col) + Math.abs(e.row - edric.row)).toBe(1);
+  });
+});
+
+// Review (Oct 2026): the walk's cost is measured on the board the enemy walked on, before it
+// acts. Re-pathing after the action let a kill (or a broken wall) open a shorter road and
+// hand back the detour as movement it never had.
+describe('the walk is paid for before the action changes the board', () => {
+  // Rider (0,1) MOV 6 walks round the blocker at (3,1) to (4,1): 6 tiles. With the blocker
+  // gone the straight road would be 4. Edric at (6,1) (MOV 1, a sword) reaches (4,1) but not
+  // (3,1) or (4,0), so a rider with any budget left would step off (4,1).
+  const DETOUR = [
+    { col: 0, row: 1 },
+    { col: 1, row: 1 },
+    { col: 2, row: 1 },
+    { col: 2, row: 0 },
+    { col: 3, row: 0 },
+    { col: 4, row: 0 },
+    { col: 4, row: 1 },
+  ];
+  const lane = () => soldier({ col: 6, row: 1, mov: 1, stats: { ...STATS, MOV: 1 } });
+
+  async function phase({ g, e, players, decision, kill = null, onBreak = null }) {
+    const ai = new AIController(g, gameData);
+    ai._decideAction = () => decision;
+    const moves = [];
+    await ai.processEnemyPhase([e], players, [], {
+      afterUnit: () => Promise.resolve(),
+      onMoveUnit: (unit, path) => {
+        moves.push(path);
+        unit.col = path[path.length - 1].col;
+        unit.row = path[path.length - 1].row;
+        return Promise.resolve();
+      },
+      onAttack: () => {
+        if (kill) kill.currentHP = 0;
+        return Promise.resolve();
+      },
+      onBreak: (unit, tile) => {
+        onBreak?.(tile);
+        return Promise.resolve();
+      },
+      onUnitDone: (unit) => {
+        unit.hasActed = true;
+      },
+    });
+    return moves;
+  }
+
+  it('a full-budget walk that kills its blocker takes no Canto step', async () => {
+    const g = grid(STRIP);
+    const blocker = soldier({ name: 'Gaspar', col: 3, row: 1 });
+    const e = rider({ col: 0, row: 1, mov: 6, stats: { ...STATS, MOV: 6 } });
+    const moves = await phase({
+      g,
+      e,
+      players: [blocker, lane()],
+      decision: { path: DETOUR, target: blocker },
+      kill: blocker,
+    });
+    expect(moves).toHaveLength(1);
+    expect({ col: e.col, row: e.row }).toEqual({ col: 4, row: 1 });
+    expect(e._lastAiDecision.cantoPath).toBeUndefined();
+  });
+
+  it('two points truly left over still give one step', async () => {
+    const g = grid(STRIP);
+    const blocker = soldier({ name: 'Gaspar', col: 3, row: 1 });
+    const e = rider({ col: 0, row: 1, mov: 8, stats: { ...STATS, MOV: 8 } });
+    const moves = await phase({
+      g,
+      e,
+      players: [blocker, lane()],
+      decision: { path: DETOUR, target: blocker },
+      kill: blocker,
+    });
+    expect(moves).toHaveLength(2);
+    expect(moves[1]).toHaveLength(2);
+    expect(Math.abs(e.col - 6) + Math.abs(e.row - 1)).toBeGreaterThan(2);
+  });
+
+  it('a wall it breaks after walking round it refunds nothing', async () => {
+    // Wall at (3,1): the same 6-tile detour; breaking it opens the 4-tile road.
+    const g = grid(['............', '...W........', '............']);
+    const e = rider({ col: 0, row: 1, mov: 6, stats: { ...STATS, MOV: 6 } });
+    const moves = await phase({
+      g,
+      e,
+      players: [lane()],
+      decision: { path: DETOUR, breakTile: { col: 3, row: 1 } },
+      onBreak: (tile) => {
+        g.mapLayout[tile.row][tile.col] = T.Plain;
+      },
+    });
+    expect(g.mapLayout[1][3]).toBe(T.Plain);
+    expect(moves).toHaveLength(1);
+    expect(e._lastAiDecision.cantoPath).toBeUndefined();
   });
 });

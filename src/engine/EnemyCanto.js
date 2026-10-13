@@ -100,15 +100,47 @@ function crossesIce(grid, path, moveType) {
   return false;
 }
 
+function occupancy(units, enemy) {
+  const positions = new Map();
+  for (const u of units || []) {
+    if (!u || u === enemy || u._removing || u.currentHP <= 0) continue;
+    positions.set(tileKey(u.col, u.row), { faction: u.faction });
+  }
+  return positions;
+}
+
+/**
+ * What an enemy's walk this turn cost, read on the board it walked on: call it after the
+ * move and BEFORE the action (a kill or a broken wall opens a shorter road, which must not
+ * refund the detour the walk really took). The same range the AI moved within, from where
+ * the turn began; a landing the range cannot account for (a slide, a cut) spends it all.
+ */
+export function enemyWalkCost({ enemy, origin, grid, units, costModifier = null }) {
+  const mov = Number(enemy?.mov ?? enemy?.stats?.MOV) || 0;
+  if (!enemy || !grid || !origin) return mov;
+  if (origin.col === enemy.col && origin.row === enemy.row) return 0;
+  const walked = grid.getMovementRange(
+    origin.col,
+    origin.row,
+    mov,
+    enemy.moveType,
+    occupancy(units, enemy),
+    enemy.faction,
+    costModifier ? costModifier(enemy) : 0,
+  );
+  const entry = walked.get(tileKey(enemy.col, enemy.row));
+  return entry ? Number(entry.cost) || 0 : mov;
+}
+
 /**
  * The Canto step an enemy takes after acting, or null when it stays.
  * @param {object} p
  * @param {object} p.enemy           the enemy, standing where it acted
- * @param {{col,row}} p.origin       where its turn began
+ * @param {number} p.spent           what its walk cost (enemyWalkCost, measured before it acted)
  * @param {boolean} p.afterCombat    it fought (Measured Step does not apply then)
  * @param {object} p.grid            Grid-like (getMovementRange, getAttackRange, reconstructIcePath,
  *                                   mapLayout, terrainData)
- * @param {Array} p.units            every unit on the field (all sides)
+ * @param {Array} p.units            every unit on the field (all sides), as the action left them
  * @param {Array} p.playerUnits
  * @param {Array} [p.npcUnits]
  * @param {Function} [p.costModifier] unit -> terrain-cost reduction
@@ -117,7 +149,7 @@ function crossesIce(grid, path, moveType) {
  */
 export function planEnemyCanto({
   enemy,
-  origin,
+  spent,
   afterCombat = false,
   grid,
   units,
@@ -126,30 +158,10 @@ export function planEnemyCanto({
   costModifier = null,
   skillsData,
 }) {
-  if (!enemyMayCanto(enemy) || !grid || !origin) return null;
-  const positions = new Map();
-  for (const u of units || []) {
-    if (!u || u === enemy || u._removing || u.currentHP <= 0) continue;
-    positions.set(tileKey(u.col, u.row), { faction: u.faction });
-  }
+  if (!enemyMayCanto(enemy) || !grid || !Number.isFinite(spent)) return null;
+  const positions = occupancy(units, enemy);
   const mov = Number(enemy.mov ?? enemy.stats?.MOV) || 0;
   const costMod = costModifier ? costModifier(enemy) : 0;
-  // What the walk cost: the same range the AI moved within, from where the turn began.
-  let spent = 0;
-  if (origin.col !== enemy.col || origin.row !== enemy.row) {
-    const walked = grid.getMovementRange(
-      origin.col,
-      origin.row,
-      mov,
-      enemy.moveType,
-      positions,
-      enemy.faction,
-      costMod,
-    );
-    const entry = walked.get(tileKey(enemy.col, enemy.row));
-    // A landing the range cannot account for (a slide, a cut) leaves nothing to spend.
-    spent = entry ? Number(entry.cost) || 0 : mov;
-  }
   // Enemies step at most half of what is left (Dave, Oct 2026: Canto's hit and run, with
   // Act IV battles kept short), so full Canto and Parting Step agree for a foe.
   const left = mov - spent;

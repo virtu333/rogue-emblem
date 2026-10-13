@@ -19,7 +19,7 @@ import {
   nextStrikeWeapon,
 } from './Combat.js';
 import { canEquip } from './UnitManager.js';
-import { planEnemyCanto } from './EnemyCanto.js';
+import { enemyWalkCost, planEnemyCanto } from './EnemyCanto.js';
 import { computeEffectivePath } from './Grid.js';
 import { getTerrainCostReduction } from './SkillSystem.js';
 import { effectiveSkills } from './EffectiveSkills.js';
@@ -185,6 +185,9 @@ export class AIController {
     if (decision.path && decision.path.length >= 2) {
       await callbacks.onMoveUnit(enemy, decision.path);
     }
+    // What the walk cost, read now on the board it walked on (Canto's budget): the action
+    // below can open a shorter road (a kill, a broken wall) that never refunds the detour.
+    const walkSpent = this._walkSpent(enemy, origin, allEnemies, playerUnits, npcUnits);
 
     if (callbacks.isCurrent?.() === false) return decision;
     if (decision.healTarget) {
@@ -193,7 +196,7 @@ export class AIController {
       if (result)
         await this._cantoStep(
           enemy,
-          origin,
+          walkSpent,
           false,
           allEnemies,
           playerUnits,
@@ -210,7 +213,7 @@ export class AIController {
       await callbacks.onStatusStaff?.(enemy, decision.statusStaffTarget);
       await this._cantoStep(
         enemy,
-        origin,
+        walkSpent,
         false,
         allEnemies,
         playerUnits,
@@ -246,7 +249,7 @@ export class AIController {
         await callbacks.onAttack(enemy, targetToAttack);
         await this._cantoStep(
           enemy,
-          origin,
+          walkSpent,
           true,
           allEnemies,
           playerUnits,
@@ -259,7 +262,7 @@ export class AIController {
       await callbacks.onBreak?.(enemy, decision.breakTile);
       await this._cantoStep(
         enemy,
-        origin,
+        walkSpent,
         false,
         allEnemies,
         playerUnits,
@@ -278,9 +281,20 @@ export class AIController {
    * callback as its walk, before its turn is done (so the checkpoint after it holds the
    * tile it ends on). Recorded on the decision as `cantoPath`.
    */
+  _walkSpent(enemy, origin, allEnemies, playerUnits, npcUnits) {
+    const skills = this.gameData?.skills;
+    return enemyWalkCost({
+      enemy,
+      origin,
+      grid: this.grid,
+      units: [...allEnemies, ...playerUnits, ...(npcUnits || [])],
+      costModifier: (u) => getTerrainCostReduction(u, skills),
+    });
+  }
+
   async _cantoStep(
     enemy,
-    origin,
+    spent,
     afterCombat,
     allEnemies,
     playerUnits,
@@ -294,7 +308,7 @@ export class AIController {
     const skills = this.gameData?.skills;
     const plan = planEnemyCanto({
       enemy,
-      origin,
+      spent,
       afterCombat,
       grid: this.grid,
       units: [...allEnemies, ...playerUnits, ...(npcUnits || [])],
