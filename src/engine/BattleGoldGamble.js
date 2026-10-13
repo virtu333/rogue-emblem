@@ -6,7 +6,7 @@
 // seeded stream and takes its first draw, so it moves no other stream, and a battle that is
 // completed again (a retry, a reload, a Vision rewind) tosses the same face for the same node.
 
-import { createSeededRng } from './BlessingEngine.js';
+import { createSeededRng } from './SeededRng.js';
 
 function hashToUint32(text) {
   let hash = 2166136261 >>> 0;

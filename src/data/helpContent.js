@@ -210,6 +210,7 @@ const STATIC_HELP_TABS = [
           { text: 'Your units see around them:', color: GOLD },
           { text: 'Foot and Armor 3 tiles, Cavalry 4,' },
           { text: 'Flying 5. Enemies beyond are hidden.' },
+          { text: 'On a Mountain: 2 tiles further.' },
           { text: '' },
           { text: 'The fog lifts when an action ends:', color: CYAN },
           { text: 'Wait, attack, staff, item, End Turn.' },

@@ -174,15 +174,7 @@ function cloneDeep(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-export function createSeededRng(seed) {
-  let t = seed >>> 0;
-  return () => {
-    t += 0x6d2b79f5;
-    let r = Math.imul(t ^ (t >>> 15), 1 | t);
-    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
-    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-  };
-}
+export { createSeededRng } from './SeededRng.js';
 
 // Boons whose only param is a positive integer `value` (the first earned blessings' effects).
 const EARNED_BOON_VALUE_TYPES = new Set([
