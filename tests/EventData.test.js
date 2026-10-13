@@ -19,6 +19,7 @@ import { describe, expect, it } from 'vitest';
 import { validateEventsConfig, EVENT_TEXT_LIMITS } from '../src/engine/EventValidation.js';
 import { EVENT_EFFECT_TYPES } from '../src/engine/EventEffects.js';
 import { SAFE_BLESSING_BOON_TYPES, isSafeEventBlessing } from '../src/engine/EventSystem.js';
+import { RUN_START_BLESSING_EFFECTS } from '../src/engine/RunStartBlessingEffects.js';
 import { baseData } from './eventKit.js';
 
 const root = path.resolve(__dirname, '..');
@@ -164,12 +165,16 @@ describe('the shipped events.json', () => {
       'disable_personal_skills_until_act',
     ])
       expect(SAFE_BLESSING_BOON_TYPES, type).not.toContain(type);
-    // Every listed type is one the run's blessing code actually handles (RunManager, or the
-    // §5 boons' module it hands them to).
+    // Every listed type is one the run's blessing code actually handles (the table of run-start
+    // handlers, RunManager, or the §5 boons' module it hands them to).
     const source = ['src/engine/RunManager.js', 'src/engine/ShrineBoons.js']
       .map((file) => readFileSync(path.join(root, file), 'utf-8'))
       .join('\n');
-    for (const type of SAFE_BLESSING_BOON_TYPES) expect(source, type).toContain(`'${type}'`);
+    for (const type of SAFE_BLESSING_BOON_TYPES)
+      expect(
+        Object.hasOwn(RUN_START_BLESSING_EFFECTS, type) || source.includes(`'${type}'`),
+        type,
+      ).toBe(true);
   });
 });
 
