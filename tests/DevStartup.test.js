@@ -321,7 +321,7 @@ describe('phone review routes (deploy previews)', () => {
     ).toBe('fog_ambush');
   });
 
-  it('roster_checks: an Oath on the bench, one to meet the cap, Edric in a robe at 1 HP', () => {
+  it('roster_checks: an Oath in its slot, a skill on the bench, one to meet the cap, Edric in a robe at 1 HP', () => {
     const registry = createRegistry();
     const r = route('?devScene=nodemap&preset=roster_checks&seed=1', registry);
     expect(r.key).toBe('NodeMap');
@@ -329,8 +329,9 @@ describe('phone review routes (deploy previews)', () => {
     const bramwell = roster.find((u) => u.name === 'Bramwell');
     expect(bramwell.tier).toBe('promoted');
     expect(bramwell.deeds.oath).toMatchObject({ skillId: 'pavise' });
-    expect(bramwell.benchedSkills).toContain('pavise');
-    expect(bramwell.benchedUnseen).toContain('pavise');
+    expect(bramwell.skills).toContain('pavise');
+    expect(bramwell.benchedSkills).toContain('colossus');
+    expect(bramwell.benchedUnseen).toContain('colossus');
     const corwin = roster.find((u) => u.name === 'Corwin');
     expect(corwin.skills).toHaveLength(5);
     expect(corwin.consumables.map((c) => c.name)).toEqual(['Master Seal']);

@@ -122,8 +122,6 @@ export function buildPathCard({ scene, unit, cls, content, selected, onSelect })
     notes.push(`Bag and convoy full: ${lost.join(', ')} cannot be granted. Make room first`);
   if (content.dropped.length)
     notes.push(`To the bench (slots full): ${content.dropped.join(', ')}`);
-  if (content.oath?.benched)
-    notes.push(`Skill slots full: ${content.oath.skillName} goes on the bench`);
   if (notes.length) card.append(element('span', notes.join(' · '), 'gr-path-note'));
   return card;
 }

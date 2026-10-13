@@ -1,7 +1,7 @@
 // The skill bench (playtest 2026-09-28): a unit keeps every skill it learns. Five are
 // equipped (all battle reads); a skill learned with every slot full waits on the
-// bench instead of being lost, and the roster swaps skills between battles. An Oath
-// sworn at the cap goes to the bench too (it used to wait, or be given up for).
+// bench instead of being lost, and the roster swaps skills between battles. A sworn Oath
+// has a slot of its own (owner, 2026-10-13): it never waits on the bench for one of the five.
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -30,12 +30,14 @@ import {
   benchSkill,
   equipSkill,
   lockedSkillIds,
+  swapCandidatesFor,
   markBenchSeen,
   migrateWaitingOath,
   rosterBenchedUnseen,
   unseenBenchedSkills,
 } from '../src/engine/SkillLoadout.js';
 import { teachRosterScroll } from '../src/engine/RosterTransfers.js';
+import { OATH_SLOT, SKILL_SLOT, equippedOfKind } from '../src/engine/SkillSlots.js';
 import { MobileRosterSheet } from '../src/ui/MobileRosterSheet.js';
 import { saveServiceRun } from '../src/ui/serviceSave.js';
 import { _resetInputFocus } from '../src/utils/inputFocus.js';
@@ -58,7 +60,7 @@ const fighter = (name, level = 10) => {
   return unit;
 };
 
-/** A Fighter with five skills promoted at a church: its Oath goes to the bench. */
+/** A Fighter with five skills promoted at a church: Colossus (the Warrior's) goes to the bench. */
 function promotedAtCap(name = 'Bram') {
   const run = new RunManager(data);
   run.startRun();
@@ -116,29 +118,67 @@ describe('learning at the cap', () => {
 });
 
 describe('an Oath at the cap', () => {
-  it('is sworn onto the bench, and the promotion says so', () => {
+  // The Oath has a slot of its own (owner, 2026-10-13): five skills equipped never bench it,
+  // and it never benches one of them.
+  it('takes its own slot: equipped beside five skills, none of them benched for it', () => {
     const { unit, result } = promotedAtCap();
     expect(result.ok).toBe(true);
-    expect(unit.skills).not.toContain('pavise');
-    expect(unit.benchedSkills).toContain('pavise');
+    expect(unit.skills).toContain('pavise');
+    expect(unit.benchedSkills || []).not.toContain('pavise');
+    for (const id of FULL) expect(unit.skills).toContain(id);
+    expect(equippedOfKind(unit, SKILL_SLOT, data.skills)).toHaveLength(MAX_SKILLS);
+    expect(equippedOfKind(unit, OATH_SLOT, data.skills)).toEqual(['pavise']);
     expect(unit.deeds.oath).toMatchObject({ skillId: 'pavise', name: 'Oath of the Bridge' });
     expect(unit.deeds.waitingOath).toBeUndefined();
-    expect(result.message).toContain("Oath of the Bridge: Pavise is on Bram's bench");
+    expect(result.message).toContain('Oath of the Bridge: learned Pavise.');
+    expect(result.message).not.toMatch(/Pavise is on/);
+    // The Warrior's own innate still arrived at a full skill pool: it, not the Oath, waits.
+    expect(unit.benchedSkills).toEqual(['colossus']);
     // One Oath per unit: nothing more to swear.
     expect(promotionOathCandidates(unit, data.deeds, data.skills)).toEqual([]);
   });
 
-  it('a save from before the bench: a waiting Oath is sworn on load (benched at the cap)', () => {
+  it('is locked in its slot: it cannot be benched, and a skill never swaps it out', () => {
+    const { unit } = promotedAtCap();
+    expect(lockedSkillIds(unit, data).has('pavise')).toBe(true);
+    expect(benchSkill(unit, 'pavise', data)).toMatch(/Oath has its own slot/);
+    expect(unit.skills).toContain('pavise');
+    // Colossus (benched) may only replace one of the five skills.
+    expect(swapCandidatesFor(unit, 'colossus', data)).not.toContain('pavise');
+    expect(equipSkill(unit, 'colossus', 'pavise', data)).toMatch(/skill slot/);
+  });
+
+  it('a save from when the Oath went to the bench loads with it in its own slot', () => {
+    const { run, unit } = promotedAtCap();
+    // Rebuild the old state: five skills equipped, the sworn Oath benched and unseen.
+    unit.skills = unit.skills.filter((id) => id !== 'pavise');
+    unit.benchedSkills = [...unit.benchedSkills, 'pavise'];
+    unit.benchedUnseen = ['colossus', 'pavise'];
+    const before = [...unit.skills];
+    const restored = RunManager.fromJSON(JSON.parse(JSON.stringify(run.toJSON())), data);
+    const again = restored.roster.find((u) => u.name === unit.name);
+    expect(again.skills).toEqual([...before, 'pavise']);
+    expect(again.benchedSkills).toEqual(['colossus']);
+    expect(unseenBenchedSkills(again)).toEqual(['colossus']);
+    // Loading again moves nothing more.
+    const twice = RunManager.fromJSON(JSON.parse(JSON.stringify(restored.toJSON())), data);
+    const third = twice.roster.find((u) => u.name === unit.name);
+    expect(third.skills).toEqual(again.skills);
+    expect(third.benchedSkills).toEqual(again.benchedSkills);
+  });
+
+  it('a save from before the bench: a waiting Oath is sworn on load, into its own slot', () => {
     const { run, unit } = promotedAtCap();
     // Rebuild the old state: the Oath waiting, the skill nowhere.
-    unit.benchedSkills = unit.benchedSkills.filter((id) => id !== 'pavise');
+    unit.skills = unit.skills.filter((id) => id !== 'pavise');
     const { oath, ...rest } = unit.deeds;
     unit.deeds = { ...rest, waitingOath: oath };
     const restored = RunManager.fromJSON(JSON.parse(JSON.stringify(run.toJSON())), data);
     const again = restored.roster.find((u) => u.name === unit.name);
     expect(again.deeds.waitingOath).toBeUndefined();
     expect(again.deeds.oath).toMatchObject({ skillId: 'pavise' });
-    expect([...again.skills, ...again.benchedSkills]).toContain('pavise');
+    expect(again.skills).toContain('pavise');
+    expect(again.benchedSkills).not.toContain('pavise');
     expect(migrateWaitingOath(again)).toBe(false); // nothing left to migrate
   });
 });
@@ -185,7 +225,7 @@ describe('swapping skills between battles', () => {
     const again = restored.roster.find((u) => u.name === unit.name);
     expect(again.benchedSkills).toEqual(unit.benchedSkills);
     expect(unseenBenchedSkills(again)).toEqual(unseenBenchedSkills(unit));
-    expect(unseenBenchedSkills(again)).toContain('pavise');
+    expect(unseenBenchedSkills(again)).toContain('colossus');
   });
 
   it('rosterBenchedUnseen counts the units with news on the bench', () => {
@@ -248,7 +288,7 @@ describe('the bench in the roster', () => {
     const { sheet, unit, press } = open({ hints });
     const box = callout(sheet);
     expect(box.textContent).toContain("New on Bram's bench:");
-    expect(box.textContent).toContain('Pavise');
+    expect(box.textContent).toContain('Colossus');
     expect(box.textContent).toContain('all 5 skill slots full');
     expect(box.textContent).toMatch(LESSON);
     const pane = sheet.root.querySelector('.mr-content');
@@ -262,7 +302,7 @@ describe('the bench in the roster', () => {
     expect(sheet.tab).toBe('skills');
     expect(callout(sheet)).toBeFalsy();
     const fresh = sheet.root.querySelectorAll('.mr-bench-new').map((c) => c.textContent);
-    expect(fresh.some((t) => t.includes('Pavise'))).toBe(true);
+    expect(fresh.some((t) => t.includes('Colossus'))).toBe(true);
     expect(unseenBenchedSkills(unit)).toEqual([]);
     expect(
       sheet.root.querySelector('.mr-unit-card.is-selected, .mr-units')?.textContent || '',
@@ -276,13 +316,18 @@ describe('the bench in the roster', () => {
     const { sheet, unit, buttons, press } = open({ tab: 'skills' });
     expect(sheet.root.textContent).toContain(`Skills · ${MAX_SKILLS}/${MAX_SKILLS}`);
     expect(sheet.root.textContent).toContain(`Abilities · 0/${MAX_ABILITIES}`);
+    expect(sheet.root.textContent).toContain('Oath · 1/1');
+    // The Oath's card says it stays, with no Bench button.
+    const oathCard = sheet.root.querySelectorAll('.mr-card').find((c) => c.textContent.includes('Pavise')); // prettier-ignore
+    expect(oathCard.textContent).toContain('An Oath has its own slot');
+    expect(oathCard.querySelectorAll('button').map((b) => b.textContent)).not.toContain('Bench');
     expect(sheet.root.textContent).toContain(`Bench · ${unit.benchedSkills.length}`);
     // Locked skills say so instead of offering Bench.
     const locked = [...lockedSkillIds(unit, data)].filter((id) => unit.skills.includes(id));
     expect(buttons().filter((t) => t === 'Bench')).toHaveLength(unit.skills.length - locked.length);
     const swap = sheet.root
       .querySelectorAll('.mr-card')
-      .find((c) => c.textContent.includes('Pavise') && c.textContent.includes('Swap in…'));
+      .find((c) => c.textContent.includes('Colossus') && c.textContent.includes('Swap in…'));
     swap
       .querySelectorAll('button')
       .find((b) => b.textContent === 'Swap in…')
@@ -290,26 +335,28 @@ describe('the bench in the roster', () => {
     expect(sheet.picker).toBeTruthy();
     sheet.picker.selected = 'luna';
     await sheet.picker.confirm();
-    expect(unit.skills).toContain('pavise');
+    expect(unit.skills).toContain('colossus');
+    expect(unit.skills).toContain('pavise'); // the Oath stays in its own slot
     expect(unit.benchedSkills).toContain('luna');
-    expect(unit.benchedSkills).not.toContain('pavise');
+    expect(unit.benchedSkills).not.toContain('colossus');
     expect(saveServiceRun).toHaveBeenCalled();
-    expect(sheet.root.textContent).toContain('Pavise in, Luna to the bench.');
+    expect(sheet.root.textContent).toContain('Colossus in, Luna to the bench.');
     sheet.destroy();
   });
 
   it('Bench then Equip, each saved', () => {
     const { sheet, unit } = open({ tab: 'skills' });
     const benched = unit.benchedSkills.length;
+    const equipped = unit.skills.length;
     const firstBench = sheet.root.querySelectorAll('button').find((b) => b.textContent === 'Bench');
     firstBench.click();
-    expect(unit.skills).toHaveLength(MAX_SKILLS - 1);
+    expect(unit.skills).toHaveLength(equipped - 1);
     expect(unit.benchedSkills).toHaveLength(benched + 1);
     sheet.root
       .querySelectorAll('button')
       .find((b) => b.textContent === 'Equip')
       .click();
-    expect(unit.skills).toHaveLength(MAX_SKILLS);
+    expect(unit.skills).toHaveLength(equipped);
     expect(unit.benchedSkills).toHaveLength(benched);
     expect(saveServiceRun.mock.calls.length).toBeGreaterThanOrEqual(2);
     sheet.destroy();
@@ -376,7 +423,7 @@ describe('the bench in the roster', () => {
     const labels = sheet.root.querySelectorAll('button').map((b) => b.textContent);
     expect(labels).not.toContain('Bench');
     expect(labels).not.toContain('Swap in…');
-    expect(unseenBenchedSkills(unit)).toContain('pavise'); // inspecting mid-battle is not seeing it
+    expect(unseenBenchedSkills(unit)).toContain('colossus'); // inspecting mid-battle is not seeing it
     sheet.destroy();
   });
 });

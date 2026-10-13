@@ -60,12 +60,14 @@ import { rosterArtBlock, bindRosterArt } from '../engine/RosterArtCommands.js';
 import { CONSUMABLE_MAX, INVENTORY_MAX, MAX_ABILITIES, MAX_SKILLS } from '../utils/constants.js';
 import {
   ABILITY_SLOT,
+  OATH_SLOT,
   SKILL_SLOT,
   allSlotsPhrase,
   benchArrivalPhrase,
   equippedOfKind,
   slotCapOf,
   slotKindOf,
+  slotTitleOf,
   slotsFullFor,
 } from '../engine/SkillSlots.js';
 import { teachScrollBlock, teachRosterScroll } from '../engine/RosterTransfers.js';
@@ -1135,15 +1137,16 @@ export class MobileRosterSheet {
     const manage = Boolean(this.run?.roster?.includes(unit));
     const locked = lockedSkillIds(unit, this.gameData);
     // Skills and abilities fill separate slots (SkillSlots.js): one heading each, both always
-    // shown with their counts so the free slots read at a glance.
-    for (const kind of [SKILL_SLOT, ABILITY_SLOT]) {
+    // shown with their counts so the free slots read at a glance. A sworn Oath has a slot of
+    // its own, shown once one is sworn.
+    for (const kind of [SKILL_SLOT, ABILITY_SLOT, OATH_SLOT]) {
       const ids = equippedOfKind(unit, kind, this.gameData.skills);
-      const title = kind === ABILITY_SLOT ? 'Abilities' : 'Skills';
+      if (kind === OATH_SLOT && !ids.length) continue;
       this.body.append(
         el(
           'h3',
-          `${title} · ${ids.length}/${slotCapOf(kind)}`,
-          kind === ABILITY_SLOT ? 'mr-section' : undefined,
+          `${slotTitleOf(kind)} · ${ids.length}/${slotCapOf(kind)}`,
+          kind === SKILL_SLOT ? undefined : 'mr-section',
         ),
       );
       if (!ids.length)

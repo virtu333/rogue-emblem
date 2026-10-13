@@ -22,9 +22,9 @@ import {
   normalizeUnitDeeds,
 } from './DeedSystem.js';
 import { RUN_RECORD_VERSION, fallenForRecord, fallenRecord, survivorRecord } from './RunRecords.js';
-import { migrateWaitingOath, settleSlotOverflow } from './SkillLoadout.js';
+import { migrateWaitingOath, settleLoadout } from './SkillLoadout.js';
 import { settleSavedBattleSlots } from './SavedBattleSlots.js';
-import { slotKindOf, slotsFullFor } from './SkillSlots.js';
+import { slotKindFor, slotsFullFor } from './SkillSlots.js';
 import { normalizeDeploymentNames } from './DeploymentSelection.js';
 import { restrictOpeningCavaliers } from './EarlyEnemyRules.js';
 // RunManager.js — Pure class: run state (roster, node map, act progression, unit serialization)
@@ -1858,8 +1858,8 @@ export class RunManager {
 
         // First pass: displace non-personal, non-innate skill of the same kind (a skill
         // only frees a skill slot, an ability an ability slot: SkillSlots.js)
-        const kind = slotKindOf(skillId, this.gameData?.skills);
-        const sameKind = (sid) => slotKindOf(sid, this.gameData?.skills) === kind;
+        const kind = slotKindFor(unit, skillId, this.gameData?.skills);
+        const sameKind = (sid) => slotKindFor(unit, sid, this.gameData?.skills) === kind;
         let restoredWithDisplacement = false;
         for (let i = unit.skills.length - 1; i >= 0; i--) {
           const sid = unit.skills[i];
@@ -6201,8 +6201,9 @@ export class RunManager {
     rm.roster.forEach(migrateWaitingOath);
     rm.fallenUnits.forEach(migrateWaitingOath);
     // Before abilities had slots of their own, a unit could equip up to five: whatever now
-    // overflows a pool waits on the bench (SkillSlots.js), locked skills kept first.
-    for (const unit of [...rm.roster, ...rm.fallenUnits]) settleSlotOverflow(unit, rm.gameData);
+    // overflows a pool waits on the bench (SkillSlots.js), locked skills kept first. Before
+    // the Oath had a slot of its own, a promotion with five skills benched it: it is equipped.
+    for (const unit of [...rm.roster, ...rm.fallenUnits]) settleLoadout(unit, rm.gameData);
 
     // Stamp missing item UIDs from legacy saves before relinking/equipment migration.
     rm.roster.forEach(stampUnitItemUids);

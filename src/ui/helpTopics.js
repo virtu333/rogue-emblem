@@ -142,7 +142,7 @@ export const DEEDS_HELP = [
     points: [
       'Some deeds carry an Oath: a skill the class never teaches.',
       'A unit swears one Oath, ever, when it promotes. You choose which.',
-      'With five skills equipped, the Oath goes on the bench: swap it in from Skills.',
+      'The Oath has a slot of its own: it never takes one of the five skill slots.',
     ],
   },
   { tip: 'The Compendium lists every deed you have earned.' },

@@ -9,7 +9,8 @@
 // Locked skills cannot be benched once equipped: a lord's own skills and the skills
 // its class line grants innately, plus a named character’s fixed kit. Class innates
 // are the same ones the act-transition restore protects. One that arrives with
-// every slot full waits on the bench like any other.
+// every slot full waits on the bench like any other. A sworn Oath is locked too: it has a
+// slot of its own (SkillSlots.js), so benching it would free nothing.
 //
 // `benchedUnseen` lists skills benched since the player last looked at the unit's
 // Skills tab: the roster's notice, its unit flag and the route map's Roster pip.
@@ -18,11 +19,13 @@ import { specialCharacterDefinition } from './SpecialCharacterPolicy.js';
 import {
   ABILITY_SLOT,
   benchSlotOverflow,
+  equipSwornOath,
   equippedOfKind,
   slotCapOf,
-  slotKindOf,
+  slotKindFor,
   slotNoun,
   slotsFullFor,
+  swornOathSkillId,
 } from './SkillSlots.js';
 import { benchedSkillsOf, getClassInnateSkills, learnSkill } from './UnitManager.js';
 import { unitBaseClassName } from './ClassLineage.js';
@@ -49,6 +52,8 @@ export function lockedSkillIds(unit, gameData = {}) {
   for (const id of getClassInnateSkills(unit?.className, skillsData)) locked.add(id);
   const base = unit?.tier === 'promoted' ? unitBaseClassName(unit, gameData.classes) : null;
   if (base) for (const id of getClassInnateSkills(base, skillsData)) locked.add(id);
+  const oath = swornOathSkillId(unit);
+  if (oath) locked.add(oath);
   return locked;
 }
 
@@ -57,6 +62,7 @@ export function benchSkillBlock(unit, skillId, gameData = {}) {
   if (!unit?.skills?.includes(skillId)) return 'That skill is not equipped.';
   if (specialCharacterDefinition(unit, gameData.specialChars)?.skills?.includes(skillId))
     return 'Personal skills can’t be benched.';
+  if (skillId === swornOathSkillId(unit)) return 'An Oath has its own slot: it stays sworn.';
   if (lockedSkillIds(unit, gameData).has(skillId))
     return unit?.isLord
       ? 'Lord and class skills can’t be benched.'
@@ -72,12 +78,12 @@ export function benchSkillBlock(unit, skillId, gameData = {}) {
 export function equipSkillBlock(unit, skillId, replaceId = null, gameData = {}) {
   if (!benchedSkillsOf(unit).includes(skillId)) return 'That skill is not on the bench.';
   const skillsData = gameData.skills;
-  const kind = slotKindOf(skillId, skillsData);
+  const kind = slotKindFor(unit, skillId, skillsData);
   const full = slotsFullFor(unit, skillId, skillsData);
   if (!full) return replaceId == null ? '' : benchSkillBlock(unit, replaceId, gameData);
   if (replaceId == null)
     return `All ${slotCapOf(kind)} ${slotNoun(kind)} are full: choose ${kind === ABILITY_SLOT ? 'an ability' : 'a skill'} to bench.`;
-  if (unit.skills?.includes(replaceId) && slotKindOf(replaceId, skillsData) !== kind)
+  if (unit.skills?.includes(replaceId) && slotKindFor(unit, replaceId, skillsData) !== kind)
     return kind === ABILITY_SLOT
       ? 'An ability takes an ability slot: bench an ability to make room.'
       : 'A skill takes a skill slot: bench a skill to make room.';
@@ -86,7 +92,7 @@ export function equipSkillBlock(unit, skillId, replaceId = null, gameData = {}) 
 
 /** The equipped entries `skillId` may replace: those of its own kind. */
 export function swapCandidatesFor(unit, skillId, gameData = {}) {
-  const kind = slotKindOf(skillId, gameData.skills);
+  const kind = slotKindFor(unit, skillId, gameData.skills);
   return equippedOfKind(unit, kind, gameData.skills);
 }
 
@@ -100,6 +106,16 @@ export function settleSlotOverflow(unit, gameData = {}) {
     locked: lockedSkillIds(unit, gameData),
     skillsData: gameData.skills,
   });
+}
+
+/**
+ * Settle a unit's loadout on load: a sworn Oath left on the bench (saves from before it had
+ * its own slot) goes into that slot, then any pool's overflow goes to the bench. Returns
+ * whether anything moved.
+ */
+export function settleLoadout(unit, gameData = {}) {
+  const oath = equipSwornOath(unit);
+  return settleSlotOverflow(unit, gameData).length > 0 || oath;
 }
 
 /** Move an equipped skill to the bench. Returns '' or the reason it was refused. */
@@ -150,15 +166,16 @@ export function rosterBenchedUnseen(roster) {
 
 /**
  * Saves from before the bench: an Oath waiting for a free slot (deeds.waitingOath) is
- * sworn now, equipped if a slot is free and benched otherwise. Returns whether the
+ * sworn now, into its own slot. Returns whether the
  * unit changed.
  */
 export function migrateWaitingOath(unit) {
   const deeds = unit?.deeds;
   const waiting = deeds?.waitingOath;
   if (!waiting || typeof waiting.skillId !== 'string') return false;
-  learnSkill(unit, waiting.skillId);
   const { waitingOath: _dropped, ...rest } = deeds;
   unit.deeds = { ...rest, oath: { ...waiting } };
+  // Sworn first, so it takes the Oath's own slot (SkillSlots.js), never one of the five.
+  learnSkill(unit, waiting.skillId);
   return true;
 }
