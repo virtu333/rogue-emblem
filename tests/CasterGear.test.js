@@ -49,7 +49,13 @@ const dataAtCapture = (() => {
   pools.act4.promotedShare = 0.3;
   for (const act of ['act3', 'act4'])
     pools[act].promoted = pools[act].promoted.filter((name) => name !== 'Necromancer');
-  return { ...data, enemies: { ...data.enemies, pools } };
+  // The Act IV templates added after the capture (docs/specs/map-variety.md) change which
+  // template a seed draws, so the capture's template list is the one played here.
+  const added = new Set(['snowbound_woods', 'ashen_ridge']);
+  const mapTemplates = Object.fromEntries(
+    Object.entries(data.mapTemplates).map(([k, list]) => [k, list.filter((t) => !added.has(t.id))]),
+  );
+  return { ...data, enemies: { ...data.enemies, pools }, mapTemplates };
 })();
 
 /** A synthetic garrison: `casters` of a class among fighters, at distinct tiles. */
