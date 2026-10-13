@@ -50,8 +50,10 @@ describe('run-start blessing effects match the pre-table fingerprints', () => {
     const report = moved.map(
       (label) => `${label}\n    was: ${fixture.cases[label]}\n    now: ${current[label]}`,
     );
+    // A data edit elsewhere in the game moves no case by itself; the hint only explains a
+    // case that did move.
     const hint =
-      dataHash(gameData) === fixture.dataHash
+      moved.length === 0 || dataHash(gameData) === fixture.dataHash
         ? ''
         : "\n(the non-blessing game data differs from the fixture's)";
     expect(report.join('\n') + hint).toBe('');
