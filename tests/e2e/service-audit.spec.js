@@ -93,7 +93,7 @@ test('Church heal, roster, map, promotion cancellation and arena forecast/reward
   await forecast.getByRole('button', { name: 'Back', exact: true }).tap();
   await page.getByRole('button', { name: /^Bronze/ }).tap();
   await expect(forecast.locator('.arena-odds')).toHaveText(
-    'If fought to the end: Win over 95% · Lose under 5%',
+    'Edric: "This one is mine." Maybe 9 or more wins in 10.',
   );
   await forecast.getByRole('button', { name: 'Fight', exact: true }).tap();
   const log = await fightArenaBout(page);
