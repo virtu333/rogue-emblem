@@ -5688,6 +5688,352 @@
         }
       },
       "lore": "One road through the pass, a keep at the far end, and something moving in the trees above it."
+    },
+    {
+      "id": "two_gates",
+      "name": "Two Gates",
+      "enabled": false,
+      "parBonus": 1,
+      "acts": [
+        "act2",
+        "act3",
+        "act4"
+      ],
+      "sizeByAct": {
+        "act2": [
+          16,
+          11
+        ],
+        "act3": [
+          18,
+          12
+        ],
+        "act4": [
+          18,
+          13
+        ]
+      },
+      "mirror": "y",
+      "fogChance": 0.1,
+      "zones": [
+        {
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 60,
+            "Forest": 30,
+            "Sand": 10
+          },
+          "priority": 0
+        },
+        {
+          "rect": [
+            0.3,
+            0.22,
+            0.72,
+            0.78
+          ],
+          "terrain": {
+            "Wall": 85,
+            "Mountain": 15
+          },
+          "priority": 2
+        },
+        {
+          "rect": [
+            0.36,
+            0.32,
+            0.66,
+            0.68
+          ],
+          "terrain": {
+            "Plain": 50,
+            "Fort": 30,
+            "Forest": 20
+          },
+          "priority": 3
+        },
+        {
+          "rect": [
+            0.3,
+            0.42,
+            0.36,
+            0.58
+          ],
+          "terrain": {
+            "Plain": 80,
+            "Fort": 20
+          },
+          "priority": 4
+        },
+        {
+          "rect": [
+            0.45,
+            0.68,
+            0.57,
+            0.78
+          ],
+          "terrain": {
+            "Plain": 80,
+            "Fort": 20
+          },
+          "priority": 4
+        },
+        {
+          "rect": [
+            0,
+            0.3,
+            0.14,
+            0.7
+          ],
+          "terrain": {
+            "Plain": 60,
+            "Forest": 30,
+            "Fort": 10
+          },
+          "priority": 3,
+          "role": "playerSpawn"
+        },
+        {
+          "rect": [
+            0.34,
+            0.88,
+            0.66,
+            1
+          ],
+          "terrain": {
+            "Plain": 60,
+            "Forest": 30,
+            "Fort": 10
+          },
+          "priority": 3,
+          "role": "playerSpawn"
+        },
+        {
+          "rect": [
+            0.38,
+            0.34,
+            0.64,
+            0.66
+          ],
+          "terrain": {
+            "Plain": 60,
+            "Fort": 40
+          },
+          "priority": 5,
+          "role": "enemySpawn",
+          "group": {
+            "id": "garrison",
+            "share": 0.4,
+            "ai": "guard",
+            "role": "front"
+          }
+        },
+        {
+          "rect": [
+            0.76,
+            0,
+            1,
+            0.4
+          ],
+          "terrain": {
+            "Plain": 60,
+            "Forest": 40
+          },
+          "priority": 3,
+          "role": "enemySpawn",
+          "group": {
+            "id": "sally",
+            "share": 0.3,
+            "ai": "chase",
+            "role": "flank"
+          }
+        }
+      ],
+      "choices": [
+        {
+          "id": "thirdGate",
+          "options": [
+            {
+              "zones": [
+                {
+                  "rect": [
+                    0.45,
+                    0.22,
+                    0.57,
+                    0.32
+                  ],
+                  "terrain": {
+                    "Plain": 80,
+                    "Fort": 20
+                  },
+                  "priority": 4
+                },
+                {
+                  "rect": [
+                    0.4,
+                    0,
+                    0.66,
+                    0.16
+                  ],
+                  "terrain": {
+                    "Forest": 60,
+                    "Plain": 40
+                  },
+                  "priority": 3,
+                  "role": "enemySpawn",
+                  "group": {
+                    "id": "towers",
+                    "share": 0.3,
+                    "ai": "hold",
+                    "wakeTurn": 3,
+                    "role": "ranged"
+                  }
+                }
+              ]
+            },
+            {
+              "zones": [
+                {
+                  "rect": [
+                    0.66,
+                    0.42,
+                    0.72,
+                    0.58
+                  ],
+                  "terrain": {
+                    "Plain": 80,
+                    "Fort": 20
+                  },
+                  "priority": 4
+                },
+                {
+                  "rect": [
+                    0.78,
+                    0.6,
+                    1,
+                    1
+                  ],
+                  "terrain": {
+                    "Forest": 60,
+                    "Plain": 40
+                  },
+                  "priority": 3,
+                  "role": "enemySpawn",
+                  "group": {
+                    "id": "towers",
+                    "share": 0.3,
+                    "ai": "hold",
+                    "wakeTurn": 3,
+                    "role": "ranged"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "features": [
+        {
+          "type": "Throne",
+          "position": "center"
+        }
+      ],
+      "anchors": [
+        {
+          "position": "throne",
+          "unit": "boss_or_strongest"
+        }
+      ],
+      "reinforcementContractVersion": 1,
+      "reinforcements": {
+        "spawnEdges": [
+          "right",
+          "top"
+        ],
+        "waves": [
+          {
+            "turn": 5,
+            "count": [
+              1,
+              2
+            ],
+            "edges": [
+              "right"
+            ]
+          },
+          {
+            "turn": 8,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "top",
+              "right"
+            ]
+          }
+        ],
+        "difficultyScaling": true,
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "dusk": 0,
+          "hard": -1,
+          "lunatic": -3
+        },
+        "turnJitter": [
+          -1,
+          1
+        ],
+        "xpDecay": [
+          1,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "minActByDifficulty": {
+          "normal": "never",
+          "dusk": "act3",
+          "hard": "act2",
+          "lunatic": "act2"
+        },
+        "actTurnOffset": {
+          "hard": {
+            "act3": -1,
+            "act4": -1
+          }
+        },
+        "extraWavesByDifficulty": {
+          "lunatic": [
+            {
+              "turn": 11,
+              "count": [
+                2,
+                3
+              ],
+              "edges": [
+                "right"
+              ]
+            },
+            {
+              "turn": 14,
+              "count": [
+                3,
+                4
+              ],
+              "edges": [
+                "top",
+                "right"
+              ]
+            }
+          ]
+        }
+      },
+      "lore": "Two companies, two gates, one throne between them. Whoever reaches it first holds the hall."
     }
   ],
   "escape": [

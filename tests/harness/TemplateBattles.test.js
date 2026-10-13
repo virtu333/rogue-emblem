@@ -223,6 +223,7 @@ const CELLS = [
       'caught_in_the_open',
       'two_camps',
       'long_road',
+      'two_gates',
     ],
   },
   { act: 'act2', difficultyId: 'dusk', seeds: 3, templates: ['corner_camp'] },

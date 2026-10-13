@@ -52,6 +52,9 @@ import {
   resolveTemplateLayout,
   templateExtraEnemies,
   templateSizeFor,
+  playerSpawnZones,
+  planPlayerSplit,
+  interleaveSpawns,
 } from './TemplateLayout.js';
 
 const DEBUG_MAP_GEN = false;
@@ -192,12 +195,12 @@ export function generateBattleLayout(params, deps) {
   // 5. Player spawns
   const spawnCount = deployCount || DEPLOY_LIMITS[act]?.max || 4;
   const biome = template.biome || null;
-  const playerSpawns = placeSpawns(
+  // A split start (two playerSpawn zones, TemplateLayout.js) deploys in two groups.
+  const { playerSpawns, playerGroupStarts } = placePlayerSpawns(
     mapLayout,
     template,
     cols,
     rows,
-    'playerSpawn',
     terrain,
     spawnCount,
     biome,
@@ -397,6 +400,8 @@ export function generateBattleLayout(params, deps) {
 
   // 8. Ensure reachability from player spawn to all enemies + throne + NPC + exits
   const reachTargets = [...enemySpawns];
+  // A split start's second group walks to the same fight (and the first group to it).
+  reachTargets.push(...playerGroupStarts.slice(1));
   if (npcSpawn) reachTargets.push(npcSpawn);
   if (caravanSpawn) reachTargets.push(caravanSpawn);
   if (villageTile) reachTargets.push(villageTile);
@@ -1604,6 +1609,11 @@ function applyToxicOverlay({ mapLayout, template, cols, rows, terrainData, act, 
   const enemyBounds = getRoleBounds(template, 'enemySpawn', cols, rows);
   const excluded = new Set();
   addBoundsExclusionRing(playerBounds, cols, rows, excluded, 1);
+  // A split start's second group keeps its ring clear too.
+  for (const zone of playerSpawnZones(template).slice(1)) {
+    const bounds = resolveNormalizedRectBounds(zone.rect, cols, rows);
+    if (bounds) addBoundsExclusionRing(bounds, cols, rows, excluded, 1);
+  }
   addPointManhattanExclusion(thronePos, 1, cols, rows, excluded);
 
   const candidates = [];
@@ -1790,6 +1800,50 @@ export function placeEscapeTiles(mapLayout, template, cols, rows, terrainData, s
 }
 
 // --- Spawn placement ---
+
+/**
+ * The army's spawn tiles. One playerSpawn zone: placeSpawns, as ever. Two (a split start): each
+ * zone placed in turn with its share (planPlayerSplit), the slots interleaved, and the first tile
+ * of each group returned so reachability joins the groups.
+ */
+function placePlayerSpawns(mapLayout, template, cols, rows, terrainData, count, biome) {
+  const zones = playerSpawnZones(template);
+  if (zones.length < 2) {
+    const spawns = placeSpawns(
+      mapLayout,
+      template,
+      cols,
+      rows,
+      'playerSpawn',
+      terrainData,
+      count,
+      biome,
+    );
+    return { playerSpawns: spawns, playerGroupStarts: spawns.slice(0, 1) };
+  }
+  const fallbackPassable = getFallbackPassable(biome);
+  const bounds = zones.map((z) => resolveNormalizedRectBounds(z.rect, cols, rows));
+  const capacities = bounds.map((b) => (b ? (b.endCol - b.startCol) * (b.endRow - b.startRow) : 0));
+  const shares = planPlayerSplit(count, capacities);
+  const groups = bounds.map((b, i) =>
+    b
+      ? findPassableTiles(
+          mapLayout,
+          b.startCol,
+          b.endCol,
+          b.startRow,
+          b.endRow,
+          terrainData,
+          shares[i],
+          fallbackPassable,
+        )
+      : [],
+  );
+  return {
+    playerSpawns: interleaveSpawns(groups),
+    playerGroupStarts: groups.filter((g) => g.length).map((g) => g[0]),
+  };
+}
 
 function placeSpawns(mapLayout, template, cols, rows, role, terrainData, count, biome) {
   const fallbackPassable = getFallbackPassable(biome);

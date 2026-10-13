@@ -10,6 +10,8 @@
 //   - `mirror: 'y'`: the battle flips the template top to bottom half the time. One draw.
 //   - `extraEnemies: N` (1-4): N more foes than the battle rolled, still under the map's density
 //     cap. No draw: the count roll is the same one.
+//   - two `playerSpawn` zones (a split start): the army deploys in two groups, slots taken from
+//     each in turn (the first, third, ... in the first zone). One shuffle per zone, as for one.
 //   - `sizeByAct: { act2: [cols, rows], ... }`: the map's size in each act the template lists,
 //     in place of the act's size (a long, narrow road). No draw: the act's size roll is still
 //     taken and set aside.
@@ -69,6 +71,43 @@ export const MAX_EXTRA_ENEMIES = 4;
 /** The foes this template adds over the rolled count: 0 for every template that names none. */
 export function templateExtraEnemies(template) {
   return Number.isInteger(template?.extraEnemies) ? template.extraEnemies : 0;
+}
+
+/** Most player-spawn zones a template may have: two make a split start. */
+export const MAX_PLAYER_ZONES = 2;
+
+/** The template's player-spawn zones, in the order they are written (at most two). */
+export function playerSpawnZones(template) {
+  return (template?.zones || []).filter((z) => z?.role === 'playerSpawn');
+}
+
+/**
+ * How many of `total` deploy slots each player zone gets: the first zone the larger half.
+ * `capacities` (tiles each zone can hold) moves any slots one zone cannot hold to the other.
+ */
+export function planPlayerSplit(total, capacities) {
+  const n = Math.max(0, Math.trunc(Number(total) || 0));
+  if (capacities.length < 2) return [n];
+  let first = Math.ceil(n / 2);
+  let second = n - first;
+  const [capA, capB] = capacities;
+  if (first > capA) {
+    second += first - capA;
+    first = capA;
+  }
+  if (second > capB) {
+    first = Math.min(capA, first + (second - capB));
+    second = capB;
+  }
+  return [first, second];
+}
+
+/** Two zones' spawns as one slot order: the first zone's first, the second's first, and so on. */
+export function interleaveSpawns(groups) {
+  const out = [];
+  const longest = Math.max(0, ...groups.map((g) => g.length));
+  for (let i = 0; i < longest; i++) for (const g of groups) if (i < g.length) out.push(g[i]);
+  return out;
 }
 
 /** A template's own map size: no wider than the battle canvas (20 x 32 px = 640), no deeper
@@ -437,7 +476,7 @@ export function validateTemplateLayout(
   if ((enemyZones.length > 1 || optionAddsEnemyZone) && grouped.length !== enemyZones.length) {
     errors.push(`${path} has several enemySpawn zones: each needs a group`);
   }
-  if ((template.zones || []).filter((z) => z?.role === 'playerSpawn').length > 1) {
-    errors.push(`${path} may have only one playerSpawn zone`);
+  if (playerSpawnZones(template).length > MAX_PLAYER_ZONES) {
+    errors.push(`${path} may have at most ${MAX_PLAYER_ZONES} playerSpawn zones (a split start)`);
   }
 }
