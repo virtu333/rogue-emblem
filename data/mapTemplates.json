@@ -2222,7 +2222,12 @@
       "id": "corner_camp",
       "name": "Corner Camp",
       "enabled": false,
-      "parBonus": 2,
+      "acts": [
+        "act2",
+        "act3",
+        "act4"
+      ],
+      "extraEnemies": 2,
       "mirror": "y",
       "fogChance": 0.1,
       "zones": [
@@ -2272,6 +2277,26 @@
         },
         {
           "rect": [
+            0,
+            0,
+            0.4,
+            0.28
+          ],
+          "terrain": {
+            "Plain": 55,
+            "Forest": 35,
+            "Fort": 10
+          },
+          "priority": 2,
+          "role": "enemySpawn",
+          "group": {
+            "id": "raiders",
+            "share": 0.4,
+            "ai": "chase"
+          }
+        },
+        {
+          "rect": [
             0.7,
             0,
             1,
@@ -2286,7 +2311,7 @@
           "role": "enemySpawn",
           "group": {
             "id": "main",
-            "share": 0.6,
+            "share": 0.35,
             "ai": "chase"
           }
         }
@@ -2305,17 +2330,17 @@
                     1
                   ],
                   "terrain": {
-                    "Plain": 50,
-                    "Forest": 40,
+                    "Plain": 55,
+                    "Forest": 35,
                     "Fort": 10
                   },
                   "priority": 2,
                   "role": "enemySpawn",
                   "group": {
                     "id": "flank",
-                    "share": 0.4,
+                    "share": 0.25,
                     "ai": "hold",
-                    "wakeTurn": 4
+                    "wakeTurn": 3
                   }
                 }
               ]
@@ -2324,22 +2349,22 @@
               "zones": [
                 {
                   "rect": [
+                    0.4,
                     0,
-                    0,
-                    0.3,
-                    0.3
+                    0.66,
+                    0.24
                   ],
                   "terrain": {
-                    "Plain": 50,
-                    "Forest": 40,
+                    "Plain": 55,
+                    "Forest": 35,
                     "Fort": 10
                   },
                   "priority": 2,
                   "role": "enemySpawn",
                   "group": {
                     "id": "flank",
-                    "share": 0.35,
-                    "ai": "guard"
+                    "share": 0.25,
+                    "ai": "chase"
                   }
                 }
               ]

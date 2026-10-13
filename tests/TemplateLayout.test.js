@@ -12,6 +12,7 @@
 //     rung's pass strips a template guard;
 //   - a hold pack on a rout map never wakes, or wakes before its turn with the army away;
 //   - the same seed draws a different map, or a new map breaks validateBattleConfig;
+//   - a dense template's extra foes are lost, or break the density cap;
 //   - the validator lets a broken layout through.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -319,7 +320,10 @@ describe('a template hold pack in the headless battle', () => {
       const pack = battle.enemyUnits.filter((e) => e.holdPack >= TEMPLATE_GROUP_PACK_BASE);
       if (pack.length < MIN_HOLD_GROUP) continue;
       const wakeTurn = pack[0].holdWakeTurn;
-      expect(wakeTurn).toBe(4);
+      const holdGroup = byId('corner_camp')
+        .choices.flatMap((c) => c.options.flatMap((o) => o.zones))
+        .find((z) => z.group?.ai === 'hold').group;
+      expect(wakeTurn).toBe(holdGroup.wakeTurn);
       // No threat, no blow: before its turn it holds; on its turn it wakes, every member.
       const quiet = { enemyUnits: battle.enemyUnits, playerUnits: [], threatContext: null };
       expect(wakeHolders({ ...quiet, turn: wakeTurn - 1 })).toEqual([]);
@@ -396,6 +400,36 @@ describe('generation', () => {
   });
 });
 
+describe('extra foes (extraEnemies)', () => {
+  it('adds its foes over the rolled count, never past the cap, and only for that template', () => {
+    const extra = byId('corner_camp').extraEnemies;
+    expect(extra).toBeGreaterThan(0);
+    // The same template with the field removed: the count the battle rolled on its own.
+    const plain = structuredClone(data.mapTemplates);
+    delete plain.rout.find((t) => t.id === 'corner_camp').extraEnemies;
+    const plainData = { ...data, mapTemplates: plain };
+    const foes = (config) => config.enemySpawns.filter((s) => !s.isBoss).length;
+    const diffs = [];
+    for (const act of ['act2', 'act3', 'act4']) {
+      for (let seed = 1; seed <= 12; seed++) {
+        const params = {
+          act,
+          objective: 'rout',
+          templateId: 'corner_camp',
+          deployCount: 6,
+          row: 3,
+        };
+        const withExtra = generateSeededBattle(params, data, 700 + seed);
+        const without = generateSeededBattle(params, plainData, 700 + seed);
+        diffs.push(foes(withExtra) - foes(without));
+      }
+    }
+    // Every battle gains the extra foes unless the map's density cap stops them.
+    expect(diffs.every((d) => d >= 0 && d <= extra)).toBe(true);
+    expect(diffs.filter((d) => d === extra).length).toBeGreaterThan(diffs.length / 2);
+  });
+});
+
 describe('the template validator', () => {
   const zone = (extra = {}) => ({ rect: [0, 0, 1, 1], terrain: { Plain: 1 }, ...extra });
   const rout = (template) => ({
@@ -457,6 +491,17 @@ describe('the template validator', () => {
     );
     expect(errors.some((e) => e.includes('may not add a Throne'))).toBe(true);
     expect(errors.some((e) => e.includes('at least two options'))).toBe(true);
+  });
+
+  it('refuses extra foes that are not a whole number from 1 to 4', () => {
+    for (const extraEnemies of [0, 5, 1.5, '2']) {
+      const errors = errorsOf(rout({ zones: [zone({ role: 'enemySpawn' })], extraEnemies }));
+      expect(
+        errors.some((e) => e.includes('extraEnemies must be an integer')),
+        String(extraEnemies),
+      ).toBe(true);
+    }
+    expect(errorsOf(rout({ zones: [zone({ role: 'enemySpawn' })], extraEnemies: 3 }))).toEqual([]);
   });
 
   it('refuses a mirror on an unknown axis or over absolute tiles', () => {

@@ -8,6 +8,8 @@
 //   - `choices: [{ id, options: [{ weight?, zones, features? }] }]`: one option per choice is
 //     taken for the battle, its zones (and features) added to the template's. One draw each.
 //   - `mirror: 'y'`: the battle flips the template top to bottom half the time. One draw.
+//   - `extraEnemies: N` (1-4): N more foes than the battle rolled, still under the map's density
+//     cap. No draw: the count roll is the same one.
 // An enemy-spawn zone may carry `group: { id, share, ai: chase | hold | guard, wakeTurn? }`.
 // A template with groups splits its filler enemies among them by share (largest remainder);
 // a `hold` group is one hold pack (engine/HoldActivation.js) that wakes when its Danger zone
@@ -22,6 +24,13 @@ export const TEMPLATE_GROUP_AI = Object.freeze(['chase', 'hold', 'guard']);
 /** A hold pack needs two members (HoldActivation's packs are never one unit). */
 export const MIN_HOLD_GROUP = 2;
 export const MIRROR_AXES = Object.freeze(['y']);
+/** Most foes a template may add over the battle's rolled count (still under the density cap). */
+export const MAX_EXTRA_ENEMIES = 4;
+
+/** The foes this template adds over the rolled count: 0 for every template that names none. */
+export function templateExtraEnemies(template) {
+  return Number.isInteger(template?.extraEnemies) ? template.extraEnemies : 0;
+}
 
 const MIRROR_FEATURE_POSITION_Y = Object.freeze({
   topRight: 'bottomRight',
@@ -222,6 +231,14 @@ export function validateTemplateLayout(
 ) {
   if (template.enabled !== undefined && typeof template.enabled !== 'boolean') {
     errors.push(`${path}.enabled must be a boolean when provided`);
+  }
+  if (
+    template.extraEnemies !== undefined &&
+    (!Number.isInteger(template.extraEnemies) ||
+      template.extraEnemies < 1 ||
+      template.extraEnemies > MAX_EXTRA_ENEMIES)
+  ) {
+    errors.push(`${path}.extraEnemies must be an integer from 1 to ${MAX_EXTRA_ENEMIES}`);
   }
   if (template.mirror !== undefined) {
     if (!MIRROR_AXES.includes(template.mirror)) {

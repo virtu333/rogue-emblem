@@ -205,11 +205,9 @@ async function playScenario(scenario) {
   return { rows, summary };
 }
 
-// Corner Camp plays from Act I; the Three Roads maps from Act II. `minWinRate` is the careful
-// policy's floor, set well below the control's measured rate on the same seeds.
+// Every new shape plays from Act II. `minWinRate` is the careful policy's floor, set below the
+// control's measured rate on the same seeds.
 const CELLS = [
-  { act: 'act1', difficultyId: 'normal', seeds: 6, templates: ['corner_camp'], minWinRate: 0.5 },
-  { act: 'act1', difficultyId: 'dusk', seeds: 6, templates: ['corner_camp'], minWinRate: 0.3 },
   {
     act: 'act2',
     difficultyId: 'normal',
@@ -217,6 +215,7 @@ const CELLS = [
     templates: ['corner_camp', 'three_roads', 'three_roads_keep'],
     minWinRate: 0.3,
   },
+  { act: 'act2', difficultyId: 'dusk', seeds: 3, templates: ['corner_camp'], minWinRate: 0.3 },
 ];
 
 describe('the new map shapes in a run: every battle ends, the invariants hold, winnable', () => {

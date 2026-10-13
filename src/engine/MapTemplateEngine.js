@@ -1118,6 +1118,7 @@ export function validateMapTemplatesConfig(config, options = {}) {
         'fixedSize',
         'entitySpawn',
         'enabled',
+        'extraEnemies',
         'mirror',
         'choices',
       ]);

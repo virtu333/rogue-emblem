@@ -49,6 +49,7 @@ import {
   isTemplateGroupSpawn,
   planGroupSlots,
   resolveTemplateLayout,
+  templateExtraEnemies,
 } from './TemplateLayout.js';
 
 const DEBUG_MAP_GEN = false;
@@ -241,7 +242,11 @@ export function generateBattleLayout(params, deps) {
     ? Math.max(0, Math.trunc(params.recruitEnemyCountBonus ?? (diffMode === 'normal' ? 1 : 2)))
     : 0;
   const densityCap = getEnemyDensityCapByTiles(sizeEntry.tiles, enemies.enemyCountByTiles);
-  const enemyCount = Math.min(rolledEnemyCount + recruitBonus, densityCap);
+  // A dense shape (Corner Camp's raiders) adds its own foes, under the same cap.
+  const enemyCount = Math.min(
+    rolledEnemyCount + recruitBonus + templateExtraEnemies(template),
+    densityCap,
+  );
   // Apply difficulty-driven level bonus (supports positive and negative offsets)
   const baseLevelRange = levelRange || pool.levelRange;
   const adjustedLevelRange =

@@ -19,6 +19,7 @@ All optional; a template that names none draws and generates exactly what it did
 | `enabled: false` | Never drawn by a random pick (`pickTemplate`, `pickTemplateForNode`, via `isTemplateDrawable`). A battle that names it (`templateId`, the dev route) still plays it. New shapes ship this way until they have been played. |
 | `choices: [{ id, options: [{ weight?, zones, features? }] }]` | One option per choice is taken for the battle and its zones/features added to the template's. One draw per choice. Option zones may add only an `enemySpawn` zone that carries a group; no Throne. |
 | `mirror: 'y'` | The battle flips the template top to bottom half the time (one draw): zones, structures, `escapeZone`, features (`topRight` ↔ `bottomRight`) and reinforcement edges (`top` ↔ `bottom`). Refused beside the tile-placed fields (`hybridArena`, `phaseTerrainOverrides`, `entitySpawn`) and `scriptedWaves`. |
+| `extraEnemies: N` | 1-4 more foes than the battle rolled, still under the map's density cap. No draw. |
 | zone `group: { id, share, ai, wakeTurn? }` | On an `enemySpawn` zone. Filler enemies are split among groups by share (largest remainder; a hold group below 2 folds into the largest other group). `ai`: `chase` (today's), `hold` (one hold pack, `engine/HoldActivation.js`: wakes when its Danger is entered, one is hurt or falls, or on `wakeTurn`, required on rout), `guard` (keeps its post). Clerics and Necromancers keep their own roles. |
 
 The draws come from the battle's own seeded stream inside `generateBattle`, after the template
@@ -40,7 +41,7 @@ misuses above.
 
 | Id | Objective | Acts | State | Shape |
 |---|---|---|---|---|
-| `corner_camp` | rout | all | off | Army in a corner; the main force charges from the far corner; a second group either holds along the near edge (wakes turn 4) or guards the far side of the army's corner (seeded). Mirrored. Par +2. |
+| `corner_camp` | rout | 2-4 | off | Army in a corner; a raiding party charges down the near edge into it while the main force comes from the far corner; a third group either holds along the other near edge (wakes turn 3) or raids from the top middle (seeded). Two extra foes (they raise par as any foe does). Mirrored. |
 | `three_roads` | rout | 2-4 | off | Two walls split the map into a fast middle road (guarded, ballista) and two forest side lanes, each wall with one seeded gap. Par +3. |
 | `three_roads_keep` | seize | 2-4 | off | Three Roads with a keep and the throne at the road's end; waves from top and bottom. Par +2. |
 | `snowbound_woods` | rout | 4 | live | Tundra forest ambush (not a band). |
