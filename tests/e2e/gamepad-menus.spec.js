@@ -181,7 +181,11 @@ test.describe('Gamepad menu navigation', () => {
     await tap(page, BTN.ROSTER);
     const roster = page.getByRole('dialog', { name: 'Manage roster', exact: true });
     await expect(roster).toBeVisible();
+    // The overview opens first with its first card focused: A opens that unit's detail.
     const views = roster.getByRole('navigation', { name: 'Roster views' });
+    await expect(roster.locator('nav.mr-grid button.mr-ov-card').first()).toBeFocused();
+    await expect(views).toHaveCount(0);
+    await tap(page, BTN.CONFIRM);
     await expect(views.getByRole('button', { name: 'Stats', exact: true })).toHaveAttribute(
       'aria-pressed',
       'true',
@@ -201,6 +205,9 @@ test.describe('Gamepad menu navigation', () => {
       'aria-pressed',
       'true',
     );
+    // B steps back from the detail to the overview, then closes the Roster.
+    await tap(page, BTN.CANCEL);
+    await expect(roster.locator('nav.mr-grid')).toBeVisible();
     await tap(page, BTN.CANCEL);
     await expect(roster).toHaveCount(0);
     await expect(page.locator('.re-node-map')).toBeVisible();

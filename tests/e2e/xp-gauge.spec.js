@@ -410,7 +410,12 @@ test('a tap on a rail control skips the gauge and the control still takes the ta
   expect(
     await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.classList.contains('xg-probe'), at), // prettier-ignore
   ).toBe(true);
+  // The probe stands over the rail's middle, where the attack's own buttons may land once a
+  // unit is selected (the rail's lines wrap by what they say): out of the way for the attack,
+  // back before the gauge.
+  await probe.evaluate((el) => (el.style.pointerEvents = 'none'));
   await attack(page);
+  await probe.evaluate((el) => (el.style.pointerEvents = ''));
   await page.locator('.xg-layer').waitFor({ state: 'attached', timeout: 25_000 });
   // The gauge blocks nothing: the rail stays live (not inert, not dimmed) under it.
   const rail = await page.evaluate(() => {

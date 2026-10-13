@@ -46,8 +46,8 @@ const mostThreatenedTile = (page) =>
     for (const [key, entry] of s.movementRange) {
       if (entry.stoppable === false || key === `${u.col},${u.row}`) continue;
       const [col, row] = key.split(',').map(Number);
-      const count = s._threatSight.query(u, col, row).count;
-      if (!best || count > best.count) best = { col, row, count };
+      const { count, aimed } = s._threatSight.query(u, col, row);
+      if (!best || count > best.count) best = { col, row, count, aimed };
     }
     return best;
   });
@@ -215,7 +215,10 @@ test.describe('touch (844x390)', () => {
       });
     const moved = await sightState(page);
     expect(moved.eyes).toBeGreaterThanOrEqual(target.count);
-    expect(moved.rail).toBe(`${foes(target.count)} can reach`);
+    // The AI's own pick says how many of them would go for Sera there (EnemyIntent).
+    const aimed =
+      target.aimed === 0 ? 'none target' : `${target.aimed} target${target.aimed === 1 ? 's' : ''}`;
+    expect(moved.rail).toBe(`${foes(target.count)} can reach · ${aimed} you`);
     await page.screenshot({ path: test.info().outputPath('threat-sight-touch.png') });
 
     // Back undoes the tentative move; the eyes follow Sera home.

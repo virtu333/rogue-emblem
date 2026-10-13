@@ -30,6 +30,11 @@ import { levelUpDisplayResults } from '../ui/progressionDisplay.js';
 import { presentationText, isolateBattleTextFactory } from '../utils/presentationText.js';
 import { buildCombatNumber, floatCombatNumber } from '../ui/CombatNumberFloat.js';
 import { safeBattlePresentation } from '../ui/safeBattlePresentation.js';
+import {
+  drawArrivalGraphic,
+  guardUndrawnUnits,
+  setUnitPartsVisible,
+} from '../ui/arrivalGraphic.js';
 import { presentTeleporterWarp } from '../ui/WarpPresentation.js';
 import { hasBattleDefeat } from '../engine/BattleDefeat.js';
 import { applyBlessingCombatMods, stampTurnAnchors } from '../engine/BlessingCombatMods.js';
@@ -2853,7 +2858,7 @@ export class BattleScene extends Phaser.Scene {
     // arrival that fails to draw must never stop the arrivals after it.
     this.enemyUnits.push(enemy);
     registerBattleEntity(this, enemy);
-    safeBattlePresentation('enemy unit graphic', () => this.addUnitGraphic(enemy), { scene: this });
+    drawArrivalGraphic(this, enemy, 'enemy unit graphic'); // a failed sprite leaves a marker
     return enemy;
   }
 
@@ -3044,7 +3049,8 @@ export class BattleScene extends Phaser.Scene {
     ))._applySnapshot();
     // Re-checkpoint the rewound state so a refresh resumes at the restored
     // turn start (with the Vision charge spend locked in alongside it).
-    if (applied) this._captureSuspendCheckpoint?.({ session: session });
+    const saved = applied && this._captureSuspendCheckpoint?.({ session: session }) === true;
+    if (applied) guardUndrawnUnits(this, { saved }); // a unit nothing could draw asks for a reload
     return applied;
   }
 
@@ -3201,6 +3207,20 @@ export class BattleScene extends Phaser.Scene {
     this.aiController?.setBossEnraged?.(step.turnEnrageActive);
     if (step.becameEnraged) this._playBossEnrageFx();
     this._bossPresence?.sync();
+  }
+
+  /**
+   * The anti-turtle flags the next enemy phase will run with (its start advances the clock),
+   * read without advancing it: threat sight's intent preview (EnemyIntent).
+   */
+  nextEnemyPhaseAiFlags() {
+    if (!this.antiTurtleState) return {};
+    const step = advanceTurnPressure(this.antiTurtleState, this._measureTurnPressure(), {
+      turn: this.getCurrentTurnNumber(),
+      par: this.turnPar,
+      turnBonusConfig: this.turnBonusConfig,
+    });
+    return { aggressiveMode: step.aggressiveMode, bossEnraged: step.turnEnrageActive };
   }
 
   /** Flame aura on living bosses the moment turn-pressure enrage kicks in. */
@@ -9865,10 +9885,14 @@ export class BattleScene extends Phaser.Scene {
             } else {
               // Only a fully resolved turn start is safe to resume.
               this._timelineBoundary = 'turn_start';
-              this._captureSuspendCheckpoint?.({
-                preserveRng: presentedLevelUps,
-                session: session,
-              });
+              const saved =
+                this._captureSuspendCheckpoint?.({
+                  preserveRng: presentedLevelUps,
+                  session: session,
+                }) === true;
+              // Never play on against a unit nothing could draw: reload from this checkpoint
+              // once it is on disk (a refused write keeps the save-retry flow's choices).
+              guardUndrawnUnits(this, { saved });
             }
           } finally {
             // Errors still resolving this phase settle after the recovery below.
@@ -11566,16 +11590,7 @@ export class BattleScene extends Phaser.Scene {
           // canInspectUnit: an Entity shows when any tile of its body is seen, and Seer's Eye
           // shows every foe through the fog.
           const vis = canInspectUnit(this.grid, enemy);
-          if (enemy.graphic) enemy.graphic.setVisible(vis);
-          if (enemy.label) enemy.label.setVisible(vis);
-          if (enemy.factionIndicator) enemy.factionIndicator.setVisible(vis);
-          if (enemy.hpBar) {
-            enemy.hpBar.bg.setVisible(vis);
-            enemy.hpBar.fill.setVisible(vis);
-          }
-          if (enemy.affixPips) {
-            enemy.affixPips.forEach((p) => p.setVisible(vis));
-          }
+          setUnitPartsVisible(enemy, vis);
         },
         { scene: this },
       );
@@ -11586,16 +11601,7 @@ export class BattleScene extends Phaser.Scene {
         () => {
           // The recruit shows through fog (canInspectUnit); the caravan does not.
           const vis = canInspectUnit(this.grid, npc);
-          if (npc.graphic) npc.graphic.setVisible(vis);
-          if (npc.label) npc.label.setVisible(vis);
-          if (npc.factionIndicator) npc.factionIndicator.setVisible(vis);
-          if (npc.hpBar) {
-            npc.hpBar.bg.setVisible(vis);
-            npc.hpBar.fill.setVisible(vis);
-          }
-          if (npc.affixPips) {
-            npc.affixPips.forEach((p) => p.setVisible(vis));
-          }
+          setUnitPartsVisible(npc, vis);
           // Status badges (acid ground, an enemy art) hide with the NPC they sit on.
           Object.values(npc._conditionIcons || {}).forEach((icon) => icon?.setVisible?.(vis));
         },

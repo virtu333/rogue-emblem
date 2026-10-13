@@ -5,7 +5,7 @@
 // - [N] / the end-turn prompt locate the next ready unit (desktop).
 // - ⓘ + press-and-hold explain roster cards; the hold gesture is taught once.
 import { test, expect } from '@playwright/test';
-import { waitForScene as waitForSceneQuick } from './helpers.js';
+import { waitForScene as waitForSceneQuick, openRosterUnit } from './helpers.js';
 
 test.setTimeout(150000);
 
@@ -204,6 +204,7 @@ async function openRoster(page, phone) {
   await page.evaluate(() => window.__emblemRogueGame.scene.getScene('NodeMap')._openRoster());
   const roster = page.getByRole('dialog', { name: /roster/i }).first();
   await expect(roster).toBeVisible();
+  await openRosterUnit(roster, null, { tap: phone });
   return roster;
 }
 
@@ -238,7 +239,11 @@ test('phone: ⓘ is a 44px target, press-and-hold explains a card, and the tip s
   await page.keyboard.press('Escape');
   await expect(help).toHaveCount(0);
   // Taught once: reopening the roster does not repeat the tip.
+  // Escape leaves the unit's detail for the overview, then closes the Roster.
   await page.keyboard.press('Escape');
+  await expect(roster.locator('nav.mr-grid')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(roster).toHaveCount(0);
   await page.evaluate(() => window.__emblemRogueGame.scene.getScene('NodeMap')._openRoster());
   await expect(page.getByRole('dialog', { name: /roster/i }).first()).toBeVisible();
   await expect(page.locator('.re-hold-tip')).toHaveCount(0);

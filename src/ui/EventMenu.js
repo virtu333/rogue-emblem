@@ -571,6 +571,7 @@ export class EventMenu {
       scene: this.scene,
       run: this.run,
       units: this.run.roster,
+      overview: true,
       gameData: this.scene.gameData,
       onClose: () => {
         this.child.destroy();

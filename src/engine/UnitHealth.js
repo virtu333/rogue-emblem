@@ -97,8 +97,9 @@ export function healUnitFully(unit) {
 /**
  * A blow that would leave `unit` at `hp` <= 0. Revival Stones first: one breaks instead and
  * refills the bar to the unit's max HP. Then the Unbroken Banner (`blessings`, the battle's
- * BattleBlessings state): a player unit stands at 1 HP and the banner is spent. Pure apart
- * from spending that stone or banner.
+ * BattleBlessings state): a player unit stands at 1 HP, the banner is spent and the unit is
+ * stamped `_bannerHeld` (its injury is taken at the victory commit). Pure apart from spending
+ * that stone or banner and that stamp.
  * @returns {{ hp: number, stoneBroken: boolean, bannerHeld?: true }} `hp` is what the unit
  *   stands at after the blow; when nothing holds it (or the blow does not take the bar) it is
  *   `hp` unchanged. `bannerHeld` is present only when the banner held.
@@ -113,6 +114,10 @@ export function absorbLethal(unit, hp, { blessings = null } = {}) {
   }
   if (bannerReadyFor(blessings, unit)) {
     spendBattleBlessing(blessings, BANNER);
+    // The banner's price: the unit it held carries a Lingering Injury from this victory on
+    // (RunManager.completeBattle reads the stamp). A battle-unit field, so a suspend keeps it,
+    // a Vision rewind to before the hold takes it back and Continue from Map never sees it.
+    unit._bannerHeld = true;
     return { hp: 1, stoneBroken: false, bannerHeld: true };
   }
   return { hp, stoneBroken: false };

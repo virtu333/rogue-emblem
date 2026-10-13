@@ -215,7 +215,7 @@ export function forecastReadingPoints(forecast) {
     );
   if (forecast?.attacker?.banner || forecast?.defender?.banner)
     points.push(
-      `The ${BANNER_NAME} holds the first ally a blow would fell at 1 HP, once a battle. That blow ends the exchange.`,
+      `The ${BANNER_NAME} holds the first ally a blow would fell at 1 HP, once a battle. That blow ends the exchange, and the ally carries a Lingering Injury after the battle.`,
     );
   return points;
 }

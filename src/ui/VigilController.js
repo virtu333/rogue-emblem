@@ -48,6 +48,7 @@ import { battleSession, isCurrentBattleSession } from './BattleSession.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { CombatFxController } from './CombatFxController.js';
 import { safeBattlePresentation } from './safeBattlePresentation.js';
+import { drawArrivalGraphic } from './arrivalGraphic.js';
 import { playCue } from './ceremonyMusic.js';
 import {
   sanitizeVigilState,
@@ -259,8 +260,7 @@ export class VigilController {
     if (step.summons.length > 0) scene.dangerZoneStale = true;
 
     // Then the presentation, each piece in its own boundary.
-    for (const { unit } of step.summons)
-      safeBattlePresentation('vigil summon', () => scene.addUnitGraphic(unit), { scene });
+    for (const { unit } of step.summons) drawArrivalGraphic(scene, unit, 'vigil summon');
     if (step.summons.length > 0) {
       if (scene.grid?.fogEnabled)
         safeBattlePresentation('vigil fog', () => scene.updateEnemyVisibility?.(), { scene });

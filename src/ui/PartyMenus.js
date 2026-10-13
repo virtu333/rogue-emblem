@@ -272,6 +272,8 @@ export function showDeploymentMenu(owner, roster, limits, onConfirm, initialName
       gameData,
       units: runManager.roster,
       run: runManager,
+      overview: true,
+      isDeployed: (unit) => names.has(unit.name),
       onClose: () => {
         owner.inspector.destroy();
         surface.root.inert = false;

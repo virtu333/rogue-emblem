@@ -696,6 +696,7 @@ export class ChurchMenu {
       scene: this.scene,
       run: this.scene.runManager,
       units: this.scene.runManager.roster,
+      overview: true,
       gameData: this.scene.gameData,
       onClose: () => {
         this.child.destroy();
