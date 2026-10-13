@@ -57,7 +57,7 @@ import { ZOMBIE_CLASSES, isActAtOrAfter } from '../utils/constants.js';
 import { REINFORCEMENT_CONTRACT_VERSION } from './MapTemplateEngine.js';
 import { HOLD_AI_MODE } from './HoldDisturbance.js';
 import { BOSS_REF, legacyObjectiveKind, objectivesShapeErrors } from './BattleObjectives.js';
-// SeatedBoss imports captainLevelFor from here; each side reads the other only inside functions.
+import { captainLevelFor } from './CaptainLevel.js';
 import { possibleSeats } from './SeatedBoss.js';
 
 /** A set piece's config carries `templateId: 'setpiece:<id>'` (never a mapTemplates id). */
@@ -106,12 +106,6 @@ const BOSS_SLOT_KEYS = new Set(['col', 'row', 'boss', 'aiMode', 'weapon']);
 /** Slot, sigil and circle ids. */
 const AUTHORED_ID = /^[a-z][a-z0-9_]{0,23}$/;
 const WAVE_SPAWN_KEYS = new Set(['col', 'row', 'classes', 'level', 'aiMode', 'minRung', 'minAct']);
-
-// Elite captains (and set-piece captains) sit above the act's range by this many levels: none
-// in Act I, two in Act II, one from Act III on (Act IV, postAct, the finale), where the captain
-// is a promoted class and a promoted level already outweighs a base one.
-const CAPTAIN_LEVEL_OFFSET = { act1: 0, act2: 2 };
-const CAPTAIN_DEFAULT_OFFSET = 1;
 
 /** A hold pack's latest authored wake turn. */
 const MAX_WAKE_TURN = 12;
@@ -183,19 +177,7 @@ export function slotInPlay(slot, { act = 'act1', difficultyId = 'normal' } = {})
   return true;
 }
 
-/**
- * A captain's level (MapGenerator's elite captain rule): the top of the battle's range plus the
- * act's captain offset. Never below 1. It is a spawn level like every other foe's, on one scale
- * whatever the class's tier: createPromotedEnemyUnit reads it as the whole level (the base class
- * to ENEMY_PROMOTION_BASE_LEVEL, the rest past promotion), as it reads a promoted filler's and an
- * act boss's, so a promoted captain takes nothing off (it once took the recruits' promotion base
- * off, which left an Act III captain about ten levels under its own escort).
- */
-export function captainLevelFor(act, top) {
-  const offset = CAPTAIN_LEVEL_OFFSET[act] ?? CAPTAIN_DEFAULT_OFFSET;
-  const base = Math.max(1, Math.trunc(Number(top) || 1));
-  return base + offset;
-}
+export { captainLevelFor };
 
 function pickFrom(list, roll) {
   if (!Array.isArray(list) || list.length === 0) return null;

@@ -30,7 +30,7 @@ import {
   RECRUIT_NODE_LORD_CHANCE,
   RECRUIT_SKILL_POOL,
 } from '../utils/constants.js';
-import { createSeededRng } from './BlessingEngine.js';
+import { createSeededRng } from './SeededRng.js';
 import { resolveDeployLimits } from './BattleDeployCount.js';
 import {
   createBossLordUnit,
