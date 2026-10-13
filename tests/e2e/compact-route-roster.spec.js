@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForScene } from './helpers.js';
+import { waitForScene, openRosterUnit, closeRoster } from './helpers.js';
 
 test.use({ hasTouch: true, isMobile: true, viewport: { width: 844, height: 390 } });
 
@@ -36,14 +36,21 @@ test('horizontal route retains selection and scroll through roster on landscape 
   await expect(roster).toBeVisible();
   await expect(roster.getByRole('button', { name: 'Advanced management' })).toHaveCount(0);
   expect(await roster.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+  // The overview first: its header (Close) is a full-size touch target.
+  await expect(roster.locator('nav.mr-grid')).toBeVisible();
+  for (const b of await roster.locator('header button').all()) {
+    expect((await b.boundingBox()).height).toBeGreaterThanOrEqual(44);
+  }
+  await openRosterUnit(roster, null, { tap: true });
   await expect(
     roster.locator('header').getByRole('button', { name: 'Equipment', exact: true }),
   ).toBeVisible();
+  expect(await roster.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
   for (const b of await roster.locator('header button').all()) {
     expect((await b.boundingBox()).height).toBeGreaterThanOrEqual(44);
   }
   await page.screenshot({ path: `test-results/compact-roster-${testInfo.project.name}.png` });
-  await roster.getByRole('button', { name: 'Close', exact: true }).tap();
+  await closeRoster(roster, 'Close', { tap: true });
   await expect(route).toBeVisible();
   await expect(boss).toHaveAttribute('aria-pressed', 'true');
   expect(await scroll.evaluate((e) => e.scrollLeft)).toBeCloseTo(left, 0);
@@ -68,6 +75,7 @@ test('DOM promotion can cancel, then apply once without the legacy roster', asyn
   });
   await page.locator('.re-node-map').getByRole('button', { name: 'Roster', exact: true }).tap();
   const roster = page.locator('.mr-sheet');
+  await openRosterUnit(roster, 'Test fighter', { tap: true });
   await roster.getByRole('button', { name: 'Equipment', exact: true }).tap();
   await roster.getByRole('button', { name: 'Promote', exact: true }).tap();
   let picker = page.getByRole('dialog', { name: 'Promote Test fighter', exact: true });
@@ -137,6 +145,7 @@ test('Skills teaching, trading and convoy recipient work without leaving DOM ros
   });
   await page.locator('.re-node-map').getByRole('button', { name: 'Roster', exact: true }).tap();
   const roster = page.locator('.mr-sheet');
+  await openRosterUnit(roster, null, { tap: true });
   await roster.getByRole('button', { name: 'Skills', exact: true }).tap();
   await roster.getByRole('button', { name: 'Teach…', exact: true }).tap();
   const teach = page.getByRole('dialog', { name: 'Teach Test scroll' });
@@ -190,6 +199,7 @@ test('art binding confirms replacement and empty promotion choices are safe', as
     return { weapon: weapon.name, old: arts[0].name, next: arts[3].id };
   });
   await page.locator('.re-node-map').getByRole('button', { name: 'Roster', exact: true }).tap();
+  await openRosterUnit(page.locator('.mr-sheet'), null, { tap: true });
   await page.locator('.mr-sheet').getByRole('button', { name: 'Skills', exact: true }).tap();
   await page.getByRole('button', { name: 'Bind to weapon…' }).tap();
   await page

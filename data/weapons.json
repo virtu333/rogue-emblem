@@ -972,6 +972,17 @@
     "weight": 3,
     "range": "1-4",
     "uses": 1,
+    "useBonuses": [
+      {
+        "mag": 16,
+        "bonus": 1
+      },
+      {
+        "mag": 22,
+        "bonus": 1
+      }
+    ],
+    "maxUses": 3,
     "perBattleUses": true,
     "relocate": "warp",
     "rangeBonuses": [

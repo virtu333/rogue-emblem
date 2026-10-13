@@ -46,6 +46,7 @@ import { applyGridFogState } from './fogState.js';
 import { RETRYABLE_SAVE_REASONS } from '../engine/SavePersistenceStatus.js';
 import { UI_PALETTE } from '../utils/uiStyles.js';
 import { restUnitAppearance } from './UnitRestAppearance.js';
+import { drawArrivalGraphic, guardUndrawnUnits, noteDurableSave } from './arrivalGraphic.js';
 
 export const serializeSuspendUnit = serializeBattleUnit;
 
@@ -164,6 +165,8 @@ export class BattleSuspendController {
     if (isCurrentBattleSession(this.scene, session)) {
       this.scene._checkpointPersistenceResult = result;
       this.scene._onCheckpointResult?.(result, { session, progress });
+      // A write that landed holds the battle as it stands: a waiting reload offer can be made.
+      if (result.ok === true) noteDurableSave(this.scene);
     }
     return result.ok === true;
   }
@@ -357,7 +360,8 @@ export class BattleSuspendController {
           unit._movementCommitted = unit.hasMoved === true && unit.hasActed !== true;
         }
         targetArr.push(unit);
-        scene.addUnitGraphic(unit);
+        // A sprite that fails leaves a marker (arrivalGraphic.js): the restore always completes.
+        drawArrivalGraphic(scene, unit, 'resumed unit graphic');
         for (const cond of Array.isArray(unit._conditions) ? unit._conditions : []) {
           if (cond?.id) scene._addConditionIcon?.(unit, cond.id);
         }
@@ -473,6 +477,8 @@ export class BattleSuspendController {
     );
     if (current?.destination && checkpoint.phase === 'player')
       scene._rewindFingerprint = rewindFingerprint(scene);
+    // The checkpoint just loaded is durable: a unit nothing could draw asks for a reload.
+    guardUndrawnUnits(scene, { saved: true });
     if (checkpoint.recoveryKind === 'fatal_pending') {
       resumeFatalDecision(scene, checkpoint);
       return;

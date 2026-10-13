@@ -16,7 +16,7 @@
 //   3. a reload between the Discard and the Claim loses the discard or the owed reward;
 //   4. Claim after the Discard still refuses, or pays twice, or a later reload owes the reward again.
 import { test, expect } from '@playwright/test';
-import { waitForScene } from './helpers.js';
+import { waitForScene, openRosterUnit, closeRoster } from './helpers.js';
 import { bootEvent } from './eventHelpers.js';
 
 test.use({ viewport: { width: 640, height: 480 } });
@@ -123,6 +123,7 @@ test('full army, owed weapon reward: discard in the Roster, reload, Claim, reloa
   await actions.getByRole('button', { name: 'Roster', exact: true }).click();
   const roster = page.getByRole('dialog', { name: 'Manage roster', exact: true });
   await expect(roster).toBeVisible();
+  await openRosterUnit(roster);
   await roster.getByRole('button', { name: 'Convoy', exact: true }).click();
   const card = roster.getByRole('article').filter({
     has: page.getByRole('heading', { name: 'Stored Blade 7', exact: true }),
@@ -133,7 +134,7 @@ test('full army, owed weapon reward: discard in the Roster, reload, Claim, reloa
   await expect(confirm).toBeVisible();
   await confirm.getByRole('button', { name: 'Discard', exact: true }).click();
   await expect(confirm).toHaveCount(0);
-  await roster.getByRole('button', { name: 'Close', exact: true }).first().click();
+  await closeRoster(roster);
   await expect(dialog).toBeVisible();
   const made = await state(page);
   for (const view of [made.live, made.saved]) {

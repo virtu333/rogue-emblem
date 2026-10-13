@@ -597,6 +597,7 @@ export class ShopMenu {
       units: this.run.roster,
       gameData: this.scene.gameData,
       run: this.run,
+      overview: true,
       onClose: () => {
         this.child.destroy();
         this.child = null;

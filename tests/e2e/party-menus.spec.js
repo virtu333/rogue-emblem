@@ -22,7 +22,10 @@ test('deployment locks commander, preserves selections through roster and confir
   await expect(dialog).toContainText('1 / 2 selected');
   await dialog.getByRole('button', { name: /Sera/ }).tap();
   await dialog.getByRole('button', { name: 'Roster', exact: true }).tap();
-  await expect(page.getByRole('dialog', { name: 'Manage roster', exact: true })).toBeVisible();
+  const sheet = page.getByRole('dialog', { name: 'Manage roster', exact: true });
+  await expect(sheet).toBeVisible();
+  // The deploy screen's Roster opens on its overview, where Close leaves it.
+  await expect(sheet.locator('nav.mr-grid')).toBeVisible();
   await page.getByRole('button', { name: 'Close', exact: true }).tap();
   await expect(dialog).toContainText('2 / 2 selected');
   await page.screenshot({ path: 'test-results/deployment-se.png' });

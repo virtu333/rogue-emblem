@@ -28,7 +28,7 @@ import {
   pickFormationSpares,
   placeUnit,
   placedCount,
-  playerSpawnBounds,
+  playerSpawnBoundsList,
   unitOnTile,
 } from '../engine/FormationPlacement.js';
 import { FormationPicker } from './FormationPicker.js';
@@ -265,7 +265,7 @@ export class FormationController {
       terrainData: s.gameData.terrain,
       spawns,
       // A template flipped for this battle (TemplateLayout.js) has its spawn zone flipped too.
-      bounds: playerSpawnBounds(
+      bounds: playerSpawnBoundsList(
         bc.mirrored === true && template?.mirror === 'y' ? mirrorTemplateY(template) : template,
         s.grid.cols,
         s.grid.rows,

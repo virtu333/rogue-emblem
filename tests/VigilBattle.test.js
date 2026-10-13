@@ -37,6 +37,7 @@ import { withDevSetPiece } from '../src/utils/devSetPieceFixtures.js';
 import { GameDriver } from './harness/GameDriver.js';
 import { installSeed, restoreMathRandom } from '../sim/lib/SeededRNG.js';
 import { loadGameData } from './testData.js';
+import { liveRenderer } from './harness/LiveRenderer.js';
 
 const data = withDevSetPiece(loadGameData(), 'dev_vigil');
 const VOICES = ['voice_calling', 'voice_binding', 'voice_feeding', 'voice_waking'];
@@ -904,5 +905,32 @@ describe('rendering never changes the call (as HealthPresentationInvariance)', (
     expect(voiceOf(scene.enemyUnits, 'voice_binding')).toBeUndefined();
     expect(banners(scene)).toContain(VIGIL_BANNERS.silenced);
     expect(scene.dangerZoneStale).toBe(true); // removeUnit ran past the Voice's step
+  });
+});
+
+describe('a Hollowed whose sprite fails to draw', () => {
+  it('is drawn as a marker on its tile, never left invisible', async () => {
+    const { scene } = sceneOf();
+    const renderer = liveRenderer(scene);
+    scene.addUnitGraphic = () => {
+      throw new Error('Renderer unavailable: sprite');
+    };
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await scene.processVigil();
+    const hollowed = called(scene.enemyUnits);
+    expect(hollowed).toHaveLength(4);
+    for (const unit of hollowed) {
+      expect(unit.graphic, unit.name).toMatchObject({
+        destroyed: false,
+        visible: true,
+        x: unit.col * 32 + 16,
+        y: unit.row * 32 + 16,
+      });
+      expect(unit.hpBar?.fill?.destroyed).toBe(false);
+    }
+    const live = renderer.live();
+    for (const unit of hollowed)
+      for (const part of [unit.graphic, unit.hpBar.bg, unit.hpBar.fill])
+        expect(live).toContain(part);
   });
 });

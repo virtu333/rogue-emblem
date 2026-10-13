@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForScene } from './helpers.js';
+import { waitForScene, openRosterUnit } from './helpers.js';
 
 async function nodeMap(page) {
   await page.goto('/?devScene=nodemap&preset=battle_smoke&seed=42&mobilePreview=1');
@@ -35,6 +35,7 @@ test('reclass previews consequences, cancels safely, then equips the granted wea
   });
   await page.locator('.re-node-map').getByRole('button', { name: 'Roster', exact: true }).click();
   const roster = page.locator('.mr-sheet');
+  await openRosterUnit(roster);
   await roster.getByRole('button', { name: 'Equipment', exact: true }).click();
   await roster.getByRole('button', { name: 'Reclass', exact: true }).click();
   const picker = page.getByRole('dialog', {
@@ -111,6 +112,7 @@ test('art replacement Back preserves weapon and slot, shows effects, and consume
     };
   });
   await page.locator('.re-node-map').getByRole('button', { name: 'Roster', exact: true }).click();
+  await openRosterUnit(page.locator('.mr-sheet'));
   await page.locator('.mr-sheet').getByRole('button', { name: 'Skills', exact: true }).click();
   await page.getByRole('button', { name: 'Bind to weapon…' }).click();
   const weapons = page.getByRole('dialog', {
@@ -256,6 +258,7 @@ for (const initialSlots of [0, 2]) {
       return arts[slots].id;
     }, initialSlots);
     await page.locator('.re-node-map').getByRole('button', { name: 'Roster', exact: true }).click();
+    await openRosterUnit(page.locator('.mr-sheet'));
     await page.locator('.mr-sheet').getByRole('button', { name: 'Skills', exact: true }).click();
     await page.getByRole('button', { name: 'Bind to weapon…' }).click();
     const picker = page.getByRole('dialog', {

@@ -1,5 +1,5 @@
 import { test, expect, devices } from '@playwright/test';
-import { waitForScene } from './helpers.js';
+import { waitForScene, openRosterUnit, closeRoster } from './helpers.js';
 
 test.use({ ...devices['iPhone 13'], viewport: { width: 844, height: 390 } });
 test('legendary traits and recovered staves are readable in the mobile roster and Compendium', async ({
@@ -32,6 +32,7 @@ test('legendary traits and recovered staves are readable in the mobile roster an
     s._openRoster();
   });
   const roster = page.locator('.mr-sheet');
+  await openRosterUnit(roster);
   await expect(roster).toContainText('Legendary · Standard Bearer');
   await roster.getByRole('button', { name: /Sera/ }).click();
   await expect(roster).toContainText('Legendary · Overflowing Grace');
@@ -46,7 +47,7 @@ test('legendary traits and recovered staves are readable in the mobile roster an
   expect(remaining).toBe(maximum);
   expect(await roster.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
   await page.screenshot({ path: '/tmp/legendary-staff-mobile.png' });
-  await roster.getByRole('button', { name: 'Close', exact: true }).click();
+  await closeRoster(roster);
   await page.evaluate(async () => {
     const s = window.__emblemRogueGame.scene.getScene('NodeMap');
     const { CompendiumOverlay } = await import('/src/ui/CompendiumOverlay.js');

@@ -134,7 +134,11 @@ export class DeployScreenOverlay {
     // to know the objective before picking who deploys.
     // The deploy screen opens before the map exists: a defeat set piece's kind and targets come
     // from its data (ObjectivePreview), the legacy string being only its family (rout).
-    const preview = previewObjectives(scene.battleParams, this.gameData?.setPieces);
+    const preview = previewObjectives(
+      scene.battleParams,
+      this.gameData?.setPieces,
+      this.gameData?.mapTemplates,
+    );
     const objective = preview?.kind ?? scene.battleParams?.objective;
     if (objective) {
       const OBJECTIVE_BANNERS = {
