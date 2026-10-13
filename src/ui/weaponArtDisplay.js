@@ -23,6 +23,13 @@ const MOD_LABELS = {
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const tiles = (n) => plural(n, 'tile');
 const phases = (n) => plural(n, 'phase');
+// A timed buff ends as its owner's phase comes round `n` turns on (TimedWeaponArtBuffs).
+const selfBuffSpan = (n) =>
+  n <= 1
+    ? 'until your next turn'
+    : n === 2
+      ? 'until the end of your next turn'
+      : `until the end of your turn ${n - 1} turns from now`;
 const signed = (n) => `${n >= 0 ? '+' : ''}${n}`;
 const statList = (values) =>
   Object.entries(values)
@@ -133,7 +140,10 @@ export function weaponArtEffectRows(art) {
         swap: 'swap places with the target',
         push: `push the target back ${tiles(e.distance)} (only when next to it)`,
         through: `pass ${tiles(e.distance)} through the target`,
-        dash: `dash on through the target and the ${tiles(e.distance - 1)} behind it, landing as far as ${tiles(e.distance)} past it (only when next to it)`,
+        dash:
+          e.distance > 1
+            ? `dash on through the target and the ${tiles(e.distance - 1)} behind it, landing as far as ${tiles(e.distance)} past it (only when next to it)`
+            : 'dash on through the target, landing on the tile behind it (only when next to it)',
         pushAreaVictims: `push the target and each foe the line hit back ${tiles(e.distance)} (only when next to the target)`,
         ram: `ram the target back up to ${tiles(e.distance)} (only when next to it); if blocked, it and any foe it hits take ${e.collisionDamage}`,
       }[e.mode] || `move (${e.mode})`,
@@ -147,7 +157,9 @@ export function weaponArtEffectRows(art) {
     onHit(
       `allies within ${tiles(allyHeal.radius)} of you heal ${allyHeal.percentOfDamage}% of the damage you dealt`,
     );
-  if (allyBuff)
+  if (allyBuff?.selfOnly)
+    onHit(`you get ${statList(allyBuff.stats)} ${selfBuffSpan(allyBuff.durationPhases)}`);
+  else if (allyBuff)
     onHit(
       `allies within ${tiles(allyBuff.range)} get ${statList(allyBuff.stats)} for ${phases(allyBuff.durationPhases)}${allyBuff.includeSelf ? ', you included' : ''}`,
     );

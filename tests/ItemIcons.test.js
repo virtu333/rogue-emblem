@@ -150,7 +150,9 @@ describe('item icon atlases are deterministic', () => {
         ? 'blessing'
         : id.startsWith('upgrade-')
           ? 'upgrade'
-          : 'weapon';
+          : id.endsWith('-scroll')
+            ? 'scroll'
+            : 'weapon';
       expect(manifest.sockets[manifest.icons[id][1]], id).toBe(socket);
     }
     for (const size of SIZES) {
