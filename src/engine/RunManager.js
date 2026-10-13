@@ -698,6 +698,8 @@ export function serializeUnit(unit) {
   // Deed progress commits at victory (commitBattleDeeds) or not at all.
   delete data._battleDeeds;
   delete data._slewAllies;
+  // The Unbroken Banner's stamp is the battle's: the victory commit reads it first.
+  delete data._bannerHeld;
   return data;
 }
 
@@ -1547,6 +1549,27 @@ export class RunManager {
       applied: result?.ok !== false,
       ...(result?.ok === false ? { reason: result.reason } : {}),
     });
+  }
+
+  /**
+   * The Unbroken Banner's price at the victory commit: the unit it held (its new roster entry)
+   * takes a Lingering Injury through the same Burdens.addBurden an event uses (a fresh injury
+   * replaces any other, one unit at a time). The stat is drawn from the run seed and the node,
+   * never Math.random. Returns what the victory band names, or null.
+   */
+  _takeBannerWound(unit, nodeId) {
+    const uid = unitUidOf(unit);
+    if (!uid) return null;
+    const rand = this._createBlessingRng('unbroken_banner', `wound:${nodeId}`);
+    const stat = WOUND_STATS[Math.floor(rand() * WOUND_STATS.length)];
+    const result = addBurden(this, 'wounded', { unitUid: uid, unitName: unit.name, stat });
+    if (result?.ok === false || !result?.burden) return null;
+    return {
+      name: unit.name,
+      stat: result.burden.stat,
+      value: result.burden.value,
+      battles: result.burden.battles,
+    };
   }
 
   _recordBlessingEvent(stage, blessingId, effect, details = {}) {
@@ -5480,6 +5503,11 @@ export class RunManager {
       }
     }
 
+    // The Unbroken Banner's price: the survivor it held this battle (UnitHealth.absorbLethal
+    // stamps it) carries a Lingering Injury, taken below once this victory's burdens settled.
+    const bannerHeldIndex = survivingUnits.findIndex(
+      (u) => u?._bannerHeld === true && Number(u.currentHP) > 0,
+    );
     this.roster = survivingUnits.map((u) => {
       const data = serializeUnit(u);
       // Statuses (sleep, acid, Wounded…) are the battle's: they end with it, so a
@@ -5510,17 +5538,20 @@ export class RunManager {
     this.awardGold(settlement.gold);
     // A wound whose unit fell (or left) in this battle ends with it: nobody carries it on.
     this.burdens = pruneGoneWounds(settlement.burdens, this.roster);
+    const bannerWound = this._takeBannerWound(this.roster[bannerHeldIndex], nodeId);
     this.lastBattleGoldGamble = gambleRecord;
-    this.lastBurdenSettlement = settlement.record
-      ? {
-          nodeId,
-          ...settlement.record,
-          goldBefore: finalGold,
-          goldAfter: settlement.gold,
-          garnished: settlement.garnished,
-          extraShadow: settlement.extraShadow,
-        }
-      : null;
+    this.lastBurdenSettlement =
+      settlement.record || bannerWound
+        ? {
+            nodeId,
+            ...(settlement.record || {}),
+            goldBefore: finalGold,
+            goldAfter: settlement.gold,
+            garnished: settlement.garnished,
+            extraShadow: settlement.extraShadow,
+            ...(bannerWound ? { bannerWound } : {}),
+          }
+        : null;
     // An open contract settles here too (engine/ContractSettlement.js), once, for this victory
     // and no other: after the roster, gold and burdens are committed, so a reward lands on
     // the army as it now is and a penalty Debt starts with the NEXT victory. Never mid-battle,

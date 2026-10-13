@@ -1358,7 +1358,7 @@
           "kind": "act_boss"
         }
       ],
-      "description": "Once per battle, the first ally who would fall survives at 1 HP.",
+      "description": "Once per battle, the first ally who would fall survives at 1 HP, but carries a Lingering Injury.",
       "lore": "Sewn from the cloth of fallen standards by widows who refuse the word. It stays up.",
       "boons": [
         {
@@ -1781,14 +1781,14 @@
         }
       ],
       "twist": {
-        "label": "An Ill Omen that never ends: +1 shadow each victory",
+        "label": "An Ill Omen that never ends: +2 shadow each victory",
         "effects": [
           {
             "type": "burden",
             "params": {
               "id": "ill_omen",
               "permanent": true,
-              "extraShadow": 1
+              "extraShadow": 2
             }
           }
         ]

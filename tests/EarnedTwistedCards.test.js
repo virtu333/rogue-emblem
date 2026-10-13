@@ -86,9 +86,9 @@ function freshRun({ seed = 31, difficultyId = 'dusk', eclipse = true, gameData =
   return rm;
 }
 /** Take a twisted card the way a pick does: its boons, then its twist as its held price. */
-function take(rm, id) {
+function take(rm, id, blessing = card(id)) {
   expect(
-    rm.addBlessingMidRun(id, { earned: true, price: twistPriceOf(card(id)), source: 'act_boss' }),
+    rm.addBlessingMidRun(id, { earned: true, price: twistPriceOf(blessing), source: 'act_boss' }),
     id,
   ).toBe(true);
   return rm;
@@ -443,14 +443,20 @@ describe('Blood Covenant: +1 to every stat but Move for every unit; an Ill Omen 
     for (const stat of XP_STAT_NAMES) expect(before[stat], stat).toBe(ghostBase[stat] + 1);
   });
 
-  it('its Ill Omen never counts down: +1 shadow every victory, still there after many', () => {
-    // Failure: the omen counts down like an event's and passes after two battles.
+  it('its Ill Omen never counts down: +2 shadow every victory, still there after many', () => {
+    // Failure: the omen counts down like an event's and passes after two battles, or the twist
+    // gathers less than its card says.
+    const shadow = card('blood_covenant').twist.effects[0].params.extraShadow;
+    expect(shadow).toBe(2);
+    expect(card('blood_covenant').twist.label).toBe(
+      'An Ill Omen that never ends: +2 shadow each victory',
+    );
     const rm = take(freshRun(), 'blood_covenant');
-    expect(rm.burdens).toEqual([{ id: 'ill_omen', battles: 0, extraShadow: 1, permanent: true }]);
+    expect(rm.burdens).toEqual([{ id: 'ill_omen', battles: 0, extraShadow: 2, permanent: true }]);
     let burdens = rm.burdens;
     for (let i = 0; i < 6; i++) {
       const settled = burdenEffectsOnVictory({ ...rm, burdens }, { gold: 100 });
-      expect(settled.extraShadow).toBe(1);
+      expect(settled.extraShadow).toBe(2);
       expect(settled.record.illOmen.ended).toBe(false);
       burdens = settled.burdens;
     }
@@ -458,9 +464,9 @@ describe('Blood Covenant: +1 to every stat but Move for every unit; an Ill Omen 
     // And at the real commit, across a save.
     const node = rm.getAvailableNodes().find((n) => n.type === 'battle');
     rm.completeBattle(rm.getRoster(), node.id, 0, { turnCount: 1, turnPar: 9 });
-    expect(rm.lastEclipseCommit.burdenShadow).toBe(1);
+    expect(rm.lastEclipseCommit.burdenShadow).toBe(2);
     expect(roundTrip(rm).burdens).toEqual([
-      { id: 'ill_omen', battles: 0, extraShadow: 1, permanent: true },
+      { id: 'ill_omen', battles: 0, extraShadow: 2, permanent: true },
     ]);
   });
 });
@@ -926,6 +932,11 @@ describe("a twist's burden and a passing one share a record: the twist's part an
     .find((c) => c.id === 'kneel')
     .outcomes[0].effects.find((e) => e.type === 'burden');
   const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  // The merge is only visible while the twist's omen is weaker than the altar's (+2), so these
+  // tests take Blood Covenant at a +1 twist (the card shipped it before the +2 retune).
+  const covenant = structuredClone(card('blood_covenant'));
+  covenant.twist.effects[0].params.extraShadow = 1;
+  covenant.twist.label = 'An Ill Omen that never ends: +1 shadow each victory';
 
   /** A run whose route holds the Twin Altar, fallen to its dark face, at a node ready to enter. */
   function altarRun(seed = 3) {
@@ -986,14 +997,14 @@ describe("a twist's burden and a passing one share a record: the twist's part an
     ];
     // The twist first, then the altar.
     const first = altarRun();
-    take(first.rm, 'blood_covenant');
+    take(first.rm, 'blood_covenant', covenant);
     const result = kneel(first.rm, first.node);
     expect(first.rm.burdens).toEqual(expected);
     // The altar first, then the twist.
     const second = altarRun();
     kneel(second.rm, second.node);
     expect(second.rm.burdens).toEqual([{ id: 'ill_omen', battles, extraShadow: 2 }]);
-    take(second.rm, 'blood_covenant');
+    take(second.rm, 'blood_covenant', covenant);
     expect(second.rm.burdens).toEqual(expected);
     // The event's result says what now stands: an omen that never ends, +2 while the event's lasts.
     const line = result.results.find((r) => r.kind === 'burden');
@@ -1008,9 +1019,9 @@ describe("a twist's burden and a passing one share a record: the twist's part an
     const battles = onRung(omenDef, 'dusk', 'battles');
     for (const order of ['twist first', 'event first']) {
       let { rm, node } = altarRun();
-      if (order === 'twist first') take(rm, 'blood_covenant');
+      if (order === 'twist first') take(rm, 'blood_covenant', covenant);
       kneel(rm, node);
-      if (order === 'event first') take(rm, 'blood_covenant');
+      if (order === 'event first') take(rm, 'blood_covenant', covenant);
       const shadows = [];
       for (let i = 0; i < 6; i++) {
         winAny(rm);
@@ -1029,7 +1040,7 @@ describe("a twist's burden and a passing one share a record: the twist's part an
     // Failure: Cleanse lifts the whole record (the twist's price made free), or refuses the
     // event's part it would lift on its own.
     const { rm, node } = altarRun();
-    take(rm, 'blood_covenant');
+    take(rm, 'blood_covenant', covenant);
     kneel(rm, node);
     const churches = battleNodes(rm).slice(0, 2);
     for (const church of churches) {
@@ -1167,7 +1178,7 @@ describe("a twist's burden and a passing one share a record: the twist's part an
     // Failure: a merged chip reads only "Never ends" (the +2 hidden), the church offers to lift
     // the whole record, or the pick hides that the twist merges with a burden already carried.
     const { rm, node } = altarRun();
-    take(rm, 'blood_covenant');
+    take(rm, 'blood_covenant', covenant);
     kneel(rm, node);
     addBurden(rm, 'hunted', { battles: 2 });
     take(rm, 'hollow_sun_favor');
