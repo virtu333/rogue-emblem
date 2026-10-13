@@ -3,7 +3,10 @@ import { createVeteranKnight } from './SpecialCharacters.js';
 import { validateBattleState } from './BattleStateSnapshot.js';
 import { migrateSavedItemNames, ITEM_NAMES_REVISION } from './ItemNameMigration.js';
 import { migrateSavedGamblerCoins } from './AccessoryCatalogMigration.js';
-import { migrateSavedPerBattleWeapons } from './WeaponCatalogMigration.js';
+import {
+  migrateSavedPerBattleWeapons,
+  migrateSavedStaffUseRules,
+} from './WeaponCatalogMigration.js';
 import { migrateSavedLegendaryRelics } from './LegendaryRelicMigration.js';
 import {
   hydrateBattleTimeline,
@@ -5575,6 +5578,8 @@ export class RunManager {
     migrateSavedGamblerCoins(saved, gameData);
     // Per-battle weapons (Breachbolt) take the catalog's shot counts (same places).
     migrateSavedPerBattleWeapons(saved, gameData);
+    // Staves with a use rule of their own (the Warp Staff) take the catalog's (same places).
+    migrateSavedStaffUseRules(saved, gameData);
     // Legendaries saved before the rework take its changes (Oathblade, Hermit's Bow).
     migrateSavedLegendaryRelics(saved);
     for (const [holder, key, expanded] of expandedTimelines)

@@ -81,3 +81,61 @@ export function migrateSavedPerBattleWeapons(saved, gameData = null) {
   visit(saved, 0);
   return changed;
 }
+
+// Saved staves take the catalog's use rules (the Warp Staff nerf). A staff's own MAG
+// steps (`useBonuses`) and cap (`maxUses`) are read off the item (Combat.getStaffMaxUses),
+// so a Warp Staff saved before the nerf would keep the shared +1 at MAG 8/14/20 and no
+// cap. The same walk copies `uses`, `useBonuses` and `maxUses` from the catalog onto
+// every saved staff whose catalog entry names either rule, or that holds one the catalog
+// no longer names. `_usesSpent` and the rest of the instance stay. Idempotent, ungated.
+
+const STAFF_RULE_KEYS = ['useBonuses', 'maxUses'];
+
+function staffCatalog(gameData) {
+  const map = new Map();
+  for (const w of gameData?.weapons || []) {
+    if (w?.type === 'Staff' && typeof w.name === 'string') map.set(w.name, w);
+  }
+  return map;
+}
+
+const hasStaffRule = (item) => STAFF_RULE_KEYS.some((key) => item?.[key] !== undefined);
+
+/**
+ * Give every saved staff with a use rule of its own the catalog's `uses`, `useBonuses`
+ * and `maxUses`, in place. Returns the number of items changed.
+ */
+export function migrateSavedStaffUseRules(saved, gameData = null) {
+  const catalog = staffCatalog(gameData);
+  if (!catalog.size || !saved || typeof saved !== 'object') return 0;
+  let changed = 0;
+  const seen = new Set();
+  const visit = (node, depth) => {
+    if (!node || typeof node !== 'object' || depth > 64 || seen.has(node)) return;
+    seen.add(node);
+    if (
+      isRecord(node) &&
+      typeof node.name === 'string' &&
+      node.type === 'Staff' &&
+      !node._isRandomLegendary
+    ) {
+      const entry = catalogEntryFor(node, catalog);
+      if (entry && (hasStaffRule(entry) || hasStaffRule(node))) {
+        const differs =
+          node.uses !== entry.uses ||
+          STAFF_RULE_KEYS.some((key) => !sameCounts(node[key], entry[key]));
+        if (differs) {
+          node.uses = entry.uses;
+          for (const key of STAFF_RULE_KEYS) {
+            if (entry[key] === undefined) delete node[key];
+            else node[key] = structuredClone(entry[key]);
+          }
+          changed += 1;
+        }
+      }
+    }
+    for (const key of Object.keys(node)) visit(node[key], depth + 1);
+  };
+  visit(saved, 0);
+  return changed;
+}
