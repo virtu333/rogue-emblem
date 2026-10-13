@@ -1,6 +1,6 @@
 {
-  "generatedFrom": "eb7cf00ac351381691df4155054771dd96b1aef8",
-  "dataHash": "599a9ad74b0555c5",
+  "generatedFrom": "d6a3bcb551709e585ec43f25858dbc46c7372ca0",
+  "dataHash": "6611f9f5cbe3e704",
   "caseCount": 747,
   "cases": {
     "dispatch: null effect": "90431d3c72070d29 | no state change; events none; draws 0",
@@ -499,16 +499,16 @@
     "starting_whetstones count=0": "3185403203c7fc0b | changed blessingHistory; events starting_whetstones:invalid_starting_whetstones_count; draws 0",
     "starting_whetstones count=undefined": "8129c1a5238863b4 | changed blessingHistory, roster (+8 paths); events starting_whetstones; items 1; draws 0",
     "starting_whetstones with no catalog": "a59ee58a3ff5d5b6 | changed blessingHistory; events starting_whetstones:missing_whetstone_catalog; draws 0",
-    "starting_scroll {\"count\":1}": "dc183b11e78ec8b8 | changed blessingHistory, scrolls; events starting_scroll; items 1; draws 0",
-    "starting_scroll {\"count\":2}": "7cd9eb7f4fe2425f | changed blessingHistory, scrolls; events starting_scroll; items 2; draws 0",
-    "starting_scroll {\"count\":1,\"maxUnlockAct\":\"act2\"}": "c550aa6e143dfda7 | changed blessingHistory, scrolls; events starting_scroll; items 1; draws 0",
-    "starting_scroll {\"count\":2,\"maxUnlockAct\":\"act2\"}": "efd7cf3c8b632caa | changed blessingHistory, scrolls; events starting_scroll; items 2; draws 0",
-    "starting_scroll {\"count\":3,\"maxUnlockAct\":\"act2\",\"distinct\":true}": "195b0eb08fae4a93 | changed blessingHistory, scrolls; events starting_scroll; items 3; draws 0",
-    "starting_scroll {\"count\":5,\"maxUnlockAct\":\"act1\",\"distinct\":true}": "4ef763de88d1bd13 | changed blessingHistory, scrolls (+6 paths); events starting_scroll; items 5; draws 0",
-    "starting_scroll {\"count\":3,\"minUnlockAct\":\"act2\",\"maxUnlockAct\":\"act2\",\"distinct\":true}": "2db601029d1da3a1 | changed blessingHistory, scrolls; events starting_scroll; items 3; draws 0",
+    "starting_scroll {\"count\":1}": "c0ecccce74841cd9 | changed blessingHistory, scrolls; events starting_scroll; items 1; draws 0",
+    "starting_scroll {\"count\":2}": "95b99f712acc4dd3 | changed blessingHistory, scrolls; events starting_scroll; items 2; draws 0",
+    "starting_scroll {\"count\":1,\"maxUnlockAct\":\"act2\"}": "e20b92ed80d31d16 | changed blessingHistory, scrolls; events starting_scroll; items 1; draws 0",
+    "starting_scroll {\"count\":2,\"maxUnlockAct\":\"act2\"}": "252fd7633041b4af | changed blessingHistory, scrolls; events starting_scroll; items 2; draws 0",
+    "starting_scroll {\"count\":3,\"maxUnlockAct\":\"act2\",\"distinct\":true}": "171cb4a7da80c3d7 | changed blessingHistory, scrolls; events starting_scroll; items 3; draws 0",
+    "starting_scroll {\"count\":5,\"maxUnlockAct\":\"act1\",\"distinct\":true}": "33632ba816ae79ec | changed blessingHistory, scrolls (+6 paths); events starting_scroll; items 5; draws 0",
+    "starting_scroll {\"count\":3,\"minUnlockAct\":\"act2\",\"maxUnlockAct\":\"act2\",\"distinct\":true}": "a9de3dd2c67d5080 | changed blessingHistory, scrolls; events starting_scroll; items 3; draws 0",
     "starting_scroll {\"count\":0}": "bd0549751158d8b5 | changed blessingHistory; events starting_scroll:invalid_starting_scroll_count; draws 0",
     "starting_scroll with no scroll catalog": "80016495a582fd3b | changed blessingHistory; events starting_scroll:missing_scroll_catalog; draws 0",
-    "starting_scroll with a null scroll bag": "32c3b15bb273d7ce | changed blessingHistory, scrolls; events starting_scroll; items 1; draws 0",
+    "starting_scroll with a null scroll bag": "d41b12b3842811cb | changed blessingHistory, scrolls; events starting_scroll; items 1; draws 0",
     "starting_scroll with no valid scroll": "88cafac217f8acd6 | changed blessingHistory; events starting_scroll:no_valid_scroll_for_roster; draws 0",
     "starting_forge_lords stat=might {\"count\":1,\"value\":1}": "b3c20bed29c5f63f | changed blessingHistory, roster (+36 paths); events starting_forge_lords; items 3; draws 0",
     "starting_forge_lords stat=might {\"count\":2,\"value\":2}": "7863392e7111eac8 | changed blessingHistory, roster (+36 paths); events starting_forge_lords; items 3; draws 0",
@@ -748,7 +748,7 @@
     "card: debt_small price": "91f7e526888ff6af | changed blessingHistory, burdens; events burden; draws 0",
     "card: shadow_now price": "b61f5214494b3868 | changed blessingHistory, eclipse.actStartShadow, eclipse.shadow; events eclipse_shadow_delta; draws 0",
     "chain: a held card then its rolled price": "30e919ff051c04ac | changed activeBlessings; events none; draws 0; threw Invalid blessings config: missing top-level key: costPool",
-    "chain: a start gift catch (stage gift)": "01e9003eb328566c | changed blessingHistory, burdens, eclipse.actStartShadow, eclipse.shadow (+46 paths); events burden,eclipse_sh",
+    "chain: a start gift catch (stage gift)": "c7b7acb63b79f0f7 | changed blessingHistory, burdens, eclipse.actStartShadow, eclipse.shadow (+46 paths); events burden,eclipse_sh",
     "chain: a blessing taken mid-run": "b322500a73758b08 | no state change; events none; draws 0; threw Invalid blessings config: blessings[59] missing required key: des"
   }
 }
