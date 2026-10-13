@@ -471,7 +471,7 @@
       "hpCost": 4,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "Guard behind the shaft; the next blow finds you harder.",
+      "description": "Brace behind the shaft: the answering blow finds you harder to hurt.",
       "combatMods": {
         "defBonus": 5,
         "activated": [
@@ -2412,6 +2412,8 @@
           "classNames": [
             "Dark Knight",
             "Warlock",
+            "Necromancer",
+            "Circle Adept",
             "Zombie",
             "Revenant",
             "Dragon",
