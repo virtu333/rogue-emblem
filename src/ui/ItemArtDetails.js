@@ -50,14 +50,17 @@ export function appendItemArtDetails(parent, item, catalog = [], { openHelp } = 
     const summary = document.createElement('summary');
     summary.textContent = `Weapon art: ${art.name}`;
     details.append(summary);
-    for (const row of weaponArtSheet(art)) details.append(sheetRow(row));
+    for (const row of weaponArtSheet(art, { weapon: item })) details.append(sheetRow(row));
     // Open, the sheet is already on screen: only a closed disclosure previews itself.
     bindHoverPreview(
       summary,
       () =>
         details.open
           ? null
-          : { content: weaponArtSheet(art).map(sheetRow), footer: 'Click to expand' },
+          : {
+              content: weaponArtSheet(art, { weapon: item }).map(sheetRow),
+              footer: 'Click to expand',
+            },
       HOVER,
     );
     if (openHelp)
