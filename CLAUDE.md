@@ -248,12 +248,15 @@ See `ROADMAP.md` for all planned features. Key architectural constraints:
 Several files have grown large enough to require active management. When adding features, prefer extracting to a new controller/module over expanding these files further.
 
 ### Critical (actively decompose)
-- **BattleScene.js (~11,000 lines)** — 13 controllers extracted (5 original + PostCombatController, TransitionRecoveryController, LootFlowController, WeaponArtController, InputController, HealController, PromotionController, PrologueController). **Rule: never add new rendering or multi-step flows inline. Extract a controller with `create(scene)` / `destroy()` pattern.**
+- **BattleScene.js (~12,100 lines)** — 13 controllers extracted (5 original + PostCombatController, TransitionRecoveryController, LootFlowController, WeaponArtController, InputController, HealController, PromotionController, PrologueController). **Rule: never add new rendering or multi-step flows inline. Extract a controller with `create(scene)` / `destroy()` pattern.**
 
 ### Large (watch for growth)
 - **NodeMapScene.js (~1,950 lines)** — ChurchController/ShopController now own lifecycle and persistence only; ChurchMenu/ShopMenu and ArenaMenu are the sole service renderers. Do not restore headless canvas branches for tests—use rendering-only test adapters and real engine commands.
-- **RunManager.js (~3,800 lines)** — Blessing logic (~900 lines) could become BlessingStateManager.
+- **RunManager.js (~7,700 lines)** — Blessing logic (~900 lines) could become BlessingStateManager.
 - **RosterOverlay.js (~2,780 lines)** — Trade state machine extracted to RosterTradeController (state stays on the overlay; methods are delegating shims).
+
+### Guardrails
+Line budgets (`tests/FileSizeBudget.test.js`: these files only shrink; lower a budget when a PR frees room), no `src/engine/` import of `src/ui/`, `src/scenes/` or Phaser (`eslint.config.js`), and no new static import cycle (`tests/ImportCycles.test.js` against `tools/importCycleBaseline.json`; `npm run check:cycles -- --write` after breaking one). A new rule is a pure function in `src/engine/` that the scene and the harness both import, never a BattleScene method the harness copies.
 
 ### Extraction pattern
 ```js
