@@ -495,7 +495,14 @@ export const VISION_RANGES = { Infantry: 3, Armored: 3, Cavalry: 4, Flying: 5 };
 export const VISION_TERRAIN_BONUS = { Mountain: 2 };
 // Extra fog vision for a player unit of this class (by classes.json name): scouts and archers.
 // Stacks with the move type's range and the terrain bonus.
-export const VISION_CLASS_BONUS = { Thief: 1, Assassin: 1, Trickster: 1, Archer: 1, Sniper: 1 };
+export const VISION_CLASS_BONUS = {
+  Thief: 1,
+  Assassin: 1,
+  Trickster: 1,
+  Archer: 1,
+  Sniper: 1,
+  'Bow Knight': 1,
+};
 export const FOG_CHANCE_BY_ACT = { act1: 0.1, act2: 0.25, act3: 0.35, act4: 0.45, finalBoss: 0 };
 
 // Merchant Caravan (rare escort micro-objective, BATTLE/ELITE nodes act2+ only)

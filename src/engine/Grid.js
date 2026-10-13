@@ -29,7 +29,7 @@ const DIRECTIONS = [
 
 /**
  * A player unit's fog vision radius: its move type's range, plus its class's bonus (Thieves,
- * Assassins, Tricksters, Archers and Snipers see 1 further), plus the bonus of the terrain it
+ * Archers and their promotions see 1 further), plus the bonus of the terrain it
  * stands on (a Mountain sees 2 further). `terrain` is the tile's terrain.json entry (or null).
  * The one rule Grid and the harness grid read, so the two never drift.
  */

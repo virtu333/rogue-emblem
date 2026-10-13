@@ -344,9 +344,16 @@ describe('Fog of War', () => {
     ];
     const moveTypeOf = (name) => gameData.classes.find((c) => c.name === name).moveType;
 
-    it('Thieves, Archers and their listed promotions see 1 tile past their move type', () => {
+    it('Thieves, Archers and every promotion of theirs see 1 tile past their move type', () => {
       // Failure: vision reads only the move type, so a scout sees what a Fighter sees.
-      for (const className of ['Thief', 'Assassin', 'Trickster', 'Archer', 'Sniper']) {
+      for (const className of [
+        'Thief',
+        'Assassin',
+        'Trickster',
+        'Archer',
+        'Sniper',
+        'Bow Knight',
+      ]) {
         const moveType = moveTypeOf(className);
         const base = VISION_RANGES[moveType];
         for (const grid of makeGrids()) {
@@ -358,8 +365,8 @@ describe('Fog of War', () => {
     });
 
     it('other classes keep their move type range', () => {
-      // Failure: the bonus leaks to every unit (or to Bow Knight, which is not listed).
-      for (const className of ['Fighter', 'Bow Knight', 'Myrmidon']) {
+      // Failure: the bonus leaks to every unit.
+      for (const className of ['Fighter', 'Paladin', 'Myrmidon']) {
         const moveType = moveTypeOf(className);
         const base = VISION_RANGES[moveType];
         for (const grid of makeGrids()) {
