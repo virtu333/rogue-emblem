@@ -12,7 +12,7 @@ import {
 } from './UnitManager.js';
 import { getClassChangeWeaponGrants } from './RosterCommands.js';
 import { getReviveCost } from './RunManager.js';
-import { applyPromotionOath, oathBenchedNote } from './DeedSystem.js';
+import { applyPromotionOath } from './DeedSystem.js';
 import { CHURCH_PROMOTE_COST_LORD, CHURCH_PROMOTE_COST_RECRUIT } from '../utils/constants.js';
 import { kindleBlock } from './EclipseSystem.js';
 import { churchVowBlock, commitChurchVow } from './ChurchVow.js';
@@ -78,7 +78,6 @@ export function promoteAtChurch(run, unit, nodeId, target, gameData) {
   const dropped = getSkillDisplayNames(result?.droppedSkills || [], gameData.skills);
   const gifts = granted.length ? ` Received ${granted.join(', ')}.` : '';
   const full = ungranted.length ? ` Bag full: ${ungranted.join(', ')} could not be granted.` : '';
-  const waits = oath?.benched ? ` ${oathBenchedNote(unit, oath)}` : '';
   const kingmaker = crowned.length
     ? ` Kingmaker's Oath: ${crowned.map((c) => `+${c.value} ${c.stat}`).join(', ')}.`
     : '';
@@ -86,7 +85,7 @@ export function promoteAtChurch(run, unit, nodeId, target, gameData) {
     ok: true,
     oath,
     kingmaker: crowned,
-    message: `${unit.name} promoted to ${canonical.name}.${kingmaker}${oath?.learned ? ` ${oath.name}: learned ${oath.skillName}.` : ''}${gifts}${full}${dropped.length ? ` ${benchedSkillsNote(dropped)}` : ''}${waits}`,
+    message: `${unit.name} promoted to ${canonical.name}.${kingmaker}${oath?.learned ? ` ${oath.name}: learned ${oath.skillName}.` : ''}${gifts}${full}${dropped.length ? ` ${benchedSkillsNote(dropped)}` : ''}`,
   };
 }
 /**

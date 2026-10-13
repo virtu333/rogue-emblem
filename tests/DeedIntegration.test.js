@@ -302,7 +302,7 @@ describe('Oaths', () => {
     expect(result.notices).toContain('Oath of the Bridge: learned Pavise.');
   });
 
-  it('church promotion swears the Oath; at the skill cap it goes on the bench, and says so', () => {
+  it('church promotion swears the Oath; at the skill cap it takes its own slot', () => {
     const run = new RunManager(data);
     run.gold = 99999;
     const unit = withDeed(fighter(), bridge);
@@ -314,12 +314,12 @@ describe('Oaths', () => {
     full.skills = ['sol', 'luna', 'astra', 'vantage', 'wrath'];
     run.roster = [full];
     const capped = promoteAtChurch(run, full, 'c2', target, data);
-    expect(capped.message).toContain(
-      "Oath of the Bridge: Pavise is on Bram's bench (all 5 skill slots are full). Swap it in from Skills.",
-    );
+    expect(capped.message).toContain('Oath of the Bridge: learned Pavise.');
+    expect(capped.message).not.toContain('bench (all 5');
     expect(full.deeds.oath).toMatchObject({ skillId: 'pavise' });
     expect(full.deeds.waitingOath).toBeUndefined();
-    expect(full.benchedSkills).toContain('pavise');
+    expect(full.skills).toContain('pavise');
+    expect(full.benchedSkills || []).not.toContain('pavise');
   });
 
   it('the path chooser and the rite preview the Oath exactly as applied', () => {

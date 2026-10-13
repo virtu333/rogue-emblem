@@ -461,7 +461,8 @@ function addReviewContract(runManager, goal) {
 }
 
 /**
- * Roster review units: an Oath already sworn onto a full unit's bench (Bramwell), one
+ * Roster review units: a full unit promoted with its Oath sworn into the Oath's own slot and
+ * its new class skill (Colossus) waiting on the bench (Bramwell), one
  * who will meet the cap when promoted with his Master Seal (Corwin), and Edric in a
  * Seraph Robe at 1 HP with an Elixir and a Vulnerary (the robe's HP debt).
  */

@@ -499,7 +499,7 @@ test.describe('player choices (phone 390×844)', () => {
     expect(errors).toEqual([]);
   });
 
-  test('an Oath at the skill cap is sworn onto the bench and swapped in from Skills', async ({
+  test('an Oath at the skill cap takes its own slot; the class skill waits on the bench', async ({
     page,
   }, info) => {
     const errors = collect(page);
@@ -530,20 +530,22 @@ test.describe('player choices (phone 390×844)', () => {
       sheet.render();
       window.__oathUnit = u;
     });
+    // The Oath has a slot of its own: sworn and equipped beside the five skills.
     expect(await page.evaluate(() => window.__church)).toContain(
-      "Oath of the Bridge: Pavise is on Bramwell's bench",
+      'Oath of the Bridge: learned Pavise.',
     );
-    // The pane opens on a callout that names the new skill on the bench.
+    // The Warrior's Colossus arrived at a full skill pool: the pane opens on a callout naming it.
     const callout = page.locator('.mr-bench-callout');
     await expect(callout).toBeInViewport();
     await expect(callout).toContainText("New on Bramwell's bench");
-    await expect(callout).toContainText('Pavise');
+    await expect(callout).toContainText('Colossus');
     await expect(page.locator('.mr-unit-card', { hasText: 'Bramwell' })).toContainText(
       'New skill benched',
     );
     await callout.getByRole('button', { name: 'Go to Skills', exact: true }).click();
-    const card = page.locator('.mr-bench-new', { hasText: 'Pavise' });
+    const card = page.locator('.mr-bench-new', { hasText: 'Colossus' });
     await expect(card).toBeVisible();
+    await expect(page.locator('.mr-content')).toContainText('Oath · 1/1');
     await expect(page.locator('.mr-bench-callout')).toHaveCount(0);
     // Every button fits the phone: nothing spills past the pane.
     for (const b of await page.locator('.mr-content .mr-card button').all()) {
@@ -552,17 +554,19 @@ test.describe('player choices (phone 390×844)', () => {
     }
     await page.screenshot({ path: info.outputPath('skill-bench-phone.png') });
     await card.getByRole('button', { name: 'Swap in…', exact: true }).click();
-    const picker = page.getByRole('dialog', { name: 'Equip Pavise in place of', exact: true });
+    const picker = page.getByRole('dialog', { name: 'Equip Colossus in place of', exact: true });
     await picker.getByRole('button', { name: /^Luna/ }).click();
     await picker.getByRole('button', { name: 'Confirm', exact: true }).click();
-    await expect(page.locator('.mr-sheet')).toContainText('Pavise in, Luna to the bench.');
+    await expect(page.locator('.mr-sheet')).toContainText('Colossus in, Luna to the bench.');
     const unit = await page.evaluate(() => ({
       skills: window.__oathUnit.skills,
       bench: window.__oathUnit.benchedSkills,
     }));
+    expect(unit.skills).toContain('colossus');
     expect(unit.skills).toContain('pavise');
     expect(unit.skills).not.toContain('luna');
     expect(unit.bench).toContain('luna');
+    expect(unit.bench).not.toContain('pavise');
     expect(errors).toEqual([]);
   });
 
@@ -575,7 +579,7 @@ test.describe('player choices (phone 390×844)', () => {
     });
     // The act opens on a conversation; the route map comes after it.
     await page.getByRole('button', { name: 'Skip conversation', exact: true }).click();
-    // roster_checks: Bramwell's Oath of the Bridge was sworn onto his full bench.
+    // roster_checks: Bramwell promoted with five skills: his Warrior's Colossus waits on the bench.
     const roster = page.getByRole('button', { name: 'Roster', exact: true });
     await expect(roster).toHaveClass(/\bre-attention\b/);
     await expect(roster).toHaveAttribute('aria-description', 'A new skill is on the bench');
@@ -585,7 +589,7 @@ test.describe('player choices (phone 390×844)', () => {
       .locator('.mr-bench-callout')
       .getByRole('button', { name: 'Go to Skills', exact: true })
       .click();
-    await expect(page.locator('.mr-bench-new', { hasText: 'Pavise' })).toBeVisible();
+    await expect(page.locator('.mr-bench-new', { hasText: 'Colossus' })).toBeVisible();
     await page
       .locator('.mr-sheet header')
       .getByRole('button', { name: 'Close', exact: true })

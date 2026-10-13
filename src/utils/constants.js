@@ -45,6 +45,8 @@ export const ENEMY_PROMOTION_BASE_LEVEL = 12;
 // them, MAX_ABILITIES abilities (`trigger: "action"` skills: Shove, Dance, Steal, Blink...).
 export const MAX_SKILLS = 5;
 export const MAX_ABILITIES = 3;
+// A sworn Oath (DeedSystem) has its own slot, apart from both: a unit swears one, ever.
+export const MAX_OATHS = 1;
 
 // Class mastery: battles fought in a class family to earn its perk.
 // Traits can shift the effective threshold (masteryBattlesDelta), floored at

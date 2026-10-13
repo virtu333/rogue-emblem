@@ -199,8 +199,6 @@ export function promotionPathContent(unit, cls, gameData = {}, { churchRun = nul
         skillName: sworn.skillName,
         description: sworn.skillDescription,
         learned: sworn.learned,
-        // Skill slots full: sworn onto the bench (swapped in from Skills).
-        benched: sworn.benched === true,
       }
     : null;
   let grants;

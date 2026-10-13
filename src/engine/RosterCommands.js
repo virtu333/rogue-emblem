@@ -13,7 +13,7 @@ import {
   getCombatWeapons,
   normalizeEquippedFirst,
 } from './UnitManager.js';
-import { applyPromotionOath, oathBenchedNote } from './DeedSystem.js';
+import { applyPromotionOath } from './DeedSystem.js';
 import { consumableSource, spendConsumableUse } from './RosterInventory.js';
 import { classChangeItemBlock } from './TwistedBoons.js';
 import { stripItemNameSuffix } from '../utils/itemNames.js';
@@ -89,7 +89,6 @@ function promote(run, unit, item, promotedClassData, gameData) {
   const oath = applyPromotionOath(unit, gameData);
   const droppedSkills = [...(promotionResult?.droppedSkills || [])];
   if (oath?.learned) notices.push(`${oath.name}: learned ${oath.skillName}.`);
-  if (oath?.benched) notices.push(oathBenchedNote(unit, oath));
 
   for (const newWeapon of getClassChangeWeaponGrants(unit, oldTypes, gameData)) {
     if (!addToInventory(unit, newWeapon))

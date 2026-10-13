@@ -36,7 +36,7 @@
 
 import { getXpEffectiveLevel, learnSkill } from './UnitManager.js';
 import { bumpItemUsage } from './ItemUsage.js';
-import { allSlotsPhrase, slotKindOf } from './SkillSlots.js';
+import { equipSwornOath } from './SkillSlots.js';
 import { DEED_FORMS, titledName, unitEpithet } from './DeedTitles.js';
 import { isZeroRewardUnit } from './ReinforcementSpawns.js';
 
@@ -965,13 +965,12 @@ export function chooseTitle(unit, deedId) {
  * Swear the Oath on a player promotion (battle seal, church, roster seal).
  * Call right after promoteUnit so class innates count as known. Silent
  * engine promotions (recruit spawns, colosseum, boss recruits) never call it.
- * @returns {null | {..., learned: boolean, benched: boolean}}
+ * @returns {null | {..., learned: boolean}}
  */
 export function applyPromotionOath(unit, gameData = {}) {
   const oath = promotionOath(unit, gameData.deeds, gameData.skills);
   if (!oath) return null;
   if (!Array.isArray(unit.skills)) unit.skills = [];
-  const result = learnSkill(unit, oath.skillId);
   const record = {
     deedId: oath.deedId,
     skillId: oath.skillId,
@@ -980,19 +979,16 @@ export function applyPromotionOath(unit, gameData = {}) {
   };
   const state = sanitizeUnitDeeds(unit.deeds) || freshDeeds(unit);
   delete state.pledge;
-  if (result.learned || result.benched) {
-    delete state.waitingOath;
-    state.oath = record;
-    unit.deeds = state;
-    // Every slot full: sworn all the same, and kept on the bench (SkillLoadout).
-    return { ...oath, learned: result.learned === true, benched: result.benched === true };
-  }
+  const waiting = state.waitingOath;
+  delete state.waitingOath;
+  // Sworn before it is learned: the Oath has a slot of its own (SkillSlots.js), so it is
+  // equipped whatever the five hold, and a skill already known on the bench moves into it.
+  state.oath = record;
   unit.deeds = state;
-  return { ...oath, learned: false, benched: false };
-}
-
-/** The line a promotion shows when its Oath is sworn onto the bench (slots full). */
-export function oathBenchedNote(unit, oath) {
-  const who = typeof unit?.name === 'string' && unit.name ? unit.name : 'this unit';
-  return `${oath?.name || 'The Oath'}: ${oath?.skillName || 'its skill'} is on ${who}'s bench (${allSlotsPhrase(slotKindOf(oath?.skillId))} are full). Swap it in from Skills.`;
+  const learned = equipSwornOath(unit) || learnSkill(unit, oath.skillId).learned === true;
+  if (learned || unit.skills.includes(oath.skillId)) return { ...oath, learned: true };
+  delete state.oath;
+  if (waiting) state.waitingOath = waiting;
+  unit.deeds = state;
+  return { ...oath, learned: false };
 }
