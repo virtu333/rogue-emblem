@@ -3,7 +3,7 @@
 // early hands the warm-up back, and the next scene that asks loads only what is missing.
 // Only the title starts one; the route map, Home Base and a battle resume one handed back.
 import { describe, it, expect, vi } from 'vitest';
-import { startDeferredAssetWarmup } from '../src/utils/assetWarmup.js';
+import { startDeferredAssetWarmup, WARMUP_MAX_ATTEMPTS } from '../src/utils/assetWarmup.js';
 
 function makeRegistry(initial = {}) {
   const store = new Map(Object.entries(initial));
@@ -114,6 +114,32 @@ describe('startDeferredAssetWarmup', () => {
     startDeferredAssetWarmup(second);
     expect(first.queued).toEqual(['a']);
     expect(second.queued).toEqual([]);
+  });
+
+  it('a file that keeps failing is tried WARMUP_MAX_ATTEMPTS times in all, across scenes', () => {
+    const audioCache = new Set();
+    const registry = makeRegistry({ deferredAssets: [asset('ok'), asset('bad')] });
+    const title = makeScene(registry, audioCache);
+    startDeferredAssetWarmup(title, { batchSize: 2 });
+    expect(title.queued).toEqual(['ok', 'bad']);
+    title.finishBatch(['ok']); // 'bad' errored: the loader still completes
+    expect(title.queued).toEqual(['ok', 'bad', 'bad']);
+    // The title is left with the retry in flight: a cut batch counts no failure.
+    title.shutDown();
+    const map = makeScene(registry, audioCache);
+    startDeferredAssetWarmup(map, { resumeOnly: true });
+    expect(map.queued).toEqual(['bad']);
+    map.finishBatch([]);
+    // Its second failure (the first was the title's): given up, never queued again.
+    expect(map.queued).toEqual(['bad']);
+    expect(WARMUP_MAX_ATTEMPTS).toBe(2);
+    expect(registry.get('deferredAssetWarmupDone')).toBe(true);
+    // The failed file stays listed for the DOM portrait fallback.
+    expect(registry.get('deferredAssets').map((a) => a.key)).toEqual(['bad']);
+    map.shutDown();
+    const battle = makeScene(registry, audioCache);
+    startDeferredAssetWarmup(battle, { resumeOnly: true });
+    expect(battle.queued).toEqual([]);
   });
 
   it('a stub scene with no registry is left alone', () => {

@@ -26,6 +26,11 @@ function queueAsset(scene, asset) {
   }
 }
 
+// A file that fails to load (offline, a 404) is tried this many times in all, then left
+// to the scene that needs it, which plays its fallback; the count rides the registry, so
+// handing the warm-up on never resets it.
+export const WARMUP_MAX_ATTEMPTS = 2;
+
 // The warm-up runs on the loader of the scene that started it, and Phaser drops a
 // loader's queue when its scene shuts down. So a scene that leaves before the warm-up is
 // done hands it back (the flag clears) and the next scene that asks picks up what is
@@ -53,11 +58,16 @@ export function startDeferredAssetWarmup(scene, options = {}) {
       return;
     }
 
-    const pending = deferred.filter((asset) => !isLoaded(scene, asset));
+    const failures = scene.registry.get('deferredAssetFailures') || {};
+    const missing = deferred.filter((asset) => !isLoaded(scene, asset));
+    const pending = missing.filter((asset) => (failures[asset.key] || 0) < WARMUP_MAX_ATTEMPTS);
     if (pending.length === 0) {
-      scene.registry.set('deferredAssets', []);
+      // What failed stays listed: a DOM portrait still reads its URL from here.
+      scene.registry.set('deferredAssets', missing);
       scene.registry.set('deferredAssetWarmupDone', true);
-      markStartup('deferred_asset_warmup_complete');
+      markStartup('deferred_asset_warmup_complete', {
+        failed: missing.map((asset) => asset.key),
+      });
       return;
     }
 
@@ -69,6 +79,12 @@ export function startDeferredAssetWarmup(scene, options = {}) {
       groups: Array.from(new Set(batch.map((a) => a.group).filter(Boolean))),
     });
     scene.load.once('complete', () => {
+      // A batch the scene's shutdown cut short never completes, so it counts no failure.
+      const counts = { ...(scene.registry.get('deferredAssetFailures') || {}) };
+      for (const asset of batch) {
+        if (!isLoaded(scene, asset)) counts[asset.key] = (counts[asset.key] || 0) + 1;
+      }
+      scene.registry.set('deferredAssetFailures', counts);
       markStartup('deferred_asset_batch_complete', { count: batch.length });
       scene.time.delayedCall(delayMs, runBatch);
     });
