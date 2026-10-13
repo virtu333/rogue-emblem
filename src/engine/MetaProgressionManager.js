@@ -67,7 +67,35 @@ function normalizeLordSelection(raw) {
 }
 
 function defaultStoryFlags() {
-  return { bossSlain: {}, defeatedBy: {}, lordFalls: {}, lastRun: null, linesPlayed: [] };
+  return {
+    bossSlain: {},
+    defeatedBy: {},
+    lordFalls: {},
+    lastRun: null,
+    linesPlayed: [],
+    narrativeSeen: {},
+    lossStreak: 0,
+  };
+}
+
+// Barks and flavour pools carried between runs (utils/pickFresh.js bags, compact: line
+// keys, not lines), so a lord's quips or a node's flavour walk the whole pool across runs
+// before any line repeats. Bounded: one bag per pool key, each no longer than its pool.
+const MAX_NARRATIVE_BAGS = 512;
+const MAX_BAG_SEEN = 64;
+const LINE_KEY_PATTERN = /^l[0-9a-z]+$/;
+
+function normalizeNarrativeSeen(raw) {
+  const out = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  for (const [key, bag] of Object.entries(raw).slice(-MAX_NARRATIVE_BAGS)) {
+    if (!key || !bag || typeof bag !== 'object' || !Array.isArray(bag.seen)) continue;
+    const seen = [
+      ...new Set(bag.seen.filter((k) => typeof k === 'string' && LINE_KEY_PATTERN.test(k))),
+    ].slice(-MAX_BAG_SEEN);
+    out[key] = { cycle: Math.max(0, Math.floor(Number(bag.cycle) || 0)), seen };
+  }
+  return out;
 }
 
 // Room for the commander's run-start pool and the bosses' rematch exchanges
@@ -112,6 +140,9 @@ function normalizeLastRun(raw) {
     difficultyId: typeof raw.difficultyId === 'string' ? raw.difficultyId : 'normal',
     defeatedBy: typeof raw.defeatedBy === 'string' ? raw.defeatedBy : null,
     endedAt: Number.isFinite(raw.endedAt) ? raw.endedAt : 0,
+    lordsFell: Array.isArray(raw.lordsFell)
+      ? [...new Set(raw.lordsFell.filter((name) => typeof name === 'string' && name))]
+      : [],
   };
 }
 
@@ -123,6 +154,8 @@ function normalizeStoryFlags(raw) {
     lordFalls: normalizeStoryCountMap(raw.lordFalls),
     lastRun: normalizeLastRun(raw.lastRun),
     linesPlayed: mergeLinesPlayed(raw.linesPlayed),
+    narrativeSeen: normalizeNarrativeSeen(raw.narrativeSeen),
+    lossStreak: Math.max(0, Math.floor(Number(raw.lossStreak) || 0)),
   };
 }
 
@@ -982,6 +1015,11 @@ export class MetaProgressionManager {
 
   // --- Story flag methods (run-aware narrative memory) ---
 
+  /** The barks and flavour bags carried between runs (compact), for RunManager.startRun. */
+  getNarrativeSeen() {
+    return structuredClone(this.storyFlags?.narrativeSeen || {});
+  }
+
   getStoryFlags() {
     return this.storyFlags;
   }
@@ -1093,6 +1131,7 @@ export class MetaProgressionManager {
     wasBossDefeat = false,
     lordFalls = [],
     victoryRecord = null,
+    narrativeSeen = null,
   } = {}) {
     if (result !== 'victory' && result !== 'defeat') return;
     if (result === 'victory' && victoryRecord)
@@ -1104,7 +1143,20 @@ export class MetaProgressionManager {
       difficultyId: typeof difficultyId === 'string' ? difficultyId : 'normal',
       defeatedBy: foe,
       endedAt: Date.now(),
+      lordsFell: Array.isArray(lordFalls)
+        ? [...new Set(lordFalls.filter((name) => typeof name === 'string' && name))]
+        : [],
     };
+    this.storyFlags.lossStreak =
+      result === 'defeat'
+        ? Math.max(0, Math.floor(Number(this.storyFlags.lossStreak) || 0)) + 1
+        : 0;
+    if (narrativeSeen) {
+      this.storyFlags.narrativeSeen = normalizeNarrativeSeen({
+        ...this.storyFlags.narrativeSeen,
+        ...narrativeSeen,
+      });
+    }
     if (result === 'defeat' && wasBossDefeat && foe) {
       this.storyFlags.defeatedBy[foe] = this.getDefeatedByCount(foe) + 1;
     }
@@ -1865,7 +1917,13 @@ export class MetaProgressionManager {
       const localEndedAt = Number(this.storyFlags.lastRun?.endedAt) || 0;
       if (diskFlags.lastRun && diskEndedAt > localEndedAt) {
         this.storyFlags.lastRun = diskFlags.lastRun;
+        this.storyFlags.lossStreak = diskFlags.lossStreak;
       }
+      // A bag only the other copy has walked is kept; where both have one, local is newer.
+      this.storyFlags.narrativeSeen = normalizeNarrativeSeen({
+        ...diskFlags.narrativeSeen,
+        ...this.storyFlags.narrativeSeen,
+      });
     }
     if (isDifficultyId(disk.lastDifficulty)) this.lastDifficulty = disk.lastDifficulty;
     // The prologue: the further state wins and a paid grant stays paid, so the grant

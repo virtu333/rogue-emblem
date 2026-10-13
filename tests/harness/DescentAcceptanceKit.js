@@ -98,7 +98,7 @@ export function playNode(rm, node, army) {
  * A free tile `unit` could stand on and strike `foe` from with its equipped weapon (the nearest
  * first; an Entity's distance is from its footprint, as combat measures it).
  */
-function freeTileBeside(b, unit, foe) {
+export function freeTileBeside(b, unit, foe) {
   const { min, max } = parseRange(unit.weapon?.range || '1');
   const taken = (c, r) => b.getUnitAt(c, r);
   const cols = b.battleConfig.cols;
