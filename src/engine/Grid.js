@@ -9,6 +9,7 @@ import {
   ATTACK_RANGE_ALPHA,
   VISION_RANGES,
   VISION_TERRAIN_BONUS,
+  VISION_CLASS_BONUS,
 } from '../utils/constants.js';
 import { parseRange } from './Combat.js';
 import { createBoardTransform } from '../utils/boardOrientation.js';
@@ -27,13 +28,16 @@ const DIRECTIONS = [
 ];
 
 /**
- * A player unit's fog vision radius: its move type's range plus the bonus of the terrain it
+ * A player unit's fog vision radius: its move type's range, plus its class's bonus (Thieves,
+ * Archers and their promotions see 1 further), plus the bonus of the terrain it
  * stands on (a Mountain sees 2 further). `terrain` is the tile's terrain.json entry (or null).
  * The one rule Grid and the harness grid read, so the two never drift.
  */
 export function unitVisionRange(unit, terrain) {
   const base = VISION_RANGES[unit?.moveType] || 3;
-  return base + (VISION_TERRAIN_BONUS[terrain?.name] || 0);
+  return (
+    base + (VISION_CLASS_BONUS[unit?.className] || 0) + (VISION_TERRAIN_BONUS[terrain?.name] || 0)
+  );
 }
 
 /**

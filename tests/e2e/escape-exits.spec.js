@@ -75,9 +75,10 @@ for (const width of [667, 844]) {
     await expect.poll(markersInView).toBe(true);
     await page.screenshot({ path: info.outputPath('escape-overview.png') });
     await hud.getByRole('button', { name: 'End turn…', exact: true }).tap();
-    await expect(hud.getByRole('button', { name: 'Keep playing', exact: true })).toBeFocused();
+    await expect(hud.getByRole('button', { name: 'End turn now', exact: true })).toBeVisible();
     await expect(hud.getByRole('button', { name: 'Show exits', exact: true })).toHaveCount(0);
-    await hud.getByRole('button', { name: 'Keep playing', exact: true }).tap();
+    await page.evaluate(() => window.__emblemRogueGame.events.emit('mobile:cancel'));
+    await expect(hud.getByRole('button', { name: 'End turn now', exact: true })).toHaveCount(0);
     // Reconstruct from the shipping checkpoint serializer and resume path.
     await page.evaluate(async () => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');

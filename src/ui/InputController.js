@@ -498,6 +498,8 @@ export class InputController {
       }
       return;
     }
+    // A tap on the board closes the end-turn confirm and then acts as a tap.
+    scene._mobileBattleHud?.cancelEndTurn?.();
 
     if (scene.isMobileInput) this.refreshTileInfo(gp.col, gp.row);
 

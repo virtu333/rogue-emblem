@@ -194,8 +194,8 @@ describe('Tier 1 Weapon Arts Expansion', () => {
 
     it('has 60 weapon art scrolls', () => {
       // 34 + one for each Iron/Steel art that had none (21) and the 4 revived legacy arts,
-      // plus Lunar Brace's.
-      expect(weaponArtScrolls.length).toBe(60);
+      // plus Lunar Brace's and Hunter's Focus's (revived Oct 13, 2026).
+      expect(weaponArtScrolls.length).toBe(61);
     });
 
     it('every scroll references a valid art ID', () => {
@@ -318,15 +318,11 @@ describe('Tier 1 Weapon Arts Expansion', () => {
   });
 
   describe('legacy art exclusion', () => {
-    // Precise Cut, Piercing Drive, Vaulting Thrust and Longshot came back in Oct 2026.
-    const legacyIds = [
-      'sword_comet_edge',
-      'axe_wild_swing',
-      'axe_rending_cleave',
-      'bow_hunters_focus',
-    ];
+    // Precise Cut, Piercing Drive, Vaulting Thrust and Longshot came back in Oct 2026,
+    // Hunter's Focus (as a self-buff) on Oct 13.
+    const legacyIds = ['sword_comet_edge', 'axe_wild_swing', 'axe_rending_cleave'];
 
-    it('the 4 retired legacy arts have legacy: true', () => {
+    it('the 3 retired legacy arts have legacy: true', () => {
       for (const id of legacyIds) {
         expect(artById.get(id).legacy).toBe(true);
       }
@@ -345,8 +341,8 @@ describe('Tier 1 Weapon Arts Expansion', () => {
       expect(allArts.filter((a) => a.tierAffinity === 'Iron' && !a.legacy).length).toBe(17);
     });
 
-    it('active Steel pool has 24 arts (27 minus 3 legacy)', () => {
-      expect(allArts.filter((a) => a.tierAffinity === 'Steel' && !a.legacy).length).toBe(24);
+    it('active Steel pool has 25 arts (27 minus 2 legacy)', () => {
+      expect(allArts.filter((a) => a.tierAffinity === 'Steel' && !a.legacy).length).toBe(25);
     });
   });
 
@@ -379,7 +375,8 @@ describe('Tier 1 Weapon Arts Expansion', () => {
       expect(act2Pool).toContain('Seraphim Scroll');
       expect(act2Pool).toContain('Precise Cut Scroll');
       expect(act2Pool).not.toContain('Comet Edge Scroll');
-      expect(act2Pool.length).toBe(2 + 15 + 24); // listed + Iron + Steel
+      expect(act2Pool).toContain("Hunter's Focus Scroll");
+      expect(act2Pool.length).toBe(2 + 15 + 25); // listed + Iron + Steel
     });
 
     it('loot tables have updated act3 weapon art scroll pool', () => {

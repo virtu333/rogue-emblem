@@ -133,6 +133,8 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     setPieceId: 'legacy',
     setPieceVariant: 'legacy',
     mirrored: 'legacy',
+    // A procedural template's per-battle choices (TemplateLayout.js): a record, read by no rule.
+    templateChoices: 'inert',
     formationSpares: 'legacy',
     encounterGroups: 'encounters',
     triggeredWaves: 'encounters',
@@ -157,6 +159,8 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
   // A locked config's enemy spawn.
   enemySpawn: Object.freeze({
     holdWakeTurn: 'legacy',
+    // A procedural template's enemy group (TemplateLayout.js); its orders are legacy fields.
+    templateGroup: 'inert',
     patrolIndex: 'encounters',
     encounterGroupId: 'encounters',
     clampTile: 'objectives',
