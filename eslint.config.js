@@ -9,7 +9,13 @@ export default [
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',
-      globals: { ...globals.browser, ...globals.node },
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        // Build stamp (vite.config.js define, src/utils/buildIdentity.js).
+        __BUILD_SHA__: 'readonly',
+        __BUILD_DATE__: 'readonly',
+      },
     },
     rules: {
       'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],

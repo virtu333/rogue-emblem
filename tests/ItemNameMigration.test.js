@@ -179,10 +179,10 @@ describe('battle checkpoint and rewind timeline', () => {
         },
         timeline: {
           snapshots: [
-            // A keyframe holds whole items; a patch may hold only a changed name.
+            // fromJSON hands the walk whole states (a patch is decoded first:
+            // tests/TimelinePatchMigration.test.js).
             { state: { playerUnits: [{ weapon: legacy('Glimmer', 'Lightning') }] } },
-            { base: 0, patch: { o: { weapon: { o: { name: { $: 'Keen Iron Sword +1' } } } } } },
-            { base: 0, patch: { o: { history: { $: [{ weapon: 'Swordreaver' }] } } } },
+            { state: { history: [{ weapon: 'Swordreaver' }] } },
           ],
         },
       },
@@ -199,8 +199,7 @@ describe('battle checkpoint and rewind timeline', () => {
     expect(edric.activated[0].name).toBe('Renewal Aura');
     expect(bip.checkpoint.enemyUnits[0].weapon.name).toBe('Horsebane');
     expect(bip.timeline.snapshots[0].state.playerUnits[0].weapon.name).toBe('Glimmer');
-    expect(bip.timeline.snapshots[1].patch.o.weapon.o.name.$).toBe('Cruel Iron Sword +1');
-    expect(bip.timeline.snapshots[2].patch.o.history.$[0].weapon).toBe('Axehook');
+    expect(bip.timeline.snapshots[1].state.history[0].weapon).toBe('Axehook');
     expect(save.itemNamesRevision).toBe(ITEM_NAMES_REVISION);
   });
 

@@ -17,6 +17,7 @@ import {
   descentData,
   descentRun,
   endTurn,
+  freeTileBeside,
   nodeOf,
   passNode,
   playNode,
@@ -67,6 +68,9 @@ async function fightTheGate(rm) {
   for (let turn = 0; turn < 8 && !b.result; turn++) {
     for (const unit of [...b.playerUnits]) {
       if (b.result || unit.hasActed || !b.enemyUnits.includes(lieutenant)) break;
+      // On Nightfall and Black Sun two Generals on post hold his flanks: one side stays open, so
+      // a unit with no free tile beside him waits for the next turn.
+      if (!freeTileBeside(b, unit, lieutenant)) continue;
       const before = lieutenant.revivalStones || 0;
       await strike(driver, unit, lieutenant);
       if ((lieutenant.revivalStones || 0) < before) bars++;
