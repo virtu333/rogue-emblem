@@ -1,5 +1,5 @@
 {
-  "revision": "03b411a534a241f52853da924d3ca31f2d8c5ce0d0ced49c61734df50f3b8d30",
+  "revision": "8945b948506e7706d8814268fb2032f1edb624caeb5640a66f2f1d6e018b69c4",
   "entries": {
     "music_battle_act1": {
       "url": "assets/audio/versioned/music/music_battle_act1-23150bcd27b5efe1e43dbfbd97cb631e96cf859162b45e3693170f2548a8f7c7.mp3",
@@ -37,14 +37,14 @@
       "timeline": "070211a2bb5f8c7b92a2f7a8e9f2134002776deeec8d03903b1e86690d881ca2"
     },
     "music_battle_act1_5": {
-      "url": "assets/audio/versioned/music/music_battle_act1_5-45390c110eac57edce5bf4e6cf7ce9b82d5a47f7fac794b7be2abe95370f0a05.mp3",
-      "sha256": "45390c110eac57edce5bf4e6cf7ce9b82d5a47f7fac794b7be2abe95370f0a05",
-      "timeline": "7f4b33f1b913738959c53ac08cb7bfa599dd48a4b31d0e0555c719f5571def4c"
+      "url": "assets/audio/versioned/music/music_battle_act1_5-e4e28ee218df8cc14cc8ebc8f966ee9a031e792b61baaa63f512055bbb12c604.mp3",
+      "sha256": "e4e28ee218df8cc14cc8ebc8f966ee9a031e792b61baaa63f512055bbb12c604",
+      "timeline": "1eee8a9e44b42ad73f51c9c2a0a1db06395ba722cca18478cd2599d130ee4379"
     },
     "music_battle_act1_5_calm": {
-      "url": "assets/audio/versioned/music/music_battle_act1_5_calm-76eb8dd89350152b6484dc0d959144ca20faf148d2d9d6f433ffb1b67637bb31.mp3",
-      "sha256": "76eb8dd89350152b6484dc0d959144ca20faf148d2d9d6f433ffb1b67637bb31",
-      "timeline": "7f4b33f1b913738959c53ac08cb7bfa599dd48a4b31d0e0555c719f5571def4c"
+      "url": "assets/audio/versioned/music/music_battle_act1_5_calm-2c66a94657444a379e820774fe95b47e08af1c623b42110be9fab3c33a8ed1fe.mp3",
+      "sha256": "2c66a94657444a379e820774fe95b47e08af1c623b42110be9fab3c33a8ed1fe",
+      "timeline": "1eee8a9e44b42ad73f51c9c2a0a1db06395ba722cca18478cd2599d130ee4379"
     },
     "music_battle_act1_calm": {
       "url": "assets/audio/versioned/music/music_battle_act1_calm-bd60618d3763a154199ac8380e2ad1f800d07e38e44c48b8d5d4344cc0b5945a.mp3",
