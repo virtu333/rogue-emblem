@@ -1,6 +1,7 @@
 import { battleSession, isCurrentBattleSession } from './BattleSession.js';
 import { persistBattleDefeat } from './BattleFatalDecision.js';
 import { fallenBattleRecruits } from '../engine/BattleRecruits.js';
+import { bannerHeldUidOf } from '../engine/BattleBlessings.js';
 import { unitIdentityKey, unitUidOf } from '../engine/UnitIdentity.js';
 import { captureBattleState } from './BattleCheckpointAdapter.js';
 import { recordBattleTimeline } from './BattleTimelineRecorder.js';
@@ -158,6 +159,8 @@ export class PostCombatController {
         }
       }
       scene._newlyMasteredUnits = newlyMastered;
+      // Read before serializing: serializeUnit drops the banner's stamp.
+      const bannerHeldUid = bannerHeldUidOf(liveSurvivors);
       const surviving = liveSurvivors.map((u) => serializeUnit(u));
       // Roster order by unit identity (two units may share a name).
       const rosterOrder = new Map(
@@ -208,6 +211,8 @@ export class PostCombatController {
           fallenBattleRecords: scene._fallenBattleRecords,
           // The Vigil's words (engine/Vigil.js vigilState), committed to the run's Rite here.
           riteWords: scene._vigilState?.words ?? 0,
+          // The Unbroken Banner's held survivor, who takes its Lingering Injury.
+          bannerHeldUid,
         },
       );
       // A lord recruited in this battle (a recruit node's Talk) has now joined.

@@ -104,7 +104,7 @@ test('DOM Help resolves mobile copy, searches all categories and restores browsi
   await menu.getByRole('button', { name: 'Scroll details down' }).click();
   const previousScroll = await menu.locator('article').evaluate((el) => el.scrollTop);
   const search = menu.getByRole('searchbox');
-  await search.fill('Par');
+  await search.fill('Par:');
   await expect(
     menu.locator('.re-row').filter({ hasText: 'Battle Stakes & Rewards' }),
   ).toContainText('Goals');
@@ -112,7 +112,7 @@ test('DOM Help resolves mobile copy, searches all categories and restores browsi
   await expect(search).toBeFocused();
   await page.keyboard.press('Home');
   await page.keyboard.press('End');
-  await expect(search).toHaveValue('Par');
+  await expect(search).toHaveValue('Par:');
   await search.fill('zzzz-missing');
   await expect(menu.locator('article')).toContainText('No matching help entries.');
   await search.fill('');

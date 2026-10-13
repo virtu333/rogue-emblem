@@ -35,7 +35,7 @@ import {
   pageErrors,
   safeAreaInsets,
 } from './portraitHelpers.js';
-import { waitForScene, installSimPad, padTap } from './helpers.js';
+import { waitForScene, installSimPad, padTap, openRosterUnit } from './helpers.js';
 
 const BTN = { A: 0, B: 1, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 };
 const [SE, IPHONE_13, PRO_MAX] = PORTRAIT_PHONES;
@@ -176,6 +176,8 @@ async function openSheet(page, touch = true) {
   );
   const sheet = page.getByRole('dialog', { name: 'Manage roster', exact: true });
   await expect(sheet).toBeVisible();
+  // The Roster opens on its overview; the first card (Edric) opens his detail.
+  await openRosterUnit(sheet, null, { tap: touch });
   return sheet;
 }
 

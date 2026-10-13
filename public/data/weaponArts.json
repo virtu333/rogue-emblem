@@ -246,13 +246,18 @@
       "id": "sword_seal_speed",
       "name": "Seal Speed",
       "weaponType": "Sword",
-      "tierAffinity": "Steel",
-      "unlockAct": "act2",
+      "allowedTypes": [
+        "Sword",
+        "Lance",
+        "Bow"
+      ],
+      "tierAffinity": "Iron",
+      "unlockAct": "act1",
       "requiredRank": "Prof",
       "hpCost": 6,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A cut to the tendons that slows the target's feet.",
+      "description": "A blow to the tendons that slows the target's feet.",
       "effects": {
         "afterCombat": [
           {
@@ -588,8 +593,13 @@
       "id": "lance_shatter_slash",
       "name": "Shatter Slash",
       "weaponType": "Lance",
-      "tierAffinity": "Steel",
-      "unlockAct": "act2",
+      "allowedTypes": [
+        "Sword",
+        "Lance",
+        "Bow"
+      ],
+      "tierAffinity": "Iron",
+      "unlockAct": "act1",
       "requiredRank": "Prof",
       "hpCost": 6,
       "perMapLimit": 2,
@@ -1197,13 +1207,18 @@
       "id": "bow_break_shot",
       "name": "Break Shot",
       "weaponType": "Bow",
-      "tierAffinity": "Steel",
-      "unlockAct": "act2",
+      "allowedTypes": [
+        "Sword",
+        "Lance",
+        "Bow"
+      ],
+      "tierAffinity": "Iron",
+      "unlockAct": "act1",
       "requiredRank": "Prof",
       "hpCost": 5,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "An arrow to the joints leaves DEF lowered.",
+      "description": "A strike at the joints leaves DEF lowered.",
       "effects": {
         "afterCombat": [
           {
@@ -1229,8 +1244,13 @@
       "id": "bow_waning_shot",
       "name": "Waning Shot",
       "weaponType": "Bow",
-      "tierAffinity": "Steel",
-      "unlockAct": "act2",
+      "allowedTypes": [
+        "Sword",
+        "Lance",
+        "Bow"
+      ],
+      "tierAffinity": "Iron",
+      "unlockAct": "act1",
       "requiredRank": "Prof",
       "hpCost": 5,
       "perMapLimit": 2,
@@ -1261,13 +1281,18 @@
       "id": "bow_seal_magic",
       "name": "Seal Magic",
       "weaponType": "Bow",
-      "tierAffinity": "Steel",
-      "unlockAct": "act2",
+      "allowedTypes": [
+        "Sword",
+        "Lance",
+        "Bow"
+      ],
+      "tierAffinity": "Iron",
+      "unlockAct": "act1",
       "requiredRank": "Prof",
       "hpCost": 5,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Rattle a caster and their MAG sags after the shot.",
+      "description": "Rattle a caster and their MAG sags after the blow.",
       "effects": {
         "afterCombat": [
           {

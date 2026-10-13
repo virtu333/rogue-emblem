@@ -20,7 +20,7 @@
 //   - a failed save during a switch keeps the battle playable and a later turn
 //     retries; UI-only actions never advance the gameplay RNG.
 import { test, expect } from '@playwright/test';
-import { waitForGame, attachSceneCrashArtifacts } from './helpers.js';
+import { waitForGame, attachSceneCrashArtifacts, openRosterUnit } from './helpers.js';
 import {
   PORTRAIT_PHONES,
   activeScene,
@@ -550,6 +550,7 @@ test('the trade menu keeps the held item and the focus through a turn and back',
   await page.getByRole('button', { name: 'Skip conversation', exact: true }).tap();
   await page.locator('.re-node-map').getByRole('button', { name: 'Roster', exact: true }).tap();
   const sheet = page.getByRole('dialog', { name: 'Manage roster', exact: true });
+  await openRosterUnit(sheet, null, { tap: true });
   await sheet.getByRole('button', { name: 'Equipment', exact: true }).tap();
   const trade = sheet.getByRole('button', { name: 'Trade…', exact: true }).first();
   await trade.scrollIntoViewIfNeeded();

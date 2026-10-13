@@ -1,5 +1,11 @@
 import { test, expect, devices } from '@playwright/test';
-import { waitForGame, waitForScene, collectErrors } from './helpers.js';
+import {
+  waitForGame,
+  waitForScene,
+  collectErrors,
+  openRosterUnit,
+  closeRoster,
+} from './helpers.js';
 test.use({ ...devices['iPhone 13'], viewport: { width: 844, height: 390 } });
 
 async function enterNode(page, desired) {
@@ -212,10 +218,10 @@ test('touch run: loadout, battle action, rewards, shop, equipment, next battle a
   await page.locator('.shop-menu').getByRole('button', { name: 'Leave', exact: true }).tap();
   await page.evaluate(() => window.__emblemRogueGame.scene.getScene('NodeMap')._openRoster());
   const sheet = page.getByRole('dialog', { name: 'Manage roster' });
-  await sheet.getByRole('button', { name: new RegExp(`^${recipient}, Level`) }).tap();
+  await openRosterUnit(sheet, recipient, { tap: true });
   await sheet.getByRole('button', { name: 'Equipment', exact: true }).tap();
   await expect(sheet.getByRole('heading', { name: entry.name, exact: true }).first()).toBeVisible();
-  await sheet.getByRole('button', { name: 'Close', exact: true }).tap();
+  await closeRoster(sheet, 'Close', { tap: true });
   await page.waitForTimeout(800);
   await enterNode(page, 'battle');
   await waitForScene(page, 'Battle');

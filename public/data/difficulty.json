@@ -285,7 +285,10 @@
       "objectiveParOffset": { "seize": -4, "escape": -2, "rout": { "act4": -2 } },
       "villageMinRow": { "act1": 1 },
       "enemyClassEarliestAct": { "Necromancer": "act4", "Circle Adept": "finalBoss", "Hollowed": "finalBoss" },
-      "recruitAffixExcludedActs": []
+      "recruitAffixExcludedActs": [],
+      "actOverrides": {
+        "act1": { "enemyStatBonus": 0 }
+      }
     },
     "lunatic": {
       "label": "Black Sun",

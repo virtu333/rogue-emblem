@@ -556,6 +556,34 @@ describe('battlefield presentation integration', () => {
     expect(branch.presentation.nextId).toBe(archive.nextId);
   });
 
+  it('a committed rewind whose units cannot be drawn completes, then tries each again', () => {
+    // A unit nothing could draw must never be played against (ui/arrivalGraphic.js): the rewind
+    // (already saved) still rebuilds the board, and each undrawn unit is tried once more.
+    const { scene, run } = fixture();
+    const controller = scene._visionController;
+    const target = scene._battleTimeline.entries[0].id;
+    const state = getEntryState(scene._battleTimeline, target);
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const attempts = new Map();
+    scene.addUnitGraphic = (unit) => {
+      attempts.set(unit.battleEntityId, (attempts.get(unit.battleEntityId) || 0) + 1);
+      throw new Error('Renderer unavailable: sprite');
+    };
+    scene.add = new Proxy(scene.add, {
+      get: () => () => {
+        throw new Error('Renderer unavailable');
+      },
+    });
+    expect(
+      controller.executeRewind(state, branchBattleTimeline(scene._battleTimeline, target)),
+    ).toBe(true);
+    expect(run.visionChargesRemaining).toBe(2);
+    expect(scene.playerUnits.map((u) => u.battleEntityId)).toEqual(
+      state.playerUnits.map((u) => u.battleEntityId),
+    );
+    expect([...attempts.values()]).toEqual(state.playerUnits.map(() => 2));
+  });
+
   it('keeps a committed debit and exposes reload when presentation teardown fails', () => {
     const { scene, run } = fixture();
     const controller = scene._visionController;
