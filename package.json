@@ -16,6 +16,7 @@
     "check:threshold-pr-notes": "node tools/checkThresholdPrNotes.js",
     "check:content": "node tools/checkContentIntegrity.js",
     "check:e2e-lanes": "node tools/e2eLanes.js check",
+    "check:cycles": "node tools/importCycles.mjs",
     "sync-data": "node tools/syncData.js",
     "sync-assets": "node tools/syncAssets.js",
     "gen:icons": "node tools/gen-app-icons.js",

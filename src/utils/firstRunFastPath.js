@@ -51,7 +51,11 @@ export async function startFirstRunFastPath(scene, { gameData, slot }) {
     : null;
 
   const runManager = new RunManager(gameData, metaEffects);
-  runManager.startRun({ difficultyId: 'normal', applyBlessingsAtStart: false });
+  runManager.startRun({
+    difficultyId: 'normal',
+    applyBlessingsAtStart: false,
+    narrativeSeen: meta?.getNarrativeSeen?.() ?? null,
+  });
   runManager.chooseBlessing(null); // sets activeBlessings=[], _blessingChosen=true
 
   const transitioned = await transitionToScene(

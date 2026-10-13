@@ -8,7 +8,8 @@
 //   - another accessory is changed, or a second load changes anything;
 //   - a rewind patch that swaps the coin for another accessory leaves the migrated
 //     `gambler` effect on the other accessory, or a patch that adds the coin brings
-//     back the legacy flag;
+//     back the legacy flag (tests/TimelinePatchMigration.test.js: fromJSON decodes
+//     patches before this walk, which only ever sees whole states);
 //   - a save with no coin, or a catalog without a gambler config, is altered.
 import { describe, expect, it } from 'vitest';
 import { loadGameData } from './testData.js';
@@ -16,7 +17,6 @@ import { RunManager } from '../src/engine/RunManager.js';
 import { migrateSavedGamblerCoins } from '../src/engine/AccessoryCatalogMigration.js';
 import { applyAccessoryPhaseCombatMods } from '../src/engine/SkillSystem.js';
 import { formatAccessoryCombatEffect } from '../src/utils/accessoryText.js';
-import { applyBattleStatePatch, diffBattleState } from '../src/engine/BattleStateDelta.js';
 
 const gameData = loadGameData();
 const catalogCoin = gameData.accessories.find((a) => a.name === "Gambler's Coin");
@@ -143,29 +143,5 @@ describe('migrateSavedGamblerCoins', () => {
     expect(migrateSavedGamblerCoins(save, gameData)).toBe(3);
     expect(hasFlag(save)).toBe(false);
     expect(save.battleInProgress.checkpoint.playerUnits[0].accessory.uid).toBe('itm_7_abcd');
-  });
-
-  it('keeps rewind patches consistent with a migrated keyframe', () => {
-    // Real patches written by an old build: the coin is swapped for a Vanguard Crest,
-    // and (against a keyframe holding the Crest) the coin is swapped in.
-    const stateWith = (accessory) => ({ playerUnits: [{ battleEntityId: 'p1', accessory }] });
-    const withCoin = stateWith(legacyCoin());
-    const withOther = stateWith(vanguard());
-    const save = {
-      snapshots: {
-        a: structuredClone(withCoin),
-        b: { base: 'a', patch: diffBattleState(withCoin, withOther) },
-        c: structuredClone(withOther),
-        d: { base: 'c', patch: diffBattleState(withOther, withCoin) },
-      },
-    };
-    expect(migrateSavedGamblerCoins(save, gameData)).toBeGreaterThan(0);
-    const swappedOut = applyBattleStatePatch(save.snapshots.a, save.snapshots.b.patch);
-    // The Crest replaces the coin: no leftover gambler effect.
-    expect(swappedOut.playerUnits[0].accessory).toEqual(vanguard());
-    const swappedIn = applyBattleStatePatch(save.snapshots.c, save.snapshots.d.patch);
-    expect(swappedIn.playerUnits[0].accessory.combatEffects).toEqual(catalogCoin.combatEffects);
-    expect(swappedIn.playerUnits[0].accessory.name).toBe("Gambler's Coin");
-    expect(migrateSavedGamblerCoins(save, gameData)).toBe(0);
   });
 });

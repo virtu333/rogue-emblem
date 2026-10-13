@@ -19,6 +19,7 @@ import {
   SKILL_SLOT,
   benchSlotOverflow,
   isAbilitySkill,
+  setSingleSlotPoolForSims,
   slotCountsOf,
   slotKindOf,
 } from '../src/engine/SkillSlots.js';
@@ -94,6 +95,26 @@ describe('learning', () => {
     unit.skills = ['steal', ...FIVE];
     expect(slotCountsOf(unit)).toEqual({ skills: MAX_SKILLS, abilities: 1 });
     expect(learnSkill(unit, 'blink').learned).toBe(true);
+  });
+});
+
+describe('the pre-split rule, for a paired sim (sim:descent --slots single)', () => {
+  it('counts abilities in the five skill slots while on, and is off by default', () => {
+    const unit = player('Thief', 'Wren');
+    unit.skills = ['steal', 'sol', 'luna', 'astra', 'vantage'];
+    // Today's rule: Steal is an ability, so a fifth skill still fits.
+    expect(learnSkill(unit, 'wrath').learned).toBe(true);
+    const before = player('Thief', 'Wren');
+    before.skills = ['steal', 'sol', 'luna', 'astra', 'vantage'];
+    setSingleSlotPoolForSims(true);
+    try {
+      expect(slotKindOf('steal')).toBe(SKILL_SLOT);
+      expect(learnSkill(before, 'wrath')).toMatchObject({ learned: false, benched: true });
+      expect(before.skills).toHaveLength(MAX_SKILLS);
+    } finally {
+      setSingleSlotPoolForSims(false);
+    }
+    expect(slotKindOf('steal')).toBe(ABILITY_SLOT);
   });
 });
 

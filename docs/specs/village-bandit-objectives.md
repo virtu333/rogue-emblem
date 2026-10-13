@@ -52,6 +52,10 @@ The Merchant Caravan (PR #54) is the architectural template — copy its shape:
   bandit squad arriving on turn 1 (it reads as reinforcements). Other rungs, acts and rows are
   unchanged. `buildBattleParams` still makes the roll and drops a gated result, so the node-map RNG
   stream is identical to an ungated map apart from the missing villages. Saved runs keep their maps.
+- **Harder rungs' opening map (owner, 2026-10-12):** Dusk, Nightfall and Black Sun carry
+  `villageMinRow` `{ "act1": 1 }`: the run's first fight (Act 1 row 0) never has a village, so it
+  never shows bandits arriving on turn 2 ahead of the reinforcement ladder (turn 4). Rows 1 on keep
+  their villages.
 - `MapGenerator`: pick the village tile in the map's neutral band — middle third of columns, biased
   away from the main player↔enemy axis (top or bottom quarter of rows), on an open
   Infantry-passable tile; write terrain index 9; add to `reachTargets`.

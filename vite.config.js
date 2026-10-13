@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import { readFileSync } from 'node:fs';
 import { buildAudioAssets } from './tools/buildAudioAssets.mjs';
+import { resolveBuildStamp } from './tools/build/buildStamp.mjs';
 import { VitePWA } from 'vite-plugin-pwa';
 import {
   HASHED_BUILD_OUTPUT,
@@ -46,8 +47,15 @@ export const pwaWorkboxOptions = {
 // Vite 5's default ('modules'), made explicit so the unit tests lower src the same way.
 export const BUILD_TARGET = ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari14'];
 
+// The commit and date a bug report names (src/utils/buildIdentity.js).
+const BUILD_STAMP = resolveBuildStamp();
+
 export default defineConfig((env) => ({
   base: './',
+  define: {
+    __BUILD_SHA__: JSON.stringify(BUILD_STAMP.sha),
+    __BUILD_DATE__: JSON.stringify(BUILD_STAMP.date),
+  },
   // Unit tests run src through the build's own syntax lowering, so a transpile bug
   // (esbuild once leaked a temporary out of a lowered optional call in a default
   // parameter: `o is not defined` at the prologue's end) fails a test, not a player.

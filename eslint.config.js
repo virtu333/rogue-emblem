@@ -9,7 +9,13 @@ export default [
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',
-      globals: { ...globals.browser, ...globals.node },
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        // Build stamp (vite.config.js define, src/utils/buildIdentity.js).
+        __BUILD_SHA__: 'readonly',
+        __BUILD_DATE__: 'readonly',
+      },
     },
     rules: {
       'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
@@ -41,6 +47,29 @@ export default [
       'src/utils/audioAssets.js',
     ],
     languageOptions: { ecmaVersion: 2025 },
+  },
+  {
+    // The engine holds the game's rules as pure modules: the harness, the sims and the UI
+    // all import it, so it never reaches back into UI, scenes or Phaser. The UI importing
+    // the engine is the intended direction. The files listed under `ignores` predate the
+    // rule; move their UI calls out rather than adding a file here.
+    files: ['src/engine/**/*.js'],
+    ignores: ['src/engine/Grid.js', 'src/engine/LootRewardCommands.js'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [{ name: 'phaser', message: 'src/engine/ stays free of Phaser.' }],
+          patterns: [
+            {
+              regex: '^(\\.\\./)+(ui|scenes)/',
+              message:
+                'src/engine/ must not import UI or scenes. Pass the value in, or move the shared helper into src/engine/ or src/utils/.',
+            },
+          ],
+        },
+      ],
+    },
   },
   {
     ignores: [
