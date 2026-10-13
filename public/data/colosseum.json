@@ -64,20 +64,20 @@
     "weaponTierBonus": 1,
     "pricing": {
       "act1": [
-        400,
-        650
+        700,
+        1000
       ],
       "act2": [
-        700,
-        1050
+        1200,
+        1700
       ],
       "act3": [
-        1050,
-        1550
+        1800,
+        2500
       ],
       "act4": [
-        1300,
-        1900
+        2300,
+        3100
       ]
     },
     "promotedMultiplier": 1.5,
@@ -92,18 +92,19 @@
       "maxFightsPerVisit": 5
     },
     "dusk": {
+      "mercenaryPriceMultiplier": 1.25,
       "maxFightsPerVisit": 4
     },
     "hard": {
       "challengerLevelBonus": 1,
-      "mercenaryPriceMultiplier": 1.2,
+      "mercenaryPriceMultiplier": 1.5,
       "maxFightsPerVisit": 4
     },
     "lunatic": {
       "challengerLevelBonus": 2,
       "challengerMinSkills": 1,
       "platinumMaxSkills": 2,
-      "mercenaryPriceMultiplier": 1.4,
+      "mercenaryPriceMultiplier": 1.7,
       "maxFightsPerUnit": 2,
       "maxFightsPerVisit": 3
     }

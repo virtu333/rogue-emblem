@@ -437,17 +437,7 @@ export function generateMercenaryCandidates(
   const [minCount, maxCount] = mercConfig.candidateCount;
   const count = minCount + Math.floor(rng() * (maxCount - minCount + 1));
 
-  // Build combined pool: current act + next act (if crossActPoolAccess)
-  // recruits.json uses `classPool` (array of class name strings)
-  const actIdx = ACT_SEQUENCE.indexOf(actId);
-  const currentPool = recruitPools?.[actId]?.classPool || [];
-  let combinedPool = [...currentPool];
-
-  if (mercConfig.crossActPoolAccess && actIdx >= 0 && actIdx < ACT_SEQUENCE.length - 1) {
-    const nextAct = ACT_SEQUENCE[actIdx + 1];
-    const nextPool = recruitPools?.[nextAct]?.classPool || [];
-    combinedPool = combinedPool.concat(nextPool);
-  }
+  const combinedPool = mercenaryClassPool(actId, recruitPools, mercConfig);
 
   if (combinedPool.length === 0) {
     throw new Error(`[ColosseumEngine] Empty mercenary class pool for act: ${actId}`);
@@ -635,6 +625,51 @@ export function generateMercenaryCandidates(
   }
 
   return candidates;
+}
+
+/**
+ * The classes a mercenary board in `actId` draws from: the act's recruit pool, plus the next
+ * act's when `crossActPoolAccess` is on (recruits.json `classPool`, names, duplicates kept so
+ * they weigh the draw as before).
+ */
+export function mercenaryClassPool(actId, recruitPools, mercConfig) {
+  const actIdx = ACT_SEQUENCE.indexOf(actId);
+  let pool = [...(recruitPools?.[actId]?.classPool || [])];
+  if (mercConfig?.crossActPoolAccess && actIdx >= 0 && actIdx < ACT_SEQUENCE.length - 1) {
+    pool = pool.concat(recruitPools?.[ACT_SEQUENCE[actIdx + 1]]?.classPool || []);
+  }
+  return pool;
+}
+
+/**
+ * What a mercenary on a board in `actId` can cost on `difficultyMode`: the cheapest and the
+ * dearest hire over every class the board may draw (promoted and class multipliers included),
+ * through getMercenaryPrice with its lowest and highest roll. The route preview shows it, so a
+ * player can bring the gold before arriving. Null when the act has no pool or no pricing.
+ * @returns {{ min: number, max: number }|null}
+ */
+export function getMercenaryPriceRange(
+  actId,
+  difficultyMode,
+  colosseumData,
+  recruitPools,
+  classesData,
+) {
+  const mercConfig = colosseumData?.mercenaries;
+  if (!mercConfig?.pricing) return null;
+  const pool = new Set(mercenaryClassPool(actId, recruitPools, mercConfig));
+  let min = Infinity;
+  let max = -Infinity;
+  for (const className of pool) {
+    const classData = classesData?.find((c) => c.name === className);
+    if (!classData) continue;
+    const promoted = classData.tier === 'promoted';
+    const price = (roll) =>
+      getMercenaryPrice(actId, promoted, difficultyMode, colosseumData, () => roll, className);
+    min = Math.min(min, price(0));
+    max = Math.max(max, price(0.999999));
+  }
+  return Number.isFinite(min) ? { min, max } : null;
 }
 
 /**
