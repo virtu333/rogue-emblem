@@ -491,6 +491,8 @@ export const ENTITY_WEAPON_NAMES = ['Eldritch Grasp', 'Twisting Vortex'];
 
 // Fog of War
 export const VISION_RANGES = { Infantry: 3, Armored: 3, Cavalry: 4, Flying: 5 };
+// Extra fog vision for a player unit standing on this terrain (by terrain.json name).
+export const VISION_TERRAIN_BONUS = { Mountain: 2 };
 export const FOG_CHANCE_BY_ACT = { act1: 0.1, act2: 0.25, act3: 0.35, act4: 0.45, finalBoss: 0 };
 
 // Merchant Caravan (rare escort micro-objective, BATTLE/ELITE nodes act2+ only)
