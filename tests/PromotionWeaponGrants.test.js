@@ -179,3 +179,81 @@ describe('full bag preview', () => {
     expect(res.message).toContain('Bag full');
   });
 });
+
+// A promotion's starter weapon a full bag cannot take goes to the convoy, as any other grant
+// a full bag cannot take; only a full convoy too loses it (and says so).
+describe('full bag: the grant goes to the convoy', () => {
+  const fullOf = (u, name) => {
+    const w = data.weapons.find((x) => x.name === name);
+    u.inventory = [1, 2, 3, 4, 5].map(() => structuredClone(w));
+  };
+  const fillConvoy = () => {
+    const sword = data.weapons.find((w) => w.name === 'Iron Sword');
+    while (run.canAddToConvoy(sword)) run.addToConvoy(sword);
+  };
+  const convoyNames = () => run.getConvoyItems().weapons.map((w) => w.name);
+  // Aldo's case: a Cavalier's lance bag, promoted to Paladin, who opens Swords.
+  const cavalier = () => createUnit(cls('Cavalier'), 10, data.weapons, { name: 'Aldo' });
+  const paladin = (u) =>
+    resolvePromotionTargets(u, data.classes, data.lords).find((c) => c.name === 'Paladin');
+
+  it('a Master Seal promotion with five weapons sends the new Iron Sword to the convoy', () => {
+    const u = cavalier();
+    run.roster = [u];
+    fullOf(u, 'Iron Lance');
+    u.consumables = [seal('promote')];
+    const before = convoyNames().length;
+    const res = applyRosterClassChange(run, u, u.consumables[0], paladin(u), data);
+    expect(res.ok).toBe(true);
+    expect(u.className).toBe('Paladin');
+    expect(names(u)).not.toContain('Iron Sword');
+    expect(convoyNames()).toHaveLength(before + 1);
+    expect(convoyNames()).toContain('Iron Sword');
+    expect(res.notices).toContain('Bag full: Iron Sword sent to the convoy.');
+  });
+  it('a church promotion with five weapons sends it to the convoy and says so', () => {
+    const u = cavalier();
+    run.roster = [u];
+    fullOf(u, 'Iron Lance');
+    const res = promoteAtChurch(run, u, 'n1', paladin(u), data);
+    expect(res.ok).toBe(true);
+    expect(convoyNames()).toContain('Iron Sword');
+    expect(res.message).toContain('Bag full: Iron Sword sent to the convoy.');
+  });
+  it('a reclass seal with a full bag sends the new weapon to the convoy', () => {
+    const u = createUnit(cls('Fighter'), 10, data.weapons, { name: 'Test Fighter' });
+    run.roster = [u];
+    fullOf(u, 'Iron Axe');
+    u.consumables = [seal('reclass', 'infantry')];
+    const myrmidon = getReclassTargets(u, data.classes, 'infantry').find(
+      (c) => c.name === 'Myrmidon',
+    );
+    const res = applyRosterClassChange(run, u, u.consumables[0], myrmidon, data);
+    expect(res.ok).toBe(true);
+    expect(convoyNames()).toContain('Iron Sword');
+    expect(res.notices).toContain('Bag full: Iron Sword sent to the convoy.');
+  });
+  it('bag and convoy both full: the promotion still happens and the loss is named', () => {
+    const u = cavalier();
+    run.roster = [u];
+    fullOf(u, 'Iron Lance');
+    fillConvoy();
+    const convoyBefore = JSON.stringify(run.getConvoyItems());
+    const res = promoteAtChurch(run, u, 'n1', paladin(u), data);
+    expect(res.ok).toBe(true);
+    expect(u.className).toBe('Paladin');
+    expect(JSON.stringify(run.getConvoyItems())).toBe(convoyBefore);
+    expect(res.message).toContain('Bag and convoy full: Iron Sword could not be granted.');
+  });
+  it('the path preview says where the weapon goes, from the same run', () => {
+    const u = cavalier();
+    fullOf(u, 'Iron Lance');
+    const content = promotionPathContent(u, paladin(u), data, { run });
+    expect(content.grantsConvoy).toEqual(['Iron Sword']);
+    expect(content.grantsLost).toEqual([]);
+    fillConvoy();
+    const full = promotionPathContent(u, paladin(u), data, { run });
+    expect(full.grantsConvoy).toEqual([]);
+    expect(full.grantsLost).toEqual(['Iron Sword']);
+  });
+});

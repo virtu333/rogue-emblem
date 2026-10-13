@@ -1410,6 +1410,7 @@ export class MobileRosterSheet {
       title: `Promote ${unit.name}`,
       closeLabel: 'Close',
       note: `Uses 1 ${item.name || 'Master Seal'}`,
+      run: this.run,
       blocked: () => rosterClassChangeBlock(this.run, unit, item, this.gameData),
       apply: (choice) => {
         const content = promotionPathContent(unit, choice, this.gameData);
@@ -1462,7 +1463,7 @@ export class MobileRosterSheet {
       choices,
       label: (choice) => choice.name,
       describe: (choice) => choice.description || choice.roleChange || choice.role || '',
-      preview: (choice) => classChangePreview(unit, item, choice, this.gameData),
+      preview: (choice) => classChangePreview(unit, item, choice, this.gameData, this.run),
       blocked: () => rosterClassChangeBlock(this.run, unit, item, this.gameData),
       apply: (choice) => {
         const result = applyRosterClassChange(this.run, unit, item, choice, this.gameData);

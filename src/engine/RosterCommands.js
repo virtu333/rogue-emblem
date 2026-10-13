@@ -10,6 +10,7 @@ import {
   promoteUnit,
   reclassUnit,
   addToInventory,
+  equipIfUnarmed,
   getCombatWeapons,
   normalizeEquippedFirst,
 } from './UnitManager.js';
@@ -17,6 +18,7 @@ import { applyPromotionOath, oathBenchedNote } from './DeedSystem.js';
 import { consumableSource, spendConsumableUse } from './RosterInventory.js';
 import { classChangeItemBlock } from './TwistedBoons.js';
 import { stripItemNameSuffix } from '../utils/itemNames.js';
+import { INVENTORY_MAX } from '../utils/constants.js';
 
 export function rosterClassChangeBlock(run, unit, item, gameData) {
   if (!run?.roster?.includes(unit)) return 'Unit is no longer in the roster.';
@@ -69,6 +71,54 @@ export function getClassChangeWeaponGrants(unit, oldTypes, gameData) {
       return true;
     });
 }
+/**
+ * Where each class-change grant would land, without changing anything: the bag while it has
+ * room, then the run's convoy while it has room, else nowhere. The previews read this, so they
+ * name the same place `grantClassChangeWeapons` puts the weapon.
+ * @returns {{ bag: object[], convoy: object[], lost: object[] }}
+ */
+export function planClassChangeWeaponGrants(run, unit, weapons, bagMax = INVENTORY_MAX) {
+  let bagRoom = Math.max(0, bagMax - (unit?.inventory?.length || 0));
+  let convoyRoom = 0;
+  if (typeof run?.getConvoyCapacities === 'function' && typeof run?.getConvoyCounts === 'function')
+    convoyRoom = Math.max(0, run.getConvoyCapacities().weapons - run.getConvoyCounts().weapons);
+  const plan = { bag: [], convoy: [], lost: [] };
+  for (const weapon of weapons || []) {
+    if (bagRoom > 0) {
+      bagRoom--;
+      plan.bag.push(weapon);
+    } else if (convoyRoom > 0) {
+      convoyRoom--;
+      plan.convoy.push(weapon);
+    } else plan.lost.push(weapon);
+  }
+  return plan;
+}
+/**
+ * Hand over a class change's starter weapons: into the bag (a unit left unarmed takes it up),
+ * else into the convoy, as any other grant a full bag cannot take. Only a full convoy too loses
+ * one, and the caller says so. `equip: false` leaves equipping to the caller (a Seal's command).
+ * @returns {{ granted: string[], convoyed: string[], lost: string[] }}
+ */
+export function grantClassChangeWeapons(run, unit, weapons, { equip = true } = {}) {
+  const out = { granted: [], convoyed: [], lost: [] };
+  for (const weapon of weapons || []) {
+    if (addToInventory(unit, weapon)) {
+      if (equip) equipIfUnarmed(unit, unit.inventory.at(-1));
+      out.granted.push(weapon.name);
+    } else if (typeof run?.addToConvoy === 'function' && run.addToConvoy(weapon)) {
+      out.convoyed.push(weapon.name);
+    } else out.lost.push(weapon.name);
+  }
+  return out;
+}
+/** The player-facing notes for a grant that missed the bag (none when all fit). */
+export function classChangeGrantNotices({ convoyed = [], lost = [] } = {}) {
+  const notices = [];
+  if (convoyed.length) notices.push(`Bag full: ${convoyed.join(', ')} sent to the convoy.`);
+  if (lost.length) notices.push(`Bag and convoy full: ${lost.join(', ')} could not be granted.`);
+  return notices;
+}
 function promote(run, unit, item, promotedClassData, gameData) {
   const notices = [];
   const lordData = gameData.lords.find((l) => l.name === unit.name);
@@ -91,10 +141,13 @@ function promote(run, unit, item, promotedClassData, gameData) {
   if (oath?.learned) notices.push(`${oath.name}: learned ${oath.skillName}.`);
   if (oath?.benched) notices.push(oathBenchedNote(unit, oath));
 
-  for (const newWeapon of getClassChangeWeaponGrants(unit, oldTypes, gameData)) {
-    if (!addToInventory(unit, newWeapon))
-      notices.push(`Bag full: ${newWeapon.name} could not be granted.`);
-  }
+  const grants = grantClassChangeWeapons(
+    run,
+    unit,
+    getClassChangeWeaponGrants(unit, oldTypes, gameData),
+    { equip: false },
+  );
+  notices.push(...classChangeGrantNotices(grants));
 
   // Consume the Master Seal
   spendConsumableUse(run, unit, item);
@@ -121,10 +174,13 @@ function reclass(run, unit, sealItem, newClassData, gameData) {
 
   if (result === null) return { ok: false, reason: 'Reclass is unavailable.' };
 
-  for (const newWeapon of getClassChangeWeaponGrants(unit, oldTypes, gameData)) {
-    if (!addToInventory(unit, newWeapon))
-      notices.push(`Bag full: ${newWeapon.name} could not be granted.`);
-  }
+  const grants = grantClassChangeWeapons(
+    run,
+    unit,
+    getClassChangeWeaponGrants(unit, oldTypes, gameData),
+    { equip: false },
+  );
+  notices.push(...classChangeGrantNotices(grants));
 
   // A new proficiency's starter weapon is granted after reclass invalidates
   // the old equipment. Preserve valid equipment; repair only an empty slot.

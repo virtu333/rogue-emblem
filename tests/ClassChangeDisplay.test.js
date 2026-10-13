@@ -57,7 +57,7 @@ it('previews capped skill omissions and a full-bag unarmed reclass', () => {
     data.classes.find((c) => c.name === 'Myrmidon'),
     data,
   );
-  expect(full).toContain('Bag full: Iron Sword');
+  expect(full).toContain('Bag and convoy full: Iron Sword');
   expect(full).toContain('None — equip a compatible weapon');
 });
 it('uses lord promotion bonuses and the same starter grant rule as the command', () => {
