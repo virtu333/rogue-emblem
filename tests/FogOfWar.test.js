@@ -2,6 +2,8 @@
 import { describe, it, expect } from 'vitest';
 import { VISION_RANGES, FOG_CHANCE_BY_ACT } from '../src/utils/constants.js';
 import { Grid } from '../src/engine/Grid.js';
+import { HeadlessGrid } from './harness/HeadlessGrid.js';
+import { loadGameData } from './testData.js';
 import { generateNodeMap } from '../src/engine/NodeMapGenerator.js';
 
 // Minimal mock scene for Grid (no Phaser rendering)
@@ -276,6 +278,54 @@ describe('Fog of War', () => {
       // Should remain unchanged
       expect(grid.everSeenSet.size).toBe(1);
       expect(grid.everSeenSet.has('1,1')).toBe(true);
+    });
+  });
+  describe('Mountain vision', () => {
+    // A 15x15 plain with one Mountain (from terrain.json) at the centre.
+    const gameData = loadGameData();
+    const mountainIdx = gameData.terrain.findIndex((t) => t.name === 'Mountain');
+    const plainIdx = gameData.terrain.findIndex((t) => t.name === 'Plain');
+    function layout() {
+      const rows = Array.from({ length: 15 }, () => Array(15).fill(plainIdx));
+      rows[7][7] = mountainIdx;
+      return rows;
+    }
+    const makeGrids = () => [
+      new Grid(makeMockScene(), 15, 15, gameData.terrain, layout(), true),
+      new HeadlessGrid(15, 15, gameData.terrain, layout(), true),
+    ];
+
+    it('an Infantry unit on a Mountain sees 5 tiles, not 3', () => {
+      // Failure: vision ignores the tile the unit stands on.
+      for (const grid of makeGrids()) {
+        grid.updateFogOfWar([{ col: 7, row: 7, moveType: 'Infantry' }]);
+        expect(grid.isVisible(7, 2)).toBe(true); // 5 north
+        expect(grid.isVisible(10, 9)).toBe(true); // 3 + 2
+        expect(grid.isVisible(7, 1)).toBe(false); // 6 north
+        // A diamond of radius 5: 2*5*6 + 1 tiles.
+        expect(grid.visibleSet.size).toBe(61);
+      }
+    });
+
+    it('a flier on a Mountain stacks the bonus on its own range (7)', () => {
+      for (const grid of makeGrids()) {
+        grid.updateFogOfWar([{ col: 7, row: 7, moveType: 'Flying' }]);
+        expect(grid.isVisible(7, 0)).toBe(true);
+        expect(grid.isVisible(14, 7)).toBe(true);
+        expect(grid.isVisible(8, 0)).toBe(false); // distance 8
+      }
+    });
+
+    it('the same unit beside the Mountain keeps its normal range', () => {
+      // Failure: the bonus leaks to a unit next to (or after leaving) the Mountain.
+      for (const grid of makeGrids()) {
+        grid.updateFogOfWar([{ col: 7, row: 8, moveType: 'Infantry' }]);
+        expect(grid.isVisible(7, 5)).toBe(true); // 3 north
+        expect(grid.isVisible(7, 4)).toBe(false); // 4 north
+        // Moved onto the Mountain, the next update sees further.
+        grid.updateFogOfWar([{ col: 7, row: 7, moveType: 'Infantry' }]);
+        expect(grid.isVisible(7, 2)).toBe(true);
+      }
     });
   });
 });

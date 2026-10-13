@@ -16,7 +16,7 @@
 // Record helpers draw no RNG and take no scene. Joining delegates uid and
 // blessing grants to the run manager; item-uid draws belong to settlement.
 import { isRecruitNpc } from './RecruitNpc.js';
-import { serializeUnit } from './RunManager.js';
+import { serializeUnit } from './UnitSerialization.js';
 import { stampTurnAnchors } from './BlessingCombatMods.js';
 import { applyBattleJoinBoons } from './BattleJoinBoons.js';
 import { matchUnitsToSurvivors, unitUidOf } from './UnitIdentity.js';
