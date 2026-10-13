@@ -10,7 +10,8 @@
 //   - `mirror: 'y'`: the battle flips the template top to bottom half the time. One draw.
 //   - `extraEnemies: N` (1-4): N more foes than the battle rolled, still under the map's density
 //     cap. No draw: the count roll is the same one.
-// An enemy-spawn zone may carry `group: { id, share, ai: chase | hold | guard, wakeTurn? }`.
+// An enemy-spawn zone may carry `group: { id, share, ai: chase | hold | guard, wakeTurn?, role? }`;
+// a `role` (front | ranged | flank, GROUP_ROLES) weighs the classes its foes are drawn from.
 // A template with groups splits its filler enemies among them by share (largest remainder);
 // a `hold` group is one hold pack (engine/HoldActivation.js) that wakes when its Danger zone
 // is entered, one of it is hurt or falls, or on its `wakeTurn`; a `guard` group keeps its post.
@@ -24,6 +25,41 @@ export const TEMPLATE_GROUP_AI = Object.freeze(['chase', 'hold', 'guard']);
 /** A hold pack needs two members (HoldActivation's packs are never one unit). */
 export const MIN_HOLD_GROUP = 2;
 export const MIRROR_AXES = Object.freeze(['y']);
+/**
+ * A group's `role` weighs the classes its slots draw (MapGenerator.resolveClassWeight's tags),
+ * in place of the template's `enemyWeights`. Weights only: the act's pool decides what exists,
+ * so an Act I ranged group is archers, a later one archers and mages.
+ */
+export const GROUP_ROLES = Object.freeze({
+  // A wall: armour and melee foot soldiers to break through.
+  front: Object.freeze({
+    armored: 4,
+    infantry: 2,
+    cavalry: 0.5,
+    flying: 0.4,
+    archer: 0.4,
+    mage: 0.4,
+    healer: 0.3,
+  }),
+  // Fire from behind cover, with the odd healer.
+  ranged: Object.freeze({
+    archer: 4,
+    mage: 4,
+    healer: 1.5,
+    infantry: 0.4,
+    cavalry: 0.4,
+    armored: 0.3,
+    flying: 0.4,
+  }),
+  // Fast riders and fliers that come around the side.
+  flank: Object.freeze({ cavalry: 4, flying: 4, infantry: 0.5, armored: 0.2, healer: 0.2 }),
+});
+
+/** The class weights a group's slots draw with: its role's, else the template's. */
+export function groupEnemyWeights(group, templateWeights) {
+  return (group?.role && GROUP_ROLES[group.role]) || templateWeights || null;
+}
+
 /** Most foes a template may add over the battle's rolled count (still under the density cap). */
 export const MAX_EXTRA_ENEMIES = 4;
 
@@ -214,7 +250,7 @@ export function isTemplateGroupSpawn(spawn) {
 
 // --- Validation (MapTemplateEngine.validateMapTemplatesConfig calls this) ---
 
-const KNOWN_GROUP_KEYS = new Set(['id', 'share', 'ai', 'wakeTurn']);
+const KNOWN_GROUP_KEYS = new Set(['id', 'share', 'ai', 'wakeTurn', 'role']);
 const KNOWN_CHOICE_KEYS = new Set(['id', 'options']);
 const KNOWN_OPTION_KEYS = new Set(['weight', 'zones', 'features']);
 
@@ -270,6 +306,8 @@ export function validateTemplateLayout(
       else groupIds.add(g.id);
       if (!(Number.isFinite(g.share) && g.share > 0 && g.share <= 1))
         errors.push(`${gp}.share must be a number in (0,1]`);
+      if (g.role !== undefined && !Object.hasOwn(GROUP_ROLES, g.role))
+        errors.push(`${gp}.role must be one of ${Object.keys(GROUP_ROLES).join(', ')}`);
       if (!TEMPLATE_GROUP_AI.includes(g.ai))
         errors.push(`${gp}.ai must be one of ${TEMPLATE_GROUP_AI.join(', ')}`);
       if (

@@ -2292,7 +2292,8 @@
           "group": {
             "id": "raiders",
             "share": 0.4,
-            "ai": "chase"
+            "ai": "chase",
+            "role": "flank"
           }
         },
         {
@@ -2469,6 +2470,482 @@
       "lore": "The patrol made camp where two roads met, and found both roads already watched."
     },
     {
+      "id": "caught_in_the_open",
+      "name": "Caught in the Open",
+      "enabled": false,
+      "acts": [
+        "act2",
+        "act3",
+        "act4"
+      ],
+      "extraEnemies": 1,
+      "mirror": "y",
+      "fogChance": 0.1,
+      "zones": [
+        {
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 75,
+            "Forest": 15,
+            "Sand": 5,
+            "Mountain": 5
+          },
+          "priority": 0
+        },
+        {
+          "rect": [
+            0.34,
+            0.28,
+            0.66,
+            0.72
+          ],
+          "terrain": {
+            "Plain": 70,
+            "Forest": 25,
+            "Fort": 5
+          },
+          "priority": 1
+        },
+        {
+          "rect": [
+            0.06,
+            0.34,
+            0.3,
+            0.66
+          ],
+          "terrain": {
+            "Plain": 70,
+            "Forest": 25,
+            "Fort": 5
+          },
+          "priority": 2,
+          "role": "playerSpawn"
+        },
+        {
+          "rect": [
+            0.74,
+            0.18,
+            1,
+            0.82
+          ],
+          "terrain": {
+            "Plain": 55,
+            "Forest": 30,
+            "Fort": 15
+          },
+          "priority": 2,
+          "role": "enemySpawn",
+          "group": {
+            "id": "main",
+            "share": 0.6,
+            "ai": "chase"
+          }
+        }
+      ],
+      "choices": [
+        {
+          "id": "pods",
+          "options": [
+            {
+              "zones": [
+                {
+                  "rect": [
+                    0.3,
+                    0,
+                    0.52,
+                    0.2
+                  ],
+                  "terrain": {
+                    "Plain": 55,
+                    "Forest": 30,
+                    "Fort": 15
+                  },
+                  "priority": 2,
+                  "role": "enemySpawn",
+                  "group": {
+                    "id": "podTop",
+                    "share": 0.2,
+                    "ai": "hold",
+                    "wakeTurn": 3,
+                    "role": "flank"
+                  }
+                },
+                {
+                  "rect": [
+                    0.3,
+                    0.8,
+                    0.52,
+                    1
+                  ],
+                  "terrain": {
+                    "Plain": 55,
+                    "Forest": 30,
+                    "Fort": 15
+                  },
+                  "priority": 2,
+                  "role": "enemySpawn",
+                  "group": {
+                    "id": "podBottom",
+                    "share": 0.2,
+                    "ai": "hold",
+                    "wakeTurn": 3,
+                    "role": "flank"
+                  }
+                }
+              ]
+            },
+            {
+              "zones": [
+                {
+                  "rect": [
+                    0.28,
+                    0,
+                    0.56,
+                    0.22
+                  ],
+                  "terrain": {
+                    "Plain": 55,
+                    "Forest": 30,
+                    "Fort": 15
+                  },
+                  "priority": 2,
+                  "role": "enemySpawn",
+                  "group": {
+                    "id": "podTop",
+                    "share": 0.4,
+                    "ai": "hold",
+                    "wakeTurn": 3,
+                    "role": "flank"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "features": [],
+      "anchors": [],
+      "reinforcementContractVersion": 1,
+      "reinforcements": {
+        "spawnEdges": [
+          "right",
+          "top"
+        ],
+        "waves": [
+          {
+            "turn": 5,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "right"
+            ]
+          },
+          {
+            "turn": 8,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "top",
+              "right"
+            ]
+          }
+        ],
+        "difficultyScaling": true,
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "dusk": 0,
+          "hard": -1,
+          "lunatic": -3
+        },
+        "turnJitter": [
+          -1,
+          1
+        ],
+        "xpDecay": [
+          1,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "minActByDifficulty": {
+          "normal": "never",
+          "dusk": "act3",
+          "hard": "act2",
+          "lunatic": "act2"
+        },
+        "actTurnOffset": {
+          "hard": {
+            "act3": -1,
+            "act4": -1
+          }
+        },
+        "extraWavesByDifficulty": {
+          "lunatic": [
+            {
+              "turn": 11,
+              "count": [
+                2,
+                3
+              ],
+              "edges": [
+                "right"
+              ]
+            },
+            {
+              "turn": 14,
+              "count": [
+                3,
+                4
+              ],
+              "edges": [
+                "top",
+                "right"
+              ]
+            }
+          ]
+        }
+      },
+      "lore": "Open ground, a column on the march, and riders waiting in the long grass to either side."
+    },
+    {
+      "id": "two_camps",
+      "name": "Two Camps",
+      "enabled": false,
+      "acts": [
+        "act2",
+        "act3",
+        "act4"
+      ],
+      "extraEnemies": 1,
+      "mirror": "y",
+      "fogChance": 0.1,
+      "zones": [
+        {
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 65,
+            "Forest": 25,
+            "Sand": 5,
+            "Mountain": 5
+          },
+          "priority": 0
+        },
+        {
+          "rect": [
+            0.5,
+            0.42,
+            0.92,
+            0.58
+          ],
+          "terrain": {
+            "Mountain": 70,
+            "Wall": 20,
+            "Forest": 10
+          },
+          "priority": 2
+        },
+        {
+          "rect": [
+            0,
+            0.25,
+            0.24,
+            0.75
+          ],
+          "terrain": {
+            "Plain": 65,
+            "Forest": 30,
+            "Fort": 5
+          },
+          "priority": 2,
+          "role": "playerSpawn"
+        },
+        {
+          "rect": [
+            0.66,
+            0,
+            1,
+            0.4
+          ],
+          "terrain": {
+            "Plain": 60,
+            "Forest": 30,
+            "Fort": 10
+          },
+          "priority": 2,
+          "role": "enemySpawn",
+          "group": {
+            "id": "raiders",
+            "share": 0.5,
+            "ai": "chase"
+          }
+        },
+        {
+          "rect": [
+            0.66,
+            0.6,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 45,
+            "Forest": 25,
+            "Fort": 30
+          },
+          "priority": 2,
+          "role": "enemySpawn",
+          "group": {
+            "id": "camp",
+            "share": 0.5,
+            "ai": "hold",
+            "wakeTurn": 4,
+            "role": "front"
+          }
+        }
+      ],
+      "choices": [
+        {
+          "id": "ridgeGap",
+          "options": [
+            {
+              "zones": [
+                {
+                  "rect": [
+                    0.54,
+                    0.42,
+                    0.62,
+                    0.58
+                  ],
+                  "terrain": {
+                    "Plain": 80,
+                    "Forest": 20
+                  },
+                  "priority": 3
+                }
+              ]
+            },
+            {
+              "zones": [
+                {
+                  "rect": [
+                    0.82,
+                    0.42,
+                    0.9,
+                    0.58
+                  ],
+                  "terrain": {
+                    "Plain": 80,
+                    "Forest": 20
+                  },
+                  "priority": 3
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "features": [],
+      "anchors": [],
+      "reinforcementContractVersion": 1,
+      "reinforcements": {
+        "spawnEdges": [
+          "right",
+          "top"
+        ],
+        "waves": [
+          {
+            "turn": 5,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "right"
+            ]
+          },
+          {
+            "turn": 8,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "top",
+              "right"
+            ]
+          }
+        ],
+        "difficultyScaling": true,
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "dusk": 0,
+          "hard": -1,
+          "lunatic": -3
+        },
+        "turnJitter": [
+          -1,
+          1
+        ],
+        "xpDecay": [
+          1,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "minActByDifficulty": {
+          "normal": "never",
+          "dusk": "act3",
+          "hard": "act2",
+          "lunatic": "act2"
+        },
+        "actTurnOffset": {
+          "hard": {
+            "act3": -1,
+            "act4": -1
+          }
+        },
+        "extraWavesByDifficulty": {
+          "lunatic": [
+            {
+              "turn": 11,
+              "count": [
+                2,
+                3
+              ],
+              "edges": [
+                "right"
+              ]
+            },
+            {
+              "turn": 14,
+              "count": [
+                3,
+                4
+              ],
+              "edges": [
+                "top",
+                "right"
+              ]
+            }
+          ]
+        }
+      },
+      "lore": "Two warbands, one ridge between them, and no love lost: the one that charges hopes the other is watching."
+    },
+    {
       "id": "three_roads",
       "name": "Three Roads",
       "enabled": false,
@@ -2594,7 +3071,8 @@
           "group": {
             "id": "road",
             "share": 0.3,
-            "ai": "guard"
+            "ai": "guard",
+            "role": "ranged"
           }
         },
         {
@@ -4637,7 +5115,8 @@
           "group": {
             "id": "road",
             "share": 0.35,
-            "ai": "guard"
+            "ai": "guard",
+            "role": "ranged"
           }
         },
         {

@@ -743,6 +743,7 @@ const KNOWN_ENEMY_WEIGHT_KEYS = new Set([
   'armored',
   'lance',
   'flying',
+  'healer',
 ]);
 // Anchor position/unit values handled by MapGenerator.resolveAnchorPositions /
 // resolveAnchorUnitClass. Anything else silently no-ops at generation time.

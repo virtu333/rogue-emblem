@@ -13,6 +13,7 @@
 //   - a hold pack on a rout map never wakes, or wakes before its turn with the army away;
 //   - the same seed draws a different map, or a new map breaks validateBattleConfig;
 //   - a dense template's extra foes are lost, or break the density cap;
+//   - a group's role does not change what its foes are, or leaks into another group;
 //   - the validator lets a broken layout through.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -23,6 +24,7 @@ import { pickTemplateForNode } from '../src/engine/NodeMapGenerator.js';
 import { generateSeededBattle } from '../src/engine/BattleScout.js';
 import { validateMapTemplatesConfig } from '../src/engine/MapTemplateEngine.js';
 import {
+  GROUP_ROLES,
   MIN_HOLD_GROUP,
   TEMPLATE_GROUP_PACK_BASE,
   mirrorRectY,
@@ -37,7 +39,13 @@ import { installSeed, restoreMathRandom } from '../sim/lib/SeededRNG.js';
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
-const NEW_TEMPLATES = ['corner_camp', 'three_roads', 'three_roads_keep'];
+const NEW_TEMPLATES = [
+  'corner_camp',
+  'three_roads',
+  'three_roads_keep',
+  'caught_in_the_open',
+  'two_camps',
+];
 const allTemplates = () => Object.values(data.mapTemplates).flat();
 const byId = (id) => allTemplates().find((t) => t.id === id);
 const objectiveOf = (id) =>
@@ -430,6 +438,65 @@ describe('extra foes (extraEnemies)', () => {
   });
 });
 
+describe('group roles', () => {
+  const tags = (className) => {
+    const cd = data.classes.find((c) => c.name === className);
+    const profs = (cd?.weaponProficiencies || '').split(',').map((p) => p.trim().split(' ')[0]);
+    return {
+      ranged: profs.includes('Bows') || profs.includes('Tomes') || profs.includes('Light'),
+      mounted: cd?.moveType === 'Cavalry' || cd?.moveType === 'Flying',
+      armored: cd?.moveType === 'Armored',
+    };
+  };
+  // Every slot of a template, by group, over many seeds: [group id] -> class names.
+  function classesByGroup(id, act) {
+    const out = {};
+    for (let seed = 1; seed <= 60; seed++) {
+      const config = generateSeededBattle(
+        { act, objective: objectiveOf(id), templateId: id, deployCount: 6, row: 3 },
+        data,
+        3000 + seed,
+      );
+      for (const s of config.enemySpawns.filter((sp) => sp.templateGroup))
+        (out[s.templateGroup] ||= []).push(s.className);
+    }
+    return out;
+  }
+  const share = (names, tag) => names.filter((n) => tags(n)[tag]).length / names.length;
+
+  it('a ranged group fields far more archers and mages than the groups beside it', () => {
+    const byGroup = classesByGroup('three_roads', 'act3');
+    expect(share(byGroup.road, 'ranged')).toBeGreaterThan(0.6);
+    expect(share(byGroup.main, 'ranged')).toBeLessThan(0.35);
+  });
+
+  it('a flank group rides, and a front group wears armour more than the rest', () => {
+    const open = classesByGroup('caught_in_the_open', 'act3');
+    expect(share([...(open.podTop || []), ...(open.podBottom || [])], 'mounted')).toBeGreaterThan(
+      0.6,
+    );
+    expect(share(open.main, 'mounted')).toBeLessThan(0.45);
+    const camps = classesByGroup('two_camps', 'act3');
+    expect(share(camps.camp, 'armored')).toBeGreaterThan(share(camps.raiders, 'armored') + 0.15);
+  });
+
+  it('every role names only weight tags the generator reads', () => {
+    const known = [
+      'infantry',
+      'cavalry',
+      'archer',
+      'mage',
+      'knight',
+      'armored',
+      'lance',
+      'flying',
+      'healer',
+    ];
+    for (const weights of Object.values(GROUP_ROLES))
+      for (const key of Object.keys(weights)) expect(known).toContain(key);
+  });
+});
+
 describe('the template validator', () => {
   const zone = (extra = {}) => ({ rect: [0, 0, 1, 1], terrain: { Plain: 1 }, ...extra });
   const rout = (template) => ({
@@ -491,6 +558,17 @@ describe('the template validator', () => {
     );
     expect(errors.some((e) => e.includes('may not add a Throne'))).toBe(true);
     expect(errors.some((e) => e.includes('at least two options'))).toBe(true);
+  });
+
+  it('refuses an unknown group role', () => {
+    const errors = errorsOf(
+      rout({
+        zones: [
+          zone({ role: 'enemySpawn', group: { id: 'a', share: 1, ai: 'chase', role: 'sniper' } }),
+        ],
+      }),
+    );
+    expect(errors.some((e) => e.includes('.role must be one of'))).toBe(true);
   });
 
   it('refuses extra foes that are not a whole number from 1 to 4', () => {

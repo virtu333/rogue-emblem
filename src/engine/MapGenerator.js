@@ -45,6 +45,7 @@ import { SET_PIECE_TEMPLATE_PREFIX, buildSetPieceBattle, findSetPiece } from './
 import {
   applyTemplateGroupOrders,
   enemyGroupZones,
+  groupEnemyWeights,
   isTemplateDrawable,
   isTemplateGroupSpawn,
   planGroupSlots,
@@ -2174,6 +2175,11 @@ function resolveClassWeight(className, enemyWeights, classData) {
     composite *= enemyWeights.armored;
     matched.push('armored');
   }
+  // "healer" — has Staves proficiency (a Cleric)
+  if (enemyWeights.healer !== undefined && profList.includes('Staves')) {
+    composite *= enemyWeights.healer;
+    matched.push('healer');
+  }
   // "lance" — has Lances proficiency
   if (enemyWeights.lance !== undefined && profList.includes('Lances')) {
     composite *= enemyWeights.lance;
@@ -2439,20 +2445,22 @@ function generateEnemies(
       if (group < 0) break;
       slotTiles = groupTiles[group];
     }
-    // Pick class using template-weighted selection
+    // Pick class using template-weighted selection (a group's role weighs its own slots)
+    const slotWeights =
+      group >= 0 ? groupEnemyWeights(groupZones[group].group, enemyWeights) : enemyWeights;
     let className;
     if (usePromoted && Math.random() < promotedShare) {
-      className = weightedClassPick(pool.promoted, enemyWeights, classes);
+      className = weightedClassPick(pool.promoted, slotWeights, classes);
     } else if (pool.base.length > 0) {
       className = weightedClassPick(
         spawns.some((s) => s.className === 'Cleric')
           ? pool.base.filter((c) => c !== 'Cleric')
           : pool.base,
-        enemyWeights,
+        slotWeights,
         classes,
       );
     } else {
-      className = weightedClassPick(allClasses, enemyWeights, classes);
+      className = weightedClassPick(allClasses, slotWeights, classes);
     }
 
     // One Necromancer per battle: a further pick is mapped to the pool's next class (no
