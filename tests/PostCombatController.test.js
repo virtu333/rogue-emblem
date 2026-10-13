@@ -243,6 +243,42 @@ describe('PostCombatController', () => {
     );
   });
 
+  it('the Unbroken Banner: the unit it held takes its Lingering Injury through the real victory path', async () => {
+    // Failure: the scene serializes its survivors before completeBattle, and serializeUnit drops
+    // the banner's stamp, so a commit that only reads the stamp never injures anyone in play.
+    const { loadGameData } = await import('./testData.js');
+    const { RunManager } = await import('../src/engine/RunManager.js');
+    const { absorbLethal } = await import('../src/engine/UnitHealth.js');
+    const { createBattleBlessings } = await import('../src/engine/BattleBlessings.js');
+    const data = loadGameData();
+    const rm = new RunManager(data);
+    rm.startRun({ runSeed: 11, difficultyId: 'dusk', autoSelectBlessing: false });
+    rm.chooseBlessing(null);
+    expect(rm.addBlessingMidRun('unbroken_banner', { earned: true, source: 'act_boss' })).toBe(
+      true,
+    );
+    const node = rm.getAvailableNodes().find((n) => n.type === 'battle');
+    const units = rm.getRoster().map((u) => ({ ...structuredClone(u), faction: 'player' }));
+    const held = units[1];
+    const blessings = createBattleBlessings(rm.getBattleBlessingEffects());
+    expect(absorbLethal(held, -4, { blessings }).bannerHeld).toBe(true);
+    held.currentHP = 1;
+
+    const scene = makeScene();
+    scene.nodeId = node.id;
+    scene.isBoss = false;
+    scene.playerUnits = units;
+    scene.runManager.roster = rm.roster;
+    scene.runManager.completeBattle = vi.fn((...args) => rm.completeBattle(...args));
+    new PostCombatController(scene).onVictory();
+
+    expect(scene.runManager.completeBattle).toHaveBeenCalledTimes(1);
+    const wounded = rm.burdens.filter((b) => b.id === 'wounded');
+    expect(wounded).toHaveLength(1);
+    expect(wounded[0].unitUid).toBe(held.unitUid);
+    expect(rm.lastBurdenSettlement?.bannerWound?.name).toBe(held.name);
+  });
+
   it("hands the fallen's battle records to completeBattle, their deeds already committed", async () => {
     const { loadGameData } = await import('./testData.js');
     const scene = makeScene();

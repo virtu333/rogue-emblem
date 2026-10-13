@@ -552,7 +552,7 @@ under their own heading.
 
 | Blessing | Effect | Source |
 |---|---|---|
-| Unbroken Banner | once per battle, the first ally who would fall survives at 1 HP | act boss |
+| Unbroken Banner | once per battle, the first ally who would fall survives at 1 HP, and carries a Lingering Injury (added October 2026) | act boss |
 | Second Dawn | +1 Vision at the start of each act | eclipsed elite |
 | Standard of the Sun | allies within 2 tiles of your commander +5 Hit and +5 Avoid | Act I boss |
 | Ember Lantern | the first kill each battle heals the killer 10 HP | act boss |
@@ -573,8 +573,8 @@ under their own heading.
 | Blessing | Effect | Twist |
 |---|---|---|
 | Second Dawn (dark) | +1 Vision each act, and +1 now | +8 shadow now; the Eclipse fills 25% faster |
-| Blood Covenant | every unit, recruits included, +1 to all stats | Ill Omen never ends (+1 shadow each victory) |
-| Kingmaker's Oath | promotions are free and add +2 to the class's two best stats | Master Seals can't be used: promote only at a church, with its vow |
+| Blood Covenant | every unit, recruits included, +1 to all stats | Ill Omen never ends (+2 shadow each victory; +1 before the October 2026 retune) |
+| Kingmaker's Oath | promotions are free and add +2 to the class's best stat | Master Seals can't be used: promote only at a church, with its vow |
 | Hollow Sun's Favor | +50% battle gold and loot gold | Hunted until Act 3 (waves of 2) |
 
 Fact checks from review:
@@ -707,6 +707,15 @@ checkpoint and the Vision rewind):
   stone. A later death trigger is not covered: a Deathburst raised by a fall meets the banner
   already spent and can fell the unit. The forecast reads "1 HP (Unbroken Banner)", and its
   teaching hint never calls a held counter lethal.
+  **Its price (October 2026):** the hold stamps the
+  battle unit `_bannerHeld` (a battle-unit field: a suspend keeps it, a Vision rewind to before
+  the hold takes it back, Continue from Map never sees it; `serializeUnit` drops it, so the victory flow reads it
+  before serializing, `BattleBlessings.bannerHeldUidOf`, and passes `bannerHeldUid`). The victory
+  commit (`RunManager._takeBannerWound`, after the burdens settle) gives that survivor a Lingering
+  Injury through `Burdens.addBurden` (the catalog's numbers: -2, 3 battles, 2 on First Light; the
+  stat keyed to the run seed and node; a fresh injury replaces any already carried, one unit at a
+  time). A held unit that falls later in the battle takes none. The victory band names it
+  (`settlementLines`, `bannerWound`).
 - **Ember Lantern.** The army's first combat kill heals the killer 10 HP (`healUnit`, so a Wounded
   killer heals nothing). It is spent even at 0 healed (decision D6). Counter-kills and the
   unit's own area and ram kills count; a stone's refilled bar, Deathburst, terrain and poison
@@ -825,7 +834,7 @@ a burden that does not count down (`BlessingTerms` reads the price's effects).
 |---|---|---|
 | Darkened Dawn (§6.2's "Second Dawn (dark)") | `vision_delta { 1 }` now and `act_start_vision_delta { 1 }` (a `vision` act-start grant from the next act) | `eclipse_shadow_delta { 8 }` and `eclipse_gain_multiplier_delta { 0.25 }` |
 | Blood Covenant | `army_stat_bonus { 1 }` | `burden { id: 'ill_omen', permanent: true, extraShadow: 1 }` |
-| Kingmaker's Oath | `kingmaker_promotion { bonus: 2, stats: 2 }` | `master_seals_forbidden {}` |
+| Kingmaker's Oath | `kingmaker_promotion { bonus: 2, stats: 1 }` | `master_seals_forbidden {}` |
 | Hollow Sun's Favor (tag `gold`) | `battle_gold_multiplier_delta { 0.5 }` and `loot_gold_multiplier_delta { 0.5 }` | `burden { id: 'hunted', actsAhead: 1, wave: { turn: 3, count: [2, 2], xpMultiplier: 0.5 } }` |
 
 The new effect types live in `engine/TwistedBoons.js` (one parser per type for the validator, the
