@@ -16,7 +16,9 @@
 //     in place of the act's size (a long, narrow road). No draw: the act's size roll is still
 //     taken and set aside.
 // An enemy-spawn zone may carry `group: { id, share, ai: chase | hold | guard, wakeTurn?, role?,
-// captain? }`; a `role` (front | ranged | flank, GROUP_ROLES) weighs the classes its foes are drawn
+// captain?, formation? }`; a `formation` (strongpoint | screen | pincer, EnemyFormations.js)
+// stands the group together facing the army, and the template's opening is then checked so no
+// foe the army can strike on its first phase stands where nobody can answer for it; a `role` (front | ranged | flank, GROUP_ROLES) weighs the classes its foes are drawn
 // from. A `captain: { name }` (rout templates, base zones only) names the group's strongest foe its
 // captain and the map a defeat of the captains (BattleObjectives.js): the rest need not fall.
 // A template with groups splits its filler enemies among them by share (largest remainder);
@@ -28,6 +30,7 @@ import { HOLD_AI_MODE } from './HoldDisturbance.js';
 import { captainLevelFor } from './CaptainLevel.js';
 import { OBJECTIVES_VERSION } from './BattleObjectives.js';
 import { ZOMBIE_CLASSES } from '../utils/constants.js';
+import { FORMATIONS } from './EnemyFormations.js';
 
 /** Hold packs of template groups are numbered from here, clear of HoldActivation's packs (0..). */
 export const TEMPLATE_GROUP_PACK_BASE = 100;
@@ -313,6 +316,23 @@ export function hasTemplateCaptain(group) {
 }
 
 /**
+ * Which of a captain group's members becomes its captain (-1 for none): the strongest, the earlier
+ * on a tie, passing over a healer, a Necromancer and a Zombie while the group has anyone else.
+ * The formation that seats the captain at its heart (EnemyFormations.js) asks the same question.
+ */
+export function captainIndexOf(members) {
+  const list = members || [];
+  const plain = (s) => !KEEPS_OWN_ROLE.has(s.className) && !ZOMBIE_CLASSES.has(s.className);
+  const anyPlain = list.some(plain);
+  let best = -1;
+  list.forEach((s, i) => {
+    if (anyPlain && !plain(s)) return;
+    if (best < 0 || s.level > list[best].level) best = i;
+  });
+  return best;
+}
+
+/**
  * Name each captain group's captain (mutates the spawns; no draw): its strongest member, the
  * earlier on a tie, passing over a healer, a Necromancer and a Zombie (which would rise nameless)
  * while the group has anyone else. The captain takes the group's captain name, an authored id
@@ -329,12 +349,7 @@ export function appointTemplateCaptains(spawns, groups, { act, levelTop }) {
     const members = (spawns || []).filter(
       (s) => s?.templateGroup === group.id && !s.isBoss && !s.authoredId,
     );
-    const plain = members.filter(
-      (s) => !KEEPS_OWN_ROLE.has(s.className) && !ZOMBIE_CLASSES.has(s.className),
-    );
-    const pool = plain.length > 0 ? plain : members;
-    let captain = null;
-    for (const s of pool) if (!captain || s.level > captain.level) captain = s;
+    const captain = members[captainIndexOf(members)];
     if (!captain) continue;
     const id = `${TEMPLATE_CAPTAIN_PREFIX}${group.id}`;
     captain.authoredId = id;
@@ -405,7 +420,7 @@ export function isTemplateGroupSpawn(spawn) {
 
 // --- Validation (MapTemplateEngine.validateMapTemplatesConfig calls this) ---
 
-const KNOWN_GROUP_KEYS = new Set(['id', 'share', 'ai', 'wakeTurn', 'role', 'captain']);
+const KNOWN_GROUP_KEYS = new Set(['id', 'share', 'ai', 'wakeTurn', 'role', 'captain', 'formation']);
 const KNOWN_CHOICE_KEYS = new Set(['id', 'options']);
 const KNOWN_OPTION_KEYS = new Set(['weight', 'zones', 'features']);
 
@@ -502,6 +517,8 @@ export function validateTemplateLayout(
         errors.push(`${gp}.role must be one of ${Object.keys(GROUP_ROLES).join(', ')}`);
       if (!TEMPLATE_GROUP_AI.includes(g.ai))
         errors.push(`${gp}.ai must be one of ${TEMPLATE_GROUP_AI.join(', ')}`);
+      if (g.formation !== undefined && !FORMATIONS.includes(g.formation))
+        errors.push(`${gp}.formation must be one of ${FORMATIONS.join(', ')}`);
       if (
         g.wakeTurn !== undefined &&
         (!Number.isInteger(g.wakeTurn) || g.wakeTurn < 2 || g.wakeTurn > 12)

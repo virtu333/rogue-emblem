@@ -2293,7 +2293,8 @@
             "id": "raiders",
             "share": 0.4,
             "ai": "chase",
-            "role": "flank"
+            "role": "flank",
+            "formation": "screen"
           }
         },
         {
@@ -2313,7 +2314,8 @@
           "group": {
             "id": "main",
             "share": 0.35,
-            "ai": "chase"
+            "ai": "chase",
+            "formation": "strongpoint"
           }
         }
       ],
@@ -2341,7 +2343,8 @@
                     "id": "flank",
                     "share": 0.25,
                     "ai": "hold",
-                    "wakeTurn": 3
+                    "wakeTurn": 3,
+                    "formation": "strongpoint"
                   }
                 }
               ]
@@ -2365,7 +2368,8 @@
                   "group": {
                     "id": "flank",
                     "share": 0.25,
-                    "ai": "chase"
+                    "ai": "chase",
+                    "formation": "strongpoint"
                   }
                 }
               ]
@@ -2478,6 +2482,20 @@
         "act3",
         "act4"
       ],
+      "sizeByAct": {
+        "act2": [
+          18,
+          11
+        ],
+        "act3": [
+          20,
+          12
+        ],
+        "act4": [
+          20,
+          13
+        ]
+      },
       "extraEnemies": 1,
       "mirror": "y",
       "fogChance": 0.1,
@@ -2543,7 +2561,8 @@
           "group": {
             "id": "main",
             "share": 0.6,
-            "ai": "chase"
+            "ai": "chase",
+            "formation": "screen"
           }
         }
       ],
@@ -2555,9 +2574,9 @@
               "zones": [
                 {
                   "rect": [
-                    0.3,
+                    0.38,
                     0,
-                    0.52,
+                    0.6,
                     0.2
                   ],
                   "terrain": {
@@ -2572,14 +2591,15 @@
                     "share": 0.2,
                     "ai": "hold",
                     "wakeTurn": 3,
-                    "role": "flank"
+                    "role": "flank",
+                    "formation": "strongpoint"
                   }
                 },
                 {
                   "rect": [
-                    0.3,
+                    0.38,
                     0.8,
-                    0.52,
+                    0.6,
                     1
                   ],
                   "terrain": {
@@ -2594,7 +2614,8 @@
                     "share": 0.2,
                     "ai": "hold",
                     "wakeTurn": 3,
-                    "role": "flank"
+                    "role": "flank",
+                    "formation": "strongpoint"
                   }
                 }
               ]
@@ -2603,9 +2624,9 @@
               "zones": [
                 {
                   "rect": [
-                    0.28,
+                    0.36,
                     0,
-                    0.56,
+                    0.62,
                     0.22
                   ],
                   "terrain": {
@@ -2620,7 +2641,8 @@
                     "share": 0.4,
                     "ai": "hold",
                     "wakeTurn": 3,
-                    "role": "flank"
+                    "role": "flank",
+                    "formation": "strongpoint"
                   }
                 }
               ]
@@ -2790,7 +2812,8 @@
           "group": {
             "id": "raiders",
             "share": 0.5,
-            "ai": "chase"
+            "ai": "chase",
+            "formation": "screen"
           }
         },
         {
@@ -2812,7 +2835,8 @@
             "share": 0.5,
             "ai": "hold",
             "wakeTurn": 4,
-            "role": "front"
+            "role": "front",
+            "formation": "strongpoint"
           }
         }
       ],
@@ -3020,7 +3044,8 @@
             "id": "screen",
             "share": 0.4,
             "ai": "chase",
-            "role": "front"
+            "role": "front",
+            "formation": "screen"
           }
         },
         {
@@ -3045,7 +3070,8 @@
             "role": "flank",
             "captain": {
               "name": "Rider Captain"
-            }
+            },
+            "formation": "strongpoint"
           }
         },
         {
@@ -3069,7 +3095,8 @@
             "role": "ranged",
             "captain": {
               "name": "Camp Captain"
-            }
+            },
+            "formation": "strongpoint"
           }
         }
       ],
@@ -3288,7 +3315,8 @@
             "id": "road",
             "share": 0.3,
             "ai": "guard",
-            "role": "ranged"
+            "role": "ranged",
+            "formation": "strongpoint"
           }
         },
         {
@@ -3308,7 +3336,8 @@
           "group": {
             "id": "main",
             "share": 0.7,
-            "ai": "chase"
+            "ai": "chase",
+            "formation": "pincer"
           }
         }
       ],
@@ -5332,7 +5361,8 @@
             "id": "road",
             "share": 0.35,
             "ai": "guard",
-            "role": "ranged"
+            "role": "ranged",
+            "formation": "screen"
           }
         },
         {
@@ -5352,7 +5382,8 @@
           "group": {
             "id": "garrison",
             "share": 0.65,
-            "ai": "chase"
+            "ai": "chase",
+            "formation": "strongpoint"
           }
         }
       ],
@@ -5586,15 +5617,15 @@
       "sizeByAct": {
         "act2": [
           20,
-          8
+          10
         ],
         "act3": [
           20,
-          9
+          11
         ],
         "act4": [
           20,
-          10
+          12
         ]
       },
       "extraEnemies": 1,
@@ -5702,7 +5733,8 @@
             "id": "picket",
             "share": 0.3,
             "ai": "chase",
-            "role": "flank"
+            "role": "flank",
+            "formation": "screen"
           }
         },
         {
@@ -5723,7 +5755,8 @@
             "id": "garrison",
             "share": 0.4,
             "ai": "guard",
-            "role": "front"
+            "role": "front",
+            "formation": "strongpoint"
           }
         }
       ],
@@ -5751,7 +5784,8 @@
                     "share": 0.3,
                     "ai": "hold",
                     "wakeTurn": 4,
-                    "role": "ranged"
+                    "role": "ranged",
+                    "formation": "strongpoint"
                   }
                 },
                 {
@@ -5789,7 +5823,8 @@
                     "share": 0.3,
                     "ai": "hold",
                     "wakeTurn": 4,
-                    "role": "ranged"
+                    "role": "ranged",
+                    "formation": "strongpoint"
                   }
                 },
                 {
@@ -5917,15 +5952,15 @@
       ],
       "sizeByAct": {
         "act2": [
-          16,
-          11
-        ],
-        "act3": [
           18,
           12
         ],
+        "act3": [
+          20,
+          13
+        ],
         "act4": [
-          18,
+          20,
           13
         ]
       },
@@ -6045,8 +6080,9 @@
           "group": {
             "id": "garrison",
             "share": 0.4,
-            "ai": "guard",
-            "role": "front"
+            "ai": "hold",
+            "role": "front",
+            "formation": "strongpoint"
           }
         },
         {
@@ -6066,7 +6102,8 @@
             "id": "sally",
             "share": 0.3,
             "ai": "chase",
-            "role": "flank"
+            "role": "flank",
+            "formation": "screen"
           }
         }
       ],
@@ -6107,7 +6144,8 @@
                     "share": 0.3,
                     "ai": "hold",
                     "wakeTurn": 3,
-                    "role": "ranged"
+                    "role": "ranged",
+                    "formation": "strongpoint"
                   }
                 }
               ]
@@ -6145,7 +6183,8 @@
                     "share": 0.3,
                     "ai": "hold",
                     "wakeTurn": 3,
-                    "role": "ranged"
+                    "role": "ranged",
+                    "formation": "strongpoint"
                   }
                 }
               ]

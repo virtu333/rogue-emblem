@@ -137,11 +137,16 @@ describe('naming the captains', () => {
   });
 
   it('takes no draw: the map is the one drawn without captains, but for the captains themselves', () => {
-    const plain = structuredClone(data);
+    // Without formations: a formation seats its captain at its heart (EnemyFormations.test.js),
+    // so there the captain's tile is the captain's own.
+    const loose = structuredClone(data);
+    for (const zone of loose.mapTemplates.rout.find((t) => t.id === 'warband').zones)
+      if (zone.group) delete zone.group.formation;
+    const plain = structuredClone(loose);
     for (const zone of plain.mapTemplates.rout.find((t) => t.id === 'warband').zones)
       if (zone.group) delete zone.group.captain;
     for (let seed = 1; seed <= 8; seed++) {
-      const a = generateSeededBattle(params(), data, 700 + seed);
+      const a = generateSeededBattle(params(), loose, 700 + seed);
       const b = generateSeededBattle(params(), plain, 700 + seed);
       expect(objectivesOf(b)).toBeNull();
       const strip = (config) => ({
