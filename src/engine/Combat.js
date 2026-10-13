@@ -13,6 +13,7 @@ import {
   ENTITY_CRIT_DMG_MULT,
   ENTITY_PRIMARY_ATTACK_RANGE,
 } from '../utils/constants.js';
+import { gridDistance, thornsReflectDamage } from './CombatGeometry.js';
 import { affixForecastNotes } from './AffixForecast.js';
 import { rollHit } from './HitRoll.js';
 import { rollDefenseAffixes } from './AffixSystem.js';
@@ -706,10 +707,7 @@ export function isInRange(weapon, distance) {
   return dist >= min && dist <= max;
 }
 
-/** Manhattan distance between two grid positions */
-export function gridDistance(col1, row1, col2, row2) {
-  return Math.abs(col1 - col2) + Math.abs(row1 - row2);
-}
+export { gridDistance };
 
 // --- Weapon Triangle ---
 
@@ -1193,10 +1191,7 @@ export function getThornsReflectPct(unit, affixData) {
   return Number(affix?.effects?.reflectMeleePct) || 0;
 }
 
-/** The damage Thorns reflects for a hit of `damage`: rounded down, so small hits reflect 0. */
-export function thornsReflectDamage(damage, pct) {
-  return Math.max(0, Math.floor((Number(damage) || 0) * (Number(pct) || 0)));
-}
+export { thornsReflectDamage };
 
 /**
  * True when a weapon's special text changes HP during or right after the
