@@ -230,6 +230,8 @@ export const CHURCH_PROMOTE_COST_RECRUIT = 2000;
 export const REVIVE_BASE_COST = 500;
 export const REVIVE_COST_PER_LEVEL = 300;
 export const REVIVE_PROMOTION_MULTIPLIER = 2.5;
+// A church revives at most this many of the fallen (ChurchCommands; the Ruins allow one).
+export const CHURCH_REVIVE_LIMIT = 2;
 export const LOOT_CHOICES = 3;
 export const ELITE_LOOT_CHOICES = 4; // Elite battles offer 4 loot choices
 export const ELITE_MAX_PICKS = 2; // Pick 2 from elite loot

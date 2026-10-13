@@ -371,6 +371,16 @@ function sanitizeRuinsChoices(raw) {
   return out;
 }
 
+function sanitizeChurchRevives(raw) {
+  const out = {};
+  if (!isPlainObject(raw)) return out;
+  for (const [nodeId, count] of Object.entries(raw)) {
+    const n = Math.trunc(Number(count));
+    if (nodeId && Number.isFinite(n) && n > 0) out[nodeId] = n;
+  }
+  return out;
+}
+
 function sanitizeRuinsRevivals(raw) {
   const out = {};
   if (!isPlainObject(raw)) return out;
@@ -727,6 +737,8 @@ export class RunManager {
     this.ruinsChoiceByNodeId = {};
     // The Ruins' one revival per node (node id -> the revived unit's uid); see RuinsCommands.js.
     this.ruinsRevivedByNodeId = {};
+    // How many of the fallen each church revived (node id -> count); see ChurchCommands.js.
+    this.churchRevivesByNodeId = {};
     // Each church's one vow ('promote' | 'blessing'); see ChurchVow.js.
     this.churchVowByNodeId = {};
     // The churches whose Tithe Box gold was paid this act (ChurchCommands.payChurchTithe).
@@ -949,6 +961,7 @@ export class RunManager {
     this.shopStateByNodeId = {};
     this.ruinsChoiceByNodeId = {};
     this.ruinsRevivedByNodeId = {};
+    this.churchRevivesByNodeId = {};
     this.churchVowByNodeId = {};
     this.churchTitheByNodeId = {};
     this._resetEventState();
@@ -1042,6 +1055,7 @@ export class RunManager {
     this.shopStateByNodeId = {};
     this.ruinsChoiceByNodeId = {};
     this.ruinsRevivedByNodeId = {};
+    this.churchRevivesByNodeId = {};
     this.churchVowByNodeId = {};
     this.churchTitheByNodeId = {};
     this._resetEventState(); // the prologue has no events: it starts empty and stays empty
@@ -4842,6 +4856,7 @@ export class RunManager {
     this.shopStateByNodeId = {};
     this.ruinsChoiceByNodeId = {};
     this.ruinsRevivedByNodeId = {};
+    this.churchRevivesByNodeId = {};
     this.churchVowByNodeId = {};
     this.churchTitheByNodeId = {};
     // Each act's events are its own (the log, flags and burdens run on).
@@ -5279,6 +5294,7 @@ export class RunManager {
       shopStateByNodeId: this.shopStateByNodeId || {},
       ruinsChoiceByNodeId: this.ruinsChoiceByNodeId || {},
       ruinsRevivedByNodeId: this.ruinsRevivedByNodeId || {},
+      churchRevivesByNodeId: this.churchRevivesByNodeId || {},
       churchVowByNodeId: this.churchVowByNodeId || {},
       churchTitheByNodeId: this.churchTitheByNodeId || {},
       eventStateByNodeId: this.eventStateByNodeId || {},
@@ -5925,6 +5941,8 @@ export class RunManager {
     rm.ruinsChoiceByNodeId = sanitizeRuinsChoices(saved.ruinsChoiceByNodeId);
     // Saves from before the one-revival rule carry none: no ruins has revived anyone yet.
     rm.ruinsRevivedByNodeId = sanitizeRuinsRevivals(saved.ruinsRevivedByNodeId);
+    // Saves from before the church limit carry none: no church has revived anyone yet.
+    rm.churchRevivesByNodeId = sanitizeChurchRevives(saved.churchRevivesByNodeId);
     rm.churchVowByNodeId = sanitizeChurchVows(saved.churchVowByNodeId);
     // Saves from before the Tithe Box carry none: no church has paid it.
     rm.churchTitheByNodeId = sanitizeChurchTithes(saved.churchTitheByNodeId);

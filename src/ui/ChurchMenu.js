@@ -1,5 +1,5 @@
 import { specialCharacterEntries } from '../engine/SpecialCharacterDialogue.js';
-import { revivalCatchUpPlan } from '../engine/RevivalCatchUp.js';
+import { revivalCatchUpPlan, REVIVAL_LEVELS_BEHIND } from '../engine/RevivalCatchUp.js';
 import { PromotionPathChooser } from './PromotionPathChooser.js';
 import { promotionPathContent, projectUnit } from './growthContent.js';
 import { growthCeremonies } from './GrowthCeremonyController.js';
@@ -21,6 +21,8 @@ import {
   churchPromotionBlock,
   promoteAtChurch,
   churchReviveBlock,
+  churchRevivesLeft,
+  CHURCH_REVIVE_LIMIT_LINE,
   reviveAtChurch,
   churchKindleBlock,
   healRosterAtChurch,
@@ -62,6 +64,7 @@ import { createEclipseSunCanvas } from '../art/eclipse/eclipseSun.js';
 import {
   CHURCH_PROMOTE_COST_LORD,
   CHURCH_PROMOTE_COST_RECRUIT,
+  CHURCH_REVIVE_LIMIT,
   RUINS_SHOP_MARKUP,
   INVENTORY_MAX,
 } from '../utils/constants.js';
@@ -207,7 +210,7 @@ export class ChurchMenu {
     if (woundLine) body.append(el('p', woundLine, 'church-wound-line'));
     if (!ruins) this.renderKindle(body, run);
     const reviveBlock = (u) =>
-      ruins ? ruinsReviveBlock(run, nodeId, u) : churchReviveBlock(run, u);
+      ruins ? ruinsReviveBlock(run, nodeId, u) : churchReviveBlock(run, u, nodeId);
     body.append(el('h3', 'Revive fallen ally'));
     if (!run.fallenUnits.length) body.append(el('p', 'No fallen allies.'));
     else if (ruins)
@@ -220,6 +223,18 @@ export class ChurchMenu {
           'ruins-revive-rule',
         ),
       );
+    else {
+      const left = churchRevivesLeft(run, nodeId);
+      body.append(
+        el(
+          'p',
+          left > 0
+            ? `This church revives up to ${CHURCH_REVIVE_LIMIT} of the fallen · ${left} left.`
+            : CHURCH_REVIVE_LIMIT_LINE,
+          'church-revive-rule',
+        ),
+      );
+    }
     for (const unit of run.fallenUnits) {
       const reason = reviveBlock(unit);
       const catchUp = revivalCatchUpPlan(unit, run.roster);
@@ -230,10 +245,10 @@ export class ChurchMenu {
           confirmation: true,
           label: (u) => u.name,
           describe: () =>
-            `${ruins ? ruinsInjuryLine(run, unit) : ''}${getReviveCost(unit)} gold. Returns at level ${catchUp.targetLevel} with 1 HP.${catchUp.levels ? ` Gains ${catchUp.levels} missed levels toward the living roster average (promotion-adjusted, capped in this class). Each catch-up growth is reduced by 10 percentage points, minimum 0%; future growths are unchanged.` : ' No catch-up levels needed.'}${starterLine(unit, this.scene.gameData)} Use Heal all, then Roster to re-equip. ${unit._fallenItemsNotice || 'Transferred gear stays in the convoy.'}`,
+            `${ruins ? ruinsInjuryLine(run, unit) : ''}${getReviveCost(unit)} gold. Returns at level ${catchUp.targetLevel} with 1 HP.${catchUp.levels ? ` Gains ${catchUp.levels} missed levels, to ${REVIVAL_LEVELS_BEHIND} below the living roster average (promotion-adjusted, capped in this class). Each catch-up growth is reduced by 10 percentage points, minimum 0%; future growths are unchanged.` : ' No catch-up levels needed.'}${starterLine(unit, this.scene.gameData)} Use Heal all, then Roster to re-equip. ${unit._fallenItemsNotice || 'Transferred gear stays in the convoy.'}`,
           blocked: (u) => reviveBlock(u),
           apply: (u) => {
-            const result = ruins ? reviveAtRuins(run, nodeId, u) : reviveAtChurch(run, u);
+            const result = ruins ? reviveAtRuins(run, nodeId, u) : reviveAtChurch(run, u, nodeId);
             const line = specialCharacterEntries(this.scene.gameData, u, 'revival')[0]?.line;
             return this.finish(
               result.ok && line
