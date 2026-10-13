@@ -32,7 +32,7 @@ const unit = (name, faction, col, row, stats = {}, extra = {}) => ({
 describe('scoreEnemyWeaponArt (the scene rule, pinned)', () => {
   const brute = unit('Brute', 'enemy', 0, 0);
   it.each([
-    ['axe_smash', 20 * 0.35 + 20 * 0.25 - 3 * 0.75],
+    ['axe_smash', 25 * 0.35 + 10 * 0.25 - 3 * 0.75],
     ['legend_divine_flare', 10 * 3 + 10 * 0.35 + 2 * 4 + 3 - 8 * 0.75],
     ['bow_ward_arrow', 10 * 0.35 + 3 - 4 * 0.75],
     ['bow_all_or_nothing', 6 - 5 * 0.3 - 7 * 0.75],

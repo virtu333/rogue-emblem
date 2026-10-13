@@ -379,6 +379,8 @@ export function normalizeTier5AllyBuffEffect(effect) {
     durationPhases,
     stats,
     includeSelf: effect.includeSelf === true,
+    // `selfOnly`: the user alone gains the stats (Hunter's Focus); range is not read.
+    selfOnly: effect.selfOnly === true,
   };
 }
 

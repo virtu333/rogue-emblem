@@ -535,7 +535,7 @@ async function enterRuins(page) {
   });
 }
 
-const REST = 'Rest — heal everyone, revive the fallen';
+const REST = 'Rest — heal everyone, revive one fallen';
 const SCAVENGE = "Scavenge — the ruins' wares (+25%)";
 
 for (const viewport of [SE, IPHONE_13]) {
@@ -572,7 +572,7 @@ for (const viewport of [SE, IPHONE_13]) {
       );
       await expect(rest.locator('.ruins-path-effect')).toHaveText([
         'Heal every unit now · Free',
-        'Revive the fallen for gold · 1 waiting',
+        'Revive one fallen ally for gold · 1 waiting',
         'The wares stay buried',
       ]);
       await expect(scavenge.locator('.ruins-path-effect')).toHaveText([
