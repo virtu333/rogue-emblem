@@ -59,6 +59,16 @@ export function atmosphereContextFromScene(scene) {
   };
 }
 
+/**
+ * The player's Atmosphere preference ('auto' | 'full' | 'reduced' | 'off'), with the dev
+ * route's `?atmosphereMode=` forcing one (read-only; WeatherController reads it too).
+ */
+export function atmospherePreference(scene) {
+  const forced = devQuery()?.get('atmosphereMode');
+  if (['full', 'reduced', 'off'].includes(forced)) return forced;
+  return scene?.registry?.get?.('settings')?.getAtmosphere?.() || 'auto';
+}
+
 export class AtmosphereController {
   constructor(scene) {
     this.scene = scene;
@@ -94,9 +104,7 @@ export class AtmosphereController {
   }
 
   _preference() {
-    const forced = devQuery()?.get('atmosphereMode');
-    if (['full', 'reduced', 'off'].includes(forced)) return forced;
-    return this.scene?.registry?.get?.('settings')?.getAtmosphere?.() || 'auto';
+    return atmospherePreference(this.scene);
   }
 
   _modeInfo() {

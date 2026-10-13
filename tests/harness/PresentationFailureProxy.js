@@ -86,6 +86,7 @@ export function presentationFailureProxy(
       'playHeal',
       'playBuff',
       'ballistaShot',
+      'shake',
       'clear',
     ].map((name) => [name, () => {}]),
   );

@@ -1760,6 +1760,7 @@ export class MobileRosterSheet {
         const result = rosterItemAction(this.run, unit, item, action);
         if (!result && ['heal', 'healFull', 'cureHeal'].includes(item.effect))
           this.scene.registry.get('audio')?.playSFX('sfx_heal');
+        if (!result && action === 'equip') this.scene.registry.get('audio')?.playSFX('sfx_equip');
         if (!result) this.lesson?.observe({ action, unit: unit.name, item: item.name });
         this.render(
           result ||
@@ -1954,12 +1955,14 @@ export class MobileRosterSheet {
       for (const item of this.run.accessories || []) {
         const c = this.itemCard(item, unit);
         c.append(
-          this.button('Equip accessory', () =>
+          this.button('Equip accessory', () => {
+            const refused = rosterAccessoryAction(this.run, unit, item);
+            if (!refused) this.scene.registry.get('audio')?.playSFX('sfx_equip');
             this.render(
-              rosterAccessoryAction(this.run, unit, item) ||
+              refused ||
                 `${itemDisplayName(item, this.gameData.skills)} equipped.${this.persistNow()}`,
-            ),
-          ),
+            );
+          }),
         );
       }
     }

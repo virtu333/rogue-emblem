@@ -149,11 +149,18 @@ export default class BattleMusicController {
       return this.key;
     }
     if (audio) {
-      if (this.enrageLayer) {
-        void audio.playMusic(key, this.scene, fadeMs, { layers: { enrage: this.enrageLayer } });
-      } else void audio.playMusic(key, this.scene, fadeMs);
+      const started = this.enrageLayer
+        ? audio.playMusic(key, this.scene, fadeMs, { layers: { enrage: this.enrageLayer } })
+        : audio.playMusic(key, this.scene, fadeMs);
       if (this.entityStage) {
-        audio.preloadMusic?.([ENTITY_FINALE.track, ENTITY_FINALE.hum], this.scene);
+        // The finale and its hum (about 3 MB) download once the theme plays, so they
+        // never share the line with the track the battle is waiting to hear.
+        const scene = this.scene;
+        const preload = () => {
+          if (this.scene === scene)
+            audio.preloadMusic?.([ENTITY_FINALE.track, ENTITY_FINALE.hum], scene);
+        };
+        Promise.resolve(started).then(preload, preload);
         audio.preloadStingers?.([ENTITY_FINALE.hinge]);
       }
     }

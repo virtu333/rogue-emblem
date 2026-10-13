@@ -29,8 +29,10 @@ export function progressionResult(scene, unit, result, promotion, skills, growth
     if (!revealed) revealAll();
     else close();
   };
+  // The card has its own ceremony sounds (the level-up cue), so no menu whoosh.
   const surface = new MenuSurface(scene, promotion ? 'Promotion' : 'Level up', advance, {
     modal: true,
+    sound: false,
   });
   surface.root.classList.add('re-progression');
   surface.header.querySelector('button').remove();

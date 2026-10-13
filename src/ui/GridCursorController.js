@@ -1,4 +1,5 @@
 import { TILE_SIZE } from '../utils/constants.js';
+import { haptic } from '../utils/haptics.js';
 
 // Keep the cursor this many world-units inside the viewport edge before panning.
 const FOLLOW_MARGIN = TILE_SIZE * 1.5;
@@ -48,8 +49,12 @@ export class GridCursorController {
     this.active = true;
     // Arrows follow the board as drawn (a portrait board is turned a quarter).
     const step = this.scene?.grid?.board?.displayDeltaToGrid?.(dx, dy) || { dc: dx, dr: dy };
-    this.cursorCol = clamp(this.cursorCol + step.dc, 0, cols - 1);
-    this.cursorRow = clamp(this.cursorRow + step.dr, 0, rows - 1);
+    const col = clamp(this.cursorCol + step.dc, 0, cols - 1);
+    const row = clamp(this.cursorRow + step.dr, 0, rows - 1);
+    // A step onto a new tile ticks; pushing against the board's edge does not.
+    if (col !== this.cursorCol || row !== this.cursorRow) haptic('tick');
+    this.cursorCol = col;
+    this.cursorRow = row;
     this._render();
   }
 

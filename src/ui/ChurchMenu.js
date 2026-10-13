@@ -572,9 +572,13 @@ export class ChurchMenu {
     body.append(b);
     if (reason) body.append(el('p', reason));
   }
+  /** The church's bell over a committed vow, heal or revival (the Ruins keep the heal). */
+  serviceSfx() {
+    return this.scene._churchRuinsMode ? 'sfx_heal' : 'sfx_chime';
+  }
   finish(result) {
     if (result.ok) {
-      this.scene.registry.get('audio')?.playSFX('sfx_heal');
+      this.scene.registry.get('audio')?.playSFX(this.serviceSfx());
       this.render(result.message + saveServiceRun(this.scene));
       this.surface.focusContent();
     }
@@ -607,6 +611,7 @@ export class ChurchMenu {
         const before = projectUnit(unit);
         const result = promoteAtChurch(run, unit, nodeId, target, gameData);
         if (!result.ok) return result;
+        this.scene.registry.get('audio')?.playSFX(this.serviceSfx());
         this.scene._churchPromotionsThisVisit = run.getChurchPromotionCount(nodeId);
         this.status = result.message + saveServiceRun(this.scene);
         rite = { content, before };

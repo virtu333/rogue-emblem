@@ -386,8 +386,8 @@ describe('the scene: the move into the engine changed nothing', () => {
   });
 
   it('a draw the presentation takes between hits keeps its place (no damage is pre-rolled)', async () => {
-    // A legacy-v1 canvas text draws Math.random as it is made. The scene's hint for a hit
-    // comes after that hit's damage draw and before the next hit's.
+    // A draw the presentation takes after a hit (here, its tick's wait) comes after that hit's
+    // damage draw and before the next hit's; the hit's floating number takes none.
     const hints = [];
     const run = async (hintDraws) => {
       const { entity, target, others } = splashBoard('open');
@@ -401,8 +401,14 @@ describe('the scene: the move into the engine changed nothing', () => {
       rendering(scene, 0);
       scene.sys = { isActive: () => true };
       scene.scene = { isActive: () => true };
-      scene.showMinorHintAt = (_x, _y, text) => {
-        hints.push(text);
+      // The hit's number floats through presentationText (a canvas text that draws Math.random
+      // as it is made, shielded); then the presentation takes `hintDraws` draws of its own.
+      const makeText = scene.add.text;
+      scene.add.text = (x, y, text, ...rest) => {
+        if (String(text).startsWith('Splash -')) hints.push(text);
+        return makeText(x, y, text, ...rest);
+      };
+      scene._awaitSceneDelay = async () => {
         for (let k = 0; k < hintDraws; k++) Math.random();
       };
       // The tiles' four draws answer 0.99 (no swap, all four tiles); then the seeded stream.

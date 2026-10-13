@@ -1,4 +1,5 @@
 import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
+import { startDeferredAssetWarmup } from '../utils/assetWarmup.js';
 import { routeMobileAction } from '../utils/overlayStack.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { MobileHomeBase } from '../ui/MobileHomeBase.js';
@@ -182,6 +183,8 @@ export class HomeBaseScene extends Phaser.Scene {
 
     const audio = this.registry.get('audio');
     if (audio) audio.playMusic(MUSIC.homeBase, this);
+    // Picks up the deferred assets if the title was left before they had loaded.
+    startDeferredAssetWarmup(this, { resumeOnly: true });
 
     if (this._corruptRunDetected) {
       showMinorHint(this, 'Save data could not be loaded. Starting fresh for this slot.');

@@ -729,6 +729,7 @@ export class ColosseumOverlay {
     unit._hired = true;
     this._mercHired = true;
     this._persistVisit();
+    this.scene?.registry?.get?.('audio')?.playSFX?.('sfx_purchase');
 
     // Joins your army (after the hire is saved), then the updated board.
     const growth = growthCeremonies(this.scene);

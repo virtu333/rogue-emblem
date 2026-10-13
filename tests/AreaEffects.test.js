@@ -93,6 +93,22 @@ describe('Battering Ram: push up to two tiles, crash when stopped short', () => 
     expect([t.col, t.currentHP]).toEqual([3, 25]);
   });
 
+  it("marks each crash hint as an impact 'crash' (the scene's camera shake keys on it), and no other hint", () => {
+    const a = lancer();
+    const t = target();
+    const foe = unit('Foe', 'enemy', 3, 1, { HP: 30 });
+    const { beats } = run(ram, a, t, [a, t, foe]);
+    const crashes = beats.filter((b) => b.kind === 'hint' && /^Crash -/.test(b.text));
+    expect(crashes.map((b) => b.unit.name).sort()).toEqual(['Foe', 'Target']);
+    expect(crashes.every((b) => b.impact === 'crash')).toBe(true);
+    // A rooted target braces instead: that hint is no crash.
+    const rooted = target();
+    applyCondition(rooted, 'root', 2, { recoveryChance: 0 });
+    const a2 = lancer();
+    const { beats: braced } = run(ram, a2, rooted, [a2, rooted], { walls: [[3, 1]] });
+    expect(braced.some((b) => b.impact === 'crash')).toBe(false);
+  });
+
   it('crashes into a foe: both take 5, the foe leaves a credit, a fallen foe is removed', () => {
     const a = lancer();
     const t = target();
