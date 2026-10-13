@@ -581,10 +581,11 @@ test.describe('player choices (phone 390×844)', () => {
     await expect(roster).toHaveClass(/\bre-attention\b/);
     await expect(roster).toHaveAttribute('aria-description', 'A new skill is on the bench');
     await roster.click();
-    // The Roster opens on its overview, which already marks the new skill.
+    // The Roster opens on its overview; the card's label already names the new skill
+    // (its face shows the equipped weapon instead of tags).
     await expect(
-      page.locator('nav.mr-grid').getByRole('button', { name: /^Bramwell/ }),
-    ).toContainText('New skill');
+      page.locator('nav.mr-grid').getByRole('button', { name: /^Bramwell.*New skill/ }),
+    ).toBeVisible();
     await openRosterUnit(page.locator('.mr-sheet'), 'Bramwell');
     await page
       .locator('.mr-bench-callout')
