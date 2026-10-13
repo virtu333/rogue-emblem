@@ -1,0 +1,11 @@
+{
+  "note": "Static import cycles in src/ allowed today. Written by tools/importCycles.mjs --write; only ever shrink it.",
+  "groups": [
+    ["main.js", "scenes/BootScene.js"],
+    [
+      "ui/BattlePresentationCheckpoint.js",
+      "ui/BattleSuspendController.js",
+      "ui/LevelUpRerollController.js"
+    ]
+  ]
+}
