@@ -45,6 +45,7 @@ const NEW_TEMPLATES = [
   'three_roads_keep',
   'caught_in_the_open',
   'two_camps',
+  'long_road',
 ];
 const allTemplates = () => Object.values(data.mapTemplates).flat();
 const byId = (id) => allTemplates().find((t) => t.id === id);
@@ -497,6 +498,45 @@ describe('group roles', () => {
   });
 });
 
+describe("a template's own size (sizeByAct)", () => {
+  it('plays each act at its size, and only that template', () => {
+    const road = byId('long_road');
+    for (const act of road.acts) {
+      for (let seed = 1; seed <= 4; seed++) {
+        const config = generateSeededBattle(
+          { act, objective: 'seize', templateId: 'long_road', deployCount: 6, row: 3 },
+          data,
+          900 + seed,
+        );
+        expect([config.cols, config.rows], `${act} seed ${seed}`).toEqual(road.sizeByAct[act]);
+        expect(config.mapLayout.length).toBe(road.sizeByAct[act][1]);
+        expect(config.mapLayout[0].length).toBe(road.sizeByAct[act][0]);
+      }
+    }
+    // The battle beside it keeps an act size from mapSizes.json.
+    const keep = generateSeededBattle(
+      { act: 'act2', objective: 'seize', templateId: 'three_roads_keep', deployCount: 6, row: 3 },
+      data,
+      901,
+    );
+    expect(SIZES).toContainEqual([keep.cols, keep.rows]);
+  });
+
+  it("takes the act's size roll first, so its layout draws are the act-sized map's", () => {
+    // The same template without sizeByAct: the act's size roll is the first draw either way, so
+    // both take the same ambush option from the same stream position.
+    const plain = structuredClone(data.mapTemplates);
+    delete plain.seize.find((t) => t.id === 'long_road').sizeByAct;
+    const plainData = { ...data, mapTemplates: plain };
+    for (let seed = 1; seed <= 12; seed++) {
+      const params = { act: 'act3', objective: 'seize', templateId: 'long_road', deployCount: 6 };
+      const sized = generateSeededBattle({ ...params, row: 3 }, data, 300 + seed);
+      const unsized = generateSeededBattle({ ...params, row: 3 }, plainData, 300 + seed);
+      expect(sized.templateChoices, `seed ${seed}`).toEqual(unsized.templateChoices);
+    }
+  });
+});
+
 describe('the template validator', () => {
   const zone = (extra = {}) => ({ rect: [0, 0, 1, 1], terrain: { Plain: 1 }, ...extra });
   const rout = (template) => ({
@@ -580,6 +620,41 @@ describe('the template validator', () => {
       ).toBe(true);
     }
     expect(errorsOf(rout({ zones: [zone({ role: 'enemySpawn' })], extraEnemies: 3 }))).toEqual([]);
+  });
+
+  it('refuses a size that would not fit the board, misses an act, or sits beside fixedSize', () => {
+    const sized = (sizeByAct, extra = {}) =>
+      errorsOf(
+        rout({
+          zones: [zone({ role: 'enemySpawn' })],
+          acts: ['act2', 'act3'],
+          sizeByAct,
+          ...extra,
+        }),
+      );
+    expect(sized({ act2: [20, 8], act3: [18, 13] })).toEqual([]);
+    for (const bad of [[21, 8], [20, 14], [9, 8], [20, 6], [20.5, 8], [20]]) {
+      expect(
+        sized({ act2: bad, act3: [20, 9] }).some((e) => e.includes('sizeByAct.act2 must be')),
+        JSON.stringify(bad),
+      ).toBe(true);
+    }
+    expect(sized({ act2: [20, 8] }).some((e) => e.includes('has no size for act3'))).toBe(true);
+    expect(
+      sized({ act2: [20, 8], act3: [20, 9], act4: [20, 9] }).some((e) =>
+        e.includes('sizeByAct.act4 names an act'),
+      ),
+    ).toBe(true);
+    expect(
+      sized({ act2: [20, 8], act3: [20, 9] }, { fixedSize: [20, 8] }).some((e) =>
+        e.includes('cannot be used with fixedSize'),
+      ),
+    ).toBe(true);
+    expect(
+      errorsOf(rout({ zones: [zone({ role: 'enemySpawn' })], sizeByAct: { act2: [20, 8] } })).some(
+        (e) => e.includes("needs the template's acts"),
+      ),
+    ).toBe(true);
   });
 
   it('refuses a mirror on an unknown axis or over absolute tiles', () => {

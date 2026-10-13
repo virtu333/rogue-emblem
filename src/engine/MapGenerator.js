@@ -51,6 +51,7 @@ import {
   planGroupSlots,
   resolveTemplateLayout,
   templateExtraEnemies,
+  templateSizeFor,
 } from './TemplateLayout.js';
 
 const DEBUG_MAP_GEN = false;
@@ -139,9 +140,10 @@ export function generateBattleLayout(params, deps) {
   // mirrored. A template with neither comes back as it is, with no draw.
   const { template, layout: templateLayout } = resolveTemplateLayout(pickedTemplate);
 
-  // Override map size if template has fixedSize
-  if (template.fixedSize) {
-    const [fc, fr] = template.fixedSize;
+  // Override map size if template has fixedSize, or its own size for this act (TemplateLayout)
+  const templateSize = template.fixedSize || templateSizeFor(template, act);
+  if (templateSize) {
+    const [fc, fr] = templateSize;
     sizeEntry = { mapSize: `${fc}x${fr}`, tiles: fc * fr };
     cols = fc;
     rows = fr;

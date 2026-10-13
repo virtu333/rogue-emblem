@@ -1120,6 +1120,7 @@ export function validateMapTemplatesConfig(config, options = {}) {
         'entitySpawn',
         'enabled',
         'extraEnemies',
+        'sizeByAct',
         'mirror',
         'choices',
       ]);

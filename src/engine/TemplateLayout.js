@@ -10,6 +10,9 @@
 //   - `mirror: 'y'`: the battle flips the template top to bottom half the time. One draw.
 //   - `extraEnemies: N` (1-4): N more foes than the battle rolled, still under the map's density
 //     cap. No draw: the count roll is the same one.
+//   - `sizeByAct: { act2: [cols, rows], ... }`: the map's size in each act the template lists,
+//     in place of the act's size (a long, narrow road). No draw: the act's size roll is still
+//     taken and set aside.
 // An enemy-spawn zone may carry `group: { id, share, ai: chase | hold | guard, wakeTurn?, role? }`;
 // a `role` (front | ranged | flank, GROUP_ROLES) weighs the classes its foes are drawn from.
 // A template with groups splits its filler enemies among them by share (largest remainder);
@@ -66,6 +69,23 @@ export const MAX_EXTRA_ENEMIES = 4;
 /** The foes this template adds over the rolled count: 0 for every template that names none. */
 export function templateExtraEnemies(template) {
   return Number.isInteger(template?.extraEnemies) ? template.extraEnemies : 0;
+}
+
+/** A template's own map size: no wider than the battle canvas (20 x 32 px = 640), no deeper
+ * than the final boss's arena, never smaller than the smallest act map. */
+export const TEMPLATE_SIZE_BOUNDS = Object.freeze({
+  minCols: 10,
+  maxCols: 20,
+  minRows: 7,
+  maxRows: 13,
+});
+
+/** This template's map size in `act` ([cols, rows]), or null to keep the act's own size. */
+export function templateSizeFor(template, act) {
+  const size = template?.sizeByAct?.[act];
+  return Array.isArray(size) && size.length === 2 && size.every(Number.isInteger)
+    ? [size[0], size[1]]
+    : null;
 }
 
 const MIRROR_FEATURE_POSITION_Y = Object.freeze({
@@ -275,6 +295,43 @@ export function validateTemplateLayout(
       template.extraEnemies > MAX_EXTRA_ENEMIES)
   ) {
     errors.push(`${path}.extraEnemies must be an integer from 1 to ${MAX_EXTRA_ENEMIES}`);
+  }
+  if (template.sizeByAct !== undefined) {
+    const sp = `${path}.sizeByAct`;
+    const b = TEMPLATE_SIZE_BOUNDS;
+    if (
+      !template.sizeByAct ||
+      typeof template.sizeByAct !== 'object' ||
+      Array.isArray(template.sizeByAct)
+    ) {
+      errors.push(`${sp} must be an object of act id to [cols, rows]`);
+    } else {
+      if (template.fixedSize !== undefined) errors.push(`${sp} cannot be used with fixedSize`);
+      if (!Array.isArray(template.acts)) {
+        errors.push(`${sp} needs the template's acts, so every act it is drawn in has a size`);
+      }
+      for (const act of template.acts || []) {
+        if (!(act in template.sizeByAct)) errors.push(`${sp} has no size for ${act}`);
+      }
+      for (const [act, size] of Object.entries(template.sizeByAct)) {
+        if (Array.isArray(template.acts) && !template.acts.includes(act)) {
+          errors.push(`${sp}.${act} names an act the template is not drawn in`);
+        }
+        const ok =
+          Array.isArray(size) &&
+          size.length === 2 &&
+          size.every(Number.isInteger) &&
+          size[0] >= b.minCols &&
+          size[0] <= b.maxCols &&
+          size[1] >= b.minRows &&
+          size[1] <= b.maxRows;
+        if (!ok) {
+          errors.push(
+            `${sp}.${act} must be [cols, rows] from ${b.minCols}x${b.minRows} to ${b.maxCols}x${b.maxRows}`,
+          );
+        }
+      }
+    }
   }
   if (template.mirror !== undefined) {
     if (!MIRROR_AXES.includes(template.mirror)) {

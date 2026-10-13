@@ -5356,6 +5356,338 @@
         }
       },
       "lore": "Whoever holds the keep at the end of the old road holds all three ways in."
+    },
+    {
+      "id": "long_road",
+      "name": "The Long Road",
+      "enabled": false,
+      "parBonus": 2,
+      "acts": [
+        "act2",
+        "act3",
+        "act4"
+      ],
+      "sizeByAct": {
+        "act2": [
+          20,
+          8
+        ],
+        "act3": [
+          20,
+          9
+        ],
+        "act4": [
+          20,
+          10
+        ]
+      },
+      "extraEnemies": 1,
+      "fogChance": 0.1,
+      "zones": [
+        {
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 55,
+            "Forest": 40,
+            "Sand": 5
+          },
+          "priority": 0
+        },
+        {
+          "rect": [
+            0.1,
+            0.13,
+            0.84,
+            0.4
+          ],
+          "terrain": {
+            "Mountain": 75,
+            "Forest": 15,
+            "Wall": 10
+          },
+          "priority": 1
+        },
+        {
+          "rect": [
+            0.1,
+            0.6,
+            0.84,
+            0.87
+          ],
+          "terrain": {
+            "Mountain": 75,
+            "Forest": 15,
+            "Wall": 10
+          },
+          "priority": 1
+        },
+        {
+          "rect": [
+            0.1,
+            0.4,
+            0.84,
+            0.6
+          ],
+          "terrain": {
+            "Plain": 85,
+            "Sand": 10,
+            "Fort": 5
+          },
+          "priority": 2
+        },
+        {
+          "rect": [
+            0.84,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 55,
+            "Fort": 30,
+            "Forest": 15
+          },
+          "priority": 4
+        },
+        {
+          "rect": [
+            0,
+            0.25,
+            0.1,
+            0.75
+          ],
+          "terrain": {
+            "Plain": 60,
+            "Forest": 30,
+            "Fort": 10
+          },
+          "priority": 3,
+          "role": "playerSpawn"
+        },
+        {
+          "rect": [
+            0.32,
+            0.38,
+            0.5,
+            0.62
+          ],
+          "terrain": {
+            "Plain": 80,
+            "Sand": 20
+          },
+          "priority": 3,
+          "role": "enemySpawn",
+          "group": {
+            "id": "picket",
+            "share": 0.3,
+            "ai": "chase",
+            "role": "flank"
+          }
+        },
+        {
+          "rect": [
+            0.86,
+            0.15,
+            1,
+            0.85
+          ],
+          "terrain": {
+            "Plain": 55,
+            "Fort": 35,
+            "Forest": 10
+          },
+          "priority": 5,
+          "role": "enemySpawn",
+          "group": {
+            "id": "garrison",
+            "share": 0.4,
+            "ai": "guard",
+            "role": "front"
+          }
+        }
+      ],
+      "choices": [
+        {
+          "id": "ambush",
+          "options": [
+            {
+              "zones": [
+                {
+                  "rect": [
+                    0.44,
+                    0,
+                    0.72,
+                    0.12
+                  ],
+                  "terrain": {
+                    "Forest": 70,
+                    "Plain": 30
+                  },
+                  "priority": 3,
+                  "role": "enemySpawn",
+                  "group": {
+                    "id": "ambush",
+                    "share": 0.3,
+                    "ai": "hold",
+                    "wakeTurn": 4,
+                    "role": "ranged"
+                  }
+                },
+                {
+                  "rect": [
+                    0.26,
+                    0.6,
+                    0.32,
+                    0.87
+                  ],
+                  "terrain": {
+                    "Plain": 70,
+                    "Forest": 30
+                  },
+                  "priority": 3
+                }
+              ]
+            },
+            {
+              "zones": [
+                {
+                  "rect": [
+                    0.44,
+                    0.88,
+                    0.72,
+                    1
+                  ],
+                  "terrain": {
+                    "Forest": 70,
+                    "Plain": 30
+                  },
+                  "priority": 3,
+                  "role": "enemySpawn",
+                  "group": {
+                    "id": "ambush",
+                    "share": 0.3,
+                    "ai": "hold",
+                    "wakeTurn": 4,
+                    "role": "ranged"
+                  }
+                },
+                {
+                  "rect": [
+                    0.26,
+                    0.13,
+                    0.32,
+                    0.4
+                  ],
+                  "terrain": {
+                    "Plain": 70,
+                    "Forest": 30
+                  },
+                  "priority": 3
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "features": [
+        {
+          "type": "Throne",
+          "position": "right"
+        }
+      ],
+      "anchors": [
+        {
+          "position": "throne",
+          "unit": "boss_or_strongest"
+        }
+      ],
+      "reinforcementContractVersion": 1,
+      "reinforcements": {
+        "spawnEdges": [
+          "left"
+        ],
+        "waves": [
+          {
+            "turn": 5,
+            "count": [
+              1,
+              2
+            ],
+            "edges": [
+              "left"
+            ]
+          },
+          {
+            "turn": 8,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "left"
+            ]
+          }
+        ],
+        "difficultyScaling": true,
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "dusk": 0,
+          "hard": -1,
+          "lunatic": -3
+        },
+        "turnJitter": [
+          -1,
+          1
+        ],
+        "xpDecay": [
+          1,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "minActByDifficulty": {
+          "normal": "never",
+          "dusk": "act3",
+          "hard": "act2",
+          "lunatic": "act2"
+        },
+        "actTurnOffset": {
+          "hard": {
+            "act3": -1,
+            "act4": -1
+          }
+        },
+        "extraWavesByDifficulty": {
+          "lunatic": [
+            {
+              "turn": 11,
+              "count": [
+                2,
+                3
+              ],
+              "edges": [
+                "left"
+              ]
+            },
+            {
+              "turn": 14,
+              "count": [
+                3,
+                4
+              ],
+              "edges": [
+                "left"
+              ]
+            }
+          ]
+        }
+      },
+      "lore": "One road through the pass, a keep at the far end, and something moving in the trees above it."
     }
   ],
   "escape": [
