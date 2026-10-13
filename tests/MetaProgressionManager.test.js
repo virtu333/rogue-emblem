@@ -1584,6 +1584,8 @@ describe('storyFlags (run-aware narrative memory)', () => {
       lordFalls: {},
       lastRun: null,
       linesPlayed: [],
+      narrativeSeen: {},
+      lossStreak: 0,
     });
     expect(meta.getBossSlainCount('Iron Captain')).toBe(0);
     expect(meta.getDefeatedByCount('Iron Captain')).toBe(0);
@@ -1603,6 +1605,8 @@ describe('storyFlags (run-aware narrative memory)', () => {
       lordFalls: {},
       lastRun: null,
       linesPlayed: [],
+      narrativeSeen: {},
+      lossStreak: 0,
     });
   });
 
@@ -1684,6 +1688,8 @@ describe('storyFlags (run-aware narrative memory)', () => {
       lordFalls: {},
       lastRun: null,
       linesPlayed: [],
+      narrativeSeen: {},
+      lossStreak: 0,
     });
   });
 
@@ -1788,6 +1794,8 @@ describe('storyFlags (run-aware narrative memory)', () => {
       lordFalls: {},
       lastRun: null,
       linesPlayed: [],
+      narrativeSeen: {},
+      lossStreak: 0,
     });
   });
 });

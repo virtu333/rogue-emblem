@@ -23,7 +23,7 @@
 // Marks are not skills: Silence does not suppress them, they never enter effectiveSkills, and
 // they never touch masteryPerkMultiplier, creation mods or migrateUnitTraits.
 
-import { createSeededRng } from './BlessingEngine.js';
+import { createSeededRng } from './SeededRng.js';
 
 /** One recruit in ten bears a Mark until Marked Blood raises it (MetaProgressionManager). */
 export const DEFAULT_MARK_CHANCE = 0.1;
