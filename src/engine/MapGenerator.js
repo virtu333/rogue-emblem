@@ -57,7 +57,11 @@ import {
   interleaveSpawns,
   appointTemplateCaptains,
   templateCaptainObjectives,
+  captainIndexOf,
+  hasTemplateCaptain,
 } from './TemplateLayout.js';
+import { coverOpening, placeFormation } from './EnemyFormations.js';
+import { isBackLineClass } from './EngagementScan.js';
 
 const DEBUG_MAP_GEN = false;
 const mapGenLog = createScopedLogger('MapGen', { debug: DEBUG_MAP_GEN });
@@ -292,6 +296,8 @@ export function generateBattleLayout(params, deps) {
       // spawn so a locked map keeps them), and `bossName` seating a boss by name.
       seatParams: params,
       enemies,
+      // A formation faces the army (EnemyFormations.js) and the opening is read from its start.
+      playerSpawns,
     },
   );
   // A captains map (TemplateLayout.js): each captain group's strongest foe is named its captain
@@ -2542,27 +2548,33 @@ function generateEnemies(
 
     const unit = { className };
 
-    // Score all remaining candidate tiles for this unit
+    // A formation group's slots take their tiles together once every slot is drawn (below): no
+    // tile draw here.
+    const inFormation = group >= 0 && Boolean(groupZones[group].group.formation);
+    let pos = null;
     const scored = [];
-    for (const tile of slotTiles) {
-      const s = scoreSpawnTile(tile, unit, terrainData, mapLayout, cols, classes);
-      if (s > 0) scored.push({ item: tile, weight: s });
-    }
+    if (!inFormation) {
+      // Score all remaining candidate tiles for this unit
+      for (const tile of slotTiles) {
+        const s = scoreSpawnTile(tile, unit, terrainData, mapLayout, cols, classes);
+        if (s > 0) scored.push({ item: tile, weight: s });
+      }
 
-    if (scored.length === 0) {
-      if (groupPlan) continue; // this group's zone has nothing this class can stand on
-      break; // no passable tiles left for this unit
-    }
+      if (scored.length === 0) {
+        if (groupPlan) continue; // this group's zone has nothing this class can stand on
+        break; // no passable tiles left for this unit
+      }
 
-    // Weighted pick
-    const pos = weightedPick(scored);
+      // Weighted pick
+      pos = weightedPick(scored);
 
-    // Remove chosen tile from candidates (every group's list: zones may overlap)
-    for (const list of groupTiles || [candidateTiles]) {
-      const idx = list.findIndex((t) => t.col === pos.col && t.row === pos.row);
-      if (idx !== -1) list.splice(idx, 1);
+      // Remove chosen tile from candidates (every group's list: zones may overlap)
+      for (const list of groupTiles || [candidateTiles]) {
+        const idx = list.findIndex((t) => t.col === pos.col && t.row === pos.row);
+        if (idx !== -1) list.splice(idx, 1);
+      }
+      usedPositions.add(`${pos.col},${pos.row}`);
     }
-    usedPositions.add(`${pos.col},${pos.row}`);
 
     const level = minLvl + Math.floor(Math.random() * (maxLvl - minLvl + 1));
 
@@ -2629,7 +2641,7 @@ function generateEnemies(
       }
     }
 
-    if (DEBUG_MAP_GEN) {
+    if (DEBUG_MAP_GEN && pos) {
       const tName = terrainData[mapLayout[pos.row][pos.col]]?.name;
       const chosenScore = scored.find((s) => s.item === pos)?.weight;
       mapGenLog.debug(
@@ -2640,8 +2652,8 @@ function generateEnemies(
     spawns.push({
       className,
       level,
-      col: pos.col,
-      row: pos.row,
+      col: pos ? pos.col : null,
+      row: pos ? pos.row : null,
       isBoss: false,
       sunderWeapon: sunderWeapon || undefined,
       poisonWeapon: poisonWeapon || undefined,
@@ -2650,6 +2662,19 @@ function generateEnemies(
       aiMode: className === 'Cleric' ? 'heal' : className === 'Necromancer' ? 'guard' : undefined,
       siegeWeapon: siegeWeapon || undefined,
       ...(group >= 0 ? { templateGroup: groupZones[group].group.id } : {}),
+    });
+  }
+  // The formation groups (EnemyFormations.js), in group order, on the tiles left.
+  if (groupPlan && groupZones.some((z) => z.group.formation)) {
+    placeTemplateFormations(spawns, groupZones, {
+      cols,
+      rows,
+      mapLayout,
+      terrainData,
+      classes,
+      usedPositions,
+      playerSpawns: extraOptions.playerSpawns || [],
+      thronePos,
     });
   }
   // A group's orders (hold pack, guard post) before the seize guard roll, which skips them.
@@ -2676,7 +2701,144 @@ function generateEnemies(
     }
   }
 
+  // A template with formations has its opening checked: no foe the army can strike on its first
+  // phase is left where fewer than two others answer for it (EnemyFormations.coverOpening).
+  if (groupPlan && groupZones.some((z) => z.group.formation)) {
+    coverTemplateOpening(spawns, groupZones, {
+      cols,
+      rows,
+      mapLayout,
+      terrainData,
+      classes,
+      playerSpawns: extraOptions.playerSpawns || [],
+      act,
+      thronePos,
+      objective,
+    });
+  }
+
   return spawns;
+}
+
+/** How much shelter a tile and its four neighbours give (terrain DEF and Avoid). */
+function tileCover(tile, mapLayout, terrainData, cols, rows) {
+  let total = 0;
+  for (const [dc, dr] of [
+    [0, 0],
+    [0, -1],
+    [0, 1],
+    [-1, 0],
+    [1, 0],
+  ]) {
+    const col = tile.col + dc;
+    const row = tile.row + dr;
+    if (col < 0 || col >= cols || row < 0 || row >= rows) continue;
+    const t = terrainData[mapLayout[row][col]];
+    const weight = dc === 0 && dr === 0 ? 2 : 1;
+    // A wall's bonuses read "--": no shelter of its own.
+    const def = Number(t?.defBonus);
+    const avoid = Number(t?.avoidBonus);
+    total +=
+      weight * ((Number.isFinite(def) ? def : 0) + (Number.isFinite(avoid) ? avoid : 0) / 10);
+  }
+  return total;
+}
+
+function centreOf(points) {
+  const list = points.filter((p) => Number.isFinite(p?.col) && Number.isFinite(p?.row));
+  if (!list.length) return null;
+  return {
+    col: list.reduce((s, p) => s + p.col, 0) / list.length,
+    row: list.reduce((s, p) => s + p.row, 0) / list.length,
+  };
+}
+
+/**
+ * Place each formation group's spawns (their tiles were left open in the slot loop), in group
+ * order, on the free tiles of its zone, facing the army's start. A spawn no tile fits is dropped,
+ * as a slot with no standable tile always was. Mutates `spawns` and `usedPositions`.
+ */
+function placeTemplateFormations(spawns, groupZones, ctx) {
+  const { cols, rows, mapLayout, terrainData, classes, usedPositions, playerSpawns, thronePos } =
+    ctx;
+  const army = centreOf(playerSpawns) || { col: 0, row: rows / 2 };
+  groupZones.forEach((zone) => {
+    const group = zone.group;
+    if (!group.formation) return;
+    const members = spawns.filter((s) => s.templateGroup === group.id && s.col === null);
+    if (!members.length) return;
+    const b = resolveNormalizedRectBounds(zone.rect, cols, rows);
+    const tiles = [];
+    for (let r = b.startRow; r < b.endRow; r++)
+      for (let c = b.startCol; c < b.endCol; c++)
+        if (!usedPositions.has(`${c},${r}`)) tiles.push({ col: c, row: r });
+    const zoneCentre = centreOf(tiles) || army;
+    const coreIndex = hasTemplateCaptain(group) ? captainIndexOf(members) : -1;
+    const placed = placeFormation({
+      formation: group.formation,
+      members: members.map((s, i) => ({
+        back: isBackLineClass(s.className, classes),
+        core: i === coreIndex,
+      })),
+      tiles,
+      standScore: (tile, i) =>
+        scoreSpawnTile(tile, members[i], terrainData, mapLayout, cols, classes),
+      cover: (tile) => tileCover(tile, mapLayout, terrainData, cols, rows),
+      facing: { dc: army.col - zoneCentre.col, dr: army.row - zoneCentre.row },
+      random: () => Math.random(),
+      // A garrison whose zone holds the throne gathers around it.
+      heart:
+        thronePos &&
+        thronePos.col >= b.startCol &&
+        thronePos.col < b.endCol &&
+        thronePos.row >= b.startRow &&
+        thronePos.row < b.endRow
+          ? thronePos
+          : null,
+    });
+    members.forEach((s, i) => {
+      if (!placed[i]) return;
+      s.col = placed[i].col;
+      s.row = placed[i].row;
+      usedPositions.add(`${s.col},${s.row}`);
+    });
+  });
+  // A member the zone had no room for never stands.
+  for (let i = spawns.length - 1; i >= 0; i--) if (spawns[i].col === null) spawns.splice(i, 1);
+}
+
+/** EnemyFormations.coverOpening over a formation template's grouped spawns, in their zones. */
+function coverTemplateOpening(spawns, groupZones, ctx) {
+  const { cols, rows, mapLayout, terrainData, classes } = ctx;
+  const zoneById = new Map(groupZones.map((z) => [z.group.id, z]));
+  const tilesById = new Map();
+  const zoneTiles = (id) => {
+    if (!tilesById.has(id)) {
+      const b = resolveNormalizedRectBounds(zoneById.get(id).rect, cols, rows);
+      const tiles = [];
+      for (let r = b.startRow; r < b.endRow; r++)
+        for (let c = b.startCol; c < b.endCol; c++) tiles.push({ col: c, row: r });
+      tilesById.set(id, tiles);
+    }
+    return tilesById.get(id);
+  };
+  coverOpening({
+    spawns,
+    tilesFor: (i) => {
+      const s = spawns[i];
+      return s.isBoss || !zoneById.has(s.templateGroup) ? null : zoneTiles(s.templateGroup);
+    },
+    standScore: (tile, i) => scoreSpawnTile(tile, spawns[i], terrainData, mapLayout, cols, classes),
+    scan: {
+      mapLayout,
+      terrainData,
+      classes,
+      playerSpawns: ctx.playerSpawns,
+      act: ctx.act,
+      thronePos: ctx.thronePos,
+      objective: ctx.objective,
+    },
+  });
 }
 
 export function rollEnemyCount({

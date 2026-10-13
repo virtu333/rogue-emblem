@@ -160,14 +160,22 @@ export function pickFormationSpares({
 
   // One zone, or a split start's two (each searched in turn).
   const zones = Array.isArray(bounds) ? bounds : [bounds || playerSpawnBounds(null, cols, rows)];
-  let candidates = [];
-  for (const zone of zones)
+  const inZone = (zone, { col, row }) =>
+    col >= zone.startCol && col < zone.endCol && row >= zone.startRow && row < zone.endRow;
+  const zoneOf = (tile) =>
+    Math.max(
+      0,
+      zones.findIndex((zone) => inZone(zone, tile)),
+    );
+  const lists = zones.map(() => []);
+  zones.forEach((zone, i) => {
     for (let r = zone.startRow; r < zone.endRow; r++)
       for (let c = zone.startCol; c < zone.endCol; c++)
-        if (usable(c, r)) candidates.push({ col: c, row: r });
-  if (candidates.length < count) {
-    // A crowded zone: widen to the ring around the existing spawns.
-    const seen = new Set(candidates.map(tileKey));
+        if (usable(c, r)) lists[i].push({ col: c, row: r });
+  });
+  if (lists.flat().length < count) {
+    // A crowded zone: widen to the ring around the existing spawns (each ring joins its spawn's zone).
+    const seen = new Set(lists.flat().map(tileKey));
     for (const s of spawns)
       for (let dr = -2; dr <= 2; dr++)
         for (let dc = -2; dc <= 2; dc++) {
@@ -175,10 +183,28 @@ export function pickFormationSpares({
           const r = s.row + dr;
           if (seen.has(`${c},${r}`) || !usable(c, r)) continue;
           seen.add(`${c},${r}`);
-          candidates.push({ col: c, row: r });
+          lists[zoneOf(s)].push({ col: c, row: r });
         }
   }
-  candidates = shuffled(candidates, rng);
+  const shuffledLists = lists.map((list) => shuffled(list, rng));
+  // A split start deals its spares so each start ends with as many tiles as it can (spawns
+  // and spares alike): the side with fewer takes the next tile. One zone keeps its one shuffle.
+  const tilesIn = spawns.reduce((acc, s) => {
+    acc[zoneOf(s)] += 1;
+    return acc;
+  }, Array(zones.length).fill(0));
+  const candidates = [];
+  const cursor = Array(zones.length).fill(0);
+  for (;;) {
+    let best = -1;
+    for (let i = 0; i < zones.length; i++) {
+      if (cursor[i] >= shuffledLists[i].length) continue;
+      if (best < 0 || tilesIn[i] < tilesIn[best]) best = i;
+    }
+    if (best < 0) break;
+    candidates.push(shuffledLists[best][cursor[best]++]);
+    tilesIn[best] += 1;
+  }
 
   const picked = [];
   // Cover move types first: each type should have at least as many standable

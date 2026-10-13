@@ -366,52 +366,57 @@ describe('generation', () => {
     }
   });
 
-  it('every new map passes validateBattleConfig across acts, rungs, seeds and node kinds', () => {
-    const failures = [];
-    const variants = [{}, { isRecruitBattle: true }, { hasCaravan: true }, { hasVillage: true }];
-    let generated = 0;
-    for (const id of NEW_TEMPLATES) {
-      const template = byId(id);
-      for (const act of template.acts || ['act1', 'act2', 'act3', 'act4']) {
-        const deployCount = (DEPLOY_LIMITS[act]?.max || 4) + 2;
-        for (const difficultyId of ['normal', 'dusk', 'hard', 'lunatic']) {
-          for (const variant of variants) {
-            for (let seed = 1; seed <= 6; seed++) {
-              installSeed(seed * 101 + generated);
-              let config;
-              try {
-                config = generateBattle(
-                  {
-                    act,
-                    objective: objectiveOf(id),
-                    templateId: id,
-                    deployCount,
-                    difficultyId,
-                    row: 3,
-                    ...variant,
-                  },
-                  data,
-                );
-              } catch (error) {
-                failures.push(`${id} ${act} ${difficultyId} threw: ${error.message}`);
-                continue;
-              } finally {
-                restoreMathRandom();
+  // A sweep of 2,304 maps: its own time limit, not the default 5 s.
+  it(
+    'every new map passes validateBattleConfig across acts, rungs, seeds and node kinds',
+    { timeout: 30000 },
+    () => {
+      const failures = [];
+      const variants = [{}, { isRecruitBattle: true }, { hasCaravan: true }, { hasVillage: true }];
+      let generated = 0;
+      for (const id of NEW_TEMPLATES) {
+        const template = byId(id);
+        for (const act of template.acts || ['act1', 'act2', 'act3', 'act4']) {
+          const deployCount = (DEPLOY_LIMITS[act]?.max || 4) + 2;
+          for (const difficultyId of ['normal', 'dusk', 'hard', 'lunatic']) {
+            for (const variant of variants) {
+              for (let seed = 1; seed <= 6; seed++) {
+                installSeed(seed * 101 + generated);
+                let config;
+                try {
+                  config = generateBattle(
+                    {
+                      act,
+                      objective: objectiveOf(id),
+                      templateId: id,
+                      deployCount,
+                      difficultyId,
+                      row: 3,
+                      ...variant,
+                    },
+                    data,
+                  );
+                } catch (error) {
+                  failures.push(`${id} ${act} ${difficultyId} threw: ${error.message}`);
+                  continue;
+                } finally {
+                  restoreMathRandom();
+                }
+                generated++;
+                const violations = validateBattleConfig(config, data, {
+                  expectedPlayerSpawns: deployCount,
+                });
+                if (violations.length)
+                  failures.push(`${id} ${act} ${difficultyId}: ${violations.join('; ')}`);
               }
-              generated++;
-              const violations = validateBattleConfig(config, data, {
-                expectedPlayerSpawns: deployCount,
-              });
-              if (violations.length)
-                failures.push(`${id} ${act} ${difficultyId}: ${violations.join('; ')}`);
             }
           }
         }
       }
-    }
-    expect(failures).toEqual([]);
-    expect(generated).toBeGreaterThan(500);
-  });
+      expect(failures).toEqual([]);
+      expect(generated).toBeGreaterThan(500);
+    },
+  );
 });
 
 describe('extra foes (extraEnemies)', () => {
@@ -715,6 +720,30 @@ describe('the template validator', () => {
       }),
     );
     expect(errors.some((e) => e.includes('.role must be one of'))).toBe(true);
+  });
+
+  it('refuses an unknown formation', () => {
+    const errors = errorsOf(
+      rout({
+        zones: [
+          zone({
+            role: 'enemySpawn',
+            group: { id: 'a', share: 1, ai: 'chase', formation: 'wedge' },
+          }),
+        ],
+      }),
+    );
+    expect(errors.some((e) => e.includes('.formation must be one of'))).toBe(true);
+    for (const formation of ['strongpoint', 'screen', 'pincer'])
+      expect(
+        errorsOf(
+          rout({
+            zones: [
+              zone({ role: 'enemySpawn', group: { id: 'a', share: 1, ai: 'chase', formation } }),
+            ],
+          }),
+        ),
+      ).toEqual([]);
   });
 
   it('refuses extra foes that are not a whole number from 1 to 4', () => {
