@@ -20,6 +20,7 @@ import { ACT_CONFIG, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS } from '../utils/consta
 import { portraitListLayout } from './portraitListLayout.js';
 import { riteNodeModel, riteNodeNotes } from './riteModel.js';
 import { riteCardBlock } from './RiteView.js';
+import { getMercenaryPriceRange } from '../engine/ColosseumEngine.js';
 
 // DOM pieces shared by node travel and the read-only Campaign Map: the act header
 // (Cinzel title + pixel subline) and the inspect card for the selected knot.
@@ -295,6 +296,17 @@ export function renderLoomCard(card, node, ctx = {}) {
     ruinsChoice: node.type === 'ruins' && rm ? ruinsChoice(rm, node.id) : null,
     // The Old Sanctum's line follows its vow (offered, taken, spent, nothing left).
     sanctumStatus: node.type === 'church' && rm ? sanctumStatus(rm, node.id) : null,
+    // The colosseum's hire prices, read from the same rule its board prices with.
+    mercPrices:
+      node.type === 'colosseum'
+        ? getMercenaryPriceRange(
+            actId,
+            rm?.difficultyId ?? rm?.difficultyMode ?? 'normal',
+            gameData?.colosseum,
+            gameData?.recruits,
+            gameData?.classes,
+          )
+        : null,
     // A visited event keeps the line of what was chosen there.
     eventChoice:
       node.type === 'event' && rm && (!node.eclipse || node.darkOmen === true)
