@@ -1,7 +1,7 @@
 // AffixSystem.js — Pure affix logic evaluation (no Phaser dependencies)
 // Similar to SkillSystem.js but for randomized enemy modifiers.
 
-import { gridDistance, thornsReflectDamage } from './Combat.js';
+import { gridDistance, thornsReflectDamage } from './CombatGeometry.js';
 import { applyCondition } from './StatusConditionSystem.js';
 import { markHoldDisturbed } from './HoldDisturbance.js';
 import { combatDistance } from './EntitySystem.js';

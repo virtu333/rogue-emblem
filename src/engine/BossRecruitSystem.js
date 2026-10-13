@@ -35,7 +35,7 @@ import {
   learnSkill,
   normalizeEquippedFirst,
 } from './UnitManager.js';
-import { serializeUnit } from './RunManager.js';
+import { serializeUnit } from './UnitSerialization.js';
 import { VULNERARY_NAME, consumableTemplateFor } from './VulneraryRecipe.js';
 import { rollMark } from './MarkSystem.js';
 import { applyRecruitLevelBonus } from './RecruitJoinLevel.js';

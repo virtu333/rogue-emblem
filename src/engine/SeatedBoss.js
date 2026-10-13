@@ -17,7 +17,7 @@
 // already scaled to the node and takes none). Stones: RevivalStones' kind for the seat, plus the
 // Rite's (`params.riteMods.revivalStones`, act-v-descent §4); the Entity never carries one.
 
-import { captainLevelFor } from './SetPieces.js';
+import { captainLevelFor } from './CaptainLevel.js';
 import { earlyEnemyAllowed } from './EarlyEnemyRules.js';
 import { revivalStoneKind, revivalStonesFor } from './RevivalStones.js';
 
