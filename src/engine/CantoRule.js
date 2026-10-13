@@ -15,7 +15,7 @@ export function cantoRuleFor(unit, skillsData = defaults) {
 /**
  * How far a unit may move after acting: the movement it has left, scaled by the best
  * Canto skill it holds that applies to this action (a skill's `cantoShare`, default 1,
- * rounded down: Half Canto turns 5 left into 2). 0 means no Canto. `noncombat` skills
+ * rounded down: Parting Step, half_canto, turns 5 left into 2). 0 means no Canto. `noncombat` skills
  * apply only when the action was not a fight; a root stops every one.
  */
 export function cantoAllowance(

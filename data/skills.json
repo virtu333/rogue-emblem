@@ -393,7 +393,7 @@
   },
   {
     "id": "half_canto",
-    "name": "Half Canto",
+    "name": "Parting Step",
     "description": "After acting, move up to half your remaining movement (rounded down)",
     "trigger": "passive",
     "classInnate": ["Bow Knight", "Wyvern Lord"],

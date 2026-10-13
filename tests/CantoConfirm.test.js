@@ -480,9 +480,9 @@ describe('Canto budget and terrain (real Grid)', () => {
   });
 });
 
-// Half Canto (Bow Knight, Wyvern Lord; Dave, Oct 2026): Canto over half the movement
+// Parting Step (Bow Knight, Wyvern Lord; Dave, Oct 2026): Canto over half the movement
 // left, rounded down.
-describe('Half Canto in the scene', () => {
+describe('Parting Step in the scene', () => {
   function halfSetup({ mov, spent, skills = ['half_canto'] }) {
     const { scene, edric } = setup();
     Object.assign(edric, {
@@ -522,7 +522,7 @@ describe('Half Canto in the scene', () => {
     expect(scene.turnManager.unitActed).toHaveBeenCalledWith(edric);
   });
 
-  it('full Canto wins over Half Canto when a unit holds both', () => {
+  it('full Canto wins over Parting Step when a unit holds both', () => {
     const { scene, edric } = halfSetup({ mov: 8, spent: 3, skills: ['half_canto', 'canto'] });
     scene.finishUnitAction(edric, { session: scene._battleSession });
     expect(scene.startCantoMove).toHaveBeenCalledExactlyOnceWith(edric, 5);

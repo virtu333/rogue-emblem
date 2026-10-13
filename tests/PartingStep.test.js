@@ -1,4 +1,4 @@
-// Half Canto (Dave, Oct 2026): the Bow Knight and the Wyvern Lord may move again after
+// Parting Step (Dave, Oct 2026): the Bow Knight and the Wyvern Lord may move again after
 // acting, but only half the movement they have left, rounded down.
 import { describe, expect, it } from 'vitest';
 import { loadGameData } from './testData.js';
@@ -9,7 +9,7 @@ import { readActionContinuation } from '../src/engine/ActionContinuation.js';
 const { skills } = loadGameData();
 const unit = (ids, extra = {}) => ({ name: 'U', faction: 'player', skills: ids, ...extra });
 
-describe('Half Canto data', () => {
+describe('Parting Step data', () => {
   it('is innate to the Bow Knight and the Wyvern Lord only', () => {
     expect(getClassInnateSkills('Bow Knight', skills)).toContain('half_canto');
     expect(getClassInnateSkills('Wyvern Lord', skills)).toContain('half_canto');

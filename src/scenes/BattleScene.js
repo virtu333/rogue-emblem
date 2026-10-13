@@ -5329,7 +5329,7 @@ export class BattleScene extends Phaser.Scene {
       // Rooted units cannot use Canto (root may land mid-action via counter-art)
       const movSpent = unit._movementSpent || 0;
       // The same MOV the unit's move range read (selectUnit), less the terrain cost spent,
-      // scaled by the unit's Canto skill (Half Canto: half of it, rounded down).
+      // scaled by the unit's Canto skill (Parting Step: half of it, rounded down).
       const remaining = cantoAllowance(
         unit,
         (Number(unit.mov ?? unit.stats?.MOV) || 0) - movSpent,
