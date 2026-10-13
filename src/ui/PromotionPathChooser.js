@@ -115,7 +115,11 @@ export function buildPathCard({ scene, unit, cls, content, selected, onSelect })
   const short = content.grantsShort || [];
   const received = content.grants.filter((name) => !short.includes(name));
   if (received.length) notes.push(`Receives ${received.join(', ')}`);
-  if (short.length) notes.push(`Bag full: ${short.join(', ')} cannot be granted. Make room first`);
+  const convoy = content.grantsConvoy || [];
+  const lost = content.grantsLost || short.filter((name) => !convoy.includes(name));
+  if (convoy.length) notes.push(`Bag full: ${convoy.join(', ')} goes to the convoy`);
+  if (lost.length)
+    notes.push(`Bag and convoy full: ${lost.join(', ')} cannot be granted. Make room first`);
   if (content.dropped.length)
     notes.push(`To the bench (slots full): ${content.dropped.join(', ')}`);
   if (content.oath?.benched)
@@ -145,12 +149,15 @@ export class PromotionPathChooser {
     apply = null,
     onClose = null,
     churchRun = null,
+    run = null,
   }) {
     Object.assign(this, {
       scene,
       unit,
       gameData,
       churchRun,
+      // The run whose convoy takes a starter weapon a full bag cannot.
+      run: run || churchRun || scene?.runManager || null,
       confirmLabel,
       note,
       blocked,
@@ -179,6 +186,7 @@ export class PromotionPathChooser {
         try {
           content = promotionPathContent(this.unit, cls, this.gameData, {
             churchRun: this.churchRun,
+            run: this.run,
           });
         } catch (error) {
           console.warn('[PromotionPathChooser] preview failed:', error);

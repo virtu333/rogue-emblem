@@ -7,10 +7,12 @@ import {
   getSkillDisplayNames,
   withIndefiniteArticle,
   benchedSkillsNote,
-  addToInventory,
-  equipIfUnarmed,
 } from './UnitManager.js';
-import { getClassChangeWeaponGrants } from './RosterCommands.js';
+import {
+  getClassChangeWeaponGrants,
+  grantClassChangeWeapons,
+  classChangeGrantNotices,
+} from './RosterCommands.js';
 import { getReviveCost } from './RunManager.js';
 import { applyPromotionOath, oathBenchedNote } from './DeedSystem.js';
 import {
@@ -69,19 +71,19 @@ export function promoteAtChurch(run, unit, nodeId, target, gameData) {
   const oath = applyPromotionOath(unit, gameData);
   // The rite promises the Iron weapon of each newly wielded type (and a lord's promotion
   // weapon), as a Master Seal's promotion hands it over.
-  const granted = [];
-  const ungranted = [];
-  for (const weapon of getClassChangeWeaponGrants(unit, oldTypes, gameData)) {
-    if (addToInventory(unit, weapon)) {
-      equipIfUnarmed(unit, unit.inventory.at(-1));
-      granted.push(weapon.name);
-    } else ungranted.push(weapon.name);
-  }
+  const grants = grantClassChangeWeapons(
+    run,
+    unit,
+    getClassChangeWeaponGrants(unit, oldTypes, gameData),
+  );
+  const granted = grants.granted;
   run.setChurchPromotionCount(nodeId, run.getChurchPromotionCount(nodeId) + 1);
   commitChurchVow(run, nodeId, 'promote');
   const dropped = getSkillDisplayNames(result?.droppedSkills || [], gameData.skills);
   const gifts = granted.length ? ` Received ${granted.join(', ')}.` : '';
-  const full = ungranted.length ? ` Bag full: ${ungranted.join(', ')} could not be granted.` : '';
+  const full = classChangeGrantNotices(grants)
+    .map((note) => ` ${note}`)
+    .join('');
   const waits = oath?.benched ? ` ${oathBenchedNote(unit, oath)}` : '';
   const kingmaker = crowned.length
     ? ` Kingmaker's Oath: ${crowned.map((c) => `+${c.value} ${c.stat}`).join(', ')}.`

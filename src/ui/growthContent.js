@@ -12,7 +12,10 @@ import {
   parseWeaponProficiencies,
   benchedSkillsNote,
 } from '../engine/UnitManager.js';
-import { getClassChangeWeaponGrants } from '../engine/RosterCommands.js';
+import {
+  getClassChangeWeaponGrants,
+  planClassChangeWeaponGrants,
+} from '../engine/RosterCommands.js';
 import { applyKingmakerBonus } from '../engine/TwistedBoons.js';
 import { applyPromotionOath, promotionOathCandidates } from '../engine/DeedSystem.js';
 import { crestSpecForClass } from './classCrests.js';
@@ -147,14 +150,23 @@ export function promotionRoleLine(unit, cls, ranks = [], classes = []) {
  *   dropped: string[],                           innates lost to the skill cap
  *   grants: string[],                            starter weapons granted
  *   grantsShort: string[],                       of those, the ones a full bag cannot take
+ *   grantsConvoy: string[],                      of those, the ones sent to the convoy
+ *   grantsLost: string[],                        of those, the ones bag and convoy cannot take
  *   role: string,
  * }}
  * @param {{ churchRun?: object|null }} [options] - `churchRun`: the run whose church performs the
  *   promotion; its Kingmaker's Oath adds its bonus here exactly as `promoteAtChurch` does
  *   (TwistedBoons.applyKingmakerBonus on the class's canonical bonuses), so the preview and the
  *   rite show the stats the unit gets. Left out (a Master Seal, a battle's Promote), none applies.
+ *   `run`: the run whose convoy takes a starter weapon the bag cannot (`churchRun` serves too);
+ *   with neither, a grant past the bag reads as lost.
  */
-export function promotionPathContent(unit, cls, gameData = {}, { churchRun = null } = {}) {
+export function promotionPathContent(
+  unit,
+  cls,
+  gameData = {},
+  { churchRun = null, run = null } = {},
+) {
   if (!unit || !cls?.name) return null;
   const bonuses = lordBonuses(unit, cls, gameData);
   if (!bonuses) return null;
@@ -205,11 +217,18 @@ export function promotionPathContent(unit, cls, gameData = {}, { churchRun = nul
     : null;
   let grants;
   let grantsShort = [];
+  let grantsConvoy = [];
+  let grantsLost = [];
   try {
     const oldTypes = new Set((unit.proficiencies || []).map((p) => p.type));
-    grants = getClassChangeWeaponGrants(projected, oldTypes, gameData).map((w) => w.name);
-    // A full bag takes the first grants in order; the rest are lost (promotion still happens).
-    grantsShort = grants.slice(Math.max(0, INVENTORY_MAX - (unit.inventory || []).length));
+    const weapons = getClassChangeWeaponGrants(projected, oldTypes, gameData);
+    grants = weapons.map((w) => w.name);
+    // A full bag takes the first grants in order; the rest go to the convoy while it has
+    // room, and only past that are lost (promotion still happens).
+    const plan = planClassChangeWeaponGrants(run || churchRun, unit, weapons, INVENTORY_MAX);
+    grantsConvoy = plan.convoy.map((w) => w.name);
+    grantsLost = plan.lost.map((w) => w.name);
+    grantsShort = [...grantsConvoy, ...grantsLost];
   } catch {
     grants = [];
   }
@@ -237,6 +256,8 @@ export function promotionPathContent(unit, cls, gameData = {}, { churchRun = nul
     dropped,
     grants,
     grantsShort,
+    grantsConvoy,
+    grantsLost,
     oath,
     oathOptions,
     role: promotionRoleLine(unit, cls, ranks, gameData.classes) || cls.description || '',
