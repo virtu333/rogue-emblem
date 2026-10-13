@@ -628,6 +628,9 @@ export function parseDevStartupConfig(search, options = {}) {
     ...(params.get('units') ? { units: params.get('units') } : {}),
     // `&setPiece=<id>` on the battle route: that event set piece (docs/specs/event-set-pieces.md).
     ...(params.get('setPiece') ? { setPiece: params.get('setPiece') } : {}),
+    // `&template=<id>` on the battle route: that map template, switched off or not
+    // (docs/specs/map-variety.md), with `&act=N` for its act.
+    ...(params.get('template') ? { template: params.get('template') } : {}),
     // Act V review (devDescentFixtures.js): `&descent=1` switches the Descent on for this page and
     // enters Act V; `&rite=N` sets the Rite's words, `&descentRow=N` walks the route to row N.
     ...(parseBool(params.get('descent')) ? { descent: true } : {}),
@@ -649,6 +652,13 @@ export function parseDevStartupConfig(search, options = {}) {
       ? { actShadow: parseSeed(params.get('actShadow')) }
       : {}),
   };
+}
+
+/** The objective pool a map template sits in (rout | seize | escape), or null. */
+function templateObjective(mapTemplates, id) {
+  for (const [objective, list] of Object.entries(mapTemplates || {}))
+    if (Array.isArray(list) && list.some((t) => t?.id === id)) return objective;
+  return null;
 }
 
 export function buildDevStartupRoute(sourceGameData, registry, config) {
@@ -719,8 +729,8 @@ export function buildDevStartupRoute(sourceGameData, registry, config) {
     };
   }
 
-  // The set-piece review fights in Act N with `&act=N` (that act's map; never back).
-  if (config.setPiece && config.eventAct) {
+  // The set-piece and template reviews fight in Act N with `&act=N` (that act's map; never back).
+  if ((config.setPiece || config.template) && config.eventAct) {
     const last = runManager.actSequence.length - 1;
     while (runManager.actIndex < Math.min(config.eventAct - 1, last)) runManager.advanceAct();
   }
@@ -751,6 +761,15 @@ export function buildDevStartupRoute(sourceGameData, registry, config) {
     if (cap) battleParams.deployCap = cap;
     if (typeof setPiece.fog === 'boolean') battleParams.fogEnabled = setPiece.fog;
     delete battleParams.templateId;
+  }
+  // The template review (`&template=corner_camp`): the battle is drawn on that template, on the
+  // objective its pool names (a template switched off is still played when a battle names it).
+  const templatePool = config.template
+    ? templateObjective(gameData.mapTemplates, config.template)
+    : null;
+  if (templatePool && !setPiece) {
+    battleParams.templateId = config.template;
+    battleParams.objective = templatePool;
   }
   // The remains review: a Rout down to one weak Zombie beside Edric (devScenarios.js).
   if (config.preset === 'zombie_remains') {

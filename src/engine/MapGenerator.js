@@ -42,6 +42,14 @@ import { assignEnemyCarry } from './EnemyCarry.js';
 import { buildReinforcementTemplatePool } from './ReinforcementSpawns.js';
 import { reinforcementMoveTypes } from './ReinforcementScheduler.js';
 import { SET_PIECE_TEMPLATE_PREFIX, buildSetPieceBattle, findSetPiece } from './SetPieces.js';
+import {
+  applyTemplateGroupOrders,
+  enemyGroupZones,
+  isTemplateDrawable,
+  isTemplateGroupSpawn,
+  planGroupSlots,
+  resolveTemplateLayout,
+} from './TemplateLayout.js';
 
 const DEBUG_MAP_GEN = false;
 const mapGenLog = createScopedLogger('MapGen', { debug: DEBUG_MAP_GEN });
@@ -118,13 +126,16 @@ export function generateBattleLayout(params, deps) {
     isTemplateAllowedForAct(preAssignedTemplate, act) &&
     isTemplateAllowedForObjective(preAssignedTemplate, objective, mapTemplates);
   // Only roll biome when we need to pick a fresh template (preserves RNG for seeded pre-assigned paths)
-  const template =
+  const pickedTemplate =
     preAssignedTemplateId && preAssignedAllowed
       ? preAssignedTemplate
       : pickTemplate(objective, mapTemplates, act, { isBoss, biome: rollBiome(act) });
-  if (!template) {
+  if (!pickedTemplate) {
     throw new Error(`No valid map template found for objective "${objective}" in act "${act}"`);
   }
+  // This battle's shape of the template (TemplateLayout.js): its choices taken and maybe
+  // mirrored. A template with neither comes back as it is, with no draw.
+  const { template, layout: templateLayout } = resolveTemplateLayout(pickedTemplate);
 
   // Override map size if template has fixedSize
   if (template.fixedSize) {
@@ -457,9 +468,10 @@ export function generateBattleLayout(params, deps) {
 
   // Dusk and harder: part of a seize or escape garrison holds its ground until its pack
   // is disturbed (engine/HoldActivation.js); holds replace the seize guard roll. No RNG:
-  // holders are the enemies nearest the objective, so the map is drawn as before.
+  // holders are the enemies nearest the objective, so the map is drawn as before. A
+  // template's own groups (TemplateLayout.js) keep their orders and are left out.
   assignHolders({
-    spawns: enemySpawns,
+    spawns: enemySpawns.filter((s) => !isTemplateGroupSpawn(s)),
     objective,
     share: holdShareFor(params.holdShare, objective),
     thronePos,
@@ -537,6 +549,11 @@ export function generateBattleLayout(params, deps) {
     escapeTiles: escapeTiles || undefined,
     ballistas: ballistas.length > 0 ? ballistas : undefined,
     templateId: template.id,
+    // A template that varies per battle (TemplateLayout.js): whether it was flipped and which
+    // option each choice took, for display and records (the map itself is already drawn).
+    ...(templateLayout
+      ? { mirrored: templateLayout.mirrored, templateChoices: templateLayout.choices }
+      : {}),
     parBonus: Number.isFinite(template.parBonus) ? Math.max(0, Math.trunc(template.parBonus)) : 0,
     // The rung's par inflation, locked with the map (absent: turnBonus.parInflation).
     ...(Number.isFinite(params.parInflation)
@@ -917,7 +934,9 @@ export function pickTemplate(objective, mapTemplates, act = null, options = {}) 
   if (!pool || pool.length === 0) {
     return null;
   }
-  const filteredPool = act ? filterTemplatesByAct(pool, act) : pool;
+  // A template switched off (`enabled: false`) is never drawn; a battle can still name it.
+  const drawable = pool.filter(isTemplateDrawable);
+  const filteredPool = act ? filterTemplatesByAct(drawable, act) : drawable;
   const biomeFilteredPool = filterByBiome(filteredPool, biome);
   const bossFilteredPool = biomeFilteredPool.filter((template) =>
     isTemplateAllowedForBoss(template, isBoss),
@@ -2335,7 +2354,8 @@ function generateEnemies(
     }
   }
 
-  // Get enemy spawn zone positions
+  // Get enemy spawn zone positions (a template with groups splits its fillers among its zones
+  // below; its first zone stands in here)
   const enemyZone = template.zones.find((z) => z.role === 'enemySpawn');
   let zoneStartCol, zoneEndCol, zoneStartRow, zoneEndRow;
   if (enemyZone) {
@@ -2384,7 +2404,36 @@ function generateEnemies(
     }
   }
 
-  for (let i = 0; i < remaining && candidateTiles.length > 0; i++) {
+  // A template's enemy groups (TemplateLayout.js): each filler slot belongs to a group, and
+  // takes a tile from that group's zone (or, when it is full, the next group's with room).
+  // No draw of its own: the slots are planned from the shares.
+  const groupZones = enemyGroupZones(template);
+  const groupPlan = groupZones.length
+    ? planGroupSlots(
+        groupZones.map((z) => z.group),
+        remaining,
+      )
+    : null;
+  const groupTiles = groupPlan
+    ? groupZones.map((z) => {
+        const b = resolveNormalizedRectBounds(z.rect, cols, rows);
+        const tiles = [];
+        for (let r = b.startRow; r < b.endRow; r++)
+          for (let c = b.startCol; c < b.endCol; c++)
+            if (!usedPositions.has(`${c},${r}`)) tiles.push({ col: c, row: r });
+        return tiles;
+      })
+    : null;
+
+  for (let i = 0; i < remaining && (groupPlan || candidateTiles.length > 0); i++) {
+    let group = -1;
+    let slotTiles = candidateTiles;
+    if (groupPlan) {
+      group = groupPlan[i];
+      if (groupTiles[group].length === 0) group = groupTiles.findIndex((l) => l.length > 0);
+      if (group < 0) break;
+      slotTiles = groupTiles[group];
+    }
     // Pick class using template-weighted selection
     let className;
     if (usePromoted && Math.random() < promotedShare) {
@@ -2409,19 +2458,24 @@ function generateEnemies(
 
     // Score all remaining candidate tiles for this unit
     const scored = [];
-    for (const tile of candidateTiles) {
+    for (const tile of slotTiles) {
       const s = scoreSpawnTile(tile, unit, terrainData, mapLayout, cols, classes);
       if (s > 0) scored.push({ item: tile, weight: s });
     }
 
-    if (scored.length === 0) break; // no passable tiles left for this unit
+    if (scored.length === 0) {
+      if (groupPlan) continue; // this group's zone has nothing this class can stand on
+      break; // no passable tiles left for this unit
+    }
 
     // Weighted pick
     const pos = weightedPick(scored);
 
-    // Remove chosen tile from candidates
-    const idx = candidateTiles.findIndex((t) => t.col === pos.col && t.row === pos.row);
-    if (idx !== -1) candidateTiles.splice(idx, 1);
+    // Remove chosen tile from candidates (every group's list: zones may overlap)
+    for (const list of groupTiles || [candidateTiles]) {
+      const idx = list.findIndex((t) => t.col === pos.col && t.row === pos.row);
+      if (idx !== -1) list.splice(idx, 1);
+    }
     usedPositions.add(`${pos.col},${pos.row}`);
 
     const level = minLvl + Math.floor(Math.random() * (maxLvl - minLvl + 1));
@@ -2509,8 +2563,15 @@ function generateEnemies(
       // A Cleric heals; a Necromancer holds its post and raises (the existing guard mode).
       aiMode: className === 'Cleric' ? 'heal' : className === 'Necromancer' ? 'guard' : undefined,
       siegeWeapon: siegeWeapon || undefined,
+      ...(group >= 0 ? { templateGroup: groupZones[group].group.id } : {}),
     });
   }
+  // A group's orders (hold pack, guard post) before the seize guard roll, which skips them.
+  if (groupPlan)
+    applyTemplateGroupOrders(
+      spawns,
+      groupZones.map((z) => z.group),
+    );
 
   // Assign guard AI mode only on seize maps to avoid passive enemies on rout maps.
   if (objective === 'seize') {
