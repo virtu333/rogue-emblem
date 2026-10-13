@@ -10,7 +10,7 @@ import {
   expandTimelinePatches,
   collapseTimelinePatches,
 } from './BattleTimeline.js';
-import { pickFresh } from '../utils/pickFresh.js';
+import { compactNarrativeSeen, pickFresh } from '../utils/pickFresh.js';
 import { applyRevivalCatchUp } from './RevivalCatchUp.js';
 import { migrateUnitTraits, rollAndApplyLordTrait } from './TraitSystem.js';
 import {
@@ -899,8 +899,15 @@ export class RunManager {
       // How many runs this save has started (meta), for the shrine's gift (StartGifts.js): the
       // sims and dev routes pass none, so they are never offered one.
       runsStarted = 0,
+      // The barks and flavour bags the save carried out of earlier runs
+      // (MetaProgressionManager.getNarrativeSeen), so pools keep walking across runs.
+      narrativeSeen = null,
     } = options;
     this.mode = STANDARD_RUN_MODE;
+    this.narrativeSeen =
+      narrativeSeen && typeof narrativeSeen === 'object' && !Array.isArray(narrativeSeen)
+        ? structuredClone(narrativeSeen)
+        : {};
     this.applyDifficultySelection(difficultyId);
     this.eclipse = createEclipseState({ enabled: eclipseEnabled !== false });
     this.lastEclipseCommit = null;
@@ -1887,17 +1894,20 @@ export class RunManager {
    * The weapon-art scrolls a run-start grant may hand these lords (`starting_scroll`, and a
    * start gift's Stranger's Scroll through it): an art some lord can wield, and, with
    * `maxUnlockAct` ('act1'..'act4'), one that unlocks by that act, so a day-one grant never
-   * brings a late-act art. In catalog order.
+   * brings a late-act art; with `minUnlockAct`, one that unlocks no earlier than that act
+   * (Scroll Archive's Act II arts: none of the cheap Act I ones). In catalog order.
    */
-  startingArtScrollPool(maxUnlockAct = null) {
+  startingArtScrollPool(maxUnlockAct = null, minUnlockAct = null) {
     const artById = new Map((this.gameData?.weaponArts?.arts || []).map((art) => [art?.id, art]));
     const actOrder = ['act1', 'act2', 'act3', 'act4'];
     const maxUnlock = actOrder.indexOf(String(maxUnlockAct || ''));
+    const minUnlock = actOrder.indexOf(String(minUnlockAct || ''));
     const unlocksInTime = (scroll) => {
-      if (maxUnlock < 0) return true;
+      if (maxUnlock < 0 && minUnlock < 0) return true;
       const art = artById.get(scroll?.teachesWeaponArtId);
       const idx = actOrder.indexOf(String(art?.unlockAct || 'act1'));
-      return idx >= 0 && idx <= maxUnlock;
+      if (idx < 0) return false;
+      return (maxUnlock < 0 || idx <= maxUnlock) && (minUnlock < 0 || idx >= minUnlock);
     };
     return (this.gameData?.weapons || []).filter(
       (item) =>
@@ -2474,7 +2484,10 @@ export class RunManager {
         });
         return;
       }
-      const validScrolls = this.startingArtScrollPool(effect.params.maxUnlockAct);
+      const validScrolls = this.startingArtScrollPool(
+        effect.params.maxUnlockAct,
+        effect.params.minUnlockAct,
+      );
       if (validScrolls.length <= 0) {
         this._recordBlessingEvent('run_start', blessingId, effect, {
           skipped: true,
@@ -6212,6 +6225,7 @@ export class RunManager {
         defeatedBy: this.defeatContext?.defeatedBy || null,
         wasBossDefeat: this.defeatContext?.wasBoss === true,
         lordFalls: Array.isArray(this.runLordFalls) ? this.runLordFalls : [],
+        narrativeSeen: compactNarrativeSeen(this.narrativeSeen),
       });
     };
     if (typeof meta.applyRunPayout === 'function') {

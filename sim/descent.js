@@ -5,6 +5,7 @@
 //                          [--workers W] [--meta none|endgame] [--fork keyed|battle|event]
 //                          [--phase all|capture|act5] [--arms legacy,descent] [--stones lieutenant=N]
 //                          [--out runs.jsonl] [--from a.jsonl,...] [--md report.md]
+//                          [--until <descentKey>] [--slots split|single]
 //
 // Each arm sets the route's switch on its own copy of the data (`enabled` on a clone: off for
 // `legacy`, on for `descent`), never in the file, so the arms hold whatever the file ships.
@@ -47,6 +48,7 @@ import { parseArgs, printHeader, printTable } from './lib/TableFormatter.js';
 import { policyHash } from '../tests/sim/ClaimingPolicies.js';
 import { wilson } from './lib/BlessingReport.js';
 import { captureCellKey, indexCaptures, pairTrials } from './lib/DescentTrials.js';
+import { setSingleSlotPoolForSims } from '../src/engine/SkillSlots.js';
 
 const RUNG_LABELS = {
   normal: 'First Light',
@@ -86,12 +88,14 @@ const opts = parseArgs({
   md: null,
   shard: null,
   stones: null,
+  until: null,
+  slots: 'split',
 });
 
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain && opts.help) {
   console.log(
-    'Usage: npm run sim:descent -- [--trials N] [--seed S] [--difficulty all|normal,...] [--workers W] [--meta none|endgame] [--fork keyed|battle|event] [--phase all|capture|act5] [--stones lieutenant=N] [--out f.jsonl] [--from a.jsonl,...] [--md report.md]',
+    'Usage: npm run sim:descent -- [--trials N] [--seed S] [--difficulty all|normal,...] [--workers W] [--meta none|endgame] [--fork keyed|battle|event] [--phase all|capture|act5] [--stones lieutenant=N] [--until <descentKey>] [--slots split|single] [--out f.jsonl] [--from a.jsonl,...] [--md report.md]',
   );
   process.exit(0);
 }
@@ -225,6 +229,17 @@ export async function captureEntry(gameData, { rung, seed, meta = 'none' }) {
             turns: b.turns,
             par: b.par,
           })),
+        // Every battle's length and size, and the nodes walked (a run's pace: minutes of play).
+        log: driver.battleLog.map((b) => ({
+          act: b.act,
+          boss: b.boss,
+          turns: b.turns,
+          deployed: b.deployed,
+          commanderKOs: b.commanderKOs,
+          stalled: b.stalled,
+        })),
+        path: driver.trace.map((t) => t.nodeType),
+        reachedFirstActBoss: rm.reachedFirstActBoss === true,
       },
     };
     if (result.result !== 'paused') return base;
@@ -270,7 +285,7 @@ export async function playActV(
   gameData,
   capture,
   arm,
-  { stones = opts.stones, fork = opts.fork } = {},
+  { stones = opts.stones, fork = opts.fork, until = opts.until } = {},
 ) {
   const data = ARM_DATA[arm](gameData);
   const rng = installStatefulSeed(0);
@@ -286,6 +301,10 @@ export async function playActV(
         fork,
       }),
     );
+    // `--until <descentKey>`: stop once that node's battle is fought (won or lost), so a retune of
+    // one node replays only the act up to it. Such a record ends `paused`, never `victory`.
+    if (until)
+      driver.options.stopWhen = (d) => d.battleLog.some((b) => b.descentKey === String(until));
     const rm = RunManager.fromJSON(structuredClone(capture.run), data);
     const override = typeof stones === 'string' ? parseStoneOverride(stones) : stones || {};
     rm.difficultyModifiers = {
@@ -357,8 +376,14 @@ const fromFiles = () =>
 /** One shard's work: capture and/or the two arms, a JSON line per record, written as it goes. */
 async function playShard(shard, outFile) {
   const [k, n] = String(shard).split('/').map(Number);
+  // `--slots single`: the skill/ability slot rule before #344 (one pool of five), for a paired
+  // comparison against today's split (5 skills + 3 abilities). Records carry which rule played.
+  if (!['split', 'single'].includes(String(opts.slots)))
+    throw new Error(`--slots: "${opts.slots}" is not split or single`);
+  setSingleSlotPoolForSims(opts.slots === 'single');
   const gameData = loadGameData();
-  const write = (record) => appendFileSync(outFile, `${JSON.stringify(record)}\n`);
+  const write = (record) =>
+    appendFileSync(outFile, `${JSON.stringify({ ...record, slots: String(opts.slots) })}\n`);
   const tryRecord = async (job, fn) => {
     try {
       return await fn();

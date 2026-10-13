@@ -164,6 +164,7 @@
       "holdShare": { "seize": 0.35, "escape": 0.3 },
       "revivalStones": { "actBoss": 0, "emperor": 1, "lieutenant": 1, "eliteCaptain": 0 },
       "objectiveParOffset": { "seize": -3, "escape": -2, "rout": { "act4": -2 } },
+      "villageMinRow": { "act1": 1 },
       "enemyClassEarliestAct": {
         "Dragon": "act4",
         "Necromancer": "act4",
@@ -282,6 +283,7 @@
       "holdShare": { "seize": 0.45, "escape": 0.4 },
       "revivalStones": { "actBoss": 1, "emperor": 1, "lieutenant": 2, "eliteCaptain": 0 },
       "objectiveParOffset": { "seize": -4, "escape": -2, "rout": { "act4": -2 } },
+      "villageMinRow": { "act1": 1 },
       "enemyClassEarliestAct": { "Necromancer": "act4", "Circle Adept": "finalBoss", "Hollowed": "finalBoss" },
       "recruitAffixExcludedActs": []
     },
@@ -398,6 +400,7 @@
       "holdShare": { "seize": 0.55, "escape": 0.5 },
       "revivalStones": { "actBoss": 1, "emperor": 2, "lieutenant": 2, "eliteCaptain": 1 },
       "objectiveParOffset": { "seize": -4, "escape": -1, "rout": { "act4": -1 } },
+      "villageMinRow": { "act1": 1 },
       "enemyClassEarliestAct": { "Necromancer": "act3", "Circle Adept": "finalBoss", "Hollowed": "finalBoss" },
       "recruitAffixExcludedActs": [],
       "actOverrides": {
