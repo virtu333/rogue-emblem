@@ -156,7 +156,7 @@ export class WeaponArtController {
           disabled: !canUse,
         },
       );
-      text._menuDescription = formatWeaponArtEffects(art);
+      text._menuDescription = formatWeaponArtEffects(art, { weapon });
       this._wireWeaponArtTooltip(text, art);
 
       scene.actionMenu.push(text);

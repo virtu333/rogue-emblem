@@ -1029,7 +1029,7 @@ export class MobileRosterSheet {
         const art = this.gameData.weaponArts?.arts?.find((a) => a.id === id);
         this.card(
           `${art?.name || id} · ${weapon.name}`,
-          `${formatWeaponArtEffects(art)} · ${weaponArtCostText(unit, art, weaponArtRunOptions(this.scene.runManager))}`,
+          `${formatWeaponArtEffects(art, { weapon })} · ${weaponArtCostText(unit, art, weaponArtRunOptions(this.scene.runManager))}`,
         );
         // A battle's own units read their art's state now; the run's (managed) units, the
         // Roster opened before turn 1 included, read the between-battles view.

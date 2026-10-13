@@ -786,7 +786,13 @@ export class MobileBattleHUD {
       );
     }
     if (attacking && config.weaponArt) {
-      side.append(el('p', 'mb-detail', formatWeaponArtEffects(config.weaponArt)));
+      side.append(
+        el(
+          'p',
+          'mb-detail',
+          formatWeaponArtEffects(config.weaponArt, { weapon: forecastWeapon(config) }),
+        ),
+      );
       side.append(
         el(
           'p',

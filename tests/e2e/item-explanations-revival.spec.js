@@ -73,12 +73,13 @@ test('Mire details are tappable in shop and roster; revival previews and saves c
   const church = page.getByRole('dialog', { name: 'Church', exact: true });
   await church.getByRole('button', { name: /Fallen Mage.*Revive/ }).tap();
   const confirm = page.getByRole('dialog', { name: 'Revive Fallen Mage?', exact: true });
-  await expect(confirm).toContainText('Returns at level 10 with 1 HP');
+  // The living roster stands at level 10; a revival catches up to 2 below it.
+  await expect(confirm).toContainText('Returns at level 8 with 1 HP');
   await expect(confirm).toContainText('10 percentage points');
   await expect(confirm).toContainText('future growths are unchanged');
   await page.screenshot({ path: info.outputPath('revive-catch-up.png') });
   await confirm.getByRole('button', { name: 'Confirm', exact: true }).tap();
-  await expect(church.getByRole('status')).toContainText('revived at level 10');
+  await expect(church.getByRole('status')).toContainText('revived at level 8');
   const result = await page.evaluate(async () => {
     const s = window.__emblemRogueGame.scene.getScene('NodeMap');
     const { loadRun } = await import('/src/engine/RunManager.js');
@@ -89,7 +90,7 @@ test('Mire details are tappable in shop and roster; revival previews and saves c
       unchanged: JSON.stringify(saved.growths) === JSON.stringify(window.preReviveGrowths),
     };
   });
-  expect(result).toEqual({ level: 10, hp: 1, unchanged: true });
+  expect(result).toEqual({ level: 8, hp: 1, unchanged: true });
   expect(errors).toEqual([]);
 });
 test('Seraphim reward explains the scroll before claiming', async ({ page }, info) => {
