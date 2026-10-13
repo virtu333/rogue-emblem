@@ -17,6 +17,7 @@ import { DEV_EVENT_FIXTURES } from './devEventFixtures.js';
 import { withDevSetPiece } from './devSetPieceFixtures.js';
 import { applyDevDescent, withDevDescent } from './devDescentFixtures.js';
 import { findSetPiece, setPieceDeployCap } from '../engine/SetPieces.js';
+import { addReviewArmy } from './devReviewArmy.js';
 
 const DEV_META_STORAGE_KEY = 'emblem_rogue_dev_meta';
 const DEV_SCENE_ALIASES = {
@@ -631,6 +632,11 @@ export function parseDevStartupConfig(search, options = {}) {
     // `&template=<id>` on the battle route: that map template, switched off or not
     // (docs/specs/map-variety.md), with `&act=N` for its act.
     ...(params.get('template') ? { template: params.get('template') } : {}),
+    // `&army=N` on the template review: the army it fields (0 keeps the starter roster; default
+    // the act's full deploy, utils/devReviewArmy.js).
+    ...(params.has('army') && Number.isInteger(Number(params.get('army')))
+      ? { army: Number(params.get('army')) }
+      : {}),
     // Act V review (devDescentFixtures.js): `&descent=1` switches the Descent on for this page and
     // enters Act V; `&rite=N` sets the Rite's words, `&descentRow=N` walks the route to row N.
     ...(parseBool(params.get('descent')) ? { descent: true } : {}),
@@ -755,6 +761,14 @@ export function buildDevStartupRoute(sourceGameData, registry, config) {
   if ((config.setPiece || config.template) && reviewAct) {
     const last = runManager.actSequence.length - 1;
     while (runManager.actIndex < Math.min(reviewAct - 1, last)) runManager.advanceAct();
+  }
+  // The template review fights with the act's full army (the enemy count follows the deploy).
+  if (config.template && !config.setPiece && config.army !== 0) {
+    addReviewArmy(runManager, {
+      act: runManager.currentAct,
+      seed: runManager.runSeed,
+      army: config.army ?? null,
+    });
   }
   const battleNode = pickBattleNode(runManager, config.nodeType);
   const battleParams = (battleNode && runManager.getBattleParams(battleNode)) || {

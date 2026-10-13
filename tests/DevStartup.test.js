@@ -461,6 +461,38 @@ describe('the map-template review route', () => {
     expect(battleRoute('template=snowbound_woods&act=3').data.battleParams.act).toBe('act3');
   });
 
+  it("fields the act's full army at the act's levels, so the map meets a real battle's foe count", () => {
+    // The owner's review met 5 foes with 3 starter units: the enemy count follows the deploy.
+    const act2 = battleRoute('template=warband&act=2').data;
+    expect(act2.roster).toHaveLength(5); // DEPLOY_LIMITS.act2.max
+    const starterNames = new Set(battleRoute('').data.roster.map((u) => u.name));
+    // The run's own units at the act's level, the added ones at recruits.json act2's top (8).
+    // (the veteran starts promoted, as in a run, and keeps his level).
+    for (const unit of act2.roster.filter((u) => u.tier !== 'promoted')) expect(unit.level).toBe(8);
+    for (const unit of act2.roster.filter((u) => !starterNames.has(u.name))) {
+      expect(unit.currentHP).toBe(unit.stats.HP);
+      expect(unit.weapon?.tier).toBe('Steel');
+    }
+    expect(new Set(act2.roster.map((u) => u.name)).size).toBe(5);
+    // Act III's pool is promoted: those recruits are promoted units.
+    const act3 = battleRoute('template=warband&act=3').data.roster;
+    expect(act3).toHaveLength(7);
+    for (const unit of act3.filter((u) => !starterNames.has(u.name)))
+      expect(unit.tier).toBe('promoted');
+    // The same link adds the same units (the lords' growths are the run's own roll);
+    // `&army=0` keeps the starter roster, `&army=N` sets it.
+    const added = (roster) => roster.filter((u) => !starterNames.has(u.name));
+    const again = battleRoute('template=warband&act=2').data.roster;
+    expect(added(again).map((u) => [u.name, u.className, u.stats])).toEqual(
+      added(act2.roster).map((u) => [u.name, u.className, u.stats]),
+    );
+    const starter = battleRoute('').data.roster.length;
+    expect(battleRoute('template=warband&act=2&army=0').data.roster).toHaveLength(starter);
+    expect(battleRoute('template=warband&act=2&army=6').data.roster).toHaveLength(6);
+    // Other battle reviews keep their roster.
+    expect(battleRoute('setPiece=toll_house&act=2').data.roster).toHaveLength(starter);
+  });
+
   it('ignores an unknown template id: the node keeps the template it drew', () => {
     expect(battleRoute('template=nowhere').data.battleParams.templateId).toBe(
       battleRoute('').data.battleParams.templateId,
