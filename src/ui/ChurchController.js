@@ -93,7 +93,9 @@ export class ChurchController {
       scene.gameData?.dialogue?.churchFlavor?.[flavorType]?.[act] ||
       scene.gameData?.dialogue?.churchFlavor?.[flavorType]?.['act3'];
     if (!Array.isArray(pool) || pool.length === 0) return;
-    const line = pool[Math.floor(Math.random() * pool.length)];
+    const line =
+      scene.runManager?.pickNarrativeLine?.(pool, `church:${flavorType}:${act}`) ||
+      pool[Math.floor(Math.random() * pool.length)];
     scene._churchFlavorTimer = trackSceneTimer(
       scene,
       scene.time?.delayedCall?.(delayMs, () => {

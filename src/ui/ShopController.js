@@ -207,7 +207,11 @@ export class ShopController {
       this.nativeMenu.render(guidanceText('guide_first_shop'));
       markNoteSeen(scene, 'guide_first_shop');
     } else if (Array.isArray(lines) && lines.length) {
-      this.nativeMenu.render(lines[Math.floor(Math.random() * lines.length)]);
+      const act = scene.runManager.currentAct;
+      this.nativeMenu.render(
+        scene.runManager.pickNarrativeLine?.(lines, `shop:${act}`) ||
+          lines[Math.floor(Math.random() * lines.length)],
+      );
     }
   }
 
